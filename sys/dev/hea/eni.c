@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni.c,v 1.4 1998/12/04 22:54:45 archie Exp $
+ *	@(#) $Id: eni.c,v 1.5 1998/12/14 06:37:01 dillon Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef	lint
-__RCSID("@(#) $Id: eni.c,v 1.4 1998/12/04 22:54:45 archie Exp $");
+__RCSID("@(#) $Id: eni.c,v 1.5 1998/12/14 06:37:01 dillon Exp $");
 #endif
 
 /*
@@ -80,7 +80,11 @@ static struct pci_device eni_pci_device = {
 #endif
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (eni_pci, eni_pci_device);
+#else
 DATA_SET ( pcidevice_set, eni_pci_device );
+#endif /* COMPAT_PCI_DRIVER */
 #endif	/* __FreeBSD__ */
 
 /*
