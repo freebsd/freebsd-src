@@ -657,7 +657,7 @@ acpi_shutdown_final(void *arg, int howto)
 {
     ACPI_STATUS	status;
 
-    if (howto == RB_POWEROFF) {
+    if (howto & RB_POWEROFF) {
 	printf("Power system off using ACPI...\n");
 	if ((status = AcpiSetSystemSleepState(ACPI_STATE_S5)) != AE_OK) {
 	    printf("ACPI power-off failed - %s\n", acpi_strerror(status));
