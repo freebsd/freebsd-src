@@ -67,7 +67,7 @@ static const char rcsid[] =
 #include <security/pam_appl.h>
 #include <security/pam_misc.h>
 
-#define PAM_END do {						\
+#define PAM_END() do {						\
 	int local_ret;						\
 	if (pamh != NULL && creds_set) {			\
 		local_ret = pam_setcred(pamh, PAM_DELETE_CRED);	\
@@ -120,9 +120,9 @@ main(int argc, char *argv[])
 	gid_t		gid;
 	int		asme, ch, asthem, fastlogin, prio, i, setwhat, retcode,
 			statusp, child_pid, child_pgrp, ret_pid;
-	char		*p, *user, *shell, *username, *cleanenv, **nargv, **np,
-			*class, *mytty, shellbuf[MAXPATHLEN],
+	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN],
 			myhost[MAXHOSTNAMELEN + 1];
+	const char	*p, *user, *shell, *mytty, **nargv, **np;
 
 	shell = class = cleanenv = NULL;
 	asme = asthem = fastlogin = statusp = 0;
@@ -325,11 +325,11 @@ main(int argc, char *argv[])
 		}
 		if (ret_pid == -1)
 			err(1, "waitpid");
-		PAM_END;
+		PAM_END();
 		exit(statusp);
 	case -1:
 		err(1, "fork");
-		PAM_END;
+		PAM_END();
 		exit(1);
 	case 0:
 		/*
