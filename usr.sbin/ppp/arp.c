@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.23 1998/01/19 22:34:20 brian Exp $
+ * $Id: arp.c,v 1.24 1998/01/21 12:52:14 brian Exp $
  *
  */
 
@@ -34,6 +34,7 @@
 #include <netinet/in.h>
 #include <net/if_types.h>
 #include <netinet/if_ether.h>
+#include <arpa/inet.h>
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -65,7 +66,7 @@
  * and type ``make arp-test''.
  *
  */
-#define LogIsKept(x) 0
+#define LogIsKept(x) 1
 #define LogPrintf fprintf
 #undef LogDEBUG
 #define LogDEBUG stderr
@@ -240,90 +241,104 @@ cifproxyarp(int unit, struct in_addr hisaddr)
  * get_ether_addr - get the hardware address of an interface on the
  * the same subnet as ipaddr.
  */
-#define MAX_IFS		32
 
 static int
 get_ether_addr(int s, struct in_addr ipaddr, struct sockaddr_dl *hwaddr)
 {
-  int idx;
-  const char *got;
-  char *sp, *ep, *cp, *wp;
-  struct ifreq ifrq;
-  struct in_addr addr, mask;
-  struct rt_msghdr *rtm;
-  struct sockaddr *sa_dst, *sa_gw;
-  struct sockaddr_dl *dl;
+  int mib[6], sa_len, skip, b;
   size_t needed;
-  int mib[6];
-
-  idx = 1;
-  while (strcmp(got = Index2Nam(idx), "???")) {
-    strncpy(ifrq.ifr_name, got, sizeof ifrq.ifr_name - 1);
-    ifrq.ifr_name[sizeof ifrq.ifr_name - 1] = '\0';
-    if (ID0ioctl(s, SIOCGIFADDR, &ifrq) == 0 &&
-        ifrq.ifr_addr.sa_family == AF_INET) {
-      addr = ((struct sockaddr_in *)&ifrq.ifr_addr)->sin_addr;
-      if (ID0ioctl(s, SIOCGIFNETMASK, &ifrq) == 0) {
-        mask = ((struct sockaddr_in *)&ifrq.ifr_broadaddr)->sin_addr;
-        if ((ipaddr.s_addr & mask.s_addr) == (addr.s_addr & mask.s_addr))
-          break;
-      }
-    }
-    idx++;
-  }
-
-  if (!strcmp(got, "???"))
-    return 0;
-
-  LogPrintf(LogPHASE, "Found interface %s for proxy arp\n", got);
+  char *buf, *ptr, *end;
+  struct if_msghdr *ifm;
+  struct ifa_msghdr *ifam;
+  struct sockaddr *sa;
+  struct sockaddr_dl *dl;
+  struct sockaddr_in *ifa, *mask;
 
   mib[0] = CTL_NET;
   mib[1] = PF_ROUTE;
   mib[2] = 0;
   mib[3] = 0;
-  mib[4] = NET_RT_DUMP;
+  mib[4] = NET_RT_IFLIST;
   mib[5] = 0;
+
   if (sysctl(mib, 6, NULL, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "get_ether_addr: sysctl: estimate: %s\n",
-              strerror(errno));
+    LogPrintf(LogERROR, "Index2Nam: sysctl: estimate: %s\n", strerror(errno));
     return 0;
   }
-  if (needed < 0)
+
+  if ((buf = malloc(needed)) == NULL)
     return 0;
-  if ((sp = malloc(needed)) == NULL)
+
+  if (sysctl(mib, 6, buf, &needed, NULL, 0) < 0) {
+    free(buf);
     return 0;
-  if (sysctl(mib, 6, sp, &needed, NULL, 0) < 0) {
-    LogPrintf(LogERROR, "ShowRoute: sysctl: getroute: %s\n", strerror(errno));
-    free(sp);
-    return (1);
   }
-  ep = sp + needed;
+  end = buf + needed;
 
-  for (cp = sp; cp < ep; cp += rtm->rtm_msglen) {
-    rtm = (struct rt_msghdr *) cp;
-    if (rtm->rtm_index == idx) {
-      wp = (char *)(rtm+1);
-
-      if (rtm->rtm_addrs & RTA_DST) {
-        sa_dst = (struct sockaddr *)wp;
-        wp += sa_dst->sa_len;
-      } else
-        sa_dst = NULL;
-
-      if (rtm->rtm_addrs & RTA_GATEWAY) {
-        sa_gw = (struct sockaddr *)wp;
-        if (sa_gw->sa_family == AF_LINK) {
-          dl = (struct sockaddr_dl *)wp;
-          if (!dl->sdl_nlen && !dl->sdl_alen && !dl->sdl_slen) {
-            memcpy(hwaddr, dl, dl->sdl_len);
-            free(sp);
-            return 1;
-          }
+  ptr = buf;
+  while (ptr < end) {
+    ifm = (struct if_msghdr *)ptr;		/* On if_msghdr */
+    if (ifm->ifm_type != RTM_IFINFO)
+      break;
+    dl = (struct sockaddr_dl *)(ifm + 1);	/* Single _dl at end */
+    skip = (ifm->ifm_flags & (IFF_UP | IFF_BROADCAST | IFF_POINTOPOINT |
+            IFF_NOARP | IFF_LOOPBACK)) != (IFF_UP | IFF_BROADCAST);
+    ptr += ifm->ifm_msglen;			/* First ifa_msghdr */
+    while (ptr < end) {
+      ifam = (struct ifa_msghdr *)ptr;	/* Next ifa_msghdr (alias) */
+      if (ifam->ifam_type != RTM_NEWADDR)	/* finished ? */
+        break;
+      sa = (struct sockaddr *)(ifam+1);	/* pile of sa's at end */
+      ptr += ifam->ifam_msglen;
+      if (skip || (ifam->ifam_addrs & (RTA_NETMASK|RTA_IFA)) !=
+          (RTA_NETMASK|RTA_IFA))
+        continue;
+      /* Found a candidate.  Do the addresses match ? */
+      if (LogIsKept(LogDEBUG) &&
+          ptr == (char *)ifm + ifm->ifm_msglen + ifam->ifam_msglen)
+        LogPrintf(LogDEBUG, "%.*s interface is a candidate for proxy\n",
+                  dl->sdl_nlen, dl->sdl_data);
+      b = 1;
+      while (b < (RTA_NETMASK|RTA_IFA) && sa < (struct sockaddr *)ptr) {
+        switch (b) {
+        case RTA_IFA:
+          ifa = (struct sockaddr_in *)sa;
+          break;
+        case RTA_NETMASK:
+          /*
+           * Careful here !  this sockaddr doesn't have sa_family set to 
+           * AF_INET, and is only 8 bytes big !  I have no idea why !
+           */
+          mask = (struct sockaddr_in *)sa;
+          break;
         }
+        if (ifam->ifam_addrs & b) {
+#define ALN sizeof(ifa->sin_addr.s_addr)
+          sa_len = sa->sa_len > 0 ? ((sa->sa_len-1)|(ALN-1))+1 : ALN;
+          sa = (struct sockaddr *)((char *)sa + sa_len);
+        }
+        b <<= 1;
+      }
+      if (LogIsKept(LogDEBUG)) {
+        char a[16];
+        strncpy(a, inet_ntoa(mask->sin_addr), sizeof a - 1);
+        a[sizeof a - 1] = '\0';
+        LogPrintf(LogDEBUG, "Check addr %s, mask %s\n",
+                  inet_ntoa(ifa->sin_addr), a);
+      }
+      if (ifa->sin_family == AF_INET &&
+          (ifa->sin_addr.s_addr & mask->sin_addr.s_addr) ==
+          (ipaddr.s_addr & mask->sin_addr.s_addr)) {
+        LogPrintf(LogPHASE, "Found interface %.*s for proxy arp\n",
+                  dl->sdl_alen, dl->sdl_data);
+        memcpy(hwaddr, dl, dl->sdl_len);
+        free(buf);
+        return 1;
       }
     }
   }
-  free(sp);
+  free(buf);
+
   return 0;
 }
 
