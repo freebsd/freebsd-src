@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#89 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.h#90 $
  *
  * $FreeBSD$
  */
@@ -1225,20 +1225,20 @@ struct ahd_softc {
 	int			  seltime;
 
 	/*
-	 * Interrupt coalessing settings.
+	 * Interrupt coalescing settings.
 	 */
-#define	AHD_INT_COALESSING_TIMER_DEFAULT		250 /*us*/
-#define	AHD_INT_COALESSING_MAXCMDS_DEFAULT		10
-#define	AHD_INT_COALESSING_MAXCMDS_MAX			127
-#define	AHD_INT_COALESSING_MINCMDS_DEFAULT		5
-#define	AHD_INT_COALESSING_MINCMDS_MAX			127
-#define	AHD_INT_COALESSING_THRESHOLD_DEFAULT		2000
-#define	AHD_INT_COALESSING_STOP_THRESHOLD_DEFAULT	1000
-	u_int			  int_coalessing_timer;
-	u_int			  int_coalessing_maxcmds;
-	u_int			  int_coalessing_mincmds;
-	u_int			  int_coalessing_threshold;
-	u_int			  int_coalessing_stop_threshold;
+#define	AHD_INT_COALESCING_TIMER_DEFAULT		250 /*us*/
+#define	AHD_INT_COALESCING_MAXCMDS_DEFAULT		10
+#define	AHD_INT_COALESCING_MAXCMDS_MAX			127
+#define	AHD_INT_COALESCING_MINCMDS_DEFAULT		5
+#define	AHD_INT_COALESCING_MINCMDS_MAX			127
+#define	AHD_INT_COALESCING_THRESHOLD_DEFAULT		2000
+#define	AHD_INT_COALESCING_STOP_THRESHOLD_DEFAULT	1000
+	u_int			  int_coalescing_timer;
+	u_int			  int_coalescing_maxcmds;
+	u_int			  int_coalescing_mincmds;
+	u_int			  int_coalescing_threshold;
+	u_int			  int_coalescing_stop_threshold;
 
 	uint16_t	 	  user_discenable;/* Disconnection allowed  */
 	uint16_t		  user_tagenable;/* Tagged Queuing allowed */
@@ -1362,11 +1362,11 @@ int			 ahd_parse_vpddata(struct ahd_softc *ahd,
 int			 ahd_parse_cfgdata(struct ahd_softc *ahd,
 					   struct seeprom_config *sc);
 void			 ahd_intr_enable(struct ahd_softc *ahd, int enable);
-void			 ahd_update_coalessing_values(struct ahd_softc *ahd,
+void			 ahd_update_coalescing_values(struct ahd_softc *ahd,
 						      u_int timer,
 						      u_int maxcmds,
 						      u_int mincmds);
-void			 ahd_enable_coalessing(struct ahd_softc *ahd,
+void			 ahd_enable_coalescing(struct ahd_softc *ahd,
 					       int enable);
 void			 ahd_pause_and_flushwork(struct ahd_softc *ahd);
 int			 ahd_suspend(struct ahd_softc *ahd); 
@@ -1514,7 +1514,7 @@ extern uint32_t ahd_debug;
 #define AHD_SHOW_QUEUE		0x02000
 #define AHD_SHOW_TQIN		0x04000
 #define AHD_SHOW_SG		0x08000
-#define AHD_SHOW_INT_COALESSING	0x10000
+#define AHD_SHOW_INT_COALESCING	0x10000
 #define AHD_DEBUG_SEQUENCER	0x20000
 #endif
 void			ahd_print_scb(struct scb *scb);
