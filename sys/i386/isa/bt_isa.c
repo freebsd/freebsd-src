@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: bt_isa.c,v 1.1 1998/09/15 07:32:54 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -39,8 +39,6 @@
 #include <dev/buslogic/btreg.h>
 
 #include <cam/scsi/scsi_all.h>
-
-#include "ioconf.h"
 
 static	int bt_isa_probe __P((struct isa_device *dev));
 static	int bt_isa_attach __P((struct isa_device *dev));
