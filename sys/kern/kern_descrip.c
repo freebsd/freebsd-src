@@ -53,6 +53,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/namei.h>
 #include <sys/file.h>
@@ -1407,11 +1408,8 @@ fdfree(td)
 /*
  * For setugid programs, we don't want to people to use that setugidness
  * to generate error messages which write to a file which otherwise would
- * otherwise be off-limits to the process.
- *
- * This is a gross hack to plug the hole.  A better solution would involve
- * a special vop or other form of generalized access control mechanism.  We
- * go ahead and just reject all procfs filesystems accesses as dangerous.
+ * otherwise be off-limits to the process.  We check for filesystems where
+ * the vnode can change out from under us after execve (like [lin]procfs).
  *
  * Since setugidsafety calls this only for fd 0, 1 and 2, this check is
  * sufficient.  We also don't for check setugidness since we know we are.
@@ -1419,9 +1417,12 @@ fdfree(td)
 static int
 is_unsafe(struct file *fp)
 {
-	if (fp->f_type == DTYPE_VNODE && 
-	    ((struct vnode *)(fp->f_data))->v_tag == VT_PROCFS)
-		return (1);
+	if (fp->f_type == DTYPE_VNODE) {
+		struct vnode *vp = (struct vnode *)fp->f_data;
+
+		if ((vp->v_vflag & VV_PROCDEP) != 0)
+			return (1);
+	}
 	return (0);
 }
 

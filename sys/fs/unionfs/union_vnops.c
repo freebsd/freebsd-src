@@ -1832,8 +1832,8 @@ union_print(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	printf("\ttag VT_UNION, vp=%p, uppervp=%p, lowervp=%p\n",
-			vp, UPPERVP(vp), LOWERVP(vp));
+	printf("\ttag %s, vp=%p, uppervp=%p, lowervp=%p\n", vp->v_tag,
+	       vp, UPPERVP(vp), LOWERVP(vp));
 	if (UPPERVP(vp) != NULLVP)
 		vprint("union: upper", UPPERVP(vp));
 	if (LOWERVP(vp) != NULLVP)

@@ -1211,7 +1211,8 @@ brelse(struct buf * bp)
 	 * background write.
 	 */
 	if ((bp->b_flags & B_VMIO)
-	    && !(bp->b_vp->v_tag == VT_NFS &&
+	    && !(bp->b_vp->v_mount != NULL &&
+		 (bp->b_vp->v_mount->mnt_vfc->vfc_flags & VFCF_NETWORK) != 0 &&
 		 !vn_isdisk(bp->b_vp, NULL) &&
 		 (bp->b_flags & B_DELWRI))
 	    ) {

@@ -641,7 +641,8 @@ spec_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_NON, dev %s\n", devtoname(ap->a_vp->v_rdev));
+	printf("tag %s, dev %s\n", ap->a_vp->v_tag,
+	       devtoname(ap->a_vp->v_rdev));
 	return (0);
 }
 

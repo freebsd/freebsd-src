@@ -436,7 +436,8 @@ umap_print(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	printf("\ttag VT_UMAPFS, vp=%p, lowervp=%p\n", vp, UMAPVPTOLOWERVP(vp));
+	printf("\ttag %s, vp=%p, lowervp=%p\n", vp->v_tag, vp,
+	       UMAPVPTOLOWERVP(vp));
 	return (0);
 }
 

@@ -564,7 +564,7 @@ fifo_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_NON");
+	printf("tag %s", ap->a_vp->v_tag);
 	fifo_printinfo(ap->a_vp);
 	printf("\n");
 	return (0);

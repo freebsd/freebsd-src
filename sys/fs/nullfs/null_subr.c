@@ -214,7 +214,7 @@ null_nodeget(mp, lowervp, vpp)
 	MALLOC(xp, struct null_node *, sizeof(struct null_node),
 	    M_NULLFSNODE, M_WAITOK);
 
-	error = getnewvnode(VT_NULL, mp, null_vnodeop_p, &vp);
+	error = getnewvnode("null", mp, null_vnodeop_p, &vp);
 	if (error) {
 		FREE(xp, M_NULLFSNODE);
 		return (error);

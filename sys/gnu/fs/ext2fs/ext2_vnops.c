@@ -1557,9 +1557,9 @@ ext2_print(ap)
 	struct vnode *vp = ap->a_vp;
 	struct inode *ip = VTOI(vp);
 
-	printf("tag VT_UFS, ino %lu, on dev %s (%d, %d)",
-	    (u_long)ip->i_number, devtoname(ip->i_dev), major(ip->i_dev),
-	    minor(ip->i_dev));
+	printf("tag %s, ino %lu, on dev %s (%d, %d)",
+	    vp->v_tag, (u_long)ip->i_number, devtoname(ip->i_dev),
+	    major(ip->i_dev), minor(ip->i_dev));
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);
 	lockmgr_printinfo(&vp->v_lock);

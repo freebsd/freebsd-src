@@ -1959,7 +1959,7 @@ make_coda_node(fid, vfsp, type)
 	lockinit(&cp->c_lock, PINOD, "cnode", 0, 0);
 	cp->c_fid = *fid;
 	
-	err = getnewvnode(VT_CODA, vfsp, coda_vnodeop_p, &vp);  
+	err = getnewvnode("coda", vfsp, coda_vnodeop_p, &vp);  
 	if (err) {                                                
 	    panic("coda: getnewvnode returned error %d\n", err);   
 	}                                                         

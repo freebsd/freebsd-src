@@ -65,18 +65,6 @@
 enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
 
 /*
- * Vnode tag types.
- * These are for the benefit of external programs only (e.g., pstat)
- * and should NEVER be inspected by the kernel.
- */
-enum vtagtype	{
-	VT_NON, VT_UFS, VT_NFS, VT_UNUSED, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
-	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
-	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CODA, VT_NTFS,
-	VT_HPFS, VT_NWFS, VT_PSEUDOFS, VT_SMBFS, VT_UDF
-};
-
-/*
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
@@ -142,7 +130,7 @@ struct vnode {
 	struct vm_object *v_object;		/* Place to store VM object */
 	struct	lock v_lock;			/* used if fs don't have one */
 	struct	lock *v_vnlock;			/* pointer to vnode lock */
-	enum	vtagtype v_tag;			/* type of underlying data */
+	const char *v_tag;			/* type of underlying data */
 	void	*v_data;			/* private data for fs */
 	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
@@ -235,6 +223,7 @@ struct xvnode {
 #define	VV_TEXT		0x0020	/* vnode is a pure text prototype */
 #define	VV_COPYONWRITE	0x0040	/* vnode is doing copy-on-write */
 #define	VV_SYSTEM	0x0080	/* vnode being used by kernel */
+#define	VV_PROCDEP	0x0100	/* vnode is process dependent */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -693,8 +682,8 @@ void	cache_purgevfs(struct mount *mp);
 int	cache_leaf_test(struct vnode *vp);
 void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
-int	getnewvnode(enum vtagtype tag,
-	    struct mount *mp, vop_t **vops, struct vnode **vpp);
+int	getnewvnode(const char *tag, struct mount *mp, vop_t **vops,
+	    struct vnode **vpp);
 int	lease_check(struct vop_lease_args *ap);
 int	spec_vnoperate(struct vop_generic_args *);
 int	speedup_syncer(void);

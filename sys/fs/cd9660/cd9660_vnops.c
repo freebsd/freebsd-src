@@ -746,7 +746,7 @@ cd9660_print(ap)
 	} */ *ap;
 {
 
-	printf("tag VT_ISOFS, isofs vnode\n");
+	printf("tag %s, isofs vnode\n", ap->a_vp->v_tag);
 	return (0);
 }
 
