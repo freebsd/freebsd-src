@@ -1024,8 +1024,7 @@ static void aue_txeof(xfer, priv, status)
 	else
 		ifp->if_opackets++;
 
-	if (ifp->if_snd.ifq_head != NULL)
-		aue_start(ifp);
+	usb_tx_done(ifp);
 
 	splx(s);
 
