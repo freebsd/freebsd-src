@@ -37,6 +37,7 @@
 #define TWE_SUPPORTED_PLATFORM
 
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
@@ -105,6 +106,8 @@
  * FreeBSD-specific softc elements
  */
 #define TWE_PLATFORM_SOFTC								\
+    bus_dmamap_t		twe_cmdmap;	/* DMA map for command */				\
+    u_int32_t			twe_cmdphys;	/* address of command in controller space */		\
     device_t			twe_dev;		/* bus device */		\
     dev_t			twe_dev_t;		/* control device */		\
     struct resource		*twe_io;		/* register interface window */	\
@@ -112,9 +115,14 @@
     bus_space_tag_t		twe_btag;		/* bus space tag */		\
     bus_dma_tag_t		twe_parent_dmat;	/* parent DMA tag */		\
     bus_dma_tag_t		twe_buffer_dmat;	/* data buffer DMA tag */	\
+    bus_dma_tag_t		twe_cmd_dmat;		/* command buffer DMA tag */	\
+    bus_dma_tag_t		twe_immediate_dmat;	/* command buffer DMA tag */	\
     struct resource		*twe_irq;		/* interrupt */			\
     void			*twe_intr;		/* interrupt handle */		\
     struct intr_config_hook	twe_ich;		/* delayed-startup hook */	\
+    void			*twe_cmd;		/* command structures */	\
+    void			*twe_immediate;		/* immediate commands */	\
+    bus_dmamap_t		twe_immediate_map;					\
     struct sysctl_ctx_list	sysctl_ctx;						\
     struct sysctl_oid		*sysctl_tree;
 
@@ -122,8 +130,6 @@
  * FreeBSD-specific request elements
  */
 #define TWE_PLATFORM_REQUEST										\
-    bus_dmamap_t		tr_cmdmap;	/* DMA map for command */				\
-    u_int32_t			tr_cmdphys;	/* address of command in controller space */		\
     bus_dmamap_t		tr_dmamap;	/* DMA map for data */					\
     u_int32_t			tr_dataphys;	/* data buffer base address in controller space */
 
