@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.39 1995/02/25 18:55:53 phk Exp $
+ *	$Id: isa.c,v 1.40 1995/03/16 17:31:18 se Exp $
  */
 
 /*
@@ -455,15 +455,16 @@ config_isadev_c(isdp, mp, reconfig)
 				printf(" flags 0x%x", isdp->id_flags);
 			if (isdp->id_iobase) {
 				if (!(isdp->id_iobase & 0xf300)) {
-					printf(" on motherboard\n");
+					printf(" on motherboard");
 				} else if (isdp->id_iobase >= 0x1000 &&
 					    !(isdp->id_iobase & 0x300)) {
-					printf (" on eisa slot %d\n",
+					printf (" on eisa slot %d",
 						isdp->id_iobase >> 12);
 				} else {
-					printf (" on isa\n");
+					printf (" on isa");
 				}
 			}
+			printf("\n");
 			/*
 			 * Check for conflicts again.  The driver may have 
 			 * changed *dvp.  We should weaken the early check 
