@@ -110,6 +110,7 @@ getttyent()
 	}
 	tty.ty_status = 0;
 	tty.ty_window = NULL;
+	tty.ty_group  = _TTYS_NOGROUP;
 
 #define	scmp(e)	!strncmp(p, e, sizeof(e) - 1) && isspace(p[sizeof(e) - 1])
 #define	vcmp(e)	!strncmp(p, e, sizeof(e) - 1) && p[sizeof(e) - 1] == '='
@@ -122,6 +123,8 @@ getttyent()
 			tty.ty_status |= TTY_SECURE;
 		else if (vcmp(_TTYS_WINDOW))
 			tty.ty_window = value(p);
+		else if (vcmp(_TTYS_GROUP))
+			tty.ty_group = value(p);
 		else
 			break;
 	}
