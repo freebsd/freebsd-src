@@ -68,7 +68,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
 	int ch, eval, tflag;
 
 	tflag = 0;
