@@ -84,6 +84,8 @@ static OPTION const options[] = {
 	{ "-inum",	N_INUM,		c_inum,		O_ARGV },
 	{ "-links",	N_LINKS,	c_links,	O_ARGV },
 	{ "-ls",	N_LS,		c_ls,		O_ZERO },
+	{ "-maxdepth",  N_MAXDEPTH,     c_maxdepth,     O_ARGV },
+	{ "-mindepth",  N_MINDEPTH,     c_mindepth,     O_ARGV },
 	{ "-mmin",	N_MMIN,	        c_mmin,	        O_ARGV },
 	{ "-mtime",	N_MTIME,	c_mtime,	O_ARGV },
 	{ "-name",	N_NAME,		c_name,		O_ARGV },

@@ -41,7 +41,12 @@ char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 5/4/95";
+#else
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -67,6 +72,7 @@ int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
 int issort;         		/* do hierarchies in lexicographical order */
 int isxargs;			/* don't permit xargs delimiting chars */
+int mindepth = -1, maxdepth = -1; /* minimum and maximum depth */
 
 static void usage __P((void));
 
