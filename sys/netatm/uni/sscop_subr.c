@@ -67,7 +67,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static int sscop_proc_xmit __P((struct sscop *));
+static int sscop_proc_xmit(struct sscop *);
 
 
 /*

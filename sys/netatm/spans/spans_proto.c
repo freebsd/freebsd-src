@@ -67,10 +67,10 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Internal functions
  */
-caddr_t	spans_getname __P((void *));
-void	spans_connected __P((void *));
-void	spans_cleared __P((void *, struct t_atm_cause *));
-void	spans_cpcs_data __P((void *, KBuffer *));
+caddr_t	spans_getname(void *);
+void	spans_connected(void *);
+void	spans_cleared(void *, struct t_atm_cause *);
+void	spans_cpcs_data(void *, KBuffer *);
 
 
 /*

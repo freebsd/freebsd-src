@@ -84,9 +84,9 @@ struct sscop {
 	void		*so_toku;	/* Stack upper layer's token */
 	void		*so_tokl;	/* Stack lower layer's token */
 	void		(*so_upper)	/* Stack upper layer's interface */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	void		(*so_lower)	/* Stack lower layer's interface */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	u_short		so_headout;	/* Output buffer headroom */
 };
 
@@ -139,126 +139,126 @@ struct sscop_stat {
  * Global function declarations
  */
 	/* sscop.c */
-int		sscop_start __P((void));
-int		sscop_stop __P((void));
-void		sscop_maa_error __P((struct sscop *, int));
-void		sscop_abort __P((struct sscop *, char *));
+int		sscop_start(void);
+int		sscop_stop(void);
+void		sscop_maa_error(struct sscop *, int);
+void		sscop_abort(struct sscop *, char *);
 
 	/* sscop_lower.c */
-void		sscop_lower __P((int, void *, int, int));
-void		sscop_aa_noop_0 __P((struct sscop *, int, int));
-void		sscop_aa_noop_1 __P((struct sscop *, int, int));
-void		sscop_init_inst __P((struct sscop *, int, int));
-void		sscop_term_all __P((struct sscop *, int, int));
+void		sscop_lower(int, void *, int, int);
+void		sscop_aa_noop_0(struct sscop *, int, int);
+void		sscop_aa_noop_1(struct sscop *, int, int);
+void		sscop_init_inst(struct sscop *, int, int);
+void		sscop_term_all(struct sscop *, int, int);
 
 	/* sscop_pdu.c */
-int		sscop_send_bgn __P((struct sscop *, int));
-int		sscop_send_bgak __P((struct sscop *));
-int		sscop_send_bgrej __P((struct sscop *));
-int		sscop_send_end __P((struct sscop *, int));
-int		sscop_send_endak __P((struct sscop *));
-int		sscop_send_rs __P((struct sscop *));
-int		sscop_send_rsak __P((struct sscop *));
-int		sscop_send_er __P((struct sscop *));
-int		sscop_send_erak __P((struct sscop *));
-int		sscop_send_poll __P((struct sscop *));
-int		sscop_send_stat __P((struct sscop *, sscop_seq));
-int		sscop_send_ustat __P((struct sscop *, sscop_seq));
-int		sscop_send_ud __P((struct sscop *, KBuffer *));
-void		sscop_pdu_print __P((struct sscop *, KBuffer *, char *));
+int		sscop_send_bgn(struct sscop *, int);
+int		sscop_send_bgak(struct sscop *);
+int		sscop_send_bgrej(struct sscop *);
+int		sscop_send_end(struct sscop *, int);
+int		sscop_send_endak(struct sscop *);
+int		sscop_send_rs(struct sscop *);
+int		sscop_send_rsak(struct sscop *);
+int		sscop_send_er(struct sscop *);
+int		sscop_send_erak(struct sscop *);
+int		sscop_send_poll(struct sscop *);
+int		sscop_send_stat(struct sscop *, sscop_seq);
+int		sscop_send_ustat(struct sscop *, sscop_seq);
+int		sscop_send_ud(struct sscop *, KBuffer *);
+void		sscop_pdu_print(struct sscop *, KBuffer *, char *);
 
 	/* sscop_sigaa.c */
-void		sscop_estreq_idle __P((struct sscop *, int, int));
-void		sscop_estrsp_inconn __P((struct sscop *, int, int));
-void		sscop_relreq_outconn __P((struct sscop *, int, int));
-void		sscop_relreq_inconn __P((struct sscop *, int, int));
-void		sscop_relreq_ready __P((struct sscop *, int, int));
-void		sscop_datreq_ready __P((struct sscop *, int, int));
-void		sscop_udtreq_all __P((struct sscop *, int, int));
+void		sscop_estreq_idle(struct sscop *, int, int);
+void		sscop_estrsp_inconn(struct sscop *, int, int);
+void		sscop_relreq_outconn(struct sscop *, int, int);
+void		sscop_relreq_inconn(struct sscop *, int, int);
+void		sscop_relreq_ready(struct sscop *, int, int);
+void		sscop_datreq_ready(struct sscop *, int, int);
+void		sscop_udtreq_all(struct sscop *, int, int);
 
 	/* sscop_sigcpcs.c */
-void		sscop_noop __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgn_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgn_outdisc __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgn_outresyn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgn_inresyn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgak_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgak_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgak_outconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgrej_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgrej_outconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgrej_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgrej_outresyn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_bgrej_ready __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_end_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_end_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_end_outdisc __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_endak_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_endak_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_endak_outdisc __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_endak_ready __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_rs_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_rs_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_rsak_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_rsak_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_rsak_outresyn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_sd_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_sd_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_sd_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_poll_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_poll_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_poll_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_stat_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_stat_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_stat_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_stat_ready __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_ustat_error __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_ustat_idle __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_ustat_inconn __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_ustat_ready __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_ud_all __P((struct sscop *, KBuffer *, caddr_t));
-void		sscop_md_all __P((struct sscop *, KBuffer *, caddr_t));
+void		sscop_noop(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgn_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgn_outdisc(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgn_outresyn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgn_inresyn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgak_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgak_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgak_outconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgrej_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgrej_outconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgrej_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgrej_outresyn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_bgrej_ready(struct sscop *, KBuffer *, caddr_t);
+void		sscop_end_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_end_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_end_outdisc(struct sscop *, KBuffer *, caddr_t);
+void		sscop_endak_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_endak_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_endak_outdisc(struct sscop *, KBuffer *, caddr_t);
+void		sscop_endak_ready(struct sscop *, KBuffer *, caddr_t);
+void		sscop_rs_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_rs_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_rsak_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_rsak_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_rsak_outresyn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_sd_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_sd_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_sd_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_poll_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_poll_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_poll_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_stat_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_stat_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_stat_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_stat_ready(struct sscop *, KBuffer *, caddr_t);
+void		sscop_ustat_error(struct sscop *, KBuffer *, caddr_t);
+void		sscop_ustat_idle(struct sscop *, KBuffer *, caddr_t);
+void		sscop_ustat_inconn(struct sscop *, KBuffer *, caddr_t);
+void		sscop_ustat_ready(struct sscop *, KBuffer *, caddr_t);
+void		sscop_ud_all(struct sscop *, KBuffer *, caddr_t);
+void		sscop_md_all(struct sscop *, KBuffer *, caddr_t);
 
 	/* sscop_subr.c */
-KBuffer *	sscop_stat_getelem __P((KBuffer *, sscop_seq *));
-struct pdu_hdr *sscop_pack_locate __P((struct sscop *, sscop_seq));
-void		sscop_pack_free __P((struct sscop *, sscop_seq));
-void		sscop_rexmit_insert __P((struct sscop *, struct pdu_hdr *));
-void		sscop_rexmit_unlink __P((struct sscop *, struct pdu_hdr *));
-void		sscop_xmit_drain __P((struct sscop *));
-int		sscop_recv_insert __P((struct sscop *, struct pdu_hdr *));
-void		sscop_rcvr_drain __P((struct sscop *));
-void		sscop_service_xmit __P((struct sscop *));
-int		sscop_is_rexmit __P((struct sscop *, u_char));
-void		sscop_set_poll __P((struct sscop *));
+KBuffer *	sscop_stat_getelem(KBuffer *, sscop_seq *);
+struct pdu_hdr *sscop_pack_locate(struct sscop *, sscop_seq);
+void		sscop_pack_free(struct sscop *, sscop_seq);
+void		sscop_rexmit_insert(struct sscop *, struct pdu_hdr *);
+void		sscop_rexmit_unlink(struct sscop *, struct pdu_hdr *);
+void		sscop_xmit_drain(struct sscop *);
+int		sscop_recv_insert(struct sscop *, struct pdu_hdr *);
+void		sscop_rcvr_drain(struct sscop *);
+void		sscop_service_xmit(struct sscop *);
+int		sscop_is_rexmit(struct sscop *, u_char);
+void		sscop_set_poll(struct sscop *);
 
 	/* sscop_timer.c */
-void		sscop_timeout __P((struct atm_time *));
+void		sscop_timeout(struct atm_time *);
 
 	/* sscop_upper.c */
-void		sscop_upper __P((int, void *, int, int));
+void		sscop_upper(int, void *, int, int);
 
 	/* q2110_sigaa.c */
 
 	/* q2110_sigcpcs.c */
 
 	/* q2110_subr.c */
-void		q2110_clear_xmit __P((struct sscop *));
-void		q2110_init_state __P((struct sscop *));
-void		q2110_prep_retrieve __P((struct sscop *));
-void		q2110_prep_recovery __P((struct sscop *));
-void		q2110_deliver_data __P((struct sscop *));
-void		q2110_error_recovery __P((struct sscop *));
+void		q2110_clear_xmit(struct sscop *);
+void		q2110_init_state(struct sscop *);
+void		q2110_prep_retrieve(struct sscop *);
+void		q2110_prep_recovery(struct sscop *);
+void		q2110_deliver_data(struct sscop *);
+void		q2110_error_recovery(struct sscop *);
 
 	/* qsaal1_sigaa.c */
 
 	/* qsaal1_sigcpcs.c */
 
 	/* qsaal1_subr.c */
-void		qsaal1_reestablish __P((struct sscop *));
-void		qsaal1_reset_xmit __P((struct sscop *));
-void		qsaal1_reset_rcvr __P((struct sscop *));
-void		qsaal1_clear_connection __P((struct sscop *));
+void		qsaal1_reestablish(struct sscop *);
+void		qsaal1_reset_xmit(struct sscop *);
+void		qsaal1_reset_rcvr(struct sscop *);
+void		qsaal1_clear_connection(struct sscop *);
 
 
 /*
@@ -270,13 +270,13 @@ extern struct sscop	*sscop_head;
 extern struct sscop_stat	sscop_stat;
 extern struct atm_time	sscop_timer;
 extern void		(*(*sscop_qsaal_aatab[]))
-				__P((struct sscop *, int, int));
+				(struct sscop *, int, int);
 extern void		(*(*sscop_q2110_aatab[]))
-				__P((struct sscop *, int, int));
+				(struct sscop *, int, int);
 extern void		(*(*sscop_qsaal_pdutab[]))
-				__P((struct sscop *, KBuffer *, caddr_t));
+				(struct sscop *, KBuffer *, caddr_t);
 extern void		(*(*sscop_q2110_pdutab[]))
-				__P((struct sscop *, KBuffer *, caddr_t));
+				(struct sscop *, KBuffer *, caddr_t);
 
 #endif	/* _KERNEL */
 

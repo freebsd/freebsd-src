@@ -87,8 +87,8 @@ struct sigpvc_vccb {
 	/* sigpvc_if.c */
 
 	/* sigpvc_subr.c */
-int		sigpvc_create_pvc __P((struct sigpvc *, Atm_connvc *, int *));
-void		sigpvc_close_vcc __P((struct vccb *));
+int		sigpvc_create_pvc(struct sigpvc *, Atm_connvc *, int *);
+void		sigpvc_close_vcc(struct vccb *);
 
 #endif	/* _KERNEL */
 

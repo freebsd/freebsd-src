@@ -72,7 +72,7 @@ int	sscf_uni_vccnt = 0;
 /*
  * Local functions
  */
-static int	sscf_uni_inst __P((struct stack_defn **, Atm_connvc *));
+static int	sscf_uni_inst(struct stack_defn **, Atm_connvc *);
 
 /*
  * Local variables

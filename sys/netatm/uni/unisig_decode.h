@@ -55,7 +55,7 @@ struct ie_ent {
 	int		max_len;	/* Max. length */
 	int		p_idx;		/* IE pointer index in msg */
 	int		(*decode)	/* Decoding function */
-				__P((struct usfmt *, struct ie_generic *));
+				(struct usfmt *, struct ie_generic *);
 };
 
 /*

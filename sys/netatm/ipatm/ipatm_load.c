@@ -121,8 +121,8 @@ struct sp_info	ipatm_nifpool = {
 /*
  * Local functions
  */
-static int	ipatm_start __P((void));
-static int	ipatm_stop __P((void));
+static int	ipatm_start(void);
+static int	ipatm_stop(void);
 
 
 /*
@@ -619,8 +619,8 @@ done:
  *
  *******************************************************************
  */
-static int	ipatm_doload __P((void));
-static int	ipatm_dounload __P((void));
+static int	ipatm_doload(void);
+static int	ipatm_dounload(void);
 
 /*
  * Generic module load processing
@@ -779,7 +779,7 @@ ipatm_mod(lkmtp, cmd, ver)
  *
  *******************************************************************
  */
-static void	ipatm_doload __P((void *));
+static void	ipatm_doload(void *);
 
 SYSINIT(atmipatm, SI_SUB_PROTO_END, SI_ORDER_ANY, ipatm_doload, NULL)
 

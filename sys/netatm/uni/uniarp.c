@@ -110,8 +110,8 @@ struct sp_info	uniarp_pool = {
 /*
  * Local variables
  */
-static void	uniarp_server_mode __P((struct uniip *));
-static void	uniarp_client_mode __P((struct uniip *, Atm_addr *));
+static void	uniarp_server_mode(struct uniip *);
+static void	uniarp_client_mode(struct uniip *, Atm_addr *);
 
 
 /*

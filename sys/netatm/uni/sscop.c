@@ -88,7 +88,7 @@ struct sp_info	sscop_pool = {
 /*
  * Local functions
  */
-static int	sscop_inst __P((struct stack_defn **, Atm_connvc *));
+static int	sscop_inst(struct stack_defn **, Atm_connvc *);
 
 
 /*

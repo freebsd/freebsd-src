@@ -66,12 +66,12 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static KBuffer *	sscop_stat_init __P((struct sscop *));
-static KBuffer *	sscop_stat_add __P((sscop_seq, KBuffer *));
-static int		sscop_stat_end __P((struct sscop *, sscop_seq,
-				KBuffer *, KBuffer *));
-static int		sscop_recv_locate __P((struct sscop *, sscop_seq,
-				struct pdu_hdr **));
+static KBuffer *	sscop_stat_init(struct sscop *);
+static KBuffer *	sscop_stat_add(sscop_seq, KBuffer *);
+static int		sscop_stat_end(struct sscop *, sscop_seq,
+				KBuffer *, KBuffer *);
+static int		sscop_recv_locate(struct sscop *, sscop_seq,
+				struct pdu_hdr **);
 
 
 /*

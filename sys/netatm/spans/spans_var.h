@@ -55,7 +55,7 @@ struct	spans {
 	struct siginst	sp_inst;	/* Header */
 	struct atm_time	sp_time;	/* Timer controls */
 	void		(*sp_lower)	/* Lower command handler */
-				__P((int, void *, int, int));
+				(int, void *, int, int);
 	Atm_connection	*sp_conn;	/* Signalling connection */
 	long		sp_s_epoch;	/* Switch epoch */
 	long		sp_h_epoch;	/* Host epoch */
@@ -178,72 +178,66 @@ struct spans_vccb {
 struct ipvcc;
 
 	/* spans_arp.c */
-int		spansarp_svcout __P((struct ipvcc *, struct in_addr *));
-int		spansarp_svcin __P((struct ipvcc *, Atm_addr *, Atm_addr *));
-int		spansarp_svcactive __P((struct ipvcc *));
-void		spansarp_vcclose __P((struct ipvcc *));
-void		spansarp_ipact __P((struct spanscls *));
-void		spansarp_ipdact __P((struct spanscls *));
-void		spansarp_stop __P((void));
-void		spansarp_input __P((struct spanscls *, KBuffer *));
-int		spansarp_ioctl __P((int, caddr_t, caddr_t));
+int		spansarp_svcout(struct ipvcc *, struct in_addr *);
+int		spansarp_svcin(struct ipvcc *, Atm_addr *, Atm_addr *);
+int		spansarp_svcactive(struct ipvcc *);
+void		spansarp_vcclose(struct ipvcc *);
+void		spansarp_ipact(struct spanscls *);
+void		spansarp_ipdact(struct spanscls *);
+void		spansarp_stop(void);
+void		spansarp_input(struct spanscls *, KBuffer *);
+int		spansarp_ioctl(int, caddr_t, caddr_t);
 
 	/* spans_cls.c */
-int		spanscls_start __P((void));
-void		spanscls_stop __P((void));
-int		spanscls_attach __P((struct spans *));
-void		spanscls_detach __P((struct spans *));
-void		spanscls_closevc __P((struct spanscls *,
-				struct t_atm_cause *));
+int		spanscls_start(void);
+void		spanscls_stop(void);
+int		spanscls_attach(struct spans *);
+void		spanscls_detach(struct spans *);
+void		spanscls_closevc(struct spanscls *, struct t_atm_cause *);
 
 	/* spans_if.c */
-int		spans_abort __P((struct vccb *));
-int		spans_free __P((struct vccb *));
+int		spans_abort(struct vccb *);
+int		spans_free(struct vccb *);
 
 	/* spans_msg.c */
-int		spans_send_msg __P((struct spans *, spans_msg *));
-int		spans_send_open_req __P((struct spans *,
-				struct spans_vccb *));
-int		spans_send_open_rsp __P((struct spans *,
+int		spans_send_msg(struct spans *, spans_msg *);
+int		spans_send_open_req(struct spans *, struct spans_vccb *);
+int		spans_send_open_rsp(struct spans *,
 				struct spans_vccb *,
-				spans_result));
-int		spans_send_close_req __P((struct spans *,
-				struct spans_vccb *));
-void		spans_rcv_msg __P((struct spans *, KBuffer *));
+				spans_result);
+int		spans_send_close_req(struct spans *,
+				struct spans_vccb *);
+void		spans_rcv_msg(struct spans *, KBuffer *);
 
 	/* spans_print.c */
-void		spans_print_msg __P((spans_msg *));
+void		spans_print_msg(spans_msg *);
 
 	/* spans_proto.c */
-void		spans_timer __P((struct atm_time *));
-void		spans_vctimer __P((struct atm_time *));
-void		spans_upper __P((int, void *, int, int));
-void		spans_notify __P((void *, int, int));
+void		spans_timer(struct atm_time *);
+void		spans_vctimer(struct atm_time *);
+void		spans_upper(int, void *, int, int);
+void		spans_notify(void *, int, int);
 
 	/* spans_subr.c */
-int		spans_open_vcc __P((struct spans *, Atm_connvc *));
-int		spans_close_vcc __P((struct spans *,
-				struct spans_vccb *, int));
-int		spans_clear_vcc __P((struct spans *,
-				struct spans_vccb *));
-void		spans_switch_reset __P((struct spans *, int));
+int		spans_open_vcc(struct spans *, Atm_connvc *);
+int		spans_close_vcc(struct spans *, struct spans_vccb *, int);
+int		spans_clear_vcc(struct spans *, struct spans_vccb *);
+void		spans_switch_reset(struct spans *, int);
 
 	/* spans_util.c */
-int		spans_get_spans_sap __P((Sap_t, spans_sap *));
-int		spans_get_local_sap __P((spans_sap, Sap_t *));
-int		spans_ephemeral_sap __P((struct spans *));
-int		spans_get_spans_aal __P((Aal_t, spans_aal *));
-int		spans_get_local_aal __P((spans_aal, Aal_t *));
-int		spans_verify_vccb __P((struct spans *,
-				struct spans_vccb *));
+int		spans_get_spans_sap(Sap_t, spans_sap *);
+int		spans_get_local_sap(spans_sap, Sap_t *);
+int		spans_ephemeral_sap(struct spans *);
+int		spans_get_spans_aal(Aal_t, spans_aal *);
+int		spans_get_local_aal(spans_aal, Aal_t *);
+int		spans_verify_vccb(struct spans *, struct spans_vccb *);
 struct spans_vccb *
-		spans_find_vpvc __P((struct spans *, int, int, u_char));
+		spans_find_vpvc(struct spans *, int, int, u_char);
 struct spans_vccb *
-		spans_find_conn __P((struct spans *,
-				struct spans_atm_conn *));
-spans_vpvc	spans_alloc_vpvc __P((struct spans *));
-char *		spans_addr_print __P((struct spans_addr *));
-void		spans_dump_buffer __P((KBuffer *));
+		spans_find_conn(struct spans *, struct spans_atm_conn *);
+spans_vpvc	spans_alloc_vpvc(struct spans *);
+char *		spans_addr_print(struct spans_addr *);
+void		spans_dump_buffer(KBuffer *);
 
 
 /*
