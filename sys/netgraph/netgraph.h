@@ -160,16 +160,16 @@ struct ng_cmdlist {
 struct ng_type {
 
 	u_int32_t	version; 	/* must equal NG_VERSION */
-	const		char *name;	/* Unique type name */
+	const char	*name;		/* Unique type name */
 	modeventhand_t	mod_event;	/* Module event handler (optional) */
 	ng_constructor_t *constructor;	/* Node constructor */
 	ng_rcvmsg_t	*rcvmsg;	/* control messages come here */
 	ng_shutdown_t	*shutdown;	/* reset, and free resources */
 	ng_newhook_t	*newhook;	/* first notification of new hook */
-	ng_findhook_t	*findhook;	/* only if you have 23000 hooks */
+	ng_findhook_t	*findhook;	/* only if you have lots of hooks */
 	ng_connect_t	*connect;	/* final notification of new hook */
 	ng_rcvdata_t	*rcvdata;	/* date comes here */
-	ng_rcvdata_t	*rcvdataq;	/* or here if been queued */
+	ng_rcvdata_t	*rcvdataq;	/* or here if being queued */
 	ng_disconnect_t	*disconnect;	/* notify on disconnect */
 
 	const struct	ng_cmdlist *cmdlist;	/* commands we can convert */
@@ -258,8 +258,7 @@ ng_ID_t ng_node2ID(node_p node);
 int	ng_path2node(node_p here, const char *path, node_p *dest, char **rtnp);
 int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 int	ng_queue_data(hook_p hook, struct mbuf *m, meta_p meta);
-int	ng_queue_msg(node_p here, struct ng_mesg *msg, int len,
-	     const char *address);
+int	ng_queue_msg(node_p here, struct ng_mesg *msg, const char *address);
 void	ng_release_node(node_p node);
 void	ng_rmnode(node_p node);
 int	ng_send_data(hook_p hook, struct mbuf *m, meta_p meta);
