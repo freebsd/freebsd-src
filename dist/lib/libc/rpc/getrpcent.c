@@ -30,7 +30,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)getrpcent.c 1.14 91/03/11 Copyr 1984 Sun Micro";*/
-static char *rcsid = "$Id: getrpcent.c,v 1.1 1993/10/27 05:40:29 paul Exp $";
+static char *rcsid = "$Id: getrpcent.c,v 1.6 1996/12/30 14:42:31 peter Exp $";
 #endif
 
 /*
@@ -38,6 +38,7 @@ static char *rcsid = "$Id: getrpcent.c,v 1.1 1993/10/27 05:40:29 paul Exp $";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>
 #include <rpc/rpc.h>
@@ -65,6 +66,7 @@ struct rpcdata {
 
 #ifdef	YP
 static int	__yp_nomap = 0;
+extern int _yp_check(char **);
 #endif	/* YP */
 
 static	struct rpcent *interpret();
@@ -122,7 +124,7 @@ getrpcbynumber(number)
 no_yp:
 #endif	/* YP */
 	setrpcent(0);
-	while (p = getrpcent()) {
+	while ((p = getrpcent())) {
 		if (p->r_number == number)
 			break;
 	}
@@ -134,20 +136,21 @@ struct rpcent *
 getrpcbyname(name)
 	char *name;
 {
-	struct rpcent *rpc;
+	struct rpcent *rpc = NULL;
 	char **rp;
 
 	setrpcent(0);
-	while (rpc = getrpcent()) {
+	while ((rpc = getrpcent())) {
 		if (strcmp(rpc->r_name, name) == 0)
-			return (rpc);
+			goto done;
 		for (rp = rpc->r_aliases; *rp != NULL; rp++) {
 			if (strcmp(*rp, name) == 0)
-				return (rpc);
+				goto done;
 		}
 	}
+done:
 	endrpcent();
-	return (NULL);
+	return (rpc);
 }
 
 void
@@ -201,12 +204,12 @@ endrpcent()
 struct rpcent *
 getrpcent()
 {
-	struct rpcent *hp;
-	int reason;
 	register struct rpcdata *d = _rpcdata();
 #ifdef	YP
-	char *key = NULL, *val = NULL;
-	int keylen, vallen;
+	struct rpcent *hp;
+	int reason;
+	char *val = NULL;
+	int vallen;
 #endif
 
 	if (d == 0)
@@ -243,7 +246,8 @@ no_yp:
 #endif	/* YP */
 	if (d->rpcf == NULL && (d->rpcf = fopen(RPCDB, "r")) == NULL)
 		return (NULL);
-        if (fgets(d->line, BUFSIZ, d->rpcf) == NULL)
+	/* -1 so there is room to append a \n below */
+        if (fgets(d->line, BUFSIZ - 1, d->rpcf) == NULL)
 		return (NULL);
 	return (interpret(d->line, strlen(d->line)));
 }
@@ -259,9 +263,10 @@ interpret(val, len)
 
 	if (d == 0)
 		return (0);
-	(void) strncpy(d->line, val, len);
+	(void) strncpy(d->line, val, BUFSIZ);
+	d->line[BUFSIZ] = '\0';
 	p = d->line;
-	d->line[len] = '\n';
+	p[len] = '\n';
 	if (*p == '#')
 		return (getrpcent());
 	cp = strpbrk(p, "#\n");
@@ -279,7 +284,7 @@ interpret(val, len)
 	d->rpc.r_number = atoi(cp);
 	q = d->rpc.r_aliases = d->rpc_aliases;
 	cp = strpbrk(cp, " \t");
-	if (cp != NULL) 
+	if (cp != NULL)
 		*cp++ = '\0';
 	while (cp && *cp) {
 		if (*cp == ' ' || *cp == '\t') {

@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_udp.c 1.39 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_udp.c,v 1.1 1993/10/27 05:40:25 paul Exp $";
+static char *rcsid = "$Id: clnt_udp.c,v 1.8 1996/12/30 14:40:34 peter Exp $";
 #endif
 
 /*
@@ -40,14 +40,15 @@ static char *rcsid = "$Id: clnt_udp.c,v 1.1 1993/10/27 05:40:25 paul Exp $";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netdb.h>
 #include <errno.h>
 #include <rpc/pmap_clnt.h>
-
-extern int errno;
 
 /*
  * UDP bases client side rpc operations
@@ -68,7 +69,7 @@ static struct clnt_ops udp_ops = {
 	clntudp_control
 };
 
-/* 
+/*
  * Private data kept per client handle
  */
 struct cu_data {
@@ -114,9 +115,13 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 	u_int recvsz;
 {
 	CLIENT *cl;
-	register struct cu_data *cu;
+	register struct cu_data *cu = NULL;
 	struct timeval now;
 	struct rpc_msg call_msg;
+	static u_int32_t disrupt;
+
+	if (disrupt == 0)
+		disrupt = (u_int32_t)(long)raddr;
 
 	cl = (CLIENT *)mem_alloc(sizeof(CLIENT));
 	if (cl == NULL) {
@@ -154,7 +159,7 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 	cu->cu_total.tv_usec = -1;
 	cu->cu_sendsz = sendsz;
 	cu->cu_recvsz = recvsz;
-	call_msg.rm_xid = getpid() ^ now.tv_sec ^ now.tv_usec;
+	call_msg.rm_xid = (++disrupt) ^ getpid() ^ now.tv_sec ^ now.tv_usec;
 	call_msg.rm_direction = CALL;
 	call_msg.rm_call.cb_rpcvers = RPC_MSG_VERSION;
 	call_msg.rm_call.cb_prog = program;
@@ -174,7 +179,7 @@ clntudp_bufcreate(raddr, program, version, wait, sockp, sendsz, recvsz)
 			rpc_createerr.cf_error.re_errno = errno;
 			goto fooy;
 		}
-		/* attempt to bind to prov port */
+		/* attempt to bind to priv port */
 		(void)bindresvport(*sockp, (struct sockaddr_in *)0);
 		/* the sockets rpc controls are non-blocking */
 		(void)ioctl(*sockp, FIONBIO, (char *) &dontblock);
@@ -206,7 +211,7 @@ clntudp_create(raddr, program, version, wait, sockp)
 	    UDPMSGSIZE, UDPMSGSIZE));
 }
 
-static enum clnt_stat 
+static enum clnt_stat
 clntudp_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	register CLIENT	*cl;		/* client handle */
 	u_long		proc;		/* procedure number */
@@ -221,29 +226,33 @@ clntudp_call(cl, proc, xargs, argsp, xresults, resultsp, utimeout)
 	register int outlen;
 	register int inlen;
 	int fromlen;
-#ifdef FD_SETSIZE
-	fd_set readfds;
-	fd_set mask;
-#else
-	int readfds;
-	register int mask;
-#endif /* def FD_SETSIZE */
+	fd_set *fds, readfds;
 	struct sockaddr_in from;
 	struct rpc_msg reply_msg;
 	XDR reply_xdrs;
-	struct timeval time_waited;
+	struct timeval time_waited, start, after, tmp1, tmp2, tv;
 	bool_t ok;
 	int nrefreshes = 2;	/* number of times to refresh cred */
 	struct timeval timeout;
 
-	if (cu->cu_total.tv_usec == -1) {
+	if (cu->cu_total.tv_usec == -1)
 		timeout = utimeout;     /* use supplied timeout */
-	} else {
+	else
 		timeout = cu->cu_total; /* use default timeout */
+
+	if (cu->cu_sock + 1 > FD_SETSIZE) {
+		int bytes = howmany(cu->cu_sock + 1, NFDBITS) * sizeof(fd_mask);
+		fds = (fd_set *)malloc(bytes);
+		if (fds == NULL)
+			return (cu->cu_error.re_status = RPC_CANTSEND);
+		memset(fds, 0, bytes);
+	} else {
+		fds = &readfds;
+		FD_ZERO(fds);
 	}
 
-	time_waited.tv_sec = 0;
-	time_waited.tv_usec = 0;
+	timerclear(&time_waited);
+
 call_again:
 	xdrs = &(cu->cu_outxdrs);
 	xdrs->x_op = XDR_ENCODE;
@@ -254,22 +263,28 @@ call_again:
 	(*(u_short *)(cu->cu_outbuf))++;
 	if ((! XDR_PUTLONG(xdrs, (long *)&proc)) ||
 	    (! AUTH_MARSHALL(cl->cl_auth, xdrs)) ||
-	    (! (*xargs)(xdrs, argsp)))
+	    (! (*xargs)(xdrs, argsp))) {
+		if (fds != &readfds)
+			free(fds);
 		return (cu->cu_error.re_status = RPC_CANTENCODEARGS);
+	}
 	outlen = (int)XDR_GETPOS(xdrs);
 
 send_again:
 	if (sendto(cu->cu_sock, cu->cu_outbuf, outlen, 0,
-	    (struct sockaddr *)&(cu->cu_raddr), cu->cu_rlen)
-	    != outlen) {
+	    (struct sockaddr *)&(cu->cu_raddr), cu->cu_rlen) != outlen) {
 		cu->cu_error.re_errno = errno;
+		if (fds != &readfds)
+			free(fds);
 		return (cu->cu_error.re_status = RPC_CANTSEND);
 	}
 
 	/*
 	 * Hack to provide rpc-based message passing
 	 */
-	if (timeout.tv_sec == 0 && timeout.tv_usec == 0) {
+	if (!timerisset(&timeout)) {
+		if (fds != &readfds)
+			free(fds);
 		return (cu->cu_error.re_status = RPC_TIMEDOUT);
 	}
 	/*
@@ -280,57 +295,60 @@ send_again:
 	reply_msg.acpted_rply.ar_verf = _null_auth;
 	reply_msg.acpted_rply.ar_results.where = resultsp;
 	reply_msg.acpted_rply.ar_results.proc = xresults;
-#ifdef FD_SETSIZE
-	FD_ZERO(&mask);
-	FD_SET(cu->cu_sock, &mask);
-#else
-	mask = 1 << cu->cu_sock;
-#endif /* def FD_SETSIZE */
+
+	gettimeofday(&start, NULL);
 	for (;;) {
-		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (int *)NULL, 
-			       (int *)NULL, &(cu->cu_wait))) {
+		/* XXX we know the other bits are still clear */
+		FD_SET(cu->cu_sock, fds);
+		tv = cu->cu_wait;
+		switch (select(cu->cu_sock+1, fds, NULL, NULL, &tv)) {
 
 		case 0:
-			time_waited.tv_sec += cu->cu_wait.tv_sec;
-			time_waited.tv_usec += cu->cu_wait.tv_usec;
-			while (time_waited.tv_usec >= 1000000) {
-				time_waited.tv_sec++;
-				time_waited.tv_usec -= 1000000;
-			}
-			if ((time_waited.tv_sec < timeout.tv_sec) ||
-				((time_waited.tv_sec == timeout.tv_sec) &&
-				(time_waited.tv_usec < timeout.tv_usec)))
-				goto send_again;	
+			timeradd(&time_waited, &cu->cu_wait, &tmp1);
+			time_waited = tmp1;
+			if (timercmp(&time_waited, &timeout, <))
+				goto send_again;
+			if (fds != &readfds)
+				free(fds);
 			return (cu->cu_error.re_status = RPC_TIMEDOUT);
 
-		/*
-		 * buggy in other cases because time_waited is not being
-		 * updated.
-		 */
 		case -1:
-			if (errno == EINTR)
-				continue;	
+			if (errno == EINTR) {
+				gettimeofday(&after, NULL);
+				timersub(&after, &start, &tmp1);
+				timeradd(&time_waited, &tmp1, &tmp2);
+				time_waited = tmp2;
+				if (timercmp(&time_waited, &timeout, <))
+					continue;
+				if (fds != &readfds)
+					free(fds);
+				return (cu->cu_error.re_status = RPC_TIMEDOUT);
+			}
 			cu->cu_error.re_errno = errno;
+			if (fds != &readfds)
+				free(fds);
 			return (cu->cu_error.re_status = RPC_CANTRECV);
 		}
+
 		do {
 			fromlen = sizeof(struct sockaddr);
-			inlen = recvfrom(cu->cu_sock, cu->cu_inbuf, 
+			inlen = recvfrom(cu->cu_sock, cu->cu_inbuf,
 				(int) cu->cu_recvsz, 0,
 				(struct sockaddr *)&from, &fromlen);
 		} while (inlen < 0 && errno == EINTR);
 		if (inlen < 0) {
 			if (errno == EWOULDBLOCK)
-				continue;	
+				continue;
 			cu->cu_error.re_errno = errno;
+			if (fds != &readfds)
+				free(fds);
 			return (cu->cu_error.re_status = RPC_CANTRECV);
 		}
-		if (inlen < sizeof(u_long))
-			continue;	
+		if (inlen < sizeof(u_int32_t))
+			continue;
 		/* see if reply transaction id matches sent id */
-		if (*((u_long *)(cu->cu_inbuf)) != *((u_long *)(cu->cu_outbuf)))
-			continue;	
+		if (*((u_int32_t *)(cu->cu_inbuf)) != *((u_int32_t *)(cu->cu_outbuf)))
+			continue;
 		/* we now assume we have the proper reply */
 		break;
 	}
@@ -353,7 +371,7 @@ send_again:
 				xdrs->x_op = XDR_FREE;
 				(void)xdr_opaque_auth(xdrs,
 				    &(reply_msg.acpted_rply.ar_verf));
-			} 
+			}
 		}  /* end successful completion */
 		else {
 			/* maybe our credentials need to be refreshed ... */
@@ -366,6 +384,8 @@ send_again:
 	else {
 		cu->cu_error.re_status = RPC_CANTDECODERES;
 	}
+	if (fds != &readfds)
+		free(fds);
 	return (cu->cu_error.re_status);
 }
 
@@ -393,11 +413,12 @@ clntudp_freeres(cl, xdr_res, res_ptr)
 	return ((*xdr_res)(xdrs, res_ptr));
 }
 
-static void 
+static void
 clntudp_abort(/*h*/)
 	/*CLIENT *h;*/
 {
 }
+
 
 static bool_t
 clntudp_control(cl, request, info)
@@ -406,29 +427,117 @@ clntudp_control(cl, request, info)
 	char *info;
 {
 	register struct cu_data *cu = (struct cu_data *)cl->cl_private;
+	register struct timeval *tv;
+	int len;
 
 	switch (request) {
+	case CLSET_FD_CLOSE:
+		cu->cu_closeit = TRUE;
+		break;
+	case CLSET_FD_NCLOSE:
+		cu->cu_closeit = FALSE;
+		break;
 	case CLSET_TIMEOUT:
-		cu->cu_total = *(struct timeval *)info;
+		if (info == NULL)
+			return(FALSE);
+		tv = (struct timeval *)info;
+		cu->cu_total.tv_sec = tv->tv_sec;
+		cu->cu_total.tv_usec = tv->tv_usec;
 		break;
 	case CLGET_TIMEOUT:
+		if (info == NULL)
+			return(FALSE);
 		*(struct timeval *)info = cu->cu_total;
 		break;
 	case CLSET_RETRY_TIMEOUT:
-		cu->cu_wait = *(struct timeval *)info;
+		if (info == NULL)
+			return(FALSE);
+		tv = (struct timeval *)info;
+		cu->cu_wait.tv_sec = tv->tv_sec;
+		cu->cu_wait.tv_usec = tv->tv_usec;
 		break;
 	case CLGET_RETRY_TIMEOUT:
+		if (info == NULL)
+			return(FALSE);
 		*(struct timeval *)info = cu->cu_wait;
 		break;
 	case CLGET_SERVER_ADDR:
+		if (info == NULL)
+			return(FALSE);
 		*(struct sockaddr_in *)info = cu->cu_raddr;
 		break;
+	case CLGET_FD:
+		if (info == NULL)
+			return(FALSE);
+		*(int *)info = cu->cu_sock;
+		break;
+	case CLGET_XID:
+		/*
+		 * use the knowledge that xid is the
+		 * first element in the call structure *.
+		 * This will get the xid of the PREVIOUS call
+		 */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)info = ntohl(*(u_long *)cu->cu_outbuf);
+		break;
+	case CLSET_XID:
+		/* This will set the xid of the NEXT call */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)cu->cu_outbuf =  htonl(*(u_long *)info - 1);
+		/* decrement by 1 as clntudp_call() increments once */
+	case CLGET_VERS:
+		/*
+		 * This RELIES on the information that, in the call body,
+		 * the version number field is the fifth field from the
+		 * begining of the RPC header. MUST be changed if the
+		 * call_struct is changed
+		 */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)info = ntohl(*(u_long *)(cu->cu_outbuf +
+						4 * BYTES_PER_XDR_UNIT));
+		break;
+	case CLSET_VERS:
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)(cu->cu_outbuf + 4 * BYTES_PER_XDR_UNIT)
+				= htonl(*(u_long *)info);
+		break;
+	case CLGET_PROG:
+		/*
+		 * This RELIES on the information that, in the call body,
+		 * the program number field is the  field from the
+		 * begining of the RPC header. MUST be changed if the
+		 * call_struct is changed
+		 */
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)info = ntohl(*(u_long *)(cu->cu_outbuf +
+						3 * BYTES_PER_XDR_UNIT));
+		break;
+	case CLSET_PROG:
+		if (info == NULL)
+			return(FALSE);
+		*(u_long *)(cu->cu_outbuf + 3 * BYTES_PER_XDR_UNIT)
+				= htonl(*(u_long *)info);
+		break;
+	case CLGET_LOCAL_ADDR:
+		len = sizeof(struct sockaddr);
+		if (getsockname(cu->cu_sock, (struct sockaddr *)info, &len) <0)
+			return(FALSE);
+		break;
+	case CLGET_SVC_ADDR:
+	case CLSET_SVC_ADDR:
+	case CLSET_PUSH_TIMOD:
+	case CLSET_POP_TIMOD:
 	default:
 		return (FALSE);
 	}
 	return (TRUE);
 }
-	
+
 static void
 clntudp_destroy(cl)
 	CLIENT *cl;

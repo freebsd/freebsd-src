@@ -1,16 +1,38 @@
 #	@(#)Makefile	5.11 (Berkeley) 9/6/90
 
-.PATH: ${.CURDIR}/rpc ${.CURDIR}/.
-CFLAGS+=-I${.CURDIR} -I${.CURDIR}/rpc
+.PATH: ${.CURDIR}/../libc/rpc ${.CURDIR}/.
 SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 	clnt_generic.c clnt_perror.c clnt_raw.c clnt_simple.c clnt_tcp.c \
 	clnt_udp.c rpc_dtablesize.c get_myaddress.c getrpcent.c getrpcport.c \
 	pmap_clnt.c pmap_getmaps.c pmap_getport.c pmap_prot.c \
 	pmap_prot2.c pmap_rmt.c rpc_prot.c rpc_commondata.c rpc_callmsg.c \
 	svc.c svc_auth.c svc_auth_unix.c svc_raw.c svc_run.c svc_simple.c \
-	svc_tcp.c svc_udp.c xdr.c xdr_array.c xdr_mem.c \
-	xdr_rec.c xdr_reference.c xdr_stdio.c
+	svc_tcp.c svc_udp.c
 
+SRCS+=	clnt_unix.c svc_unix.c
+
+SRCS+=	auth_des.c authdes_prot.c auth_time.c des_soft.c des_crypt.c \
+	key_call.c key_prot_xdr.c netname.c netnamer.c rpcdname.c rtime.c \
+	svc_auth_des.c crypt_clnt.c crypt_xdr.c crypt_client.c
+
+CFLAGS+= -DBROKEN_DES
+
+CLEANFILES= crypt_clnt.c crypt_xdr.c crypt.h
+
+RPCDIR= ${DESTDIR}/usr/include/rpcsvc
+RPCGEN= rpcgen -C
+
+crypt_clnt.c: ${RPCDIR}/crypt.x crypt.h
+	${RPCGEN} -l -o ${.TARGET} ${RPCDIR}/crypt.x
+
+crypt_xdr.c: ${RPCDIR}/crypt.x crypt.h
+	${RPCGEN} -c -o ${.TARGET} ${RPCDIR}/crypt.x
+
+crypt.h: ${RPCDIR}/crypt.x
+	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/crypt.x
+
+# Only build man pages with libc.
+.if ${LIB} == "c"
 #
 # XXX -- rstat.1 and rstat_svc.8 shouldn't really be here
 #        but there's no rstat command, don't know why, so I'm
@@ -18,22 +40,81 @@ SRCS+=	auth_none.c auth_unix.c  authunix_prot.c bindresvport.c \
 # Paul.
 #
 
-MAN1+= rpc/rstat.1  
-MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3 rpc/xdr.3
+# MAN1+= rpc/rstat.1
+MAN3+= rpc/bindresvport.3 rpc/getrpcent.3 rpc/getrpcport.3 rpc/rpc.3
 MAN5+= rpc/rpc.5
 MAN8+= rpc/rstat_svc.8
 
+MAN3+= rpc/rpc_secure.3 rpc/publickey.3 rpc/rtime.3 rpc/des_crypt.3
+MAN5+= rpc/publickey.5
 
-UNSUPPORTED+=	xdr_float.c 
+MLINKS+=	getrpcent.3 getrpcbyname.3 \
+		getrpcent.3 getrpcbynumber.3 \
+		getrpcent.3 endrpcent.3 \
+		getrpcent.3 setrpcent.3 \
+		rpc.3 auth_destroy.3 \
+		rpc.3 authnone_create.3 \
+		rpc.3 authunix_create.3 \
+		rpc.3 authunix_create_default.3 \
+		rpc.3 callrpc.3 \
+		rpc.3 clnt_broadcast.3 \
+		rpc.3 clnt_call.3 \
+		rpc.3 clnt_control.3 \
+		rpc.3 clnt_create.3 \
+		rpc.3 clnt_destroy.3 \
+		rpc.3 clnt_freeres.3 \
+		rpc.3 clnt_geterr.3 \
+		rpc.3 clnt_pcreateerror.3 \
+		rpc.3 clnt_perrno.3 \
+		rpc.3 clnt_perror.3 \
+		rpc.3 clnt_spcreateerror.3 \
+		rpc.3 clnt_sperrno.3 \
+		rpc.3 clnt_sperror.3 \
+		rpc.3 clntraw_create.3 \
+		rpc.3 clnttcp_create.3 \
+		rpc.3 clntudp_bufcreate.3 \
+		rpc.3 clntudp_create.3 \
+		rpc.3 get_myaddress.3 \
+		rpc.3 pmap_getmaps.3 \
+		rpc.3 pmap_getport.3 \
+		rpc.3 pmap_rmtcall.3 \
+		rpc.3 pmap_set.3 \
+		rpc.3 pmap_unset.3 \
+		rpc.3 regsterrpc.3 \
+		rpc.3 rpc_createerr.3 \
+		rpc.3 svc_destroy.3 \
+		rpc.3 svc_fds.3 \
+		rpc.3 svc_fdset.3 \
+		rpc.3 svc_getargs.3 \
+		rpc.3 svc_getcaller.3 \
+		rpc.3 svc_getreg.3 \
+		rpc.3 svc_getregset.3 \
+		rpc.3 svc_register.3 \
+		rpc.3 svc_run.3 \
+		rpc.3 svc_sendreply.3 \
+		rpc.3 svc_unregister.3 \
+		rpc.3 svcerr_auth.3 \
+		rpc.3 svcerr_decode.3 \
+		rpc.3 svcerr_noproc.3 \
+		rpc.3 svcerr_noprog.3 \
+		rpc.3 svcerr_progvers.3 \
+		rpc.3 svcerr_systemerr.3 \
+		rpc.3 svcerr_weakauth.3 \
+		rpc.3 svcfd_create.3 \
+		rpc.3 svcraw_create.3 \
+		rpc.3 svctcp_create.3 \
+		rpc.3 svcudp_bufcreate.3 \
+		rpc.3 xdr_accepted_reply.3 \
+		rpc.3 xdr_authunix_parms.3 \
+		rpc.3 xdr_callhdr.3 \
+		rpc.3 xdr_callmsg.3 \
+		rpc.3 xdr_opaque_auth.3 \
+		rpc.3 xdr_pmap.3 \
+		rpc.3 xdr_pmaplist.3 \
+		rpc.3 xdr_rejected_reply.3 \
+		rpc.3 xdr_replymsg.3 \
+		rpc.3 xprt_register.3 \
+		rpc.3 xprt_unregister.3 \
 
-HDRS+=	auth.h auth_unix.h clnt.h pmap_clnt.h \
-	pmap_prot.h pmap_rmt.h rpc.h rpc_msg.h svc.h svc_auth.h types.h xdr.h
-
-beforeinstall: ${HDRS}
-	@-if [ ! -d ${DESTDIR}/usr/include/rpc ]; then \
-		mkdir ${DESTDIR}/usr/include/rpc; \
-		chown ${BINOWN}.${BINGRP} ${DESTDIR}/usr/include/rpc; \
-		chmod 755 ${DESTDIR}/usr/include/rpc; \
-	fi
-	cd ${.CURDIR}/rpc; install -c -o ${BINOWN} -g ${BINGRP} -m 444 ${HDRS} \
-	    ${DESTDIR}/usr/include/rpc
+MLINKS+=getrpcent.3 getrpcbyname.3 getrpcent.3 getrpcbynumber.3
+.endif

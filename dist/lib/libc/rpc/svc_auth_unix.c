@@ -5,23 +5,23 @@
  * may copy or modify Sun RPC without charge, but are not authorized
  * to license or distribute it to anyone else except as part of a product or
  * program developed by the user.
- * 
+ *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
  * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
- * 
+ *
  * Sun RPC is provided with no support and without any obligation on the
  * part of Sun Microsystems, Inc. to assist in its use, correction,
  * modification or enhancement.
- * 
+ *
  * SUN MICROSYSTEMS, INC. SHALL HAVE NO LIABILITY WITH RESPECT TO THE
  * INFRINGEMENT OF COPYRIGHTS, TRADE SECRETS OR ANY PATENTS BY SUN RPC
  * OR ANY PART THEREOF.
- * 
+ *
  * In no event will Sun Microsystems, Inc. be liable for any lost revenue
  * or profits or other special, indirect and consequential damages, even if
  * Sun has been advised of the possibility of such damages.
- * 
+ *
  * Sun Microsystems, Inc.
  * 2550 Garcia Avenue
  * Mountain View, California  94043
@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_auth_unix.c 1.28 88/02/08 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_auth_unix.c	2.3 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_auth_unix.c,v 1.1 1993/10/27 05:40:58 paul Exp $";
+static char *rcsid = "$Id: svc_auth_unix.c,v 1.4 1996/12/30 15:10:14 peter Exp $";
 #endif
 
 /*
@@ -45,6 +45,7 @@ static char *rcsid = "$Id: svc_auth_unix.c,v 1.1 1993/10/27 05:40:58 paul Exp $"
  */
 
 #include <stdio.h>
+#include <string.h>
 #include <rpc/rpc.h>
 
 /*
@@ -58,7 +59,7 @@ _svcauth_unix(rqst, msg)
 	register enum auth_stat stat;
 	XDR xdrs;
 	register struct authunix_parms *aup;
-	register long *buf;
+	register int32_t *buf;
 	struct area {
 		struct authunix_parms area_aup;
 		char area_machname[MAX_MACHINE_NAME+1];
@@ -82,10 +83,10 @@ _svcauth_unix(rqst, msg)
 			stat = AUTH_BADCRED;
 			goto done;
 		}
-		bcopy((caddr_t)buf, aup->aup_machname, (u_int)str_len);
+		memcpy(aup->aup_machname, (caddr_t)buf, (u_int)str_len);
 		aup->aup_machname[str_len] = 0;
 		str_len = RNDUP(str_len);
-		buf += str_len / sizeof (long);
+		buf += str_len / sizeof (int32_t);
 		aup->aup_uid = IXDR_GET_LONG(buf);
 		aup->aup_gid = IXDR_GET_LONG(buf);
 		gid_len = IXDR_GET_U_LONG(buf);
@@ -113,8 +114,19 @@ _svcauth_unix(rqst, msg)
 		stat = AUTH_BADCRED;
 		goto done;
 	}
-	rqst->rq_xprt->xp_verf.oa_flavor = AUTH_NULL;
-	rqst->rq_xprt->xp_verf.oa_length = 0;
+
+	/* get the verifier */
+	if ((u_int)msg->rm_call.cb_verf.oa_length) {
+		rqst->rq_xprt->xp_verf.oa_flavor = 
+			msg->rm_call.cb_verf.oa_flavor;
+		rqst->rq_xprt->xp_verf.oa_base = 
+			msg->rm_call.cb_verf.oa_base;
+		rqst->rq_xprt->xp_verf.oa_length = 
+			msg->rm_call.cb_verf.oa_length;
+	} else {
+		rqst->rq_xprt->xp_verf.oa_flavor = AUTH_NULL;
+		rqst->rq_xprt->xp_verf.oa_length = 0;
+	}
 	stat = AUTH_OK;
 done:
 	XDR_DESTROY(&xdrs);
@@ -127,7 +139,7 @@ done:
  * Looks up longhand in a cache.
  */
 /*ARGSUSED*/
-enum auth_stat 
+enum auth_stat
 _svcauth_short(rqst, msg)
 	struct svc_req *rqst;
 	struct rpc_msg *msg;
