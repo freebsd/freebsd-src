@@ -366,9 +366,11 @@ started(k, ve)
 	if (!now)
 		(void)time(&now);
 	if (now - k->ki_p->ki_start.tv_sec < 24 * 3600) {
-		(void)strftime(buf, sizeof(buf) - 1, "%l:%M%p", tp);
+		(void)strftime(buf, sizeof(buf) - 1,
+		use_ampm ? "%l:%M%p" : "%k:%M  ", tp);
 	} else if (now - k->ki_p->ki_start.tv_sec < 7 * 86400) {
-		(void)strftime(buf, sizeof(buf) - 1, "%a%I%p", tp);
+		(void)strftime(buf, sizeof(buf) - 1,
+		use_ampm ? "%a%I%p" : "%a%H  ", tp);
 	} else
 		(void)strftime(buf, sizeof(buf) - 1, "%e%b%y", tp);
 	(void)printf("%-*s", v->width, buf);
