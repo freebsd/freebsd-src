@@ -1,7 +1,7 @@
 /*
  * piano.c - a piano emulator
  */
-static char rcsid[] =
+static const char rcsid[] =
   "$FreeBSD$";
 #include <stdio.h>
 #include <stdlib.h>
@@ -136,8 +136,6 @@ nain(void)
 int
 main(int argc, char *argv[])
 {
-	extern char *optarg;
-	extern int optind, opterr;
 	int ch, ex, show_usage = 0;
 	myname = argv[0];
 	while ((ch = getopt(argc, argv, "-vi:")) != -1) {
