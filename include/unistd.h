@@ -489,7 +489,12 @@ int	 rresvport(int *);
 int	 rresvport_af(int *, int);
 int	 ruserok(const char *, int, const char *, const char *);
 void	*sbrk(intptr_t);
+#if __BSD_VISIBLE
+#ifndef _SELECT_DECLARED
+#define	_SELECT_DECLARED
 int	 select(int, fd_set *, fd_set *, fd_set *, struct timeval *);
+#endif
+#endif
 int	 setdomainname(const char *, int);
 int	 setgroups(int, const gid_t *);
 void	 sethostid(long);
