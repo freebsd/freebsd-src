@@ -127,6 +127,7 @@ char   *use_it = _ncurses_copyright;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 	sigaction(SIGINT, &act, NULL);
+	sigaction(SIGTERM, &act, NULL);
 #if 0
 	sigaction(SIGSEGV, &act, NULL);
 #endif
