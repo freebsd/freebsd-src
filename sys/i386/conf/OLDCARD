@@ -31,7 +31,7 @@ maxusers	0
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
-options         SCHED_4BSD              #4BSD scheduler
+options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -213,9 +213,9 @@ device		xe		# Xircom pccard ethernet
 #device		le
 
 # Wireless NIC cards
+device		wlan		# 802.11 support
 device		an		# Aironet 4500/4800 802.11 wireless NICs. 
 device		awi		# BayStack 660 and others
-device		wlan		# generic 802.11 support
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
