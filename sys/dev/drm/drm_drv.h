@@ -79,16 +79,16 @@
 #endif
 
 #ifndef DRIVER_PREINIT
-#define DRIVER_PREINIT()
+#define DRIVER_PREINIT(dev) do {} while (0)
 #endif
 #ifndef DRIVER_POSTINIT
-#define DRIVER_POSTINIT()
+#define DRIVER_POSTINIT(dev) do {} while (0)
 #endif
 #ifndef DRIVER_PRERELEASE
 #define DRIVER_PRERELEASE()
 #endif
 #ifndef DRIVER_PRETAKEDOWN
-#define DRIVER_PRETAKEDOWN()
+#define DRIVER_PRETAKEDOWN(dev)
 #endif
 #ifndef DRIVER_POSTCLEANUP
 #define DRIVER_POSTCLEANUP()
@@ -212,7 +212,9 @@ const char *DRM(find_description)(int vendor, int device);
 
 #ifdef __FreeBSD__
 static struct cdevsw DRM(cdevsw) = {
+#if __FreeBSD_version >= 502103
 	.d_version =	D_VERSION,
+#endif
 	.d_open =	DRM( open ),
 	.d_close =	DRM( close ),
 	.d_read =	DRM( read ),
@@ -220,14 +222,21 @@ static struct cdevsw DRM(cdevsw) = {
 	.d_poll =	DRM( poll ),
 	.d_mmap =	DRM( mmap ),
 	.d_name =	DRIVER_NAME,
+#if __FreeBSD_version >= 502103
 	.d_flags =	D_TRACKCLOSE | D_NEEDGIANT,
+#else
+	.d_maj =	145,
+	.d_flags =	D_TRACKCLOSE,
+#endif
 #if __FreeBSD_version < 500000
 	.d_bmaj =	-1
 #endif
 };
 
+#include "dev/drm/drm_pciids.h"
+
 static drm_pci_id_list_t DRM(pciidlist)[] = {
-	DRIVER_PCI_IDS
+	DRM(PCI_IDS)
 };
 
 static int DRM(probe)(device_t dev)
@@ -511,7 +520,7 @@ static int DRM(takedown)( drm_device_t *dev )
 
 	DRM_DEBUG( "\n" );
 
-	DRIVER_PRETAKEDOWN();
+	DRIVER_PRETAKEDOWN(dev);
 #if __HAVE_IRQ
 	if (dev->irq_enabled)
 		DRM(irq_uninstall)( dev );
@@ -626,7 +635,7 @@ static int DRM(init)( device_t nbdev )
 	int retcode;
 #endif
 	DRM_DEBUG( "\n" );
-	DRIVER_PREINIT();
+	DRIVER_PREINIT(dev);
 
 #ifdef __FreeBSD__
 	unit = device_get_unit(nbdev);
@@ -704,7 +713,7 @@ static int DRM(init)( device_t nbdev )
 	  	DRIVER_DATE,
 	  	unit );
 
-	DRIVER_POSTINIT();
+	DRIVER_POSTINIT(dev);
 
 	return 0;
 

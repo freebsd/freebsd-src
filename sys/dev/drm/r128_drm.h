@@ -178,24 +178,47 @@ typedef struct drm_r128_sarea {
 /* Rage 128 specific ioctls
  * The device specific ioctl range is 0x40 to 0x79.
  */
-#define DRM_IOCTL_R128_INIT		DRM_IOW( 0x40, drm_r128_init_t)
-#define DRM_IOCTL_R128_CCE_START	DRM_IO(  0x41)
-#define DRM_IOCTL_R128_CCE_STOP		DRM_IOW( 0x42, drm_r128_cce_stop_t)
-#define DRM_IOCTL_R128_CCE_RESET	DRM_IO(  0x43)
-#define DRM_IOCTL_R128_CCE_IDLE		DRM_IO(  0x44)
-#define DRM_IOCTL_R128_RESET		DRM_IO(  0x46)
-#define DRM_IOCTL_R128_SWAP		DRM_IO(  0x47)
-#define DRM_IOCTL_R128_CLEAR		DRM_IOW( 0x48, drm_r128_clear_t)
-#define DRM_IOCTL_R128_VERTEX		DRM_IOW( 0x49, drm_r128_vertex_t)
-#define DRM_IOCTL_R128_INDICES		DRM_IOW( 0x4a, drm_r128_indices_t)
-#define DRM_IOCTL_R128_BLIT		DRM_IOW( 0x4b, drm_r128_blit_t)
-#define DRM_IOCTL_R128_DEPTH		DRM_IOW( 0x4c, drm_r128_depth_t)
-#define DRM_IOCTL_R128_STIPPLE		DRM_IOW( 0x4d, drm_r128_stipple_t)
-#define DRM_IOCTL_R128_INDIRECT		DRM_IOWR(0x4f, drm_r128_indirect_t)
-#define DRM_IOCTL_R128_FULLSCREEN	DRM_IOW( 0x50, drm_r128_fullscreen_t)
-#define DRM_IOCTL_R128_CLEAR2		DRM_IOW( 0x51, drm_r128_clear2_t)
-#define DRM_IOCTL_R128_GETPARAM		DRM_IOW( 0x52, drm_r128_getparam_t)
-#define DRM_IOCTL_R128_FLIP		DRM_IO(  0x53)
+#define DRM_R128_INIT       0x00
+#define DRM_R128_CCE_START  0x01
+#define DRM_R128_CCE_STOP   0x02
+#define DRM_R128_CCE_RESET  0x03
+#define DRM_R128_CCE_IDLE   0x04
+/* 0x05 not used */
+#define DRM_R128_RESET      0x06
+#define DRM_R128_SWAP       0x07
+#define DRM_R128_CLEAR      0x08
+#define DRM_R128_VERTEX     0x09
+#define DRM_R128_INDICES    0x0a
+#define DRM_R128_BLIT       0x0b
+#define DRM_R128_DEPTH      0x0c
+#define DRM_R128_STIPPLE    0x0d
+/* 0x0e not used */
+#define DRM_R128_INDIRECT   0x0f
+#define DRM_R128_FULLSCREEN 0x10
+#define DRM_R128_CLEAR2     0x11
+#define DRM_R128_GETPARAM   0x12
+#define DRM_R128_FLIP       0x13
+
+#define DRM_IOCTL_R128_INIT       DRM_IOW( DRM_COMMAND_BASE + DRM_R128_INIT, drm_r128_init_t)
+#define DRM_IOCTL_R128_CCE_START  DRM_IO(  DRM_COMMAND_BASE + DRM_R128_CCE_START)
+#define DRM_IOCTL_R128_CCE_STOP   DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CCE_STOP, drm_r128_cce_stop_t)
+#define DRM_IOCTL_R128_CCE_RESET  DRM_IO(  DRM_COMMAND_BASE + DRM_R128_CCE_RESET)
+#define DRM_IOCTL_R128_CCE_IDLE   DRM_IO(  DRM_COMMAND_BASE + DRM_R128_CCE_IDLE)
+/* 0x05 not used */
+#define DRM_IOCTL_R128_RESET      DRM_IO(  DRM_COMMAND_BASE + DRM_R128_RESET)
+#define DRM_IOCTL_R128_SWAP       DRM_IO(  DRM_COMMAND_BASE + DRM_R128_SWAP)
+#define DRM_IOCTL_R128_CLEAR      DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CLEAR, drm_r128_clear_t)
+#define DRM_IOCTL_R128_VERTEX     DRM_IOW( DRM_COMMAND_BASE + DRM_R128_VERTEX, drm_r128_vertex_t)
+#define DRM_IOCTL_R128_INDICES    DRM_IOW( DRM_COMMAND_BASE + DRM_R128_INDICES, drm_r128_indices_t)
+#define DRM_IOCTL_R128_BLIT       DRM_IOW( DRM_COMMAND_BASE + DRM_R128_BLIT, drm_r128_blit_t)
+#define DRM_IOCTL_R128_DEPTH      DRM_IOW( DRM_COMMAND_BASE + DRM_R128_DEPTH, drm_r128_depth_t)
+#define DRM_IOCTL_R128_STIPPLE    DRM_IOW( DRM_COMMAND_BASE + DRM_R128_STIPPLE, drm_r128_stipple_t)
+/* 0x0e not used */
+#define DRM_IOCTL_R128_INDIRECT   DRM_IOWR(DRM_COMMAND_BASE + DRM_R128_INDIRECT, drm_r128_indirect_t)
+#define DRM_IOCTL_R128_FULLSCREEN DRM_IOW( DRM_COMMAND_BASE + DRM_R128_FULLSCREEN, drm_r128_fullscreen_t)
+#define DRM_IOCTL_R128_CLEAR2     DRM_IOW( DRM_COMMAND_BASE + DRM_R128_CLEAR2, drm_r128_clear2_t)
+#define DRM_IOCTL_R128_GETPARAM   DRM_IOW( DRM_COMMAND_BASE + DRM_R128_GETPARAM, drm_r128_getparam_t)
+#define DRM_IOCTL_R128_FLIP       DRM_IO(  DRM_COMMAND_BASE + DRM_R128_FLIP)
 
 typedef struct drm_r128_init {
 	enum {
@@ -318,7 +341,7 @@ typedef struct drm_r128_fullscreen {
 
 typedef struct drm_r128_getparam {
 	int param;
-	int *value;
+	void *value;
 } drm_r128_getparam_t;
 
 #endif

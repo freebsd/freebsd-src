@@ -1,7 +1,7 @@
-/* tdfx.h -- 3dfx DRM template customization -*- linux-c -*-
- * Created: Wed Feb 14 12:32:32 2001 by gareth@valinux.com
+/* drm_linux_list.h -- linux list functions for the BSDs.
+ * Created: Mon Apr 7 14:30:16 1999 by anholt@FreeBSD.org
  *
- * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
+ * Copyright 2003 Eric Anholt
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,31 +24,48 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * Authors:
- *    Gareth Hughes <gareth@valinux.com>
+ *    Eric Anholt <anholt@FreeBSD.org>
  *
  * $FreeBSD$
  */
 
-#ifndef __TDFX_H__
-#define __TDFX_H__
+struct list_head {
+	struct list_head *next, *prev;
+};
 
-/* This remains constant for all DRM template files.
- */
-#define DRM(x) tdfx_##x
+/* Cheat, assume the list_head is at the start of the struct */
+#define list_entry(entry, type, member)	(type *)(entry)
 
-/* General customization:
- */
-#define __HAVE_MTRR		1
-#define __HAVE_CTX_BITMAP	1
+static __inline__ void
+INIT_LIST_HEAD(struct list_head *head) {
+	(head)->next = head;
+	(head)->prev = head;
+}
 
-#define DRIVER_AUTHOR		"VA Linux Systems Inc."
+static __inline__ int
+list_empty(struct list_head *head) {
+	return (head)->next == head;
+}
 
-#define DRIVER_NAME		"tdfx"
-#define DRIVER_DESC		"3dfx Banshee/Voodoo3+"
-#define DRIVER_DATE		"20010216"
+static __inline__ void
+list_add_tail(struct list_head *entry, struct list_head *head) {
+	(entry)->prev = (head)->prev;
+	(entry)->next = head;
+	(head)->prev->next = entry;
+	(head)->prev = entry;
+}
 
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
-#define DRIVER_PATCHLEVEL	0
+static __inline__ void
+list_del(struct list_head *entry) {
+	(entry)->next->prev = (entry)->prev;
+	(entry)->prev->next = (entry)->next;
+}
 
-#endif
+#define list_for_each(entry, head)				\
+    for (entry = (head)->next; entry != head; entry = (entry)->next)
+
+#define list_for_each_safe(entry, temp, head)			\
+    for (entry = (head)->next, temp = (entry)->next;		\
+	temp != head; 						\
+	entry = temp, temp = temp->next)
+

@@ -141,12 +141,12 @@ static int init_heap(struct mem_block **heap, int start, int size)
 	struct mem_block *blocks = DRM_MALLOC(sizeof(*blocks));
 
 	if (!blocks) 
-		return -ENOMEM;
+		return DRM_ERR(ENOMEM);
 	
 	*heap = DRM_MALLOC(sizeof(**heap));
 	if (!*heap) {
 		DRM_FREE( blocks, sizeof(*blocks) );
-		return -ENOMEM;
+		return DRM_ERR(ENOMEM);
 	}
 
 	blocks->start = start;
