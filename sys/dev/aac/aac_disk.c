@@ -42,6 +42,10 @@
 #include <sys/devicestat.h>
 #include <sys/disk.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+#include <machine/md_var.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 
@@ -62,6 +66,7 @@ static int aac_disk_detach(device_t dev);
 static	d_open_t	aac_disk_open;
 static	d_close_t	aac_disk_close;
 static	d_strategy_t	aac_disk_strategy;
+static	d_dump_t	aac_disk_dump;
 
 #define AAC_DISK_CDEV_MAJOR	151
 
@@ -76,9 +81,12 @@ static struct cdevsw aac_disk_cdevsw = {
     /* strategy */	aac_disk_strategy,
     /* name */ 		"aacd",
     /* maj */		AAC_DISK_CDEV_MAJOR,
-    /* dump */		nodump,
+    /* dump */		aac_disk_dump,
     /* psize */ 	nopsize,
     /* flags */		D_DISK,
+#if __FreeBSD_version < 500005
+    /* bmaj */		-1
+#endif
 };
 
 devclass_t		aac_disk_devclass;
@@ -108,7 +116,9 @@ TUNABLE_INT("hw.aac.iosize_max", &aac_iosize_max);
 
 SYSCTL_DECL(_hw_aac);
 SYSCTL_UINT(_hw_aac, OID_AUTO, iosize_max, CTLFLAG_RD, &aac_iosize_max, 0,
-	   "Max I/O size per transfer to an array");
+	    "Max I/O size per transfer to an array");
+
+#define AAC_MAXIO	65536
 
 /******************************************************************************
  * Handle open from generic layer.
@@ -181,12 +191,95 @@ aac_disk_strategy(struct bio *bp)
 	return;
     }
 
+    /* do-nothing operation? */
+    if (bp->bio_bcount == 0) {
+	bp->bio_resid = bp->bio_bcount;
+	biodone(bp);
+	return;
+    }
+
     /* perform accounting */
     devstat_start_transaction(&sc->ad_stats);
 
     /* pass the bio to the controller - it can work out who we are */
     aac_submit_bio(bp);
     return;
+}
+
+/******************************************************************************
+ * Dump memory out to an array
+ *
+ * This queues blocks of memory of size AAC_MAXIO to the controller and waits
+ * for the controller to complete the requests.
+ */
+static int
+aac_disk_dump(dev_t dev)
+{
+    struct aac_disk	*ad = dev->si_drv1;
+    struct aac_softc	*sc;
+    vm_offset_t		addr = 0;
+    long		blkcnt;
+    unsigned int	count, blkno, secsize;
+    int			dumppages = AAC_MAXIO / PAGE_SIZE;
+    int			i, error;
+
+    if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
+	return (error);
+
+    if (ad == NULL)
+	return (ENXIO);
+
+    sc= ad->ad_controller;
+
+    blkcnt = howmany(PAGE_SIZE, secsize);
+
+    while (count > 0) {
+	caddr_t va = NULL;
+
+	if ((count / blkcnt) < dumppages)
+	    dumppages = count / blkcnt;
+
+	for (i = 0; i < dumppages; ++i) {
+	    vm_offset_t a = addr + (i * PAGE_SIZE);
+	    if (is_physical_memory(a)) {
+		va = pmap_kenter_temporary(trunc_page(a), i);
+	    } else {
+		va = pmap_kenter_temporary(trunc_page(0), i);
+	    }
+	}
+
+retry:
+	/*
+	 * Queue the block to the controller.  If the queue is full, EBUSY
+	 * will be returned.
+	 */
+	error = aac_dump_enqueue(ad, blkno, va, dumppages);
+	if (error && (error != EBUSY))
+	    return (error);
+
+	if (!error) {
+	    if (dumpstatus(addr, (long)(count * DEV_BSIZE)) < 0)
+		return (EINTR);
+
+	    blkno += blkcnt * dumppages;
+	    count -= blkcnt * dumppages;
+	    addr += PAGE_SIZE * dumppages;
+	    if (count > 0)
+		continue;
+	}
+
+	/*
+	 * Either the queue was full on the last attemp, or we have no more
+	 * data to dump.  Let the queue drain out and retry the block if
+	 * the queue was full.
+	 */
+	aac_dump_complete(sc);
+
+	if (error == EBUSY)
+	    goto retry;
+    }
+
+    return (0);
 }
 
 /******************************************************************************
@@ -200,8 +293,13 @@ aac_biodone(struct bio *bp)
     debug_called(4);
 
     devstat_end_transaction_bio(&sc->ad_stats, bp);
-    if (bp->bio_flags & BIO_ERROR)	
+    if (bp->bio_flags & BIO_ERROR) {
+#if __FreeBSD_version > 500005
 	diskerr(bp, (char *)bp->bio_driver1, 0, &sc->ad_label);
+#else
+	diskerr(bp, (char *)bp->bio_driver1, 0, -1, &sc->ad_label);
+#endif
+    }
     biodone(bp);
 }
 
@@ -212,7 +310,7 @@ static int
 aac_disk_probe(device_t dev)
 {
 
-    debug_called(4);
+    debug_called(2);
 
     return (0);
 }
@@ -225,7 +323,7 @@ aac_disk_attach(device_t dev)
 {
     struct aac_disk	*sc = (struct aac_disk *)device_get_softc(dev);
     
-    debug_called(4);
+    debug_called(1);
 
     /* initialise our softc */
     sc->ad_controller =
@@ -267,6 +365,7 @@ aac_disk_attach(device_t dev)
 #endif
 
     sc->ad_dev_t->si_iosize_max = aac_iosize_max;
+    sc->unit = device_get_unit(dev);
 
     return (0);
 }
@@ -279,17 +378,16 @@ aac_disk_detach(device_t dev)
 {
     struct aac_disk *sc = (struct aac_disk *)device_get_softc(dev);
 
-    debug_called(4);
+    debug_called(2);
 
     if (sc->ad_flags & AAC_DISK_OPEN)
 	return(EBUSY);
 
     devstat_remove_entry(&sc->ad_stats);
+    disk_destroy(sc->ad_dev_t);
 #ifdef FREEBSD_4
     if (--disks_registered == 0)
-	cdevsw_remove(&aac_disk_disk_cdevsw);
-#else
-    disk_destroy(sc->ad_dev_t);
+	cdevsw_remove(&aac_disk_cdevsw);
 #endif
 
     return(0);

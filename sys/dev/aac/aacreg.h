@@ -987,7 +987,7 @@ struct aac_mntinforesponse {
  */
 struct aac_closecommand {
     u_int32_t	Command;
-    u_int32_t	ComainerId;
+    u_int32_t	ContainerId;
 } __attribute__ ((packed));
 
 /*

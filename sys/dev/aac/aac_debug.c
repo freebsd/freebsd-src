@@ -34,7 +34,6 @@
  */
 #include "opt_aac.h"
 
-#ifdef AAC_DEBUG
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -492,4 +491,3 @@ aac_print_aif(struct aac_softc *sc, struct aac_aif_command *aif)
     }
 }
 #endif /* AAC_DEBUG */
-#endif
