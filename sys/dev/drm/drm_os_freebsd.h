@@ -57,7 +57,9 @@
 #include <machine/pmap.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
+#if __FreeBSD_version >= 480000
 #include <sys/endian.h>
+#endif
 #include <sys/mman.h>
 #include <sys/rman.h>
 #include <sys/memrange.h>
@@ -81,10 +83,11 @@
 #endif
 
 #ifdef __i386__
-#define __REALLY_HAVE_MTRR	(__HAVE_MTRR) && (__FreeBSD_version >= 500000)
+#define __REALLY_HAVE_MTRR	(__HAVE_MTRR) && (__FreeBSD_version >= 460000)
 #else
 #define __REALLY_HAVE_MTRR	0
 #endif
+
 #define __REALLY_HAVE_SG	(__HAVE_SG)
 
 #if __REALLY_HAVE_AGP
@@ -122,15 +125,23 @@
 #define DRM_SPINLOCK(l)		mtx_lock(l)
 #define DRM_SPINUNLOCK(u)	mtx_unlock(u);
 #define DRM_CURRENTPID		curthread->td_proc->p_pid
+#define DRM_LOCK()		mtx_lock(&dev->dev_lock)
+#define DRM_UNLOCK() 		mtx_unlock(&dev->dev_lock)
 #else
+/* There is no need for locking on FreeBSD 4.x.  Synchronization is handled by
+ * the fact that there is no reentrancy of the kernel except for interrupt
+ * handlers, and the interrupt handler synchronization is managed by spls.
+ */
 #define DRM_CURPROC		curproc
 #define DRM_STRUCTPROC		struct proc
-#define DRM_SPINTYPE		struct simplelock
-#define DRM_SPININIT(l,name)	simple_lock_init(&l)
+#define DRM_SPINTYPE		
+#define DRM_SPININIT(l,name)
 #define DRM_SPINUNINIT(l)
-#define DRM_SPINLOCK(l)		simple_lock(l)
-#define DRM_SPINUNLOCK(u)	simple_unlock(u);
+#define DRM_SPINLOCK(l)
+#define DRM_SPINUNLOCK(u)
 #define DRM_CURRENTPID		curproc->p_pid
+#define DRM_LOCK()
+#define DRM_UNLOCK()
 #endif
 
 /* Currently our DRMFILE (filp) is a void * which is actually the pid
@@ -138,8 +149,6 @@
  * code for that is not yet written */
 #define DRMFILE			void *
 #define DRM_IOCTL_ARGS		dev_t kdev, u_long cmd, caddr_t data, int flags, DRM_STRUCTPROC *p, DRMFILE filp
-#define DRM_LOCK		lockmgr(&dev->dev_lock, LK_EXCLUSIVE, 0, DRM_CURPROC)
-#define DRM_UNLOCK 		lockmgr(&dev->dev_lock, LK_RELEASE, 0, DRM_CURPROC)
 #define DRM_SUSER(p)		suser(p)
 #define DRM_TASKQUEUE_ARGS	void *arg, int pending
 #define DRM_IRQ_ARGS		void *arg
@@ -164,12 +173,22 @@ typedef void			irqreturn_t;
 #define DRM_AGP_FIND_DEVICE()	agp_find_device()
 #define DRM_ERR(v)		v
 
-#define DRM_PRIV					\
-	drm_file_t	*priv	= (drm_file_t *) DRM(find_file_by_proc)(dev, p); \
-	if (!priv) {						\
-		DRM_DEBUG("can't find authenticator\n");	\
+#define DRM_MTRR_WC	MDF_WRITECOMBINE
+
+#define DRM_GET_PRIV_WITH_RETURN(_priv, _filp)			\
+do {								\
+	if (_filp != (DRMFILE)DRM_CURRENTPID) {			\
+		DRM_ERROR("filp doesn't match curproc\n");	\
 		return EINVAL;					\
-	}
+	}							\
+	DRM_LOCK();						\
+	_priv = DRM(find_file_by_proc)(dev, DRM_CURPROC);	\
+	DRM_UNLOCK();						\
+	if (_priv == NULL) {					\
+		DRM_ERROR("can't find authenticator\n");	\
+		return EINVAL;					\
+	}							\
+} while (0)
 
 #define LOCK_TEST_WITH_RETURN(dev, filp)				\
 do {									\
@@ -206,12 +225,25 @@ do {								\
 
 #define DRM_HZ hz
 
-#define DRM_WAIT_ON( ret, queue, timeout, condition )			\
-while (!condition) {							\
-	ret = tsleep( &(queue), PZERO | PCATCH, "drmwtq", (timeout) );	\
-	if ( ret )							\
-		return ret;						\
+#if defined(__FreeBSD__) && __FreeBSD_version > 500000
+#define DRM_WAIT_ON( ret, queue, timeout, condition )		\
+for ( ret = 0 ; !ret && !(condition) ; ) {			\
+	mtx_lock(&dev->irq_lock);				\
+	if (!(condition))					\
+	   ret = msleep(&(queue), &dev->irq_lock, 	\
+			 PZERO | PCATCH, "drmwtq", (timeout));	\
+	mtx_unlock(&dev->irq_lock);			\
 }
+#else
+#define DRM_WAIT_ON( ret, queue, timeout, condition )	\
+for ( ret = 0 ; !ret && !(condition) ; ) {		\
+        int s = spldrm();				\
+	if (!(condition))				\
+	   ret = tsleep( &(queue), PZERO | PCATCH, 	\
+			 "drmwtq", (timeout) );		\
+	splx(s);					\
+}
+#endif
 
 #define DRM_WAKEUP( queue ) wakeup( queue )
 #define DRM_WAKEUP_INT( queue ) wakeup( queue )
@@ -267,16 +299,13 @@ while (!condition) {							\
 MALLOC_DECLARE(malloctype);
 #undef malloctype
 
-typedef struct drm_chipinfo
-{
-	int vendor;
-	int device;
-	int supported;
-	char *name;
-} drm_chipinfo_t;
-
+#if __FreeBSD_version >= 480000
 #define cpu_to_le32(x) htole32(x)
 #define le32_to_cpu(x) le32toh(x)
+#else
+#define cpu_to_le32(x) (x)
+#define le32_to_cpu(x) (x)
+#endif
 
 typedef unsigned long dma_addr_t;
 typedef u_int32_t atomic_t;
@@ -379,17 +408,21 @@ find_first_zero_bit(volatile void *p, int max)
 
 				/* Macros to make printf easier */
 #define DRM_ERROR(fmt, arg...) \
-	printf("error: " "[" DRM_NAME ":%s] *ERROR* " fmt , __func__ , ## arg)
+	printf("error: [" DRM_NAME ":pid%d:%s] *ERROR* " fmt,		\
+	    DRM_CURRENTPID, __func__ , ## arg)
+
 #define DRM_MEM_ERROR(area, fmt, arg...) \
-	printf("error: " "[" DRM_NAME ":%s:%s] *ERROR* " fmt , \
-		__func__, DRM(mem_stats)[area].name , ##arg)
-#define DRM_INFO(fmt, arg...)  printf("info: " "[" DRM_NAME "] " fmt , ## arg)
+	printf("error: [" DRM_NAME ":pid%d:%s:%s] *ERROR* " fmt,	\
+	    DRM_CURRENTPID , __func__, DRM(mem_stats)[area].name , ##arg)
+
+#define DRM_INFO(fmt, arg...)  printf("info: [" DRM_NAME "] " fmt , ## arg)
 
 #if DRM_DEBUG_CODE
-#define DRM_DEBUG(fmt, arg...)						  \
-	do {								  \
-		if (DRM(flags) & DRM_FLAG_DEBUG)			  \
-			printf("[" DRM_NAME ":%s] " fmt , __func__ , ## arg); \
+#define DRM_DEBUG(fmt, arg...)						\
+	do {								\
+		if (DRM(flags) & DRM_FLAG_DEBUG)			\
+			printf("[" DRM_NAME ":pid%d:%s] " fmt,		\
+			    DRM_CURRENTPID, __func__ , ## arg);		\
 	} while (0)
 #else
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
@@ -400,14 +433,6 @@ find_first_zero_bit(volatile void *p, int max)
 #else
 #define DRM_SYSCTL_HANDLER_ARGS	SYSCTL_HANDLER_ARGS
 #endif
-
-#define DRM_SYSCTL_PRINT(fmt, arg...)		\
-do {						\
-  snprintf(buf, sizeof(buf), fmt, ##arg);	\
-  error = SYSCTL_OUT(req, buf, strlen(buf));	\
-  if (error) return error;			\
-} while (0)
-
 
 #define DRM_FIND_MAP(dest, o)						\
 	do {								\

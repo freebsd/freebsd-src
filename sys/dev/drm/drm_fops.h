@@ -34,6 +34,7 @@
 
 #include "dev/drm/drmP.h"
 
+/* Requires device lock held */
 drm_file_t *DRM(find_file_by_proc)(drm_device_t *dev, DRM_STRUCTPROC *p)
 {
 #if __FreeBSD_version >= 500021
@@ -51,8 +52,7 @@ drm_file_t *DRM(find_file_by_proc)(drm_device_t *dev, DRM_STRUCTPROC *p)
 	return NULL;
 }
 
-/* DRM(open) is called whenever a process opens /dev/drm. */
-
+/* DRM(open_helper) is called whenever a process opens /dev/drm. */
 int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		    drm_device_t *dev)
 {
@@ -65,12 +65,16 @@ int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 
 	DRM_DEBUG("pid = %d, minor = %d\n", DRM_CURRENTPID, m);
 
-	/* FIXME: linux mallocs and bzeros here */
+	DRM_LOCK();
 	priv = (drm_file_t *) DRM(find_file_by_proc)(dev, p);
 	if (priv) {
 		priv->refs++;
 	} else {
 		priv = (drm_file_t *) DRM(alloc)(sizeof(*priv), DRM_MEM_FILES);
+		if (priv == NULL) {
+			DRM_UNLOCK();
+			return DRM_ERR(ENOMEM);
+		}
 		bzero(priv, sizeof(*priv));
 #if __FreeBSD_version >= 500000
 		priv->uid		= p->td_ucred->cr_svuid;
@@ -85,10 +89,9 @@ int DRM(open_helper)(dev_t kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		priv->devXX		= dev;
 		priv->ioctl_count 	= 0;
 		priv->authenticated	= !DRM_SUSER(p);
-		DRM_LOCK;
 		TAILQ_INSERT_TAIL(&dev->files, priv, link);
-		DRM_UNLOCK;
 	}
+	DRM_UNLOCK();
 #ifdef __FreeBSD__
 	kdev->si_drv1 = dev;
 #endif

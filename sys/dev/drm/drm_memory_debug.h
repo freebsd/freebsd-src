@@ -33,6 +33,14 @@
 
 #include "drmP.h"
 
+#define DRM_SYSCTL_PRINT(fmt, arg...)				\
+do {								\
+	snprintf(buf, sizeof(buf), fmt, ##arg);			\
+	error = SYSCTL_OUT(req, buf, strlen(buf));		\
+	if (error)						\
+		return error;					\
+} while (0)
+
 typedef struct drm_mem_stats {
 	const char	  *name;
 	int		  succeed_count;

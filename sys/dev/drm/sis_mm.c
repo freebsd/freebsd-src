@@ -133,7 +133,7 @@ int sis_fb_free( DRM_IOCTL_ARGS )
 		retval = DRM_ERR(EINVAL);
 	sis_free(fb.free);
 
-	DRM_DEBUG("free fb, offset = %d\n", fb.free);
+	DRM_DEBUG("free fb, offset = 0x%lx\n", fb.free);
 
 	return retval;
 }

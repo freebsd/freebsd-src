@@ -37,17 +37,6 @@
 #include "dev/drm/mga_drm.h"
 #include "dev/drm/mga_drv.h"
 
-/* List acquired from http://www.yourvote.com/pci/pcihdr.h and xc/xc/programs/Xserver/hw/xfree86/common/xf86PciInfo.h
- * Please report to anholt@teleport.com inaccuracies or if a chip you have works that is marked unsupported here.
- */
-drm_chipinfo_t DRM(devicelist)[] = {
-	{0x102b, 0x0520, 0, "Matrox G200 (PCI)"},
-	{0x102b, 0x0521, 1, "Matrox G200 (AGP)"},
-	{0x102b, 0x0525, 1, "Matrox G400/G450 (AGP)"},
-	{0x102b, 0x2527, 1, "Matrox G550 (AGP)"},
-	{0, 0, 0, NULL}
-};
-
 #include "dev/drm/drm_agpsupport.h"
 #include "dev/drm/drm_auth.h"
 #include "dev/drm/drm_bufs.h"
@@ -57,6 +46,7 @@ drm_chipinfo_t DRM(devicelist)[] = {
 #include "dev/drm/drm_drv.h"
 #include "dev/drm/drm_fops.h"
 #include "dev/drm/drm_ioctl.h"
+#include "dev/drm/drm_irq.h"
 #include "dev/drm/drm_lock.h"
 #include "dev/drm/drm_memory.h"
 #include "dev/drm/drm_vm.h"
