@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 1999
+.Dd June 26, 2002
 .Dt TI 4
 .Os
 .Sh NAME
@@ -193,56 +193,60 @@ calls implemented by most network drivers, the
 .Nm
 driver also includes a character device interface that can be used for
 additional diagnostics, configuration and debugging.  With this character
-device interface, and a specially patched version of gdb, the user can
+device interface, and a specially patched version of
+.Xr gdb 1 ,
+the user can
 debug firmware running on the Tigon board.
 .Pp
 These ioctls and their arguments are defined in the
 .Aq Pa sys/tiio.h
 header file.
-.Bl -tag -width ALT_WRITE_TG_MEM
+.Bl -tag -width ".Dv ALT_WRITE_TG_MEM"
 .It Dv TIIOCGETSTATS
 Return card statistics DMAed from the card into kernel memory approximately
 every 2 seconds.  (That time interval can be changed via the
 .Dv TIIOCSETPARAMS
 ioctl.)  The argument is
-.Va struct ti_stats .
+.Vt "struct ti_stats" .
 .It Dv TIIOCGETPARAMS
 Get various performance-related firmware parameters that largely affect how
 interrupts are coalesced.  The argument is
-.Va struct ti_params .
+.Vt "struct ti_params" .
 .It Dv TIIOCSETPARAMS
 Set various performance-related firmware parameters that largely affect how
 interrupts are coalesced.  The argument is
-.Va struct ti_params .
+.Vt "struct ti_params" .
 .It Dv TIIOCSETTRACE
 Tell the NIC to trace the requested types of information.
 The argument is
-.Va ti_trace_type .
+.Vt ti_trace_type .
 .It Dv TIIOCGETTRACE
 Dump the trace buffer from the card.  The argument is
-.Va struct ti_trace_buf .
+.Vt "struct ti_trace_buf" .
 .It Dv ALT_ATTACH
 This ioctl is used for compatibility with Alteon's Solaris driver.  They
 apparantly only have one character interface for debugging, so they have
 to tell it which Tigon instance they want to debug.  This ioctl is a noop
-for FreeBSD.
+for
+.Fx .
 .It Dv ALT_READ_TG_MEM
 Read the requested memory region from the Tigon board.  The argument is
-.Va struct tg_mem .
+.Vt "struct tg_mem" .
 .It Dv ALT_WRITE_TG_MEM
 Write to the requested memory region on the Tigon board.  The argument is
-.Va struct tg_mem .
+.Vt "struct tg_mem" .
 .It Dv ALT_READ_TG_REG
 Read the requested register on the Tigon board.  The argument is
-.Va struct tg_reg .
+.Vt "struct tg_reg" .
 .It Dv ALT_WRITE_TG_REG
 Write to the requested register on the Tigon board.  The argument is
-.Va struct tg_reg .
+.Vt "struct tg_reg" .
 .El
 .Sh FILES
-.Bl -tag -width /dev/ti[0-255] -compact
+.Bl -tag -width ".Pa /dev/ti[0-255]" -compact
 .It Pa /dev/ti[0-255]
 Tigon driver character interface.
+.El
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "ti%d: couldn't map memory"
@@ -285,8 +289,8 @@ the network connection (cable).
 .Xr ng_ether 4 ,
 .Xr vlan 4 ,
 .Xr ifconfig 8 ,
-.Xr zero_copy 9 ,
-.Xr jumbo 9
+.Xr jumbo 9 ,
+.Xr zero_copy 9
 .Rs
 .%T Alteon Gigabit Ethernet/PCI NIC manuals
 .%O http://sanjose.alteon.com/open.shtml
@@ -297,12 +301,14 @@ The
 device driver first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
 .An Bill Paul Aq wpaul@bsdi.com .
-The header splitting firmware modifications, character ioctl interface and
-debugging support were written by
+The header splitting firmware modifications, character
+.Xr ioctl 2
+interface and debugging support were written by
 .An Kenneth Merry Aq ken@FreeBSD.org .
 Initial zero copy support was written by
 .An Andrew Gallatin Aq gallatin@FreeBSD.org .
