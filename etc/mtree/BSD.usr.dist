@@ -169,6 +169,12 @@
         dict
         ..
         doc
+	    bind
+	        html
+		..
+		misc
+		..
+	    ..
             papers
             ..
             psd
