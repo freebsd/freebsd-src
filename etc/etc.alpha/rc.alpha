@@ -5,6 +5,15 @@
 #
 
 echo -n 'Initial rc.alpha initialization:'
+
+# Start the Alpha OSF/1 binary compatibility if requested.
+#
+case ${osf1_enable} in
+[Yy][Ee][Ss])
+	echo -n ' OSF/1';	osf1 > /dev/null 2>&1
+	;;
+esac
+
 echo '.'
 
 ##########################################################################
