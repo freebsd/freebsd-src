@@ -58,7 +58,6 @@ typedef struct mousestatus {
     int     dx;			/* x movement */
     int     dy;			/* y movement */
     int     dz;			/* z movement */
-    int     dt;			/* left right tilt axis */
 } mousestatus_t;
 
 /* button */

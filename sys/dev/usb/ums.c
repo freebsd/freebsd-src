@@ -476,7 +476,7 @@ ums_intr(xfer, addr, status)
 		sc->status.dx += dx;
 		sc->status.dy += dy;
 		sc->status.dz += dz;
-		sc->status.dt += dt;
+		/* sc->status.dt += dt;*/ /* no way to export this yet */
 		
 		/* Discard data in case of full buffer */
 		if (sc->qcount == sizeof(sc->qbuf)) {
@@ -579,7 +579,7 @@ ums_enable(v)
 	sc->qhead = sc->qtail = 0;
 	sc->status.flags = 0;
 	sc->status.button = sc->status.obutton = 0;
-	sc->status.dx = sc->status.dy = sc->status.dz = sc->status.dt = 0;
+	sc->status.dx = sc->status.dy = sc->status.dz = /* sc->status.dt */ = 0;
 
 	callout_handle_init((struct callout_handle *)&sc->callout_handle);
 
@@ -836,10 +836,11 @@ ums_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, usb_proc_ptr p)
 		*status = sc->status;
 		sc->status.obutton = sc->status.button;
 		sc->status.button = 0;
-		sc->status.dx = sc->status.dy = sc->status.dz = sc->status.dt = 0;
+		sc->status.dx = sc->status.dy
+		    = sc->status.dz = /* sc->status.dt = */ 0;
 		splx(s);
 
-		if (status->dx || status->dy || status->dz || status->dt)
+		if (status->dx || status->dy || status->dz /* || status->dt */)
 			status->flags |= MOUSE_POSCHANGED;
 		if (status->button != status->obutton)
 			status->flags |= MOUSE_BUTTONSCHANGED;
