@@ -87,8 +87,13 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
+#ifdef PAE
+#define NPGPTD		4
+#define PDRSHIFT	21		/* LOG2(NBPDR) */
+#else
 #define NPGPTD		1
 #define PDRSHIFT	22		/* LOG2(NBPDR) */
+#endif
 
 #define NBPTD		(NPGPTD<<PAGE_SHIFT)
 #define NPDEPTD		(NBPTD/(sizeof (pd_entry_t)))

@@ -138,6 +138,11 @@ SMPpt:		.long	0		/* relocated version */
 	.globl	IdlePTD
 IdlePTD:	.long	0		/* phys addr of kernel PTD */
 
+#ifdef PAE
+	.globl	IdlePDPT
+IdlePDPT:	.long	0		/* phys addr of kernel PDPT */
+#endif
+
 #ifdef SMP
 	.globl	KPTphys
 #endif
@@ -323,8 +328,16 @@ NON_GPROF_ENTRY(btext)
 1:
 
 /* Now enable paging */
+#ifdef PAE
+	movl	R(IdlePDPT), %eax
+	movl	%eax, %cr3
+	movl	%cr4, %eax
+	orl	$CR4_PAE, %eax
+	movl	%eax, %cr4
+#else
 	movl	R(IdlePTD), %eax
 	movl	%eax,%cr3		/* load ptd addr into mmu */
+#endif
 	movl	%cr0,%eax		/* get control word */
 	orl	$CR0_PE|CR0_PG,%eax	/* enable paging */
 	movl	%eax,%cr0		/* and let's page NOW! */
@@ -341,7 +354,11 @@ begin:
 
 	xorl	%ebp,%ebp		/* mark end of frames */
 
+#ifdef PAE
+	movl	IdlePDPT,%esi
+#else
 	movl	IdlePTD,%esi
+#endif
 	movl	%esi,(KSTACK_PAGES*PAGE_SIZE-PCB_SIZE+PCB_CR3)(%eax)
 
 	pushl	physfree		/* value of first for init386(first) */
@@ -749,6 +766,11 @@ no_kernend:
 	movl	%esi,R(KPTphys)
 
 /* Allocate Page Table Directory */
+#ifdef PAE
+	/* XXX only need 32 bytes (easier for now) */
+	ALLOCPAGES(1)
+	movl	%esi,R(IdlePDPT)
+#endif
 	ALLOCPAGES(NPGPTD)
 	movl	%esi,R(IdlePTD)
 
@@ -804,6 +826,12 @@ no_kernend:
 	fillkptphys(%edx)
 
 /* Map page directory. */
+#ifdef PAE
+	movl	R(IdlePDPT), %eax
+	movl	$1, %ecx
+	fillkptphys($PG_RW)
+#endif
+
 	movl	R(IdlePTD), %eax
 	movl	$NPGPTD, %ecx
 	fillkptphys($PG_RW)
@@ -888,5 +916,12 @@ no_kernend:
 	movl	$PTDPTDI, %ebx
 	movl	$NPGPTD,%ecx
 	fillkpt(R(IdlePTD), $PG_RW)
+
+#ifdef PAE
+	movl	R(IdlePTD), %eax
+	xorl	%ebx, %ebx
+	movl	$NPGPTD, %ecx
+	fillkpt(R(IdlePDPT), $0x0)
+#endif
 
 	ret
