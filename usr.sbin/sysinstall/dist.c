@@ -650,7 +650,7 @@ distExtract(char *parent, Distribution *me)
 		goto done;
 	    }
 	}
-	else if (fp > 0) {
+	else if (fp != NULL) {
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 
@@ -695,7 +695,7 @@ distExtract(char *parent, Distribution *me)
 		else
 		    goto getsingle;
 	    }
-	    else if (fp > 0) {
+	    else if (fp != NULL) {
 		char *dir = root_bias(me[i].my_dir);
 
 		dialog_clear_norefresh();
