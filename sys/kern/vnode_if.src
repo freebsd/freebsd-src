@@ -135,7 +135,7 @@ vop_open {
 	IN int mode;
 	IN struct ucred *cred;
 	IN struct thread *td;
-	IN int fd;
+	IN int fdidx;
 };
 
 #
