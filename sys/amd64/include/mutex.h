@@ -308,8 +308,8 @@ extern char STR_SIEN[];
 	js	9f;							\
 	movl	%eax,lck+MTX_RECURSE;					\
 	jmp	8f;							\
-	pushl	lck+MTX_SAVEINTR;					\
-9:	movl	lck+MTX_LOCK,%eax;					\
+9:	pushl	lck+MTX_SAVEINTR;					\
+	movl	lck+MTX_LOCK,%eax;					\
 	movl	$ MTX_UNOWNED,reg;					\
 	MPLOCKED							\
 	cmpxchgl reg,lck+MTX_LOCK;					\
