@@ -907,32 +907,16 @@ isa_set_resource(device_t dev, device_t child, int type, int rid,
 	return 0;
 }
 
-static int
-isa_get_resource(device_t dev, device_t child, int type, int rid,
-		 u_long *startp, u_long *countp)
+static struct resource_list *
+isa_get_resource_list (device_t dev, device_t child)
 {
 	struct isa_device* idev = DEVTOISA(child);
 	struct resource_list *rl = &idev->id_resources;
-	struct resource_list_entry *rle;
 
-	rle = resource_list_find(rl, type, rid);
-	if (!rle)
-		return ENOENT;
-	
-	if (startp)
-		*startp = rle->start;
-	if (countp)
-		*countp = rle->count;
+	if (!rl)
+		return (NULL);
 
-	return 0;
-}
-
-static void
-isa_delete_resource(device_t dev, device_t child, int type, int rid)
-{
-	struct isa_device* idev = DEVTOISA(child);
-	struct resource_list *rl = &idev->id_resources;
-	resource_list_delete(rl, type, rid);
+	return (rl);
 }
 
 static int
@@ -1012,15 +996,17 @@ static device_method_t isa_methods[] = {
 	DEVMETHOD(bus_write_ivar,	isa_write_ivar),
 	DEVMETHOD(bus_child_detached,	isa_child_detached),
 	DEVMETHOD(bus_driver_added,	isa_driver_added),
-	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),
-	DEVMETHOD(bus_release_resource,	isa_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	isa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	isa_teardown_intr),
+
+	DEVMETHOD(bus_get_resource_list,isa_get_resource_list),
+	DEVMETHOD(bus_alloc_resource,	isa_alloc_resource),
+	DEVMETHOD(bus_release_resource,	isa_release_resource),
 	DEVMETHOD(bus_set_resource,	isa_set_resource),
-	DEVMETHOD(bus_get_resource,	isa_get_resource),
-	DEVMETHOD(bus_delete_resource,	isa_delete_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_delete_resource,	bus_generic_rl_delete_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
 	/* ISA interface */
 	DEVMETHOD(isa_add_config,	isa_add_config),
