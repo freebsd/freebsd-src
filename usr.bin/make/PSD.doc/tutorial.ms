@@ -35,7 +35,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tutorial.ms	8.1 (Berkeley) 8/18/93
-.\"	$Id: tutorial.ms,v 1.3 1996/10/08 04:06:54 steve Exp $
+.\"	$Id: tutorial.ms,v 1.4 1996/10/11 04:15:57 steve Exp $
 .\"
 .EH 'PSD:12-%''PMake \*- A Tutorial'
 .OH 'PMake \*- A Tutorial''PSD:12-%'
@@ -64,8 +64,8 @@
 .\" C is a typewriter font for a laserwriter. Use something else if
 .\" you don't have one...
 .de CW
-.ie !\\n(.$ .ft C
-.el \&\\$3\fC\\$1\fP\\$2
+.ie !\\n(.$ .ft S
+.el \&\\$3\fS\\$1\fP\\$2
 ..
 .\" Anything I put in a display I want to be in fixed-width
 .am DS
@@ -1425,7 +1425,7 @@ the screen from being filled with garbage even more indecipherable
 than you usually see. PMake has two ways of doing this, one of which
 provides for much cleaner output and a clear separation between the
 output of different jobs, the other of which provides a more immediate
-response so one can tell what is really happpening. The former is done
+response so one can tell what is really happening. The former is done
 by notifying you when the creation of a target starts, capturing the
 output and transferring it to the screen all at once when the job
 finishes. The latter is done by catching the output of the shell (and
@@ -1529,7 +1529,7 @@ using the
 .Ix 0 ref !=
 .Ix 0 ref variable assignment shell-output
 operator.  Variables may be expanded (their value inserted) by enclosing
-their name in parentheses or curly braces, prceeded by a dollar sign.
+their name in parentheses or curly braces, preceded by a dollar sign.
 A dollar sign may be escaped with another dollar sign. Variables are
 not expanded if PMake doesn't know about them. There are seven local
 variables:
@@ -1595,7 +1595,7 @@ suffix is usually a text file to be processed by Troff with the \-ms
 macro package, and so on.
 One of the best aspects of both Make and PMake comes from their
 understanding of how the suffix of a file pertains to its contents and
-their ability to do things with a file based soley on its suffix. This
+their ability to do things with a file based solely on its suffix. This
 ability comes from something known as a transformation rule. A
 transformation rule specifies how to change a file with one suffix
 into a file with another suffix.
@@ -2600,7 +2600,7 @@ in the variable to be replaced by
 .I replacement-string ,
 unless the
 .CW g
-flag is given at the end, in which case all occurences of the string
+flag is given at the end, in which case all occurrences of the string
 are replaced. The substitution is performed on each word in the
 variable in turn. If 
 .I search-string
@@ -2611,7 +2611,7 @@ the string must match starting at the beginning of the word. If
 ends with a
 .CW $ ,
 the string must match to the end of the word (these two may be
-combined to force an exact match). If a backslash preceeds these two
+combined to force an exact match). If a backslash precedes these two
 characters, however, they lose their special meaning. Variable
 expansion also occurs in the normal fashion inside both the
 .I search-string
@@ -2939,10 +2939,10 @@ looks like this:
 .DS
 .SM
 #
-# Rules for making libraries. The object files that make up the library are
-# removed once they are archived.
+# Rules for making libraries. The object files that make up the library
+# are removed once they are archived.
 #
-# To make several libararies in parallel, you should define the variable
+# To make several libraries in parallel, you should define the variable
 # "many_libraries". This will serialize the invocations of ranlib.
 #
 # To use, do something like this:
@@ -2966,8 +2966,8 @@ ARFLAGS		?= crl
 
 #
 # Re-archive the out-of-date members and recreate the library's table of
-# contents using ranlib. If many_libraries is defined, put the ranlib off
-# til the end so many libraries can be made at once.
+# contents using ranlib. If many_libraries is defined, put the ranlib
+# off til the end so many libraries can be made at once.
 #
 MAKELIB		: .USE .PRECIOUS
 	ar $(ARFLAGS) $(.TARGET) $(.OODATE)
@@ -3180,7 +3180,7 @@ FORMATTER	= ditroff -Plaser_printer
 FORMATTER	= nroff -Pdot_matrix_printer
 #endif
 .DE
-would wreak havok if you tried
+would wreak havoc if you tried
 .CW "pmake draft print" '' ``
 since you would use the same formatter for each target. As I said,
 this all gets somewhat complicated.
@@ -3301,7 +3301,7 @@ within that loop will be printed, etc. The specification runs like
 this:
 .DS
 #
-# This is a shell specification to have the bourne shell echo
+# This is a shell specification to have the Bourne shell echo
 # the commands just before executing them, rather than when it reads
 # them. Useful if you want to see how variables are being expanded, etc.
 #
@@ -3337,7 +3337,7 @@ When the echo off command is executed, the shell will print
 .CW \-x
 flag (rather than the
 .CW \-v
-flag PMake usually uses)). PMake will remove all occurences of this
+flag PMake usually uses)). PMake will remove all occurrences of this
 string from the output, so you don't notice extra commands you didn't
 put there.
 .Bp
