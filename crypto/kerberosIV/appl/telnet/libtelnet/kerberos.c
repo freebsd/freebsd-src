@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+/* $FreeBSD$ */
 
 /*
  * Copyright (C) 1990 by the Massachusetts Institute of Technology
@@ -65,7 +66,7 @@ RCSID("$Id: kerberos.c,v 1.45 1999/03/13 21:18:55 assar Exp $");
 #include <arpa/telnet.h>
 #endif
 #include <stdio.h>
-#include <des.h>	/* BSD wont include this in krb.h, so we do it here */
+#include <openssl/des.h>	/* BSD wont include this in krb.h, so we do it here */
 #include <krb.h>
 #include <pwd.h>
 #include <stdlib.h>

@@ -32,6 +32,7 @@
  *
  *	@(#)telnetd.h	8.1 (Berkeley) 6/4/93
  */
+/* $FreeBSD$ */
 
 
 #include <config.h>
@@ -166,7 +167,7 @@ struct hostent  *gethostbyname(const char *);
 #endif
 
 #ifdef KRB4
-#include <des.h>
+#include <openssl/des.h>
 #include <krb.h>
 #endif
 
