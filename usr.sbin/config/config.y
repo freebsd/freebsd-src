@@ -27,7 +27,6 @@
 %token	IOSIZ
 %token	IRQ
 %token	MACHINE
-%token	MAJOR
 %token	MASTER
 %token	MAXUSERS
 %token	MINOR
@@ -93,6 +92,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)config.y	8.1 (Berkeley) 6/6/93
+ * $FreeBSD$
  */
 
 #include <ctype.h>
