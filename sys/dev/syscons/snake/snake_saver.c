@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: snake_saver.c,v 1.5 1995/09/04 03:02:08 peter Exp $
+ *	$Id: snake_saver.c,v 1.6 1995/10/28 12:35:12 peter Exp $
  */
 
 #include <sys/param.h>
@@ -118,5 +118,6 @@ snake_saver_unload(struct lkm_table *lkmtp, int cmd)
 
 snake_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	DISPATCH(lkmtp, cmd, ver, snake_saver_load, snake_saver_unload, nosys);
+	DISPATCH(lkmtp, cmd, ver, snake_saver_load, snake_saver_unload,
+		 lkm_nullcmd);
 }

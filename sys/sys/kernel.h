@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.12 1995/09/03 05:43:50 julian Exp $
+ * $Id: kernel.h,v 1.13 1995/09/09 18:10:29 davidg Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -244,7 +244,7 @@ extern void kproc_start __P((void *udata));
 	int \
 	name ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
 		DISPATCH(lkmtp, cmd, ver, name ## _load, name ## _unload, \
-			 nosys); }
+			 lkm_nullcmd); }
 #else /* PSEUDO_LKM */
 
 /*
