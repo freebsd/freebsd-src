@@ -3,7 +3,7 @@
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  * Feral Software
  * All rights reserved.
  *
@@ -108,7 +108,7 @@ static int isp_handle_other_response
 __P((struct ispsoftc *, ispstatusreq_t *, u_int16_t *));
 static void isp_parse_status
 __P((struct ispsoftc *, ispstatusreq_t *, XS_T *));
-static void isp_fastpost_complete __P((struct ispsoftc *, u_int32_t));
+static void isp_fastpost_complete __P((struct ispsoftc *, u_int16_t));
 static void isp_scsi_init __P((struct ispsoftc *));
 static void isp_scsi_channel_init __P((struct ispsoftc *, int));
 static void isp_fibre_init __P((struct ispsoftc *));
@@ -933,7 +933,8 @@ isp_scsi_channel_init(isp, channel)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
 	}
-	isp_prt(isp, ISP_LOGINFO, "Initiator ID is %d", sdp->isp_initiator_id);
+	isp_prt(isp, ISP_LOGINFO, "Initiator ID is %d on Channel %d",
+	    sdp->isp_initiator_id, channel);
 
 
 	/*
@@ -2245,7 +2246,7 @@ isp_start(xs)
 	XS_T *xs;
 {
 	struct ispsoftc *isp;
-	u_int16_t iptr, optr;
+	u_int16_t iptr, optr, handle;
 	union {
 		ispreq_t *_reqp;
 		ispreqt2_t *_t2reqp;
@@ -2300,6 +2301,39 @@ isp_start(xs)
 	if (IS_FC(isp)) {
 		fcparam *fcp = isp->isp_param;
 		struct lportdb *lp;
+#ifdef	HANDLE_LOOPSTATE_IN_OUTER_LAYERS
+		if (fcp->isp_fwstate != FW_READY ||
+		    fcp->isp_loopstate != LOOP_READY) {
+			return (CMD_RQLATER);
+		}
+
+		/*
+		 * If we're not on a Fabric, we can't have a target
+		 * above FL_PORT_ID-1.
+		 *
+		 * If we're on a fabric and *not* connected as an F-port,
+		 * we can't have a target less than FC_SNS_ID+1. This
+		 * keeps us from having to sort out the difference between
+		 * local public loop devices and those which we might get
+		 * from a switch's database.
+		 */
+		if (fcp->isp_onfabric == 0) {
+			if (target >= FL_PORT_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+		} else {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+			if (fcp->isp_topo != TOPO_F_PORT &&
+			    target < FL_PORT_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+		}
+#else
 		/*
 		 * Check for f/w being in ready state. If the f/w
 		 * isn't in ready state, then we don't know our
@@ -2416,6 +2450,7 @@ isp_start(xs)
 		 * XXX: Here's were we would cancel any loop_dead flag
 		 * XXX: also cancel in dead_loop timeout that's running
 		 */
+#endif
 
 		/*
 		 * Now check whether we should even think about pursuing this.
@@ -2547,18 +2582,19 @@ isp_start(xs)
 	if (isp->isp_sendmarker && reqp->req_time < 5) {
 		reqp->req_time = 5;
 	}
-	if (isp_save_xs(isp, xs, &reqp->req_handle)) {
+	if (isp_save_xs(isp, xs, &handle)) {
 		isp_prt(isp, ISP_LOGDEBUG1, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	}
+	reqp->req_handle = handle;
 	/*
 	 * Set up DMA and/or do any bus swizzling of the request entry
 	 * so that the Qlogic F/W understands what is being asked of it.
  	*/
 	i = ISP_DMASETUP(isp, xs, reqp, &iptr, optr);
 	if (i != CMD_QUEUED) {
-		isp_destroy_handle(isp, reqp->req_handle);
+		isp_destroy_handle(isp, handle);
 		/*
 		 * dmasetup sets actual error in packet, and
 		 * return what we were given to return.
@@ -2593,7 +2629,7 @@ isp_control(isp, ctl, arg)
 	XS_T *xs;
 	mbreg_t mbs;
 	int bus, tgt;
-	u_int32_t handle;
+	u_int16_t handle;
 
 	switch (ctl) {
 	default:
@@ -2666,8 +2702,8 @@ isp_control(isp, ctl, arg)
 			mbs.param[1] =
 			    (bus << 15) | (XS_TGT(xs) << 8) | XS_LUN(xs);
 		}
-		mbs.param[3] = handle >> 16;
-		mbs.param[2] = handle & 0xffff;
+		mbs.param[3] = 0;
+		mbs.param[2] = handle;
 		isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_ERROR);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 			return (0);
@@ -2850,10 +2886,10 @@ isp_intr(arg)
 				    mbox);
 			}
 		} else {
-			u_int32_t fhandle = isp_parse_async(isp, (int) mbox);
+			int fhandle = isp_parse_async(isp, (int) mbox);
 			isp_prt(isp, ISP_LOGDEBUG2, "Async Mbox 0x%x", mbox);
 			if (fhandle > 0) {
-				isp_fastpost_complete(isp, fhandle);
+				isp_fastpost_complete(isp, (u_int16_t) fhandle);
 			}
 		}
 		if (IS_FC(isp) || isp->isp_state != ISP_RUNSTATE) {
@@ -3162,7 +3198,7 @@ isp_parse_async(isp, mbox)
 	int mbox;
 {
 	int bus;
-	u_int32_t fast_post_handle = 0;
+	u_int16_t fast_post_handle = 0;
 
 	if (IS_DUALBUS(isp)) {
 		bus = ISP_READ(isp, OUTMAILBOX6);
@@ -3278,8 +3314,7 @@ isp_parse_async(isp, mbox)
 		break;
 
 	case ASYNC_CMD_CMPLT:
-		fast_post_handle = (ISP_READ(isp, OUTMAILBOX2) << 16) |
-		    ISP_READ(isp, OUTMAILBOX1);
+		fast_post_handle = ISP_READ(isp, OUTMAILBOX1);
 		isp_prt(isp, ISP_LOGDEBUG3, "fast post completion of %u",
 		    fast_post_handle);
 		break;
@@ -3803,11 +3838,11 @@ isp_parse_status(isp, sp, xs)
 static void
 isp_fastpost_complete(isp, fph)
 	struct ispsoftc *isp;
-	u_int32_t fph;
+	u_int16_t fph;
 {
 	XS_T *xs;
 
-	if (fph < 1) {
+	if (fph == 0) {
 		return;
 	}
 	xs = isp_find_xs(isp, fph);
