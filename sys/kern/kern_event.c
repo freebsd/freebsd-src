@@ -215,8 +215,9 @@ filt_procattach(struct knote *kn)
 		kn->kn_flags &= ~EV_FLAG1;
 	}
 
-	/* XXX lock the proc here while adding to the list? */
+	PROC_LOCK(p);
 	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
+	PROC_UNLOCK(p);
 
 	return (0);
 }
@@ -237,8 +238,9 @@ filt_procdetach(struct knote *kn)
 	if (kn->kn_status & KN_DETACHED)
 		return;
 
-	/* XXX locking?  this might modify another process. */
+	PROC_LOCK(p);
 	SLIST_REMOVE(&p->p_klist, kn, knote, kn_selnext);
+	PROC_UNLOCK(p);
 }
 
 static int
