@@ -57,8 +57,8 @@
 #include <fs/smbfs/smbfs_subr.h>
 
 #define	SMBFS_NOHASH(smp, hval)	(&(smp)->sm_hash[(hval) & (smp)->sm_hashlen])
-#define	smbfs_hash_lock(smp, p)		lockmgr(&smp->sm_hashlock, LK_EXCLUSIVE, NULL, p)
-#define	smbfs_hash_unlock(smp, p)	lockmgr(&smp->sm_hashlock, LK_RELEASE, NULL, p)
+#define	smbfs_hash_lock(smp, td)	lockmgr(&smp->sm_hashlock, LK_EXCLUSIVE, NULL, td)
+#define	smbfs_hash_unlock(smp, td)	lockmgr(&smp->sm_hashlock, LK_RELEASE, NULL, td)
 
 
 extern vop_t **smbfs_vnodeop_p;
@@ -164,7 +164,7 @@ static int
 smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 	const char *name, int nmlen, struct smbfattr *fap, struct vnode **vpp)
 {
-	struct proc *p = curproc;	/* XXX */
+	struct thread *td = curthread;	/* XXX */
 	struct smbmount *smp = VFSTOSMBFS(mp);
 	struct smbnode_hashhead *nhpp;
 	struct smbnode *np, *np2, *dnp;
@@ -181,7 +181,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 		if (dvp == NULL)
 			return EINVAL;
 		vp = VTOSMB(dvp)->n_parent->n_vnode;
-		error = vget(vp, LK_EXCLUSIVE, p);
+		error = vget(vp, LK_EXCLUSIVE, td);
 		if (error == 0)
 			*vpp = vp;
 		return error;
@@ -196,7 +196,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp,
 	}
 	hashval = smbfs_hash(name, nmlen);
 retry:
-	smbfs_hash_lock(smp, p);
+	smbfs_hash_lock(smp, td);
 loop:
 	nhpp = SMBFS_NOHASH(smp, hashval);
 	LIST_FOREACH(np, nhpp, n_hash) {
@@ -205,13 +205,13 @@ loop:
 		    np->n_nmlen != nmlen || bcmp(name, np->n_name, nmlen) != 0)
 			continue;
 		VI_LOCK(vp);
-		smbfs_hash_unlock(smp, p);
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) != 0)
+		smbfs_hash_unlock(smp, td);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) != 0)
 			goto retry;
 		*vpp = vp;
 		return 0;
 	}
-	smbfs_hash_unlock(smp, p);
+	smbfs_hash_unlock(smp, td);
 	/*
 	 * If we don't have node attributes, then it is an explicit lookup
 	 * for an existing vnode.
@@ -244,9 +244,9 @@ loop:
 		SMBERROR("new vnode '%s' born without parent ?\n", np->n_name);
 
 	lockinit(&vp->v_lock, PINOD, "smbnode", 0, LK_CANRECURSE);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
-	smbfs_hash_lock(smp, p);
+	smbfs_hash_lock(smp, td);
 	LIST_FOREACH(np2, nhpp, n_hash) {
 		if (np2->n_parent != dnp ||
 		    np2->n_nmlen != nmlen || bcmp(name, np2->n_name, nmlen) != 0)
@@ -257,7 +257,7 @@ loop:
 		goto loop;
 	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
-	smbfs_hash_unlock(smp, p);
+	smbfs_hash_unlock(smp, td);
 	*vpp = vp;
 	return 0;
 }
@@ -288,18 +288,18 @@ int
 smbfs_reclaim(ap)                     
         struct vop_reclaim_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_p;
         } */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct proc *p = ap->a_p;
+	struct thread *td = ap->a_td;
 	struct vnode *dvp;
 	struct smbnode *np = VTOSMB(vp);
 	struct smbmount *smp = VTOSMBFS(vp);
 	
 	SMBVDEBUG("%s,%d\n", np->n_name, vp->v_usecount);
 
-	smbfs_hash_lock(smp, p);
+	smbfs_hash_lock(smp, td);
 
 	dvp = (np->n_parent && (np->n_flag & NREFPARENT)) ?
 	    np->n_parent->n_vnode : NULL;
@@ -312,7 +312,7 @@ smbfs_reclaim(ap)
 		smp->sm_root = NULL;
 	}
 	vp->v_data = NULL;
-	smbfs_hash_unlock(smp, p);
+	smbfs_hash_unlock(smp, td);
 	if (np->n_name)
 		smbfs_name_free(np->n_name);
 	FREE(np, M_SMBNODE);
@@ -333,11 +333,11 @@ int
 smbfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
-		struct proc *a_p;
+		struct thread *a_td;
 	} */ *ap;
 {
-	struct proc *p = ap->a_p;
-	struct ucred *cred = p->p_ucred;
+	struct thread *td = ap->a_td;
+	struct ucred *cred = td->td_proc->p_ucred;
 	struct vnode *vp = ap->a_vp;
 	struct smbnode *np = VTOSMB(vp);
 	struct smb_cred scred;
@@ -345,13 +345,13 @@ smbfs_inactive(ap)
 
 	SMBVDEBUG("%s: %d\n", VTOSMB(vp)->n_name, vp->v_usecount);
 	if (np->n_opencount) {
-		error = smbfs_vinvalbuf(vp, V_SAVE, cred, p, 1);
-		smb_makescred(&scred, p, cred);
+		error = smbfs_vinvalbuf(vp, V_SAVE, cred, td, 1);
+		smb_makescred(&scred, td, cred);
 		error = smbfs_smb_close(np->n_mount->sm_share, np->n_fid, 
 		   &np->n_mtime, &scred);
 		np->n_opencount = 0;
 	}
-	VOP_UNLOCK(vp, 0, p);
+	VOP_UNLOCK(vp, 0, td);
 	return (0);
 }
 /*
