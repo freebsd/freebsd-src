@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:13 markm Exp $
 
 PROG=		kadmin
 MAN8=		${KRB4DIR}/man/kadmin.8
@@ -17,9 +17,10 @@ CFLAGS+=	-I${KRB4DIR}/include \
 LDADD=		-L${ROKENOBJDIR} -lroken -L${SLOBJDIR} -lsl \
 		-L${ACLOBJDIR} -lacl -L${KADMOBJDIR} -lkadm \
 		-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb \
-		-ldes -lcom_err -lreadline
+		-ldes -lcrypt -lcom_err -lreadline -ltermcap
 DPADD=		${LIBROKEN} ${LIBSL} ${LIBACL} ${LIBKADM} ${LIBKDB} ${LIBKRB} \
-		${LIBDES} ${LIBCOM_ERR}
+		${LIBDES} ${LIBCRYPT} ${LIBCOM_ERR} ${LIBREADLINE} \
+		${LIBTERMCAP}
 
 .include <bsd.prog.mk>
 
