@@ -42,23 +42,23 @@ The
 function suspends the calling process until at least one of the
 specified asynchronous I/O requests have completed, a signal is
 delivered, or the
-.Ar timeout
+.Fa timeout
 has passed.
 .Pp
-.Ar iocbs
+.Fa iocbs
 is an array of 
-.Ar niocb
+.Fa niocb
 pointers to asynchronous I/O requests.  Array members containing
 NULL will be silently ignored.
 .Pp
 If
-.Ar timeout
+.Fa timeout
 is a non-nil pointer, it specifies a maximum interval to suspend.
 If
-.Ar timeout
+.Fa timeout
 is a nil pointer, the suspend blocks indefinitely.  To effect a
 poll, the
-.Ar timeout
+.Fa timeout
 should point to a zero-value timespec structure.
 .Sh RETURN VALUES
 If one or more of the specified asynchronous I/O requests have
@@ -80,10 +80,10 @@ function will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 the 
-.Ar timeout
+.Fa timeout
 expired before any I/O requests completed.
 .It Bq Er EINVAL
-.Ar iocbs
+.Fa iocbs
 contains more than
 .Dv AIO_LISTIO_MAX
 asynchronous I/O requests, or at least one of the requests is not
