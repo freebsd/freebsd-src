@@ -4,7 +4,8 @@
 # XXX MISSING SOURCES:	ac quot
 # XXX TEMP. BROKEN:	iostat xntpd
 SUBDIR=	accton amd arp chown chroot cron dbsym dev_mkdb diskpart \
-	edquota inetd kbdcontrol kgmon kvm_mkdb lpr mtree portmap pstat \
+	edquota inetd kbdcontrol kgmon kvm_mkdb lpr lptcontrol \
+	mtree portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sendmail \
 	sliplogin sysctl syslogd tcpdump traceroute trpt vidcontrol \
 	vipw ypbind yppoll ypset
