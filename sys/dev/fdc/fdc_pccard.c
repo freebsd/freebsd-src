@@ -65,6 +65,9 @@ fdc_pccard_alloc_resources(device_t dev, struct fdc_data *fdc)
 	}
 	fdc->portt = rman_get_bustag(fdc->res_ioport);
 	fdc->porth = rman_get_bushandle(fdc->res_ioport);
+	fdc->stst = fdc->portt;
+	fdc->stsh = fdc->porth;
+	fdc->sts_off = 0;
 	fdc->ctlt = fdc->portt;
 	fdc->ctlh = fdc->porth;
 	fdc->ctl_off = 7;
@@ -86,8 +89,7 @@ fdc_pccard_probe(device_t dev)
 
 	if ((pp = pccard_product_lookup(dev, fdc_pccard_products,
 	    sizeof(fdc_pccard_products[0]), NULL)) != NULL) {
-		if (pp->pp_name != NULL)
-			device_set_desc(dev, pp->pp_name);
+		device_set_desc(dev, "PC Card Floppy");
 		return (0);
 	}
 	return (ENXIO);
@@ -98,8 +100,7 @@ fdc_pccard_attach(device_t dev)
 {
 	int error;
 	struct	fdc_data *fdc;
-
-	return ENXIO;
+	device_t child;
 
 	fdc = device_get_softc(dev);
 	fdc->flags = FDC_NODMA;
@@ -107,6 +108,11 @@ fdc_pccard_attach(device_t dev)
 	error = fdc_pccard_alloc_resources(dev, fdc);
 	if (error == 0)
 		error = fdc_attach(dev);
+	if (error == 0) {
+		child = fdc_add_child(dev, "fd", -1);
+		device_set_flags(child, 0x24);
+		error = bus_generic_attach(dev);
+	}
 	if (error)
 		fdc_release_resources(fdc);
 	return (error);
