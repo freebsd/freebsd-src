@@ -95,14 +95,15 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 
 int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
-int	  checkvfsname __P((const char *, char **));
-char	**makevfslist __P((char *));
-long	  regetmntinfo __P((struct statfs **, long, char **));
 int	  bread __P((off_t, void *, int));
+int	  checkvfsname __P((const char *, char **));
 char	 *getmntpt __P((char *));
+int	  main __P((int, char *[]));
+char	**makevfslist __P((char *));
 void	  prthuman __P((struct statfs *, long));
 void	  prthumanval __P((double));
 void	  prtstat __P((struct statfs *, int));
+long	  regetmntinfo __P((struct statfs **, long, char **));
 int	  ufs_df __P((char *, int));
 unit_t	  unit_adjust __P((double *));
 void	  usage __P((void));
@@ -117,9 +118,10 @@ main(argc, argv)
 {
 	struct stat stbuf;
 	struct statfs statfsbuf, *mntbuf;
+	const char *fstype;
+	char *mntpath, *mntpt, **vfslist;
 	long mntsize;
-	int ch, err, i, maxwidth, rv, width;
-	char *fstype, *mntpath, *mntpt, **vfslist;
+	int ch, i, maxwidth, rv, width;
 
 	fstype = "ufs";
 
@@ -202,7 +204,6 @@ main(argc, argv)
 
 	for (; *argv; argv++) {
 		if (stat(*argv, &stbuf) < 0) {
-			err = errno;
 			if ((mntpt = getmntpt(*argv)) == 0) {
 				warn("%s", *argv);
 				rv = 1;
@@ -378,7 +379,7 @@ prtstat(sfsp, maxwidth)
 {
 	static long blocksize;
 	static int headerlen, timesthrough;
-	static char *header;
+	static const char *header;
 	long used, availblks, inodes;
 
 	if (maxwidth < 11)
@@ -445,7 +446,7 @@ ufs_df(file, maxwidth)
 {
 	struct statfs statfsbuf;
 	struct statfs *sfsp;
-	char *mntpt;
+	const char *mntpt;
 	static int synced;
 
 	if (synced++ == 0)
@@ -475,8 +476,8 @@ ufs_df(file, maxwidth)
 	sfsp->f_fsid.val[1] = 0;
 	if ((mntpt = getmntpt(file)) == 0)
 		mntpt = "";
-	memmove(&sfsp->f_mntonname[0], mntpt, MNAMELEN);
-	memmove(&sfsp->f_mntfromname[0], file, MNAMELEN);
+	memmove(&sfsp->f_mntonname[0], mntpt, (size_t)MNAMELEN);
+	memmove(&sfsp->f_mntfromname[0], file, (size_t)MNAMELEN);
 	prtstat(sfsp, maxwidth);
 	(void)close(rfd);
 	return (0);
@@ -488,14 +489,14 @@ bread(off, buf, cnt)
 	void *buf;
 	int cnt;
 {
-	int nr;
+	ssize_t nr;
 
 	(void)lseek(rfd, off, SEEK_SET);
-	if ((nr = read(rfd, buf, cnt)) != cnt) {
+	if ((nr = read(rfd, buf, (size_t)cnt)) != (ssize_t)cnt) {
 		/* Probably a dismounted disk if errno == EIO. */
 		if (errno != EIO)
-			(void)fprintf(stderr, "\ndf: %qd: %s\n",
-			    off, strerror(nr > 0 ? EIO : errno));
+			(void)fprintf(stderr, "\ndf: %lld: %s\n",
+			    (long long)off, strerror(nr > 0 ? EIO : errno));
 		return (0);
 	}
 	return (1);
