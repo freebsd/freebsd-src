@@ -91,7 +91,7 @@ umapfs_mount(mp, path, data, ndp, p)
 	struct umap_mount *amp;
 	u_int size;
 	int error;
-#ifdef UMAP_DIAGNOSTIC
+#ifdef DEBUG
 	int	i;
 #endif
 
@@ -101,8 +101,8 @@ umapfs_mount(mp, path, data, ndp, p)
 	if ((error = suser(p)) != 0)
 		return (error);
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("umapfs_mount(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("umapfs_mount(mp = %p)\n", (void *)mp);
 #endif
 
 	/*
@@ -133,8 +133,8 @@ umapfs_mount(mp, path, data, ndp, p)
 	 * Sanity check on lower vnode
 	 */
 	lowerrootvp = ndp->ni_vp;
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("vp = %x, check for VDIR...\n", lowerrootvp);
+#ifdef DEBUG
+	printf("vp = %p, check for VDIR...\n", (void *)lowerrootvp);
 #endif
 	vrele(ndp->ni_dvp);
 	ndp->ni_dvp = 0;
@@ -144,8 +144,8 @@ umapfs_mount(mp, path, data, ndp, p)
 		return (EINVAL);
 	}
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("mp = %x\n", mp);
+#ifdef DEBUG
+	printf("mp = %p\n", (void *)mp);
 #endif
 
 	amp = (struct umap_mount *) malloc(sizeof(struct umap_mount),
@@ -166,10 +166,10 @@ umapfs_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 
-#ifdef UMAP_DIAGNOSTIC
+#ifdef DEBUG
 	printf("umap_mount:nentries %d\n",args.nentries);
 	for (i = 0; i < args.nentries; i++)
-		printf("   %d maps to %d\n", amp->info_mapdata[i][0],
+		printf("   %lu maps to %lu\n", amp->info_mapdata[i][0],
 	 	    amp->info_mapdata[i][1]);
 #endif
 
@@ -178,10 +178,10 @@ umapfs_mount(mp, path, data, ndp, p)
 	if (error)
 		return (error);
 
-#ifdef UMAP_DIAGNOSTIC
+#ifdef DEBUG
 	printf("umap_mount:gnentries %d\n",args.gnentries);
 	for (i = 0; i < args.gnentries; i++)
-		printf("	group %d maps to %d\n",
+		printf("	group %lu maps to %lu\n",
 		    amp->info_gmapdata[i][0],
 	 	    amp->info_gmapdata[i][1]);
 #endif
@@ -223,7 +223,7 @@ umapfs_mount(mp, path, data, ndp, p)
 	    &size);
 	bzero(mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
 	(void)umapfs_statfs(mp, &mp->mnt_stat, p);
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("umapfs_mount: lower %s, alias at %s\n",
 		mp->mnt_stat.f_mntfromname, mp->mnt_stat.f_mntonname);
 #endif
@@ -258,8 +258,8 @@ umapfs_unmount(mp, mntflags, p)
 	int error;
 	int flags = 0;
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("umapfs_unmount(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("umapfs_unmount(mp = %p)\n", (void *)mp);
 #endif
 
 	if (mntflags & MNT_FORCE)
@@ -281,7 +281,7 @@ umapfs_unmount(mp, mntflags, p)
 	if (error)
 		return (error);
 
-#ifdef UMAPFS_DIAGNOSTIC
+#ifdef DEBUG
 	vprint("alias root of lower", umapm_rootvp);
 #endif
 	/*
@@ -308,11 +308,10 @@ umapfs_root(mp, vpp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("umapfs_root(mp = %x, vp = %x->%x)\n", mp,
-			MOUNTTOUMAPMOUNT(mp)->umapm_rootvp,
-			UMAPVPTOLOWERVP(MOUNTTOUMAPMOUNT(mp)->umapm_rootvp)
-			);
+#ifdef DEBUG
+	printf("umapfs_root(mp = %p, vp = %p->%p)\n",
+	    (void *)mp, (void *)MOUNTTOUMAPMOUNT(mp)->umapm_rootvp,
+	    (void *)UMAPVPTOLOWERVP(MOUNTTOUMAPMOUNT(mp)->umapm_rootvp));
 #endif
 
 	/*
@@ -345,11 +344,10 @@ umapfs_statfs(mp, sbp, p)
 	int error;
 	struct statfs mstat;
 
-#ifdef UMAPFS_DIAGNOSTIC
-	printf("umapfs_statfs(mp = %x, vp = %x->%x)\n", mp,
-			MOUNTTOUMAPMOUNT(mp)->umapm_rootvp,
-			UMAPVPTOLOWERVP(MOUNTTOUMAPMOUNT(mp)->umapm_rootvp)
-			);
+#ifdef DEBUG
+	printf("umapfs_statfs(mp = %p, vp = %p->%p)\n",
+	    (void *)mp, (void *)MOUNTTOUMAPMOUNT(mp)->umapm_rootvp,
+	    (void *)UMAPVPTOLOWERVP(MOUNTTOUMAPMOUNT(mp)->umapm_rootvp));
 #endif
 
 	bzero(&mstat, sizeof(mstat));
