@@ -869,7 +869,8 @@ poll(p, uap)
 	 * least enough for the current limits.  We want to be reasonably
 	 * safe, but not overly restrictive.
 	 */
-	if (nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur && nfds > FD_SETSIZE)
+	if ((u_int)nfds > p->p_rlimit[RLIMIT_NOFILE].rlim_cur &&
+	    (u_int)nfds > FD_SETSIZE)
 		return (EINVAL);
 	ni = nfds * sizeof(struct pollfd);
 	if (ni > sizeof(smallbits))
