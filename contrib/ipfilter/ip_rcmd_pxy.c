@@ -88,9 +88,6 @@ nat_t *nat;
 	u_short sp;
 	nat_t *ipn;
 	mb_t *m;
-#if	SOLARIS
-	mb_t *m1;
-#endif
 
 	tcp = (tcphdr_t *)fin->fin_dp;
 
