@@ -74,9 +74,6 @@ static phandle_t lastnode;	/* speed hack */
 static int openfirm_checkid(phandle_t, phandle_t);
 static int openfirm_getstr(int, const char *, char **);
 
-/* Maximum accepted name length. */
-#define	OFW_NAME_MAX	8191
-
 /*
  * Verify target ID is valid (exists in the OPENPROM tree), as
  * listed from node ID sid forward.
@@ -99,7 +96,7 @@ openfirm_getstr(int len, const char *user, char **cpp)
 	char *cp;
 
 	/* Reject obvious bogus requests */
-	if ((u_int)len > OFW_NAME_MAX)
+	if ((u_int)len > OFIOCMAXNAME)
 		return (ENAMETOOLONG);
 
 	*cpp = cp = malloc(len + 1, M_TEMP, M_WAITOK);
@@ -129,9 +126,7 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		*(phandle_t *) data = OF_finddevice("/options");
 		return (0);
 	case OFIOCGET:
-#if 0
 	case OFIOCSET:
-#endif
 	case OFIOCNEXTPROP:
 	case OFIOCFINDDEVICE:
 	case OFIOCGETPROPLEN:
@@ -186,23 +181,36 @@ openfirm_ioctl(dev_t dev, u_long cmd, caddr_t data, int flags,
 		error = copyout(value, of->of_buf, len);
 		break;
 
-#if 0
 	case OFIOCSET:
+		/*
+		 * Note: Text string values for at least the /options node
+		 * have to be null-terminated and the length paramter must
+		 * include this terminating null. However, like OF_getprop(),
+		 * OF_setprop() will return the the actual length of the text
+		 * string, i.e. omitting the terminating null.
+		 */
 		if ((flags & FWRITE) == 0)
 			return (EBADF);
 		if (node == 0)
 			return (EINVAL);
+		if ((u_int)of->of_buflen > OFIOCMAXVALUE)
+			return (ENAMETOOLONG);
 		error = openfirm_getstr(of->of_namelen, of->of_name, &name);
 		if (error)
 			break;
-		error = openfirm_getstr(of->of_buflen, of->of_buf, &value);
+		value = malloc(of->of_buflen, M_TEMP, M_WAITOK);
+		if (value == NULL) {
+			error = ENOMEM;
+			break;
+		}
+		error = copyin(of->of_buf, value, of->of_buflen);
 		if (error)
 			break;
 		len = OF_setprop(node, name, value, of->of_buflen);
-		if (len != of->of_buflen)
+		if (len < 0)
 			error = EINVAL;
+		of->of_buflen = len;
 		break;
-#endif
 
 	case OFIOCNEXTPROP:
 		if (node == 0 || of->of_buflen < 0)
