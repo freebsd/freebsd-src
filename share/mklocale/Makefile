@@ -9,6 +9,7 @@ LOCALES=        ja_JP.EUC \
 		la_LN.ASCII \
 		la_LN.ISO_8859-1 \
 		la_LN.ISO_8859-2 \
+		la_LN.ISO_8859-4 \
 		la_LN.DIS_8859-15 \
 		ru_SU.CP866 \
 		ru_SU.ISO_8859-5 \
@@ -25,6 +26,8 @@ LATIN1LINKS = \
 	pt_PT sv_SE
 
 LATIN2LINKS = cs_CZ hr_HR hu_HU pl_PL sl_SI
+
+LATIN4LINKS = lt_LT
 
 .SUFFIXES: .src .out
 
@@ -49,6 +52,10 @@ afterinstall:
 .for link in ${LATIN2LINKS}
 	ln -fs ../la_LN.ISO_8859-2/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
+.endfor
+.for link in ${LATIN4LINKS}
+        ln -fs ../la_LN.ISO_8859-4/LC_CTYPE \
+                ${LOCALEDIR}/${link}.ISO_8859-4/LC_CTYPE
 .endfor
 	ln -fs ../ja_JP.SJIS/LC_CTYPE \
 		${LOCALEDIR}/ja_JP.Shift_JIS/LC_CTYPE
