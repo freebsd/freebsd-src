@@ -213,6 +213,36 @@ Buf_AppendRange(Buffer *bp, const char str[], const char *end)
 }
 
 /**
+ * Convert newlines in buffer to spaces.  The trailing newline is
+ * removed.
+ */
+void
+Buf_StripNewlines(Buffer *bp)
+{
+	char *ptr = bp->end;
+
+	/*
+	 * If there is anything in the buffer, remove the last
+	 * newline character.
+	 */
+	if (ptr != bp->buf) {
+		if (*(ptr - 1) == '\n') {
+			/* shorten buffer */
+			*(ptr - 1) = '\0';
+			--bp->end;
+		}
+		--ptr;
+	}
+
+	/* Convert newline characters to a space characters.  */
+	while (ptr != bp->buf) {
+		if (*ptr == '\n') {
+			*ptr = ' ';
+		}
+		--ptr;
+	}
+}
+/**
  * Clear the contents of the buffer.
  */
 void

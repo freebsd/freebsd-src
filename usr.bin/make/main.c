@@ -1017,38 +1017,27 @@ found:
  * Side Effects:
  *	The string must be freed by the caller.
  */
-char *
+Buffer *
 Cmd_Exec(char *cmd, const char **error)
 {
-    char	*args[4];   	/* Args for invoking the shell */
     int 	fds[2];	    	/* Pipe streams */
     int 	cpid;	    	/* Child PID */
     int 	pid;	    	/* PID from wait() */
-    char	*res;		/* result */
     int		status;		/* command exit status */
     Buffer	*buf;		/* buffer to store the result */
-    char	*cp;
-    size_t blen;
-    ssize_t rcnt;
+    ssize_t	rcnt;
 
     *error = NULL;
+    buf = Buf_Init(0);
 
     if (shellPath == NULL)
 	Shell_Init();
-    /*
-     * Set up arguments for shell
-     */
-    args[0] = shellName;
-    args[1] = "-c";
-    args[2] = cmd;
-    args[3] = NULL;
-
     /*
      * Open a pipe for fetching its output
      */
     if (pipe(fds) == -1) {
 	*error = "Couldn't create pipe for \"%s\"";
-	goto bad;
+	return (buf);
     }
 
     /*
@@ -1069,13 +1058,23 @@ Cmd_Exec(char *cmd, const char **error)
 	dup2(fds[1], 1);
 	close(fds[1]);
 
-	execv(shellPath, args);
-	_exit(1);
-	/*NOTREACHED*/
+	{
+	    char	*args[4];
+
+	    /* Set up arguments for shell */
+	    args[0] = shellName;
+	    args[1] = "-c";
+	    args[2] = cmd;
+	    args[3] = NULL;
+
+	    execv(shellPath, args);
+	    _exit(1);
+	    /*NOTREACHED*/
+	}
 
     case -1:
 	*error = "Couldn't exec \"%s\"";
-	goto bad;
+	return (buf);
 
     default:
 	/*
@@ -1083,14 +1082,16 @@ Cmd_Exec(char *cmd, const char **error)
 	 */
 	close(fds[1]);
 
-	buf = Buf_Init(MAKE_BSIZE);
-
 	do {
 	    char   result[BUFSIZ];
 	    rcnt = read(fds[0], result, sizeof(result));
 	    if (rcnt != -1)
 		Buf_AddBytes(buf, (size_t)rcnt, (Byte *)result);
 	} while (rcnt > 0 || (rcnt == -1 && errno == EINTR));
+
+	if (rcnt == -1)
+	    *error = "Error reading shell's output for \"%s\"";
+
 	/*
 	 * Close the input side of the pipe.
 	 */
@@ -1102,41 +1103,14 @@ Cmd_Exec(char *cmd, const char **error)
 	while (((pid = wait(&status)) != cpid) && (pid >= 0))
 	    continue;
 
-	if (rcnt == -1)
-	    *error = "Error reading shell's output for \"%s\"";
-
-	res = (char *)Buf_GetAll(buf, &blen);
-	Buf_Destroy(buf, FALSE);
-
 	if (status)
 	    *error = "\"%s\" returned non-zero status";
 
-	/*
-	 * Null-terminate the result, convert newlines to spaces and
-	 * install it in the variable.
-	 */
-	res[blen] = '\0';
-	cp = &res[blen] - 1;
+	Buf_StripNewlines(buf);
 
-	if (*cp == '\n') {
-	    /*
-	     * A final newline is just stripped
-	     */
-	    *cp-- = '\0';
-	}
-	while (cp >= res) {
-	    if (*cp == '\n') {
-		*cp = ' ';
-	    }
-	    cp--;
-	}
 	break;
     }
-    return (res);
-bad:
-    res = emalloc(1);
-    *res = '\0';
-    return (res);
+    return (buf);
 }
 
 /*

@@ -1543,7 +1543,12 @@ Var_Parse(char *str, GNode *ctxt, Boolean err, size_t *lengthPtr,
 		case 's':
 		    if (tstr[1] == 'h' && (tstr[2] == endc || tstr[2] == ':')) {
 			const char *error;
-			newStr = Cmd_Exec(str, &error);
+			Buffer *buf;
+
+			buf = Cmd_Exec(str, &error);
+			newStr = Buf_GetAll(buf, NULL);
+			Buf_Destroy(buf, FALSE);
+
 			if (error)
 			    Error(error, str);
 			cp = tstr + 2;
