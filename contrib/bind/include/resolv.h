@@ -50,7 +50,7 @@
 
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
- *	$Id: resolv.h,v 8.44 2001/12/19 01:44:19 marka Exp $
+ *	$Id: resolv.h,v 8.45 2002/04/12 06:27:48 marka Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -211,8 +211,10 @@ union res_sockaddr_union {
 #define	RES_F_CONN	0x00000002	/* socket is connected */
 #define	RES_F_EDNS0ERR	0x00000004	/* EDNS0 caused errors */
 
-/* res_findzonecut() options */
+/* res_findzonecut2() options */
 #define	RES_EXHAUSTIVE	0x00000001	/* always do all queries */
+#define	RES_IPV4ONLY	0x00000002	/* IPv4 only */
+#define	RES_IPV6ONLY	0x00000004	/* IPv6 only */
 
 /*
  * Resolver options (keep these in synch with res_debug.c, please)
@@ -353,6 +355,7 @@ extern const struct res_sym __p_rcode_syms[];
 #define putshort		__putshort
 #define res_dnok		__res_dnok
 #define res_findzonecut		__res_findzonecut
+#define res_findzonecut2	__res_findzonecut2
 #define res_hnok		__res_hnok
 #define res_hostalias		__res_hostalias
 #define res_mailok		__res_mailok
@@ -443,6 +446,9 @@ int		res_nsendsigned __P((res_state, const u_char *, int,
 				     ns_tsig_key *, u_char *, int));
 int		res_findzonecut __P((res_state, const char *, ns_class, int,
 				     char *, size_t, struct in_addr *, int));
+int		res_findzonecut2 __P((res_state, const char *, ns_class, int,
+				      char *, size_t,
+				      union res_sockaddr_union *, int));
 void		res_nclose __P((res_state));
 int		res_nopt __P((res_state, int, u_char *, int, int));
 void		res_send_setqhook __P((res_send_qhook hook));

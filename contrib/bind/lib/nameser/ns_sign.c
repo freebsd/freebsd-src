@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_sign.c,v 8.10 2001/05/29 05:49:39 marka Exp $";
+static const char rcsid[] = "$Id: ns_sign.c,v 8.11 2002/04/30 03:43:55 marka Exp $";
 #endif
 
 /* Import. */
@@ -76,6 +76,16 @@ ns_sign(u_char *msg, int *msglen, int msgsize, int error, void *k,
 	const u_char *querysig, int querysiglen, u_char *sig, int *siglen,
 	time_t in_timesigned)
 {
+	return(ns_sign2(msg, msglen, msgsize, error, k,
+			querysig, querysiglen, sig, siglen,
+			in_timesigned, NULL, NULL));
+}
+
+int
+ns_sign2(u_char *msg, int *msglen, int msgsize, int error, void *k,
+	 const u_char *querysig, int querysiglen, u_char *sig, int *siglen,
+	 time_t in_timesigned, u_char **dnptrs, u_char **lastdnptr)
+{
 	HEADER *hp = (HEADER *)msg;
 	DST_KEY *key = (DST_KEY *)k;
 	u_char *cp = msg + *msglen, *eob = msg + msgsize;
@@ -90,7 +100,7 @@ ns_sign(u_char *msg, int *msglen, int msgsize, int error, void *k,
 
 	/* Name. */
 	if (key != NULL && error != ns_r_badsig && error != ns_r_badkey)
-		n = dn_comp(key->dk_key_name, cp, eob - cp, NULL, NULL);
+		n = dn_comp(key->dk_key_name, cp, eob - cp, dnptrs, lastdnptr);
 	else
 		n = dn_comp("", cp, eob - cp, NULL, NULL);
 	if (n < 0)
@@ -244,6 +254,15 @@ int
 ns_sign_tcp(u_char *msg, int *msglen, int msgsize, int error,
 	    ns_tcp_tsig_state *state, int done)
 {
+	return (ns_sign_tcp2(msg, msglen, msgsize, error, state,
+			     done, NULL, NULL));
+}
+
+int
+ns_sign_tcp2(u_char *msg, int *msglen, int msgsize, int error,
+	     ns_tcp_tsig_state *state, int done,
+	     u_char **dnptrs, u_char **lastdnptr)
+{
 	u_char *cp, *eob, *lenp;
 	u_char buf[MAXDNAME], *cp2;
 	HEADER *hp = (HEADER *)msg;
@@ -255,9 +274,10 @@ ns_sign_tcp(u_char *msg, int *msglen, int msgsize, int error,
 
 	state->counter++;
 	if (state->counter == 0)
-		return (ns_sign(msg, msglen, msgsize, error, state->key,
-				state->sig, state->siglen,
-				state->sig, &state->siglen, 0));
+		return (ns_sign2(msg, msglen, msgsize, error, state->key,
+				 state->sig, state->siglen,
+				 state->sig, &state->siglen, 0,
+				 dnptrs, lastdnptr));
 
 	if (state->siglen > 0) {
 		u_int16_t siglen_n = htons(state->siglen);
@@ -280,7 +300,7 @@ ns_sign_tcp(u_char *msg, int *msglen, int msgsize, int error,
 	eob = msg + msgsize;
 
 	/* Name. */
-	n = dn_comp(state->key->dk_key_name, cp, eob - cp, NULL, NULL);
+	n = dn_comp(state->key->dk_key_name, cp, eob - cp, dnptrs, lastdnptr);
 	if (n < 0)
 		return (NS_TSIG_ERROR_NO_SPACE);
 	cp += n;

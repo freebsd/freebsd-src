@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.33 2001/10/05 04:30:21 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.35 2002/05/08 01:49:27 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -256,47 +256,55 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 	char tmp[NS_MAXDNAME];
 	const char *cp;
 	struct addrinfo ai;
-	struct dns_res_target q, q2, *p;
+	struct dns_res_target *q, *q2, *p;
 	int querystate = RESQRY_FAIL;
 
 	if (init(this) == -1)
 		return (NULL);
 
-	memset(&q, 0, sizeof(q2));
-	memset(&q2, 0, sizeof(q2));
+	q = memget(sizeof(*q));
+	q2 = memget(sizeof(*q2));
+	if (q == NULL || q2 == NULL) {
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
+		errno = ENOMEM;
+		goto cleanup;
+	}
+	memset(q, 0, sizeof(q));
+	memset(q2, 0, sizeof(q2));
 
 	switch (af) {
 	case AF_INET:
 		size = INADDRSZ;
-		q.qclass = C_IN;
-		q.qtype = T_A;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.action = RESTGT_DOALWAYS;
+		q->qclass = C_IN;
+		q->qtype = T_A;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->action = RESTGT_DOALWAYS;
 		break;
 	case AF_INET6:
 		size = IN6ADDRSZ;
-		q.qclass = C_IN;
-		q.qtype = ns_t_a6;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.next = &q2;
+		q->qclass = C_IN;
+		q->qtype = ns_t_a6;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->next = q2;
 #ifdef RES_USE_A6
 		if ((pvt->res->options & RES_USE_A6) == 0)
-			q.action = RESTGT_IGNORE;
+			q->action = RESTGT_IGNORE;
 		else
 #endif
-			q.action = RESTGT_DOALWAYS;
-		q2.qclass = C_IN;
-		q2.qtype = T_AAAA;
-		q2.answer = q2.qbuf.buf;
-		q2.anslen = sizeof(q2.qbuf);
-		q2.action = RESTGT_AFTERFAILURE;
+			q->action = RESTGT_DOALWAYS;
+		q2->qclass = C_IN;
+		q2->qtype = T_AAAA;
+		q2->answer = q2->qbuf.buf;
+		q2->anslen = sizeof(q2->qbuf);
+		q2->action = RESTGT_AFTERFAILURE;
 		break;
 	default:
 		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
 		errno = EAFNOSUPPORT;
-		return (NULL);
+		hp = NULL;
+		goto cleanup;
 	}
 
 	/*
@@ -308,7 +316,7 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 						      tmp, sizeof tmp)))
 		name = cp;
 
-	for (p = &q; p; p = p->next) {
+	for (p = q; p; p = p->next) {
 		switch(p->action) {
 		case RESTGT_DOALWAYS:
 			break;
@@ -331,13 +339,18 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 		if ((hp = gethostans(this, p->answer, n, name, p->qtype,
 				     af, size, NULL,
 				     (const struct addrinfo *)&ai)) != NULL)
-			return(hp); /* no more loop is necessary */
+			goto cleanup;	/* no more loop is necessary */
 
 		querystate = RESQRY_FAIL;
 		continue;
 	}
 
-	return(hp);		/* should be NULL */
+ cleanup:
+	if (q != NULL)
+		memput(q, sizeof(*q));
+	if (q2 != NULL)
+		memput(q2, sizeof(*q2));
+	return(hp);
 }
 
 static struct hostent *
@@ -346,17 +359,24 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 	struct pvt *pvt = (struct pvt *)this->private;
 	const u_char *uaddr = addr;
 	char *qp;
-	struct hostent *hp;
+	struct hostent *hp = NULL;
 	struct addrinfo ai;
-	struct dns_res_target q, q2, *p;
+	struct dns_res_target *q, *q2, *p;
 	int n, size;
 	int querystate = RESQRY_FAIL;
 	
 	if (init(this) == -1)
 		return (NULL);
 
-	memset(&q, 0, sizeof(q2));
-	memset(&q2, 0, sizeof(q2));
+	q = memget(sizeof(*q));
+	q2 = memget(sizeof(*q2));
+	if (q == NULL || q2 == NULL) {
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
+		errno = ENOMEM;
+		goto cleanup;
+	}
+	memset(q, 0, sizeof(q));
+	memset(q2, 0, sizeof(q2));
 
 	if (af == AF_INET6 && len == IN6ADDRSZ &&
 	    (!memcmp(uaddr, mapped, sizeof mapped) ||
@@ -371,45 +391,47 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 	switch (af) {
 	case AF_INET:
 		size = INADDRSZ;
-		q.qclass = C_IN;
-		q.qtype = T_PTR;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.action = RESTGT_DOALWAYS;
+		q->qclass = C_IN;
+		q->qtype = T_PTR;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->action = RESTGT_DOALWAYS;
 		break;
 	case AF_INET6:
 		size = IN6ADDRSZ;
-		q.qclass = C_IN;
-		q.qtype = T_PTR;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.next = &q2;
+		q->qclass = C_IN;
+		q->qtype = T_PTR;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->next = q2;
 		if ((pvt->res->options & RES_NO_BITSTRING) != 0)
-			q.action = RESTGT_IGNORE;
+			q->action = RESTGT_IGNORE;
 		else
-			q.action = RESTGT_DOALWAYS;
-		q2.qclass = C_IN;
-		q2.qtype = T_PTR;
-		q2.answer = q2.qbuf.buf;
-		q2.anslen = sizeof(q2.qbuf);
+			q->action = RESTGT_DOALWAYS;
+		q2->qclass = C_IN;
+		q2->qtype = T_PTR;
+		q2->answer = q2->qbuf.buf;
+		q2->anslen = sizeof(q2->qbuf);
 		if ((pvt->res->options & RES_NO_NIBBLE) != 0)
-			q2.action = RESTGT_IGNORE;
+			q2->action = RESTGT_IGNORE;
 		else
-			q2.action = RESTGT_AFTERFAILURE;
+			q2->action = RESTGT_AFTERFAILURE;
 		break;
 	default:
 		errno = EAFNOSUPPORT;
 		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
-		return (NULL);
+		hp = NULL;
+		goto cleanup;
 	}
 	if (size > len) {
 		errno = EINVAL;
 		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
-		return (NULL);
+		hp = NULL;
+		goto cleanup;
 	}
 	switch (af) {
 	case AF_INET:
-		qp = q.qname;
+		qp = q->qname;
 		(void) sprintf(qp, "%u.%u.%u.%u.in-addr.arpa",
 			       (uaddr[3] & 0xff),
 			       (uaddr[2] & 0xff),
@@ -417,16 +439,16 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 			       (uaddr[0] & 0xff));
 		break;
 	case AF_INET6:
-		if (q.action != RESTGT_IGNORE) {
-			qp = q.qname;
+		if (q->action != RESTGT_IGNORE) {
+			qp = q->qname;
 			qp += SPRINTF((qp, "\\[x"));
 			for (n = 0; n < IN6ADDRSZ; n++)
 				qp += SPRINTF((qp, "%02x", uaddr[n]));
 			SPRINTF((qp, "/128].%s",
 				 res_get_bitstringsuffix(pvt->res)));
 		}
-		if (q2.action != RESTGT_IGNORE) {
-			qp = q2.qname;
+		if (q2->action != RESTGT_IGNORE) {
+			qp = q2->qname;
 			for (n = IN6ADDRSZ - 1; n >= 0; n--) {
 				qp += SPRINTF((qp, "%x.%x.",
 					       uaddr[n] & 0xf,
@@ -439,7 +461,7 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 		abort();
 	}
 
-	for (p = &q; p; p = p->next) {
+	for (p = q; p; p = p->next) {
 		switch(p->action) {
 		case RESTGT_DOALWAYS:
 			break;
@@ -477,10 +499,16 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 		}
 
 		RES_SET_H_ERRNO(pvt->res, NETDB_SUCCESS);
-		return (hp);	/* no more loop is necessary. */
+		goto cleanup;	/* no more loop is necessary. */
 	}
+	hp = NULL; /* H_ERRNO was set by subroutines */
 
-	return(NULL);		/* H_ERRNO was set by subroutines */
+ cleanup:
+	if (q != NULL)
+		memput(q, sizeof(*q));
+	if (q2 != NULL)
+		memput(q2, sizeof(*q2));
+	return(hp);
 }
 
 static struct hostent *
@@ -536,74 +564,83 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 	int n;
 	char tmp[NS_MAXDNAME];
 	const char *cp;
-	struct dns_res_target q, q2, q3, *p;
+	struct dns_res_target *q, *q2, *q3, *p;
 	struct addrinfo sentinel, *cur;
 	int querystate = RESQRY_FAIL;
 
 	if (init(this) == -1)
 		return (NULL);
 
-	memset(&q, 0, sizeof(q2));
-	memset(&q2, 0, sizeof(q2));
-	memset(&q3, 0, sizeof(q3));
 	memset(&sentinel, 0, sizeof(sentinel));
 	cur = &sentinel;
+
+	q = memget(sizeof(*q));
+	q2 = memget(sizeof(*q2));
+	q3 = memget(sizeof(*q3));
+	if (q == NULL || q2 == NULL || q3 == NULL) {
+		RES_SET_H_ERRNO(pvt->res, NETDB_INTERNAL);
+		errno = ENOMEM;
+		goto cleanup;
+	}
+	memset(q, 0, sizeof(q2));
+	memset(q2, 0, sizeof(q2));
+	memset(q3, 0, sizeof(q3));
 
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
 		/* prefer IPv6 */
-		q.qclass = C_IN;
-		q.qtype = ns_t_a6;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.next = &q2;
+		q->qclass = C_IN;
+		q->qtype = ns_t_a6;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->next = q2;
 #ifdef RES_USE_A6
 		if ((pvt->res->options & RES_USE_A6) == 0)
-			q.action = RESTGT_IGNORE;
+			q->action = RESTGT_IGNORE;
 		else
 #endif
-			q.action = RESTGT_DOALWAYS;
-		q2.qclass = C_IN;
-		q2.qtype = T_AAAA;
-		q2.answer = q2.qbuf.buf;
-		q2.anslen = sizeof(q2.qbuf);
-		q2.next = &q3;
+			q->action = RESTGT_DOALWAYS;
+		q2->qclass = C_IN;
+		q2->qtype = T_AAAA;
+		q2->answer = q2->qbuf.buf;
+		q2->anslen = sizeof(q2->qbuf);
+		q2->next = q3;
 		/* try AAAA only when A6 query fails */
-		q2.action = RESTGT_AFTERFAILURE;
-		q3.qclass = C_IN;
-		q3.qtype = T_A;
-		q3.answer = q3.qbuf.buf;
-		q3.anslen = sizeof(q3.qbuf);
-		q3.action = RESTGT_DOALWAYS;
+		q2->action = RESTGT_AFTERFAILURE;
+		q3->qclass = C_IN;
+		q3->qtype = T_A;
+		q3->answer = q3->qbuf.buf;
+		q3->anslen = sizeof(q3->qbuf);
+		q3->action = RESTGT_DOALWAYS;
 		break;
 	case AF_INET:
-		q.qclass = C_IN;
-		q.qtype = T_A;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.action = RESTGT_DOALWAYS;
+		q->qclass = C_IN;
+		q->qtype = T_A;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->action = RESTGT_DOALWAYS;
 		break;
 	case AF_INET6:
-		q.qclass = C_IN;
-		q.qtype = ns_t_a6;
-		q.answer = q.qbuf.buf;
-		q.anslen = sizeof(q.qbuf);
-		q.next = &q2;
+		q->qclass = C_IN;
+		q->qtype = ns_t_a6;
+		q->answer = q->qbuf.buf;
+		q->anslen = sizeof(q->qbuf);
+		q->next = q2;
 #ifdef RES_USE_A6
 		if ((pvt->res->options & RES_USE_A6) == 0)
-			q.action = RESTGT_IGNORE;
+			q->action = RESTGT_IGNORE;
 		else
 #endif
-			q.action = RESTGT_DOALWAYS;
-		q2.qclass = C_IN;
-		q2.qtype = T_AAAA;
-		q2.answer = q2.qbuf.buf;
-		q2.anslen = sizeof(q2.qbuf);
-		q2.action = RESTGT_AFTERFAILURE;
+			q->action = RESTGT_DOALWAYS;
+		q2->qclass = C_IN;
+		q2->qtype = T_AAAA;
+		q2->answer = q2->qbuf.buf;
+		q2->anslen = sizeof(q2->qbuf);
+		q2->action = RESTGT_AFTERFAILURE;
 		break;
 	default:
 		RES_SET_H_ERRNO(pvt->res, NO_RECOVERY); /* better error? */
-		return(NULL);
+		goto cleanup;
 	}
 
 	/*
@@ -615,7 +652,7 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 						      tmp, sizeof tmp)))
 		name = cp;
 
-	for (p = &q; p; p = p->next) {
+	for (p = q; p; p = p->next) {
 		struct addrinfo *ai;
 
 		switch(p->action) {
@@ -647,6 +684,13 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 			querystate = RESQRY_FAIL;
 	}
 
+ cleanup:
+	if (q != NULL)
+		memput(q, sizeof(*q));
+	if (q2 != NULL)
+		memput(q2, sizeof(*q2));
+	if (q3 != NULL)
+		memput(q3, sizeof(*q3));
 	return(sentinel.ai_next);
 }
 
@@ -1153,8 +1197,6 @@ gethostans(struct irs_ho *this,
 		eor = cp + n;
 		if ((qtype == T_A || qtype == T_AAAA || qtype == ns_t_a6 ||
 		     qtype == T_ANY) && type == T_CNAME) {
-			if (ap >= &pvt->host_aliases[MAXALIASES-1])
-				continue;
 			n = dn_expand(ansbuf, eor, cp, tbuf, sizeof tbuf);
 			if (n < 0 || !maybe_ok(pvt->res, tbuf, name_ok)) {
 				had_error++;
@@ -1162,6 +1204,8 @@ gethostans(struct irs_ho *this,
 			}
 			cp += n;
 			/* Store alias. */
+			if (ap >= &pvt->host_aliases[MAXALIASES-1])
+				continue;
 			*ap++ = bp;
 			n = strlen(bp) + 1;	/* for the \0 */
 			bp += n;

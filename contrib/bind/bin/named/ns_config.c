@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_config.c,v 8.133 2002/02/01 00:05:39 marka Exp $";
+static const char rcsid[] = "$Id: ns_config.c,v 8.134 2002/04/25 05:27:04 marka Exp $";
 #endif /* not lint */
 
 /*
@@ -317,7 +317,7 @@ validate_zone(struct zoneinfo *zp) {
 
 #ifdef BIND_NOTIFY
 	/* Check notify */
-	if (zp->z_notify != znotify_use_default) {
+	if (zp->z_notify != notify_use_default) {
 		if (zp->z_type != z_master && zp->z_type != z_slave) {
 			ns_error(ns_log_config,
 			"'notify' given for non-master, non-slave zone '%s'",
@@ -872,7 +872,7 @@ set_zone_dialup(zone_config zh, int value) {
 	if (value) {
 		zp->z_dialup = zdialup_yes;
 #ifdef BIND_NOTIFY
-		zp->z_notify = znotify_yes;
+		zp->z_notify = notify_yes;
 #endif
 	} else
 		zp->z_dialup = zdialup_no;
@@ -881,17 +881,14 @@ set_zone_dialup(zone_config zh, int value) {
 }
 
 int
-set_zone_notify(zone_config zh, int value) {
+set_zone_notify(zone_config zh, enum notify value) {
 #ifdef BIND_NOTIFY
 	struct zoneinfo *zp;
 
 	zp = zh.opaque;
 	INSIST(zp != NULL);
 
-	if (value)
-		zp->z_notify = znotify_yes;
-	else
-		zp->z_notify = znotify_no;
+	zp->z_notify = value;
 #endif
 	return (1);
 }
@@ -1150,6 +1147,9 @@ new_options() {
 	op->max_log_size_ixfr = 0;
 	op->minroots = MINROOTS;
 	op->preferred_glue = 0;
+#ifdef BIND_NOTIFY
+	op->notify = notify_yes;
+#endif
 	return (op);
 }
 
@@ -1210,7 +1210,6 @@ set_boolean_option(u_int *op_flags, int bool_opt, int value) {
 	case OPTION_NOFETCHGLUE:
 	case OPTION_FORWARD_ONLY:
 	case OPTION_FAKE_IQUERY:
-	case OPTION_NONOTIFY:
 	case OPTION_SUPNOTIFY_INITIAL:
 	case OPTION_NONAUTH_NXDOMAIN:
 	case OPTION_MULTIPLE_CNAMES:

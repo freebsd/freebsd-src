@@ -105,9 +105,9 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 	int family, i;
 	const char *addr;
 	char *p;
-	u_char pfx;
 	char numserv[512];
 	char numaddr[512];
+	const struct sockaddr_in6 *sin6;
 
 	if (sa == NULL)
 		return EAI_FAIL;
@@ -157,9 +157,23 @@ getnameinfo(sa, salen, host, hostlen, serv, servlen, flags)
 			flags |= NI_NUMERICHOST;			
 		break;
 	case AF_INET6:
-		pfx = *addr;
-		if (pfx == 0 || pfx == 0xfe || pfx == 0xff)
-			flags |= NI_NUMERICHOST;
+		sin6 = (const struct sockaddr_in6 *)sa;
+		switch (sin6->sin6_addr.s6_addr[0]) {
+		case 0x00:
+			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr))
+				;
+			else if (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))
+				;
+			else
+				flags |= NI_NUMERICHOST;
+			break;
+		default:
+			if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
+				flags |= NI_NUMERICHOST;
+			else if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+				flags |= NI_NUMERICHOST;
+			break;
+		}
 		break;
 	}
 	if (host == NULL || hostlen == 0) {
