@@ -76,7 +76,7 @@ static int	umapfs_vget __P((struct mount *mp, ino_t ino,
 				 struct vnode **vpp));
 static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 static int	umapfs_extattrctl __P((struct mount *mp, int cmd,
-				       char *attrname, caddr_t arg,
+				       const char *attrname, caddr_t arg,
 				       struct proc *p));
 
 /*
@@ -437,7 +437,7 @@ static int
 umapfs_extattrctl(mp, cmd, attrname, arg, p)
 	struct mount *mp;
 	int cmd;
-	char *attrname;
+	const char *attrname;
 	caddr_t arg;
 	struct proc *p;
 {
