@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ibcs2_misc.c,v 1.1 1994/10/14 08:53:06 sos Exp $
+ *	$Id: ibcs2_misc.c,v 1.2 1995/02/20 23:52:37 davidg Exp $
  */
 
 #include <i386/ibcs2/ibcs2.h>
@@ -196,18 +196,6 @@ ibcs2_chroot(struct proc *p, void *args, int *retval)
 	if (ibcs2_trace & IBCS2_TRACE_MISC) 
 		printf("IBCS2: 'chroot'\n");
 	return chroot(p, args, retval);
-}
-
-struct ibcs2_close_args {
-	int fd;
-};
-
-int
-ibcs2_close(struct proc *p, struct ibcs2_close_args *args, int *retval)
-{
-	if (ibcs2_trace & IBCS2_TRACE_MISC) 
-		printf("IBCS2: 'close' fd=%d\n", args->fd);
-	return close(p, args, retval);
 }
 
 struct exec_args {
