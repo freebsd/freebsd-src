@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.47 1996/06/13 17:07:37 jkh Exp $
+ * $Id: devices.c,v 1.48 1996/07/13 05:09:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -219,9 +219,56 @@ deviceGetAll(void)
 	free(names);
     }
 
-    /*
-     * Try to get all the types of devices it makes sense to get at the
-     * second stage of the installation.
+    /* Now go for the network interfaces.  Stolen shamelessly from ifconfig! */
+    ifc.ifc_len = sizeof(buffer);
+    ifc.ifc_buf = buffer;
+
+    s = socket(AF_INET, SOCK_DGRAM, 0);
+    if (s < 0) {
+	msgConfirm("ifconfig: socket");
+	return;
+    }
+    if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
+	msgConfirm("ifconfig (SIOCGIFCONF)");
+	return;
+    }
+    ifflags = ifc.ifc_req->ifr_flags;
+    end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
+    for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
+	char *descr;
+
+	/* If it's not a link entry, forget it */
+	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
+	    continue;
+	/* Eliminate network devices that don't make sense */
+	if (!strncmp(ifptr->ifr_name, "tun", 3)
+	    || !strncmp(ifptr->ifr_name, "lo0", 3))
+	    continue;
+	descr = NULL;
+	for (i = 0; device_names[i].name; i++) {
+	    int len = strlen(device_names[i].name);
+
+	    if (!strncmp(ifptr->ifr_name, device_names[i].name, len)) {
+		descr = device_names[i].description;
+		break;
+	    }
+	}
+	if (!descr)
+	    descr = "<unknown network interface type>";
+	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
+		       mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
+	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
+	close(s);
+	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+	    msgConfirm("ifconfig: socket");
+	    continue;
+	}
+	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
+	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
+    }
+
+    /* Finally, try to find all the types of devices one might need
+     * during the second stage of the installation.
      */
     for (i = 0; device_names[i].name; i++) {
 	char try[FILENAME_MAX];
@@ -286,54 +333,6 @@ deviceGetAll(void)
 	default:
 	    break;
 	}
-    }
-
-    /* Now go for the (other) network interfaces dynamically.  Stolen shamelessly from ifconfig! */
-    ifc.ifc_len = sizeof(buffer);
-    ifc.ifc_buf = buffer;
-
-    s = socket(AF_INET, SOCK_DGRAM, 0);
-    if (s < 0) {
-	msgConfirm("ifconfig: socket");
-	return;
-    }
-    if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
-	msgConfirm("ifconfig (SIOCGIFCONF)");
-	return;
-    }
-    ifflags = ifc.ifc_req->ifr_flags;
-    end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
-    for (ifptr = ifc.ifc_req; ifptr < end; ifptr++) {
-	char *descr;
-
-	/* If it's not a link entry, forget it */
-	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
-	    continue;
-	/* Eliminate network devices that don't make sense */
-	if (!strncmp(ifptr->ifr_name, "tun", 3)
-	    || !strncmp(ifptr->ifr_name, "lo0", 3))
-	    continue;
-	descr = NULL;
-	for (i = 0; device_names[i].name; i++) {
-	    int len = strlen(device_names[i].name);
-
-	    if (!strncmp(ifptr->ifr_name, device_names[i].name, len)) {
-		descr = device_names[i].description;
-		break;
-	    }
-	}
-	if (!descr)
-	    descr = "<unknown network interface type>";
-	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
-		       mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
-	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
-	close(s);
-	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
-	    msgConfirm("ifconfig: socket");
-	    continue;
-	}
-	if (ifptr->ifr_addr.sa_len)	/* I'm not sure why this is here - it's inherited */
-	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
     }
 }
 
