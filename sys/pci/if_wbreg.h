@@ -69,6 +69,7 @@
 #define WB_BUSCTL_CACHEALIGN	0x0000C000
 #define WB_BUSCTL_DES_BIGENDIAN	0x00100000
 #define WB_BUSCTL_WAIT		0x00200000
+#define WB_BUSCTL_MUSTBEONE	0x00400000
 
 #define WB_SKIPLEN_1LONG	0x00000004
 #define WB_SKIPLEN_2LONG	0x00000008
@@ -76,6 +77,7 @@
 #define WB_SKIPLEN_4LONG	0x00000020
 #define WB_SKIPLEN_5LONG	0x00000040
 
+#define WB_CACHEALIGN_NONE	0x00000000
 #define WB_CACHEALIGN_8LONG	0x00004000
 #define WB_CACHEALIGN_16LONG	0x00008000
 #define WB_CACHEALIGN_32LONG	0x0000C000
@@ -297,7 +299,14 @@ struct wb_txdesc {
 
 #define WB_UNSENT	0x1234
 
+#define WB_BUFBYTES	(1024 * sizeof(u_int32_t))
+
+struct wb_buf {
+	u_int32_t		wb_data[1024];
+};
+
 struct wb_list_data {
+	struct wb_buf		wb_rxbufs[WB_RX_LIST_CNT];
 	struct wb_desc		wb_rx_list[WB_RX_LIST_CNT];
 	struct wb_txdesc	wb_tx_list[WB_TX_LIST_CNT];
 };
@@ -312,6 +321,7 @@ struct wb_chain {
 struct wb_chain_onefrag {
 	struct wb_desc		*wb_ptr;
 	struct mbuf		*wb_mbuf;
+	void			*wb_buf;
 	struct wb_chain_onefrag	*wb_nextdesc;
 	u_int8_t		wb_rlast;
 };
@@ -351,30 +361,23 @@ struct wb_mii_frame {
 #define WB_MII_WRITEOP		0x01
 #define WB_MII_TURNAROUND	0x02
 
-#define WB_FLAG_FORCEDELAY	1
-#define WB_FLAG_SCHEDDELAY	2
-#define WB_FLAG_DELAYTIMEO	3	
-
 struct wb_softc {
 	struct arpcom		arpcom;		/* interface info */
-	struct ifmedia		ifmedia;	/* media info */
+	device_t		wb_miibus;
 	bus_space_handle_t	wb_bhandle;
 	bus_space_tag_t		wb_btag;
 	struct resource		*wb_res;
 	struct resource		*wb_irq;
 	void			*wb_intrhand;
 	struct wb_type		*wb_info;	/* Winbond adapter info */
-	struct wb_type		*wb_pinfo;	/* phy info */
 	u_int8_t		wb_unit;	/* interface number */
 	u_int8_t		wb_type;
-	u_int8_t		wb_phy_addr;	/* PHY address */
-	u_int8_t		wb_tx_pend;	/* TX pending */
-	u_int8_t		wb_want_auto;
-	u_int8_t		wb_autoneg;
 	u_int16_t		wb_txthresh;
+	int			wb_cachesize;
 	caddr_t			wb_ldata_ptr;
 	struct wb_list_data	*wb_ldata;
 	struct wb_chain_data	wb_cdata;
+	struct callout_handle	wb_stat_ch;
 };
 
 /*
@@ -419,41 +422,8 @@ struct wb_softc {
 #define CP_DEVICEID_RL100	0x2011
 
 /*
- * Texas Instruments PHY identifiers
- */
-#define TI_PHY_VENDORID		0x4000
-#define TI_PHY_10BT		0x501F
-#define TI_PHY_100VGPMI		0x502F
-
-/*
- * These ID values are for the NS DP83840A 10/100 PHY
- */
-#define NS_PHY_VENDORID		0x2000
-#define NS_PHY_83840A		0x5C0F
-
-/*
- * Level 1 10/100 PHY
- */
-#define LEVEL1_PHY_VENDORID	0x7810
-#define LEVEL1_PHY_LXT970	0x000F
-
-/*
- * Intel 82555 10/100 PHY
- */
-#define INTEL_PHY_VENDORID	0x0A28
-#define INTEL_PHY_82555		0x015F
-
-/*
- * SEEQ 80220 10/100 PHY
- */
-#define SEEQ_PHY_VENDORID	0x0016
-#define SEEQ_PHY_80220		0xF83F
-
-
-/*
  * PCI low memory base and low I/O base register, and
- * other PCI registers. Note: some are only available on
- * the 3c905B, in particular those that related to power management.
+ * other PCI registers.
  */
 
 #define WB_PCI_VENDOR_ID	0x00
@@ -461,6 +431,7 @@ struct wb_softc {
 #define WB_PCI_COMMAND		0x04
 #define WB_PCI_STATUS		0x06
 #define WB_PCI_CLASSCODE	0x09
+#define WB_PCI_CACHELEN		0x0C
 #define WB_PCI_LATENCY_TIMER	0x0D
 #define WB_PCI_HEADER_TYPE	0x0E
 #define WB_PCI_LOIO		0x10
@@ -486,105 +457,6 @@ struct wb_softc {
 #define WB_PSTATE_D3		0x0003
 #define WB_PME_EN		0x0010
 #define WB_PME_STATUS		0x8000
-
-#define PHY_UNKNOWN		6
-
-#define WB_PHYADDR_MIN		0x00
-#define WB_PHYADDR_MAX		0x1F
-
-#define PHY_BMCR		0x00
-#define PHY_BMSR		0x01
-#define PHY_VENID		0x02
-#define PHY_DEVID		0x03
-#define PHY_ANAR		0x04
-#define PHY_LPAR		0x05
-#define PHY_ANEXP		0x06
-
-#define PHY_ANAR_NEXTPAGE	0x8000
-#define PHY_ANAR_RSVD0		0x4000
-#define PHY_ANAR_TLRFLT		0x2000
-#define PHY_ANAR_RSVD1		0x1000
-#define PHY_ANAR_RSVD2		0x0800
-#define PHY_ANAR_RSVD3		0x0400
-#define PHY_ANAR_100BT4		0x0200
-#define PHY_ANAR_100BTXFULL	0x0100
-#define PHY_ANAR_100BTXHALF	0x0080
-#define PHY_ANAR_10BTFULL	0x0040
-#define PHY_ANAR_10BTHALF	0x0020
-#define PHY_ANAR_PROTO4		0x0010
-#define PHY_ANAR_PROTO3		0x0008
-#define PHY_ANAR_PROTO2		0x0004
-#define PHY_ANAR_PROTO1		0x0002
-#define PHY_ANAR_PROTO0		0x0001
-
-/*
- * These are the register definitions for the PHY (physical layer
- * interface chip).
- */
-/*
- * PHY BMCR Basic Mode Control Register
- */
-#define PHY_BMCR_RESET			0x8000
-#define PHY_BMCR_LOOPBK			0x4000
-#define PHY_BMCR_SPEEDSEL		0x2000
-#define PHY_BMCR_AUTONEGENBL		0x1000
-#define PHY_BMCR_RSVD0			0x0800	/* write as zero */
-#define PHY_BMCR_ISOLATE		0x0400
-#define PHY_BMCR_AUTONEGRSTR		0x0200
-#define PHY_BMCR_DUPLEX			0x0100
-#define PHY_BMCR_COLLTEST		0x0080
-#define PHY_BMCR_RSVD1			0x0040	/* write as zero, don't care */
-#define PHY_BMCR_RSVD2			0x0020	/* write as zero, don't care */
-#define PHY_BMCR_RSVD3			0x0010	/* write as zero, don't care */
-#define PHY_BMCR_RSVD4			0x0008	/* write as zero, don't care */
-#define PHY_BMCR_RSVD5			0x0004	/* write as zero, don't care */
-#define PHY_BMCR_RSVD6			0x0002	/* write as zero, don't care */
-#define PHY_BMCR_RSVD7			0x0001	/* write as zero, don't care */
-/*
- * RESET: 1 == software reset, 0 == normal operation
- * Resets status and control registers to default values.
- * Relatches all hardware config values.
- *
- * LOOPBK: 1 == loopback operation enabled, 0 == normal operation
- *
- * SPEEDSEL: 1 == 100Mb/s, 0 == 10Mb/s
- * Link speed is selected byt his bit or if auto-negotiation if bit
- * 12 (AUTONEGENBL) is set (in which case the value of this register
- * is ignored).
- *
- * AUTONEGENBL: 1 == Autonegotiation enabled, 0 == Autonegotiation disabled
- * Bits 8 and 13 are ignored when autoneg is set, otherwise bits 8 and 13
- * determine speed and mode. Should be cleared and then set if PHY configured
- * for no autoneg on startup.
- *
- * ISOLATE: 1 == isolate PHY from MII, 0 == normal operation
- *
- * AUTONEGRSTR: 1 == restart autonegotiation, 0 = normal operation
- *
- * DUPLEX: 1 == full duplex mode, 0 == half duplex mode
- *
- * COLLTEST: 1 == collision test enabled, 0 == normal operation
- */
-
-/* 
- * PHY, BMSR Basic Mode Status Register 
- */   
-#define PHY_BMSR_100BT4			0x8000
-#define PHY_BMSR_100BTXFULL		0x4000
-#define PHY_BMSR_100BTXHALF		0x2000
-#define PHY_BMSR_10BTFULL		0x1000
-#define PHY_BMSR_10BTHALF		0x0800
-#define PHY_BMSR_RSVD1			0x0400	/* write as zero, don't care */
-#define PHY_BMSR_RSVD2			0x0200	/* write as zero, don't care */
-#define PHY_BMSR_RSVD3			0x0100	/* write as zero, don't care */
-#define PHY_BMSR_RSVD4			0x0080	/* write as zero, don't care */
-#define PHY_BMSR_MFPRESUP		0x0040
-#define PHY_BMSR_AUTONEGCOMP		0x0020
-#define PHY_BMSR_REMFAULT		0x0010
-#define PHY_BMSR_CANAUTONEG		0x0008
-#define PHY_BMSR_LINKSTAT		0x0004
-#define PHY_BMSR_JABBER			0x0002
-#define PHY_BMSR_EXTENDED		0x0001
 
 #ifdef __alpha__
 #undef vtophys
