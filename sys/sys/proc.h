@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.8 1994/09/01 05:12:52 davidg Exp $
+ * $Id: proc.h,v 1.9 1994/10/02 04:45:58 davidg Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -44,6 +44,7 @@
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <sys/select.h>			/* For struct selinfo. */
+#include <sys/rtprio.h>			/* For struct rtprio. */
 
 /*
  * One structure allocated per session.
