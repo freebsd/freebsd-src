@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.19 1996/02/09 20:57:53 phk Exp $
+#	$Id: Makefile,v 1.20 1996/02/09 22:44:44 phk Exp $
 
 LIB=	md
 NOPIC=	true
@@ -83,14 +83,9 @@ test:	md2.ref md4.ref md5.ref
 beforedepend:	md2hl.c md4hl.c md5hl.c
 
 beforeinstall:
-	-cd ${.CURDIR}; cmp -s md2.h ${DESTDIR}/usr/include/md2.h || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 md2.h \
-	  ${DESTDIR}/usr/include
-	-cd ${.CURDIR}; cmp -s md4.h ${DESTDIR}/usr/include/md4.h || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 md4.h \
-	  ${DESTDIR}/usr/include
-	-cd ${.CURDIR}; cmp -s md5.h ${DESTDIR}/usr/include/md5.h || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 md5.h \
-	  ${DESTDIR}/usr/include
+.for i in md2.h md4.h md5.h
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+		${DESTDIR}/usr/include
+.endfor
 
 .include <bsd.lib.mk>
