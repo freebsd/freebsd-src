@@ -201,6 +201,14 @@ IPv6 and IPv4 tunneling over IPv6 or IPv4, and IPv6 TCP to IPv4 TCP
 translation gateway support. Protocol-independent name resolution
 functions have been added to libc (getaddrinfo, getnameinfo, etc).
 
+Floating point exceptions for new processes (devide-by-zero,
+under/overflow, invalid range etc.) are now disabled by default. Use
+fpsetmask(3) to reenable those you need. Note that integer
+device-by-zero is not covered by the FPU and will still trap after
+this change. Also note that conversion of float/double to integer
+where the float variable is too big now doesn't trap as well (it can't
+be seperated from other operations we want masked).
+
 
 1.2. SECURITY FIXES
 -------------------
