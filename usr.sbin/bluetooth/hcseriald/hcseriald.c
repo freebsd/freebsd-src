@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: hcseriald.c,v 1.4 2002/09/04 21:29:58 max Exp $
+ * $Id: hcseriald.c,v 1.2 2003/04/27 19:45:33 max Exp $
  * $FreeBSD$
  */
 
@@ -66,7 +66,7 @@ main(int argc, char *argv[])
 	struct sigaction	 sa;
 
 	/* Process command line arguments */
-	while ((n = getopt(argc, argv, "df:n:s:")) != -1) {
+	while ((n = getopt(argc, argv, "df:n:s:h")) != -1) {
 		switch (n) {
 		case 'd':
 			detach = 0;
@@ -86,6 +86,7 @@ main(int argc, char *argv[])
 				usage(argv[0]);
 			break;
 
+		case 'h':
 		default:
 			usage(argv[0]);
 			break;
@@ -267,12 +268,13 @@ sighandler(int s)
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s -f device -n node_name [-s speed -d]\n" \
+	fprintf(stderr, "Usage: %s -f device -n node_name [-s speed -d -h]\n" \
 			"Where:\n" \
 			"\t-f device    tty device name, ex. /dev/cuaa1\n" \
 			"\t-n node_name set Netgraph node name to node_name\n" \
 			"\t-s speed     set tty speed, ex. 115200\n" \
-			"\t-d           run in foreground\n",
+			"\t-d           run in foreground\n" \
+			"\t-h           display this message\n",
 			hcseriald);
 	exit(255);
 } /* usage */

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: link_policy.c,v 1.3 2002/09/17 16:33:44 max Exp $
+ * $Id: link_policy.c,v 1.1 2002/11/24 20:22:38 max Exp $
  * $FreeBSD$
  */
 

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: status.c,v 1.2 2002/09/06 18:52:41 max Exp $
+ * $Id: status.c,v 1.1 2002/11/24 20:22:38 max Exp $
  * $FreeBSD$
  */
 
@@ -231,7 +231,7 @@ struct hci_command	status_commands[] = {
 "read_rssi <connection_handle>",
 "\nThis command will read the value for the difference between the\n" \
 "measured Received Signal Strength Indication (RSSI) and the limits of\n" \
-"the Golden Receive Power Range for an ACL connection handle to another\n" \
+"the Golden Receive Power Range for a ACL connection handle to another\n" \
 "Bluetooth device. Any positive RSSI value returned by the Host Controller\n" \
 "indicates how many dB the RSSI is above the upper limit, any negative\n" \
 "value indicates how many dB the RSSI is below the lower limit. The value\n" \
