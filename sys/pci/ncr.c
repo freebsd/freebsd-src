@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.36 1995/03/31 00:05:08 se Exp $
+**  $Id: ncr.c,v 1.37 1995/05/30 08:13:07 rgrimes Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -356,6 +356,8 @@ extern PRINT_ADDR();
 
 #define	QUIRK_AUTOSAVE	(0x01)
 #define	QUIRK_NOMSG	(0x02)
+#define QUIRK_NOSYNC	(0x10)
+#define QUIRK_NOWIDE16	(0x20)
 #define	QUIRK_UPDATE	(0x80)
 
 /*==========================================================
@@ -878,13 +880,13 @@ struct ccb {
 	u_long			tlimit;
 
 	/*
-	**	All ccbs of one hostadapter are linked.
+	**	All ccbs of one hostadapter are chained.
 	*/
 
 	ccb_p		link_ccb;
 
 	/*
-	**	All ccbs of one target/lun are linked.
+	**	All ccbs of one target/lun are chained.
 	*/
 
 	ccb_p		next_ccb;
@@ -1041,8 +1043,8 @@ struct ncb {
 	**	because they're written with a
 	**	COPY script command.
 	*/
-	u_char	  msgout[8];
-	u_char	  msgin [8];
+	u_char		msgout[8];
+	u_char		msgin [8];
 	u_long		lastmsg;
 
 	/*
@@ -1124,7 +1126,7 @@ struct script {
 	ncrcmd	cleanup		[ 12];
 	ncrcmd	cleanup0	[ 11];
 	ncrcmd	signal		[ 10];
-	ncrcmd  save_dp	 [  5];
+	ncrcmd  save_dp		[  5];
 	ncrcmd  restore_dp	[  5];
 	ncrcmd  disconnect	[ 12];
 	ncrcmd  disconnect0	[  5];
@@ -1134,7 +1136,11 @@ struct script {
 	ncrcmd	msg_out_abort	[ 10];
 	ncrcmd  getcc		[  4];
 	ncrcmd  getcc1		[  5];
+#ifdef NCR_GETCC_WITHMSG
 	ncrcmd	getcc2		[ 33];
+#else
+	ncrcmd	getcc2		[ 14];
+#endif
 	ncrcmd	getcc3		[ 10];
 	ncrcmd  badgetcc	[  6];
 	ncrcmd	reselect	[ 12];
@@ -1216,7 +1222,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.36 1995/03/31 00:05:08 se Exp $\n";
+	"\n$Id: ncr.c,v 1.37 1995/05/30 08:13:07 rgrimes Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -2489,6 +2495,7 @@ static	struct script script0 = {
 	SCR_COPY (4),
 		PADDR (startpos),
 		RADDR (scratcha),
+#ifdef NCR_GETCC_WITHMSG
 	/*
 	**	If QUIRK_NOMSG is set, select without ATN.
 	**	and don't send a message.
@@ -2529,6 +2536,7 @@ static	struct script script0 = {
 	SCR_JUMP,
 		PADDR (prepare2),
 
+#endif
 }/*-------------------------< GETCC3 >----------------------*/,{
 	/*
 	**	Try to connect to the target.
@@ -3070,7 +3078,7 @@ static void ncr_script_copy_and_bind (struct script *script, ncb_p np)
 
 void ncr_min_phys (struct  buf *bp)
 {
-	if (bp->b_bcount > MAX_SIZE) bp->b_bcount = MAX_SIZE;
+	if ((unsigned long)bp->b_bcount > MAX_SIZE) bp->b_bcount = MAX_SIZE;
 }
 
 /*----------------------------------------------------------
@@ -3594,7 +3602,11 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		*/
 
 		if (!tp->period) {
-			if (tp->inqdata[7] & INQ7_SYNC) {
+			if (SCSI_NCR_MAX_SYNC 
+#if defined (CDROM_ASYNC) || defined (GENERIC)
+			    && ((tp->inqdata[0] & 0x1f) != 5)
+#endif
+			    && (tp->inqdata[7] & INQ7_SYNC)) {
 				nego = NS_SYNC;
 			} else {
 				tp->period  =0xffff;
@@ -3641,7 +3653,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 		};
 	} else {
 		cp->tag=0;
-#if 1
+#if 0
 		/*
 		** @GENSCSI@	Bug in "/sys/scsi/cd.c"
 		**
@@ -3785,7 +3797,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	/*----------------------------------------------------
 	**
-	**	fill ccb
+	**	fill in ccb
 	**
 	**----------------------------------------------------
 	**
@@ -3826,6 +3838,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**	patch requested size into sense command
 	*/
 	cp->sensecmd[0]			= 0x03;
+	cp->sensecmd[1]			= xp->sc_link->lun << 5;
 	cp->sensecmd[4]			= sizeof(struct scsi_sense_data);
 	if (xp->req_sense_length)
 		cp->sensecmd[4]		= xp->req_sense_length;
@@ -3849,7 +3862,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	/*----------------------------------------------------
 	**
-	**	Critical region: starting this job.
+	**	Critical region: start this job.
 	**
 	**----------------------------------------------------
 	*/
@@ -3860,10 +3873,10 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	cp->jump_ccb.l_cmd	= (SCR_JUMP ^ IFFALSE (DATA (cp->tag)));
 	cp->tlimit		= time.tv_sec + xp->timeout / 1000 + 2;
-	cp->magic	       = CCB_MAGIC;
+	cp->magic		= CCB_MAGIC;
 
 	/*
-	**	insert into startqueue.
+	**	insert into start queue.
 	*/
 
 	ptr = np->squeueput + 1;
@@ -3879,7 +3892,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 			(vtophys(&np->script->tryloop))));
 
 	/*
-	**	Script processor may be waiting for reconnect.
+	**	Script processor may be waiting for reselect.
 	**	Wake it up.
 	*/
 	OUTB (nc_istat, SIGP);
@@ -3995,10 +4008,10 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		printf ("CCB=%x STAT=%x/%x\n", (unsigned)cp & 0xfff,
 			cp->host_status,cp->scsi_status);
 
-	xp  = cp->xfer;
+	xp = cp->xfer;
 	cp->xfer = NULL;
 	tp = &np->target[xp->sc_link->target];
-	lp  = tp->lp[xp->sc_link->lun];
+	lp = tp->lp[xp->sc_link->lun];
 
 	/*
 	**	Check for parity errors.
@@ -5159,7 +5172,7 @@ void ncr_int_sto (ncb_p np)
 	scratcha = INL (nc_scratcha);
 	diff = scratcha - vtophys(&np->script->tryloop);
 
-	assert ((diff <= MAX_START * 20) && !(diff % 20));
+/*	assert ((diff <= MAX_START * 20) && !(diff % 20));*/
 
 	if ((diff <= MAX_START * 20) && !(diff % 20)) {
 		np->script->startpos[0] = scratcha;
@@ -5225,21 +5238,27 @@ static void ncr_int_ma (ncb_p np)
 	OUTB (nc_stest3, TE|CSF);	/* clear scsi fifo */
 
 	/*
-	**	verify cp
+	**	locate matching cp
 	*/
 	dsa = INL (nc_dsa);
 	cp = &np->ccb;
 	while (cp && (vtophys(&cp->phys) != dsa))
 		cp = cp->link_ccb;
 
-	assert (cp == np->header.cp);
-	assert (cp);
-	if (!cp)
-		return;
+	if (!cp) {
+	    printf ("%s: SCSI phase error fixup: CCB already dequeued (0x%08x)\n", 
+		    ncr_name (np), np->header.cp);
+	    return;
+	}
+	if (cp != np->header.cp) {
+	    printf ("%s: SCSI phase error fixup: CCB address mismatch (0x%08x != 0x%08x)\n", 
+		    ncr_name (np), cp, np->header.cp);
+	    return;
+	}
 
 	/*
 	**	find the interrupted script command,
-	**	and the address at where to continue.
+	**	and the address at which to continue.
 	*/
 
 	if (dsp == vtophys (&cp->patch[2])) {
@@ -5476,11 +5495,11 @@ void ncr_int_sir (ncb_p np)
 **	Was Sie schon immer ueber transfermode negotiation wissen wollten ...
 **
 **	We try to negotiate sync and wide transfer only after
-**	a successfull inquire command. We look to byte 7 of the
+**	a successfull inquire command. We look at byte 7 of the
 **	inquire data to determine the capabilities if the target.
 **
 **	When we try to negotiate, we append the negotiation message
-**	to the identify and (maybe) simpletag message.
+**	to the identify and (maybe) simple tag message.
 **	The host status field is set to HS_NEGOTIATE to mark this
 **	situation.
 **
@@ -5494,20 +5513,20 @@ void ncr_int_sir (ncb_p np)
 **	for validity, and set the values.
 **
 **	If we receive a Reject message immediately, we assume the
-**	negotiation has failed, and set to the standard values.
+**	negotiation has failed, and fall back to standard values.
 **
 **	If we receive a negotiation message while not in HS_NEGOTIATE
 **	state, it's a target initiated negotiation. We prepare a
-**	(hopefully) valid answer, set the values, and send this
-**	answer back to the target.
+**	(hopefully) valid answer, set our parameters, and send back 
+**	this answer to the target.
 **
 **	If the target doesn't fetch the answer (no message out phase),
-**	we assume the negotiation has failed, and set the values to
-**	the default.
+**	we assume the negotiation has failed, and fall back to default
+**	settings.
 **
-**	When we set the values, we set in all ccbs belonging to this
-**	target, in the controllers register, and in the "phys"
-**	field of the controllers struct ncb.
+**	When we set the values, we adjust them in all ccbs belonging 
+**	to this target, in the controller's register, and in the "phys"
+**	field of the controller's struct ncb.
 **
 **	Possible cases:	    hs  sir   msg_in value  send   goto
 **	We try try to negotiate:
@@ -5674,8 +5693,6 @@ void ncr_int_sir (ncb_p np)
 		np->msgout[3] = per;
 		np->msgout[4] = ofs;
 
-		np->msgin [0] = M_NOOP;
-
 		cp->nego_status = NS_SYNC;
 
 		if (DEBUG_FLAGS & DEBUG_NEGO) {
@@ -5684,6 +5701,13 @@ void ncr_int_sir (ncb_p np)
 			(void) ncr_show_msg (np->msgin);
 			printf (".\n");
 		}
+
+		if (!ofs) {
+			OUTL (nc_dsp,vtophys (&np->script->msg_bad));
+			return;
+		}
+		np->msgin [0] = M_NOOP;
+
 		break;
 
 	case SIR_NEGO_WIDE:
@@ -6090,10 +6114,10 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 		lp->jump_ccb.l_paddr = vtophys (&np->script->aborttag);
 
 		lp->actlink = 1;
-		/*
-		**   Link into Lun-Chain
-		*/
 
+		/*
+		**   Chain into LUN list
+		*/
 		tp->jump_lcb.l_paddr = vtophys (&lp->jump_lcb);
 		tp->lp[lun] = lp;
 
@@ -6130,12 +6154,12 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 	np->actccbs++;
 
 	/*
-	**	Initialize it.
+	**	Initialize it
 	*/
 	bzero (cp, sizeof (*cp));
 
 	/*
-	**	link in reselect chain.
+	**	Chain into reselect list
 	*/
 	cp->jump_ccb.l_cmd   = SCR_JUMP;
 	cp->jump_ccb.l_paddr = lp->jump_ccb.l_paddr;
@@ -6144,13 +6168,13 @@ static	void ncr_alloc_ccb (ncb_p np, struct scsi_xfer * xp)
 	cp->call_tmp.l_paddr = vtophys(&np->script->resel_tmp);
 
 	/*
-	**	link in wakeup chain
+	**	Chain into wakeup list
 	*/
 	cp->link_ccb      = np->ccb.link_ccb;
 	np->ccb.link_ccb  = cp;
 
 	/*
-	**	Link into CCB-Chain
+	**	Chain into CCB list
 	*/
 	cp->next_ccb	= lp->next_ccb;
 	lp->next_ccb	= cp;
@@ -6521,10 +6545,13 @@ struct table_entry {
 
 static struct table_entry device_tab[] =
 {
+#ifdef NCR_GETCC_WITHMSG
+	{"", "", "", QUIRK_NOMSG},
 	{"SONY", "SDT-5000", "3.17", QUIRK_NOMSG},
 	{"WangDAT", "Model 2600", "01.7", QUIRK_NOMSG},
 	{"WangDAT", "Model 3200", "02.2", QUIRK_NOMSG},
 	{"WangDAT", "Model 1300", "02.4", QUIRK_NOMSG},
+#endif
 	{"", "", "", 0} /* catch all: must be last entry. */
 };
 
