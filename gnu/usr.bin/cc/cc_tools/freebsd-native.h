@@ -48,7 +48,8 @@
 
 /* For the native system compiler, we actually build libgcc in a profiled
    version.  So we should use it with -pg.  */
-#define LIBGCC_SPEC		"%{!pg: -lgcc} %{pg: -lgcc_p}"
+#define LIBGCC_SPEC		"%{shared: -lgcc_pic} \
+    %{!shared: %{!pg: -lgcc} %{pg: -lgcc_p}}"
 #define LIBSTDCXX_PROFILE	"-lstdc++_p"
 #define MATH_LIBRARY_PROFILE	"-lm_p"
 #define FORTRAN_LIBRARY_PROFILE	"-lg2c_p"
