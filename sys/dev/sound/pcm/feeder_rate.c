@@ -49,30 +49,39 @@
 #include "feeder_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
-MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
-
-#define RATE_ASSERT(x, y) /* KASSERT(x,y) */
-#define RATE_TRACE(x...) /* printf(x) */
 
 #endif /* _KERNEL */
 
+MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
+
+#ifndef RATE_ASSERT
+#define RATE_ASSERT(x, y) /* KASSERT(x) */
+#endif /* RATE_ASSERT */
+
+#ifndef RATE_TRACE
+#define RATE_TRACE(x...)  /* printf(x) */
+#endif
+
 /*****************************************************************************/
-/* All of the following coefficients are coupled.  They are chosen to be
- * good in the operating space 4000-96000kHz work.  Decreasing the
- * granularity increases the required buffer size and affects the gain
- * values at different points in the space.  These values were found by
- * running the test program with -p (probe) and some trial and error.
+
+/* The following coefficients are coupled.  They are chosen to be
+ * guarantee calculable factors for the interpolation routine.  They
+ * have been tested over the range of RATEMIN-RATEMAX Hz.  Decreasing
+ * the granularity increases the required buffer size and affects the
+ * gain values at different points in the space.  These values were
+ * found by running the test program with -p (probe) and some trial
+ * and error.
  *
  * ROUNDHZ	the granularity of sample rates (fits n*11025 and n*8000).
  * FEEDBUFSZ	the amount of buffer space.
  * MINGAIN	the minimum acceptable gain in coefficients search.
  */
 #define ROUNDHZ			   25
-#define FEEDBUFSZ		 8192
+#define FEEDBUFSZ 		 8192
 #define MINGAIN			   92
 
-#define RATEMIN 		 4000
-#define RATEMAX			96000
+#define RATEMIN  		 4000
+#define RATEMAX 		48000
 
 struct feed_rate_info;
 
@@ -431,8 +440,12 @@ feed_rate(struct pcm_feeder	*f,
 
 		RATE_ASSERT(info->buffer_pos <= info->buffer_ticks,
 			    ("%s: buffer_ticks too big\n", __func__));
-		RATE_TRACE("%s: ticks %5d pos %d\n", __func__,
-			   info->buffer_ticks, info->buffer_pos);
+		RATE_ASSERT(info->buffer_ticks <= src_ticks_per_cycle(info),
+			    ("too many ticks %d /  %d\n",
+			     info->buffer_ticks, src_ticks_per_cycle(info)));
+		RATE_TRACE("%s: ticks %5d / %d pos %d\n", __func__,
+			   info->buffer_ticks, src_ticks_per_cycle(info),
+			   info->buffer_pos);
 
 		if (src_ticks_per_cycle(info) <= info->buffer_pos) {
 			/* End of cycle reached, copy last samples to start */
@@ -461,11 +474,9 @@ feed_rate(struct pcm_feeder	*f,
 	return done;
 }
 
-#ifdef _KERNEL
-
 static struct pcm_feederdesc feeder_rate_desc[] = {
 	{FEEDER_RATE, AFMT_S16_LE | AFMT_STEREO, AFMT_S16_LE | AFMT_STEREO, 0},
-	{0},
+	{0, 0, 0, 0},
 };
 static kobj_method_t feeder_rate_methods[] = {
     	KOBJMETHOD(feeder_init,		feed_rate_init),
@@ -473,8 +484,7 @@ static kobj_method_t feeder_rate_methods[] = {
     	KOBJMETHOD(feeder_set,		feed_rate_set),
     	KOBJMETHOD(feeder_get,		feed_rate_get),
     	KOBJMETHOD(feeder_feed,		feed_rate),
-	{ 0, 0 }
+	{0, 0}
 };
 FEEDER_DECLARE(feeder_rate, 2, NULL);
 
-#endif /* _KERNEL */
