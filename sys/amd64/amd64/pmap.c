@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.163 1997/10/11 18:31:18 phk Exp $
+ *	$Id: pmap.c,v 1.164 1997/10/24 23:41:04 dyson Exp $
  */
 
 /*
@@ -169,6 +169,9 @@ extern vm_offset_t clean_sva, clean_eva;
 vm_zone_t pvzone;
 struct vm_zone pvzone_store;
 struct vm_object pvzone_obj;
+int pv_entry_count=0, pv_entry_max=0,
+	pv_entry_high_water=0, pv_entry_low_water=0;
+int pmap_pagedaemon_waken = 0;
 #define NPVINIT 8192
 struct pv_entry pvinit[NPVINIT];
 
@@ -221,6 +224,7 @@ static vm_page_t pmap_page_alloc __P((vm_object_t object, vm_pindex_t pindex));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 vm_offset_t pmap_kmem_choose(vm_offset_t addr) ;
+void pmap_collect(void);
 
 #define PDSTACKMAX 6
 static vm_offset_t pdstack[PDSTACKMAX];
@@ -535,8 +539,15 @@ pmap_init(phys_start, phys_end)
 
 void
 pmap_init2() {
+<<<<<<< pmap.c
+	pv_entry_max = PMAP_SHPGPERPROC * maxproc + pv_npg;
+	pv_entry_high_water = 9 * (pv_entry_max / 10);
+	pv_entry_low_water = 4 * (pv_entry_max / 10);
+	zinitna(pvzone, &pvzone_obj, NULL, 0, pv_entry_max, ZONE_INTERRUPT, 1);
+=======
 	zinitna(pvzone, &pvzone_obj, NULL, 0,
 		PMAP_SHPGPERPROC * maxproc + pv_npg, ZONE_INTERRUPT, 1);
+>>>>>>> 1.164
 }
 
 /*
@@ -1532,6 +1543,7 @@ static inline void
 free_pv_entry(pv)
 	pv_entry_t pv;
 {
+	pv_entry_count--;
 	zfreei(pvzone, pv);
 }
 
@@ -1541,11 +1553,52 @@ free_pv_entry(pv)
  * the memory allocation is performed bypassing the malloc code
  * because of the possibility of allocations at interrupt time.
  */
-static inline pv_entry_t
+static pv_entry_t
 get_pv_entry(void)
 {
+	pv_entry_count++;
+	if ((pv_entry_count > pv_entry_high_water) &&
+		(pmap_pagedaemon_waken == 0)) {
+		pmap_pagedaemon_waken = 1;
+		wakeup (&vm_pages_needed);
+	}
 	return zalloci(pvzone);
 }
+
+/*
+ * This routine is very drastic, but can save the system
+ * in a pinch.
+ */
+void
+pmap_collect() {
+	pv_table_t *ppv;
+	pv_entry_t pv;
+	int i;
+	vm_offset_t pa;
+	vm_page_t m;
+	static int warningdone=0;
+
+	if (pmap_pagedaemon_waken == 0)
+		return;
+
+	if (warningdone < 5) {
+		printf("pmap_collect: collecting pv entries -- increase PMAP_SHPGPERPROC");
+		warningdone++;
+	}
+
+	for(i = 0; i < pv_npg; i++) {
+		if ((ppv = &pv_table[i]) == 0)
+			continue;
+		m = ppv->pv_vm_page;
+		if ((pa = VM_PAGE_TO_PHYS(m)) == 0)
+			continue;
+		if (m->wire_count || m->hold_count || m->busy || (m->flags & PG_BUSY))
+			continue;
+		pmap_remove_all(pa);
+	}
+	pmap_pagedaemon_waken = 0;
+}
+	
 
 /*
  * If it is the first entry on the list, it is actually
