@@ -533,7 +533,7 @@ DATA_SET (mode0_pciset, mode0_pcidev);
  *
  * only ioctl is used. the sd driver provides all other access.
  */
-#define CDEV_MAJOR 97   /* prefered default character major */
+#define CDEV_MAJOR 154   /* prefered default character major */
 STATIC struct cdevsw asr_cdevsw = {
         asr_open,       /* open     */
         asr_close,      /* close    */
