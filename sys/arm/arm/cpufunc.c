@@ -759,7 +759,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
     defined (CPU_ARM10) || \
     defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
     defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425)
-static void get_cachetype_cp15 __P((void));
+static void get_cachetype_cp15(void);
 
 /* Additional cache information local to this file.  Log2 of some of the
    above numbers.  */
@@ -871,7 +871,7 @@ struct cachetab cachetab[] = {
     { 0, 0, 0, 0, 0, 0, 0, 0}
 };
 
-static void get_cachetype_table __P((void));
+static void get_cachetype_table(void);
 
 static void
 get_cachetype_table()
@@ -1548,7 +1548,7 @@ struct cpu_option {
 	int	co_value;
 };
 
-static u_int parse_cpu_options __P((char *, struct cpu_option *, u_int));
+static u_int parse_cpu_options(char *, struct cpu_option *, u_int);
 
 static u_int
 parse_cpu_options(args, optlist, cpuctrl)
