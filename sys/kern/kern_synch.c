@@ -223,8 +223,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
 		WITNESS_SAVE(&mtx->mtx_object, mtx);
 		mtx_unlock(mtx);
-		if (priority & PDROP)
-			mtx = NULL;
 	}
 
 	/*
@@ -280,7 +278,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	if (mtx != NULL) {
+	if (mtx != NULL && !(priority & PDROP)) {
 		mtx_lock(mtx);
 		WITNESS_RESTORE(&mtx->mtx_object, mtx);
 	}
