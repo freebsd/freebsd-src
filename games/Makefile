@@ -8,7 +8,7 @@ SUBDIR=	adventure arithmetic atc backgammon battlestar bcd boggle caesar \
 	wump
 
 .if exists(${X11BASE}/lib/libX11.a)
-SUBDIR+= xneko xroach
+SUBDIR+= x11
 .endif
 
 .include <bsd.subdir.mk>
