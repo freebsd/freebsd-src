@@ -202,14 +202,14 @@ static int	tcp_inflight_stab = 20;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_stab, CTLFLAG_RW,
     &tcp_inflight_stab, 0, "Inflight Algorithm Stabilization 20 = 2 packets");
 
-
+SYSCTL_NODE(_net_inet_tcp, OID_AUTO, sack, CTLFLAG_RW, 0, "TCP SACK");
 int tcp_do_sack = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_sack, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, enable, CTLFLAG_RW,
     &tcp_do_sack, 0, "Enable/Disable TCP SACK support");
 
 int tcp_sackhole_limit = 10 * 1024; /* Arbitrarily set */
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, sackhole_limit, CTLFLAG_RW,
-	   &tcp_sackhole_limit, 0, "Limit on the total SACK scoreboard elements");
+SYSCTL_INT(_net_inet_tcp_sack, OID_AUTO, sackhole_limit, CTLFLAG_RW,
+    &tcp_sackhole_limit, 0, "Limit on the total SACK scoreboard elements");
 
 uma_zone_t sack_hole_zone;
 
