@@ -28,6 +28,9 @@
  * $FreeBSD$
  */
 
+#ifndef _VGL_H_
+#define _VGL_H_
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -140,3 +143,5 @@ void VGLBlankDisplay(int blank);
 int VGLTextSetFontFile(char *filename);
 void VGLBitmapPutChar(VGLBitmap *Object, int x, int y, byte ch, byte fgcol, byte bgcol, int fill, int dir);
 void VGLBitmapString(VGLBitmap *Object, int x, int y, char *str, byte fgcol, byte bgcol, int fill, int dir);
+
+#endif /* !_VGL_H_ */
