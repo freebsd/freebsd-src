@@ -472,7 +472,7 @@ loop:
 			/*
 			 * Decrement the count of procs running with this uid.
 			 */
-			(void)chgproccnt(p->p_cred->p_ruid, -1);
+			(void)chgproccnt(p->p_cred->p_ruid, -1, 0);
 
 			/*
 			 * Release reference to text vnode
