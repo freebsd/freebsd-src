@@ -262,6 +262,18 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		}
 	}
 
+	init_param1();
+
+	root = OF_peer(0);
+	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
+		OF_getprop(child, "device_type", type, sizeof(type));
+		if (strcmp(type, "cpu") == 0)
+			break;
+	}
+
+	OF_getprop(child, "clock-frequency", &clock, sizeof(clock));
+	tick_init(clock);
+
 	/*
 	 * Initialize the console before printing anything.
 	 */
@@ -286,14 +298,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		end = (vm_offset_t)_end;
 	}
 
-	root = OF_peer(0);
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		OF_getprop(child, "device_type", type, sizeof(type));
-		if (strcmp(type, "cpu") == 0)
-			break;
-	}
-	if (child == 0)
-		panic("cpu_startup: no cpu\n");
 	cache_init(child);
 
 	getenv_int("machdep.use_vis", &cpu_use_vis);
@@ -321,7 +325,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Initialize tunables.
 	 */
-	init_param1();
 	init_param2(physmem);
 	env = getenv("kernelname");
 	if (env != NULL) {
@@ -381,9 +384,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	mutex_init();
 	intr_init2();
-
-	OF_getprop(PCPU_GET(node), "clock-frequency", &clock, sizeof(clock));
-	tick_init(clock);
 
 	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
 }
