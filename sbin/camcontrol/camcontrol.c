@@ -116,6 +116,7 @@ struct camcontrol_opts option_table[] = {
 	{"inquiry", CAM_ARG_INQUIRY, "DSR"},
 	{"start", CAM_ARG_STARTSTOP | CAM_ARG_START_UNIT, NULL},
 	{"stop", CAM_ARG_STARTSTOP, NULL},
+	{"load", CAM_ARG_STARTSTOP | CAM_ARG_START_UNIT | CAM_ARG_EJECT, NULL},
 	{"eject", CAM_ARG_STARTSTOP | CAM_ARG_EJECT, NULL},
 #endif /* MINIMALISTIC */
 	{"rescan", CAM_ARG_RESCAN, NULL},
@@ -3129,6 +3130,7 @@ usage(int verbose)
 "        camcontrol inquiry    [dev_id][generic args] [-D] [-S] [-R]\n"
 "        camcontrol start      [dev_id][generic args]\n"
 "        camcontrol stop       [dev_id][generic args]\n"
+"        camcontrol load       [dev_id][generic args]\n"
 "        camcontrol eject      [dev_id][generic args]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol rescan     <all | bus[:target:lun]>\n"
@@ -3159,6 +3161,7 @@ usage(int verbose)
 "inquiry     send a SCSI inquiry command to the named device\n"
 "start       send a Start Unit command to the device\n"
 "stop        send a Stop Unit command to the device\n"
+"load        send a Start Unit command to the device with the load bit set\n"
 "eject       send a Stop Unit command to the device with the eject bit set\n"
 "rescan      rescan all busses, the given bus, or bus:target:lun\n"
 "reset       reset all busses, the given bus, or bus:target:lun\n"
