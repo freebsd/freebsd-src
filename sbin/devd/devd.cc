@@ -590,9 +590,7 @@ event_loop(void)
 			FD_SET(fd, &fds);
 			rv = select(fd + 1, &fds, &fds, &fds, &tv);
 			// No events -> we've processed all pending events
-			// == 2 is a kernel bug, but we hang if we don't
-			// make allowances for a while.
-			if (rv == 0 || rv == 2) {
+			if (rv == 0) {
 				if (Dflag)
 					fprintf(stderr, "Calling daemon\n");
 				daemon(0, 0);
