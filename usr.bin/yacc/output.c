@@ -146,7 +146,7 @@ output_rule_data()
     register int j;
 
 
-    fprintf(output_file, "short %slhs[] = {%42d,", symbol_prefix,
+    fprintf(output_file, "const short %slhs[] = {%42d,", symbol_prefix,
 	    symbol_value[start_symbol]);
 
     j = 10;
@@ -166,7 +166,7 @@ output_rule_data()
     if (!rflag) outline += 2;
     fprintf(output_file, "\n};\n");
 
-    fprintf(output_file, "short %slen[] = {%42d,", symbol_prefix, 2);
+    fprintf(output_file, "const short %slen[] = {%42d,", symbol_prefix, 2);
 
     j = 10;
     for (i = 3; i < nrules; i++)
@@ -191,7 +191,7 @@ output_yydefred()
 {
     register int i, j;
 
-    fprintf(output_file, "short %sdefred[] = {%39d,", symbol_prefix,
+    fprintf(output_file, "const short %sdefred[] = {%39d,", symbol_prefix,
 	    (defred[0] ? defred[0] - 2 : 0));
 
     j = 10;
@@ -333,7 +333,7 @@ goto_actions()
     state_count = NEW2(nstates, short);
 
     k = default_goto(start_symbol + 1);
-    fprintf(output_file, "short %sdgoto[] = {%40d,", symbol_prefix, k);
+    fprintf(output_file, "const short %sdgoto[] = {%40d,", symbol_prefix, k);
     save_column(start_symbol + 1, k);
 
     j = 10;
@@ -657,7 +657,7 @@ output_base()
 {
     register int i, j;
 
-    fprintf(output_file, "short %ssindex[] = {%39d,", symbol_prefix, base[0]);
+    fprintf(output_file, "const short %ssindex[] = {%39d,", symbol_prefix, base[0]);
 
     j = 10;
     for (i = 1; i < nstates; i++)
@@ -675,7 +675,7 @@ output_base()
     }
 
     if (!rflag) outline += 2;
-    fprintf(output_file, "\n};\nshort %srindex[] = {%39d,", symbol_prefix,
+    fprintf(output_file, "\n};\nconst short %srindex[] = {%39d,", symbol_prefix,
 	    base[nstates]);
 
     j = 10;
@@ -694,7 +694,7 @@ output_base()
     }
 
     if (!rflag) outline += 2;
-    fprintf(output_file, "\n};\nshort %sgindex[] = {%39d,", symbol_prefix,
+    fprintf(output_file, "\n};\nconst short %sgindex[] = {%39d,", symbol_prefix,
 	    base[2*nstates]);
 
     j = 10;
@@ -726,7 +726,7 @@ output_table()
 
     ++outline;
     fprintf(code_file, "#define YYTABLESIZE %d\n", high);
-    fprintf(output_file, "short %stable[] = {%40d,", symbol_prefix,
+    fprintf(output_file, "const short %stable[] = {%40d,", symbol_prefix,
 	    table[0]);
 
     j = 10;
@@ -756,7 +756,7 @@ output_check()
     register int i;
     register int j;
 
-    fprintf(output_file, "short %scheck[] = {%40d,", symbol_prefix,
+    fprintf(output_file, "const short %scheck[] = {%40d,", symbol_prefix,
 	    check[0]);
 
     j = 10;
@@ -1051,7 +1051,7 @@ output_debug()
     FREE(symnam);
 
     if (!rflag) ++outline;
-    fprintf(output_file, "char *%srule[] = {\n", symbol_prefix);
+    fprintf(output_file, "const char * const %srule[] = {\n", symbol_prefix);
     for (i = 2; i < nrules; ++i)
     {
 	fprintf(output_file, "\"%s :", symbol_name[rlhs[i]]);
