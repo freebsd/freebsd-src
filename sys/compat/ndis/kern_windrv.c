@@ -183,7 +183,7 @@ windrv_unload(mod, img, len)
 	while (e != &drv->dro_driverext->dre_usrext) {
 		c = e->nle_flink;
 		REMOVE_LIST_ENTRY(e);
-		ExFreePool(c);
+		ExFreePool(e);
 		e = c;
 	}
 
