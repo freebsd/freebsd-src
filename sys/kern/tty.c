@@ -254,6 +254,8 @@ static u_char const char_type[] = {
 static	TAILQ_HEAD(, tty) tty_list = TAILQ_HEAD_INITIALIZER(tty_list);
 static struct mtx tty_list_mutex;
 
+static struct unrhdr *tty_unit;
+
 static int  drainwait = 5*60;
 SYSCTL_INT(_kern, OID_AUTO, drainwait, CTLFLAG_RW, &drainwait,
 	0, "Output drain timeout in seconds");
@@ -2893,16 +2895,27 @@ ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *f
 	char namebuf[SPECNAMELEN - 3];		/* XXX space for "tty" */
 	va_list ap;
 	struct cdev *cp;
-	int i, minor;
+	int i, minor, sminor, sunit;
 
-	if (csw == NULL)
+	mtx_assert(&Giant, MA_OWNED);
+
+	if (tty_unit == NULL)
+		tty_unit = new_unrhdr(0, 0xffff);
+
+	sunit = alloc_unr(tty_unit);
+	tp->t_devunit = sunit;
+
+	if (csw == NULL) {
 		csw = &tty_cdevsw;
+		unit = sunit;
+	}
 	KASSERT(csw->d_purge == NULL || csw->d_purge == ttypurge,
 	    ("tty should not have d_purge"));
 
 	csw->d_purge = ttypurge;
 
 	minor = unit2minor(unit);
+	sminor = unit2minor(sunit);
 	va_start(ap, fmt);
 	i = vsnrprintf(namebuf, sizeof namebuf, 32, fmt, ap);
 	va_end(ap);
@@ -2915,14 +2928,14 @@ ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *f
 	cp->si_tty = tp;
 	cp->si_drv1 = tp->t_sc;
 
-	cp = make_dev(&ttys_cdevsw, minor | MINOR_INIT,
+	cp = make_dev(&ttys_cdevsw, sminor | MINOR_INIT,
 	    UID_ROOT, GID_WHEEL, 0600, "tty%s.init", namebuf);
 	dev_depends(tp->t_dev, cp);
 	cp->si_drv1 = tp->t_sc;
 	cp->si_drv2 = &tp->t_init_in;
 	cp->si_tty = tp;
 
-	cp = make_dev(&ttys_cdevsw, minor | MINOR_LOCK,
+	cp = make_dev(&ttys_cdevsw, sminor | MINOR_LOCK,
 	    UID_ROOT, GID_WHEEL, 0600, "tty%s.lock", namebuf);
 	dev_depends(tp->t_dev, cp);
 	cp->si_drv1 = tp->t_sc;
@@ -2936,14 +2949,14 @@ ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *f
 		cp->si_drv1 = tp->t_sc;
 		cp->si_tty = tp;
 
-		cp = make_dev(&ttys_cdevsw, minor | MINOR_CALLOUT | MINOR_INIT,
+		cp = make_dev(&ttys_cdevsw, sminor | MINOR_CALLOUT | MINOR_INIT,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s.init", namebuf);
 		dev_depends(tp->t_dev, cp);
 		cp->si_drv1 = tp->t_sc;
 		cp->si_drv2 = &tp->t_init_out;
 		cp->si_tty = tp;
 
-		cp = make_dev(&ttys_cdevsw, minor | MINOR_CALLOUT | MINOR_LOCK,
+		cp = make_dev(&ttys_cdevsw, sminor | MINOR_CALLOUT | MINOR_LOCK,
 		    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", namebuf);
 		dev_depends(tp->t_dev, cp);
 		cp->si_drv1 = tp->t_sc;
@@ -2983,9 +2996,13 @@ ttygone(struct tty *tp)
 void
 ttyfree(struct tty *tp)
 {
+	u_int unit;
  
+	mtx_assert(&Giant, MA_OWNED);
 	ttygone(tp);
+	unit = tp->t_devunit;
 	destroy_dev(tp->t_mdev);
+	free_unr(tty_unit, unit);
 }
 
 static int

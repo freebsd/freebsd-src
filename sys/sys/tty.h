@@ -102,6 +102,7 @@ struct tty {
 	int	t_line;			/* Interface to device drivers. */
 	struct cdev *t_dev;		/* Device. */
 	struct cdev *t_mdev;		/* Device. */
+	u_int	t_devunit;		/* Cdev unit number */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */
 	int     t_timeout;              /* Timeout for ttywait() */
