@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.16 1999/05/26 23:01:52 gallatin Exp $
+ *	$Id: if_xlreg.h,v 1.17 1999/05/30 18:09:17 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -541,6 +541,9 @@ struct xl_softc {
 	struct ifmedia		ifmedia;	/* media info */
 	bus_space_handle_t	xl_bhandle;
 	bus_space_tag_t		xl_btag;
+	void			*xl_intrhand;
+	struct resource		*xl_irq;
+	struct resource		*xl_res;
 	struct xl_type		*xl_info;	/* 3Com adapter info */
 	struct xl_type		*xl_pinfo;	/* phy info */
 	u_int8_t		xl_unit;	/* interface number */

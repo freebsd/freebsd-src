@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.43 1999/07/07 21:49:14 wpaul Exp $
+ *	$Id: if_xl.c,v 1.44 1999/07/08 00:42:02 wpaul Exp $
  */
 
 /*
@@ -120,6 +120,9 @@
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -160,7 +163,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.43 1999/07/07 21:49:14 wpaul Exp $";
+	"$Id: if_xl.c,v 1.44 1999/07/08 00:42:02 wpaul Exp $";
 #endif
 
 /*
@@ -216,9 +219,9 @@ static struct xl_type xl_phys[] = {
 	{ 0, 0, "<MII-compliant physical interface>" }
 };
 
-static unsigned long xl_count = 0;
-static const char *xl_probe	__P((pcici_t, pcidi_t));
-static void xl_attach		__P((pcici_t, int));
+static int xl_probe		__P((device_t));
+static int xl_attach		__P((device_t));
+static int xl_detach		__P((device_t));
 
 static int xl_newbuf		__P((struct xl_softc *,
 						struct xl_chain_onefrag *));
@@ -235,7 +238,7 @@ static int xl_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void xl_init		__P((void *));
 static void xl_stop		__P((struct xl_softc *));
 static void xl_watchdog		__P((struct ifnet *));
-static void xl_shutdown		__P((int, void *));
+static void xl_shutdown		__P((device_t));
 static int xl_ifmedia_upd	__P((struct ifnet *));
 static void xl_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
@@ -265,6 +268,25 @@ static void xl_mediacheck	__P((struct xl_softc *));
 #ifdef notdef
 static void xl_testpacket	__P((struct xl_softc *));
 #endif
+
+static device_method_t xl_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		xl_probe),
+	DEVMETHOD(device_attach,	xl_attach),
+	DEVMETHOD(device_detach,	xl_detach),
+	DEVMETHOD(device_shutdown,	xl_shutdown),
+	{ 0, 0 }
+};
+
+static driver_t xl_driver = {
+	"xl",
+	xl_methods,
+	sizeof(struct xl_softc)
+};
+
+static devclass_t xl_devclass;
+
+DRIVER_MODULE(xl, pci, xl_driver, xl_devclass, 0, 0);
 
 /*
  * Murphy's law says that it's possible the chip can wedge and
@@ -1232,7 +1254,7 @@ static void xl_reset(sc)
 		printf("xl%d: reset didn't complete\n", sc->xl_unit);
 
 	/* Wait a little while for the chip to get its brains in order. */
-	DELAY(1000);
+	DELAY(100000);
         return;
 }
 
@@ -1240,24 +1262,23 @@ static void xl_reset(sc)
  * Probe for a 3Com Etherlink XL chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static const char *
-xl_probe(config_id, device_id)
-	pcici_t			config_id;
-	pcidi_t			device_id;
+static int xl_probe(dev)
+	device_t		dev;
 {
 	struct xl_type		*t;
 
 	t = xl_devs;
 
 	while(t->xl_name != NULL) {
-		if ((device_id & 0xFFFF) == t->xl_vid &&
-		    ((device_id >> 16) & 0xFFFF) == t->xl_did) {
-			return(t->xl_name);
+		if ((pci_get_vendor(dev) == t->xl_vid) &&
+		    (pci_get_device(dev) == t->xl_did)) {
+			device_set_desc(dev, t->xl_name);
+			return(0);
 		}
 		t++;
 	}
 
-	return(NULL);
+	return(ENXIO);
 }
 
 /*
@@ -1377,15 +1398,11 @@ static void xl_mediacheck(sc)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static void
-xl_attach(config_id, unit)
-	pcici_t			config_id;
-	int			unit;
+static int
+xl_attach(dev)
+	device_t		dev;
 {
 	int			s, i;
-#ifndef XL_USEIOSPACE
-	vm_offset_t		pbase, vbase;
-#endif
 	u_char			eaddr[ETHER_ADDR_LEN];
 	u_int32_t		command;
 	struct xl_softc		*sc;
@@ -1395,14 +1412,12 @@ xl_attach(config_id, unit)
 	caddr_t			roundptr;
 	struct xl_type		*p;
 	u_int16_t		phy_vid, phy_did, phy_sts;
+	int			unit, error, rid;
 
 	s = splimp();
 
-	sc = malloc(sizeof(struct xl_softc), M_DEVBUF, M_NOWAIT);
-	if (sc == NULL) {
-		printf("xl%d: no memory for softc struct!\n", unit);
-		goto fail;
-	}
+	sc = device_get_softc(dev);
+	unit = device_get_unit(dev);
 	bzero(sc, sizeof(struct xl_softc));
 
 	/*
@@ -1423,85 +1438,85 @@ xl_attach(config_id, unit)
 	 * back in the D0 state, then restore the PCI config ourselves.
 	 */
 
-	command = pci_conf_read(config_id, XL_PCI_CAPID) & 0x000000FF;
+	command = pci_read_config(dev, XL_PCI_CAPID, 4) & 0x000000FF;
 	if (command == 0x01) {
 
-		command = pci_conf_read(config_id, XL_PCI_PWRMGMTCTRL);
+		command = pci_read_config(dev, XL_PCI_PWRMGMTCTRL, 4);
 		if (command & XL_PSTATE_MASK) {
 			u_int32_t		iobase, membase, irq;
 
 			/* Save important PCI config data. */
-			iobase = pci_conf_read(config_id, XL_PCI_LOIO);
-			membase = pci_conf_read(config_id, XL_PCI_LOMEM);
-			irq = pci_conf_read(config_id, XL_PCI_INTLINE);
+			iobase = pci_read_config(dev, XL_PCI_LOIO, 4);
+			membase = pci_read_config(dev, XL_PCI_LOMEM, 4);
+			irq = pci_read_config(dev, XL_PCI_INTLINE, 4);
 
 			/* Reset the power state. */
 			printf("xl%d: chip is in D%d power mode "
 			"-- setting to D0\n", unit, command & XL_PSTATE_MASK);
 			command &= 0xFFFFFFFC;
-			pci_conf_write(config_id, XL_PCI_PWRMGMTCTRL, command);
+			pci_write_config(dev, XL_PCI_PWRMGMTCTRL, command, 4);
 
 			/* Restore PCI config data. */
-			pci_conf_write(config_id, XL_PCI_LOIO, iobase);
-			pci_conf_write(config_id, XL_PCI_LOMEM, membase);
-			pci_conf_write(config_id, XL_PCI_INTLINE, irq);
+			pci_write_config(dev, XL_PCI_LOIO, iobase, 4);
+			pci_write_config(dev, XL_PCI_LOMEM, membase, 4);
+			pci_write_config(dev, XL_PCI_INTLINE, irq, 4);
 		}
 	}
 
 	/*
 	 * Map control/status registers.
 	 */
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 	command |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, command);
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	pci_write_config(dev, PCI_COMMAND_STATUS_REG, command, 4);
+	command = pci_read_config(dev, PCI_COMMAND_STATUS_REG, 4);
 
 #ifdef XL_USEIOSPACE
 	if (!(command & PCIM_CMD_PORTEN)) {
 		printf("xl%d: failed to enable I/O ports!\n", unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_port(config_id, XL_PCI_LOIO,
-				(pci_port_t *)&(sc->xl_bhandle))) {
-		printf ("xl%d: couldn't map port\n", unit);
-		printf ("xl%d: WARNING: check your BIOS and "
-		    "set 'Plug & Play OS' to 'no'\n", unit);
-		printf ("xl%d: attempting to map iobase manually\n", unit);
-		sc->xl_bhandle =
-		    pci_conf_read(config_id, XL_PCI_LOIO) & 0xFFFFFFE0;
-		/*goto fail;*/
-	}
-
-#ifdef __i386__
-	sc->xl_btag = I386_BUS_SPACE_IO;
-#endif
-#ifdef __alpha__
-	sc->xl_btag = ALPHA_BUS_SPACE_IO;
-#endif
+	rid = XL_PCI_LOIO;
+	sc->xl_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0, ~0, 1, RF_ACTIVE);
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("xl%d: failed to enable memory mapping!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
-	if (!pci_map_mem(config_id, XL_PCI_LOMEM, &vbase, &pbase)) {
-		printf ("xl%d: couldn't map memory\n", unit);
-		goto fail;
-	}
-	sc->xl_bhandle = vbase;
-#ifdef __i386__
-	sc->xl_btag = I386_BUS_SPACE_MEM;
-#endif
-#ifdef __alpha__
-	sc->xl_btag = ALPHA_BUS_SPACE_MEM;
-#endif
+	rid = XL_PCI_LOMEM;
+	sc->xl_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
+	    0, ~0, 1, RF_ACTIVE);
 #endif
 
-	/* Allocate interrupt */
-	if (!pci_map_int(config_id, xl_intr, sc, &net_imask)) {
+	if (sc->xl_res == NULL) {
+		printf ("xl%d: couldn't map ports\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
+	sc->xl_btag = rman_get_bustag(sc->xl_res);
+	sc->xl_bhandle = rman_get_bushandle(sc->xl_res);
+
+	rid = 0;
+	sc->xl_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->xl_irq == NULL) {
 		printf("xl%d: couldn't map interrupt\n", unit);
+		error = ENXIO;
+		goto fail;
+	}
+
+	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET,
+	    xl_intr, sc, &sc->xl_intrhand);
+
+	if (error) {
+		printf("xl%d: couldn't set up irq\n", unit);
 		goto fail;
 	}
 
@@ -1513,7 +1528,7 @@ xl_attach(config_id, unit)
 	 */
 	if (xl_read_eeprom(sc, (caddr_t)&eaddr, XL_EE_OEM_ADR0, 3, 1)) {
 		printf("xl%d: failed to read station address\n", sc->xl_unit);
-		free(sc, M_DEVBUF);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1529,8 +1544,8 @@ xl_attach(config_id, unit)
 	sc->xl_ldata_ptr = malloc(sizeof(struct xl_list_data) + 8,
 				M_DEVBUF, M_NOWAIT);
 	if (sc->xl_ldata_ptr == NULL) {
-		free(sc, M_DEVBUF);
 		printf("xl%d: no memory for list buffers!\n", unit);
+		error = ENXIO;
 		goto fail;
 	}
 
@@ -1794,11 +1809,41 @@ xl_attach(config_id, unit)
 #if NBPF > 0
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 #endif
-	at_shutdown(xl_shutdown, sc, SHUTDOWN_POST_SYNC);
 
 fail:
 	splx(s);
-	return;
+	return(0);
+}
+
+static int xl_detach(dev)
+	device_t		dev;
+{
+	struct xl_softc		*sc;
+	struct ifnet		*ifp;
+	int			s;
+
+	s = splimp();
+
+	sc = device_get_softc(dev);
+	ifp = &sc->arpcom.ac_if;
+
+	xl_stop(sc);
+	if_detach(ifp);
+
+	bus_teardown_intr(dev, sc->xl_irq, sc->xl_intrhand);
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->xl_irq);
+#ifdef XL_USEIOSPACE
+	bus_release_resource(dev, SYS_RES_IOPORT, XL_PCI_LOIO, sc->xl_res);
+#else
+	bus_release_resource(dev, SYS_RES_MEMORY, XL_PCI_LOMEM, sc->xl_res);
+#endif
+
+	free(sc->xl_ldata_ptr, M_DEVBUF);
+	ifmedia_removeall(&sc->ifmedia);
+
+	splx(s);
+
+	return(0);
 }
 
 /*
@@ -2917,23 +2962,14 @@ static void xl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void xl_shutdown(howto, arg)
-	int			howto;
-	void			*arg;
+static void xl_shutdown(dev)
+	device_t		dev;
 {
-	struct xl_softc		*sc = (struct xl_softc *)arg;
+	struct xl_softc		*sc;
+
+	sc = device_get_softc(dev);
 
 	xl_stop(sc);
 
 	return;
 }
-
-
-static struct pci_device xl_device = {
-	"xl",
-	xl_probe,
-	xl_attach,
-	&xl_count,
-	NULL
-};
-COMPAT_PCI_DRIVER(xl, xl_device);
