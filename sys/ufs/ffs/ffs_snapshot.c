@@ -474,7 +474,7 @@ loop:
 		loc = howmany(xp->i_size, fs->fs_bsize) - 1;
 		if (loc < NDADDR) {
 			len = fragroundup(fs, blkoff(fs, xp->i_size));
-			if (len < fs->fs_bsize) {
+			if (len != 0 && len < fs->fs_bsize) {
 				ffs_blkfree(ump, copy_fs, vp,
 				    DIP(xp, i_db[loc]), len, xp->i_number);
 				blkno = DIP(xp, i_db[loc]);
