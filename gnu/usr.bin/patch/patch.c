@@ -102,20 +102,20 @@ char rcsid[] =
 
 /* procedures */
 
-void reinitialize_almost_everything();
-void get_some_switches();
-LINENUM locate_hunk();
-void abort_hunk();
-void apply_hunk();
-void init_output();
-void init_reject();
-void copy_till();
-void spew_output();
-void dump_line();
-bool patch_match();
-bool similar();
-void re_input();
-void my_exit();
+void	reinitialize_almost_everything(void);
+void	get_some_switches(void);
+LINENUM	locate_hunk(LINENUM _fuzz);
+void	abort_hunk(void);
+void	apply_hunk(LINENUM _where);
+void	init_output(char *_name);
+void	init_reject(char *_name);
+void	copy_till(LINENUM _lastline);
+void	spew_output(void);
+void	dump_line(LINENUM _line);
+bool	patch_match(LINENUM _base, LINENUM _offset, LINENUM _fuzz);
+bool	similar(char *_a, char *_b, int _len);
+void	my_exit(int _status);
+
 
 /* TRUE if -E was specified on command line.  */
 static int remove_empty_files = FALSE;
@@ -412,7 +412,7 @@ char **argv;
 /* Prepare to find the next patch to do in the patch file. */
 
 void
-reinitialize_almost_everything()
+reinitialize_almost_everything(void)
 {
     re_patch();
     re_input();
@@ -485,7 +485,7 @@ static struct option longopts[] =
 /* Process switches and filenames up to next '+' or end of list. */
 
 void
-get_some_switches()
+get_some_switches(void)
 {
     Reg1 int optc;
 
@@ -626,11 +626,11 @@ Options:\n\
     }
 }
 
-/* Attempt to find the right place to apply this hunk of patch. */
-
+/*
+ * Attempt to find the right place to apply this hunk of patch.
+ */
 LINENUM
-locate_hunk(fuzz)
-LINENUM fuzz;
+locate_hunk(LINENUM fuzz)
 {
     Reg1 LINENUM first_guess = pch_first() + last_offset;
     Reg2 LINENUM offset;
@@ -674,7 +674,7 @@ LINENUM fuzz;
 /* We did not find the pattern, dump out the hunk so they can handle it. */
 
 void
-abort_hunk()
+abort_hunk(void)
 {
     Reg1 LINENUM i;
     Reg2 LINENUM pat_end = pch_end();
@@ -717,11 +717,11 @@ abort_hunk()
     }
 }
 
-/* We found where to apply it (we hope), so do it. */
-
+/*
+ * We found where to apply it (we hope), so do it.
+ */
 void
-apply_hunk(where)
-LINENUM where;
+apply_hunk(LINENUM where)
 {
     Reg1 LINENUM old = 1;
     Reg2 LINENUM lastline = pch_ptrn_lines();
@@ -840,8 +840,7 @@ LINENUM where;
 /* Open the new file. */
 
 void
-init_output(name)
-char *name;
+init_output(char *name)
 {
     ofp = fopen(name, "w");
     if (ofp == Nullfp)
@@ -851,8 +850,7 @@ char *name;
 /* Open a file to put hunks we can't locate. */
 
 void
-init_reject(name)
-char *name;
+init_reject(char *name)
 {
     rejfp = fopen(name, "w");
     if (rejfp == Nullfp)
@@ -862,8 +860,7 @@ char *name;
 /* Copy input file to output, up to wherever hunk is to be applied. */
 
 void
-copy_till(lastline)
-Reg1 LINENUM lastline;
+copy_till(LINENUM lastline)
 {
     Reg2 LINENUM R_last_frozen_line = last_frozen_line;
 
@@ -878,7 +875,7 @@ Reg1 LINENUM lastline;
 /* Finish copying the input file to the output file. */
 
 void
-spew_output()
+spew_output(void)
 {
 #ifdef DEBUGGING
     if (debug & 256)
@@ -893,8 +890,7 @@ spew_output()
 /* Copy one line from input to output. */
 
 void
-dump_line(line)
-LINENUM line;
+dump_line(LINENUM line)
 {
     Reg1 char *s;
     Reg2 char R_newline = '\n';
@@ -906,10 +902,7 @@ LINENUM line;
 /* Does the patch pattern match at line base+offset? */
 
 bool
-patch_match(base, offset, fuzz)
-LINENUM base;
-LINENUM offset;
-LINENUM fuzz;
+patch_match(LINENUM base, LINENUM offset, LINENUM fuzz)
 {
     Reg1 LINENUM pline = 1 + fuzz;
     Reg2 LINENUM iline;
@@ -933,10 +926,7 @@ LINENUM fuzz;
 /* Do two lines match with canonicalized white space? */
 
 bool
-similar(a,b,len)
-Reg1 char *a;
-Reg2 char *b;
-Reg3 int len;
+similar(char *a, char *b, int len)
 {
     while (len) {
 	if (isspace((unsigned char)*b)) {              /* whitespace (or \n) to match? */
@@ -961,8 +951,7 @@ Reg3 int len;
 /* Exit with cleanup. */
 
 void
-my_exit(status)
-int status;
+my_exit(int status)
 {
     Unlink(TMPINNAME);
     if (!toutkeep) {

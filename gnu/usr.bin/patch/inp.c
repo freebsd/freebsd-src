@@ -28,10 +28,11 @@ static LINENUM tiline[2] = {-1, -1};	/* 1st line in each buffer */
 static LINENUM lines_per_buf;		/* how many lines per buffer */
 static int tireclen;			/* length of records in tmp file */
 
-/* New patch--prepare to edit another file. */
-
+/*
+ * New patch--prepare to edit another file.
+ */
 void
-re_input()
+re_input(void)
 {
     if (using_plan_a) {
 	i_size = 0;
@@ -56,11 +57,11 @@ re_input()
     }
 }
 
-/* Constuct the line index, somehow or other. */
-
+/*
+ * Constuct the line index, somehow or other.
+ */
 void
-scan_input(filename)
-char *filename;
+scan_input(char *filename)
 {
     if (!plan_a(filename))
 	plan_b(filename);
@@ -70,11 +71,11 @@ char *filename;
     }
 }
 
-/* Try keeping everything in memory. */
-
+/*
+ * Try keeping everything in memory.
+ */
 bool
-plan_a(filename)
-char *filename;
+plan_a(char *filename)
 {
     int ifd, statfailed;
     Reg1 char *s;
@@ -247,11 +248,11 @@ char *filename;
     return TRUE;			/* plan a will work */
 }
 
-/* Keep (virtually) nothing in memory. */
-
+/*
+ * Keep (virtually) nothing in memory.
+ */
 void
-plan_b(filename)
-char *filename;
+plan_b(char *filename)
 {
     Reg3 FILE *ifp;
     Reg1 int i = 0;
@@ -320,8 +321,9 @@ char *filename;
     }
 }
 
-/* Fetch a line from the input file, \n terminated, not necessarily \0. */
-
+/*
+ * Fetch a line from the input file, \n terminated, not necessarily \0.
+ */
 char *
 ifetch(line,whichbuf)
 Reg1 LINENUM line;
@@ -351,11 +353,11 @@ int whichbuf;				/* ignored when file in memory */
     }
 }
 
-/* True if the string argument contains the revision number we want. */
-
+/*
+ * True if the string argument contains the revision number we want.
+ */
 bool
-rev_in_string(string)
-char *string;
+rev_in_string(char *string)
 {
     Reg1 char *s;
     Reg2 int patlen;

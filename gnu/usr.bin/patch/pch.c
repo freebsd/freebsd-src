@@ -62,10 +62,11 @@ static LINENUM p_hunk_beg;		/* line number of current hunk */
 static LINENUM p_efake = -1;		/* end of faked up lines--don't free */
 static LINENUM p_bfake = -1;		/* beg of faked up lines */
 
-/* Prepare to look for the next patch in the patch file. */
-
+/*
+ * Prepare to look for the next patch in the patch file.
+ */
 void
-re_patch()
+re_patch(void)
 {
     p_first = Nulline;
     p_newfirst = Nulline;
@@ -79,8 +80,7 @@ re_patch()
 /* Open the patch file at the beginning of time. */
 
 void
-open_patch_file(filename)
-char *filename;
+open_patch_file(char *filename)
 {
     if (filename == Nullch || !*filename || strEQ(filename, "-")) {
 	pfp = fopen(TMPPATNAME, "w");
@@ -103,7 +103,7 @@ char *filename;
 /* Make sure our dynamically realloced tables are malloced to begin with. */
 
 void
-set_hunkmax()
+set_hunkmax(void)
 {
 #ifndef lint
     if (p_line == Null(char**))
@@ -118,7 +118,7 @@ set_hunkmax()
 /* Enlarge the arrays containing the current hunk of patch. */
 
 void
-grow_hunkmax()
+grow_hunkmax(void)
 {
     hunkmax *= 2;
     /*
@@ -140,10 +140,11 @@ grow_hunkmax()
 				/* from within plan_a(), of all places */
 }
 
-/* True if the remainder of the patch file contains a diff of some sort. */
-
+/*
+ * True if the remainder of the patch file contains a diff of some sort.
+ */
 bool
-there_is_another_patch()
+there_is_another_patch(void)
 {
     if (p_base != 0L && p_base >= p_filesize) {
 	if (verbose)
@@ -203,10 +204,11 @@ there_is_another_patch()
     return TRUE;
 }
 
-/* Determine what kind of diff is in the remaining part of the patch file. */
-
+/*
+ * Determine what kind of diff is in the remaining part of the patch file.
+ */
 int
-intuit_diff_type()
+intuit_diff_type(void)
 {
     Reg4 long this_line = 0;
     Reg5 long previous_line;
@@ -390,23 +392,21 @@ intuit_diff_type()
     return retval;
 }
 
-/* Remember where this patch ends so we know where to start up again. */
-
+/*
+ * Remember where this patch ends so we know where to start up again.
+ */
 void
-next_intuit_at(file_pos,file_line)
-long file_pos;
-long file_line;
+next_intuit_at(long file_pos, long file_line)
 {
     p_base = file_pos;
     p_bline = file_line;
 }
 
-/* Basically a verbose fseek() to the actual diff listing. */
-
+/*
+ * Basically a verbose fseek() to the actual diff listing.
+ */
 void
-skip_to(file_pos,file_line)
-long file_pos;
-long file_line;
+skip_to(long file_pos, long file_line)
 {
     char *ret;
 
@@ -428,7 +428,7 @@ long file_line;
 
 /* Make this a function for better debugging.  */
 static void
-malformed ()
+malformed(void)
 {
     fatal3("malformed patch at line %ld: %s", p_input_line, buf);
 		/* about as informative as "Syntax error" in C */
@@ -461,7 +461,7 @@ remove_special_line(void)
 /* True if there is more of the current diff listing to process. */
 
 bool
-another_hunk()
+another_hunk(void)
 {
     Reg1 char *s;
     Reg8 char *ret;
@@ -1095,13 +1095,11 @@ another_hunk()
     return TRUE;
 }
 
-/* Input a line from the patch file, worrying about indentation. */
-
+/*
+ * Input a line from the patch file, worrying about indentation.
+ */
 char *
-pgets(bf,sz,fp)
-char *bf;
-int sz;
-FILE *fp;
+pgets(char *bf, int sz, FILE *fp)
 {
     char *ret = fgets(bf, sz, fp);
     Reg1 char *s;
@@ -1121,10 +1119,12 @@ FILE *fp;
     return ret;
 }
 
-/* Reverse the old and new portions of the current hunk. */
 
+/*
+ * Reverse the old and new portions of the current hunk.
+ */
 bool
-pch_swap()
+pch_swap(void)
 {
     char **tp_line;		/* the text of the hunk */
     short *tp_len;		/* length of each line */
@@ -1226,93 +1226,101 @@ pch_swap()
     return TRUE;
 }
 
-/* Return the specified line position in the old file of the old context. */
-
+/*
+ * Return the specified line position in the old file of the old context.
+ */
 LINENUM
-pch_first()
+pch_first(void)
 {
     return p_first;
 }
 
-/* Return the number of lines of old context. */
-
+/*
+ * Return the number of lines of old context.
+ */
 LINENUM
-pch_ptrn_lines()
+pch_ptrn_lines(void)
 {
     return p_ptrn_lines;
 }
 
-/* Return the probable line position in the new file of the first line. */
-
+/*
+ * Return the probable line position in the new file of the first line.
+ */
 LINENUM
-pch_newfirst()
+pch_newfirst(void)
 {
     return p_newfirst;
 }
 
-/* Return the number of lines in the replacement text including context. */
-
+/*
+ * Return the number of lines in the replacement text including context.
+ */
 LINENUM
-pch_repl_lines()
+pch_repl_lines(void)
 {
     return p_repl_lines;
 }
 
-/* Return the number of lines in the whole hunk. */
-
+/*
+ * Return the number of lines in the whole hunk.
+ */
 LINENUM
-pch_end()
+pch_end(void)
 {
     return p_end;
 }
 
-/* Return the number of context lines before the first changed line. */
-
+/*
+ * Return the number of context lines before the first changed line.
+ */
 LINENUM
-pch_context()
+pch_context(void)
 {
     return p_context;
 }
 
-/* Return the length of a particular patch line. */
-
+/*
+ * Return the length of a particular patch line.
+ */
 short
-pch_line_len(line)
-LINENUM line;
+pch_line_len(LINENUM line)
 {
     return p_len[line];
 }
 
-/* Return the control character (+, -, *, !, etc) for a patch line. */
-
+/*
+ * Return the control character (+, -, *, !, etc) for a patch line.
+ */
 char
-pch_char(line)
-LINENUM line;
+pch_char(LINENUM line)
 {
     return p_Char[line];
 }
 
-/* Return a pointer to a particular patch line. */
-
+/*
+ * Return a pointer to a particular patch line.
+ */
 char *
-pfetch(line)
-LINENUM line;
+pfetch(LINENUM line)
 {
     return p_line[line];
 }
 
-/* Return where in the patch file this hunk began, for error messages. */
-
+/*
+ * Return where in the patch file this hunk began, for error messages.
+ */
 LINENUM
-pch_hunk_beg()
+pch_hunk_beg(void)
 {
     return p_hunk_beg;
 }
 
-/* Apply an ed script by feeding ed itself. */
-
+/*
+ * Apply an ed script by feeding ed itself.
+ */
 void
-do_ed_script()
+do_ed_script(void)
 {
     Reg1 char *t;
     Reg2 long beginning_of_this_line;
