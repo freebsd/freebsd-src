@@ -1,16 +1,16 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.18 1996/08/30 01:58:36 peter Exp $
+# $Id: Makefile,v 1.19 1996/09/05 17:14:22 bde Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3
-SHLIB_MINOR= 0
+SHLIB_MINOR= 1
 SRCS=   lib_kernel.c lib_pad.c lib_bkgd.c \
 	lib_unctrl.c lib_raw.c lib_vidattr.c lib_trace.c lib_beep.c \
 	lib_doupdate.c lib_refresh.c lib_initscr.c lib_newwin.c lib_addch.c \
 	lib_addstr.c lib_scroll.c lib_clreol.c lib_touch.c lib_mvcur.c lib_keyname.c\
 	lib_delwin.c lib_endwin.c lib_clrbot.c lib_move.c lib_printw.c \
 	lib_scanw.c lib_erase.c lib_getch.c lib_options.c lib_acs.c lib_slk.c\
-	lib_box.c lib_clear.c lib_delch.c lib_insch.c \
+	lib_box.c lib_clear.c lib_delch.c lib_insch.c lib_instr.c \
 	lib_getstr.c lib_mvwin.c lib_longname.c lib_tstp.c \
 	lib_newterm.c lib_set_term.c lib_overlay.c lib_scrreg.c lib_color.c \
 	lib_insstr.c lib_insdel.c lib_twait.c lib_window.c copyright.c
