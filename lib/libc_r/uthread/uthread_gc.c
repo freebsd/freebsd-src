@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: uthread_gc.c,v 1.1 1998/09/30 06:36:56 jb Exp $
  *
  * Garbage collector thread. Frees memory allocated for dead threads.
  *
@@ -55,7 +55,7 @@ _thread_gc(pthread_addr_t arg)
 	void		*p_stack;
 
 	/* Set a debug flag based on an environment variable. */
-	f_debug = (getenv("LIBC_R_DEBUG") == NULL);
+	f_debug = (getenv("LIBC_R_DEBUG") != NULL);
 
 	/* Set the name of this thread. */
 	pthread_set_name_np(_thread_run,"GC");
