@@ -12,7 +12,7 @@ Setting up FreeBSD as a SLIP Server
 -->
 
 <sect><heading>Setting up a SLIP server<label id="slips"></heading>
-<p><em>Contribudted by &a.ghelmer;.<newline>
+<p><em>Contributed by &a.ghelmer;.<newline>
 v1.0, 15 May 1995.</em>
 
 This document provides suggestions for setting up SLIP Server services
@@ -489,7 +489,7 @@ appropriate for your system.  Please see the manual page for
 <tt>gated</tt> for information on <tt>gated</tt>'s command-line
 parameters.
 
-<sect1><heading>Acknowledgements</heading>
+<sect1><heading>Acknowledgments</heading>
 
 <p>
 Thanks to these people for comments and advice regarding this tutorial:

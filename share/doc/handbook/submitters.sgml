@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.13 1996/01/05 08:36:27 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.14 1996/01/05 08:47:37 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -27,8 +27,8 @@ highly specialized types of kernel development.  No matter what your
 skill level, there's almost certainly something you can do to help the
 project!
 
-<p>Commmercial entities engaged in FreeBSD-related enterprises are
-also encouraged to contact us.  Need a special extention to make your
+<p>Commercial entities engaged in FreeBSD-related enterprises are
+also encouraged to contact us.  Need a special extension to make your
 product work?  You'll find us receptive to your requests, given that
 they aren't too outlandish.  Working on a value-added product?  Please
 let us know!  We may be able to work cooperatively on some aspect of
@@ -87,7 +87,7 @@ for V86 machines by the protected mode kernel.
 text areas in the default kernel executable so that that portion
 of the kernel address space may be recovered at a later time,
 after hardware specific protected mode drivers have been loaded
-and activated.  This includes seperation of BIOS based drivers
+and activated.  This includes separation of BIOS based drivers
 from each other, since it is better to run with a BIOS based
 driver in all cases than to not run at all.
 
@@ -107,9 +107,9 @@ device space resource usage by fixed devices.
 Specifically, a device centric registration mechanism for timer
 and sound and other system critical service providers.  Consider
 Timer2 and Timer0 and speaker services as one example of a single
-monithic service provider.
+monolithic service provider.
 
-<item>A kernel exported symbol space in the kernel data space acessable
+<item>A kernel exported symbol space in the kernel data space accessible
 by an LKM loader mechanism that does relocation and symbol space
 manipulation.  The intent of this interface is to support the
 ability to demand load and unload kernel modules.
@@ -145,7 +145,7 @@ preemption).
 somewhat handled by changing PCMCIA bridging rules and power
 management event handling.  But there are things like detecting
 internal vs. external display and picking a different screen
-resoloution based on that fact, not spinning down the disk if
+resolution based on that fact, not spinning down the disk if
 the machine is in dock, and allowing dock-based cards to disappear
 without affecting the machines ability to boot (same issue for
 PCMCIA).
@@ -155,7 +155,7 @@ PCMCIA).
 <item>A "make world" that "makes the world" (rename the current one
 to "make regress" if that's all it is good for).
 
-<item>A 4M (preferrably smaller!) memory footprint.
+<item>A 4M (preferably smaller!) memory footprint.
 
 </enum>
 
@@ -340,7 +340,7 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.13 1996/01/05 08:36:27 jkh Exp $
+	$Id: submitters.sgml,v 1.14 1996/01/05 08:47:37 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
@@ -392,7 +392,7 @@ this in a note accompanying your donation.  Thanks!
 
 <sect2><heading>Donating hardware</heading>
 
-<p>Donations of hardware in any of the 3 following catagories are also gladly
+<p>Donations of hardware in any of the 3 following categories are also gladly
 accepted by the FreeBSD Project:
 
 <itemize>
@@ -414,7 +414,7 @@ such items as we'll need to find a developer willing to take on the task
 before we can accept delivery of them.  
 </itemize>
 
-<sect2><heading>Donating internet access</heading>
+<sect2><heading>Donating Internet access</heading>
 
 <p>We can always use new mirror sites for FTP, WWW or sup.
 If you'd like to be such a mirror, please contact

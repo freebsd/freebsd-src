@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.11 1995/12/07 13:22:15 jkh Exp $ -->
+<!-- $Id: porting.sgml,v 1.12 1996/01/28 16:36:24 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -19,7 +19,7 @@ running under FreeBSD.
 
 <p>What follows are some guidelines for creating a new port for
 FreeBSD 2.x . The <tt>&dollar;{..}</tt> variable names you will
-see in this document all refer to various user-overridable defaults
+see in this document all refer to various user-overrideable defaults
 used (and documented) by <tt>/usr/share/mk/bsd.port.mk</tt>.
 Please refer to that file for more details on the inner workings of
 the ports collection.
@@ -27,7 +27,7 @@ the ports collection.
     <sect2>
       <heading>Before Starting the Port<label id="porting:starting"></heading>
 
-      <p>Note: Only a fraction of the overridable variables are
+      <p>Note: Only a fraction of the overrideable variables are
 	mentioned in this document. Most (if not all) are documented
 	at the start of the <tt>bsd.port.mk</tt> file which can be
 	found in <tt>/usr/share/mk</tt>. This file uses a non-standard tab
@@ -99,7 +99,7 @@ the ports collection.
 	  OK to use <tt>__FreeBSD__</tt> and `<tt>#if __FreeBSD__ &gt;
 	  1</tt>' to detect a FreeBSD 2.x system.
 
-	  If you need more granduarity in detecting FreeBSD systems since
+	  If you need more granularity in detecting FreeBSD systems since
 	  2.0-RELEASE you can use the following:
 
 <tscreen><verb>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.11 1995/12/07 13:22:15 jkh Exp $
+ # $Id: porting.sgml,v 1.12 1996/01/28 16:36:24 jfieber Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -911,7 +911,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.11 1995/12/07 13:22:15 jkh Exp $
+ # $Id: porting.sgml,v 1.12 1996/01/28 16:36:24 jfieber Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #

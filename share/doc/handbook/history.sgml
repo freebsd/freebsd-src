@@ -1,4 +1,4 @@
-<!-- $Id: history.sgml,v 1.11 1995/11/24 07:55:26 jkh Exp $ -->
+<!-- $Id: history.sgml,v 1.12 1995/12/29 01:27:38 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>A brief history of FreeBSD<label id="history"></heading>
@@ -105,7 +105,7 @@ contrary, and anyone is free to contribute code or ideas.  Once a contributor
 has established a reasonable track record for reliability, we generally, in
 fact, give them write access to the project's CVS repository, where their
 changes can propagate automatically to other users of FreeBSD.  Our
-centralised development model is designed for the convenience of the
+centralized development model is designed for the convenience of the
 <em>users</em> of FreeBSD, who are thereby provided with an easy way of
 tracking one central code base, not to keep potential contributors out!
 Individuals who've shown a consistent and significant dedication to the project
