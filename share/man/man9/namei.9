@@ -1,6 +1,6 @@
-.\" -*- nroff -*-
 .\"
 .\" Copyright (c) 1998, 1999 Eivind Eklund
+.\" Copyright (c) 2003, Hiten M. Pandya
 .\"
 .\" All rights reserved.
 .\"
@@ -32,13 +32,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 1998
+.Dd May 27, 2003
 .Os
 .Dt NAMEI 9
 .Sh NAME
 .Nm namei ,
-.Nm NDINIT
-.Nd convert pathname to a pointer to a locked vnode
+.Nm NDINIT ,
+.Nm NDFREE
+.Nd pathname translation and lookup operations
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/proc.h
@@ -46,32 +47,43 @@
 .Ft int
 .Fn namei "struct nameidata *ndp"
 .Ft void
-.Fn NDINIT "struct nameidata *ndp" "u_long operation" "u_long operflags" "enum uio_seg segflag" "const char *path" "struct thread *td"
+.Fn NDINIT "struct nameidata *ndp" "u_long op" "u_long flags" "enum uio_seg segflg" "const char *namep" "struct thread *td"
 .Ft void
-.Fn NDFREE "struct nameidata *ndp" "u_int operflags"
+.Fn NDFREE "struct nameidata *ndp" "const uint flags"
 .Sh DESCRIPTION
 The
-.Fn namei
-function is used to get from a pathname to a vnode for the object.
-This is a necessity to start doing VFS operations.  The vnode
-returned will have its reference count increased; when you're through
-with it, you have to release it using either
+.Nm
+facility allows the client to perform pathname translation and lookup
+operations.
+The
+.Nm
+functions will increment the reference count for the vnode in question.
+The reference count has to be decremented after use of the vnode, by
+using either
 .Xr vrele 9
 or
 .Xr vput 9 ,
-depending on whether you specified the LOCKLEAF flag or not.
+depending on whether you specified the
+.Dv LOCKLEAF
+flag or not.
 .Pp
-To initialize the nameidata struct, you usually use
-.Fn NDINIT .
+The
+.Fn NDINIT
+function is used to initialize
+.Nm
+components.
 It takes the following arguments:
 .Pp
-.Bl -tag -width nameidatap
-.It Ar nameidatap
-Pointer to the struct nameidata to initialize.
-.It Ar operation
-The operation to have
+.Bl -tag -width segflg
+.It Fa ndp
+The
+.Vt "struct nameidata"
+to initialize.
+.It Fa op
+The operation which
 .Fn namei
-do.  The relevant operations are
+will perform.
+The following operations are valid:
 .Dv LOOKUP ,
 .Dv CREATE ,
 .Dv DELETE ,
@@ -83,27 +95,33 @@ effects; just calling
 will not result in
 .Fn VOP_RENAME
 being called.
-.It Ar operflags
-Operation flags.  Several of these can be effective at the same time.
-.It Ar segflag
-Segment indicator.  This tells if the name of the object is in
-userspace (UIO_USERSPACE) or in the kernel address space (UIO_SYSSPACE).
-.It Ar path
-Pointer to pathname buffer (the file or directory name that will be
-looked up).
-.It Ar td
-Which thread context to use for the
-.Fn namei
-locks.
+.It Fa flags
+Operation flags.
+Several of these can be effective at the same time.
+.It Fa segflg
+UIO segment indicator.
+This indicates if the name of the object is in userspace
+.Pq Dv UIO_USERSPACE
+or in the kernel address space
+.Pq Dv UIO_SYSSPACE .
+.It Fa namep
+Pointer to the component's pathname buffer
+.Pq the file or directory name that will be looked up .
+.It Fa td
+The thread context to use for
+.Nm
+operations and locks.
 .El
 .Sh NAMEI OPERATION FLAGS
 The
 .Fn namei
-function takes the following set of 'operation flags' that influence
-how it operates:
+function takes the following set of
+.Dq operation flags
+that influence its operation:
 .Bl -tag -width WANTPARENT
 .It Dv LOCKLEAF
-Lock vnode on return.  This is a full lock of the vnode; you'll have to use
+Lock vnode on return.
+This is a full lock of the vnode; you'll have to use
 .Xr VOP_UNLOCK 9
 to release the lock (or use
 .Xr vput 9
@@ -111,23 +129,28 @@ to release the lock and do a
 .Xr vrele 9 ,
 all in one).
 .It Dv LOCKPARENT
-Make
+This flag lets the
 .Fn namei
-also return the parent (directory) vnode (in nd.ni_dvp),
-in locked state, unless the dvp is identical to the vp, in which case the dvp
-is not locked per se (but may be locked due to LOCKLEAF).
-If you get a lock, remember to release the lock (using
+function return the parent (directory) vnode,
+.Va ni_dvp
+in locked state, unless it is identical to
+.Va ni_vp ,
+in which case
+.Va ni_dvp
+is not locked per se (but may be locked due to
+.Dv LOCKLEAF ).
+If a lock is enforced, it should be released using
 .Xr vput 9
 or
 .Xr VOP_UNLOCK 9
 and
-.Xr vrele 9 . )
+.Xr vrele 9 .
 .It Dv WANTPARENT
-Make
+This flag allows the
 .Fn namei
-also return the parent (directory) vnode, in unlocked
-state.  Remember to release it (using
-.Xr vrele 9 . )
+function to return the parent (directory) vnode in an unlocked state.
+The parent vnode must be released separately by using
+.Xr vrele 9 .
 .It Dv NOCACHE
 Avoid
 .Fn namei
@@ -145,30 +168,32 @@ for whatever the link points at, instead for the link itself).
 .It Dv NOOBJ
 Do not call
 .Fn vfs_object_create
-for the returned vnode even if it is
-just a VREG and we're able to (i.e., it is locked).
+for the returned vnode, even though it meets required criteria for VM support.
 .It Dv NOFOLLOW
 Do not follow symbolic links (pseudo).
 This flag is not looked for by the actual code, which looks for
-FOLLOW.
-NOFOLLOW is used to indicate to the source code reader that symlinks
+.Dv FOLLOW .
+.Dv NOFOLLOW
+is used to indicate to the source code reader that symlinks
 are intentionally not followed.
 .It Dv SAVENAME
-Do not free the name buffer at the end of the
+Do not free the pathname buffer at the end of the
 .Fn namei
 invocation, instead free it later in
 .Fn NDFREE
-so that the caller may access the name buffer.
+so that the caller may access the pathname buffer.
 See below for details.
 .It Dv SAVESTART
 Retain an additional reference to the parent directory; do not free
-the name buffer.
+the pathname buffer.
 See below for details.
 .El
 .Sh ALLOCATED ELEMENTS
-.Bl -tag -width WANTPARENT
-.It Dv ni_startdir
-Where we did lookup relative to.
+The
+.Vt nameidata
+structure is composed of the following fields:
+.Bl -tag -width ni_cnd.cn_pnbuf
+.It Va ni_startdir
 In the normal case, this is either the current directory or the root.
 It is the current directory if the name passed in doesn't start with /
 and we have not gone through any symlinks with an absolute path, and
@@ -179,46 +204,110 @@ In this case, it is only used by
 and should not be
 considered valid after a call to
 .Fn namei .
-.Pp
-If SAVESTART is set, this is set to the same as ni_dvp, with an extra
-.Fn VREF .
-.Pp
-To block NDFREE from releasing ni_startdir when it is set, use the
-flag NDF_NO_STARTDIR_RELE.
-.It Dv ni_dvp
-The directory vp for the directory the object we're looking up is in.
-This is available on successful return if LOCKPARENT or WANTPARENT is
-set.  It is locked if LOCKPARENT is set.  Freeing this in NDFREE can
-be inhibited by NDF_NO_DVP_RELE, NDF_NO_DVP_PUT, or NDF_NO_DVP_UNLOCK
+If
+.Dv SAVESTART
+is set, this is set to the same as
+.Va ni_dvp ,
+with an extra
+.Xr vref 9 .
+To block
+.Fn NDFREE
+from releasing
+.Va ni_startdir ,
+the
+.Dv NDF_NO_STARTDIR_RELE
+can be set.
+.It Va ni_dvp
+Vnode pointer to directory of the object on which lookup is performed.
+This is available on successful return if
+.Dv LOCKPARENT
+or
+.Dv WANTPARENT
+is set.
+It is locked if
+.Dv LOCKPARENT
+is set.
+Freeing this in
+.Dv NDFREE
+can be inhibited by
+.Dv NDF_NO_DVP_RELE ,
+.Dv NDF_NO_DVP_PUT ,
+or
+.Dv NDF_NO_DVP_UNLOCK
 (with the obvious effects).
-.It Dv ni_vp
-The vp for the target of the of the pathname exists, NULL otherwise.
-The vp is returned with increased reference count (VREF'ed).  If
-LOCKLEAF is set, it is also locked.
+.It Va ni_vp
+Vnode pointer to the resulting object,
+.Dv NULL
+otherwise.
+The
+.Va v_usecount
+field of this vnode is incremented.
+If
+.Dv LOCKLEAF
+is set, it is also locked.
 .Pp
-Freeing this in NDFREE can be inhibited by NDF_NO_VP_RELE,
-NDF_NO_VP_PUT, or NDF_NO_VP_UNLOCK (with the obvious effects).
-.It Dv ni_cnd.cn_pnbuf
-Path name buffer.  This is allocated through zalloc(namei_zone)
-and freed through zfree(namei_zone, ...).
+Freeing this in
+.Fn NDFREE
+can be inhibited by
+.Dv NDF_NO_VP_RELE ,
+.Dv NDF_NO_VP_PUT ,
+or
+.Dv NDF_NO_VP_UNLOCK
+.Pq with the obvious effects .
+.It Va ni_cnd.cn_pnbuf
+The pathname buffer contains the location of the file or directory
+that will be used by the
+.Nm
+operations.
+It is managed by the
+.Xr uma 9
+zone allocation interface.
+If the
+.Dv SAVESTART
+or
+.Dv SAVENAME
+flag is set, then the pathname buffer is available
+after calling the
+.Nm namei
+function.
 .Pp
-This is available to the caller (who must free it using
-.Xr NDFREE 9 )
-if SAVESTART or SAVENAME is set.
-To free only the ni_cnd.cn_pnbuf, there is a special flags NDF_ONLY_PNBUF.
-To not free the cnd, use the flag ND_NO_FREE_PNBUF.
+To only deallocate resources used by the pathname buffer,
+.Va ni_cnd.cn_pnbuf ,
+then
+.Dv NDF_ONLY_PNBUF
+flag can be passed to the
+.Fn NDFREE
+function.
+To keep the pathname buffer intact,
+the
+.Dv ND_NO_FREE_PNBUF
+flag can be passed to the
+.Fn NDFREE
+function.
 .El
-.Sh BUGS
-LOCKPARENT does not always result in parent vp being locked (see details in
-description).
-This results in complications everywhere LOCKPARENT is used.
-In order to solve this for the cases that include both LOCKPARENT and LOCKLEAF,
-it will be necessary to go to recursive locking.
-.Sh SEE ALSO
-.Xr VFS 9 ,
-.Xr vnode 9
-.Pp
+.Sh FILES
 .Pa src/sys/kern/vfs_lookup.c
+.Sh SEE ALSO
+.Xr uio 9 ,
+.Xr uma 9 ,
+.Xr VFS 9 ,
+.Xr vnode 9 ,
+.Xr vput 9 ,
+.Xr vref 9
 .Sh AUTHORS
-This man page was written by
-.An Eivind Eklund .
+This manual page was written by
+.An Eivind Eklund Aq eivind@FreeBSD.ORG
+and later significantly revised by
+.An Hiten M. Pandya Aq hmp@FreeBSD.ORG .
+.Sh BUGS
+The
+.Dv LOCKPARENT
+flag does not always result in the parent vnode being locked.
+This results in complications when the
+.Dv LOCKPARENT
+is used.
+In order to solve this for the cases where both
+.Dv LOCKPARENT
+and
+.Dv LOCKLEAF
+are used, it is necessary to resort to recursive locking.
