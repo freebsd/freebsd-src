@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 1996
+.Dd January 11, 2004
 .Dt PW 8
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@
 .Op Fl s Ar shell
 .Op Fl o
 .Op Fl L Ar class
-.Op Fl h Ar fd
+.Op Fl h Ar fd | Fl H Ar fd
 .Op Fl N
 .Op Fl P
 .Op Fl Y
@@ -101,7 +101,7 @@
 .Op Fl w Ar method
 .Op Fl s Ar shell
 .Op Fl L Ar class
-.Op Fl h Ar fd
+.Op Fl h Ar fd | Fl H Ar fd
 .Op Fl N
 .Op Fl P
 .Op Fl Y
@@ -130,7 +130,7 @@
 .Op Fl g Ar gid
 .Op Fl M Ar members
 .Op Fl o
-.Op Fl h Ar fd
+.Op Fl h Ar fd | Fl H Ar fd
 .Op Fl N
 .Op Fl P
 .Op Fl Y
@@ -152,7 +152,7 @@
 .Op Fl l Ar name
 .Op Fl M Ar members
 .Op Fl m Ar newmembers
-.Op Fl h Ar fd
+.Op Fl h Ar fd | Fl H Ar fd
 .Op Fl N
 .Op Fl P
 .Op Fl Y
@@ -508,6 +508,12 @@ is given as the argument
 then the password will be set to
 .Ql \&* ,
 rendering the account inaccessible via password-based login.
+.It Fl H Ar fd
+Read an encrypted password string from the specified file descriptor.
+This is like
+.Fl h ,
+but the password should be supplied already encrypted in a form
+suitable for writing directly to the password database.
 .El
 .Pp
 It is possible to use
