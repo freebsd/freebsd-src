@@ -53,7 +53,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_SYSTEM
-MODULE_NAME("TIMER")
+ACPI_MODULE_NAME("TIMER")
 
 static device_t	acpi_timer_dev;
 struct resource	*acpi_timer_reg;
@@ -116,7 +116,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
     char	desc[40];
     int		rid;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if (acpi_disabled("timer"))
 	return_VOID;

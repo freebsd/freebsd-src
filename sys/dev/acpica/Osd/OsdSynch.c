@@ -41,7 +41,7 @@
 #include <sys/sysctl.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
-MODULE_NAME("SYNCH")
+ACPI_MODULE_NAME("SYNCH")
 
 static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
 
@@ -74,7 +74,7 @@ AcpiOsCreateSemaphore(UINT32 MaxUnits, UINT32 InitialUnits, ACPI_HANDLE *OutHand
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if (OutHandle == NULL)
 	return(AE_BAD_PARAMETER);
@@ -108,7 +108,7 @@ AcpiOsDeleteSemaphore (ACPI_HANDLE Handle)
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore *as = (struct acpi_semaphore *)Handle;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     ACPI_DEBUG_PRINT((ACPI_DB_MUTEX, "destroyed semaphore %p\n", as));
     mtx_destroy(&as->as_mtx);
@@ -133,7 +133,7 @@ AcpiOsWaitSemaphore(ACPI_HANDLE Handle, UINT32 Units, UINT32 Timeout)
     int				rv, tmo;
     struct timeval		timeouttv, currenttv, timelefttv;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if (as == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
@@ -288,7 +288,7 @@ AcpiOsSignalSemaphore(ACPI_HANDLE Handle, UINT32 Units)
 #ifndef ACPI_NO_SEMAPHORES
     struct acpi_semaphore	*as = (struct acpi_semaphore *)Handle;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if (as == NULL)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);

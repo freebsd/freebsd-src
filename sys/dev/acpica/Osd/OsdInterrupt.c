@@ -41,7 +41,7 @@
 #include <dev/acpica/acpivar.h>
 
 #define _COMPONENT	ACPI_OS_SERVICES
-MODULE_NAME("INTERRUPT")
+ACPI_MODULE_NAME("INTERRUPT")
 
 static void		InterruptWrapper(void *arg);
 static OSD_HANDLER	InterruptHandler;
@@ -55,7 +55,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 {
     struct acpi_softc	*sc;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if ((sc = devclass_get_softc(devclass_find("acpi"), 0)) == NULL)
 	panic("can't find ACPI device to register interrupt");
@@ -101,7 +101,7 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 {
     struct acpi_softc	*sc;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     if ((InterruptNumber < 0) || (InterruptNumber > 255))
 	return_ACPI_STATUS(AE_BAD_PARAMETER);
