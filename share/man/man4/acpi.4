@@ -318,20 +318,22 @@ bus/children scan of the namespace.
 The ACPI CA code will still
 know about the avoided region.
 .Sh OVERRIDING YOUR BIOS BYTECODE
-ACPI interprets bytecode named AML, ACPI Machine Language, provided by the BIOS
-vendor as a memory image at boot time.
-Sometimes, the AML code contains
-a problem that does not appear in the Microsoft implementation.
-So we provide a way to override it with your own AML code.
+ACPI interprets bytecode named AML
+(ACPI Machine Language)
+provided by the BIOS vendor as a memory image at boot time.
+Sometimes, the AML code contains a bug that does not appear when parsed
+by the Microsoft implementation.
+.Fx
+provides a way to override it with your own AML code to workaround
+or debug such problems.
+Note that all AML in your DSDT and any SSDT tables is overridden.
 .Pp
-In order to load your AML code,
-you must edit
+In order to load your AML code, you must edit
 .Pa /boot/loader.conf
-and
-include the following lines.
+and include the following lines.
 .Bd -literal -offset indent
 acpi_dsdt_load="YES"
-acpi_dsdt_name="/boot/acpi_dsdt.aml" #You may change the name.
+acpi_dsdt_name="/boot/acpi_dsdt.aml" # You may change this name.
 .Ed
 .Pp
 In order to prepare your AML code, you will need the
