@@ -275,13 +275,6 @@ static devclass_t sbus_devclass;
 
 DRIVER_MODULE(sbus, nexus, sbus_driver, sbus_devclass, 0, 0);
 
-/*
- * This value is or'ed into the attach args' interrupt level cookie
- * if the interrupt level comes from an `intr' property, i.e. it is
- * not an Sbus interrupt level.
- */
-#define SBUS_INTR_COMPAT	0x80000000
-#define	SBUS_MEM_SIZE	0x100000000
 #define	OFW_SBUS_TYPE	"sbus"
 #define	OFW_SBUS_NAME	"sbus"
 
@@ -666,45 +659,41 @@ sbus_setup_intr(device_t dev, device_t child,
 		return (NULL);
 	intrptr = intrmapptr = intrclrptr = 0;
 	intrmap = 0;
-	if ((vec & SBUS_INTR_COMPAT) == 0) {
-		inr = INTVEC(vec);
-		if ((inr & INTMAP_OBIO) == 0) {
-			/*
-			 * We're in an SBUS slot, register the map and clear
-			 * intr registers.
-			 */
-			slot = INTSLOT(vec);
-			intrmapptr = SBR_SLOT0_INT_MAP + slot * 8;
-			intrclrptr = SBR_SLOT0_INT_CLR +
-			    (slot * 8 * 8) + (INTPRI(vec) * 8);
-			/* Enable the interrupt, insert IGN. */
-			intrmap = inr | sc->sc_ign;
-		} else {
-			intrptr = SBR_SCSI_INT_MAP;
-			/* Insert IGN */
-			inr |= sc->sc_ign;
-			for (i = 0; intrptr <= SBR_RESERVED_INT_MAP &&
-			    INTVEC(intrmap = SYSIO_READ8(sc, intrptr)) !=
-			    INTVEC(inr); intrptr += 8, i++)
-				;
-			if (INTVEC(intrmap) == INTVEC(inr)) {
-				/* Register the map and clear intr registers */
-				intrmapptr = intrptr;
-				intrclrptr = SBR_SCSI_INT_CLR + i * 8;
-				/* Enable the interrupt */
-			} else
-				panic("sbus_setup_intr: IRQ not found!");
-		}
-	} else
-		panic("sbus_setup_intr: XXX: compat");
+	inr = INTVEC(vec);
+	if ((inr & INTMAP_OBIO) == 0) {
+		/*
+		 * We're in an SBUS slot, register the map and clear
+		 * intr registers.
+		 */
+		slot = INTSLOT(vec);
+		intrmapptr = SBR_SLOT0_INT_MAP + slot * 8;
+		intrclrptr = SBR_SLOT0_INT_CLR +
+		    (slot * 8 * 8) + (INTPRI(vec) * 8);
+		/* Enable the interrupt, insert IGN. */
+		intrmap = inr | sc->sc_ign;
+	} else {
+		intrptr = SBR_SCSI_INT_MAP;
+		/* Insert IGN */
+		inr |= sc->sc_ign;
+		for (i = 0; intrptr <= SBR_RESERVED_INT_MAP &&
+			 INTVEC(intrmap = SYSIO_READ8(sc, intrptr)) !=
+			 INTVEC(inr); intrptr += 8, i++)
+			;
+		if (INTVEC(intrmap) == INTVEC(inr)) {
+			/* Register the map and clear intr registers */
+			intrmapptr = intrptr;
+			intrclrptr = SBR_SCSI_INT_CLR + i * 8;
+			/* Enable the interrupt */
+		} else
+			panic("sbus_setup_intr: IRQ not found!");
+	}
 
 	scl->scl_sc = sc;
 	scl->scl_arg = arg;
 	scl->scl_handler = intr;
 	scl->scl_clr = intrclrptr;
 	/* Disable the interrupt while we fiddle with it */
-	if (intrmapptr != 0)
-		SYSIO_WRITE8(sc, intrmapptr, intrmap);
+	SYSIO_WRITE8(sc, intrmapptr, intrmap);
 	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    sbus_intr_stub, scl, cookiep);
 	if (error != 0) {
@@ -718,15 +707,13 @@ sbus_setup_intr(device_t dev, device_t child,
 	 * Clear the interrupt, it might have been triggered before it was
 	 * set up.
 	 */
-	if (intrclrptr != 0)
-		SYSIO_WRITE8(sc, intrclrptr, 0);
+	SYSIO_WRITE8(sc, intrclrptr, 0);
 	/*
 	 * Enable the interrupt now we have the handler installed.
 	 * Read the current value as we can't change it besides the
 	 * valid bit so so make sure only this bit is changed.
 	 */
-	if (intrmapptr != NULL)
-		SYSIO_WRITE8(sc, intrmapptr, intrmap | INTMAP_V);
+	SYSIO_WRITE8(sc, intrmapptr, intrmap, PCPU_GET(mid));
 	return (error);
 }
 
