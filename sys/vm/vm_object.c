@@ -1698,14 +1698,9 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end, bo
 	vm_pindex_t size;
 	int all;
 
-	if (object == NULL)
+	if (object == NULL ||
+	    object->resident_page_count == 0)
 		return;
-
-	mtx_lock(&Giant);
-	if (object->resident_page_count == 0) {
-		mtx_unlock(&Giant);
-		return;
-	}
 	all = ((end == 0) && (start == 0));
 
 	/*
@@ -1784,7 +1779,6 @@ again:
 	}
 	vm_page_unlock_queues();
 	vm_object_pip_wakeup(object);
-	mtx_unlock(&Giant);
 }
 
 /*
