@@ -214,6 +214,13 @@ BOOTINODE=		15872
 MFSINODE=		8192
 MFSLABEL=		auto
 MFSSIZE=		8192
+.elif ${TARGET_ARCH} == "amd64"
+BIGBOOTSIZE=		4096
+MFSSIZE=		4096
+BOOTINODE=		8192
+MFSINODE=		8192
+BIGBOOTLABEL=		auto
+MFSLABEL=		auto
 .endif
 
 .if exists(/sbin/bsdlabel)
@@ -264,6 +271,9 @@ CRUNCH_TARGETS= boot
 FIXIT_TARGET=
 .elif ${TARGET} == "pc98"
 CRUNCH_TARGETS=	boot fixit fixit-small
+.elif ${TARGET_ARCH} == "amd64"
+CRUNCH_TARGETS= boot
+FIXIT_TARGET=
 .endif
 
 .if !defined(CRUNCH_TARGETS)
