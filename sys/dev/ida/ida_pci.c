@@ -74,7 +74,13 @@ ida_v3_submit(struct ida_softc *ida, struct ida_qcb *qcb)
 static bus_addr_t
 ida_v3_done(struct ida_softc *ida)
 {
-	return (ida_inl(ida, R_DONE_FIFO));
+	bus_addr_t completed;
+
+	completed = ida_inl(ida, R_DONE_FIFO);
+	if (completed == -1) {
+		return (0);			/* fifo is empty */
+	}
+	return (completed);
 }
 
 static int
