@@ -33,8 +33,9 @@
  */
 
 struct cbb_intrhand {
-	driver_intr_t *intr;
-	void	*arg;
+	driver_intr_t	*intr;
+	void 		*arg;
+	uint32_t	flags;
 	STAILQ_ENTRY(cbb_intrhand) entries;
 };
 
