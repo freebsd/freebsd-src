@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.37 1997/02/22 09:40:34 peter Exp $
+ * $Id: spec_vnops.c,v 1.38 1997/03/24 11:24:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -759,6 +759,8 @@ spec_getpages(ap)
 	daddr_t blkno;
 	struct buf *bp;
 	vm_ooffset_t offset;
+	struct vnode *vp = ap->a_vp;
+	int blksiz;
 
 	error = 0;
 	pcount = round_page(ap->a_count) / PAGE_SIZE;
@@ -783,9 +785,14 @@ spec_getpages(ap)
 	blkno = btodb(offset);
 
 	/*
-	 * Round up physical size for real devices.
+	 * Round up physical size for real devices, use the
+	 * fundamental blocksize of the fs if possible.
 	 */
-	size = (ap->a_count + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+	if (vp && vp->v_mount)
+		blksiz = vp->v_mount->mnt_stat.f_bsize;
+	else
+		blksiz = DEV_BSIZE;
+	size = (ap->a_count + blksiz - 1) & ~(blksiz - 1);
 
 	bp = getpbuf();
 	kva = (vm_offset_t)bp->b_data;
