@@ -1039,6 +1039,7 @@
 	0010	YMF744B DS-1S PCI audio controller
 	0012	YMF754B DS-1E PCI Audio Controller
 	0020	DS-1 Audio
+	1000	SW1000XG Sound system
 	2000	DS2416 Digital Mixing Card
 1074	Nexgen Microsysteme
 	4E78	82C500/1 Nx586 Chipset
@@ -1224,7 +1225,7 @@
 	0650	PBC-0650A PCI Fast SCSI II Host Adapter
 	0670	USB0670 USB Controller
 	0673	USB0673 USB Controller
-	0680	PCI-680 UltraATA/133 EIDE Controller
+	0680	PCI-0680 Ultra ATA133 EIDE Controller
 1096	Alacron
 1097	Appian Technology (ETMA)
 	0038	EIDE Controller (single FIFO)
@@ -1615,8 +1616,12 @@
 	01AD	nForce 220/420 Memory Controller
 	01B0	nForce MCP Audio Processing Unit (Dolby Digital)
 	01B1	nForce Audio Codec Interface
+	01B2	nForce HUB Interface
 	01B4	nForce SMBus Controller
 	01B7	nForce AGP Host to PCI Bridge
+	01B8	nForce PCI Bridge
+	01BC	nforce ATA Controller
+	01C2	nforce OHCI USB Controller
 	01C3	nForce MCP Networking Adapter
 	0200	GeForce3 [NV20]
 	0201	GeForce3 Ti 200 [NV20DDR]
@@ -4444,7 +4449,7 @@
 4954	Integral Technologies
 4978	Axil Computer Inc.
 4A14	NetVin
-	5000	NV5000 RPTI RT8029-based Ethernet Adapter
+	5000	NV5000 RPTI RTL8029-Based PCI Ethernet Adapter
 4ABD	Applied Biosystems Division
 4B10	Buslogic Inc
 	3080	SCSI Host Adapter
