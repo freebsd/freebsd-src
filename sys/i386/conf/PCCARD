@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id$
+#	$Id: GENERIC,v 1.77.2.13 1997/10/30 00:38:14 nate Exp $
 
 machine		"i386"
 cpu		"I386_CPU"
@@ -69,19 +69,21 @@ device		cd0	#Only need one of these, the code dynamically grows
 # syscons is the default console driver, resembling an SCO console
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 
-device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+# Mandatory, don't remove
+device		npx0	at isa? port "IO_NPX" flags 0x1 irq 13 vector npxintr
 
 #
 # Laptop support (see LINT for more options)
 #
-device		apm0    at isa? flags 0x31	# Advanced Power Management
+device		apm0    at isa?		# Advanced Power Management
+options		APM_BROKEN_STATCLOCK	# Workaround some buggy APM BIOS
 
 # PCCARD (PCMCIA) support
 controller	card0
 device		pcic0	at card?
 device		pcic1	at card?
 
-device		sio0	at isa? port "IO_COM1" flags 0x10 tty irq 4 vector siointr
+device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
 device		sio2	at isa? disable port "IO_COM3" tty irq 5 vector siointr
 device		sio3	at isa? disable port "IO_COM4" tty irq 9 vector siointr
@@ -90,15 +92,17 @@ device		lpt0	at isa? port? tty irq 7 vector lptintr
 
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 
-device ed0 at isa? port 0x280 net irq 10 iomem 0xd8000 vector edintr
+device ed0 at isa? port 0x280 net irq  5 iomem 0xd8000 vector edintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
 device fe0 at isa? port 0x300 net irq ? vector feintr
 
 pseudo-device	loop
 pseudo-device	ether
+pseudo-device	log
 pseudo-device	sl	1
-# iijppp uses tun instead of ppp device
+# ijppp uses tun instead of ppp device
 #pseudo-device	ppp	1
+pseudo-device	vn	1
 pseudo-device	tun	1
 pseudo-device	pty	16
 pseudo-device	gzip		# Exec gzipped a.out's
