@@ -72,34 +72,48 @@ If the chosen password is unsatisfactory, the service function returns
 .Dv PAM_AUTHTOK_ERR .
 .Pp
 The following options may be passed to the authentication module:
-.Bl -tag -width 18n
-.It Cm min Ns = Ns Ar N0 Ns , Ns Ar N1 Ns , Ns Ar N2 Ns , Ns Ar N3 Ns , Ns Ar N4
-(min=disabled,24,12,8,7)
-The minimum allowed password lengths for different kinds of passwords
-/ passphrases.
+.Bl -tag -width indent
+.It Xo
+.Sm off
+.Cm min No = Ar N0 , N1 , N2 , N3 , N4
+.Sm on
+.Xc
+.Sm off
+.Pq Cm min No = Cm disabled , No 24 , 12 , 8 , 7
+.Sm on
+The minimum allowed password lengths for different kinds of
+passwords/passphrases.
 The keyword
-.Dq disabled
+.Cm disabled
 can be used to
 disallow passwords of a given kind regardless of their length.
 Each subsequent number is required to be no larger than the preceding
 one.
 .Pp
-N0 is used for passwords consisting of characters from one character
+.Ar N0
+is used for passwords consisting of characters from one character
 class only.
 The character classes are: digits, lower-case letters, upper-case
 letters, and other characters.
-There is also a special class for non-ASCII characters which couldn't
+There is also a special class for
+.No non- Ns Tn ASCII
+characters which could not
 be classified, but are assumed to be non-digits.
 .Pp
-N1 is used for passwords consisting of characters from two character
-classes, which don't meet the requirements for a passphrase.
+.Ar N1
+is used for passwords consisting of characters from two character
+classes, which do not meet the requirements for a passphrase.
 .Pp
-N2 is used for passphrases.
+.Ar N2
+is used for passphrases.
 A passphrase must consist of sufficient words (see the
 .Cm passphrase
 option below).
 .Pp
-N3 and N4 are used for passwords consisting of characters from three
+.Ar N3
+and
+.Ar N4
+are used for passwords consisting of characters from three
 and four character classes, respectively.
 .Pp
 When calculating the number of character classes, upper-case letters
@@ -108,10 +122,10 @@ password are not counted.
 .Pp
 In addition to being sufficiently long, passwords are required to
 contain enough different characters for the character classes and
-the minimum length they've been checked against.
+the minimum length they have been checked against.
 .Pp
 .It Cm max Ns = Ns Ar N
-(max=40)
+.Pq Cm max Ns = Ns 40
 The maximum allowed password length.
 This can be used to prevent users from setting passwords which may be
 too long for some system services.
@@ -123,14 +137,16 @@ user will be warned.
 This is for compatibility with the traditional DES password hashes,
 which truncate the password at 8 characters.
 .Pp
-It is important that you do set max=8 if you're using the traditional
+It is important that you do set
+.Cm max Ns = Ns 8
+if you are using the traditional
 hashes, or some weak passwords will pass the checks.
 .It Cm passphrase Ns = Ns Ar N
-(passphrase=3)
+.Pq Cm passphrase Ns = Ns 3
 The number of words required for a passphrase, or 0 to disable
 passphrase support.
 .It Cm match Ns = Ns Ar N
-(match=4)
+.Pq Cm match Ns = Ns 4
 The length of common substring required to conclude that a password is
 at least partially based on information found in a character string,
 or 0 to disable the substring search.
@@ -140,28 +156,40 @@ with the weak substring removed.
 .Pp
 The substring search is case-insensitive and is able to detect and
 remove a common substring spelled backwards.
-.It Cm similar Ns = Ns Ar permit Ns | Ns Ar deny
-(similar=deny)
+.It Xo
+.Sm off
+.Cm similar No = Cm permit | deny
+.Sm on
+.Xc
+.Pq Cm similar Ns = Ns Cm deny
 Whether a new password is allowed to be similar to the old one.
-The passwords are considered to be similar when there's a sufficiently
+The passwords are considered to be similar when there is a sufficiently
 long common substring and the new password with the substring removed
 would be weak.
-.It Cm random Ns = Ns Ar N Ns Op , Ns Ar only
-(random=42)
+.It Xo
+.Sm off
+.Cm random No = Ar N Op , Cm only
+.Sm on
+.Xc
+.Pq Cm random Ns = Ns 42
 The size of randomly-generated passwords in bits, or 0 to disable this
 feature.
 Passwords that contain the offered randomly-generated string will be
 allowed regardless of other possible restrictions.
 .Pp
 The
-.Dq only
+.Cm only
 modifier can be used to disallow user-chosen passwords.
-.It Cm enforce Ns = Ns Ar none Ns | Ns Ar users Ns | Ns Ar everyone
-(enforce=everyone)
+.It Xo
+.Sm off
+.Cm enforce No = Cm none | users | everyone
+.Sm on
+.Xc
+.Pq Cm enforce Ns = Ns Cm everyone
 The module can be configured to warn of weak passwords only, but not
 actually enforce strong passwords.
 The
-.Dq users
+.Cm users
 setting will enforce strong passwords for non-root users only.
 .It Cm non-unix
 Normally,
@@ -174,13 +202,15 @@ This behavior can be disabled with the
 .Cm non-unix
 option.
 .It Cm retry Ns = Ns Ar N
-(retry = 3)
+.Pq Cm retry Ns = Ns 3
 The number of times the module will ask for a new password if the user
 fails to provide a sufficiently strong password and enter it twice the
 first time.
-.It Cm ask_oldauthtok Ns Op = Ns Ar update
+.It Cm ask_oldauthtok Ns Op = Ns Cm update
 Ask for the old password as well.
-Normally, pam_passwdqc leaves this task for subsequent modules.
+Normally,
+.Nm
+leaves this task for subsequent modules.
 With no argument, the
 .Cm ask_oldauthtok
 option will cause
@@ -189,21 +219,25 @@ to ask for the old password during the preliminary check phase.
 If the
 .Cm ask_oldauthtok
 option is specified with the
-.Dq update
+.Cm update
 argument,
 .Nm
 will do that during the update phase.
 .It Cm check_oldauthtok
-This tells pam_passwdqc to validate the old password before giving a
+This tells
+.Nm
+to validate the old password before giving a
 new password prompt.
 Normally, this task is left for subsequent modules.
 .Pp
 The primary use for this option is when
-.Cm ask_oldauthtok Ns = Ns Ar update
+.Cm ask_oldauthtok Ns = Ns Cm update
 is also specified, in which case no other modules gets a chance to ask
 for and validate the password.
-Of course, this will only work with Unix passwords.
-.It Cm use_first_pass Ns , Ns Cm use_authtok
+Of course, this will only work with
+.Ux
+passwords.
+.It Cm use_first_pass , use_authtok
 Use the new password obtained by modules stacked before
 .Nm .
 This disables user interaction within
