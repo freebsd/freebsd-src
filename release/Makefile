@@ -52,12 +52,15 @@ OBJFORMAT?=		elf
 # to set NOPORTS and not set NODOC since docs depend on ports.
 #NODOC=  YES
 #NOPORTS=  YES
-# Comment the following if you want the release documentation to be
+# Set ALLLANG=no if you want the release documentation to be
 # in English only.
-ALLLANG=	yes
+ALLLANG?=	yes
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by ${DOCPORTS} live.
 DOCDISTFILES?=	${.CURDIR}/../../ports/distfiles
+# Set this to 1 if you want -P to be used for automatic keyboard detection
+# on the boot floppy.  WARNING: Breaks on some Athlon (K7) motherboards.
+AUTO_KEYBOARD_DETECT?= 0
 
 DIST_DOCS= ABOUT.TXT ERRATA.TXT LAYOUT.TXT README.TXT HARDWARE.TXT \
            RELNOTES.TXT TROUBLE.TXT UPGRADE.TXT INSTALL.TXT
@@ -160,6 +163,12 @@ EXTRAS= cdrom.1 ftp.1
 DOCREL= doc.1
 .endif
 
+.if !defined(NOPORTREADMES)
+MAKEREADMES=	make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+.else
+MAKEREADMES=	true
+.endif
+
 rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME) || !defined(CVSROOT)
 	@echo "To make a release you must set CHROOTDIR, BUILDNAME and CVSROOT" && false
@@ -198,9 +207,9 @@ rerelease release:
 .endif
 .if !defined(NOPORTS)
 .if defined(AUXRELEASETAG)
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${AUXRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P -r ${AUXRELEASETAG} ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .else
-	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && make readmes PORTSDIR=${CHROOTDIR}/usr/ports
+	cd ${CHROOTDIR}/usr && rm -rf ports && cvs -R -d ${CVSROOT} co -P ${RELEASEPORTSMODULE} && cd ports && ${MAKEREADMES}
 .endif
 .endif
 .if !defined(NODOC)
@@ -252,7 +261,7 @@ rerelease release:
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
 .endif
-.if defined(ALLLANG)
+.if defined(ALLLANG) && ${ALLLANG} != "NO" && ${ALLLANG} != "no"
 	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
 .else
 	echo "export DOC_LANG=en_US.ISO_8859-1"	>> ${CHROOTDIR}/mk
@@ -776,7 +785,7 @@ doMFSKERN:
 .endif
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-.if ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
 	@echo "-P" >> ${RD}/image.${FSIMAGE}/boot.config
 .endif
 .if defined(BIGBOOT)
