@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: atcompat_diskslice.c,v 1.13 1998/12/04 22:54:54 archie Exp $
+ *	$Id: atcompat_diskslice.c,v 1.14 1999/01/28 09:18:21 kato Exp $
  */
 
 /*
@@ -45,6 +45,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
 #ifdef PC98
@@ -58,7 +59,6 @@
 #include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 
 #define TRACE(str)	do { if (dsi_debug) printf str; } while (0)
 
