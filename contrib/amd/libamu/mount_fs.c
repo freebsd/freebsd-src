@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mount_fs.c,v 1.7 1999/08/22 21:12:33 ezk Exp $
+ * $Id: mount_fs.c,v 1.8 1999/09/18 08:38:06 ezk Exp $
  * $FreeBSD$
  *
  */
@@ -157,6 +157,9 @@ compute_automounter_mount_flags(mntent_t *mntp)
 #ifdef MNT2_GEN_OPT_IGNORE
   flags |= MNT2_GEN_OPT_IGNORE;
 #endif /* not MNT2_GEN_OPT_IGNORE */
+#ifdef MNT2_GEN_OPT_AUTOMNTFS
+  flags |= MNT2_GEN_OPT_AUTOMNTFS;
+#endif /* not MNT2_GEN_OPT_AUTOMNTFS */
 
   return flags;
 }
@@ -729,7 +732,8 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
 #endif /* MNT2_NFS_OPT_SYMTTL */
 
   /*
-   * This completes the flags for the HIDE_MOUNT_TYPE code above.
+   * This completes the flags for the HIDE_MOUNT_TYPE  code in the
+   * mount_amfs_toplvl() function in amd/amfs_toplvl.c.
    * Some systems don't have a mount type, but a mount flag.
    */
 #ifdef MNT2_NFS_OPT_AUTO
@@ -738,6 +742,9 @@ compute_automounter_nfs_args(nfs_args_t *nap, mntent_t *mntp)
 #ifdef MNT2_NFS_OPT_IGNORE
   nap->flags |= MNT2_NFS_OPT_IGNORE;
 #endif /* MNT2_NFS_OPT_IGNORE */
+#ifdef MNT2_GEN_OPT_AUTOMNTFS
+  nap->flags |= MNT2_GEN_OPT_AUTOMNTFS;
+#endif /* not MNT2_GEN_OPT_AUTOMNTFS */
 
 #ifdef MNT2_NFS_OPT_DUMBTIMR
   /*
@@ -889,27 +896,27 @@ print_nfs_args(const nfs_args_t *nap, u_long nfs_version)
   plog(XLOG_DEBUG, "NA->sotype = %d", nap->sotype);
 #endif /* HAVE_FIELD_NFS_ARGS_T_SOTYPE */
 #ifdef HAVE_FIELD_NFS_ARGS_T_PROTO
-  plog(XLOG_DEBUG, "NA->proto = %d", nap->proto);
+  plog(XLOG_DEBUG, "NA->proto = %d", (int) nap->proto);
 #endif /* HAVE_FIELD_NFS_ARGS_T_PROTO */
 #ifdef HAVE_FIELD_NFS_ARGS_T_VERSION
   plog(XLOG_DEBUG, "NA->version = %d", nap->version);
 #endif /* HAVE_FIELD_NFS_ARGS_T_VERSION */
 
-  plog(XLOG_DEBUG, "NA->flags = 0x%x", nap->flags);
+  plog(XLOG_DEBUG, "NA->flags = 0x%x", (int) nap->flags);
 
-  plog(XLOG_DEBUG, "NA->rsize = %d", nap->rsize);
-  plog(XLOG_DEBUG, "NA->wsize = %d", nap->wsize);
+  plog(XLOG_DEBUG, "NA->rsize = %d", (int) nap->rsize);
+  plog(XLOG_DEBUG, "NA->wsize = %d", (int) nap->wsize);
 #ifdef HAVE_FIELD_NFS_ARGS_T_BSIZE
   plog(XLOG_DEBUG, "NA->bsize = %d", nap->bsize);
 #endif /* HAVE_FIELD_NFS_ARGS_T_BSIZE */
-  plog(XLOG_DEBUG, "NA->timeo = %d", nap->timeo);
-  plog(XLOG_DEBUG, "NA->retrans = %d", nap->retrans);
+  plog(XLOG_DEBUG, "NA->timeo = %d", (int) nap->timeo);
+  plog(XLOG_DEBUG, "NA->retrans = %d", (int) nap->retrans);
 
 #ifdef HAVE_FIELD_NFS_ARGS_T_ACREGMIN
-  plog(XLOG_DEBUG, "NA->acregmin = %d", nap->acregmin);
-  plog(XLOG_DEBUG, "NA->acregmax = %d", nap->acregmax);
-  plog(XLOG_DEBUG, "NA->acdirmin = %d", nap->acdirmin);
-  plog(XLOG_DEBUG, "NA->acdirmax = %d", nap->acdirmax);
+  plog(XLOG_DEBUG, "NA->acregmin = %d", (int) nap->acregmin);
+  plog(XLOG_DEBUG, "NA->acregmax = %d", (int) nap->acregmax);
+  plog(XLOG_DEBUG, "NA->acdirmin = %d", (int) nap->acdirmin);
+  plog(XLOG_DEBUG, "NA->acdirmax = %d", (int) nap->acdirmax);
 #endif /* HAVE_FIELD_NFS_ARGS_T_ACREGMIN */
 #ifdef MNTTAB_OPT_SYMTTL
   plog(XLOG_DEBUG, "NA->symttl = %d", nap->symttl);
