@@ -396,7 +396,7 @@ void *handlep;
 
 struct netconfig *
 getnetconfigent(netid)
-	char *netid;
+	const char *netid;
 {
     FILE *file;		/* NETCONFIG db's file pointer */
     char *linep;	/* holds current netconfig line */
