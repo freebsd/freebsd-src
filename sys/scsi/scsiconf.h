@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.39 1996/02/03 13:31:12 joerg Exp $
+ *	$Id: scsiconf.h,v 1.40 1996/03/10 07:13:11 gibbs Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -413,7 +413,8 @@ struct scsi_xfer
 #define XS_TIMEOUT	0x03	/* The device timed out.. turned off?	  */
 #define XS_SWTIMEOUT	0x04	/* The Timeout reported was caught by SW  */
 #define XS_BUSY		0x08	/* The device busy, try again later?	  */
-#define	XS_LENGTH 0x09	/* Illegal length (over/under run)	*/
+#define XS_LENGTH	0x09	/* Illegal length (over/under run)	  */
+#define XS_SELTIMEOUT	0x10	/* Device failed to respond to selection  */
 
 #ifdef KERNEL
 void *extend_get(struct extend_array *ea, int index);
