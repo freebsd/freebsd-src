@@ -32,7 +32,7 @@
 .\" USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" $Id: worm.4,v 1.10 1997/02/22 13:24:55 peter Exp $
+.\" $Id: worm.4,v 1.11 1997/05/19 17:30:50 jmz Exp $
 .\" "
 .Dd January 27, 1996
 .Dt WORM 4
@@ -232,6 +232,77 @@ data track, you can just set
 .Dv track_type 
 to
 .Dv BLOCK_MODE_1 .
+
+.It Dv WORMIOCREADSESSIONINFO
+This command returns the information needed for writing a complete
+session at once. The argument structure,
+.Dv struct wormio_session_info ,
+is as follows:
+.Bd -literal -offset indent
+struct wormio_session_info {
+    u_short lead_in;
+    u_short lead_out;
+};
+.Ed
+.Dv lead_in 
+gives the length (in blocks) of the lead-in area.
+.Dv lead_out
+gives the length (in blocks) of the lead-out area.
+
+.It WORMIOCWRITESESSION
+This command enables to write a session without interruption. You must
+then supply raw data blocks for the lead-in, the program area
+(including pregaps) and the lead-out. The session is closed with a 
+.Dv WORMIOCFINISHTRACK
+command. The argument structure,
+.Dv wormio_write_session ,
+is as follows:
+.Bd -literal -offset indent
+struct wormio_write_session {
+    int toc_type;
+    int onp;
+    int lofp;
+    int length;
+    char catalog[13];
+    u_char *track_desc;
+};
+.Ed
+.Dv toc_type
+determines what type of table of contents will be recorded in the
+lead-in. Possible values are:
+
+.Bl -tag -width XXX
+.It Dv 0
+CD-DA
+.It Dv 1
+CD_ROM
+.It Dv 2
+CD-ROM XA with first track in mode 1
+.It Dv 3
+CD-ROM XA with first track in mode 2
+.It Dv 4
+CDI
+.El
+
+.Dv onp ,
+if set to 1 requests a new program area to be opened. This implies
+that the start time of the new program area is included in the lead-in
+of the current session.
+.Dv lofp
+is a parameter only valid when
+.Dv toc_type
+is equal to 1 and specifies whether the lead-out must be written in
+mode 1 or mode 2. The mode of the lead-out must be equal to the mode
+of the last track of the session.
+.Dv length 
+specifies the length of the track descriptor.
+.Dv catalog 
+can be used to set the catalog number information and is composed of
+13 digits. If this array is composed of null bytes, no catalog will be
+written.
+.Dv track_desc
+is a pointer to the array containing the encoding of the table of
+contents.
 
 .It Dv WORMIOCFINISHTRACK
 Will terminate the track. It takes no argument. Note that closing the

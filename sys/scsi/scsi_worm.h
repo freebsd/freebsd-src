@@ -15,6 +15,8 @@
 #define WRITE_TRACK		0xe6	/* open the write channel */
 #define LOAD_UNLOAD		0xe7	/* resembles part of START_STOP */
 #define FIXATION		0xe9	/* write leadin/leadout */
+#define WRITE_SESSION           0xed    /* guide to write a new session */
+#define READ_SESSION_INFO       0xee    /* read leadin/leadout lengths */
 
 struct scsi_rezero_unit
 {
@@ -87,6 +89,28 @@ struct scsi_fixation
 #define WORM_TOC_TYPE_CDROM_1	0x02 /* CD-ROM, first track mode 1 (?) */
 #define WORM_TOC_TYPE_CDROM_2	0x03 /* CD-ROM, first track mode 2 */
 #define WORM_TOC_TYPE_CDI      	0x04
+	u_char	control;
+};
+
+struct scsi_write_session
+{
+	u_char	op_code;
+	u_char	byte2;
+	u_char	reserved[4];
+	u_char	action; /* see scsi_fixation above */
+#define WORM_LOFP_MODE_MODE1	0x10 
+#define WORM_LOFP_MODE_MODE2	0x20
+	u_char	transfer_length_2; /* number of blocks to transfer, MSB */
+	u_char	transfer_length_1; /* LSB */
+	u_char	control;
+};
+
+struct scsi_read_session_info 
+{
+	u_char	op_code;
+	u_char	byte2;
+	u_char	reserved[6];
+	u_char	transfer_length;
 	u_char	control;
 };
 
