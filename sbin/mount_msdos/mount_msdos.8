@@ -28,7 +28,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.8 1998/02/22 15:28:00 ache Exp $
+.\"	$Id: mount_msdos.8,v 1.9 1998/02/23 09:41:01 ache Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
@@ -130,13 +130,22 @@ if deleting or renaming a file. This forces
 .\"limited to the boot block. This option enforces
 .\".Fl s .
 .It Fl L Ar locale
-Specify locale name used for internal uppercase to lowercase conversion
+Specify locale name used for internal uppercase and lowercase conversions
 for DOS and Win'95 names.
 .It Fl W Ar table
-Specify file with
-local character set to Unicode conversion table for Win'95 long
-names. This table is text file contains 128 Unicode codes corresponding to
-upper half of local character set.
+Specify text file with 3 conversion tables:
+.Bl -enum
+.It
+Local character set to Unicode conversion table (upper half) for Win'95 long
+names, 128 Unicode codes.
+.It
+DOS to local character set conversion table (upper half) for DOS names,
+128 character codes.
+.It
+Local character set to DOS conversion table (upper half) for DOS names,
+128 character codes.
+.El
+.Pp
 If file path isn't absolute,
 .Pa /usr/libdata/msdosfs/
 prefix prepended.
