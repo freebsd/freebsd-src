@@ -98,11 +98,6 @@
 #define	PCIC_MASK2(SC,REG,MASK,MASK2)					\
 	PCIC_WRITE(SC,REG,(PCIC_READ(SC,REG) MASK) MASK2)
 
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 struct pccbb_sclist {
 	struct pccbb_softc *sc;
 	STAILQ_ENTRY(pccbb_sclist) entries;
@@ -242,7 +237,7 @@ static int pccbb_pcic_release_resource(device_t self, device_t child, int type,
 static int pccbb_pcic_set_res_flags(device_t self, device_t child, int type,
 				    int rid, u_int32_t flags);
 static int pccbb_pcic_set_memory_offset(device_t self, device_t child, int rid,
-					u_int32_t offset);
+					u_int32_t offset, u_int32_t *deltap);
 static int pccbb_power_enable_socket(device_t self, device_t child);
 static void pccbb_power_disable_socket(device_t self, device_t child);
 static int pccbb_activate_resource(device_t self, device_t child, int type,
@@ -1706,11 +1701,12 @@ pccbb_pcic_set_res_flags(device_t self, device_t child, int type, int rid,
 
 static int
 pccbb_pcic_set_memory_offset(device_t self, device_t child, int rid,
-    u_int32_t cardaddr)
+    u_int32_t cardaddr, u_int32_t *deltap)
 {
 	struct pccbb_softc *sc = device_get_softc(self);
 	int win;
 	struct pccbb_reslist *rle;
+	u_int32_t delta;
 
 	win = -1;
 
@@ -1726,11 +1722,14 @@ pccbb_pcic_set_memory_offset(device_t self, device_t child, int rid,
 		return 1;
 	}
 
-	/* Fixup size since cardaddr must align to PCIC_MEM_PAGESIZE */
-	/* XXX This should be a marco XXX */
-	sc->mem[win].realsize = (sc->mem[win].size +
-	    (cardaddr & (PCIC_MEM_PAGESIZE - 1))) & ~(PCIC_MEM_PAGESIZE - 1);
-	cardaddr &= ~(PCIC_MEM_PAGESIZE - 1);
+	delta = cardaddr % PCIC_MEM_PAGESIZE;
+	if (deltap)
+		*deltap = delta;
+	cardaddr -= delta;
+	sc->mem[win].realsize = sc->mem[win].size + delta + 
+	    PCIC_MEM_PAGESIZE - 1;
+	sc->mem[win].realsize = sc->mem[win].realsize -
+	    (sc->mem[win].realsize % PCIC_MEM_PAGESIZE);
 	sc->mem[win].offset = cardaddr - sc->mem[win].addr;
 	pccbb_pcic_do_mem_map(sc, win);
 

@@ -1471,9 +1471,11 @@ pcic_set_res_flags(device_t dev, device_t child, int type, int rid,
 }
 
 int
-pcic_set_memory_offset(device_t dev, device_t child, int rid, u_int32_t offset)
+pcic_set_memory_offset(device_t dev, device_t child, int rid, u_int32_t offset,
+    u_int32_t *deltap)
 {
-	return 0;
+	/* XXX BAD XXX */
+	return EIO;
 }
 
 static void
