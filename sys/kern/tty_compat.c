@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.10 1995/04/02 04:15:08 ache Exp $
+ * $Id: tty_compat.c,v 1.11 1995/04/02 19:26:50 ache Exp $
  */
 
 /* 
@@ -83,6 +83,83 @@ static int compatspcodes[] = {
 	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
 };
 
+int ttsetcompat(tp, com, data, term)
+	register struct tty *tp;
+	int *com;
+	caddr_t data;
+	struct termios *term;
+{
+	switch (*com) {
+	case TIOCSETP:
+	case TIOCSETN: {
+		register struct sgttyb *sg = (struct sgttyb *)data;
+		int speed;
+
+		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
+			return(EINVAL);
+		else
+			term->c_ispeed = compatspcodes[speed];
+		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
+			return(EINVAL);
+		else
+			term->c_ospeed = compatspcodes[speed];
+		term->c_cc[VERASE] = sg->sg_erase;
+		term->c_cc[VKILL] = sg->sg_kill;
+		tp->t_flags = (tp->t_flags&0xffff0000) | (sg->sg_flags&0xffff);
+		ttcompatsetflags(tp, term);
+		*com = (*com == TIOCSETP) ? TIOCSETAF : TIOCSETA;
+		break;
+	}
+	case TIOCSETC: {
+		struct tchars *tc = (struct tchars *)data;
+		register cc_t *cc;
+
+		cc = term->c_cc;
+		cc[VINTR] = tc->t_intrc;
+		cc[VQUIT] = tc->t_quitc;
+		cc[VSTART] = tc->t_startc;
+		cc[VSTOP] = tc->t_stopc;
+		cc[VEOF] = tc->t_eofc;
+		cc[VEOL] = tc->t_brkc;
+		if (tc->t_brkc == -1)
+			cc[VEOL2] = _POSIX_VDISABLE;
+		*com = TIOCSETA;
+		break;
+	}
+	case TIOCSLTC: {
+		struct ltchars *ltc = (struct ltchars *)data;
+		register cc_t *cc;
+
+		cc = term->c_cc;
+		cc[VSUSP] = ltc->t_suspc;
+		cc[VDSUSP] = ltc->t_dsuspc;
+		cc[VREPRINT] = ltc->t_rprntc;
+		cc[VDISCARD] = ltc->t_flushc;
+		cc[VWERASE] = ltc->t_werasc;
+		cc[VLNEXT] = ltc->t_lnextc;
+		*com = TIOCSETA;
+		break;
+	}
+	case TIOCLBIS:
+	case TIOCLBIC:
+	case TIOCLSET:
+		if (*com == TIOCLSET)
+			tp->t_flags = (tp->t_flags&0xffff) | *(int *)data<<16;
+		else {
+			tp->t_flags = 
+			 (ttcompatgetflags(tp)&0xffff0000)|(tp->t_flags&0xffff);
+			if (*com == TIOCLBIS)
+				tp->t_flags |= *(int *)data<<16;
+			else
+				tp->t_flags &= ~(*(int *)data<<16);
+		}
+		ttcompatsetlflags(tp, term);
+		*com = TIOCSETA;
+		break;
+	}
+	return 0;
+}
+
 /*ARGSUSED*/
 int
 ttcompat(tp, com, data, flag)
@@ -91,9 +168,22 @@ ttcompat(tp, com, data, flag)
 	caddr_t data;
 	int flag;
 {
-	struct termios term;
-
 	switch (com) {
+	case TIOCSETP:
+	case TIOCSETN:
+	case TIOCSETC:
+	case TIOCSLTC:
+	case TIOCLBIS:
+	case TIOCLBIC:
+	case TIOCLSET: {
+		struct termios term;
+		int error;
+
+		term = tp->t_termios;
+		if ((error = ttsetcompat(tp, &com, data, &term)) != 0)
+			return error;
+		return ttioctl(tp, com, &term, flag);
+	}
 	case TIOCGETP: {
 		register struct sgttyb *sg = (struct sgttyb *)data;
 		register cc_t *cc = tp->t_cc;
@@ -112,29 +202,6 @@ ttcompat(tp, com, data, flag)
 		sg->sg_flags = tp->t_flags = ttcompatgetflags(tp);
 		break;
 	}
-
-	case TIOCSETP:
-	case TIOCSETN: {
-		register struct sgttyb *sg = (struct sgttyb *)data;
-		int speed;
-
-		term = tp->t_termios;
-		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
-			return(EINVAL);
-		else
-			term.c_ispeed = compatspcodes[speed];
-		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
-			return(EINVAL);
-		else
-			term.c_ospeed = compatspcodes[speed];
-		term.c_cc[VERASE] = sg->sg_erase;
-		term.c_cc[VKILL] = sg->sg_kill;
-		tp->t_flags = (tp->t_flags&0xffff0000) | (sg->sg_flags&0xffff);
-		ttcompatsetflags(tp, &term);
-		return (ttioctl(tp, com == TIOCSETP ? TIOCSETAF : TIOCSETA, 
-			&term, flag));
-	}
-
 	case TIOCGETC: {
 		struct tchars *tc = (struct tchars *)data;
 		register cc_t *cc = tp->t_cc;
@@ -146,36 +213,6 @@ ttcompat(tp, com, data, flag)
 		tc->t_eofc = cc[VEOF];
 		tc->t_brkc = cc[VEOL];
 		break;
-	}
-	case TIOCSETC: {
-		struct tchars *tc = (struct tchars *)data;
-		register cc_t *cc;
-
-		term = tp->t_termios;
-		cc = term.c_cc;
-		cc[VINTR] = tc->t_intrc;
-		cc[VQUIT] = tc->t_quitc;
-		cc[VSTART] = tc->t_startc;
-		cc[VSTOP] = tc->t_stopc;
-		cc[VEOF] = tc->t_eofc;
-		cc[VEOL] = tc->t_brkc;
-		if (tc->t_brkc == -1)
-			cc[VEOL2] = _POSIX_VDISABLE;
-		return (ttioctl(tp, TIOCSETA, &term, flag));
-	}
-	case TIOCSLTC: {
-		struct ltchars *ltc = (struct ltchars *)data;
-		register cc_t *cc;
-
-		term = tp->t_termios;
-		cc = term.c_cc;
-		cc[VSUSP] = ltc->t_suspc;
-		cc[VDSUSP] = ltc->t_dsuspc;
-		cc[VREPRINT] = ltc->t_rprntc;
-		cc[VDISCARD] = ltc->t_flushc;
-		cc[VWERASE] = ltc->t_werasc;
-		cc[VLNEXT] = ltc->t_lnextc;
-		return (ttioctl(tp, TIOCSETA, &term, flag));
 	}
 	case TIOCGLTC: {
 		struct ltchars *ltc = (struct ltchars *)data;
@@ -189,23 +226,6 @@ ttcompat(tp, com, data, flag)
 		ltc->t_lnextc = cc[VLNEXT];
 		break;
 	}
-	case TIOCLBIS:
-	case TIOCLBIC:
-	case TIOCLSET:
-		term = tp->t_termios;
-		if (com == TIOCLSET)
-			tp->t_flags = (tp->t_flags&0xffff) | *(int *)data<<16;
-		else {
-			tp->t_flags = 
-			 (ttcompatgetflags(tp)&0xffff0000)|(tp->t_flags&0xffff);
-			if (com == TIOCLBIS)
-				tp->t_flags |= *(int *)data<<16;
-			else
-				tp->t_flags &= ~(*(int *)data<<16);
-		}
-		ttcompatsetlflags(tp, &term);
-		return (ttioctl(tp, TIOCSETA, &term, flag));
-
 	case TIOCLGET:
 		tp->t_flags =
 		 (ttcompatgetflags(tp) & 0xffff0000UL) 
