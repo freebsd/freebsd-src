@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-1999 Erez Zadok
+ * Copyright (c) 1997-2001 Erez Zadok
  * Copyright (c) 1989 Jan-Simon Pendry
  * Copyright (c) 1989 Imperial College of Science, Technology & Medicine
  * Copyright (c) 1989 The Regents of the University of California.
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.c,v 1.5 1999/09/08 23:36:51 ezk Exp $
+ * $Id: hlfsd.c,v 1.7.2.2 2001/01/10 03:23:35 ezk Exp $
  * $FreeBSD$
  *
  * HLFSD was written at Columbia University Computer Science Department, by
@@ -96,11 +96,11 @@ nfstime startup;
 u_short nfs_port;
 
 /* symbol must be available always */
-#ifdef MOUNT_TABLE_ON_FILE
+#ifdef MNTTAB_FILE_NAME
 char *mnttab_file_name = MNTTAB_FILE_NAME;
-#else /* not MOUNT_TABLE_ON_FILE */
+#else /* not MNTTAB_FILE_NAME */
 char *mnttab_file_name = NULL;
-#endif /* not MOUNT_TABLE_ON_FILE */
+#endif /* not MNTTAB_FILE_NAME */
 
 /* forward declarations */
 void hlfsd_going_down(int rc);
@@ -948,7 +948,7 @@ fatal(char *mess)
 		am_get_progname(), lessmess, errno);
     }
   }
-  plog(XLOG_FATAL, mess);
+  plog(XLOG_FATAL, "%s", mess);
 
   hlfsd_going_down(1);
 }
