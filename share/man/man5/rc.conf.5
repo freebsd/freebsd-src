@@ -247,11 +247,10 @@ utility when the memory file system for
 .Pa /tmp
 is created.
 The default is
-.Dq Li -S -o noexec,nosuid,nodev ,
+.Dq Li -S ,
 which inhibits the use of softupdates on
 .Pa /tmp
-to waste as little space as possible and mounts the memory file system
-.Dq Li noexec,nosuid,nodev .
+to waste as little space as possible.
 See
 .Xr mdmfs 8
 for other options you can use in
