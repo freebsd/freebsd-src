@@ -26,6 +26,8 @@
     ..
 /set mode=0755
     db
+	ipf		mode=0700
+	..
         pkg
         ..
     ..
