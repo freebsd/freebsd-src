@@ -48,6 +48,7 @@ struct fxp_softc {
 	struct resource *mem;		/* resource descriptor for registers */
 	struct resource *irq;		/* resource descriptor for interrupt */
 	void *ih;			/* interrupt handler cookie */
+	struct mtx sc_mtx;
 #endif /* __NetBSD__ */
 	bus_space_tag_t sc_st;		/* bus space tag */
 	bus_space_handle_t sc_sh;	/* bus space handle */
@@ -92,6 +93,9 @@ struct fxp_softc {
 #define	FXP_INTR_TYPE		int
 #define	FXP_IOCTLCMD_TYPE	u_long
 #define	FXP_BPFTAP_ARG(ifp)	(ifp)->if_bpf
+#define	FXP_SPLVAR(x)		int x;
+#define	FXP_LOCK(sc, x)		x = splimp()
+#define	FXP_UNLOCK(sc, x)	splx(x)
 #else /* __FreeBSD__ */
 #define	sc_if			arpcom.ac_if
 #define	FXP_FORMAT		"fxp%d"
@@ -99,4 +103,7 @@ struct fxp_softc {
 #define	FXP_INTR_TYPE		void
 #define	FXP_IOCTLCMD_TYPE	u_long
 #define	FXP_BPFTAP_ARG(ifp)	ifp
+#define	FXP_SPLVAR(s)
+#define	FXP_LOCK(_sc, x)	mtx_enter(&(_sc)->sc_mtx, MTX_DEF)
+#define	FXP_UNLOCK(_sc, x)	mtx_exit(&(_sc)->sc_mtx, MTX_DEF)
 #endif /* __NetBSD__ */
