@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.44.2.8 1997/05/22 04:10:10 jkh Exp $
+ * $Id: options.c,v 1.44.2.9 1997/06/18 05:12:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -101,7 +101,6 @@ mediaCheck(Option opt)
 #define PKG_PROMPT	"Please specify a temporary directory with lots of free space:"
 #define INSTROOT_PROMPT	"Please specify a root directory if installing somewhere other than /"
 #define TIMEOUT_PROMPT	"Please specify the number of seconds to wait for slow media:"
-#define SAMBA_PKG_PROMPT "Please specify the package name for the Samba server:"
 #define GATED_PKG_PROMPT "Please specify the package name for the gated software:"
 #define PCNFSD_PKG_PROMPT "Please specify the package name for the PCNFSD server:"
 
@@ -138,8 +137,6 @@ static Option Options[] = {
       OPT_IS_VAR,	TIMEOUT_PROMPT,		VAR_MEDIA_TIMEOUT,	varCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
-{ "Samba package",	"The name of the Samba package to install if requested",
-      OPT_IS_VAR,	SAMBA_PKG_PROMPT,	VAR_SAMBA_PKG,		varCheck	},
 { "Gated package",	"The name of the gated package to install if requested",
       OPT_IS_VAR,	GATED_PKG_PROMPT,	VAR_GATED_PKG,		varCheck	},
 { "PCNFSD package",	"The name of the PCNFSD package to install if requested",
