@@ -77,5 +77,7 @@ struct ofiocdesc {
 #define	OFIOCGETCHILD	_IOWR(OFIOC_BASE, 6, phandle_t)
 /* Find a specific device. */
 #define	OFIOCFINDDEVICE	_IOWR(OFIOC_BASE, 7, struct ofiocdesc)
+/* Retrieve the size of a property. */
+#define	OFIOCGETPROPLEN	_IOWR(OFIOC_BASE, 8, struct ofiocdesc)
 
 #endif /* _DEV_OFW_OPENFIRMIO_H_ */
