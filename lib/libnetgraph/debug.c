@@ -41,11 +41,14 @@
  */
 
 #include <sys/types.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
 
 #include <stdarg.h>
 
 #include <netinet/in.h>
 #include <net/ethernet.h>
+#include <net/bpf.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_socket.h>
@@ -55,6 +58,7 @@
 
 #include <netgraph/ng_UI.h>
 #include <netgraph/ng_async.h>
+#include <netgraph/ng_bpf.h>
 #include <netgraph/ng_cisco.h>
 #include <netgraph/ng_echo.h>
 #include <netgraph/ng_ether.h>
