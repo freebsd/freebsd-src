@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.7 1995/05/24 18:35:10 phk Exp $
+ * $Id: ftp.c,v 1.8 1995/05/24 19:31:26 phk Exp $
  *
  */
 
@@ -37,7 +37,12 @@ debug(FTP_t ftp, const char *fmt, ...)
     char p[BUFSIZ];
     va_list ap;
     va_start(ap, fmt);
-    (void) vsnprintf(p, sizeof p, fmt, ap);
+#ifdef STANDALONE_FTP
+    strcpy(p,"LIBFTP: ");
+#else
+    *p = '\0';
+#endif
+    (void) vsnprintf(p+strlen(p), sizeof p - strlen(p), fmt, ap);
     va_end(ap);
     
 #ifdef STANDALONE_FTP
@@ -70,7 +75,7 @@ get_a_line(FTP_t ftp)
 	    if (!i)
 		continue;
 	    buf[i] = '\0';
-	    debug(ftp, "LIBFTP: received <%s>\n",buf);
+	    debug(ftp, "received <%s>\n",buf);
 	    return buf;
 	}
 	i++;
@@ -108,7 +113,7 @@ get_a_number(FTP_t ftp, char **q)
 static int
 botch(FTP_t ftp, char *func, char *state)
 {
-    debug(ftp, "LIBFTP: Botch: %s called outside state %s\n",func,state);
+    debug(ftp, "Botch: %s called outside state %s\n",func,state);
     writes(ftp->fd_ctrl,"QUIT\r\n");
     close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
@@ -127,12 +132,12 @@ cmd(FTP_t ftp, const char *fmt, ...)
     (void) vsnprintf(p, sizeof p, fmt, ap);
     va_end(ap);
     
-    debug(ftp, "LIBFTP: send <%s>\n",p);
+    debug(ftp, "send <%s>\n",p);
     strcat(p,"\r\n");
     if (writes(ftp->fd_ctrl,p))
 	return -1;
     i = get_a_number(ftp,0);
-    debug(ftp, "LIBFTP: got %d\n",i);
+    debug(ftp, "got %d\n",i);
     return i;
 }
 
@@ -214,10 +219,13 @@ FtpOpen(FTP_t ftp, char *host, char *user, char *passwd)
     
     ftp->fd_ctrl = s;
     
-    debug(ftp, "LIBFTP: open (%d)\n",get_a_number(ftp,0));
+    debug(ftp, "open (%d)\n",get_a_number(ftp,0));
     
     i = cmd(ftp,"USER %s",user);
-    i = cmd(ftp,"PASS %s",passwd);
+    if (i >= 300 && i < 400) 
+	i = cmd(ftp,"PASS %s",passwd);
+    if (i >= 299)
+	return -1;
     ftp->state = isopen;
     return 0;
     
@@ -267,7 +275,7 @@ FtpGet(FTP_t ftp, char *file)
 	return -1;
     }
     if (ftp->passive) {
-	debug(ftp, "LIBFTP: send <%s>\n","PASV");
+	debug(ftp, "send <%s>\n","PASV");
 	if (writes(ftp->fd_ctrl,"PASV\r\n"))
 	    return -1;
 	i = get_a_number(ftp,&q);
@@ -314,8 +322,7 @@ FtpEOF(FTP_t ftp)
 {
     if (ftp->state != xfer) 
 	return botch(ftp,"FtpEOF","xfer");
-    close(ftp->fd_xfer);
-    ftp->fd_xfer = -1;
+    close(ftp->fd_xfer); ftp->fd_xfer = -1;
     ftp->state = isopen;
     return get_a_number(ftp,0);
 }
