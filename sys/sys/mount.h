@@ -353,6 +353,7 @@ struct xvfsconf {
 	struct	vfsconf *vfc_next;	/* next in list */
 };
 
+#ifndef BURN_BRIDGES
 struct ovfsconf {
 	void	*vfc_vfsops;
 	char	vfc_name[32];
@@ -360,6 +361,7 @@ struct ovfsconf {
 	int	vfc_refcount;
 	int	vfc_flags;
 };
+#endif
 
 /*
  * NB: these flags refer to IMPLEMENTATION properties, not properties of
