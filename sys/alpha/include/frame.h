@@ -78,9 +78,13 @@
 #define FRAME_TRAPARG_A0	27
 #define FRAME_TRAPARG_A1	28
 #define FRAME_TRAPARG_A2	29
+/* this is a flag area to see whether we need to restore all registers */
+#define	FRAME_FLAGS		30
 
-#define	FRAME_SW_SIZE	(FRAME_TRAPARG_A2 + 1)
+#define	FRAME_SW_SIZE	(FRAME_FLAGS + 1)
 #define	FRAME_HW_OFFSET	FRAME_SW_SIZE
+
+#define	FRAME_FLAGS_SYSCALL	0x1
 
 #define	FRAME_PS	(FRAME_HW_OFFSET + ALPHA_HWFRAME_PS)
 #define	FRAME_PC	(FRAME_HW_OFFSET + ALPHA_HWFRAME_PC)
