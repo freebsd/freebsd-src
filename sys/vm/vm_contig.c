@@ -228,6 +228,8 @@ again1:
 			vm_page_queues[m->queue].lcnt--;
 			cnt.v_free_count--;
 			m->valid = VM_PAGE_BITS_ALL;
+			if (m->flags & PG_ZERO)
+				vm_page_zero_count--;
 			m->flags = 0;
 			KASSERT(m->dirty == 0, ("contigmalloc1: page %p was dirty", m));
 			m->wire_count = 0;
