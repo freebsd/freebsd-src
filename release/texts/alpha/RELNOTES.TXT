@@ -63,12 +63,12 @@ poll/select, offering improved performance, as well as the ability
 to report many different types of events.  Support for monitoring
 changes in sockets, pipes, fifos, and files are present, as well as
 for signals and processes. [MERGED]
-   
+
 Support for named extended attributes was added to the FreeBSD kernel.
 This allows the kernel, and appropriately privileged userland processes,
 to tag files and directories with attribute data.  Extended attributes
-were added to support the TrustedBSD Project, in particular ACLs, 
-capability data, and mandatory access control labels.  
+were added to support the TrustedBSD Project, in particular ACLs,
+capability data, and mandatory access control labels.
 
 POSIX.1b Shared Memory Objects are now supported.  The implementation
 uses regular files, but automatically enables the MAP_NOSYNC flag
@@ -78,12 +78,12 @@ Added support for PCI ethernet adapters based on the National Semiconductor
 DP83815 chipset, including the NetGear FA312-TX.
 
 Due to a licensing change, softupdates have been integrated into the
-main portion of the kernel source tree.  As a consequence, softupdates   
+main portion of the kernel source tree.  As a consequence, softupdates
 are now available with the GENERIC kernel. [MERGED]
 
 ipfilter has been updated to 3.4.16.
 
-The tap driver, a virtual Ethernet device driver for bridged 
+The tap driver, a virtual Ethernet device driver for bridged
 configurations, has been added.  [MERGED]
 
 accept_filters, a kernel feature to reduce overheads when accepting
@@ -111,14 +111,14 @@ SMP support has been largely reworked, incorporating code from BSD/OS
 5.0.  One of the main features of SMPng ("SMP Next Generation") is to
 allow more processes to run in kernel, without the need for spin locks
 that can dramatically reduce the efficiency of multiple processors.
-Interrupt handlers now have contexts associated with them that allow 
+Interrupt handlers now have contexts associated with them that allow
 them to be blocked, which reduces the need to lock out interrupts.
 
 The kernel and modules have been moved to the directory /boot/kernel,
 so they can be easily manipulated together.  The boot loader has been
 updated to make this change as seamless as possible.
 
-A filesystem snapshot capability has been added to FFS.  Details can 
+A filesystem snapshot capability has been added to FFS.  Details can
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
 
 The ng_mppc(4) and ng_bridge(4) node types have been added to the
@@ -288,7 +288,7 @@ rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 String-handling library calls in many programs were fixed to reduce
 the possibility of buffer overflow-related exploits.  [MERGED]
 
-TCP now uses stronger randomness in choosing its initial sequence 
+TCP now uses stronger randomness in choosing its initial sequence
 numbers (see security advisory FreeBSD-SA-00:52). [MERGED]
 
 Several buffer overflows in tcpdump(1) were corrected (see security
@@ -328,7 +328,7 @@ Several vulnerabilities in procfs(4) were fixed (see security advisory
 FreeBSD-SA-00:77).  [MERGED]
 
 A bug in OpenSSH in which a server was unable to disable ssh-agent or
-X11 forwarding was fixed (see security advisory FreeBSD-SA-01:01).  
+X11 forwarding was fixed (see security advisory FreeBSD-SA-01:01).
 [MERGED]
 
 A bug in ipfw(8) and ipfw6(8) in which inbound TCP segments could
@@ -445,7 +445,7 @@ of files, has been added.  [MERGED]
 syslogd(8) can take a -n option to disable DNS queries for every
 request. [MERGED]
 
-kenv(1), a command to dump the kernel environment, has been added. 
+kenv(1), a command to dump the kernel environment, has been added.
 [MERGED]
 
 The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf
@@ -467,9 +467,9 @@ finger.conf(5) file. [MERGED]
 
 finger(1) now has support for a .pubkey file.
 
-nsswitch support has been merged from NetBSD.  By creating an 
-nsswitch.conf(5) file, FreeBSD can be configured so that various 
-databases such as passwd(5) and group(5) can be looked up using flat 
+nsswitch support has been merged from NetBSD.  By creating an
+nsswitch.conf(5) file, FreeBSD can be configured so that various
+databases such as passwd(5) and group(5) can be looked up using flat
 files, NIS, or Hesiod.  The old hosts.conf(5) file is no longer used.
 
 sshd X11Forwarding is now turned on by default on server (any risk is
@@ -489,7 +489,7 @@ Binutils have been upgraded to 2.10.1. [MERGED]
 
 libreadline has been upgraded to 4.1. [MERGED]
 
-The ifconfig(8) command can set the link-layer address of an interface. 
+The ifconfig(8) command can set the link-layer address of an interface.
 [MERGED]
 
 setproctitle(3) has been moved from libutil to libc. [MERGED]
@@ -672,7 +672,7 @@ including syslog records and /dev/console output. [MERGED]
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
 deprecated in favor of MaxStartups. [MERGED]
 
-Entropy from the random(4) device is now periodically saved to files 
+Entropy from the random(4) device is now periodically saved to files
 in /var/db/entropy.
 
 cdcontrol(1) now uses the CDROM environment variable to pick a default
@@ -784,7 +784,7 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
 Booting from these controllers is supported, but not possible due to
 SRM limitations.
 
-Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
+Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x
 firmware:
     DAC960P
     DAC960PD
@@ -796,7 +796,7 @@ firmware:
     AcceleRAID 250
     eXtremeRAID 1100
 This list includes controllers sold by Digital/Compaq in Alpha systems
-in the StorageWorks family, eg. KZPSC, KZPAC.  Booting from these 
+in the StorageWorks family, eg. KZPSC, KZPAC.  Booting from these
 controllers is supported when recognised by SRM (typically Digital/
 Compaq models only, and only in systems where they are supported).
 EISA adapters are not supported.
@@ -822,7 +822,7 @@ are supported for read-only access by the CDROM driver.  WORM/CD-R/CD-RW
 writing support is provided by cdrecord, which is in the ports tree.
 
 The following CD-ROM type systems are supported at this time:
-(cd)    SCSI interface 
+(cd)    SCSI interface
 (acd)   ATAPI IDE interface
 
 2.2. Ethernet cards
@@ -1121,7 +1121,7 @@ You can ftp FreeBSD and any or all of its optional packages from
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
 networking terms) to you.  Additional mirror sites are always welcome!
-Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to
 become an official mirror site.
 
 If you do not have access to the Internet and electronic mail is your
