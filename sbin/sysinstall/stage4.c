@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage4.c,v 1.4 1994/11/02 06:19:49 jkh Exp $
+ * $Id: stage4.c,v 1.5 1994/11/02 07:15:55 jkh Exp $
  *
  */
 
@@ -76,6 +76,11 @@ stage4()
 	Fatal("Pid %d, status %d, cpio=%d, gunzip=%d.\nerror:%s",
 	      i, j, cpid, zpid, strerror(errno));
     
-    TellEm("unlink /stand/need_cpio_floppy");
-    unlink("/stand/need_cpio_floppy");
+    if (access("/stand/cpio_floppy_done", R_OK) == -1)
+	Fatal("CPIO floppy was bad!  Please check media for defects.");
+    else {
+	TellEm("unlink /stand/need_cpio_floppy");
+	unlink("/stand/need_cpio_floppy");
+	unlink("/stand/cpio_floppy_done");
+    }
 }
