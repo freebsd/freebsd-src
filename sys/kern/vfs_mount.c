@@ -815,8 +815,7 @@ mount(td, uap)
 	if (error == 0)
 		error = copyinstr(uap->path, fspath, MNAMELEN, NULL);
 	if (error == 0)
-		error = vfs_mount(td, fstype, fspath, uap->flags,
-		    uap->data);
+		error = vfs_mount(td, fstype, fspath, uap->flags, uap->data);
 	free(fstype, M_TEMP);
 	free(fspath, M_TEMP);
 	return (error);
@@ -1198,8 +1197,7 @@ unmount(td, uap)
 	int error;
 	struct nameidata nd;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
