@@ -75,6 +75,7 @@
 #include "fla.h"
 #ifdef PC98
 #include "bs.h"
+#include "olpt.h"
 #endif
 
 struct old_isa_driver {
@@ -130,6 +131,7 @@ extern struct isa_driver lorandriver;
 extern struct isa_driver tinadriver;
 #ifdef PC98
 extern struct isa_driver bsdriver;
+extern struct isa_driver olptdriver;
 #endif
 
 
@@ -189,6 +191,9 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NLORAN > 0
 	{ INTR_TYPE_TTY | INTR_TYPE_FAST, &lorandriver },
+#endif
+#if NOLPT > 0
+	{ INTR_TYPE_TTY, &olptdriver },
 #endif
 
 /* BIO */
