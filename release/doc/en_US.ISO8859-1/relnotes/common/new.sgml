@@ -94,32 +94,9 @@
     provide access to the system monitoring functions of the AMD 756
     chip set.</para>
 
-    <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
-    better compatability with some BIOS implementations that do not
-    completely implement the El Torito bootable CDROM standard.  This
-    boot loader supports <quote>no emulation</quote> mode booting,
-    thus eliminating the need for an emulated floppy disk image on
-    a bootable CDROM.</para>
-
-    <para arch="i386">The &os; boot loader is now capable of
-    booting from filesystems with 16K disk blocks (the old limit was
-    8K).</para>
-
-    <para arch="alpha">The &os; boot loader is now capable of
-    booting from filesystems with block sizes larger than 8K.</para>
-
     <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
     can be used to reconfigure the size of the kernel virtual address
     space.</para>
-
-    <para arch="i386">The &man.loader.8; now has optional support
-    (enabled at compile-time, off by default) for loading
-    <application>bzip2</application>-compressed kernels and
-    modules.</para>
-
-    <para arch="i386">The &os; boot loader now supports a
-    <option>-p</option> flag to force the kernel to pause after each
-    line of output during the probing phase.</para>
 
     <para>Linux emulation now supports the kernel functionality
     required by the
@@ -204,6 +181,35 @@
       Alpha processors. Machines with EV4 Alpha processors were already
       supported.</para>
 
+    </sect3>
+
+    <sect3>
+      <title>Boot Loaders</title>
+
+      <para arch="i386">A new <filename>cdboot</filename> bootstrap utility for CDROMs provides
+      better compatability with some BIOS implementations that do not
+      completely implement the El Torito bootable CDROM standard.  This
+      boot loader supports <quote>no emulation</quote> mode booting,
+      thus eliminating the need for an emulated floppy disk image on
+      a bootable CDROM.</para>
+
+      <para arch="i386">The &man.loader.8; now has optional support
+      (enabled at compile-time, off by default) for loading
+      <application>bzip2</application>-compressed kernels and
+      modules.</para>
+
+<!-- Above this line, order boot loader changes by manpage/variable name-->
+
+      <para arch="i386">The &os; boot loader is now capable of
+      booting from filesystems with 16K disk blocks (the old limit was
+      8K).</para>
+
+      <para arch="alpha">The &os; boot loader is now capable of
+      booting from filesystems with block sizes larger than 8K.</para>
+
+      <para arch="i386">The &os; boot loader now supports a
+      <option>-p</option> flag to force the kernel to pause after each
+      line of output during the probing phase.</para>
     </sect3>
 
     <sect3>
