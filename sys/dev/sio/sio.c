@@ -3215,7 +3215,7 @@ siogdbgetc()
 	int	s;
 	struct siocnstate	sp;
 
-	if (minor(dev) == siocnunit) {
+	if (siogdbunit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
@@ -3242,7 +3242,7 @@ siogdbputc(c)
 	int	s;
 	struct siocnstate	sp;
 
-	if (minor(dev) == siocnunit) {
+	if (siogdbunit == siocnunit) {
 		iobase = siocniobase;
 		speed = comdefaultrate;
 	} else {
