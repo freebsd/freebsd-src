@@ -23,7 +23,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 /*
  * Copyright (c) 1995, 1996 Carnegie-Mellon University.
@@ -54,6 +53,9 @@
 /*
  * Additional Copyright (c) 1998 by Andrew Gallatin for Duke University 
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

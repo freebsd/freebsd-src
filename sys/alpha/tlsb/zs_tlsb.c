@@ -23,12 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
 /*
  * This driver is a somewhat hack. A real driver might use the zs driver
  * source from NetBSD, except that it's no real winner either.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 
