@@ -29,7 +29,7 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd \
 	libipx libisc libmenu ${_libmilter} ${_libmp} ${_libncp} \
 	libnetgraph libopie libpam libpanel libpcap ${_libpthread} \
 	${_libsm} ${_libsmb} ${_libsmdb} ${_libsmutil} \
-	${_libstand} ${_libtelnet} ${_libthr} libufs libugidfw libusbhid \
+	libstand ${_libtelnet} ${_libthr} libufs libugidfw libusbhid \
 	${_libvgl} libwrap libxpg4 liby libz
 
 .if exists(${.CURDIR}/csu/${MACHINE_ARCH}-elf)
@@ -38,10 +38,6 @@ _csu=csu/${MACHINE_ARCH}-elf
 _csu=csu/${MACHINE_ARCH}
 .else
 _csu=csu
-.endif
-
-.if ${MACHINE_ARCH} != "amd64"
-_libstand=	libstand
 .endif
 
 .if !defined(NOLIBC_R)
