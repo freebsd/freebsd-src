@@ -7,10 +7,16 @@
 .Sh SYNOPSIS
 .Nm cdplay
 .Op Ar device
+.Op Ar cmd
 .Sh DESCRIPTION
 .Nm cdplay
-is a program to control an audio CD player. The device is a name such
-as cd0 or mcd0. 
+is a program to control an audio CD player.  The
+.Ar device
+is a name such as cd0 or mcd0 and the optional
+.Ar cmd
+is one of the commands (and any arguments) from the
+.Nm
+command set.  The \fBhelp\fR command will give a complete listing.
 .Pp
 If the device not specified, the environment variable 
 .Ev CDPLAY
@@ -20,7 +26,8 @@ Currently supported commands are as follows:
 .Bl -tag -width Cm
 .It Cm play first_track last_track
 Play from track 
-.Nm first_track to track 
+.Nm first_track
+to track 
 .Nm last_track. 
 The first track has number 1
 .Xr play 1
