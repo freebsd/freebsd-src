@@ -240,7 +240,7 @@ term_init(el)
     el->el_term.t_str = (char **) el_malloc(T_str * sizeof(char*));
     (void) memset(el->el_term.t_str, 0, T_str * sizeof(char*));
     el->el_term.t_val = (int *)   el_malloc(T_val * sizeof(int));
-    (void) memset(el->el_term.t_val, 0, T_val * sizeof(char*));
+    (void) memset(el->el_term.t_val, 0, T_val * sizeof(int));
     term_outfile = el->el_outfile;
     (void) term_set(el, NULL);
     term_init_arrow(el);
