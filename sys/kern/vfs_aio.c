@@ -566,8 +566,12 @@ aio_proc_rundown(void *arg, struct proc *p)
 			so = fp->f_data;
 			TAILQ_REMOVE(&so->so_aiojobq, aiocbe, list);
 			if (TAILQ_EMPTY(&so->so_aiojobq)) {
+				SOCKBUF_LOCK(&so->so_snd);
 				so->so_snd.sb_flags &= ~SB_AIO;
+				SOCKBUF_UNLOCK(&so->so_snd);
+				SOCKBUF_LOCK(&so->so_rcv);
 				so->so_rcv.sb_flags &= ~SB_AIO;
+				SOCKBUF_UNLOCK(&so->so_rcv);
 			}
 		}
 		TAILQ_REMOVE(&ki->kaio_sockqueue, aiocbe, plist);
@@ -1231,10 +1235,14 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
 
 	if (sb == &so->so_snd) {
 		opcode = LIO_WRITE;
+		SOCKBUF_LOCK(&so->so_snd);
 		so->so_snd.sb_flags &= ~SB_AIO;
+		SOCKBUF_UNLOCK(&so->so_snd);
 	} else {
 		opcode = LIO_READ;
+		SOCKBUF_LOCK(&so->so_rcv);
 		so->so_rcv.sb_flags &= ~SB_AIO;
+		SOCKBUF_UNLOCK(&so->so_rcv);
 	}
 
 	for (cb = TAILQ_FIRST(&so->so_aiojobq); cb; cb = cbn) {
@@ -1443,10 +1451,15 @@ no_kqueue:
 		    LIO_WRITE) && (!sowriteable(so)))) {
 			TAILQ_INSERT_TAIL(&so->so_aiojobq, aiocbe, list);
 			TAILQ_INSERT_TAIL(&ki->kaio_sockqueue, aiocbe, plist);
-			if (opcode == LIO_READ)
+			if (opcode == LIO_READ) {
+				SOCKBUF_LOCK(&so->so_rcv);
 				so->so_rcv.sb_flags |= SB_AIO;
-			else
+				SOCKBUF_UNLOCK(&so->so_rcv);
+			} else {
+				SOCKBUF_LOCK(&so->so_snd);
 				so->so_snd.sb_flags |= SB_AIO;
+				SOCKBUF_UNLOCK(&so->so_snd);
+			}
 			aiocbe->jobstate = JOBST_JOBQGLOBAL; /* XXX */
 			ki->kaio_queue_count++;
 			num_queue_count++;
