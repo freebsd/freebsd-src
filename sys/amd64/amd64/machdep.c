@@ -1417,7 +1417,7 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
 void
 sdtossd(sd, ssd)
@@ -2030,14 +2030,14 @@ init386(first)
 	/* make a call gate to reenter kernel with */
 	gdp = &ldt[LSYS5CALLS_SEL].gd;
 
-	x = (int) &IDTVEC(syscall);
-	gdp->gd_looffset = x++;
+	x = (int) &IDTVEC(lcall_syscall);
+	gdp->gd_looffset = x;
 	gdp->gd_selector = GSEL(GCODE_SEL,SEL_KPL);
 	gdp->gd_stkcpy = 1;
 	gdp->gd_type = SDT_SYS386CGT;
 	gdp->gd_dpl = SEL_UPL;
 	gdp->gd_p = 1;
-	gdp->gd_hioffset = ((int) &IDTVEC(syscall)) >>16;
+	gdp->gd_hioffset = x >> 16;
 
 	/* XXX does this work? */
 	ldt[LBSDICALLS_SEL] = ldt[LSYS5CALLS_SEL];

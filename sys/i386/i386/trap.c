@@ -112,7 +112,7 @@ static int trap_pfault __P((struct trapframe *, int, vm_offset_t));
 static void trap_fatal __P((struct trapframe *, vm_offset_t));
 void dblfault_handler __P((void));
 
-extern inthand_t IDTVEC(syscall);
+extern inthand_t IDTVEC(lcall_syscall);
 
 #define MAX_TRAP_MSG		28
 static char *trap_msg[] = {
@@ -565,7 +565,7 @@ restart:
 			break;
 
 		case T_TRCTRAP:	 /* trace trap */
-			if (frame.tf_eip == (int)IDTVEC(syscall)) {
+			if (frame.tf_eip == (int)IDTVEC(lcall_syscall)) {
 				/*
 				 * We've just entered system mode via the
 				 * syscall lcall.  Continue single stepping
@@ -574,7 +574,7 @@ restart:
 				 */
 				goto out;
 			}
-			if (frame.tf_eip == (int)IDTVEC(syscall) + 1) {
+			if (frame.tf_eip == (int)IDTVEC(lcall_syscall) + 1) {
 				/*
 				 * The syscall handler has now saved the
 				 * flags.  Stop single stepping it.

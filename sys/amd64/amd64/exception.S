@@ -234,25 +234,11 @@ calltrap:
  * does it will release the lock prior to returning.
  */
 	SUPERALIGN_TEXT
-IDTVEC(syscall)
-	pushfl				/* save eflags in tf_err for now */
-	subl	$4,%esp			/* skip over tf_trapno */
-	pushal
-	pushl	%ds
-	pushl	%es
-	pushl	%fs
-	mov	$KDSEL,%ax		/* switch to kernel segments */
-	mov	%ax,%ds
-	mov	%ax,%es
-	mov	$KPSEL,%ax
-	mov	%ax,%fs
-	movl	TF_ERR(%esp),%eax	/* copy saved eflags to final spot */
-	movl	%eax,TF_EFLAGS(%esp)
-	movl	$7,TF_ERR(%esp) 	/* sizeof "lcall 7,0" */
-	FAKE_MCOUNT(13*4(%esp))
-	call	_syscall
-	MEXITCOUNT
-	jmp	_doreti
+IDTVEC(lcall_syscall)
+	pushfl				/* save eflags */
+	popl	8(%esp)			/* shuffle into tf_eflags */
+	pushl	$7			/* sizeof "lcall 7,0" */
+	jmp	syscall_with_err_pushed
 
 /*
  * Call gate entry for FreeBSD ELF and Linux/NetBSD syscall (int 0x80)
@@ -266,7 +252,9 @@ IDTVEC(syscall)
  */
 	SUPERALIGN_TEXT
 IDTVEC(int0x80_syscall)
-	subl	$8,%esp			/* skip over tf_trapno and tf_err */
+	pushl	$2			/* sizeof "int 0x80" */
+syscall_with_err_pushed:
+	subl	$4,%esp			/* skip over tf_trapno */
 	pushal
 	pushl	%ds
 	pushl	%es
@@ -276,7 +264,6 @@ IDTVEC(int0x80_syscall)
 	mov	%ax,%es
 	mov	$KPSEL,%ax
 	mov	%ax,%fs
-	movl	$2,TF_ERR(%esp)		/* sizeof "int 0x80" */
 	FAKE_MCOUNT(13*4(%esp))
 	call	_syscall
 	MEXITCOUNT

@@ -168,10 +168,8 @@ db_nextframe(fp, ip)
 			frame_type = TRAP;
 		} else if (!strncmp(name, "Xresume", 7)) {
 			frame_type = INTERRUPT;
-		} else if (!strcmp(name, "_Xsyscall") ||
-		           !strcmp(name, "Xsyscall") ||
-		           !strcmp(name, "_Xint0x80_syscall") ||
-		           !strcmp(name, "Xint0x80_syscall")) {
+		} else if (!strcmp(name, "Xlcall_syscall") ||
+			   !strcmp(name, "Xint0x80_syscall")) {
 			frame_type = SYSCALL;
 		}
 	}
