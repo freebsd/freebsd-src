@@ -461,7 +461,7 @@ read_configuration(void)
 			exit(2);
 		}
 		strncpy(linez, line, len);
-		linez[len+1] = '\0';
+		linez[len] = '\0';
 
 		/* find the end of the current word (is field), that's the
 		 * start of the arguments
