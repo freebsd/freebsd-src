@@ -145,15 +145,6 @@ all users (including root) will be mapped to that credential in
 place of their own.
 .Pp
 The
-.Fl kerb
-option specifies that the Kerberos authentication server should be
-used to authenticate and map client credentials.
-This option requires that the kernel be built with the NFSKERB option.
-The use of this option will prevent the kernel from compiling
-unless calls to the appropriate Kerberos encryption routines
-are provided in the NFS source.
-.Pp
-The
 .Fl ro
 option specifies that the filesystem should be exported read-only
 (default read/write).
@@ -277,7 +268,7 @@ the default remote mount-point file
 /usr -ro -mapall=nobody
 /u -maproot=bin: -network 131.104.48 -mask 255.255.255.0
 /u2 -maproot=root friends
-/u2 -alldirs -kerb -network cis-net -mask cis-mask
+/u2 -alldirs -network cis-net -mask cis-mask
 /cdrom -alldirs,quiet,ro -network 192.168.33.0 -mask 255.255.255.0
 .Ed
 .Pp
@@ -314,8 +305,7 @@ with root mapped to the uid for ``bin'' and with no group access.
 is exported to the hosts in ``friends'' with root mapped to uid and groups
 associated with ``root'';
 it is exported to all hosts on network ``cis-net'' allowing mounts at any
-directory within /u2 and mapping all uids to credentials for the principal
-that is authenticated by a Kerberos ticket.
+directory within /u2.
 .Pp
 The filesystem rooted at
 .Sy /cdrom
