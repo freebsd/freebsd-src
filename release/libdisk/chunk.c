@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.4 1995/04/30 06:09:24 phk Exp $
+ * $Id: chunk.c,v 1.5 1995/05/01 21:30:22 jkh Exp $
  *
  */
 
@@ -79,6 +79,8 @@ Free_Chunk(struct chunk *c1)
 {
 	/* XXX remove all chunks which "ref" us */
 	if(!c1) return;	
+	if(c1->private && c1->private_free)
+		(*c1->private_free)(c1->private);
 	if(c1->part)
 		Free_Chunk(c1->part);
 	if(c1->next)
@@ -96,6 +98,8 @@ Clone_Chunk(struct chunk *c1)
 	c2 = new_chunk();
 	if (!c2) err(1,"malloc failed");
 	*c2 = *c1;
+	if (c1->private && c1->private_clone)
+		c2->private_clone(c2->private);
 	c2->name = strdup(c2->name);
 	c2->next = Clone_Chunk(c2->next);
 	c2->part = Clone_Chunk(c2->part);
@@ -109,13 +113,12 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, char *name, chunk_e t
 
 	ct = new_chunk();
 	if (!ct) err(1,"malloc failed");
+	memset(ct,0,sizeof *ct);
 	ct->offset = offset;
 	ct->size = size;
 	ct->end = offset + size - 1;
 	ct->type = type;
 	ct->name = strdup(name);
-	ct->next = 0;
-	ct->part = 0;
 	ct->subtype = subtype;
 	ct->flags = flags;
 

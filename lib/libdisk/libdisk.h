@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.9 1995/05/03 06:30:57 phk Exp $
+ * $Id: libdisk.h,v 1.10 1995/05/03 17:37:59 jkh Exp $
  *
  */
 
@@ -40,6 +40,10 @@ struct chunk {
 	u_long		size;
 	u_long		end;
 	char		*name;
+	char		*oname;
+		/* Used during Fixup_Names() to avoid renaming more than
+		 * absolutely needed.
+		 */
 	chunk_e		type;
 	int		subtype;
 	u_long		flags;
@@ -54,6 +58,15 @@ struct chunk {
 #		define CHUNK_ALIGN		8
 #		define CHUNK_IS_ROOT		16
 			/* This 'part' is a rootfs, allocate 'a' */
+
+	void		(*private_free)(void*);
+	void		*(*private_clone)(void*);
+	void		*private;
+		/* For data private to the application, and the management
+		 * thereof.  If the functions are not provided, no storage
+		 * management is done, Cloning will just copy the pointer
+		 * and freeing will just forget it.
+		 */
 };
 
 struct disk *
