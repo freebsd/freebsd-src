@@ -236,7 +236,7 @@ hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
 			hatm_mbuf_page_alloc(sc, group);
 			if ((cf = SLIST_FIRST(&sc->mbuf0_list)) == NULL) {
 				mtx_unlock(&sc->mbuf0_mtx);
-				return (0);
+				return (-1);
 			}
 		}
 		SLIST_REMOVE_HEAD(&sc->mbuf0_list, link);
@@ -260,7 +260,7 @@ hatm_mbuf_alloc(struct hatm_softc *sc, u_int group, struct mbuf *m,
 			hatm_mbuf_page_alloc(sc, group);
 			if ((cf = SLIST_FIRST(&sc->mbuf1_list)) == NULL) {
 				mtx_unlock(&sc->mbuf1_mtx);
-				return (0);
+				return (-1);
 			}
 		}
 		SLIST_REMOVE_HEAD(&sc->mbuf1_list, link);
@@ -309,7 +309,7 @@ static void
 he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
     u_int group)
 {
-	u_int ntail, upd;
+	u_int ntail;
 	struct mbuf *m;
 	int error;
 
@@ -319,7 +319,6 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 	rbp->head = (READ4(sc, HE_REGO_RBP_S(large, group)) >> HE_REGS_RBP_HEAD)
 	    & (rbp->size - 1);
 
-	upd = 0;
 	for (;;) {
 		if ((ntail = rbp->tail + 1) == rbp->size)
 			ntail = 0;
@@ -374,12 +373,9 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 		rbp->rbp[rbp->tail].handle <<= HE_REGS_RBRQ_ADDR;
 
 		rbp->tail = ntail;
-		upd++;
 	}
-	if (upd) {
-		WRITE4(sc, HE_REGO_RBP_T(large, group),
-		    (rbp->tail << HE_REGS_RBP_TAIL));
-	}
+	WRITE4(sc, HE_REGO_RBP_T(large, group),
+	    (rbp->tail << HE_REGS_RBP_TAIL));
 }
 
 /*
