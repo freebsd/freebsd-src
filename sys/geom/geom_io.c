@@ -273,6 +273,16 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
+		/* Reject I/O not on sector boundary */
+		if (bp->bio_offset % bp->bio_to->sectorsize) {
+			g_io_deliver(bp, EINVAL);
+			return;
+		}
+		/* Reject I/O not integral sector long */
+		if (bp->bio_length % bp->bio_to->sectorsize) {
+			g_io_deliver(bp, EINVAL);
+			return;
+		}
 		/* Reject requests past the end of media. */
 		if (bp->bio_offset > bp->bio_to->mediasize) {
 			g_io_deliver(bp, EIO);
