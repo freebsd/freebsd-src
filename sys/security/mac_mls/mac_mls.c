@@ -1840,6 +1840,24 @@ mac_mls_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+mac_mls_check_vnode_deleteextattr(struct ucred *cred, struct vnode *vp,
+    struct label *label, int attrnamespace, const char *name)
+{
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_mls_dominate_single(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
 mac_mls_check_vnode_exec(struct ucred *cred, struct vnode *vp,
     struct label *label, struct image_params *imgp,
     struct label *execlabel)
@@ -1925,6 +1943,25 @@ mac_mls_check_vnode_link(struct ucred *cred, struct vnode *dvp,
 
 	obj = SLOT(dlabel);
 	if (!mac_mls_dominate_single(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_mls_check_vnode_listextattr(struct ucred *cred, struct vnode *vp,
+    struct label *label, int attrnamespace)
+{
+
+	struct mac_mls *subj, *obj;
+
+	if (!mac_mls_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	if (!mac_mls_dominate_single(subj, obj))
 		return (EACCES);
 
 	return (0);
@@ -2445,10 +2482,12 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_check_vnode_create = mac_mls_check_vnode_create,
 	.mpo_check_vnode_delete = mac_mls_check_vnode_delete,
 	.mpo_check_vnode_deleteacl = mac_mls_check_vnode_deleteacl,
+	.mpo_check_vnode_deleteextattr = mac_mls_check_vnode_deleteextattr,
 	.mpo_check_vnode_exec = mac_mls_check_vnode_exec,
 	.mpo_check_vnode_getacl = mac_mls_check_vnode_getacl,
 	.mpo_check_vnode_getextattr = mac_mls_check_vnode_getextattr,
 	.mpo_check_vnode_link = mac_mls_check_vnode_link,
+	.mpo_check_vnode_listextattr = mac_mls_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = mac_mls_check_vnode_lookup,
 	.mpo_check_vnode_mmap = mac_mls_check_vnode_mmap,
 	.mpo_check_vnode_mprotect = mac_mls_check_vnode_mmap,
