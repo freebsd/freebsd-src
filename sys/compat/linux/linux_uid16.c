@@ -100,7 +100,7 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 #endif
 
 	ngrp = args->gidsetsize;
-	if (ngrp >= NGROUPS)
+	if (ngrp < 0 || ngrp >= NGROUPS)
 		return (EINVAL);
 	error = copyin(args->gidset, linux_gidset, ngrp * sizeof(l_gid16_t));
 	if (error)
