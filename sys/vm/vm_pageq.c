@@ -24,7 +24,6 @@
 #include <vm/vm_extern.h>
 
 struct vpgqueues vm_page_queues[PQ_COUNT];
-static struct mtx vm_pageq_mtx[PQ_COUNT];
 
 void
 vm_pageq_init(void) 
@@ -43,30 +42,18 @@ vm_pageq_init(void)
 
 	for (i = 0; i < PQ_COUNT; i++) {
 		TAILQ_INIT(&vm_page_queues[i].pl);
-		mtx_init(&vm_pageq_mtx[i], "vm pageq mutex", NULL, MTX_DEF);
 	}
 }
 
-struct vpgqueues *
+static __inline struct vpgqueues *
 vm_pageq_aquire(int queue)
 {
 	struct vpgqueues *vpq = NULL;
 
 	if (queue != PQ_NONE) {
 		vpq = &vm_page_queues[queue];
-#if 0
-		mtx_lock(&vm_pageq_mtx[queue]);
-#endif
 	}
 	return (vpq);
-}
-
-void
-vm_pageq_release(struct vpgqueues *vpq)
-{
-#if 0
-	mtx_unlock(&vm_pageq_mtx[vpq - &vm_page_queues[0]]);
-#endif
 }
 
 void
@@ -78,7 +65,6 @@ vm_pageq_requeue(vm_page_t m)
 	vpq = vm_pageq_aquire(queue);
 	TAILQ_REMOVE(&vpq->pl, m, pageq);
 	TAILQ_INSERT_TAIL(&vpq->pl, m, pageq);
-	vm_pageq_release(vpq);
 }
 
 /*
