@@ -78,22 +78,25 @@ Then the kernel is loaded, either directly using NFS
 or through an intermediate loader called pxeboot and
 loaded using TFTP or NFS.
 .Pp
-In phase 3, the kernel uses again DHCP or BOOTP to acquire
+In phase 3, the kernel again uses DHCP or BOOTP to acquire
 configuration information, and proceeds to mount the
-root filesystem and start operation.
-Some specific actions performed during the startup
-of a diskless system are listed in
+root filesystem and start operation.  The boot
+scripts recognize a diskless startup and peform 
+the actions found in
+.Pa /etc/rc.d/initdiskless
+and
+.Pa /etc/rc.d/diskless .
+In older systems the scripts are located in
 .Pa /etc/rc.diskless1
 and
-.Pa /etc/rc.diskless2
+.Pa /etc/rc.diskless2 .
 .Sh CONFIGURATION
 In order to run a diskless client, you need the following:
 .Bl -bullet
 .It
-an NFS server which exports a root and /usr partition with
+An NFS server which exports a root and /usr partition with
 appropriate permissions.
-The
-.Pa rc.diskless{1,2}
+The diskless
 scripts work with readonly partitions, as long as root is exported with
 .Fl maproot Ns =0
 so that some system files can be accessed.
@@ -101,8 +104,8 @@ As an example,
 .Pa /etc/exports
 can contain the following lines:
 .Bd -literal -offset indent
-<ROOT> -maproot=0 -alldirs <list of diskless clients>
-/usr -alldirs <list of diskless clients>
+<ROOT> -ro -maproot=0 -alldirs <list of diskless clients>
+/usr -ro -alldirs <list of diskless clients>
 .Ed
 .Pp
 where
@@ -111,7 +114,7 @@ is the mountpoint on the server of the root partition.
 The script
 .Pa /usr/share/examples/diskless/clone_root
 can be used to create a shared readonly root partition,
-but in same cases you can also decide to export
+but in many cases you may decide to export
 (again as readonly) the root directory used by
 the server itself.
 .It
@@ -151,40 +154,85 @@ A properly initialized root partition.
 The script
 .Pa /usr/share/examples/diskless/clone_root
 can help in creating it, using the server's root partition
-as a reference.
+as a reference.  If you are just starting out you should 
+simply use the server's own root directory,
+.Pa / ,
+and not try to clone it.
 .Pp
-On the partition to be exported as root, you need to create the directory
+You often do not want to use the same
+.Pa rc.conf
+or
+.Pa rc.local
+files for the diskless boot as you do on the server.  The diskless boot
+scripts provide a mechanism through which you can override various files
+in
+.Pa /etc
+(as well as other subdirectories of root).  The scripts provide four
+overriding directories situated in
+.Pa /conf/base ,
+.Pa /conf/default ,
+.Pa /conf/(broadcast-ip) ,
+and
+.Pa /conf/(machine-ip) .
+You should always create
 .Pa /conf/base/etc ,
-and populate it with a copy of the contents of
+which will entirely replace the server's
+.Pa /etc
+on the diskless machine.
+You can clone the server's
+.Pa /etc
+here or you can create a special file which tells the diskless boot scripts
+to remount the server's
+.Pa /etc
+onto
+.Pa /conf/base/etc .
+You do this by creating the file
+.Pa /conf/base/etc/diskless_remount
+containing the mount point to use as a basis of the diskless machine's
 .Pa /etc .
-The files and subdirectories within
-.Pa /conf/base/etc
-are used to bootstrap the diskless environment's
-.Pa /etc
-memory filesystem.
+For example, the file might contain:
+.Bd -literal -offset 4n
+10.0.0.1:/etc
+.Ed
 .Pp
-Additionally, one may supply global, per-network or per-host overrides for
-files in
-.Pa /etc
-by creating and populating the directories
-.Pa /conf/${i}/etc ,
-where
-.Va i
-can be either the string "default",
-the subnet broadcast address for the client, or the IP
-address of the client.
+The diskless scripts create memory filesystems to hold the overriden
+directories.  Only a 2MB partition is created by default, which may not
+be sufficient for your purposes.  To override this you can create the
+file
+.Pa /conf/base/etc/md_size
+containing the size, in 512 byte sectors, of the memory disk to create
+for that directory.
 .Pp
-Files are copied from the above directories into
-.Pa /etc
-(overriding the previous content of
-.Pa /etc )
-starting from the most generic one by
-.Pa /etc/rc.diskless1 ,
-before the main part of
-.Pa /etc/rc
-(including reading
-.Pa rc.conf )
-is run.
+You then typically provide file-by-file overrides in the
+.Pa /conf/default/etc
+directory.  At a minimum you must provides overrides for
+.Pa /etc/fstab ,
+.Pa /etc/rc.conf ,
+and
+.Pa /etc/rc.local
+via
+.Pa /conf/default/etc/fstab ,
+.Pa /conf/default/etc/rc.conf ,
+and
+.Pa /conf/default/etc/rc.local .
+.Pp
+Overrides are hierarchical.  You can supply network-specific defaults
+in the
+.Pa /conf/<BROADCASTIP>/etc
+directory, where <BROADCASTIP> represents the broadcast IP address of
+the diskless system as given to it via
+.Tn BOOTP .
+The
+.Pa diskless_remount
+and
+.Pa md_size
+features work in any of these directories.
+The configuration feature works on directories other then
+.Pa /etc ,
+you simply create the directory you wish to replace or override in
+.Pa /conf/{base,default,<broadcast>,<ip>}/*
+and work it in the same way that you work
+.Pa /etc .
 .Pp
 As a minimum, you normally need to have the following in
 .Pa /conf/default/etc/fstab
@@ -194,10 +242,14 @@ As a minimum, you normally need to have the following in
 proc            /proc procfs rw 0 0
 .Ed
 .Pp
-and also a customized version of
+You also need to create a customized version of
 .Pa /conf/default/etc/rc.conf
 which should contain
-the startup options for the diskless client.
+the startup options for the diskless client, and
+.Pa /conf/default/etc/rc.local
+which could be empty but prevents the server's own
+.Pa /etc/rc.local
+from leaking onto the diskless system.
 .Pp
 In
 .Pa rc.conf ,
@@ -207,10 +259,6 @@ you will not need to set
 and
 .Va ifconfig_*
 because these will be already set by the startup code.
-You will also probably need to set
-.Va local_startup Ns = Ns Qq
-so that the server's
-local startup files will not be used.
 Finally, it might be convenient to use a
 .Ic case
 statement using
