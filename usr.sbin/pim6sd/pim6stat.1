@@ -26,11 +26,11 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     $Id: pim6stat.1,v 1.3 1999/12/16 05:38:06 jinmei Exp $
-.\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd July 28, 1999
 .Dt PIM6STAT 1
-.Os KAME
+.Os
 .Sh NAME
 .Nm pim6stat
 .Nd show PIM for IPv6 status
@@ -49,7 +49,7 @@ status to a file, waits for dumping, and outputs the content of the file
 to standard output.
 .Pp
 Options supported by
-.Nm pim6stat :
+.Nm Ns :
 .Bl -tag -width Ds
 .It Fl d
 specifies to show the status of a dense mode daemon (if running).
@@ -67,7 +67,7 @@ specifies the wait period in seconds between sending a signal to the
 daemon and outputs the dumpfile.
 .El
 .Sh FILES
-.Bl -tag -width /var/run/pim6sd.pid -compact
+.Bl -tag -width /var/run/pim6sd.pidX -compact
 .It Pa /var/run/pim6sd.pid
 The default PID file for a sparse mode daemon.
 .It Pa /var/run/pim6dd.pid
@@ -80,12 +80,16 @@ The default dump file for a dense mode daemon.
 The default statistics dump file for a sparse mode daemon.
 .El
 .Sh SEE ALSO
-.Xr pim6sd 8 ,
-.Xr pim6dd 8
+.Xr pim6dd 8 ,
+.Xr pim6sd 8
 .Sh HISTORY
 The
 .Nm
 command first appeared in KAME IPv6 protocol stack kit.
+.Pp
+IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
+was initialy integrated into
+.Fx 4.0
 .Sh BUGS
 .Nm Pim6stat
 needs superuser privilege.
