@@ -67,7 +67,9 @@ void	map_pal_code(void);
 void	map_port_space(void);
 void	os_boot_rendez(void);
 void	os_mca(void);
+void	spillfd(void *src, void *dst);
 int	syscall(struct trapframe *);
 void	trap(int, struct trapframe *);
+int	unaligned_fixup(struct trapframe *, struct thread *);
 
 #endif /* !_MACHINE_MD_VAR_H_ */
