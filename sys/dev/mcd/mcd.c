@@ -35,7 +35,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.3 1993/11/25 01:31:43 wollman Exp $
+ *	$Id: mcd.c,v 1.5 1994/01/16 23:34:15 jkh Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -563,7 +563,7 @@ int mcd_probe(struct isa_device *dev)
 
 	/* send a reset */
 	outb(port+MCD_FLAGS,M_RESET);
-	DELAY(30000);
+	DELAY(3000);
 
         for (j=3; j != 0; j--)  { 
 
@@ -574,10 +574,10 @@ int mcd_probe(struct isa_device *dev)
 
 	DELAY (2000);
 	outb(port+MCD_DATA,MCD_CMDCONTINFO);
-	for (i = 0; i < 300000; i++) {
+	for (i = 0; i < 30000; i++) {
       	   if ((inb(port+MCD_FLAGS) & M_STATUS_AVAIL) == M_STATUS_AVAIL)
             {
-      		DELAY (4000);
+      		DELAY (600);
 		st = inb(port+MCD_DATA);
 		DELAY (500);
 		check = inb(port+MCD_DATA);
