@@ -271,7 +271,8 @@ mpool_close(mp)
 	BKT *bp;
 
 	/* Free up any space allocated to the lru pages. */
-	while ((bp = TAILQ_FIRST(&mp->lqh)) != (void *)&mp->lqh) {
+	while (!TAILQ_EMPTY(&mp->lqh)) {
+		bp = TAILQ_FIRST(&mp->lqh);
 		TAILQ_REMOVE(&mp->lqh, bp, q);
 		free(bp);
 	}
