@@ -69,6 +69,7 @@ struct modlist {
     TAILQ_ENTRY(modlist) link;		/* chain together all modules */
     linker_file_t	container;
     const char		*name;
+    int			version;
 };
 typedef struct modlist	*modlist_t;
 static modlisthead_t	found_modules;
@@ -917,15 +918,31 @@ out:
  */
 
 static modlist_t
-modlist_lookup(const char *name)
+modlist_lookup(const char *name, int ver)
 {
     modlist_t mod;
 
     TAILQ_FOREACH(mod, &found_modules, link) {
-	if (!strcmp(mod->name, name))
+	if (strcmp(mod->name, name) == 0 && (ver == 0 || mod->version == ver))
 	    return mod;
     }
     return NULL;
+}
+
+static modlist_t
+modlist_newmodule(char *modname, int version, linker_file_t container)
+{
+    modlist_t mod;
+
+    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT);
+    if (mod == NULL)
+	panic("no memory for module list");
+    bzero(mod, sizeof(*mod));
+    mod->container = container;
+    mod->name = modname;
+    mod->version = version;
+    TAILQ_INSERT_TAIL(&found_modules, mod, link);
+    return mod;
 }
 
 /*
@@ -935,6 +952,65 @@ static void *
 linker_reloc_ptr(linker_file_t lf, void *offset)
 {
 	return lf->address + (uintptr_t)offset;
+}
+
+/*
+ * Dereference MDT_VERSION metadata into module name and version
+ */
+static void
+linker_mdt_version(linker_file_t lf, struct mod_metadata *mp,
+	char **modname, int *version)
+{
+    struct mod_version *mvp;
+
+    if (modname)
+	*modname = linker_reloc_ptr(lf, mp->md_cval);
+    if (version) {
+	mvp = linker_reloc_ptr(lf, mp->md_data);
+	*version = mvp->mv_version;
+    }
+}
+
+/*
+ * Dereference MDT_DEPEND metadata into module name and mod_depend structure
+ */
+static void
+linker_mdt_depend(linker_file_t lf, struct mod_metadata *mp,
+	char **modname, struct mod_depend **verinfo)
+{
+
+    if (modname)
+	*modname = linker_reloc_ptr(lf, mp->md_cval);
+    if (verinfo)
+	*verinfo = linker_reloc_ptr(lf, mp->md_data);
+}
+
+static void
+linker_addmodules(linker_file_t lf, struct linker_set *deps, int preload)
+{
+    struct mod_metadata	*mp;
+    char *modname;
+    int i, ver;
+
+    for (i = 0; i < deps->ls_length; i++) {
+	if (preload)
+	    mp = deps->ls_items[i];
+	else
+	    mp = linker_reloc_ptr(lf, deps->ls_items[i]);
+	if (mp->md_type != MDT_VERSION)
+	    continue;
+	if (preload) {
+	    modname = mp->md_cval;
+	    ver = ((struct mod_version*)mp->md_data)->mv_version;
+	} else
+	    linker_mdt_version(lf, mp, &modname, &ver);
+	if (modlist_lookup(modname, ver) != NULL) {
+	    printf("module %s already present!\n", modname);
+	    /* XXX what can we do? this is a build error. :-( */
+	    continue;
+	}
+	modlist_newmodule(modname, ver, lf);
+    }
 }
 
 static void
@@ -951,7 +1027,8 @@ linker_preload(void* arg)
     linker_file_list_t	depended_files;
     struct linker_set	*deps;
     struct mod_metadata	*mp, *nmp;
-    int			i, j;
+    struct mod_depend	*verinfo;
+    int			i, j, nver;
     int			resolves;
     modlist_t		mod;
 
@@ -990,25 +1067,8 @@ linker_preload(void* arg)
      */
     deps = (struct linker_set*)
 	linker_file_lookup_symbol(linker_kernel_file, MDT_SETNAME, 0);
-    if (deps) {
-	for (i = 0; i < deps->ls_length; i++) {
-	    mp = deps->ls_items[i];
-	    if (mp->md_type != MDT_VERSION)
-		continue;
-	    modname = mp->md_cval;
-	    if (modlist_lookup(modname) != NULL) {
-		printf("module %s already present!\n", modname);
-		/* XXX what can we do? this is a build error. :-( */
-		continue;
-	    }
-	    mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT|M_ZERO);
-	    if (mod == NULL)
-		panic("no memory for module list");
-	    mod->container = linker_kernel_file;
-	    mod->name = modname;
-	    TAILQ_INSERT_TAIL(&found_modules, mod, link);
-	}
-    }
+    if (deps)
+	linker_addmodules(linker_kernel_file, deps, 1);
 
     /*
      * this is a once-off kinky bubble sort
@@ -1027,18 +1087,19 @@ restart:
 		mp = linker_reloc_ptr(lf, deps->ls_items[i]);
 		if (mp->md_type != MDT_DEPEND)
 		    continue;
-		modname = linker_reloc_ptr(lf, mp->md_cval);
+		linker_mdt_depend(lf, mp, &modname, &verinfo);
 		for (j = 0; j < deps->ls_length; j++) {
 		    nmp = linker_reloc_ptr(lf, deps->ls_items[j]);
 		    if (nmp->md_type != MDT_VERSION)
 			continue;
+		    linker_mdt_version(lf, nmp, &nmodname, NULL);
 		    nmodname = linker_reloc_ptr(lf, nmp->md_cval);
 		    if (strcmp(modname, nmodname) == 0)
 			break;
 		}
 		if (j < deps->ls_length)	/* it's a self reference */
 		    continue;
-		if (modlist_lookup(modname) == NULL) {
+		if (modlist_lookup(modname, 0) == NULL) {
 		    /* ok, the module isn't here yet, we are not finished */
 		    resolves = 0;
 		}
@@ -1054,20 +1115,14 @@ restart:
 		    mp = linker_reloc_ptr(lf, deps->ls_items[i]);
 		    if (mp->md_type != MDT_VERSION)
 			continue;
-		    modname = linker_reloc_ptr(lf, mp->md_cval);
-		    if (modlist_lookup(modname) != NULL) {
+		    linker_mdt_version(lf, mp, &modname, &nver);
+		    if (modlist_lookup(modname, nver) != NULL) {
 			printf("module %s already present!\n", modname);
 			linker_file_unload(lf);
 			TAILQ_REMOVE(&loaded_files, lf, loaded);
 			goto restart;	/* we changed the tailq next ptr */
 		    }
-		    mod = malloc(sizeof(struct modlist), M_LINKER,
-			M_NOWAIT|M_ZERO);
-		    if (mod == NULL)
-			panic("no memory for module list");
-		    mod->container = lf;
-		    mod->name = modname;
-		    TAILQ_INSERT_TAIL(&found_modules, mod, link);
+		    modlist_newmodule(modname, nver, lf);
 		}
 	    }
 	    TAILQ_REMOVE(&loaded_files, lf, loaded);
@@ -1108,8 +1163,8 @@ restart:
 		mp = linker_reloc_ptr(lf, deps->ls_items[i]);
 		if (mp->md_type != MDT_DEPEND)
 		    continue;
-		modname = linker_reloc_ptr(lf, mp->md_cval);
-		mod = modlist_lookup(modname);
+		linker_mdt_depend(lf, mp, &modname, &verinfo);
+		mod = modlist_lookup(modname, 0);
 		mod->container->refs++;
 		error = linker_file_add_dependancy(lf, mod->container);
 		if (error)
@@ -1299,7 +1354,7 @@ linker_load_dependancies(linker_file_t lf)
     struct mod_metadata *mp, *nmp;
     modlist_t mod;
     char *modname, *nmodname;
-    int i, j, error = 0;
+    int i, j, ver, error = 0;
 
     /*
      * All files are dependant on /kernel.
@@ -1319,12 +1374,15 @@ linker_load_dependancies(linker_file_t lf)
 	mp = linker_reloc_ptr(lf, deps->ls_items[i]);
 	if (mp->md_type != MDT_VERSION)
 	    continue;
-	modname = linker_reloc_ptr(lf, mp->md_cval);
-	if (modlist_lookup(modname) != NULL) {
-	    printf("module %s already present!\n", modname);
+	linker_mdt_version(lf, mp, &modname, &ver);
+	mod = modlist_lookup(modname, ver);
+	if (mod != NULL) {
+	    printf("interface %s.%d already present in the KLD '%s'!\n",
+		modname, ver, mod->container->filename);
 	    return EEXIST;
 	}
     }
+
     for (i = 0; i < deps->ls_length; i++) {
 	mp = linker_reloc_ptr(lf, deps->ls_items[i]);
 	if (mp->md_type != MDT_DEPEND)
@@ -1341,7 +1399,7 @@ linker_load_dependancies(linker_file_t lf)
 	}
 	if (j < deps->ls_length)	/* early exit, it's a self reference */
 	    continue;
-	mod = modlist_lookup(modname);
+	mod = modlist_lookup(modname, 0);
 	if (mod) {		/* woohoo, it's loaded already */
 	    lfdep = mod->container;
 	    lfdep->refs++;
@@ -1360,17 +1418,6 @@ linker_load_dependancies(linker_file_t lf)
 
     if (error)
 	return error;
-    for (i = 0; i < deps->ls_length; i++) {
-	mp = linker_reloc_ptr(lf, deps->ls_items[i]);
-	if (mp->md_type != MDT_VERSION)
-	    continue;
-	modname = linker_reloc_ptr(lf, mp->md_cval);
-	mod = malloc(sizeof(struct modlist), M_LINKER, M_NOWAIT|M_ZERO);
-	if (mod == NULL)
-	    panic("no memory for module list");
-	mod->container = lf;
-	mod->name = modname;
-	TAILQ_INSERT_TAIL(&found_modules, mod, link);
-    }
+    linker_addmodules(lf, deps, 0);
     return error;
 }
