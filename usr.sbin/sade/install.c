@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.80 1996/03/24 09:43:53 jkh Exp $
+ * $Id: install.c,v 1.81 1996/03/24 18:57:36 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -219,12 +219,13 @@ installInitial(void)
 }
 
 int
-installFixit(char *str)
+installFixit(dialogMenuItem *self)
 {
     struct ufs_args args;
     pid_t child;
     int waitstatus;
 
+    variable_set2(SYSTEM_STATE, "fixit");
     memset(&args, 0, sizeof(args));
     args.fspec = "/dev/fd0";
     Mkdir("/mnt2", NULL);
@@ -297,12 +298,13 @@ installFixit(char *str)
 }
   
 int
-installExpress(char *str)
+installExpress(dialogMenuItem *self)
 {
-    if (diskPartitionEditor("express") == RET_FAIL)
+    variable_set2(SYSTEM_STATE, "express");
+    if (diskPartitionEditor(self) == RET_FAIL)
 	return RET_FAIL;
     
-    if (diskLabelEditor("express") == RET_FAIL)
+    if (diskLabelEditor(self) == RET_FAIL)
 	return RET_FAIL;
 
     if (!Dists) {
@@ -315,7 +317,7 @@ installExpress(char *str)
 	    return RET_FAIL;
     }
 
-    if (installCommit("express") == RET_FAIL)
+    if (installCommit(self) == RET_FAIL)
 	return RET_FAIL;
 
     return RET_DONE;
@@ -323,8 +325,9 @@ installExpress(char *str)
 
 /* Novice mode installation */
 int
-installNovice(char *str)
+installNovice(dialogMenuItem *self)
 {
+    variable_set2(SYSTEM_STATE, "novice");
     dialog_clear();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
 	       "scheme for your hard disk.  If you simply wish to devote all disk space\n"
@@ -333,7 +336,7 @@ installNovice(char *str)
 	       "by a (Q)uit.  If you wish to allocate only free space to FreeBSD, move to a\n"
 	       "partition marked \"unused\" and use the (C)reate command.");
 
-    if (diskPartitionEditor("novice") == RET_FAIL)
+    if (diskPartitionEditor(self) == RET_FAIL)
 	return RET_FAIL;
     
     dialog_clear();
@@ -344,7 +347,7 @@ installNovice(char *str)
 	       "care for the layout chosen by (A)uto, press F1 for more information on\n"
 	       "manual layout.");
 
-    if (diskLabelEditor("novice") == RET_FAIL)
+    if (diskLabelEditor(self) == RET_FAIL)
 	return RET_FAIL;
 
     dialog_clear();
@@ -367,7 +370,7 @@ installNovice(char *str)
 	    return RET_FAIL;
     }
 
-    if (installCommit("novice") == RET_FAIL)
+    if (installCommit(self) == RET_FAIL)
 	return RET_FAIL;
 
     return RET_DONE;
@@ -382,14 +385,16 @@ installNovice(char *str)
  * DES dist.
  */
 int
-installCommit(char *str)
+installCommit(dialogMenuItem *self)
 {
     int i;
     extern int cdromMounted;
+    char *str;
 
     if (!mediaVerify())
 	return RET_FAIL;
 
+    str = variable_get(SYSTEM_STATE);
     i = RET_DONE;
     if (RunningAsInit) {
 	if (installInitial() == RET_FAIL)
@@ -404,14 +409,11 @@ installCommit(char *str)
 	}
     }
 
-    if (distExtractAll(NULL) == RET_FAIL)
+    if (distExtractAll(self) == RET_FAIL)
 	i = RET_FAIL;
 
-    if (installFixup(NULL) == RET_FAIL)
+    if (installFixup(self) == RET_FAIL)
 	i = RET_FAIL;
-
-    if (i != RET_FAIL)
-	variable_set2(SYSTEM_STATE, "base-install");
 
     if (i != RET_FAIL && !strcmp(str, "novice")) {
 	dialog_clear();
@@ -434,7 +436,7 @@ installCommit(char *str)
 	if (!msgYesNo("Would you like to configure Samba for connecting NETBUI clients to this\n"
 		      "machine?  Windows 95, Windows NT and Windows for Workgroups\n"
 		      "machines can use NETBUI transport for disk and printer sharing."))
-	    configSamba(NULL);
+	    configSamba(self);
 
 	dialog_clear();
 	if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
@@ -443,11 +445,11 @@ installCommit(char *str)
 
 	dialog_clear();
 	if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
-	    configAnonFTP(NULL);
+	    configAnonFTP(self);
 
 	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
-	    configNFSServer(NULL);
+	    configNFSServer(self);
 
 	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
@@ -455,7 +457,7 @@ installCommit(char *str)
 
 	dialog_clear();
 	if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
-	    configApache(NULL);
+	    configApache(self);
 
 	dialog_clear();
 	if (!msgYesNo("Would you like to customize your system console settings?"))
@@ -482,14 +484,14 @@ installCommit(char *str)
 			  "drive to use the ports collection, but at a substantial savings\n"
 			  "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n"
 			  "depending on the speed of your CDROM drive)."))
-		configPorts(NULL);
+		configPorts(self);
 	}
 
 	dialog_clear();
 	if (!msgYesNo("The FreeBSD package collection is a collection of over 300 ready-to-run\n"
 		      "applications, from text editors to games to WEB servers.  Would you like\n"
 		      "to browse the collection now?"))
-	    configPackages(NULL);
+	    configPackages(self);
 
 	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 	
@@ -504,8 +506,6 @@ installCommit(char *str)
     /* Write out any changes .. */
     configResolv();
     configSysconfig();
-
-    variable_set2(SYSTEM_STATE, i == RET_FAIL ? "error-install" : "full-install");
 
     /* Don't print this if we're express or novice installing */
     if (strcmp(str, "express") && strcmp(str, "novice")) {
@@ -541,11 +541,13 @@ installCommit(char *str)
 		       "may do so by typing: /stand/sysinstall.");
 	}
     }
+    variable_set2(SYSTEM_STATE, i == RET_FAIL ? "error-install" : "full-install");
+
     return i;
 }
 
 int
-installFixup(char *str)
+installFixup(dialogMenuItem *self)
 {
     Device **devs;
     int i;
@@ -625,18 +627,20 @@ installFixup(char *str)
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
 int
-installFilesystems(char *str)
+installFilesystems(dialogMenuItem *self)
 {
     int i;
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     Device **devs;
     PartInfo *root;
-    char dname[80];
+    char dname[80], *str;
     extern int MakeDevChunk(Chunk *c, char *n);
     Boolean upgrade = FALSE;
 
-    if (!(str && !strcmp(str, "script")) && !checkLabels(&rootdev, &swapdev, &usrdev))
+    str = variable_get(SYSTEM_STATE);
+
+    if (!checkLabels(&rootdev, &swapdev, &usrdev))
 	return RET_FAIL;
 
     root = (PartInfo *)rootdev->private_data;
@@ -779,7 +783,7 @@ installFilesystems(char *str)
 }
 
 int
-installVarDefaults(char *unused)
+installVarDefaults(dialogMenuItem *self)
 {
     /* Set default startup options */
     variable_set2(VAR_ROUTEDFLAGS,		"-q");

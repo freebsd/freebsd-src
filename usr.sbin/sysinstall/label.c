@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.39 1996/03/20 14:11:22 jkh Exp $
+ * $Id: label.c,v 1.40 1996/03/24 18:57:37 joerg Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -81,7 +81,6 @@ static struct {
 static int here;
 
 static int diskLabel(char *str);
-static int scriptLabel(char *str);
 
 static int
 labelHook(char *str)
@@ -115,14 +114,15 @@ labelHook(char *str)
 }
 
 int
-diskLabelEditor(char *str)
+diskLabelEditor(dialogMenuItem *self)
 {
     Device **devs;
     DMenu *menu;
     int i, cnt;
-    char *cp;
+    char *cp, *str;
 
     cp = variable_get(VAR_DISK);
+    str = variable_get(SYSTEM_STATE);
     devs = deviceFind(cp, DEVICE_TYPE_DISK);
     cnt = deviceCount(devs);
     if (!cnt) {
@@ -135,10 +135,7 @@ diskLabelEditor(char *str)
     else if (cnt == 1 || variable_get(DISK_SELECTED)) {
 	if (cnt == 1)
 	    devs[0]->enabled = TRUE;
-	if (str && !strcmp(str, "script"))
-	    i = scriptLabel(str);
-	else
-	    i = diskLabel(str);
+	i = diskLabel(str);
     }
     else {
 	menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
@@ -163,7 +160,7 @@ diskLabelEditor(char *str)
 }
 
 int
-diskLabelCommit(char *str)
+diskLabelCommit(dialogMenuItem *self)
 {
     char *cp;
     int i;
@@ -179,9 +176,9 @@ diskLabelCommit(char *str)
 	i = RET_FAIL;
     }
     /* The routine will guard against redundant writes, just as this one does */
-    else if (diskPartitionWrite(str) != RET_SUCCESS)
+    else if (diskPartitionWrite(self) != RET_SUCCESS)
 	i = RET_FAIL;
-    else if (installFilesystems(str) != RET_SUCCESS)
+    else if (installFilesystems(self) != RET_SUCCESS)
 	i = RET_FAIL;
     else {
 	msgInfo("All filesystem information written successfully.");
@@ -397,119 +394,6 @@ getNewfsCmd(PartInfo *p)
 		      "creating this file system.");
     if (val)
 	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
-}
-
-static int
-scriptLabel(char *str)
-{
-    char *cp;
-    PartType type;
-    PartInfo *p;
-    u_long flags = 0;
-    int i, status;
-    Device **devs;
-    Disk *d;
-
-    status = RET_SUCCESS;
-    cp = variable_get(VAR_DISK);
-    if (!cp) {
-	dialog_clear();
-	msgConfirm("scriptLabel:  No disk selected - can't label automatically.");
-	return RET_FAIL;
-    }
-
-    devs = deviceFind(cp, DEVICE_TYPE_DISK);
-    if (!devs) {
-	dialog_clear();
-	msgConfirm("scriptLabel: No disk device %s found!", cp);
-	return RET_FAIL;
-    }
-    d = devs[0]->private;
-
-    record_label_chunks(devs);
-    for (i = 0; label_chunk_info[i].c; i++) {
-	Chunk *c1 = label_chunk_info[i].c;
-
-	if (label_chunk_info[i].type == PART_SLICE) {
-	    if ((cp = variable_get(c1->name)) != NULL) {
-		int sz;
-		char typ[10], mpoint[50];
-
-		if (sscanf(cp, "%s %d %s", typ, &sz, mpoint) != 3) {
-		    dialog_clear();
-		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s",  c1->name, cp);
-		    status = RET_FAIL;
-		    continue;
-		}
-		else {
-		    Chunk *tmp;
-
-		    if (!strcmp(typ, "swap")) {
-			type = PART_SWAP;
-			strcpy(mpoint, "<swap>");
-		    }
-		    else {
-			type = PART_FILESYSTEM;
-			if (!strcmp(mpoint, "/"))
-			    flags |= CHUNK_IS_ROOT;
-		    }
-		    if (!sz)
-			sz = space_free(c1);
-		    if (sz > space_free(c1)) {
-			dialog_clear();
-			msgConfirm("Not enough free space to create partition: %s", mpoint);
-			status = RET_FAIL;
-			continue;
-		    }
-		    if (!(tmp = Create_Chunk_DWIM(d, c1, sz, part,
-						  (type == PART_SWAP) ? FS_SWAP : FS_BSDFFS, flags))) {
-			dialog_clear();
-			msgConfirm("Unable to create from partition spec: %s. Too big?", cp);
-			status = RET_FAIL;
-			break;
-		    }
-		    else {
-			tmp->private_data = new_part(mpoint, TRUE, sz);
-			tmp->private_free = safe_free;
-			status = RET_SUCCESS;
-		    }
-		}
-	    }
-	}
-	else {
-	    /* Must be something we can set a mountpoint */
-	    cp = variable_get(c1->name);
-	    if (cp) {
-		char mpoint[50], nwfs[8];
-		Boolean newfs = FALSE;
-
-		nwfs[0] = '\0';
-		if (sscanf(cp, "%s %s", mpoint, nwfs) != 2) {
-		    dialog_clear();
-		    msgConfirm("For slice entry %s, got an invalid detail entry of: %s", c1->name, cp);
-		    status = RET_FAIL;
-		    continue;
-		}
-		newfs = toupper(nwfs[0]) == 'Y' ? TRUE : FALSE;
-		if (c1->private_data) {
-		    p = c1->private_data;
-		    p->newfs = newfs;
-		    strcpy(p->mountpoint, mpoint);
-		}
-		else {
-		    c1->private_data = new_part(mpoint, newfs, 0);
-		    c1->private_free = safe_free;
-		}
-		if (!strcmp(mpoint, "/"))
-		    c1->flags |= CHUNK_IS_ROOT;
-		else
-		    c1->flags &= ~CHUNK_IS_ROOT;
-	    }
-	}
-    }
-    if (status == RET_SUCCESS)
-	variable_set2(DISK_LABELLED, "yes");
-    return status;
 }
 
 #define MAX_MOUNT_NAME	12

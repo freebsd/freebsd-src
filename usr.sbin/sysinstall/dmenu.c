@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.13 1995/12/07 10:33:44 peter Exp $
+ * $Id: dmenu.c,v 1.14 1996/03/02 07:31:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -46,6 +46,71 @@
 
 #define MAX_MENU		15
 
+static Boolean cancelled;
+
+int
+dmenuDisplayFile(dialogMenuItem *tmp)
+{
+    systemDisplayHelp((char *)tmp->data);
+    return RET_SUCCESS;
+}
+
+int
+dmenuSubmenu(dialogMenuItem *tmp)
+{
+    dialog_clear();
+    return dmenuOpenSimple((DMenu *)tmp->data);
+}
+
+int
+dmenuSystemCommand(dialogMenuItem *tmp)
+{
+    int i;
+
+    i = systemExecute((char *)tmp->data) ? RET_FAIL : RET_SUCCESS;
+    dialog_clear();
+    return i;
+}
+
+int
+dmenuSystemCommandBox(dialogMenuItem *tmp)
+{
+    use_helpfile(NULL);
+    use_helpline("Select OK to dismiss this dialog");
+    dialog_prgbox(tmp->title, (char *)tmp->data, 22, 76, 1, 1);
+    dialog_clear();
+    return RET_SUCCESS;
+}
+
+int
+dmenuCancel(dialogMenuItem *tmp)
+{
+    cancelled = TRUE;
+    return RET_SUCCESS;
+}
+
+int
+dmenuSetVariable(dialogMenuItem *tmp)
+{
+    variable_set((char *)tmp->data);
+    msgInfo("Set %s", tmp->data);
+    return RET_SUCCESS;
+}
+
+int
+dmenuSetFlag(dialogMenuItem *tmp)
+{
+    *((unsigned int *)tmp->data) |= tmp->aux;
+    return RET_SUCCESS;
+}
+
+int
+dmenuSetValue(dialogMenuItem *tmp)
+{
+    *((unsigned int *)tmp->data) = tmp->aux;
+    return RET_SUCCESS;
+}
+
 /* Traverse menu but give user no control over positioning */
 Boolean
 dmenuOpenSimple(DMenu *menu)
@@ -53,56 +118,44 @@ dmenuOpenSimple(DMenu *menu)
     int choice, scroll, curr, max;
 
     choice = scroll = curr = max = 0;
+    dialog_clear();
     return dmenuOpen(menu, &choice, &scroll, &curr, &max);
 }
 
 /* Work functions for the state hook */
-char *
-dmenuFlagCheck(DMenuItem *item)
+int
+dmenuFlagCheck(dialogMenuItem *item)
 {
-    if (*((unsigned int *)item->ptr) & item->parm)
-	return "ON";
-    return "OFF";
+    return (*((unsigned int *)item->data) & item->aux);
 }
 
-char *
-dmenuVarCheck(DMenuItem *item)
+int
+dmenuVarCheck(dialogMenuItem *item)
 {
     char *w, *cp, *cp2, tmp[256];
 
-    w = (char *)item->parm;
+    w = (char *)item->aux;
     if (!w)
-	w = (char *)item->ptr;
+	w = (char *)item->data;
     if (!w)
-	return "OFF";
+	return FALSE;
     strncpy(tmp, w, 256);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
         cp2 = getenv(tmp);
         if (cp2)
-            return !strcmp(cp, cp2) ? "ON" : "OFF";
+            return !strcmp(cp, cp2);
         else
-            return "OFF";
+            return FALSE;
     }
     else
-        return getenv(tmp) ? "ON" : "OFF";
+        return (int)getenv(tmp);
 }
 
-char *
-dmenuRadioCheck(DMenuItem *item)
+int
+dmenuRadioCheck(dialogMenuItem *item)
 {
-    if (*((unsigned int *)item->ptr) == item->parm)
-	return "ON";
-    return "OFF";
-}
-
-static char *
-checkHookVal(DMenuItem *item)
-{
-
-    if (!item->check)
-	return "OFF";
-    return (*item->check)(item);
+    return (*((unsigned int *)item->data) == item->aux);
 }
 
 static int
@@ -122,21 +175,10 @@ menu_height(DMenu *menu, int n)
 Boolean
 dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 {
-    char result[FILENAME_MAX];
-    char **nitems = NULL;
-    DMenuItem *tmp;
-    int rval = 0, n = 0;
+    int n, rval = 0;
 
-    /* First, construct the menu */
-    for (tmp = menu->items; tmp->title; tmp++) {
-	if (!tmp->disabled) {
-	    nitems = item_add_pair(nitems, tmp->title, tmp->prompt, curr, max);
-	    if (menu->options & (DMENU_RADIO_TYPE | DMENU_MULTIPLE_TYPE))
-		nitems = item_add(nitems, checkHookVal(tmp), curr, max);
-	    ++n;
-	}
-    }
-    nitems = item_add(nitems, NULL, curr, max); /* Terminate it */
+    /* Count up all the items */
+    for (n = 0; menu->items[n].title; n++);
 
     while (1) {
 	char buf[FILENAME_MAX];
@@ -146,40 +188,25 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
 	use_helpfile(systemHelpFile(menu->helpfile, buf));
 
 	/* Pop up that dialog! */
-	if (menu->options & DMENU_NORMAL_TYPE)
+	if (menu->type == DMENU_NORMAL_TYPE)
 	    rval = dialog_menu((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-			       menu_height(menu, n), n, (u_char **)nitems, (u_char *)result, choice, scroll);
+			       menu_height(menu, n), -n, menu->items, NULL, choice, scroll);
 
-	else if (menu->options & DMENU_RADIO_TYPE)
+	else if (menu->type == DMENU_RADIO_TYPE)
 	    rval = dialog_radiolist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
+				    menu_height(menu, n), -n, menu->items, NULL);
 
-	else if (menu->options & DMENU_MULTIPLE_TYPE)
+	else if (menu->type == DMENU_CHECKLIST_TYPE)
 	    rval = dialog_checklist((u_char *)menu->title, (u_char *)menu->prompt, -1, -1,
-				    menu_height(menu, n), n, (u_char **)nitems, (u_char *)result);
+				    menu_height(menu, n), -n, menu->items, NULL);
 
 	/* This seems to be the only technique that works for getting the display to look right */
 	dialog_clear();
-
-	if (!rval) {
-	    if (menu->options & DMENU_MULTIPLE_TYPE) {
-		if (decode_and_dispatch_multiple(menu, result) || menu->options & DMENU_SELECTION_RETURNS) {
-		    items_free(nitems, curr, max);
-		    return TRUE;
-		}
-	    }
-	    else {
-		if ((tmp = decode(menu, result)) == NULL)
-		    return FALSE;
-	    }
-	    if (dispatch(tmp, result) == RET_DONE || (menu->options & DMENU_SELECTION_RETURNS)) {
-		items_free(nitems, curr, max);
-		return TRUE;
-	    }
-	}
-	else {
-	    items_free(nitems, curr, max);
+	if (rval)
 	    return FALSE;
+	else if (cancelled) {
+	    cancelled = FALSE;
+	    return TRUE;
 	}
     }
 }

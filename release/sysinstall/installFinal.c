@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.23 1996/03/23 07:11:58 jkh Exp $
+ * $Id: installFinal.c,v 1.24 1996/03/23 07:21:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -55,17 +55,17 @@
 /* This file contains all the final configuration thingies */
 
 static DMenu MenuSamba = {
-    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_CHECKLIST_TYPE,
     "Samba Services Menu",
     "This allows you to configure various aspects of your Samba server.",
     NULL,
     NULL,
 { { "Homes",		"Make home directories available to users.",
-	DMENU_SET_VARIABLE,	"SAMBA_homes=YES", 0, 0, dmenuVarCheck	},
+    dmenuVarCheck, dmenuSetVariable, NULL, "SAMBA_homes=YES" },
   { "Printers",		"Allows for sharing of local printers.",
-	DMENU_SET_VARIABLE,	"SAMBA_printers=YES", 0, 0, dmenuVarCheck},
+    dmenuVarCheck, dmenuSetVariable, NULL, "SAMBA_printers=YES" },
   { "Export Paths",	"Specify local directories to make available.",
-	DMENU_SET_VARIABLE,	"SAMBA_export=YES", 0, 0, dmenuVarCheck	},
+    dmenuVarCheck, dmenuSetVariable, NULL, "SAMBA_export=YES" },
   { NULL } },
 };
 
@@ -75,7 +75,7 @@ static DMenu MenuSamba = {
 
 /* Load gated package */
 int
-configGated(char *unused)
+configGated(dialogMenuItem *self)
 {
     if (package_add("gated-3.5a11") == RET_SUCCESS)
 	variable_set2("gated", "YES");
@@ -84,7 +84,7 @@ configGated(char *unused)
 
 /* Load pcnfsd package */
 int
-configPCNFSD(char *unused)
+configPCNFSD(dialogMenuItem *self)
 {
     if (package_add("pcnfsd-93.02.16") == RET_SUCCESS)
 	variable_set2("pcnfsd", "YES");
@@ -92,7 +92,7 @@ configPCNFSD(char *unused)
 }
 
 int
-configSamba(char *unused)
+configSamba(dialogMenuItem *self)
 {
     int i = RET_SUCCESS;
 
@@ -195,7 +195,7 @@ configSamba(char *unused)
 }
 
 int
-configNFSServer(char *unused)
+configNFSServer(dialogMenuItem *self)
 {
     char cmd[256];
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.14 1995/09/18 16:52:29 peter Exp $
+ * $Id: main.c,v 1.15 1995/12/07 10:33:55 peter Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -57,14 +57,18 @@ main(int argc, char **argv)
 {
     int choice, scroll, curr, max;
 
+    /* Catch fatal signals and complain about them if running as init */
     if (getpid() == 1) {
 	signal(SIGBUS, screech);
 	signal(SIGSEGV, screech);
     }
+
+    /* We don't work too well when running as non-root anymore */
     if (geteuid() != 0) {
-	fprintf(stderr, "Warning:  This utility should be run as root.\n");
-	sleep(1);
+	fprintf(stderr, "Error: This utility should only be run as root.\n");
+	return 1;
     }
+
     /* Set up whatever things need setting up */
     systemInitialize(argc, argv);
 

@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.32 1995/12/07 10:34:19 peter Exp $
+ * $Id: tcpip.c,v 1.33 1996/03/02 07:31:58 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -569,7 +569,7 @@ tcpDeviceSelect(void)
 
 /* Do it from a menu that doesn't care about status */
 int
-tcpMenuSelect(char *str)
+tcpMenuSelect(dialogMenuItem *self)
 {
     (void)tcpDeviceSelect();
     configResolv();
