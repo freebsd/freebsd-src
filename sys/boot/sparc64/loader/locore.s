@@ -8,9 +8,14 @@
  *
  * $FreeBSD$
  */
+
+#define	LOCORE
+
 #include <machine/asi.h>
 #include <machine/asm.h>
 #include <machine/pstate.h>
+#include <machine/smp.h>
+#include <machine/upa.h>
 
 #define	PAGE_SIZE	8192
 #define	PAGE_SHIFT	13
@@ -33,7 +38,7 @@ ENTRY(_start)
 	mov	%l6, %sp
 	call	main
 	 mov	%o4, %o0
-	illtrap
+	sir
 
 /*
  * %o0 input VA constant
@@ -82,18 +87,17 @@ ENTRY(dtlb_va_to_pa)
 
 /*
  * %o0 = slot number
- * %o1 = pa
- * %o2 = va
- * %o3 = flags
+ * %o1 = vpn
+ * %o2 = tte data
  */
 ENTRY(itlb_enter)
 	rdpr	%pstate, %o4
 	wrpr	%o4, PSTATE_IE, %pstate
 	sllx	%o0, 3, %o0
-	or	%o1, %o3, %o1
+	sllx	%o1, PAGE_SHIFT, %o1
 	mov	AA_IMMU_TAR, %o3
-	stxa	%o2, [%o3] ASI_IMMU
-	stxa	%o1, [%o0] ASI_ITLB_DATA_ACCESS_REG
+	stxa	%o1, [%o3] ASI_IMMU
+	stxa	%o2, [%o0] ASI_ITLB_DATA_ACCESS_REG
 	membar	#Sync
 	retl
 	 wrpr	%o4, 0, %pstate
@@ -102,12 +106,13 @@ ENTRY(dtlb_enter)
 	rdpr	%pstate, %o4
 	wrpr	%o4, PSTATE_IE, %pstate
 	sllx	%o0, 3, %o0
-	or	%o1, %o3, %o1
+	sllx	%o1, PAGE_SHIFT, %o1
 	mov	AA_DMMU_TAR, %o3
-	stxa	%o2, [%o3] ASI_DMMU
-	stxa	%o1, [%o0] ASI_DTLB_DATA_ACCESS_REG
+	stxa	%o1, [%o3] ASI_DMMU
+	stxa	%o2, [%o0] ASI_DTLB_DATA_ACCESS_REG
 	membar	#Sync
 	retl
 	 wrpr	%o4, 0, %pstate
 
 	.comm	stack, STACK_SIZE, 32
+	.comm	smp_stack, STACK_SIZE, 32
