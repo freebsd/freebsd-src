@@ -67,7 +67,13 @@ static const char rcsid[] =
 
 char	 host[MAXHOSTNAMELEN];	/* host machine name */
 char	*from = host;		/* client's machine name */
-char	 from_ip[MAXIPSTRLEN] = ""; /* client machine's IP address */
+char	 from_ip[NI_MAXHOST] = ""; /* client machine's IP address */
+
+#ifdef INET6
+u_char	family = PF_UNSPEC;
+#else
+u_char	family = PF_INET;
+#endif
 
 extern uid_t	uid, euid;
 
@@ -79,46 +85,52 @@ extern uid_t	uid, euid;
 int
 getport(const struct printer *pp, const char *rhost, int rport)
 {
-	struct hostent *hp;
-	struct servent *sp;
-	struct sockaddr_in sin;
+	struct addrinfo hints, *res, *ai;
 	int s, timo = 1, lport = IPPORT_RESERVED - 1;
-	int err;
+	int err, refused = 0;
 
 	/*
 	 * Get the host address and port number to connect to.
 	 */
 	if (rhost == NULL)
 		fatal(pp, "no remote host to connect to");
-	bzero((char *)&sin, sizeof(sin));
-	sin.sin_len = sizeof sin;
-	sin.sin_family = AF_INET;
-	if (inet_aton(rhost, &sin.sin_addr) == 0) {
-		hp = gethostbyname2(rhost, AF_INET);
-		if (hp == NULL)
-			fatal(pp, "cannot resolve %s: %s", rhost, 
-			      hstrerror(h_errno));
-		/* XXX - should deal with more addresses */
-		sin.sin_addr = *(struct in_addr *)hp->h_addr_list[0];
-	}
-	if (rport == 0) {
-		sp = getservbyname("printer", "tcp");
-		if (sp == NULL)
-			fatal(pp, "printer/tcp: unknown service");
-		sin.sin_port = sp->s_port;
-	} else
-		sin.sin_port = htons(rport);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = family;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = 0;
+	err = getaddrinfo(rhost, (rport == 0 ? "printer" : NULL),
+			  &hints, &res);
+	if (err)
+		fatal(pp, "%s\n", gai_strerror(err));
+	if (rport != 0)
+		((struct sockaddr_in *) res->ai_addr)->sin_port = htons(rport);
 
 	/*
 	 * Try connecting to the server.
 	 */
+	ai = res;
 retry:
 	seteuid(euid);
-	s = rresvport(&lport);
+	s = rresvport_af(&lport, ai->ai_family);
 	seteuid(uid);
-	if (s < 0)
+	if (s < 0) {
+		if (errno != EAGAIN) {
+			if (ai->ai_next) {
+				ai = ai->ai_next;
+				goto retry;
+			}
+			if (refused && timo <= 16) {
+				sleep(timo);
+				timo *= 2;
+				refused = 0;
+				ai = res;
+				goto retry;
+			}
+		}
+		freeaddrinfo(res);
 		return(-1);
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+	}
+	if (connect(s, ai->ai_addr, ai->ai_addrlen) < 0) {
 		err = errno;
 		(void) close(s);
 		errno = err;
@@ -128,16 +140,28 @@ retry:
 		 * rresvport should guarantee that the chosen port will
 		 * never result in an EADDRINUSE).
 		 */
-		if (errno == EADDRINUSE)
-			goto retry;
-
-		if (errno == ECONNREFUSED && timo <= 16) {
-			sleep(timo);
-			timo *= 2;
+		if (errno == EADDRINUSE) {
 			goto retry;
 		}
+
+		if (errno == ECONNREFUSED)
+			refused++;
+
+		if (ai->ai_next != NULL) {
+			ai = ai->ai_next;
+			goto retry;
+		}
+		if (refused && timo <= 16) {
+			sleep(timo);
+			timo *= 2;
+			refused = 0;
+			ai = res;
+			goto retry;
+		}
+		freeaddrinfo(res);
 		return(-1);
 	}
+	freeaddrinfo(res);
 	return(s);
 }
 
@@ -155,10 +179,10 @@ char *
 checkremote(struct printer *pp)
 {
 	char name[MAXHOSTNAMELEN];
-	register struct hostent *hp;
+	struct addrinfo hints, *local_res, *remote_res, *lr, *rr;
 	char *err;
-	struct in_addr *localaddrs;
-	int i, j, nlocaladdrs, ncommonaddrs;
+	int ncommonaddrs, error;
+	char h1[NI_MAXHOST], h2[NI_MAXHOST];
 
 	if (!pp->rp_matches_local) { /* Remote printer doesn't match local */
 		pp->remote = 1;
@@ -166,57 +190,63 @@ checkremote(struct printer *pp)
 	}
 
 	pp->remote = 0;	/* assume printer is local */
-	if (pp->remote_host != NULL) {
-		/* get the addresses of the local host */
-		gethostname(name, sizeof(name));
-		name[sizeof(name) - 1] = '\0';
-		hp = gethostbyname2(name, AF_INET);
-		if (hp == (struct hostent *) NULL) {
-			asprintf(&err, "unable to get official name "
-				 "for local machine %s: %s",
-				 name, hstrerror(h_errno));
-			return err;
-		}
-		for (i = 0; hp->h_addr_list[i]; i++)
-			;
-		nlocaladdrs = i;
-		localaddrs = malloc(i * sizeof(struct in_addr));
-		if (localaddrs == 0) {
-			asprintf(&err, "malloc %lu bytes failed",
-				 (u_long)i * sizeof(struct in_addr));
-			return err;
-		}
-		for (i = 0; hp->h_addr_list[i]; i++)
-			localaddrs[i] = *(struct in_addr *)hp->h_addr_list[i];
+	if (pp->remote_host == NULL)
+		return NULL;
 
-		/* get the official name of RM */
-		hp = gethostbyname2(pp->remote_host, AF_INET);
-		if (hp == (struct hostent *) NULL) {
-			asprintf(&err, "unable to get address list for "
-				 "remote machine %s: %s",
-				 pp->remote_host, hstrerror(h_errno));
-			free(localaddrs);
-			return err;
-		}
+	/* get the addresses of the local host */
+	gethostname(name, sizeof(name));
+	name[sizeof(name) - 1] = '\0';
 
-		ncommonaddrs = 0;
-		for (i = 0; i < nlocaladdrs; i++) {
-			for (j = 0; hp->h_addr_list[j]; j++) {
-				char *them = hp->h_addr_list[j];
-				if (localaddrs[i].s_addr ==
-				    (*(struct in_addr *)them).s_addr)
-					ncommonaddrs++;
-			}
-		}
-			
-		/*
-		 * if the two hosts do not share at least one IP address
-		 * then the printer must be remote.
-		 */
-		if (ncommonaddrs == 0)
-			pp->remote = 1;
-		free(localaddrs);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = family;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if ((error = getaddrinfo(name, NULL, &hints, &local_res)) != 0) {
+		asprintf(&err, "unable to get official name "
+			 "for local machine %s: %s",
+			 name, gai_strerror(error));
+		return err;
 	}
+
+	/* get the official name of RM */
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = family;
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_flags = AI_PASSIVE;
+	if ((error = getaddrinfo(pp->remote_host, NULL,
+				 &hints, &remote_res)) != 0) {
+		asprintf(&err, "unable to get address list for "
+			 "remote machine %s: %s",
+			 pp->remote_host, gai_strerror(error));
+		freeaddrinfo(local_res);
+		return err;
+	}
+
+	ncommonaddrs = 0;
+	for (lr = local_res; lr; lr = lr->ai_next) {
+		h1[0] = '\0';
+		if (getnameinfo(lr->ai_addr, lr->ai_addrlen, h1, sizeof(h1),
+				NULL, 0, NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+			continue;
+		for (rr = remote_res; rr; rr = rr->ai_next) {
+			h2[0] = '\0';
+			if (getnameinfo(rr->ai_addr, rr->ai_addrlen,
+					h2, sizeof(h2), NULL, 0,
+					NI_NUMERICHOST | NI_WITHSCOPEID) != 0)
+				continue;
+			if (strcmp(h1, h2) == 0)
+				ncommonaddrs++;
+		}
+	}
+			
+	/*
+	 * if the two hosts do not share at least one IP address
+	 * then the printer must be remote.
+	 */
+	if (ncommonaddrs == 0)
+		pp->remote = 1;
+	freeaddrinfo(local_res);
+	freeaddrinfo(remote_res);
 	return NULL;
 }
 
