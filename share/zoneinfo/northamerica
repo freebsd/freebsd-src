@@ -128,10 +128,17 @@ Zone America/Los_Angeles -8:00	US	P%sT
 Zone America/Anchorage	-9:00	US	AK%sT
 					# AK%sT is the abbreviation per USNO
 
+# ZONE-DESCR America New_York United_States Eastern time (except Indiana and Michigan)
+# ZONE-DESCR America Chicago United_States Central time
+# ZONE-DESCR America Denver United_States Mountain time (except Arizona)
+# ZONE-DESCR America Los_Angeles United_States Pacific time
+# ZONE-DESCR America Anchorage United_States Alaska time
+
 # Mainland US areas that are always Standard as of 1986.
 
 Zone America/Fort_Wayne -5:00	US	E%sT	1946
 			-5:00	-	EST	# Always EST as of 1986
+
 # From Arthur David Olson (October 28, 1991):
 # An article on page A3 of the Sunday, October 27, 1991 Washington Post
 # notes that Starke County switched from Central time to Eastern time as of
@@ -140,6 +147,11 @@ Zone America/Knox_IN	-6:00	US	C%sT	1991 Oct 27 2:00
 			-5:00	-	EST	# Always EST as of 1991
 Zone America/Phoenix	-7:00	US	M%sT	1946
 			-7:00	-	MST	# Always MST as of 1986
+
+# ZONE-DESCR America Fort_Wayne United_States Indiana (except Starke County)
+# ZONE-DESCR America Knox_IN United_States Indiana (Starke County)
+# ZONE-DESCR America Phoenix United_States Arizona (except Navajo Nation)
+# ZONE-DESCR . Navajo United_States Arizona (Navajo Nation)
 
 # From Arthur David Olson (February 13, 1988):
 # However. . .a writer from the Inter Tribal Council of Arizona, Inc.,
@@ -156,6 +168,8 @@ Link America/Denver Navajo
 Zone America/Detroit	-5:00	US	E%sT	1968
 			-5:00	-	EST	1973
 			-5:00	US	E%sT
+
+# ZONE-DESCR America Detroit United_States Michigan
 
 # Samoa just changes names.  No DST, per Naval Observatory.
 #
@@ -191,6 +205,12 @@ Zone Pacific/Honolulu	-10:30	US	H%sT	1933 Apr 30 2:00
 			-10:30	1:00	HDT	1933 May  1 2:00
 			-10:30	US	H%sT	1947 Jun  8 2:00
 			-10:00	-	HST
+
+# ZONE-DESCR Pacific Samoa United_States American Samoa
+# ZONE-DESCR Pacific Samoa Western_Samoa All points
+# ZONE-DESCR Pacific Midway United_States Midway Island
+# ZONE-DESCR America Atka United_States Aleutian Islands
+# ZONE-DESCR Pacific Honolulu United_States Hawaii
 
 # Navassa
 # no information; probably like US/Eastern
@@ -342,6 +362,8 @@ Zone America/St_Johns	-3:30:52 -	LMT	1884
 			-3:31	StJohns	N%sT	1935 Mar 30
 			-3:30	StJohns	N%sT
 
+# ZONE-DESCR America St_Johns Canada Newfoundland
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule Halifax	1902	only	-	Jun	15	0:00	0	S
 Rule Halifax	1916	only	-	Apr	 1	0:00	1:00	D
@@ -388,6 +410,8 @@ Rule Halifax	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 Zone America/Halifax	-4:14:24 -	LMT	1902 Jun 15
 			-4:00	Halifax	A%sT
 
+# ZONE-DESCR America Halifax Canada Atlantic time
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mont	1884	only	-	Jan	 1	0:00	0	S
 Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
@@ -422,6 +446,8 @@ Rule	Mont	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 Zone America/Montreal	-4:54:16 -	LMT	1884
 			-5:00	Mont	E%sT
 
+# ZONE-DESCR America Montreal Canada Eastern time
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Winn	1887	only	-	Jul	16	0:00	0	S
 Rule	Winn	1916	only	-	Apr	23	0:00	1:00	D
@@ -449,6 +475,8 @@ Rule	Winn	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 			-6:00	Winn	C%sT
 
+# ZONE-DESCR America Winnipeg Canada Manitoba
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Regina	1905	only	-	Sep	 1	0:00	0	S
 Rule	Regina	1918	only	-	Apr	14	2:00	1:00	D
@@ -469,6 +497,8 @@ Rule	Regina	1947	1959	-	Sep	lastSun	2:00	0	S
 Zone	America/Regina	-6:58:36 -	LMT	1905 Sep
 			-7:00	Regina	M%sT	1966 Apr 15
 			-6:00	-	CST
+
+# ZONE-DESCR America Regina Canada Saskatchewan
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Edm	1906	only	-	Sep	 1	0:00	0	S
@@ -493,6 +523,8 @@ Rule	Edm	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 Zone America/Edmonton	-7:33:52 -	LMT	1906 Sep
 			-7:00	Edm	M%sT
 
+# ZONE-DESCR America Edmonton Canada Alberta
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Vanc	1884	only	-	Jan	 1	0:00	0	S
 Rule	Vanc	1918	only	-	Apr	14	2:00	1:00	D
@@ -507,6 +539,8 @@ Rule	Vanc	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Vancouver	-8:12:28 -	LMT	1884
 			-8:00	Vanc	P%sT
+
+# ZONE-DESCR America Vancouver Canada British Columbia
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Yukon	1900	only	-	Jan	 1	0:00	0	S
@@ -525,6 +559,8 @@ Zone America/Whitehorse	-9:00:12 -	LMT	1900 Aug 20
 			-9:00	Yukon	Y%sT	1966 Jul
 			-8:00	Yukon	P%sT
 # Parts of Yukon (e.g. Dawson) didn't switch to -8:00 until 1973 Oct 28.
+
+# ZONE-DESCR America Whitehorse Canada Yukon Territory
 
 ###############################################################################
 
@@ -603,6 +639,7 @@ Zone America/Mexico_City -6:36:36 -	LMT	1922 Jan  1  0:23:24
 			-6:00	-	CST	1931 Oct
 			-7:00	-	MST	1932 Mar 30 23:00
 			-6:00	Mexico	C%sT
+# ZONE-DESCR America Mexico_City Mexico Mexico City
 Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1927 Jun 10 23:00
 			-6:00	-	CST	1930 Nov 15
@@ -613,6 +650,7 @@ Zone America/Mazatlan	-7:05:40 -	LMT	1921 Dec 31 23:54:20
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST	1970
 			-7:00	-	MST
+# ZONE-DESCR America Mazatlan Mexico Mazatlan
 Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
@@ -620,12 +658,15 @@ Zone America/Tijuana	-7:48:04 -	LMT	1922 Jan  1  0:11:56
 			-7:00	-	MST	1949 Jan 14
 			-8:00	BajaN	P%sT	1967 Apr lastSun 2:00
 			-8:00	US	P%sT
+# ZONE-DESCR America Tijuana Mexico Baja California Norte
 Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
 			-8:00	-	PST	1927 Jun 10 23:00
 			-7:00	-	MST	1930 Nov 16
 			-8:00	-	PST	1942 Apr
 			-7:00	-	MST	1949 Jan 14
 			-8:00	-	PST
+# ZONE-DESCR America Ensenada Mexico Ensenada
+
 #
 # Revillagigedo Is
 # no information
@@ -637,11 +678,15 @@ Zone America/Ensenada	-7:46:28 -	LMT	1922 Jan  1  0:13:32
 Zone America/Anguilla	-4:12:16 -	LMT	1912 Mar 2
 			-4:00	-	AST
 
+# ZONE-DESCR America Anguilla Anguilla All points
+
 # Antigua and Barbuda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Antigua	-4:07:12 -	LMT	1912 Mar 2
 			-5:00	-	EST	1951
 			-4:00	-	AST
+
+# ZONE-DESCR America Antigua Antigua All points
 
 # Bahamas
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -652,6 +697,8 @@ Rule	Bahamas	1987	max	-	Apr	Sun>=1	2:00	1:00	D
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Nassau	-5:09:24 -	LMT	1912 Mar 2
 			-5:00	Bahamas	E%sT
+
+# ZONE-DESCR America Nassau Bahamas All points
 
 # Barbados
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -665,6 +712,8 @@ Rule	Barb	1980	only	-	Sep	25	2:00	0	S
 Zone America/Barbados	-3:58:28 -	LMT	1924		# Bridgetown
 			-3:58	-	BMT	1932	  # Bridgetown Mean Time
 			-4:00	Barb	A%sT
+
+# ZONE-DESCR America Barbados Barbados All points
 
 # Belize
 # Whitman entirely disagrees with Shanks; go with Shanks.
@@ -680,17 +729,23 @@ Rule	Belize	1983	only	-	Feb	12	0:00	0	S
 Zone	America/Belize	-5:52:48 -	LMT	1912 Apr
 			-6:00	Belize	C%sT
 
+# ZONE-DESCR America Belize Belize All points
+
 # Bermuda
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Bermuda	-4:19:04 -	LMT	1930 Jan  1 2:00    # Hamilton
 			-4:00	-	AST	1974 Apr 28 2:00
 			-4:00	Bahamas	A%sT
 
+# ZONE-DESCR Atlantic Bermuda Bermuda All points
+
 # Cayman Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Cayman	-5:25:32 -	LMT	1890		# Georgetown
 			-5:07	-	KMT	1912 Feb    # Kingston Mean Time
 			-5:00	-	EST
+
+# ZONE-DESCR America Cayman Cayman_Islands All points
 
 # Clipperton
 # no information
@@ -709,6 +764,8 @@ Rule	CR	1991	only	-	Jul	1	0:00	0	S
 Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 			-5:36	-	SJMT	1921 Jan 15 # San Jose Mean Time
 			-6:00	CR	C%sT
+# ZONE-DESCR America Costa_Rica Costa_Rica All points
+
 # Coco
 # no information; probably like America/Costa_Rica
 
@@ -757,10 +814,14 @@ Zone	America/Havana	-5:29:28 -	LMT	1890
 			-5:30	-	HMT	1925 Jul 19 12:00 # Havana MT
 			-5:00	Cuba	C%sT
 
+# ZONE-DESCR America Havana Cuba All points
+
 # Dominica
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Dominica	-4:05:36 -	LMT	1911 Jul 1 0:01		# Roseau
 			-4:00	-	AST
+
+# ZONE-DESCR America Dominica Dominica All points
 
 # Dominican Republic
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -777,6 +838,8 @@ Zone America/Santo_Domingo -4:39:36 -	LMT	1890
 			-5:00	DR	E%sT	1974 Oct 27
 			-4:00	-	AST
 
+# ZONE-DESCR America Santo_Domingo Dominican_Republic All points
+
 # El Salvador
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Salv	1921	only	-	Jan	1	0:00	0	S
@@ -787,15 +850,21 @@ Rule	Salv	1987	1988	-	Sep	lastSun	0:00	0	S
 Zone America/El_Salvador -5:56:48 -	LMT	1921		# San Salvador
 			-6:00	Salv	C%sT
 
+# ZONE-DESCR America El_Salvador El_Salvador All points
+
 # Grenada
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Grenada	-4:07:00 -	LMT	1911 Jul
 			-4:00	-	AST
 
+# ZONE-DESCR America Grenada Grenada All points
+
 # Guadeloupe
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guadeloupe	-4:06:08 -	LMT	1911 Jun 8	# Pointe a Pitre
 			-4:00	-	AST
+
+# ZONE-DESCR America Guadeloupe Guadeloupe All points
 
 # Guatemala
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -807,6 +876,8 @@ Rule	Guat	1983	only	-	Sep	22	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Guatemala	-6:02:04 -	LMT	1918 Oct 5
 			-6:00	Guat	C%sT
+
+# ZONE-DESCR America Guatemala Guatemala All points
 
 # Haiti
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -821,11 +892,15 @@ Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 			-4:49	-	PPMT	1917 Jan 24 12:00 # P-a-P MT
 			-5:00	Haiti	E%sT
 
+# ZONE-DESCR America Port-au-Prince Haiti All points
+
 # Honduras
 # Shanks says 1921 Jan 1; go with Whitman's more precise Apr 1.
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 			-6:00	Salv	C%sT
+
+# ZONE-DESCR America Tegucigalpa Honduras All points
 
 # Jamaica
 
@@ -842,6 +917,8 @@ Zone	America/Jamaica	-5:07:12 -	LMT	1890		# Kingston
 			-5:00	-	EST	1974 Jan 6 2:00
 			-5:00	US	E%sT
 
+# ZONE-DESCR America Jamaica Jamaica All points
+
 # Martinique
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Martinique	-4:04:20 -      LMT	1890		# Fort-de-France
@@ -850,10 +927,14 @@ Zone America/Martinique	-4:04:20 -      LMT	1890		# Fort-de-France
 			-4:00	1:00	ADT	1980 Sep 28
 			-4:00	-	AST
 
+# ZONE-DESCR America Martinique Martinique All points
+
 # Montserrat
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Plymouth
 			-4:00	-	AST
+
+# ZONE-DESCR America Montserrat Montserrat All points
 
 # Nicaragua
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -867,11 +948,15 @@ Zone	America/Managua	-5:45:08 -	LMT	1890
 			-5:00	-	EST	1975 Feb 16
 			-6:00	Nic	C%sT
 
+# ZONE-DESCR America Managua Nicaragua All points
+
 # Panama
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Panama	-5:18:08 -	LMT	1890
 			-5:20	-	PMT	1908 Apr 22   # Panama Mean Time
 			-5:00	-	EST
+
+# ZONE-DESCR America Panama Panama All points
 
 # Puerto Rico
 # There are too many San Juans elsewhere, so we'll use `Puerto_Rico'.
@@ -881,16 +966,22 @@ Zone America/Puerto_Rico -4:24:28 -	LMT	1899 Mar 28 12:00    # San Juan
 			-4:00	1:00	ADT	1945 Sep 30  2:00
 			-4:00	-	AST
 
+# ZONE-DESCR America Puerto_Rico United_States Puerto Rico
+
 # St Kitts-Nevis
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Kitts	-4:10:52 -	LMT	1912 Mar 2	# Basseterre
 			-4:00	-	AST
+
+# ZONE-DESCR America St_Kitts St_Kitts_and_Nevis All points 
 
 # St Lucia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Lucia	-4:04:00 -	LMT	1890		# Castries
 			-4:04	-	CMT	1912	    # Castries Mean Time
 			-4:00	-	AST
+
+# ZONE-DESCR America St_Lucia St_Lucia All points
 
 # St Pierre and Miquelon
 # There are too many St Pierres elsewhere, so we'll use `Miquelon'.
@@ -899,11 +990,15 @@ Zone America/Miquelon	-3:44:40 -	LMT	1911 May 15	# St Pierre
 			-4:00	-	AST	1980 May
 			-3:00	Mont	SP%sT
 
+# ZONE-DESCR America Miquelon France St. Pierre and Miquelon
+
 # St Vincent and the Grenadines
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/St_Vincent	-4:04:56 -	LMT	1890		# Kingstown
 			-4:05	-	KMT	1912	   # Kingstown Mean Time
 			-4:00	-	AST
+
+# ZONE-DESCR America St_Vincent St_Vincent All points
 
 # Turks and Caicos
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -912,7 +1007,12 @@ Zone America/Grand_Turk	-4:44:32 -	LMT	1890
 			-5:00	-	EST	1979 Apr 29 2:00
 			-5:00	US	E%sT
 
+# ZONE-DESCR America Grand_Turk Turks_and_Caicos All points
+
 # Virgin Is (British and US)
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Virgin	-4:19:44 -	LMT	1911 Jul    # Charlotte Amalie
 			-4:00	-	AST
+
+# ZONE-DESCR America Virgin United_States US Virgin Islands
+# ZONE-DESCR America virgin United_Kingdom British Virgin Islands
