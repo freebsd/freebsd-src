@@ -172,7 +172,7 @@ For_Eval (char *line)
 	 */
 	forLst = Lst_Init(FALSE);
 	buf = Buf_Init(0);
-	sub = Var_Subst(NULL, ptr, VAR_GLOBAL, FALSE);
+	sub = Var_Subst(NULL, ptr, VAR_CMD, FALSE);
 
 #define	ADDWORD() \
 	Buf_AddBytes(buf, ptr - wrd, (Byte *) wrd), \
