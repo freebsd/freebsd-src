@@ -54,30 +54,31 @@ __BEGIN_DECLS
 int	raise(int);
 #ifndef	_ANSI_SOURCE
 int	kill(__pid_t, int);
-int	sigaction(int, const struct sigaction *, struct sigaction *);
+int	sigaction(int, const struct sigaction * __restrict,
+	    struct sigaction * __restrict);
 int	sigaddset(sigset_t *, int);
 int	sigdelset(sigset_t *, int);
 int	sigemptyset(sigset_t *);
 int	sigfillset(sigset_t *);
 int	sigismember(const sigset_t *, int);
 int	sigpending(sigset_t *);
-int	sigprocmask(int, const sigset_t *, sigset_t *);
+int	sigprocmask(int, const sigset_t * __restrict, sigset_t * __restrict);
 int	sigsuspend(const sigset_t *);
 int	sigwait(const sigset_t *, int *);
-
 
 #ifdef _P1003_1B_VISIBLE
 
 __BEGIN_DECLS
 int sigqueue(__pid_t, int, const union sigval);
-int sigtimedwait(const sigset_t *, siginfo_t *, const struct timespec *);
-int sigwaitinfo(const sigset_t *, siginfo_t *);
+int sigtimedwait(const sigset_t * __restrict, siginfo_t * __restrict,
+	    const struct timespec * __restrict);
+int sigwaitinfo(const sigset_t * __restrict, siginfo_t * __restrict);
 __END_DECLS
 
 #endif
 #ifndef _POSIX_SOURCE
 int	killpg(__pid_t, int);
-int	sigaltstack(const stack_t *, stack_t *); 
+int	sigaltstack(const stack_t * __restrict, stack_t * __restrict); 
 int	sigblock(int);
 int	siginterrupt(int, int);
 int	sigpause(int);
