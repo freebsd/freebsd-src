@@ -66,11 +66,10 @@ static const char rcsid[] =
 #define	ANICHOST	"whois.arin.net"
 #define	RNICHOST	"whois.ripe.net"
 #define	PNICHOST	"whois.apnic.net"
-#define	RUNICHOST	"whois.ripn.net"
 #define	MNICHOST	"whois.ra.net"
 #define	QNICHOST_TAIL	".whois-servers.net"
 #define	SNICHOST	"whois.6bone.net"
-#define	WHOIS_PORT	43
+#define	DEFAULT_PORT	"whois"
 #define	WHOIS_SERVER_ID	"Whois Server: "
 #define	NO_MATCH_ID	"No match for \""
 
@@ -79,6 +78,7 @@ static const char rcsid[] =
 #define WHOIS_QUICK		0x04
 
 const char *ip_whois[] = { RNICHOST, PNICHOST, NULL };
+const char *port = DEFAULT_PORT;
 
 static char *choose_server(char *);
 static struct addrinfo *gethostinfo(char const *host, int exit_on_error);
@@ -90,7 +90,7 @@ int
 main(int argc, char *argv[])
 {
 	struct addrinfo *res;
-	const char *host;
+	const char *country, *host;
 	char *qnichost;
 	int ch, flags, use_qnichost;
 
@@ -98,15 +98,19 @@ main(int argc, char *argv[])
 	SOCKSinit(argv[0]);
 #endif
 
-	host = NULL;
-	qnichost = NULL;
-	flags = 0;
-	use_qnichost = 0;
-	while ((ch = getopt(argc, argv, "adgh:impQrR6")) != -1) {
+	country = host = qnichost = NULL;
+	flags = use_qnichost = 0;
+	while ((ch = getopt(argc, argv, "aAc:dgh:imp:QrR6")) != -1) {
 		switch (ch) {
 		case 'a':
 			host = ANICHOST;
 			break;
+		case 'A':
+			host = PNICHOST;
+			break;
+		case 'c':
+			country = optarg;
+			break; 
 		case 'd':
 			host = DNICHOST;
 			break;
@@ -123,7 +127,7 @@ main(int argc, char *argv[])
 			host = MNICHOST;
 			break;
 		case 'p':
-			host = PNICHOST;
+			port = optarg;
 			break;
 		case 'Q':
 			flags |= WHOIS_QUICK;
@@ -132,7 +136,8 @@ main(int argc, char *argv[])
 			host = RNICHOST;
 			break;
 		case 'R':
-			host = RUNICHOST;
+			warnx("-R is deprecated; use '-c ru' instead");
+			country = "ru";
 			break;
 		case '6':
 			host = SNICHOST;
@@ -146,23 +151,26 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!argc)
+	if (!argc || (country != NULL && host != NULL))
 		usage();
 
 	/*
-	 * If no nic host is specified determine the top level domain from
-	 * the query.  If the TLD is a number, query ARIN.  Otherwise, use 
+	 * If no host or country is specified determine the top level domain
+	 * from the query.  If the TLD is a number, query ARIN.  Otherwise, use 
 	 * TLD.whois-server.net.  If the domain does not contain '.', fall
 	 * back to NICHOST.
 	 */
-	if (host == NULL) {
+	if (host == NULL && country == NULL) {
 		use_qnichost = 1;
 		host = NICHOST;
 		if (!(flags & WHOIS_QUICK))
 			flags |= WHOIS_INIC_FALLBACK | WHOIS_RECURSE;
 	}
 	while (argc--) {
-		if (use_qnichost)
+		if (country != NULL) {
+			s_asprintf(&qnichost, "%s%s", country, QNICHOST_TAIL);
+			res = gethostinfo(qnichost, 1);
+		} else if (use_qnichost) 
 			if ((qnichost = choose_server(*argv)) != NULL)
 				res = gethostinfo(qnichost, 1);
 		if (qnichost == NULL)
@@ -212,7 +220,7 @@ gethostinfo(char const *host, int exit_on_error)
 	hints.ai_flags = 0;
 	hints.ai_family = AF_UNSPEC;
 	hints.ai_socktype = SOCK_STREAM;
-	error = getaddrinfo(host, "whois", &hints, &res);
+	error = getaddrinfo(host, port, &hints, &res);
 	if (error) {
 		warnx("%s: %s", host, gai_strerror(error));
 		if (exit_on_error)
@@ -319,6 +327,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "usage: whois [-adgimpQrR6] [-h hostname] name ...\n");
+	    "usage: whois [-adgimpQrR6] [-c country-code | -h hostname] "
+	    "[-p port] name ...\n");
 	exit(EX_USAGE);
 }
