@@ -82,7 +82,7 @@ CLEANDIRS+=	lib ext Porting hints build
 
 FARMDIRS=	lib ext Porting hints
 
-MAKEMAKER_ARGS=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
+MAKEMAKER_ARGS?=	INSTALLDIRS=perl PERL_SRC=${.OBJDIR} \
 		INSTALLMAN3DIR=${DESTDIR}/usr/share/perl/man3 \
 		PERL=${MINIPERL} FULLPERL=perl DEFINE=-I${DESTDIR}/usr/include \
 		DEFINE=-DPERL_CORE
