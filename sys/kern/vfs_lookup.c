@@ -40,11 +40,13 @@
  */
 
 #include "opt_ktrace.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -213,6 +215,11 @@ namei(ndp)
 			error = ELOOP;
 			break;
 		}
+#ifdef MAC
+		error = mac_check_vnode_readlink(td->td_ucred, ndp->ni_vp);
+		if (error)
+			break;
+#endif
 		if (ndp->ni_pathlen > 1)
 			cp = uma_zalloc(namei_zone, M_WAITOK);
 		else
@@ -463,6 +470,11 @@ dirloop:
 	 * We now have a segment name to search for, and a directory to search.
 	 */
 unionlookup:
+#ifdef MAC
+	error = mac_check_vnode_lookup(td->td_ucred, dp, cnp);
+	if (error)
+		goto bad;
+#endif
 	ndp->ni_dvp = dp;
 	ndp->ni_vp = NULL;
 	cnp->cn_flags &= ~PDIRUNLOCK;
