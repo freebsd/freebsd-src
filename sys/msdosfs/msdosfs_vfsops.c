@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.26 1998/02/23 09:59:08 ache Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.27 1998/02/23 14:57:50 kato Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -104,10 +104,15 @@ update_mp(mp, argp)
 	pmp->pm_uid = argp->uid;
 	pmp->pm_mask = argp->mask & ALLPERMS;
 	pmp->pm_flags |= argp->flags & MSDOSFSMNT_MNTOPT;
-	if (pmp->pm_flags & MSDOSFSMNT_U2WTABLE)
+	if (pmp->pm_flags & MSDOSFSMNT_U2WTABLE) {
 		bcopy(argp->u2w, pmp->pm_u2w, sizeof(pmp->pm_u2w));
-	if (pmp->pm_flags & MSDOSFSMNT_ULTABLE)
+		bcopy(argp->d2u, pmp->pm_d2u, sizeof(pmp->pm_d2u));
+		bcopy(argp->u2d, pmp->pm_u2d, sizeof(pmp->pm_u2d));
+	}
+	if (pmp->pm_flags & MSDOSFSMNT_ULTABLE) {
 		bcopy(argp->ul, pmp->pm_ul, sizeof(pmp->pm_ul));
+		bcopy(argp->lu, pmp->pm_lu, sizeof(pmp->pm_lu));
+	}
 
 #ifndef __FreeBSD__
 	/*

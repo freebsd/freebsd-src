@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.18 1998/02/22 18:00:52 ache Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.19 1998/02/23 09:39:25 ache Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -151,7 +151,9 @@ msdosfs_lookup(ap)
 	}
 
 	switch (unix2dosfn((const u_char *)cnp->cn_nameptr, dosfilename,
-	    cnp->cn_namelen, 0)) {
+	    cnp->cn_namelen, 0,
+	    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
+	    pmp->pm_flags & MSDOSFSMNT_ULTABLE, pmp->pm_lu)) {
 	case 0:
 		return (EINVAL);
 	case 1:
@@ -256,10 +258,10 @@ msdosfs_lookup(ap)
 							    cnp->cn_namelen,
 							    (struct winentry *)dep,
 							    chksum,
-							    (pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
-							    pmp->pm_u2w : NULL,
-							    (pmp->pm_flags & MSDOSFSMNT_ULTABLE) ?
-							    pmp->pm_ul : NULL);
+							    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+							    pmp->pm_u2w,
+							    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
+							    pmp->pm_lu);
 					continue;
 				}
 
@@ -643,8 +645,8 @@ createde(dep, ddep, depp, cnp)
 			}
 			if (!unix2winfn(un, unlen, (struct winentry *)ndep,
 					cnt++, chksum,
-					(pmp->pm_flags & MSDOSFSMNT_U2WTABLE) ?
-					pmp->pm_u2w : NULL));
+					pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
+					pmp->pm_u2w))
 				break;
 		}
 	}
@@ -980,7 +982,9 @@ uniqdosname(dep, cnp, cp)
 		 * Generate DOS name with generation number
 		 */
 		if (!unix2dosfn((const u_char *)cnp->cn_nameptr, cp,
-		    cnp->cn_namelen, gen))
+		    cnp->cn_namelen, gen,
+		    pmp->pm_flags & MSDOSFSMNT_U2WTABLE, pmp->pm_u2d,
+		    pmp->pm_flags & MSDOSFSMNT_ULTABLE, pmp->pm_lu))
 			return gen == 1 ? EINVAL : EEXIST;
 
 		/*
