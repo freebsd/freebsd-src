@@ -17,7 +17,6 @@
  *
  */
 
-#include "xrpu.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -25,14 +24,13 @@
 #include <sys/malloc.h>
 #include <sys/timepps.h>
 #include <sys/xrpuio.h>
+#include <sys/bus.h>
+#include <machine/bus.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
-
-static	const char*	xrpu_probe  (pcici_t tag, pcidi_t type);
-static	void	xrpu_attach (pcici_t tag, int unit);
-static	u_long	xrpu_count;
-
-static void xrpu_poll_pps(struct timecounter *tc);
+#include "pci_if.h"
 
 /*
  * Device driver initialization stuff
@@ -63,11 +61,12 @@ static struct cdevsw xrpu_cdevsw = {
 
 static MALLOC_DEFINE(M_XRPU, "xrpu", "XRPU related");
 
+static devclass_t xrpu_devclass;
+
 #define dev2unit(devt) (minor(devt) & 0xff)
 #define dev2pps(devt) ((minor(devt) >> 16)-1)
 
-static struct softc {
-	pcici_t	tag;
+struct softc {
 	enum { NORMAL, TIMECOUNTER } mode;
 	vm_offset_t virbase, physbase;
 	u_int	*virbase62;
@@ -75,7 +74,7 @@ static struct softc {
 	u_int *trigger, *latch, dummy;
 	struct pps_state pps[XRPU_MAX_PPS];
 	u_int *assert[XRPU_MAX_PPS], *clear[XRPU_MAX_PPS];
-} *softc[NXRPU];
+};
 
 static unsigned         
 xrpu_get_timecount(struct timecounter *tc)
@@ -86,7 +85,7 @@ xrpu_get_timecount(struct timecounter *tc)
 	return (*sc->latch & tc->tc_counter_mask);
 }        
 
-void            
+static void            
 xrpu_poll_pps(struct timecounter *tc)
 {               
         struct softc *sc = tc->tc_priv;
@@ -118,10 +117,11 @@ xrpu_poll_pps(struct timecounter *tc)
 static int
 xrpu_open(dev_t dev, int flag, int mode, struct proc *p)
 {
-	struct softc *sc = softc[dev2unit(dev)];
+	struct softc *sc = devclass_get_softc(xrpu_devclass, dev2unit(dev));
 
 	if (!sc)
 		return (ENXIO);
+	dev->si_drv1 = sc;
 	return (0);
 }
 
@@ -134,7 +134,7 @@ xrpu_close(dev_t dev, int flag, int mode, struct proc *p)
 static int
 xrpu_mmap(dev_t dev, vm_offset_t offset, int nprot)
 {
-	struct softc *sc = softc[dev2unit(dev)];
+	struct softc *sc = dev->si_drv1;
 	if (offset >= 0x1000000) 
 		return (-1);
 	return (i386_btop(sc->physbase + offset));
@@ -143,7 +143,7 @@ xrpu_mmap(dev_t dev, vm_offset_t offset, int nprot)
 static int
 xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 {
-	struct softc *sc = softc[dev2unit(dev)];
+	struct softc *sc = dev->si_drv1;
 	int i, error;
 
 	if (sc->mode == TIMECOUNTER) {
@@ -199,57 +199,69 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
  * PCI initialization stuff
  */
 
-static struct pci_device xrpu_device = {
-	"xrpu",
-	xrpu_probe,
-	xrpu_attach,
-	&xrpu_count,
-	NULL
-};
-
-COMPAT_PCI_DRIVER (xrpu, xrpu_device);
-
-static const char* 
-xrpu_probe (pcici_t tag, pcidi_t typea)
+static int
+xrpu_probe(device_t self)
 {
-	u_int id;
-	const char *vendor, *chip, *type;
-	static int once;
+	char *desc;
 
-	if (!once++)
-		cdevsw_add(&xrpu_cdevsw);
-
-	(void)pci_conf_read(tag, PCI_CLASS_REG);
-	id = pci_conf_read(tag, PCI_ID_REG);
-
-	vendor = chip = type = 0;
-
-	if (id == 0x6216133e) {
-		return "VCC Hotworks-I xc6216";
+	desc = NULL;
+	switch (pci_get_devid(self)) {
+	case 0x6216133e:
+		desc = "VCC Hotworks-I xc6216";
+		break;
 	}
+	if (desc == NULL)
+		return ENXIO;
+
+	device_set_desc(self, desc);
 	return 0;
 }
 
-static void
-xrpu_attach (pcici_t tag, int unit)
+static int
+xrpu_attach(device_t self)
 {
 	struct softc *sc;
+	struct resource *res;
+	int rid, unit;
 
-	sc = (struct softc *)malloc(sizeof *sc, M_XRPU, M_WAITOK);
-	softc[unit] = sc;
-	bzero(sc, sizeof *sc);
-
-	sc->tag = tag;
+	unit = device_get_unit(self);
+	sc = device_get_softc(self);
 	sc->mode = NORMAL;
-
-	pci_map_mem(tag, PCI_MAP_REG_START, &sc->virbase, &sc->physbase);
-
+	rid = PCI_MAP_REG_START;
+	res = bus_alloc_resource(self, SYS_RES_MEMORY, &rid,
+				 0, ~0, 1, RF_ACTIVE);
+	if (res == NULL) {
+		device_printf(self, "Could not map memory\n");
+		return ENXIO;
+	}
+	sc->virbase = (vm_offset_t)rman_get_virtual(res);
+	sc->physbase = rman_get_start(res);
 	sc->virbase62 = (u_int *)(sc->virbase + 0x800000);
 
 	if (bootverbose)
 		printf("Mapped physbase %#lx to virbase %#lx\n",
 		    (u_long)sc->physbase, (u_long)sc->virbase);
 
-
 	make_dev(&xrpu_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "xrpu%d", unit);
+	return 0;
 }
+
+static device_method_t xrpu_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		xrpu_probe),
+	DEVMETHOD(device_attach,	xrpu_attach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+
+	{0, 0}
+};
+ 
+static driver_t xrpu_driver = {
+	"xrpu",
+	xrpu_methods,
+	sizeof(struct softc)
+};
+ 
+ 
+DRIVER_MODULE(xrpu, pci, xrpu_driver, xrpu_devclass, 0, 0);
