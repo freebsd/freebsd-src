@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)dumpfs.c	8.5 (Berkeley) 4/29/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: dumpfs.c,v 1.10 1998/06/15 07:00:01 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -135,6 +135,7 @@ dumpfs(name)
 	dev_bsize = afs.fs_fsize / fsbtodb(&afs, 1);
 	printf("magic\t%x\ttime\t%s", afs.fs_magic,
 	    ctime(&afs.fs_time));
+	printf("id\t[ %x %x ]\n", afs.fs_id[0], afs.fs_id[1]);
 	printf("cylgrp\t%s\tinodes\t%s\n",
 	    afs.fs_postblformat == FS_42POSTBLFMT ? "static" : "dynamic",
 	    afs.fs_inodefmt < FS_44INODEFMT ? "4.2/4.3BSD" : "4.4BSD");
