@@ -544,6 +544,7 @@ product CTX EX1300		0x9999	Ex1300 hub
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
 product CYPRESS FMRADIO		0x1002	FM Radio
+product CYPRESS SLIM_HUB	0x6560	Slim Hub
 
 /* Daisy Technology products */
 product DAISY DMC		0x6901	USB MultiMedia Reader
