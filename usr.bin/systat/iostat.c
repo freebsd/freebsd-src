@@ -65,7 +65,6 @@ static char sccsid[] = "@(#)iostat.c	8.1 (Berkeley) 6/6/93";
 #endif not lint
 
 #include <sys/param.h>
-#include <sys/buf.h>
 #include <sys/dkstat.h>
 
 #include <string.h>
