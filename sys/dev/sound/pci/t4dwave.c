@@ -187,6 +187,8 @@ tr_rdcd(kobj_t obj, void *devinfo, int regno)
 		return -1;
 	}
 
+	i = j = 0;
+
 	regno &= 0x7f;
 	snd_mtxlock(tr->lock);
 	if (tr->type == ALI_PCI_ID) {
@@ -237,6 +239,8 @@ tr_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 		printf("!!! tr_wrcd defaulted !!!");
 		return -1;
 	}
+
+	i = 0;
 
 	regno &= 0x7f;
 #if 0
