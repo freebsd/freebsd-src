@@ -1,3 +1,5 @@
+/*	$NetBSD: mount_msdos.c,v 1.18 1997/09/16 12:24:18 lukem Exp $	*/
+
 /*
  * Copyright (c) 1994 Christopher G. Demetriou
  * All rights reserved.
@@ -30,17 +32,25 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_msdos.c,v 1.5 1996/09/14 02:57:52 bde Exp $";
+	"$Id: mount_msdos.c,v 1.15 1998/06/30 06:23:42 charnier Exp $";
 #endif /* not lint */
 
+#ifndef __FreeBSD_version
 #include <sys/cdefs.h>
+#endif
 #include <sys/param.h>
+#ifndef __FreeBSD_version
 #define MSDOSFS
+#endif
 #include <sys/mount.h>
 #include <sys/stat.h>
+
+#include <msdosfs/msdosfsmount.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <grp.h>
+#include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,6 +62,9 @@ static const char rcsid[] =
 
 static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
+	MOPT_FORCE,
+	MOPT_SYNC,
+	MOPT_UPDATE,
 	{ NULL }
 };
 
@@ -59,6 +72,8 @@ static gid_t	a_gid __P((char *));
 static uid_t	a_uid __P((char *));
 static mode_t	a_mask __P((char *));
 static void	usage __P((void)) __dead2;
+static void     load_u2wtable __P((struct msdosfs_args *, char *));
+static void     load_ultable __P((struct msdosfs_args *, char *));
 
 int
 main(argc, argv)
@@ -67,15 +82,40 @@ main(argc, argv)
 {
 	struct msdosfs_args args;
 	struct stat sb;
+#ifndef __FreeBSD_version
 	int c, mntflags, set_gid, set_uid, set_mask;
+#else
+	int c, error, mntflags, set_gid, set_uid, set_mask;
+#endif
 	char *dev, *dir, ndir[MAXPATHLEN+1];
+#ifndef __FreeBSD_version
 	struct vfsconf *vfc;
+#else
+	struct vfsconf vfc;
+#endif
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
+#ifdef __FreeBSD_version
+	args.magic = MSDOSFS_ARGSMAGIC;
+#endif
 
-	while ((c = getopt(argc, argv, "u:g:m:o:")) !=  -1) {
+	while ((c = getopt(argc, argv, "sl9u:g:m:o:L:W:")) != -1) {
 		switch (c) {
+#ifdef MSDOSFSMNT_GEMDOSFS
+		case 'G':
+			args.flags |= MSDOSFSMNT_GEMDOSFS;
+			break;
+#endif
+		case 's':
+			args.flags |= MSDOSFSMNT_SHORTNAME;
+			break;
+		case 'l':
+			args.flags |= MSDOSFSMNT_LONGNAME;
+			break;
+		case '9':
+			args.flags |= MSDOSFSMNT_NOWIN95;
+			break;
 		case 'u':
 			args.uid = a_uid(optarg);
 			set_uid = 1;
@@ -87,6 +127,14 @@ main(argc, argv)
 		case 'm':
 			args.mask = a_mask(optarg);
 			set_mask = 1;
+			break;
+		case 'L':
+			load_ultable(&args, optarg);
+			args.flags |= MSDOSFSMNT_ULTABLE;
+			break;
+		case 'W':
+			load_u2wtable(&args, optarg);
+			args.flags |= MSDOSFSMNT_U2WTABLE;
 			break;
 		case 'o':
 			getmntopts(optarg, mopts, &mntflags, 0);
@@ -131,17 +179,35 @@ main(argc, argv)
 			args.mask = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
+#ifndef __FreeBSD_version
 	vfc = getvfsbyname("msdos");
 	if(!vfc && vfsisloadable("msdos")) {
 		if(vfsload("msdos"))
+#else
+	error = getvfsbyname("msdos", &vfc);
+	if (error && vfsisloadable("msdos")) {
+		if (vfsload("msdos"))
+#endif
 			err(EX_OSERR, "vfsload(msdos)");
 		endvfsent();	/* clear cache */
+#ifndef __FreeBSD_version
 		vfc = getvfsbyname("msdos");
+#else
+		error = getvfsbyname("msdos", &vfc);
+#endif
 	}
+#ifndef __FreeBSD_version
 	if (!vfc)
+#else
+	if (error)
+#endif
 		errx(EX_OSERR, "msdos filesystem is not available");
 
+#ifndef __FreeBSD_version
 	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
+#else
+	if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
+#endif
 		err(EX_OSERR, "%s", dev);
 
 	exit (0);
@@ -195,6 +261,9 @@ a_mask(s)
 	char *ep;
 
 	done = 0;
+#ifdef __FreeBSD_version
+	rv = -1;
+#endif
 	if (*s >= '0' && *s <= '7') {
 		done = 1;
 		rv = strtol(optarg, &ep, 8);
@@ -207,6 +276,60 @@ a_mask(s)
 void
 usage()
 {
-	fprintf(stderr, "usage: mount_msdos [-F flags] [-u user] [-g group] [-m mask] bdev dir\n");
+	fprintf(stderr, "%s\n%s\n", 
+	"usage: mount_msdos [-o options] [-u user] [-g group] [-m mask]",
+	"                   [-s] [-l] [-9] [-L locale] [-W table] bdev dir");
 	exit(EX_USAGE);
+}
+
+void
+load_u2wtable (pargs, name)
+	struct msdosfs_args *pargs;
+	char *name;
+{
+	FILE *f;
+	int i, code;
+	char buf[128];
+	char *fn;
+
+	if (*name == '/')
+		fn = name;
+	else {
+		snprintf(buf, sizeof(buf), "/usr/libdata/msdosfs/%s", name);
+		buf[127] = '\0';
+		fn = buf;
+	}
+	if ((f = fopen(fn, "r")) == NULL)
+		err(EX_NOINPUT, "%s", fn);
+	for (i = 0; i < 128; i++) {
+		if (fscanf(f, "%i", &code) != 1)
+			errx(EX_DATAERR, "u2w: missing item number %d", i);
+		pargs->u2w[i] = code;
+	}
+	for (i = 0; i < 128; i++) {
+		if (fscanf(f, "%i", &code) != 1)
+			errx(EX_DATAERR, "d2u: missing item number %d", i);
+		pargs->d2u[i] = code;
+	}
+	for (i = 0; i < 128; i++) {
+		if (fscanf(f, "%i", &code) != 1)
+			errx(EX_DATAERR, "u2d: missing item number %d", i);
+		pargs->u2d[i] = code;
+	}
+	fclose(f);
+}
+
+void
+load_ultable (pargs, name)
+	struct msdosfs_args *pargs;
+	char *name;
+{
+	int i;
+
+	if (setlocale(LC_CTYPE, name) == NULL)
+		err(EX_CONFIG, name);
+	for (i = 0; i < 128; i++) {
+		pargs->ul[i] = tolower(i | 0x80);
+		pargs->lu[i] = toupper(i | 0x80);
+	}
 }

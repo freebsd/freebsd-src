@@ -1,3 +1,4 @@
+.\"	$NetBSD: mount_msdos.8,v 1.13 1998/02/06 05:57:00 perry Exp $
 .\"
 .\" Copyright (c) 1993,1994 Christopher G. Demetriou
 .\" All rights reserved.
@@ -11,7 +12,7 @@
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
 .\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
+.\"    must display the following acknowledgment:
 .\"      This product includes software developed by Christopher G. Demetriou.
 .\" 3. The name of the author may not be used to endorse or promote products
 .\"    derived from this software without specific prior written permission
@@ -27,24 +28,31 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: mount_msdos.8,v 1.2 1994/11/19 17:55:35 nate Exp $
+.\"	$Id: mount_msdos.8,v 1.14 1998/06/30 06:23:41 charnier Exp $
 .\"
 .Dd April 7, 1994
 .Dt MOUNT_MSDOS 8
-.Os FreeBSD 2.0
+.Os
 .Sh NAME
 .Nm mount_msdos
 .Nd mount an MS-DOS file system
 .Sh SYNOPSIS
 .Nm mount_msdos
+.Op Fl o Ar options
 .Op Fl u Ar uid
 .Op Fl g Ar gid
 .Op Fl m Ar mask
+.Op Fl s
+.Op Fl l
+.Op Fl 9
+.\".Op Fl G
+.Op Fl L Ar locale
+.Op Fl W Ar table
 .Pa special
 .Pa node
 .Sh DESCRIPTION
 The
-.Nm mount_msdos
+.Nm
 command attaches the MS-DOS filesystem residing on
 the device
 .Pa special
@@ -60,20 +68,27 @@ contains the file system).
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl u
+.It Fl o Ar options
+Use the specified mount
+.Ar options ,
+as described in
+.Xr mount 8 .
+.It Fl u Ar uid
 Set the owner of the files in the file system to
 .Ar uid .
 The default owner is the owner of the directory
 on which the file system is being mounted.
-.It Fl g
+.It Fl g Ar gid
 Set the group of the files in the file system to
 .Ar gid .
 The default group is the group of the directory
 on which the file system is being mounted.
-.It Fl m
+.It Fl m Ar mask
 Specify the maximum file permissions for files
 in the file system.
-(For example, a mask of
+(For example, a
+.Ar mask
+of
 .Li 755
 specifies that, by default, the owner should have
 read, write, and execute permissions for files, but
@@ -84,36 +99,115 @@ for more information about octal file modes.)
 Only the nine low-order bits of
 .Ar mask
 are used.
-The default mask is taken from the
+The default
+.Ar mask
+is taken from the
 directory on which the file system is being mounted.
+.It Fl s
+Force behaviour to
+ignore and not generate Win'95 long filenames.
+.It Fl l
+Force listing and generation of
+Win'95 long filenames
+and separate creation/modification/access dates.
+.Pp
+If neither
+.Fl s
+nor
+.Fl l
+are given,
+.Nm
+searches the root directory of the filesystem to
+be mounted for any existing Win'95 long filenames.
+If no such entries are found,
+.Fl s
+is the default. Otherwise
+.Fl l
+is assumed.
+.It Fl 9
+Ignore the special Win'95 directory entries even
+if deleting or renaming a file. This forces
+.Fl s .
+.\".It Fl G
+.\"This option causes the filesystem to be interpreted as an Atari-Gemdos
+.\"filesystem. The differences to the MS-DOS filesystem are minimal and
+.\"limited to the boot block. This option enforces
+.\".Fl s .
+.It Fl L Ar locale
+Specify locale name used for internal uppercase and lowercase conversions
+for DOS and Win'95 names.
+By default ISO 8859-1 assumed as local character set.
+.It Fl W Ar table
+Specify text file with 3 conversion tables:
+.Bl -enum
+.It
+Local character set to Unicode conversion table (upper half) for Win'95 long
+names, 128 Unicode codes.
+If some code not present in Unicode, use
+0x003F code ('?') as replacement.
+.It
+DOS to local character set conversion table (upper half) for DOS names,
+128 character codes. Code 0x3F ('?') used for impossible translations.
+.It
+Local character set to DOS conversion table (upper half) for DOS names,
+128 character codes. Some codes have special meaning:
+.Bl -hang
+.It 0x00
+character disallowed in DOS file name;
+.It 0x01
+character should be replaced by '_' in DOS file name;
+.It 0x02
+character should be skipped in DOS file name;
+.El
+.El
+.Pp
+By default ISO 8859-1 assumed as local character set.
+If file path isn't absolute,
+.Pa /usr/libdata/msdosfs/
+prefix prepended.
+.El
+.Sh FILES
+.Bl -tag -width /usr/libdata/msdosfs -compact
+.It Pa /usr/libdata/msdosfs
+default place for character sets conversion tables
 .El
 .Sh SEE ALSO
 .Xr mount 2 ,
 .Xr unmount 2 ,
-.Xr fstab 5
+.Xr fstab 5 ,
+.Xr mount 8
 .Sh CAVEATS
-The
-.Nm msdos
-filesystem is not known to work reliably with filesystems created by versions
-of MS-DOS later than version 3.3.
+The use of the
+.Fl 9
+flag could result in damaged filesystems,
+albeit the damage is in part taken care of by
+procedures similar to the ones used in Win'95.
 .Pp
-The limitations on file names imposed by MS-DOS are strange, at best.
-For instance, they are
-limited to single-case, 8 character names with 3 character extensions.
+.Fx 2.1
+and earlier versions could not handle cluster sizes larger than 16K.
+Just mounting an MS-DOS file system could cause corruption to any
+mounted file system.
+Cluster sizes larger than 16K are unavoidable for file system sizes
+larger than 1G, and also occur when filesystems larger than 1G are
+shrunk to smaller than 1G using FIPS.
 .Pp
-If you see the warning:
-.Pp
-mountmsdosfs(): Warning: root directory is not a multiple of the clustersize in length
-.Pp
-then it is possible that writing to the MS-DOS filesystem would
-produce corruption on the disk. This is a shortcoming in the code
-which needs to be addressed.
+The default handling for
+.Fl s
+and
+.Fl l
+will result in empty filesystems to be populated
+with short filenames only. To generate long filenames
+on empty DOS filesystems use
+.Fl l .
 .Sh HISTORY
 The
-.Nm mount_msdos
-utility first appeared in FreeBSD 2.0.
+.Nm
+utility first appeared in
+.Fx 2.0 .
 Its predecessor, the
 .Nm mount_pcfs
-utility appeared in FreeBSD 1, and was abandoned in favor
+utility appeared in
+.Fx 1.0 ,
+and was abandoned in favor
 of the more aptly-named
-.Nm mount_msdos .
+.Nm Ns .
