@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.42 1996/06/25 00:22:20 alex Exp $
+ *	$Id: ip_fw.c,v 1.43 1996/06/29 03:33:20 alex Exp $
  */
 
 /*
@@ -252,6 +252,8 @@ ipfw_report(char *txt, int rule, struct ip *ip, int counter)
 	if ((ip->ip_off & IP_OFFMASK)) 
 		printf(" Fragment = %d",ip->ip_off & IP_OFFMASK);
 	printf("\n");
+	if (fw_verbose_limit != 0 && counter == fw_verbose_limit)
+		printf("ipfw: limit reached on rule #%d\n", rule);
 }
 
 /*
@@ -592,6 +594,10 @@ zero_entry(struct mbuf *m)
 		}
 	splx(s);
 
+	if ( frwl )
+		printf("ipfw: Entry %d cleared.\n", frwl->fw_number);
+	else
+		printf("ipfw: Accounting cleared.\n");
 	return(0);
 }
 
