@@ -1,5 +1,5 @@
 #-
-# Copyright (c) 2002 Networks Associates Technology, Inc.
+# Copyright (c) 2002-2003 Networks Associates Technology, Inc.
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS
@@ -32,7 +32,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $P4: //depot/projects/openpam/doc/man/Makefile#11 $
+# $P4: //depot/projects/openpam/doc/man/Makefile#13 $
 #
 
 GENDOC		 = ${.CURDIR}/../../misc/gendoc.pl
@@ -73,6 +73,7 @@ OMAN		+= openpam_free_data.3
 OMAN		+= openpam_get_option.3
 OMAN		+= openpam_log.3
 OMAN		+= openpam_nullconv.3
+OMAN		+= openpam_readline.3
 OMAN		+= openpam_restore_cred.3
 OMAN		+= openpam_set_option.3
 OMAN		+= openpam_ttyconv.3

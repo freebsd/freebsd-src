@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/pam_verror.c#6 $
+ * $P4: //depot/projects/openpam/lib/pam_verror.c#8 $
  */
 
 #include <stdarg.h>
@@ -39,6 +39,8 @@
 
 #include <security/pam_appl.h>
 #include <security/openpam.h>
+
+#include "openpam_impl.h"
 
 /*
  * OpenPAM extension
@@ -55,7 +57,7 @@ pam_verror(pam_handle_t *pamh,
 	int r;
 
 	r = pam_vprompt(pamh, PAM_ERROR_MSG, &rsp, fmt, ap);
-	free(rsp); /* ignore response */
+	FREE(rsp); /* ignore response */
 	return (r);
 }
 
