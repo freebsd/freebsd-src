@@ -252,14 +252,29 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * the Microtech USB CameraMate does not like
+		 * the sync-cache command, or READ_6.
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "eUSB    Compact*", "Compact Flash*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * The vendor, product and version strings coming from the
 		 * controller are null terminated instead of being padded with
 		 * spaces. The trailing wildcard character '*' is required.
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "SMSC*", "USB FDC*","*"},
 		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
+	},
+        {
+		/*
+		 * Olympus digital cameras (C-3040ZOOM, C-2040ZOOM, C-1)
+		 * do not support READ_6 commands, only READ_10.
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "OLYMPUS", "C-*", "*"},
+		/*quirks*/ DA_Q_NO_6_BYTE|DA_Q_NO_SYNC_CACHE
 	}
-
 };
 
 static	d_open_t	daopen;
