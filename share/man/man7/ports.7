@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2004
+.Dd February 8, 2005
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -168,10 +168,22 @@ The following targets are not run during the normal install process.
 Display
 .Va OPTIONS
 config for this port.
+.It Cm showconfig-recursive
+Display
+.Va OPTIONS
+config for this port and all its dependencies.
 .It Cm rmconfig
 Remove
 .Va OPTIONS
 config for this port.
+.It Cm rmconfig-recursive
+Remove
+.Va OPTIONS
+config for this port and all its dependencies.
+.It Cm config-conditional
+Skip the ports which have already had their
+.Va OPTIONS
+configured.
 .It Cm fetch-list
 Show list of files to be fetched in order to build the port.
 .It Cm fetch-recursive
