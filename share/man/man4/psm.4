@@ -27,7 +27,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 30, 1999
-.Dt PSM 4
+.Dt PSM 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm psm
@@ -40,7 +40,7 @@ PS/2 mouse style pointing device driver
 .Cd "options" \&"KBD_MAXWAIT=N\&"
 .Cd "options" \&"PSM_DEBUG=N\&"
 .Cd "options" \&"KBDIO_DEBUG=N\&"
-.Cd "device psm0 at atkbdc? irq 12"
+.Cd "device psm0 at isa? tty irq 12"
 .Sh DESCRIPTION
 The
 .Nm
@@ -601,14 +601,14 @@ movement counts as described in
 .El
 .Sh EXAMPLE
 .Dl "options" \&"PSM_HOOKAPM\&"
-.Dl "device psm0 at atkbdc? irq 12"
+.Dl "device psm0 at isa? tty irq 12"
 .Pp
 Add the
 .Nm
 driver to the kernel with the optional code to stimulate the pointing device
 after the `resume' event.
 .Pp
-.Dl "device psm0 at atkbdc? flags 0x024 irq 12"
+.Dl "device psm0 at isa? tty flags 0x024 irq 12"
 .Pp
 Set the device resolution high (4) and the acceleration factor to 2.
 .Sh DIAGNOSTICS

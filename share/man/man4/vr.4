@@ -31,7 +31,7 @@
 .\" $FreeBSD$
 .\"
 .Dd November 22, 1998
-.Dt VR 4
+.Dt VR 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm vr
@@ -45,16 +45,15 @@ The
 driver provides support for PCI ethernet adapters and embedded
 controllers based on the VIA Technologies VT3043 Rhine I and
 VT86C100A Rhine II fast ethernet controller chips. This includes
-the D-Link DFE530-TX, the Hawking Technologies PN102TX, the
-AOpen/Acer ALN-320, and various other commodity fast ethernet
+the D-Link DFE530-TX and various other commodity fast ethernet
 cards.
 .Pp
-The VIA Rhine chips use bus master DMA and have a descriptor layout
-designed to resemble that of the DEC 21x4x "tulip" chips. The register
-layout is different however and the receive filter in the Rhine chips
-is much simpler and is programmed through registers rather than by
-downloading a special setup frame through the transmit DMA engine.
-Transmit and receive DMA buffers must be longword
+The VIA Rhine chips use bus master DMA and have a software interface
+designed to resemble that of the DEC 21x4x "tulip" chips. The major
+differences are that the receive filter in the Rhine chips is
+much simpler and is programmed through registers rather than by
+downloading a special setup frame through the transmit DMA engine,
+and that transmit and receive DMA buffers must be longword
 aligned. The Rhine chips are meant to be interfaced with external
 physical layer devices via an MII bus. They support both
 10 and 100Mbps speeds in either full or half duplex.

@@ -29,9 +29,10 @@
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"	$FreeBSD$
+.\" $FreeBSD$
 .\"
 .Dd April 11, 1999
-.Dt UKBD 4
+.Dt UKBD 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm ukbd
@@ -103,7 +104,7 @@ kbdcontrol -k /dev/kbd0 < /dev/ttyv0 > /dev/null
 /dev/kbd0) or otherwise tell the console driver to periodically look for a
 keyboard by setting a flag in the kernel configuration file:
 .Bd -literal -offset indent
-device sc0 at isa? flags 0x100
+device sc0 at isa? tty flags 0x100
 .Ed
 .Pp
 With the above flag, the console driver will try to detect any
