@@ -612,6 +612,8 @@ icmp_reflect(m)
 	}
 	t = ip->ip_dst;
 	ip->ip_dst = ip->ip_src;
+	ro = &rt;
+	bzero(ro, sizeof(*ro));
 	/*
 	 * If the incoming packet was addressed directly to us,
 	 * use dst as the src for the reply.  Otherwise (broadcast
@@ -632,8 +634,6 @@ icmp_reflect(m)
 				goto match;
 		}
 	}
-	ro = &rt;
-	bzero(ro, sizeof(*ro));
 	ia = ip_rtaddr(ip->ip_dst, ro);
 	/* We need a route to do anything useful. */
 	if (ia == NULL) {
