@@ -173,7 +173,7 @@ _pthread_exit(void *status)
 
 	/* If we're the last thread, call it quits */
 	if (TAILQ_EMPTY(&_thread_list))
-		exit(curthread->ret);
+		exit(0);
 
 	/*
 	 * Retire the architecture specific id so that it can be used for
