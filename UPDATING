@@ -3,6 +3,13 @@ Updating Information for FreeBSD current users
 This file is maintained by imp@village.org.  Please send new entries
 directly to him.  See end of file for further details.
 
+19990509:
+	Most of the problems with newbus have been corrected, but
+	it is still current and evolving.
+
+	libcam's ABI has changed.  You must recompile the world and
+	any ports that use it.
+
 19990427:
 	Massive changes to SMP went into the tree that should speed
 	things up.  However, if you experience problems with SMP 
@@ -259,4 +266,4 @@ version of FreeBSD, you are on your own to get to November 18, 1998.
 Please filter your entries through Warner (imp@village.org) so that
 the style, formatting, etc of this file can be maintained.
 
-$Id: UPDATING,v 1.30 1999/04/21 06:57:35 imp Exp $
+$Id: UPDATING,v 1.31 1999/04/28 05:18:46 imp Exp $
