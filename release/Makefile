@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.157 1995/05/18 13:24:48 jkh Exp $
+#	$Id: Makefile,v 1.158 1995/05/18 13:32:22 jkh Exp $
 #
 # How to roll a release:
 #
@@ -271,14 +271,14 @@ release.6:
 		DIR=${RD}/bootfd/stand ZIP=true
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv1 null zero \
-		*[sw]d* fd[01] rfd[01] | \
+		*[sw]d* cuaa0 cuaa1 fd[01] rfd[01] | \
 	cpio -dump ${RD}/bootfd/dev )
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/bootfd/stand
-	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd/stand/help/COPYRIGHT
+	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd/stand/help/en_US.ISO8859-1/COPYRIGHT
 	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
-		install -c RELNOTES.FreeBSD ${RD}/bootfd/stand/help/RELNOTES; \
-		install -c README ${RD}/bootfd/stand/help/README
+		install -c RELNOTES.FreeBSD ${RD}/bootfd/stand/help/en_US.ISO8859-1/RELNOTES; \
+		install -c README ${RD}/bootfd/stand/help/en_US.ISO8859-1/README
 	touch ${RD}/bootfd/this_is_boot_flp
 	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.6
