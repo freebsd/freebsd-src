@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.19 1994/05/25 09:13:15 rgrimes Exp $
+ *      $Id: cd.c,v 1.20 1994/08/27 16:14:31 davidg Exp $
  */
 
 #define SPLCD splbio
@@ -62,7 +62,7 @@ int32   cdstrats, cdqueues;
 
 #define	UNITSHIFT	3
 #define PARTITION(z)	(minor(z) & 0x07)
-#define	RAW_PART	3
+#define RAW_PART        2
 #define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
 errval  cdstrategy();
