@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.5 1994/09/18 23:08:56 bde Exp $
+ *	$Id: icu.h,v 1.6 1994/09/18 23:18:32 bde Exp $
  */
 
 /*
@@ -52,9 +52,10 @@
  */
 extern	unsigned imen;		/* interrupt mask enable */
 
-#define	INTREN(s)	(imen &= ~(s), SET_ICUS())
-#define	INTRDIS(s)	(imen |= (s), SET_ICUS())
-#define	INTRMASK(msk,s)	(msk |= (s))
+#define	INTREN(s)		(imen &= ~(s), SET_ICUS())
+#define	INTRDIS(s)		(imen |= (s), SET_ICUS())
+#define	INTRMASK(msk,s)		(msk |= (s))
+#define INTRUNMASK(msk,s)	(msk &= ~(s))
 #if 0
 #define	SET_ICUS()	(outb(IO_ICU1 + 1, imen), outb(IU_ICU2 + 1, imen >> 8))
 #else

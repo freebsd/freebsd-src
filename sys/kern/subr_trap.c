@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.33 1994/09/08 11:48:52 bde Exp $
+ *	$Id: trap.c,v 1.34 1994/09/11 11:26:18 davidg Exp $
  */
 
 /*
@@ -459,10 +459,12 @@ trap_fatal(frame)
 	struct trapframe *frame;
 {
 	int code, type, eva;
+	struct soft_segment_descriptor softseg;
 
 	code = frame->tf_err;
 	type = frame->tf_trapno;
 	eva = rcr2();
+	sdtossd(gdt + IDXSEL(frame->tf_cs & 0xffff), &softseg);
 
 	if (type <= MAX_TRAP_MSG)
 		printf("\n\nFatal trap %d: %s while in %s mode\n",
@@ -475,7 +477,11 @@ trap_fatal(frame)
 			code & PGEX_W ? "write" : "read",
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
-	printf("instruction pointer	= 0x%x\n", frame->tf_eip);
+	printf("instruction pointer	= 0x%x:0x%x\n", frame->tf_cs & 0xffff, frame->tf_eip);
+	printf("code segment		= base 0x%x, limit 0x%x, type 0x%x\n",
+	    softseg.ssd_base, softseg.ssd_limit, softseg.ssd_type);
+	printf("			= DPL %d, pres %d, def32 %d, gran %d\n",
+	    softseg.ssd_dpl, softseg.ssd_p, softseg.ssd_def32, softseg.ssd_gran);
 	printf("processor eflags	= ");
 	if (frame->tf_eflags & PSL_T)
 		printf("trace/trap, ");

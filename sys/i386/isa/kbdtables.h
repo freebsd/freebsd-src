@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: kbdtables.h,v 1.14 1994/09/29 08:29:17 sos Exp $
  */
 
 #define SET8 0x80       	/* eight bit for emacs SET8-key */
@@ -799,7 +799,7 @@ keymap_t key_map = { 0x69,	/* US iso8859 keymap */
 /* sc=36 */  RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,   RSH,  0xFF, 0x00,
 /* sc=37 */  '*',   '*',  0x0A,  0x0A,   '*',   '*',  0x0A,  0x0A,  0x33, 0x00,
 /* sc=38 */ LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  LALT,  0xFF, 0x00,
-/* sc=39 */  ' ',   ' ',   ' ',   ' ',   ' ',   ' ',   ' ',   ' ',  0x00, 0x00,
+/* sc=39 */  ' ',   ' ',   ' ',   ' ',   ' ',   ' ',  SUSP,   ' ',  0x02, 0x00,
 /* sc=3a */  CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,   CLK,  0xFF, 0x00,
 /* sc=3b */ F( 1), F(13), F(25), F(37), S( 1), S(11), S( 1), S(11), 0xFF, 0x00,
 /* sc=3c */ F( 2), F(14), F(26), F(38), S( 2), S(12), S( 2), S(12), 0xFF, 0x00,

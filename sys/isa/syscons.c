@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.59 1994/09/29 08:29:21 sos Exp $
+ *	$Id: syscons.c,v 1.60 1994/09/29 15:49:09 ache Exp $
  */
 
 #include "sc.h"
@@ -64,6 +64,9 @@
 #include <i386/isa/timerreg.h>
 #include <i386/isa/kbdtables.h>
 #include <i386/i386/cons.h>
+#ifdef APM
+#include <machine/apm_bios.h>
+#endif
 
 #if !defined(NCONS)
 #define NCONS 12
@@ -288,6 +291,16 @@ struct	isa_driver scdriver = {
 	pcprobe, pcattach, "sc",
 };
 
+#ifdef APM
+static int
+pc_resume(void)
+{
+	/* when the system wakes up, modifier keys must be re-initialized */
+	shfts = ctls = alts = agrs = metas = 0;
+	return 0;
+}
+#endif /* APM */
+
 int
 pcprobe(struct isa_device *dev)
 {
@@ -391,6 +404,9 @@ pcattach(struct isa_device *dev)
 #endif
 	cursor_pos(1);
 	update_leds(console[0].status);
+#ifdef APM
+	apm_resume_hook_init(pc_resume, "Syscons console", APM_MID_ORDER);
+#endif
 	return 0;
 }
 
@@ -2081,7 +2097,11 @@ scinit(void)
 		scp->ysize = ROW;
 		scp->bell_pitch = BELL_PITCH;
 		scp->bell_duration = BELL_DURATION;
+#ifndef LAPTOP
 		scp->status = NLKED;
+#else
+		scp->status = 0;
+#endif
 		scp->pid = 0;
 		scp->proc = NULL;
 		scp->smode.mode = VT_AUTO;
@@ -2429,6 +2449,12 @@ next_code:
 			case RBT:
 				shutdown_nice();
 				break;	
+			case SUSP:
+#ifdef APM
+				apm_suspend_resume();
+#endif /* APM */
+				break;
+
 			case DBG:
 #ifdef DDB			/* try to switch to console 0 */
 				if (cur_console->smode.mode == VT_AUTO &&
