@@ -554,7 +554,7 @@ hint.lnc.0.at="isa"
 hint.lnc.0.port="0x280"
 hint.lnc.0.irq="10"
 hint.lnc.0.drq="0"
-device		nv
+#device		nv
 device		rdp	1
 hint.rdp.0.at="isa"
 hint.rdp.0.port="0x378"
