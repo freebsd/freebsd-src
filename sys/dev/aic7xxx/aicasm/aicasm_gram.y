@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aicasm/aicasm_gram.y#6 $
+ * $Id: //depot/src/aic7xxx/aicasm/aicasm_gram.y#7 $
  *
  * $FreeBSD$
  */
@@ -53,6 +53,7 @@
 
 int yylineno;
 char *yyfilename;
+char *versions;
 static symbol_t *cur_symbol;
 static symtype cur_symtype;
 static symbol_t *accumulator;
@@ -79,6 +80,7 @@ static void test_writable_symbol(symbol_t *symbol);
 static void type_check(symbol_t *symbol, expression_t *expression, int and_op);
 static void make_expression(expression_t *immed, int value);
 static void add_conditional(symbol_t *symbol);
+static void add_version(const char *verstring);
 static int  is_download_const(expression_t *immed);
 
 #define YYDEBUG 1
@@ -124,11 +126,11 @@ static int  is_download_const(expression_t *immed);
 
 %token <value> T_NUMBER
 
-%token <str> T_PATH
+%token <str> T_PATH T_STRING
 
 %token <sym> T_CEXPR
 
-%token T_EOF T_INCLUDE 
+%token T_EOF T_INCLUDE T_VERSION
 
 %token <value> T_SHR T_SHL T_ROR T_ROL
 
@@ -180,6 +182,8 @@ static int  is_download_const(expression_t *immed);
 program:
 	include
 |	program include
+|	version
+|	program version
 |	register
 |	program register
 |	constant
@@ -202,9 +206,18 @@ program:
 
 include:
 	T_INCLUDE '<' T_PATH '>'
-	{ include_file($3, BRACKETED_INCLUDE); }
+	{
+		include_file($3, BRACKETED_INCLUDE);
+	}
 |	T_INCLUDE '"' T_PATH '"'
-	{ include_file($3, QUOTED_INCLUDE); }
+	{
+		include_file($3, QUOTED_INCLUDE);
+	}
+;
+
+version:
+	T_VERSION '=' T_STRING
+	{ add_version($3); }
 ;
 
 register:
@@ -623,11 +636,6 @@ immediate_or_a:
 	expression
 	{
 		$$ = $1;
-		if ($$.value == 0) {
-			stop("Immediate value of 0 not valid for opcode",
-			     EX_DATAERR);
-			/* NOTREACHED */
-		}
 	}
 |	T_A
 	{
@@ -1441,6 +1449,26 @@ add_conditional(symbol_t *symbol)
 	initialize_symbol(symbol);
 	symbol->info.condinfo->func_num = numfuncs++;
 	symlist_add(&patch_functions, symbol, SYMLIST_INSERT_HEAD);
+}
+
+static void
+add_version(const char *verstring)
+{
+	const char prefix[] = " * ";
+	int newlen;
+	int oldlen;
+
+	newlen = strlen(verstring) + strlen(prefix);
+	oldlen = 0;
+	if (versions != NULL)
+		oldlen = strlen(versions);
+	versions = realloc(versions, newlen + oldlen + 2);
+	if (versions == NULL)
+		stop("Can't allocate version string", EX_SOFTWARE);
+	strcpy(&versions[oldlen], prefix);
+	strcpy(&versions[oldlen + strlen(prefix)], verstring);
+	versions[newlen + oldlen] = '\n';
+	versions[newlen + oldlen + 1] = '\0';
 }
 
 void
