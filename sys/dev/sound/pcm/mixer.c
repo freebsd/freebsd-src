@@ -319,7 +319,6 @@ mixer_hwvol_init(device_t dev)
 
 	pdev = mixer_get_devt(dev);
 	m = pdev->si_drv1;
-	snd_mtxlock(m->lock);
 
 	m->hwvol_mixer = SOUND_MIXER_VOLUME;
 	m->hwvol_step = 5;
@@ -330,7 +329,6 @@ mixer_hwvol_init(device_t dev)
             OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
 	    sysctl_hw_snd_hwvol_mixer, "A", "");
 #endif
-	snd_mtxunlock(m->lock);
 	return 0;
 }
 
