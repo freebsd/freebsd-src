@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.76 1999/05/13 07:54:24 bde Exp $ */
+/* $Id: brooktree848.c,v 1.77 1999/05/18 12:16:15 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -392,6 +392,10 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                     Replaced none tuner with no tuner for Theo de Raadt.
                     Ivan Brawley <brawley@internode.com.au> added
                     the Australian channel frequencies.
+
+1.66    19 May 1999 Ivan Brawley <brawley@internode.com.au> added better
+                    Australian channel frequencies.
+                    
 */
 
 #define DDB(x) x
@@ -6164,13 +6168,14 @@ static int xussr[] = {
  */
 #define OFFSET	7.00
 static int australia[] = {
-	83,	(int)( 45.75 * FREQFACTOR),	0,
+	83,	(int)( 45.00 * FREQFACTOR),	0,
+	28,	(int)(520.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	14,	(int)(471.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	10,	(int)(201.50 * FREQFACTOR),	(int)(13.00 * FREQFACTOR),
-	 9,	(int)(188.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 7,	(int)(175.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 5,	(int)( 77.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
-	 2,	(int)( 55.25 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	11,	(int)(214.50 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	10,	(int)(201.50 * FREQFACTOR),	(int)( 13.00 * FREQFACTOR),
+	 7,	(int)(174.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 3,	(int)( 85.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
+	 2,	(int)( 56.00 * FREQFACTOR),	(int)(OFFSET * FREQFACTOR),
 	 0
 };
 #undef OFFSET
