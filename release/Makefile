@@ -559,6 +559,9 @@ release.8: write_mfs_in_kernel
 		tar xf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
+.if ${MACHINE_ARCH} == "alpha"
+	rm -rf ${RD}/mfsfd/stand/help/*
+.endif
 .if exists(${.CURDIR}/${MACHINE_ARCH}/drivers.conf)
 	@mkdir -p ${RD}/mfsfd/stand/modules
 	@perl ${.CURDIR}/scripts/driver-copy2.pl \
