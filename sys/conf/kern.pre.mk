@@ -51,6 +51,9 @@ INCLUDES= ${NOSTDINC} -I- ${INCLMAGIC} -I. -I$S
 # include path into 100+ source files.
 INCLUDES+= -I$S/contrib/dev/acpica
 
+# ... and the same for altq
+INCLUDES+= -I$S/contrib/altq
+
 # ... and the same for ipfilter
 INCLUDES+= -I$S/contrib/ipfilter
 

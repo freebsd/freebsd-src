@@ -111,6 +111,9 @@ copies:
 	cd ${.CURDIR}/../sys/dev/bktr; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ioctl_*.h \
 	    ${DESTDIR}${INCLUDEDIR}/dev/bktr
+	cd ${.CURDIR}/../sys/contrib/altq/altq; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/altq
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
@@ -149,6 +152,11 @@ symlinks:
 		ln -fs ../../../../../sys/$i/$$h ${DESTDIR}${INCLUDEDIR}/$i; \
 	done
 .endfor
+	cd ${.CURDIR}/../sys/contrib/altq/altq; \
+	for h in *.h; do \
+		ln -fs ../../../sys/contrib/altq/altq/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/altq; \
+	done
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	for h in *.h; do \
 		ln -fs ../../../sys/contrib/ipfilter/netinet/$$h \
