@@ -92,7 +92,13 @@ is used.
 .It Fl C Ar directory
 Change to
 .Ar directory
-while running.
+before reading the makefiles or doing anything else.
+If multiple
+.Fl C
+options are specified, each is interpreted relative to the previous one:
+.Fl C Pa / Fl C Pa etc
+is equivalent to
+.Fl C Pa /etc .
 .It Fl D Ar variable
 Define
 .Ar variable

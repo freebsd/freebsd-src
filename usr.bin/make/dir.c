@@ -205,7 +205,7 @@ static int DirPrintDir(void *, void *);
  *	none
  *
  * Side Effects:
- *	some directories may be opened.
+ *	none
  *-----------------------------------------------------------------------
  */
 void
@@ -214,15 +214,25 @@ Dir_Init (void)
     dirSearchPath = Lst_Init (FALSE);
     openDirectories = Lst_Init (FALSE);
     Hash_InitTable(&mtimes, 0);
+}
 
-    /*
-     * Since the Path structure is placed on both openDirectories and
-     * the path we give Dir_AddDir (which in this case is openDirectories),
-     * we need to remove "." from openDirectories and what better time to
-     * do it than when we have to fetch the thing anyway?
-     */
+/*-
+ *-----------------------------------------------------------------------
+ * Dir_InitDot --
+ *	initialize the "." directory
+ *
+ * Results:
+ *	none
+ *
+ * Side Effects:
+ *	some directories may be opened.
+ *-----------------------------------------------------------------------
+ */
+void
+Dir_InitDot (void)
+{
     Dir_AddDir (openDirectories, ".");
-    dot = (Path *) Lst_DeQueue (openDirectories);
+    dot = (Path *)Lst_Datum(Lst_Last(openDirectories));
     if (dot == (Path *) NULL)
 	err(1, "cannot open current directory");
 
@@ -1031,7 +1041,8 @@ Dir_AddDir (Lst path, char *name)
 	    }
 	    (void) closedir (d);
 	    (void)Lst_AtEnd (openDirectories, (void *)p);
-	    (void)Lst_AtEnd (path, (void *)p);
+	    if (path != openDirectories)
+		(void)Lst_AtEnd (path, (void *)p);
 	}
 	DEBUGF(DIR, ("done\n"));
     }
