@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 152 $
+ *       $Revision: 156 $
  *
  *****************************************************************************/
 
@@ -137,7 +137,17 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20040402
+#define ACPI_CA_VERSION                 0x20040514
+
+/*
+ * OS name, used for the _OS object.  The _OS object is essentially obsolete,
+ * but there is a large base of ASL/AML code in existing machines that check
+ * for the string below.  The use of this string usually guarantees that 
+ * the ASL will execute down the most tested code path.  Also, there is some
+ * code that will not execute the _OSI method unless _OS matches the string
+ * below.  Therefore, change this string at your own risk.
+ */
+#define ACPI_OS_NAME                    "Microsoft Windows NT"
 
 /* Maximum objects in the various object caches */
 
@@ -260,7 +270,7 @@
 
 /* Number of strings associated with the _OSI reserved method */
 
-#define ACPI_NUM_OSI_STRINGS            4
+#define ACPI_NUM_OSI_STRINGS            9
 
 
 /******************************************************************************
