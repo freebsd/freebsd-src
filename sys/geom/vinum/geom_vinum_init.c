@@ -293,7 +293,7 @@ gv_sync_td(void *arg)
 		 * This hack declare this bio as part of an initialization
 		 * process, so that the lower levels allow it to get through.
 		 */
-		bp->bio_caller1 = p;
+		bp->bio_cflags |= GV_BIO_SYNCREQ;
 
 		/* Schedule it down ... */
 		g_io_request(bp, to);

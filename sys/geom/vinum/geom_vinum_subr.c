@@ -832,12 +832,25 @@ gv_kill_drive_thread(struct gv_drive *d)
 void
 gv_kill_plex_thread(struct gv_plex *p)
 {
-	if ((p->org == GV_PLEX_RAID5) && (p->flags & GV_PLEX_THREAD_ACTIVE)) {
+	if (p->flags & GV_PLEX_THREAD_ACTIVE) {
 		p->flags |= GV_PLEX_THREAD_DIE;
 		wakeup(p);
 		while (!(p->flags & GV_PLEX_THREAD_DEAD))
 			tsleep(p, PRIBIO, "gv_die", hz);
 		p->flags &= ~GV_PLEX_THREAD_ACTIVE;
-		mtx_destroy(&p->worklist_mtx);
+		mtx_destroy(&p->bqueue_mtx);
+	}
+}
+
+void
+gv_kill_vol_thread(struct gv_volume *v)
+{
+	if (v->flags & GV_VOL_THREAD_ACTIVE) {
+		v->flags |= GV_VOL_THREAD_DIE;
+		wakeup(v);
+		while (!(v->flags & GV_VOL_THREAD_DEAD))
+			tsleep(v, PRIBIO, "gv_die", hz);
+		v->flags &= ~GV_VOL_THREAD_ACTIVE;
+		mtx_destroy(&v->bqueue_mtx);
 	}
 }
