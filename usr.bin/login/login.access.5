@@ -4,15 +4,15 @@
 .Os FreeBSD 1.2
 .Sh NAME
 .Nm login.access
-.Nd Login access control table
+.Nd login access control table
 .Sh DESCRIPTION
 The
-.Nm login.access
+.Nm
 file specifies (user, host) combinations and/or (user, tty) 
 combinations for which a login will be either accepted or refused.
 .Pp
 When someone logs in, the 
-.Nm login.access
+.Nm
 is scanned for the first entry that
 matches the (user, host) combination, or, in case of non-networked
 logins, the first entry that matches the (user, tty) combination.  The
@@ -21,7 +21,7 @@ be accepted or refused.
 .Pp
 Each line of the login access control table has three fields separated by a
 ":" character:	  permission : users : origins
-
+.Pp
 The first field should be a "+" (access granted) or "-" (access denied)
 character. The second field should be a list of one or more login names,
 group names, or ALL (always matches).  The third field should be a list
@@ -30,9 +30,9 @@ names (begin with "."), host addresses, internet network numbers (end
 with "."), ALL (always matches) or LOCAL (matches any string that does
 not contain a "." character). If you run NIS you can use @netgroupname
 in host or user patterns.
-
+.Pp
 The EXCEPT operator makes it possible to write very compact rules.
-
+.Pp
 The group file is searched only when a name does not match that of the
 logged-in user. Only groups are matched in which users are explicitly
 listed: the program does not look at a user's primary group id value.
@@ -40,7 +40,7 @@ listed: the program does not look at a user's primary group id value.
 .Bl -tag -width /etc/login.access -compact
 .It Pa /etc/login.access
 The
-.Nm login.access
+.Nm
 file resides in
 .Pa /etc .
 .El
