@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)gcore.c	8.2 (Berkeley) 9/23/93";
 #endif
 static const char rcsid[] =
-	"$Id: gcore.c,v 1.7 1997/11/18 03:50:25 jdp Exp $";
+	"$Id: gcore.c,v 1.8 1998/08/24 16:25:30 wosch Exp $";
 #endif /* not lint */
 
 /*
@@ -99,7 +99,8 @@ main(argc, argv)
 	struct kinfo_proc *ki;
 	struct exec exec;
 	int ch, cnt, efd, fd, pid, sflag, uid;
-	char *corefile, errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN + 1];
+	char *binfile, *corefile;
+	char errbuf[_POSIX2_LINE_MAX], fname[MAXPATHLEN + 1];
 
 	sflag = 0;
 	corefile = NULL;
@@ -119,15 +120,27 @@ main(argc, argv)
 	argv += optind;
 	argc -= optind;
 
-	if (argc != 2)
+	/* XXX we should check that the pid argument is really a number */
+	switch (argc) {
+	case 1:
+		pid = atoi(argv[0]);
+		asprintf(&binfile, "/proc/%d/file", pid);
+		if (binfile == NULL)
+			errx(1, "allocation failure");
+		break;
+	case 2:
+		pid = atoi(argv[1]);
+		binfile = argv[0];
+		break;
+	default:
 		usage();
+	}
 
 	kd = kvm_openfiles(0, 0, 0, O_RDONLY, errbuf);
 	if (kd == NULL)
 		errx(1, "%s", errbuf);
 
 	uid = getuid();
-	pid = atoi(argv[1]);
 
 	ki = kvm_getprocs(kd, KERN_PROC_PID, pid, &cnt);
 	if (ki == NULL || cnt != 1)
@@ -153,21 +166,21 @@ main(argc, argv)
 	if (fd < 0)
 		err(1, "%s", corefile);
 
-	efd = open(argv[0], O_RDONLY, 0);
+	efd = open(binfile, O_RDONLY, 0);
 	if (efd < 0)
-		err(1, "%s", argv[0]);
+		err(1, "%s", binfile);
 
 	cnt = read(efd, &exec, sizeof(exec));
 	if (cnt != sizeof(exec))
 		errx(1, "%s exec header: %s",
-		    argv[0], cnt > 0 ? strerror(EIO) : strerror(errno));
+		    binfile, cnt > 0 ? strerror(EIO) : strerror(errno));
 
 	/* check the text segment size of the executable and the process */
 	if (exec.a_text != ptoa(ki->kp_eproc.e_vm.vm_tsize))
 		errx(1, 
 		     "The executable %s does not belong to process %d!\n"
 		     "Text segment size (in bytes): executable %d, process %d",
-		     argv[0], pid, exec.a_text, 
+		     binfile, pid, exec.a_text, 
 		     ptoa(ki->kp_eproc.e_vm.vm_tsize));
 
 	data_offset = N_DATOFF(exec);
