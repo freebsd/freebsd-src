@@ -48,6 +48,9 @@
 #include <sys/time.h>
 
 #include <machine/cpu.h>
+#ifdef __sparc64__
+#include <machine/ktr.h>
+#endif
 
 #include <ddb/ddb.h>
 
