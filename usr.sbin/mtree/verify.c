@@ -82,8 +82,9 @@ vwalk()
 	register NODE *ep, *level;
 	int specdepth, rval;
 	char *argv[2];
+	char dot[] = ".";
 
-	argv[0] = ".";
+	argv[0] = dot;
 	argv[1] = NULL;
 	if ((t = fts_open(argv, ftsoptions, NULL)) == NULL)
 		err(1, "line %d: fts_open", lineno);

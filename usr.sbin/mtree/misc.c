@@ -51,7 +51,7 @@ static const char rcsid[] =
 extern int lineno;
 
 typedef struct _key {
-	char *name;			/* key name */
+	const char *name;			/* key name */
 	u_int val;			/* value */
 
 #define	NEEDVALUE	0x01
@@ -85,13 +85,14 @@ static KEY keylist[] = {
 	{"uname",	F_UNAME,	NEEDVALUE},
 };
 
+int keycompare(const void *, const void *);
+
 u_int
 parsekey(name, needvaluep)
 	char *name;
 	int *needvaluep;
 {
 	KEY *k, tmp;
-	int keycompare(const void *, const void *);
 
 	tmp.name = name;
 	k = (KEY *)bsearch(&tmp, keylist, sizeof(keylist) / sizeof(KEY),
@@ -108,7 +109,7 @@ int
 keycompare(a, b)
 	const void *a, *b;
 {
-	return (strcmp(((KEY *)a)->name, ((KEY *)b)->name));
+	return (strcmp(((const KEY *)a)->name, ((const KEY *)b)->name));
 }
 
 char *
