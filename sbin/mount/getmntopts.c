@@ -78,7 +78,7 @@ getmntopts(options, m0, flagp, altflagp)
 		 */
 		p = strchr(opt, '=');
 		if (p)
-			 *p = '\0';
+			 *++p = '\0';
 
 		/* Scan option table. */
 		for (m = m0; m->m_option != NULL; ++m) {
