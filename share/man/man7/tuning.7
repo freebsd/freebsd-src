@@ -541,24 +541,32 @@ To change loader tunables, you must set their values in
 .Xr loader.conf 5
 and reboot the system.
 .Pp
-The
 .Va kern.maxusers
-tunable defaults to an incredibly low value.
-For most modern machines,
-you probably want to increase this value to 64, 128, or 256.
-We do not
-recommend going above 256 unless you need a huge number of file descriptors.
-Network buffers are also affected but can be controlled with a separate
-kernel option.
-Do not increase maxusers just to get more network mbufs.
+controls the scaling of a number of static system tables, including defaults
+for the maximum number of open files, sizing of network memory resouces, etc.
+As of
+.Fx 4.5 ,
+.Va kern.maxusers
+is automatically sized at boot based on the amount of memory available in
+the system, and may be determined at run-time by inspecting the value of the
+read-only
+.Va kern.maxusers
+sysctl.
+Some sites will require larger or smaller values of
+.Va kern.maxusers
+and may set it as a loader tunable; values of 64, 128, and 256 are not
+uncommon.  We do not recommend going above 256 unless you need a huge number
+of file descriptors; many of the tunable values set to their defaults by
+.Va kern.maxusers
+may be individually overridden at boot-time or run-time as described
+elsewhere in this document.
 Systems older than
 .Fx 4.4
-do not have this loader tunable and require that
-the kernel
+must set this value via the kernel
 .Xr config 8
 option
-.Cd maxusers
-be set instead.
+.Va maxusers
+instead.
 .Pp
 .Va kern.ipc.nmbclusters
 may be adjusted to increase the number of network mbufs the system is
