@@ -17,6 +17,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040708:
+	Bluetooth code has been marked as non-i386 specific.
+	__FreeBSD_version has been bumped to 502121 to mark this change.
+
 20040702:
 	The native preemption has been added to the kernel scheduler.
 	There is some report that ULE scheduler was broken in some
