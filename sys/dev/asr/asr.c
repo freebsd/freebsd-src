@@ -363,24 +363,9 @@ static Asr_softc_t * Asr_softc;
  *	Prototypes of the routines we have in this object.
  */
 
-/* Externally callable routines */
-#define	PROBE_ARGS  device_t tag
-#define	PROBE_RET   int
-#define	PROBE_SET() u_int32_t id = (pci_get_device(tag)<<16)|pci_get_vendor(tag)
-#define	PROBE_RETURN(retval) if(retval){device_set_desc(tag,retval);return(0);}else{return(ENXIO);}
-#define	ATTACH_ARGS device_t tag
-#define	ATTACH_RET  int
-#define	ATTACH_SET() int unit = device_get_unit(tag)
-#define	ATTACH_RETURN(retval) return(retval)
 /* I2O HDM interface */
-static PROBE_RET      asr_probe(PROBE_ARGS);
-static ATTACH_RET     asr_attach(ATTACH_ARGS);
-/* DOMINO placeholder */
-static PROBE_RET      domino_probe(PROBE_ARGS);
-static ATTACH_RET     domino_attach(ATTACH_ARGS);
-/* MODE0 adapter placeholder */
-static PROBE_RET      mode0_probe(PROBE_ARGS);
-static ATTACH_RET     mode0_attach(ATTACH_ARGS);
+static int	asr_probe(device_t tag);
+static int	asr_attach(device_t tag);
 
 static Asr_softc_t *ASR_get_sc(dev_t dev);
 static int	asr_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag,
@@ -414,40 +399,7 @@ static driver_t asr_driver = {
 };
 
 static devclass_t asr_devclass;
-
 DRIVER_MODULE(asr, pci, asr_driver, asr_devclass, 0, 0);
-
-static device_method_t domino_methods[] = {
-	DEVMETHOD(device_probe,	 domino_probe),
-	DEVMETHOD(device_attach, domino_attach),
-	{ 0, 0 }
-};
-
-static driver_t domino_driver = {
-	"domino",
-	domino_methods,
-	0
-};
-
-static devclass_t domino_devclass;
-
-DRIVER_MODULE(domino, pci, domino_driver, domino_devclass, 0, 0);
-
-static device_method_t mode0_methods[] = {
-	DEVMETHOD(device_probe,	 mode0_probe),
-	DEVMETHOD(device_attach, mode0_attach),
-	{ 0, 0 }
-};
-
-static driver_t mode0_driver = {
-	"mode0",
-	mode0_methods,
-	0
-};
-
-static devclass_t mode0_devclass;
-
-DRIVER_MODULE(mode0, pci, mode0_driver, mode0_devclass, 0, 0);
 
 /*
  * devsw for asr hba driver
@@ -642,78 +594,18 @@ ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
  * Probe for ASR controller.  If we find it, we will use it.
  * virtual adapters.
  */
-static PROBE_RET
-asr_probe(PROBE_ARGS)
+static int
+asr_probe(device_t tag)
 {
-	PROBE_SET();
+	u_int32_t id;
+
+	id = (pci_get_device(tag) << 16) | pci_get_vendor(tag);
 	if ((id == 0xA5011044) || (id == 0xA5111044)) {
-		PROBE_RETURN ("Adaptec Caching SCSI RAID");
+		device_set_desc(tag, "Adaptec Caching SCSI RAID");
+		return (-10);
 	}
-	PROBE_RETURN (NULL);
+	return (ENXIO);
 } /* asr_probe */
-
-/*
- * Probe/Attach for DOMINO chipset.
- */
-static PROBE_RET
-domino_probe(PROBE_ARGS)
-{
-	PROBE_SET();
-	if (id == 0x10121044) {
-		PROBE_RETURN ("Adaptec Caching Memory Controller");
-	}
-	PROBE_RETURN (NULL);
-} /* domino_probe */
-
-static ATTACH_RET
-domino_attach (ATTACH_ARGS)
-{
-	ATTACH_RETURN (0);
-} /* domino_attach */
-
-/*
- * Probe/Attach for MODE0 adapters.
- */
-static PROBE_RET
-mode0_probe(PROBE_ARGS)
-{
-	PROBE_SET();
-
-	/*
-	 *	If/When we can get a business case to commit to a
-	 * Mode0 driver here, we can make all these tests more
-	 * specific and robust. Mode0 adapters have their processors
-	 * turned off, this the chips are in a raw state.
-	 */
-
-	/* This is a PLX9054 */
-	if (id == 0x905410B5) {
-		PROBE_RETURN ("Adaptec Mode0 PM3757");
-	}
-	/* This is a PLX9080 */
-	if (id == 0x908010B5) {
-		PROBE_RETURN ("Adaptec Mode0 PM3754/PM3755");
-	}
-	/* This is a ZION 80303 */
-	if (id == 0x53098086) {
-		PROBE_RETURN ("Adaptec Mode0 3010S");
-	}
-	/* This is an i960RS */
-	if (id == 0x39628086) {
-		PROBE_RETURN ("Adaptec Mode0 2100S");
-	}
-	/* This is an i960RN */
-	if (id == 0x19648086) {
-		PROBE_RETURN ("Adaptec Mode0 PM2865/2400A/3200S/3400S");
-	}
-	PROBE_RETURN (NULL);
-} /* mode0_probe */
-
-static ATTACH_RET
-mode0_attach(ATTACH_ARGS)
-{
-	ATTACH_RETURN (0);
-} /* mode0_attach */
 
 static __inline union asr_ccb *
 asr_alloc_ccb(Asr_softc_t *sc)
@@ -2335,15 +2227,15 @@ asr_pci_map_int(device_t tag, Asr_softc_t *sc)
 /*
  *	Attach the devices, and virtual devices to the driver list.
  */
-static ATTACH_RET
-asr_attach(ATTACH_ARGS)
+static int
+asr_attach(device_t tag)
 {
 	Asr_softc_t		 *sc;
 	struct scsi_inquiry_data *iq;
-	ATTACH_SET();
+	int			 unit = device_get_unit(tag);
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
-		ATTACH_RETURN(ENOMEM);
+		return(ENOMEM);
 	}
 	if (Asr_softc == NULL) {
 		/*
@@ -2373,7 +2265,7 @@ asr_attach(ATTACH_ARGS)
 		 */
 		if (!asr_pci_map_mem(tag, sc)) {
 			printf ("asr%d: could not map memory\n", unit);
-			ATTACH_RETURN(ENXIO);
+			return(ENXIO);
 		}
 		/* Enable if not formerly enabled */
 		pci_write_config (tag, PCIR_COMMAND,
@@ -2396,7 +2288,7 @@ asr_attach(ATTACH_ARGS)
 		  sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL)
 		 || (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, status) == NULL)) {
 			printf ("asr%d: could not initialize hardware\n", unit);
-			ATTACH_RETURN(ENODEV);	/* Get next, maybe better luck */
+			return(ENODEV);	/* Get next, maybe better luck */
 		}
 		sc->ha_SystemTable.OrganizationID = status->OrganizationID;
 		sc->ha_SystemTable.IOP_ID = status->IOP_ID;
@@ -2410,7 +2302,7 @@ asr_attach(ATTACH_ARGS)
 
 		if (!asr_pci_map_int(tag, (void *)sc)) {
 			printf ("asr%d: could not map interrupt\n", unit);
-			ATTACH_RETURN(ENXIO);
+			return(ENXIO);
 		}
 
 		/* Adjust the maximim inbound count */
@@ -2469,7 +2361,7 @@ asr_attach(ATTACH_ARGS)
 		}
 	} else {
 		printf ("asr%d: failed to initialize\n", unit);
-		ATTACH_RETURN(ENXIO);
+		return(ENXIO);
 	}
 	/*
 	 *	Add in additional probe responses for more channels. We
@@ -2597,7 +2489,7 @@ asr_attach(ATTACH_ARGS)
 
 		if ((ccb = asr_alloc_ccb (sc)) == NULL) {
 			printf ("asr%d: CAM could not be notified of asynchronous callback parameters\n", unit);
-			ATTACH_RETURN(ENOMEM);
+			return(ENOMEM);
 		}
 		for (bus = 0; bus <= sc->ha_MaxBus; ++bus) {
 			struct cam_devq	  * devq;
@@ -2650,7 +2542,7 @@ asr_attach(ATTACH_ARGS)
 	 */
 	(void)make_dev(&asr_cdevsw, unit, UID_ROOT, GID_OPERATOR, 0640,
 	    "rasr%d", unit);
-	ATTACH_RETURN(0);
+	return(0);
 } /* asr_attach */
 
 static void
