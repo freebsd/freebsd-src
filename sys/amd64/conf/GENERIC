@@ -118,6 +118,10 @@ device		sa0		# Sequential Access (tape etc)
 device		cd0		# CD
 device		pass0		# Passthrough device (direct SCSI access)
 
+# RAID controllers
+device		amr0		# AMI MegaRAID
+device		mlx0		# Mylex DAC960 family
+
 # Proprietary or custom CD-ROM Interfaces
 device		wt0	at isa? port 0x300 irq 5 drq 1
 device		mcd0	at isa? port 0x300 irq 10
