@@ -273,7 +273,16 @@ acpi_perf_evaluate(device_t dev)
 			device_printf(dev, "invalid _PSS package\n");
 			continue;
 		}
+
+		/*
+		 * Check for some impossible frequencies that some systems
+		 * use to indicate they don't actually support Px states.
+		 */
 		p = &sc->px_states[i].core_freq;
+		if (*p == 9999 || *p == 0xffff)
+			goto out;
+
+		/* Parse the rest of the package into the struct. */
 		for (j = 0; j < 6; j++, p++)
 			acpi_PkgInt32(res, j, p);
 	}
