@@ -80,11 +80,15 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 			4:00	-	GST	1945
 			4:30	-	AFT
 
+# ZONE-DESCR Asia Kabul Afghanistan All points
+
 # Armenia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	-	MSK	1957 Mar
 			4:00	Russia	BS%s
+
+# ZONE-DESCR Asia Yerevan Armenia All points
 
 # Azerbaijan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -92,11 +96,15 @@ Zone	Asia/Baku	3:19:24 -	LMT	1924 May  2
 			3:00	-	MSK	1957 Mar
 			4:00	Russia	BS%s
 
+# ZONE-DESCR Asia Baku Azerbaijan All points
+
 # Bahrain
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Bahrain	3:22:20 -	LMT	1920		# Al-Manamah
 			4:00	-	GST	1972 Jun
 			3:00	-	AST
+
+# ZONE-DESCR Asia Bahrain All points
 
 # Bangladesh
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -107,22 +115,30 @@ Zone	Asia/Dacca	6:01:40 -	LMT	1890
 			6:30	-	BMT	1951 Sep 30
 			6:00	-	BGT
 
+# ZONE-DESCR Asia Dacca Bangladesh All points
+
 # Bhutan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Thimbu	5:58:36 -	LMT	1947 Aug 15
 			5:30	-	IST	1987 Oct
 			6:00	-	BGT
 
+# ZONE-DESCR Asia Thimbu Bhutan All points
+
 # British Indian Ocean Territory
 # From Whitman:
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Chagos	5:00	-	PKT
+
+# ZONE-DESCR Indian Chagos British_Indian_Ocean_Terr All points
 
 # Brunei
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Brunei	7:39:40 -	LMT	1926 Mar   # Bandar Seri Begawan
 			7:30	-	BNT	1933
 			8:00	-	BNT
+
+# ZONE-DESCR Asia Brunei Brunei All points
 
 # Burma
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -132,6 +148,8 @@ Zone	Asia/Rangoon	6:24:40 -	LMT	1880
 			9:00	-	JST	1945 May 3
 			6:30	-	BMT
 
+# ZONE-DESCR Asia Rangoon Myanmar All points
+
 # Cambodia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jun  9
@@ -139,6 +157,8 @@ Zone	Asia/Phnom_Penh	6:59:40 -	LMT	1906 Jun  9
 			7:00	-	ICT	1912 May
 			8:00	-	ICT	1931 May
 			7:00	-	ICT
+
+# ZONE-DESCR Asia Phonm_Penh Cambodia All points
 
 # People's Republic of China
 
@@ -188,6 +208,8 @@ Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
 
+# ZONE-DESCR Asia Shanghai China All points
+
 ###############################################################################
 
 # Republic of China
@@ -208,6 +230,8 @@ Rule	Taiwan	1980	only	-	Sep	30	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Taipei	8:06:00 -	LMT	1896
 			8:00	Taiwan	C%sT
+
+# ZONE-DESCR Asia Taipei Taiwan All points
 
 ###############################################################################
 # Hong Kong
@@ -234,6 +258,8 @@ Rule	HK	1979	1980	-	Oct	Sun>=16	3:30	0	-
 Zone	Asia/Hong_Kong	7:36:36 -	LMT	1904 Oct 30
 			8:00	HK	HK%sT
 
+# ZONE-DESCR Asia Hong_Kong Hong_Kong All points
+
 # Macao
 # Presumably Macao will have DST again when it merges with China,
 # but it's too early to predict the details.
@@ -257,6 +283,7 @@ Rule	Macao	1978	1980	-	Oct	Sun>=15	0:00	0	S
 Zone	Asia/Macao	7:34:20 -	LMT	1912
 			8:00	Macao	C%sT
 
+# ZONE-DESCR Asia Macao Macao All points
 
 ###############################################################################
 
@@ -276,12 +303,16 @@ Rule	Cyprus	1981	max	-	Mar	lastSun	0:00	1:00	" DST"
 Zone	Asia/Nicosia	2:13:28 -	LMT	1921 Nov 14
 			2:00	Cyprus	EET%s
 
+# ZONE-DESCR Asia Cyprus Cyprus All points
+
 # Georgia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tbilisi	2:59:16 -	LMT	1880
 			2:59	-	LST	1924 May  2
 			3:00	-	MSK	1957 Mar
 			4:00	Russia	BS%s
+
+# ZONE-DESCR Asia Tbilisi Georgia All points
 
 # India
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -295,6 +326,8 @@ Zone	Asia/Calcutta	5:53:28 -	LMT	1880
 #	Andaman Is
 #	Lakshadweep (Laccadive, Minicoy and Amindivi Is)
 #	Nicobar Is
+
+# ZONE-DESCR Asia Calcutta India All points
 
 # Indonesia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -316,6 +349,10 @@ Zone Asia/Jayapura	9:22:48 -	LMT	1932 Nov
 			9:00	-	MLT	1944
 			9:30	-	CST	1964
 			9:00	-	MLT
+
+# ZONE-DESCR Asia Jakarta Indonesia Jakarta
+# ZONE-DESCR Asia Ujung_Pandang Indonesia Ujung Pandang
+# ZONE-DESCR Asia Jayapura Indonesia Jayapura
 
 # Iran
 
@@ -345,6 +382,8 @@ Zone	Asia/Tehran	3:25:44	-	LMT	1916
 			4:00	Iran	G%sT	1979
 			3:30	Iran	I%sT
 
+# ZONE-DESCR Asia Tehran Iran All points
+
 # Iraq
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Iraq	1982	only	-	May	1	0:00	1:00	D
@@ -359,6 +398,7 @@ Zone	Asia/Baghdad	2:57:40	-	LMT	1890
 			3:00	-	AST	1982 May
 			3:00	Iraq	A%sT
 
+# ZONE-DESCR Asia Baghdad Iraq All points
 
 ###############################################################################
 
@@ -463,6 +503,7 @@ Zone	Asia/Tel_Aviv	2:19:04 -	LMT	1880
 			2:21	-	JMT	1918
 			2:00	Zion	I%sT
 
+# ZONE-DESCR Asia Tel_Aviv Israel All points
 
 ###############################################################################
 
@@ -484,6 +525,8 @@ Zone	Asia/Tokyo	9:19:04	-	LMT	1896
 			9:00	-	JST
 #Zone Asia/South_Ryukyu	8:14:44	-	LMT	1896	# Amitori
 #			8:00	-	CST
+
+# ZONE-DESCR Asia Tokyo Japan All points
 
 # Jordan
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
@@ -512,6 +555,8 @@ Rule    Jordan	1992	max	-	Oct	Fri>=1	0:00	0	-
 Zone	Asia/Amman	2:23:44 -	LMT	1931
 			2:00	Jordan	EET%s
 
+# ZONE-DESCR Asia Amman Jordan All points
+
 # Kazakhstan
 # From Shanks (1991):
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -519,6 +564,7 @@ Zone	Asia/Alma-Ata	5:07:48 -	LMT	1924 May  2
 			5:00	-	TSK	1957 Mar
 			6:00	Russia	TS%s
 
+# ZONE-DESCR Asia Alma-Ata Kazakhstan All points
 
 ###############################################################################
 
@@ -553,6 +599,9 @@ Zone	Asia/Pyongyang	8:23:00 -	LMT	1890
 			8:00	-	KST	1961 Aug 10
 			9:00	-	KST
 
+# ZONE-DESCR Asia Seoul South_Korea All points
+# ZONE-DESCR Asia Pyongyang North_Korea All points
+
 ###############################################################################
 
 
@@ -561,11 +610,15 @@ Zone	Asia/Pyongyang	8:23:00 -	LMT	1890
 Zone	Asia/Kuwait	3:11:56 -	LMT	1950
 			3:00	-	AST
 
+# ZONE-DESCR Asia Kuwait Kuwait All points
+
 # Kyrgyzstan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Frunze	4:58:24 -	LMT	1924 May  2
 			5:00	-	TSK	1957 Mar
 			6:00	Russia	TS%s
+
+# ZONE-DESCR Asia Frunze Kyrgyzstan All points
 
 # Laos
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -574,6 +627,8 @@ Zone	Asia/Vientiane	6:50:24 -	LMT	1906 Jun  9
 			7:00	-	ICT	1912 May
 			8:00	-	ICT	1931 May
 			7:00	-	ICT
+
+# ZONE-DESCR Asia Vientiane Laos All points
 
 # Lebanon
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -602,6 +657,8 @@ Rule	Lebanon	1990	max	-	May	1	0:00	1:00	" DST"
 Zone	Asia/Beirut	2:22:00 -	LMT	1880
 			2:00	Lebanon	EET%s
 
+# ZONE-DESCR Asia Beirut Lebanon All points
+
 # Malaysia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Asia/Kuala_Lumpur	6:46:48 -	LMT	1880
@@ -613,11 +670,15 @@ Zone Asia/Kuala_Lumpur	6:46:48 -	LMT	1880
 			7:30	-	SGT	1982 May
 			8:00	-	SGT
 
+# ZONE-DESCR Asia Kuala_Lumpur Malaysia All points
+
 # Maldives
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Indian/Maldives	4:54:00 -	LMT	1880			# Male
 			4:54	-	MMT	1960
 			5:00	-	PKT
+
+# ZONE-DESCR Indian Maldives Maldives All points
 
 # Mongolia
 # Let's comment out the western and eastern Mongolian time zones
@@ -639,16 +700,22 @@ Zone	Asia/Ulan_Bator	7:07:32 -	LMT	1905 Aug
 #			8:00	-	BST	1978
 #			9:00	Mongol	B%sT
 
+# ZONE-DESCR  Asia Ulan_Bator Mongolia Central zone
+
 # Nepal
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Katmandu	5:41:16 -	LMT	1920
 			5:30	-	IST	1986
 			5:45	-	NPT
 
+# ZONE-DESCR Asia Katmandu Nepal All points
+
 # Oman
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Muscat	3:54:20 -	LMT	1920
 			4:00	-	GST
+
+# ZONE-DESCR Asia Muscat Oman All points 
 
 # Pakistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -657,6 +724,8 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 			5:30	1:00	IST	1945 Oct 15
 			5:30	-	IST	1951 Sep 30
 			5:00	-	PKT
+
+# ZONE-DESCR Asia Karachi Pakistan All points
 
 # Palestine
 # These rules for Egypt are stolen from the `africa' file.
@@ -692,16 +761,22 @@ Zone	Asia/Manila	-15:56:00 -	LMT	1844
 			9:00	-	JST	1944 Nov
 			8:00	Phil	P%sT
 
+# ZONE-DESCR Asia Manila Philippines All points
+
 # Qatar
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Qatar	3:26:08 -	LMT	1920		# Al Dawhah
 			4:00	-	GST	1972 Jun
 			3:00	-	AST
 
+# ZONE-DESCR Asia Qatar Qatar All points
+
 # Saudi Arabia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Riyadh	3:06:52 -	LMT	1950
 			3:00	-	AST
+
+# ZONE-DESCR Asia Riyadh Saudi_Arabia All points
 
 # Singapore
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -714,6 +789,8 @@ Zone	Asia/Singapore	6:55:24 -	LMT	1880
 			7:30	-	SGT	1982 May
 			8:00	-	SGT
 
+# ZONE-DESCR Asia Singapore Singapore All points
+
 # Sri Lanka
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Colombo	5:19:24 -	LMT	1880
@@ -722,6 +799,8 @@ Zone	Asia/Colombo	5:19:24 -	LMT	1880
 			5:30	0:30	IHST	1942 Sep
 			5:30	1:00	IST	1945 Oct 16 2:00
 			5:30	-	IST
+
+# ZONE-DESCR Asia Colombo Sri_Lanka All points
 
 # Syria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -753,11 +832,15 @@ Rule	Syria	1990	max	-	Sep	30	2:00	0	-
 Zone	Asia/Damascus	2:25:12 -	LMT	1920
 			2:00	Syria	EET%s
 
+# ZONE-DESCR Asia Damascus Syria All points
+
 # Tajikistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dushanbe	4:35:12 -	LMT	1924 May  2
 			5:00	-	TSK	1957 Mar
 			6:00	Russia	TS%s
+
+# ZONE-DESCR Asia Dushanbe Tajikistan All points
 
 # Thailand
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -765,22 +848,30 @@ Zone	Asia/Bangkok	6:42:04	-	LMT	1880
 			6:42	-	BMT	1920 Apr
 			7:00	-	ICT
 
+# ZONE-DESCR Asia Bangkok Thailand All points
+
 # Turkmenistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Ashkhabad	3:53:32 -	LMT	1924 May  2
 			4:00	-	ASK	1957 Mar
 			5:00	Russia	AS%s
 
+# ZONE-DESCR Asia Ashkhabad Turkmenistan All points
+
 # United Arab Emirates
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Dubai	3:41:12 -	LMT	1920
 			4:00	-	GST
+
+# ZONE-DESCR Asia Dubai U_A_E All points
 
 # Uzbekistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Tashkent	4:37:12 -	LMT	1924 May  2
 			5:00	-	TSK	1957 Mar
 			6:00	Russia	TS%s
+
+# ZONE-DESCR Asia Tashkent Uzbekistan All points
 
 # Vietnam
 # From Paul Eggert <eggert@twinsun.com> (November 18, 1993):
@@ -794,7 +885,11 @@ Zone	Asia/Saigon	7:06:40 -	LMT	1906 Jun  9
 			8:00	-	ICT	1931 May
 			7:00	-	ICT
 
+# ZONE-DESCR Asia Saigon Vietnam All points
+
 # Yemen
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Aden	3:00:48	-	LMT	1950
 			3:00	-	AST
+
+# ZONE-DESCR Asia Aden Yemen All points
