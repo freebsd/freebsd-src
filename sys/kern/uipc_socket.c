@@ -809,7 +809,7 @@ dontblock:
 			m = m->m_next;
 		} else {
 			sbfree(&so->so_rcv, m);
-			MFREE(m, so->so_rcv.sb_mb);
+			so->so_rcv.sb_mb = m_free(m);
 			m = so->so_rcv.sb_mb;
 		}
 	}
@@ -893,7 +893,7 @@ dontblock:
 					so->so_rcv.sb_mb = m = m->m_next;
 					*mp = (struct mbuf *)0;
 				} else {
-					MFREE(m, so->so_rcv.sb_mb);
+					so->so_rcv.sb_mb = m_free(m);
 					m = so->so_rcv.sb_mb;
 				}
 				if (m)

@@ -422,7 +422,6 @@ ngt_start(struct tty *tp)
 
 		/* Send as much of it as possible */
 		while (m) {
-			struct mbuf *m2;
 			int     sent;
 
 			sent = m->m_len
@@ -431,8 +430,7 @@ ngt_start(struct tty *tp)
 			m->m_len -= sent;
 			if (m->m_len > 0)
 				break;	/* device can't take no more */
-			MFREE(m, m2);
-			m = m2;
+			m = m_free(m);
 		}
 
 		/* Put remainder of mbuf chain (if any) back on queue */
