@@ -366,8 +366,6 @@ ufs/ffs/ffs_vfsops.c	optional ffs
 ufs/ffs/ffs_vfsops.c	optional mfs
 ufs/ffs/ffs_vnops.c	optional ffs
 ufs/ffs/ffs_vnops.c	optional mfs
-ufs/ifs/ifs_isyscalls.c	optional vcfs
-ufs/ifs/ifs_subr.c	optional vcfs
 ufs/lfs/lfs_alloc.c	optional lfs
 ufs/lfs/lfs_balloc.c	optional lfs
 ufs/lfs/lfs_bio.c	optional lfs
