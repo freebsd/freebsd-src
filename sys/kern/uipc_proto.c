@@ -51,7 +51,7 @@
 
 static struct protosw localsw[] = {
 { SOCK_STREAM,	&localdomain,	0,	PR_CONNREQUIRED|PR_WANTRCVD|PR_RIGHTS,
-  0,		0,		0,		0,
+  0,		0,		0,		&uipc_ctloutput,
   0,
   0,		0,		0,		0,
   &uipc_usrreqs

@@ -88,6 +88,7 @@ static void    unp_scan __P((struct mbuf *, void (*)(struct file *)));
 static void    unp_mark __P((struct file *));
 static void    unp_discard __P((struct file *));
 static int     unp_internalize __P((struct mbuf *, struct proc *));
+static int     unp_listen __P((struct unpcb *, struct proc *));
 
 static int
 uipc_abort(struct socket *so)
@@ -198,7 +199,7 @@ uipc_listen(struct socket *so, struct proc *p)
 
 	if (unp == 0 || unp->unp_vnode == 0)
 		return EINVAL;
-	return 0;
+	return unp_listen(unp, p);
 }
 
 static int
@@ -431,6 +432,41 @@ struct pr_usrreqs uipc_usrreqs = {
 	uipc_send, uipc_sense, uipc_shutdown, uipc_sockaddr,
 	sosend, soreceive, sopoll
 };
+
+int
+uipc_ctloutput(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
+{
+	struct unpcb *unp = sotounpcb(so);
+	int error;
+
+	switch (sopt->sopt_dir) {
+	case SOPT_GET:
+		switch (sopt->sopt_name) {
+		case LOCAL_PEERCRED:
+			if (unp->unp_flags & UNP_HAVEPC)
+				error = sooptcopyout(sopt, &unp->unp_peercred,
+				    sizeof(unp->unp_peercred));
+			else {
+				if (so->so_type == SOCK_STREAM)
+					error = ENOTCONN;
+				else
+					error = EINVAL;
+			}
+			break;
+		default:
+			error = EOPNOTSUPP;
+			break;
+		}
+		break;
+	case SOPT_SET:
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+	return (error);
+}
 	
 /*
  * Both send and receive buffers are allocated PIPSIZ bytes of buffering
@@ -598,7 +634,7 @@ unp_connect(so, nam, p)
 	register struct sockaddr_un *soun = (struct sockaddr_un *)nam;
 	register struct vnode *vp;
 	register struct socket *so2, *so3;
-	struct unpcb *unp2, *unp3;
+	struct unpcb *unp, *unp2, *unp3;
 	int error, len;
 	struct nameidata nd;
 	char buf[SOCK_MAXADDRLEN];
@@ -637,12 +673,36 @@ unp_connect(so, nam, p)
 			error = ECONNREFUSED;
 			goto bad;
 		}
+		unp = sotounpcb(so);
 		unp2 = sotounpcb(so2);
 		unp3 = sotounpcb(so3);
 		if (unp2->unp_addr)
 			unp3->unp_addr = (struct sockaddr_un *)
 				dup_sockaddr((struct sockaddr *)
 					     unp2->unp_addr, 1);
+
+		/*
+		 * unp_peercred management:
+		 *
+		 * The connecter's (client's) credentials are copied
+		 * from its process structure at the time of connect()
+		 * (which is now).
+		 */
+		cru2x(p->p_ucred, &unp3->unp_peercred);
+		unp3->unp_flags |= UNP_HAVEPC;
+		/*
+		 * The receiver's (server's) credentials are copied
+		 * from the unp_peercred member of socket on which the
+		 * former called listen(); unp_listen() cached that
+		 * process's credentials at that time so we can use
+		 * them now.
+		 */
+		KASSERT(unp2->unp_flags & UNP_HAVEPCCACHED,
+		    ("unp_connect: listener without cached peercred"));
+		memcpy(&unp->unp_peercred, &unp2->unp_peercred,
+		    sizeof(unp->unp_peercred));
+		unp->unp_flags |= UNP_HAVEPC;
+
 		so2 = so3;
 	}
 	error = unp_connect2(so, so2);
@@ -1221,6 +1281,17 @@ unp_dispose(m)
 
 	if (m)
 		unp_scan(m, unp_discard);
+}
+
+static int
+unp_listen(unp, p)
+	struct unpcb *unp;
+	struct proc *p;
+{
+
+	cru2x(p->p_ucred, &unp->unp_peercred);
+	unp->unp_flags |= UNP_HAVEPCCACHED;
+	return (0);
 }
 
 static void
