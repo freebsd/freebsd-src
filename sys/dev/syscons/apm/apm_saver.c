@@ -42,9 +42,7 @@
 #include <sys/selinfo.h>
 #include <machine/apm_bios.h>
 #include <machine/pc/bios.h>
-#ifdef PC98
 #include <machine/bus.h>
-#endif
 #include <i386/bios/apm.h>
 
 extern int apm_display(int newstate);
