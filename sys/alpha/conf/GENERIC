@@ -59,6 +59,7 @@ options 	KTRACE			#ktrace(1) syscall trace support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
+options		ICMP_BANDLIM		# Rate limit bad replies
 
 # Standard busses
 device		isa

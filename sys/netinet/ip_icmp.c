@@ -96,7 +96,7 @@ SYSCTL_INT(_net_inet_icmp, OID_AUTO, log_redirect, CTLFLAG_RW,
  *      variable content is -1 and read-only.
  */     
     
-static int      icmplim = 100;
+static int      icmplim = 200;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_ICMPLIM, icmplim, CTLFLAG_RW,
 	&icmplim, 0, "");
 #else
