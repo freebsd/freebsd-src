@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id: swapgeneric.c,v 1.21 1997/02/22 09:32:49 peter Exp $
+ *	$Id: swapgeneric.c,v 1.22 1997/09/07 12:56:40 bde Exp $
  */
 
 #include <sys/param.h>
@@ -161,7 +161,7 @@ void gets(cp)
 	char *cp;
 {
 	register char *lp;
-	register c;
+	register int c;
 
 	lp = cp;
 	for (;;) {
