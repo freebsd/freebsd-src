@@ -32,6 +32,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+CFLAGS+= -mconstant-gp
+
 ASM_CFLAGS= -x assembler-with-cpp -Wa,-x -DLOCORE ${CFLAGS}
 
 %BEFORE_DEPEND
