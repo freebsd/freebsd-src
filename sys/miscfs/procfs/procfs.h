@@ -36,7 +36,7 @@
  *
  *	@(#)procfs.h	8.6 (Berkeley) 2/3/94
  *
- *	$Id: procfs.h,v 1.3 1995/03/16 18:13:45 bde Exp $
+ *	$Id: procfs.h,v 1.4 1995/04/15 02:30:08 davidg Exp $
  */
 
 /*
@@ -175,7 +175,7 @@ int	procfs_inactive __P((struct vop_inactive_args *));
 int	procfs_reclaim __P((struct vop_reclaim_args *));
 #define procfs_lock ((int (*) __P((struct vop_lock_args *))) nullop)
 #define procfs_unlock ((int (*) __P((struct vop_unlock_args *))) nullop)
-int	procfs_bmap __P((struct vop_bmap_args *));
+#define procfs_bmap ((int (*) __P((struct vop_bmap_args *))) procfs_badop)
 #define	procfs_strategy ((int (*) __P((struct vop_strategy_args *))) procfs_badop)
 int	procfs_print __P((struct vop_print_args *));
 #define procfs_islocked ((int (*) __P((struct vop_islocked_args *))) nullop)

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.6 1994/10/02 17:48:09 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.7 1994/11/15 20:30:56 jkh Exp $
  */
 
 /*
@@ -693,9 +693,7 @@ kernfs_enotsupp()
 int
 kernfs_badop()
 {
-
-	panic("kernfs: bad op");
-	/* NOTREACHED */
+	return (EIO);
 }
 
 /*
