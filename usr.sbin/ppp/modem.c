@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.16 1996/03/13 12:02:16 ache Exp $
+ * $Id: modem.c,v 1.17 1996/03/27 20:53:03 ache Exp $
  *
  *  TODO:
  */
@@ -460,7 +460,7 @@ int mode;
       cfsetspeed(&rstio, IntToSpeed(VarSpeed));
     }
     rstio.c_iflag |= IGNBRK|IGNPAR;
-    rstio.c_iflag &= ~(BRKINT|ICRNL|IXANY|IMAXBEL|IXON|IXOFF);
+    rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|ICRNL|INLCR|IGNCR|IMAXBEL);
     rstio.c_lflag = 0;
 
     rstio.c_oflag &= ~OPOST;
@@ -525,10 +525,17 @@ int modem;
   tcgetattr(modem, &rstio);
   modemios = rstio;
   rstio.c_cflag &= ~(CSIZE|PARENB|PARODD);
-  rstio.c_cflag |= CS8;
+#ifdef USE_CTSRTS
+  rstio.c_cflag |= CS8 | CREAD | CCTS_OFLOW|CRTS_IFLOW;
+#else
+  rstio.c_cflag |= CS8 | CREAD;
+#endif
   if (!(mode & MODE_DEDICATED))
     rstio.c_cflag |= HUPCL;
-  rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|BRKINT|ICRNL|INLCR);
+  rstio.c_iflag |= IGNBRK|IGNPAR;
+  rstio.c_iflag &= ~(ISTRIP|IXON|IXOFF|ICRNL|INLCR|IGNCR|IMAXBEL);
+  rstio.c_lflag = 0;
+  rstio.c_oflag &= ~OPOST;
   tcsetattr(modem, TCSADRAIN, &rstio);
   oldflag = fcntl(modem, F_GETFL, 0);
   fcntl(modem, F_SETFL, oldflag | O_NONBLOCK);
