@@ -52,23 +52,23 @@
  * other processors"
  */
 struct globaldata {
-	struct globaldata *gd_prvspace;		/* self-reference */
-	struct thread	*gd_curthread;
-	struct thread	*gd_npxthread;
-	struct pcb	*gd_curpcb;
-	struct thread	*gd_idlethread;
-	struct timeval	gd_switchtime;
-	struct i386tss	gd_common_tss;
-	int		gd_switchticks;
-	struct segment_descriptor gd_common_tssd;
-	struct segment_descriptor *gd_tss_gdt;
-	int		gd_currentldt;
-	u_int		gd_cpuid;
-	u_int		gd_other_cpus;
+	struct	globaldata *gd_prvspace;	/* Self-reference */
+	struct	thread *gd_curthread;
+	struct	thread *gd_npxthread;
+	struct	pcb *gd_curpcb;
+	struct	thread *gd_idlethread;
+	struct	timeval gd_switchtime;
+	struct	i386tss gd_common_tss;
+	int	gd_switchticks;
+	struct	segment_descriptor gd_common_tssd;
+	struct	segment_descriptor *gd_tss_gdt;
+	int	gd_currentldt;
+	u_int	gd_cpuid;
+	u_int	gd_other_cpus;
 	SLIST_ENTRY(globaldata) gd_allcpu;
 	struct	lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
-	volatile int	gd_ktr_idx;		/* Index into trace table */
+	int	gd_ktr_idx;			/* Index into trace table */
 	char	*gd_ktr_buf;
 	char	gd_ktr_buf_data[KTR_SIZE];
 #endif
