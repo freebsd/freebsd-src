@@ -3993,67 +3993,52 @@ extattrctl(td, uap)
 	return (error);
 }
 
-/*
- * extattr_set_vp(): Set a named extended attribute on a file or directory
+/*-
+ * Set a named extended attribute on a file or directory
  * 
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
- *            kernelspace string pointer "attrname",
- *            userspace iovec array pointer "iovp", unsigned int iovcnt
- *            proc "p"
+ *            kernelspace string pointer "attrname", userspace buffer
+ *            pointer "data", buffer length "nbytes", thread "td".
  * Returns: 0 on success, an error number otherwise
  * Locks: none
  * References: vp must be a valid reference for the duration of the call
  */
 static int
 extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
-    struct iovec *iovp, unsigned iovcnt, struct thread *td)
+    const void *data, size_t nbytes, struct thread *td)
 {
 	struct mount *mp;
 	struct uio auio;
-	struct iovec *iov, *needfree = NULL, aiov[UIO_SMALLIOV];
-	u_int iovlen, cnt;
-	int error, i;
+	struct iovec aiov;
+	ssize_t cnt;
+	int error;
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_WRITE);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
-	iovlen = iovcnt * sizeof(struct iovec);
-	if (iovcnt > UIO_SMALLIOV) {
-		if (iovcnt > UIO_MAXIOV) {
-			error = EINVAL;
-			goto done;
-		}
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
-		needfree = iov;
-	} else
-		iov = aiov;
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = iovcnt;
+	aiov.iov_base = data;
+	aiov.iov_len = nbytes;
+	auio.uio_iov = &aiov;
+	auio.uio_iovcnt = 1;
+	auio.uio_offset = 0;
+	if (nbytes > INT_MAX) {
+		error = EINVAL;
+		goto done;
+	}
+	auio.uio_resid = nbytes;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_offset = 0;
-	if ((error = copyin((caddr_t)iovp, (caddr_t)iov, iovlen)))
-		goto done;
-	auio.uio_resid = 0;
-	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - auio.uio_resid) {
-			error = EINVAL;
-			goto done;
-		}
-		auio.uio_resid += iov->iov_len;
-		iov++;
-	}
-	cnt = auio.uio_resid;
+	cnt = nbytes;
+
 	error = VOP_SETEXTATTR(vp, attrnamespace, attrname, &auio,
 	    td->td_proc->p_ucred, td);
 	cnt -= auio.uio_resid;
 	td->td_retval[0] = cnt;
+
 done:
-	if (needfree)
-		FREE(needfree, M_IOV);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	return (error);
@@ -4079,7 +4064,7 @@ extattr_set_file(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = extattr_set_vp(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
-	    SCARG(uap, iovp), SCARG(uap, iovcnt), td);
+	    SCARG(uap, data), SCARG(uap, nbytes), td);
 
 	vrele(nd.ni_vp);
 	return (error);
@@ -4103,71 +4088,65 @@ extattr_set_fd(td, uap)
 		return (error);
 
 	error = extattr_set_vp((struct vnode *)fp->f_data,
-	    SCARG(uap, attrnamespace), attrname, SCARG(uap, iovp),
-	    SCARG(uap, iovcnt), td);
+	    SCARG(uap, attrnamespace), attrname, SCARG(uap, data),
+	    SCARG(uap, nbytes), td);
 	fdrop(fp, td);
 
 	return (error);
 }
 
-/*
- * extattr_get_vp(): Get a named extended attribute on a file or directory
+/*-
+ * Get a named extended attribute on a file or directory
  * 
  * Arguments: unlocked vnode "vp", attribute namespace "attrnamespace",
- *            kernelspace string pointer "attrname",
- *            userspace iovec array pointer "iovp", unsigned int iovcnt,
- *            proc "p"
+ *            kernelspace string pointer "attrname", userspace buffer
+ *            pointer "data", buffer length "nbytes", thread "td".
  * Returns: 0 on success, an error number otherwise
  * Locks: none
  * References: vp must be a valid reference for the duration of the call
  */
 static int
 extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
-    struct iovec *iovp, unsigned iovcnt, struct thread *td)
+    void *data, size_t nbytes, struct thread *td)
 {
 	struct uio auio;
-	struct iovec *iov, *needfree = NULL, aiov[UIO_SMALLIOV];
-	u_int iovlen, cnt;
-	int error, i;
+	struct iovec aiov;
+	ssize_t cnt;
+	size_t size;
+	int error;
 
 	VOP_LEASE(vp, td, td->td_proc->p_ucred, LEASE_READ);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
-	iovlen = iovcnt * sizeof (struct iovec);
-	if (iovcnt > UIO_SMALLIOV) {
-		if (iovcnt > UIO_MAXIOV) {
+	/*
+	 * Slightly unusual semantics: if the user provides a NULL data
+	 * pointer, they don't want to receive the data, just the
+	 * maximum read length.
+	 */
+	if (data != NULL) {
+		aiov.iov_base = data;
+		aiov.iov_len = nbytes;
+		auio.uio_iov = &aiov;
+		auio.uio_offset = 0;
+		if (nbytes > INT_MAX) {
 			error = EINVAL;
 			goto done;
 		}
-		MALLOC(iov, struct iovec *, iovlen, M_IOV, M_WAITOK);
-		needfree = iov;
-	} else
-		iov = aiov;
-	auio.uio_iov = iov;
-	auio.uio_iovcnt = iovcnt;
-	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-	auio.uio_offset = 0;
-	if ((error = copyin((caddr_t)iovp, (caddr_t)iov, iovlen)))
-		goto done;
-	auio.uio_resid = 0;
-	for (i = 0; i < iovcnt; i++) {
-		if (iov->iov_len > INT_MAX - auio.uio_resid) {
-			error = EINVAL;
-			goto done;
-		}
-		auio.uio_resid += iov->iov_len;
-		iov++;
+		auio.uio_resid = nbytes;
+		auio.uio_rw = UIO_READ;
+		auio.uio_segflg = UIO_USERSPACE;
+		auio.uio_td = td;
+		cnt = nbytes;
+		error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio,
+		    NULL, td->td_proc->p_ucred, td);
+		cnt -= auio.uio_resid;
+		td->td_retval[0] = cnt;
+	} else {
+		error = VOP_GETEXTATTR(vp, attrnamespace, attrname, NULL,
+		    &size, td->td_proc->p_ucred, td);
+		td->td_retval[0] = size;
 	}
-	cnt = auio.uio_resid;
-	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio,
-	    td->td_proc->p_ucred, td);
-	cnt -= auio.uio_resid;
-	td->td_retval[0] = cnt;
 done:
-	if (needfree)
-		FREE(needfree, M_IOV);
 	VOP_UNLOCK(vp, 0, td);
 	return (error);
 }
@@ -4192,7 +4171,7 @@ extattr_get_file(td, uap)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	error = extattr_get_vp(nd.ni_vp, SCARG(uap, attrnamespace), attrname,
-	    SCARG(uap, iovp), SCARG(uap, iovcnt), td);
+	    SCARG(uap, data), SCARG(uap, nbytes), td);
 
 	vrele(nd.ni_vp);
 	return (error);
@@ -4216,8 +4195,8 @@ extattr_get_fd(td, uap)
 		return (error);
 
 	error = extattr_get_vp((struct vnode *)fp->f_data,
-	    SCARG(uap, attrnamespace), attrname, SCARG(uap, iovp),
-	    SCARG(uap, iovcnt), td);
+	    SCARG(uap, attrnamespace), attrname, SCARG(uap, data),
+	    SCARG(uap, nbytes), td);
 
 	fdrop(fp, td);
 	return (error);

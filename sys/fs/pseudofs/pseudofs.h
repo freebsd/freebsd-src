@@ -138,7 +138,7 @@ typedef int (*pfs_ioctl_t)(PFS_IOCTL_ARGS);
 #define PFS_GETEXTATTR_ARGS \
 	struct thread *td, struct proc *p, struct pfs_node *pn, \
 	int attrnamespace, const char *name, struct uio *uio,	\
-	struct ucred *cred
+	size_t *size, struct ucred *cred
 #define PFS_GETEXTATTR_PROTO(name) \
 	int name(PFS_GETEXTATTR_ARGS);
 struct ucred;

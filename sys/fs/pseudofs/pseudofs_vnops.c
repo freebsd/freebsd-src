@@ -283,7 +283,7 @@ pfs_getextattr(struct vop_getextattr_args *va)
 	}
 	
 	error = (pn->pn_getextattr)(curthread, proc, pn, va->a_attrnamespace,
-	    va->a_name, va->a_uio, va->a_cred);
+	    va->a_name, va->a_uio, va->a_size, va->a_cred);
 
 	if (proc != NULL)
 		PRELE(proc);

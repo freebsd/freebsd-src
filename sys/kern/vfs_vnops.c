@@ -905,7 +905,8 @@ vn_extattr_get(struct vnode *vp, int ioflg, int attrnamespace,
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	/* authorize attribute retrieval as kernel */
-	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio, NULL, td);
+	error = VOP_GETEXTATTR(vp, attrnamespace, attrname, &auio, NULL, NULL,
+	    td);
 
 	if ((ioflg & IO_NODELOCKED) == 0)
 		VOP_UNLOCK(vp, 0, td);

@@ -80,7 +80,8 @@ static int	ufs_extattr_enable(struct ufsmount *ump, int attrnamespace,
 static int	ufs_extattr_disable(struct ufsmount *ump, int attrnamespace,
     const char *attrname, struct thread *td);
 static int	ufs_extattr_get(struct vnode *vp, int attrnamespace,
-    const char *name, struct uio *uio, struct ucred *cred, struct thread *td);
+    const char *name, struct uio *uio, size_t *size, struct ucred *cred,
+    struct thread *td);
 static int	ufs_extattr_set(struct vnode *vp, int attrnamespace,
     const char *name, struct uio *uio, struct ucred *cred, struct thread *td);
 static int	ufs_extattr_rm(struct vnode *vp, int attrnamespace,
@@ -825,6 +826,7 @@ vop_getextattr {
 	IN int a_attrnamespace;
 	IN const char *a_name;
 	INOUT struct uio *a_uio;
+	OUT struct size_t *a_size;
 	IN struct ucred *a_cred;
 	IN struct thread *a_td;
 };
@@ -837,7 +839,7 @@ vop_getextattr {
 	ufs_extattr_uepm_lock(ump, ap->a_td);
 
 	error = ufs_extattr_get(ap->a_vp, ap->a_attrnamespace, ap->a_name,
-	    ap->a_uio, ap->a_cred, ap->a_td);
+	    ap->a_uio, ap->a_size, ap->a_cred, ap->a_td);
 
 	ufs_extattr_uepm_unlock(ump, ap->a_td);
 
@@ -850,7 +852,7 @@ vop_getextattr {
  */
 static int
 ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
-    struct uio *uio, struct ucred *cred, struct thread *td)
+    struct uio *uio, size_t *size, struct ucred *cred, struct thread *td)
 {
 	struct ufs_extattr_list_entry	*attribute;
 	struct ufs_extattr_header	ueh;
@@ -860,7 +862,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	struct ufsmount	*ump = VFSTOUFS(mp);
 	struct inode	*ip = VTOI(vp);
 	off_t	base_offset;
-	size_t	size, old_size;
+	size_t	len, old_len;
 	int	error = 0;
 
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED))
@@ -885,7 +887,7 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 	 * extended attribute semantic.  Otherwise we can't guarantee
 	 * atomicity, as we don't provide locks for extended attributes.
 	 */
-	if (uio->uio_offset != 0)
+	if (uio != NULL && uio->uio_offset != 0)
 		return (ENXIO);
 
 	/*
@@ -956,27 +958,36 @@ ufs_extattr_get(struct vnode *vp, int attrnamespace, const char *name,
 		goto vopunlock_exit;
 	}
 
-	/* Allow for offset into the attribute data. */
-	uio->uio_offset = base_offset + sizeof(struct ufs_extattr_header);
+	/* Return full data size if caller requested it. */
+	if (size != NULL)
+		*size = ueh.ueh_len;
 
-	/*
-	 * Figure out maximum to transfer -- use buffer size and local data
-	 * limit.
-	 */
-	size = MIN(uio->uio_resid, ueh.ueh_len);
-	old_size = uio->uio_resid;
-	uio->uio_resid = size;
+	/* Return data if the caller requested it. */
+	if (uio != NULL) {
+		/* Allow for offset into the attribute data. */
+		uio->uio_offset = base_offset + sizeof(struct
+		    ufs_extattr_header);
 
-	error = VOP_READ(attribute->uele_backing_vnode, uio,
-	    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
-	if (error)
-		goto vopunlock_exit;
+		/*
+		 * Figure out maximum to transfer -- use buffer size and
+		 * local data limit.
+		 */
+		len = MIN(uio->uio_resid, ueh.ueh_len);
+		old_len = uio->uio_resid;
+		uio->uio_resid = len;
 
-	uio->uio_resid = old_size - (size - uio->uio_resid);
+		error = VOP_READ(attribute->uele_backing_vnode, uio,
+		    IO_NODELOCKED, ump->um_extattr.uepm_ucred);
+		if (error)
+			goto vopunlock_exit;
+
+		uio->uio_resid = old_len - (len - uio->uio_resid);
+	}
 
 vopunlock_exit:
 
-	uio->uio_offset = 0;
+	if (uio != NULL)
+		uio->uio_offset = 0;
 
 	if (attribute->uele_backing_vnode != vp)
 		VOP_UNLOCK(attribute->uele_backing_vnode, 0, td);
