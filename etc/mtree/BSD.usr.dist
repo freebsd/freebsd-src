@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.63 1996/07/12 19:58:44 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.64 1996/08/21 09:53:06 jkh Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -99,6 +99,8 @@
                 08.sendmailop
                 ..
                 09.sendmail
+                ..
+                10.named
                 ..
                 11.timedop
                 ..
