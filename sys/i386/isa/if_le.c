@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.9 1994/08/16 20:40:56 thomas Exp $
+ * $Id: if_le.c,v 1.7 1994/10/12 11:39:37 se Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.7  1994/10/12  11:39:37  se
+ * Submitted by:	Matt Thomas <thomas@lkg.dec.com>
+ * #ifdef MULTICAST removed.
+ *
  * Revision 1.9  1994/08/16  20:40:56  thomas
  * New README files (one per driver)
  * Minor updates to drivers (DEPCA support and add pass to attach
@@ -51,45 +55,47 @@
 #include "le.h"
 #if NLE > 0
 
-#include "param.h"
-#include "systm.h"
-#include "mbuf.h"
-#include "protosw.h"
-#include "socket.h"
-#include "ioctl.h"
-#include "errno.h"
-#include "malloc.h"
-#include "syslog.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
+#include <sys/protosw.h>
+#include <sys/socket.h>
+#include <sys/ioccom.h>
+#include <sys/sockio.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/syslog.h>
+#include <sys/devconf.h>
 
-#include "net/if.h"
-#include "net/if_types.h"
-#include "net/if_dl.h"
-#include "net/route.h"
+#include <net/if.h>
+#include <net/if_types.h>
+#include <net/if_dl.h>
+#include <net/route.h>
 
 #include "bpfilter.h"
 
 #ifdef INET
-#include "netinet/in.h"
-#include "netinet/in_systm.h"
-#include "netinet/in_var.h"
-#include "netinet/ip.h"
-#include "netinet/if_ether.h"
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
-#include "netns/ns.h"
-#include "netns/ns_if.h"
+#include <netns/ns.h>
+#include <netns/ns_if.h>
 #endif
 
-#include "i386/isa/isa.h"
-#include "i386/isa/isa_device.h"
-#include "i386/isa/icu.h"
+#include <i386/isa/isa.h>
+#include <i386/isa/isa_device.h>
+#include <i386/isa/icu.h>
 
-#include "vm/vm.h"
+#include <vm/vm.h>
 
 #if NBPFILTER > 0
-#include "net/bpf.h"
-#include "net/bpfdesc.h"
+#include <net/bpf.h>
+#include <net/bpfdesc.h>
 #endif
 
 /* Forward declarations */
@@ -329,6 +335,22 @@ unsigned le_intrs[NLE];
 #define	MEMSET(where, what, howmuch)	bzero(where, howmuch)
 #define	MEMCMP(l, r, len)		bcmp(l, r, len)
 
+static struct kern_devconf kdc_le[NLE] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"le", 0, { "isa0", MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+} };
+
+static inline void
+le_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_le[id->id_unit] = kdc_le[0];
+	kdc_le[id->id_unit].kdc_unit = id->id_unit;
+	kdc_le[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_le[id->id_unit]);
+}
+
 static int
 le_probe(
     struct isa_device *dvp)
@@ -395,6 +417,7 @@ le_attach(
 #endif
 
     if_attach(ifp);
+    le_registerdev(dvp);
 
     while (ifa && ifa->ifa_addr && ifa->ifa_addr->sa_family != AF_LINK)
 	ifa = ifa->ifa_next;

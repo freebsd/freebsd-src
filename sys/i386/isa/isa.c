@@ -65,6 +65,7 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/ic/i8237.h>
 #include <i386/isa/ic/i8042.h>
+#include <sys/devconf.h>
 #include "vector.h"
 
 /*
@@ -556,6 +557,20 @@ isa_internalize(struct isa_device *id, void **userpp, size_t *len)
 	/* code would go here to validate the configuration request */
 	/* code would go here to actually perform the reconfiguration */
 	return rv;
+}
+
+int
+isa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
+			void *userp, size_t l)
+{
+	return isa_externalize(kdc->kdc_isa, userp, &l);
+}
+
+int
+eisa_generic_externalize(struct proc *p, struct kern_devconf *kdc,
+			 void *userp, size_t l)
+{
+	return eisa_externalize(kdc->kdc_isa, -1, userp, &l);
 }
 
 /*
