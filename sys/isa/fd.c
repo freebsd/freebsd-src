@@ -2082,8 +2082,7 @@ fdstate(fdc_p fdc)
 			fd->skip = 0;
 			fdc->bp = NULL;
 			device_unbusy(fd->dev);
-			devstat_end_transaction_bio(&fd->device_stats, bp);
-			biodone(bp);
+			biofinish(bp, &fd->device_stats, 0);
 			fdc->fd = (fd_p) 0;
 			fdc->fdu = -1;
 			fdc->state = FINDWORK;
@@ -2246,8 +2245,7 @@ retrier(struct fdc_data *fdc)
 		fdc->bp = NULL;
 		fdc->fd->skip = 0;
 		device_unbusy(fd->dev);
-		devstat_end_transaction_bio(&fdc->fd->device_stats, bp);
-		biodone(bp);
+		biofinish(bp, &fdc->fd->device_stats, 0);
 		fdc->state = FINDWORK;
 		fdc->flags |= FDC_NEEDS_RESET;
 		fdc->fd = (fd_p) 0;

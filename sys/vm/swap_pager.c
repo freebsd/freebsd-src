@@ -853,9 +853,7 @@ swap_pager_strategy(vm_object_t object, struct bio *bp)
 
 	/* XXX: KASSERT instead ? */
 	if (bp->bio_bcount & PAGE_MASK) {
-		bp->bio_error = EINVAL;
-		bp->bio_flags |= BIO_ERROR;
-		biodone(bp);
+		biofinish(bp, NULL, EINVAL);
 		printf("swap_pager_strategy: bp %p blk %d size %d, not page bounded\n", bp, (int)bp->bio_pblkno, (int)bp->bio_bcount);
 		return;
 	}

@@ -387,9 +387,7 @@ cdoninvalidate(struct cam_periph *periph)
 	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
 		bioq_remove(&softc->bio_queue, q_bp);
 		q_bp->bio_resid = q_bp->bio_bcount;
-		q_bp->bio_error = ENXIO;
-		q_bp->bio_flags |= BIO_ERROR;
-		biodone(q_bp);
+		biofinish(q_bp, NULL, ENXIO);
 	}
 	splx(s);
 
@@ -1577,9 +1575,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 			while ((q_bp = bioq_first(&softc->bio_queue)) != NULL) {
 				bioq_remove(&softc->bio_queue, q_bp);
 				q_bp->bio_resid = q_bp->bio_bcount;
-				q_bp->bio_error = EIO;
-				q_bp->bio_flags |= BIO_ERROR;
-				biodone(q_bp);
+				biofinish(q_bp, NULL, EIO);
 			}
 			splx(s);
 			bp->bio_resid = bp->bio_bcount;
@@ -1611,8 +1607,7 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if (softc->flags & CD_FLAG_CHANGER)
 			cdchangerschedule(softc);
 
-		devstat_end_transaction_bio(&softc->device_stats, bp);
-		biodone(bp);
+		biofinish(bp, &softc->device_stats, 0);
 		break;
 	}
 	case CD_CCB_PROBE:

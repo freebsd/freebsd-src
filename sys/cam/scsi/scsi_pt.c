@@ -414,9 +414,7 @@ ptoninvalidate(struct cam_periph *periph)
 	while ((q_bp = bioq_first(&softc->bio_queue)) != NULL){
 		bioq_remove(&softc->bio_queue, q_bp);
 		q_bp->bio_resid = q_bp->bio_bcount;
-		q_bp->bio_error = ENXIO;
-		q_bp->bio_flags |= BIO_ERROR;
-		biodone(q_bp);
+		biofinish(q_bp, NULL, ENXIO);
 	}
 
 	splx(s);
@@ -626,9 +624,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 					!= NULL) {
 					bioq_remove(&softc->bio_queue, q_bp);
 					q_bp->bio_resid = q_bp->bio_bcount;
-					q_bp->bio_error = EIO;
-					q_bp->bio_flags |= BIO_ERROR;
-					biodone(q_bp);
+					biofinish(q_bp, NULL, EIO);
 				}
 				splx(s);
 				bp->bio_error = error;
@@ -662,8 +658,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		splx(oldspl);
 
-		devstat_end_transaction_bio(&softc->device_stats, bp);
-		biodone(bp);
+		biofinish(bp, &softc->device_stats, 0);
 		break;
 	}
 	case PT_CCB_WAITING:

@@ -159,9 +159,7 @@ astdetach(struct atapi_softc *atp)
     struct bio *bp;
     
     while ((bp = bioq_first(&stp->queue))) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
     }
     destroy_dev(stp->dev1);
     destroy_dev(stp->dev2);
@@ -430,9 +428,7 @@ aststrategy(struct bio *bp)
     int s;
 
     if (stp->atp->flags & ATAPI_F_DETACHING) {
-	bp->bio_error = ENXIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, ENXIO);
 	return;
     }
 
@@ -443,9 +439,7 @@ aststrategy(struct bio *bp)
 	return;
     }
     if (!(bp->bio_cmd == BIO_READ) && stp->flags & F_WRITEPROTECT) {
-	bp->bio_error = EPERM;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, EPERM);
 	return;
     }
 	
@@ -453,9 +447,7 @@ aststrategy(struct bio *bp)
     if (bp->bio_bcount % stp->blksize) {
 	ata_printf(stp->atp->controller, stp->atp->unit,
 		   "bad request, must be multiple of %d\n", stp->blksize);
-	bp->bio_error = EIO;
-	bp->bio_flags |= BIO_ERROR;
-	biodone(bp);
+	biofinish(bp, NULL, EIO);
 	return;
     }
 
@@ -524,8 +516,7 @@ ast_done(struct atapi_request *request)
 	bp->bio_resid = bp->bio_bcount - request->donecount;
         ast_total += (bp->bio_bcount - bp->bio_resid);
     }
-    devstat_end_transaction_bio(&stp->stats, bp);
-    biodone(bp);
+    biofinish(bp, &stp->stats, 0);
     return 0;
 }
 
