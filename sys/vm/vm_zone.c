@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *	are met.
  *
- * $Id: vm_zone.c,v 1.3 1997/08/06 04:58:04 dyson Exp $
+ * $Id: vm_zone.c,v 1.4 1997/08/07 03:52:54 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -31,6 +31,10 @@
 #include <sys/vmmeter.h>
 #include <sys/lock.h>
 #include <sys/sysctl.h>
+
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
