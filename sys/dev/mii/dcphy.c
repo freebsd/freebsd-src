@@ -118,7 +118,7 @@ DRIVER_MODULE(dcphy, miibus, dcphy_driver, dcphy_devclass, 0, 0);
 static int	dcphy_service(struct mii_softc *, struct mii_data *, int);
 static void	dcphy_status(struct mii_softc *);
 static void	dcphy_reset(struct mii_softc *);
-static int	dcphy_auto(struct mii_softc *, int);
+static int	dcphy_auto(struct mii_softc *);
 
 static int dcphy_probe(dev)
 	device_t		dev;
@@ -250,8 +250,7 @@ dcphy_service(sc, mii, cmd)
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 			/*dcphy_reset(sc);*/
-			sc->mii_flags &= ~MIIF_DOINGAUTO;
-			(void) dcphy_auto(sc, 0);
+			(void) dcphy_auto(sc);
 			break;
 		case IFM_100_T4:
 			/*
@@ -329,9 +328,7 @@ dcphy_service(sc, mii, cmd)
 			break;
 
 		sc->mii_ticks = 0;
-		/*if (DC_IS_INTEL(dc_sc))*/
-			sc->mii_flags &= ~MIIF_DOINGAUTO;
-		dcphy_auto(sc, 0);
+		dcphy_auto(sc);
 
 		break;
 	}
@@ -429,51 +426,23 @@ skip:
 }
 
 static int
-dcphy_auto(mii, waitfor)
+dcphy_auto(mii)
 	struct mii_softc	*mii;
-	int			waitfor;
 {
-	int			i;
 	struct dc_softc		*sc;
 
 	sc = mii->mii_pdata->mii_ifp->if_softc;
 
-	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0) {
-		DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
-		DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
-		DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
-		if (mii->mii_capabilities & BMSR_100TXHDX)
-			CSR_WRITE_4(sc, DC_10BTCTRL, 0x3FFFF);
-		else
-			CSR_WRITE_4(sc, DC_10BTCTRL, 0xFFFF);
-		DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
-		DC_SETBIT(sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
-		DC_SETBIT(sc, DC_10BTSTAT, DC_ASTAT_TXDISABLE);
-	}
-
-	if (waitfor) {
-		/* Wait 500ms for it to complete. */
-		for (i = 0; i < 500; i++) {
-			if ((CSR_READ_4(sc, DC_10BTSTAT) & DC_TSTAT_ANEGSTAT)
-			    == DC_ASTAT_AUTONEGCMP)
-				return(0);
-			DELAY(1000);
-		}
-		/*
-		 * Don't need to worry about clearing MIIF_DOINGAUTO.
-		 * If that's set, a timeout is pending, and it will
-		 * clear the flag.
-		 */
-		return(EIO);
-	}
-
-	/*
-	 * Just let it finish asynchronously.  This is for the benefit of
-	 * the tick handler driving autonegotiation.  Don't want 500ms
-	 * delays all the time while the system is running!
-	 */
-	if ((mii->mii_flags & MIIF_DOINGAUTO) == 0)
-		mii->mii_flags |= MIIF_DOINGAUTO;
+	DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_FULLDUPLEX);
+	DC_CLRBIT(sc, DC_SIARESET, DC_SIA_RESET);
+	if (mii->mii_capabilities & BMSR_100TXHDX)
+		CSR_WRITE_4(sc, DC_10BTCTRL, 0x3FFFF);
+	else
+		CSR_WRITE_4(sc, DC_10BTCTRL, 0xFFFF);
+	DC_SETBIT(sc, DC_SIARESET, DC_SIA_RESET);
+	DC_SETBIT(sc, DC_10BTCTRL, DC_TCTL_AUTONEGENBL);
+	DC_SETBIT(sc, DC_10BTSTAT, DC_ASTAT_TXDISABLE);
 
 	return(EJUSTRETURN);
 }

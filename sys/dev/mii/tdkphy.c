@@ -195,7 +195,7 @@ tdkphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			 */
 			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
 				return (0);
-			(void) mii_phy_auto(sc, 1);
+			(void) mii_phy_auto(sc);
 			break;
 		case IFM_100_T4:
 			/*

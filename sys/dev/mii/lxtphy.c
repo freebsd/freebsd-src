@@ -229,7 +229,7 @@ lxtphy_service(sc, mii, cmd)
 
 			lxtphy_set_tp(sc);
 
-			(void) mii_phy_auto(sc, 1);
+			(void) mii_phy_auto(sc);
 			break;
 		case IFM_100_T4:
 			/*

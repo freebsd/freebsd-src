@@ -103,7 +103,6 @@ DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, nsgphy_devclass, 0, 0);
 
 static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
 static void	nsgphy_status(struct mii_softc *);
-extern void	mii_phy_auto_timeout(void *);
 
 const struct mii_phydesc gphyters[] = {
 	{ MII_OUI_NATSEMI,		MII_MODEL_NATSEMI_DP83861,

@@ -125,7 +125,7 @@ static driver_t tlphy_driver = {
 DRIVER_MODULE(tlphy, miibus, tlphy_driver, tlphy_devclass, 0, 0);
 
 static int	tlphy_service(struct mii_softc *, struct mii_data *, int);
-static int	tlphy_auto(struct tlphy_softc *, int);
+static int	tlphy_auto(struct tlphy_softc *);
 static void	tlphy_acomp(struct tlphy_softc *);
 static void	tlphy_status(struct tlphy_softc *);
 
@@ -235,7 +235,7 @@ tlphy_service(self, mii, cmd)
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
 
-	if ((sc->sc_mii.mii_flags & MIIF_DOINGAUTO) == 0 && sc->sc_need_acomp)
+	if (sc->sc_need_acomp)
 		tlphy_acomp(sc);
 
 	switch (cmd) {
@@ -271,7 +271,7 @@ tlphy_service(self, mii, cmd)
 			 * an autonegotiation cycle, so there's no such
 			 * thing as "already in auto mode".
 			 */
-			(void) tlphy_auto(sc, 1);
+			(void) tlphy_auto(sc);
 			break;
 		case IFM_10_2:
 		case IFM_10_5:
@@ -327,9 +327,8 @@ tlphy_service(self, mii, cmd)
 
 		sc->sc_mii.mii_ticks = 0;
 		mii_phy_reset(&sc->sc_mii);
-		if (tlphy_auto(sc, 0) == EJUSTRETURN)
-			return (0);
-		break;
+		tlphy_auto(sc);
+		return (0);
 	}
 
 	/* Update the media status. */
@@ -384,13 +383,12 @@ tlphy_status(sc)
 }
 
 static int
-tlphy_auto(sc, waitfor)
+tlphy_auto(sc)
 	struct tlphy_softc *sc;
-	int waitfor;
 {
 	int error;
 
-	switch ((error = mii_phy_auto(&sc->sc_mii, waitfor))) {
+	switch ((error = mii_phy_auto(&sc->sc_mii))) {
 	case EIO:
 		/*
 		 * Just assume we're not in full-duplex mode.
