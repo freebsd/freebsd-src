@@ -73,6 +73,10 @@ as default calendar file.
 
 .El
 .Pp
+To handle calendars in your national code table you can specify
+.Dq LANG=<locale_name>
+in the calendar file as early as possible.
+.Pp
 Lines should begin with a month and day.
 They may be entered in almost any format, either numeric or as character
 strings.
@@ -83,7 +87,10 @@ Two numbers default to the month followed by the day.
 Lines with leading tabs default to the last entered date, allowing
 multiple line specifications for a single date.
 ``Easter'', may be followed by an positive or negative integer, is
-Easter for this year. Weekdays may be followed by ``-4'' ... ``+5'' (aliases
+Easter for this year.
+``Paskha'', may be followed by an positive or negative integer, is
+Orthodox Easter for this year.
+Weekdays may be followed by ``-4'' ... ``+5'' (aliases
 last, first, second, third, fourth) for moving events like 
 ``the last Monday in April''
 
@@ -105,6 +112,7 @@ are ignored.
 .Pp
 Some possible calendar entries:
 .Bd -unfilled -offset indent
+LANG=C
 #include        <calendar.usholiday>
 #include        <calendar.birthday>
 
@@ -119,6 +127,7 @@ May Sun+2       ... second Sunday in May (Muttertag)
 04/SunLast      ... last Sunday in April, summer time in Europe
 Easter          ... Easter
 Easter-2        ... Good Friday (2 days before Easter)
+Paskha          ... Orthodox Easter
 
 .Ed
 .Sh FILES

@@ -32,22 +32,23 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)calendar.c	8.3 (Berkeley) 3/25/94";
+static const char sccsid[] = "@(#)calendar.c  8.3 (Berkeley) 3/25/94";
 #endif /* not lint */
 
+#include <err.h>
+#include <errno.h>
+#include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <errno.h>
-#include <err.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 #include "pathnames.h"
 #include "calendar.h"
@@ -66,6 +67,8 @@ main(argc, argv)
 {
 	extern int optind;
 	int ch;
+
+	(void) setlocale(LC_ALL, "");
 
 	while ((ch = getopt(argc, argv, "?-af:t:A:B:")) != EOF)
 		switch (ch) {

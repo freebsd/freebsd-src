@@ -1,11 +1,13 @@
 /*
  * Feiertage
  *
- * $Id: calendar.feiertag,v 1.1 1996/01/29 00:34:12 wosch Exp $
+ * $Id: calendar.feiertag,v 1.2 1996/02/02 06:05:13 wosch Exp $
  */
 
 #ifndef _de_DE_ISO_8859_1_feiertag_
 #define _de_DE_ISO_8859_1_feiertag_
+
+LANG=de_DE.ISO_8859-1
 
 /* arbeitsfreie staatliche Feiertage */
 01/01	Neujahr
