@@ -65,7 +65,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 
 	/* Align the stack to 16 bytes. */
 	sp = (uint64_t *)(ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size);
-	sp = (uint64_t *)((uint64_t)sp & -15UL);
+	sp = (uint64_t *)((uint64_t)sp & ~15UL);
 
 	/* Allocate space for a maximum of 6 arguments on the stack. */
 	args = sp - 6;
@@ -88,7 +88,7 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 	ucp->uc_mcontext.mc_rdi = (register_t)ucp;
 	ucp->uc_mcontext.mc_rsi = (register_t)start;
 	ucp->uc_mcontext.mc_rdx = (register_t)args;
-	ucp->uc_mcontext.mc_rbp = (register_t)sp;
+	ucp->uc_mcontext.mc_rbp = 0;
 	ucp->uc_mcontext.mc_rbx = (register_t)sp;
 	ucp->uc_mcontext.mc_rsp = (register_t)sp;
 	ucp->uc_mcontext.mc_rip = (register_t)makectx_wrapper;
