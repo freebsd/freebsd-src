@@ -52,6 +52,7 @@ void Arch_End(void);
 
 /* compat.c */
 void Compat_Run(Lst);
+int Compat_RunCommand(void *, void *);
 
 /* cond.c */
 int Cond_Eval(char *);
