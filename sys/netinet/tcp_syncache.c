@@ -390,7 +390,6 @@ syncache_timer(xslot)
 			nsc = TAILQ_NEXT(sc, sc_timerq);
 			syncache_drop(sc, NULL);
 			tcpstat.tcps_sc_stale++;
-			INP_UNLOCK(inp);
 			continue;
 		}
 		/*
