@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)temp.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: temp.c,v 1.3 1997/07/24 06:56:33 charnier Exp $";
+	"$Id: temp.c,v 1.4 1998/10/10 09:58:20 thepish Exp $";
 #endif /* not lint */
 
 #include "rcv.h"
@@ -67,30 +67,31 @@ tinit()
 	else {
 		len = strlen(tmpdir);
 		if ((cp = malloc(len + 2)) == NULL)
-			err(1, NULL);
+			panic("Out of memory");
 		(void)strcpy(cp, tmpdir);
 		cp[len] = '/';
 		cp[len + 1] = '\0';
 		tmpdir = cp;
 	}
-
-	tempMail=(char *)malloc(len+sizeof("RsXXXXXX"));
+	len = strlen(tmpdir);
+	if ((tempMail = malloc(len + sizeof("RsXXXXXX"))) == NULL)
+		panic("Out of memory");
 	strcpy(tempMail, tmpdir);
 	mktemp(strcat(tempMail, "RsXXXXXX"));
-
-	tempResid=(char *)malloc(len+sizeof("RqXXXXXX"));
+	if ((tempResid = malloc(len + sizeof("RqXXXXXX"))) == NULL)
+		panic("Out of memory");
 	strcpy(tempResid, tmpdir);
 	mktemp(strcat(tempResid, "RqXXXXXX"));
-
-	tempQuit=(char *)malloc(len+sizeof("RmXXXXXX"));
+	if ((tempQuit = malloc(len + sizeof("RmXXXXXX"))) == NULL)
+		panic("Out of memory");
 	strcpy(tempQuit, tmpdir);
 	mktemp(strcat(tempQuit, "RmXXXXXX"));
-
-	tempEdit=(char *)malloc(len+sizeof("ReXXXXXX"));
+	if ((tempEdit = malloc(len + sizeof("ReXXXXXX"))) == NULL)
+		panic("Out of memory");
 	strcpy(tempEdit, tmpdir);
 	mktemp(strcat(tempEdit, "ReXXXXXX"));
-
-	tempMesg=(char *)malloc(len+sizeof("RxXXXXXX"));
+	if ((tempMesg = malloc(len + sizeof("RxXXXXXX"))) == NULL)
+		panic("Out of memory");
 	strcpy(tempMesg, tmpdir);
 	mktemp(strcat(tempMesg, "RxXXXXXX"));
 
