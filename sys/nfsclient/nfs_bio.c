@@ -99,6 +99,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	struct thread *td;
 	struct ucred *cred;
 	struct nfsmount *nmp;
+	vm_object_t object;
 	vm_page_t *pages;
 
 	GIANT_REQUIRED;
@@ -110,7 +111,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	pages = ap->a_m;
 	count = ap->a_count;
 
-	if (vp->v_object == NULL) {
+	if ((object = vp->v_object) == NULL) {
 		printf("nfs_getpages: called with non-merged cache vnode??\n");
 		return VM_PAGER_ERROR;
 	}
@@ -131,6 +132,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	{
 		vm_page_t m = pages[ap->a_reqpage];
 
+		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		if (m->valid != 0) {
 			/* handled by vm_fault now	  */
@@ -140,9 +142,11 @@ nfs_getpages(struct vop_getpages_args *ap)
 					vm_page_free(pages[i]);
 			}
 			vm_page_unlock_queues();
+			VM_OBJECT_UNLOCK(object);
 			return(0);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
 	}
 
 	/*
@@ -173,12 +177,14 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		printf("nfs_getpages: error %d\n", error);
+		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage)
 				vm_page_free(pages[i]);
 		}
 		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
 		return VM_PAGER_ERROR;
 	}
 
@@ -189,6 +195,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	 */
 
 	size = count - uio.uio_resid;
+	VM_OBJECT_LOCK(object);
 	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
@@ -244,6 +251,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 		}
 	}
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(object);
 	return 0;
 }
 
