@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)route.c	8.2 (Berkeley) 11/15/93
+ *	@(#)route.c	8.3 (Berkeley) 1/9/95
  * $FreeBSD$
  */
 
@@ -378,7 +378,7 @@ out:
 */
 int
 rtioctl(req, data)
-	int req;
+	u_long req;
 	caddr_t data;
 {
 #ifdef INET
