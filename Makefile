@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.69 1995/11/26 07:31:13 jkh Exp $
+#	$Id: Makefile,v 1.70 1995/11/28 20:04:19 nate Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -334,6 +334,8 @@ build-tools:
 	cd ${.CURDIR}/gnu/usr.bin/cc && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/make && \
+		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/rpcgen && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/usr.bin/symorder && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
