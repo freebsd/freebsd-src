@@ -40,7 +40,7 @@
 .Nd user information lookup program
 .Sh SYNOPSIS
 .Nm
-.Op Fl lmpshoT
+.Op Fl glmpshoT
 .Op Ar user ...\&
 .Op Ar user@host ...\&
 .Sh DESCRIPTION
@@ -86,6 +86,13 @@ When used in conjunction with the
 .Fl s
 option, the office location and office phone information is displayed
 instead of the name of the remote host.
+.Pp
+.It Fl g
+This option restricts the gecos output to only the users' real
+name. It also has the side-effect of restricting the output
+of the remote host when used in conjunction with the
+.Fl h
+option.
 .Pp
 .It Fl l
 Produce a multi-line format displaying all of the information
