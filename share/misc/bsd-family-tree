@@ -96,20 +96,21 @@ FreeBSD 2.1                  |
  |     FreeBSD 2.2.1         |                 |
  |         |                 |                 |
  |     FreeBSD 2.2.2         |             OpenBSD 2.1
+ |         |                 |                 |
+ |     FreeBSD 2.2.5         |                 |
+ |         |                 |             OpenBSD 2.2
  |         |              NetBSD 1.3           |
- |     FreeBSD 2.2.5         |   \             |
- |         |                 | NetBSD 1.3.1  OpenBSD 2.2
- |         v                 |    |            |
- |     FreeBSD 2.2.6         |    |          OpenBSD 2.3
+ |     FreeBSD 2.2.6         |    |            |
+ |         |                 | NetBSD 1.3.1    |
+ |         |                 |    |        OpenBSD 2.3
  |         |                 | NetBSD 1.3.2    |
- |         v                 |    |            |
  |     FreeBSD 2.2.7         |    |            |
  |         |                 |    |            |
  |         v                 |    |            |
  |     FreeBSD 2.2.8         |    |            |
  |                           |    |            |
  |                           |    |        OpenBSD 2.4
-FreeBSD 3.0                  |    |            |
+FreeBSD 3.0                  |    v            |
  |                           | NetBSD 1.3.3    |
  *---FreeBSD 3.1             |                 |
  |       |                   |                 |
@@ -121,14 +122,23 @@ FreeBSD 3.0                  |    |            |
  |           |               |    |            |
 FreeBSD 4.0  |               | NetBSD 1.4.2    |
  |           |               |                 |
- |           |            NetBSD -current  OpenBSD -current
- |   FreeBSD 3.5             |                 |
- |                           v                 v
- *---FreeBSD 4.1
- |        
-FreeBSD 5.0-current
- |
- v
+ |           |               |                 |
+ |   FreeBSD 3.5             |             OpenBSD 2.7
+ |           |               |                 |
+ |   FreeBSD 3.5.1           |                 |
+ |                           |                 |
+ *---FreeBSD 4.1             |                 |
+ |      |                    |                 | 
+ |   FreeBSD 4.1.1           |                 |
+ |      |                    |                 | 
+ |   FreeBSD 4.2             |                 |
+ |      |                    |                 |
+ |      v                    |                 |
+ |                           |                 |
+ |                           |                 |
+FreeBSD 5.0-current       NetBSD -current  OpenBSD -current
+ |                           |                 |
+ v                           v                 v
 
 
 Time
@@ -252,9 +262,9 @@ FreeBSD 2.2.1		1997-04-xx [FBD]
 NetBSD 1.2.1            1997-05-20 [NBD] (patch release)
 OpenBSD 2.1             1997-06-01 [OBD]
 FreeBSD 2.2.2		1997-06-xx [FBD]
-NetBSD 1.3              1998-01-04 [NBD]
 FreeBSD 2.2.5		1997-11-xx [FBD]
 OpenBSD 2.2             1997-12-01 [OBD]
+NetBSD 1.3              1998-01-04 [NBD]
 FreeBSD 2.2.6		1998-03-xx [FBD]
 NetBSD 1.3.1            1998-03-09 [NBD] (patch release)
 OpenBSD 2.3             1998-05-19 [OBD]
@@ -277,8 +287,12 @@ OpenBSD 2.6             1999-12-01 [OBD]
 FreeBSD 3.4             1999-12-20 [FBD]
 FreeBSD 4.0             2000-03-13 [FBD]
 NetBSD 1.4.2            2000-03-19 [NBD] (patch release)
+OpenBSD 2.7             2000-06-15 [OBD]
 FreeBSD 3.5		2000-06-24 [FBD]
 FreeBSD 4.1		2000-07-27 [FBD]
+FreeBSD 3.5.1		2000-07-28 [FBD]
+FreeBSD 4.1.1		2000-09-25 [FBD] (a network-only patch release)
+FreeBSD 4.2  		2000-11-xx [FBD]
 
 
 Bibliography
@@ -315,6 +329,9 @@ http://www.FreeBSD.org/cgi/man.cgi
 
 UNIX history graphing project
 http://minnie.cs.adfa.edu.au/Unix_History/index.html
+
+UNIX history
+http://perso.wanadoo.fr/levenez/unix/
 
 Acknowledgments
 ---------------
