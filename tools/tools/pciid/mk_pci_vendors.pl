@@ -27,17 +27,17 @@
 #
 # usage: mk_pci_vendors [-lq] [-p pcidevs.txt] [-v vendors.txt]
 #
-# Generate src/share/misc/pci_vendors from the Heckenbach and Boemler
-# lists, currently available at:
+# Generate src/share/misc/pci_vendors from the Hart and Boemler lists,
+# currently available at:
 #
 # Boemler:	http://www.yourvote.com/pci/
-# Heckenbach:	http://members.hyperlink.com.au/~chart/pci.htm
+# Hart:		http://members.hyperlink.com.au/~chart/pci.htm
 #
 # -l	Where an entry is found in both input lists, use the entry with
 #	the longest description.  The default is for the Boemler file to
-#	override the Heckenback file.
+#	override the Hart file.
 # -q	Do not print diagnostics.
-# -p	Specify the pathname of the Heckenbach file. (Default ./pcidevs.txt)
+# -p	Specify the pathname of the Hart file. (Default ./pcidevs.txt)
 # -v	Specify the pathname of the Boemler file. (Default ./vendors.txt)
 #
 use strict;
@@ -60,6 +60,7 @@ my $W_NOCONTEST = 0;
 my $W_VENDORS = 1;
 my $W_PCIDEVS = 2;
 
+sub clean_descr($);
 sub vendors_parse($\$\$);
 sub pcidevs_parse($\$\$);
 
@@ -123,7 +124,7 @@ while ($line = <PCIDEVS>) {
 		if (not $opts{q} and $winner != $W_NOCONTEST) {
 			$existing = $vendors{$id}->[$V_DESCR];
 			print STDERR "$PROGNAME: ",
-			    $winner == $W_VENDORS ? "Boemler" : "Heckenbach",
+			    $winner == $W_VENDORS ? "Boemler" : "Hart",
 			    " vendor wins: $id\t$existing\n";
 		}
 	} elsif ($rv == $IS_DEVICE) {
@@ -145,7 +146,7 @@ while ($line = <PCIDEVS>) {
 		if (not $opts{q} and $winner != $W_NOCONTEST) {
 			$existing = ${$vendors{$cur_vendor}->[$V_DEVSL]}{$id};
 			print STDERR "$PROGNAME: ",
-			    $winner == $W_VENDORS ? "Boemler" : "Heckenbach",
+			    $winner == $W_VENDORS ? "Boemler" : "Hart",
 			    " device wins: $id\t$existing\n";
 		}
 	}
@@ -191,10 +192,10 @@ sub vendors_parse($\$\$)
 	my ($line, $id_ref, $descr_ref) = @_;
 
 	if ($line =~ /^([A-Fa-f0-9]{4})\t([^\t].+?)\s*$/) {
-		($$id_ref, $$descr_ref) = (uc($1), $2);
+		($$id_ref, $$descr_ref) = (uc($1), clean_descr($2));
 		return $IS_VENDOR;
 	} elsif ($line =~ /^\t([A-Fa-f0-9]{4})\t([^\t].+?)\s*$/) {
-		($$id_ref, $$descr_ref) = (uc($1), $2);
+		($$id_ref, $$descr_ref) = (uc($1), clean_descr($2));
 		return $IS_DEVICE;
 	} elsif (not $opts{q} and
 	    $line !~ /^\s*$/ and $line !~ /^;/) {
@@ -205,7 +206,7 @@ sub vendors_parse($\$\$)
 	return 0;
 }
 
-# Parse a line from the Heckenbach file and place the ID and description
+# Parse a line from the Hart file and place the ID and description
 # in the scalars referenced by $id_ref and $descr_ref.
 #
 # On success, returns $IS_VENDOR if the line represents a vendor entity
@@ -216,17 +217,25 @@ sub vendors_parse($\$\$)
 sub pcidevs_parse($\$\$)
 {
 	my ($line, $id_ref, $descr_ref) = @_;
+	my $descr;
 
 	if ($line =~ /^V\t([A-Fa-f0-9]{4})\t([^\t].+?)\s*$/) {
-		($$id_ref, $$descr_ref) = (uc($1), $2);
+		($$id_ref, $$descr_ref) = (uc($1), clean_descr($2));
 		return $IS_VENDOR;
 	} elsif ($line =~ /^D\t([A-Fa-f0-9]{4})\t([^\t].+?)\s*$/) {
-		($$id_ref, $$descr_ref) = (uc($1), $2);
+		($$id_ref, $$descr_ref) = (uc($1), clean_descr($2));
 		return $IS_DEVICE;
 	} elsif (not $opts{q} and
 	    $line !~ /^\s*$/ and $line !~ /^[;ORSX]/) {
-		print STDERR "$PROGNAME: ignored Heckenbach: $line\n";
+		print STDERR "$PROGNAME: ignored Hart: $line\n";
 	}
 
 	return 0;
+}
+
+sub clean_descr($)
+{
+	my ($descr) = @_;
+
+	return $descr;
 }
