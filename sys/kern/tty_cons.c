@@ -175,7 +175,6 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
-	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "console");
 }
 
 void
@@ -587,3 +586,12 @@ cndbctl(int on)
 	if (on)
 		refcount++;
 }
+
+static void
+cn_drvinit(void *unused)
+{
+
+	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "console");
+}
+
+SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL)
