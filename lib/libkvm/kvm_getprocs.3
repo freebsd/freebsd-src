@@ -73,31 +73,31 @@ returned.  The value of
 describes the filtering predicate as follows:
 .Pp
 .Bl -tag -width 20n -offset indent -compact
-.It Sy KERN_PROC_ALL
+.It Dv KERN_PROC_ALL
 all processes and kernel visible threads
-.It Sy KERN_PROC_PROC
+.It Dv KERN_PROC_PROC
 all processes, without threads
-.It Sy KERN_PROC_PID
-processes with process id
+.It Dv KERN_PROC_PID
+processes with process ID
 .Fa arg
-.It Sy KERN_PROC_PGRP
+.It Dv KERN_PROC_PGRP
 processes with process group
 .Fa arg
-.It Sy KERN_PROC_SESSION
+.It Dv KERN_PROC_SESSION
 processes with session
 .Fa arg
-.It Sy KERN_PROC_TTY
-processes with tty
+.It Dv KERN_PROC_TTY
+processes with TTY
 .Fa arg
-.It Sy KERN_PROC_UID
-processes with effective user id
+.It Dv KERN_PROC_UID
+processes with effective user ID
 .Fa arg
-.It Sy KERN_PROC_RUID
-processes with real user id
+.It Dv KERN_PROC_RUID
+processes with real user ID
 .Fa arg
-.It Sy KERN_PROC_INC_THREAD
+.It Dv KERN_PROC_INC_THREAD
 modifier to return all kernel visible threads when filtering
-by process id, process group, tty, user id, and real user id
+by process ID, process group, TTY, user ID, and real user ID
 .El
 .Pp
 The number of processes found is returned in the reference parameter
