@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.41 1997/03/21 18:40:08 wosch Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.42 1997/04/05 08:38:48 jkh Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-Last updated: <date>$Date: 1997/03/15 23:29:02 $</date>
+Last updated: <date>$Date: 1997/04/05 08:38:48 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1669,6 +1669,42 @@ options		"CMD640"
           You may also wish to investigate the Xaccel server, which is
           available at a very reasonable price.  See section
           <ref id="xinside" name="on Xaccel"> for more details.
+
+      <sect1>
+        <heading>Why doesn't my mouse work with X</heading>
+
+        <p>
+          If you are using syscons (the default console driver), you can
+          configure FreeBSD to support a mouse pointer on each virtual
+          screen.  In order to avoid conflicting with X, syscons supports
+          a virtual device called ``<tt>sysmouse</tt>''.  All mouse events
+          received from the real mouse device are written to the sysmouse
+          device, using the MouseSystems protocol.  If you wish to use your
+          mouse on one or more virtual consoles, <bf/and/ use X, the
+          following configuration is recommended:
+
+        <verb>
+          /etc/sysconfig:
+            mousedtype=ps/2          # or whatever your actual type is
+            mousedport=/dev/psm0     # or whatever your real port is
+
+          /etc/XF86Config
+            Section Pointer
+                Protocol "MouseSystems"
+                Device   "/dev/sysmouse"
+                .....
+        </verb>
+
+        <p>
+          Some people prefer to use ``<tt>/dev/mouse</tt>'' under X.  To
+          make this work, ``<tt>/dev/mouse</tt>'' should be linked to
+          ``<tt>/dev/sysmouse</tt>'':
+
+        <verb>
+          cd /dev
+          rm -f mouse
+          ln -s sysmouse mouse
+        </verb>
 
       <sect1>
         <heading>ghostscript gives lots of errors with my 386/486SX.<label id="emul"></heading>
