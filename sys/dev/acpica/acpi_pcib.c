@@ -38,9 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpi_pcibvar.h>
 
-#include <machine/pci_cfgreg.h>
 #include <dev/pci/pcivar.h>
-#include <dev/pci/pcib_private.h>
 #include "pcib_if.h"
 
 /* Hooks for the ACPI CA debugging infrastructure. */
