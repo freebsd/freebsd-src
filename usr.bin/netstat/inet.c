@@ -210,6 +210,11 @@ tcp_stats(off, name)
 	p(tcps_connects, "\t%d connection%s established (including accepts)\n");
 	p2(tcps_closed, tcps_drops,
 		"\t%d connection%s closed (including %d drop%s)\n");
+	p(tcps_cachedrtt, "\t\t%d connection%s upcated cached RTT on close\n");
+	p(tcps_cachedrttvar, 
+	  "\t\t%d connection%s upcated cached RTT variance on close\n");
+	p(tcps_cachedssthresh,
+	  "\t\t%d connection%s updated cached ssthresh on close\n");
 	p(tcps_conndrops, "\t%d embryonic connection%s dropped\n");
 	p2(tcps_rttupdated, tcps_segstimed,
 		"\t%d segment%s updated rtt (of %d attempt%s)\n");
