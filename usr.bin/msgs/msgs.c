@@ -153,7 +153,7 @@ int argc; char *argv[];
 	bool newrc, already;
 	int rcfirst = 0;		/* first message to print (from .rc) */
 	int rcback = 0;			/* amount to back off of rcfirst */
-	int firstmsg, nextmsg, lastmsg = 0;
+	int firstmsg = 0, nextmsg = 0, lastmsg = 0;
 	int blast = 0;
 	FILE *bounds;
 
