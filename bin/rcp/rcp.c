@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.8.2.1 1997/05/09 16:01:22 joerg Exp $
+ *	$Id: rcp.c,v 1.8.2.2 1997/06/06 16:11:15 charnier Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1983, 1990, 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ main(argc, argv)
 	char *targ, *shell;
 
 	fflag = tflag = 0;
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF)
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1)
 		switch(ch) {			/* User-visible flags. */
 		case 'K':
 #ifdef KERBEROS
