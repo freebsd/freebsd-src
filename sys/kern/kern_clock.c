@@ -666,7 +666,16 @@ init_timecounter(struct timecounter *tc)
 {
 	struct timespec ts1;
 	struct timecounter *t1, *t2, *t3;
+	unsigned u;
 	int i;
+
+	u = tc->tc_frequency / tc->tc_counter_mask;
+	if (u > hz) {
+		printf("Timecounter \"%s\" frequency %lu Hz"
+		       " -- Insufficient hz, needs at least %u\n",
+		       tc->tc_name, (u_long) tc->tc_frequency, u);
+		return;
+	}
 
 	tc->tc_adjustment = 0;
 	tc->tc_tweak = tc;

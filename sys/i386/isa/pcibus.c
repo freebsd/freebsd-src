@@ -36,6 +36,9 @@
 #include <pci/pcireg.h>
 #include <i386/isa/pcibus.h>
 #include <machine/pci_cfgreg.h>
+#include <machine/md_var.h>
+
+#include "opt_cpu.h"
 
 #include "pci_if.h"
 
@@ -134,6 +137,15 @@ nexus_pcib_is_host_bridge(pcicfgregs *cfg,
 		break;
 
 		/* AMD -- vendor 0x1022 */
+	case 0x30001022:
+		s = "AMD Elan SC520 host to PCI bridge";
+#ifdef CPU_ELAN
+		init_AMD_Elan_sc520();
+#else
+		printf("*** WARNING: kernel option CPU_ELAN missing");
+		printf("-- timekeeping may be wrong\n");
+#endif
+		break;
 	case 0x70061022:
 		s = "AMD-751 host to PCI bridge";
 		break;
