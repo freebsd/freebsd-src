@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.56 1997/07/27 19:28:26 ache Exp $
+ * $Id: if_sl.c,v 1.57 1997/07/28 14:57:10 ache Exp $
  */
 
 /*
@@ -75,7 +75,6 @@
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/buf.h>
 #include <sys/dkstat.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -89,7 +88,6 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
-#include <net/route.h>
 
 #if INET
 #include <netinet/in.h>
@@ -105,7 +103,6 @@ Huh? Slip without inet?
 #include <net/slip.h>
 
 #if NBPFILTER > 0
-#include <sys/time.h>
 #include <net/bpf.h>
 #endif
 

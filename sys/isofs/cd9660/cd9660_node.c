@@ -36,24 +36,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_node.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_node.c,v 1.18 1997/02/22 09:38:48 peter Exp $
+ * $Id: cd9660_node.c,v 1.19 1997/04/14 18:15:45 phk Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/file.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
 
 #include <isofs/cd9660/iso.h>
 #include <isofs/cd9660/cd9660_node.h>
 #include <isofs/cd9660/cd9660_mount.h>
-#include <isofs/cd9660/iso_rrip.h>
 
 /*
  * Structures associated with iso_node caching.

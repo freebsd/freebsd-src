@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id$
+ *	$Id: procfs_vfsops.c,v 1.15 1997/02/22 09:40:31 peter Exp $
  */
 
 /*
@@ -45,16 +45,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/buf.h>
 #include <sys/syslog.h>
 #include <sys/mount.h>
-#include <sys/signalvar.h>
 #include <sys/vnode.h>
 #include <miscfs/procfs/procfs.h>
-#include <vm/vm.h>			/* for PAGE_SIZE */
 
 static int	procfs_init __P((struct vfsconf *vfsp));
 static int	procfs_mount __P((struct mount *mp, char *path, caddr_t data,

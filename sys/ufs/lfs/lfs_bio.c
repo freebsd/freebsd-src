@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_bio.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_bio.c,v 1.12 1997/03/23 00:45:13 bde Exp $
+ * $Id: lfs_bio.c,v 1.13 1997/06/15 17:56:46 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -39,7 +39,6 @@
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/resourcevar.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
 

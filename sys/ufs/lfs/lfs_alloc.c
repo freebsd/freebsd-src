@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.7 (Berkeley) 5/14/95
- * $Id: lfs_alloc.c,v 1.13 1997/02/22 09:47:16 peter Exp $
+ * $Id: lfs_alloc.c,v 1.14 1997/03/23 00:45:07 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -41,12 +41,10 @@
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/syslog.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #include <ufs/ufs/quota.h>

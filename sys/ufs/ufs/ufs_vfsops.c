@@ -36,20 +36,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vfsops.c	8.8 (Berkeley) 5/20/95
- * $Id$
+ * $Id: ufs_vfsops.c,v 1.8 1997/02/22 09:47:52 peter Exp $
  */
 
 #include "opt_quota.h"
 
 #include <sys/param.h>
-#include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
-#include <sys/buf.h>
 #include <sys/vnode.h>
-#include <sys/malloc.h>
-
-#include <miscfs/specfs/specdev.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

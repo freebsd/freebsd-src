@@ -36,13 +36,11 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.15 1997/06/21 16:09:49 alex Exp $
+ *	$Id: procfs_subr.c,v 1.16 1997/06/26 16:12:53 alex Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>

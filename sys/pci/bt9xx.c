@@ -19,16 +19,14 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id$
+ *	$Id: bt9xx.c,v 1.10 1997/02/22 09:44:00 peter Exp $
  */
 
 #include "pci.h"
 #if NPCI > 0
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>

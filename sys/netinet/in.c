@@ -31,28 +31,23 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.33 1997/03/24 11:33:25 bde Exp $
+ *	$Id: in.c,v 1.34 1997/04/27 20:01:03 wollman Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
 #include <net/route.h>
 
-#include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#include <netinet/if_ether.h>
 
 #include <netinet/igmp_var.h>
 

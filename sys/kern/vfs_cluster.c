@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.46 1997/04/25 11:14:00 dfr Exp $
+ * $Id: vfs_cluster.c,v 1.47 1997/06/15 17:56:49 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -42,12 +42,8 @@
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/malloc.h>
 #include <sys/resourcevar.h>
-#include <sys/vmmeter.h>
-#include <miscfs/specfs/specdev.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>

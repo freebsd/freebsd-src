@@ -31,30 +31,24 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id$
+ *	$Id: tcp_timer.c,v 1.22 1997/02/22 09:41:42 peter Exp $
  */
 
 #ifndef TUBA_INCLUDE
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
-#include <sys/errno.h>
 
 #include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
-#include <net/if.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
-#include <netinet/ip.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>

@@ -31,23 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_usrreq.c	8.1 (Berkeley) 6/10/93
- *	$Id: raw_usrreq.c,v 1.11 1997/04/14 18:23:25 phk Exp $
+ *	$Id: raw_usrreq.c,v 1.12 1997/04/27 20:00:59 wollman Exp $
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/domain.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
-#include <sys/errno.h>
 
-#include <net/if.h>
-#include <net/route.h>
-#include <net/netisr.h>
 #include <net/raw_cb.h>
 
 /*

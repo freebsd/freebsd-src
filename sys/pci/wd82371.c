@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: wd82371.c,v 1.8 1997/02/22 09:44:14 peter Exp $
  */
 
 #include "pci.h"
@@ -34,20 +34,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
-#include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <machine/pmap.h>	/* for vtophys */
-
 #include <i386/isa/wdreg.h>
 
 #include <pci/pcivar.h>
-#include <pci/pcireg.h>
 #include <pci/wd82371reg.h>
 
 static void *piix_candma(int, int);

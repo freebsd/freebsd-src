@@ -31,18 +31,16 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_icmp.c,v 1.25 1997/02/22 09:41:33 peter Exp $
+ * $Id: ip_icmp.c,v 1.26 1997/05/23 22:33:16 julian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
-#include <sys/socket.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>

@@ -35,17 +35,14 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $Id: null_subr.c,v 1.9 1997/02/22 09:40:21 peter Exp $
+ * $Id: null_subr.c,v 1.10 1997/04/17 11:17:28 kato Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/nullfs/null.h>
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_init.c,v 1.15 1997/02/22 09:48:20 peter Exp $
  */
 
 /*
@@ -71,16 +71,13 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/queue.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_extern.h>
 

@@ -31,17 +31,15 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.56 1997/05/06 21:22:04 fenner Exp $
+ *	$Id: ip_output.c,v 1.57 1997/06/02 05:02:37 julian Exp $
  */
 
 #define _IP_VHL
 
 #include <sys/param.h>
-#include <sys/queue.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/errno.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.101 1997/07/28 21:32:05 se Exp $
+**  $Id: ncr.c,v 1.102 1997/07/29 21:50:04 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -199,10 +199,8 @@
 #endif
 #include <stddef.h>
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#include <sys/proc.h>
 
 #ifdef KERNEL
 #include <sys/systm.h>
@@ -217,7 +215,6 @@
 #include <machine/clock.h>
 #endif
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 #endif /* KERNEL */
@@ -235,7 +232,6 @@
 #define DELAY(x)	delay(x)
 #endif /* __NetBSD */
 
-#include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
 
 
@@ -1350,7 +1346,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.101 1997/07/28 21:32:05 se Exp $\n";
+	"\n$Id: ncr.c,v 1.102 1997/07/29 21:50:04 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.24 1997/02/22 09:39:32 peter Exp $
+ * $Id: vfs_init.c,v 1.25 1997/03/02 11:06:21 bde Exp $
  */
 
 
@@ -44,15 +44,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
-#include <sys/time.h>
 #include <sys/vnode.h>
-#include <sys/stat.h>
-#include <sys/namei.h>
-#include <sys/ucred.h>
-#include <sys/buf.h>
-#include <sys/errno.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 
 static void	vfs_op_init __P((void));
 

@@ -36,16 +36,11 @@
  *
  *	@(#)procfs_note.c	8.2 (Berkeley) 1/21/94
  *
- *	$Id$
+ *	$Id: procfs_note.c,v 1.4 1997/02/22 09:40:28 peter Exp $
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/signal.h>
 #include <miscfs/procfs/procfs.h>
 
 int

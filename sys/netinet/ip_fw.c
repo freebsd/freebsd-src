@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.58 1997/06/02 05:02:36 julian Exp $
+ *	$Id: ip_fw.c,v 1.59 1997/06/04 22:09:15 julian Exp $
  */
 
 /*
@@ -27,13 +27,10 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/queue.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
-#include <sys/time.h>
 #include <sys/sysctl.h>
 #include <net/if.h>
-#include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>

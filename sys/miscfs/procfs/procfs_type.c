@@ -34,19 +34,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: procfs_type.c,v 1.3 1997/02/22 09:40:30 peter Exp $
+ *	$Id: procfs_type.c,v 1.4 1997/03/24 11:24:42 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/time.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <sys/tty.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
 #include <miscfs/procfs/procfs.h>
 
 int

@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_proto.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_proto.c,v 1.11 1997/04/14 18:23:48 phk Exp $
+ * $Id: uipc_proto.c,v 1.12 1997/04/27 20:00:43 wollman Exp $
  */
 
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/domain.h>
-#include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>

@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id$
+ * $Id: fdesc_vfsops.c,v 1.10 1997/02/22 09:40:15 peter Exp $
  */
 
 /*
@@ -45,14 +45,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/time.h>
-#include <sys/types.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
-#include <sys/namei.h>
 #include <sys/malloc.h>
 #include <miscfs/fdesc/fdesc.h>
 

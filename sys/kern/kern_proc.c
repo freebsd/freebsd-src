@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_proc.c	8.7 (Berkeley) 2/14/95
- * $Id: kern_proc.c,v 1.26 1997/03/24 11:24:36 bde Exp $
+ * $Id: kern_proc.c,v 1.27 1997/06/27 15:42:05 tegge Exp $
  */
 
 #include <sys/param.h>
@@ -39,19 +39,10 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
-#include <sys/buf.h>
-#include <sys/acct.h>
-#include <sys/wait.h>
-#include <sys/file.h>
-#include <ufs/ufs/quota.h>
-#include <sys/uio.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/tty.h>
 #include <sys/signalvar.h>
 #include <vm/vm.h>
-#include <vm/vm_param.h>
-#include <vm/vm_prot.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>

@@ -33,20 +33,14 @@
  * SUCH DAMAGE.
  *
  *	from: if_ethersubr.c,v 1.5 1994/12/13 22:31:45 wollman Exp
- * $Id: if_fddisubr.c,v 1.18 1997/03/24 11:24:46 bde Exp $
+ * $Id: if_fddisubr.c,v 1.19 1997/05/10 10:01:32 jhay Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
-
-#include <machine/cpu.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
