@@ -1,3 +1,4 @@
+/* LINTLIBRARY */
 /*
  * Copyright (c) 1999
  *      Mark Murray.  All rights reserved.
@@ -28,11 +29,12 @@
  */
 
 /* magic sizes */
+#define MD4_SIZE 16
 #define MD5_SIZE 16
 
 char *crypt_des(const char *pw, const char *salt);
 char *crypt_md5(const char *pw, const char *salt);
+char *crypt_nthash(const char *pw, const char *salt);
 char *crypt_blowfish(const char *pw, const char *salt);
 
 extern void _crypt_to64(char *s, u_long v, int n);
-
