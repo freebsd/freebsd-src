@@ -430,28 +430,14 @@ draw:
 	case KEY_RIGHT:
 	    button = !button;
 	    if (ditems && result) {
-		if (button) {
-		    print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-				 ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
-		    print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-				 ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
-		}
-		else {
-		    print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
-				 ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
-		    print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
-				 ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
-		}
+		print_button(dialog, ditems[CANCEL_BUTTON].prompt, y, x + strlen(ditems[OK_BUTTON].prompt) + 5,
+			     ditems[CANCEL_BUTTON].checked ? ditems[CANCEL_BUTTON].checked(&ditems[CANCEL_BUTTON]) : button);
+		print_button(dialog, ditems[OK_BUTTON].prompt, y, x,
+			     ditems[OK_BUTTON].checked ? ditems[OK_BUTTON].checked(&ditems[OK_BUTTON]) : !button);
 	    }
 	    else {
-		if (button) {
-		    print_button(dialog, "  OK  ", y, x, !button);
-		    print_button(dialog, "Cancel", y, x + 14, button);
-		}
-		else {
-		    print_button(dialog, "Cancel", y, x + 14, button);
-		    print_button(dialog, "  OK  ", y, x, !button);
-		}
+		print_button(dialog, "Cancel", y, x + 14, button);
+		print_button(dialog, "  OK  ", y, x, !button);
 	    }
 	    wrefresh(dialog);
 	    break;
