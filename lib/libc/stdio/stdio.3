@@ -64,13 +64,13 @@ to a terminal) then a
 .Em file position indicator
 associated with the stream is positioned at the start of the file (byte
 zero), unless the file is opened with append mode. If append mode
-is used, the position indicator will be placed the end-of-file.
+is used, the position indicator will be placed at the end-of-file.
 The position indicator is maintained by subsequent reads, writes
 and positioning requests. All input occurs as if the characters
 were read by successive calls to the
 .Xr fgetc 3
 function; all output takes place as if all characters were
-read by successive calls to the
+written by successive calls to the
 .Xr fputc 3
 function.
 .Pp
@@ -81,7 +81,7 @@ Output streams are flushed (any unwritten buffer contents are transferred
 to the host environment) before the stream is disassociated from the file.
 The value of a pointer to a
 .Dv FILE
-object is indeterminate after a file is closed (garbage).
+object is indeterminate (garbage) after a file is closed.
 .Pp
 A file may be subsequently reopened, by the same or another program
 execution, and its contents reclaimed or modified (if it can be repositioned
@@ -90,12 +90,15 @@ the
 .Xr exit 3
 function is called, all open files are closed (hence all output
 streams are flushed) before program termination.  Other methods
-of program termination, such as
+of program termination may not close files properly and hence
+buffered output may be lost.  In particular,
+.Xr _exit 2
+does not flush stdio files.  Neither does an exit due to a signal.
+Buffers are flushed by
 .Xr abort 3
-do not bother about closing files properly.
+as required by POSIX, although previous implementations did not.
 .Pp
-This implementation needs and makes
-no distinction between
+This implementation makes no distinction between
 .Dq text
 and
 .Dq binary
@@ -133,7 +136,7 @@ In fact,
 freshly-opened streams that refer to terminal devices
 default to line buffering, and
 pending output to such streams is written automatically
-whenever an such an input stream is read.
+whenever such an input stream is read.
 Note that this applies only to
 .Dq "true reads" ;
 if the read request can be satisfied by existing buffered data,
@@ -152,10 +155,7 @@ The
 .Nm stdio
 library is a part of the library
 .Nm libc
-and routines are automatically loaded as needed by the compilers
-.Xr cc 1
-and
-.Xr pc 1 .
+and routines are automatically loaded as needed by the C compiler.
 The
 .Tn SYNOPSIS
 sections of the following manual pages indicate which include files
@@ -174,15 +174,16 @@ without first removing their current definitions with
 .Dv L_ctermid ,
 .Dv L_tmpnam,
 .Dv NULL ,
+.Dv P_tmpdir,
+.Dv SEEK_CUR ,
 .Dv SEEK_END ,
 .Dv SEEK_SET ,
-.Dv SEE_CUR ,
 .Dv TMP_MAX ,
 .Dv clearerr ,
 .Dv feof ,
 .Dv ferror ,
 .Dv fileno ,
-.Dv freopen ,
+.Dv fropen ,
 .Dv fwopen ,
 .Dv getc ,
 .Dv getchar ,
@@ -190,18 +191,19 @@ without first removing their current definitions with
 .Dv putchar ,
 .Dv stderr ,
 .Dv stdin ,
-.Dv stdout .
+.Dv stdout ,
+.Dv vfscanf .
 Function versions of the macro functions
+.Fn clearerr ,
 .Fn feof ,
 .Fn ferror ,
-.Fn clearerr ,
 .Fn fileno ,
 .Fn getc ,
 .Fn getchar ,
 .Fn putc ,
 and
 .Fn putchar
-exist and will be used if the macros
+exist and will be used if the macro
 definitions are explicitly removed.
 .Sh SEE ALSO
 .Xr close 2 ,
@@ -211,9 +213,7 @@ definitions are explicitly removed.
 .Sh BUGS
 The standard buffered functions do not interact well with certain other
 library and system functions, especially
-.Xr vfork 2
-and
-.Xr abort 3 .
+.Xr vfork 2 .
 .Sh STANDARDS
 The
 .Nm stdio
@@ -222,6 +222,7 @@ library conforms to
 .Sh LIST OF FUNCTIONS
 .Bl -column "Description"
 .Sy Function	Description
+asprintf	formatted output conversion
 clearerr	check and reset stream status
 fclose	close a stream
 fdopen	stream open functions
@@ -252,6 +253,7 @@ getc	get next character or word from input stream
 getchar	get next character or word from input stream
 gets	get a line from a stream
 getw	get next character or word from input stream
+mkdtemp	create unique temporary file
 mkstemp	create unique temporary file
 mktemp	create unique temporary file
 perror	system error messages
@@ -277,6 +279,7 @@ tempnam	temporary file routines
 tmpfile	temporary file routines
 tmpnam	temporary file routines
 ungetc	un-get character from input stream
+vasprintf	formatted output conversion
 vfprintf	formatted output conversion
 vfscanf	input format conversion
 vprintf	formatted output conversion
