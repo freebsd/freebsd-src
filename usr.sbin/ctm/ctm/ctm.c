@@ -16,17 +16,19 @@
  * -a 			Attempt best effort.
  * -b <dir>		Base-dir	
  * -B <file>		Backup to tar-file.
- * -c			Check it out, "ma non troppo"
  * -d <int>		Debug TBD.
- * -F      		Force
  * -m <mail-addr>	Email me instead.
- * -p			Less paranoid.
- * -P			Paranoid.
- * -q 			Be quiet.
  * -r <name>		Reconstruct file.
  * -R <file>		Read list of files to reconstruct.
+ *
+ * Options we have:
+ * -c			Check it out, don't do anything.
+ * -F      		Force
+ * -p			Less paranoid.
+ * -P			Paranoid.
+ * -q 			Tell us less.
  * -T <tmpdir>.		Temporary files.
- * -v 			Tell about each file.
+ * -v 			Tell us more.
  *
  */
 
@@ -73,7 +75,7 @@ main(int argc, char **argv)
 
     if(stat) {
 	fprintf(stderr,"%d errors during option processing\n",stat);
-	exit(2);
+	return Exit_Pilot;
     }
     stat = 0;
     argc -= optind;
@@ -82,9 +84,15 @@ main(int argc, char **argv)
     if(!argc)
 	stat |= Proc("-");
 
-    while(argc-- && !stat)
+    while(argc-- && !stat) {
 	stat |= Proc(*argv++);
+    }
 
+    if(stat == Exit_Done)
+	stat = Exit_OK;
+
+    if(Verbose)
+	fprintf(stderr,"Exit(%d)\n",stat);
     return stat;
 }
 
@@ -103,13 +111,14 @@ Proc(char *filename)
 	strcpy(p,"gunzip < ");
 	strcat(p,filename);
 	f = popen(p,"r");
+	if(!f) { perror(p); return Exit_Garbage; }
     } else {
 	p = 0;
 	f = fopen(filename,"r");
     }
     if(!f) {
 	perror(filename);
-	return 1;
+	return Exit_Garbage;
     }
 
     if(Verbose > 1)
@@ -127,12 +136,15 @@ Proc(char *filename)
 	if(!f2) {
 	    perror(fn);
 	    fclose(f);
-	    return 4;
+	    return Exit_Broke;
 	}
 	unlink(fn);
 	fprintf(stderr,"Writing tmp-file \"%s\"\n",fn);
 	while(EOF != (i=getc(f)))
-	    putc(i,f2);
+	    if(EOF == putc(i,f2)) {
+		fclose(f2);
+		return Exit_Broke;
+	    }
 	fclose(f);
 	f = f2;
     }
@@ -148,25 +160,30 @@ Proc(char *filename)
     } else {
 	pclose(f);
 	f = popen(p,"r");
+	if(!f) { perror(p); return Exit_Broke; }
     }
 
-    if((i=Pass2(f)))
-	return i;
+    i=Pass2(f);
 
     if(!p) {
         rewind(f);
     } else {
 	pclose(f);
 	f = popen(p,"r");
+	if(!f) { perror(p); return Exit_Broke; }
+    }
+
+    if(i) {
+	if((!Force) || (i & ~Exit_Forcible))
+	    return i;
     }
 
     if(CheckIt) {
-        fprintf(stderr,"All ok\n");
-	return 0;
+        fprintf(stderr,"All checks out ok.\n");
+	return Exit_Done;
     }
 
-    if((i=Pass3(f)))
-	return i;
+    i=Pass3(f);
 
     if(!p) {
         fclose(f);
@@ -174,7 +191,9 @@ Proc(char *filename)
 	pclose(f);
 	Free(p);
     }
+    if(i)
+	return i;
 
-    fprintf(stderr,"All ok\n");
-    return 0;
+    fprintf(stderr,"All done ok\n");
+    return Exit_Done;
 }
