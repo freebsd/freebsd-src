@@ -1518,6 +1518,7 @@ itjc_attach(device_t dev)
 	void			*ih = 0;
 
 	dma_context_t		*ctx = &dma_context[unit];
+	l1_bchan_state_t	*chan;
 
 	bzero(sc, sizeof(struct l1_softc));
 
@@ -1689,6 +1690,17 @@ itjc_attach(device_t dev)
 
 	/* init the ISAC */
 	itjc_isac_init(sc);
+
+	chan = &sc->sc_chan[HSCX_CH_A];
+	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", NULL, MTX_DEF);
+	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp_tx", NULL, MTX_DEF);
+	chan = &sc->sc_chan[HSCX_CH_B];
+	if(!mtx_initialized(&chan->rx_queue.ifq_mtx))
+		mtx_init(&chan->rx_queue.ifq_mtx, "i4b_avma1pp_rx", NULL, MTX_DEF);
+	if(!mtx_initialized(&chan->tx_queue.ifq_mtx))
+		mtx_init(&chan->tx_queue.ifq_mtx, "i4b_avma1pp_tx", NULL, MTX_DEF);
 
 	/* init the "HSCX" */
 	itjc_bchannel_setup(sc->sc_unit, HSCX_CH_A, BPROT_NONE, 0);
