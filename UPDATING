@@ -9,6 +9,20 @@ ITEMS:'
 	DEVFS is now opt out, not opt in.  Barring major problems, this
 	will be the only way to go starting July 1.
 
+20010502:
+	Perl breakage in 20010501 was corrected at 14:18:33 PDT.
+
+20010501:
+	Building perl was broken at 02:25:25 PDT.
+
+20010430:
+	The bug in 20010429 was corrected at 07:35:37 PDF.  It is safe to
+	go back in the water.
+
+20010429:
+	A bad bug was committed at 04:48:42 PDT.  Don't use kernels after
+	this date, but before the correction date.
+
 20010423:
 	old fsck and new kernel interactions appear to have been fixed.
 
@@ -27,7 +41,12 @@ ITEMS:'
 	portmap had changed name to rpcbind for maximum POLA in your
 	current world.  /etc/hosts.{allow,deny} needs changes.  nfs and
 	other rpc based programs that rely on portmapper will not work
-	without updates to /etc/hosts.{allow,deny}.
+	without updates to /etc/hosts.{allow,deny} and /etc/netcofnig.
+
+20010315:
+	ata subsystem changes.  ATA_ENABLE_ATAPI_DMA, ATA_ENABLE_WC
+	and ATA_ENABEL_TAGS are no longer kernel options.  They have
+	been replaced by tunables.  See ata.4 for details.
 
 20010312:
 	The fxp driver was converted to use miibus.  If you compile
