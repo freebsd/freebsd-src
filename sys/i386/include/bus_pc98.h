@@ -148,6 +148,8 @@ extern struct bus_space_tag SBUS_mem_space_tag;
  */
 struct bus_space_handle {
 	bus_addr_t	bsh_base;
+	size_t		bsh_sz;
+
 	bus_addr_t	bsh_iat[BUS_SPACE_IAT_MAXSIZE];
 	size_t		bsh_maxiatsz;
 	size_t		bsh_iatsz;
@@ -158,6 +160,29 @@ struct bus_space_handle {
 	struct bus_space_access_methods bsh_bam;
 };
 typedef struct bus_space_handle *bus_space_handle_t;
+
+/*
+ * Allocate/Free bus_space_handle
+ */
+int i386_bus_space_handle_alloc(bus_space_tag_t t, bus_addr_t bpa,
+				bus_size_t size, bus_space_handle_t *bshp);
+void i386_bus_space_handle_free(bus_space_tag_t t, bus_space_handle_t bsh,
+				size_t size);
+
+/*
+ *      int bus_space_subregion (bus_space_tag_t t,
+ *          bus_space_handle_t bsh, bus_size_t offset, bus_size_t size,
+ *          bus_space_handle_t *nbshp);
+ *
+ * Get a new handle for a subregion of an already-mapped area of bus space.
+ */
+
+int i386_memio_subregion(bus_space_tag_t t, bus_space_handle_t bsh,
+			 bus_size_t offset, bus_size_t size,
+			 bus_space_handle_t *nbshp);
+
+#define bus_space_subregion(t, h, o, s, nhp)				\
+	i386_memio_subregion((t), (h), (o), (s), (nhp))
 
 /*
  * Access methods for bus resources and address space.
