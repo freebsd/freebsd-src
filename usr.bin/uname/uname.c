@@ -62,9 +62,10 @@ main(argc, argv)
 {
 #define	MFLAG	0x01
 #define	NFLAG	0x02
-#define	RFLAG	0x04
-#define	SFLAG	0x08
-#define	VFLAG	0x10
+#define	PFLAG	0x04
+#define	RFLAG	0x08
+#define	SFLAG	0x10
+#define	VFLAG	0x20
 	u_int flags;
 	int ch, mib[2];
 	size_t len, tlen;
@@ -77,12 +78,14 @@ main(argc, argv)
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
 			break;
-		case 'p':
 		case 'm':
 			flags |= MFLAG;
 			break;
 		case 'n':
 			flags |= NFLAG;
+			break;
+		case 'p':
+			flags |= PFLAG;
 			break;
 		case 'r':
 			flags |= RFLAG;
@@ -157,6 +160,15 @@ main(argc, argv)
 		(void)printf("%s%.*s", prefix, (int)len, buf);
 		prefix = " ";
 	}
+	if (flags & PFLAG) {
+		mib[0] = CTL_HW;
+		mib[1] = HW_MACHINE_ARCH;
+		len = sizeof(buf);
+		if (sysctl(mib, 2, &buf, &len, NULL, 0) == -1)
+			err(1, "sysctl");
+		(void)printf("%s%.*s", prefix, (int)len, buf);
+		prefix = " ";
+	}
 	(void)printf("\n");
 	exit (0);
 }
@@ -164,6 +176,6 @@ main(argc, argv)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: uname [-amnrsv]\n");
+	(void)fprintf(stderr, "usage: uname [-amnprsv]\n");
 	exit(1);
 }
