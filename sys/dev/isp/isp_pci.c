@@ -1,5 +1,5 @@
-/* $Id: isp_pci.c,v 1.13 1999/01/10 02:45:51 mjacob Exp $ */
-/* release_01_29_99 */
+/* $Id: isp_pci.c,v 1.14 1999/01/30 07:08:55 mjacob Exp $ */
+/* release_02_05_99 */
 /*
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
@@ -34,6 +34,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#include "opt_isp.h"
+
 #include <dev/isp/isp_freebsd.h>
 #include <dev/isp/asm_pci.h>
 #include <sys/malloc.h>
@@ -100,12 +102,39 @@ static struct ispmdvec mdvec_2100 = {
 	0
 };
 
+#ifndef	SCSI_ISP_PREFER_MEM_MAP
+#ifdef	__alpha__
+#define	SCSI_ISP_PREFER_MEM_MAP	0
+#else
+#define	SCSI_ISP_PREFER_MEM_MAP	1
+#endif
+#endif
+
 #ifndef	PCIM_CMD_INVEN
 #define	PCIM_CMD_INVEN			0x10
 #endif
 #ifndef	PCIM_CMD_BUSMASTEREN
 #define	PCIM_CMD_BUSMASTEREN		0x0004
 #endif
+#ifndef	PCIM_CMD_PERRESPEN
+#define	PCIM_CMD_PERRESPEN		0x0040
+#endif
+#ifndef	PCIM_CMD_SEREN
+#define	PCIM_CMD_SEREN			0x0100
+#endif
+
+#ifndef	PCIR_COMMAND
+#define	PCIR_COMMAND			0x04
+#endif
+
+#ifndef	PCIR_CACHELNSZ
+#define	PCIR_CACHELNSZ			0x0c
+#endif
+
+#ifndef	PCIR_LATTIMER
+#define	PCIR_LATTIMER			0x0d
+#endif
+
 
 #ifndef	PCI_VENDOR_QLOGIC
 #define	PCI_VENDOR_QLOGIC		0x1077
@@ -128,6 +157,8 @@ static struct ispmdvec mdvec_2100 = {
 #define IO_MAP_REG	0x10
 #define MEM_MAP_REG	0x14
 
+#define	PCI_DFLT_LTNCY	0x40
+#define	PCI_DFLT_LNSZ	0x10
 
 static const char *isp_pci_probe __P((pcici_t tag, pcidi_t type));
 static void isp_pci_attach __P((pcici_t config_d, int unit));
@@ -141,11 +172,12 @@ typedef int bus_space_tag_t;
 typedef u_long bus_space_handle_t;
 #ifdef __alpha__
 #define	bus_space_read_2(st, sh, offset)	\
+	alpha_mb(), 
 	(st == IO_SPACE_MAPPING)? \
 		inw((pci_port_t)sh + offset) : readw((pci_port_t)sh + offset)
 #define	bus_space_write_2(st, sh, offset, val)	\
-	if (st == IO_SPACE_MAPPING) outw((pci_port_t)sh + offset, val); else \
-                writew((pci_port_t)sh + offset, val)
+	((st == IO_SPACE_MAPPING)? outw((pci_port_t)sh + offset, val) : \
+                writew((pci_port_t)sh + offset, val)), alpha_mb()
 #else
 #define	bus_space_read_2(st, sh, offset)	\
 	(st == IO_SPACE_MAPPING)? \
@@ -243,7 +275,11 @@ isp_pci_attach(pcici_t config_id, int unit)
 
 	vaddr = paddr = NULL;
 	mapped = 0;
-	data = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
+	/*
+	 * Note that pci_conf_read is a 32 bit word aligned function.
+	 */
+	data = pci_conf_read(config_id, PCIR_COMMAND);
+#if	SCSI_ISP_PREFER_MEM_MAP == 1
 	if (mapped == 0 && (data & PCI_COMMAND_MEM_ENABLE)) {
 		if (pci_map_mem(config_id, MEM_MAP_REG, &vaddr, &paddr)) {
 			pcs->pci_st = MEM_SPACE_MAPPING;
@@ -258,6 +294,22 @@ isp_pci_attach(pcici_t config_id, int unit)
 			mapped++;
 		}
 	}
+#else
+	if (mapped == 0 && (data & PCI_COMMAND_IO_ENABLE)) {
+		if (pci_map_port(config_id, PCI_MAP_REG_START, &io_port)) {
+			pcs->pci_st = IO_SPACE_MAPPING;
+			pcs->pci_sh = io_port;
+			mapped++;
+		}
+	}
+	if (mapped == 0 && (data & PCI_COMMAND_MEM_ENABLE)) {
+		if (pci_map_mem(config_id, MEM_MAP_REG, &vaddr, &paddr)) {
+			pcs->pci_st = MEM_SPACE_MAPPING;
+			pcs->pci_sh = vaddr;
+			mapped++;
+		}
+	}
+#endif
 	if (mapped == 0) {
 		printf("isp%d: unable to map any ports!\n", unit);
 		free(pcs, M_DEVBUF);
@@ -283,21 +335,16 @@ isp_pci_attach(pcici_t config_id, int unit)
 		isp->isp_mdvec = &mdvec_2100;
 		isp->isp_type = ISP_HA_FC_2100;
 		isp->isp_param = &pcs->_z._y._a;
-
-		ISP_LOCK(isp);
-		data = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-		data |= PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
-		pci_conf_write(config_id, PCI_COMMAND_STATUS_REG, data);
-#if	0
 		/*
-		 * Wierd- we need to clear the lsb in offset 0x30 to take the
-		 * chip out of reset state.
+		 * For some very early revisions, this dance had to occur.
 		 */
+#ifdef		NOT_NEEDED_ANY_MORE
+		ISP_LOCK(isp);
 		data = pci_conf_read(config_id, 0x30);
 		data &= ~1;
 		pci_conf_write(config_id, 0x30, data);
-#endif
 		ISP_UNLOCK(isp);
+#endif
 	} else {
 		printf("%s: unknown dev (%x)- punting\n", isp->isp_name, data);
 		free(pcs, M_DEVBUF);
@@ -305,6 +352,37 @@ isp_pci_attach(pcici_t config_id, int unit)
 	}
 
 #if	__FreeBSD_version >= 300004
+	ISP_LOCK(isp);
+	/*
+	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
+	 * are set.
+	 */
+	data = pci_cfgread(config_id, PCIR_COMMAND, 2);
+	data |=	PCIM_CMD_SEREN		|
+		PCIM_CMD_PERRESPEN	|
+		PCIM_CMD_BUSMASTEREN	|
+		PCIM_CMD_INVEN;
+	pci_cfgwrite(config_id, PCIR_COMMAND, 2, data);
+	/*
+	 * Make sure the CACHE Line Size register is set sensibly.
+	 */
+	data = pci_cfgread(config_id, PCIR_CACHELNSZ, 1);
+	if (data != PCI_DFLT_LNSZ) {
+		data = PCI_DFLT_LNSZ;
+		printf("%s: set PCI line size to %d\n", isp->isp_name, data);
+		pci_cfgwrite(config_id, PCIR_CACHELNSZ, data, 1);
+	}
+	/*
+	 * Make sure the Latency Timer is sane.
+	 */
+	data = pci_cfgread(config_id, PCIR_LATTIMER, 1);
+	if (data < PCI_DFLT_LTNCY) {
+		data = PCI_DFLT_LTNCY;
+		printf("%s: set PCI latency to %d\n", isp->isp_name, data);
+		pci_cfgwrite(config_id, PCIR_LATTIMER, data, 1);
+	}
+	ISP_UNLOCK(isp);
+
 	if (bus_dma_tag_create(NULL, 0, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, 1<<24,
 	    255, 1<<24, 0, &pcs->parent_dmat) != 0) {
@@ -312,6 +390,7 @@ isp_pci_attach(pcici_t config_id, int unit)
 		free(pcs, M_DEVBUF);
 		return;
 	}
+
 #endif
 	if (pci_map_int(config_id, (void (*)(void *))isp_intr,
 	    (void *)isp, &IMASK) == 0) {
@@ -321,6 +400,14 @@ isp_pci_attach(pcici_t config_id, int unit)
 	}
 
 	pcs->pci_id = config_id;
+#ifdef	SCSI_ISP_NO_FWLOAD_MASK
+	if (SCSI_ISP_NO_FWLOAD_MASK && (SCSI_ISP_NO_FWLOAD_MASK & (1 << unit)))
+		isp->isp_confopts |= ISP_CFG_NORELOAD;
+#endif
+#ifdef	SCSI_ISP_NO_NVRAM_MASK
+	if (SCSI_ISP_NO_NVRAM_MASK && (SCSI_ISP_NO_NVRAM_MASK & (1 << unit)))
+		isp->isp_confopts |= ISP_CFG_NONVRAM;
+#endif
 	ISP_LOCK(isp);
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
@@ -342,6 +429,9 @@ isp_pci_attach(pcici_t config_id, int unit)
 	}
 	ISP_UNLOCK(isp);
 #ifdef __alpha__
+	/*
+	 * THIS SHOULD NOT HAVE TO BE HERE
+	 */
 	alpha_register_pci_scsi(config_id->bus, config_id->slot, isp->isp_sim);
 #endif	
 }
@@ -922,5 +1012,5 @@ isp_pci_dumpregs(struct ispsoftc *isp)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	printf("%s: PCI Status Command/Status=%lx\n", pci->pci_isp.isp_name,
-	    pci_conf_read(pci->pci_id, PCI_COMMAND_STATUS_REG));
+	    pci_conf_read(pci->pci_id, PCIR_COMMAND));
 }
