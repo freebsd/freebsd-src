@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.41 1996/03/02 02:54:18 dyson Exp $
+ * $Id: vm_fault.c,v 1.42 1996/03/09 06:48:26 dyson Exp $
  */
 
 /*
@@ -705,15 +705,15 @@ readrest:
 		}
 	}
 
+	UNLOCK_THINGS;
+
 	m->flags |= PG_MAPPED|PG_REFERENCED;
 	m->flags &= ~PG_ZERO;
 	m->valid = VM_PAGE_BITS_ALL;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
-#if 0
-	if (vp && change_wiring == 0 && wired == 0)
+	if (vp && (change_wiring == 0) && (wired == 0))
 		pmap_prefault(map->pmap, vaddr, entry, first_object);
-#endif
 
 	/*
 	 * If the page is not wired down, then put it where the pageout daemon
@@ -742,7 +742,7 @@ readrest:
 	 */
 
 	PAGE_WAKEUP(m);
-	UNLOCK_AND_DEALLOCATE;
+	vm_object_deallocate(first_object);
 
 	return (KERN_SUCCESS);
 

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.64 1996/03/02 02:54:22 dyson Exp $
+ * $Id: vm_object.c,v 1.65 1996/03/11 06:11:41 hsu Exp $
  */
 
 /*
@@ -1257,6 +1257,10 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 		return (TRUE);
 	}
 
+	if (prev_object->type != OBJT_DEFAULT) {
+		return (FALSE);
+	}
+
 	/*
 	 * Try to collapse the object first
 	 */
@@ -1269,7 +1273,6 @@ vm_object_coalesce(prev_object, prev_pindex, prev_size, next_size)
 	 */
 
 	if (prev_object->ref_count > 1 ||
-	    prev_object->type != OBJT_DEFAULT ||
 	    prev_object->backing_object != NULL) {
 		return (FALSE);
 	}
