@@ -80,6 +80,12 @@
 #	cuaF*	Stallion Brumby (stli) dialout ports
 #	ttyR*	Rocketport dialin ports
 #	cuaR*	Rocketport dialout ports
+#	ttyx*	Cronyx/Sigma serial ports (dialout)
+#	ttyy*	Cronyx/Sigma serial ports (dialout)
+#	ttyz*	Cronyx/Sigma serial ports (dialout)
+#	cuax*	Cronyx/Sigma serial ports (dialin)
+#	cuay*	Cronyx/Sigma serial ports (dialin)
+#	cuaz*	Cronyx/Sigma serial ports (dialin)
 #
 #	stlN	Stallion EasyIO board N dialin and dialout
 #	stliN	Stallion Brumby board N dialin and dialout
@@ -156,6 +162,7 @@
 #	agpgart	AGP interface
 #	cfs*	Coda Distributed Filesystem
 #	nsmb*	SMB/CIFS protocol interface
+#	cx*	Control devices for Cronyx/Sigma adapters
 #
 
 if [ -n "$MAKEDEVPATH" ]; then
@@ -343,6 +350,7 @@ all)
 	sh MAKEDEV crypto				# cdev, crypto
 	sh MAKEDEV fw0					# cdev, firewire
 	sh MAKEDEV dcons				# cdev, dcons
+	sh MAKEDEV cx ttyx ttyy ttyz cuax cuay cuaz	# cdev, Cronyx/Sigma
 	;;
 
 # a much restricted set of the above, to save precious i-nodes on the
@@ -1140,6 +1148,11 @@ speaker)
 	mknod speaker c 26 0
 	;;
 
+cuax|cuay|cuaz)
+	sh MAKEDEV ${i}0 ${i}1 ${i}2 ${i}3 ${i}4 ${i}5 ${i}6 ${i}7
+	sh MAKEDEV ${i}8 ${i}9 ${i}a ${i}b ${i}c ${i}d ${i}e ${i}f
+	;;
+
 cua?|cuaa?|cuaa??)
 	umask 7
 	unit_low=`expr $i : 'cua.*\(.\)$'`
@@ -1185,6 +1198,11 @@ dcons)
 	chmod 600 dcons
 	;;
 
+ttyx|ttyy|ttyz)
+	sh MAKEDEV ${i}0 ${i}1 ${i}2 ${i}3 ${i}4 ${i}5 ${i}6 ${i}7
+	sh MAKEDEV ${i}8 ${i}9 ${i}a ${i}b ${i}c ${i}d ${i}e ${i}f
+	;;
+	
 tty?|tty0?|ttyd?|ttyd??)
 	unit_low=`expr $i : 'tty.*\(.\)$'`
 	case $i in
@@ -1633,6 +1651,37 @@ card*)
 	chmod 644 card$unit
 	;;
 
+cx*)
+	unit=`expr $i : 'c.\(.*\)'`
+	if [ ! $unit ]; then
+		unit=0
+		while [ $unit -lt 48 ]
+		do
+			mknod /dev/${i}${unit} c 42 $(($unit + 64))
+			chmod 644 /dev/${i}${unit}
+			unit=$(($unit + 1))
+		done
+	else 
+			mknod /dev/${i} c 42 $(($unit + 64))
+			chmod 644 /dev/${i}
+	fi
+	;;
+	
+cuax?|cuay?|cuaz?)
+	case $i in
+	*0) unit=0;;	*1) unit=1;;	*2) unit=2;;	*3) unit=3;;
+	*4) unit=4;;	*5) unit=5;;	*6) unit=6;;	*7) unit=7;;
+	*8) unit=8;;	*9) unit=9;;	*a) unit=10;;	*b) unit=11;;
+	*c) unit=12;;	*d) unit=13;;	*e) unit=14;;	*f) unit=15;;
+	esac
+	case $i in
+	cuax?)  unit=$(($unit + 128));;
+	cuay?)  unit=$(($unit + 144));;
+	cuaz?)  unit=$(($unit + 160));;
+	esac
+	mknod $i c 42 $unit
+	;;
+
 ttyx?|ttyy?|ttyz?)
 	case $i in
 	*0) unit=0;;	*1) unit=1;;	*2) unit=2;;	*3) unit=3;;
@@ -1645,10 +1694,6 @@ ttyx?|ttyy?|ttyz?)
 	ttyz?)  unit=$(($unit + 32));;
 	esac
 	mknod $i c 42 $unit
-	;;
-
-cronyx)
-	mknod cronyx c 42 63
 	;;
 
 joy)
