@@ -418,19 +418,11 @@ chdir_verify_path(path, obpath)
 	struct stat sb;
 
 	if (stat(path, &sb) == 0 && S_ISDIR(sb.st_mode)) {
-		if (chdir(path)) {
+		if (chdir(path) == -1 || getcwd(obpath, MAXPATHLEN) == NULL) {
 			warn("warning: %s", path);
 			return 0;
 		}
-		else {
-			if (path[0] != '/') {
-				(void) snprintf(obpath, MAXPATHLEN, "%s/%s",
-						curdir, path);
-				return obpath;
-			}
-			else
-				return path;
-		}
+		return obpath;
 	}
 
 	return 0;
