@@ -200,6 +200,7 @@ static devclass_t psm_devclass;
 #define PSM_OPEN		1	/* Device is open */
 #define PSM_ASLP		2	/* Waiting for mouse data */
 #define PSM_SOFTARMED		4	/* Software interrupt armed */
+#define PSM_NEED_SYNCBITS	8	/* Set syncbits using next data pkt */
 
 /* driver configuration flags (config) */
 #define PSM_CONFIG_RESOLUTION	0x000f	/* resolution */
@@ -739,16 +740,8 @@ doinitialize(struct psm_softc *sc, mousemode_t *mode)
         set_mouse_mode(kbdc);	
     }
 
-    /* request a data packet and extract sync. bits */
-    if (get_mouse_status(kbdc, stat, 1, 3) < 3) {
-        log(LOG_DEBUG, "psm%d: failed to get data (doinitialize).\n",
-	    sc->unit);
-        sc->mode.syncmask[0] = 0;
-    } else {
-        sc->mode.syncmask[1] = stat[0] & sc->mode.syncmask[0];	/* syncbits */
-	/* the NetScroll Mouse will send three more bytes... Ignore them */
-	empty_aux_buffer(kbdc, 5);
-    }
+    /* Record sync on the next data packet we see. */
+    sc->flags |= PSM_NEED_SYNCBITS;
 
     /* just check the status of the mouse */
     if (get_mouse_status(kbdc, stat, 0, 3) < 3)
@@ -890,7 +883,8 @@ reinitialize(struct psm_softc *sc, int doinit)
                 (c & KBD_KBD_CONTROL_BITS)
                     | KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT)) {
             /* CONTROLLER ERROR */
-            log(LOG_ERR, "psm%d: failed to disable the aux port (reinitialize).\n",
+            log(LOG_ERR,
+                "psm%d: failed to disable the aux port (reinitialize).\n",
                 sc->unit);
             err = EIO;
 	}
@@ -1209,15 +1203,8 @@ psmprobe(device_t dev)
     }
     set_mouse_scaling(sc->kbdc, 1);
 
-    /* request a data packet and extract sync. bits */
-    if (get_mouse_status(sc->kbdc, stat, 1, 3) < 3) {
-        printf("psm%d: failed to get data.\n", unit);
-        sc->mode.syncmask[0] = 0;
-    } else {
-        sc->mode.syncmask[1] = stat[0] & sc->mode.syncmask[0];	/* syncbits */
-	/* the NetScroll Mouse will send three more bytes... Ignore them */
-	empty_aux_buffer(sc->kbdc, 5);
-    }
+    /* Record sync on the next data packet we see. */
+    sc->flags |= PSM_NEED_SYNCBITS;
 
     /* just check the status of the mouse */
     /* 
@@ -2081,6 +2068,11 @@ psmintr(void *arg)
 	c = pb->ipacket[0];
 
 	if ((c & sc->mode.syncmask[0]) != sc->mode.syncmask[1]) {
+	    if ((sc->flags & PSM_NEED_SYNCBITS) != 0) {
+		sc->mode.syncmask[1] = (c & sc->mode.syncmask[0]);
+		sc->flags &= ~PSM_NEED_SYNCBITS;
+		goto valid_sync;
+	    }
 #if DEBUG
             log(LOG_DEBUG, "psmintr: out of sync (%04x != %04x) %d"
 		" cmds since last error.\n", 
@@ -2119,6 +2111,7 @@ psmintr(void *arg)
 	    }
 	    continue;
 	}
+valid_sync:
 	/* if this packet is at all bogus then drop the packet. */
 	if (haderror ||
 	    !timeelapsed(&sc->lastinputerr, psmerrsecs, psmerrusecs, &now)) {
