@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.30 1997/09/03 02:08:19 brian Exp $
+ * $Id: lcp.c,v 1.31 1997/09/21 23:01:34 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -26,6 +26,7 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <signal.h>
 #include "fsm.h"
 #include "lcp.h"
 #include "ipcp.h"
@@ -93,6 +94,7 @@ struct fsm LcpFsm = {
 };
 
 static struct pppTimer LcpReportTimer;
+static int LcpFailedMagic;
 
 char *PhaseNames[] = {
   "Dead", "Establish", "Authenticate", "Network", "Terminate"
@@ -376,11 +378,13 @@ void
 LcpUp()
 {
   FsmUp(&LcpFsm);
+  LcpFailedMagic = 0;
 }
 
 void
 LcpDown()
 {				/* Sudden death */
+  LcpFailedMagic = 0;
   NewPhase(PHASE_DEAD);
   StopAllTimers();
   FsmDown(&LcpFsm);
@@ -390,8 +394,7 @@ void
 LcpOpen(int mode)
 {
   LcpFsm.open_mode = mode;
-  if (mode == OPEN_ACTIVE)
-    sleep(1);			/* Give the peer time to start up */
+  LcpFailedMagic = 0;
   FsmOpen(&LcpFsm);
 }
 
@@ -399,6 +402,7 @@ void
 LcpClose()
 {
   FsmClose(&LcpFsm);
+  LcpFailedMagic = 0;
 }
 
 /*
@@ -566,14 +570,18 @@ LcpDecodeConfig(u_char * cp, int plen, int mode)
 	if (LcpInfo.want_magic) {
 	  /* Validate magic number */
 	  if (magic == LcpInfo.want_magic) {
-	    LogPrintf(LogLCP, "Magic is same (%08x)\n", magic);
+	    LogPrintf(LogLCP, "Magic is same (%08x) - %d times\n",
+                      magic, ++LcpFailedMagic);
 	    LcpInfo.want_magic = GenerateMagic();
 	    bcopy(cp, nakp, 6);
 	    nakp += 6;
+            ualarm(TICKUNIT * (4 + 4 * LcpFailedMagic), 0);
+            sigpause(0);
 	  } else {
 	    LcpInfo.his_magic = magic;
 	    bcopy(cp, ackp, length);
 	    ackp += length;
+            LcpFailedMagic = 0;
 	  }
 	} else {
 	  LcpInfo.my_reject |= (1 << type);
