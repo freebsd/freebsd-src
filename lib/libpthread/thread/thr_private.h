@@ -992,6 +992,7 @@ SCLASS struct pthread	*_thr_initial	SCLASS_PRESET(NULL);
 /* For debugger */
 SCLASS int		_libkse_debug		SCLASS_PRESET(0);
 SCLASS int		_thread_activated	SCLASS_PRESET(0);
+SCLASS int		_thread_scope_system	SCLASS_PRESET(0);
 
 /* List of all threads: */
 SCLASS TAILQ_HEAD(, pthread)	_thread_list

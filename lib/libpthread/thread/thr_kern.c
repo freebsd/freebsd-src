@@ -75,13 +75,8 @@ __FBSDID("$FreeBSD$");
  * same number of KSEs and KSE groups as threads. Once these levels are
  * reached, any extra KSE and KSE groups will be free()'d.
  */
-#ifdef SYSTEM_SCOPE_ONLY
-#define	MAX_CACHED_KSES		100
-#define	MAX_CACHED_KSEGS	100
-#else
-#define	MAX_CACHED_KSES		50
-#define	MAX_CACHED_KSEGS	50
-#endif
+#define	MAX_CACHED_KSES		((_thread_scope_system == 0) ? 50 : 100)
+#define	MAX_CACHED_KSEGS	((_thread_scope_system == 0) ? 50 : 100)
 
 #define	KSE_SET_MBOX(kse, thrd) \
 	(kse)->k_kcb->kcb_kmbx.km_curthread = &(thrd)->tcb->tcb_tmbx
@@ -412,19 +407,20 @@ _kse_setthreaded(int threaded)
 		 */
 		_kse_initial->k_flags |= KF_STARTED;
 
-#ifdef SYSTEM_SCOPE_ONLY
-		/*
-		 * For bound thread, kernel reads mailbox pointer once,
-		 * we'd set it here before calling kse_create
-		 */
-		_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
-		KSE_SET_MBOX(_kse_initial, _thr_initial);
-		_kse_initial->k_kcb->kcb_kmbx.km_flags |= KMF_BOUND;
-#else
-		_thr_initial->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
-		_kse_initial->k_kseg->kg_flags &= ~KGF_SINGLE_THREAD;
-		_kse_initial->k_kcb->kcb_kmbx.km_curthread = NULL;
-#endif
+		if (_thread_scope_system == 0) {
+			_thr_initial->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+			_kse_initial->k_kseg->kg_flags &= ~KGF_SINGLE_THREAD;
+			_kse_initial->k_kcb->kcb_kmbx.km_curthread = NULL;
+		}
+		else {
+			/*
+			 * For bound thread, kernel reads mailbox pointer
+			 * once, we'd set it here before calling kse_create.
+			 */
+			_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
+			KSE_SET_MBOX(_kse_initial, _thr_initial);
+			_kse_initial->k_kcb->kcb_kmbx.km_flags |= KMF_BOUND;
+		}
 
 		/*
 		 * Locking functions in libc are required when there are
@@ -443,15 +439,17 @@ _kse_setthreaded(int threaded)
 			_kse_initial->k_kcb->kcb_kmbx.km_lwp;
 		_thread_activated = 1;
 
-#ifndef SYSTEM_SCOPE_ONLY
-		/* Set current thread to initial thread */
-		_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
-		KSE_SET_MBOX(_kse_initial, _thr_initial);
-		_thr_start_sig_daemon();
-		_thr_setmaxconcurrency();
-#else
-		__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
-#endif
+		if (_thread_scope_system == 0) {
+			/* Set current thread to initial thread */
+			_tcb_set(_kse_initial->k_kcb, _thr_initial->tcb);
+			KSE_SET_MBOX(_kse_initial, _thr_initial);
+			_thr_start_sig_daemon();
+			_thr_setmaxconcurrency();
+		}
+		else {
+			__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask,
+			    NULL);
+		}
 	}
 	return (0);
 }
