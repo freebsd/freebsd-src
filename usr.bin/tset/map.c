@@ -32,14 +32,18 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)map.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
-#include <termios.h>
-#include <errno.h>
+#include <err.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include "extern.h"
 
 extern speed_t Ospeed;
@@ -78,7 +82,7 @@ add_mapping(port, arg)
 	copy = strdup(arg);
 	mapp = malloc((u_int)sizeof(MAP));
 	if (copy == NULL || mapp == NULL)
-		err("%s", strerror(errno));
+		errx(1, "malloc");
 	mapp->next = NULL;
 	if (maplist == NULL)
 		cur = maplist = mapp;
@@ -154,7 +158,7 @@ next:	if (*arg == ':') {
 	/* If user specified a port with an option flag, set it. */
 done:	if (port) {
 		if (mapp->porttype)
-badmopt:		err("illegal -m option format: %s", copy);
+badmopt:		errx(1, "illegal -m option format: %s", copy);
 		mapp->porttype = port;
 	}
 
@@ -247,6 +251,6 @@ baudrate(rate)
 			return (sp->speed);
 	speed = atol(rate);
 	if (speed == 0)
-		err("unknown baud rate %s", rate);
+		errx(1, "unknown baud rate %s", rate);
 	return speed;
 }
