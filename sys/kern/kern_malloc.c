@@ -184,9 +184,7 @@ malloc(size, type, flags)
 		npg = btoc(allocsize);
 
 		mtx_exit(&malloc_mtx, MTX_DEF);
-		mtx_enter(&Giant, MTX_DEF);
 		va = (caddr_t) kmem_malloc(kmem_map, (vm_size_t)ctob(npg), flags);
-		mtx_exit(&Giant, MTX_DEF);
 
 		if (va == NULL) {
 			splx(s);
@@ -332,9 +330,7 @@ free(addr, type)
 #endif /* INVARIANTS */
 	if (size > MAXALLOCSAVE) {
 		mtx_exit(&malloc_mtx, MTX_DEF);
-		mtx_enter(&Giant, MTX_DEF);
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
-		mtx_exit(&Giant, MTX_DEF);
 		mtx_enter(&malloc_mtx, MTX_DEF);
 
 		size = kup->ku_pagecnt << PAGE_SHIFT;
