@@ -37,6 +37,7 @@
 
 #define MAIN
 #include <locale.h>
+#include <unistd.h>
 #include "defs.h"
 #include "alias.h"
 
@@ -62,8 +63,6 @@ main(int argc, char **argv)
 	char *aliasfile = ALIASFILE;
 	int rrtimeout = REREADTIMEOUT;
 	
-	extern char *optarg;	
-
 	setlocale( LC_ALL, "");
 	
 	while ((i = getopt(argc, argv, "a:d:p:t:")) != -1)
