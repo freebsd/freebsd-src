@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evmisc - Miscellaneous event manager support functions
- *              $Revision: 64 $
+ *              $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -234,11 +234,11 @@ AcpiEvQueueNotifyRequest (
 
             if (NotifyValue <= ACPI_MAX_SYS_NOTIFY)
             {
-                HandlerObj = ObjDesc->CommonNotify.SysHandler;
+                HandlerObj = ObjDesc->CommonNotify.SystemNotify;
             }
             else
             {
-                HandlerObj = ObjDesc->CommonNotify.DrvHandler;
+                HandlerObj = ObjDesc->CommonNotify.DeviceNotify;
             }
             break;
 
@@ -250,8 +250,8 @@ AcpiEvQueueNotifyRequest (
 
     /* If there is any handler to run, schedule the dispatcher */
 
-    if ((AcpiGbl_SysNotify.Handler && (NotifyValue <= ACPI_MAX_SYS_NOTIFY)) ||
-        (AcpiGbl_DrvNotify.Handler && (NotifyValue > ACPI_MAX_SYS_NOTIFY))  ||
+    if ((AcpiGbl_SystemNotify.Handler && (NotifyValue <= ACPI_MAX_SYS_NOTIFY)) ||
+        (AcpiGbl_DeviceNotify.Handler && (NotifyValue > ACPI_MAX_SYS_NOTIFY))  ||
         HandlerObj)
     {
         NotifyInfo = AcpiUtCreateGenericState ();
@@ -319,20 +319,20 @@ AcpiEvNotifyDispatch (
     {
         /* Global system notification handler */
 
-        if (AcpiGbl_SysNotify.Handler)
+        if (AcpiGbl_SystemNotify.Handler)
         {
-            GlobalHandler = AcpiGbl_SysNotify.Handler;
-            GlobalContext = AcpiGbl_SysNotify.Context;
+            GlobalHandler = AcpiGbl_SystemNotify.Handler;
+            GlobalContext = AcpiGbl_SystemNotify.Context;
         }
     }
     else
     {
         /* Global driver notification handler */
 
-        if (AcpiGbl_DrvNotify.Handler)
+        if (AcpiGbl_DeviceNotify.Handler)
         {
-            GlobalHandler = AcpiGbl_DrvNotify.Handler;
-            GlobalContext = AcpiGbl_DrvNotify.Context;
+            GlobalHandler = AcpiGbl_DeviceNotify.Handler;
+            GlobalContext = AcpiGbl_DeviceNotify.Context;
         }
     }
 
@@ -348,8 +348,8 @@ AcpiEvNotifyDispatch (
     HandlerObj = NotifyInfo->Notify.HandlerObj;
     if (HandlerObj)
     {
-        HandlerObj->NotifyHandler.Handler (NotifyInfo->Notify.Node, NotifyInfo->Notify.Value,
-                        HandlerObj->NotifyHandler.Context);
+        HandlerObj->Notify.Handler (NotifyInfo->Notify.Node, NotifyInfo->Notify.Value,
+                        HandlerObj->Notify.Context);
     }
 
     /* All done with the info object */
@@ -623,9 +623,6 @@ AcpiEvTerminate (void)
 {
     ACPI_NATIVE_UINT        i;
     ACPI_STATUS             Status;
-    ACPI_GPE_BLOCK_INFO     *GpeBlock;
-    ACPI_GPE_BLOCK_INFO     *NextGpeBlock;
-    ACPI_GPE_EVENT_INFO     *GpeEventInfo;
 
 
     ACPI_FUNCTION_TRACE ("EvTerminate");
@@ -638,42 +635,23 @@ AcpiEvTerminate (void)
          * In all cases, on error, print a message but obviously we don't abort.
          */
 
-        /*
-         * Disable all fixed events
-         */
+        /* Disable all fixed events */
+
         for (i = 0; i < ACPI_NUM_FIXED_EVENTS; i++)
         {
-            Status = AcpiDisableEvent ((UINT32) i, ACPI_EVENT_FIXED, 0);
+            Status = AcpiDisableEvent ((UINT32) i, 0);
             if (ACPI_FAILURE (Status))
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable fixed event %d\n", (UINT32) i));
             }
         }
 
-        /*
-         * Disable all GPEs
-         */
-        GpeBlock = AcpiGbl_GpeBlockListHead;
-        while (GpeBlock)
-        {
-            GpeEventInfo = GpeBlock->EventInfo;
-            for (i = 0; i < (GpeBlock->RegisterCount * 8); i++)
-            {
-                Status = AcpiHwDisableGpe (GpeEventInfo);
-                if (ACPI_FAILURE (Status))
-                {
-                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not disable GPE %d\n", (UINT32) i));
-                }
+        /* Disable all GPEs in all GPE blocks */
 
-                GpeEventInfo++;
-            }
+        Status = AcpiEvWalkGpeList (AcpiHwDisableGpeBlock);
 
-            GpeBlock = GpeBlock->Next;
-        }
+        /* Remove SCI handler */
 
-        /*
-         * Remove SCI handler
-         */
         Status = AcpiEvRemoveSciHandler ();
         if (ACPI_FAILURE(Status))
         {
@@ -681,9 +659,8 @@ AcpiEvTerminate (void)
         }
     }
 
-    /*
-     * Return to original mode if necessary
-     */
+    /* Return to original mode if necessary */
+
     if (AcpiGbl_OriginalMode == ACPI_SYS_MODE_LEGACY)
     {
         Status = AcpiDisable ();
@@ -692,21 +669,6 @@ AcpiEvTerminate (void)
             ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "AcpiDisable failed\n"));
         }
     }
-
-    /*
-     * Free global GPE blocks and related info structures
-     */
-    GpeBlock = AcpiGbl_GpeBlockListHead;
-    while (GpeBlock)
-    {
-        NextGpeBlock = GpeBlock->Next;
-        ACPI_MEM_FREE (GpeBlock->EventInfo);
-        ACPI_MEM_FREE (GpeBlock->RegisterInfo);
-        ACPI_MEM_FREE (GpeBlock);
-
-        GpeBlock = NextGpeBlock;
-    }
-
     return_VOID;
 }
 
