@@ -948,6 +948,9 @@ nge_attach(dev)
 	ifp->if_snd.ifq_maxlen = NGE_TX_LIST_CNT - 1;
 	ifp->if_hwassist = NGE_CSUM_FEATURES;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING;
+#ifdef DEVICE_POLLING
+	ifp->if_capabilities |= IFCAP_POLLING;
+#endif
 	ifp->if_capenable = ifp->if_capabilities;
 
 	/*
@@ -1523,6 +1526,10 @@ nge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct  nge_softc *sc = ifp->if_softc;
 
+	if (!(ifp->if_capenable & IFCAP_POLLING)) {
+		ether_poll_deregister(ifp);
+		cmd = POLL_DEREGISTER;
+	}
 	if (cmd == POLL_DEREGISTER) {	/* final call, enable interrupts */
 		CSR_WRITE_4(sc, NGE_IER, 1);
 		return;
@@ -1575,7 +1582,8 @@ nge_intr(arg)
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
 		return;
-	if (ether_poll_register(nge_poll, ifp)) { /* ok, disable interrupts */
+	if ((ifp->if_capenable & IFCAP_POLLING) &&
+	    ether_poll_register(nge_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, NGE_IER, 0);
 		nge_poll(ifp, 0, 1);
 		return;
@@ -2155,6 +2163,9 @@ nge_ioctl(ifp, command, data)
 			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, 
 					      command);
 		}
+		break;
+	case SIOCSIFCAP:
+		ifp->if_capenable = ifr->ifr_reqcap;
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
