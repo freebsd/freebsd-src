@@ -547,4 +547,4 @@ ubig prime[] = {
 };
 
 /* pr_limit - largest prime in the prime table */
-unsigned long *pr_limit = &prime[(sizeof(prime)/sizeof(prime[0]))-1];
+ubig *pr_limit = &prime[(sizeof(prime)/sizeof(prime[0]))-1];
