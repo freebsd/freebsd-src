@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NecBSD: bshw_pdma.c,v 1.4 1997/10/31 17:43:39 honda Exp $	*/
 /*	$NetBSD$	*/
 /*
@@ -36,7 +37,7 @@
 
 static BS_INLINE void bshw_lc_smit_start __P((struct bs_softc *, int, u_int));
 static int bshw_lc_smit_fstat __P((struct bs_softc *, int, int));
-static BS_INLINE void bshw_lc_smit_stop __P((struct bs_softc *));
+static void bshw_lc_smit_stop __P((struct bs_softc *));
 
 /*********************************************************
  * SM FIFO (GENERIC)
@@ -115,7 +116,7 @@ bad:
 #define	LC_SFSZ		0x0c
 #define	LC_REST		(LC_FSZ - LC_SFSZ)
 
-static BS_INLINE void
+static void
 bshw_lc_smit_stop(bsc)
 	struct bs_softc *bsc;
 {

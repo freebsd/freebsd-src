@@ -94,21 +94,28 @@
 static void master_gdc_cmd(unsigned int);
 static void master_gdc_prm(unsigned int);
 static void master_gdc_word_prm(unsigned int);
+#ifdef LINE30
 static void master_gdc_fifo_empty(void);
+#endif
 static void master_gdc_wait_vsync(void);
 
 static void gdc_cmd(unsigned int);
+#ifdef LINE30
 static void gdc_prm(unsigned int);
 static void gdc_word_prm(unsigned int);
 static void gdc_fifo_empty(void);
+#endif
 static void gdc_wait_vsync(void);
 
+#ifdef LINE30
 static int check_gdc_clock(void);
 
 static int gdc_INFO = _25L;
+#endif
 static int gdc_FH = _24KHZ;
 static void initialize_gdc(unsigned int, int);
 
+#ifdef LINE30
 static unsigned int master_param[2][2][8] = {
 {{78,	 8,	7,	9,	7,	7,	25,	400},	/* 400/24k */
  {_CR-2, _VS,	_HS-1,	_HFP-1,	_HBP-1,	_VFP,	_VBP,	_LF}},	/* 480/24k */
@@ -135,5 +142,6 @@ static unsigned int slave_param[2][6][8] = {
 static int SlavePCH[2] = {40,80};
 static int MasterPCH = 80;
 static int SlaveScrlLF[3] = {400,400,_LF};
-
 #endif
+
+#endif /* __PC98_PC98_30LINE_H__ */

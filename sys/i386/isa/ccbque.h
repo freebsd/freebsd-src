@@ -75,7 +75,6 @@ DEV##_get_ccb()								\
 	register struct CCBTYPE *cb;					\
 	int s = splcam();						\
 									\
-again:									\
 	if (CCBTYPE##que.count < CCBTYPE##que.maxccb)			\
 	{								\
 		CCBTYPE##que.count ++;					\

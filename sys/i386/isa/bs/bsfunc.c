@@ -631,7 +631,7 @@ bs_check_target(ti)
 	/* inquiry */
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.opcode = INQUIRY;
-	scsi_cmd.length = sizeof(struct scsi_inquiry_data);
+	scsi_cmd.length = (u_int8_t) sizeof(struct scsi_inquiry_data);
 	cb = bs_make_internal_ccb(ti, 0,
 				   (u_int8_t *) &scsi_cmd, sizeof(scsi_cmd),
 				   (u_int8_t *) &scsi_inquiry_data,
