@@ -247,7 +247,8 @@ movefd:
 				close(fd);
 				copyfd(redir->ndup.dupfd, fd);
 			}
-		}
+		} else
+			close(fd);
 		break;
 	case NHERE:
 	case NXHERE:
