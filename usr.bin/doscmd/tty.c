@@ -29,7 +29,7 @@
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
  *
- * $Id: tty.c,v 1.4 1996/09/22 15:43:00 miff Exp $
+ * $Id: tty.c,v 1.1 1997/08/09 01:43:03 dyson Exp $
  */
 
 #ifndef NO_X
@@ -631,11 +631,11 @@ struct {
     {	0x4700, 0x4737, 0x7700, 0xffff }, /* key 71 - home */
     {	0x4800, 0x4838, 0xffff, 0xffff }, /* key 72 - cursor up */
     {	0x4900, 0x4939, 0x8400, 0xffff }, /* key 73 - page up */
-    {	0x2d00, 0x4a2d, 0xffff, 0xffff }, /* key 74 - minus sign */
+    {	0x4a2d, 0x4a2d, 0xffff, 0xffff }, /* key 74 - minus sign */
     {	0x4b00, 0x4b34, 0x7300, 0xffff }, /* key 75 - cursor left */
     {	0xffff, 0x4c35, 0xffff, 0xffff }, /* key 76 - center key */
     {	0x4d00, 0x4d36, 0x7400, 0xffff }, /* key 77 - cursor right */
-    {	0x2b00, 0x4e2b, 0xffff, 0xffff }, /* key 78 - plus sign */
+    {	0x4e2b, 0x4e2b, 0xffff, 0xffff }, /* key 78 - plus sign */
     {	0x4f00, 0x4f31, 0x7500, 0xffff }, /* key 79 - end */
     {	0x5000, 0x5032, 0xffff, 0xffff }, /* key 80 - cursor down */
     {	0x5100, 0x5133, 0x7600, 0xffff }, /* key 81 - page down */
@@ -1316,6 +1316,7 @@ video_event(XEvent *ev)
 			K2_STATUS |= K2_CLOCK;
 			break;
 		case XK_Insert:
+		case XK_KP_Insert:
 			K1_STATUS ^= K1_INSERT;
 			K2_STATUS |= K2_INSERT;
 			scan = 82;
@@ -1354,16 +1355,19 @@ video_event(XEvent *ev)
     	    	case XK_KP_7:
 			nlock = 1;
 		case XK_Home:
+		case XK_KP_Home:
 			scan = 71;
 			goto docode;
     	    	case XK_KP_8:
 			nlock = 1;
 		case XK_Up:
+		case XK_KP_Up:
 			scan = 72;
 			goto docode;
     	    	case XK_KP_9:
 			nlock = 1;
 		case XK_Prior:
+		case XK_KP_Prior:
 			scan = 73;
 			goto docode;
     	    	case XK_KP_Subtract:
@@ -1372,16 +1376,19 @@ video_event(XEvent *ev)
     	    	case XK_KP_4:
 			nlock = 1;
 		case XK_Left:
+		case XK_KP_Left:
 			scan = 75;
 			goto docode;
     	    	case XK_KP_5:
 			nlock = 1;
 		case XK_Begin:
+		case XK_KP_Begin:
 			scan = 76;
 			goto docode;
     	    	case XK_KP_6:
 			nlock = 1;
 		case XK_Right:
+		case XK_KP_Right:
 			scan = 77;
 			goto docode;
     	    	case XK_KP_Add:
@@ -1390,16 +1397,19 @@ video_event(XEvent *ev)
     	    	case XK_KP_1:
 			nlock = 1;
 		case XK_End:
+		case XK_KP_End:
 			scan = 79;
 			goto docode;
     	    	case XK_KP_2:
 			nlock = 1;
 		case XK_Down:
+		case XK_KP_Down:
 			scan = 80;
 			goto docode;
     	    	case XK_KP_3:
 			nlock = 1;
 		case XK_Next:
+		case XK_KP_Next:
 			scan = 81;
 			goto docode;
     	    	case XK_KP_0:
@@ -1414,6 +1424,7 @@ video_event(XEvent *ev)
 			goto docode;
 
     	    	case XK_Delete:
+    	    	case XK_KP_Delete:
 			scan = flipdelete ? 14 : 83;
 			goto docode;
 
