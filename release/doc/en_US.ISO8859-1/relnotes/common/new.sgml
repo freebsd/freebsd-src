@@ -91,11 +91,6 @@
     reworked.  &man.devfs.5; is now enabled by default and can be
     disabled by the <literal>NODEVFS</literal> kernel option.</para>
 
-    <para arch="i386">Preliminary Cardbus support under NEWCARD has been added.
-    This code supports the TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
-    95/97/100 and Cirrus Logic PD683X bridges.  16-bit PC Card support
-    is not yet functional.</para>
-
     <para>Write combining for crashdumps has been implemented.  This
     feature is useful when write caching is disabled on both SCSI and
     IDE disks, where large memory dumps could take up to an hour to
@@ -343,7 +338,8 @@
       FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.</para>
 
       <para>The &man.tap.4; driver, a virtual Ethernet device driver for
-      bridged configurations, has been added. &merged;</para>
+      bridged configurations, has been added.  This device is
+      clonable.  &merged;</para>
 
       <para>The &man.ti.4; driver now supports the Alteon AceNIC
       1000baseT Gigabit Ethernet and Netgear GA620T 1000baseT Gigabit
@@ -437,6 +433,14 @@
 
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset. &merged;</para>
+
+      <para>The &man.faith.4; device is now loadable, unloadable, and
+      clonable.</para>
+
+      <para>The &man.stf.4; device is now clonable.</para>
+
+      <para>The &man.vlan.4; device is now loadable, unloadable, and
+      clonable.</para>
 
       <para arch="i386">The &man.bge.4; driver has been added to
       support the Broadcom BCM570x family of Gigabit Ethernet
@@ -591,16 +595,6 @@
 
       <para>IP multicast now works on VLAN devices.  Several other
       bugs in the VLAN code have also been fixed.</para>
-
-      <para>The &man.faith.4; device is now loadable, unloadable, and
-      clonable.</para>
-
-      <para>The &man.stf.4; device is now clonable.</para>
-
-      <para>The &man.tap.4; device is now clonable.</para>
-
-      <para>The &man.vlan.4; device is now loadable, unloadable, and
-      clonable.</para>
     </sect3>
 
     <sect3>
@@ -821,6 +815,11 @@
 
       <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
 <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
+
+      <para arch="i386">Preliminary Cardbus support under NEWCARD has been added.
+      This code supports the TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
+      95/97/100 and Cirrus Logic PD683X bridges.  16-bit PC Card support
+      is not yet functional.</para>
     </sect3>
 
     <sect3>
