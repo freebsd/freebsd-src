@@ -516,8 +516,8 @@ sched_setup(void *dummy)
 {
 	int i;
 
-	slice_min = (hz/100);
-	slice_max = (hz/10);
+	slice_min = (hz/100);	/* 10ms */
+	slice_max = (hz/7);	/* ~140ms */
 
 	mtx_lock_spin(&sched_lock);
 	/* init kseqs */
