@@ -106,6 +106,7 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t fo
 	unsigned int npages;
 	vm_offset_t off;
 
+	mtx_assert(&Giant, MA_OWNED);
 	/*
 	 * Make sure this device can be mapped.
 	 */
@@ -198,10 +199,11 @@ dev_pager_getpages(object, m, count, reqpage)
 	vm_offset_t paddr;
 	vm_page_t page;
 	dev_t dev;
-	int i, s;
+	int i;
 	d_mmap_t *mapfunc;
 	int prot;
 
+	mtx_assert(&Giant, MA_OWNED);
 	dev = object->handle;
 	offset = m[reqpage]->pindex;
 	prot = PROT_READ;	/* XXX should pass in? */
@@ -221,9 +223,7 @@ dev_pager_getpages(object, m, count, reqpage)
 	for (i = 0; i < count; i++) {
 		vm_page_free(m[i]);
 	}
-	s = splhigh();
 	vm_page_insert(page, object, offset);
-	splx(s);
 
 	return (VM_PAGER_OK);
 }
