@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/acpica/acpivar.h>
 #include <dev/led/led.h>
 
-#define _COMPONENT	ACPI_ASUS
+#define _COMPONENT	ACPI_OEM
 ACPI_MODULE_NAME("ASUS")
 
 struct acpi_asus_model {

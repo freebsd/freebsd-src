@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
 
+#define _COMPONENT	ACPI_OEM
+ACPI_MODULE_NAME("Panasonic")
+
 /* Debug */
 #undef	ACPI_PANASONIC_DEBUG
 

@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include "acpi.h"
 #include <dev/acpica/acpivar.h>
 
+#define _COMPONENT	ACPI_OEM
+ACPI_MODULE_NAME("Toshiba")
+
 /*
  * Toshiba HCI interface definitions
  *
