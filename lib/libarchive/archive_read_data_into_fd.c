@@ -28,10 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <unistd.h>
 
 #include "archive.h"

@@ -34,9 +34,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/time.h>
 
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <grp.h>
@@ -773,15 +770,15 @@ set_perm(struct archive *a, struct archive_entry *entry, int mode, int flags)
 static int
 set_extended_perm(struct archive *a, struct archive_entry *entry, int flags)
 {
-	int		 ret;
+	int		 ret, ret2;
 
 	if ((flags & ARCHIVE_EXTRACT_PERM) == 0)
 		return (ARCHIVE_OK);
 
 	ret = set_fflags(a, entry);
-	if (ret == ARCHIVE_OK)
-		ret = set_acls(a, entry);
-	return (ret);
+	ret2 = set_acls(a, entry);
+
+	return (err_combine(ret,ret2));
 }
 
 static int
@@ -831,6 +828,7 @@ set_acls(struct archive *a, struct archive_entry *entry)
 {
 	(void)a;
 	(void)entry;
+
 	return (ARCHIVE_OK);
 }
 
@@ -878,22 +876,33 @@ set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
 		   &ae_permset, &ae_tag, &ae_id, &ae_name) == ARCHIVE_OK) {
 		acl_create_entry(&acl, &acl_entry);
 
-		if (ae_tag == ARCHIVE_ENTRY_ACL_USER) {
+		switch (ae_tag) {
+		case ARCHIVE_ENTRY_ACL_USER:
 			acl_set_tag_type(acl_entry, ACL_USER);
 			ae_uid = lookup_uid(a, ae_name, ae_id);
 			acl_set_qualifier(acl_entry, &ae_uid);
-		} else if (ae_tag == ARCHIVE_ENTRY_ACL_GROUP) {
+			break;
+		case ARCHIVE_ENTRY_ACL_GROUP:
 			acl_set_tag_type(acl_entry, ACL_GROUP);
 			ae_gid = lookup_gid(a, ae_name, ae_id);
 			acl_set_qualifier(acl_entry, &ae_gid);
-		} else if (ae_tag == ARCHIVE_ENTRY_ACL_USER_OBJ)
+			break;
+		case ARCHIVE_ENTRY_ACL_USER_OBJ:
 			acl_set_tag_type(acl_entry, ACL_USER_OBJ);
-		else if (ae_tag == ARCHIVE_ENTRY_ACL_GROUP_OBJ)
+			break;
+		case ARCHIVE_ENTRY_ACL_GROUP_OBJ:
 			acl_set_tag_type(acl_entry, ACL_GROUP_OBJ);
-		else if (ae_tag == ARCHIVE_ENTRY_ACL_MASK)
+			break;
+		case ARCHIVE_ENTRY_ACL_MASK:
 			acl_set_tag_type(acl_entry, ACL_MASK);
-		else if (ae_tag == ARCHIVE_ENTRY_ACL_OTHER)
+			break;
+		case ARCHIVE_ENTRY_ACL_OTHER:
 			acl_set_tag_type(acl_entry, ACL_OTHER);
+			break;
+		default:
+			/* XXX */
+			break;
+		}
 
 		acl_get_permset(acl_entry, &acl_permset);
 		acl_clear_perms(acl_permset);
@@ -906,6 +915,7 @@ set_acl(struct archive *a, struct archive_entry *entry, acl_type_t acl_type,
 	}
 
 	name = archive_entry_pathname(entry);
+
 	if (acl_set_file(name, acl_type, acl) != 0) {
 		archive_set_error(a, errno, "Failed to set %s acl", typename);
 		ret = ARCHIVE_WARN;

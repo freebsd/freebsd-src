@@ -29,9 +29,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
 #include <errno.h>
-#ifdef HAVE_DMALLOC
-#include <dmalloc.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -584,7 +581,7 @@ archive_write_pax_header(struct archive *a,
 
 	/* Format 'ustar' header for main entry. */
 	/* We don't care if this returns an error. */
-	__archive_write_format_header_ustar(a, ustarbuff, entry_main);
+	__archive_write_format_header_ustar(a, ustarbuff, entry_main, -1);
 
 	/* If we built any extended attributes, write that entry first. */
 	ret = 0;
@@ -598,7 +595,6 @@ archive_write_pax_header(struct archive *a,
 		p = archive_entry_pathname(entry_main);
 		pax_attr_name = build_pax_attribute_name(p, &pax_entry_name);
 
-		archive_entry_set_tartype(pax_attr_entry, 'x');
 		archive_entry_set_pathname(pax_attr_entry, pax_attr_name);
 		st.st_size = archive_strlen(&(pax->pax_header));
 		st.st_uid = st_main->st_uid;
@@ -612,7 +608,7 @@ archive_write_pax_header(struct archive *a,
 		    archive_entry_gname(entry_main));
 
 		ret = __archive_write_format_header_ustar(a, paxbuff,
-		    pax_attr_entry);
+		    pax_attr_entry, 'x');
 
 		archive_entry_free(pax_attr_entry);
 		free(pax_entry_name.s);
