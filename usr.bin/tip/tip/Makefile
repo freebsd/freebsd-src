@@ -14,11 +14,14 @@ LIBACU=${.CURDIR}/../libacu/libacu.a
 .endif
 
 PROG=	tip
+CFLAGS+=-DUSE_PERROR
 LDADD+=	$(LIBACU)
 LINKS=	${BINDIR}/tip
 MAN1=	tip.1
 MAN5=	modems.5
 SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
 	remote.c tip.c tipout.c uucplock.c value.c vars.c
+
+.PATH: ${.CURDIR}/../../../sbin/startslip
 
 .include <bsd.prog.mk>
