@@ -338,5 +338,3 @@ vnode_if.o:
 .include <bsd.kern.mk>
 
 %RULES
-
-# DO NOT DELETE THIS LINE -- make depend uses it
