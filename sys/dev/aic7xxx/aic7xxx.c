@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.19 1999/03/08 22:42:52 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.20 1999/03/23 07:24:26 gibbs Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -1872,6 +1872,9 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 			break;
 		}
 		ahc_set_ccb_status(scb->ccb, CAM_SCSI_STATUS_ERROR);
+		/* Freeze the queue unit the client sees the error. */
+		ahc_freeze_devq(ahc, scb->ccb->ccb_h.path);
+		ahc_freeze_ccb(scb->ccb);
 		csio = &scb->ccb->csio;
 		csio->scsi_status = hscb->status;
 		switch (hscb->status) {
@@ -1971,9 +1974,6 @@ ahc_handle_seqint(struct ahc_softc *ahc, u_int intstat)
 					  scb->ccb->ccb_h.timeout_ch);
 				scb->ccb->ccb_h.timeout_ch =
 				    timeout(ahc_timeout, (caddr_t)scb, 5 * hz);
-				/* Freeze the queue while the sense occurs. */
-				ahc_freeze_devq(ahc, scb->ccb->ccb_h.path);
-				ahc_freeze_ccb(scb->ccb);
 			}
 			break;
 		case SCSI_STATUS_BUSY:
