@@ -36,6 +36,7 @@
 #include <sys/imgact_aout.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
@@ -64,8 +65,6 @@
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
-
-#include <machine/limits.h>
 
 #include <posix4/sched.h>
 

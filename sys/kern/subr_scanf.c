@@ -42,7 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ctype.h>
-#include <machine/limits.h>
+#include <sys/limits.h>
 
 /*
  * Note that stdarg.h and the ANSI style va_start macro is used for both

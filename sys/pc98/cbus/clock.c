@@ -59,6 +59,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -72,7 +73,6 @@
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/limits.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #ifdef APIC_IO

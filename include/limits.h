@@ -125,7 +125,7 @@
 
 #define	MB_LEN_MAX		6	/* 31-bit UTF-8 */
 
-#include <machine/limits.h>
+#include <sys/limits.h>
 
 #if __POSIX_VISIBLE
 #include <sys/syslimits.h>

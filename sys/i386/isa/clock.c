@@ -61,6 +61,7 @@
 #include <sys/time.h>
 #include <sys/timetc.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/sysctl.h>
 #include <sys/cons.h>
 #include <sys/power.h>
@@ -68,7 +69,6 @@
 #include <machine/clock.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/limits.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #ifdef APIC_IO

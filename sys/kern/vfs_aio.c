@@ -32,6 +32,7 @@
 #include <sys/kthread.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/unistd.h>
@@ -55,8 +56,6 @@
 #include <vm/vm_map.h>
 #include <vm/uma.h>
 #include <sys/aio.h>
-
-#include <machine/limits.h>
 
 #include "opt_vfs_aio.h"
 

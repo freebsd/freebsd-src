@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/fcntl.h>
 #include <sys/kernel.h>		/* for hz */
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/lockf.h>		/* for hz */ /* Must come after sys/malloc.h */
@@ -47,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-
-#include <machine/limits.h>
 
 #include <net/if.h>
 

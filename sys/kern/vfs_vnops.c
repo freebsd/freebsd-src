@@ -47,6 +47,7 @@
 #include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/proc.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
@@ -60,8 +61,6 @@
 #include <sys/ttycom.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
-
-#include <machine/limits.h>
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
