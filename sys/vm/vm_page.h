@@ -313,7 +313,7 @@ extern struct mtx vm_page_queue_mtx;
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
 /* page allocation flags: */
-#define	VM_ALLOC_WIRED		0x20	/* vm_page_alloc() only */
+#define	VM_ALLOC_WIRED		0x20
 #define	VM_ALLOC_ZERO		0x40
 #define	VM_ALLOC_RETRY		0x80	/* vm_page_grab() only */
 
