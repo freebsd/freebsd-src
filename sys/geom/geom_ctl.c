@@ -80,49 +80,6 @@ g_ctl_init(void)
 		("GCTL_PARAM_WR != VM_PROT_WRITE"));
 }
 
-static int
-g_ctl_ioctl_configgeom(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
-{
-	struct geomconfiggeom *gcp;
-	struct g_configargs ga;
-	int error;
-
-	error = 0;
-	bzero(&ga, sizeof ga);
-	gcp = (struct geomconfiggeom *)data;
-	ga.class = g_idclass(&gcp->class);
-	if (ga.class == NULL)
-		return (EINVAL);
-	if (ga.class->config == NULL)
-		return (EOPNOTSUPP);
-	ga.geom = g_idgeom(&gcp->geom);
-	ga.provider = g_idprovider(&gcp->provider);
-	ga.len = gcp->len;
-	if (gcp->len > 64 * 1024)
-		return (EINVAL);
-	else if (gcp->len == 0) {
-		ga.ptr = NULL;
-	} else {
-		ga.ptr = g_malloc(gcp->len, M_WAITOK);
-		error = copyin(gcp->ptr, ga.ptr, gcp->len);
-		if (error) {
-			g_free(ga.ptr);
-			return (error);
-		}
-	}
-	ga.flag = gcp->flag;
-	error = ga.class->config(&ga);
-	if (gcp->len != 0)
-		copyout(ga.ptr, gcp->ptr, gcp->len);	/* Ignore error */
-	gcp->class.u.id = (uintptr_t)ga.class;
-	gcp->class.len = 0;
-	gcp->geom.u.id = (uintptr_t)ga.geom;
-	gcp->geom.len = 0;
-	gcp->provider.u.id = (uintptr_t)ga.provider;
-	gcp->provider.len = 0;
-	return(error);
-}
-
 /*
  * Report an error back to the user in ascii format.  Return whatever copyout
  * returned, or EINVAL if it succeeded.
@@ -499,13 +456,6 @@ g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	int error;
 
 	switch(cmd) {
-	case GEOMCONFIGGEOM:
-		DROP_GIANT();
-		g_topology_lock();
-		error = g_ctl_ioctl_configgeom(dev, cmd, data, fflag, td);
-		g_topology_unlock();
-		PICKUP_GIANT();
-		break;
 	case GEOM_CTL:
 		DROP_GIANT();
 		error = g_ctl_ioctl_ctl(dev, cmd, data, fflag, td);
