@@ -18,6 +18,7 @@ german.iso.kbd:de:Deutsch ISO-8859-1
 german.cp850.kbd::German cp850
 german.cp850.kbd:de:Deutsch cp850
 #german.iso.my.kbd::German iso.my
+ru.cp866.kbd::Russian cp866 (alternative)
 ru.koi8-r.kbd::Russian koi8-r
 ru.koi8-r.kbd:de:Russisch koi8-r
 ru.koi8-r.shift.kbd::Russian koi8-r.shift
