@@ -36,6 +36,7 @@
 #include "bootstrap.h"
 
 static char	*getbootfile(int try);
+static int	loadakernel(int try, int argc, char* argv[]);
 
 /* List of kernel names to try (may be overwritten by boot.config) XXX should move from here? */
 static const char *default_bootfiles = "kernel.ko";
@@ -51,8 +52,6 @@ static int
 command_boot(int argc, char *argv[])
 {
     struct preloaded_file	*fp;
-    char			*cp;
-    int				try;
     
     /*
      * See if the user has specified an explicit kernel to boot.
@@ -75,17 +74,10 @@ command_boot(int argc, char *argv[])
     /*
      * See if there is a kernel module already loaded
      */
-    if (file_findfile(NULL, NULL) == NULL) {
-	for (try = 0; (cp = getbootfile(try)) != NULL; try++) {
-	    if (mod_load(cp, argc - 1, argv + 1) != 0) {
-		printf("can't load '%s'\n", cp);
-	    } else {
-		/* we have consumed all arguments */
-		argc = 1;
-		break;
-	    }
-	}
-    }
+    if (file_findfile(NULL, NULL) == NULL)
+	if (loadakernel(0, argc - 1, argv + 1))
+	    /* we have consumed all arguments */
+	    argc = 1;
 
     /*
      * Loaded anything yet?
@@ -168,6 +160,7 @@ autoboot(int timeout, char *prompt)
     time_t	when, otime, ntime;
     int		c, yes;
     char	*argv[2], *cp, *ep;
+    char	*kernelname;
 
     autoboot_tried = 1;
 
@@ -186,7 +179,17 @@ autoboot(int timeout, char *prompt)
     when = otime + timeout;	/* when to boot */
     yes = 0;
 
-    /* XXX could try to work out what we might boot */
+    kernelname = getenv("kernelname");
+    if (kernelname == NULL) {
+	argv[0] = NULL;
+	loadakernel(0, 0, argv);
+	kernelname = getenv("kernelname");
+	if (kernelname == NULL) {
+	    command_errmsg = "no valid kernel found";
+	    return(CMD_ERROR);
+	}
+    }
+
     printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
 
     for (;;) {
@@ -201,15 +204,16 @@ autoboot(int timeout, char *prompt)
 	    yes = 1;
 	    break;
 	}
+	
 	if (ntime != otime) {
 	    printf("\rBooting [%s] in %d second%s... ",
-	    		getbootfile(0), (int)(when - ntime),
+	    		kernelname, (int)(when - ntime),
 			(when-ntime)==1?"":"s");
 	    otime = ntime;
 	}
     }
     if (yes)
-	printf("\rBooting [%s]...               ", getbootfile(0));
+	printf("\rBooting [%s]...               ", kernelname);
     putchar('\n');
     if (yes) {
 	argv[0] = "boot";
@@ -226,7 +230,7 @@ static char *
 getbootfile(int try) 
 {
     static char *name = NULL;
-    char	*spec, *ep;
+    const char	*spec, *ep;
     size_t	len;
     
     /* we use dynamic storage */
@@ -332,3 +336,18 @@ getrootmount(char *rootdev)
     close(fd);
     return(error);
 }
+
+static int
+loadakernel(int try, int argc, char* argv[])
+{
+    char *cp;
+
+	for (try = 0; (cp = getbootfile(try)) != NULL; try++)
+	    if (mod_load(cp, argc - 1, argv + 1) != 0)
+		printf("can't load '%s'\n", cp);
+	    else
+		return 1;
+
+	return 0;
+}
+
