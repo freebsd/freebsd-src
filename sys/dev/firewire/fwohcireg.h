@@ -73,7 +73,8 @@ typedef volatile u_int32_t 	fwohcireg_t;
 struct fwohcidb {
 	union {
 		struct {
-			volatile u_int32_t cmd;
+			volatile u_int32_t reqcount:16,
+					   control:16;
 			volatile u_int32_t addr;
 			volatile u_int32_t depend;
 			volatile u_int32_t count:16,
@@ -81,43 +82,43 @@ struct fwohcidb {
 		} desc;
 		volatile u_int32_t immed[4];
 	} db;
-#define OHCI_OUTPUT_MORE	(0 << 28)
-#define OHCI_OUTPUT_LAST	(1 << 28)
-#define OHCI_INPUT_MORE		(2 << 28)
-#define OHCI_INPUT_LAST		(3 << 28)
-#define OHCI_STORE_QUAD		(4 << 28)
-#define OHCI_LOAD_QUAD		(5 << 28)
-#define OHCI_NOP		(6 << 28)
-#define OHCI_STOP		(7 << 28)
-#define OHCI_STORE		(8 << 28)
-#define OHCI_CMD_MASK		(0xf << 28)
+#define OHCI_OUTPUT_MORE	(0 << 12)
+#define OHCI_OUTPUT_LAST	(1 << 12)
+#define OHCI_INPUT_MORE		(2 << 12)
+#define OHCI_INPUT_LAST		(3 << 12)
+#define OHCI_STORE_QUAD		(4 << 12)
+#define OHCI_LOAD_QUAD		(5 << 12)
+#define OHCI_NOP		(6 << 12)
+#define OHCI_STOP		(7 << 12)
+#define OHCI_STORE		(8 << 12)
+#define OHCI_CMD_MASK		(0xf << 12)
 
-#define	OHCI_UPDATE		(1 << 27)
+#define	OHCI_UPDATE		(1 << 11)
 
-#define OHCI_KEY_ST0		(0 << 24)
-#define OHCI_KEY_ST1		(1 << 24)
-#define OHCI_KEY_ST2		(2 << 24)
-#define OHCI_KEY_ST3		(3 << 24)
-#define OHCI_KEY_REGS		(5 << 24)
-#define OHCI_KEY_SYS		(6 << 24)
-#define OHCI_KEY_DEVICE		(7 << 24)
-#define OHCI_KEY_MASK		(7 << 24)
+#define OHCI_KEY_ST0		(0 << 8)
+#define OHCI_KEY_ST1		(1 << 8)
+#define OHCI_KEY_ST2		(2 << 8)
+#define OHCI_KEY_ST3		(3 << 8)
+#define OHCI_KEY_REGS		(5 << 8)
+#define OHCI_KEY_SYS		(6 << 8)
+#define OHCI_KEY_DEVICE		(7 << 8)
+#define OHCI_KEY_MASK		(7 << 8)
 
-#define OHCI_INTERRUPT_NEVER	(0 << 20)
-#define OHCI_INTERRUPT_TRUE	(1 << 20)
-#define OHCI_INTERRUPT_FALSE	(2 << 20)
-#define OHCI_INTERRUPT_ALWAYS	(3 << 20)
+#define OHCI_INTERRUPT_NEVER	(0 << 4)
+#define OHCI_INTERRUPT_TRUE	(1 << 4)
+#define OHCI_INTERRUPT_FALSE	(2 << 4)
+#define OHCI_INTERRUPT_ALWAYS	(3 << 4)
 
-#define OHCI_BRANCH_NEVER	(0 << 18)
-#define OHCI_BRANCH_TRUE	(1 << 18)
-#define OHCI_BRANCH_FALSE	(2 << 18)
-#define OHCI_BRANCH_ALWAYS	(3 << 18)
-#define OHCI_BRANCH_MASK	(3 << 18)
+#define OHCI_BRANCH_NEVER	(0 << 2)
+#define OHCI_BRANCH_TRUE	(1 << 2)
+#define OHCI_BRANCH_FALSE	(2 << 2)
+#define OHCI_BRANCH_ALWAYS	(3 << 2)
+#define OHCI_BRANCH_MASK	(3 << 2)
 
-#define OHCI_WAIT_NEVER		(0 << 16)
-#define OHCI_WAIT_TRUE		(1 << 16)
-#define OHCI_WAIT_FALSE		(2 << 16)
-#define OHCI_WAIT_ALWAYS	(3 << 16)
+#define OHCI_WAIT_NEVER		(0)
+#define OHCI_WAIT_TRUE		(1)
+#define OHCI_WAIT_FALSE		(2)
+#define OHCI_WAIT_ALWAYS	(3)
 };
 
 #define OHCI_SPD_S100 0x4
