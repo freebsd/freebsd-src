@@ -259,7 +259,7 @@ reloc_jmpslots(Obj_Entry *obj)
 	if (def == NULL)
 	    return -1;
 	target = (Elf_Addr)(defobj->relocbase + def->st_value);
-	reloc_jmpslot(where, target, defobj);
+	reloc_jmpslot(where, target, defobj, obj, rel);
     }
     obj->jmpslots_done = true;
     return 0;

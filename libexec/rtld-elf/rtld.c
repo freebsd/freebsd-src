@@ -445,7 +445,7 @@ _rtld_bind(Obj_Entry *obj, Elf_Word reloff)
      * address. The value returned from reloc_jmpslot() is the value
      * that the trampoline needs.
      */
-    target = reloc_jmpslot(where, target, defobj);
+    target = reloc_jmpslot(where, target, defobj, obj, rel);
     rlock_release();
     return target;
 }

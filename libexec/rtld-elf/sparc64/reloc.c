@@ -458,54 +458,30 @@ reloc_jmpslots(Obj_Entry *obj)
 		if (def == NULL)
 			return -1;
 		target = (Elf_Addr)(defobj->relocbase + def->st_value);
-		reloc_jmpslot(where, target, defobj);
+		reloc_jmpslot(where, target, defobj, obj, (Elf_Rel *)rela);
 	}
 	obj->jmpslots_done = true;
 	return (0);
 }
 
 Elf_Addr
-reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj)
+reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj,
+	      const Obj_Entry *refobj, const Elf_Rel *rel)
 {
+	const Elf_Rela *rela = (const Elf_Rela *)rel;
 	Elf_Addr offset;
 	Elf_Half *where;
 
-	/*
-	 * At the PLT entry pointed at by `where', we now construct
-	 * a direct transfer to the now fully resolved function
-	 * address.
-	 *
-	 * A PLT entry is supposed to start by looking like this:
-	 *
-	 *	sethi	%hi(. - .PLT0), %g1
-	 *	ba,a	%xcc, .PLT1
-	 *	nop
-	 *	nop
-	 *	nop
-	 *	nop
-	 *	nop
-	 *	nop
-	 *
-	 * When we replace these entries we start from the second
-	 * entry and do it in reverse order so the last thing we
-	 * do is replace the branch.  That allows us to change this
-	 * atomically.
-	 *
-	 * We now need to find out how far we need to jump.  We
-	 * have a choice of several different relocation techniques
-	 * which are increasingly expensive.
-	 */
-
-	where = (Elf_Half *)wherep;
-	offset = ((Elf_Addr)where) - target;
-	if (offset <= (1L<<20) && offset >= -(1L<<20)) {
-		/* 
-		 * We're within 1MB -- we can use a direct branch insn.
+	if (rela - refobj->pltrela < 32764) {
+		/*
+		 * At the PLT entry pointed at by `where', we now construct
+		 * a direct transfer to the now fully resolved function
+		 * address.
 		 *
-		 * We can generate this pattern:
+		 * A PLT entry is supposed to start by looking like this:
 		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	ba,a	%xcc, addr
+		 *	sethi	(. - .PLT0), %g1
+		 *	ba,a	%xcc, .PLT1
 		 *	nop
 		 *	nop
 		 *	nop
@@ -513,149 +489,186 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *obj)
 		 *	nop
 		 *	nop
 		 *
+		 * When we replace these entries we start from the second
+		 * entry and do it in reverse order so the last thing we
+		 * do is replace the branch.  That allows us to change this
+		 * atomically.
+		 *
+		 * We now need to find out how far we need to jump.  We
+		 * have a choice of several different relocation techniques
+		 * which are increasingly expensive.
 		 */
-		where[1] = BAA | ((offset >> 2) &0x3fffff);
-		flush(where, 4);
-	} else if (target >= 0 && target < (1L<<32)) {
-		/* 
-		 * We're withing 32-bits of address zero.
-		 *
-		 * The resulting code in the jump slot is:
-		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	sethi	%hi(addr), %g1
-		 *	jmp	%g1+%lo(addr)
-		 *	nop
-		 *	nop
-		 *	nop
-		 *	nop
-		 *	nop
-		 *
-		 */
-		where[2] = JMP   | LOVAL(target);
-		flush(where, 8);
-		where[1] = SETHI | HIVAL(target, 10);
-		flush(where, 4);
-	} else if (target <= 0 && target > -(1L<<32)) {
-		/* 
-		 * We're withing 32-bits of address -1.
-		 *
-		 * The resulting code in the jump slot is:
-		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	sethi	%hix(addr), %g1
-		 *	xor	%g1, %lox(addr), %g1
-		 *	jmp	%g1
-		 *	nop
-		 *	nop
-		 *	nop
-		 *	nop
-		 *
-		 */
-		where[3] = JMP;
-		flush(where, 12);
-		where[2] = XOR | ((~target) & 0x00001fff);
-		flush(where, 8);
-		where[1] = SETHI | HIVAL(~target, 10);
-		flush(where, 4);
-	} else if (offset <= (1L<<32) && offset >= -((1L<<32) - 4)) {
-		/* 
-		 * We're withing 32-bits -- we can use a direct call insn 
-		 *
-		 * The resulting code in the jump slot is:
-		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	mov	%o7, %g1
-		 *	call	(.+offset)
-		 *	 mov	%g1, %o7
-		 *	nop
-		 *	nop
-		 *	nop
-		 *	nop
-		 *
-		 */
-		where[3] = MOV17;
-		flush(where, 12);
-		where[2] = CALL	  | ((offset >> 4) & 0x3fffffff);
-		flush(where, 8);
-		where[1] = MOV71;
-		flush(where, 4);
-	} else if (offset >= 0 && offset < (1L<<44)) {
-		/* 
-		 * We're withing 44 bits.  We can generate this pattern:
-		 *
-		 * The resulting code in the jump slot is:
-		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	sethi	%h44(addr), %g1
-		 *	or	%g1, %m44(addr), %g1
-		 *	sllx	%g1, 12, %g1	
-		 *	jmp	%g1+%l44(addr)	
-		 *	nop
-		 *	nop
-		 *	nop
-		 *
-		 */
-		where[4] = JMP   | LOVAL(offset);
-		flush(where, 16);
-		where[3] = SLLX  | 12;
-		flush(where, 12);
-		where[2] = OR    | (((offset) >> 12) & 0x00001fff);
-		flush(where, 8);
-		where[1] = SETHI | HIVAL(offset, 22);
-		flush(where, 4);
-	} else if (offset < 0 && offset > -(1L<<44)) {
-		/* 
-		 * We're withing 44 bits.  We can generate this pattern:
-		 *
-		 * The resulting code in the jump slot is:
-		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	sethi	%h44(-addr), %g1
-		 *	xor	%g1, %m44(-addr), %g1
-		 *	sllx	%g1, 12, %g1	
-		 *	jmp	%g1+%l44(addr)	
-		 *	nop
-		 *	nop
-		 *	nop
-		 *
-		 */
-		where[4] = JMP   | LOVAL(offset);
-		flush(where, 16);
-		where[3] = SLLX  | 12;
-		flush(where, 12);
-		where[2] = XOR   | (((~offset) >> 12) & 0x00001fff);
-		flush(where, 8);
-		where[1] = SETHI | HIVAL(~offset, 22);
-		flush(where, 4);
+		where = (Elf_Half *)wherep;
+		offset = ((Elf_Addr)where) - target;
+		if (offset <= (1L<<20) && offset >= -(1L<<20)) {
+			/* 
+			 * We're within 1MB -- we can use a direct branch insn.
+			 *
+			 * We can generate this pattern:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	ba,a	%xcc, addr
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *
+			 */
+			where[1] = BAA | ((offset >> 2) &0x3fffff);
+			flush(where, 4);
+		} else if (target >= 0 && target < (1L<<32)) {
+			/* 
+			 * We're withing 32-bits of address zero.
+			 *
+			 * The resulting code in the jump slot is:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	sethi	%hi(addr), %g1
+			 *	jmp	%g1+%lo(addr)
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *
+			 */
+			where[2] = JMP   | LOVAL(target);
+			flush(where, 8);
+			where[1] = SETHI | HIVAL(target, 10);
+			flush(where, 4);
+		} else if (target <= 0 && target > -(1L<<32)) {
+			/* 
+			 * We're withing 32-bits of address -1.
+			 *
+			 * The resulting code in the jump slot is:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	sethi	%hix(addr), %g1
+			 *	xor	%g1, %lox(addr), %g1
+			 *	jmp	%g1
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *
+			 */
+			where[3] = JMP;
+			flush(where, 12);
+			where[2] = XOR | ((~target) & 0x00001fff);
+			flush(where, 8);
+			where[1] = SETHI | HIVAL(~target, 10);
+			flush(where, 4);
+		} else if (offset <= (1L<<32) && offset >= -((1L<<32) - 4)) {
+			/* 
+			 * We're withing 32-bits -- we can use a direct call
+			 * insn
+			 *
+			 * The resulting code in the jump slot is:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	mov	%o7, %g1
+			 *	call	(.+offset)
+			 *	 mov	%g1, %o7
+			 *	nop
+			 *	nop
+			 *	nop
+			 *	nop
+			 *
+			 */
+			where[3] = MOV17;
+			flush(where, 12);
+			where[2] = CALL	  | ((offset >> 4) & 0x3fffffff);
+			flush(where, 8);
+			where[1] = MOV71;
+			flush(where, 4);
+		} else if (offset >= 0 && offset < (1L<<44)) {
+			/* 
+			 * We're withing 44 bits.  We can generate this pattern:
+			 *
+			 * The resulting code in the jump slot is:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	sethi	%h44(addr), %g1
+			 *	or	%g1, %m44(addr), %g1
+			 *	sllx	%g1, 12, %g1	
+			 *	jmp	%g1+%l44(addr)	
+			 *	nop
+			 *	nop
+			 *	nop
+			 *
+			 */
+			where[4] = JMP   | LOVAL(offset);
+			flush(where, 16);
+			where[3] = SLLX  | 12;
+			flush(where, 12);
+			where[2] = OR    | (((offset) >> 12) & 0x00001fff);
+			flush(where, 8);
+			where[1] = SETHI | HIVAL(offset, 22);
+			flush(where, 4);
+		} else if (offset < 0 && offset > -(1L<<44)) {
+			/* 
+			 * We're withing 44 bits.  We can generate this pattern:
+			 *
+			 * The resulting code in the jump slot is:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	sethi	%h44(-addr), %g1
+			 *	xor	%g1, %m44(-addr), %g1
+			 *	sllx	%g1, 12, %g1	
+			 *	jmp	%g1+%l44(addr)	
+			 *	nop
+			 *	nop
+			 *	nop
+			 *
+			 */
+			where[4] = JMP   | LOVAL(offset);
+			flush(where, 16);
+			where[3] = SLLX  | 12;
+			flush(where, 12);
+			where[2] = XOR   | (((~offset) >> 12) & 0x00001fff);
+			flush(where, 8);
+			where[1] = SETHI | HIVAL(~offset, 22);
+			flush(where, 4);
+		} else {
+			/* 
+			 * We need to load all 64-bits
+			 *
+			 * The resulting code in the jump slot is:
+			 *
+			 *	sethi	%hi(. - .PLT0), %g1
+			 *	sethi	%hh(addr), %g1
+			 *	sethi	%lm(addr), %g5
+			 *	or	%g1, %hm(addr), %g1
+			 *	sllx	%g1, 32, %g1
+			 *	or	%g1, %g5, %g1
+			 *	jmp	%g1+%lo(addr)
+			 *	nop
+			 *
+			 */
+			where[6] = JMP     | LOVAL(target);
+			flush(where, 24);
+			where[5] = ORG5;
+			flush(where, 20);
+			where[4] = SLLX    | 12;
+			flush(where, 16);
+			where[3] = OR      | LOVAL((target) >> 32);
+			flush(where, 12);
+			where[2] = SETHIG5 | HIVAL(target, 10);
+			flush(where, 8);
+			where[1] = SETHI   | HIVAL(target, 42);
+			flush(where, 4);
+		}
 	} else {
-		/* 
-		 * We need to load all 64-bits
-		 *
-		 * The resulting code in the jump slot is:
-		 *
-		 *	sethi	%hi(. - .PLT0), %g1
-		 *	sethi	%hh(addr), %g1
-		 *	sethi	%lm(addr), %g5
-		 *	or	%g1, %hm(addr), %g1
-		 *	sllx	%g1, 32, %g1
-		 *	or	%g1, %g5, %g1
-		 *	jmp	%g1+%lo(addr)
-		 *	nop
-		 *
+		/*
+		 * This is a high PLT slot; the relocation offset specifies a
+		 * pointer that needs to be frobbed; no actual code needs to
+		 * be modified. The pointer to be calculated needs the addend
+		 * added and the reference object relocation base subtraced.
 		 */
-		where[6] = JMP     | LOVAL(target);
-		flush(where, 24);
-		where[5] = ORG5;
-		flush(where, 20);
-		where[4] = SLLX    | 12;
-		flush(where, 16);
-		where[3] = OR      | LOVAL((target) >> 32);
-		flush(where, 12);
-		where[2] = SETHIG5 | HIVAL(target, 10);
-		flush(where, 8);
-		where[1] = SETHI   | HIVAL(target, 42);
-		flush(where, 4);
+		*wherep = target + rela->r_addend -
+		    (Elf_Addr)refobj->relocbase;
 	}
 
 	return (target);
