@@ -147,6 +147,12 @@
 
 #include "i386/isa/isa_device.h"
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 19
+static void 	tw_devsw_install();
+#endif /*JREMOD*/
+
 /*
  * Transmission is done by calling write() to send three byte packets of data.
  * The first byte contains a four bit house code (0=A to 15=P).
@@ -342,6 +348,10 @@ int twattach(idp)
   sc = &tw_sc[idp->id_unit];
   sc->sc_port = idp->id_iobase;
   sc->sc_state = 0;
+#ifdef JREMOD
+  tw_devsw_install();
+#endif /*JREMOD*/
+
   return (1);
 }
 
@@ -980,5 +990,28 @@ static int twchecktime(int target, int tol)
   }
 }
 #endif /* HIRESTIME */
+
+#ifdef JREMOD
+struct cdevsw tw_cdevsw = 
+	{ twopen,	twclose,	twread,		twwrite,	/*19*/
+	  noioc,	nullstop,	nullreset,	nodevtotty,/* tw */
+	  twselect,	nommap,		nostrat };
+
+static tw_devsw_installed = 0;
+
+static void 	tw_devsw_install()
+{
+	dev_t descript;
+	if( ! tw_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&tw_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&tw_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		tw_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 
 #endif NTW

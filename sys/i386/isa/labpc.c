@@ -59,6 +59,12 @@
 
 #include <i386/isa/isa_device.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 66
+static void 	labpc_devsw_install();
+#endif /*JREMOD*/
+
 
 /* Miniumum timeout:
  */
@@ -495,6 +501,10 @@ int labpcattach(struct isa_device *dev)
 	ctlr->dcr_val = 0x80;
 	ctlr->dcr_is = 0x80;
 	loutb(DCR(ctlr), ctlr->dcr_val);
+#ifdef JREMOD
+        labpc_devsw_install();
+#endif /*JREMOD*/
+
 
 	return 1;
 }
@@ -1096,3 +1106,27 @@ labpcioctl(dev_t dev, int cmd, caddr_t arg, int mode, struct proc *p)
 			return ENOTTY;
 	}
 }
+
+
+#ifdef JREMOD
+struct cdevsw labpc_cdevsw = 
+	{ labpcopen,	labpcclose,	rawread,	rawwrite,	/*66*/
+	  labpcioctl,	nostop,		nullreset,	nodevtotty,/* labpc */
+	  seltrue,	nommap,		labpcstrategy };
+
+static labpc_devsw_installed = 0;
+
+static void 	labpc_devsw_install()
+{
+	dev_t descript;
+	if( ! labpc_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&labpc_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&labpc_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		labpc_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */

@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id: spkr.c,v 1.16 1995/09/08 11:07:59 bde Exp $
+ *    $Id: spkr.c,v 1.17 1995/09/09 18:09:55 davidg Exp $
  */
 
 #include "speaker.h"
@@ -23,19 +23,34 @@
 #include <machine/clock.h>
 #include <machine/speaker.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 26
+static void 	spkr_devsw_install();
+#endif /*JREMOD*/
+
+#if defined(DEVFS) || defined(JREMOD)
+#include "sys/kernel.h"
+
 #ifdef	DEVFS
 #include <sys/devfsext.h>
-#include "sys/kernel.h"
 int spkropen();
+#endif
 
 void spkrdev_init(void *data) /* data not used */
 {
   void * x;
+#ifdef JREMOD
+	spkr_devsw_install();
+#endif /*JREMOD*/
+#ifdef DEVFS
 /*            path	name		devsw   minor	type   uid gid perm*/
    x=dev_add("/misc",	"speaker",	spkropen, 0,	DV_CHR, 0,  0, 0600);
+#endif
+
 }
 SYSINIT(spkrdev,SI_SUB_DEVFS, SI_ORDER_ANY, spkrdev_init, NULL)
-#endif /*DEVFS*/
+#endif /*DEVFS*/ /* JREMOD */
 
 /**************** MACHINE DEPENDENT PART STARTS HERE *************************
  *
@@ -572,5 +587,27 @@ struct proc	*p;
     return(EINVAL);
 }
 
+#ifdef JREMOD
+struct cdevsw spkr_cdevsw = 
+	{ spkropen,     spkrclose,      noread,         spkrwrite,      /*26*/
+	  spkrioctl,    nostop,         nullreset,      nodevtotty,/* spkr */
+	  seltrue,	nommap,		NULL };
+
+static spkr_devsw_installed = 0;
+
+static void 	spkr_devsw_install()
+{
+	dev_t descript;
+	if( ! spkr_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&spkr_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&spkr_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		spkr_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif  /* NSPEAKER > 0 */
 /* spkr.c ends here */

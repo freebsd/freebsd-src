@@ -60,6 +60,12 @@
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
+#ifdef JREMOD
+#include <sys/conf.h>
+#define CDEV_MAJOR 8
+static void 	bqu_devsw_install();
+#endif /*JREMOD*/
+
 static u_char d_inb(u_int port);
 static void d_outb(u_int port, u_char data);
 
@@ -571,6 +577,10 @@ printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\n
 #ifndef DEV_LKM
     bqu_registerdev(idp);
 #endif /* not DEV_LKM */
+#ifdef JREMOD
+        bqu_devsw_install();
+#endif /*JREMOD*/
+
 
     for (test = 0; (test < B004_CHANCE); test++) {
 	if((idp->id_iobase==0)&&((!b004_base_addresses[test])||
@@ -625,4 +635,26 @@ printf("bquprobe::\nIOBASE 0x%x\nIRQ %d\nDRQ %d\nMSIZE %d\nUNIT %d\nFLAGS x0%x\n
 	return(20);
 } /* bquprobe() */
 
+#ifdef JREMOD
+struct cdevsw bqu_cdevsw = 
+	{ bquopen,      bquclose,       bquread,        bquwrite,       /*8*/
+	  bquioctl,     nostop,         nullreset,      nodevtotty,/* tputer */
+	  bquselect,    nommap,         NULL };
+
+static bqu_devsw_installed = 0;
+
+static void 	bqu_devsw_install()
+{
+	dev_t descript;
+	if( ! bqu_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&bqu_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&bqu_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		bqu_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif /* NBQU */

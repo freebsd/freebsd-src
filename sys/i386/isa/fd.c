@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.70 1995/11/18 07:48:11 bde Exp $
+ *	$Id: fd.c,v 1.71 1995/11/20 12:41:38 phk Exp $
  *
  */
 
@@ -87,6 +87,11 @@
 #include <sys/devfsext.h>
 #endif
 
+#ifdef JREMOD
+#define CDEV_MAJOR 9
+#define BDEV_MAJOR 2
+static void 	fd_devsw_install();
+#endif /*JREMOD */
 static int fd_goaway(struct kern_devconf *, int);
 static int fdc_goaway(struct kern_devconf *, int);
 static int fd_externalize(struct kern_devconf *, struct sysctl_req *);
@@ -513,6 +518,9 @@ fdprobe(struct isa_device *dev)
 #ifndef DEV_LKM
 	fdc_registerdev(dev);
 #endif
+#ifdef JREMOD
+        fd_devsw_install();
+#endif /*JREMOD*/
 
 	/* First - lets reset the floppy controller */
 	outb(dev->id_iobase+FDOUT, 0);
@@ -1884,6 +1892,33 @@ fdioctl(dev, cmd, addr, flag, p)
 	return (error);
 }
 
+
+#ifdef JREMOD
+struct bdevsw fd_bdevsw = 
+	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
+	  nxdump,	zerosize,	0 };
+
+struct cdevsw fd_cdevsw = 
+	{ Fdopen,	fdclose,	rawread,	rawwrite,	/*9*/
+	  fdioctl,	nostop,		nullreset,	nodevtotty,/* Fd (!=fd) */
+	  seltrue,	nommap,		fdstrategy };
+
+static fd_devsw_installed = 0;
+
+static void 	fd_devsw_install()
+{
+	dev_t descript;
+	if( ! fd_devsw_installed ) {
+		descript = makedev(CDEV_MAJOR,0);
+		cdevsw_add(&descript,&fd_cdevsw,NULL);
+#if defined(BDEV_MAJOR)
+		descript = makedev(BDEV_MAJOR,0);
+		bdevsw_add(&descript,&fd_bdevsw,NULL);
+#endif /*BDEV_MAJOR*/
+		fd_devsw_installed = 1;
+	}
+}
+#endif /* JREMOD */
 #endif
 /*
  * Hello emacs, these are the
