@@ -80,7 +80,7 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-int debug, docompare, docopy, dopreserve, dostrip, verbose;
+int debug, docompare, dodir, docopy, dopreserve, dostrip, verbose;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
 char pathbuf2[MAXPATHLEN];
@@ -93,6 +93,7 @@ void	copy __P((int, char *, int, char *, off_t));
 int	compare __P((int, const char *, int, const char *, 
 		     const struct stat *, const struct stat *));
 void	install __P((char *, char *, u_long, u_int));
+void	install_dir __P((char *));
 u_long	string_to_flags __P((char **, u_long *, u_long *));
 void	strip __P((char *));
 void	usage __P((void));
@@ -128,7 +129,7 @@ main(argc, argv)
 	char *flags, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "CcDf:g:m:o:psv")) != EOF)
+	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) != EOF)
 		switch((char)ch) {
 		case 'C':
 			docompare = docopy = 1;
@@ -138,6 +139,9 @@ main(argc, argv)
 			break;
 		case 'D':
 			debug++;
+			break;
+		case 'd':
+			dodir = 1;
 			break;
 		case 'f':
 			flags = optarg;
@@ -172,7 +176,13 @@ main(argc, argv)
 		}
 	argc -= optind;
 	argv += optind;
-	if (argc < 2)
+
+	/* some options make no sense when creating directories */
+	if ((docompare || dostrip) && dodir)
+		usage();
+
+	/* must have at least two arguments, except when creating directories */
+	if (argc < 2 && !dodir)
 		usage();
 
 #ifdef ALLOW_NUMERIC_IDS
@@ -191,6 +201,13 @@ main(argc, argv)
 		errx(EX_NOUSER, "unknown group %s", group);
 
 #endif /* ALLOW_NUMERIC_IDS */
+
+	if (dodir) {
+		for (; *argv != NULL; ++argv)
+			install_dir(*argv);
+		exit(EX_OK);
+		/* NOTREACHED */
+	}
 
 	no_target = stat(to_name = argv[argc - 1], &to_sb);
 	if (!no_target && (to_sb.st_mode & S_IFMT) == S_IFDIR) {
@@ -621,14 +638,48 @@ strip(to_name)
 }
 
 /*
+ * install_dir --
+ *	build directory heirarchy
+ */
+void
+install_dir(path)
+        char *path;
+{
+	register char *p;
+	struct stat sb;
+	int ch;
+
+	for (p = path;; ++p)
+		if (!*p || (p != path && *p  == '/')) {
+			ch = *p;
+			*p = '\0';
+			if (stat(path, &sb)) {
+				if (errno != ENOENT || mkdir(path, 0777) < 0) {
+					err(EX_OSERR, "%s", path);
+					/* NOTREACHED */
+				}
+			}
+			if (!(*p = ch))
+				break;
+ 		}
+
+	if (((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid)) ||
+	    chmod(path, mode)) {
+		warn("%s", path);
+	}
+}
+
+/*
  * usage --
  *	print a usage message and die
  */
 void
 usage()
 {
-	(void)fprintf(stderr,
-"usage: install [-CcDps] [-f flags] [-g group] [-m mode] [-o owner] file1 file2;\n\tor file1 ... fileN directory\n");
+	(void)fprintf(stderr,"\
+usage: install [-CcDpSs] [-f flags] [-g group] [-m mode] [-o owner] file1 file2\n\
+       install [-CcDpSs] [-f flags] [-g group] [-m mode] [-o owner] file1 ... fileN directory\n\
+       install  -d       [-g group] [-m mode] [-o owner] directory ...\n");
 	exit(EX_USAGE);
 	/* NOTREACHED */
 }
