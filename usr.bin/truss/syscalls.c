@@ -137,7 +137,7 @@ get_struct(int procfd, void *offset, void *buf, int len) {
 		err(1, "dup");
 	if ((p = fdopen(fd, "r")) == NULL)
 		err(1, "fdopen");
-	fseek(p, (long)offset, SEEK_SET);
+	fseeko(p, (uintptr_t)offset, SEEK_SET);
 	for (pos = (char *)buf; len--; pos++) {
 		if ((c = fgetc(p)) == EOF)
 			return -1;
@@ -167,7 +167,7 @@ get_string(int procfd, void *offset, int max) {
 	buf = malloc( size = (max ? max : 64 ) );
 	len = 0;
 	buf[0] = 0;
-	fseek(p, (long)offset, SEEK_SET);
+	fseeko(p, (uintptr_t)offset, SEEK_SET);
 	while ((c = fgetc(p)) != EOF) {
 		buf[len++] = c;
 		if (c == 0 || len == max) {
