@@ -38,7 +38,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)dbtest.c	8.17 (Berkeley) 9/1/94";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -154,7 +158,7 @@ main(argc, argv)
 		p = getenv("TMPDIR");
 		if (p == NULL)
 			p = "/var/tmp";
-		(void)sprintf(buf, "%s/__dbtest", p);
+		(void)snprintf(buf, sizeof(buf), "%s/__dbtest", p);
 		fname = buf;
 		(void)unlink(buf);
 	} else  if (!sflag)
