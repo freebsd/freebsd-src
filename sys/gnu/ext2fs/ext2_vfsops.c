@@ -1011,7 +1011,7 @@ printf("ext2_vget(%d) dbn= %d ", ino, fsbtodb(fs, ino_to_fsba(fs, ino)));
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	if (error = ufs_vinit(mp, ext2_specop_p, EXT2_FIFOOPS, &vp)) {
+	if (error = ufs_vinit(mp, ext2_specop_p, ext2_fifoop_p, &vp)) {
 		vput(vp);
 		*vpp = NULL;
 		return (error);
