@@ -268,8 +268,9 @@ coda_unmount(vfsp, mntflags, td)
  * find root of cfs
  */
 int
-coda_root(vfsp, vpp, td)
+coda_root(vfsp, flags, vpp, td)
 	struct mount *vfsp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {
