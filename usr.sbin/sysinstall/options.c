@@ -247,6 +247,7 @@ optionsEditor(dialogMenuItem *self)
 	    clear();
 	    break;
 
+	case '\020':	/* ^P */
 	case KEY_UP:
 	    if (currOpt)
 		--currOpt;
@@ -254,6 +255,7 @@ optionsEditor(dialogMenuItem *self)
 		for (currOpt = 0; Options[currOpt + 1].name; currOpt++);
 	    continue;
 
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	    if (Options[currOpt + 1].name)
 		++currOpt;
@@ -275,6 +277,7 @@ optionsEditor(dialogMenuItem *self)
 	    	clear();
 	    continue;
 
+	case '\033':	/* ESC */
 	case 'Q':
 	    clear();
 	    dialog_clear();
