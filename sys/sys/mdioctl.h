@@ -53,7 +53,7 @@ enum md_types {MD_MALLOC, MD_PRELOAD, MD_VNODE, MD_SWAP};
  * Ioctl definitions for memory disk pseudo-device.
  */
 
-#define MDNPAD		99
+#define MDNPAD		97
 struct md_ioctl {
 	unsigned	md_version;	/* Structure layout version */
 	unsigned	md_unit;	/* unit number */
@@ -63,6 +63,8 @@ struct md_ioctl {
 	unsigned	md_options;	/* options */
 	u_int64_t	md_base;	/* base address */
 	int		md_secsize;	/* sectorsize */
+	int		md_fwheads;	/* firmware heads */
+	int		md_fwsectors;	/* firmware sectors */
 	int		md_pad[MDNPAD];	/* padding for future ideas */
 };
 
