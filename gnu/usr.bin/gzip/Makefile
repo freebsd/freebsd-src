@@ -1,5 +1,5 @@
 #       @(#)Makefile    5.3 (Berkeley) 5/12/90
-#	$Id: Makefile,v 1.14 1997/02/22 15:45:54 peter Exp $
+#	$Id: Makefile,v 1.15 1997/06/29 06:03:28 pst Exp $
 
 PROG=	gzip
 SRCS=	gzip.c zip.c deflate.c trees.c bits.c unzip.c inflate.c util.c \
@@ -17,13 +17,20 @@ LINKS+= ${BINDIR}/zgrep ${BINDIR}/zfgrep
 LINKS+= ${BINDIR}/zdiff ${BINDIR}/zcmp
 NOSHARED?=yes
 
+GREP_LIBZ?=	YES
+.if defined(GREP_LIBZ) && !empty(GREP_LIBZ)
+ZGREP=zgrep.libz
+.else
+ZGREP=zgrep.getopt
+.endif
+
 beforeinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 	   ${.CURDIR}/zforce ${.CURDIR}/gzexe ${.CURDIR}/znew \
 	   ${.CURDIR}/zmore ${.CURDIR}/zdiff \
 	   ${DESTDIR}${BINDIR}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-	   ${.CURDIR}/zgrep.getopt ${DESTDIR}${BINDIR}/zgrep
+	   ${.CURDIR}/${ZGREP} ${DESTDIR}${BINDIR}/zgrep
 
 match.o: ${.CURDIR}/match.S
 	$(CPP) ${.CURDIR}/match.S >_match.s
