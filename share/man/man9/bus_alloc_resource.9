@@ -93,8 +93,8 @@ for end, the default values for the bus are calculated.
 .Fa count
 is the size of the resource, e.g. the size of an I/O port (often
 .Dv 1
-on PCI and device-dependent on ISA and PCCARD). If you specified the default
-values for
+on PCI and device-dependent on ISA and PCCARD).
+If you specified the default values for
 .Fa start
 and
 .Fa end ,
@@ -105,7 +105,8 @@ is smaller than the default value and
 is used, if it is bigger as the default value.
 .It
 .Fa flags
-sets the flags for the resource. You can set one or more of these flags:
+sets the flags for the resource.
+You can set one or more of these flags:
 .Bl -tag -width RF_SHAREABLE
 .It Dv RF_ALLOCATED
 resource has been reserved.
@@ -128,7 +129,8 @@ A pointer to
 .Va struct res
 is returned on success, a null pointer otherwise.
 .Sh EXAMPLES
-This is some example code. The values of
+This is some example code.
+The values of
 .Va portid
 and
 .Va irqid
