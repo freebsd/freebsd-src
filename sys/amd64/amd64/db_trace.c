@@ -206,7 +206,8 @@ db_nextframe(fp, ip, p)
 	int frame_type;
 	int eip, esp, ebp;
 	db_expr_t offset;
-	const char *sym, *name;
+	c_db_sym_t sym;
+	const char *name;
 
 	eip = db_get_value((int) &(*fp)->f_retaddr, 4, FALSE);
 	ebp = db_get_value((int) &(*fp)->f_frame, 4, FALSE);
