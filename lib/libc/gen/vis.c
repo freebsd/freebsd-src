@@ -159,7 +159,7 @@ done:
  * strvis, strvisx - visually encode characters from src into dst
  *
  *	Dst must be 4 times the size of src to account for possible
- *	expansion.  The length of dst, not including the trailing NULL,
+ *	expansion.  The length of dst, not including the trailing NUL,
  *	is returned.
  *
  *	Strvisx encodes exactly len bytes from src into dst.
