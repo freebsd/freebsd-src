@@ -334,10 +334,10 @@ __END_DECLS
  */
 __BEGIN_DECLS
 FILE	*funopen __P((const void *,
-		int (*)(void *, char *, int),
-		int (*)(void *, const char *, int),
-		fpos_t (*)(void *, fpos_t, int),
-		int (*)(void *)));
+	    int (*)(void *, char *, int),
+	    int (*)(void *, const char *, int),
+	    fpos_t (*)(void *, fpos_t, int),
+	    int (*)(void *)));
 __END_DECLS
 #define	fropen(cookie, fn) funopen(cookie, fn, 0, 0, 0)
 #define	fwopen(cookie, fn) funopen(cookie, 0, fn, 0, 0)
