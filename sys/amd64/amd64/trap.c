@@ -34,17 +34,20 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.14 1994/01/14 16:23:41 davidg Exp $
+ *	$Id: trap.c,v 1.15 1994/01/17 09:32:32 davidg Exp $
  */
 
 /*
  * 386 Trap and System call handleing
  */
 
+#include "isa.h"
 #include "npx.h"
+#include "ddb.h"
 #include "machine/cpu.h"
 #include "machine/psl.h"
 #include "machine/reg.h"
+#include "machine/eflags.h"
 
 #include "param.h"
 #include "systm.h"
@@ -84,6 +87,7 @@ void	write_gs	__P((/* promoted u_short */ int gs));
 struct	sysent sysent[];
 int	nsysent;
 extern short cpl;
+extern short netmask, ttymask, biomask;
 
 #define MAX_TRAP_MSG		27
 char *trap_msg[] = {
@@ -136,11 +140,10 @@ trap(frame)
 	register int i;
 	register struct proc *p = curproc;
 	struct timeval syst;
-	int ucode, type, code, eva;
+	int ucode, type, code, eva, fault_type;
 
 	frame.tf_eflags &= ~PSL_NT;	/* clear nested trap XXX */
 	type = frame.tf_trapno;
-#include "ddb.h"
 #if NDDB > 0
 	if (curpcb && curpcb->pcb_onfault) {
 		if (frame.tf_trapno == T_BPTFLT
@@ -150,9 +153,6 @@ trap(frame)
 	}
 #endif
 	
-/*pg("trap type %d code = %x eip = %x cs = %x eva = %x esp %x",
-			frame.tf_trapno, frame.tf_err, frame.tf_eip,
-			frame.tf_cs, rcr2(), frame.tf_esp);*/
 	if (curpcb == 0 || curproc == 0)
 		goto skiptoswitch;
 	if (curpcb->pcb_onfault && frame.tf_trapno != T_PAGEFLT) {
@@ -192,37 +192,6 @@ skiptoswitch:
 		goto pfault;
 
 	switch (type) {
-
-	default:
-	we_re_toast:
-#ifdef KDB
-		if (kdb_trap(&psl))
-			return;
-#endif
-#if NDDB > 0
-		if (kdb_trap (type, 0, &frame))
-			return;
-#endif
-
-		if ((type & ~T_USER) <= MAX_TRAP_MSG)
-			printf("\n\nFatal trap %d: %s while in %s mode\n",
-				type & ~T_USER, trap_msg[type & ~T_USER],
-				(type & T_USER) ? "user" : "kernel");
-			
-		printf("trap type = %d, code = %x\n     eip = %x, cs = %x, eflags = %x, ",
-			frame.tf_trapno, frame.tf_err, frame.tf_eip,
-			frame.tf_cs, frame.tf_eflags);
-		eva = rcr2();
-		printf("cr2 = %x, current priority = %x\n", eva, cpl);
-
-		type &= ~T_USER;
-		if (type <= MAX_TRAP_MSG)
-			panic(trap_msg[type]);
-		else
-			panic("unknown/reserved trap");
-
-		/*NOTREACHED*/
-
 	case T_SEGNPFLT|T_USER:
 	case T_STKFLT|T_USER:
 	case T_PROTFLT|T_USER:		/* protection fault */
@@ -322,13 +291,6 @@ skiptoswitch:
 			ftype = VM_PROT_READ | VM_PROT_WRITE;
 		else
 			ftype = VM_PROT_READ;
-
-#ifdef DEBUG
-		if (map == kernel_map && va == 0) {
-			printf("trap: bad kernel access at %x\n", va);
-			goto we_re_toast;
-		}
-#endif
 
 /*
  * keep swapout from messing with us during this
@@ -443,10 +405,7 @@ nogo:
 		if (type == T_PAGEFLT) {
 			if (curpcb->pcb_onfault)
 				goto copyfault;
-			printf("vm_fault(%x, %x, %x, 0) -> %x\n",
-			       map, va, ftype, rv);
-			printf("  type %x, code %x\n",
-			       type, code);
+
 			goto we_re_toast;
 		}
 		i = (rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV;
@@ -472,8 +431,7 @@ nogo:
 		i = SIGTRAP;
 		break;
 
-#include "isa.h"
-#if	NISA > 0
+#if NISA > 0
 	case T_NMI:
 	case T_NMI|T_USER:
 #if NDDB > 0
@@ -484,8 +442,69 @@ nogo:
 #endif
 		/* machine/parity/power fail/"kitchen sink" faults */
 		if (isa_nmi(code) == 0) return;
-		else goto we_re_toast;
+		/* FALL THROUGH */
 #endif
+	default:
+	we_re_toast:
+
+		fault_type = type & ~T_USER;
+		if (fault_type <= MAX_TRAP_MSG)
+			printf("\n\nFatal trap %d: %s while in %s mode\n",
+				fault_type, trap_msg[fault_type],
+				ISPL(frame.tf_cs) == SEL_UPL ? "user" : "kernel");
+		if (fault_type == T_PAGEFLT) {
+			printf("fault virtual address	= 0x%x\n", eva);
+			printf("fault code		= %s %s, %s\n",
+				code & PGEX_U ? "user" : "supervisor",
+				code & PGEX_W ? "write" : "read",
+				code & PGEX_P ? "protection violation" : "page not present");
+		}
+		printf("instruction pointer	= 0x%x\n", frame.tf_eip);
+		printf("processor eflags	= ");
+		if (frame.tf_eflags & EFL_TF)
+			printf("trace/trap, ");
+		if (frame.tf_eflags & EFL_IF)
+			printf("interrupt enabled, ");
+		if (frame.tf_eflags & EFL_NT)
+			printf("nested task, ");
+		if (frame.tf_eflags & EFL_RF)
+			printf("resume, ");
+		if (frame.tf_eflags & EFL_VM)
+			printf("vm86, ");
+		printf("IOPL = %d\n", (frame.tf_eflags & EFL_IOPL) >> 12);
+		printf("current process		= ");
+		if (curproc) {
+			printf("%d (%s)\n",
+			    curproc->p_pid, curproc->p_comm ?
+			    curproc->p_comm : "");
+		} else {
+			printf("Idle\n");
+		}
+		printf("interrupt mask		= ");
+		if ((cpl & netmask) == netmask)
+			printf("net ");
+		if ((cpl & ttymask) == ttymask)
+			printf("tty ");
+		if ((cpl & biomask) == biomask)
+			printf("bio ");
+		if (cpl == 0)
+			printf("none");
+		printf("\n");
+
+#ifdef KDB
+		if (kdb_trap(&psl))
+			return;
+#endif
+#if NDDB > 0
+		if (kdb_trap (type, 0, &frame))
+			return;
+#endif
+		if (fault_type <= MAX_TRAP_MSG)
+			panic(trap_msg[fault_type]);
+		else
+			panic("unknown/reserved trap");
+
+		/* NOT REACHED */
 	}
 
 	trapsignal(p, i, ucode);
