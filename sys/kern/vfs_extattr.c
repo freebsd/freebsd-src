@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.77 1997/10/22 07:28:51 joerg Exp $
+ * $Id: vfs_syscalls.c,v 1.78 1997/10/23 09:29:09 kato Exp $
  */
 
 /*
@@ -864,15 +864,16 @@ open(p, uap, retval)
 	register struct filedesc *fdp = p->p_fd;
 	register struct file *fp;
 	register struct vnode *vp;
-	int flags, cmode;
+	int cmode, flags, oflags;
 	struct file *nfp;
 	int type, indx, error;
 	struct flock lf;
 	struct nameidata nd;
 
-	flags = FFLAGS(SCARG(uap, flags));
-	if ((flags & FREAD + FWRITE) == 0)
+	oflags = SCARG(uap, flags);
+	if ((oflags & O_ACCMODE) == O_ACCMODE)
 		return (EINVAL);
+	flags = FFLAGS(oflags);
 	error = falloc(p, &nfp, &indx);
 	if (error)
 		return (error);
