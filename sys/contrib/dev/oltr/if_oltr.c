@@ -257,6 +257,8 @@ static driver_t oltr_driver = {
 static devclass_t oltr_devclass;
 
 DRIVER_MODULE(oltr, pci, oltr_driver, oltr_devclass, 0, 0);
+MODULE_DEPEND(oltr, pci, 1, 1, 1);
+MODULE_DEPEND(oltr, iso88025, 1, 1, 1);
 
 static int
 oltr_pci_probe(device_t dev)
