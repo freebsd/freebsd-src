@@ -147,6 +147,11 @@ serviced */\n");
 	f_print(fout, "\nint\n");
 	f_print(fout, "main()\n");
 	f_print(fout, "{\n");
+		if (tirpcflag) {
+			if (!inetdflag)
+				f_print(fout, "\t");
+			f_print(fout, "\tint maxrec = RPC_MAXDATASIZE;\n");
+		}
 	if (inetdflag) {
 		write_inetmost(infile);
 		/* Includes call to write_rpc_svc_fg() */
@@ -212,8 +217,15 @@ write_netid_register(transp)
 	print_err_message(tmpbuf);
 	f_print(fout, "%s\t\texit(1);\n", sp);
 	f_print(fout, "%s\t}\n", sp);
-	f_print(fout, "%s\t%s = svc_tli_create(RPC_ANYFD, nconf, 0, 0, 0);\n",
-		sp, TRANSP);
+	if (tirpcflag) {
+		f_print(fout, "%s\t%s = svc_tli_create(RPC_ANYFD, ",
+		    sp, TRANSP);
+		f_print(fout,"nconf, 0, RPC_MAXDATASIZE, RPC_MAXDATASIZE);\n");
+	} else {
+		f_print(fout,
+		    "%s\t%s = svc_tli_create(RPC_ANYFD, nconf, 0, 0, 0);\n",
+		    sp, TRANSP);
+	}
 	f_print(fout, "%s\tif (%s == NULL) {\n", sp, TRANSP);
 	(void) sprintf(_errbuf, "cannot create %s service.", transp);
 	print_err_message(tmpbuf);
@@ -260,6 +272,10 @@ write_nettype_register(transp)
 		def = (definition *) l->val;
 		if (def->def_kind != DEF_PROGRAM) {
 			continue;
+		}
+		if (tirpcflag) {
+			f_print(fout,
+			"\trpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);\n");
 		}
 		for (vp = def->def.pr.versions; vp != NULL; vp = vp->next) {
 			f_print(fout, "\tif (!svc_create(");
@@ -937,10 +953,18 @@ getenv(\"NLSPROVIDER\")) == NULL) {\n");
 		f_print(fout, "\t\t\t}\n");
 		f_print(fout, "\t\t}\n");
 	}
-	f_print(fout,
-		"\t\tif ((%s = svc_tli_create(0, nconf, NULL, 0, 0)) \
-== NULL) {\n",
+	if (tirpcflag) {
+		f_print(fout,
+		"\t\tif ((%s = svc_tli_create(0, nconf, NULL, \
+		RPC_MAXDATASIZE, RPC_MAXDATASIZE)) \
+		== NULL) {\n",
 		TRANSP);
+	} else {
+		f_print(fout,
+		    "\t\tif ((%s = svc_tli_create(0, nconf, NULL, 0, 0)) \
+		    == NULL) {\n",
+                    TRANSP);
+	}
 	sprintf(_errbuf, "cannot create server handle");
 	print_err_message("\t\t\t");
 	f_print(fout, "\t\t\texit(1);\n");
@@ -1079,6 +1103,8 @@ write_inetd_register(transp)
 			"\tif ((_rpcfdtype == 0) || (_rpcfdtype == %s)) {\n",
 			isudp ? "SOCK_DGRAM" : "SOCK_STREAM");
 	}
+	if (tirpcflag)
+		f_print(fout, "\t\trpc_control(RPC_SVC_CONNMAXREC_SET, &maxrec);\n");
 	f_print(fout, "%s\t%s = svc%s_create(%s",
 		sp, TRANSP, transp, inetdflag? "sock": "RPC_ANYSOCK");
 	if (!isudp)
