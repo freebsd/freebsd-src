@@ -123,6 +123,7 @@
 #define	VAR_PARITY	31
 #define VAR_CRTSCTS	32
 #define VAR_URGENTPORTS	33
+#define	VAR_LOGOUT	34
 
 /* ``accept|deny|disable|enable'' masks */
 #define NEG_HISMASK (1)
@@ -1595,6 +1596,11 @@ SetVariable(struct cmdargs const *arg)
     cx->cfg.script.hangup[sizeof cx->cfg.script.hangup - 1] = '\0';
     break;
 
+  case VAR_LOGOUT:
+    strncpy(cx->cfg.script.logout, argp, sizeof cx->cfg.script.logout - 1);
+    cx->cfg.script.logout[sizeof cx->cfg.script.logout - 1] = '\0';
+    break;
+
   case VAR_IDLETIMEOUT:
     if (arg->argc > arg->argn+2)
       err = "Too many idle timeout values\n";
@@ -1894,6 +1900,8 @@ static struct cmdtab const SetCommands[] = {
   "ipcp|lcp|lqm|phase|physical|sync|tcp/ip|timer|tun..."},
   {"login", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
   "login script", "set login chat-script", (const void *) VAR_LOGIN},
+  {"logout", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX,
+  "logout script", "set logout chat-script", (const void *) VAR_LOGOUT},
   {"lqrperiod", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX_OPT,
   "LQR period", "set lqrperiod value", (const void *)VAR_LQRPERIOD},
   {"mode", NULL, SetVariable, LOCAL_AUTH | LOCAL_CX, "mode value",

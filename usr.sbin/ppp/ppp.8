@@ -1982,7 +1982,8 @@ Generate a CCP packet trace.
 .It Li Chat
 Generate
 .Sq dial ,
-.Sq login
+.Sq login ,
+.Sq logout
 and
 .Sq hangup
 chat script trace logs.
@@ -4135,6 +4136,9 @@ This
 compliments the dial-script.  If both are specified, the login
 script will be executed after the dial script.  Escape sequences
 available in the dial script are also available here.
+.It set logout Ar chat-script
+This specifies the chat script that will be used to logout
+before the hangup script is called.  It should not normally be necessary.
 .It set lqrperiod Ar frequency
 This command sets the
 .Ar frequency
