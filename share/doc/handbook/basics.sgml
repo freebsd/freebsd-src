@@ -1,4 +1,4 @@
-<!-- $Id:$ -->
+<!-- $Id: basics.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Unix Basics</heading>
@@ -14,13 +14,13 @@
 	  <tt><bf>man</bf></tt> command.  Use of the
 	  <tt><bf>man</bf></tt> command is simple:
 	  <tscreen>
-	    <tt><bf>man</bf> <it>command</it></tt>
+	    <bf>man</bf> <it>command</it>
 	  </tscreen>
 	  where <it>command</it> is the name of the command
-	  you wish to find.  For example, to learn more about
+	  you wish to learn about.  For example, to learn more about
 	  <tt><bf>ls</bf></tt> command type:
 	  <tscreen>
-	    <tt><bf>man</bf> ls</tt>
+	    % <bf>man ls</bf>
 	  </tscreen>
 
 	<p>The online manual is divided up into numbered
@@ -42,7 +42,7 @@
 	  you can tell the <tt><bf>man</bf></tt> command which
 	  you want by specifying the section:
 	  <tscreen>
-	    <tt><bf>man</bf> 1 chmod</tt>
+	    % <bf>man 1 chmod</bf>
 	  </tscreen>
 	  which will display the manual page for the user command
 	  <tt><bf>chmod</bf></tt>.
@@ -50,10 +50,10 @@
 	<p>This is fine if you know the name of the command and
 	  forgot how to use it, but what if you cannot recall the
 	  command name?  You can use <tt><bf>man</bf></tt> to
-	  search through the command <em>descriptions</em> by
+	  search for keywords in the command <em>descriptions</em> by
 	  using the <tt><bf>-k</bf></tt> switch:
 	  <tscreen>
-	    <tt><bf>man</bf> -k mail</tt>
+	    % <bf>man -k mail</bf>
 	  </tscreen>
 	  With this command you will be presented with a list of
 	  commands that have the keyword `mail' in their
@@ -65,9 +65,14 @@
 	<p>FreeBSD includes many applications and utilities
 	  produced by the Free Software Foundation (FSF).  In
 	  addition to man pages, these programs come with more
-	  extensive <em>info</em> files which can be viewed with
-	  the <tt>info</tt> command or, if you installed
-	  <tt>emacs</tt>, the info mode of <tt>emacs</tt>.
+	  extensive hypertext documents called <em>info</em>
+	  files which can be viewed with the <tt>info</tt>
+	  command or, if you installed <tt>emacs</tt>, the info
+	  mode of <tt>emacs</tt>.
+	      
+          To use the <tt>info(1)</tt> command, simply type:
+          <tscreen>% <bf>info</bf></tscreen> For a brief
+          introduction, type <tt><bf>h</bf></tt>, and for a quick
+          command reference, type <tt><bf>?</bf></tt>.
 
-    </sect>
 
