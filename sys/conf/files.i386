@@ -92,6 +92,8 @@ contrib/dev/oltr/if_oltr.c	optional	oltr
 contrib/dev/oltr/trlldbm.c	optional	oltr
 contrib/dev/oltr/trlldhm.c	optional	oltr
 contrib/dev/oltr/trlldmac.c	optional	oltr
+crypto/des/des_ecb.c		optional	netsmbcrypto
+crypto/des/des_setkey.c		optional	netsmbcrypto
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 #dev/ar/if_ar_isa.c		optional	ar isa
