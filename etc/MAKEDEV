@@ -36,9 +36,9 @@
 #
 # Disks:
 #	aac*	Adaptec FSA RAID controllers
-#	aacd*	Adaptec FSA RAID disks
+#	aacd*	Adaptec FSA RAID
 #	acd*	ATAPI CD-ROM disks
-#	amrd*   AMI MegaRAID
+#	amrd*	AMI MegaRAID
 #	cd*	SCSI CD-ROM disks
 #	da*	SCSI Direct Access Devices
 #	fd*	floppy disk drives (3 1/2", 5 1/4")
@@ -48,7 +48,7 @@
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
 #	mlx*	Mylex DAC960 RAID controllers
-#	mlxd*   Mylex DAC960 RAID disk volumes
+#	mlxd*	Mylex DAC960 RAID disk volumes
 #	scd*	Sony CD-ROM disks
 #	vn*	vnode disks
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
@@ -63,7 +63,7 @@
 #	sysmouse Mousesystems mouse emulator for syscons
 #
 # Time devices:
-#	refclock-*  serial ports used by xntpd parse refclocks
+#	refclock-* serial ports used by xntpd parse refclocks
 #
 # Terminal ports:
 #	tty*	general purpose serial ports
@@ -83,7 +83,7 @@
 #	lpt*	Printer
 #	ppi*	Parallel port i/o
 #	pps*	Pulse per second timing interface
-#	pcfclock*  Parallel time sync interface
+#	pcfclock* Parallel time sync interface
 #
 # I2C and SMBus:
 #	iic*	I2C devices
@@ -94,10 +94,10 @@
 #	ugen*	generic USB device
 #	uhid*	Human Interface Device (HID)
 #	ulpt*	printer
-#	umodem* modems
+#	umodem*	modems
 #	ums*	mouse
 #	urio*	Diamond Rio 500
-#	uscanner*	USB scanners
+#	uscanner* USB scanners
 #	usio*	USB serial devices
 #
 # SCSI devices (other than CD-ROM, tape and disk):
@@ -114,8 +114,8 @@
 # ISDN devices:
 #	i4b	isdnd call control device
 #	i4bctl	debugging control device
-#	i4btrc* trace data interface(s), one per passive card
-#	i4btel* telephony interface(s)
+#	i4btrc*	trace data interface(s), one per passive card
+#	i4btel*	telephony interface(s)
 #	i4bteld* telephony dialout interface(s)
 #	i4brbch* raw b channel access device(s)
 #
@@ -126,8 +126,8 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
-#	pcaudio PCM audio driver
-#	socksys iBCS2 socket system driver
+#	pcaudio	PCM audio driver
+#	socksys	iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #	gsc	Genius GS-4500 hand scanner
 #	joy	pc joystick
