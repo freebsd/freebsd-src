@@ -56,6 +56,8 @@
 #define FSM_REQ_TIMER	1
 #define FSM_TRM_TIMER	2
 
+#define FSM_OPTLEN	100
+
 struct fsm;
 
 struct fsm_retry {
@@ -65,24 +67,24 @@ struct fsm_retry {
 };
 
 struct fsm_decode {
-  u_char ack[100], *ackend;
-  u_char nak[100], *nakend;
-  u_char rej[100], *rejend;
+  u_char ack[FSM_OPTLEN], *ackend;
+  u_char nak[FSM_OPTLEN], *nakend;
+  u_char rej[FSM_OPTLEN], *rejend;
 };
 
 struct fsm_callbacks {
-  int (*LayerUp) (struct fsm *);             /* Layer is now up (tlu) */
-  void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
-  void (*LayerStart) (struct fsm *);         /* Layer about to start up (tls) */
-  void (*LayerFinish) (struct fsm *);        /* Layer now down (tlf) */
-  void (*InitRestartCounter) (struct fsm *, int); /* Set fsm timer load */
-  void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
-  void (*SentTerminateReq) (struct fsm *);   /* Term REQ just sent */
-  void (*SendTerminateAck) (struct fsm *, u_char); /* Send Term ACK please */
-  void (*DecodeConfig) (struct fsm *, u_char *, int, int, struct fsm_decode *);
-                                             /* Deal with incoming data */
-  int (*RecvResetReq) (struct fsm *fp);         /* Reset output */
-  void (*RecvResetAck) (struct fsm *fp, u_char); /* Reset input */
+  int (*LayerUp)(struct fsm *);                 /* Layer is now up (tlu) */
+  void (*LayerDown)(struct fsm *);              /* About to come down (tld) */
+  void (*LayerStart)(struct fsm *);             /* Layer about to start (tls) */
+  void (*LayerFinish)(struct fsm *);            /* Layer now down (tlf) */
+  void (*InitRestartCounter)(struct fsm *, int);/* Set fsm timer load */
+  void (*SendConfigReq)(struct fsm *);          /* Send REQ please */
+  void (*SentTerminateReq)(struct fsm *);       /* Term REQ just sent */
+  void (*SendTerminateAck)(struct fsm *, u_char); /* Send Term ACK please */
+  void (*DecodeConfig)(struct fsm *, u_char *, u_char *, int,
+                       struct fsm_decode *);    /* Deal with incoming data */
+  int (*RecvResetReq)(struct fsm *fp);          /* Reset output */
+  void (*RecvResetAck)(struct fsm *fp, u_char); /* Reset input */
 };
 
 struct fsm_parent {
@@ -159,11 +161,24 @@ struct fsmheader {
 #define	CODE_RESETREQ	14	/* Used in CCP */
 #define	CODE_RESETACK	15	/* Used in CCP */
 
-/* Minimum config req size.  This struct is *only* used for it's size */
-struct fsmconfig {
-  u_char type;
-  u_char length;
+struct fsm_opt_hdr {
+  u_char id;
+  u_char len;
 };
+
+#define MAX_FSM_OPT_LEN 20
+struct fsm_opt {
+  struct fsm_opt_hdr hdr;
+  u_char data[MAX_FSM_OPT_LEN-2];
+};
+
+#define INC_FSM_OPT(ty, length, o)                      \
+  do {                                                  \
+    (o)->hdr.id = (ty);                                 \
+    (o)->hdr.len = (length);                            \
+    (o) = (struct fsm_opt *)((u_char *)(o) + (length)); \
+  } while (0)
+
 
 extern void fsm_Init(struct fsm *, const char *, u_short, int, int, int,
                      struct bundle *, struct link *, const  struct fsm_parent *,
@@ -179,3 +194,8 @@ extern void fsm_NullRecvResetAck(struct fsm *, u_char);
 extern void fsm_Reopen(struct fsm *);
 extern void fsm2initial(struct fsm *);
 extern const char *State2Nam(u_int);
+extern struct fsm_opt *fsm_readopt(u_char **);
+extern void fsm_rej(struct fsm_decode *, const struct fsm_opt *);
+extern void fsm_ack(struct fsm_decode *, const struct fsm_opt *);
+extern void fsm_nak(struct fsm_decode *, const struct fsm_opt *);
+extern void fsm_opt_normalise(struct fsm_decode *);

@@ -364,7 +364,7 @@ MPPEDictSetup(void *v, struct ccp *ccp, u_short proto, struct mbuf *mi)
 }
 
 static const char *
-MPPEDispOpts(struct lcp_opt *o)
+MPPEDispOpts(struct fsm_opt *o)
 {
   static char buf[70];
   u_int32_t val;
@@ -460,11 +460,11 @@ MPPE_ConfigVal(const struct ccp_config *cfg)
  * What options should we use for our first configure request
  */
 static void
-MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+MPPEInitOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
 {
   u_int32_t mval;
 
-  o->len = 6;
+  o->hdr.len = 6;
 
   if (!MPPE_MasterKeyValid) {
     log_Printf(LogCCP, "MPPE: MasterKey is invalid,"
@@ -481,7 +481,7 @@ MPPEInitOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
  * Our CCP request was NAK'd with the given options
  */
 static int
-MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
+MPPESetOptsOutput(struct fsm_opt *o, const struct ccp_config *cfg)
 {
   u_int32_t mval, peer;
 
@@ -519,7 +519,7 @@ MPPESetOptsOutput(struct lcp_opt *o, const struct ccp_config *cfg)
  * The peer has requested the given options
  */
 static int
-MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
+MPPESetOptsInput(struct fsm_opt *o, const struct ccp_config *cfg)
 {
   u_int32_t mval, peer;
   int res = MODE_ACK;
@@ -588,7 +588,7 @@ MPPESetOptsInput(struct lcp_opt *o, const struct ccp_config *cfg)
 }
 
 static struct mppe_state *
-MPPE_InitState(struct lcp_opt *o)
+MPPE_InitState(struct fsm_opt *o)
 {
   struct mppe_state *mp;
   u_int32_t val;
@@ -622,7 +622,7 @@ MPPE_InitState(struct lcp_opt *o)
 }
 
 static void *
-MPPEInitInput(struct lcp_opt *o)
+MPPEInitInput(struct fsm_opt *o)
 {
   struct mppe_state *mip;
 
@@ -668,7 +668,7 @@ MPPEInitInput(struct lcp_opt *o)
 }
 
 static void *
-MPPEInitOutput(struct lcp_opt *o)
+MPPEInitOutput(struct fsm_opt *o)
 {
   struct mppe_state *mop;
 

@@ -114,7 +114,7 @@ static void IpcpInitRestartCounter(struct fsm *, int);
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSentTerminateReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *, u_char);
-static void IpcpDecodeConfig(struct fsm *, u_char *, int, int,
+static void IpcpDecodeConfig(struct fsm *, u_char *, u_char *, int,
                              struct fsm_decode *);
 
 static struct fsm_callbacks ipcp_Callbacks = {
@@ -351,9 +351,9 @@ ipcp_Show(struct cmdargs const *arg)
                 State2Nam(ipcp->fsm.state));
   if (ipcp->fsm.state == ST_OPENED) {
     prompt_Printf(arg->prompt, " His side:        %s, %s\n",
-	          inet_ntoa(ipcp->peer_ip), vj2asc(ipcp->peer_compproto));
+                  inet_ntoa(ipcp->peer_ip), vj2asc(ipcp->peer_compproto));
     prompt_Printf(arg->prompt, " My side:         %s, %s\n",
-	          inet_ntoa(ipcp->my_ip), vj2asc(ipcp->my_compproto));
+                  inet_ntoa(ipcp->my_ip), vj2asc(ipcp->my_compproto));
     prompt_Printf(arg->prompt, " Queued packets:  %lu\n",
                   (unsigned long)ipcp_QueueLen(ipcp));
   }
@@ -364,7 +364,7 @@ ipcp_Show(struct cmdargs const *arg)
                 ipcp->cfg.fsm.maxreq, ipcp->cfg.fsm.maxreq == 1 ? "" : "s",
                 ipcp->cfg.fsm.maxtrm, ipcp->cfg.fsm.maxtrm == 1 ? "" : "s");
   prompt_Printf(arg->prompt, " My Address:      %s\n",
-	        ncprange_ntoa(&ipcp->cfg.my_range));
+                ncprange_ntoa(&ipcp->cfg.my_range));
   if (ipcp->cfg.HaveTriggerAddress)
     prompt_Printf(arg->prompt, " Trigger address: %s\n",
                   inet_ntoa(ipcp->cfg.TriggerAddress));
@@ -378,7 +378,7 @@ ipcp_Show(struct cmdargs const *arg)
                   ipcp->cfg.peer_list.src);
   else
     prompt_Printf(arg->prompt, " His Address:     %s\n",
-	          ncprange_ntoa(&ipcp->cfg.peer_range));
+                  ncprange_ntoa(&ipcp->cfg.peer_range));
 
   prompt_Printf(arg->prompt, " DNS:             %s",
                 ipcp->cfg.ns.dns[0].s_addr == INADDR_NONE ?
@@ -396,7 +396,7 @@ ipcp_Show(struct cmdargs const *arg)
     prompt_Printf(arg->prompt, ", %s",
                   inet_ntoa(ipcp->ns.dns[1]));
   prompt_Printf(arg->prompt, "\n NetBIOS NS:      %s, ",
-	        inet_ntoa(ipcp->cfg.ns.nbns[0]));
+                inet_ntoa(ipcp->cfg.ns.nbns[0]));
   prompt_Printf(arg->prompt, "%s\n\n",
                 inet_ntoa(ipcp->cfg.ns.nbns[1]));
 
@@ -754,13 +754,13 @@ IpcpSendConfigReq(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct ipcp *ipcp = fsm2ipcp(fp);
   u_char buff[24];
-  struct lcp_opt *o;
+  struct fsm_opt *o;
 
-  o = (struct lcp_opt *)buff;
+  o = (struct fsm_opt *)buff;
 
   if ((p && !physical_IsSync(p)) || !REJECTED(ipcp, TY_IPADDR)) {
     memcpy(o->data, &ipcp->my_ip.s_addr, 4);
-    INC_LCP_OPT(TY_IPADDR, 6, o);
+    INC_FSM_OPT(TY_IPADDR, 6, o);
   }
 
   if (ipcp->my_compproto && !REJECTED(ipcp, TY_COMPPROTO)) {
@@ -768,7 +768,7 @@ IpcpSendConfigReq(struct fsm *fp)
       u_int16_t proto = PROTO_VJCOMP;
 
       ua_htons(&proto, o->data);
-      INC_LCP_OPT(TY_COMPPROTO, 4, o);
+      INC_FSM_OPT(TY_COMPPROTO, 4, o);
     } else {
       struct compreq req;
 
@@ -776,19 +776,19 @@ IpcpSendConfigReq(struct fsm *fp)
       req.slots = (ipcp->my_compproto >> 8) & 255;
       req.compcid = ipcp->my_compproto & 1;
       memcpy(o->data, &req, 4);
-      INC_LCP_OPT(TY_COMPPROTO, 6, o);
+      INC_FSM_OPT(TY_COMPPROTO, 6, o);
     }
   }
 
   if (IsEnabled(ipcp->cfg.ns.dns_neg)) {
     if (!REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS)) {
       memcpy(o->data, &ipcp->ns.dns[0].s_addr, 4);
-      INC_LCP_OPT(TY_PRIMARY_DNS, 6, o);
+      INC_FSM_OPT(TY_PRIMARY_DNS, 6, o);
     }
 
     if (!REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
       memcpy(o->data, &ipcp->ns.dns[1].s_addr, 4);
-      INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
+      INC_FSM_OPT(TY_SECONDARY_DNS, 6, o);
     }
   }
 
@@ -1033,130 +1033,126 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
 }
 
 static void
-IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+IpcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                  struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_IPCP */
   struct ncpaddr ncpaddr;
   struct ipcp *ipcp = fsm2ipcp(fp);
-  int type, length, gotdnsnak;
+  int gotdnsnak;
   u_int32_t compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, have_ip;
   char tbuff[100], tbuff2[100];
+  struct fsm_opt *opt, nak;
 
   gotdnsnak = 0;
 
-  while (plen >= sizeof(struct fsmconfig)) {
-    type = *cp;
-    length = cp[1];
-
-    if (length == 0) {
-      log_Printf(LogIPCP, "%s: IPCP size zero\n", fp->link->name);
+  while (end - cp >= sizeof(opt->hdr)) {
+    if ((opt = fsm_readopt(&cp)) == NULL)
       break;
-    }
 
-    snprintf(tbuff, sizeof tbuff, " %s[%d] ", protoname(type), length);
+    snprintf(tbuff, sizeof tbuff, " %s[%d]", protoname(opt->hdr.id),
+             opt->hdr.len);
 
-    switch (type) {
+    switch (opt->hdr.id) {
     case TY_IPADDR:		/* RFC1332 */
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
       log_Printf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
         ipcp->peer_req = 1;
         ipcp_ValidateReq(ipcp, ipaddr, dec);
-	break;
+        break;
 
       case MODE_NAK:
         if (ncprange_containsip4(&ipcp->cfg.my_range, ipaddr)) {
-	  /* Use address suggested by peer */
-	  snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
-		   inet_ntoa(ipcp->my_ip));
-	  log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
-	  ipcp->my_ip = ipaddr;
+          /* Use address suggested by peer */
+          snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
+                   inet_ntoa(ipcp->my_ip));
+          log_Printf(LogIPCP, "%s --> %s\n", tbuff2, inet_ntoa(ipaddr));
+          ipcp->my_ip = ipaddr;
           ncpaddr_setip4(&ncpaddr, ipcp->my_ip);
           bundle_AdjustFilters(fp->bundle, &ncpaddr, NULL);
-	} else {
-	  log_Printf(log_IsKept(LogIPCP) ? LogIPCP : LogPHASE,
+        } else {
+          log_Printf(log_IsKept(LogIPCP) ? LogIPCP : LogPHASE,
                     "%s: Unacceptable address!\n", inet_ntoa(ipaddr));
           fsm_Close(&ipcp->fsm);
-	}
-	break;
+        }
+        break;
 
       case MODE_REJ:
-	ipcp->peer_reject |= (1 << type);
-	break;
+        ipcp->peer_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_COMPPROTO:
-      pcomp = (struct compreq *)(cp + 2);
+      pcomp = (struct compreq *)opt->data;
       compproto = (ntohs(pcomp->proto) << 16) + (pcomp->slots << 8) +
                   pcomp->compcid;
       log_Printf(LogIPCP, "%s %s\n", tbuff, vj2asc(compproto));
 
       switch (mode_type) {
       case MODE_REQ:
-	if (!IsAccepted(ipcp->cfg.vj.neg)) {
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	} else {
-	  switch (length) {
-	  case 4:		/* RFC1172 */
-	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
-	      log_Printf(LogWARN, "Peer is speaking RFC1172 compression "
+        if (!IsAccepted(ipcp->cfg.vj.neg))
+          fsm_rej(dec, opt);
+        else {
+          switch (opt->hdr.len) {
+          case 4:		/* RFC1172 */
+            if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+              log_Printf(LogWARN, "Peer is speaking RFC1172 compression "
                          "protocol !\n");
-	      ipcp->heis1172 = 1;
-	      ipcp->peer_compproto = compproto;
-	      memcpy(dec->ackend, cp, length);
-	      dec->ackend += length;
-	    } else {
-	      memcpy(dec->nakend, cp, 2);
-	      pcomp->proto = htons(PROTO_VJCOMP);
-	      memcpy(dec->nakend+2, &pcomp, 2);
-	      dec->nakend += length;
-	    }
-	    break;
-	  case 6:		/* RFC1332 */
-	    if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+              ipcp->heis1172 = 1;
+              ipcp->peer_compproto = compproto;
+              fsm_ack(dec, opt);
+            } else {
+              pcomp->proto = htons(PROTO_VJCOMP);
+              nak.hdr.id = TY_COMPPROTO;
+              nak.hdr.len = 4;
+              memcpy(nak.data, &pcomp, 2);
+              fsm_nak(dec, &nak);
+            }
+            break;
+          case 6:		/* RFC1332 */
+            if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
               if (pcomp->slots <= MAX_VJ_STATES
                   && pcomp->slots >= MIN_VJ_STATES) {
                 /* Ok, we can do that */
-	        ipcp->peer_compproto = compproto;
-	        ipcp->heis1172 = 0;
-	        memcpy(dec->ackend, cp, length);
-	        dec->ackend += length;
-	      } else {
+                ipcp->peer_compproto = compproto;
+                ipcp->heis1172 = 0;
+                fsm_ack(dec, opt);
+              } else {
                 /* Get as close as we can to what he wants */
-	        ipcp->heis1172 = 0;
-	        memcpy(dec->nakend, cp, 2);
-	        pcomp->slots = pcomp->slots < MIN_VJ_STATES ?
+                ipcp->heis1172 = 0;
+                pcomp->slots = pcomp->slots < MIN_VJ_STATES ?
                                MIN_VJ_STATES : MAX_VJ_STATES;
-	        memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
-	        dec->nakend += length;
+                nak.hdr.id = TY_COMPPROTO;
+                nak.hdr.len = 4;
+                memcpy(nak.data, &pcomp, 2);
+                fsm_nak(dec, &nak);
               }
-	    } else {
+            } else {
               /* What we really want */
-	      memcpy(dec->nakend, cp, 2);
-	      pcomp->proto = htons(PROTO_VJCOMP);
-	      pcomp->slots = DEF_VJ_STATES;
-	      pcomp->compcid = 1;
-	      memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
-	      dec->nakend += length;
-	    }
-	    break;
-	  default:
-	    memcpy(dec->rejend, cp, length);
-	    dec->rejend += length;
-	    break;
-	  }
-	}
-	break;
+              pcomp->proto = htons(PROTO_VJCOMP);
+              pcomp->slots = DEF_VJ_STATES;
+              pcomp->compcid = 1;
+              nak.hdr.id = TY_COMPPROTO;
+              nak.hdr.len = 6;
+              memcpy(nak.data, &pcomp, sizeof pcomp);
+              fsm_nak(dec, &nak);
+            }
+            break;
+          default:
+            fsm_rej(dec, opt);
+            break;
+          }
+        }
+        break;
 
       case MODE_NAK:
-	if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
+        if (ntohs(pcomp->proto) == PROTO_VJCOMP) {
           if (pcomp->slots > MAX_VJ_STATES)
             pcomp->slots = MAX_VJ_STATES;
           else if (pcomp->slots < MIN_VJ_STATES)
@@ -1165,51 +1161,49 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
                       pcomp->compcid;
         } else
           compproto = 0;
-	log_Printf(LogIPCP, "%s changing compproto: %08x --> %08x\n",
-		  tbuff, ipcp->my_compproto, compproto);
+        log_Printf(LogIPCP, "%s changing compproto: %08x --> %08x\n",
+                   tbuff, ipcp->my_compproto, compproto);
         ipcp->my_compproto = compproto;
-	break;
+        break;
 
       case MODE_REJ:
-	ipcp->peer_reject |= (1 << type);
-	break;
+        ipcp->peer_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     case TY_IPADDRS:		/* RFC1172 */
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
-      memcpy(&dstipaddr.s_addr, cp + 6, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
+      memcpy(&dstipaddr.s_addr, opt->data + 4, 4);
       snprintf(tbuff2, sizeof tbuff2, "%s %s,", tbuff, inet_ntoa(ipaddr));
       log_Printf(LogIPCP, "%s %s\n", tbuff2, inet_ntoa(dstipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
-	memcpy(dec->rejend, cp, length);
-	dec->rejend += length;
-	break;
+        fsm_rej(dec, opt);
+        break;
 
       case MODE_NAK:
       case MODE_REJ:
-	break;
+        break;
       }
       break;
 
     case TY_PRIMARY_DNS:	/* DNS negotiation (rfc1877) */
     case TY_SECONDARY_DNS:
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
       log_Printf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
         if (!IsAccepted(ipcp->cfg.ns.dns_neg)) {
-          ipcp->my_reject |= (1 << (type - TY_ADJUST_NS));
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	  break;
+          ipcp->my_reject |= (1 << (opt->hdr.id - TY_ADJUST_NS));
+          fsm_rej(dec, opt);
+          break;
         }
-        have_ip = ipcp->ns.dns[type == TY_PRIMARY_DNS ? 0 : 1];
+        have_ip = ipcp->ns.dns[opt->hdr.id == TY_PRIMARY_DNS ? 0 : 1];
 
-        if (type == TY_PRIMARY_DNS && ipaddr.s_addr != have_ip.s_addr &&
+        if (opt->hdr.id == TY_PRIMARY_DNS && ipaddr.s_addr != have_ip.s_addr &&
             ipaddr.s_addr == ipcp->ns.dns[1].s_addr) {
           /* Swap 'em 'round */
           ipcp->ns.dns[0] = ipcp->ns.dns[1];
@@ -1217,86 +1211,81 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           have_ip = ipcp->ns.dns[0];
         }
 
-	if (ipaddr.s_addr != have_ip.s_addr) {
-	  /*
-	   * The client has got the DNS stuff wrong (first request) so
-	   * we'll tell 'em how it is
-	   */
-	  memcpy(dec->nakend, cp, 2);	/* copy first two (type/length) */
-	  memcpy(dec->nakend + 2, &have_ip.s_addr, length - 2);
-	  dec->nakend += length;
-	} else {
-	  /*
-	   * Otherwise they have it right (this time) so we send a ack packet
-	   * back confirming it... end of story
-	   */
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
+        if (ipaddr.s_addr != have_ip.s_addr) {
+          /*
+           * The client has got the DNS stuff wrong (first request) so
+           * we'll tell 'em how it is
+           */
+          nak.hdr.id = opt->hdr.id;
+          nak.hdr.len = 6;
+          memcpy(nak.data, &have_ip.s_addr, 4);
+          fsm_nak(dec, &nak);
+        } else {
+          /*
+           * Otherwise they have it right (this time) so we send a ack packet
+           * back confirming it... end of story
+           */
+          fsm_ack(dec, opt);
         }
-	break;
+        break;
 
       case MODE_NAK:
         if (IsEnabled(ipcp->cfg.ns.dns_neg)) {
           gotdnsnak = 1;
-          memcpy(&ipcp->ns.dns[type == TY_PRIMARY_DNS ? 0 : 1].s_addr,
-                 cp + 2, 4);
-	}
-	break;
+          memcpy(&ipcp->ns.dns[opt->hdr.id == TY_PRIMARY_DNS ? 0 : 1].s_addr,
+                 opt->data, 4);
+        }
+        break;
 
       case MODE_REJ:		/* Can't do much, stop asking */
-        ipcp->peer_reject |= (1 << (type - TY_ADJUST_NS));
-	break;
+        ipcp->peer_reject |= (1 << (opt->hdr.id - TY_ADJUST_NS));
+        break;
       }
       break;
 
     case TY_PRIMARY_NBNS:	/* M$ NetBIOS nameserver hack (rfc1877) */
     case TY_SECONDARY_NBNS:
-      memcpy(&ipaddr.s_addr, cp + 2, 4);
+      memcpy(&ipaddr.s_addr, opt->data, 4);
       log_Printf(LogIPCP, "%s %s\n", tbuff, inet_ntoa(ipaddr));
 
       switch (mode_type) {
       case MODE_REQ:
-	have_ip.s_addr =
-          ipcp->cfg.ns.nbns[type == TY_PRIMARY_NBNS ? 0 : 1].s_addr;
+        have_ip.s_addr =
+          ipcp->cfg.ns.nbns[opt->hdr.id == TY_PRIMARY_NBNS ? 0 : 1].s_addr;
 
         if (have_ip.s_addr == INADDR_ANY) {
-	  log_Printf(LogIPCP, "NBNS REQ - rejected - nbns not set\n");
-          ipcp->my_reject |= (1 << (type - TY_ADJUST_NS));
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	  break;
+          log_Printf(LogIPCP, "NBNS REQ - rejected - nbns not set\n");
+          ipcp->my_reject |= (1 << (opt->hdr.id - TY_ADJUST_NS));
+          fsm_rej(dec, opt);
+          break;
         }
 
-	if (ipaddr.s_addr != have_ip.s_addr) {
-	  memcpy(dec->nakend, cp, 2);
-	  memcpy(dec->nakend+2, &have_ip.s_addr, length);
-	  dec->nakend += length;
-	} else {
-	  memcpy(dec->ackend, cp, length);
-	  dec->ackend += length;
-        }
-	break;
+        if (ipaddr.s_addr != have_ip.s_addr) {
+          nak.hdr.id = opt->hdr.id;
+          nak.hdr.len = 6;
+          memcpy(nak.data, &have_ip.s_addr, 4);
+          fsm_nak(dec, &nak);
+        } else
+          fsm_ack(dec, opt);
+        break;
 
       case MODE_NAK:
-	log_Printf(LogIPCP, "MS NBNS req %d - NAK??\n", type);
-	break;
+        log_Printf(LogIPCP, "MS NBNS req %d - NAK??\n", opt->hdr.id);
+        break;
 
       case MODE_REJ:
-	log_Printf(LogIPCP, "MS NBNS req %d - REJ??\n", type);
-	break;
+        log_Printf(LogIPCP, "MS NBNS req %d - REJ??\n", opt->hdr.id);
+        break;
       }
       break;
 
     default:
       if (mode_type != MODE_NOP) {
-        ipcp->my_reject |= (1 << type);
-        memcpy(dec->rejend, cp, length);
-        dec->rejend += length;
+        ipcp->my_reject |= (1 << opt->hdr.id);
+        fsm_rej(dec, opt);
       }
       break;
     }
-    plen -= length;
-    cp += length;
   }
 
   if (gotdnsnak) {
@@ -1328,13 +1317,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       ipaddr.s_addr = INADDR_ANY;
       ipcp_ValidateReq(ipcp, ipaddr, dec);
     }
-    if (dec->rejend != dec->rej) {
-      /* rejects are preferred */
-      dec->ackend = dec->ack;
-      dec->nakend = dec->nak;
-    } else if (dec->nakend != dec->nak)
-      /* then NAKs */
-      dec->ackend = dec->ack;
+    fsm_opt_normalise(dec);
   }
 }
 

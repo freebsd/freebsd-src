@@ -85,7 +85,7 @@ struct ccp_config {
 struct ccp_opt {
   struct ccp_opt *next;
   int algorithm;
-  struct lcp_opt val;
+  struct fsm_opt val;
 };
 
 struct ccp {
@@ -100,7 +100,7 @@ struct ccp {
   struct {
     int algorithm;		/* Algorithm in use */
     void *state;		/* Returned by implementations Init() */
-    struct lcp_opt opt;		/* Set by implementation's OptInit() */
+    struct fsm_opt opt;		/* Set by implementation's OptInit() */
   } in;
 
   struct {
@@ -123,12 +123,12 @@ struct ccp {
 struct ccp_algorithm {
   int id;
   int Neg;					/* ccp_config neg array item */
-  const char *(*Disp)(struct lcp_opt *);	/* Use result immediately !  */
+  const char *(*Disp)(struct fsm_opt *);	/* Use result immediately !  */
   int (*Usable)(struct fsm *);			/* Ok to negotiate ? */
   int (*Required)(struct fsm *);		/* Must negotiate ? */
   struct {
-    int (*Set)(struct lcp_opt *, const struct ccp_config *);
-    void *(*Init)(struct lcp_opt *);
+    int (*Set)(struct fsm_opt *, const struct ccp_config *);
+    void *(*Init)(struct fsm_opt *);
     void (*Term)(void *);
     void (*Reset)(void *);
     struct mbuf *(*Read)(void *, struct ccp *, u_short *, struct mbuf *);
@@ -136,9 +136,9 @@ struct ccp_algorithm {
   } i;
   struct {
     int MTUOverhead;
-    void (*OptInit)(struct lcp_opt *, const struct ccp_config *);
-    int (*Set)(struct lcp_opt *, const struct ccp_config *);
-    void *(*Init)(struct lcp_opt *);
+    void (*OptInit)(struct fsm_opt *, const struct ccp_config *);
+    int (*Set)(struct fsm_opt *, const struct ccp_config *);
+    void *(*Init)(struct fsm_opt *);
     void (*Term)(void *);
     int (*Reset)(void *);
     struct mbuf *(*Write)(void *, struct ccp *, struct link *, int, u_short *,

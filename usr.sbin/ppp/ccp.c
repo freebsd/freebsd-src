@@ -80,7 +80,7 @@
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSentTerminateReq(struct fsm *);
 static void CcpSendTerminateAck(struct fsm *, u_char);
-static void CcpDecodeConfig(struct fsm *, u_char *, int, int,
+static void CcpDecodeConfig(struct fsm *, u_char *, u_char *, int,
                             struct fsm_decode *);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
@@ -276,7 +276,7 @@ ccp_Setup(struct ccp *ccp)
   ccp->reset_sent = ccp->last_reset = -1;
   ccp->in.algorithm = ccp->out.algorithm = -1;
   ccp->in.state = ccp->out.state = NULL;
-  ccp->in.opt.id = -1;
+  ccp->in.opt.hdr.id = -1;
   ccp->out.opt = NULL;
   ccp->his_reject = ccp->my_reject = 0;
   ccp->uncompout = ccp->compout = 0;
@@ -361,26 +361,26 @@ CcpSendConfigReq(struct fsm *fp)
 
       if (!alloc)
         for (o = &ccp->out.opt; *o != NULL; o = &(*o)->next)
-          if ((*o)->val.id == algorithm[f]->id && (*o)->algorithm == f)
+          if ((*o)->val.hdr.id == algorithm[f]->id && (*o)->algorithm == f)
             break;
 
       if (alloc || *o == NULL) {
         *o = (struct ccp_opt *)malloc(sizeof(struct ccp_opt));
-        (*o)->val.id = algorithm[f]->id;
-        (*o)->val.len = 2;
+        (*o)->val.hdr.id = algorithm[f]->id;
+        (*o)->val.hdr.len = 2;
         (*o)->next = NULL;
         (*o)->algorithm = f;
         (*algorithm[f]->o.OptInit)(&(*o)->val, &ccp->cfg);
       }
 
-      if (cp + (*o)->val.len > buff + sizeof buff) {
+      if (cp + (*o)->val.hdr.len > buff + sizeof buff) {
         log_Printf(LogERROR, "%s: CCP REQ buffer overrun !\n", fp->link->name);
         break;
       }
-      memcpy(cp, &(*o)->val, (*o)->val.len);
-      cp += (*o)->val.len;
+      memcpy(cp, &(*o)->val, (*o)->val.hdr.len);
+      cp += (*o)->val.hdr.len;
 
-      ccp->my_proto = (*o)->val.id;
+      ccp->my_proto = (*o)->val.hdr.id;
       ccp->out.algorithm = f;
 
       if (alloc)
@@ -555,93 +555,79 @@ CcpLayerUp(struct fsm *fp)
 }
 
 static void
-CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+CcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                 struct fsm_decode *dec)
 {
   /* Deal with incoming data */
   struct ccp *ccp = fsm2ccp(fp);
-  int type, length, f;
-  const char *end;
+  int f;
+  const char *disp;
+  struct fsm_opt *opt;
 
   if (mode_type == MODE_REQ)
     ccp->in.algorithm = -1;	/* In case we've received two REQs in a row */
 
-  while (plen >= sizeof(struct fsmconfig)) {
-    type = *cp;
-    length = cp[1];
-
-    if (length == 0) {
-      log_Printf(LogCCP, "%s: CCP size zero\n", fp->link->name);
+  while (end - cp >= sizeof(opt->hdr)) {
+    if ((opt = fsm_readopt(&cp)) == NULL)
       break;
-    }
-
-    if (length > sizeof(struct lcp_opt)) {
-      length = sizeof(struct lcp_opt);
-      log_Printf(LogCCP, "%s: Warning: Truncating length to %d\n",
-                fp->link->name, length);
-    }
 
     for (f = NALGORITHMS-1; f > -1; f--)
-      if (algorithm[f]->id == type)
+      if (algorithm[f]->id == opt->hdr.id)
         break;
 
-    end = f == -1 ? "" : (*algorithm[f]->Disp)((struct lcp_opt *)cp);
-    if (end == NULL)
-      end = "";
+    disp = f == -1 ? "" : (*algorithm[f]->Disp)(opt);
+    if (disp == NULL)
+      disp = "";
 
-    log_Printf(LogCCP, " %s[%d] %s\n", protoname(type), length, end);
+    log_Printf(LogCCP, " %s[%d] %s\n", protoname(opt->hdr.id),
+               opt->hdr.len, disp);
 
     if (f == -1) {
       /* Don't understand that :-( */
       if (mode_type == MODE_REQ) {
-        ccp->my_reject |= (1 << type);
-        memcpy(dec->rejend, cp, length);
-        dec->rejend += length;
+        ccp->my_reject |= (1 << opt->hdr.id);
+        fsm_rej(dec, opt);
       }
     } else {
       struct ccp_opt *o;
 
       switch (mode_type) {
       case MODE_REQ:
-	if (IsAccepted(ccp->cfg.neg[algorithm[f]->Neg]) &&
+        if (IsAccepted(ccp->cfg.neg[algorithm[f]->Neg]) &&
             (*algorithm[f]->Usable)(fp) &&
             ccp->in.algorithm == -1) {
-	  memcpy(&ccp->in.opt, cp, length);
+          memcpy(&ccp->in.opt, opt, opt->hdr.len);
           switch ((*algorithm[f]->i.Set)(&ccp->in.opt, &ccp->cfg)) {
           case MODE_REJ:
-	    memcpy(dec->rejend, &ccp->in.opt, ccp->in.opt.len);
-	    dec->rejend += ccp->in.opt.len;
+            fsm_rej(dec, &ccp->in.opt);
             break;
           case MODE_NAK:
-	    memcpy(dec->nakend, &ccp->in.opt, ccp->in.opt.len);
-	    dec->nakend += ccp->in.opt.len;
+            fsm_nak(dec, &ccp->in.opt);
             break;
           case MODE_ACK:
-	    memcpy(dec->ackend, cp, length);
-	    dec->ackend += length;
-	    ccp->his_proto = type;
+            fsm_ack(dec, &ccp->in.opt);
+            ccp->his_proto = opt->hdr.id;
             ccp->in.algorithm = f;		/* This one'll do :-) */
             break;
           }
-	} else {
-	  memcpy(dec->rejend, cp, length);
-	  dec->rejend += length;
-	}
-	break;
+        } else {
+          fsm_rej(dec, opt);
+        }
+        break;
       case MODE_NAK:
         for (o = ccp->out.opt; o != NULL; o = o->next)
-          if (o->val.id == cp[0])
+          if (o->val.hdr.id == opt->hdr.id)
             break;
         if (o == NULL)
           log_Printf(LogCCP, "%s: Warning: Ignoring peer NAK of unsent"
                      " option\n", fp->link->name);
         else {
-	  memcpy(&o->val, cp, length);
+          memcpy(&o->val, opt, opt->hdr.len);
           if ((*algorithm[f]->o.Set)(&o->val, &ccp->cfg) == MODE_ACK)
             ccp->my_proto = algorithm[f]->id;
           else {
-	    ccp->his_reject |= (1 << type);
-	    ccp->my_proto = -1;
+            ccp->his_reject |= (1 << opt->hdr.id);
+            ccp->my_proto = -1;
             if (algorithm[f]->Required(fp)) {
               log_Printf(LogWARN, "%s: Cannot understand peers (required)"
                          " %s negotiation\n", fp->link->name,
@@ -652,33 +638,21 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
         }
         break;
       case MODE_REJ:
-	ccp->his_reject |= (1 << type);
-	ccp->my_proto = -1;
+        ccp->his_reject |= (1 << opt->hdr.id);
+        ccp->my_proto = -1;
         if (algorithm[f]->Required(fp)) {
           log_Printf(LogWARN, "%s: Peer rejected (required) %s negotiation\n",
                      fp->link->name, protoname(algorithm[f]->id));
           fsm_Close(&fp->link->lcp.fsm);
         }
-	break;
+        break;
       }
     }
-
-    plen -= cp[1];
-    cp += cp[1];
   }
 
   if (mode_type != MODE_NOP) {
-    if (dec->rejend != dec->rej) {
-      /* rejects are preferred */
-      dec->ackend = dec->ack;
-      dec->nakend = dec->nak;
-      if (ccp->in.state == NULL) {
-        ccp->his_proto = -1;
-        ccp->in.algorithm = -1;
-      }
-    } else if (dec->nakend != dec->nak) {
-      /* then NAKs */
-      dec->ackend = dec->ack;
+    fsm_opt_normalise(dec);
+    if (dec->rejend != dec->rej || dec->nakend != dec->nak) {
       if (ccp->in.state == NULL) {
         ccp->his_proto = -1;
         ccp->in.algorithm = -1;

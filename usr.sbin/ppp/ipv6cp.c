@@ -85,7 +85,7 @@ static void ipv6cp_InitRestartCounter(struct fsm *, int);
 static void ipv6cp_SendConfigReq(struct fsm *);
 static void ipv6cp_SentTerminateReq(struct fsm *);
 static void ipv6cp_SendTerminateAck(struct fsm *, u_char);
-static void ipv6cp_DecodeConfig(struct fsm *, u_char *, int, int,
+static void ipv6cp_DecodeConfig(struct fsm *, u_char *, u_char *, int,
                                 struct fsm_decode *);
 
 static struct fsm_callbacks ipv6cp_Callbacks = {
@@ -233,9 +233,9 @@ ipv6cp_Show(struct cmdargs const *arg)
                 State2Nam(ipv6cp->fsm.state));
   if (ipv6cp->fsm.state == ST_OPENED) {
     prompt_Printf(arg->prompt, " His side:        %s\n",
-	          ncpaddr_ntoa(&ipv6cp->hisaddr));
+                  ncpaddr_ntoa(&ipv6cp->hisaddr));
     prompt_Printf(arg->prompt, " My side:         %s\n",
-	          ncpaddr_ntoa(&ipv6cp->myaddr));
+                  ncpaddr_ntoa(&ipv6cp->myaddr));
     prompt_Printf(arg->prompt, " Queued packets:  %lu\n",
                   (unsigned long)ipv6cp_QueueLen(ipv6cp));
   }
@@ -455,13 +455,13 @@ ipv6cp_SendConfigReq(struct fsm *fp)
   struct physical *p = link2physical(fp->link);
   struct ipv6cp *ipv6cp = fsm2ipv6cp(fp);
   u_char buff[6];
-  struct lcp_opt *o;
+  struct fsm_opt *o;
 
-  o = (struct lcp_opt *)buff;
+  o = (struct fsm_opt *)buff;
 
   if ((p && !physical_IsSync(p)) || !REJECTED(ipv6cp, TY_TOKEN)) {
     memcpy(o->data, &ipv6cp->my_token, 4);
-    INC_LCP_OPT(TY_TOKEN, 6, o);
+    INC_FSM_OPT(TY_TOKEN, 6, o);
   }
 
   fsm_Output(fp, CODE_CONFIGREQ, fp->reqid, buff, (u_char *)o - buff,
@@ -496,61 +496,56 @@ static void
 ipv6cp_ValidateToken(struct ipv6cp *ipv6cp, u_int32_t token,
                      struct fsm_decode *dec)
 {
+  struct fsm_opt opt;
+
   if (token != 0 && token != ipv6cp->my_token)
     ipv6cp->peer_token = token;
 
-  if (token == ipv6cp->peer_token) {
-    *dec->ackend++ = TY_TOKEN;
-    *dec->ackend++ = 6;
-    memcpy(dec->ackend, &ipv6cp->peer_token, 4);
-    dec->ackend += 4;
-  } else {
-    *dec->nakend++ = TY_TOKEN;
-    *dec->nakend++ = 6;
-    memcpy(dec->nakend, &ipv6cp->peer_token, 4);
-    dec->nakend += 4;
-  }
+  opt.hdr.id = TY_TOKEN;
+  opt.hdr.len = 6;
+  memcpy(opt.data, &ipv6cp->peer_token, 4);
+  if (token == ipv6cp->peer_token)
+    fsm_ack(dec, &opt);
+  else
+    fsm_nak(dec, &opt);
 }
 
 static void
-ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
                     struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_IPV6CP */
   struct ipv6cp *ipv6cp = fsm2ipv6cp(fp);
-  int type, length, n;
+  int n;
   char tbuff[100];
   u_int32_t token;
+  struct fsm_opt *opt;
 
-  while (plen >= sizeof(struct fsmconfig)) {
-    type = *cp;
-    length = cp[1];
-
-    if (length == 0) {
-      log_Printf(LogIPV6CP, "%s: IPV6CP size zero\n", fp->link->name);
+  while (end - cp >= sizeof(opt->hdr)) {
+    if ((opt = fsm_readopt(&cp)) == NULL)
       break;
-    }
 
-    snprintf(tbuff, sizeof tbuff, " %s[%d] ", protoname(type), length);
+    snprintf(tbuff, sizeof tbuff, " %s[%d]", protoname(opt->hdr.id),
+             opt->hdr.len);
 
-    switch (type) {
+    switch (opt->hdr.id) {
     case TY_TOKEN:
-      memcpy(&token, cp + 2, 4);
+      memcpy(&token, opt->data, 4);
       log_Printf(LogIPV6CP, "%s 0x%08lx\n", tbuff, (unsigned long)token);
 
       switch (mode_type) {
       case MODE_REQ:
         ipv6cp->peer_tokenreq = 1;
         ipv6cp_ValidateToken(ipv6cp, token, dec);
-	break;
+        break;
 
       case MODE_NAK:
         if (token == 0) {
-	  log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
+          log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
                      "0x00000000: Unacceptable token!\n");
           fsm_Close(&ipv6cp->fsm);
         } else if (token == ipv6cp->peer_token)
-	  log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
+          log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
                     "0x%08lx: Unacceptable token!\n", (unsigned long)token);
         else if (token != ipv6cp->my_token) {
           n = 100;
@@ -561,35 +556,32 @@ ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
           }
 
           if (n == 0) {
-	    log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
+            log_Printf(log_IsKept(LogIPV6CP) ? LogIPV6CP : LogPHASE,
                        "0x00000000: Unacceptable token!\n");
             fsm_Close(&ipv6cp->fsm);
           } else {
-	    log_Printf(LogIPV6CP, "%s changing token: 0x%08lx --> 0x%08lx\n",
+            log_Printf(LogIPV6CP, "%s changing token: 0x%08lx --> 0x%08lx\n",
                        tbuff, (unsigned long)ipv6cp->my_token,
                        (unsigned long)token);
             ipv6cp->my_token = token;
             bundle_AdjustFilters(fp->bundle, &ipv6cp->myaddr, NULL);
           }
         }
-	break;
+        break;
 
       case MODE_REJ:
-	ipv6cp->his_reject |= (1 << type);
-	break;
+        ipv6cp->his_reject |= (1 << opt->hdr.id);
+        break;
       }
       break;
 
     default:
       if (mode_type != MODE_NOP) {
-        ipv6cp->my_reject |= (1 << type);
-        memcpy(dec->rejend, cp, length);
-        dec->rejend += length;
+        ipv6cp->my_reject |= (1 << opt->hdr.id);
+        fsm_rej(dec, opt);
       }
       break;
     }
-    plen -= length;
-    cp += length;
   }
 
   if (mode_type != MODE_NOP) {
@@ -606,13 +598,7 @@ ipv6cp_DecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
       }
       ipv6cp_ValidateToken(ipv6cp, 0, dec);
     }
-    if (dec->rejend != dec->rej) {
-      /* rejects are preferred */
-      dec->ackend = dec->ack;
-      dec->nakend = dec->nak;
-    } else if (dec->nakend != dec->nak)
-      /* then NAKs */
-      dec->ackend = dec->ack;
+    fsm_opt_normalise(dec);
   }
 }
 #endif
