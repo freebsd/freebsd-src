@@ -96,7 +96,7 @@ attack.
 
 @subheading Impersonating B
 
-@var{C} can hijack @var{B}'s network address, and when @var{A} sends
+@var{C} can masquerade @var{B}'s network address, and when @var{A} sends
 her credentials, @var{C} just pretend to verify them. @var{C} can't
 be sure that she is talking to @var{A}.
 

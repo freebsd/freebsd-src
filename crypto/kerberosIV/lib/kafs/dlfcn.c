@@ -115,14 +115,12 @@ void *dlopen(const char *path, int mode)
 		}
 	if ((mp = (ModulePtr)calloc(1, sizeof(*mp))) == NULL) {
 		errvalid++;
-		strcpy(errbuf, "calloc: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, "calloc: %s", strerror(errno));
 		return NULL;
 	}
 	if ((mp->name = strdup(path)) == NULL) {
 		errvalid++;
-		strcpy(errbuf, "strdup: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, "strdup: %s", strerror(errno));
 		free(mp);
 		return NULL;
 	}
@@ -134,9 +132,8 @@ void *dlopen(const char *path, int mode)
 		free(mp->name);
 		free(mp);
 		errvalid++;
-		strcpy(errbuf, "dlopen: ");
-		strcat(errbuf, path);
-		strcat(errbuf, ": ");
+		snprintf (errbuf, sizeof(errbuf),
+			  "dlopen: %s: ", path);
 		/*
 		 * If AIX says the file is not executable, the error
 		 * can be further described by querying the loader about
@@ -145,14 +142,18 @@ void *dlopen(const char *path, int mode)
 		if (errno == ENOEXEC) {
 			char *tmp[BUFSIZ/sizeof(char *)];
 			if (loadquery(L_GETMESSAGES, tmp, sizeof(tmp)) == -1)
-				strcpy(errbuf, strerror(errno));
+				strcpy_truncate(errbuf,
+						strerror(errno),
+						sizeof(errbuf));
 			else {
 				char **p;
 				for (p = tmp; *p; p++)
 					caterr(*p);
 			}
 		} else
-			strcat(errbuf, strerror(errno));
+			strcat_truncate(errbuf,
+					strerror(errno),
+					sizeof(errbuf));
 		return NULL;
 	}
 	mp->refCnt = 1;
@@ -161,8 +162,8 @@ void *dlopen(const char *path, int mode)
 	if (loadbind(0, mainModule, mp->entry) == -1) {
 		dlclose(mp);
 		errvalid++;
-		strcpy(errbuf, "loadbind: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, sizeof(errbuf),
+			  "loadbind: %s", strerror(errno));
 		return NULL;
 	}
 	/*
@@ -175,8 +176,9 @@ void *dlopen(const char *path, int mode)
 			if (loadbind(0, mp1->entry, mp->entry) == -1) {
 				dlclose(mp);
 				errvalid++;
-				strcpy(errbuf, "loadbind: ");
-				strcat(errbuf, strerror(errno));
+				snprintf (errbuf, sizeof(errbuf),
+					  "loadbind: %s",
+					  strerror(errno));
 				return NULL;
 			}
 	}
@@ -229,29 +231,29 @@ static void caterr(char *s)
 		p++;
 	switch(atoi(s)) {
 	case L_ERROR_TOOMANY:
-		strcat(errbuf, "to many errors");
+		strcat_truncate(errbuf, "to many errors", sizeof(errbuf));
 		break;
 	case L_ERROR_NOLIB:
-		strcat(errbuf, "can't load library");
-		strcat(errbuf, p);
+		strcat_truncate(errbuf, "can't load library", sizeof(errbuf));
+		strcat_truncate(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_UNDEF:
-		strcat(errbuf, "can't find symbol");
-		strcat(errbuf, p);
+		strcat_truncate(errbuf, "can't find symbol", sizeof(errbuf));
+		strcat_truncate(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_RLDBAD:
-		strcat(errbuf, "bad RLD");
-		strcat(errbuf, p);
+		strcat_truncate(errbuf, "bad RLD", sizeof(errbuf));
+		strcat_truncate(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_FORMAT:
-		strcat(errbuf, "bad exec format in");
-		strcat(errbuf, p);
+		strcat_truncate(errbuf, "bad exec format in", sizeof(errbuf));
+		strcat_truncate(errbuf, p, sizeof(errbuf));
 		break;
 	case L_ERROR_ERRNO:
-		strcat(errbuf, strerror(atoi(++p)));
+		strcat_truncate(errbuf, strerror(atoi(++p)), sizeof(errbuf));
 		break;
 	default:
-		strcat(errbuf, s);
+		strcat_truncate(errbuf, s, sizeof(errbuf));
 		break;
 	}
 }
@@ -270,8 +272,8 @@ void *dlsym(void *handle, const char *symbol)
 		if (strcmp(ep->name, symbol) == 0)
 			return ep->addr;
 	errvalid++;
-	strcpy(errbuf, "dlsym: undefined symbol ");
-	strcat(errbuf, symbol);
+	snprintf (errbuf, sizeof(errbuf),
+		  "dlsym: undefined symbol %s", symbol);		  
 	return NULL;
 }
 
@@ -311,7 +313,8 @@ int dlclose(void *handle)
 	result = unload(mp->entry);
 	if (result == -1) {
 		errvalid++;
-		strcpy(errbuf, strerror(errno));
+		snprintf (errbuf, sizeof(errbuf),
+			  "%s", strerror(errno));
 	}
 	if (mp->exports) {
 		ExportPtr ep;
@@ -360,8 +363,9 @@ static int readExports(ModulePtr mp)
 		int size = 4*1024;
 		if (errno != ENOENT) {
 			errvalid++;
-			strcpy(errbuf, "readExports: ");
-			strcat(errbuf, strerror(errno));
+			snprintf(errbuf, sizeof(errbuf),
+				 "readExports: %s",
+				 strerror(errno));
 			return -1;
 		}
 		/*
@@ -371,8 +375,9 @@ static int readExports(ModulePtr mp)
 		 */
 		if ((buf = malloc(size)) == NULL) {
 			errvalid++;
-			strcpy(errbuf, "readExports: ");
-			strcat(errbuf, strerror(errno));
+			snprintf(errbuf, sizeof(errbuf),
+				 "readExports: %s",
+				 strerror(errno));
 			return -1;
 		}
 		while ((i = loadquery(L_GETINFO, buf, size)) == -1 && errno == ENOMEM) {
@@ -380,15 +385,17 @@ static int readExports(ModulePtr mp)
 			size += 4*1024;
 			if ((buf = malloc(size)) == NULL) {
 				errvalid++;
-				strcpy(errbuf, "readExports: ");
-				strcat(errbuf, strerror(errno));
+				snprintf(errbuf, sizeof(errbuf),
+					 "readExports: %s",
+					 strerror(errno));
 				return -1;
 			}
 		}
 		if (i == -1) {
 			errvalid++;
-			strcpy(errbuf, "readExports: ");
-			strcat(errbuf, strerror(errno));
+			snprintf(errbuf, sizeof(errbuf),
+				 "readExports: %s",
+				 strerror(errno));
 			free(buf);
 			return -1;
 		}
@@ -411,14 +418,14 @@ static int readExports(ModulePtr mp)
 		free(buf);
 		if (!ldp) {
 			errvalid++;
-			strcpy(errbuf, "readExports: ");
-			strcat(errbuf, strerror(errno));
+			snprintf (errbuf, sizeof(errbuf),
+				  "readExports: %s", strerror(errno));
 			return -1;
 		}
 	}
 	if (TYPE(ldp) != U802TOCMAGIC) {
 		errvalid++;
-		strcpy(errbuf, "readExports: bad magic");
+		snprintf(errbuf, sizeof(errbuf), "readExports: bad magic");
 		while(ldclose(ldp) == FAILURE)
 			;
 		return -1;
@@ -430,14 +437,16 @@ static int readExports(ModulePtr mp)
 	 */
 	if (ldnshread(ldp, _DATA, &shdata) != SUCCESS) {
 		errvalid++;
-		strcpy(errbuf, "readExports: cannot read data section header");
+		snprintf(errbuf, sizeof(errbuf),
+			 "readExports: cannot read data section header");
 		while(ldclose(ldp) == FAILURE)
 			;
 		return -1;
 	}
 	if (ldnshread(ldp, _LOADER, &sh) != SUCCESS) {
 		errvalid++;
-		strcpy(errbuf, "readExports: cannot read loader section header");
+		snprintf(errbuf, sizeof(errbuf),
+			 "readExports: cannot read loader section header");
 		while(ldclose(ldp) == FAILURE)
 			;
 		return -1;
@@ -448,15 +457,16 @@ static int readExports(ModulePtr mp)
 	 */
 	if ((ldbuf = (char *)malloc(sh.s_size)) == NULL) {
 		errvalid++;
-		strcpy(errbuf, "readExports: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, sizeof(errbuf),
+			  "readExports: %s", strerror(errno));
 		while(ldclose(ldp) == FAILURE)
 			;
 		return -1;
 	}
 	if (FSEEK(ldp, sh.s_scnptr, BEGINNING) != OKFSEEK) {
 		errvalid++;
-		strcpy(errbuf, "readExports: cannot seek to loader section");
+		snprintf(errbuf, sizeof(errbuf),
+			 "readExports: cannot seek to loader section");
 		free(ldbuf);
 		while(ldclose(ldp) == FAILURE)
 			;
@@ -464,7 +474,8 @@ static int readExports(ModulePtr mp)
 	}
 	if (FREAD(ldbuf, sh.s_size, 1, ldp) != 1) {
 		errvalid++;
-		strcpy(errbuf, "readExports: cannot read loader section");
+		snprintf(errbuf, sizeof(errbuf),
+			 "readExports: cannot read loader section");
 		free(ldbuf);
 		while(ldclose(ldp) == FAILURE)
 			;
@@ -482,8 +493,8 @@ static int readExports(ModulePtr mp)
 	}
 	if ((mp->exports = (ExportPtr)calloc(mp->nExports, sizeof(*mp->exports))) == NULL) {
 		errvalid++;
-		strcpy(errbuf, "readExports: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, sizeof(errbuf),
+			  "readExports: %s", strerror(errno));
 		free(ldbuf);
 		while(ldclose(ldp) == FAILURE)
 			;
@@ -508,8 +519,8 @@ static int readExports(ModulePtr mp)
 			 * must copy the first SYMNMLEN chars and make
 			 * sure we have a zero byte at the end.
 			 */
-			strncpy(tmpsym, ls->l_name, SYMNMLEN);
-			tmpsym[SYMNMLEN] = '\0';
+		        strcpy_truncate (tmpsym, ls->l_name,
+					 SYMNMLEN + 1);
 			symname = tmpsym;
 		}
 		ep->name = strdup(symname);
@@ -537,8 +548,8 @@ static void * findMain(void)
 
 	if ((buf = malloc(size)) == NULL) {
 		errvalid++;
-		strcpy(errbuf, "findMain: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, sizeof(errbuf),
+			  "findMail: %s", strerror(errno));
 		return NULL;
 	}
 	while ((i = loadquery(L_GETINFO, buf, size)) == -1 && errno == ENOMEM) {
@@ -546,15 +557,15 @@ static void * findMain(void)
 		size += 4*1024;
 		if ((buf = malloc(size)) == NULL) {
 			errvalid++;
-			strcpy(errbuf, "findMain: ");
-			strcat(errbuf, strerror(errno));
+			snprintf (errbuf, sizeof(errbuf),
+				  "findMail: %s", strerror(errno));
 			return NULL;
 		}
 	}
 	if (i == -1) {
 		errvalid++;
-		strcpy(errbuf, "findMain: ");
-		strcat(errbuf, strerror(errno));
+		snprintf (errbuf, sizeof(errbuf),
+			  "findMail: %s", strerror(errno));
 		free(buf);
 		return NULL;
 	}

@@ -42,7 +42,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rlogind.c,v 1.100 1997/05/25 01:15:20 assar Exp $");
+RCSID("$Id: rlogind.c,v 1.107.2.1 1999/07/22 03:14:39 assar Exp $");
 
 extern int __check_rhosts_file;
 
@@ -187,7 +187,7 @@ readstream(int p, char *ibuf, int bufsize)
 
 #ifdef HAVE_UTMPX_H
 static int
-logout(const char *line)
+rlogind_logout(const char *line)
 {
     struct utmpx utmpx, *utxp;
     int ret = 1;
@@ -198,8 +198,9 @@ logout(const char *line)
     strncpy(utmpx.ut_line, line, sizeof(utmpx.ut_line));
     utxp = getutxline(&utmpx);
     if (utxp) {
-	strcpy(utxp->ut_user, "");
+	utxp->ut_user[0] = '\0';
 	utxp->ut_type = DEAD_PROCESS;
+#ifdef HAVE_STRUCT_UTMPX_UT_EXIT
 #ifdef _STRUCT___EXIT_STATUS
 	utxp->ut_exit.__e_termination = 0;
 	utxp->ut_exit.__e_exit = 0;
@@ -209,6 +210,7 @@ logout(const char *line)
 #else	
 	utxp->ut_exit.e_termination = 0;
 	utxp->ut_exit.e_exit = 0;
+#endif
 #endif
 	gettimeofday(&utxp->ut_tv, NULL);
 	pututxline(utxp);
@@ -223,7 +225,7 @@ logout(const char *line)
 }
 #else
 static int
-logout(const char *line)
+rlogind_logout(const char *line)
 {
     FILE *fp;
     struct utmp ut;
@@ -237,8 +239,23 @@ logout(const char *line)
 	    strncmp(ut.ut_line, line, sizeof(ut.ut_line)))
 	    continue;
 	memset(ut.ut_name, 0, sizeof(ut.ut_name));
-#ifdef HAVE_UT_HOST
+#ifdef HAVE_STRUCT_UTMP_UT_HOST
 	memset(ut.ut_host, 0, sizeof(ut.ut_host));
+#endif
+#ifdef HAVE_STRUCT_UTMP_UT_TYPE
+	ut.ut_type = DEAD_PROCESS;
+#endif
+#ifdef HAVE_STRUCT_UTMP_UT_EXIT
+#ifdef _STRUCT___EXIT_STATUS
+	ut.ut_exit.__e_termination = 0;
+	ut.ut_exit.__e_exit = 0;
+#elif defined(__osf__) /* XXX */
+	ut.ut_exit.ut_termination = 0;
+	ut.ut_exit.ut_exit = 0;
+#else	
+	ut.ut_exit.e_termination = 0;
+	ut.ut_exit.e_exit = 0;
+#endif
 #endif
 	time(&ut.ut_time);
 	fseek(fp, (long)-sizeof(struct utmp), SEEK_CUR);
@@ -265,13 +282,16 @@ logwtmp(const char *line, const char *name, const char *host)
     if (!fstat(fd, &buf)) {
 	strncpy(ut.ut_line, line, sizeof(ut.ut_line));
 	strncpy(ut.ut_name, name, sizeof(ut.ut_name));
-#ifdef HAVE_UT_HOST
+#ifdef HAVE_STRUCT_UTMP_UT_ID
+	strncpy(ut.ut_id, make_id((char *)line), sizeof(ut.ut_id));
+#endif
+#ifdef HAVE_STRUCT_UTMP_UT_HOST
 	strncpy(ut.ut_host, host, sizeof(ut.ut_host));
 #endif
-#ifdef HAVE_UT_PID
+#ifdef HAVE_STRUCT_UTMP_UT_PID
 	ut.ut_pid = getpid();
 #endif
-#ifdef HAVE_UT_TYPE
+#ifdef HAVE_STRUCT_UTMP_UT_TYPE
 	if(name[0])
 	    ut.ut_type = USER_PROCESS;
 	else
@@ -440,7 +460,11 @@ doit(int f, struct sockaddr_in *fromp)
 	write(f, INSECURE_MESSAGE, strlen(INSECURE_MESSAGE));
     netf = f;
 
+#ifdef HAVE_FORKPTY
     pid = forkpty(&master, line, NULL, NULL);
+#else
+    pid = forkpty_truncate(&master, line, sizeof(line), NULL, NULL);
+#endif
     if (pid < 0) {
 	if (errno == ENOENT)
 	    fatal(f, "Out of ptys", 0);
@@ -482,7 +506,9 @@ doit(int f, struct sockaddr_in *fromp)
 	ioctl(f, FIONBIO, &on);
     ioctl(master, FIONBIO, &on);
     ioctl(master, TIOCPKT, &on);
+#ifdef SIGTSTP
     signal(SIGTSTP, SIG_IGN);
+#endif
     signal(SIGCHLD, cleanup);
     setsid();
     protocol(f, master);
@@ -532,7 +558,7 @@ send_oob(int fd, char c)
 {
     static char last_oob = 0xFF;
 
-#if (SunOS == 5) || defined(__hpux)
+#if (SunOS >= 50) || defined(__hpux)
     /*
      * PSoriasis and HP-UX always send TIOCPKT_DOSTOP at startup so we
      * can avoid sending OOB data and thus not break on Linux by merging
@@ -571,12 +597,14 @@ protocol(int f, int master)
     char cntl;
     unsigned char oob_queue = 0;
 
+#ifdef SIGTTOU
     /*
      * Must ignore SIGTTOU, otherwise we'll stop
      * when we try and set slave pty's window shape
      * (our controlling tty is the master pty).
      */
     signal(SIGTTOU, SIG_IGN);
+#endif
 
     send_oob(f, TIOCPKT_WINDOW); /* indicate new rlogin */
 
@@ -600,12 +628,13 @@ protocol(int f, int master)
 	    omask = &obits;
 	} else
 	    FD_SET(f, &ibits);
-	if (pcc >= 0)
+	if (pcc >= 0) {
 	    if (pcc) {
 		FD_SET(f, &obits);
 		omask = &obits;
 	    } else
 		FD_SET(master, &ibits);
+	}
 	FD_SET(master, &ebits);
 	if ((n = select(nfd, &ibits, omask, &ebits, 0)) < 0) {
 	    if (errno == EINTR)
@@ -735,7 +764,7 @@ cleanup(int signo)
 {
     char *p = clean_ttyname (line);
 
-    if (logout(p) == 0)
+    if (rlogind_logout(p) == 0)
 	logwtmp(p, "", "");
     chmod(line, 0666);
     chown(line, 0, 0);

@@ -38,14 +38,16 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: memmove.c,v 1.5 1997/04/01 08:19:05 joda Exp $");
+RCSID("$Id: memmove.c,v 1.6 1997/07/11 20:20:30 assar Exp $");
 #endif
 
 /* 
  * memmove for systems that doesn't have it 
  */
 
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 
 void* memmove(void *s1, const void *s2, size_t n)
 {

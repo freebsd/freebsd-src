@@ -64,7 +64,7 @@ only allow logins on the console.
 
 This machine has also to be reliable.  If it is down, you will not be
 able to use any kerberised services unless you have also configured a
-slave server (@xref{Install a slave kerberos server}).
+slave server (@pxref{Install a slave kerberos server}).
 
 Running the kerberos server requires very little CPU power and a small
 amount of disk. An old PC with some hundreds of megabytes of free disk
@@ -84,16 +84,19 @@ different realms.  The format of this file is:
 
 @example
 THIS.REALM
+SUPP.LOCAL.REALM
 THIS.REALM              kerberos.this.realm admin server
 THIS.REALM              kerberos-1.this.realm
+SUPP.LOCAL.REALM        kerberos.supp.local.realm admin server
 ANOTHER.REALM           kerberos.another.realm
 @end example
 
-The first line defines the name of the local realm. Line two defines the
-name of the master kerberos server and the database administration
-server for this realm.  You can define any number of kerberos slave
-servers similar to the one defined in line three.  The clients will try
-to contact the servers in the order they are defined in @file{krb.conf}.
+The first line defines the name of the local realm. The next few lines
+optionally defines supplementary local realms. The rest of the file
+defines the names of the kerberos servers and the database
+administration servers for all known realms. You can define any number
+of kerberos slave servers similar to the one defined on line
+four. Clients will try to contact servers in listed order.
 
 The @samp{admin server} clause at the first entry states that this is
 the master server
@@ -109,10 +112,11 @@ protocols other than UDP.
 
 The formal syntax for an entry is now
 @samp{@var{[proto}/@var{]host[}:@var{port]}}. @var{proto} is either
-@samp{udp} or @samp{tcp}, and @var{port} is the port to talk to. Default
-value for @var{proto} is @samp{udp} and for @var{port} whatever
-@samp{kerberos-iv} is defined to be in @file{/etc/services} or 750 if
-undefined.
+@samp{UDP}, @samp{TCP}, or @samp{HTTP}, and @var{port} is the port to
+talk to. Default value for @var{proto} is @samp{UDP} and for @var{port}
+whatever @samp{kerberos-iv} is defined to be in @file{/etc/services} or
+750 if undefined. If @var{proto} is @samp{HTTP}, the default port is
+80. An @samp{http} entry may also be specified in URL format.
 
 If the information about a realm is missing from the @file{krb.conf}
 file, or if the information is wrong, the following methods will be
@@ -123,8 +127,9 @@ tried in order.
 If you have an SRV-record (@cite{RFC 2052}) for your realm it will be
 used. This record should be of the form
 @samp{kerberos-iv.@var{protocol}.@var{REALM}}, where @var{proto} is
-either @samp{udp} or @samp{tcp}. (Note: the current implementation does
-not look at priority or weight when deciding which server to talk to.)
+either @samp{UDP}, @samp{TCP}, or @samp{HTTP}. (Note: the current
+implementation does not look at priority or weight when deciding which
+server to talk to.)
 @item
 If there isn't any SRV-record, it tries to find a TXT-record for the
 same domain. The contents of the record should have the same format as the
@@ -133,7 +138,7 @@ solution if your name server doesn't support SRV records. The clients
 should work fine with SRV records, so if your name server supports them,
 they are very much preferred.)
 @item
-If no valid kerberos server is found, it will try to talk udp to the
+If no valid kerberos server is found, it will try to talk UDP to the
 service @samp{kerberos-iv} with fall-back to port 750 with
 @samp{kerberos.@var{REALM}} (which is also assumed to be the master
 server), and then @samp{kerberos-1.@var{REALM}},
@@ -176,6 +181,42 @@ The plain vanilla version of Kerberos doesn't have any fancy methods of
 getting realms and servers so it is generally a good idea to keep
 @file{krb.conf} and @file{krb.realms} up to date.
 
+In addition to these commonly used files, @file{/etc/krb.extra}
+@pindex krb.extra
+holds some things that are not normally used. It consists of a number of
+@samp{@var{variable} = @var{value}} pairs, blank lines and lines
+beginning with a hash (#) are ignored.
+
+The currently defined variables are:
+
+@table @samp
+@item krb4_proxy
+@cindex krb4_proxy
+When getting tickets via HTTP, this specifies the proxy to use. The
+default is to speak directly to the KDC.
+@item kdc_time_sync
+@cindex kdc_time_sync
+This flag enables storing of the time differential to the KDC when
+getting an initial ticket. This differential is used later on to compute
+the correct time. This can help if your machine doesn't have a working
+clock.
+@item kdc_timeout
+@cindex kdc_timeout
+This allows you to change the default (4 seconds) timeout when talking
+to the KDC.
+@item reverse_lsb_test
+@cindex reverse_lsb_test
+Reverses the test used by @code{krb_mk_safe}, @code{krb_rd_safe},
+@code{krb_mk_priv}, and @code{krb_rd_priv} to compute the ordering of
+the communicating hosts. This test can cause truble when using
+firewalls.
+@item firewall_address
+@cindex firewall_address
+The IP address that hosts outside the firewall see when connecting from
+within the firewall. If this is specified, the code will try to compute
+the value for @samp{reverse_lsb_test}.
+@end table
+
 @node Install the /etc/services, Install the kerberos server, Install the configuration files, How to set up the kerberos server
 @subsection Updating /etc/services
 
@@ -193,7 +234,7 @@ have them there anyway.
 
 You should have already chosen the machine where you want to run the
 kerberos server and the realm name.  The machine should also be as
-secure as possible (@xref{Choose a kerberos server}) before installing
+secure as possible (@pxref{Choose a kerberos server}) before installing
 the kerberos server.  In this example, we will install a kerberos server
 for the realm @samp{FOO.SE} on a machine called @samp{hemlig.foo.se}.
 
@@ -285,7 +326,7 @@ to edit the kerberos database directly on the server.
 
 @code{kdb_edit} is intended as a bootstrapping and fall-back mechanism
 for editing the database.  For normal purposes, use the @code{kadmin}
-program (@xref{Add users to the database}).
+program (@pxref{Add users to the database}).
 
 The following example shows the adding of the principal
 @samp{nisse.admin} into the kerberos database.  This principal is used
@@ -393,10 +434,10 @@ the contents.
 
 @example
 @cartouche
-hemlig# echo "nisse.admin@@FOO.SE" > /var/kerberos/admin_acl.add
-hemlig# echo "nisse.admin@@FOO.SE" > /var/kerberos/admin_acl.get
-hemlig# echo "nisse.admin@@FOO.SE" > /var/kerberos/admin_acl.mod
-hemlig# echo "nisse.admin@@FOO.SE" > /var/kerberos/admin_acl.del
+hemlig# echo "nisse.admin@@FOO.SE" >> /var/kerberos/admin_acl.add
+hemlig# echo "nisse.admin@@FOO.SE" >> /var/kerberos/admin_acl.get
+hemlig# echo "nisse.admin@@FOO.SE" >> /var/kerberos/admin_acl.mod
+hemlig# echo "nisse.admin@@FOO.SE" >> /var/kerberos/admin_acl.del
 @end cartouche
 @end example
 
@@ -470,7 +511,7 @@ admin server to your startup scripts (@file{/etc/rc} or similar).
 
 Making a machine a kerberos client only requires a few steps.  First you
 might need to change the configuration files as with the kerberos
-server.  (@xref{Install the configuration files} and @ref{Install the
+server.  (@pxref{Install the configuration files} and @pxref{Install the
 /etc/services}.) Also you need to make the programs in
 @file{/usr/athena/bin} available.  This can be done by adding the
 @file{/usr/athena/bin} directory to the users' paths, by making symbolic
@@ -482,7 +523,7 @@ time difference between the participating servers and a client is 5
 minutes.
 @cindex NTP.
 One good way to synchronize the time is NTP (Network Time Protocol), see
-@code{http://www.eecis.udel.edu/~ntp/}.
+@url{http://www.eecis.udel.edu/~ntp/}.
 
 If you need to run the client programs on a machine where you do not
 have root-access, you can hopefully just use the binaries and no
@@ -563,7 +604,7 @@ authentication method should be used.  The @code{telnetd} program has
 an option ``-a user'' that only allows kerberised and authenticated
 connections.  If this is not included, it falls back to using clear text
 passwords.  For obvious reasons, we recommend that you enable this
-option.  If you want to use one-time passwords (@xref{One-Time
+option.  If you want to use one-time passwords (@pxref{One-Time
 Passwords}) you can use the ``-a otp'' option which will allow OTPs or
 kerberised connections.
 
@@ -576,7 +617,7 @@ specify additional levels that are thus allowed with these options:
 
 @table @asis
 @item @kbd{-a otp}
-Allow one-time passwords (@xref{One-Time Passwords}).
+Allow one-time passwords (@pxref{One-Time Passwords}).
 @item @kbd{-a ftp}
 Allow anonymous login (as user ``ftp'' or ``anonymous'').
 @item @kbd{-a safe}
@@ -691,17 +732,28 @@ It is desirable to have at least one backup (slave) server in case the
 master server fails. It is possible to have any number of such slave
 servers but more than three usually doesn't buy much more redundancy.
 
-First select a good server machine.  @xref{Choose a kerberos
-server}. Since the master and slave servers will use copies of the same
-database, they need to use the same master key.
+First select a good server machine.  (@pxref{Choose a kerberos
+server}). Since the master and slave servers will use copies of the same
+database, they need to use the same master key.  Add the master key on
+the slave with @code{kstash}. (@pxref{Set up the server})
 
-On the master, add a @samp{rcmd.kerberos} principal (using
-@samp{ksrvutil get}). The
+On the master, add a @samp{rcmd.kerberos} (note, it should be literally
+``kerberos'') principal (using @samp{ksrvutil get}). The
 @pindex kprop
 @code{kprop} program, running on the master, will use this when
 authenticating to the
 @pindex kpropd
-@code{kpropd} daemons running on the slave servers.
+@code{kpropd} daemons running on the slave servers.  The @code{kpropd}
+on the slave will use its @samp{rcmd.hostname} key for authenticating
+the connection from the master.  Therefore, the slave needs to have this
+key in its srvtab, and it of course also needs to have enough of the
+configuration files to act as a server.  See @ref{Install the kerberised
+services} for information on how to do this.
+
+To summarize, the master should have a key for @samp{rcmd.kerberos} and
+the slave one for @samp{rcmd.hostname}.
+
+The slave will need the same master key as you used at the master.
 
 On your master server, create a file, e.g. @file{/var/kerberos/slaves},
 that contains the hostnames of your kerberos slave servers.

@@ -56,11 +56,35 @@ Bugfixes and code has been contributed by:
 @item Robert Malmgren
 @code{<rom@@incolumitas.se>}
 @item Fredrik Ljungberg
-@code{<flag@@it.kth.se>}
+@code{<flag@@astrogator.se>}
+@item Joakim Fallsjö
+@code{jfa@@pobox.se}
 @item Lars Malinowsky
 @code{<lama@@pdc.kth.se>}
 @item Fabien Coelho
 @code{<coelho@@cri.ensmp.fr>}
+@item Chris Chiappa
+@code{<griffon+@@cmu.edu>}
+@item Gregory S. Stark
+@code{<gsstark@@mit.edu>}
+@item Love Hörnquist-Åstrand
+@code{<lha@@stacken.kth.se>}
+@item Daniel Staaf
+@code{<d96-dst@@nada.kth.se>}
+@item Magnus Ahltorp
+@code{<map@@stacken.kth.se>}
+@item Robert Burgess
+@code{<rb@@stacken.kth.se>}
+@item Lars Arvestad
+@code{<arve@@nada.kth.se>}
+@item Jörgen Wahlsten
+@code{<wahlsten@@pathfinder.com>}
+@item Daniel Staaf
+@code{<d96-dst@@nada.kth.se>}
+@item R Lindsay Todd
+@code{<toddr@@rpi.edu>}
+@item Åke Sandgren
+@code{<ake@@cs.umu.se>}
 @item and we hope that those not mentioned here will forgive us.
 @end table
 

@@ -42,7 +42,7 @@
 
 #include "bsd_locl.h"
 
-RCSID("$Id: rshd.c,v 1.51 1997/05/13 09:42:39 bg Exp $");
+RCSID("$Id: rshd.c,v 1.58 1999/06/17 18:49:43 assar Exp $");
 
 extern char *__rcmd_errstr; /* syslog hook from libc/net/rcmd.c. */
 extern int __check_rhosts_file;
@@ -197,7 +197,7 @@ doit(struct sockaddr_in *fromp)
     int one = 1;
     const char *errorhost = "";
     char *errorstr;
-    char *cp, sig, buf[BUFSIZ];
+    char *cp, sig, buf[DES_RW_MAXWRITE];
     char cmdbuf[NCARGS+1], locuser[16], remuser[16];
     char remotehost[2 * MaxHostNameLen + 1];
 
@@ -279,7 +279,7 @@ doit(struct sockaddr_in *fromp)
     }
 
     if (vacuous) {
-	error("rshd: remote host requires Kerberos authentication\n");
+	error("rshd: Remote host requires Kerberos authentication.\n");
 	exit(1);
     }
 
@@ -298,7 +298,7 @@ doit(struct sockaddr_in *fromp)
 	    if (getsockname(0, (struct sockaddr *)&local_addr,
 			    &rc) < 0) {
 		syslog(LOG_ERR, "getsockname: %m");
-		error("rlogind: getsockname: %m");
+		error("rshd: getsockname: %m");
 		exit(1);
 	    }
 	    authopts = KOPT_DO_MUTUAL;
@@ -369,9 +369,9 @@ doit(struct sockaddr_in *fromp)
     } else
 
 	if (errorstr ||
-	    pwd->pw_passwd != 0 && *pwd->pw_passwd != '\0' &&
+	    (pwd->pw_passwd != 0 && *pwd->pw_passwd != '\0' &&
 	    iruserok(fromp->sin_addr.s_addr, pwd->pw_uid == 0,
-		     remuser, locuser) < 0) {
+		     remuser, locuser) < 0)) {
 	    if (__rcmd_errstr)
 		syslog(LOG_INFO|LOG_AUTH,
 		       "%s@%s as %s: permission denied (%s). cmd='%.80s'",
@@ -560,19 +560,18 @@ doit(struct sockaddr_in *fromp)
     if (setpcred (pwd->pw_name, NULL) == -1)
 	syslog(LOG_ERR, "setpcred() failure: %m");
 #endif /* HAVE_SETPCRED */
+    if(do_osfc2_magic(pwd->pw_uid))
+	exit(1);
     setgid((gid_t)pwd->pw_gid);
     initgroups(pwd->pw_name, pwd->pw_gid);
     setuid((uid_t)pwd->pw_uid);
-    strncat(homedir, pwd->pw_dir, sizeof(homedir)-6);
+    strcat_truncate(homedir, pwd->pw_dir, sizeof(homedir));
 
-    /* Need to extend path to find rcp */
-    strncat(path, BINDIR, sizeof(path)-1);
-    strncat(path, ":", sizeof(path)-1);
-    strncat(path, _PATH_DEFPATH, sizeof(path)-1);
-    path[sizeof(path)-1] = '\0';
+    /* Need to prepend path with BINDIR (/usr/athena/bin) to find rcp */
+    snprintf(path, sizeof(path), "PATH=%s:%s", BINDIR, _PATH_DEFPATH);
 
-    strncat(shell, pwd->pw_shell, sizeof(shell)-7);
-    strncat(username, pwd->pw_name, sizeof(username)-6);
+    strcat_truncate(shell, pwd->pw_shell, sizeof(shell));
+    strcat_truncate(username, pwd->pw_name, sizeof(username));
     cp = strrchr(pwd->pw_shell, '/');
     if (cp)
 	cp++;
@@ -594,7 +593,7 @@ doit(struct sockaddr_in *fromp)
     if (k_hasafs()) {
 	if (new_pag)
 	    k_setpag();	/* Put users process in an new pag */
-	k_afsklog(0, 0);
+	krb_afslog(0, 0);
     }
     execle(pwd->pw_shell, cp, "-c", cmdbuf, 0, envinit);
     err(1, pwd->pw_shell);
@@ -620,8 +619,8 @@ error(const char *fmt, ...)
 	len = 1;
     } else
 	len = 0;
-    len = vsnprintf (bp, sizeof(buf) - len, fmt, ap);
-    write (STDERR_FILENO, buf, len);
+    len += vsnprintf(bp, sizeof(buf) - len, fmt, ap);
+    write(STDERR_FILENO, buf, len);
     va_end(ap);
 }
 

@@ -47,7 +47,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: kntoln.c,v 1.7 1997/03/23 03:53:12 joda Exp $");
+RCSID("$Id: kntoln.c,v 1.10 1998/06/09 19:25:21 joda Exp $");
 
 int
 krb_kntoln(AUTH_DAT *ad, char *lname)
@@ -91,57 +91,55 @@ extern int errno;
 
 static char     lrealm[REALM_SZ] = "";
 
-an_to_ln(ad,lname)
-AUTH_DAT        *ad;
-char            *lname;
+int
+an_to_ln(AUTH_DAT *ad, char *lname)
 {
-        static DBM *aname = NULL;
-        char keyname[ANAME_SZ+INST_SZ+REALM_SZ+2];
+    static DBM *aname = NULL;
+    char keyname[ANAME_SZ+INST_SZ+REALM_SZ+2];
 
-        if(!(*lrealm) && (krb_get_lrealm(lrealm,1) == KFAILURE))
-                return(KFAILURE);
+    if(!(*lrealm) && (krb_get_lrealm(lrealm,1) == KFAILURE))
+	return(KFAILURE);
 
-        if((strcmp(ad->pinst,"") && strcmp(ad->pinst,"root")) ||
-strcmp(ad->prealm,lrealm)) {
-                datum val;
-                datum key;
-                /*
-                 * Non-local name (or) non-null and non-root instance.
-                 * Look up in dbm file.
-                 */
-                if (!aname) {
-                        if ((aname = dbm_open("/etc/aname", O_RDONLY, 0))
-                            == NULL) return (KFAILURE);
-                }
-                /* Construct dbm lookup key. */
-                an_to_a(ad, keyname);
-                key.dptr = keyname;
-                key.dsize = strlen(keyname)+1;
-                flock(dbm_dirfno(aname), LOCK_SH);
-                val = dbm_fetch(aname, key);
-                flock(dbm_dirfno(aname), LOCK_UN);
-                if (!val.dptr) {
-                  dbm_close(aname);
-                  return(KFAILURE);
-                }
-                /* Got it! */
-                strcpy(lname,val.dptr);
-                return(KSUCCESS);
-        } else strcpy(lname,ad->pname);
-        return(KSUCCESS);
+    if((strcmp(ad->pinst,"") && strcmp(ad->pinst,"root")) ||
+       strcmp(ad->prealm,lrealm)) {
+	datum val;
+	datum key;
+	/*
+	 * Non-local name (or) non-null and non-root instance.
+	 * Look up in dbm file.
+	 */
+	if (!aname) {
+	    if ((aname = dbm_open("/etc/aname", O_RDONLY, 0))
+		== NULL) return (KFAILURE);
+	}
+	/* Construct dbm lookup key. */
+	an_to_a(ad, keyname);
+	key.dptr = keyname;
+	key.dsize = strlen(keyname)+1;
+	flock(dbm_dirfno(aname), LOCK_SH);
+	val = dbm_fetch(aname, key);
+	flock(dbm_dirfno(aname), LOCK_UN);
+	if (!val.dptr) {
+	    dbm_close(aname);
+	    return(KFAILURE);
+	}
+	/* Got it! */
+	strcpy(lname,val.dptr);
+	return(KSUCCESS);
+    } else strcpy(lname,ad->pname);
+    return(KSUCCESS);
 }
 
-an_to_a(ad, str)
-        AUTH_DAT *ad;
-        char *str;
+void
+an_to_a(AUTH_DAT *ad, char *str)
 {
-        strcpy(str, ad->pname);
-        if(*ad->pinst) {
-                strcat(str, ".");
-                strcat(str, ad->pinst);
-        }
-        strcat(str, "@");
-        strcat(str, ad->prealm);
+    strcpy(str, ad->pname);
+    if(*ad->pinst) {
+	strcat(str, ".");
+	strcat(str, ad->pinst);
+    }
+    strcat(str, "@");
+    strcat(str, ad->prealm);
 }
 
 /*
@@ -149,32 +147,31 @@ an_to_a(ad, str)
  * into a struct AUTH_DAT.
  */
 
-a_to_an(str, ad)
-        AUTH_DAT *ad;
-        char *str;
+int
+a_to_an(char *str, AUTH_DAT *ad)
 {
-        char *buf = (char *)malloc(strlen(str)+1);
-        char *rlm, *inst, *princ;
+    char *buf = (char *)malloc(strlen(str)+1);
+    char *rlm, *inst, *princ;
 
-        if(!(*lrealm) && (krb_get_lrealm(lrealm,1) == KFAILURE)) {
-                free(buf);
-                return(KFAILURE);
-        }
-        /* destructive string hacking is more fun.. */
-        strcpy(buf, str);
+    if(!(*lrealm) && (krb_get_lrealm(lrealm,1) == KFAILURE)) {
+	free(buf);
+	return(KFAILURE);
+    }
+    /* destructive string hacking is more fun.. */
+    strcpy(buf, str);
 
-        if (rlm = index(buf, '@')) {
-                *rlm++ = '\0';
-        }
-        if (inst = index(buf, '.')) {
-                *inst++ = '\0';
-        }
-        strcpy(ad->pname, buf);
-        if(inst) strcpy(ad->pinst, inst);
-        else *ad->pinst = '\0';
-        if (rlm) strcpy(ad->prealm, rlm);
-        else strcpy(ad->prealm, lrealm);
-        free(buf);
-        return(KSUCCESS);
+    if (rlm = index(buf, '@')) {
+	*rlm++ = '\0';
+    }
+    if (inst = index(buf, '.')) {
+	*inst++ = '\0';
+    }
+    strcpy(ad->pname, buf);
+    if(inst) strcpy(ad->pinst, inst);
+    else *ad->pinst = '\0';
+    if (rlm) strcpy(ad->prealm, rlm);
+    else strcpy(ad->prealm, lrealm);
+    free(buf);
+    return(KSUCCESS);
 }
 #endif

@@ -1,72 +1,118 @@
 /*
- * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
+ * Copyright (c) 1998, 1999 Kungliga Tekniska Högskolan
+ * (Royal Institute of Technology, Stockholm, Sweden). 
+ * All rights reserved. 
  *
- * For copying and distribution information, please see the file
- * <mit-copyright.h>. 
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met: 
  *
- * This program causes Kerberos tickets to be destroyed.
- * Options are: 
+ * 1. Redistributions of source code must retain the above copyright 
+ *    notice, this list of conditions and the following disclaimer. 
  *
- *   -q[uiet]	- no bell even if tickets not destroyed
- *   -f[orce]	- no message printed at all 
- *   -t		- do not destroy tokens
+ * 2. Redistributions in binary form must reproduce the above copyright 
+ *    notice, this list of conditions and the following disclaimer in the 
+ *    documentation and/or other materials provided with the distribution. 
+ *
+ * 3. All advertising materials mentioning features or use of this software 
+ *    must display the following acknowledgement: 
+ *      This product includes software developed by Kungliga Tekniska 
+ *      Högskolan and its contributors. 
+ *
+ * 4. Neither the name of the Institute nor the names of its contributors 
+ *    may be used to endorse or promote products derived from this software 
+ *    without specific prior written permission. 
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+ * SUCH DAMAGE. 
  */
 
 #include "kuser_locl.h"
 #include <kafs.h>
+#include <getarg.h>
 
-RCSID("$Id: kdestroy.c,v 1.8 1997/03/30 16:15:03 joda Exp $");
+RCSID("$Id: kdestroy.c,v 1.16 1999/06/16 17:34:51 assar Exp $");
+
+#ifdef LEGACY_KDESTROY
+int ticket_flag = 1;
+int unlog_flag  = 0;
+#else
+int ticket_flag = -1;
+int unlog_flag  = -1;
+#endif
+int quiet_flag;
+int help_flag;
+int version_flag;
+
+struct getargs args[] = {
+    { "quiet", 		'q',	arg_flag, 	&quiet_flag, 
+      "don't print any messages" },
+    { NULL, 		'f',	arg_flag, 	&quiet_flag },
+    { "tickets",	't',	arg_flag,       &ticket_flag,
+    "destroy tickets" },
+    { "unlog",          'u',    arg_flag,       &unlog_flag,
+      "destroy AFS tokens" },
+    { "version", 	0,	arg_flag,	&version_flag },
+    { "help",		'h',	arg_flag,	&help_flag }
+};
+
+int num_args = sizeof(args) / sizeof(args[0]);
 
 static void
-usage(void)
+usage(int code)
 {
-    fprintf(stderr, "Usage: %s [-f] [-q] [-t]\n", __progname);
-    exit(1);
+    arg_printusage(args, num_args, NULL, "");
+    exit(code);
 }
 
 int
 main(int argc, char **argv)
 {
-    int fflag=0, tflag = 0, k_errno;
-    int c;
+    int optind = 0;
+    int ret = RET_TKFIL;
 
     set_progname(argv[0]);
+    if(getarg(args, num_args, argc, argv, &optind))
+	usage(1);
 
-    while((c = getopt(argc, argv, "fqt")) >= 0){
-	switch(c){
-	case 'f':
-	case 'q':
-	    fflag++;
-	    break;
-	case 't':
-	    tflag++;
-	    break;
-	default:
-	    usage();
-	}
+    if(help_flag)
+	usage(0);
+
+    if(version_flag) {
+	print_version(NULL);
+	exit(0);
     }
-    if(argc - optind > 0)
-	usage();
+    
+    if (unlog_flag == -1 && ticket_flag == -1)
+        unlog_flag = ticket_flag = 1;
 
-    k_errno = dest_tkt();
+    if (ticket_flag)
+        ret = dest_tkt();
 
-    if(!tflag && k_hasafs())
+    if (unlog_flag && k_hasafs())
 	k_unlog();
 
-    if (fflag) {
-	if (k_errno != 0 && k_errno != RET_TKFIL)
-	    exit(1);
-	else
-	    exit(0);
-    } else {
-	if (k_errno == 0)
+    if (!quiet_flag) {
+	if (ret == KSUCCESS)
 	    printf("Tickets destroyed.\n");
-	else if (k_errno == RET_TKFIL)
+	else if (ret == RET_TKFIL)
 	    printf("No tickets to destroy.\n");
 	else {
 	    printf("Tickets NOT destroyed.\n");
-	    exit(1);
 	}
     }
-    exit(0);
+
+    if (ret == KSUCCESS || ret == RET_TKFIL)
+	return 0;
+    else
+	return 1;
 }

@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: realm_parse.c,v 1.10 1997/06/01 03:14:50 assar Exp $");
+RCSID("$Id: realm_parse.c,v 1.15 1998/06/09 19:25:25 joda Exp $");
 
 static int
 realm_parse(char *realm, int length, const char *file)
@@ -55,7 +55,7 @@ realm_parse(char *realm, int length, const char *file)
 	p = strtok_r(tr, " \t\n\r", &unused);
 	if(p && strcasecmp(p, realm) == 0){
 	    fclose(F);
-	    strncpy(realm, p, length);
+	    strcpy_truncate (realm, p, length);
 	    return 0;
 	}
     }
@@ -63,26 +63,14 @@ realm_parse(char *realm, int length, const char *file)
     return -1;
 }
 
-static const char *const files[] = KRB_CNF_FILES;
-
 int
 krb_realm_parse(char *realm, int length)
 {
     int i;
-  
-    const char *dir = getenv("KRBCONFDIR");
+    char file[MaxPathLen];
 
-    /* First try user specified file */
-    if (dir != 0) {
-      char fname[MaxPathLen];
-
-      if(k_concat(fname, sizeof(fname), dir, "/krb.conf", NULL) == 0)
-	  if (realm_parse(realm, length, fname) == 0)
-	      return 0;
-    }
-
-    for (i = 0; files[i] != NULL; i++)
-	if (realm_parse(realm, length, files[i]) == 0)
+    for(i = 0; krb_get_krbconf(i, file, sizeof(file)) == 0; i++)
+	if (realm_parse(realm, length, file) == 0)
 	    return 0;
     return -1;
 }

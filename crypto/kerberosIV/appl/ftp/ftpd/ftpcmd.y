@@ -42,73 +42,15 @@
 
 %{
 
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-
-RCSID("$Id: ftpcmd.y,v 1.35 1997/05/25 14:38:49 assar Exp $");
-
-#ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
-#endif
-
-#ifdef HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-
-#ifdef HAVE_NETINET_IN_H
-#include <netinet/in.h>
-#endif
-#ifdef HAVE_ARPA_FTP_H
-#include <arpa/ftp.h>
-#endif
-
-#include <ctype.h>
-#include <errno.h>
-#include <glob.h>
-#ifdef HAVE_PWD_H
-#include <pwd.h>
-#endif
-#include <setjmp.h>
-#include <signal.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#ifdef HAVE_SYSLOG_H
-#include <syslog.h>
-#endif
-#include <time.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#ifdef HAVE_BSD_BSD_H
-#include <bsd/bsd.h>
-#endif
-
-#include <roken.h>
-
-#ifdef SOCKS
-#include <socks.h>
-extern int LIBPREFIX(fclose)      __P((FILE *));
-#endif
-
-#include "extern.h"
-#include "auth.h"
+#include "ftpd_locl.h"
+RCSID("$Id: ftpcmd.y,v 1.48 1999/05/08 02:22:43 assar Exp $");
 
 off_t	restart_point;
 
 static	int cmd_type;
 static	int cmd_form;
 static	int cmd_bytesz;
-char	cbuf[512];
+char	cbuf[2048];
 char	*fromname;
 
 struct tab {
@@ -122,13 +64,13 @@ struct tab {
 extern struct tab cmdtab[];
 extern struct tab sitetab[];
 
-static char	*copy (char *);
-static void	 help (struct tab *, char *);
+static char		*copy (char *);
+static void		 help (struct tab *, char *);
 static struct tab *
-		 lookup (struct tab *, char *);
-static void	 sizecmd (char *);
-static void	 toolong (int);
-static int	 yylex (void);
+			 lookup (struct tab *, char *);
+static void		 sizecmd (char *);
+static RETSIGTYPE	 toolong (int);
+static int		 yylex (void);
 
 /* This is for bison */
 
@@ -154,7 +96,7 @@ static int	 yylex (void);
 	APPE	MLFL	MAIL	MSND	MSOM	MSAM
 	MRSQ	MRCP	ALLO	REST	RNFR	RNTO
 	ABOR	DELE	CWD	LIST	NLST	SITE
-	STAT	HELP	NOOP	MKD	RMD	PWD
+	sTAT	HELP	NOOP	MKD	RMD	PWD
 	CDUP	STOU	SMNT	SYST	SIZE	MDTM
 
 	UMASK	IDLE	CHMOD
@@ -162,14 +104,15 @@ static int	 yylex (void);
 	AUTH	ADAT	PROT	PBSZ	CCC	MIC
 	CONF	ENC
 
-	KAUTH	KLIST	FIND	URL
+	KAUTH	KLIST	KDESTROY KRBTKFILE AFSLOG
+	FIND	URL
 
 	LEXERR
 
 %token	<s> STRING
 %token	<i> NUMBER
 
-%type	<i> check_login check_login_no_guest octal_number byte_size
+%type	<i> check_login check_login_no_guest check_secure octal_number byte_size
 %type	<i> struct_code mode_code type_code form_code
 %type	<s> pathstring pathname password username
 
@@ -191,38 +134,6 @@ cmd
 	: USER SP username CRLF
 		{
 			user($3);
-			free($3);
-		}
-	| AUTH SP STRING CRLF
-		{
-			auth($3);
-			free($3);
-		}
-	| ADAT SP STRING CRLF
-		{
-			adat($3);
-			free($3);
-		}
-	| PBSZ SP NUMBER CRLF
-		{
-			pbsz($3);
-		}
-	| PROT SP STRING CRLF
-		{
-			prot($3);
-		}
-	| CCC CRLF
-		{
-			ccc();
-		}
-	| MIC SP STRING CRLF
-		{
-			mic($3);
-			free($3);
-		}
-	| CONF SP STRING CRLF
-		{
-			conf($3);
 			free($3);
 		}
 	| PASS SP password CRLF
@@ -311,100 +222,102 @@ cmd
 		{
 			reply(202, "ALLO command ignored.");
 		}
-	| RETR check_login SP pathname CRLF
+	| RETR SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				retrieve((char *) 0, $4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				retrieve(0, $3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| STOR check_login SP pathname CRLF
+	| STOR SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				do_store($4, "w", 0);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				do_store($3, "w", 0);
+			if ($3 != NULL)
+				free($3);
 		}
-	| APPE check_login SP pathname CRLF
+	| APPE SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				do_store($4, "a", 0);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				do_store($3, "a", 0);
+			if ($3 != NULL)
+				free($3);
 		}
-	| NLST check_login CRLF
+	| NLST CRLF check_login
 		{
-			if ($2)
+			if ($3)
 				send_file_list(".");
 		}
-	| NLST check_login SP STRING CRLF
+	| NLST SP STRING CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				send_file_list($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				send_file_list($3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| LIST check_login CRLF
+	| LIST CRLF check_login
 		{
 #ifdef HAVE_LS_A
 		  char *cmd = "/bin/ls -lA";
 #else
 		  char *cmd = "/bin/ls -la";
 #endif
-			if ($2)
+			if ($3)
 				retrieve(cmd, "");
 			
 		}
-	| LIST check_login SP pathname CRLF
+	| LIST SP pathname CRLF check_login
 		{
 #ifdef HAVE_LS_A
 		  char *cmd = "/bin/ls -lA %s";
 #else
 		  char *cmd = "/bin/ls -la %s";
 #endif
-			if ($2 && $4 != NULL)
-				retrieve(cmd, $4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				retrieve(cmd, $3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| STAT check_login SP pathname CRLF
+	| sTAT SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				statfilecmd($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				statfilecmd($3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| STAT CRLF
+	| sTAT CRLF
 		{
-			if(oobflag){
-				if (file_size != (off_t) -1)
-					reply(213, "Status: %ld of %ld bytes transferred",
-						byte_count, file_size);
-				else
-					reply(213, "Status: %ld bytes transferred", byte_count);
-			}else
-				statcmd();
+		    if(oobflag){
+			if (file_size != (off_t) -1)
+			    reply(213, "Status: %lu of %lu bytes transferred",
+				  (unsigned long)byte_count, 
+				  (unsigned long)file_size);
+			else
+			    reply(213, "Status: %lu bytes transferred", 
+				  (unsigned long)byte_count);
+		    }else
+			statcmd();
 	}
-	| DELE check_login_no_guest SP pathname CRLF
+	| DELE SP pathname CRLF check_login_no_guest
 		{
-			if ($2 && $4 != NULL)
-				do_delete($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				do_delete($3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| RNTO check_login_no_guest SP pathname CRLF
+	| RNTO SP pathname CRLF check_login_no_guest
 		{
-			if($2){
+			if($5){
 				if (fromname) {
-					renamecmd(fromname, $4);
+					renamecmd(fromname, $3);
 					free(fromname);
 					fromname = (char *) 0;
 				} else {
 					reply(503, "Bad sequence of commands.");
 				}
 			}
-			if ($4 != NULL)
-				free($4);
+			if ($3 != NULL)
+				free($3);
 		}
 	| ABOR CRLF
 		{
@@ -416,17 +329,17 @@ cmd
 			}else
 				reply(225, "ABOR command successful.");
 		}
-	| CWD check_login CRLF
+	| CWD CRLF check_login
 		{
-			if ($2)
+			if ($3)
 				cwd(pw->pw_dir);
 		}
-	| CWD check_login SP pathname CRLF
+	| CWD SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				cwd($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				cwd($3);
+			if ($3 != NULL)
+				free($3);
 		}
 	| HELP CRLF
 		{
@@ -451,28 +364,28 @@ cmd
 		{
 			reply(200, "NOOP command successful.");
 		}
-	| MKD check_login SP pathname CRLF
+	| MKD SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				makedir($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				makedir($3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| RMD check_login_no_guest SP pathname CRLF
+	| RMD SP pathname CRLF check_login_no_guest
 		{
-			if ($2 && $4 != NULL)
-				removedir($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				removedir($3);
+			if ($3 != NULL)
+				free($3);
 		}
-	| PWD check_login CRLF
+	| PWD CRLF check_login
 		{
-			if ($2)
+			if ($3)
 				pwd();
 		}
-	| CDUP check_login CRLF
+	| CDUP CRLF check_login
 		{
-			if ($2)
+			if ($3)
 				cwd("..");
 		}
 	| SITE SP HELP CRLF
@@ -483,44 +396,40 @@ cmd
 		{
 			help(sitetab, $5);
 		}
-	| SITE SP UMASK check_login CRLF
+	| SITE SP UMASK CRLF check_login
 		{
-			int oldmask;
-
-			if ($4) {
-				oldmask = umask(0);
+			if ($5) {
+				int oldmask = umask(0);
 				umask(oldmask);
 				reply(200, "Current UMASK is %03o", oldmask);
 			}
 		}
-	| SITE SP UMASK check_login_no_guest SP octal_number CRLF
+	| SITE SP UMASK SP octal_number CRLF check_login_no_guest
 		{
-			int oldmask;
-
-			if ($4) {
-				if (($6 == -1) || ($6 > 0777)) {
+			if ($7) {
+				if (($5 == -1) || ($5 > 0777)) {
 					reply(501, "Bad UMASK value");
 				} else {
-					oldmask = umask($6);
+					int oldmask = umask($5);
 					reply(200,
-					    "UMASK set to %03o (was %03o)",
-					    $6, oldmask);
+					      "UMASK set to %03o (was %03o)",
+					      $5, oldmask);
 				}
 			}
 		}
-	| SITE SP CHMOD check_login_no_guest SP octal_number SP pathname CRLF
+	| SITE SP CHMOD SP octal_number SP pathname CRLF check_login_no_guest
 		{
-			if ($4 && $8 != NULL) {
-				if ($6 > 0777)
+			if ($9 && $7 != NULL) {
+				if ($5 > 0777)
 					reply(501,
 				"CHMOD: Mode value must be between 0 and 0777");
-				else if (chmod($8, $6) < 0)
-					perror_reply(550, $8);
+				else if (chmod($7, $5) < 0)
+					perror_reply(550, $7);
 				else
 					reply(200, "CHMOD command successful.");
 			}
-			if ($8 != NULL)
-				free($8);
+			if ($7 != NULL)
+				free($7);
 		}
 	| SITE SP IDLE CRLF
 		{
@@ -543,47 +452,102 @@ cmd
 			}
 		}
 
-	| SITE SP KAUTH check_login SP STRING CRLF
+	| SITE SP KAUTH SP STRING CRLF check_login
 		{
+#ifdef KRB4
 			char *p;
 			
 			if(guest)
 				reply(500, "Can't be done as guest.");
 			else{
-				if($4 && $6 != NULL){
-				    p = strpbrk($6, " \t");
+				if($7 && $5 != NULL){
+				    p = strpbrk($5, " \t");
 				    if(p){
 					*p++ = 0;
-					kauth($6, p + strspn(p, " \t"));
+					kauth($5, p + strspn(p, " \t"));
 				    }else
-					kauth($6, NULL);
+					kauth($5, NULL);
 				}
 			}
-			if($6 != NULL)
-			    free($6);
+			if($5 != NULL)
+			    free($5);
+#else
+			reply(500, "Command not implemented.");
+#endif
 		}
-	| SITE SP KLIST check_login CRLF
+	| SITE SP KLIST CRLF check_login
 		{
-		    if($4)
+#ifdef KRB4
+		    if($5)
 			klist();
+#else
+		    reply(500, "Command not implemented.");
+#endif
 		}
-	| SITE SP FIND check_login SP STRING CRLF
+	| SITE SP KDESTROY CRLF check_login
 		{
-		    if($4 && $6 != NULL)
-			find($6);
-		    if($6 != NULL)
-			free($6);
+#ifdef KRB4
+		    if($5)
+			kdestroy();
+#else
+		    reply(500, "Command not implemented.");
+#endif
+		}
+	| SITE SP KRBTKFILE SP STRING CRLF check_login
+		{
+#ifdef KRB4
+		    if(guest)
+			reply(500, "Can't be done as guest.");
+		    else if($7 && $5)
+			krbtkfile($5);
+		    if($5)
+			free($5);
+#else
+		    reply(500, "Command not implemented.");
+#endif
+		}
+	| SITE SP AFSLOG CRLF check_login
+		{
+#ifdef KRB4
+		    if(guest)
+			reply(500, "Can't be done as guest.");
+		    else if($5)
+			afslog(NULL);
+#else
+		    reply(500, "Command not implemented.");
+#endif
+		}
+	| SITE SP AFSLOG SP STRING CRLF check_login
+		{
+#ifdef KRB4
+		    if(guest)
+			reply(500, "Can't be done as guest.");
+		    else if($7){
+			afslog($5);
+		    }
+		    if($5)
+			free($5);
+#else
+		    reply(500, "Command not implemented.");
+#endif
+		}
+	| SITE SP FIND SP STRING CRLF check_login
+		{
+		    if($7 && $5 != NULL)
+			find($5);
+		    if($5 != NULL)
+			free($5);
 		}
 	| SITE SP URL CRLF
 		{
 			reply(200, "http://www.pdc.kth.se/kth-krb/");
 		}
-	| STOU check_login SP pathname CRLF
+	| STOU SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				do_store($4, "w", 1);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				do_store($3, "w", 1);
+			if ($3 != NULL)
+				free($3);
 		}
 	| SYST CRLF
 		{
@@ -601,12 +565,12 @@ cmd
 		 * Return size of file in a format suitable for
 		 * using with RESTART (we just count bytes).
 		 */
-	| SIZE check_login SP pathname CRLF
+	| SIZE SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL)
-				sizecmd($4);
-			if ($4 != NULL)
-				free($4);
+			if ($5 && $3 != NULL)
+				sizecmd($3);
+			if ($3 != NULL)
+				free($3);
 		}
 
 		/*
@@ -618,15 +582,16 @@ cmd
 		 * where xxx is the fractional second (of any precision,
 		 * not necessarily 3 digits)
 		 */
-	| MDTM check_login SP pathname CRLF
+	| MDTM SP pathname CRLF check_login
 		{
-			if ($2 && $4 != NULL) {
+			if ($5 && $3 != NULL) {
 				struct stat stbuf;
-				if (stat($4, &stbuf) < 0)
+				if (stat($3, &stbuf) < 0)
 					reply(550, "%s: %s",
-					    $4, strerror(errno));
+					    $3, strerror(errno));
 				else if (!S_ISREG(stbuf.st_mode)) {
-					reply(550, "%s: not a plain file.", $4);
+					reply(550,
+					      "%s: not a plain file.", $3);
 				} else {
 					struct tm *t;
 					t = gmtime(&stbuf.st_mtime);
@@ -640,8 +605,8 @@ cmd
 					      t->tm_sec);
 				}
 			}
-			if ($4 != NULL)
-				free($4);
+			if ($3 != NULL)
+				free($3);
 		}
 	| QUIT CRLF
 		{
@@ -654,13 +619,13 @@ cmd
 		}
 	;
 rcmd
-	: RNFR check_login_no_guest SP pathname CRLF
+	: RNFR SP pathname CRLF check_login_no_guest
 		{
 			restart_point = (off_t) 0;
-			if ($2 && $4) {
-				fromname = renamefrom($4);
-				if (fromname == (char *) 0 && $4) {
-					free($4);
+			if ($5 && $3) {
+				fromname = renamefrom($3);
+				if (fromname == (char *) 0 && $3) {
+					free($3);
 				}
 			}
 		}
@@ -672,9 +637,41 @@ rcmd
 			      (long)restart_point,
 			      "Send STORE or RETRIEVE to initiate transfer.");
 		}
+	| AUTH SP STRING CRLF
+		{
+			auth($3);
+			free($3);
+		}
+	| ADAT SP STRING CRLF
+		{
+			adat($3);
+			free($3);
+		}
+	| PBSZ SP NUMBER CRLF
+		{
+			pbsz($3);
+		}
+	| PROT SP STRING CRLF
+		{
+			prot($3);
+		}
+	| CCC CRLF
+		{
+			ccc();
+		}
+	| MIC SP STRING CRLF
+		{
+			mec($3, prot_safe);
+			free($3);
+		}
+	| CONF SP STRING CRLF
+		{
+			mec($3, prot_confidential);
+			free($3);
+		}
 	| ENC SP STRING CRLF
 		{
-			enc($3);
+			mec($3, prot_private);
 			free($3);
 		}
 	;
@@ -861,19 +858,24 @@ check_login_no_guest : check_login
 		}
 	;
 
-check_login
-	: /* empty */
+check_login : check_secure
 		{
-		    if(auth_complete && prot_level == prot_clear){
-			reply(533, "Command protection level denied for paranoid reasons.");
-			$$ = 0;
-		    }else
-			if (logged_in)
-			    $$ = 1;
-			else {
+		    if($1) {
+			if(($$ = logged_in) == 0)
 			    reply(530, "Please login with USER and PASS.");
-			    $$ = 0;
-			}
+		    } else
+			$$ = 0;
+		}
+	;
+
+check_secure : /* empty */
+		{
+		    $$ = 1;
+		    if(sec_complete && !secure_command()) {
+			$$ = 0;
+			reply(533, "Command protection level denied "
+			      "for paranoid reasons.");
+		    }
 		}
 	;
 
@@ -925,7 +927,7 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "NLST", NLST, OSTR, 1,	"[ <sp> path-name ]" },
 	{ "SITE", SITE, SITECMD, 1,	"site-cmd [ <sp> arguments ]" },
 	{ "SYST", SYST, ARGS, 1,	"(get type of operating system)" },
-	{ "STAT", STAT, OSTR, 1,	"[ <sp> path-name ]" },
+	{ "STAT", sTAT, OSTR, 1,	"[ <sp> path-name ]" },
 	{ "HELP", HELP, OSTR, 1,	"[ <sp> <string> ]" },
 	{ "NOOP", NOOP, ARGS, 1,	"" },
 	{ "MKD",  MKD,  STR1, 1,	"<sp> path-name" },
@@ -940,7 +942,7 @@ struct tab cmdtab[] = {		/* In order defined in RFC 765 */
 	{ "SIZE", SIZE, OSTR, 1,	"<sp> path-name" },
 	{ "MDTM", MDTM, OSTR, 1,	"<sp> path-name" },
 
-	/* extensions from draft-ietf-cat-ftpsec-08 */
+	/* extensions from RFC2228 */
 	{ "AUTH", AUTH,	STR1, 1,	"<sp> auth-type" },
 	{ "ADAT", ADAT,	STR1, 1,	"<sp> auth-data" },
 	{ "PBSZ", PBSZ,	ARGS, 1,	"<sp> buffer-size" },
@@ -961,6 +963,9 @@ struct tab sitetab[] = {
 
 	{ "KAUTH", KAUTH, STR1, 1,	"<sp> principal [ <sp> ticket ]" },
 	{ "KLIST", KLIST, ARGS, 1,	"(show ticket file)" },
+	{ "KDESTROY", KDESTROY, ARGS, 1, "(destroy tickets)" },
+	{ "KRBTKFILE", KRBTKFILE, STR1, 1, "<sp> ticket-file" },
+	{ "AFSLOG", AFSLOG, OSTR, 1,	"[<sp> cell]" },
 
 	{ "FIND", FIND, STR1, 1,	"<sp> globexpr" },
 
@@ -979,13 +984,11 @@ lookup(struct tab *p, char *cmd)
 	return (0);
 }
 
-#include <arpa/telnet.h>
-
 /*
- * getline - a hacked up version of fgets to ignore TELNET escape codes.
+ * ftpd_getline - a hacked up version of fgets to ignore TELNET escape codes.
  */
 char *
-getline(char *s, int n)
+ftpd_getline(char *s, int n)
 {
 	int c;
 	char *cs;
@@ -993,7 +996,7 @@ getline(char *s, int n)
 	cs = s;
 /* tmpline may contain saved command from urgent mode interruption */
 	if(ftp_command){
-	  strncpy(s, ftp_command, n);
+	  strcpy_truncate(s, ftp_command, n);
 	  if (debug)
 	    syslog(LOG_DEBUG, "command: %s", s);
 #ifdef XXX
@@ -1001,7 +1004,6 @@ getline(char *s, int n)
 #endif
 	  return s;
 	}
-	prot_level = prot_clear;
 	while ((c = getc(stdin)) != EOF) {
 		c &= 0377;
 		if (c == IAC) {
@@ -1087,15 +1089,15 @@ yylex(void)
 		case CMD:
 			signal(SIGALRM, toolong);
 			alarm((unsigned) ftpd_timeout);
-			if (getline(cbuf, sizeof(cbuf)-1) == NULL) {
+			if (ftpd_getline(cbuf, sizeof(cbuf)-1) == NULL) {
 				reply(221, "You could at least say goodbye.");
 				dologout(0);
 			}
 			alarm(0);
-#ifdef HASSETPROCTITLE
+#ifdef HAVE_SETPROCTITLE
 			if (strncasecmp(cbuf, "PASS", 4) != NULL)
 				setproctitle("%s: %s", proctitle, cbuf);
-#endif /* HASSETPROCTITLE */
+#endif /* HAVE_SETPROCTITLE */
 			if ((cp = strchr(cbuf, '\r'))) {
 				*cp++ = '\n';
 				*cp = '\0';
@@ -1333,16 +1335,21 @@ help(struct tab *ctab, char *s)
 			columns = 1;
 		lines = (NCMDS + columns - 1) / columns;
 		for (i = 0; i < lines; i++) {
-		    strcpy (buf, "   ");
+		    strcpy_truncate (buf, "   ", sizeof(buf));
 		    for (j = 0; j < columns; j++) {
 			c = ctab + j * lines + i;
-			snprintf (buf + strlen(buf), sizeof(buf) - strlen(buf),
-				  "%s%c", c->name, c->implemented ? ' ' : '*');
+			snprintf (buf + strlen(buf),
+				  sizeof(buf) - strlen(buf),
+				  "%s%c",
+				  c->name,
+				  c->implemented ? ' ' : '*');
 			if (c + lines >= &ctab[NCMDS])
 			    break;
 			w = strlen(c->name) + 1;
 			while (w < width) {
-			    strcat(buf, " ");
+			    strcat_truncate (buf,
+					     " ",
+					     sizeof(buf));
 			    w++;
 			}
 		    }
@@ -1375,11 +1382,12 @@ sizecmd(char *filename)
 			reply(550, "%s: not a plain file.", filename);
 		else
 			reply(213, "%lu", (unsigned long)stbuf.st_size);
-		break; }
+		break;
+	}
 	case TYPE_A: {
 		FILE *fin;
 		int c;
-		off_t count;
+		size_t count;
 		struct stat stbuf;
 		fin = fopen(filename, "r");
 		if (fin == NULL) {
@@ -1400,8 +1408,9 @@ sizecmd(char *filename)
 		}
 		fclose(fin);
 
-		reply(213, "%ld", count);
-		break; }
+		reply(213, "%lu", (unsigned long)count);
+		break;
+	}
 	default:
 		reply(504, "SIZE not implemented for Type %c.", "?AEIL"[type]);
 	}

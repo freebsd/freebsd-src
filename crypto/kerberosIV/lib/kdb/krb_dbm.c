@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "kdb_locl.h"
 
-RCSID("$Id: krb_dbm.c,v 1.27 1997/05/02 14:29:09 assar Exp $");
+RCSID("$Id: krb_dbm.c,v 1.36 1998/11/07 14:25:55 assar Exp $");
 
 #include <xdbm.h>
 
@@ -98,8 +98,6 @@ static int non_blocking = 0;
  * Utility routine: generate name of database file.
  */
 
-static char *gen_dbsuffix (char *db_name, char *sfx);
-
 static char *
 gen_dbsuffix(char *db_name, char *sfx)
 {
@@ -109,23 +107,19 @@ gen_dbsuffix(char *db_name, char *sfx)
 	sfx = ".ok";
 
     asprintf (&dbsuffix, "%s%s", db_name, sfx);
+    if (dbsuffix == NULL) {
+	fprintf (stderr, "gen_dbsuffix: out of memory\n");
+	exit(1);
+    }
     return dbsuffix;
 }
 
 static void
-decode_princ_key (datum *key, char *name, char *instance);
-
-static void
 decode_princ_key(datum *key, char *name, char *instance)
 {
-    strncpy(name, key->dptr, ANAME_SZ);
-    strncpy(instance, (char *)key->dptr + ANAME_SZ, INST_SZ);
-    name[ANAME_SZ - 1] = '\0';
-    instance[INST_SZ - 1] = '\0';
+    strcpy_truncate (name, key->dptr, ANAME_SZ);
+    strcpy_truncate (instance, (char *)key->dptr + ANAME_SZ, INST_SZ);
 }
-
-static void
-encode_princ_contents (datum *contents, Principal *principal);
 
 static void
 encode_princ_contents(datum *contents, Principal *principal)
@@ -157,10 +151,7 @@ static int mylock = 0;
 static int inited = 0;
 
 static int
-kerb_dbl_init (void);
-
-static int
-kerb_dbl_init()
+kerb_dbl_init(void)
 {
     if (!inited) {
 	char *filename = gen_dbsuffix (current_db_name, ".ok");
@@ -177,19 +168,13 @@ kerb_dbl_init()
 }
 
 static void
-kerb_dbl_fini (void);
-
-static void
-kerb_dbl_fini()
+kerb_dbl_fini(void)
 {
     close(dblfd);
     dblfd = -1;
     inited = 0;
     mylock = 0;
 }
-
-static int
-kerb_dbl_lock (int mode);
 
 static int
 kerb_dbl_lock(int mode)
@@ -206,45 +191,40 @@ kerb_dbl_lock(int mode)
     }
     switch (mode) {
     case KERB_DBL_EXCLUSIVE:
-	flock_mode = K_LOCK_EX;
+	flock_mode = LOCK_EX;
 	break;
     case KERB_DBL_SHARED:
-	flock_mode = K_LOCK_SH;
+	flock_mode = LOCK_SH;
 	break;
     default:
 	fprintf(stderr, "invalid lock mode %d\n", mode);
 	abort();
     }
     if (non_blocking)
-	flock_mode |= K_LOCK_NB;
+	flock_mode |= LOCK_NB;
     
-    if (k_flock(dblfd, flock_mode) < 0) 
+    if (flock(dblfd, flock_mode) < 0) 
 	return errno;
     mylock++;
     return 0;
 }
 
-static void kerb_dbl_unlock (void);
-
 static void
-kerb_dbl_unlock()
+kerb_dbl_unlock(void)
 {
     if (!mylock) {		/* lock already unlocked */
 	fprintf(stderr, "Kerberos database lock not locked when unlocking.\n");
 	fflush(stderr);
 	exit(1);
     }
-    if (k_flock(dblfd, K_LOCK_UN) < 0) {
+    if (flock(dblfd, LOCK_UN) < 0) {
 	fprintf(stderr, "Kerberos database lock error. (unlocking)\n");
 	fflush(stderr);
-	perror("k_flock");
+	perror("flock");
 	exit(1);
     }
     mylock = 0;
 }
-
-int
-kerb_db_set_lockmode (int mode);
 
 int
 kerb_db_set_lockmode(int mode)
@@ -259,10 +239,7 @@ kerb_db_set_lockmode(int mode)
  */
 
 int
-kerb_db_init (void);
-
-int
-kerb_db_init()
+kerb_db_init(void)
 {
     init = 1;
     return (0);
@@ -274,10 +251,7 @@ kerb_db_init()
  */
 
 void
-kerb_db_fini (void);
-
-void
-kerb_db_fini()
+kerb_db_fini(void)
 {
 }
 
@@ -287,9 +261,6 @@ kerb_db_fini()
  * Passing a null pointer as "name" will set back to the default.
  * If the alternate database doesn't exist, nothing is changed.
  */
-
-int
-kerb_db_set_name (char *name);
 
 int
 kerb_db_set_name(char *name)
@@ -312,10 +283,7 @@ kerb_db_set_name(char *name)
  */
 
 time_t
-kerb_get_db_age (void);
-
-time_t
-kerb_get_db_age()
+kerb_get_db_age(void)
 {
     struct stat st;
     char *okname;
@@ -341,9 +309,6 @@ kerb_get_db_age()
  */
 
 static time_t
-kerb_start_update (char *db_name);
-
-static time_t
 kerb_start_update(char *db_name)
 {
     char *okname = gen_dbsuffix(db_name, ".ok");
@@ -356,9 +321,6 @@ kerb_start_update(char *db_name)
     free (okname);
     return age;
 }
-
-static int
-kerb_end_update (char *db_name, time_t age);
 
 static int
 kerb_end_update(char *db_name, time_t age)
@@ -395,15 +357,10 @@ kerb_end_update(char *db_name, time_t age)
 }
 
 static time_t
-kerb_start_read (void);
-
-static time_t
-kerb_start_read()
+kerb_start_read(void)
 {
     return kerb_get_db_age();
 }
-
-static int kerb_end_read (time_t age);
 
 static int
 kerb_end_read(time_t age)
@@ -520,7 +477,7 @@ kerb_db_delete_principal (char *name, char *inst)
 	kerb_db_init();
     
     for(try = 0; try < KERB_DB_MAX_RETRY; try++){
-	if((code = kerb_dbl_lock(KERB_DBL_SHARED)) != 0)
+	if((code = kerb_dbl_lock(KERB_DBL_EXCLUSIVE)) != 0)
 	    return -1;
 	
 	db = dbm_open(current_db_name, O_RDWR, 0600);
@@ -570,6 +527,8 @@ kerb_db_get_principal (char *name, char *inst, Principal *principal,
 	    return -1;
 
 	db = dbm_open(current_db_name, O_RDONLY, 0600);
+	if (db == NULL)
+	    return -1;
 
 	*more = 0;
 
@@ -684,7 +643,9 @@ kerb_db_update(long *db, Principal *principal, unsigned int max)
     for (i = 0; i < max; i++) {
 	encode_princ_contents(&contents, principal);
 	encode_princ_key(&key, principal->name, principal->instance);
-	dbm_store((DBM *)db, key, contents, DBM_REPLACE);
+	if(dbm_store((DBM *)db, key, contents, DBM_REPLACE) < 0)
+	    return found; /* XXX some better mechanism to report
+			     failure should exist */
 #ifdef DEBUG
 	if (kerb_debug & 1) {
 	    fprintf(stderr, "\n put %s %s\n",
@@ -701,9 +662,6 @@ kerb_db_update(long *db, Principal *principal, unsigned int max)
  * Update a name in the data base.  Returns number of names
  * successfully updated.
  */
-
-int
-kerb_db_put_principal (Principal *principal, unsigned int max);
 
 int
 kerb_db_put_principal(Principal *principal,
@@ -724,9 +682,6 @@ kerb_db_put_principal(Principal *principal,
 }
 
 void
-kerb_db_get_stat (DB_stat *s);
-
-void
 kerb_db_get_stat(DB_stat *s)
 {
     gettimeofday(&timestamp, NULL);
@@ -745,15 +700,9 @@ kerb_db_get_stat(DB_stat *s)
 }
 
 void
-kerb_db_put_stat (DB_stat *s);
-
-void
 kerb_db_put_stat(DB_stat *s)
 {
 }
-
-void
-delta_stat (DB_stat *a, DB_stat *b, DB_stat *c);
 
 void
 delta_stat(DB_stat *a, DB_stat *b, DB_stat *c)
@@ -772,7 +721,6 @@ delta_stat(DB_stat *a, DB_stat *b, DB_stat *c)
     c->n_put_stat = a->n_put_stat - b->n_put_stat;
 
     memcpy(b, a, sizeof(DB_stat));
-    return;
 }
 
 /*
@@ -781,16 +729,11 @@ delta_stat(DB_stat *a, DB_stat *b, DB_stat *c)
  */
 
 int
-kerb_db_get_dba (char *dba_name, char *dba_inst, Dba *dba, unsigned int max, int *more);
-
-int
-kerb_db_get_dba(char *dba_name, char *dba_inst, Dba *dba,
-		unsigned max,
-		int *more)
-		/* could have wild card */
-		/* could have wild card */
-		/* max number of name structs to return */
-		/* where there more than 'max' tuples? */
+kerb_db_get_dba(char *dba_name,	/* could have wild card */
+		char *dba_inst,	/* could have wild card */
+		Dba *dba,
+		unsigned max,	/* max number of name structs to return */
+		int *more)	/* where there more than 'max' tuples? */
 {
     *more = 0;
     return (0);
@@ -809,6 +752,8 @@ kerb_db_iterate (k_iter_proc_t func, void *arg)
 	return code;
 
     db = dbm_open(current_db_name, O_RDONLY, 0600);
+    if (db == NULL)
+	return errno;
 
     for (key = dbm_firstkey (db); key.dptr != NULL; key = dbm_next(db, key)) {
 	contents = dbm_fetch (db, key);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kauth.h,v 1.18 1997/05/20 18:40:31 bg Exp $ */
+/* $Id: kauth.h,v 1.20 1998/06/13 00:06:45 assar Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
@@ -92,6 +92,9 @@
 #endif
 #ifdef SOCKS
 #include <socks.h>
+/* This doesn't belong here. */
+struct tm *localtime(const time_t *);
+struct hostent  *gethostbyname(const char *);
 #endif
 
 #include <err.h>
@@ -113,6 +116,6 @@ int write_encrypted (int, void*, size_t, des_key_schedule,
 int read_encrypted (int, void*, size_t, void **, des_key_schedule,
 		    des_cblock*, struct sockaddr_in*, struct sockaddr_in*);
 
-unsigned pack_args (char *, krb_principal*, int, char*, char*);
+int pack_args (char *, size_t, krb_principal*, int, const char*, const char*);
 
-int unpack_args (char*, krb_principal*, int*, char*, char*);
+int unpack_args (const char*, krb_principal*, int*, char*, char*);

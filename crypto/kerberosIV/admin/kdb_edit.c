@@ -15,13 +15,11 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_edit.c,v 1.25 1997/05/07 01:34:05 assar Exp $");
+RCSID("$Id: kdb_edit.c,v 1.27 1998/11/22 09:26:31 assar Exp $");
 
 #ifdef DEBUG
 extern  kerb_debug;
 #endif
-
-#define zaptime(foo) memset((foo), 0, sizeof(*(foo)))
 
 static int     nflag = 0;
 static int     debug;
@@ -74,8 +72,7 @@ change_principal(void)
     int     editpw = 0;
     int     changed = 0;
     long    temp_long;		/* Don't change to int32_t, used by scanf */
-    int     n;
-    struct tm 	*tp, edate;
+    struct tm 	edate;
 
     fprintf(stdout, "\nPrincipal name: ");
     fflush(stdout);
@@ -96,8 +93,12 @@ change_principal(void)
 	/* make a new principal, fill in defaults */
 	j = 1;
 	creating = 1;
-	strcpy(principal_data[0].name, input_name);
-	strcpy(principal_data[0].instance, input_instance);
+	strcpy_truncate(principal_data[0].name,
+			input_name,
+			ANAME_SZ);
+	strcpy_truncate(principal_data[0].instance,
+			input_instance,
+			INST_SZ);
 	principal_data[0].old = NULL;
 	principal_data[0].exp_date = default_princ.exp_date;
 	if (strcmp(input_instance, "admin") == 0)
@@ -110,12 +111,7 @@ change_principal(void)
 	principal_data[0].kdc_key_ver = (unsigned char) master_key_version;
 	principal_data[0].key_version = 0; /* bumped up later */
     }
-    tp = k_localtime(&principal_data[0].exp_date);
-    snprintf(principal_data[0].exp_date_txt,
-	     sizeof(principal_data[0].exp_date_txt),
-	     "%4d-%02d-%02d",
-	     tp->tm_year + 1900,
-	     tp->tm_mon + 1, tp->tm_mday); /* January is 0, not 1 */
+    *principal_data[0].exp_date_txt = '\0';
     for (i = 0; i < j; i++) {
 	for (;;) {
 	    fprintf(stdout,
@@ -219,35 +215,38 @@ change_principal(void)
 		changed = 1;
 	    }
 	    /* expiration date */
-	    fprintf(stdout, "Expiration date (enter yyyy-mm-dd) [ %s ] ? ",
-		    principal_data[i].exp_date_txt);
-	    fflush(stdout);
-	    zaptime(&edate);
-	    while (n_gets(temp, sizeof(temp)) && ((n = strlen(temp)) >
-				  sizeof(principal_data[0].exp_date_txt))) {
-	    bad_date:
-		fprintf(stdout, "\07\07Date Invalid\n");
-		fprintf(stdout,
-			"Expiration date (enter yyyy-mm-dd) [ %s ] ? ",
-			principal_data[i].exp_date_txt);
-		fflush(stdout);
-		zaptime(&edate);
-	    }
-
-	    if (*temp) {
-		if (sscanf(temp, "%d-%d-%d", &edate.tm_year,
-			      &edate.tm_mon, &edate.tm_mday) != 3)
-		    goto bad_date;
-		edate.tm_mon--;		/* January is 0, not 1 */
-		edate.tm_hour = 23;	/* nearly midnight at the end of the */
-		edate.tm_min = 59;	/* specified day */
-		if (krb_check_tm (edate))
-		    goto bad_date;
-		edate.tm_year -= 1900;
-		temp_long = tm2time (edate, 1);
-		strcpy(principal_data[i].exp_date_txt, temp);
-		principal_data[i].exp_date = temp_long;
-		changed = 1;
+	    {
+		char d[DATE_SZ];
+		struct tm *tm;
+		tm = k_localtime(&principal_data[i].exp_date);
+		strftime(d, sizeof(d), "%Y-%m-%d", tm);
+		while(1) {
+		    printf("Expiration date (yyyy-mm-dd) [ %s ] ? ", d);
+		    fflush(stdout);
+		    if(n_gets(temp, sizeof(temp)) == NULL) {
+			printf("Invalid date.\n");
+			continue;
+		    }
+		    if (*temp) {
+			memset(&edate, 0, sizeof(edate));
+			if (sscanf(temp, "%d-%d-%d", &edate.tm_year,
+				   &edate.tm_mon, &edate.tm_mday) != 3) {
+			    printf("Invalid date.\n");
+			    continue;
+			}
+			edate.tm_mon--;     /* January is 0, not 1 */
+			edate.tm_hour = 23; /* at the end of the */
+			edate.tm_min = 59;  /* specified day */
+			if (krb_check_tm (edate)) {
+			    printf("Invalid date.\n");
+			    continue;
+			}
+			edate.tm_year -= 1900;
+			principal_data[i].exp_date = tm2time (edate, 1);
+			changed = 1;
+		    }
+		    break;
+		}
 	    }
 
 	    /* maximum lifetime */
@@ -281,7 +280,7 @@ change_principal(void)
 		    goto bad_att;
 		if (temp_long > 65535 || (temp_long < 0)) {
 		bad_att:
-		    fprintf(stdout, "\07\07Invalid, choose 0-65535\n");
+		    fprintf(stdout, "Invalid, choose 0-65535\n");
 		    fprintf(stdout, "Attributes [ %d ] ? ",
 			    principal_data[i].attributes);
 		    fflush(stdout);

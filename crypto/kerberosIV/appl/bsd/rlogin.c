@@ -36,7 +36,7 @@
  */
 #include "bsd_locl.h"
 
-RCSID("$Id: rlogin.c,v 1.61 1997/05/25 01:14:47 assar Exp $");
+RCSID("$Id: rlogin.c,v 1.65 1999/03/13 21:13:54 assar Exp $");
 
 CREDENTIALS cred;
 Key_schedule schedule;
@@ -406,13 +406,14 @@ writer(void)
 				continue;
 			}
 #endif /* VDSUSP */
-			if (c != escapechar)
+			if (c != escapechar) {
 #ifndef NOENCRYPTION
 				if (doencrypt)
 					des_enc_write(rem, &escapechar,1, schedule, &cred.session);
 				else
 #endif
 					write(rem, &escapechar, 1);
+			}
 		}
 
 		if (doencrypt) {
@@ -578,7 +579,7 @@ main(int argc, char **argv)
 			break;
 		case 'k':
 			dest_realm = dst_realm_buf;
-			strncpy(dest_realm, optarg, REALM_SZ);
+			strcpy_truncate(dest_realm, optarg, REALM_SZ);
 			break;
 		case 'l':
 			user = optarg;
@@ -586,29 +587,32 @@ main(int argc, char **argv)
 		case 'x':
 			doencrypt = 1;
 			break;
-		case 'p':
-			user_port = htons(atoi(optarg));
-			break;
+		case 'p': {
+		    char *endptr;
+
+		    user_port = strtol (optarg, &endptr, 0);
+		    if (user_port == 0 && optarg == endptr)
+			errx (1, "Bad port `%s'", optarg);
+		    user_port = htons(user_port);
+		    break;
+		}
 		case '?':
 		default:
 			usage();
 		}
 	optind += argoff;
-	argc -= optind;
-	argv += optind;
 
 	/* if haven't gotten a host yet, do so */
-	if (!host && !(host = *argv++))
+	if (!host && !(host = argv[optind++]))
 		usage();
 
-	if (*argv)
+	if (argv[optind])
 		usage();
 
 	if (!(pw = k_getpwuid(uid = getuid())))
 	    errx(1, "unknown user id.");
 	if (!user)
 	    user = pw->pw_name;
-
 
 	if (user_port)
 		sv_port = user_port;
@@ -636,17 +640,8 @@ main(int argc, char **argv)
 
 	get_window_size(0, &winsize);
 
-      try_connect:
 	if (use_kerberos) {
-		struct hostent *hp;
-
-		/* Fully qualify hostname (needed for krb_realmofhost). */
-		hp = gethostbyname(host);
-		if (hp != NULL && !(host = strdup(hp->h_name))) {
-		    errno = ENOMEM;
-		    err(1, NULL);
-		}
-
+	        setuid(getuid());
 		rem = KSUCCESS;
 		errno = 0;
 		if (dest_realm == NULL)
@@ -656,18 +651,25 @@ main(int argc, char **argv)
 		    rem = krcmd_mutual(&host, sv_port, user, term, 0,
 				       dest_realm, &cred, schedule);
 		else
-			rem = krcmd(&host, sv_port, user, term, 0,
-			    dest_realm);
+		    rem = krcmd(&host, sv_port, user, term, 0,
+				dest_realm);
 		if (rem < 0) {
-			use_kerberos = 0;
-			if (user_port == 0)
-				sv_port = get_login_port(use_kerberos,
-							 doencrypt);
-			if (errno == ECONNREFUSED)
-			    warning("remote host doesn't support Kerberos");
-			if (errno == ENOENT)
-			  warning("can't provide Kerberos auth data");
-			goto try_connect;
+		    int i;
+		    char **newargv;
+
+		    if (errno == ECONNREFUSED)
+			warning("remote host doesn't support Kerberos");
+		    if (errno == ENOENT)
+			warning("can't provide Kerberos auth data");
+		    newargv = malloc((argc + 2) * sizeof(*newargv));
+		    if (newargv == NULL)
+			err(1, "malloc");
+		    newargv[0] = argv[0];
+		    newargv[1] = "-K";
+		    for(i = 1; i < argc; ++i)
+			newargv[i + 1] = argv[i];
+		    newargv[argc + 1] = NULL;
+		    execv(_PATH_RLOGIN, newargv);
 		}
 	} else {
 		if (doencrypt)

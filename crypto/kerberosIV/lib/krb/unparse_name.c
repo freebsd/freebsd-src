@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: unparse_name.c,v 1.7 1997/04/01 08:18:46 joda Exp $");
+RCSID("$Id: unparse_name.c,v 1.8 1998/06/09 19:25:28 joda Exp $");
 
 static void
 quote_string(char *quote, char *from, char *to)
@@ -74,12 +74,13 @@ krb_unparse_name_long_r(char *name, char *instance, char *realm,
 			char *fullname)
 {
     krb_principal pr;
+
     memset(&pr, 0, sizeof(pr));
-    strcpy(pr.name, name);
+    strcpy_truncate(pr.name, name, sizeof(pr.name));
     if(instance)
-	strcpy(pr.instance, instance);
+	strcpy_truncate(pr.instance, instance, sizeof(pr.instance));
     if(realm)
-	strcpy(pr.realm, realm);
+	strcpy_truncate(pr.realm, realm, sizeof(pr.realm));
     return krb_unparse_name_r(&pr, fullname);
 }
 
@@ -95,11 +96,12 @@ char *
 krb_unparse_name_long(char *name, char *instance, char *realm)
 {
     krb_principal pr;
+
     memset(&pr, 0, sizeof(pr));
-    strcpy(pr.name, name);
+    strcpy_truncate(pr.name, name, sizeof(pr.name));
     if(instance)
-	strcpy(pr.instance, instance);
+	strcpy_truncate(pr.instance, instance, sizeof(pr.instance));
     if(realm)
-	strcpy(pr.realm, realm);
+	strcpy_truncate(pr.realm, realm, sizeof(pr.realm));
     return krb_unparse_name(&pr);
 }

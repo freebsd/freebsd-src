@@ -36,7 +36,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID("$Id: main.c,v 1.20 1997/04/20 16:14:55 joda Exp $");
+RCSID("$Id: main.c,v 1.25 1999/05/08 02:22:09 assar Exp $");
 
 int
 main(int argc, char **argv)
@@ -54,8 +54,9 @@ main(int argc, char **argv)
 	doglob = 1;
 	interactive = 1;
 	autologin = 1;
+	passivemode = 0; /* passive mode not active */
 
-	while ((ch = getopt(argc, argv, "dgintv")) != EOF) {
+	while ((ch = getopt(argc, argv, "dginptv")) != EOF) {
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;
@@ -74,6 +75,9 @@ main(int argc, char **argv)
 			autologin = 0;
 			break;
 
+		case 'p':
+		        passivemode = 1;
+			break;
 		case 't':
 			trace++;
 			break;
@@ -84,7 +88,7 @@ main(int argc, char **argv)
 
 		default:
 		    fprintf(stderr,
-			    "usage: ftp [-dgintv] [host [port]]\n");
+			    "usage: ftp [-dginptv] [host [port]]\n");
 		    exit(1);
 		}
 	}
@@ -96,7 +100,6 @@ main(int argc, char **argv)
 		verbose++;
 	cpend = 0;	/* no pending replies */
 	proxy = 0;	/* proxy not active */
-	passivemode = 0; /* passive mode not active */
 	crflag = 1;	/* strip c.r. on ascii gets */
 	sendport = -1;	/* not using ports */
 	/*
@@ -104,8 +107,8 @@ main(int argc, char **argv)
 	 */
 	pw = k_getpwuid(getuid());
 	if (pw != NULL) {
+		strcpy_truncate(homedir, pw->pw_dir, sizeof(homedir));
 		home = homedir;
-		strcpy(home, pw->pw_dir);
 	}
 	if (argc > 0) {
 	    char *xargv[5];
@@ -174,6 +177,7 @@ lostpeer(int sig)
     }
     proxflag = 0;
     pswitch(0);
+    sec_end();
     SIGRETURN(0);
 }
 
@@ -242,8 +246,7 @@ cmdscanner(int top)
 	    p = readline("ftp> ");
 	    if(p == NULL)
 		quit(0, 0);
-	    strncpy(line, p, sizeof(line));
-	    line[sizeof(line) - 1] = 0;
+	    strcpy_truncate(line, p, sizeof(line));
 	    add_history(p);
 	    free(p);
 	} else{
@@ -337,12 +340,16 @@ makeargv(void)
 	for (margc = 0; ; margc++) {
 		/* Expand array if necessary */
 		if (margc == margvlen) {
+			int i;
+
 			margv = (margvlen == 0)
 				? (char **)malloc(20 * sizeof(char *))
 				: (char **)realloc(margv,
 					(margvlen + 20)*sizeof(char *));
 			if (margv == NULL)
 				errx(1, "cannot realloc argv array");
+			for(i = margvlen; i < margvlen + 20; ++i)
+				margv[i] = NULL;
 			margvlen += 20;
 			argp = margv + margc;
 		}

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: strerror.c,v 1.8 1997/05/02 14:29:33 assar Exp $");
+RCSID("$Id: strerror.c,v 1.9 1998/06/09 19:25:38 joda Exp $");
 #endif
 
 #include <stdio.h>
@@ -56,7 +56,7 @@ strerror(int eno)
     if(eno < 0 || eno >= sys_nerr)
 	snprintf(emsg, sizeof(emsg), "Error %d occurred.", eno);
     else
-	strcpy(emsg, sys_errlist[eno]);
+	snprintf(emsg, sizeof(emsg), "%s", sys_errlist[eno]);
 
     return emsg;
 }

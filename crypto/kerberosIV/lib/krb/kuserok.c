@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,11 +38,28 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: kuserok.c,v 1.21 1997/04/01 08:18:35 joda Exp $");
+RCSID("$Id: kuserok.c,v 1.24 1999/06/23 10:12:37 assar Exp $");
 
 #define OK 0
 #define NOTOK 1
 #define MAX_USERNAME 10
+
+/*
+ * Return OK if `r' is one of the local realms, else NOTOK
+ */
+
+static int
+is_local_realm (const char *r)
+{
+    char lrealm[REALM_SZ];
+    int n;
+
+    for (n = 1; krb_get_lrealm(lrealm, n) == KSUCCESS; ++n) {
+	if (strcmp (r, lrealm) == 0)
+	    return OK;
+    }
+    return NOTOK;
+}
 
 /* 
  * Given a Kerberos principal and a local username, determine whether
@@ -83,7 +100,6 @@ int
 krb_kuserok(char *name, char *instance, char *realm, char *luser)
 {
     struct passwd *pwd;
-    char lrealm[REALM_SZ];
     FILE *f;
     char line[1024];
     char file[MaxPathLen];
@@ -92,15 +108,13 @@ krb_kuserok(char *name, char *instance, char *realm, char *luser)
     pwd = getpwnam(luser);
     if(pwd == NULL)
 	return NOTOK;
-    if(krb_get_lrealm(lrealm, 1))
-	return NOTOK;
-    if(pwd->pw_uid != 0 &&
-       strcmp(name, luser) == 0 &&
-       strcmp(instance, "") == 0 &&
-       strcmp(realm, lrealm) == 0)
+    if (pwd->pw_uid != 0
+	&& strcmp (name, luser) == 0
+	&& strcmp (instance, "") == 0
+	&& is_local_realm (realm) == OK)
 	return OK;
-    strcpy(file, pwd->pw_dir);
-    strcat(file, "/.klogin");
+
+    snprintf(file, sizeof(file), "%s/.klogin", pwd->pw_dir);
 
     f = fopen(file, "r");
     if(f == NULL)
@@ -135,10 +149,15 @@ krb_kuserok(char *name, char *instance, char *realm, char *luser)
 	    continue;
 	if(strcmp(instance, finst))
 	    continue;
-	if(frealm[0] == 0)
-	    strcpy(frealm, lrealm);
-	if(strcmp(realm, frealm))
+#if 0 /* don't support principals without realm any longer */
+	if(frealm[0] == 0) {
+	    if (is_local_realm (realm) != OK)
+		continue;
+	} else
+#endif
+	if (strcmp (realm, frealm))
 	    continue;
+
 	fclose(f);
 	return OK;
     }
@@ -153,4 +172,3 @@ kuserok(AUTH_DAT *auth, char *luser)
 {
     return krb_kuserok(auth->pname, auth->pinst, auth->prealm, luser);
 }
-

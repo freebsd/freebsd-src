@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,22 +38,38 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: verify_user.c,v 1.8 1997/04/01 08:18:46 joda Exp $");
+RCSID("$Id: verify_user.c,v 1.14 1999/03/16 17:31:39 assar Exp $");
 
-/* Verify user with password. If secure, also verify against local
- * service key, this can (usually) only be done by root.
+/*
+ * Verify user (name.instance@realm) with `password'.
+ *
+ * If secure, also verify against local
+ * service key (`linstance'.hostname) (or rcmd if linstance == NULL),
+ * this can (usually) only be done by root.
+ *
+ * If secure == KRB_VERIFY_SECURE, fail if there's no key.
+ * If secure == KRB_VERIFY_SECURE_FAIL, don't fail if there's no such
+ * key in the srvtab.
  *
  * As a side effect, fresh tickets are obtained.
  *
+ * srvtab is where the key is found.
+ * 
  * Returns zero if ok, a positive kerberos error or -1 for system
  * errors.
  */
 
-int
-krb_verify_user(char *name, char *instance, char *realm, char *password, 
-		int secure, char *linstance)
+static int
+krb_verify_user_srvtab_exact(char *name,
+			     char *instance,
+			     char *realm,
+			     char *password, 
+			     int secure,
+			     char *linstance,
+			     char *srvtab)
 {
     int ret;
+
     ret = krb_get_pw_in_tkt(name, instance, realm,
 			    KRB_TICKET_GRANTING_TICKET,
 			    realm,
@@ -61,7 +77,7 @@ krb_verify_user(char *name, char *instance, char *realm, char *password,
     if(ret != KSUCCESS)
 	return ret;
 
-    if(secure){
+    if(secure == KRB_VERIFY_SECURE || secure == KRB_VERIFY_SECURE_FAIL){
 	struct hostent *hp;
 	int32_t addr;
 	
@@ -72,7 +88,7 @@ krb_verify_user(char *name, char *instance, char *realm, char *password,
 	char hostname[MaxHostNameLen];
 	char *phost;
 
-	if (k_gethostname(hostname, sizeof(hostname)) == -1) {
+	if (gethostname(hostname, sizeof(hostname)) == -1) {
 	    dest_tkt();
 	    return -1;
 	}
@@ -94,13 +110,21 @@ krb_verify_user(char *name, char *instance, char *realm, char *password,
 	if (linstance == NULL)
 	    linstance = "rcmd";
 
+	if(secure == KRB_VERIFY_SECURE_FAIL) {
+	    des_cblock key;
+	    ret = read_service_key(linstance, phost, lrealm, 0, srvtab, &key);
+	    memset(key, 0, sizeof(key));
+	    if(ret == KFAILURE)
+		return 0;
+	}
+	
 	ret = krb_mk_req(&ticket, linstance, phost, lrealm, 33);
 	if(ret != KSUCCESS){
 	    dest_tkt();
 	    return ret;
 	}
 	
-	ret = krb_rd_req(&ticket, linstance, phost, addr, &auth, "");
+	ret = krb_rd_req(&ticket, linstance, phost, addr, &auth, srvtab);
 	if(ret != KSUCCESS){
 	    dest_tkt();
 	    return ret;
@@ -109,3 +133,77 @@ krb_verify_user(char *name, char *instance, char *realm, char *password,
     return 0;
 }
 		
+/*
+ *
+ */
+
+int
+krb_verify_user_srvtab(char *name,
+		       char *instance,
+		       char *realm,
+		       char *password, 
+		       int secure,
+		       char *linstance,
+		       char *srvtab)
+{
+  int n;
+  char rlm[256];
+#define ERICSSON_COMPAT 1
+#ifdef  ERICSSON_COMPAT
+  FILE *f;
+
+  f = fopen ("/etc/krb.localrealms", "r");
+  if (f != NULL) {
+    while (fgets(rlm, sizeof(rlm), f) != NULL) {
+      if (rlm[strlen(rlm) - 1] == '\n')
+	rlm[strlen(rlm) - 1] = '\0';
+
+      if (krb_verify_user_srvtab_exact(name, instance, rlm, password,
+				       secure, linstance, srvtab)
+	  == KSUCCESS) {
+	fclose(f);
+	return KSUCCESS;
+      }
+    }
+    fclose (f);
+    return krb_verify_user_srvtab_exact(name, instance, realm, password,
+					secure, linstance, srvtab);
+  }
+#endif
+  /* First try to verify against the supplied realm. */
+  if (krb_verify_user_srvtab_exact(name, instance, realm, password,
+				   secure, linstance, srvtab)
+      == KSUCCESS)
+    return KSUCCESS;
+
+  /* Verify all local realms, except the supplied realm. */
+  for (n = 1; krb_get_lrealm(rlm, n) == KSUCCESS; n++)
+    if (strcmp(rlm, realm) != 0)
+      if (krb_verify_user_srvtab_exact(name, instance, rlm, password,
+				       secure, linstance, srvtab)
+	  == KSUCCESS)
+	return KSUCCESS;
+
+  return KFAILURE;
+}
+
+/*
+ * Compat function without srvtab.
+ */
+
+int
+krb_verify_user(char *name,
+		char *instance,
+		char *realm,
+		char *password, 
+		int secure,
+		char *linstance)
+{
+    return krb_verify_user_srvtab (name,
+				   instance,
+				   realm,
+				   password,
+				   secure,
+				   linstance,
+				   KEYFILE);
+}

@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "kdb_locl.h"
 
-RCSID("$Id: krb_lib.c,v 1.11 1997/05/07 01:36:08 assar Exp $");
+RCSID("$Id: krb_lib.c,v 1.13 1998/11/22 09:41:43 assar Exp $");
 
 #ifdef DEBUG
 extern int debug;
@@ -93,14 +93,11 @@ kerb_delete_principal(char *name, char *inst)
  */
 
 int
-kerb_get_principal(char *name, char *inst, Principal *principal,
-		   unsigned int max, int *more)
-                 		/* could have wild card */
-                 		/* could have wild card */
-                         
-                     		/* max number of name structs to return */
-                 		/* more tuples than room for */
-
+kerb_get_principal(char *name,	/* could have wild card */
+		   char *inst,	/* could have wild card */
+		   Principal *principal,
+		   unsigned int max, /* max number of name structs to return */
+		   int *more)	/* more tuples than room for */
 {
     int     found = 0;
 #ifdef CACHE
@@ -144,7 +141,7 @@ kerb_get_principal(char *name, char *inst, Principal *principal,
     found = kerb_db_get_principal(name, inst, principal, max, more);
     /* try to insert principal(s) into cache if it was found */
 #ifdef CACHE
-    if (found) {
+    if (found > 0) {
 	kerb_cache_put_principal(principal, found);
     }
 #endif
@@ -153,22 +150,20 @@ kerb_get_principal(char *name, char *inst, Principal *principal,
 
 /* principals */
 int
-kerb_put_principal(Principal *principal, unsigned int n)
-                         
+kerb_put_principal(Principal *principal,
+		   unsigned int n)                         
                    		/* number of principal structs to write */
 {
-    struct tm *tp;
-
     /* set mod date */
     principal->mod_date = time((time_t *)0);
     /* and mod date string */
 
-    tp = k_localtime(&principal->mod_date);
-    snprintf(principal->mod_date_txt,
-	     sizeof(principal->mod_date_txt),
-	     "%4d-%2d-%2d",
-	     tp->tm_year + 1900,
-	     tp->tm_mon + 1, tp->tm_mday); /* January is 0, not 1 */
+    strftime(principal->mod_date_txt, 
+	     sizeof(principal->mod_date_txt), 
+	     "%Y-%m-%d", k_localtime(&principal->mod_date));
+    strftime(principal->exp_date_txt, 
+	     sizeof(principal->exp_date_txt), 
+	     "%Y-%m-%d", k_localtime(&principal->exp_date));
 #ifdef DEBUG
     if (kerb_debug & 1) {
 	int i;
@@ -201,13 +196,11 @@ kerb_put_principal(Principal *principal, unsigned int n)
 }
 
 int
-kerb_get_dba(char *name, char *inst, Dba *dba, unsigned int max, int *more)
-                 		/* could have wild card */
-                 		/* could have wild card */
-                
-                     		/* max number of name structs to return */
-                 		/* more tuples than room for */
-
+kerb_get_dba(char *name,	/* could have wild card */
+	     char *inst,	/* could have wild card */
+	     Dba *dba,
+	     unsigned int max,	/* max number of name structs to return */
+	     int *more)		/* more tuples than room for */
 {
     int     found = 0;
 #ifdef CACHE

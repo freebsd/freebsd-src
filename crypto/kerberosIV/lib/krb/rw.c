@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -43,7 +43,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: rw.c,v 1.8 1997/04/01 08:18:44 joda Exp $");
+RCSID("$Id: rw.c,v 1.10 1999/06/29 21:18:08 bg Exp $");
 
 int
 krb_get_int(void *f, u_int32_t *to, int size, int lsb)
@@ -63,10 +63,14 @@ krb_get_int(void *f, u_int32_t *to, int size, int lsb)
 }
 
 int
-krb_put_int(u_int32_t from, void *to, int size)
+krb_put_int(u_int32_t from, void *to, size_t rem, int size)
 {
     int i;
     unsigned char *p = (unsigned char *)to;
+
+    if (rem < size)
+	return -1;
+
     for(i = size - 1; i >= 0; i--){
 	p[i] = from & 0xff;
 	from >>= 8;
@@ -86,22 +90,27 @@ krb_get_address(void *from, u_int32_t *to)
 }
 
 int
-krb_put_address(u_int32_t addr, void *to)
+krb_put_address(u_int32_t addr, void *to, size_t rem)
 {
-    return krb_put_int(ntohl(addr), to, 4);
+    return krb_put_int(ntohl(addr), to, rem, 4);
 }
 
 int
-krb_put_string(char *from, void *to)
+krb_put_string(const char *from, void *to, size_t rem)
 {
-    strcpy((char *)to, from);
-    return strlen(from) + 1;
+    size_t len = strlen(from) + 1;
+
+    if (rem < len)
+	return -1;
+    memcpy(to, from, len);
+    return len;
 }
 
 int
-krb_get_string(void *from, char *to)
+krb_get_string(void *from, char *to, size_t to_size)
 {
-    return krb_put_string(from, to);
+    strcpy_truncate (to, (char *)from, to_size);
+    return strlen((char *)from) + 1;
 }
 
 int
@@ -109,20 +118,41 @@ krb_get_nir(void *from, char *name, char *instance, char *realm)
 {
     char *p = (char *)from;
 
-    p += krb_get_string(p, name);
-    p += krb_get_string(p, instance);
+    p += krb_get_string(p, name, ANAME_SZ);
+    p += krb_get_string(p, instance, INST_SZ);
     if(realm)
-	p += krb_get_string(p, realm);
+	p += krb_get_string(p, realm, REALM_SZ);
     return p - (char *)from;
 }
 
 int
-krb_put_nir(char *name, char *instance, char *realm, void *to)
+krb_put_nir(const char *name,
+	    const char *instance,
+	    const char *realm,
+	    void *to,
+	    size_t rem)
 {
     char *p = (char *)to;
-    p += krb_put_string(name, p);
-    p += krb_put_string(instance, p);
-    if(realm)
-	p += krb_put_string(realm, p);
+    int tmp;
+    
+    tmp = krb_put_string(name, p, rem);
+    if (tmp < 0)
+	return tmp;
+    p += tmp;
+    rem -= tmp;
+
+    tmp = krb_put_string(instance, p, rem);
+    if (tmp < 0)
+	return tmp;
+    p += tmp;
+    rem -= tmp;
+    
+    if (realm) {
+	tmp = krb_put_string(realm, p, rem);
+	if (tmp < 0)
+	    return tmp;
+	p += tmp;
+	rem -= tmp;
+    }
     return p - (char *)to;
 }

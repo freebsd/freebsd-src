@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997, 1998, 1999 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -38,7 +38,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: get_host.c,v 1.30 1997/05/02 14:29:13 assar Exp $");
+RCSID("$Id: get_host.c,v 1.45 1999/06/29 21:18:02 bg Exp $");
 
 static struct host_list {
     struct krb_host *this;
@@ -63,29 +63,42 @@ free_hosts(struct host_list *h)
 }
 
 static int
-parse_address(char *address, int *proto, char **host, int *port)
+parse_address(char *address, enum krb_host_proto *proto,
+	      char **host, int *port)
 {
     char *p, *q;
-    p = strchr(address, '/');
-    *proto = IPPROTO_UDP;
-    if(p){
-	char prot[32];
-	struct protoent *pp;
-	strncpy(prot, address, p - address);
-	prot[p - address] = 0;
-	if((pp = getprotobyname(prot)))
-	    *proto = pp->p_proto;
-	else
-	    krb_warning("Bad protocol name `%s', Using default `udp'.\n", 
-			prot);
-	p++;
-    }else
-	p = address;
+    int default_port = krb_port;
+    *proto = PROTO_UDP;
+    if(strncmp(address, "http://", 7) == 0){
+	p = address + 7;
+	*proto = PROTO_HTTP;
+	default_port = 80;
+    }else{
+	p = strchr(address, '/');
+	if(p){
+	    char prot[32];
+	    strcpy_truncate (prot, address,
+			     min(p - address + 1, sizeof(prot)));
+	    if(strcasecmp(prot, "udp") == 0) 
+		*proto = PROTO_UDP;
+	    else if(strcasecmp(prot, "tcp") == 0)
+		*proto = PROTO_TCP;
+	    else if(strcasecmp(prot, "http") == 0) {
+		*proto = PROTO_HTTP;
+		default_port = 80;
+	    } else
+		krb_warning("Unknown protocol `%s', Using default `udp'.\n", 
+			    prot);
+	    p++;
+	}else
+	    p = address;
+    }
     q = strchr(p, ':');
-    if(q){
-	*host = (char*)malloc(q - p + 1);
-	strncpy(*host, p, q - p);
-	(*host)[q - p] = 0;
+    if(q) {
+	*host = malloc(q - p + 1);
+	if (*host == NULL)
+	    return -1;
+	strcpy_truncate (*host, p, q - p + 1);
 	q++;
 	{
 	    struct servent *sp = getservbyname(q, NULL);
@@ -98,24 +111,48 @@ parse_address(char *address, int *proto, char **host, int *port)
 		    *port = krb_port;
 		}
 	}
-    }else{
-	*host = strdup(p);
-	*port = krb_port;
+    } else {
+	*port = default_port;
+	q = strchr(p, '/');
+	if (q) {
+	    *host = malloc(q - p + 1);
+	    if (*host == NULL)
+		return -1;
+	    strcpy_truncate (*host, p, q - p + 1);
+	} else {
+	    *host = strdup(p);
+	    if(*host == NULL)
+		return -1;
+	}
     }
     return 0;
 }
 
 static int
-add_host(char *realm, char *address, int admin, int validate)
+add_host(const char *realm, char *address, int admin, int validate)
 {
     struct krb_host *host;
     struct host_list *p, **last = &hosts;
+
     host = (struct krb_host*)malloc(sizeof(struct krb_host));
-    parse_address(address, &host->proto, &host->host, &host->port);
-    if(validate && gethostbyname(host->host) == NULL){
-	free(host->host);
+    if (host == NULL)
+	return 1;
+    if(parse_address(address, &host->proto, &host->host, &host->port) < 0) {
 	free(host);
 	return 1;
+    }
+    if (validate) {
+	if (krb_dns_debug)
+	    krb_warning("Getting host entry for %s...", host->host);
+	if (gethostbyname(host->host) == NULL) {
+	    if (krb_dns_debug)
+		krb_warning("Didn't get it.\n");
+	    free(host->host);
+	    free(host);
+	    return 1;
+	}
+	else if (krb_dns_debug)
+	    krb_warning("Got it.\n");
     }
     host->admin = admin;
     for(p = hosts; p; p = p->next){
@@ -130,57 +167,106 @@ add_host(char *realm, char *address, int admin, int validate)
 	last = &p->next;
     }
     host->realm = strdup(realm);
+    if (host->realm == NULL) {
+	free(host->host);
+	free(host);
+	return 1;
+    }
     p = (struct host_list*)malloc(sizeof(struct host_list));
+    if (p == NULL) {
+	free(host->realm);
+	free(host->host);
+	free(host);
+	return 1;
+    }
     p->this = host;
     p->next = NULL;
     *last = p;
     return 0;
 }
 
-
-
 static int
 read_file(const char *filename, const char *r)
 {
     char line[1024];
-    char realm[1024];
-    char address[1024];
-    char scratch[1024];
-    int n;
     int nhosts = 0;
-    
     FILE *f = fopen(filename, "r");
+
     if(f == NULL)
 	return -1;
-    while(fgets(line, sizeof(line), f)){
-	n = sscanf(line, "%s %s admin %s", realm, address, scratch);
-	if(n == 2 || n == 3){
-	    if(strcmp(realm, r))
-		continue;
-	    if(add_host(realm, address, n == 3, 0) == 0)
-		nhosts++;
-	}
+    while(fgets(line, sizeof(line), f) != NULL) {
+	char *realm, *address, *admin;
+	char *save;
+	
+	realm = strtok_r (line, " \t\n\r", &save);
+	if (realm == NULL)
+	    continue;
+	if (strcmp(realm, r))
+	    continue;
+	address = strtok_r (NULL, " \t\n\r", &save);
+	if (address == NULL)
+	    continue;
+	admin = strtok_r (NULL, " \t\n\r", &save);
+	if (add_host(realm,
+		     address,
+		     admin != NULL && strcasecmp(admin, "admin") == 0,
+		     0) == 0)
+	    ++nhosts;
     }
     fclose(f);
     return nhosts;
 }
 
+#if 0
+static int
+read_cellservdb (const char *filename, const char *realm)
+{
+    char line[1024];
+    FILE *f = fopen (filename, "r");
+    int nhosts = 0;
+
+    if (f == NULL)
+	return -1;
+    while (fgets (line, sizeof(line), f) != NULL) {
+	if (line[0] == '>'
+	    && strncasecmp (line + 1, realm, strlen(realm)) == 0) {
+	    while (fgets (line, sizeof(line), f) != NULL && *line != '>') {
+		char *hash;
+
+		if (line [strlen(line) - 1] == '\n')
+		    line [strlen(line) - 1] = '\0';
+
+		hash = strchr (line, '#');
+
+		if (hash != NULL
+		    && add_host (realm, hash + 1, 0, 0) == 0)
+		    ++nhosts;
+	    }
+	    break;
+	}
+    }
+    fclose (f);
+    return nhosts;
+}
+#endif
+
 static int
 init_hosts(char *realm)
 {
-    static const char *files[] = KRB_CNF_FILES;
-    int i;
-    char *dir = getenv("KRBCONFDIR");
+    int i, j, ret = 0;
+    char file[MaxPathLen];
+    
+    /*
+     * proto should really be NULL, but there are libraries out there
+     * that don't like that so we use "udp" instead.
+     */
 
-    krb_port = ntohs(k_getportbyname (KRB_SERVICE, NULL, htons(KRB_PORT)));
-    if(dir){
-	char file[MaxPathLen];
-	if(k_concat(file, sizeof(file), dir, "/krb.conf", NULL) == 0)
-	    read_file(file, realm);
+    krb_port = ntohs(k_getportbyname (KRB_SERVICE, "udp", htons(KRB_PORT)));
+    for(i = 0; krb_get_krbconf(i, file, sizeof(file)) == 0; i++) {
+      j = read_file(file, realm);
+      if (j > 0) ret += j;
     }
-    for(i = 0; files[i]; i++)
-	read_file(files[i], realm);
-    return 0;
+    return ret;
 }
 
 static void
@@ -190,7 +276,7 @@ srv_find_realm(char *realm, char *proto, char *service)
     struct dns_reply *r;
     struct resource_record *rr;
     
-    k_mconcat(&domain, 1024, service, ".", proto, ".", realm, ".", NULL);
+    roken_mconcat(&domain, 1024, service, ".", proto, ".", realm, ".", NULL);
     
     if(domain == NULL)
 	return;
@@ -225,11 +311,11 @@ krb_get_host(int nth, char *realm, int admin)
 {
     struct host_list *p;
     static char orealm[REALM_SZ];
+
     if(orealm[0] == 0 || strcmp(realm, orealm)){
 	/* quick optimization */
 	if(realm && realm[0]){
-	    strncpy(orealm, realm, sizeof(orealm) - 1);
-	    orealm[sizeof(orealm) - 1] = 0;
+	    strcpy_truncate (orealm, realm, sizeof(orealm));
 	}else{
 	    int ret = krb_get_lrealm(orealm, 1);
 	    if(ret != KSUCCESS)
@@ -241,32 +327,46 @@ krb_get_host(int nth, char *realm, int admin)
 	    hosts = NULL;
 	}
 	
-	init_hosts(orealm);
-    
-	srv_find_realm(orealm, "udp", KRB_SERVICE);
-	srv_find_realm(orealm, "tcp", KRB_SERVICE);
+	if (init_hosts(orealm) < nth) {
+	  srv_find_realm(orealm, "udp", KRB_SERVICE);
+	  srv_find_realm(orealm, "tcp", KRB_SERVICE);
+	  srv_find_realm(orealm, "http", KRB_SERVICE);
 	
-	{
-	    /* XXX this assumes no one has more than 99999 kerberos
-	       servers */
-	    char host[REALM_SZ + sizeof("kerberos-XXXXX..")];
+	  {
+	    char *host;
 	    int i = 0;
-	    sprintf(host, "kerberos.%s.", orealm);
+
+	    asprintf(&host, "kerberos.%s.", orealm);
+	    if (host == NULL) {
+		free_hosts(hosts);
+		hosts = NULL;
+		return NULL;
+	    }
 	    add_host(orealm, host, 1, 1);
-	    do{
+	    do {
 		i++;
-		sprintf(host, "kerberos-%d.%s.", i, orealm);
-	    }while(i < 100000 && add_host(orealm, host, 0, 1) == 0);
+		free(host);
+		asprintf(&host, "kerberos-%d.%s.", i, orealm);
+	    } while(host != NULL
+		   && i < 100000
+		   && add_host(orealm, host, 0, 1) == 0);
+	    free(host);
+	  }
 	}
+#if 0
+	read_cellservdb ("/usr/vice/etc/CellServDB", orealm);
+	read_cellservdb ("/usr/arla/etc/CellServDB", orealm);
+#endif
     }
     
     for(p = hosts; p; p = p->next){
 	if(strcmp(orealm, p->this->realm) == 0 &&
-	   (!admin || p->this->admin))
+	   (!admin || p->this->admin)) {
 	    if(nth == 1)
 		return p->this;
 	    else
 		nth--;
+	}
     }
     return NULL;
 }
@@ -277,7 +377,7 @@ krb_get_krbhst(char *host, char *realm, int nth)
     struct krb_host *p = krb_get_host(nth, realm, 0);
     if(p == NULL)
 	return KFAILURE;
-    strcpy(host, p->host);
+    strcpy_truncate (host, p->host, MaxHostNameLen);
     return KSUCCESS;
 }
 
@@ -287,6 +387,6 @@ krb_get_admhst(char *host, char *realm, int nth)
     struct krb_host *p = krb_get_host(nth, realm, 1);
     if(p == NULL)
 	return KFAILURE;
-    strcpy(host, p->host);
+    strcpy_truncate (host, p->host, MaxHostNameLen);
     return KSUCCESS;
 }

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: kip.h,v 1.16 1997/05/20 18:40:31 bg Exp $ */
+/* $Id: kip.h,v 1.17 1997/12/14 23:57:21 assar Exp $ */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -73,6 +73,9 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#ifdef HAVE_NETINET_TCP_H
+#include <netinet/tcp.h>
+#endif
 #include <netdb.h>
 #include <sys/sockio.h>
 #include <net/if.h>

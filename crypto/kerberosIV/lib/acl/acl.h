@@ -36,12 +36,10 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: acl.h,v 1.5 1997/04/01 08:17:52 joda Exp $ */
+/* $Id: acl.h,v 1.6 1997/12/05 03:31:47 joda Exp $ */
 
 #ifndef __ACL_H
 #define __ACL_H
-
-#include <sys/cdefs.h>
 
 void acl_canonicalize_principal __P((char *principal, char *canon));
 int acl_initialize __P((char *acl_file, int perm));

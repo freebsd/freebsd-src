@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: krb_err_txt.c,v 1.12 1997/04/02 05:37:10 joda Exp $");
+RCSID("$Id: krb_err_txt.c,v 1.13 1998/01/31 08:11:52 joda Exp $");
 
 /*
  * This file contains an array of error text strings.
@@ -70,7 +70,7 @@ const char *krb_err_txt[256] = {
   "Time is out of bounds (krb_rd_req)",			/* 037 */
   "Incorrect network address (krb_rd_req)",		/* 038 */
   "Protocol version mismatch (krb_rd_req)",		/* 039 */
-  "Illegal message type (krb_rd_req)",			/* 040 */
+  "Invalid message type (krb_rd_req)",			/* 040 */
   "Message integrity error (krb_rd_req)",		/* 041 */
   "Message duplicate or out of order (krb_rd_req)",	/* 042 */
   "Unauthorized request (krb_rd_req)",			/* 043 */
@@ -288,7 +288,7 @@ const char *krb_err_txt[256] = {
   "Generic kerberos error (kfailure)",			/* 255 */
 };
 
-static const char err_failure[] = "Illegal error code passed (krb_get_err_text)";
+static const char err_failure[] = "Unknown error code passed (krb_get_err_text)";
 
 const char *
 krb_get_err_text(int code)
