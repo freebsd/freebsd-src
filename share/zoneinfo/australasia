@@ -1,4 +1,4 @@
-# @(#)australasia	7.64
+# @(#)australasia	7.65
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -6,6 +6,8 @@
 ###############################################################################
 
 # Australia
+
+# Please see the notes below for the controversy about "EST" versus "AEST" etc.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Aus	1917	only	-	Jan	 1	0:01	1:00	-
@@ -359,7 +361,7 @@ Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
 # Papua New Guinea
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Port_Moresby 9:48:40 -	LMT	1880
-			9:48:40	-	PMMT	1895	# Port Moresby Mean Time
+			9:48:32	-	PMMT	1895	# Port Moresby Mean Time
 			10:00	-	PGT		# Papua New Guinea Time
 
 # Pitcairn
@@ -399,6 +401,8 @@ Rule	Tonga	1999	only	-	Oct	 7	2:00s	1:00	S
 Rule	Tonga	2000	only	-	Mar	19	2:00s	0	-
 Rule	Tonga	2000	only	-	Nov	 4	2:00s	1:00	S
 Rule	Tonga	2001	only	-	Jan	27	2:00s	0	-
+Rule	Tonga	2001	only	-	Nov	25	2:00s	1:00	S
+Rule	Tonga	2002	only	-	Mar	 3	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Tongatapu	12:19:20 -	LMT	1901
 			12:20	-	TOT	1941 # Tonga Time
@@ -473,7 +477,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Thomas G. Shanks, The International Atlas (5th edition),
 # San Diego: ACS Publications, Inc. (1999).
 #
-# Gwillim Law <Gwil_Law@bridge-point.com> writes that a good source
+# Gwillim Law writes that a good source
 # for recent time zone data is the International Air Transport
 # Association's Standard Schedules Information Manual (IATA SSIM),
 # published semiannually.  Law sent in several helpful summaries
@@ -535,11 +539,92 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # prefixed by the word `Australian' when referring to local times;
 # time announcements on that service, naturally enough, are made in UTC.
 
-# From Arthur David Olson (March 8 1992):
+# From Arthur David Olson (1992-03-08):
 # Given the above, what's chosen for year-round use is:
 #	CST	for any place operating at a GMTOFF of 9:30
 #	WST	for any place operating at a GMTOFF of 8:00
 #	EST	for any place operating at a GMTOFF of 10:00
+
+# From Paul Eggert (2001-04-05), summarizing a long discussion about "EST"
+# versus "AEST" etc.:
+#
+# I see the following points of dispute:
+#
+# * How important are unique time zone abbreviations?
+#
+#   Here I tend to agree with the point (most recently made by Chris
+#   Newman) that unique abbreviations should not be essential for proper
+#   operation of software.  We have other instances of ambiguity
+#   (e.g. "IST" denoting both "Israel Standard Time" and "Indian
+#   Standard Time"), and they are not likely to go away any time soon.
+#   In the old days, some software mistakenly relied on unique
+#   abbreviations, but this is becoming less true with time, and I don't
+#   think it's that important to cater to such software these days.
+#
+#   On the other hand, there is another motivation for unambiguous
+#   abbreviations: it cuts down on human confusion.  This is
+#   particularly true for Australia, where "EST" can mean one thing for
+#   time T and a different thing for time T plus 1 second.
+#
+# * Does the relevant legislation indicate which abbreviations should be used?
+#
+#   Here I tend to think that things are a mess, just as they are in
+#   many other countries.  We Americans are currently disagreeing about
+#   which abbreviation to use for the newly legislated Chamorro Standard
+#   Time, for example.
+#
+#   Personally, I would prefer to use common practice; I would like to
+#   refer to legislation only for examples of common practice, or as a
+#   tiebreaker.
+#
+# * Do Australians more often use "Eastern Daylight Time" or "Eastern
+#   Summer Time"?  Do they typically prefix the time zone names with
+#   the word "Australian"?
+#
+#   My own impression is that both "Daylight Time" and "Summer Time" are
+#   common and are widely understood, but that "Summer Time" is more
+#   popular; and that the leading "A" is also common but is omitted more
+#   often than not.  I just used AltaVista advanced search and got the
+#   following count of page hits:
+#
+#     1,103 "Eastern Summer Time" AND domain:au
+#       971 "Australian Eastern Summer Time" AND domain:au
+#       613 "Eastern Daylight Time" AND domain:au
+#       127 "Australian Eastern Daylight Time" AND domain:au
+#
+#   Here "Summer" seems quite a bit more popular than "Daylight",
+#   particularly when we know the time zone is Australian and not US,
+#   say.  The "Australian" prefix seems to be popular for Eastern Summer
+#   Time, but unpopular for Eastern Daylight Time.
+#
+#   For abbreviations, tools like AltaVista are less useful because of
+#   ambiguity.  Many hits are not really time zones, unfortunately, and
+#   many hits denote US time zones and not Australian ones.  But here
+#   are the hit counts anyway:
+#
+#     161,304 "EST" and domain:au
+#      25,156 "EDT" and domain:au
+#      18,263 "AEST" and domain:au
+#      10,416 "AEDT" and domain:au
+#
+#      14,538 "CST" and domain:au
+#       5,728 "CDT" and domain:au
+#         176 "ACST" and domain:au
+#          29 "ACDT" and domain:au
+#
+#       7,539 "WST" and domain:au
+#          68 "AWST" and domain:au
+#
+#   This data suggest that Australians tend to omit the "A" prefix in
+#   practice.  The situation for "ST" versus "DT" is less clear, given
+#   the ambiguities involved.
+#
+# * How do Australians feel about the abbreviations in the tz database?
+#
+#   If you just count Australians on this list, I count 2 in favor and 3
+#   against.  One of the "against" votes (David Keegel) counseled delay,
+#   saying that both AEST/AEDT and EST/EST are widely used and
+#   understood in Australia.
 
 # From Paul Eggert (1995-12-19):
 # Shanks reports 2:00 for all autumn changes in Australia and New Zealand.
@@ -755,6 +840,28 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # via Simon Woodhead via Robert Elz (1991-03-06):
 # #   The state of VICTORIA.. [ Courtesy of Vic. Dept of Premier + Cabinet ]
 # #						[ Nov 1990 ]
+
+# From Scott Harrington (2001-08-29):
+# On KQED's "City Arts and Lectures" program last night I heard an
+# interesting story about daylight savings time.  Dr. John Heilbron was
+# discussing his book "The Sun in the Church: Cathedrals as Solar
+# Observatories"[1], and in particular the Shrine of Remembrance[2] located
+# in Melbourne, Australia.
+#
+# Apparently the shrine's main purpose is a beam of sunlight which
+# illuminates a special spot on the floor at the 11th hour of the 11th day
+# of the 11th month (Remembrance Day) every year in memory of Australia's
+# fallen WWI soldiers.  And if you go there on Nov. 11, at 11am local time,
+# you will indeed see the sunbeam illuminate the special spot at the
+# expected time.
+#
+# However, that is only because of some special mirror contraption that had
+# to be employed, since due to daylight savings time, the true solar time of
+# the remembrance moment occurs one hour later (or earlier?).  Perhaps
+# someone with more information on this jury-rig can tell us more.
+#
+# [1] http://www.hup.harvard.edu/catalog/HEISUN.html
+# [2] http://www.shrine.org.au
 
 # New South Wales
 
@@ -1119,6 +1226,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 
 # From Rives McDow (2000-12-01):
 # Tonga is observing DST as of 2000-11-04 and will stop on 2001-01-27.
+
+# From Rives McDow (2001-07-17):
+# The Kingdom of Tonga will move to DST at 0200 local time on Sunday,
+# November 25, 2001 and revert back to standard time at 0300 local
+# time on Sunday, March 3, 2002.
+
 
 ###############################################################################
 
