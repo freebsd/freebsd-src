@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sigsuspend.S,v 1.6 1997/02/22 14:59:40 peter Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: sigsuspend.S,v 1.6 1997/02/22 14:59:40 peter Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -50,7 +50,9 @@ err:
 #ifdef _THREAD_SAFE
 ENTRY(_thread_sys_sigsuspend)
 #else
-ENTRY(sigsuspend)
+ENTRY(_sigsuspend)
+	.weak CNAME(sigsuspend)	; 
+	.set CNAME(sigsuspend), CNAME(_sigsuspend) ; 
 #endif
 	movl	4(%esp),%eax		# fetch mask arg
 	movl	(%eax),%eax		# indirect to mask arg

@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.98 1998/10/09 23:42:47 peter Exp $
+ * $Id: init_main.c,v 1.99 1998/10/15 17:09:19 peter Exp $
  */
 
 #include "opt_devfs.h"
@@ -83,6 +83,9 @@ static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
 static struct pcred cred0;
+#ifdef COMPAT_LINUX_THREADS
+static struct procsig procsig0;
+#endif /* COMPAT_LINUX_THREADS */
 static struct filedesc0 filedesc0;
 static struct plimit limit0;
 static struct vmspace vmspace0;
@@ -415,6 +418,12 @@ proc0_init(dummy)
 	p->p_ucred = crget();
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
 
+#ifdef COMPAT_LINUX_THREADS
+	/* Create procsig. */
+	p->p_procsig = &procsig0;
+	p->p_procsig->ps_refcnt = 2;
+
+#endif /* COMPAT_LINUX_THREADS */
 	/* Create the file descriptor table. */
 	fdp = &filedesc0;
 	p->p_fd = &fdp->fd_fd;
@@ -461,11 +470,20 @@ proc0_init(dummy)
 #endif
 
 	/*
+#ifndef COMPAT_LINUX_THREADS
 	 * We continue to place resource usage info and signal
 	 * actions in the user struct so they're pageable.
 	 */
 	p->p_stats = &p->p_addr->u_stats;
 	p->p_sigacts = &p->p_addr->u_sigacts;
+#else
+	 * We continue to place resource usage info in the user struct so
+	 * it's pageable.
+	 */
+	p->p_stats = &p->p_addr->u_stats;
+
+	p->p_sigacts = &p->p_procsig->ps_sigacts;
+#endif /* COMPAT_LINUX_THREADS */
 
 	/*
 	 * Charge root for one process.
