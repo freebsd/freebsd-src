@@ -10,6 +10,7 @@ PMAP_SHPGPERPROC	opt_pmap.h
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static filesystems
 # (see src/sys/conf/options), except for broken debugging options.
+COMPAT_IA32		opt_compat.h
 #IBCS2			opt_dontuse.h
 #COMPAT_LINUX		opt_dontuse.h
 COMPAT_LINUX32		opt_compat.h
@@ -52,6 +53,5 @@ PPC_DEBUG		opt_ppc.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
-IA32
 NO_MIXED_MODE
 DEV_ATPIC		opt_atpic.h
