@@ -154,8 +154,9 @@ open_snp(void)
 {
 	char            snp[] = {_PATH_DEV "snpX"};
 	char            c;
-	int             f, mode;
+	int             f, mode, pos;
 
+	pos = strlen(snp) - 1;
 	if (opt_write)
 		mode = O_RDWR;
 	else
@@ -163,7 +164,7 @@ open_snp(void)
 
 	if (opt_snpdev == NULL)
 		for (c = '0'; c <= '9'; c++) {
-			snp[8] = c;
+			snp[pos] = c;
 			if ((f = open(snp, mode)) < 0)
 				continue;
 			return f;
