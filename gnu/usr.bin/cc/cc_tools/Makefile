@@ -22,48 +22,48 @@ CFLAGS+=	-I${GCCDIR}/objc
 #-----------------------------------------------------------------------
 # insn-* gunk
 
-.for i in attr codes config flags
-insn-$i.h: gen$i ${MD_FILE}
-	./gen$i ${MD_FILE} > insn-$i.h
-GENSRCS+=	insn-$i.h
+.for F in attr codes config flags
+insn-$F.h: gen$F ${MD_FILE}
+	./gen$F ${MD_FILE} > insn-$F.h
+GENSRCS+=	insn-$F.h
 .endfor
 
-.for i in attrtab emit extract opinit output peep recog
-insn-$i.c: gen$i ${MD_FILE}
-	./gen$i ${MD_FILE} > insn-$i.c
-GENSRCS+=	insn-$i.c
+.for F in attrtab emit extract opinit output peep recog
+insn-$F.c: gen$F ${MD_FILE}
+	./gen$F ${MD_FILE} > insn-$F.c
+GENSRCS+=	insn-$F.c
 .endfor
 
-.for i in attr codes config emit extract flags opinit output peep recog
-build-tools: gen$i
+.for F in attr codes config emit extract flags opinit output peep recog
+build-tools: gen$F
 
-gen$i: gen$i.o rtl.o obstack.o print-rtl.o bitmap.o
+gen$F: gen$F.o rtl.o obstack.o print-rtl.o bitmap.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
-GENSRCS+=	gen$i.c
-CLEANFILES+=	gen$i
+GENSRCS+=	gen$F.c
+CLEANFILES+=	gen$F
 .endfor
 
-.for i in attrtab
-build-tools: gen$i
+.for F in attrtab
+build-tools: gen$F
 
-gen$i: gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o bitmap.o
+gen$F: gen$F.o rtl.o rtlanal.o print-rtl.o obstack.o bitmap.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
-GENSRCS+=	gen$i.c
-CLEANFILES+=	gen$i
+GENSRCS+=	gen$F.c
+CLEANFILES+=	gen$F
 .endfor
 
 SRCS+=		bitmap.c obstack.c print-rtl.c rtl.c rtlanal.c
 
-.for i in check genrtl
-build-tools: gen$i
+.for F in check genrtl
+build-tools: gen$F
 
-gen$i: gen$i.o
+gen$F: gen$F.o
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
-GENSRCS+=	gen$i.c
-CLEANFILES+=	gen$i
+GENSRCS+=	gen$F.c
+CLEANFILES+=	gen$F
 .endfor
 
 .ORDER: genrtl.c genrtl.h print-rtl.o
