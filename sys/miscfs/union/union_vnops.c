@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.6 (Berkeley) 2/17/94
- * $Id: union_vnops.c,v 1.5 1994/09/21 23:22:45 wollman Exp $
+ * $Id: union_vnops.c,v 1.6 1994/10/06 21:06:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -132,7 +132,8 @@ union_lookup1(udvp, dvp, vpp, cnp)
 			continue;
 		}
 
-		if (error = VFS_ROOT(mp, &tdvp)) {
+		error = VFS_ROOT(mp, &tdvp);
+		if (error) {
 			vput(dvp);
 			return (error);
 		}
@@ -162,7 +163,6 @@ union_lookup(ap)
 	struct union_node *dun = VTOUNION(dvp);
 	struct componentname *cnp = ap->a_cnp;
 	int lockparent = cnp->cn_flags & LOCKPARENT;
-	int rdonly = cnp->cn_flags & RDONLY;
 	struct union_mount *um = MOUNTTOUNIONMOUNT(dvp->v_mount);
 	struct ucred *saved_cred = 0;
 
@@ -574,12 +574,14 @@ union_access(ap)
 	int error = EACCES;
 	struct vnode *vp;
 
-	if (vp = un->un_uppervp) {
+	vp = un->un_uppervp;
+	if (vp) {
 		FIXUP(un);
 		return (VOP_ACCESS(vp, ap->a_mode, ap->a_cred, ap->a_p));
 	}
 
-	if (vp = un->un_lowervp) {
+	vp = un->un_lowervp;
+	if (vp) {
 		VOP_LOCK(vp);
 		error = VOP_ACCESS(vp, ap->a_mode, ap->a_cred, ap->a_p);
 		if (error == 0) {
@@ -1109,7 +1111,6 @@ union_symlink(ap)
 	if (dvp) {
 		int error;
 		struct vnode *vp;
-		struct mount *mp = ap->a_dvp->v_mount;
 
 		FIXUP(un);
 		VREF(dvp);
@@ -1357,7 +1358,7 @@ union_print(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	printf("\ttag VT_UNION, vp=%x, uppervp=%x, lowervp=%x\n",
+	printf("\ttag VT_UNION, vp=%p, uppervp=%p, lowervp=%p\n",
 			vp, UPPERVP(vp), LOWERVP(vp));
 	return (0);
 }

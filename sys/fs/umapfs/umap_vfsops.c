@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap_vfsops.c,v 1.3 1994/09/21 03:47:11 wollman Exp $
+ * $Id: umap_vfsops.c,v 1.4 1994/09/22 19:38:19 wollman Exp $
  */
 
 /*
@@ -87,7 +87,8 @@ umapfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Get argument
 	 */
-	if (error = copyin(data, (caddr_t)&args, sizeof(struct umap_args)))
+	error = copyin(data, (caddr_t)&args, sizeof(struct umap_args));
+	if (error)
 		return (error);
 
 	/*
@@ -95,7 +96,8 @@ umapfs_mount(mp, path, data, ndp, p)
 	 */
 	NDINIT(ndp, LOOKUP, FOLLOW|WANTPARENT|LOCKLEAF,
 		UIO_USERSPACE, args.target, p);
-	if (error = namei(ndp))
+	error = namei(ndp);
+	if (error)
 		return (error);
 
 	/*
@@ -250,7 +252,8 @@ umapfs_unmount(mp, mntflags, p)
 #endif
 	if (umapm_rootvp->v_usecount > 1)
 		return (EBUSY);
-	if (error = vflush(mp, umapm_rootvp, flags))
+	error = vflush(mp, umapm_rootvp, flags);
+	if (error)
 		return (error);
 
 #ifdef UMAPFS_DIAGNOSTIC
