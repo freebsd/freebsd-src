@@ -558,7 +558,7 @@ esac
 # or spwd.db.  Instead, we want to compare the text versions, and run *_mkdb.
 # Prompt the user to do so below, as needed.
 #
-rm -f ${TEMPROOT}/etc/*.db
+rm -f ${TEMPROOT}/etc/*.db ${TEMPROOT}/etc/passwd
 
 # We only need to compare things like freebsd.cf once
 find ${TEMPROOT}/usr/obj -type f -delete 2>/dev/null
