@@ -143,8 +143,6 @@ static void ra_output __P((struct rainfo *));
 static void rtmsg_input __P((void));
 static void rtadvd_set_dump_file __P((void));
 
-struct prefix *find_prefix __P((struct rainfo *, struct in6_addr *, int));
-
 int
 main(argc, argv)
 	int argc;
