@@ -190,7 +190,7 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	TR3(d, p1, p2, p3)		CTR3(KTR_GEN, d, p1, p2, p3)
 #define	TR4(d, p1, p2, p3, p4)		CTR4(KTR_GEN, d, p1, p2, p3, p4)
 #define	TR5(d, p1, p2, p3, p4, p5)	CTR5(KTR_GEN, d, p1, p2, p3, p4, p5)
-#define	TR6(d, p1, p2, p3, p4, p5, p6)	CTR5(KTR_GEN, d, p1, p2, p3, p4, p5, p6)
+#define	TR6(d, p1, p2, p3, p4, p5, p6)	CTR6(KTR_GEN, d, p1, p2, p3, p4, p5, p6)
 
 /*
  * Trace initialization events, similar to CTR with KTR_INIT, but
@@ -205,7 +205,7 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	ITR3(d, p1, p2, p3)		CTR3(KTR_INIT, d, p1, p2, p3)
 #define	ITR4(d, p1, p2, p3, p4)		CTR4(KTR_INIT, d, p1, p2, p3, p4)
 #define	ITR5(d, p1, p2, p3, p4, p5)	CTR5(KTR_INIT, d, p1, p2, p3, p4, p5)
-#define	ITR6(d, p1, p2, p3, p4, p5, p6)	CTR5(KTR_INIT, d, p1, p2, p3, p4, p5, p6)
+#define	ITR6(d, p1, p2, p3, p4, p5, p6)	CTR6(KTR_INIT, d, p1, p2, p3, p4, p5, p6)
 #else
 #define	ITR0(d)
 #define	ITR1(d, p1)
