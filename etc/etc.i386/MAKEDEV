@@ -83,7 +83,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.85 1995/04/28 00:51:02 dufault Exp $
+#	$Id: MAKEDEV,v 1.86 1995/04/28 07:39:21 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -695,7 +695,6 @@ pcaudio)
 	mknod pcaudio c 24 0
 	mknod pcaudioctl c 24 128
 	chown root.wheel pcaudio pcaudioctl
-	chmod 666 pcaudio pcaudioctl
 	;;
 
 socksys)
@@ -708,54 +707,47 @@ socksys)
 	;;
 
 snd*)
+	# XXX write this less verbosely, like std
+	snd_security_hole=0	# XXX
+	umask $snd_security_hole
+
 	chr=30
 	rm -f mixer		# Mixer	[ Control ]
 	mknod mixer		c $chr 0
-	chmod 666 mixer
 
 	rm -f sequencer		# Sequencer [ FM Synth and MIDI output ]
 	mknod sequencer		c $chr 1
-	chmod 666 sequencer
 
 	rm -f midi midi00	# Midi 0
 	mknod midi00		c $chr 2
-	chmod 666 midi00
 
 	rm -f dsp		# DSP [ Digitized voice ]
 	mknod dsp		c $chr 3
-	chmod 666 dsp
 
 	rm -f audio		# SPARC audio [ Not fully implemented ]
 	mknod audio		c $chr 4
-	chmod 666 audio
 
 	rm -f dsp16		# DSP16 [ Same as dsp, except 16 bits ]
 	mknod dsp16		c $chr 5
-	chmod 666 dsp16
 
 	rm -f sndstat		# Status Device [ Debugging interface ]
 	mknod sndstat		c $chr 6
-	chmod 666 sndstat
 
 	rm -f sequencer2	# Sequencer level 2
 	mknod sequencer2	c $chr 8
-	chmod 666 sequencer2
 
-	rm -f pss               # PSS Device
-	mknod pss               c $chr 9
-	chmod 666 pss
+	rm -f pss		# PSS Device
+	mknod pss		c $chr 9
 
 	rm -f midi01		# Midi 1
 	mknod midi01		c $chr 18
-	chmod 666 midi01
 
 	rm -f dsp1		# DSP 1 [ SB emulation of PAS16 or 2nd audio ]
 	mknod dsp1		c $chr 19
-	chmod 666 dsp1
 
 	rm -f audio1	# Sparc Audio 1 [ SB emulation of PAS16 or 2nd audio ]
 	mknod audio1	c $chr 20
-	chmod 666 audio1
+	umask 77
 	;;
 
 vat)
