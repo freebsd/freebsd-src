@@ -157,8 +157,7 @@ struct addrinfo {
 #define	EAI_SYSTEM	11	/* system error returned in errno */
 #define	EAI_BADHINTS	12
 #define	EAI_PROTOCOL	13
-#define	EAI_RESNULL	14
-#define	EAI_MAX		15
+#define	EAI_MAX		14
 
 /*
  * Flag values for getaddrinfo()
