@@ -173,9 +173,23 @@ in6_selectsrc(dstsock, opts, mopts, ro, laddr, errorp)
 	struct sockaddr_in6 dstsock0;
 
 	dstsock0 = *dstsock;
-	if ((*errorp = in6_embedscope(&dstsock0.sin6_addr, &dstsock0,
-	    NULL, NULL)) != 0)
-		return (NULL);
+	if (IN6_IS_SCOPE_LINKLOCAL(&dstsock0.sin6_addr) ||
+	    IN6_IS_ADDR_MC_INTFACELOCAL(&dstsock0.sin6_addr)) {
+		/* KAME assumption: link id == interface id */
+		if (opts && opts->ip6po_pktinfo &&
+		    opts->ip6po_pktinfo->ipi6_ifindex) {
+			ifp = ifnet_byindex(opts->ip6po_pktinfo->ipi6_ifindex);
+			dstsock0.sin6_addr.s6_addr16[1] =
+			    htons(opts->ip6po_pktinfo->ipi6_ifindex);
+		} else if (mopts &&
+		    IN6_IS_ADDR_MULTICAST(&dstsock0.sin6_addr) &&
+		    mopts->im6o_multicast_ifp) {
+			ifp = mopts->im6o_multicast_ifp;
+			dstsock0.sin6_addr.s6_addr16[1] = htons(ifp->if_index);
+		} else if ((*errorp = in6_embedscope(&dstsock0.sin6_addr,
+		    &dstsock0, NULL, NULL)) != 0)
+			return (NULL);
+	}
 	dstsock = &dstsock0;
 
 	dst = &dstsock->sin6_addr;
