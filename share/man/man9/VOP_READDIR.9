@@ -44,17 +44,23 @@
 Read directory entries.
 .Bl -tag -width ncookies
 .It Fa vp
-the vnode of the directory
+The vnode of the directory.
 .It Fa uio
-where to read the directory contents
+Where to read the directory contents.
 .It Fa cred
-the caller's credentials
+The caller's credentials.
 .It Fa eofflag
-return end of file status (NULL if not wanted)
+Return end of file status
+.Dv ( NULL
+if not wanted).
 .It Fa ncookies
-number of directory cookies generated for NFS (NULL if not wanted)
+Number of directory cookies generated for NFS
+.Dv ( NULL
+if not wanted).
 .It Fa cookies
-directory seek cookies generated for NFS (NULL if not wanted)
+Directory seek cookies generated for NFS
+.Dv ( NULL
+if not wanted).
 .El
 The directory contents are read into
 .Vt struct dirent
