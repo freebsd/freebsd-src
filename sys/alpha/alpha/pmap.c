@@ -751,8 +751,8 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		return (pa);
 	PMAP_LOCK(pmap);
 	pte = pmap_lev3pte(pmap, va);
-	if (pte != NULL)
-		pa = alpha_ptob(ALPHA_PTE_TO_PFN(*pte));
+	if (pte != NULL && pmap_pte_v(pte))
+		pa = pmap_pte_pa(pte);
 	PMAP_UNLOCK(pmap);
 	return (pa);
 }
@@ -767,18 +767,22 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	vm_paddr_t pa;
+	pt_entry_t *pte;
 	vm_page_t m;
 
 	m = NULL;
-	mtx_lock(&Giant);
-	if ((pa = pmap_extract(pmap, va)) != 0) {
-		m = PHYS_TO_VM_PAGE(pa);
-		vm_page_lock_queues();
+	if (pmap == NULL)
+		return (m);
+	vm_page_lock_queues();
+	PMAP_LOCK(pmap);
+	pte = pmap_lev3pte(pmap, va);
+	if (pte != NULL && pmap_pte_v(pte) &&
+	    (*pte & pte_prot(pmap, prot)) == pte_prot(pmap, prot)) {
+		m = PHYS_TO_VM_PAGE(pmap_pte_pa(pte));
 		vm_page_hold(m);
-		vm_page_unlock_queues();
 	}
-	mtx_unlock(&Giant);
+	vm_page_unlock_queues();
+	PMAP_UNLOCK(pmap);
 	return (m);
 }
 
