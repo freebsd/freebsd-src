@@ -653,11 +653,8 @@ Suff_AddTransform(char *line)
  * Suff_EndTransform --
  *	Handle the finish of a transformation definition, removing the
  *	transformation from the graph if it has neither commands nor
- *	sources. This is a callback procedure for the Parse module via
- *	Lst_ForEach
- *
- * Results:
- *	=== 0
+ *	sources. This is called from the Parse module at the end of
+ *	a dependency block.
  *
  * Side Effects:
  *	If the node has no commands or children, the children and parents
@@ -665,45 +662,40 @@ Suff_AddTransform(char *line)
  *
  *-----------------------------------------------------------------------
  */
-int
-Suff_EndTransform(void *gnp, void *dummy __unused)
+void
+Suff_EndTransform(const GNode *gn)
 {
-	GNode	*gn = (GNode *)gnp;
+	Suff	*s, *t;
 
-	if ((gn->type & OP_TRANSFORM) && Lst_IsEmpty(&gn->commands) &&
-	    Lst_IsEmpty(&gn->children)) {
-		Suff	*s, *t;
-
-		/*
-		 * SuffParseTransform() may fail for special rules which are not
-		 * actual transformation rules (e.g., .DEFAULT).
-		 */
-		if (!SuffParseTransform(gn->name, &s, &t))
-			return (0);
-
-		DEBUGF(SUFF, ("deleting transformation from `%s' to `%s'\n",
-		    s->name, t->name));
-
-		/*
-		 * Remove the source from the target's children list. We check
-		 * for a NULL return to handle a beanhead saying something like
-		 *  .c.o .c.o:
-		 *
-		 * We'll be called twice when the next target is seen, but .c
-		 * and .o are only linked once...
-		 */
-		SuffRemove(&t->children, s);
-
-		/*
-		 * Remove the target from the source's parents list
-		 */
-		SuffRemove(&s->parents, t);
-
-	} else if (gn->type & OP_TRANSFORM) {
+	if (!Lst_IsEmpty(&gn->commands) || !Lst_IsEmpty(&gn->children)) {
 		DEBUGF(SUFF, ("transformation %s complete\n", gn->name));
+		return;
 	}
 
-	return (0);
+	/*
+	 * SuffParseTransform() may fail for special rules which are not
+	 * actual transformation rules (e.g., .DEFAULT).
+	 */
+	if (!SuffParseTransform(gn->name, &s, &t))
+		return;
+
+	DEBUGF(SUFF, ("deleting transformation from `%s' to `%s'\n",
+	    s->name, t->name));
+
+	/*
+	 * Remove the source from the target's children list. We check
+	 * for a NULL return to handle a beanhead saying something like
+	 *  .c.o .c.o:
+	 *
+	 * We'll be called twice when the next target is seen, but .c
+	 * and .o are only linked once...
+	 */
+	SuffRemove(&t->children, s);
+
+	/*
+	 * Remove the target from the source's parents list
+	 */
+	SuffRemove(&s->parents, t);
 }
 
 /*-
