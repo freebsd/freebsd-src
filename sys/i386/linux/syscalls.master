@@ -180,7 +180,7 @@
 117	STD	LINUX	{ int linux_ipc(int what, int arg1, int arg2, \
 				int arg3, caddr_t ptr); }
 118	NOPROTO	LINUX	{ int fsync(int fd); }
-119	STD	LINUX	{ int linux_sigreturn(struct linux_sigcontext *scp); }
+119	STD	LINUX	{ int linux_sigreturn(struct linux_sigframe *sfp); }
 120	STD	LINUX	{ int linux_clone(int flags, void *stack); }
 121	NOPROTO	LINUX	{ int setdomainname(char *name, int len); }
 122	STD	LINUX	{ int linux_newuname(struct linux_new_utsname *buf); }
