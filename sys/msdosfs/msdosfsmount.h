@@ -1,9 +1,9 @@
-/*	$Id: msdosfsmount.h,v 1.11 1997/03/03 17:36:11 bde Exp $ */
-/*	$NetBSD: msdosfsmount.h,v 1.7 1994/08/21 18:44:17 ws Exp $	*/
+/*	$Id: msdosfsmount.h,v 1.12 1997/10/12 20:25:02 phk Exp $ */
+/*	$NetBSD: msdosfsmount.h,v 1.17 1997/11/17 15:37:07 ws Exp $	*/
 
 /*-
- * Copyright (C) 1994 Wolfgang Solfrank.
- * Copyright (C) 1994 TooLs GmbH.
+ * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
+ * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
  * Original code by Paul Popelka (paulp@uts.amdahl.com) (see below).
  *
@@ -63,90 +63,119 @@ MALLOC_DECLARE(M_MSDOSFSMNT);
 struct msdosfsmount {
 	struct mount *pm_mountp;/* vfs mount struct for this fs */
 	dev_t pm_dev;		/* block special device mounted */
-	uid_t pm_mounter;	/* uid of the user who mounted the FS */
 	uid_t pm_uid;		/* uid to set as owner of the files */
 	gid_t pm_gid;		/* gid to set as owner of the files */
 	mode_t pm_mask;		/* mask to and with file protection bits */
 	struct vnode *pm_devvp;	/* vnode for block device mntd */
 	struct bpb50 pm_bpb;	/* BIOS parameter blk for this fs */
+	u_long pm_FATsecs;	/* actual number of fat sectors */
 	u_long pm_fatblk;	/* block # of first FAT */
-	u_long pm_rootdirblk;	/* block # of root directory */
+	u_long pm_rootdirblk;	/* block # (cluster # for FAT32) of root directory number */
 	u_long pm_rootdirsize;	/* size in blocks (not clusters) */
 	u_long pm_firstcluster;	/* block number of first cluster */
 	u_long pm_nmbrofclusters;	/* # of clusters in filesystem */
 	u_long pm_maxcluster;	/* maximum cluster number */
 	u_long pm_freeclustercount;	/* number of free clusters */
-	u_long pm_bnshift;	/* shift file offset right this amount to get a block number */
-	u_long pm_brbomask;	/* and a file offset with this mask to get block rel offset */
 	u_long pm_cnshift;	/* shift file offset right this amount to get a cluster number */
 	u_long pm_crbomask;	/* and a file offset with this mask to get cluster rel offset */
+	u_long pm_bnshift;	/* shift file offset right this amount to get a block number */
 	u_long pm_bpcluster;	/* bytes per cluster */
-	u_long pm_depclust;	/* directory entries per cluster */
 	u_long pm_fmod;		/* ~0 if fs is modified, this can rollover to 0	*/
 	u_long pm_fatblocksize;	/* size of fat blocks in bytes */
 	u_long pm_fatblocksec;	/* size of fat blocks in sectors */
 	u_long pm_fatsize;	/* size of fat in bytes */
+	u_long pm_fatmask;	/* mask to use for fat numbers */
+	u_long pm_fsinfo;	/* fsinfo block number */
+	u_long pm_nxtfree;	/* next free cluster in fsinfo block */
+	u_int pm_fatmult;	/* these 2 values are used in fat */
+	u_int pm_fatdiv;	/*	offset computation */
+	u_int pm_curfat;	/* current fat for FAT32 (0 otherwise) */
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
-	char pm_ronly;		/* read only if non-zero */
-	char pm_waitonfat;	/* wait for writes of the fat to complete, when 0 use bdwrite, else use bwrite */
+	u_int pm_flags;		/* see below */
 	struct netexport pm_export;	/* export information */
 };
+/* Byte offset in FAT on filesystem pmp, cluster cn */
+#define	FATOFS(pmp, cn)	((cn) * (pmp)->pm_fatmult / (pmp)->pm_fatdiv)
+
+
+#define	VFSTOMSDOSFS(mp)	((struct msdosfsmount *)mp->mnt_data)
 
 /* Number of bits in one pm_inusemap item: */
 #define	N_INUSEBITS	(8 * sizeof(u_int))
 
 /*
- * How to compute pm_cnshift and pm_crbomask.
- *
- * pm_crbomask = (pm_SectPerClust * pm_BytesPerSect) - 1
- * if (bytesperclust == * 0)
- * 	return EBADBLKSZ;
- * bit = 1;
- * for (i = 0; i < 32; i++) {
- *	if (bit & bytesperclust) {
- *		if (bit ^ bytesperclust)
- *			return EBADBLKSZ;
- *		pm_cnshift = * i;
- *		break;
- *	}
- *	bit <<= 1;
- * }
- */
-
-/*
  * Shorthand for fields in the bpb contained in the msdosfsmount structure.
  */
 #define	pm_BytesPerSec	pm_bpb.bpbBytesPerSec
-#define	pm_SectPerClust	pm_bpb.bpbSecPerClust
 #define	pm_ResSectors	pm_bpb.bpbResSectors
 #define	pm_FATs		pm_bpb.bpbFATs
 #define	pm_RootDirEnts	pm_bpb.bpbRootDirEnts
 #define	pm_Sectors	pm_bpb.bpbSectors
 #define	pm_Media	pm_bpb.bpbMedia
-#define	pm_FATsecs	pm_bpb.bpbFATsecs
 #define	pm_SecPerTrack	pm_bpb.bpbSecPerTrack
 #define	pm_Heads	pm_bpb.bpbHeads
 #define	pm_HiddenSects	pm_bpb.bpbHiddenSecs
 #define	pm_HugeSectors	pm_bpb.bpbHugeSectors
 
 /*
+ * Convert pointer to buffer -> pointer to direntry
+ */
+#define	bptoep(pmp, bp, dirofs) \
+	((struct direntry *)(((bp)->b_data)	\
+	 + ((dirofs) & (pmp)->pm_crbomask)))
+
+/*
+ * Convert block number to cluster number
+ */
+#define	de_bn2cn(pmp, bn) \
+	((bn) >> ((pmp)->pm_cnshift - (pmp)->pm_bnshift))
+
+/*
+ * Convert cluster number to block number
+ */
+#define	de_cn2bn(pmp, cn) \
+	((cn) << ((pmp)->pm_cnshift - (pmp)->pm_bnshift))
+
+/*
+ * Convert file offset to cluster number
+ */
+#define de_cluster(pmp, off) \
+	((off) >> (pmp)->pm_cnshift)
+
+/*
+ * Clusters required to hold size bytes
+ */
+#define	de_clcount(pmp, size) \
+	(((size) + (pmp)->pm_bpcluster - 1) >> (pmp)->pm_cnshift)
+
+/*
+ * Convert file offset to block number
+ */
+#define de_blk(pmp, off) \
+	(de_cn2bn(pmp, de_cluster((pmp), (off))))
+
+/*
+ * Convert cluster number to file offset
+ */
+#define	de_cn2off(pmp, cn) \
+	((cn) << (pmp)->pm_cnshift)
+
+/*
+ * Convert block number to file offset
+ */
+#define	de_bn2off(pmp, bn) \
+	((bn) << (pmp)->pm_bnshift)
+/*
  * Map a cluster number into a filesystem relative block number.
  */
 #define	cntobn(pmp, cn) \
-	((((cn)-CLUST_FIRST) * (pmp)->pm_SectPerClust) + (pmp)->pm_firstcluster)
-
-/*
- * Map a filesystem relative block number back into a cluster number.
- */
-#define	bntocn(pmp, bn) \
-	((((bn) - pmp->pm_firstcluster)/ (pmp)->pm_SectPerClust) + CLUST_FIRST)
+	(de_cn2bn((pmp), (cn)-CLUST_FIRST) + (pmp)->pm_firstcluster)
 
 /*
  * Calculate block number for directory entry in root dir, offset dirofs
  */
 #define	roottobn(pmp, dirofs) \
-	(((dirofs) / (pmp)->pm_depclust) * (pmp)->pm_SectPerClust \
-	+ (pmp)->pm_rootdirblk)
+	(de_blk((pmp), (dirofs)) + (pmp)->pm_rootdirblk)
 
 /*
  * Calculate block number for directory entry at cluster dirclu, offset
@@ -157,27 +186,8 @@ struct msdosfsmount {
 	 ? roottobn((pmp), (dirofs)) \
 	 : cntobn((pmp), (dirclu)))
 
-/*
- * Convert pointer to buffer -> pointer to direntry
- */
-#define	bptoep(pmp, bp, dirofs) \
-	((struct direntry *)((bp)->b_data)	\
-	 + (dirofs) % (pmp)->pm_depclust)
-
-
-/*
- * Convert filesize to block number
- */
-#define de_blk(pmp, off) \
-	((off) >> (pmp)->pm_cnshift)
-
-/*
- * Clusters required to hold size bytes
- */
-#define	de_clcount(pmp, size) \
-	(((size) + (pmp)->pm_bpcluster - 1) >> (pmp)->pm_cnshift)
-
 int msdosfs_init __P((struct vfsconf *vfsp));
+int msdosfs_mountroot __P((void));
 
 #endif /* KERNEL */
 
@@ -190,6 +200,27 @@ struct msdosfs_args {
 	uid_t	uid;		/* uid that owns msdosfs files */
 	gid_t	gid;		/* gid that owns msdosfs files */
 	mode_t	mask;		/* mask to be applied for msdosfs perms */
+	int	flags;		/* see below */
+	int magic;		/* version number */
 };
+
+/*
+ * Msdosfs mount options:
+ */
+#define	MSDOSFSMNT_SHORTNAME	1	/* Force old DOS short names only */
+#define	MSDOSFSMNT_LONGNAME	2	/* Force Win'95 long names */
+#define	MSDOSFSMNT_NOWIN95	4	/* Completely ignore Win95 entries */
+#ifndef __FreeBSD__
+#define	MSDOSFSMNT_GEMDOSFS	8	/* This is a gemdos-flavour */
+#endif
+/* All flags above: */
+#define	MSDOSFSMNT_MNTOPT \
+	(MSDOSFSMNT_SHORTNAME|MSDOSFSMNT_LONGNAME|MSDOSFSMNT_NOWIN95 \
+	 /*|MSDOSFSMNT_GEMDOSFS*/)
+#define	MSDOSFSMNT_RONLY	0x80000000	/* mounted read-only	*/
+#define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
+#define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
+
+#define MSDOSFS_ARGSMAGIC	0xe4eff300
 
 #endif /* !_MSDOSFS_MSDOSFSMOUNT_H_ */

@@ -1,9 +1,9 @@
-/*	$Id$ */
-/*	$NetBSD: direntry.h,v 1.7 1994/08/21 18:43:54 ws Exp $	*/
+/*	$Id: direntry.h,v 1.4 1997/02/22 09:40:45 peter Exp $ */
+/*	$NetBSD: direntry.h,v 1.14 1997/11/17 15:36:32 ws Exp $	*/
 
 /*-
- * Copyright (C) 1994 Wolfgang Solfrank.
- * Copyright (C) 1994 TooLs GmbH.
+ * Copyright (C) 1994, 1995, 1997 Wolfgang Solfrank.
+ * Copyright (C) 1994, 1995, 1997 TooLs GmbH.
  * All rights reserved.
  * Original code by Paul Popelka (paulp@uts.amdahl.com) (see below).
  *
@@ -52,25 +52,54 @@
  * Structure of a dos directory entry.
  */
 struct direntry {
-	u_char deName[8];	/* filename, blank filled */
-#define	SLOT_EMPTY	0x00	/* slot has never been used */
-#define	SLOT_E5		0x05	/* the real value is 0xe5 */
-#define	SLOT_DELETED	0xe5	/* file in this slot deleted */
-	u_char deExtension[3];	/* extension, blank filled */
-	u_char deAttributes;	/* file attributes */
-#define	ATTR_NORMAL	0x00	/* normal file */
-#define	ATTR_READONLY	0x01	/* file is readonly */
-#define	ATTR_HIDDEN	0x02	/* file is hidden */
-#define	ATTR_SYSTEM	0x04	/* file is a system file */
-#define	ATTR_VOLUME	0x08	/* entry is a volume label */
-#define	ATTR_DIRECTORY	0x10	/* entry is a directory name */
-#define	ATTR_ARCHIVE	0x20	/* file is new or modified */
-	u_char deReserved[10];	/* reserved */
-	u_char deTime[2];	/* create/last update time */
-	u_char deDate[2];	/* create/last update date */
-	u_char deStartCluster[2]; /* starting cluster of file */
-	u_char deFileSize[4];	/* size of file in bytes */
+	u_int8_t	deName[8];	/* filename, blank filled */
+#define	SLOT_EMPTY	0x00		/* slot has never been used */
+#define	SLOT_E5		0x05		/* the real value is 0xe5 */
+#define	SLOT_DELETED	0xe5		/* file in this slot deleted */
+	u_int8_t	deExtension[3];	/* extension, blank filled */
+	u_int8_t	deAttributes;	/* file attributes */
+#define	ATTR_NORMAL	0x00		/* normal file */
+#define	ATTR_READONLY	0x01		/* file is readonly */
+#define	ATTR_HIDDEN	0x02		/* file is hidden */
+#define	ATTR_SYSTEM	0x04		/* file is a system file */
+#define	ATTR_VOLUME	0x08		/* entry is a volume label */
+#define	ATTR_DIRECTORY	0x10		/* entry is a directory name */
+#define	ATTR_ARCHIVE	0x20		/* file is new or modified */
+	u_int8_t	deReserved[1];	/* reserved */
+	u_int8_t	deCHundredth;	/* hundredth of seconds in CTime */
+	u_int8_t	deCTime[2];	/* create time */
+	u_int8_t	deCDate[2];	/* create date */
+	u_int8_t	deADate[2];	/* access date */
+	u_int8_t	deHighClust[2];	/* high bytes of cluster number */
+	u_int8_t	deMTime[2];	/* last update time */
+	u_int8_t	deMDate[2];	/* last update date */
+	u_int8_t	deStartCluster[2]; /* starting cluster of file */
+	u_int8_t	deFileSize[4];	/* size of file in bytes */
 };
+
+/*
+ * Structure of a Win95 long name directory entry
+ */
+struct winentry {
+	u_int8_t	weCnt;
+#define	WIN_LAST	0x40
+#define	WIN_CNT		0x3f
+	u_int8_t	wePart1[10];
+	u_int8_t	weAttributes;
+#define	ATTR_WIN95	0x0f
+	u_int8_t	weReserved1;
+	u_int8_t	weChksum;
+	u_int8_t	wePart2[12];
+	u_int16_t	weReserved2;
+	u_int8_t	wePart3[4];
+};
+#define	WIN_CHARS	13	/* Number of chars per winentry */
+
+/*
+ * Maximum filename length in Win95
+ * Note: Must be < sizeof(dirent.d_name)
+ */
+#define	WIN_MAXLEN	255
 
 /*
  * This is the format of the contents of the deTime field in the direntry
@@ -97,8 +126,15 @@ struct direntry {
 #define DD_YEAR_SHIFT		9
 
 #ifdef KERNEL
-void unix2dostime __P((struct timespec * tsp, u_short * ddp, u_short * dtp));
-void dos2unixtime __P((u_short dd, u_short dt, struct timespec * tsp));
-int dos2unixfn __P((u_char dn[11], u_char * un));
-void unix2dosfn __P((u_char * un, u_char dn[11], int unlen));
+struct dirent;
+void unix2dostime __P((struct timespec *tsp, u_int16_t *ddp, 
+	     u_int16_t *dtp, u_int8_t *dhp));
+void dos2unixtime __P((u_int dd, u_int dt, u_int dh, struct timespec *tsp));
+int dos2unixfn __P((u_char dn[11], u_char *un, int lower));
+int unix2dosfn __P((const u_char *un, u_char dn[12], int unlen, u_int gen));
+int unix2winfn __P((const u_char *un, int unlen, struct winentry *wep, int cnt, int chksum));
+int winChkName __P((const u_char *un, int unlen, struct winentry *wep, int chksum));
+int win2unixfn __P((struct winentry *wep, struct dirent *dp, int chksum));
+u_int8_t winChksum __P((u_int8_t *name));
+int winSlotCnt __P((const u_char *un, int unlen));
 #endif	/* KERNEL */
