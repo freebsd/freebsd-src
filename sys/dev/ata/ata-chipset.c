@@ -100,8 +100,8 @@ static int ata_sis_chipinit(device_t);
 static void ata_sis_setmode(struct ata_device *, int);
 static int ata_mode2idx(int);
 static int ata_check_80pin(struct ata_device *, int);
-static int ata_find_dev(device_t, u_int32_t, u_int32_t, int);
-static struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *, int);
+static struct ata_chip_id *ata_find_chip(device_t, struct ata_chip_id *, int);
+static struct ata_chip_id *ata_match_chip(device_t, struct ata_chip_id *);
 static int ata_default_interrupt(device_t);
 static void ata_pci_serialize(struct ata_channel *, int);
 
@@ -177,7 +177,7 @@ ata_acard_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -328,7 +328,7 @@ ata_ali_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -435,7 +435,7 @@ ata_amd_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -609,10 +609,17 @@ ata_highpoint_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
-    sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
+    strcpy(buffer, idx->text);
+    if (idx->cfg1 == HPT374) {
+	if (pci_get_function(dev) == 0)
+	    strcat(buffer, " (channel 0+1)");
+	else if (pci_get_function(dev) == 1)
+	    strcat(buffer, " (channel 2+3)");
+    }
+    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_highpoint_chipinit;
@@ -703,7 +710,7 @@ ata_highpoint_setmode(struct ata_device *atadev, int mode)
 	{ 0x10cfa731, 0x166d4e31, 0x1c8edc62, 0x128c8242 },	/* UDMA 3 */
 	{ 0x10c9a731, 0x16454e31, 0x1c8ddc62, 0x12ac8242 },	/* UDMA 4 */
 	{ 0,	      0x16454e31, 0x1c6ddc62, 0x12848242 },	/* UDMA 5 */
-	{ 0,	      0,	  0x1c81dc62, 0x12808242 }	/* UDMA 6 */
+	{ 0,	      0,	  0x1c81dc62, 0x12448242 }	/* UDMA 6 */
     };
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
@@ -775,11 +782,11 @@ ata_intel_ident(device_t dev)
      { ATA_I82801DB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801DB_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH4" },
      { ATA_I82801EB,   0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
-     { ATA_I82801EB_1, 0, 0, 0x00, ATA_UDMA5, "Intel ICH5" },
+     { ATA_I82801EB_1, 0, 0, 0x00, ATA_SA150, "Intel ICH5" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64]; 
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -828,6 +835,11 @@ ata_intel_new_setmode(struct ata_device *atadev, int mode)
 			   0x23, 0x23, 0x23, 0x23, 0x23, 0x23 };
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
+
+    if (mode >= ATA_SA150) {
+	atadev->mode = mode;
+	return;
+    }
 
     if (ctlr->chip->max_dma && mode > ATA_UDMA2 && !(reg54 & (0x10 << devno))) {
 	ata_prtdev(atadev,"DMA limited to UDMA33, non-ATA66 cable or device\n");
@@ -898,7 +910,7 @@ ata_nvidia_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -941,29 +953,29 @@ ata_promise_ident(device_t dev)
      { ATA_PDC20265,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise PDC20265" },
      { ATA_PDC20267,  0, PRNEW, 0x00,	ATA_UDMA5, "Promise PDC20267" },
      { ATA_PDC20268,  0, PRTX,  PRTX4,	ATA_UDMA5, "Promise PDC20268" },
-     { ATA_PDC20268R, 0, PRTX,  PRTX4,	ATA_UDMA5, "Promise PDC20268R" },
      { ATA_PDC20269,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20269" },
+     { ATA_PDC20270,  0, PRTX,  PRTX4,	ATA_UDMA5, "Promise PDC20270" },
      { ATA_PDC20271,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20271" },
      { ATA_PDC20275,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20275" },
      { ATA_PDC20276,  0, PRTX,  PRSX6K, ATA_UDMA6, "Promise PDC20276" },
      { ATA_PDC20277,  0, PRTX,  0x00,	ATA_UDMA6, "Promise PDC20277" },
-     { ATA_PDC20318,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20318" },
-     { ATA_PDC20319,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20319" },
-     { ATA_PDC20371,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20371" },
-     { ATA_PDC20375,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20375" },
-     { ATA_PDC20376,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20376" },
-     { ATA_PDC20377,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20377" },
-     { ATA_PDC20378,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20378" },
-     { ATA_PDC20379,  0, PRMIO, PRSATA,	ATA_UDMA6, "Promise PDC20379" },
+     { ATA_PDC20318,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20318" },
+     { ATA_PDC20319,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20319" },
+     { ATA_PDC20371,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20371" },
+     { ATA_PDC20375,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20375" },
+     { ATA_PDC20376,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20376" },
+     { ATA_PDC20377,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20377" },
+     { ATA_PDC20378,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20378" },
+     { ATA_PDC20379,  0, PRMIO, PRSATA,	ATA_SA150, "Promise PDC20379" },
      { ATA_PDC20617,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20617" },
      { ATA_PDC20618,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20618" },
      { ATA_PDC20619,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20619" },
      { ATA_PDC20620,  0, PRMIO, PRDUAL,	ATA_UDMA6, "Promise PDC20620" },
      { 0, 0, 0, 0, 0, 0}};
-    char *desc, buffer[64];
+    char buffer[64];
     uintptr_t devid = 0;
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     /* if we are on a SuperTrak SX6000 dont attach */
@@ -973,6 +985,7 @@ ata_promise_ident(device_t dev)
 	devid == ATA_I960RM) 
 	return ENXIO;
 
+    strcpy(buffer, idx->text);
     /* if we are on a FastTrak TX4, adjust the interrupt resource */
     if ((idx->cfg2 & PRTX4) && pci_get_class(GRANDPARENT(dev))==PCIC_BRIDGE &&
 	!BUS_READ_IVAR(device_get_parent(GRANDPARENT(dev)),
@@ -982,21 +995,18 @@ ata_promise_ident(device_t dev)
 
 	if (pci_get_slot(dev) == 1) {
 	    bus_get_resource(dev, SYS_RES_IRQ, 0, &start, &end);
-	    desc = "Promise TX4 (channel 0+1)";
+	    strcat(buffer, " (channel 0+1)");
 	}
 	else if (pci_get_slot(dev) == 2 && start && end) {
 	    bus_set_resource(dev, SYS_RES_IRQ, 0, start, end);
 	    start = end = 0;
-	    desc = "Promise TX4 (channel 2+3)";
+	    strcat(buffer, " (channel 2+3)");
 	}
 	else {
 	    start = end = 0;
-	    desc = "Promise PDC20268";
 	}
     }
-    else 
-	desc = idx->text;
-    sprintf(buffer, "%s %s controller", desc, ata_mode2str(idx->max_dma));
+    sprintf(buffer, "%s %s controller", buffer, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
     ctlr->chipinit = ata_promise_chipinit;
@@ -1226,6 +1236,11 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
 	break;
     }
 
+    if (mode >= ATA_SA150) {
+	atadev->mode = mode;
+	return;
+    }
+
     error = ata_command(atadev, ATA_C_SETFEATURES, 0, mode, 
 			ATA_C_F_SETXFER, ATA_WAIT_READY);
     if (bootverbose)
@@ -1354,7 +1369,7 @@ ata_serverworks_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -1442,7 +1457,7 @@ ata_sii_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_match_chip(dev, ids)))
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -1671,7 +1686,7 @@ ata_sis_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids, -1))) 
+    if (!(idx = ata_find_chip(dev, ids, -1))) 
 	return ENXIO;
 
     if (idx->cfg1 == SIS_SOUTH) {
@@ -1681,7 +1696,11 @@ ata_sis_ident(device_t dev)
 	    sprintf(buffer, "SiS 96X %s controller",ata_mode2str(idx->max_dma));
 	}
 	else {
-	    if (ata_find_dev(dev, ATA_SISSOUTH, 0x10, pci_get_slot(dev)))
+    	    struct ata_chip_id id[] =
+    		{{ ATA_SISSOUTH, 0x10, 0, 0, ATA_UDMA6, "SiS 961" },
+     		 { 0, 0, 0, 0, 0, 0 }};
+
+	    if (ata_find_chip(dev, id, pci_get_slot(dev)))
 		idx->cfg1 = SIS133OLD;
 	    else {
 		idx->max_dma = ATA_UDMA5;
@@ -1832,7 +1851,7 @@ ata_via_ident(device_t dev)
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
-    if (!(idx = ata_match_chip(dev, ids, pci_get_slot(dev)))) 
+    if (!(idx = ata_find_chip(dev, ids, pci_get_slot(dev)))) 
 	return ENXIO;
 
     sprintf(buffer, "%s %s controller", idx->text, ata_mode2str(idx->max_dma));
@@ -1980,32 +1999,41 @@ ata_check_80pin(struct ata_device *atadev, int mode)
     return mode;
 }
 
-static int
-ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid, int slot)
+static struct ata_chip_id *
+ata_find_chip(device_t dev, struct ata_chip_id *index, int slot)
 {
     device_t *children;
+    u_int32_t devid;
+    u_int8_t revid;
     int nchildren, i;
+
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return 0;
 
-    for (i = 0; i < nchildren; i++) {
-	if (((slot >= 0 && pci_get_slot(children[i]) == slot) || slot < 0) &&
-	    pci_get_devid(children[i]) == devid &&
-	    pci_get_revid(children[i]) >= revid) {
-	    free(children, M_TEMP);
-	    return 1;
+    devid = pci_get_devid(dev);
+    revid = pci_get_revid(dev);
+
+    while (index->chipid != 0) {
+	for (i = 0; i < nchildren; i++) {
+	    if (((slot >= 0 && pci_get_slot(children[i]) == slot) || slot < 0)&&
+		pci_get_devid(children[i]) == devid &&
+		pci_get_revid(children[i]) >= revid) {
+		free(children, M_TEMP);
+		return index;
+	    }
 	}
     }
     free(children, M_TEMP);
-    return 0;
+    return NULL;
 }
 
 static struct ata_chip_id *
-ata_match_chip(device_t dev, struct ata_chip_id *index, int slot)
+ata_match_chip(device_t dev, struct ata_chip_id *index)
 {
     while (index->chipid != 0) {
-	if (ata_find_dev(dev, index->chipid, index->chiprev, slot))
+	if (pci_get_devid(dev) == index->chipid &&
+	    pci_get_revid(dev) >= index->chiprev)
 	    return index;
 	index++;
     }
