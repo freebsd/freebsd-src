@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.23 1998/04/23 16:37:06 bde Exp $";
+	"$Id: main.c,v 1.24 1998/05/02 01:57:38 kato Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -177,6 +177,10 @@ main(argc, argv)
 
 	case MACHINE_NEWS3400:
 		news_ioconf();
+		break;
+
+	case MACHINE_ALPHA:
+		alpha_ioconf();
 		break;
 
 	default:
@@ -409,6 +413,9 @@ moveifchanged(const char *from_name, const char *to_name)
 
 	if (!changed) {
 		p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+#ifndef MAP_FAILED
+#define MAP_FAILED ((caddr_t) -1)
+#endif
 		if (p == MAP_FAILED)
 			err(EX_OSERR, "mmap %s", from_name);
 		q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
