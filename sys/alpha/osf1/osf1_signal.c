@@ -572,21 +572,12 @@ osf1_sigreturn(struct thread *td,
 
 	p = td->td_proc;
 	scp = uap->sigcntxp;
-	mtx_lock(&Giant);
-	if (useracc((caddr_t)scp, sizeof (*scp), VM_PROT_READ) == 0 ) {
-		uprintf("uac fails\n");
-		uprintf("scp: %p\n", scp);
-	}
+
 	/*
-	 * Test and fetch the context structure.
-	 * We grab it all at once for speed.
+	 * Fetch the entire context structure at once for speed.
 	 */
-	if (useracc((caddr_t)scp, sizeof (*scp), VM_PROT_READ) == 0 ||
-	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc)) {
-		mtx_unlock(&Giant);
+	if (copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
 		return (EFAULT);
-	}
-	mtx_unlock(&Giant);
 
 	/*
 	 * Restore the user-supplied information.
