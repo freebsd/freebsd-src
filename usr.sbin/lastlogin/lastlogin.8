@@ -39,18 +39,18 @@
 .Nd indicate last login time of users
 .Sh SYNOPSIS
 .Nm
-.Op user ...
+.Op Ar user ...
 .Sh DESCRIPTION
 .Nm
-will list the last login session of specified
-.Ar users ,
+will list the last login session of each specified
+.Ar user ,
 or for all users by default.  Each line of output contains
 the user name, the tty from which the session was conducted, any
 hostname, and the start time for the session.
 .Pp
-If multiple
-.Ar users
-are given, the session information for each user is printed in
+If more than one
+.Ar user
+is given, the session information for each user is printed in
 the order given on the command line.  Otherwise, information
 for all users is printed, sorted by uid.
 .Pp
