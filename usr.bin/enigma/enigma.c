@@ -10,23 +10,30 @@
  *	Upgraded to function properly on 64-bit machines.
  */
 
-#define ECHO 010
+#include <sys/types.h>
+#include <sys/wait.h>
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#define MINUSKVAR "CrYpTkEy"
+
+#define ECHO 010
 #define ROTORSZ 256
 #define MASK 0377
 char	t1[ROTORSZ];
 char	t2[ROTORSZ];
 char	t3[ROTORSZ];
 char	deck[ROTORSZ];
-char	*getpass();
 char	buf[13];
 
-void	shuffle();
-void	puth();
+void	shuffle(char *);
 
 void
 setup(pw)
-char *pw;
+	char *pw;
 {
 	int ic, i, k, temp, pf[2], pid;
 	unsigned random;
@@ -97,18 +104,32 @@ char *pw;
 		t2[t1[i]&MASK] = i;
 }
 
+int
 main(argc, argv)
-char *argv[];
+	char *argv[];
 {
 	register int i, n1, n2, nr1, nr2;
-	int secureflg = 0;
+	int secureflg = 0, kflag = 0;
+	char *cp;
 
-	if (argc > 1 && argv[1][0] == '-' && argv[1][1] == 's') {
-		argc--;
-		argv++;
-		secureflg = 1;
+	if (argc > 1 && argv[1][0] == '-') {
+		if (argv[1][1] == 's') {
+			argc--;
+			argv++;
+			secureflg = 1;
+		} else if (argv[1][1] == 'k') {
+			argc--;
+			argv++;
+			kflag = 1;
+		}
 	}
-	if (argc != 2){
+	if (kflag) {
+		if ((cp = getenv(MINUSKVAR)) == NULL) {
+			fprintf(stderr, "%s not set\n", MINUSKVAR);
+			exit(1);
+		}
+		setup(cp);
+	} else if (argc != 2) {
 		setup(getpass("Enter key:"));
 	}
 	else
@@ -117,7 +138,7 @@ char *argv[];
 	n2 = 0;
 	nr2 = 0;
 
-	while((i=getchar()) >=0) {
+	while((i=getchar()) != -1) {
 		if (secureflg) {
 			nr1 = deck[n1]&MASK;
 			nr2 = deck[nr1]&MASK;
@@ -138,6 +159,8 @@ char *argv[];
 			}
 		}
 	}
+
+	return 0;
 }
 
 void
@@ -157,17 +180,4 @@ shuffle(deck)
 		deck[k] = deck[ic];
 		deck[ic] = temp;
 	}
-}
-
-void
-puth( title, cp, len )
-char	*title;
-char	*cp;
-int	len;
-{
-	fprintf( stderr, "%s = ", title);
-	while( len-- > 0 )  {
-		fprintf(stderr, "%2.2x ", (*cp++) & 0xFF );
-	}
-	fprintf(stderr,"\n");
 }
