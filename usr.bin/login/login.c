@@ -555,17 +555,19 @@ main(int argc, char *argv[])
 			motd(_PATH_MOTDFILE);
 
 		if (login_getcapbool(lc, "nocheckmail", 0) == 0) {
+			char *cx;
+
 			/* $MAIL may have been set by class. */
-			cw = getenv("MAIL");
-			if (cw == NULL) {
-				asprintf((char **)&cw, "%s/%s",
+			cx = getenv("MAIL");
+			if (cx == NULL) {
+				asprintf(&cx, "%s/%s",
 				    _PATH_MAILDIR, pwd->pw_name);
 			}
-			if (cw && stat(cw, &st) == 0 && st.st_size != 0)
+			if (cx && stat(cx, &st) == 0 && st.st_size != 0)
 				(void)printf("You have %smail.\n",
 				    (st.st_mtime > st.st_atime) ? "new " : "");
 			if (getenv("MAIL") == NULL)
-				free((char *)cw);
+				free(cx);
 		}
 	}
 
