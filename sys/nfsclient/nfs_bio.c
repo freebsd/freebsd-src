@@ -836,7 +836,6 @@ again:
 				bcount += n;
 				allocbuf(bp, bcount);
 				bp->b_flags |= save;
-				bp->b_magic = B_MAGIC_NFS;
 			}
 		} else {
 			/*
