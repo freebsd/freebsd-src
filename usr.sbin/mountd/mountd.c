@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.3 1994/09/22 22:16:50 wollman Exp $";
+	"$Id: mountd.c,v 1.4 1994/12/02 02:58:56 wollman Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -136,6 +136,7 @@ struct grouplist {
 #define	GT_HOST		0x1
 #define	GT_NET		0x2
 #define	GT_ISO		0x4
+#define GT_IGNORE	0x5
 
 struct hostlist {
 	struct grouplist *ht_grp;
@@ -163,7 +164,7 @@ void	free_exp __P((struct exportlist *));
 void	free_grp __P((struct grouplist *));
 void	free_host __P((struct hostlist *));
 void	get_exportlist __P((void));
-int	get_host __P((char *, struct grouplist *));
+int	get_host __P((char *, struct grouplist *, struct grouplist *));
 struct hostlist *get_ht __P((void));
 int	get_line __P((void));
 void	get_mountlist __P((void));
@@ -470,7 +471,7 @@ xdr_fhs(xdrsp, nfh)
 	XDR *xdrsp;
 	nfsv2fh_t *nfh;
 {
-	int ok = 0;
+	u_long ok = 0;
 
 	if (!xdr_long(xdrsp, &ok))
 		return (0);
@@ -795,12 +796,12 @@ get_exportlist()
 				    grp = grp->gr_next;
 				}
 				if (netgrp) {
-				    if (get_host(hst, grp)) {
+				    if (get_host(hst, grp, tgrp)) {
 					syslog(LOG_ERR, "Bad netgroup %s", cp);
 					getexp_err(ep, tgrp);
 					goto nextline;
 				    }
-				} else if (get_host(cp, grp)) {
+				} else if (get_host(cp, grp, tgrp)) {
 				    getexp_err(ep, tgrp);
 				    goto nextline;
 				}
@@ -1286,10 +1287,12 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
  * addresses for a hostname.
  */
 int
-get_host(cp, grp)
+get_host(cp, grp, tgrp)
 	char *cp;
 	struct grouplist *grp;
+	struct grouplist *tgrp;
 {
+	struct grouplist *checkgrp;
 	struct hostent *hp, *nhp;
 	char **addrp, **naddrp;
 	struct hostent t_host;
@@ -1321,6 +1324,20 @@ get_host(cp, grp)
 			return (1);
 		}
 	}
+        /*
+         * Sanity check: make sure we don't already have an entry
+         * for this host in the grouplist.
+         */
+        checkgrp = tgrp;
+        while (checkgrp) {
+                if (checkgrp->gr_ptr.gt_hostent != NULL &&
+                    !strcmp(checkgrp->gr_ptr.gt_hostent->h_name, hp->h_name)) {
+                        grp->gr_type = GT_IGNORE;
+			return(0);
+		}
+                checkgrp = checkgrp->gr_next;
+        }
+
 	grp->gr_type = GT_HOST;
 	nhp = grp->gr_ptr.gt_hostent = (struct hostent *)
 		malloc(sizeof(struct hostent));
@@ -1529,6 +1546,9 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			args.ua.export.ex_masklen = 0;
 			break;
 #endif	/* ISO */
+		case GT_IGNORE:
+			return(0);
+			break;
 		default:
 			syslog(LOG_ERR, "Bad grouptype");
 			if (cp)
