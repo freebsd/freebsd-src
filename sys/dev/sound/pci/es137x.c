@@ -365,9 +365,16 @@ eschan_trigger(void *data, int go)
 {
 	struct es_chinfo *ch = data;
 	struct es_info *es = ch->parent;
-	unsigned cnt = ch->buffer->dl / ch->buffer->sample_size - 1;
+	unsigned ss, cnt;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
+	ss = 1;
+	ss <<= (ch->fmt & AFMT_STEREO)? 1 : 0;
+	ss <<= (ch->fmt & AFMT_16BIT)? 1 : 0;
+	cnt = ch->buffer->dl / ss - 1;
+
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START) {
 			int b = (ch->fmt & AFMT_S16_LE)? 2 : 1;

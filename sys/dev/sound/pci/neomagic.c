@@ -396,7 +396,8 @@ nmchan_trigger(void *data, int go)
 	struct sc_info *sc = ch->parent;
 	int ssz;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
 
 	ssz = (ch->fmt & AFMT_16BIT)? 2 : 1;
 	if (ch->fmt & AFMT_STEREO)
