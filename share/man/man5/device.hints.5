@@ -135,15 +135,15 @@ Notes on the kernel configuration file and device resource hints.
 .Sh EXAMPLES
 The following example sets up resources for the
 .Xr sio 4
-driver on the ISA bus.
+driver on the ISA bus:
 .Bd -literal -offset indent
 hint.sio.0.at="isa"
 hint.sio.0.port="0x3F8"
 hint.sio.0.flags="0x10"
 hint.sio.0.irq="4"
 .Ed
-
-The following example disables the ACPI driver
+.Pp
+The following example disables the ACPI driver:
 .Bd -literal -offset indent
 hint.acpi.0.disabled="1"
 .Ed

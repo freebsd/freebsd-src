@@ -1993,8 +1993,12 @@ by default.
 When set to
 .Dq Li YES ,
 verbose messages about the actions done by the start script are displayed.
-.Em Note:
-the pcvt driver must be comiled into the kernel before the pcvt related 
+.Em Note :
+the
+.Xr pcvt 4
+driver must be compiled into the kernel before the
+.Xr pcvt 4
+related
 options described here take any effect.
 .It Va pcvt_keymap
 .Pq Vt str
@@ -2002,31 +2006,37 @@ Set to
 .Dq Li NO
 by default.
 Use this to configure a national keyboard mapping found in the
-.Pa /usr/share/misc/keycap.pcvt 
+.Pa /usr/share/misc/keycap.pcvt
 file of keyboard mappings.
-(see also the manual pages
+(See also the manual pages
 .Xr keycap 5
 and
 .Xr keycap 3
-for usage of pcvt's keycap database and the manual page
+for usage of
+.Xr pcvt 4 Ns 's
+keycap database and the manual page
 .Xr kcon 1
-option -m for national keyboard mapping configuration).
+option
+.Fl m
+for national keyboard mapping configuration.)
 .It Va pcvt_keydel
 .Pq Vt int
 Set to
 .Dq Li NO
 by default.
-Used to set the keyboard key repeat delay value. Valid values are
+Used to set the keyboard key repeat delay value.
+Valid values are
 in the range 0..3 for delay values of 250, 500, 750 and 1000 msec.
 (See also the
 .Xr kcon 1
-manual page).
+manual page.)
 .It Va pcvt_keyrate
 .Pq Vt int
 Set to
 .Dq Li NO
 by default.
-Used to set the keyboard key repetition rate value. Valid values are
+Used to set the keyboard key repetition rate value.
+Valid values are
 in the range 0..31 for repetition values of 2..30 characters per second.
 .It Va pcvt_keyrepeat
 .Pq Vt bool
@@ -2043,28 +2053,40 @@ Set to
 by default.
 Set to
 .Dq Li YES
-to force pcvt to use 24 lines only (in 25 lines mode) for compatibility
-with the original VT220 terminal.
+to force
+.Xr pcvt 4
+to use 24 lines only (in 25 lines mode) for compatibility
+with the original
+.Tn VT220
+terminal.
 .It Va pcvt_hpext
 .Pq Vt bool
 Set to
 .Dq Li NO
 by default.
 Set to
-.Dq Li YES 
-to enable the display and funtionality of function key labels (as found 
-on Hewlett-Packard terminals such as the HP2392A and the HP700/92 in 
-ANSI mode).
+.Dq Li YES
+to enable the display and funtionality of function key labels (as found
+on
+.Tn Hewlett-Packard
+terminals such as the
+.Tn HP2392A
+and the
+.Tn HP700/92
+in
+.Tn ANSI
+mode).
 .It Va pcvt_lines
 .Pq Vt int
 Set to
 .Dq Li NO
 by default resulting in a value of 25.
-Used to set the number of lines on the screen. For VGA displays, valid
+Used to set the number of lines on the screen.
+For VGA displays, valid
 values are 25, 28, 40 and 50 lines.
 (See also the
 .Xr scon 1
-manual page).
+manual page.)
 .It Va pcvt_blanktime
 .Pq Vt int
 Set to
@@ -2080,7 +2102,7 @@ by default.
 Used to set the cursor top scanline.
 (See also the
 .Xr cursor 1
-manual page).
+manual page.)
 .It Va pcvt_cursorl
 .Pq Vt int
 Set to
@@ -2093,12 +2115,14 @@ Set to
 .Dq Li NO
 by default.
 Set to
-.Dq Li YES 
+.Dq Li YES
 to set intensity to high on monochrome monitors.
 (See also the
 .Xr scon 1
-manual page, option -p, for more information on changing VGA palette
-values).
+manual page, option
+.Fl p ,
+for more information on changing VGA palette
+values.)
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact

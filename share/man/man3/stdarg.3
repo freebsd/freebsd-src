@@ -139,17 +139,17 @@ The
 macro copies a variable argument list, previously initialized by
 .Fn va_start ,
 from
-.Va src
+.Fa src
 to
-.Va dest .
+.Fa dest .
 The state is preserved such that it is equivalent to calling
 .Fn va_start
 with the same second argument used with
-.Va src ,
+.Fa src ,
 and calling
 .Fn va_arg
 the same number of times as called with
-.Va src .
+.Fa src .
 .Pp
 The
 .Fn va_copy
