@@ -172,6 +172,9 @@ static struct cdevsw umodem_cdevsw = {
 	/* dump */      nodump,
 	/* psize */     nopsize,
 	/* flags */     D_TTY | D_KQFILTER,
+#if !defined(__FreeBSD__) || (__FreeBSD__ < 5)
+	/* bmaj */	-1,
+#endif
 	/* kqfilter */	ttykqfilter,
 };
 #endif
