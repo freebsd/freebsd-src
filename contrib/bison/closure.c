@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 /* subroutines of file LR0.c.
@@ -51,17 +52,20 @@ Frees itemset, ruleset and internal data.
 #include <stdio.h>
 #include "system.h"
 #include "machine.h"
-#include "new.h"
+#include "alloc.h"
 #include "gram.h"
 
 
 extern short **derives;
 extern char **tags;
 
-void set_fderives();
-void set_firsts();
+void initialize_closure PARAMS((int));
+void set_fderives PARAMS((void));
+void set_firsts PARAMS((void));
+void closure PARAMS((short *, int));
+void finalize_closure PARAMS((void));
 
-extern void RTC();
+extern void RTC PARAMS((unsigned *, int));
 
 short *itemset;
 short *itemsetend;
@@ -79,8 +83,7 @@ static int varsetsize;
 
 
 void
-initialize_closure(n)
-int n;
+initialize_closure (int n)
 {
   itemset = NEW2(n, short);
 
@@ -98,7 +101,7 @@ int n;
    the sequence of symbols 8 3 20, and one of the rules for deriving
    symbol 8 is rule 4, then the [5 - ntokens, 4] bit in fderives is set.  */
 void
-set_fderives()
+set_fderives (void)
 {
   register unsigned *rrow;
   register unsigned *vrow;
@@ -158,7 +161,7 @@ set_fderives()
    the symbol 8 can be the beginning of the data for symbol 5,
    so the bit [8 - ntokens, 5 - ntokens] in firsts is set. */
 void
-set_firsts()
+set_firsts (void)
 {
   register unsigned *row;
 /*   register int done; JF unused */
@@ -198,9 +201,7 @@ set_firsts()
 
 
 void
-closure(core, n)
-short *core;
-int n;
+closure (short *core, int n)
 {
   register int ruleno;
   register unsigned word;
@@ -282,7 +283,7 @@ int n;
 
 
 void
-finalize_closure()
+finalize_closure (void)
 {
   FREE(itemset);
   FREE(ruleset);
@@ -304,18 +305,18 @@ int n;
 }
 
 
-
-print_firsts()
+void
+print_firsts (void)
 {
   register int i;
   register int j;
   register unsigned *rowp;
 
-  printf("\n\n\nFIRSTS\n\n");
+  printf(_("\n\n\nFIRSTS\n\n"));
 
   for (i = ntokens; i < nsyms; i++)
     {
-      printf("\n\n%s firsts\n\n", tags[i]);
+      printf(_("\n\n%s firsts\n\n"), tags[i]);
 
       rowp = firsts + ((i - ntokens) * varsetsize);
 
@@ -326,18 +327,18 @@ print_firsts()
 }
 
 
-
-print_fderives()
+void
+print_fderives (void)
 {
   register int i;
   register int j;
   register unsigned *rp;
 
-  printf("\n\n\nFDERIVES\n");
+  printf(_("\n\n\nFDERIVES\n"));
 
   for (i = ntokens; i < nsyms; i++)
     {
-      printf("\n\n%s derives\n\n", tags[i]);
+      printf(_("\n\n%s derives\n\n"), tags[i]);
       rp = fderives + i * rulesetsize;
 
       for (j = 0; j <= nrules; j++)

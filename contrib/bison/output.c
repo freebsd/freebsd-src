@@ -15,7 +15,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with Bison; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
 
 
 /* functions to output parsing data to various files.  Entries are:
@@ -105,7 +106,7 @@ YYNTBASE = ntokens.
 #include <stdio.h>
 #include "system.h"
 #include "machine.h"
-#include "new.h"
+#include "alloc.h"
 #include "files.h"
 #include "gram.h"
 #include "state.h"
@@ -132,37 +133,40 @@ extern char *consistent;
 extern short *goto_map;
 extern short *from_state;
 extern short *to_state;
+extern int lineno;
 
-void output_token_translations();
-void output_gram();
-void output_stos();
-void output_rule_data();
-void output_defines();
-void output_actions();
-void token_actions();
-void save_row();
-void goto_actions();
-void save_column();
-void sort_actions();
-void pack_table();
-void output_base();
-void output_table();
-void output_check();
-void output_parser();
-void output_program();
-void free_itemset();
-void free_shifts();
-void free_reductions();
-void free_itemsets();
-int action_row();
-int default_goto();
-int matching_state();
-int pack_vector();
+void output_headers PARAMS((void));
+void output_trailers PARAMS((void));
+void output PARAMS((void));
+void output_token_translations PARAMS((void));
+void output_gram PARAMS((void));
+void output_stos PARAMS((void));
+void output_rule_data PARAMS((void));
+void output_defines PARAMS((void));
+void output_actions PARAMS((void));
+void token_actions PARAMS((void));
+void save_row PARAMS((int));
+void goto_actions PARAMS((void));
+void save_column PARAMS((int, int));
+void sort_actions PARAMS((void));
+void pack_table PARAMS((void));
+void output_base PARAMS((void));
+void output_table PARAMS((void));
+void output_check PARAMS((void));
+void output_parser PARAMS((void));
+void output_program PARAMS((void));
+void free_shifts PARAMS((void));
+void free_reductions PARAMS((void));
+void free_itemsets PARAMS((void));
+int action_row PARAMS((int));
+int default_goto PARAMS((int));
+int matching_state PARAMS((int));
+int pack_vector PARAMS((int));
 
-extern void berror();
-extern void fatals();
-extern char *int_to_string();
-extern void reader_output_yylsp();
+extern void berror PARAMS((char *));
+extern void fatals PARAMS((char *, char *));
+extern char *int_to_string PARAMS((int));
+extern void reader_output_yylsp PARAMS((FILE *));
 
 static int nvectors;
 static int nentries;
@@ -197,7 +201,7 @@ register YYLTYPE *yylsp;\n{\n  switch (n)\n{"
 
 
 void
-output_headers()
+output_headers (void)
 {
   if (semantic_parser)
     fprintf(fguard, GUARDSTR, attrsfile);
@@ -226,7 +230,7 @@ output_headers()
 
 
 void
-output_trailers()
+output_trailers (void)
 {
   if (semantic_parser)
       fprintf(fguard, "\n    }\n}\n");
@@ -243,7 +247,7 @@ output_trailers()
 
 
 void
-output()
+output (void)
 {
   int c;
 
@@ -286,7 +290,7 @@ output()
 
 
 void
-output_token_translations()
+output_token_translations (void)
 {
   register int i, j;
 /*   register short *sp; JF unused */
@@ -330,7 +334,7 @@ output_token_translations()
 
 
 void
-output_gram()
+output_gram (void)
 {
   register int i;
   register int j;
@@ -395,7 +399,7 @@ output_gram()
 
 
 void
-output_stos()
+output_stos (void)
 {
   register int i;
   register int j;
@@ -425,7 +429,7 @@ output_stos()
 
 
 void
-output_rule_data()
+output_rule_data (void)
 {
   register int i;
   register int j;
@@ -600,7 +604,7 @@ output_rule_data()
 
 
 void
-output_defines()
+output_defines (void)
 {
   fprintf(ftable, "\n\n#define\tYYFINAL\t\t%d\n", final_state);
   fprintf(ftable, "#define\tYYFLAG\t\t%d\n", MINSHORT);
@@ -612,7 +616,7 @@ output_defines()
 /* compute and output yydefact, yydefgoto, yypact, yypgoto, yytable and yycheck.  */
 
 void
-output_actions()
+output_actions (void)
 {
   nvectors = nstates + nvars;
 
@@ -649,7 +653,7 @@ output_actions()
    is saved for putting into yytable later.  */
 
 void
-token_actions()
+token_actions (void)
 {
   register int i;
   register int j;
@@ -699,14 +703,13 @@ token_actions()
    a token gets to handle it.  */
 
 int
-action_row(state)
-int state;
+action_row (int state)
 {
   register int i;
   register int j;
   register int k;
-  register int m;
-  register int n;
+  register int m = 0;
+  register int n = 0;
   register int count;
   register int default_rule;
   register int nreds;
@@ -863,8 +866,7 @@ int state;
 
 
 void
-save_row(state)
-int state;
+save_row (int state)
 {
   register int i;
   register int count;
@@ -908,7 +910,7 @@ int state;
    is saved for putting into yytable later.  */
 
 void
-goto_actions()
+goto_actions (void)
 {
   register int i;
   register int j;
@@ -947,8 +949,7 @@ goto_actions()
 
 
 int
-default_goto(symbol)
-int symbol;
+default_goto (int symbol)
 {
   register int i;
   register int m;
@@ -985,9 +986,7 @@ int symbol;
 
 
 void
-save_column(symbol, default_state)
-int symbol;
-int default_state;
+save_column (int symbol, int default_state)
 {
   register int i;
   register int m;
@@ -1035,7 +1034,7 @@ int default_state;
    the actions and gotos information into yytable. */
 
 void
-sort_actions()
+sort_actions (void)
 {
   register int i;
   register int j;
@@ -1071,7 +1070,7 @@ sort_actions()
 
 
 void
-pack_table()
+pack_table (void)
 {
   register int i;
   register int place;
@@ -1120,8 +1119,7 @@ pack_table()
 
 
 int
-matching_state(vector)
-int vector;
+matching_state (int vector)
 {
   register int i;
   register int j;
@@ -1161,14 +1159,13 @@ int vector;
 
 
 int
-pack_vector(vector)
-int vector;
+pack_vector (int vector)
 {
   register int i;
   register int j;
   register int k;
   register int t;
-  register int loc;
+  register int loc = 0;
   register int ok;
   register short *from;
   register short *to;
@@ -1190,7 +1187,7 @@ int vector;
 	{
 	  loc = j + from[k];
 	  if (loc > MAXTABLE)
-	    fatals("maximum table size (%s) exceeded", int_to_string(MAXTABLE));
+	    fatals(_("maximum table size (%s) exceeded"), int_to_string(MAXTABLE));
 
 	  if (table[loc] != 0)
 	    ok = 0;
@@ -1231,7 +1228,7 @@ int vector;
    and the vectors whose elements index the portion starts */
 
 void
-output_base()
+output_base (void)
 {
   register int i;
   register int j;
@@ -1282,7 +1279,7 @@ output_base()
 
 
 void
-output_table()
+output_table (void)
 {
   register int i;
   register int j;
@@ -1314,7 +1311,7 @@ output_table()
 
 
 void
-output_check()
+output_check (void)
 {
   register int i;
   register int j;
@@ -1348,7 +1345,7 @@ output_check()
 /* copy the parser code into the ftable file at the end.  */
 
 void
-output_parser()
+output_parser (void)
 {
   register int c;
 #ifdef DONTDEF
@@ -1407,7 +1404,7 @@ output_parser()
 
       /* now write out the line... */
       for (; c != '\n' && c != EOF; c = getc(fpars))
-	if (write_line)
+	if (write_line) {
 	  if (c == '$')
 	    {
 	      /* `$' in the parser file indicates where to put the actions.
@@ -1418,6 +1415,7 @@ output_parser()
 	    }
 	  else
 	    putc(c, ftable);
+	}
       if (c == EOF)
 	break;
       putc(c, ftable);
@@ -1425,10 +1423,9 @@ output_parser()
 }
 
 void
-output_program()
+output_program (void)
 {
   register int c;
-  extern int lineno;
 
   if (!nolinesflag)
     fprintf(ftable, "#line %d \"%s\"\n", lineno, infile);
@@ -1443,7 +1440,7 @@ output_program()
 
 
 void
-free_itemsets()
+free_itemsets (void)
 {
   register core *cp,*cptmp;
 
@@ -1457,7 +1454,7 @@ free_itemsets()
 
 
 void
-free_shifts()
+free_shifts (void)
 {
   register shifts *sp,*sptmp;/* JF derefrenced freed ptr */
 
@@ -1471,7 +1468,7 @@ free_shifts()
 
 
 void
-free_reductions()
+free_reductions (void)
 {
   register reductions *rp,*rptmp;/* JF fixed freed ptr */
 
