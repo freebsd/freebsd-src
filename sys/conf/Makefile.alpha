@@ -276,13 +276,20 @@ kernel-install kernel-install.debug:
 		exit 1 ; \
 	fi
 .if exists(${DESTDIR}${KODIR})
-.if exists(${DESTDIR}${KODIR}.old)
-	@-chflags -R noschg ${DESTDIR}${KODIR}.old
-	-rm -rf ${DESTDIR}${KODIR}.old
-.endif
-	mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old
-	[ "`sysctl -n kern.bootfile`" != "${DESTDIR}${KODIR}/kernel" ] || \
-		sysctl kern.bootfile=${DESTDIR}${KODIR}.old/kernel
+	-thiskernel=`sysctl -n kern.bootfile` ; \
+	if [ "$$thiskernel" = ${DESTDIR}${KODIR}.old/${KERNEL_KO} ] ; then \
+		chflags -R noschg ${DESTDIR}${KODIR} ; \
+		rm -rf ${DESTDIR}${KODIR} ; \
+	else \
+		if [ -d ${DESTDIR}${KODIR}.old ] ; then \
+			chflags -R noschg ${DESTDIR}${KODIR}.old ; \
+			rm -rf ${DESTDIR}${KODIR}.old ; \
+		fi ; \
+		mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old ; \
+		if [ "$$thiskernel" = ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
+			sysctl -w kern.bootfile=${DESTDIR}${KODIR}.old/${KERNEL_KO} ; \
+		fi; \
+	fi
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 	install -c -m 555 -o root -g wheel \
