@@ -524,6 +524,8 @@ g_detach(struct g_consumer *cp)
 	cp->provider = NULL;
 	if (pp->geom->flags & G_GEOM_WITHER)
 		g_wither_geom(pp->geom, 0);
+	else if (pp->flags & G_PF_WITHER)
+		g_destroy_provider(pp);
 	redo_rank(cp->geom);
 }
 
