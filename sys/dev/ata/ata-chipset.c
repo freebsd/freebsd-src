@@ -1650,8 +1650,10 @@ ata_sii_chipinit(device_t dev)
 	pci_write_config(dev, 0xec, 0x40094009, 4);
 
 	ctlr->allocate = ata_sii_mio_allocate;
-	if (ctlr->chip->max_dma >= ATA_SA150)
+	if (ctlr->chip->max_dma >= ATA_SA150) {
 	    ctlr->setmode = ata_sata_setmode;
+	    ctlr->locking = ata_serialize;
+	}
 	else
 	    ctlr->setmode = ata_sii_setmode;
     }
