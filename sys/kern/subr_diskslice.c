@@ -203,7 +203,8 @@ dscheck(bp, ssp)
 		slicerel_secno = secno;
 	} else {
 		labelsect = lp->d_partitions[LABEL_PART].p_offset;
-if (labelsect != 0) Debugger("labelsect != 0 in dscheck()");
+		if (labelsect != 0)
+			Debugger("labelsect != 0 in dscheck()");
 		pp = &lp->d_partitions[dkpart(bp->bio_dev)];
 		endsecno = pp->p_size;
 		slicerel_secno = pp->p_offset + secno;
