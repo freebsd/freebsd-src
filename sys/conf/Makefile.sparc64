@@ -16,16 +16,10 @@
 # after which config should be rerun for all machines.
 #
 
-CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
-		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
-		-ansi
-
 # Which version of config(8) is required.
 %VERSREQ=	500011
 
 STD8X16FONT?=	iso
-
-HACK_EXTRA_FLAGS=-Wl,-shared
 
 .if !defined(S)
 .if exists(./@/.)
@@ -35,9 +29,6 @@ S=	../../..
 .endif
 .endif
 .include "$S/conf/kern.pre.mk"
-
-# XXX: this should probably go somewhere else
-COPTS+=		-mcmodel=medlow -msoft-float
 
 SYSTEM_SFILES= $S/$M/$M/locore.S $S/$M/$M/exception.S $S/$M/$M/interrupt.S
 SYSTEM_OBJS= locore.o exception.o interrupt.o vnode_if.o ${OBJS} hints.o \
@@ -54,12 +45,6 @@ SYSTEM_OBJS= locore.o exception.o interrupt.o vnode_if.o ${OBJS} hints.o \
 %FILES.m
 
 %CLEAN
-
-#lint: /tmp
-#	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} \
-#	  $S/$M/$M/Locore.c ${CFILES} | \
-#	    grep -v 'struct/union .* never defined' | \
-#	    grep -v 'possible pointer alignment problem'
 
 exception.o: $S/$M/$M/exception.S assym.s
 	${NORMAL_S}
