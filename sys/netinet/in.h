@@ -75,9 +75,9 @@ typedef	uint16_t		in_port_t;
 #define	_IN_PORT_T_DECLARED
 #endif
 
-#ifdef _BSD_SA_FAMILY_T_
-typedef	_BSD_SA_FAMILY_T_	sa_family_t;
-#undef _BSD_SA_FAMILY_T_ 
+#ifndef _SA_FAMILY_T_DECLARED
+typedef	__sa_family_t		sa_family_t;
+#define	_SA_FAMILY_T_DECLARED
 #endif
 
 /* Internet address (a structure for historical reasons). */

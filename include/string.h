@@ -38,7 +38,7 @@
 #define	_STRING_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 /*
  * Prototype functions which were historically defined in <string.h>, but
@@ -48,9 +48,9 @@
 #include <strings.h>
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 #ifndef	NULL

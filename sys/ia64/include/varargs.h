@@ -43,9 +43,9 @@
 #ifndef _MACHINE_VARARGS_H_
 #define	_MACHINE_VARARGS_H_
 
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
-typedef _BSD_VA_LIST_ va_list;
+typedef	__va_list	va_list;
 typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
 
 #define	va_alist		__builtin_va_alist

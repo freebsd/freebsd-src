@@ -49,14 +49,14 @@
 /*
  * Data types.
  */
-#ifdef _BSD_SA_FAMILY_T_
-typedef	_BSD_SA_FAMILY_T_	sa_family_t;
-#undef _BSD_SA_FAMILY_T_
+#ifndef _SA_FAMILY_T_DECLARED
+typedef	__sa_family_t	sa_family_t;
+#define	_SA_FAMILY_T_DECLARED
 #endif
 
-#ifdef	_BSD_SOCKLEN_T_
-typedef	_BSD_SOCKLEN_T_	socklen_t;
-#undef	_BSD_SOCKLEN_T_
+#ifndef _SOCKLEN_T_DECLARED
+typedef	__socklen_t	socklen_t;
+#define	_SOCKLEN_T_DECLARED
 #endif
  
 /*

@@ -68,7 +68,7 @@
 #define _WCHAR_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 #include <stdio.h>
 
@@ -76,20 +76,20 @@
 #define NULL	0
 #endif
 
-#ifdef	_BSD_MBSTATE_T_
-typedef	_BSD_MBSTATE_T_	mbstate_t;
-#undef	_BSD_MBSTATE_T_
+#ifndef _MBSTATE_T_DECLARED
+typedef	__mbstate_t	mbstate_t;
+#define	_MBSTATE_T_DECLARED
 #endif
 
-#ifdef	_BSD_SIZE_T_
-typedef	_BSD_SIZE_T_	size_t;
-#undef	_BSD_SIZE_T_
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
 #endif
 
 #ifndef	__cplusplus
-#ifdef	_BSD_WCHAR_T_
-typedef	_BSD_WCHAR_T_	wchar_t;
-#undef	_BSD_WCHAR_T_
+#ifndef _WCHAR_T_DECLARED
+typedef	__wchar_t	wchar_t;
+#define	_WCHAR_T_DECLARED
 #endif
 #endif
 
@@ -98,9 +98,9 @@ typedef	unsigned long	wctype_t;
 #define	_WCTYPE_T
 #endif
 
-#ifdef	_BSD_WINT_T_
-typedef	_BSD_WINT_T_	wint_t;
-#undef	_BSD_WINT_T_
+#ifndef _WINT_T_DECLARED
+typedef	__wint_t	wint_t;
+#define	_WINT_T_DECLARED
 #endif
 
 #ifndef WEOF

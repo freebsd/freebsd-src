@@ -42,25 +42,25 @@
  * places (<machine/varargs.h> and <machine/stdarg.h>), so if we include one
  * of them here we may collide with the utility's includes.  It's unreasonable
  * for utilities to have to include one of them to include err.h, so we get
- * _BSD_VA_LIST_ from <machine/ansi.h> and use it.
+ * __va_list from <sys/_types.h> and use it.
  */
-#include <machine/ansi.h>
 #include <sys/cdefs.h>
+#include <sys/_types.h>
 
 __BEGIN_DECLS
 void	err(int, const char *, ...) __dead2 __printf0like(2, 3);
-void	verr(int, const char *, _BSD_VA_LIST_) __dead2 __printf0like(2, 0);
+void	verr(int, const char *, __va_list) __dead2 __printf0like(2, 0);
 void	errc(int, int, const char *, ...) __dead2 __printf0like(3, 4);
-void	verrc(int, int, const char *, _BSD_VA_LIST_) __dead2
+void	verrc(int, int, const char *, __va_list) __dead2
 	    __printf0like(3, 0);
 void	errx(int, const char *, ...) __dead2 __printf0like(2, 3);
-void	verrx(int, const char *, _BSD_VA_LIST_) __dead2 __printf0like(2, 0);
+void	verrx(int, const char *, __va_list) __dead2 __printf0like(2, 0);
 void	warn(const char *, ...) __printf0like(1, 2);
-void	vwarn(const char *, _BSD_VA_LIST_) __printf0like(1, 0);
+void	vwarn(const char *, __va_list) __printf0like(1, 0);
 void	warnc(int, const char *, ...) __printf0like(2, 3);
-void	vwarnc(int, const char *, _BSD_VA_LIST_) __printf0like(2, 0);
+void	vwarnc(int, const char *, __va_list) __printf0like(2, 0);
 void	warnx(const char *, ...) __printflike(1, 2);
-void	vwarnx(const char *, _BSD_VA_LIST_) __printflike(1, 0);
+void	vwarnx(const char *, __va_list) __printflike(1, 0);
 void	err_set_file(void *);
 void	err_set_exit(void (*)(int));
 __END_DECLS

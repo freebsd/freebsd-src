@@ -245,9 +245,9 @@ struct		disklabel;
 extern char	*getdisklabel(const char *, struct disklabel *);
 
 extern int	printf(const char *fmt, ...) __printflike(1, 2);
-extern void	vprintf(const char *fmt, _BSD_VA_LIST_);
+extern void	vprintf(const char *fmt, __va_list);
 extern int	sprintf(char *buf, const char *cfmt, ...) __printflike(2, 3);
-extern void	vsprintf(char *buf, const char *cfmt, _BSD_VA_LIST_);
+extern void	vsprintf(char *buf, const char *cfmt, __va_list);
 
 extern void	twiddle(void);
 

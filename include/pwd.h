@@ -45,19 +45,19 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#ifdef _BSD_GID_T_
-typedef	_BSD_GID_T_	gid_t;
-#undef _BSD_GID_T_
+#ifndef _GID_T_DECLARED
+typedef	__gid_t		gid_t;
+#define	_GID_T_DECLARED
 #endif
 
-#ifdef _BSD_TIME_T_
-typedef	_BSD_TIME_T_	time_t;
-#undef _BSD_TIME_T_
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
 #endif
 
-#ifdef _BSD_UID_T_
-typedef	_BSD_UID_T_	uid_t;
-#undef _BSD_UID_T_
+#ifndef _UID_T_DECLARED
+typedef	__uid_t		uid_t;
+#define	_UID_T_DECLARED
 #endif
 
 #define _PATH_PWD		"/etc"

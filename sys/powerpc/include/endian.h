@@ -39,7 +39,7 @@
 #define	_MACHINE_ENDIAN_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 /*
  * Define the order of 32-bit words in 64-bit words.

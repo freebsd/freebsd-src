@@ -62,7 +62,7 @@ int
 vsscanf(str, fmt, ap)
 	const char *str;
 	const char *fmt;
-	_BSD_VA_LIST_ ap;
+	__va_list ap;
 {
 	FILE f;
 	struct __sFILEX ext;

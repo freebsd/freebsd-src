@@ -32,7 +32,7 @@
 #define	_WCTYPE_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 #include <ctype.h>
 
@@ -46,9 +46,9 @@ typedef	unsigned long	wctype_t;
 #define	_WCTYPE_T
 #endif
 
-#ifdef	_BSD_WINT_T_
-typedef	_BSD_WINT_T_    wint_t;
-#undef	_BSD_WINT_T_
+#ifndef _WINT_T_DECLARED
+typedef	__wint_t	wint_t;
+#define	_WINT_T_DECLARED
 #endif
 
 #ifndef WEOF

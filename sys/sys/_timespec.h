@@ -36,7 +36,7 @@
  */
 
 /*
- * Prerequisites: <sys/cdefs.h>, <machine/ansi.h>
+ * Prerequisites: <sys/cdefs.h>, <sys/_types.h>
  *
  * This file must be kept synchronized with <sys/timespec.h>.
  * It defines a structure which must be a type pun for
@@ -49,8 +49,8 @@
 #define _SYS__TIMESPEC_H_
 
 struct __timespec {
-#ifdef _BSD_TIME_T_
-	_BSD_TIME_T_	__tv_sec; /* seconds, but time_t is not yet defined */
+#ifndef _TIME_T_DECLARED
+	__time_t	__tv_sec; /* seconds, but time_t is not yet defined */
 #else
 	time_t		__tv_sec; /* seconds */
 #endif

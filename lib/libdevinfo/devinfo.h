@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 typedef __uintptr_t	devinfo_handle_t;
 #define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)0)
