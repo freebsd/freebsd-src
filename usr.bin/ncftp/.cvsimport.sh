@@ -1,5 +1,5 @@
 #!/bin/sh
-tar zxvf ncftp186.tgz
-cd ncftp186
+tar zxvf ncftp187.tgz
+cd ncftp187
 rm Makefile
-cvs import src/usr.bin/ncftp mgleason ncftp_1_8_6
+cvs import src/usr.bin/ncftp mgleason ncftp_1_8_7
