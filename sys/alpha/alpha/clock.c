@@ -51,6 +51,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/timetc.h>
 
 #include <machine/cpuconf.h>
 #include <machine/clock.h>
@@ -189,7 +190,7 @@ cpu_initclocks()
 	max_cycles_per_tick = 2*freq / hz;
 
 	alpha_timecounter.tc_frequency = freq;
-	init_timecounter(&alpha_timecounter);
+	tc_init(&alpha_timecounter);
 
 	stathz = 128;
 	platform.clockintr = (void (*) __P((void *))) handleclock;
@@ -329,7 +330,7 @@ inittodr(base)
 		s = splclock();
 		ts.tv_sec = base;
 		ts.tv_nsec = 0;
-		set_timecounter(&ts);
+		tc_setclock(&ts);
 		splx(s);
 		if (!badbase) {
 			printf("WARNING: preposterous clock chip time\n");
@@ -350,7 +351,7 @@ inittodr(base)
 	if (wall_cmos_clock)
 	    ts.tv_sec += adjkerntz;
 	ts.tv_nsec = 0;
-	set_timecounter(&ts);
+	tc_setclock(&ts);
 	splx(s);
 
 	if (!badbase) {
