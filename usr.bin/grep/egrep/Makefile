@@ -8,6 +8,7 @@
 
 PROG=	egrep
 CFLAGS+=-Dstrrchr=rindex -Dstrchr=index -DNOKANJI
+DPADD= ${LIBCOMPAT}
 LDADD= -lcompat	# must search compat to get spencers early regexp package
 MAN1=	grep.1
 LINKS=	${BINDIR}/egrep ${BINDIR}/grep ${BINDIR}/egrep ${BINDIR}/fgrep
