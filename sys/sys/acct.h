@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)acct.h	8.2 (Berkeley) 1/21/94
- * $Id: acct.h,v 1.3 1994/08/21 04:41:31 paul Exp $
+ * $Id: acct.h,v 1.4 1994/09/26 21:09:15 davidg Exp $
  */
 
 #ifndef _SYS_ACCT_H_
@@ -49,8 +49,9 @@
  */
 typedef u_short comp_t;
 
+#define AC_COMM_LEN 16
 struct acct {
-	char	ac_comm[10];	/* command name */
+	char	ac_comm[AC_COMM_LEN];	/* command name */
 	comp_t	ac_utime;	/* user time */
 	comp_t	ac_stime;	/* system time */
 	comp_t	ac_etime;	/* elapsed time */
