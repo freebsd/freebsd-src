@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.180 1995/05/25 18:48:06 jkh Exp $
+#	$Id: Makefile,v 1.181 1995/05/26 10:18:12 jkh Exp $
 #
 # How to roll a release:
 #
@@ -9,7 +9,7 @@
 # the "cdrom" and "ftp" directories.
 # I also need to "make ports" and install those, but I'm not going to do
 # that on a 14.4 line just yet...
-
+#
 # SET THIS !!!
 #BUILDNAME=SOME_RANDOM_BUILD
 
@@ -29,25 +29,23 @@ FAQS=	README MIRROR.SITES
 # define this to use a vn device instead of the floppy drive
 VNDEVICE=		vn0
 
-# which floppy to use, if VNDEVICE isn't defined.
-FDDEVICE=		fd0
-
-# define FDFORMAT to format physical floppies
-FDFORMAT=		yes
-
 # mountpoint for filesystems.
 MNT=			/mnt
 
 # other floppy parameters.
-FDCYLS=			80
-FDCYLSIZE=		15k
+FDSIZE=			1200
 FDLABEL=		fd1200
+FDINODE=		4300
 
 NEWFSARGS=		-c 80 -b 4096 -f 512 -i 4300 -m 0 -t 0 -u 0 \
 				-o space -T ${FDLABEL}
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
+# Size of the mfs to put in the kernel we boot.
+# You want to keep this as small as possible, it costs dearly in RAM.
+BOOTMFSSIZE=		950
+MFSINODE=		40000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}                      
@@ -182,8 +180,10 @@ release.3:
 	mkdir -p ${RD}/kernels
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/../sys/i386/conf && \
-		sed 's/GENERIC/BOOTCDROM/g' GENERIC > BOOTCDROM
-	for i in GENERIC BOOTCDROM ; do \
+		sed 's/GENERIC/BOOTMFS/g' GENERIC > BOOTMFS && \
+		echo "options  \"MFS_ROOT=${BOOTMFSSIZE}\"" >> BOOTMFS && \
+		echo "options  MFS" >> BOOTMFS
+	for i in BOOTMFS GENERIC ; do \
 		cd ${.CURDIR}/../sys/i386/conf && \
 			config $$i && \
 		cd ${.CURDIR}/../sys/compile/$$i && \
@@ -300,27 +300,58 @@ release.7:
 	touch release.7
 
 # Complete the bootfd 
-release.8:
+#
+# Now, just to get this picture down once and for all:
+#
+# +------------------------------------------------------------------------+
+# |boot.flp                                                                |
+# +-----+-----+------------------------------------------------------------+
+# |boot1|boot2|floppy filesystem "bootfd"                                  |
+# +-----+-----+-+--------------------------------------------------------+-+
+#               |kernel                                                  |
+#               +------------+-----------------------------------------+-+
+#                            |mfs filesystem "mfsfd"                   |
+#                            +-----------------------------------------+
+#
+
+release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	rm -rf ${RD}/bootfd
-	mkdir ${RD}/bootfd
-	cd ${RD}/bootfd && \
+	rm -rf ${RD}/mfsfd
+	mkdir ${RD}/mfsfd
+	cd ${RD}/mfsfd && \
 		mkdir -p dev mnt stand/help
-	ln -f ${RD}/kernels/GENERIC.kz ${RD}/bootfd/kernel
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=boot \
-		DIR=${RD}/bootfd/stand ZIP=true
+		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev ; \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
 		*[sw]d* cuaa[01] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a rst0 ft0 rwt0 | \
-	cpio -dump ${RD}/bootfd/dev )
+	cpio -dump ${RD}/mfsfd/dev )
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
-		tar xvf - -C ${RD}/bootfd/stand
-	install -c ${.CURDIR}/../COPYRIGHT ${RD}/bootfd/stand/help/en_US.ISO8859-1/COPYRIGHT
+		tar xvf - -C ${RD}/mfsfd/stand
+	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/en_US.ISO8859-1/COPYRIGHT
 	cd ${RD}/trees/bin/usr/share/FAQ/Text ; \
-		install -c RELNOTES.FreeBSD ${RD}/bootfd/stand/help/en_US.ISO8859-1/RELNOTES; \
-		install -c README ${RD}/bootfd/stand/help/en_US.ISO8859-1/README
-	touch ${RD}/bootfd/this_is_boot_flp
+		install -c RELNOTES.FreeBSD ${RD}/mfsfd/stand/help/en_US.ISO8859-1/RELNOTES; \
+		install -c README ${RD}/mfsfd/stand/help/en_US.ISO8859-1/README
+	( 								\
+	a=`expr ${BOOTMFSSIZE} \* 2` ;					\
+	echo ;								\
+	echo "mfs${BOOTMFSSIZE}:ty=mfs:se#512:nt#1:rm#300:\\" ;		\
+	echo "	:ns#$$a:nc#1:\\" ;					\
+	echo "	:pa#$$a:oa#0:ba#4096:fa#512:\\" ;			\
+	echo "	:pc#$$a:oc#0:bc#4096:fc#512:" ;				\
+	echo ; 								\
+	) >> /etc/disktab
+	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${BOOTMFSSIZE} \
+		FSPROTO=${RD}/mfsfd FSLABEL=mfs${BOOTMFSSIZE} \
+		FSINODE=${MFSINODE}
+	rm -rf ${RD}/bootfd
+	mkdir ${RD}/bootfd
+	cp ${RD}/kernels/BOOTMFS ${RD}/bootfd/kernel
+	./write_mfs_in_kernel ${RD}/bootfd/kernel fs-image
+	kzip ${RD}/bootfd/kernel
+	mv ${RD}/bootfd/kernel.kz ${RD}/bootfd/kernel
+	ls -l ${RD}/bootfd/kernel
 	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.8
 
@@ -382,11 +413,9 @@ cdrom.1:
 	rm -rf ${CD}
 	mkdir ${CD}
 	mkdir ${CD}/filesys
-	cd ${RD} && find floppies dists bootfd -print | cpio -dumpl ${CD}
-	cd ${CD} && mv bootfd bootcd
-	rm -f ${CD}/bootcd/kernel
-	ln -f ${RD}/kernels/BOOTCDROM ${CD}/bootcd/kernel
-	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}/bootcd
+	cd ${RD} && find floppies dists -print | cpio -dumpl ${CD}
+	ln -f ${RD}/bootfd/kernel ${CD}
+	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD}
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
@@ -441,6 +470,9 @@ fixit.flp:
 	rm -f release.4 release.10
 	cd ${.CURDIR} && ${MAKE} release.4 release.10 WHICH_CRUNCH=fixit
 
+write_mfs_in_kernel:	${.CURDIR}/write_mfs_in_kernel.c
+	${CC} ${CFLAGS} -o write_mfs_in_kernel ${.CURDIR}/write_mfs_in_kernel.c
+
 ckRELEASEDIR:
 .if !defined(RELEASEDIR)
 	@echo "To make a release RELEASEDIR must be defined" && false
@@ -450,44 +482,42 @@ doFLOPPY:
 .if !defined(FLOPPY)
 	@echo "FLOPPY undefined in doFLOPPY" ; exit 1
 .endif
-	rm -f ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
-.if defined(VNDEVICE)
+	rm -f ${RD}/floppies/${FLOPPY}.flp
+	cd ${.CURDIR} && ${MAKE} doFS FSSIZE=${FDSIZE} \
+		FSPROTO=${RD}/${FLOPPY}fd \
+		FSLABEL=${FDLABEL} FSINODE=${FDINODE}
+	mv fs-image ${RD}/floppies/${FLOPPY}.flp
+
+doFS:
+.if !defined(FSSIZE)
+	@echo "FSSIZE undefined in doFS" ; exit 1
+.endif
+.if !defined(FSPROTO)
+	@echo "FSPROTO undefined in doFS" ; exit 1
+.endif
+.if !defined(FSINODE)
+	@echo "FSINODE undefined in doFS" ; exit 1
+.endif
+	rm -f fs-image
 	if [ ! -b /dev/${VNDEVICE} -o ! -c /dev/r${VNDEVICE} ] ; then \
 		cd /dev && sh MAKEDEV ${VNDEVICE} ; fi
 	@umount /dev/${VNDEVICE} 2>/dev/null || true
 	@umount ${MNT} 2>/dev/null || true
 	@vnconfig -u /dev/r${VNDEVICE} 2>/dev/null || true
-	dd of=${RD}/floppies/${FLOPPY}.tmp if=/dev/zero \
-		bs=${FDCYLSIZE} count=${FDCYLS} 2>/dev/null
-	vnconfig -c /dev/r${VNDEVICE} ${RD}/floppies/${FLOPPY}.tmp
+	dd of=fs-image if=/dev/zero count=${FSSIZE} bs=1k 2>/dev/null
+	vnconfig -c /dev/r${VNDEVICE} fs-image
+.if defined(FSLABEL)
 	disklabel -w -r -B \
 		-b ${RD}/trees/bin/usr/mdec/fdboot \
 		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		/dev/r${VNDEVICE} ${FDLABEL}
-	newfs ${NEWFSARGS} /dev/r${VNDEVICE}
+		/dev/r${VNDEVICE} ${FSLABEL}
+.endif
+	newfs -u 0 -t 0 -i ${FSINODE} -m 0 -T ${FSLABEL} /dev/r${VNDEVICE}
 	mount /dev/${VNDEVICE} ${MNT}
-	cd ${RD}/${FLOPPY}fd ; find . -print | cpio -dump ${MNT}
+	cd ${FSPROTO} && find . -print | cpio -dump ${MNT}
+	df -i /mnt
 	umount ${MNT}
 	fsck  /dev/r${VNDEVICE} < /dev/null
-.else
-	-umount /dev/${FDDEVICE}
-	-umount ${MNT}
-.if !defined(FDFORMAT)
-	echo y | fdformat /dev/r${FDDEVICE}
-.endif
-	disklabel -w -r -B \
-		-b ${RD}/trees/bin/usr/mdec/fdboot \
-		-s ${RD}/trees/bin/usr/mdec/bootfd \
-		/dev/r${FDDEVICE} ${FDLABEL}
-	newfs ${NEWFSARGS} /dev/r${FDDEVICE}
-	mount /dev/${FDDEVICE} ${MNT}
-	cd ${RD}/${FLOPPY}fd ; find . -print | cpio -dump ${MNT}
-	umount ${MNT}
-	fsck -n /dev/r${FDDEVICE} < /dev/null
-	dd if=/dev/r${FDDEVICE} of=${RD}/floppies/${FLOPPY}.tmp \
-		bs=${FDCYLSIZE} count=${FDCYLS}
-.endif
-	mv ${RD}/floppies/${FLOPPY}.tmp ${RD}/floppies/${FLOPPY}.flp
 
 installCRUNCH:
 .if !defined(CRUNCH)
