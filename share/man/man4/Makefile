@@ -14,10 +14,13 @@ MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=netintro.4 networking.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipfw.4 ipfirewall.4 ipaccounting.4
 MLINKS+=fpa.4 fea.4
-# XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
-SUBDIR=	man4.i386
-MANDEPEND=_SUBDIR
 
-install: maninstall
+# XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
+SUBDIR=	 man4.i386 
+.if make(maninstall)
+maninstall:: _SUBDIR
+.endif
 
 .include <bsd.prog.mk>
+
+
