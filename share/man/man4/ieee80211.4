@@ -29,29 +29,32 @@
 .\"
 .Dd February 23, 2001
 .Dt IEEE80211 4
-.Os FreeBSD 4.3
+.Os
 .Sh NAME
 .Nm ieee80211
 .Nd standard interface to IEEE 802.11 devices
 .Sh SYNOPSIS
-.Fd #include <net/if_ieee80211.h>
+.In net/if_ieee80211.h
 .Sh DESCRIPTION
 This section describes the interface standard interface to configuration
-and status information on IEEE 802.11 devices.  Most devices support
-options not configurable by this interface.  They must be set by their
-respective, specific control program.  The interface is via one
+and status information on IEEE 802.11 devices.
+Most devices support options not configurable by this interface.
+They must be set by their respective, specific control program.
+The interface is via one
 of the following
 .Xr ioctl 2
 calls on a socket:
-.Bl -tag -width SIOCG80211
+.Bl -tag -xwidth ".Dv SIOCG80211"
 .It Dv SIOCG80211
 Get configuration or status information.
 .It Dv SIOCS80211
 Set configuration information.
 .El
+.Pp
 These requests are made via a modified
-.Ar ifreq
-structure.  This structure is defined as follows:
+.Vt ifreq
+structure.
+This structure is defined as follows:
 .Bd -literal
 struct ieee80211req {
 	char		i_name[IFNAMSIZ];	/* if_name, e.g. "wi0" */
@@ -65,68 +68,70 @@ struct ieee80211req {
 For
 .Dv SIOCG80211
 the following values of
-.Ar i_type
+.Va i_type
 are valid:
-.Bl -tag -width IEEE80211_IOC_POWERSAVESLEEP
+.Bl -tag -xwidth ".Dv IEEE80211_IOC_POWERSAVESLEEP"
 .It Dv IEEE80211_IOC_SSID
 Returns the requested SSID by copying it into the buffer pointed to by
-.Ar i_data
+.Va i_data
 and setting
-.Ar i_len
-to the length.  If 
-.Ar i_val
-is >= 0 then the request refers to the configured value for that slot.
+.Va i_len
+to the length.
+If
+.Va i_val
+is \(>= 0 then the request refers to the configured value for that slot.
 Generally, 0 is the only valid value, but some interfaces support more
-SSIDs.  If
-.Ar i_val
-is -1 then the request refers to the currently active value.
+SSIDs.
+If
+.Va i_val
+is \-1 then the request refers to the currently active value.
 .It Dv IEEE80211_IOC_NUMSSIDS
-Returns the number of SSIDs this card supports.  In most cases, this is
+Returns the number of SSIDs this card supports.
+In most cases, this is
 1, but some devices such as
 .Xr an 4
 support more.
 .It Dv IEEE80211_IOC_WEP
 Returns the current WEP status in
-.Ar i_val .
+.Va i_val .
 Valid values are
-.Dv IEEE80211_WEP_NOSUP ,
-.Dv IEEE80211_WEP_ON ,
-.Dv IEEE80211_WEP_OFF ,
+.Dv IEEE80211_WEP_NOSUP , IEEE80211_WEP_ON , IEEE80211_WEP_OFF ,
 and
 .Dv IEEE80211_WEP_MIXED .
 Respectively, these values mean unsupported, mandatory for all devices,
 off, and on, but not required for all devices.
 .It Dv IEEE80211_IOC_WEPKEY
 Returns the requested WEP key via
-.Ar i_data
-and it's length via
-.Ar i_len .
+.Va i_data
+and its length via
+.Va i_len .
 If the device does not support returning the WEP key or the user is not
-root then the key may be returned as all zeros.  Technically this is a
+root then the key may be returned as all zeros.
+Technically this is a
 valid key, but it's the kind of key an idiot would put on his luggage so
-we use it as a special value.  Generally, only four WEP keys are
-allowed, but some devices support more.  If so, the first four (0-3) are
+we use it as a special value.
+Generally, only four WEP keys are allowed, but some devices support more.
+If so, the first four (0-3) are
 the standard keys stored in volatile storage and the others are device
 specific.
 .It Dv IEEE80211_IOC_NUMWEPKEYS
 Returns the number of WEP keys supported by this device, generally 4.
 A device that does not support WEP may either report 0 or simply return
-.Dv EINVAL .
+.Er EINVAL .
 .It Dv IEEE80211_IOC_WEPTXKEY
 Returns the WEP key used for transmission.
 .It Dv IEEE80211_IOC_AUTHMODE
 Returns the current authentication mode in
-.Ar i_val .
+.Va i_val .
 Valid values are
-.Dv IEEE80211_AUTH_NONE ,
-.Dv IEEE80211_AUTH_OPEN ,
+.Dv IEEE80211_AUTH_NONE , IEEE80211_AUTH_OPEN ,
 and
 .Dv IEEE80211_AUTH_SHARED .
 .It Dv IEEE80211_IOC_STATIONNAME
 Returns the station name via
-.Ar i_data
+.Va i_data
 and its length via
-.Ar i_len .
+.Va i_len .
 While all known devices seem to support this is some way or another,
 they all do it differently and it appears to not have anything to do
 with the actual IEEE 802.11 standard so making up an answer may be
@@ -134,11 +139,10 @@ necessary for future devices.
 .It Dv IEEE80211_IOC_CHANNEL
 Returns the current direct sequence spread spectrum channel in use.
 .It Dv IEEE80211_IOC_POWERSAVE
-Returns the current powersaving mode.  Valid values are
-.Dv IEEE80211_POWERSAVE_NOSUP ,
-.Dv IEEE80211_POWERSAVE_OFF ,
-.Dv IEEE80211_POWERSAVE_ON ,
-.Dv IEEE80211_POWERSAVE_CAM ,
+Returns the current powersaving mode.
+Valid values are
+.Dv IEEE80211_POWERSAVE_NOSUP , IEEE80211_POWERSAVE_OFF ,
+.Dv IEEE80211_POWERSAVE_ON , IEEE80211_POWERSAVE_CAM ,
 .Dv IEEE80211_POWERSAVE_PSP ,
 and
 .Dv IEEE80211_POWERSAVE_PSP_CAM .
@@ -149,74 +153,79 @@ is defined to be equal to
 but this may be incorrect.
 .It Dv IEEE80211_IOC_POWERSAVESLEEP
 Returns the powersave sleep time in msec in
-.Ar i_val .
+.Va i_val .
 .El
 .Pp
 For
 .Dv SIOCS80211
 the following values of
-.Ar i_type
+.Va i_type
 are valid:
-.Bl -tag -width IEEE80211_IOC_POWERSAVESLEEP
+.Bl -tag -xwidth ".Dv IEEE80211_IOC_POWERSAVESLEEP"
 .It Dv IEEE80211_IOC_SSID
 Set the desired SSID for infrastructure and ad-hoc modes to value given
 by
-.Ar i_data
+.Va i_data
 and
-.Ar i_len .
+.Va i_len .
 The length should be no longer then 32 characters.
 .It Dv IEEE80211_IOC_WEP
 Set the current WEP mode to the value given in
-.Ar i_val .
-Valid values are the same as those for this value above.  Devices which
+.Va i_val .
+Valid values are the same as those for this value above.
+Devices which
 do not support all modes may choose to either return
-.Dv EINVAL
+.Er EINVAL
 or choose a reasonable alternate (supported) setting.
 .It Dv IEEE80211_IOC_WEPKEY
 Set the WEP key indicated by
-.Ar i_val
+.Va i_val
 to the value given by
-.Ar i_data
+.Va i_data
 and
-.Ar i_len .
+.Va i_len .
 Generally, valid values of
-.Ar i_len
+.Va i_len
 are 0, 5, and 13 though not all devices with WEP support have support
 for 13-byte keys.
 .It Dv IEEE80211_IOC_WEPTXKEY
 Set the WEP key used for transmission to the value in
-.Ar i_val .
+.Va i_val .
 Not all values which are valid for setting keys may be valid for setting
 transmit keys due to strange device interfaces.
 .It Dv IEEE80211_IOC_AUTHMODE
 Set the current authorization mode to the value given in
-.Ar i_val .
-Valid values are given above.  No all devices support this.
+.Va i_val .
+Valid values are given above.
+Not all devices support this.
 .It Dv IEEE80211_IOC_STATIONNAME
 Set the station name to the value given by
-.Ar i_data
+.Va i_data
 and
-.Ar i_len .
+.Va i_len .
 The standard does not appear to deal with this feature so the range of
 valid values may vary from device to device.
 .It Dv IEEE80211_IOC_CHANNEL
 Set the desired ad-hoc channel to the value given by
-.Ar i_val .
+.Va i_val .
 On some devices this has an impact on infrastructure mode as well.
 Valid values are 1-14, but 0 should be allowed and should return the
-device to the default value.  May devices support this directly by
+device to the default value.
+May devices support this directly by
 converting any invalid value to the default value.
 .It Dv IEEE80211_IOC_POWERSAVE
 Set the current powersaving mode to the value given in
-.Ar i_val .
-Valid values are the same as those for this value above.  Devices which
+.Va i_val .
+Valid values are the same as those for this value above.
+Devices which
 do not support all modes may choose to either return
-.Dv EINVAL
-or choose a reasonable alternate (supported) setting.  Most devices only
+.Er EINVAL
+or choose a reasonable alternate (supported) setting.
+Most devices only
 support CAM mode.
 .It Dv IEEE80211_IOC_POWERSAVESLEEP
 Set the powersave sleep time in msec to the value in
-.Ar i_val .
+.Va i_val .
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
@@ -226,9 +235,9 @@ Set the powersave sleep time in msec to the value in
 .Xr ancontrol 8 ,
 .Xr ifconfig 8 ,
 .Xr raycontrol 8 ,
-.Xr wicontrol 8 ,
+.Xr wicontrol 8
 .Sh HISTORY
 The
-.Nm ieee80211
+.Nm
 manual appeared in
 .Fx 4.3 .
