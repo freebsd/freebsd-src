@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.24 1995/11/20 12:35:16 phk Exp $
+ * $Id: buf.h,v 1.25 1995/12/11 04:57:20 dyson Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -179,7 +179,7 @@ extern TAILQ_HEAD(bqueues, buf) bufqueues[BUFFER_QUEUES];
  * Zero out the buffer's data area.
  */
 #define	clrbuf(bp) {							\
-	blkclr((bp)->b_data, (u_int)(bp)->b_bcount);			\
+	bzero((bp)->b_data, (u_int)(bp)->b_bcount);			\
 	(bp)->b_resid = 0;						\
 }
 
