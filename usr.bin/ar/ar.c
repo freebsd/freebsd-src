@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
@@ -227,14 +229,15 @@ static void
 usage()
 {
 
-	(void)fprintf(stderr, "usage:  ar -d [-Tv] archive file ...\n");
-	(void)fprintf(stderr, "\tar -m [-Tv] archive file ...\n");
-	(void)fprintf(stderr, "\tar -m [-abiTv] position archive file ...\n");
-	(void)fprintf(stderr, "\tar -p [-Tv] archive [file ...]\n");
-	(void)fprintf(stderr, "\tar -q [-cTv] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-cuTv] archive file ...\n");
-	(void)fprintf(stderr, "\tar -r [-abciuTv] position archive file ...\n");
-	(void)fprintf(stderr, "\tar -t [-Tv] archive [file ...]\n");
-	(void)fprintf(stderr, "\tar -x [-ouTv] archive [file ...]\n");
+	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n",
+		"usage: ar -d [-Tv] archive file ...",
+		"       ar -m [-Tv] archive file ...",
+		"       ar -m [-abiTv] position archive file ...",
+		"       ar -p [-Tv] archive [file ...]",
+		"       ar -q [-cTv] archive file ...",
+		"       ar -r [-cuTv] archive file ...",
+		"       ar -r [-abciuTv] position archive file ...",
+		"       ar -t [-Tv] archive [file ...]",
+		"       ar -x [-ouTv] archive [file ...]");
 	exit(1);
 }
