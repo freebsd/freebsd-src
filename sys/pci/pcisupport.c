@@ -1355,10 +1355,24 @@ pci_chip_match(device_t dev)
 		return ("NeoMagic MagicMedia 256ZX Audio controller");
 
 	/* ESS Technology Inc -- vendor 0x125d */
+	case 0x0100125d:
+		return ("ESS Technology Maestro 1 Audio controller");
+	case 0x1818125d:
+		return ("ESS Technology Solo-1 Audio controller");
+	case 0x1968125d:
+		return ("ESS Technology Maestro 2 Audio controller");
 	case 0x1969125d:
 		return ("ESS Technology Solo-1 Audio controller");
 	case 0x1978125d:
 		return ("ESS Technology Maestro 2E Audio controller");
+	case 0x1998125d:
+		return ("ESS Technology Maestro 3 Audio controller");
+	case 0x1999125d:
+		return ("ESS Technology Maestro 3 Modem");
+	case 0x2898125d:
+		return ("ESS Technology ES2898 Modem");
+	case 0x8888125d:
+		return ("ESS Technology Solo-1E Audio controller");
 
 	/* Aureal Inc.-- vendor 0x12eb */
 	case 0x000112eb:
