@@ -61,6 +61,7 @@ ckinode(dp, idesc)
 	struct dinode dino;
 	quad_t remsize, sizepb;
 	mode_t mode;
+	char pathbuf[MAXPATHLEN + 1];
 
 	if (idesc->id_fix != IGNORE)
 		idesc->id_fix = DONTKNOW;
@@ -78,8 +79,26 @@ ckinode(dp, idesc)
 				numfrags(&sblock, fragroundup(&sblock, offset));
 		else
 			idesc->id_numfrags = sblock.fs_frag;
-		if (*ap == 0)
+		if (*ap == 0) {
+			if (idesc->id_type == DATA && ndb >= 0) {
+				/* An empty block in a directory XXX */
+				getpathname(pathbuf, idesc->id_number,
+						idesc->id_number);
+                        	pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
+					pathbuf);
+                        	if (reply("ADJUST LENGTH") == 1) {
+					dp = ginode(idesc->id_number);
+                                	dp->di_size = (ap - &dino.di_db[0]) *
+					    sblock.fs_bsize;
+					printf(
+					    "YOU MUST RERUN FSCK AFTERWARDS\n");
+					rerun = 1;
+                                	inodirty();
+					
+                        	}
+			}
 			continue;
+		}
 		idesc->id_blkno = *ap;
 		if (idesc->id_type == ADDR)
 			ret = (*idesc->id_func)(idesc);
@@ -97,6 +116,24 @@ ckinode(dp, idesc)
 			ret = iblock(idesc, n, remsize);
 			if (ret & STOP)
 				return (ret);
+		} else {
+			if (idesc->id_type == DATA && remsize > 0) {
+				/* An empty block in a directory XXX */
+				getpathname(pathbuf, idesc->id_number,
+						idesc->id_number);
+                        	pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
+					pathbuf);
+                        	if (reply("ADJUST LENGTH") == 1) {
+					dp = ginode(idesc->id_number);
+                                	dp->di_size -= remsize;
+					remsize = 0;
+					printf(
+					    "YOU MUST RERUN FSCK AFTERWARDS\n");
+					rerun = 1;
+                                	inodirty();
+					break;
+                        	}
+			}
 		}
 		sizepb *= NINDIR(&sblock);
 		remsize -= sizepb;
@@ -116,6 +153,8 @@ iblock(idesc, ilevel, isize)
 	int i, n, (*func)(), nif;
 	quad_t sizepb;
 	char buf[BUFSIZ];
+	char pathbuf[MAXPATHLEN + 1];
+	struct dinode *dp;
 
 	if (idesc->id_type == ADDR) {
 		func = idesc->id_func;
@@ -157,6 +196,25 @@ iblock(idesc, ilevel, isize)
 			if (n & STOP) {
 				bp->b_flags &= ~B_INUSE;
 				return (n);
+			}
+		} else {
+			if (idesc->id_type == DATA && isize > 0) {
+				/* An empty block in a directory XXX */
+				getpathname(pathbuf, idesc->id_number,
+						idesc->id_number);
+                        	pfatal("DIRECTORY %s: CONTAINS EMPTY BLOCKS",
+					pathbuf);
+                        	if (reply("ADJUST LENGTH") == 1) {
+					dp = ginode(idesc->id_number);
+                                	dp->di_size -= isize;
+					isize = 0;
+					printf(
+					    "YOU MUST RERUN FSCK AFTERWARDS\n");
+					rerun = 1;
+                                	inodirty();
+					bp->b_flags &= ~B_INUSE;
+					return(STOP);
+                        	}
 			}
 		}
 		isize -= sizepb;

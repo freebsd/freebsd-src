@@ -311,6 +311,8 @@ checkfilesys(filesys, mntpt, auxdata, child)
 		return (0);
 	if (!preen)
 		printf("\n***** FILE SYSTEM WAS MODIFIED *****\n");
+	if (rerun)
+		printf("\n***** PLEASE RERUN FSCK *****\n");
 	if (hotroot) {
 		struct statfs stfs_buf;
 		/*
