@@ -31,6 +31,8 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
+/* $FreeBSD$ */
+
 #include <curses.priv.h>
 
 #include <termcap.h>
@@ -39,7 +41,7 @@
 #define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: lib_termcap.c,v 1.28 1999/02/27 22:12:58 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.29 1999/09/05 01:06:43 tom Exp $")
 
 /*
    some of the code in here was contributed by:
@@ -177,7 +179,7 @@ int i;
  *
  ***************************************************************************/
 
-char *tgetstr(NCURSES_CONST char *id, char **area GCC_UNUSED)
+char *tgetstr(NCURSES_CONST char *id, char **area)
 {
 int i;
 
@@ -190,12 +192,12 @@ int i;
 		if (!strncmp(id, capname, 2)) {
 		    T(("found match : %s", _nc_visbuf(tp->Strings[i])));
 		    /* setupterm forces cancelled strings to null */
-#ifdef FREEBSD_NATIVE
-		    if (*area && tp->Strings[i]) {
-			strcpy(*area, tp->Strings[i]);		
-			*area += strlen(tp->Strings[i]) + 1;
+		    if (area != 0
+		     && *area != 0
+		     && VALID_STRING(tp->Strings[i])) {
+			(void) strcpy(*area, tp->Strings[i]);
+			*area += strlen(*area) + 1;
 		    }
-#endif
 		    returnPtr(tp->Strings[i]);
 		}
 	    }
