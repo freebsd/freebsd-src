@@ -589,14 +589,11 @@ ieee80211_cancel_scan(struct ieee80211com *ic)
 void
 ieee80211_end_scan(struct ieee80211com *ic)
 {
-	struct ieee80211_node *ni, *nextbs, *selbs;
-	struct ieee80211_node_table *nt;
+	struct ieee80211_node_table *nt = &ic->ic_scan;
+	struct ieee80211_node *ni, *selbs;
 
 	ieee80211_cancel_scan(ic);
 	ieee80211_notify_scan_done(ic);
-
-	nt = &ic->ic_scan;
-	ni = TAILQ_FIRST(&nt->nt_node);
 
 	if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 		u_int8_t maxrssi[IEEE80211_CHAN_MAX];	/* XXX off stack? */
@@ -611,15 +608,14 @@ ieee80211_end_scan(struct ieee80211com *ic)
 		 * looks to be quietest.
 		 */
 		memset(maxrssi, 0, sizeof(maxrssi));
-		for (; ni != NULL; ni = nextbs) {
-			ieee80211_ref_node(ni);
-			nextbs = TAILQ_NEXT(ni, ni_list);
+		IEEE80211_NODE_LOCK(nt);
+		TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 			rssi = ic->ic_node_getrssi(ni);
 			i = ieee80211_chan2ieee(ic, ni->ni_chan);
 			if (rssi > maxrssi[i])
 				maxrssi[i] = rssi;
-			ieee80211_unref_node(&ni);
 		}
+		IEEE80211_NODE_UNLOCK(nt);
 		/* XXX select channel more intelligently */
 		bestchan = -1;
 		for (i = 0; i < IEEE80211_CHAN_MAX; i++)
@@ -656,7 +652,8 @@ ieee80211_end_scan(struct ieee80211com *ic)
 	 * Automatic sequencing; look for a candidate and
 	 * if found join the network.
 	 */
-	if (ni == NULL) {
+	/* NB: unlocked read should be ok */
+	if (TAILQ_FIRST(&nt->nt_node) == NULL) {
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN,
 			"%s: no scan candidate\n", __func__);
   notfound:
@@ -677,9 +674,8 @@ ieee80211_end_scan(struct ieee80211com *ic)
 	selbs = NULL;
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_SCAN, "\t%s\n",
 	    "macaddr          bssid         chan  rssi rate flag  wep  essid");
-	for (; ni != NULL; ni = nextbs) {
-		ieee80211_ref_node(ni);
-		nextbs = TAILQ_NEXT(ni, ni_list);
+	IEEE80211_NODE_LOCK(nt);
+	TAILQ_FOREACH(ni, &nt->nt_node, ni_list) {
 		if (ni->ni_fails) {
 			/*
 			 * The configuration of the access points may change
@@ -690,26 +686,27 @@ ieee80211_end_scan(struct ieee80211com *ic)
 				"%s: skip scan candidate %s, fails %u\n",
 				__func__, ether_sprintf(ni->ni_macaddr),
 				ni->ni_fails);
+			ni->ni_fails++;
+#if 0
 			if (ni->ni_fails++ > 2)
 				ieee80211_free_node(ni);
+#endif
 			continue;
 		}
 		if (ieee80211_match_bss(ic, ni) == 0) {
 			if (selbs == NULL)
 				selbs = ni;
-			else if (ieee80211_node_compare(ic, ni, selbs) > 0) {
-				ieee80211_unref_node(&selbs);
+			else if (ieee80211_node_compare(ic, ni, selbs) > 0)
 				selbs = ni;
-			} else
-				ieee80211_unref_node(&ni);
-		} else {
-			ieee80211_unref_node(&ni);
 		}
 	}
+	if (selbs != NULL)		/* NB: grab ref while dropping lock */
+		(void) ieee80211_ref_node(selbs);
+	IEEE80211_NODE_UNLOCK(nt);
 	if (selbs == NULL)
 		goto notfound;
 	if (!ieee80211_sta_join(ic, selbs)) {
-		ieee80211_unref_node(&selbs);
+		ieee80211_free_node(selbs);
 		goto notfound;
 	}
 }
