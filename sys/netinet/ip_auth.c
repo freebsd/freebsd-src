@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.1.1.1 1997/11/16 05:55:52 peter Exp $";
+static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.2 1998/03/21 11:33:59 peter Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -57,6 +57,9 @@ static const char rcsid[] = "@(#)$Id: ip_auth.c,v 1.1.1.1 1997/11/16 05:55:52 pe
 #include <net/if.h>
 #ifdef sun
 #include <net/af.h>
+#endif
+#if !defined(KERNEL) && (__FreeBSD_version >= 300000)
+# include <net/if_var.h>
 #endif
 #include <net/route.h>
 #include <netinet/in.h>
