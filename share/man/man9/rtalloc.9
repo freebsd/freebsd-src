@@ -26,7 +26,7 @@
 .\" OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: rtalloc.9,v 1.5 1997/02/22 13:26:25 peter Exp $
 .Dd October 8, 1996
 .Os
 .Dt RTALLOC 9
@@ -36,6 +36,7 @@
 .Nm rtalloc1
 .Nd look up a route in the kernel routing table
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <net/route.h>
 .Ft void

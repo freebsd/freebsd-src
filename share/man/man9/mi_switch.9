@@ -42,10 +42,12 @@
 .Nm cpu_switch
 .Nd switch to another process context
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
+.Fd #include <sys/proc.h>
 .Ft void
 .Fn mi_switch "void"
 .Ft void
-.Fn cpu_switch "void"
+.Fn cpu_switch "struct proc *p"
 .Sh DESCRIPTION
 The
 .Fn mi_switch
@@ -72,7 +74,7 @@ of a change in the signal disposition of the current process, or when a
 higher priority process might be available to run. The latter event is
 communicated by the machine independent scheduling routines by calling
 the machine defined
-.Fn need_resched "void" .
+.Fn need_resched .
 .It
 in the signal handling code
 .Pq see Xr issignal 9
@@ -92,7 +94,7 @@ cause a
 After these administrative tasks are done,
 .Fn mi_switch
 hands over control to the machine dependent routine
-.Fn cpu_switch "void" ,
+.Fn cpu_switch ,
 which will perform the actual process context switch.
 .Pp
 .Fn cpu_switch

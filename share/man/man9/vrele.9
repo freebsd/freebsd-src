@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: vrele.9,v 1.1 1997/03/03 18:01:01 dfr Exp $
+.\" $Id: vrele.9,v 1.2 1997/03/22 22:47:34 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -35,8 +35,9 @@
 .Nm vrele
 .Nd decrement the use count for a vnode
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
-.Ft int
+.Ft void
 .Fn vrele "struct vnode *vp"
 .Sh DESCRIPTION
 Decrement the
