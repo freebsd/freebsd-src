@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.38 1998/11/15 15:33:51 bde Exp $
+ *  $Id: linux_sysvec.c,v 1.39 1998/12/14 18:54:01 dt Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -281,7 +281,7 @@ linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 	 * Build context to run handler in.
 	 */
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = (int)(((char *)PS_STRINGS) - *(p->p_sysent->sv_szsigcode));
+	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
 	regs->tf_eflags &= ~PSL_VM;
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
