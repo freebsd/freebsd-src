@@ -1251,7 +1251,7 @@ format_and_display (path, man_file, cat_file)
     {
       status = is_newer (man_file, cat_file);
       if (debug)
-	fprintf (stderr, "status from is_newer() = %d\n");
+	fprintf (stderr, "status from is_newer() = %d\n", status);
 
       if (status == 1 || status == -2)
 	{
