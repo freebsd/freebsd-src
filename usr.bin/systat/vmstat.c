@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #endif
 static const char rcsid[] =
-	"$Id: vmstat.c,v 1.33 1999/02/08 02:11:52 dillon Exp $";
+	"$Id: vmstat.c,v 1.34 1999/02/08 02:39:45 dillon Exp $";
 #endif /* not lint */
 
 /*
@@ -684,6 +684,8 @@ putfloat(f, l, c, w, d, nz)
 		return;
 	}
 	snprintf(b, sizeof(b), "%*.*f", w, d, f);
+	if (strlen(b) > w)
+		snprintf(b, sizeof(b), "%*.0f", w, f);
 	if (strlen(b) > w) {
 		while (--w >= 0)
 			addch('*');
@@ -706,6 +708,8 @@ putlongdouble(f, l, c, w, d, nz)
 		return;
 	}
 	sprintf(b, "%*.*Lf", w, d, f);
+	if (strlen(b) > w)
+		sprintf(b, "%*.0Lf", w, f);
 	if (strlen(b) > w) {
 		while (--w >= 0)
 			addch('*');
