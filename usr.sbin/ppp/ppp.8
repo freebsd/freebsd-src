@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.33 1998/05/15 18:21:12 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.34 1998/05/15 23:58:27 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2268,6 +2268,21 @@ multilink mode.  A link must be
 in the
 .Dv CLOSED
 state before it is removed.
+.It rename|mv Ar name
+This command renames the given link to
+.Ar name .
+It will fail if
+.Ar name
+is already used by another link.
+.Pp
+The default link name is
+.Sq deflink .
+Renaming it to
+.Sq modem ,
+.Sq cuaa0
+or
+.Sq USR
+may make the log file more readable.
 .It save
 This option is not (yet) implemented.
 .It set[up] Ar var value

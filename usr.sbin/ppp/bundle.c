@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.83 1998/05/15 18:21:32 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.84 1998/05/15 23:58:14 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1374,6 +1374,23 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 
   while (niov--)
     free(iov[niov].iov_base);
+}
+
+int
+bundle_RenameDatalink(struct bundle *bundle, struct datalink *ndl,
+                      const char *name)
+{
+  struct datalink *dl;
+
+  if (!strcasecmp(ndl->name, name))
+    return 1;
+
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (!strcasecmp(dl->name, name))
+      return 0;
+
+  datalink_Rename(ndl, name);
+  return 1;
 }
 
 int

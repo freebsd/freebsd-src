@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.83 1998/05/15 18:20:58 brian Exp $
+ * $Id: command.c,v 1.131.2.84 1998/05/15 23:58:17 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -124,7 +124,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/15 18:20:58 $";
+const char VersionDate[] = "$Date: 1998/05/15 23:58:17 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -223,6 +223,20 @@ RemoveCommand(struct cmdargs const *arg)
 
   bundle_DatalinkRemove(arg->bundle, arg->cx);
   return 0;
+}
+
+static int
+RenameCommand(struct cmdargs const *arg)
+{
+  if (arg->argc != arg->argn + 1)
+    return -1;
+
+  if (bundle_RenameDatalink(arg->bundle, arg->cx, arg->argv[arg->argn]))
+    return 0;
+
+  log_Printf(LogWARN, "%s -> %s: target name already exists\n", 
+             arg->cx->name, arg->argv[arg->argn]);
+  return 1;
 }
 
 int
@@ -443,6 +457,8 @@ static struct cmdtab const Commands[] = {
   "Quit PPP program", "quit|bye [all]"},
   {"remove", "rm", RemoveCommand, LOCAL_AUTH | LOCAL_CX,
   "Remove a link", "remove"},
+  {"rename", "mv", RenameCommand, LOCAL_AUTH | LOCAL_CX,
+  "Rename a link", "rename name"},
   {"save", NULL, SaveCommand, LOCAL_AUTH,
   "Save settings", "save"},
   {"set", "setup", SetCommand, LOCAL_AUTH | LOCAL_CX_OPT,

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.61 1998/05/15 18:21:34 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.62 1998/05/15 23:58:20 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1054,6 +1054,13 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov)
   }
 
   return link_fd;
+}
+
+void
+datalink_Rename(struct datalink *dl, const char *name)
+{
+  free(dl->name);
+  dl->physical->link.name = dl->name = strdup(name);
 }
 
 char *
