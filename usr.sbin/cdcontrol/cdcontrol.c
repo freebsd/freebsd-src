@@ -52,10 +52,6 @@ __FBSDID("$FreeBSD$");
 #  define DEFAULT_CD_DRIVE  "/dev/cd0"
 #endif
 
-#ifndef DEFAULT_CD_PARTITION
-#  define DEFAULT_CD_PARTITION  "c"
-#endif
-
 #define CMD_DEBUG	1
 #define CMD_EJECT	2
 #define CMD_HELP	3
@@ -1248,11 +1244,6 @@ int open_cd ()
 	}
 
 	fd = open (devbuf, O_RDONLY);
-
-	if (fd < 0 && errno == ENOENT) {
-		strcat (devbuf, DEFAULT_CD_PARTITION);
-		fd = open (devbuf, O_RDONLY);
-	}
 
 	if (fd < 0) {
 		if (errno == ENXIO) {
