@@ -96,6 +96,8 @@ static struct
     int		bd_unit;		/* SRM unit number */
     int		bd_namelen;
     int		bd_flags;
+    int		bd_fd;
+    int		bd_opencount;
 } bdinfo [MAXBDDEV];
 static int nbdinfo = 0;
 
@@ -113,6 +115,8 @@ bd_init(void)
     ret.bits = prom_getenv(PROM_E_BOOTED_DEV,
 			   bdinfo[0].bd_name, sizeof(bdinfo[0].bd_name));
     bdinfo[0].bd_namelen = ret.u.retval;
+    bdinfo[0].bd_fd = -1;
+    bdinfo[0].bd_opencount = 0;
     nbdinfo++;
 
     return (0);
@@ -155,7 +159,7 @@ bd_open(struct open_file *f, ...)
     struct disklabel		*lp;
     int				sector, slice, i;
     int				error;
-    int				unit;
+    int				unit, fd;
     prom_return_t		ret;
 
     va_start(args, f);
@@ -169,11 +173,17 @@ bd_open(struct open_file *f, ...)
     }
     
     /* Call the prom to open the disk. */
-    ret.bits = prom_open(bdinfo[unit].bd_name, bdinfo[unit].bd_namelen);
-    if (ret.u.status == 2)
-	return (ENXIO);
-    if (ret.u.status == 3)
-	return (EIO);
+    if (bdinfo[unit].bd_fd < 0) {
+	ret.bits = prom_open(bdinfo[unit].bd_name, bdinfo[unit].bd_namelen);
+	if (ret.u.status == 2)
+	    return (ENXIO);
+	if (ret.u.status == 3)
+	    return (EIO);
+	bdinfo[unit].bd_fd = fd = ret.u.retval;
+    } else {
+	fd = bdinfo[unit].bd_fd;
+    }
+    bdinfo[unit].bd_opencount++;
 
     od = (struct open_disk *) malloc(sizeof(struct open_disk));
     if (!od) {
@@ -182,7 +192,7 @@ bd_open(struct open_file *f, ...)
     }
 
     /* Look up SRM unit number, intialise open_disk structure */
-    od->od_fd = ret.u.retval;
+    od->od_fd = fd;
     od->od_unit = dev->d_kind.srmdisk.unit;
     od->od_flags = bdinfo[od->od_unit].bd_flags;
     od->od_boff = 0;
@@ -321,7 +331,11 @@ bd_close(struct open_file *f)
 {
     struct open_disk	*od = f->f_devdata;
 
-    (void)prom_close(od->od_fd);
+    bdinfo[od->od_unit].bd_opencount--;
+    if (bdinfo[od->od_unit].bd_opencount == 0) {
+	(void)prom_close(od->od_fd);
+	bdinfo[od->od_unit].bd_fd = -1;
+    }
 
     free(od);
     f->f_devdata = NULL;
