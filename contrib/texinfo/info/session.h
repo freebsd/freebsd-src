@@ -1,9 +1,7 @@
-/* session.h -- Functions found in session.c. */
+/* session.h -- Functions found in session.c.
+   $Id: session.h,v 1.9 1999/06/25 21:57:40 karl Exp $
 
-/* This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +19,7 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-#if !defined (SESSION_H)
+#ifndef SESSION_H
 #define SESSION_H
 
 #include "info.h"
@@ -76,6 +74,7 @@ extern void info_select_reference ();
 extern int info_any_buffered_input_p ();
 extern void print_node ();
 extern void dump_node_to_file (), dump_nodes_to_file ();
+extern char *program_name_from_file_name ();
 
 /* Do the physical deletion of WINDOW, and forget this window and
    associated nodes. */
@@ -110,6 +109,8 @@ extern void info_move_to_prev_xref (), info_move_to_next_xref ();
 extern void info_scroll_forward (), info_scroll_backward ();
 extern void info_redraw_display (), info_toggle_wrap ();
 extern void info_move_to_window_line ();
+extern void info_up_line (), info_down_line ();
+extern void info_scroll_half_screen_down (), info_scroll_half_screen_up ();
 
 /* Manipulating multiple windows. */
 extern void info_split_window (), info_delete_window ();
@@ -123,6 +124,8 @@ extern void info_last_node (), info_first_node (), info_history_node ();
 extern void info_goto_node (), info_top_node (), info_dir_node ();
 extern void info_global_next_node (), info_global_prev_node ();
 extern void info_kill_node (), info_view_file ();
+extern void info_menu_sequence ();
+extern NODE *info_follow_menus (/* initial_node, menus, errstr, errarg */);
 
 /* Selecting cross references. */
 extern void info_menu_digit (), info_menu_item (), info_xref_item ();
@@ -136,6 +139,8 @@ extern void info_initialize_numeric_arg (), info_numeric_arg_digit_loop ();
 
 /* Searching commands. */
 extern void info_search (), isearch_forward (), isearch_backward ();
+extern void info_search_case_sensitively (), info_search_backward ();
+extern void info_search_next (), info_search_previous ();
 
 /* Dumping and printing nodes. */
 extern void info_print_node ();
@@ -143,4 +148,4 @@ extern void info_print_node ();
 /* Miscellaneous commands. */
 extern void info_abort_key (), info_quit (), info_do_lowercase_version ();
 
-#endif /* SESSION_H */
+#endif /* not SESSION_H */

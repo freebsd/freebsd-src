@@ -2,12 +2,9 @@
 
 PROG=	install-info
 
-CFLAGS+= -DHAVE_CONFIG_H -DLOCALEDIR=\"/usr/share/locale\"
-CFLAGS+= -I${TXIDIR} -I${TXIDIR}/lib -I../libintl
-
-DPADD=	${LIBTXI} ${LIBINTL} -lz
-LDADD=	${LIBTXI} ${LIBINTL} -lz
+DPADD+=	${LIBTXI}
+LDADD+=	${LIBTXI}
 
 .include <bsd.prog.mk>
 
-.PATH: ${TXIDIR}/util
+.PATH:	${TXIDIR}/util ${TXIDIR}/doc

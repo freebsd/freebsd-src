@@ -1,10 +1,7 @@
-/* filesys.h -- External declarations of functions and vars in filesys.c.
-   $Id: filesys.h,v 1.3 1997/07/15 18:39:08 karl Exp $
+/* filesys.h -- external declarations for filesys.c.
+   $Id: filesys.h,v 1.5 1998/07/21 22:25:44 karl Exp $
 
-   This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,6 +43,11 @@ extern void info_add_path ();
    If it can't find the file, it returns NULL. */
 extern char *info_find_fullpath ();
 
+/* Given a chunk of text and its length, convert all CRLF pairs at the
+   EOLs into a single Newline character.  Return the length of produced
+   text.  */
+long convert_eols ();
+
 /* Read the contents of PATHNAME, returning a buffer with the contents of
    that file in it, and returning the size of that buffer in FILESIZE.
    FINFO is a stat struct which has already been filled in by the caller.
@@ -68,6 +70,9 @@ extern int filesys_error_number;
    return the next one pointed to by IDX, or NULL if there are no more.
    Advance IDX to the character after the colon. */
 extern char *extract_colon_unit ();
+
+/* Return true if FILENAME is `dir', with a possible compression suffix.  */
+extern int is_dir_name ();
 
 /* The default value of INFOPATH. */
 #if !defined (DEFAULT_INFOPATH)

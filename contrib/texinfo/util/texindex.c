@@ -1,7 +1,7 @@
-/* Prepare TeX index dribble output into an actual index.
-   $Id: texindex.c,v 1.22 1998/02/22 23:00:09 karl Exp $
+/* Process TeX index dribble output into an actual index.
+   $Id: texindex.c,v 1.34 1999/08/06 17:03:14 karl Exp $
 
-   Copyright (C) 1987, 91, 92, 96, 97, 98 Free Software Foundation, Inc.
+   Copyright (C) 1987, 91, 92, 96, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #include "system.h"
 #include <getopt.h>
 
+static char *program_name = "texindex";
+
 #if defined (emacs)
 #  include "../src/config.h"
 /* Some s/os.h files redefine these. */
@@ -34,18 +36,7 @@
 #define memset(ptr, ignore, count) bzero (ptr, count)
 #endif
 
-
 char *mktemp ();
-
-#if defined (VMS)
-#  include <file.h>
-#  define TI_NO_ERROR ((1 << 28) | 1)
-#  define TI_FATAL_ERROR ((1 << 28) | 4)
-#  define unlink delete
-#else /* !VMS */
-#  define TI_NO_ERROR 0
-#  define TI_FATAL_ERROR 1
-#endif /* !VMS */
 
 #if !defined (SEEK_SET)
 #  define SEEK_SET 0
@@ -124,11 +115,7 @@ char *text_base;
 /* Nonzero means do not delete tempfiles -- for debugging. */
 int keep_tempfiles;
 
-/* The name this program was run with. */
-char *program_name;
-
 /* Forward declarations of functions in this file. */
-
 void decode_command ();
 void sort_in_core ();
 void sort_offline ();
@@ -149,9 +136,7 @@ void fatal ();
 void error ();
 void *xmalloc (), *xrealloc ();
 char *concat ();
-char *maketempname ();
 void flush_tempfiles ();
-char *tempcopy ();
 
 #define MAX_IN_CORE_SORT 500000
 
@@ -164,12 +149,6 @@ main (argc, argv)
 
   tempcount = 0;
   last_deleted_tempcount = 0;
-
-  program_name = strrchr (argv[0], '/');
-  if (program_name != (char *)NULL)
-    program_name++;
-  else
-    program_name = argv[0];
 
 #ifdef HAVE_SETLOCALE
   /* Set locale via LC_ALL.  */
@@ -208,14 +187,26 @@ main (argc, argv)
   for (i = 0; i < num_infiles; i++)
     {
       int desc;
-      long ptr;
+      off_t ptr;
       char *outfile;
+      struct stat instat;
 
       desc = open (infiles[i], O_RDONLY, 0);
       if (desc < 0)
         pfatal_with_name (infiles[i]);
+
+      if (stat (infiles[i], &instat))
+        pfatal_with_name (infiles[i]);
+      if (S_ISDIR (instat.st_mode))
+        {
+#ifdef EISDIR
+          errno = EISDIR;
+#endif
+          pfatal_with_name (infiles[i]);
+        }
+
       lseek (desc, (off_t) 0, SEEK_END);
-      ptr = (long) lseek (desc, (off_t) 0, SEEK_CUR);
+      ptr = (off_t) lseek (desc, (off_t) 0, SEEK_CUR);
 
       close (desc);
 
@@ -233,8 +224,8 @@ main (argc, argv)
     }
 
   flush_tempfiles (tempcount);
-  exit (TI_NO_ERROR);
-  
+  xexit (0);
+
   return 0; /* Avoid bogus warnings.  */
 }
 
@@ -249,6 +240,8 @@ typedef struct
 } TEXINDEX_OPTION;
 
 TEXINDEX_OPTION texindex_options[] = {
+  { "--help", "-h", (int *)NULL, 0, (char *)NULL,
+      N_("display this help and exit") },
   { "--keep", "-k", &keep_tempfiles, 1, (char *)NULL,
       N_("keep temporary files around after processing") },
   { "--no-keep", 0, &keep_tempfiles, 0, (char *)NULL,
@@ -257,8 +250,6 @@ TEXINDEX_OPTION texindex_options[] = {
       N_("send output to FILE") },
   { "--version", (char *)NULL, (int *)NULL, 0, (char *)NULL,
       N_("display version information and exit") },
-  { "--help", "-h", (int *)NULL, 0, (char *)NULL,
-      N_("display this help and exit") },
   { (char *)NULL, (char *)NULL, (int *)NULL, 0, (char *)NULL }
 };
 
@@ -272,11 +263,15 @@ usage (result_value)
   fprintf (f, _("Usage: %s [OPTION]... FILE...\n"), program_name);
   fprintf (f, _("Generate a sorted index for each TeX output FILE.\n"));
   /* Avoid trigraph nonsense.  */
-  fprintf (f, _("Usually FILE... is `foo.??\' for a document `foo.texi'.\n"));
+  fprintf (f,
+_("Usually FILE... is specified as `foo.%c%c\' for a document `foo.texi'.\n"),
+           '?', '?'); /* avoid trigraph in cat-id-tbl.c */
   fprintf (f, _("\nOptions:\n"));
 
   for (i = 0; texindex_options[i].long_name; i++)
     {
+      putc (' ', f);
+
       if (texindex_options[i].short_name)
         fprintf (f, "%s, ", texindex_options[i].short_name);
 
@@ -287,9 +282,12 @@ usage (result_value)
 
       fprintf (f, "\t%s\n", _(texindex_options[i].doc_string));
     }
-  puts (_("\nEmail bug reports to bug-texinfo@gnu.org."));
+  fputs (_("\n\
+Email bug reports to bug-texinfo@gnu.org,\n\
+general questions and discussion to help-texinfo@gnu.org.\n\
+"), f);
 
-  exit (result_value);
+  xexit (result_value);
 }
 
 /* Decode the command line arguments to set the parameter variables
@@ -307,15 +305,14 @@ decode_command (argc, argv)
   /* Store default values into parameter variables. */
 
   tempdir = getenv ("TMPDIR");
-#ifdef VMS
   if (tempdir == NULL)
-    tempdir = "sys$scratch:";
-#else
+    tempdir = getenv ("TEMP");
   if (tempdir == NULL)
-    tempdir = "/tmp/";
+    tempdir = getenv ("TMP");
+  if (tempdir == NULL)
+    tempdir = DEFAULT_TMPDIR;
   else
     tempdir = concat (tempdir, "/", "");
-#endif
 
   keep_tempfiles = 0;
 
@@ -335,12 +332,13 @@ decode_command (argc, argv)
           if (strcmp (arg, "--version") == 0)
             {
               printf ("texindex (GNU %s) %s\n", PACKAGE, VERSION);
-	  printf (_("Copyright (C) %s Free Software Foundation, Inc.\n\
+              puts ("");
+              printf (_("Copyright (C) %s Free Software Foundation, Inc.\n\
 There is NO warranty.  You may redistribute this software\n\
 under the terms of the GNU General Public License.\n\
 For more information about these matters, see the files named COPYING.\n"),
-		  "1998");
-              exit (0);
+                  "1999");
+              xexit (0);
             }
           else if ((strcmp (arg, "--keep") == 0) ||
                    (strcmp (arg, "-k") == 0))
@@ -383,12 +381,12 @@ For more information about these matters, see the files named COPYING.\n"),
 
 /* Return a name for a temporary file. */
 
-char *
+static char *
 maketempname (count)
      int count;
 {
   char tempsuffix[10];
-  sprintf (tempsuffix, "%d", count);
+  sprintf (tempsuffix, ".%d", count);
   return concat (tempdir, tempbase, tempsuffix);
 }
 
@@ -404,36 +402,6 @@ flush_tempfiles (to_count)
     unlink (maketempname (++last_deleted_tempcount));
 }
 
-/* Copy the input file open on IDESC into a temporary file
-   and return the temporary file name. */
-
-#define BUFSIZE 1024
-
-char *
-tempcopy (idesc)
-     int idesc;
-{
-  char *outfile = maketempname (++tempcount);
-  int odesc;
-  char buffer[BUFSIZE];
-
-  odesc = open (outfile, O_WRONLY | O_CREAT, 0666);
-
-  if (odesc < 0)
-    pfatal_with_name (outfile);
-
-  while (1)
-    {
-      int nread = read (idesc, buffer, BUFSIZE);
-      write (odesc, buffer, nread);
-      if (!nread)
-        break;
-    }
-
-  close (odesc);
-
-  return outfile;
-}
 
 /* Compare LINE1 and LINE2 according to the specified set of keyfields. */
 
@@ -894,7 +862,7 @@ void
 sort_offline (infile, nfiles, total, outfile)
      char *infile;
      int nfiles;
-     long total;
+     off_t total;
      char *outfile;
 {
   /* More than enough. */
@@ -993,7 +961,7 @@ fail:
 void
 sort_in_core (infile, total, outfile)
      char *infile;
-     long total;
+     off_t total;
      char *outfile;
 {
   char **nextline;
@@ -1251,7 +1219,7 @@ indexify (line, ostream)
   pagenumber = find_braced_pos (line, 1, 0, 0);
   pagelength = find_braced_end (pagenumber) - pagenumber;
   if (pagelength == 0)
-    abort ();
+    fatal (_("No page number in %s"), line);
 
   primary = find_braced_pos (line, 2, 0, 0);
   primarylength = find_braced_end (primary) - primary;
@@ -1627,7 +1595,7 @@ fatal (format, arg)
      char *format, *arg;
 {
   error (format, arg);
-  exit (TI_FATAL_ERROR);
+  xexit (1);
 }
 
 /* Print error message.  FORMAT is printf control string, ARG is arg for it. */
@@ -1661,7 +1629,7 @@ pfatal_with_name (name)
   s = strerror (errno);
   printf ("%s: ", program_name);
   printf (_("%s; for file `%s'.\n"), s, name);
-  exit (TI_FATAL_ERROR);
+  xexit (1);
 }
 
 /* Return a newly-allocated string whose contents concatenate those of
@@ -1682,21 +1650,6 @@ concat (s1, s2, s3)
   return result;
 }
 
-#if !defined (HAVE_STRERROR)
-extern char *sys_errlist[];
-extern int sys_nerr;
-
-char *
-strerror (num)
-     int num;
-{
-  if (num >= sys_nerr)
-    return ("");
-  else
-    return (sys_errlist[num]);
-}
-#endif /* !HAVE_STRERROR */
-
 #if !defined (HAVE_STRCHR)
 char *
 strrchr (string, character)
@@ -1712,50 +1665,3 @@ strrchr (string, character)
   return ((char *)NULL);
 }
 #endif /* HAVE_STRCHR */
-
-void
-memory_error (callers_name, bytes_wanted)
-     char *callers_name;
-     int bytes_wanted;
-{
-  char printable_string[80];
-
-  sprintf (printable_string,
-           _("Virtual memory exhausted in %s ()!  Needed %d bytes."),
-           callers_name, bytes_wanted);
-
-  error (printable_string);
-  abort ();
-}
-
-/* Just like malloc, but kills the program in case of fatal error. */
-void *
-xmalloc (nbytes)
-     int nbytes;
-{
-  void *temp = (void *) malloc (nbytes);
-
-  if (nbytes && temp == (void *)NULL)
-    memory_error ("xmalloc", nbytes);
-
-  return (temp);
-}
-
-/* Like realloc (), but barfs if there isn't enough memory. */
-void *
-xrealloc (pointer, nbytes)
-     void *pointer;
-     int nbytes;
-{
-  void *temp;
-
-  if (!pointer)
-    temp = (void *)xmalloc (nbytes);
-  else
-    temp = (void *)realloc (pointer, nbytes);
-
-  if (nbytes && !temp)
-    memory_error ("xrealloc", nbytes);
-
-  return (temp);
-}

@@ -1,7 +1,7 @@
-/* m-x.c -- Meta-X minibuffer reader.
-   $Id: m-x.c,v 1.5 1997/07/24 21:28:00 karl Exp $
+/* m-x.c -- Meta-x minibuffer reader.
+   $Id: m-x.c,v 1.8 1999/06/25 21:57:40 karl Exp $
 
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ DECLARE_INFO_COMMAND (info_execute_command,
 DECLARE_INFO_COMMAND (set_screen_height,
   _("Set the height of the displayed window"))
 {
-  int new_height;
+  int new_height, old_height = screenheight;
 
   if (info_explicit_arg || count != 1)
     new_height = count;
@@ -185,6 +185,20 @@ DECLARE_INFO_COMMAND (set_screen_height,
   terminal_clear_screen ();
   display_clear_display (the_display);
   screenheight = new_height;
-  display_initialize_display (screenwidth, screenheight);
-  window_new_screen_size (screenwidth, screenheight);
+#ifdef SET_SCREEN_SIZE_HELPER
+  SET_SCREEN_SIZE_HELPER;
+#endif
+  if (screenheight == old_height)
+    {
+      /* Display dimensions didn't actually change, so
+	 window_new_screen_size won't do anything, but we've
+	 already cleared the display above.  Undo the damage.  */
+      window_mark_chain (windows, W_UpdateWindow);
+      display_update_display (windows);
+    }
+  else
+    {
+      display_initialize_display (screenwidth, screenheight);
+      window_new_screen_size (screenwidth, screenheight);
+    }
 }

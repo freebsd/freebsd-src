@@ -1,10 +1,7 @@
 /* nodes.h -- How we represent nodes internally.
-   $Id: nodes.h,v 1.5 1997/07/18 14:33:44 karl Exp $
+   $Id: nodes.h,v 1.8 1998/07/10 20:28:43 karl Exp $
 
-   This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,16 +19,12 @@
 
    Written by Brian Fox (bfox@ai.mit.edu). */
 
-#if !defined (NODES_H)
+#ifndef NODES_H
 #define NODES_H
 
 #include "info.h"
 
-/* **************************************************************** */
-/*                                                                  */
-/*                    User Code Interface                           */
-/*                                                                  */
-/* **************************************************************** */
+/* User code interface.  */
 
 /* Callers generally only want the node itself.  This structure is used
    to pass node information around.  None of the information in this
@@ -47,6 +40,7 @@ typedef struct {
   char *nodename;               /* The name of this node. */
   char *contents;               /* Characters appearing in this node. */
   long nodelen;                 /* The length of the CONTENTS member. */
+  unsigned long display_pos;    /* Where to display at, if nonzero.  */
   int flags;                    /* See immediately below. */
 } NODE;
 
@@ -57,18 +51,14 @@ typedef struct {
 #define N_IsCompressed 0x08     /* The file is compressed on disk. */
 #define N_IsInternal   0x10     /* This node was made by Info. */
 #define N_CannotGC     0x20     /* File buffer cannot be gc'ed. */
-#define N_IsManPage    0x40     /* This node is a Un*x manpage. */
+#define N_IsManPage    0x40     /* This node is a manpage. */
+#define N_FromAnchor   0x80     /* Synthesized for an anchor reference. */
 
-/* **************************************************************** */
-/*                                                                  */
-/*                     Internal Data Structures                     */
-/*                                                                  */
-/* **************************************************************** */
+/* Internal data structures.  */
 
-/* Some defines describing details about Info file contents. */
-
-/* String Constants. */
+/* String constants. */
 #define INFO_FILE_LABEL                 "File:"
+#define INFO_REF_LABEL                  "Ref:"
 #define INFO_NODE_LABEL                 "Node:"
 #define INFO_PREV_LABEL                 "Prev:"
 #define INFO_ALTPREV_LABEL              "Previous:"
@@ -82,7 +72,7 @@ typedef struct {
 #define INDIRECT_TAGS_TABLE_LABEL       "Indirect:\n"
 #define TAGS_TABLE_IS_INDIRECT_LABEL    "(Indirect)"
 
-/* Character Constants. */
+/* Character constants. */
 #define INFO_COOKIE '\037'
 #define INFO_FF     '\014'
 #define INFO_TAGSEP '\177'
@@ -119,12 +109,8 @@ typedef struct {
   int tags_slots;               /* Number of slots allocated for TAGS. */
   int flags;                    /* Various flags.  Mimics of N_* flags. */
 } FILE_BUFFER;
-
-/* **************************************************************** */
-/*                                                                  */
-/*                  Externally Visible Functions                    */
-/*                                                                  */
-/* **************************************************************** */
+
+/* Externally visible functions.  */
 
 /* Array of FILE_BUFFER * which represents the currently loaded info files. */
 extern FILE_BUFFER **info_loaded_files;
@@ -166,4 +152,4 @@ extern char *info_recent_file_error;
 /* Create a new, empty file buffer. */
 extern FILE_BUFFER *make_file_buffer ();
 
-#endif /* !NODES_H */
+#endif /* not NODES_H */

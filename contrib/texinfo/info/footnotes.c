@@ -1,7 +1,7 @@
 /* footnotes.c -- Some functions for manipulating footnotes.
-   $Id: footnotes.c,v 1.4 1997/07/24 21:23:33 karl Exp $
+   $Id: footnotes.c,v 1.9 1999/09/25 16:10:04 karl Exp $
 
-   Copyright (C) 1993, 97 Free Software Foundation, Inc.
+   Copyright (C) 1993, 97, 98, 99 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,7 +60,7 @@ make_footnotes_node (node)
 
   /* See if this node contains the magic footnote label. */
   fn_start =
-    info_search_in_node (FOOTNOTE_LABEL, node, 0, (WINDOW *)NULL, 1);
+    info_search_in_node (FOOTNOTE_LABEL, node, 0, (WINDOW *)NULL, 1, 0);
 
   /* If it doesn't, check to see if it has an associated footnotes node. */
   if (fn_start == -1)
@@ -73,16 +73,21 @@ make_footnotes_node (node)
         {
           register int i;
           char *refname;
+          int reflen = strlen ("-Footnotes") + strlen (node->nodename);
 
-          refname = (char *)xmalloc
-            (1 + strlen ("-Footnotes") + strlen (node->nodename));
+          refname = (char *)xmalloc (reflen + 1);
 
           strcpy (refname, node->nodename);
           strcat (refname, "-Footnotes");
 
           for (i = 0; refs[i]; i++)
             if ((refs[i]->nodename != (char *)NULL) &&
-                (strcmp (refs[i]->nodename, refname) == 0))
+                /* Support both the older "foo-Footnotes" and the new
+                   style "foo-Footnote-NN" references.  */
+                (strcmp (refs[i]->nodename, refname) == 0 ||
+                 (strncmp (refs[i]->nodename, refname, reflen - 1) == 0 &&
+                  refs[i]->nodename[reflen - 1] == '-' &&
+                  isdigit (refs[i]->nodename[reflen]))))
               {
                 char *filename;
 
@@ -110,6 +115,7 @@ make_footnotes_node (node)
   /* Make the new node. */
   result = (NODE *)xmalloc (sizeof (NODE));
   result->flags = 0;
+  result->display_pos = 0;
 
   /* Get the size of the footnotes appearing within this node. */
   {
@@ -250,11 +256,11 @@ DECLARE_INFO_COMMAND (info_show_footnotes,
       switch (result)
         {
         case FN_UNFOUND:
-          info_error (NO_FOOT_NODE);
+          info_error (msg_no_foot_node);
           break;
 
         case FN_UNABLE:
-          info_error (WIN_TOO_SMALL);
+          info_error (msg_win_too_small);
           break;
         }
     }

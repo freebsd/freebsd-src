@@ -1,9 +1,7 @@
-/* info-utils.c -- Useful functions for manipulating Info file quirks. */
+/* info-utils.c -- miscellanous.
+   $Id: info-utils.c,v 1.7 1998/08/10 18:07:47 karl Exp $
 
-/* This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993 Free Software Foundation, Inc.
+   Copyright (C) 1993, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,7 +27,7 @@
 
 /* When non-zero, various display and input functions handle ISO Latin
    character sets correctly. */
-int ISO_Latin_p = 0;
+int ISO_Latin_p = 1;
 
 /* Variable which holds the most recent filename parsed as a result of
    calling info_parse_xxx (). */
@@ -300,8 +298,8 @@ info_references_internal (label, binding)
   return (refs);
 }
 
-/* Get the entry associated with LABEL in MENU.  Return a pointer to the
-   REFERENCE if found, or NULL. */
+/* Get the entry associated with LABEL in REFERENCES.  Return a pointer
+   to the ENTRY if found, or NULL. */
 REFERENCE *
 info_get_labeled_reference (label, references)
      char *label;
@@ -444,19 +442,10 @@ printed_representation (character, hpos)
      int hpos;
 {
   register int i = 0;
-  int printable_limit;
-
-  if (ISO_Latin_p)
-    printable_limit = 160;
-  else
-    printable_limit = 127;
-
-  if (character == '\177')
-    {
-      the_rep[i++] = '^';
-      the_rep[i++] = '?';
-    }
-  else if (iscntrl (character))
+  int printable_limit = ISO_Latin_p ? 255 : 127;
+    
+  /* Show CTRL-x as ^X.  */
+  if (iscntrl (character) && character < 127)
     {
       switch (character)
         {
@@ -480,17 +469,23 @@ printed_representation (character, hpos)
           the_rep[i++] = (character | 0x40);
         }
     }
+  /* Show META-x as 0370.  */
   else if (character > printable_limit)
     {
       sprintf (the_rep + i, "\\%0o", character);
       i = strlen (the_rep);
     }
+  else if (character == DEL)
+    {
+      the_rep[i++] = '^';
+      the_rep[i++] = '?';
+    }
   else
     the_rep[i++] = character;
 
-  the_rep[i] = '\0';
+  the_rep[i] = 0;
 
-  return (the_rep);
+  return the_rep;
 }
 
 
@@ -604,14 +599,13 @@ char *
 filename_non_directory (pathname)
      char *pathname;
 {
-  char *filename;
+  register char *filename = pathname + strlen (pathname);
 
-  filename = (char *) strrchr (pathname, '/');
+  if (HAVE_DRIVE (pathname))
+    pathname += 2;
 
-  if (filename)
-    filename++;
-  else
-    filename = pathname;
+  while (filename > pathname && !IS_SLASH (filename[-1]))
+    filename--;
 
   return (filename);
 }
@@ -659,6 +653,20 @@ get_internal_info_window (name)
   for (win = windows; win; win = win->next)
     if (internal_info_node_p (win->node) &&
         (strcmp (win->node->nodename, name) == 0))
+      break;
+
+  return (win);
+}
+
+/* Return a window displaying the node NODE. */
+WINDOW *
+get_window_of_node (node)
+     NODE *node;
+{
+  WINDOW *win = (WINDOW *)NULL;
+
+  for (win = windows; win; win = win->next)
+    if (win->node == node)
       break;
 
   return (win);

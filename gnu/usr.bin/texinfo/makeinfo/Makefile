@@ -1,16 +1,12 @@
 # $FreeBSD$
 
 PROG=	makeinfo
-NOMAN=	yes
-SRCS=	makeinfo.c multi.c
+SRCS=	cmds.c defun.c files.c footnote.c html.c index.c insertion.c lang.c \
+	macro.c makeinfo.c multi.c node.c sectioning.c toc.c
 
-CFLAGS+= -DHAVE_CONFIG_H
-CFLAGS+= -DLOCALEDIR=\"/usr/share/locale\"
-CFLAGS+= -I${TXIDIR}/makeinfo -I${TXIDIR} -I${TXIDIR}/lib -I../libintl
-
-DPADD=	${LIBTXI} ${LIBINTL}
-LDADD=	${LIBTXI} ${LIBINTL}
+DPADD+=	${LIBTXI}
+LDADD+=	${LIBTXI}
 
 .include <bsd.prog.mk>
 
-.PATH: $(TXIDIR)/makeinfo
+.PATH:	$(TXIDIR)/makeinfo $(TXIDIR)/doc
