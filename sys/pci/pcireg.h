@@ -74,6 +74,8 @@
 #define PCIR_CARDBUSCIS	0x28
 #define PCIR_SUBVEND_0	0x2c
 #define PCIR_SUBDEV_0	0x2e
+#define PCIR_BIOS	0x30
+#define PCIM_BIOS_ENABLE	0x01
 #define PCIR_INTLINE	0x3c
 #define PCIR_INTPIN	0x3d
 #define PCIR_MINGNT	0x3e
