@@ -216,7 +216,6 @@ vfs_add_vnodeops(const void *data)
 	const struct vnodeopv_desc **newopv;
 	struct vnodeop_desc **newop;
 	int *newref;
-	vop_t **opv_desc_vector;
 	struct vnodeop_desc *desc;
 	int i, j;
 
@@ -232,7 +231,6 @@ vfs_add_vnodeops(const void *data)
 	vnodeopv_num++;
 
 	/* See if we have turned up a new vnode op desc */
-	opv_desc_vector = *(opv->opv_desc_vector_p);
 	for (i = 0; (desc = opv->opv_desc_ops[i].opve_op); i++) {
 		for (j = 0; j < num_op_descs; j++) {
 			if (desc == vfs_op_descs[j]) {
