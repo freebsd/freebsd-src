@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.30 1999/04/17 14:41:40 peter Exp $";
+	"$Id: main.c,v 1.31 1999/04/18 13:36:29 peter Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -131,7 +131,7 @@ main(argc, argv)
 
 		fprintf(stderr, "Removing old directory %s:  ", p);
 		fflush(stderr);
-		sprintf(tmp, "rm -rf %s", p);
+		snprintf(tmp, sizeof(tmp), "rm -rf %s", p);
 		if (system(tmp)) {
 			fprintf(stderr, "Failed!\n");
 			err(2, "%s", tmp);

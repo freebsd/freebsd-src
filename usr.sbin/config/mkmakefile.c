@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkmakefile.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mkmakefile.c,v 1.39 1999/04/18 13:36:29 peter Exp $";
+	"$Id: mkmakefile.c,v 1.40 1999/04/19 13:53:07 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -569,7 +569,7 @@ do_objs(fp)
 		for (fl = conf_list; fl; fl = fl->f_next) {
 			if (fl->f_type != SWAPSPEC)
 				continue;
-			(void) sprintf(swapname, "swap%s.c", fl->f_fn);
+			(void) snprintf(swapname, sizeof(swapname), "swap%s.c", fl->f_fn);
 			if (eq(sp, swapname))
 				goto cont;
 		}
@@ -618,7 +618,7 @@ do_cfiles(fp)
 		}
 	for (fl = conf_list; fl; fl = fl->f_next)
 		if (fl->f_type == SYSTEMSPEC) {
-			(void) sprintf(swapname, "swap%s.c", fl->f_fn);
+			(void) snprintf(swapname, sizeof(swapname), "swap%s.c", fl->f_fn);
 			if ((len = 3 + strlen(swapname)) + lpos > 72) {
 				lpos = 8;
 				fputs("\\\n\t", fp);
@@ -763,7 +763,7 @@ do_rules(f)
 				printf("config: don't know rules for %s\n", np);
 				break;
 			}
-			(void)sprintf(cmd, "${%s_%c%s}", ftype, toupper(och),
+			(void)snprintf(cmd, sizeof(cmd), "${%s_%c%s}", ftype, toupper(och),
 				      ftp->f_flags & CONFIGDEP? "_C" : "");
 			special = cmd;
 		}
