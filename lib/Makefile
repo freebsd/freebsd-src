@@ -17,6 +17,8 @@ SUBDIR+=	libc libcompat libcom_err libcrypt libcurses libedit \
 
 .if !exists(../secure) || defined(NOSECURE)
 SUBDIR+= libtelnet
+.else
+SUBDIR+= ../secure/lib/libtelnet
 .endif
 
 .if defined(WANT_CSRG_LIBM)
