@@ -761,9 +761,9 @@ void       ficlCompileSoftCore(FICL_VM *pVM);
 void       constantParen(FICL_VM *pVM);
 void       twoConstParen(FICL_VM *pVM);
 
-#ifdef __i386__
-extern void pc_fetch(FICL_VM *pVM);
-extern void pc_store(FICL_VM *pVM);
+#if defined(__i386__) && !defined(TESTMAIN)
+extern void ficlOutb(FICL_VM *pVM);
+extern void ficlInb(FICL_VM *pVM);
 #endif
 
 #ifdef __cplusplus
