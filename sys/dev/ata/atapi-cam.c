@@ -346,8 +346,8 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	struct ccb_trans_settings *cts = &ccb->cts;
 
 	/*
-	 * XXX The default CAM transport code is very scsi specific and
-	 * doesn't understand IDE speeds very well.  Be silent about it
+	 * XXX The default CAM transport code is very SCSI-specific and
+	 * doesn't understand IDE speeds very well. Be silent about it
 	 * here and let it default to what is set in XPT_PATH_INQ
 	 */
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("GET_TRAN_SETTINGS\n"));
@@ -561,6 +561,11 @@ atapi_cb(struct ata_request *request)
 #endif
     if (hcb_status != 0) {
 	csio->scsi_status = SCSI_STATUS_CHECK_COND;
+#if 0
+	/*
+         * XXX Temporarily disable autosense, as this seems to cause
+	 * a missed ATA interrupt.
+	 */
 	if ((csio->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0) {
 	    int8_t ccb[16] = { ATAPI_REQUEST_SENSE, 0, 0, 0,
 		sizeof(struct atapi_sense), 0, 0, 0, 0, 0, 0,
@@ -572,6 +577,7 @@ atapi_cb(struct ata_request *request)
 		csio->ccb_h.status |= CAM_AUTOSNS_VALID;
 	    }
 	}
+#endif
 	free_hcb_and_ccb_done(hcb, CAM_SCSI_STATUS_ERROR);
     }
     else {
