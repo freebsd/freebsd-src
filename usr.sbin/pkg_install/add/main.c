@@ -1,6 +1,6 @@
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.21 1999/01/25 21:08:13 billf Exp $";
+	"$Id: main.c,v 1.22 1999/01/26 22:31:23 billf Exp $";
 #endif
 
 /*
@@ -198,7 +198,7 @@ getpackagesite(char binform[1024])
 	return !strcmp(binform, "elf") ? "i386/packages-3-stable/Latest/" :
 		"i386/packages-3.0-aout/Latest/";
 
-    return(0);
+    return("");
 
 }
 
