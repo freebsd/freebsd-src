@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: revnetgroup.c,v 1.2 1996/05/12 17:17:45 wpaul Exp $
+ *	$Id: revnetgroup.c,v 1.3 1996/08/04 19:17:15 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -46,10 +46,8 @@
 #include "hash.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: revnetgroup.c,v 1.2 1996/05/12 17:17:45 wpaul Exp $";
+static const char rcsid[] = "$Id: revnetgroup.c,v 1.4 1996/12/13 02:40:39 wpaul Exp $";
 #endif
-
-#define LINSIZ 1024
 
 /* Default location of netgroup file. */
 char *netgroup = "/etc/netgroup";
@@ -63,10 +61,6 @@ struct group_entry *gtable[TABLESIZE];
  */
 struct member_entry *mtable[TABLESIZE];
 
-extern void store __P(( struct group_entry ** , char *, char * ));
-extern void mstore __P(( struct member_entry ** , char *, char *, char * ));
-extern char *lookup __P(( struct group_entry **, char * ));
-
 void usage(prog)
 char *prog;
 {
@@ -76,6 +70,7 @@ char *prog;
 
 extern char *optarg;
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -132,6 +127,12 @@ main(argc, argv)
 	while (fgets(readbuf, LINSIZ, fp)) {
 		if (readbuf[0] == '#')
 			continue;
+		/* handle backslash line continuations */
+		while(readbuf[strlen(readbuf) - 2] == '\\') {
+			fgets((char *)&readbuf[strlen(readbuf) - 2],
+					sizeof(readbuf) - strlen(readbuf), fp);
+		}
+		data = NULL;
 		if ((data = (char *)(strpbrk(readbuf, " \t") + 1)) < (char *)2)
 			continue;
 		key = (char *)&readbuf;
