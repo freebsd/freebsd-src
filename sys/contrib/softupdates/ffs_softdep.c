@@ -52,7 +52,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)ffs_softdep.c	9.44 (McKusick) 1/9/00
+ *	from: @(#)ffs_softdep.c	9.45 (McKusick) 1/9/00
  * $FreeBSD$
  */
 
@@ -537,7 +537,7 @@ softdep_process_worklist(matchmnt)
 	struct proc *p = CURPROC;
 	struct worklist *wk;
 	struct fs *matchfs;
-	int matchcnt;
+	int matchcnt, loopcount;
 
 	/*
 	 * Record the process identifier of our caller so that we can give
@@ -570,6 +570,7 @@ softdep_process_worklist(matchmnt)
 		wakeup(&proc_waiting);
 	}
 	ACQUIRE_LOCK(&lk);
+	loopcount = 1;
 	while ((wk = LIST_FIRST(&softdep_workitem_pending)) != 0) {
 		WORKLIST_REMOVE(wk);
 		FREE_LOCK(&lk);
@@ -623,6 +624,12 @@ softdep_process_worklist(matchmnt)
 			req_clear_remove = 0;
 			wakeup(&proc_waiting);
 		}
+		/*
+		 * We do not generally want to stop for buffer space, but if
+		 * we are really being a buffer hog, we will stop and wait.
+		 */
+		if (loopcount++ % 128 == 0)
+			bwillwrite();
 		ACQUIRE_LOCK(&lk);
 	}
 	FREE_LOCK(&lk);
@@ -1570,7 +1577,6 @@ setup_allocindir_phase2(bp, ip, aip)
  * later release and zero the inode so that the calling routine
  * can release it.
  */
-static long num_freeblks;	/* number of freeblks allocated */
 void
 softdep_setup_freeblocks(ip, length)
 	struct inode *ip;	/* The inode whose length is to be reduced */
@@ -1587,12 +1593,6 @@ softdep_setup_freeblocks(ip, length)
 	fs = ip->i_fs;
 	if (length != 0)
 		panic("softde_setup_freeblocks: non-zero length");
-	/*
-	 * If we are over our limit, try to improve the situation.
-	 */
-	if (num_freeblks > max_softdeps / 2 && speedup_syncer() == 0)
-		(void) request_cleanup(FLUSH_REMOVE, 0);
-	num_freeblks += 1;
 	MALLOC(freeblks, struct freeblks *, sizeof(struct freeblks),
 		M_FREEBLKS, M_WAITOK);
 	bzero(freeblks, sizeof(struct freeblks));
@@ -1813,7 +1813,6 @@ free_allocdirect(adphead, adp, delay)
  * Prepare an inode to be freed. The actual free operation is not
  * done until the zero'ed inode has been written to disk.
  */
-static long num_freefile;	/* number of freefile allocated */
 void
 softdep_freefile(pvp, ino, mode)
 		struct vnode *pvp;
@@ -1825,14 +1824,8 @@ softdep_freefile(pvp, ino, mode)
 	struct freefile *freefile;
 
 	/*
-	 * If we are over our limit, try to improve the situation.
-	 */
-	if (num_freefile > max_softdeps / 2 && speedup_syncer() == 0)
-		(void) request_cleanup(FLUSH_REMOVE, 0);
-	/*
 	 * This sets up the inode de-allocation dependency.
 	 */
-	num_freefile += 1;
 	MALLOC(freefile, struct freefile *, sizeof(struct freefile),
 		M_FREEFILE, M_WAITOK);
 	freefile->fx_list.wk_type = D_FREEFILE;
@@ -1968,7 +1961,6 @@ handle_workitem_freeblocks(freeblks)
 		softdep_error("handle_workitem_freeblks", allerror);
 #endif /* DIAGNOSTIC */
 	WORKITEM_FREE(freeblks, D_FREEBLKS);
-	num_freeblks -= 1;
 }
 
 /*
@@ -2337,6 +2329,7 @@ softdep_setup_remove(bp, dp, ip, isrmdir)
  * Allocate a new dirrem if appropriate and return it along with
  * its associated pagedep. Called without a lock, returns with lock.
  */
+static long num_dirrem;		/* number of dirrem allocated */
 static struct dirrem *
 newdirrem(bp, dp, ip, isrmdir)
 	struct buf *bp;		/* buffer containing directory block */
@@ -2355,6 +2348,14 @@ newdirrem(bp, dp, ip, isrmdir)
 	 */
 	if (ip == NULL)
 		panic("newdirrem: whiteout");
+	/*
+	 * If we are over our limit, try to improve the situation.
+	 * Limiting the number of dirrem structures will also limit
+	 * the number of freefile and freeblks structures.
+	 */
+	if (num_dirrem > max_softdeps / 2 && speedup_syncer() == 0)
+		(void) request_cleanup(FLUSH_REMOVE, 0);
+	num_dirrem += 1;
 	MALLOC(dirrem, struct dirrem *, sizeof(struct dirrem),
 		M_DIRREM, M_WAITOK);
 	bzero(dirrem, sizeof(struct dirrem));
@@ -2558,6 +2559,7 @@ handle_workitem_remove(dirrem)
 			panic("handle_workitem_remove: bad file delta");
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);
+		num_dirrem -= 1;
 		WORKITEM_FREE(dirrem, D_DIRREM);
 		return;
 	}
@@ -2581,6 +2583,7 @@ handle_workitem_remove(dirrem)
 	 */
 	if (dirrem->dm_state & DIRCHG) {
 		vput(vp);
+		num_dirrem -= 1;
 		WORKITEM_FREE(dirrem, D_DIRREM);
 		return;
 	}
@@ -2630,7 +2633,6 @@ handle_workitem_freefile(freefile)
 	if ((error = ffs_freefile(&vp, freefile->fx_oldinum, freefile->fx_mode)) != 0)
 		softdep_error("handle_workitem_freefile", error);
 	WORKITEM_FREE(freefile, D_FREEFILE);
-	num_freefile -= 1;
 }
 
 /*
@@ -4290,8 +4292,8 @@ pause_timer(arg)
 }
 
 /*
- * Flush out a directory with at least one removal dependency in an effort
- * to reduce the number of freefile and freeblks dependency structures.
+ * Flush out a directory with at least one removal dependency in an effort to
+ * reduce the number of dirrem, freefile, and freeblks dependency structures.
  */
 static void
 clear_remove(p)
