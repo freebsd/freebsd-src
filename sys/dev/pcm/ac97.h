@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $FreeBSD$
  */
 
 typedef u_int32_t (ac97_read)(void *devinfo, int regno);
