@@ -841,6 +841,7 @@ getnewvnode(tag, mp, vops, vpp)
 	delmntque(vp);
 	if (mp != NULL)
 		insmntque(vp, mp);
+	vp->v_bsize = mp->mnt_stat.f_iosize;
 
 	return (0);
 }

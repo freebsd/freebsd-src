@@ -2570,6 +2570,11 @@ loop:
 		else
 			bsize = size;
 
+		if (vp->v_bsize != bsize) {
+			printf("WARNING: Wrong block size on vnode: %d should be %d\n", vp->v_bsize, bsize);
+			vprint("Please email phk@FreeBSD.org this info\n", vp);
+		}
+
 		offset = blkno * bsize;
 		vmio = (VOP_GETVOBJECT(vp, NULL) == 0) &&
 		    (vp->v_vflag & VV_OBJBUF);
