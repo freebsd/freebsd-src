@@ -763,15 +763,15 @@ static void
 doforkst(void)
 {
 	fill_vmmeter(&sum);
-	(void)printf("%d forks, %d pages, average %.2f\n",
+	(void)printf("%u forks, %u pages, average %.2f\n",
 	    sum.v_forks, sum.v_forkpages,
 	    sum.v_forks == 0 ? 0.0 :
 	    (double)sum.v_forkpages / sum.v_forks);
-	(void)printf("%d vforks, %d pages, average %.2f\n",
+	(void)printf("%u vforks, %u pages, average %.2f\n",
 	    sum.v_vforks, sum.v_vforkpages,
 	    sum.v_vforks == 0 ? 0.0 :
 	    (double)sum.v_vforkpages / sum.v_vforks);
-	(void)printf("%d rforks, %d pages, average %.2f\n",
+	(void)printf("%u rforks, %u pages, average %.2f\n",
 	    sum.v_rforks, sum.v_rforkpages,
 	    sum.v_rforks == 0 ? 0.0 :
 	    (double)sum.v_rforkpages / sum.v_rforks);
