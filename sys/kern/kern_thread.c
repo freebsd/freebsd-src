@@ -870,6 +870,8 @@ thread_single(int force_exit)
 			td2->td_flags |= TDF_ASTPENDING;
 			if (TD_IS_INHIBITED(td2)) {
 				if (force_exit == SINGLE_EXIT) {
+					if (td->td_flags & TDF_DBSUSPEND)
+						td->td_flags &= ~TDF_DBSUSPEND;
 					if (TD_IS_SUSPENDED(td2)) {
 						thread_unsuspend_one(td2);
 					}
@@ -969,7 +971,8 @@ thread_suspend_check(int return_instead)
 	p = td->td_proc;
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	while (P_SHOULDSTOP(p)) {
+	while (P_SHOULDSTOP(p) ||
+	      ((p->p_flag & P_TRACED) && (td->td_flags & TDF_DBSUSPEND))) {
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			KASSERT(p->p_singlethread != NULL,
 			    ("singlethread not set"));

@@ -303,7 +303,7 @@ struct thread {
 	volatile u_int	td_generation;	/* (k) Enable detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
 	int		td_kflags;	/* (c) Flags for KSE threading. */
-
+	int		td_xsig;	/* (c) Signal for ptrace */
 #define	td_endzero td_base_pri
 
 /* Copied during fork1() or thread_sched_upcall(). */
@@ -354,8 +354,10 @@ struct thread {
 #define	TDF_OWEUPC	0x008000 /* Owe thread an addupc() call at next AST. */
 #define	TDF_NEEDRESCHED	0x010000 /* Thread needs to yield. */
 #define	TDF_NEEDSIGCHK	0x020000 /* Thread may need signal delivery. */
+#define	TDF_XSIG	0x040000 /* Thread is exchanging signal under traced */ 
 #define	TDF_UMTXWAKEUP	0x080000 /* Libthr thread must not sleep on a umtx. */
 #define	TDF_THRWAKEUP	0x100000 /* Libthr thread must not suspend itself. */
+#define	TDF_DBSUSPEND	0x200000 /* Thread is suspended by debugger */
 
 /* "Private" flags kept in td_pflags: */
 #define	TDP_OLDMASK	0x0001 /* Need to restore mask after suspend. */
@@ -586,6 +588,7 @@ struct proc {
 	void		*p_aioinfo;	/* (?) ASYNC I/O info. */
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (c) # threads in suspended mode */
+	struct thread	*p_xthread;	/* (c) Trap thread */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -602,7 +605,6 @@ struct proc {
 #define	p_endcopy	p_xstat
 
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
-	lwpid_t		p_xlwpid;	/* (c) Thread corresponding p_xstat. */
 	int		p_numthreads;	/* (j) Number of threads. */
 	int		p_numksegrps;	/* (?) number of ksegrps */
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
@@ -937,6 +939,7 @@ void	upcall_stash(struct kse_upcall *ke);
 void	thread_sanity_check(struct thread *td, char *);
 void	thread_stopped(struct proc *p);
 void	thread_switchout(struct thread *td);
+void	thread_continued(struct proc *p);
 void	thr_exit1(void);
 #endif	/* _KERNEL */
 
