@@ -1,12 +1,16 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 #ifdef	__FreeBSD__
-# include <osreldate.h>
+# ifndef __FreeBSD_cc_version
+#  include <osreldate.h>
+# else
+#  if __FreeBSD_cc_version < 430000
+#   include <osreldate.h>
+#  endif
+# endif
 #endif
 #include <stdio.h>
 #include <unistd.h>
@@ -43,7 +47,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipf.c	1.23 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.5 2000/10/25 10:37:11 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipf.c,v 2.10.2.10 2001/07/18 11:34:19 darrenr Exp $";
 #endif
 
 #if	SOLARIS
@@ -74,13 +78,19 @@ static	void	closedevice __P((void));
 static	char	*getline __P((char *, size_t, FILE *, int *));
 static	char	*ipfname = IPL_NAME;
 static	void	usage __P((void));
-static	void	showversion __P((void));
+static	int	showversion __P((void));
 static	int	get_flags __P((void));
 
 
+#if SOLARIS
+# define	OPTS	"6AdDEf:F:Il:noPrsUvVyzZ"
+#else
+# define	OPTS	"6AdDEf:F:Il:noPrsvVyzZ"
+#endif
+
 static void usage()
 {
-	fprintf(stderr, "usage: ipf [-6AdDEInoPrsUvVyzZ] %s %s %s\n",
+	fprintf(stderr, "usage: ipf [-%s] %s %s %s\n", OPTS,
 		"[-l block|pass|nomatch]", "[-F i|o|a|s|S]", "[-f filename]");
 	exit(1);
 }
@@ -92,11 +102,9 @@ char *argv[];
 {
 	int c;
 
-	while ((c = getopt(argc, argv, "6AdDEf:F:Il:noPrsUvVyzZ")) != -1) {
+	while ((c = getopt(argc, argv, OPTS)) != -1) {
 		switch (c)
 		{
-		case '?' :
-			usage();
 #ifdef	USE_INET6
 		case '6' :
 			use_inet6 = 1;
@@ -146,10 +154,11 @@ char *argv[];
 			break;
 #endif
 		case 'v' :
-			opts |= OPT_VERBOSE;
+			opts += OPT_VERBOSE;
 			break;
 		case 'V' :
-			showversion();
+			if (showversion())
+				exit(1);
 			break;
 		case 'y' :
 			frsync();
@@ -159,6 +168,9 @@ char *argv[];
 			break;
 		case 'Z' :
 			zerostats();
+			break;
+		default :
+			usage();
 			break;
 		}
 	}
@@ -553,7 +565,7 @@ static void blockunknown()
 #endif
 
 
-static void showversion()
+static int showversion()
 {
 	struct friostat fio;
 	struct friostat *fiop=&fio;
@@ -565,13 +577,13 @@ static void showversion()
 
 	if ((vfd = open(ipfname, O_RDONLY)) == -1) {
 		perror("open device");
-		return;
+		return 1;
 	}
 
 	if (ioctl(vfd, SIOCGETFS, &fiop)) {
 		perror("ioctl(SIOCGETFS)");
 		close(vfd);
-		return;
+		return 1;
 	}
 	close(vfd);
 	flags = get_flags();
@@ -610,4 +622,6 @@ static void showversion()
 		s = "nomatch -> block";
 	printf("%s all, Logging: %savailable\n", s, fio.f_logging ? "" : "un");
 	printf("Active list: %d\n", fio.f_active);
+
+	return 0;
 }

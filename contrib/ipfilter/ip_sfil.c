@@ -1,15 +1,13 @@
 /*
- * Copyright (C) 1993-2000 by Darren Reed.
+ * Copyright (C) 1993-2001 by Darren Reed.
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  *
  * I hate legaleese, don't you ?
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.9 2000/11/12 11:55:17 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_sfil.c,v 2.23.2.12 2001/07/18 14:57:09 darrenr Exp $";
 #endif
 
 #include <sys/types.h>
@@ -197,7 +195,7 @@ int *rp;
 		return error;
 	}
 	if (unit == IPL_LOGAUTH) {
-		error = fr_auth_ioctl((caddr_t)data, cmd, NULL, NULL);
+		error = fr_auth_ioctl((caddr_t)data, mode, cmd, NULL, NULL);
 		RWLOCK_EXIT(&ipf_solaris);
 		return error;
 	}
@@ -458,6 +456,7 @@ caddr_t data;
 	}
 
 	fdp = &fp->fr_dif;
+	fdp->fd_mp = NULL;
 	fp->fr_flags &= ~FR_DUP;
 	if (*fdp->fd_ifname) {
 		ill = get_unit(fdp->fd_ifname, (int)fp->fr_v);
@@ -491,6 +490,7 @@ caddr_t data;
 	}
 
 	fdp = &fp->fr_tif;
+	fdp->fd_mp = NULL;
 	if (*fdp->fd_ifname) {
 		ill = get_unit(fdp->fd_ifname, (int)fp->fr_v);
 		if (!ill)
@@ -577,10 +577,6 @@ caddr_t data;
 			}
 			if (fg && fg->fg_head)
 				fg->fg_head->fr_ref--;
-			if (unit == IPL_LOGAUTH) {
-				error = fr_auth_ioctl(data, req, fp, ftail);
-				goto out;
-			}
 			if (f->fr_grhead)
 				fr_delgroup(f->fr_grhead, fp->fr_flags,
 					    unit, set);
@@ -594,10 +590,6 @@ caddr_t data;
 		if (f) {
 			error = EEXIST;
 		} else {
-			if (unit == IPL_LOGAUTH) {
-				error = fr_auth_ioctl(data, req, fp, ftail);
-				goto out;
-			}
 			KMALLOC(f, frentry_t *);
 			if (f != NULL) {
 				if (fg && fg->fg_head)

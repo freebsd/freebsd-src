@@ -1,9 +1,7 @@
 /*
  * (C)opyright 1992-1998 Darren Reed. (from tcplog)
  *
- * Redistribution and use in source and binary forms are permitted
- * provided that this notice is preserved and due credit is given
- * to the original author and the contributors.
+ * See the IPFILTER.LICENCE file for details on licencing.
  */
 
 #include <stdio.h>
@@ -40,7 +38,7 @@
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)snit.c	1.5 1/11/96 (C)1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: snit.c,v 2.1 1999/08/04 17:31:15 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: snit.c,v 2.1.4.1 2001/06/26 10:43:22 darrenr Exp $";
 #endif
 
 #define	CHUNKSIZE	8192
