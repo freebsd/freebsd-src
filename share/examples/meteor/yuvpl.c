@@ -84,9 +84,9 @@ main()
 		exit(1);
 	}
 
-        yuv_data = (uint8 *)mmap((caddr_t)0,SIZE,PROT_READ,0, i, (off_t)0);
+        yuv_data = (uint8 *)mmap((caddr_t)0,SIZE,PROT_READ,MAP_SHARED, i, (off_t)0);
 
-	if (yuv_data == (uint8 *) -1) return (0);
+	if (yuv_data == (uint8 *) MAP_FAILED) return (0);
 
 	temp = ROWS * COLS;
 	ue = yuv_data + temp;

@@ -173,7 +173,7 @@ s_stab(fn, fd, ep)
 
 	/* Map the file. */
 	if ((ep = (EXEC *)mmap(NULL, (size_t)sb.st_size,
-	    PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)0)) == (EXEC *)-1) {
+	    PROT_READ | PROT_WRITE, MAP_SHARED, fd, (off_t)0)) == (EXEC *)MAP_FAILED) {
 		err(0, "%s: %s", fn, strerror(errno));
 		return;
 	}

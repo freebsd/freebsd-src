@@ -513,11 +513,11 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (tsize <= 8 * 1024 * 1024) {
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
-			p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
-			if ((long)p == -1)
+			p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+			if (p == (char *)MAP_FAILED)
 				goto out;
-			q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
-			if ((long)q == -1) {
+			q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
+			if (q == (char *)MAP_FAILED) {
 				munmap(p, tsize);
 				goto out;
 			}
@@ -581,7 +581,7 @@ copy(from_fd, from_name, to_fd, to_name, size)
 	done_copy = 0;
 	if (size <= 8 * 1048576 && trymmap(from_fd)) {
 		if ((p = mmap(NULL, (size_t)size, PROT_READ,
-				0, from_fd, (off_t)0)) == (char *)-1)
+				MAP_SHARED, from_fd, (off_t)0)) == (char *)MAP_FAILED)
 			goto out;
 		if ((nw = write(to_fd, p, size)) != size) {
 			serrno = errno;

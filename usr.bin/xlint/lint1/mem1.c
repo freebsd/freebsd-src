@@ -180,7 +180,7 @@ xnewblk()
 	prot = PROT_READ | PROT_WRITE;
 	flags = MAP_ANON | MAP_PRIVATE;
 	mb->blk = mmap(NULL, mblklen, prot, flags, -1, (off_t)0);
-	if (mb->blk == (void *)-1)
+	if (mb->blk == (void *)MAP_FAILED)
 		err(1, "can't map memory");
 	if (ALIGN((u_long)mb->blk) != (u_long)mb->blk)
 		errx(1, "mapped address is not aligned");

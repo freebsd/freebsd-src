@@ -143,7 +143,7 @@ main(argc, argv)
 	if (sb.st_size > SIZE_T_MAX)
 		err("%s: %s", file, strerror(EFBIG));
 	if ((front = mmap(NULL,
-	    (size_t)sb.st_size, PROT_READ, 0, fd, (off_t)0)) == NULL)
+	    (size_t)sb.st_size, PROT_READ, MAP_SHARED, fd, (off_t)0)) == MAP_FAILED)
 		err("%s: %s", file, strerror(errno));
 	back = front + sb.st_size;
 	exit(look(string, front, back));
