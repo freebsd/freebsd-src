@@ -1299,6 +1299,57 @@ suser_xxx(cred, proc, flag)
 	return (0);
 }
 
+
+/*
+ * Test securelevel values against passed required securelevel.
+ * _gt implements (level > securelevel), _ge implements (level <=
+ * securelevel).  Returns 0 or EPERM.
+ *
+ * cr is permitted to be NULL for the time being, as there were some
+ * existing securelevel checks that occurred without a process/credential
+ * context.  In the future this will be disallowed, so a kernel
+ * message is displayed.
+ *
+ * XXX: The redundant construction below is to facilitate the merging
+ * of support for per-jail securelevels, which maintain a local
+ * jail securelevel in the process credential.
+ */
+int
+securelevel_gt(struct ucred *cr, int level)
+{
+
+	if (cr == NULL) {
+		printf("securelevel_gt: cr is NULL\n");
+		if (securelevel > level)
+			return (0);
+		else
+			return (EPERM);
+	} else {
+		if (securelevel > level)
+			return (0);
+		else
+			return (EPERM);
+	}
+}
+
+int
+securelevel_ge(struct ucred *cr, int level)
+{
+
+	if (cr == NULL) {
+		printf("securelevel_ge: cr is NULL\n");
+		if (securelevel >= level)
+			return (0);
+		else
+			return (EPERM);
+	} else {
+		if (securelevel >= level)
+			return (0);
+		else
+			return (EPERM);
+	}
+}
+
 /*-
  * Determine if u1 "can see" the subject specified by u2.
  * Returns: 0 for permitted, an errno value otherwise
@@ -1491,9 +1542,12 @@ p_candebug(struct proc *p1, struct proc *p2)
 			return (error);
 	}
 
-	/* Can't trace init when securelevel > 0. */
-	if (securelevel > 0 && p2->p_pid == 1)
-		return (EPERM);
+	/* can't trace init when securelevel > 0 */
+	if (p2->p_pid == 1) {
+		error = securelevel_gt(p1->p_ucred, 0);
+		if (error)
+			return (error);
+	}
 
 	return (0);
 }
