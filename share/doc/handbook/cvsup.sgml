@@ -1,0 +1,392 @@
+<!-- $Id: cvsup.sgml,v 1.1 1996/12/19 20:23:05 jkh Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>CVSup<label id="cvsup"></heading>
+
+<p><em>Contributed by &a.jdp;</em>.
+
+<sect1><heading>Introduction<label id="cvsup:intro"></heading>
+
+<p>CVSup is a software package for distributing and updating source
+trees from a master CVS repository on a remote server host.  The
+FreeBSD sources are maintained in a CVS repository on a central
+development machine in California.  With CVSup, FreeBSD users can
+easily keep their own source trees up to date.
+
+<p>CVSup uses the so-called "pull" model of updating.  Under the pull
+model, each client asks the server for updates, if and when they are
+wanted.  The server waits passively for update requests from its
+clients.  Thus all updates are instigated by the client.  The server
+never sends unsolicited updates.  Users must either run the CVSup client
+manually to get an update, or they must set up a cron job to run it
+automatically on a regular basis.
+
+<p>The term "CVSup", capitalized just so, refers to the entire software
+package.  Its main components are the client "cvsup" which runs on each
+user's machine, and the server "cvsupd" which runs at each of the
+FreeBSD mirror sites.
+
+<p>As you read the FreeBSD documentation and mailing lists, you may
+see references to <ref id="sup">.  Sup was the predecessor to CVSup,
+and it served a similar purpose.  CVSup is in used in much the same
+way as sup and, in fact, uses configuration files which are
+backward-compatible with sup's.  Sup is no longer used in the FreeBSD
+project, however, because CVSup is both faster and more flexible.
+
+<sect1><heading>Installation<label id="cvsup:install"></heading>
+
+<p>The easiest way to install CVSup if you are running FreeBSD 2.2 or
+later is to use either <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/ports/net/cvsup/"
+name="the port"> from the FreeBSD <ref id="ports" name="ports
+collection"> or the corresponding <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-2.2/net/cvsup-14.0.tgz"
+name="binary package">, depending on whether you prefer to roll your
+own or not.
+
+<p>If you are running FreeBSD-2.1.6, you unfortunately cannot use the
+binary package versions due to the fact that it requires a version of
+the C library that did not yet exist in FreeBSD-2.1.6.  You can easily
+use <url url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/net/cvsup/"
+name="the port">, however, just as with FreeBSD 2.2.  Simply unpack
+the tar file, cd to the cvsup subdirectory and type "make install"
+
+<p>Because CVSup is written in <url
+url="http://www.research.digital.com/SRC/modula-3/html/home.html"
+name="Modula-3">, both the package and the port require that the
+Modula-3 runtime libraries be installed.  These are available as the
+<url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/lang/modula-3-lib"
+name="lang/modula-3-lib"> port and the <url
+url="ftp://ftp.freebsd.org/pub/FreeBSD/packages-current/lang/modula-3-lib-3.6.tgz"
+name="lang/modula-3-lib-3.6"> package.  If you follow the same
+directions as for cvsup, these libraries will be compiled and/or
+installed automatically when you install the CVSup port or package.
+
+<p>The Modula-3 libraries are rather large, and fetching and compiling
+them is not an instantaneous process.  For that reason, a third option
+is provided.  You can get <em>statically linked</em> FreeBSD
+executables for CVSup from:
+
+<itemize>
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsup-bin-14.0.tar.gz">
+  (client).
+  <item><url url="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz"
+  name="ftp://freefall.freebsd.org/pub/CVSup/cvsupd-bin-14.0.tar.gz">
+  (server).
+</itemize>
+
+<p>Most users will need only the client.  These executables are entirely
+self-contained, and they will run on any version of FreeBSD from
+FreeBSD-2.1.0 to FreeBSD-current.
+
+<p>In summary, your options for installing CVSup are:
+
+<itemize>
+  <item>FreeBSD-2.2 or later:		static binary, port, or package
+  <item>FreeBSD-2.1.6:			static binary or port
+  <item>FreeBSD-2.1.5 or earlier:	static binary
+</itemize>
+
+<sect1><heading>Configuration<label id="cvsup:config"></heading>
+
+<p>CVSup's operation is controlled by a configuration file called the
+"supfile".  Beginning with FreeBSD-2.2, there are some sample supfiles
+in the directory <url url="file:/usr/share/examples/cvsup"
+name="/usr/share/examples/cvsup">.  These examples are also available
+from <url url="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/" name="ftp://ftp.freebsd.org/pub/FreeBSD/FreeBSD-current/src/share/examples/cvsup/"> if you are on a pre-2.2 system.
+
+<p>The information in a supfile answers the following questions for cvsup:
+
+<itemize>
+ <item><ref id="cvsup:config:files" name="Which files do you want to receive?">
+ <item><ref id="cvsup:config:vers" name="Which versions of them do you want?">
+ <item><ref id="cvsup:config:where" name="Where do you want to get them from?">
+ <item><ref id="cvsup:config:dest" name="Where do you want to put them on your own machine?">
+ <item><ref id="cvsup:config:status" name="Where do you want to put your status files?">
+</itemize>
+
+<p>In the following sections, we will construct a typical supfile by
+answering each of these questions in turn.  First, we describe the
+overall structure of a supfile.
+
+<p>A supfile is a text file.  Comments begin with "#" and extend to
+the end of the line.  Lines that are blank and lines that contain only
+comments are ignored.
+
+<p>Each remaining line describes a set of files that the user wishes
+to receive.  The line begins with the name of a "collection", a
+logical grouping of files defined by the server.  The name of the
+collection tells the server which files you want.  After the
+collection name come zero or more fields, separated by white space.
+These fields answer the questions listed above.  There are two types
+of fields: flag fields and value fields.  A flag field consists of a
+keyword standing alone, e.g., "delete" or "compress".  A value field
+also begins with a keyword, but the keyword is followed without
+intervening white space by "=" and a second word.  For example,
+"release=cvs" is a value field.
+
+<p>A supfile typically specifies more than one collection to receive.
+One way to structure a supfile is to specify all of the relevant
+fields explicitly for each collection.  However, that tends to make
+the supfile lines quite long, and it is inconvenient because most
+fields are the same for all of the collections in a supfile.  CVSup
+provides a defaulting mechanism to avoid these problems.  Lines
+beginning with the special pseudo-collection name "*default" can be
+used to set flags and values which will be used as defaults for the
+subsequent collections in the supfile.  A default value can be
+overridden for an individual collection, by specifying a different
+value with the collection itself.  Defaults can also be changed or
+augmented in mid-supfile by additional "*default" lines.
+
+<p>With this background, we will now proceed to construct a supfile
+for receiving and updating the main source tree of <ref id="current"
+name="FreeBSD-current">.
+
+<itemize>
+<item>Which files do you want to receive?<label id="cvsup:config:files">
+
+<p>As with sup, the files available via CVSup are organized into named
+groups called "collections".  The collections making up the FreeBSD
+source tree are described in <ref id="sup:dists" name="the sup
+collections document">.  In this example, we wish to receive the
+entire main source tree for the FreeBSD system.  There is a single
+large collection "src-all" which will give us all of that, except the
+export-controlled cryptography support.  Let us assume for this
+example that we are in the USA or Canada.  Then we can get the
+cryptography code with two additional collections, "src-eBones" and
+"src-secure".  As a first step toward constructing our supfile, we
+simply list these collections, one per line:
+
+<verb>
+  src-all
+  src-eBones
+  src-secure
+</verb>
+
+<p><item>Which version(s) of them do you want?<label id="cvsup:config:vers">
+
+<p>With CVSup, you can receive virtually any version of the sources
+that ever existed.  That is possible because the cvsupd server works
+directly from the CVS repository, which contains all of the versions.
+You specify which one of them you want using the "tag=" and "date="
+value fields.
+
+<p>The "tag=" field names a symbolic tag in the repository.  There are
+two kinds of tags, revision tags and branch tags.  A revision tag
+refers to a specific revision.  Its meaning stays the same from day to
+day.  A branch tag, on the other hand, refers to the latest revision
+on a given line of development, at any given time.  Because a branch
+tag does not refer to a specific revision, it may mean something
+different tomorrow than it means today.
+
+<p>Here are the branch tags that users might be interested in:
+
+<descrip>
+  <tag/tag=./
+    The main line of development, also known as FreeBSD-current.
+    Note:  the "." is not punctuation; it's the name of the tag.
+  <tag/tag=RELENG_2_2/
+    The line of development leading up to FreeBSD-2.2.
+  <tag/tag=RELENG_2_1_0/
+    The line of development for FreeBSD-2.1.x, also known as
+    FreeBSD-stable.
+</descrip>
+
+<p>Here are the revision tags that users might be interested in:
+
+<descrip>
+  <tag/tag=RELENG_2_1_6_1_RELEASE/
+  FreeBSD-2.1.6.1.
+  <tag/tag=RELENG_2_1_6_RELEASE/
+  FreeBSD-2.1.6.
+  <tag/tag=RELENG_2_1_5_RELEASE/
+  FreeBSD-2.1.5.
+  <tag/tag=RELENG_2_1_0_RELEASE/
+  FreeBSD-2.1.0.
+</descrip>
+
+<p>Be very careful to type the tag name exactly as shown.  CVSup cannot
+distinguish between valid and invalid tags.  If you misspell the tag,
+CVSup will behave as though you had specified a valid tag which happens
+to refer to no files at all.  It will delete your existing sources in
+that case.
+
+<p>When you specify a branch tag, you normally receive the latest versions
+of the files on that line of development.  If you wish to receive some
+past version, you can do so by specifying a date with the "date=" value
+field.  The cvsup(1) manual page explains how to do that.
+
+<p>For our example, we wish to receive FreeBSD-current.  We add this line
+at the beginning of our supfile:
+
+<verb>
+  *default tag=.
+</verb>
+
+<p>There is an important special case that comes into play if you specify
+neither a "tag=" field nor a "date=" field.  In that case, you receive
+the actual RCS files directly from the server's CVS repository, rather
+than receiving a particular version.  Developers generally prefer this
+mode of operation.  By maintaining a copy of the repository itself on
+their systems, they gain the ability to browse the revision histories
+and examine past versions of files.  This gain is achieved at a large
+cost in terms of disk space, however.
+
+<p><item>Where do you want to get them from?<label id="cvsup:config:where">
+
+<p>This one is easy.  We use the "host=" field to tell cvsup to get
+its updates from the primary FreeBSD distribution site,
+"cvsup.FreeBSD.org":
+
+<verb>
+  *default host=cvsup.FreeBSD.org
+</verb>
+
+<p>On any particular run of cvsup, we can override this setting on the
+command line, with "-h hostname".
+
+<p><item>Where do you want to put them on your own machine?<label id="cvsup:config:dest">
+
+<p>The "prefix=" field tells cvsup where to put the files it receives.
+In this example, we'll put the source files directly into our main
+source tree, "/usr/src".  The "src" directory is already implicit in the
+collections we've chosen to receive, so this is the correct
+specification:
+
+<verb>
+  *default prefix=/usr
+</verb>
+
+<p><item>Where should cvsup maintain its status files?<label id="cvsup:config:status">
+
+<p>The cvsup client maintains certain status files in what is called
+the "base" directory.  These files help CVSup to work more
+efficiently, by keeping track of which updates you've already
+received.  We will use the standard base directory,
+"/usr/local/etc/cvsup":
+
+<verb>
+  *default base=/usr/local/etc/cvsup
+</verb>
+
+<p>This setting is used by default if it's not specified in the
+supfile, so we actually don't need the above line.
+
+<p>If your base directory doesn't already exist, now would be a good
+time to create it.  The cvsup client will refuse to run if the base
+directory doesn't exist.
+
+<p><item>Miscellaneous supfile settings:
+
+<p>There is one more line of boiler plate that normally needs to be
+present in the supfile:
+
+<verb>
+  *default release=cvs delete use-rel-suffix compress
+</verb>
+
+<p>"release=cvs" indicates that the server should get its information
+out of the main FreeBSD CVS repository.  This is virtually always the
+case, but there are other possibilities which are beyond the scope of
+this discussion.
+
+<p>"delete" gives CVSup permission to delete files.  You should always
+specify this, so that CVSup can keep your source tree fully up to
+date.  CVSup is careful to delete only those files for which it is
+responsible.  Any extra files you happen to have will be left strictly
+alone.
+
+<p>"use-rel-suffix" is ... arcane.  If you really want to know about
+it, see the cvsup(1) manual page.  Otherwise, just specify it and
+don't worry about it.
+
+<p>"compress" enables the use of gzip-style compression on the
+communication channel.  If your network link is T1 speed or faster,
+you probably shouldn't use compression.  Otherwise, it helps
+substantially.
+
+<p><item>Putting it all together:
+
+<p>Here is the entire supfile for our example:
+
+<verb>
+  *default tag=.
+  *default host=cvsup.FreeBSD.org
+  *default prefix=/usr
+  *default base=/usr/local/etc/cvsup
+  *default release=cvs delete use-rel-suffix compress
+  src-all
+  src-eBones
+  src-secure
+</verb>
+</itemize>
+
+<sect1><heading>Running CVSup</heading>
+
+<p>You are now ready to try an update.  The command line for doing this is
+quite simple:
+
+<verb>
+  cvsup supfile
+</verb>
+
+<p>where "supfile" is of course the name of the supfile you've just created.
+Assuming you are running under X11, cvsup will display a GUI window with
+some buttons to do the usual things.  Press the "go" button, and watch
+it run.
+
+<p>Since you are updating your actual "/usr/src" tree in this example, you
+will need to run the program as root so that cvsup has the permissions
+it needs to update your files.  Having just created your configuration
+file, and having never used this program before, that might
+understandably make you nervous.  There is an easy way to do a trial run
+without touching your precious files.  Just create an empty directory
+somewhere convenient, and name it as an extra argument on the command
+line:
+
+<verb>
+  mkdir /var/tmp/dest
+  cvsup supfile /var/tmp/dest
+</verb>
+
+<p>The directory you specify will be used as the destination directory
+for all file updates.  CVSup will examine your usual files in
+"/usr/src", but it will not modify or delete any of them.  Any file
+updates will instead land in "/var/tmp/dest/usr/src".  CVSup will also
+leave its base directory status files untouched when run this way.
+The new versions of those files will be written into the specified
+directory.  As long as you have read access to "/usr/src", you don't
+even need to be root to perform this kind of trial run.
+
+<p>If you are not running X11 or if you just don't like GUIs, you
+should add a couple of options to the command line when you run cvsup:
+
+<verb>
+  cvsup -g -L 2 supfile
+</verb>
+
+<p>The "-g" tells cvsup not to use its GUI.  This is automatic if you are
+not running X11, but otherwise you have to specify it.
+
+<p>The "-L 2" tells cvsup to print out the details of all the file updates
+it is doing.  There are three levels of verbosity, from "-L 0" to "-L 2".
+The default is 0, which means total silence except for error messages.
+
+<p>There are plenty of other options available.  For a brief list of them,
+type "cvsup -H".  For more detailed descriptions, see the manual page.
+
+<p>Once you are satisfied with the way updates are working, you can arrange
+for regular runs of cvsup using cron(8).  Obviously, you shouldn't let
+cvsup use its GUI when running it from cron.
+
+<sect1><heading>Announcements, Questions, and Bug Reports</heading>
+
+<p>Most FreeBSD-related discussion of CVSup takes place on the
+&a.hackers;.  New versions of the software are announced there, as
+well as on the &a.announce;.
+
+<p>Questions and bug reports should be addressed to the author of the
+program at <url url="mailto:cvsup-bugs@polstra.com"
+name="cvsup-bugs@polstra.com">.

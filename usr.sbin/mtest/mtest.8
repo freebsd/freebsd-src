@@ -1,0 +1,52 @@
+.\" The following requests are required for all man pages.
+.Dd December 15, 1996
+.Os
+.Dt MTEST 8
+.Sh NAME
+.Nm mtest
+.Nd test multicast membership socket operations and ioctls
+.Sh SYNOPSIS
+.Nm
+.Sh DESCRIPTION
+.Nm
+is a small program for testing the multicast membership socket operations
+and ioctls.  It accepts the following commands, interactively:
+.Bl -tag -width "a ifname e.e.e.e.e.e" -compact -offset indent
+.It Ic j Ar g.g.g.g Ar i.i.i.i
+Join the IP group address
+.Ar g.g.g.g
+on the interface with address
+.Ar i.i.i.i .
+.Ar i.i.i.i
+may be specified as 0.0.0.0 to use the default interface.
+.It Ic l Ar g.g.g.g Ar i.i.i.i
+Leave the IP group address
+.Ar g.g.g.g
+on the interface with address
+.Ar i.i.i.i .
+.It Ic a Ar ifname Ar e.e.e.e.e.e
+Join the Ethernet group address
+.Ar e.e.e.e.e.e
+on interface
+.Ar ifname .
+.It Ic d Ar ifname Ar e.e.e.e.e.e
+Leave the Ethernet group address
+.Ar e.e.e.e.e.e
+on interface
+.Ar ifname .
+.It Ic m Ar ifname Ar 1/0
+Set or reset ALLMULTI mode on interface
+.Ar ifname .
+.It Ic p Ar ifname Ar 1/0
+Set or reset promiscuous mode on interface
+.Ar ifname .
+.It Ic ?
+List legal commands.
+.It Ic q
+Quit the program.
+.El
+.\" .Sh SEE ALSO
+.Sh AUTHORS
+Steve Deering
+.Sh BUGS
+The command parser is not very flexible.
