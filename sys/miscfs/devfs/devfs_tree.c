@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.36 1997/05/03 21:19:53 joerg Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.37 1997/07/14 04:53:52 julian Exp $
  */
 
 #include "opt_devfs.h"
@@ -271,6 +271,7 @@ dev_add_name(char *name, dn_p dirnode, devnm_p back, dn_p dnp,
 		devnmp->nextlink = dnp->linklist;
 		devnmp->prevlinkp = devnmp->nextlink->prevlinkp;
 		devnmp->nextlink->prevlinkp = &(devnmp->nextlink);
+		*devnmp->prevlinkp = devnmp;
 		dnp->linklist = devnmp;
 	} else {
 		devnmp->nextlink = devnmp;
@@ -543,7 +544,7 @@ devfs_propogate(devnm_p parent,devnm_p child)
 	* Find the other instances of the parent node	*
 	\***********************************************/
 	for (adnp = pdnp->nextsibling;
-		adnp != pdnp->nextsibling;
+		adnp != pdnp;
 		adnp = adnp->nextsibling)
 	{
 		/*
@@ -551,7 +552,7 @@ devfs_propogate(devnm_p parent,devnm_p child)
 		 * if the node already exists on that plane it won't be
 		 * re-made..
 		 */
-		if ( error = dev_add_entry(child->name, pdnp, type,
+		if ( error = dev_add_entry(child->name, adnp, type,
 					NULL, dnp, adnp->dvm, &newnmp)) {
 			printf("duplicating %s failed\n",child->name);
 		}
