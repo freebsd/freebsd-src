@@ -1,4 +1,4 @@
-.\" $Id: pppctl.8,v 1.6 1997/11/07 20:20:14 brian Exp $
+.\" $Id: pppctl.8,v 1.7 1997/11/18 00:20:28 brian Exp $
 .Dd 26 June 1997
 .Os FreeBSD
 .Dt PPPCTL 8
@@ -149,7 +149,7 @@ exec pppctl /var/run/internet set timeout 300\\; close
 To check if the line is up:
 .Bd -literal -offset indent
 #! /bin/sh
-pppctl -p '' -v /var/run/internet '' | grep ^PPP >/dev/null
+pppctl -p '' -v /var/run/internet quit | grep ^PPP >/dev/null
 if [ $? -eq 0 ]; then
   echo Link is up
 else
