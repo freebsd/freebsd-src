@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.61 1997/10/12 16:22:20 jkh Exp $
+ * $Id: install.c,v 1.134.2.62 1997/10/13 17:33:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -528,7 +528,7 @@ nodisks:
     dialog_clear_norefresh();
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		  "between interfaces)?"))
-	variable_set2("gateway", "YES");
+	variable_set2("gateway_enable", "YES");
 
     dialog_clear_norefresh();
     if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
