@@ -54,13 +54,14 @@ protocol server
 .Sh DESCRIPTION
 The
 .Nm
-command is a server which supports the
+utility is a server which supports the
 .Tn DARPA
 standard
 .Tn TELNET
 virtual terminal protocol.
-.Nm Telnetd
-is normally invoked by the internet server (see
+The
+.Nm
+utility is normally invoked by the internet server (see
 .Xr inetd 8 )
 for requests to connect to the
 .Tn TELNET
@@ -84,7 +85,7 @@ port number.
 .Pp
 The
 .Nm
-command accepts the following options:
+utility accepts the following options:
 .Bl -tag -width indent
 .It Fl a Ar authmode
 This option may be used for specifying what mode should
@@ -279,8 +280,9 @@ a specific authentication type without having to recompile
 .Nm .
 .El
 .Pp
-.Nm Telnetd
-operates by allocating a pseudo-terminal device (see
+The
+.Nm
+utility operates by allocating a pseudo-terminal device (see
 .Xr pty 4 )
 for a client, then creating a login process which has
 the slave side of the pseudo-terminal as
@@ -288,8 +290,9 @@ the slave side of the pseudo-terminal as
 .Dv stdout
 and
 .Dv stderr .
-.Nm Telnetd
-manipulates the master side of the pseudo-terminal,
+The
+.Nm
+utility manipulates the master side of the pseudo-terminal,
 implementing the
 .Tn TELNET
 protocol and passing characters
@@ -332,8 +335,9 @@ mode, and with
 enabled (see
 .Xr tty 4 ) .
 .Pp
-.Nm Telnetd
-has support for enabling locally the following
+The
+.Nm
+utility has support for enabling locally the following
 .Tn TELNET
 options:
 .Bl -tag -width "DO AUTHENTICATION"
@@ -393,8 +397,9 @@ indicates a willingness to decrypt
 the data stream.
 .El
 .Pp
-.Nm Telnetd
-has support for enabling remotely the following
+The
+.Nm
+utility has support for enabling remotely the following
 .Tn TELNET
 options:
 .Bl -tag -width "DO AUTHENTICATION"
@@ -578,8 +583,9 @@ has no common interpretation except between similar operating systems
 The terminal type name received from the remote client is converted to
 lower case.
 .Pp
-.Nm Telnetd
-never sends
+The
+.Nm
+utility never sends
 .Tn TELNET
 .Dv IAC GA
 (go ahead) commands.

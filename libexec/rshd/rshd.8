@@ -44,7 +44,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-server
+utility
 is the server for the
 .Xr rcmd 3
 routine and, consequently, for the
@@ -54,8 +54,7 @@ with authentication based on privileged port numbers from trusted hosts.
 .Pp
 The
 .Nm
-server
-listens for service requests at the port indicated in
+utility listens for service requests at the port indicated in
 the
 .Dq cmd
 service specification; see
@@ -111,8 +110,9 @@ shell is retrieved on the initial socket.  The length of
 the command is limited by the upper bound on the size of
 the system's argument list.
 .It
-.Nm Rshd
-then validates the user using
+The
+.Nm
+utility then validates the user using
 .Xr ruserok 3 ,
 which uses the file
 .Pa /etc/hosts.equiv

@@ -47,8 +47,9 @@
 .Op Fl C Ar taskid program-number ipaddr port
 .Ar mapname
 .Sh DESCRIPTION
-.Nm Ypxfr
-copies an
+The
+.Nm
+utility copies an
 .Tn NIS
 database (or
 .Pa map )
@@ -63,8 +64,9 @@ is generally invoked by
 .Xr ypserv 8
 when it receives a map transfer request from
 .Xr yppush 8 .
-.Nm Ypxfr
-is used primarily in environments where several
+The
+.Nm
+utility is used primarily in environments where several
 .Tn NIS
 servers are in use in a single domain. One server, the
 .Tn NIS
@@ -160,7 +162,7 @@ transfer method, particularly for very large
 .Tn NIS
 maps. The
 .Nm
-command will check to see if the
+utility will check to see if the
 .Xr rpc.ypxfrd 8
 server is registered on the
 .Tn NIS

@@ -45,8 +45,9 @@
 .Op Fl n Ar netid_file
 .Op Fl d Ar domain
 .Sh DESCRIPTION
-.Nm Mknetid
-processes the contents of the
+The
+.Nm
+utility processes the contents of the
 .Xr group 5 ,
 .Xr passwd 5 ,
 .Xr hosts 5
@@ -61,12 +62,12 @@ and hosts in a operating system independent format.
 .Pp
 The
 .Nm
-command checks for duplicate occurrences of netids and filters
+utility checks for duplicate occurrences of netids and filters
 them out.
 .Pp
 The
 .Nm
-command prints its results on the standard output.
+utility prints its results on the standard output.
 It is usually called
 only by
 .Pa /var/yp/Makefile
@@ -76,7 +77,7 @@ maps.
 .Sh OPTIONS
 The
 .Nm
-command supports the following options:
+utility supports the following options:
 .Bl -tag -width indent
 .It Fl q
 Normally,
@@ -115,7 +116,7 @@ support is added to
 .It Fl d Ar domain
 By default, the
 .Nm
-command uses the system domainname when generating netid records.
+utility uses the system domainname when generating netid records.
 If
 the system domainname is not set, the domain must be specified on the
 command line with the
