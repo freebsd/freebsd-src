@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.89 1995/04/11 17:58:09 ache Exp $
+ *	$Id: sio.c,v 1.90 1995/04/12 20:48:05 wollman Exp $
  */
 
 #include "sio.h"
@@ -1127,12 +1127,14 @@ siointr1(com)
 				recv_data = inb(com->data_port);
 			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
 #ifdef DDB
+#ifdef BREAK_TO_DEBUGGER
 				if (   (line_status & LSR_BI)
 				    && (COMCONSOLE || boothowto	& RB_SERIAL)
 				    && com->unit == comconsole)	{
 					Debugger("serial console break");
 					goto cont;
 				}
+#endif
 #endif
 				/*
 				  Don't store PE if IGNPAR and BI if IGNBRK,
@@ -1293,10 +1295,12 @@ sioioctl(dev, cmd, data, flag, p)
 	tp = com->tp;
 	term = tp->t_termios;
 	oldcmd = cmd;
+#if defined (COMPAT_43)
 	if ((error = ttsetcompat(tp, &cmd, data, &term)) != 0)
 		return error;
 	if (cmd != oldcmd)
 		data = (caddr_t)&term;
+#endif
 	if (mynor & CONTROL_MASK) {
 		struct termios *ct;
 
