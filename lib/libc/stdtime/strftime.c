@@ -17,7 +17,7 @@
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id: strftime.c,v 1.3 1995/08/04 18:43:01 wollman Exp $";
+	"$Id: strftime.c,v 1.4 1995/08/06 11:48:16 ache Exp $";
 #endif
 
 #ifndef lint
@@ -113,6 +113,7 @@ static const struct lc_time_T	C_time_locale = {
 static char *	_add P((const char *, char *, const char *));
 static char *	_conv P((int, const char *, char *, const char *));
 static char *	_fmt P((const char *, const struct tm *, char *, const char *));
+static char *   _secs P((const struct tm *, char *, const char *));
 
 size_t strftime P((char *, size_t, const char *, const struct tm *));
 
@@ -277,6 +278,9 @@ label:
 			case 'S':
 				pt = _conv(t->tm_sec, "%02d", pt, ptlim);
 				continue;
+			case 's':
+				pt = _secs(t, pt, ptlim);
+				continue;
 			case 'T':
 				pt = _fmt("%H:%M:%S", t, pt, ptlim);
 				continue;
@@ -433,6 +437,23 @@ _conv(n, format, pt, ptlim)
 	return _add(buf, pt, ptlim);
 }
 
+static char *
+_secs(t, pt, ptlim)
+	const struct tm *t;
+	char *pt;
+	const char *ptlim;
+{
+	char    buf[INT_STRLEN_MAXIMUM(int) + 1];
+	register time_t s;
+	struct tm tmp;
+
+	/* Make a copy, mktime(3) modifies the tm struct. */
+	tmp = *t;
+	s = mktime(&tmp);
+	(void) sprintf(buf, "%ld", s);
+	return _add(buf, pt, ptlim);
+}
+  
 static char *
 _add(str, pt, ptlim)
 	const char *str;
