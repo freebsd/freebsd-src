@@ -49,7 +49,7 @@ depending on the options for the information presented.
 .It Xo
 .Bk -words
 .Nm
-.Op Fl AaLlnSW
+.Op Fl AaLnSW
 .Op Fl f Ar protocol_family | Fl p Ar protocol
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -189,7 +189,7 @@ The network manages a private pool of memory buffers.
 .Bk -words
 .Nm
 .Fl r
-.Op Fl AalnW
+.Op Fl AanW
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -213,8 +213,6 @@ parent route);
 normally these routes are not shown.
 When
 .Fl W
-or
-.Fl l
 is also present,
 show the path MTU
 for each route.
@@ -235,7 +233,7 @@ is repeated, counters with a value of zero are suppressed.
 .Bk -words
 .Nm
 .Fl g
-.Op Fl lW
+.Op Fl W
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -295,11 +293,6 @@ The following address families and protocols are recognized:
 The program will complain if
 .Ar protocol
 is unknown or if there is no statistics routine for it.
-.It Fl l
-The
-.Fl l
-option is equivalent to
-.Fl W .
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
