@@ -35,7 +35,7 @@
 .\"	@(#)echo.1	8.1 (Berkeley) 7/22/93
 .\" $FreeBSD$
 .\"
-.Dd July 22, 1993
+.Dd April 12, 2003
 .Dt ECHO 1
 .Os
 .Sh NAME
@@ -58,11 +58,20 @@ output.
 The following option is available:
 .Bl -tag -width flag
 .It Fl n
-Do not print the trailing newline character.  This may also be
-achieved by appending
+Do not print the trailing newline character.
+This may also be achieved by appending
 .Ql \ec
 to the end of the string, as is done
 by iBCS2 compatible systems.
+Note that this option as well as the effect of
+.Ql \ec
+are implementation-defined in
+.St -p1003.1-2001
+as amended by Cor. 1-2002.
+Applications aiming for maximum
+portability are strongly encouraged to use
+.Xr printf 1
+to suppress the newline character.
 .El
 .Pp
 Some shells may provide a builtin
@@ -81,6 +90,6 @@ manual page.
 .Sh STANDARDS
 The
 .Nm
-utility is expected to be
-.St -p1003.2
-compatible.
+utility conforms to
+.St -p1003.1-2001
+as amended by Cor. 1-2002.
