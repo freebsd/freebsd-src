@@ -92,6 +92,17 @@ struct vmmeter {
 	u_int v_pageout_free_min;   /* min number pages reserved for kernel */
 	u_int v_interrupt_free_min; /* reserved number of pages for int code */
 	u_int v_free_severe;	/* severe depletion of pages below this pt */
+	/*
+	 * Fork/vfork/rfork activity.
+	 */
+	u_int v_forks;		/* number of fork() calls */
+	u_int v_vforks;		/* number of vfork() calls */
+	u_int v_rforks;		/* number of rfork() calls */
+	u_int v_kthreads;	/* number of fork() calls by kernel */
+	u_int v_forkpages;	/* number of VM pages affected by fork() */
+	u_int v_vforkpages;	/* number of VM pages affected by vfork() */
+	u_int v_rforkpages;	/* number of VM pages affected by rfork() */
+	u_int v_kthreadpages;	/* number of VM pages affected by fork() by kernel */
 };
 #ifdef _KERNEL
 
