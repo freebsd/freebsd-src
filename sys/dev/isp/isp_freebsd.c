@@ -394,6 +394,9 @@ ispioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 		struct isp_hba_device *hba = (struct isp_hba_device *) addr;
 		MEMZERO(hba, sizeof (*hba));
 		ISP_LOCK(isp);
+		hba->fc_fw_major = ISP_FW_MAJORX(isp->isp_fwrev);
+		hba->fc_fw_minor = ISP_FW_MINORX(isp->isp_fwrev);
+		hba->fc_fw_micro = ISP_FW_MICROX(isp->isp_fwrev);
 		hba->fc_speed = FCPARAM(isp)->isp_gbspeed;
 		hba->fc_scsi_supported = 1;
 		hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
