@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.0.2.23.2.3 1998/05/23 18:52:44 darrenr Exp $
+ * $Id: ip_nat.h,v 1.1.1.5 1998/06/20 18:17:53 peter Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -155,7 +155,7 @@ extern	void	ip_natsync __P((void *));
 extern	u_long	fr_defnatage;
 extern	u_long	fr_defnaticmpage;
 extern	nat_t	*nat_table[2][NAT_SIZE];
-#if defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__) || (__FreeBSD_version >= 300003)
 extern	int	nat_ioctl __P((caddr_t, u_long, int));
 #else
 extern	int	nat_ioctl __P((caddr_t, int, int));
