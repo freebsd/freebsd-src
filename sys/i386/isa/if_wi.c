@@ -197,6 +197,15 @@ static driver_t wi_pci_driver = {
 	sizeof(struct wi_softc)
 };
 
+static struct {
+	unsigned int vendor,device;
+	char *desc;
+} pci_ids[] = {
+	{0x1638, 0x1100,	"PRISM2STA PCI WaveLAN/IEEE 802.11"},
+	{0x1385, 0x4100,	"Netgear MA301 PCI IEEE 802.11b"},
+	{0,	 0,	NULL}
+};
+
 static devclass_t wi_pccard_devclass;
 static devclass_t wi_pci_devclass;
 
@@ -233,14 +242,16 @@ wi_pci_probe(dev)
 	device_t	dev;
 {
 	struct wi_softc		*sc;
+	int i;
 
 	sc = device_get_softc(dev);
-	if ((pci_get_vendor(dev) == WI_PCI_VENDOR_EUMITCOM) &&
-		(pci_get_device(dev) == WI_PCI_DEVICE_PRISM2STA)) {
+	for(i=0; pci_ids[i].vendor != 0; i++) {
+		if ((pci_get_vendor(dev) == pci_ids[i].vendor) &&
+			(pci_get_device(dev) == pci_ids[i].device)) {
 			sc->wi_prism2 = 1;
-			device_set_desc(dev,
-			    "PRISM2STA PCI WaveLAN/IEEE 802.11");
+			device_set_desc(dev, pci_ids[i].desc);
 			return (0);
+		}
 	}
 	return(ENXIO);
 }
@@ -340,12 +351,24 @@ wi_pci_attach(device_t dev)
 	if (error)
 		return (error);
 
-	device_set_desc(dev, wi_device_desc);
-
 	/* Make sure interrupts are disabled. */
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
+	/* We have to do a magic PLX poke to enable interrupts */
+	sc->local_rid = WI_PCI_LOCALRES;
+	sc->local = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->local_rid,
+				0, ~0, 1, RF_ACTIVE);
+	sc->wi_localtag = rman_get_bustag(sc->local);
+	sc->wi_localhandle = rman_get_bushandle(sc->local);
+	command = bus_space_read_4(sc->wi_localtag, sc->wi_localhandle,
+		WI_LOCAL_INTCSR);
+	command |= WI_LOCAL_INTEN;
+	bus_space_write_4(sc->wi_localtag, sc->wi_localhandle,
+		WI_LOCAL_INTCSR, command);
+	bus_release_resource(dev, SYS_RES_IOPORT, sc->local_rid, sc->local);
+	sc->local = NULL;
+	
 	sc->mem_rid = WI_PCI_MEMRES;
 	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
 				0, ~0, 1, RF_ACTIVE);
@@ -365,6 +388,13 @@ wi_pci_attach(device_t dev)
 	 */
 	CSM_WRITE_1(sc, WI_COR_OFFSET, WI_COR_VALUE); 
 	reg = CSM_READ_1(sc, WI_COR_OFFSET);
+	if (reg != WI_COR_VALUE) {
+		device_printf(dev,
+		    "CSM_READ_1(WI_COR_OFFSET) "
+		    "wanted %d, got %d\n", WI_COR_VALUE, reg);
+		wi_free(dev);
+		return (ENXIO);
+	}
 
 	CSR_WRITE_2(sc, WI_HFA384X_SWSUPPORT0_OFF, WI_PRISM2STA_MAGIC);
 	reg = CSR_READ_2(sc, WI_HFA384X_SWSUPPORT0_OFF);

@@ -90,12 +90,16 @@ struct wi_softc	{
 	struct ifmedia		ifmedia;
 	device_t		dev;
 	int			wi_unit;
+	struct resource *	local;
+	int					local_rid;
 	struct resource *	iobase;
 	int					iobase_rid;
 	struct resource *	irq;
 	int					irq_rid;
 	struct resource *	mem;
 	int					mem_rid;
+	bus_space_handle_t	wi_localhandle;
+	bus_space_tag_t		wi_localtag;
 	bus_space_handle_t	wi_bhandle;
 	bus_space_tag_t		wi_btag;
 	bus_space_handle_t	wi_bmemhandle;
@@ -143,11 +147,12 @@ struct wi_softc	{
 #define WI_PORT4	4
 #define WI_PORT5	5
 
-#define WI_PCI_MEMRES	0x18
-#define WI_PCI_IORES	0x1C
+#define WI_PCI_LOCALRES	0x14	/* The PLX chip's local registers */
+#define WI_PCI_MEMRES	0x18	/* The PCCard's attribute memory */
+#define WI_PCI_IORES	0x1C	/* The PCCard's I/O space */
 
-#define WI_PCI_VENDOR_EUMITCOM		0x1638
-#define WI_PCI_DEVICE_PRISM2STA		0x1100
+#define WI_LOCAL_INTCSR			0x4c
+#define WI_LOCAL_INTEN			0x40 /* poke this into INTCSR */
 #define WI_HFA384X_SWSUPPORT0_OFF	0x28
 #define WI_PRISM2STA_MAGIC		0x4A2D
 
