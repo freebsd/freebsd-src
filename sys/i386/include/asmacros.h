@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: asmacros.h,v 1.7 1996/03/31 04:17:25 bde Exp $
+ *	$Id: asmacros.h,v 1.8 1996/05/31 01:08:05 peter Exp $
  */
 
 #ifndef _MACHINE_ASMACROS_H_
@@ -39,14 +39,16 @@
 #ifdef KERNEL
 #include <sys/cdefs.h>
 
-/* XXX too much duplication in various asm*.h's and gprof.h's */
+/* XXX too much duplication in various asm*.h's. */
 
 #define ALIGN_DATA	.align	2	/* 4 byte alignment, zero filled */
 #define ALIGN_TEXT	.align	2,0x90	/* 4-byte alignment, nop filled */
-#define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment (better for 486), nop filled */
+#define SUPERALIGN_TEXT	.align	4,0x90	/* 16-byte alignment, nop filled */
 
-#define GEN_ENTRY(name)		ALIGN_TEXT; .globl __CONCAT(_,name); __CONCAT(_,name):
+#define GEN_ENTRY(name)		ALIGN_TEXT; .globl __CONCAT(_,name); \
+				__CONCAT(_,name):
 #define NON_GPROF_ENTRY(name)	GEN_ENTRY(name)
+#define NON_GPROF_RET		.byte 0xc3	/* opcode for `ret' */
 
 #ifdef GPROF
 /*
@@ -59,26 +61,21 @@
  * inadequate for good handling of special cases, e.g., -fpic works best
  * with profiling after the prologue.
  *
- * Neither __mcount nor mcount requires %eax to point to 4 bytes of data,
- * so don't waste space allocating the data or time setting it up.  Changes
- * to avoid the wastage in gcc-2.4.5-compiled code are available.
- * 
- * mexitcount is a new profiling feature to allow accurate timing of all
- * functions if an accurate clock is available.  Changes to gcc-2.4.5 to
- * support it are are available.  The changes currently don't allow not
- * generating mexitcounts for non-kernel code.  It is best to call
- * mexitcount right at the end of a function like the MEXITCOUNT macro
- * does, but the changes to gcc only implement calling it as the first
- * thing in the epilogue to avoid problems with -fpic.
+ * mexitcount is a new function to support non-statistical profiling if an
+ * accurate clock is available.  For C sources, calls to it are generated
+ * by the FreeBSD extension `-mprofiler-epilogue' to gcc.  It is best to
+ * call mexitcount at the end of a function like the MEXITCOUNT macro does,
+ * but gcc currently generates calls to it at the start of the epilogue to
+ * avoid problems with -fpic.
  *
  * mcount and __mexitcount may clobber the call-used registers and %ef.
  * mexitcount may clobber %ecx and %ef.
  *
- * Cross-jumping makes accurate timing more difficult.  It is handled in
- * many cases by calling mexitcount before jumping.  It is not handled
- * for some conditional jumps (e.g., in bcopyx) or for some fault-handling
- * jumps.  It is handled for some fault-handling jumps by not sharing the
- * exit routine.
+ * Cross-jumping makes non-statistical profiling timing more complicated.
+ * It is handled in many cases by calling mexitcount before jumping.  It is
+ * handled for conditional jumps using CROSSJUMP() and CROSSJUMP_LABEL().
+ * It is handled for some fault-handling jumps by not sharing the exit
+ * routine.
  *
  * ALTENTRY() must be before a corresponding ENTRY() so that it can jump to
  * the main entry point.  Note that alt entries are counted twice.  They
@@ -88,19 +85,24 @@
  * High local labels are used in macros to avoid clashes with local labels
  * in functions.
  *
- * "ret" is used instead of "RET" because there are a lot of "ret"s.
- * 0xc3 is the opcode for "ret" (#define ret ... ret fails because this
- * file is preprocessed in traditional mode).  "ret" clobbers eflags
- * but this doesn't matter.
+ * Ordinary `ret' is used instead of a macro `RET' because there are a lot
+ * of `ret's.  0xc3 is the opcode for `ret' (`#define ret ... ret' can't
+ * be used because this file is sometimes preprocessed in traditional mode).
+ * `ret' clobbers eflags but this doesn't matter.
  */
 #define ALTENTRY(name)		GEN_ENTRY(name) ; MCOUNT ; MEXITCOUNT ; jmp 9f
+#define	CROSSJUMP(jtrue, label, jfalse) \
+	jfalse 8f; MEXITCOUNT; jmp __CONCAT(to,label); 8:
+#define CROSSJUMPTARGET(label) \
+	ALIGN_TEXT; __CONCAT(to,label): ; MCOUNT; jmp label
 #define ENTRY(name)		GEN_ENTRY(name) ; 9: ; MCOUNT
 #define FAKE_MCOUNT(caller)	pushl caller ; call __mcount ; popl %ecx
 #define MCOUNT			call __mcount
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
 #define MEXITCOUNT		call mexitcount
-#define ret			MEXITCOUNT ; .byte 0xc3
-#else /* not GPROF */
+#define ret			MEXITCOUNT ; NON_GPROF_RET
+
+#else /* !GPROF */
 /*
  * ALTENTRY() has to align because it is before a corresponding ENTRY().
  * ENTRY() has to align to because there may be no ALTENTRY() before it.
@@ -108,6 +110,8 @@
  * is empty.
  */
 #define ALTENTRY(name)		GEN_ENTRY(name)
+#define	CROSSJUMP(jtrue, label, jfalse)	jtrue label
+#define	CROSSJUMPTARGET(label)
 #define ENTRY(name)		GEN_ENTRY(name)
 #define FAKE_MCOUNT(caller)
 #define MCOUNT
