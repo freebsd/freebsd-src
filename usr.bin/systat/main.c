@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/sysctl.h>
 
 #include <err.h>
+#include <limits.h>
 #include <locale.h>
 #include <nlist.h>
 #include <paths.h>
@@ -84,7 +85,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	char errbuf[80], dummy;
+	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
 	int	err;
 
@@ -127,7 +128,8 @@ main(argc, argv)
 		 * devices. We can now use sysctl only.
 		 */
 		use_kvm = 0;
-		kd = kvm_openfiles("/dev/null", "/dev/null", "/dev/null", O_RDONLY, errbuf);
+		kd = kvm_openfiles("/dev/null", "/dev/null", "/dev/null",
+		    O_RDONLY, errbuf);
 		if (kd == NULL) {
 			error("%s", errbuf);
 			exit(1);
