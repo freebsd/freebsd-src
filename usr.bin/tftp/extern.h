@@ -34,4 +34,4 @@
  */
 
 void	recvfile __P((int, char *, char *));
-void	sendfile __P((int, char *, char *));
+void	xmitfile __P((int, char *, char *));
