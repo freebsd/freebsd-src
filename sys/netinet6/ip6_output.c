@@ -609,6 +609,7 @@ skip_ipsec2:;
 			/* XXX in6_ifstat_inc(ifp, ifs6_out_discard); */
 			goto bad;
 		}
+		/* XXX rt not locked */
 		ia = ifatoia6(ro->ro_rt->rt_ifa);
 		ifp = ro->ro_rt->rt_ifp;
 		ro->ro_rt->rt_use++;
@@ -694,10 +695,11 @@ skip_ipsec2:;
 		 * ``net'' ff00::/8).
 		 */
 		if (ifp == NULL) {
-			if (ro->ro_rt == 0) {
+			if (ro->ro_rt == 0)
 				ro->ro_rt = rtalloc1((struct sockaddr *)
 						&ro->ro_dst, 0, 0UL);
-			}
+			else
+				RT_LOCK(ro->ro_rt);
 			if (ro->ro_rt == 0) {
 				ip6stat.ip6s_noroute++;
 				error = EHOSTUNREACH;
