@@ -86,7 +86,6 @@ struct device {
 #define QUES	-1	/* -1 means '?' */
 #define	UNKNOWN -2	/* -2 means not set yet */
 	int	d_flags;		/* flags for device init */
-	int	d_conflicts;		/* I'm allowed to conflict */
 	int	d_disabled;		/* nonzero to skip probe/attach */
 	char	*d_port;		/* io port base manifest constant */
 	int	d_portn;	/* io port base (if number not manifest) */
