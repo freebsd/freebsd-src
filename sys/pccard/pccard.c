@@ -205,13 +205,6 @@ disable_slot(struct slot *slt)
 	/* Power off the slot 1/2 second after removal of the card */
 	slt->poff_ch = timeout(power_off_slot, (caddr_t)slt, hz / 2);
 	slt->pwr_off_pending = 1;
-
-	/* De-activate all contexts. */
-	for (i = 0; i < slt->ctrl->maxmem; i++)
-		if (slt->mem[i].flags & MDF_ACTIVE) {
-			slt->mem[i].flags = 0;
-			(void)slt->ctrl->mapmem(slt, i);
-		}
 }
 
 /*
@@ -226,7 +219,6 @@ slot_suspend(void *arg)
 	/* This code stolen from pccard_event:card_removed */
 	if (slt->state == filled) {
 		int s = splhigh();
-printf("splhigh -- slot_suspend\n");
 		disable_slot(slt);
 		slt->laststate = filled;
 		slt->state = suspend;
@@ -329,39 +321,6 @@ pccard_alloc_slot(struct slot_ctrl *ctrl)
 }
 
 /*
- * Allocate resources for this device in the rman system.
- */
-static int
-pccard_alloc_resources(device_t dev)
-{
-	/* XXX NEED TO DO MEMORY TOO XXX */
-	struct pccard_devinfo *devi = device_get_ivars(dev);
-	int rid;
-	u_long start;
-	u_long count;
-	int e;
-
-	start = devi->isahd.id_iobase;
-	count = devi->isahd.id_iosize;
-	    
-	rid = 0;
-	e = bus_set_resource(dev, SYS_RES_IOPORT, rid, start, count);
-	if (e) {
-		printf("ioport error %d\n", e);
-		return e;
-	}
-	rid = 0;
-	start = ffs(devi->isahd.id_irq) - 1;
-	count = 1;
-	e = bus_set_resource(dev, SYS_RES_IRQ, rid, start, count);
-	if (e) {
-		printf("irq error %d\n", e);
-		return e;
-	}
-	return(0);
-}
-
-/*
  *	allocate_driver - Create a new device entry for this
  *	slot, and attach a driver to it.
  */
@@ -383,35 +342,30 @@ allocate_driver(struct slot *slt, struct dev_desc *desc)
 	 */
 	devi->running = 1;
 	devi->slt = slt;
-	devi->isahd.id_unit = desc->unit;
-	devi->isahd.id_msize = desc->memsize;
-	devi->isahd.id_iobase = desc->iobase;
-	devi->isahd.id_iosize = desc->iosize;
 	bcopy(desc->misc, devi->misc, sizeof(desc->misc));
-	if (irq)
-		devi->isahd.id_irq = 1 << irq;
-	devi->isahd.id_flags = desc->flags;
-	/*
-	 *	Convert the memory to kernel space.
-	 */
-	if (desc->mem)
-		devi->isahd.id_maddr = (caddr_t)(void *)(uintptr_t)
-		    (desc->mem + atdevbase - IOM_BEGIN);
-	else
-		devi->isahd.id_maddr = 0;
-	/*
-	 * XXX I think the following should be done in an attach
-	 * routine, but can't seem to slip the knot to get it working
-	 * right.  This is one reason I call this a kludge...
-	 */
 	resource_list_init(&devi->resources);
 	child = devi->isahd.id_device = device_add_child(pccarddev, devi->name,
-	    devi->isahd.id_unit, devi);
-	pccard_alloc_resources(child);
+	    desc->unit, devi);
+	device_set_flags(child, desc->flags);
+	err = bus_set_resource(child, SYS_RES_IOPORT, 0, desc->iobase,
+	    desc->iosize);
+	if (err)
+		goto err;
+	if (irq)
+		err = bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
+	if (err) 
+		goto err;
+	if (desc->memsize) {
+		err = bus_set_resource(child, SYS_RES_MEMORY, 0, desc->mem, 
+		    desc->memsize);
+		if (err) 
+			goto err;
+	}
 	err = device_probe_and_attach(child);
+err:
 	if (err)
 		device_delete_child(pccarddev, child);
-	return err;
+	return (err);
 }
 
 /*
@@ -465,7 +419,6 @@ pccard_event(struct slot *slt, enum card_event event)
 		 */
 		if (slt->state == filled) {
 			int s = splhigh();
-printf("splhigh card_removed\n");
 			disable_slot(slt);
 			slt->state = empty;
 			splx(s);

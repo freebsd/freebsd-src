@@ -723,15 +723,10 @@ pcicintr(void *arg)
 	int	slot, s;
 	unsigned char chg;
 	struct pcic_slot *sp = pcic_slots;
-	static int count = 0;
-
-	if (count++ > 20)
-		Debugger("Trapdoor");	
 
 	s = splhigh();
-printf("splhigh for pcicintr\n");
-	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++)
-		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0)
+	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++) {
+		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
 			if (chg & PCIC_CDTCH) {
 				if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) ==
 						PCIC_CD) {
@@ -740,7 +735,8 @@ printf("splhigh for pcicintr\n");
 					pccard_event(sp->slt, card_removed);
 				}
 			}
-printf("splx\n");
+		}
+	}
 	splx(s);
 }
 
@@ -765,27 +761,34 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
-	struct io_desc *ip = &devi->slt->io[rid];
 	int err;
 
 	switch (type) {
 	case SYS_RES_IOPORT:
-#if 0
-		if (ip->flags & IODF_ACTIVE)
-			return EBUSY;
-#endif
+	{
+		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags |= IODF_ACTIVE;
 		ip->start = rman_get_start(r);
 		ip->size = rman_get_end(r) - rman_get_start(r) + 1;
 		err = pcic_io(devi->slt, rid);
-		if (err) {
+		if (err)
 			return err;
-		}
 		break;
+	}
 	case SYS_RES_IRQ:
 		pcic_mapirq(devi->slt, rman_get_start(r));
 		break;
-	case SYS_RES_MEMORY:
+	case SYS_RES_MEMORY: 
+	{
+		struct mem_desc *mp = &devi->slt->mem[rid];
+		mp->flags |= IODF_ACTIVE;
+		mp->start = rman_get_start(r);
+		mp->size = rman_get_end(r) - rman_get_start(r) + 1;
+		err = pcic_memory(devi->slt, rid);
+		if (err)
+			return err;
+		break;
+	}
 	default:
 		break;
 	}
@@ -803,20 +806,28 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 
 	switch (type) {
 	case SYS_RES_IOPORT:
-#if 0
-		if (ip->flags & IODF_ACTIVE)
-			return EBUSY;
-#endif
+	{
+		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags &= ~IODF_ACTIVE;
 		err = pcic_io(devi->slt, rid);
 		if (err) {
 			return err;
 		}
 		break;
+	}
 	case SYS_RES_IRQ:
 		pcic_mapirq(devi->slt, 0);
 		break;
 	case SYS_RES_MEMORY:
+	{
+		struct mem_desc *mp = &devi->slt->mem[rid];
+		mp->flags &= ~IODF_ACTIVE;
+		err = pcic_memory(devi->slt, rid);
+		if (err) {
+			return err;
+		}
+		break;
+	}
 	default:
 		break;
 	}
