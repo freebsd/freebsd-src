@@ -1,24 +1,66 @@
 .\" grep man page
+.if !\n(.g \{\
+.	if !\w|\*(lq| \{\
+.		ds lq ``
+.		if \w'\(lq' .ds lq "\(lq
+.	\}
+.	if !\w|\*(rq| \{\
+.		ds rq ''
+.		if \w'\(rq' .ds rq "\(rq
+.	\}
+.\}
 .de Id
 .ds Dt \\$4
 ..
-.Id $Id: grep.1,v 1.1 1998/11/22 06:45:20 alainm Exp $
+.Id $Id: grep.1,v 1.7 1999/10/12 20:41:01 alainm Exp $
 .TH GREP 1 \*(Dt "GNU Project"
 .SH NAME
 grep, egrep, fgrep \- print lines matching a pattern
 .SH SYNOPSIS
 .B grep
-[-[AB] NUM] [-CEFGVabchiLlnqrsvwxyUu] [-e PATTERN | -f FILE]
-[-d ACTION] [--directories=ACTION]
-[--extended-regexp] [--fixed-strings] [--basic-regexp]
-[--regexp=PATTERN] [--file=FILE] [--ignore-case] [--word-regexp]
-[--line-regexp] [--line-regexp] [--no-messages] [--revert-match]
-[--version] [--help] [--byte-offset] [--line-number]
-[--with-filename] [--no-filename] [--quiet] [--silent] [--text]
-[--files-without-match] [--files-with-matcces] [--count]
-[--before-context=NUM] [--after-context=NUM] [--context]
-[--binary] [--unix-byte-offsets] [--recursive]
-.I files...
+.RB [ \- [ ABC ]
+.IR NUM ]
+.RB [ \-EFGHLUVZabchilnqrsuvwxyz ]
+.RB [ \-e
+.I PATTERN
+|
+.B \-f
+.IR FILE ]
+.RB [ \-d
+.IR ACTION ]
+.RB [ \-\^\-directories=\fIACTION\fP ]
+.RB [ \-\^\-extended-regexp ]
+.RB [ \-\^\-fixed-strings ]
+.RB [ \-\^\-basic-regexp ]
+.RB [ \-\^\-regexp=\fIPATTERN\fP ]
+.RB [ \-\^\-file=\fIFILE\fP ]
+.RB [ \-\^\-ignore-case ]
+.RB [ \-\^\-word-regexp ]
+.RB [ \-\^\-line-regexp ]
+.RB [ \-\^\-line-regexp ]
+.RB [ \-\^\-no-messages ]
+.RB [ \-\^\-invert-match ]
+.RB [ \-\^\-version ]
+.RB [ \-\^\-help ]
+.RB [ \-\^\-byte-offset ]
+.RB [ \-\^\-line-number ]
+.RB [ \-\^\-with-filename ]
+.RB [ \-\^\-no-filename ]
+.RB [ \-\^\-quiet ]
+.RB [ \-\^\-silent ]
+.RB [ \-\^\-text ]
+.RB [ \-\^\-files-without-match ]
+.RB [ \-\^\-files-with-matches ]
+.RB [ \-\^\-count ]
+.RB [ \-\^\-before-context=\fINUM\fP ]
+.RB [ \-\^\-after-context=\fINUM\fP ]
+.RB [ \-\^\-context [ =\fINUM\fP ]]
+.RB [ \-\^\-binary ]
+.RB [ \-\^\-unix-byte-offsets ]
+.RB [ \-\^\-mmap ]
+.RB [ \-\^\-null ]
+.RB [ \-\^\-recursive ]
+.RI [ file .\|.\|.]
 .SH DESCRIPTION
 .PP
 .B Grep
@@ -39,80 +81,80 @@ There are three major variants of
 controlled by the following options.
 .PD 0
 .TP
-.B \-G, --basic-regexp
+.BR \-G ", " \-\^\-basic-regexp
 Interpret
 .I pattern
 as a basic regular expression (see below).  This is the default.
 .TP
-.B \-E, --extended-regexp
+.BR \-E ", " \-\^\-extended-regexp
 Interpret
 .I pattern
 as an extended regular expression (see below).
 .TP
-.B \-F, --fixed-strings
+.BR \-F ", " \-\^\-fixed-strings
 Interpret
 .I pattern
 as a list of fixed strings, separated by newlines,
 any of which is to be matched.
-.LP
+.PP
 In addition, two variant programs
 .B egrep
 and
 .B fgrep
 are available.
 .B Egrep
-is similar (but not identical) to
-.BR "grep\ \-E" ,
-and is compatible with the historical Unix
-.BR egrep .
+is the same as
+.BR "grep\ \-E" .
 .B Fgrep
 is the same as
 .BR "grep\ \-F" .
 .PD
-.LP
+.PP
 All variants of
 .B grep
 understand the following options:
 .PD 0
 .TP
-.BI \-A " NUM" ", --after-context=" NUM
+.BI \-A " NUM" "\fR,\fP \-\^\-after-context=" NUM
 Print
 .I NUM
 lines of trailing context after matching lines.
 .TP
-.BI \-B " NUM" ", --before-context=" NUM
+.BI \-B " NUM" "\fR,\fP \-\^\-before-context=" NUM
 Print
 .I NUM
 lines of leading context before matching lines.
 .TP
-.BI \-C ,\  --context"[=NUM]"
-Print 
+.BI \-C " \fR[\fPNUM\fR]\fP" "\fR,\fP \-\^\-context\fR[\fP=" NUM\fR]\fP
+Print
 .I NUM
 lines (default 2) of output context.
 .TP
-.BI \- NUM \ 
-Same as --context=NUM lines of leading and trailing context.  However,
+.BI \- NUM
+Same as
+.BI \-\^\-context= NUM
+lines of leading and trailing context.  However,
 .B grep
 will never print any given line more than once.
 .TP
-.B \-V, --version
+.BR \-V ", " \-\^\-version
 Print the version number of
 .B grep
 to standard error.  This version number should
 be included in all bug reports (see below).
 .TP
-.B \-b, --byte-offset
+.BR \-b ", " \-\^\-byte-offset
 Print the byte offset within the input file before
 each line of output.
 .TP
-.B \-c, --count
+.BR \-c ", " \-\^\-count
 Suppress normal output; instead print a count of
 matching lines for each input file.
 With the
-.B \-v, --revert-match
+.BR \-v ", " \-\^\-invert-match
 option (see below), count non-matching lines.
 .TP
-.BI \-d " ACTION" ", --directories=" ACTION
+.BI \-d " ACTION" "\fR,\fP \-\^\-directories=" ACTION
 If an input file is a directory, use
 .I ACTION
 to process it.  By default,
@@ -135,75 +177,78 @@ this is equivalent to the
 .B \-r
 option.
 .TP
-.BI \-e " PATTERN" ", --regexp=" PATTERN
+.BI \-e " PATTERN" "\fR,\fP \-\^\-regexp=" PATTERN
 Use
 .I PATTERN
 as the pattern; useful to protect patterns beginning with
 .BR \- .
 .TP
-.BI \-f " FILE" ", --file=" FILE
+.BI \-f " FILE" "\fR,\fP \-\^\-file=" FILE
 Obtain patterns from
 .IR FILE ,
 one per line.
 The empty file contains zero patterns, and therfore matches nothing.
 .TP
-.B \-h, --no-filename
+.BR \-H ", " \-\^\-with-filename
+Print the filename for each match.
+.TP
+.BR \-h ", " \-\^\-no-filename
 Suppress the prefixing of filenames on output
 when multiple files are searched.
 .TP
-.B \-i, --ignore-case
+.BR \-i ", " \-\^\-ignore-case
 Ignore case distinctions in both the
 .I pattern
 and the input files.
 .TP
-.B \-L, --files-without-match
+.BR \-L ", " \-\^\-files-without-match
 Suppress normal output; instead print the name
 of each input file from which no output would
-normally have been printed. The scanning will stop
+normally have been printed.  The scanning will stop
 on the first match.
 .TP
-.B \-l, --files-with-matches
+.BR \-l ", " \-\^\-files-with-matches
 Suppress normal output; instead print
 the name of each input file from which output
-would normally have been printed. The scanning will
+would normally have been printed.  The scanning will
 stop on the first match.
 .TP
-.B \-n, --line-number
+.BR \-n ", " \-\^\-line-number
 Prefix each line of output with the line number
 within its input file.
 .TP
-.B \-q, --quiet, --silent
-Quiet; suppress normal output. The scanning will stop
+.BR \-q ", " \-\^\-quiet ", " \-\^\-silent
+Quiet; suppress normal output.  The scanning will stop
 on the first match.
 Also see the
 .B \-s
 or
-.B --no-messages
+.B \-\^\-no-messages
 option below.
 .TP
-.B \-r, --recursive
+.BR \-r ", " \-\^\-recursive
 Read all files under each directory, recursively;
 this is equivalent to the
 .B "\-d recurse"
 option.
 .TP
-.B \-s, --no-messages
+.BR \-s ", " \-\^\-no-messages
 Suppress error messages about nonexistent or unreadable files.
-Portability note: unlike GNU
+Portability note: unlike \s-1GNU\s0
 .BR grep ,
-BSD
+traditional
 .B grep
-does not comply with POSIX.2, because BSD
+did not conform to \s-1POSIX.2\s0, because traditional
 .B grep
-lacks a
+lacked a
 .B \-q
 option and its
 .B \-s
-option behaves like GNU
+option behaved like \s-1GNU\s0
 .BR grep 's
 .B \-q
 option.
-Shell scripts intended to be portable to BSD
+Shell scripts intended to be portable to traditional
 .B grep
 should avoid both
 .B \-q
@@ -211,7 +256,7 @@ and
 .B \-s
 and should redirect output to /dev/null instead.
 .TP
-.B \-a, --text
+.BR \-a ", " \-\^\-text
 Do not suppress output lines that contain binary data.
 Normally, if the first few bytes of a file indicate that
 the file contains binary data,
@@ -222,10 +267,10 @@ This option causes
 to act as if the file is a text file,
 even if it would otherwise be treated as binary.
 .TP
-.B \-v, --revert-match
+.BR \-v ", " \-\^\-invert-match
 Invert the sense of matching, to select non-matching lines.
 .TP
-.B \-w, --word-regexp
+.BR \-w ", " \-\^\-word-regexp
 Select only those lines containing matches that form whole words.
 The test is that the matching substring must either be at the
 beginning of the line, or preceded by a non-word constituent
@@ -233,14 +278,14 @@ character.  Similarly, it must be either at the end of the line
 or followed by a non-word constituent character.  Word-constituent
 characters are letters, digits, and the underscore.
 .TP
-.B \-x, --line-regexp
+.BR \-x ", " \-\^\-line-regexp
 Select only those matches that exactly match the whole line.
 .TP
 .B \-y
 Obsolete synonym for
 .BR \-i .
 .TP
-.B \-U, --binary
+.BR \-U ", " \-\^\-binary
 Treat the file(s) as binary.  By default, under MS-DOS and MS-Windows,
 .BR grep
 guesses the file type by looking at the contents of the first 32KB
@@ -256,10 +301,11 @@ work correctly).  Specifying
 overrules this guesswork, causing all files to be read and passed to the
 matching mechanism verbatim; if the file is a text file with CR/LF
 pairs at the end of each line, this will cause some regular
-expressions to fail.  This option is only supported on MS-DOS and
+expressions to fail.
+This option has no effect on platforms other than MS-DOS and
 MS-Windows.
 .TP
-.B \-u, --unix-byte-offsets
+.BR \-u ", " \-\^\-unix-byte-offsets
 Report Unix-style byte offsets.  This switch causes
 .B grep
 to report byte offsets as if the file were Unix-style text file, i.e. with
@@ -267,7 +313,41 @@ CR characters stripped off.  This will produce results identical to running
 .B grep
 on a Unix machine.  This option has no effect unless
 .B \-b
-option is also used; it is only supported on MS-DOS and MS-Windows.
+option is also used;
+it has no effect on platforms other than MS-DOS and MS-Windows.
+.TP
+.B \-\^\-mmap
+If possible, use the
+.BR mmap (2)
+system call to read input, instead of
+the default
+.BR read (2)
+system call.  In some situations,
+.B -\^-mmap
+yields better performance.  However,
+.B -\^-mmap
+can cause undefined behavior (including core dumps)
+if an input file shrinks while
+.B grep
+is operating, or if an I/O error occurs.
+.TP
+.BR \-Z ", " \-\^\-null
+Output a zero byte (the \s-1ASCII\s0
+.B NUL
+character) instead of the character that normally follows a file name.
+For example,
+.B "grep \-lZ"
+outputs a zero byte after each file name instead of the usual newline.
+This option makes the output unambiguous, even in the presence of file
+names containing unusual characters like newlines.  This option can be
+used with commands like
+.BR "find \-print0" ,
+.BR "perl \-0" ,
+.BR "sort \-z" ,
+and
+.B "xargs \-0"
+to process arbitrary file names,
+even those that contain newline characters.
 .PD
 .SH "REGULAR EXPRESSIONS"
 .PP
@@ -277,8 +357,8 @@ expressions, by using various operators to combine smaller expressions.
 .PP
 .B Grep
 understands two different versions of regular expression syntax:
-``basic'' and ``extended.''  In
-.RB "GNU\ " grep ,
+\*(lqbasic\*(rq and \*(lqextended.\*(rq  In
+.RB "\s-1GNU\s0\ " grep ,
 there is no difference in available functionality using either syntax.
 In other implementations, basic regular expressions are less powerful.
 The following description applies to extended regular expressions;
@@ -390,11 +470,6 @@ The preceding item is matched
 .I n
 or more times.
 .TP
-.BI {, m }
-The preceding item is optional and is matched at most
-.I m
-times.
-.TP
 .BI { n , m }
 The preceding item is matched at least
 .I n
@@ -444,12 +519,35 @@ versions
 and
 .BR \e) .
 .PP
-In
+Traditional
 .B egrep
-the metacharacter
+did not support the
 .B {
-loses its special meaning; instead use
-.BR \e{ .
+metacharacter, and some
+.B egrep
+implementations support
+.B \e{
+instead, so portable scripts should avoid
+.B {
+in
+.B egrep
+patterns and should use
+.B [{]
+to match a literal
+.BR { .
+.PP
+\s-1GNU\s0
+.B egrep
+attempts to support traditional usage by assuming that
+.B {
+is not special if it would be the start of an invalid interval
+specification.  For example, the shell command
+.B "egrep '{1'"
+searches for the two-character string
+.B {1
+instead of reporting a syntax error in the regular expression.
+\s-1POSIX.2\s0 allows this behavior as an extension, but portable scripts
+should avoid it.
 .SH DIAGNOSTICS
 .PP
 Normally, exit status is 0 if matches were found,
@@ -463,7 +561,8 @@ other system errors.
 .PP
 Email bug reports to
 .BR bug-gnu-utils@gnu.org .
-Be sure to include the word ``grep'' somewhere in the ``Subject:'' field.
+Be sure to include the word \*(lqgrep\*(rq somewhere in the
+\*(lqSubject:\*(rq field.
 .PP
 Large repetition counts in the
 .BI { m , n }
@@ -475,3 +574,5 @@ and space, and may cause
 to run out of memory.
 .PP
 Backreferences are very slow, and may require exponential time.
+.\" Work around problems with some troff -man implementations.
+.br

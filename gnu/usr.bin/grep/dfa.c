@@ -328,15 +328,20 @@ static reg_syntax_t syntax_bits, syntax_bits_set;
 /* Flag for case-folding letters into sets. */
 static int case_fold;
 
+/* End-of-line byte in data.  */
+static unsigned char eolbyte;
+
 /* Entry point to set syntax options. */
 void
-dfasyntax(bits, fold)
+dfasyntax(bits, fold, eol)
      reg_syntax_t bits;
      int fold;
+     int eol;
 {
   syntax_bits_set = 1;
   syntax_bits = bits;
   case_fold = fold;
+  eolbyte = eol;
 }
 
 /* Lexical analyzer.  All the dross that deals with the obnoxious
@@ -555,11 +560,32 @@ lex()
 	    goto normal_char;
 	  if (backslash != ((syntax_bits & RE_NO_BK_BRACES) == 0))
 	    goto normal_char;
-	  minrep = maxrep = 0;
+	  if (!(syntax_bits & RE_CONTEXT_INDEP_OPS) && laststart)
+	    goto normal_char;
+
+	  if (syntax_bits & RE_NO_BK_BRACES)
+	    {
+	      /* Scan ahead for a valid interval; if it's not valid,
+		 treat it as a literal '{'.  */
+	      int lo = -1, hi = -1;
+	      char const *p = lexptr;
+	      char const *lim = p + lexleft;
+	      for (;  p != lim && ISDIGIT (*p);  p++)
+		lo = (lo < 0 ? 0 : lo * 10) + *p - '0';
+	      if (p != lim && *p == ',')
+		while (++p != lim && ISDIGIT (*p))
+		  hi = (hi < 0 ? 0 : hi * 10) + *p - '0';
+	      else
+		hi = lo;
+	      if (p == lim || *p != '}'
+		  || lo < 0 || RE_DUP_MAX < hi || (0 <= hi && hi < lo))
+		goto normal_char;
+	    }
+
+	  minrep = 0;
 	  /* Cases:
 	     {M} - exact count
 	     {M,} - minimum count, maximum is infinity
-	     {,M} - 0 through M
 	     {M,N} - M through N */
 	  FETCH(c, _("unfinished repeat count"));
 	  if (ISDIGIT(c))
@@ -573,16 +599,27 @@ lex()
 		  minrep = 10 * minrep + c - '0';
 		}
 	    }
-	  else if (c != ',')
+	  else
 	    dfaerror(_("malformed repeat count"));
 	  if (c == ',')
-	    for (;;)
-	      {
-		FETCH(c, _("unfinished repeat count"));
-		if (!ISDIGIT(c))
-		  break;
-		maxrep = 10 * maxrep + c - '0';
-	      }
+	    {
+	      FETCH (c, _("unfinished repeat count"));
+	      if (! ISDIGIT (c))
+		maxrep = -1;
+	      else
+		{
+		  maxrep = c - '0';
+		  for (;;)
+		    {
+		      FETCH (c, _("unfinished repeat count"));
+		      if (! ISDIGIT (c))
+			break;
+		      maxrep = 10 * maxrep + c - '0';
+		    }
+		  if (0 <= maxrep && maxrep < minrep)
+		    dfaerror (_("malformed repeat count"));
+		}
+	    }
 	  else
 	    maxrep = minrep;
 	  if (!(syntax_bits & RE_NO_BK_BRACES))
@@ -634,7 +671,7 @@ lex()
 	  zeroset(ccl);
 	  notset(ccl);
 	  if (!(syntax_bits & RE_DOT_NEWLINE))
-	    clrbit('\n', ccl);
+	    clrbit(eolbyte, ccl);
 	  if (syntax_bits & RE_DOT_NOT_NULL)
 	    clrbit('\0', ccl);
 	  laststart = 0;
@@ -732,7 +769,7 @@ lex()
 	    {
 	      notset(ccl);
 	      if (syntax_bits & RE_HAT_LISTS_NOT_NEWLINE)
-		clrbit('\n', ccl);
+		clrbit(eolbyte, ccl);
 	    }
 	  laststart = 0;
 	  return lasttok = CSET + charclass_index(ccl);
@@ -898,7 +935,7 @@ closure()
       {
 	ntokens = nsubtoks(dfa->tindex);
 	tindex = dfa->tindex - ntokens;
-	if (maxrep == 0)
+	if (maxrep < 0)
 	  addtok(PLUS);
 	if (minrep == 0)
 	  addtok(QMARK);
@@ -1561,7 +1598,7 @@ dfastate(s, d, trans)
       for (i = 0; i < NOTCHAR; ++i)
 	if (IS_WORD_CONSTITUENT(i))
 	  setbit(i, letters);
-      setbit('\n', newline);
+      setbit(eolbyte, newline);
     }
 
   zeroset(matches);
@@ -1582,7 +1619,7 @@ dfastate(s, d, trans)
 	{
 	  if (! MATCHES_NEWLINE_CONTEXT(pos.constraint,
 					 d->states[s].newline, 1))
-	    clrbit('\n', matches);
+	    clrbit(eolbyte, matches);
 	  if (! MATCHES_NEWLINE_CONTEXT(pos.constraint,
 					 d->states[s].newline, 0))
 	    for (j = 0; j < CHARCLASS_INTS; ++j)
@@ -1693,7 +1730,7 @@ dfastate(s, d, trans)
 	state_letter = state;
       for (i = 0; i < NOTCHAR; ++i)
 	trans[i] = (IS_WORD_CONSTITUENT(i)) ? state_letter : state;
-      trans['\n'] = state_newline;
+      trans[eolbyte] = state_newline;
     }
   else
     for (i = 0; i < NOTCHAR; ++i)
@@ -1717,7 +1754,7 @@ dfastate(s, d, trans)
 
       /* Find out if the new state will want any context information. */
       wants_newline = 0;
-      if (tstbit('\n', labels[i]))
+      if (tstbit(eolbyte, labels[i]))
 	for (j = 0; j < follows.nelem; ++j)
 	  if (PREV_NEWLINE_DEPENDENT(follows.elems[j].constraint))
 	    wants_newline = 1;
@@ -1749,7 +1786,7 @@ dfastate(s, d, trans)
 	    {
 	      int c = j * INTBITS + k;
 
-	      if (c == '\n')
+	      if (c == eolbyte)
 		trans[c] = state_newline;
 	      else if (IS_WORD_CONSTITUENT(c))
 		trans[c] = state_letter;
@@ -1840,8 +1877,8 @@ build_state(s, d)
 
   /* Keep the newline transition in a special place so we can use it as
      a sentinel. */
-  d->newlines[s] = trans['\n'];
-  trans['\n'] = -1;
+  d->newlines[s] = trans[eolbyte];
+  trans[eolbyte] = -1;
 
   if (ACCEPTING(s, *d))
     d->fails[s] = trans;
@@ -1889,6 +1926,7 @@ dfaexec(d, begin, end, newline, count, backref)
   register unsigned char *p;	/* Current input character. */
   register int **trans, *t;	/* Copy of d->trans so it can be optimized
 				   into a register. */
+  register unsigned char eol = eolbyte;	/* Likewise for eolbyte.  */
   static int sbit[NOTCHAR];	/* Table for anding with d->success. */
   static int sbit_init;
 
@@ -1899,7 +1937,7 @@ dfaexec(d, begin, end, newline, count, backref)
       sbit_init = 1;
       for (i = 0; i < NOTCHAR; ++i)
 	sbit[i] = (IS_WORD_CONSTITUENT(i)) ? 2 : 1;
-      sbit['\n'] = 4;
+      sbit[eol] = 4;
     }
 
   if (! d->tralloc)
@@ -1908,7 +1946,7 @@ dfaexec(d, begin, end, newline, count, backref)
   s = s1 = 0;
   p = (unsigned char *) begin;
   trans = d->trans;
-  *end = '\n';
+  *end = eol;
 
   for (;;)
     {
@@ -1936,7 +1974,7 @@ dfaexec(d, begin, end, newline, count, backref)
 	}
 
       /* If the previous character was a newline, count it. */
-      if (count && (char *) p <= end && p[-1] == '\n')
+      if (count && (char *) p <= end && p[-1] == eol)
 	++*count;
 
       /* Check if we've run off the end of the buffer. */
@@ -1950,7 +1988,7 @@ dfaexec(d, begin, end, newline, count, backref)
 	  continue;
 	}
 
-      if (p[-1] == '\n' && newline)
+      if (p[-1] == eol && newline)
 	{
 	  s = d->newlines[s1];
 	  continue;

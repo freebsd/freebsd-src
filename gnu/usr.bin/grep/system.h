@@ -1,5 +1,5 @@
 /* Portability cruft.  Include after config.h and sys/types.h.
-   Copyright (C) 1996, 1998 Free Software Foundation, Inc.
+   Copyright (C) 1996, 1998, 1999 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,8 @@
 # include <unistd.h>
 #else
 # define O_RDONLY 0
+# define SEEK_SET 0
+# define SEEK_CUR 1
 int open(), read(), close();
 #endif
 
@@ -99,14 +101,19 @@ extern char *sys_errlist[];
 
 #if STAT_MACROS_BROKEN
 # undef S_ISDIR
+# undef S_ISREG
 #endif
 #if !defined(S_ISDIR) && defined(S_IFDIR)
 # define S_ISDIR(Mode) (((Mode) & S_IFMT) == S_IFDIR)
+#endif
+#if !defined(S_ISREG) && defined(S_IFREG)
+# define S_ISREG(Mode) (((Mode) & S_IFMT) == S_IFREG)
 #endif
 
 #ifdef STDC_HEADERS
 # include <stdlib.h>
 #else
+char *getenv ();
 ptr_t malloc(), realloc(), calloc();
 void free();
 #endif
@@ -139,10 +146,13 @@ void free();
 # undef strrchr
 # define strrchr rindex
 # undef memcpy
-# define memcpy(d, s, n) bcopy((s), (d), (n))
+# define memcpy(d, s, n) bcopy (s, d, n)
 #endif
 #ifndef HAVE_MEMCHR
 ptr_t memchr();
+#endif
+#if ! defined HAVE_MEMMOVE && ! defined memmove
+# define memmove(d, s, n) bcopy (s, d, n)
 #endif
 
 #include <ctype.h>

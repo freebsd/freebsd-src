@@ -55,6 +55,13 @@ static int show_help;
 /* If non-zero, print the version on standard output and exit.  */
 static int show_version;
 
+/* If nonzero, use mmap if possible.  */
+static int mmap_option;
+
+/* Short options.  */
+static char const short_options[] =
+"0123456789A:B:C::EFGHUVX:abcd:e:f:hiLlnqrsuvwxyZz";
+
 /* Long options equivalences. */
 static struct option long_options[] =
 {
@@ -75,18 +82,19 @@ static struct option long_options[] =
   {"ignore-case", no_argument, NULL, 'i'},
   {"line-number", no_argument, NULL, 'n'},
   {"line-regexp", no_argument, NULL, 'x'},
+  {"mmap", no_argument, &mmap_option, 1},
   {"no-filename", no_argument, NULL, 'h'},
   {"no-messages", no_argument, NULL, 's'},
+  {"null", no_argument, NULL, 'Z'},
+  {"null-data", no_argument, NULL, 'z'},
   {"quiet", no_argument, NULL, 'q'},
   {"recursive", no_argument, NULL, 'r'},
   {"regexp", required_argument, NULL, 'e'},
-  {"revert-match", no_argument, NULL, 'v'},
+  {"invert-match", no_argument, NULL, 'v'},
   {"silent", no_argument, NULL, 'q'},
   {"text", no_argument, NULL, 'a'},
-#if O_BINARY
   {"binary", no_argument, NULL, 'U'},
   {"unix-byte-offsets", no_argument, NULL, 'u'},
-#endif
   {"version", no_argument, NULL, 'V'},
   {"with-filename", no_argument, NULL, 'H'},
   {"word-regexp", no_argument, NULL, 'w'},
@@ -94,10 +102,10 @@ static struct option long_options[] =
 };
 
 /* Define flags declared in grep.h. */
-char const *matcher;
 int match_icase;
 int match_words;
 int match_lines;
+unsigned char eolbyte;
 
 /* For error messages. */
 static char *prog;
@@ -115,7 +123,10 @@ static enum
 static int  ck_atoi PARAMS ((char const *, int *));
 static void usage PARAMS ((int)) __attribute__((noreturn));
 static void error PARAMS ((const char *, int));
-static int  setmatcher PARAMS ((char const *));
+static void setmatcher PARAMS ((char const *));
+static int  install_matcher PARAMS ((char const *));
+static int  prepend_args PARAMS ((char const *, char *, char **));
+static void prepend_default_options PARAMS ((char const *, int *, char ***));
 static char *page_alloc PARAMS ((size_t, char **));
 static int  reset PARAMS ((int, char const *, struct stats *));
 static int  fillbuf PARAMS ((size_t, struct stats *));
@@ -215,14 +226,15 @@ static char *ubuffer;		/* Unaligned base of buffer. */
 static char *buffer;		/* Base of buffer. */
 static size_t bufsalloc;	/* Allocated size of buffer save region. */
 static size_t bufalloc;		/* Total buffer size. */
+#define PREFERRED_SAVE_FACTOR 5	/* Preferred value of bufalloc / bufsalloc.  */
 static int bufdesc;		/* File descriptor. */
 static char *bufbeg;		/* Beginning of user-visible stuff. */
 static char *buflim;		/* Limit of user-visible stuff. */
 static size_t pagesize;		/* alignment of memory pages */
+static off_t bufoffset;		/* Read offset; defined on regular files.  */
 
 #if defined(HAVE_MMAP)
-static int bufmapped;		/* True for ordinary files. */
-static off_t bufoffset;		/* What read() normally remembers. */
+static int bufmapped;		/* True if buffer is memory-mapped.  */
 static off_t initial_bufoffset;	/* Initial value of bufoffset. */
 #endif
 
@@ -233,32 +245,26 @@ static off_t initial_bufoffset;	/* Initial value of bufoffset. */
    ? (val) \
    : (val) + ((alignment) - (size_t) (val) % (alignment)))
 
-/* Return the address of a new page-aligned buffer of size SIZE.  Set
-   *UP to the newly allocated (but possibly unaligned) buffer used to
-   *build the aligned buffer.  To free the buffer, free (*UP).  */
+/* Return the address of a page-aligned buffer of size SIZE,
+   reallocating it from *UP.  Set *UP to the newly allocated (but
+   possibly unaligned) buffer used to build the aligned buffer.  To
+   free the buffer, free (*UP).  */
 static char *
 page_alloc (size, up)
      size_t size;
      char **up;
 {
-  /* HAVE_WORKING_VALLOC means that valloc is properly declared, and
-     you can free the result of valloc.  This symbol is not (yet)
-     autoconfigured.  It can be useful to define HAVE_WORKING_VALLOC
-     while debugging, since some debugging memory allocators might
-     catch more bugs if this symbol is enabled.  */
-#if HAVE_WORKING_VALLOC
-  *up = valloc (size);
-  return *up;
-#else
   size_t asize = size + pagesize - 1;
   if (size <= asize)
     {
-      *up = malloc (asize);
-      if (*up)
-	return ALIGN_TO (*up, pagesize);
+      char *p = *up ? realloc (*up, asize) : malloc (asize);
+      if (p)
+	{
+	  *up = p;
+	  return ALIGN_TO (p, pagesize);
+	}
     }
   return NULL;
-#endif
 }
 
 /* Reset the buffer for a new file, returning zero if we should skip it.
@@ -269,7 +275,9 @@ reset (fd, file, stats)
      char const *file;
      struct stats *stats;
 {
-  if (pagesize == 0)
+  if (pagesize)
+    bufsalloc = ALIGN_TO (bufalloc / PREFERRED_SAVE_FACTOR, pagesize);
+  else
     {
       size_t ubufsalloc;
       pagesize = getpagesize ();
@@ -281,141 +289,195 @@ reset (fd, file, stats)
       ubufsalloc = BUFSALLOC;
 #endif
       bufsalloc = ALIGN_TO (ubufsalloc, pagesize);
-      bufalloc = 5 * bufsalloc;
+      bufalloc = PREFERRED_SAVE_FACTOR * bufsalloc;
       /* The 1 byte of overflow is a kludge for dfaexec(), which
 	 inserts a sentinel newline at the end of the buffer
 	 being searched.  There's gotta be a better way... */
       if (bufsalloc < ubufsalloc
-	  || bufalloc / 5 != bufsalloc || bufalloc + 1 < bufalloc
+	  || bufalloc / PREFERRED_SAVE_FACTOR != bufsalloc
+	  || bufalloc + 1 < bufalloc
 	  || ! (buffer = page_alloc (bufalloc + 1, &ubuffer)))
 	fatal (_("memory exhausted"), 0);
-      bufbeg = buffer;
-      buflim = buffer;
     }
+
+  buflim = buffer;
   bufdesc = fd;
 
-  if (
-#if defined(HAVE_MMAP)
-      1
-#else
-      directories != READ_DIRECTORIES
-#endif
-      )
-    if (fstat (fd, &stats->stat) != 0)
-      {
-	error ("fstat", errno);
-	return 0;
-      }
+  if (fstat (fd, &stats->stat) != 0)
+    {
+      error ("fstat", errno);
+      return 0;
+    }
   if (directories == SKIP_DIRECTORIES && S_ISDIR (stats->stat.st_mode))
     return 0;
-#if defined(HAVE_MMAP)
-  if (!S_ISREG (stats->stat.st_mode))
-    bufmapped = 0;
+  if (S_ISREG (stats->stat.st_mode))
+    {
+      if (file)
+	bufoffset = 0;
+      else
+	{
+	  bufoffset = lseek (fd, 0, SEEK_CUR);
+	  if (bufoffset < 0)
+	    {
+	      error ("lseek", errno);
+	      return 0;
+	    }
+	}
+#ifdef HAVE_MMAP
+      initial_bufoffset = bufoffset;
+      bufmapped = mmap_option && bufoffset % pagesize == 0;
+#endif
+    }
   else
     {
-      bufmapped = 1;
-      bufoffset = initial_bufoffset = file ? 0 : lseek (fd, 0, 1);
-    }
+#ifdef HAVE_MMAP
+      bufmapped = 0;
 #endif
+    }
   return 1;
 }
 
 /* Read new stuff into the buffer, saving the specified
    amount of old stuff.  When we're done, 'bufbeg' points
    to the beginning of the buffer contents, and 'buflim'
-   points just after the end.  Return count of new stuff. */
+   points just after the end.  Return zero if there's an error.  */
 static int
 fillbuf (save, stats)
      size_t save;
      struct stats *stats;
 {
-  int cc;
-#if defined(HAVE_MMAP)
-  caddr_t maddr;
-#endif
+  size_t fillsize = 0;
+  int cc = 1;
+  size_t readsize;
 
-  if (save > bufsalloc)
+  /* Offset from start of unaligned buffer to start of old stuff
+     that we want to save.  */
+  size_t saved_offset = buflim - ubuffer - save;
+
+  if (bufsalloc < save)
     {
-      char *nubuffer;
-      char *nbuffer;
+      size_t aligned_save = ALIGN_TO (save, pagesize);
+      size_t maxalloc = (size_t) -1;
+      size_t newalloc;
 
-      while (save > bufsalloc)
-	bufsalloc *= 2;
-      bufalloc = 5 * bufsalloc;
-      if (bufalloc / 5 != bufsalloc || bufalloc + 1 < bufalloc
-	  || ! (nbuffer = page_alloc (bufalloc + 1, &nubuffer)))
+      if (S_ISREG (stats->stat.st_mode))
+	{
+	  /* Calculate an upper bound on how much memory we should allocate.
+	     We can't use ALIGN_TO here, since off_t might be longer than
+	     size_t.  Watch out for arithmetic overflow.  */
+	  off_t to_be_read = stats->stat.st_size - bufoffset;
+	  size_t slop = to_be_read % pagesize;
+	  off_t aligned_to_be_read = to_be_read + (slop ? pagesize - slop : 0);
+	  off_t maxalloc_off = aligned_save + aligned_to_be_read;
+	  if (0 <= maxalloc_off && maxalloc_off == (size_t) maxalloc_off)
+	    maxalloc = maxalloc_off;
+	}
+
+      /* Grow bufsalloc until it is at least as great as `save'; but
+	 if there is an overflow, just grow it to the next page boundary.  */
+      while (bufsalloc < save)
+	if (bufsalloc < bufsalloc * 2)
+	  bufsalloc *= 2;
+	else
+	  {
+	    bufsalloc = aligned_save;
+	    break;
+	  }
+
+      /* Grow the buffer size to be PREFERRED_SAVE_FACTOR times
+	 bufsalloc....  */
+      newalloc = PREFERRED_SAVE_FACTOR * bufsalloc;
+      if (maxalloc < newalloc)
+	{
+	  /* ... except don't grow it more than a pagesize past the
+	     file size, as that might cause unnecessary memory
+	     exhaustion if the file is large.  */
+	  newalloc = maxalloc;
+	  bufsalloc = aligned_save;
+	}
+
+      /* Check that the above calculations made progress, which might
+         not occur if there is arithmetic overflow.  If there's no
+	 progress, or if the new buffer size is larger than the old
+	 and buffer reallocation fails, report memory exhaustion.  */
+      if (bufsalloc < save || newalloc < save
+	  || (newalloc == save && newalloc != maxalloc)
+	  || (bufalloc < newalloc
+	      && ! (buffer
+		    = page_alloc ((bufalloc = newalloc) + 1, &ubuffer))))
 	fatal (_("memory exhausted"), 0);
+    }
 
-      bufbeg = nbuffer + bufsalloc - save;
-      memcpy (bufbeg, buflim - save, save);
-      free (ubuffer);
-      ubuffer = nubuffer;
-      buffer = nbuffer;
-    }
-  else
-    {
-      bufbeg = buffer + bufsalloc - save;
-      memcpy (bufbeg, buflim - save, save);
-    }
+  bufbeg = buffer + bufsalloc - save;
+  memmove (bufbeg, ubuffer + saved_offset, save);
+  readsize = bufalloc - bufsalloc;
 
 #if defined(HAVE_MMAP)
-  if (bufmapped && bufoffset % pagesize == 0
-      && stats->stat.st_size - bufoffset >= bufalloc - bufsalloc)
+  if (bufmapped)
     {
-      maddr = buffer + bufsalloc;
-      maddr = mmap (maddr, bufalloc - bufsalloc, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | MAP_FIXED, bufdesc, bufoffset);
-      if (maddr == (caddr_t) -1)
+      size_t mmapsize = readsize;
+
+      /* Don't mmap past the end of the file; some hosts don't allow this.
+	 Use `read' on the last page.  */
+      if (stats->stat.st_size - bufoffset < mmapsize)
 	{
-          /* This used to issue a warning, but on some hosts
-             (e.g. Solaris 2.5) mmap can fail merely because some
-             other process has an advisory read lock on the file.
-             There's no point alarming the user about this misfeature.  */
-#if 0
-	  fprintf (stderr, _("%s: warning: %s: %s\n"), prog, filename,
-		  strerror (errno));
-#endif
-	  goto tryread;
+	  mmapsize = stats->stat.st_size - bufoffset;
+	  mmapsize -= mmapsize % pagesize;
 	}
-#if 0
-      /* You might thing this (or MADV_WILLNEED) would help,
-	 but it doesn't, at least not on a Sun running 4.1.
-	 In fact, it actually slows us down about 30%! */
-      madvise (maddr, bufalloc - bufsalloc, MADV_SEQUENTIAL);
-#endif
-      cc = bufalloc - bufsalloc;
-      bufoffset += cc;
-    }
-  else
-    {
-    tryread:
-      /* We come here when we're not going to use mmap() any more.
-	 Note that we need to synchronize the file offset the
-	 first time through. */
-      if (bufmapped)
+
+      if (mmapsize
+	  && (mmap ((caddr_t) (buffer + bufsalloc), mmapsize,
+		    PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_FIXED,
+		    bufdesc, bufoffset)
+	      != (caddr_t) -1))
 	{
+	  /* Do not bother to use madvise with MADV_SEQUENTIAL or
+	     MADV_WILLNEED on the mmapped memory.  One might think it
+	     would help, but it slows us down about 30% on SunOS 4.1.  */
+	  fillsize = mmapsize;
+	}
+      else
+	{
+	  /* Stop using mmap on this file.  Synchronize the file
+	     offset.  Do not warn about mmap failures.  On some hosts
+	     (e.g. Solaris 2.5) mmap can fail merely because some
+	     other process has an advisory read lock on the file.
+	     There's no point alarming the user about this misfeature.  */
 	  bufmapped = 0;
-	  if (bufoffset != initial_bufoffset)
-	    lseek (bufdesc, bufoffset, 0);
+	  if (bufoffset != initial_bufoffset
+	      && lseek (bufdesc, bufoffset, SEEK_SET) < 0)
+	    {
+	      error ("lseek", errno);
+	      cc = 0;
+	    }
 	}
-      cc = read (bufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
     }
-#else
-  cc = read (bufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
 #endif /*HAVE_MMAP*/
+
+  if (! fillsize)
+    {
+      ssize_t bytesread;
+      while ((bytesread = read (bufdesc, buffer + bufsalloc, readsize)) < 0
+	     && errno == EINTR)
+	continue;
+      if (bytesread < 0)
+	cc = 0;
+      else
+	fillsize = bytesread;
+    }
+
+  bufoffset += fillsize;
 #if O_BINARY
-  if (cc > 0)
-    cc = undossify_input (buffer + bufsalloc, cc);
+  if (fillsize)
+    fillsize = undossify_input (buffer + bufsalloc, fillsize);
 #endif
-  if (cc > 0)
-    buflim = buffer + bufsalloc + cc;
-  else
-    buflim = buffer + bufsalloc;
+  buflim = buffer + bufsalloc + fillsize;
   return cc;
 }
 
 /* Flags controlling the style of output. */
 static int always_text;		/* Assume the input is always text. */
+static int filename_mask;	/* If zero, output nulls after filenames.  */
 static int out_quiet;		/* Suppress all normal output. */
 static int out_invert;		/* Print nonmatching stuff. */
 static int out_file;		/* Print filenames. */
@@ -447,11 +509,9 @@ nlscan (lim)
      char *lim;
 {
   char *beg;
-
-  for (beg = lastnl; beg < lim; ++beg)
-    if (*beg == '\n')
-      ++totalnl;
-  lastnl = beg;
+  for (beg = lastnl;  (beg = memchr (beg, eolbyte, lim - beg));  beg++)
+    totalnl++;
+  lastnl = lim;
 }
 
 static void
@@ -480,7 +540,7 @@ prline (beg, lim, sep)
      int sep;
 {
   if (out_file)
-    printf ("%s%c", filename, sep);
+    printf ("%s%c", filename, sep & filename_mask);
   if (out_line)
     {
       nlscan (beg);
@@ -513,7 +573,7 @@ prpending (lim)
   while (pending > 0 && lastout < lim)
     {
       --pending;
-      if ((nl = memchr (lastout, '\n', lim - lastout)) != 0)
+      if ((nl = memchr (lastout, eolbyte, lim - lastout)) != 0)
 	++nl;
       else
 	nl = lim;
@@ -531,6 +591,7 @@ prtext (beg, lim, nlinesp)
 {
   static int used;		/* avoid printing "--" before any output */
   char *bp, *p, *nl;
+  char eol = eolbyte;
   int i, n;
 
   if (!out_quiet && pending > 0)
@@ -547,7 +608,7 @@ prtext (beg, lim, nlinesp)
 	if (p > bp)
 	  do
 	    --p;
-	  while (p > bp && p[-1] != '\n');
+	  while (p > bp && p[-1] != eol);
 
       /* We only print the "--" separator if our output is
 	 discontiguous from the last output in the file. */
@@ -556,7 +617,7 @@ prtext (beg, lim, nlinesp)
 
       while (p < beg)
 	{
-	  nl = memchr (p, '\n', beg - p);
+	  nl = memchr (p, eol, beg - p);
 	  prline (p, nl + 1, '-');
 	  p = nl + 1;
 	}
@@ -567,7 +628,7 @@ prtext (beg, lim, nlinesp)
       /* Caller wants a line count. */
       for (n = 0; p < lim; ++n)
 	{
-	  if ((nl = memchr (p, '\n', lim - p)) != 0)
+	  if ((nl = memchr (p, eol, lim - p)) != 0)
 	    ++nl;
 	  else
 	    nl = lim;
@@ -581,7 +642,7 @@ prtext (beg, lim, nlinesp)
     if (!out_quiet)
       prline (beg, lim, ':');
 
-  pending = out_after;
+  pending = out_quiet ? 0 : out_after;
   used = 1;
 }
 
@@ -596,13 +657,14 @@ grepbuf (beg, lim)
   int nlines, n;
   register char *p, *b;
   char *endp;
+  char eol = eolbyte;
 
   nlines = 0;
   p = beg;
   while ((b = (*execute)(p, lim - p, &endp)) != 0)
     {
       /* Avoid matching the empty line at the end of the buffer. */
-      if (b == lim && ((b > beg && b[-1] == '\n') || b == beg))
+      if (b == lim && ((b > beg && b[-1] == eol) || b == beg))
 	break;
       if (!out_invert)
 	{
@@ -639,6 +701,7 @@ grep (fd, file, stats)
   int not_text;
   size_t residue, save;
   char *beg, *lim;
+  char eol = eolbyte;
 
   if (!reset (fd, file, stats))
     return 0;
@@ -662,7 +725,7 @@ grep (fd, file, stats)
   residue = 0;
   save = 0;
 
-  if (fillbuf (save, stats) < 0)
+  if (! fillbuf (save, stats))
     {
       if (! (is_EISDIR (errno, file) && suppress_errors))
 	error (filename, errno);
@@ -670,7 +733,7 @@ grep (fd, file, stats)
     }
 
   not_text = (! (always_text | out_quiet)
-	      && memchr (bufbeg, '\0', buflim - bufbeg));
+	      && memchr (bufbeg, eol ? '\0' : '\200', buflim - bufbeg));
   done_on_match += not_text;
   out_quiet += not_text;
 
@@ -682,7 +745,7 @@ grep (fd, file, stats)
       if (buflim - bufbeg == save)
 	break;
       beg = bufbeg + save - residue;
-      for (lim = buflim; lim > beg && lim[-1] != '\n'; --lim)
+      for (lim = buflim; lim > beg && lim[-1] != eol; --lim)
 	;
       residue = buflim - lim;
       if (beg < lim)
@@ -700,7 +763,7 @@ grep (fd, file, stats)
 	  ++i;
 	  do
 	    --beg;
-	  while (beg > bufbeg && beg[-1] != '\n');
+	  while (beg > bufbeg && beg[-1] != eol);
 	}
       if (beg != lastout)
 	lastout = 0;
@@ -708,7 +771,7 @@ grep (fd, file, stats)
       totalcc += buflim - bufbeg - save;
       if (out_line)
 	nlscan (beg);
-      if (fillbuf (save, stats) < 0)
+      if (! fillbuf (save, stats))
 	{
 	  if (! (is_EISDIR (errno, file) && suppress_errors))
 	    error (filename, errno);
@@ -746,7 +809,8 @@ grepfile (file, stats)
     }
   else
     {
-      desc = open (file, O_RDONLY);
+      while ((desc = open (file, O_RDONLY)) < 0 && errno == EINTR)
+	continue;
 
       if (desc < 0)
 	{
@@ -805,25 +869,21 @@ grepfile (file, stats)
       if (count_matches)
 	{
 	  if (out_file)
-	    printf ("%s:", filename);
+	    printf ("%s%c", filename, ':' & filename_mask);
 	  printf ("%d\n", count);
 	}
 
-      if (count)
-	{
-	  status = 0;
-	  if (list_files == 1)
-	    printf ("%s\n", filename);
-	}
-      else
-	{
-	  status = 1;
-	  if (list_files == -1)
-	    printf ("%s\n", filename);
-	}
+      status = !count;
+      if (list_files == 1 - 2 * status)
+	printf ("%s%c", filename, '\n' & filename_mask);
 
-      if (file && close (desc) != 0)
-	error (file, errno);
+      if (file)
+	while (close (desc) != 0)
+	  if (errno != EINTR)
+	    {
+	      error (file, errno);
+	      break;
+	    }
     }
 
   return status;
@@ -839,8 +899,8 @@ grepdir (dir, stats)
   char *name_space;
 
   for (ancestor = stats;  (ancestor = ancestor->parent) != 0;  )
-    if (! ((ancestor->stat.st_ino ^ stats->stat.st_ino)
-	   | (ancestor->stat.st_dev ^ stats->stat.st_dev)))
+    if (ancestor->stat.st_ino == stats->stat.st_ino
+	&& ancestor->stat.st_dev == stats->stat.st_dev)
       {
 	if (!suppress_errors)
 	  fprintf (stderr, _("%s: warning: %s: %s\n"), prog, dir,
@@ -903,23 +963,28 @@ int status;
       printf (_("Usage: %s [OPTION]... PATTERN [FILE] ...\n"), prog);
       printf (_("\
 Search for PATTERN in each FILE or standard input.\n\
+Example: %s -i 'hello.*world' menu.h main.c\n\
 \n\
-Regexp selection and interpretation:\n\
+Regexp selection and interpretation:\n"), prog);
+      printf (_("\
   -E, --extended-regexp     PATTERN is an extended regular expression\n\
-  -F, --fixed-regexp        PATTERN is a fixed string separated by newlines\n\
-  -G, --basic-regexp        PATTERN is a basic regular expression\n\
+  -F, --fixed-strings       PATTERN is a set of newline-separated strings\n\
+  -G, --basic-regexp        PATTERN is a basic regular expression\n"));
+      printf (_("\
   -e, --regexp=PATTERN      use PATTERN as a regular expression\n\
   -f, --file=FILE           obtain PATTERN from FILE\n\
   -i, --ignore-case         ignore case distinctions\n\
   -w, --word-regexp         force PATTERN to match only whole words\n\
-  -x, --line-regexp         force PATTERN to match only whole lines\n"));
+  -x, --line-regexp         force PATTERN to match only whole lines\n\
+  -z, --null-data           a data line ends in 0 byte, not newline\n"));
       printf (_("\
 \n\
 Miscellaneous:\n\
   -s, --no-messages         suppress error messages\n\
-  -v, --revert-match        select non-matching lines\n\
+  -v, --invert-match        select non-matching lines\n\
   -V, --version             print version information and exit\n\
-      --help                display this help and exit\n"));
+      --help                display this help and exit\n\
+      --mmap                use memory-mapped input if possible\n"));
       printf (_("\
 \n\
 Output control:\n\
@@ -934,31 +999,42 @@ Output control:\n\
   -r, --recursive           equivalent to --directories=recurse.\n\
   -L, --files-without-match only print FILE names containing no match\n\
   -l, --files-with-matches  only print FILE names containing matches\n\
-  -c, --count               only print a count of matching lines per FILE\n"));
+  -c, --count               only print a count of matching lines per FILE\n\
+  -Z, --null                print 0 byte after FILE name\n"));
       printf (_("\
 \n\
 Context control:\n\
   -B, --before-context=NUM  print NUM lines of leading context\n\
   -A, --after-context=NUM   print NUM lines of trailing context\n\
   -C, --context[=NUM]       print NUM (default 2) lines of output context\n\
-                            unless overriden by -A or -B\n\
+                            unless overridden by -A or -B\n\
   -NUM                      same as --context=NUM\n\
   -U, --binary              do not strip CR characters at EOL (MSDOS)\n\
   -u, --unix-byte-offsets   report offsets as if CRs were not there (MSDOS)\n\
 \n\
-If no -[GEF], then `egrep' assumes -E, `fgrep' -F, else -G.\n\
-With no FILE, or when FILE is -, read standard input. If less than\n\
-two FILEs given, assume -h. Exit with 0 if matches, with 1 if none.\n\
-Exit with 2 if syntax errors or system errors.\n"));
+`egrep' means `grep -E'.  `fgrep' means `grep -F'.\n\
+With no FILE, or when FILE is -, read standard input.  If less than\n\
+two FILEs given, assume -h.  Exit status is 0 if match, 1 if no match,\n\
+and 2 if trouble.\n"));
       printf (_("\nReport bugs to <bug-gnu-utils@gnu.org>.\n"));
     }
   exit (status);
 }
 
+/* Set the matcher to M, reporting any conflicts.  */
+static void
+setmatcher (m)
+     char const *m;
+{
+  if (matcher && strcmp (matcher, m) != 0)
+    fatal (_("conflicting matchers specified"), 0);
+  matcher = m;
+}
+
 /* Go through the matchers vector and look for the specified matcher.
    If we find it, install it in compile and execute, and return 1.  */
 static int
-setmatcher (name)
+install_matcher (name)
      char const *name;
 {
   int i;
@@ -999,6 +1075,65 @@ setmatcher (name)
 	return 1;
       }
   return 0;
+}
+
+/* Find the white-space-separated options specified by OPTIONS, and
+   using BUF to store copies of these options, set ARGV[0], ARGV[1],
+   etc. to the option copies.  Return the number N of options found.
+   Do not set ARGV[N] to NULL.  If ARGV is NULL, do not store ARGV[0]
+   etc.  Backslash can be used to escape whitespace (and backslashes).  */
+static int
+prepend_args (options, buf, argv)
+     char const *options;
+     char *buf;
+     char **argv;
+{
+  char const *o = options;
+  char *b = buf;
+  int n = 0;
+
+  for (;;)
+    {
+      while (ISSPACE ((unsigned char) *o))
+	o++;
+      if (!*o)
+	return n;
+      if (argv)
+	argv[n] = b;
+      n++;
+
+      do
+	if ((*b++ = *o++) == '\\' && *o)
+	  b[-1] = *o++;
+      while (*o && ! ISSPACE ((unsigned char) *o));
+
+      *b++ = '\0';
+    }
+}
+
+/* Prepend the whitespace-separated options in OPTIONS to the argument
+   vector of a main program with argument count *PARGC and argument
+   vector *PARGV.  */
+static void
+prepend_default_options (options, pargc, pargv)
+     char const *options;
+     int *pargc;
+     char ***pargv;
+{
+  if (options)
+    {
+      char *buf = xmalloc (strlen (options) + 1);
+      int prepended = prepend_args (options, buf, (char **) NULL);
+      int argc = *pargc;
+      char * const *argv = *pargv;
+      char **pp = (char **) xmalloc ((prepended + argc + 1) * sizeof *pp);
+      *pargc = prepended + argc;
+      *pargv = pp;
+      *pp++ = *argv++;
+      pp += prepend_args (options, buf, pp);
+      while ((*pp++ = *argv++))
+	continue;
+    }
 }
 
 int
@@ -1048,7 +1183,8 @@ main (argc, argv)
   keys = NULL;
   keycc = 0;
   with_filenames = 0;
-  matcher = NULL;
+  eolbyte = '\n';
+  filename_mask = ~0;
 
   /* The value -1 means to use DEFAULT_CONTEXT. */
   out_after = out_before = -1;
@@ -1067,13 +1203,10 @@ main (argc, argv)
   textdomain (PACKAGE);
 #endif
 
-  while ((opt = getopt_long (argc, argv,
-#if O_BINARY
-         "0123456789A:B:C::EFGHVX:abcd:e:f:hiLlnqrsvwxyUu",
-#else
-         "0123456789A:B:C::EFGHVX:abcd:e:f:hiLlnqrsvwxy",
-#endif
-         long_options, NULL)) != EOF)
+  prepend_default_options (getenv ("GREP_OPTIONS"), &argc, &argv);
+
+  while ((opt = getopt_long (argc, argv, short_options, long_options, NULL))
+	 != -1)
     switch (opt)
       {
       case '0':
@@ -1115,38 +1248,32 @@ main (argc, argv)
 	  default_context = 2;
 	break;
       case 'E':
-	if (matcher && strcmp (matcher, "posix-egrep") != 0)
-	  fatal (_("you may specify only one of -E, -F, or -G"), 0);
-	matcher = "posix-egrep";
+	setmatcher ("egrep");
 	break;
       case 'F':
-	if (matcher && strcmp(matcher, "fgrep") != 0)
-	  fatal(_("you may specify only one of -E, -F, or -G"), 0);;
-	matcher = "fgrep";
+	setmatcher ("fgrep");
 	break;
       case 'G':
-	if (matcher && strcmp (matcher, "grep") != 0)
-	  fatal (_("you may specify only one of -E, -F, or -G"), 0);
-	matcher = "grep";
+	setmatcher ("grep");
 	break;
       case 'H':
 	with_filenames = 1;
 	break;
-#if O_BINARY
       case 'U':
+#if O_BINARY
 	dos_use_file_type = DOS_BINARY;
+#endif
 	break;
       case 'u':
+#if O_BINARY
 	dos_report_unix_offset = 1;
-	break;
 #endif
+	break;
       case 'V':
 	show_version = 1;
 	break;
       case 'X':
-	if (matcher)
-	  fatal (_("matcher already specified"), 0);
-	matcher = optarg;
+	setmatcher (optarg);
 	break;
       case 'a':
 	always_text = 1;
@@ -1237,6 +1364,12 @@ main (argc, argv)
       case 'x':
 	match_lines = 1;
 	break;
+      case 'Z':
+	filename_mask = 0;
+	break;
+      case 'z':
+	eolbyte = '\0';
+	break;
       case 0:
 	/* long options */
 	break;
@@ -1250,9 +1383,12 @@ main (argc, argv)
   if (out_before < 0)
     out_before = default_context;
 
+  if (! matcher)
+    matcher = "grep";
+
   if (show_version)
     {
-      printf (_("grep (GNU grep) %s\n"), VERSION);
+      printf (_("%s (GNU grep) %s\n"), matcher, VERSION);
       printf ("\n");
       printf (_("\
 Copyright (C) 1988, 1992-1998, 1999 Free Software Foundation, Inc.\n"));
@@ -1284,10 +1420,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n"))
     else
       usage (2);
 
-  if (! matcher)
-    matcher = default_matcher;
-
-  if (!setmatcher (matcher) && !setmatcher ("default"))
+  if (!install_matcher (matcher) && !install_matcher ("default"))
     abort ();
 
   (*compile)(keys, keycc);

@@ -35,14 +35,12 @@ extern struct matcher
   char *(*execute) PARAMS ((char *, size_t, char **));
 } matchers[];
 
-/* Exported from grep.c. */
-extern char const *matcher;
-
 /* Exported from fgrepmat.c, egrepmat.c, grepmat.c.  */
-extern char const default_matcher[];
+extern char const *matcher;
 
 /* The following flags are exported from grep for the matchers
    to look at. */
 extern int match_icase;		/* -i */
 extern int match_words;		/* -w */
 extern int match_lines;		/* -x */
+extern unsigned char eolbyte;	/* -z */
