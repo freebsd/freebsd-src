@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.14 1995/02/14 06:15:25 phk Exp $
+ * $Id: systm.h,v 1.15 1995/03/16 18:16:32 bde Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -159,7 +159,7 @@ void	stopprofclock __P((struct proc *));
 void	setstatclockrate __P((int hzrate));
 
 void	hardupdate __P((long));
-#include <libkern/libkern.h>
+#include <sys/libkern.h>
 
 /* Initialize the world */
 extern void consinit(void);
