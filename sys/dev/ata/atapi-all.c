@@ -25,13 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.5 1999/03/01 21:03:15 sos Exp sos $
+ *	$Id: atapi-all.c,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 #include "ata.h"
 #include "atapicd.h"
 #include "atapist.h"
-/*#include "atapifd.h"*/ 
+#include "atapifd.h" 
 #include "opt_devfs.h"
 
 #if NATA > 0 
@@ -326,7 +326,7 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
 
     TAILQ_REMOVE(&atp->controller->atapi_queue, request, chain);
 #ifdef ATAPI_DEBUG
-printf("atapi_interrupt: error=%02x\n", request->result);
+printf("atapi_interrupt: error=0x%02x\n", request->result);
 #endif
     if (request->callback) {
 	(request->callback)(request);
@@ -341,7 +341,7 @@ printf("atapi_interrupt: error=%02x\n", request->result);
 void 
 atapi_error(struct atapi_softc *atp, int32_t error)
 {
-    printf("atapi: error = %02x\n", error);
+    printf("atapi: error = 0x%02x\n", error);
 }
 
 void
@@ -350,7 +350,7 @@ atapi_dump(int8_t *label, void *data, int32_t len)
         u_int8_t *p = data;
 
         printf ("atapi: %s %x", label, *p++);
-        while (--len > 0) printf ("-%x", *p++);
+        while (--len > 0) printf ("-%02x", *p++);
         printf ("\n");
 }
 

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.5 1999/03/01 21:03:15 sos Exp sos $
+ *	$Id: atapi-cd.c,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 #include "ata.h"
@@ -56,8 +56,8 @@
 
 static d_open_t		acdopen;
 static d_close_t	acdclose;
-static d_write_t	acdwrite;
 static d_read_t		acdread;
+static d_write_t	acdwrite;
 static d_ioctl_t	acdioctl;
 static d_strategy_t	acdstrategy;
 
@@ -106,6 +106,9 @@ static int32_t acd_close_track(struct acd_softc *);
 static int32_t acd_close_disk(struct acd_softc *);
 static int32_t acd_read_track_info(struct acd_softc *, int, struct acd_track_info*);
 static int32_t acd_blank_disk(struct acd_softc *);
+static void lba2msf(int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
+static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
+static void acd_drvinit(void *);
 
 int
 acdattach(struct atapi_softc *atp)
@@ -201,7 +204,7 @@ acdattach(struct atapi_softc *atp)
     return 0;
 }
 
-struct acd_softc *
+static struct acd_softc *
 acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
 {
     struct acd_softc *acd;
@@ -227,27 +230,25 @@ acd_init_lun(struct atapi_softc *atp, int32_t lun, struct devstat *stats)
     else
 	acd->stats = stats;
 #ifdef DEVFS
-    acd->ra_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-        DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-        "racd%da", lun);
-    acd->rc_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-        DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-        "racd%dc", lun);
-    acd->a_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
-        DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-        "acd%da", lun);
-    acd->c_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
-        DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-        "acd%dc", lun);
+    acd->a_cdevfs_token = devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+        				   DV_CHR, UID_ROOT, GID_OPERATOR, 0644,
+        				   "racd%da", lun);
+    acd->c_cdevfs_token = devfs_add_devswf(&acd_cdevsw, 
+					   dkmakeminor(lun, 0, RAW_PART),
+        				   DV_CHR, UID_ROOT, GID_OPERATOR, 0644,
+        				   "racd%dc", lun);
+    acd->a_bdevfs_token = devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+        				   DV_BLK, UID_ROOT, GID_OPERATOR, 0644,
+        				   "acd%da", lun);
+    acd->c_bdevfs_token = devfs_add_devswf(&acd_cdevsw, 
+					   dkmakeminor(lun, 0, RAW_PART),
+        				   DV_BLK, UID_ROOT, GID_OPERATOR, 0644,
+        				   "acd%dc", lun);
 #endif
     return acd;
 }
 
-void 
+static void 
 acd_describe(struct acd_softc *cdp)
 {
     int32_t comma;
@@ -377,7 +378,24 @@ acd_describe(struct acd_softc *cdp)
     printf("\n");
 }
 
-static int
+static __inline void 
+lba2msf(int32_t lba, u_int8_t *m, u_int8_t *s, u_int8_t *f)
+{
+    lba += 150;
+    lba &= 0xffffff;
+    *m = lba / (60 * 75);
+    lba %= (60 * 75);
+    *s = lba / 75;
+    *f = lba % 75;
+}
+
+static __inline int32_t 
+msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
+{
+    return (m * 60 + s) * 75 + f - 150;
+}
+
+static int32_t
 acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = dkunit(dev);
@@ -393,7 +411,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (fmt == S_IFBLK)
         cdp->flags |= F_BOPEN;
     else
-        ++cdp->refcnt;
+        cdp->refcnt++;
 
     if ((flags & O_NONBLOCK) == 0) {
         if ((flags & FWRITE) != 0) {
@@ -413,7 +431,7 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-int32_t 
+static int32_t 
 acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = dkunit(dev);
@@ -425,7 +443,7 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (fmt == S_IFBLK)
     	cdp->flags &= ~F_BOPEN;
     else
-    	--cdp->refcnt;
+    	cdp->refcnt--;
 
     /* Are we the last open ?? */
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
@@ -442,155 +460,19 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-static int
+static int32_t
 acdread(dev_t dev, struct uio *uio, int32_t ioflag)
 {
     return physio(acdstrategy, NULL, dev, 1, minphys, uio);
 }
 
-static int
+static int32_t
 acdwrite(dev_t dev, struct uio *uio, int32_t ioflag)
 {
     return physio(acdstrategy, NULL, dev, 0, minphys, uio);
 }
 
-void 
-acdstrategy(struct buf *bp)
-{
-    int32_t lun = dkunit(bp->b_dev);
-    struct acd_softc *cdp = acdtab[lun];
-    int32_t x;
-
-#ifdef NOTYET
-    /* allow write only on CD-R/RW media */   /* all for now SOS */
-    if (!(bp->b_flags & B_READ) && !(writeable_media)) {
-        bp->b_error = EROFS;
-        bp->b_flags |= B_ERROR;
-        biodone(bp);
-        return;
-    }
-#endif
-
-    if (bp->b_bcount == 0) {
-        bp->b_resid = 0;
-        biodone(bp);
-        return;
-    }
-    
-    /* check for valid blocksize SOS */
-
-    bp->b_pblkno = bp->b_blkno;
-    bp->b_resid = bp->b_bcount;
-
-    x = splbio();
-    bufqdisksort(&cdp->buf_queue, bp);
-    acd_start(cdp);
-    splx(x);
-}
-
-static void 
-acd_start(struct acd_softc *cdp)
-{
-    struct buf *bp = bufq_first(&cdp->buf_queue);
-    u_long lba, count;
-    int8_t ccb[16];
-
-    if (!bp)
-        return;
-    bzero(ccb, sizeof(ccb));
-    bufq_remove(&cdp->buf_queue, bp);
-
-    /* Should reject all queued entries if media have changed. */
-    if (cdp->flags & F_MEDIA_CHANGED) {
-        bp->b_error = EIO;
-        bp->b_flags |= B_ERROR;
-        biodone(bp);
-        return;
-    }
-    acd_select_slot(cdp);
-    if ((bp->b_flags & B_READ) == B_WRITE) {
-        if ((cdp->flags & F_TRACK_PREPED) == 0) {
-            if ((cdp->flags & F_TRACK_PREP) == 0) {
-                printf("acd%d: sequence error\n", cdp->lun);
-                bp->b_error = EIO;
-                bp->b_flags |= B_ERROR;
-                biodone(bp);
-                return;
-            } else {
-                if (acd_open_track(cdp, &cdp->preptrack) != 0) {
-                    biodone(bp);
-                    return;
-                }
-                cdp->flags |= F_TRACK_PREPED;
-            }
-        }
-    }
-    if (bp->b_flags & B_READ) {
-    	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
-	ccb[0] = ATAPI_READ_BIG;
-    }
-    else {
-	lba = cdp->next_writeable_lba + (bp->b_offset / cdp->block_size);
-	ccb[0] = ATAPI_WRITE_BIG;
-    }
-    count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
-
-    ccb[1] = 0;
-    ccb[2] = lba>>24;
-    ccb[3] = lba>>16;
-    ccb[4] = lba>>8;
-    ccb[5] = lba;
-    ccb[7] = count>>8;
-    ccb[8] = count;
-
-    devstat_start_transaction(cdp->stats);
-
-    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, bp->b_bcount,
-                    (bp->b_flags&B_READ)?A_READ : 0, acd_done, cdp, (void *)bp);
-}
-
-static void 
-acd_done(struct atapi_request *request)
-{
-    struct buf *bp = request->bp;
-    struct acd_softc *cdp = request->driver;
-    
-    devstat_end_transaction(cdp->stats, bp->b_bcount-request->bytecount,
-                            DEVSTAT_TAG_NONE,
-                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);  
-    if (request->result) {
-        printf("acd_done: ");
-        atapi_error(request->device, request->result);
-        bp->b_error = EIO;
-        bp->b_flags |= B_ERROR;
-    }   
-    else {
-        bp->b_resid = request->bytecount;
-        if ((bp->b_flags & B_READ) == B_WRITE)
-            cdp->flags |= F_WRITTEN;
-    }
-    biodone(bp);
-    acd_start(cdp);
-}
-
-static __inline void 
-lba2msf(int32_t lba, u_int8_t *m, u_int8_t *s, u_int8_t *f)
-{
-    lba += 150;
-    lba &= 0xffffff;
-    *m = lba / (60 * 75);
-    lba %= (60 * 75);
-    *s = lba / 75;
-    *f = lba % 75;
-}
-
-static __inline int32_t 
-msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
-{
-    return (m * 60 + s) * 75 + f - 150;
-}
-
-int32_t 
+static int32_t 
 acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
     int32_t lun = dkunit(dev);
@@ -634,7 +516,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     case CDIOCRESET:
         error = suser(p->p_ucred, &p->p_acflag);
         if (error)
-            return (error);
+            return error;
         return acd_test_unit_ready(cdp);
 
     case CDIOCEJECT:
@@ -658,7 +540,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             struct ioc_read_toc_entry *te = (struct ioc_read_toc_entry *)addr;
             struct toc *toc = &cdp->toc;
             struct toc buf;
-            u_long len;
+            u_int32_t len;
             u_int8_t starting_track = te->starting_track;
 
             if (!cdp->toc.hdr.ending_track)
@@ -741,7 +623,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
             struct ioc_read_subchannel *args =
             	(struct ioc_read_subchannel *)addr;
             struct cd_sub_channel_info data;
-            u_long len = args->data_len;
+            u_int32_t len = args->data_len;
             int32_t abslba, rellba;
 	    int8_t ccb[16] = { ATAPI_READ_SUBCHANNEL, 0, 0x40, 1, 0, 0, 0,
 			       sizeof(cdp->subchan)>>8, sizeof(cdp->subchan),
@@ -755,7 +637,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 				sizeof(cdp->subchan), A_READ, NULL, NULL, NULL))
                 return EIO;
 #ifdef ACD_DEBUG
-                atapi_dump("acd: subchan", &cdp->subchan, sizeof(cdp->subchan));
+            atapi_dump("acd: subchan", &cdp->subchan, sizeof(cdp->subchan));
 #endif
 
             abslba = cdp->subchan.abslba;
@@ -807,7 +689,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     case CDIOCPLAYTRACKS:
 	{
             struct ioc_play_track *args = (struct ioc_play_track *)addr;
-            u_long start, len;
+            u_int32_t start, len;
             int32_t t1, t2;
 	    int8_t ccb[16];
 
@@ -1049,6 +931,128 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
     return error;
 }
 
+static void 
+acdstrategy(struct buf *bp)
+{
+    int32_t lun = dkunit(bp->b_dev);
+    struct acd_softc *cdp = acdtab[lun];
+    int32_t x;
+
+#ifdef NOTYET
+    /* allow write only on CD-R/RW media */   /* all for now SOS */
+    if (!(bp->b_flags & B_READ) && !(writeable_media)) {
+        bp->b_error = EROFS;
+        bp->b_flags |= B_ERROR;
+        biodone(bp);
+        return;
+    }
+#endif
+
+    if (bp->b_bcount == 0) {
+        bp->b_resid = 0;
+        biodone(bp);
+        return;
+    }
+    
+    /* check for valid blocksize SOS */
+
+    bp->b_pblkno = bp->b_blkno;
+    bp->b_resid = bp->b_bcount;
+
+    x = splbio();
+    bufqdisksort(&cdp->buf_queue, bp);
+    acd_start(cdp);
+    splx(x);
+}
+
+static void 
+acd_start(struct acd_softc *cdp)
+{
+    struct buf *bp = bufq_first(&cdp->buf_queue);
+    u_int32_t lba, count;
+    int8_t ccb[16];
+
+    if (!bp)
+        return;
+
+    bufq_remove(&cdp->buf_queue, bp);
+
+    /* Should reject all queued entries if media have changed. */
+    if (cdp->flags & F_MEDIA_CHANGED) {
+        bp->b_error = EIO;
+        bp->b_flags |= B_ERROR;
+        biodone(bp);
+        return;
+    }
+    acd_select_slot(cdp);
+    if ((bp->b_flags & B_READ) == B_WRITE) {
+        if ((cdp->flags & F_TRACK_PREPED) == 0) {
+            if ((cdp->flags & F_TRACK_PREP) == 0) {
+                printf("acd%d: sequence error\n", cdp->lun);
+                bp->b_error = EIO;
+                bp->b_flags |= B_ERROR;
+                biodone(bp);
+                return;
+            } else {
+                if (acd_open_track(cdp, &cdp->preptrack) != 0) {
+                    biodone(bp);
+                    return;
+                }
+                cdp->flags |= F_TRACK_PREPED;
+            }
+        }
+    }
+    bzero(ccb, sizeof(ccb));
+    if (bp->b_flags & B_READ) {
+    	lba = bp->b_blkno / (cdp->block_size / DEV_BSIZE);
+	ccb[0] = ATAPI_READ_BIG;
+    }
+    else {
+	lba = cdp->next_writeable_lba + (bp->b_offset / cdp->block_size);
+	ccb[0] = ATAPI_WRITE_BIG;
+    }
+    count = (bp->b_bcount + (cdp->block_size - 1)) / cdp->block_size;
+
+#ifdef ACD_DEBUG
+    printf("acd%d: lba=%d, count=%d\n", cdp->lun, lba, count);
+#endif
+    ccb[1] = 0;
+    ccb[2] = lba>>24;
+    ccb[3] = lba>>16;
+    ccb[4] = lba>>8;
+    ccb[5] = lba;
+    ccb[7] = count>>8;
+    ccb[8] = count;
+
+    devstat_start_transaction(cdp->stats);
+
+    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, bp->b_bcount,
+                    (bp->b_flags&B_READ)?A_READ : 0, acd_done, cdp, (void *)bp);
+}
+
+static void 
+acd_done(struct atapi_request *request)
+{
+    struct buf *bp = request->bp;
+    struct acd_softc *cdp = request->driver;
+    
+    devstat_end_transaction(cdp->stats, bp->b_bcount-request->bytecount,
+                            DEVSTAT_TAG_NONE,
+                            (bp->b_flags&B_READ) ? DEVSTAT_READ:DEVSTAT_WRITE);  
+    if (request->result) {
+        atapi_error(request->device, request->result);
+        bp->b_error = EIO;
+        bp->b_flags |= B_ERROR;
+    }   
+    else {
+        bp->b_resid = request->bytecount;
+        if ((bp->b_flags & B_READ) == B_WRITE)
+            cdp->flags |= F_WRITTEN;
+    }
+    biodone(bp);
+    acd_start(cdp);
+}
+
 static int32_t
 acd_test_unit_ready(struct acd_softc *cdp)
 {
@@ -1095,8 +1099,8 @@ acd_mode_sense(struct acd_softc *cdp, u_int8_t page,
 
     error = atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, A_READ,
 			    NULL, NULL, NULL);
-#ifdef AST_DEBUG
-    atapi_dump("acd: mode sense ", &cdp->au, sizeof(cdp->au));
+#ifdef ACD_DEBUG
+    atapi_dump("acd: mode sense ", pagebuf, pagesize);
 #endif
     return error;
 }
@@ -1107,8 +1111,9 @@ acd_mode_select(struct acd_softc *cdp, void *pagebuf, int32_t pagesize)
     int8_t ccb[16] = { ATAPI_MODE_SELECT, 0x10, 0, 0, 0, 0, 0,
                      pagesize>>8, pagesize, 0, 0, 0, 0, 0, 0, 0 };
 
-#ifdef AST_DEBUG
-    atapi_dump("acd: mode select ", &cdp->au, sizeof(cdp->au));
+#ifdef ACD_DEBUG
+    printf("acd: modeselect pagesize=%d\n", pagesize);
+    atapi_dump("acd: mode select ", pagebuf, pagesize);
 #endif
     return atapi_queue_cmd(cdp->atp, ccb, pagebuf, pagesize, 0, 
 			   NULL, NULL, NULL);
@@ -1196,9 +1201,6 @@ acd_read_toc(struct acd_softc *cdp)
     return 0;
 }
 
-/*
- * Set up the audio channel masks.
- */
 static int32_t 
 acd_setchan(struct acd_softc *cdp,
 	    u_int8_t c0, u_int8_t c1, u_int8_t c2, u_int8_t c3)
@@ -1287,7 +1289,7 @@ acd_select_slot(struct acd_softc *cdp)
         acd_lock_device(cdp, 1);
 }
 
-static int
+static int32_t
 acd_rezero_unit(struct acd_softc *cdp)
 {
     int8_t ccb[16];
@@ -1297,14 +1299,14 @@ acd_rezero_unit(struct acd_softc *cdp)
     return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
 }
 
-static int
+static int32_t
 acd_open_disk(struct acd_softc *cdp, int32_t test)
 {
     cdp->next_writeable_lba = 0;
     return 0;
 }
 
-static int
+static int32_t
 acd_close_disk(struct acd_softc *cdp)
 {
     int8_t ccb[16];
@@ -1316,7 +1318,7 @@ acd_close_disk(struct acd_softc *cdp)
     return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
 }
 
-static int
+static int32_t
 acd_open_track(struct acd_softc *cdp, struct wormio_prepare_track *ptp)
 {
     struct write_param param;
@@ -1386,7 +1388,7 @@ acd_open_track(struct acd_softc *cdp, struct wormio_prepare_track *ptp)
     return acd_mode_select(cdp, &param, sizeof(param));
 }
 
-static int
+static int32_t
 acd_close_track(struct acd_softc *cdp)
 {
     int8_t ccb[16];
@@ -1396,7 +1398,7 @@ acd_close_track(struct acd_softc *cdp)
     return atapi_queue_cmd(cdp->atp, ccb, NULL, 0, 0, NULL, NULL, NULL);
 }
 
-static int
+static int32_t
 acd_read_track_info(struct acd_softc *cdp,
 		    int32_t lba, struct acd_track_info *info)
 {
@@ -1418,7 +1420,7 @@ acd_read_track_info(struct acd_softc *cdp,
     return 0;
 }
 
-static int
+static int32_t
 acd_blank_disk(struct acd_softc *cdp)
 {
     int32_t error;

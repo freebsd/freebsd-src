@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.h,v 1.2 1999/03/01 12:11:01 sos Exp $
+ *	$Id: atapi-all.h,v 1.1 1999/03/01 21:19:18 sos Exp $
  */
 
 /* ATAPI misc defines */
@@ -88,25 +88,25 @@
 
 /* ATAPI device parameter information */
 struct atapi_params {
-    u_int	cmdsize 	:2;		/* packet command size */
+    u_int8_t	cmdsize 	:2;		/* packet command size */
 #define		ATAPI_PSIZE_12		0	/* 12 bytes */
 #define		ATAPI_PSIZE_16		1	/* 16 bytes */
 
-    u_int 			:3;
-    u_int	drqtype 	:2;		/* DRQ type */
+    u_int8_t 			:3;
+    u_int8_t	drqtype 	:2;		/* DRQ type */
 #define 	ATAPI_DRQT_MPROC	0	/* cpu    3 ms delay */
 #define 	ATAPI_DRQT_INTR		1	/* intr  10 ms delay */
 #define 	ATAPI_DRQT_ACCEL	2	/* accel 50 us delay */
 
-    u_int	removable 	:1;		/* device is removable */
-    u_int	device_type 	:5;		/* device type */
+    u_int8_t	removable 	:1;		/* device is removable */
+    u_int8_t	device_type 	:5;		/* device type */
 #define		ATAPI_TYPE_DIRECT	0	/* disk/floppy */
 #define 	ATAPI_TYPE_TAPE		1	/* streaming tape */
 #define	 	ATAPI_TYPE_CDROM	5	/* CD-ROM device */
 #define		ATAPI_TYPE_OPTICAL	7	/* optical disk */
 
-    u_int 			:1;
-    u_int	proto 		:2;		/* command protocol */
+    u_int8_t 			:1;
+    u_int8_t	proto 		:2;		/* command protocol */
 #define 	ATAPI_PROTO_ATAPI	2
 
     int16_t	reserved1[9];
