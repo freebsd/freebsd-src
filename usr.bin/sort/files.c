@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <string.h>
 
-static int	seq __P((FILE *, DBT *, DBT *));
+static int	seq(FILE *, DBT *, DBT *);
 
 /*
  * this is the subroutine for file management for fsort().

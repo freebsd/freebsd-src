@@ -92,17 +92,13 @@ char toutpath[MAXPATHLEN];
 
 const char *tmpdir;	/* where temporary files should be put */
 
-static void cleanup __P((void));
-static void onsignal __P((int));
-static void usage __P((const char *));
-static void many_files __P((void));
-
-int main __P((int argc, char **argv));
+static void cleanup(void);
+static void onsignal(int);
+static void usage(const char *);
+static void many_files(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	get_func_t get;
 	int ch, i, stdinflag = 0, tmp = 0;

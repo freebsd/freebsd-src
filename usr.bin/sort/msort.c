@@ -64,8 +64,8 @@ typedef struct mfile {
 
 static u_char *wts, *wts1 = NULL;
 
-static int cmp __P((RECHEADER *, RECHEADER *));
-static int insert __P((struct mfile **, struct mfile **, int, int));
+static int cmp(RECHEADER *, RECHEADER *);
+static int insert(struct mfile **, struct mfile **, int, int);
 
 void
 fmerge(binno, top, filelist, nfiles, get, outfp, fput, ftbl)

@@ -51,12 +51,12 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include <string.h>
 
-static void insertcol __P((struct field *));
-static const char *setcolumn __P((const char *, struct field *, int));
-int setfield __P((const char *, struct field *, int));
-static int findgap __P((u_char *, int, int));
-static void shift_at_REC_D __P((u_char *, int));
-static int collcmp __P((const void *, const void *));
+static void insertcol(struct field *);
+static const char *setcolumn(const char *, struct field *, int);
+int setfield(const char *, struct field *, int);
+static int findgap(u_char *, int, int);
+static void shift_at_REC_D(u_char *, int);
+static int collcmp(const void *, const void *);
 
 extern struct coldesc clist[(ND+1)*2];
 extern int ncols;
