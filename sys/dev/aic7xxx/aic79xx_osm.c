@@ -1,7 +1,8 @@
 /*
  * Bus independent FreeBSD shim for the aic7xxx based adaptec SCSI controllers
  *
- * Copyright (c) 1994-2001 Justin T. Gibbs.
+ * Copyright (c) 1994-2002 Justin T. Gibbs.
+ * Copyright (c) 2001-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#15 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#22 $
  *
  * $FreeBSD$
  */
@@ -170,13 +171,15 @@ ahd_attach(struct ahd_softc *ahd)
 fail:
 	ahd->platform_data->sim = sim;
 	ahd->platform_data->path = path;
-	ahd_unlock(ahd, &s);
-
-	if (count != 0)
+	if (count != 0) {
 		/* We have to wait until after any system dumps... */
 		ahd->platform_data->eh =
 		    EVENTHANDLER_REGISTER(shutdown_final, ahd_shutdown,
 					  ahd, SHUTDOWN_PRI_DEFAULT);
+		ahd_intr_enable(ahd, TRUE);
+	}
+
+	ahd_unlock(ahd, &s);
 
 	return (count);
 }
@@ -208,16 +211,6 @@ ahd_done(struct ahd_softc *ahd, struct scb *scb)
 
 	ccb = scb->io_ctx;
 	LIST_REMOVE(scb, pending_links);
-	if ((scb->flags & SCB_UNTAGGEDQ) != 0) {
-		struct scb_tailq *untagged_q;
-		int target_offset;
-
-		target_offset = SCB_GET_TARGET_OFFSET(ahd, scb);
-		untagged_q = &ahd->untagged_queues[target_offset];
-		TAILQ_REMOVE(untagged_q, scb, links.tqe);
-		scb->flags &= ~SCB_UNTAGGEDQ;
-		ahd_run_untagged_queue(ahd, untagged_q);
-	}
 
 	untimeout(ahd_timeout, (caddr_t)scb, ccb->ccb_h.timeout_ch);
 
@@ -415,6 +408,9 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct	scb *scb;
 		struct	hardware_scb *hscb;	
+		struct	ahd_initiator_tinfo *tinfo;
+		struct	ahd_tmode_tstate *tstate;
+		u_int	col_idx;
 
 		if ((ahd->flags & AHD_INITIATORROLE) == 0
 		 && (ccb->ccb_h.func_code == XPT_SCSI_IO
@@ -428,7 +424,17 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		 * get an scb to use.
 		 */
 		ahd_lock(ahd, &s);
-		if ((scb = ahd_get_scb(ahd)) == NULL) {
+		tinfo = ahd_fetch_transinfo(ahd, 'A', our_id,
+					    target_id, &tstate);
+		if ((ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) == 0
+		 || (tinfo->curr.ppr_options & MSG_EXT_PPR_IU_REQ) != 0
+		 || ccb->ccb_h.func_code == XPT_CONT_TARGET_IO) {
+			col_idx = AHD_NEVER_COL_IDX;
+		} else {
+			col_idx = AHD_BUILD_COL_IDX(target_id,
+						    ccb->ccb_h.target_lun);
+		}
+		if ((scb = ahd_get_scb(ahd, col_idx)) == NULL) {
 	
 			xpt_freeze_simq(sim, /*count*/1);
 			ahd->flags |= AHD_RESOURCE_SHORTAGE;
@@ -818,7 +824,9 @@ ahd_set_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 	}
 
 	if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
-	 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
+	 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
+	 || ((cts->valid & CCB_TRANS_TQ_VALID) != 0)
+	 || ((cts->valid & CCB_TRANS_DISC_VALID) != 0)) {
 		u_int ppr_options;
 		u_int maxsync;
 
@@ -829,6 +837,10 @@ ahd_set_tran_settings(struct ahd_softc *ahd, int our_id, char channel,
 			ppr_options = tinfo->user.ppr_options
 				    | MSG_EXT_PPR_DT_REQ;
 		}
+
+		if ((*tagenable & devinfo.target_mask) == 0
+		 || (*discenable & devinfo.target_mask) == 0)
+			ppr_options &= ~MSG_EXT_PPR_IU_REQ;
 
 		ahd_find_syncrate(ahd, &cts->sync_period,
 				  &ppr_options, maxsync);
@@ -1130,8 +1142,6 @@ ahd_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nsegments,
 		ccb->ccb_h.timeout_ch =
 		    timeout(ahd_timeout, (caddr_t)scb, time);
 	}
-
-	scb->flags |= SCB_ACTIVE;
 
 	if ((scb->flags & SCB_TARGET_IMMEDIATE) != 0) {
 		/* Define a mapping from our tag to the SCB. */
