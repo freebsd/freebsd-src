@@ -1555,7 +1555,7 @@ vfs_vmio_release(struct buf *bp)
 	vm_page_t m;
 
 	GIANT_REQUIRED;
-	VM_OBJECT_LOCK(bp->b_object);
+	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -1592,7 +1592,7 @@ vfs_vmio_release(struct buf *bp)
 		}
 	}
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(bp->b_object);
+	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 	
 	if (bp->b_bufsize) {
@@ -2813,7 +2813,7 @@ allocbuf(struct buf *bp, int size)
 			if (desiredpages < bp->b_npages) {
 				vm_page_t m;
 
-				VM_OBJECT_LOCK(bp->b_object);
+				VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 				vm_page_lock_queues();
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
@@ -2831,7 +2831,7 @@ allocbuf(struct buf *bp, int size)
 					vm_page_unwire(m, 0);
 				}
 				vm_page_unlock_queues();
-				VM_OBJECT_UNLOCK(bp->b_object);
+				VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
@@ -3452,7 +3452,7 @@ vfs_clean_pages(struct buf *bp)
 	foff = bp->b_offset;
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_clean_pages: no buffer offset"));
-	VM_OBJECT_LOCK(bp->b_object);
+	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
@@ -3466,7 +3466,7 @@ vfs_clean_pages(struct buf *bp)
 		foff = noff;
 	}
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(bp->b_object);
+	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
 /*
@@ -3496,7 +3496,7 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 	base += (bp->b_offset & PAGE_MASK);
 	n = PAGE_SIZE - (base & PAGE_MASK);
 
-	VM_OBJECT_LOCK(bp->b_object);
+	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 	vm_page_lock_queues();
 	for (i = base / PAGE_SIZE; size > 0 && i < bp->b_npages; ++i) {
 		m = bp->b_pages[i];
@@ -3510,7 +3510,7 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 		n = PAGE_SIZE;
 	}
 	vm_page_unlock_queues();
-	VM_OBJECT_UNLOCK(bp->b_object);
+	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 }
 
 /*
@@ -3537,7 +3537,7 @@ vfs_bio_clrbuf(struct buf *bp)
 	}
 	bp->b_flags &= ~B_INVAL;
 	bp->b_ioflags &= ~BIO_ERROR;
-	VM_OBJECT_LOCK(bp->b_object);
+	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
 	if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 	    (bp->b_offset & PAGE_MASK) == 0) {
 		if (bp->b_pages[0] == bogus_page)
@@ -3579,7 +3579,7 @@ vfs_bio_clrbuf(struct buf *bp)
 		bp->b_pages[i]->valid |= mask;
 	}
 unlock:
-	VM_OBJECT_UNLOCK(bp->b_object);
+	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
 	bp->b_resid = 0;
 }
 
