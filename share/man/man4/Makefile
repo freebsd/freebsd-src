@@ -61,12 +61,14 @@ MAN=	aac.4 \
 	fwohci.4 \
 	fxp.4 \
 	gbde.4 \
+	gem.4 \
 	geom.4 \
 	gif.4 \
 	gre.4 \
 	gusc.4 \
 	gx.4 \
 	hifn.4 \
+	hme.4 \
 	ichsmb.4 \
 	icmp.4 \
 	icmp6.4 \
@@ -290,9 +292,11 @@ MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=fpa.4 fea.4
 MLINKS+=fwe.4 if_fwp.4
 MLINKS+=fxp.4 if_fxp.4
+MLINKS+=gem.4 if_gem.4
 MLINKS+=gif.4 if_gif.4
 MLINKS+=gre.4 if_gre.4
 MLINKS+=gx.4 if_gx.4
+MLINKS+=hme.4 if_hme.4
 MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lge.4 if_lge.4
