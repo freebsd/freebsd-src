@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: pfctl_parser.c,v 1.175 2003/09/18 20:27:58 cedric Exp $ */
 
 /*
@@ -50,6 +51,13 @@
 #include <errno.h>
 #include <err.h>
 #include <ifaddrs.h>
+
+#if defined(__FreeBSD__)
+#include <inttypes.h>
+#else
+#define	PRIu64	"llu"
+#define	PRId64	"lld"
+#endif
 
 #include "pfctl_parser.h"
 #include "pfctl.h"
@@ -503,30 +511,30 @@ print_status(struct pf_status *s)
 	if (s->ifname[0] != 0) {
 		printf("Interface Stats for %-16s %5s %16s\n",
 		    s->ifname, "IPv4", "IPv6");
-		printf("  %-25s %14llu %16llu\n", "Bytes In",
+		printf("  %-25s %14"PRIu64" %16"PRIu64"\n", "Bytes In",
 		    s->bcounters[0][0], s->bcounters[1][0]);
-		printf("  %-25s %14llu %16llu\n", "Bytes Out",
+		printf("  %-25s %14"PRIu64" %16"PRIu64"\n", "Bytes Out",
 		    s->bcounters[0][1], s->bcounters[1][1]);
 		printf("  Packets In\n");
-		printf("    %-23s %14llu %16llu\n", "Passed",
+		printf("    %-23s %14"PRIu64" %16"PRIu64"\n", "Passed",
 		    s->pcounters[0][0][PF_PASS],
 		    s->pcounters[1][0][PF_PASS]);
-		printf("    %-23s %14llu %16llu\n", "Blocked",
+		printf("    %-23s %14"PRIu64" %16"PRIu64"\n", "Blocked",
 		    s->pcounters[0][0][PF_DROP],
 		    s->pcounters[1][0][PF_DROP]);
 		printf("  Packets Out\n");
-		printf("    %-23s %14llu %16llu\n", "Passed",
+		printf("    %-23s %14"PRIu64" %16"PRIu64"\n", "Passed",
 		    s->pcounters[0][1][PF_PASS],
 		    s->pcounters[1][1][PF_PASS]);
-		printf("    %-23s %14llu %16llu\n\n", "Blocked",
+		printf("    %-23s %14"PRIu64" %16"PRIu64"\n\n", "Blocked",
 		    s->pcounters[0][1][PF_DROP],
 		    s->pcounters[1][1][PF_DROP]);
 	}
 	printf("%-27s %14s %16s\n", "State Table", "Total", "Rate");
 	printf("  %-25s %14u %14s\n", "current entries", s->states, "");
 	for (i = 0; i < FCNT_MAX; i++) {
-		printf("  %-25s %14llu", pf_fcounters[i],
-			    (unsigned long long)s->fcounters[i]);
+		printf("  %-25s %14"PRIu64" ", pf_fcounters[i],
+			    s->fcounters[i]);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)s->fcounters[i] / (double)runtime);
@@ -535,8 +543,8 @@ print_status(struct pf_status *s)
 	}
 	printf("Counters\n");
 	for (i = 0; i < PFRES_MAX; i++) {
-		printf("  %-25s %14llu ", pf_reasons[i],
-		    (unsigned long long)s->counters[i]);
+		printf("  %-25s %14"PRIu64" ", pf_reasons[i],
+		    s->counters[i]);
 		if (runtime > 0)
 			printf("%14.1f/s\n",
 			    (double)s->counters[i] / (double)runtime);
@@ -1124,6 +1132,12 @@ host_v4(const char *s, int mask)
 		h->ifname = NULL;
 		h->af = AF_INET;
 		h->addr.v.a.addr.addr32[0] = ina.s_addr;
+#if defined(__FreeBSD__) && (__FreeBSD_version <= 501106)
+		/* inet_net_pton acts strange w/ multicast addresses, RFC1112 */
+		if (mask == -1 && h->addr.v.a.addr.addr8[0] >= 224 &&
+		    h->addr.v.a.addr.addr8[0] < 240)
+			bits = 32;
+#endif
 		set_ipmask(h, bits);
 		h->next = NULL;
 		h->tail = h;

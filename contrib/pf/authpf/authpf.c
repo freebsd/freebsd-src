@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$OpenBSD: authpf.c,v 1.68 2003/08/21 19:13:23 frantzen Exp $	*/
 
 /*
@@ -49,6 +50,9 @@
 
 #include "pathnames.h"
 
+#if defined(__FreeBSD__)
+#define __dead		__volatile
+#endif
 extern int	symset(const char *, const char *, int);
 
 static int	read_config(FILE *);
@@ -285,6 +289,9 @@ dogdeath:
 	sleep(180); /* them lusers read reaaaaal slow */
 die:
 	do_death(0);
+#if defined(__FreeBSD__)
+	return 0;	/* gcc hack to prevent warning */
+#endif
 }
 
 /*
