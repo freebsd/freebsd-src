@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.171 1997/08/14 14:03:27 msmith Exp $
+#	$Id: files.i386,v 1.172 1997/08/28 12:18:08 jkh Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -81,6 +81,7 @@ i386/i386/sys_machdep.c		standard
 i386/i386/trap.c		standard
 i386/i386/userconfig.c		optional	userconfig
 i386/i386/vm_machdep.c		standard
+i386/i386/vm86.c		optional	vm86	
 i386/ibcs2/ibcs2_fcntl.c	optional 	ibcs2
 i386/ibcs2/ibcs2_stat.c		optional 	ibcs2
 i386/ibcs2/ibcs2_ipc.c		optional 	ibcs2
