@@ -105,7 +105,6 @@ e1000phy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
-	const char *sep = "";
 
 	getenv_int("e1000phy_debug", &e1000phy_debug);
 
@@ -124,42 +123,37 @@ e1000phy_attach(device_t dev)
 	mii->mii_instance++;
 	e1000phy_reset(sc);
 
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-#define PRINT(s)	printf("%s%s", sep, s); sep = ", "
+	device_printf(dev, " ");
 
-#if	0
+#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+/*
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
 	    E1000_CR_ISOLATE);
-#endif
-
-	device_printf(dev, " ");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, IFM_FDX, sc->mii_inst),
-			E1000_CR_SPEED_1000 | E1000_CR_FULL_DUPLEX);
-	PRINT("1000baseTX-FDX");
-	/*
-	TODO - apparently 1000BT-simplex not supported?
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
-			E1000_CR_SPEED_1000);
-	PRINT("1000baseTX");
-	*/
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
-			E1000_CR_SPEED_100 | E1000_CR_FULL_DUPLEX);
-	PRINT("100baseTX-FDX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
-			E1000_CR_SPEED_100);
-	PRINT("100baseTX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
-			E1000_CR_SPEED_10 | E1000_CR_FULL_DUPLEX);
-	PRINT("10baseTX-FDX");
+*/
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, 0, sc->mii_inst),
-			E1000_CR_SPEED_10);
-	PRINT("10baseTX");
+	    E1000_CR_SPEED_10);
+	printf("10baseT, ");
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_10_T, IFM_FDX, sc->mii_inst),
+	    E1000_CR_SPEED_10 | E1000_CR_FULL_DUPLEX);
+	printf("10baseT-FDX, ");
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, 0, sc->mii_inst),
+	    E1000_CR_SPEED_100);
+	printf("100baseTX, ");
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_FDX, sc->mii_inst),
+	    E1000_CR_SPEED_100 | E1000_CR_FULL_DUPLEX);
+	printf("100baseTX-FDX, ");
+	/*
+	 * 1000BT-simplex not supported; driver must ignore this entry,
+	 * but it must be present in order to manually set full-duplex.
+	 */
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
+	    E1000_CR_SPEED_1000);
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, IFM_FDX, sc->mii_inst),
+	    E1000_CR_SPEED_1000 | E1000_CR_FULL_DUPLEX);
+	printf("1000baseTX-FDX, ");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
-	PRINT("auto");
-
-	printf("\n");
+	printf("auto\n");
 #undef ADD
-#undef PRINT
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return(0);
