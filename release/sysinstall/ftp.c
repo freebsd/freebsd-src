@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.18.2.8 1997/01/29 22:35:00 jkh Exp $
+ * $Id: ftp.c,v 1.18.2.9 1997/01/30 06:36:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -190,19 +190,17 @@ mediaGetFTP(Device *dev, char *file, Boolean probe)
     while ((fp = ftpGet(OpenConn, try, 0)) == NULL) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (ftpErrno(OpenConn) != 550) {
-	    char *cp = variable_get(VAR_FTP_PATH);
-
 	    dev->shutdown(dev);
-	    variable_unset(VAR_FTP_PATH);
+	    if (ftpErrno(OpenConn) != 421))	/* Timeout? */
+		variable_unset(VAR_FTP_PATH);
 	    /* If we can't re-initialize, just forget it */
 	    if (!dev->init(dev)) {
 		netDown(dev);
 		fclose(OpenConn);
 		OpenConn = NULL;
+		variable_unset(VAR_FTP_PATH);
 		return NULL;
 	    }
-	    else
-		variable_set2(VAR_FTP_PATH, cp);
 	}
 	else if (probe)
 	    return NULL;
