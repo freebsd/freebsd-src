@@ -12,7 +12,10 @@ AC_INIT(as.h)
 AC_CANONICAL_SYSTEM
 AC_ISC_POSIX
 
-AM_INIT_AUTOMAKE(gas, 2.11)
+changequote(,)dnl
+BFD_VERSION=`sed -n -e 's/^.._INIT_AUTOMAKE.*,[ 	]*\([^ 	]*\)[ 	]*).*/\1/p' < ${srcdir}/../bfd/configure.in`
+changequote([,])dnl
+AM_INIT_AUTOMAKE(gas, ${BFD_VERSION})
 
 AM_PROG_LIBTOOL
 
@@ -193,6 +196,7 @@ changequote([,])dnl
       arm-*-wince)			fmt=coff em=wince-pe ;;
       arm-*-pe | thumb-*-pe)            fmt=coff em=pe ;;
       arm-*-riscix*)	                fmt=aout em=riscix ;;
+      arm-*-vxworks)	                fmt=coff ;;
 
       avr-*-*)		    fmt=elf bfd_gas=yes ;;
 
@@ -227,6 +231,8 @@ changequote([,])dnl
 
       h8300-*-rtems*)       fmt=coff ;;
       h8300-*-coff)         fmt=coff ;;
+      h8500-*-rtems*)       fmt=coff ;;
+      h8500-*-coff)         fmt=coff ;;
 
       i370-*-elf* | i370-*-linux*) fmt=elf ;;
       i386-ibm-aix*)        fmt=coff em=i386aix ;;
@@ -237,7 +243,7 @@ changequote([,])dnl
       i386-*-netbsd0.8)     fmt=aout em=386bsd ;;
       i386-*-netbsd*)       fmt=aout em=nbsd bfd_gas=yes;;
       i386-*-openbsd*)      fmt=aout em=nbsd bfd_gas=yes;;
-      i386-*-linux*aout* | i386-*-linuxoldld)   fmt=aout em=linux ;;
+      i386-*-linux*aout* | i386-*-linux*oldld)   fmt=aout em=linux ;;
       i386-*-linux*coff*)   fmt=coff em=linux ;;
       i386-*-linux-gnu*)    fmt=elf em=linux bfd_gas=yes ;;
       x86_64-*-linux-gnu*)  fmt=elf em=linux bfd_gas=yes ;;
@@ -332,16 +338,21 @@ changequote([,])dnl
       mips-*-ultrix*)       fmt=ecoff endian=little ;;
       mips-*-osf*)          fmt=ecoff endian=little ;;
       mips-*-ecoff*)        fmt=ecoff ;;
-      mips-*-ecoff*)        fmt=ecoff ;;
       mips-*-pe*)           fmt=coff endian=little em=pe ;;
       mips-*-irix6*)	    fmt=elf ;;
       mips-*-irix5*)        fmt=elf ;;
       mips-*-irix*)         fmt=ecoff ;;
       mips-*-lnews*)        fmt=ecoff em=lnews ;;
       mips-*-riscos*)       fmt=ecoff ;;
-      mips-*-sysv4*MP*)     fmt=elf em=tmips ;;
+      mips-*-linux-gnu*)
+			    fmt=elf em=tmips
+			    AC_DEFINE(MIPS_STABS_ELF, 1,
+				[Use ELF stabs for MIPS, not ECOFF stabs])
+			    ;;
+      mips-*-sysv4*MP* | mips-*-gnu*)
+			    fmt=elf em=tmips ;;
       mips-*-sysv*)         fmt=ecoff ;;
-      mips-*-elf* | mips-*-rtems* | mips-*-linux-gnu* | mips-*-gnu* | mips-*-openbsd*)
+      mips-*-elf* | mips-*-rtems* | mips-*-openbsd*)
 			    fmt=elf ;;
       mips-*-vxworks*)      fmt=elf
 			    AC_DEFINE(MIPS_STABS_ELF, 1,
@@ -437,9 +448,9 @@ changequote([,])dnl
 
       w65-*-*)              fmt=coff ;;
 
-      *-*-freebsd*)	    fmt=elf em=freebsd bfd_gas=yes ;;
       *-*-aout | *-*-scout)
 			    fmt=aout ;;
+      *-*-freebsd*)	    fmt=elf em=freebsd bfd_gas=yes ;;
       *-*-nindy*)
 			    fmt=bout ;;
       *-*-bsd*)
@@ -719,9 +730,9 @@ GAS_UNIQ(emulations)
 for em in . $emulations ; do
   case $em in
     .)	continue ;;
-    mipsbelf | mipslelf)
+    mipsbelf | mipslelf | mipself)
 	fmt=elf   file=mipself ;;
-    mipsbecoff | mipslecoff)
+    mipsbecoff | mipslecoff | mipsecoff)
 	fmt=ecoff file=mipsecoff ;;
     *coff)
 	fmt=coff  file=$em ;;
