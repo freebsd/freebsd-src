@@ -7,4 +7,4 @@ config.h.in
 configure
 contrib
 regress/*.[0-9]
-scard
+stamp-h.in
