@@ -31,16 +31,21 @@
  * SUCH DAMAGE.
  *
  *	@(#)inet.h	8.1 (Berkeley) 6/2/93
+ *	$Id$
  */
 
 #ifndef _ARPA_INET_H_
 #define	_ARPA_INET_H_
 
-/* External definitions for functions in inet(3) */
+/* External definitions for functions in inet(3), addr2ascii(3) */
 
 #include <sys/cdefs.h>
 
+struct in_addr;
+
 __BEGIN_DECLS
+int		 ascii2addr __P((int, const char *, void *));
+char		*addr2ascii __P((int, const void *, int, char *));
 unsigned long	 inet_addr __P((const char *));
 int		 inet_aton __P((const char *, struct in_addr *));
 unsigned long	 inet_lnaof __P((struct in_addr));
