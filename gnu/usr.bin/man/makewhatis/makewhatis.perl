@@ -35,7 +35,7 @@
 #
 #   E-Mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 #
-# $Id: makewhatis.perl,v 1.7 1995/09/10 13:05:52 joerg Exp $
+# $Id: makewhatis.perl,v 1.8 1996/05/12 21:02:04 wosch Exp $
 #
 
 sub usage {
@@ -267,7 +267,7 @@ sub out {
 }
 
 # The filename of manual page is not a keyword. 
-# This may be dangerous, because you don't find the manpage
+# This is bad, because you don't find the manpage
 # whith: $ man <section> <keyword>
 #
 # Add filename if a) filename is not a keyword and b) no keyword(s)
@@ -280,17 +280,17 @@ sub manpagename {
 	return if $name eq $_;
     }
 
-    local($f) = $file;
-    $f =~ s%/*[^/]+$%%;
+    local($f) = $file;  $f =~ s%/*[^/]+$%%;		# dirname
+    local($e) = $file;  $e =~ s/$ext$//;  $e =~ s%.*(\.[^.]+)$%$1%; # .1
 
     foreach (split(/,\s+/, $man)) {
 	s/\(.+//;
 
 	# a keyword exist as file
-	return if -e "$f/$_";    
+	return if -e "$f/$_$e" || -e "$f/$_$e$ext";    
     }
 
-    $man .= ", $name($extension)";
+    $man = "$name($extension), $man";
 }
 
 # looking for NAME
