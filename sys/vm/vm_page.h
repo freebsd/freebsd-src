@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.30 1996/07/27 03:24:06 dyson Exp $
+ * $Id: vm_page.h,v 1.31 1996/07/30 03:08:17 dyson Exp $
  */
 
 /*
@@ -107,8 +107,9 @@ struct vm_page {
 	vm_object_t object;		/* which object am I in (O,P) */
 	vm_pindex_t pindex;		/* offset into object (O,P) */
 	vm_offset_t phys_addr;		/* physical address of page */
-	u_short	queue:4,		/* page queue index */
-		flags:12;		/* see below */
+	u_short	queue;			/* page queue index */
+	u_short	flags,			/* see below */
+		pc;			/* page color */
 	u_short wire_count;		/* wired down maps refs (P) */
 	short hold_count;		/* page hold count */
 	u_char	act_count;		/* page usage count */
@@ -119,12 +120,62 @@ struct vm_page {
 	u_char	dirty;			/* map of dirty DEV_BSIZE chunks */
 };
 
+/*
+ * Page coloring parameters
+ */
+/* Each of PQ_FREE, PQ_ZERO and PQ_CACHE have PQ_HASH_SIZE entries */
+
+/* Define one of the following */
+#if defined(PQ_LARGECACHE)
+#define PQ_PRIME1 31	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME2 23	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME3 17	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 128	/* A number of colors opt for 512K cache */
+#define PQ_L1_SIZE 2	/* Two page L1 cache */
+#endif
+
+#if defined(PQ_MEDIUMCACHE)
+#define PQ_PRIME1 13	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME2 7	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME3 5	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 64	/* A number of colors opt for 256K cache */
+#define PQ_L1_SIZE 2	/* Two page L1 cache */
+#endif
+
+/*
+ * Use 'options PQ_NOOPT' to disable page coloring
+ */
+#if defined(PQ_NOOPT)
+#define PQ_PRIME1 1
+#define PQ_PRIME2 1
+#define PQ_PRIME3 1
+#define PQ_L2_SIZE 1
+#define PQ_L1_SIZE 1
+#endif
+
+#if defined(PQ_NORMALCACHE) || !defined(PQ_L2_SIZE)
+#define PQ_PRIME1 5	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME2 3	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_PRIME3 11	/* Prime number somewhat less than PQ_HASH_SIZE */
+#define PQ_L2_SIZE 16	/* A reasonable number of colors (opt for 64K cache) */
+#define PQ_L1_SIZE 2	/* Two page L1 cache */
+#endif
+
+#define PQ_L2_MASK (PQ_L2_SIZE - 1)
+
 #define PQ_NONE 0
 #define PQ_FREE	1
-#define PQ_ZERO 2
-#define PQ_INACTIVE 3
-#define PQ_ACTIVE 4
-#define PQ_CACHE 5
+#define PQ_ZERO (1 + PQ_L2_SIZE)
+#define PQ_INACTIVE (1 + 2*PQ_L2_SIZE)
+#define PQ_ACTIVE (2 + 2*PQ_L2_SIZE)
+#define PQ_CACHE (3 + 2*PQ_L2_SIZE)
+#define PQ_COUNT (3 + 3*PQ_L2_SIZE)
+
+extern struct vpgqueues {
+	struct pglist *pl;
+	int	*cnt;
+	int	*lcnt;
+} vm_page_queues[PQ_COUNT];
 
 /*
  * These are the flags defined for vm_page.
@@ -148,7 +199,7 @@ struct vm_page {
 #define ACT_DECLINE		1
 #define ACT_ADVANCE		3
 #define ACT_INIT		5
-#define ACT_MAX			32
+#define ACT_MAX			64
 #define PFCLUSTER_BEHIND	3
 #define PFCLUSTER_AHEAD		3
 
@@ -180,11 +231,11 @@ struct vm_page {
  *
  */
 
-extern struct pglist vm_page_queue_free;	/* memory free queue */
-extern struct pglist vm_page_queue_zero;	/* zeroed memory free queue */
+extern struct pglist vm_page_queue_free[PQ_L2_SIZE];/* memory free queue */
+extern struct pglist vm_page_queue_zero[PQ_L2_SIZE];/* zeroed memory free queue */
 extern struct pglist vm_page_queue_active;	/* active memory queue */
 extern struct pglist vm_page_queue_inactive;	/* inactive memory queue */
-extern struct pglist vm_page_queue_cache;	/* cache memory queue */
+extern struct pglist vm_page_queue_cache[PQ_L2_SIZE];/* cache memory queue */
 
 extern int vm_page_zero_count;
 
@@ -259,6 +310,9 @@ static __inline boolean_t vm_page_zero_fill __P((vm_page_t));
 int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
 int vm_page_bits __P((int, int));
+vm_page_t vm_page_list_find __P((int, int));
+int vm_page_queue_index __P((vm_offset_t, int));
+vm_page_t vm_page_select __P((vm_object_t, vm_pindex_t, int));
 
 /*
  * Keep page from being freed by the page daemon

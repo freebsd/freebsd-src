@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.14 1996/03/11 06:11:40 hsu Exp $
+ * $Id: vm_meter.c,v 1.15 1996/05/18 03:37:47 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -194,18 +194,18 @@ vmtotal SYSCTL_HANDLER_ARGS
 	for (object = TAILQ_FIRST(&vm_object_list);
 	    object != NULL;
 	    object = TAILQ_NEXT(object, object_list)) {
-		totalp->t_vm += num_pages(object->size);
+		totalp->t_vm += object->size;
 		totalp->t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {
-			totalp->t_avm += num_pages(object->size);
+			totalp->t_avm += object->size;
 			totalp->t_arm += object->resident_page_count;
 		}
-		if (object->ref_count > 1) {
+		if (object->shadow_count > 1) {
 			/* shared object */
-			totalp->t_vmshr += num_pages(object->size);
+			totalp->t_vmshr += object->size;
 			totalp->t_rmshr += object->resident_page_count;
 			if (object->flags & OBJ_ACTIVE) {
-				totalp->t_avmshr += num_pages(object->size);
+				totalp->t_avmshr += object->size;
 				totalp->t_armshr += object->resident_page_count;
 			}
 		}

@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.96 1996/08/21 21:55:18 dyson Exp $
+ * $Id: vfs_bio.c,v 1.97 1996/09/06 05:37:53 gibbs Exp $
  */
 
 /*
@@ -402,7 +402,7 @@ bawrite(struct buf * bp)
  * Ordered write.
  * Start output on a buffer, but only wait for it to complete if the
  * output device cannot guarantee ordering in some other way.  Devices
- * that can perform asyncronous ordered writes will set the B_ASYNC
+ * that can perform asynchronous ordered writes will set the B_ASYNC
  * flag in their strategy routine.
  * The buffer is released when the output completes.
  */
@@ -1324,7 +1324,7 @@ allocbuf(struct buf * bp, int size)
 						goto doretry;
 					} else {
 						if ((curproc != pageproc) &&
-							(m->queue == PQ_CACHE) &&
+							((m->queue - m->pc) == PQ_CACHE) &&
 						    ((cnt.v_free_count + cnt.v_cache_count) <
 								(cnt.v_free_min + cnt.v_cache_min))) {
 							pagedaemon_wakeup();
