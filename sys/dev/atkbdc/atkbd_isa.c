@@ -37,6 +37,7 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
+#include <sys/kbio.h>
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/atkbdreg.h>
 #include <dev/kbd/atkbdcreg.h>
