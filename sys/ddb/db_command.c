@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_command.c,v 1.13 1995/05/30 07:56:52 rgrimes Exp $
+ *	$Id: db_command.c,v 1.14 1995/08/27 02:39:39 bde Exp $
  */
 
 /*
@@ -39,6 +39,7 @@
 #include <sys/proc.h>
 #include <ddb/ddb.h>
 
+#include <ddb/db_command.h>
 #include <ddb/db_lex.h>
 #include <ddb/db_output.h>
 
@@ -61,10 +62,6 @@ db_addr_t	db_next;
  */
 boolean_t	db_ed_style = TRUE;
 
-
-void		db_help_cmd __P((void));
-void		db_fncall __P((db_expr_t, boolean_t, db_expr_t, char *));
-
 /*
  * Utility routine - discard tokens through end-of-line.
  */
@@ -82,7 +79,7 @@ db_skip_to_eol()
  */
 struct command {
 	char *	name;		/* command name */
-	void	(*fcn)();	/* function to call */
+	db_cmdfcn_t *fcn;	/* function to call */
 	int	flag;		/* extra info: */
 #define	CS_OWN		0x1	    /* non-standard syntax */
 #define	CS_MORE		0x2	    /* standard syntax, but may have other
@@ -99,6 +96,12 @@ struct command {
 #define	CMD_NONE	2
 #define	CMD_AMBIGUOUS	3
 #define	CMD_HELP	4
+
+extern void	db_cmd_list __P((struct command *table));
+extern int	db_cmd_search __P((char *name, struct command *table,
+				   struct command **cmdp));
+extern void	db_command __P((struct command **last_cmdp,
+				struct command *cmd_table));
 
 /*
  * Search for command prefix.
@@ -306,15 +309,6 @@ db_command(last_cmdp, cmd_table)
  * 'show' commands
  */
 
-extern void	db_show_one_thread(), db_show_all_threads();
-extern void	vm_page_print();
-extern void	db_ps();
-extern void	ipc_port_print();
-#if 0
-void		db_show_help();
-#endif
-void		db_panic();
-
 struct command db_show_all_cmds[] = {
 #if 0
 	{ "threads",	db_show_all_threads,	0,	0 },
@@ -443,11 +437,15 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	char *		dummy4;
 {
 	db_expr_t	fn_addr;
-#define	MAXARGS		11
+#define	MAXARGS		11	/* XXX only 10 are passed */
 	db_expr_t	args[MAXARGS];
 	int		nargs = 0;
 	db_expr_t	retval;
-	db_expr_t	(*func)();
+	typedef db_expr_t fcn_10args_t __P((db_expr_t, db_expr_t, db_expr_t,
+					    db_expr_t, db_expr_t, db_expr_t,
+					    db_expr_t, db_expr_t, db_expr_t,
+					    db_expr_t));
+	fcn_10args_t	*func;
 	int		t;
 
 	if (!db_expression(&fn_addr)) {
@@ -455,7 +453,7 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 	    db_flush_lex();
 	    return;
 	}
-	func = (db_expr_t (*) ()) fn_addr;
+	func = (fcn_10args_t *)fn_addr;	/* XXX */
 
 	t = db_read_token();
 	if (t == tLPAREN) {

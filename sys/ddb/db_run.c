@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.4 1994/08/13 03:49:22 wollman Exp $
+ *	$Id: db_run.c,v 1.5 1995/05/30 07:57:08 rgrimes Exp $
  */
 
 /*
@@ -61,10 +61,10 @@ int		db_load_count;
 int		db_store_count;
 
 #ifndef db_set_single_step
-void		db_set_single_step(/* db_regs_t *regs */);	/* forward */
+extern void	db_set_single_step __P((db_regs_t *regs);
 #endif
 #ifndef db_clear_single_step
-void		db_clear_single_step(/* db_regs_t *regs */);
+extern void	db_clear_single_step __P((db_regs_t *regs));
 #endif
 
 boolean_t
@@ -302,7 +302,7 @@ extern int	db_cmd_loop_done;
 void
 db_single_step_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -329,7 +329,7 @@ db_single_step_cmd(addr, have_addr, count, modif)
 void
 db_trace_until_call_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -351,7 +351,7 @@ db_trace_until_call_cmd(addr, have_addr, count, modif)
 void
 db_trace_until_matching_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -375,7 +375,7 @@ db_trace_until_matching_cmd(addr, have_addr, count, modif)
 void
 db_continue_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {

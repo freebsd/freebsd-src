@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_examine.c,v 1.7 1995/05/22 13:07:11 davidg Exp $
+ *	$Id: db_examine.c,v 1.8 1995/05/30 07:56:55 rgrimes Exp $
  */
 
 /*
@@ -54,7 +54,7 @@ static void db_search(db_addr_t, int, db_expr_t, db_expr_t, u_int);
 void
 db_examine_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -192,7 +192,7 @@ char	db_print_format = 'x';
 void
 db_print_cmd(addr, have_addr, count, modif)
 	db_expr_t	addr;
-	int		have_addr;
+	boolean_t	have_addr;
 	db_expr_t	count;
 	char *		modif;
 {
@@ -248,7 +248,11 @@ db_print_loc_and_inst(loc)
  * Syntax: search [/bhl] addr value [mask] [,count]
  */
 void
-db_search_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
+db_search_cmd(dummy1, dummy2, dummy3, dummy4)
+	db_expr_t	dummy1;
+	boolean_t	dummy2;
+	db_expr_t	dummy3;
+	char *		dummy4;
 {
 	int		t;
 	db_addr_t	addr;
