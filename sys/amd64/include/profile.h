@@ -148,7 +148,7 @@ typedef	u_long	uintfptr_t;
  * An unsigned integral type that can hold non-negative difference between
  * function pointers.
  */
-typedef	u_int	fptrdiff_t;
+typedef	u_long	fptrdiff_t;
 
 #ifdef _KERNEL
 
