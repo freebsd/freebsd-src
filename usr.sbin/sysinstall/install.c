@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.22 1995/05/18 10:43:51 jkh Exp $
+ * $Id: install.c,v 1.23 1995/05/18 13:20:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -145,10 +145,10 @@ make_filesystems(void)
     /* First look for the root device and mount it */
     for (i = 0; devs[i]; i++) {
 	disk = (Disk *)devs[i]->private;
+	msgDebug("Scanning disk %s for root filesystem\n", disk->name);
 	if (!disk->chunks)
 	    msgFatal("No chunk list found for %s!", disk->name);
-	c1 = disk->chunks->part;
-	while (c1) {
+	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part && c2->subtype != FS_SWAP &&
@@ -156,8 +156,10 @@ make_filesystems(void)
 			char dname[40];
 			PartInfo *p = (PartInfo *)c2->private;
 
-			if (strcmp(p->mountpoint, "/"))
+			if (strcmp(p->mountpoint, "/")) {
+			    msgConfirm("Warning: %s is marked as a root partition but is mounted on %s", c2->name, p->mountpoint);
 			    continue;
+			}
 			sprintf(dname, "/dev/%sa", disk->name);
 			if (p->newfs) {
 			    int i;
