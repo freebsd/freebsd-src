@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.190 1995/08/01 07:05:16 jkh Exp $
+#	$Id: LINT,v 1.191 1995/08/09 12:58:50 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -522,11 +522,17 @@ options	FDSEEKWAIT="16"
 # Other standard PC hardware: `lpt', `mse', `psm', `sio', etc.
 #
 # lpt: printer port
+#	lpt specials:
+#		port can be specified as ?, this will cause the driver to scan
+#		the BIOS port list;
+#		the irq and vector clauses may be omitted, this
+#		will force the port into polling mode.
 # mse: Logitech and ATI InPort bus mouse ports
 # psm: PS/2 mouse port [note: conflicts with sc0/vt0, thus "conflicts" keywd]
 # sio: serial ports (see sio(4))
 
-device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
+device		lpt0	at isa? port? tty irq 7 vector lptintr
+device		lpt1	at isa? port "IO_LPT3" tty irq 5 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" conflicts tty irq 12 vector psmintr
 # Options for psm:
