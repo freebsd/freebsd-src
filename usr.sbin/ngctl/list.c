@@ -54,9 +54,8 @@ const struct ngcmd list_cmd = {
 static int
 ListCmd(int ac, char **av)
 {
-	u_char rbuf[16 * 1024];
-	struct ng_mesg *const resp = (struct ng_mesg *) rbuf;
-	struct namelist *const nlist = (struct namelist *) resp->data;
+	struct ng_mesg *resp;
+	struct namelist *nlist;
 	int named_only = 0;
 	int ch, rtn = CMDRTN_OK;
 	u_int k;
@@ -91,12 +90,13 @@ ListCmd(int ac, char **av)
 		warn("send msg");
 		return(CMDRTN_ERROR);
 	}
-	if (NgRecvMsg(csock, resp, sizeof(rbuf), NULL) < 0) {
+	if (NgAllocRecvMsg(csock, &resp, NULL) < 0) {
 		warn("recv msg");
 		return(CMDRTN_ERROR);
 	}
 
 	/* Show each node */
+	nlist = (struct namelist *) resp->data;
 	printf("There are %d total %snodes:\n",
 	    nlist->numnames, named_only ? "named " : "");
 	for (k = 0; k < nlist->numnames; k++) {
@@ -110,6 +110,7 @@ ListCmd(int ac, char **av)
 	}
 
 	/* Done */
+	free(resp);
 	return (rtn);
 }
 
