@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.13 1997/06/01 20:34:37 vixie Exp";
-static char rcsid[] = "$Id: res_send.c,v 1.15 1997/03/12 11:10:54 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.16 1997/06/27 08:22:03 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -469,7 +469,7 @@ read_len:
 			 * Use datagrams.
 			 */
 			struct timeval timeout;
-			fd_set dsmask;
+			fd_set *dsmaskp;
 			struct sockaddr_in from;
 			int fromlen;
 
@@ -574,16 +574,17 @@ read_len:
 			if ((long) timeout.tv_sec <= 0)
 				timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
-			if (s+1 > FD_SETSIZE) {
-				Perror(stderr, "s+1 > FD_SETSIZE", EMFILE);
+    wait:
+			dsmaskp = (fd_set *)calloc(howmany(s+1, NFDBITS),
+						   sizeof(fd_mask));
+			if (dsmaskp == NULL) {
 				res_close();
 				goto next_ns;
 			}
-    wait:
-			FD_ZERO(&dsmask);
-			FD_SET(s, &dsmask);
-			n = select(s+1, &dsmask, (fd_set *)NULL,
+			FD_SET(s, dsmaskp);
+			n = select(s+1, dsmaskp, (fd_set *)NULL,
 				   (fd_set *)NULL, &timeout);
+			free(dsmaskp);
 			if (n < 0) {
 				if (errno == EINTR)
 					goto wait;
