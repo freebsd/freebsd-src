@@ -50,8 +50,8 @@ static int	_messages_using_locale;
 static char	*_messages_locale_buf;
 
 int
-__messages_load_locale(const char *name) {
-
+__messages_load_locale(const char *name)
+{
 	/*
 	 * Propose that we can have incomplete locale file (w/o "{yes,no}str").
 	 * Initialize them before loading.  In case of complete locale, they'll
@@ -67,8 +67,8 @@ __messages_load_locale(const char *name) {
 }
 
 struct lc_messages_T *
-__get_current_messages_locale(void) {
-
+__get_current_messages_locale(void)
+{
 	return (_messages_using_locale
 		? &_messages_locale
 		: (struct lc_messages_T *)&_C_messages_locale);
