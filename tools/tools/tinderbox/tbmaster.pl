@@ -358,11 +358,19 @@ MAIN:{
 	die("Where is the tinderbox script?\n");
     }
 
+    my $stopfile = expand('SANDBOX') . "/stop";
     foreach my $branch (@{$CONFIG{'BRANCHES'}}) {
 	foreach my $platform (@{$CONFIG{'PLATFORMS'}}) {
+	    if (-e $stopfile || -e "$stopfile.$config") {
+		die("stop file found, aborting\n");
+	    }
 	    my ($arch, $machine) = split('/', $platform, 2);
 	    $machine = $arch
 		unless defined($machine);
+	    if (-e "$stopfile.$arch" || -e "$stopfile.$arch.$machine") {
+		warn("stop file for $arch/$machine found, skipping\n");
+		next;
+	    }
 	    tinderbox($branch, $arch, $machine);
 	}
     }
