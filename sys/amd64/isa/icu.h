@@ -42,8 +42,8 @@
  * W. Jolitz 8/89
  */
 
-#ifndef _I386_ISA_ICU_H_
-#define	_I386_ISA_ICU_H_
+#ifndef _AMD64_ISA_ICU_H_
+#define	_AMD64_ISA_ICU_H_
 
 /*
  * Interrupt enable bits - in normal order of priority (which we change)
@@ -66,56 +66,6 @@
 #define	IRQ6		0x0040
 #define	IRQ7		0x0080		/* lowest - parallel printer */
 
-/* Initialization control word 1. Written to even address. */
-#define	ICW1_IC4	0x01		/* ICW4 present */
-#define	ICW1_SNGL	0x02		/* 1 = single, 0 = cascaded */
-#define	ICW1_ADI	0x04		/* 1 = 4, 0 = 8 byte vectors */
-#define	ICW1_LTIM	0x08		/* 1 = level trigger, 0 = edge */
-#define	ICW1_RESET	0x10		/* must be 1 */
-/* 0x20 - 0x80 - in 8080/8085 mode only */
-
-/* Initialization control word 2. Written to the odd address. */
-/* No definitions, it is the base vector of the IDT for 8086 mode */
-
-/* Initialization control word 3. Written to the odd address. */
-/* For a master PIC, bitfield indicating a slave 8259 on given input */
-/* For slave, lower 3 bits are the slave's ID binary id on master */
-
-/* Initialization control word 4. Written to the odd address. */
-#define	ICW4_8086	0x01		/* 1 = 8086, 0 = 8080 */
-#define	ICW4_AEOI	0x02		/* 1 = Auto EOI */
-#define	ICW4_MS		0x04		/* 1 = buffered master, 0 = slave */
-#define	ICW4_BUF	0x08		/* 1 = enable buffer mode */
-#define	ICW4_SFNM	0x10		/* 1 = special fully nested mode */
-
-/* Operation control words.  Written after initialization. */
-
-/* Operation control word type 1 */
-/*
- * No definitions.  Written to the odd address.  Bitmask for interrupts.
- * 1 = disabled.
- */
-
-/* Operation control word type 2.  Bit 3 (0x08) must be zero. Even address. */
-#define	OCW2_L0		0x01		/* Level */
-#define	OCW2_L1		0x02
-#define	OCW2_L2		0x04
-/* 0x08 must be 0 to select OCW2 vs OCW3 */
-/* 0x10 must be 0 to select OCW2 vs ICW1 */
-#define	OCW2_EOI	0x20		/* 1 = EOI */
-#define	OCW2_SL		0x40		/* EOI mode */
-#define	OCW2_R		0x80		/* EOI mode */
-
-/* Operation control word type 3.  Bit 3 (0x08) must be set. Even address. */
-#define	OCW3_RIS	0x01		/* 1 = read IS, 0 = read IR */
-#define	OCW3_RR		0x02		/* register read */
-#define	OCW3_P		0x04		/* poll mode command */
-/* 0x08 must be 1 to select OCW3 vs OCW2 */
-#define	OCW3_SEL	0x08		/* must be 1 */
-/* 0x10 must be 0 to select OCW3 vs ICW1 */
-#define	OCW3_SMM	0x20		/* special mode mask */
-#define	OCW3_ESMM	0x40		/* enable SMM */
-
 /*
  * Interrupt Control offset into Interrupt descriptor table (IDT)
  */
@@ -130,4 +80,4 @@ void	atpic_handle_intr(void *cookie, struct intrframe iframe);
 void	atpic_startup(void);
 #endif
 
-#endif /* !_I386_ISA_ICU_H_ */
+#endif /* !_AMD64_ISA_ICU_H_ */

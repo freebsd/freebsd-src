@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/segments.h>
 
+#include <dev/ic/i8259.h>
 #include <amd64/isa/icu.h>
 #include <amd64/isa/isa.h>
 
