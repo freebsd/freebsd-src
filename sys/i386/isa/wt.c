@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.19 1995/09/08 11:08:03 bde Exp $
+ * $Id: wt.c,v 1.17.4.1 1995/09/14 07:09:39 davidg Exp $
  *
  */
 
@@ -401,11 +401,9 @@ done:
 
 /*
  * Ioctl routine.  Compatible with BSD ioctls.
- * Direct QIC-02 commands ERASE and RETENSION added.
- * There are three possible ioctls:
+ * There are two possible ioctls:
  * ioctl (int fd, MTIOCGET, struct mtget *buf)  -- get status
  * ioctl (int fd, MTIOCTOP, struct mtop *buf)   -- do BSD-like op
- * ioctl (int fd, WTQICMD, int qicop)           -- do QIC op
  */
 int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 {
@@ -419,32 +417,6 @@ int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 	switch (cmd) {
 	default:
 		return (EINVAL);
-	case WTQICMD:                   /* direct QIC command */
-		op = (int) *(void**)arg;
-		switch (op) {
-		default:
-			return (EINVAL);
-		case QIC_ERASE:         /* erase the whole tape */
-			if (! (t->flags & TPWRITE) || (t->flags & TPWP))
-				return (EACCES);
-			if (error = wtwait (t, PCATCH, "wterase"))
-				return (error);
-			break;
-		case QIC_RETENS:        /* retension the tape */
-			if (error = wtwait (t, PCATCH, "wtretens"))
-				return (error);
-			break;
-		}
-		/* Both ERASE and RETENS operations work like REWIND. */
-		/* Simulate the rewind operation here. */
-		t->flags &= ~(TPRO | TPWO | TPVOL);
-		if (! wtcmd (t, op))
-			return (EIO);
-		t->flags |= TPSTART | TPREW;
-		if (op == QIC_ERASE)
-			t->flags |= TPWANY;
-		wtclock (t);
-		return (0);
 	case MTIOCIEOT:         /* ignore EOT errors */
 	case MTIOCEEOT:         /* enable EOT errors */
 		return (0);
@@ -494,15 +466,23 @@ int wtioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 		if (error = wtwritefm (t))
 			return (error);
 		return (0);
+	case MTRETENS:		/* re-tension tape */
+		if (error = wtwait (t, PCATCH, "wtretens"))
+			return (error);
+		op = QIC_RETENS;
+		goto erase_retens;
+		
 	case MTERASE:		/* erase to EOM */
 		if (! (t->flags & TPWRITE) || (t->flags & TPWP))
 			return (EACCES);
 		if (error = wtwait (t, PCATCH, "wterase"))
 			return (error);
-		/* ERASE operations work like REWIND. */
+		op = QIC_ERASE;
+	erase_retens:
+		/* ERASE and RETENS operations work like REWIND. */
 		/* Simulate the rewind operation here. */
 		t->flags &= ~(TPRO | TPWO | TPVOL);
-		if (! wtcmd (t, QIC_ERASE))
+		if (! wtcmd (t, op))
 			return (EIO);
 		t->flags |= TPSTART | TPREW;
 		t->flags |= TPWANY;

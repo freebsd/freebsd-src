@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.36.4.3 1996/04/01 00:26:16 gibbs Exp $
+ * $Id: st.c,v 1.36.4.4 1996/06/22 15:00:00 joerg Exp $
  */
 
 /*
@@ -1207,6 +1207,10 @@ struct proc *p, struct scsi_link *sc_link)
 				break;
 			case MTERASE:	/* erase */
 				errcode = st_erase(unit, FALSE, flags);
+				break;
+			case MTRETENS:	/* re-tension tape */
+				errcode = st_load(unit, LD_LOAD|LD_RETEN,
+						  flags);
 				break;
 			case MTOFFL:	/* rewind and put the drive offline */
 				st_unmount(unit, EJECT);

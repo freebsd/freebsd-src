@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mtio.h	8.1 (Berkeley) 6/2/93
- * $Id: mtio.h,v 1.4 1994/10/28 13:19:42 jkh Exp $
+ * $Id: mtio.h,v 1.6 1996/01/08 12:26:15 joerg Exp $
  */
 
 #ifndef _SYS_MTIO_H_
@@ -73,12 +73,10 @@ struct mtop {
 
 #define MTSETDNSTY	11
 
-/*
-** Tape erase function - AKL: Andreas Klemm <andreas@knobel.gun.de>
-*/
 #define MTERASE		12	/* erase to EOM */
-#define MTEOD		13	/* Space to EOM *//* lost the code for this */
+#define MTEOD		13	/* Space to EOM */
 #define MTCOMP		14	/* select compression mode 0=off, 1=def */
+#define MTRETENS	15	/* re-tension tape */
 
 #endif
 
