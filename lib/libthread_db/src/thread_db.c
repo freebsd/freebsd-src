@@ -232,7 +232,7 @@ td_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *fpregs)
 }
 
 td_err_e
-td_thr_setgregs(const td_thrhandle_t *th, prgregset_t gregs)
+td_thr_setgregs(const td_thrhandle_t *th, const prgregset_t gregs)
 {
 	td_thragent_t *ta = th->th_ta_p;
 
