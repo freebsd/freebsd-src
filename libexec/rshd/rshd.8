@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt RSHD 8
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm rshd
 .Nd remote shell server
@@ -226,8 +226,8 @@ and is not preceded by a flag byte.
 .Xr rcmd 3 ,
 .Xr ruserok 3 ,
 .Xr auth.conf 5 ,
-.Xr hosts.equiv 5 ,
 .Xr hosts 5 ,
+.Xr hosts.equiv 5 ,
 .Xr login.conf 5 ,
 .Xr nologin 5 ,
 .Xr services 5 ,
@@ -235,7 +235,7 @@ and is not preceded by a flag byte.
 .Xr rlogind 8 ,
 .Xr syslogd 8
 .Sh FILES
-.Bl -tag -width /etc/hosts -compact
+.Bl -tag -width /var/run/nologin -compact
 .It Pa /etc/hosts
 .It Pa /etc/hosts.equiv
 .It Pa /etc/login.conf

@@ -34,7 +34,7 @@
 .\"
 .Dd March 1, 1994
 .Dt TELNETD 8
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm telnetd
 .Nd DARPA
@@ -451,7 +451,8 @@ is willing to receive an 8 bit data stream.
 Requests that the client handle flow control
 characters remotely.
 .It "DO ECHO"
-This is not really supported, but is sent to identify a 4.2BSD
+This is not really supported, but is sent to identify a
+.Bx 4.2
 .Xr telnet 1
 client, which will improperly respond with
 .Dv WILL ECHO .
@@ -608,11 +609,13 @@ Some
 .Tn TELNET
 commands are only partially implemented.
 .Pp
-Because of bugs in the original 4.2 BSD
+Because of bugs in the original
+.Bx 4.2
 .Xr telnet 1 ,
 .Nm
 performs some dubious protocol exchanges to try to discover if the remote
-client is, in fact, a 4.2 BSD
+client is, in fact, a
+.Bx 4.2
 .Xr telnet 1 .
 .Pp
 Binary mode

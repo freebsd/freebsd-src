@@ -30,7 +30,7 @@
 .\"
 .Dd January 28, 2000
 .Dt RTLD 1
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ld-elf.so.1 ,
 .Nm rtld
@@ -113,10 +113,8 @@ The following conversions can be used:
 .Bl -tag -width "xxxx"
 .It \&%a
 The main program's name
-.Po
-also known as
-.Dq __progname
-.Pc .
+(also known as
+.Dq __progname ) .
 .It \&%A
 The value of the environment variable
 .Ev LD_TRACE_LOADED_OBJECTS_PROGNAME
@@ -143,7 +141,7 @@ are recognized and have their usual meaning.
 .It Pa /var/run/ld-elf.so.hints
 .El
 .Sh SEE ALSO
-.Xr elf 5 ,
 .Xr ld 1 ,
 .Xr ldd 1 ,
+.Xr elf 5 ,
 .Xr ldconfig 8
