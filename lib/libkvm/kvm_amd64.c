@@ -108,7 +108,7 @@ _kvm_initvtop(kvm_t *kd) {
 		_kvm_err(kd, kd->program, "cannot read IdlePTD");
 		return (-1);
 	}
-	if ((vm->PTD = _kvm_malloc(kd, NBPG /*sizeof(struct pde)*/)) != 0) {
+	if ((vm->PTD = _kvm_malloc(kd, PAGE_SIZE /*sizeof(struct pde)*/)) != 0) {
 		_kvm_err(kd, kd->program, "cannot allocate vm->PTD");
 	}
 	if (KREAD(kd, (u_long)nlist[1].n_value, &vm->PTD)) {
