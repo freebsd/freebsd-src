@@ -33,8 +33,6 @@ int     pwok;
 	fgets(buf, sizeof(buf), stdin);
 	rip(buf);
 	return (buf);
-    }
-
-    putchar('\n');
-    return (pass);
+    } else
+	return (pass);
 }
