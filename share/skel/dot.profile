@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: dot.profile,v 1.7 1996/09/21 21:35:44 wosch Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
@@ -8,8 +8,11 @@
 # add /usr/games or /usr/X11R6/bin if you want
 PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/bin:$HOME/bin; export PATH
 
-# use cons25l1 for iso-* fonts
-TERM=cons25; 	export TERM
+# Setting TERM is normally done through /etc/ttys.  Do only override
+# if you're sure that you'll never log in via telnet or xterm or a
+# serial line.
+# Use cons25l1 for iso-* fonts
+#TERM=cons25; 	export TERM
 
 BLOCKSIZE=K;	export BLOCKSIZE
 EDITOR=vi;   	export EDITOR
