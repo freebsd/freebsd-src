@@ -449,7 +449,10 @@ ftp_copyresult(int src, int dst, enum state state)
 #endif
 	case LPSV:
 	case EPSV:
-		/* expecting "227 Entering Passive Mode (x,x,x,x,x,x,x)" */
+		/*
+		 * expecting "227 Entering Passive Mode (x,x,x,x,x,x,x)"
+		 * (in some cases result comes without paren)
+		 */
 		if (code != 227) {
 passivefail0:
 			close(wport6);
@@ -469,11 +472,12 @@ passivefail0:
 		 * PASV result -> LPSV/EPSV result
 		 */
 		p = param;
-		while (*p && *p != '(')
+		while (*p && *p != '(' && !isdigit(*p))	/*)*/
 			p++;
 		if (!*p)
 			goto passivefail0;	/*XXX*/
-		p++;
+		if (*p == '(')	/*)*/
+			p++;
 		n = sscanf(p, "%u,%u,%u,%u,%u,%u",
 			&ho[0], &ho[1], &ho[2], &ho[3], &po[0], &po[1]);
 		if (n != 6)
@@ -595,7 +599,7 @@ passivefail1:
 		 * EPSV result -> PORT result
 		 */
 		p = param;
-		while (*p && *p != '(')
+		while (*p && *p != '(')	/*)*/
 			p++;
 		if (!*p)
 			goto passivefail1;	/*XXX*/
