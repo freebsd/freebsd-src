@@ -4,6 +4,8 @@
  * Based upon code Copyright 1998 Juniper Networks, Inc. 
  * Copyright (c) 2001 Networks Associates Technologies, Inc.
  * All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
  * ThinkSec AS and NAI Labs, the Security Research Division of Network
@@ -53,10 +55,14 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include "pam_mod_misc.h"
 
-enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX };
+enum {
+	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
+	PAM_OPT_NO_FAKE_PROMPTS
+};
 
 static struct opttab other_options[] = {
 	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+	{ "no_fake_prompts",	PAM_OPT_NO_FAKE_PROMPTS },
 	{ NULL, 0 }
 };
 
@@ -78,15 +84,6 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	PAM_LOG("Options processed");
 
-	/*
-	 * It doesn't make sense to use a password that has already been
-	 * typed in, since we haven't presented the challenge to the user
-	 * yet.
-	 */
-	if (pam_test_option(&options, PAM_OPT_USE_FIRST_PASS, NULL) ||
-	    pam_test_option(&options, PAM_OPT_TRY_FIRST_PASS, NULL))
-		PAM_RETURN(PAM_AUTH_ERR);
-
 	user = NULL;
 	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
 		if ((pwd = getpwnam(getlogin())) == NULL)
@@ -107,7 +104,23 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	 */
 	opiedisableaeh();
 
-	opiechallenge(&opie, (char *)user, challenge);
+	/*
+	 * If the no_fake_prompts option was given, and the user
+	 * doesn't have an OPIE key, just fail rather than present the
+	 * user with a bogus OPIE challenge.
+	 */
+	/* XXX generates a const warning because of incorrect prototype */
+	if (opiechallenge(&opie, (char *)user, challenge) != 0 &&
+	    pam_test_option(&options, PAM_OPT_NO_FAKE_PROMPTS, NULL)) 
+		PAM_RETURN(PAM_AUTH_ERR);
+	
+	/*
+	 * It doesn't make sense to use a password that has already been
+	 * typed in, since we haven't presented the challenge to the user
+	 * yet, so clear the stored password.
+	 */
+	pam_set_item(pamh, PAM_AUTHTOK, NULL);
+	
 	for (i = 0; i < 2; i++) {
 		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
 		retval = pam_get_pass(pamh, &response, prompt, &options);
