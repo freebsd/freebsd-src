@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.86 1998/08/06 08:33:19 dfr Exp $
+ * $Id: vm_fault.c,v 1.87 1998/08/24 08:39:37 dfr Exp $
  */
 
 /*
@@ -117,7 +117,7 @@ struct faultstate {
 static void
 release_page(struct faultstate *fs)
 {
-	PAGE_WAKEUP(fs->m);
+	vm_page_wakeup(fs->m);
 	vm_page_deactivate(fs->m);
 	fs->m = NULL;
 }
@@ -291,7 +291,7 @@ RetryFault:;
 				if ((fs.m->flags & PG_BUSY) ||
 					(fs.m->busy &&
 					 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
-					PAGE_SET_FLAG(fs.m, PG_WANTED | PG_REFERENCED);
+					vm_page_flag_set(fs.m, PG_WANTED | PG_REFERENCED);
 					cnt.v_intrans++;
 					tsleep(fs.m, PSWP, "vmpfw", 0);
 				}
@@ -314,7 +314,7 @@ RetryFault:;
 				goto RetryFault;
 			}
 
-			PAGE_SET_FLAG(fs.m, PG_BUSY);
+			vm_page_busy(fs.m);
 			if (((fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				fs.m->object != kernel_object && fs.m->object != kmem_object) {
 				goto readrest;
@@ -607,7 +607,7 @@ readrest:
 				vm_page_rename(fs.m, fs.first_object, fs.first_pindex);
 				fs.first_m = fs.m;
 				fs.first_m->dirty = VM_PAGE_BITS_ALL;
-				PAGE_SET_FLAG(fs.first_m, PG_BUSY);
+				vm_page_busy(fs.first_m);
 				fs.m = NULL;
 				cnt.v_cow_optim++;
 			} else {
@@ -705,7 +705,7 @@ readrest:
 	 */
 
 	if (prot & VM_PROT_WRITE) {
-		PAGE_SET_FLAG(fs.m, PG_WRITEABLE);
+		vm_page_flag_set(fs.m, PG_WRITEABLE);
 		vm_object_set_flag(fs.m->object,
 				   OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 		/*
@@ -720,14 +720,14 @@ readrest:
 
 	unlock_things(&fs);
 	fs.m->valid = VM_PAGE_BITS_ALL;
-	PAGE_CLEAR_FLAG(fs.m, PG_ZERO);
+	vm_page_flag_clear(fs.m, PG_ZERO);
 
 	pmap_enter(fs.map->pmap, vaddr, VM_PAGE_TO_PHYS(fs.m), prot, wired);
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		pmap_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
 
-	PAGE_SET_FLAG(fs.m, PG_MAPPED|PG_REFERENCED);
+	vm_page_flag_set(fs.m, PG_MAPPED|PG_REFERENCED);
 	if (fault_flags & VM_FAULT_HOLD)
 		vm_page_hold(fs.m);
 
@@ -756,7 +756,7 @@ readrest:
 	 * Unlock everything, and return
 	 */
 
-	PAGE_WAKEUP(fs.m);
+	vm_page_wakeup(fs.m);
 	vm_object_deallocate(fs.first_object);
 
 	return (KERN_SUCCESS);
@@ -967,16 +967,16 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Enter it in the pmap...
 		 */
 
-		PAGE_CLEAR_FLAG(dst_m, PG_ZERO);
+		vm_page_flag_clear(dst_m, PG_ZERO);
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
-		PAGE_SET_FLAG(dst_m, PG_WRITEABLE|PG_MAPPED);
+		vm_page_flag_set(dst_m, PG_WRITEABLE|PG_MAPPED);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
 		 */
 		vm_page_activate(dst_m);
-		PAGE_WAKEUP(dst_m);
+		vm_page_wakeup(dst_m);
 	}
 }
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.58 1998/06/01 11:32:53 peter Exp $
+ * $Id: nfs_bio.c,v 1.59 1998/06/14 15:51:59 bde Exp $
  */
 
 
@@ -173,7 +173,7 @@ nfs_getpages(ap)
 					vm_page_activate(m);
 				else
 					vm_page_deactivate(m);
-				PAGE_WAKEUP(m);
+				vm_page_wakeup(m);
 			} else {
 				vnode_pager_freepage(m);
 			}

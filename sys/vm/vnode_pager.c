@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.95 1998/08/24 08:39:38 dfr Exp $
+ *	$Id: vnode_pager.c,v 1.96 1998/08/25 13:47:37 luoqi Exp $
  */
 
 /*
@@ -440,7 +440,7 @@ vnode_pager_input_smlfs(object, m)
 	}
 	vm_pager_unmap_page(kva);
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
-	PAGE_CLEAR_FLAG(m, PG_ZERO);
+	vm_page_flag_clear(m, PG_ZERO);
 	if (error) {
 		return VM_PAGER_ERROR;
 	}
@@ -504,7 +504,7 @@ vnode_pager_input_old(object, m)
 	}
 	pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 	m->dirty = 0;
-	PAGE_CLEAR_FLAG(m, PG_ZERO);
+	vm_page_flag_clear(m, PG_ZERO);
 	return error ? VM_PAGER_ERROR : VM_PAGER_OK;
 }
 
@@ -771,7 +771,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			vm_page_set_validclean(mt, 0, nvalid);
 		}
 		
-		PAGE_CLEAR_FLAG(mt, PG_ZERO);
+		vm_page_flag_clear(mt, PG_ZERO);
 		if (i != reqpage) {
 
 			/*
@@ -791,7 +791,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 					vm_page_activate(mt);
 				else
 					vm_page_deactivate(mt);
-				PAGE_WAKEUP(mt);
+				vm_page_wakeup(mt);
 			} else {
 				vnode_pager_freepage(mt);
 			}

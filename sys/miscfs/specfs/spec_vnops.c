@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.70 1998/08/24 18:23:18 phk Exp $
+ * $Id: spec_vnops.c,v 1.71 1998/08/25 17:48:54 phk Exp $
  */
 
 #include <sys/param.h>
@@ -843,7 +843,7 @@ spec_getpages(ap)
 					} else {
 						vm_page_deactivate(m);
 					}
-					PAGE_WAKEUP(m);
+					vm_page_wakeup(m);
 				} else {
 					vm_page_free(m);
 				}

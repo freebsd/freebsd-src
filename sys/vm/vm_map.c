@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.133 1998/08/06 08:33:19 dfr Exp $
+ * $Id: vm_map.c,v 1.134 1998/08/24 08:39:37 dfr Exp $
  */
 
 /*
@@ -1990,16 +1990,16 @@ vm_map_split(entry)
 		if (m == NULL)
 			continue;
 		if (m->flags & PG_BUSY) {
-			PAGE_SET_FLAG(m, PG_WANTED);
+			vm_page_flag_set(m, PG_WANTED);
 			tsleep(m, PVM, "spltwt", 0);
 			goto retry;
 		}
 			
-		PAGE_SET_FLAG(m, PG_BUSY);
+		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_rename(m, new_object, idx);
 		m->dirty = VM_PAGE_BITS_ALL;
-		PAGE_SET_FLAG(m, PG_BUSY);
+		vm_page_busy(m);
 	}
 
 	if (orig_object->type == OBJT_SWAP) {
@@ -2018,7 +2018,7 @@ vm_map_split(entry)
 	for (idx = 0; idx < size; idx++) {
 		m = vm_page_lookup(new_object, idx);
 		if (m) {
-			PAGE_WAKEUP(m);
+			vm_page_wakeup(m);
 		}
 	}
 
@@ -2808,9 +2808,9 @@ m_inretry:
 
 				vm_page_activate(m_out);
 
-				PAGE_WAKEUP(m_in);
+				vm_page_wakeup(m_in);
 			}
-			PAGE_WAKEUP(m_out);
+			vm_page_wakeup(m_out);
 		}
 
 		object->shadow_count--;
