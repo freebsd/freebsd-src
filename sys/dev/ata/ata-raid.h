@@ -64,6 +64,7 @@ struct ar_softc {
 #define AR_F_PROMISE_RAID	0x1000
 #define AR_F_HIGHPOINT_RAID	0x2000
 #define AR_F_FREEBSD_RAID	0x4000
+#define AR_F_TOGGLE		0x8000
     
     int			total_disks;	/* number of disks in this array */
     int			generation;	/* generation of this array */
