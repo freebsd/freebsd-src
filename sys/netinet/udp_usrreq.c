@@ -854,7 +854,8 @@ udp_output(inp, m, addr, control, td)
 
 	/*
 	 * Calculate data length and get a mbuf for UDP, IP, and possible
-	 * link-layer headers.
+	 * link-layer headers.  Immediate slide the data pointer back forward
+	 * since we won't use that space at this layer.
 	 */
 	M_PREPEND(m, sizeof(struct udpiphdr) + max_linkhdr, M_DONTWAIT);
 	if (m == NULL) {
@@ -863,6 +864,7 @@ udp_output(inp, m, addr, control, td)
 	}
 	m->m_data += max_linkhdr;
 	m->m_len -= max_linkhdr;
+	m->m_pkthdr.len -= max_linkhdr;
 
 	/*
 	 * Fill in mbuf with extended UDP header
