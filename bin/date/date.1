@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.28 1999/05/08 10:19:59 kris Exp $
+.\"	$Id: date.1,v 1.29 1999/05/14 00:28:39 jmg Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -305,21 +305,6 @@ between
 and
 .Xr timed
 fails.
-.Sh BUGS
-The system attempts to keep the date in a format closely compatible
-with
-.Tn VMS .
-.Tn VMS ,
-however, uses local time (rather than
-.Tn GMT )
-and does not understand daylight-savings time.
-Thus, if you use both
-.Tn UNIX
-and
-.Tn VMS ,
-.Tn VMS
-will be running on
-.Tn GMT .
 .Sh STANDARDS
 The
 .Nm
