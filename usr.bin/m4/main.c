@@ -82,6 +82,7 @@ FILE *infile[MAXINP];		/* input file stack (0=stdin)  */
 FILE *outfile[MAXOUT];		/* diversion array(0=bitbucket)*/
 FILE *active;			/* active output file pointer  */
 char *m4temp;			/* filename for diversions     */
+char *m4dir;			/* directory for diversions    */
 int ilevel = 0; 		/* input file stack pointer    */
 int oindex = 0; 		/* diversion index..	       */
 char *null = "";                /* as it says.. just a null..  */
@@ -181,7 +182,8 @@ main(argc,argv)
 
 	active = stdout;		/* default active output     */
 					/* filename for diversions   */
-	m4temp = mktemp(xstrdup(_PATH_DIVNAME));
+	m4dir = mkdtemp(xstrdup(_PATH_DIVDIRNAME));
+	(void) asprintf(&m4temp, "%s/%s", m4dir, _PATH_DIVNAME);
 
 	bbase[0] = bufbase;
         if (!argc) {
@@ -225,6 +227,7 @@ main(argc,argv)
 		(void) remove(m4temp);
 #else
 		(void) unlink(m4temp);
+		(void) rmdir(m4dir);
 #endif
 	}
 
