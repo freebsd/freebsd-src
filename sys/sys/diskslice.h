@@ -30,9 +30,11 @@
 #define	_SYS_DISKSLICE_H_
 
 #ifndef raidframe_has_been_fixed
+#ifdef _KERNEL
 #include <sys/ioccom.h>
 #define	DIOCGSLICEINFO		_IOR('d', 111, struct diskslices)
 #define	DIOCSYNCSLICEINFO	_IOW('d', 112, int)
+#endif
 #endif
 
 #ifndef sys_boot_code_has_been_fixed
