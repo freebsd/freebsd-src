@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- *	$Id$
+ *	$Id: extern.h,v 1.2 1994/09/24 02:56:42 davidg Exp $
  */
 
 struct kinfo;
@@ -40,7 +40,7 @@ struct var;
 struct varent;
 
 extern fixpt_t ccpu;
-extern int eval, fscale, mempages, nlistread, rawcpu;
+extern int eval, fscale, mempages, nlistread, rawcpu, cflag;
 extern int sumrusage, termwidth, totwidth;
 extern VAR var[];
 extern VARENT *vhead;
