@@ -473,3 +473,7 @@
                   This was done by Thomas Klausner <wiz@netbsd.org> and
                   myself Roger Hardiman <roger@freebsd.org>
 
+2.11  15 Apr 2000 Made changes so the driver compiles on FreeBSD/Alpha.
+                  Stop printing MSP autodetect. Requested by
+                  Chris D. Faulhaber <jedgar@fxp.org>
+
