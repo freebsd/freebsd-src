@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.23 1996/04/05 19:12:01 scrappy Exp $
+ *	$Id: subr_diskslice.c,v 1.24 1996/04/07 14:32:14 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,7 +73,10 @@ static volatile bool_t ds_debug;
 static void dsiodone __P((struct buf *bp));
 static char *fixlabel __P((char *sname, struct diskslice *sp,
 			   struct disklabel *lp, int writeflag));
-static void free_label __P((struct diskslices *ssp, int	slice));
+static void free_ds_label __P((struct diskslices *ssp, int slice));
+#ifdef DEVFS
+static void free_ds_labeldevs __P((struct diskslices *ssp, int slice));
+#endif
 static void partition_info __P((char *sname, int part, struct partition *pp));
 static void slice_info __P((char *sname, struct diskslice *sp));
 static void set_ds_bad __P((struct diskslices *ssp, int slice,
@@ -83,6 +86,8 @@ static void set_ds_label __P((struct diskslices *ssp, int slice,
 #ifdef DEVFS
 static void set_ds_labeldevs __P((char *dname, dev_t dev,
 				  struct diskslices *ssp));
+static void set_ds_labeldevs_unaliased __P((char *dname, dev_t dev,
+					    struct diskslices *ssp));
 #endif
 static void set_ds_wlabel __P((struct diskslices *ssp, int slice,
 			       int wlabel));
@@ -277,7 +282,7 @@ dsgone(sspp)
 		if (sp->ds_cdev != NULL)
 			devfs_remove_dev(sp->ds_cdev);
 #endif
-		free_label(ssp, slice);
+		free_ds_label(ssp, slice);
 	}
 	free(ssp, M_DEVBUF);
 	*sspp = NULL;
@@ -373,7 +378,7 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 			free(lp, M_DEVBUF);
 			return (error);
 		}
-		free_label(ssp, slice);
+		free_ds_label(ssp, slice);
 		set_ds_label(ssp, slice, lp);
 #ifdef DEVFS
 		set_ds_labeldevs(dname, dev, ssp);
@@ -766,7 +771,7 @@ dssize(dev, sspp, dopen, dclose)
 }
 
 static void
-free_label(ssp, slice)
+free_ds_label(ssp, slice)
 	struct diskslices *ssp;
 	int	slice;
 {
@@ -775,10 +780,34 @@ free_label(ssp, slice)
 	struct diskslice *sp;
 
 	sp = &ssp->dss_slices[slice];
-	if (sp->ds_label == NULL)
-		return;
 	lp = sp->ds_label;
+	if (lp == NULL)
+		return;
 #ifdef DEVFS
+	free_ds_labeldevs(ssp, slice);
+	if (slice == COMPATIBILITY_SLICE)
+		free_ds_labeldevs(ssp, ssp->dss_first_bsd_slice);
+	else if (slice == ssp->dss_first_bsd_slice)
+		free_ds_labeldevs(ssp, COMPATIBILITY_SLICE);
+#endif
+	free(lp, M_DEVBUF);
+	set_ds_label(ssp, slice, (struct disklabel *)NULL);
+}
+
+#ifdef DEVFS
+static void
+free_ds_labeldevs(ssp, slice)
+	struct diskslices *ssp;
+	int	slice;
+{
+	struct disklabel *lp;
+	int	part;
+	struct diskslice *sp;
+
+	sp = &ssp->dss_slices[slice];
+	lp = sp->ds_label;
+	if (lp == NULL)
+		return;
 	for (part = 0; part < lp->d_npartitions; part++) {
 		if (sp->ds_bdevs[part] != NULL) {
 			devfs_remove_dev(sp->ds_bdevs[part]);
@@ -789,10 +818,8 @@ free_label(ssp, slice)
 			sp->ds_cdevs[part] = NULL;
 		}
 	}
-#endif
-	free(lp, M_DEVBUF);
-	set_ds_label(ssp, slice, (struct disklabel *)NULL);
 }
+#endif
 
 static char *
 fixlabel(sname, sp, lp, writeflag)
@@ -935,6 +962,24 @@ set_ds_label(ssp, slice, lp)
 #ifdef DEVFS
 static void
 set_ds_labeldevs(dname, dev, ssp)
+	char	*dname;
+	dev_t	dev;
+	struct diskslices *ssp;
+{
+	int	slice;
+
+	set_ds_labeldevs_unaliased(dname, dev, ssp);
+	slice = dkslice(dev);
+	if (slice == COMPATIBILITY_SLICE)
+		set_ds_labeldevs_unaliased(dname,
+			dkmodslice(dev, ssp->dss_first_bsd_slice), ssp);
+	else if (slice == ssp->dss_first_bsd_slice)
+		set_ds_labeldevs_unaliased(dname,
+			dkmodslice(dev, COMPATIBILITY_SLICE), ssp);
+}
+
+static void
+set_ds_labeldevs_unaliased(dname, dev, ssp)
 	char	*dname;
 	dev_t	dev;
 	struct diskslices *ssp;
