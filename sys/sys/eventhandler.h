@@ -89,51 +89,6 @@ typedef struct eventhandler_entry	*eventhandler_tag;
 	EHL_UNLOCK((list));						\
 } while (0)
 
-
-/* 
- * Fast handler lists require the eventhandler list be present
- * at link time.  They don't allow addition of entries to
- * unknown eventhandler lists, ie. each list must have an 
- * "owner".
- *
- * Fast handler lists must be defined once by the owner 
- * of the eventhandler list, and the declaration must be in 
- * scope at any point the list is manipulated.
- */
-#define EVENTHANDLER_FAST_DECLARE(name, type)				\
-extern struct eventhandler_list Xeventhandler_list_ ## name ;		\
-struct eventhandler_entry_ ## name {					\
-	struct eventhandler_entry	ee;				\
-	type		eh_func;					\
-};									\
-struct __hack
-
-#define EVENTHANDLER_FAST_DEFINE(name, type)				\
-struct eventhandler_list Xeventhandler_list_ ## name = { #name };	\
-struct __hack
-
-#define EVENTHANDLER_FAST_INVOKE(name, ...) do {			\
-	struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
-									\
-	if (_el->el_flags & EHL_INITTED) {				\
-		EHL_LOCK(_el);						\
-		_EVENTHANDLER_INVOKE(name, _el , ## __VA_ARGS__);	\
-	}								\
-} while (0)
-
-#define EVENTHANDLER_FAST_REGISTER(name, func, arg, priority)		\
-	eventhandler_register(&Xeventhandler_list_ ## name,		\
-	#name, func, arg, priority)
-
-#define EVENTHANDLER_FAST_DEREGISTER(name, tag)	do {			\
-	struct eventhandler_list *_el = &Xeventhandler_list_ ## name ;	\
-									\
-	KASSERT(_el->el_flags & EHL_INITTED,				\
-	    ("eventhandler_fast_deregister on un-inited list %s", ## name)); \
-	EHL_LOCK(_el);							\
-	eventhandler_deregister(_el, tag);				\
-} while (0)
-
 /*
  * Slow handlers are entirely dynamic; lists are created
  * when entries are added to them, and thus have no concept of "owner",
@@ -195,13 +150,6 @@ typedef void (*shutdown_fn)(void *, int);
 EVENTHANDLER_DECLARE(shutdown_pre_sync, shutdown_fn);	/* before fs sync */
 EVENTHANDLER_DECLARE(shutdown_post_sync, shutdown_fn);	/* after fs sync */
 EVENTHANDLER_DECLARE(shutdown_final, shutdown_fn);
-
-/* Idle process event */
-typedef void (*idle_eventhandler_t)(void *, int);
-
-#define IDLE_PRI_FIRST		EVENTHANDLER_PRI_FIRST
-#define IDLE_PRI_LAST		EVENTHANDLER_PRI_LAST
-EVENTHANDLER_FAST_DECLARE(idle_event, idle_eventhandler_t);
 
 /* Low memory event */
 typedef void (*vm_lowmem_handler_t)(void *, int);
