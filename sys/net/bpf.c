@@ -41,11 +41,13 @@
  */
 
 #include "opt_bpf.h"
+#include "opt_mac.h"
 #include "opt_netgraph.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
@@ -343,6 +345,10 @@ bpfopen(dev, flags, fmt, td)
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
 	d->bd_seesent = 1;
+#ifdef MAC
+	mac_init_bpfdesc(d);
+	mac_create_bpfdesc(td->td_ucred, d);
+#endif
 	mtx_init(&d->bd_mtx, devtoname(dev), "bpf cdev lock", MTX_DEF);
 	callout_init(&d->bd_callout, 1);
 
@@ -373,6 +379,9 @@ bpfclose(dev, flags, fmt, td)
 	if (d->bd_bif)
 		bpf_detachd(d);
 	mtx_unlock(&bpf_mtx);
+#ifdef MAC
+	mac_destroy_bpfdesc(d);
+#endif /* MAC */
 	bpf_freed(d);
 	dev->si_drv1 = 0;
 	free(d, M_BPF);
@@ -563,6 +572,9 @@ bpfwrite(dev, uio, ioflag)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
 
 	mtx_lock(&Giant);
+#ifdef MAC
+	mac_create_mbuf_from_bpfdesc(d, m);
+#endif
 	error = (*ifp->if_output)(ifp, m, &dst, (struct rtentry *)0);
 	mtx_unlock(&Giant);
 	/*
