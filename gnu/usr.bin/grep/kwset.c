@@ -1,10 +1,9 @@
 /* kwset.c - search for any of a set of keywords.
-   Copyright 1989 Free Software Foundation
-		  Written August 1989 by Mike Haertel.
+   Copyright (C) 1989, 1998 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 1, or (at your option)
+   the Free Software Foundation; either version 2, or (at your option)
    any later version.
 
    This program is distributed in the hope that it will be useful,
@@ -14,10 +13,14 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+   02111-1307, USA.  */
 
+/* Written August 1989 by Mike Haertel.
    The author may be reached (Email) at the address mike@ai.mit.edu,
    or (US mail) as Mike Haertel c/o Free Software Foundation. */
+
+/* $FreeBSD$ */
 
 /* The algorithm implemented by these routines bears a startling resemblence
    to one discovered by Beate Commentz-Walter, although it is not identical.
@@ -27,44 +30,19 @@
    String Matching:  An Aid to Bibliographic Search," CACM June 1975,
    Vol. 18, No. 6, which describes the failure function used below. */
 
-/* $FreeBSD$ */
-
-
-#ifdef STDC_HEADERS
-#include <limits.h>
-#include <stdlib.h>
-#else
-#define INT_MAX 2147483647
-#define UCHAR_MAX 255
-#ifdef __STDC__
-#include <stddef.h>
-#else
+#ifdef HAVE_CONFIG_H
+# include <config.h>
+#endif
 #include <sys/types.h>
-#endif
-extern char *malloc();
-extern void free();
-#endif
-
-#ifdef HAVE_MEMCHR
-#include <string.h>
-#ifdef NEED_MEMORY_H
-#include <memory.h>
-#endif
-#else
-#ifdef __STDC__
-extern void *memchr();
-#else
-extern char *memchr();
-#endif
-#endif
+#include "system.h"
+#include "kwset.h"
+#include "obstack.h"
 
 #ifdef GREP
 extern char *xmalloc();
-#define malloc xmalloc
+# undef malloc
+# define malloc xmalloc
 #endif
-
-#include "kwset.h"
-#include "obstack.h"
 
 #define NCHAR (UCHAR_MAX + 1)
 #define obstack_chunk_alloc malloc
@@ -107,6 +85,15 @@ struct kwset
   int mind2;			/* Used in Boyer-Moore search for one string. */
   char *trans;			/* Character translation table. */
 };
+
+/* prototypes */
+static void enqueue PARAMS((struct tree *, struct trie **));
+static void treefails PARAMS((register struct tree *, struct trie *, struct trie *));
+static void treedelta PARAMS((register struct tree *,register unsigned int, unsigned char *));
+static int  hasevery PARAMS((register struct tree *, register struct tree *));
+static void treenext PARAMS((struct tree *, struct trie **));
+static char * bmexec PARAMS((kwset_t, char *, size_t));
+static char * cwexec PARAMS((kwset_t, char *, size_t, struct kwsmatch *));
 
 /* Allocate and initialize a keyword set object, returning an opaque
    pointer to it.  Return NULL if memory is not available. */
@@ -196,13 +183,13 @@ kwsincr(kws, text, len)
 	  link = (struct tree *) obstack_alloc(&kwset->obstack,
 					       sizeof (struct tree));
 	  if (!link)
-	    return "memory exhausted";
+	    return _("memory exhausted");
 	  link->llink = 0;
 	  link->rlink = 0;
 	  link->trie = (struct trie *) obstack_alloc(&kwset->obstack,
 						     sizeof (struct trie));
 	  if (!link->trie)
-	    return "memory exhausted";
+	    return _("memory exhausted");
 	  link->trie->accepting = 0;
 	  link->trie->links = 0;
 	  link->trie->parent = trie;
@@ -251,6 +238,8 @@ kwsincr(kws, text, len)
 		      r->balance = t->balance != (char) -1 ? 0 : 1;
 		      t->balance = 0;
 		      break;
+		    default:
+		      abort ();
 		    }
 		  break;
 		case 2:
@@ -269,8 +258,12 @@ kwsincr(kws, text, len)
 		      r->balance = t->balance != (char) -1 ? 0 : 1;
 		      t->balance = 0;
 		      break;
+		    default:
+		      abort ();
 		    }
 		  break;
+		default:
+		  abort ();
 		}
 
 	      if (dirs[depth - 1] == L)
@@ -622,6 +615,10 @@ cwexec(kws, text, len, kwsmatch)
   register char *end, *qlim;
   register struct tree *tree;
   register char *trans;
+
+#ifdef lint
+  accept = NULL;
+#endif
 
   /* Initialize register copies and look for easy ways out. */
   kwset = (struct kwset *) kws;
