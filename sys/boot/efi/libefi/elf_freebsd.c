@@ -83,7 +83,9 @@
 #include <sys/linker.h>
 #include <machine/elf.h>
 #include <machine/bootinfo.h>
+#include <machine/ia64_cpu.h>
 #include <machine/pte.h>
+#include <machine/vmparam.h>
 
 #include <efi.h>
 #include <efilib.h>

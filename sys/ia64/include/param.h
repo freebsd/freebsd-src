@@ -70,19 +70,22 @@
 #ifndef _MACHINE
 #define	_MACHINE	ia64
 #endif
-#ifndef MACHINE
-#define	MACHINE		"ia64"
-#endif
 #ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	ia64
+#endif
+
+#ifndef _NO_NAMESPACE_POLLUTION
+
+#ifndef _MACHINE_PARAM_H_
+#define	_MACHINE_PARAM_H_
+
+#ifndef MACHINE
+#define	MACHINE		"ia64"
 #endif
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"ia64"
 #endif
 #define	MID_MACHINE	MID_IA64
-
-#include <machine/ia64_cpu.h>
-#include <machine/cpu.h>
 
 /*
  * OBJFORMAT_NAMES is a comma-separated list of the object formats
@@ -132,9 +135,6 @@
 #define PAGE_MASK	(PAGE_SIZE-1)
 #define NPTEPG		(PAGE_SIZE/(sizeof (pt_entry_t)))
 
-#define	KERNBASE	0xfffffc0000300000LL	/* start of kernel virtual */
-#define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
-
 #define	CLSIZE		1
 #define	CLSIZELOG2	0
 
@@ -144,8 +144,6 @@
 
 #define	KSTACK_PAGES	4		/* pages of kernel stack */
 #define	UAREA_PAGES	1		/* pages of u-area */
-
-/* #define KSTACK_GUARD */		/* compile in kstack guard page */
 
 /*
  * Mach derived conversion macros
@@ -160,3 +158,6 @@
 #define	ia64_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define pgtok(x)                ((x) * (PAGE_SIZE / 1024)) 
+
+#endif	/* !_MACHINE_PARAM_H_ */
+#endif	/* !_NO_NAMESPACE_POLLUTION */
