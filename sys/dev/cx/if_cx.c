@@ -1037,6 +1037,14 @@ static int cx_detach (device_t dev)
 
 		if (!d || d->chan->type == T_NONE)
 			continue;
+			
+#if __FreeBSD_version >= 502113
+		if (d->tty) {
+			ttyrel (d->tty);
+			d->tty = NULL;
+		}
+#endif
+
 #ifdef NETGRAPH
 #if __FreeBSD_version >= 500000
 		if (d->node) {
@@ -1735,7 +1743,13 @@ static int cx_close (dev_t dev, int flag, int mode, struct thread *td)
 	splx (s);
 	d->callout = 0;
 
-	/* Wake up bidirectional opens. */
+	/*
+	 * Wake up bidirectional opens.
+	 * Since we may be opened twice we couldn't call ttyrel() here.
+	 * So just keep d->tty for future use. It would be freed by
+	 * ttyrel() at cx_detach().
+	 */
+	
 	wakeup (d);
 	d->open_dev &= ~0x2;
 
