@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uudecode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: uudecode.c,v 1.9 1997/08/22 06:51:43 charnier Exp $";
+	"$Id: uudecode.c,v 1.10 1997/09/18 14:07:26 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -63,7 +63,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 char *filename;
-int cflag, pflag;
+int cflag, iflag, pflag, sflag;
 
 static void usage __P((void));
 int	decode __P((void));
@@ -76,13 +76,19 @@ main(argc, argv)
 {
 	int rval, ch;
 
-	while ((ch = getopt(argc, argv, "cp")) != -1) {
+	while ((ch = getopt(argc, argv, "cips")) != -1) {
 		switch(ch) {
 		case 'c':
 			cflag = 1; /* multiple uudecode'd files */
 			break;
+		case 'i':
+			iflag = 1; /* ask before override files */
+			break;
 		case 'p':
 			pflag = 1; /* print output to stdout */
+			break;
+		case 's':
+			sflag = 1; /* do not strip pathnames for output */
 			break;
 		default:
 			usage();
@@ -134,7 +140,7 @@ decode2(flag)
 {
 	struct passwd *pw;
 	register int n;
-	register char ch, *p;
+	register char ch, first, *p;
 	int mode, n1;
 	char buf[MAXPATHLEN];
 	char buffn[MAXPATHLEN]; /* file name buffer */
@@ -153,6 +159,16 @@ decode2(flag)
 		 fnmatch("begin [0-7]* *", buf, 0));
 
 	(void)sscanf(buf, "begin %o %s", &mode, buf);
+
+	if (!sflag && !pflag) {
+		strncpy(buffn, buf, sizeof(buffn)); 
+		if (strrchr(buffn, '/') != NULL)
+			strncpy(buf, strrchr(buffn, '/') + 1, sizeof(buf));
+		if (buf[0] == '\0') {
+			warnx("%s: illegal filename", buffn);
+			return(1);
+		}
+	}
 
 	/* handle ~user/file format */
 	if (buf[0] == '~') {
@@ -180,10 +196,14 @@ decode2(flag)
 	if (pflag)
 		; /* print to stdout */
 
-	else if (!freopen(buf, "w", stdout) ||
-	    fchmod(fileno(stdout), mode&0666)) {
-		warn("%s: %s", buf, filename);
-		return(1);
+	else {
+		if (iflag && !access(buf, F_OK))
+			(void)fprintf(stderr, "not overwritten: %s\n", buf);
+		if (!freopen(buf, "w", stdout) ||
+		    fchmod(fileno(stdout), mode&0666)) {
+			warn("%s: %s", buf, filename);
+			return(1);
+		}
 	}
 	strcpy(buffn, buf); /* store file name from header line */
 
@@ -262,6 +282,6 @@ decode2(flag)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: uudecode [-cp] [file ...]\n");
+	(void)fprintf(stderr, "usage: uudecode [-cips] [file ...]\n");
 	exit(1);
 }
