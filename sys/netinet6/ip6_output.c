@@ -478,17 +478,19 @@ skip_ipsec2:;
 			(struct ip6_rthdr *)(mtod(exthdrs.ip6e_rthdr,
 						  struct ip6_rthdr *));
 		struct ip6_rthdr0 *rh0;
+		struct in6_addr *addrs;
 
 		finaldst = ip6->ip6_dst;
 		switch (rh->ip6r_type) {
 		case IPV6_RTHDR_TYPE_0:
 			 rh0 = (struct ip6_rthdr0 *)rh;
-			 ip6->ip6_dst = rh0->ip6r0_addr[0];
-			 bcopy((caddr_t)&rh0->ip6r0_addr[1],
-			       (caddr_t)&rh0->ip6r0_addr[0],
+			 addrs = (struct in6_addr *)(rh + 1);
+
+			 ip6->ip6_dst = *addrs;
+			 bcopy((caddr_t)(addrs + 1), (caddr_t)addrs,
 			       sizeof(struct in6_addr)*(rh0->ip6r0_segleft - 1)
 				 );
-			 rh0->ip6r0_addr[rh0->ip6r0_segleft - 1] = finaldst;
+			 *(addrs + rh0->ip6r0_segleft - 1) = finaldst;
 			 break;
 		default:	/* is it possible? */
 			 error = EINVAL;
