@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.110 1995/08/13 07:49:35 bde Exp $
+ *	$Id: sio.c,v 1.99.4.1 1995/09/14 07:09:28 davidg Exp $
  */
 
 #include "sio.h"
@@ -288,14 +288,7 @@ struct isa_driver	siodriver = {
 	sioprobe, sioattach, "sio"
 };
 
-#ifdef COMCONSOLE
-#undef COMCONSOLE
-#define	COMCONSOLE	1
-#else
-#define	COMCONSOLE	0
-#endif
-
-static	int	comconsole = CONUNIT;
+static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	int	commajor;
@@ -338,9 +331,6 @@ static	struct speedtab comspeedtab[] = {
 	-1,	-1
 };
 
-/* XXX - configure this list */
-static Port_t likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
-
 static struct kern_devconf kdc_sio[NSIO] = { {
 	0, 0, 0,		/* filled in by dev_attach */
 	"sio", 0, { MDDT_ISA, 0, "tty" },
@@ -371,13 +361,13 @@ sioprobe(dev)
 	struct isa_device	*dev;
 {
 	static bool_t	already_init;
-	Port_t		*com_ptr;
 	bool_t		failures[10];
 	int		fn;
 	struct isa_device	*idev;
 	Port_t		iobase;
 	u_char		mcr_image;
 	int		result;
+	struct isa_device	*xdev;
 
 	sioregisterdev(dev);
 
@@ -388,11 +378,9 @@ sioprobe(dev)
 		 * from any used port that shares the interrupt vector.
 		 * XXX the gate enable is elsewhere for some multiports.
 		 */
-		for (com_ptr = likely_com_ports;
-		     com_ptr < &likely_com_ports[sizeof likely_com_ports
-						 / sizeof likely_com_ports[0]];
-		     ++com_ptr)
-			outb(*com_ptr + com_mcr, 0);
+		for (xdev = isa_devtab_tty; xdev->id_driver != NULL; xdev++)
+			if (xdev->id_driver == &siodriver && xdev->id_enabled)
+				outb(xdev->id_iobase + com_mcr, 0);
 		already_init = TRUE;
 	}
 
@@ -615,7 +603,7 @@ sioattach(isdp)
 	com->it_in.c_oflag = 0;
 	com->it_in.c_cflag = TTYDEF_CFLAG;
 	com->it_in.c_lflag = 0;
-	if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)) {
+	if (unit == comconsole) {
 		com->it_in.c_iflag = TTYDEF_IFLAG;
 		com->it_in.c_oflag = TTYDEF_OFLAG;
 		com->it_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
@@ -708,13 +696,11 @@ determined_type: ;
 #endif /* COM_MULTIPORT */
 	printf("\n");
 
-	kdc_sio[unit].kdc_state =
-		(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL))
-		? DC_BUSY : DC_IDLE;
+	kdc_sio[unit].kdc_state = (unit == comconsole) ? DC_BUSY : DC_IDLE;
 
 #ifdef KGDB
 	if (kgdb_dev == makedev(commajor, unit)) {
-		if (unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL))
+		if (unit == comconsole)
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
 			int	divisor;
@@ -997,8 +983,7 @@ comhardclose(com)
 	com->active_out = FALSE;
 	wakeup(&com->active_out);
 	wakeup(TSA_CARR_ON(tp));	/* restart any wopeners */
-	if (!(com->state & CS_DTR_OFF)
-	    && !(unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+	if (!(com->state & CS_DTR_OFF) && unit != comconsole)
 		kdc_sio[unit].kdc_state = DC_IDLE;
 	splx(s);
 }
@@ -1041,8 +1026,7 @@ siowrite(dev, uio, flag)
 	 * is not the console.  In that situation we don't need/want the X
 	 * server taking over the console.
 	 */
-	if (constty && unit == comconsole
-	    && (COMCONSOLE || boothowto & RB_SERIAL))
+	if (constty != NULL && unit == comconsole)
 		constty = NULL;
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
 }
@@ -1055,7 +1039,7 @@ siodtrwakeup(chan)
 
 	com = (struct com_s *)chan;
 	com->state &= ~CS_DTR_OFF;
-	if (!(com->unit == comconsole && (COMCONSOLE || boothowto & RB_SERIAL)))
+	if (com->unit != comconsole)
 		kdc_sio[com->unit].kdc_state = DC_IDLE;
 	wakeup(&com->dtr_wait);
 }
@@ -1135,8 +1119,7 @@ siointr1(com)
 			if (line_status & (LSR_PE|LSR_FE|LSR_BI)) {
 #ifdef DDB
 #ifdef BREAK_TO_DEBUGGER
-				if (   (line_status & LSR_BI)
-				    && (COMCONSOLE || boothowto	& RB_SERIAL)
+				if (line_status & LSR_BI
 				    && com->unit == comconsole)	{
 					Debugger("serial console break");
 					goto cont;
@@ -2202,11 +2185,11 @@ siocnprobe(cp)
 
 	/* initialize required fields */
 	cp->cn_dev = makedev(commajor, unit);
-
-	if (COMCONSOLE || boothowto & RB_SERIAL)
-		cp->cn_pri = CN_REMOTE;	/* Force a serial port console */
-	else
-		cp->cn_pri = CN_NORMAL;
+#ifdef COMCONSOLE
+	cp->cn_pri = CN_REMOTE;		/* Force a serial port console */
+#else
+	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
+#endif
 }
 
 void
