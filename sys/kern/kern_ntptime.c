@@ -50,10 +50,10 @@ __FBSDID("$FreeBSD$");
 /*
  * Single-precision macros for 64-bit machines
  */
-typedef long long l_fp;
+typedef int64_t l_fp;
 #define L_ADD(v, u)	((v) += (u))
 #define L_SUB(v, u)	((v) -= (u))
-#define L_ADDHI(v, a)	((v) += (long long)(a) << 32)
+#define L_ADDHI(v, a)	((v) += (int64_t)(a) << 32)
 #define L_NEG(v)	((v) = -(v))
 #define L_RSHIFT(v, n) \
 	do { \
@@ -65,7 +65,7 @@ typedef long long l_fp;
 #define L_MPY(v, a)	((v) *= (a))
 #define L_CLR(v)	((v) = 0)
 #define L_ISNEG(v)	((v) < 0)
-#define L_LINT(v, a)	((v) = (long long)(a) << 32)
+#define L_LINT(v, a)	((v) = (int64_t)(a) << 32)
 #define L_GINT(v)	((v) < 0 ? -(-(v) >> 32) : (v) >> 32)
 
 /*
@@ -357,8 +357,13 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 			L_LINT(time_freq, MAXFREQ);
 		else if (freq < -MAXFREQ)
 			L_LINT(time_freq, -MAXFREQ);
-		else
-			L_LINT(time_freq, freq);
+		else {
+			/*
+			 * ntv.freq is [PPM * 2^16] = [us/s * 2^16]
+			 * time_freq is [ns/s * 2^32]
+			 */
+			time_freq = ntv.freq * 1000LL * 65536LL;
+		}
 #ifdef PPS_SYNC
 		pps_freq = time_freq;
 #endif /* PPS_SYNC */
@@ -548,10 +553,8 @@ ntp_update_second(int64_t *adjustment, time_t *newsec)
 			tickrate = 500;
 		else if (time_adjtime < -500)
 			tickrate = -500;
-		else if (time_adjtime != 0)
-			tickrate = time_adjtime;
 		else
-			tickrate = 0;	/* GCC sucks! */
+			tickrate = time_adjtime;
 		time_adjtime -= tickrate;
 		L_LINT(ftemp, tickrate * 1000);
 		L_ADD(time_adj, ftemp);
