@@ -477,8 +477,16 @@ firewire_detach( device_t dev )
 {
 	struct firewire_softc *sc;
 	struct csrdir *csrd, *next;
+	struct fw_device *fwdev, *fwdev_next;
 
 	sc = (struct firewire_softc *)device_get_softc(dev);
+
+	bus_generic_detach(dev);
+
+	callout_stop(&sc->fc->timeout_callout);
+	callout_stop(&sc->fc->bmr_callout);
+	callout_stop(&sc->fc->retry_probe_callout);
+	callout_stop(&sc->fc->busprobe_callout);
 
 #if __FreeBSD_version >= 500000
 	destroy_dev(sc->dev);
@@ -490,17 +498,17 @@ firewire_detach( device_t dev )
 	}
 #endif
 	/* XXX xfree_free and untimeout on all xfers */
+	for (fwdev = STAILQ_FIRST(&sc->fc->devices); fwdev != NULL;
+							fwdev = fwdev_next) {
+		fwdev_next = STAILQ_NEXT(fwdev, link);
+		free(fwdev, M_FW);
+	}
 	for (csrd = SLIST_FIRST(&sc->fc->csrfree); csrd != NULL; csrd = next) {
 		next = SLIST_NEXT(csrd, link);
 		free(csrd, M_FW);
 	}
-	callout_stop(&sc->fc->timeout_callout);
-	callout_stop(&sc->fc->bmr_callout);
-	callout_stop(&sc->fc->retry_probe_callout);
-	callout_stop(&sc->fc->busprobe_callout);
 	free(sc->fc->topology_map, M_FW);
 	free(sc->fc->speed_map, M_FW);
-	bus_generic_detach(dev);
 	return(0);
 }
 #if 0
