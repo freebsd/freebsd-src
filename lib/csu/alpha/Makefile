@@ -12,6 +12,8 @@ NOPIC=		true
 NOPROFILE=	true
 INTERNALLIB=	true
 
+.PATH:		${.CURDIR}/../common
+
 all: ${OBJS} ${SOBJS}
 
 gcrt1.o:	crt1.c
