@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.6 1994/09/13 14:46:50 dfr Exp $
+ *	$Id: kern_exec.c,v 1.7 1994/09/14 05:52:13 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -270,6 +270,14 @@ interpret:
 
 	/* mark vnode pure text */
  	ndp->ni_vp->v_flag |= VTEXT;
+
+	/*
+	 * Store the vp for use in procfs
+	 */
+	if (p->p_textvp)		/* release old reference */
+		vrele(p->p_textvp);
+	VREF(ndp->ni_vp);
+	p->p_textvp = ndp->ni_vp;
 
 	/*
 	 * If tracing the process, trap to debugger so breakpoints
