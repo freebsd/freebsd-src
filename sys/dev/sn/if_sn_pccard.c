@@ -44,6 +44,7 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
  
+#include <net/ethernet.h> 
 #include <net/if.h> 
 #include <net/if_arp.h>
 #include <net/if_media.h>
@@ -52,6 +53,7 @@
 
 #include <dev/sn/if_snreg.h>
 #include <dev/sn/if_snvar.h>
+#include <dev/pccard/pccardvar.h>
 
 /*
  * Initialize the device - called from Slot manager.
@@ -65,6 +67,17 @@ sn_pccard_probe(device_t dev)
 static int
 sn_pccard_attach(device_t dev)
 {
+	struct sn_softc *sc = device_get_softc(dev);
+	int i;
+	u_char sum;
+	u_char ether_addr[ETHER_ADDR_LEN];
+
+	pccard_get_ether(dev, ether_addr);
+	for (i = 0, sum = 0; i < ETHER_ADDR_LEN; i++)
+		sum |= ether_addr[i];
+	if (sum)
+		bcopy(ether_addr, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
+
 	return (sn_attach(dev));
 }
 
