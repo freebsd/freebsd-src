@@ -339,11 +339,13 @@ static ACPI_STATUS	EcWrite(struct acpi_ec_softc *sc, UINT8 Address,
 				UINT8 *Data);
 static int		acpi_ec_probe(device_t dev);
 static int		acpi_ec_attach(device_t dev);
+static int		acpi_ec_shutdown(device_t dev);
 
 static device_method_t acpi_ec_methods[] = {
     /* Device interface */
     DEVMETHOD(device_probe,	acpi_ec_probe),
     DEVMETHOD(device_attach,	acpi_ec_attach),
+    DEVMETHOD(device_shutdown,	acpi_ec_shutdown),
 
     {0, 0}
 };
@@ -637,6 +639,17 @@ error:
 			     sc->ec_data_res);
     mtx_destroy(&sc->ec_mtx);
     return (ENXIO);
+}
+
+static int
+acpi_ec_shutdown(device_t dev)
+{
+    struct acpi_ec_softc	*sc;
+
+    /* Disable the GPE so we don't get EC events during shutdown. */
+    sc = device_get_softc(dev);
+    AcpiDisableGpe(sc->ec_gpehandle, sc->ec_gpebit, ACPI_NOT_ISR);
+    return (0);
 }
 
 static void
