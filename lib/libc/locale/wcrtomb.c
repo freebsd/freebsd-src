@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-wcrtomb(char *__restrict s, wchar_t wc, mbstate_t *__restrict ps __unused)
+wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps __unused)
 {
 	char *e;
 

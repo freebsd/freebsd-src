@@ -113,17 +113,17 @@ void	 qsort(void *, size_t, size_t,
 int	 rand(void);
 void	*realloc(void *, size_t);
 void	 srand(unsigned);
-double	 strtod(const char *__restrict, char **__restrict);
-long	 strtol(const char *__restrict, char **__restrict, int);
+double	 strtod(const char * __restrict, char ** __restrict);
+long	 strtol(const char * __restrict, char ** __restrict, int);
 unsigned long
-	 strtoul(const char *__restrict, char **__restrict, int);
+	 strtoul(const char * __restrict, char ** __restrict, int);
 int	 system(const char *);
 
 int	 mblen(const char *, size_t);
-size_t	 mbstowcs(wchar_t *__restrict , const char *__restrict, size_t);
+size_t	 mbstowcs(wchar_t * __restrict , const char * __restrict, size_t);
 int	 wctomb(char *, wchar_t);
-int	 mbtowc(wchar_t *__restrict, const char *__restrict, size_t);
-size_t	 wcstombs(char *__restrict, const wchar_t *__restrict, size_t);
+int	 mbtowc(wchar_t * __restrict, const char * __restrict, size_t);
+size_t	 wcstombs(char * __restrict, const wchar_t * __restrict, size_t);
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern const char *_malloc_options;
@@ -197,13 +197,13 @@ void	 srandomdev(void);
 #ifdef __LONG_LONG_SUPPORTED
 /* LONGLONG */
 long long	 
-	 strtoll(const char *__restrict, char **__restrict, int);
+	 strtoll(const char * __restrict, char ** __restrict, int);
 #endif
 __int64_t	 strtoq(const char *, char **, int);
 #ifdef __LONG_LONG_SUPPORTED
 /* LONGLONG */
 unsigned long long
-	 strtoull(const char *__restrict, char **__restrict, int);
+	 strtoull(const char * __restrict, char ** __restrict, int);
 #endif
 __uint64_t
 	 strtouq(const char *, char **, int);

@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdarg.h>
 
 int
-printf(char const *__restrict fmt, ...)
+printf(char const * __restrict fmt, ...)
 {
 	int ret;
 	va_list ap;

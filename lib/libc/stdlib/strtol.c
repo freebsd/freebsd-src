@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
  * alphabets and digits are each contiguous.
  */
 long
-strtol(const char *__restrict nptr, char **__restrict endptr, int base)
+strtol(const char * __restrict nptr, char ** __restrict endptr, int base)
 {
 	const char *s;
 	unsigned long acc;

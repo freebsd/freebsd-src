@@ -48,24 +48,24 @@
 .Sh SYNOPSIS
 .In stdio.h
 .Ft int
-.Fn printf "const char *restrict format" ...
+.Fn printf "const char * restrict format" ...
 .Ft int
-.Fn fprintf "FILE *restrict stream" "const char *restrict format" ...
+.Fn fprintf "FILE * restrict stream" "const char * restrict format" ...
 .Ft int
-.Fn sprintf "char *restrict str" "const char *restrict format" ...
+.Fn sprintf "char * restrict str" "const char * restrict format" ...
 .Ft int
-.Fn snprintf "char *restrict str" "size_t size" "const char *restrict format" ...
+.Fn snprintf "char * restrict str" "size_t size" "const char * restrict format" ...
 .Ft int
 .Fn asprintf "char **ret" "const char *format" ...
 .In stdarg.h
 .Ft int
-.Fn vprintf "const char *restrict format" "va_list ap"
+.Fn vprintf "const char * restrict format" "va_list ap"
 .Ft int
-.Fn vfprintf "FILE *restrict stream" "const char *restrict format" "va_list ap"
+.Fn vfprintf "FILE * restrict stream" "const char * restrict format" "va_list ap"
 .Ft int
-.Fn vsprintf "char *restrict str" "const char *restrict format" "va_list ap"
+.Fn vsprintf "char * restrict str" "const char * restrict format" "va_list ap"
 .Ft int
-.Fn vsnprintf "char *restrict str" "size_t size" "const char *restrict format" "va_list ap"
+.Fn vsnprintf "char * restrict str" "size_t size" "const char * restrict format" "va_list ap"
 .Ft int
 .Fn vasprintf "char **ret" "const char *format" "va_list ap"
 .Sh DESCRIPTION

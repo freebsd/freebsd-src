@@ -33,8 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 
 size_t
-mbsrtowcs(wchar_t *__restrict dst, const char **__restrict src, size_t len,
-    mbstate_t *__restrict ps __unused)
+mbsrtowcs(wchar_t * __restrict dst, const char ** __restrict src, size_t len,
+    mbstate_t * __restrict ps __unused)
 {
 	const char *s;
 	size_t nchr;

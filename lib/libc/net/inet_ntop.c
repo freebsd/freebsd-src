@@ -47,7 +47,7 @@ static const char *inet_ntop6(const u_char *src, char *dst, socklen_t size);
  *	Paul Vixie, 1996.
  */
 const char *
-inet_ntop(int af, const void *__restrict src, char *__restrict dst,
+inet_ntop(int af, const void * __restrict src, char * __restrict dst,
     socklen_t size)
 {
 	switch (af) {

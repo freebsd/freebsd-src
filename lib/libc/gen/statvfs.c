@@ -70,7 +70,7 @@ fstatvfs(int fd, struct statvfs *result)
 }
 
 int
-statvfs(const char *__restrict path, struct statvfs *__restrict result)
+statvfs(const char * __restrict path, struct statvfs * __restrict result)
 {
 	struct statfs sfs;
 	int rv;
