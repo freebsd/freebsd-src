@@ -1137,8 +1137,7 @@ tl_attach(dev)
 
 	if (t->tl_name == NULL) {
 		device_printf(dev, "unknown device!?\n");
-		error = ENXIO;
-		goto fail;
+		return (ENXIO);
 	}
 
 	mtx_init(&sc->tl_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
