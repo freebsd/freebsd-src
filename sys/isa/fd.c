@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.64 1995/09/16 17:03:36 bde Exp $
+ *	$Id: fd.c,v 1.65 1995/10/04 07:01:23 joerg Exp $
  *
  */
 
@@ -722,6 +722,7 @@ fdattach(struct isa_device *dev)
 #endif	/* DEVFS */
 			break;
 		case RTCFDT_288M:
+		case RTCFDT_288M_1:
 			printf("2.88MB 3.5in - 1.44MB mode\n");
 			fd->type = FD_1440;
 			kdc_fd[fdu].kdc_description =

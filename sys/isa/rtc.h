@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)rtc.h	7.1 (Berkeley) 5/12/91
- *	$Id: rtc.h,v 1.6 1994/09/20 00:31:07 ache Exp $
+ *	$Id: rtc.h,v 1.7 1994/12/04 20:22:20 joerg Exp $
  */
 
 #ifndef _I386_ISA_RTC_H_
@@ -104,6 +104,7 @@
 #define	 RTCFDT_12M	 0x20		/* 1.2M */
 #define  RTCFDT_720K     0x30           /* 720K */
 #define	 RTCFDT_144M	 0x40		/* 1.44M */
+#define  RTCFDT_288M_1   0x50		/* 2.88M, some BIOSes */
 #define	 RTCFDT_288M	 0x60		/* 2.88M */
 
 #define RTC_BASELO	0x15	/* low byte of basemem size */
