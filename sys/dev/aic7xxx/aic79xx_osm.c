@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#25 $
+ * $Id: //depot/aic7xxx/freebsd/dev/aic7xxx/aic79xx_osm.c#26 $
  *
  * $FreeBSD$
  */
@@ -1188,6 +1188,11 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 			 && (ccb_h->flags & CAM_CDB_PHYS) == 0) {
 				u_long s;
 
+				/*
+				 * Should CAM start to support CDB sizes
+				 * greater than 16 bytes, we could use
+				 * the sense buffer to store the CDB.
+				 */
 				ahd_set_transaction_status(scb,
 							   CAM_REQ_INVALID);
 				ahd_lock(ahd, &s);
@@ -1197,8 +1202,11 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 				return;
 			}
 			if ((ccb_h->flags & CAM_CDB_PHYS) != 0) {
-				hscb->shared_data.idata.cdbptr =
+				hscb->shared_data.idata.cdb_from_host.cdbptr =
 				   ahd_htole64((uintptr_t)csio->cdb_io.cdb_ptr);
+				hscb->shared_data.idata.cdb_from_host.cdblen =
+				   csio->cdb_len;
+				hscb->cdb_len |= SCB_CDB_LEN_PTR;
 			} else {
 				memcpy(hscb->shared_data.idata.cdb, 
 				       csio->cdb_io.cdb_ptr,

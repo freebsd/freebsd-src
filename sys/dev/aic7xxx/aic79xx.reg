@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#60 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#64 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -2071,14 +2071,14 @@ register LQIMODE1 {
 	address			0x051
 	access_mode	RW
 	modes		M_CFG
-	field	ENLQIPHASE_LQ	0x80
-	field	ENLQIPHASE_NLQ	0x40
+	field	ENLQIPHASE_LQ	0x80	/* LQIPHASE1 */
+	field	ENLQIPHASE_NLQ	0x40	/* LQIPHASE2 */
 	field	ENLIQABORT	0x20
-	field	ENLQICRCI_LQ	0x10
-	field	ENLQICRCI_NLQ	0x08
+	field	ENLQICRCI_LQ	0x10	/* LQICRCI1 */
+	field	ENLQICRCI_NLQ	0x08	/* LQICRCI2 */
 	field	ENLQIBADLQI	0x04
-	field	ENLQIOVERI_LQ	0x02
-	field	ENLQIOVERI_NLQ	0x01
+	field	ENLQIOVERI_LQ	0x02	/* LQIOVERI1 */
+	field	ENLQIOVERI_NLQ	0x01	/* LQIOVERI2 */
 }
 
 /*
@@ -3725,7 +3725,7 @@ scratch_ram {
 
 	/*
 	 * The minimum number of commands still outstanding required
-	 * to continue coalessing (2's compliment of value).
+	 * to continue coalessing (2's complement of value).
 	 */
 	INT_COALESSING_MINCMDS {
 		size		1
@@ -3769,16 +3769,17 @@ scb {
 	SCB_RESIDUAL_DATACNT {
 		size	4
 		alias	SCB_CDB_STORE
+		alias	SCB_HOST_CDB_PTR
 	}
 	SCB_RESIDUAL_SGPTR {
 		size	4
-		alias	SCB_CDB_PTR
 		field	SG_ADDR_MASK		0xf8	/* In the last byte */
 		field	SG_OVERRUN_RESID	0x02	/* In the first byte */
 		field	SG_LIST_NULL		0x01	/* In the first byte */
 	}
 	SCB_SCSI_STATUS {
 		size	1
+		alias	SCB_HOST_CDB_LEN
 	}
 	SCB_TARGET_PHASES {
 		size	1
