@@ -459,9 +459,8 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 	sh = malloc(scnsiz, M_TEMP, M_WAITOK);
 
 	wp = (void *) ((char *) ap + sizeof(struct coff_aouthdr));
-	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc),
-				imgp->vp, peofs + PECOFF_HDR_SIZE,
-				 (caddr_t) sh, scnsiz);
+	error = pecoff_read_from(FIRST_THREAD_IN_PROC(imgp->proc), imgp->vp,
+	    peofs + PECOFF_HDR_SIZE, (caddr_t) sh, scnsiz);
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
 	exec_new_vmspace(imgp);
@@ -478,9 +477,9 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 
 			error = pecoff_load_section(
 			    FIRST_THREAD_IN_PROC(imgp->proc),
-					 vmspace, imgp->vp, sh[i].s_scnptr
-			,(caddr_t) sh[i].s_vaddr, sh[i].s_paddr, sh[i].s_size
-						    ,prot);
+			    vmspace, imgp->vp, sh[i].s_scnptr,
+			    (caddr_t) sh[i].s_vaddr, sh[i].s_paddr,
+			    sh[i].s_size ,prot);
 			DPRINTF(("ERROR%d\n", error));
 			if (error)
 				goto fail;
@@ -490,11 +489,9 @@ exec_pecoff_coff_prep_zmagic(struct image_params * imgp,
 		}
 		if ((sh[i].s_flags & (COFF_STYP_DATA|COFF_STYP_BSS)) != 0) {
 			if (pecoff_load_section(
-					    FIRST_THREAD_IN_PROC(imgp->proc),
-					    vmspace, imgp->vp, sh[i].s_scnptr,
-					    (caddr_t) sh[i].s_vaddr,
-					    sh[i].s_paddr, sh[i].s_size,
-					    prot) != 0)
+			    FIRST_THREAD_IN_PROC(imgp->proc), vmspace,
+			    imgp->vp, sh[i].s_scnptr, (caddr_t) sh[i].s_vaddr,
+			    sh[i].s_paddr, sh[i].s_size, prot) != 0)
 				goto fail;
 			data_addr = min(trunc_page(sh[i].s_vaddr), data_addr);
 			dsize = round_page(sh[i].s_vaddr + sh[i].s_paddr)
