@@ -4,7 +4,7 @@
 This is a 5.0-CURRENT release SNAPshot of FreeBSD, an active
 development branch which will produce its first release in early
 March 2001.  Those features which have also been back-ported to
-the 4.x-stable branch (the next release for which will be 4.2)
+the 4.x-stable branch (the next release for which will be 4.3)
 are marked [MERGED].
 
 Any installation failures or crashes should be reported by using the
@@ -252,7 +252,7 @@ mtree(8) now includes support for a file listing pathnames to be excluded
 when creating and verifying prototypes.  This makes it easier to use
 mtree as a part of an intrusion-detection system.  [MERGED]
 
-OpenSSL has been upgraded to 0.9.6.
+OpenSSL has been upgraded to 0.9.6. [MERGED]
 
 The OPIE one-time-password suite has been updated to 2.32. [MERGED]
 
@@ -359,7 +359,7 @@ sshd is now enabled by default on new installs. [MERGED]
 
 perl has been updated to version 5.6.0.
 
-Binutils have been upgraded to 2.10.1.
+Binutils have been upgraded to 2.10.1. [MERGED]
 
 libreadline has been upgraded to 4.1. [MERGED]
 
@@ -446,6 +446,14 @@ newfs(1) now implements write combining, which can make creation of
 new filesystems up to seven times faster. [MERGED]
 
 A number of buffer overflows in config(8) have been fixed. [MERGED]
+
+pwd(1) can now double as realpath(1), a program to resolve pathnames
+to their underlying physical paths.
+
+file(1) has been contribify-ed, and imported as version 3.33. [MERGED]
+
+stty(1) now has support for an "erase2" control character, so that
+both "delete" and "backspace" can be used to erase characters.
 
 
 2. Supported Configurations
