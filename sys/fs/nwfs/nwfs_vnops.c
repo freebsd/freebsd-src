@@ -83,7 +83,7 @@ static vop_print_t	nwfs_print;
 static vop_pathconf_t	nwfs_pathconf;
 
 /* Global vfs data structures for nwfs */
-static struct vop_vector nwfs_vnodeops = {
+struct vop_vector nwfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 	.vop_access =		nwfs_access,
 	.vop_open =		nwfs_open,
