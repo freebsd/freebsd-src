@@ -18,7 +18,7 @@
  * as long as this message is kept with the software, all derivative
  * works or modified versions.
  *
- * Cronyx Id: if_ct.c,v 1.1.2.20.2.1 2004/02/13 14:48:24 rik Exp $
+ * Cronyx Id: if_ct.c,v 1.1.2.22 2004/02/26 19:06:51 rik Exp $
  */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -26,12 +26,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
  
 #if __FreeBSD_version >= 500000
-#   define NCT 1
+#   define NCTAU 1
 #else
-#   include "ct.h"
+#   include "ctau.h"
 #endif
 
-#if NCT > 0
+#if NCTAU > 0
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -88,7 +88,7 @@ __FBSDID("$FreeBSD$");
 #   if __FreeBSD_version < 500000
 #   include "sppp.h"
 #   if NSPPP <= 0
-#	error The device ct requires sppp or netgraph.
+#	error The device ctau requires sppp or netgraph.
 #   endif
 #   endif
 #   include <net/if_sppp.h>
@@ -188,9 +188,9 @@ static int ct_sioctl (struct ifnet *ifp, u_long cmd, caddr_t data);
 static void ct_initialize (void *softc);
 #endif
 
-static ct_board_t *adapter [NCT];
-static drv_t *channel [NCT*NCHAN];
-static struct callout_handle led_timo [NCT];
+static ct_board_t *adapter [NCTAU];
+static drv_t *channel [NCTAU*NCHAN];
+static struct callout_handle led_timo [NCTAU];
 static struct callout_handle timeout_handle;
 
 /*
@@ -234,7 +234,7 @@ static void ct_timeout (void *arg)
 	drv_t *d;
 	int s, i;
 
-	for (i=0; i<NCT*NCHAN; ++i) {
+	for (i=0; i<NCTAU*NCHAN; ++i) {
 		d = channel[i];
 		if (! d)
 			continue;
@@ -307,7 +307,7 @@ static int probe_irq (ct_board_t *b, int irq)
 			return 1;
 		}
 	}
-	/* printf ("ctx%d: irq %d not functional, mask=0x%04x, busy=0x%04x\n",
+	/* printf ("ct%d: irq %d not functional, mask=0x%04x, busy=0x%04x\n",
 		b->num, irq, mask, busy); */
 	ct_probe_irq (b, 0);
 	return 0;
@@ -372,7 +372,7 @@ static void ct_identify (driver_t *driver, device_t dev)
 			bus_set_resource (child, SYS_RES_IOPORT, 0,
 			    iobase, NPORT);
 
-			if (devcount >= NCT)
+			if (devcount >= NCTAU)
 				break;
 		}
 	} else {
@@ -1260,7 +1260,7 @@ static int ct_open (dev_t dev, int oflags, int devtype, struct thread *td)
 {
 	drv_t *d;
 
-	if (minor(dev) >= NCT*NCHAN || ! (d = channel[minor(dev)]))
+	if (minor(dev) >= NCTAU*NCHAN || ! (d = channel[minor(dev)]))
 		return ENXIO;
 		
 	CT_DEBUG2 (d, ("ct_open\n"));
@@ -1325,7 +1325,7 @@ static int ct_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, struct threa
 	switch (cmd) {
 	case SERIAL_GETREGISTERED:
 		bzero (mask, sizeof(mask));
-		for (s=0; s<NCT*NCHAN; ++s)
+		for (s=0; s<NCTAU*NCHAN; ++s)
 			if (channel [s])
 				mask [s/8] |= 1 << (s & 7);
 	        bcopy (mask, data, sizeof (mask));
@@ -1885,7 +1885,16 @@ static struct cdevsw ct_cdevsw = {
 	.d_dump     = nodump,
 	.d_flags    = D_NAGGED,
 };
-#else /* __FreeBSD_version > 501000 */
+#elif __FreeBSD_version < 502103
+static struct cdevsw ct_cdevsw = {
+	.d_open     = ct_open,
+	.d_close    = ct_close,
+	.d_ioctl    = ct_ioctl,
+	.d_name     = "ct",
+	.d_maj      = CDEV_MAJOR,
+	.d_flags    = D_NAGGED,
+};
+#else /* __FreeBSD_version >= 502103 */
 static struct cdevsw ct_cdevsw = {
 	.d_version  = D_VERSION,
 	.d_open     = ct_open,
@@ -1893,7 +1902,7 @@ static struct cdevsw ct_cdevsw = {
 	.d_ioctl    = ct_ioctl,
 	.d_name     = "ct",
 	.d_maj      = CDEV_MAJOR,
-	.d_flags    = D_NAGGED | D_NEEDGIANT,
+	.d_flags    = D_NEEDGIANT,
 };
 #endif /* __FreeBSD_version > 501000 */
 
@@ -2438,7 +2447,7 @@ static int ct_load (void)
 {
 	int i;
 
-	for (i=0;i<NCT; ++i) {
+	for (i=0;i<NCTAU; ++i) {
 		struct isa_device id = {-1, &ctdriver, -1, 0, -1, 0, 0, (inthand2_t *)ct_intr, i, 0, 0, 0, 0 ,0 ,1 ,0 ,0};
 		disable_intr();
 		if (!ct_probe (&id)) {
@@ -2467,7 +2476,7 @@ static int ct_unload (void)
 	int i, s;
 
 	/* Check if the device is busy (open). */
-	for (i=0; i<NCT*NCHAN; ++i) {
+	for (i=0; i<NCTAU*NCHAN; ++i) {
 		drv_t *d = channel[i];
 
 		if (!d)
@@ -2480,14 +2489,14 @@ static int ct_unload (void)
 	s = splimp ();
 
 	/* Deactivate the timeout routine. */
-	for (i=0; i<NCT; ++i) {
+	for (i=0; i<NCTAU; ++i) {
 		if (!adapter [i])
 			continue;
 		untimeout (ct_timeout, 0, timeout_handle);
 		break;
 	}
 
-	for (i=0; i<NCT; ++i) {
+	for (i=0; i<NCTAU; ++i) {
 		ct_board_t *b = adapter [i];
 
 		if (!b || ! b->port)
@@ -2496,7 +2505,7 @@ static int ct_unload (void)
 		ct_close_board (b);
 	}
 
-	for (i=0; i<NCT; ++i) {
+	for (i=0; i<NCTAU; ++i) {
 		ct_board_t *b = adapter [i];
 
 		if (!b || ! b->port)
@@ -2506,7 +2515,7 @@ static int ct_unload (void)
 			untimeout (ct_led_off, b, led_timo[i]);
 	}
 
-	for (i=0; i<NCT; ++i) {
+	for (i=0; i<NCTAU; ++i) {
 		ct_board_t *b = adapter [i];
 
 		if (!b || ! b->port)
@@ -2520,7 +2529,7 @@ static int ct_unload (void)
 	}
 
 	/* Detach the interfaces, free buffer memory. */
-	for (i=0; i<NCT*NCHAN; ++i) {
+	for (i=0; i<NCTAU*NCHAN; ++i) {
 		drv_t *d = channel[i];
 
 		if (!d)
@@ -2557,7 +2566,7 @@ static int ct_unload (void)
 		/* Deallocate buffers. */
 /*		free (d, M_DEVBUF);*/
 	}
-	for (i=0; i<NCT; ++i) {
+	for (i=0; i<NCTAU; ++i) {
 		ct_board_t *b = adapter [i];
 		if (!b)
 			continue;
@@ -2613,10 +2622,16 @@ static int ct_modevent (module_t mod, int type, void *unused)
 	static int load_count = 0;
 	struct cdevsw *cdsw;
 
+#if __FreeBSD_version >= 502103
 	dev = udev2dev (makeudev(CDEV_MAJOR, 0));
+#else
+	dev = makedev (CDEV_MAJOR, 0);
+#endif
 	switch (type) {
 	case MOD_LOAD:
-		if ((cdsw = devsw (dev)) && cdsw->d_maj == CDEV_MAJOR) {
+		if (dev != NODEV &&
+		    (cdsw = devsw (dev)) &&
+		    cdsw->d_maj == CDEV_MAJOR) {
 			printf ("Tau-ISA driver is already in system\n");
 			return (ENXIO);
 		}
@@ -2734,4 +2749,4 @@ static void ct_drvinit (void *unused)
 SYSINIT (ctdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR, ct_drvinit, 0)
 #endif /* KLD_MODULE */
 #endif /* __FreeBSD_version < 400000 */
-#endif /* NCT */
+#endif /* NCTAU */
