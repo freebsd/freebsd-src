@@ -41,7 +41,6 @@ DPADD+= ${LIBALIAS}
 .endif
 .endif
 
-NOATM=	/usr/include/netnatm required
 .if defined(NOATM) || defined(RELEASE_CRUNCH)
 CFLAGS+=-DNOATM
 .else
