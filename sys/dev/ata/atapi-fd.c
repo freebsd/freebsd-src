@@ -360,7 +360,7 @@ afd_start(struct atapi_softc *atp)
 static int32_t 
 afd_partial_done(struct atapi_request *request)
 {
-    struct buf *bp = request->bp;
+    struct buf *bp = request->driver;
 
     if (request->error) {
 	bp->b_error = request->error;
@@ -373,7 +373,7 @@ afd_partial_done(struct atapi_request *request)
 static int32_t 
 afd_done(struct atapi_request *request)
 {
-    struct buf *bp = request->bp;
+    struct buf *bp = request->driver;
     struct afd_softc *fdp = request->device->driver;
 
     if (request->error || (bp->b_flags & B_ERROR)) {
