@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.61 1997/08/30 23:23:13 peter Exp $
+#	$Id: bsd.lib.mk,v 1.62 1997/09/05 09:09:55 peter Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -14,6 +14,10 @@ SHLIB_MAJOR != . ${.CURDIR}/shlib_version ; echo $$major
 .if ${BINFORMAT} == aout
 SHLIB_MINOR != . ${.CURDIR}/shlib_version ; echo $$minor
 .endif
+.endif
+
+.if !defined(NOPIC) && ${BINFORMAT} == elf
+SONAME?=	lib${LIB}.so.${SHLIB_MAJOR}
 .endif
 
 .if defined(DESTDIR)
@@ -174,8 +178,7 @@ lib${LIB}.so.${SHLIB_MAJOR}: ${SOBJS}
 	@${ECHO} building shared ${LIB} library \(version ${SHLIB_MAJOR}\)
 	@rm -f lib${LIB}.so.${SHLIB_MAJOR}
 	@${LDDESTDIRENV} ${CC} -shared -Wl,-x \
-	    -o lib${LIB}.so.${SHLIB_MAJOR} \
-	    -Wl,-soname,lib${LIB}.so.${SHLIB_MAJOR} \
+	    -o lib${LIB}.so.${SHLIB_MAJOR} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDDESTDIR} ${LDADD}
 .endif
 
