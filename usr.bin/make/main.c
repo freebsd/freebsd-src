@@ -928,7 +928,7 @@ ReadMakefile(p, q)
 	} else {
 		/* if we've chdir'd, rebuild the path name */
 		if (curdir != objdir && *fname != '/') {
-			(void)sprintf(path, "%s/%s", curdir, fname);
+			(void)snprintf(path, MAXPATHLEN, "%s/%s", curdir, fname);
 			if ((stream = fopen(path, "r")) != NULL) {
 				fname = path;
 				goto found;
