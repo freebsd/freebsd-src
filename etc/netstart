@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.12 1994/06/17 19:29:05 jkh Exp $
+#	$Id: netstart,v 1.13 1994/09/15 01:19:43 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 defaultrouter=NO
@@ -10,9 +10,11 @@ xntpdflags="NO"
 ntpdate="NO"
 rwhod=NO
 sendmail_flags="-bd -q30m"
+amdflags="NO"
+nfs_client=NO
+nfs_server=NO
+name_server=NO
 #kerberos_server=YES
-#nfs_server=YES
-#name_server=YES
 #gated=YES
 
 # my-name is my symbolic name
