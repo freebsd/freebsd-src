@@ -39,7 +39,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_accept, accept);
+__weak_reference(__accept, accept);
 
 int
 _accept(int fd, struct sockaddr * name, socklen_t *namelen)
@@ -107,5 +107,17 @@ _accept(int fd, struct sockaddr * name, socklen_t *namelen)
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	/* Return the socket file descriptor or -1 on error: */
+	return (ret);
+}
+
+int
+__accept(int fd, struct sockaddr * name, socklen_t *namelen)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _accept(fd, name, namelen);
+	_thread_leave_cancellation_point();
+
 	return (ret);
 }

@@ -38,7 +38,7 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
-__weak_reference(_sendto, sendto);
+__weak_reference(__sendto, sendto);
 
 ssize_t
 _sendto(int fd, const void *msg, size_t len, int flags, const struct
@@ -71,5 +71,18 @@ _sendto(int fd, const void *msg, size_t len, int flags, const struct
 		}
 		_FD_UNLOCK(fd, FD_WRITE);
 	}
+	return (ret);
+}
+
+ssize_t
+__sendto(int fd, const void *msg, size_t len, int flags, const struct
+    sockaddr * to, socklen_t to_len)
+{
+	int ret;
+
+	_thread_enter_cancellation_point();
+	ret = _sendto(fd, msg, len, flags, to, to_len);
+	_thread_leave_cancellation_point();
+
 	return (ret);
 }
