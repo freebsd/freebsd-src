@@ -61,11 +61,6 @@
 #define	CPU_P4		16	/* Intel Pentium 4 */
 
 #ifndef LOCORE
-struct cpu_nameclass {
-	char	*cpu_name;
-	int	cpu_class;
-};
-
 extern int	cpu;
 extern int	cpu_class;
 #endif
