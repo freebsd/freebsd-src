@@ -37,6 +37,8 @@ struct pcic_slot {
 	void   (*putb)(struct pcic_slot *, int, u_char);
 	bus_space_tag_t bst;
 	bus_space_handle_t bsh;
+	driver_intr_t *intr;
+	void *argp;
 };
 
 enum pcic_irq_type { isa_parallel, pci_parallel, isa_serial };
@@ -50,7 +52,7 @@ struct pcic_softc
 #define PCIC_PD_POWER	0x00000004	/* Uses CL-PD regs  */
 #define	PCIC_VG_POWER	0x00000008	/* Uses VG power regs */
 #define PCIC_KING_POWER	0x00000010	/* Uses IBM KING regs  */
-#define PCIC_RICOH_POWER 0x00000020	/* Uses the ricoh power regs */
+#define PCIC_RICOH_POWER 0x0000020	/* Uses the ricoh power regs */
 	enum pcic_irq_type	csc_route; /* How to route csc interrupts */
 	enum pcic_irq_type	func_route; /* How to route function ints */
 	int			iorid;	/* Rid of I/O region */
