@@ -37,6 +37,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)lex.l	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -84,20 +85,34 @@ MAPUPPER			{ return(MAPUPPER); }
 TODIGIT				{ return(DIGITMAP); }
 INVALID				{ return(INVALID); }
 
-ALPHA				{ yylval.i = _A|_R|_G; return(LIST); }
-CONTROL				{ yylval.i = _C; return(LIST); }
-DIGIT				{ yylval.i = _D|_R|_G; return(LIST); }
-GRAPH				{ yylval.i = _G|_R; return(LIST); }
-LOWER				{ yylval.i = _L|_R|_G; return(LIST); }
-PUNCT				{ yylval.i = _P|_R|_G; return(LIST); }
-SPACE				{ yylval.i = _S; return(LIST); }
-UPPER				{ yylval.i = _U|_R|_G; return(LIST); }
-XDIGIT				{ yylval.i = _X|_R|_G; return(LIST); }
-BLANK				{ yylval.i = _B; return(LIST); }
-PRINT				{ yylval.i = _R; return(LIST); }
-IDEOGRAM			{ yylval.i = _I|_R|_G; return(LIST); }
-SPECIAL				{ yylval.i = _T|_R|_G; return(LIST); }
-PHONOGRAM			{ yylval.i = _Q|_R|_G; return(LIST); }
+ALPHA				{ yylval.i = _CTYPE_A|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+CONTROL				{ yylval.i = _CTYPE_C;
+				  return(LIST); }
+DIGIT				{ yylval.i = _CTYPE_D|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+GRAPH				{ yylval.i = _CTYPE_G|_CTYPE_R;
+				  return(LIST); }
+LOWER				{ yylval.i = _CTYPE_L|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+PUNCT				{ yylval.i = _CTYPE_P|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+SPACE				{ yylval.i = _CTYPE_S;
+				  return(LIST); }
+UPPER				{ yylval.i = _CTYPE_U|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+XDIGIT				{ yylval.i = _CTYPE_X|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+BLANK				{ yylval.i = _CTYPE_B;
+				  return(LIST); }
+PRINT				{ yylval.i = _CTYPE_R;
+				  return(LIST); }
+IDEOGRAM			{ yylval.i = _CTYPE_I|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+SPECIAL				{ yylval.i = _CTYPE_T|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
+PHONOGRAM			{ yylval.i = _CTYPE_Q|_CTYPE_R|_CTYPE_G;
+				  return(LIST); }
 
 VARIABLE[\t ]			{ static char vbuf[1024];
 				  char *v = vbuf;

@@ -37,6 +37,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)yacc.y	8.1 (Berkeley) 6/6/93";
+static char rcsid[] = "$FreeBSD$";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -739,20 +740,20 @@ dump_tables()
 	    else
 		fprintf(stderr, "%04x: %2d", x, (int)(r & 0xff));
 
-	    fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
-	    fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
-	    fprintf(stderr, " %4s", (r & _D) ? "dig" : "");
-	    fprintf(stderr, " %4s", (r & _G) ? "graf" : "");
-	    fprintf(stderr, " %4s", (r & _L) ? "low" : "");
-	    fprintf(stderr, " %4s", (r & _P) ? "punc" : "");
-	    fprintf(stderr, " %4s", (r & _S) ? "spac" : "");
-	    fprintf(stderr, " %4s", (r & _U) ? "upp" : "");
-	    fprintf(stderr, " %4s", (r & _X) ? "xdig" : "");
-	    fprintf(stderr, " %4s", (r & _B) ? "blnk" : "");
-	    fprintf(stderr, " %4s", (r & _R) ? "prnt" : "");
-	    fprintf(stderr, " %4s", (r & _I) ? "ideo" : "");
-	    fprintf(stderr, " %4s", (r & _T) ? "spec" : "");
-	    fprintf(stderr, " %4s", (r & _Q) ? "phon" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_A) ? "alph" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_C) ? "ctrl" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_D) ? "dig" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_G) ? "graf" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_L) ? "low" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_P) ? "punc" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_S) ? "spac" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_U) ? "upp" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_X) ? "xdig" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_B) ? "blnk" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_R) ? "prnt" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_I) ? "ideo" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_T) ? "spec" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_Q) ? "phon" : "");
 	    fprintf(stderr, "\n");
 	}
     }
@@ -764,39 +765,39 @@ dump_tables()
 	    fprintf(stderr, "%04lx: %2d",
 		(unsigned long)list->min, (int)(r & 0xff));
 
-	    fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
-	    fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
-	    fprintf(stderr, " %4s", (r & _D) ? "dig" : "");
-	    fprintf(stderr, " %4s", (r & _G) ? "graf" : "");
-	    fprintf(stderr, " %4s", (r & _L) ? "low" : "");
-	    fprintf(stderr, " %4s", (r & _P) ? "punc" : "");
-	    fprintf(stderr, " %4s", (r & _S) ? "spac" : "");
-	    fprintf(stderr, " %4s", (r & _U) ? "upp" : "");
-	    fprintf(stderr, " %4s", (r & _X) ? "xdig" : "");
-	    fprintf(stderr, " %4s", (r & _B) ? "blnk" : "");
-	    fprintf(stderr, " %4s", (r & _R) ? "prnt" : "");
-	    fprintf(stderr, " %4s", (r & _I) ? "ideo" : "");
-	    fprintf(stderr, " %4s", (r & _T) ? "spec" : "");
-	    fprintf(stderr, " %4s", (r & _Q) ? "phon" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_A) ? "alph" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_C) ? "ctrl" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_D) ? "dig" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_G) ? "graf" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_L) ? "low" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_P) ? "punc" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_S) ? "spac" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_U) ? "upp" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_X) ? "xdig" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_B) ? "blnk" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_R) ? "prnt" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_I) ? "ideo" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_T) ? "spec" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_Q) ? "phon" : "");
 	    fprintf(stderr, "\n...\n");
 
 	    fprintf(stderr, "%04lx: %2d",
 		(unsigned long)list->max, (int)(r & 0xff));
 
-	    fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
-	    fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
-	    fprintf(stderr, " %4s", (r & _D) ? "dig" : "");
-	    fprintf(stderr, " %4s", (r & _G) ? "graf" : "");
-	    fprintf(stderr, " %4s", (r & _L) ? "low" : "");
-	    fprintf(stderr, " %4s", (r & _P) ? "punc" : "");
-	    fprintf(stderr, " %4s", (r & _S) ? "spac" : "");
-	    fprintf(stderr, " %4s", (r & _U) ? "upp" : "");
-	    fprintf(stderr, " %4s", (r & _X) ? "xdig" : "");
-	    fprintf(stderr, " %4s", (r & _B) ? "blnk" : "");
-	    fprintf(stderr, " %4s", (r & _R) ? "prnt" : "");
-	    fprintf(stderr, " %4s", (r & _I) ? "ideo" : "");
-	    fprintf(stderr, " %4s", (r & _T) ? "spec" : "");
-	    fprintf(stderr, " %4s", (r & _Q) ? "phon" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_A) ? "alph" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_C) ? "ctrl" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_D) ? "dig" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_G) ? "graf" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_L) ? "low" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_P) ? "punc" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_S) ? "spac" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_U) ? "upp" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_X) ? "xdig" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_B) ? "blnk" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_R) ? "prnt" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_I) ? "ideo" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_T) ? "spec" : "");
+	    fprintf(stderr, " %4s", (r & _CTYPE_Q) ? "phon" : "");
 	    fprintf(stderr, "\n");
 	} else 
 	for (x = list->min; x <= list->max; ++x) {
@@ -805,20 +806,20 @@ dump_tables()
 	    if (r) {
 		fprintf(stderr, "%04x: %2d", x, (int)(r & 0xff));
 
-		fprintf(stderr, " %4s", (r & _A) ? "alph" : "");
-		fprintf(stderr, " %4s", (r & _C) ? "ctrl" : "");
-		fprintf(stderr, " %4s", (r & _D) ? "dig" : "");
-		fprintf(stderr, " %4s", (r & _G) ? "graf" : "");
-		fprintf(stderr, " %4s", (r & _L) ? "low" : "");
-		fprintf(stderr, " %4s", (r & _P) ? "punc" : "");
-		fprintf(stderr, " %4s", (r & _S) ? "spac" : "");
-		fprintf(stderr, " %4s", (r & _U) ? "upp" : "");
-		fprintf(stderr, " %4s", (r & _X) ? "xdig" : "");
-		fprintf(stderr, " %4s", (r & _B) ? "blnk" : "");
-		fprintf(stderr, " %4s", (r & _R) ? "prnt" : "");
-		fprintf(stderr, " %4s", (r & _I) ? "ideo" : "");
-		fprintf(stderr, " %4s", (r & _T) ? "spec" : "");
-		fprintf(stderr, " %4s", (r & _Q) ? "phon" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_A) ? "alph" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_C) ? "ctrl" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_D) ? "dig" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_G) ? "graf" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_L) ? "low" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_P) ? "punc" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_S) ? "spac" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_U) ? "upp" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_X) ? "xdig" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_B) ? "blnk" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_R) ? "prnt" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_I) ? "ideo" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_T) ? "spec" : "");
+		fprintf(stderr, " %4s", (r & _CTYPE_Q) ? "phon" : "");
 		fprintf(stderr, "\n");
 	    }
 	}

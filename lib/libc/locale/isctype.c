@@ -60,7 +60,7 @@ int
 isalnum(c)
 	int c;
 {
-	return (__istype((c), _A|_D));
+	return (__istype((c), _CTYPE_A|_CTYPE_D));
 }
 
 #undef isalpha
@@ -68,7 +68,7 @@ int
 isalpha(c)
 	int c;
 {
-	return (__istype((c), _A));
+	return (__istype((c), _CTYPE_A));
 }
 
 #undef isascii
@@ -84,7 +84,7 @@ int
 isblank(c)
 	int c;
 {
-	return (__istype((c), _B));
+	return (__istype((c), _CTYPE_B));
 }
 
 #undef iscntrl
@@ -92,7 +92,7 @@ int
 iscntrl(c)
 	int c;
 {
-	return (__istype((c), _C));
+	return (__istype((c), _CTYPE_C));
 }
 
 #undef isdigit
@@ -100,7 +100,7 @@ int
 isdigit(c)
 	int c;
 {
-	return (__isctype((c), _D));
+	return (__isctype((c), _CTYPE_D));
 }
 
 #undef isgraph
@@ -108,7 +108,7 @@ int
 isgraph(c)
 	int c;
 {
-	return (__istype((c), _G));
+	return (__istype((c), _CTYPE_G));
 }
 
 #undef ishexnumber 
@@ -116,7 +116,7 @@ int
 ishexnumber(c)
 	int c;
 {
-	return (__istype((c), _X));
+	return (__istype((c), _CTYPE_X));
 }
 
 #undef isideogram
@@ -124,7 +124,7 @@ int
 isideogram(c)
 	int c;
 {
-	return (__istype((c), _I));
+	return (__istype((c), _CTYPE_I));
 }
 
 #undef islower
@@ -132,7 +132,7 @@ int
 islower(c)
 	int c;
 {
-	return (__istype((c), _L));
+	return (__istype((c), _CTYPE_L));
 }
 
 #undef isnumber
@@ -140,7 +140,7 @@ int
 isnumber(c)
 	int c;
 {
-	return (__istype((c), _D));
+	return (__istype((c), _CTYPE_D));
 }
 
 #undef isphonogram	
@@ -148,7 +148,7 @@ int
 isphonogram(c)
 	int c;
 {
-	return (__istype((c), _Q));
+	return (__istype((c), _CTYPE_Q));
 }
 
 #undef isprint
@@ -156,7 +156,7 @@ int
 isprint(c)
 	int c;
 {
-	return (__istype((c), _R));
+	return (__istype((c), _CTYPE_R));
 }
 
 #undef ispunct
@@ -164,7 +164,7 @@ int
 ispunct(c)
 	int c;
 {
-	return (__istype((c), _P));
+	return (__istype((c), _CTYPE_P));
 }
 
 #undef isrune
@@ -180,7 +180,7 @@ int
 isspace(c)
 	int c;
 {
-	return (__istype((c), _S));
+	return (__istype((c), _CTYPE_S));
 }
 
 #undef isspecial
@@ -188,7 +188,7 @@ int
 isspecial(c)
 	int c;
 {
-	return (__istype((c), _T));
+	return (__istype((c), _CTYPE_T));
 }
 
 #undef isupper
@@ -196,7 +196,7 @@ int
 isupper(c)
 	int c;
 {
-	return (__istype((c), _U));
+	return (__istype((c), _CTYPE_U));
 }
 
 #undef isxdigit
@@ -204,7 +204,7 @@ int
 isxdigit(c)
 	int c;
 {
-	return (__isctype((c), _X));
+	return (__isctype((c), _CTYPE_X));
 }
 
 #undef toascii
