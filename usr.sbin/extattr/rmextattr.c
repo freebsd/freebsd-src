@@ -62,7 +62,7 @@ usage(void)
 		fprintf(stderr, " attrname filename ...\n");
 		exit(-1);
 	case EASET:
-		fprintf(stderr, "usage: setextattr [-fhq] attrnamespace");
+		fprintf(stderr, "usage: setextattr [-fhnq] attrnamespace");
 		fprintf(stderr, " attrname attrvalue filename ...\n");
 		exit(-1);
 	case EARM:
@@ -107,6 +107,7 @@ main(int argc, char *argv[])
 
 	int	flag_force = 0;
 	int	flag_nofollow = 0;
+	int	flag_null = 0;
 	int	flag_quiet = 0;
 	int	flag_string = 0;
 	int	flag_hex = 0;
@@ -123,7 +124,7 @@ main(int argc, char *argv[])
 		minargc = 3;
 	} else if (!strcmp(p, "setextattr")) {
 		what = EASET;
-		options = "fhq";
+		options = "fhnq";
 		minargc = 4;
 	} else if (!strcmp(p, "rmextattr")) {
 		what = EARM;
@@ -144,6 +145,9 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			flag_nofollow = 1;
+			break;
+		case 'n':
+			flag_null = 1;
 			break;
 		case 'q':
 			flag_quiet = 1;
@@ -199,10 +203,12 @@ main(int argc, char *argv[])
 		case EASET:
 			if (flag_nofollow)
 				error = extattr_set_link(argv[arg_counter],
-				    attrnamespace, attrname, buf, strlen(buf));
+				    attrnamespace, attrname, buf,
+				    strlen(buf) + flag_null);
 			else
 				error = extattr_set_file(argv[arg_counter],
-				    attrnamespace, attrname, buf, strlen(buf));
+				    attrnamespace, attrname, buf,
+				    strlen(buf) + flag_null);
 			if (error >= 0)
 				continue;
 			break;
