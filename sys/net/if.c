@@ -793,9 +793,10 @@ if_allmulti(ifp, onswitch)
  * The link layer provides a routine which converts 
  */
 int
-if_addmulti(ifp, sa)
+if_addmulti(ifp, sa, retifma)
 	struct ifnet *ifp;	/* interface to manipulate */
 	struct sockaddr *sa;	/* address to add */
+	struct ifmultiaddr *retifma;
 {
 	struct sockaddr *llsa, *dupsa;
 	int error, s;
@@ -809,6 +810,7 @@ if_addmulti(ifp, sa)
 
 	if (ifma) {
 		ifma->ifma_refcount++;
+		if (retifma) *retifma = ifma;
 		return 0;
 	}
 
@@ -832,6 +834,8 @@ if_addmulti(ifp, sa)
 	ifma->ifma_lladdr = llsa;
 	ifma->ifma_ifp = ifp;
 	ifma->ifma_refcount = 1;
+	ifma->ifma_protospec = 0;
+
 	/*
 	 * Some network interfaces can scan the address list at
 	 * interrupt time; lock them out.
@@ -839,6 +843,7 @@ if_addmulti(ifp, sa)
 	s = splimp();
 	LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
 	splx(s);
+	*retifma = ifma;
 
 	if (llsa != 0) {
 		for (ifma = ifp->if_multiaddrs.lh_first; ifma;
@@ -934,6 +939,21 @@ if_delmulti(ifp, sa)
 	free(ifma, M_IFMADDR);
 
 	return 0;
+}
+
+struct ifmultiaddr *
+ifmaof_ifpforaddr(sa, ifp)
+	struct sockaddr *sa;
+	struct ifnet *ifp;
+{
+	struct ifmultiaddr *ifma;
+	
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
+	     ifma = ifma->ifma_link.le_next)
+		if (equal(ifma->ifma_addr, sa))
+			break;
+
+	return ifma;
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
