@@ -170,7 +170,7 @@ idmap_upcall_id(uint32_t type, ident_t id, struct idmap_entry ** found)
 	return 0;
 }
 
-static int
+static void
 idmap_hashf(struct idmap_entry *e, uint32_t * hval_id, uint32_t * hval_name)
 {
 	switch (e->id_info.id_type) {
@@ -190,7 +190,6 @@ idmap_hashf(struct idmap_entry *e, uint32_t * hval_id, uint32_t * hval_name)
 		/* XXX */ panic("hashf: bad name");
 
 	*hval_name = fnv_32_str(e->id_info.id_name, FNV1_32_INIT) % IDMAP_HASH_SIZE;
-	return 0;
 }
 
 static int
@@ -199,11 +198,10 @@ idmap_add(struct idmap_entry * e)
 	struct idmap_hash * hash;
         uint32_t hval_id, hval_name;
 
-	if (e == NULL)
-	  panic("idmap_add null");
-
-	if (e->id_info.id_namelen == 0)
-	  panic("idmap_add name of len 0");
+	if (e->id_info.id_namelen == 0) {
+		printf("idmap_add: name of len 0\n");
+		return EINVAL;
+	}
 
         switch (e->id_info.id_type) {
 	case IDMAP_TYPE_UID:
@@ -218,10 +216,7 @@ idmap_add(struct idmap_entry * e)
                 break;
         }
 
-	if (idmap_hashf(e, &hval_id, &hval_name) != 0) {
-		IDMAP_DEBUG("idmap_hashf fails!\n");
-		return -1;
-	}
+	idmap_hashf(e, &hval_id, &hval_name);
 
 	IDMAP_WLOCK(&hash->hash_lock);
 
@@ -381,6 +376,7 @@ idmap_uid_to_name(uid_t uid, char ** name, size_t * len)
 		if (idmap_add(e) != 0) {
 			IDMAP_DEBUG("idmap_add failed\n");
 			FREE(e, M_IDMAP);
+			return EFAULT;
 		}
 	}
 
