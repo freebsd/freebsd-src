@@ -1,4 +1,18 @@
 ################################################################################
+# TACPI DControl ACPI module behaviour
+
+	$acpi_load
+
+	If set, the ACPI module will be loaded.  Clear it with
+
+	unset acpi_load
+
+	Note that the ACPI autodetection sets a number of hints to
+	pass information to the ACPI module.  These should not be 
+	overridden, or system behaviour will be undefined.
+
+
+################################################################################
 # Treboot DReboot the system
 
 	reboot
