@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: imgact_linux.c,v 1.20 1997/02/22 09:38:18 peter Exp $
  */
 
 #ifndef LKM
@@ -51,7 +51,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
-#include <vm/lock.h>
 #include <vm/vm_map.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_extern.h>
