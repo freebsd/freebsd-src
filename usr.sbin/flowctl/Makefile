@@ -3,7 +3,7 @@
 #
 
 PROG=	flowctl
-MAN=
+MAN=	flowctl.8
 
 WARNS?= 2
 DPADD=  ${LIBNETGRAPH}
