@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.34 1996/04/25 06:20:08 phk Exp $
+ *	$Id: swtch.s,v 1.35 1996/05/01 03:46:15 bde Exp $
  */
 
 #include "apm.h"
@@ -533,9 +533,10 @@ ENTRY(addupc)
 	subl PR_OFF(%edx),%eax			/* pc -= up->pr_off */
 	jb L1					/* if (pc was < off) return */
 
-	shrl $1,%eax				/* praddr = pc >> 1 */
-	imull PR_SCALE(%edx),%eax		/* praddr *= up->pr_scale */
-	shrl $15,%eax				/* praddr = praddr << 15 */
+	pushl %edx
+	mull PR_SCALE(%edx)			/* praddr = pc * up->pr_scale */
+	shrdl $16,%edx,%eax			/* praddr >>= 16 */
+	popl %edx
 	andl $-2,%eax				/* praddr &= ~1 */
 
 	cmpl PR_SIZE(%edx),%eax			/* if (praddr > up->pr_size) return */
