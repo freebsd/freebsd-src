@@ -113,6 +113,7 @@ device		pass		# Passthrough device (direct SCSI access)
 device		ida		# Compaq Smart RAID
 device		amr		# AMI MegaRAID
 device		mlx		# Mylex DAC960 family
+device		twe		# 3ware Escalade
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc0	at isa? port IO_KBD
