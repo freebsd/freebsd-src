@@ -77,7 +77,7 @@
 #	spigot	Video Spigot video aquisition card
 #	isdn*	ISDN devices
 #
-#	$Id: MAKEDEV,v 1.81 1995/03/21 06:31:00 jkh Exp $
+#	$Id: MAKEDEV,v 1.82 1995/04/13 00:51:55 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -617,6 +617,24 @@ tty0?|ttyd?|tty?)
 	mknod ttyid$unit c 28 `expr $m + 32`
 	mknod ttyld$unit c 28 `expr $m + 64`
 	chown root.wheel tty*d$unit
+	;;
+
+cuar?)
+	umask 7
+	unit=`expr $i : 'cua.*\(.\)$'`
+	rm -f cuar$unit
+	m=`ttyminor $unit`
+	mknod cuar$unit c 63 `expr $m + 128`
+	chown uucp.dialer cuar$unit
+	umask 77
+	;;
+
+ttyr?)
+	unit=`expr $i : 'tty.*\(.\)$'`
+	rm -f ttyr$unit
+	m=`ttyminor $unit`
+	mknod ttyr$unit c 63 $m
+	chown root.wheel ttyr$unit
 	;;
 
 mse*)
