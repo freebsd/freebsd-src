@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.376 1998/09/05 00:36:18 msmith Exp $
+#	$Id: Makefile,v 1.377 1998/09/05 06:54:42 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -192,6 +192,7 @@ rerelease release:
 	  sed "s/__RELEASE/${BUILDNAME}/" version.h > version.h.new && \
 	  mv version.h.new version.h && \
 	  echo XXXX )
+	echo OBJFORMAT=${OBJFORMAT} > ${CHROOTDIR}/etc/objformat
 	-test -f install.cfg && cp install.cfg ${CHROOTDIR}/usr/src/release
 	echo "#!/bin/sh"			> ${CHROOTDIR}/mk
 	echo "set -ex"				>> ${CHROOTDIR}/mk
