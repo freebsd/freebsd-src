@@ -1077,19 +1077,6 @@ This variable has no effect if
 is not enabled.
 This variable is experimental.
 It may be removed or changed in the near future.
-.It Va kerberos_stash
-.Pq Vt str
-If
-.Dq Li YES ,
-instruct the Kerberos servers to use the stashed master key instead of
-prompting for it (only if
-.Va kerberos_server_enable
-is set to
-.Dq Li YES ,
-and is used for both
-.Xr kerberos 1
-and
-.Xr kadmind 8 ) .
 .It Va kerberos5_server_enable
 .Pq Vt bool
 Set to
@@ -1102,13 +1089,13 @@ If
 .Va kerberos5_server_enable
 is set to
 .Dq Li YES
-this is the path to Kerberos 5 authentication server.
+this is the path to Kerberos 5 Authentication Server.
 .It Va kadmind5_server_enable
 .Pq Vt bool
 Set to
 .Dq Li YES
 to start
-.Xr k5admind 8 ,
+.Xr kadmind 8 ,
 the Kerberos 5 Administration Daemon; set to
 .Dq Li NO
 on a slave server.
@@ -1119,6 +1106,22 @@ If
 is set to
 .Dq Li YES
 this is the path to Kerberos 5 Administration Daemon.
+.It Va kpasswdd_server_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to start
+.Xr kpasswdd 8 ,
+the Kerberos 5 Password-Changing Daemon; set to
+.Dq Li NO
+on a slave server.
+.It Va kpasswdd_server
+.Pq Vt str
+If
+.Va kpasswdd_server_enable
+is set to
+.Dq Li YES
+this is the path to Kerberos 5 Password-Changing Daemon.
 .It Va rwhod_enable
 .Pq Vt bool
 If set to
