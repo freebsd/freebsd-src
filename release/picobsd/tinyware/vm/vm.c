@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm.c,v 1.1.1.1 1998/07/14 07:30:54 abial Exp $
+ *	$Id: vm.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
  */
 
 #include <stdio.h>
@@ -31,6 +31,8 @@
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <vm/vm_param.h>
+
+#define pgtok(a) ((a) * (u_int) DEFAULT_PAGE_SIZE >> 10)
 
 int
 main(int argc, char *argv[])
@@ -44,14 +46,17 @@ main(int argc, char *argv[])
 	for(;;) {
 		sysctl(mib,2,&v,&len,NULL,0);
 		if(i==0) {
-			printf("  procs    kB virt mem      real mem     shared vm   shared real    free\n");
-			printf(" r d p s    tot    act    tot    act    tot    act    tot    act\n");
+			printf("  procs    kB virt mem       real mem     shared vm   shared real    free\n");
+			printf(" r w l s    tot     act    tot    act    tot    act    tot    act\n");
 		}
-		printf("%2hu%2hu%2hu%2hu",v.t_rq,v.t_dw,v.t_pw,v.t_sl);
-		printf("%7u%7u%7u%7u",
-		v.t_vm<<2,v.t_avm<<2,v.t_rm<<2,v.t_arm<<2);
-		printf("%7u%7u%7u%7u%7u\n",
-		v.t_vmshr<<2,v.t_avmshr<<2,v.t_rmshr<<2,v.t_armshr<<2,v.t_free<<2);
+		printf("%2hu%2hu%2hu%2hu",v.t_rq-1,v.t_dw+v.t_pw,v.t_sl,v.t_sw);
+		printf("%7ld %7ld %7ld%7ld",
+			(long)pgtok(v.t_vm),(long)pgtok(v.t_avm),
+			(long)pgtok(v.t_rm),(long)pgtok(v.t_arm));
+		printf("%7ld%7ld%7ld%7ld%7ld\n",
+			(long)pgtok(v.t_vmshr),(long)pgtok(v.t_avmshr),
+			(long)pgtok(v.t_rmshr),(long)pgtok(v.t_armshr),
+			(long)pgtok(v.t_free));
 		sleep(5);
 		i++;
 		if(i>22) i=0;
