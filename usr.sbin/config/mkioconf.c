@@ -135,8 +135,7 @@ write_all_device_resources(FILE *fp)
 	struct device *dp;
 
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
-		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
-		    && dp->d_type != DEVICE)
+		if (dp->d_type != CONTROLLER && dp->d_type != DEVICE)
 			continue;
 		write_device_resources(fp, dp);
 	}
@@ -154,8 +153,7 @@ write_devtab(FILE *fp)
 	fprintf(fp, "struct config_device config_devtab[] = {\n");
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		char* n = devstr(dp);
-		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
-		    && dp->d_type != DEVICE)
+		if (dp->d_type != CONTROLLER && dp->d_type != DEVICE)
 			continue;
 		fprintf(fp, "\t{ \"%s\",\t%d,\t%s_count,\t%s_resources },\n",
 			dp->d_name, dp->d_unit, n, n);
@@ -260,7 +258,7 @@ scbus_devtab(fp)
 	for (dp = dtab; dp; dp = dp->d_next) {
 		mp = dp->d_conn;
 		if (dp->d_type != CONTROLLER || mp == TO_NEXUS || mp == 0 ||
-		!eq(dp->d_name, "scbus")) {
+		    !eq(dp->d_name, "scbus")) {
 			continue;
 		}
 		fprintf(fp, "{ %s, ", id(dp->d_unit));
@@ -277,9 +275,8 @@ scbus_devtab(fp)
 	fprintf(fp,
 "/* periph name, periph unit, pathid, target, LUN, flags */\n");
 	for (dp = dtab; dp; dp = dp->d_next) {
-		if (dp->d_type == CONTROLLER || dp->d_type == MASTER ||
-		    dp->d_type == PSEUDO_DEVICE
-		    || dp->d_conn == TO_NEXUS)
+		if (dp->d_type == CONTROLLER || dp->d_type == PSEUDO_DEVICE ||
+		    dp->d_conn == TO_NEXUS)
 			continue;
 
 		mp = dp->d_conn;

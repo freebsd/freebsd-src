@@ -321,30 +321,30 @@ configfile()
 	char *p;
 	int i;
 	
-	fi = fopen(PREFIX,"r");
-	if(!fi)
+	fi = fopen(PREFIX, "r");
+	if (!fi)
 		err(2, "%s", PREFIX);
-	fo = fopen(p=path("config.c.new"),"w");
-	if(!fo)
+	fo = fopen(p=path("config.c.new"), "w");
+	if (!fo)
 		err(2, "%s", p);
-	fprintf(fo,"#include \"opt_config.h\"\n");
-	fprintf(fo,"#ifdef INCLUDE_CONFIG_FILE \n");
-	fprintf(fo,"static const char config[] = \"\\\n");
-	fprintf(fo,"START CONFIG FILE %s\\n\\\n___",PREFIX);
+	fprintf(fo, "#include \"opt_config.h\"\n");
+	fprintf(fo, "#ifdef INCLUDE_CONFIG_FILE \n");
+	fprintf(fo, "static const char config[] = \"\\\n");
+	fprintf(fo, "START CONFIG FILE %s\\n\\\n___", PREFIX);
 	while (EOF != (i=getc(fi))) {
-		if(i == '\n') {
-			fprintf(fo,"\\n\\\n___");
-		} else if(i == '\"') {
-			fprintf(fo,"\\\"");
-		} else if(i == '\\') {
-			fprintf(fo,"\\\\");
+		if (i == '\n') {
+			fprintf(fo, "\\n\\\n___");
+		} else if (i == '\"') {
+			fprintf(fo, "\\\"");
+		} else if (i == '\\') {
+			fprintf(fo, "\\\\");
 		} else {
-			putc(i,fo);
+			putc(i, fo);
 		}
 	}
-	fprintf(fo,"\\n\\\nEND CONFIG FILE %s\\n\\\n",PREFIX);
-	fprintf(fo,"\";\n");
-	fprintf(fo,"\n#endif /* INCLUDE_CONFIG_FILE */\n");
+	fprintf(fo, "\\n\\\nEND CONFIG FILE %s\\n\\\n", PREFIX);
+	fprintf(fo, "\";\n");
+	fprintf(fo, "\n#endif /* INCLUDE_CONFIG_FILE */\n");
 	fclose(fi);
 	fclose(fo);
 	moveifchanged(path("config.c.new"), path("config.c"));
@@ -404,13 +404,4 @@ moveifchanged(const char *from_name, const char *to_name)
 		if (unlink(from_name) < 0)
 			err(EX_OSERR, "unlink(%s)", from_name);
 	}
-
-#ifdef DIAG
-	if (changed)
-		printf("CHANGED! rename (%s, %s)\n", from_name, to_name);
-	else
-		printf("SAME! unlink (%s)\n", from_name);
-#endif
-
-	return;
 }
