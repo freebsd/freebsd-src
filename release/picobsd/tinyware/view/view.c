@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: view.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+ * $Id: view.c,v 1.2 1998/10/09 12:42:56 abial Exp $
  */
 
 /*
@@ -88,6 +88,7 @@ int max_screen_colors=15;
 int quit,changed;
 char **pres;
 int nimg=0;
+int auto_chg=0;
 int cur_img=0;
 char act;
 FILE *log;
@@ -401,6 +402,7 @@ int
 kbd_action(int x, int y, char key)
 {
 	changed=0;
+	if(key!='n') auto_chg=0;
 	switch(key) {
 	case 'q':
 		quit=1;
@@ -440,15 +442,23 @@ kbd_action(int x, int y, char key)
 		break;
 	case '\n':
 	case 'n':
-		if((nimg>0) && (cur_img<nimg-1)) {
-			cur_img++;
+		if(nimg>0) {
+			if(cur_img<nimg-1) {
+				cur_img++;
+			} else {
+				cur_img=0;
+			}
 			png_load(pres[cur_img]);
 			changed++;
 		}
 		break;
 	case 'p':
-		if((nimg>0) && (cur_img>0)) {
-			cur_img--;
+		if(nimg>0) {
+			if(cur_img>0) {
+				cur_img--;
+			} else {
+				cur_img=nimg-1;
+			}
 			png_load(pres[cur_img]);
 			changed++;
 		}
@@ -509,7 +519,6 @@ main(int argc, char *argv[])
 	fprintf(log,"VGL initialised\n");
 #endif
 	VGLSavePalette();
-	VGLMouseInit(VGL_MOUSEHIDE);
 	if(argc>optind) {
 		res=png_load(argv[optind]);
 	} else {
@@ -524,9 +533,13 @@ main(int argc, char *argv[])
 		fprintf(log,"Trying script %s\n",argv[optind]);
 #endif
 		fgets(buf,99,fsc);
-		if(strcmp("VIEW SCRIPT\n",buf)!=NULL) {
+		buf[strlen(buf)-1]='\0';
+		if(strncmp("VIEW SCRIPT",buf,11)!=NULL) {
 			VGLEnd();
 			usage();
+		}
+		if(strlen(buf)>12) {
+			auto_chg=atoi(buf+12);
 		}
 		fgets(buf,99,fsc);
 		buf[strlen(buf)-1]='\0';
@@ -548,6 +561,7 @@ main(int argc, char *argv[])
 #endif
 		png_load(pres[cur_img]);
 	}
+	VGLMouseInit(VGL_MOUSEHIDE);
 	/* Prepare the keyboard */
 	tcgetattr(0,&t_old);
 	memcpy(&t_new,&t_old,sizeof(struct termios));
@@ -582,7 +596,12 @@ main(int argc, char *argv[])
 			display(&pic,pal_red,pal_green,pal_blue,&a);
 			changed=0;
 		}
-		pause();
+		if(auto_chg) {
+			sleep(auto_chg);
+			kbd_action(x,y,'n');
+		} else {
+			pause();
+		}
 		VGLMouseStatus(&x,&y,&buttons);
 		if(buttons & MOUSE_BUTTON3DOWN) {
 #ifdef DEBUG
