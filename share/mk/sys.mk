@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.35 1998/06/03 08:51:39 jb Exp $
+#	$Id: sys.mk,v 1.36 1998/06/03 22:07:26 jb Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -15,7 +15,7 @@ unix		?=	We run FreeBSD, not UNIX.
 .if defined(%POSIX)
 .SUFFIXES:	.o .c .y .l .a .sh .f
 .else
-.SUFFIXES:	.out .a .ln .o .c .cc .cxx .C .m .F .f .e .r .y .l .S .s .cl .p .h .sh
+.SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .s .cl .p .h .sh
 .endif
 
 .LIBS:		.a
@@ -185,7 +185,7 @@ HTAGSFLAGS=
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
 
-.cc.o .cxx.o .C.o:
+.cc.o .cpp.o .cxx.o .C.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC}
 
 .m.o:

@@ -1,4 +1,4 @@
-#	$Id: bsd.dep.mk,v 1.23 1998/05/15 09:30:11 bde Exp $
+#	$Id: bsd.dep.mk,v 1.24 1998/05/15 09:34:48 bde Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #
@@ -89,10 +89,11 @@ ${DEPENDFILE}: ${SRCS}
 	    ${CFLAGS:M-nostdinc*} ${CFLAGS:M-[BID]*} \
 	    ${.ALLSRC:M*.c}
 .endif
-.if ${SRCS:M*.cc} != "" || ${SRCS:M*.C} != "" || ${SRCS:M*.cxx} != ""
+.if ${SRCS:M*.cc} != "" || ${SRCS:M*.C} != "" || ${SRCS:M*.cpp} != "" || \
+    ${SRCS:M*.cxx} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
 	    ${CXXFLAGS:M-nostdinc*} ${CXXFLAGS:M-[BID]*} \
-	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cxx}
+	    ${.ALLSRC:M*.cc} ${.ALLSRC:M*.C} ${.ALLSRC:M*.cpp} ${.ALLSRC:M*.cxx}
 .endif
 .if ${SRCS:M*.m} != ""
 	${MKDEPCMD} -f ${DEPENDFILE} -a ${MKDEP} \
