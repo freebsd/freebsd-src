@@ -1920,7 +1920,7 @@ loop:
 		 */
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_type == VNON ||
-		    (VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td) == 0 &&
+		    (VOP_GETATTR(vp, &vattr, td->td_ucred, td) == 0 &&
 		    vattr.va_nlink > 0)) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
 			mtx_unlock(&vp->v_interlock);
