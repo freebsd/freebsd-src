@@ -64,8 +64,8 @@ struct weekdays {
 
 /* The switches from Julian to Gregorian in some countries */
 static struct djswitch {
-	char *cc;	/* Country code according to ISO 3166 */
-	char *nm;	/* Name of country */
+	const char *cc;	/* Country code according to ISO 3166 */
+	const char *nm;	/* Name of country */
 	date dt;	/* Last day of Julian calendar */
 } switches[] = {
 	{"AL", "Albania",       {1912, 11, 30}},
@@ -193,7 +193,7 @@ main(int argc, char *argv[])
 	int	flag_orthodox = 0;	/* use wants Orthodox easter */
 	int	flag_easter = 0;	/* use wants easter date */
 	char	*cp;			/* character pointer */
-	char    *locale;		/* locale to get country code */
+	const char    *locale;		/* locale to get country code */
 
 	/*
 	 * Use locale to determine the country code,
