@@ -41,6 +41,7 @@ SECTIONS
   .rela.bss      : { *(.rela.bss)		}
   .rel.plt       : { *(.rel.plt)		}
   .rela.plt      : { *(.rela.plt)		}
+  PROVIDE (btext = .);
   .init          : { *(.init)	} =0x47ff041f
   .text      :
   {
