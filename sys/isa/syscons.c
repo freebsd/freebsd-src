@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.183 1996/11/04 21:01:08 sos Exp $
+ *  $Id: syscons.c,v 1.184 1996/11/10 16:44:09 nate Exp $
  */
 
 #include "sc.h"
@@ -349,9 +349,6 @@ gotack:
      */
     if ( dev->id_flags & XT_KEYBD )
         xt_keyboard = 1;
-#ifdef XT_KEYBOARD
-    xt_keyboard = 1;
-#endif
     if ( xt_keyboard ) {
         kbd_wait();
         outb(KB_DATA, 0xF0);
