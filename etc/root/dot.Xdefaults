@@ -1,0 +1,8 @@
+#ifdef COLOR
+*customization:		-color
+#endif
+XTerm*scrollBar:	true
+XTerm*font:		7x13bold
+XCalc*rpn:		true
+Xman*topBox:		false
+XBiff*mailbox.file:	/var/mail/root

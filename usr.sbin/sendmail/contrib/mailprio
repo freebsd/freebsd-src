@@ -1,0 +1,297 @@
+Message-Id: <199412081919.NAA23234@austin.BSDI.COM>
+To: Eric Allman <eric@cs.berkeley.edu>
+Subject: Re: sorting mailings lists with fastest delivery users first 
+In-reply-to: Your message of Thu, 08 Dec 1994 06:08:33 PST.
+References: <199412081408.GAA06210@mastodon.CS.Berkeley.EDU> 
+From: Tony Sanders <sanders@bsdi.com>
+Organization: Berkeley Software Design, Inc.
+Date: Thu, 08 Dec 1994 13:19:39 -0600
+Sender: sanders@austin.BSDI.COM
+
+Eric Allman writes:
+> Nope, that's a new one, so far as I know.  Any interest in
+> contributing it?  For small lists it seems overkill, but for
+> large lists it could be a major win.
+
+Sure, I will contribute it; after I sent you mail last night I went ahead
+and finished up what I thought needed to be done.  I would like to get
+some feedback from you on a few items, if you have time.
+
+There are two programs, mailprio_mkdb and mailprio (source below).
+
+mailprio_mkdb reads maillog files and creates a DB file of address vs.
+delay.  I'm not too happy with how it does the averages right now but this
+is just a quick hack.  However, it should at least order sites that take
+days vs. those that deliver on the first pass through.  One thing that
+would make this information a lot more accurate is if sendmail could log
+a "transaction delay" (on failures also), as well as total delivery delay.
+Perhaps, as an option, it could maintain the DB file itself?
+
+mailprio then simply reads a list of addresses from stdin (the mailing
+list), and tries to prioritize them according to the info the database.
+It collects comment lines and other junk at the top of the file; all
+mailprio does is reorder lines, the actual text of the file should
+be unchanged to the extent that you can verify it with:
+    sort sorted_list > checkit; sort mailing-list | diff - checkit
+Users with no delay information are put next.  The prioritized list is last.
+Of course, this function could also be built-into sendmail (eventually).
+
+Putting "new account" info at the top with the current averaging function
+probably adversly affects the prioritized list (at least in the short
+term), but putting it at the bottom would not really give the new accounts
+a fair chance.  I suspect this isn't that big of a problem.  I'm running
+this here on a list with 461 accounts and about 10 messages per day so
+I'll see how it goes.  I'll keep some stats on delay times and see what
+happens.
+
+Another thing that would help this situation, is if sendmail had the queue
+ordered by site (but you already know this).  If you ever get to do per
+site queuing you should consider "blocking" a queue for some short period
+of time if a connection fails to that site [sendmail does this inside a
+single process on a per account basis now right?]; this would allow multiple
+sendmails to quickly skip over those sites for people like me that run:
+
+    for i in 1 2 3 4 5 6 7 8 ; do daemon sendmail -q; done
+
+to flush a queue that has gotten behind.  You could also do this inside
+sendmail with a parallelism option (when it is time to run the queue, how
+many processes to start).
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  mailprio mailprio_mkdb
+# Wrapped by sanders@austin.BSDI.COM on Fri Dec  9 18:07:02 1994
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'mailprio' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'mailprio'\"
+else
+echo shar: Extracting \"'mailprio'\" \(3093 characters\)
+sed "s/^X//" >'mailprio' <<'END_OF_FILE'
+X#!/usr/bin/perl
+X#
+X# mailprio -- setup mail priorities for a mailing list
+X#
+X# Sort mailing list by mailprio database:
+X#     mailprio < mailing-list > sorted_list
+X# Double check against orig:
+X#     sort sorted_list > checkit; sort mailing-list | diff - checkit
+X# If it checks out, install it.
+X#
+X# TODO:
+X#     option to process mqueue files so we can reorder files in the queue!
+X$usage = "Usage: mailprio [-p priodb]\n";
+X$home = "/home/sanders/lists";
+X$priodb = "$home/mailprio";
+X
+Xif ($main'ARGV[0] =~ /^-/) {
+X	$args = shift;
+X	if ($args =~ m/\?/) { print $usage; exit 0; }
+X	if ($args =~ m/p/) {
+X	    $priodb = shift || die $usage, "-p requires argument\n"; }
+X}
+X
+X# In shell script, it goes something like this:
+X#     old_mailprio > /tmp/a
+X#     fgrep -f lists/inet-access /tmp/a | sed -e 's/^.......//' > /tmp/b
+X#         ; /tmp/b contains list of known users, faster delivery first
+X#     fgrep -v -f /tmp/b lists/inet-access > /tmp/c
+X#         ; put all unknown stuff at the top of new list for now
+X#     echo '# -----' >> /tmp/c
+X#     cat /tmp/b >> /tmp/c
+X
+X# Setup %list and @list
+Xlocal($addr, $canon);
+Xwhile ($addr = <STDIN>) {
+X    chop $addr;
+X    next if $addr =~ /^# ----- /;			# that's our line
+X    push(@list, $addr), next if $addr =~ /^\s*#/;	# save comments
+X    $canon = &canonicalize((&simplify_address($addr))[0]);
+X    unless (defined $canon) {
+X	warn "no address found: $addr\n";
+X	push(@list, $addr);				# save it anyway
+X	next;
+X    }
+X    if (defined $list{$canon}) {
+X	warn "duplicate: ``$addr -> $canon''\n";
+X	push(@list, $addr);				# save it anyway
+X	next;
+X    }
+X    $list{$canon} = $addr;
+X}
+X
+Xlocal(*prio);
+Xdbmopen(%prio, $priodb, 0644) || die "$priodb: $!\n";
+Xforeach $to (keys %list) {
+X    if (defined $prio{$to}) {
+X	# add to list of found users (%userprio) and remove from %list
+X	# so that we know what users were not yet prioritized
+X	$userprio{$to} = $prio{$to};	# priority
+X	$useracct{$to} = $list{$to};	# string
+X	delete $list{$to};
+X    }
+X}
+Xdbmclose(%prio);
+X
+X# Put all the junk we found at the very top
+X# (this might not always be a feature)
+Xprint join("\n", @list), "\n";
+X
+X# unprioritized users go next, slow accounts will get moved down quickly
+Xprint '# ----- unprioritized users', "\n";
+Xforeach $to (keys %list) { print $list{$to}, "\n"; }
+X
+X# finally, our prioritized list of users
+Xprint '# ----- prioritized users', "\n";
+Xforeach $to (sort { $userprio{$a} <=> $userprio{$b}; } keys %userprio) {
+X    die "Opps! Something is seriously wrong with useracct: $to\n"
+X	unless defined $useracct{$to};
+X    print $useracct{$to}, "\n";
+X}
+X
+Xexit(0);
+X
+X# REPL-LIB ---------------------------------------------------------------
+X
+Xsub canonicalize {
+X    local($addr) = @_;
+X    # lowercase, strip leading/trailing whitespace
+X    $addr =~ y/A-Z/a-z/; $addr =~ s/^\s+//; $addr =~ s/\s+$//; $addr;
+X}
+X
+X# @addrs = simplify_address($addr);
+Xsub simplify_address {
+X    local($_) = shift;
+X    1 while s/\([^\(\)]*\)//g; 		# strip comments
+X    1 while s/"[^"]*"//g;		# strip comments
+X    split(/,/);				# split into parts
+X    foreach (@_) {
+X	1 while s/.*<(.*)>.*/\1/;
+X	s/^\s+//;
+X	s/\s+$//;
+X    }
+X    @_;
+X}
+END_OF_FILE
+if test 3093 -ne `wc -c <'mailprio'`; then
+    echo shar: \"'mailprio'\" unpacked with wrong size!
+fi
+chmod +x 'mailprio'
+# end of 'mailprio'
+fi
+if test -f 'mailprio_mkdb' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'mailprio_mkdb'\"
+else
+echo shar: Extracting \"'mailprio_mkdb'\" \(3504 characters\)
+sed "s/^X//" >'mailprio_mkdb' <<'END_OF_FILE'
+X#!/usr/bin/perl
+X#
+X# mailprio_mkdb -- make mail priority database based on delay times
+X#
+X$usage = "Usage: mailprio_mkdb [-l maillog] [-p priodb]\n";
+X$home = "/home/sanders/lists";
+X$maillog = "/var/log/maillog";
+X$priodb = "$home/mailprio";
+X
+Xif ($main'ARGV[0] =~ /^-/) {
+X	$args = shift;
+X	if ($args =~ m/\?/) { print $usage; exit 0; }
+X	if ($args =~ m/l/) {
+X	    $maillog = shift || die $usage, "-l requires argument\n"; }
+X	if ($args =~ m/p/) {
+X	    $priodb = shift || die $usage, "-p requires argument\n"; }
+X}
+X
+Xlocal(*prio);
+X# We'll merge with existing information if it's already there.
+Xdbmopen(%prio, $priodb, 0644) || die "$priodb: $!\n";
+X&getlog_stats($maillog, *prio);
+X# foreach $addr (sort { $prio{$a} <=> $prio{$b}; } keys %prio) {
+X#     printf("%06d %s\n", $prio{$addr}, $addr); }
+Xdbmclose(%prio);
+Xexit(0);
+X
+Xsub getlog_stats {
+X    local($maillog, *stats) = @_;
+X    local($to, $delay);
+X    local($h, $m, $s);
+X    open(MAILLOG, "< $maillog") || die "$maillog: $!\n";
+X    while (<MAILLOG>) {
+X	($delay) = (m/, delay=([^,]*), /);
+X	$delay || next;
+X	($h, $m, $s) = split(/:/, $delay);
+X	$delay = ($h * 60 * 60) + ($m * 60) + $s;
+X
+X	# deleting everything after ", " seems safe enough, though
+X	# it is possible that it was inside "..."'s and that we will
+X	# miss some addresses because of it.  However, I'm not willing
+X	# to do full parsing just for that case.  If this bothers you
+X	# you could do something like: s/, (delay|ctladdr)=.*//;
+X	# but you have to make sure you catch all the possible names.
+X	$to = $_; $to =~ s/^.* to=//; $to =~ s/, .*//;
+X	foreach $addr (&simplify_address($to)) {
+X	    next unless $addr;
+X	    $addr = &canonicalize($addr);
+X	    # print $delay, " ", $addr, "\n";
+X	    $stats{$addr} = $delay unless defined $stats{$addr};	# init
+X
+X	    # This average function moves the value around quite rapidly
+X	    # which may or may not be a feature.
+X	    #
+X	    # This has at least one odd behavior because we currently only
+X	    # use the delay information from maillog which is only logged
+X	    # on actual delivery.  This works backwards from what we really
+X	    # want to happen when a fast host goes down for a while and then
+X	    # comes back up.
+X	    #
+X	    # I spoke with Eric and he suggested adding an xdelay statistic
+X	    # for a per transaction delay which would help that situation
+X	    # a lot.  What I believe you want in that cases something like:
+X	    #   delay fast, xdelay fast: smokin', these hosts go first
+X	    #   delay slow, xdelay fast: put host high on the list (back up?)
+X	    #   delay fast, xdelay slow: host is down/having problems/slow
+X	    #   delay slow, xdelay slow: poorly connected sites, very last
+X	    # Of course, you have to reorder the distribution list fairly
+X	    # often for that to help.  Come to think of it, you should
+X	    # also reorder /var/spool/mqueue files also (if they aren't
+X	    # locked of course).  Hmmm....
+X	    $stats{$addr} = int(($stats{$addr} + $delay) / 2);
+X	}
+X    }
+X    close(MAILLOG);
+X}
+X
+X# REPL-LIB ---------------------------------------------------------------
+X
+Xsub canonicalize {
+X    local($addr) = @_;
+X    # lowercase, strip leading/trailing whitespace
+X    $addr =~ y/A-Z/a-z/; $addr =~ s/^\s+//; $addr =~ s/\s+$//; $addr;
+X}
+X
+X# @addrs = simplify_address($addr);
+Xsub simplify_address {
+X    local($_) = shift;
+X    1 while s/\([^\(\)]*\)//g; 		# strip comments
+X    1 while s/"[^"]*"//g;		# strip comments
+X    split(/,/);				# split into parts
+X    foreach (@_) {
+X	1 while s/.*<(.*)>.*/\1/;
+X	s/^\s+//;
+X	s/\s+$//;
+X    }
+X    @_;
+X}
+END_OF_FILE
+if test 3504 -ne `wc -c <'mailprio_mkdb'`; then
+    echo shar: \"'mailprio_mkdb'\" unpacked with wrong size!
+fi
+chmod +x 'mailprio_mkdb'
+# end of 'mailprio_mkdb'
+fi
+echo shar: End of shell archive.
+exit 0

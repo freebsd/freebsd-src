@@ -1,0 +1,61 @@
+			THE GNU MP LIBRARY
+
+
+GNU MP is a library for arbitrary precision arithmetic, operating on
+signed integers and rational numbers.  It has a rich set of functions,
+and the functions have a regular interface.
+
+I have tried to make these functions as fast as possible, both for small
+operands and for huge operands.  The speed is achieved by using fullwords
+as the basic arithmetic type, by using fast algorithms, by defining inline
+assembler for mixed sized multiplication and division (i.e 32*32->64 bit
+multiplication and 64/32->32,32 bit division), and by hacking the code
+with emphasis on speed (and not simplicity and elegance).
+
+The speed of GNU MP is about 5 to 100 times that of Berkeley MP for
+small operands.  The speed-up increases with the operand sizes for
+certain operations, for which GNU MP has asymptotically faster algorithms.
+
+
+There are four classes of functions in GNU MP.
+
+ 1. Signed integer arithmetic functions, mpz_*.  The set of functions are
+    intended to be easy to use, being rich and regular.
+
+    To use these functions, include the file "gmp.h".
+
+ 2. Rational arithmetic functions, mpq_*.  For now, just a small set of
+    functions necessary for basic rational arithmetics.
+
+    To use these functions, include the file "gmp.h".
+
+ 3. Positive-integer, low-level, harder-to-use, but for small operands
+    about twice as fast than the mpz_* functions are the functions in the
+    mpn_* class.  No memory management is performed.  The caller must
+    ensure enough space is available for the results.  The set of
+    functions is not quite regular, nor is the calling interface.  These
+    functions accept input arguments in the form of pairs consisting of a
+    pointer to the least significant word, and a integral size telling how
+    many limbs (= words) the pointer points to.
+
+    Almost all calculations, in the entire package, are made in these
+    low-level functions.
+
+    These functions are not fully documented in this release.  They will
+    probably be so in a future release.
+
+ 4. Berkeley MP compatible functions.
+
+    To use these functions, include the file "mp.h".  You can test if you
+    are using the GNU version by testing if the symbol __GNU_MP__ is
+    defined.
+
+
+			REPORTING BUGS
+
+If you find a bug in the library, please make sure to tell us about it!
+
+You can report bugs, and propose modifications and enhancements to
+tege@gnu.ai.mit.edu.  How to report a bug is further described in
+the texinfo documentation, see the file gmp.texi.
+
