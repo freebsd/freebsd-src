@@ -1211,7 +1211,7 @@ extern void bcopyb(void *from, void *to, u_int length);
 extern void fillw(U_short value, void *addr, u_int length);
 #endif
 
-int	pcrint ( void );
+void	pcrint ( int );
 int	pcparam ( struct tty *tp, struct termios *t );
 
 /*

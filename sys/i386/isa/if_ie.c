@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.24 1995/05/30 08:02:13 rgrimes Exp $
+ *	$Id: if_ie.c,v 1.25 1995/08/16 16:12:32 bde Exp $
  */
 
 /*
@@ -617,7 +617,7 @@ ieattach(dvp)
 /*
  * What to do upon receipt of an interrupt.
  */
-int ieintr(unit)
+void ieintr(unit)
      int unit;
 {
   register struct ie_softc *ie = &ie_softc[unit];
@@ -682,8 +682,6 @@ loop:
   /* Clear the interrupt latch on the 3C507. */
   if (ie->hard_type == IE_3C507)
     outb(PORT + IE507_ICTRL, 1);
-
-  return unit;
 }
 
 /*

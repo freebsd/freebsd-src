@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.35 1995/07/25 15:53:07 bde Exp $
+ *      $Id: aha1742.c,v 1.36 1995/08/23 23:02:24 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -266,7 +266,7 @@ int     ahbprobe();
 int	ahbprobe1 __P((struct isa_device *dev));
 int     ahb_attach();
 int	ahb_init __P((int unit));
-int     ahbintr();
+inthand2_t ahbintr;
 int32   ahb_scsi_cmd();
 timeout_t ahb_timeout;
 void	ahb_done();
@@ -581,7 +581,7 @@ ahb_adapter_info(unit)
 /*
  * Catch an interrupt from the adaptor
  */
-int
+void
 ahbintr(unit)
 	int	unit;
 {
@@ -662,7 +662,6 @@ ahbintr(unit)
 			ahb_done(unit, ecb, ((stat == AHB_ECB_OK) ? SUCCESS : FAIL));
 		}
 	}
-	return 1;
 }
 
 /*
