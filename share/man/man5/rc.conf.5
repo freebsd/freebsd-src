@@ -103,19 +103,26 @@ enable PCCARD support at boot time.
 .Ar DEFAULT
 for the default value.
 .It Ar pccard_ifconfig
-(str) List of ethernet devices (e.g.
-.Ar "ed0 ed1 ep0 ..." )
-which should be dynamically ifconfig'd on insertion or boot.
+(str) List of arguments to be passed to ifconfig(8) at boot time or on
+insertion of of the card (e.g. "inet 192.168.1.1 netmask 255.255.255.0"
+for a fixed address or "DHCP" for a DHCP client).
+.It Ar pccard_conf
+(str) Path to the configuration file for the
+.Xr pccardd 8
+daemon (e.g. 
+.Ar /etc/pccard.conf.sample ) .
 .It Ar pccardd_flags
 (str) If 
 .Ar pccard_enable 
 is set to 
 .Ar YES , 
-these are the flags to pass to the pccardd(8) daemon.
+these are the flags to pass to the 
+.Xr pccardd 8
+daemon.
 .It Ar local_startup
 (str) List of directories to search for startup script files.
 .It Ar local_periodic
-(str) List of directories to search for periodic scripts (3.0 only).
+(str) List of directories to search for periodic scripts.
 .It Ar hostname
 (str) The Fully Qualified Domain Name of your host on the network.
 This should almost certainly be set to something meaningful, even if
@@ -126,6 +133,11 @@ to set your hostname via DHCP, this variable should be set to an empty string.
 (str) The NIS domainname of your host, or
 .Ar NO
 if you are not running NIS.
+.It Ar dhcp_program
+(str) Path to the DHCP client progam (/sbin/dhclient, the ISC DHCP client,
+is the default).
+.It Ar dhcp_flags
+(str) Additional flags to pass to the DHCP client program.
 .It Ar firewall_enable
 (bool) Set to
 .Ar NO
@@ -180,14 +192,26 @@ flag is automatically added with the above
 as an argument.
 .It Ar tcp_extensions
 (bool) Set to
-.Ar YES
-by default, this enables certain TCP options as described by
+.Ar NO
+by default. Setting this to YES enables certain TCP options as described by
 Internet RFCs 1323 and 1644.  If you have problems with connections
 randomly hanging or other weird behavior of such nature, you might
-try setting this to
+try setting this back to
 .Ar NO
 and seeing if that helps.  Some hardware/software out there is known
 to be broken with respect to these options.
+.It Ar log_in_vain
+(bool) Set to
+.Ar NO
+by default.
+Setting to YES will enable logging of connection attempts to ports that
+have no listening socket on them.
+.It Ar tcp_keepalive
+(bool) Set to
+.Ar YES
+by default.
+Setting to NO will disable probing idle TCP connections to verify that the
+peer is still up and reachable.
 .It Ar network_interfaces
 (str) Set to the list of network interfaces to configure on this host.
 For example, if you had a loopback device (standard) and an SMC Elite
@@ -1048,6 +1072,7 @@ on system operation.
 .Xr nfsiod 8 ,
 .Xr ntpdate 8 ,
 .Xr pcnfsd 8 ,
+.Xr periodic 8 ,
 .Xr portmap 8 ,
 .Xr quotacheck 8 ,
 .Xr rc 8 ,
