@@ -74,18 +74,22 @@ ua_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 
+	pa_dev = device_get_parent(sc->sc_dev);
+     	/* Create ua_playfmt[] & ua_recfmt[] */
+	uaudio_query_formats(pa_dev, (u_int32_t *)&ua_playfmt, (u_int32_t *)&ua_recfmt);
+	if (ua_playfmt[0] == 0) {
+		printf("%s channel supported format list invalid\n", dir == PCMDIR_PLAY? "play" : "record");
+		return NULL;
+	}
+
 	/* allocate PCM side DMA buffer */
 	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, UAUDIO_PCM_BUFF_SIZE) != 0) {
 	    return NULL;
         }
 
-	pa_dev = device_get_parent(sc->sc_dev);
 	buf = end = sndbuf_getbuf(b);
 	end += sndbuf_getsize(b);
 	uaudio_chan_set_param_pcm_dma_buff(pa_dev, buf, end, ch->channel);
-
-	/* Create ua_playfmt[] & ua_recfmt[] */
-	uaudio_query_formats(pa_dev, (u_int32_t *)&ua_playfmt, (u_int32_t *)&ua_recfmt);
 
 	ch->dir = dir;
 #ifndef NO_RECORDING
