@@ -33,22 +33,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)trap.c	7.4 (Berkeley) 5/13/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00137
- * --------------------         -----   ----------------------
- *
- * 08 Apr 93	Bruce Evans		Several VM system fixes
- * 		Paul Kranenburg		Add counter for vmstat
+ *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
+ *	$Id$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/trap.c,v 1.2 1993/07/27 10:52:20 davidg Exp $";
 
 /*
  * 386 Trap and System call handleing
  */
 
+#include "npx.h"
 #include "machine/cpu.h"
 #include "machine/psl.h"
 #include "machine/reg.h"
@@ -206,10 +199,10 @@ copyfault:
 		goto out;
 
 	case T_DNA|T_USER:
-#ifdef	NPX
+#if NNPX > 0
 		/* if a transparent fault (due to context switch "late") */
 		if (npxdna()) return;
-#endif
+#endif	/* NNPX > 0 */
 #ifdef	MATH_EMULATE
 		i = math_emulate(&frame);
 		if (i == 0) return;
@@ -257,27 +250,6 @@ copyfault:
 		unsigned nss,v;
 
 		va = trunc_page((vm_offset_t)eva);
-		/*
-		 * Avoid even looking at pde_v(va) for high va's.   va's
-		 * above VM_MAX_KERNEL_ADDRESS don't correspond to normal
-		 * PDE's (half of them correspond to APDEpde and half to
-		 * an unmapped kernel PDE).  va's betweeen 0xFEC00000 and
-		 * VM_MAX_KERNEL_ADDRESS correspond to unmapped kernel PDE's
-		 * (XXX - why are only 3 initialized when 6 are required to
-		 * reach VM_MAX_KERNEL_ADDRESS?).  Faulting in an unmapped
-		 * kernel page table would give inconsistent PTD's.
-		 *
-		 * XXX - faulting in unmapped page tables wastes a page if
-		 * va turns out to be invalid.
-		 *
-		 * XXX - should "kernel address space" cover the kernel page
-		 * tables?  Might have same problem with PDEpde as with
-		 * APDEpde (or there may be no problem with APDEpde).
-		 */
-		if (va > 0xFEBFF000) {
-			rv = KERN_FAILURE;	/* becomes SIGBUS */
-			goto nogo;
-		}
 		/*
 		 * It is only a kernel address space fault iff:
 		 * 	1. (type & T_USER) == 0  and
