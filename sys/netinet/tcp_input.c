@@ -164,6 +164,12 @@ do { \
 #endif
 
 /*
+ * Indicate whether this ack should be delayed.
+ */
+#define DELAY_ACK(tp) \
+	(tcp_delack_enabled && !callout_pending(tp->tt_delack))
+
+/*
  * Insert segment which inludes th into reassembly queue of tcp with
  * control block tp.  Return TH_FIN if reassembly now includes
  * a segment with FIN.  The macro form does the common case inline
@@ -177,7 +183,7 @@ do { \
 	if ((th)->th_seq == (tp)->rcv_nxt && \
 	    LIST_EMPTY(&(tp)->t_segq) && \
 	    (tp)->t_state == TCPS_ESTABLISHED) { \
-		if (tcp_delack_enabled) \
+		if (DELAY_ACK(tp)) \
 			callout_reset(tp->tt_delack, tcp_delacktime, \
 			    tcp_timer_delack, tp); \
 		else \
@@ -967,7 +973,7 @@ findpcb:
 			m_adj(m, drop_hdrlen);	/* delayed header drop */
 			sbappend(&so->so_rcv, m);
 			sorwakeup(so);
-			if (tcp_delack_enabled) {
+			if (DELAY_ACK(tp)) {
 	                        callout_reset(tp->tt_delack, tcp_delacktime,
 	                            tcp_timer_delack, tp);
 			} else {
@@ -1152,7 +1158,7 @@ findpcb:
 			 * segment.  Otherwise must send ACK now in case
 			 * the other side is slow starting.
 			 */
-			if (tcp_delack_enabled && ((thflags & TH_FIN) ||
+			if (DELAY_ACK(tp) && ((thflags & TH_FIN) ||
 			    (tlen != 0 &&
 #ifdef INET6
 			      ((isipv6 && in6_localaddr(&inp->in6p_faddr))
@@ -1303,7 +1309,7 @@ findpcb:
 			 * If there's data, delay ACK; if there's also a FIN
 			 * ACKNOW will be turned on later.
 			 */
-			if (tcp_delack_enabled && tlen != 0)
+			if (DELAY_ACK(tp) && tlen != 0)
                                 callout_reset(tp->tt_delack, tcp_delacktime,  
                                     tcp_timer_delack, tp);  
 			else
@@ -2137,7 +2143,7 @@ dodata:							/* XXX */
 			 *  Otherwise, since we received a FIN then no
 			 *  more input can be expected, send ACK now.
 			 */
-			if (tcp_delack_enabled && (tp->t_flags & TF_NEEDSYN))
+			if (DELAY_ACK(tp) && (tp->t_flags & TF_NEEDSYN))
                                 callout_reset(tp->tt_delack, tcp_delacktime,  
                                     tcp_timer_delack, tp);  
 			else
