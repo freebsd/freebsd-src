@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.3.4.1 1996/02/05 17:03:14 dfr Exp $
+ * $Id: os.c,v 1.3.4.2 1996/06/03 21:39:23 gpalmer Exp $
  *
  */
 #include "fsm.h"
@@ -255,28 +255,39 @@ int type, mtu, speed;
 /*
  *  Open tunnel device and returns its descriptor
  */
+
+#define MAX_TUN 256
+/* MAX_TUN is set at an arbitrarily large value  *
+ * as the loop aborts when it reaches the first  *
+ * 'Device not configured' (ENXIO), or the third *
+ * 'No such file or directory' (ENOENT) error.   */
 int
 OpenTunnel(ptun)
 int *ptun;
 {
   int s;
-  char *cp;
-  char *suffix = "0123456789";
   char ifname[IFNAMSIZ];
-  char devname[12];
+  char devname[14];  /* sufficient room for "/dev/tun65535" */
+  unsigned unit, enoentcount=0;
 
-  strcpy(devname, "/dev/tun0");
-  for (cp = suffix; *cp; cp++) {
-    devname[8] = *cp;
+  for( unit=0; unit <= MAX_TUN ; unit++ ) {
+    sprintf( devname, "/dev/tun%d", unit );
     tun_out = open(devname, O_RDWR);
-    if (tun_out >= 0)
-      break;
+    if( tun_out >= 0 )
+	break;
+    if( errno == ENXIO )
+	unit=MAX_TUN+1;
+    else if( errno == ENOENT ) {
+	enoentcount++;
+	if( enoentcount > 2 )
+		unit=MAX_TUN+1;
+    }
   }
-  *ptun = cp - suffix;
-  if (*cp == '\0') {
+  if( unit > MAX_TUN ) {
     fprintf(stderr, "No tunnel device is available.\n");
     return(-1);
   }
+  *ptun = unit;
 
   /*
    * At first, name the interface.
