@@ -419,24 +419,15 @@ _cond_wait_backout(pthread_t pthread)
 	if (cond == NULL)
 		return;
 
-	COND_LOCK(cond);
-
 	/* Process according to condition variable type: */
 	switch (cond->c_type) {
 	/* Fast condition variable: */
 	case COND_TYPE_FAST:
-		_thread_critical_enter(curthread);
-
 		cond_queue_remove(cond, pthread);
-
-		_thread_critical_exit(curthread);
 		break;
-
 	default:
 		break;
 	}
-
-	COND_UNLOCK(cond);
 }
 
 /*

@@ -36,6 +36,8 @@
 #include <setjmp.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
+
 #include "thr_private.h"
 
 /* #define DEBUG_SIGNAL */
@@ -116,13 +118,10 @@ void
 _thread_sig_wrapper(int sig, siginfo_t *info, void *context)
 {
 	struct pthread_state_data psd;
+	struct sigaction *actp;
 	__siginfohandler_t *handler;
-
-	GIANT_LOCK(curthread);
-	/* Save the thread's previous state. */
-	psd.psd_wait_data = curthread->data;
-	psd.psd_state = curthread->state;
-	psd.psd_flags = curthread->flags;
+	struct umtx *up;
+	spinlock_t *sp;
 
 	/*
 	 * Do a little cleanup handling for those threads in
@@ -130,33 +129,54 @@ _thread_sig_wrapper(int sig, siginfo_t *info, void *context)
 	 * for these threads are temporarily blocked until
 	 * after cleanup handling.
 	 */
-	switch (psd.psd_state) {
+	switch (curthread->state) {
 	case PS_COND_WAIT:
+		/*
+		 * Cache the address, since it will not be available
+		 * after it has been backed out.
+		 */
+		up = &curthread->data.cond->c_lock;
+
+		UMTX_LOCK(up);
+		_thread_critical_enter(curthread);
 		_cond_wait_backout(curthread);
-		psd.psd_state = PS_RUNNING;
+		UMTX_UNLOCK(up);
 		break;
-
 	case PS_MUTEX_WAIT:
+		/*
+		 * Cache the address, since it will not be available
+		 * after it has been backed out.
+		 */
+		sp = &curthread->data.mutex->lock;
+
+		_SPINLOCK(sp);
+		_thread_critical_enter(curthread);
 		_mutex_lock_backout(curthread);
-		psd.psd_state = PS_RUNNING;
+		_SPINUNLOCK(sp);
 		break;
-
 	default:
+		/*
+		 * We need to lock the thread to read it's flags.
+		 */
+		_thread_critical_enter(curthread);
 		break;
 	}
 
-	if (_thread_sigact[sig -1].sa_handler != NULL) {
-		GIANT_UNLOCK(curthread);
-		handler = (__siginfohandler_t *)
-			_thread_sigact[sig - 1].sa_handler;
-		handler(sig, info, (ucontext_t *)context);
-		GIANT_LOCK(curthread);
-	}
+	/*
+	 * We save the flags now so that any modifications done as part
+	 * of the backout are reflected when the flags are restored.
+	 */
+	psd.psd_flags = curthread->flags;
 
-        /* Restore the signal frame. */
-	curthread->data = psd.psd_wait_data;
-	curthread->state = psd.psd_state;
-	curthread->flags = psd.psd_flags &
-	    (PTHREAD_FLAGS_PRIVATE | PTHREAD_FLAGS_TRACE);
-	GIANT_UNLOCK(curthread);
+	PTHREAD_SET_STATE(curthread, PS_RUNNING);
+	_thread_critical_exit(curthread);
+	actp = proc_sigact_sigaction(sig);
+	handler = (__siginfohandler_t *)actp->sa_handler;
+	handler(sig, info, (ucontext_t *)context);
+
+        /* Restore the thread's flags, and make it runnable */
+	_thread_critical_enter(curthread);
+	curthread->flags = psd.psd_flags;
+	PTHREAD_NEW_STATE(curthread, PS_RUNNING);
+	_thread_critical_exit(curthread);
 }
