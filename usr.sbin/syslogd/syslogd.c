@@ -916,6 +916,13 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 		fac = LOG_NFACILITIES;
 	else
 		fac = LOG_FAC(pri);
+
+	/* Check maximum facility number. */
+	if (fac > LOG_NFACILITIES) {
+		(void)sigsetmask(omask);
+		return;
+	}
+
 	prilev = LOG_PRI(pri);
 
 	/* extract program name */
