@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.18 1996/01/04 21:11:21 wollman Exp $
+ * $Id: aic6360.c,v 1.19 1996/01/07 19:22:35 gibbs Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -639,13 +639,13 @@ static int aic_debug = 0; /* AIC_SHOWSTART|AIC_SHOWMISC|AIC_SHOWTRAC; */
 static int	aicprobe	__P((struct isa_device *));
 static int	aicattach	__P((struct isa_device *));
 static void	aic_minphys	__P((struct buf *));
-static u_int32	aic_adapter_info __P((int));
+static u_int32_t	aic_adapter_info __P((int));
 static void 	aic_init	__P((struct aic_data *));
 static int 	aic_find	__P((struct aic_data *));
 static void	aic_done	__P((struct acb *));
 static void	aic_dataout	__P((struct aic_data *aic));
 static void	aic_datain	__P((struct aic_data *aic));
-static int32	aic_scsi_cmd	__P((struct scsi_xfer *));
+static int32_t	aic_scsi_cmd	__P((struct scsi_xfer *));
 static int	aic_poll	__P((struct aic_data *aic, struct acb *));
 void	aic_add_timeout __P((struct acb *, int));
 void	aic_remove_timeout __P((struct acb *));
@@ -990,7 +990,7 @@ aic_init(aic)
  * This function is called by the higher level SCSI-driver to queue/run
  * SCSI-commands.
  */
-static int32
+static int32_t
 aic_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
@@ -1072,7 +1072,7 @@ aic_minphys(bp)
 }
 
 
-static u_int32
+static u_int32_t
 aic_adapter_info(unit)
 	int	unit;
 {
