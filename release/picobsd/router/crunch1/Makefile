@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.1.1.1 1998/08/27 17:38:44 abial Exp $
+# $Id: Makefile,v 1.2.2.1 1999/05/13 15:27:14 abial Exp $
 #
 SRC?=/usr/src
 
@@ -8,8 +8,8 @@ all: crunch
 crunch:
 	@cat crunch.conf|sed -e "s@/usr/src@${SRC}@" >crunch1.conf
 	@crunchgen ./crunch1.conf
-	@${MAKE} -f crunch1.mk all \
-	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY -DNOSECURE -DNOCRYPT" #2>&1 >/dev/null
+	@${MAKE} -f crunch1.mk NOSECURE=yes NOCRYPT=yes all \
+	    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY" #2>&1 >/dev/null
 
 clean:
 	rm  -f *.o *.stub *.lo *_stub.c *.mk \
@@ -29,8 +29,6 @@ install:
 		ln /mnt/stand/crunch /mnt/stand/$${i}; \
 	done
 	rm /mnt/stand/crunch
-	# Install the MIB files
-	#cp mibs/*.txt /mnt/usr/local/share/snmp/mibs/
 
 
 .include <bsd.prog.mk>
