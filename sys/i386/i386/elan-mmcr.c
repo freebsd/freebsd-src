@@ -174,8 +174,6 @@ static d_mmap_t elan_mmap;
 
 #define CDEV_MAJOR 100			/* Share with xrpu */
 static struct cdevsw elan_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_write =	elan_write,
 	.d_ioctl =	elan_ioctl,
 	.d_mmap =	elan_mmap,

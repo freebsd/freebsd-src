@@ -53,8 +53,6 @@ static d_read_t null_read;
 #define ZERO_MINOR	12
 
 static struct cdevsw null_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_read =	null_read,
 	.d_write =	null_write,
 	.d_ioctl =	null_ioctl,
@@ -64,8 +62,6 @@ static struct cdevsw null_cdevsw = {
 };
 
 static struct cdevsw zero_cdevsw = {
-	.d_open =	nullopen,
-	.d_close =	nullclose,
 	.d_read =	zero_read,
 	.d_write =	null_write,
 	.d_name =	"zero",
