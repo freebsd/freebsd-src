@@ -72,7 +72,8 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	struct utmp utmp;
 	struct lastlog ll;
 	time_t t;
-	const char *rhost, *user, *tty;
+	const char *user;
+	const void *rhost, *tty;
 	off_t llpos;
 	int fd, pam_err;
 
@@ -83,10 +84,10 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		return (PAM_SERVICE_ERR);
 	PAM_LOG("Got user: %s", user);
 
-	pam_err = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+	pam_err = pam_get_item(pamh, PAM_RHOST, &rhost);
 	if (pam_err != PAM_SUCCESS)
 		goto err;
-	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	pam_err = pam_get_item(pamh, PAM_TTY, &tty);
 	if (pam_err != PAM_SUCCESS)
 		goto err;
 	if (tty == NULL) {
@@ -94,8 +95,8 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		goto err;
 	}
 	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
-		tty += strlen(_PATH_DEV);
-	if (*tty == '\0')
+		tty = (const char *)tty + strlen(_PATH_DEV);
+	if (*(const char *)tty == '\0')
 		return (PAM_SERVICE_ERR);
 
 	fd = open(_PATH_LASTLOG, O_RDWR|O_CREAT, 0644);
@@ -129,7 +130,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 
 	/* note: does not need to be NUL-terminated */
 	strncpy(ll.ll_line, tty, sizeof(ll.ll_line));
-	if (rhost != NULL && *rhost != '\0')
+	if (rhost != NULL && *(const char *)rhost != '\0')
 		/* note: does not need to be NUL-terminated */
 		strncpy(ll.ll_host, rhost, sizeof(ll.ll_host));
 
@@ -145,7 +146,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 	utmp.ut_time = time(NULL);
 	/* note: does not need to be NUL-terminated */
 	strncpy(utmp.ut_name, user, sizeof(utmp.ut_name));
-	if (rhost != NULL && *rhost != '\0')
+	if (rhost != NULL && *(const char *)rhost != '\0')
 		strncpy(utmp.ut_host, rhost, sizeof(utmp.ut_host));
 	(void)strncpy(utmp.ut_line, tty, sizeof(utmp.ut_line));
 	login(&utmp);

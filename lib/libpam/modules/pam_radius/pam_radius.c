@@ -245,7 +245,8 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
 	struct rad_handle *radh;
-	const char *user, *tmpuser, *pass;
+	const char *user, *pass;
+	const void *tmpuser;
 	const char *conf_file, *template_user, *nas_id, *nas_ipaddr;
 	int retval;
 	int e;
@@ -310,8 +311,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 				 * to the value given in the "template_user"
 				 * option.
 				 */
-				retval = pam_get_item(pamh, PAM_USER,
-				    (const void **)&tmpuser);
+				retval = pam_get_item(pamh, PAM_USER, &tmpuser);
 				if (retval != PAM_SUCCESS)
 					return (retval);
 				if (getpwnam(tmpuser) == NULL) {
