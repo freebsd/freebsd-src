@@ -195,6 +195,9 @@
     driver)
     </para>
 
+    <para arch="i386">The hptmv(4) driver supports the HighPoint
+      RocketRAID 182x SATA controllers.</para>
+
     &hwlist.ips;
 
     &hwlist.mpt;
