@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id$
+# $Id: instdist.sh,v 1.1 1994/11/16 07:51:42 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -85,10 +85,46 @@ media_cd_tmpdir()
 media_rm_tmpdir()
 {
 	cd /
-	if dialog --title "Delete contents?" $clear \
-        --yesno "Do you wish to delete the contents of ${tmp_dir}?" 5 72; then
+	if dialog --title "Delete contents?" $clear --yesno \
+          "Do you wish to delete the contents of ${tmp_dir}?" -1 -1; then
 		rm -rf $tmp_dir/*
 	fi
+}
+
+media_select_ftp_site()
+{
+	dialog $clear --title "Please specify an ftp site" \
+	--menu \
+"FreeBSD is distributed from a number of sites on the Internet \n\
+in order to more evenly distribute network load and increase \n\
+its availability users who might be far from the main ftp sites \n\
+or unable to get a connection.  Please select the site closest \n\
+to you or select \"other\" if you'd like to specify your own \n\
+choice.\n\n" 20 76 4 \
+"Please select one of the following:" 20 76 6 \
+   "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
+   "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" "Taiwan" \
+   "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" "Australia" \
+   "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" "France" \
+   "ftp://nic.funet.fi:/pub/unix/FreeBSD/${DISTNAME}" "Finland" \
+   "other" "None of the above.  I want to specify my own." \
+      2> ${TMP}/menu.tmp.$$
+	retval=$?
+	answer=`cat ${TMP}/menu.tmp.$$`
+	rm -f ${TMP}/menu.tmp.$$
+	if ! handle_rval $retval; then return 1; fi
+	if [ "$answer" = "other" ]; then
+		title="FTP Installation Information"
+		default_value="$ftp_path"
+		if ! input \
+"Please specify the machine and directory location of the
+distribution you wish to load.  This should be either a \"URL style\"
+specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
+the name of a host to connect to.  If only a host name is specified,
+the installation assumes that you will properly connect and \"mget\"
+the files yourself.\n\n"; then return 1; fi
+	fi
+	ftp_path=$answer
 }
 
 media_extract_dist()
@@ -185,7 +221,7 @@ and mandatory distributions are so noted.  Please also note that \n\
 the secrdist is NOT FOR EXPORT from the U.S.!  Please don't \n\
 endanger U.S. ftp sites by getting it illegally.  Thank you!\n\n" \
 "Please select one (we'll come back to this menu later):" 20 76 6 \
-  "?diskfree"  "Uh, first, how much disk space do I have free?"
+  "?diskfree"  "Uh, first, how much disk space do I have free?" \
   "bindist" "The ${DISTNAME} base distribution (mandatory - 80MB)" \
   "srcdist" "The ${DISTNAME} source distribution (optional - 120MB)" \
   "secrdist" "The ${DISTNAME} DES distribution (optional - 5MB)" \
@@ -342,23 +378,15 @@ drive it's /dev/fd1\n\n"; then
 	;;
 
 	FTP)
-		if ! setup_network; then continue; fi
-		title="FTP Installation Information"
-		default_value="$ftp_path"
-		if ! input \
-"Please specify the machine and directory location of the
-distribution you wish to load.  This should be either a \"URL style\"
-specification (e.g. ftp://ftp.freeBSD.org/pub/FreeBSD/...) or simply
-the name of a host to connect to.  If only a host name is specified,
-the installation assumes that you will properly connect and \"mget\"
-the files yourself.\n\n"; then continue; fi
-		media_type=ftp
-		media_device=$answer
-		ftp_path=$media_device
+		if ! network_setup; then continue; fi
+		if media_select_ftp_site; then
+			media_type=ftp
+			media_device=$ftp_path
+		fi
 	;;
 
 	NFS)
-		if ! setup_network; then continue; fi
+		if ! network_setup; then continue; fi
 		title="NFS Installation Information"
 		default_value="$nfs_path"
 		if ! input \
