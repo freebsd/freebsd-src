@@ -1,0 +1,10 @@
+#!/bin/sh
+#
+# $Id$
+#
+
+if [ -f /etc/Distfile ]; then
+    echo ""
+    echo "Running rdist with /etc/Distfile:"
+    rdist -f /etc/Distfile
+fi
