@@ -67,6 +67,7 @@ device		genclock
 device		loop
 device		ether
 device		nexus
+device		mem			# Memory and kernel memory devices
 #device		saarm
 device		miibus
 device		rl
