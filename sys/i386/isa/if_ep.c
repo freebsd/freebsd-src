@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.61 1997/10/14 06:56:08 itojun Exp $
+ *  $Id: if_ep.c,v 1.63 1997/10/26 04:53:53 nate Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -63,6 +63,7 @@
 
 #include <sys/param.h>
 #if defined(__FreeBSD__)
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #endif
@@ -166,6 +167,8 @@ static struct pccard_device ep_info = {
     0,                      /* Attributes - presently unused */
     &net_imask
 };
+
+DATA_SET(pccarddrv_set, ep_info);
 
 /*
  * Initialize the device - called from Slot manager.
@@ -472,10 +475,6 @@ ep_isa_probe(is)
     struct ep_softc *sc;
     struct ep_board *epb;
     u_short k;
-
-#if NCARD > 0
-    pccard_add_driver(&ep_info);
-#endif
 
     if ((epb = ep_look_for_board_at(is)) == 0)
 	return (0);

@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.122 1997/10/03 16:26:15 davidg Exp $
+ *	$Id: if_ed.c,v 1.124 1997/10/26 04:53:51 nate Exp $
  */
 
 /*
@@ -205,6 +205,8 @@ static struct pccard_device ed_info = {
 				/* XXX - Should this also include net_imask? */
 };
 
+DATA_SET(pccarddrv_set, ed_info);
+
 /*
  *	Initialize the device - called from Slot manager.
  */
@@ -339,14 +341,6 @@ ed_probe(isa_dev)
 	struct isa_device *isa_dev;
 {
 	int     nports;
-
-#if NCARD > 0
-	/*
-	 * If PC-Card probe required, then register driver with
-	 * slot manager.
-	 */
-	pccard_add_driver(&ed_info);
-#endif
 
 	nports = ed_probe_WD80x3(isa_dev);
 	if (nports)

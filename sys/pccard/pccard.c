@@ -141,13 +141,22 @@ static struct cdevsw crd_cdevsw =
  *	slot number accessed via the character device entries.
  */
 void
-pccard_configure()
+pccard_configure(void)
 {
+	struct pccard_device **drivers, *drv;
 
 #include "pcic.h"
 #if NPCIC > 0
 	pcic_probe();
 #endif
+
+	drivers = (struct pccard_device **)pccarddrv_set.ls_items;
+	printf("Initializing PC-card drivers:");
+	while ((drv = *drivers++)) {
+		printf(" %s", drv->name);
+		pccard_add_driver(drv);
+	}
+	printf("\n");
 }
 
 /*
@@ -164,7 +173,6 @@ pccard_add_driver(struct pccard_device *drv)
 		printf("Driver %s already loaded\n", drv->name);
 		return;
 	}
-	printf("pccard driver %s added\n", drv->name);
 	drv->next = drivers;
 	drivers = drv;
 }
