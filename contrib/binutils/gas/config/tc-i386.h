@@ -1,6 +1,7 @@
 /* tc-i386.h -- Header file for tc-i386.c
-   Copyright (C) 1989, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001
-   Free Software Foundation.
+   Copyright 1989, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
+   2001
+   Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -157,6 +158,15 @@ extern int tc_coff_sizemachdep PARAMS ((fragS *frag));
 #undef REVERSE_SORT_RELOCS
 
 #endif /* ! BFD_ASSEMBLER */
+
+#ifndef LEX_AT
+#define TC_PARSE_CONS_EXPRESSION(EXP, NBYTES) x86_cons (EXP, NBYTES)
+extern void x86_cons PARAMS ((expressionS *, int));
+
+#define TC_CONS_FIX_NEW(FRAG,OFF,LEN,EXP) x86_cons_fix_new(FRAG, OFF, LEN, EXP)
+extern void x86_cons_fix_new
+  PARAMS ((fragS *, unsigned int, unsigned int, expressionS *));
+#endif
 
 #define TC_FORCE_RELOCATION(fixp) tc_i386_force_relocation(fixp)
 extern int tc_i386_force_relocation PARAMS ((struct fix *));
