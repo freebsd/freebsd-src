@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.32 1997/02/22 13:56:09 peter Exp $
+#	$Id: bsd.doc.mk,v 1.33 1997/03/02 00:16:49 wosch Exp $
 
 PRINTERDEVICE?=	ascii
 
@@ -87,7 +87,7 @@ FILES?=	${SRCS}
 realinstall:
 .if ${PRINTERDEVICE} == "html"
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${.OBJDIR}/${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
+		${DOC}*.html ${DESTDIR}${BINDIR}/${VOLUME}
 .else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${DFILE} ${DESTDIR}${BINDIR}/${VOLUME}
