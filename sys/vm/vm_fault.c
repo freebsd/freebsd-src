@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.79 1998/02/06 12:14:22 eivind Exp $
+ * $Id: vm_fault.c,v 1.80 1998/02/09 06:11:23 eivind Exp $
  */
 
 /*
@@ -139,6 +139,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault = 0;
 	int faultcount;
+	int pagewaitbits;
 	struct vnode *vp = NULL;
 	struct proc *p = curproc;	/* XXX */
 
@@ -181,6 +182,7 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 }
 
 
+	pagewaitbits = PG_BUSY;
 RetryFault:;
 	faultcount = 0;
 
@@ -286,7 +288,6 @@ RetryFault:;
 	/*
 	 * See whether this page is resident
 	 */
-
 	while (TRUE) {
 
 		if (object->flags & OBJ_DEAD) {
@@ -301,12 +302,12 @@ RetryFault:;
 			 * If the page is being brought in, wait for it and
 			 * then retry.
 			 */
-			if ((m->flags & PG_BUSY) || m->busy) {
+			if ((m->flags & PG_BUSY) || (m->busy && (m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
 				int s;
 
 				UNLOCK_THINGS;
 				s = splvm();
-				if (((m->flags & PG_BUSY) || m->busy)) {
+				if ((m->flags & PG_BUSY) || (m->busy && (m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
 					m->flags |= PG_WANTED | PG_REFERENCED;
 					cnt.v_intrans++;
 					tsleep(m, PSWP, "vmpfw", 0);
@@ -331,11 +332,11 @@ RetryFault:;
 			}
 
 			m->flags |= PG_BUSY;
-
 			if (((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
 			}
+
 			break;
 		}
 		if (((object->type != OBJT_DEFAULT) &&
@@ -398,7 +399,7 @@ readrest:
 					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
 						break;
 					if (mt->busy ||
-						(mt->flags & (PG_BUSY|PG_FICTITIOUS)) ||
+						(mt->flags & (PG_BUSY | PG_FICTITIOUS)) ||
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;

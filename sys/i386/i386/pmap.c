@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.185 1998/02/10 17:30:26 eivind Exp $
+ *	$Id: pmap.c,v 1.186 1998/02/12 22:00:01 bde Exp $
  */
 
 /*
@@ -824,14 +824,8 @@ pmap_page_lookup(object, pindex)
 	vm_page_t m;
 retry:
 	m = vm_page_lookup(object, pindex);
-	if (m) {
-		if (m->flags & PG_BUSY) {
-			m->flags |= PG_WANTED;
-			tsleep(m, PVM, "pplookp", 0);
-			goto retry;
-		}
-	}
-
+	if (m && vm_page_sleep(m, "pplookp", NULL))
+		goto retry;
 	return m;
 }
 
@@ -1012,14 +1006,7 @@ static int
 _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m) {
 	int s;
 
-	if (m->flags & PG_BUSY) {
-		s = splvm();
-		while (m->flags & PG_BUSY) {
-			m->flags |= PG_WANTED;
-			tsleep(m, PVM, "pmuwpt", 0);
-		}
-		splx(s);
-	}
+	while (vm_page_sleep(m, "pmuwpt", NULL));
 
 	if (m->hold_count == 0) {
 		vm_offset_t pteva;
@@ -1155,7 +1142,7 @@ retry:
 	ptdpg->wire_count = 1;
 	++cnt.v_wire_count;
 
-	ptdpg->flags &= ~(PG_MAPPED|PG_BUSY);	/* not mapped normally */
+	ptdpg->flags &= ~(PG_MAPPED | PG_BUSY);	/* not mapped normally */
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
 	pmap_kenter((vm_offset_t) pmap->pm_pdir, VM_PAGE_TO_PHYS(ptdpg));
@@ -1189,16 +1176,10 @@ pmap_release_free_page(pmap, p)
 	 * page-table pages.  Those pages are zero now, and
 	 * might as well be placed directly into the zero queue.
 	 */
-	s = splvm();
-	if (p->flags & PG_BUSY) {
-		p->flags |= PG_WANTED;
-		tsleep(p, PVM, "pmaprl", 0);
-		splx(s);
+	if (vm_page_sleep(p, "pmaprl", NULL))
 		return 0;
-	}
 
 	p->flags |= PG_BUSY;
-	splx(s);
 
 	/*
 	 * Remove the page table page from the processes address space.
@@ -1296,7 +1277,7 @@ _pmap_allocpte(pmap, ptepindex)
 	}
 
 	m->valid = VM_PAGE_BITS_ALL;
-	m->flags &= ~(PG_ZERO|PG_BUSY);
+	m->flags &= ~(PG_ZERO | PG_BUSY);
 	m->flags |= PG_MAPPED;
 
 	return m;
@@ -1564,7 +1545,8 @@ pmap_collect() {
 		m = ppv->pv_vm_page;
 		if ((pa = VM_PAGE_TO_PHYS(m)) == 0)
 			continue;
-		if (m->wire_count || m->hold_count || m->busy || (m->flags & PG_BUSY))
+		if (m->wire_count || m->hold_count || m->busy ||
+			(m->flags & PG_BUSY))
 			continue;
 		pmap_remove_all(pa);
 	}
@@ -2329,15 +2311,11 @@ pmap_object_init_pt(pmap, addr, object, pindex, size, limit)
 		if (pmap->pm_pdir[ptepindex = (addr >> PDRSHIFT)])
 			return;
 
-		s = splhigh();
 retry:
 		p = vm_page_lookup(object, pindex);
-		if (p && (p->flags & PG_BUSY)) {
-			tsleep(p, PVM, "init4p", 0);
+		if (p && vm_page_sleep(p, "init4p", NULL))
 			goto retry;
-		}
-		splx(s);
-		
+
 		if (p == NULL) {
 			p = vm_page_alloc(object, pindex, VM_ALLOC_NORMAL);
 			if (p == NULL)

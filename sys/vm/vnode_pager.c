@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.86 1998/02/25 03:55:53 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.87 1998/02/26 06:39:58 msmith Exp $
  */
 
 /*
@@ -893,15 +893,8 @@ vnode_pager_generic_putpages(vp, m, bytecount, sync, rtvals)
 		printf("vnode_pager_putpages: residual I/O %d at %ld\n",
 			auio.uio_resid, m[0]->pindex);
 	}
-	for (i = 0; i < count; i++) {
-		m[i]->busy--;
-		if (i < ncount) {
-			rtvals[i] = VM_PAGER_OK;
-		}
-		if ((m[i]->busy == 0) && (m[i]->flags & PG_WANTED)) {
-			vm_page_activate(m[i]);
-			wakeup(m[i]);
-		}
+	for (i = 0; i < ncount; i++) {
+		rtvals[i] = VM_PAGER_OK;
 	}
 	return rtvals[0];
 }

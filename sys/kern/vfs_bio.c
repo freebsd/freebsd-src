@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.150 1998/02/09 06:09:30 eivind Exp $
+ * $Id: vfs_bio.c,v 1.151 1998/02/11 20:06:48 dg Exp $
  */
 
 /*
@@ -1643,12 +1643,7 @@ allocbuf(struct buf * bp, int size)
 					if (m == bogus_page)
 						panic("allocbuf: bogus page found");
 #endif
-					s = splvm();
-					while ((m->flags & PG_BUSY) || (m->busy != 0)) {
-						m->flags |= PG_WANTED;
-						tsleep(m, PVM, "biodep", 0);
-					}
-					splx(s);
+					vm_page_sleep(m, "biodep", &m->busy);
 
 					bp->b_pages[i] = NULL;
 					vm_page_unwire(m);
@@ -1940,11 +1935,9 @@ biodone(register struct buf * bp)
 #endif
 				panic("biodone: page busy < 0\n");
 			}
+			m->flags |= PG_BUSY;
 			--m->busy;
-			if ((m->busy == 0) && (m->flags & PG_WANTED)) {
-				m->flags &= ~PG_WANTED;
-				wakeup(m);
-			}
+			PAGE_WAKEUP(m);
 			--obj->paging_in_progress;
 			foff += resid;
 			iosize -= resid;
@@ -2045,11 +2038,9 @@ vfs_unbusy_pages(struct buf * bp)
 				pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 			}
 			--obj->paging_in_progress;
+			m->flags |= PG_BUSY;
 			--m->busy;
-			if ((m->busy == 0) && (m->flags & PG_WANTED)) {
-				m->flags &= ~PG_WANTED;
-				wakeup(m);
-			}
+			PAGE_WAKEUP(m);
 		}
 		if (obj->paging_in_progress == 0 &&
 		    (obj->flags & OBJ_PIPWNT)) {
@@ -2162,16 +2153,8 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 retry:
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
-
-			if (m && (m->flags & PG_BUSY)) {
-				s = splvm();
-				while (m->flags & PG_BUSY) {
-					m->flags |= PG_WANTED;
-					tsleep(m, PVM, "vbpage", 0);
-				}
-				splx(s);
+			if (vm_page_sleep(m, "vbpage", NULL))
 				goto retry;
-			}
 		}
 
 		for (i = 0; i < bp->b_npages; i++, foff += PAGE_SIZE) {

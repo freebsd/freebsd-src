@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.92 1998/02/06 12:14:27 eivind Exp $
+ *	$Id: vm_page.c,v 1.93 1998/02/09 06:11:32 eivind Exp $
  */
 
 /*
@@ -917,7 +917,7 @@ vm_page_alloc(object, pindex, page_req)
 	(*pq->lcnt)--;
 	oldobject = NULL;
 	if (qtype == PQ_ZERO) {
-		m->flags = PG_ZERO|PG_BUSY;
+		m->flags = PG_ZERO | PG_BUSY;
 	} else if (qtype == PQ_CACHE) {
 		oldobject = m->object;
 		m->flags |= PG_BUSY;
@@ -983,6 +983,22 @@ vm_wait()
 	splx(s);
 }
 
+int
+vm_page_sleep(vm_page_t m, char *msg, char *busy) {
+	vm_object_t object = m->object;
+	int generation = object->generation;
+	if ((busy && *busy) || (m->flags & PG_BUSY)) {
+		int s;
+		s = splvm();
+		if ((busy && *busy) || (m->flags & PG_BUSY)) {
+			m->flags |= PG_WANTED;
+			tsleep(m, PVM, msg, 800);
+		}
+		splx(s);
+	}
+	return ((generation != object->generation) || (busy && *busy) ||
+		(m->flags & PG_BUSY));
+}
 
 /*
  *	vm_page_activate:
@@ -1057,6 +1073,8 @@ vm_page_freechk_and_unqueue(m)
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		return 0;
 	}
+
+	m->valid = 0;
 
 	if (m->wire_count != 0) {
 #if !defined(MAX_PERF)
@@ -1516,11 +1534,8 @@ again1:
 				}
 
 				next = TAILQ_NEXT(m, pageq);
-				if (m->flags & PG_BUSY) {
-					m->flags |= PG_WANTED;
-					tsleep(m, PVM, "vpctw0", 0);
+				if (vm_page_sleep(m, "vpctw0", &m->busy))
 					goto again1;
-				}
 				vm_page_test_dirty(m);
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
@@ -1530,6 +1545,7 @@ again1:
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {
+						m->flags |= PG_BUSY;
 						vm_page_protect(m, VM_PROT_NONE);
 						vm_pageout_flush(&m, 1, 0);
 						goto again1;
@@ -1548,11 +1564,8 @@ again1:
 				}
 
 				next = TAILQ_NEXT(m, pageq);
-				if (m->flags & PG_BUSY) {
-					m->flags |= PG_WANTED;
-					tsleep(m, PVM, "vpctw1", 0);
+				if (vm_page_sleep(m, "vpctw1", &m->busy))
 					goto again1;
-				}
 				vm_page_test_dirty(m);
 				if (m->dirty) {
 					if (m->object->type == OBJT_VNODE) {
@@ -1562,6 +1575,7 @@ again1:
 						goto again1;
 					} else if (m->object->type == OBJT_SWAP ||
 								m->object->type == OBJT_DEFAULT) {
+						m->flags |= PG_BUSY;
 						vm_page_protect(m, VM_PROT_NONE);
 						vm_pageout_flush(&m, 1, 0);
 						goto again1;
