@@ -88,15 +88,14 @@ void print_entry(struct sockaddr_dl *sdl,
 void nuke_entry(struct sockaddr_dl *sdl,
 	struct sockaddr_inarp *addr, struct rt_msghdr *rtm);
 int delete(char *host, char *info);
-void ether_print(u_char *cp);
 void usage(void);
 int set(int argc, char **argv);
 int get(char *host);
 int file(char *name);
 void getsocket(void);
-int my_ether_aton(char *a, u_char *n);
+int my_ether_aton(char *a, struct ether_addr *n);
 int rtmsg(int cmd);
-int get_ether_addr(u_int32_t ipaddr, u_char *hwaddr);
+int get_ether_addr(u_int32_t ipaddr, struct ether_addr *hwaddr);
 
 static int pid;
 static int nflag;	/* no reverse dns lookups */
@@ -263,7 +262,7 @@ set(int argc, char **argv)
 	register struct sockaddr_inarp *addr = &sin_m;
 	register struct sockaddr_dl *sdl;
 	register struct rt_msghdr *rtm = &(m_rtmsg.m_rtm);
-	u_char *ea;
+	struct ether_addr *ea;
 	char *host = argv[0], *eaddr = argv[1];
 
 	getsocket();
@@ -301,17 +300,17 @@ set(int argc, char **argv)
 		}
 		argv++;
 	}
-	ea = (u_char *)LLADDR(&sdl_m);
+	ea = (struct ether_addr *)LLADDR(&sdl_m);
 	if (doing_proxy && !strcmp(eaddr, "auto")) {
 		if (!get_ether_addr(addr->sin_addr.s_addr, ea)) {
 			printf("no interface found for %s\n",
 			       inet_ntoa(addr->sin_addr));
 			return (1);
 		}
-		sdl_m.sdl_alen = 6;
+		sdl_m.sdl_alen = ETHER_ADDR_LEN;
 	} else {
 		if (my_ether_aton(eaddr, ea) == 0)
-			sdl_m.sdl_alen = 6;
+			sdl_m.sdl_alen = ETHER_ADDR_LEN;
 	}
 tryagain:
 	if (rtmsg(RTM_GET) < 0) {
@@ -506,7 +505,7 @@ print_entry(struct sockaddr_dl *sdl,
 	}
 	printf("%s (%s) at ", host, inet_ntoa(addr->sin_addr));
 	if (sdl->sdl_alen)
-		ether_print(LLADDR(sdl));
+		printf("%s", ether_ntoa((struct ether_addr *)LLADDR(sdl)));
 	else
 		printf("(incomplete)");
 	if (if_indextoname(sdl->sdl_index, ifname) != NULL)
@@ -558,26 +557,16 @@ nuke_entry(struct sockaddr_dl *sdl __unused,
 	delete(ip, NULL);
 }
 
-void
-ether_print(u_char *cp)
-{
-	printf("%02x:%02x:%02x:%02x:%02x:%02x", cp[0], cp[1], cp[2], cp[3],
-						cp[4], cp[5]);
-}
-
 int
-my_ether_aton(char *a, u_char *n)
+my_ether_aton(char *a, struct ether_addr *n)
 {
-	int i, o[6];
+	struct ether_addr *ea;
 
-	i = sscanf(a, "%x:%x:%x:%x:%x:%x", &o[0], &o[1], &o[2],
-					   &o[3], &o[4], &o[5]);
-	if (i != 6) {
+	if ((ea = ether_aton(a)) == NULL) {
 		warnx("invalid Ethernet address '%s'", a);
 		return (1);
 	}
-	for (i=0; i<6; i++)
-		n[i] = o[i];
+	*n = *ea;
 	return (0);
 }
 
@@ -666,7 +655,7 @@ doit:
 #define MAX_IFS		32
 
 int
-get_ether_addr(u_int32_t ipaddr, u_char *hwaddr)
+get_ether_addr(u_int32_t ipaddr, struct ether_addr *hwaddr)
 {
 	struct ifreq *ifr, *ifend, *ifp;
 	u_int32_t ina, mask;
@@ -748,8 +737,7 @@ nextif:
 			close (sock);
 			printf("using interface %s for proxy with address ",
 				ifp->ifr_name);
-			ether_print(hwaddr);
-			printf("\n");
+			printf("%s\n", ether_ntoa(hwaddr));
 			return dla->sdl_alen;
 		}
 		ifr = (struct ifreq *) ((char *)&ifr->ifr_addr
