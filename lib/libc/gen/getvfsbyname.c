@@ -53,9 +53,6 @@ getvfsbyname(fsname, vfcp)
 	const char *fsname;
 	struct xvfsconf *vfcp;
 {
-#ifdef	__NETBSD_SYSCALLS
-	errno = ENOSYS;
-#else
 	struct xvfsconf *xvfsp;
 	size_t buflen;
 	int cnt, i;
@@ -79,6 +76,5 @@ getvfsbyname(fsname, vfcp)
 	}
 	free(xvfsp);
 	errno = ENOENT;
-#endif
 	return (-1);
 }

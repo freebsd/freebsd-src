@@ -30,11 +30,7 @@
  */
 
 #include <machine/asm.h>
-#ifdef __NETBSD_SYSCALLS
-#include <sys/netbsd_syscall.h>
-#else
 #include <sys/syscall.h>
-#endif
 
 #define	CALLSYS_ERROR(name)					\
 	CALLSYS_NOERROR(name);					\
