@@ -17,6 +17,15 @@
  * Modification history
  *
  * $Log:	if_ed.c,v $
+ * Revision 1.16  93/07/25  14:27:12  davidg
+ * added parans to the previous fix so that it can cope with outb
+ * being a macro.
+ * 
+ * Revision 1.15  93/07/25  14:07:56  davidg
+ * fixed logic problem where a 3c503 register was being written
+ * even if the board wasn't a 3Com. Wolfgang Solfrank pointed this
+ * out.
+ * 
  * Revision 1.14  93/07/20  15:24:25  davidg
  * ommision for force 16bit case fixed from last patch
  * 
@@ -957,10 +966,12 @@ ed_init(unit)
 	 * If this is a 3Com board, the tranceiver must be software enabled
 	 *	(there is no settable hardware default).
 	 */
-	if ((sc->vendor == ED_VENDOR_3COM) && (ifp->if_flags & IFF_LLC0)) {
-		outb(sc->asic_addr + ED_3COM_CR, 0);
-	} else {
-		outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+	if (sc->vendor == ED_VENDOR_3COM) {
+		if (ifp->if_flags & IFF_LLC0) {
+			outb(sc->asic_addr + ED_3COM_CR, 0);
+		} else {
+			outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+		}
 	}
 
 	/*
@@ -1583,10 +1594,12 @@ ed_ioctl(ifp, command, data)
 		 *	of the tranceiver for 3Com boards. The LLC0 flag disables
 		 *	the tranceiver if set.
 		 */
-		if ((sc->vendor == ED_VENDOR_3COM) && (ifp->if_flags & IFF_LLC0)) {
-			outb(sc->asic_addr + ED_3COM_CR, 0);
-		} else {
-			outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+		if (sc->vendor == ED_VENDOR_3COM) {
+			if (ifp->if_flags & IFF_LLC0) {
+				outb(sc->asic_addr + ED_3COM_CR, 0);
+			} else {
+				outb(sc->asic_addr + ED_3COM_CR, ED_3COM_CR_XSEL);
+			}
 		}
 
 		break;
