@@ -32,8 +32,6 @@
  * Support for POSIX.1e access control lists.
  */
 
-#include "opt_cap.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
