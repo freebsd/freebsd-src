@@ -95,7 +95,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 
 	if (uio->uio_offset != 0)
 		return (0);
-	
+
 	error = 0;
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_lock_read(map);
@@ -150,7 +150,7 @@ procfs_doprocmap(PFS_FILL_ARGS)
 				type = "device";
 				break;
 			}
-			
+
 			flags = obj->flags;
 			ref_count = obj->ref_count;
 			shadow_count = obj->shadow_count;
@@ -191,6 +191,6 @@ procfs_doprocmap(PFS_FILL_ARGS)
 	}
 	if (map != &curthread->td_proc->p_vmspace->vm_map)
 		vm_map_unlock_read(map);
-	
+
 	return (error);
 }
