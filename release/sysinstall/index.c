@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.31 1995/10/15 04:37:05 jkh Exp $
+ * $Id: index.c,v 1.6 1995/10/15 12:41:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -190,7 +190,7 @@ index_register(PkgNodePtr top, char *where, IndexEntryPtr ptr)
 	top->kids = q;
     }
     p = new_pkg_node(ptr->name, PACKAGE);
-    p->desc = clip(ptr->comment, 54 - (strlen(ptr->name) / 2));
+    p->desc = clip(ptr->comment, 52 - (strlen(ptr->name) / 2));
     p->data = ptr;
     p->next = q->kids;
     q->kids = p;
@@ -438,20 +438,24 @@ index_search(PkgNodePtr top, char *str, PkgNodePtr *tp)
 static Boolean
 is_selected_in(char *name, char *result)
 {
-    while (result) {
+    Boolean ret = FALSE;
+
+    while (*result) {
 	char *cp;
 
 	cp = index(result, '\n');
-	if (cp)
-	   *cp++ = 0;
-	/* Were no options actually selected? */
-	if (!*result)
-	    return FALSE;
-	if (!strcmp(result, name))
-	    return TRUE;
-	result = cp;
+	if (!cp) {
+	    ret = !strcmp(name, result);
+	    break;
+	}
+	else {
+	    ret = !strncmp(name, result, cp - result);
+	    if (ret)
+		break;
+	}
+	result = cp + 1;
     }
-    return FALSE;
+    return ret;
 }
 
 int
