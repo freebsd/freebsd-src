@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.20 1995/06/05 10:43:06 jkh Exp $
+ * $Id: menus.c,v 1.41.2.21 1995/06/05 11:31:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -712,7 +712,7 @@ software not provided in the base distributions.",
       { "Root Password", "Set the system manager's password",
 	DMENU_SYSTEM_COMMAND, "passwd root", 0, 0		},
       { "XFree86",	"Configure XFree86 (if installed)",
-	DMENU_SYSTEM_COMMAND, "PATH=/usr/bin:/bin:/usr/X11R6/bin xf86config", 0, 0 },
+	DMENU_SYSTEM_COMMAND, "/usr/X11R6/bin/xf86config", 0, 0 },
       { "Exit", "Exit this menu (returning to previous)",
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
