@@ -70,11 +70,13 @@ static const char rcsid[] =
 #include <netinet6/nd6.h>	/* Define ND6_INFINITE_LIFETIME */
 #endif
 
+#ifndef NO_IPX
 /* IPX */
 #define	IPXIP
 #define IPTUNNEL
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
+#endif
 
 /* Appletalk */
 #include <netatalk/at.h>
@@ -288,8 +290,13 @@ typedef	void af_status __P((int, struct rt_addrinfo *));
 typedef	void af_getaddr __P((const char *, int));
 typedef void af_getprefix __P((const char *, int));
 
-af_status	in_status, ipx_status, at_status, ether_status;
-af_getaddr	in_getaddr, ipx_getaddr, at_getaddr, ether_getaddr;
+af_status	in_status, at_status, ether_status;
+af_getaddr	in_getaddr, at_getaddr, ether_getaddr;
+
+#ifndef NO_IPX
+af_status	ipx_status;
+af_getaddr	ipx_getaddr;
+#endif
 
 #ifdef INET6
 af_status	in6_status;
@@ -322,8 +329,10 @@ struct	afswtch {
 	     SIOCDIFADDR_IN6, SIOCAIFADDR_IN6,
 	     C(in6_ridreq), C(in6_addreq) },
 #endif /*INET6*/
+#ifndef NO_IPX
 	{ "ipx", AF_IPX, ipx_status, ipx_getaddr, NULL,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
+#endif
 	{ "atalk", AF_APPLETALK, at_status, at_getaddr, NULL,
 	     SIOCDIFADDR, SIOCAIFADDR, C(addreq), C(addreq) },
 #ifdef NS
@@ -683,6 +692,7 @@ ifconfig(argc, argv, afp)
 		/* in6_getprefix("64", MASK) if MASK is available here... */
 	}
 #endif
+#ifndef NO_IPX
 	if (setipdst && ifr.ifr_addr.sa_family == AF_IPX) {
 		struct ipxip_req rq;
 		int size = sizeof(rq);
@@ -693,6 +703,7 @@ ifconfig(argc, argv, afp)
 		if (setsockopt(s, 0, SO_IPXIP_ROUTE, &rq, size) < 0)
 			Perror("Encapsulation Routing");
 	}
+#endif
 	if (ifr.ifr_addr.sa_family == AF_APPLETALK)
 		checkatrange((struct sockaddr_at *) &addreq.ifra_addr);
 #ifdef NS
@@ -1429,6 +1440,7 @@ in6_status(s, info)
 }
 #endif /*INET6*/
 
+#ifndef NO_IPX
 void
 ipx_status(s, info)
 	int s __unused;
@@ -1449,6 +1461,7 @@ ipx_status(s, info)
 	}
 	putchar('\n');
 }
+#endif
 
 void
 at_status(s, info)
@@ -1701,6 +1714,7 @@ printb(s, v, bits)
 	}
 }
 
+#ifndef NO_IPX
 #define SIPX(x) ((struct sockaddr_ipx *) &(x))
 struct sockaddr_ipx *sipxtab[] = {
 SIPX(ridreq.ifr_addr), SIPX(addreq.ifra_addr),
@@ -1719,6 +1733,7 @@ ipx_getaddr(addr, which)
 	if (which == MASK)
 		printf("Attempt to set IPX netmask will be ineffectual\n");
 }
+#endif
 
 void
 at_getaddr(addr, which)
