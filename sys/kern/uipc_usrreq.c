@@ -907,10 +907,6 @@ unp_connect(so, nam, td)
 	UNP_LOCK();
 	unp = sotounpcb(so);
 	if (unp == NULL) {
-		/*
-		 * XXXRW: Temporary debugging printf.
-		 */
-		printf("unp_connect(): lost race to another thread\n");
 		error = EINVAL;
 		goto bad2;
 	}
