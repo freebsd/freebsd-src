@@ -69,8 +69,7 @@ interfaces.
 .Pp
 The driver optionally (when compiled with the IPR_VJ option) provides Van
 Jacobsen header compression, under control of the link0 and link1 options to
-.Xr ifconfig 8
-:
+.Xr ifconfig 8 :
 .Pp
 .Bl -tag -width 15n -offset indent -compact
 .It link0
@@ -90,10 +89,10 @@ and
 for
 .Em link0 .
 .Sh SEE ALSO
+.Xr tcpdump 1 ,
+.Xr bpf 4 ,
+.Xr isdnd.rc 5 ,
 .Xr isdnd 8
-.Xr isdnd.rc 5
-.Xr bpf 4
-.Xr tcpdump 1
 .Sh AUTHORS
 The
 .Nm
