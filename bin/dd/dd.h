@@ -35,16 +35,18 @@
  * SUCH DAMAGE.
  *
  *	@(#)dd.h	8.3 (Berkeley) 4/2/94
- *	$Id: dd.h,v 1.7 1997/10/11 20:09:05 joerg Exp $
+ *	$Id: dd.h,v 1.8 1998/02/11 02:23:31 asami Exp $
  */
+
+#define uint64 u_int64_t
 
 /* Input/output stream state. */
 typedef struct {
 	u_char	*db;			/* buffer address */
 	u_char	*dbp;			/* current buffer I/O address */
-	u_long	dbcnt;			/* current buffer byte count */
-	int	dbrcnt;			/* last read byte count */
-	u_long	dbsz;			/* buffer size */
+	size_t	dbcnt,			/* current buffer byte count */
+		dbrcnt,			/* last read byte count */
+		dbsz;			/* buffer size */
 
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe (not truncatable) */
@@ -54,22 +56,22 @@ typedef struct {
 
 	char 	*name;			/* name */
 	int	fd;			/* file descriptor */
-	u_long	offset;			/* # of blocks to skip */
+	off_t	offset;			/* # of blocks to skip */
 
-	u_long	f_stats;		/* # of full blocks processed */
-	u_long	p_stats;		/* # of partial blocks processed */
-	u_long	s_stats;		/* # of odd swab blocks */
-	u_long	t_stats;		/* # of truncations */
+	uint64	f_stats,		/* # of full blocks processed */
+		p_stats,		/* # of partial blocks processed */
+		s_stats,		/* # of odd swab blocks */
+		t_stats;		/* # of truncations */
 } IO;
 
 typedef struct {
-	u_long	in_full;		/* # of full input blocks */
-	u_long	in_part;		/* # of partial input blocks */
-	u_long	out_full;		/* # of full output blocks */
-	u_long	out_part;		/* # of partial output blocks */
-	u_long	trunc;			/* # of truncated records */
-	u_long	swab;			/* # of odd-length swab blocks */
-	u_int64_t	bytes;		/* # of bytes written */
+	uint64	in_full,		/* # of full input blocks */
+		in_part,		/* # of partial input blocks */
+		out_full,		/* # of full output blocks */
+		out_part,		/* # of partial output blocks */
+		trunc,			/* # of truncated records */
+		swab,			/* # of odd-length swab blocks */
+		bytes;			/* # of bytes written */
 	double	start; 			/* start time of dd */
 } STAT;
 

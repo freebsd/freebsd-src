@@ -46,7 +46,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: dd.c,v 1.15 1998/05/13 07:33:47 charnier Exp $";
+	"$Id: dd.c,v 1.16 1999/04/25 21:13:33 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -74,11 +74,11 @@ static void setup __P((void));
 IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
 void	(*cfunc) __P((void));	/* conversion function */
-u_long	cpy_cnt;		/* # of blocks to copy */
-u_long	pending = 0;		/* pending seek if sparse */
+size_t	cpy_cnt;		/* # of blocks to copy */
+size_t	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
-u_int	cbsz;			/* conversion block size */
-u_int	files_cnt = 1;		/* # of files to copy */
+size_t	cbsz;			/* conversion block size */
+int	files_cnt = 1;		/* # of files to copy */
 u_char	*ctab;			/* conversion table */
 
 int
@@ -112,8 +112,8 @@ setup()
 		in.name = "stdin";
 		in.fd = STDIN_FILENO;
 	} else {
-		in.fd = open(in.name, O_RDONLY, 0);
-		if (in.fd < 0)
+		in.fd = open(in.name, O_RDONLY);
+		if (in.fd == -1)
 			err(1, "%s", in.name);
 	}
 
@@ -135,11 +135,11 @@ setup()
 		 * Without read we may have a problem if output also does
 		 * not support seeks.
 		 */
-		if (out.fd < 0) {
+		if (out.fd == -1) {
 			out.fd = open(out.name, O_WRONLY | OFLAGS, DEFFILEMODE);
 			out.flags |= NOREAD;
 		}
-		if (out.fd < 0)
+		if (out.fd == -1)
 			err(1, "%s", out.name);
 	}
 
@@ -154,8 +154,8 @@ setup()
 			err(1, NULL);
 		out.db = in.db;
 	} else if ((in.db =
-	    malloc((u_int)(MAX(in.dbsz, cbsz) + cbsz))) == NULL ||
-	    (out.db = malloc((u_int)(out.dbsz + cbsz))) == NULL)
+	    malloc(MAX(in.dbsz, cbsz) + cbsz)) == NULL ||
+	    (out.db = malloc(out.dbsz + cbsz)) == NULL)
 		err(1, NULL);
 	in.dbp = in.db;
 	out.dbp = out.db;
@@ -171,7 +171,7 @@ setup()
 	 * kinds of output files, tapes, for example.
 	 */
 	if ((ddflags & (C_OF | C_SEEK | C_NOTRUNC)) == (C_OF | C_SEEK))
-		(void)ftruncate(out.fd, (off_t)out.offset * out.dbsz);
+		(void)ftruncate(out.fd, out.offset * out.dbsz);
 
 	/*
 	 * If converting case at the same time as another conversion, build a
@@ -238,7 +238,7 @@ getfdtype(io)
 static void
 dd_in()
 {
-	int n;
+	ssize_t n;
 
 	for (;;) {
 		if (cpy_cnt && (st.in_full + st.in_part) >= cpy_cnt)
@@ -248,11 +248,12 @@ dd_in()
 		 * Zero the buffer first if sync; If doing block operations
 		 * use spaces.
 		 */
-		if (ddflags & C_SYNC)
+		if (ddflags & C_SYNC) {
 			if (ddflags & (C_BLOCK|C_UNBLOCK))
 				memset(in.dbp, ' ', in.dbsz);
 			else
 				memset(in.dbp, 0, in.dbsz);
+		}
 
 		n = read(in.fd, in.dbp, in.dbsz);
 		if (n == 0) {
@@ -261,7 +262,7 @@ dd_in()
 		}
 
 		/* Read error. */
-		if (n < 0) {
+		if (n == -1) {
 			/*
 			 * If noerror not specified, die.  POSIX requires that
 			 * the warning message be followed by an I/O display.
@@ -358,7 +359,9 @@ dd_out(force)
 	int force;
 {
 	static int warned;
-	int cnt, n, nw, i, sparse;
+	int sparse;
+	size_t cnt, n, i;
+	ssize_t nw;
 	u_char *outp;
 
 	/*
@@ -396,9 +399,10 @@ dd_out(force)
 				if (pending != 0) {
 					if (force)
 						pending--;
-					if (lseek (out.fd, pending, SEEK_CUR) == -1)
-						err(2, "%s: seek error creating sparse file",
-						    out.name);
+					if (lseek(out.fd, (off_t)pending,
+						  SEEK_CUR) == -1)
+						err(2, "%s: seek error creating"
+						    " sparse file", out.name);
 					if (force)
 						write(out.fd, outp, 1);
 					pending = 0;
@@ -431,10 +435,10 @@ dd_out(force)
 			if (out.flags & ISCHR && !warned) {
 				warned = 1;
 				warnx("%s: short write on character device",
-				    out.name);
+				      out.name);
 			}
 			if (out.flags & ISTAPE)
-				errx(1, "%s: short write on tape device", out.name);
+		            errx(1, "%s: short write on tape device", out.name);
 		}
 		if ((out.dbcnt -= n) < out.dbsz)
 			break;

@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)conv.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: conv.c,v 1.9 1998/05/06 06:51:30 charnier Exp $";
+	"$Id: conv.c,v 1.10 1998/05/13 07:33:39 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -60,7 +60,7 @@ static const char rcsid[] =
 void
 def()
 {
-	int cnt;
+	size_t cnt;
 	u_char *inp, *t;
 
 	if ((t = ctab) != NULL)
@@ -104,7 +104,8 @@ void
 block()
 {
 	static int intrunc;
-	int ch, cnt, maxlen;
+	int ch;
+	size_t cnt, maxlen;
 	u_char *inp, *outp, *t;
 
 	/*
@@ -114,8 +115,8 @@ block()
 	 * left empty.
 	 */
 	if (intrunc) {
-		for (inp = in.db, cnt = in.dbrcnt;
-		    cnt && *inp++ != '\n'; --cnt);
+		for (inp = in.db, cnt = in.dbrcnt; cnt && *inp++ != '\n'; --cnt)
+			;
 		if (!cnt) {
 			in.dbcnt = 0;
 			in.dbp = in.db;
@@ -135,12 +136,12 @@ block()
 	for (inp = in.dbp - in.dbcnt, outp = out.dbp; in.dbcnt;) {
 		maxlen = MIN(cbsz, in.dbcnt);
 		if ((t = ctab) != NULL)
-			for (cnt = 0;
-			    cnt < maxlen && (ch = *inp++) != '\n'; ++cnt)
+			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
+			     ++cnt)
 				*outp++ = t[ch];
 		else
-			for (cnt = 0;
-			    cnt < maxlen && (ch = *inp++) != '\n'; ++cnt)
+			for (cnt = 0; cnt < maxlen && (ch = *inp++) != '\n';
+			     ++cnt)
 				*outp++ = ch;
 		/*
 		 * Check for short record without a newline.  Reassemble the
@@ -198,8 +199,8 @@ block_close()
 	if (in.dbcnt) {
 		++st.trunc;
 		memmove(out.dbp, in.dbp - in.dbcnt, in.dbcnt);
-		(void)memset(out.dbp + in.dbcnt,
-		    ctab ? ctab[' '] : ' ', cbsz - in.dbcnt);
+		(void)memset(out.dbp + in.dbcnt, ctab ? ctab[' '] : ' ',
+			     cbsz - in.dbcnt);
 		out.dbcnt += cbsz;
 	}
 }
@@ -214,7 +215,7 @@ block_close()
 void
 unblock()
 {
-	int cnt;
+	size_t cnt;
 	u_char *inp, *t;
 
 	/* Translation and case conversion. */
@@ -227,16 +228,16 @@ unblock()
 	 * spaces.
 	 */
 	for (inp = in.db; in.dbcnt >= cbsz; inp += cbsz, in.dbcnt -= cbsz) {
-		for (t = inp + cbsz - 1; t >= inp && *t == ' '; --t);
+		for (t = inp + cbsz - 1; t >= inp && *t == ' '; --t)
+			;
 		if (t >= inp) {
 			cnt = t - inp + 1;
 			memmove(out.dbp, inp, cnt);
 			out.dbp += cnt;
 			out.dbcnt += cnt;
 		}
-		++out.dbcnt;
 		*out.dbp++ = '\n';
-		if (out.dbcnt >= out.dbsz)
+		if (++out.dbcnt >= out.dbsz)
 			dd_out(0);
 	}
 	if (in.dbcnt)
@@ -247,12 +248,13 @@ unblock()
 void
 unblock_close()
 {
-	int cnt;
+	size_t cnt;
 	u_char *t;
 
 	if (in.dbcnt) {
 		warnx("%s: short input record", in.name);
-		for (t = in.db + in.dbcnt - 1; t >= in.db && *t == ' '; --t);
+		for (t = in.db + in.dbcnt - 1; t >= in.db && *t == ' '; --t)
+			;
 		if (t >= in.db) {
 			cnt = t - in.db + 1;
 			memmove(out.dbp, in.db, cnt);

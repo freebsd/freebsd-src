@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- *	$Id$
+ *	$Id: extern.h,v 1.4 1997/02/22 14:02:46 peter Exp $
  */
 
 #include <sys/cdefs.h>
@@ -57,10 +57,10 @@ void unblock_close __P((void));
 extern IO in, out;
 extern STAT st;
 extern void (*cfunc)();
-extern u_long cpy_cnt;
-extern u_int cbsz;
+extern size_t cpy_cnt;
+extern size_t cbsz;
 extern u_int ddflags;
-extern u_int files_cnt;
+extern int files_cnt;
 extern u_char *ctab;
 extern u_char a2e_32V[], a2e_POSIX[], a2ibm_32V[], a2ibm_POSIX[], e2a_32V[];
 extern u_char e2a_POSIX[], l2u[], u2l[];
