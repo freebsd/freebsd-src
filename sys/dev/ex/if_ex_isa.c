@@ -148,7 +148,7 @@ ex_isa_identify(driver_t *driver, device_t parent)
 		}
 
 		if (bootverbose)
-			printf("ex: Found card at 0x%03x!\n", ioport);
+			printf("ex: Found card at 0x%03lx!\n", (unsigned long)ioport);
 
 		/* Board in PnP mode */
 		if (ex_eeprom_read(&sc, EE_W0) & EE_W0_PNP) {
@@ -156,7 +156,7 @@ ex_isa_identify(driver_t *driver, device_t parent)
 			CSR_WRITE_1(&sc, CMD_REG, Reset_CMD);
 			DELAY(500);
 			if (bootverbose)
-				printf("ex: card at 0x%03x in PnP mode!\n", ioport);
+				printf("ex: card at 0x%03lx in PnP mode!\n", (unsigned long)ioport);
 			bus_release_resource(parent, SYS_RES_IOPORT, rid, res);
 			continue;
 		}
@@ -221,12 +221,12 @@ ex_isa_probe(device_t dev)
 	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
 	if (!ex_look_for_card(sc)) {
 		if (bootverbose)
-			printf("ex: no card found at 0x%3x.\n", iobase);
+			printf("ex: no card found at 0x%03lx.\n", (unsigned long)iobase);
 		error = ENXIO;
 		goto bad;
 	}
 	if (bootverbose)
-		printf("ex: ex_isa_probe() found card at 0x%03x\n", iobase);
+		printf("ex: ex_isa_probe() found card at 0x%03lx\n", (unsigned long)iobase);
 
 	/*
 	 * Reset the card.
