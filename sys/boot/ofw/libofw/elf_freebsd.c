@@ -29,7 +29,9 @@
 #include <sys/param.h>
 #include <sys/linker.h>
 
+#if 0
 #include <machine/bootinfo.h>
+#endif
 #include <machine/elf.h>
 
 #include <stand.h>
@@ -67,7 +69,9 @@ ofw_elf_exec(struct preloaded_file *fp)
 	Elf_Ehdr		*ehdr;
 	vm_offset_t		entry, bootinfop;
 	int			boothowto, err, bootdev;
+#if 0
 	struct bootinfo		*bi;
+#endif
 	vm_offset_t		ssym, esym;
 
 	if ((md = file_findmetadata(fp, MODINFOMD_ELFHDR)) == NULL) {
