@@ -1,6 +1,8 @@
 package Shell;
+use 5.005_64;
+our($capture_stderr, $VERSION);
 
-use Config;
+$VERSION = '0.2';
 
 sub import {
     my $self = shift;
@@ -20,12 +22,12 @@ sub import {
 AUTOLOAD {
     my $cmd = $AUTOLOAD;
     $cmd =~ s/^.*:://;
-    eval qq {
-	*$AUTOLOAD = sub {
+    eval <<"*END*";
+	sub $AUTOLOAD {
 	    if (\@_ < 1) {
-		`$cmd`;
+		\$Shell::capture_stderr ? `$cmd 2>&1` : `$cmd`;
 	    }
-	    elsif (\$Config{'archname'} eq 'os2') {
+	    elsif ('$^O' eq 'os2') {
 		local(\*SAVEOUT, \*READ, \*WRITE);
 
 		open SAVEOUT, '>&STDOUT' or die;
@@ -33,8 +35,8 @@ AUTOLOAD {
 		open STDOUT, '>&WRITE' or die;
 		close WRITE;
 
-		my \$pid = system(1, \$cmd, \@_);
-		die "Can't execute $cmd: \$!\n" if \$pid < 0;
+		my \$pid = system(1, '$cmd', \@_);
+		die "Can't execute $cmd: \$!\\n" if \$pid < 0;
 
 		open STDOUT, '>&SAVEOUT' or die;
 		close SAVEOUT;
@@ -54,9 +56,34 @@ AUTOLOAD {
 		}
 	    }
 	    else {
-		open(SUBPROC, "-|")
-			or exec '$cmd', \@_
-			or die "Can't exec $cmd: \$!\n";
+		my \$a;
+		my \@arr = \@_;
+		if ('$^O' eq 'MSWin32') {
+		    # XXX this special-casing should not be needed
+		    # if we do quoting right on Windows. :-(
+		    #
+		    # First, escape all quotes.  Cover the case where we
+		    # want to pass along a quote preceded by a backslash
+		    # (i.e., C<"param \\""" end">).
+		    # Ugly, yup?  You know, windoze.
+		    # Enclose in quotes only the parameters that need it:
+		    #   try this: c:\> dir "/w"
+		    #   and this: c:\> dir /w
+		    for (\@arr) {
+			s/"/\\\\"/g;
+			s/\\\\\\\\"/\\\\\\\\"""/g;
+			\$_ = qq["\$_"] if /\\s/;
+		    }
+		}
+		else {
+		    for (\@arr) {
+			s/(['\\\\])/\\\\\$1/g;
+			\$_ = "'\$_'";
+		    }
+		}
+		push \@arr, '2>&1' if \$Shell::capture_stderr;
+		open(SUBPROC, join(' ', '$cmd', \@arr, '|'))
+		    or die "Can't exec $cmd: \$!\\n";
 		if (wantarray) {
 		    my \@ret = <SUBPROC>;
 		    close SUBPROC;	# XXX Oughta use a destructor.
@@ -70,7 +97,9 @@ AUTOLOAD {
 		}
 	    }
 	}
-    };
+*END*
+
+    die "$@\n" if $@;
     goto &$AUTOLOAD;
 }
 
@@ -119,8 +148,17 @@ usage should be
 Larry
 
 
+If you set $Shell::capture_stderr to 1, the module will attempt to
+capture the STDERR of the process as well.
+
+The module now should work on Win32.
+
+ Jenda
+
 =head1 AUTHOR
 
 Larry Wall
+
+Changes by Jenda@Krynicky.cz and Dave Cottle <d.cottle@csc.canterbury.ac.nz>
 
 =cut

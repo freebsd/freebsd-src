@@ -2,8 +2,7 @@ use Thread;
 
 $level = 0;
 
-sub single_file {
-    use attrs 'locked';
+sub single_file : locked {
     my $arg = shift;
     $level++;
     print "Level $level for $arg\n";

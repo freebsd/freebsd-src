@@ -1,8 +1,8 @@
 # typemap for Perl 5 interface to Berkeley 
 #
 # written by Paul Marquess <Paul.Marquess@btinternet.com>
-# last modified 21st February 1999
-# version 1.65
+# last modified 7th September 1999
+# version 1.71
 #
 #################################### DB SECTION
 #
@@ -15,21 +15,23 @@ DBTKEY			T_dbtkeydatum
 
 INPUT
 T_dbtkeydatum
+	ckFilter($arg, filter_store_key, \"filter_store_key\");
+	DBT_clear($var) ;
 	if (db->type != DB_RECNO) {
 	    $var.data = SvPV($arg, PL_na);
 	    $var.size = (int)PL_na;
-	    DBT_flags($var);
 	}
 	else {
-	    Value =  GetRecnoKey(db, SvIV($arg)) ; 
+	    Value =  GetRecnoKey(aTHX_ db, SvIV($arg)) ; 
 	    $var.data = & Value; 
 	    $var.size = (int)sizeof(recno_t);
-	    DBT_flags($var);
 	}
 T_dbtdatum
+	ckFilter($arg, filter_store_value, \"filter_store_value\");
+	DBT_clear($var) ;
 	$var.data = SvPV($arg, PL_na);
 	$var.size = (int)PL_na;
-	DBT_flags($var);
+
 
 OUTPUT
 

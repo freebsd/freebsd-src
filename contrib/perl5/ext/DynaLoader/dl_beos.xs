@@ -18,15 +18,15 @@
 #include "dlutils.c"	/* SaveError() etc	*/
 
 static void
-dl_private_init()
+dl_private_init(pTHX)
 {
-    (void)dl_generic_private_init();
+    (void)dl_generic_private_init(aTHX);
 }
 
 MODULE = DynaLoader	PACKAGE = DynaLoader
 
 BOOT:
-    (void)dl_private_init();
+    (void)dl_private_init(aTHX);
 
 
 void *
@@ -45,16 +45,16 @@ dl_load_file(filename, flags=0)
       strcpy(path, filename);
     }
 
-    DLDEBUG(1,PerlIO_printf(PerlIO_stderr(), "dl_load_file(%s,%x):\n", path, flags));
+    DLDEBUG(1,PerlIO_printf(Perl_debug_log, "dl_load_file(%s,%x):\n", path, flags));
     bogo = load_add_on(path);
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), " libref=%lx\n", (unsigned long) RETVAL));
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, " libref=%lx\n", (unsigned long) RETVAL));
     ST(0) = sv_newmortal() ;
     if (bogo < 0) {
-	SaveError("%s", strerror(bogo));
-	PerlIO_printf(PerlIO_stderr(), "load_add_on(%s) : %d (%s)\n", path, bogo, strerror(bogo));
+	SaveError(aTHX_ "%s", strerror(bogo));
+	PerlIO_printf(Perl_debug_log, "load_add_on(%s) : %d (%s)\n", path, bogo, strerror(bogo));
     } else {
 	RETVAL = (void *) bogo;
-	sv_setiv( ST(0), (IV)RETVAL);
+	sv_setiv( ST(0), PTR2IV(RETVAL) );
     }
     free(path);
 }
@@ -67,23 +67,23 @@ dl_find_symbol(libhandle, symbolname)
     status_t retcode;
     void *adr = 0;
 #ifdef DLSYM_NEEDS_UNDERSCORE
-    symbolname = form("_%s", symbolname);
+    symbolname = Perl_form_nocontext("_%s", symbolname);
 #endif
     RETVAL = NULL;
-    DLDEBUG(2, PerlIO_printf(PerlIO_stderr(),
+    DLDEBUG(2, PerlIO_printf(Perl_debug_log,
 			     "dl_find_symbol(handle=%lx, symbol=%s)\n",
 			     (unsigned long) libhandle, symbolname));
     retcode = get_image_symbol((image_id) libhandle, symbolname,
                                B_SYMBOL_TYPE_TEXT, (void **) &adr);
     RETVAL = adr;
-    DLDEBUG(2, PerlIO_printf(PerlIO_stderr(),
+    DLDEBUG(2, PerlIO_printf(Perl_debug_log,
 			     "  symbolref = %lx\n", (unsigned long) RETVAL));
     ST(0) = sv_newmortal() ;
     if (RETVAL == NULL) {
-	SaveError("%s", strerror(retcode)) ;
-	PerlIO_printf(PerlIO_stderr(), "retcode = %p (%s)\n", retcode, strerror(retcode));
+	SaveError(aTHX_ "%s", strerror(retcode)) ;
+	PerlIO_printf(Perl_debug_log, "retcode = %p (%s)\n", retcode, strerror(retcode));
     } else
-	sv_setiv( ST(0), (IV)RETVAL);
+	sv_setiv( ST(0), PTR2IV(RETVAL));
 
 
 void
@@ -100,9 +100,11 @@ dl_install_xsub(perl_name, symref, filename="$Package")
     void *		symref 
     char *		filename
     CODE:
-    DLDEBUG(2,PerlIO_printf(PerlIO_stderr(), "dl_install_xsub(name=%s, symref=%lx)\n",
+    DLDEBUG(2,PerlIO_printf(Perl_debug_log, "dl_install_xsub(name=%s, symref=%lx)\n",
 		perl_name, (unsigned long) symref));
-    ST(0)=sv_2mortal(newRV((SV*)newXS(perl_name, (void(*)_((CV *)))symref, filename)));
+    ST(0) = sv_2mortal(newRV((SV*)newXS(perl_name,
+					(void(*)(pTHX_ CV *))symref,
+					filename)));
 
 
 char *

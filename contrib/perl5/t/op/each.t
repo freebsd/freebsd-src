@@ -1,8 +1,6 @@
 #!./perl
 
-# $RCSfile: each.t,v $$Revision: 4.1 $$Date: 92/08/07 18:27:47 $
-
-print "1..16\n";
+print "1..19\n";
 
 $h{'abc'} = 'ABC';
 $h{'def'} = 'DEF';
@@ -120,3 +118,16 @@ while (($key, $value) = each(h)) {
 	}
 }
 if ($i == 5) { print "ok 16\n" } else { print "not ok\n" }
+
+{
+    package Obj;
+    sub DESTROY { print "ok 18\n"; }
+    {
+	my $h = { A => bless [], __PACKAGE__ };
+        while (my($k,$v) = each %$h) {
+	    print "ok 17\n" if $k eq 'A' and ref($v) eq 'Obj';
+	}
+    }
+    print "ok 19\n";
+}
+

@@ -3,14 +3,14 @@
 BEGIN {
     unless(grep /blib/, @INC) {
         chdir 't' if -d 't';
-        @INC = '../lib' if -d '../lib';
+        unshift @INC, '../lib' if -d '../lib';
     }
 }
 
 select(STDERR); $| = 1;
 select(STDOUT); $| = 1;
 
-print "1..21\n";
+print "1..23\n";
 
 use IO::Select 1.09;
 
@@ -114,3 +114,19 @@ print "ok 20\n";
 $sel->remove($sel->handles);
 print "not " unless $sel->count == 0 && !defined($sel->bits);
 print "ok 21\n";
+
+# check warnings
+$SIG{__WARN__} = sub { 
+    ++ $w 
+      if $_[0] =~ /^Call to depreciated method 'has_error', use 'has_exception'/ 
+    } ;
+$w = 0 ;
+IO::Select::has_error();
+print "not " unless $w == 0 ;
+$w = 0 ;
+print "ok 22\n" ;
+use warnings 'IO::Select' ;
+IO::Select::has_error();
+print "not " unless $w == 1 ;
+$w = 0 ;
+print "ok 23\n" ;

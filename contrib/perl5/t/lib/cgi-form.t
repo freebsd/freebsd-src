@@ -5,7 +5,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib' if -d '../lib';
+    unshift @INC, '../lib' if -d '../lib';
 }
 
 BEGIN {$| = 1; print "1..17\n"; }
@@ -44,16 +44,16 @@ test(6,textfield(-name=>'weather') eq qq(<INPUT TYPE="text" NAME="weather" VALUE
 test(7,textfield(-name=>'weather',-value=>'nice') eq qq(<INPUT TYPE="text" NAME="weather" VALUE="dull">),"textfield({-name,-value})");
 test(8,textfield(-name=>'weather',-value=>'nice',-override=>1) eq qq(<INPUT TYPE="text" NAME="weather" VALUE="nice">),
      "textfield({-name,-value,-override})");
-test(9,checkbox(-name=>'weather',-value=>'nice') eq qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="nice">weather\n),
+test(9,checkbox(-name=>'weather',-value=>'nice') eq qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="nice">weather),
      "checkbox()");
 test(10,checkbox(-name=>'weather',-value=>'nice',-label=>'forecast') eq 
-     qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="nice">forecast\n),
+     qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="nice">forecast),
      "checkbox()");
 test(11,checkbox(-name=>'weather',-value=>'nice',-label=>'forecast',-checked=>1,-override=>1) eq 
-     qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="nice" CHECKED>forecast\n),
+     qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="nice" CHECKED>forecast),
      "checkbox()");
 test(12,checkbox(-name=>'weather',-value=>'dull',-label=>'forecast') eq 
-     qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="dull" CHECKED>forecast\n),
+     qq(<INPUT TYPE="checkbox" NAME="weather" VALUE="dull" CHECKED>forecast),
      "checkbox()");
 
 test(13,radio_group(-name=>'game') eq 

@@ -25,6 +25,8 @@
 
 # gcc-enabled by Kurt Starsinic <kstar@isinet.com> on 3/24/1998
 
+# 64-bitty by Jarkko Hietaniemi on 9/1998
+
 # Use   sh Configure -Dcc='cc -n32' to try compiling with -n32.
 #     or -Dcc='cc -n32 -mips3' (or -mips4) to force (non)portability
 # Don't bother with -n32 unless you have the 7.1 or later compilers.
@@ -33,17 +35,127 @@
 # Let's assume we want to use 'cc -n32' by default, unless the
 # necessary libm is missing (which has happened at least twice)
 case "$cc" in
-'')
-    if test -f /usr/lib32/libm.so
-    then
-	cc='cc -n32'
-    fi ;;
+'') case "$use64bitall" in
+    "$define"|true|[yY]*) test -f /usr/lib64/libm.so && cc='cc -64' ;;
+    *) test -f /usr/lib32/libm.so && cc='cc -n32' ;;
+    esac    	
+esac
+test -z "$cc" && cc=cc
+
+case "$use64bitint" in
+$define|true|[yY]*)
+	    case "`uname -r`" in
+	    [1-5]*|6.[01])
+		cat >&4 <<EOM
+IRIX `uname -r` does not support 64-bit types.
+You should upgrade to at least IRIX 6.2.
+Cannot continue, aborting.
+EOM
+		exit 1
+		;;
+	    esac
+	    ;;
+esac
+
+case "$use64bitall" in
+"$define"|true|[yY]*)
+  case "`uname -s`" in
+  IRIX)
+            cat >&4 <<EOM
+You cannot use -Duse64bitall in 32-bit IRIX, sorry.
+
+Cannot continue, aborting.
+EOM
+            exit 1
+	;;
+  esac
+  ;;
 esac
 
 # Check for which compiler we're using
 
 case "$cc" in
 *"cc -n32"*)
+
+	libscheck='case "`/usr/bin/file $xxx`" in
+*N32*) ;;
+*) xxx=/no/n32$xxx ;;
+esac'
+
+	# NOTE: -L/usr/lib32 -L/lib32 are automatically selected by the linker
+	ldflags=' -L/usr/local/lib32 -L/usr/local/lib'
+	cccdlflags=' '
+    # From: David Billinghurst <David.Billinghurst@riotinto.com.au>
+    # If you get complaints about so_locations then change the following
+    # line to something like:
+    #	lddlflags="-n32 -shared -check_registry /usr/lib32/so_locations"
+	lddlflags="-n32 -shared"
+	libc='/usr/lib32/libc.so'
+	plibpth='/usr/lib32 /lib32 /usr/ccs/lib'
+	;;
+*"cc -64")
+
+	loclibpth="$loclibpth /usr/lib64"
+	libscheck='case "`/usr/bin/file $xxx`" in
+*64-bit*) ;;
+*) xxx=/no/64-bit$xxx ;;
+esac'
+	# NOTE: -L/usr/lib64 -L/lib64 are automatically selected by the linker
+	ldflags=' -L/usr/local/lib64 -L/usr/local/lib'
+	cccdlflags=' '
+    # From: David Billinghurst <David.Billinghurst@riotinto.com.au>
+    # If you get complaints about so_locations then change the following
+    # line to something like:
+    #	lddlflags="-64 -shared -check_registry /usr/lib64/so_locations"
+	lddlflags="-64 -shared"
+	libc='/usr/lib64/libc.so'
+	plibpth='/usr/lib64 /lib64 /usr/ccs/lib'
+	;;
+*gcc*)
+	ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -D_POSIX_C_SOURCE"
+	optimize="-O3"
+	usenm='undef'
+	case "`uname -s`" in
+	# Without the -mabi=64 gcc in 64-bit IRIX has problems passing
+	# and returning small structures.  This affects inet_*() and semctl().
+	# See http://reality.sgi.com/ariel/freeware/gcc-2.8.1-notes.html
+	# for more information.  Reported by Lionel Cons <lionel.cons@cern.ch>.
+	IRIX64)	ccflags="$ccflags -mabi=64"
+		ldflags="$ldflags -mabi=64 -L/usr/lib64"
+		lddlflags="$lddlflags -mabi=64"
+		;;
+	*)	ccflags="$ccflags -DIRIX32_SEMUN_BROKEN_BY_GCC"
+		;;
+	esac
+	;;
+*)
+	# this is needed to force the old-32 paths
+	#  since the system default can be changed.
+	ccflags="$ccflags -32 -D_BSD_TYPES -D_BSD_TIME -Olimit 3100"
+	optimize='-O'	  
+	;;
+esac
+
+# Settings common to both native compiler modes.
+case "$cc" in
+*"cc -n32"|*"cc -64")
+	ld=$cc
+
+	# perl's malloc can return improperly aligned buffer
+	# which (under 5.6.0RC1) leads into really bizarre bus errors
+	# and freak test failures (lib/safe1 #18, for example),
+	# even more so with -Duse64bitall: for example lib/io_linenumtb.
+	# fails under the harness but succeeds when run separately,
+	# under make test pragma/warnings #98 fails, and lib/io_dir
+	# apparently coredumps (the last two don't happen under
+    	# the harness.  Helmut Jarausch is seeing bus errors from
+        # miniperl, as was Scott Henry with snapshots from just before
+	# the RC1. --jhi
+	usemymalloc='undef'
+#malloc_cflags='ccflags="-DSTRICT_ALIGNMENT $ccflags"'
+
+	nm_opt='-p'
+	nm_so_opt='-p'
 
 	# Perl 5.004_57 introduced new qsort code into pp_ctl.c that
 	# makes IRIX  cc prior to 7.2.1 to emit bad code.
@@ -52,11 +164,11 @@ case "$cc" in
 	# Check for which version of the compiler we're running
 	case "`$cc -version 2>&1`" in
 	*7.0*)                        # Mongoose 7.0
-	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1042,1048,1110,1116,1184 -OPT:Olimit=0"
+	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1042,1048,1110,1116,1174,1184,1552 -OPT:Olimit=0"
 	     optimize='none'
 	     ;;
 	*7.1*|*7.2|*7.20)             # Mongoose 7.1+
-	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1184 -OPT:Olimit=0"
+	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1174,1184,1552 -OPT:Olimit=0"
 	     optimize='-O3'
 # This is a temporary fix for 5.005.
 # Leave pp_ctl_cflags  line at left margin for Configure.  See 
@@ -65,15 +177,15 @@ case "$cc" in
 pp_ctl_cflags='optimize=-O'
 	     ;;
 	*7.*)                         # Mongoose 7.2.1+
-	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1184 -OPT:Olimit=0:space=ON"
+	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1174,1184,1552 -OPT:Olimit=0:space=ON"
 	     optimize='-O3'
 	     ;;
 	*6.2*)                        # Ragnarok 6.2
-	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1184"
+	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1174,1184,1552"
 	     optimize='none'
 	     ;;
 	*)                            # Be safe and not optimize
-	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1184 -OPT:Olimit=0"
+	     ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -woff 1009,1110,1174,1184,1552 -OPT:Olimit=0"
 	     optimize='none'
 	     ;;
 	esac
@@ -89,43 +201,23 @@ pp_ctl_cflags='optimize=-O'
 # absolute paths (again, see the pthread.h change below). 
 # -- krishna@sgi.com, 8/23/98
 
-if [ "X${TOOLROOT}" != "X" ]; then
-# we cant set cppflags because it gets overwritten
-# we dont actually need $TOOLROOT/usr/include on the cc line cuz the 
-# modules functionality already includes it but
-# XXX - how do I change cppflags in the hints file?
-	ccflags="$ccflags -I${TOOLROOT}/usr/include"
+	if [ "X${TOOLROOT}" != "X" ]; then
+	# we cant set cppflags because it gets overwritten
+	# we dont actually need $TOOLROOT/usr/include on the cc line cuz the 
+	# modules functionality already includes it but
+	# XXX - how do I change cppflags in the hints file?
+		ccflags="$ccflags -I${TOOLROOT}/usr/include"
 	usrinc="${TOOLROOT}/usr/include"
-fi
+        fi
 
-	ld=$cc
-	# perl's malloc can return improperly aligned buffer
-	# usemymalloc='undef'
-malloc_cflags='ccflags="-DSTRICT_ALIGNMENT $ccflags"'
-	# NOTE: -L/usr/lib32 -L/lib32 are automatically selected by the linker
-	ldflags=' -L/usr/local/lib32 -L/usr/local/lib'
-	cccdlflags=' '
-    # From: David Billinghurst <David.Billinghurst@riotinto.com.au>
-    # If you get complaints about so_locations then change the following
-    # line to something like:
-    #	lddlflags="-n32 -shared -check_registry /usr/lib32/so_locations"
-	lddlflags="-n32 -shared"
-	libc='/usr/lib32/libc.so'
-	plibpth='/usr/lib32 /lib32 /usr/ccs/lib'
-	nm_opt='-p'
-	nm_so_opt='-p'
 	;;
-*gcc*)
-	ccflags="$ccflags -D_BSD_TYPES -D_BSD_TIME -D_POSIX_C_SOURCE"
-	optimize="-O3"
-	usenm='undef'
-	;;
-*)
-	# this is needed to force the old-32 paths
-	#  since the system default can be changed.
-	ccflags="$ccflags -32 -D_BSD_TYPES -D_BSD_TIME -Olimit 3100"
-	optimize='-O'	  
-	;;
+esac
+
+# Don't groan about unused libraries.
+ldflags="$ldflags -Wl,-woff,84"
+
+case "`$cc -version 2>&1`" in
+*7.2.*) op_cflags='optimize=-O1' ;; # workaround for an optimizer bug
 esac
 
 # We don't want these libraries.
@@ -134,6 +226,11 @@ esac
 set `echo X "$libswanted "|sed -e 's/ socket / /' -e 's/ nsl / /' -e 's/ dl / /'`
 shift
 libswanted="$*"
+
+# Irix 6.5.6 seems to have a broken header <sys/mode.h>
+# don't include that (it doesn't contain S_IFMT, S_IFREG, et al)
+
+i_sysmode="$undef"
 
 # I have conflicting reports about the sun, crypt, bsd, and PW
 # libraries on Irix 6.2.
@@ -159,9 +256,9 @@ set `echo X "$libswanted "|sed -e 's/ sun / /' -e 's/ crypt / /' -e 's/ bsd / /'
 shift
 libswanted="$*"
 
+cat > UU/usethreads.cbu <<'EOCBU'
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
-cat > UU/usethreads.cbu <<'EOCBU'
 case "$usethreads" in
 $define|true|[yY]*)
         if test ! -f ${TOOLROOT}/usr/include/pthread.h -o ! -f /usr/lib/libpthread.so; then
@@ -208,4 +305,6 @@ EOM
 	;;
 esac
 EOCBU
+
+# The -n32 makes off_t to be 8 bytes, so we should have largefileness.
 

@@ -21,15 +21,34 @@ tmp=/tmp/f$$
 
 if grep 'yaccpar 1.8 (Berkeley)' $input >/dev/null 2>&1; then
     cp $input $output
+    # Don't expect the diff to do everything -- do some by hand
     if test -f perly_c.diff; then
 	patch -F3 $output <perly_c.diff
+	sed -e '/^[ 	]*printf("yydebug:/s/printf(/PerlIO_printf(Perl_debug_log, /' \
+	    -e '/^#line /s/"y[.]tab[.]c"/"perly.c"/' \
+	    -e '/\[\] *= *[{]/s/^/static /' \
+	    -e '/^static static/s/^static //' \
+	    -e '/^#define.WORD/,/^#define.ARROW/d' \
+	    -e '/^int.yydebug/,/^#define.yystacksize/d' \
+	    < $output > $tmp && mv -f $tmp $output || exit 1
 	rm -rf $input
+	echo "If you need to debug perly.c, you need to fix up the #line"
+	echo "directives yourself."
     fi
     exit
 elif grep 'yaccpar	1.9 (Berkeley)' $input >/dev/null 2>&1; then
     if test -f perly.c.dif9; then
 	patch -F3 $output <perly.c.dif9
+	sed -e '/^[ 	]*printf("yydebug:/s/printf(/PerlIO_printf(Perl_debug_log, /' \
+	    -e '/^#line /s/"y[.]tab[.]c"/"perly.c"/' \
+	    -e '/\[\] *= *[{]/s/^/static /' \
+	    -e '/^static static/s/^static //' \
+	    -e '/^#define.WORD/,/^#define.ARROW/d' \
+	    -e '/^int.yydebug/,/^#define.yystacksize/d' \
+	    < $output > $tmp && mv -f $tmp $output || exit 1
 	rm -rf $input
+	echo "If you need to debug perly.c, you need to fix up the #line"
+	echo "directives yourself."
 	exit 0
     else
 	echo "Diffs from byacc-1.9 are not available."
@@ -90,7 +109,7 @@ case "$plan" in
     # Also added are out of memory checks (makes porting the generated
     # code easier) For most systems, it can't hurt. -- TD
     "bsd43")
-	echo "Attempting to path perly.c to allow dynamic yacc stack allocation"
+	echo "Attempting to patch perly.c to allow dynamic yacc stack allocation"
 	echo "Assuming bsd4.3 yaccpar"
 	cat >$tmp <<'END'
 /YYSTYPE[ 	]*yyv\[ *YYMAXDEPTH *\];/c\
@@ -145,7 +164,7 @@ END
 
     #######################################################
     "isc") # Interactive Systems 2.2  version
-	echo "Attempting to path perly.c to allow dynamic yacc stack allocation"
+	echo "Attempting to patch perly.c to allow dynamic yacc stack allocation"
 	echo "Assuming Interactive SysVr3 2.2 yaccpar"
 	# Easier to simply put whole script here than to modify the
 	# bsd script with sed.

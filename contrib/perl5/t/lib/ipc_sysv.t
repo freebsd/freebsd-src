@@ -3,22 +3,27 @@
 BEGIN {
     chdir 't' if -d 't';
 
-    @INC = '../lib';
+    unshift @INC, '../lib';
 
     require Config; import Config;
 
-    unless ($Config{'d_msg'} eq 'define' &&
-	    $Config{'d_sem'} eq 'define') {
-	print "1..0\n";
-	exit;
+    my $reason;
+
+    if ($Config{'d_sem'} ne 'define') {
+      $reason = '$Config{d_sem} undefined';
+    } elsif ($Config{'d_msg'} ne 'define') {
+      $reason = '$Config{d_msg} undefined';
+    }
+    if ($reason) {
+	print "1..0 # Skip: $reason\n";
+	exit 0;
     }
 }
 
 # These constants are common to all tests.
 # Later the sem* tests will import more for themselves.
 
-use IPC::SysV qw(IPC_PRIVATE IPC_NOWAIT IPC_STAT IPC_RMID
-		 S_IRWXU S_IRWXG S_IRWXO);
+use IPC::SysV qw(IPC_PRIVATE IPC_NOWAIT IPC_STAT IPC_RMID S_IRWXU);
 use strict;
 
 print "1..16\n";
@@ -49,11 +54,14 @@ EOM
     exit(1);
 };
 
+my $perm = S_IRWXU;
+
 if ($Config{'d_msgget'} eq 'define' &&
     $Config{'d_msgctl'} eq 'define' &&
     $Config{'d_msgsnd'} eq 'define' &&
     $Config{'d_msgrcv'} eq 'define') {
-    $msg = msgget(IPC_PRIVATE, S_IRWXU | S_IRWXG | S_IRWXO);
+
+    $msg = msgget(IPC_PRIVATE, $perm);
     # Very first time called after machine is booted value may be 0 
     die "msgget failed: $!\n" unless defined($msg) && $msg >= 0;
 
@@ -63,8 +71,34 @@ if ($Config{'d_msgget'} eq 'define' &&
     my $msgtype = 1;
     my $msgtext = "hello";
 
-    msgsnd($msg,pack("L a*",$msgtype,$msgtext),0) or print "not ";
+    my $test2bad;
+    my $test5bad;
+    my $test6bad;
+
+    unless (msgsnd($msg,pack("L! a*",$msgtype,$msgtext),IPC_NOWAIT)) {
+	print "not ";
+	$test2bad = 1;
+    }
     print "ok 2\n";
+    if ($test2bad) {
+	print <<EOM;
+#
+# The failure of the subtest #2 may indicate that the message queue
+# resource limits either of the system or of the testing account
+# have been reached.  Error message "Operating would block" is
+# usually indicative of this situation.  The error message was now:
+# "$!"
+#
+# You can check the message queues with the 'ipcs' command and
+# you can remove unneeded queues with the 'ipcrm -q id' command.
+# You may also consider configuring your system or account
+# to have more message queue resources.
+#
+# Because of the subtest #2 failing also the substests #5 and #6 will
+# very probably also fail.
+#
+EOM
+    }
 
     my $data;
     msgctl($msg,IPC_STAT,$data) or print "not ";
@@ -74,13 +108,33 @@ if ($Config{'d_msgget'} eq 'define' &&
     print "ok 4\n";
 
     my $msgbuf;
-    msgrcv($msg,$msgbuf,256,0,IPC_NOWAIT) or print "not ";
+    unless (msgrcv($msg,$msgbuf,256,0,IPC_NOWAIT)) {
+	print "not ";
+	$test5bad = 1;
+    }
     print "ok 5\n";
+    if ($test5bad && $test2bad) {
+	print <<EOM;
+#
+# This failure was to be expected because the subtest #2 failed.
+#
+EOM
+    }
 
-    my($rmsgtype,$rmsgtext) = unpack("L a*",$msgbuf);
-
-    print "not " unless($rmsgtype == $msgtype && $rmsgtext eq $msgtext);
+    my($rmsgtype,$rmsgtext);
+    ($rmsgtype,$rmsgtext) = unpack("L! a*",$msgbuf);
+    unless ($rmsgtype == $msgtype && $rmsgtext eq $msgtext) {
+	print "not ";
+	$test6bad = 1;
+    }
     print "ok 6\n";
+    if ($test6bad && $test2bad) {
+	print <<EOM;
+#
+# This failure was to be expected because the subtest #2 failed.
+#
+EOM
+     }
 } else {
     for (1..6) {
 	print "ok $_\n"; # fake it
@@ -90,80 +144,64 @@ if ($Config{'d_msgget'} eq 'define' &&
 if($Config{'d_semget'} eq 'define' &&
    $Config{'d_semctl'} eq 'define') {
 
-    use IPC::SysV qw(IPC_CREAT GETALL SETALL);
+    if ($Config{'d_semctl_semid_ds'} eq 'define' ||
+	$Config{'d_semctl_semun'}    eq 'define') {
 
-    $sem = semget(IPC_PRIVATE, 10, S_IRWXU | S_IRWXG | S_IRWXO | IPC_CREAT);
-    # Very first time called after machine is booted value may be 0 
-    die "semget: $!\n" unless defined($sem) && $sem >= 0;
+	use IPC::SysV qw(IPC_CREAT GETALL SETALL);
 
-    print "ok 7\n";
+	$sem = semget(IPC_PRIVATE, 10, $perm | IPC_CREAT);
+	# Very first time called after machine is booted value may be 0 
+	die "semget: $!\n" unless defined($sem) && $sem >= 0;
 
-    my $data;
-    semctl($sem,0,IPC_STAT,$data) or print "not ";
-    print "ok 8\n";
+	print "ok 7\n";
 
-    print "not " unless length($data);
-    print "ok 9\n";
+	my $data;
+	semctl($sem,0,IPC_STAT,$data) or print "not ";
+	print "ok 8\n";
+	
+	print "not " unless length($data);
+	print "ok 9\n";
 
-    my $template;
+	my $nsem = 10;
 
-    # Find the pack/unpack template capable of handling native C shorts.
+	semctl($sem,0,SETALL,pack("s!*",(0) x $nsem)) or print "not ";
+	print "ok 10\n";
 
-    if      ($Config{shortsize} == 2) {
-	$template = "s";
-    } elsif ($Config{shortsize} == 4) {
-	$template = "l";
-    } elsif ($Config{shortsize} == 8) {
-	# Try quad last because not supported everywhere.
-	foreach my $t (qw(i q)) {
-	    # We could trap the unsupported quad template with eval
-	    # but if we get this far we should have quad support anyway.
-	    if (length(pack($t, 0)) == 8) {
-		$template = $t;
-		last;
-	    }
+	$data = "";
+	semctl($sem,0,GETALL,$data) or print "not ";
+	print "ok 11\n";
+
+	print "not " unless length($data) == length(pack("s!*",(0) x $nsem));
+	print "ok 12\n";
+
+	my @data = unpack("s!*",$data);
+
+	my $adata = "0" x $nsem;
+
+	print "not " unless @data == $nsem and join("",@data) eq $adata;
+	print "ok 13\n";
+
+	my $poke = 2;
+
+	$data[$poke] = 1;
+	semctl($sem,0,SETALL,pack("s!*",@data)) or print "not ";
+	print "ok 14\n";
+    
+	$data = "";
+	semctl($sem,0,GETALL,$data) or print "not ";
+	print "ok 15\n";
+
+	@data = unpack("s!*",$data);
+
+	my $bdata = "0" x $poke . "1" . "0" x ($nsem-$poke-1);
+
+	print "not " unless join("",@data) eq $bdata;
+	print "ok 16\n";
+    } else {
+	for (7..16) {
+	    print "ok $_ # skipped, no semctl possible\n";
 	}
     }
-
-    die "$0: cannot pack native shorts\n" unless defined $template;
-
-    $template .= "*";
-
-    my $nsem = 10;
-
-    semctl($sem,0,SETALL,pack($template,(0) x $nsem)) or print "not ";
-    print "ok 10\n";
-
-    $data = "";
-    semctl($sem,0,GETALL,$data) or print "not ";
-    print "ok 11\n";
-
-    print "not " unless length($data) == length(pack($template,(0) x $nsem));
-    print "ok 12\n";
-
-    my @data = unpack($template,$data);
-
-    my $adata = "0" x $nsem;
-
-    print "not " unless @data == $nsem and join("",@data) eq $adata;
-    print "ok 13\n";
-
-    my $poke = 2;
-
-    $data[$poke] = 1;
-    semctl($sem,0,SETALL,pack($template,@data)) or print "not ";
-    print "ok 14\n";
-    
-    $data = "";
-    semctl($sem,0,GETALL,$data) or print "not ";
-    print "ok 15\n";
-
-    @data = unpack($template,$data);
-
-    my $bdata = "0" x $poke . "1" . "0" x ($nsem-$poke-1);
-
-    print "not " unless join("",@data) eq $bdata;
-    print "ok 16\n";
 } else {
     for (7..16) {
 	print "ok $_\n"; # fake it

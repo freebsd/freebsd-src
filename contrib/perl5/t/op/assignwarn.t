@@ -8,12 +8,12 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 use strict;
+use warnings;
 
-$^W = 1;
 my $warn = "";
 $SIG{q(__WARN__)} = sub { print $warn; $warn .= join("",@_) };
 

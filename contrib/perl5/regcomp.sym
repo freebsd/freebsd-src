@@ -16,25 +16,47 @@ EOL		EOL,    no	Match "" at end of line.
 MEOL		EOL,    no	Same, assuming multiline.
 SEOL		EOL,    no	Same, assuming singleline.
 BOUND		BOUND,  no	Match "" at any word boundary
+BOUNDUTF8	BOUND,  no	Match "" at any word boundary
 BOUNDL		BOUND,  no	Match "" at any word boundary
+BOUNDLUTF8	BOUND,  no	Match "" at any word boundary
 NBOUND		NBOUND, no	Match "" at any word non-boundary
+NBOUNDUTF8	NBOUND, no	Match "" at any word non-boundary
 NBOUNDL		NBOUND, no	Match "" at any word non-boundary
+NBOUNDLUTF8	NBOUND, no	Match "" at any word non-boundary
 GPOS		GPOS,   no	Matches where last m//g left off.
 
 # [Special] alternatives
-ANY		ANY,    no	Match any one character (except newline).
-SANY		ANY,    no	Match any one character.
+REG_ANY		REG_ANY,    no	Match any one character (except newline).
+ANYUTF8		REG_ANY,    no	Match any one Unicode character (except newline).
+SANY		REG_ANY,    no	Match any one character.
+SANYUTF8	REG_ANY,    no	Match any one Unicode character.
 ANYOF		ANYOF,  sv	Match character in (or not in) this class.
+ANYOFUTF8	ANYOF,  sv 1	Match character in (or not in) this class.
 ALNUM		ALNUM,  no	Match any alphanumeric character
+ALNUMUTF8	ALNUM,  no	Match any alphanumeric character in utf8
 ALNUML		ALNUM,  no	Match any alphanumeric char in locale
+ALNUMLUTF8	ALNUM,  no	Match any alphanumeric char in locale+utf8
 NALNUM		NALNUM, no	Match any non-alphanumeric character
+NALNUMUTF8	NALNUM, no	Match any non-alphanumeric character in utf8
 NALNUML		NALNUM, no	Match any non-alphanumeric char in locale
+NALNUMLUTF8	NALNUM, no	Match any non-alphanumeric char in locale+utf8
 SPACE		SPACE,  no	Match any whitespace character
+SPACEUTF8	SPACE,  no	Match any whitespace character in utf8
 SPACEL		SPACE,  no	Match any whitespace char in locale
+SPACELUTF8	SPACE,  no	Match any whitespace char in locale+utf8
 NSPACE		NSPACE, no	Match any non-whitespace character
+NSPACEUTF8	NSPACE, no	Match any non-whitespace character in utf8
 NSPACEL		NSPACE, no	Match any non-whitespace char in locale
+NSPACELUTF8	NSPACE, no	Match any non-whitespace char in locale+utf8
 DIGIT		DIGIT,  no	Match any numeric character
+DIGITUTF8	DIGIT,  no	Match any numeric character in utf8
+DIGITL		DIGIT,  no	Match any numeric character in locale
+DIGITLUTF8	DIGIT,  no	Match any numeric character in locale+utf8
 NDIGIT		NDIGIT, no	Match any non-numeric character
+NDIGITUTF8	NDIGIT, no	Match any non-numeric character in utf8
+NDIGITL		NDIGIT, no	Match any non-numeric character in locale
+NDIGITLUTF8	NDIGIT, no	Match any non-numeric character in locale+utf8
+CLUMP		CLUMP,  no	Match any combining character sequence
 
 # BRANCH	The set of branches constituting a single choice are hooked
 #		together with their "next" pointers, since precedence prevents

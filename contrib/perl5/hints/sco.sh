@@ -9,6 +9,8 @@
 # Mostly rewritten on
 # Tue Jan 19 23:00:00 CET 1999
 # by Francois Desarmenien <desar@club-internet.fr>
+# Modified by Boyd Gerber <gerberb@zenez.com>
+# Tue Sep 21 1999
 ###############################################################
 #
 # To use cc,  use   sh Configure
@@ -82,6 +84,7 @@ case `/bin/uname -X | egrep '3\.2v'` in
    echo "" >&4
    echo "" >&4
    echo "  For UnixWare, use svr4.sh hints instead" >&4
+   echo "  For UnixWare 7.*, use svr5.sh hints instead" >&4
    echo "" >&4
    echo "***********************************************************" >&4
    exit
@@ -102,7 +105,7 @@ if test "$scorls" = "3"
 then 
     dlext=''
     case "$cc" in
-        gcc)    optimize='-O2' ;;
+        *gcc*)  optimize='-O2' ;;
         *)      ccflags="$ccflags -W0 -quiet"
                 optimize='-O' ;;
     esac
@@ -114,7 +117,7 @@ else
     ###############################################################
     # In Release 5, always compile ELF objects
     case "$cc" in
-        gcc)
+        *gcc*)
             ccflags="$ccflags -melf"
             optimize='-O2'
         ;;
@@ -139,7 +142,7 @@ else
     if test "$usedl" != "n"; then
         ld='ld'
         case "$cc" in
-            gcc)
+            *gcc*)
                 ccdlflags='-Xlinker -Bexport -L/usr/local/lib'
                 cccdlflags='-fpic'
                 lddlflags='-G -L/usr/local/lib'
@@ -173,6 +176,13 @@ fi
 # We need to remove libdl, as libdl.so exists, but ld complains
 # it can't find libdl.a ! Bug or feature ? :-)
 libswanted=`echo " $libswanted " | sed -e 's/ dl / /'`
+set X $libswanted
+shift
+libswanted="$*"
+
+###############################################################
+# Remove libbind because it conflicts with libsocket.
+libswanted=`echo " $libswanted " | sed -e 's/ bind / /'`
 set X $libswanted
 shift
 libswanted="$*"

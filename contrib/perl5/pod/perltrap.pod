@@ -22,7 +22,7 @@ The English module, loaded via
     use English;
 
 allows you to refer to special variables (like C<$/>) with names (like
-C<$RS>), as though they were in B<awk>; see L<perlvar> for details.
+$RS), as though they were in B<awk>; see L<perlvar> for details.
 
 =item *
 
@@ -69,7 +69,7 @@ executed.)  See L<perlvar>.
 
 =item *
 
-$E<lt>I<digit>E<gt> does not refer to fields--it refers to substrings matched
+$<I<digit>> does not refer to fields--it refers to substrings matched
 by the last match pattern.
 
 =item *
@@ -103,7 +103,7 @@ basically incompatible with C.)
 The concatenation operator is ".", not the null string.  (Using the
 null string would render C</pat/ /pat/> unparsable, because the third slash
 would be interpreted as a division operator--the tokenizer is in fact
-slightly context sensitive for operators like "/", "?", and "E<gt>".
+slightly context sensitive for operators like "/", "?", and ">".
 And in fact, "." itself can be the beginning of a number.)
 
 =item *
@@ -160,7 +160,7 @@ You must use C<elsif> rather than C<else if>.
 
 The C<break> and C<continue> keywords from C become in
 Perl C<last> and C<next>, respectively.
-Unlike in C, these do I<NOT> work within a C<do { } while> construct.
+Unlike in C, these do I<not> work within a C<do { } while> construct.
 
 =item *
 
@@ -295,7 +295,7 @@ you might expect to do not.
 
 =item *
 
-The E<lt>FHE<gt> construct is not the name of the filehandle, it is a readline
+The <FH> construct is not the name of the filehandle, it is a readline
 operation on that handle.  The data read is assigned to $_ only if the
 file read is the sole condition in a while loop:
 
@@ -305,7 +305,7 @@ file read is the sole condition in a while loop:
 
 =item *
 
-Remember not to use "C<=>" when you need "C<=~>";
+Remember not to use C<=> when you need C<=~>;
 these two constructs are quite different:
 
     $x =  /foo/;
@@ -393,7 +393,8 @@ Everything else.
 
 If you find an example of a conversion trap that is not listed here,
 please submit it to Bill Middleton <F<wjm@best.com>> for inclusion.
-Also note that at least some of these can be caught with B<-w>.
+Also note that at least some of these can be caught with the
+C<use warnings> pragma or the B<-w> switch.
 
 =head2 Discontinuance, Deprecation, and BugFix traps
 
@@ -424,7 +425,7 @@ behave differently in perl4 vs. perl5, because the packages don't exist.
     $a=1;$b=2;$c=3;$var=4;
     print "$a::$b::$c ";
     print "$var::abc::xyz\n";
- 
+
     # perl4 prints: 1::2::3 4::abc::xyz
     # perl5 prints: 3
 
@@ -585,24 +586,6 @@ number of elements in the resulting list.
     # perl4 prints: second new
     # perl5 prints: 3
 
-=item * Discontinuance
-
-In Perl 4 (and versions of Perl 5 before 5.004), C<'\r'> characters in
-Perl code were silently allowed, although they could cause (mysterious!)
-failures in certain constructs, particularly here documents.  Now,
-C<'\r'> characters cause an immediate fatal error.  (Note: In this
-example, the notation B<\015> represents the incorrect line
-ending. Depending upon your text viewer, it will look different.)
-
-    print "foo";\015
-    print "bar";
-
-    # perl4     prints: foobar
-    # perl5.003 prints: foobar
-    # perl5.004 dies: Illegal character \015 (carriage return)
-
-See L<perldiag> for full details.
-
 =item * Deprecation
 
 Some error messages will be different.
@@ -715,6 +698,30 @@ Logical tests now return an null, instead of 0
 Also see L<"General Regular Expression Traps using s///, etc.">
 for another example of this new feature...
 
+=item * Bitwise string ops
+
+When bitwise operators which can operate upon either numbers or
+strings (C<& | ^ ~>) are given only strings as arguments, perl4 would
+treat the operands as bitstrings so long as the program contained a call
+to the C<vec()> function. perl5 treats the string operands as bitstrings.
+(See L<perlop/Bitwise String Operators> for more details.)
+
+    $fred = "10";
+    $barney = "12";
+    $betty = $fred & $barney;
+    print "$betty\n";
+    # Uncomment the next line to change perl4's behavior
+    # ($dummy) = vec("dummy", 0, 0);
+
+    # Perl4 prints:
+    8
+
+    # Perl5 prints:
+    10
+
+    # If vec() is used anywhere in the program, both print:
+    10
+
 =back
 
 =head2 General data type traps
@@ -760,6 +767,9 @@ Hashes get defined before use
 
     # perl4 prints:
     # perl5 dies: hash %h defined
+
+Perl will now generate a warning when it sees defined(@a) and
+defined(%h).
 
 =item * (Globs)
 
@@ -1056,7 +1066,7 @@ All types of RE traps.
 =item * Regular Expression
 
 C<s'$lhs'$rhs'> now does no interpolation on either side.  It used to
-interpolate C<$lhs> but not C<$rhs>.  (And still does not match a literal
+interpolate $lhs but not $rhs.  (And still does not match a literal
 '$' in string)
 
     $a=1;$b=2;
@@ -1095,7 +1105,7 @@ the very first time in any such closure.  For instance, if you say
     }
 
 build_match() will always return a sub which matches the contents of
-C<$left> and C<$right> as they were the I<first> time that build_match()
+$left and $right as they were the I<first> time that build_match()
 was called, not as they are in the current call.
 
 This is probably a bug, and may change in future versions of Perl.
@@ -1257,7 +1267,7 @@ Since version 5.002, Perl uses sigaction() under SysV.
 
 =item * (SysV)
 
-Under SysV OSes, C<seek()> on a file opened to append C<E<gt>E<gt>> now does
+Under SysV OSes, C<seek()> on a file opened to append C<<< >> >>> now does
 the right thing w.r.t. the fopen() manpage. e.g., - When a file is opened
 for append,  it  is  impossible to overwrite information already in
 the file.
@@ -1327,7 +1337,7 @@ Note that you can C<use strict;> to ward off such trappiness under perl5.
 =item * Interpolation
 
 The construct "this is $$x" used to interpolate the pid at that
-point, but now apparently tries to dereference C<$x>.  C<$$> by itself still
+point, but now apparently tries to dereference $x.  C<$$> by itself still
 works fine, however.
 
     print "this is $$x\n";

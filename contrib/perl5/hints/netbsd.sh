@@ -34,7 +34,7 @@ case "$osvers" in
 # we use -fPIC here because -fpic is *NOT* enough for some of the
 # extensions like Tk on some netbsd platforms (the sparc is one)
 		cccdlflags="-DPIC -fPIC $cccdlflags"
-		lddlflags="-Bforcearchive -Bshareable $lddlflags"
+		lddlflags="-Bshareable $lddlflags"
 	else
 		d_dlopen=$undef
 	fi
@@ -62,10 +62,6 @@ d_setruid="$undef"
 case "$usevfork" in
 '') usevfork=true ;;
 esac
-
-# Avoid telldir prototype conflict in pp_sys.c  (NetBSD uses const DIR *)
-# Configure should test for this.  Volunteers?
-pp_sys_cflags='ccflags="$ccflags -DHAS_TELLDIR_PROTOTYPE"'
 
 # Pre-empt the /usr/bin/perl question of installperl.
 installusrbinperl='n'

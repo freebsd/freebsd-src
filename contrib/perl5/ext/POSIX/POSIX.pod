@@ -847,31 +847,35 @@ setjmp() is C-specific: use eval {} instead.
 
 =item setlocale
 
-Modifies and queries program's locale.
+Modifies and queries program's locale.  The following examples assume
+
+	use POSIX qw(setlocale LC_ALL LC_CTYPE);
+
+has been issued.
 
 The following will set the traditional UNIX system locale behavior
 (the second argument C<"C">).
 
-	$loc = POSIX::setlocale( &POSIX::LC_ALL, "C" );
+	$loc = setlocale( LC_ALL, "C" );
 
-The following will query (the missing second argument) the current
-LC_CTYPE category.
+The following will query the current LC_CTYPE category.  (No second
+argument means 'query'.)
 
-	$loc = POSIX::setlocale( &POSIX::LC_CTYPE);
+	$loc = setlocale( LC_CTYPE );
 
 The following will set the LC_CTYPE behaviour according to the locale
 environment variables (the second argument C<"">).
 Please see your systems L<setlocale(3)> documentation for the locale
 environment variables' meaning or consult L<perllocale>.
 
-	$loc = POSIX::setlocale( &POSIX::LC_CTYPE, "");
+	$loc = setlocale( LC_CTYPE, "" );
 
 The following will set the LC_COLLATE behaviour to Argentinian
 Spanish. B<NOTE>: The naming and availability of locales depends on
 your operating system. Please consult L<perllocale> for how to find
 out which locales are available in your system.
 
-	$loc = POSIX::setlocale( &POSIX::LC_ALL, "es_AR.ISO8859-1" );
+	$loc = setlocale( LC_ALL, "es_AR.ISO8859-1" );
 
 =item setpgid
 
@@ -1015,8 +1019,13 @@ The month (C<mon>), weekday (C<wday>), and yearday (C<yday>) begin at zero.
 I.e. January is 0, not 1; Sunday is 0, not 1; January 1st is 0, not 1.  The
 year (C<year>) is given in years since 1900.  I.e., the year 1995 is 95; the
 year 2001 is 101.  Consult your system's C<strftime()> manpage for details
-about these and the other arguments.  The given arguments are made consistent
-by calling C<mktime()> before calling your system's C<strftime()> function.
+about these and the other arguments.
+If you want your code to be portable, your format (C<fmt>) argument
+should use only the conversion specifiers defined by the ANSI C
+standard.  These are C<aAbBcdHIjmMpSUwWxXyYZ%>.
+The given arguments are made consistent
+as though by calling C<mktime()> before calling your system's
+C<strftime()> function, except that the C<isdst> value is not affected.
 
 The string for Tuesday, December 12, 1995.
 

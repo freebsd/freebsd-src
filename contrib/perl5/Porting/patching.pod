@@ -30,7 +30,7 @@ attempt to make everybody's life easier.
 
 The most common problems appear to be patches being mangled by certain
 mailers (I won't name names, but most of these seem to be originating on
-boxes running a certain popular commercial operating system). Other problems
+boxes running a certain popular commercial operating system).  Other problems
 include patches not rooted in the appropriate place in the directory structure,
 and patches not produced using standard utilities (such as diff).
 
@@ -52,7 +52,7 @@ First, back up the original files.  This can't be stressed enough,
 back everything up _first_.
 
 Also, please create patches against a clean distribution of the perl source.
-This insures that everyone else can apply your patch without clobbering their
+This ensures that everyone else can apply your patch without clobbering their
 source tree.
 
 =item diff
@@ -63,15 +63,18 @@ respectively, unified diffs (where the changed line appears immediately next
 to the original) and context diffs (where several lines surrounding the changes
 are included).  See the manpage for diff for more details.
 
-Also, the preferred method for patching is -
+The preferred method for creating a unified diff suitable for feeding
+to the patch program is:
 
-C<diff [C<-c> | C<-u>] E<lt>old-fileE<gt> E<lt>new-fileE<gt>>
+	diff -u old-file new-file > patch-file
 
-Note the order of files.
+Note the order of files.  See below for how to create a patch from
+two directory trees.
 
-Also, if your patch is to the core (rather than to a module) it
-is better to create it as a context diff as some machines have
-broken patch utilities that choke on unified diffs.
+If your patch is for wider consumption, it may be better to create it as
+a context diff as some machines have broken patch utilities that choke on
+unified diffs.  A context diff is made using C<diff -c> rather than
+C<diff -u>.
 
 GNU diff has many desirable features not provided by most vendor-supplied
 diffs.  Some examples using GNU diff:
@@ -94,23 +97,34 @@ diffs.  Some examples using GNU diff:
 
 =item Directories
 
-Patches should be generated from the source root directory, not from the
-directory that the patched file resides in.  This insures that the maintainer
-patches the proper file and avoids name collisions (especially common when trying
-to apply patches to files that appear in both $src_root/ext/* and $src_root/lib/*).
-It is better to diff the file in $src_root/ext than the file in $src_root/lib.
+IMPORTANT: Patches should be generated from the source root directory, not
+from the directory that the patched file resides in.  This ensures that the
+maintainer patches the proper file.
+
+Many files in the distribution are derivative--avoid patching them.
+Patch the originals instead.  Most utilities (like perldoc) are in
+this category, i.e. patch utils/perldoc.PL rather than utils/perldoc.
+Similarly, don't create patches for files under $src_root/ext from
+their copies found in $install_root/lib.  If you are unsure about the
+proper location of a file that may have gotten copied while building
+the source distribution, consult the C<MANIFEST>.
 
 =item Filenames
 
 The most usual convention when submitting patches for a single file is to make
 your changes to a copy of the file with the same name as the original.  Rename
-the original file in such a way that it is obvious what is being patched ($file~ or
-$file.old seem to be popular).
+the original file in such a way that it is obvious what is being patched
+($file.dist or $file.old seem to be popular).
 
-If you are submitting patches that affect multiple files then you should backup
-the entire directory tree (to $source_root.old/ for example).  This will allow
-C<diff C<-c> E<lt>old-dirE<gt> E<lt>new-dirE<gt>> to create all the patches
-at once.
+If you are submitting patches that affect multiple files then you should
+backup the entire directory tree (to $source_root.old/ for example).  This
+will allow C<diff -ruN old-dir new-dir> to create all the patches at once.
+
+=item Try it yourself
+
+Just to make sure your patch "works", be sure to apply it to the Perl
+distribution, rebuild everything, and make sure the testsuite runs
+without incident.
 
 =back
 
@@ -125,7 +139,7 @@ the patch corrects.  If it is a code patch (rather than a documentation
 patch) you should also include a small test case that illustrates the
 bug.
 
-=item Direction for application
+=item Directions for application
 
 You should include instructions on how to properly apply your patch.
 These should include the files affected, any shell scripts or commands
@@ -150,15 +164,35 @@ side of adding too many comments than too few.
 
 =item Style
 
-Please follow the indentation style and nesting style in use in the
-block of code that you are patching.
+In general, please follow the particular style of the code you are patching.
+
+In particular, follow these general guidelines for patching Perl sources:
+
+    8-wide tabs (no exceptions!)
+    4-wide indents for code, 2-wide indents for nested CPP #defines
+    try hard not to exceed 79-columns
+    ANSI C prototypes
+    uncuddled elses and "K&R" style for indenting control constructs
+    no C++ style (//) comments, most C compilers will choke on them
+    mark places that need to be revisited with XXX (and revisit often!)
+    opening brace lines up with "if" when conditional spans multiple
+        lines; should be at end-of-line otherwise
+    in function definitions, name starts in column 0 (return value is on
+        previous line)
+    single space after keywords that are followed by parens, no space
+        between function name and following paren
+    avoid assignments in conditionals, but if they're unavoidable, use
+        extra paren, e.g. "if (a && (b = c)) ..."
+    "return foo;" rather than "return(foo);"
+    "if (!foo) ..." rather than "if (foo == FALSE) ..." etc.
+
 
 =item Testsuite
 
 When submitting a patch you should make every effort to also include
 an addition to perl's regression tests to properly exercise your
 patch.  Your testsuite additions should generally follow these
-guidelines (courtesy of Gurusamy Sarathy (gsar@engin.umich.edu))-
+guidelines (courtesy of Gurusamy Sarathy <gsar@activestate.com>):
 
 	Know what you're testing.  Read the docs, and the source.
 	Tend to fail, not succeed.
@@ -173,16 +207,16 @@ guidelines (courtesy of Gurusamy Sarathy (gsar@engin.umich.edu))-
 	  do use them, make sure that you cover _all_ perl platforms.
 	Unlink any temporary files you create.
 	Promote unforeseen warnings to errors with $SIG{__WARN__}.
-	Be sure to use the libraries and modules shipped with version 
+	Be sure to use the libraries and modules shipped with the version 
           being tested, not those that were already installed.
 	Add comments to the code explaining what you are testing for.
 	Make updating the '1..42' string unnecessary.  Or make sure that 
           you update it.
-	Test _all_ behaviors of a given operator, library, or function-
-	  All optional arguments
-	  Return values in various contexts (boolean, scalar, list, lvalue)
-	  Use both global and lexical variables
-	  Don't forget the exceptional, pathological cases.
+	Test _all_ behaviors of a given operator, library, or function:
+	  - All optional arguments
+	  - Return values in various contexts (boolean, scalar, list, lvalue)
+	  - Use both global and lexical variables
+	  - Don't forget the exceptional, pathological cases.
 
 =back
 
@@ -196,7 +230,7 @@ patch, didn't you).
 
 =head2 An example patch creation
 
-This should work for most patches-
+This should work for most patches:
 
       cp MANIFEST MANIFEST.old
       emacs MANIFEST
@@ -222,7 +256,7 @@ word wraps your patch or that MIME encodes it.  Both of these leave
 the patch essentially worthless to the maintainer.
 
 If you have no choice in mailers and no way to get your hands on a
-better one there is, of course, a perl solution.  Just do this-
+better one there is, of course, a perl solution.  Just do this:
 
       perl -ne 'print pack("u*",$_)' patch > patch.uue
 
@@ -234,26 +268,36 @@ and post patch.uue with a note saying to unpack it using
 
 The subject line on your patch should read
 
-[PATCH]5.xxx_xx (Area) Description
+    [PATCH 5.xxx_xx AREA] Description
 
-where the x's are replaced by the appropriate version number,
-area is a short keyword identifying what area of perl you are
-patching, and description is a very brief summary of the
+where the x's are replaced by the appropriate version number.
+The description should be a very brief but accurate summary of the
 problem (don't forget this is an email header).
 
-Examples-
+Examples:
 
-[PATCH]5.004_04 (DOC) fix minor typos
+    [PATCH 5.004_04 DOC] fix minor typos
 
-[PATCH]5.004_99 (CORE) New warning for foo() when frobbing
+    [PATCH 5.004_99 CORE] New warning for foo() when frobbing
 
-[PATCH]5.005_42 (CONFIG) Added support for fribnatz 1.5
+    [PATCH 5.005_42 CONFIG] Added support for fribnatz 1.5
+
+The name of the file being patched makes for a poor subject line if
+no other descriptive text accompanies it.
 
 =item Where to send your patch
 
-If your patch is for the perl core it should be sent perlbug@perl.org.
+If your patch is for a specific bug in the Perl core, it should be sent
+using the perlbug utility.  Don't forget to describe the problem and the
+fix adequately.
+
 If it is a patch to a module that you downloaded from CPAN you should
 submit your patch to that module's author.
+
+If your patch addresses one of the items described in perltodo.pod,
+please discuss your approach B<before> you make the patch at
+<perl5-porters@perl.org>.  Be sure to browse the archives of past
+discussions (see perltodo.pod for archive locations).
 
 =back
 
@@ -270,19 +314,21 @@ to your perl distribution.
 
 =item patch C<-p>
 
-It is generally easier to apply patches with the C<-p> argument to
-patch.  This helps reconcile differing paths between the machine the
-patch was created on and the machine on which it is being applied.
+It is generally easier to apply patches with the C<-p N> argument to
+patch (where N is the number of path components to skip in the files
+found in the headers).  This helps reconcile differing paths between
+the machine the patch was created on and the machine on which it is
+being applied.
 
 =item Cut and paste
 
-_Never_ cut and paste a patch into your editor.  This usually clobbers
+B<Never> cut and paste a patch into your editor.  This usually clobbers
 the tabs and confuses patch.
 
 =item Hand editing patches
 
-Avoid hand editing patches as this frequently screws up the whitespace
-in the patch and confuses the patch program.
+Avoid hand editing patches as this almost always screws up the line
+numbers and offsets in the patch, making it useless.
 
 =back
 

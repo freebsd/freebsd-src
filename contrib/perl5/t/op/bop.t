@@ -6,10 +6,10 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
-print "1..18\n";
+print "1..30\n";
 
 # numerics
 print ((0xdead & 0xbeef) == 0x9ead ? "ok 1\n" : "not ok 1\n");
@@ -62,3 +62,22 @@ print (($foo | $bar) eq ($Aoz x 75 . $zap) ? "ok 17\n" : "not ok 17\n");
 # ^ does not truncate
 print (($foo ^ $bar) eq ($Axz x 75 . $zap) ? "ok 18\n" : "not ok 18\n");
 
+#
+print "ok \xFF\xFF\n" & "ok 19\n";
+print "ok 20\n" | "ok \0\0\n";
+print "o\000 \0001\000" ^ "\000k\0002\000\n";
+
+#
+print "ok \x{FF}\x{FF}\n" & "ok 22\n";
+print "ok 23\n" | "ok \x{0}\x{0}\n";
+print "o\x{0} \x{0}4\x{0}" ^ "\x{0}k\x{0}2\x{0}\n";
+
+#
+print "ok 25\n" if sprintf("%vd", v4095 & v801) eq 801;
+print "ok 26\n" if sprintf("%vd", v4095 | v801) eq 4095;
+print "ok 27\n" if sprintf("%vd", v4095 ^ v801) eq 3294;
+
+#
+print "ok 28\n" if sprintf("%vd", v4095.801.4095 & v801.4095) eq '801.801';
+print "ok 29\n" if sprintf("%vd", v4095.801.4095 | v801.4095) eq '4095.4095.4095';
+print "ok 30\n" if sprintf("%vd", v801.4095 ^ v4095.801.4095) eq '3294.3294.4095';

@@ -4,7 +4,7 @@ print "1..10\n";
 
 $SIG{__DIE__} = sub { print ref($_[0]) ? ("ok ",$_[0]->[0]++,"\n") : @_ } ;
 
-$err = "ok 1\n";
+$err = "#[\000]\nok 1\n";
 eval {
     die $err;
 };

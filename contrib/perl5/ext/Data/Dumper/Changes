@@ -6,6 +6,21 @@ HISTORY - public release history for Data::Dumper
 
 =over 8
 
+=item 2.11  (unreleased)
+
+C<0> is now dumped as such, not as C<'0'>.
+
+qr// objects are now dumped correctly (provided a post-5.005_58)
+overload.pm exists).
+
+Implemented $Data::Dumper::Maxdepth, which was on the Todo list.
+Thanks to John Nolan <jpnolan@Op.Net>.
+
+=item 2.101 (30 Apr 1999)
+
+Minor release to sync with version in 5.005_03.  Fixes dump of
+dummy coderefs.
+
 =item 2.10  (31 Oct 1998)
 
 Bugfixes for dumping related undef values, globs, and better double

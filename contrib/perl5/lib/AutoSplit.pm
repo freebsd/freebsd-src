@@ -1,17 +1,16 @@
 package AutoSplit;
 
+use 5.005_64;
 use Exporter ();
 use Config qw(%Config);
 use Carp qw(carp);
 use File::Basename ();
 use File::Path qw(mkpath);
 use strict;
-use vars qw(
-	    $VERSION @ISA @EXPORT @EXPORT_OK
-	    $Verbose $Keep $Maxlen $CheckForAutoloader $CheckModTime
-	   );
+our($VERSION, @ISA, @EXPORT, @EXPORT_OK, $Verbose, $Keep, $Maxlen,
+    $CheckForAutoloader, $CheckModTime);
 
-$VERSION = "1.0303";
+$VERSION = "1.0305";
 @ISA = qw(Exporter);
 @EXPORT = qw(&autosplit &autosplit_lib_modules);
 @EXPORT_OK = qw($Verbose $Keep $Maxlen $CheckForAutoloader $CheckModTime);
@@ -147,6 +146,13 @@ if (defined (&Dos::UseLFN)) {
 }
 my $Is_VMS = ($^O eq 'VMS');
 
+# allow checking for valid ': attrlist' attachments
+my $nested;
+$nested = qr{ \( (?: (?> [^()]+ ) | (??{ $nested }) )* \) }x;
+my $one_attr = qr{ (?> (?! \d) \w+ (?:$nested)? ) (?:\s*\:\s*|\s+(?!\:)) }x;
+my $attr_list = qr{ \s* : \s* (?: $one_attr )* }x;
+
+
 
 sub autosplit{
     my($file, $autodir,  $keep, $ckal, $ckmt) = @_;
@@ -169,10 +175,10 @@ sub autosplit_lib_modules{
     while(defined($_ = shift @modules)){
 	s#::#/#g;	# incase specified as ABC::XYZ
 	s|\\|/|g;		# bug in ksh OS/2
-	s#^lib/##; # incase specified as lib/*.pm
+	s#^lib/##s; # incase specified as lib/*.pm
 	if ($Is_VMS && /[:>\]]/) { # may need to convert VMS-style filespecs
-	    my ($dir,$name) = (/(.*])(.*)/);
-	    $dir =~ s/.*lib[\.\]]//;
+	    my ($dir,$name) = (/(.*])(.*)/s);
+	    $dir =~ s/.*lib[\.\]]//s;
 	    $dir =~ s#[\.\]]#/#g;
 	    $_ = $dir . $name;
 	}
@@ -195,7 +201,7 @@ sub autosplit_file {
     # where to write output files
     $autodir ||= "lib/auto";
     if ($Is_VMS) {
-	($autodir = VMS::Filespec::unixpath($autodir)) =~ s|/$||;
+	($autodir = VMS::Filespec::unixpath($autodir)) =~ s|/\z||;
 	$filename = VMS::Filespec::unixify($filename); # may have dirs
     }
     unless (-d $autodir){
@@ -209,7 +215,7 @@ sub autosplit_file {
     }
 
     # allow just a package name to be used
-    $filename .= ".pm" unless ($filename =~ m/\.pm$/);
+    $filename .= ".pm" unless ($filename =~ m/\.pm\z/);
 
     open(IN, "<$filename") or die "AutoSplit: Can't open $filename: $!\n";
     my($pm_mod_time) = (stat($filename))[9];
@@ -280,7 +286,7 @@ sub autosplit_file {
     $last_package = '';
     while (<IN>) {
 	$fnr++;
-	$in_pod = 1 if /^=/;
+	$in_pod = 1 if /^=\w/;
 	$in_pod = 0 if /^=cut/;
 	next if ($in_pod || /^=cut/);
 	# the following (tempting) old coding gives big troubles if a
@@ -289,7 +295,7 @@ sub autosplit_file {
 	if (/^package\s+([\w:]+)\s*;/) {
 	    $this_package = $def_package = $1;
 	}
-	if (/^sub\s+([\w:]+)(\s*\(.*?\))?/) {
+	if (/^sub\s+([\w:]+)(\s*(?:\(.*?\))?(?:$attr_list)?)/) {
 	    print OUT "# end of $last_package\::$subname\n1;\n"
 		if $last_package;
 	    $subname = $1;
@@ -346,8 +352,10 @@ EOT
 	}
 	$last_package = $this_package if defined $this_package;
     }
-    print OUT @cache,"1;\n# end of $last_package\::$subname\n";
-    close(OUT);
+    if ($subname) {
+	print OUT @cache,"1;\n# end of $last_package\::$subname\n";
+	close(OUT);
+    }
     close(IN);
     
     if (!$keep){  # don't keep any obsolete *.al files in the directory
@@ -370,7 +378,7 @@ EOT
 	for my $dir (keys %outdirs) {
 	    opendir(OUTDIR,$dir);
 	    foreach (sort readdir(OUTDIR)){
-		next unless /\.al$/;
+		next unless /\.al\z/;
 		my($file) = "$dir/$_";
 		$file = lc $file if $Is83 or $Is_VMS;
 		next if $outfiles{$file};
@@ -459,3 +467,6 @@ sub test6       { return join ":", __FILE__,__LINE__; }
 package Yet::Another::AutoSplit;
 sub testtesttesttest4_1 ($)  { "another test 4\n"; }
 sub testtesttesttest4_2 ($$) { "another duplicate test 4\n"; }
+package Yet::More::Attributes;
+sub test_a1 ($) : locked :locked { 1; }
+sub test_a2 : locked { 1; }

@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
     require Config; import Config;
     if (!$Config{'d_fork'}
        # open2/3 supported on win32 (but not Borland due to CRT bugs)
@@ -49,7 +49,7 @@ my ($pid, $reaped_pid);
 STDOUT->autoflush;
 STDERR->autoflush;
 
-print "1..21\n";
+print "1..22\n";
 
 # basic
 ok 1, $pid = open3 'WRITE', 'READ', 'ERROR', $perl, '-e', cmd_line(<<'EOF');
@@ -134,3 +134,17 @@ EOF
 print WRITE "ok 20\n";
 print WRITE "ok 21\n";
 waitpid $pid, 0;
+
+# command line in single parameter variant of open3
+# for understanding of Config{'sh'} test see exec description in camel book
+my $cmd = 'print(scalar(<STDIN>))';
+$cmd = $Config{'sh'} =~ /sh/ ? "'$cmd'" : cmd_line($cmd);
+eval{$pid = open3 'WRITE', '>&STDOUT', 'ERROR', "$perl -e " . $cmd; };
+if ($@) {
+	print "error $@\n";
+	print "not ok 22\n";
+}
+else {
+	print WRITE "ok 22\n";
+	waitpid $pid, 0;
+}        

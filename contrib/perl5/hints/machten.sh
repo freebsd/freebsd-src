@@ -1,18 +1,26 @@
+#! /bin/bash
 # machten.sh
-# This is for MachTen 4.0.3.  It might work on other versions and variants too.
+# This is for MachTen 4.1.4.  It might work on other versions and variants
+# too.  If it doesn't, tell me, and I'll try to fix it -- domo@computer.org
 #
 # Users of earlier MachTen versions might need a fixed tr from ftp.tenon.com.
 # This should be described in the MachTen release notes.
 #
 # MachTen 2.x has its own hint file.
 #
-# This file has been put together by Andy Dougherty
+# The original version of this file was put together by Andy Dougherty
 # <doughera@lafcol.lafayette.edu> based on comments from lots of
 # folks, especially 
 # 	Mark Pease <peasem@primenet.com>
 #	Martijn Koster <m.koster@webcrawler.com>
 #	Richard Yeh <rcyeh@cco.caltech.edu>
 #
+# Remove dynamic loading libraries from search; enable SysV IPC with
+# MachTen 4.1.4 and above; define SYSTEM_ALIGN_BYTES for old MT versions
+#                      -- Dominic Dunlop <domo@computer.org> 000224
+# Disable shadow password file access: MT 4.1.1 has necessary library
+# functions, but not header file (or documentation)
+#                      -- Dominic Dunlop <domo@computer.org> 990804
 # For now, explicitly disable dynamic loading -- MT 4.1.1 has it,
 # but these hints do not yet support it.
 # Define NOTEDEF_MACHTEN to undo gratuitous Tenon hack to signal.h.
@@ -36,6 +44,13 @@
 #
 # Comments, questions, and improvements welcome!
 #
+# MachTen 4.1.1's support for shadow password file access is incomplete:
+# disable its use completely.
+d_endspent=${d_endspent:-undef}
+d_getspent=${d_getspent:-undef}
+d_getspnam=${d_getspnam:-undef}
+d_setspent=${d_setspent:-undef}
+
 # MachTen 4.1.1 does support dynamic loading, but perl doesn't
 # know how to use it yet.
 usedl=${usedl:-undef}
@@ -61,15 +76,16 @@ fi
 # by -DPLAIN_MALLOC and -DNO_FANCY_MALLOC.
 usemymalloc=${usemymalloc:-y}
 
+# Older versions of MachTen malloc() data on a two-byte boundary, which
+# works, but slows down operations on long, float and double data.
+# Perl's malloc() can compensate if SYSTEM_ALLOC_ALIGNMENT is suitably
+# defined.
+if expr "$osvers" \< "4.1" >/dev/null
+then
+system_alloc_alignment=" -DSYSTEM_ALLOC_ALIGNMENT=2"
+fi
 # Do not wrap the following long line
-malloc_cflags='ccflags="$ccflags -DPLAIN_MALLOC -DNO_FANCY_MALLOC -DUSE_PERL_SBRK"'
-
-# Note that an empty malloc_cflags appears in config.sh if perl's
-# malloc() is not used.  his is harmless.
-case "$usemymalloc" in
-n) unset malloc_cflags;;
-*) ccflags="$ccflags  -DHIDEMYMALLOC"
-esac
+malloc_cflags='ccflags="$ccflags -DPLAIN_MALLOC -DNO_FANCY_MALLOC -DUSE_PERL_SBRK$system_alloc_alignment"'
 
 # When MachTen does a fork(), it immediately copies the whole of
 # the parent process' data space for the child.  This can be
@@ -150,19 +166,46 @@ alignbytes=8
 # friends.  Use setjmp and friends instead.
 expr "$osvers" \< "4.0.3" > /dev/null && d_sigsetjmp='undef'
 
-# System V IPC support in MachTen 4.1 is incomplete (missing msg function
+# System V IPC before MachTen 4.1.4 is incomplete (missing msg function
 # prototypes, no ftok()), buggy (semctl(.., ..,  IPC_STATUS, ..) hangs
-# system), and undocumented.  Claim it's not there until things improve.
+# system), and undocumented.  Claim it's not there at all before 4.1.4.
+if expr "$osvers" \< "4.1.4" >/dev/null
+then
 d_msg=${d_msg:-undef}
 d_sem=${d_sem:-undef}
 d_shm=${d_shm:-undef}
+fi
+
+
+# As of MachTen 4.1.4 the msg* and shm* are in libc but unimplemented
+# (an attempt to use them causes a runtime error)
+# XXX Configure probe for really functional msg*() is needed XXX
+# XXX Configure probe for really functional shm*() is needed XXX
+if test "$d_msg" = ""; then
+    d_msgget=${d_msgget:-undef}
+    d_msgctl=${d_msgctl:-undef}
+    d_msgsnd=${d_msgsnd:-undef}
+    d_msgrcv=${d_msgrcv:-undef}
+    case "$d_msgget$d_msgsnd$d_msgctl$d_msgrcv" in
+    *"undef"*) d_msg="$undef" ;;
+    esac
+fi
+if test "$d_shm" = ""; then
+    d_shmat=${d_shmat:-undef}
+    d_shmdt=${d_shmdt:-undef}
+    d_shmget=${d_shmget:-undef}
+    d_shmctl=${d_shmctl:-undef}
+    case "$d_shmat$d_shmctl$d_shmdt$d_shmget" in
+    *"undef"*) d_shm="$undef" ;;
+    esac
+fi
 
 # Get rid of some extra libs which it takes Configure a tediously
-# long time never to find on MachTen
+# long time never to find on MachTen, or which break perl
 set `echo X "$libswanted "|sed -e 's/ net / /' -e 's/ socket / /' \
     -e 's/ inet / /' -e 's/ nsl / /' -e 's/ nm / /' -e 's/ malloc / /' \
     -e 's/ ld / /' -e 's/ sun / /' -e 's/ posix / /' \
-    -e 's/ cposix / /' -e 's/ crypt / /' \
+    -e 's/ cposix / /' -e 's/ crypt / /' -e 's/ dl / /' -e 's/ dld / /' \
     -e 's/ ucb / /' -e 's/ bsd / /' -e 's/ BSD / /' -e 's/ PW / /'`
 shift
 libswanted="$*"
@@ -198,6 +241,11 @@ Similarly, when you see
 select the default answer: vfork() works, and avoids expensive data
 copying.
 
+You may also see "WHOA THERE!!!" messages concerning \$d_endspent,
+\$d_getspent, \$d_getspnam and \$d_setspent.  In all cases, select the
+default answer: MachTen's support for shadow password file access is
+incomplete, and should not be used.
+
 At the end of Configure, you will see a harmless message
 
 Hmm...You had some extra variables I don't know about...I'll try to keep 'em.
@@ -205,6 +253,7 @@ Hmm...You had some extra variables I don't know about...I'll try to keep 'em.
         Propagating recommended variable nmopts
         Propagating recommended variable malloc_cflags...
         Propagating recommended variable reg_infty
+        Propagating recommended variable system_alloc_alignment
 Read the File::Find documentation for more information about dont_use_nlink
 
 Your perl will be built with a stack size of ${stack_size}k and a regular

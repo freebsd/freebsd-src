@@ -1,6 +1,6 @@
 /*    INTERN.h
  *
- *    Copyright (c) 1991-1999, Larry Wall
+ *    Copyright (c) 1991-2000, Larry Wall
  *
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
@@ -27,16 +27,23 @@
 #  define EXTCONST globaldef {"$GLOBAL_RO_VARS"} readonly
 #  define dEXTCONST globaldef {"$GLOBAL_RO_VARS"} readonly
 #else
-#  ifdef __cplusplus
-#   define EXT
-#   define dEXT
-#   define EXTCONST extern const
-#   define dEXTCONST const
+#if defined(WIN32) && defined(__MINGW32__)
+#  define EXT		__declspec(dllexport)
+#  define dEXT
+#  define EXTCONST	__declspec(dllexport) const
+#  define dEXTCONST	const
+#else
+#ifdef __cplusplus
+#  define EXT
+#  define dEXT
+#  define EXTCONST extern const
+#  define dEXTCONST const
 #else
 #  define EXT
 #  define dEXT
 #  define EXTCONST const
 #  define dEXTCONST const
+#endif
 #endif
 #endif
 

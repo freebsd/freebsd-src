@@ -1,0 +1,54 @@
+  gv.c AOK
+
+     Can't locate package %s for @%s::ISA
+	@ISA = qw(Fred); joe()
+
+     Use of inherited AUTOLOAD for non-method %s::%.*s() is deprecated
+	sub Other::AUTOLOAD { 1 } sub Other::fred {}
+	@ISA = qw(Other) ;
+	fred() ;
+
+     Use of $# is deprecated
+     Use of $* is deprecated
+
+	$a = ${"#"} ;
+ 	$a = ${"*"} ;
+
+  Mandatory Warnings ALL TODO
+  ------------------
+
+    Had to create %s unexpectedly		[gv_fetchpv]
+    Attempt to free unreferenced glob pointers	[gp_free]
+    
+__END__
+# gv.c
+use warnings 'misc' ;
+@ISA = qw(Fred); joe()
+EXPECT
+Can't locate package Fred for @main::ISA at - line 3.
+Undefined subroutine &main::joe called at - line 3.
+########
+# gv.c
+no warnings 'misc' ;
+@ISA = qw(Fred); joe()
+EXPECT
+Undefined subroutine &main::joe called at - line 3.
+########
+# gv.c
+sub Other::AUTOLOAD { 1 } sub Other::fred {}
+@ISA = qw(Other) ;
+use warnings 'deprecated' ;
+fred() ;
+EXPECT
+Use of inherited AUTOLOAD for non-method main::fred() is deprecated at - line 5.
+########
+# gv.c
+use warnings 'deprecated' ;
+$a = ${"#"};
+$a = ${"*"};
+no warnings 'deprecated' ;
+$a = ${"#"};
+$a = ${"*"};
+EXPECT
+Use of $# is deprecated at - line 3.
+Use of $* is deprecated at - line 4.

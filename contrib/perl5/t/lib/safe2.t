@@ -2,7 +2,7 @@
 $|=1;
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bOpcode\b/ && $Config{'osname'} ne 'VMS') {
         print "1..0\n";
@@ -10,6 +10,7 @@ BEGIN {
     }
     # test 30 rather naughtily expects English error messages
     $ENV{'LC_ALL'} = 'C';
+    $ENV{LANGUAGE} = 'C'; # GNU locale extension
 }
 
 # Tests Todo:
@@ -65,7 +66,7 @@ $glob = "ok 11\n";
 sub sayok { print "ok @_\n" }
 
 $cpt->share(qw($foo %bar @baz *glob sayok));
-$cpt->share('$"') unless $Config{archname} =~ /-thread$/;
+$cpt->share('$"') unless $Config{use5005threads};
 
 $cpt->reval(q{
     package other;
@@ -123,7 +124,7 @@ print $@ =~ /foo bar/ ? "ok 29\n" : "not ok 29\n";
 my $t = 30;
 $cpt->rdo('/non/existant/file.name');
 # The regexp is getting rather baroque.
-print $! =~ /No such file|file specification syntax error|A file or directory in the path name does not exist|Invalid argument|Device not configured|file not found/i ? "ok $t\n" : "not ok $t # $!\n"; $t++;
+print $! =~ /cannot find|No such file|file specification syntax error|A file or directory in the path name does not exist|Invalid argument|Device not configured|file not found|File or directory doesn't exist/i ? "ok $t\n" : "not ok $t # $!\n"; $t++;
 # test #31 is gone.
 print 1 ? "ok $t\n" : "not ok $t\n#$@/$!\n"; $t++;
   

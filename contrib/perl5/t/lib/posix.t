@@ -2,7 +2,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
     require Config; import Config;
     if ($^O ne 'VMS' and $Config{'extensions'} !~ /\bPOSIX\b/) {
 	print "1..0\n";
@@ -14,7 +14,7 @@ use POSIX qw(fcntl_h signal_h limits_h _exit getcwd open read strftime write);
 use strict subs;
 
 $| = 1;
-print "1..18\n";
+print "1..27\n";
 
 $Is_W32 = $^O eq 'MSWin32';
 
@@ -72,6 +72,9 @@ print getcwd() =~ m#/t$# ? "ok 13\n" : "not ok 13\n";
 if ($Config{d_strtod}) {
     $lc = &POSIX::setlocale(&POSIX::LC_NUMERIC, 'C') if $Config{d_setlocale};
     ($n, $x) = &POSIX::strtod('3.14159_OR_SO');
+# Using long double NVs may introduce greater accuracy than wanted.
+    $n =~ s/^3.14158999\d*$/3.14159/
+        if $Config{uselongdouble} eq 'define';
     print (($n == 3.14159) && ($x == 6) ? "ok 14\n" : "not ok 14\n");
     &POSIX::setlocale(&POSIX::LC_NUMERIC, $lc) if $Config{d_setlocale};
 } else { print "# strtod not present\n", "ok 14\n"; }
@@ -94,6 +97,32 @@ print &POSIX::acos(1.0) == 0.0 ? "ok 17\n" : "not ok 17\n";
 # -DSTRUCT_TM_HASZONE to your cflags when compiling ext/POSIX/POSIX.c.
 # See ext/POSIX/hints/sunos_4.pl and ext/POSIX/hints/linux.pl 
 print POSIX::strftime("ok 18 # %H:%M, on %D\n", localtime());
+
+# If that worked, validate the mini_mktime() routine's normalisation of
+# input fields to strftime().
+sub try_strftime {
+    my $num = shift;
+    my $expect = shift;
+    my $got = POSIX::strftime("%a %b %d %H:%M:%S %Y %j", @_);
+    if ($got eq $expect) {
+	print "ok $num\n";
+    }
+    else {
+	print "# expected: $expect\n# got: $got\nnot ok $num\n";
+    }
+}
+
+$lc = &POSIX::setlocale(&POSIX::LC_TIME, 'C') if $Config{d_setlocale};
+try_strftime(19, "Wed Feb 28 00:00:00 1996 059", 0,0,0, 28,1,96);
+try_strftime(20, "Thu Feb 29 00:00:60 1996 060", 60,0,-24, 30,1,96);
+try_strftime(21, "Fri Mar 01 00:00:00 1996 061", 0,0,-24, 31,1,96);
+try_strftime(22, "Sun Feb 28 00:00:00 1999 059", 0,0,0, 28,1,99);
+try_strftime(23, "Mon Mar 01 00:00:00 1999 060", 0,0,24, 28,1,99);
+try_strftime(24, "Mon Feb 28 00:00:00 2000 059", 0,0,0, 28,1,100);
+try_strftime(25, "Tue Feb 29 00:00:00 2000 060", 0,0,0, 0,2,100);
+try_strftime(26, "Wed Mar 01 00:00:00 2000 061", 0,0,0, 1,2,100);
+try_strftime(27, "Fri Mar 31 00:00:00 2000 091", 0,0,0, 31,2,100);
+&POSIX::setlocale(&POSIX::LC_TIME, $lc) if $Config{d_setlocale};
 
 $| = 0;
 # The following line assumes buffered output, which may be not true with EMX:

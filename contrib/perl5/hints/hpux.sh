@@ -21,8 +21,10 @@
 # Don't assume every OS != 10 is < 10, (e.g., 11).
 # From: Chuck Phillips <cdp@fc.hp.com>
 # HP-UX 10 pthreads hints: Matthew T Harden <mthard@mthard1.monsanto.com>
+# From: Dominic Dunlop <domo@computer.org>
+# Abort and offer advice if bundled (non-ANSI) C compiler selected
 
-# This version: August 15, 1997
+# This version: March 8, 2000
 # Current maintainer: Jeff Okamoto <okamoto@corp.hp.com>
 
 #--------------------------------------------------------------------
@@ -64,21 +66,19 @@
 ccflags="$ccflags -D_HPUX_SOURCE"
 
 # Check if you're using the bundled C compiler.  This compiler doesn't support
-# ANSI C (the -Aa flag) nor can it produce shared libraries.  Thus we have
-# to turn off dynamic loading.
+# ANSI C (the -Aa flag) and so is not suitable for perl 5.5 and later.
 case "$cc" in
 '') if cc $ccflags -Aa 2>&1 | $contains 'option' >/dev/null
     then
-	case "$usedl" in
-	 '') usedl="$undef"
 	     cat <<'EOM' >&4
 
-The bundled C compiler can not produce shared libraries, so you will
-not be able to use dynamic loading. 
+The bundled C compiler is not ANSI-compliant, and so cannot be used to
+build perl.  Please see the file README.hpux for advice on alternative
+compilers.
 
+Cannot continue, aborting.
 EOM
-	     ;;
-	esac
+	exit 1
     else
 	ccflags="$ccflags -Aa"	# The add-on compiler supports ANSI C
 	# cppstdin and cpprun need the -Aa option if you use the unbundled 
@@ -92,19 +92,22 @@ EOM
 	cppminus='-'
 	cpplast='-'
     fi
-    # For HP's ANSI C compiler, up to "+O3" is safe for everything
-    # except shared libraries (PIC code).  Max safe for PIC is "+O2".
-    # Setting both causes innocuous warnings.
-    #optimize='+O3'
-    #cccdlflags='+z +O2'
-    optimize='-O'
+    case "$optimize" in
+	# For HP's ANSI C compiler, up to "+O3" is safe for everything
+	# except shared libraries (PIC code).  Max safe for PIC is "+O2".
+	# Setting both causes innocuous warnings.
+	'')	optimize='-O'
+		#optimize='+O3'
+		#cccdlflags='+z +O2'
+		;;
+    esac
+    cc=cc
     ;;
 esac
 
-# Even if you use gcc, prefer the HP math library over the GNU one.
-
-case "`$cc -v 2>&1`" in
-"*gcc*" ) test -d /lib/pa1.1 && ccflags="$ccflags -L/lib/pa1.1" ;;
+case `$cc -v 2>&1`"" in
+*gcc*) ccisgcc="$define" ;;
+*) ccisgcc='' ;;
 esac
 
 # Determine the architecture type of this system.
@@ -139,9 +142,181 @@ else
 	selecttype='int *'
 fi
 
+# Do this right now instead of the delayed callback unit approach.
+case "$use64bitall" in
+$define|true|[yY]*) use64bitint="$define" ;;
+esac
+case "$use64bitint" in
+$define|true|[yY]*)
+    if [ "$xxOsRevMajor" -lt 11 ]; then
+		cat <<EOM >&4
+
+64-bit compilation is not supported on HP-UX $xxOsRevMajor.
+You need at least HP-UX 11.0.
+Cannot continue, aborting.
+
+EOM
+		exit 1
+    fi
+
+    # Without the 64-bit libc we cannot do much.
+    libc='/lib/pa20_64/libc.sl'
+    if [ ! -f "$libc" ]; then
+		cat <<EOM >&4
+
+*** You do not seem to have the 64-bit libraries in /lib/pa20_64.
+*** Most importantly, I cannot find the $libc.
+*** Cannot continue, aborting.
+
+EOM
+		exit 1
+    fi
+
+    ccflags="$ccflags +DD64"
+    ldflags="$ldflags +DD64"
+    test -d /lib/pa20_64 && loclibpth="$loclibpth /lib/pa20_64"
+    libscheck='case "`/usr/bin/file $xxx`" in
+*LP64*|*PA-RISC2.0*) ;;
+*) xxx=/no/64-bit$xxx ;;
+esac'
+    if test -n "$ccisgcc" -o -n "$gccversion"; then
+	ld="$cc"
+    else	
+	ld=/usr/bin/ld
+    fi
+    ar=/usr/bin/ar
+    full_ar=$ar
+
+    if test -z "$ccisgcc" -a -z "$gccversion"; then
+       # The strict ANSI mode (-Aa) doesn't like the LL suffixes.
+       ccflags=`echo " $ccflags "|sed 's@ -Aa @ @g'`
+       case "$ccflags" in
+       *-Ae*) ;;
+       *) ccflags="$ccflags -Ae" ;;
+       esac
+    fi
+
+    set `echo " $libswanted " | sed -e 's@ dl @ @'`
+    libswanted="$*"
+
+    ;;
+esac
+
+case "$ccisgcc" in
+# Even if you use gcc, prefer the HP math library over the GNU one.
+"$define") test -d /lib/pa1.1 && ccflags="$ccflags -L/lib/pa1.1" ;;
+esac
+    
+case "$ccisgcc" in
+"$define") ;;
+*)  case "`getconf KERNEL_BITS 2>/dev/null`" in
+    *64*) ldflags="$ldflags -Wl,+vnocompatwarnings" ;;
+    esac
+    ;;
+esac
+
+# Remove bad libraries that will cause problems
+# (This doesn't remove libraries that don't actually exist)
+# -lld is unneeded (and I can't figure out what it's used for anyway)
+# -ldbm is obsolete and should not be used
+# -lBSD contains BSD-style duplicates of SVR4 routines that cause confusion
+# -lPW is obsolete and should not be used
+# The libraries crypt, malloc, ndir, and net are empty.
+# Although -lndbm should be included, it will make perl blow up if you should
+# copy the binary to a system without libndbm.sl.  See ccdlflags below.
+set `echo " $libswanted " | sed -e 's@ ld @ @' -e 's@ dbm @ @' -e 's@ BSD @ @' -e 's@ PW @ @'`
+libswanted="$*"
+
+# By setting the deferred flag below, this means that if you run perl
+# on a system that does not have the required shared library that you
+# linked it with, it will die when you try to access a symbol in the
+# (missing) shared library.  If you would rather know at perl startup
+# time that you are missing an important shared library, switch the
+# comments so that immediate, rather than deferred loading is
+# performed.  Even with immediate loading, you can postpone errors for
+# undefined (or multiply defined) routines until actual access by
+# adding the "nonfatal" option.
+# ccdlflags="-Wl,-E -Wl,-B,immediate $ccdlflags"
+# ccdlflags="-Wl,-E -Wl,-B,immediate,-B,nonfatal $ccdlflags"
+ccdlflags="-Wl,-E -Wl,-B,deferred $ccdlflags"
+
+case "$usemymalloc" in
+'') usemymalloc='y' ;;
+esac
+
+alignbytes=8
+# For native nm, you need "-p" to produce BSD format output.
+nm_opt='-p'
+
+# When HP-UX runs a script with "#!", it sets argv[0] to the script name.
+toke_cflags='ccflags="$ccflags -DARG_ZERO_IS_SCRIPT"'
+
+# If your compile complains about FLT_MIN, uncomment the next line
+# POSIX_cflags='ccflags="$ccflags -DFLT_MIN=1.17549435E-38"'
+
+# Comment this out if you don't want to follow the SVR4 filesystem layout
+# that HP-UX 10.0 uses
+case "$prefix" in
+'') prefix='/opt/perl5' ;;
+esac
+
+# HP-UX can't do setuid emulation offered by Configure
+case "$d_dosuid" in
+'') d_dosuid="$undef" ;;
+esac
+
+# HP-UX 11 groks also LD_LIBRARY_PATH but SHLIB_PATH
+# is recommended for compatibility.
+case "$ldlibpthname" in
+'') ldlibpthname=SHLIB_PATH ;;
+esac
+
+# HP-UX 10.20 and gcc 2.8.1 break UINT32_MAX.
+case "$ccisgcc" in
+"$define") ccflags="$ccflags -DUINT32_MAX_BROKEN" ;;
+esac
+
+cat > UU/cc.cbu <<'EOSH'
+# XXX This script UU/cc.cbu will get 'called-back' by Configure after it
+# XXX has prompted the user for the C compiler to use.
+# Get gcc to share its secrets.
+echo 'main() { return 0; }' > try.c
+	# Indent to avoid propagation to config.sh
+	verbose=`${cc:-cc} -v -o try try.c 2>&1`
+if echo "$verbose" | grep '^Reading specs from' >/dev/null 2>&1; then
+	# Using gcc.
+	: nothing to see here, move on.
+else
+	# Using cc.
+        ar=${ar:-ar}
+	case "`$ar -V 2>&1`" in
+	*GNU*)
+	    if test -x /usr/bin/ar; then
+	    	cat <<END >&2
+
+*** You are using HP cc(1) but GNU ar(1).  This might lead into trouble
+*** later on, I'm switching to HP ar to play safe.
+
+END
+		ar=/usr/bin/ar
+	    fi
+	;;
+    esac
+fi
+
+EOSH
+
+# Date: Fri, 6 Sep 96 23:15:31 CDT
+# From: "Daniel S. Lewart" <d-lewart@uiuc.edu>
+# I looked through the gcc.info and found this:
+#   * GNU CC compiled code sometimes emits warnings from the HP-UX
+#     assembler of the form:
+#          (warning) Use of GR3 when frame >= 8192 may cause conflict.
+#     These warnings are harmless and can be safely ignored.
+
+cat > UU/usethreads.cbu <<'EOCBU'
 # This script UU/usethreads.cbu will get 'called-back' by Configure 
 # after it has prompted the user for whether to use threads.
-cat > UU/usethreads.cbu <<'EOCBU'
 case "$usethreads" in
 $define|true|[yY]*)
         if [ "$xxOsRevMajor" -lt 10 ]; then
@@ -194,57 +369,40 @@ EOM
 esac
 EOCBU
 
-# Remove bad libraries that will cause problems
-# (This doesn't remove libraries that don't actually exist)
-# -lld is unneeded (and I can't figure out what it's used for anyway)
-# -ldbm is obsolete and should not be used
-# -lBSD contains BSD-style duplicates of SVR4 routines that cause confusion
-# -lPW is obsolete and should not be used
-# The libraries crypt, malloc, ndir, and net are empty.
-# Although -lndbm should be included, it will make perl blow up if you should
-# copy the binary to a system without libndbm.sl.  See ccdlflags below.
-set `echo " $libswanted " | sed -e 's@ ld @ @' -e 's@ dbm @ @' -e 's@ BSD @ @' -e 's@ PW @ @'`
-libswanted="$*"
+case "$uselargefiles-$ccisgcc" in
+"$define-$define"|'-define') 
+    cat <<EOM >&4
 
-# By setting the deferred flag below, this means that if you run perl
-# on a system that does not have the required shared library that you
-# linked it with, it will die when you try to access a symbol in the
-# (missing) shared library.  If you would rather know at perl startup
-# time that you are missing an important shared library, switch the
-# comments so that immediate, rather than deferred loading is
-# performed.  Even with immediate loading, you can postpone errors for
-# undefined (or multiply defined) routines until actual access by
-# adding the "nonfatal" option.
-# ccdlflags="-Wl,-E -Wl,-B,immediate $ccdlflags"
-# ccdlflags="-Wl,-E -Wl,-B,immediate,-B,nonfatal $ccdlflags"
-ccdlflags="-Wl,-E -Wl,-B,deferred $ccdlflags"
+*** I'm ignoring large files for this build because
+*** I don't know how to do use large files in HP-UX using gcc.
 
-usemymalloc='y'
-alignbytes=8
-# For native nm, you need "-p" to produce BSD format output.
-nm_opt='-p'
-
-# When HP-UX runs a script with "#!", it sets argv[0] to the script name.
-toke_cflags='ccflags="$ccflags -DARG_ZERO_IS_SCRIPT"'
-
-# If your compile complains about FLT_MIN, uncomment the next line
-# POSIX_cflags='ccflags="$ccflags -DFLT_MIN=1.17549435E-38"'
-
-# Comment this out if you don't want to follow the SVR4 filesystem layout
-# that HP-UX 10.0 uses
-case "$prefix" in
-'') prefix='/opt/perl5' ;;
+EOM
+    uselargefiles="$undef"
+    ;;
 esac
 
-# HP-UX can't do setuid emulation offered by Configure
-case "$d_dosuid" in
-'') d_dosuid="$undef" ;;
-esac
+cat > UU/uselargefiles.cbu <<'EOCBU'
+# This script UU/uselargefiles.cbu will get 'called-back' by Configure 
+# after it has prompted the user for whether to use large files.
+case "$uselargefiles" in
+''|$define|true|[yY]*)
+	# there are largefile flags available via getconf(1)
+	# but we cheat for now.
+	ccflags="$ccflags -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64"
 
-# Date: Fri, 6 Sep 96 23:15:31 CDT
-# From: "Daniel S. Lewart" <d-lewart@uiuc.edu>
-# I looked through the gcc.info and found this:
-#   * GNU CC compiled code sometimes emits warnings from the HP-UX
-#     assembler of the form:
-#          (warning) Use of GR3 when frame >= 8192 may cause conflict.
-#     These warnings are harmless and can be safely ignored.
+        if test -z "$ccisgcc" -a -z "$gccversion"; then
+           # The strict ANSI mode (-Aa) doesn't like large files.
+           ccflags=`echo " $ccflags "|sed 's@ -Aa @ @g'`
+           case "$ccflags" in
+           *-Ae*) ;;
+           *) ccflags="$ccflags -Ae" ;;
+           esac
+	fi
+
+	;;
+esac
+EOCBU
+
+# keep that leading tab.
+	ccisgcc=''
+

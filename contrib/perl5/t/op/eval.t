@@ -1,6 +1,6 @@
 #!./perl
 
-print "1..36\n";
+print "1..40\n";
 
 eval 'print "ok 1\n";';
 
@@ -171,3 +171,38 @@ sub terminal { eval 'print $r' }
 }
 $x++;
 
+# Have we cured panic which occurred with require/eval in die handler ?
+$SIG{__DIE__} = sub { eval {1}; die shift }; 
+eval { die "ok ".$x++,"\n" }; 
+print $@;
+
+# does scalar eval"" pop stack correctly?
+{
+    my $c = eval "(1,2)x10";
+    print $c eq '2222222222' ? "ok $x\n" : "# $c\nnot ok $x\n";
+    $x++;
+}
+
+# return from eval {} should clear $@ correctly
+{
+    my $status = eval {
+	eval { die };
+	print "# eval { return } test\n";
+	return; # removing this changes behavior
+    };
+    print "not " if $@;
+    print "ok $x\n";
+    $x++;
+}
+
+# ditto for eval ""
+{
+    my $status = eval q{
+	eval q{ die };
+	print "# eval q{ return } test\n";
+	return; # removing this changes behavior
+    };
+    print "not " if $@;
+    print "ok $x\n";
+    $x++;
+}

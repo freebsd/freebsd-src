@@ -184,26 +184,26 @@ Using a hash reference is I<exactly> the same:
 
 B<Use Rule 2>
 
-C<${$aref}[3]> is too hard to read, so you can write C<$aref-E<gt>[3]>
+C<${$aref}[3]> is too hard to read, so you can write C<< $aref->[3] >>
 instead.
 
 C<${$href}{red}> is too hard to read, so you can write
-C<$href-E<gt>{red}> instead.
+C<< $href->{red} >> instead.
 
 Most often, when you have an array or a hash, you want to get or set a
 single element from it.  C<${$aref}[3]> and C<${$href}{'red'}> have
 too much punctuation, and Perl lets you abbreviate.
 
-If C<$aref> holds a reference to an array, then C<$aref-E<gt>[3]> is
+If C<$aref> holds a reference to an array, then C<< $aref->[3] >> is
 the fourth element of the array.  Don't confuse this with C<$aref[3]>,
 which is the fourth element of a totally different array, one
 deceptively named C<@aref>.  C<$aref> and C<@aref> are unrelated the
 same way that C<$item> and C<@item> are.
 
-Similarly, C<$href-E<gt>{'red'}> is part of the hash referred to by
+Similarly, C<< $href->{'red'} >> is part of the hash referred to by
 the scalar variable C<$href>, perhaps even one with no name.
 C<$href{'red'}> is part of the deceptively named C<%href> hash.  It's
-easy to forget to leave out the C<-E<gt>>, and if you do, you'll get
+easy to forget to leave out the C<< -> >>, and if you do, you'll get
 bizarre results when your program gets array and hash elements out of
 totally unexpected hashes and arrays that weren't the ones you wanted
 to use.
@@ -228,10 +228,10 @@ another array.
 
 C<$a[1]> is one of these references.  It refers to an array, the array
 containing C<(4, 5, 6)>, and because it is a reference to an array,
-B<USE RULE 2> says that we can write C<$a[1]-E<gt>[2]> to get the
-third element from that array.  C<$a[1]-E<gt>[2]> is the 6.
-Similarly, C<$a[0]-E<gt>[1]> is the 2.  What we have here is like a
-two-dimensional array; you can write C<$a[ROW]-E<gt>[COLUMN]> to get
+B<USE RULE 2> says that we can write C<< $a[1]->[2] >> to get the
+third element from that array.  C<< $a[1]->[2] >> is the 6.
+Similarly, C<< $a[0]->[1] >> is the 2.  What we have here is like a
+two-dimensional array; you can write C<< $a[ROW]->[COLUMN] >> to get
 or set the element in any row and any column of the array.
 
 The notation still looks a little cumbersome, so there's one more
@@ -241,8 +241,8 @@ abbreviation:
 
 In between two B<subscripts>, the arrow is optional.
 
-Instead of C<$a[1]-E<gt>[2]>, we can write C<$a[1][2]>; it means the
-same thing.  Instead of C<$a[0]-E<gt>[1]>, we can write C<$a[0][1]>;
+Instead of C<< $a[1]->[2] >>, we can write C<$a[1][2]>; it means the
+same thing.  Instead of C<< $a[0]->[1] >>, we can write C<$a[0][1]>;
 it means the same thing.
 
 Now it really looks like two-dimensional arrays!

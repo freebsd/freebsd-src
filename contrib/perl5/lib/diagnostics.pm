@@ -51,6 +51,11 @@ The B<-verbose> flag first prints out the L<perldiag> introduction before
 any other diagnostics.  The $diagnostics::PRETTY variable can generate nicer
 escape sequences for pagers.
 
+Warnings dispatched from perl itself (or more accurately, those that match
+descriptions found in L<perldiag>) are only displayed once (no duplicate
+descriptions).  User code generated warnings ala warn() are unaffected,
+allowing duplicate user messages to be displayed.
+
 =head2 The I<splain> Program
 
 While apparently a whole nuther program, I<splain> is actually nothing
@@ -162,8 +167,10 @@ Tom Christiansen <F<tchrist@mox.perl.com>>, 25 June 1995.
 
 =cut
 
-require 5.001;
+use 5.005_64;
 use Carp;
+
+$VERSION = v1.0;
 
 use Config;
 ($privlib, $archlib) = @Config{qw(privlibexp archlibexp)};
@@ -172,9 +179,14 @@ if ($^O eq 'VMS') {
     $privlib = VMS::Filespec::unixify($privlib);
     $archlib = VMS::Filespec::unixify($archlib);
 }
-@trypod = ("$archlib/pod/perldiag.pod",
-	   "$privlib/pod/perldiag-$].pod",
-	   "$privlib/pod/perldiag.pod");
+@trypod = (
+	   "$archlib/pod/perldiag.pod",
+	   "$privlib/pod/perldiag-$Config{version}.pod",
+	   "$privlib/pod/perldiag.pod",
+	   "$archlib/pods/perldiag.pod",
+	   "$privlib/pods/perldiag-$Config{version}.pod",
+	   "$privlib/pods/perldiag.pod",
+	  );
 # handy for development testing of new warnings etc
 unshift @trypod, "./pod/perldiag.pod" if -e "pod/perldiag.pod";
 ($PODFILE) = ((grep { -e } @trypod), $trypod[$#trypod])[0];
@@ -274,7 +286,7 @@ if (eof(POD_DIAG)) {
 
 $transmo = <<EOFUNC;
 sub transmo {
-    local \$^W = 0;  # recursive warnings we do NOT need!
+    #local \$^W = 0;  # recursive warnings we do NOT need!
     study;
 EOFUNC
 
@@ -323,7 +335,7 @@ EOFUNC
 	# strip formatting directives in =item line
 	($header = $1) =~ s/[A-Z]<(.*?)>/$1/g;
 
-	if ($header =~ /%[sd]/) {
+	if ($header =~ /%[csd]/) {
 	    $rhs = $lhs = $header;
 	    #if ($lhs =~ s/(.*?)%d(?!%d)(.*)/\Q$1\E\\d+\Q$2\E\$/g)  {
 	    if ($lhs =~ s/(.*?)%d(?!%d)(.*)/\Q$1\E\\d+\Q$2\E/g)  {
@@ -336,6 +348,7 @@ EOFUNC
 		$lhs =~ s/\377//g;
 		$lhs =~ s/\.\*\?$/.*/; # Allow %s at the end to eat it all
 	    } 
+	    $lhs =~ s/\\%c/./g;
 	    $transmo .= "    s{^$lhs}\n     {\Q$rhs\E}s\n\t&& return 1;\n";
 	} else {
 	    $transmo .= "    m{^\Q$header\E} && return 1;\n";
@@ -366,12 +379,13 @@ if ($standalone) {
     } 
     exit;
 } else { 
-    $old_w = 0; $oldwarn = ''; $olddie = '';
+    #$old_w = 0;
+    $oldwarn = ''; $olddie = '';
 }
 
 sub import {
     shift;
-    $old_w = $^W;
+    #$old_w = $^W;
     $^W = 1; # yup, clobbered the global variable; tough, if you
 	     # want diags, you want diags.
     return if $SIG{__WARN__} eq \&warn_trap;
@@ -407,7 +421,7 @@ sub enable { &import }
 
 sub disable {
     shift;
-    $^W = $old_w;
+    #$^W = $old_w;
     return unless $SIG{__WARN__} eq \&warn_trap;
     $SIG{__WARN__} = $oldwarn;
     $SIG{__DIE__} = $olddie;
@@ -458,13 +472,15 @@ sub splainthis {
     s/\.?\n+$//;
     my $orig = $_;
     # return unless defined;
-    if ($exact_duplicate{$_}++) {
-	return 1;
-    } 
     s/, <.*?> (?:line|chunk).*$//;
     $real = s/(.*?) at .*? (?:line|chunk) \d+.*/$1/;
     s/^\((.*)\)$/$1/;
-    return 0 unless &transmo;
+    if ($exact_duplicate{$orig}++) {
+	return &transmo;
+    }
+    else {
+	return 0 unless &transmo;
+    }
     $orig = shorten($orig);
     if ($old_diag{$_}) {
 	autodescribe();
@@ -526,7 +542,7 @@ sub shorten {
 } 
 
 
-# have to do this: RS isn't set until run time, but we're executing at compile time
+# have to do this: RS isn't set until run time, but we're executing at compiletime
 $RS = "\n";
 
 1 unless $standalone;  # or it'll complain about itself

@@ -8,8 +8,8 @@ The single feature most sorely lacking in the Perl programming language
 prior to its 5.0 release was complex data structures.  Even without direct
 language support, some valiant programmers did manage to emulate them, but
 it was hard work and not for the faint of heart.  You could occasionally
-get away with the C<$m{$LoL,$b}> notation borrowed from I<awk> in which the
-keys are actually more like a single concatenated string C<"$LoL$b">, but
+get away with the C<$m{$AoA,$b}> notation borrowed from B<awk> in which the
+keys are actually more like a single concatenated string C<"$AoA$b">, but
 traversal and sorting were difficult.  More desperate programmers even
 hacked Perl's internal symbol table directly, a strategy that proved hard
 to develop and maintain--to put it mildly.
@@ -21,7 +21,7 @@ with three dimensions!
     for $x (1 .. 10) {
 	for $y (1 .. 10) {
 	    for $z (1 .. 10) {
-		$LoL[$x][$y][$z] =
+		$AoA[$x][$y][$z] =
 		    $x ** $y + $z;
 	    }
 	}
@@ -30,7 +30,7 @@ with three dimensions!
 Alas, however simple this may appear, underneath it's a much more
 elaborate construct than meets the eye!
 
-How do you print it out?  Why can't you say just C<print @LoL>?  How do
+How do you print it out?  Why can't you say just C<print @AoA>?  How do
 you sort it?  How can you pass it to a function or get one of these back
 from a function?  Is is an object?  Can you save it to disk to read
 back later?  How do you access whole rows or columns of that matrix?  Do
@@ -93,8 +93,8 @@ level.  It's just that you can I<use> it as though it were a
 two-dimensional one.  This is actually the way almost all C
 multidimensional arrays work as well.
 
-    $list[7][12]			# array of arrays
-    $list[7]{string}			# array of hashes
+    $array[7][12]			# array of arrays
+    $array[7]{string}			# array of hashes
     $hash{string}[7]			# hash of arrays
     $hash{string}{'another string'}	# hash of hashes
 
@@ -102,10 +102,10 @@ Now, because the top level contains only references, if you try to print
 out your array in with a simple print() function, you'll get something
 that doesn't look very nice, like this:
 
-    @LoL = ( [2, 3], [4, 5, 7], [0] );
-    print $LoL[1][2];
+    @AoA = ( [2, 3], [4, 5, 7], [0] );
+    print $AoA[1][2];
   7
-    print @LoL;
+    print @AoA;
   ARRAY(0x83c38)ARRAY(0x8b194)ARRAY(0x8b1d0)
 
 
@@ -124,25 +124,25 @@ repeatedly.  Here's the case where you just get the count instead
 of a nested array:
 
     for $i (1..10) {
-	@list = somefunc($i);
-	$LoL[$i] = @list;	# WRONG!
+	@array = somefunc($i);
+	$AoA[$i] = @array;	# WRONG!
     }
 
-That's just the simple case of assigning a list to a scalar and getting
+That's just the simple case of assigning an array to a scalar and getting
 its element count.  If that's what you really and truly want, then you
 might do well to consider being a tad more explicit about it, like this:
 
     for $i (1..10) {
-	@list = somefunc($i);
-	$counts[$i] = scalar @list;
+	@array = somefunc($i);
+	$counts[$i] = scalar @array;
     }
 
 Here's the case of taking a reference to the same memory location
 again and again:
 
     for $i (1..10) {
-	@list = somefunc($i);
-	$LoL[$i] = \@list;	# WRONG!
+	@array = somefunc($i);
+	$AoA[$i] = \@array;	# WRONG!
     }
 
 So, what's the big problem with that?  It looks right, doesn't it?
@@ -150,8 +150,8 @@ After all, I just told you that you need an array of references, so by
 golly, you've made me one!
 
 Unfortunately, while this is true, it's still broken.  All the references
-in @LoL refer to the I<very same place>, and they will therefore all hold
-whatever was last in @list!  It's similar to the problem demonstrated in
+in @AoA refer to the I<very same place>, and they will therefore all hold
+whatever was last in @array!  It's similar to the problem demonstrated in
 the following C program:
 
     #include <pwd.h>
@@ -176,40 +176,40 @@ hash constructor C<{}> instead.   Here's the right way to do the preceding
 broken code fragments:
 
     for $i (1..10) {
-	@list = somefunc($i);
-	$LoL[$i] = [ @list ];
+	@array = somefunc($i);
+	$AoA[$i] = [ @array ];
     }
 
 The square brackets make a reference to a new array with a I<copy>
-of what's in @list at the time of the assignment.  This is what
+of what's in @array at the time of the assignment.  This is what
 you want.
 
 Note that this will produce something similar, but it's
 much harder to read:
 
     for $i (1..10) {
-	@list = 0 .. $i;
-	@{$LoL[$i]} = @list;
+	@array = 0 .. $i;
+	@{$AoA[$i]} = @array;
     }
 
 Is it the same?  Well, maybe so--and maybe not.  The subtle difference
 is that when you assign something in square brackets, you know for sure
 it's always a brand new reference with a new I<copy> of the data.
-Something else could be going on in this new case with the C<@{$LoL[$i]}}>
+Something else could be going on in this new case with the C<@{$AoA[$i]}}>
 dereference on the left-hand-side of the assignment.  It all depends on
-whether C<$LoL[$i]> had been undefined to start with, or whether it
-already contained a reference.  If you had already populated @LoL with
+whether C<$AoA[$i]> had been undefined to start with, or whether it
+already contained a reference.  If you had already populated @AoA with
 references, as in
 
-    $LoL[3] = \@another_list;
+    $AoA[3] = \@another_array;
 
 Then the assignment with the indirection on the left-hand-side would
 use the existing reference that was already there:
 
-    @{$LoL[3]} = @list;
+    @{$AoA[3]} = @array;
 
 Of course, this I<would> have the "interesting" effect of clobbering
-@another_list.  (Have you ever noticed how when a programmer says
+@another_array.  (Have you ever noticed how when a programmer says
 something is "interesting", that rather than meaning "intriguing",
 they're disturbingly more apt to mean that it's "annoying",
 "difficult", or both?  :-)
@@ -222,8 +222,8 @@ Surprisingly, the following dangerous-looking construct will
 actually work out fine:
 
     for $i (1..10) {
-        my @list = somefunc($i);
-        $LoL[$i] = \@list;
+        my @array = somefunc($i);
+        $AoA[$i] = \@array;
     }
 
 That's because my() is more of a run-time statement than it is a
@@ -242,18 +242,18 @@ do the right thing behind the scenes.
 
 In summary:
 
-    $LoL[$i] = [ @list ];	# usually best
-    $LoL[$i] = \@list;		# perilous; just how my() was that list?
-    @{ $LoL[$i] } = @list;	# way too tricky for most programmers
+    $AoA[$i] = [ @array ];	# usually best
+    $AoA[$i] = \@array;		# perilous; just how my() was that array?
+    @{ $AoA[$i] } = @array;	# way too tricky for most programmers
 
 
 =head1 CAVEAT ON PRECEDENCE
 
-Speaking of things like C<@{$LoL[$i]}>, the following are actually the
+Speaking of things like C<@{$AoA[$i]}>, the following are actually the
 same thing:
 
-    $listref->[2][2]	# clear
-    $$listref[2][2]	# confusing
+    $aref->[2][2]	# clear
+    $$aref[2][2]	# confusing
 
 That's because Perl's precedence rules on its five prefix dereferencers
 (which look like someone swearing: C<$ @ * % &>) make them bind more
@@ -263,11 +263,11 @@ accustomed to using C<*a[i]> to mean what's pointed to by the I<i'th>
 element of C<a>.  That is, they first take the subscript, and only then
 dereference the thing at that subscript.  That's fine in C, but this isn't C.
 
-The seemingly equivalent construct in Perl, C<$$listref[$i]> first does
-the deref of C<$listref>, making it take $listref as a reference to an
+The seemingly equivalent construct in Perl, C<$$aref[$i]> first does
+the deref of $aref, making it take $aref as a reference to an
 array, and then dereference that, and finally tell you the I<i'th> value
-of the array pointed to by $LoL. If you wanted the C notion, you'd have to
-write C<${$LoL[$i]}> to force the C<$LoL[$i]> to get evaluated first
+of the array pointed to by $AoA. If you wanted the C notion, you'd have to
+write C<${$AoA[$i]}> to force the C<$AoA[$i]> to get evaluated first
 before the leading C<$> dereferencer.
 
 =head1 WHY YOU SHOULD ALWAYS C<use strict>
@@ -283,19 +283,19 @@ This way, you'll be forced to declare all your variables with my() and
 also disallow accidental "symbolic dereferencing".  Therefore if you'd done
 this:
 
-    my $listref = [
+    my $aref = [
 	[ "fred", "barney", "pebbles", "bambam", "dino", ],
 	[ "homer", "bart", "marge", "maggie", ],
 	[ "george", "jane", "elroy", "judy", ],
     ];
 
-    print $listref[2][2];
+    print $aref[2][2];
 
 The compiler would immediately flag that as an error I<at compile time>,
-because you were accidentally accessing C<@listref>, an undeclared
+because you were accidentally accessing C<@aref>, an undeclared
 variable, and it would thereby remind you to write instead:
 
-    print $listref->[2][2]
+    print $aref->[2][2]
 
 =head1 DEBUGGING
 
@@ -303,10 +303,10 @@ Before version 5.002, the standard Perl debugger didn't do a very nice job of
 printing out complex data structures.  With 5.002 or above, the
 debugger includes several new features, including command line editing as
 well as the C<x> command to dump out complex data structures.  For
-example, given the assignment to $LoL above, here's the debugger output:
+example, given the assignment to $AoA above, here's the debugger output:
 
-    DB<1> x $LoL
-    $LoL = ARRAY(0x13b5a0)
+    DB<1> x $AoA
+    $AoA = ARRAY(0x13b5a0)
        0  ARRAY(0x1f0a24)
 	  0  'fred'
 	  1  'barney'
@@ -330,79 +330,79 @@ Presented with little comment (these will get their own manpages someday)
 here are short code examples illustrating access of various
 types of data structures.
 
-=head1 LISTS OF LISTS
+=head1 ARRAYS OF ARRAYS
 
-=head2 Declaration of a LIST OF LISTS
+=head2 Declaration of a ARRAY OF ARRAYS
 
- @LoL = (
+ @AoA = (
         [ "fred", "barney" ],
         [ "george", "jane", "elroy" ],
         [ "homer", "marge", "bart" ],
       );
 
-=head2 Generation of a LIST OF LISTS
+=head2 Generation of a ARRAY OF ARRAYS
 
  # reading from file
  while ( <> ) {
-     push @LoL, [ split ];
+     push @AoA, [ split ];
  }
 
  # calling a function
  for $i ( 1 .. 10 ) {
-     $LoL[$i] = [ somefunc($i) ];
+     $AoA[$i] = [ somefunc($i) ];
  }
 
  # using temp vars
  for $i ( 1 .. 10 ) {
      @tmp = somefunc($i);
-     $LoL[$i] = [ @tmp ];
+     $AoA[$i] = [ @tmp ];
  }
 
  # add to an existing row
- push @{ $LoL[0] }, "wilma", "betty";
+ push @{ $AoA[0] }, "wilma", "betty";
 
-=head2 Access and Printing of a LIST OF LISTS
+=head2 Access and Printing of a ARRAY OF ARRAYS
 
  # one element
- $LoL[0][0] = "Fred";
+ $AoA[0][0] = "Fred";
 
  # another element
- $LoL[1][1] =~ s/(\w)/\u$1/;
+ $AoA[1][1] =~ s/(\w)/\u$1/;
 
  # print the whole thing with refs
- for $aref ( @LoL ) {
+ for $aref ( @AoA ) {
      print "\t [ @$aref ],\n";
  }
 
  # print the whole thing with indices
- for $i ( 0 .. $#LoL ) {
-     print "\t [ @{$LoL[$i]} ],\n";
+ for $i ( 0 .. $#AoA ) {
+     print "\t [ @{$AoA[$i]} ],\n";
  }
 
  # print the whole thing one at a time
- for $i ( 0 .. $#LoL ) {
-     for $j ( 0 .. $#{ $LoL[$i] } ) {
-         print "elt $i $j is $LoL[$i][$j]\n";
+ for $i ( 0 .. $#AoA ) {
+     for $j ( 0 .. $#{ $AoA[$i] } ) {
+         print "elt $i $j is $AoA[$i][$j]\n";
      }
  }
 
-=head1 HASHES OF LISTS
+=head1 HASHES OF ARRAYS
 
-=head2 Declaration of a HASH OF LISTS
+=head2 Declaration of a HASH OF ARRAYS
 
- %HoL = (
+ %HoA = (
         flintstones        => [ "fred", "barney" ],
         jetsons            => [ "george", "jane", "elroy" ],
         simpsons           => [ "homer", "marge", "bart" ],
       );
 
-=head2 Generation of a HASH OF LISTS
+=head2 Generation of a HASH OF ARRAYS
 
  # reading from file
  # flintstones: fred barney wilma dino
  while ( <> ) {
      next unless s/^(.*?):\s*//;
-     $HoL{$1} = [ split ];
+     $HoA{$1} = [ split ];
  }
 
  # reading from file; more temps
@@ -410,65 +410,65 @@ types of data structures.
  while ( $line = <> ) {
      ($who, $rest) = split /:\s*/, $line, 2;
      @fields = split ' ', $rest;
-     $HoL{$who} = [ @fields ];
+     $HoA{$who} = [ @fields ];
  }
 
  # calling a function that returns a list
  for $group ( "simpsons", "jetsons", "flintstones" ) {
-     $HoL{$group} = [ get_family($group) ];
+     $HoA{$group} = [ get_family($group) ];
  }
 
  # likewise, but using temps
  for $group ( "simpsons", "jetsons", "flintstones" ) {
      @members = get_family($group);
-     $HoL{$group} = [ @members ];
+     $HoA{$group} = [ @members ];
  }
 
  # append new members to an existing family
- push @{ $HoL{"flintstones"} }, "wilma", "betty";
+ push @{ $HoA{"flintstones"} }, "wilma", "betty";
 
-=head2 Access and Printing of a HASH OF LISTS
+=head2 Access and Printing of a HASH OF ARRAYS
 
  # one element
- $HoL{flintstones}[0] = "Fred";
+ $HoA{flintstones}[0] = "Fred";
 
  # another element
- $HoL{simpsons}[1] =~ s/(\w)/\u$1/;
+ $HoA{simpsons}[1] =~ s/(\w)/\u$1/;
 
  # print the whole thing
- foreach $family ( keys %HoL ) {
-     print "$family: @{ $HoL{$family} }\n"
+ foreach $family ( keys %HoA ) {
+     print "$family: @{ $HoA{$family} }\n"
  }
 
  # print the whole thing with indices
- foreach $family ( keys %HoL ) {
+ foreach $family ( keys %HoA ) {
      print "family: ";
-     foreach $i ( 0 .. $#{ $HoL{$family} } ) {
-         print " $i = $HoL{$family}[$i]";
+     foreach $i ( 0 .. $#{ $HoA{$family} } ) {
+         print " $i = $HoA{$family}[$i]";
      }
      print "\n";
  }
 
  # print the whole thing sorted by number of members
- foreach $family ( sort { @{$HoL{$b}} <=> @{$HoL{$a}} } keys %HoL ) {
-     print "$family: @{ $HoL{$family} }\n"
+ foreach $family ( sort { @{$HoA{$b}} <=> @{$HoA{$a}} } keys %HoA ) {
+     print "$family: @{ $HoA{$family} }\n"
  }
 
  # print the whole thing sorted by number of members and name
  foreach $family ( sort {
-			    @{$HoL{$b}} <=> @{$HoL{$a}}
+			    @{$HoA{$b}} <=> @{$HoA{$a}}
 					||
 				    $a cmp $b
-	    } keys %HoL )
+	    } keys %HoA )
  {
-     print "$family: ", join(", ", sort @{ $HoL{$family} }), "\n";
+     print "$family: ", join(", ", sort @{ $HoA{$family} }), "\n";
  }
 
-=head1 LISTS OF HASHES
+=head1 ARRAYS OF HASHES
 
-=head2 Declaration of a LIST OF HASHES
+=head2 Declaration of a ARRAY OF HASHES
 
- @LoH = (
+ @AoH = (
         {
             Lead     => "fred",
             Friend   => "barney",
@@ -485,7 +485,7 @@ types of data structures.
         }
   );
 
-=head2 Generation of a LIST OF HASHES
+=head2 Generation of a ARRAY OF HASHES
 
  # reading from file
  # format: LEAD=fred FRIEND=barney
@@ -495,7 +495,7 @@ types of data structures.
          ($key, $value) = split /=/, $field;
          $rec->{$key} = $value;
      }
-     push @LoH, $rec;
+     push @AoH, $rec;
  }
 
 
@@ -503,34 +503,34 @@ types of data structures.
  # format: LEAD=fred FRIEND=barney
  # no temp
  while ( <> ) {
-     push @LoH, { split /[\s+=]/ };
+     push @AoH, { split /[\s+=]/ };
  }
 
- # calling a function  that returns a key,value list, like
+ # calling a function  that returns a key/value pair list, like
  # "lead","fred","daughter","pebbles"
  while ( %fields = getnextpairset() ) {
-     push @LoH, { %fields };
+     push @AoH, { %fields };
  }
 
  # likewise, but using no temp vars
  while (<>) {
-     push @LoH, { parsepairs($_) };
+     push @AoH, { parsepairs($_) };
  }
 
  # add key/value to an element
- $LoH[0]{pet} = "dino";
- $LoH[2]{pet} = "santa's little helper";
+ $AoH[0]{pet} = "dino";
+ $AoH[2]{pet} = "santa's little helper";
 
-=head2 Access and Printing of a LIST OF HASHES
+=head2 Access and Printing of a ARRAY OF HASHES
 
  # one element
- $LoH[0]{lead} = "fred";
+ $AoH[0]{lead} = "fred";
 
  # another element
- $LoH[1]{lead} =~ s/(\w)/\u$1/;
+ $AoH[1]{lead} =~ s/(\w)/\u$1/;
 
  # print the whole thing with refs
- for $href ( @LoH ) {
+ for $href ( @AoH ) {
      print "{ ";
      for $role ( keys %$href ) {
          print "$role=$href->{$role} ";
@@ -539,18 +539,18 @@ types of data structures.
  }
 
  # print the whole thing with indices
- for $i ( 0 .. $#LoH ) {
+ for $i ( 0 .. $#AoH ) {
      print "$i is { ";
-     for $role ( keys %{ $LoH[$i] } ) {
-         print "$role=$LoH[$i]{$role} ";
+     for $role ( keys %{ $AoH[$i] } ) {
+         print "$role=$AoH[$i]{$role} ";
      }
      print "}\n";
  }
 
  # print the whole thing one at a time
- for $i ( 0 .. $#LoH ) {
-     for $role ( keys %{ $LoH[$i] } ) {
-         print "elt $i $role is $LoH[$i]{$role}\n";
+ for $i ( 0 .. $#AoH ) {
+     for $role ( keys %{ $AoH[$i] } ) {
+         print "elt $i $role is $AoH[$i]{$role}\n";
      }
  }
 
@@ -767,9 +767,9 @@ many different sorts:
      ###########################################################
      # now, you might want to make interesting extra fields that
      # include pointers back into the same data structure so if
-     # change one piece, it changes everywhere, like for examples
-     # if you wanted a {kids} field that was an array reference
-     # to a list of the kids' records without having duplicate
+     # change one piece, it changes everywhere, like for example
+     # if you wanted a {kids} field that was a reference
+     # to an array of the kids' records without having duplicate
      # records and thus update problems.
      ###########################################################
      foreach $family (keys %TV) {
@@ -784,7 +784,7 @@ many different sorts:
          $rec->{kids} = [ @kids ];
      }
 
-     # you copied the list, but the list itself contains pointers
+     # you copied the array, but the array itself contains pointers
      # to uncopied objects. this means that if you make bart get
      # older via
 

@@ -2,8 +2,9 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
+use Text::Wrap qw(&wrap);
 
 @tests = (split(/\nEND\n/s, <<DONE));
 TEST1

@@ -1,10 +1,10 @@
 #!./perl -w
 
 BEGIN {
-    @INC = '../lib' if -d '../lib' ;
+    unshift @INC, '../lib' if -d '../lib' ;
     require Config; import Config;
     if ($Config{'extensions'} !~ /\bDB_File\b/) {
-	print "1..0\n";
+	print "1..0 # Skip: DB_File was not built\n";
 	exit 0;
     }
 }
@@ -12,7 +12,7 @@ BEGIN {
 use DB_File; 
 use Fcntl;
 
-print "1..102\n";
+print "1..155\n";
 
 sub ok
 {
@@ -38,7 +38,53 @@ sub lexical
     return @a - @b ;
 }
 
-$Dfile = "dbbtree.tmp";
+{
+    package Redirect ;
+    use Symbol ;
+
+    sub new
+    {
+        my $class = shift ;
+        my $filename = shift ;
+	my $fh = gensym ;
+	open ($fh, ">$filename") || die "Cannot open $filename: $!" ;
+	my $real_stdout = select($fh) ;
+	return bless [$fh, $real_stdout ] ;
+
+    }
+    sub DESTROY
+    {
+        my $self = shift ;
+	close $self->[0] ;
+	select($self->[1]) ;
+    }
+}
+
+sub docat
+{ 
+    my $file = shift;
+    #local $/ = undef unless wantarray ;
+    open(CAT,$file) || die "Cannot open $file: $!";
+    my @result = <CAT>;
+    close(CAT);
+    wantarray ? @result : join("", @result) ;
+}   
+
+sub docat_del
+{ 
+    my $file = shift;
+    #local $/ = undef unless wantarray ;
+    open(CAT,$file) || die "Cannot open $file: $!";
+    my @result = <CAT>;
+    close(CAT);
+    unlink $file ;
+    wantarray ? @result : join("", @result) ;
+}   
+
+
+$db185mode =  ($DB_File::db_version == 1 && ! $DB_File::db_185_compat) ;
+
+my $Dfile = "dbbtree.tmp";
 unlink $Dfile;
 
 umask(0);
@@ -133,7 +179,6 @@ delete $h{'goner2'};
 #             underlying DB close routine will not get called.
 undef $X ;
 untie(%h);
-
 
 # tie to the same file again
 ok(26, $X = tie(%h,'DB_File',$Dfile, O_RDWR, 0640, $DB_BTREE)) ;
@@ -608,5 +653,568 @@ EOM
     unlink "SubDB.pm", "dbbtree.tmp" ;
 
 }
+
+{
+   # DBM Filter tests
+   use strict ;
+   my (%h, $db) ;
+   my ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   unlink $Dfile;
+
+   sub checkOutput
+   {
+       my($fk, $sk, $fv, $sv) = @_ ;
+       return
+           $fetch_key eq $fk && $store_key eq $sk && 
+	   $fetch_value eq $fv && $store_value eq $sv &&
+	   $_ eq 'original' ;
+   }
+   
+   ok(103, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_BTREE ) );
+
+   $db->filter_fetch_key   (sub { $fetch_key = $_ }) ;
+   $db->filter_store_key   (sub { $store_key = $_ }) ;
+   $db->filter_fetch_value (sub { $fetch_value = $_}) ;
+   $db->filter_store_value (sub { $store_value = $_ }) ;
+
+   $_ = "original" ;
+
+   $h{"fred"} = "joe" ;
+   #                   fk   sk     fv   sv
+   ok(104, checkOutput( "", "fred", "", "joe")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(105, $h{"fred"} eq "joe");
+   #                   fk    sk     fv    sv
+   ok(106, checkOutput( "", "fred", "joe", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(107, $db->FIRSTKEY() eq "fred") ;
+   #                    fk     sk  fv  sv
+   ok(108, checkOutput( "fred", "", "", "")) ;
+
+   # replace the filters, but remember the previous set
+   my ($old_fk) = $db->filter_fetch_key   
+   			(sub { $_ = uc $_ ; $fetch_key = $_ }) ;
+   my ($old_sk) = $db->filter_store_key   
+   			(sub { $_ = lc $_ ; $store_key = $_ }) ;
+   my ($old_fv) = $db->filter_fetch_value 
+   			(sub { $_ = "[$_]"; $fetch_value = $_ }) ;
+   my ($old_sv) = $db->filter_store_value 
+   			(sub { s/o/x/g; $store_value = $_ }) ;
+   
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   $h{"Fred"} = "Joe" ;
+   #                   fk   sk     fv    sv
+   ok(109, checkOutput( "", "fred", "", "Jxe")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(110, $h{"Fred"} eq "[Jxe]");
+   #                   fk   sk     fv    sv
+   ok(111, checkOutput( "", "fred", "[Jxe]", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(112, $db->FIRSTKEY() eq "FRED") ;
+   #                   fk   sk     fv    sv
+   ok(113, checkOutput( "FRED", "", "", "")) ;
+
+   # put the original filters back
+   $db->filter_fetch_key   ($old_fk);
+   $db->filter_store_key   ($old_sk);
+   $db->filter_fetch_value ($old_fv);
+   $db->filter_store_value ($old_sv);
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   $h{"fred"} = "joe" ;
+   ok(114, checkOutput( "", "fred", "", "joe")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(115, $h{"fred"} eq "joe");
+   ok(116, checkOutput( "", "fred", "joe", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(117, $db->FIRSTKEY() eq "fred") ;
+   ok(118, checkOutput( "fred", "", "", "")) ;
+
+   # delete the filters
+   $db->filter_fetch_key   (undef);
+   $db->filter_store_key   (undef);
+   $db->filter_fetch_value (undef);
+   $db->filter_store_value (undef);
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   $h{"fred"} = "joe" ;
+   ok(119, checkOutput( "", "", "", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(120, $h{"fred"} eq "joe");
+   ok(121, checkOutput( "", "", "", "")) ;
+
+   ($fetch_key, $store_key, $fetch_value, $store_value) = ("") x 4 ;
+   ok(122, $db->FIRSTKEY() eq "fred") ;
+   ok(123, checkOutput( "", "", "", "")) ;
+
+   undef $db ;
+   untie %h;
+   unlink $Dfile;
+}
+
+{    
+    # DBM Filter with a closure
+
+    use strict ;
+    my (%h, $db) ;
+
+    unlink $Dfile;
+    ok(124, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_BTREE ) );
+
+    my %result = () ;
+
+    sub Closure
+    {
+        my ($name) = @_ ;
+	my $count = 0 ;
+	my @kept = () ;
+
+	return sub { ++$count ; 
+		     push @kept, $_ ; 
+		     $result{$name} = "$name - $count: [@kept]" ;
+		   }
+    }
+
+    $db->filter_store_key(Closure("store key")) ;
+    $db->filter_store_value(Closure("store value")) ;
+    $db->filter_fetch_key(Closure("fetch key")) ;
+    $db->filter_fetch_value(Closure("fetch value")) ;
+
+    $_ = "original" ;
+
+    $h{"fred"} = "joe" ;
+    ok(125, $result{"store key"} eq "store key - 1: [fred]");
+    ok(126, $result{"store value"} eq "store value - 1: [joe]");
+    ok(127, ! defined $result{"fetch key"} );
+    ok(128, ! defined $result{"fetch value"} );
+    ok(129, $_ eq "original") ;
+
+    ok(130, $db->FIRSTKEY() eq "fred") ;
+    ok(131, $result{"store key"} eq "store key - 1: [fred]");
+    ok(132, $result{"store value"} eq "store value - 1: [joe]");
+    ok(133, $result{"fetch key"} eq "fetch key - 1: [fred]");
+    ok(134, ! defined $result{"fetch value"} );
+    ok(135, $_ eq "original") ;
+
+    $h{"jim"}  = "john" ;
+    ok(136, $result{"store key"} eq "store key - 2: [fred jim]");
+    ok(137, $result{"store value"} eq "store value - 2: [joe john]");
+    ok(138, $result{"fetch key"} eq "fetch key - 1: [fred]");
+    ok(139, ! defined $result{"fetch value"} );
+    ok(140, $_ eq "original") ;
+
+    ok(141, $h{"fred"} eq "joe");
+    ok(142, $result{"store key"} eq "store key - 3: [fred jim fred]");
+    ok(143, $result{"store value"} eq "store value - 2: [joe john]");
+    ok(144, $result{"fetch key"} eq "fetch key - 1: [fred]");
+    ok(145, $result{"fetch value"} eq "fetch value - 1: [joe]");
+    ok(146, $_ eq "original") ;
+
+    undef $db ;
+    untie %h;
+    unlink $Dfile;
+}		
+
+{
+   # DBM Filter recursion detection
+   use strict ;
+   my (%h, $db) ;
+   unlink $Dfile;
+
+   ok(147, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_BTREE ) );
+
+   $db->filter_store_key (sub { $_ = $h{$_} }) ;
+
+   eval '$h{1} = 1234' ;
+   ok(148, $@ =~ /^recursion detected in filter_store_key at/ );
+   
+   undef $db ;
+   untie %h;
+   unlink $Dfile;
+}
+
+
+{
+   # Examples from the POD
+
+
+  my $file = "xyzt" ;
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 1
+    ###
+
+    use strict ;
+    use DB_File ;
+
+    my %h ;
+
+    sub Compare
+    {
+        my ($key1, $key2) = @_ ;
+        "\L$key1" cmp "\L$key2" ;
+    }
+
+    # specify the Perl sub that will do the comparison
+    $DB_BTREE->{'compare'} = \&Compare ;
+
+    unlink "tree" ;
+    tie %h, "DB_File", "tree", O_RDWR|O_CREAT, 0640, $DB_BTREE 
+        or die "Cannot open file 'tree': $!\n" ;
+
+    # Add a key/value pair to the file
+    $h{'Wall'} = 'Larry' ;
+    $h{'Smith'} = 'John' ;
+    $h{'mouse'} = 'mickey' ;
+    $h{'duck'}  = 'donald' ;
+
+    # Delete
+    delete $h{"duck"} ;
+
+    # Cycle through the keys printing them in order.
+    # Note it is not necessary to sort the keys as
+    # the btree will have kept them in order automatically.
+    foreach (keys %h)
+      { print "$_\n" }
+
+    untie %h ;
+
+    unlink "tree" ;
+  }  
+
+  delete $DB_BTREE->{'compare'} ;
+
+  ok(149, docat_del($file) eq <<'EOM') ;
+mouse
+Smith
+Wall
+EOM
+   
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 2
+    ###
+
+    use strict ;
+    use DB_File ;
+
+    use vars qw($filename %h ) ;
+
+    $filename = "tree" ;
+    unlink $filename ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+ 
+    # Add some key/value pairs to the file
+    $h{'Wall'} = 'Larry' ;
+    $h{'Wall'} = 'Brick' ; # Note the duplicate key
+    $h{'Wall'} = 'Brick' ; # Note the duplicate key and value
+    $h{'Smith'} = 'John' ;
+    $h{'mouse'} = 'mickey' ;
+
+    # iterate through the associative array
+    # and print each key/value pair.
+    foreach (keys %h)
+      { print "$_	-> $h{$_}\n" }
+
+    untie %h ;
+
+    unlink $filename ;
+  }  
+
+  ok(150, docat_del($file) eq ($db185mode ? <<'EOM' : <<'EOM') ) ;
+Smith	-> John
+Wall	-> Brick
+Wall	-> Brick
+Wall	-> Brick
+mouse	-> mickey
+EOM
+Smith	-> John
+Wall	-> Larry
+Wall	-> Larry
+Wall	-> Larry
+mouse	-> mickey
+EOM
+
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 3
+    ###
+
+    use strict ;
+    use DB_File ;
+ 
+    use vars qw($filename $x %h $status $key $value) ;
+
+    $filename = "tree" ;
+    unlink $filename ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+ 
+    # Add some key/value pairs to the file
+    $h{'Wall'} = 'Larry' ;
+    $h{'Wall'} = 'Brick' ; # Note the duplicate key
+    $h{'Wall'} = 'Brick' ; # Note the duplicate key and value
+    $h{'Smith'} = 'John' ;
+    $h{'mouse'} = 'mickey' ;
+ 
+    # iterate through the btree using seq
+    # and print each key/value pair.
+    $key = $value = 0 ;
+    for ($status = $x->seq($key, $value, R_FIRST) ;
+         $status == 0 ;
+         $status = $x->seq($key, $value, R_NEXT) )
+      {  print "$key	-> $value\n" }
+ 
+ 
+    undef $x ;
+    untie %h ;
+  }
+
+  ok(151, docat_del($file) eq ($db185mode == 1 ? <<'EOM' : <<'EOM') ) ;
+Smith	-> John
+Wall	-> Brick
+Wall	-> Brick
+Wall	-> Larry
+mouse	-> mickey
+EOM
+Smith	-> John
+Wall	-> Larry
+Wall	-> Brick
+Wall	-> Brick
+mouse	-> mickey
+EOM
+
+
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 4
+    ###
+
+    use strict ;
+    use DB_File ;
+ 
+    use vars qw($filename $x %h ) ;
+
+    $filename = "tree" ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+ 
+    my $cnt  = $x->get_dup("Wall") ;
+    print "Wall occurred $cnt times\n" ;
+
+    my %hash = $x->get_dup("Wall", 1) ;
+    print "Larry is there\n" if $hash{'Larry'} ;
+    print "There are $hash{'Brick'} Brick Walls\n" ;
+
+    my @list = sort $x->get_dup("Wall") ;
+    print "Wall =>	[@list]\n" ;
+
+    @list = $x->get_dup("Smith") ;
+    print "Smith =>	[@list]\n" ;
+ 
+    @list = $x->get_dup("Dog") ;
+    print "Dog =>	[@list]\n" ; 
+ 
+    undef $x ;
+    untie %h ;
+  }
+
+  ok(152, docat_del($file) eq <<'EOM') ;
+Wall occurred 3 times
+Larry is there
+There are 2 Brick Walls
+Wall =>	[Brick Brick Larry]
+Smith =>	[John]
+Dog =>	[]
+EOM
+
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 5
+    ###
+
+    use strict ;
+    use DB_File ;
+ 
+    use vars qw($filename $x %h $found) ;
+
+    my $filename = "tree" ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+
+    $found = ( $x->find_dup("Wall", "Larry") == 0 ? "" : "not") ; 
+    print "Larry Wall is $found there\n" ;
+    
+    $found = ( $x->find_dup("Wall", "Harry") == 0 ? "" : "not") ; 
+    print "Harry Wall is $found there\n" ;
+    
+    undef $x ;
+    untie %h ;
+  }
+
+  ok(153, docat_del($file) eq <<'EOM') ;
+Larry Wall is  there
+Harry Wall is not there
+EOM
+
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 6
+    ###
+
+    use strict ;
+    use DB_File ;
+ 
+    use vars qw($filename $x %h $found) ;
+
+    my $filename = "tree" ;
+ 
+    # Enable duplicate records
+    $DB_BTREE->{'flags'} = R_DUP ;
+ 
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE 
+	or die "Cannot open $filename: $!\n";
+
+    $x->del_dup("Wall", "Larry") ;
+
+    $found = ( $x->find_dup("Wall", "Larry") == 0 ? "" : "not") ; 
+    print "Larry Wall is $found there\n" ;
+    
+    undef $x ;
+    untie %h ;
+
+    unlink $filename ;
+  }
+
+  ok(154, docat_del($file) eq <<'EOM') ;
+Larry Wall is not there
+EOM
+
+  {
+    my $redirect = new Redirect $file ;
+
+    # BTREE example 7
+    ###
+
+    use strict ;
+    use DB_File ;
+    use Fcntl ;
+
+    use vars qw($filename $x %h $st $key $value) ;
+
+    sub match
+    {
+        my $key = shift ;
+        my $value = 0;
+        my $orig_key = $key ;
+        $x->seq($key, $value, R_CURSOR) ;
+        print "$orig_key\t-> $key\t-> $value\n" ;
+    }
+
+    $filename = "tree" ;
+    unlink $filename ;
+
+    $x = tie %h, "DB_File", $filename, O_RDWR|O_CREAT, 0640, $DB_BTREE
+        or die "Cannot open $filename: $!\n";
+ 
+    # Add some key/value pairs to the file
+    $h{'mouse'} = 'mickey' ;
+    $h{'Wall'} = 'Larry' ;
+    $h{'Walls'} = 'Brick' ; 
+    $h{'Smith'} = 'John' ;
+ 
+
+    $key = $value = 0 ;
+    print "IN ORDER\n" ;
+    for ($st = $x->seq($key, $value, R_FIRST) ;
+	 $st == 0 ;
+         $st = $x->seq($key, $value, R_NEXT) )
+	
+      {  print "$key	-> $value\n" }
+ 
+    print "\nPARTIAL MATCH\n" ;
+
+    match "Wa" ;
+    match "A" ;
+    match "a" ;
+
+    undef $x ;
+    untie %h ;
+
+    unlink $filename ;
+
+  }
+
+  ok(155, docat_del($file) eq <<'EOM') ;
+IN ORDER
+Smith	-> John
+Wall	-> Larry
+Walls	-> Brick
+mouse	-> mickey
+
+PARTIAL MATCH
+Wa	-> Wall	-> Larry
+A	-> Smith	-> John
+a	-> mouse	-> mickey
+EOM
+
+}
+
+#{
+#   # R_SETCURSOR
+#   use strict ;
+#   my (%h, $db) ;
+#   unlink $Dfile;
+#
+#   ok(156, $db = tie(%h, 'DB_File', $Dfile, O_RDWR|O_CREAT, 0640, $DB_BTREE ) );
+#
+#   $h{abc} = 33 ;
+#   my $k = "newest" ;
+#   my $v = 44 ;
+#   my $status = $db->put($k, $v, R_SETCURSOR) ;
+#   print "status = [$status]\n" ;
+#   ok(157, $status == 0) ;
+#   $status = $db->del($k, R_CURSOR) ;
+#   print "status = [$status]\n" ;
+#   ok(158, $status == 0) ;
+#   $k = "newest" ;
+#   ok(159, $db->get($k, $v, R_CURSOR)) ;
+#
+#   ok(160, keys %h == 1) ;
+#   
+#   undef $db ;
+#   untie %h;
+#   unlink $Dfile;
+#}
 
 exit ;

@@ -5,7 +5,7 @@
 
 BEGIN {
     chdir 't' if -d 't';
-    @INC = '../lib';
+    unshift @INC, '../lib';
 }
 
 print "1..2\n";
@@ -31,4 +31,5 @@ unless(-e '../utils/h2ph') {
     
     # cleanup - should this be in an END block?
     unlink("lib/h2ph.ph");
+    unlink("_h2ph_pre.ph");
 }

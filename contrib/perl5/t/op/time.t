@@ -2,7 +2,7 @@
 
 # $RCSfile: time.t,v $$Revision: 4.1 $$Date: 92/08/07 18:28:32 $
 
-if ($does_gmtime = gmtime(time)) { print "1..5\n" }
+if ($does_gmtime = gmtime(time)) { print "1..6\n" }
 else { print "1..3\n" }
 
 ($beguser,$begsys) = times;
@@ -45,3 +45,9 @@ if (index(" :0:1:-1:364:365:-364:-365:",':' . ($localyday - $yday) . ':') > 0)
     {print "ok 5\n";}
 else
     {print "not ok 5\n";}
+
+# This could be stricter.
+if (gmtime() =~ /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) (Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) ([ \d]\d) (\d\d):(\d\d):(\d\d) (\d\d\d\d)$/)
+    {print "ok 6\n";}
+else
+    {print "not ok 6\n";}

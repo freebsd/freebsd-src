@@ -2,8 +2,8 @@
 #################################### DBM SECTION
 #
 
-datum			T_DATUM
-gdatum			T_GDATUM
+datum_key		T_DATUM_K
+datum_value		T_DATUM_V
 NDBM_File		T_PTROBJ
 GDBM_File		T_PTROBJ
 SDBM_File		T_PTROBJ
@@ -13,15 +13,20 @@ DBZ_File		T_PTROBJ
 FATALFUNC		T_OPAQUEPTR
 
 INPUT
-T_DATUM
+T_DATUM_K
+	ckFilter($arg, filter_store_key, \"filter_store_key\");
 	$var.dptr = SvPV($arg, PL_na);
 	$var.dsize = (int)PL_na;
-T_GDATUM
-	UNIMPLEMENTED
+T_DATUM_V
+        ckFilter($arg, filter_store_value, \"filter_store_value\");
+	$var.dptr = SvPV($arg, PL_na);
+	$var.dsize = (int)PL_na;
 OUTPUT
-T_DATUM
-	sv_setpvn($arg, $var.dptr, $var.dsize);
-T_GDATUM
-	sv_usepvn($arg, $var.dptr, $var.dsize);
+T_DATUM_K
+	output_datum(aTHX_ $arg, $var.dptr, $var.dsize);
+	ckFilter($arg, filter_fetch_key,\"filter_fetch_key\");
+T_DATUM_V
+	output_datum(aTHX_ $arg, $var.dptr, $var.dsize);
+	ckFilter($arg, filter_fetch_value,\"filter_fetch_value\");
 T_PTROBJ
         sv_setref_pv($arg, dbtype, (void*)$var);

@@ -1,7 +1,7 @@
 .\" $Id: sdbm.3,v 1.2 90/12/13 13:00:57 oz Exp $
 .TH SDBM 3 "1 March 1990"
 .SH NAME
-sdbm, sdbm_open, sdbm_prep, sdbm_close, sdbm_fetch, sdbm_store, sdbm_delete, sdbm_firstkey, sdbm_nextkey, sdbm_hash, sdbm_rdonly, sdbm_error, sdbm_clearerr, sdbm_dirfno, sdbm_pagfno \- data base subroutines
+sdbm, sdbm_open, sdbm_prep, sdbm_close, sdbm_fetch, sdbm_store, sdbm_delete, sdbm_exists, sdbm_firstkey, sdbm_nextkey, sdbm_hash, sdbm_rdonly, sdbm_error, sdbm_clearerr, sdbm_dirfno, sdbm_pagfno \- data base subroutines
 .SH SYNOPSIS
 .nf
 .ft B
@@ -26,6 +26,8 @@ int sdbm_store(\s-1DBM\s0 *db, datum key, datum val, int flags)
 .sp
 int sdbm_delete(\s-1DBM\s0 *db, datum key)
 .sp
+int sdbm_exists(\s-1DBM\s0 *db, datum key)
+.sp
 datum sdbm_firstkey(\s-1DBM\s0 *db)
 .sp
 datum sdbm_nextkey(\s-1DBM\s0 *db)
@@ -47,6 +49,7 @@ int sdbm_pagfno(\s-1DBM\s0 *db)
 .IX sdbm_fetch "" "\fLsdbm_fetch\fR \(em fetch \fLsdbm\fR database data"
 .IX sdbm_store "" "\fLsdbm_store\fR \(em add data to \fLsdbm\fR database"
 .IX sdbm_delete "" "\fLsdbm_delete\fR \(em remove data from \fLsdbm\fR database"
+.IX sdbm_exists "" "\fLsdbm_exists\fR \(em test \fLsdbm\fR key existence"
 .IX sdbm_firstkey "" "\fLsdbm_firstkey\fR \(em access \fLsdbm\fR database"
 .IX sdbm_nextkey "" "\fLsdbm_nextkey\fR \(em access \fLsdbm\fR database"
 .IX sdbm_hash "" "\fLsdbm_hash\fR \(em string hash for \fLsdbm\fR database"
@@ -149,6 +152,8 @@ Given a handle, one can retrieve data associated with a key by using the
 routine, and associate data with a key by using the
 .BR sdbm_store (\|)
 routine.
+.BR sdbm_exists (\|)
+will say whether a given key exists in the database.
 .LP
 The values of the
 .I flags

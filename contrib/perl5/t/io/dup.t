@@ -37,3 +37,4 @@ else                  { system 'cat Io.dup' }
 unlink 'Io.dup';
 
 print STDOUT "ok 6\n";
+

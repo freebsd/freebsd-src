@@ -1,6 +1,6 @@
 =head1 NAME
 
-perlfaq8 - System Interaction ($Revision: 1.36 $, $Date: 1999/01/08 05:36:34 $)
+perlfaq8 - System Interaction ($Revision: 1.39 $, $Date: 1999/05/23 18:37:57 $)
 
 =head1 DESCRIPTION
 
@@ -15,8 +15,9 @@ contain more detailed information on the vagaries of your perl.
 
 =head2 How do I find out which operating system I'm running under?
 
-The $^O variable ($OSNAME if you use English) contains the operating
-system that your perl binary was built for.
+The $^O variable ($OSNAME if you use English) contains an indication of
+the name of the operating system (not its release number) that your perl
+binary was built for.
 
 =head2 How come exec() doesn't return?
 
@@ -74,7 +75,7 @@ Or like this:
 =head2 How do I read just one key without waiting for a return key?
 
 Controlling input buffering is a remarkably system-dependent matter.
-If most systems, you can just use the B<stty> command as shown in
+On many systems, you can just use the B<stty> command as shown in
 L<perlfunc/getc>, but as you see, that's already getting you into
 portability snags.  
 
@@ -167,7 +168,7 @@ not to block:
 
 =head2 How do I clear the screen?
 
-If you only have to so infrequently, use C<system>:
+If you only have do so infrequently, use C<system>:
 
     system("clear");
 
@@ -409,7 +410,7 @@ For example:
     }
 
 However, because syscalls restart by default, you'll find that if
-you're in a "slow" call, such as E<lt>FHE<gt>, read(), connect(), or
+you're in a "slow" call, such as <FH>, read(), connect(), or
 wait(), that the only way to terminate them is by "longjumping" out;
 that is, by raising an exception.  See the time-out handler for a
 blocking flock() in L<perlipc/"Signals"> or chapter 6 of the Camel.
@@ -421,7 +422,7 @@ properly, the getpw*() functions described in L<perlfunc> should in
 theory provide (read-only) access to entries in the shadow password
 file.  To change the file, make a new shadow password file (the format
 varies from system to system - see L<passwd(5)> for specifics) and use
-pwd_mkdb(8) to install it (see L<pwd_mkdb(5)> for more details).
+pwd_mkdb(8) to install it (see L<pwd_mkdb(8)> for more details).
 
 =head2 How do I set the time and date?
 
@@ -461,7 +462,7 @@ something like this:
 
     $done = $start = pack($TIMEVAL_T, ());
 
-    syscall( &SYS_gettimeofday, $start, 0) != -1
+    syscall(&SYS_gettimeofday, $start, 0) != -1
                or die "gettimeofday: $!";
 
        ##########################
@@ -699,7 +700,7 @@ case the fork()/exec() description still applies.
 
 Strictly speaking, nothing.  Stylistically speaking, it's not a good
 way to write maintainable code because backticks have a (potentially
-humungous) return value, and you're ignoring it.  It's may also not be very
+humongous) return value, and you're ignoring it.  It's may also not be very
 efficient, because you have to read in all the lines of output, allocate
 memory for them, and then throw it away.  Too often people are lulled
 to writing:
@@ -725,7 +726,7 @@ In most cases, this could and probably should be written as
     system("cat /etc/termcap") == 0
 	or die "cat program failed!";
 
-Which will get the output quickly (as its generated, instead of only
+Which will get the output quickly (as it is generated, instead of only
 at the end) and also check the return value.
 
 system() also provides direct control over whether shell wildcard
@@ -751,8 +752,14 @@ You have to do this:
     }
 
 Just as with system(), no shell escapes happen when you exec() a list.
+Further examples of this can be found in L<perlipc/"Safe Pipe Opens">.
 
-There are more examples of this L<perlipc/"Safe Pipe Opens">.
+Note that if you're stuck on Microsoft, no solution to this vexing issue
+is even possible.  Even if Perl were to emulate fork(), you'd still
+be hosed, because Microsoft gives no argc/argv-style API.  Their API
+always reparses from a single string, which is fundamentally wrong,
+but you're not likely to get the Gods of Redmond to acknowledge this
+and fix it for you.
 
 =head2 Why can't my script read from STDIN after I gave it EOF (^D on Unix, ^Z on MS-DOS)?
 
@@ -928,7 +935,7 @@ the current process group of your controlling terminal as follows:
 =head2 How do I timeout a slow event?
 
 Use the alarm() function, probably in conjunction with a signal
-handler, as documented L<perlipc/"Signals"> and chapter 6 of the
+handler, as documented in L<perlipc/"Signals"> and chapter 6 of the
 Camel.  You may instead use the more flexible Sys::AlarmCall module
 available from CPAN.
 
@@ -945,10 +952,9 @@ in L<perlfunc/fork>.
 =head2 How do I use an SQL database?
 
 There are a number of excellent interfaces to SQL databases.  See the
-DBD::* modules available from
-http://www.perl.com/CPAN/modules/dbperl/DBD .
+DBD::* modules available from http://www.perl.com/CPAN/modules/DBD .
 A lot of information on this can be found at 
-http://www.hermetica.com/technologia/perl/DBI/index.html .
+http://www.symbolstone.org/technology/perl/DBI/
 
 =head2 How do I make a system() exit on control-C?
 
@@ -970,12 +976,15 @@ sysopen():
     sysopen(FH, "/tmp/somefile", O_WRONLY|O_NDELAY|O_CREAT, 0644)
         or die "can't open /tmp/somefile: $!":
 
-=head2 How do I install a CPAN module?
 
-The easiest way is to have the CPAN module do it for you.  This module
-comes with perl version 5.004 and later.  To manually install the CPAN
-module, or any well-behaved CPAN module for that matter, follow these
-steps:
+
+
+=head2 How do I install a module from CPAN?
+
+The easiest way is to have a module also named CPAN do it for you.
+This module comes with perl version 5.004 and later.  To manually install
+the CPAN module, or any well-behaved CPAN module for that matter, follow
+these steps:
 
 =over 4
 
@@ -1085,7 +1094,7 @@ All rights reserved.
 
 When included as part of the Standard Version of Perl, or as part of
 its complete documentation whether printed or otherwise, this work
-may be distributed only under the terms of Perl's Artistic Licence.
+may be distributed only under the terms of Perl's Artistic License.
 Any distribution of this file or derivatives thereof I<outside>
 of that package require that special arrangements be made with
 copyright holder.
@@ -1095,4 +1104,3 @@ are hereby placed into the public domain.  You are permitted and
 encouraged to use this code in your own programs for fun
 or for profit as you see fit.  A simple comment in the code giving
 credit would be courteous but is not required.
-
