@@ -512,7 +512,6 @@ trap_pfault(struct trapframe *frame, int user)
 	}
 	va = trunc_page(eva);
 
-	mtx_lock(&Giant);
 	if (map != kernel_map) {
 		/*
 		 * Keep swapout from messing with us during this
@@ -537,7 +536,6 @@ trap_pfault(struct trapframe *frame, int user)
 		 */
 		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
-	mtx_unlock(&Giant);
 
 	if (rv == KERN_SUCCESS)
 		return (0);
