@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.3 1994/08/02 07:42:19 davidg Exp $
+ * $Id: kern_sysctl.c,v 1.4 1994/08/08 00:30:03 wollman Exp $
  */
 
 /*
@@ -180,6 +180,8 @@ char domainname[MAXHOSTNAMELEN];
 int domainnamelen;
 long hostid;
 int securelevel;
+extern int vfs_update_wakeup;
+extern int vfs_update_interval;
 
 /*
  * kernel related system variables.
@@ -216,6 +218,18 @@ kern_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxproc));
 	case KERN_MAXFILES:
 		return (sysctl_int(oldp, oldlenp, newp, newlen, &maxfiles));
+	case KERN_UPDATEINTERVAL:
+		/*
+		 * NB: this simple-minded approach only works because
+		 * `tsleep' takes a timeout argument of 0 as meaning
+		 * `no timeout'.
+		 */
+		error = sysctl_int(oldp, oldlenp, newp, newlen, 
+				   &vfs_update_interval);
+		if(!error) {
+			wakeup(&vfs_update_wakeup);
+		}
+		return error;
 	case KERN_ARGMAX:
 		return (sysctl_rdint(oldp, oldlenp, newp, ARG_MAX));
 	case KERN_SECURELVL:
