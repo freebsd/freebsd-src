@@ -35,11 +35,8 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
 #include <sys/bus.h>
 #include <sys/proc.h>
-#include <sys/tty.h>
-#include <sys/fcntl.h>
 #include <sys/malloc.h>
 
 #include <dev/kbd/kbdreg.h>
@@ -224,6 +221,8 @@ static int		init_keyboard(KBDC kbdc, int *type, int flags);
 static int		write_kbd(KBDC kbdc, int command, int data);
 static int		get_kbd_id(KBDC kbdc);
 static int		typematic(int delay, int rate);
+static int		typematic_delay(int delay);
+static int		typematic_rate(int rate);
 
 /* local variables */
 
@@ -875,13 +874,23 @@ atkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		if (!KBD_HAS_DEVICE(kbd))
 			return 0;
 		i = typematic(((int *)arg)[0], ((int *)arg)[1]);
-		return write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, i);
+		error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, i);
+		if (error == 0) {
+			kbd->kb_delay1 = typematic_delay(i);
+			kbd->kb_delay2 = typematic_rate(i);
+		}
+		return error;
 
 	case KDSETRAD:		/* set keyboard repeat rate (old interface) */
 		splx(s);
 		if (!KBD_HAS_DEVICE(kbd))
 			return 0;
-		return write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, *(int *)arg);
+		error = write_kbd(state->kbdc, KBDC_SET_TYPEMATIC, *(int *)arg);
+		if (error == 0) {
+			kbd->kb_delay1 = typematic_delay(*(int *)arg);
+			kbd->kb_delay2 = typematic_rate(*(int *)arg);
+		}
+		return error;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
@@ -1286,14 +1295,27 @@ get_kbd_id(KBDC kbdc)
 	return ((id2 << 8) | id1);
 }
 
+static int delays[] = { 250, 500, 750, 1000 };
+static int rates[] = {  34,  38,  42,  46,  50,  55,  59,  63,
+			68,  76,  84,  92, 100, 110, 118, 126,
+		       136, 152, 168, 184, 200, 220, 236, 252,
+		       272, 304, 336, 368, 400, 440, 472, 504 };
+
+static int
+typematic_delay(int i)
+{
+	return delays[(i >> 5) & 3];
+}
+
+static int
+typematic_rate(int i)
+{
+	return rates[i & 0x1f];
+}
+
 static int
 typematic(int delay, int rate)
 {
-	static int delays[] = { 250, 500, 750, 1000 };
-	static int rates[] = {  34,  38,  42,  46,  50,  55,  59,  63,
-				68,  76,  84,  92, 100, 110, 118, 126,
-			       136, 152, 168, 184, 200, 220, 236, 252,
-			       272, 304, 336, 368, 400, 440, 472, 504 };
 	int value;
 	int i;
 

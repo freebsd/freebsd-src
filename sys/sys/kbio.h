@@ -77,12 +77,13 @@ struct keyboard_info {
 typedef struct keyboard_info keyboard_info_t;
 #define KDGKBINFO	_IOR('K', 101, keyboard_info_t)
 
-/* set keyboard repeat rate (new interface) */
+/* set/get keyboard repeat rate (new interface) */
 struct keyboard_repeat {
 	int		kb_repeat[2];
 };
 typedef struct keyboard_repeat keyboard_repeat_t;
 #define KDSETREPEAT	_IOW('K', 102, keyboard_repeat_t)
+#define KDGETREPEAT	_IOR('K', 103, keyboard_repeat_t)
 
 /* get/set key map/accent map/function key strings */
 
