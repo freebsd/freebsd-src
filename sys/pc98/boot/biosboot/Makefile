@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1996/09/12 11:08:41 asami Exp $
+#	$Id: Makefile,v 1.4 1996/10/23 07:24:27 asami Exp $
 #
 
 PROG=	boot
@@ -37,6 +37,10 @@ CFLAGS+=	-DCOMCONSOLE=${BOOT_COMCONSOLE_PORT} \
 		-DCOMCONSOLE_CLK=${BOOT_COMCONSOLE_CLK} \
 		-DCOMCONSOLE_MODE=${BOOT_COMCONSOLE_MODE}
 
+# feature not implemented
+# BOOT_COMCONSOLE_SPEED?=9600
+# CFLAGS+=	-DCONSPEED=${BOOT_COMCONSOLE_SPEED}
+
 # Enable code to take the default boot string from a fixed location on the
 # disk.  See nextboot(8) and README.386BSD for more info.
 #CFLAGS+=	-DNAMEBLOCK
@@ -73,7 +77,7 @@ BOOTWAIT?=	5000
 #TIMEOUT?=	30000
 
 # Location that boot2 is loaded at
-BOOTSEG=	0x9000
+BOOTSEG=	0x1000
 
 # Offset in BOOTSEG for the top of the stack, keep this 16 byte aligned
 BOOTSTACK=	0xFFF0
