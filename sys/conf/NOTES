@@ -479,7 +479,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  The `ether' device provides generic code to handle
 #  Ethernets; it is MANDATORY when a Ethernet device driver is
 #  configured or token-ring is enabled.
-#  The 'fddi' device provides generic code to support FDDI.
+#  The `fddi' device provides generic code to support FDDI.
 #  The `sppp' device serves a similar role for certain types
 #  of synchronous PPP links (like `cx', `ar').
 #  The `sl' device implements the Serial Line IP (SLIP) service.
@@ -490,7 +490,7 @@ device		musycc	# LMC/SBE LMC1504 quad T1/E1
 #  simultaneous BPF clients programs runnable.
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
-#  included for testing purposes.  This shows up as the 'ds' interface.
+#  included for testing purposes.  This shows up as the `ds' interface.
 #  The `tap' device is a pty-like virtual Ethernet interface
 #  The `tun' device implements (user-)ppp and nos-tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
