@@ -7,7 +7,7 @@ if [ -d ${RD}/trees/bin/usr/share/dict ]; then
 	rm -rf ${RD}/trees/bin/usr/share/dict;
 fi
 
-mkdir ${RD}/trees/bin/usr/share/misc
+mkdir ${RD}/trees/dict/usr/share/misc
 
 for i in airport birthtoken flowers inter.phone iso3166 na.phone zipcodes; do
 	if [ -f ${RD}/trees/bin/usr/share/misc/$i ]; then
