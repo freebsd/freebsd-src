@@ -122,6 +122,16 @@
       can be disabled by the <literal>NODEVFS</literal> kernel
       option.</para>
 
+    <para>The DEVFS "rule" subsystem has been introduced.  DEVFS rules
+      permit the administrator to define certain properties of new devfs
+      nodes before they become visible to the userland.  Both static (e.g.,
+      <filename>/dev/speaker</filename>) and dynamic (e.g.,
+      <filename>/dev/bpf*</filename>, some removable devices) nodes are
+      supported.  Each DEVFS mount may have a different ruleset assigned to
+      it, permitting different policies to be implemented for things like
+      jails.  Rules and rulesets are manipulated with the &man.devfs.8;
+      utility.</para>
+
     <para>The dgm driver has been removed in favor of the digi driver.</para>
 
     <para>A new digi driver has been added to support PCI Xr-based and
@@ -2500,6 +2510,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       following a target that is a link, with a <option>-n</option>
       flag for compatibility with other
       implementations. &merged;</para>
+
+    <para>&man.lock.1; now accepts a <option>-v</option> to disable
+      switching VTYs while the current terminal is locked.  This permits
+      locking the entire console from a single terminal.</para>
 
     <para role="historic">&man.logger.1; can now send messages directly to a remote
       syslog. &merged;</para>
