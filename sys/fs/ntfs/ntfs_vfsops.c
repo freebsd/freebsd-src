@@ -111,9 +111,6 @@ ntfs_omount (
 	struct ntfs_args args;
 	struct nameidata ndp;
 
-	/*
-	 * Use NULL path to flag a root mount
-	 */
 	if (mp->mnt_flag & MNT_ROOTFS) {
 		/*
 		 ***
