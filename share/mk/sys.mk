@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.4 1994/08/31 03:57:32 paul Exp $
+#	$Id: sys.mk,v 1.5 1994/09/04 02:52:27 jkh Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -69,8 +69,10 @@ SHELL		?=	sh
 YACC		?=	yacc
 YFLAGS		?=	-d
 
-.c:
-	${CC} ${CFLAGS} ${.IMPSRC} -o ${.TARGET}
+# This rule currently causes both make from 1.x and 2.x to have problems,
+# and is not being used so disable it for now.
+#.c:
+#	${CC} ${CFLAGS} ${.IMPSRC} -o ${.TARGET}
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
