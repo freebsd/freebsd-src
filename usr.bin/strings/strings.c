@@ -32,20 +32,24 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1987, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)strings.c	8.2 (Berkeley) 1/28/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
 #include <a.out.h>
 #include <ctype.h>
-#include <errno.h>
+#include <err.h>
 #include <fcntl.h>
 #include <locale.h>
 #include <stdio.h>
@@ -55,8 +59,8 @@ static char sccsid[] = "@(#)strings.c	8.2 (Berkeley) 1/28/94";
 
 #define DEF_LEN		4		/* default minimum string length */
 #define ISSTR(ch)       (isalnum(ch) || ispunct(ch) || \
-			 isspace(ch) && (!iscntrl(ch) || ch == '\t') || \
-			 isascii(ch) && isprint(ch))
+			 (isspace(ch) && (!iscntrl(ch) || ch == '\t')) || \
+			 (isascii(ch) && isprint(ch)))
 
 typedef struct exec	EXEC;		/* struct exec cast */
 
@@ -66,8 +70,10 @@ static int	hcnt,			/* head count */
 		read_len;		/* length to read */
 static u_char	hbfr[sizeof(EXEC)];	/* buffer for struct exec */
 
-static void usage();
+int getch __P((void));
+static void usage __P((void));
 
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -128,23 +134,18 @@ main(argc, argv)
 
 	if (minlen == -1)
 		minlen = DEF_LEN;
-	else if (minlen < 1) {
-		(void)fprintf(stderr, "strings: length less than 1\n");
-		exit (1);
-	}
+	else if (minlen < 1)
+		errx(1, "length less than 1");
 
-	if (!(bfr = malloc((u_int)minlen))) {
-		(void)fprintf(stderr, "strings: %s\n", strerror(errno));
-		exit(1);
-	}
+	if (!(bfr = malloc((u_int)minlen)))
+		errx(1, "malloc");
 	bfr[minlen] = '\0';
 	file = "stdin";
 	do {
 		if (*argv) {
 			file = *argv++;
 			if (!freopen(file, "r", stdin)) {
-				(void)fprintf(stderr,
-				    "strings: %s: %s\n", file, strerror(errno));
+				warn("%s", file);
 				exitcode = 1;
 				goto nextfile;
 			}
@@ -199,6 +200,7 @@ nextfile: ;
  * getch --
  *	get next character from wherever
  */
+int
 getch()
 {
 	++foff;
