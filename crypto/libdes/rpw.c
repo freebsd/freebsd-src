@@ -54,10 +54,12 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
+ *
+ * $FreeBSD$
  */
 
 #include <stdio.h>
-#include <openssl/des.h>
+#include <des.h>
 
 int main(int argc, char *argv[])
 	{
