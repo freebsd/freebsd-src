@@ -171,6 +171,9 @@
       has been fixed.  <command>kbdcontrol -k /dev/kbd1</command>
       is no longer needed when only a USB keyboard is connected.</para>
 
+    <para arch="i386,pc98">The &man.hifn.4; driver now supports 
+      symmetric crypto for the 7955 and 7956 chipsets.</para>
+
     <para arch="i386">The &man.safe.4; driver has been added
       to support SafeNet 1141, 1741-based crypto accelerators.
 
@@ -238,6 +241,9 @@
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>A bug in &man.ipfw.4; limit rule processing that could
+        cause various panics has been fixed.</para>
 
       <para>&man.ipfw.4; rules now support comma-separated address lists
         (such as <literal>1.2.3.4, 5.6.7.8/30, 9.10.11.12/22</literal>),
@@ -363,16 +369,18 @@
       has been updated from a 1.2beta1 to a 5 January 2003 snapshot
       from the NetBSD CVS repository.</para>
 
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7a to 0.9.7c.</para>
+
     <para><application>sendmail</application> has been updated to
       version 8.12.9.</para>
 
     <para><application>texinfo</application> has been updated from 4.5
       to 4.6.</para>
 
-    <para>The timezone database has been updated from
-      <filename>tzdata2002d</filename> to
-      <filename>tzdata2003a</filename>.</para>
-
+    <para>The timezone database has been updated
+      from the <filename>tzdata2003a</filename> release
+      to the <filename>tzdata2003d</filename> release.</para>
   </sect2>
 
   <sect2 id="ports">
