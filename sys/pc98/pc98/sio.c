@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.30 1997/07/20 11:59:48 kato Exp $
+ *	$Id: sio.c,v 1.31 1997/07/21 13:11:12 kato Exp $
  */
 
 #include "opt_comconsole.h"
@@ -160,13 +160,14 @@
 #include <pccard/slot.h>
 #endif
 
-#if defined(APIC_IO)
+#ifdef APIC_IO
 /*
  * INTs are masked in the (global) IO APIC,
  *  but the IRR register is in each LOCAL APIC,
  *   so we HAVE to unmask the INT to be able to "see INT pending"
  * BUT how do we clear them???
  */
+#include <i386/isa/intr_machdep.h>
 #define isa_irq_pending		icu_irq_pending
 #endif /* APIC_IO */
 
