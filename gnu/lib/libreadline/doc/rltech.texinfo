@@ -1,6 +1,5 @@
 @comment %**start of header (This is for running Texinfo on a region.)
 @setfilename rltech.info
-@synindex fn vr
 @comment %**end of header (This is for running Texinfo on a region.)
 @setchapternewpage odd
 
@@ -132,7 +131,7 @@ with @code{rl_bind_key ()}.
 
 @findex rl_bind_key ()
 @example
-@code{int rl_bind_key (int @var{key}, (int (*)())@var{function});}
+@code{int rl_bind_key (int @var{key}, int (*@var{function})());}
 @end example
 
 @code{rl_bind_key ()} takes 2 arguments; @var{key} is the character that
@@ -423,10 +422,10 @@ invert_case_line (count, key)
 @section Custom Completers
 
 Typically, a program that reads commands from the user has a way of
-disambiguating between commands and data.  If your program is one of
-these, then it can provide completion for either commands, or data, or
-both commands and data.  The following sections describe how your
-program and Readline cooperate to provide this service to end users.
+disambiguating commands and data.  If your program is one of these, then
+it can provide completion for either commands, or data, or both commands
+and data.  The following sections describe how your program and Readline
+cooperate to provide this service to end users.
 
 @menu
 * How Completing Works::	The logic used to do completion.
@@ -455,7 +454,7 @@ There are three major functions used to perform completion:
 The user-interface function @code{rl_complete ()}.  This function is
 called interactively with the same calling conventions as other
 functions in readline intended for interactive use; i.e. @var{count},
-and @code{invoking-key}.  It isolates the word to be completed and calls
+and @var{invoking-key}.  It isolates the word to be completed and calls
 @code{completion_matches ()} to generate a list of possible completions.
 It then either lists the possible completions or actually performs the
 completion, depending on which behaviour is desired.
@@ -576,7 +575,7 @@ she wants to see them all.  The default value is 100.
 @defvar {char *rl_basic_word_break_characters}
 The basic list of characters that signal a break between words for the
 completer routine.  The contents of this variable is what breaks words
-in the Bash shell, i.e. " \t\n\"\\'`@@$><=".
+in the Bash shell, i.e. " \t\n\"\\'`@@$><=;|&@{(".
 @end defvar
 
 @defvar {char *rl_completer_word_break_characters}
@@ -603,12 +602,12 @@ within a completion entry generator function.
 
 @defvar {Function *rl_ignore_some_completions_function}
 This function, if defined, is called by the completer when real filename
-completion is done, after all the matching names have been generated.  It
-is passed a @code{NULL} terminated array of pointers to @code{(char *)}
-known as @var{matches} in the code.  The 1st element (@code{matches[0]})
-is the maximal substring that is common to all matches. This function
-can re-arrange the list of matches as required, but each deleted
-element of the array must be @code{free()}'d.
+completion is done, after all the matching names have been generated.
+It is passed a @code{NULL} terminated array of @code{(char *)} known as
+@var{matches} in the code.  The 1st element (@code{matches[0]}) is the
+maximal substring that is common to all matches. This function can
+re-arrange the list of matches as required, but each deleted element of
+the array must be @code{free()}'d.
 @end defvar
 
 @node A Short Completion Example
@@ -868,6 +867,9 @@ static char syscom[1024];
 com_list (arg)
      char *arg;
 @{
+  if (!arg)
+    arg = "*";
+
   sprintf (syscom, "ls -FClg %s", arg);
   system (syscom);
 @}

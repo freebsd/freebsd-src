@@ -1,3 +1,384 @@
+Fri Oct 22 07:55:08 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* configure.in: Add * to end of all OS names.
+
+Tue Oct  5 12:33:51 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* readline.c: Add stuff for HIUX to place where we detect termio
+	vs. sgtty (ugh, but I don't see a simple better way).
+
+Wed Sep 29 11:02:58 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* readline.c (parser_if): Free tname when done with it (change
+	imported from from bash	1.12 readline).
+
+Tue Sep  7 17:15:37 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* configure.in (m88k-*-sysvr4*): Comment out previous change.
+
+Fri Jul  2 11:05:34 1993  Ian Lance Taylor  (ian@cygnus.com)
+
+	* configure.in (*-*-riscos*): New entry; use mh-sysv.
+
+Wed Jun 23 13:00:12 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* configure.in: Add comment.
+
+Mon Jun 14 14:28:55 1993  Jim Kingdon  (kingdon@eric)
+
+	* configure.in (m88k-*-sysvr4*): Use sysdep-norm.h.
+
+Sun Jun 13 13:04:09 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* Makefile.in ({real,dist}clean): Remove sysdep.h.
+
+Thu Jun 10 11:22:41 1993  Jim Kingdon  (kingdon@cygnus.com)
+
+	* Makefile.in: Add mostlyclean, distclean, and realclean targets.
+
+Fri May 21 17:09:28 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+
+	* config/mh-isc: New file.
+	* configure.in: Use it.
+
+Sat Apr 17 00:40:12 1993  Jim Kingdon  (kingdon at calvin)
+
+	* readline.c, history.c: Don't include sys/types.h; sysdep.h does.
+
+	* config/mh-sysv: Define TIOCGWINSZ_BROKEN.
+	readline.c: Check it.
+
+Wed Mar 24 02:06:15 1993  david d `zoo' zuhn  (zoo at poseidon.cygnus.com)
+
+	* Makefile.in: add installcheck & dvi targets
+
+Fri Mar 12 18:36:53 1993  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: recognize *-*-solaris2* instead of *-*-solaris* (a
+	number of people want to call SunOS 4.1.2 "solaris1.0"
+	and get it right)
+
+Tue Mar  2 21:25:36 1993  Fred Fish  (fnf@cygnus.com)
+
+	* sysdep-sysv4.h:  New file for SVR4.
+	* configure.in (*-*-sysv4*):  Use sysdep-sysv4.h.
+
+	* configure.in (*-*-ultrix2):  Add triplet from Michael Rendell
+	(michael@mercury.cs.mun.ca)
+
+Tue Dec 15 12:38:16 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* configure.in (i[34]86-*-sco3.2v4*): use mh-sco4.
+	* config/mh-sco4: New file, like mh-sco but without defining
+	_POSIX_SOURCE.
+
+Wed Nov 11 21:20:14 1992  John Gilmore  (gnu@cygnus.com)
+
+	* configure.in:  Reformat to one-case-per-line.
+	Handle SunOS 3.5, as per Karl Berry, <karl@claude.cs.umb.edu>.
+
+Wed Nov  4 15:32:31 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* sysdep-norm.h:  Remove some crud, install dire warning.
+
+Thu Oct 22 01:08:13 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* configure.in:  Make SCO work again...
+
+Mon Oct 12 15:04:07 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* readline.c (init_terminal_io): if tgetent returns 0, the
+	terminal type is unknown.
+
+Thu Oct  1 23:44:14 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: use cpu-vendor-os triple instead of nested cases
+
+Wed Sep 30 12:58:57 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* readline.c (rl_complete_internal):  Cast alloca to (char *) to
+	avoid warning.
+
+Fri Sep 25 12:45:05 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* readline.c (clear_to_eol, rl_generic_bind):  Make static.
+	(rl_digit_loop):  Add arg to call to rl_message().
+	* vi_mode.c (rl_vi_first_print):  Add arg to call to
+	rl_back_to_indent().
+
+Wed Aug 19 14:59:07 1992  Ian Lance Taylor  (ian@cygnus.com)
+
+	* Makefile.in: always create installation directories, use full
+	file name for install target.
+
+Wed Aug 12 15:50:57 1992  John Gilmore  (gnu@cygnus.com)
+
+	* readline.c (last_readline_init_file):  Fix typo made by Steve
+	Chamberlain/DJ Delorie.  Proper control file name is ~/.inputrc,
+	not ~/inputrc.
+
+Thu Jun 25 16:15:27 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* configure.in:  Make bsd based systems use sysdep-obsd.h.
+
+Tue Jun 23 23:22:53 1992  Per Bothner  (bothner@cygnus.com)
+
+	* config/mh-posix:  New file, for Posix-compliant systems.
+	* configure.in:  Use mh-posix for Linux (free Unix clone).
+
+Tue Jun 23 21:59:20 1992  Fred Fish  (fnf@cygnus.com)
+
+	* sysdep-norm.h (alloca):  Protect against previous definition as
+	a macro with arguments.
+
+Fri Jun 19 15:48:54 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* sysdep-obsd.h:  #include <sys/types.h> to make this more Kosher.
+
+Fri Jun 19 12:53:28 1992  John Gilmore  (gnu at cygnus.com)
+
+	* config/mh-apollo68v, mh-sco, mh-sysv, mh-sysv4}: RANLIB=true.
+
+Mon Jun 15 13:50:34 1992  david d `zoo' zuhn  (zoo at cirdan.cygnus.com)
+
+	* configure.in: use mh-sysv4 on solaris2
+
+Mon Jun 15 12:28:24 1992  Fred Fish  (fnf@cygnus.com)
+
+	* config/mh-ncr3000 (INSTALL):  Don't use /usr/ucb/install,
+	it is broken on ncr 3000's.
+	* config/mh-ncr3000 (RANLIB):  Use RANLIB=true.
+
+Mon Jun 15 01:35:55 1992  John Gilmore  (gnu at cygnus.com)
+
+	* readline.c: Make new SIGNALS_* macros to parameterize the 
+	ugly changes in signal blocking.  Use them throughout,
+	reducing #ifdef HAVE_POSIX_SIGNALS and HAVE_BSD_SIGNALS clutter
+	significantly.  Make all such places use POSIX if available,
+	to avoid losing with poor `sigsetmask' emulation from libiberty.
+
+Sun Jun 14 15:19:51 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* readline.c (insert_some_chars):  Return void.
+
+Thu Jun 11 01:27:45 1992  John Gilmore  (gnu at cygnus.com)
+
+	* readline.c:  #undef PC, which Solaris2 defines in sys/types.h,
+	clobbering the termcap global variable PC.
+
+Tue Jun  9 17:30:23 1992  Fred Fish  (fnf@cygnus.com)
+
+	* config/{mh-ncr3000, mh-sysv4}:  Change INSTALL to use
+	/usr/ucb/install.
+
+Mon Jun  8 23:10:07 1992  Fred Fish  (fnf@cygnus.com)
+
+	* readline.h (rl_completer_quote_characters):  Add declaration.
+	* readline.c (rl_completer_quote_characters):  Add global var.
+	* readline.c (strpbrk):  Add prototype and function.
+	* readline.c (rl_complete_internal):  Add code to handle
+	expansion of quoted strings.
+
+Mon May 11 12:39:30 1992  John Gilmore  (gnu at cygnus.com)
+
+	* readline.c:  Can't initialize FILE *'s with stdin and stdout,
+	because they might not be constant.  Patch from Tom Quinn,
+	trq@dinoysos.thphys.ox.ac.uk.
+
+Tue Apr 28 21:52:34 1992  John Gilmore  (gnu at cygnus.com)
+
+	* readline.h:  Declare rl_event_hook (which already existed).
+	Suggested by Christoph Tietz <tietz@zi.gmd.dbp.de>.
+
+Wed Apr 22 18:08:01 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* configure.in: remove subdirs declaration.  The obsolete semantic
+	  for subdirs has been usurped by per's new meaning.
+
+Tue Apr 21 11:54:23 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: rework CFLAGS so that they can be set on the
+	  command line to make.  Remove MINUS_G.  Default CFLAGS to -g.
+
+Fri Apr 10 23:02:27 1992  Fred Fish  (fnf@cygnus.com)
+
+	* configure.in:  Recognize new ncr3000 config.
+	* config/mh-ncr3000:  New NCR 3000 config file.
+
+Wed Mar 25 10:46:30 1992  John Gilmore  (gnu at cygnus.com)
+
+	* history.c (stifle_history):  Negative arg treated as zero.
+
+Tue Mar 24 23:46:20 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* config/mh-sysv: INSTALL_PROG -> INSTALL.
+
+Mon Feb 10 01:41:35 1992  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* history.c (history_do_write) Build a buffer of all of the lines
+	to write and write them in one fell swoop (lower overhead than
+	calling write () for each line).  Suggested by Peter Ho.
+
+	* vi_mode.c (rl_vi_subst) Don't forget to end the undo group.
+
+Sat Mar  7 00:15:36 1992  K. Richard Pixley  (rich@rtl.cygnus.com)
+
+	* Makefile.in: remove FIXME's on info and install-info targets.
+
+Fri Mar  6 22:02:04 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in: added check target.
+
+Wed Feb 26 18:04:40 1992  K. Richard Pixley  (rich@cygnus.com)
+
+	* Makefile.in, configure.in: removed traces of namesubdir,
+	  -subdirs, $(subdir), $(unsubdir), some rcs triggers.  Forced
+	  copyrights to '92, changed some from Cygnus to FSF.
+
+Fri Feb 21 14:37:32 1992  Steve Chamberlain  (sac at rtl.cygnus.com)
+
+	* readline.c, examples/fileman.c: patches from DJ to support DOS
+
+Thu Feb 20 23:23:16 1992  Stu Grossman  (grossman at cygnus.com)
+
+	* readline.c (rl_read_init_file):  Make sure that null filename is
+	not passed to open() or else we end up opening the directory, and
+	read a bunch of garbage into keymap[].
+
+Mon Feb 17 17:15:09 1992  Fred Fish  (fnf at cygnus.com)
+
+	* readline.c (readline_default_bindings):  Only make use of VLNEXT
+	when both VLNEXT and TERMIOS_TTY_DRIVER is defined.  On SVR4
+	<termio.h> includes <termios.h>, so VLNEXT is always defined.
+
+	* sysdep-norm.h (_POSIX_VERSION):  Define this for all SVR4
+	systems so that <termios.h> gets used, instead of <termio.h>.
+
+Fri Dec 20 12:04:31 1991  Fred Fish  (fnf at cygnus.com)
+
+	* configure.in:  Change svr4 references to sysv4.
+
+Tue Dec 10 04:07:20 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: infodir belongs in datadir.
+
+Fri Dec  6 23:23:14 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: remove spaces following hyphens, bsd make can't
+	  cope. added clean-info.  added standards.text support.  Don't
+	  know how to make info anymore.
+
+	* configure.in: commontargets is no longer a recognized hook, so
+	  remove it.  new subdir called doc.
+
+Thu Dec  5 22:46:10 1991  K. Richard Pixley  (rich at rtl.cygnus.com)
+
+	* Makefile.in: idestdir and ddestdir go away.  Added copyrights
+	  and shift gpl to v2.  Added ChangeLog if it didn't exist. docdir
+	  and mandir now keyed off datadir by default.
+
+Fri Nov 22 09:02:32 1991  John Gilmore  (gnu at cygnus.com)
+
+	* sysdep-obsd.h:  Rename from sysdep-newsos.h.
+	* configure.in:  Use sysdep-obsd for Mach as well as NEWs.
+
+	* sysdep-norm.h, sysdep-aix.h:  Add <sys/types.h>, which POSIX
+	requires to make <dirent.h> work.  Improve Sun alloca decl.
+
+Thu Nov 21 18:48:08 1991  John Gilmore  (gnu at cygnus.com)
+
+	* Makefile.in:  Clean up ../glob/tilde.c -> tilde.o path.
+	Clean up makefile a bit in general.
+
+Thu Nov 21 14:40:29 1991  Stu Grossman  (grossman at cygnus.com)
+
+	* configure.in, config/mh-svr4:  Make SVR4 work.
+
+	* readline.c:  Move config stuff to sysdep.h, use typedef dirent
+	consistently, remove refs to d_namlen (& D_NAMLEN) to improve
+	portability.  Also, update copyright notice.
+	readline.h:  remove config stuff that I added erroneously in the
+	first place.
+
+	* emacs_keymap.c, funmap.c, history.c, keymaps.c, vi_keymap.c,
+	vi_mode.c:  move config stuff to sysdep.h, update copyright notices.
+
+Tue Nov 19 15:02:13 1991  Stu Grossman  (grossman at cygnus.com)
+
+	* history.c:  #include "sysdep.h".
+
+Tue Nov 19 10:49:17 1991  Fred Fish  (fnf at cygnus.com)
+
+	* Makefile.in, config/hm-sysv, config/hm-sco:  Change SYSV to
+	USG to match current usage.
+
+	* readline.c:  Add USGr4 to list of defined things to check for
+	to use <dirent.h> style directory access.
+
+	* config/hm-svr4:  New file for System V Release 4 (USGr4).
+
+Mon Nov 18 23:59:52 1991  Stu Grossman  (grossman at cygnus.com)
+
+	* readline.c (filename_completion_function):  use struct dirent
+	instead	of struct direct.
+
+Fri Nov  1 07:02:13 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c (rl_translate_keyseq) Make C-? translate to RUBOUT
+	unconditionally.
+
+Mon Oct 28 11:34:52 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c; Use Posix directory routines and macros.
+
+	* funmap.c; Add entry for call-last-kbd-macro.
+
+	* readline.c (rl_prep_term); Use system EOF character on POSIX
+	systems also.
+
+Thu Oct  3 16:19:53 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c; Make a distinction between having a TERMIOS tty
+	driver, and having POSIX signal handling.  You might one without
+	the other.  New defines used HAVE_POSIX_SIGNALS, and
+	TERMIOS_TTY_DRIVER.
+
+Tue Jul 30 22:37:26 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: rl_getc () If a call to read () returns without an
+	error, but with zero characters, the file is empty, so return EOF.
+
+Thu Jul 11 20:58:38 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: (rl_get_next_history, rl_get_previous_history)
+	Reallocate the buffer space if the line being moved to is longer
+	the the current space allocated.  Amazing that no one has found
+	this bug until now.
+
+Sun Jul  7 02:37:05 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c:(rl_parse_and_bind) Allow leading whitespace.
+	  Make sure TERMIO and TERMIOS systems treat CR and NL
+	  disctinctly.
+	
+Tue Jun 25 04:09:27 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: Rework parsing conditionals to pay attention to the
+	prior states of the conditional stack.  This makes $if statements
+	work correctly.
+
+Mon Jun 24 20:45:59 1991  Brian Fox  (bfox at gnuwest.fsf.org)
+
+	* readline.c: support for displaying key binding information
+	includes the functions rl_list_funmap_names (),
+	invoking_keyseqs_in_map (), rl_invoking_keyseqs (),
+	rl_dump_functions (), and rl_function_dumper ().
+
+	funmap.c: support for same includes rl_funmap_names ().
+
+	readline.c, funmap.c: no longer define STATIC_MALLOC.  However,
+	update both version of xrealloc () to handle a null pointer.
+
 Thu Apr 25 12:03:49 1991  Brian Fox  (bfox at gnuwest.fsf.org)
 
 	* vi_mode.c (rl_vi_fword, fWord, etc.  All functions use
