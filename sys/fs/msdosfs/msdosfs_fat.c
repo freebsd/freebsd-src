@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_fat.c,v 1.1 1994/09/19 15:41:43 dfr Exp $ */
+/*	$Id: msdosfs_fat.c,v 1.2 1994/09/27 20:42:46 phk Exp $ */
 /*	$NetBSD: msdosfs_fat.c,v 1.12 1994/08/21 18:44:04 ws Exp $	*/
 
 /*-
@@ -310,8 +310,7 @@ updatefats(pmp, bp, fatbn)
 	struct buf *bpn;
 
 #ifdef MSDOSFS_DEBUG
-	printf("updatefats(pmp %08x, bp %08x, fatbn %d)\n",
-	       pmp, bp, fatbn);
+	printf("updatefats(pmp %p, bp %p, fatbn %ld)\n", pmp, bp, fatbn);
 #endif
 
 	/*
@@ -526,7 +525,7 @@ fatchain(pmp, start, count, fillwith)
 	struct buf *bp;
 	
 #ifdef MSDOSFS_DEBUG
-	printf("fatchain(pmp %08x, start %d, count %d, fillwith %d)\n",
+	printf("fatchain(pmp %p, start %ld, count %ld, fillwith %ld)\n",
 	       pmp, start, count, fillwith);
 #endif
 	/*
@@ -637,7 +636,7 @@ chainalloc(pmp, start, count, fillwith, retcluster, got)
 	error = fatchain(pmp, start, count, fillwith);
 	if (error == 0) {
 #ifdef MSDOSFS_DEBUG
-		printf("clusteralloc(): allocated cluster chain at %d (%d clusters)\n",
+		printf("clusteralloc(): allocated cluster chain at %ld (%ld clusters)\n",
 		       start, count);
 #endif
 		if (retcluster)
