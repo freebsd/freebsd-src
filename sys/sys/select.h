@@ -79,18 +79,28 @@ typedef	__sigset_t	sigset_t;
 #endif
 
 typedef	struct fd_set {
-	__fd_mask	fds_bits[_howmany(FD_SETSIZE, _NFDBITS)];
+	__fd_mask	__fds_bits[_howmany(FD_SETSIZE, _NFDBITS)];
 } fd_set;
+#if __BSD_VISIBLE
+#define	fds_bits	__fds_bits
+#endif
 
-#define	__fdset_mask(n)	((fd_mask)1 << ((n) % _NFDBITS))
+#define	__fdset_mask(n)	((__fd_mask)1 << ((n) % _NFDBITS))
 #define	FD_CLR(n, p)	((p)->fds_bits[(n)/_NFDBITS] &= ~__fdset_mask(n))
 #if __BSD_VISIBLE
-/* XXX bcopy() not in scope, so <strings.h> is required; see also FD_ZERO(). */
-#define	FD_COPY(f, t)	bcopy(f, t, sizeof(*(f)))
+#define	FD_COPY(f, t)	(void)(*(t) = *(f))
 #endif
 #define	FD_ISSET(n, p)	((p)->fds_bits[(n)/_NFDBITS] & __fdset_mask(n))
 #define	FD_SET(n, p)	((p)->fds_bits[(n)/_NFDBITS] |= __fdset_mask(n))
-#define	FD_ZERO(p)	bzero(p, sizeof(*(p)))
+#define	FD_ZERO(p) do {					\
+	fd_set *_p;					\
+	__size_t _n;					\
+							\
+	_p = (p);					\
+	_n = _howmany(FD_SETSIZE, _NFDBITS);		\
+	while (_n > 0)					\
+		_p->__fds_bits[--_n] = 0;		\
+} while (0)
 
 #ifndef _KERNEL
 struct timeval;
