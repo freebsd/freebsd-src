@@ -474,13 +474,13 @@ print_part(int i)
 		part_mb,
 		partp->dp_flag,
 		partp->dp_flag == ACTIVE ? " (active)" : "");
-	printf("\tbeg: cyl %d/ sector %d/ head %d;\n\tend: cyl %d/ sector %d/ head %d\n"
+	printf("\tbeg: cyl %d/ head %d/ sector %d;\n\tend: cyl %d/ head %d/ sector %d\n"
 		,DPCYL(partp->dp_scyl, partp->dp_ssect)
-		,DPSECT(partp->dp_ssect)
 		,partp->dp_shd
+		,DPSECT(partp->dp_ssect)
 		,DPCYL(partp->dp_ecyl, partp->dp_esect)
-		,DPSECT(partp->dp_esect)
-		,partp->dp_ehd);
+		,partp->dp_ehd
+		,DPSECT(partp->dp_esect));
 }
 
 
@@ -562,8 +562,8 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 			thd = partp->dp_shd;
 			tsec = DPSECT(partp->dp_ssect);
 			Decimal("beginning cylinder", tcyl, tmp);
-			Decimal("beginning sector", tsec, tmp);
 			Decimal("beginning head", thd, tmp);
+			Decimal("beginning sector", tsec, tmp);
 			partp->dp_scyl = DOSCYL(tcyl);
 			partp->dp_ssect = DOSSECT(tsec,tcyl);
 			partp->dp_shd = thd;
@@ -572,8 +572,8 @@ struct dos_partition *partp = ((struct dos_partition *) &mboot.parts) + i - 1;
 			thd = partp->dp_ehd;
 			tsec = DPSECT(partp->dp_esect);
 			Decimal("ending cylinder", tcyl, tmp);
-			Decimal("ending sector", tsec, tmp);
 			Decimal("ending head", thd, tmp);
+			Decimal("ending sector", tsec, tmp);
 			partp->dp_ecyl = DOSCYL(tcyl);
 			partp->dp_esect = DOSSECT(tsec,tcyl);
 			partp->dp_ehd = thd;
