@@ -44,16 +44,15 @@ ENTRY(sigsetjmp)
 	SET(CNAME(_setjmp), %o2, %o4)
 	movrnz	%o1, %o3, %o4
 	jmp	%o4
-	 stw	%o1, [%o0 + UC_MC + MC_O1]
+	 stx	%o1, [%o0 + _JB_SIGFLAG]
 END(sigsetjmp)
 
 ENTRY(siglongjmp)
 	PIC_PROLOGUE(%o3, %o2)
-	lduw	[%o0 + UC_MC + MC_O1], %o1
 	SET(CNAME(longjmp), %o2, %o3)
 	SET(CNAME(_longjmp), %o2, %o4)
+	ldx	[%o0 + _JB_SIGFLAG], %o1
 	movrnz	%o1, %o3, %o4
 	jmp	%o4
 	 nop
-	illtrap
 END(siglongjmp)
