@@ -233,6 +233,7 @@ static int dc_mii_writereg	__P((struct dc_softc *, struct dc_mii_frame *));
 static int dc_miibus_readreg	__P((device_t, int, int));
 static int dc_miibus_writereg	__P((device_t, int, int, int));
 static void dc_miibus_statchg	__P((device_t));
+static void dc_miibus_mediainit	__P((device_t));
 
 static void dc_setcfg		__P((struct dc_softc *, int));
 static u_int32_t dc_crc_le	__P((struct dc_softc *, caddr_t));
@@ -270,6 +271,7 @@ static device_method_t dc_methods[] = {
 	DEVMETHOD(miibus_readreg,	dc_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	dc_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	dc_miibus_statchg),
+	DEVMETHOD(miibus_mediainit,	dc_miibus_mediainit),
 
 	{ 0, 0 }
 };
@@ -761,9 +763,10 @@ static int dc_miibus_readreg(dev, phy, reg)
 
 	frame.mii_phyaddr = phy;
 	frame.mii_regaddr = reg;
-	DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+	phy_reg = CSR_READ_4(sc, DC_NETCFG);
+	CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
 	dc_mii_readreg(sc, &frame);
-	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+	CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
 
 	return(frame.mii_data);
 }
@@ -830,9 +833,10 @@ static int dc_miibus_writereg(dev, phy, reg, data)
 	frame.mii_regaddr = reg;
 	frame.mii_data = data;
 
-	DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+	phy_reg = CSR_READ_4(sc, DC_NETCFG);
+	CSR_WRITE_4(sc, DC_NETCFG, phy_reg & ~DC_NETCFG_PORTSEL);
 	dc_mii_writereg(sc, &frame);
-	DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+	CSR_WRITE_4(sc, DC_NETCFG, phy_reg);
 
 	return(0);
 }
@@ -842,13 +846,49 @@ static void dc_miibus_statchg(dev)
 {
 	struct dc_softc		*sc;
 	struct mii_data		*mii;
+	struct ifmedia		*ifm;
 
 	sc = device_get_softc(dev);
 	if (DC_IS_ADMTEK(sc))
 		return;
 	mii = device_get_softc(sc->dc_miibus);
-	dc_setcfg(sc, mii->mii_media_active);
-	sc->dc_if_media = mii->mii_media_active;
+	ifm = &mii->mii_media;
+	if (DC_IS_DAVICOM(sc) &&
+	    IFM_SUBTYPE(ifm->ifm_media) == IFM_homePNA) {
+		dc_setcfg(sc, ifm->ifm_media);
+		sc->dc_if_media = ifm->ifm_media;
+	} else {
+		dc_setcfg(sc, mii->mii_media_active);
+		sc->dc_if_media = mii->mii_media_active;
+	}
+
+	return;
+}
+
+/*
+ * Special support for DM9102A cards with HomePNA PHYs. Note:
+ * with the Davicom DM9102A/DM9801 eval board that I have, it seems
+ * to be impossible to talk to the management interface of the DM9801
+ * PHY (its MDIO pin is not connected to anything). Consequently,
+ * the driver has to just 'know' about the additional mode and deal
+ * with it itself. *sigh*
+ */
+static void dc_miibus_mediainit(dev)
+	device_t		dev;
+{
+	struct dc_softc		*sc;
+	struct mii_data		*mii;
+	struct ifmedia		*ifm;
+	int			rev;
+
+	rev = pci_read_config(dev, DC_PCI_CFRV, 4) & 0xFF;
+
+	sc = device_get_softc(dev);
+	mii = device_get_softc(sc->dc_miibus);
+	ifm = &mii->mii_media;
+
+	if (DC_IS_DAVICOM(sc) && rev >= DC_REVISION_DM9102A)
+		ifmedia_add(ifm, IFM_ETHER|IFM_homePNA, 0, NULL);
 
 	return;
 }
@@ -1205,6 +1245,20 @@ static void dc_setcfg(sc, media)
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_SCRAMBLER);
 			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PCS);
+		}
+	}
+
+	/*
+	 * If this is a Davicom DM9102A card with a DM9801 HomePNA
+	 * PHY and we want HomePNA mode, set the portsel bit to turn
+	 * on the external MII port.
+	 */
+	if (DC_IS_DAVICOM(sc)) {
+		if (IFM_SUBTYPE(media) == IFM_homePNA) {
+			DC_SETBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
+			sc->dc_link = 1;
+		} else {
+			DC_CLRBIT(sc, DC_NETCFG, DC_NETCFG_PORTSEL);
 		}
 	}
 
@@ -2626,11 +2680,18 @@ static int dc_ifmedia_upd(ifp)
 {
 	struct dc_softc		*sc;
 	struct mii_data		*mii;
+	struct ifmedia		*ifm;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->dc_miibus);
 	mii_mediachg(mii);
-	sc->dc_link = 0;
+	ifm = &mii->mii_media;
+
+	if (DC_IS_DAVICOM(sc) &&
+	    IFM_SUBTYPE(ifm->ifm_media) == IFM_homePNA)
+		dc_setcfg(sc, ifm->ifm_media);
+	else
+		sc->dc_link = 0;
 
 	return(0);
 }
@@ -2644,10 +2705,19 @@ static void dc_ifmedia_sts(ifp, ifmr)
 {
 	struct dc_softc		*sc;
 	struct mii_data		*mii;
+	struct ifmedia		*ifm;
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->dc_miibus);
 	mii_pollstat(mii);
+	ifm = &mii->mii_media;
+	if (DC_IS_DAVICOM(sc)) {
+		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_homePNA) {
+			ifmr->ifm_active = ifm->ifm_media;
+			ifmr->ifm_status = 0;
+			return;
+		}
+	}
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
 
