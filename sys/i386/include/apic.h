@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic.h,v 1.3 1997/07/15 00:09:00 smp Exp smp $
+ *	$Id: apic.h,v 1.7 1997/07/15 02:47:52 fsmp Exp $
  */
 
 #ifndef _MACHINE_APIC_H_
@@ -352,8 +352,6 @@ typedef struct IOAPIC ioapic_t;
  * fields in IRR
  * ISA INTerrupts are in bits 16-31 of the 1st IRR register.
  * these masks DON'T EQUAL the isa IRQs of the same name.
- * FIXME: how do we make this portable for MP table configurations???
- *        look for "HARD_VECTORXXX" marking places with this problem.
  */
 #define APIC_IRQ0		0x00000001
 #define APIC_IRQ1		0x00000002
