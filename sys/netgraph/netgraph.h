@@ -40,7 +40,7 @@
  */
 
 #ifndef _NETGRAPH_NETGRAPH_H_
-#define _NETGRAPH_NETGRAPH_H_ 1
+#define _NETGRAPH_NETGRAPH_H_
 
 #ifndef _KERNEL
 #error "This file should not be included in user level programs"

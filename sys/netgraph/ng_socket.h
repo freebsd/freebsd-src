@@ -41,7 +41,7 @@
  */
 
 #ifndef _NETGRAPH_NG_SOCKET_H_
-#define _NETGRAPH_NG_SOCKET_H_ 1
+#define _NETGRAPH_NG_SOCKET_H_
 
 /* Netgraph node type name and cookie */
 #define	NG_SOCKET_NODE_TYPE	"socket"

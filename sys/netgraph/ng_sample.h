@@ -40,8 +40,8 @@
  * $Whistle: ng_sample.h,v 1.3 1999/01/20 00:22:14 archie Exp $
  */
 
-#ifndef _NETGRAPH_SAMPLE_H_
-#define _NETGRAPH_SAMPLE_H_
+#ifndef _NETGRAPH_NG_SAMPLE_H_
+#define _NETGRAPH_NG_SAMPLE_H_
 
 /* Node type name. This should be unique among all netgraph node types */
 #define NG_XXX_NODE_TYPE	"sample"
@@ -85,4 +85,4 @@ struct ngxxxstat {
 	  { NULL }						\
 }
 
-#endif /* _NETGRAPH_SAMPLE_H_ */
+#endif /* _NETGRAPH_NG_SAMPLE_H_ */

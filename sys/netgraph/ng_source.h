@@ -46,8 +46,8 @@ EXEMPLARY,
  * $FreeBSD$
  */
 
-#ifndef _NETGRAPH_SOURCE_H_
-#define _NETGRAPH_SOURCE_H_
+#ifndef _NETGRAPH_NG_SOURCE_H_
+#define _NETGRAPH_NG_SOURCE_H_
 
 /* Node type name and magic cookie */
 #define NG_SOURCE_NODE_TYPE	"source"
@@ -91,4 +91,4 @@ enum {
 	NGM_SOURCE_CLR_DATA,		/* clear the queued data */
 };
 
-#endif /* _NETGRAPH_SOURCE_H_ */
+#endif /* _NETGRAPH_NG_SOURCE_H_ */
