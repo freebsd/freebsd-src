@@ -278,8 +278,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* XXX not right but it's not used anywhere important */
 	ic->ic_phytype = IEEE80211_T_OFDM;
 	ic->ic_opmode = IEEE80211_M_STA;
-	ic->ic_caps = IEEE80211_C_WEP | IEEE80211_C_IBSS | IEEE80211_C_HOSTAP
-		| IEEE80211_C_MONITOR | IEEE80211_C_SHPREAMBLE;
+	ic->ic_caps = IEEE80211_C_WEP		/* wep supported */
+		| IEEE80211_C_IBSS		/* ibss, nee adhoc, mode */
+		| IEEE80211_C_HOSTAP		/* hostap mode */
+		| IEEE80211_C_MONITOR		/* monitor mode */
+		| IEEE80211_C_SHPREAMBLE	/* short preamble supported */
+		| IEEE80211_C_RCVMGT;		/* recv management frames */
 
 	/* get mac address from hardware */
 	ath_hal_getmac(ah, ic->ic_myaddr);
