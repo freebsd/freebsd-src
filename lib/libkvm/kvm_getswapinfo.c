@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 1999, Matthew Dillon.  All Rights Reserved.
+ * Copyright (c) 2001, Thomas Moestl
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided under the terms of the BSD
@@ -22,6 +23,7 @@ static const char rcsid[] =
 #include <sys/stat.h>
 #include <sys/conf.h>
 #include <sys/blist.h>
+#include <sys/sysctl.h>
 
 #include <err.h>
 #include <fcntl.h>
@@ -32,6 +34,9 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <limits.h>
+
+#include "kvm_private.h"
 
 static struct nlist kvm_swap_nl[] = {
 	{ "_swapblist" },	/* new radix swap list		*/
@@ -48,11 +53,19 @@ static struct nlist kvm_swap_nl[] = {
 
 static int kvm_swap_nl_cached = 0;
 static int nswdev;
-static int unswdev;
+static int unswdev;  /* number of found swap dev's */
 static int dmmax;
 
 static void getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary,
 			      int swap_max, int flags);
+static int kvm_getswapinfo2(kvm_t *kd, struct kvm_swap *swap_ary,
+			    int swap_max, int flags);
+static int  kvm_getswapinfo_kvm(kvm_t *, struct kvm_swap *, int, int);
+static int  kvm_getswapinfo_sysctl(kvm_t *, struct kvm_swap *, int, int);
+static int  nlist_init(kvm_t *);
+static int  getsysctl(kvm_t *, char *, void *, int);
+static int  getsysctl2(kvm_t *, char *, char *,  char *, int, void *, int);
+
 
 #define	SVAR(var) __STRING(var)	/* to force expansion */
 #define	KGET(idx, var)							\
@@ -74,6 +87,17 @@ static void getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary,
 		return (0);						\
 	}
 
+#define GETSWDEVNAME(dev, str, flags)                                   \
+        if (dev == NODEV) {                                             \
+	        strlcpy(str, "[NFS swap]", sizeof(str));                \
+	} else {                                                        \
+		snprintf(                                               \
+                    str, sizeof(str),"%s%s",                            \
+		    ((flags & SWIF_DEV_PREFIX) ? _PATH_DEV : ""),       \
+		    devname(dev, S_IFCHR)                               \
+		);                                                      \
+	}
+
 int
 kvm_getswapinfo(
 	kvm_t *kd, 
@@ -81,7 +105,10 @@ kvm_getswapinfo(
 	int swap_max, 
 	int flags
 ) {
-	int ti = 0;
+	int rv;
+#ifdef DEBUG_SWAPINFO
+	int i;
+#endif
 
 	/*
 	 * clear cache
@@ -91,52 +118,69 @@ kvm_getswapinfo(
 		return(0);
 	}
 
+	rv = kvm_getswapinfo2(kd, swap_ary, swap_max, flags);
+
+	/* This is only called when the tree shall be dumped. It needs kvm. */
+	if (flags & SWIF_DUMP_TREE) {
+#ifdef DEBUG_SWAPINFO
+		/* 
+		 * sanity check: Sizes must be equal - used field must be
+		 * 0 after this. Fill it with total-used before, where
+		 * getswapinfo_radix will subtrat total-used.
+		 * This will of course only work if there is no swap activity
+		 * while we are working, so this code is normally not active.
+		 */
+		for (i = 0; i < unswdev; i++) {
+			swap_ary[i].ksw_used =  swap_ary[i].ksw_total - 
+			    swap_ary[i].ksw_used;
+		}
+#endif
+		getswapinfo_radix(kd, swap_ary, swap_max, flags);
+#ifdef DEBUG_SWAPINFO
+		for (i = 0; i < unswdev; i++) {
+			if (swap_ary[i].ksw_used != 0) {
+				fprintf(stderr, "kvm_getswapinfo: swap size "
+				    "mismatch (%d blocks)!\n", 
+				    swap_ary[i].ksw_used
+				);
+			}
+		}
+		/* This is fast enough now, so just do it again. */
+		rv = kvm_getswapinfo2(kd, swap_ary, swap_max, flags);
+#endif
+	}
+
+	return rv;
+}
+
+static int
+kvm_getswapinfo2(
+	kvm_t *kd, 
+	struct kvm_swap *swap_ary,
+	int swap_max, 
+	int flags
+) {
+	if (ISALIVE(kd)) {
+		return kvm_getswapinfo_sysctl(kd, swap_ary, swap_max, flags);
+	} else {
+		return kvm_getswapinfo_kvm(kd, swap_ary, swap_max, flags);
+	}
+}
+
+int
+kvm_getswapinfo_kvm(
+	kvm_t *kd, 
+	struct kvm_swap *swap_ary,
+	int swap_max, 
+	int flags
+) {
+	int ti = 0;
+
 	/*
 	 * namelist
 	 */
-	if (kvm_swap_nl_cached == 0) {
-		struct swdevt *sw;
-
-		if (kvm_nlist(kd, kvm_swap_nl) < 0)
-			return(-1);
-
-		/*
-		 * required entries
-		 */
-
-		if (
-		    kvm_swap_nl[NL_SWDEVT].n_value == 0 ||
-		    kvm_swap_nl[NL_NSWDEV].n_value == 0 ||
-		    kvm_swap_nl[NL_DMMAX].n_value == 0 ||
-		    kvm_swap_nl[NL_SWAPBLIST].n_type == 0
-		) {
-			return(-1);
-		}
-
-		/*
-		 * get globals, type of swap
-		 */
-
-		KGET(NL_NSWDEV, nswdev);
-		KGET(NL_DMMAX, dmmax);
-
-		/*
-		 * figure out how many actual swap devices are enabled
-		 */
-
-		KGET(NL_SWDEVT, sw);
-		for (unswdev = nswdev - 1; unswdev >= 0; --unswdev) {
-			struct swdevt swinfo;
-
-			KGET2(&sw[unswdev], &swinfo, sizeof(swinfo), "swinfo");
-			if (swinfo.sw_nblks)
-				break;
-		}
-		++unswdev;
-
-		kvm_swap_nl_cached = 1;
-	}
-
+	if (!nlist_init(kd))
+		return (-1);
 
 	{
 		struct swdevt *sw;
@@ -174,33 +218,19 @@ kvm_getswapinfo(
 
 			if (i < ti) {
 				swap_ary[i].ksw_total = ttl;
-				swap_ary[i].ksw_used = ttl;
+				swap_ary[i].ksw_used = swinfo.sw_used;
 				swap_ary[i].ksw_flags = swinfo.sw_flags;
-				if (swinfo.sw_dev == NODEV) {
-					snprintf(
-					    swap_ary[i].ksw_devname,
-					    sizeof(swap_ary[i].ksw_devname),
-					    "%s",
-					    "[NFS swap]"
-					);
-				} else {
-					snprintf(
-					    swap_ary[i].ksw_devname,
-					    sizeof(swap_ary[i].ksw_devname),
-					    "%s%s",
-					    ((flags & SWIF_DEV_PREFIX) ? _PATH_DEV : ""),
-					    devname(swinfo.sw_dev, S_IFCHR)
-					);
-				}
+				GETSWDEVNAME(swinfo.sw_dev, 
+				    swap_ary[i].ksw_devname, flags
+				);
 			}
 			if (ti >= 0) {
 				swap_ary[ti].ksw_total += ttl;
-				swap_ary[ti].ksw_used += ttl;
+				swap_ary[ti].ksw_used += swinfo.sw_used;
 			}
 		}
 	}
 
-	getswapinfo_radix(kd, swap_ary, swap_max, flags);
 	return(ti);
 }
 
@@ -226,7 +256,9 @@ scanradix(
 	int flags
 ) {
 	blmeta_t meta;
+#ifdef DEBUG_SWAPINFO
 	int ti = (unswdev >= swap_max) ? swap_max - 1 : unswdev;
+#endif
 
 	KGET2(scan, &meta, sizeof(meta), "blmeta_t");
 
@@ -248,7 +280,9 @@ scanradix(
 		/*
 		 * Leaf bitmap
 		 */
+#ifdef DEBUG_SWAPINFO
 		int i;
+#endif
 
 		if (flags & SWIF_DUMP_TREE) {
 			printf("%*.*s(0x%06x,%d) Bitmap %08x big=%d\n", 
@@ -260,6 +294,7 @@ scanradix(
 			);
 		}
 
+#ifdef DEBUG_SWAPINFO
 		/*
 		 * If not all allocated, count.
 		 */
@@ -280,6 +315,7 @@ scanradix(
 				}
 			}
 		}
+#endif
 	} else if (meta.u.bmu_avail == radix) {
 		/*
 		 * Meta node if all free
@@ -291,6 +327,7 @@ scanradix(
 			    radix
 			);
 		}
+#ifdef DEBUG_SWAPINFO
 		/*
 		 * Note: both dmmax and radix are powers of 2.  However, dmmax
 		 * may be larger then radix so use a smaller increment if
@@ -312,6 +349,7 @@ scanradix(
 					swap_ary[ti].ksw_used -= tinc;
 			}
 		}
+#endif
 	} else if (meta.u.bmu_avail == 0) {
 		/*
 		 * Meta node if all used
@@ -378,6 +416,11 @@ getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 	struct blist *swapblist = NULL;
 	struct blist blcopy = { 0 };
 
+	if (!nlist_init(kd)) {
+		fprintf(stderr, "radix tree: nlist_init failed!\n");
+		return;
+	}
+
 	KGET(NL_SWAPBLIST, swapblist);
 
 	if (swapblist == NULL) {
@@ -411,4 +454,155 @@ getswapinfo_radix(kvm_t *kd, struct kvm_swap *swap_ary, int swap_max, int flags)
 	    0,
 	    flags
 	);
+}
+
+#define GETSYSCTL(kd, name, var)                                        \
+            getsysctl(kd, name, &(var), sizeof(var))
+#define GETSYSCTL2(kd, pref, suff, buf, var)                            \
+            getsysctl2(kd, pref, suff, buf, sizeof(buf), &(var),        \
+	    sizeof(var))
+
+int
+kvm_getswapinfo_sysctl(
+	kvm_t *kd, 
+	struct kvm_swap *swap_ary,
+	int swap_max, 
+	int flags
+) {
+	int ti = 0;
+	udev_t dev;
+	char node[15];
+	char buf[20];
+	int used, ttl, i;
+
+	if (!GETSYSCTL(kd, "vm.nswapdev", unswdev))
+		return -1;
+
+	ti = unswdev;
+	if (ti >= swap_max)
+		ti = swap_max - 1;
+	
+	if (ti >= 0)
+		bzero(swap_ary, sizeof(struct kvm_swap) * (ti + 1));
+
+	if (!GETSYSCTL(kd, "vm.dmmax", dmmax))
+		return -1;
+
+	for (i = 0; i < unswdev; ++i) {
+		if (snprintf(node, sizeof(node), "vm.swapdev%d.", i) >=
+		    sizeof(node)) {
+			_kvm_err(kd, kd->program, "XXX: node buffer too small");
+			return -1;
+		}
+
+		if (!GETSYSCTL2(kd, node, "nblks", buf, ttl))
+			return -1;
+		if (!GETSYSCTL2(kd, node, "used", buf, used))
+			return -1;
+		ttl -= dmmax;
+
+		if (i < ti) {
+			if (!GETSYSCTL2(kd, node, "dev", buf, dev))
+				return -1;
+			if (!GETSYSCTL2(kd, node, "flags", buf,	
+					swap_ary[i].ksw_flags))
+				return -1;
+			swap_ary[i].ksw_total = ttl;
+			swap_ary[i].ksw_used = used;
+			GETSWDEVNAME(dev, swap_ary[i].ksw_devname, flags);
+		}
+		if (ti >= 0) {
+			swap_ary[ti].ksw_total += ttl;
+			swap_ary[ti].ksw_used += used;
+		}
+	}
+
+        return(ti);
+}
+
+static int
+nlist_init (
+	kvm_t *kd
+) {
+	struct swdevt *sw;
+
+	if (kvm_swap_nl_cached)
+		return (1);
+
+	if (kvm_nlist(kd, kvm_swap_nl) < 0)
+		return (0);
+	
+	/*
+	 * required entries
+	 */
+	if (
+	    kvm_swap_nl[NL_SWDEVT].n_value == 0 ||
+	    kvm_swap_nl[NL_NSWDEV].n_value == 0 ||
+	    kvm_swap_nl[NL_DMMAX].n_value == 0 ||
+	    kvm_swap_nl[NL_SWAPBLIST].n_type == 0
+	   ) {
+		return (0);
+	}
+	
+	/*
+	 * get globals, type of swap
+	 */
+	KGET(NL_NSWDEV, nswdev);
+	KGET(NL_DMMAX, dmmax);
+
+	/*
+	 * figure out how many actual swap devices are enabled
+	 */
+	KGET(NL_SWDEVT, sw);
+	for (unswdev = nswdev - 1; unswdev >= 0; --unswdev) {
+		struct swdevt swinfo;
+		
+		KGET2(&sw[unswdev], &swinfo, sizeof(swinfo), "swinfo");
+		if (swinfo.sw_nblks)
+			break;
+	}
+	++unswdev;
+
+	kvm_swap_nl_cached = 1;
+	return (1);
+}
+
+static int
+getsysctl (
+	kvm_t *kd,
+	char *name,
+	void *ptr,
+	int len
+) {
+	int nlen = len;
+	if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
+		_kvm_err(kd, kd->program, "cannot read sysctl %s", name);
+		return (0);
+	}
+	if (nlen != len) {
+		_kvm_err(kd, kd->program, "sysctl %s has unexpected size", name);
+		return (0);
+	}
+	return (1);
+}
+
+static int
+getsysctl2 (
+	kvm_t *kd,
+	char *pref,
+	char *suff,
+	char *buf,
+	int buflen,
+	void *ptr,
+	int len
+) {
+	if (strlcpy(buf, pref, buflen) >= buflen) {
+		_kvm_err(kd, kd->program, "getsysctl2: string buffer too small");
+		return (0);
+	}
+	if (strlcat(buf, suff, buflen) >= buflen) {
+		_kvm_err(kd, kd->program, "getsysctl2: string buffer too small");
+		return (0);
+	}
+	return getsysctl(kd, buf, ptr, len);
 }
