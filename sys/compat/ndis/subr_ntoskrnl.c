@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <sys/callout.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/kthread.h>
@@ -1632,8 +1633,8 @@ ntoskrnl_dbgprint(char *fmt, ...)
 __stdcall static void
 ntoskrnl_debugger(void)
 {
-	Debugger("ntoskrnl_debugger(): breakpoint");
-	return;
+
+	kdb_enter("ntoskrnl_debugger(): breakpoint");
 }
 
 static void
