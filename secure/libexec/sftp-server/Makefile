@@ -1,22 +1,13 @@
 # $FreeBSD$
 #
 
-SSHSRC=	${.CURDIR}/../../../crypto/openssh
-
-.PATH:		${SSHSRC}
-#.PATH:		${SSHSRC}/lib
-
 PROG=   sftp-server
-BINOWN= root
+SRCS=   sftp-server.c sftp-common.c
+MAN=	sftp-server.8
 
-BINMODE?=555
-
-BINDIR= /usr/libexec
-MAN8=    sftp-server.8
-
-SRCS=   sftp-server.c log-server.c
+LDADD+=	${LIBSSH} -lcrypto
+DPADD+=	${LIBSSH} ${LIBCRYPTO}
 
 .include <bsd.prog.mk>
 
-LDADD+=	-L${.OBJDIR}/../../lib/libssh -lssh -lcrypto
-DPADD+=	${LIBCRYPTO}
+.PATH:	${SSHDIR}

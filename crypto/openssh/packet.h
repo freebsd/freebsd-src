@@ -11,8 +11,8 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
-/* RCSID("$OpenBSD: packet.h,v 1.17 2000/09/07 20:27:52 deraadt Exp $"); */
-/* $FreeBSD$ */
+/* RCSID("$OpenBSD: packet.h,v 1.22 2001/04/14 16:33:20 stevesk Exp $"); */
+/* RCSID("$FreeBSD$"); */
 
 #ifndef PACKET_H
 #define PACKET_H
@@ -47,17 +47,17 @@ void    packet_close(void);
  * encrypted independently of each other.  Cipher types are defined in ssh.h.
  */
 void
-packet_set_encryption_key(const unsigned char *key, unsigned int keylen,
+packet_set_encryption_key(const u_char *key, u_int keylen,
     int cipher_type);
 
 /*
  * Sets remote side protocol flags for the current connection.  This can be
  * called at any time.
  */
-void    packet_set_protocol_flags(unsigned int flags);
+void    packet_set_protocol_flags(u_int flags);
 
 /* Returns the remote protocol flags set earlier by the above function. */
-unsigned int packet_get_protocol_flags(void);
+u_int packet_get_protocol_flags(void);
 
 /* Enables compression in both directions starting from the next packet. */
 void    packet_start_compression(int level);
@@ -66,7 +66,7 @@ void    packet_start_compression(int level);
  * Informs that the current session is interactive.  Sets IP flags for
  * optimal performance in interactive use.
  */
-void    packet_set_interactive(int interactive, int keepalives);
+void    packet_set_interactive(int interactive);
 
 /* Returns true if the current connection is interactive. */
 int     packet_is_interactive(void);
@@ -78,16 +78,16 @@ void    packet_start(int type);
 void    packet_put_char(int ch);
 
 /* Appends an integer to the packet data. */
-void    packet_put_int(unsigned int value);
+void    packet_put_int(u_int value);
 
 /* Appends an arbitrary precision integer to packet data. */
 void    packet_put_bignum(BIGNUM * value);
 void    packet_put_bignum2(BIGNUM * value);
 
 /* Appends a string to packet data. */
-void    packet_put_string(const char *buf, unsigned int len);
+void    packet_put_string(const char *buf, u_int len);
 void    packet_put_cstring(const char *str);
-void    packet_put_raw(const char *buf, unsigned int len);
+void    packet_put_raw(const char *buf, u_int len);
 
 /*
  * Finalizes and sends the packet.  If the encryption key has been set,
@@ -118,13 +118,13 @@ int     packet_read_poll(int *packet_len_ptr);
  * Buffers the given amount of input characters.  This is intended to be used
  * together with packet_read_poll.
  */
-void    packet_process_incoming(const char *buf, unsigned int len);
+void    packet_process_incoming(const char *buf, u_int len);
 
 /* Returns a character (0-255) from the packet data. */
-unsigned int packet_get_char(void);
+u_int packet_get_char(void);
 
 /* Returns an integer from the packet data. */
-unsigned int packet_get_int(void);
+u_int packet_get_int(void);
 
 /*
  * Returns an arbitrary precision integer from the packet data.  The integer
@@ -140,7 +140,7 @@ char	*packet_get_raw(int *length_ptr);
  * no longer needed.  The length_ptr argument may be NULL, or point to an
  * integer into which the length of the string is stored.
  */
-char   *packet_get_string(unsigned int *length_ptr);
+char   *packet_get_string(u_int *length_ptr);
 
 /*
  * Logs the error in syslog using LOG_INFO, constructs and sends a disconnect
@@ -179,8 +179,8 @@ extern int max_packet_size;
 int     packet_set_maxsize(int s);
 #define packet_get_maxsize() max_packet_size
 
-/* Stores tty modes from the fd into current packet. */
-void    tty_make_modes(int fd);
+/* Stores tty modes from the fd or tiop into current packet. */
+void    tty_make_modes(int fd, struct termios *tiop);
 
 /* Parses tty modes for the fd from the current packet. */
 void    tty_parse_modes(int fd, int *n_bytes_ptr);
@@ -214,5 +214,11 @@ void	packet_set_ssh2_format(void);
 
 /* returns remaining payload bytes */
 int	packet_remaining(void);
+
+/* append an ignore message */
+void	packet_send_ignore(int nbytes);
+
+/* add an ignore message and make sure size (current+ignore) = n*sumlen */
+void	packet_inject_ignore(int sumlen);
 
 #endif				/* PACKET_H */

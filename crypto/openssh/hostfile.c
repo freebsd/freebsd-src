@@ -36,16 +36,14 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: hostfile.c,v 1.20 2000/09/07 20:27:51 deraadt Exp $");
+RCSID("$OpenBSD: hostfile.c,v 1.26 2001/04/12 19:15:24 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "match.h"
-#include "ssh.h"
-#include <openssl/rsa.h>
-#include <openssl/dsa.h>
 #include "key.h"
 #include "hostfile.h"
+#include "log.h"
 
 /*
  * Parses an RSA (number of bits, e, n) or DSA key from a string.  Moves the
@@ -53,17 +51,15 @@ RCSID("$FreeBSD$");
  */
 
 int
-hostfile_read_key(char **cpp, unsigned int *bitsp, Key *ret)
+hostfile_read_key(char **cpp, u_int *bitsp, Key *ret)
 {
-	unsigned int bits;
 	char *cp;
 
 	/* Skip leading whitespace. */
 	for (cp = *cpp; *cp == ' ' || *cp == '\t'; cp++)
 		;
 
-	bits = key_read(ret, &cp);
-	if (bits == 0)
+	if (key_read(ret, &cp) != 1)
 		return 0;
 
 	/* Skip trailing whitespace. */
@@ -72,14 +68,14 @@ hostfile_read_key(char **cpp, unsigned int *bitsp, Key *ret)
 
 	/* Return results. */
 	*cpp = cp;
-	*bitsp = bits;
+	*bitsp = key_size(ret);
 	return 1;
 }
 
 int
-auth_rsa_read_key(char **cpp, unsigned int *bitsp, BIGNUM * e, BIGNUM * n)
+auth_rsa_read_key(char **cpp, u_int *bitsp, BIGNUM * e, BIGNUM * n)
 {
-	Key *k = key_new(KEY_RSA);
+	Key *k = key_new(KEY_RSA1);
 	int ret = hostfile_read_key(cpp, bitsp, k);
 	BN_copy(e, k->rsa->e);
 	BN_copy(n, k->rsa->n);
@@ -90,7 +86,7 @@ auth_rsa_read_key(char **cpp, unsigned int *bitsp, BIGNUM * e, BIGNUM * n)
 int
 hostfile_check_key(int bits, Key *key, const char *host, const char *filename, int linenum)
 {
-	if (key == NULL || key->type != KEY_RSA || key->rsa == NULL)
+	if (key == NULL || key->type != KEY_RSA1 || key->rsa == NULL)
 		return 1;
 	if (bits != BN_num_bits(key->rsa->n)) {
 		log("Warning: %s, line %d: keysize mismatch for host %s: "
@@ -110,24 +106,23 @@ hostfile_check_key(int bits, Key *key, const char *host, const char *filename, i
  */
 
 HostStatus
-check_host_in_hostfile(const char *filename, const char *host, Key *key, Key *found)
+check_host_in_hostfile(const char *filename, const char *host, Key *key,
+    Key *found, int *numret)
 {
 	FILE *f;
 	char line[8192];
 	int linenum = 0;
-	unsigned int kbits, hostlen;
+	u_int kbits;
 	char *cp, *cp2;
 	HostStatus end_return;
 
+	debug3("check_host_in_hostfile: filename %s", filename);
 	if (key == NULL)
 		fatal("no key to look up");
 	/* Open the file containing the list of known hosts. */
 	f = fopen(filename, "r");
 	if (!f)
 		return HOST_NEW;
-
-	/* Cache the length of the host name. */
-	hostlen = strlen(host);
 
 	/*
 	 * Return value when the loop terminates.  This is set to
@@ -136,7 +131,7 @@ check_host_in_hostfile(const char *filename, const char *host, Key *key, Key *fo
 	 */
 	end_return = HOST_NEW;
 
-	/* Go trough the file. */
+	/* Go through the file. */
 	while (fgets(line, sizeof(line), f)) {
 		cp = line;
 		linenum++;
@@ -152,7 +147,7 @@ check_host_in_hostfile(const char *filename, const char *host, Key *key, Key *fo
 			;
 
 		/* Check if the host name matches. */
-		if (match_hostname(host, cp, (unsigned int) (cp2 - cp)) != 1)
+		if (match_hostname(host, cp, (u_int) (cp2 - cp)) != 1)
 			continue;
 
 		/* Got a match.  Skip host name. */
@@ -167,9 +162,13 @@ check_host_in_hostfile(const char *filename, const char *host, Key *key, Key *fo
 		if (!hostfile_check_key(kbits, found, host, filename, linenum))
 			continue;
 
+		if (numret != NULL)
+			*numret = linenum;
+
 		/* Check if the current key is the same as the given key. */
 		if (key_equal(key, found)) {
 			/* Ok, they match. */
+			debug3("check_host_in_hostfile: match line %d", linenum);
 			fclose(f);
 			return HOST_OK;
 		}
