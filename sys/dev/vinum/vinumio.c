@@ -368,13 +368,12 @@ check_drive(char *devicename)
 		}
 	    }
 	}
-    } else {
-	if (drive->lasterror == 0)
-	    drive->lasterror = ENODEV;
+	return drive;
+    } else {						    /* not ours, */
 	close_drive(drive);
-	drive->state = drive_down;
+	free_drive(drive);				    /* get rid of it */
+	return NULL;
     }
-    return drive;
 }
 
 static char *
@@ -758,7 +757,6 @@ vinum_scandisk(char *devicename)
     for (cp = devicename; *cp; cp = ep) {
 	char part;					    /* UNIX partition */
 	int slice;
-	int founddrive;					    /* flag when we find a vinum drive */
 
 	while (*cp == ' ')
 	    cp++;					    /* find start of name */
@@ -777,7 +775,6 @@ vinum_scandisk(char *devicename)
 	np += ep - cp;					    /* and point past */
 
 	partnamelen = MAXPATHLEN + np - partname;	    /* remaining length in partition name */
-	founddrive = 0;					    /* no vinum drive found yet on this spindle */
 	/* first try the partition table */
 	for (slice = 1; slice < 5; slice++)
 	    for (part = 'a'; part < 'i'; part++) {
@@ -788,24 +785,27 @@ vinum_scandisk(char *devicename)
 			slice,
 			part);
 		    drive = check_drive(partname);	    /* try to open it */
-		    if ((drive->lasterror != 0)		    /* didn't work, */
-		    ||(drive->state < drive_down))
-			free_drive(drive);		    /* get rid of it */
-		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
-			log(LOG_WARNING,
-			    "vinum: already read config from %s\n", /* say so */
-			    drive->label.name);
-		    else {
-			if (gooddrives == drives)	    /* ran out of entries */
-			    EXPAND(drivelist, int, drives, drives); /* double the size */
-			drivelist[gooddrives] = drive->driveno;	/* keep the drive index */
-			drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
-			gooddrives++;
-			founddrive++;
+		    if (drive) {			    /* got something, */
+			if (drive->flags & VF_CONFIGURED)   /* already read this config, */
+			    log(LOG_WARNING,
+				"vinum: already read config from %s\n",	/* say so */
+				drive->label.name);
+			else {
+			    if (gooddrives == drives)	    /* ran out of entries */
+				EXPAND(drivelist, int, drives, drives);	/* double the size */
+			    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
+			    drive->flags &= ~VF_NEWBORN;    /* which is no longer newly born */
+			    gooddrives++;
+			}
 		    }
 		}
 	    }
-	if (founddrive == 0) {				    /* didn't find anything, */
+#ifdef __i386__
+	/*
+	 * This is a kludge.  Probably none of this
+	 * should be here.
+	 */
+	if (gooddrives == 0) {				    /* didn't find anything, */
 	    for (part = 'a'; part < 'i'; part++)	    /* try the compatibility partition */
 		if (part != 'c') {			    /* don't do the c partition */
 		    snprintf(np,
@@ -813,22 +813,22 @@ vinum_scandisk(char *devicename)
 			"%c",
 			part);
 		    drive = check_drive(partname);	    /* try to open it */
-		    if ((drive->lasterror != 0)		    /* didn't work, */
-		    ||(drive->state < drive_down))
-			free_drive(drive);		    /* get rid of it */
-		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
-			log(LOG_WARNING,
-			    "vinum: already read config from %s\n", /* say so */
-			    drive->label.name);
-		    else {
-			if (gooddrives == drives)	    /* ran out of entries */
-			    EXPAND(drivelist, int, drives, drives); /* double the size */
-			drivelist[gooddrives] = drive->driveno;	/* keep the drive index */
-			drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
-			gooddrives++;
+		    if (drive) {			    /* got something, */
+			if (drive->flags & VF_CONFIGURED)   /* already read this config, */
+			    log(LOG_WARNING,
+				"vinum: already read config from %s\n",	/* say so */
+				drive->label.name);
+			else {
+			    if (gooddrives == drives)	    /* ran out of entries */
+				EXPAND(drivelist, int, drives, drives);	/* double the size */
+			    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
+			    drive->flags &= ~VF_NEWBORN;    /* which is no longer newly born */
+			    gooddrives++;
+			}
 		    }
 		}
 	}
+#endif
     }
     Free(partname);
 
