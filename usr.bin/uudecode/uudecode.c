@@ -72,7 +72,7 @@ int cflag, iflag, oflag, pflag, sflag;
 
 static void usage(void);
 int	decode(void);
-int	decode2(int);
+int	decode2(void);
 void	base64_decode(const char *);
 
 int
@@ -134,123 +134,112 @@ main(int argc, char *argv[])
 int
 decode(void)
 {
-	int flag;
+	int r, v;
 
-	/* decode only one file per input stream */
-	if (!cflag)
-		return (decode2(0));
-
-	/* multiple uudecode'd files */
-	for (flag = 0; ; flag++)
-		if (decode2(flag))
-			return (1);
-		else if (feof(stdin))
+	v = decode2();
+	if (v == EOF) {
+		warnx("%s: missing or bad \"begin\" line", filename);
+		return (1);
+	}
+	for (r = v; cflag; r |= v) {
+		v = decode2();
+		if (v == EOF)
 			break;
-
-	return (0);
+	}
+	return (r);
 }
 
 int
-decode2(int flag)
+decode2(void)
 {
-	struct passwd *pw;
+	int base64;
 	int n;
-	char ch, *p;
-	int base64, n1;
+	char ch, *p, *q;
+	void *mode;
+	struct passwd *pw;
+	struct stat st;
 	char buf[MAXPATHLEN+1];
 	char buffn[MAXPATHLEN+1]; /* file name buffer */
-	char *mode, *s;
-	void *mode_handle;
-	struct stat st;
 
 	base64 = 0;
 	/* search for header line */
-	do {
-		if (!fgets(buf, sizeof(buf), stdin)) {
-			if (flag) /* no error */
-				return (0);
-
-			warnx("%s: no \"begin\" line", filename);
-			return (1);
-		}
-	} while (strncmp(buf, "begin", 5) != 0);
-
-	if (strncmp(buf, "begin-base64", 12) == 0)
-		base64 = 1;
-
-	/* Parse the header: begin{,-base64} mode outfile. */
-	s = strtok(buf, " ");
-	if (s == NULL)
-		errx(1, "no mode or filename in input file");
-	s = strtok(NULL, " ");
-	if (s == NULL)
-		errx(1, "no mode in input file");
-	else {
-		mode = strdup(s);
-		if (mode == NULL)
-			err(1, "strdup()");
-	}
-	if (!oflag) {
-		outfile = strtok(NULL, "\r\n");
-		if (outfile == NULL)
-			errx(1, "no filename in input file");
+	for (;;) {
+		if (fgets(buf, sizeof(buf), stdin) == NULL)
+			return (EOF);
+		p = buf;
+		if (strncmp(p, "begin-base64 ", 13) == 0) {
+			base64 = 1;
+			p += 13;
+		} else if (strncmp(p, "begin ", 6) == 0)
+			p += 6;
+		else
+			continue;
+		/* p points to mode */
+		q = strchr(p, ' ');
+		if (q == NULL)
+			continue;
+		*q++ = '\0';
+		/* q points to filename */
+		n = strlen(q);
+		while (n > 0 && (q[n-1] == '\n' || q[n-1] == '\r'))
+			q[--n] = '\0';
+		/* found valid header? */
+		if (n > 0)
+			break;
 	}
 
-	if (strlcpy(buf, outfile, sizeof(buf)) >= sizeof(buf))
-		errx(1, "%s: filename too long", outfile);
-	if (!sflag && !pflag) {
-		strlcpy(buffn, buf, sizeof(buffn));
-		if (strrchr(buffn, '/') != NULL)
-			strncpy(buf, strrchr(buffn, '/') + 1, sizeof(buf));
-		if (buf[0] == '\0') {
-			warnx("%s: illegal filename", buffn);
-			return (1);
-		}
-
-		/* handle ~user/file format */
-		if (buf[0] == '~') {
-			if (!(p = index(buf, '/'))) {
-				warnx("%s: illegal ~user", filename);
-				return (1);
-			}
-			*p++ = '\0';
-			if (!(pw = getpwnam(buf + 1))) {
-				warnx("%s: no user %s", filename, buf);
-				return (1);
-			}
-			n = strlen(pw->pw_dir);
-			n1 = strlen(p);
-			if (n + n1 + 2 > MAXPATHLEN) {
-				warnx("%s: path too long", filename);
-				return (1);
-			}
-			bcopy(p, buf + n + 1, n1 + 1);
-			bcopy(pw->pw_dir, buf, n);
-			buf[n] = '/';
-		}
+	mode = setmode(p);
+	if (mode == NULL) {
+		warnx("%s: unable to parse file mode", filename);
+		return (1);
 	}
 
-	/* create output file, set mode */
-	if (pflag)
-		; /* print to stdout */
+	if (oflag) {
+		/* use command-line filename */
+		n = strlcpy(buffn, outfile, sizeof(buffn));
+	} else if (sflag) {
+		/* don't strip, so try ~user/file expansion */
+		p = NULL;
+		pw = NULL;
+		if (*q == '~')
+			p = strchr(q, '/');
+		if (p != NULL) {
+			*p = '\0';
+			pw = getpwnam(q + 1);
+			*p = '/';
+		}
+		if (pw != NULL) {
+			strlcpy(buffn, pw->pw_dir, sizeof(buffn));
+			n = strlcat(buffn, p, sizeof(buffn));
+		} else {
+			n = strlcpy(buffn, q, sizeof(buffn));
+		}
+	} else {
+		/* strip down to leaf name */
+		p = strrchr(q, '/');
+		if (p != NULL)
+			n = strlcpy(buffn, p+1, sizeof(buffn));
+		else
+			n = strlcpy(buffn, q, sizeof(buffn));
+	}
+	if (n >= sizeof(buffn) || *buffn == '\0') {
+		warnx("%s: bad output filename", filename);
+		return (1);
+	}
 
-	else {
-		mode_handle = setmode(mode);
-		if (mode_handle == NULL)
-			err(1, "setmode()");
-		if (iflag && !access(buf, F_OK)) {
-			warnx("not overwritten: %s", buf);
+	if (!pflag) {
+		if (iflag && !access(buffn, F_OK)) {
+			warnx("not overwritten: %s", buffn);
 			return (0);
-		} else if (freopen(buf, "w", stdout) == NULL ||
-		    stat(buf, &st) < 0 || (S_ISREG(st.st_mode) &&
-		    fchmod(fileno(stdout), getmode(mode_handle, 0) & 0666))) {
-			warn("%s: %s", buf, filename);
+		}
+		if (freopen(buffn, "w", stdout) == NULL ||
+		    stat(buffn, &st) < 0 || (S_ISREG(st.st_mode) &&
+		    fchmod(fileno(stdout), getmode(mode, 0) & 0666) < 0)) {
+			warn("%s: %s", filename, buffn);
 			return (1);
 		}
-		free(mode_handle);
-		free(mode);
 	}
-	strcpy(buffn, buf); /* store file name from header line */
+	free(mode);
 
 	/* for each input line */
 	for (;;) {
