@@ -470,10 +470,10 @@ exit1(struct thread *td, int rv)
 	} else
 		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
-	if (p->p_sigparent && p->p_pptr != initproc)
-		psignal(p->p_pptr, p->p_sigparent);
-	else
+	if (p->p_pptr == initproc)
 		psignal(p->p_pptr, SIGCHLD);
+	else if (p->p_sigparent != 0)
+		psignal(p->p_pptr, p->p_sigparent);
 	PROC_UNLOCK(p->p_pptr);
 
 	/*
