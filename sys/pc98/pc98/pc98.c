@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.33 1997/07/10 10:22:34 kato Exp $
+ *	$Id: pc98.c,v 1.34 1997/07/21 13:11:11 kato Exp $
  */
 
 /*
@@ -923,6 +923,90 @@ isa_dmarangecheck(caddr_t va, u_int length, int chan) {
 		priorpage = phys;
 	}
 	return (0);
+}
+
+/*
+ * Query the progress of a transfer on a DMA channel.
+ *
+ * To avoid having to interrupt a transfer in progress, we sample
+ * each of the high and low databytes twice, and apply the following
+ * logic to determine the correct count.
+ *
+ * Reads are performed with interrupts disabled, thus it is to be
+ * expected that the time between reads is very small.  At most
+ * one rollover in the low count byte can be expected within the
+ * four reads that are performed.
+ *
+ * There are three gaps in which a rollover can occur :
+ *
+ * - read low1
+ *              gap1
+ * - read high1
+ *              gap2
+ * - read low2
+ *              gap3
+ * - read high2
+ *
+ * If a rollover occurs in gap1 or gap2, the low2 value will be
+ * greater than the low1 value.  In this case, low2 and high2 are a
+ * corresponding pair. 
+ *
+ * In any other case, low1 and high1 can be considered to be correct.
+ *
+ * The function returns the number of bytes remaining in the transfer,
+ * or -1 if the channel requested is not active.
+ *
+ */
+int
+isa_dmastatus(int chan)
+{
+	u_long	cnt = 0;
+	int	ffport, waport, s;
+	u_long	low, high, low2, high2;
+
+	/* channel active? */
+	if (dma_inuse & (1 << chan) == 0) {
+		printf("isa_dmastatus: channel %d not active\n", chan);
+		return(-1);
+	}
+
+	/* still busy? */
+	if (dma_busy & (1 << chan) == 0) {
+		return(0);
+	}
+	
+#ifdef PC98
+	ffport = DMA1_FFC;
+	waport = DMA1_CHN(chan) + 2;
+#else
+	if (chan < 4) {			/* low DMA controller */
+		ffport = DMA1_FFC;
+		waport = DMA1_CHN(chan) + 1;
+	} else {			/* high DMA controller */
+		ffport = DMA2_FFC;
+		waport = DMA2_CHN(chan - 4) + 2;
+	}
+#endif
+	s = splhigh();			/* no interrupts Mr Jones! */
+	outb(ffport, 0);		/* clear register LSB flipflop */
+	low = inb(waport);
+	high = inb(waport);
+	outb(ffport, 0);		/* clear again (paranoia?) */
+	low2 = inb(waport);
+	high2 = inb(waport);
+	splx(s);
+
+	/* now decide if a wrap has tried to skew our results */
+	if (low >= low2) {
+		cnt = low + (high << 8) + 1;
+	} else {
+		cnt = low2 + (high2 << 8) + 1;
+	}
+	cnt = (cnt + 1) & 0xffff;
+
+	if (chan >= 4)			/* high channels move words */
+		cnt *= 2;
+	return(cnt);
 }
 
 /*
