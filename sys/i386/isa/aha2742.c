@@ -18,7 +18,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.24 1994/10/23 21:27:05 wollman Exp $
+ *      $Id: aha2742.c,v 1.1 1994/11/18 05:01:06 jkh Exp $
  */
 /*
  * TODO:
@@ -1613,7 +1613,7 @@ void ahc_loadseq(port)
 	int port;
 {
         static unsigned char seqprog[] = {
-#               include <aha2742_seq.h>
+#               include <aha274x_seq.h>
         };
  
         outb(SEQCTL + port, PERRORDIS|SEQRESET|LOADRAM);
