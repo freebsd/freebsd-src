@@ -57,6 +57,18 @@ interface is necessary for site border router
 .Dq 6to4 router
 in the specification).
 .Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is
+most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
+.Pp
 Due to the way 6to4 protocol is specified,
 .Nm
 interface requires certain configuration to work properly.
