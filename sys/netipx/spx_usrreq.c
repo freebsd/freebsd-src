@@ -571,6 +571,7 @@ update_window:
 	}
 present:
 #define SPINC sizeof(struct spxhdr)
+	SOCKBUF_LOCK(&so->so_rcv);
 	/*
 	 * Loop through all packets queued up to update acknowledge
 	 * number, and present all acknowledged data to user;
@@ -582,12 +583,10 @@ present:
 			m = dtom(q);
 			if (SI(q)->si_cc & SPX_OB) {
 				cb->s_oobflags &= ~SF_IOOB;
-				SOCKBUF_LOCK(&so->so_rcv);
 				if (so->so_rcv.sb_cc)
 					so->so_oobmark = so->so_rcv.sb_cc;
 				else
 					so->so_rcv.sb_state |= SBS_RCVATMARK;
-				SOCKBUF_UNLOCK(&so->so_rcv);
 			}
 			q = q->si_prev;
 			remque(q->si_next);
@@ -610,16 +609,14 @@ present:
 						s[0] = 5;
 						s[1] = 1;
 						*(u_char *)(&s[2]) = dt;
-						sbappend(&so->so_rcv, mm);
+						sbappend_locked(&so->so_rcv, mm);
 					}
 				}
 				if (sp->spx_cc & SPX_OB) {
 					MCHTYPE(m, MT_OOBDATA);
 					spx_newchecks[1]++;
-					SOCKBUF_LOCK(&so->so_rcv);
 					so->so_oobmark = 0;
 					so->so_rcv.sb_state &= ~SBS_RCVATMARK;
-					SOCKBUF_UNLOCK(&so->so_rcv);
 				}
 				if (packetp == 0) {
 					m->m_data += SPINC;
@@ -627,26 +624,28 @@ present:
 					m->m_pkthdr.len -= SPINC;
 				}
 				if ((sp->spx_cc & SPX_EM) || packetp) {
-					sbappendrecord(&so->so_rcv, m);
+					sbappendrecord_locked(&so->so_rcv, m);
 					spx_newchecks[9]++;
 				} else
-					sbappend(&so->so_rcv, m);
+					sbappend_locked(&so->so_rcv, m);
 			} else
 #endif
 			if (packetp) {
-				sbappendrecord(&so->so_rcv, m);
+				sbappendrecord_locked(&so->so_rcv, m);
 			} else {
 				cb->s_rhdr = *mtod(m, struct spxhdr *);
 				m->m_data += SPINC;
 				m->m_len -= SPINC;
 				m->m_pkthdr.len -= SPINC;
-				sbappend(&so->so_rcv, m);
+				sbappend_locked(&so->so_rcv, m);
 			}
 		  } else
 			break;
 	}
 	if (wakeup)
-		sorwakeup(so);
+		sorwakeup_locked(so);
+	else
+		SOCKBUF_UNLOCK(&so->so_rcv);
 	return (0);
 }
 
