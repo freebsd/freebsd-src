@@ -183,3 +183,9 @@ sony650|Sony 650 MB MOD|\
 	:ty=removable:dt=SCSI:se#512:nt#1:ns#31:nc#18600:ts#1:rm#4800:\
 	:pc#576600:oc#0:\
 	:pa#576600:oa#0:ta=4.2BSD:ba#8192:fa#1024:
+
+mta3230|mo230|IBM MTA-3230 230 Meg 3.5inch Magneto-Optical:\
+	:ty=removeable:dt=SCSI:rm#3600:\
+	:se#512:nt#64:ns#32:nc#216:sc#2048:su#444384:\
+	:pa#444384:oa#0:ba#4096:fa#0:ta=4.2BSD:\
+	:pc#444384:oc#0:
