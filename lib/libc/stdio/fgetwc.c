@@ -61,7 +61,7 @@ fgetwc(FILE *fp)
 			return (wc);
 		else if (nconv == 0)
 			return (L'\0');
-		else if (nconv == (size_t)-2 || nconv == (size_t)-1)
+		else if (nconv == (size_t)-1)
 			break;
 	}
 
