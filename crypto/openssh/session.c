@@ -752,14 +752,14 @@ do_login(Session *s, const char *command)
 		return;
 
 #ifdef USE_PAM
-	if (!is_pam_password_change_required())
+	if (options.print_lastlog && !is_pam_password_change_required())
 		print_pam_messages();
 #endif /* USE_PAM */
 #ifdef WITH_AIXAUTHENTICATE
 	if (aixloginmsg && *aixloginmsg)
 		printf("%s\n", aixloginmsg);
 #endif /* WITH_AIXAUTHENTICATE */
-
+#ifndef USE_PAM
 	if (options.print_lastlog && s->last_login_time != 0) {
 		time_string = ctime(&s->last_login_time);
 		if (strchr(time_string, '\n'))
@@ -770,6 +770,7 @@ do_login(Session *s, const char *command)
 			printf("Last login: %s from %s\r\n", time_string,
 			    s->hostname);
 	}
+#endif /* !USE_PAM */
 
 	do_motd();
 }
@@ -782,6 +783,24 @@ do_motd(void)
 {
 	FILE *f;
 	char buf[256];
+#ifdef HAVE_LOGIN_CAP
+	const char *fname;
+#endif
+
+#ifdef HAVE_LOGIN_CAP
+	fname = login_getcapstr(lc, "copyright", NULL, NULL);
+	if (fname != NULL && (f = fopen(fname, "r")) != NULL) {
+		while (fgets(buf, sizeof(buf), f) != NULL)
+			fputs(buf, stdout);
+			fclose(f);
+	} else
+#endif /* HAVE_LOGIN_CAP */
+		(void)printf("%s\n\t%s %s\n",
+	"Copyright (c) 1980, 1983, 1986, 1988, 1990, 1991, 1993, 1994",
+	"The Regents of the University of California. ",
+	"All rights reserved.");
+
+	(void)printf("\n");
 
 	if (options.print_motd) {
 #ifdef HAVE_LOGIN_CAP
