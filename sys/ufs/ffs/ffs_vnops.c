@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
- * $Id: ffs_vnops.c,v 1.7 1994/10/10 01:04:40 phk Exp $
+ * $Id: ffs_vnops.c,v 1.8 1995/01/09 16:05:19 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,8 @@
 #include <sys/lockf.h>
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
@@ -248,8 +250,18 @@ ffs_fsync(ap)
 	register struct buf *bp;
 	struct timeval tv;
 	struct buf *nbp;
+	int pass;
 	int s;
 
+	/*
+	 * If the vnode has an object, then flush all of the dirty pages
+	 * into the buffer cache.
+	 */
+
+	if (vp->v_vmdata)
+		_vm_object_page_clean((vm_object_t)vp->v_vmdata, 0, 0, 0);
+
+	pass = 0;
 	/*
 	 * Flush all dirty buffers associated with a vnode.
 	 */
@@ -257,20 +269,20 @@ loop:
 	s = splbio();
 	for (bp = vp->v_dirtyblkhd.lh_first; bp; bp = nbp) {
 		nbp = bp->b_vnbufs.le_next;
-		if ((bp->b_flags & B_BUSY))
+		if ((bp->b_flags & B_BUSY) || (pass == 0 && (bp->b_blkno < 0)))
 			continue;
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 
-		if (bp->b_vp != vp && ap->a_waitfor != MNT_NOWAIT) {
+		if (bp->b_vp != vp || ap->a_waitfor != MNT_NOWAIT) {
 			
 			bremfree(bp);
 			bp->b_flags |= B_BUSY;
 			splx(s);
-		/*
-		 * Wait for I/O associated with indirect blocks to complete,
-		 * since there is no way to quickly wait for them below.
-		 */
+			/*
+			 * Wait for I/O associated with indirect blocks to complete,
+			 * since there is no way to quickly wait for them below.
+			 */
 			if (bp->b_vp == vp || ap->a_waitfor == MNT_NOWAIT)
 				(void) bawrite(bp);
 			else
@@ -281,12 +293,20 @@ loop:
 		}
 		goto loop;
 	}
-		
+	splx(s);
+
+	if (pass == 0) {
+		pass = 1;
+		goto loop;
+	}
+
 	if (ap->a_waitfor == MNT_WAIT) {
+		s = splbio();
 		while (vp->v_numoutput) {
 			vp->v_flag |= VBWAIT;
 			(void) tsleep((caddr_t)&vp->v_numoutput, PRIBIO + 1, "ffsfsn", 0);
 		}
+		splx(s);
 #ifdef DIAGNOSTIC
 		if (vp->v_dirtyblkhd.lh_first) {
 			vprint("ffs_fsync: dirty", vp);
@@ -294,7 +314,6 @@ loop:
 		}
 #endif
 	}
-	splx(s);
 
 	tv = time;
 	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));

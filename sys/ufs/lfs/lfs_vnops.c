@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vnops.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_vnops.c,v 1.6 1995/01/04 23:46:34 gibbs Exp $
+ * $Id: lfs_vnops.c,v 1.7 1995/03/28 07:58:06 bde Exp $
  */
 
 #include <sys/param.h>
@@ -50,6 +50,8 @@
 #include <sys/malloc.h>
 
 #include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_object.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
@@ -232,6 +234,13 @@ lfs_fsync(ap)
 	struct timeval tv;
 	int error;
 	tv = time;
+	/*
+	 * If the vnode has an object, then flush all of the dirty pages
+	 * into the buffer cache.
+	 */
+	if (ap->a_vp->v_vmdata)
+		_vm_object_page_clean((vm_object_t)ap->a_vp->v_vmdata, 0, 0, 0);
+
 	error = (VOP_UPDATE(ap->a_vp, &tv, &tv,
 	    ap->a_waitfor == MNT_WAIT ? LFS_SYNC : 0));
 	if(ap->a_waitfor == MNT_WAIT && ap->a_vp->v_dirtyblkhd.lh_first != NULL)

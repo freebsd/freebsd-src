@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.26 1995/03/19 14:29:26 davidg Exp $
+ *	$Id: vm_page.c,v 1.27 1995/03/25 08:47:35 davidg Exp $
  */
 
 /*
@@ -336,7 +336,7 @@ vm_page_startup(starta, enda, vaddr)
 			++cnt.v_free_count;
 			m = PHYS_TO_VM_PAGE(pa);
 			m->flags = PG_FREE;
-			vm_page_set_clean(m, 0, PAGE_SIZE);
+			m->dirty = 0;
 			m->object = 0;
 			m->phys_addr = pa;
 			m->hold_count = 0;
@@ -912,8 +912,6 @@ vm_page_activate(m)
 	if (m->wire_count == 0) {
 		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
 		m->flags |= PG_ACTIVE;
-		TAILQ_REMOVE(&m->object->memq, m, listq);
-		TAILQ_INSERT_TAIL(&m->object->memq, m, listq);
 		if (m->act_count < 5)
 			m->act_count = 5;
 		else if( m->act_count < ACT_MAX)
@@ -1088,9 +1086,9 @@ vm_page_is_valid(m, base, size)
 	int base;
 	int size;
 {
-	int bits;
+	int bits = vm_page_bits(base, size);
 
-	if (m->valid && ((m->valid & (bits = vm_page_bits(base, size))) == bits))
+	if (m->valid && ((m->valid & bits) == bits))
 		return 1;
 	else
 		return 0;
@@ -1124,8 +1122,7 @@ vm_page_test_dirty(m)
 	vm_page_t m;
 {
 	if ((m->dirty != VM_PAGE_BITS_ALL) &&
-		pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
-		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
+	    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
 		m->dirty = VM_PAGE_BITS_ALL;
 	}
 }
@@ -1140,6 +1137,8 @@ vm_page_set_clean(m, base, size)
 	int size;
 {
 	m->dirty &= ~vm_page_bits(base, size);
+	if( base == 0 && size == PAGE_SIZE)
+		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 }
 
 /*
@@ -1175,3 +1174,4 @@ print_page_info()
 	printf("cnt.v_cache_min: %d\n", cnt.v_cache_min);
 	printf("cnt.v_inactive_target: %d\n", cnt.v_inactive_target);
 }
+

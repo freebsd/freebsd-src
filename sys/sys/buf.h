@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.15 1995/03/26 23:29:06 davidg Exp $
+ * $Id: buf.h,v 1.16 1995/03/28 07:57:33 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -132,7 +132,7 @@ struct buf {
 #define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
 #define	B_READ		0x00100000	/* Read buffer. */
 #define	B_TAPE		0x00200000	/* Magnetic tape I/O. */
-#define	B_PDWANTED	0x00400000	/* Pageout daemon wants this buffer. */
+#define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_WANTED	0x00800000	/* Process wants this buffer. */
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
@@ -214,7 +214,6 @@ void	bdwrite __P((struct buf *));
 void	bawrite __P((struct buf *));
 void	brelse __P((struct buf *));
 void	vfs_bio_awrite __P((struct buf *));
-struct buf *getnewbuf __P((int slpflag, int slptimeo, int));
 struct buf *     getpbuf __P((void));
 struct buf *incore __P((struct vnode *, daddr_t));
 int	inmem __P((struct vnode *, daddr_t));
@@ -233,6 +232,7 @@ void	cluster_write __P((struct buf *, u_quad_t));
 int	physio __P((void (*)(), struct buf *, dev_t, int, u_int (*)(),
 	    struct uio *));
 u_int	minphys __P((struct buf *));
+void	vfs_bio_clrbuf __P((struct buf *));
 void	vfs_busy_pages __P((struct buf *, int clear_modify));
 void	vfs_unbusy_pages(struct buf *);
 void	vwakeup __P((struct buf *));
