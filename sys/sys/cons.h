@@ -70,6 +70,7 @@ struct consdev {
 	short	cn_pri;		/* pecking order; the higher the better */
 	void	*cn_arg;	/* drivers method argument */
 	int	cn_unit;	/* some drivers prefer this */
+	int	cn_flags;	/* capabilities of this console */
 	char	cn_name[SPECNAMELEN + 1];	/* console (device) name */
 };
 
@@ -79,6 +80,9 @@ struct consdev {
 #define CN_NORMAL	2	/* device exists but is nothing special */
 #define CN_INTERNAL	3	/* "internal" bit-mapped display */
 #define CN_REMOTE	4	/* serial interface with remote bit set */
+
+/* Values for cn_flags. */
+#define	CN_FLAG_NODEBUG	0x00000001	/* Not supported with debugger. */
 
 #ifdef _KERNEL
 extern int cons_unavail;
