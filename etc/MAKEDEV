@@ -144,7 +144,7 @@
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
-#	3dfx*	3dfx voodoo device for glide (tdfx), links 3dfx to 3dfx#
+#	3dfx*	3dfx voodoo device for glide (tdfx) (/dev/3dfx,3dfxN,voodoo)
 #	agpgart	AGP interface
 #
 
@@ -1671,6 +1671,7 @@ amr*)
 	unit=`expr $i : '3dfx\(.*\)'`
 	mknod 3dfx$unit c 107 `unit2minor $unit`
 	ln -sf 3dfx$unit 3dfx
+   ln -sf 3dfx$unit voodoo
 	;;
 
 agpgart)
