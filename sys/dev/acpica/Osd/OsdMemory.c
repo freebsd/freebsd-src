@@ -118,6 +118,7 @@ AcpiOsReadMemory (
 	break;
     default:
 	/* debug trap goes here */
+	break;
     }
 
     AcpiOsUnmapMemory(LogicalAddress, Width / 8);
@@ -152,6 +153,7 @@ AcpiOsWriteMemory (
 	break;
     default:
 	/* debug trap goes here */
+	break;
     }
 
     AcpiOsUnmapMemory(LogicalAddress, Width / 8);
