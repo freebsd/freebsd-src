@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: accounting
-# REQUIRE: mountall
+# REQUIRE: mountcritremote
 # BEFORE: DAEMON
 # KEYWORD: FreeBSD
 
