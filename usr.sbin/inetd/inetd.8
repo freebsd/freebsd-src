@@ -175,22 +175,22 @@ server program
 server program arguments
 .Ed
 .Pp
-There are two types of services that 
+There are two types of services that
 .Nm
 can start: standard and TCPMUX.
 A standard service has a well-known port assigned to it;
 it may be a service that implements an official Internet standard or is a
 BSD-specific service.
-As described in 
+As described in
 .Tn RFC 1078 ,
-TCPMUX services are nonstandard services that do not have a 
+TCPMUX services are nonstandard services that do not have a
 well-known port assigned to them.
 They are invoked from
 .Nm
 when a program connects to the
 .Dq tcpmux
 well-known port and specifies
-the service name.  
+the service name.
 This feature is useful for adding locally-developed servers.
 TCPMUX requests are only accepted when the multiplexor service itself
 is enabled, above and beyond and specific TCPMUX-based servers; see the
@@ -215,23 +215,23 @@ When used to specify an
 .Tn "ONC RPC" Ns -based
 service, this field is a valid RPC service name in
 the file
-.Pa /etc/rpc . 
-The part on the right of the 
+.Pa /etc/rpc .
+The part on the right of the
 .Dq /
 is the RPC version number.
 This
 can simply be a single numeric argument or a range of versions.
-A range is bounded by the low version to the high version - 
+A range is bounded by the low version to the high version -
 .Dq rusers/1-3 .
 For TCPMUX services, the value of the
 .Em service-name
 field consists of the string
 .Dq tcpmux
 followed by a slash and the
-locally-chosen service name. 
-The service names listed in 
+locally-chosen service name.
+The service names listed in
 .Pa /etc/services
-and the name 
+and the name
 .Dq help
 are reserved.
 Try to choose unique names for your TCPMUX services by prefixing them with
@@ -248,7 +248,7 @@ or
 .Dq seqpacket ,
 depending on whether the socket is a stream, datagram, raw,
 reliably delivered message, or sequenced packet socket.
-TCPMUX services must use 
+TCPMUX services must use
 .Dq stream .
 .Pp
 The
@@ -295,12 +295,12 @@ via a wildcard
 socket.
 Rpc based services
 (for which only IPv4 is supported at this time)
-are specified with the 
+are specified with the
 .Dq rpc/tcp
-or 
-.Dq rpc/udp 
+or
+.Dq rpc/udp
 service type.
-TCPMUX services must use 
+TCPMUX services must use
 .Dq tcp ,
 .Dq tcp4 ,
 .Dq tcp6
@@ -362,7 +362,7 @@ are started with the listening service socket, and must accept
 at least one connection request before exiting.
 Such a server would normally accept and process incoming connection
 requests until a timeout.
-TCPMUX services must use 
+TCPMUX services must use
 .Dq nowait .
 .Pp
 The maximum number of outstanding child processes (or
@@ -491,7 +491,7 @@ If the file
 .Pa .fakeid
 exists in the home directory of the identified user, report the username
 found in that file instead of the real username.
-If the username found in 
+If the username found in
 .Pa .fakeid
 is that of an existing user,
 then the real username is reported.
@@ -501,7 +501,7 @@ flag is also given then the username in
 .Pa .fakeid
 is checked against existing user IDs instead.
 .It Fl F
-same as 
+same as
 .Fl f
 but without the restriction that the username in
 .Pa .fakeid
@@ -593,7 +593,7 @@ will wrap all services specified as
 .Dq stream nowait
 or
 .Dq dgram
-except for 
+except for
 .Dq internal
 services.
 If the
@@ -641,7 +641,7 @@ should be used as the daemon name for
 .Dq internal
 services.
 .Ss TCPMUX
-.Tn RFC 1078 
+.Tn RFC 1078
 describes the TCPMUX protocol:
 ``A TCP client connects to a foreign host on TCP port 1.  It sends the
 service name followed by a carriage-return line-feed <CRLF>.  The
@@ -691,7 +691,7 @@ interface and abort execution.
 .Ss Ux Domain Sockets
 In addition to running services on IP sockets,
 .Nm
-can also manage 
+can also manage
 .Ux
 domain sockets.
 To do this you specify a
@@ -832,9 +832,9 @@ reenabled automatically in 10 minutes.
 .Ar user :
 .No \&No such user
 .Xc
-No entry for 
+No entry for
 .Ar user
-exists in the 
+exists in the
 .Xr passwd 5
 database.
 The first message
@@ -854,7 +854,7 @@ service is invoked.
 .No can't set gid
 .Ar gid
 .Xc
-The user or group ID for the entry's 
+The user or group ID for the entry's
 .Ar user
 field is invalid.
 .Pp
@@ -901,5 +901,5 @@ provided by
 The IPsec hack was contributed by the KAME project in 1999.
 The
 .Fx
-TCP Wrappers support first appeared in 
+TCP Wrappers support first appeared in
 .Fx 3.2 .

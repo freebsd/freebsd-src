@@ -69,7 +69,7 @@ The first display is for the time since a reboot and each subsequent
 report is for the time period since the last display.
 If no repeat
 .Ar count
-is specified, and 
+is specified, and
 .Fl w
 is specified, the default is infinity, otherwise the default is one.
 .\" .It Fl f
@@ -84,12 +84,12 @@ Report on the number of interrupts taken by each device since system
 startup.
 .It Fl M
 Extract values associated with the name list from the specified
-.Ar core 
-instead of the default 
+.Ar core
+instead of the default
 .Pa /dev/kmem .
 .It Fl N
-Extract the name list from the specified 
-.Ar system 
+Extract the name list from the specified
+.Ar system
 instead of the default
 .Pa /kernel .
 .It Fl m
@@ -104,7 +104,7 @@ categories of devices:
 .Bl -tag -width indent -compact
 .It device type:
 .Bl -tag -width 9n -compact
-.It da 
+.It da
 Direct Access devices
 .It sa
 Sequential Access devices
@@ -151,7 +151,7 @@ Passthrough devices
 .Pp
 The user must specify at least one device type, and may specify at most
 one device type from each category.  Multiple device types in a single
-device type statement must be separated by commas. 
+device type statement must be separated by commas.
 .Pp
 Any number of
 .Fl p
@@ -161,7 +161,7 @@ arguments are ORed together to form a matching expression against which
 all devices in the system are compared.  Any device that fully matches
 any
 .Fl p
-argument will be included in the 
+argument will be included in the
 .Nm
 output, up to three devices, or the maximum number of devices specified
 by the user.
@@ -316,7 +316,7 @@ default memory file
 The sections starting with ``Interpreting system activity'' in
 .%T "Installing and Operating 4.3BSD" .
 .Sh BUGS
-The 
+The
 .Fl c
 and
 .Fl w

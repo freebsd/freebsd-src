@@ -342,11 +342,11 @@ The current settings for
 and
 .Ic structure
 are used while transferring the file.
-.It Ic gate Op Ar host Op Ar port 
+.It Ic gate Op Ar host Op Ar port
 Toggle gate-ftp mode.
 This will not be permitted if the gate-ftp server hasn't been set
 (either explicitly by the user, or from the
-.Ev FTPSERVER 
+.Ev FTPSERVER
 environment variable).
 If
 .Ar host
@@ -680,7 +680,7 @@ server (see below).
 Retrieve
 .Ic file
 and display with the program defined in
-.Ev PAGER 
+.Ev PAGER
 (which defaults to
 .Xr more 1 ) .
 .It Ic passive
@@ -1069,7 +1069,7 @@ on the command line.
 .Pp
 The following formats are valid syntax for an auto-fetch element:
 .Bl -tag -width "host:/file"
-.It host:/file 
+.It host:/file
 .Dq Classic
 ftp format
 .It ftp://[user:password@]host[:port]/file
@@ -1108,7 +1108,7 @@ connection creation and deletion.
 .Pp
 If
 .Ic file
-contains a glob character and globbing is enabled, 
+contains a glob character and globbing is enabled,
 (see
 .Ic glob ) ,
 then the equivalent of
@@ -1347,7 +1347,7 @@ auto-login process.
 .El
 .Sh COMMAND LINE EDITING
 .Nm
-supports interactive command line editing, via the 
+supports interactive command line editing, via the
 .Xr editline 3
 library.
 It is enabled with the
@@ -1392,7 +1392,7 @@ Port to use when connecting to gate-ftp server when
 is enabled.
 Default is port returned by a
 .Fn getservbyname
-lookup of 
+lookup of
 .Dq ftpgate/tcp .
 .It Ev HOME
 For default location of a
@@ -1428,7 +1428,7 @@ The
 command appeared in
 .Bx 4.2 .
 .Pp
-Various features such as command line editing, context sensitive 
+Various features such as command line editing, context sensitive
 command and file completion, dynamic progress bar, automatic
 fetching of files, ftp and http URLs, and modification time
 preservation were implemented in

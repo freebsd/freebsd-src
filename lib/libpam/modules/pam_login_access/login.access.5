@@ -11,15 +11,15 @@
 .Sh DESCRIPTION
 The
 .Nm
-file specifies (user, host) combinations and/or (user, tty) 
+file specifies (user, host) combinations and/or (user, tty)
 combinations for which a login will be either accepted or refused.
 .Pp
-When someone logs in, the 
+When someone logs in, the
 .Nm
 is scanned for the first entry that
 matches the (user, host) combination, or, in case of non-networked
 logins, the first entry that matches the (user, tty) combination.  The
-permissions field of that table entry determines whether the login will 
+permissions field of that table entry determines whether the login will
 be accepted or refused.
 .Pp
 Each line of the login access control table has three fields separated by a

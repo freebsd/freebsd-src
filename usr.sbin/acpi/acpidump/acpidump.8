@@ -26,9 +26,9 @@
 .\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
-.\" 
+.\"
 .\" $FreeBSD$
-.\" 
+.\"
 .Dd August 31, 2000
 .Dt ACPIDUMP 8
 .Os
@@ -83,7 +83,7 @@ OEM Revision, Creator ID and Creator Revision.
 .Nm
 dumps contents of these SDTs.
 For further information about formats of each table,
-see chapter 5: ACPI Software Programming Model, 
+see chapter 5: ACPI Software Programming Model,
 .Dq Advanced Configuration and Power Interface Specification Revision 1.0b
 from Intel/Microsoft/Toshiba.
 .Pp
@@ -95,7 +95,7 @@ such as interrupt mode
 .Pq INT_MODEL ,
 SCI interrupt number, SMI command port
 .Pq SMI_CMD
-and location of ACPI registers.  
+and location of ACPI registers.
 FACP also has a pointer to a physical memory address for DSDT,
 which includes information used on the kernel side such as
 PnP, power management support and so on.
@@ -148,7 +148,7 @@ and then interprets the DSDT again referring to namespace.
 .Xr amldb 8
 .Pp
 .Dq Advanced Configuration and Power Interfce Specification
-.Bd -literal -offset indent -compact 
+.Bd -literal -offset indent -compact
 Intel
 Microsoft
 Toshiba

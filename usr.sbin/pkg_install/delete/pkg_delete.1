@@ -56,7 +56,7 @@ Pay particular attention to any +INSTALL, +POST-INSTALL, +DEINSTALL,
 +POST-DEINSTALL, +REQUIRE or +MTREE_DIRS files, and inspect the +CONTENTS
 file for
 .Cm @cwd ,
-.Cm @mode 
+.Cm @mode
 (check for setuid),
 .Cm @dirrm ,
 .Cm @exec ,
@@ -99,7 +99,7 @@ normal files/directories or with the
 directive) will be removed at deinstallation time.  This option tells
 .Nm
 to also remove any directories that were emptied as a result of removing
-the package.  
+the package.
 .It Fl f
 Force removal of the package, even if a dependency is recorded or the
 deinstall or require script fails.
@@ -122,7 +122,7 @@ regular expression from the list.
 .El
 .Sh TECHNICAL DETAILS
 .Nm
-does pretty much what it says.  It examines installed package records in 
+does pretty much what it says.  It examines installed package records in
 .Pa /var/db/pkg/<pkg-name> ,
 deletes the package contents, and finally removes the package records.
 If the environment variable
@@ -140,7 +140,7 @@ option is given).
 .Pp
 If the package contains a
 .Ar require
-file (see 
+file (see
 .Xr pkg_create 1 ) ,
 then this is executed first as
 .Bd -ragged -offset indent -compact
@@ -185,9 +185,9 @@ The
 keyword will not appear if separate scripts for deinstall and post-deinstall
 are given during package creation time (using the
 .Fl k
-and 
+and
 .Fl K
-flags to 
+flags to
 .Xr pkg_create 1 ) .
 .Pp
 If a
@@ -219,9 +219,9 @@ The
 keyword will not appear if separate scripts for deinstall and post-deinstall
 are given during package creation time (using the
 .Fl k
-and 
+and
 .Fl K
-flags to 
+flags to
 .Xr pkg_create 1 ) .
 .Pp
 Reasoning behind passing keywords such as

@@ -43,9 +43,9 @@
 The
 .Nm
 command is used to produce a report of non-base software packages
-installed using the 
+installed using the
 .Xr pkg_add 1
-command.  
+command.
 .Pp
 Each package's version number is checked against one of two sources to
 see if that package may require updating.  If the package contains
@@ -53,14 +53,14 @@ information about its origin in the
 .Fx
 ports tree, and a version number can be determined from the port's
 .Pa Makefile ,
-then the version number from the 
+then the version number from the
 .Pa Makefile
 will be used to determine whether the installed package is up-to-date
 or requires updating.
 .Pp
-If no origin for a package can be found, or if the port's 
+If no origin for a package can be found, or if the port's
 .Pa Makefile
-cannot be located, 
+cannot be located,
 .Nm
 will search for the package in the ports collection index file
 (typically
@@ -68,9 +68,9 @@ will search for the package in the ports collection index file
 Any matching version number(s) there will be used to determine whether
 the installed package is up-to-date or requires updating.
 .Pp
-Generally, using the version number from a port's 
+Generally, using the version number from a port's
 .Pa Makefile
-will provide a more accurate result, since, unlike the index file, it 
+will provide a more accurate result, since, unlike the index file, it
 provides an unambiguous current version number, even when multiple
 versions of a port exist in the ports collection.
 Moreover, the ports collection index file is only updated at
@@ -88,8 +88,8 @@ The installed version of the package is newer than the current version.
 This situation can arise with an out-of-date index file, or when
 testing new ports.
 .It Li \&?
-The installed package does not appear in the index. 
-This could be due to an out of date index or a package taken from a PR 
+The installed package does not appear in the index.
+This could be due to an out of date index or a package taken from a PR
 that has not yet been committed.
 .It Li *
 There are multiple versions of a particular software package
@@ -106,7 +106,7 @@ was unable to compare the version number of the installed package
 with the corresponding entry in the index.
 .El
 .Sh OPTIONS
-.Nm 
+.Nm
 supports several command-line arguments:
 .Bl -tag -width indent
 .It Fl c
@@ -118,7 +118,7 @@ This feature does
 not
 .Ef
 constitute an automated packages updating system.
-The output of this command 
+The output of this command
 .Bf Em
 must
 .Ef
@@ -129,11 +129,11 @@ Enable debugging output.
 .It Fl h
 Print help message.
 .It Fl l
-Limit the output to those packages whose status flag matches the 
+Limit the output to those packages whose status flag matches the
 character(s) in
 .Ar limchar .
 More than one character can be specified in
-.Ar limchar .  
+.Ar limchar .
 Note that because some of the status flag characters are also special
 to the shell, it is best to quote
 .Ar limchar
@@ -142,7 +142,7 @@ with single quotes.
 Limit the output to those packages whose status flag doesn't match
 .Ar limchar .
 You may specify more than one character to match in
-.Ar limchar .  
+.Ar limchar .
 Note that because some of the status flag characters are also special
 to the shell, it is best to quote
 .Ar limchar
@@ -207,7 +207,7 @@ These commands must
 not
 .Ef
 be run without suitable editing.
-They should be treated as suggestions, and may need to be reordered 
+They should be treated as suggestions, and may need to be reordered
 to account for dependencies between installed packages, or may need to
 be disregarded if multiple versions of an installed package can coexist.
 Blindly running the output of this command may leave a system in an
@@ -227,12 +227,12 @@ The following command compares two package version strings:
 .An Doug Barton Aq DougB@gorean.org ,
 .An Akinori MUSHA Aq knu@FreeBSD.org
 .Sh BUGS
-The commands output feature is 
-.Bf Em 
+The commands output feature is
+.Bf Em
 not
 .Ef
 an automated ports/packages updating system.
-It does not even attempt to handle dependencies between installed 
+It does not even attempt to handle dependencies between installed
 packages correctly, and can produce incorrect results if multiple
 versions of a package can coexist on a system.
 .Pp

@@ -53,8 +53,8 @@
 .Op Fl T Ar unit
 .Sh DESCRIPTION
 .Nm
-is part of the isdn4bsd package and is used to provide the user with a 
-detailed mnemonic display of the layers 1, 2 and 3 protocol activities on 
+is part of the isdn4bsd package and is used to provide the user with a
+detailed mnemonic display of the layers 1, 2 and 3 protocol activities on
 the D channel and hex dump of the B channel(s) activities.
 .Pp
 Together with two passive supported cards and an easy to build cable it can
@@ -82,7 +82,7 @@ switch B channel tracing on (default off).
 .It Fl d
 switch D channel tracing off (default on).
 .It Fl f
-Use 
+Use
 .Ar filename
 as the name of a file into which to write tracing output (default filename is
 isdndecode<n> where n is the number of the unit to decode).
@@ -95,18 +95,18 @@ switch displaying of Layer 2 (Q.921) frames off (default on).
 .It Fl o
 switch off writing decode output to a file (default on).
 .It Fl p
-Use 
+Use
 .Ar filename
 as the name of a file used for the -B and -P options (default filename
 is isdntracebin<n> where n is the number of the unit to decode).
 .It Fl u
-Use 
+Use
 .Ar number
 as the unit number of the controller card to decode (default 0).
 .It Fl x
 Decode Layer 3 packets with an unknown protocol discriminator.
 .It Fl B
-Write undecoded binary decode data to a file for later or remote 
+Write undecoded binary decode data to a file for later or remote
 analyzing (default off).
 .It Fl P
 Read undecoded binary decode data from file instead from device (default off).
@@ -149,7 +149,7 @@ isdndecode -f /var/tmp/isdn.decode
 .Ed
 .Pp
 will start D channel tracing on passive controller 0 with all except B
-channel tracing enabled and logs everything into the output file 
+channel tracing enabled and logs everything into the output file
 /var/tmp/isdn.decode.
 .Sh SEE ALSO
 .Xr isdnd 8
@@ -168,5 +168,5 @@ ITU Recommendation X.208, X.209
 .Sh AUTHORS
 The
 .Nm
-utility and this manual page were written by 
+utility and this manual page were written by
 .An Hellmuth Michaelis Aq hm@kts.org .

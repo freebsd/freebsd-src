@@ -12,7 +12,7 @@
 .Nm
 .Fl u Ar username
 .Sh DESCRIPTION
-.Nm Newkey 
+.Nm Newkey
 is normally run by the network administrator on the
 Network Interface Service
 (\s-1NIS\s0)
@@ -25,21 +25,21 @@ NFS\s0.
 .Pp
 .Nm Newkey
 will prompt for the login password of the given username and then
-create a new public/secret key pair in 
+create a new public/secret key pair in
 .Pa /etc/publickey
 encrypted with the login password of the given user.
 .Pp
 Use of this program is
-not required: users may create their own keys using 
+not required: users may create their own keys using
 .Xr chkey 1 .
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Fl h Ar hostname
-Create a new public key for the super-user at the given hostname. 
+Create a new public key for the super-user at the given hostname.
 Prompts for the root password of the given hostname.
 .It Fl u Ar username
 Create a new public key for the given username.
-Prompts for the 
+Prompts for the
 NIS
 password of the given username.
 .El
@@ -52,6 +52,6 @@ password of the given username.
 The Network Information Service
 (\s-1NIS\s0)
 was formerly known as Sun Yellow Pages
-(\s-1YP\s0). 
+(\s-1YP\s0).
 The functionality of the two remains the same;
 only the name has changed.

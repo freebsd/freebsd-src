@@ -1,5 +1,5 @@
 .\"----------------------------------------------------------------------------
-.\""THE BEER-WARE LICENSE" (Revision 42): 
+.\""THE BEER-WARE LICENSE" (Revision 42):
 .\"<joerg@freebsd.org> wrote this file.  As long as you retain this notice you
 .\"can do whatever you want with this stuff. If we meet some day, and you think
 .\"this stuff is worth it, you can buy me a beer in return.       Joerg Wunsch
@@ -73,21 +73,21 @@ will simply reject the input file.
 .Pp
 Pass 2 will validate that the directory tree is in the state expected by
 the CTM delta.  This is done by looking for files and directories which
-should/should not exist and by checking the MD5 checksums of files.  
+should/should not exist and by checking the MD5 checksums of files.
 .Pp
 If a
 .Ar backup-file
-had been specified using the 
+had been specified using the
 .Fl B
-option, all files that would be modified by this 
+option, all files that would be modified by this
 .Nm
 invocation are backed up
-to this file using the archiver command specified by the 
+to this file using the archiver command specified by the
 .Fl t
 option.  The default archiver command is
 .Nm "tar -rf %s -T -" .
 .Pp
-Pass 3 will actually apply the delta. 
+Pass 3 will actually apply the delta.
 .Pp
 The list of files that would be modified by
 .Nm
@@ -99,10 +99,10 @@ and
 options.
 The
 .Fl e
-and 
+and
 .Fl x
 options are applied in order of appearance on the command line.  The last
-filter that matched a given file name determines whether the file would be 
+filter that matched a given file name determines whether the file would be
 operated on or left alone by
 .Nm .
 .Pp
@@ -136,13 +136,13 @@ Match each name in the CTM file against
 and if it matches process the file, otherwise leave it alone.  There may be
 any number of these options.  Use of this option disables the
 .Pa .ctm_status
-sequence number checks.  For example, the expression 
-.Ic ^usr.sbin/ctm 
+sequence number checks.  For example, the expression
+.Ic ^usr.sbin/ctm
 for example, will select the
 .Pa usr.sbin/ctm
-source directory and all pathnames under it. 
+source directory and all pathnames under it.
 .Pp
-Pathnames can be disabled from being considered by CTM using the 
+Pathnames can be disabled from being considered by CTM using the
 .Fl x
 option.
 .It Fl F
@@ -160,7 +160,7 @@ option disables the
 .Pa .ctm_status
 checks and integrity checks on the source tree being operated on.  The
 .Fl l
-option can be combined with the 
+option can be combined with the
 .Fl e
 and
 .Fl x
@@ -175,7 +175,7 @@ instead of the default archiver
 .Nm tar .
 This option takes effect only if a backup file had been specified using the
 .Fl B
-option.  A %s in the tar command will be replaced by the name of the backup 
+option.  A %s in the tar command will be replaced by the name of the backup
 file.
 .It Fl T Ar tmpdir
 Put temporary files under
@@ -195,7 +195,7 @@ Match each name in the CTM file against
 and if it matches, leave the file alone.  There may be any number of these
 options.  Use of this option disables the
 .Pa .ctm_status
-sequence number checks.   
+sequence number checks.
 .Pp
 Pathnames can be selected for CTM's consideration using the
 .Fl e
@@ -280,7 +280,7 @@ options.
 .Sh HISTORY
 Initial trials were run during the work on
 .Fx 1.1.5 ,
-and many bugs and 
+and many bugs and
 methods were hashed out.
 .Pp
 The

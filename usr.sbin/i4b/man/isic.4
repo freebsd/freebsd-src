@@ -176,9 +176,9 @@ The
 driver provides D-channel layer 1 supports as specified in ITU Recommendation
 I.430 and layer 1 support for the B-channel.
 .Pp
-The driver supports several 8 and 16bit passive ISDN cards from various 
+The driver supports several 8 and 16bit passive ISDN cards from various
 manufacturers which are all based upon the popular Siemens ISDN chipset
-consisting of the ISDN Subscriber Access Controller ISAC (such as the 
+consisting of the ISDN Subscriber Access Controller ISAC (such as the
 PEB2085 or PSB 2186) and the High-Level Serial Communications Controller
 Extended HSCX (such as the SAB82525 or PSB21525). The newer IPAC chip
 (which integrates an ISAC and a HSCX in one chip, with the added benefit
@@ -195,9 +195,9 @@ Notice that this cards must not have a
 .Em port
 value in the config line.
 .Pp
-Valid interrupts are 2, 3, 4, 5, 6 and 7. 
+Valid interrupts are 2, 3, 4, 5, 6 and 7.
 .Pp
-The i/o ports are memory mapped and the memory start address may 
+The i/o ports are memory mapped and the memory start address may
 be in the range 0xA0000 to 0xDF000 and uses 4kB of memory.
 .Pp
 .It Ar Teles S0/16, Creatix ISDN-S0, Dr. Neuhaus Niccy 1016
@@ -210,14 +210,14 @@ These boards have a jumper which specifies an i/o base address of either
 0xd80, 0xe80 or 0xf80. The remaining necessary configuration values are then
 programmed at run time by accessing this i/o port.
 .Pp
-Valid interrupts are 2, 3, 4, 5, 10, 11, 12 or 15. 
+Valid interrupts are 2, 3, 4, 5, 10, 11, 12 or 15.
 .Pp
 Valid memory start
 addresses are 0xC0000, 0xC2000, 0xC4000, 0xC6000, 0xC8000, 0xCA000, 0xCC000,
 0xCE000, 0xD0000, 0xD2000, 0xD4000, 0xD6000, 0xD8000, 0xDA000, 0xDC000 and
 0xDE000.
 .Pp
-Notice: Although the Jumpers are labeled 0xd80, 0xe80 or 0xf80, they 
+Notice: Although the Jumpers are labeled 0xd80, 0xe80 or 0xf80, they
 also require i/o space at addresses 0x180, 0x280 or 0x380.
 .Pp
 .It Ar Teles S0/16.3
@@ -242,9 +242,9 @@ The required (optional under NetBSD)
 value is 4.
 .Pp
 These boards have a jumper which specifies an i/o base address of either
-0x200, 0x240, 0x300 or 0x340. 
+0x200, 0x240, 0x300 or 0x340.
 .Pp
-Valid interrupt configurations are 3, 4, 5, 6, 7, 10, 11, 12 or 15. 
+Valid interrupt configurations are 3, 4, 5, 6, 7, 10, 11, 12 or 15.
 .Pp
 Older Versions of the AVM A1 also require setting of an IRQ jumper, newer
 versions of this and the Fritz!Card only have an i/o base jumper and the
@@ -334,7 +334,7 @@ The card addresses are auto-configured by the Zorro bus kernel subsystem.
 The ISDN functions of the boards are at known (to the driver) relative
 addresses.
 .Pp
-Note that currently, you have to jumper the card interupt for 
+Note that currently, you have to jumper the card interupt for
 .Em IPL 2
 instead of IPL 6 (which is used by most AmigaOS software).
 .Pp
@@ -361,17 +361,17 @@ CCITT Recommendation I.430
 .An -nosplit
 The
 .Nm
-driver and this manpage were written by 
+driver and this manpage were written by
 .An Hellmuth Michaelis Aq hm@kts.org .
-It is based on earlier work of 
+It is based on earlier work of
 .An Arne Helme ,
 .An Andrew Gordon
-and 
+and
 .An Gary Jennejohn .
 .Pp
 The complete porting to and maintenance of
 .Nx
-was done by 
+was done by
 .An Martin Husemann Aq martin@rumolt.teuto.de .
 .Pp
 The NetBSD/Amiga ISDN Blaster/Master/MasterII driver was written by

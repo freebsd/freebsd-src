@@ -102,7 +102,7 @@ substituted for the \\T substitution metacharacter in a send string.
 .B -U \fI<phone number 2>
 Pass in a second string, usually a phone number, that will be
 substituted for the \\U substitution metacharacter in a send string.
-This is useful when dialing an ISDN terminal adapter that requires two 
+This is useful when dialing an ISDN terminal adapter that requires two
 numbers.
 .TP
 .B script
@@ -245,19 +245,19 @@ The SAY strings could be used to give progress messages in sections of
 the script where you want to have 'ECHO OFF' but still let the user
 know what is happening.  An example is:
 .IP
-ABORT BUSY 
+ABORT BUSY
 .br
-ECHO OFF 
+ECHO OFF
 .br
-SAY "Dialling your ISP...\\n" 
+SAY "Dialling your ISP...\\n"
 .br
-\&'' ATDT5551212 
+\&'' ATDT5551212
 .br
 TIMEOUT 120
 .br
 SAY "Waiting up to 2 minutes for connection ... "
 .br
-CONNECT '' 
+CONNECT ''
 .br
 SAY "Connected, now logging in ...\\n"
 .br
@@ -481,7 +481,7 @@ The delay is 1/10th of a second.
 .I (not valid in expect.)
 .TP
 .B \\\\q
-Suppress writing the string to 
+Suppress writing the string to
 .IR syslogd (8).
 The string ?????? is
 written to the log in its place.
