@@ -459,6 +459,7 @@ enum pthread_susp {
  * Clock resolution in microseconds.
  */
 #define CLOCK_RES_USEC				10000
+#define CLOCK_RES_USEC_MIN			1000
 
 /*
  * Time slice period in microseconds.
