@@ -642,16 +642,20 @@ again:
 
 	if (flags == (RFFDG | RFPROC)) {
 		cnt.v_forks++;
-		cnt.v_forkpages += p2->p_vmspace->vm_dsize + p2->p_vmspace->vm_ssize;
+		cnt.v_forkpages += p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize;
 	} else if (flags == (RFFDG | RFPROC | RFPPWAIT | RFMEM)) {
 		cnt.v_vforks++;
-		cnt.v_vforkpages += p2->p_vmspace->vm_dsize + p2->p_vmspace->vm_ssize;
+		cnt.v_vforkpages += p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize;
 	} else if (p1 == &proc0) {
 		cnt.v_kthreads++;
-		cnt.v_kthreadpages += p2->p_vmspace->vm_dsize + p2->p_vmspace->vm_ssize;
+		cnt.v_kthreadpages += p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize;
 	} else {
 		cnt.v_rforks++;
-		cnt.v_rforkpages += p2->p_vmspace->vm_dsize + p2->p_vmspace->vm_ssize;
+		cnt.v_rforkpages += p2->p_vmspace->vm_dsize +
+		    p2->p_vmspace->vm_ssize;
 	}
 
 	/*
