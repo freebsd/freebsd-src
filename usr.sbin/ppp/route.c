@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.37 1997/12/27 19:23:13 brian Exp $
+ * $Id: route.c,v 1.38 1997/12/30 02:45:47 brian Exp $
  *
  */
 
@@ -311,7 +311,7 @@ p_flags(u_long f, int max)
 static const char *
 Index2Nam(int idx)
 {
-  static char ifs[200][6];	/* We could have 256 tun devices ! */
+  static char ifs[200][7];	/* We could have 256 tun devices ! */
   static int nifs, debug_done;
 
   if (!nifs) {
