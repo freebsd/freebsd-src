@@ -58,6 +58,22 @@
 static const struct ng_parse_struct_field ng_eiface_par_fields[]
 	= NG_EIFACE_PAR_FIELDS;
 
+static const struct ng_parse_type ng_eiface_par_type = {
+	&ng_parse_struct_type,
+	&ng_eiface_par_fields
+};
+
+static const struct ng_cmdlist ng_eiface_cmdlist[] = {
+	{
+	  NGM_EIFACE_COOKIE,
+	  NGM_EIFACE_SET,
+	  "set",
+	  &ng_eiface_par_type,
+	  NULL
+	},
+	{ 0 }
+};
+
 /* Node private data */
 struct ng_eiface_private {
 	struct	ifnet *ifp;		/* This interface */
