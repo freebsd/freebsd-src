@@ -1,6 +1,112 @@
-This is the distribution of the Gnu Readline library.  See the file
-STANDALONE for a description of the #defines that can be passed via
-the makefile to build readline on different systems.
+Introduction
+============
+
+This is the Gnu Readline library, version 2.1.
+
+The Readline library provides a set of functions for use by applications
+that allow users to edit command lines as they are typed in.  Both
+Emacs and vi editing modes are available.  The Readline library includes
+additional functions to maintain a list of previously-entered command
+lines, to recall and perhaps reedit those lines, and perform csh-like
+history expansion on previous commands.
+
+The history facilites are also placed into a separate library, the
+History library, as part of the build process.  The History library
+may be used without Readline in applications which desire its
+capabilities.
+
+The Readline library is free software, distributed under the terms of
+the GNU Public License, version 2.  For more information, see the file
+COPYING.
+
+To build the library, try typing `./configure', then `make'.  The
+configuration process is automated, so no further intervention should
+be necessary.  Readline builds with `gcc' by default if it is
+available.  If you want to use `cc' instead, type
+
+        CC=cc ./configure
+
+if you are using a Bourne-style shell.  If you are not, the following
+may work:
+
+        env CC=cc ./configure
+
+Read the file INSTALL in this directory for more information about how
+to customize and control the build process.
 
 The file rlconf.h contains defines that enable and disable certain
-readline features.
+Readline features.
+
+Examples
+========
+
+There are several example programs that use Readline features in the
+examples directory.  The `rl' program is of particular interest.  It
+is a command-line interface to Readline, suitable for use in shell
+scripts in place of `read'.
+
+Shared Libraries
+================
+
+There is skeletal support for building shared versions of the
+Readline and History libraries.
+
+Typing `make shared' will cause shared versions of the Readline and
+History libraries to be built on SunOS 4.1.x.  For versions of Unix
+other than SunOS, you will have to make some changes to Makefile.in.
+The relevant variables are:
+
+PICFLAG		Options to give to the compiler to produce position-independent
+		code.  The value `-fpic' works for most versions of gcc.
+SHLIB_OPTS	Options to give to the linker to produce a shared library.
+		The value `-assert pure-text -ldl' works on SunOS 4.1.x.
+		The value `-Bshareable' works for some versions of GNU ld.
+
+MAJOR		The major version number of the shared library.  You should
+		not need to change this.
+MINOR		The minor version number of the shared library.  Some systems,
+		such as SVR4 and its descendents (e.g., Solaris, Unixware),
+		do not use minor version numbers.  For those systems, this
+		variable should be left unset.
+
+LD		The linker.  The value of `ld' is correct for SunOS 4.1.x.
+		You may need to change it to `gcc'; make sure to change
+		SHLIB_OPTS if you do so.
+
+Once you have edited Makefile.in, type `make Makefile' to rebuild the
+Makefile, then `make shared' to build the shared libraries.
+
+Documentation
+=============
+
+The documentation for the Readline and History libraries appears in the
+`doc' subdirectory.  There are two texinfo files and a Unix-style manual
+page describing the programming facilities available in the Readline
+library.  The texinfo files include both user and programmer's manuals.
+
+Reporting Bugs
+==============
+
+Bug reports for Readline should be sent to:
+
+        bug-readline@prep.ai.mit.edu
+
+When reporting a bug, please include the following information:
+
+        * the version number and release status of Readline (e.g., 2.1-release)
+        * the machine and OS that it is running on
+        * a list of the compilation flags or the contents of `config.h', if
+          appropriate
+        * a description of the bug
+        * a recipe for recreating the bug reliably
+        * a fix for the bug if you have one!
+
+If you would like to contact the Readline maintainer directly, send mail
+to bash-maintainers@prep.ai.mit.edu.
+
+Since Readline is developed along with bash, the bug-bash@prep.ai.mit.edu
+mailing list (mirrored to the Usenet newsgroup gnu.bash.bug) often contains
+Readline bug reports and fixes.
+
+Chet Ramey
+chet@po.cwru.edu

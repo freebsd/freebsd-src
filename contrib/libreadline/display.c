@@ -25,12 +25,13 @@
 #  include <config.h>
 #endif
 
-#include <stdio.h>
 #include <sys/types.h>
 
 #if defined (HAVE_UNISTD_H)
 #  include <unistd.h>
 #endif /* HAVE_UNISTD_H */
+
+#include "posixstat.h"
 
 #if defined (HAVE_STDLIB_H)
 #  include <stdlib.h>
@@ -38,7 +39,12 @@
 #  include "ansi_stdlib.h"
 #endif /* HAVE_STDLIB_H */
 
-#include "posixstat.h"
+#include <stdio.h>
+
+#if defined (__GO32__)
+#  include <go32.h>
+#  include <pc.h>
+#endif /* __GO32__ */
 
 /* System-specific feature definitions and include files. */
 #include "rldefs.h"
@@ -69,7 +75,8 @@ extern void _rl_output_some_chars ();
 extern int _rl_output_character_function ();
 extern int _rl_backspace ();
 
-extern char *term_clreol, *term_im, *term_ic,  *term_ei, *term_DC;
+extern char *term_clreol, *term_clrpag;
+extern char *term_im, *term_ic,  *term_ei, *term_DC;
 extern char *term_up, *term_dc, *term_cr, *term_IC;
 extern int screenheight, screenwidth, screenchars;
 extern int terminal_can_insert, _rl_term_autowrap;
@@ -78,8 +85,9 @@ extern int terminal_can_insert, _rl_term_autowrap;
    by this file. */
 void _rl_move_cursor_relative (), _rl_output_some_chars ();
 void _rl_move_vert ();
+void _rl_clear_to_eol (), _rl_clear_screen ();
 
-static void update_line (), clear_to_eol (), space_to_eol ();
+static void update_line (), space_to_eol ();
 static void delete_chars (), insert_some_chars ();
 static void cr ();
 
@@ -302,7 +310,7 @@ rl_redisplay ()
   register int in, out, c, linenum, cursor_linenum;
   register char *line;
   int c_pos, inv_botlin, lb_botlin, lb_linenum;
-  int newlines, lpos;
+  int newlines, lpos, temp;
   char *prompt_this_line;
 
   if (!readline_echoing_p)
@@ -405,8 +413,19 @@ rl_redisplay ()
 
   /* inv_lbreaks[i] is where line i starts in the buffer. */
   inv_lbreaks[newlines = 0] = 0;
+  lpos = out - wrap_offset;
 
-  for (in = 0, lpos = out - wrap_offset; in < rl_end; in++)
+  /* XXX - what if lpos is already >= screenwidth before we start drawing the
+     contents of the command line? */
+  while (lpos >= screenwidth)
+    {
+      temp = ((newlines + 1) * screenwidth) - ((newlines == 0) ? wrap_offset : 0);
+      inv_lbreaks[++newlines] = temp;
+      lpos -= screenwidth;
+    }
+
+  lb_linenum = 0;
+  for (in = 0; in < rl_end; in++)
     {
       c = (unsigned char)rl_line_buffer[in];
 
@@ -432,8 +451,6 @@ rl_redisplay ()
 
 	      if (lpos + 4 >= screenwidth)
 		{
-		  register int temp;
-
 		  temp = screenwidth - lpos;
 		  inv_lbreaks[++newlines] = out + temp;
 		  lpos = 4 - temp;
@@ -557,7 +574,7 @@ rl_redisplay ()
 		{
 		  nleft = screenwidth + wrap_offset - _rl_last_c_pos;
 		  if (nleft)
-		    clear_to_eol (nleft);
+		    _rl_clear_to_eol (nleft);
 		}
 
 	      /* Since the new first line is now visible, save its length. */
@@ -575,7 +592,7 @@ rl_redisplay ()
 		  tt = VIS_CHARS (linenum);
 		  _rl_move_vert (linenum);
 		  _rl_move_cursor_relative (0, tt);
-		  clear_to_eol
+		  _rl_clear_to_eol
 		    ((linenum == _rl_vis_botlin) ? strlen (tt) : screenwidth);
 		}
 	    }
@@ -710,7 +727,7 @@ rl_redisplay ()
 	      t < visible_first_line_len)
 	    {
 	      nleft = screenwidth - t;
-	      clear_to_eol (nleft);
+	      _rl_clear_to_eol (nleft);
 	    }
 	  visible_first_line_len = out - lmargin - M_OFFSET (lmargin, wrap_offset);
 	  if (visible_first_line_len > screenwidth)
@@ -962,7 +979,7 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	  if (_rl_term_autowrap && current_line < inv_botlin)
 	    space_to_eol (lendiff);
 	  else
-	    clear_to_eol (lendiff);
+	    _rl_clear_to_eol (lendiff);
 	}
     }
 }
@@ -1293,16 +1310,14 @@ _rl_erase_at_end_of_line (l)
 
 /* Clear to the end of the line.  COUNT is the minimum
    number of character spaces to clear, */
-static void
-clear_to_eol (count)
+void
+_rl_clear_to_eol (count)
      int count;
 {
 #if !defined (__GO32__)
   if (term_clreol)
-    {
-      tputs (term_clreol, 1, _rl_output_character_function);
-    }
-  else
+    tputs (term_clreol, 1, _rl_output_character_function);
+  else if (count)
 #endif /* !__GO32__ */
     space_to_eol (count);
 }
@@ -1319,6 +1334,17 @@ space_to_eol (count)
    putc (' ', rl_outstream);
 
   _rl_last_c_pos += count;
+}
+
+void
+_rl_clear_screen ()
+{
+#if !defined (__GO32__)
+  if (term_clrpag)
+    tputs (term_clrpag, 1, _rl_output_character_function);
+  else
+#endif /* !__GO32__ */
+    crlf ();
 }
 
 /* Insert COUNT characters from STRING to the output stream. */
@@ -1420,7 +1446,7 @@ _rl_update_final ()
   /* If the cursor is the only thing on an otherwise-blank last line,
      compensate so we don't print an extra CRLF. */
   if (_rl_vis_botlin && _rl_last_c_pos == 0 &&
-	visible_line[inv_lbreaks[_rl_vis_botlin]+1] == 0)
+	visible_line[vis_lbreaks[_rl_vis_botlin]] == 0)
     {
       _rl_vis_botlin--;
       full_lines = 1;
@@ -1432,7 +1458,7 @@ _rl_update_final ()
       char *last_line;
       last_line = &visible_line[inv_lbreaks[_rl_vis_botlin]];
       _rl_move_cursor_relative (screenwidth - 1, last_line);
-      clear_to_eol (0);
+      _rl_clear_to_eol (0);
       putc (last_line[screenwidth - 1], rl_outstream);
     }
   _rl_vis_botlin = 0;

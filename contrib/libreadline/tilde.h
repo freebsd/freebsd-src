@@ -33,6 +33,12 @@ typedef char *CPFunction ();
 typedef char **CPPFunction ();
 #endif /* _FUNCTION_DEF */
 
+/* If non-null, this contains the address of a function that the application
+   wants called before trying the standard tilde expansions.  The function
+   is called with the text sans tilde, and returns a malloc()'ed string
+   which is the expansion, or a NULL pointer if the expansion fails. */
+extern CPFunction *tilde_expansion_preexpansion_hook;
+
 /* If non-null, this contains the address of a function to call if the
    standard meaning for expanding a tilde fails.  The function is called
    with the text (sans tilde, as in "foo"), and returns a malloc()'ed string

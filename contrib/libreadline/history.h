@@ -22,6 +22,14 @@
 #ifndef _HISTORY_H_
 #define _HISTORY_H_
 
+#if !defined (_FUNCTION_DEF)
+#  define _FUNCTION_DEF
+typedef int Function ();
+typedef void VFunction ();
+typedef char *CPFunction ();
+typedef char **CPPFunction ();
+#endif
+
 /* The structure used to store a history entry. */
 typedef struct _hist_entry {
   char *line;
@@ -206,5 +214,10 @@ extern char history_comment_char;
 extern char *history_no_expand_chars;
 extern char *history_search_delimiter_chars;
 extern int history_quotes_inhibit_expansion;
+
+/* If set, this function is called to decide whether or not a particular
+   history expansion should be treated as a special case for the calling
+   application and not expanded. */
+extern Function *history_inhibit_expansion_function;
 
 #endif /* !_HISTORY_H_ */

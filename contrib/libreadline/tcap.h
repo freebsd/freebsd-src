@@ -29,6 +29,9 @@
 #endif
 
 #if defined (HAVE_TERMCAP_H)
+#  if defined (__linux__) && !defined (SPEED_T_IN_SYS_TYPES)
+#    include "rltty.h"
+#  endif
 #  include <termcap.h>
 #else
 
