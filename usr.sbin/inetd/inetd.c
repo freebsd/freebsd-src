@@ -604,6 +604,9 @@ main(argc, argv, envp)
 					syslog(LOG_ERR,
 			"%s/%s server failing (looping), service terminated",
 					    sep->se_service, sep->se_proto);
+					if (sep->se_accept &&
+					    sep->se_socktype == SOCK_STREAM)
+						close(ctrl);
 					close_sep(sep);
 					sigsetmask(0L);
 					if (!timingout) {
