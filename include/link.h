@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: link.h,v 1.2 1994/02/13 20:47:18 jkh Exp $
  */
 
 /*
@@ -166,13 +166,8 @@ struct ld_entry {
 	void	*(*dlopen) __P((char *, int));
 	int	(*dlclose) __P((void *));
 	void	*(*dlsym) __P((void *, char *));
-	int	(*dlctl) __P((void *, int, void *));
+	char	*(*dlerror) __P((void));
 };
-
-/*
- * dlctl() commands
- */
-#define DL_GETERRNO	1
 
 /*
  * dl*() prototypes.
@@ -180,7 +175,7 @@ struct ld_entry {
 extern void	*dlopen __P((char *, int));
 extern int	dlclose __P((void *));
 extern void	*dlsym __P((void *, char *));
-extern int	dlctl __P((void *, int, void *));
+extern char	*dlerror __P((void));
 
 
 /*
