@@ -275,19 +275,21 @@ g_disk_create(void *arg)
 {
 	struct g_geom *gp;
 	struct g_provider *pp;
-	dev_t dev;
+	struct disk *dp;
 
 	g_topology_assert();
-	dev = arg;
-	gp = g_new_geomf(&g_disk_class, dev->si_name);
+	dp = arg;
+	gp = g_new_geomf(&g_disk_class, "%s%d", dp->d_name, dp->d_unit);
 	gp->start = g_disk_start;
 	gp->access = g_disk_access;
-	gp->softc = dev->si_disk;
+	gp->softc = dp;
 	gp->dumpconf = g_disk_dumpconf;
-	dev->si_disk->d_geom = gp;
+	dp->d_geom = gp;
 	pp = g_new_providerf(gp, "%s", gp->name);
-	pp->mediasize = dev->si_disk->d_mediasize;
-	pp->sectorsize = dev->si_disk->d_sectorsize;
+	pp->mediasize = dp->d_mediasize;
+	pp->sectorsize = dp->d_sectorsize;
+	if (dp->d_flags & DISKFLAG_CANDELETE)
+		pp->flags |= G_PF_CANDELETE;
 	g_error_provider(pp, 0);
 	if (bootverbose)
 		printf("GEOM: new disk %s\n", gp->name);
@@ -301,6 +303,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 	dev_t dev;
 
 	dev = g_malloc(sizeof *dev, M_ZERO);
+	dp->d_unit = unit;
 	dp->d_dev = dev;
 	dp->d_flags = flags;
 	dp->d_devsw = cdevsw;
@@ -321,7 +324,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 	dev->si_udev = 0x10002; /* XXX: Needed ? */
 	dev->si_name = dev->__si_namebuf;
 	sprintf(dev->si_name, "%s%d", dp->d_name, unit);
-	g_call_me(g_disk_create, dev);
+	g_call_me(g_disk_create, dp);
 	return (dev);
 }
 
