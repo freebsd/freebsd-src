@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.2 1995/11/22 07:43:46 bde Exp $
+ *  $Id: linux_ioctl.c,v 1.3 1995/12/15 03:06:52 peter Exp $
  */
 
 #include <sys/param.h>
@@ -40,6 +40,7 @@
 #include <sys/termios.h>
 
 #include <machine/console.h>
+#include <machine/soundcard.h>
 
 #include <i386/linux/linux.h>
 #include <i386/linux/sysproto.h>
@@ -469,7 +470,6 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	default:
 	    return EINVAL;
 	}
-	break;
 
     case LINUX_TIOCGETD:
 	bsd_line = TTYDISC;
@@ -490,6 +490,67 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args, int *retval)
 	}
 	return copyout(&linux_line, (caddr_t)args->arg, 
 		       sizeof(int));
+
+    case LINUX_SNDCTL_DSP_RESET:
+	args->cmd = SNDCTL_DSP_RESET;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_SYNC:
+	args->cmd = SNDCTL_DSP_SYNC;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_SPEED:
+	args->cmd = SNDCTL_DSP_SPEED;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_STEREO:
+	args->cmd = SNDCTL_DSP_STEREO;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_GETBLKSIZE:
+      /* LINUX_SNDCTL_DSP_SETBLKSIZE */
+	args->cmd = SNDCTL_DSP_GETBLKSIZE;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_SETFMT:
+	args->cmd = SNDCTL_DSP_SETFMT;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_PCM_WRITE_CHANNELS:
+	args->cmd = SOUND_PCM_WRITE_CHANNELS;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SOUND_PCM_WRITE_FILTER:
+	args->cmd = SOUND_PCM_WRITE_FILTER;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_POST:
+	args->cmd = SNDCTL_DSP_POST;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_SUBDIVIDE:
+	args->cmd = SNDCTL_DSP_SUBDIVIDE;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_SETFRAGMENT:
+	args->cmd = SNDCTL_DSP_SETFRAGMENT;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_GETFMTS:
+	args->cmd = SNDCTL_DSP_GETFMTS;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_GETOSPACE:
+	args->cmd = SNDCTL_DSP_GETOSPACE;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_GETISPACE:
+	args->cmd = SNDCTL_DSP_GETISPACE;
+	return ioctl(p, (struct ioctl_args *)args, retval);
+
+    case LINUX_SNDCTL_DSP_NONBLOCK:
+	args->cmd = SNDCTL_DSP_NONBLOCK;
+	return ioctl(p, (struct ioctl_args *)args, retval);
     }
     uprintf("LINUX: 'ioctl' fd=%d, typ=0x%x(%c), num=0x%x not implemented\n",
 	    args->fd, (args->cmd&0xffff00)>>8,
