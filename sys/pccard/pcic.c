@@ -526,7 +526,7 @@ int
 pcic_probe(void)
 {
 	int slotnum, validslots = 0;
-	u_int free_irqs;
+	u_int free_irqs, desired_irq;
 	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
@@ -716,7 +716,19 @@ pcic_probe(void)
 		 *	then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
+
 			pcic_imask = soft_imask;
+
+			/* See if the user has requested a specific IRQ */
+			if (getenv_int("machdep.pccard.pcic_irq", &desired_irq))
+				/* legal IRQ? */
+				if ((desired_irq >= 1) && (desired_irq <= ICU_LEN) &&
+				    ((1ul << desired_irq) & soft_imask))
+					pcic_imask = 1ul << desired_irq;
+				else
+					/* illeagal, disable use of IRQ */
+					pcic_imask = 0;
+			
 			pcic_irq = pccard_alloc_intr(free_irqs,
 				pcicintr, 0, &pcic_imask, NULL);
 			if (pcic_irq < 0)
