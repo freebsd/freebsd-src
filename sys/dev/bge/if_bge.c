@@ -2802,7 +2802,7 @@ bge_intr(xsc)
 	struct bge_softc *sc;
 	struct ifnet *ifp;
 	u_int32_t statusword;
-	u_int32_t status;
+	u_int32_t status, mimode;
 
 	sc = xsc;
 	ifp = &sc->arpcom.ac_if;
@@ -2863,10 +2863,19 @@ bge_intr(xsc)
 			 * that sometimes appear on fiber NICs during
 			 * periods of heavy traffic. (There should be no
 			 * effect on copper NICs.)
+			 *
+			 * If we do have a copper NIC (bge_tbi == 0) then
+			 * check that the AUTOPOLL bit is set before
+			 * processing the event as a real link change.
+			 * Turning AUTOPOLL on and off in the MII read/write
+			 * functions will often trigger a link status
+			 * interrupt for no reason.
 			 */
 			status = CSR_READ_4(sc, BGE_MAC_STS);
+			mimode = CSR_READ_4(sc, BGE_MI_MODE);
 			if (!(status & (BGE_MACSTAT_PORT_DECODE_ERROR|
-			    BGE_MACSTAT_MI_COMPLETE))) {
+			    BGE_MACSTAT_MI_COMPLETE)) && (!sc->bge_tbi &&
+			    (mimode & BGE_MIMODE_AUTOPOLL))) {
 				sc->bge_link = 0;
 				callout_stop(&sc->bge_stat_ch);
 				bge_tick_locked(sc);
