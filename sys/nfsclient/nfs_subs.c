@@ -96,9 +96,6 @@ int		nfs_pbuf_freecnt = -1;	/* start out unlimited */
 struct nfs_reqq	nfs_reqq;
 struct nfs_bufq	nfs_bufq;
 
-static int	nfs_prev_nfsclnt_sy_narg;
-static sy_call_t *nfs_prev_nfsclnt_sy_call;
-
 /*
  * and the reverse mapping from generic to Version 2 procedure numbers
  */
@@ -416,11 +413,6 @@ nfs_init(struct vfsconf *vfsp)
 	TAILQ_INIT(&nfs_reqq);
 	callout_init(&nfs_callout, 0);
 
-	nfs_prev_nfsclnt_sy_narg = sysent[SYS_nfsclnt].sy_narg;
-	sysent[SYS_nfsclnt].sy_narg = 2;
-	nfs_prev_nfsclnt_sy_call = sysent[SYS_nfsclnt].sy_call;
-	sysent[SYS_nfsclnt].sy_call = (sy_call_t *)nfsclnt;
-
 	nfs_pbuf_freecnt = nswbuf / 2 + 1;
 
 	return (0);
@@ -432,8 +424,6 @@ nfs_uninit(struct vfsconf *vfsp)
 	int i;
 
 	callout_stop(&nfs_callout);
-	sysent[SYS_nfsclnt].sy_narg = nfs_prev_nfsclnt_sy_narg;
-	sysent[SYS_nfsclnt].sy_call = nfs_prev_nfsclnt_sy_call;
 
 	KASSERT(TAILQ_EMPTY(&nfs_reqq),
 	    ("nfs_uninit: request queue not empty"));
