@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.71 1997/02/13 00:32:56 jkh Exp $
+ * $Id: menus.c,v 1.42.2.72 1997/02/18 04:38:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -212,6 +212,7 @@ DMenu MenuIndex = {
       { "Console settings",	"Customize system console behavior.",	NULL, dmenuSubmenu, NULL, &MenuSyscons },
       { "Configure",		"The system configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuConfigure },
       { "Device, Mouse",	"The mouse configuration menu.",	NULL, dmenuSubmenu, NULL, &MenuMouse },
+      { "Disklabel",		"The disk Label editor",		NULL, diskLabelEditor },
       { "Dists, All",		"Root of the distribution tree.",	NULL, dmenuSubmenu, NULL, &MenuDistributions },
       { "Dists, Basic",		"Basic FreeBSD distribution menu.",	NULL, dmenuSubmenu, NULL, &MenuSubDistributions },
       { "Dists, DES",		"DES distribution menu.",		NULL, dmenuSubmenu, NULL, &MenuDESDistributions },
@@ -231,6 +232,7 @@ DMenu MenuIndex = {
       { "Doc, HTML",		"The HTML documentation menu.",		NULL, docBrowser },
       { "Emergency shell",	"Start an Emergency Holographic shell.",	NULL, installFixitHoloShell },
       { "Extract",		"Extract selected distributions from media.",		NULL, distExtractAll },
+      { "Fdisk",		"The disk Partition Editor",		NULL, diskPartitionEditor },
       { "Fixit",		"Repair mode with CDROM or fixit floppy.",	NULL, dmenuSubmenu, NULL, &MenuFixit },
       { "FTP sites",		"The FTP mirror site listing.",		NULL, dmenuSubmenu, NULL, &MenuMediaFTP },
       { "Gateway",		"Set flag to route packets between interfaces.", dmenuVarCheck, dmenuToggleVariable, NULL, "gateway=YES" },
@@ -1062,7 +1064,7 @@ DMenu MenuConfigure = {
 	NULL, configXFree86 },
       { "L Label",	"The disk Label editor",
 	NULL, diskLabelEditor },
-      { "Partition",	"The disk Partition Editor",
+      { "P Partition",	"The disk Partition Editor",
 	NULL, diskPartitionEditor },
       { "Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
