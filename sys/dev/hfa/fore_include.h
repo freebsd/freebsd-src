@@ -38,28 +38,6 @@
 #ifndef _FORE_INCLUDE_H
 #define _FORE_INCLUDE_H
 
-#include <netatm/kern_include.h>
-
-/*
- * If not specified elsewhere, guess which type of bus support we want
- */
-#if !(defined(FORE_PCI) || defined(FORE_SBUS))
-#if defined(sparc)
-#define	FORE_SBUS
-#elif defined(__i386__)
-#define	FORE_PCI
-#endif
-#endif
-
-#include <pci/pcireg.h>
-#include <pci/pcivar.h>
-
-#include <dev/hfa/fore.h>
-#include <dev/hfa/fore_aali.h>
-#include <dev/hfa/fore_slave.h>
-#include <dev/hfa/fore_stats.h>
-#include <dev/hfa/fore_var.h>
-
 /*
  * Global function declarations
  */
@@ -84,14 +62,7 @@ void		fore_initialize __P((Fore_unit *));
 void		fore_initialize_complete __P((Fore_unit *));
 
 	/* fore_intr.c */
-#if defined(sun)
-int		fore_poll __P((void));
-#endif
-#if (defined(BSD) && (BSD <= 199306))
-int		fore_intr __P((void *));
-#else
 void		fore_intr __P((void *));
-#endif
 void		fore_watchdog __P((Fore_unit *));
 
 	/* fore_load.c */

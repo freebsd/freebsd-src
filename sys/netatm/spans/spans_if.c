@@ -40,7 +40,32 @@
 #include "opt_atm.h"
 #endif
 
-#include <netatm/kern_include.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sys/malloc.h>
+#include <sys/time.h>
+#include <sys/kernel.h>
+#include <sys/socket.h>
+#include <sys/socketvar.h>
+#include <sys/syslog.h>
+#include <machine/clock.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <netatm/port.h>
+#include <netatm/queue.h>
+#include <netatm/atm.h>
+#include <netatm/atm_sys.h>
+#include <netatm/atm_sap.h>
+#include <netatm/atm_cm.h>
+#include <netatm/atm_if.h>
+#include <netatm/atm_vc.h>
+#include <netatm/atm_ioctl.h>
+#include <netatm/atm_sigmgr.h>
+#include <netatm/atm_stack.h>
+#include <netatm/atm_pcb.h>
+#include <netatm/atm_var.h>
 
 #include "spans_xdr.h"
 #include <netatm/spans/spans_var.h>
