@@ -1,0 +1,78 @@
+# $Id: pt_PT.ISO_8859-1.src,v 1.0 1996/11/29 01:42:29 ache Exp $
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+# In Portugal we don't use the 12 + am/pm but the 24h format
+# Short months names
+#
+Jan
+Fev
+Mar
+Abr
+Mai
+Jun
+Jul
+Ago
+Set
+Out
+Nov
+Dez
+#
+# Long months names
+#
+Janeiro
+Fevereiro
+Março
+Abril
+Maio
+Junho
+Julho
+Agosto
+Setembro
+Outubro
+Novembro
+Dezembro
+#
+# Short weekdays names
+# (padded with a space to conform with other languages)
+Dom
+Seg
+Ter
+Qua
+Qui
+Sex
+Sab
+#
+# Long weekdays names
+#
+Domingo
+Segunda
+Terça
+Quarta
+Quinta
+Sexta
+Sábado
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d.%m.%y
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+am
+#
+# pm
+#
+pm
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
