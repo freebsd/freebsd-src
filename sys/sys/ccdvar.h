@@ -103,7 +103,7 @@ struct ccddevice {
  */
 struct ccd_ioctl {
 	char	**ccio_disks;		/* pointer to component paths */
-	int	ccio_ndisks;		/* number of disks to concatenate */
+	u_int	ccio_ndisks;		/* number of disks to concatenate */
 	int	ccio_ileave;		/* interleave (DEV_BSIZE blocks) */
 	int	ccio_flags;		/* misc. information */
 	int	ccio_unit;		/* unit number: use varies */
@@ -183,7 +183,8 @@ struct ccd_softc {
 	int		 sc_cflags;		/* configuration flags */
 	size_t		 sc_size;		/* size of ccd */
 	int		 sc_ileave;		/* interleave */
-	int		 sc_nccdisks;		/* number of components */
+	u_int		 sc_nccdisks;		/* number of components */
+#define	CCD_MAXNDISKS	 65536
 	struct ccdcinfo	 *sc_cinfo;		/* component info */
 	struct ccdiinfo	 *sc_itable;		/* interleave table */
 	struct devstat	 device_stats;		/* device statistics */

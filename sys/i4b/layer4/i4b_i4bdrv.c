@@ -860,6 +860,13 @@ download_done:
 
 			if(req.in_param_len)
 			{
+				/* XXX arbitrary limit */
+				if (req.in_param_len >
+				    I4B_ACTIVE_DIAGNOSTIC_MAXPARAMLEN) {
+				    	error = EINVAL;
+				    	goto diag_done;
+				}	
+
 				req.in_param = malloc(r->in_param_len, M_DEVBUF, M_WAITOK);
 
 				if(!req.in_param)

@@ -165,6 +165,12 @@ umapfs_mount(mp, path, data, ndp, p)
 	/*
 	 * Now copy in the number of entries and maps for umap mapping.
 	 */
+	if (args.nentries > MAPFILEENTRIES || args.gnentries >
+	    GMAPFILEENTRIES) {
+		vput(lowerrootvp);
+		return (error);
+	}
+
 	amp->info_nentries = args.nentries;
 	amp->info_gnentries = args.gnentries;
 	error = copyin(args.mapdata, (caddr_t)amp->info_mapdata,

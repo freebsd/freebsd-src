@@ -1280,6 +1280,9 @@ ccdioctl(dev, cmd, data, flag, p)
 		if ((error = ccdlock(cs)) != 0)
 			return (error);
 
+		if (ccio->ccio_ndisks > CCD_MAXNDISKS)
+			return (EINVAL);
+ 
 		/* Fill in some important bits. */
 		ccd.ccd_unit = unit;
 		ccd.ccd_interleave = ccio->ccio_ileave;
