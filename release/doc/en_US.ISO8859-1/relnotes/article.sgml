@@ -156,6 +156,13 @@
       notably &man.mac.biba.4;, &man.mac.mls.4;, &man.mac.stub.4;, and
       &man.mac.test.4;.</para>
 
+    <para arch="i386">Memory allocation for legacy PCI bridges has
+      been limited to the top 32MB of RAM.  Many older, legacy bridges
+      only allow allocation from this range and this only applies
+      to devices which don't have their memory assigned by the BIOS.
+      This change fixes the <quote>bad Vcc</quote> error of CardBus
+      bridges (&man.pccbb.4;). &merged;</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
@@ -180,7 +187,7 @@
 
     <sect3 id="proc">
       <title>Hardware Support</title>
-	
+
       <para arch="sparc64">The &man.auxio.4; driver has been to drive
 	some auxiliary I/O functions found on various SBus/EBus
 	&ultrasparc; models. &merged;</para>
@@ -199,6 +206,11 @@
 
       <para>The pcii driver has been added to support GPIB-PCIIA IEEE-488
 	cards.</para>
+
+      <para arch="i386">The &man.pbio.4; driver,
+	which supports direct access to
+	the Intel 8255A programmable peripheral interface (PPI)
+	chip running in mode 0 (simple I/O) has been added.</para>
 
       <para>The &man.psm.4; driver now has improved support for
 	Synaptics Touchpad users.  It now has better tracking of
@@ -281,6 +293,9 @@
 	  This driver also now supports jumbo frames on Yukon-based
 	  interfaces. &merged;</para>
 
+	<para>The &man.vge.4; driver now has support for device polling
+	  (&man.polling.4;).</para>
+
 	<para>Support for 802.11 devices in the &man.wlan.4; has been
 	  greatly overhauled.  In addition to architectural changes,
 	  it includes completed 802.11g, WPA, 802.11i, 802.1x,
@@ -297,7 +312,7 @@
       <title>Network Protocols</title>
 
       <para>The MTU feedback in IPv6 has been disabled when the sender writes
-	data that must be fragmented.</para>
+	data that must be fragmented.  &merged;</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
 	of the &man.altq.4;, packets via a divert socket,
@@ -377,7 +392,7 @@
 	&man.libautofs.3; have been added.</para>
 
       <para>A kernel panic in the NFS server has been fixed.  More
-	details can be found in errata note 
+	details can be found in errata note
 	<ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-05:01.nfs.asc">FreeBSD-EN-05:01.nfs</ulink>.
 	&merged;</para>
 
