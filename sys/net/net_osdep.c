@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: net_osdep.c,v 1.9 2001/04/06 09:22:05 itojun Exp $	*/
+/*	$KAME: net_osdep.c,v 1.12 2002/12/02 14:28:57 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -62,6 +62,6 @@ if_name(ifp)
 	cp = nam[ifbufround];
 
 	snprintf(cp, IFNAMSIZ + 10, "%s%d", ifp->if_name, ifp->if_unit);
-	return((const char *)cp);
+	return ((const char *)cp);
 #undef MAXNUMBUF
 }
