@@ -79,6 +79,25 @@ static void ad_write(snddev_info *d, int reg, u_char data);
 static void ad_write_cnt(snddev_info *d, int reg, u_short data);
 static int ad_read(snddev_info *d, int reg);
 
+/* ad1816 prototypes */
+
+/* IO primitives */
+static int      ad1816_wait_init(snddev_info * d, int x);
+static unsigned short ad1816_read(snddev_info * d, unsigned int reg);
+static void     ad1816_write(snddev_info * d, unsigned int reg, unsigned short data);
+/* intr and callback functions */
+static irq_proc_t ad1816_intr;
+static snd_callback_t ad1816_callback;
+/* device specific ioctl calls */
+static d_ioctl_t ad1816_ioctl;
+/* parameter set functions */
+static void     ad1816_reinit(snddev_info * d);
+static int      ad1816_mixer_set(snddev_info * d, int dev, int value);
+static int      ad1816_set_recsrc(snddev_info * d, int mask);
+static void     ad1816_mixer_reset(snddev_info * d);
+
+/* ad1816 prototypes end */
+
 /*
  * device descriptors for the boards supported by this module.
  */
@@ -183,6 +202,31 @@ mss_probe_end:
     return mss_detect(dev) ? 8 : 0 ; /* mss uses 8 regs */
 }
 
+static int
+ad1816_attach(struct isa_device *dev)
+{
+    snddev_info *d = &(pcm_info[dev->id_unit]);
+
+    dev->id_alive = 16;	/* number of io ports */
+
+    if (FULL_DUPLEX(d))
+	d->audio_fmt |= AFMT_FULLDUPLEX;
+
+    ad1816_write(d, 1, 0x2);/* disable interrupts */
+    ad1816_write(d, 32, 0x90F0);	/* SoundSystem Mode, split format */
+
+    ad1816_write(d, 5, 0x8080);	/* FM volume mute */
+    ad1816_write(d, 6, 0x8080);	/* I2S1 volume mute */
+    ad1816_write(d, 7, 0x8080);	/* I2S0 volume mute */
+    ad1816_write(d, 17, 0x8888);	/* VID Volume mute */
+    ad1816_write(d, 20, 0x5050);	/* Source select Mic & auto gain ctrl
+				     * off */
+    /* adc gain is set to 0 */
+    ad1816_reinit(d);
+    ad1816_mixer_reset(d);
+    return 0 ;
+}
+
 /*
  * the address passed as io_base for mss_attach is also the old
  * MSS base address (e.g. 0x530). The codec is four locations ahead.
@@ -198,6 +242,9 @@ mss_attach(struct isa_device *dev)
     printf("mss_attach <%s>%d at 0x%x irq %d dma %d:%d flags 0x%x\n",
 	d->name, dev->id_unit,
 	d->io_base, d->irq, d->dbuf_out.chan, d->dbuf_in.chan, dev->id_flags);
+
+    if (d->bd_id == MD_AD1816)
+	return ad1816_attach(dev);
 
     dev->id_alive = 8 ; /* number of io ports */
     /* should be already set but just in case... */
@@ -374,7 +421,11 @@ mss_close(dev_t dev, int flags, int mode, struct proc * p)
 	d->flags |= SND_F_CLOSING ;
 	splx(s); /* is this ok here ? */
 	snd_flush(d);
-	outb(io_Status(d), 0);	/* Clear interrupt status */
+	/* Clear interrupt status */
+	if ( d->bd_id == MD_AD1816 )
+	    outb(ad1816_int(d), 0);
+	else
+	    outb(io_Status(d), 0);
 	d->flags = 0 ;
     }
     return 0 ;
@@ -1370,11 +1421,12 @@ mss_reinit(snddev_info *d)
 #if NPNP > 0
 
 static char * cs423x_probe(u_long csn, u_long vend_id);
-static void cs423x_attach(u_long csn, u_long vend_id, char *name,
+static void 
+cs423x_attach(u_long csn, u_long vend_id, char *name,
 	struct isa_device *dev);
 
 static struct pnp_device cs423x = {
-	"CS423x/Yamaha",
+    "CS423x/Yamaha/AD1816",
 	cs423x_probe,
 	cs423x_attach,
 	&nsnd,	/* use this for all sound cards */
@@ -1405,6 +1457,10 @@ cs423x_probe(u_long csn, u_long vend_id)
 	s = "Yamaha YMF719 OPL-SA3";
     else if (vend_id == 0x8140d315)
 	s = "SoundscapeVIVO";
+    else if (vend_id == 0x1114b250)
+	s = "Terratec Soundsystem BASE 1";
+    else if (vend_id == 0x50719304)
+	s = "Generic AD1815";
     if (s) {
 	struct pnp_cinfo d;
 	read_pnp_parms(&d, 0);
@@ -1433,7 +1489,26 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	return ;
     }
     snddev_last_probed = &tmp_d;
-    if (d.flags & DV_PNP_SBCODEC) {	/*** use sb-compatible codec ***/
+
+    /* AD1816 */
+    if (vend_id == 0x1114b250 || vend_id == 0x50719304) {
+	dev->id_alive = 16;	/* number of io ports ? */
+
+	tmp_d = mss_op_desc;	/* copy it */
+
+	tmp_d.ioctl = ad1816_ioctl;
+	tmp_d.isr = ad1816_intr;
+	tmp_d.callback = ad1816_callback;
+	tmp_d.audio_fmt = AFMT_STEREO | AFMT_U8 |
+	    AFMT_A_LAW | AFMT_MU_LAW |
+	    AFMT_S16_LE | AFMT_S16_BE;
+
+	dev->id_iobase = d.port[2];
+	tmp_d.alt_base = d.port[0];	/* soundblaster comp. but we don't
+					 * use that */
+	tmp_d.bd_id = MD_AD1816;
+	strcpy(tmp_d.name, name);
+    } else if (d.flags & DV_PNP_SBCODEC) { /* use sb-compatible codec */
 	dev->id_alive = 16 ; /* number of io ports ? */
 	tmp_d = sb_op_desc ;
 	if (vend_id==0x2000a865 || vend_id==0x3000a865 ||
@@ -1484,12 +1559,14 @@ cs423x_attach(u_long csn, u_long vend_id, char *name,
 	    break;
 
         default:
-	    tmp_d.bd_id = MD_CS4232 ; /* to short-circuit the detect routine */
+		tmp_d.bd_id = MD_CS4232;	/* to short-circuit the
+						 * detect routine */
 	    break;
 	}
 	snprintf(tmp_d.name, sizeof(tmp_d.name), "%s", name);
 	tmp_d.audio_fmt |= AFMT_FULLDUPLEX ;
     }
+
     write_pnp_parms( &d, ldn );
     enable_pnp_card();
 
@@ -1813,6 +1890,441 @@ gus_mem_cfg(snddev_info *d)
     printf("Have found %d KB ( 0x%x != 0x%x)\n", base, a, b);
 }
 #endif /* gus mem cfg... */
+
+static int
+ad1816_ioctl(dev_t dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
+{
+    snddev_info    *d;
+    int             unit;
+
+    dev = minor(dev);
+    unit = dev >> 4;
+    d = &pcm_info[unit];
+
+    if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) {
+	cmd &= 0xff;
+	if (cmd == SOUND_MIXER_RECSRC)
+	    return ad1816_set_recsrc(d, *(int *) arg);
+	else
+	    return ad1816_mixer_set(d, cmd, *(int *) arg);
+    }
+    switch (cmd) {		/* driver specific ioctls other than mixer
+				 * calls */
+	/* ad1816 has special features */
+    case AIOGCAP:		/* get capabilities */
+	{
+	    snd_capabilities *p = (snd_capabilities *) arg;
+	    p->rate_min = 4000;
+	    p->rate_max = 55200;
+	    p->bufsize = d->bufsize;
+	    p->formats = d->audio_fmt;
+	    p->mixers = 1;
+	    p->inputs = d->mix_devs;
+	    p->left = p->right = 100;
+	    return 0;
+	}
+    default:
+	{
+	    return ENOSYS;	/* fallback to default */
+	}
+	break;
+    }
+}
+
+static int
+ad1816_callback(snddev_info * d, int reason)
+{
+    int             wr, cnt;
+
+    wr = reason & SND_CB_WR;
+    reason &= SND_CB_REASON_MASK;
+
+    switch (reason) {
+    case SND_CB_INIT:
+	ad1816_reinit(d);
+	reset_dbuf(&(d->dbuf_in), SND_CHAN_RD);
+	reset_dbuf(&(d->dbuf_out), SND_CHAN_WR);
+	return 1;
+	break;
+
+    case SND_CB_START:
+	cnt = wr ? d->dbuf_out.dl : d->dbuf_in.dl;
+
+	cnt /= 4;
+	cnt--;
+
+	/* start only if not already running */
+	if (wr && !(inb(ad1816_play(d)) & AD1816_ENABLE)) {
+	    /* set dma counter */
+	    ad1816_write(d, 8, cnt);	/* playback count */
+	    /* int enable */
+	    ad1816_write(d, 1, ad1816_read(d, 1) | 0x8000);
+	    /* enable playback */
+	    outb(ad1816_play(d), (inb(ad1816_play(d)) | AD1816_ENABLE));
+	    /* check if we succeeded */
+	    if (!(inb(ad1816_play(d)) & AD1816_ENABLE)) {
+		printf("ad1816: failed to start write (playback) DMA !\n");
+	    }
+	} else if (!wr && !(inb(ad1816_capt(d)) & AD1816_ENABLE)) {
+	    /* same for capture */
+	    ad1816_write(d, 10, cnt);	/* capture count */
+	    ad1816_write(d, 1, ad1816_read(d, 1) | 0x4000);	/* int */
+	    outb(ad1816_capt(d), (inb(ad1816_capt(d)) | AD1816_ENABLE));	/* CEN */
+	    if (!(inb(ad1816_capt(d)) & AD1816_ENABLE)) {	/* check */
+		printf("ad1816: failed to start read (capture) DMA !\n");
+	    }
+	}
+	break;
+
+    case SND_CB_STOP:
+    case SND_CB_ABORT:		/* XXX check this... */
+	/* we don't test here if it is running... */
+	if (wr) {
+	    ad1816_write(d, 1, ad1816_read(d, 1) & ~0x8000);
+	    /* disable int */
+	    outb(ad1816_play(d), (inb(ad1816_play(d)) & ~AD1816_ENABLE));
+	    /* disable playback */
+	    if ((inb(ad1816_play(d)) & AD1816_ENABLE)) {
+		printf("ad1816: failed to stop write (playback) DMA !\n");
+	    }
+	    ad1816_write(d, 8, 0);	/* reset base counter */
+	    ad1816_write(d, 9, 0);	/* reset cur counter */
+	} else {
+	    /* same for capture */
+	    ad1816_write(d, 1, ad1816_read(d, 1) & ~0x4000);
+	    outb(ad1816_capt(d), (inb(ad1816_capt(d)) & ~AD1816_ENABLE));
+	    if ((inb(ad1816_capt(d)) & AD1816_ENABLE)) {
+		printf("ad1816: failed to stop read (capture) DMA !\n");
+	    }
+	    ad1816_write(d, 10, 0);
+	    ad1816_write(d, 11, 0);
+	}
+	break;
+    }
+
+    return 0;
+}
+
+static void
+ad1816_intr(int unit)
+{
+    snddev_info    *d = &pcm_info[unit];
+    unsigned char   c, served = 0;
+
+    /* get interupt status */
+    c = inb(ad1816_int(d));
+
+    /* check for stray interupts */
+    if (c & ~(AD1816_INTRCI | AD1816_INTRPI)) {
+	printf("ad1816: Stray interrupt 0x%x.\n", c);
+	c = c & (AD1816_INTRCI | AD1816_INTRPI);
+	outb(ad1816_int(d), c);	/* ack it anyway */
+    }
+    /* check for capture interupt */
+    if (d->dbuf_in.dl && (c & AD1816_INTRCI)) {
+	outb(ad1816_int(d), c & ~AD1816_INTRCI);	/* ack it */
+	if (inb(ad1816_int(d)) & AD1816_INTRCI)
+	    printf("ad1816: Failed to clear cp int !!!\n");
+	dsp_rdintr(d);
+	served |= AD1816_INTRCI;		/* cp served */
+    }
+    /* check for playback interupt */
+    if (d->dbuf_out.dl && (c & AD1816_INTRPI)) {
+	outb(ad1816_int(d), c & ~AD1816_INTRPI);	/* ack it */
+	if (inb(ad1816_int(d)) & AD1816_INTRPI != 0)
+	    printf("ad1816: Failed to clear pb int !!!\n");
+	dsp_wrintr(d);
+	served |= AD1816_INTRPI;		/* pb served */
+    }
+    if (served == 0) {
+	/* this probably means this is not a (working) ad1816 chip, */
+	/* or an error in dma handling                              */
+	printf("ad1816: raised an interrupt without reason 0x%x.\n", c);
+	outb(ad1816_int(d), 0);	/* Clear interrupt status anyway */
+    }
+}
+
+static int
+ad1816_wait_init(snddev_info * d, int x)
+{
+    int             n = 0;	/* to shut up the compiler... */
+
+    for (; x--;)
+	if (((n = (inb(ad1816_ale(d)) & AD1816_BUSY))) == 0)
+	    DELAY(10);
+	else
+	    return n;
+    printf("ad1816_wait_init failed 0x%02x.\n", inb(ad1816_ale(d)));
+    return n;
+}
+
+static unsigned short
+ad1816_read(snddev_info * d, unsigned int reg)
+{
+    int             flags;
+    u_short         x;
+
+    /* we don't want to be blocked here */
+    flags = spltty();
+    if (ad1816_wait_init(d, 100) == 0) {
+	printf("ad1816_read: chip timeout before read.\n");
+	return 0;
+    }
+    outb(ad1816_ale(d), (u_char) 0);
+    outb(ad1816_ale(d), (u_char) (reg & AD1816_ALEMASK));
+    if (ad1816_wait_init(d, 100) == 0) {
+	printf("ad1816_read: chip timeout during read.\n");
+	return 0;
+    }
+    x = (inb(ad1816_high(d)) << 8) | inb(ad1816_low(d));
+    splx(flags);
+    return x;
+}
+
+static void
+ad1816_write(snddev_info * d, unsigned int reg, unsigned short data)
+{
+    int             flags;
+
+    flags = spltty();
+    if (ad1816_wait_init(d, 100) == 0) {
+	printf("ad1816_write: chip timeout before write.\n");
+	return;
+    }
+    outb(ad1816_ale(d), (u_char) (reg & AD1816_ALEMASK));
+    outb(ad1816_low(d), (u_char) (data & 0x000000ff));
+    outb(ad1816_high(d), (u_char) ((data & 0x0000ff00) >> 8));
+    splx(flags);
+}
+
+#if 0				/* unused right now..., and untested... */
+static void
+ad1816_mute(snddev_info * d)
+{
+    ad1816_write(d, 14, ad1816_read(d, 14) | 0x8000 | 0x80);
+}
+
+static void
+ad1816_unmute(snddev_info * d)
+{
+    ad1816_write(d, 14, ad1816_read(d, 14) & ~(0x8000 | 0x80));
+}
+#endif
+
+/* only one rec source is possible */
+
+static int
+ad1816_set_recsrc(snddev_info * d, int mask)
+{
+    mask &= d->mix_rec_devs;
+
+    switch (mask) {
+    case SOUND_MASK_LINE:
+    case SOUND_MASK_LINE3:
+	ad1816_write(d, 20, (ad1816_read(d, 20) & ~0x7070) | 0x0000);
+	break;
+
+    case SOUND_MASK_CD:
+    case SOUND_MASK_LINE1:
+	ad1816_write(d, 20, (ad1816_read(d, 20) & ~0x7070) | 0x2020);
+	break;
+
+    case SOUND_MASK_MIC:
+    default:
+	ad1816_write(d, 20, (ad1816_read(d, 20) & ~0x7070) | 0x5050);
+    }
+
+    d->mix_recsrc = mask;
+
+    return 0;			/* success */
+}
+
+#define AD1816_MUTE 31		/* value for mute */
+
+static int
+ad1816_mixer_set(snddev_info * d, int dev, int value)
+{
+    u_char          left = (value & 0x000000ff);
+    u_char          right = (value & 0x0000ff00) >> 8;
+    u_short         reg = 0;
+
+    if (dev > 31)
+	return EINVAL;
+
+    if (!(d->mix_devs & (1 << dev)))
+	return EINVAL;
+
+    if (left > 100)
+	left = 100;
+    if (right > 100)
+	right = 100;
+
+    d->mix_levels[dev] = left | (right << 8);
+
+    /* Scale volumes */
+    left = AD1816_MUTE - (AD1816_MUTE * left) / 100;
+    right = AD1816_MUTE - (AD1816_MUTE * right) / 100;
+
+    reg = (left << 8) | right;
+
+    /* do channel selective muting if volume is zero */
+    if (left == AD1816_MUTE)
+	reg |= 0x8000;
+    if (right == AD1816_MUTE)
+	reg |= 0x0080;
+
+    switch (dev) {
+    case SOUND_MIXER_VOLUME:	/* Register 14 master volume */
+	ad1816_write(d, 14, reg);
+	break;
+    case SOUND_MIXER_CD:	/* Register 15 cd */
+    case SOUND_MIXER_LINE1:
+	ad1816_write(d, 15, reg);
+	break;
+    case SOUND_MIXER_SYNTH:	/* Register 16 synth */
+	ad1816_write(d, 16, reg);
+	break;
+    case SOUND_MIXER_PCM:	/* Register 4 pcm */
+	ad1816_write(d, 4, reg);
+	break;
+    case SOUND_MIXER_LINE:
+    case SOUND_MIXER_LINE3:	/* Register 18 line in */
+	ad1816_write(d, 18, reg);
+	break;
+    case SOUND_MIXER_MIC:	/* Register 19 mic volume */
+	ad1816_write(d, 19, reg & ~0xff);	/* mic is mono */
+	break;
+    case SOUND_MIXER_IGAIN:
+	/* and now to something completely different ... */
+	ad1816_write(d, 20, ((ad1816_read(d, 20) & ~0x0f0f)
+	      | (((AD1816_MUTE - left) / 2) << 8) /* four bits of adc gain */
+	      | ((AD1816_MUTE - right) / 2)));
+	break;
+    default:
+	printf("ad1816_mixer_set(): unknown device.\n");
+	break;
+    }
+
+    return 0;			/* success */
+}
+
+static void
+ad1816_mixer_reset(snddev_info * d)
+{
+    int             i;
+
+    d->mix_devs = AD1816_MIXER_DEVICES;
+    d->mix_rec_devs = AD1816_REC_DEVICES;
+
+    for (i = 0; i < SOUND_MIXER_NRDEVICES; i++)
+	if (d->mix_devs & (1 << i))
+	    ad1816_mixer_set(d, i, default_mixer_levels[i]);
+    ad1816_set_recsrc(d, SOUND_MASK_MIC);
+}
+
+/* Set the playback and capture rates. */
+
+static int
+ad1816_speed(snddev_info * d)
+{
+    RANGE(d->play_speed,4000,55200);
+    RANGE(d->rec_speed,4000,55200);
+
+    ad1816_write(d, 2, d->play_speed);
+    ad1816_write(d, 3, d->rec_speed);
+
+    return d->play_speed;
+}
+
+/*
+ * ad1816_format checks that the format is supported (or defaults to AFMT_U8)
+ * and sets the chip to the desired format.
+ */
+
+static int
+ad1816_format(snddev_info * d)
+{
+    int oldplay =inb(ad1816_play(d)) & ~AD1816_FORMASK;
+    int oldrec = inb(ad1816_capt(d)) & ~AD1816_FORMASK;
+    int play = (d->play_fmt & d->audio_fmt) ? d->play_fmt : AFMT_U8;
+    int rec =  (d->rec_fmt  & d->audio_fmt) ? d->rec_fmt : AFMT_U8;
+
+    /*
+     * check that arg is one of the supported formats in d->format; otherwise
+     * fallback to AFMT_U8
+     */
+
+    switch (play) {
+    case AFMT_A_LAW:
+	outb(ad1816_play(d), oldplay | AD1816_ALAW);
+	break;
+    case AFMT_MU_LAW:
+	outb(ad1816_play(d), oldplay | AD1816_MULAW);
+	break;
+    case AFMT_S16_LE:
+	outb(ad1816_play(d), oldplay | AD1816_S16LE);
+	break;
+    case AFMT_S16_BE:
+	outb(ad1816_play(d), oldplay | AD1816_S16BE);
+	break;
+    default:
+	/* unlikely to happen */
+	printf("ad1816: unknown play format. defaulting to U8.\n");
+    case AFMT_U8:
+	outb(ad1816_play(d), oldplay | AD1816_U8);
+	break;
+    }
+
+    switch (rec) {
+    case AFMT_A_LAW:
+	outb(ad1816_capt(d), oldrec | AD1816_ALAW);
+	break;
+    case AFMT_MU_LAW:
+	outb(ad1816_capt(d), oldrec | AD1816_MULAW);
+	break;
+    case AFMT_S16_LE:
+	outb(ad1816_capt(d), oldrec | AD1816_S16LE);
+	break;
+    case AFMT_S16_BE:
+	outb(ad1816_capt(d), oldrec | AD1816_S16BE);
+	break;
+    default:
+	printf("ad1816: unknown capture format. defaulting to U8.\n");
+    case AFMT_U8:
+	outb(ad1816_capt(d), oldrec | AD1816_U8);
+	break;
+    }
+
+    d->play_fmt = play;
+    d->rec_fmt = rec;
+
+    return (play);
+}
+
+/*
+ * ad1816_reinit resets codec registers
+ */
+static void
+ad1816_reinit(snddev_info * d)
+{
+    ad1816_write(d, 8, 0x0000);	/* reset base and current counter */
+    ad1816_write(d, 9, 0x0000);	/* for playback and capture */
+    ad1816_write(d, 10, 0x0000);
+    ad1816_write(d, 11, 0x0000);
+
+    if (d->flags & SND_F_STEREO) {
+	outb((ad1816_play(d)), AD1816_STEREO);	/* set playback to stereo */
+	outb((ad1816_capt(d)), AD1816_STEREO);	/* set capture to stereo */
+    } else {
+	outb((ad1816_play(d)), 0x00);	/* set playback to mono */
+	outb((ad1816_capt(d)), 0x00);	/* set capture to mono */
+    }
+
+    ad1816_format(d);
+    ad1816_speed(d);
+
+    snd_set_blocksize(d);	/* update blocksize if user did not force it */
+}
 
 #endif	/* NPNP > 0 */
 #endif /* NPCM > 0 */
