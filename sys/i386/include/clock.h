@@ -7,6 +7,8 @@
 #ifndef _MACHINE_CLOCK_H_
 #define _MACHINE_CLOCK_H_ 1
 
+void inittodr(time_t base);
+
 extern int pentium_mhz;
 
 #ifdef I586_CPU
