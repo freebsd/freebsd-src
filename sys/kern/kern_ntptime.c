@@ -40,6 +40,7 @@
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timex.h>
+#include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <sys/sysctl.h>
 

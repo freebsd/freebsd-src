@@ -22,6 +22,7 @@
 #include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/timetc.h>
 #include <sys/timepps.h>
 #include <sys/xrpuio.h>
 #include <sys/bus.h>
@@ -188,7 +189,7 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 			pps_init(&sc->pps[i]);
 		}
 		sc->mode = TIMECOUNTER;
-		init_timecounter(&sc->tc);
+		tc_init(&sc->tc);
 		return (0);
 	}
 	error = ENOTTY;
