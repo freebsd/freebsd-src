@@ -23,19 +23,12 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$FreeBSD$
-
-PAMDIR=		${.CURDIR}/../../../../contrib/libpam
+# $FreeBSD$
 
 LIB=		pam_opie
-SHLIB_NAME=	pam_opie.so
 SRCS=		pam_opie.c
-CFLAGS+=	-Wall -g
-CFLAGS+=	-I${PAMDIR}/libpam/include
-CFLAGS+=	-I${.CURDIR}/../../libpam
-DPADD+=		${LIBOPIE}
-LDADD+=		-lopie
-INTERNALLIB=	yes
-INTERNALSTATICLIB=yes
+DPADD=		${LIBOPIE}
+LDADD=		-lopie
+MAN=		pam_opie.8
 
 .include <bsd.lib.mk>

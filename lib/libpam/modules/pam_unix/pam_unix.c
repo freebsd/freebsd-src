@@ -39,9 +39,18 @@
 #define PAM_SM_ACCOUNT
 #include <security/pam_modules.h>
 
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 #define PASSWORD_PROMPT	"Password:"
+
+enum {
+	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX
+};
+
+static struct opttab other_options[] = {
+	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
+	{ NULL, 0 }
+};
 
 /*
  * authentication management
@@ -56,18 +65,21 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 	const char *password;
 	struct passwd *pwd;
 	char *encrypted;
-	int options;
-	int i;
+	struct options options;
 
-	options = 0;
-	for (i = 0;  i < argc;  i++)
-		pam_std_option(&options, argv[i]);
-	if ((retval = pam_get_user(pamh, &user, NULL)) != PAM_SUCCESS)
-		return retval;
+	pam_std_option(&options, other_options, argc, argv);
+	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
+		pwd = getpwnam(getlogin());
+	} else {
+		retval = pam_get_user(pamh, &user, NULL);
+		if (retval != PAM_SUCCESS)
+			return retval;
+		pwd = getpwnam(user);
+	}
 	if ((retval = pam_get_pass(pamh, &password, PASSWORD_PROMPT,
-	    options)) != PAM_SUCCESS)
+	    &options)) != PAM_SUCCESS)
 		return retval;
-	if ((pwd = getpwnam(user)) != NULL) {
+	if (pwd != NULL) {
 		encrypted = crypt(password, pwd->pw_passwd);
 		if (password[0] == '\0' && pwd->pw_passwd[0] != '\0')
 			encrypted = ":";

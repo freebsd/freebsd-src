@@ -35,7 +35,7 @@
 #define PAM_SM_AUTH
 #include <security/pam_modules.h>
 
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 #define PASSWORD_PROMPT	"Password:"
 
