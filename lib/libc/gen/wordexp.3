@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 2004
+.Dd July 29, 2004
 .Dt WORDEXP 3
 .Os
 .Sh NAME
@@ -199,3 +199,8 @@ The
 function attempts to detect input that would cause commands to be
 executed before passing it to the shell
 but it does not use the same parser so it may be fooled.
+.Pp
+The current
+.Fn wordexp
+implementation does not recognize multibyte characters, since the
+shell (which it invokes to perform expansions) does not.
