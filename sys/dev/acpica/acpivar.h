@@ -30,6 +30,7 @@
 
 #include "bus_if.h"
 #include <sys/eventhandler.h>
+#include <sys/sysctl.h>
 
 extern devclass_t	acpi_devclass;
 
@@ -44,6 +45,8 @@ struct acpi_softc {
     int			acpi_enabled;
     int			acpi_sstate;
 
+    struct sysctl_ctx_list acpi_sysctl_ctx;
+    struct sysctl_oid	*acpi_sysctl_tree;
 #define ACPI_POWER_BUTTON_DEFAULT_SX	ACPI_STATE_S5;
 #define ACPI_SLEEP_BUTTON_DEFAULT_SX	ACPI_STATE_S1;
 #define ACPI_LID_SWITCH_DEFAULT_SX	ACPI_STATE_S1;
