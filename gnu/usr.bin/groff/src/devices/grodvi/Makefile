@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		grodvi
+PROG_CXX=	grodvi
 SRCS=		dvi.cc
 DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm

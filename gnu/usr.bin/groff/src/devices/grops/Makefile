@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		grops
+PROG_CXX=	grops
 SRCS=		ps.cc psrm.cc
 DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm

@@ -226,11 +226,17 @@ MAN		Manual pages (should end in .1 - .9).  If no MAN variable
 PROG		The name of the program to build.  If not supplied, nothing
 		is built.
 
+PROG_CXX	If defined, the name of the program to build.  Also
+		causes <bsd.prog.mk> to link the program with the
+		standard C++ library.  PROG_CXX overrides the value
+		of PROG if PROG is also set.
+
 PROGNAME	The name that the above program will be installed as, if
 		different from ${PROG}.
 
 SRCS		List of source files to build the program.  If SRCS is not
-		defined, it's assumed to be ${PROG}.c.
+		defined, it's assumed to be ${PROG}.c or, if PROG_CXX is
+		defined, ${PROG_CXX}.cc.
 
 DPADD		Additional dependencies for the program.  Usually used for
 		libraries.  For example, to depend on the compatibility and

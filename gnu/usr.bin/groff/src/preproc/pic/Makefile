@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		pic
+PROG_CXX=	pic
 SRCS=		lex.cc main.cc object.cc pic.cc pic_tab.h \
 		common.cc troff.cc tex.cc
 CFLAGS+=	-I${DIST_DIR} -I.

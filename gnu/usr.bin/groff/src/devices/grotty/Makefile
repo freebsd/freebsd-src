@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		grotty
+PROG_CXX=	grotty
 SRCS=		tty.cc
 DPADD=		${LIBDRIVER} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBDRIVER} ${LIBGROFF} -lm

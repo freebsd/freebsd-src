@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		tbl
+PROG_CXX=	tbl
 SRCS=		main.cc table.cc
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm

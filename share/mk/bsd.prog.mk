@@ -15,6 +15,10 @@ STRIP?=	-s
 LDFLAGS+= -static
 .endif
 
+.if defined(PROG_CXX)
+PROG=	${PROG_CXX}
+.endif
+
 .if defined(PROG)
 .if defined(SRCS)
 
@@ -27,12 +31,20 @@ LDADD+=	${OBJCLIBS}
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 ${PROG}: ${OBJS}
+.if defined(PROG_CXX)
+	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.endif
 
 .else !defined(SRCS)
 
 .if !target(${PROG})
+.if defined(PROG_CXX)
+SRCS=	${PROG}.cc
+.else
 SRCS=	${PROG}.c
+.endif
 
 # Always make an intermediate object file because:
 # - it saves time rebuilding when only the library has changed
@@ -42,7 +54,11 @@ SRCS=	${PROG}.c
 OBJS=	${PROG}.o
 
 ${PROG}: ${OBJS}
+.if defined(PROG_CXX)
+	${CXX} ${CXXFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
+.endif
 .endif
 
 .endif
@@ -71,6 +87,9 @@ _EXTRADEPEND:
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
+.if defined(PROG_CXX)
+	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+.endif
 .endif
 .endif
 
@@ -83,6 +102,7 @@ _INSTALLFLAGS:=	${_INSTALLFLAGS${ie}}
 
 .if !target(realinstall)
 realinstall: _proginstall
+.ORDER: beforeinstall _proginstall
 _proginstall:
 .if defined(PROG)
 .if defined(PROGNAME)
@@ -101,6 +121,7 @@ _proginstall:
 
 .if defined(SCRIPTS) && !empty(SCRIPTS)
 realinstall: _scriptsinstall
+.ORDER: beforeinstall _scriptsinstall
 
 SCRIPTSDIR?=	${BINDIR}
 SCRIPTSOWN?=	${BINOWN}
@@ -131,6 +152,7 @@ _SCRIPTSINS_${script:T}: ${script}
 
 .if !defined(NOMAN)
 realinstall: _maninstall
+.ORDER: beforeinstall _maninstall
 .endif
 
 .endif

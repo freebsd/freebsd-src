@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		eqn
+PROG_CXX=	eqn
 SRCS=		eqn.cc eqn_tab.h main.cc lex.cc \
 		box.cc limit.cc list.cc over.cc text.cc \
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc

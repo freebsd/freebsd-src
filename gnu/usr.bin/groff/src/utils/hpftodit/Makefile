@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-PROG=		hpftodit
+PROG_CXX=	hpftodit
 SRCS=		hpftodit.cc
 DPADD=		${LIBGROFF} ${LIBM}
 LDADD=		${LIBGROFF} -lm
