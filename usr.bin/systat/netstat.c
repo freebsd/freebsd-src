@@ -407,10 +407,8 @@ enter(inp, state, proto)
 		sa6->sin6_len = sizeof(struct sockaddr_in6);
 	}
 #endif
-	else {
-		error("Unsupported address family");
+	else
 		return NULL;
-	}
 
 	/*
 	 * Only take exact matches, any sockets with
