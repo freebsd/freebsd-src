@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.22.2.2 1999/02/12 16:06:29 wpaul Exp $
+ *	$Id: if_xl.c,v 1.68 1999/03/27 20:35:14 wpaul Exp $
  */
 
 /*
@@ -107,6 +107,9 @@
 #include <vm/vm.h>              /* for vtophys */
 #include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
+#include <machine/bus_memio.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -147,7 +150,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_xl.c,v 1.22.2.2 1999/02/12 16:06:29 wpaul Exp $";
+	"$Id: if_xl.c,v 1.68 1999/03/27 20:35:14 wpaul Exp $";
 #endif
 
 /*
@@ -1387,7 +1390,18 @@ xl_attach(config_id, unit)
 		goto fail;
 	}
 
-	sc->iobase = pci_conf_read(config_id, XL_PCI_LOIO) & 0xFFFFFFE0;
+	if (!pci_map_port(config_id, XL_PCI_LOIO,
+				(u_short *)&(sc->xl_bhandle))) {
+		printf ("xl%d: couldn't map port\n", unit);
+		goto fail;
+	}
+
+#ifdef __i386__
+	sc->xl_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->xl_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("xl%d: failed to enable memory mapping!\n", unit);
@@ -1398,7 +1412,13 @@ xl_attach(config_id, unit)
 		printf ("xl%d: couldn't map memory\n", unit);
 		goto fail;
 	}
-	sc->csr = (volatile caddr_t)vbase;
+	sc->xl_bhandle = vbase;
+#ifdef __i386__
+	sc->xl_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->xl_btag = ALPHA_BUS_SPACE_MEM;
+#endif
 #endif
 
 	/* Allocate interrupt */
@@ -1767,6 +1787,11 @@ static int xl_newbuf(sc, c)
 		m_freem(m_new);
 		return(ENOBUFS);
 	}
+
+#ifdef __alpha__
+	/* Force longword alignment for packet payload to pacify alpha. */
+	m_new->m_data += 2;
+#endif
 
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_status = 0;
