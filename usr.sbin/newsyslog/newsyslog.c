@@ -70,6 +70,8 @@ static const char rcsid[] =
 				/*  status messages */
 #define	CE_TRIMAT  4		/* trim at a specific time */
 #define	CE_GLOB    16		/* name of the log is file name pattern */
+#define	CE_COMPACTWAIT 32	/* wait till compressing finishes before */
+				/* starting the next one */
 
 #define NONE -1
 
@@ -112,8 +114,8 @@ static void usage(void);
 static void dotrim(char *log, const char *pid_file, int numdays, int falgs,
 		int perm, int owner_uid, int group_gid, int sig);
 static int log_trim(char *log);
-static void compress_log(char *log);
-static void bzcompress_log(char *log);
+static void compress_log(char *log, int dowait);
+static void bzcompress_log(char *log, int dowait);
 static int sizefile(char *file);
 static int age_old_log(char *file);
 static pid_t get_pid(const char *pid_file);
@@ -473,6 +475,8 @@ parse_file(char **files)
 				working->flags |= CE_BINARY;
 			else if ((*q == 'G') || (*q == 'c'))
 				working->flags |= CE_GLOB;
+			else if ((*q == 'W') || (*q == 'w'))
+				working->flags |= CE_COMPACTWAIT;
 			else if (*q != '-')
 				errx(1, "illegal flag in config file -- %c",
 				    *q);
@@ -736,14 +740,18 @@ dotrim(char *log, const char *pid_file, int numdays, int flags, int perm,
 				(void) snprintf(file1, sizeof(file1), "%s/%s",
 				    dirpart, namepart);
 				if (flags & CE_COMPACT)
-					compress_log(file1);
+					compress_log(file1,
+					    flags & CE_COMPACTWAIT);
 				else if (flags & CE_BZCOMPACT)
-					bzcompress_log(file1);
+					bzcompress_log(file1,
+					    flags & CE_COMPACTWAIT);
 			} else {
 				if (flags & CE_COMPACT)
-					compress_log(log);
+					compress_log(log,
+					    flags & CE_COMPACTWAIT);
 				else if (flags & CE_BZCOMPACT)
-					bzcompress_log(log);
+					bzcompress_log(log,
+					    flags & CE_COMPACTWAIT);
 			}
 		}
 	}
@@ -766,11 +774,13 @@ log_trim(char *log)
 
 /* Fork of gzip to compress the old log file */
 static void
-compress_log(char *log)
+compress_log(char *log, int dowait)
 {
 	pid_t pid;
 	char tmp[MAXPATHLEN];
 
+	while (dowait && (wait(NULL) > 0 || errno == EINTR))
+		;
 	(void) snprintf(tmp, sizeof(tmp), "%s.0", log);
 	pid = fork();
 	if (pid < 0)
@@ -783,11 +793,13 @@ compress_log(char *log)
 
 /* Fork of bzip2 to compress the old log file */
 static void
-bzcompress_log(char *log)
+bzcompress_log(char *log, int dowait)
 {
 	pid_t pid;
 	char tmp[MAXPATHLEN];
 
+	while (dowait && (wait(NULL) > 0 || errno == EINTR))
+		;
 	snprintf(tmp, sizeof(tmp), "%s.0", log);
 	pid = fork();
 	if (pid < 0)
