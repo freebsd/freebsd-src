@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.77 1998/05/11 00:47:27 jkh Exp $
+ * $Id: devices.c,v 1.78 1998/05/24 20:01:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -70,10 +70,10 @@ static struct _devname {
     { DEVICE_TYPE_TAPE, 	"rst%d",	"SCSI tape drive",	14, 0, 16, 4, 'c'			},
     { DEVICE_TYPE_TAPE, 	"rft%d",	"Floppy tape drive (QIC-02)",	9, 32, 64, 4, 'c'		},
     { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4, 'c'			},
-    { DEVICE_TYPE_DISK, 	"sd%d",		"SCSI disk device",	4, 65538, 8, 32, 'b'			},
-    { DEVICE_TYPE_DISK, 	"rsd%d",	"SCSI disk device",	13, 65538, 8, 32, 'c'			},
-    { DEVICE_TYPE_DISK, 	"wd%d",		"IDE/ESDI/MFM/ST506 disk device",	0, 65538, 8, 32, 'b'	},
-    { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 32, 'c'	},
+    { DEVICE_TYPE_DISK, 	"sd%d",		"SCSI disk device",	4, 65538, 8, 16, 'b'			},
+    { DEVICE_TYPE_DISK, 	"rsd%d",	"SCSI disk device",	13, 65538, 8, 16, 'c'			},
+    { DEVICE_TYPE_DISK, 	"wd%d",		"IDE/ESDI/MFM/ST506 disk device",	0, 65538, 8, 16, 'b'	},
+    { DEVICE_TYPE_DISK, 	"rwd%d",	"IDE/ESDI/MFM/ST506 disk device",	3, 65538, 8, 16, 'c'	},
     { DEVICE_TYPE_DISK, 	"od%d",		"SCSI optical disk device",	20, 65538, 8, 4, 'b'		},
     { DEVICE_TYPE_DISK, 	"rod%d",	"SCSI optical disk device",	70, 65538, 8, 4, 'c'		},
     { DEVICE_TYPE_DISK, 	"wfd%d",	"ATAPI FLOPPY (LS-120) device",	1, 65538, 8, 4, 'b'		},
@@ -308,7 +308,7 @@ skipif:
 
 		    close(fd);
 		    /* Make associated slice entries */
-		    for (s = 1; s < 33; s++) {
+		    for (s = 1; s < 8; s++) {
 			snprintf(unit, sizeof unit, device_names[i].name, j);
 			snprintf(slice, sizeof slice, "/dev/%ss%d", unit, s);
 			d = makedev(device_names[i].major, device_names[i].minor +
