@@ -4,7 +4,13 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
+<<<<<<< menus.c
+ * $Id: menus.c,v 1.5 1995/05/04 03:51:19 jkh Exp $
+||||||| 1.7
  * $Id: menus.c,v 1.6 1995/05/04 19:48:14 jkh Exp $
+=======
+ * $Id: menus.c,v 1.7 1995/05/04 23:36:20 jkh Exp $
+>>>>>>> /tmp/T4000279
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -133,6 +139,8 @@ of the english versions.",		/* prompt */
 	 DMENU_CALL, (void *)lang_set_Italian, 0 },
    { "Japanese", "Japanese language and default character set (romaji)",/* J */
 	 DMENU_CALL, (void *)lang_set_Japanese, 0 },
+   { "Norwegian", "Norwegian language and character set (ISO-8859-1)", /* N */
+	 DMENU_CALL, (void *)lang_set_Norwegian, 0 },
    { "Russian", "Russian language and character set (cp866-8x14)", /* R */
 	 DMENU_CALL, (void *)lang_set_Russian, 0 },
    { "Spanish", "Spanish language and character set (ISO-8859-1)", /* S */

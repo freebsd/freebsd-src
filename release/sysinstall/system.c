@@ -18,20 +18,35 @@
 #include "sysinstall.h"
 #include <signal.h>
 #include <sys/reboot.h>
+#include <machine/console.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 
-/* Handle interrupt signals (duh!) */
+/*
+ * Handle interrupt signals - this probably won't work in all cases
+ * due to our having bogotified the internal state of dialog or curses,
+ * but we'll give it a try.
+ */
 static void
 handle_intr(int sig)
 {
+    dialog_clear();
+    clear();
+    if (!msgYesNo("Are you sure you want to abort the installation?"))
+	systemShutdown();
+    else {
+	dialog_clear();
+	clear();
+	refresh();
+    }
 }
 
 /* Welcome the user to the system */
 void
 systemWelcome(void)
 {
+    printf("Installation system initializing..\n");
 }
 
 /* Initialize system defaults */
@@ -201,8 +216,12 @@ systemHelpFile(char *file, char *buf)
 }
 
 void
-systemChangeFont(char *font)
+systemChangeFont(const u_char font[])
 {
+    if (OnVTY) {
+	if (ioctl(0, PIO_FONT8x14, font) < 0)
+	    msgConfirm("Sorry!  Unable to load font for %s", getenv("LANG"));
+    }
 }
 
 void
@@ -212,12 +231,29 @@ systemChangeLang(char *lang)
 }
 
 void
-systemChangeTerminal(char *color, char *mono)
+systemChangeTerminal(char *color, const u_char c_term[],
+		     char *mono, const u_char m_term[])
 {
-    /* Do something with setterm */
+    if (!OnSerial) {
+	if (ColorDisplay) {
+	    setenv("TERM", color, 1);
+	    setenv("TERMCAP", c_term, 1);
+	    setterm(color);
+	}
+	else {
+	    setenv("TERM", mono, 1);
+	    setenv("TERMCAP", m_term, 1);
+	    setterm(mono);
+	}
+    }
 }
 
 void
-systemChangeScreenmap(char *newmap)
+systemChangeScreenmap(const u_char newmap[])
 {
+    if (OnVTY) {
+	if (ioctl(0, PIO_SCRNMAP, newmap) < 0)
+	    msgConfirm("Sorry!  Unable to load the screenmap for %s",
+		       getenv("LANG"));
+    }
 }

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.4 1995/05/04 19:48:16 jkh Exp $
+ * $Id: msg.c,v 1.3 1995/05/04 03:51:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -177,6 +177,23 @@ msgConfirm(char *fmt, ...)
     free(errstr);
 }
 
+/* Put up a message in a popup information box */
+void
+msgNotify(char *fmt, ...)
+{
+    va_list args;
+    char *errstr;
+
+    errstr = (char *)malloc(FILENAME_MAX);
+    va_start(args, fmt);
+    vsnprintf(errstr, FILENAME_MAX, fmt, args);
+    va_end(args);
+    use_helpline(NULL);
+    use_helpfile(NULL);
+    dialog_notify(errstr);
+    free(errstr);
+}
+
 /* Put up a message in a popup yes/no box and return 1 for YES, 0 for NO */
 int
 msgYesNo(char *fmt, ...)
@@ -211,7 +228,10 @@ msgGetInput(char *buf, char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    strcpy(input_buffer, buf);
+    if (buf)
+	strcpy(input_buffer, buf);
+    else
+	input_buffer[0] = '\0';
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
     free(errstr);
     if (!rval)
