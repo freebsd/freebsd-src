@@ -402,10 +402,27 @@ pcic_sresource(struct slot *slt, caddr_t data)
 
 	pr = (struct pccard_resource *)data;
 	pr->resource_addr = ~0ul;
-	if (pr->type == SYS_RES_IRQ && sp->sc->func_route == pci_parallel) {
-		pr->resource_addr = sp->sc->irq;
-		return (0);
+
+	/*
+	 * If we're using PCI interrupt routing, then force the IRQ to
+	 * use and to heck with what the user requested.  If they want
+	 * to be able to request IRQs, they must use ISA interrupt
+	 * routing.  If we don't give them an irq, and it is the
+	 * pccardd 0,0 case, then just return (giving the "bad resource"
+	 * return in pr->resource_addr).
+	 */
+	if (pr->type == SYS_RES_IRQ) {
+		if (sp->sc->func_route >= pci_parallel) {
+			pr->resource_addr = sp->sc->irq;
+			return (0);
+		}
+		if (pr->min == 0 && pr->max == 0)
+			return (0);
 	}
+
+	/*
+	 * Make sure we grok this type.
+	 */
 	switch(pr->type) {
 	default:
 		return (EINVAL);
@@ -414,6 +431,12 @@ pcic_sresource(struct slot *slt, caddr_t data)
 	case SYS_RES_IOPORT:
 		break;
 	}
+
+	/*
+	 * Allocate the resource, and align it to the most natural
+	 * size.  If we get it, then tell userland what we actually got
+	 * in the range they requested.
+	 */
 	flags = rman_make_alignment_flags(pr->size);
 	r = bus_alloc_resource(bridgedev, pr->type, &rid, pr->min, pr->max,
 	   pr->size, flags);
