@@ -526,12 +526,13 @@ static int
 ds1pchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_pchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 	int drate;
 
 	/* irq rate is fixed at 187.5hz */
 	drate = ch->spd * sndbuf_getbps(ch->buffer);
-	blocksize = (drate << 8) / DS1_IRQHZ;
-	sndbuf_resize(ch->buffer, DS1_BUFFSIZE / blocksize, blocksize);
+	blocksize = roundup2((drate << 8) / DS1_IRQHZ, 4);
+	sndbuf_resize(ch->buffer, sc->bufsz / blocksize, blocksize);
 
 	return blocksize;
 }
@@ -653,12 +654,13 @@ static int
 ds1rchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_rchinfo *ch = data;
+	struct sc_info *sc = ch->parent;
 	int drate;
 
 	/* irq rate is fixed at 187.5hz */
 	drate = ch->spd * sndbuf_getbps(ch->buffer);
-	blocksize = (drate << 8) / DS1_IRQHZ;
-	sndbuf_resize(ch->buffer, DS1_BUFFSIZE / blocksize, blocksize);
+	blocksize = roundup2((drate << 8) / DS1_IRQHZ, 4);
+	sndbuf_resize(ch->buffer, sc->bufsz / blocksize, blocksize);
 
 	return blocksize;
 }
