@@ -4,6 +4,7 @@ PROG=	mkastosc
 SRCS=	mkastosc.c dohits.c asc_ebc.c ebc_disp.c
 CFLAGS+=-I${.CURDIR}/../mkhits -I${.CURDIR}/..
 NOMAN=	noman
+NOSHARED=1
 .PATH:	${.CURDIR}/../mkhits ${.CURDIR}/../../api
 
 .include <bsd.prog.mk>
