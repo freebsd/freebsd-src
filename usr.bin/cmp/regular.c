@@ -65,15 +65,15 @@ c_regular(fd1, file1, skip1, len1, fd2, file2, skip2, len2)
 	off_t pagemask, off1, off2;
 	size_t pagesize;
 
-	if (sflag && len1 != len2)
-		exit(1);
-
 	if (skip1 > len1)
 		eofmsg(file1);
 	len1 -= skip1;
 	if (skip2 > len2)
 		eofmsg(file2);
 	len2 -= skip2;
+
+	if (sflag && len1 != len2)
+		exit(DIFF_EXIT);
 
 	pagesize = getpagesize();
 	pagemask = (off_t)pagesize - 1;
