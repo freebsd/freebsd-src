@@ -343,10 +343,8 @@ nss_configure(void)
 		    goto fin2;
 	}
 	_nsyyin = fopen(path, "r");
-	if (_nsyyin == NULL) {
-		result = errno;
+	if (_nsyyin == NULL)
 		goto fin;
-	}
 	VECTOR_FREE(_nsmap, &_nsmapsize, sizeof(*_nsmap),
 	    (vector_free_elem)ns_dbt_free);
 	VECTOR_FREE(_nsmod, &_nsmodsize, sizeof(*_nsmod),
