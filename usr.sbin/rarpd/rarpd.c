@@ -33,8 +33,8 @@ static const char rcsid[] =
 /*
  * rarpd - Reverse ARP Daemon
  *
- * Usage:	rarpd -a [ -dfsv ] [ hostname ]
- *		rarpd [ -dfsv ] interface [ hostname ]
+ * Usage:	rarpd -a [ -dfsv ] [-t directory] [ hostname ]
+ *		rarpd [ -dfsv ] [-t directory] interface [ hostname ]
  *
  * 'hostname' is optional solely for backwards compatibility with Sun's rarpd.
  * Currently, the argument is ignored.
@@ -399,7 +399,7 @@ init(char *target)
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: rarpd [-adfsv] [interface]\n");
+	(void)fprintf(stderr, "usage: rarpd [-adfsv] [-t directory] [interface]\n");
 	exit(1);
 }
 
