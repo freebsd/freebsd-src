@@ -129,15 +129,15 @@ struct wdparams {
 /*
  * wd driver entry points
  */
-int wdprobe(struct isa_device *);
-int wdattach(struct isa_device *);
-int wdstrategy(struct buf *);
-void wdintr(struct intrframe);
-int wdopen(dev_t, int, int, struct proc *);
+void wdstrategy(struct buf *bp);
+void wdintr(int unit);
+int wdopen(dev_t dev, int flags, int fmt, struct proc *p);
 int wdclose(dev_t dev, int flags, int fmt);
-int wdioctl(dev_t, int, caddr_t, int);
-/* int wdformat(struct buf *bp); */
-int wdsize(dev_t);
-int wddump(dev_t);
+int wdioctl(dev_t dev, int cmd, caddr_t addr, int flag);
+#ifdef	B_FORMAT
+int wdformat(struct buf *bp);
+#endif
+int wdsize(dev_t dev);
+int wddump(dev_t dev);
 
 #endif KERNEL
