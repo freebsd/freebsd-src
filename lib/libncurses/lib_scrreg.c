@@ -25,10 +25,6 @@ int wsetscrreg(WINDOW *win, int top, int bottom)
 	    	win->_regbottom = bottom;
 
 		T(("correctly set scrolling region between %d and %d", top, bottom));
-		if (change_scroll_region != NULL) {
-			T(("changing scroll region"));
-			putp(tparm(change_scroll_region, top, bottom));
-		}
 
 	    	return(OK);
 	} else

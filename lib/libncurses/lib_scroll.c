@@ -84,12 +84,11 @@ int i;
 
 	/* as an optimization, if the scrolling region is the entire screen
 	   scroll the physical screen */
-	/* should we extend this to include smaller scrolling ranges by using
-	   change_scroll_region? */
 
 	if (   win->_begx == 0 && win->_maxx == columns - 1
 	    && !memory_above && !memory_below
-	    && ((win->_regtop == 0 && win->_regbottom == lines - 1
+	    && ((((win->_begy+win->_regtop == 0 && win->_begy+win->_regbottom == lines - 1)
+		  || change_scroll_region)
 		 && (   (n < 0 && (parm_rindex || scroll_reverse))
 		     || (n > 0 && (parm_index || scroll_forward))
 		    )
@@ -109,21 +108,31 @@ int i;
 
 	if (physical == TRUE) {
 		if (n < 0) {
-			if (   win->_regtop == 0 && win->_regbottom == lines - 1
+			if (   ((   win->_begy+win->_regtop == 0
+				 && win->_begy+win->_regbottom == lines - 1)
+				|| change_scroll_region)
 			    && (parm_rindex || scroll_reverse)
 			   ) {
+				if (change_scroll_region &&
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				   )
+					putp(tparm(change_scroll_region, win->_begy+win->_regtop, win->_begy+win->_regbottom));
 				i = abs(n);
-				mvcur(-1, -1, win->_regtop, 0);
+				mvcur(-1, -1, win->_begy+win->_regtop, 0);
 				if (parm_rindex) {
 					putp(tparm(parm_rindex, i));
 				} else if (scroll_reverse) {
 					while (i--)
 						putp(scroll_reverse);
 				}
+				if (change_scroll_region &&
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				   )
+					putp(tparm(change_scroll_region, 0, lines-1));
 			} else {
 				i = abs(n);
-				if (win->_regbottom < lines - 1) {
-					mvcur(-1, -1, win->_regbottom, 0);
+				if (win->_begy+win->_regbottom < lines - 1) {
+					mvcur(-1, -1, win->_begy+win->_regbottom, 0);
 					if (parm_delete_line) {
 						putp(tparm(parm_delete_line, i));
 					} else if (delete_line) {
@@ -132,7 +141,7 @@ int i;
 						i = abs(n);
 					}
 				}
-				mvcur(-1, -1, win->_regtop, 0);
+				mvcur(-1, -1, win->_begy+win->_regtop, 0);
 				if (parm_insert_line) {
 					putp(tparm(parm_insert_line, i));
 				} else if (insert_line) {
@@ -141,10 +150,16 @@ int i;
 				}
 			}
 		} else {
-			if (   win->_regtop == 0 && win->_regbottom == lines - 1
+			if (   ((   win->_begy+win->_regtop == 0
+				 && win->_begy+win->_regbottom == lines - 1)
+				|| change_scroll_region)
 			    && (parm_index || scroll_forward)
 			   ) {
-				mvcur(-1, -1, win->_regbottom, 0);
+				if (change_scroll_region &&
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				   )
+					putp(tparm(change_scroll_region, win->_begy+win->_regtop, win->_begy+win->_regbottom));
+				mvcur(-1, -1, win->_begy+win->_regbottom, 0);
 				if (parm_index) {
 					putp(tparm(parm_index, n));
 				} else if (scroll_forward) {
@@ -152,8 +167,12 @@ int i;
 					while (i--)
 						putp(scroll_forward);
 				}
+				if (change_scroll_region &&
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				   )
+					putp(tparm(change_scroll_region, 0, lines-1));
 			} else {
-				mvcur(-1, -1, win->_regtop, 0);
+				mvcur(-1, -1, win->_begy+win->_regtop, 0);
 				if (parm_delete_line) {
 					putp(tparm(parm_delete_line, n));
 				} else if (delete_line) {
@@ -161,8 +180,8 @@ int i;
 					while (i--)
 						putp(delete_line);
 				}
-				if (win->_regbottom < lines - 1) {
-					mvcur(win->_regtop, 0, win->_regbottom, 0);
+				if (win->_begy+win->_regbottom < lines - 1) {
+					mvcur(win->_begy+win->_regtop, 0, win->_begy+win->_regbottom, 0);
 					if (parm_insert_line) {
 						putp(tparm(parm_insert_line, n));
 					} else if (insert_line) {
@@ -174,7 +193,7 @@ int i;
 			}
 		}
 
-		mvcur(-1, -1, win->_cury, win->_curx);
+		mvcur(-1, -1, win->_begy+win->_cury, win->_begx+win->_curx);
 	} else 
 	    	touchline(win, win->_regtop, win->_regbottom - win->_regtop + 1);
 
