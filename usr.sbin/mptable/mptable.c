@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mptable.c,v 1.2 1997/04/22 20:34:14 fsmp Exp fsmp $
+ *	$Id: mptable.c,v 1.1 1997/04/29 03:06:35 fsmp Exp $
  */
 
 /*
@@ -31,7 +31,7 @@
 
 #define VMAJOR			2
 #define VMINOR			0
-#define VDELTA			8
+#define VDELTA			9
 
 /*
  * this will cause the raw mp table to be dumped to /tmp/mpdump
@@ -337,7 +337,7 @@ main( int argc, char *argv[] )
 	        usage();
 	    break;
 	case 'g':
-	    if ( strcmp( optarg, "rop") == 0 )
+	    if ( strcmp( optarg, "rope") == 0 )
 	        grope = 1;
 	    break;
 	case 'v':
