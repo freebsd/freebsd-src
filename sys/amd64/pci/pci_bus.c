@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.7 1995/03/22 19:51:59 se Exp $
+**  $Id: pcibus.c,v 1.8 1995/03/22 21:35:39 se Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -139,6 +139,7 @@ DATA_SET (pcibus_set, i386pci);
 
 
 #define CONF1_ENABLE       0x80000000ul
+#define CONF1_ENABLE_CHK   0xF0000000ul
 #define CONF1_ADDR_PORT    0x0cf8
 #define CONF1_DATA_PORT    0x0cfc
 
@@ -153,6 +154,23 @@ pcibus_setup (void)
 	u_long result, oldval;
 
 	/*---------------------------------------
+	**      Configuration mode 1 ?
+	**---------------------------------------
+	*/
+
+	oldval = inl (CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, CONF1_ENABLE_CHK);
+	outb (CONF1_ADDR_PORT +3, 0);
+	result = inl (CONF1_ADDR_PORT);
+	outl (CONF1_ADDR_PORT, oldval);
+
+	if (result == CONF1_ENABLE) {
+		pci_mechanism = 1;
+		pci_maxdevice = 32;
+		return;
+	};
+
+	/*---------------------------------------
 	**      Configuration mode 2 ?
 	**---------------------------------------
 	*/
@@ -162,22 +180,6 @@ pcibus_setup (void)
 	if (!inb (CONF2_ENABLE_PORT) && !inb (CONF2_FORWARD_PORT)) {
 		pci_mechanism = 2;
 		pci_maxdevice = 16;
-		return;
-	};
-
-	/*---------------------------------------
-	**      Configuration mode 1 ?
-	**---------------------------------------
-	*/
-
-	oldval = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, CONF1_ENABLE);
-	result = inl (CONF1_ADDR_PORT);
-	outl (CONF1_ADDR_PORT, oldval);
-
-	if (result == CONF1_ENABLE) {
-		pci_mechanism = 1;
-		pci_maxdevice = 32;
 		return;
 	};
 
