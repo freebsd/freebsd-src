@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.13 1996/01/21 09:03:15 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.14 1996/01/21 09:07:58 julian Exp $
  */
 
 #include "param.h"
@@ -472,6 +472,7 @@ void	devfs_dn_free(dn_p dnp) /*proto*/
 \***********************************************************************/
 int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 {
+	int	error;
 	devnm_p newnmp;
 	devnm_p  falias;
 	dn_p	dnp = child->dnp;
@@ -488,18 +489,20 @@ int devfs_add_fronts(devnm_p parent,devnm_p child) /*proto*/
 		 * Make the node, using the original as a prototype)
 		 */
 		if(type == DEV_DIR) {
-			if (dev_add_node(type, NULL, dnp, &dnp))
+			if ( error = dev_add_node(type, NULL, dnp, &dnp))
 			{
-				printf("Device %s: node allocation failed\n",
-					child->name);
+				printf("Device %s: node allocation failed (E=%d)\n",
+					child->name,error);
 				continue;
 			}
 		}
-		if (dev_add_name(child->name,parent->dnp,child, dnp,&newnmp)) {
+		if ( error = dev_add_name(child->name,parent->dnp
+						,child, dnp,&newnmp)) {
 			if( type == DEV_DIR) {
 				devfs_dn_free(dnp); /* 1->0 */
 			}
-			printf("Device %s: allocation failed\n", child->name);
+			printf("Device %s: allocation failed (E=%d)\n",
+				child->name,error);
 			continue;
 		}
 
@@ -875,14 +878,15 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 	DBPRINT(("	devfs_add_entry\n"));
 	if (error = dev_add_node(type, by, NULL, &dnp))
 	{
-		printf("Device %s: base node allocation failed\n", name);
+		printf("Device %s: base node allocation failed (E=%d)\n",
+			name,error);
 		return error;
 	}
 	if ( error = dev_add_name(name ,parent ,NULL, dnp, nm_pp))
 	{
 		devfs_dn_free(dnp); /* 1->0 for dir, 0->(-1) for other */
-		printf("Device %s: name slot allocation failed\n",
-			name);
+		printf("Device %s: name slot allocation failed (E=%d)\n",
+			name,error);
 		
 	}
 	return error;
