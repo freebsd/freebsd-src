@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_x25subr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_x25subr.c,v 1.3 1994/12/13 22:32:12 wollman Exp $
+ * $Id: if_x25subr.c,v 1.4 1995/02/15 06:29:47 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -74,7 +74,6 @@ int tp_incoming();
 #include <netiso/iso_var.h>
 #endif
 
-extern	struct ifnet loif;
 struct llinfo_x25 llinfo_x25 = {&llinfo_x25, &llinfo_x25};
 #ifndef _offsetof
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))

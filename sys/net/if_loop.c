@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.7 1995/03/04 04:28:50 davidg Exp $
+ * $Id: if_loop.c,v 1.8 1995/03/20 19:20:41 wollman Exp $
  */
 
 /*
  * Loopback interface driver for protocol testing and timing.
  */
+#include "loop.h"
+#if NLOOP > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -79,26 +81,31 @@
 #define LOMTU	16384
 #endif
 
-struct	ifnet loif;
+struct	ifnet loif[NLOOP];
 
 /* ARGSUSED */
 void
 loopattach(void)
 {
-	register struct ifnet *ifp = &loif;
+	register struct ifnet *ifp;
+	register int i = 0;
 
-	ifp->if_name = "lo";
-	ifp->if_mtu = LOMTU;
-	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
-	ifp->if_ioctl = loioctl;
-	ifp->if_output = looutput;
-	ifp->if_type = IFT_LOOP;
-	ifp->if_hdrlen = 0;
-	ifp->if_addrlen = 0;
-	if_attach(ifp);
+	for (ifp = loif; i < NLOOP; ifp++) {
+	    ifp->if_name = "lo";
+	    ifp->if_next = NULL;
+	    ifp->if_unit = i++;
+	    ifp->if_mtu = LOMTU;
+	    ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
+	    ifp->if_ioctl = loioctl;
+	    ifp->if_output = looutput;
+	    ifp->if_type = IFT_LOOP;
+	    ifp->if_hdrlen = 0;
+	    ifp->if_addrlen = 0;
+	    if_attach(ifp);
 #if NBPFILTER > 0
-	bpfattach(&ifp->if_bpf, ifp, DLT_NULL, sizeof(u_int));
+	    bpfattach(&ifp->if_bpf, ifp, DLT_NULL, sizeof(u_int));
 #endif
+	}
 }
 
 PSEUDO_SET(loopattach, if_loop);
@@ -117,7 +124,7 @@ looutput(ifp, m, dst, rt)
 		panic("looutput no HDR");
 	ifp->if_lastchange = time;
 #if NBPFILTER > 0
-	if (loif.if_bpf) {
+	if (ifp->if_bpf) {
 		/*
 		 * We need to prepend the address family as
 		 * a four byte field.  Cons up a dummy header
@@ -132,7 +139,7 @@ looutput(ifp, m, dst, rt)
 		m0.m_len = 4;
 		m0.m_data = (char *)&af;
 		
-		bpf_mtap(loif.if_bpf, &m0);
+		bpf_mtap(ifp->if_bpf, &m0);
 	}
 #endif
 	m->m_pkthdr.rcvif = ifp;
@@ -251,3 +258,4 @@ loioctl(ifp, cmd, data)
 	}
 	return (error);
 }
+#endif /* NLOOP > 0 */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.12 1995/03/16 17:32:26 wollman Exp $
+ * $Id: if_ether.c,v 1.13 1995/03/16 18:14:49 bde Exp $
  */
 
 /*
@@ -216,7 +216,7 @@ arp_rtrequest(req, rt, sa)
 			Bcopy(((struct arpcom *)rt->rt_ifp)->ac_enaddr,
 				LLADDR(SDL(gate)), SDL(gate)->sdl_alen = 6);
 			if (useloopback)
-				rt->rt_ifp = &loif;
+				rt->rt_ifp = loif;
 
 		}
 		break;
