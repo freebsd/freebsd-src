@@ -17,8 +17,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-#ifndef NM_FBSD_H
-#define NM_FBSD_H
+#ifndef NM_FREEBSD_H
+#define NM_FREEBSD_H
 
 #define	ATTACH_DETACH
 
@@ -132,4 +132,4 @@ extern int kernel_writablecore;
   if (!strcmp(STR, "kgdb")) \
      kernel_debugging = 1;
 
-#endif /* NM_FBSD_H */
+#endif /* NM_FREEBSD_H */
