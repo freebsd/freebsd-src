@@ -67,7 +67,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/* $Id: bus.h,v 1.1 1998/01/15 07:32:54 gibbs Exp $ */
+/* $Id: bus.h,v 1.2 1998/04/19 15:28:30 bde Exp $ */
 
 #ifndef _I386_BUS_H_
 #define _I386_BUS_H_
@@ -92,6 +92,8 @@ typedef u_long bus_size_t;
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF
 #define BUS_SPACE_MAXADDR_32BIT 0xFFFFFFFF
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
+
+#define BUS_SPACE_UNRESTRICTED	(~0)
 
 /*
  * Access methods for bus resources and address space.
@@ -1196,6 +1198,7 @@ typedef int bus_dma_filter_t(void *, bus_addr_t);
  * Allocate a device specific dma_tag encapsulating the constraints of
  * the parent tag in addition to other restrictions specified:
  *
+ *	alignment:	alignment for segments.
  *	boundary:	Boundary that segments cannot cross.
  *	lowaddr:	Low restricted address that cannot appear in a mapping.
  *	highaddr:	High restricted address that cannot appear in a mapping.
@@ -1204,25 +1207,25 @@ typedef int bus_dma_filter_t(void *, bus_addr_t);
  *			in a mapping.
  *	filtfuncarg:	An argument that will be passed to filtfunc in addition
  *			to the address to test.
+ *	maxsize:	Maximum mapping size supported by this tag.
+ *	nsegments:	Number of discontinuities allowed in maps.
+ *	maxsegsz:	Maximum size of a segment in the map.
  *	flags:		Bus DMA flags.
  *	dmat:		A pointer to set to a valid dma tag should the return
  *			value of this function indicate success.
  */
-int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t boundary,
-		       bus_addr_t lowaddr, bus_addr_t highaddr,
-		       bus_dma_filter_t *filtfunc, void *filtfuncarg,
-		       bus_size_t maxsize, int nsegments, bus_size_t maxsegsz,
-		       int flags, bus_dma_tag_t *dmat);
+/* XXX Should probably allow specification of alignment */
+int bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignemnt,
+		       bus_size_t boundary, bus_addr_t lowaddr,
+		       bus_addr_t highaddr, bus_dma_filter_t *filtfunc,
+		       void *filtfuncarg, bus_size_t maxsize, int nsegments,
+		       bus_size_t maxsegsz, int flags, bus_dma_tag_t *dmat);
 
 int bus_dma_tag_destroy(bus_dma_tag_t dmat);
 
 /*
  * Allocate a handle for mapping from kva/uva/physical
  * address space into bus device space.
- *
- *	maxsize:	Maximum mapping size supported by this handle.
- *	nsegments:	Number of discontinuities allowed in the map.
- *	maxsegsz:	Maximum size of a segment in the map.
  */
 int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
 
@@ -1231,6 +1234,20 @@ int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
  * address space into bus device space.
  */
 int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
+
+/*
+ * Allocate a piece of memory that can be efficiently mapped into
+ * bus device space based on the constraints lited in the dma tag.
+ * A dmamap to for use with dmamap_load is also allocated.
+ */
+int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+		     bus_dmamap_t *mapp);
+
+/*
+ * Free a piece of memory and it's allociated dmamap, that was allocated
+ * via bus_dmamem_alloc.
+ */
+void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
 
 /*
  * A function that processes a successfully loaded dma map or an error
