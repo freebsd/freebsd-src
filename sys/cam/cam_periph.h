@@ -81,8 +81,7 @@ struct periph_driver {
 };
 
 typedef enum {
-	CAM_PERIPH_BIO,
-	CAM_PERIPH_NET
+	CAM_PERIPH_BIO
 } cam_periph_type;
 
 /* Generically usefull offsets into the peripheral private area */
