@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.624 1999/08/08 16:27:17 chris Exp $
+#	$Id: LINT,v 1.625 1999/08/08 19:28:57 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -402,7 +402,7 @@ pseudo-device	token			#Generic TokenRing
 pseudo-device	fddi			#Generic FDDI
 pseudo-device	sppp			#Generic Synchronous PPP
 pseudo-device	loop			#Network loopback device
-pseudo-device	bpf	4		#Berkeley packet filter
+pseudo-device	bpf			#Berkeley packet filter
 pseudo-device	disc			#Discard device
 pseudo-device	tun	1		#Tunnel driver (ppp(8), nos-tun(8))
 pseudo-device	sl	2		#Serial Line IP
