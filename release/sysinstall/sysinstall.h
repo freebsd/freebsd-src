@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.82.2.27 1997/03/15 16:23:11 jkh Exp $
+ * $Id: sysinstall.h,v 1.82.2.28 1997/03/21 04:49:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,7 +43,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <dialog.h>
 #include <dialog.h>
 #include "ui_objects.h"
 #include "dir.h"
