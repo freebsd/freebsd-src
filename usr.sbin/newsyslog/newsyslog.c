@@ -24,12 +24,12 @@ provided "as is" without express or implied warranty.
  *      newsyslog - roll over selected logs at the appropriate time,
  *              keeping the a specified number of backup files around.
  *
- *      $Source: /home/ncvs/src/usr.sbin/newsyslog/newsyslog.c,v $
- *      $Author: graichen $
+ *      $Source: /usr/cvs/src/usr.sbin/newsyslog/newsyslog.c,v $
+ *      $Author: alex $
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.3 1996/01/16 10:32:04 graichen Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.4 1996/06/07 16:27:28 alex Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -55,6 +55,9 @@ static char rcsid[] = "$Id: newsyslog.c,v 1.3 1996/01/16 10:32:04 graichen Exp $
 #include <signal.h>
 #include <pwd.h>
 #include <grp.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <err.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -84,12 +87,6 @@ struct conf_entry {
         struct conf_entry       *next; /* Linked list pointer */
 };
 
-extern int      optind;
-extern char     *optarg;
-extern char *malloc();
-extern uid_t getuid(),geteuid();
-extern time_t time();
-
 char    *progname;              /* contains argv[0] */
 int     verbose = 0;            /* Print out what's going on */
 int     needroot = 1;           /* Root privs are necessary */
@@ -102,11 +99,24 @@ int     syslog_pid;             /* read in from /etc/syslog.pid */
 char    hostname[MAXHOSTNAMELEN+1]; /* hostname */
 char    *daytime;               /* timenow in human readable form */
 
+#ifndef OSF
+char *strdup(char *strp);
+#endif
 
-struct conf_entry *parse_file();
-char *sob(), *son(), *strdup(), *missing_field();
+static struct conf_entry *parse_file();
+static char *sob(char *p);
+static char *son(char *p);
+static char *missing_field(char *p,char *errline);
+static void do_entry(struct conf_entry *ent);
+static void PRS(int argc,char **argv);
+static void usage();
+static void dotrim(char *log,int numdays,int falgs,int perm, int owner_uid,int group_gid);
+static int log_trim(char *log);
+static void compress_log(char *log);
+static int sizefile(char *file);
+static int age_old_log(char *file);
 
-main(argc,argv)
+int main(argc,argv)
         int argc;
         char **argv;
 {
@@ -115,7 +125,7 @@ main(argc,argv)
         PRS(argc,argv);
         if (needroot && getuid() && geteuid()) {
                 fprintf(stderr,"%s: must have root privs\n",progname);
-                exit(1);
+                return(1);
         }
         p = q = parse_file();
         while (p) {
@@ -124,10 +134,10 @@ main(argc,argv)
                 free((char *) q);
                 q=p;
         }
-        exit(0);
+        return(0);
 }
 
-do_entry(ent)
+static void do_entry(ent)
         struct conf_entry       *ent;
         
 {
@@ -171,7 +181,7 @@ do_entry(ent)
         }
 }
 
-PRS(argc,argv)
+static void PRS(argc,argv)
         int argc;
         char **argv;
 {
@@ -197,7 +207,7 @@ PRS(argc,argv)
         (void) gethostname(hostname, sizeof(hostname));
 
 	/* Truncate domain */
-	if (p = strchr(hostname, '.')) {
+	if ((p = strchr(hostname, '.'))) {
 		*p = '\0';
 	}
 
@@ -221,7 +231,7 @@ PRS(argc,argv)
                 }
         }
 
-usage()
+static void usage()
 {
         fprintf(stderr,
                 "Usage: %s <-nrv> <-f config-file>\n", progname);
@@ -231,7 +241,7 @@ usage()
 /* Parse a configuration file and return a linked list of all the logs
  * to process
  */
-struct conf_entry *parse_file()
+static struct conf_entry *parse_file()
 {
         FILE    *f;
         char    line[BUFSIZ], *parse, *q;
@@ -343,7 +353,7 @@ struct conf_entry *parse_file()
         return(first);
 }
 
-char *missing_field(p,errline)
+static char *missing_field(p,errline)
         char    *p,*errline;
 {
         if (!p || !*p)
@@ -351,7 +361,7 @@ char *missing_field(p,errline)
         return(p);
 }
 
-dotrim(log,numdays,flags,perm,owner_uid,group_gid)
+static void dotrim(log,numdays,flags,perm,owner_uid,group_gid)
         char    *log;
         int     numdays;
         int     flags;
@@ -447,21 +457,21 @@ dotrim(log,numdays,flags,perm,owner_uid,group_gid)
 }
 
 /* Log the fact that the logs were turned over */
-log_trim(log)
+static int log_trim(log)
         char    *log;
 {
         FILE    *f;
         if ((f = fopen(log,"a")) == NULL)
                 return(-1);
         fprintf(f,"%s %s newsyslog[%d]: logfile turned over\n",
-                daytime, hostname, getpid());
+                daytime, hostname, (int)getpid());
         if (fclose(f) == EOF)
                 err(1, "log_trim: fclose:");
         return(0);
 }
 
 /* Fork of /usr/ucb/compress to compress the old log file */
-compress_log(log)
+static void compress_log(log)
         char    *log;
 {
         int     pid;
@@ -478,7 +488,7 @@ compress_log(log)
 }
 
 /* Return size in kilobytes of a file */
-int sizefile(file)
+static int sizefile(file)
         char    *file;
 {
         struct stat sb;
@@ -489,7 +499,7 @@ int sizefile(file)
 }
 
 /* Return the age of old log file (file.0) */
-int age_old_log(file)
+static int age_old_log(file)
         char    *file;
 {
         struct stat sb;
