@@ -56,7 +56,7 @@ extern nfstype nfsv3_type[];
 	} while (0)
 
 int	nfs_adv(struct mbuf **, caddr_t *, int, int);
-void	nfsm_build_xx(void **a, int s, struct mbuf **mb, caddr_t *bpos);
+void	*nfsm_build_xx(int s, struct mbuf **mb, caddr_t *bpos);
 int	nfsm_dissect_xx(void **a, int s, struct mbuf **md, caddr_t *dpos);
 int	nfsm_strsiz_xx(int *s, int m, u_int32_t **tl, struct mbuf **mb,
 	    caddr_t *bpos);
@@ -64,11 +64,8 @@ int	nfsm_adv_xx(int s, u_int32_t **tl, struct mbuf **md, caddr_t *dpos);
 u_quad_t nfs_curusec(void);
 int	nfsm_disct(struct mbuf **, caddr_t *, int, int, caddr_t *);
 
-#define	nfsm_build(a, c, s) \
-do { \
-	nfsm_build_xx((void **)&(a), (s), &mb, &bpos); \
-} while (0)
-
+#define	nfsm_build(c, s) \
+	(c)nfsm_build_xx((s), &mb, &bpos); \
 
 /* XXX 'c' arg (type) is not used */
 #define	nfsm_dissect(a, c, s) \
