@@ -221,14 +221,14 @@ universe:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for arch in i386 sparc64 alpha ia64
+.for arch in i386 sparc64 pc98 alpha ia64 
 	@printf ">> ${arch} started on `LC_ALL=C date`\n"
 	-cd ${.CURDIR} && make ${JFLAG} buildworld TARGET_ARCH=${arch} \
 		__MAKE_CONF=/dev/null \
 		> _.${arch}.buildworld 2>&1
 	@printf ">> ${arch} buildworld ended on `LC_ALL=C date`\n"
-.if exists(sys/${arch}/conf/NOTES)
-	cd ${.CURDIR}/sys/${arch}/conf && make LINT \
+.if exists(${.CURDIR}/sys/${arch}/conf/NOTES)
+	-cd ${.CURDIR}/sys/${arch}/conf && make LINT \
 		> _.${arch}.makeLINT 2>&1
 .endif
 	cd ${.CURDIR} && make buildkernels TARGET_ARCH=${arch} JFLAG="${JFLAG}"
