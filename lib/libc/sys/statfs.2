@@ -59,8 +59,7 @@ typedef quad fsid_t;
 #define MNAMELEN 90	/* length of buffer for returned name */
 
 struct statfs {
-short	f_type;		  /* type of filesystem (see below) */
-short	f_flags;	  /* copy of mount flags */
+long	f_spare2;	  /* placeholder */
 long	f_bsize;	  /* fundamental file system block size */
 long	f_iosize;	  /* optimal transfer block size */
 long	f_blocks;	  /* total data blocks in file system */
@@ -69,7 +68,10 @@ long	f_bavail;	  /* free blocks avail to non-superuser */
 long	f_files;	  /* total file nodes in file system */
 long	f_ffree;	  /* free file nodes in fs */
 fsid_t	f_fsid;		  /* file system id */
-long	f_spare[9];	  /* spare for later */
+uid_t	f_owner;	  /* user that mounted the filesystem */
+int	f_type;		  /* type of filesystem (see below) */
+int	f_flags;	  /* copy of mount flags */
+long	f_spare[6];	  /* spare for later */
 char	f_mntonname[MNAMELEN];	  /* mount point */
 char	f_mntfromname[MNAMELEN];  /* mounted filesystem */
 };
@@ -91,6 +93,8 @@ char	f_mntfromname[MNAMELEN];  /* mounted filesystem */
 #define MOUNT_AFS	13	/* Andrew Filesystem */
 #define MOUNT_CD9660	14	/* ISO9660 (aka CDROM) Filesystem */
 #define MOUNT_UNION	15	/* Union (translucent) Filesystem */
+#define MOUNT_DEVFS	16	/* existing device Filesystem */
+#define MOUNT_EXT2FS	17	/* Linux EXT2FS */
 .Ed
 .Pp
 Fields that are undefined for a particular file system are set to -1.
