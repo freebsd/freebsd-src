@@ -3951,11 +3951,15 @@ int r;
           r = Z_MEM_ERROR;
           LEAVE
         }
+	/*
+	 * this ZFREE must occur *BEFORE* we mess with sub.decode, because
+	 * sub.trees is union'd with sub.decode.
+	 */
+        ZFREE(z, s->sub.trees.blens);
         s->sub.decode.codes = c;
         s->sub.decode.tl = tl;
         s->sub.decode.td = td;
       }
-      ZFREE(z, s->sub.trees.blens);
       s->mode = CODES;
     case CODES:
       UPDATE
