@@ -76,7 +76,7 @@ main(argc, argv)
 {
 	int ch, move;
 
-	while ((ch = getopt(argc, argv, "p")) != EOF)
+	while ((ch = getopt(argc, argv, "p")) != -1)
 		switch(ch) {
 		case 'p':
 			promode = 1;
