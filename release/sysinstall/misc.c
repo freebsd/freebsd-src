@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id$
+ * $Id: misc.c,v 1.12.2.21 1997/02/07 04:26:38 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -320,8 +320,8 @@ Mount(char *mountp, void *dev)
 	return DITEM_SUCCESS;
 
     if (*((char *)dev) != '/') {
-    	sprintf(device, "/mnt/dev/%s", (char *)dev);
-	sprintf(mountpoint, "/mnt%s", mountp);
+    	sprintf(device, "%s/dev/%s", (char *)dev, RunningAsInit ? "/mnt" : "");
+	sprintf(mountpoint, "%s%s", RunningAsInit ? "/mnt" : "", mountp);
     }
     else {
 	strcpy(device, dev);

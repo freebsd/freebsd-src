@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.70 1997/02/07 04:26:31 jkh Exp $
+ * $Id: menus.c,v 1.42.2.71 1997/02/13 00:32:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -1060,6 +1060,10 @@ DMenu MenuConfigure = {
 	NULL, docBrowser },
       { "B XFree86",	"Configure XFree86",
 	NULL, configXFree86 },
+      { "L Label",	"The disk Label editor",
+	NULL, diskLabelEditor },
+      { "Partition",	"The disk Partition Editor",
+	NULL, diskPartitionEditor },
       { "Exit",		"Exit this menu (returning to previous)",
 	NULL,	dmenuExit },
       { NULL } },
