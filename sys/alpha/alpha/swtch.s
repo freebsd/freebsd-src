@@ -1,4 +1,4 @@
-/* $Id: swtch.s,v 1.8 1999/02/28 10:53:28 bde Exp $ */
+/* $Id: swtch.s,v 1.9 1999/04/16 13:57:38 gallatin Exp $ */
 /* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
 
 /*
@@ -82,7 +82,6 @@ Lsavectx1: LDGP(pv)
 
 /**************************************************************************/
 
-IMPORT(whichqs, 4)
 IMPORT(want_resched, 4)
 IMPORT(Lev1map, 8)
 
@@ -100,8 +99,8 @@ Lidle1:	LDGP(pv)
 	mov	zero, a0			/* enable all interrupts */
 	call_pal PAL_OSF1_swpipl
 Lidle2:
-	ldl	t0, whichqs			/* look for non-empty queue */
-	beq	t0, Lidle2
+	CALL(procrunnable)
+	beq	v0, Lidle2
 	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
 	call_pal PAL_OSF1_swpipl
 	jmp	zero, sw1			/* jump back into the fray */
@@ -130,51 +129,17 @@ LEAF(cpu_switch, 1)
 	mov	a0, s0				/* save old curproc */
 	mov	a1, s1				/* save old U-area */
 
-	ldl	t0, whichqs			/* look for non-empty queue */
-	beq	t0, idle			/* and if none, go idle */
+	CALL(procrunnable)			/* anything to run? */
+	beq	v0, idle			/* and if none, go idle */
 
 	ldiq	a0, ALPHA_PSL_IPL_HIGH		/* disable all interrupts */
 	call_pal PAL_OSF1_swpipl
 sw1:
 	br	pv, Lcs1
 Lcs1:	LDGP(pv)
-	ldl	t0, whichqs			/* look for non-empty queue */
-	beq	t0, idle			/* and if none, go idle */
-	mov	t0, t3				/* t3 = saved whichqs */
-	mov	zero, t2			/* t2 = lowest bit set */
-	blbs	t0, Lcs3			/* if low bit set, done! */
-
-Lcs2:	srl	t0, 1, t0			/* try next bit */
-	addq	t2, 1, t2
-	blbc	t0, Lcs2			/* if clear, try again */
-
-Lcs3:
-	/*
-	 * Remove process from queue
-	 */
-	lda	t1, qs				/* get queues */
-	sll	t2, 4, t0			/* queue head is 16 bytes */
-	addq	t1, t0, t0			/* t0 = qp = &qs[firstbit] */
-
-	ldq	t4, PH_LINK(t0)			/* t4 = p = highest pri proc */
-	ldq	t5, P_FORW(t4)			/* t5 = p->p_forw */
-	bne	t4, Lcs4			/* make sure p != NULL */
-	PANIC("cpu_switch",Lcpu_switch_pmsg)	/* nothing in queue! */
-
-Lcs4:
-	stq	t5, PH_LINK(t0)			/* qp->ph_link = p->p_forw */
-	stq	t0, P_BACK(t5)			/* p->p_forw->p_back = qp */
-	stq	zero, P_BACK(t4)		/* firewall: p->p_back = NULL */
-	cmpeq	t0, t5, t0			/* see if queue is empty */
-	beq	t0, Lcs5			/* nope, it's not! */
-
-	ldiq	t0, 1				/* compute bit in whichqs */
-	sll	t0, t2, t0
-	xor	t3, t0, t3			/* clear bit in whichqs */
-	stl	t3, whichqs
-
-Lcs5:
-	mov	t4, s2				/* save new proc */
+	CALL(chooseproc)
+	beq	v0, idle
+	mov	v0, s2
 	ldq	s3, P_MD_PCBPADDR(s2)		/* save new pcbpaddr */
 
 	/*
@@ -187,7 +152,7 @@ Lcs5:
 	 * saved it.  Also note that switch_exit() ensures that
 	 * s0 is clear before jumping here to find a new process.
 	 */
-	cmpeq	s0, t4, t0			/* oldproc == newproc? */
+	cmpeq	s0, s2, t0			/* oldproc == newproc? */
 	bne	t0, Lcs7			/* Yes!  Skip! */
 
 	/*
