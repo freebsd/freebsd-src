@@ -80,9 +80,11 @@ static const char rcsid[] =
 
 #include <sys/types.h>
 
-#include <stdio.h>
-#include <string.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 u_short holes[256] = {
     0x0,	 0x0,	  0x0,	   0x0,	    0x0,     0x0,     0x0,     0x0,
@@ -119,15 +121,15 @@ u_short holes[256] = {
     0x202,	 0x201,	  0x082,   0x806,   0x822,   0x600,   0x282,   0x0
 };
 
+void printcard(char *);
+
 /*
  * i'th bit of w.
  */
 #define	bit(w,i)	((w)&(1<<(i)))
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char cardline[80];
 
@@ -150,16 +152,15 @@ main(argc, argv)
 
 #define	COLUMNS	48
 
-printcard(str)
-	char *str;
+void
+printcard(char *str)
 {
 	static char rowchars[] = "   123456789";
 	int i, row;
 	char *p;
-	char *index();
 
 	/* ruthlessly remove newlines and truncate at 48 characters. */
-	if ((p = index(str, '\n')))
+	if ((p = strchr(str, '\n')))
 		*p = '\0';
 
 	if (strlen(str) > COLUMNS)
@@ -183,7 +184,7 @@ printcard(str)
 	p = str;
 	putchar('/');
 	for (i = 1; *p; i++, p++)
-		if (holes[*p])
+		if (holes[(unsigned char)*p])
 			putchar(*p);
 		else
 			putchar(' ');
@@ -201,7 +202,7 @@ printcard(str)
 	for (row = 0; row <= 11; ++row) {
 		putchar('|');
 		for (i = 0, p = str; *p; i++, p++) {
-			if (bit(holes[*p], 11 - row))
+			if (bit(holes[(unsigned char)*p], 11 - row))
 				putchar(']');
 			else
 				putchar(rowchars[row]);
