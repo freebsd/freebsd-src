@@ -612,7 +612,9 @@ vnclear(struct vn_softc *vn)
 	vn->sc_vp = (struct vnode *)0;
 	vn->sc_cred = (struct ucred *)0;
 	vn->sc_size = 0;
+#ifdef TEST_LABELLING
 	vn->sc_slices = NULL;	/* XXX temportary; leaks memory, maybe worse */
+#endif
 }
 
 size_t
