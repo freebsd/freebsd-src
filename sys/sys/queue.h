@@ -31,15 +31,36 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.7 1996/02/24 10:58:08 hsu Exp $
+ * $Id: queue.h,v 1.7 1996/03/11 02:14:38 hsu Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
 #define	_SYS_QUEUE_H_
 
 /*
- * This file defines three types of data structures: lists, tail queues,
- * and circular queues.
+ * This file defines five types of data structures: singly-linked lists,
+ * slingly-linked tail queues, lists, tail queues, and circular queues.
+ *
+ * A singly-linked list is headed by a single forward pointer. The elements
+ * are singly linked for minimum space and pointer manipulation overhead at
+ * the expense of O(n) removal for arbitrary elements. New elements can be
+ * added to the list after an existing element or at the head of the list.
+ * Elements being removed from the head of the list should use the explicit
+ * macro for this purpose for optimum efficiency. A singly-linked list may
+ * only be traversed in the forward direction.  Singly-linked lists are ideal
+ * for applications with large datasets and few or no removals or for
+ * implementing a LIFO queue.
+ *
+ * A singly-linked tail queue is headed by a pair of pointers, one to the
+ * head of the list and the other to the tail of the list. The elements are
+ * singly linked for minimum space and pointer manipulation overhead at the
+ * expense of O(n) removal for arbitrary elements. New elements can be added
+ * to the list after an existing element, at the head of the list, or at the
+ * end of the list. Elements being removed from the head of the tail queue
+ * should use the explicit macro for this purpose for optimum efficiency.
+ * A singly-linked tail queue may only be traversed in the forward direction.
+ * Singly-linked tail queues are ideal for applications with large datasets
+ * and few or no removals or for implementing a FIFO queue.
  *
  * A list is headed by a single forward pointer (or an array of forward
  * pointers for a hash table header). The elements are doubly linked
@@ -65,6 +86,113 @@
  *
  * For details on the use of these macros, see the queue(3) manual page.
  */
+
+/*
+ * Singly-linked List definitions.
+ */
+#define SLIST_HEAD(name, type)						\
+struct name {								\
+	struct type *slh_first;	/* first element */			\
+}
+ 
+#define SLIST_ENTRY(type)						\
+struct {								\
+	struct type *sle_next;	/* next element */			\
+}
+ 
+/*
+ * Singly-linked List functions.
+ */
+#define SLIST_INIT(head) {						\
+	(head)->slh_first = NULL;					\
+}
+
+#define SLIST_INSERT_AFTER(slistelm, elm, field) {			\
+	(elm)->field.sle_next = (slistelm)->field.sle_next;		\
+	(slistelm)->field.sle_next = (elm);				\
+}
+
+#define SLIST_INSERT_HEAD(head, elm, field) {				\
+	(elm)->field.sle_next = (head)->slh_first;			\
+	(head)->slh_first = (elm);					\
+}
+
+#define SLIST_REMOVE_HEAD(head, field) {				\
+	(head)->slh_first = (head)->slh_first->field.sle_next;		\
+}
+
+#define SLIST_REMOVE(head, elm, type, field) {				\
+	if ((head)->slh_first == (elm)) {				\
+		SLIST_REMOVE_HEAD((head), field);			\
+	}								\
+	else {								\
+		struct type *curelm = (head)->slh_first;		\
+		while( curelm->field.sle_next != (elm) )		\
+			curelm = curelm->field.sle_next;		\
+		curelm->field.sle_next =				\
+		    curelm->field.sle_next->field.sle_next;		\
+	}								\
+}
+
+/*
+ * Singly-linked Tail queue definitions.
+ */
+#define STAILQ_HEAD(name, type)						\
+struct name {								\
+	struct type *stqh_first;/* first element */			\
+	struct type **stqh_last;/* addr of last next element */		\
+}
+
+#define STAILQ_ENTRY(type)						\
+struct {								\
+	struct type *stqe_next;	/* next element */			\
+}
+
+/*
+ * Singly-linked Tail queue functions.
+ */
+#define	STAILQ_INIT(head) {						\
+	(head)->stqh_first = NULL;					\
+	(head)->stqh_last = &(head)->stqh_first;			\
+}
+
+#define STAILQ_INSERT_HEAD(head, elm, field) {				\
+	if (((elm)->field.stqe_next = (head)->stqh_first) == NULL)	\
+		(head)->stqh_last = &(elm)->field.stqe_next;		\
+	(head)->stqh_first = (elm);					\
+}
+
+#define STAILQ_INSERT_TAIL(head, elm, field) {				\
+	(elm)->field.stqe_next = NULL;					\
+	*(head)->stqh_last = (elm);					\
+	(head)->stqh_last = &(elm)->field.stqe_next;			\
+}
+
+#define STAILQ_INSERT_AFTER(head, tqelm, elm, field) {			\
+	if (((elm)->field.stqe_next = (tqelm)->field.stqe_next) == NULL)\
+		(head)->stqh_last = &(elm)->field.stqe_next;		\
+	(tqelm)->field.stqe_next = (elm);				\
+}
+
+#define STAILQ_REMOVE_HEAD(head, field) {				\
+	if (((head)->stqh_first =					\
+	     (head)->stqh_first->field.stqe_next) == NULL)		\
+		(head)->stqh_last = &(head)->stqh_first;		\
+}
+
+#define STAILQ_REMOVE(head, elm, type, field) {				\
+	if ((head)->stqh_first == (elm)) {				\
+		STAILQ_REMOVE_HEAD(head, field);			\
+	}								\
+	else {								\
+		struct type *curelm = (head)->stqh_first;		\
+		while( curelm->field.stqe_next != (elm) )		\
+			curelm = curelm->field.stqe_next;		\
+		if((curelm->field.stqe_next =				\
+		    curelm->field.stqe_next->field.stqe_next) == NULL)	\
+			(head)->stqh_last = &(curelm)->field.stqe_next;	\
+	}								\
+}
 
 /*
  * List definitions.
