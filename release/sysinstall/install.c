@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.12 1995/09/30 19:13:28 jkh Exp $
+ * $Id: install.c,v 1.71.2.13 1995/10/03 23:36:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -592,3 +592,17 @@ create_termcap(void)
 	fclose(fp);
     }
 }
+
+/* Specify which release to load from FTP or CD */
+int
+installSelectRelease(char *str)
+{
+    char *cp;
+
+    dialog_clear();
+    if ((cp = msgGetInput(getenv(RELNAME), "Please specify the release you wish to load")) != NULL)
+	variable_set2(RELNAME, cp);
+    dialog_clear();
+    return 0;
+}
+

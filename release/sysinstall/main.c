@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.1 1995/09/18 17:00:21 peter Exp $
+ * $Id: main.c,v 1.13.2.2 1995/10/03 23:36:47 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,6 +66,7 @@ main(int argc, char **argv)
 
     /* Set default startup options */
     OptFlags = OPT_DEFAULT_FLAGS;
+    variable_set2(RELNAME, RELEASE_NAME);
 
     /* Begin user dialog at outer menu */
     while (1) {

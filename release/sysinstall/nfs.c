@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: nfs.c,v 1.5 1995/06/11 19:30:08 rgrimes Exp $
+ * $Id: nfs.c,v 1.5.2.1 1995/10/03 23:36:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -64,7 +64,8 @@ mediaInitNFS(Device *dev)
     if (Mkdir("/nfs", NULL))
 	return FALSE;
 
-    if (vsystem("mount_nfs %s %s %s /nfs", (OptFlags & OPT_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
+    if (vsystem("mount_nfs %s %s %s /nfs",
+		optionIsSet(OPT_SLOW_ETHER) ? "-r 1024 -w 1024" : "",
 		optionIsSet(OPT_NFS_SECURE) ? "-P" : "", dev->name)) {
 	msgConfirm("Error mounting %s on /nfs: %s (%u)\n", dev->name, strerror(errno), errno);
 	return FALSE;
@@ -76,19 +77,25 @@ mediaInitNFS(Device *dev)
 int
 mediaGetNFS(Device *dev, char *file, Attribs *dist_attrs)
 {
-    char		buf[PATH_MAX];
+    char	buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/nfs/%s", file);
     if (!access(buf, R_OK))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/nfs/dists/%s", file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/nfs/%s/%s", getenv(RELNAME), file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/nfs/%s/dists/%s", getenv(RELNAME), file);
     return open(buf, O_RDONLY);
 }
 
 void
 mediaShutdownNFS(Device *dev)
 {
-    Device *netdev = (Device *)dev->private;
+    /* Device *netdev = (Device *)dev->private; */
 
     if (!NFSMounted)
 	return;
@@ -97,7 +104,7 @@ mediaShutdownNFS(Device *dev)
 	msgConfirm("Could not unmount the NFS partition: %s\n", strerror(errno));
     if (isDebug())
 	msgDebug("Unmount returned\n");
-    (*netdev->shutdown)(netdev);
+    /* (*netdev->shutdown)(netdev); */
     NFSMounted = FALSE;
     return;
 }

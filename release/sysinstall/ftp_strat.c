@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.1 1995/09/25 00:52:05 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.2 1995/10/03 23:36:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -168,6 +168,14 @@ retry:
 	if ((i = FtpChdir(ftp, dir)) == -2)
 	    goto retry;
     }
+
+    if (!FtpChdir(ftp, getenv(RELNAME))) {
+	msgConfirm("Unable to CD to release %s directory.\n"
+		   "Perhaps a different FTP site for this release?",
+		   getenv(RELNAME));
+	goto punt;
+    }
+
     if (!FtpChdir(ftp, "dists")) {
 	HasDistsDir = TRUE;
 	FtpChdir(ftp, ".."); /* Hope this works! :-( */
@@ -182,7 +190,7 @@ retry:
 punt:
     FtpClose(ftp);
     ftp = NULL;
-    (*netDevice->shutdown)(netDevice);
+    /* We used to shut down network here - not anymore */
     return FALSE;
 }
 
@@ -234,7 +242,7 @@ mediaCloseFTP(Device *dev, int fd)
 void
 mediaShutdownFTP(Device *dev)
 {
-    Device *netdev = (Device *)dev->private;
+    /* Device *netdev = (Device *)dev->private; */
 
     if (!ftpInitted)
 	return;
@@ -243,6 +251,6 @@ mediaShutdownFTP(Device *dev)
 	FtpClose(ftp);
 	ftp = NULL;
     }
-    (*netdev->shutdown)(netdev);
+    /* (*netdev->shutdown)(netdev); */
     ftpInitted = FALSE;
 }

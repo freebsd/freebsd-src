@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.7.2.1 1995/07/21 10:53:42 rgrimes Exp $
+ * $Id: cdrom.c,v 1.7.2.2 1995/07/21 11:45:32 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,6 +65,7 @@ mediaInitCDROM(Device *dev)
 {
     struct iso_args	args;
     struct stat		sb;
+    char specialrel[80];
 
     if (!RunningAsInit || cdromMounted)
 	return TRUE;
@@ -82,17 +83,18 @@ mediaInitCDROM(Device *dev)
     }
 
     /*
-     * Do a very simple check to see if this looks roughly like a 2.0.5 CDROM
+     * Do a very simple check to see if this looks roughly like a FreeBSD CDROM
      * Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
      * sure way of telling the disc version :-(
      */
-    if (stat("/cdrom/dists", &sb)) {
+    snprintf(specialrel, 80, "/cdrom/%s/dists", getenv(RELNAME));
+    if (stat("/cdrom/dists", &sb) && stat(specialrel, &sb)) {
 	if (errno == ENOENT) {
 	    msgConfirm("Couldn't locate the directory `dists' on the CD.\nIs this a FreeBSD CDROM?\n");
 	    return FALSE;
 	}
 	else {
-	    msgConfirm("Couldn't stat directory %s: %s", "/cdrom/dists", strerror(errno));
+	    msgConfirm("Couldn't stat CDROM's dists directory: %s", strerror(errno));
 	    return FALSE;
 	}
     }
@@ -103,12 +105,18 @@ mediaInitCDROM(Device *dev)
 int
 mediaGetCDROM(Device *dev, char *file, Attribs *dist_attrs)
 {
-    char		buf[PATH_MAX];
+    char	buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/cdrom/%s", file);
-    if (!access(buf,R_OK))
+    if (!access(buf, R_OK))
 	return open(buf, O_RDONLY);
     snprintf(buf, PATH_MAX, "/cdrom/dists/%s", file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/cdrom/%s/%s", getenv(RELNAME), file);
+    if (!access(buf, R_OK))
+	return open(buf, O_RDONLY);
+    snprintf(buf, PATH_MAX, "/cdrom/%s/dists/%s", getenv(RELNAME), file);
     return open(buf, O_RDONLY);
 }
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.4 1995/09/23 22:29:28 jkh Exp $
+ * $Id: config.c,v 1.16.2.5 1995/10/03 23:36:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -273,7 +273,7 @@ configSysconfig(void)
 	    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
 	    cnt = deviceCount(devp);
 	    for (j = 0; j < cnt; j++) {
-		if (devp[j]->private && strncmp(devp[j]->name, "cuaa", 4)) {
+		if (devp[j]->private) {
 		    char iname[64];
 
 		    snprintf(iname, 64, "%s%s", VAR_IFCONFIG, devp[j]->name);
@@ -358,7 +358,9 @@ configRoutedFlags(char *str)
 {
     char *val;
 
-    val = msgGetInput("-q", "Specify the flags for routed; -q is the default, -s is\na good choice for gateway machines.");
+    val = msgGetInput("-q",
+		      "Specify the flags for routed; -q is the default, -s is\n"
+		      "a good choice for gateway machines.");
     if (val)
 	variable_set2("routedflags", val);
     return 0;
@@ -377,7 +379,7 @@ configPackages(char *str)
 		onCD = TRUE;
 	}
     }
-    /* XXX Construct some sort of menu here using an INDEX file from /cdrom/packages XXX */
+    
     return 0;
 }
 
