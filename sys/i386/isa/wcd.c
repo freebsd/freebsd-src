@@ -286,6 +286,7 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 	}
 	wcdtab[wcdnlun] = t;
 	bzero (t, sizeof (struct wcd));
+	bufq_init(&t->buf_queue);
 	t->ata = ata;
 	t->unit = unit;
 	lun = t->lun = wcdnlun++;
