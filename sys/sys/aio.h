@@ -68,9 +68,6 @@ struct __aiocb_private {
 	long	status;
 	long	error;
 	long	privatemodes;
-	int	active;
-	int	tid;
-	int	threadinfo;
 	void	*userinfo;
 	void	*kernelinfo;
 };
