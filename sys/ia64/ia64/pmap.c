@@ -2142,10 +2142,10 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
  *	time.
  */
 void
-pmap_copy_page(vm_page_t src, vm_page_t dst)
+pmap_copy_page(vm_page_t msrc, vm_page_t mdst)
 {
-	src = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(src));
-	dst = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(dst));
+	vm_offset_t src = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(msrc));
+	vm_offset_t dst = IA64_PHYS_TO_RR7(VM_PAGE_TO_PHYS(mdst));
 	bcopy((caddr_t) src, (caddr_t) dst, PAGE_SIZE);
 }
 
