@@ -45,7 +45,7 @@ init_variables()
 	eval jail_procfs=\"\$jail_${_j}_procfs_enable\"
 	[ -z "${jail_procfs}" ] && jail_procfs="NO"
 
-	# Debuggin aid
+	# Debugging aid
 	#
 	debug "$_j devfs enable: $jail_devfs"
 	debug "$_j fdescfs enable: $jail_fdescfs"
@@ -82,6 +82,30 @@ set_sysctl()
 		if [ "$_current" -ne 0 ]; then
 			echo -n " ${_msg}=NO"
 			${SYSCTL_W} 1>/dev/null ${_mib}=0
+		fi
+	fi
+}
+
+# jail_umount_fs
+#	This function unmounts certain special filesystems in the
+#	currently selected jail. The caller must call the init_variables()
+#	routine before calling this one.
+#
+jail_umount_fs()
+{
+	if checkyesno jail_fdescfs; then
+		if [ -d ${jail_fdescdir} ] ; then
+			umount -f ${jail_fdescdir} >/dev/null 2>&1
+		fi
+	fi
+	if checkyesno jail_devfs; then
+		if [ -d ${jail_devdir} ] ; then
+			umount -f ${jail_devdir} >/dev/null 2>&1
+		fi
+	fi
+	if checkyesno jail_procfs; then
+		if [ -d ${jail_procdir} ] ; then
+			umount -f ${jail_procdir} >/dev/null 2>&1
 		fi
 	fi
 }
@@ -145,45 +169,25 @@ jail_start()
 
 jail_stop()
 {
-	echo 'Stopping jails.'
+	echo -n 'Stopping jails:'
 	for _jail in ${jail_list}
 	do
 		if [ -f /var/run/jail_${_jail}.id ]; then
 			_jail_id=$(cat /var/run/jail_${_jail}.id)
 			if [ ! -z ${_jail_id} ]; then
+				init_variables $_jail
 				killall -j ${_jail_id} -TERM > /dev/null 2>&1
+				jail_umount_fs
+				echo -n " $jail_hostname"
 			fi
 			rm /var/run/jail_${_jail}.id
 		else
-			echo "cannot stop jail ${_jail}. no jail id saved in /var/run"
-			jail_list=$(echo ${jail_list} | \
-				tr ' ' '\n' | \
-				grep -v "^${_jail}$" | \
-				tr '\n' ' ')
+			echo "cannot stop jail ${_jail}. No jail id in /var/run"
 		fi
 	done
-	for _jail in ${jail_list}
-	do
-		init_variables $_jail
-		if checkyesno jail_fdescfs; then
-			if [ -d ${jail_fdescdir} ] ; then
-				umount -f ${jail_fdescdir} >/dev/null 2>&1
-			fi
-		fi
-		if checkyesno jail_devfs; then
-			if [ -d ${jail_devdir} ] ; then
-				umount -f ${jail_devdir} >/dev/null 2>&1
-			fi
-		fi
-		if checkyesno jail_procfs; then
-			if [ -d ${jail_procdir} ] ; then
-				umount -f ${jail_procdir} >/dev/null 2>&1
-			fi
-		fi
-	done
+	echo '.'
 }
 
-
-[ -n "$2" ] && jail_list="$2"
 load_rc_config $name
+[ -n "$2" ] && jail_list="$2"
 run_rc_command "$1"
