@@ -43,7 +43,7 @@
 #define	_SYS_PROC_H_
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
-#include <sys/callout.h>		/* For struct callout_handle. */
+#include <sys/callout.h>		/* For struct callout. */
 #include <sys/filedesc.h>
 #include <sys/lock.h>			/* For lockmgr. */
 #include <sys/queue.h>
@@ -157,10 +157,6 @@ struct	proc {
 	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* Pointer to list of children. */
 
-	struct callout_handle p_ithandle; /*
-					      * Callout handle for scheduling
-					      * p_realtimer.
-					      */
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
 
@@ -173,11 +169,13 @@ struct	proc {
 	u_int	p_estcpu;	 /* Time averaged value of p_cpticks. */
 	int	p_cpticks;	 /* Ticks of cpu time. */
 	fixpt_t	p_pctcpu;	 /* %cpu for this process during p_swtime */
+	struct	callout p_slpcallout;	/* Callout for sleep. */
 	void	*p_wchan;	 /* Sleep address. */
 	const char *p_wmesg;	 /* Reason for sleep. */
 	u_int	p_swtime;	 /* Time swapped in or out. */
 	u_int	p_slptime;	 /* Time since last blocked. */
 
+	struct	callout p_itcallout;	/* Interval timer callout. */
 	struct	itimerval p_realtimer;	/* Alarm timer. */
 	u_int64_t p_runtime;		/* Real time in microsec. */
 	u_int64_t p_uu;			/* Previous user time in microsec. */

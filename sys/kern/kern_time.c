@@ -513,10 +513,10 @@ setitimer(p, uap)
 	s = splclock(); /* XXX: still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		if (timevalisset(&p->p_realtimer.it_value))
-			untimeout(realitexpire, (caddr_t)p, p->p_ithandle);
+			callout_stop(&p->p_itcallout);
 		if (timevalisset(&aitv.it_value)) 
-			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
-						tvtohz(&aitv.it_value));
+			callout_reset(&p->p_itcallout, tvtohz(&aitv.it_value),
+			    realitexpire, p);
 		getmicrouptime(&ctv);
 		timevaladd(&aitv.it_value, &ctv);
 		p->p_realtimer = aitv;
@@ -560,8 +560,8 @@ realitexpire(arg)
 		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >)) {
 			ntv = p->p_realtimer.it_value;
 			timevalsub(&ntv, &ctv);
-			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
-			    tvtohz(&ntv) - 1);
+			callout_reset(&p->p_itcallout, tvtohz(&ntv) - 1,
+			    realitexpire, p);
 			splx(s);
 			return;
 		}
