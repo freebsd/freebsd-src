@@ -313,8 +313,8 @@ ata_dmainit(struct ata_softc *scp, int device,
 	}
 
 	/* make sure eventual UDMA mode from the BIOS is disabled */
-	pci_write_config(parent, 0x54, 
-			 pci_read_config(parent, 0x54, 4) & ~0x88880000, 4);
+	pci_write_config(parent, 0x56, pci_read_config(parent, 0x56, 2) & 
+				       ~(0x0008 << (devno << 2)), 2);
 
 	if (wdmamode >= 2 && apiomode >= 4) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
