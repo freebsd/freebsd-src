@@ -3,7 +3,7 @@
 PROG=	calendar
 SRCS=   calendar.c io.c day.c ostern.c paskha.c
 CFLAGS+= -Wall
-INTER=		de_DE.ISO_8859-1 hr_HR.ISO_8859-2
+INTER=          de_DE.ISO_8859-1 hr_HR.ISO_8859-2 ru_SU.KOI8-R
 TEXTMODE?=	444
 
 beforeinstall:
