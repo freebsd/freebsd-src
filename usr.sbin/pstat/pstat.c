@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.40 1999/01/22 10:57:22 dillon Exp $";
+	"$Id: pstat.c,v 1.41 1999/05/11 14:32:18 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -100,31 +100,7 @@ struct nlist nl[] = {
 #define	SNPTY		NLMANDATORYEND + 3
 	{ "_npty" },
 
-#ifdef hp300
-#define	SDCA	(SNPTY+1)
-	{ "_dca_tty" },
-#define	SNDCA	(SNPTY+2)
-	{ "_ndca" },
-#define	SDCM	(SNPTY+3)
-	{ "_dcm_tty" },
-#define	SNDCM	(SNPTY+4)
-	{ "_ndcm" },
-#define	SDCL	(SNPTY+5)
-	{ "_dcl_tty" },
-#define	SNDCL	(SNPTY+6)
-	{ "_ndcl" },
-#define	SITE	(SNPTY+7)
-	{ "_ite_tty" },
-#define	SNITE	(SNPTY+8)
-	{ "_nite" },
-#endif
 
-#ifdef mips
-#define SDC	(SNPTY+1)
-	{ "_dc_tty" },
-#define SNDC	(SNPTY+2)
-	{ "_dc_cnt" },
-#endif
 
 #ifdef __FreeBSD__
 #define SCCONS	(SNPTY+1)
@@ -734,51 +710,25 @@ void
 ttymode()
 {
 	struct tty *tty;
+	struct tty ttyb[1000];
+	int error, len, i;
 
+	(void)printf(hdr);
+	len = sizeof(ttyb);
+	error = sysctlbyname("kern.ttys", &ttyb, &len, 0, 0);
+	if (!error) {
+		len /= sizeof(ttyb[0]);
+		for (i = 0; i < len; i++) {
+			ttyprt(&ttyb[i], 0);
+		}
+	}
 	if ((tty = malloc(ttyspace * sizeof(*tty))) == NULL)
 		errx(1, "malloc");
-#if !defined(hp300) && !defined(mips)
 	if (nl[SCONS].n_type != 0) {
 		(void)printf("1 console\n");
 		KGET(SCONS, *tty);
-		(void)printf(hdr);
 		ttyprt(&tty[0], 0);
 	}
-#endif
-#ifdef vax
-	if (nl[SNQD].n_type != 0)
-		qdss();
-	if (nl[SNDZ].n_type != 0)
-		ttytype(tty, "dz", SDZ, SNDZ, 0);
-	if (nl[SNDH].n_type != 0)
-		ttytype(tty, "dh", SDH, SNDH, 0);
-	if (nl[SNDMF].n_type != 0)
-		ttytype(tty, "dmf", SDMF, SNDMF, 0);
-	if (nl[SNDHU].n_type != 0)
-		ttytype(tty, "dhu", SDHU, SNDHU, 0);
-	if (nl[SNDMZ].n_type != 0)
-		ttytype(tty, "dmz", SDMZ, SNDMZ, 0);
-#endif
-#ifdef tahoe
-	if (nl[SNVX].n_type != 0)
-		ttytype(tty, "vx", SVX, SNVX, 0);
-	if (nl[SNMP].n_type != 0)
-		ttytype(tty, "mp", SMP, SNMP, 0);
-#endif
-#ifdef hp300
-	if (nl[SNITE].n_type != 0)
-		ttytype(tty, "ite", SITE, SNITE, 0);
-	if (nl[SNDCA].n_type != 0)
-		ttytype(tty, "dca", SDCA, SNDCA, 0);
-	if (nl[SNDCM].n_type != 0)
-		ttytype(tty, "dcm", SDCM, SNDCM, 0);
-	if (nl[SNDCL].n_type != 0)
-		ttytype(tty, "dcl", SDCL, SNDCL, 0);
-#endif
-#ifdef mips
-	if (nl[SNDC].n_type != 0)
-		ttytype(tty, "dc", SDC, SNDC, 0);
-#endif
 #ifdef __FreeBSD__
 	if (nl[NSCCONS].n_type != 0)
 		ttytype(tty, "vty", SCCONS, NSCCONS, 0);
