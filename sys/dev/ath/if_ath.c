@@ -2948,7 +2948,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	u_int8_t cix = 0xff;		/* NB: silence compiler */
 	struct ath_desc *ds, *ds0;
 	struct ath_txq *txq;
-	struct mbuf *m;
 	struct ieee80211_frame *wh;
 	u_int subtype, flags, ctsduration;
 	HAL_PKT_TYPE atype;
@@ -3029,24 +3028,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 */
 	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
 		sc->sc_stats.ast_tx_linear++;
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
-		if (m == NULL) {
+		m0 = m_defrag(m0, M_DONTWAIT);
+		if (m0 == NULL) {
 			sc->sc_stats.ast_tx_nombuf++;
 			m_freem(m0);
 			return ENOMEM;
 		}
-		M_MOVE_PKTHDR(m, m0);
-		MCLGET(m, M_DONTWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
-			sc->sc_stats.ast_tx_nomcl++;
-			m_freem(m0);
-			m_free(m);
-			return ENOMEM;
-		}
-		m_copydata(m0, 0, m0->m_pkthdr.len, mtod(m, caddr_t));
-		m_freem(m0);
-		m->m_len = m->m_pkthdr.len;
-		m0 = m;
 		error = bus_dmamap_load_mbuf(sc->sc_dmat, bf->bf_dmamap, m0,
 					     ath_mbuf_load_cb, bf,
 					     BUS_DMA_NOWAIT);
@@ -3055,8 +3042,8 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 			m_freem(m0);
 			return error;
 		}
-		KASSERT(bf->bf_nseg == 1,
-			("packet not one segment; nseg %u", bf->bf_nseg));
+		KASSERT(bf->bf_nseg <= ATH_TXDESC,
+		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
 	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
 		sc->sc_stats.ast_tx_nodata++;
 		m_freem(m0);
