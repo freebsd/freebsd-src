@@ -1013,7 +1013,8 @@ ipcp_ValidateReq(struct ipcp *ipcp, struct in_addr ip, struct fsm_decode *dec)
       }
       return;
     }
-  } else if (!ncprange_containsip4(&ipcp->cfg.peer_range, ip)) {
+  } else if (ip.s_addr == INADDR_ANY ||
+             !ncprange_containsip4(&ipcp->cfg.peer_range, ip)) {
     /*
      * If the destination address is not acceptable, NAK with what we
      * want to use.
