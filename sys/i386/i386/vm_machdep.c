@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.84 1997/07/20 08:37:24 bde Exp $
+ *	$Id: vm_machdep.c,v 1.85 1997/08/09 00:02:56 dyson Exp $
  */
 
 #include "npx.h"
@@ -927,6 +927,9 @@ vm_page_zero_idle()
 	 */
 	if (cnt.v_free_count - vm_page_zero_count <= cnt.v_free_reserved / 2)
 		return (0);
+#ifdef SMP
+	get_mplock();
+#endif
 	s = splvm();
 	enable_intr();
 	m = vm_page_list_find(PQ_FREE, free_rover);
@@ -934,7 +937,13 @@ vm_page_zero_idle()
 		--(*vm_page_queues[m->queue].lcnt);
 		TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
 		splx(s);
+#ifdef SMP
+		rel_mplock();
+#endif
 		pmap_zero_page(VM_PAGE_TO_PHYS(m));
+#ifdef SMP
+		get_mplock();
+#endif
 		(void)splvm();
 		m->queue = PQ_ZERO + m->pc;
 		++(*vm_page_queues[m->queue].lcnt);
@@ -944,5 +953,8 @@ vm_page_zero_idle()
 	}
 	splx(s);
 	disable_intr();
+#ifdef SMP
+	rel_mplock();
+#endif
 	return (1);
 }

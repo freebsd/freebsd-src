@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.5 1997/08/15 02:13:31 smp Exp smp $
+ * $Id: init_main.c,v 1.69 1997/08/15 02:33:30 fsmp Exp $
  */
 
 #include "opt_rlimit.h"
@@ -540,12 +540,6 @@ kthread_init(dummy)
 {
 	/* Create process 1 (init(8)). */
 	start_init(curproc);
-
-#ifdef SMP
-	/* wait for the SMP idle loops to come online */
-	while (smp_idle_loops < mp_ncpus)
-		tsleep((caddr_t *)&smp_idle_loops, PWAIT, "smpilw", 0);
-#endif /* SMP */
 
 	prepare_usermode();
 
