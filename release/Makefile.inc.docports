@@ -21,14 +21,16 @@ OSVERSION!=	/usr/sbin/sysctl -n kern.osreldate
 
 MINIMALDOCPORTS= \
 	ports/Mk \
+	ports/Templates \
 	ports/archivers/unzip \
 	ports/converters/libiconv \
 	ports/devel/bison \
 	ports/devel/gettext \
 	ports/devel/gmake \
-	ports/devel/libtool \
+	ports/devel/libtool13 \
 	ports/devel/pkgconfig \
-	ports/graphics/gd \
+	ports/graphics/gd2 \
+	ports/graphics/gd-nox11 \
 	ports/graphics/jbigkit \
 	ports/graphics/jpeg \
 	ports/graphics/netpbm \
@@ -60,6 +62,7 @@ MINIMALDOCPORTS= \
 	ports/textproc/sdocbook-xml \
 	ports/textproc/sgmlformat \
 	ports/textproc/xhtml \
+	ports/textproc/xmlcatmgr \
 	ports/www/links1 \
 	ports/www/tidy
 .if ${OSVERSION} < 460101 || ( ${OSVERSION} >= 500000 && ${OSVERSION} < 500036 )
