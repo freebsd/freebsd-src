@@ -33,6 +33,7 @@
 #ifdef _KERNEL
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipsec.h"
 #endif
 
 #include <sys/types.h>
