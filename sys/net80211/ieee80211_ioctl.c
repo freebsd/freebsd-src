@@ -1224,6 +1224,25 @@ ieee80211_ioctl_getwmeparam(struct ieee80211com *ic, struct ieee80211req *ireq)
 	return 0;
 }
 
+/*
+ * When building the kernel with -O2 on the i386 architecture, gcc
+ * seems to want to inline this function into ieee80211_ioctl()
+ * (which is the only routine that calls it). When this happens,
+ * ieee80211_ioctl() ends up consuming an additional 2K of stack
+ * space. (Exactly why it needs so much is unclear.) The problem
+ * is that it's possible for ieee80211_ioctl() to invoke other
+ * routines (including driver init functions) which could then find
+ * themselves perilously close to exhausting the stack.
+ *
+ * To avoid this, we deliberately prevent gcc from inlining this
+ * routine. Another way to avoid this is to use less agressive
+ * optimization when compiling this file (i.e. -O instead of -O2)
+ * but special-casing the compilation of this one module in the
+ * build system would be awkward.
+ */
+#ifdef __GNUC__
+__attribute__ ((noinline))
+#endif
 static int
 ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211req *ireq)
 {
