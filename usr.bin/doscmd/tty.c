@@ -29,7 +29,7 @@
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
  *
- * $Id: tty.c,v 1.2 1997/08/16 00:16:48 jlemon Exp $
+ * $Id: tty.c,v 1.3 1998/01/21 21:37:02 jlemon Exp $
  */
 
 #ifndef NO_X
@@ -573,7 +573,7 @@ struct {
     {	0x0c2d, 0x0c5f, 0x0c1f, 0x8200 }, /* key 12 - '-' */
     {	0x0d3d, 0x0d2b, 0xffff, 0x8300 }, /* key 13 - '=' */
     {	0x0e08, 0x0e08, 0x0e7f, 0xffff }, /* key 14 - backspace */
-    {	0x0f09, 0xffff, 0xffff, 0xffff }, /* key 15 - tab */
+    {	0x0f09, 0x0f00, 0xffff, 0xffff }, /* key 15 - tab */
     {	0x1071, 0x1051, 0x1011, 0x1000 }, /* key 16 - 'Q' */
     {	0x1177, 0x1157, 0x1117, 0x1100 }, /* key 17 - 'W' */
     {	0x1265, 0x1245, 0x1205, 0x1200 }, /* key 18 - 'E' */
@@ -1328,6 +1328,7 @@ video_event(XEvent *ev)
 			goto docode;
 
 		case XK_Tab:
+		case XK_ISO_Left_Tab:
 			scan = 15;
 			goto docode;
 			
