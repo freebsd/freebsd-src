@@ -997,15 +997,16 @@ chroot_refuse_vdir_fds(fdp)
 
 	FILEDESC_LOCK(fdp);
 	for (fd = 0; fd < fdp->fd_nfiles ; fd++) {
-		error = getvnode(fdp, fd, &fp);
-		if (error)
+		fp = fget_locked(fdp, fd);
+		if (fp == NULL)
 			continue;
-		vp = (struct vnode *)fp->f_data;
-		fdrop(fp, td);
-		if (vp->v_type != VDIR)
-			continue;
-		FILEDESC_UNLOCK(fdp);
-		return(EPERM);
+		if (fp->f_type == DTYPE_VNODE) {
+			vp = (struct vnode *)fp->f_data;
+			if (vp->v_type == VDIR) {
+				FILEDESC_UNLOCK(fdp);
+				return (EPERM);
+			}
+		}
 	}
 	FILEDESC_UNLOCK(fdp);
 	return (0);
