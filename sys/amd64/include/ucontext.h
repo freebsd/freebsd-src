@@ -38,7 +38,7 @@ typedef struct __mcontext {
 	 * and ucontext_t at the same time.
 	 */
 	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;			/* machine state (trapframe) */
+	int	mc_gs;			/* machine state (struct trapframe) */
 	int	mc_fs;
 	int	mc_es;
 	int	mc_ds;
@@ -68,15 +68,17 @@ typedef struct __mcontext {
 #define	_MC_FPOWNED_PCB		0x20002	/* FP state came from PCB */
 	int	mc_ownedfp;
 	int	mc_spare1[1];		/* align next field to 16 bytes */
-	int	mc_fpstate[128];	/* must be multiple of 16 bytes */
+	/*
+	 * See <machine/npx.h> for the internals of mc_fpstate[].
+	 */
+	int	mc_fpstate[128] __aligned(16);
 	int	mc_spare2[8];
 } mcontext_t;
 
 #if defined(_KERNEL) && defined(COMPAT_FREEBSD4)
-/* For 4.x binaries */
 struct mcontext4 {
 	int	mc_onstack;		/* XXX - sigcontext compat. */
-	int	mc_gs;
+	int	mc_gs;			/* machine state (struct trapframe) */
 	int	mc_fs;
 	int	mc_es;
 	int	mc_ds;
