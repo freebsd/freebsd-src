@@ -45,10 +45,4 @@ case ${ibcs2_enable} in
 	;;
 esac
 
-case ${xtend_enable} in
-[Yy][Ee][Ss])
- 	echo -n ' xtend';	/usr/libexec/xtend
-	;;
-esac
-
 echo '.'

@@ -41,7 +41,6 @@ toor:	root
 tty:	root
 usenet: news
 uucp:	root
-xten:	root
 
 # Well-known aliases -- these should be filled in!
 # manager:
