@@ -2,9 +2,11 @@
  *  Routines in this file based on the work of Volker Lendecke,
  *  Adapted for ncplib by Boris Popov
  *  Please note that ncpl_crypt.c file should be indentical to this one
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
