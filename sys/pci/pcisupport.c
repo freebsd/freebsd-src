@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.38 1996/09/06 23:09:01 phk Exp $
+**  $Id: pcisupport.c,v 1.39 1996/09/09 06:09:45 rgrimes Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -543,7 +543,6 @@ static const struct condmsg conf82371fb[] =
     { 0 }
 };
 
-#if 0				/* xxx not used */
 static const struct condmsg conf82371fb2[] =
 {
     /* IDETM -- IDE Timing Register */
@@ -556,7 +555,6 @@ static const struct condmsg conf82371fb2[] =
     /* end of list */
     { 0 }
 };
-#endif
 
 static char confread (pcici_t config_id, int port)
 {
@@ -657,11 +655,9 @@ chipset_attach (pcici_t config_id, int unit)
 	case 0x122e8086:
 		writeconfig (config_id, conf82371fb);
 		break;
-#if 0
 	case 0x12308086:
 		writeconfig (config_id, conf82371fb2);
 		break;
-#endif
 #if 0
 	case 0x00011011: /* DEC 21050 */
 	case 0x00221014: /* IBM xxx */
