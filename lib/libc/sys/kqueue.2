@@ -39,7 +39,7 @@
 .Ft int
 .Fn kqueue "void"
 .Ft int
-.Fn kevent "int kq" "int nchanges" "struct kevent **changelist" "int nevents" "struct kevent *eventlist" "struct timespec *timeout"
+.Fn kevent "int kq" "const struct kevent *changelist" "int nchanges" "struct kevent *eventlist" "int nevents" "const struct timespec *timeout"
 .Sh DESCRIPTION
 .Fn kqueue
 provides a generic method of notifying the user when an event
@@ -77,7 +77,7 @@ which will allow sharing of the kqueue between two processes.
 is used to register events with the queue, and return any pending
 events to the user.
 .Fa changelist
-is a pointer to an array of pointers to 
+is a pointer to an array of
 .Va kevent 
 structures, as defined in
 .Aq Pa event.h .

@@ -155,9 +155,9 @@ struct timespec;
 
 __BEGIN_DECLS
 int     kqueue __P((void));
-int     kevent __P((int kq, int nchanges, struct kevent **changelist,
-		    int nevents, struct kevent *eventlist,
-		    struct timespec *timeout));
+int     kevent __P((int kq, const struct kevent *changelist, int nchanges,
+		    struct kevent *eventlist, int nevents,
+		    const struct timespec *timeout));
 __END_DECLS
 
 #endif /* !_KERNEL */
