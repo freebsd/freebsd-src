@@ -84,6 +84,15 @@ extern int swap_pager_full;
 extern struct blist *swapblist;
 extern struct uma_zone *swap_zone;
 extern int nswap_lowat, nswap_hiwat;
+extern int dmmax, dmmax_mask;
+extern struct vnode *swapdev_vp;
+extern struct swdevt *swdevt;
+extern int nswdev;
+/*
+ * vm_swap_size is in page-sized chunks now.  It was DEV_BSIZE'd chunks
+ * in the old system.
+ */
+extern int vm_swap_size;	/* number of free swap blocks, in pages */
 
 void swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 boolean_t swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
