@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: histedit.c,v 1.2 1994/09/24 02:57:36 davidg Exp $
  */
 
 #ifndef lint
@@ -389,6 +389,10 @@ fc_replace(s, p, r)
 not_fcnumber(s)
         char *s;
 {
+	if (s == NULL) {
+		/* NULL is not a fc_number */
+		return (1);
+	}
         if (*s == '-')
                 s++;
 	return (!is_number(s));
