@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_variables.c,v 1.4 1994/08/13 03:49:25 wollman Exp $
+ *	$Id: db_variables.c,v 1.5 1994/08/18 22:34:27 wollman Exp $
  */
 
 /*
@@ -134,7 +134,6 @@ void
 db_set_cmd(db_expr_t dummy1, int dummy2, db_expr_t dummy3, char *dummy4)
 {
 	db_expr_t	value;
-	int	(*func)();
 	struct db_variable *vp;
 	int	t;
 
