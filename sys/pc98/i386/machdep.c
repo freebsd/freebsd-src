@@ -35,9 +35,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.43 1997/06/02 15:45:32 kato Exp $
+ *	$Id: machdep.c,v 1.44 1997/06/09 13:38:21 kato Exp $
  */
 
+#include "apm.h"
 #include "npx.h"
 #include "opt_sysvipc.h"
 #include "opt_ddb.h"
@@ -98,6 +99,9 @@
 
 #include <net/netisr.h>
 
+#if NAPM > 0
+#include <machine/apm_bios.h>
+#endif
 #include <machine/cpu.h>
 #include <machine/npx.h>
 #include <machine/reg.h>
@@ -693,6 +697,17 @@ cpu_halt(void)
 {
 	for (;;)
 		__asm__ ("hlt");
+}
+
+/*
+ * Turn the power off.
+ */
+void
+cpu_power_down(void)
+{
+#if NAPM > 0
+	apm_power_off();
+#endif
 }
 
 /*
