@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biff.c,v 1.1.1.1.8.2 1997/08/29 05:28:56 imp Exp $
+ *	$Id: biff.c,v 1.1.1.1.8.3 1997/09/14 20:39:26 jkh Exp $
  */
 
 #ifndef lint
@@ -54,6 +54,7 @@ static char sccsid[] = "@(#)biff.c	8.1 (Berkeley) 6/6/93";
 
 static void usage __P((void));
 
+int
 main(argc, argv)
 	int argc;
 	char *argv[];
@@ -80,7 +81,7 @@ main(argc, argv)
 
 	if (*argv == NULL) {
 		(void)printf("is %s\n", sb.st_mode&0100 ? "y" : "n");
-		exit(sb.st_mode & 0100 ? 0 : 1);
+		return(sb.st_mode & 0100 ? 0 : 1);
 	}
 
 	switch(argv[0][0]) {
@@ -95,7 +96,7 @@ main(argc, argv)
 	default:
 		usage();
 	}
-	exit(sb.st_mode & 0100 ? 0 : 1);
+	return(sb.st_mode & 0100 ? 0 : 1);
 }
 
 static void
