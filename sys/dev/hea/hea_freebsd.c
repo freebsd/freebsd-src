@@ -163,14 +163,15 @@ hea_attach (device_t dev)
 	 */
 	eup->eu_unit = device_get_unit(dev);
 	eup->eu_mtu = ENI_IFF_MTU;
-	eup->eu_pcitag = dev;
+	eup->eu_vcc_pool = &eni_vcc_pool;
+	eup->eu_nif_pool = &eni_nif_pool;
 	eup->eu_ioctl = eni_atm_ioctl;
 	eup->eu_instvcc = eni_instvcc;
 	eup->eu_openvcc = eni_openvcc;
 	eup->eu_closevcc = eni_closevcc;
 	eup->eu_output = eni_output;
-	eup->eu_vcc_pool = &eni_vcc_pool;
-	eup->eu_nif_pool = &eni_nif_pool;
+
+	eup->eu_pcitag = dev;
 
 	/*
 	 * Map memory structures into adapter space
@@ -206,6 +207,7 @@ hea_attach (device_t dev)
 	 * Read the contents of the SEEPROM
 	 */
 	eni_read_seeprom(eup);
+
 	/*
 	 * Copy MAC address to PIF and config structures
 	 */

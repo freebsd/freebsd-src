@@ -198,8 +198,8 @@ hea_pci_attach (dev)
 	}
 
 	return (0);
-fail:
 
+fail:
 	hea_detach(dev);
 
 	return (error);
