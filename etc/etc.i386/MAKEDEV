@@ -102,6 +102,7 @@
 #	i4bctl	debugging control device
 #	i4btrc* trace data interface(s), one per passive card
 #	i4btel* telephony interface(s)
+#	i4bteld* telephony dialout interface(s)
 #	i4brbch* raw b channel access device(s)
 #
 # Special purpose devices:
@@ -236,7 +237,8 @@ all)
 	sh MAKEDEV apm apmctl card0 card1		# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
-	sh MAKEDEV i4brbch0 i4brbch1 i4btel0 i4btel1	# cdev, ISDN
+	sh MAKEDEV i4btel0 i4btel1 i4bteld0 i4bteld1	# cdev, ISDN
+	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
 	;;
 
 std)
@@ -1343,6 +1345,14 @@ i4brbch*)
 	mknod i4brbch$unit c 57 $unit
 	chown root:wheel i4brbch$unit
 	chmod 600 i4brbch$unit
+	;;
+
+i4bteld*)
+	offset=64
+	unit=`expr $i : 'i4bteld\(.*\)'`
+	mknod i4bteld$unit c 56 `expr $offset + $unit `
+	chown root:wheel i4bteld$unit
+	chmod 600 i4bteld$unit
 	;;
 
 i4btel*)
