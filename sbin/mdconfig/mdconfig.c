@@ -40,10 +40,12 @@ int nflag;
 void
 usage()
 {
-	fprintf(stderr, "usage:\n");
-	fprintf(stderr, "\tmdconfig -a -t type [-n] [-o [no]option]... [ -f file] [-s size] [-S sectorsize] [-u unit]\n");
-	fprintf(stderr, "\tmdconfig -d -u unit\n");
-	fprintf(stderr, "\tmdconfig -l [-n] [-u unit]\n");
+	fprintf(stderr,
+"usage: mdconfig -a -t type [-n] [-o [no]option] ... [ -f file]\n"
+"                [-s size] [-S sectorsize] [-u unit]\n"
+"                [-x sectors/track] [-y heads/cyl]\n"
+"       mdconfig -d -u unit\n"
+"       mdconfig -l [-n] [-u unit]\n");
 	fprintf(stderr, "\t\ttype = {malloc, preload, vnode, swap}\n");
 	fprintf(stderr, "\t\toption = {cluster, compress, reserve}\n");
 	fprintf(stderr, "\t\tsize = %%d (512 byte blocks), %%dk (kB), %%dm (MB) or %%dg (GB)\n");
