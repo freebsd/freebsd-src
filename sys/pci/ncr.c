@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.32 1995/03/17 04:27:18 davidg Exp $
+**  $Id: ncr.c,v 1.33 1995/03/21 22:14:27 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1217,7 +1217,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.32 1995/03/17 04:27:18 davidg Exp $\n";
+	"\n$Id: ncr.c,v 1.33 1995/03/21 22:14:27 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -3830,7 +3830,6 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	*/
 	cp->phys.sense.addr		= vtophys (&cp->xfer->sense);
 	cp->phys.sense.size		= sizeof(struct scsi_sense_data);
-	cp->phys.sense.size		= xp->req_sense_length; /*21.3.95*/
 	/*
 	**	status
 	*/
