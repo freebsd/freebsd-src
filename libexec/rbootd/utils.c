@@ -1,5 +1,3 @@
-/*	$NetBSD: utils.c,v 1.6 1995/11/14 08:41:47 thorpej Exp $	*/
-
 /*
  * Copyright (c) 1988, 1992 The University of Utah and the Center
  *	for Software Science (CSS).
@@ -40,18 +38,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)utils.c	8.1 (Berkeley) 6/4/93
+ *	@(#)utils.c	8.2 (Berkeley) 2/22/94
  *
- * From: Utah Hdr: utils.c 3.1 92/07/06
+ * Utah $Hdr: utils.c 3.1 92/07/06$
  * Author: Jeff Forys, University of Utah CSS
  */
 
 #ifndef lint
-/*static char sccsid[] = "@(#)utils.c	8.1 (Berkeley) 6/4/93";*/
-static char rcsid[] = "$NetBSD: utils.c,v 1.6 1995/11/14 08:41:47 thorpej Exp $";
+static char sccsid[] = "@(#)utils.c	8.2 (Berkeley) 2/22/94";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <fcntl.h>
 #include <signal.h>
@@ -87,7 +85,7 @@ DispPkt(rconn, direct)
 	struct tm *tmp;
 	register struct rmp_packet *rmp;
 	int i, omask;
-	u_int32_t t;
+	u_int t;
 
 	/*
 	 *  Since we will be working with RmpConns as well as DbgFp, we
@@ -115,11 +113,11 @@ DispPkt(rconn, direct)
 
 	/* display IEEE 802.2 Logical Link Control header */
 	(void) fprintf(DbgFp, "\t802.2 LLC: DSAP:%x SSAP:%x CTRL:%x\n",
-               rmp->hp_llc.dsap, rmp->hp_llc.ssap, ntohs(rmp->hp_llc.cntrl));
+	               rmp->hp_llc.dsap, rmp->hp_llc.ssap, rmp->hp_llc.cntrl);
 
 	/* display HP extensions to 802.2 Logical Link Control header */
 	(void) fprintf(DbgFp, "\tHP Ext:    DXSAP:%x SXSAP:%x\n",
-	               ntohs(rmp->hp_llc.dxsap), ntohs(rmp->hp_llc.sxsap));
+	               rmp->hp_llc.dxsap, rmp->hp_llc.sxsap);
 
 	/*
 	 *  Display information about RMP packet using type field to
@@ -129,7 +127,7 @@ DispPkt(rconn, direct)
 		case RMP_BOOT_REQ:		/* boot request */
 			(void) fprintf(DbgFp, "\tBoot Request:");
 			GETWORD(rmp->r_brq.rmp_seqno, t);
-			if (ntohs(rmp->r_brq.rmp_session) == RMP_PROBESID) {
+			if (rmp->r_brq.rmp_session == RMP_PROBESID) {
 				if (WORDZE(rmp->r_brq.rmp_seqno))
 					fputs(" (Send Server ID)", DbgFp);
 				else
@@ -137,8 +135,8 @@ DispPkt(rconn, direct)
 			}
 			(void) fputc('\n', DbgFp);
 			(void) fprintf(DbgFp, BootFmt, rmp->r_brq.rmp_retcode,
-			        t, ntohs(rmp->r_brq.rmp_session),
-			        ntohs(rmp->r_brq.rmp_version));
+			        t, rmp->r_brq.rmp_session,
+			        rmp->r_brq.rmp_version);
 			(void) fprintf(DbgFp, "\n\t\tMachine Type: ");
 			for (i = 0; i < RMP_MACHLEN; i++)
 				(void) fputc(rmp->r_brq.rmp_machtype[i], DbgFp);
@@ -148,23 +146,23 @@ DispPkt(rconn, direct)
 			fprintf(DbgFp, "\tBoot Reply:\n");
 			GETWORD(rmp->r_brpl.rmp_seqno, t);
 			(void) fprintf(DbgFp, BootFmt, rmp->r_brpl.rmp_retcode,
-			        t, ntohs(rmp->r_brpl.rmp_session),
-			        ntohs(rmp->r_brpl.rmp_version));
+			        t, rmp->r_brpl.rmp_session,
+			        rmp->r_brpl.rmp_version);
 			DspFlnm(rmp->r_brpl.rmp_flnmsize,&rmp->r_brpl.rmp_flnm);
 			break;
 		case RMP_READ_REQ:		/* read request */
 			(void) fprintf(DbgFp, "\tRead Request:\n");
 			GETWORD(rmp->r_rrq.rmp_offset, t);
 			(void) fprintf(DbgFp, ReadFmt, rmp->r_rrq.rmp_retcode,
-			        t, ntohs(rmp->r_rrq.rmp_session));
+			        t, rmp->r_rrq.rmp_session);
 			(void) fprintf(DbgFp, "\t\tNoOfBytes: %u\n",
-			        ntohs(rmp->r_rrq.rmp_size));
+			        rmp->r_rrq.rmp_size);
 			break;
 		case RMP_READ_REPL:		/* read reply */
 			(void) fprintf(DbgFp, "\tRead Reply:\n");
 			GETWORD(rmp->r_rrpl.rmp_offset, t);
 			(void) fprintf(DbgFp, ReadFmt, rmp->r_rrpl.rmp_retcode,
-			        t, ntohs(rmp->r_rrpl.rmp_session));
+			        t, rmp->r_rrpl.rmp_session);
 			(void) fprintf(DbgFp, "\t\tNoOfBytesSent: %d\n",
 			        rconn->rmplen - RMPREADSIZE(0));
 			break;
@@ -172,7 +170,7 @@ DispPkt(rconn, direct)
 			(void) fprintf(DbgFp, "\tBoot Complete:\n");
 			(void) fprintf(DbgFp, "\t\tRetCode:%u SessID:%x\n",
 			        rmp->r_done.rmp_retcode,
-			        ntohs(rmp->r_done.rmp_session));
+			        rmp->r_done.rmp_session);
 			break;
 		default:			/* ??? */
 			(void) fprintf(DbgFp, "\tUnknown Type:(%d)\n",
@@ -204,30 +202,32 @@ DispPkt(rconn, direct)
 **	Warnings:
 **		- The return value points to a static buffer; it must
 **		  be copied if it's to be saved.
+**		- For speed, we assume a u_char consists of 8 bits.
 */
 char *
 GetEtherAddr(addr)
-	u_int8_t *addr;
+	u_char *addr;
 {
 	static char Hex[] = "0123456789abcdef";
 	static char etherstr[RMP_ADDRLEN*3];
 	register int i;
-	register char *cp;
+	register char *cp1, *cp2;
 
 	/*
 	 *  For each byte in `addr', convert it to "<hexchar><hexchar>:".
 	 *  The last byte does not get a trailing `:' appended.
 	 */
 	i = 0;
-	cp = etherstr;
+	cp1 = (char *)addr;
+	cp2 = etherstr;
 	for(;;) {
-		*cp++ = Hex[*addr >> 4 & 0xf];
-		*cp++ = Hex[*addr++ & 0xf];
+		*cp2++ = Hex[*cp1 >> 4 & 0xf];
+		*cp2++ = Hex[*cp1++ & 0xf];
 		if (++i == RMP_ADDRLEN)
 			break;
-		*cp++ = ':';
+		*cp2++ = ':';
 	}
-	*cp = '\0';
+	*cp2 = '\0';
 
 	return(etherstr);
 }
@@ -253,7 +253,7 @@ DspFlnm(size, flnm)
 {
 	register int i;
 
-	(void) fprintf(DbgFp, "\n\t\tFile Name (%u): <", size);
+	(void) fprintf(DbgFp, "\n\t\tFile Name (%d): <", size);
 	for (i = 0; i < size; i++)
 		(void) fputc(*flnm++, DbgFp);
 	(void) fputs(">\n", DbgFp);
@@ -275,7 +275,7 @@ DspFlnm(size, flnm)
 */
 CLIENT *
 NewClient(addr)
-	u_int8_t *addr;
+	u_char *addr;
 {
 	CLIENT *ctmp;
 
