@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cerror.S,v 1.4 1996/01/22 00:00:57 julian Exp $
+ *	$Id: cerror.S,v 1.5 1996/05/05 07:56:11 peter Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: cerror.S,v 1.4 1996/01/22 00:00:57 julian Exp $"
+	.asciz "$Id: cerror.S,v 1.5 1996/05/05 07:56:11 peter Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -56,10 +56,12 @@ HIDENAME(cerror):
 #ifdef PIC
 	/* The caller must execute the PIC prologue before jumping to cerror. */
 	call	PIC_PLT(CNAME(__error))
+	popl	%ecx
+	PIC_EPILOGUE
 #else
 	call	CNAME(__error)
-#endif
 	popl	%ecx
+#endif
 	movl	%ecx,(%eax)
 	movl	$-1,%eax
 	movl	$-1,%edx
