@@ -1134,6 +1134,10 @@ getasciipartspec(char *tp, struct disklabel *lp, int part, int lineno)
 		return (1);
 	}
 	pp->p_offset = v;
+	if (tp == NULL) {
+		fprintf(stderr, "line %d: missing file system type\n", lineno);
+		return (1);
+	}
 	cp = tp, tp = word(cp);
 	for (cpp = fstypenames; cpp < &fstypenames[FSMAXTYPES]; cpp++)
 		if (*cpp && streq(*cpp, cp))
