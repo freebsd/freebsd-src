@@ -2,10 +2,10 @@
 .\" ripped off from Rick Faith's getgroups man page
 .\" $Id: pam_strerror.3,v 1.2 1997/02/15 18:53:04 morgan Exp $
 .\" Copyright (c) Andrew G. Morgan 1996-7 <morgan@parc.power.net>
-.TH PAM_STRERROR 3 "1997 Feb 15" "Linux-PAM 0.56" "Programmers' Manual"
+.TH PAM_STRERROR 3 "1997 Feb 15" "PAM 0.56" "Programmers' Manual"
 .SH NAME
 
-pam_strerror \- return a textual description of a Linux-PAM error
+pam_strerror \- return a textual description of a PAM error
 
 .SH SYNOPSIS
 .B #include <security/pam_appl.h>
@@ -20,14 +20,14 @@ or,
 .B pam_strerror
 
 This function returns a pointer to a line of text describing the
-.BR Linux-PAM
+.BR PAM
 error passed as its sole argument.
 
 .SH "RETURN VALUE"
 
 On success this function returns a description of the indicated
 error.  Should the function not recognize the error, ``Unknown
-Linux-PAM error'' is returned.
+PAM error'' is returned.
 
 .SH "CONFORMING TO"
 DCE-RFC 86.0, October 1995.
