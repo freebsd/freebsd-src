@@ -159,6 +159,13 @@ amr_pci_attach(device_t dev)
 	}
     }
 
+    /* force the busmaster enable bit on */
+    if (!(command & PCIM_CMD_BUSMASTEREN)) {
+	device_printf(dev, "busmaster bit not set, enabling\n");
+	command |= PCIM_CMD_BUSMASTEREN;
+	pci_write_config(dev, PCIR_COMMAND, command, 2);
+    }
+
     /*
      * Allocate the PCI register window.
      */
