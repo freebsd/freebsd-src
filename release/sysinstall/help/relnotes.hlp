@@ -53,6 +53,13 @@ o ATAPI/IDE CD burner support (BETA).
 
 o ATAPI/IDE tape drive support (BETA).
 
+o Support for using VESA video modes. It is now possible to select and
+  use the modes provided by the BIOS on modern videocards. This enables
+  fx. 132x60 sized consoles and highres graphics in a generic manner on
+  hardware that supports it. There is also support for running the 
+  console in rastermode, which allows XFree86 to run a simple 16color
+  server in 800x600 on othervise unsupported video hardware.
+
 o Support for AdvanSys SCSI controllers (8 bit only for now)
 
 o Support for the Compaq QLogic SCSI controller.
@@ -160,14 +167,6 @@ o All supported network protocols have been updated to avoid the ``big
 o Responses to multicast ICMP ECHO REQUEST (``ping'') and ADDRESS MASK
   REQUEST packets can now be disabled via sysctl.  The netstat program
   will print out statistics on how many times this happens.
-
-o It is possible to compile in a font for syscons.
-
-o The bootblocks can set VESA videomode 0x102 (800x600x16) before loading
-  the kernel, this allows XFree86 to work in this resolution on most 
-  moderately recent graphics hardware, including many laptops.
-  A set of patches are making their way to -current that allows syscons
-  to operate in this mode too;  contact phk@FreeBSD.org.
 
 o A subtle and seldom bug in ffs has been fixed.
 
