@@ -54,7 +54,7 @@
 #endif
 
 void
-_libc_siglongjmp(sigjmp_buf env, int savemask)
+siglongjmp(sigjmp_buf env, int savemask)
 {
 	void	*jmp_stackp;
 	void	*stack_begin, *stack_end;
@@ -81,7 +81,7 @@ _libc_siglongjmp(sigjmp_buf env, int savemask)
 	 */
 	if (((jmp_stackp < stack_begin) && (jmp_stackp < stack_end)) ||
 	    ((jmp_stackp > stack_begin) && (jmp_stackp > stack_end)))
-		PANIC("longjmp()ing between thread contexts is undefined by "
+		PANIC("siglongjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
 	memcpy(_thread_run->nested_jmp.sigjmp, env,
@@ -99,10 +99,8 @@ _libc_siglongjmp(sigjmp_buf env, int savemask)
 	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
 }
 
-__weak_reference(_libc_siglongjmp, siglongjmp);
-
 void
-_libc_longjmp(jmp_buf env, int val)
+longjmp(jmp_buf env, int val)
 {
 	void	*jmp_stackp;
 	void	*stack_begin, *stack_end;
@@ -147,10 +145,8 @@ _libc_longjmp(jmp_buf env, int val)
 	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
 }
 
-__weak_reference(_libc_longjmp, longjmp);
-
 void
-_libc__longjmp(jmp_buf env, int val)
+_longjmp(jmp_buf env, int val)
 {
 	void	*jmp_stackp;
 	void	*stack_begin, *stack_end;
@@ -177,7 +173,7 @@ _libc__longjmp(jmp_buf env, int val)
 	 */
 	if (((jmp_stackp < stack_begin) && (jmp_stackp < stack_end)) ||
 	    ((jmp_stackp > stack_begin) && (jmp_stackp > stack_end)))
-		PANIC("longjmp()ing between thread contexts is undefined by "
+		PANIC("_longjmp()ing between thread contexts is undefined by "
 		    "POSIX 1003.1");
 
 	memcpy(_thread_run->nested_jmp.jmp, env,
@@ -194,6 +190,4 @@ _libc__longjmp(jmp_buf env, int val)
 	_thread_run->longjmp_val = val;
 	___longjmp(*_thread_run->sighandler_jmp_buf, 1);
 }
-
-__weak_reference(_libc__longjmp, _longjmp);
 #endif
