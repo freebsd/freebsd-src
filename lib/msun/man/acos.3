@@ -39,8 +39,10 @@
 .Nm acos ,
 .Nm acosf
 .Nd arc cosine functions
+.Sh LIBRARY
+.Lb libm
 .Sh SYNOPSIS
-.Fd #include <math.h>
+.In math.h
 .Ft double
 .Fn acos "double x"
 .Ft float
@@ -52,7 +54,8 @@ and the
 .Fn acosf
 functions compute the principal value of the arc cosine of
 .Fa x .
-A domain error occurs for arguments not in the range [-1, +1].
+A domain error occurs for arguments not in the range
+.Bq -1 , +1 .
 For a discussion of error due to roundoff, see
 .Xr math 3 .
 .Sh RETURN VALUES

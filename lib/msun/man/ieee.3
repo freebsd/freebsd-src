@@ -49,8 +49,10 @@
 .Nm scalbn ,
 .Nm scalbnf
 .Nd functions for IEEE arithmetic
+.Sh LIBRARY
+.Lb libm
 .Sh SYNOPSIS
-.Fd #include <math.h>
+.In math.h
 .Ft double
 .Fn copysign "double x" "double y"
 .Ft float
@@ -100,14 +102,13 @@ zero is returned
 .Pf \\*(Ba Ns Fa x Ns \\*(Ba
 = \*(If or
 .Fa x
-is \*(Na
+is \*(Na).
 .Pp
 .Fn ilogb
 and
 .Fn ilogbf
 return
-.Fa x Ns 's exponent
-.Fa n ,
+.Fa x Ns 's exponent,
 in integer format.
 .Fn ilogb \*(Pm\*(If
 returns

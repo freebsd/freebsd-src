@@ -51,7 +51,7 @@
 .Sh LIBRARY
 .Lb libnetgraph
 .Sh SYNOPSIS
-.Fd #include <netgraph.h>
+.In netgraph.h
 .Ft int
 .Fn NgMkSockNode "const char *name" "int *csp" "int *dsp"
 .Ft int
@@ -260,7 +260,8 @@ KLD modules must have been loaded via
 returns the previous debug setting.
 .Fn NgSetErrLog
 has no return value.
-All other functions return -1 if there was an error and set errno
+All other functions return \-1 if there was an error and set
+.Va errno
 accordingly.
 A return value of zero from
 .Fn NgRecvMsg

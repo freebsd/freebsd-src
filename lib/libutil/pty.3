@@ -35,10 +35,10 @@
 .Sh LIBRARY
 .Lb libutil
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
-.Fd #include <sys/ioctl.h>
-.Fd #include <termios.h>
-.Fd #include <libutil.h>
+.In sys/types.h
+.In sys/ioctl.h
+.In termios.h
+.In libutil.h
 .Ft int
 .Fn openpty "int *amaster" "int *aslave" "char *name" "struct termios *termp" "struct winsize *winp"
 .Ft int
