@@ -30,8 +30,6 @@
 
 /* SI3_T225.C Version, Bootstrap and Download Code Arrays... */
 
-static char *si3_t225_ident = "%W%";
-
 /* SI3_T225 embedded version... 
 
 	Copyright (c) Specialix International Ltd 1996-1998.
