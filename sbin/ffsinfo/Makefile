@@ -6,16 +6,14 @@
 
 MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
 
-#CFLAGS+=${BDECFLAGS}
- 
-PROG=   ffsinfo
-SRCS=   ffsinfo.c debug.c
-MAN=   ffsinfo.8
- 
 GROWFS= ${.CURDIR}/../growfs
-CFLAGS+=-DFS_DEBUG -I${GROWFS}
-WARNS=	0
+.PATH: ${GROWFS}
 
-.PATH:  ${GROWFS}
+PROG=	ffsinfo
+SRCS=	ffsinfo.c debug.c
+MAN=	ffsinfo.8
+
+WARNS?=	0
+CFLAGS+=-DFS_DEBUG -I${GROWFS}
  
 .include <bsd.prog.mk>               

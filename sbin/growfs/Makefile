@@ -7,16 +7,16 @@
 MAINTAINER=	tomsoft@FreeBSD.ORG, chm@FreeBSD.ORG
 
 #GFSDBG=YES  
-#CFLAGS+=${BDECFLAGS}
 
 PROG=   growfs
 SRCS=   growfs.c
 MAN=	growfs.8
 
+WARNS?=	0
+
 .if defined(GFSDBG)
 SRCS+=  debug.c
 CFLAGS+=-DFS_DEBUG
 .endif  
-WARNS=	0
 
 .include <bsd.prog.mk>      
