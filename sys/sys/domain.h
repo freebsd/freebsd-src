@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)domain.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: domain.h,v 1.9 1997/02/22 09:45:09 peter Exp $
  */
 
 #ifndef _SYS_DOMAIN_H_
@@ -68,7 +68,7 @@ extern struct	domain *domains;
 extern struct	domain localdomain;
 
 #define DOMAIN_SET(name) \
-	DATA_SET(domain_set, name ## domain);
+	DATA_SET(domain_set, name ## domain)
 
 #endif
 
