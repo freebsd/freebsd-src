@@ -31,22 +31,27 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)assert.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 void
-__assert(file, line, failedexpr)
-	const char *file, *failedexpr;
-	int line;
+__assert(function, file, line, failedexpr)
+	const char	*failedexpr, *file, *function;
+	int		 line;
 {
 	(void)fprintf(stderr,
-	    "assertion \"%s\" failed: file \"%s\", line %d\n",
-	    failedexpr, file, line);
+		      "assertion (%s) failed: function %s(), file %s:%d\n",
+		      failedexpr, function, file, line);
 	abort();
 	/* NOTREACHED */
 }
