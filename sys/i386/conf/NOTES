@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.104 1994/11/02 01:11:03 wollman Exp $
+#	$Id: LINT,v 1.105 1994/11/03 15:51:37 jkh Exp $
 #
 
 #
@@ -86,6 +86,7 @@ options		SYSVMSG
 # is stored in the initialized data area of the kernel.  If you change
 # the latter option, remove db_aout.o before compiling.
 #
+options		DODUMP			#We dump core-image on panic
 options		DDB			#Kernel debugger
 options		"SYMTAB_SPACE=113498"	#This kernel needs LOTS of symtable
 
