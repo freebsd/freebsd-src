@@ -53,6 +53,9 @@
  * SUCH DAMAGE.
  */
 
+#include <machine/asm.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_compat.h"
 #include "opt_ddb.h"
 
@@ -65,9 +68,6 @@
 #include <machine/wstate.h>
 
 #include "assym.s"
-#include <machine/asm.h>
-
-__FBSDID("$FreeBSD$");
 
 #define	TSB_KERNEL_MASK	0x0
 #define	TSB_KERNEL	0x0
