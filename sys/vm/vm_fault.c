@@ -170,6 +170,8 @@ _unlock_things(struct faultstate *fs, int dealloc)
 		vput(fs->vp);
 		fs->vp = NULL;
 	}
+	if (dealloc)
+		mtx_unlock(&Giant);
 }
 
 #define unlock_things(fs) _unlock_things(fs, 0)
@@ -220,7 +222,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	growstack = TRUE;
 	atomic_add_int(&cnt.v_vm_faults, 1);
 
-	mtx_lock(&Giant);
 RetryFault:;
 
 	/*
@@ -235,15 +236,14 @@ RetryFault:;
 		    (fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE) {
 			if (growstack && result == KERN_INVALID_ADDRESS &&
 			    map != kernel_map && curproc != NULL) {
+				mtx_lock(&Giant);
 				result = vm_map_growstack(curproc, vaddr);
-				if (result != KERN_SUCCESS) {
-					mtx_unlock(&Giant);
+				mtx_unlock(&Giant);
+				if (result != KERN_SUCCESS)
 					return (KERN_FAILURE);
-				}
 				growstack = FALSE;
 				goto RetryFault;
 			}
-			mtx_unlock(&Giant);
 			return (result);
 		}
 
@@ -257,10 +257,8 @@ RetryFault:;
 		result = vm_map_lookup(&fs.map, vaddr,
 			VM_PROT_READ|VM_PROT_WRITE|VM_PROT_OVERRIDE_WRITE,
 			&fs.entry, &fs.first_object, &fs.first_pindex, &prot, &wired);
-		if (result != KERN_SUCCESS) {
-			mtx_unlock(&Giant);
+		if (result != KERN_SUCCESS)
 			return (result);
-		}
 
 		/*
 		 * If we don't COW now, on a user wire, the user will never
@@ -293,8 +291,9 @@ RetryFault:;
 	 *
 	 * XXX vnode_pager_lock() can block without releasing the map lock.
 	 */
-	vm_object_reference(fs.first_object);
+	mtx_lock(&Giant);
 	VM_OBJECT_LOCK(fs.first_object);
+	vm_object_reference_locked(fs.first_object);
 	fs.vp = vnode_pager_lock(fs.first_object);
 	vm_object_pip_add(fs.first_object, 1);
 
@@ -316,7 +315,6 @@ RetryFault:;
 		 */
 		if (fs.object->flags & OBJ_DEAD) {
 			unlock_and_deallocate(&fs);
-			mtx_unlock(&Giant);
 			return (KERN_PROTECTION_FAILURE);
 		}
 
@@ -371,6 +369,7 @@ RetryFault:;
 				if (!vm_page_sleep_if_busy(fs.m, TRUE, "vmpfw"))
 					vm_page_unlock_queues();
 				cnt.v_intrans++;
+				mtx_unlock(&Giant);
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
@@ -411,7 +410,6 @@ RetryFault:;
 		if (TRYPAGER || fs.object == fs.first_object) {
 			if (fs.pindex >= fs.object->size) {
 				unlock_and_deallocate(&fs);
-				mtx_unlock(&Giant);
 				return (KERN_PROTECTION_FAILURE);
 			}
 
@@ -598,7 +596,6 @@ readrest:
 				vm_page_unlock_queues();
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
-				mtx_unlock(&Giant);
 				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
 			}
 			if (fs.object != fs.first_object) {
@@ -820,7 +817,6 @@ readrest:
 		if (result != KERN_SUCCESS) {
 			release_page(&fs);
 			unlock_and_deallocate(&fs);
-			mtx_unlock(&Giant);
 			return (result);
 		}
 		fs.lookup_still_valid = TRUE;
@@ -904,6 +900,7 @@ readrest:
 	if (((fault_flags & VM_FAULT_WIRE_MASK) == 0) && (wired == 0)) {
 		vm_fault_prefault(fs.map->pmap, vaddr, fs.entry);
 	}
+	mtx_unlock(&Giant);
 	vm_page_lock_queues();
 	vm_page_flag_clear(fs.m, PG_ZERO);
 	vm_page_flag_set(fs.m, PG_REFERENCED);
@@ -937,7 +934,6 @@ readrest:
 	 * Unlock everything, and return
 	 */
 	vm_object_deallocate(fs.first_object);
-	mtx_unlock(&Giant);
 	return (KERN_SUCCESS);
 }
 
