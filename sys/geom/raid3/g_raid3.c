@@ -54,7 +54,7 @@ u_int g_raid3_debug = 0;
 TUNABLE_INT("kern.geom.raid3.debug", &g_raid3_debug);
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, debug, CTLFLAG_RW, &g_raid3_debug, 0,
     "Debug level");
-static u_int g_raid3_timeout = 8;
+static u_int g_raid3_timeout = 4;
 SYSCTL_UINT(_kern_geom_raid3, OID_AUTO, timeout, CTLFLAG_RW, &g_raid3_timeout,
     0, "Time to wait on all raid3 components");
 static u_int g_raid3_reqs_per_sync = 5;
