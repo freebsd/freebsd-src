@@ -336,7 +336,7 @@ main(int argc, char *argv[])
 	usage();
     fname = *argv++;
     if (!strchr(fname, '/')) {
-	snprintf(buf, sizeof(buf), "%sr%s", _PATH_DEV, fname);
+	snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
 	if (stat(buf, &sb))
 	    snprintf(buf, sizeof(buf), "%s%s", _PATH_DEV, fname);
 	if (!(fname = strdup(buf)))
@@ -349,7 +349,7 @@ main(int argc, char *argv[])
     if (!opt_N)
 	check_mounted(fname, sb.st_mode);
     if (!S_ISCHR(sb.st_mode))
-	warnx("warning: %s is not a character device", fname);
+	errx(1, "%s is not a character device", fname);
     memset(&bpb, 0, sizeof(bpb));
     if (opt_f) {
 	getstdfmt(opt_f, &bpb);
