@@ -764,8 +764,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       outstanding, received SYN segments.  Incoming SYN segments now
       cause entries to be placed in the cache until the TCP three-way
       handshake is complete, at which point, memory is allocated for
-      the connection as usual.  This so-called
-      <quote>syncache</quote> makes a host much more resistant to
+      the connection as usual.  In addition, all TCP Initial Sequence
+      Numbers (ISNs) are used as cookies, allowing entries in the
+      cache to be dropped, but still have their corresponding ACKs
+      accepted later.  The combination of the so-called
+      <quote>syncache</quote> and <quote>syncookies</quote> features
+      makes a host much more resistant to
       TCP-based Denial of Service attacks.  Work on this feature was
       sponsored by DARPA and NAI Labs. &merged;</para>
 
