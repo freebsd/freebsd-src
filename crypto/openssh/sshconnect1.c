@@ -410,7 +410,7 @@ try_krb4_authentication()
 	des_key_sched((des_cblock *) cred.session, schedule);
 
 	/* Send authentication info to server. */
-	packet_start(SSH_CMSG_AUTH_KRB4);
+	packet_start(SSH_CMSG_AUTH_KERBEROS);
 	packet_put_string((char *) auth.dat, auth.length);
 	packet_send();
 	packet_write_wait();
@@ -435,13 +435,13 @@ try_krb4_authentication()
 	type = packet_read(&plen);
 	switch (type) {
 	case SSH_SMSG_FAILURE:
-		/* Should really be SSH_SMSG_AUTH_KRB4_FAILURE */
+		/* Should really be SSH_SMSG_AUTH_KERBEROS_FAILURE */
 		debug("Kerberos V4 authentication failed.");
 		return 0;
 		break;
 
-	case SSH_SMSG_AUTH_KRB4_RESPONSE:
-		/* SSH_SMSG_AUTH_KRB4_SUCCESS */
+	case SSH_SMSG_AUTH_KERBEROS_RESPONSE:
+		/* SSH_SMSG_AUTH_KERBEROS_SUCCESS */
 		debug("Kerberos V4 authentication accepted.");
 
 		/* Get server's response. */
@@ -924,6 +924,35 @@ ssh_userauth(
 		packet_disconnect("Protocol error: got %d in response to SSH_CMSG_USER",
 				  type);
 
+#ifdef KRB5
+	if ((supported_authentications & (1 << SSH_AUTH_KERBEROS)) &&
+	     options.kerberos_authentication){
+		krb5_context ssh_context = NULL;
+		krb5_auth_context auth_context = NULL;
+
+		debug("Trying Kerberos V5 authentication.");
+
+	if (try_krb5_authentication(&ssh_context, &auth_context)) {
+	  type = packet_read(&payload_len);
+	  if (type == SSH_SMSG_SUCCESS) {
+	     if ((supported_authentications & (1 << SSH_PASS_KERBEROS_TGT)) &&
+	          options.krb5_tgt_passing) {
+   	                if (options.cipher == SSH_CIPHER_NONE)
+      				log("WARNING: Encryption is disabled! Ticket will be transmitted in the clear!");
+   			send_krb5_tgt(ssh_context, auth_context);
+
+	     } 
+	     krb5_auth_con_free(ssh_context, auth_context); 
+	     krb5_free_context(ssh_context); 
+	     return;
+	  }
+	  if (type != SSH_SMSG_FAILURE)
+               	packet_disconnect("Protocol error: got %d in response to Kerberos5 auth", type);
+
+	}
+        }
+#endif /* KRB5 */
+
 #ifdef AFS
 	/* Try Kerberos tgt passing if the server supports it. */
 	if ((supported_authentications & (1 << SSH_PASS_KRB4_TGT)) &&
@@ -942,8 +971,8 @@ ssh_userauth(
 #endif /* AFS */
 
 #ifdef KRB4
-	if ((supported_authentications & (1 << SSH_AUTH_KRB4)) &&
-	    options.krb4_authentication) {
+	if ((supported_authentications & (1 << SSH_AUTH_KERBEROS)) &&
+	    options.kerberos_authentication) {
 		debug("Trying Kerberos authentication.");
 		if (try_krb4_authentication()) {
 			/* The server should respond with success or failure. */
@@ -956,34 +985,6 @@ ssh_userauth(
 	}
 #endif /* KRB4 */
 
-#ifdef KRB5
-	if ((supported_authentications & (1 << SSH_AUTH_KRB5)) &&
-	     options.krb5_authentication){
-		krb5_context ssh_context = NULL;
-		krb5_auth_context auth_context = NULL;
-
-		debug("Trying Kerberos V5 authentication.");
-
-	if (try_krb5_authentication(&ssh_context, &auth_context)) {
-	  type = packet_read(&payload_len);
-	  if (type == SSH_SMSG_SUCCESS) {
-	     if ((supported_authentications & (1 << SSH_PASS_KRB5_TGT)) &&
-	          options.krb5_tgt_passing) {
-   	                if (options.cipher == SSH_CIPHER_NONE)
-      				log("WARNING: Encryption is disabled! Ticket will be transmitted in the clear!");
-   			send_krb5_tgt(ssh_context, auth_context);
-
-	     } 
-	     krb5_auth_con_free(ssh_context, auth_context); 
-	     krb5_free_context(ssh_context); 
-	     return;
-	  }
-	  if (type != SSH_SMSG_FAILURE)
-               	packet_disconnect("Protocol error: got %d in response to Kerberos5 auth", type);
-
-	}
-        }
-#endif /* KRB5 */
 
 	/*
 	 * Use rhosts authentication if running in privileged socket and we

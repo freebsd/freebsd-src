@@ -267,7 +267,7 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 	/* Clear session key. */
 	memset(&adat.session, 0, sizeof(&adat.session));
 
-	packet_start(SSH_SMSG_AUTH_KRB4_RESPONSE);
+	packet_start(SSH_SMSG_AUTH_KERBEROS_RESPONSE);
 	packet_put_string((char *) reply.dat, reply.length);
 	packet_send();
 	packet_write_wait();

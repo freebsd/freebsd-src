@@ -79,7 +79,7 @@ auth_krb5(const char* server_user, krb5_data *auth, krb5_principal *client)
 	
 	*client = tkt_client;
 	
-	packet_start(SSH_SMSG_AUTH_KRB5_RESPONSE);
+	packet_start(SSH_SMSG_AUTH_KERBEROS_RESPONSE);
 	packet_put_string((char *) reply.data, reply.length);
 	packet_send();
 	packet_write_wait();

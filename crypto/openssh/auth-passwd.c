@@ -94,7 +94,7 @@ auth_password(struct passwd * pw, const char *password)
 	}
 #endif
 #ifdef KRB5
-	if (options.krb5_authentication == 1) {
+	if (options.kerberos_authentication == 1) {
 	  	if (auth_krb5_password(pw, password))
 		  	return 1;
 		/* Fall back to ordinary passwd authentication. */
@@ -102,7 +102,7 @@ auth_password(struct passwd * pw, const char *password)
 
 #endif /* KRB5 */
 #ifdef KRB4
-	if (options.krb4_authentication == 1) {
+	if (options.kerberos_authentication == 1) {
 		int ret = auth_krb4_password(pw, password);
 		if (ret == 1 || ret == 0)
 			return ret;
