@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.9 2002/05/19 15:19:06 ue Exp $
-	basiert auf: 1.1.2.65
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.4.2.11 2002/05/31 20:23:59 ue Exp $
+	basiert auf: 1.1.2.67
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -201,6 +201,40 @@
       lesen oder zu schreiben, dieser Fehler wurde behoben.  Weitere
       Informatione finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
+
+    <para>Um mit &man.k5su.8; zum Super-User werden zu k&ouml;nnen,
+      mu&szlig; ein Benutzer nicht wie &man.su.1; in die Gruppe
+      <groupname>wheel</groupname> eingetragen sein.  Dadurch kann es
+      zu unerwarteten Situationen kommen.  Um dieses Problem zu
+      umgehen, wird &man.k5su.8; standardm&auml;&szlig;ig nicht mehr
+      SUID root installiert und damit wirkungslos gemacht.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
+
+    <para>In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
+      es m&ouml;glich war, da&szlig; Dateien ohne Warnung
+      &uuml;berschrieben werden konnten; au&szlig;erdem war es
+      m&ouml;glich, da&szlig; lokale Benutzer Zugriff auf f&uuml;r sie
+      eigentlich nicht zug&auml;ngliche Dateien erhielten.  Diese
+      Fehler wurden durch den Import einer neuen Version von
+      <application>bzip2</application> behoben.  Weitere Informationen
+      finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+
+    <para>Ein Fehler in der Implementation des TCP SYN Cache
+      (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
+      Denial-of-Service Angriff durchzuf&uuml;hren, wenn
+      &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
+      beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
+
+    <para>Durch einen Fehler bei der Behandlung der Shell-Wildcards in
+      &man.rc.8; war es normalen Anwendern m&ouml;glich, beliebige
+      Dateien zu l&ouml;schen, wenn das Verzeichnis
+      <filename>/tmp/.X11-unix</filename> nicht existierte und sie
+      einen Neustart des Systems erzwingen konnten.  Dieser Fehler
+      wurde beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
 
 ]]>
   </sect1>
