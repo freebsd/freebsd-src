@@ -1,4 +1,4 @@
-# @(#)zone.tab	1.26
+# @(#)zone.tab	1.27
 #
 # TZ zone descriptions
 #
@@ -339,10 +339,10 @@ TG	+0608+00113	Africa/Lome
 TH	+1345+10031	Asia/Bangkok
 TJ	+3835+06848	Asia/Dushanbe
 TK	-0922-17114	Pacific/Fakaofo
+TL	-0833+12535	Asia/Dili
 TM	+3757+05823	Asia/Ashgabat
 TN	+3648+01011	Africa/Tunis
 TO	-2110+17510	Pacific/Tongatapu
-TL	-0833+12535	Asia/Dili
 TR	+4101+02858	Europe/Istanbul
 TT	+1039-06131	America/Port_of_Spain
 TV	-0831+17913	Pacific/Funafuti
