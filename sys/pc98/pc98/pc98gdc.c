@@ -54,9 +54,7 @@
 
 #include <dev/fb/fbreg.h>
 
-#ifdef LINE30
 #include <pc98/pc98/pc98.h>
-#endif
 #include <pc98/pc98/pc98_machdep.h>
 #include <isa/isavar.h>
 
@@ -520,10 +518,8 @@ VIDEO_DRIVER(gdc, gdcvidsw, gdc_configure);
 static video_info_t bios_vmode[] = {
     { M_PC98_80x25, V_INFO_COLOR, 80, 25, 8, 16, 4, 1,
       TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
-#ifdef LINE30
     { M_PC98_80x30, V_INFO_COLOR, 80, 30, 8, 16, 4, 1,
       TEXT_BUF_BASE, TEXT_BUF_SIZE, TEXT_BUF_SIZE, 0, 0, V_INFO_MM_TEXT },
-#endif
 #ifndef GDC_NOGRAPHICS
     { M_PC98_EGC640x400, V_INFO_COLOR | V_INFO_GRAPHICS,
       640, 400, 8, 16, 4, 4,
@@ -533,12 +529,10 @@ static video_info_t bios_vmode[] = {
       640, 400, 8, 16, 8, 1,
       GRAPHICS_BUF_BASE, 0x00008000, 0x00008000, 0, 0,
       V_INFO_MM_PACKED, 1 },
-#ifdef LINE30
     { M_PC98_PEGC640x480, V_INFO_COLOR | V_INFO_GRAPHICS | V_INFO_VESA,
       640, 480, 8, 16, 8, 1,
       GRAPHICS_BUF_BASE, 0x00008000, 0x00008000, 0, 0,
       V_INFO_MM_PACKED, 1 },
-#endif
 #endif
     { EOT },
 };
@@ -579,9 +573,7 @@ map_gen_mode_num(int type, int color, int mode)
 	int to;
     } mode_map[] = {
 	{ M_TEXT_80x25,	M_PC98_80x25, },
-#ifdef LINE30
 	{ M_TEXT_80x30,	M_PC98_80x30, },
-#endif
     };
     int i;
 
@@ -685,12 +677,10 @@ static void master_gdc_word_prm(unsigned int wpmtr)
     master_gdc_prm((wpmtr >> 8) & 0x00ff);
 }	
 
-#ifdef LINE30
 static void master_gdc_fifo_empty(void)
 {
     while ( (inb(TEXT_GDC) & 4) == 0);     
 }
-#endif
 
 static void master_gdc_wait_vsync(void)
 {
@@ -704,7 +694,6 @@ static void gdc_cmd(unsigned int cmd)
     outb( GRAPHIC_GDC+2, cmd);
 }
 
-#ifdef LINE30
 static void gdc_prm(unsigned int pmtr)
 {
     while ( (inb(GRAPHIC_GDC) & 2) != 0);
@@ -721,7 +710,6 @@ static void gdc_fifo_empty(void)
 {
     while ( (inb(GRAPHIC_GDC) & 0x04) == 0);          
 }
-#endif
 
 static void gdc_wait_vsync(void)
 {
@@ -729,7 +717,6 @@ static void gdc_wait_vsync(void)
     while ( (inb(GRAPHIC_GDC) & 0x20) == 0);          
 }
 
-#ifdef LINE30
 static int check_gdc_clock(void)
 {
     if ((inb(IO_SYSPORT) & 0x80) == 0){
@@ -738,11 +725,9 @@ static int check_gdc_clock(void)
        	return _2_5MHZ;
     }
 }
-#endif
 
 static void initialize_gdc(unsigned int mode, int isGraph)
 {
-#ifdef LINE30
     /* start 30line initialize */
     int m_mode, s_mode, gdc_clock, hsync_clock;
 
@@ -847,12 +832,6 @@ static void initialize_gdc(unsigned int mode, int isGraph)
     gdc_wait_vsync();
 
     master_gdc_cmd(isGraph ? _GDC_STOP : _GDC_START);
-#else
-    master_gdc_wait_vsync();
-    master_gdc_cmd(isGraph ? _GDC_STOP : _GDC_START);	/* text */
-    gdc_wait_vsync();
-    gdc_cmd(isGraph ? _GDC_START : _GDC_STOP);		/* graphics */
-#endif
 }
 
 #ifndef GDC_NOGRAPHICS
