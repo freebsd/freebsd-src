@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: subr_prf.c,v 1.3 1994/08/02 07:42:30 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -92,8 +92,7 @@ const char *panicstr;
  * the disks as this often leads to recursive panics.
  */
 #ifdef __GNUC__
-volatile void boot(int flags);	/* boot() does not return */
-volatile			/* panic() does not return */
+__dead			/* panic() does not return */
 #endif
 void
 #ifdef __STDC__

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.50 1994/08/10 23:28:26 wollman Exp $
+ *	$Id: machdep.c,v 1.51 1994/08/13 03:49:42 wollman Exp $
  */
 
 #include "npx.h"
@@ -669,7 +669,7 @@ void diediedie()
 int	waittime = -1;
 struct pcb dumppcb;
 
-void
+__dead void
 boot(arghowto)
 	int arghowto;
 {
