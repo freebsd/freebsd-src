@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.35 1997/03/22 20:34:21 mpp Exp $
+ * $Id: kern_clock.c,v 1.36 1997/04/26 11:46:12 peter Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -1048,6 +1048,7 @@ sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
 	 */
 	clkinfo.hz = hz;
 	clkinfo.tick = tick;
+	clkinfo.tickadj = tickadj;
 	clkinfo.profhz = profhz;
 	clkinfo.stathz = stathz ? stathz : hz;
 	return (sysctl_handle_opaque(oidp, &clkinfo, sizeof clkinfo, req));

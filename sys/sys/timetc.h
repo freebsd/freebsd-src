@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.13 1997/05/08 13:48:47 peter Exp $
+ * $Id: time.h,v 1.14 1997/05/13 10:58:14 peter Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -125,6 +125,7 @@ struct	itimerval {
 struct clockinfo {
 	int	hz;		/* clock frequency */
 	int	tick;		/* micro-seconds per hz tick */
+	int	tickadj;	/* clock skew rate for adjtime() */
 	int	stathz;		/* statistics clock frequency */
 	int	profhz;		/* profiling clock frequency */
 };
