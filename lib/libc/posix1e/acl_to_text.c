@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000, 20001 Robert N. M. Watson
+ * Copyright (c) 1999-2002 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -65,6 +65,11 @@ acl_to_text(acl_t acl, ssize_t *len_p)
 	buf = strdup("");
 	if (!buf)
 		return(NULL);
+
+	if (acl == NULL) {
+		errno = EINVAL;
+		return(NULL);
+	}
 
 	acl_int = &acl->ats_acl;
 
