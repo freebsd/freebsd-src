@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.6 1995/05/18 09:02:06 jkh Exp $
+ * $Id: tcpip.c,v 1.7 1995/05/18 13:18:35 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -383,7 +383,7 @@ tcpOpenDialog(char *str)
 	    if (n == LAYOUT_EXTRAS) {
 		n = LAYOUT_IFACE;
 		obj = (((first->next)->next)->next)->next;
-	    } else if (obj->next != NULL) {
+            } else if (n < max) {
 		++n;
 	    } else {
 		n = 0;
