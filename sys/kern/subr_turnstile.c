@@ -431,6 +431,8 @@ _mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 		if (_obtain_lock(m, curproc))
 			break;
 
+		/* Give interrupts a chance while we spin. */
+		critical_exit(mtx_crit);
 		while (m->mtx_lock != MTX_UNOWNED) {
 			if (i++ < 1000000)
 				continue;
@@ -444,6 +446,7 @@ _mtx_lock_spin(struct mtx *m, int opts, critical_t mtx_crit, const char *file,
 			panic("spin lock %s held by %p for > 5 seconds",
 			    m->mtx_object.lo_name, (void *)m->mtx_lock);
 		}
+		mtx_crit = critical_enter();
 	}
 
 	m->mtx_savecrit = mtx_crit;
