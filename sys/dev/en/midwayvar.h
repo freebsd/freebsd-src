@@ -38,8 +38,7 @@
  * m i d w a y v a r . h
  *
  * we define the en_softc here so that bus specific modules can allocate
- * it as the first item in their softc.   note that BSD-required 
- * "struct device" is in the mid_softc!
+ * it as the first item in their softc. 
  *
  * author: Chuck Cranor <chuck@ccrc.wustl.edu>
  */
@@ -47,7 +46,6 @@
 /*
  * params needed to determine softc size
  */
-
 #ifndef EN_NTX
 #define EN_NTX          8       /* number of tx bufs to use */
 #endif
@@ -57,144 +55,176 @@
 #ifndef EN_RXSZ
 #define EN_RXSZ         32      /* recv buf size in KB */
 #endif
-#define EN_MAXNRX       ((2048-(EN_NTX*EN_TXSZ))/EN_RXSZ)
-				/* largest possible NRX (depends on RAM size) */
 
+/* largest possible NRX (depends on RAM size) */
+#define EN_MAXNRX       ((2048 - (EN_NTX * EN_TXSZ)) / EN_RXSZ)
 
-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
-#define EN_INTR_TYPE int
-#define EN_INTR_RET(X) return(X)
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-#define EN_IOCTL_CMDT u_long
-#elif defined(__bsdi__)
-#define EN_IOCTL_CMDT int
+#ifndef EN_MAX_DMASEG
+#define EN_MAX_DMASEG	32
 #endif
 
-#elif defined(__FreeBSD__)
+/* number of bytes to use in the first receive buffer. This must not be larger
+ * than MHLEN, should be a multiple of 64 and must be a multiple of 4. */
+#define EN_RX1BUF	128
 
-#define EN_INTR_TYPE void
-#define EN_INTR_RET(X) return
-#define EN_IOCTL_CMDT u_long
+/*
+ * Structure to hold DMA maps. These are handle via a typestable uma zone.
+ */
+struct en_map {
+	uintptr_t	flags;		/* map flags */
+	struct en_map	*rsvd2;		/* see uma_zalloc(9) */
+	struct en_softc	*sc;		/* back pointer */
+	bus_dmamap_t	map;		/* the map */
+};
+#define ENMAP_LOADED	0x02
+#define ENMAP_ALLOC	0x01
 
-struct midway_device {
-  char dv_xname[IFNAMSIZ];
+#define EN_MAX_MAPS	400
+
+/*
+ * Statistics
+ */
+struct en_stats {
+	uint32_t vtrash;	/* sw copy of counter */
+	uint32_t otrash;	/* sw copy of counter */
+	uint32_t ttrash;	/* # of RBD's with T bit set */
+	uint32_t mfixaddr;	/* # of times we had to mfix an address */
+	uint32_t mfixlen;	/* # of times we had to mfix a lenght*/
+	uint32_t mfixfail;	/* # of times mfix failed */
+	uint32_t txmbovr;	/* # of times we dropped due to mbsize */
+	uint32_t dmaovr;	/* tx dma overflow count */
+	uint32_t txoutspace;	/* out of space in xmit buffer */
+	uint32_t txdtqout;	/* out of DTQs */
+	uint32_t launch;	/* total # of launches */
+	uint32_t hwpull;	/* # of pulls off hardware service list */
+	uint32_t swadd;		/* # of pushes on sw service list */
+	uint32_t rxqnotus;	/* # of times we pull from rx q, but fail */
+	uint32_t rxqus;		/* # of good pulls from rx q */
+	uint32_t rxdrqout;	/* # of times out of DRQs */
+	uint32_t rxmbufout;	/* # of time out of mbufs */
+	uint32_t txnomap;	/* out of DMA maps in TX */
 };
 
-#define DV_IFNET 1
+/*
+ * Each of these structures describes one of the eight transmit channels
+ */
+struct en_txslot {
+	uint32_t	mbsize;		/* # mbuf bytes in use (max=TXHIWAT) */
+	uint32_t	bfree;		/* # free bytes in buffer */
+	uint32_t	start;		/* start of buffer area (byte offset) */
+	uint32_t	stop;		/* ends of buffer area (byte offset) */
+	uint32_t	cur;		/* next free area (byte offset) */
+	uint32_t	nref;		/* # of VCs using this channel */
+	struct ifqueue	q;		/* mbufs waiting for DMA now */
+	struct ifqueue	indma;		/* mbufs waiting for DMA now */
+};
 
-#endif
+/*
+ * Each of these structures is used for each of the receive buffers on the
+ * card.
+ */
+struct en_rxslot {
+	void		*rxhand;	/* recv. handle for direct delivery */
+	uint32_t	mode;		/* saved copy of mode info */
+	uint32_t	start;		/* begin of my buffer area */
+	uint32_t	stop;		/* end of my buffer area */
+	uint32_t	cur;		/* where I am at in the buffer */
+	uint16_t	atm_vci;	/* backpointer to VCI */
+	uint8_t		atm_flags;	/* copy of atm_flags from atm_ph */
+	uint8_t		oth_flags;	/* other flags */
+	uint32_t	raw_threshold;	/* for raw mode */
+	struct ifqueue	q;		/* mbufs waiting for dma now */
+	struct ifqueue	indma;		/* mbufs being dma'd now */
+};
 
 /*
  * softc
  */
-
 struct en_softc {
-  /* bsd glue */
-  struct midway_device sc_dev;		/* system device */
-  struct ifnet enif;		/* network ifnet handle */
+	/* bsd glue */
+	struct ifnet enif;		/* network ifnet handle */
+	device_t dev;
 
-  /* bus glue */
-  bus_space_tag_t en_memt;	/* for EN_READ/EN_WRITE */
-  bus_space_handle_t en_base;	/* base of en card */
-  bus_size_t en_obmemsz;	/* size of en card (bytes) */
-  void (*en_busreset)(void *);
-				/* bus specific reset function */
+	/* bus glue */
+	bus_space_tag_t en_memt;	/* for EN_READ/EN_WRITE */
+	bus_space_handle_t en_base;	/* base of en card */
+	bus_size_t en_obmemsz;		/* size of en card (bytes) */
+	void (*en_busreset)(void *);	/* bus specific reset function */
+	bus_dma_tag_t txtag;		/* TX DMA tag */
 
-  /* serv list */
-  u_int32_t hwslistp;		/* hw pointer to service list (byte offset) */
-  u_int16_t swslist[MID_SL_N];	/* software service list (see en_service()) */
-  u_int16_t swsl_head, 		/* ends of swslist (index into swslist) */
-	    swsl_tail;
-  u_int32_t swsl_size;		/* # of items in swsl */
-  
+	/* serv list */
+	uint32_t hwslistp;	/* hw pointer to service list (byte offset) */
+	uint16_t swslist[MID_SL_N]; /* software svc list (see en_service()) */
+	uint16_t swsl_head; 	/* ends of swslist (index into swslist) */
+	uint16_t swsl_tail;
+	uint32_t swsl_size;	/* # of items in swsl */
 
-  /* xmit dma */
-  u_int32_t dtq[MID_DTQ_N];	/* sw copy of dma q (see ENIDQ macros) */
-  u_int32_t dtq_free;		/* # of dtq's free */
-  u_int32_t dtq_us;		/* software copy of our pointer (byte offset) */
-  u_int32_t dtq_chip;		/* chip's pointer (byte offset) */
-  u_int32_t need_dtqs;		/* true if we ran out of DTQs */
+	/* xmit dma */
+	uint32_t dtq[MID_DTQ_N];/* sw copy of dma q (see EN_DQ_MK macros) */
+	uint32_t dtq_free;	/* # of dtq's free */
+	uint32_t dtq_us;	/* software copy of our pointer (byte offset) */
+	uint32_t dtq_chip;	/* chip's pointer (byte offset) */
+	uint32_t need_dtqs;	/* true if we ran out of DTQs */
 
-  /* recv dma */
-  u_int32_t drq[MID_DRQ_N];	/* sw copy of dma q (see ENIDQ macros) */
-  u_int32_t drq_free;		/* # of drq's free */
-  u_int32_t drq_us;		/* software copy of our pointer (byte offset) */
-  u_int32_t drq_chip;		/* chip's pointer (byte offset) */
-  u_int32_t need_drqs;		/* true if we ran out of DRQs */
+	/* recv dma */
+	uint32_t drq[MID_DRQ_N];/* sw copy of dma q (see ENIDQ macros) */
+	uint32_t drq_free;	/* # of drq's free */
+	uint32_t drq_us;	/* software copy of our pointer (byte offset) */
+	uint32_t drq_chip;	/* chip's pointer (byte offset) */
+	uint32_t need_drqs;	/* true if we ran out of DRQs */
 
-  /* xmit buf ctrl. (per channel) */
-  struct {
-    u_int32_t mbsize;		/* # mbuf bytes we are using (max=TXHIWAT) */
-    u_int32_t bfree;		/* # free bytes in buffer (not dma or xmit) */
-    u_int32_t start, stop;	/* ends of buffer area (byte offset) */
-    u_int32_t cur;		/* next free area (byte offset) */
-    u_int32_t nref;		/* # of VCs using this channel */
-    struct ifqueue indma;	/* mbufs being dma'd now */
-    struct ifqueue q;		/* mbufs waiting for dma now */
-  } txslot[MID_NTX_CH];
+	/* xmit buf ctrl. (per channel) */
+	struct en_txslot txslot[MID_NTX_CH];
 
-  /* xmit vc ctrl. (per vc) */
-  u_int8_t txspeed[MID_N_VC];	/* speed of tx on a VC */
-  u_int8_t txvc2slot[MID_N_VC]; /* map VC to slot */
+	/* xmit vc ctrl. (per vc) */
+	uint8_t txspeed[MID_N_VC];	/* speed of tx on a VC */
+	uint8_t txvc2slot[MID_N_VC];	/* map VC to slot */
 
-  /* recv vc ctrl. (per vc).   maps VC number to recv slot */
-  u_int16_t rxvc2slot[MID_N_VC];
-  int en_nrx;			/* # of active rx slots */
+	/* recv vc ctrl. (per vc).   maps VC number to recv slot */
+	uint16_t rxvc2slot[MID_N_VC];
+	int en_nrx;			/* # of active rx slots */
 
-  /* recv buf ctrl. (per recv slot) */
-  struct {
-    void *rxhand;		/* recv. handle if doing direct delivery */
-    u_int32_t mode;		/* saved copy of mode info */
-    u_int32_t start, stop;	/* ends of my buffer area */
-    u_int32_t cur;		/* where I am at */
-    u_int16_t atm_vci;		/* backpointer to VCI */
-    u_int8_t atm_flags;		/* copy of atm_flags from atm_ph */
-    u_int8_t oth_flags;		/* other flags */
-    u_int32_t raw_threshold;	/* for raw mode */
-    struct ifqueue indma;	/* mbufs being dma'd now */
-    struct ifqueue q;		/* mbufs waiting for dma now */
-  } rxslot[EN_MAXNRX];		/* recv info */
+	/* recv buf ctrl. (per recv slot) */
+	struct en_rxslot rxslot[EN_MAXNRX];
 
-  u_int8_t macaddr[6];		/* card unique mac address */
+	/* stats */
+	struct en_stats stats;
 
-  /* stats */
-  u_int32_t vtrash;		/* sw copy of counter */
-  u_int32_t otrash;		/* sw copy of counter */
-  u_int32_t ttrash;		/* # of RBD's with T bit set */
-  u_int32_t mfix;		/* # of times we had to call mfix */
-  u_int32_t mfixfail;		/* # of times mfix failed */
-  u_int32_t headbyte;		/* # of times we used BYTE DMA at front */
-  u_int32_t tailbyte;		/* # of times we used BYTE DMA at end */
-  u_int32_t tailflush;		/* # of times we had to FLUSH out DMA bytes */
-  u_int32_t txmbovr;		/* # of times we dropped due to mbsize */
-  u_int32_t dmaovr;		/* tx dma overflow count */
-  u_int32_t txoutspace;		/* out of space in xmit buffer */
-  u_int32_t txdtqout;		/* out of DTQs */
-  u_int32_t launch;		/* total # of launches */
-  u_int32_t lheader;		/* # of launches without OB header */
-  u_int32_t ltail;		/* # of launches without OB tail */
-  u_int32_t hwpull;		/* # of pulls off hardware service list */
-  u_int32_t swadd;		/* # of pushes on sw service list */
-  u_int32_t rxqnotus;		/* # of times we pull from rx q, but fail */
-  u_int32_t rxqus;		/* # of good pulls from rx q */
-  u_int32_t rxoutboth;		/* # of times out of mbufs and DRQs */
-  u_int32_t rxdrqout;		/* # of times out of DRQs */
-  u_int32_t rxmbufout;		/* # of time out of mbufs */
+	/* random stuff */
+	uint32_t ipl;		/* sbus interrupt lvl (1 on pci?) */
+	uint8_t bestburstcode;	/* code of best burst we can use */
+	uint8_t bestburstlen;	/* length of best burst (bytes) */
+	uint8_t bestburstshift;	/* (x >> shift) == (x / bestburstlen) */
+	uint8_t bestburstmask;	/* bits to check if not multiple of burst */
+	uint8_t alburst;	/* align dma bursts? */
+	uint8_t noalbursts;	/* don't use unaligned > 4 byte bursts */
+	uint8_t is_adaptec;	/* adaptec version of midway? */
+	struct mbuf *padbuf;	/* buffer of zeros for TX padding */
 
-  /* random stuff */
-  u_int32_t ipl;		/* sbus interrupt lvl (1 on pci?) */
-  u_int8_t bestburstcode;	/* code of best burst we can use */
-  u_int8_t bestburstlen;	/* length of best burst (bytes) */
-  u_int8_t bestburstshift;	/* (x >> shift) == (x / bestburstlen) */
-  u_int8_t bestburstmask;	/* bits to check if not multiple of burst */
-  u_int8_t alburst;		/* align dma bursts? */
-  u_int8_t is_adaptec;		/* adaptec version of midway? */
+	/* mutex to protect this structure and the associated hardware */
+	struct mtx en_mtx;
+
+	/* sysctl support */
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
+
+	/* memory zones */
+	uma_zone_t map_zone;
+
+	/* board info */
+	uint8_t macaddr[6];
+	uint32_t serial;
+
+#ifdef EN_DEBUG
+	/* debugging */
+	u_int debug;
+#endif
 };
 
 /*
  * exported functions
  */
-
-void	en_attach(struct en_softc *);
-EN_INTR_TYPE	en_intr(void *);
+int	en_attach(struct en_softc *);
+void	en_destroy(struct en_softc *);
+void	en_intr(void *);
 void	en_reset(struct en_softc *);
