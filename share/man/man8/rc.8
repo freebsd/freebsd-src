@@ -245,9 +245,6 @@ entry, and if necessary
 and
 .Dq Li BEFORE
 keywords.
-In addition, all scripts must have a
-.Dq Li "# KEYWORD: FreeBSD"
-line.
 .Pp
 Each script is expected to support at least the following arguments, which
 are automatically supported if it uses the
@@ -481,7 +478,6 @@ Most scripts require little more than the following.
 # PROVIDE: foo
 # REQUIRE: bar_service_required_to_precede_foo
 # BEFORE:  baz_service_requiring_foo_to_precede_it
-# KEYWORD: FreeBSD
 
 \&. /etc/rc.subr
 
@@ -503,7 +499,6 @@ The script may list and define as many commands at it needs.
 # PROVIDE: foo
 # REQUIRE: bar_service_required_to_precede_foo
 # BEFORE:  baz_service_requiring_foo_to_precede_it
-# KEYWORD: FreeBSD
 
 \&. /etc/rc.subr
 
