@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.246 1996/03/31 04:18:02 bde Exp $
+#	$Id: LINT,v 1.247 1996/04/02 18:13:36 wollman Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -275,6 +275,16 @@ options		NSWAPDEV=20
 # kernel compile directory in order to get a working kernel.
 #
 options		QUOTA			#enable disk quotas
+
+# Add more checking code to various filesystems
+#options		NULLFS_DIAGNOSTIC
+#options		KERNFS_DIAGNOSTIC
+#options		UMAPFS_DIAGNOSTIC
+#options		UNION_DIAGNOSTIC
+
+# Add some error checking code to the null_bypass routine
+# in nthe NULL filesystem
+#options		SAFETY
 
 
 #####################################################################
