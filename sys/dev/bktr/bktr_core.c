@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.84 1999/06/04 13:24:54 roger Exp $ */
+/* $Id: brooktree848.c,v 1.85 1999/06/12 14:54:54 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt848A, Bt849A, Bt878, Bt879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -1409,13 +1409,6 @@ bktr_attach( device_t dev )
 
 	unit = device_get_unit(dev);
 
-	if (unit >= NBKTR) {
-		printf("brooktree%d: attach: only %d units configured.\n",
-		        unit, NBKTR);
-		printf("brooktree%d: attach: invalid unit number.\n", unit);
-		return ENXIO;
-	}
-
 	/*
 	 * Enable bus mastering and Memory Mapped device
 	 */
@@ -1957,8 +1950,6 @@ bktr_open( dev_t dev, int flags, int fmt, struct proc *p )
 	int		result;
 
 	unit = UNIT( minor(dev) );
-	if (unit >= NBKTR)			/* unit out of range */
-		return( ENXIO );
 
 	/* Get the device data */
 	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
@@ -2204,8 +2195,6 @@ bktr_close( dev_t dev, int flags, int fmt, struct proc *p )
 	int		result;
 
 	unit = UNIT( minor(dev) );
-	if (unit >= NBKTR)			/* unit out of range */
-		return( ENXIO );
 
 	/* Get the device data */
 	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
@@ -2303,8 +2292,6 @@ bktr_read( dev_t dev, struct uio *uio, int ioflag )
 	int		unit;
 	
 	unit = UNIT(minor(dev));
-	if (unit >= NBKTR)	/* unit out of range */
-		return( ENXIO );
 
 	/* Get the device data */
 	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
@@ -2444,8 +2431,6 @@ bktr_ioctl( dev_t dev, ioctl_cmd_t cmd, caddr_t arg, int flag, struct proc* pr )
 	int		unit;
 
 	unit = UNIT(minor(dev));
-	if (unit >= NBKTR)	/* unit out of range */
-		return( ENXIO );
 
 	/* Get the device data */
 	bktr = (struct bktr_softc*)devclass_get_softc(bktr_devclass, unit);
@@ -3618,7 +3603,7 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 
 	unit = UNIT(minor(dev));
 
-	if (unit >= NBKTR || MINOR(minor(dev)) > 0)/* could this happen here? */
+	if (MINOR(minor(dev)) > 0)	/* only allow mmap on /dev/bktr[n] */
 		return( -1 );
 
 	/* Get the device data */
