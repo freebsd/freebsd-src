@@ -112,7 +112,7 @@
  * properly (old versions of gcc-2 supported the dead and pure features
  * in a different (wrong) way).
  */
-#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5
+#if __GNUC__ < 2 || __GNUC__ == 2 && __GNUC_MINOR__ < 5 || __GNUC__ >= 3
 #define __dead2
 #define __pure2
 #define __unused
