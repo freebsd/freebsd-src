@@ -27,21 +27,25 @@
  * 2550 Garcia Avenue
  * Mountain View, California  94043
  */
+
 #if !defined(lint) && defined(SCCSIDS)
 #if 0
 static char sccsid[] = "@(#)generic.c 1.2 91/03/11 Copyr 1986 Sun Micro";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif
 
 /*
  * Copyright (C) 1986, Sun Microsystems, Inc.
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/file.h>
+
 #include <rpc/rpc.h>
 #include <rpc/key_prot.h>
+
 #include <mp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,10 +59,7 @@ static void getseed(char *, int, unsigned char *);
  * Generate a seed
  */
 static void
-getseed(seed, seedsize, pass)
-	char *seed;
-	int seedsize;
-	unsigned char *pass;
+getseed(char *seed, int seedsize, unsigned char *pass)
 {
 	int i;
 
@@ -71,10 +72,7 @@ getseed(seed, seedsize, pass)
  * Generate a random public/secret key pair
  */
 void
-genkeys(public, secret, pass)
-	char *public;
-	char *secret;
-	char *pass;
+genkeys(char *public, char *secret, char *pass)
 {
 	unsigned int i;
 
@@ -118,9 +116,7 @@ genkeys(public, secret, pass)
  * Adjust the input key so that it is 0-filled on the left
  */
 static void
-adjust(keyout, keyin)
-	char keyout[HEXKEYBYTES+1];
-	char *keyin;
+adjust(char keyout[HEXKEYBYTES+1], char *keyin)
 {
 	char *p;
 	char *s;
