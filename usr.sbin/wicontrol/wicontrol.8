@@ -171,14 +171,39 @@ number of bytes used for the RTS/CTS handhake boundary. The
 .Ar RTS threshold
 can be any value between 0 and 2047. The default is 2347.
 .It Fl i Ar iface Fl f Ar frequency
-Specify the radio frequency to use for a given interface. There are
-a small number of different channels available use in different geographical
-areas. Known values are 3 (2422Mhz) for the United States, 11 (2462Mhz)
-for France and 14 (2484Mhz) for Japan, however the NIC may accept any
-channel number between 0 and 14. If an illegal channel is specified, the
-NIC will revert to its default channel. For NIC sold in the United States,
-the default channel is 3. Note that two stations must be
-set to the same channel in order to communicate.
+Set the radio frequency of a given interface. The
+.Ar frequency
+should be specfied as a channel ID as shown in the table below. The
+list of available frequencies is dependent on radio regulations specified
+by regional authorities. Recognized regulatory authorities include
+the FCC (United States), ETSI (Europe), France and Japan. Frequencies
+in the table are specified in Mhz.
+.Bd -filled -offset indent
+.Bl -column "Channel ID " "FCC " "ETSI " "France " "Japan "
+.Em "Channel ID	FCC	ETSI	France	Japan"
+1	2412	2412	-	-
+2	2417	2417	-	-
+3	2422	2422	-	-
+4	2427	2427	-	-
+5	2432	2432	-	-
+6	2437	2437	-	-
+7	2442	2442	-	-
+8	2447	2447	-	-
+9	2452	2452	-	-
+10	2457	2457	2457	-
+11	2462	2462	2462	-
+12	-	2467	2467	-
+13	-	2472	2472	-
+14	-	-	-	2484
+.El
+.Ed
+.Pp
+If an illegal channel is specified, the
+NIC will revert to its default channel. For NICs sold in the United States
+and Europe, the default channel is 3. For NICs sold in France, the default
+channel is 11. For NICs sold in Japan, the only available channel is 14.
+Note that two stations must be set to the same channel in order to
+communicate.
 .It Fl i Ar iface Fl P Ar 0|1
 Enable or disable power management on a given interface. Enabling
 power management uses an alternating sleep/wake protocol to help
