@@ -75,7 +75,7 @@ typedef void g_orphan_t (struct g_consumer *);
 
 typedef void g_start_t (struct bio *);
 typedef void g_spoiled_t (struct g_consumer *);
-typedef void g_dumpconf_t (struct sbuf *, char *indent, struct g_geom *,
+typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
 
 /*
@@ -86,7 +86,7 @@ typedef void g_dumpconf_t (struct sbuf *, char *indent, struct g_geom *,
  * taste and config_geom functions.
  */
 struct g_class {
-	char			*name;
+	const char		*name;
 	g_taste_t		*taste;
 	g_config_t		*config;
 	/*
@@ -167,7 +167,7 @@ struct g_provider {
 	int			error;
 	struct g_event		*event;
 	TAILQ_ENTRY(g_provider)	orphan;
-	int			index;
+	u_int			index;
 	off_t			mediasize;
 	u_int			sectorsize;
 };
@@ -197,7 +197,7 @@ int g_dev_print(void);
 
 /* geom_dump.c */
 void g_hexdump(void *ptr, int length);
-void g_trace(int level, char *, ...);
+void g_trace(int level, const char *, ...);
 #	define G_T_TOPOLOGY	1
 #	define G_T_BIO		2
 #	define G_T_ACCESS	4
@@ -222,13 +222,13 @@ void g_detach(struct g_consumer *cp);
 void g_error_provider(struct g_provider *pp, int error);
 int g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len);
 #define g_getattr(a, c, v) g_getattr__((a), (c), (v), sizeof *(v))
-int g_handleattr(struct bio *bp, char *attribute, void *val, int len);
-int g_handleattr_int(struct bio *bp, char *attribute, int val);
-int g_handleattr_off_t(struct bio *bp, char *attribute, off_t val);
-struct g_geom * g_insert_geom(char *class, struct g_consumer *cp);
+int g_handleattr(struct bio *bp, const char *attribute, void *val, int len);
+int g_handleattr_int(struct bio *bp, const char *attribute, int val);
+int g_handleattr_off_t(struct bio *bp, const char *attribute, off_t val);
+struct g_geom * g_insert_geom(const char *class, struct g_consumer *cp);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
-struct g_geom * g_new_geomf(struct g_class *mp, char *fmt, ...);
-struct g_provider * g_new_providerf(struct g_geom *gp, char *fmt, ...);
+struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...);
+struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...);
 void g_sanity(void *ptr);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);

@@ -203,7 +203,7 @@ g_disk_start(struct bio *bp)
 }
 
 static void
-g_disk_dumpconf(struct sbuf *sb, char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
+g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g_consumer *cp, struct g_provider *pp)
 {
 	struct disk *dp;
 

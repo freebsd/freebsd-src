@@ -388,7 +388,11 @@ g_dev_strategy(struct bio *bp)
 	gp = dev->si_drv1;
 	cp = dev->si_drv2;
 	bp2 = g_clone_bio(bp);
+	KASSERT(bp2 != NULL, ("XXX: ENOMEM in a bad place"));
 	bp2->bio_offset = (off_t)bp->bio_blkno << DEV_BSHIFT;
+	KASSERT(bp2->bio_offset >= 0,
+	    ("Negative bio_offset (%jd) on bio %p",
+	    (intmax_t)bp2->bio_offset, bp));
 	bp2->bio_length = (off_t)bp->bio_bcount;
 	bp2->bio_done = g_dev_done;
 	g_trace(G_T_BIO,
