@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.85 1994/12/27 08:43:06 davidg Exp $
+ *	$Id: syscons.c,v 1.86 1994/12/31 17:09:58 jkh Exp $
  */
 
 #include "sc.h"
@@ -354,10 +354,10 @@ gotack:
 			printf("scprobe: keyboard RESET failed %02x\n", val);
 	}
 #ifdef XT_KEYBOARD
-	kbd-wait();
-	outb(KB_DatA, 0xF0);
-	kbd-wait();
-	outb(KD_DATA, 1)
+	kbd_wait();
+	outb(KB_DATA, 0xF0);
+	kbd_wait();
+	outb(KB_DATA, 1)
 	kbd_wait();
 #endif /* XT_KEYBOARD */
 	return (IO_KBDSIZE);
