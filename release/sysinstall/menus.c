@@ -372,12 +372,16 @@ DMenu MenuDocumentation = {
 DMenu MenuMouseType = {
     DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "Select a protocol type for your mouse",
-    "If you are not sure, choose \"Auto\".  It should always work for bus\n"
-    "and PS/2 style mice.  It may not work for the serial mouse if the mouse\n"
-    "does not support the PnP standard.  But, it won't hurt.  Many 2-button\n"
-    "serial mice are compatible with \"Microsoft\" or \"MouseMan\".  3-button\n"
-    "serial mice may be compatible with \"MouseSystems\" or \"MouseMan\".  If\n"
-    "the mouse has a wheel, it may be compatible with \"IntelliMouse\".",
+    "If your mouse is attached to the PS/2 mouse port or the bus mouse port,\n"
+    "you should always choose \"Auto\", regardless of the model and the brand\n"
+    "of the mouse.  All other protocol types are for serial mice and should\n"
+    "not be used with the PS/2 port mouse or the bus mouse.  If you have\n"
+    "a serial mouse and are not sure about its protocol, you should also try\n"
+    "\"Auto\".  It may not work for the serial mouse if the mouse does not\n"
+    "support the PnP standard.  But, it won't hurt.  Many 2-button serial mice\n"
+    "are compatible with \"Microsoft\" or \"MouseMan\".  3-button serial mice\n"
+    "may be compatible with \"MouseSystems\" or \"MouseMan\".  If the serial\n"
+    "mouse has a wheel, it may be compatible with \"IntelliMouse\".",
     NULL,
     NULL,
     { { "1 Auto",	"Bus mouse, PS/2 style mouse or PnP serial mouse",	
