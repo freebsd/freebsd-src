@@ -9,7 +9,7 @@ SHLIB_MAJOR=	1
 
 # Traditional FORTRAN Library members defined in libF77
 
-F77MISC=	F77_aloc.c s_rnge.c abort_.c getarg_.c \
+F77MISC=	F77_aloc.c main.c s_rnge.c abort_.c getarg_.c \
 		iargc_.c getenv_.c signal_.c s_stop.c s_paus.c system_.c \
 		cabs.c derf_.c derfc_.c erf_.c erfc_.c sig_die.c exit_.c \
 		setarg.c setsig.c
