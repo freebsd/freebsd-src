@@ -119,6 +119,8 @@ struct tcpcb {
 					 * for slow start exponential to
 					 * linear switch
 					 */
+	tcp_seq	snd_recover;		/* for use in fast recovery */
+
 	u_int	t_maxopd;		/* mss plus options */
 
 	u_long	t_rcvtime;		/* inactivity time */
@@ -365,6 +367,7 @@ extern	struct inpcbinfo tcbinfo;
 extern	struct tcpstat tcpstat;	/* tcp statistics */
 extern	int tcp_mssdflt;	/* XXX */
 extern	int tcp_delack_enabled;
+extern	int tcp_do_newreno;
 extern	int ss_fltsz;
 extern	int ss_fltsz_local;
 
