@@ -174,7 +174,7 @@
       for hangs during PCCARD ejection, but gave the wrong syntax for
       the necessary command.  The correct command line is:
 
-    <screen><prompt>#</prompt> <userinput>pccardc power <replaceable>slot</replaceable> 0</userinput></screen>
+    <screen><prompt>&prompt.root;</prompt> <userinput>pccardc power <replaceable>slot</replaceable> 0</userinput></screen>
 
 ]]>
   </sect1>
