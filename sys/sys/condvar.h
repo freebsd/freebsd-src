@@ -59,7 +59,9 @@ int	cv_timedwait(struct cv *cvp, struct mtx *mp, int timo);
 int	cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo);
 
 void	cv_signal(struct cv *cvp);
+void	cv_signal_drop(struct cv *cvp, struct mtx *mp);
 void	cv_broadcast(struct cv *cvp);
+void	cv_broadcast_drop(struct cv *cvp, struct mtx *mp);
 
 void	cv_waitq_remove(struct proc *p);
 
