@@ -113,7 +113,8 @@ chargen_dg(s, sep)		/* Character generator */
 {
 	struct sockaddr_storage ss;
 	static char *rs;
-	int len, size;
+	int len;
+	socklen_t size;
 	char text[LINESIZ+2];
 
 	if (endring == 0) {
@@ -139,8 +140,7 @@ chargen_dg(s, sep)		/* Character generator */
 		rs = ring;
 	text[LINESIZ] = '\r';
 	text[LINESIZ + 1] = '\n';
-	(void) sendto(s, text, sizeof(text), 0,
-		      (struct sockaddr *)&ss, sizeof(ss));
+	(void) sendto(s, text, sizeof(text), 0, (struct sockaddr *)&ss, size);
 }
 
 /* ARGSUSED */
@@ -190,7 +190,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 	char buffer[256];
 	time_t clock;
 	struct sockaddr_storage ss;
-	int size;
+	socklen_t size;
 
 	clock = time((time_t *) 0);
 
@@ -204,7 +204,7 @@ daytime_dg(s, sep)		/* Return human-readable time of day */
 
 	(void) sprintf(buffer, "%.24s\r\n", ctime(&clock));
 	(void) sendto(s, buffer, strlen(buffer), 0,
-		      (struct sockaddr *)&ss, sizeof(ss));
+		      (struct sockaddr *)&ss, size);
 }
 
 /* ARGSUSED */
@@ -269,7 +269,8 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 	struct servtab *sep;
 {
 	char buffer[BUFSIZE];
-	int i, size;
+	int i;
+	socklen_t size;
 	struct sockaddr_storage ss;
 
 	size = sizeof(ss);
@@ -280,8 +281,7 @@ echo_dg(s, sep)			/* Echo service -- echo data back */
 	if (check_loop((struct sockaddr *)&ss, sep))
 		return;
 
-	(void) sendto(s, buffer, i, 0, (struct sockaddr *)&ss,
-		      sizeof(ss));
+	(void) sendto(s, buffer, i, 0, (struct sockaddr *)&ss, size);
 }
 
 /* ARGSUSED */
@@ -638,7 +638,7 @@ machtime_dg(s, sep)
 {
 	unsigned long result;
 	struct sockaddr_storage ss;
-	int size;
+	socklen_t size;
 
 	size = sizeof(ss);
 	if (recvfrom(s, (char *)&result, sizeof(result), 0,
@@ -650,7 +650,7 @@ machtime_dg(s, sep)
 
 	result = machtime();
 	(void) sendto(s, (char *) &result, sizeof(result), 0,
-		      (struct sockaddr *)&ss, sizeof(ss));
+		      (struct sockaddr *)&ss, size);
 }
 
 /* ARGSUSED */
