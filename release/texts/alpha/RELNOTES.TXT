@@ -80,6 +80,9 @@ Various bugs in msdosfs code fixed.
 rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 /etc/inetd.conf.  This only affects new installations.
 
+TCP now uses stronger randomness in choosing its initial sequence 
+numbers (see security advisory FreeBSD-SA-00:52).
+
 Many other small but meaningful changes, too many to list.  See CVS
 repository for more details.  Suffice it to say from a user
 perspective that "various things were tightened up."
