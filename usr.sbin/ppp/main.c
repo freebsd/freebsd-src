@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.85 1997/10/26 01:03:14 brian Exp $
+ * $Id: main.c,v 1.86 1997/10/29 01:19:42 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -552,9 +552,16 @@ ReadTty()
     n = read(netfd, linebuff, sizeof(linebuff) - 1);
     if (n > 0) {
       aft_cmd = 1;
-      linebuff[n] = '\0';
-      LogPrintf(LogCOMMAND, "Client: %s\n", linebuff);
-      DecodeCommand(linebuff, n, 1);
+      if (linebuff[n-1] == '\n')
+        linebuff[--n] = '\0';
+      if (n) {
+        if (IsInteractive(0))
+          LogPrintf(LogCOMMAND, "%s\n", linebuff);
+        else
+          LogPrintf(LogCOMMAND, "Client: %s\n", linebuff);
+        DecodeCommand(linebuff, n, 1);
+      } else
+        Prompt();
     } else {
       LogPrintf(LogPHASE, "client connection closed.\n");
       VarLocalAuth = LOCAL_NO_AUTH;
@@ -921,7 +928,7 @@ DoLoop()
       VarTerm = fdopen(netfd, "a+");
       mode |= MODE_INTER;
       Greetings();
-      (void) IsInteractive();
+      IsInteractive(1);
       Prompt();
     }
     if ((mode & MODE_INTER) && (netfd >= 0 && FD_ISSET(netfd, &rfds)) &&

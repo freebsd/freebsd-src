@@ -1,5 +1,5 @@
 /*
- * $Id: $
+ * $Id: log.h,v 1.14 1997/10/26 01:03:06 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -27,8 +27,13 @@
 /* The first int arg for all of the following is one of the above values */
 extern const char *LogName(int);
 extern void LogKeep(int);
+extern void LogKeepLocal(int);
 extern void LogDiscard(int);
+extern void LogDiscardLocal(int);
 extern void LogDiscardAll(void);
+extern void LogDiscardAllLocal(void);
+#define LOG_KEPT_SYSLOG (1)	/* Results of LogIsKept() */
+#define LOG_KEPT_LOCAL  (2)	/* Results of LogIsKept() */
 extern int LogIsKept(int);
 extern void LogOpen(const char *);
 extern void LogSetTun(int);
