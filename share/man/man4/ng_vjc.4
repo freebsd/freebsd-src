@@ -158,7 +158,7 @@ This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
 control message, or when all hooks have been disconnected.
 .Sh BUGS
-This node type requires that the file
+When used as a loadable kernel module, this node type requires that the file
 .Dv "net/slcompress.c"
 was compiled into the kernel. Currently the only way to insure this
 is to include the
