@@ -263,6 +263,7 @@ zstty_attach(device_t dev)
 	struct zstty_softc *sc;
 	struct tty *tp;
 	char mode[32];
+	int reset;
 	int baud;
 	int clen;
 	char parity;
@@ -328,6 +329,12 @@ zstty_attach(device_t dev)
 		device_printf(dev, "console %s\n", mode);
 		sc->sc_console = 1;
 		zstty_cons = sc;
+	} else {
+		if ((device_get_unit(dev) & 1) == 0)
+			reset = ZSWR9_A_RESET;
+		else
+			reset = ZSWR9_B_RESET;
+		ZS_WRITE_REG(sc, 9, reset);
 	}
 
 	return (0);
