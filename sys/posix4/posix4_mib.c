@@ -29,6 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -96,3 +97,19 @@ void p31b_setcfg(int num, int value)
 	if (num >= 1 && num < CTL_P1003_1B_MAXID)
 		facility[num - 1] = value;
 }
+
+/*
+ * Turn on indications for standard (non-configurable) kernel features.
+ */
+static void
+p31b_set_standard(void *dummy)
+{
+	/* ??? p31b_setcfg(CTL_P1003_1B_FSYNC, 1); */
+	p31b_setcfg(CTL_P1003_1B_MAPPED_FILES, 1);
+	p31b_setcfg(CTL_P1003_1B_SHARED_MEMORY_OBJECTS, 1);
+	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
+}
+
+SYSINIT(p31b_set_standard, SI_SUB_P1003_1B, SI_ORDER_ANY, p31b_set_standard, 
+	0);
+
