@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.2 (Berkeley) 1/9/95
- *	$Id: ip_var.h,v 1.33 1997/05/25 06:09:23 peter Exp $
+ *	$Id: ip_var.h,v 1.34 1997/09/07 05:26:46 bde Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -132,6 +132,7 @@ struct	ipstat {
 	u_long	ips_fragdropped;	/* frags dropped (dups, out of space) */
 	u_long	ips_fragtimeout;	/* fragments timed out */
 	u_long	ips_forward;		/* packets forwarded */
+	u_long	ips_fastforward;	/* packets fast forwarded */
 	u_long	ips_cantforward;	/* packets rcvd for unreachable dest */
 	u_long	ips_redirectsent;	/* packets forwarded on same net */
 	u_long	ips_noproto;		/* unknown or unsupported protocol */
@@ -150,6 +151,22 @@ struct	ipstat {
 	u_long	ips_notmember;		/* multicasts for unregistered grps */
 };
 
+#define	IPFLOW_HASHBITS		6	/* should not be a multiple of 8 */
+struct ipflow {
+	LIST_ENTRY(ipflow) ipf_next;	/* next ipflow in bucket */
+	struct in_addr ipf_dst;		/* destination address */
+	struct in_addr ipf_src;		/* source address */
+
+	u_int8_t ipf_tos;		/* type-of-service */
+	struct route ipf_ro;		/* associated route entry */
+	u_long ipf_uses;		/* number of uses in this period */
+
+	int ipf_timer;			/* remaining lifetime of this entry */
+	u_long ipf_dropped;		/* ENOBUFS returned by if_output */
+	u_long ipf_errors;		/* other errors returned by if_output */
+	u_long ipf_last_uses;		/* number of uses in last period */
+};
+
 #ifdef KERNEL
 /* flags passed to ip_output as last parameter */
 #define	IP_FORWARDING		0x1		/* most of ip header exists */
@@ -163,6 +180,7 @@ struct route;
 extern struct	ipstat	ipstat;
 extern u_short	ip_id;				/* ip packet ctr, for ids */
 extern int	ip_defttl;			/* default IP ttl */
+extern int	ipforwarding;			/* ip forwarding */
 extern u_char	ip_protox[];
 extern struct socket *ip_rsvpd;	/* reservation protocol daemon */
 extern struct socket *ip_mrouter; /* multicast routing daemon */
