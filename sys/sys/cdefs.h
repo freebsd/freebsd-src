@@ -234,8 +234,10 @@
 #define	__IDSTRING(name,string)	__asm__(".ident\t\"" string "\"")
 #else
 /*
- * This doesn't work in header files. But it may be better than nothing.
- * The alternative is: #define __IDSTRING(name,string)  [nothing]
+ * The following definition might not work well if used in header files,
+ * but it should be better than nothing.  If you want a "do nothing"
+ * version, then it should generate some harmless declaration, such as:
+ *    #define __IDSTRING(name,string)	struct __hack
  */
 #define	__IDSTRING(name,string)	static const char name[] __unused = string
 #endif
@@ -258,7 +260,7 @@
 #ifndef	NO__RCSID
 #define	__RCSID(s)	__IDSTRING(__CONCAT(__rcsid_,__LINE__),s)
 #else
-#define	__RCSID(s)
+#define	__RCSID(s)	struct __hack
 #endif
 #endif
 
@@ -266,7 +268,7 @@
 #ifndef	NO__RCSID_SOURCE
 #define	__RCSID_SOURCE(s)	__IDSTRING(__CONCAT(__rcsid_source_,__LINE__),s)
 #else
-#define	__RCSID_SOURCE(s)
+#define	__RCSID_SOURCE(s)	struct __hack
 #endif
 #endif
 
@@ -274,7 +276,7 @@
 #ifndef	NO__SCCSID
 #define	__SCCSID(s)	__IDSTRING(__CONCAT(__sccsid_,__LINE__),s)
 #else
-#define	__SCCSID(s)
+#define	__SCCSID(s)	struct __hack
 #endif
 #endif
 
@@ -282,7 +284,7 @@
 #ifndef	NO__COPYRIGHT
 #define	__COPYRIGHT(s)	__IDSTRING(__CONCAT(__copyright_,__LINE__),s)
 #else
-#define	__COPYRIGHT(s)
+#define	__COPYRIGHT(s)	struct __hack
 #endif
 #endif
 
