@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.33 1996/04/07 14:59:26 bde Exp $
+ *	$Id: mem.c,v 1.34 1996/05/02 10:43:05 phk Exp $
  */
 
 /*
@@ -99,6 +99,7 @@ static void *io_devfs_token;
 static void *perfmon_devfs_token;
 #endif
 
+
 static void memdevfs_init __P((void));
 
 static void 
@@ -134,6 +135,7 @@ memdevfs_init()
 #endif /* DEVFS */
 
 extern        char *ptvmmap;            /* poor name! */
+caddr_t zbuf;
 
 static int
 mmclose(dev, flags, fmt, p)
@@ -153,6 +155,12 @@ mmclose(dev, flags, fmt, p)
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags &= ~PSL_IOPL;
 		break;
+
+	case 12:
+		if (zbuf) {
+			free(zbuf, M_TEMP);
+			zbuf = NULL;
+		}
 	default:
 		break;
 	}
@@ -179,6 +187,7 @@ mmopen(dev, flags, fmt, p)
 		fp = (struct trapframe *)curproc->p_md.md_regs;
 		fp->tf_eflags |= PSL_IOPL;
 		break;
+			
 	default:
 		break;
 	}
@@ -294,13 +303,13 @@ mmrw(dev, uio, flags)
 				c = iov->iov_len;
 				break;
 			}
-			if (buf == NULL) {
-				buf = (caddr_t)
+			if (zbuf == NULL) {
+				zbuf = (caddr_t)
 				    malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
-				bzero(buf, PAGE_SIZE);
+				bzero(zbuf, PAGE_SIZE);
 			}
 			c = min(iov->iov_len, PAGE_SIZE);
-			error = uiomove(buf, (int)c, uio);
+			error = uiomove(zbuf, (int)c, uio);
 			continue;
 
 #ifdef notyet
