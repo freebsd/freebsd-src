@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.68 1994/10/17 22:12:06 sos Exp $
+ *	$Id: syscons.c,v 1.69 1994/10/18 03:34:53 ache Exp $
  */
 
 #include "sc.h"
@@ -213,9 +213,9 @@ void pccnprobe(struct consdev *cp);
 void pccninit(struct consdev *cp);
 void pccnputc(dev_t dev, char c);
 int pccngetc(dev_t dev);
+int pccncheckc(dev_t dev);
 void scintr(int unit);
 int pcmmap(dev_t dev, int offset, int nprot);
-u_int sgetc(int noblock);
 int getchar(void);
 static void scinit(void);
 static void scput(u_char c);
@@ -1182,6 +1182,12 @@ pccngetc(dev_t dev)
 	splx(s);
 	if (c == '\r') c = '\n';
 	return(c);
+}
+
+int 
+pccncheckc(dev_t dev)
+{
+	return (scgetc(1) & 0xff);
 }
 
 static void 
@@ -2541,12 +2547,6 @@ getchar(void)
 		scput('^'); scput('D'); scput('\r'); scput('\n');
 		return(0);
 	}
-}
-
-u_int 
-sgetc(int noblock)
-{
-	return (scgetc(noblock) & 0xff);
 }
 
 int 

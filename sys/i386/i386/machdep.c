@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.76 1994/10/18 03:40:14 ache Exp $
+ *	$Id: machdep.c,v 1.77 1994/10/19 00:05:59 wollman Exp $
  */
 
 #include "npx.h"
@@ -773,7 +773,7 @@ boot(arghowto)
 						PANIC_REBOOT_WAIT_TIME);
 					for (loop = PANIC_REBOOT_WAIT_TIME; loop > 0; --loop) {
 						DELAY(1000 * 1000); /* one second */
-						if (sgetc(1)) /* Did user type a key? */
+						if (cncheckc()) /* Did user type a key? */
 							break;
 					}
 					if (!loop)

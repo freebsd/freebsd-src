@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.34 1994/10/08 22:26:40 phk Exp $
+ *      $Id: sd.c,v 1.35 1994/10/19 00:09:45 wollman Exp $
  */
 
 #define SPLSD splbio
@@ -1020,7 +1020,8 @@ sddump(dev_t dev)
 	addr = (char *) 0;	/* starting address */
 
 	/* toss any characters present prior to dump */
-	while ((c = sgetc(1)) && (c != 0x100)); /*syscons and pccons differ */
+	while ((c = cncheckc(1)) && (c != 0x100)); 
+				/*syscons and pccons differ */
 
 	/* size of memory to dump */
 	num = Maxmem;
@@ -1114,7 +1115,7 @@ sddump(dev_t dev)
 		(int) addr += 512 * blkcnt;
 
 		/* operator aborting dump? */
-		if ((c = sgetc(1)) && (c != 0x100))
+		if ((c = cncheckc(1)) && (c != 0x100))
 			return (EINTR);
 	}
 	return (0);
