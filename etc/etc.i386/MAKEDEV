@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.183.2.6 1999/05/11 04:46:34 mjacob Exp $
+#	$Id: MAKEDEV,v 1.183.2.7 1999/05/29 19:49:28 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -213,7 +213,7 @@ all)
 	sh MAKEDEV vn0					# bdev, virtual disk
 	sh MAKEDEV cd0 matcd0 mcd0 scd0 acd0		# bdev, cdrom
 	sh MAKEDEV ft0 sa0 wt0 wst0			# bdev, tape
-	sh MAKEDEV vty4					# cdev, virtual tty
+	sh MAKEDEV vty12				# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3		# cdev, serial tty
