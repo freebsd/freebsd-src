@@ -14,7 +14,10 @@ doesn't use any termcap calls - it uses hardwired codes for 'cons25'
 terminal type. If you try to use it with some other terminal, you
 have to change them, or recompile with -DUNIX -ltermcap.
 
+This is a copyrighted software - see the file LICENSE. It allows
+you to use it for research and educational purposes only.
+
 Andrzej Bialecki
 <abial@FreeBSD.org>
 
-$Id$
+$Id: README,v 1.1 1998/10/21 17:36:16 abial Exp $

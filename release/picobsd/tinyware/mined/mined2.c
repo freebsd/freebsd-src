@@ -56,6 +56,7 @@ void HLP()
 
 	string_print(enter_string);
 	string_print(help_string);
+	flush();
 	c=getchar();
 	RD();
 	return;
