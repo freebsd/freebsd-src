@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.3 1998/09/04 08:08:05 abial Exp $
+#	$Id: populate,v 1.4 1998/09/07 19:00:15 abial Exp $
 #
 
 pwd=`pwd`
@@ -8,7 +8,7 @@ pwd=`pwd`
 echo "-> Populating MFS tree..."
 cd ../${TYPE}/mfs.tree
 make
-if [ X"${RELENG_2_2}" != X"" ]
+if [ X"${NO_DEVFS}" != X"" ]
 then
 	make devnodes
 fi
