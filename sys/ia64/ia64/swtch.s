@@ -205,13 +205,7 @@ ENTRY(cpu_switch, 0)
 	st8	[r17]=r18,8 ;;		// ar.bspstore
 	st8	[r17]=r19,8 ;;		// our NaT bits
 	st8	[r17]=r16,8 ;;		// ar.rnat
-	st8	[r17]=r20,8 ;;		// pr
-
-	addl	r15=@ltoff(sched_lock),gp ;;
-	ld8	r15=[r15] ;;
-	add	r15=MTX_RECURSE,r15 ;;
-	ld4	r15=[r15] ;;
-	st8	[r17]=r15 ;;		// save sched_lock.mtx_recurse
+	st8	[r17]=r20 ;;		// pr
 
 	mov	ar.rsc=3		// turn RSE back on
 
@@ -283,7 +277,7 @@ ENTRY(cpu_switch, 0)
 	ld8	r17=[r15],8 ;;		// ar.pfs
 	ld8	r18=[r15],16 ;;		// ar.bspstore, skip ar.unat
 	ld8	r19=[r15],8 ;;		// ar.rnat
-	ld8	r20=[r15],8 ;;		// pr
+	ld8	r20=[r15] ;;		// pr
 
 	mov	ar.unat=r16
 	mov	ar.pfs=r17
@@ -296,12 +290,6 @@ ENTRY(cpu_switch, 0)
 	mov	ar.rsc=3		// restart RSE
 	invala
 	;;
-	ld8	r14=[r15]		// restore sched_lock.mtx_recurse
-	addl	r16=@ltoff(sched_lock),gp ;;
-	ld8	r15=[r16] ;;
-	add	r15=MTX_RECURSE,r15 ;;
-	st4	[r15]=r14
-
 9:
 	br.ret.sptk.few rp
 
@@ -628,19 +616,22 @@ END(restorehighfp)
  *
  * Arrange for a function to be invoked neatly, after a cpu_switch().
  *
- * Invokes the function specified by the r4 register with the return
- * address specified by the r5 register and with one argument, taken
- * from r6.
+ * Invokes fork_exit() passing in three arguments: a callout function, an
+ * argument to the callout, and a trapframe pointer.  For child processes
+ * returning from fork(2), the argument is a pointer to the child process.
+ *
+ * The callout function is in r4, the address to return to after executing
+ * fork_exit() is in r5, and the argument is in r6.
  */
 ENTRY(switch_trampoline, 0)
-	MTX_EXIT(sched_lock, r14, r15)
-
-	alloc	r14=ar.pfs,0,0,1,0
-	mov	b7=r4
-	mov	b0=r5
-	mov	out0=r6
+	alloc	r14=ar.pfs,0,0,3,0
 	;;
-	br.call.sptk.few b6=b7
+	mov	b0=r5
+	mov	out0=r4
+	mov	out1=r6
+	mov	out2=sp
+	;;
+	br.call.sptk.few b6=fork_exit
 
 	END(switch_trampoline)
 
