@@ -87,6 +87,10 @@ int iommu_dvmamap_destroy(bus_dma_tag_t, bus_dma_tag_t, struct iommu_state *,
     bus_dmamap_t);
 int iommu_dvmamap_load(bus_dma_tag_t, bus_dma_tag_t, struct iommu_state *,
     bus_dmamap_t, void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
+int iommu_dvmamap_load_mbuf(bus_dma_tag_t, bus_dma_tag_t, struct iommu_state *,
+    bus_dmamap_t, struct mbuf *, bus_dmamap_callback2_t *, void *, int);
+int iommu_dvmamap_load_uio(bus_dma_tag_t, bus_dma_tag_t, struct iommu_state *,
+    bus_dmamap_t, struct uio *, bus_dmamap_callback2_t *, void *, int);
 void iommu_dvmamap_unload(bus_dma_tag_t, bus_dma_tag_t, struct iommu_state *,
     bus_dmamap_t);
 void iommu_dvmamap_sync(bus_dma_tag_t, bus_dma_tag_t, struct iommu_state *,
