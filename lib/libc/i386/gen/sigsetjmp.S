@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigsetjmp.S,v 1.4 1995/01/23 01:27:10 davidg Exp $
+ *	$Id: sigsetjmp.S,v 1.5 1996/01/22 00:00:54 julian Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigsetjmp.S,v 1.4 1995/01/23 01:27:10 davidg Exp $"
+	.asciz "$Id: sigsetjmp.S,v 1.5 1996/01/22 00:00:54 julian Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -99,7 +99,7 @@ ENTRY(siglongjmp)
 	jz	1f
 	pushl	24(%edx)
 #ifdef _THREAD_SAFE
-	call	PIC_PLT(_thread_sys_sigsetmask)
+	call	PIC_PLT(__thread_sys_sigsetmask)
 #else
 	call	PIC_PLT(_sigsetmask)
 #endif
