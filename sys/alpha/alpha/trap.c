@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: trap.c,v 1.2 1998/06/10 20:12:22 dfr Exp $ */
 /* $NetBSD: trap.c,v 1.31 1998/03/26 02:21:46 thorpej Exp $ */
 
 /*
@@ -30,6 +30,7 @@
 
 /* #include "opt_fix_unaligned_vax_fp.h" */
 #include "opt_ddb.h"
+#include "opt_simos.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -267,7 +268,11 @@ trap(a0, a1, a2, entry, framep)
 			 * might have set a breakpoint.
 			 */
 			if (a0 == ALPHA_IF_CODE_BUGCHK ||
-			    a0 == ALPHA_IF_CODE_BPT) {
+			    a0 == ALPHA_IF_CODE_BPT
+#ifdef SIMOS
+			    || a0 == ALPHA_IF_CODE_GENTRAP
+#endif
+			    ) {
 				if (ddb_trap(a0, a1, a2, entry, framep))
 					goto out;
 			}
