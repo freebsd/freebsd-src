@@ -84,7 +84,7 @@ will return the error code returned by the foreign server.
 .Fn ftpChdir
 attempts to issue a server CD command to the the directory named in
 .Fa dir.
-On success, zero is returned.  On failure, -1.
+On success, zero is returned.  On failure, the error code from the server.
 .Pp
 .Fn ftpErrno
 returns the server failure code for the last operation (useful for seeing
