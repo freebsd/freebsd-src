@@ -294,11 +294,6 @@ disk_destroy(dev_t dev)
 	g_orphan_provider(LIST_FIRST(&gp->provider), ENXIO);
 }
 
-void
-disk_invalidate (struct disk *disk)
-{
-}
-
 static void
 g_kern_disks(void *p)
 {

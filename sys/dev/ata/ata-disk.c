@@ -254,7 +254,6 @@ ad_detach(struct ata_device *atadev, int flush) /* get rid of flush XXX SOS */
 	bioq_remove(&adp->queue, bp); 
 	biofinish(bp, NULL, ENXIO);
     }
-    disk_invalidate(&adp->disk);
     disk_destroy(adp->dev);
     devstat_remove_entry(&adp->stats);
     if (flush) {
