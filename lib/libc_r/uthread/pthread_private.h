@@ -109,6 +109,7 @@
 #define	SET_RETURN_ADDR_JB(jb, ra)			\
 do {							\
 	*((unsigned long*)JMPBUF_ADDR_OF(jb,J_B0)) = ((long*)(ra))[0];	\
+	*((unsigned long*)JMPBUF_ADDR_OF(jb,J_GP)) = ((long*)(ra))[1];	\
 	*((unsigned long*)JMPBUF_ADDR_OF(jb,J_PFS)) &= ~0x1FFFFFFFFFUL;	\
 } while (0)
 #define SET_STACK_JB(jb, stk, sz)			\
