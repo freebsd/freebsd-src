@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.32 1998/01/24 02:54:32 eivind Exp $ */
+/* $Id: matcd.c,v 1.33 1998/06/07 17:11:16 dfr Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -365,6 +365,8 @@ static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank 
 #ifdef DEVFS
 #include	<sys/devfsext.h>
 #endif /*DEVFS*/
+
+#include	<i386/isa/isa_device.h>
 
 /*---------------------------------------------------------------------------
 	Defines and structures
