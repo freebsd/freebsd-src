@@ -152,8 +152,10 @@ NewFtpPortCommand(struct ip *pip,
         int slen, hlen, tlen, dlen;
         struct tcphdr *tc;
 
+#ifndef NO_FW_PUNCH
 /* Punch hole in firewall */
         PunchFWHole(ftp_link);
+#endif
 
 /* Calculate data length of TCP packet */
         tc = (struct tcphdr *) ((char *) pip + (pip->ip_hl << 2));

@@ -78,7 +78,9 @@ int GetDeltaSeqOut(struct ip *, struct alias_link *);
 void AddSeq(struct ip *, struct alias_link *, int);
 void SetExpire(struct alias_link *, int);
 void ClearCheckNewLink(void);
+#ifndef NO_FW_PUNCH
 void PunchFWHole(struct alias_link *);
+#endif
 
 
 /* Housekeeping function */
