@@ -159,10 +159,7 @@ struct ufs_args {
 /*
  * Arguments to mount NFS
  */
-
-#define NFS_ARGSVERSION	3		/* change when nfs_args changes */
 struct nfs_args {
-	int		version;	/* args structure version number */
 	struct sockaddr	*addr;		/* file server address */
 	int		addrlen;	/* length of address */
 	int		sotype;		/* Socket type */
