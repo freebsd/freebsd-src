@@ -3488,6 +3488,7 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	peernode = NG_PEER_NODE(hook);
 	NG_NODE_REF(peernode);
 	NGI_SET_NODE(item, peernode);
+	SET_RETADDR(item, here, retaddr);
 	return (0);
 }
 
