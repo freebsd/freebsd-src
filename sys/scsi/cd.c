@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.57 1996/01/30 12:59:00 ache Exp $
+ *      $Id: cd.c,v 1.58 1996/01/30 14:30:43 ache Exp $
  */
 
 #include "opt_bounce.h"
@@ -195,6 +195,15 @@ cd_registerdev(int unit)
 	}
 }
 
+static inline void lba2msf (int lba, u_char *m, u_char *s, u_char *f)
+{
+	lba += 150;             /* offset of first logical frame */
+	lba &= 0xffffff;        /* negative lbas use only 24 bits */
+	*m = lba / (60 * 75);
+	lba %= (60 * 75);
+	*s = lba / 75;
+	*f = lba % 75;
+}
 
 /*
  * The routine called by the low level scsi routine when it discovers
@@ -747,7 +756,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 					(struct cd_toc_entry *)&th, sizeof th);
 			if (error)
 				break;
-			th.len = ((th.len & 0xff) << 8) + ((th.len >> 8) & 0xff);
+			NTOHS(th.len);
 			bcopy(&th, addr, sizeof th);
 		}
 		break;
@@ -760,7 +769,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 			struct ioc_read_toc_entry *te =
 			(struct ioc_read_toc_entry *) addr;
 			struct ioc_toc_header *th;
-			u_int32 len, readlen, idx;
+			u_int32 len, readlen, idx, num;
 			u_int32 starting_track = te->starting_track;
 
 			if (   te->data_len < sizeof(struct cd_toc_entry)
@@ -771,11 +780,14 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 				break;
 			}
+
 			th = &data.header;
 			error = cd_read_toc(unit, 0, 0,
-					(struct cd_toc_entry *)th, sizeof *th);
+					(struct cd_toc_entry *)th, sizeof (*th));
 			if (error)
 				break;
+			NTOHS(th->len);
+
 			if (starting_track == 0)
 				starting_track = th->starting_track;
 			else if (starting_track == 170)
@@ -785,6 +797,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 				break;
 			}
+
 			len = ((th->ending_track + 1 - starting_track) + 1) *
 				sizeof(struct cd_toc_entry);
 			if (te->data_len < len)
@@ -793,6 +806,7 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 				error = EINVAL;
 				break;
 			}
+			num = len / sizeof(struct cd_toc_entry);
 
 			/* calculate reading length without leadout entry */
 			readlen = ((int)th->ending_track - starting_track) + 1;
@@ -804,14 +818,13 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 
 			error = cd_read_toc(unit, te->address_format,
 				starting_track,
-				(struct cd_toc_entry *)&data,
-				readlen + sizeof(struct ioc_toc_header));
+				data.entries,
+				readlen);
 			if (error)
 				break;
-			th->len = ((th->len & 0xff) << 8) + ((th->len >> 8) & 0xff);
 
 			/* make fake leadout entry if needed */
-			idx = starting_track + len / sizeof(struct cd_toc_entry) - 1;
+			idx = starting_track + num - 1;
 			if (idx == th->ending_track + 1) {
 				idx -= starting_track; /* now offset in the entries */
 				if (idx > 0) {
@@ -819,7 +832,22 @@ cd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 					data.entries[idx].addr_type = data.entries[idx-1].addr_type;
 				}
 				data.entries[idx].track = 170; /* magic */
-				data.entries[idx].addr.lba = th->len;
+				switch (te->address_format) {
+				case CD_MSF_FORMAT:
+					lba2msf (th->len,
+					    &data.entries[idx].addr.msf.minute,
+					    &data.entries[idx].addr.msf.second,
+					    &data.entries[idx].addr.msf.frame);
+					break;
+				case CD_LBA_FORMAT:
+					data.entries[idx].addr.lba = htonl(th->len);
+					break;
+				}
+			}
+
+			if (te->address_format == CD_LBA_FORMAT) {
+				for (idx = 0; idx < num; idx++)
+					NTOHL(data.entries[idx].addr.lba);
 			}
 
 			error = copyout(data.entries, te->data, len);
