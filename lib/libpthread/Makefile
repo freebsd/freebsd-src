@@ -29,7 +29,8 @@ HIDDEN_SYSCALLS= accept.o bind.o close.o connect.o dup.o dup2.o \
 	nanosleep.o nfssvc.o open.o poll.o read.o readv.o recvfrom.o \
 	recvmsg.o sched_yield.o select.o sendmsg.o sendto.o \
 	setsockopt.o shutdown.o sigaction.o sigaltstack.o \
-	signanosleep.o socket.o socketpair.o wait4.o write.o writev.o
+	signanosleep.o sigprocmask.o socket.o socketpair.o wait4.o \
+	write.o writev.o
 
 .include "${.CURDIR}/../libc/Makefile.inc"
 .include "${.CURDIR}/man/Makefile.inc"
