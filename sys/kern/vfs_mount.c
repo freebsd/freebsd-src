@@ -696,10 +696,12 @@ vfs_domount(
 	}
 	/*
 	 * Silently enforce MNT_NOSUID, MNT_NODEV and MNT_USER
-	 * for unprivileged users.
+	 * for unprivileged users and remove MNT_SUIDDIR.
 	 */
-	if (suser(td))
+	if (suser(td)) {
+		fsflags &= ~MNT_SUIDDIR;
 		fsflags |= MNT_NOSUID | MNT_NODEV | MNT_USER;
+	}
 	/*
 	 * Get vnode to be covered
 	 */
