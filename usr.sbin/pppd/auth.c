@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: auth.c,v 1.2 1994/09/25 02:31:52 wollman Exp $";
+static char rcsid[] = "$Id: auth.c,v 1.4 1995/08/28 21:30:51 mpp Exp $";
 #endif
 
 #include <stdio.h>
@@ -455,6 +455,9 @@ login(user, passwd, msg, msglen)
     if ((pw = getpwnam(user)) == NULL) {
 	return (UPAP_AUTHNAK);
     }
+
+    if (pw->pw_expire && time(NULL) >= pw->pw_expire)
+	return (UPAP_AUTHNAK);
 
     /*
      * XXX If no passwd, let them login without one.
