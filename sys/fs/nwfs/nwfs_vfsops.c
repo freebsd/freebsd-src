@@ -70,7 +70,8 @@ SYSCTL_INT(_vfs_nwfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nwfs_debuglevel, 0, "")
 MODULE_DEPEND(nwfs, ncp, 1, 1, 1);
 MODULE_DEPEND(nwfs, libmchain, 1, 1, 1);
 
-static vfs_omount_t	nwfs_omount;
+static vfs_cmount_t	nwfs_cmount;
+static vfs_mount_t	nwfs_mount;
 static vfs_quotactl_t	nwfs_quotactl;
 static vfs_root_t	nwfs_root;
 static vfs_statfs_t	nwfs_statfs;
@@ -80,7 +81,8 @@ static vfs_uninit_t	nwfs_uninit;
 
 static struct vfsops nwfs_vfsops = {
 	.vfs_init =		nwfs_init,
-	.vfs_omount =		nwfs_omount,
+	.vfs_mount =		nwfs_mount,
+	.vfs_cmount =		nwfs_cmount,
 	.vfs_quotactl =		nwfs_quotactl,
 	.vfs_root =		nwfs_root,
 	.vfs_statfs =		nwfs_statfs,
@@ -130,12 +132,34 @@ nwfs_initnls(struct nwmount *nmp) {
 	}
 	return 0;
 }
+
+static int nwfs_cmount(struct mntarg *ma, void *data, int flags,
+		      struct thread *td)
+{
+	struct nwfs_args args; 	  /* will hold data from mount request */
+	int error;
+
+	error = copyin(data, (caddr_t)&args, sizeof(struct nwfs_args));
+	if (error)
+		return (error);
+
+	/*
+	 * XXX: cheap cop-out here, args contains a structure I don't
+	 * XXX: know how we should handle, and I don't see any immediate
+	 * XXX: prospect of avoiding a mount_nwfs(8) binary anyway.
+	 */
+	ma = mount_arg(ma, "nwfs_args", &args, sizeof args);
+
+	error = kernel_mount(ma, flags);
+
+	return (error);
+}
+
 /*
  * mp - path - addr in user space of mount point (ie /usr or whatever)
  * data - addr in user space of mount params 
  */
-static int nwfs_omount(struct mount *mp, char *path, caddr_t data, 
-		      struct thread *td)
+static int nwfs_mount(struct mount *mp, struct thread *td)
 {
 	struct nwfs_args args; 	  /* will hold data from mount request */
 	int error;
@@ -147,15 +171,11 @@ static int nwfs_omount(struct mount *mp, char *path, caddr_t data,
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
-	if (data == NULL) {
-		nwfs_printf("missing data argument\n");
-		return 1;
-	}
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nwfs_printf("MNT_UPDATE not implemented");
 		return (EOPNOTSUPP);
 	}
-	error = copyin(data, (caddr_t)&args, sizeof(struct nwfs_args));
+	error = vfs_copyopt(mp->mnt_optnew, "nwfw_args", &args, sizeof args);
 	if (error)
 		return (error);
 	if (args.version != NWFS_VERSION) {
