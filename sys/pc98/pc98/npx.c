@@ -472,6 +472,8 @@ npx_attach(dev)
 		flags = 0;
 
 	device_print_prettyname(dev);
+	if (flags)
+		printf("flags 0x%x ", flags);
 	if (npx_irq13) {
 		printf("using IRQ 13 interface\n");
 	} else {
