@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.129 1998/12/02 08:15:16 kato Exp $
+ *	$Id: trap.c,v 1.130 1998/12/06 00:03:30 archie Exp $
  */
 
 /*
@@ -661,8 +661,7 @@ trap_pfault(frame, usermode, eva)
 		/*
 		 * Grow the stack if necessary
 		 */
-		if ((caddr_t)va > vm->vm_maxsaddr
-		    && (caddr_t)va < (caddr_t)USRSTACK) {
+		if ((caddr_t)va > vm->vm_maxsaddr && va < USRSTACK) {
 			if (!grow(p, va)) {
 				rv = KERN_FAILURE;
 				--p->p_lock;
@@ -772,8 +771,7 @@ trap_pfault(frame, usermode, eva)
 		/*
 		 * Grow the stack if necessary
 		 */
-		if ((caddr_t)va > vm->vm_maxsaddr
-		    && (caddr_t)va < (caddr_t)USRSTACK) {
+		if ((caddr_t)va > vm->vm_maxsaddr && va < USRSTACK) {
 			if (!grow(p, va)) {
 				rv = KERN_FAILURE;
 				--p->p_lock;
@@ -967,8 +965,7 @@ int trapwrite(addr)
 
 	++p->p_lock;
 
-	if ((caddr_t)va >= vm->vm_maxsaddr
-	    && (caddr_t)va < (caddr_t)USRSTACK) {
+	if ((caddr_t)va >= vm->vm_maxsaddr && va < USRSTACK) {
 		if (!grow(p, va)) {
 			--p->p_lock;
 			return (1);
