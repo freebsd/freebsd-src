@@ -338,7 +338,7 @@ stage1()
 	    beep();
 	}
     }
-
+    clear();
     for (i = 0; Dname[i]; i++)
 	close(Dfd[i]);
     return;
