@@ -1,7 +1,9 @@
 /* $FreeBSD$ */
 
-#include <sys/assym.h>
+#include <stddef.h>
+
 #include <sys/param.h>
+#include <sys/assym.h>
 
 #include <i386/linux/linux.h>
 
