@@ -1740,12 +1740,12 @@ restart:
 				nqindex = QUEUE_EMPTYKVA;
 				if ((nbp = TAILQ_FIRST(&bufqueues[QUEUE_EMPTYKVA])))
 					break;
-				/* fall through */
+				/* FALLTHROUGH */
 			case QUEUE_EMPTYKVA:
 				nqindex = QUEUE_CLEAN;
 				if ((nbp = TAILQ_FIRST(&bufqueues[QUEUE_CLEAN])))
 					break;
-				/* fall through */
+				/* FALLTHROUGH */
 			case QUEUE_CLEAN:
 				/*
 				 * nbp is NULL. 

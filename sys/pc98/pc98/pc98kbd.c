@@ -722,7 +722,7 @@ pckbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 				state->ks_state &= ~LOCK_MASK;
 				state->ks_state |= KBD_LED_VAL(kbd);
 			}
-			/* FALL THROUGH */
+			/* FALLTHROUGH */
 		case K_RAW:
 		case K_CODE:
 			if (state->ks_mode != *(int *)arg) {
@@ -779,7 +779,7 @@ pckbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
 		state->ks_accents = 0;
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 	default:
 		splx(s);
 		return genkbd_commonioctl(kbd, cmd, arg);

@@ -6456,7 +6456,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 			  || (inq_data->flags & SID_WBus32) != 0)
 			 && (cpi.hba_inquiry & PI_WIDE_32) != 0)
 				break;
-			/* Fall Through to 16-bit */
+			/* FALLTHROUGH to 16-bit */
 		case MSG_EXT_WDTR_BUS_16_BIT:
 			if (((device->flags & CAM_DEV_INQUIRY_DATA_VALID) == 0
 			  || (inq_data->flags & SID_WBus16) != 0)
@@ -6464,7 +6464,7 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 				break;
 			}
-			/* Fall Through to 8-bit */
+			/* FALLTHROUGH to 8-bit */
 		default: /* New bus width?? */
 		case MSG_EXT_WDTR_BUS_8_BIT:
 			/* All targets can do this */

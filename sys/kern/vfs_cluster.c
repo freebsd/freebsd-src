@@ -597,12 +597,12 @@ cluster_wbuild_wb(struct vnode *vp, long size, daddr_t start_lbn, int len)
 		if (start_lbn < len)
 			break;
 		start_lbn -= len;
-		/* fall through */
+		/* FALLTHROUGH */
 	case 1:
 		r = cluster_wbuild(vp, size, start_lbn, len);
-		/* fall through */
+		/* FALLTHROUGH */
 	default:
-		/* fall through */
+		/* FALLTHROUGH */
 		break;
 	}
 	return(r);

@@ -1629,7 +1629,7 @@ trimthenstep6:
 			(void) tcp_reass(tp, (struct tcphdr *)0, 0,
 			    (struct mbuf *)0);
 		tp->snd_wl1 = th->th_seq - 1;
-		/* fall into ... */
+		/* FALLTHROUGH */
 
 	/*
 	 * In ESTABLISHED state: drop duplicate ACKs; ACK out of range

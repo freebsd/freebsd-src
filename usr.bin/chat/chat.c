@@ -1221,7 +1221,7 @@ int n;
     case -1:
 	if (need_lf == 0)
 	    break;
-	/* fall through */
+	/* FALLTHROUGH */
     case '\n':
 	write(STDERR_FILENO, "\n", 1);
 	need_lf = 0;

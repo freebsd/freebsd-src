@@ -331,7 +331,7 @@ static int pim_assert;
 	       switch (xxs) { \
 		      case 2: \
 			  delta += 1000000; \
-			      /* fall through */ \
+			      /* FALLTHROUGH */ \
 		      case 1: \
 			  delta += 1000000; \
 			  break; \

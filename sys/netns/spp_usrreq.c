@@ -1458,7 +1458,7 @@ spp_usrreq(so, req, m, nam, controlp)
 			break;
 		}
 		cb->s_oobflags |= SF_SOOB;
-		/* fall into */
+		/* FALLTHROUGH */
 	case PRU_SEND:
 		if (controlp) {
 			u_short *p = mtod(controlp, u_short *);

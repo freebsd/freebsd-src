@@ -349,7 +349,7 @@ fcntl(td, uap)
 
 	case F_SETLKW:
 		flg |= F_WAIT;
-		/* Fall into F_SETLK */
+		/* FALLTHROUGH F_SETLK */
 
 	case F_SETLK:
 		if (fp->f_type != DTYPE_VNODE) {

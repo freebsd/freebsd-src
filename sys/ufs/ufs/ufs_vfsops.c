@@ -122,7 +122,7 @@ ufs_quotactl(mp, cmds, uid, arg, td)
 	case Q_GETQUOTA:
 		if (uid == td->td_ucred->cr_ruid)
 			break;
-		/* fall through */
+		/* FALLTHROUGH */
 	default:
 		if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) != 0)
 			return (error);

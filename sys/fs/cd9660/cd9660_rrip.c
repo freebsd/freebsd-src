@@ -181,7 +181,7 @@ cd9660_rrip_slink(p,ana)
 
 		case ISO_SUSP_CFLAG_CONTINUE:
 			cont = 1;
-			/* fall thru */
+			/* FALLTHROUGH */
 		case 0:
 			/* Inserting component */
 			wlen = isonum_711(pcomp->clen);
@@ -253,7 +253,7 @@ cd9660_rrip_altname(p,ana)
 
 	case ISO_SUSP_CFLAG_CONTINUE:
 		cont = 1;
-		/* fall thru */
+		/* FALLTHROUGH */
 	case 0:
 		/* Inserting component */
 		wlen = isonum_711(p->h.length) - 5;
@@ -297,7 +297,7 @@ cd9660_rrip_defname(isodir,ana)
 		break;
 	case 1:
 		*ana->outlen = 2;
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 	case 0:
 		/* outlen is 1 already */
 		strcpy(ana->outbuf,"..");

@@ -1357,7 +1357,7 @@ send_cmd(u_int unit, u_char cmd, u_int nargs, ...)
 	switch ((rc = inb(reg)) & 0xf0) {
 	case 0x20:
 		rc = inb(reg);
-		/* FALL TROUGH */
+		/* FALLTHROUGH */
 	case 0x50:
 		XDEBUG(1, ("scd%d: DEBUG: send_cmd: drive_error=0x%x\n", unit, rc));
 		return -rc;

@@ -272,7 +272,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		 * An alternative would be to fail with EDEADLK.
 		 */
 		sharelock(lkp, 1);
-		/* fall into downgrade */
+		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
 		KASSERT(lkp->lk_lockholder == pid && lkp->lk_exclusivecount != 0,
@@ -298,7 +298,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 			error = EBUSY;
 			break;
 		}
-		/* fall into normal upgrade */
+		/* FALLTHROUGH normal upgrade */
 
 	case LK_UPGRADE:
 		/*
@@ -353,7 +353,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 		if ( (lkp->lk_flags & (LK_SHARE_NONZERO|LK_WAIT_NONZERO)) ==
 			LK_WAIT_NONZERO)
 			wakeup((void *)lkp);
-		/* fall into exclusive request */
+		/* FALLTHROUGH exclusive request */
 
 	case LK_EXCLUSIVE:
 		if (lkp->lk_lockholder == pid && pid != LK_KERNPROC) {

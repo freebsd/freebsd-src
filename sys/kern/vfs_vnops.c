@@ -757,7 +757,7 @@ vn_ioctl(fp, com, data, active_cred, td)
 		}
 		if (com == FIONBIO || com == FIOASYNC)	/* XXX */
 			return (0);			/* XXX */
-		/* fall into ... */
+		/* FALLTHROUGH */
 
 	default:
 #if 0

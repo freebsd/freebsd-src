@@ -264,7 +264,7 @@ ibcs2_sigsys(td, uap)
 			sa.sa_flags = 0;
 			goto ibcs2_sigset;
 		}
-		/* else fallthrough to sighold */
+		/* else FALLTHROUGH to sighold */
 
 	case IBCS2_SIGHOLD_MASK:
 		{

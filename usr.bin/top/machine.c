@@ -544,7 +544,7 @@ char *(*get_userid)();
 		sprintf(status, "%.6s", pp->ki_wmesg);
 		break;
 	    }
-	    /* fall through */
+	    /* FALLTHROUGH */
 	default:
 
 	    if (state >= 0 &&
