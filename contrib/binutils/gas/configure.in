@@ -3,7 +3,6 @@ dnl
 dnl And be careful when changing it!  If you must add tests with square
 dnl brackets, be sure changequote invocations surround it.
 dnl
-dnl $FreeBSD$
 dnl
 dnl v2.5 needed for --bindir et al
 AC_PREREQ(2.13)

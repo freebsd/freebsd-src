@@ -1,6 +1,3 @@
-# $FreeBSD$
-
-
 # This is the linker host specific file.  This is invoked by the
 # autoconf generated configure script.  Putting it in a separate shell
 # file lets us skip running autoconf when modifying host specific

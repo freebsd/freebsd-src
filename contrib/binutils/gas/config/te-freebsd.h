@@ -18,8 +18,6 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-/* $FreeBSD$ */
-
 /* Target environment for FreeBSD.  It is the same as the generic
    target, except that it arranges via the TE_FreeBSD define to
    suppress the use of "/" as a comment character.  Some code in the

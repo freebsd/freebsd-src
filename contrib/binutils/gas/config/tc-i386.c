@@ -20,10 +20,6 @@
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    02111-1307, USA.  */
 
-
-/* $FreeBSD$ */
-
-
 /* Intel 80386 machine specific gas.
    Written by Eliot Dresselhaus (eliot@mgm.mit.edu).
    x86_64 support by Jan Hubicka (jh@suse.cz)
