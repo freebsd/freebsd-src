@@ -43,6 +43,7 @@
 #define PCI_SLOTMAX	31
 #define PCI_FUNCMAX	7
 #define PCI_REGMAX	255
+#define PCI_MAXHDRTYPE	2
 
 /* PCI config header registers for all devices */
 
@@ -311,12 +312,3 @@
 #define PCIXM_STATUS_MAXSPLITS	0x0380	/* Maximum Split Transactions */
 #define PCIXM_STATUS_MAXCRDS	0x1C00	/* Maximum Cumulative Read Size */
 #define PCIXM_STATUS_RCVDSCEM	0x2000	/* Received a Split Comp w/Error msg */
-
-#if 0
-/* some PCI vendor definitions (only used to identify ancient devices !!! */
-
-#define PCIV_INTEL	0x8086
-
-#define PCID_INTEL_SATURN	0x0483
-#define PCID_INTEL_ORION	0x84c4
-#endif
