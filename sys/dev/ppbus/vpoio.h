@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 1998 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,20 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpo.h,v 1.1 1997/08/14 13:57:45 msmith Exp $
+ *	$Id: vpoio.h,v 1.1.2.3 1998/06/14 15:37:21 son Exp $
  *
  */
-#ifndef __VP03_H
-#define __VP03_H
+#ifndef __VP0IO_H
+#define __VP0IO_H
 
-#define barrier() __asm__("": : :"memory")
-
+/*
+ * The ZIP drive cannot act as an initiator.
+ */
 #define VP0_INITIATOR	0x7
-
-#define VP0_SECTOR_SIZE	512
-#define VP0_BUFFER_SIZE	0x12000
-
-#define VP0_SPL() splbio()
 
 #define VP0_ESELECT_TIMEOUT	1
 #define VP0_ECMD_TIMEOUT	2
@@ -53,58 +49,36 @@
 
 #define VP0_OPENNINGS	1
 
-#define n(flags) (~(flags) & (flags))
-
 /*
- * VP0 timings.
+ * Data structure used during microsequence execution
+ * when characters are received in nibble mode
  */
-#define MHZ_16_IO_DURATION	62
-
-#define VP0_SPP_WRITE_PULSE	253
-#define VP0_NIBBLE_READ_PULSE	486
-
-/*
- * VP0 connections.
- */
-#define H_AUTO		n(AUTOFEED)
-#define H_nAUTO		AUTOFEED
-#define H_STROBE	n(STROBE)
-#define H_nSTROBE	STROBE
-#define H_BSY		n(nBUSY)
-#define H_nBSY		n_BUSY
-#define H_SEL		SELECT
-#define H_nSEL		n(SELECT)
-#define H_ERR		ERROR
-#define H_nERR		n(ERROR)
-#define H_ACK		nACK
-#define H_nACK		n(nACK)
-#define H_FLT		nFAULT
-#define H_nFLT		n(nFAULT)
-#define H_SELIN		n(SELECTIN)
-#define H_nSELIN	SELECTIN
-#define H_INIT		nINIT
-#define H_nINIT		n(nINIT)
-
-struct vpo_sense {
-	struct scsi_sense cmd;
-	unsigned int stat;
-	unsigned int count;
+struct vpo_nibble {
+	char h;			/* most significant nibble */
+	char l;			/* less significant nibble */
 };
 
-struct vpo_data {
-	unsigned short vpo_unit;
+struct vpoio_data {
+	unsigned short int vpo_unit;
 
-	int vpo_stat;
-	int vpo_count;
-	int vpo_error;
+	struct vpo_nibble vpo_nibble;
 
-	struct ppb_status vpo_status;
-	struct vpo_sense vpo_sense;
-
-	unsigned char vpo_buffer[VP0_BUFFER_SIZE];
+	/* each device must have its own nibble inbyte microsequence */
+	struct ppb_microseq *vpo_nibble_inbyte_msq;
 
 	struct ppb_device vpo_dev;
-	struct scsi_link sc_link;
 };
+
+#define vpoio_set_unit(vpo,unit) ((vpo)->vpo_unit = unit)
+
+struct ppb_device *vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo);
+
+int vpoio_attach(struct vpoio_data *vpo);
+int vpoio_detect(struct vpoio_data *vpo);
+int vpoio_reset_bus(struct vpoio_data *vpo);
+
+int vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
+		int clen, char *buffer, int blen, int *result, int *count,
+		int *ret);
 
 #endif

@@ -53,10 +53,13 @@ dev/pdq/pdq_ifsubr.c	optional fpa device-driver
 dev/ppbus/nlpt.c	optional nlpt
 dev/ppbus/ppb_base.c	optional ppbus
 dev/ppbus/ppb_1284.c	optional ppbus
+dev/ppbus/ppb_msq.c	optional ppbus
 dev/ppbus/ppbconf.c	optional ppbus
 dev/ppbus/ppi.c		optional ppi
 dev/ppbus/pps.c		optional pps
 dev/ppbus/vpo.c		optional vpo
+dev/ppbus/vpoio.c	optional vpo
+dev/ppbus/if_plip.c	optional plip
 dev/slice/slice_base.c	optional	slice 
 dev/slice/slice_device.c optional	slice 
 dev/slice/mbr.c		optional	slice 

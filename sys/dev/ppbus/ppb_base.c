@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 1997, 1998 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_base.c,v 1.2 1997/08/28 10:15:12 msmith Exp $
+ *	$Id: ppb_base.c,v 1.3 1997/09/01 00:51:45 bde Exp $
  *
  */
 #include <sys/param.h>
@@ -98,9 +98,29 @@ ppb_poll_device(struct ppb_device *dev, int max,
 }
 
 /*
+ * ppb_set_mode()
+ *
+ * Set the operating mode of the chipset
+ */
+int
+ppb_set_mode(struct ppb_device *dev, int mode)
+{
+	struct ppb_data *ppb = dev->ppb;
+	int old_mode = ppb_get_mode(dev);
+
+	if ((*ppb->ppb_link->adapter->setmode)(dev->id_unit, mode))
+		return (-1);
+
+	/* XXX yet device mode = ppbus mode = chipset mode */
+	dev->mode = ppb->mode = mode;
+
+	return (old_mode);
+}
+
+/*
  * ppb_reset_epp_timeout()
  *
- * Reset the EPP timeout bit in the status register.
+ * Reset the EPP timeout bit in the status register
  */
 int
 ppb_reset_epp_timeout(struct ppb_device *dev)
@@ -118,7 +138,7 @@ ppb_reset_epp_timeout(struct ppb_device *dev)
 /*
  * ppb_ecp_sync()
  *
- * Wait for the ECP FIFO to be empty.
+ * Wait for the ECP FIFO to be empty
  */
 int
 ppb_ecp_sync(struct ppb_device *dev)
@@ -134,42 +154,9 @@ ppb_ecp_sync(struct ppb_device *dev)
 }
 
 /*
- * ppb_get_mode()
- *
- * Read the mode (SPP, EPP...) of the chipset.
- */
-int
-ppb_get_mode(struct ppb_device *dev)
-{
-	return (dev->ppb->ppb_link->mode);
-}
-
-/*
- * ppb_get_epp_protocol()
- *
- * Read the EPP protocol (1.9 or 1.7).
- */
-int
-ppb_get_epp_protocol(struct ppb_device *dev)
-{
-	return (dev->ppb->ppb_link->epp_protocol);
-}
-
-/*
- * ppb_get_irq()
- *
- * Return the irq, 0 if none.
- */
-int
-ppb_get_irq(struct ppb_device *dev)
-{
-	return (dev->ppb->ppb_link->id_irq);
-}
-
-/*
  * ppb_get_status()
  *
- * Read the status register and update the status info.
+ * Read the status register and update the status info
  */
 int
 ppb_get_status(struct ppb_device *dev, struct ppb_status *status)

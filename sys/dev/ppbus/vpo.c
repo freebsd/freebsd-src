@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 1997, 1998 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,39 +44,42 @@
 #endif /*KERNEL */
 
 #include <dev/ppbus/ppbconf.h>
-#include <dev/ppbus/vpo.h>
+#include <dev/ppbus/vpoio.h>
 
-/* --------------------------------------------------------------------
- * HERE ARE THINGS YOU MAY HAVE/WANT TO CHANGE
- */
+#define VP0_BUFFER_SIZE 0x12000
 
-/*
- * XXX
- * We may add a timeout queue to avoid active polling on nACK.
- */
-#define VP0_SELTMO		5000	/* select timeout */
-#define VP0_FAST_SPINTMO	500000	/* wait status timeout */
-#define VP0_LOW_SPINTMO		5000000	/* wait status timeout */
+struct vpo_sense {
+	struct scsi_sense cmd;
+	unsigned int stat;
+	unsigned int count;
+};
 
-/*
- * DO NOT MODIFY ANYTHING UNDER THIS LINE
- * --------------------------------------------------------------------
- */
+struct vpo_data {
+	unsigned short vpo_unit;
 
-static __inline int vpoio_do_scsi(struct vpo_data *, int, int, char *, int,
-				  char *, int, int *, int *);
+	int vpo_stat;
+	int vpo_count;
+	int vpo_error;
+
+	struct ppb_status vpo_status;
+	struct vpo_sense vpo_sense;
+
+	unsigned char vpo_buffer[VP0_BUFFER_SIZE];
+
+	struct vpoio_data vpo_io;	/* interface to low level functions */
+
+	struct scsi_link sc_link;
+};
+
 
 static int32_t	vpo_scsi_cmd(struct scsi_xfer *);
 static void	vpominphys(struct buf *);
 static u_int32_t vpo_adapter_info(int);
 
-static int	vpo_detect(struct vpo_data *vpo);
-
 static int	nvpo = 0;
 #define MAXVP0	8			/* XXX not much better! */
 static struct vpo_data *vpodata[MAXVP0];
 
-#ifdef KERNEL
 static struct scsi_adapter vpo_switch =
 {
 	vpo_scsi_cmd,
@@ -117,8 +120,6 @@ static struct ppb_driver vpodriver = {
 DATA_SET(ppbdriver_set, vpodriver);
 
 
-#endif /* KERNEL */
-
 static u_int32_t
 vpo_adapter_info(int unit)
 {
@@ -134,8 +135,8 @@ vpo_adapter_info(int unit)
 static struct ppb_device *
 vpoprobe(struct ppb_data *ppb)
 {
-
 	struct vpo_data *vpo;
+	struct ppb_device *dev;
 
 	if (nvpo >= MAXVP0) {
 		printf("vpo: Too many devices (max %d)\n", MAXVP0);
@@ -155,20 +156,18 @@ vpoprobe(struct ppb_data *ppb)
 	/* vpo dependent initialisation */
 	vpo->vpo_unit = nvpo;
 
-	/* ppbus dependent initialisation */
-	vpo->vpo_dev.id_unit = vpo->vpo_unit;
-	vpo->vpo_dev.ppb = ppb;
+	/* ok, go to next device on next probe */
+	nvpo ++;
 
-	/* now, try to initialise the drive */
-	if (vpo_detect(vpo)) {
+	/* low level probe */
+	vpoio_set_unit(&vpo->vpo_io, vpo->vpo_unit);
+
+	if (!(dev = vpoio_probe(ppb, &vpo->vpo_io))) {
 		free(vpo, M_DEVBUF);
 		return (NULL);
 	}
 
-	/* ok, go to next device on next probe */
-	nvpo ++;
-
-	return (&vpo->vpo_dev);
+	return (dev);
 }
 
 /*
@@ -183,17 +182,15 @@ vpoattach(struct ppb_device *dev)
 	struct scsibus_data *scbus;
 	struct vpo_data *vpo = vpodata[dev->id_unit];
 
+	/* low level attachment */
+	if (!vpoio_attach(&vpo->vpo_io))
+		return (0);
+
 	vpo->sc_link.adapter_unit = vpo->vpo_unit;
 	vpo->sc_link.adapter_targ = VP0_INITIATOR;
 	vpo->sc_link.adapter = &vpo_switch;
 	vpo->sc_link.device = &vpo_dev;
 	vpo->sc_link.opennings = VP0_OPENNINGS;
-
-	/*
-	 * Report ourselves
-	 */
-	printf("vpo%d: <Adaptec aic7110 scsi> on ppbus %d\n",
-	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
 
 	/*
 	 * Prepare the scsibus_data area for the upperlevel
@@ -203,6 +200,9 @@ vpoattach(struct ppb_device *dev)
 	if(!scbus)
 		return (0);
 	scbus->adapter_link = &vpo->sc_link;
+
+	/* all went ok */
+	printf("vpo%d: <Iomega PPA-3/VPI0 SCSI controller>\n", dev->id_unit);
 
 	scsi_attachdevs(scbus);
 
@@ -219,58 +219,11 @@ vpominphys(struct buf *bp)
 	return;
 }
 
-#ifdef VP0_WARNING
-static __inline void
-vpo_warning(struct vpo_data *vpo, struct scsi_xfer *xs, int timeout)
-{
-
-	switch (timeout) {
-	case 0:
-	case VP0_ESELECT_TIMEOUT:
-		/* log(LOG_WARNING,
-			"vpo%d: select timeout\n", vpo->vpo_unit); */
-		break;
-	case VP0_EDISCONNECT:
-		log(LOG_WARNING,
-			"vpo%d: can't get printer state\n", vpo->vpo_unit);
-		break;
-	case VP0_ECONNECT:
-		log(LOG_WARNING,
-			"vpo%d: can't get disk state\n", vpo->vpo_unit);
-		break;
-	case VP0_ECMD_TIMEOUT:
-		log(LOG_WARNING,
-			"vpo%d: command timeout\n", vpo->vpo_unit);
-		break;
-	case VP0_EPPDATA_TIMEOUT:
-		log(LOG_WARNING,
-			"vpo%d: EPP data timeout\n", vpo->vpo_unit);
-		break;
-	case VP0_ESTATUS_TIMEOUT:
-		log(LOG_WARNING,
-			"vpo%d: status timeout\n", vpo->vpo_unit);
-		break;
-	case VP0_EDATA_OVERFLOW:
-		log(LOG_WARNING,
-			"vpo%d: data overflow\n", vpo->vpo_unit);
-		break;
-	case VP0_EINTR:
-		log(LOG_WARNING,
-			"vpo%d: ppb request interrupted\n", vpo->vpo_unit);
-		break;
-	default:
-		log(LOG_WARNING,
-			"vpo%d: timeout = %d\n", vpo->vpo_unit, timeout);
-		break;
-	}
-}
-#endif /* VP0_WARNING */
-
 /*
- * vpointr()
+ * vpo_intr()
  */
-static __inline void
-vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
+static void
+vpo_intr(struct vpo_data *vpo, struct scsi_xfer *xs)
 {
 
 	int errno;	/* error in errno.h */
@@ -278,9 +231,10 @@ vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
 	if (xs->datalen && !(xs->flags & SCSI_DATA_IN))
 		bcopy(xs->data, vpo->vpo_buffer, xs->datalen);
 
-	errno = vpoio_do_scsi(vpo, VP0_INITIATOR,
+	errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 		xs->sc_link->target, (char *)xs->cmd, xs->cmdlen,
-		vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat, &vpo->vpo_count);
+		vpo->vpo_buffer, xs->datalen, &vpo->vpo_stat, &vpo->vpo_count,
+		&vpo->vpo_error);
 
 #ifdef VP0_DEBUG
 	printf("vpo_do_scsi = %d, status = 0x%x, count = %d, vpo_error = %d\n", 
@@ -298,9 +252,6 @@ vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
 
 	/* if a timeout occured, no sense */
 	if (vpo->vpo_error) {
-#ifdef VP0_WARNING
-		vpo_warning(vpo, xs, vpo->vpo_error);
-#endif
 		xs->error = XS_TIMEOUT;
 		goto error;
 	}
@@ -318,11 +269,12 @@ vpointr(struct vpo_data *vpo, struct scsi_xfer *xs)
 		vpo->vpo_sense.cmd.length = sizeof(xs->sense);
 		vpo->vpo_sense.cmd.control = 0;
 
-		errno = vpoio_do_scsi(vpo, VP0_INITIATOR,
+		errno = vpoio_do_scsi(&vpo->vpo_io, VP0_INITIATOR,
 			xs->sc_link->target, (char *)&vpo->vpo_sense.cmd,
 			sizeof(vpo->vpo_sense.cmd),
 			(char *)&xs->sense, sizeof(xs->sense),
-			&vpo->vpo_sense.stat, &vpo->vpo_sense.count);
+			&vpo->vpo_sense.stat, &vpo->vpo_sense.count,
+			&vpo->vpo_error);
 
 		if (errno)
 			/* connection to ppbus interrupted */
@@ -376,490 +328,14 @@ vpo_scsi_cmd(struct scsi_xfer *xs)
 #endif
 
 	if (xs->flags & SCSI_NOMASK) {
-		vpointr(vpodata[xs->sc_link->adapter_unit], xs);
+		vpo_intr(vpodata[xs->sc_link->adapter_unit], xs);
 		return COMPLETE;
 	}
 
-	s = VP0_SPL();
+	s = splbio();
 
-	vpointr(vpodata[xs->sc_link->adapter_unit], xs);
+	vpo_intr(vpodata[xs->sc_link->adapter_unit], xs);
 
 	splx(s);
 	return SUCCESSFULLY_QUEUED;
-}
-
-#define vpoio_d_pulse(vpo,b) { \
-	ppb_wdtr(&(vpo)->vpo_dev, b); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev, H_nAUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev, H_nAUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev, H_nAUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-}
-
-#define vpoio_c_pulse(vpo,b) { \
-	ppb_wdtr(&(vpo)->vpo_dev, b); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev, H_nAUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev, H_nAUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev, H_nAUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO |  H_SELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-	ppb_wctr(&(vpo)->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE); \
-}
-
-static int
-vpoio_disconnect(struct vpo_data *vpo)
-{
-
-	vpoio_d_pulse(vpo, 0);
-	vpoio_d_pulse(vpo, 0x3c);
-	vpoio_d_pulse(vpo, 0x20);
-	vpoio_d_pulse(vpo, 0xf);
-
-	return (ppb_release_bus(&vpo->vpo_dev));
-}
-
-/*
- * how	: PPB_WAIT or PPB_DONTWAIT
- */
-static int
-vpoio_connect(struct vpo_data *vpo, int how)
-{
-	int error;
-
-	if ((error = ppb_request_bus(&vpo->vpo_dev, how)))
-		return error;
-
-	vpoio_c_pulse(vpo, 0);
-	vpoio_c_pulse(vpo, 0x3c);
-	vpoio_c_pulse(vpo, 0x20);
-
-	if (PPB_IN_EPP_MODE(&vpo->vpo_dev)) {
-		vpoio_c_pulse(vpo, 0xcf);
-	} else {
-		vpoio_c_pulse(vpo, 0x8f);
-	}
-
-	return (0);
-}
-
-/*
- * vpoio_in_disk_mode()
- *
- * Check if we are in disk mode
- */
-static int
-vpoio_in_disk_mode(struct vpo_data *vpo)
-{
-
-	/* first, set H_AUTO high */
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-
-	/* when H_AUTO is set low, H_FLT should be high */
-	ppb_wctr(&vpo->vpo_dev, H_nAUTO | H_nSELIN | H_INIT | H_STROBE);
-	if ((ppb_rstr(&vpo->vpo_dev) & H_FLT) == 0)
-		return (0);
-
-	/* when H_AUTO is set high, H_FLT should be low */
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-	if ((ppb_rstr(&vpo->vpo_dev) & H_FLT) != 0)
-		return (0);
-
-	return (1);
-}
-
-/*
- * vpoio_reset()
- *
- * SCSI reset signal, the drive must be in disk mode
- */
-static void
-vpoio_reset (struct vpo_data *vpo)
-{
-
-	/*
-	 * SCSI reset signal.
-	 */
-	ppb_wdtr(&vpo->vpo_dev, (1 << 7));
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_nINIT | H_STROBE);
-	DELAY(25);
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN |  H_INIT | H_STROBE);
-
-	return;
-}
-
-
-/*
- * vpo_detect()
- *
- * Detect and initialise the VP0 adapter.
- */
-static int
-vpo_detect(struct vpo_data *vpo)
-{
-
-	vpoio_disconnect(vpo);
-	vpoio_connect(vpo, PPB_DONTWAIT);
-
-	if (!vpoio_in_disk_mode(vpo)) {
-		vpoio_disconnect(vpo);
-		return (VP0_EINITFAILED);
-	}
-
-	/* send SCSI reset signal */
-	vpoio_reset (vpo);
-
-	vpoio_disconnect(vpo);
-
-	if (vpoio_in_disk_mode(vpo))
-		return (VP0_EINITFAILED);
-
-	return (0);
-}
-
-#define vpo_wctr(dev,byte,delay) {			 \
-	int i; int iter = delay / MHZ_16_IO_DURATION;	 \
-	for (i = 0; i < iter; i++) {			 \
-		ppb_wctr(dev, byte);			 \
-	}						 \
-}
-
-#define vpoio_spp_outbyte(vpo,byte) {					 \
-	ppb_wdtr(&vpo->vpo_dev, byte);					 \
-	ppb_wctr(&vpo->vpo_dev, H_nAUTO | H_nSELIN | H_INIT | H_STROBE); \
-	vpo_wctr(&vpo->vpo_dev,  H_AUTO | H_nSELIN | H_INIT | H_STROBE,	 \
-		VP0_SPP_WRITE_PULSE);					 \
-}
-
-#define vpoio_nibble_inbyte(vpo,buffer) {				\
-	register char h, l;						\
-	vpo_wctr(&vpo->vpo_dev,  H_AUTO | H_SELIN | H_INIT | H_STROBE,	\
-		VP0_NIBBLE_READ_PULSE);					\
-	h = ppb_rstr(&vpo->vpo_dev);					\
-	ppb_wctr(&vpo->vpo_dev, H_nAUTO | H_SELIN | H_INIT | H_STROBE);	\
-	l = ppb_rstr(&vpo->vpo_dev);					\
-	*buffer = ((l >> 4) & 0x0f) + (h & 0xf0);			\
-}
-
-#define vpoio_ps2_inbyte(vpo,buffer) {					\
-	*buffer = ppb_rdtr(&vpo->vpo_dev);				\
-	ppb_wctr(&vpo->vpo_dev, PCD | H_nAUTO | H_SELIN | H_INIT | H_nSTROBE); \
-	ppb_wctr(&vpo->vpo_dev, PCD |  H_AUTO | H_SELIN | H_INIT | H_nSTROBE); \
-}
-
-/*
- * vpoio_outstr()
- */
-static int
-vpoio_outstr(struct vpo_data *vpo, char *buffer, int size)
-{
-
-	register int k;
-	int error = 0;
-	int r, mode, epp;
-
-	mode = ppb_get_mode(&vpo->vpo_dev);
-	switch (mode) {
-		case PPB_NIBBLE:
-		case PPB_PS2:
-			for (k = 0; k < size; k++) {
-				vpoio_spp_outbyte(vpo, *buffer++);
-			}
-			break;
-
-		case PPB_EPP:
-		case PPB_ECP_EPP:
-			epp = ppb_get_epp_protocol(&vpo->vpo_dev);
-
-			ppb_reset_epp_timeout(&vpo->vpo_dev);
-			ppb_wctr(&vpo->vpo_dev,
-				H_AUTO | H_SELIN | H_INIT | H_STROBE);
-
-			if (epp == EPP_1_7)
-				for (k = 0; k < size; k++) {
-					ppb_wepp(&vpo->vpo_dev, *buffer++);
-					if ((ppb_rstr(&vpo->vpo_dev) & TIMEOUT)) {
-						error = VP0_EPPDATA_TIMEOUT;
-						break;
-					}
-				}
-			else {
-				if (((long) buffer | size) & 0x03)
-					ppb_outsb_epp(&vpo->vpo_dev,
-							buffer, size);
-				else
-					ppb_outsl_epp(&vpo->vpo_dev,
-							buffer, size/4);
-
-				if ((ppb_rstr(&vpo->vpo_dev) & TIMEOUT)) {
-					error = VP0_EPPDATA_TIMEOUT;
-					break;
-				}
-			}
-			ppb_wctr(&vpo->vpo_dev,
-				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-			/* ppb_ecp_sync(&vpo->vpo_dev); */
-			break;
-
-		default:
-			printf("vpoio_outstr(): unknown transfer mode (%d)!\n",
-				mode);
-			return (1);		/* XXX */
-	}
-
-	return (error);
-}
-
-/*
- * vpoio_instr()
- */
-static int
-vpoio_instr(struct vpo_data *vpo, char *buffer, int size)
-{
-
-	register int k;
-	int error = 0;
-	int r, mode, epp;
-
-	mode = ppb_get_mode(&vpo->vpo_dev);
-	switch (mode) {
-		case PPB_NIBBLE:
-			for (k = 0; k < size; k++) {
-				vpoio_nibble_inbyte(vpo, buffer++);
-			}
-			ppb_wctr(&vpo->vpo_dev,
-				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-			break;
-
-		case PPB_PS2:
-			ppb_wctr(&vpo->vpo_dev, PCD |
-				H_AUTO | H_SELIN | H_INIT | H_nSTROBE);
-
-			for (k = 0; k < size; k++) {
-				vpoio_ps2_inbyte(vpo, buffer++);
-			}
-			ppb_wctr(&vpo->vpo_dev,
-				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-			break;
-
-		case PPB_EPP:
-		case PPB_ECP_EPP:
-			epp = ppb_get_epp_protocol(&vpo->vpo_dev);
-
-			ppb_reset_epp_timeout(&vpo->vpo_dev);
-			ppb_wctr(&vpo->vpo_dev, PCD |
-				H_AUTO | H_SELIN | H_INIT | H_STROBE);
-
-			if (epp == EPP_1_7)
-				for (k = 0; k < size; k++) {
-					*buffer++ = ppb_repp(&vpo->vpo_dev);
-					if ((ppb_rstr(&vpo->vpo_dev) & TIMEOUT)) {
-						error = VP0_EPPDATA_TIMEOUT;
-						break;
-					}
-				}
-			else {
-				if (((long) buffer | size) & 0x03)
-					ppb_insb_epp(&vpo->vpo_dev,
-							buffer, size);
-				else
-					ppb_insl_epp(&vpo->vpo_dev,
-							buffer, size/4);
-
-				if ((ppb_rstr(&vpo->vpo_dev) & TIMEOUT)) {
-					error = VP0_EPPDATA_TIMEOUT;
-					break;
-				}
-			}
-			ppb_wctr(&vpo->vpo_dev, PCD |
-				H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-			/* ppb_ecp_sync(&vpo->vpo_dev); */
-			break;
-
-		default:
-			printf("vpoio_instr(): unknown transfer mode (%d)!\n",
-				mode);
-			return (1);		/* XXX */
-	}
-
-	return (error);
-}
-
-static __inline char
-vpoio_select(struct vpo_data *vpo, int initiator, int target)
-{
-
-	register int	k;
-
-	ppb_wdtr(&vpo->vpo_dev, (1 << target));
-	ppb_wctr(&vpo->vpo_dev, H_nAUTO | H_nSELIN |  H_INIT | H_STROBE);
-	ppb_wctr(&vpo->vpo_dev,  H_AUTO | H_nSELIN |  H_INIT | H_STROBE);
-	ppb_wdtr(&vpo->vpo_dev, (1 << initiator));
-	ppb_wctr(&vpo->vpo_dev,  H_AUTO | H_nSELIN | H_nINIT | H_STROBE);
-
-	k = 0;
-	while (!(ppb_rstr(&vpo->vpo_dev) & 0x40) && (k++ < VP0_SELTMO))
-		barrier();
-
-	if (k >= VP0_SELTMO)
-		return (VP0_ESELECT_TIMEOUT);
-
-	return (0);
-}
-
-/*
- * vpoio_wait()
- *
- * H_SELIN must be low.
- */
-static __inline char
-vpoio_wait(struct vpo_data *vpo, int tmo)
-{
-
-	register int	k;
-	register char	r;
-
-#if 0	/* broken */
-	if (ppb_poll_device(&vpo->vpo_dev, 150, nBUSY, nBUSY, PPB_INTR))
-		return (0);
-
-	return (ppb_rstr(&vpo->vpo_dev) & 0xf0);
-#endif
-
-	k = 0;
-	while (!((r = ppb_rstr(&vpo->vpo_dev)) & nBUSY) && (k++ < tmo))
-		barrier();
-
-	/*
-	 * Return some status information.
-	 * Semantics :	0xc0 = ZIP wants more data
-	 *		0xd0 = ZIP wants to send more data
-	 *		0xe0 = ZIP wants command
-	 *		0xf0 = end of transfer, ZIP is sending status
-	 */
-	if (k < tmo)
-	  return (r & 0xf0);
-
-	return (0);			   /* command timed out */	
-}
-
-static __inline int 
-vpoio_do_scsi(struct vpo_data *vpo, int host, int target, char *command,
-		int clen, char *buffer, int blen, int *result, int *count)
-{
-
-	register char r;
-	char l, h = 0;
-	int rw, len, error = 0;
-	register int k;
-
-	/*
-	 * enter disk state, allocate the ppbus
-	 *
-	 * XXX
-	 * Should we allow this call to be interruptible?
-	 * The only way to report the interruption is to return
-	 * EIO do upper SCSI code :^(
-	 */
-	if ((error = vpoio_connect(vpo, PPB_WAIT|PPB_INTR)))
-		return (error);
-
-	if (!vpoio_in_disk_mode(vpo)) {
-		vpo->vpo_error = VP0_ECONNECT; goto error;
-	}
-
-	if ((vpo->vpo_error = vpoio_select(vpo,host,target)))
-		goto error;
-
-	/*
-	 * Send the command ...
-	 *
-	 * set H_SELIN low for vpoio_wait().
-	 */
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-
-#ifdef VP0_DEBUG
-	printf("vpo%d: drive selected, now sending the command...\n",
-		vpo->vpo_unit);
-#endif
-
-	for (k = 0; k < clen; k++) {
-		if (vpoio_wait(vpo, VP0_FAST_SPINTMO) != (char)0xe0) {
-			vpo->vpo_error = VP0_ECMD_TIMEOUT;
-			goto error;
-		}
-		if (vpoio_outstr(vpo, &command[k], 1)) {
-			vpo->vpo_error = VP0_EPPDATA_TIMEOUT;
-			goto error;
-		}
-	}
-
-#ifdef VP0_DEBUG
-	printf("vpo%d: command sent, now completing the request...\n",
-		vpo->vpo_unit);
-#endif
-
-	/* 
-	 * Completion ... 
-	 */
-	rw = ((command[0] == READ_COMMAND) || (command[0] == READ_BIG) ||
-		(command[0] == WRITE_COMMAND) || (command[0] == WRITE_BIG));
-
-	*count = 0;
-	for (;;) {
-
-		if (!(r = vpoio_wait(vpo, VP0_LOW_SPINTMO))) {
-			vpo->vpo_error = VP0_ESTATUS_TIMEOUT; goto error;
-		}
-
-		/* stop when the ZIP wants to send status */
-		if (r == (char)0xf0)
-			break;
-
-		if (*count >= blen) {
-			vpo->vpo_error = VP0_EDATA_OVERFLOW;
-			goto error;
-		}
-		len = (rw && ((blen - *count) >= VP0_SECTOR_SIZE)) ?
-			VP0_SECTOR_SIZE : 1;
-
-		/* ZIP wants to send data? */
-		if (r == (char)0xc0)
-			error = vpoio_outstr(vpo, &buffer[*count], len);
-		else
-			error = vpoio_instr(vpo, &buffer[*count], len);
-
-		if (error) {
-			vpo->vpo_error = error;
-			goto error;
-		}
-
-		*count += len;
-	}
-
-	if (vpoio_instr(vpo, &l, 1)) {
-		vpo->vpo_error = VP0_EOTHER; goto error;
-	}
-
-	/* check if the ZIP wants to send more status */
-	if (vpoio_wait(vpo, VP0_FAST_SPINTMO) == (char)0xf0)
-		if (vpoio_instr(vpo, &h, 1)) {
-			vpo->vpo_error = VP0_EOTHER+2; goto error;
-		}
-
-	*result = ((int) h << 8) | ((int) l & 0xff);
-
-error:
-	/* return to printer state, release the ppbus */
-	vpoio_disconnect(vpo);
-	return (0);
 }

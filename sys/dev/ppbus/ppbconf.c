@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 1997, 1998 Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
 
-static LIST_HEAD(, ppb_data) ppbdata;	/* list of existing ppbus */
+LIST_HEAD(, ppb_data)	ppbdata;	/* list of existing ppbus */
 
 /*
  * Add a null driver so that the linker set always exists.
@@ -53,7 +53,6 @@ DATA_SET(ppbdriver_set, nulldriver);
  * ppb_alloc_bus()
  *
  * Allocate area to store the ppbus description.
- * This function is called by ppcattach().
  */
 struct ppb_data *
 ppb_alloc_bus(void)
@@ -137,8 +136,8 @@ ppb_pnp_detect(struct ppb_data *ppb)
 {
 	char *token, *q, *class = 0;
 	int i, len, error;
+	int class_id = -1;
 	char str[PPB_PnP_STRING_SIZE+1];
-
 	struct ppb_device pnpdev;	/* temporary device to perform I/O */
 
 	/* initialize the pnpdev structure for future use */
@@ -146,44 +145,48 @@ ppb_pnp_detect(struct ppb_data *ppb)
 
 	pnpdev.ppb = ppb;
 
-#ifdef PnP_DEBUG
-	printf("ppb: <PnP> probing PnP devices on ppbus%d...\n",
-		ppb->ppb_link->adapter_unit);
-#endif
+	if (bootverbose)
+		printf("ppb: <PnP> probing devices on ppbus %d...\n",
+			ppb->ppb_link->adapter_unit);
+
+	if (ppb_request_bus(&pnpdev, PPB_DONTWAIT)) {
+		if (bootverbose)
+			printf("ppb: <PnP> cannot allocate ppbus!\n");
+		return (-1);
+	}
 
 	ppb_wctr(&pnpdev, nINIT | SELECTIN);
 
 	/* select NIBBLE_1284_REQUEST_ID mode */
 	if ((error = nibble_1284_mode(&pnpdev, NIBBLE_1284_REQUEST_ID))) {
-#ifdef PnP_DEBUG
-		printf("ppb: <PnP> nibble_1284_mode()=%d\n", error);
-#endif
-		return (-1);
+		if (bootverbose)
+			printf("ppb: <PnP> nibble_1284_mode()=%d\n", error);
+		goto end_detect;
 	}
 
 	len = 0;
 	for (q = str; !(ppb_rstr(&pnpdev) & ERROR); q++) {
 		if ((error = nibble_1284_inbyte(&pnpdev, q))) {
-#ifdef PnP_DEBUG
-			printf("ppb: <PnP> nibble_1284_inbyte()=%d\n", error);
-#endif
-			return (-1);
+			if (bootverbose)
+				printf("ppb: <PnP> nibble_1284_inbyte()=%d\n",
+					error);
+			goto end_detect;
 		}
 		if (len++ >= PPB_PnP_STRING_SIZE) {
 			printf("ppb: <PnP> not space left!\n");
-			return (-1);
+			goto end_detect;
 		}
 	}
 	*q = '\0';
 
 	nibble_1284_sync(&pnpdev);
 
-#ifdef PnP_DEBUG
-	printf("ppb: <PnP> %d characters: ", len);
-	for (i = 0; i < len; i++)
-		printf("0x%x ", str[i]);
-	printf("\n");
-#endif
+	if (bootverbose) {
+		printf("ppb: <PnP> %d characters: ", len);
+		for (i = 0; i < len; i++)
+			printf("0x%x ", str[i]);
+		printf("\n");
+	}
 
 	/* replace ';' characters by '\0' */
 	for (i = 0; i < len; i++)
@@ -226,12 +229,16 @@ ppb_pnp_detect(struct ppb_data *ppb)
 		/* identify class ident */
 		for (i = 0; pnp_tokens[i] != NULL; i++) {
 			if (search_token(class, len, pnp_tokens[i]) != NULL) {
-				return (i);
-				break;
+				class_id = i;
+				goto end_detect;
 			}
 		}
 
-	return (PPB_PnP_UNKNOWN);
+	class_id = PPB_PnP_UNKNOWN;
+
+end_detect:
+	ppb_release_bus(&pnpdev);
+	return (class_id);
 }
 
 /*
@@ -305,6 +312,24 @@ ppb_lookup_bus(int base_port)
 }
 
 /*
+ * ppb_lookup_link()
+ *
+ * Get ppb_data structure pointer according to the unit value
+ * of the corresponding link structure
+ */
+struct ppb_data *
+ppb_lookup_link(int unit)
+{
+	struct ppb_data *ppb;
+
+	for (ppb = ppbdata.lh_first; ppb; ppb = ppb->ppb_chain.le_next)
+		if (ppb->ppb_link->adapter_unit == unit)
+			break;
+
+	return (ppb);
+}
+
+/*
  * ppb_attach_device()
  *
  * Called by loadable kernel modules to add a device
@@ -370,6 +395,15 @@ ppb_request_bus(struct ppb_device *dev, int how)
 		} else {
 			ppb->ppb_owner = dev;
 
+			/* restore the context of the device
+			 * The first time, ctx.valid is certainly false
+			 * then do not change anything. This is usefull for
+			 * drivers that do not set there operating mode 
+			 * during attachement
+			 */
+			if (dev->ctx.valid)
+				ppb_set_mode(dev, dev->ctx.mode);
+
 			splx(s);
 			return (0);
 		}
@@ -397,6 +431,12 @@ ppb_release_bus(struct ppb_device *dev)
 
 	ppb->ppb_owner = 0;
 	splx(s);
+
+	/* save the context of the device */
+	dev->ctx.mode = ppb_get_mode(dev);
+
+	/* ok, now the context of the device is valid */
+	dev->ctx.valid = 1;
 
 	/* wakeup waiting processes */
 	wakeup(ppb);
