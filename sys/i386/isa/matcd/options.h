@@ -195,7 +195,7 @@
 ---------------------------------------------------------------------------*/
 
 #ifdef AUTOHUNT
-int	port_hints[]={
+static int	port_hints[]={
 			0x230,	/*SB Pro & SB16*/
 			0x240,	/*SB Pro & SB16*/
 			0x250,	/*Creative omniCD standalone boards*/

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.74 1995/12/08 23:20:26 phk Exp $
+ *	$Id: fd.c,v 1.75 1995/12/09 09:10:12 julian Exp $
  *
  */
 
@@ -200,7 +200,7 @@ fd_goaway(struct kern_devconf *kdc, int force)
 #define FD_360in5_25    14
 
 
-struct fd_type fd_types[NUMTYPES] =
+static struct fd_type fd_types[NUMTYPES] =
 {
 { 21,2,0xFF,0x04,82,3444,1,FDC_500KBPS,2,0x0C,2 }, /* 1.72M in HD 3.5in */
 { 18,2,0xFF,0x1B,82,2952,1,FDC_500KBPS,2,0x6C,1 }, /* 1.48M in HD 3.5in */
@@ -230,7 +230,7 @@ struct fdc_data fdc_data[NFDC];
 * Per drive structure.							*
 * N per controller  (DRVS_PER_CTLR)					*
 \***********************************************************************/
-struct fd_data {
+static struct fd_data {
 	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	fdsu;		/* this units number on this controller */
 	int	type;		/* Drive type (FD_1440...) */
@@ -360,7 +360,7 @@ static struct cdevsw fd_cdevsw =
 	  seltrue,	nommap,		fdstrategy,	"fd",
 	  &fd_bdevsw,	-1 };
 
-struct isa_device *fdcdevs[NFDC];
+static struct isa_device *fdcdevs[NFDC];
 
 /*
  * Provide hw.devconf information.
@@ -393,7 +393,7 @@ fdc_err(fdcu_t fdcu, const char *s)
  * # of input bytes, input bytes as ints ...
  */
 
-int
+static int
 fd_cmd(fdcu_t fdcu, int n_out, ...)
 {
 	u_char cmd;
@@ -433,7 +433,7 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 	return 0;
 }
 
-int
+static int
 fd_sense_drive_status(fdc_p fdc, int *st3p)
 {
 	int st3;
@@ -448,7 +448,7 @@ fd_sense_drive_status(fdc_p fdc, int *st3p)
 	return 0;
 }
 
-int
+static int
 fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 {
 	int st0, cyl;
@@ -485,7 +485,7 @@ fd_sense_int(fdc_p fdc, int *st0p, int *cylp)
 }
 
 
-int
+static int
 fd_read_status(fdc_p fdc, int fdsu)
 {
 	int i, ret;

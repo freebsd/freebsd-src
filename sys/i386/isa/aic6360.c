@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.14 1995/11/29 10:26:51 phk Exp $
+ * $Id: aic6360.c,v 1.15 1995/12/06 23:42:13 bde Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -564,7 +564,7 @@ struct aic_tinfo {
 	u_char  persgst;	/* Period suggestion */
 	u_char  offsgst;	/* Offset suggestion */
 	u_char  syncdata;	/* True negotiated synch parameters */
-} tinfo_t;
+};
 
 /* Register a linenumber (for debugging) */
 #if AIC_DEBUG
@@ -578,7 +578,7 @@ struct aic_tinfo {
 #endif
 
 #ifdef __FreeBSD__
-struct aic_data { /* One of these per adapter */
+static struct aic_data { /* One of these per adapter */
 #else
 struct aic_softc { /* One of these per adapter */
 	/* Auto config stuff */

@@ -101,9 +101,9 @@
 #define min(x,y) (x < y ? x : y)
 #endif  min
 
-int psmprobe (struct isa_device *);
-int psmattach (struct isa_device *);
-void psm_poll_status(void);
+static int psmprobe (struct isa_device *);
+static int psmattach (struct isa_device *);
+static void psm_poll_status(void);
 
 static int psmaddr[NPSM];	/* Base I/O port addresses per unit */
 
@@ -162,7 +162,8 @@ static inline void psm_command(int ioport, u_char value)
 	outb(ioport+DATA, value);
 }
 
-int psmprobe(struct isa_device *dvp)
+static int 
+psmprobe(struct isa_device *dvp)
 {
 	/* XXX: Needs a real probe routine. */
 
@@ -187,7 +188,8 @@ int psmprobe(struct isa_device *dvp)
 	return (4);
 }
 
-int psmattach(struct isa_device *dvp)
+static int
+psmattach(struct isa_device *dvp)
 {
 	int unit = dvp->id_unit;
 	int ioport = dvp->id_iobase;
@@ -290,7 +292,8 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	return(0);
 }
 
-void psm_poll_status(void)
+static void
+psm_poll_status(void)
 {
 
 	while(inb(AUX_PORT+STATUS)&0x03) {

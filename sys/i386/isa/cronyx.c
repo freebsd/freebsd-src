@@ -58,15 +58,18 @@ static unsigned char dmamask [] = {
 	BCR0_DMA_DIS,	BCR0_DMA_5,	BCR0_DMA_6,	BCR0_DMA_7,
 };
 
-long cx_rxbaud = CX_SPEED_DFLT;	/* receiver baud rate */
-long cx_txbaud = CX_SPEED_DFLT;	/* transmitter baud rate */
+static long cx_rxbaud = CX_SPEED_DFLT;	/* receiver baud rate */
+static long cx_txbaud = CX_SPEED_DFLT;	/* transmitter baud rate */
 
-int cx_univ_mode = M_ASYNC;	/* univ. chan. mode: async or sync */
-int cx_sync_mode = M_HDLC;	/* sync. chan. mode: HDLC, Bisync or X.21 */
-int cx_iftype = 0;		/* univ. chan. interface: upper/lower */
+static int cx_univ_mode = M_ASYNC;	/* univ. chan. mode: async or sync */
+static int cx_sync_mode = M_HDLC;	/* sync. chan. mode: HDLC, Bisync or X.21 */
+static int cx_iftype = 0;		/* univ. chan. interface: upper/lower */
 
 static int cx_probe_chip (int base);
 static void cx_setup_chip (cx_chip_t *c);
+static void cx_init_board (cx_board_t *b, int num, int port, int irq, int dma,
+	int chain, int rev, int osc, int rev2, int osc2);
+static void cx_reinit_board (cx_board_t *b);
 
 /*
  * Wait for CCR to clear.
@@ -158,7 +161,8 @@ static int cx_probe_chained_board (int port, int *c0, int *c1)
 /*
  * Check if the CD2400 board is present at the given base port.
  */
-int cx_probe_board (int port)
+int
+cx_probe_board (int port)
 {
 	int c0, c1, c2=0, c3=0, result;
 
@@ -245,7 +249,8 @@ void cx_init (cx_board_t *b, int num, int port, int irq, int dma)
 /*
  * Initialize the board structure, given the type of the board.
  */
-void cx_init_board (cx_board_t *b, int num, int port, int irq, int dma,
+static void
+cx_init_board (cx_board_t *b, int num, int port, int irq, int dma,
 	int chain, int rev, int osc, int rev2, int osc2)
 {
 	cx_chan_t *c;
@@ -504,7 +509,8 @@ void cx_init_board (cx_board_t *b, int num, int port, int irq, int dma,
 /*
  * Reinitialize all channels, using new options and baud rate.
  */
-void cx_reinit_board (cx_board_t *b)
+static void
+cx_reinit_board (cx_board_t *b)
 {
 	cx_chan_t *c;
 
@@ -800,53 +806,20 @@ void cx_chan_dtr (cx_chan_t *c, int on)
  * Control RTS signal for the channel.
  * Turn it on/off.
  */
-void cx_chan_rts (cx_chan_t *c, int on)
+void
+cx_chan_rts (cx_chan_t *c, int on)
 {
 	c->rts = on ? 1 : 0;
 	outb (CAR(c->chip->port), c->num & 3);
 	outb (MSVR_RTS(c->chip->port), on ? MSV_RTS : 0);
 }
 
-/*
- * Get the state of DSR signal of the channel.
- */
-int cx_chan_dsr (cx_chan_t *c)
-{
-	unsigned char sigval;
-
-	if (c->mode == M_ASYNC) {
-		outb (CAR(c->chip->port), c->num & 3);
-		return (inb (MSVR(c->chip->port)) & MSV_DSR ? 1 : 0);
-	}
-
-	/*
-	 * Channels 4..7 and 12..15 don't have DSR signal available.
-	 */
-	switch (c->num) {
-	default:
-		return (1);
-
-	case 1: case 2:  case 3:
-		if (c->type == T_UNIV_RS232)
-			return (1);
-	case 0:
-		sigval = inw (BSR(c->board->port)) >> 8;
-		break;
-
-	case 9: case 10: case 11:
-		if (c->type == T_UNIV_RS232)
-			return (1);
-	case 8:
-		sigval = inw (BSR(c->board->port+0x10)) >> 8;
-		break;
-	}
-	return (~sigval >> (c->num & 3) & 1);
-}
 
 /*
  * Get the state of CARRIER signal of the channel.
  */
-int cx_chan_cd (cx_chan_t *c)
+int
+cx_chan_cd (cx_chan_t *c)
 {
 	unsigned char sigval;
 
@@ -898,13 +871,7 @@ void cx_clock (long hz, long ba, int *clk, int *div)
 	*div = 255;
 }
 
-void cx_disable_dma (cx_board_t *b)
-{
-	/* Disable DMA channel. */
-	outb (DMA_MASK, (b->dma & 3) | DMA_MASK_CLEAR);
-}
-
-cx_chan_opt_t chan_opt_dflt = { /* mode-independent options */
+static cx_chan_opt_t chan_opt_dflt = { /* mode-independent options */
 	{			/* cor4 */
 		7,		/* FIFO threshold, odd is better */
 		0,
@@ -936,7 +903,7 @@ cx_chan_opt_t chan_opt_dflt = { /* mode-independent options */
 	},
 };
 
-cx_opt_async_t opt_async_dflt = { /* default async options */
+static cx_opt_async_t opt_async_dflt = { /* default async options */
 	{			/* cor1 */
 		8-1,		/* 8-bit char length */
 		0,		/* don't ignore parity */
@@ -979,7 +946,7 @@ cx_opt_async_t opt_async_dflt = { /* default async options */
 	0, 0, 0, 0, 0, 0, 0,	/* clear schr1-4, scrl, scrh, lnxt */
 };
 
-cx_opt_hdlc_t opt_hdlc_dflt = { /* default hdlc options */
+static cx_opt_hdlc_t opt_hdlc_dflt = { /* default hdlc options */
 	{			/* cor1 */
 		2,              /* 2 inter-frame flags */
 		0,		/* no-address mode */
@@ -1008,7 +975,7 @@ cx_opt_hdlc_t opt_hdlc_dflt = { /* default hdlc options */
 	POLY_V41,		/* use V.41 CRC polynomial */
 };
 
-cx_opt_bisync_t opt_bisync_dflt = { /* default bisync options */
+static cx_opt_bisync_t opt_bisync_dflt = { /* default bisync options */
 	{			/* cor1 */
 		8-1,            /* 8-bit char length */
 		0,		/* don't ignore parity */
@@ -1036,7 +1003,7 @@ cx_opt_bisync_t opt_bisync_dflt = { /* default bisync options */
 	POLY_16,		/* use CRC-16 polynomial */
 };
 
-cx_opt_x21_t opt_x21_dflt = {   /* default x21 options */
+static cx_opt_x21_t opt_x21_dflt = {   /* default x21 options */
 	{			/* cor1 */
 		8-1,            /* 8-bit char length */
 		0,		/* don't ignore parity */

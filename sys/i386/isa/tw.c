@@ -198,8 +198,8 @@
 #define TWPRI		(PZERO+8)	/* I don't know any better, so let's */
 					/* use the same as the line printer */
 
-int twprobe();
-int twattach();
+static int twprobe();
+static int twattach();
 void twintr(int unit);
 
 struct isa_driver twdriver = {
@@ -228,7 +228,7 @@ static struct cdevsw tw_cdevsw =
 
 #define TW_SIZE		3*60	/* Enough for about 10 sec. of input */
 
-struct tw_sc {
+static struct tw_sc {
   u_int sc_port;		/* I/O Port */
   u_int sc_state;		/* Current software control state */
   struct selinfo sc_selp;	/* Information for select() */
@@ -266,7 +266,7 @@ static int twchecktime(int target, int tol);
  */
 
 #define TWDELAYCOUNT 161		/* Works on my 486DX/33 */
-int twdelaycount;
+static int twdelaycount;
 
 /*
  * Twdelay25 is used for very short delays of about 25us.
@@ -314,7 +314,8 @@ static void twdelayn(int n)
   }
 }
 
-int twprobe(idp)
+static int
+twprobe(idp)
      struct isa_device *idp;
 {
   struct tw_sc sc;
@@ -353,7 +354,8 @@ int twprobe(idp)
   return(0);
 }
 
-int twattach(idp)
+static int
+twattach(idp)
 	struct isa_device *idp;
 {
   struct tw_sc *sc;
@@ -402,7 +404,6 @@ int twclose(dev, flag, mode, p)
 {
   struct tw_sc *sc = &tw_sc[TWUNIT(dev)];
   int s;
-  int port = sc->sc_port;
 
   s = spltty();
   sc->sc_state = 0;
@@ -523,7 +524,7 @@ int twselect(dev, rw, p)
  */
 
 #define X10_START_LENGTH 4
-char X10_START[] = { 1, 1, 1, 0 };
+static char X10_START[] = { 1, 1, 1, 0 };
 
 /*
  * Each bit of the 4-bit house code and 5-bit key code
@@ -533,7 +534,7 @@ char X10_START[] = { 1, 1, 1, 0 };
  */
 
 #define X10_HOUSE_LENGTH 8
-char X10_HOUSE[16][8] = {
+static char X10_HOUSE[16][8] = {
 	0, 1, 1, 0, 1, 0, 0, 1,		/* A = 0110 */
 	1, 0, 1, 0, 1, 0, 0, 1,		/* B = 1110 */
 	0, 1, 0, 1, 1, 0, 0, 1,		/* C = 0010 */
@@ -553,7 +554,7 @@ char X10_HOUSE[16][8] = {
 };
 
 #define X10_KEY_LENGTH 10
-char X10_KEY[32][10] = {
+static char X10_KEY[32][10] = {
 	0, 1, 1, 0, 1, 0, 0, 1, 0, 1,	/* 01100 => 1 */
 	1, 0, 1, 0, 1, 0, 0, 1, 0, 1,	/* 11100 => 2 */
 	0, 1, 0, 1, 1, 0, 0, 1, 0, 1,	/* 00100 => 3 */
@@ -592,13 +593,17 @@ char X10_KEY[32][10] = {
  * Tables for mapping received X-10 code back to house/key number.
  */
 
-short X10_HOUSE_INV[16] = { 12,  4,  2, 10, 14,  6,  0,  8,
-			    13,  5,  3, 11, 15,  7,  1,  9 };
+static short X10_HOUSE_INV[16] = {
+	12,  4,  2, 10, 14,  6,  0,  8,
+	13,  5,  3, 11, 15,  7,  1,  9 
+};
 
-short X10_KEY_INV[32]   = { 12, 16,  4, 17,  2, 18, 10, 19,
-			    14, 20,  6, 21,  0, 22,  8, 23,
-			    13, 24,  5, 25,  3, 26, 11, 27,
-			    15, 28,  7, 29,  1, 30,  9, 31 };
+static short X10_KEY_INV[32]   = {
+	12, 16,  4, 17,  2, 18, 10, 19,
+	14, 20,  6, 21,  0, 22,  8, 23,
+	13, 24,  5, 25,  3, 26, 11, 27,
+	15, 28,  7, 29,  1, 30,  9, 31
+};
 
 /*
  * Transmit a packet containing house code h and key code k
@@ -606,9 +611,10 @@ short X10_KEY_INV[32]   = { 12, 16,  4, 17,  2, 18, 10, 19,
 
 #define TWRETRY		10		/* Try 10 times to sync with AC line */
 
-static int twsend(sc, h, k, cnt)
-struct tw_sc *sc;
-int h, k, cnt;
+static int
+twsend(sc, h, k, cnt)
+	struct tw_sc *sc;
+	int h, k, cnt;
 {
   int i;
   int port = sc->sc_port;
@@ -800,8 +806,9 @@ int cnt;
  * Abort reception that has failed to complete in the required time.
  */
 
-void twabortrcv(sc)
-struct tw_sc *sc;
+static void
+twabortrcv(sc)
+	struct tw_sc *sc;
 {
   int s;
   u_char pkt[3];

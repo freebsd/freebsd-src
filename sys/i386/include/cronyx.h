@@ -477,16 +477,11 @@ extern cx_opt_x21_t opt_x21_dflt;       /* default x21 options */
 
 int cx_probe_board (int port);
 void cx_init (cx_board_t *b, int num, int port, int irq, int dma);
-void cx_init_board (cx_board_t *b, int num, int port, int irq, int dma,
-	int chain, int rev, int osc, int rev2, int osc2);
 void cx_setup_board (cx_board_t *b);
 void cx_setup_chan (cx_chan_t *c);
 void cx_chan_dtr (cx_chan_t *c, int on);
 void cx_chan_rts (cx_chan_t *c, int on);
 void cx_cmd (int base, int cmd);
-void cx_disable_dma (cx_board_t *b);
-void cx_reinit_board (cx_board_t *b);
-int cx_chan_dsr (cx_chan_t *c);
 int cx_chan_cd (cx_chan_t *c);
 void cx_clock (long hz, long ba, int *clk, int *div);
 

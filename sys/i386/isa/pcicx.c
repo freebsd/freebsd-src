@@ -47,18 +47,6 @@
 #include <i386/isa/icu.h>
 #include <i386/isa/pcic.h>
 
-void
-pcic_print_regs (int slot)
-{
-    int i, j;
-
-    for (i = 0; i < 0x40; i += 16) {
-	for (j = 0; j < 16; ++j)
-	    printf ("%02x ", pcic_getb (slot, i + j));
-	printf ("\n");
-    }
-}
-
 /*
  * map a portion of the card's memory space into system memory
  * space.

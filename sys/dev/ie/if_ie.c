@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.29 1995/11/18 08:35:49 bde Exp $
+ *	$Id: if_ie.c,v 1.30 1995/12/05 02:01:08 davidg Exp $
  */
 
 /*
@@ -161,7 +161,7 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <net/bpfdesc.h>
 #endif
 
-extern int check_ie_present __P((int unit, caddr_t where, unsigned size));
+static int check_ie_present __P((int unit, caddr_t where, unsigned size));
 
 static struct mbuf *last_not_for_us;
 
@@ -234,7 +234,7 @@ enum ie_hardware {
   IE_UNKNOWN
 };
 
-const char *ie_hardware_names[] = {
+static const char *ie_hardware_names[] = {
   "StarLAN 10",
   "EN100",
   "StarLAN Fiber",
@@ -274,7 +274,7 @@ both transmit and receive buffers.
 /*
  * Ethernet status, per interface.
  */
-struct ie_softc {
+static struct ie_softc {
   struct arpcom arpcom;
   void (*ie_reset_586)(int);
   void (*ie_chan_attn)(int);
@@ -1358,7 +1358,8 @@ iestart(ifp)
 /*
  * Check to see if there's an 82586 out there.
  */
-int check_ie_present(unit, where, size)
+static int
+check_ie_present(unit, where, size)
      int unit;
      caddr_t where;
      unsigned size;

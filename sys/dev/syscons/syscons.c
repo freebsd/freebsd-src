@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.134 1995/12/07 12:46:08 davidg Exp $
+ *  $Id: syscons.c,v 1.135 1995/12/08 11:15:28 julian Exp $
  */
 
 #include "sc.h"
@@ -109,7 +109,6 @@ static  const u_int     n_fkey_tab = sizeof(fkey_tab) / sizeof(*fkey_tab);
 static  int     	delayed_next_scr = FALSE;
 static  long        	scrn_blank_time = 0;    /* screen saver timeout value */
 	int     	scrn_blanked = FALSE;   /* screen saver active flag */
-static  int     	scrn_saver = 0;    	/* screen saver routine */
 static  long       	scrn_time_stamp;
 	u_char      	scr_map[256];
 static  char        	*video_mode_ptr = NULL;
@@ -126,9 +125,14 @@ static  u_short mouse_or_mask[16] = {
 	0x0c00, 0x0c00, 0x0600, 0x0600, 0x0000, 0x0000, 0x0000, 0x0000
 };
 
-extern	void    none_saver(int blank);
-void    none_saver(int blank) { }
+static void    none_saver(int blank) { }
+
 void    (*current_saver) __P((int blank)) = none_saver;
+
+static int scattach(struct isa_device *dev);
+static int scparam(struct tty *tp, struct termios *t);
+static int scprobe(struct isa_device *dev);
+static void scstart(struct tty *tp);
 
 /* OS specific stuff */
 #ifdef not_yet_done
@@ -138,8 +142,7 @@ struct  tty         	*sccons[MAXCONS+1];
 #else
 #define VIRTUAL_TTY(x)  &sccons[x]
 #define CONSOLE_TTY 	&sccons[MAXCONS]
-struct  tty         	sccons[MAXCONS+1];
-int			nsccons = MAXCONS+1;
+static struct tty     	sccons[MAXCONS+1];
 #endif
 #define MONO_BUF    	pa_to_va(0xB0000)
 #define CGA_BUF     	pa_to_va(0xB8000)
@@ -195,7 +198,7 @@ mask2attr(struct term_stat *term)
     return attr;
 }
 
-int
+static int
 scprobe(struct isa_device *dev)
 {
     int i, retries = 5;
@@ -284,7 +287,7 @@ scresume(void *dummy)
 }
 #endif
 
-int
+static int
 scattach(struct isa_device *dev)
 {
     scr_stat	*scp;
@@ -528,7 +531,7 @@ scintr(int unit)
     }
 }
 
-int
+static int
 scparam(struct tty *tp, struct termios *t)
 {
     tp->t_ispeed = t->c_ispeed;
@@ -1147,7 +1150,7 @@ set_mouse_pos:
     return(ENOTTY);
 }
 
-void
+static void
 scstart(struct tty *tp)
 {
     struct clist *rbp;

@@ -31,11 +31,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.125 1995/12/08 11:15:12 julian Exp $
+ *	$Id: sio.c,v 1.126 1995/12/08 23:20:44 phk Exp $
  */
 
 #include "sio.h"
-#if NSIO > 0
 /*
  * Serial driver, based on 386BSD-0.1 com driver.
  * Mostly rewritten to use pseudo-DMA.
@@ -174,8 +173,6 @@ struct com_s {
 	bool_t  active_out;	/* nonzero if the callout device is open */
 	u_char	cfcr_image;	/* copy of value written to CFCR */
 	u_char	ftl;		/* current rx fifo trigger level */
-	u_char	ftl_init;	/* ftl_max for next open() */
-	u_char	ftl_max;	/* maximum ftl for curent open() */
 	bool_t	hasfifo;	/* nonzero for 16550 UARTs */
 	bool_t	loses_outints;	/* nonzero if device loses output interrupts */
 	u_char	mcr_image;	/* copy of value written to MCR */
@@ -320,7 +317,6 @@ static struct cdevsw sio_cdevsw =
 static	int	comconsole = -1;
 static	speed_t	comdefaultrate = TTYDEF_SPEED;
 static	u_int	com_events;	/* input chars + weighted output completions */
-static	int	commajor;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 #if 0 /* XXX */
@@ -376,8 +372,8 @@ static struct kern_devconf kdc_sio[NSIO] = { {
  *	PC-Card (PCMCIA) specific code.
  */
 static int card_intr(struct pccard_dev *);	/* Interrupt handler */
-void siounload(struct pccard_dev *);	/* Disable driver */
-void siosuspend(struct pccard_dev *);	/* Suspend driver */
+static void siounload(struct pccard_dev *);	/* Disable driver */
+static void siosuspend(struct pccard_dev *);	/* Suspend driver */
 static int sioinit(struct pccard_dev *, int);	/* init device */
 
 static struct pccard_drv sio_info =
@@ -398,7 +394,7 @@ static struct pccard_drv sio_info =
  * sioinit with first=0. This is called when the user suspends
  * the system, or the APM code suspends the system.
  */
-void
+static void
 siosuspend(struct pccard_dev *dp)
 {
 	printf("sio%d: suspending\n", dp->isahd.id_unit);
@@ -451,12 +447,10 @@ sioinit(struct pccard_dev *dp, int first)
  *	and ensure that any driver entry points such as
  *	read and write do not hang.
  */
-void
+static void
 siounload(struct pccard_dev *dp)
 {
 	struct com_s	*com;
-	struct tty	*tp;
-	int	s,unit,nowhere;
 
 	com = com_addr(dp->isahd.id_unit);
 	if (!com->iobase) {
@@ -815,36 +809,59 @@ sioattach(isdp)
 			goto determined_type;
 		}
 	}
-	outb(iobase + com_fifo, FIFO_ENABLE | FIFO_TRIGGER_14);
+	outb(iobase + com_fifo, FIFO_ENABLE | FIFO_RX_HIGH);
 	DELAY(100);
 	switch (inb(com->int_id_port) & IIR_FIFO_MASK) {
-	case FIFO_TRIGGER_1:
+	case FIFO_RX_LOW:
 		printf(" 16450");
 		kdc_sio[unit].kdc_description =
 		  "Serial port: National 16450 or compatible";
 		break;
-	case FIFO_TRIGGER_4:
+	case FIFO_RX_MEDL:
 		printf(" 16450?");
 		kdc_sio[unit].kdc_description =
 		  "Serial port: maybe National 16450";
 		break;
-	case FIFO_TRIGGER_8:
+	case FIFO_RX_MEDH:
 		printf(" 16550?");
 		kdc_sio[unit].kdc_description =
 		  "Serial port: maybe National 16550";
 		break;
-	case FIFO_TRIGGER_14:
-		printf(" 16550A");
+	case FIFO_RX_HIGH:
 		if (COM_NOFIFO(isdp)) {
 			printf(" fifo disabled");
 			kdc_sio[unit].kdc_description =
 			  "Serial port: National 16550A, FIFO disabled";
 		} else {
 			com->hasfifo = TRUE;
-			com->ftl_init = FIFO_TRIGGER_14;
 			com->tx_fifo_size = 16;
 			kdc_sio[unit].kdc_description =
 			  "Serial port: National 16550A or compatible";
+		}
+		/*
+		 * Check for the Startech ST16C650 chip.
+		 * it has a shadow register under the com_iir,
+		 * which can only be accessed when cfcr == 0xff
+		 */
+		{
+		u_char i, j;
+
+		i = inb(iobase + com_iir);
+		outb(iobase + com_cfcr, 0xff);
+		outb(iobase + com_iir, 0x0);
+		outb(iobase + com_cfcr, CFCR_8BITS);
+		j = inb(iobase + com_iir);
+		outb(iobase + com_iir, i);
+		if (i != j) {
+			printf(" 16550A");
+		} else {
+			com->tx_fifo_size = 32;
+			printf(" 16650");
+			kdc_sio[unit].kdc_description =
+			  "Serial port: Startech 16C650 or similar";
+		}
+		if (!com->tx_fifo_size)
+			printf(" fifo disabled");
 		}
 		break;
 	}
@@ -867,7 +884,7 @@ determined_type: ;
 	kdc_sio[unit].kdc_state = (unit == comconsole) ? DC_BUSY : DC_IDLE;
 
 #ifdef KGDB
-	if (kgdb_dev == makedev(commajor, unit)) {
+	if (kgdb_dev == makedev(CDEV_MAJOR, unit)) {
 		if (unit == comconsole)
 			kgdb_dev = -1;	/* can't debug over console port */
 		else {
@@ -1018,7 +1035,6 @@ open_top:
 		tp->t_termios = mynor & CALLOUT_MASK
 				? com->it_out : com->it_in;
 		(void)commctl(com, TIOCM_DTR | TIOCM_RTS, DMSET);
-		com->ftl_max = com->ftl_init;
 		com->poll = com->no_irq;
 		com->poll_output = com->loses_outints;
 		++com->wopeners;
@@ -1045,8 +1061,7 @@ open_top:
 			 */
 			while (TRUE) {
 				outb(iobase + com_fifo,
-				     FIFO_RCV_RST | FIFO_XMT_RST
-				     | FIFO_ENABLE | com->ftl);
+				     FIFO_RCV_RST | FIFO_XMT_RST | com->ftl);
 				DELAY(100);
 				if (!(inb(com->line_status_port) & LSR_RXRDY))
 					break;
@@ -1161,7 +1176,7 @@ comhardclose(com)
 	outb(iobase + com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
 #ifdef KGDB
 	/* do not disable interrupts or hang up if debugging */
-	if (kgdb_dev != makedev(commajor, unit))
+	if (kgdb_dev != makedev(CDEV_MAJOR, unit))
 #endif
 	{
 		outb(iobase + com_ier, 0);
@@ -1373,7 +1388,7 @@ siointr1(com)
 			if (recv_data == FRAME_END
 			    && (   com->tp == NULL
 				|| !(com->tp->t_state & TS_ISOPEN))
-			    && kgdb_dev == makedev(commajor, unit)) {
+			    && kgdb_dev == makedev(CDEV_MAJOR, unit)) {
 				kgdb_connect(0);
 				continue;
 			}
@@ -1882,10 +1897,8 @@ comparam(tp, t)
 		 * latencies are larger.
 		 */
 		com->ftl = t->c_ospeed <= 4800
-			   ? FIFO_TRIGGER_1 : FIFO_TRIGGER_14;
-		if (com->ftl > com->ftl_max)
-			com->ftl = com->ftl_max;
-		outb(iobase + com_fifo, FIFO_ENABLE | com->ftl);
+			   ? 0 : FIFO_ENABLE | FIFO_RX_HIGH;
+		outb(iobase + com_fifo, com->ftl);
 	}
 
 	/*
@@ -2252,30 +2265,6 @@ comwakeup(chan)
 			log(LOG_ERR, "sio%d: %u more %s%s (total %lu)\n",
 			    unit, delta, error_desc[errnum],
 			    delta == 1 ? "" : "s", total);
-#if 0
-			/*
-			 * XXX if we resurrect this then we should move
-			 * the dropping of the ftl to somewhere with less
-			 * latency.
-			 */
-			if (errnum == CE_OVERRUN && com->hasfifo
-			    && com->ftl > FIFO_TRIGGER_1) {
-				static	u_char	ftl_in_bytes[] =
-					{ 1, 4, 8, 14, };
-
-				com->ftl_init = FIFO_TRIGGER_8;
-#define	FIFO_TRIGGER_DELTA	FIFO_TRIGGER_4
-				com->ftl_max =
-				com->ftl -= FIFO_TRIGGER_DELTA;
-				outb(com->iobase + com_fifo,
-				     FIFO_ENABLE | com->ftl);
-				log(LOG_DEBUG,
-				    "sio%d: reduced fifo trigger level to %d\n",
-				    unit,
-				    ftl_in_bytes[com->ftl
-						 / FIFO_TRIGGER_DELTA]);
-			}
-#endif
 		}
 	}
 }
@@ -2403,12 +2392,6 @@ siocnprobe(cp)
 {
 	int	unit;
 
-	/* locate the major number */
-	/* XXX - should be elsewhere since KGDB uses it */
-	for (commajor = 0; commajor < nchrdev; commajor++)
-		if (cdevsw[commajor].d_open == sioopen)
-			break;
-
 	/* XXX: ick */
 	unit = DEV_TO_UNIT(CONUNIT);
 	siocniobase = CONADDR;
@@ -2416,7 +2399,7 @@ siocnprobe(cp)
 	/* make sure hardware exists?  XXX */
 
 	/* initialize required fields */
-	cp->cn_dev = makedev(commajor, unit);
+	cp->cn_dev = makedev(CDEV_MAJOR, unit);
 #ifdef COMCONSOLE
 	cp->cn_pri = CN_REMOTE;		/* Force a serial port console */
 #else
@@ -2625,4 +2608,3 @@ static void 	sio_drvinit(void *unused)
 
 SYSINIT(siodev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sio_drvinit,NULL)
 
-#endif /* NSIO > 0 */
