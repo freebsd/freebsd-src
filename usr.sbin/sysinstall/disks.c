@@ -450,7 +450,7 @@ diskPartition(Device *dev)
 			else
 #endif
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
-				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN));
+				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN), "");
 			variable_set2(DISK_PARTITIONED, "yes", 0);
 			record_chunks(d);
 		    }
@@ -878,16 +878,10 @@ diskPartitionNonInteractive(Device *dev)
 	    for (i = 0; chunk_info[i]; i++) {
 		/* If a chunk is at least 10MB in size, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size > (10 * ONE_MEG)) {
-#ifdef PC98
 		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size,
 				 freebsd, 3,
 				 (chunk_info[i]->flags & CHUNK_ALIGN),
 				 "FreeBSD");
-#else
-		    Create_Chunk(d, chunk_info[i]->offset, chunk_info[i]->size,
-				 freebsd, 3,
-				 (chunk_info[i]->flags & CHUNK_ALIGN));
-#endif
 		    variable_set2(DISK_PARTITIONED, "yes", 0);
 		    break;
 		}
@@ -918,14 +912,9 @@ diskPartitionNonInteractive(Device *dev)
 	    for (i = 0; chunk_info[i]; i++) {
 		/* If a chunk is at least sz MB, use it. */
 		if (chunk_info[i]->type == unused && chunk_info[i]->size >= sz) {
-#ifdef PC98
 		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3,
 				 (chunk_info[i]->flags & CHUNK_ALIGN),
 				 "FreeBSD");
-#else
-		    Create_Chunk(d, chunk_info[i]->offset, sz, freebsd, 3,
-				 (chunk_info[i]->flags & CHUNK_ALIGN));
-#endif
 		    variable_set2(DISK_PARTITIONED, "yes", 0);
 		    break;
 		}

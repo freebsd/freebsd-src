@@ -146,7 +146,7 @@ slice_wizard(Disk *d)
 				strtol(cmds[2],0,0),
 				strtol(cmds[3],0,0),
 				strtol(cmds[4],0,0),
-				strtol(cmds[5],0,0)));
+				strtol(cmds[5],0,0), ""));
 	    continue;
 	}
 #endif
