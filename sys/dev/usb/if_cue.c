@@ -170,8 +170,7 @@ cue_csr_read_1(struct cue_softc *sc, int reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 1);
 
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->cue_udev, &req, &val);
 
 	CUE_UNLOCK(sc);
 
@@ -199,8 +198,7 @@ cue_csr_read_2(struct cue_softc *sc, int reg)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 2);
 
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->cue_udev, &req, &val);
 
 	CUE_UNLOCK(sc);
 
@@ -227,8 +225,7 @@ cue_csr_write_1(struct cue_softc *sc, int reg, int val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->cue_udev, &req, NULL);
 
 	CUE_UNLOCK(sc);
 
@@ -256,8 +253,7 @@ cue_csr_write_2(struct cue_softc *sc, int reg, int val)
 	USETW(req.wIndex, reg);
 	USETW(req.wLength, 0);
 
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, &val, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->cue_udev, &req, NULL);
 
 	CUE_UNLOCK(sc);
 
@@ -288,8 +284,7 @@ cue_mem(struct cue_softc *sc, int cmd, int addr, void *buf, int len)
 	USETW(req.wIndex, addr);
 	USETW(req.wLength, len);
 
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, &buf, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->cue_udev, &req, buf);
 
 	CUE_UNLOCK(sc);
 
@@ -316,8 +311,7 @@ cue_getmac(struct cue_softc *sc, void *buf)
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, ETHER_ADDR_LEN);
 
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, buf, USBD_NO_TSLEEP, NULL);
+	err = usbd_do_request(sc->cue_udev, &req, buf);
 
 	CUE_UNLOCK(sc);
 
@@ -406,9 +400,7 @@ cue_reset(struct cue_softc *sc)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, 0);
 	USETW(req.wLength, 0);
-	err = usbd_do_request_flags(sc->cue_udev,
-	    &req, NULL, USBD_NO_TSLEEP, NULL);
-
+	err = usbd_do_request(sc->cue_udev, &req, NULL);
 	if (err)
 		printf("cue%d: reset failed\n", sc->cue_unit);
 
