@@ -893,7 +893,7 @@ uifind(uid)
 			free(uip, M_UIDINFO);
 			uip = old_uip;
 		} else {
-			uip->ui_mtxp = mtx_pool_alloc();
+			uip->ui_mtxp = mtx_pool_alloc(mtxpool_sleep);
 			uip->ui_uid = uid;
 			LIST_INSERT_HEAD(UIHASH(uid), uip, ui_hash);
 		}

@@ -547,9 +547,9 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	 * XXX cleanup - make sure mtxpool is always initialized before
 	 * this is ever called.
 	 */
-	if (mtx_pool_valid) {
+	if (mtxpool_lockbuilder != NULL) {
 		mtx_lock(&lock_mtx);
-		lkp->lk_interlock = mtx_pool_alloc();
+		lkp->lk_interlock = mtx_pool_alloc(mtxpool_lockbuilder);
 		mtx_unlock(&lock_mtx);
 	} else {
 		lkp->lk_interlock = &lock_mtx;
