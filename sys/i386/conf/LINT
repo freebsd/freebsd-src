@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.14 1997/02/22 20:31:26 joerg Exp $
+#	$Id: LINT,v 1.286.2.15 1997/02/28 11:11:41 bde Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -78,6 +78,12 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # tagged commands in the `ncr' driver.  See the comments to
 # AHC_TAGENABLE for a note of warning.)
 options		FAILSAFE
+
+# This allows you to actually store this configuration file into
+# the kernel binary itself, where it may be later read by saying:
+#    strings /kernel | grep ^___ | sed -e 's/^___//' > MYKERNEL
+#
+options         INCLUDE_CONFIG_FILE     # Include this file in kernel
 
 #
 # This directive defines a number of things:
@@ -722,6 +728,9 @@ device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
 device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
 device lnc0 at isa? port 0x300 net irq 10 drq 0 vector lncintr
 device sr0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector srintr
+# Needed so that we can (bogusly) include both the dedicated PCCARD
+# drivers and the generic support
+options	LINT_PCCARD_HACK
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
@@ -1012,7 +1021,40 @@ options		"EXT2FS"
 options		"I586_CTR_GUPROF"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
+options		KBD_MAXRETRY=4
+options		KBD_MAXWAIT=6
+options		KBD_RESETDELAY=201
+options		KBDIO_DEBUG=2
+options		MSGMNB=2049
+options		MSGMNI=41
+options		MSGSEG=2049
+options		MSGSSZ=16
+options		MSGTQL=41
+options		NBUF=512
+options		NMBCLUSTERS=1024
+options		PSM_ACCEL=1
+options		PSM_DEBUG=1
+options		PSM_EMULATION
 options		"SCSI_2_DEF"
+options		SCSI_DELAY=8	# Be pessimistic about Joe SCSI device
+options		SCSI_NCR_DEBUG
+options		SCSI_NCR_DFLT_TAGS=4
+options		SCSI_NCR_MAX_SYNC=10000
+options		SCSI_NCR_MAX_WIDE=1
+options		SCSI_NCR_MYADDR=7
+options		SEMMAP=31
+options		SEMMNI=11
+options		SEMMNS=61
+options		SEMMNU=31
+options		SEMMSL=61
+options		SEMOPM=101
+options		SEMUME=11
 options		SHOW_BUSYBUFS	# List buffers that prevent root unmount
+options		SHMALL=1025
+options		"SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)"
+options		SHMMAXPGS=1025
+options		SHMMIN=2
+options		SHMMNI=33
+options		SHMSEG=9
 options		SI_DEBUG
 options		SPX_HACK
