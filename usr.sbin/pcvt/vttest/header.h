@@ -2,12 +2,12 @@
 
 /* Choose one of these */
 
-/* #define XENIX        /* XENIX implies UNIX                           */
-/* #define SIII         /* SIII  implies UNIX, (NDELAY a la System III) */
+/* #define XENIX */     /* XENIX implies UNIX                           */
+/* #define SIII */      /* SIII  implies UNIX, (NDELAY a la System III) */
 #define UNIX            /* UNIX                                         */
-/* #define VMS          /* VMS not done yet -- send me your version!!!! */
-/* #define SARG20       /* Sargasso C for TOPS-20                       */
-/* #define SARG10       /* Sargasso C for TOPS-10                       */
+/* #define VMS */       /* VMS not done yet -- send me your version!!!! */
+/* #define SARG20 */    /* Sargasso C for TOPS-20                       */
+/* #define SARG10 */    /* Sargasso C for TOPS-10                       */
 
 /* These #ifdef:s are implementation dependent stuff for the Sargasso C */
 /* Unix C barfs on directives like "#strings", so we keep them	        */
