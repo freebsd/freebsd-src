@@ -21,9 +21,25 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 /* FreeBSD ZMAGIC files never have the header in the text. */
 #define	N_HEADER_IN_TEXT(x)	0
 
-/* ZMAGIC files start at offset 0.  Does not apply to QMAGIC files. */
-#define TEXT_START_ADDR		0
+/* A ZMAGIC file can start at almost any address if it is a kernel. */
+#define TEXT_START_ADDR		dont use TEXT_START_ADDR
 
+/* The following definitions are essentially the same as the ones in
+   FreeBSD's <sys/imgact_aout.h>.  They override gdb's versions, which
+   don't work for kernels.  See ../include/aout/aout64.h.  */
+#define N_TXTADDR(x) \
+	(N_GETMAGIC(x) == OMAGIC || N_GETMAGIC(x) == NMAGIC \
+	 || N_GETMAGIC(x) == ZMAGIC \
+	 ? ((x).a_entry < (x).a_text ? 0 : (x).a_entry & ~TARGET_PAGE_SIZE) \
+	 : TARGET_PAGE_SIZE + sizeof(struct external_exec))
+#define N_TXTOFF(x) \
+	(N_GETMAGIC(x) == ZMAGIC ? TARGET_PAGE_SIZE \
+	 : (N_GETMAGIC(x) == QMAGIC || N_GETMAGIC_NET(x) == ZMAGIC) ? 0 \
+	 : sizeof(struct external_exec))
+#define N_TXTSIZE(x) ((x).a_text)
+
+#define N_GETMAGIC(exec) \
+	((exec).a_info & 0xffff)
 #define N_GETMAGIC_NET(exec) \
 	(ntohl ((exec).a_info) & 0xffff)
 #define N_GETMID_NET(exec) \
