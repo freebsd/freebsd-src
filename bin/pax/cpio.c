@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpio.c,v 1.2 1994/09/24 02:56:16 davidg Exp $
+ *	$Id: cpio.c,v 1.3 1995/05/30 00:06:54 rgrimes Exp $
  */
 
 #ifndef lint
@@ -46,7 +46,6 @@ static char sccsid[] = "@(#)cpio.c	8.1 (Berkeley) 5/31/93";
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <string.h>
-#include <ctype.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>

@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pax.c,v 1.2 1994/09/24 02:56:27 davidg Exp $
+ *	$Id: pax.c,v 1.3 1995/05/30 00:07:00 rgrimes Exp $
  */
 
 #ifndef lint
@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)pax.c	8.2 (Berkeley) 4/18/94";
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <locale.h>
 #include "pax.h"
 #include "extern.h"
 static int gen_init __P((void));
@@ -227,6 +228,7 @@ main(argc, argv)
 	char **argv;
 #endif
 {
+	(void) setlocale(LC_TIME, "");
 	/*
 	 * parse options, determine operational mode, general init
 	 */
