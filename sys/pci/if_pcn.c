@@ -138,6 +138,7 @@ static int pcn_miibus_readreg	__P((device_t, int, int));
 static int pcn_miibus_writereg	__P((device_t, int, int, int));
 static void pcn_miibus_statchg	__P((device_t));
 
+static void pcn_setfilt		__P((struct ifnet *));
 static void pcn_setmulti	__P((struct pcn_softc *));
 static u_int32_t pcn_crc	__P((caddr_t));
 static void pcn_reset		__P((struct pcn_softc *));
@@ -1051,6 +1052,30 @@ static void pcn_start(ifp)
 	return;
 }
 
+static void pcn_setfilt(ifp)
+	struct ifnet		*ifp;
+{
+	struct pcn_softc	*sc;
+
+	sc = ifp->if_softc;
+
+	 /* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & IFF_PROMISC) {
+		PCN_CSR_SETBIT(sc, PCN_CSR_MODE, PCN_MODE_PROMISC);
+	} else {
+		PCN_CSR_CLRBIT(sc, PCN_CSR_MODE, PCN_MODE_PROMISC);
+	}
+
+	/* Set the capture broadcast bit to capture broadcast frames. */
+	if (ifp->if_flags & IFF_BROADCAST) {
+		PCN_CSR_CLRBIT(sc, PCN_CSR_MODE, PCN_MODE_RXNOBROAD);
+	} else {
+		PCN_CSR_SETBIT(sc, PCN_CSR_MODE, PCN_MODE_RXNOBROAD);
+	}
+
+	return;
+}
+
 static void pcn_init(xsc)
 	void			*xsc;
 {
@@ -1093,19 +1118,8 @@ static void pcn_init(xsc)
 	/* Set up the mode register. */
 	pcn_csr_write(sc, PCN_CSR_MODE, PCN_PORT_MII);
 
-	 /* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		PCN_CSR_SETBIT(sc, PCN_CSR_MODE, PCN_MODE_PROMISC);
-	} else {
-		PCN_CSR_CLRBIT(sc, PCN_CSR_MODE, PCN_MODE_PROMISC);
-	}
-
-	/* Set the capture broadcast bit to capture broadcast frames. */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		PCN_CSR_CLRBIT(sc, PCN_CSR_MODE, PCN_MODE_RXNOBROAD);
-	} else {
-		PCN_CSR_SETBIT(sc, PCN_CSR_MODE, PCN_MODE_RXNOBROAD);
-	}
+	/* Set up RX filter. */
+	pcn_setfilt(ifp);
 
 	/*
 	 * Load the multicast filter.
@@ -1238,8 +1252,7 @@ static int pcn_ioctl(ifp, command, data)
 			    !(sc->pcn_if_flags & IFF_PROMISC)) {
 				PCN_CSR_SETBIT(sc, PCN_CSR_EXTCTL1,
 				    PCN_EXTCTL1_SPND);
-				PCN_CSR_SETBIT(sc, PCN_CSR_MODE,
-				    PCN_MODE_PROMISC);
+				pcn_setfilt(ifp);
 				PCN_CSR_CLRBIT(sc, PCN_CSR_EXTCTL1,
 				    PCN_EXTCTL1_SPND);
 				pcn_csr_write(sc, PCN_CSR_CSR,
@@ -1249,8 +1262,7 @@ static int pcn_ioctl(ifp, command, data)
 				sc->pcn_if_flags & IFF_PROMISC) {
 				PCN_CSR_SETBIT(sc, PCN_CSR_EXTCTL1,
 				    PCN_EXTCTL1_SPND);
-				PCN_CSR_CLRBIT(sc, PCN_CSR_MODE,
-				    PCN_MODE_PROMISC);
+				pcn_setfilt(ifp);
 				PCN_CSR_CLRBIT(sc, PCN_CSR_EXTCTL1,
 				    PCN_EXTCTL1_SPND);
 				pcn_csr_write(sc, PCN_CSR_CSR,
