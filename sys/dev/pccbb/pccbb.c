@@ -541,8 +541,8 @@ cbb_chipinit(struct cbb_softc *sc)
 	 * other is to set CSC to 0.  Since both methods are mutually
 	 * compatible, we do both.
 	 */
-	exca_write(&sc->exca, EXCA_INTR, EXCA_INTR_ENABLE);
-	exca_write(&sc->exca, EXCA_CSC_INTR, 0);
+	exca_putb(&sc->exca, EXCA_INTR, EXCA_INTR_ENABLE);
+	exca_putb(&sc->exca, EXCA_CSC_INTR, 0);
 
 	/* close all memory and io windows */
 	pci_write_config(sc->dev, CBBR_MEMBASE0, 0xffffffff, 4);
@@ -633,6 +633,7 @@ cbb_attach(device_t brdev)
 	sc->bsh = rman_get_bushandle(sc->base_res);
 	exca_init(&sc->exca, brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
 	sc->exca.flags |= EXCA_HAS_MEMREG_WIN;
+	sc->exca.chipset = EXCA_CARDBUS;
 	cbb_chipinit(sc);
 
 	/* attach children */
@@ -762,7 +763,7 @@ cbb_shutdown(device_t brdev)
 
 	cbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
 
-	exca_write(&sc->exca, EXCA_ADDRWIN_ENABLE, 0);
+	exca_putb(&sc->exca, EXCA_ADDRWIN_ENABLE, 0);
 	pci_write_config(brdev, CBBR_MEMBASE0, 0, 4);
 	pci_write_config(brdev, CBBR_MEMLIMIT0, 0, 4);
 	pci_write_config(brdev, CBBR_MEMBASE1, 0, 4);
@@ -797,10 +798,6 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	ih->intr = intr;
 	ih->arg = arg;
 	STAILQ_INSERT_TAIL(&sc->intr_handlers, ih, entries);
-	/*
-	 * XXX we should do what old card does to ensure that we don't
-	 * XXX call the function's interrupt routine(s).
-	 */
 	/*
 	 * XXX need to turn on ISA interrupts, if we ever support them, but
 	 * XXX for now that's all we need to do.
@@ -956,11 +953,9 @@ cbb_insert(struct cbb_softc *sc)
 		if (sc->pccarddev != NULL) {
 			sc->flags |= CBB_16BIT_CARD;
 			sc->flags |= CBB_CARD_OK;
-			if (CARD_ATTACH_CARD(sc->pccarddev) != 0) {
+			if (CARD_ATTACH_CARD(sc->pccarddev) != 0)
 				device_printf(sc->dev,
 				    "PC Card card activation failed\n");
-				sc->flags &= ~CBB_CARD_OK;
-			}
 		} else {
 			device_printf(sc->dev,
 			    "PC Card inserted, but no pccard bus.\n");
@@ -969,11 +964,9 @@ cbb_insert(struct cbb_softc *sc)
 		if (sc->cbdev != NULL) {
 			sc->flags &= ~CBB_16BIT_CARD;
 			sc->flags |= CBB_CARD_OK;
-			if (CARD_ATTACH_CARD(sc->cbdev) != 0) {
+			if (CARD_ATTACH_CARD(sc->cbdev) != 0)
 				device_printf(sc->dev,
 				    "CardBus card activation failed\n");
-				sc->flags &= ~CBB_CARD_OK;
-			}
 		} else {
 			device_printf(sc->dev,
 			    "CardBus card inserted, but no cardbus bus.\n");
@@ -983,7 +976,7 @@ cbb_insert(struct cbb_softc *sc)
 		 * We should power the card down, and try again a couple of
 		 * times if this happens. XXX
 		 */
-		device_printf (sc->dev, "Unsupported card type detected\n");
+		device_printf(sc->dev, "Unsupported card type detected\n");
 	}
 }
 
@@ -1052,7 +1045,6 @@ cbb_intr(void *arg)
 		STAILQ_FOREACH(ih, &sc->intr_handlers, entries) {
 			(*ih->intr)(ih->arg);
 		}
-		
 	}
 }
 
