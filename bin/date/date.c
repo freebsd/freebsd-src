@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.6 1995/10/23 20:26:53 ache Exp $
+ *	$Id: date.c,v 1.7 1996/04/06 01:42:09 ache Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1985, 1987, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)date.c	8.1 (Berkeley) 5/31/93";
+static char const sccsid[] = "@(#)date.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
