@@ -39,14 +39,14 @@
 .Nd remote file distribution program
 .Sh SYNOPSIS
 .Nm
-.Op Fl nqbRhivwy
+.Op Fl nqbRhivwyD
 .Op Fl P Ar rshcmd
 .Op Fl f Ar distfile
 .Op Fl d Ar var=value
 .Op Fl m Ar host
 .Op Ar name ...
 .Nm rdist
-.Op Fl nqbRhivwy
+.Op Fl nqbRhivwyD
 .Op Fl P Ar rshcmd
 .Fl c
 .Ar name ...
@@ -191,6 +191,8 @@ not to update files that are younger than the master copy.
 This can be used
 to prevent newer copies on other hosts from being replaced.
 A warning message is printed for files which are newer than the master copy.
+.It Fl D
+Debug mode.
 .El
 .Pp
 .Ar Distfile
