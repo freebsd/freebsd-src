@@ -15,7 +15,9 @@ AC_PROG_RANLIB
 GROFF_INSTALL_SH
 AC_PROG_INSTALL
 AC_PROG_LN_S
-GROFF_CSH_HACK(SH_SCRIPT_SED_CMD='1s/.*/:/', SH_SCRIPT_SED_CMD='')
+dnl use a dummy substitution if no csh hack is necessary to avoid errors
+dnl with non-GNU sed programs
+GROFF_CSH_HACK(SH_SCRIPT_SED_CMD='1s/.*/:/', SH_SCRIPT_SED_CMD='1s/a/a/')
 AC_SUBST(SH_SCRIPT_SED_CMD)
 dnl checks for headers
 AC_CHECK_HEADERS(stdlib.h unistd.h dirent.h limits.h sys/dir.h \

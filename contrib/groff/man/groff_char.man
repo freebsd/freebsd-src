@@ -132,7 +132,7 @@ a larger glyph can be obtained with
 \&\\$3\t\\*(CH\t\\$2\t\\$4\t\\$5
 .\}
 ..
-.wh \n(nlu+\n(.tu-\n(.Vu Fo
+.if !\n[cR] .wh \n(nlu+\n(.tu-\n(.Vu Fo
 .de Fo
 'bp
 .He
@@ -290,12 +290,14 @@ Output	Input	Input	PostScript	Notes
 .C2 'I Iacute
 .C2 'O Oacute
 .C2 'U Uacute
+.C2 'Y Yacute
 .C2 'a aacute
 .C2 'c cacute
 .C2 'e eacute
 .C2 'i iacute
 .C2 'o oacute
 .C2 'u uacute
+.C2 'y yacute
 .C2 :A Adieresis
 .C2 :E Edieresis
 .C2 :I Idieresis

@@ -1,4 +1,5 @@
-DISTCLEANFILES=config.status config.log config.cache Makefile
+DISTCLEANFILES=config.status config.log config.cache Makefile \
+               src/xditview/Imakefile
 CLEANADD=Makefile.cfg conftest*
 
 distfiles: configure
