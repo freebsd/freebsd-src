@@ -253,8 +253,7 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 	    printf("Non-authoritative answer:\n");
 	}
 
-	if (queryType != T_A && queryType != T_AAAA &&	/* A6? */
-	    !(iquery && queryType == T_PTR)) {
+	if (queryType != T_A && !(iquery && queryType == T_PTR)) {
 	    while (--ancount >= 0 && cp < eom) {
 		if ((cp = Print_rr(cp, (u_char *)&answer,
 				   eom, stdout)) == NULL) {
@@ -387,10 +386,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 		for (l = 0; l < k; l++)
 		    if (!strcasecmp(hostPtr->aliases[l], host_aliases[i]))
 			break;
-		if (l < k) {
-		    free(host_aliases[i]);
+		if (l < k)
 		    continue;
-		}
 		hostPtr->aliases[k] = Calloc(1, host_aliases_len[i]);
 		memcpy(hostPtr->aliases[k], host_aliases[i],
 		       host_aliases_len[i]);
@@ -420,10 +417,8 @@ GetAnswer(nsAddrPtr, queryType, msg, msglen, iquery, hostPtr, isServer,
 			!memcmp(hostPtr->addrList[l]->addr, addr_list[i],
 				addr_len[i]))
 			break;
-		if (l < k) {
-		    free(addr_list[i]);
+		if (l < k)
 		    continue;
-		}
 		hostPtr->addrList[k] = (AddrInfo*)Calloc(1, sizeof(AddrInfo));
 		hostPtr->addrList[k]->addr = Calloc(1, addr_len[i]);
 		hostPtr->addrList[k]->addrType = addr_type[i];
