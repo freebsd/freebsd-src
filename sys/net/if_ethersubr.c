@@ -59,6 +59,7 @@
 #include <net/if_types.h>
 #include <net/bpf.h>
 #include <net/ethernet.h>
+#include <net/bridge.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
@@ -97,10 +98,6 @@ extern u_char	at_org_code[3];
 extern u_char	aarp_org_code[3];
 #endif /* NETATALK */
 
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 /* netgraph node hooks for ng_ether(4) */
 void	(*ng_ether_input_p)(struct ifnet *ifp,
 		struct mbuf **mp, struct ether_header *eh);
@@ -113,6 +110,13 @@ void	(*ng_ether_detach_p)(struct ifnet *ifp);
 int	(*vlan_input_p)(struct ether_header *eh, struct mbuf *m);
 int	(*vlan_input_tag_p)(struct ether_header *eh, struct mbuf *m,
 		u_int16_t t);
+
+/* bridge support */
+int do_bridge = 0;
+bridge_in_t *bridge_in_ptr;
+bdg_forward_t *bdg_forward_ptr;
+bdgtakeifaces_t *bdgtakeifaces_ptr;
+struct bdg_softc *ifp2sc = NULL;
 
 static	int ether_resolvemulti __P((struct ifnet *, struct sockaddr **,
 				    struct sockaddr *));
@@ -360,19 +364,17 @@ ether_output_frame(ifp, m)
 {
 	int error = 0;
 
-#ifdef BRIDGE
-	if (do_bridge && BDG_USED(ifp) ) {
+	if (do_bridge && bdg_forward_ptr != NULL && BDG_USED(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
 
 		m->m_pkthdr.rcvif = NULL;
 		eh = mtod(m, struct ether_header *);
 		m_adj(m, ETHER_HDR_LEN);
-		m = bdg_forward(m, eh, ifp);
+		m = bdg_forward_ptr(m, eh, ifp);
 		if (m != NULL)
 			m_freem(m);
 		return (0);
 	}
-#endif
 
 	/*
 	 * Queue message on interface, update output statistics if
@@ -406,9 +408,7 @@ ether_input(ifp, eh, m)
 	struct ether_header *eh;
 	struct mbuf *m;
 {
-#ifdef BRIDGE
 	struct ether_header save_eh;
-#endif
 
 	/* Check for a BPF tap */
 	if (ifp->if_bpf != NULL) {
@@ -428,13 +428,12 @@ ether_input(ifp, eh, m)
 			return;
 	}
 
-#ifdef BRIDGE
 	/* Check for bridging mode */
-	if (do_bridge && BDG_USED(ifp) ) {
+	if (do_bridge && bdg_forward_ptr != NULL && BDG_USED(ifp) ) {
 		struct ifnet *bif;
 
 		/* Check with bridging code */
-		if ((bif = bridge_in(ifp, eh)) == BDG_DROP) {
+		if ((bif = bridge_in_ptr(ifp, eh)) == BDG_DROP) {
 			m_freem(m);
 			return;
 		}
@@ -442,9 +441,9 @@ ether_input(ifp, eh, m)
 			struct mbuf *oldm = m ;
 
 			save_eh = *eh ; /* because it might change */
-			m = bdg_forward(m, eh, bif);	/* needs forwarding */
+			m = bdg_forward_ptr(m, eh, bif);	/* needs forwarding */
 			/*
-			 * Do not continue if bdg_forward() processed our
+			 * Do not continue if bdg_forward_ptr() processed our
 			 * packet (and cleared the mbuf pointer m) or if
 			 * it dropped (m_free'd) the packet itself.
 			 */
@@ -466,11 +465,8 @@ ether_input(ifp, eh, m)
 		    m_freem(m);
 		return;
        }
-#endif
 
-#ifdef BRIDGE
 recvLocal:
-#endif
 	/* Continue with upper layer processing */
 	ether_demux(ifp, eh, m);
 	/* First chunk of an mbuf contains good junk */
@@ -677,9 +673,8 @@ ether_ifattach(ifp, bpf)
 		bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
-#ifdef BRIDGE
-	bdgtakeifaces();
-#endif
+	if (bdgtakeifaces_ptr != NULL)
+		bdgtakeifaces_ptr();
 }
 
 /*
@@ -695,9 +690,8 @@ ether_ifdetach(ifp, bpf)
 	if (bpf)
 		bpfdetach(ifp);
 	if_detach(ifp);
-#ifdef BRIDGE
-	bdgtakeifaces();
-#endif
+	if (bdgtakeifaces_ptr != NULL)
+		bdgtakeifaces_ptr();
 }
 
 SYSCTL_DECL(_net_link);
