@@ -104,9 +104,10 @@ tunattach(dummy)
 	struct ifnet *ifp;
 	dev_t dev;
 
-	if( tun_devsw_installed ) return;
+	if ( tun_devsw_installed )
+		return;
 	dev = makedev(CDEV_MAJOR, 0);
-	cdevsw_add(&dev,&tun_cdevsw, NULL);
+	cdevsw_add(&dev, &tun_cdevsw, NULL);
 	tun_devsw_installed = 1;
 	for ( i = 0; i < NTUN; i++ ) {
 #ifdef DEVFS
@@ -193,6 +194,7 @@ tunclose(dev_t dev, int foo, int bar, struct proc *p)
 	if (ifp->if_flags & IFF_UP) {
 		s = splimp();
 		if_down(ifp);
+		ifp->if_lastchange = time;
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
@@ -223,6 +225,7 @@ tuninit(unit)
 	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
 
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
+	ifp->if_lastchange = time;
 
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		if (ifa->ifa_addr->sa_family == AF_INET) {

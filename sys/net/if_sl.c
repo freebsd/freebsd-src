@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.40 1996/05/13 14:09:34 ache Exp $
+ * $Id: if_sl.c,v 1.41 1996/05/13 14:18:18 ache Exp $
  */
 
 /*
@@ -302,6 +302,7 @@ slopen(dev, tp)
 
 			s = splnet();
 			if_up(&sc->sc_if);
+			sc->sc_if.if_lastchange = time;
 			splx(s);
 			return (0);
 		}
@@ -487,7 +488,6 @@ sloutput(ifp, m, dst, rtp)
 		return (ENOBUFS);
 	}
 	IF_ENQUEUE(ifq, m);
-	sc->sc_if.if_lastchange = time;
 	if (sc->sc_ttyp->t_outq.c_cc == 0)
 		slstart(sc->sc_ttyp);
 	splx(s);
@@ -595,7 +595,6 @@ slstart(tp)
 			bpf_tap(&sc->sc_if, bpfbuf, len + SLIP_HDRLEN);
 		}
 #endif
-		sc->sc_if.if_lastchange = time;
 
 		/*
 		 * If system is getting low on clists, just flush our
@@ -877,7 +876,6 @@ slinput(c, tp)
 			goto error;
 
 		sc->sc_if.if_ipackets++;
-		sc->sc_if.if_lastchange = time;
 
 		if ((sc->sc_if.if_flags & IFF_UP) == 0) {
 			m_freem(m);
