@@ -8,6 +8,11 @@ NTPDEFS=   -DSYS_FREEBSD
 #	-DMX4200 -DNMEA -DBOEDER
 CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${CLOCKDEFS}
 
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+CFLAGS+= -DOPENSSL
+DISTRIBUTION=	crypto
+.endif
+
 .if exists(${.OBJDIR}/../libparse)
 LIBPARSE=	${.OBJDIR}/../libparse/libparse.a
 .else
