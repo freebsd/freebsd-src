@@ -224,11 +224,11 @@ pipe(td, uap)
 
 	rpipe = wpipe = NULL;
 	if (pipe_create(&rpipe) || pipe_create(&wpipe)) {
-		pipeclose(rpipe); 
-		pipeclose(wpipe); 
+		pipeclose(rpipe);
+		pipeclose(wpipe);
 		return (ENFILE);
 	}
-	
+
 	rpipe->pipe_state |= PIPE_DIRECTOK;
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
@@ -363,7 +363,7 @@ pipe_create(cpipep)
 		return (ENOMEM);
 
 	cpipe = *cpipep;
-	
+
 	/*
 	 * protect so pipeclose() doesn't follow a junk pointer
 	 * if pipespace() fails.
@@ -419,7 +419,7 @@ pipelock(cpipe, catch)
 		error = msleep(cpipe, PIPE_MTX(cpipe),
 		    catch ? (PRIBIO | PCATCH) : PRIBIO,
 		    "pipelk", 0);
-		if (error != 0) 
+		if (error != 0)
 			return (error);
 	}
 	cpipe->pipe_state |= PIPE_LOCKFL;
@@ -565,7 +565,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 				break;
 
 			/*
-			 * Unlock the pipe buffer for our remaining processing. 
+			 * Unlock the pipe buffer for our remaining processing.
 			 * We will either break out with an error or we will
 			 * sleep and relock to loop.
 			 */
@@ -799,7 +799,7 @@ retry:
 			wpipe->pipe_state &= ~PIPE_WANTR;
 			wakeup(wpipe);
 		}
-			
+
 		wpipe->pipe_state |= PIPE_WANTW;
 		error = msleep(wpipe, PIPE_MTX(wpipe),
 		    PRIBIO | PCATCH, "pipdwc", 0);
@@ -865,7 +865,7 @@ error1:
 	return (error);
 }
 #endif
-	
+
 static int
 pipe_write(fp, uio, active_cred, flags, td)
 	struct file *fp;
@@ -924,7 +924,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	 */
 	if (error) {
 		--wpipe->pipe_busy;
-		if ((wpipe->pipe_busy == 0) && 
+		if ((wpipe->pipe_busy == 0) &&
 		    (wpipe->pipe_state & PIPE_WANT)) {
 			wpipe->pipe_state &= ~(PIPE_WANT | PIPE_WANTR);
 			wakeup(wpipe);
@@ -932,7 +932,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		PIPE_UNLOCK(rpipe);
 		return(error);
 	}
-		
+
 	orig_resid = uio->uio_resid;
 
 	while (uio->uio_resid) {
@@ -950,7 +950,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0 &&
-		    amountpipekvawired + uio->uio_resid < maxpipekvawired) { 
+		    amountpipekvawired + uio->uio_resid < maxpipekvawired) {
 			error = pipe_direct_write(wpipe, uio);
 			if (error)
 				break;
@@ -1002,14 +1002,14 @@ pipe_write(fp, uio, active_cred, flags, td)
 					pipeunlock(wpipe);
 					goto retrywrite;
 				}
-				/* 
+				/*
 				 * If a process blocked in uiomove, our
 				 * value for space might be bad.
 				 *
 				 * XXX will we be ok if the reader has gone
 				 * away here?
 				 */
-				if (space > wpipe->pipe_buffer.size - 
+				if (space > wpipe->pipe_buffer.size -
 				    wpipe->pipe_buffer.cnt) {
 					pipeunlock(wpipe);
 					goto retrywrite;
@@ -1024,39 +1024,39 @@ pipe_write(fp, uio, active_cred, flags, td)
 				else
 					size = space;
 				/*
-				 * First segment to transfer is minimum of 
+				 * First segment to transfer is minimum of
 				 * transfer size and contiguous space in
 				 * pipe buffer.  If first segment to transfer
 				 * is less than the transfer size, we've got
 				 * a wraparound in the buffer.
 				 */
-				segsize = wpipe->pipe_buffer.size - 
+				segsize = wpipe->pipe_buffer.size -
 					wpipe->pipe_buffer.in;
 				if (segsize > size)
 					segsize = size;
-				
+
 				/* Transfer first segment */
 
 				PIPE_UNLOCK(rpipe);
-				error = uiomove(&wpipe->pipe_buffer.buffer[wpipe->pipe_buffer.in], 
+				error = uiomove(&wpipe->pipe_buffer.buffer[wpipe->pipe_buffer.in],
 						segsize, uio);
 				PIPE_LOCK(rpipe);
-				
+
 				if (error == 0 && segsize < size) {
-					/* 
+					/*
 					 * Transfer remaining part now, to
 					 * support atomic writes.  Wraparound
 					 * happened.
 					 */
-					if (wpipe->pipe_buffer.in + segsize != 
+					if (wpipe->pipe_buffer.in + segsize !=
 					    wpipe->pipe_buffer.size)
 						panic("Expected pipe buffer "
 						    "wraparound disappeared");
-						
+
 					PIPE_UNLOCK(rpipe);
 					error = uiomove(
 					    &wpipe->pipe_buffer.buffer[0],
-				    	    size - segsize, uio);
+					    size - segsize, uio);
 					PIPE_LOCK(rpipe);
 				}
 				if (error == 0) {
@@ -1071,12 +1071,12 @@ pipe_write(fp, uio, active_cred, flags, td)
 						wpipe->pipe_buffer.in = size -
 						    segsize;
 					}
-				
+
 					wpipe->pipe_buffer.cnt += size;
 					if (wpipe->pipe_buffer.cnt >
 					    wpipe->pipe_buffer.size)
 						panic("Pipe buffer overflow");
-				
+
 				}
 				pipeunlock(wpipe);
 			}
@@ -1118,7 +1118,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 			if (wpipe->pipe_state & PIPE_EOF) {
 				error = EPIPE;
 				break;
-			}	
+			}
 		}
 	}
 
@@ -1396,7 +1396,7 @@ pipeclose(cpipe)
 	/* partially created pipes won't have a valid mutex. */
 	if (PIPE_MTX(cpipe) != NULL)
 		PIPE_LOCK(cpipe);
-		
+
 	pipeselwakeup(cpipe);
 
 	/*
@@ -1516,7 +1516,7 @@ filt_pipewrite(struct knote *kn, long hint)
 	PIPE_LOCK(rpipe);
 	if ((wpipe == NULL) || (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
-		kn->kn_flags |= EV_EOF; 
+		kn->kn_flags |= EV_EOF;
 		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
