@@ -160,6 +160,15 @@ typedef struct packetbuf {
 #define PSM_PACKETQUEUE	128
 #endif
 
+typedef struct synapticsinfo {
+    struct sysctl_ctx_list	sysctl_ctx;
+    struct sysctl_oid		*sysctl_tree;
+    int				directional_scrolls; 
+    int				low_speed_threshold; 
+    int				min_movement; 
+    int				squelch_level; 
+} synapticsinfo_t;
+
 /* driver control block */
 struct psm_softc {		/* Driver status information */
     int		  unit;
@@ -172,6 +181,7 @@ struct psm_softc {		/* Driver status information */
     void	  *ih;		/* interrupt handle */
     mousehw_t     hw;		/* hardware information */
     synapticshw_t synhw;	/* Synaptics-specific hardware information */
+    synapticsinfo_t syninfo;	/* Synaptics-specific configuration */
     mousemode_t   mode;		/* operation mode */
     mousemode_t   dflt_mode;	/* default operation mode */
     mousestatus_t status;	/* accumulated mouse movement */
@@ -180,16 +190,19 @@ struct psm_softc {		/* Driver status information */
     int           pqueue_start; /* start of data in queue */
     int           pqueue_end;   /* end of data in queue */
     int           button;	/* the latest button state */
-    int		  xold;	/* previous absolute X position */
-    int		  yold;	/* previous absolute Y position */
-    int		  zmax;	/* maximum pressure value for touchpads */
+    int		  xold;		/* previous absolute X position */
+    int		  yold;		/* previous absolute Y position */
+    int		  xaverage;	/* average X position */
+    int		  yaverage;	/* average Y position */
+    int		  squelch;	/* level to filter movement data at low speed */
+    int		  zmax;		/* maximum pressure value for touchpads */
     int		  syncerrors;	/* # of bytes discarded searching for sync */
     int		  pkterrors;	/* # of packets failed during quaranteen. */
     struct timeval inputtimeout;
     struct timeval lastsoftintr;	/* time of last soft interrupt */
     struct timeval lastinputerr;	/* time last sync error happened */
     struct timeval taptimeout;		/* tap timeout for touchpads */
-    int		  watchdog;	/* watchdog timer flag */
+    int		  watchdog;		/* watchdog timer flag */
     struct callout_handle callout;	/* watchdog timer call out */
     struct callout_handle softcallout;	/* buffer timer call out */
     struct cdev *dev;
@@ -2206,7 +2219,7 @@ psmsoftintr(void *arg)
     int w, x, y, z;
     int c;
     int l;
-    int x0, y0;
+    int x0, y0, xavg, yavg, xsensitivity, ysensitivity, sensitivity = 0;
     int s;
     packetbuf_t *pb;
 
@@ -2580,6 +2593,32 @@ psmsoftintr(void *arg)
 		    touchpad_buttons |= MOUSE_BUTTON5DOWN;
 	    }
 
+	    /* 
+	     * In newer pads - bit 0x02 in the third byte of
+	     * the packet indicates that we have an extended
+	     * button press.
+	     */
+	    if (pb->ipacket[3] & 0x02) {
+	        /* 
+		 * if directional_scrolls is not 1, we treat
+	     	 * any of the scrolling directions as middle-click.
+	     	 */
+		if (sc->syninfo.directional_scrolls) {
+		    if (pb->ipacket[4] & 0x01)
+			touchpad_buttons |= MOUSE_BUTTON4DOWN;
+		    if (pb->ipacket[5] & 0x01)
+			touchpad_buttons |= MOUSE_BUTTON5DOWN;
+		    if (pb->ipacket[4] & 0x02)
+			touchpad_buttons |= MOUSE_BUTTON6DOWN;
+   		    if (pb->ipacket[5] & 0x02)
+			touchpad_buttons |= MOUSE_BUTTON7DOWN;
+		} else {
+		    if ((pb->ipacket[4] & 0x0F) || (pb->ipacket[5] & 0x0F))
+			touchpad_buttons |= MOUSE_BUTTON2DOWN;
+		}
+
+	    }
+
 	    ms.button = touchpad_buttons | guest_buttons;
 		
 	    /* There is a finger on the pad. */
@@ -2592,14 +2631,103 @@ psmsoftintr(void *arg)
 		    pb->ipacket[5];
 
 		if (sc->flags & PSM_FLAGS_FINGERDOWN) {
+		    x = x0 - sc->xold;
+		    y = y0 - sc->yold;
+
+		    /* we compute averages of x and y movement */
+		    if (sc->xaverage == 0)
+			sc->xaverage=x;
+
+		    if (sc->yaverage == 0)
+			sc->yaverage=y;
+
+                    xavg = sc->xaverage;
+                    yavg = sc->yaverage;
+
+		    sc->xaverage = (xavg + x) >> 1;
+		    sc->yaverage = (yavg + y) >> 1;
+
+		    /* 
+		     * then use the averages to compute a sensitivity level
+		     * in each dimension
+		     */
+		    xsensitivity = (sc->xaverage - xavg);
+		    if (xsensitivity < 0)
+			xsensitivity = -xsensitivity;
+
+		    ysensitivity = (sc->yaverage - yavg);
+		    if (ysensitivity < 0)
+			ysensitivity = -ysensitivity;
+
+		    /* 
+		     * The sensitivity level is higher the faster the finger
+		     * is moving. It also tends to be higher in the middle
+		     * of a touchpad motion than on either end
+		     *
+		     * Note - sensitivity gets to 0 when moving slowly - so
+		     * we add 1 to it to give it a meaningful value in that case.
+		     */
+		    sensitivity = (xsensitivity & ysensitivity)+1;
+
+		    /* 
+		     * If either our x or y change is greater than our
+		     * hi/low speed threshold - we do the high-speed
+		     * absolute to relative calculation otherwise we
+		     * do the low-speed calculation.
+		     */
+		    if ((x>sc->syninfo.low_speed_threshold ||
+			 x<-sc->syninfo.low_speed_threshold) ||
+			(y>sc->syninfo.low_speed_threshold ||
+			 y<-sc->syninfo.low_speed_threshold)) {
 		    x0 = (x0 + sc->xold * 3) / 4;
 		    y0 = (y0 + sc->yold * 3) / 4;
-
 		    x = (x0 - sc->xold) * 10 / 85;
 		    y = (y0 - sc->yold) * 10 / 85;
 		} else {
+			/* 
+			 * This is the low speed calculation.
+			 * We simply check to see if our movement
+			 * is more than our minimum movement threshold
+			 * and if it is - set the movement to 1 in the
+			 * correct direction.
+			 * NOTE - Normally this would result in pointer
+			 * movement that was WAY too fast.  This works
+			 * due to the movement squelch we do later.
+			 */
+			if (x < -sc->syninfo.min_movement)
+		   	    x = -1;
+			else if (x > sc->syninfo.min_movement)
+			    x = 1;
+			else
+			   x = 0;
+			if (y < -sc->syninfo.min_movement)
+			   y = -1;
+			else if (y > sc->syninfo.min_movement)
+			   y = 1;
+			else
+			   y = 0;
+
+		    }
+		} else {
 		    sc->flags |= PSM_FLAGS_FINGERDOWN;
 		}
+
+		/* 
+		 * ok - the squelch process.  Take our sensitivity value
+		 * and add it to the current squelch value - if squelch
+		 * is less than our squelch threshold we kill the movement,
+		 * otherwise we reset squelch and pass the movement through.
+		 * Since squelch is cumulative - when mouse movement is slow
+		 * (around sensitivity 1) the net result is that only
+		 * 1 out of every squelch_level packets is
+		 * delivered, effectively slowing down the movement.
+		 */
+		sc->squelch += sensitivity;
+		if (sc->squelch < sc->syninfo.squelch_level) {
+		    x = 0;
+		    y = 0;
+		} else
+		    sc->squelch = 0;
 
 		sc->xold = x0;
 		sc->yold = y0;
@@ -2607,7 +2735,7 @@ psmsoftintr(void *arg)
 	    } else {
 		sc->flags &= ~PSM_FLAGS_FINGERDOWN;
 
-		if (sc->zmax > PSM_TAP_THRESHOLD &&
+		if (sc->zmax > tap_threshold &&
 		    timevalcmp(&sc->lastsoftintr, &sc->taptimeout, <=)) {
 			if (w == 0)
 			    ms.button |= MOUSE_BUTTON3DOWN;
@@ -2618,8 +2746,8 @@ psmsoftintr(void *arg)
 		}
 
 		sc->zmax = 0;
-		sc->taptimeout.tv_sec = PSM_TAP_TIMEOUT / 1000000;
-		sc->taptimeout.tv_usec = PSM_TAP_TIMEOUT % 1000000;
+		sc->taptimeout.tv_sec = tap_timeout / 1000000;
+		sc->taptimeout.tv_usec = tap_timeout % 1000000;
 		timevaladd(&sc->taptimeout, &sc->lastsoftintr);
 	    }
 
@@ -3119,8 +3247,63 @@ enable_synaptics(struct psm_softc *sc)
     if (!synaptics_support)
 	return (FALSE);
 
+    /* Attach extra synaptics sysctl nodes under hw.psm.synaptics */
+    sysctl_ctx_init(&sc->syninfo.sysctl_ctx);
+    sc->syninfo.sysctl_tree = SYSCTL_ADD_NODE(&sc->syninfo.sysctl_ctx,
+	SYSCTL_STATIC_CHILDREN(_hw_psm), OID_AUTO, "synaptics",
+	CTLFLAG_RD, 0, "Synaptics TouchPad");
+    
+    /*
+     * synaptics_directional_scrolls - if non-zero, the directional
+     * pad scrolls, otherwise it registers as a middle-click.
+     */
+    sc->syninfo.directional_scrolls = 1;
+    SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	SYSCTL_CHILDREN(sc->syninfo.sysctl_tree),
+	OID_AUTO, "directional_scrolls", CTLFLAG_RW,
+	&sc->syninfo.directional_scrolls, 0,
+	"directional pad scrolls (1=yes  0=3rd button)");
+
+    /*
+     * Synaptics_low_speed_threshold - the number of touchpad units
+     * below-which we go into low-speed tracking mode.
+     */
+    sc->syninfo.low_speed_threshold = 20;
+    SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	SYSCTL_CHILDREN(sc->syninfo.sysctl_tree),
+	OID_AUTO, "low_speed_threshold", CTLFLAG_RW, 
+	&sc->syninfo.low_speed_threshold, 0,
+	"threshold between low and hi speed positioning"); 
+
+    /*
+     * Synaptics_min_movement - the number of touchpad units below
+     * which we ignore altogether.
+     */
+    sc->syninfo.min_movement = 2;
+    SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	SYSCTL_CHILDREN(sc->syninfo.sysctl_tree),
+	OID_AUTO, "min_movement", CTLFLAG_RW,
+	&sc->syninfo.min_movement, 0,
+	"ignore touchpad movements less than this");
+
+    /*
+     * Synaptics_squelch_level - level at which we squelch movement
+     * packets.
+     *
+     * This effectively sends 1 out of every synaptics_squelch_level
+     * packets when * running in low-speed mode.
+     */
+    sc->syninfo.squelch_level=3;
+    SYSCTL_ADD_INT(&sc->syninfo.sysctl_ctx,
+	SYSCTL_CHILDREN(sc->syninfo.sysctl_tree),
+	OID_AUTO, "squelch_level", CTLFLAG_RW, 
+	&sc->syninfo.squelch_level, 0,
+	"squelch level for synaptics touchpads");
+
     kbdc = sc->kbdc;
     disable_aux_dev(kbdc);
+    sc->hw.buttons = 3;
+    sc->squelch = 0;
 
     /* Just to be on the safe side */
     set_mouse_scaling(kbdc, 1);
@@ -3204,6 +3387,21 @@ enable_synaptics(struct psm_softc *sc)
 	    printf("   capMultiFinger: %d\n", sc->synhw.capMultiFinger);
 	    printf("   capPalmDetect: %d\n", sc->synhw.capPalmDetect);
 	}
+
+	/*
+	 * if we have bits set in status[0] & 0x70 - then we can load
+	 * more information about buttons using query 0x09
+	 */
+        if (status[0] & 0x70) {
+    	    if (mouse_ext_command(kbdc, 0x09) == 0)
+		return (FALSE);
+	    if (get_mouse_status(kbdc, status, 0, 3) != 3)
+		return (FALSE);
+	    sc->hw.buttons = ((status[1] & 0xf0) >> 4) + 3;
+	    if (verbose >= 2)
+	       printf("  Additional Buttons: %d\n", sc->hw.buttons -3);
+	}
+
     } else {
 	sc->synhw.capExtended = 0;
 	    
@@ -3243,8 +3441,6 @@ enable_synaptics(struct psm_softc *sc)
      */
     if (sc->synhw.capExtended && sc->synhw.capFourButtons)
 	sc->hw.buttons = 4;
-    else
-	sc->hw.buttons = 3;
 
     return (TRUE);
 }
