@@ -41,6 +41,7 @@
 #define	_SYS_SYSCTL_H_
 
 #include <sys/_posix.h>
+#include <sys/queue.h>
 
 /*
  * Definitions for sysctl call.  The sysctl call uses a hierarchical name
