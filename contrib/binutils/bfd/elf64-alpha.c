@@ -734,7 +734,22 @@ static reloc_howto_type elf64_alpha_howto_table[] =
 	 false,
 	 0,
 	 0,
-	 true)
+	 true),
+
+  /* A 21 bit branch that adjusts for gp loads.  */
+  HOWTO (R_ALPHA_BRSGP,		/* type */
+	 2,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 21,			/* bitsize */
+	 true,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 0,			/* special_function */
+	 "BRSGP",		/* name */
+	 false,			/* partial_inplace */
+	 0x1fffff,		/* src_mask */
+	 0x1fffff,		/* dst_mask */
+	 true),			/* pcrel_offset */
 };
 
 /* A relocation function which doesn't do anything.  */
@@ -888,6 +903,7 @@ static const struct elf_reloc_map elf64_alpha_reloc_map[] =
   {BFD_RELOC_ALPHA_GPREL_HI16,		R_ALPHA_GPRELHIGH},
   {BFD_RELOC_ALPHA_GPREL_LO16,		R_ALPHA_GPRELLOW},
   {BFD_RELOC_GPREL16,			R_ALPHA_GPREL16},
+  {BFD_RELOC_ALPHA_BRSGP,		R_ALPHA_BRSGP},
 };
 
 /* Given a BFD reloc type, return a HOWTO structure.  */
@@ -2418,6 +2434,7 @@ elf64_alpha_check_relocs (abfd, info, sec, relocs)
 	case R_ALPHA_GPREL32:
 	case R_ALPHA_GPRELHIGH:
 	case R_ALPHA_GPRELLOW:
+	case R_ALPHA_BRSGP:
 	  /* We don't actually use the .got here, but the sections must
 	     be created before the linker maps input sections to output
 	     sections.  */
@@ -3559,6 +3576,64 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	  addend -= 4;
 	  goto default_reloc;
 
+	case R_ALPHA_BRSGP:
+	  {
+	    int other;
+	    const char *name;
+
+	    /* The regular PC-relative stuff measures from the start of
+	       the instruction rather than the end.  */
+	    addend -= 4;
+
+	    /* The source and destination gp must be the same.  Note that
+	       the source will always have an assigned gp, since we forced
+	       one in check_relocs, but that the destination may not, as
+	       it might not have had any relocations at all.  Also take 
+	       care not to crash if H is an undefined symbol.  */
+	    if (h != NULL && sec != NULL
+		&& alpha_elf_tdata (sec->owner)->gotobj
+		&& gotobj != alpha_elf_tdata (sec->owner)->gotobj)
+	      {
+		(*_bfd_error_handler)
+		  (_("%s: change in gp: BRSGP %s"),
+		   bfd_archive_filename (input_bfd), h->root.root.root.string);
+		ret_val = false;
+	      }
+
+	    /* The symbol should be marked either NOPV or STD_GPLOAD.  */
+	    if (h != NULL)
+	      other = h->root.other;
+	    else
+	      other = sym->st_other;
+	    switch (other & STO_ALPHA_STD_GPLOAD)
+	      {
+	      case STO_ALPHA_NOPV:
+	        break;
+	      case STO_ALPHA_STD_GPLOAD:
+		addend += 8;
+		break;
+	      default:
+		if (h != NULL)
+		  name = h->root.root.root.string;
+		else
+		  {
+		    name = (bfd_elf_string_from_elf_section
+			    (input_bfd, symtab_hdr->sh_link, sym->st_name));
+		    if (name == NULL)
+		      name = _("<unknown>");
+		    else if (name[0] == 0)
+		      name = bfd_section_name (input_bfd, sec);
+		  }
+		(*_bfd_error_handler)
+		  (_("%s: !samegp reloc against symbol without .prologue: %s"),
+		   bfd_archive_filename (input_bfd), name);
+		ret_val = false;
+		break;
+	      }
+
+	    goto default_reloc;
+	  }
+
 	case R_ALPHA_REFLONG:
 	case R_ALPHA_REFQUAD:
 	  {
@@ -3600,7 +3675,7 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	    outrel.r_offset =
 	      _bfd_elf_section_offset (output_bfd, info, input_section,
 				       rel->r_offset);
-	    if (outrel.r_offset != (bfd_vma) -1)
+	    if ((outrel.r_offset | 1) != (bfd_vma) -1)
 	      outrel.r_offset += (input_section->output_section->vma
 				  + input_section->output_offset);
 	    else
