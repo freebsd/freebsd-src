@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.10 1998/12/19 23:33:21 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.11 1998/12/22 17:26:13 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -187,6 +187,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
 		  "Python 25601*", "*"}, SA_QUIRK_NOCOMP
+	},
+	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "ARCHIVE",
+		  "VIPER", ""}, SA_QUIRK_FIXED
 	},
 	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
