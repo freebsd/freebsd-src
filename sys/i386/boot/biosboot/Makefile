@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.34 1996/01/05 19:28:55 ache Exp $
+#	$Id: Makefile,v 1.35 1996/01/06 23:37:10 joerg Exp $
 #
 
 PROG=	boot
@@ -9,7 +9,8 @@ SRCS+=  probe_keyboard.c io.c disk.c sys.c
 BINDIR=		/usr/mdec
 BINMODE=	444
 CFLAGS=         -O2 \
-		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DCOMCONSOLE=0x3F8
+		-DDO_BAD144 -DBOOTWAIT=${BOOTWAIT} -DTIMEOUT=${TIMEOUT}
+CFLAGS+=	-DCOMCONSOLE=0x3F8
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../..
 
@@ -33,8 +34,10 @@ NOSHARED=	YES
 NOMAN=
 STRIP=
 
-# tunable timeout parameter, waiting for keypress, calibrated in mS
+# tunable timeout parameter, waiting for keypress, calibrated in ms
 BOOTWAIT?=	5000
+# tunable timeout during string input, calibrated in ms
+#TIMEOUT?=	30000
 
 # Location that boot2 is loaded at
 BOOTSEG=	0x1000
