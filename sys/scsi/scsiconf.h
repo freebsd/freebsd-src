@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.12 1994/10/19 01:49:23 wollman Exp $
+ *	$Id: scsiconf.h,v 1.13 1994/10/23 21:27:56 wollman Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -189,7 +189,7 @@ struct scsi_link
  */
 struct scsibus_data {
 	struct scsi_link *adapter_link;		/* prototype supplied by adapter */
-	struct scsi_link *sc_link[8][8];
+	struct scsi_link *sc_link[16][8];
 };
 
 /*
