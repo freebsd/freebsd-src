@@ -109,12 +109,20 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 	g_trace(G_T_ACCESS, "g_disk_access(%s, %d, %d, %d)",
 	    pp->name, r, w, e);
 	g_topology_assert();
+	dp = pp->geom->softc;
+	if (dp == NULL) {
+		/*
+		 * Allow decreasing access count even if disk is not
+		 * avaliable anymore.
+		 */
+		if (r <= 0 && w <= 0 && e <= 0)
+			return (0);
+		else
+			return (ENXIO);
+	}
 	r += pp->acr;
 	w += pp->acw;
 	e += pp->ace;
-	dp = pp->geom->softc;
-	if (dp == NULL)
-		return (ENXIO);
 	error = 0;
 	if ((pp->acr + pp->acw + pp->ace) == 0 && (r + w + e) > 0) {
 		if (dp->d_open != NULL) {
