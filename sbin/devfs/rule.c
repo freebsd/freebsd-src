@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/ioctl.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <grp.h>
@@ -46,6 +47,9 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
+static void rulespec_infp(FILE *fp, int cmd, devfs_rsnum rsnum);
+static void rulespec_instr(struct devfs_rule *dr, const char *str,
+    devfs_rsnum rsnum);
 static void rulespec_intok(struct devfs_rule *dr, int ac, char **av,
     devfs_rsnum rsnum);
 static void rulespec_outfp(FILE *fp, struct devfs_rule *dr);
@@ -109,10 +113,14 @@ rule_add(int ac, char **av)
 
 	if (ac < 2)
 		usage();
-	rulespec_intok(&dr, ac - 1, av + 1, in_rsnum);
-	rv = ioctl(mpfd, DEVFSIO_RADD, &dr);
-	if (rv == -1)
-		err(1, "ioctl DEVFSIO_RADD");
+	if (strcmp(av[1], "-") == 0)
+		rulespec_infp(stdin, DEVFSIO_RADD, in_rsnum);
+	else {
+		rulespec_intok(&dr, ac - 1, av + 1, in_rsnum);
+		rv = ioctl(mpfd, DEVFSIO_RADD, &dr);
+		if (rv == -1)
+			err(1, "ioctl DEVFSIO_RADD");
+	}
 	return (0);
 }
 
@@ -127,10 +135,14 @@ rule_apply(int ac __unused, char **av __unused)
 	if (ac < 2)
 		usage();
 	if (!atonum(av[1], &rnum)) {
-		rulespec_intok(&dr, ac - 1, av + 1, in_rsnum);
-		rv = ioctl(mpfd, DEVFSIO_RAPPLY, &dr);
-		if (rv == -1)
-			err(1, "ioctl DEVFSIO_RAPPLY");
+		if (strcmp(av[1], "-") == 0)
+			rulespec_infp(stdin, DEVFSIO_RAPPLY, in_rsnum);
+		else {
+			rulespec_intok(&dr, ac - 1, av + 1, in_rsnum);
+			rv = ioctl(mpfd, DEVFSIO_RAPPLY, &dr);
+			if (rv == -1)
+				err(1, "ioctl DEVFSIO_RAPPLY");
+		}
 	} else {
 		rid = mkrid(in_rsnum, rnum);
 		rv = ioctl(mpfd, DEVFSIO_RAPPLYID, &rid);
@@ -247,6 +259,49 @@ ruleset_main(int ac, char **av)
 	return (0);
 }
 
+
+/*
+ * Input rules from a file (probably the standard input).  This
+ * differs from the other rulespec_in*() routines in that it also
+ * calls ioctl() for the rules, since it is impractical (and not very
+ * useful) to return a list (or array) of rules, just so the caller
+ * can call call ioctl() for each of them.
+ */
+static void
+rulespec_infp(FILE *fp, int cmd, devfs_rsnum rsnum)
+{
+	struct devfs_rule dr;
+	char *line;
+	int rv;
+
+	assert(fp == stdin);	/* XXX: De-hardcode "stdin" from error msg. */
+	while (efgetln(fp, &line)) {
+		rulespec_instr(&dr, line, rsnum);
+		rv = ioctl(mpfd, cmd, &dr);
+		if (rv == -1)
+			err(1, "ioctl");
+		free(line);	/* efgetln() always malloc()s. */
+	}
+	if (ferror(stdin))
+		err(1, "stdin");
+}
+
+/*
+ * Construct a /struct devfs_rule/ from a string.
+ */
+static void
+rulespec_instr(struct devfs_rule *dr, const char *str, devfs_rsnum rsnum)
+{
+	char **av;
+	int ac;
+
+	tokenize(str, &ac, &av);
+	if (ac == 0)
+		errx(1, "unexpected end of rulespec");
+	rulespec_intok(dr, ac, av, rsnum);
+	free(av[0]);
+	free(av);
+}
 
 /*
  * Construct a /struct devfs_rule/ from ac and av.
