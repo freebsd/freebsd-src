@@ -111,12 +111,15 @@ static int proct[NFS_NPROCS] = {
 static int	nfs_realign_test;
 static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
+static int	nfs_reconnects;
 
 SYSCTL_DECL(_vfs_nfs);
 
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
+    "number of times the nfs client has had to reconnect");
 
 
 /*
@@ -157,7 +160,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 {
 	struct socket *so;
 	int error, rcvreserve, sndreserve;
-	int pktscale;
+	int opt, pktscale;
 	struct sockaddr *saddr;
 	struct thread *td = &thread0; /* only used for socreate and sobind */
 
@@ -171,6 +174,10 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		goto bad;
 	so = nmp->nm_so;
 	nmp->nm_soflags = so->so_proto->pr_flags;
+
+	opt = 1;
+	(void)kern_setsockopt(so, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+	(void)kern_setsockopt(so, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 
 	/*
 	 * Some servers require that the client port be a reserved port number.
@@ -261,7 +268,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 		}
 		SOCK_UNLOCK(so);
 	}
-	so->so_rcv.sb_timeo = 5 * hz;
+	so->so_rcv.sb_timeo = 12 * hz;
 	so->so_snd.sb_timeo = 5 * hz;
 
 	/*
@@ -357,6 +364,7 @@ nfs_reconnect(struct nfsreq *rep)
 	struct nfsmount *nmp = rep->r_nmp;
 	int error;
 
+	nfs_reconnects++;
 	nfs_disconnect(nmp);
 	while ((error = nfs_connect(nmp, rep)) != 0) {
 		if (error == ERESTART)
