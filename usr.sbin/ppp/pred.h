@@ -15,16 +15,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pred.h,v 1.4 1997/06/09 03:27:35 brian Exp $
+ * $Id: pred.h,v 1.5 1997/08/25 00:29:26 brian Exp $
  *
  *	TODO:
  */
 
-#ifndef _PRED_H_
-#define	_PRED_H_
-
-extern void Pred1Output(int, u_short, struct mbuf * bp);
+extern void Pred1Output(int, u_short, struct mbuf *);
 extern void Pred1Input(struct mbuf *);
 extern void Pred1Init(int);
-
-#endif

@@ -15,13 +15,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.6 1997/06/09 03:27:14 brian Exp $
+ * $Id: ccp.h,v 1.7 1997/08/25 00:29:06 brian Exp $
  *
  *	TODO:
  */
-
-#ifndef _CCP_H_
-#define	_CCP_H_
 
 #define	CCP_MAXCODE	CODE_RESETACK
 
@@ -48,12 +45,12 @@ struct ccpstate {
 };
 
 extern struct ccpstate CcpInfo;
+extern struct fsm CcpFsm;
 
-void CcpRecvResetReq(struct fsm *);
-void CcpSendResetReq(struct fsm *);
-void CcpInput(struct mbuf *);
-void CcpUp(void);
-void CcpOpen(void);
-void CcpInit(void);
-
-#endif
+extern void CcpRecvResetReq(struct fsm *);
+extern void CcpSendResetReq(struct fsm *);
+extern void CcpInput(struct mbuf *);
+extern void CcpUp(void);
+extern void CcpOpen(void);
+extern void CcpInit(void);
+extern int ReportCcpStatus(void);

@@ -31,14 +31,10 @@
  * SUCH DAMAGE.
  *
  *
- * $Id: pathnames.h,v 1.6 1997/02/22 16:10:43 peter Exp $
+ * $Id: pathnames.h,v 1.7 1997/09/10 02:20:33 brian Exp $
  *
  *	@(#)pathnames.h	5.2 (Berkeley) 6/1/90
  */
-
-#ifdef __bsdi__
-#include <paths.h>
-#endif
 
 #if defined(__FreeBSD__) || defined(__OpenBSD__)
 #define _PATH_PPP		"/etc/ppp"

@@ -1,5 +1,6 @@
-extern int
-    AliasRedirectPort(struct cmdtab *, int, char **, void *);
+/*
+ * $Id: $
+ */
 
-extern int
-    AliasRedirectAddr(struct cmdtab *, int, char **, void *);
+extern int AliasRedirectPort(struct cmdtab *, int, char **, void *);
+extern int AliasRedirectAddr(struct cmdtab *, int, char **, void *);

@@ -1,18 +1,28 @@
-#include "fsm.h"
-#include "hdlc.h"
-#include "lcpproto.h"
-#include "ccp.h"
-
 /*
- *
- * $Id: pred.c,v 1.13 1997/06/09 23:38:37 brian Exp $
- *
  * pred.c -- Test program for Dave Rand's rendition of the
  * predictor algorithm
  * Updated by: iand@labtam.labtam.oz.au (Ian Donaldson)
  * Updated by: Carsten Bormann <cabo@cs.tu-berlin.de>
  * Original  : Dave Rand <dlr@bungi.com>/<dave_rand@novell.com>
+ *
+ * $Id: pred.c,v 1.14 1997/08/25 00:29:25 brian Exp $
+ *
  */
+
+#include <sys/types.h>
+#include <netinet/in.h>
+
+#include <string.h>
+
+#include "mbuf.h"
+#include "log.h"
+#include "defs.h"
+#include "timer.h"
+#include "fsm.h"
+#include "hdlc.h"
+#include "lcpproto.h"
+#include "ccp.h"
+#include "pred.h"
 
 /* The following hash code is the heart of the algorithm:
  * It builds a sliding hash sum of the previous 3-and-a-bit characters
@@ -95,11 +105,11 @@ Pred1Init(int direction)
 {
   if (direction & 1) {		/* Input part */
     iHash = 0;
-    bzero(InputGuessTable, sizeof(InputGuessTable));
+    memset(InputGuessTable, '\0', sizeof(InputGuessTable));
   }
   if (direction & 2) {		/* Output part */
     oHash = 0;
-    bzero(OutputGuessTable, sizeof(OutputGuessTable));
+    memset(OutputGuessTable, '\0', sizeof(OutputGuessTable));
   }
 }
 
@@ -132,7 +142,7 @@ Pred1Output(int pri, u_short proto, struct mbuf * bp)
     wp += len;
     CcpInfo.compout += len;
   } else {
-    bcopy(bufp + 2, wp, orglen);
+    memcpy(wp, bufp + 2, orglen);
     wp += orglen;
     CcpInfo.compout += orglen;
   }

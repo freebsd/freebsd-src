@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.h,v 1.6 1997/09/22 00:46:53 brian Exp $
+ * $Id: command.h,v 1.7 1997/09/25 00:52:34 brian Exp $
  *
  *	TODO:
  */
@@ -41,4 +41,11 @@ struct cmdtab {
 #ifdef HAVE_DES
 #define	VAR_ENC		8
 #endif
-extern int SetVariable(struct cmdtab const *, int, char **, int var_param);
+
+extern struct in_addr ifnetmask;
+extern int aft_cmd;
+
+extern int SetVariable(struct cmdtab const *, int, char **, int);
+extern void Prompt(void);
+extern int IsInteractive(void);
+extern void DecodeCommand(char *, int, int);

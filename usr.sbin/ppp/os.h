@@ -15,26 +15,22 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.h,v 1.7 1997/08/25 00:29:24 brian Exp $
+ * $Id: os.h,v 1.8 1997/09/03 00:40:50 brian Exp $
  *
  *	TODO:
  */
 
-#ifndef _OS_H_
-#define	_OS_H_
+extern char *IfDevName;
 
-int  OsSetIpaddress(struct in_addr myaddr, struct in_addr hisaddr,
-		    struct in_addr netmask);
+int OsSetIpaddress(struct in_addr, struct in_addr, struct in_addr);
 int  OsInterfaceDown(int);
-void OsSetInterfaceParams(int type, int mtu, int speed);
+void OsSetInterfaceParams(int, int, int);
 int  OpenTunnel(int *);
-void OsCloseLink(int flag);
+void OsCloseLink(int);
 void OsLinkup(void);
 int  OsLinkIsUp(void);
 void OsLinkdown(void);
 void OsSetRoute(int, struct in_addr, struct in_addr, struct in_addr);
 void DeleteIfRoutes(int);
-void OsAddInOctets(int cnt);
-void OsAddOutOctets(int cnt);
-
-#endif
+void OsAddInOctets(int);
+void OsAddOutOctets(int);

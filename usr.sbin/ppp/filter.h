@@ -15,15 +15,11 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.h,v 1.8 1997/06/09 03:27:20 brian Exp $
+ * $Id: filter.h,v 1.9 1997/08/25 00:29:11 brian Exp $
  *
  *	TODO:
  */
 
-#ifndef	_FILTER_H_
-#define	_FILTER_H_
-
-#define STREQ(a,b)	(strcmp(a,b) == 0)
 /*
  *   Actions
  */
@@ -65,7 +61,7 @@ struct filterent {
     short dstop;
     u_short dstport;
     int estab;
-  }      opt;
+  } opt;
 };
 
 #define	MAXFILTERS	20
@@ -74,11 +70,18 @@ struct filterent {
 #define FL_OUT		1
 #define FL_DIAL		2
 #define FL_KEEP		3
-struct filterent ifilters[MAXFILTERS];
-struct filterent ofilters[MAXFILTERS];
-struct filterent dfilters[MAXFILTERS];
-struct filterent afilters[MAXFILTERS];	/* keep Alive packet filter */
+
+extern struct filterent ifilters[MAXFILTERS];	/* incoming packet filter */
+extern struct filterent ofilters[MAXFILTERS];	/* outgoing packet filter */
+extern struct filterent dfilters[MAXFILTERS];	/* dial-out packet filter */
+extern struct filterent afilters[MAXFILTERS];	/* keep-alive packet filter */
 
 extern int ParseAddr(int, char **, struct in_addr *, struct in_addr *, int *);
-
-#endif				/* _FILTER_H_ */
+extern int ShowIfilter(struct cmdtab *, int, char **);
+extern int ShowOfilter(struct cmdtab *, int, char **);
+extern int ShowDfilter(struct cmdtab *, int, char **);
+extern int ShowAfilter(struct cmdtab *, int, char **);
+extern int SetIfilter(struct cmdtab *, int, char **);
+extern int SetOfilter(struct cmdtab *, int, char **);
+extern int SetDfilter(struct cmdtab *, int, char **);
+extern int SetAfilter(struct cmdtab *, int, char **);

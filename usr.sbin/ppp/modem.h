@@ -15,18 +15,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.h,v 1.8 1997/06/09 03:27:30 brian Exp $
+ * $Id: modem.h,v 1.9 1997/08/25 00:29:23 brian Exp $
  *
  *	TODO:
  */
 
-#ifndef _MODEM_H_
-#define	_MODEM_H_
-#include <termios.h>
-#include "mbuf.h"
-
 extern int RawModem(int);
-extern void UnrawModem(int);
 extern void UpModem(int);
 extern void DownModem(int);
 extern void WriteModem(int, char *, int);
@@ -36,10 +30,10 @@ extern void CloseModem(void);
 extern int ModemSpeed(void);
 extern int ModemQlen(void);
 extern int DialModem(void);
-extern int SpeedToInt(speed_t);
 extern speed_t IntToSpeed(int);
 extern void ModemTimeout(void);
 extern void DownConnection(void);
 extern void ModemOutput(int, struct mbuf *);
-
-#endif
+extern int ChangeParity(char *);
+extern void HangupModem(int);
+extern int ShowModemStatus(void);
