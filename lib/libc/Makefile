@@ -64,6 +64,9 @@ CFLAGS+= -DYP
 .if !defined(NO_HESIOD_LIBC)
 CFLAGS+= -DHESIOD
 .endif
+.if defined(NO_FP_LIBC)
+CFLAGS+= -DNO_FLOATING_POINT
+.endif
 
 # If there are no machine dependent sources, append all the
 # machine-independent sources:
