@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.78 1998/05/05 23:30:01 brian Exp $
+ * $Id: command.c,v 1.131.2.79 1998/05/06 23:50:06 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -123,7 +123,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0-beta";
-const char VersionDate[] = "$Date: 1998/05/05 23:30:01 $";
+const char VersionDate[] = "$Date: 1998/05/06 23:50:06 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -192,6 +192,8 @@ HelpCommand(struct cmdargs const *arg)
 static int
 CloneCommand(struct cmdargs const *arg)
 {
+  char namelist[LINE_LEN];
+  char *name;
   int f;
 
   if (arg->argc == arg->argn)
@@ -202,8 +204,13 @@ CloneCommand(struct cmdargs const *arg)
     return 1;
   }
 
-  for (f = arg->argn; f < arg->argc; f++)
-    bundle_DatalinkClone(arg->bundle, arg->cx, arg->argv[f]);
+  namelist[sizeof namelist - 1] = '\0';
+  for (f = arg->argn; f < arg->argc; f++) {
+    strncpy(namelist, arg->argv[f], sizeof namelist - 1);
+    for(name = strtok(namelist, ", "); name; name = strtok(NULL,", "))
+      bundle_DatalinkClone(arg->bundle, arg->cx, name);
+  }
+
   return 0;
 }
 
@@ -1594,20 +1601,51 @@ static int
 LinkCommand(struct cmdargs const *arg)
 {
   if (arg->argc > arg->argn+1) {
-    struct datalink *cx = bundle2datalink(arg->bundle, arg->argv[arg->argn]);
-    if (cx)
-      FindExec(arg->bundle, Commands, arg->argc, arg->argn+1, arg->argv,
-               arg->prompt, cx);
-    else {
-      log_Printf(LogWARN, "link: %s: Invalid link name\n", arg->argv[arg->argn]);
-      return 1;
+    char namelist[LINE_LEN];
+    struct datalink *cx;
+    char *name;
+    int result = 0;
+
+    if (!strcmp(arg->argv[arg->argn], "*")) {
+      struct datalink *dl;
+
+      cx = arg->bundle->links;
+      while (cx) {
+        /* Watch it, the command could be a ``remove'' */
+        dl = cx->next;
+        FindExec(arg->bundle, Commands, arg->argc, arg->argn+1, arg->argv,
+                 arg->prompt, cx);
+        for (cx = arg->bundle->links; cx; cx = cx->next)
+          if (cx == dl)
+            break;		/* Pointer's still valid ! */
+      }
+    } else {
+      strncpy(namelist, arg->argv[arg->argn], sizeof namelist - 1);
+      namelist[sizeof namelist - 1] = '\0';
+      for(name = strtok(namelist, ", "); name; name = strtok(NULL,", "))
+        if (!bundle2datalink(arg->bundle, name)) {
+          log_Printf(LogWARN, "link: %s: Invalid link name\n", name);
+          return 1;
+        }
+
+      strncpy(namelist, arg->argv[arg->argn], sizeof namelist - 1);
+      namelist[sizeof namelist - 1] = '\0';
+      for(name = strtok(namelist, ", "); name; name = strtok(NULL,", ")) {
+        cx = bundle2datalink(arg->bundle, name);
+        if (cx)
+          FindExec(arg->bundle, Commands, arg->argc, arg->argn+1, arg->argv,
+                   arg->prompt, cx);
+        else {
+          log_Printf(LogWARN, "link: %s: Invalidated link name !\n", name);
+          result++;
+        }
+      }
     }
-  } else {
-    log_Printf(LogWARN, "Usage: %s\n", arg->cmd->syntax);
-    return 2;
+    return result;
   }
 
-  return 0;
+  log_Printf(LogWARN, "Usage: %s\n", arg->cmd->syntax);
+  return 2;
 }
 
 struct link *

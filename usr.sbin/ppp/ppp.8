@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.97.2.27 1998/05/03 22:13:14 brian Exp $
+.\" $Id: ppp.8,v 1.97.2.28 1998/05/05 23:30:09 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2121,7 +2121,7 @@ will be replaced with the appropriate values.  If you wish to pause
 while the command executes, use the
 .Dv shell
 command instead.
-.It clone Ar name...
+.It clone Ar name[,name]...
 Clone the specified link, creating one or more new links according to the
 .Ar name
 argument(s).  This command must be used from the
@@ -2183,7 +2183,7 @@ unavailable.  It's not considered polite to use this command.
 Show a list of available commands.  If
 .Ar command
 is specified, show the usage string for that command.
-.It [data]link Ar name command Op Ar args
+.It [data]link Ar name[,name...] command Op Ar args
 This command may prefix any other command if the user wishes to
 specify which link the command should affect.  This is only
 applicable after multiple links have been created in Multilink
@@ -2192,7 +2192,16 @@ mode using the
 command.
 .Pp
 .Ar Name
-must specify the name of an existing link.
+specifies the name of an existing link.  If
+.Ar name
+is a comma separated list,
+.Ar command
+is executed on each link.  If
+.Ar name
+is
+.Dq * ,
+.Ar command
+is executed on all links.
 .It load Op Ar label
 Load the given
 .Ar label
