@@ -1296,10 +1296,24 @@ auth_pam(struct passwd **ppw, const char *pass)
 		break;
 	}
 
+	if (rval == 0) {
+		e = pam_acct_mgmt(pamh, 0);
+		if (e == PAM_NEW_AUTHTOK_REQD) {
+			e = pam_chauthtok(pamh, PAM_CHANGE_EXPIRED_AUTHTOK);
+			if (e != PAM_SUCCESS) {
+				syslog(LOG_ERR, "pam_chauthtok: %s", pam_strerror(pamh, e));
+				rval = 1;
+			}
+		} else if (e != PAM_SUCCESS) {
+			rval = 1;
+		}
+	}
+
 	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
 		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
 		rval = -1;
 	}
+	pamh = NULL;
 	return rval;
 }
 
