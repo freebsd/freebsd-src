@@ -135,8 +135,8 @@ static struct tcode_info tinfo[] = {
 static void fwohci_ibr __P((struct firewire_comm *));
 static void fwohci_db_init __P((struct fwohci_dbch *));
 static void fwohci_db_free __P((struct fwohci_dbch *));
-static void fwohci_arcv __P((struct fwohci_softc *, struct fwohci_dbch *));
-static void fwohci_ircv __P((struct fwohci_softc *, struct fwohci_dbch *));
+static void fwohci_arcv __P((struct fwohci_softc *, struct fwohci_dbch *, int));
+static void fwohci_ircv __P((struct fwohci_softc *, struct fwohci_dbch *, int));
 static void fwohci_txd __P((struct fwohci_softc *, struct fwohci_dbch *));
 static void fwohci_start_atq __P((struct firewire_comm *));
 static void fwohci_start_ats __P((struct firewire_comm *));
@@ -1532,7 +1532,7 @@ int fwohci_shutdown(device_t dev)
 
 #define ACK_ALL
 static void
-fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat)
+fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 {
 	u_int32_t irstat, itstat;
 	u_int i;
@@ -1595,8 +1595,8 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat)
 		/* pending all pre-bus_reset packets */
 		fwohci_txd(sc, &sc->atrq);
 		fwohci_txd(sc, &sc->atrs);
-		fwohci_arcv(sc, &sc->arrs);
-		fwohci_arcv(sc, &sc->arrq);
+		fwohci_arcv(sc, &sc->arrs, -1);
+		fwohci_arcv(sc, &sc->arrq, -1);
 #endif
 
 
@@ -1625,7 +1625,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat)
 		for(i = 0; i < fc->nisodma ; i++){
 			if((irstat & (1 << i)) != 0){
 				if(sc->ir[i].xferq.flag & FWXFERQ_PACKET){
-					fwohci_ircv(sc, &sc->ir[i]);
+					fwohci_ircv(sc, &sc->ir[i], count);
 				}else{
 					fwohci_rbuf_update(sc, i);
 				}
@@ -1656,7 +1656,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat)
 		dump_dma(sc, ARRS_CH);
 		dump_db(sc, ARRS_CH);
 #endif
-		fwohci_arcv(sc, &sc->arrs);
+		fwohci_arcv(sc, &sc->arrs, count);
 	}
 	if((stat & OHCI_INT_DMA_PRRQ )){
 #ifndef ACK_ALL
@@ -1666,7 +1666,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat)
 		dump_dma(sc, ARRQ_CH);
 		dump_db(sc, ARRQ_CH);
 #endif
-		fwohci_arcv(sc, &sc->arrq);
+		fwohci_arcv(sc, &sc->arrq, count);
 	}
 	if(stat & OHCI_INT_PHY_SID){
 		caddr_t buf;
@@ -1764,7 +1764,7 @@ fwohci_intr(void *arg)
 #ifdef ACK_ALL
 		OWRITE(sc, FWOHCI_INTSTATCLR, stat);
 #endif
-		fwohci_intr_body(sc, stat);
+		fwohci_intr_body(sc, stat, -1);
 	}
 }
 
@@ -1798,7 +1798,7 @@ fwohci_poll(struct firewire_comm *fc, int quick, int count)
 #endif
 	}
 	s = splfw();
-	fwohci_intr_body(sc, stat);
+	fwohci_intr_body(sc, stat, count);
 	splx(s);
 }
 
@@ -2239,9 +2239,10 @@ struct fwohci_softc *sc;
 {
 }
 #endif
-static void fwohci_ircv(sc, dbch)
+static void fwohci_ircv(sc, dbch, count)
 struct fwohci_softc *sc;
 struct fwohci_dbch *dbch;
+int count;
 {
 	struct fwohcidb_tr *db_tr = dbch->top, *odb_tr;
 	struct firewire_comm *fc = (struct firewire_comm *)sc;
@@ -2275,6 +2276,8 @@ struct fwohci_dbch *dbch;
 	db_tr = dbch->top;
 	i = 0;
 	while ((reg = db_tr->db[0].db.desc.status) & 0x1f) {
+		if (count >= 0 && count-- == 0)
+			break;
 		ld = (u_int8_t *)db_tr->buf;
 		if (dbch->xferq.flag & FWXFERQ_PACKET) {
 			/* skip timeStamp */
@@ -2382,9 +2385,10 @@ fwohci_get_plen(struct fwohci_softc *sc, struct fw_pkt *fp, int hlen)
 	return 0;
 }
 
-static void fwohci_arcv(sc, dbch)
+static void fwohci_arcv(sc, dbch, count)
 struct fwohci_softc *sc;
 struct fwohci_dbch *dbch;
+int count;
 {
 	struct fwohcidb_tr *db_tr;
 	int z = 1;
@@ -2480,6 +2484,8 @@ device_printf(sc->fc.dev, "%04x %2x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n"
 #endif
 		while (len > 0 ) {
 #endif
+			if (count >= 0 && count-- == 0)
+				goto out;
 			if(dbch->frag.buf != NULL){
 				buf = dbch->frag.buf;
 				if (dbch->frag.plen < 0) {
