@@ -1,9 +1,9 @@
-#	$Id: Makefile,v 1.24 1997/03/22 20:06:58 mpp Exp $
+#	$Id: Makefile,v 1.25 1997/03/22 20:59:15 mpp Exp $
 
 MAN9=	MD5.9 at_shutdown.9 at_fork.9 at_exit.9 boot.9 cd.9 copy.9 \
 	devfs_add_devswf.9 \
 	devfs_link.9 fetch.9 ifnet.9 intro.9 inittodr.9 mi_switch.9 \
-	panic.9 psignal.9 \
+	panic.9 physio.9 psignal.9 \
 	resettodr.9 rtalloc.9 rtentry.9 scsiconf.9 sd.9 sleep.9 spl.9 st.9 \
 	store.9 style.9 time.9 timeout.9 uio.9 \
 	vnode.9 vget.9 vput.9 vref.9 vrele.9 VOP_ABORTOP.9 VOP_ACCESS.9 \
