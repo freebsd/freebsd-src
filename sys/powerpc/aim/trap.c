@@ -237,8 +237,9 @@ trap(struct trapframe *frame)
  				return;
 			break;
 		default:
-			trap_fatal(frame);
+			break;
 		}
+		trap_fatal(frame);
 	}
 
 #ifdef	ALTIVEC
