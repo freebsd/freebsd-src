@@ -247,13 +247,3 @@ but not under same administrative control.
 An
 .Nm
 daemon appeared in Version 6 AT&T UNIX.
-.Sh BUGS
-.Nm Lpd
-tends to dump core if a request specifies a file format where no filter
-is assigned.  This may be particular annoying if somebody is not aware
-of the file format specification, such as for a DOS client that always
-specifies the
-.Em v
-format.  The workaround is to assign a dummy filter for these file
-formats, e. g. a
-.Xr cat 1 .

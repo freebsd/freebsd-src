@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)lpc.8	8.3 (Berkeley) 4/19/94
+.\"     @(#)lpc.8	8.5 (Berkeley) 4/28/95
 .\"
-.Dd April 19, 1994
+.Dd April 28, 1995
 .Dt LPC 8
 .Os BSD 4.2
 .Sh NAME
@@ -117,6 +117,7 @@ to put new jobs in the spool queue.
 .It Ic exit
 .It Ic quit
 Exit from lpc.
+.\" ne 1i
 .Pp
 .It Ic restart  No {\ all\ |\ printer\ }
 Attempt to start a new printer daemon. 
@@ -165,7 +166,7 @@ abbreviation matches more than one command
 .It Sy "?Invalid command"
 no match was found
 .It Sy "?Privileged command"
-command can be executed by root only
+you must be a member of group "operator" or root to execute this command
 .El
 .Sh HISTORY
 The
