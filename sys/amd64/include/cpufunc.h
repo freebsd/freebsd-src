@@ -358,7 +358,7 @@ outw(u_int port, u_short data)
 }
 
 static __inline void
-pause(void)
+ia32_pause(void)
 {
 	__asm __volatile("pause");
 }
@@ -605,7 +605,7 @@ void	outsb(u_int port, void *addr, size_t cnt);
 void	outsl(u_int port, void *addr, size_t cnt);
 void	outsw(u_int port, void *addr, size_t cnt);
 void	outw(u_int port, u_short data);
-void	pause(void);
+void	ia32_pause(void);
 u_int	rcr2(void);
 u_int64_t rdmsr(u_int msr);
 u_int64_t rdpmc(u_int pmc);
