@@ -1344,7 +1344,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 			uiop->uio_resid = 0;
 		    }
 		}
-		mp_fixme("Accessing VV_TEXT without a lock.");
+		ASSERT_VOP_LOCKED(vp, "nfs_doio");
 		if (p && (vp->v_vflag & VV_TEXT) &&
 			(np->n_mtime != np->n_vattr.va_mtime.tv_sec)) {
 			uprintf("Process killed due to text file modification\n");
