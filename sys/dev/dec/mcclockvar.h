@@ -33,3 +33,4 @@ void	mcclock_attach(device_t dev);
 void	mcclock_init(device_t);
 void	mcclock_get(device_t, time_t, struct clocktime *);
 void	mcclock_set(device_t, struct clocktime *);
+int	mcclock_getsecs(device_t dev, int *secp);

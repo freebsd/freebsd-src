@@ -1,4 +1,4 @@
-/* $Id: mcclock_isa.c,v 1.2 1998/07/22 08:30:25 dfr Exp $ */
+/* $Id: mcclock_isa.c,v 1.3 1998/07/31 09:20:35 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -61,6 +61,7 @@ static device_method_t mcclock_isa_methods[] = {
 	DEVMETHOD(clock_init,		mcclock_init),
 	DEVMETHOD(clock_get,		mcclock_get),
 	DEVMETHOD(clock_set,		mcclock_set),
+	DEVMETHOD(clock_getsecs,	mcclock_getsecs),
 
 	{ 0, 0 }
 };
