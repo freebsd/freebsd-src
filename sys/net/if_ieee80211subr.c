@@ -723,7 +723,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int error = 0;
 	u_int kid, len;
 	struct ieee80211req *ireq;
-	u_int8_t tmpkey[IEEE80211_WEP_KEYLEN];
+	u_int8_t tmpkey[IEEE80211_KEYBUF_SIZE];
 	char tmpssid[IEEE80211_NWID_LEN];
 
 	switch (cmd) {
@@ -866,16 +866,18 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				error = EINVAL;
 				break;
 			} 
-			if ((u_int) ireq->i_len > IEEE80211_WEP_KEYLEN) {
+			if (ireq->i_len < IEEE80211_WEP_KEYLEN ||
+			    ireq->i_len > sizeof(tmpkey)) {
 				error = EINVAL;
 				break;
 			}
-			memset(tmpkey, 0, IEEE80211_WEP_KEYLEN);
+			memset(tmpkey, 0, sizeof(tmpkey));
 			error = copyin(ireq->i_data, tmpkey, ireq->i_len);
 			if (error)
 				break;
 			memcpy(ic->ic_nw_keys[kid].wk_key, tmpkey,
-				IEEE80211_WEP_KEYLEN);
+				sizeof(tmpkey));
+			ic->ic_nw_keys[kid].wk_len = ireq->i_len;
 			error = ENETRESET;
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
