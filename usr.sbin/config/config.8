@@ -164,7 +164,7 @@ This means that
 can be used to extract it from a kernel:
 to extract the configuration information, use the command
 .Pp
-.Dl "strings kernel | grep ___"
+.Dl "strings -n 3 kernel | sed -n 's/^___//p'"
 .Sh DEBUG KERNELS
 Traditional
 .Bx
