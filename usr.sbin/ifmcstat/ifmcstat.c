@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -44,11 +44,13 @@
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
-#define _KERNEL
+#define	_KERNEL
 #include <netinet/if_ether.h>
-#undef _KERNEL
+#undef	_KERNEL
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
+
+#include <netdb.h>
 
 kvm_t	*kvmd;
 
@@ -64,19 +66,48 @@ char *ifname __P((struct ifnet *));
 void kread __P((u_long, void *, int));
 void if6_addrlist __P((struct ifaddr *));
 void in6_multilist __P((struct in6_multi *));
-void in6_multientry __P((struct in6_multi *));
+struct in6_multi * in6_multientry __P((struct in6_multi *));
 
 #define	KREAD(addr, buf, type) \
 	kread((u_long)addr, (void *)buf, sizeof(type))
 
+#ifdef N_IN6_MK
+struct multi6_kludge {
+	LIST_ENTRY(multi6_kludge) mk_entry;
+	struct ifnet *mk_ifp;
+	struct in6_multihead mk_head;
+};
+#endif
+
 const char *inet6_n2a(p)
 	struct in6_addr *p;
 {
-	static char buf[BUFSIZ];
+	static char buf[NI_MAXHOST];
+	struct sockaddr_in6 sin6;
+	u_int32_t scopeid;
+#ifdef NI_WITHSCOPEID
+	const int niflags = NI_NUMERICHOST | NI_WITHSCOPEID;
+#else
+	const int niflags = NI_NUMERICHOST;
+#endif
 
-	if (IN6_IS_ADDR_UNSPECIFIED(p))
-		return "*";
-	return inet_ntop(AF_INET6, (void *)p, buf, sizeof(buf));
+	memset(&sin6, 0, sizeof(sin6));
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_addr = *p;
+	if (IN6_IS_ADDR_LINKLOCAL(p) || IN6_IS_ADDR_MC_LINKLOCAL(p)) {
+		scopeid = ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
+		if (scopeid) {
+			sin6.sin6_scope_id = scopeid;
+			sin6.sin6_addr.s6_addr[2] = 0;
+			sin6.sin6_addr.s6_addr[3] = 0;
+		}
+	}
+	if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
+			buf, sizeof(buf), NULL, 0, niflags) == 0)
+		return buf;
+	else
+		return "(invalid)";
 }
 
 int main()
@@ -101,8 +132,13 @@ int main()
 	while (ifp) {
 		KREAD(ifp, &ifnet, struct ifnet);
 		printf("%s:\n", if_indextoname(ifnet.if_index, ifname));
+
 		if6_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
-		ifp = TAILQ_NEXT(&ifnet, if_link);
+		nifp = ifnet.if_link.tqe_next;
+
+		/* not supported */
+
+		ifp = nifp;
 	}
 
 	exit(0);
@@ -113,8 +149,13 @@ char *ifname(ifp)
 	struct ifnet *ifp;
 {
 	static char buf[BUFSIZ];
+	struct ifnet ifnet;
+	char ifnamebuf[IFNAMSIZ];
 
-	KREAD(ifp->if_name, buf, IFNAMSIZ);
+	KREAD(ifp, &ifnet, struct ifnet);
+	KREAD(ifnet.if_name, ifnamebuf, sizeof(ifnamebuf));
+	snprintf(buf, sizeof(buf), "%s%d", ifnamebuf,
+		 ifnet.if_unit); /* does snprintf allow overlap copy?? */
 	return buf;
 }
 
@@ -133,68 +174,97 @@ void
 if6_addrlist(ifap)
 	struct ifaddr *ifap;
 {
-	static char in6buf[BUFSIZ];
-	struct ifnet ifnet;
 	struct ifaddr ifa;
-	struct ifaddr *ifap0;
-	struct ifmultiaddr ifm, *ifmp = 0;
-	struct in6_ifaddr if6a;
-	struct in6_multi *mc = 0, in6m;
-	int in6_multilist_done = 0;
 	struct sockaddr sa;
-	struct sockaddr_in6 sin6;
-	struct sockaddr_dl sdl;
+	struct in6_ifaddr if6a;
+	struct in6_multi *mc = 0;
+	struct ifaddr *ifap0;
 
-	if (ifap == NULL)
-		return;
 	ifap0 = ifap;
-
-	do {
+	while (ifap) {
 		KREAD(ifap, &ifa, struct ifaddr);
 		if (ifa.ifa_addr == NULL)
-			continue;
+			goto nextifap;
 		KREAD(ifa.ifa_addr, &sa, struct sockaddr);
 		if (sa.sa_family != PF_INET6)
-			continue;
+			goto nextifap;
 		KREAD(ifap, &if6a, struct in6_ifaddr);
-		printf("\tinet6 %s\n",
-		       inet_ntop(AF_INET6,
-				 (const void *)&if6a.ia_addr.sin6_addr,
-				 in6buf, sizeof(in6buf)));
-	} while ((ifap = TAILQ_NEXT(&ifa, ifa_link)) != NULL);
+		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr));
+	nextifap:
+		ifap = ifa.ifa_link.tqe_next;
+	}
+	if (ifap0) {
+		struct ifnet ifnet;
+		struct ifmultiaddr ifm, *ifmp = 0;
+		struct sockaddr_in6 sin6;
+		struct in6_multi in6m;
+		struct sockaddr_dl sdl;
+		int in6_multilist_done = 0;
 
-	KREAD(ifap0, &ifa, struct ifaddr);
-	KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
-	if (ifnet.if_multiaddrs.lh_first)
-		ifmp = ifnet.if_multiaddrs.lh_first;
-	if (ifmp == NULL)
-		return;
-	do {
-		KREAD(ifmp, &ifm, struct ifmultiaddr);
-		if (ifm.ifma_addr == NULL)
-			continue;
-		KREAD(ifm.ifma_addr, &sa, struct sockaddr);
-		if (sa.sa_family != AF_INET6)
-			continue;
-		in6_multientry((struct in6_multi *)ifm.ifma_protospec);
-		if (ifm.ifma_lladdr == 0)
-			continue;
-		KREAD(ifm.ifma_lladdr, &sdl, struct sockaddr_dl);
-		printf("\t\t\tmcast-macaddr %s multicnt %d\n",
-		       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
-		       ifm.ifma_refcount);
-	} while ((ifmp = LIST_NEXT(&ifm, ifma_link)) != NULL);
+		KREAD(ifap0, &ifa, struct ifaddr);
+		KREAD(ifa.ifa_ifp, &ifnet, struct ifnet);
+		if (ifnet.if_multiaddrs.lh_first)
+			ifmp = ifnet.if_multiaddrs.lh_first;
+		while (ifmp) {
+			KREAD(ifmp, &ifm, struct ifmultiaddr);
+			if (ifm.ifma_addr == NULL)
+				goto nextmulti;
+			KREAD(ifm.ifma_addr, &sa, struct sockaddr);
+			if (sa.sa_family != AF_INET6)
+				goto nextmulti;
+			(void)in6_multientry((struct in6_multi *)
+					     ifm.ifma_protospec);
+			if (ifm.ifma_lladdr == 0)
+				goto nextmulti;
+			KREAD(ifm.ifma_lladdr, &sdl, struct sockaddr_dl);
+			printf("\t\t\tmcast-macaddr %s multicnt %d\n",
+			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)),
+			       ifm.ifma_refcount);
+		    nextmulti:
+			ifmp = ifm.ifma_link.le_next;
+		}
+	}
+#ifdef N_IN6_MK
+	if (nl[N_IN6_MK].n_value != 0) {
+		LIST_HEAD(in6_mktype, multi6_kludge) in6_mk;
+		struct multi6_kludge *mkp, mk;
+		char *nam;
+
+		KREAD(nl[N_IN6_MK].n_value, &in6_mk, struct in6_mktype);
+		KREAD(ifap0, &ifa, struct ifaddr);
+
+		nam = strdup(ifname(ifa.ifa_ifp));
+
+		for (mkp = in6_mk.lh_first; mkp; mkp = mk.mk_entry.le_next) {
+			KREAD(mkp, &mk, struct multi6_kludge);
+			if (strcmp(nam, ifname(mk.mk_ifp)) == 0 &&
+			    mk.mk_head.lh_first) {
+				printf("\t(on kludge entry for %s)\n", nam);
+				in6_multilist(mk.mk_head.lh_first);
+			}
+		}
+
+		free(nam);
+	}
+#endif
 }
 
-void
+struct in6_multi *
 in6_multientry(mc)
 	struct in6_multi *mc;
 {
-	static char mcbuf[BUFSIZ];
 	struct in6_multi multi;
 
 	KREAD(mc, &multi, struct in6_multi);
-	printf("\t\tgroup %s\n", inet_ntop(AF_INET6,
-					   (const void *)&multi.in6m_addr,
-					   mcbuf, sizeof(mcbuf)));
+	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr));
+	printf(" refcnt %u\n", multi.in6m_refcount);
+	return(multi.in6m_entry.le_next);
+}
+
+void
+in6_multilist(mc)
+	struct in6_multi *mc;
+{
+	while (mc)
+		mc = in6_multientry(mc);
 }
