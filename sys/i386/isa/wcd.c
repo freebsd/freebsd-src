@@ -47,10 +47,16 @@ static	d_strategy_t	wcdstrategy;
 
 #define CDEV_MAJOR 69
 #define BDEV_MAJOR 19
-static struct cdevsw wcd_cdevsw;
+extern	struct cdevsw wcd_cdevsw;
 static struct bdevsw wcd_bdevsw = 
 	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
 	  nodump,	nopsize,	0,	"wcd",	&wcd_cdevsw,	-1 };
+
+static struct cdevsw wcd_cdevsw = 
+	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
+	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
+	  seltrue,	nommap,		wcdstrategy,	"wcd",
+	  &wcd_bdevsw,	-1 };
 
 #ifndef ATAPI_STATIC
 static
@@ -1226,9 +1232,13 @@ static wcd_devsw_installed = 0;
 
 static void 	wcd_drvinit(void *unused)
 {
+	dev_t dev;
 
 	if( ! wcd_devsw_installed ) {
-		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wcd_bdevsw);
+		dev = makedev(CDEV_MAJOR, 0);
+		cdevsw_add(&dev,&wcd_cdevsw, NULL);
+		dev = makedev(BDEV_MAJOR, 0);
+		bdevsw_add(&dev,&wcd_bdevsw, NULL);
 		wcd_devsw_installed = 1;
     	}
 }
