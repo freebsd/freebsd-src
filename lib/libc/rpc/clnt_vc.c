@@ -159,8 +159,8 @@ CLIENT *
 clnt_vc_create(fd, raddr, prog, vers, sendsz, recvsz)
 	int fd;				/* open file descriptor */
 	const struct netbuf *raddr;	/* servers address */
-	rpcprog_t prog;			/* program number */
-	rpcvers_t vers;			/* version number */
+	const rpcprog_t prog;			/* program number */
+	const rpcvers_t vers;			/* version number */
 	u_int sendsz;			/* buffer recv size */
 	u_int recvsz;			/* buffer send size */
 {
