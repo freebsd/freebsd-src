@@ -17,6 +17,7 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c devices.c \
 
 CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR} -I/sys
 CFLAGS+= -DUC_PRIVATE -DKERN_NO_SYMBOLS -DSAVE_USERCONFIG
+#CFLAGS+= -DUSE_XIG_ENVIRONMENT
 
 .if defined(LOAD_CONFIG_FILE)
 CFLAGS+=	-DLOAD_CONFIG_FILE=\"${LOAD_CONFIG_FILE}\"

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.129 1997/03/25 03:07:39 jkh Exp $
+ * $Id: menus.c,v 1.130 1997/03/27 01:44:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,6 +53,7 @@ clearSrc(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
 
+#ifndef USE_XIG_ENVIRONMENT
 static int
 setX11All(dialogMenuItem *self)
 {
@@ -121,6 +122,7 @@ clearX11Fonts(dialogMenuItem *self)
     XF86FontDists = 0;
     return DITEM_SUCCESS | DITEM_REDRAW;
 }
+#endif	/* !USE_XIG_ENVIRONMENT */
 
 #define IS_DEVELOPER(dist, extra) ((((dist) & (_DIST_DEVELOPER | (extra))) == (_DIST_DEVELOPER | (extra))) || \
 				   (((dist) & (_DIST_DEVELOPER | DIST_DES | (extra))) == (_DIST_DEVELOPER | DIST_DES | (extra))))
@@ -166,8 +168,12 @@ checkDistMinimum(dialogMenuItem *self)
 static int
 checkDistEverything(dialogMenuItem *self)
 {
+#ifdef USE_XIG_ENVIRONMENT
+    return (Dists == DIST_ALL && SrcDists == DIST_SRC_ALL);
+#else
     return (Dists == DIST_ALL && SrcDists == DIST_SRC_ALL && XF86Dists == DIST_XF86_ALL &&
 	    XF86ServerDists == DIST_XF86_SERVER_ALL && XF86FontDists == DIST_XF86_FONTS_ALL);
+#endif
 }
 
 static int
@@ -182,11 +188,13 @@ srcFlagCheck(dialogMenuItem *item)
     return SrcDists;
 }
 
+#ifndef USE_XIG_ENVIRONMENT
 static int
 x11FlagCheck(dialogMenuItem *item)
 {
     return XF86Dists;
 }
+#endif
 
 static int
 checkTrue(dialogMenuItem *item)
@@ -225,7 +233,9 @@ DMenu MenuIndex = {
       { "Dists, User",		"Select average user distribution.",	checkDistUser, distSetUser },
       { "Dists, X User",	"Select average X user distribution.",	checkDistXUser, distSetXUser },
       { "Distributions, Adding", "Installing additional distribution sets", NULL, distExtractAll },
+#ifndef USE_XIG_ENVIRONMENT
       { "Distributions, XFree86","XFree86 distribution menu.",		NULL, distSetXF86 },
+#endif
       { "Documentation",	"Installation instructions, README, etc.", NULL, dmenuSubmenu, NULL, &MenuDocumentation },
       { "Doc, README",		"The distribution README file.",	NULL, dmenuDisplayFile, NULL, "readme" },
       { "Doc, Hardware",	"The distribution hardware guide.",	NULL, dmenuDisplayFile,	NULL, "hardware" },
@@ -276,9 +286,11 @@ DMenu MenuIndex = {
       { "Usage",		"Quick start - How to use this menu system.",	NULL, dmenuDisplayFile, NULL, "usage" },
       { "User Management",	"Add user and group information.",	NULL, dmenuSubmenu, NULL, &MenuUsermgmt },
       { "WEB Server",		"Configure host as a WWW server.",	dmenuVarCheck, configApache, NULL, "apache_httpd" },
+#ifndef USE_XIG_ENVIRONMENT
       { "XFree86, Fonts",	"XFree86 Font selection menu.",		NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
       { "XFree86, Server",	"XFree86 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
       { "XFree86, PC98 Server",	"XFree86 PC98 Server selection menu.",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectPC98Server },
+#endif
       { NULL } },
 };
 
@@ -363,7 +375,7 @@ DMenu MenuMouse = {
     "There are many different types of mice currently on the market,\n"
     "but this configuration menu should at least narrow down the choices\n"
     "somewhat.  Once you've selected one of the below, you can specify\n"
-    "/dev/mouse as your mouse device when running the XFree86 configuration\n"
+    "/dev/mouse as your mouse device when running the X configuration\n"
     "utility (see Configuration menu).  Please note that for PS/2 mice,\n"
     "you need to enable the psm driver in the kernel configuration menu\n"
     "when installing for the first time.",
@@ -384,6 +396,7 @@ DMenu MenuMouse = {
       { NULL } },
 };
 
+#ifndef USE_XIG_ENVIRONMENT
 DMenu MenuXF86Config = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the XFree86 configuration tool you want to use.",
@@ -402,6 +415,7 @@ DMenu MenuXF86Config = {
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { NULL } },
 };
+#endif
 
 DMenu MenuMediaCDROM = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -656,19 +670,19 @@ DMenu MenuDistributions = {
     "distributions",
     { { "1 Developer",		"Full sources, binaries and doc but no games", 
 	checkDistDeveloper,	distSetDeveloper },
-      { "2 X-Developer",	"Same as above, but includes XFree86",
+      { "2 X-Developer",	"Same as above, but includes the X Window System",
 	checkDistXDeveloper,	distSetXDeveloper },
       { "3 Kern-Developer",	"Full binaries and doc, kernel sources only",
 	checkDistKernDeveloper, distSetKernDeveloper },
       { "4 User",		"Average user - binaries and doc only",
 	checkDistUser,		distSetUser },
-      { "5 X-User",		"Same as above, but includes XFree86",
+      { "5 X-User",		"Same as above, but includes the X Window System",
 	checkDistXUser,		distSetXUser },
       { "6 Minimal",		"The smallest configuration possible",
 	checkDistMinimum,	distSetMinimum },
       { "7 Custom",		"Specify your own distribution set",
 	NULL,			dmenuSubmenu, NULL, &MenuSubDistributions, '>', '>', '>' },
-      { "8 All",		"All sources, binaries and XFree86 binaries",
+      { "8 All",		"All sources and binaries (incl X Window System)",
 	checkDistEverything,	distSetEverything },
       { "9 Clear",		"Reset selected distribution list to nothing",
 	NULL,			distReset, NULL, NULL, ' ', ' ', ' ' },
@@ -713,9 +727,11 @@ DMenu MenuSubDistributions = {
 	srcFlagCheck,	distSetSrc },
       { "ports",	"The FreeBSD Ports collection",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_PORTS },
+#ifndef USE_XIG_ENVIRONMENT
       { "XFree86",	"The XFree86 3.2 distribution",
 	x11FlagCheck,	distSetXF86 },
-      { "All",		"All sources, binaries and XFree86 binaries",
+#endif
+      { "All",		"All sources, binaries and X Window System binaries",
 	NULL, distSetEverything, NULL, NULL, ' ', ' ', ' ' },
       { "Clear",	"Reset all of the above",
 	NULL, distReset, NULL, NULL, ' ', ' ', ' ' },
@@ -796,18 +812,18 @@ DMenu MenuSrcDistributions = {
       { NULL } },
 };
 
+#ifndef USE_XIG_ENVIRONMENT
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 3.2 Distribution",
     "Please select the components you need from the XFree86 3.2\n"
-    "distribution.  We recommend that you select what you need from the basic\n"
-    "component set and at least one entry from the Server and Font set menus.",
+    "distribution sets.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
     { { "Basic",	"Basic component menu (required)",	NULL, dmenuSubmenu, NULL, &MenuXF86SelectCore },
       { "Server",	"X server menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectServer },
       { "Fonts",	"Font set menu",			NULL, dmenuSubmenu, NULL, &MenuXF86SelectFonts },
-      { "All",		"Select the entire XFree86 distribution", NULL, setX11All },
+      { "All",		"Select all XFree86 distribution sets", NULL, setX11All },
       { "Clear",	"Reset XFree86 distribution list",	NULL, clearX11All },
       { "Exit",		"Exit this menu (returning to previous)", checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } },
@@ -830,18 +846,22 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_HTML },
       { "lib",		"Data files needed at runtime",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LIB },
+#ifndef USE_XIG_ENVIRONMENT
       { "lk98",		"Server link kit for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT98 },
       { "lkit",		"Server link kit for all other machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_LKIT },
+#endif
       { "man",		"Manual pages",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_MAN },
       { "prog",		"Programmer's header and library files",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
       { "ps",		"Postscript documentation",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PS },
+#ifndef USE_XIG_ENVIRONMENT
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
+#endif
       { "sources",	"XFree86 3.2 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },
       { "csources",	"XFree86 3.2 contrib sources",
@@ -972,7 +992,7 @@ Mono servers are particularly well-suited to most LCD displays).",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } }
 };
-
+#endif	/* !USE_XIG_ENVIRONMENT */
 
 DMenu MenuDiskDevices = {
     DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
@@ -1077,7 +1097,11 @@ DMenu MenuConfigure = {
 	NULL,	dmenuSystemCommand, NULL, "passwd root" },
       { "A HTML Docs",	"Go to the HTML documentation menu (post-install)",
 	NULL, docBrowser },
+#ifdef USE_XIG_ENVIRONMENT
+      { "X X + CDE",	"Configure X Window system & CDE environment",
+#else
       { "X XFree86",	"Configure XFree86",
+#endif
 	NULL, configXFree86 },
       { "D Distributions", "Install additional distribution sets",
 	NULL, distExtractAll },
