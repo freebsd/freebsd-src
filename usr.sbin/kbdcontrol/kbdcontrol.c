@@ -197,6 +197,10 @@ get_entry()
 		return LALTA | 0x100;
 	case TRALTA:
 		return RALTA | 0x100;
+	case THALT:
+		return HALT | 0x100;
+	case TPDWN:
+		return PDWN | 0x100;
 	case TACC:
 		if (ACC(number) > L_ACC)
 			return -1;
@@ -428,6 +432,12 @@ print_entry(FILE *fp, int value)
 	case RALTA | 0x100:
 		fprintf(fp, " ralta ");
 		break;
+	case HALT | 0x100:
+		fprintf(fp, " halt  ");
+		break;
+	case PDWN | 0x100:
+		fprintf(fp, " pdwn  ");
+		break;
 	default:
 		if (value & 0x100) {
 		 	if (val >= F_FN && val <= L_FN)
@@ -620,6 +630,12 @@ dump_entry(int value)
 			break;
 		case RALTA:
 			printf("RALTA, ");
+			break;
+		case HALT:
+			printf(" HALT, ");
+			break;
+		case PDWN:
+			printf(" PDWN, ");
 			break;
 		default:
 	 		if (value >= F_FN && value <= L_FN)

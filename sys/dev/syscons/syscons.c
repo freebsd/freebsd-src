@@ -3102,6 +3102,18 @@ next_code:
 #endif
 		break;
 
+	    case HALT:
+#ifndef SC_DISABLE_REBOOT
+		shutdown_nice(RB_HALT);
+#endif
+		break;
+
+	    case PDWN:
+#ifndef SC_DISABLE_REBOOT
+		shutdown_nice(RB_HALT|RB_POWEROFF);
+#endif
+		break;
+
 #if NAPM > 0
 	    case SUSP:
 		apm_suspend(PMST_SUSPEND);
