@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)execve.2	8.5 (Berkeley) 6/1/94
-.\"     $Id$
+.\"     $Id: execve.2,v 1.11 1998/01/11 21:43:38 alex Exp $
 .\"
 .Dd June 1, 1994
 .Dt EXECVE 2
@@ -142,6 +142,11 @@ and the effective group ID is recorded as the saved set-group-ID.
 These values may be used in changing the effective IDs later (see
 .Xr setuid 2 ) .
 .ne 1i
+.Pp
+The set-ID bits are not honored if the respective file system has the
+.Ar nosuid
+option enabled or if the new process file is an interpreter file.  Syscall
+tracing is disabled if effective IDs are changed.
 .Pp
 The new process also inherits the following attributes from
 the calling process:
@@ -273,6 +278,8 @@ of a super-user as well.
 .Xr execl 3 ,
 .Xr exit 3 ,
 .Xr sysctl 3 ,
+.Xr mount 1 ,
+.Xr ktrace 1 ,
 .Xr environ 7
 .Sh HISTORY
 The
