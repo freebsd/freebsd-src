@@ -32,6 +32,56 @@
 #define _AU88X0_H_INCLUDED
 
 /*
+ * Chipset parameters
+ */
+struct au88x0_chipset {
+	const char		*auc_name;
+	uint32_t		 auc_pci_id;
+
+	/* General control register */
+	uint32_t		 auc_control;
+#define	AU88X0_CTL_MIDI_ENABLE		0x0001
+#define	AU88X0_CTL_GAME_ENABLE		0x0008
+#define	AU88X0_CTL_IRQ_ENABLE		0x4000
+
+	/* IRQ control register */
+	uint32_t		 auc_irq_source;
+#define	AU88X0_IRQ_FATAL_ERR		0x0001
+#define	AU88X0_IRQ_PARITY_ERR		0x0002
+#define	AU88X0_IRQ_REG_ERR		0x0004
+#define	AU88X0_IRQ_FIFO_ERR		0x0008
+#define	AU88X0_IRQ_DMA_ERR		0x0010
+#define	AU88X0_IRQ_PCMOUT		0x0020
+#define	AU88X0_IRQ_TIMER		0x1000
+#define	AU88X0_IRQ_MIDI			0x2000
+#define	AU88X0_IRQ_MODEM		0x4000
+	uint32_t		 auc_irq_mask;
+	uint32_t		 auc_irq_control;
+#define		AU88X0_IRQ_PENDING_BIT		0x0001
+	uint32_t		 auc_irq_status;
+
+	/* DMA control registers */
+	uint32_t		 auc_dma_control;
+
+	/* FIFOs */
+	int			 auc_fifo_size;
+	int			 auc_wt_fifos;
+	uint32_t		 auc_wt_fifo_base;
+	uint32_t		 auc_wt_fifo_ctl;
+	uint32_t		 auc_wt_dma_ctl;
+	int			 auc_adb_fifos;
+	uint32_t		 auc_adb_fifo_base;
+	uint32_t		 auc_adb_fifo_ctl;
+	uint32_t		 auc_adb_dma_ctl;
+
+	/* Routing */
+	uint32_t		 auc_adb_route_base;
+	int			 auc_adb_route_bits;
+	int			 auc_adb_codec_in;
+	int			 auc_adb_codec_out;
+};
+
+/*
  * Channel information
  */
 struct au88x0_chan_info {
@@ -48,9 +98,16 @@ struct au88x0_info {
 	/* the device we're associated with */
 	device_t		 aui_dev;
 	uint32_t		 aui_model;
+	struct au88x0_chipset	*aui_chipset;
 
 	/* parameters */
 	bus_size_t		 aui_bufsize;
+	int			 aui_wt_fifos;
+	int			 aui_wt_fifo_ctl;
+	int			 aui_adb_fifos;
+	int			 aui_adb_fifo_ctl;
+	int			 aui_fifo_size;
+	uint32_t		 aui_chanbase;
 
 	/* bus_space tag and handle */
 	bus_space_tag_t		 aui_spct;
@@ -78,13 +135,6 @@ struct au88x0_info {
 };
 
 /*
- * PCI IDs of supported cards
- */
-#define AUREAL_VORTEX_1		0x000112eb	/* 8820 (not supported) */
-#define AUREAL_VORTEX_2		0x000212eb	/* 8830 */
-#define AUREAL_VORTEX_ADVANTAGE	0x000312eb	/* 8810 */
-
-/*
  * Common parameters
  */
 #define AU88X0_SETTLE_DELAY	1000
@@ -92,30 +142,6 @@ struct au88x0_info {
 #define AU88X0_BUFSIZE_MIN	0x1000
 #define AU88X0_BUFSIZE_DFLT	0x4000
 #define AU88X0_BUFSIZE_MAX	0x4000
-
-/*
- * General control registers
- */
-#define AU88X0_CONTROL		0x2a00c
-#define		AU88X0_CTL_MIDI_ENABLE	0x0001
-#define		AU88X0_CTL_GAME_ENABLE	0x0008
-#define		AU88X0_CTL_IRQ_ENABLE	0x4000
-
-#define AU88X0_IRQ_SOURCE	0x2a000
-#define AU88X0_IRQ_MASK		0x2a004
-#define		AU88X0_IRQ_FATAL_ERR		0x0001
-#define		AU88X0_IRQ_PARITY_ERR		0x0002
-#define		AU88X0_IRQ_REG_ERR		0x0004
-#define		AU88X0_IRQ_FIFO_ERR		0x0008
-#define		AU88X0_IRQ_DMA_ERR		0x0010
-#define		AU88X0_IRQ_PCMOUT		0x0020
-#define		AU88X0_IRQ_TIMER		0x1000
-#define		AU88X0_IRQ_MIDI			0x2000
-#define		AU88X0_IRQ_MODEM		0x4000
-#define AU88X0_IRQ_PENDING	0x2a008
-#define		AU88X0_IRQ_PENDING_BIT		0x0001
-#define AU88X0_IRQ_STATUS	0x2919c
-#define AU88X0_DMA_CONTROL	0x27ae8
 
 /*
  * Codec control registers
@@ -148,27 +174,5 @@ struct au88x0_info {
 	 (((a) << AU88X0_CDIO_ADDR_SHIFT) & AU88X0_CDIO_ADDR_MASK) | \
 	 (((d) << AU88X0_CDIO_DATA_SHIFT) & AU88X0_CDIO_DATA_MASK))
 #define AU88X0_CODEC_ENABLE	0x29190
-
-/*
- * FIFO and DMA contorl registers
- *
- * There are two sets of these, one for PCM audio (ADB) and one for
- * wavetables (WT).
- */
-#define AU88X0_ADB_FIFOS	32
-#define AU88X0_ADB_FIFO_CTL	0x16100
-#define AU88X0_ADB_FIFO_BASE	0x14000
-#define AU88X0_ADB_FIFO_SIZE	0x40
-#define AU8810_ADB_DMA_CTL	0x27180
-#define AU8820_ADB_DMA_CTL	0x10580
-#define AU8830_ADB_DMA_CTL	0x27a00
-
-#define AU88X0_WT_FIFOS		32
-#define AU88X0_WT_FIFO_CTL	0x16000
-#define AU88X0_WT_FIFO_BASE	0x10000
-#define AU88X0_WT_FIFO_SIZE	0x40
-#define AU8810_WT_DMA_CTL	0x27fd8
-#define AU8820_WT_DMA_CTL	0x10500
-#define AU8830_WT_DMA_CTL	0x27900
 
 #endif
