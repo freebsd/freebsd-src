@@ -334,7 +334,7 @@ extern u_int32_t ip6_temp_valid_lifetime; /* seconds */
 extern int ip6_temp_regen_advance; /* seconds */
 
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[13];	/* max = target address list */
+	struct nd_opt_hdr *nd_opt_array[8];	/* max = target address list */
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
@@ -342,11 +342,6 @@ union nd_opts {
 		struct nd_opt_prefix_info *pi_beg; /* multiple opts, start */
 		struct nd_opt_rd_hdr *rh;
 		struct nd_opt_mtu *mtu;
-		struct nd_opt_hdr *six;
-		struct nd_opt_advinterval *adv;
-		struct nd_opt_homeagent_info *hai;
-		struct nd_opt_hdr *src_addrlist;
-		struct nd_opt_hdr *tgt_addrlist;
 		struct nd_opt_hdr *search;	/* multiple opts */
 		struct nd_opt_hdr *last;	/* multiple opts */
 		int done;
