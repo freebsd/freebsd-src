@@ -1,8 +1,16 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.82 1995/02/14 22:34:41 jkh Exp $
+#	$Id: files.i386,v 1.83 1995/02/17 02:22:37 phk Exp $
 #
+aic7xxx				optional	ahc	device-driver	   \
+	dependancy 	"$S/gnu/misc/aic7xxx/aic7xxx.c"			   \
+	compile-with	"${CC} -o $@ $>"				   \
+	no-obj no-implicit-rule
+aic7xxx_seq.h			optional	ahc	device-driver	   \
+	dependancy	"$S/gnu/misc/aic7xxx/aic7xxx.seq aic7xxx"	   \
+	compile-with	"./aic7xxx -o $@ $S/gnu/misc/aic7xxx/aic7xxx.seq"  \
+	no-obj no-implicit-rule before-depend
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
 i386/i386/autoconf.c		standard	device-driver
@@ -36,28 +44,18 @@ i386/ibcs2/ibcs2_ipc.c		optional 	ibcs2
 i386/ibcs2/ibcs2_isc.c		optional 	ibcs2
 i386/ibcs2/ibcs2_misc.c		optional 	ibcs2
 i386/ibcs2/ibcs2_signal.c	optional 	ibcs2
+i386/ibcs2/ibcs2_socksys.c	optional 	ibcs2
 i386/ibcs2/ibcs2_stats.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysent.c	optional 	ibcs2
 i386/ibcs2/ibcs2_sysi86.c	optional 	ibcs2
 i386/ibcs2/ibcs2_xenix.c	optional 	ibcs2
-i386/ibcs2/ibcs2_socksys.c	optional 	ibcs2
 i386/ibcs2/imgact_coff.c	optional	ibcs2
-#i386/ibcs2/imgact_xout.c	optional	ibcs2
 #i386/ibcs2/imgact_elf.c	optional	svr4
+#i386/ibcs2/imgact_xout.c	optional	ibcs2
 i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aha1742.c		optional	ahb	device-driver
-aic7xxx				optional	ahc	device-driver	   \
-	dependancy 	"$S/gnu/misc/aic7xxx/aic7xxx.c"			   \
-	compile-with	"${CC} -o $@ $>"				   \
-	no-obj no-implicit-rule
-aic7xxx_seq.h			optional	ahc	device-driver	   \
-	dependancy	"$S/gnu/misc/aic7xxx/aic7xxx.seq aic7xxx"	   \
-	compile-with	"./aic7xxx -o $@ $S/gnu/misc/aic7xxx/aic7xxx.seq"  \
-	no-obj no-implicit-rule before-depend
-i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
-	dependancy	"aic7xxx_seq.h"
-i386/isa/aic7770.c		optional	ahc	device-driver
 i386/isa/aic6360.c              optional        aic     device-driver
+i386/isa/aic7770.c		optional	ahc	device-driver
 i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/clock.c		standard
@@ -66,10 +64,10 @@ i386/isa/ctx.c			optional	ctx	device-driver
 i386/isa/cx.c			optional	cx	device-driver
 i386/isa/cy.c			optional	cy	device-driver
 i386/isa/diskslice_machdep.c	optional	diskslice
+i386/isa/elink.c		optional	ep	device-driver
+i386/isa/elink.c		optional	ie	device-driver
 i386/isa/fd.c			optional	fd	device-driver
 i386/isa/ft.c			optional	ft	device-driver
-i386/isa/elink.c		optional	ie	device-driver
-i386/isa/elink.c		optional	ep	device-driver
 i386/isa/gpib.c			optional	gp	device-driver
 i386/isa/gsc.c			optional	gsc	device-driver
 i386/isa/if_cx.c		optional	cx	device-driver
@@ -81,8 +79,6 @@ i386/isa/if_is.c		optional	is	device-driver
 i386/isa/if_ix.c		optional	ix	device-driver
 i386/isa/if_le.c		optional	le	device-driver
 i386/isa/if_lnc.c		optional	lnc	device-driver
-i386/isa/pcic.c			optional	ze	device-driver
-i386/isa/pcic.c			optional	zp	device-driver
 i386/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
 i386/isa/isa.c			optional	isa	device-driver
@@ -92,12 +88,20 @@ i386/isa/mcd.c			optional	mcd	device-driver
 i386/isa/mse.c			optional	mse	device-driver
 i386/isa/ncr5380.c		optional	nca	device-driver
 i386/isa/npx.c			optional	npx	device-driver
-i386/isa/readMBR.c		standard	
-i386/isa/spigot.c		optional	spigot	device-driver
-i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/pcaudio.c		optional	pca	device-driver
 i386/isa/pcd.c			optional	pcd	device-driver
+i386/isa/pcibus.c		optional	pci	device-driver
+i386/isa/pcic.c			optional	ze	device-driver
+i386/isa/pcic.c			optional	zp	device-driver
+i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
+i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
+i386/isa/prof_machdep.c		optional	profiling-routine
 i386/isa/psm.c			optional	psm	device-driver
+i386/isa/readMBR.c		standard	
 i386/isa/seagate.c		optional	sea	device-driver
 i386/isa/sio.c			optional	sio	device-driver
 i386/isa/sound/ad1848.c		optional	snd	device-driver
@@ -133,22 +137,16 @@ i386/isa/sound/soundcard.c	optional	snd	device-driver
 i386/isa/sound/sys_timer.c	optional	snd	device-driver
 i386/isa/sound/uart6850.c	optional	snd	device-driver
 i386/isa/sound/vat_audio.c	optional	vat_audio
+i386/isa/spigot.c		optional	spigot	device-driver
 i386/isa/spkr.c			optional	speaker
+i386/isa/syscons.c		optional	sc	device-driver
 i386/isa/tw.c			optional	tw	device-driver
 i386/isa/ultra14f.c		optional	uha	device-driver
 i386/isa/wd.c			optional	wd	device-driver
 i386/isa/wd7000.c		optional	wds	device-driver
 i386/isa/wt.c			optional	wt	device-driver
-i386/isa/pcvt/pcvt_drv.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_sup.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_out.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_kbd.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_vtf.c	optional	vt	device-driver
-i386/isa/pcvt/pcvt_ext.c	optional	vt	device-driver
-i386/isa/pcibus.c		optional	pci	device-driver
-gnu/i386/isa/nic3008.c          optional        nic     device-driver
-gnu/i386/isa/nic3009.c          optional        nnic    device-driver
-gnu/i386/isa/scd.c		optional	scd	device-driver
+i386/scsi/aic7xxx.c		optional	ahc	device-driver	   \
+	dependancy	"aic7xxx_seq.h"
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
 gnu/i386/fpemul/errors.c	optional	gpl_math_emulate
 gnu/i386/fpemul/fpu_arith.c	optional	gpl_math_emulate
@@ -180,3 +178,6 @@ gnu/i386/fpemul/reg_u_mul.s	optional	gpl_math_emulate
 gnu/i386/fpemul/reg_u_sub.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_shrx.s	optional	gpl_math_emulate
 gnu/i386/fpemul/wm_sqrt.s	optional	gpl_math_emulate
+gnu/i386/isa/nic3008.c          optional        nic     device-driver
+gnu/i386/isa/nic3009.c          optional        nnic    device-driver
+gnu/i386/isa/scd.c		optional	scd	device-driver
