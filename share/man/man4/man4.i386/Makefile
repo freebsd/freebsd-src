@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.110 1999/07/09 04:30:03 wpaul Exp $
+#	$Id: Makefile,v 1.111 1999/07/25 04:32:39 wpaul Exp $
 
 MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 al.4 alpm.4 apm.4 ar.4 asc.4 \
 	atkbd.4 atkbdc.4 ax.4 bktr.4 bt.4 cs.4 cx.4 cy.4 de.4 \
@@ -6,7 +6,7 @@ MAN4=	adv.4 adw.4 aha.4 ahb.4 ahc.4 aic.4 al.4 alpm.4 apm.4 ar.4 asc.4 \
 	io.4 joy.4 keyboard.4 labpc.4 le.4 lnc.4 matcd.4 mcd.4 \
 	mem.4 meteor.4 mouse.4 mse.4 mtio.4 mx.4 ncr.4 npx.4 \
 	ohci.4 pcf.4 pcm.4 pcvt.4 perfmon.4 pn.4 pnp.4 ppc.4 psm.4 \
-	rdp.4 rl.4 sb.4 scd.4 screen.4 si.4 sio.4 sf.4 sk.4 \
+	rdp.4 rl.4 sb.4 scd.4 screen.4 sf.4 si.4 sio.4 sk.4 \
 	spkr.4 splash.4 sr.4 syscons.4 sysmouse.4 ti.4 tl.4 tw.4 tx.4 uhci.4 \
 	ukbd.4 umass.4 ums.4 usb.4 vga.4 vr.4 vx.4 \
 	wb.4 wd.4 wfd.4 wi.4 wl.4 wt.4 xl.4 ze.4 zp.4
@@ -72,12 +72,13 @@ MLINKS+=	rl.4 ../rl.4
 MLINKS+=	sb.4 ../sb.4
 MLINKS+=	scd.4 ../scd.4
 MLINKS+=	screen.4 ../screen.4
+MLINKS+=	sf.4 ../sf.4
 MLINKS+=	si.4 ../si.4
 MLINKS+=	sio.4 ../sio.4
-MLINKS+=	sf.4 ../sf.4
 MLINKS+=	sk.4 ../sk.4
 MLINKS+=	spkr.4 ../spkr.4 spkr.4 speaker.4 spkr.4 ../speaker.4
-MLINKS+=	splash.4 ../splash.4 splash.4 screensaver.4 splash.4 ../screensaver.4
+MLINKS+=	splash.4 ../splash.4 \
+		splash.4 screensaver.4 splash.4 ../screensaver.4
 MLINKS+=	sr.4 ../sr.4
 MLINKS+=	syscons.4 ../syscons.4
 MLINKS+=	sysmouse.4 ../sysmouse.4
