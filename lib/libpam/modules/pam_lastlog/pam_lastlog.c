@@ -91,7 +91,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		return (pam_err);
 	if (tty == NULL)
 		return (PAM_SERVICE_ERR);
-	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)))
+	if (strncmp(tty, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		tty += strlen(_PATH_DEV);
 	if (*tty == '\0')
 		return (PAM_SERVICE_ERR);
