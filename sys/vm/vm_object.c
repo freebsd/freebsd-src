@@ -1002,9 +1002,10 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 	vm_object_t tobject;
 	vm_page_t m;
 
-	GIANT_REQUIRED;
 	if (object == NULL)
 		return;
+
+	mtx_lock(&Giant);
 
 	end = pindex + count;
 
@@ -1093,6 +1094,7 @@ shadowlookup:
 				swap_pager_freespace(tobject, tpindex, 1);
 		}
 	}	
+	mtx_unlock(&Giant);
 }
 
 /*

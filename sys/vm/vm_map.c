@@ -1268,8 +1268,6 @@ vm_map_madvise(
 	vm_map_entry_t current, entry;
 	int modify_map = 0;
 
-	GIANT_REQUIRED;
-
 	/*
 	 * Some madvise calls directly modify the vm_map_entry, in which case
 	 * we need to use an exclusive lock on the map and we need to perform 
@@ -1390,6 +1388,7 @@ vm_map_madvise(
 			vm_object_madvise(current->object.vm_object,
 					  pindex, count, behav);
 			if (behav == MADV_WILLNEED) {
+				mtx_lock(&Giant);
 				pmap_object_init_pt(
 				    map->pmap, 
 				    useStart,
@@ -1398,6 +1397,7 @@ vm_map_madvise(
 				    (count << PAGE_SHIFT),
 				    MAP_PREFAULT_MADVISE
 				);
+				mtx_unlock(&Giant);
 			}
 		}
 		vm_map_unlock_read(map);
