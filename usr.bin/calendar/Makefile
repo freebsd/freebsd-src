@@ -14,7 +14,7 @@ beforeinstall:
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}/calendar
 .for lang in ${INTER}
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
-    		${.CURDIR}/calendars/${lang}/calendar.* \
+		${.CURDIR}/calendars/${lang}/calendar.* \
 		${DESTDIR}${SHAREDIR}/calendar/${lang}; 
 .endfor
 .for link in ${DE_LINKS}
