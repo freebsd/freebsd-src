@@ -112,7 +112,6 @@ struct kue_ether_desc {
 #define KUE_TIMEOUT		1000
 #define ETHER_ALIGN		2
 #define KUE_BUFSZ		1536
-#define KUE_CUTOFF		1088
 #define KUE_MIN_FRAMELEN	60
 
 #define KUE_RX_LIST_CNT		1
