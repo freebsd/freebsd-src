@@ -32,6 +32,8 @@
 use strict;
 use Getopt::Std;
 
+sub EMPTY() {}
+
 MAIN:{
     my %opts;
     getopts('c', \%opts);
@@ -51,10 +53,11 @@ MAIN:{
 		$machine = $value;
 	    } elsif ($keyword eq 'ident') {
 		$ident = $value;
+	    } elsif ($keyword eq 'options' && $value =~ m/(\w+)=(.+)/) {
+		$config{$keyword}->{$1} = $2;
 	    } else {
-		$config{$keyword}->{$value} = 1;
+		$config{$keyword}->{$value} = \&EMPTY;
 	    }
-	    #print "$keyword $value\n";
 	}
     }
 
@@ -83,7 +86,17 @@ MAIN:{
 		unless ($value eq $machine);
 	} elsif ($keyword eq 'ident') {
 	    $line =~ s/$value/$ident/;
-	} elsif ($config{$keyword}->{$value}) {
+	} elsif ($keyword eq 'options' && $value =~ m/(\w+)=(.+)/ &&
+	    $config{$keyword}->{$1} != \&EMPTY) {
+	    $value = $1;
+	    if ($config{$keyword}->{$value} ne $2) {
+		my ($old, $new) = ($2, $config{$keyword}->{$value});
+		$line =~ s{=$old}{=$new};
+	    }
+	    delete($config{$keyword}->{$value});
+	    delete($config{$keyword})
+		unless %{$config{$keyword}};
+	} elsif (defined($config{$keyword}->{$value})) {
 	    delete($config{$keyword}->{$value});
 	    delete($config{$keyword})
 		unless %{$config{$keyword}};
@@ -108,7 +121,10 @@ MAIN:{
 		} elsif (length($keyword) == 7) {
 		    print " ";
 		}
-		print "\t$value\n";
+		print "\t$value";
+		print "=$config{$keyword}->{$value}"
+		    unless $config{$keyword}->{$value} == \&EMPTY;
+		print "\n";
 	    }
 	}
     }
