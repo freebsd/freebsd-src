@@ -106,6 +106,22 @@ Specifies failure probability in percentage.
 .It Fl v
 Be more verbose.
 .El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm NOP
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.nop.debug : No 0
+Debug level of the
+.Nm NOP
+GEOM class.
+This can be set to a number between 0 and 2, both included.
+If set to 0 minimal debug information is printed, and if set to 2 the
+maximum amount of debug information in printed.
+.El
 .Sh EXAMPLES
 The following example shows how to create a transparent provider for disk
 .Pa /dev/da0
