@@ -76,9 +76,7 @@ ${fwcmd} -f flush
 # different place to not interfere with address-checking rules.
 # 
 case ${firewall_type} in
-[Ss][Ii][Mm][Pp][Ll][Ee])
-	;;
-*)
+[Oo][Pp][Ee][Nn]|[Cc][Ll][Ii][Ee][Nn][Tt])
 	case ${natd_enable} in
 	[Yy][Ee][Ss])
 		if [ -n "${natd_interface}" ]; then
