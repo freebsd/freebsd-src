@@ -209,27 +209,65 @@ pmap_kextract(vm_offset_t va)
 #ifdef PAE
 
 static __inline pt_entry_t
-pte_load_clear(pt_entry_t *pte)
+pte_load(pt_entry_t *ptep)
 {
 	pt_entry_t r;
 
-	r = *pte;
 	__asm __volatile(
-	    "1:\n"
-	    "\tcmpxchg8b %1\n"
-	    "\tjnz 1b"
-	    : "+A" (r)
-	    : "m" (*pte), "b" (0), "c" (0));
+	    "lock; cmpxchg8b %1"
+	    : "=A" (r)
+	    : "m" (*ptep), "a" (0), "d" (0), "b" (0), "c" (0));
 	return (r);
 }
 
-#else
+static __inline pt_entry_t
+pte_load_store(pt_entry_t *ptep, pt_entry_t v)
+{
+	pt_entry_t r;
+
+	r = *ptep;
+	__asm __volatile(
+	    "1:\n"
+	    "\tlock; cmpxchg8b %1\n"
+	    "\tjnz 1b"
+	    : "+A" (r)
+	    : "m" (*ptep), "b" ((uint32_t)v), "c" ((uint32_t)(v >> 32)));
+	return (r);
+}
+
+#define	pte_load_clear(ptep)	pte_load_store((ptep), (pt_entry_t)0ULL)
+
+#else /* PAE */
+
+static __inline pt_entry_t
+pte_load(pt_entry_t *ptep)
+{
+	pt_entry_t r;
+
+	r = *ptep;
+	return (r);
+}
+
+static __inline pt_entry_t
+pte_load_store(pt_entry_t *ptep, pt_entry_t pte)
+{
+	pt_entry_t r;
+
+	r = *ptep;
+	*ptep = pte;
+	return (r);
+}
 
 #define	pte_load_clear(pte)	atomic_readandclear_int(pte)
 
-#endif
+#endif /* PAE */
 
-#endif
+#define	pte_clear(ptep)		pte_load_store((ptep), (pt_entry_t)0ULL)
+#define	pte_store(ptep, pte)	pte_load_store((ptep), (pt_entry_t)pte)
+
+#define	pde_store(pdep, pde)	pte_store((pdep), (pde))
+
+#endif /* _KERNEL */
 
 /*
  * Pmap stuff
