@@ -750,6 +750,15 @@ rvar(KINFO *k, VARENT *ve)
 }
 
 void
+emulname(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+
+	v = ve->var;
+	printf("%-*s", v->width, *k->ki_p->ki_emul ? k->ki_p->ki_emul : "-");
+}
+
+void
 label(KINFO *k, VARENT *ve)
 {
 	char *string;
