@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.14 1995/03/16 18:31:00 wollman Exp $
+ *	$Id: mount.h,v 1.15 1995/03/16 20:23:48 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -114,7 +114,7 @@ struct statfs {
 	"kernfs",	/* 11 MOUNT_KERNFS */ \
 	"procfs",	/* 12 MOUNT_PROCFS */ \
 	"afs",		/* 13 MOUNT_AFS */ \
-	"iso9660fs",	/* 14 MOUNT_CD9660 */ \
+	"cd9660",	/* 14 MOUNT_CD9660 */ \
 	"union",	/* 15 MOUNT_UNION */ \
 	0,		/* 16 MOUNT_SPARE */ \
 }
