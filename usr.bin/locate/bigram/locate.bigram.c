@@ -56,6 +56,7 @@ static char sccsid[] = "@(#)locate.bigram.c	8.1 (Berkeley) 6/6/93";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/param.h>			/* for MAXPATHLEN */
 #include "locate.h"
 
