@@ -4974,6 +4974,9 @@ is
 .It set ipcpretry|ipcpretries Oo Ar timeout
 .Op Ar reqtries Op Ar trmtries
 .Oc
+.It set ipv6cpretry|ipv6cpretries Oo Ar timeout
+.Op Ar reqtries Op Ar trmtries
+.Oc
 .It set lcpretry|lcpretries Oo Ar timeout
 .Op Ar reqtries Op Ar trmtries
 .Oc
