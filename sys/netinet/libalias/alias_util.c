@@ -43,7 +43,8 @@ PacketAliasInternetChecksum(u_short *ptr, int nbytes)
     if (nbytes == 1)
     {
         oddbyte = 0;
-        *((u_char *) &oddbyte) = *(u_char *) ptr;
+        ((u_char *) &oddbyte)[0] = *(u_char *) ptr;
+        ((u_char *) &oddbyte)[1] = 0;
         sum += oddbyte;
     }
     sum = (sum >> 16) + (sum & 0xffff);
@@ -84,7 +85,8 @@ TcpChecksum(struct ip *pip)
     if (nbytes == 1)
     {
         oddbyte = 0;
-        *((u_char *) &oddbyte) = *(u_char *) ptr;
+        ((u_char *) &oddbyte)[0] = *(u_char *) ptr;
+        ((u_char *) &oddbyte)[1] = 0;
         sum += oddbyte;
     }
 
