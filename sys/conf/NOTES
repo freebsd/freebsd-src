@@ -764,6 +764,7 @@ options 	MAC_BIBA
 options 	MAC_BSDEXTENDED
 options 	MAC_DEBUG
 options 	MAC_IFOFF
+options 	MAC_LOMAC
 options 	MAC_MLS
 options 	MAC_NONE
 options 	MAC_PARTITION

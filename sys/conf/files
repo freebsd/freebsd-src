@@ -1507,6 +1507,7 @@ kern/uipc_sem.c		optional p1003_1b_semaphores
 security/mac_biba/mac_biba.c	optional mac_biba
 security/mac_bsdextended/mac_bsdextended.c	optional mac_bsdextended
 security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
+security/mac_lomac/mac_lomac.c	optional mac_lomac
 security/mac_mls/mac_mls.c	optional mac_mls
 security/mac_none/mac_none.c	optional mac_none
 security/mac_partition/mac_partition.c	optional mac_partition
