@@ -1410,12 +1410,11 @@ psignal(p, sig)
 		 */
 		mtx_lock_spin(&sched_lock);
 		FOREACH_THREAD_IN_PROC(p, td) {
-			if (td->td_wchan && (td->td_flags & TDF_SINTR)) {
+			if (TD_ON_SLEEPQ(td) && (td->td_flags & TDF_SINTR)) {
 				if (td->td_flags & TDF_CVWAITQ)
-					cv_waitq_remove(td);
+					cv_abort(td);
 				else
-					unsleep(td);
-				setrunnable(td);
+					abortsleep(td);
 			}
 		}
 		mtx_unlock_spin(&sched_lock);
@@ -1447,7 +1446,7 @@ psignal(p, sig)
 				goto out;
 			mtx_lock_spin(&sched_lock);
 			FOREACH_THREAD_IN_PROC(p, td) {
-				if (td->td_state == TDS_SLP &&
+				if (TD_IS_SLEEPING(td) &&
 					(td->td_flags & TDF_SINTR))
 					thread_suspend_one(td);
 			}
@@ -1522,7 +1521,7 @@ tdsignal(struct thread *td, int sig, sig_t action)
 	if (action == SIG_HOLD) {
 		return;
 	}
-	if (td->td_state == TDS_SLP) {
+	if (TD_IS_SLEEPING(td)) {
 		/*
 		 * If thread is sleeping uninterruptibly
 		 * we can't interrupt the sleep... the signal will
@@ -1558,7 +1557,10 @@ tdsignal(struct thread *td, int sig, sig_t action)
 				td->td_priority = PUSER;
 			}
 		}
-		setrunnable(td);
+		if (td->td_flags & TDF_CVWAITQ) 
+			cv_abort(td);
+		else
+			abortsleep(td);
 	}
 #ifdef SMP
 	  else {
@@ -1567,7 +1569,7 @@ tdsignal(struct thread *td, int sig, sig_t action)
 		 * other than kicking ourselves if we are running.
 		 * It will either never be noticed, or noticed very soon.
 		 */
-		if (td->td_state == TDS_RUNNING && td != curthread) {
+		if (TD_IS_RUNNING(td) && td != curthread) {
 			forward_signal(td);
 		}
 	}
@@ -1629,7 +1631,7 @@ issignal(td)
 			PROC_UNLOCK(p->p_pptr);
 			mtx_lock_spin(&sched_lock);
 			stop(p);	/* uses schedlock too eventually */
-			td->td_state = TDS_UNQUEUED;
+			thread_suspend_one(td);
 			PROC_UNLOCK(p);
 			DROP_GIANT();
 			p->p_stats->p_ru.ru_nivcsw++;
@@ -1713,9 +1715,7 @@ issignal(td)
 					mtx_lock_spin(&sched_lock);
 				}
 				stop(p);
-				p->p_suspcount++;
-				td->td_state = TDS_SUSPENDED;
-				TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
+				thread_suspend_one(td);
 				PROC_UNLOCK(p);
 				DROP_GIANT();
 				p->p_stats->p_ru.ru_nivcsw++;

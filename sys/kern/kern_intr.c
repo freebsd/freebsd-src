@@ -201,7 +201,7 @@ ithread_create(struct ithd **ithread, int vector, int flags,
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	td->td_ksegrp->kg_pri_class = PRI_ITHD;
 	td->td_priority = PRI_MAX_ITHD;
-	td->td_state = TDS_IWAIT;
+	TD_SET_IWAIT(td);
 	ithd->it_td = td;
 	td->td_ithd = ithd;
 	if (ithread != NULL)
@@ -229,7 +229,8 @@ ithread_destroy(struct ithd *ithread)
 	}
 	ithread->it_flags |= IT_DEAD;
 	mtx_lock_spin(&sched_lock);
-	if (td->td_state == TDS_IWAIT) {
+	if (TD_AWAITING_INTR(td)) {
+		TD_CLR_IWAIT(td);
 		setrunqueue(td);
 	}
 	mtx_unlock_spin(&sched_lock);
@@ -326,7 +327,7 @@ ok:
 	 * handler as being dead and let the ithread do the actual removal.
 	 */
 	mtx_lock_spin(&sched_lock);
-	if (ithread->it_td->td_state != TDS_IWAIT) {
+	if (!TD_AWAITING_INTR(ithread->it_td)) {
 		handler->ih_flags |= IH_DEAD;
 
 		/*
@@ -388,16 +389,17 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 	 */
 	ithread->it_need = 1;
 	mtx_lock_spin(&sched_lock);
-	if (td->td_state == TDS_IWAIT) {
+	if (TD_AWAITING_INTR(td)) {
 		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, p->p_pid);
+		TD_CLR_IWAIT(td);
 		setrunqueue(td);
 		if (do_switch &&
 		    (ctd->td_critnest == 1) ) {
-			KASSERT((ctd->td_state == TDS_RUNNING),
+			KASSERT((TD_IS_RUNNING(ctd)),
 			    ("ithread_schedule: Bad state for curthread."));
 			ctd->td_proc->p_stats->p_ru.ru_nivcsw++;
 			if (ctd->td_kse->ke_flags & KEF_IDLEKSE)
-				ctd->td_state = TDS_UNQUEUED;
+				ctd->td_state = TDS_CAN_RUN; /* XXXKSE */
 			mi_switch();
 		} else {
 			curthread->td_kse->ke_flags |= KEF_NEEDRESCHED;
@@ -552,7 +554,7 @@ restart:
 			 */
 			if (ithd->it_enable != NULL)
 				ithd->it_enable(ithd->it_vector);
-			td->td_state = TDS_IWAIT; /* we're idle */
+			TD_SET_IWAIT(td); /* we're idle */
 			p->p_stats->p_ru.ru_nvcsw++;
 			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
 			mi_switch();

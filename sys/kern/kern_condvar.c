@@ -48,7 +48,7 @@
  */
 #define	CV_ASSERT(cvp, mp, td) do {					\
 	KASSERT((td) != NULL, ("%s: curthread NULL", __func__));	\
-	KASSERT((td)->td_state == TDS_RUNNING, ("%s: not TDS_RUNNING", __func__));	\
+	KASSERT(TD_IS_RUNNING(td), ("%s: not TDS_RUNNING", __func__));	\
 	KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));		\
 	KASSERT((mp) != NULL, ("%s: mp NULL", __func__));		\
 	mtx_assert((mp), MA_OWNED | MA_NOTRECURSED);			\
@@ -68,12 +68,14 @@
 		    ("%s: Multiple mutexes", __func__));		\
 	}								\
 } while (0)
+
 #define	CV_SIGNAL_VALIDATE(cvp) do {					\
 	if (!TAILQ_EMPTY(&(cvp)->cv_waitq)) {				\
 		KASSERT(mtx_owned((cvp)->cv_mtx),			\
-		    ("%s: Mutex not owned", __func__));		\
+		    ("%s: Mutex not owned", __func__));			\
 	}								\
 } while (0)
+
 #else
 #define	CV_WAIT_VALIDATE(cvp, mp)
 #define	CV_SIGNAL_VALIDATE(cvp)
@@ -148,9 +150,9 @@ static __inline void
 cv_switch(struct thread *td)
 {
 
-	td->td_state = TDS_SLP;
-	td->td_proc->p_stats->p_ru.ru_nvcsw++;
 	cv_check_upcall(td);
+	TD_SET_SLEEPING(td);
+	td->td_proc->p_stats->p_ru.ru_nvcsw++;
 	mi_switch();
 	CTR3(KTR_PROC, "cv_switch: resume thread %p (pid %d, %s)", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
@@ -171,22 +173,23 @@ cv_switch_catch(struct thread *td)
 	 * both) could occur while we were stopped.  A SIGCONT would cause us to
 	 * be marked as TDS_SLP without resuming us, thus we must be ready for
 	 * sleep when cursig is called.  If the wakeup happens while we're
-	 * stopped, td->td_wchan will be 0 upon return from cursig.
+	 * stopped, td->td_wchan will be 0 upon return from cursig,
+	 * and TD_ON_SLEEPQ() will return false.
 	 */
 	td->td_flags |= TDF_SINTR;
 	mtx_unlock_spin(&sched_lock);
 	p = td->td_proc;
 	PROC_LOCK(p);
-	sig = cursig(td);	/* XXXKSE */
+	sig = cursig(td);
 	if (thread_suspend_check(1))
 		sig = SIGSTOP;
 	mtx_lock_spin(&sched_lock);
 	PROC_UNLOCK(p);
 	if (sig != 0) {
-		if (td->td_wchan != NULL)
+		if (TD_ON_SLEEPQ(td))
 			cv_waitq_remove(td);
-		td->td_state = TDS_RUNNING;	/* XXXKSE */
-	} else if (td->td_wchan != NULL) {
+		TD_SET_RUNNING(td);
+	} else if (TD_ON_SLEEPQ(td)) {
 		cv_switch(td);
 	}
 	td->td_flags &= ~TDF_SINTR;
@@ -202,6 +205,7 @@ cv_waitq_add(struct cv *cvp, struct thread *td)
 {
 
 	td->td_flags |= TDF_CVWAITQ;
+	TD_SET_ON_SLEEPQ(td);
 	td->td_wchan = cvp;
 	td->td_wmesg = cvp->cv_description;
 	td->td_ksegrp->kg_slptime = 0; /* XXXKSE */
@@ -389,10 +393,10 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		 * between msleep and endtsleep.
 		 * Go back to sleep.
 		 */
-		td->td_flags |= TDF_TIMEOUT;
-		td->td_state = TDS_SLP;
+		TD_SET_SLEEPING(td);
 		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
+		td->td_flags &= ~TDF_TIMOFAIL;
 	}
 
 	if (td->td_proc->p_flag & P_WEXIT)
@@ -467,10 +471,10 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		 * between msleep and endtsleep.
 		 * Go back to sleep.
 		 */
-		td->td_flags |= TDF_TIMEOUT;
-		td->td_state = TDS_SLP;
+		TD_SET_SLEEPING(td);
 		td->td_proc->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
+		td->td_flags &= ~TDF_TIMOFAIL;
 	}
 	mtx_unlock_spin(&sched_lock);
 
@@ -507,35 +511,14 @@ static __inline void
 cv_wakeup(struct cv *cvp)
 {
 	struct thread *td;
-	struct ksegrp *kg;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	td = TAILQ_FIRST(&cvp->cv_waitq);
 	KASSERT(td->td_wchan == cvp, ("%s: bogus wchan", __func__));
 	KASSERT(td->td_flags & TDF_CVWAITQ, ("%s: not on waitq", __func__));
-	TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
-	td->td_flags &= ~TDF_CVWAITQ;
-	td->td_wchan = 0;
-	if (td->td_state == TDS_SLP) {
-		/* OPTIMIZED EXPANSION OF setrunnable(td); */
-		CTR3(KTR_PROC, "cv_wakeup: thread %p (pid %d, %s)",
-		    td, td->td_proc->p_pid, td->td_proc->p_comm);
-		kg = td->td_ksegrp;
-		if (kg->kg_slptime > 1) /* XXXKSE */
-			updatepri(kg);
-		kg->kg_slptime = 0;
-		if (td->td_proc->p_sflag & PS_INMEM) {
-			setrunqueue(td);
-			maybe_resched(td);
-		} else {
-			td->td_state = TDS_SWAPPED;
-			if ((td->td_proc->p_sflag & PS_SWAPPINGIN) == 0) {
-				td->td_proc->p_sflag |= PS_SWAPINREQ;
-				wakeup(&proc0);
-			}
-		}
-		/* END INLINE EXPANSION */
-	}
+	cv_waitq_remove(td);
+	TD_CLR_SLEEPING(td);
+	setrunnable(td);
 }
 
 /*
@@ -583,13 +566,12 @@ cv_waitq_remove(struct thread *td)
 {
 	struct cv *cvp;
 
-	mtx_lock_spin(&sched_lock);
+	mtx_assert(&sched_lock, MA_OWNED);
 	if ((cvp = td->td_wchan) != NULL && td->td_flags & TDF_CVWAITQ) {
 		TAILQ_REMOVE(&cvp->cv_waitq, td, td_slpq);
 		td->td_flags &= ~TDF_CVWAITQ;
-		td->td_wchan = NULL;
+		TD_CLR_ON_SLEEPQ(td);
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -602,29 +584,17 @@ cv_timedwait_end(void *arg)
 	struct thread *td;
 
 	td = arg;
-	CTR3(KTR_PROC, "cv_timedwait_end: thread %p (pid %d, %s)", td, td->td_proc->p_pid,
-	    td->td_proc->p_comm);
+	CTR3(KTR_PROC, "cv_timedwait_end: thread %p (pid %d, %s)",
+	    td, td->td_proc->p_pid, td->td_proc->p_comm);
 	mtx_lock_spin(&sched_lock);
-	if (td->td_flags & TDF_TIMEOUT) {
-		td->td_flags &= ~TDF_TIMEOUT;
-		if (td->td_proc->p_sflag & PS_INMEM) {
-			setrunqueue(td);
-			maybe_resched(td);
-		} else {
-			td->td_state = TDS_SWAPPED;
-			if ((td->td_proc->p_sflag & PS_SWAPPINGIN) == 0) {
-				td->td_proc->p_sflag |= PS_SWAPINREQ;
-				wakeup(&proc0);
-			}
-		}
-	} else if (td->td_wchan != NULL) {
-		if (td->td_state == TDS_SLP)	/* XXXKSE */
-			setrunnable(td);
-		else
-			cv_waitq_remove(td);
+	if (TD_ON_SLEEPQ(td)) {
+		cv_waitq_remove(td);
 		td->td_flags |= TDF_TIMEOUT;
-	} else
+	} else {
 		td->td_flags |= TDF_TIMOFAIL;
+	}
+	TD_CLR_SLEEPING(td);
+	setrunnable(td);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -637,16 +607,14 @@ cv_abort(struct thread *td)
 {
 
 	CTR3(KTR_PROC, "cv_abort: thread %p (pid %d, %s)", td,
-	    td->td_proc->p_pid,
-	    td->td_proc->p_comm);
+	    td->td_proc->p_pid, td->td_proc->p_comm);
 	mtx_lock_spin(&sched_lock);
 	if ((td->td_flags & (TDF_SINTR|TDF_TIMEOUT)) == TDF_SINTR) {
-		if (td->td_wchan != NULL) {
-			if (td->td_state == TDS_SLP)
-				setrunnable(td);
-			else
-				cv_waitq_remove(td);
+		if (TD_ON_SLEEPQ(td)) {
+			cv_waitq_remove(td);
 		}
+		TD_CLR_SLEEPING(td);
+		setrunnable(td);
 	}
 	mtx_unlock_spin(&sched_lock);
 }
