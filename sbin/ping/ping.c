@@ -523,7 +523,7 @@ pr_pack(buf, cc, from)
 			   icp->icmp_seq);
 			(void)printf(" ttl=%d", ip->ip_ttl);
 			if (timing)
-				(void)printf(" time=%g ms", triptime);
+				(void)printf(" time=%.3f ms", triptime);
 			if (dupflag)
 				(void)printf(" (DUP!)");
 			/* check the data */
@@ -712,7 +712,7 @@ finish()
 	if (nreceived && timing) {
 		/* Only display average to microseconds */
 		i = 1000.0 * tsum / (nreceived + nrepeats);
-		(void)printf("round-trip min/avg/max = %g/%g/%g ms\n",
+		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
 		    tmin, ((double)i) / 1000.0, tmax);
 	}
 	exit(0);
