@@ -139,7 +139,7 @@ doit(int f, struct sockaddr_in *fromp)
 	struct opie opiedata;
 	char pass[OPIE_RESPONSE_MAX+1], opieprompt[OPIE_CHALLENGE_MAX+1];
 #else /* OPIE */
-	char user[16], pass[16];
+	char pass[16];
 #endif /* OPIE */
 	struct passwd *pwd;
 	int s;
