@@ -658,7 +658,6 @@ nwfs/nwfs_vnops.c	optional nwfs
 pccard/pccard.c		optional card
 pccard/pccard_beep.c	optional card
 pccard/pccard_nbk.c	optional card
-pccard/pccard_compat.c	optional card
 pccard/pcic.c		optional pcic
 pci/amd.c		optional amd
 pci/pcic_p.c		optional pcic pci

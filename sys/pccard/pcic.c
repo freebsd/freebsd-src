@@ -30,11 +30,6 @@
  * $FreeBSD$
  */
 
-/*
- * pcic98 : PC9801 original PCMCIA controller code for NS/A,Ne,NX/C,NR/L.
- * by Noriyuki Hosobuchi <yj8n-hsbc@asahi-net.or.jp>
- */
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -44,14 +39,13 @@
 
 #include <machine/clock.h>
 
+#if 0
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/intr_machdep.h>
+#endif
 
 #include <pccard/i82365.h>
-#ifdef	PC98
-#include <pccard/pcic98reg.h>
-#endif
 
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
@@ -95,7 +89,6 @@ static struct pcic_slot {
 } pcic_slots[PCIC_MAX_SLOTS];
 
 static int		pcic_irq;
-static unsigned		pcic_imask;
 static struct slot_ctrl cinfo;
 
 
@@ -112,12 +105,6 @@ getb1(struct pcic_slot *sp, int reg)
 	return inb(sp->data);
 }
 
-static __inline unsigned char
-getb2(struct pcic_slot *sp, int reg)
-{
-	return (sp->regs[reg]);
-}
-
 /*
  * Write a register on the PCIC
  */
@@ -126,12 +113,6 @@ putb1(struct pcic_slot *sp, int reg, unsigned char val)
 {
 	outb(sp->index, sp->offset + reg);
 	outb(sp->data, val);
-}
-
-static __inline void
-putb2(struct pcic_slot *sp, int reg, unsigned char val)
-{
-	sp->regs[reg] = val;
 }
 
 /*
@@ -162,71 +143,6 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
 	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
 }
 
-
-/*
- * Gerneral functions for registering and unregistering interrupts.
- * isa_to_apic() is used to map the ISA IRQ onto the APIC IRQ to
- * check if the APIC IRQ is used or free.
- */
-#ifdef APIC_IO
-int register_pcic_intr(int intr, int device_id, u_int flags,
-    ointhand2_t handler, u_int *maskptr, int unit)
-{
-	int apic_intr;
-	apic_intr = isa_apic_irq(intr);
-	if (apic_intr <0)
-		return -1;
-	else  
-		return register_intr(apic_intr, device_id, flags, handler, 
-		    maskptr, unit);
-}
-
-int unregister_pcic_intr(int intr, ointhand2_t handler)
-{
-	int apic_intr;
-	apic_intr = isa_apic_irq(intr);
-	return  unregister_intr(apic_intr, handler);
-}
-
-#else /* Not APIC_IO */
-
-int register_pcic_intr(int intr, int device_id, u_int flags,
-    ointhand2_t handler, u_int *maskptr, int unit)
-{
-	return register_intr(intr, device_id, flags, handler, maskptr, unit);
-}
-
-int unregister_pcic_intr(int intr, ointhand2_t handler)
-{
-	return unregister_intr(intr, handler);
-}
-
-#endif /* APIC_IO */
-
-#if 0
-static void
-pcic_dump_attributes(unsigned char *scratch, int maxlen)
-{
-	int i,j,k;
-
-	i = 0;
-	while (scratch[i] != 0xff && i < maxlen) {
-		unsigned char link = scratch[i+2];
-
-		/*
-		 *	Dump attribute memory
-		 */
-		if (scratch[i]) {
-			printf("[%02x] ", i);
-			for (j = 0; j < 2 * link + 4 && j < 128; j += 2)
-				printf("%02x ", scratch[j + i]);
-			printf("\n");
-		}
-		i += 4 + 2 * link;
-	}
-}
-#endif
-
 /*
  *	entry point from main code to map/unmap memory context.
  */
@@ -236,49 +152,6 @@ pcic_memory(struct slot *slt, int win)
 	struct pcic_slot *sp = slt->cdata;
 	struct mem_desc *mp = &slt->mem[win];
 	int reg = mp->window * PCIC_MEMSIZE + PCIC_MEMBASE;
-
-#ifdef	PC98
-	if (sp->controller == PCIC_PC98) {
-	    if (mp->flags & MDF_ACTIVE) {
-		/* slot = 0, window = 0, sys_addr = 0xda000, length = 8KB */
-		unsigned char x;
-		
-		if ((unsigned long)mp->start != 0xda000) {
-		    printf("sys_addr must be 0xda000. requested address = 0x%x\n",
-			   mp->start);
-		    return(EINVAL);
-		}
-		
-		/* omajinai ??? */
-		outb(PCIC98_REG0, 0);
-		x = inb(PCIC98_REG1);
-		x &= 0xfc;
-		x |= 0x02;
-		outb(PCIC98_REG1, x);
-		
-		outw(PCIC98_REG_PAGOFS, 0);
-		
-		if (mp->flags & MDF_ATTR) {
-		    outb(PCIC98_REG6, inb(PCIC98_REG6) | PCIC98_ATTRMEM);
-		}else{
-		    outb(PCIC98_REG6, inb(PCIC98_REG6) & (~PCIC98_ATTRMEM));
-		}
-		
-		outb(PCIC98_REG_WINSEL, PCIC98_MAPWIN);
-		
-#if 0
-		if ((mp->flags & MDF_16BITS) == 1) {	/* 16bit */
-		    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_8BIT));
-		}else{					/* 8bit */
-		    outb(PCIC98_REG2, inb(PCIC98_REG2) | PCIC98_8BIT);
-		}
-#endif
-	    }else{
-		outb(PCIC98_REG_WINSEL, PCIC98_UNMAPWIN);
-	    }
-	    return 0;
-	}
-#endif	/* PC98 */
 
 	if (mp->flags & MDF_ACTIVE) {
 		unsigned long sys_addr = (uintptr_t)(void *)mp->start >> 12;
@@ -290,11 +163,6 @@ pcic_memory(struct slot *slt, int win)
 		putw(sp, reg, sys_addr & 0xFFF);
 		putw(sp, reg+2, (sys_addr + (mp->size >> 12) - 1) & 0xFFF);
 		putw(sp, reg+4, ((mp->card >> 12) - sys_addr) & 0x3FFF);
-#if 0
-		printf("card offs = card_adr = 0x%x 0x%x, sys_addr = 0x%x\n", 
-			mp->card, ((mp->card >> 12) - sys_addr) & 0x3FFF,
-			sys_addr);
-#endif
 		/*
 		 *	Each 16 bit register has some flags in the upper bits.
 		 */
@@ -310,26 +178,12 @@ pcic_memory(struct slot *slt, int win)
 			setb(sp, reg+5, PCIC_REG);
 		if (mp->flags & MDF_WP)
 			setb(sp, reg+5, PCIC_WP);
-#if 0
-	printf("Slot number %d, reg 0x%x, offs 0x%x\n",
-		sp->slotnum, reg, sp->offset);
-	printf("Map window to sys addr 0x%x for %d bytes, card 0x%x\n",
-		mp->start, mp->size, mp->card);
-	printf("regs are: 0x%02x%02x 0x%02x%02x 0x%02x%02x flags 0x%x\n",
-		sp->getb(sp, reg), sp->getb(sp, reg+1),
-		sp->getb(sp, reg+2), sp->getb(sp, reg+3),
-		sp->getb(sp, reg+4), sp->getb(sp, reg+5),
-		mp->flags);
-#endif
 		/*
 		 * Enable the memory window. By experiment, we need a delay.
 		 */
 		setb(sp, PCIC_ADDRWINE, (1<<win) | PCIC_MEMCS16);
 		DELAY(50);
 	} else {
-#if 0
-		printf("Unmapping window %d\n", win);
-#endif
 		clrb(sp, PCIC_ADDRWINE, 1<<win);
 		putw(sp, reg, 0);
 		putw(sp, reg+2, 0);
@@ -347,46 +201,6 @@ pcic_io(struct slot *slt, int win)
 	int	mask, reg;
 	struct pcic_slot *sp = slt->cdata;
 	struct io_desc *ip = &slt->io[win];
-#ifdef	PC98
-	if (sp->controller == PCIC_PC98) {
-	    unsigned char x;
-
-#if 0
-	    if (win =! 0) {
-		printf("pcic98:Illegal PCIC I/O window request(%d)!", win);
-		return(EINVAL);
-	    }
-#endif
-
-	    if (ip->flags & IODF_ACTIVE) {
-		unsigned short base;
-
-		x = inb(PCIC98_REG2) & 0x0f;
-		if (! (ip->flags & IODF_16BIT))
-		    x |= PCIC98_8BIT;
-
-		if (ip->size > 16)	/* 128bytes mapping */
-		    x |= PCIC98_MAP128;
-
-		x |= PCIC98_IOMEMORY;
-		outb(PCIC98_REG2, x);
-    
-		base = 0x80d0;
-		outw(PCIC98_REG4, base);		/* 98side IO base */
-		outw(PCIC98_REG5, ip->start);	/* card side IO base */
-
-#ifdef	PCIC_DEBUG
-		printf("pcic98: IO mapped 0x%04x(98) -> 0x%04x(Card) and width %d bytes\n",
-		       base, ip->start, ip->size);
-#endif
-		ip->start = base;
-
-	    }else{
-		outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_IOMEMORY));
-	    }
-	    return 0;
-	}
-#endif
 	switch (win) {
 	case 0:
 		mask = PCIC_IO0_EN;
@@ -402,9 +216,6 @@ pcic_io(struct slot *slt, int win)
 	if (ip->flags & IODF_ACTIVE) {
 		unsigned char x, ioctlv;
 
-#ifdef	PCIC_DEBUG
-printf("Map I/O 0x%x (size 0x%x) on Window %d\n", ip->start, ip->size, win);
-#endif	/* PCIC_DEBUG */
 		putw(sp, reg, ip->start);
 		putw(sp, reg+2, ip->start+ip->size-1);
 		x = 0;
@@ -457,7 +268,6 @@ static int
 pcic_probe(device_t dev)
 {
 	int slotnum, validslots = 0;
-	u_int free_irqs;
 	struct slot *slt;
 	struct pcic_slot *sp;
 	unsigned char c;
@@ -472,9 +282,6 @@ pcic_probe(device_t dev)
 	if (device_get_unit(dev) != 0)
 		return ENXIO;
 
-	/* Determine the list of free interrupts */
-	free_irqs = PCIC_INT_MASK_ALLOWED;
-	
 	/*
 	 *	Initialise controller information structure.
 	 */
@@ -488,8 +295,6 @@ pcic_probe(device_t dev)
 	cinfo.resume = pcic_resume;
 	cinfo.maxmem = PCIC_MEM_WIN;
 	cinfo.maxio = PCIC_IO_WIN;
-	cinfo.irqs = free_irqs;
-	cinfo.imask = &pcic_imask;
 
 	sp = pcic_slots;
 	for (slotnum = 0; slotnum < PCIC_MAX_SLOTS; slotnum++, sp++) {
@@ -653,8 +458,8 @@ pcic_probe(device_t dev)
 		slt->cdata = sp;
 		sp->slt = slt;
 		/*
-		 *	If we haven't allocated an interrupt for the controller,
-		 *	then attempt to get one.
+		 * If we haven't allocated an interrupt for the controller,
+		 * then attempt to get one.
 		 */
 		if (pcic_irq == 0) {
 			/* See if the user has requested a specific IRQ */
@@ -704,42 +509,6 @@ pcic_probe(device_t dev)
 		if (pcic_irq > 0)
 			sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	}
-#ifdef	PC98
-	if (validslots == 0) {
-	    sp = pcic_slots;
-	    slotnum = 0;
-	    if (inb(PCIC98_REG0) != 0xff) {
-		sp->controller = PCIC_PC98;
-		sp->revision = 0;
-		name = "PC98 Original";
-		device_set_desc(dev, name);
-		cinfo.maxmem = 1;
-		cinfo.maxio = 1;
-/*		cinfo.irqs = PCIC_INT_MASK_ALLOWED;*/
-		cinfo.irqs = 0x1468;
-		validslots++;
-		sp->slotnum = slotnum;
-
-		slt = pccard_alloc_slot(&cinfo);
-		if (slt == 0) {
-		    printf("pcic98: slt == NULL\n");
-		    goto pcic98_probe_end;
-		}
-		slt->cdata = sp;
-		sp->slt = slt;
-
-		/* Check for a card in this slot */
-		if (inb(PCIC98_REG1) & PCIC98_CARDEXIST) {
-		    /* PCMCIA card exist */
-		    slt->laststate = slt->state = filled;
-		    pccard_event(sp->slt, card_inserted);
-		} else {
-		    slt->laststate = slt->state = empty;
-		}
-	    }
-	pcic98_probe_end:
-	}
-#endif	/* PC98 */
 	if (validslots && pcic_irq <= 0)
 		pcictimeout_ch = timeout(pcictimeout, 0, hz/2);
 	if (validslots) {
@@ -787,35 +556,6 @@ pcic_power(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 
 	switch(sp->controller) {
-#ifdef	PC98
-	case PCIC_PC98:
-	    reg = inb(PCIC98_REG6) & (~PCIC98_VPP12V);
-	    switch(slt->pwr.vpp) {
-	    default:
-		return(EINVAL);
-	    case 50:
-		break;
-	    case 120:
-		reg |= PCIC98_VPP12V;
-		break;
-	    }
-	    outb(PCIC98_REG6, reg);
-	    DELAY(100*1000);
-
-	    reg = inb(PCIC98_REG2) & (~PCIC98_VCC3P3V);
-	    switch(slt->pwr.vcc) {
-	    default:
-		return(EINVAL);
-	    case 33:
-		reg |= PCIC98_VCC3P3V;
-		break;
-	    case 50:
-		break;
-	    }
-	    outb(PCIC98_REG2, reg);
-	    DELAY(100*1000);
-	    return (0);
-#endif
 	case PCIC_PD672X:
 	case PCIC_PD6710:
 	case PCIC_VG365:
@@ -900,35 +640,6 @@ static void
 pcic_mapirq(struct slot *slt, int irq)
 {
 	struct pcic_slot *sp = slt->cdata;
-#ifdef	PC98
-	if (sp->controller == PCIC_PC98) {
-	    unsigned char x;
-	    switch (irq) {
-	    case 3:
-		x = PCIC98_INT0; break;
-	    case 5:
-		x = PCIC98_INT1; break;
-	    case 6:
-		x = PCIC98_INT2; break;
-	    case 10:
-		x = PCIC98_INT4; break;
-	    case 12:
-		x = PCIC98_INT5; break;
-	    case 0:		/* disable */
-		x = PCIC98_INTDISABLE;
-		break;
-	    default:
-		printf("pcic98: illegal irq %d\n", irq);
-		return;
-	    }
-#ifdef	PCIC_DEBUG
-	    printf("pcic98: irq=%d mapped.\n", irq);
-#endif
-	    outb(PCIC98_REG3, x);
-
-	    return;
-	}	
-#endif
 	if (irq == 0)
 		clrb(sp, PCIC_INT_GEN, 0xF);
 	else
@@ -945,19 +656,6 @@ pcic_reset(void *chan)
 	struct slot *slt = chan;
 	struct pcic_slot *sp = slt->cdata;
 
-#ifdef	PC98
-	if (sp->controller == PCIC_PC98) {
-	    outb(PCIC98_REG0, 0);
-	    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_IOMEMORY));
-	    outb(PCIC98_REG3, PCIC98_INTDISABLE);
-	    outb(PCIC98_REG2, inb(PCIC98_REG2) & (~PCIC98_VCC3P3V));
-	    outb(PCIC98_REG6, inb(PCIC98_REG6) & (~PCIC98_VPP12V));
-	    outb(PCIC98_REG1, 0);
-
-	    selwakeup(&slt->selp);
-	    return;
-	}
-#endif
 	switch (slt->insert_seq) {
 	    case 0: /* Something funny happended on the way to the pub... */
 		return;
@@ -997,11 +695,6 @@ pcic_disable(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
 
-#ifdef	PC98
-	if (sp->controller == PCIC_PC98) {
-	    return;
-	}
-#endif
 	sp->putb(sp, PCIC_INT_GEN, 0);
 	sp->putb(sp, PCIC_POWER, 0);
 }
@@ -1030,26 +723,13 @@ pcicintr(void *arg)
 	int	slot, s;
 	unsigned char chg;
 	struct pcic_slot *sp = pcic_slots;
+	static int count = 0;
 
-#ifdef	PC98
-	if (sp->controller == PCIC_PC98) {
-	    slot = 0;
-	    s = splhigh();
-	    /* Check for a card in this slot */
-	    if (inb(PCIC98_REG1) & PCIC98_CARDEXIST) {
-		if (sp->slt->laststate != filled) {
-		    pccard_event(sp->slt, card_inserted);
-		}
-	    } else {
-		if (sp->slt->laststate != empty) {
-		    pccard_event(sp->slt, card_removed);
-		}
-	    }
-	    splx(s);
-	    return;
-	}
-#endif	/* PC98 */
+	if (count++ > 20)
+		Debugger("Trapdoor");	
+
 	s = splhigh();
+printf("splhigh for pcicintr\n");
 	for (slot = 0; slot < PCIC_MAX_SLOTS; slot++, sp++)
 		if (sp->slt && (chg = sp->getb(sp, PCIC_STAT_CHG)) != 0)
 			if (chg & PCIC_CDTCH) {
@@ -1060,6 +740,7 @@ pcicintr(void *arg)
 					pccard_event(sp->slt, card_removed);
 				}
 			}
+printf("splx\n");
 	splx(s);
 }
 
@@ -1070,12 +751,92 @@ static void
 pcic_resume(struct slot *slt)
 {
 	struct pcic_slot *sp = slt->cdata;
+
 	if (pcic_irq > 0)
 		sp->putb(sp, PCIC_STAT_INT, (pcic_irq << 4) | 0xF);
 	if (sp->controller == PCIC_PD672X) {
 		setb(sp, PCIC_MISC1, PCIC_SPKR_EN);
 		setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 	}
+}
+
+static int
+pcic_activate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct io_desc *ip = &devi->slt->io[rid];
+	int err;
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+#if 0
+		if (ip->flags & IODF_ACTIVE)
+			return EBUSY;
+#endif
+		ip->flags |= IODF_ACTIVE;
+		ip->start = rman_get_start(r);
+		ip->size = rman_get_end(r) - rman_get_start(r) + 1;
+		err = pcic_io(devi->slt, rid);
+		if (err) {
+			return err;
+		}
+		break;
+	case SYS_RES_IRQ:
+		pcic_mapirq(devi->slt, rman_get_start(r));
+		break;
+	case SYS_RES_MEMORY:
+	default:
+		break;
+	}
+	err = bus_generic_activate_resource(dev, child, type, rid, r);
+	return err;
+}
+
+static int
+pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
+    struct resource *r)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	struct io_desc *ip = &devi->slt->io[rid];
+	int err;
+
+	switch (type) {
+	case SYS_RES_IOPORT:
+#if 0
+		if (ip->flags & IODF_ACTIVE)
+			return EBUSY;
+#endif
+		ip->flags &= ~IODF_ACTIVE;
+		err = pcic_io(devi->slt, rid);
+		if (err) {
+			return err;
+		}
+		break;
+	case SYS_RES_IRQ:
+		pcic_mapirq(devi->slt, 0);
+		break;
+	case SYS_RES_MEMORY:
+	default:
+		break;
+	}
+	err = bus_generic_deactivate_resource(dev, child, type, rid, r);
+	return err;
+}
+
+static int
+pcic_setup_intr(device_t dev, device_t child, struct resource *irq, 
+    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+{
+	return (bus_generic_setup_intr(dev, child, irq, flags, intr, arg, 
+	    cookiep));
+}
+ 
+static int
+pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
+    void *cookie)
+{
+	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
 static device_method_t pcic_methods[] = {
@@ -1091,10 +852,10 @@ static device_method_t pcic_methods[] = {
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
+	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	pcic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	pcic_teardown_intr),
 
 	{ 0, 0 }
 };

@@ -183,6 +183,9 @@ device		xl0		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 # The probe order of these is presently determined by i386/isa/isa_compat.c.
 device		ed0	at isa? port 0x280 irq 10 iomem 0xd8000
 device		ie0	at isa? port 0x300 irq 10 iomem 0xd0000
+# NOTE: if you configure ep0 for pccard, use
+# device	ep0
+# instead.
 device		ep0	at isa? port 0x300 irq 10
 device		ex0	at isa? port? irq?
 device		fe0	at isa? port 0x300 irq ?

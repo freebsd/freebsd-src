@@ -72,8 +72,6 @@ struct slot_ctrl {
 	int	extra;		/* Controller specific size */
 	int	maxmem;		/* Number of allowed memory windows */
 	int	maxio;		/* Number of allowed I/O windows */
-	int	irqs;		/* IRQ's that are allowed */
-	u_int	*imask;		/* IRQ mask for the PCIC controller */
 
 	/*
 	 *	The rest is maintained by the mainline PC-CARD code.
@@ -83,43 +81,6 @@ struct slot_ctrl {
 };
 
 /*
- *	Driver structure - each driver registers itself
- *	with the mainline PC-CARD code. These drivers are
- *	then available for linking to the devices.
- */
-struct pccard_devinfo;
-
-struct pccard_device {
-	char	*name;					/* Driver name */
-	int (*enable)(struct pccard_devinfo *);		/* init/enable driver */
-	void (*disable)(struct pccard_devinfo *);	/* disable driver */
-	int (*handler)(struct pccard_devinfo *);	/* interrupt handler */
-	int	attr;					/* driver attributes */
-	unsigned int *imask;				/* Interrupt mask ptr */
-	driver_t *driver;			/* Driver */
-
-	struct pccard_device *next;
-};
-
-int pccard_module_handler __P((module_t mod, int what, void *arg));
-
-#define PCCARD_MODULE(name, enable, disable, handler, attr, imask) 	\
-static struct pccard_device name ## _info = {				\
-	#name,								\
-	enable,								\
-	disable,							\
-	handler,							\
-	attr,								\
-	&imask								\
-};									\
-static moduledata_t name ## _mod = {					\
-	"pccard_" #name,						\
-	pccard_module_handler,						\
-	&name ## _info							\
-};									\
-DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
-
-/*
  *	Device structure for cards. Each card may have one
  *	or more pccard drivers attached to it; each driver is assumed
  *	to require at most one interrupt handler, one I/O block
@@ -127,14 +88,13 @@ DECLARE_MODULE(name, name ## _mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
  *	devices together.
  */
 struct pccard_devinfo {
-	struct pccard_device *drv;
-	struct isa_device isahd;	/* Device details */
+	u_char	name[128];
+	struct isa_device isahd;
 	int running;			/* Current state of driver */
 	u_char	misc[128];		/* For any random info */
 	struct slot *slt;		/* Back pointer to slot */
 
-	struct resource *iorv;		/* Kludge: keep track of io resource */
-	struct resource *irqrv;		/* Kludge: keep track of irq */
+	struct resource_list resources;
 	struct pccard_devinfo *next;	/* List of drivers */
 };
 
@@ -170,6 +130,15 @@ enum card_event { card_removed, card_inserted };
 
 struct slot	*pccard_alloc_slot(struct slot_ctrl *);
 void		 pccard_event(struct slot *, enum card_event);
-void		 pccard_remove_controller(struct slot_ctrl *);
+
+static __inline__ const char *
+pccard_get_name(device_t dev)
+{
+	struct pccard_devinfo *devi = (struct pccard_devinfo *) 
+	    device_get_ivars(dev);
+	if (!devi)
+		return ("anonymous");
+	return (devi->name);
+}
 
 #endif /* !_PCCARD_SLOT_H */
