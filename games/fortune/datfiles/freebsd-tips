@@ -200,7 +200,7 @@ environment variable in order to make cdcontrol want to start.)
 %
 If you have a CD-ROM drive in your machine, you can make the CD-ROM that is
 presently inserted available by typing 'mount /cdrom' as root.   The CD-ROM
-will be available under /cdrom/.  Remember to do 'unmount /cdrom' before
+will be available under /cdrom/.  Remember to do 'umount /cdrom' before
 removing the CD-ROM (it will usually not be possible to remove the CD-ROM
 without doing this.)
 
