@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.11 1999/03/11 09:24:52 brian Exp $
+ *	$Id: natd.c,v 1.11.2.1 1999/03/24 17:12:59 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -250,6 +250,13 @@ int main (int argc, char** argv)
 	icmpSock = socket (AF_INET, SOCK_RAW, IPPROTO_ICMP);
 	if (icmpSock == -1)
 		Quit ("Unable to create ICMP socket.");
+
+/*
+ * And disable reads for the socket, otherwise it slowly fills
+ * up with received icmps which we do not use.
+ */
+	shutdown(icmpSock, SHUT_RD);
+
 /*
  * Become a daemon unless verbose mode was requested.
  */
