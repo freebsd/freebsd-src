@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.58 1998/11/11 07:40:44 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.59 1999/03/23 03:06:25 bde Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -10,14 +10,12 @@
 #
 # DISTRIBUTION  Name of distribution. [bin]
 #
-# EXPORT_SYMS	???
-#
 # KERN		Main Kernel source directory. [${.CURDIR}/../../sys/kern]
 #
 # KMOD          The name of the loadable kernel module to build.
 #
 # KMODDIR	Base path for loadable kernel modules
-#		(see lkm(4)). [/lkm]
+#		(see lkm(4)). [/modules]
 #
 # KMODOWN	LKM owner. [${BINOWN}]
 #
@@ -28,9 +26,9 @@
 # LINKS		The list of LKM links; should be full pathnames, the
 #               linked-to file coming first, followed by the linked
 #               file.  The files are hard-linked.  For example, to link
-#               /lkm/master and /lkm/meister, use:
+#               /modules/master and /modules/meister, use:
 #
-#			LINKS=  /lkm/master /lkm/meister
+#			LINKS=  /modules/master /modules/meister
 #
 # MODLOAD	Command to load a kernel module [/sbin/modload]
 #
@@ -40,8 +38,6 @@
 #
 # PROG          The name of the loadable kernel module to build. 
 #		If not supplied, ${KMOD}.o is used.
-#
-# PSEUDO_LKM	???
 #
 # SRCS          List of source files 
 #
@@ -94,18 +90,7 @@ __initialized__:
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
 CFLAGS+=	${COPTS} -DKERNEL ${CWARNFLAGS}
-.if defined(KLDMOD)
 CFLAGS+=	-DKLD_MODULE
-.else
-CFLAGS+=	-DACTUALLY_LKM_NOT_KERNEL
-.endif
-
-# Damn bsd.own.mk is included too early.
-.if defined(KLDMOD)
-.if ${KMODDIR} == /lkm
-KMODDIR=	/modules
-.endif
-.endif
 
 # Don't use any standard or source-relative include directories.
 # Since -nostdinc will annull any previous -I paths, we repeat all
@@ -124,51 +109,23 @@ CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
 
-.if !defined(KLDMOD)
-# XXX temporary until we build ELF kernels.
-CFLAGS+=	-aout
-LDFLAGS+=	-aout
-.endif
-
-.if defined(NOSHARED) && ( ${NOSHARED} != "no" && ${NOSHARED} != "NO" )
-LDFLAGS+= -static
-.endif
-
-EXPORT_SYMS?= _${KMOD}
-
-.if defined(VFS_LKM)
-CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops
-SRCS+=	vnode_if.h
-CLEANFILES+=	vnode_if.h vnode_if.c
-.endif
-
 .if defined(VFS_KLD)
-CFLAGS+= -DVFS_LKM -DVFS_KLD
-SRCS+=	vnode_if.h
+SRCS+=		vnode_if.h
 CLEANFILES+=	vnode_if.h vnode_if.c
 .endif
 
-.if defined(KLDMOD) && ${OBJFORMAT} == elf
+.if ${OBJFORMAT} == elf
 CLEANFILES+=	setdef0.c setdef1.c setdefs.h
 CLEANFILES+=	setdef0.o setdef1.o
-.endif
-
-.if defined(PSEUDO_LKM)
-CFLAGS+= -DPSEUDO_LKM
 .endif
 
 OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .if !defined(PROG)
-.if defined(KLDMOD)
 PROG=	${KMOD}.ko
-.else
-PROG=	${KMOD}.o
-.endif
 .endif
 
 ${PROG}: ${OBJS} ${DPADD} ${KMODDEPS}
-.if defined(KLDMOD)
 .if ${OBJFORMAT} == elf
 	gensetdefs ${OBJS}
 	${CC} ${CFLAGS} -c setdef0.c
@@ -176,16 +133,6 @@ ${PROG}: ${OBJS} ${DPADD} ${KMODDEPS}
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} setdef0.o ${OBJS} setdef1.o  ${KMODDEPS}
 .else
 	${LD} -Bshareable ${LDFLAGS} -o ${.TARGET} ${OBJS} ${KMODDEPS}
-.endif
-.else
-	${LD} -r ${LDFLAGS:N-static} -o tmp.o ${OBJS}
-.if defined(EXPORT_SYMS)
-	rm -f symb.tmp
-	for i in ${EXPORT_SYMS} ; do echo $$i >> symb.tmp ; done
-	symorder -c symb.tmp tmp.o
-	rm -f symb.tmp
-.endif
-	mv tmp.o ${.TARGET}
 .endif
 
 .if defined(KMODDEPS)
@@ -216,29 +163,11 @@ all: objwarn ${PROG} all-man _SUBDIR
 
 beforedepend ${OBJS}: ${_ILINKS}
 
-.if !defined(KLDMOD)
 # The search for the link targets works best if we are in a normal src
-# tree, and not too deeply below src/lkm.  If we are near "/", then
+# tree, and not too deeply below src/sys/modules.  If we are near "/", then
 # we may find /sys - this is harmless.  Other abnormal "sys" directories
 # found in the search are likely to cause problems.  If nothing is found,
 # then the links default to /usr/include and /usr/include/machine.
-${_ILINKS}:
-	@for up in ../.. ../../.. ; do \
-		case ${.TARGET} in \
-		machine) \
-			path=${.CURDIR}/$$up/sys/${MACHINE_ARCH}/include ; \
-			defaultpath=/usr/include/machine ;; \
-		@) \
-			path=${.CURDIR}/$$up/sys ; \
-			defaultpath=/usr/include ;; \
-		esac ; \
-		if [ -d $$path ] ; then break ; fi ; \
-		path=$$defaultpath ; \
-	done ; \
-	path=`(cd $$path && /bin/pwd)` ; \
-	${ECHO} ${.TARGET} "->" $$path ; \
-	ln -s $$path ${.TARGET}
-.else
 ${_ILINKS}:
 	@set +x; for up in ../.. ../../.. ; do \
 		case ${.TARGET} in \
@@ -257,9 +186,8 @@ ${_ILINKS}:
 	path=`(cd $$path && /bin/pwd)` ; \
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
-.endif
 
-CLEANFILES+= ${PROG} ${OBJS} ${_ILINKS} lkm_verify_tmp symb.tmp tmp.o
+CLEANFILES+= ${PROG} ${OBJS} ${_ILINKS} symb.tmp tmp.o
 
 .if !target(install)
 .if !target(beforeinstall)
@@ -331,11 +259,7 @@ KERN=	${.CURDIR}/../../sys/kern
 vnode_if.h:	${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 	sh ${KERN}/vnode_if.sh ${KERN}/vnode_if.src
 
-_sysregress:	${_INLINKS} ${PROG}
-	ld -A /sys/compile/LKM/kernel ${PROG} ${DEPLKMS} -o lkm_verify_tmp
-	rm lkm_verify_tmp
-
-regress:	_sysregress
+regress:
 
 .include <bsd.dep.mk>
 
