@@ -19,12 +19,13 @@
 #define DIST_COMPAT22		0x00800
 #define DIST_COMPAT3X		0x01000
 #endif
-#define DIST_XF86		0x02000
-#define DIST_CRYPTO		0x04000
-#define DIST_CATPAGES		0x08000
-#define DIST_PORTS		0x10000
-#define DIST_LOCAL		0x20000
-#define DIST_ALL		0x3FFFF
+#define DIST_COMPAT4X		0x02000
+#define DIST_XF86		0x04000
+#define DIST_CRYPTO		0x08000
+#define DIST_CATPAGES		0x10000
+#define DIST_PORTS		0x20000
+#define DIST_LOCAL		0x40000
+#define DIST_ALL		0x7FFFF
 
 /* Subtypes for CRYPTO distribution */
 #define DIST_CRYPTO_CRYPTO	0x0001

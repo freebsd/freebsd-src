@@ -57,6 +57,7 @@ _libvgl=	libvgl
 
 .if ${MACHINE_ARCH} == "alpha"
 _libio=		libio
+_compat=	compat
 .endif
 
 .if defined(RELEASEDIR) || \
