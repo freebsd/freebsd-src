@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.14.2.1 1995/06/07 07:25:09 davidg Exp $
+ * $Id: nfs_serv.c,v 1.15 1995/06/11 19:31:45 rgrimes Exp $
  */
 
 /*
@@ -85,6 +85,12 @@ extern u_long nfs_xdrneg1;
 extern u_long nfs_false, nfs_true;
 nfstype nfs_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFNON,
 		      NFCHR, NFNON };
+
+#ifdef NFS_ASYNC
+int nfs_async = 1;
+#else
+int nfs_async;
+#endif
 
 /*
  * nqnfs access service
@@ -575,7 +581,7 @@ nfsrv_write(nfsd, mrep, md, dpos, cred, nam, mrq)
 	register long t1;
 	caddr_t bpos;
 	int error = 0, rdonly, cache, siz, len, xfer;
-	int ioflags = IO_SYNC | IO_NODELOCKED;
+	int ioflags;
 	char *cp2;
 	struct mbuf *mb, *mb2, *mreq;
 	struct vnode *vp;
@@ -584,6 +590,11 @@ nfsrv_write(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct uio io, *uiop = &io;
 	off_t off;
 	u_quad_t frev;
+
+	if (nfs_async)
+		ioflags = IO_NODELOCKED;
+	else
+		ioflags = IO_SYNC | IO_NODELOCKED;
 
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
