@@ -238,9 +238,13 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	struct sockaddr_in sin;
+	char *endptr;
 	SVCXPRT *udptransp, *tcptransp;
 	int c, error, mib[3];
+	int tcpsock, udpsock;
 	struct vfsconf vfc;
+	in_port_t svcport;
 
 	error = getvfsbyname("nfs", &vfc);
 	if (error && vfsisloadable("nfs")) {
@@ -252,7 +256,7 @@ main(argc, argv)
 	if (error)
 		errx(1, "NFS support is not available in the running kernel");
 
-	while ((c = getopt(argc, argv, "2dlnr")) != -1)
+	while ((c = getopt(argc, argv, "2dlnp:r")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -268,6 +272,13 @@ main(argc, argv)
 			break;
 		case 'l':
 			log = 1;
+			break;
+		case 'p':
+			endptr = NULL;
+			svcport = (in_port_t)strtoul(optarg, &endptr, 10);
+			if (endptr == NULL || *endptr != '\0' ||
+			    svcport == 0 || svcport >= 65535)
+				usage();
 			break;
 		default:
 			usage();
@@ -313,8 +324,24 @@ main(argc, argv)
 			exit(1);
 		}
 	}
-	if ((udptransp = svcudp_create(RPC_ANYSOCK)) == NULL ||
-	    (tcptransp = svctcp_create(RPC_ANYSOCK, 0, 0)) == NULL) {
+	if ((udpsock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1 ||
+	    (tcpsock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+		syslog(LOG_ERR, "can't create socket");
+		exit(1);
+	}
+	if (svcport != 0) {
+		bzero(&sin, sizeof(struct sockaddr_in));
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_family = AF_INET;
+		sin.sin_port = htons(svcport);
+		if (bind(udpsock, (struct sockaddr *)&sin, sizeof(sin)) == -1 ||
+		    bind(tcpsock, (struct sockaddr *)&sin, sizeof(sin)) == -1) {
+			syslog(LOG_ERR, "can't bind socket");
+			exit(1);
+		}
+	}
+	if ((udptransp = svcudp_create(udpsock)) == NULL ||
+	    (tcptransp = svctcp_create(tcpsock, 0, 0)) == NULL) {
 		syslog(LOG_ERR, "can't create socket");
 		exit(1);
 	}
@@ -340,7 +367,8 @@ static void
 usage()
 {
 	fprintf(stderr,
-		"usage: mountd [-2] [-d] [-l] [-n] [-r] [export_file]\n");
+		"usage: mountd [-2] [-d] [-l] [-n] [-p <port>] [-r] "
+		"[export_file]\n");
 	exit(1);
 }
 
