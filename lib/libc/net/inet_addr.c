@@ -111,7 +111,7 @@ inet_aton(cp, addr)
 		errno = 0;
 		val = strtoul(c, &endptr, 0);
 
-		if (val == ERANGE)	/* Fail completely if it overflowed. */
+		if (errno == ERANGE)	/* Fail completely if it overflowed. */
 			return (0);
 		
 		/* 
