@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pw.8,v 1.3 1996/12/10 00:21:28 joerg Exp $
+.\"	$Id: pw.8,v 1.4 1996/12/11 00:07:19 joerg Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW 8
@@ -760,6 +760,26 @@ For a summary of options available with each command, you can use
 For example,
 .Dl pw useradd help
 lists all available options for the useradd operation.
+.Pp
+.Nm pw
+allows 8-bit characters in the passwd gecos field (user's full name,
+office, work and home phone number subfields), but disallows them in
+user login and group names.
+Use 8-bit characters with caution, as connection to the internet will
+require that your mail transport program supports 8BITMIME, and will
+convert headers containing 8-bit characters to 7-bit quoted-printable
+format.
+.Xr sendmail 8
+does support this.
+Use of 8-bit characters in the gecos field should be used in
+conjunction with the user's default locale and character set
+and should not be implemented without their use.
+Using 8-bit characters may also affect other
+programs that transmit the contents of the gecos field over the
+internet, such as
+.Xr fingerd 8 ,
+and a small number of tcpip clients, such as irc, where fullnames
+specified in the passwd file may be used by default.
 .Sh FILES
 .Bl -tag -width /etc/master.passwd.new -compact
 .It Pa /etc/master.passwd
