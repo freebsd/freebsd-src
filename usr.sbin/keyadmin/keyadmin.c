@@ -75,6 +75,9 @@ Research Laboratory (NRL).
  *	$ANA: keyadmin.c,v 1.2 1996/06/13 19:42:40 wollman Exp $
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
@@ -221,7 +224,7 @@ struct nametonum encralgorithms[] = {
  * These numbers should be defined in a header file somewhere
  * and shared with the consuming programs, once someone has
  * actually written the support in those programs (rspvd,
- * gated, and routed).  Probably <protocols/*>...?
+ * gated, and routed).  Probably <protocols/...>...?
  */
 #define RSVP_AUTHTYPE_MD5	1	/* XXX */
 struct nametonum rsvpalgorithms[] = {
@@ -825,7 +828,7 @@ void printkeymsg(kmp, kdp)
 
   printf("type=%d(%s) ",kmp->type, parsenumtoname(keytypes, kmp->type)); 
   printf("spi=%u ", kmp->spi);
-  printf("alogrithm=%u(%s) ", kmp->algorithm,
+  printf("algorithm=%u(%s) ", kmp->algorithm,
 	 parsenumtoname(algorithmtabs[parsenumtoflag(keytypes, kmp->type)],
 			kmp->algorithm));
   printf("state=0x%x ",kmp->state); 
