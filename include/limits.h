@@ -62,14 +62,14 @@
 #endif /* !_ANSI_SOURCE */
 
 #if (!defined(_ANSI_SOURCE)&&!defined(_POSIX_SOURCE)) || defined(_XOPEN_SOURCE)
-#define PASS_MAX		128
+#define PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
 
-#define NL_ARGMAX		9
-#define NL_LANGMAX		14
+#define NL_ARGMAX		99	/* max # of position args for printf */
+#define NL_LANGMAX		31	/* max LANG name length */
 #define NL_MSGMAX		32767
 #define NL_NMAX			1
 #define NL_SETMAX		255
-#define NL_TEXTMAX		255
+#define NL_TEXTMAX		2048
 #endif 
 
 #include <machine/limits.h>
