@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_dnslookup.c,v 1.9 1996/12/25 17:52:35 wpaul Exp $
+ *	$Id: yp_dnslookup.c,v 1.13 1997/01/07 04:48:52 wpaul Exp $
  */
 
 /*
@@ -65,7 +65,7 @@
 #include "yp_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.9 1996/12/25 17:52:35 wpaul Exp $";
+static const char rcsid[] = "$Id: yp_dnslookup.c,v 1.13 1997/01/07 04:48:52 wpaul Exp $";
 #endif
 
 static char *parse(hp)
@@ -97,6 +97,9 @@ static char *parse(hp)
 
 #define MAXPACKET 1024
 #define DEF_TTL 50
+
+#define BY_DNS_ID 1
+#define BY_RPC_XID 2
 
 extern struct hostent *__dns_getanswer __P((char *, int, char *, int));
 
@@ -191,14 +194,24 @@ static unsigned long yp_send_dns_query(name, type)
 	return(id);
 }
 
-static struct circleq_dnsentry *yp_find_dnsqent(id)
+static struct circleq_dnsentry *yp_find_dnsqent(id, type)
 	unsigned long id;
+	int type;
 {
 	register struct circleq_dnsentry *q;
 
 	for (q = qhead.cqh_first; q != (void *)&qhead; q = q->links.cqe_next) {
-		if (id == q->id)
-			return(q);
+		switch(type) {
+		case BY_RPC_XID:
+			if (id == q->xid)
+				return(q);
+			break;
+		case BY_DNS_ID:
+		default:
+			if (id == q->id)
+				return(q);
+			break;
+		}
 	}
 	return (NULL);
 }
@@ -357,7 +370,8 @@ void yp_run_dnsq()
 	 * on the floor.
 	 */
 	hptr = (HEADER *)&buf;
-	if (!pending || (q = yp_find_dnsqent(ntohs(hptr->id))) == NULL) {
+	if (!pending ||
+		(q = yp_find_dnsqent(ntohs(hptr->id), BY_DNS_ID)) == NULL) {
 		/* ignore */
 		return;
 	}
@@ -413,6 +427,18 @@ ypstat yp_async_lookup_name(rqstp, name)
 	register struct circleq_dnsentry *q;
 	int type, len;
 
+	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
+	if (getsockopt(rqstp->rq_xprt->xp_sock, SOL_SOCKET,
+					SO_TYPE, &type, &len) == -1) {
+		yp_error("getsockopt failed: %s", strerror(errno));
+		return(YP_YPERR);
+	}
+
+	/* Avoid transmitting dupe requests. */
+	if (type == SOCK_DGRAM &&
+	    yp_find_dnsqent(svcudp_get_xid(rqstp->rq_xprt),BY_RPC_XID) != NULL)
+		return(YP_TRUE);
+
 	if ((q = yp_malloc_dnsent()) == NULL)
 		return(YP_YPERR);
 
@@ -421,10 +447,6 @@ ypstat yp_async_lookup_name(rqstp, name)
 	q->xprt = rqstp->rq_xprt;
 	q->ypvers = rqstp->rq_vers;
 	type = -1; len = sizeof(type);
-	if (getsockopt(q->xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
-		yp_error("getsockopt failed: %s", strerror(errno));
-		return(YP_YPERR);
-	}
 	q->prot_type = type;
 	if (q->prot_type == SOCK_DGRAM)
 		q->xid = svcudp_get_xid(q->xprt);
@@ -463,14 +485,25 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	int a, b, c, d;
 	int type, len;
 
+	/* Check for SOCK_DGRAM or SOCK_STREAM -- we need to know later */
+	if (getsockopt(rqstp->rq_xprt->xp_sock, SOL_SOCKET,
+					SO_TYPE, &type, &len) == -1) {
+		yp_error("getsockopt failed: %s", strerror(errno));
+		return(YP_YPERR);
+	}
+
+	/* Avoid transmitting dupe requests. */
+	if (type == SOCK_DGRAM && 
+	    yp_find_dnsqent(svcudp_get_xid(rqstp->rq_xprt),BY_RPC_XID) != NULL)
+		return(YP_TRUE);
+
 	if ((q = yp_malloc_dnsent()) == NULL)
 		return(YP_YPERR);
 
 	if (sscanf(addr, "%d.%d.%d.%d", &a, &b, &c, &d) != 4)
 		return(YP_NOKEY);
 
-	snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa",
-					d, c, b, a, addr);
+	snprintf(buf, sizeof(buf), "%d.%d.%d.%d.in-addr.arpa", d, c, b, a);
 
 	if (debug)
 		yp_error("DNS address is: %s", buf);
@@ -481,10 +514,6 @@ ypstat yp_async_lookup_addr(rqstp, addr)
 	q->ypvers = rqstp->rq_vers;
 	q->domain = NULL;
 	type = -1; len = sizeof(type);
-	if (getsockopt(q->xprt->xp_sock,SOL_SOCKET,SO_TYPE,&type,&len) == -1) {
-		yp_error("getsockopt failed: %s", strerror(errno));
-		return(YP_YPERR);
-	}
 	q->prot_type = type;
 	if (q->prot_type == SOCK_DGRAM)
 		q->xid = svcudp_get_xid(q->xprt);
