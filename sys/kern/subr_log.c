@@ -50,17 +50,21 @@
 #include <sys/kernel.h>
 #include <sys/poll.h>
 #include <sys/filedesc.h>
+#include <sys/sysctl.h>
 
 #define LOG_RDPRI	(PZERO + 1)
 
 #define LOG_ASYNC	0x04
 #define LOG_RDWAIT	0x08
+#define LOG_NEEDWAKEUP	0x10
 
 static	d_open_t	logopen;
 static	d_close_t	logclose;
 static	d_read_t	logread;
 static	d_ioctl_t	logioctl;
 static	d_poll_t	logpoll;
+
+static	void logtimeout(void *arg);
 
 #define CDEV_MAJOR 7
 static struct cdevsw log_cdevsw = {
@@ -84,9 +88,15 @@ static struct logsoftc {
 	int	sc_state;		/* see above for possibilities */
 	struct	selinfo sc_selp;	/* process waiting on select call */
 	struct  sigio *sc_sigio;	/* information for async I/O */
+	struct	callout sc_callout;	/* callout to wakeup syslog  */
 } logsoftc;
 
 int	log_open;			/* also used in log() */
+
+/* Times per second to check for a pending syslog wakeup. */
+static int	log_wakeups_per_second = 5;
+SYSCTL_INT(_kern, OID_AUTO, log_wakeups_per_second, CTLFLAG_RW,
+    &log_wakeups_per_second, 0, "");
 
 /*ARGSUSED*/
 static	int
@@ -95,7 +105,10 @@ logopen(dev_t dev, int flags, int mode, struct proc *p)
 	if (log_open)
 		return (EBUSY);
 	log_open = 1;
+	callout_init(&logsoftc.sc_callout, 0);
 	fsetown(p->p_pid, &logsoftc.sc_sigio);	/* signal process only */
+	callout_reset(&logsoftc.sc_callout, hz / log_wakeups_per_second,
+	    logtimeout, NULL);
 	return (0);
 }
 
@@ -104,6 +117,7 @@ static	int
 logclose(dev_t dev, int flag, int mode, struct proc *p)
 {
 
+	callout_stop(&logsoftc.sc_callout);
 	log_open = 0;
 	logsoftc.sc_state = 0;
 	funsetown(logsoftc.sc_sigio);
@@ -175,6 +189,19 @@ logpoll(dev_t dev, int events, struct proc *p)
 void
 logwakeup(void)
 {
+
+	if (!log_open)
+		return;
+	logsoftc.sc_state |= LOG_NEEDWAKEUP;
+}
+
+static void
+logtimeout(void *arg)
+{
+
+	if ((logsoftc.sc_state & LOG_NEEDWAKEUP) == 0)
+		return;
+	logsoftc.sc_state &= ~LOG_NEEDWAKEUP;
 	if (!log_open)
 		return;
 	selwakeup(&logsoftc.sc_selp);
@@ -184,6 +211,8 @@ logwakeup(void)
 		wakeup((caddr_t)msgbufp);
 		logsoftc.sc_state &= ~LOG_RDWAIT;
 	}
+	callout_reset(&logsoftc.sc_callout, hz / log_wakeups_per_second,
+	    logtimeout, NULL);
 }
 
 /*ARGSUSED*/
