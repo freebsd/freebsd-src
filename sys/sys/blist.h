@@ -33,20 +33,6 @@
 
 typedef	u_int32_t	u_daddr_t;	/* unsigned disk address */
 
-static __inline int
-LOG2(u_daddr_t v)
-{
-        int i = -1;
-
-        if (!v)
-                return(0);
-        while (v) {
-                i++;
-                v >>= 1;
-        }
-        return (i);
-}
-
 /*
  * blmeta and bl_bitmap_t MUST be a power of 2 in size.
  */
@@ -69,9 +55,7 @@ typedef struct blist {
 } *blist_t;
 
 #define BLIST_META_RADIX	16
-#define BLIST_META_RADIX_SHIFT	LOG2(BLIST_META_RADIX)
 #define BLIST_BMAP_RADIX	(sizeof(u_daddr_t)*8)
-#define BLIST_BMAP_RADIX_SHIFT	LOG2(BLIST_BMAP_RADIX)
 
 #define BLIST_MAX_ALLOC		BLIST_BMAP_RADIX
 
