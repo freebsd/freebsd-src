@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.52 1997/05/07 10:44:08 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.53 1997/05/07 16:32:31 wosch Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/05/07 10:44:08 $</date>
+<date>$Date: 1997/05/07 16:32:31 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1012,7 +1012,9 @@ drivedata: 0
           one or two broken EISA and VLB devices may need it as well).
 
 	  Also look at the section on <ref id="reallybigram"
-	  name="&gt;64M machines"> if you have that much memory.
+	  name="&gt;64M machines"> if you have that much memory,
+	  or if you're using a Compaq or other BIOS that lies about
+	  the available memory.
 
       <sect1>
 	<heading>I keep seeing messages like ``<tt/ed1: timeout/''.</heading>
@@ -2799,7 +2801,9 @@ disk        fd1   at fdc0 drive 1
           Due to the manner in which FreeBSD gets the memory size from the
           BIOS, it can only detect 16 bits worth of Kbytes in size (65535
           Kbytes = 64MB). If you have more than 64MB, FreeBSD will only see
-          the first 64MB. To work around this problem, you need to use the
+          the first 64MB (or less... some BIOSes peg the memory size to 16M).
+
+	  To work around this problem, you need to use the
           kernel option specified below. There is a way to get complete
           memory information from the BIOS, but we don't have room in the
           bootblocks to do it. Someday when lack of room in the bootblocks
@@ -2812,7 +2816,7 @@ disk        fd1   at fdc0 drive 1
           </tt>
 
           Where <tt/n/ is your memory in Kilobytes. For a 128 MB machine,
-          you'd want to use <tt/131072/
+          you'd want to use <tt/131072/.
 
       <sect1>
         <heading>FreeBSD 2.0 panics with ``kmem_map too small!''</heading>
