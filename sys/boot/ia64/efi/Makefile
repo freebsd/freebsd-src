@@ -11,7 +11,7 @@ CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
 CFLAGS+=	-I${.CURDIR}/../../efi/libefi
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
-.if !defined(NOFORTH)
+.if !defined(NO_FORTH)
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH
 CFLAGS+=	-I${.CURDIR}/../../ficl

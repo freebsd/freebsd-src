@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.if !defined(NOFORTH)
+.if !defined(NO_FORTH)
 # Build the add-in FORTH interpreter.
 SUBDIR+=		ficl
 .endif
