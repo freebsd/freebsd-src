@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.6 1994/09/30 00:38:34 ache Exp $
+ * $Id: kern_sig.c,v 1.7 1994/10/10 01:00:47 phk Exp $
  */
 
 #define	SIGPROP		/* include signal properties table */
@@ -1173,7 +1173,7 @@ coredump(p)
 	sprintf(name, "%s.core", p->p_comm);
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, name, p);
 	if ((error = vn_open(&nd,
-	    O_CREAT | FWRITE, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)))
+	    O_CREAT | FWRITE, S_IRUSR | S_IWUSR)))
 		return (error);
 	vp = nd.ni_vp;
 
