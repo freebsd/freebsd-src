@@ -1886,6 +1886,12 @@ cpu	EV5		# depends on the CPU model installed</programlisting>
       PC power supply). Before servicing the machine remove the 
       power cord.</para>
 
+      <para>The smart power controller is called the RMC. When enabled, 
+      typing <keycap>Escape</keycap><keycap>Escape</keycap>RMC on serial port 1
+      will bring you to the RMC prompt. RMC allows you to powerup or powerdown,
+      reset the machine, monitor and set temperature trip levels etc. RMC
+      has its own builtin help.</para>
+
       <para>Webbrick is shipped in a desktop-style case similar to the older 
       21164 <quote>Maverick</quote> workstations but this case offers much better access 
       to the components. If you intend to build a farm you can rackmount them 
@@ -2144,6 +2150,17 @@ cpu	EV5</programlisting>
       enclosure also contains a StorageWorks SCSI hot-swap shelf for a
       maximum of seven 3.5&quot; SCSI devices.  The DS20E is in a sleeker
       case, and lacks the StorageWorks shelf.</para>
+
+      <para>The system has a smart power controller. This means that parts
+      of the system remain powered when it is switched off (like an ATX-style
+      PC power supply). Before servicing the machine remove the
+      power cord(s).</para>
+    
+      <para>The smart power controller is called the RMC. When enabled,
+      typing <keycap>Escape</keycap><keycap>Escape</keycap>RMC on serial port 1
+      will bring you to the RMC prompt. RMC allows you to powerup or powerdown,
+      reset the machine, monitor and set temperature trip levels etc. RMC
+      has its own builtin help.</para>
 
       <para>The embedded Adaptec SCSI chip on the DS20 is disabled and
       is therefore not usable under &os;.</para>
