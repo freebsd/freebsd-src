@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.50 1997/05/14 01:18:51 brian Exp $
+ * $Id: main.c,v 1.51 1997/05/17 16:08:46 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -69,6 +69,7 @@ extern int aft_cmd;
 extern int IsInteractive();
 static void DoLoop(void);
 static void TerminalStop();
+static char *ex_desc();
 
 static struct termios oldtio;		/* Original tty mode */
 static struct termios comtio;		/* Command level tty mode */
@@ -168,7 +169,7 @@ int excode;
   OsLinkdown();
   OsCloseLink(1);
   sleep(1);
-  if (mode & (MODE_AUTO | MODE_BACKGROUND))
+  if (mode & MODE_AUTO)
     DeleteIfRoutes(1);
   (void)unlink(pid_filename);
   (void)unlink(if_filename);
@@ -181,7 +182,7 @@ int excode;
       LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of failure.\n");
     close(BGFiledes[1]);
   }
-  LogPrintf(LOG_PHASE_BIT, "PPP Terminated %d.\n",excode);
+  LogPrintf(LOG_PHASE_BIT, "PPP Terminated (%s).\n",ex_desc(excode));
   LogClose();
   if (server >= 0) {
     close(server);
@@ -223,6 +224,7 @@ int signo;
    else {
      LogPrintf(LOG_PHASE_BIT, "Signal %d, terminate.\n", signo);
      LcpClose();
+     reconnectCount = 0;
      Cleanup(EX_TERM);
    }
 }
@@ -245,6 +247,19 @@ int signo;
   kill(getpid(), signo);
 }
 
+static char *
+ex_desc(int ex)
+{
+  static char num[12];
+  static char *desc[] = { "normal", "start", "sock",
+    "modem", "dial", "dead", "done", "reboot", "errdead",
+    "hangup", "term", "nodial", "nologin" };
+
+  if (ex >= 0 && ex < sizeof(desc)/sizeof(*desc))
+    return desc[ex];
+  snprintf(num, sizeof num, "%d", ex);
+  return num;
+}
 
 void
 Usage()
@@ -266,7 +281,7 @@ ProcessArgs(int argc, char **argv)
     if (strcmp(cp, "auto") == 0)
       mode |= MODE_AUTO;
     else if (strcmp(cp, "background") == 0)
-      mode |= MODE_BACKGROUND;
+      mode |= MODE_BACKGROUND|MODE_AUTO;
     else if (strcmp(cp, "direct") == 0)
       mode |= MODE_DIRECT;
     else if (strcmp(cp, "dedicated") == 0)
@@ -339,7 +354,7 @@ char **argv;
     exit(EX_START);
   }
 
-  if (mode & (MODE_AUTO|MODE_DIRECT|MODE_DEDICATED|MODE_BACKGROUND))
+  if (mode & (MODE_AUTO|MODE_DIRECT|MODE_DEDICATED))
     mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
     printf("Interactive mode\n");
@@ -347,14 +362,8 @@ char **argv;
   } else if (mode & MODE_AUTO) {
     printf("Automatic Dialer mode\n");
     if (dstsystem == NULL) {
-      fprintf(stderr,
-              "Destination system must be specified in auto or ddial mode.\n");
-      exit(EX_START);
-    }
-  } else if (mode & MODE_BACKGROUND) {
-    printf("Background mode\n");
-    if (dstsystem == NULL) {
-      fprintf(stderr, "Destination system must be specified in background mode.\n");
+      fprintf(stderr, "Destination system must be specified in"
+              " auto, background or ddial mode.\n");
       exit(EX_START);
     }
   }
@@ -393,7 +402,8 @@ char **argv;
       Cleanup(EX_START);
     }
     if ((mode & MODE_AUTO) && DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
-      fprintf(stderr, "Must specify dstaddr with auto or ddial mode.\n");
+      fprintf(stderr, "Must specify dstaddr with"
+              " auto, background or ddial mode.\n");
       Cleanup(EX_START);
     }
   }
@@ -402,33 +412,31 @@ char **argv;
 
   if (!(mode & MODE_INTER)) {
     int port = SERVER_PORT + tunno;
+
     if (mode & MODE_BACKGROUND) {
       if (pipe (BGFiledes)) {
 	perror("pipe");
 	Cleanup(EX_SOCK);
       }
     }
-    else {
-      /*
-       *  Create server socket and listen at there.
-       */
-      server = socket(PF_INET, SOCK_STREAM, 0);
-      if (server < 0) {
-	perror("socket");
-	Cleanup(EX_SOCK);
-      }
-      ifsin.sin_family = AF_INET;
-      ifsin.sin_addr.s_addr = INADDR_ANY;
-      ifsin.sin_port = htons(port);
-      if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
-	perror("bind");
-	if (errno == EADDRINUSE)
-	  fprintf(stderr, "Wait for a while, then try again.\n");
-	Cleanup(EX_SOCK);
-      }
-      if (listen(server, 5) != 0) {
-	fprintf(stderr, "Unable to listen to socket - OS overload?\n");
-      }
+
+    /* Create server socket and listen at there. */
+    server = socket(PF_INET, SOCK_STREAM, 0);
+    if (server < 0) {
+      perror("socket");
+      Cleanup(EX_SOCK);
+    }
+    ifsin.sin_family = AF_INET;
+    ifsin.sin_addr.s_addr = INADDR_ANY;
+    ifsin.sin_port = htons(port);
+    if (bind(server, (struct sockaddr *) &ifsin, sizeof(ifsin)) < 0) {
+      perror("bind");
+      if (errno == EADDRINUSE)
+        fprintf(stderr, "Wait for a while, then try again.\n");
+      Cleanup(EX_SOCK);
+    }
+    if (listen(server, 5) != 0) {
+      fprintf(stderr, "Unable to listen to socket - OS overload?\n");
     }
 
     DupLog();
@@ -447,12 +455,16 @@ char **argv;
 	  /* Wait for our child to close its pipe before we exit. */
 	  BGPid = bgpid;
           close (BGFiledes[1]);
-	  if (read(BGFiledes[0], &c, 1) != 1)
+	  if (read(BGFiledes[0], &c, 1) != 1) {
+	    printf("Child exit, no status.\n");
 	    LogPrintf (LOG_PHASE_BIT, "Parent: Child exit, no status.\n");
-	  else if (c == EX_NORMAL)
+	  } else if (c == EX_NORMAL) {
+	    printf("PPP enabled.\n");
 	    LogPrintf (LOG_PHASE_BIT, "Parent: PPP enabled.\n");
-	  else
+	  } else {
+	    printf("Child failed %d.\n",(int)c);
 	    LogPrintf (LOG_PHASE_BIT, "Parent: Child failed %d.\n",(int)c);
+          }
           close (BGFiledes[0]);
 	}
         exit(c);
@@ -728,7 +740,7 @@ DoLoop()
 
   pgroup = getpgrp();
 
-  if (mode & (MODE_DIRECT|MODE_BACKGROUND)) {
+  if (mode & MODE_DIRECT) {
     modem = OpenModem(mode);
     LogPrintf(LOG_PHASE_BIT, "Packet mode enabled\n");
     fflush(stderr);
@@ -742,7 +754,7 @@ DoLoop()
 
   timeout.tv_sec = 0;
   timeout.tv_usec = 0;
-  lostCarrier = 0;
+  reconnectRequired = 0;
 
   if (mode & MODE_BACKGROUND)
     dial_up = TRUE;			/* Bring the line up */
@@ -763,19 +775,26 @@ DoLoop()
     /*
      * If we lost carrier and want to re-establish the connection
      * due to the "set reconnect" value, we'd better bring the line
-     * back up now.
+     * back up.
      */
-    if (LcpFsm.state <= ST_CLOSED && dial_up != TRUE && lostCarrier)
-      if (lostCarrier <= VarReconnectTries) {
-        LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
-                  lostCarrier, VarReconnectTries);
-	StartRedialTimer(VarReconnectTimer);
-        dial_up = TRUE;
-      } else {
-        LogPrintf(LOG_PHASE_BIT, "Connection lost, maximum (%d) times\n",
-                  VarReconnectTries);
-        lostCarrier = 0;
+    if (LcpFsm.state <= ST_CLOSED) {
+      if (dial_up != TRUE && reconnectRequired) {
+        if (++reconnectCount <= VarReconnectTries) {
+          LogPrintf(LOG_PHASE_BIT, "Connection lost, re-establish (%d/%d)\n",
+                    reconnectCount, VarReconnectTries);
+	  StartRedialTimer(VarReconnectTimer);
+          dial_up = TRUE;
+        } else {
+          if (VarReconnectTries)
+            LogPrintf(LOG_PHASE_BIT, "Connection lost, maximum (%d) times\n",
+                      VarReconnectTries);
+          reconnectCount = 0;
+          if (mode & MODE_BACKGROUND)
+            Cleanup(EX_DEAD);
+        }
       }
+      reconnectRequired = 0;
+    }
 
    /*
     * If Ip packet for output is enqueued and require dial up, 
