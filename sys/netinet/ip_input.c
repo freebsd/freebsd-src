@@ -247,14 +247,23 @@ ip_init()
 	in_ifaddrhashtbl = hashinit(INADDR_NHASH, M_IFADDR, &in_ifaddrhmask);
 	pr = pffindproto(PF_INET, IPPROTO_RAW, SOCK_RAW);
 	if (pr == 0)
-		panic("ip_init");
+		panic("ip_init: PF_INET not found");
+
+	/* Initialize the entire ip_protox[] array to IPPROTO_RAW. */
 	for (i = 0; i < IPPROTO_MAX; i++)
 		ip_protox[i] = pr - inetsw;
+	/*
+	 * Cycle through IP protocols and put them into the appropriate place
+	 * in ip_protox[].
+	 */
 	for (pr = inetdomain.dom_protosw;
 	    pr < inetdomain.dom_protoswNPROTOSW; pr++)
 		if (pr->pr_domain->dom_family == PF_INET &&
-		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
-			ip_protox[pr->pr_protocol] = pr - inetsw;
+		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW) {
+			/* Be careful to only index valid IP protocols. */
+			if (pr->pr_protocol && pr->pr_protocol < IPPROTO_MAX)
+				ip_protox[pr->pr_protocol] = pr - inetsw;
+		}
 
 	/* Initialize packet filter hooks. */
 	inet_pfil_hook.ph_type = PFIL_TYPE_AF;
@@ -263,13 +272,14 @@ ip_init()
 		printf("%s: WARNING: unable to register pfil hook, "
 			"error %d\n", __func__, i);
 
+	/* Initialize IP reassembly queue. */
 	IPQ_LOCK_INIT();
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    TAILQ_INIT(&ipq[i]);
-
 	maxnipq = nmbclusters / 32;
 	maxfragsperpacket = 16;
 
+	/* Initialize various other remaining things. */
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
