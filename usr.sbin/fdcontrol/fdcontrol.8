@@ -44,7 +44,7 @@ disk device specified by
 .Ar device .
 .Ar Device
 should be a character device.
-
+.Pp
 .Nm Fdcontrol
 currently supports the specification of device parameters for the
 floppy disk drive
@@ -57,35 +57,32 @@ floppy driver has been compiled into the kernel with the
 .Em DEBUG
 option set
 .Pq Fl d .
-
+.Pp
 Since the implications of such actions are considered harmful, the
 underlying
 .Xr ioctl 2
 command is restricted to the super-user.
-
+.Pp
 When requesting a new parameter specification, the command asks the
 user for each individual tunable parameter, defaulting to the
 currently used value.
-
 .Sh DIAGNOSTICS
 Error codes for the underlying
 .Xr ioctl 2
 commands are printed by the
 .Xr perror 3
 facility.
-
 .Sh BUGS
 The
 .Nm
 command is currently under development. It's user interface is rather
 silly and likely to change in future, options should be provided to
 allow anything being modified from the command line.
-
+.Pp
 The driver does actually support only two debug levels
 .Pq 0 and 1 ,
 where debug level 1 will generate huge amounts of output. It is likely
 to overflow the syslog if not used with extreme care.
-
 .Sh SEE ALSO
 .Xr fdc 4 ,
 .Xr ioctl 2 ,
