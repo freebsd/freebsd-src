@@ -68,6 +68,7 @@ typedef struct acpi_softc {
 	int	system_state_initialized;
 	int	broken_wakeuplogic;
 	int	enabled;
+	u_int32_t ignore_events;
 	struct	acpi_system_state_package system_state_package;
 	LIST_HEAD(, acpi_powerres_info) acpi_powerres_inflist;
 	LIST_HEAD(, acpi_powerres_device) acpi_powerres_devlist;
