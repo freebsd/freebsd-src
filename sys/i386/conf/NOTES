@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.355 1997/08/01 03:33:05 msmith Exp $
+#	$Id: LINT,v 1.356 1997/08/02 05:20:10 msmith Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1179,6 +1179,28 @@ controller	pcic1 at crd?
 # power supply dropped, or battery state low) by issuing an NMI:
 
 options		POWERFAIL_NMI	# make it beep instead of panicing
+
+#
+# Parallel-Port Bus
+#
+# Parallel port bus support is provided by the `ppbus' device.
+# Multiple devices may be attached to the parallel port, devices
+# are automatically probed and attached when found.
+#
+# Supported devices:
+# vpo	Iomega Zip Drive
+# nlpt	Parallel Printer
+# ppi	General-purpose I/O ("Geek Port")
+#
+# Supported interfaces:
+# ppc	ISA-bus parallel port interfaces.  
+#
+controller	ppbus0
+controller	vpo0	at ppbus?
+device		nlpt0	at ppbus?
+device		ppi0	at ppbus?
+
+controller	ppc0	at isa? disable port ? irq 7 vector ppcintr
 
 # Kernel BOOTP support 
 
