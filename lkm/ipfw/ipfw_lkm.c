@@ -84,7 +84,7 @@ int s=splnet();
 	return 0;
 }
 
-ipfw_init(struct lkm_table *lkmtp, int cmd, int ver)
+ipfw_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, ipfw_load, ipfw_unload, nosys);
 }
