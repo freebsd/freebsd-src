@@ -499,7 +499,7 @@ via_82c586:
 	}
 	/* make sure eventual UDMA mode from the BIOS is disabled */
 	pci_write_config(parent, scp->channel ? 0x7b : 0x73, 
-			 pci_read_config(parent, scp->channel ? 0x7b : 0x73, 1) &
+			 pci_read_config(parent, scp->channel ? 0x7b : 0x73, 1)&
 			 ~(device == ATA_MASTER ? 0x35 : 0xca), 1);
 	/* FALLTHROUGH */
 
@@ -1030,6 +1030,11 @@ hpt_timing(struct ata_softc *scp, int devno, int mode)
 
 #else /* NPCI > 0 */
 
+void *
+ata_dmaalloc(struct ata_softc *scp, int device)
+{
+}
+
 void
 ata_dmainit(struct ata_softc *scp, int device,
 	    int piomode, int wdmamode, int udmamode)
@@ -1037,14 +1042,15 @@ ata_dmainit(struct ata_softc *scp, int device,
 }
 
 int
-ata_dmasetup(struct ata_softc *scp, int device,
-	     int8_t *data, int32_t count, int flags)
+ata_dmasetup(struct ata_softc *scp, int device, struct ata_dmaentry *dmatab,
+	     caddr_t data, int32_t count)
 {
     return -1;
 }
 
-void 
-ata_dmastart(struct ata_softc *scp)
+void
+ata_dmastart(struct ata_softc *scp, int device, 
+	     struct ata_dmaentry *dmatab, int dir)
 {
 }
 
