@@ -145,7 +145,9 @@ static void	init_turnstile0(void *dummy);
 #ifdef TURNSTILE_PROFILING
 static void	init_turnstile_profiling(void *arg);
 #endif
-static void	propagate_priority(struct thread *);
+static void	propagate_priority(struct thread *td);
+static int	turnstile_adjust_thread(struct turnstile *ts,
+		    struct thread *td);
 static void	turnstile_setowner(struct turnstile *ts, struct thread *owner);
 
 /*
@@ -158,7 +160,6 @@ propagate_priority(struct thread *td)
 {
 	struct turnstile_chain *tc;
 	struct turnstile *ts;
-	struct thread *td1;
 	int pri;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -187,8 +188,8 @@ propagate_priority(struct thread *td)
 		 * isn't SRUN or SLOCK.
 		 */
 		KASSERT(!TD_IS_SLEEPING(td),
-		    ("sleeping thread (pid %d) owns a non-sleepable lock",
-		    td->td_proc->p_pid));
+		    ("sleeping thread (tid %d) owns a non-sleepable lock",
+		    td->td_tid));
 
 		/*
 		 * If this thread already has higher priority than the
@@ -198,10 +199,16 @@ propagate_priority(struct thread *td)
 			return;
 
 		/*
-		 * If lock holder is actually running, just bump priority.
+		 * Bump this thread's priority.
 		 */
-		if (TD_IS_RUNNING(td)) {
-			td->td_priority = pri;
+		sched_lend_prio(td, pri);
+
+		/*
+		 * If lock holder is actually running or on the run queue
+		 * then we are done.
+		 */
+		if (TD_IS_RUNNING(td) || TD_ON_RUNQ(td)) {
+			MPASS(td->td_blocked == NULL);
 			return;
 		}
 
@@ -214,27 +221,11 @@ propagate_priority(struct thread *td)
 #endif
 
 		/*
-		 * If on run queue move to new run queue, and quit.
-		 * XXXKSE this gets a lot more complicated under threads
-		 * but try anyhow.
-		 */
-		if (TD_ON_RUNQ(td)) {
-			MPASS(td->td_blocked == NULL);
-			sched_prio(td, pri);
-			return;
-		}
-
-		/*
-		 * Bump this thread's priority.
-		 */
-		td->td_priority = pri;
-
-		/*
 		 * If we aren't blocked on a lock, we should be.
 		 */
 		KASSERT(TD_ON_LOCK(td), (
-		    "process %d(%s):%d holds %s but isn't blocked on a lock\n",
-		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_state,
+		    "thread %d(%s):%d holds %s but isn't blocked on a lock\n",
+		    td->td_tid, td->td_proc->p_comm, td->td_state,
 		    ts->ts_lockobj->lo_name));
 
 		/*
@@ -245,61 +236,81 @@ propagate_priority(struct thread *td)
 		tc = TC_LOOKUP(ts->ts_lockobj);
 		mtx_lock_spin(&tc->tc_lock);
 
-		/*
-		 * This thread may not be blocked on this turnstile anymore
-		 * but instead might already be woken up on another CPU
-		 * that is waiting on sched_lock in turnstile_unpend() to
-		 * finish waking this thread up.  We can detect this case
-		 * by checking to see if this thread has been given a
-		 * turnstile by either turnstile_signal() or
-		 * turnstile_broadcast().  In this case, treat the thread as
-		 * if it was already running.
-		 */
-		if (td->td_turnstile != NULL) {
+		/* Resort td on the list if needed. */
+		if (!turnstile_adjust_thread(ts, td)) {
 			mtx_unlock_spin(&tc->tc_lock);
 			return;
 		}
+		mtx_unlock_spin(&tc->tc_lock);
+	}
+}
 
-		/*
-		 * Check if the thread needs to be moved up on
-		 * the blocked chain.  It doesn't need to be moved
-		 * if it is already at the head of the list or if
-		 * the item in front of it still has a higher priority.
-		 */
-		if (td == TAILQ_FIRST(&ts->ts_blocked)) {
-			mtx_unlock_spin(&tc->tc_lock);
-			continue;
-		}
+/*
+ * Adjust the thread's position on a turnstile after its priority has been
+ * changed.
+ */
+static int
+turnstile_adjust_thread(struct turnstile *ts, struct thread *td)
+{
+	struct turnstile_chain *tc;
+	struct thread *td1, *td2;
 
-		td1 = TAILQ_PREV(td, threadqueue, td_lockq);
-		if (td1->td_priority <= pri) {
-			mtx_unlock_spin(&tc->tc_lock);
-			continue;
-		}
+	mtx_assert(&sched_lock, MA_OWNED);
+	MPASS(TD_ON_LOCK(td));
+
+	/*
+	 * This thread may not be blocked on this turnstile anymore
+	 * but instead might already be woken up on another CPU
+	 * that is waiting on sched_lock in turnstile_unpend() to
+	 * finish waking this thread up.  We can detect this case
+	 * by checking to see if this thread has been given a
+	 * turnstile by either turnstile_signal() or
+	 * turnstile_broadcast().  In this case, treat the thread as
+	 * if it was already running.
+	 */
+	if (td->td_turnstile != NULL)
+		return (0);
+
+	/*
+	 * Check if the thread needs to be moved on the blocked chain.
+	 * It needs to be moved if either its priority is lower than
+	 * the previous thread or higher than the next thread.
+	 */
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
+	td1 = TAILQ_PREV(td, threadqueue, td_lockq);
+	td2 = TAILQ_NEXT(td, td_lockq);
+	if ((td1 != NULL && td->td_priority < td1->td_priority) ||
+	    (td2 != NULL && td->td_priority > td2->td_priority)) {
 
 		/*
 		 * Remove thread from blocked chain and determine where
-		 * it should be moved up to.  Since we know that td1 has
-		 * a lower priority than td, we know that at least one
-		 * thread in the chain has a lower priority and that
-		 * td1 will thus not be NULL after the loop.
+		 * it should be moved to.
 		 */
 		mtx_lock_spin(&td_contested_lock);
 		TAILQ_REMOVE(&ts->ts_blocked, td, td_lockq);
 		TAILQ_FOREACH(td1, &ts->ts_blocked, td_lockq) {
 			MPASS(td1->td_proc->p_magic == P_MAGIC);
-			if (td1->td_priority > pri)
+			if (td1->td_priority > td->td_priority)
 				break;
 		}
 
-		MPASS(td1 != NULL);
-		TAILQ_INSERT_BEFORE(td1, td, td_lockq);
+		if (td1 == NULL)
+			TAILQ_INSERT_TAIL(&ts->ts_blocked, td, td_lockq);
+		else
+			TAILQ_INSERT_BEFORE(td1, td, td_lockq);
 		mtx_unlock_spin(&td_contested_lock);
-		CTR4(KTR_LOCK,
-		    "propagate_priority: td %p moved before %p on [%p] %s",
-		    td, td1, ts->ts_lockobj, ts->ts_lockobj->lo_name);
-		mtx_unlock_spin(&tc->tc_lock);
+		if (td1 == NULL)
+			CTR3(KTR_LOCK,
+		    "turnstile_adjust_thread: td %d put at tail on [%p] %s",
+			    td->td_tid, ts->ts_lockobj, ts->ts_lockobj->lo_name);
+		else
+			CTR4(KTR_LOCK,
+		    "turnstile_adjust_thread: td %d moved before %d on [%p] %s",
+			    td->td_tid, td1->td_tid, ts->ts_lockobj,
+			    ts->ts_lockobj->lo_name);
 	}
+	return (1);
 }
 
 /*
@@ -353,6 +364,46 @@ init_turnstile0(void *dummy)
 	thread0.td_turnstile = turnstile_alloc();
 }
 SYSINIT(turnstile0, SI_SUB_LOCK, SI_ORDER_ANY, init_turnstile0, NULL);
+
+/*
+ * Update a thread on the turnstile list after it's priority has been changed.
+ * The old priority is passed in as an argument.
+ */
+void
+turnstile_adjust(struct thread *td, u_char oldpri)
+{
+	struct turnstile_chain *tc;
+	struct turnstile *ts;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+	MPASS(TD_ON_LOCK(td));
+
+	/*
+	 * Pick up the lock that td is blocked on.
+	 */
+	ts = td->td_blocked;
+	MPASS(ts != NULL);
+	tc = TC_LOOKUP(ts->ts_lockobj);
+	mtx_lock_spin(&tc->tc_lock);
+
+	/* Resort the turnstile on the list. */
+	if (!turnstile_adjust_thread(ts, td)) {
+		mtx_unlock_spin(&tc->tc_lock);
+		return;
+	}
+
+	/*
+	 * If our priority was lowered and we are at the head of the
+	 * turnstile, then propagate our new priority up the chain.
+	 * Note that we currently don't try to revoke lent priorities
+	 * when our priority goes up.
+	 */
+	if (td == TAILQ_FIRST(&ts->ts_blocked) && td->td_priority < oldpri) {
+		mtx_unlock_spin(&tc->tc_lock);
+		propagate_priority(td);
+	} else
+		mtx_unlock_spin(&tc->tc_lock);
+}
 
 /*
  * Set the owner of the lock this turnstile is attached to.
@@ -470,7 +521,7 @@ turnstile_claim(struct lock_object *lock)
 	 */
 	mtx_lock_spin(&sched_lock);
 	if (td->td_priority < owner->td_priority)
-		owner->td_priority = td->td_priority; 
+		sched_lend_prio(owner, td->td_priority);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -578,14 +629,14 @@ turnstile_wait(struct lock_object *lock, struct thread *owner)
 	propagate_priority(td);
 
 	if (LOCK_LOG_TEST(lock, 0))
-		CTR4(KTR_LOCK, "%s: td %p blocked on [%p] %s", __func__, td,
-		    lock, lock->lo_name);
+		CTR4(KTR_LOCK, "%s: td %d blocked on [%p] %s", __func__,
+		    td->td_tid, lock, lock->lo_name);
 
 	mi_switch(SW_VOL, NULL);
 
 	if (LOCK_LOG_TEST(lock, 0))
-		CTR4(KTR_LOCK, "%s: td %p free from blocked on [%p] %s",
-		    __func__, td, lock, lock->lo_name);
+		CTR4(KTR_LOCK, "%s: td %d free from blocked on [%p] %s",
+		    __func__, td->td_tid, lock, lock->lo_name);
 
 	mtx_unlock_spin(&sched_lock);
 }
@@ -692,7 +743,7 @@ turnstile_unpend(struct turnstile *ts)
 	TAILQ_HEAD( ,thread) pending_threads;
 	struct turnstile_chain *tc;
 	struct thread *td;
-	int cp, pri;
+	u_char cp, pri;
 
 	MPASS(ts != NULL);
 	MPASS(ts->ts_owner == curthread);
@@ -739,9 +790,7 @@ turnstile_unpend(struct turnstile *ts)
 			pri = cp;
 	}
 	mtx_unlock_spin(&td_contested_lock);
-	if (pri > td->td_base_pri)
-		pri = td->td_base_pri;
-	td->td_priority = pri;
+	sched_unlend_prio(td, pri);
 
 	/*
 	 * Wake up all the pending threads.  If a thread is not blocked
