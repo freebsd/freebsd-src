@@ -85,6 +85,8 @@
 #include <vm/vm_zone.h>
 #include <vm/swap_pager.h>
 
+#define MD_MODVER 1
+
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
 #endif
@@ -111,8 +113,10 @@ static u_char mfs_root[MD_ROOT_SIZE*1024] = "MFS Filesystem goes here";
 static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 #endif
 
-static int mdrootready;
-static int mdunits;
+static int	mdrootready;
+static int	mdunits;
+static dev_t	status_dev = 0;
+
 
 #define CDEV_MAJOR	95
 
@@ -883,10 +887,37 @@ md_drvinit(void *unused)
 		   mdunits, name, len, ptr);
 		md_preloaded(ptr, len);
 	} 
-	make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL, 0600, "mdctl");
+	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL, 0600, "mdctl");
 }
 
-SYSINIT(mddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR, md_drvinit,NULL)
+static int
+md_modevent(module_t mod, int type, void *data)
+{
+        switch (type) {
+        case MOD_LOAD:
+		md_drvinit(NULL);
+                break;
+        case MOD_UNLOAD:
+		if (!LIST_EMPTY(&md_softc_list))
+			return EBUSY;
+                if (status_dev)
+                        destroy_dev(status_dev);
+                status_dev = 0;
+                break;
+        default:
+                break;
+        }
+        return 0;
+}
+
+static moduledata_t md_mod = {
+        "md",
+        md_modevent,
+        NULL
+};
+DECLARE_MODULE(md, md_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+CDEV_MAJOR);
+MODULE_VERSION(md, MD_MODVER);
+
 
 #ifdef MD_ROOT
 static void
