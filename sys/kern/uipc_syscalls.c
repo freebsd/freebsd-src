@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.41 1998/08/23 03:06:59 wollman Exp $
+ * $Id: uipc_syscalls.c,v 1.42 1998/11/05 14:28:24 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -1506,6 +1506,18 @@ retry_lookup:
 		if (xfsize <= 0)
 			break;
 		/*
+		 * Optimize the non-blocking case by looking at the socket space
+		 * before going to the extra work of constituting the sf_buf.
+		 */
+		if ((so->so_state & SS_NBIO) && sbspace(&so->so_snd) <= 0) {
+			if (so->so_state & SS_CANTSENDMORE)
+				error = EPIPE;
+			else
+				error = EAGAIN;
+			sbunlock(&so->so_snd);
+			goto done;
+		}
+		/*
 		 * Attempt to look up the page. If the page doesn't exist or the
 		 * part we're interested in isn't valid, then read it from disk.
 		 * If some other part of the kernel has this page (i.e. it's busy),
@@ -1634,6 +1646,13 @@ retry_space:
 		 * a race condition with sbwait().
 		 */
 		if (sbspace(&so->so_snd) <= 0) {
+			if (so->so_state & SS_NBIO) {
+				m_freem(m);
+				sbunlock(&so->so_snd);
+				splx(s);
+				error = EAGAIN;
+				goto done;
+			}
 			error = sbwait(&so->so_snd);
 			/*
 			 * An error from sbwait usually indicates that we've
