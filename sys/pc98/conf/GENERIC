@@ -74,7 +74,6 @@ options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
 device		isa
 device		pci
 options 	COMPAT_OLDISA		# Old ISA driver shims
-#options 	PCI_ENABLE_IO_MODES	# Enable pci resources left off by a "lazy BIOS"
 
 # Floppy drives
 device		fdc
@@ -92,7 +91,6 @@ device		adv		# Advansys SCSI adapters
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
-#device		mpt		# LSI-Logic MPT-Fusion	(unknown whether works)
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
@@ -193,9 +191,9 @@ device		snc
 device		xe		# Xircom pccard ethernet
 
 # Wireless NIC cards
-device		an		# Aironet 4500/4800 802.11 wireless NICs.
+device		an		# Aironet 4500/4800 802.11 wireless NICs. 
 device		awi		# BayStack 660 and others
-device		wi		# WaveLAN/IEEE 802.11 wireless NICs.
+device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
 # Pseudo devices - the number indicates how many units to allocate.
