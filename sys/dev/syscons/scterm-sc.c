@@ -444,7 +444,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			else
 				n = tcp->param[0];
 			switch (n) {
-			case 0:	/* reset attributes */
+			case 0: /* reset colors and attributes */
 				tcp->attr_mask = NORMAL_ATTR;
 				tcp->cur_color = tcp->std_color
 					       = tcp->dflt_std_color;
@@ -463,7 +463,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 						  = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
-			case 3:	/* set ansi attribute directly */
+			case 3: /* set video attribute directly */
 				tcp->attr_mask &= ~(FG_CHANGED | BG_CHANGED);
 				tcp->cur_color.fg = tcp->std_color.fg
 						  = tcp->param[1] & 0x0f;
@@ -479,7 +479,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 				tcp->rev_color.fg = ansi_col[tcp->param[1] & 0x0f];
 				tcp->cur_attr = mask2attr(tcp);
 				break;
-			case 7:	/* set ansi reverse video directly */
+			case 7: /* set reverse video attribute directly */
 				tcp->rev_color.fg = tcp->param[1] & 0x0f;
 				tcp->rev_color.bg = (tcp->param[1] >> 4) & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
@@ -559,7 +559,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			splx(i);
 			break;
 
-		case 'F':   /* set ansi foreground */
+		case 'F':   /* set foreground */
 			if (tcp->num_param == 1) {
 				tcp->attr_mask &= ~FG_CHANGED;
 				tcp->cur_color.fg = tcp->std_color.fg
@@ -568,7 +568,7 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			}
 			break;
 
-		case 'G':   /* set ansi background */
+		case 'G':   /* set background */
 			if (tcp->num_param == 1) {
 				tcp->attr_mask &= ~BG_CHANGED;
 				tcp->cur_color.bg = tcp->std_color.bg
@@ -577,14 +577,14 @@ scterm_scan_esc(scr_stat *scp, term_stat *tcp, u_char c)
 			}
 			break;
 
-		case 'H':   /* set ansi reverse video foreground */
+		case 'H':   /* set reverse video foreground */
 			if (tcp->num_param == 1) {
 				tcp->rev_color.fg = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
 			}
 			break;
 
-		case 'I':   /* set ansi reverse video background */
+		case 'I':   /* set reverse video background */
 			if (tcp->num_param == 1) {
 				tcp->rev_color.bg = tcp->param[0] & 0x0f;
 				tcp->cur_attr = mask2attr(tcp);
