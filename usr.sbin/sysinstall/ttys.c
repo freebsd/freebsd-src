@@ -142,11 +142,14 @@ configTtys(void)
     if (fclose(np)) {
 	if (changed)
 		msgConfirm("%s: close error: %s", templ, strerror(errno));
+	else
+		variable_set2(VAR_CONSTERM, "NO", 0);
 	(void)unlink(templ);
 	return;
     }
     if (!changed) {
 	(void)unlink(templ);
+	variable_set2(VAR_CONSTERM, "NO", 0);
 	return;
     }
     if (rename(templ, _PATH_TTYS)) {
@@ -154,4 +157,5 @@ configTtys(void)
 		   strerror(errno));
 	return;
     }
+    variable_set2(VAR_CONSTERM, "NO", 0);
 }
