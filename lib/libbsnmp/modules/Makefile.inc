@@ -1,16 +1,17 @@
 # $FreeBSD$
 
-NOINSTALLLIB=	yes
-NOPROFILE=	yes
+SHLIB_NAME=	snmp_${MOD}.so.${SHLIB_MAJOR}
+SRCS+=		${MOD}_tree.c
+CFLAGS+=	-I${CONTRIB}/lib -I${CONTRIB}/snmpd -I${.CURDIR}
 
-LIB=	snmp_${MOD}
-SHLIB_NAME= snmp_${MOD}.so.${SHLIB_MAJOR}
+.if defined(DEFS)
+FILESGROUPS+=	DEFS
+DEFSDIR=	${SHAREDIR}/bsnmp/defs
+.endif
 
-SRCS:=	${MOD}_oid.h ${MOD}_tree.c ${MOD}_tree.h ${SRCS}
-
-MIBSDIR= ${SHAREDIR}/bsnmp/mibs
-DEFSDIR= ${SHAREDIR}/bsnmp/defs
-
-FILESGROUPS += DEFS MIBS
+.if defined(MIBS)
+FILESGROUPS+=	MIBS
+MIBSDIR=	${SHAREDIR}/bsnmp/mibs
+.endif
 
 .include "../Makefile.inc"
