@@ -18,13 +18,12 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- *	$Id: _secure_path.c,v 1.2 1997/05/15 06:06:32 davidn Exp $
+ *	$Id: _secure_path.c,v 1.3 1998/10/09 00:39:08 jkh Exp $
  */
 
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <stdio.h>
 #include <syslog.h>
 #include <errno.h>
 #include <libutil.h>
