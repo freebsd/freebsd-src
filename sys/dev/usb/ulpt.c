@@ -330,8 +330,8 @@ USB_DETACH(ulpt)
 #elif defined(__FreeBSD__)
 	/* XXX not implemented yet */
 
-	remove_dev(sc->dev);
-	remove_dev(sc->dev_noprime);
+	destroy_dev(sc->dev);
+	destroy_dev(sc->dev_noprime);
 #endif
 
 	return (0);

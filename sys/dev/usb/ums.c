@@ -372,7 +372,7 @@ ums_detach(device_t self)
 	}
 #endif
 
-	remove_dev(sc->dev);
+	destroy_dev(sc->dev);
 
 	return 0;
 }
