@@ -85,10 +85,8 @@ contents can be examined. For security reasons, all databases that
 .Nm
 creates are readable and writable by owner only (and usually the
 owner is root).
-.Sh OPTIONS
-The
-.Nm
-command supports the following flags and options:
+.Pp
+The following options are available:
 .Bl -tag -width indent
 .It Fl c
 Cause
@@ -103,7 +101,7 @@ of a database creation command,
 will send the signal only after the new database has been successfully
 created.
 .It Fl b
-This flag causes
+Cause
 .Nm
 to add a special entry to the database with a key of
 .Em YP_INTERDOMAIN
