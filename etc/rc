@@ -71,6 +71,35 @@ elif [ -r /etc/rc.conf ]; then
 	. /etc/rc.conf
 fi
 
+chkdepend() {
+	svc=$1
+	svc_var=$2
+	dep=$3
+	dep_var=$4
+
+	eval svc_val=\${$svc_var}
+	eval dep_val=\${$dep_var}
+
+	case ${svc_val} in
+	[Yy][Ee][Ss])
+		case ${dep_val} in
+		[Yy][Ee][Ss])
+		    ;;
+		*)
+		    eval ${dep_var}="YES"
+		    echo "DEPENDENCY NOTE: ${dep} will be enabled" \
+			 "to support ${svc}"
+		    ;;
+		esac
+		;;
+	esac
+}
+
+chkdepend amd amd_enable        portmap portmap_enable
+chkdepend NFS nfs_server_enable portmap portmap_enable
+chkdepend NIS nis_server_enable portmap portmap_enable
+chkdepend NIS nis_client_enable portmap portmap_enable
+
 # Configure ccd devices.
 #
 if [ -r /etc/ccd.conf ]; then
