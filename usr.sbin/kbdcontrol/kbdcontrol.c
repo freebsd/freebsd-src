@@ -751,8 +751,9 @@ load_keymap(char *opt, int dumponly)
 	char	*prefix[]  = {"", "", KEYMAP_PATH, NULL};
 	char	*postfix[] = {"", ".kbd", NULL};
 
-	if (cp = getenv("KEYMAP_PATH"))
-		prefix[0] = mkfullname(cp, "/", "");
+	cp = getenv("KEYMAP_PATH");
+	if (cp != NULL)
+		asprintf(&(prefix[0]), "%s/", cp);
 
 	for (i=0; prefix[i]; i++)
 		for (j=0; postfix[j]; j++) {
