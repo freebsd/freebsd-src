@@ -36,6 +36,8 @@
 #include "opt_vm86.h"
 #include "opt_syscons.h"
 
+#include <limits.h>
+
 #if NSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -248,6 +250,7 @@ u_short                 *Atrat;
 static u_char		default_kanji = UJIS;
 #endif
 static const int	nsccons = MAXCONS+2;
+static int		sc_mouse_char = SC_MOUSE_CHAR;
 
 #define WRAPHIST(scp, pointer, offset)\
     ((scp)->history + ((((pointer) - (scp)->history) + (scp)->history_size \
@@ -1318,6 +1321,54 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		    break;
 		}
 		break;
+	    }
+	    break;
+
+	case MOUSE_MOUSECHAR:
+	    if (mouse->u.mouse_char < 0) {
+		mouse->u.mouse_char = sc_mouse_char;
+	    } else {
+		char *font = NULL;
+
+		if (mouse->u.mouse_char >= UCHAR_MAX - 4)
+		    return EINVAL;
+
+		/*
+		 * The base character for drawing the mouse pointer has changed.
+		 * Clear the pointer, restore the original font definitions,
+		 * and the redraw the pointer - mangling the new characters.
+		 */
+		s = spltty();
+		remove_mouse_image(cur_console);
+		
+		if (ISTEXTSC(cur_console) &&
+		   (cur_console->font_size != 0)) {
+		    if (scp->font_size < 14) {
+			if (fonts_loaded & FONT_8)
+			    font = font_8;
+		    }
+		    else if (scp->font_size >= 16) {
+			if (fonts_loaded & FONT_16)
+			    font = font_16;
+		    }
+		    else {
+			if (fonts_loaded & FONT_14)
+			    font = font_8;
+		    }
+
+		    if (font != NULL) {
+			font_loading_in_progress = TRUE;
+			(*vidsw[scp->ad]->load_font)(scp->adp, 0,
+				cur_console->font_size,
+				font + (sc_mouse_char * cur_console->font_size),
+				sc_mouse_char, 4);
+			font_loading_in_progress = FALSE;
+			(*vidsw[scp->ad]->show_font)(scp->adp, 0);
+		    }
+		}
+
+		sc_mouse_char = mouse->u.mouse_char;
+		splx(s);
 	    }
 	    break;
 
@@ -4259,7 +4310,7 @@ init_scp(scr_stat *scp)
 	scp->ypixel = info.vi_height;
 	scp->xsize = info.vi_width/8;
 	scp->ysize = info.vi_height/info.vi_cheight;
-	scp->font_size = FONT_NONE;
+	scp->font_size = 0;
     } else {
 	scp->xsize = info.vi_width;
 	scp->ysize = info.vi_height;
@@ -4662,7 +4713,8 @@ next_code:
 
 	    case NEXT:
     		this_scr = get_scr_num();
-		for (i = this_scr + 1; i != this_scr; i = (i + 1)%MAXCONS) {
+		for (i = (this_scr + 1)%MAXCONS; i != this_scr;
+			 i = (i + 1)%MAXCONS) {
 		    struct tty *tp = VIRTUAL_TTY(i);
 		    if (tp->t_state & TS_ISOPEN) {
 			switch_scr(cur_console, i);
@@ -4942,13 +4994,13 @@ set_destructive_cursor(scr_stat *scp)
     }
 
     if (scp->status & MOUSE_VISIBLE) {
-	if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR)
+	if ((scp->cursor_saveunder & 0xff) == sc_mouse_char)
     	    bcopy(&scp->mouse_cursor[0], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 1)
+	else if ((scp->cursor_saveunder & 0xff) == sc_mouse_char + 1)
     	    bcopy(&scp->mouse_cursor[32], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 2)
+	else if ((scp->cursor_saveunder & 0xff) == sc_mouse_char + 2)
     	    bcopy(&scp->mouse_cursor[64], cursor, scp->font_size);
-	else if ((scp->cursor_saveunder & 0xff) == SC_MOUSE_CHAR + 3)
+	else if ((scp->cursor_saveunder & 0xff) == sc_mouse_char + 3)
     	    bcopy(&scp->mouse_cursor[96], cursor, scp->font_size);
 	else
 	    bcopy(font_buffer+((scp->cursor_saveunder & 0xff)*scp->font_size),
@@ -4976,8 +5028,11 @@ sc_move_mouse(scr_stat *scp, int x, int y)
 {
     scp->mouse_xpos = x;
     scp->mouse_ypos = y;
-    scp->mouse_pos = scp->mouse_oldpos = 
-	scp->scr_buf + (y / scp->font_size) * scp->xsize + x / 8;
+    if (!ISTEXTSC(scp))
+	scp->mouse_pos = scp->mouse_oldpos = scp->scr_buf;
+    else
+	scp->mouse_pos = scp->mouse_oldpos = 
+	    scp->scr_buf + (y / scp->font_size) * scp->xsize + x / 8;
 }
 
 static void
@@ -5282,16 +5337,16 @@ draw_mouse_image(scr_stat *scp)
 #endif
     font_loading_in_progress = TRUE;
     (*vidsw[scp->ad]->load_font)(scp->adp, 0, 32, scp->mouse_cursor, 
-			   SC_MOUSE_CHAR, 4); 
+			   sc_mouse_char, 4); 
     font_loading_in_progress = FALSE;
 
-    *(crt_pos) = (*(scp->mouse_pos) & 0xff00) | SC_MOUSE_CHAR;
+    *(crt_pos) = (*(scp->mouse_pos) & 0xff00) | sc_mouse_char;
     *(crt_pos+scp->xsize) = 
-	(*(scp->mouse_pos + scp->xsize) & 0xff00) | (SC_MOUSE_CHAR + 2);
+	(*(scp->mouse_pos + scp->xsize) & 0xff00) | (sc_mouse_char + 2);
     if (scp->mouse_xpos < (scp->xsize-1)*8) {
-    	*(crt_pos + 1) = (*(scp->mouse_pos + 1) & 0xff00) | (SC_MOUSE_CHAR + 1);
+    	*(crt_pos + 1) = (*(scp->mouse_pos + 1) & 0xff00) | (sc_mouse_char + 1);
     	*(crt_pos+scp->xsize + 1) = 
-	    (*(scp->mouse_pos + scp->xsize + 1) & 0xff00) | (SC_MOUSE_CHAR + 3);
+	    (*(scp->mouse_pos + scp->xsize + 1) & 0xff00) | (sc_mouse_char + 3);
     }
 #endif
     mark_for_update(scp, scp->mouse_pos - scp->scr_buf);
