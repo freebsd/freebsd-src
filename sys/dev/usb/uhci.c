@@ -937,8 +937,6 @@ uhci_run(sc, run)
 
 	s = splusb();
 	running = ((UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) == 0);
-	DPRINTF(("sc->sc_iobase=0x%x run=0x%x, running=0x%x\n",
-		 sc->sc_iobase, run,running));
 	if (run == running) {
 		splx(s);
 		return (USBD_NORMAL_COMPLETION);
@@ -946,7 +944,6 @@ uhci_run(sc, run)
 	UWRITE2(sc, UHCI_CMD, run ? UHCI_CMD_RS : 0);
 	for(n = 0; n < 10; n++) {
 		running = ((UREAD2(sc, UHCI_STS) & UHCI_STS_HCH) == 0);
-		DPRINTF(("run=0x%x, running=0x%x\n", run,running));
 		/* return when we've entered the state we want */
 		if (run == running) {
 			splx(s);
