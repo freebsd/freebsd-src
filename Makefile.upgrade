@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.upgrade,v 1.11 1999/01/26 09:12:21 jkh Exp $
+#	$Id: Makefile.upgrade,v 1.12 1999/01/27 08:49:53 jkh Exp $
 #
 # This makefile contains rules for preforming upgrades that are outside
 # the scope of the normal build world process.
@@ -165,15 +165,6 @@ ${MAKEOBJDIRPREFIX}/do_move_aout_libs move-aout-libs :
 # elf world will be updated.
 #
 ${MAKEOBJDIRPREFIX}/do_aout_installworld :
-.if !defined(NOCONFIRM)
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " You are about to update the installed system (or the system"
-	@echo " that your DESTDIR points to). You can type Ctrl-C to abort"
-	@echo " now or press return to start the first phase of the update."
-	@echo "--------------------------------------------------------------"
-	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
-.endif
 .if	${INSTALLEDVERSION} < 300003
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -182,15 +173,6 @@ ${MAKEOBJDIRPREFIX}/do_aout_installworld :
 	@cp /bin/sh ${MAKEOBJDIRPREFIX}
 	@cp /sbin/reboot ${MAKEOBJDIRPREFIX}
 .endif
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo " Doing an aout installworld using the aout tools in the aout"
-	@echo " obj tree."
-	@echo "--------------------------------------------------------------"
-	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout \
-		PATH=${AOUTTMPPATH} OBJFORMAT=aout NOTOOLS=1 \
-		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
-		make -f Makefile.inc1 -m ${.CURDIR}/share/mk installworld
 	@touch ${MAKEOBJDIRPREFIX}/do_aout_installworld
 
 #
