@@ -174,6 +174,19 @@ SA_1FM_AT_EOD		opt_sa.h
 # Options used only in cam/scsi/scsi_pt.c
 SCSI_PT_DEFAULT_TIMEOUT	opt_pt.h
 
+# Options used in dev/sym/ (Symbios SCSI driver).
+SYM_SETUP_LP_PROBE_MAP	opt_sym.h	#-Low Priority Probe Map (bits)
+					# Allows the ncr to take precedence
+					# 1 (1<<0) -> 810a, 860
+					# 2 (1<<1) -> 825a, 875, 885, 895
+					# 4 (1<<2) -> 895a, 896, 1510d 
+SYM_SETUP_SCSI_DIFF	opt_sym.h	#-HVD support for 825a, 875, 885
+					# disabled:0 (default), enabled:1
+SYM_SETUP_PCI_PARITY	opt_sym.h	#-PCI parity checking
+					# disabled:0, enabled:1 (default)
+SYM_SETUP_MAX_LUN	opt_sym.h	#-Number of LUNs supported
+					# default:8, range:[1..64]
+
 # Options used only in pci/ncr.c
 SCSI_NCR_DEBUG		opt_ncr.h
 SCSI_NCR_MAX_SYNC	opt_ncr.h
