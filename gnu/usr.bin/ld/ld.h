@@ -1,4 +1,4 @@
-/*	$Id: ld.h,v 1.2 1993/11/09 04:18:59 paul Exp $	*/
+/*	$Id: ld.h,v 1.3 1993/11/18 20:52:34 jkh Exp $	*/
 /*-
  * This code is derived from software copyrighted by the Free Software
  * Foundation.
@@ -343,11 +343,11 @@ int oldmagic;
 
 typedef struct glosym {
 	/* Pointer to next symbol in this symbol's hash bucket.  */
-	struct glosym  *link;
+	struct glosym	*link;
 	/* Name of this symbol.  */
-	char           *name;
+	char		*name;
 	/* Value of this symbol as a global symbol.  */
-	long            value;
+	long		value;
 	/*
 	 * Chain of external 'nlist's in files for this symbol, both defs and
 	 * refs.
@@ -357,34 +357,34 @@ typedef struct glosym {
 	 * Any warning message that might be associated with this symbol from
 	 * an N_WARNING symbol encountered.
 	 */
-	char           *warning;
+	char		*warning;
 	/*
 	 * Nonzero means definitions of this symbol as common have been seen,
 	 * and the value here is the largest size specified by any of them.
 	 */
-	int             max_common_size;
+	int		max_common_size;
 	/*
 	 * For relocatable_output, records the index of this global sym in
 	 * the symbol table to be written, with the first global sym given
 	 * index 0.
 	 */
-	int             symbolnum;
+	int		symbolnum;
 	/*
 	 * For dynamically linked output, records the index in the RRS
 	 * symbol table.
 	 */
-	int             rrs_symbolnum;
+	int		rrs_symbolnum;
 	/*
 	 * Nonzero means a definition of this global symbol is known to
 	 * exist. Library members should not be loaded on its account.
 	 */
-	char            defined;
+	char		defined;
 	/*
 	 * Nonzero means a reference to this global symbol has been seen in a
 	 * file that is surely being loaded. A value higher than 1 is the
 	 * n_type code for the symbol's definition.
 	 */
-	char            referenced;
+	char		referenced;
 	/*
 	 * A count of the number of undefined references printed for a
 	 * specific symbol.  If a symbol is unresolved at the end of
@@ -394,15 +394,15 @@ typedef struct glosym {
 	 * symbol here.  When the number hits MAX_UREFS_PRINTED, messages
 	 * stop.
 	 */
-	unsigned char   undef_refs;
+	unsigned char	undef_refs;
 	/*
 	 * 1 means that this symbol has multiple definitions.  2 means that
 	 * it has multiple definitions, and some of them are set elements,
 	 * one of which has been printed out already.
 	 */
-	unsigned char   multiply_defined;
+	unsigned char	multiply_defined;
 	/* Nonzero means print a message at all refs or defs of this symbol */
-	char            trace;
+	char		trace;
 
 	/*
 	 * For symbols of type N_INDR, this points at the real symbol.
@@ -422,10 +422,10 @@ typedef struct glosym {
 	 * section of the resulting a.out file. They *do* go into the
 	 * dynamic link information segment.
 	 */
-	char            so_defined;
+	char		so_defined;
 
-	/* Size of symbol as determined by N_SIZE 'nlist's in object files */
-	int             size;
+	/* Size of symbol as determined by N_SIZE symbols in object files */
+	int		size;
 
 	/* Auxialiary info to put in the `nz_other' field of the
 	 * RRS symbol table. Used by the run-time linker to resolve
@@ -600,6 +600,8 @@ struct file_entry {
 		struct localsymbol	*next;
 		long			gotslot_offset;
 		char			gotslot_claimed;
+		char			rename;
+		int			symbolnum;
 	} *symbols;
 
 	/* Number of symbols in above array. */
@@ -688,6 +690,9 @@ struct file_entry {
 
 	/* This entry is a shared object */
 	char            is_dynamic;
+
+	/* 1 if this entry is not a major player anymore */
+	char		scrapped;
 };
 
 typedef struct localsymbol localsymbol_t;
@@ -858,7 +863,7 @@ void	std_search_dirs __P((char *));
 
 /* In rrs.c: */
 void	init_rrs __P((void));
-void	rrs_add_shobj __P((struct file_entry *));
+int	rrs_add_shobj __P((struct file_entry *));
 void	alloc_rrs_reloc __P((symbol *));
 void	alloc_rrs_segment_reloc __P((struct relocation_info  *));
 void	alloc_rrs_jmpslot __P((symbol *));
