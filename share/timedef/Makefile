@@ -117,5 +117,9 @@ afterinstall:
 	       ${LOCALEDIR}/en_GB.US-ASCII/LC_TIME
 	ln -fs ../en_US.ISO8859-1/LC_TIME \
 	       ${LOCALEDIR}/en_US.US-ASCII/LC_TIME
+	ln -fs ../en_US.ISO8859-1/LC_TIME \
+	       ${LOCALEDIR}/af_ZA.ISO8859-1/LC_TIME
+	ln -fs ../en_US.ISO8859-15/LC_TIME \
+	       ${LOCALEDIR}/af_ZA.ISO8859-15/LC_TIME
 
 .include <bsd.prog.mk>
