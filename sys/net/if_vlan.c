@@ -124,8 +124,8 @@ vlan_setmulti(struct ifnet *ifp)
 	sdl.sdl_family = AF_LINK;
 
 	/* First, remove any existing filter entries. */
-	while(sc->vlan_mc_listhead.slh_first != NULL) {
-		mc = sc->vlan_mc_listhead.slh_first;
+	while(SLIST_FIRST(&sc->vlan_mc_listhead) != NULL) {
+		mc = SLIST_FIRST(&sc->vlan_mc_listhead);
 		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
 		error = if_delmulti(ifp_p, (struct sockaddr *)&sdl);
 		if (error)
@@ -135,8 +135,8 @@ vlan_setmulti(struct ifnet *ifp)
 	}
 
 	/* Now program new ones. */
-	for (ifma = ifp->if_multiaddrs.lh_first;
-	    ifma != NULL;ifma = ifma->ifma_link.le_next) {
+	for (ifma = LIST_FIRST(&ifp->if_multiaddrs);
+	    ifma != NULL;ifma = LIST_NEXT(ifma, ifma_link)) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		mc = malloc(sizeof(struct vlan_mc_entry), M_DEVBUF, M_NOWAIT);
@@ -415,12 +415,12 @@ vlan_unconfig(struct ifnet *ifp)
 	 * while we were alive and remove them from the parent's list
 	 * as well.
 	 */
-	while(ifv->vlan_mc_listhead.slh_first != NULL) {
+	while(SLIST_FIRST(&ifv->vlan_mc_listhead) != NULL) {
 		struct sockaddr_dl	sdl;
 
 		sdl.sdl_len = ETHER_ADDR_LEN;
 		sdl.sdl_family = AF_LINK;
-		mc = ifv->vlan_mc_listhead.slh_first;
+		mc = SLIST_FIRST(&ifv->vlan_mc_listhead);
 		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
 		error = if_delmulti(p, (struct sockaddr *)&sdl);
 		error = if_delmulti(ifp, (struct sockaddr *)&sdl);

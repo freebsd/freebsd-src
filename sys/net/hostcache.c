@@ -90,8 +90,8 @@ hc_get(struct sockaddr *sa)
 	if (hct->hct_nentries == 0)
 		return 0;
 	hash = hct->hct_cb->hccb_hash(sa, hct->hct_nentries);
-	hc = hct->hct_heads[hash].lh_first;
-	for (; hc; hc = hc->hc_link.le_next) {
+	hc = hct->hct_heads[hash]LIST_FIRST(&);
+	for (; hc; hc = LIST_NEXT(hc, hc_link)) {
 		if (cmpsa(hc->hc_host, sa) == 0)
 			break;
 	}
@@ -153,8 +153,8 @@ hc_insert(struct hcentry *hc)
 	hct = &hctable[hc->hc_host->sa_family];
 	hash = hct->hct_cb->hccb_hash(hc->hc_host, hct->hct_nentries);
 	
-	hc2 = hct->hct_heads[hash].lh_first;
-	for (; hc2; hc2 = hc2->hc_link.le_next) {
+	hc2 = hct->hct_heads[hash]LIST_FIRST(&);
+	for (; hc2; hc2 = LIST_NEXT(hc2, hc_link)) {
 		if (cmpsa(hc2->hc_host, hc->hc_host) == 0)
 			break;
 	}
@@ -214,8 +214,8 @@ hc_timeout(void *xhct)
 	if (hct->hct_idle == 0)
 		return;
 	for (j = 0; j < hct->hct_nentries; j++) {
-		for (hc = hct->hct_heads[j].lh_first; hc; 
-		     hc = hc->hc_link.le_next) {
+		for (hc = hct->hct_heads[j]LIST_FIRST(&); hc; 
+		     hc = LIST_NEXT(hc, hc_link)) {
 			if (hc->hc_refcnt > 0)
 				continue;
 			if (hc->hc_idlesince.tv_sec + hc_maxidle <= start) {
