@@ -743,7 +743,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 	struct proc *p;
 	struct thread *td;
 	struct pgrp *pgrp;
-	int s, error;
+	int s, error, bits, sig, sig2;
 
 	td = curthread;			/* XXX */
 	p = td->td_proc;
@@ -809,6 +809,54 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		PROC_UNLOCK(p);
 		sx_sunlock(&proctree_lock);
 		break;
+	}
+
+	if (tp->t_break != NULL) {
+		switch (cmd) {
+		case TIOCSBRK:
+			tp->t_break(tp, 1);
+			return (0);
+		case TIOCCBRK:
+			tp->t_break(tp, 0);
+			return (0);
+		default:
+			break;
+		}
+	}
+
+	if (tp->t_modem != NULL) {
+		switch (cmd) {
+		case TIOCSDTR:
+			tp->t_modem(tp, SER_DTR, 0);
+			return (0);
+		case TIOCCDTR:
+			tp->t_modem(tp, 0, SER_DTR);
+			return (0);
+		case TIOCMSET:
+			bits = *(int *)data;
+			sig = (bits & (TIOCM_DTR | TIOCM_RTS)) >> 1;
+			sig2 = ((~bits) & (TIOCM_DTR | TIOCM_RTS)) >> 1;
+			tp->t_modem(tp, sig, sig2);
+			return (0);
+		case TIOCMBIS:
+			bits = *(int *)data;
+			sig = (bits & (TIOCM_DTR | TIOCM_RTS)) >> 1;
+			tp->t_modem(tp, sig, 0);
+			return (0);
+		case TIOCMBIC:
+			bits = *(int *)data;
+			sig = (bits & (TIOCM_DTR | TIOCM_RTS)) >> 1;
+			tp->t_modem(tp, 0, sig);
+			return (0);
+		case TIOCMGET:
+			sig = tp->t_modem(tp, 0, 0);
+			/* See <sys/serial.h. for the "<< 1" stuff */
+			bits = TIOCM_LE + (sig << 1);
+			*(int *)data = bits;
+			return (0);
+		default:
+			break;
+		}
 	}
 
 	switch (cmd) {			/* Process the ioctl. */
