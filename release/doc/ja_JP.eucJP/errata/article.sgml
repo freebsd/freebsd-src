@@ -74,6 +74,9 @@
   <abstract>
 
     <para>この文書は &os;
+<![ %release.type.current [
+      &release.prev;
+]]>
 <![ %release.type.snapshot [
       &release.prev;
 ]]>
@@ -89,6 +92,9 @@
       最新の errata を参照するようにしてください。</para>
 
     <para>これは &os; 
+<![ %release.type.current [
+      &release.prev;
+]]>
 <![ %release.type.snapshot [
       &release.prev;
 ]]>
@@ -120,6 +126,9 @@
 
     <para>この errata 文書には &os;
 <![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.current [
       &release.prev;
 ]]>
 <![ %release.type.release [
@@ -157,6 +166,10 @@
     <title>セキュリティ勧告</title>
 
 <![ %release.type.release [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+<![ %release.type.current [
     <para>セキュリティ勧告は発行されていません。</para>
 ]]>
 
@@ -214,6 +227,10 @@
     <title>未解決の問題</title>
 
 <![ %release.type.release [
+    <para>未解決の問題はありません。</para>
+]]>
+
+<![ %release.type.current [
     <para>未解決の問題はありません。</para>
 ]]>
 
@@ -355,6 +372,10 @@
     <title>最新情報</title>
 
 <![ %release.type.release [
+    <para>情報はありません。</para>
+]]>
+
+<![ %release.type.current [
     <para>情報はありません。</para>
 ]]>
 
