@@ -11,6 +11,7 @@ LOCALES=	bg_BG.CP1251 \
 		es_ES.ISO8859-15 \
 		es_ES.ISO8859-1 \
 		et_EE.ISO8859-15 \
+		hi_IN.ISCII-DEV \
 		is_IS.ISO8859-15 \
 		is_IS.ISO8859-1 \
 		la_LN.US-ASCII \
@@ -58,6 +59,7 @@ el_GR.ISO8859-7.out:    map.ISO8859-7
 es_ES.ISO8859-15.out:   map.ISO8859-15
 es_ES.ISO8859-1.out:    map.ISO8859-1
 et_EE.ISO8859-15.out:   map.ISO8859-15
+hi_IN.ISCII-DEV.out:	map.ISCII-DEV
 is_IS.ISO8859-15.out:   map.ISO8859-15
 is_IS.ISO8859-1.out:    map.ISO8859-1
 la_LN.ISO8859-15.out:   map.ISO8859-15
