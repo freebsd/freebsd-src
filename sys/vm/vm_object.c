@@ -369,28 +369,26 @@ vm_object_allocate(objtype_t type, vm_pindex_t size)
 /*
  *	vm_object_reference:
  *
- *	Gets another reference to the given object.
+ *	Gets another reference to the given object.  Note: OBJ_DEAD
+ *	objects can be referenced during final cleaning.
  */
 void
 vm_object_reference(vm_object_t object)
 {
 	if (object == NULL)
 		return;
-
-	vm_object_lock(object);
-#if 0
-	/* object can be re-referenced during final cleaning */
-	KASSERT(!(object->flags & OBJ_DEAD),
-	    ("vm_object_reference: attempting to reference dead obj"));
-#endif
-
+	if (object != kmem_object)
+		mtx_lock(&Giant);
+	VM_OBJECT_LOCK(object);
 	object->ref_count++;
+	VM_OBJECT_UNLOCK(object);
 	if (object->type == OBJT_VNODE) {
 		while (vget((struct vnode *) object->handle, LK_RETRY, curthread)) {
 			printf("vm_object_reference: delay in getting object\n");
 		}
 	}
-	vm_object_unlock(object);
+	if (object != kmem_object)
+		mtx_unlock(&Giant);
 }
 
 /*
