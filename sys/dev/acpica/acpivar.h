@@ -133,37 +133,6 @@ struct acpi_device {
 #define	ACPI_INTR_APIC		1
 #define	ACPI_INTR_SAPIC		2
 
-/* XXX this is no longer referenced anywhere, remove? */
-#if 0
-/*
- * This is a cheap and nasty way to get around the horrid counted list
- * argument format that AcpiEvalateObject uses.
- */
-#define ACPI_OBJECTLIST_MAX	16
-struct acpi_object_list {
-    UINT32	count;
-    ACPI_OBJECT	*pointer[ACPI_OBJECTLIST_MAX];
-    ACPI_OBJECT	object[ACPI_OBJECTLIST_MAX];
-};
-
-static __inline struct acpi_object_list *
-acpi_AllocObjectList(int nobj)
-{
-    struct acpi_object_list	*l;
-    int				i;
-
-    if (nobj > ACPI_OBJECTLIST_MAX)
-	return(NULL);
-    if ((l = AcpiOsAllocate(sizeof(*l))) == NULL)
-	return(NULL);
-    bzero(l, sizeof(*l));
-    for (i = 0; i < ACPI_OBJECTLIST_MAX; i++)
-	l->pointer[i] = &l->object[i];
-    l->count = nobj;
-    return(l);
-}
-#endif /* unused */
-
 /*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
@@ -374,6 +343,11 @@ extern int	acpi_battery_get_info_expire(void);
 extern int	acpi_battery_get_battdesc(int, struct acpi_battdesc *);
 
 extern int	acpi_cmbat_get_battinfo(int, struct acpi_battinfo *);
+
+/*
+ * Embedded controller.
+ */
+extern void	acpi_ec_ecdt_probe(device_t);
 
 /*
  * AC adapter interface.
