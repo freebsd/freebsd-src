@@ -899,3 +899,29 @@ sched_setup(dummy)
 	schedcpu(NULL);
 }
 
+/*
+ * We adjust the priority of the current process.  The priority of
+ * a process gets worse as it accumulates CPU time.  The cpu usage
+ * estimator (p_estcpu) is increased here.  The formula for computing
+ * priorities (in kern_synch.c) will compute a different value each
+ * time p_estcpu increases by 4.  The cpu usage estimator ramps up
+ * quite quickly when the process is running (linearly), and decays
+ * away exponentially, at a rate which is proportionally slower when
+ * the system is busy.  The basic principal is that the system will
+ * 90% forget that the process used a lot of CPU time in 5 * loadav
+ * seconds.  This causes the system to favor processes which haven't
+ * run much recently, and to round-robin among other processes.
+ */
+void
+schedclock(p)
+	struct proc *p;
+{
+	p->p_cpticks++;
+	if (++p->p_estcpu == 0)
+		p->p_estcpu--;
+	if ((p->p_estcpu & 3) == 0) {
+		resetpriority(p);
+		if (p->p_priority >= PUSER)
+			p->p_priority = p->p_usrpri;
+	}
+}
