@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <sys/utsname.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
@@ -583,7 +584,7 @@ static void
 fname(const char *name)
 {
 	const	char *bn, *suff;
-	char	**args, *ofn, *pathname, *CC;
+	char	**args, *ofn, *p, *pathname;
 	size_t	len;
 	int is_stdin;
 	int	fd;
@@ -643,10 +644,13 @@ fname(const char *name)
 	if (getenv("CC") == NULL) {
 		pathname = xmalloc(strlen(PATH_USRBIN) + sizeof ("/cc"));
 		(void)sprintf(pathname, "%s/cc", PATH_USRBIN);
-	} else
+		appcstrg(&args, pathname);
+	} else {
 		pathname = strdup(getenv("CC"));
+		for (p = strtok(pathname, " \t"); p; p = strtok(NULL, " \t"))
+			appcstrg(&args, p);
+	}
 
-	appcstrg(&args, pathname);
 	applst(&args, cflags);
 	applst(&args, lcflags);
 	appcstrg(&args, name);
