@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.22 1998/12/08 13:00:49 cracauer Exp $
+ *	$Id: http.c,v 1.23 1999/01/15 16:56:22 wollman Exp $
  */
 
 #include <sys/types.h>
@@ -1429,8 +1429,9 @@ parse_http_date(char *string)
 		time(&now);
 		tmnow = gmtime(&now);
 		this2dyear = tmnow->tm_year % 100;
-		if (tm.tm_year - this2dyear >= 50)
-			tm.tm_year += 100;
+		tm.tm_year += tmnow->tm_year - this2dyear;
+		if (tm.tm_year - tmnow->tm_year >= 50)
+			tm.tm_year -= 100;
 	}
 #undef digit
 
