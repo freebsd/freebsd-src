@@ -36,7 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 #include <dev/uart/uart_bus.h>
-#include <dev/uart/uart_dev_sab82532.h>
+
+#include <dev/ic/sab82532.h>
 
 #include "uart_if.h"
 
