@@ -48,11 +48,11 @@ SRCS=	acu.c acutab.c cmds.c cmdtab.c cu.c hunt.c log.c partab.c \
 # -- log.o depends on the Makefile because of ACULOG
 acutab.o log.o remote.o: Makefile
 
+.include <bsd.prog.mk>
+
 # Dirty, rotten hack. This can be removed when we are confident that there
 # is no cu(1) with the schg-bit set.
 beforeinstall:
 .if exists(${DESTDIR}${BINDIR}/cu)
 	-@chflags noschg ${DESTDIR}${BINDIR}/cu
 .endif
-
-.include <bsd.prog.mk>
