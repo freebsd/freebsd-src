@@ -10,14 +10,14 @@
 SUBDIR=	apply ar at banner basename biff cal calendar \
 	cap_mkdb checknr chflags chpass cksum col colcrt colrm column \
 	comm compress cpp ctags cut dirname du \
-	env error expand false file find finger fmt fold fpr from \
+	env error expand f2c false file find finger fmt fold fpr from \
 	fsplit fstat ftp gcore gprof head hexdump id indent \
 	join jot kdump ktrace key keyinfo keyinit lam last \
 	lastcomm leave lex locate lock logger login logname lorder \
 	m4 mail make mesg mkdep mkfifo mklocale mkstr modstat \
 	more msgs mt netstat nfsstat nice \
-	nm nohup pagesize passwd paste pr printenv printf quota \
-	ranlib rdist renice rev rlogin rs rsh rup ruptime rusers rwall \
+	nm nohup pagesize passwd paste pr printenv printf quota ranlib rdist \
+	renice rev rlogin rpcgen rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed shar showmount size soelim split \
 	strings strip su symorder talk tcopy tee telnet tftp time tip \
 	tn3270 touch tput tr true tset tsort tty ul uname unexpand \
