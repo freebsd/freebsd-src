@@ -726,14 +726,14 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	mtx_assert(&vm_mtx, MA_OWNED);
 	start = *addr;
 
-	if (map == kmem_map || map == mb_map)
+	if (map == kmem_map)
 		s = splvm();
 
 	vm_map_lock(map);
 	if (find_space) {
 		if (vm_map_findspace(map, start, length, addr)) {
 			vm_map_unlock(map);
-			if (map == kmem_map || map == mb_map)
+			if (map == kmem_map)
 				splx(s);
 			return (KERN_NO_SPACE);
 		}
@@ -743,7 +743,7 @@ vm_map_find(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		start, start + length, prot, max, cow);
 	vm_map_unlock(map);
 
-	if (map == kmem_map || map == mb_map)
+	if (map == kmem_map)
 		splx(s);
 
 	return (result);
@@ -1951,7 +1951,7 @@ vm_map_remove(map, start, end)
 	int result, s = 0;
 
 	mtx_assert(&vm_mtx, MA_OWNED);
-	if (map == kmem_map || map == mb_map)
+	if (map == kmem_map)
 		s = splvm();
 
 	vm_map_lock(map);
@@ -1959,7 +1959,7 @@ vm_map_remove(map, start, end)
 	result = vm_map_delete(map, start, end);
 	vm_map_unlock(map);
 
-	if (map == kmem_map || map == mb_map)
+	if (map == kmem_map)
 		splx(s);
 
 	return (result);

@@ -474,8 +474,15 @@ kmeminit(dummy)
 	if ((vm_kmem_size / 2) > (cnt.v_page_count * PAGE_SIZE))
 		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
 
+	/*
+	 * In mb_init(), we set up submaps for mbufs and clusters, in which
+	 * case we rounddown() (nmbufs * MSIZE) and (nmbclusters * MCLBYTES),
+	 * respectively. Mathematically, this means that what we do here may
+	 * amount to slightly more address space than we need for the submaps,
+	 * but it never hurts to have an extra page in kmem_map.
+	 */
 	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + nmbcnt *
-	    sizeof(union mext_refcnt) + vm_kmem_size) / PAGE_SIZE;
+	    sizeof(u_int) + vm_kmem_size) / PAGE_SIZE;
 
 	kmemusage = (struct kmemusage *) kmem_alloc(kernel_map,
 		(vm_size_t)(npg * sizeof(struct kmemusage)));
