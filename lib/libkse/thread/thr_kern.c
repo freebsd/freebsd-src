@@ -122,6 +122,17 @@ __asm__("fnsave %0": :"m"(*fdata));
 			pthread_testcancel();
 		}
 
+#ifndef _NO_UNDISPATCH
+		/*
+		 * Check for undispatched signals due to calls to
+		 * pthread_kill().
+		 */
+		if (_thread_run->undispatched_signals != 0) {
+			_thread_run->undispatched_signals = 0;
+			_dispatch_signals();
+		}
+#endif
+
 		if (_sched_switch_hook != NULL) {
 			/* Run the installed switch hook: */
 			thread_run_switch_hook(_last_user_thread, _thread_run);
@@ -365,8 +376,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 			 * something happens that changes this condition: 
 			 */
 			_thread_kern_poll(1);
-		}
-		else {
+		} else {
 			/* Remove the thread from the ready queue: */
 			PTHREAD_PRIOQ_REMOVE(pthread_h);
 
@@ -537,8 +547,38 @@ __asm__("fnsave %0": :"m"(*fdata));
 				}
 			}
 
+			/*
+			 * Check if this thread is being continued from a
+			 * longjmp() out of a signal handler:
+			 */
+			if ((_thread_run->jmpflags & JMPFLAGS_LONGJMP) != 0) {
+				_thread_run->jmpflags = 0;
+				__longjmp(_thread_run->nested_jmp.jmp,
+				    _thread_run->longjmp_val);
+			}
+			/*
+			 * Check if this thread is being continued from a
+			 * _longjmp() out of a signal handler:
+			 */
+			else if ((_thread_run->jmpflags & JMPFLAGS__LONGJMP) !=
+			    0) {
+				_thread_run->jmpflags = 0;
+				___longjmp(_thread_run->nested_jmp.jmp,
+				    _thread_run->longjmp_val);
+			}
+			/*
+			 * Check if this thread is being continued from a
+			 * siglongjmp() out of a signal handler:
+			 */
+			else if ((_thread_run->jmpflags & JMPFLAGS_SIGLONGJMP)
+			    != 0) {
+				_thread_run->jmpflags = 0;
+				__siglongjmp(
+				    _thread_run->nested_jmp.sigjmp,
+				    _thread_run->longjmp_val);
+			}
 			/* Check if a signal context was saved: */
-			if (_thread_run->sig_saved == 1) {
+			else if (_thread_run->sig_saved == 1) {
 #ifndef	__alpha__
 				/*
 				 * Point to the floating point data in the
@@ -571,7 +611,7 @@ __asm__("fnsave %0": :"m"(*fdata));
 				 * was context switched out (by a longjmp to
 				 * a different thread): 
 				 */
-				longjmp(_thread_run->saved_jmp_buf, 1);
+				__longjmp(_thread_run->saved_jmp_buf, 1);
 			}
 
 			/* This point should not be reached. */

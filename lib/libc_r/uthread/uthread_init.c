@@ -184,6 +184,10 @@ _thread_init(void)
 		/* Initialize the scheduling switch hook routine: */
 		_sched_switch_hook = NULL;
 
+		/* Give this thread default attributes: */
+		memcpy((void *) &_thread_initial->attr, &pthread_attr_default,
+		    sizeof(struct pthread_attr));
+
 		/* Initialize the thread stack cache: */
 		SLIST_INIT(&_stackq);
 
@@ -198,6 +202,14 @@ _thread_init(void)
 		    PTHREAD_STACK_GUARD, PTHREAD_STACK_GUARD, 0, MAP_ANON,
 		    -1, 0) == MAP_FAILED)
 			PANIC("Cannot allocate red zone for initial thread");
+
+		/* Set the main thread stack pointer. */
+		_thread_initial->stack = (void *) USRSTACK -
+		    PTHREAD_STACK_INITIAL;
+
+		/* Set the stack attributes: */
+		_thread_initial->attr.stackaddr_attr = _thread_initial->stack;
+		_thread_initial->attr.stacksize_attr = PTHREAD_STACK_INITIAL;
 
 		/*
 		 * Write a magic value to the thread structure
