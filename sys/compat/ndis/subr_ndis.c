@@ -100,7 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
-#define __stdcall __attribute__((__stdcall__))
 #define FUNC void(*)(void)
 
 static struct mtx *ndis_interlock;
