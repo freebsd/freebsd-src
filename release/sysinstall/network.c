@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.8 1995/06/05 23:13:53 jkh Exp $
+ * $Id: network.c,v 1.6.2.9 1995/06/05 23:18:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,10 +45,11 @@
 
 #include "sysinstall.h"
 #include <sys/fcntl.h>
-#include <sys/signal.h>
+#include <signal.h>
 #include <sys/stat.h>
 
 static Boolean	networkInitialized;
+static pid_t	pppPid;
 static pid_t	startPPP(Device *devp);
 
 Boolean
@@ -63,7 +64,7 @@ mediaInitNetwork(Device *dev)
     configResolv();
     if (!strncmp("cuaa", dev->name, 4)) {
 	if (!msgYesNo("You have selected a serial-line network interface.\nDo you want to use PPP with it?")) {
-	    if (!dev->private = (void *)startPPP(dev)) {
+	    if (!(dev->private = (void *)startPPP(dev))) {
 		msgConfirm("Unable to start PPP!  This installation method\ncannot be used.");
 		return FALSE;
 	    }
@@ -121,7 +122,6 @@ void
 mediaShutdownNetwork(Device *dev)
 {
     char *cp;
-    pid_t pid;
 
     if (!networkInitialized || (dev->flags & OPT_LEAVE_NETWORK_UP))
 	return;
@@ -142,9 +142,9 @@ mediaShutdownNetwork(Device *dev)
 	    vsystem("route delete default");
 	networkInitialized = FALSE;
     }
-    else if ((pid = (pid_t)dev->private) != 0) {
-	kill(pid, SIGTERM);
-	dev->private = NULL;
+    else if (pppPid != 0) {
+	kill(pppPid, SIGTERM);
+	pppPid = 0;
     }
 }
 
