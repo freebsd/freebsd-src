@@ -2,5 +2,7 @@
 
 PROG=	uucpd
 NOMAN=	noman
+LDADD=	-lcrypt
+DPADD=	${LIBCRYPT}
 
 .include <bsd.prog.mk>
