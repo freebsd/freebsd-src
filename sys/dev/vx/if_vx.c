@@ -888,6 +888,7 @@ vxioctl(ifp, cmd, data)
 
 #ifdef NS
 	case AF_NS:
+		{
 	    register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
 
 	    if (ns_nullhost(*ina))
@@ -900,6 +901,7 @@ vxioctl(ifp, cmd, data)
 	    }
 	    vxinit(sc);
 	    break;
+		}
 #endif
 	default:
 	    vxinit(sc);
