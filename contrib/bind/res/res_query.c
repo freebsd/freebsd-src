@@ -55,7 +55,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 8.9 1996/09/22 00:13:28 vixie Exp $";
+static char rcsid[] = "$Id: res_query.c,v 8.10 1997/06/01 20:34:37 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -323,7 +323,7 @@ res_querydomain(name, domain, class, type, answer, anslen)
 {
 	char nbuf[MAXDNAME];
 	const char *longname = nbuf;
-	int n;
+	int n, d;
 
 	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
 		h_errno = NETDB_INTERNAL;
@@ -339,15 +339,26 @@ res_querydomain(name, domain, class, type, answer, anslen)
 		 * Check for trailing '.';
 		 * copy without '.' if present.
 		 */
-		n = strlen(name) - 1;
-		if (n != (0 - 1) && name[n] == '.' && n < sizeof(nbuf) - 1) {
-			bcopy(name, nbuf, n);
+		n = strlen(name);
+		if (n >= MAXDNAME) {
+			h_errno = NO_RECOVERY;
+			return (-1);
+		}
+		n--;
+		if (n >= 0 && name[n] == '.') {
+			strncpy(nbuf, name, n);
 			nbuf[n] = '\0';
 		} else
 			longname = name;
-	} else
-		sprintf(nbuf, "%.*s.%.*s", MAXDNAME, name, MAXDNAME, domain);
-
+	} else {
+		n = strlen(name);
+		d = strlen(domain);
+		if (n + d + 1 >= MAXDNAME) {
+			h_errno = NO_RECOVERY;
+			return (-1);
+		}
+		sprintf(nbuf, "%s.%s", name, domain);
+	}
 	return (res_query(longname, class, type, answer, anslen));
 }
 
