@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.111 1997/12/17 00:19:22 brian Exp $
+ * $Id: command.c,v 1.112 1997/12/17 21:21:38 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -742,8 +742,15 @@ static int
 arghidden(int argc, char const *const *argv, int n)
 {
   /* Is arg n of the given command to be hidden from the log ? */
+
+  /* set authkey xxxxx */
+  /* set key xxxxx */
   if (n == 2 && !strncasecmp(argv[0], "se", 2) &&
       (!strncasecmp(argv[1], "authk", 5) || !strncasecmp(argv[1], "ke", 2)))
+    return 1;
+
+  /* passwd xxxxx */
+  if (n == 1 && !strncasecmp(argv[0], "p", 1))
     return 1;
 
   return 0;
