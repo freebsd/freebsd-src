@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.2 1999/03/04 10:48:14 kato Exp $
+ *	$Id: biosdisk.c,v 1.3 1999/03/04 16:38:12 kato Exp $
  */
 
 /*
@@ -174,7 +174,8 @@ bd_init(void)
 
 	    /* XXX add EDD probes */
 	    if (!bd_int13probe(&bdinfo[nbdinfo])){
-		if ((unit & 0xf0) == 0xa0 && (unit & 0x0f) < 6)
+		if (((unit & 0xf0) == 0x90 && (unit & 0x0f) < 4) ||
+		    ((unit & 0xf0) == 0xa0 && (unit & 0x0f) < 6))
 		    continue;	/* Target IDs are not contiguous. */
 		else
 		    break;
