@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.12 1996/01/02 09:14:44 peter Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.13 1996/01/21 09:03:15 julian Exp $
  */
 
 #include "param.h"
@@ -523,14 +523,14 @@ void	devfs_remove_dev(void *devnmp)
 	/*
 	 * Keep removing the next front node till no more exist
 	 */
-	while(devnmp->next_front)
+	while(((devnm_p)devnmp)->next_front)
 	{
-		dev_free_name(devnmp->next_front);
+		dev_free_name(((devnm_p)devnmp)->next_front);
 	}
 	/*
 	 * then free the main node
 	 */
-	dev_free_name(devnmp);
+	dev_free_name((devnm_p)devnmp);
 	return ;
 }
 
