@@ -2917,7 +2917,10 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 	vm_map_unlock_read(map);
 }
 
+#ifdef ENABLE_VFS_IOOPT
 /*
+ * Experimental support for zero-copy I/O
+ *
  * Implement uiomove with VM operations.  This handles (and collateral changes)
  * support every combination of source object modification, and COW type
  * operations.
@@ -3149,6 +3152,7 @@ vm_uiomove(
 	}
 	return 0;
 }
+#endif
 
 /*
  * Performs the copy_on_write operations necessary to allow the virtual copies
