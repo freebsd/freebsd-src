@@ -837,37 +837,18 @@ _ngi_hook(item_p item, char *file, int line)
 /**********************************************************************
 * Data macros.  Send, manipulate and free.
 **********************************************************************/
-/* Send previously unpackeged data and metadata. */
-#define NG_SEND_DATA(error, hook, m, meta)				\
+/*
+ * Assuming the data is already ok, just set the new address and send
+ */
+#define NG_FWD_ITEM_HOOK(error, item, hook)				\
 	do {								\
-		item_p item;						\
-		if ((item = ng_package_data((m), (meta)))) {		\
-			if (!((error) = ng_address_hook(NULL, item,	\
-							hook, NULL))) {	\
-				SAVE_LINE(item);			\
-				(error) = ng_snd_item((item), 0);	\
-			}						\
-		} else {						\
-			(error) = ENOMEM;				\
+		(error) =						\
+		    ng_address_hook(NULL, (item), (hook), NULL);	\
+		if (error == 0) {					\
+			SAVE_LINE(item);				\
+			(error) = ng_snd_item((item), 0);		\
 		}							\
-		(m) = NULL;						\
-		(meta) = NULL;						\
-	} while (0)
-
-/* Send a previously unpackaged mbuf when we have no metadata to send */
-#define NG_SEND_DATA_ONLY(error, hook, m)				\
-	do {								\
-		item_p item;						\
-		if ((item = ng_package_data((m), NULL))) {		\
-			if (!((error) = ng_address_hook(NULL, item,	\
-							hook, NULL))) {	\
-				SAVE_LINE(item);			\
-				(error) = ng_snd_item((item), 0);	\
-			}						\
-		} else {						\
-			(error) = ENOMEM;				\
-		}							\
-		(m) = NULL;						\
+		(item) = NULL;						\
 	} while (0)
 
 /*
@@ -880,35 +861,40 @@ _ngi_hook(item_p item, char *file, int line)
  */
 #define NG_FWD_NEW_DATA(error, item, hook, m)				\
 	do {								\
-		NGI_M(item) = m;					\
-		if (!((error) = ng_address_hook(NULL, (item),		\
-						(hook), NULL))) {	\
-			SAVE_LINE(item);				\
-			(error) = ng_snd_item((item), 0);		\
+		NGI_M(item) = (m);					\
+		(m) = NULL;						\
+		NG_FWD_ITEM_HOOK(error, item, hook);			\
+	} while (0)
+
+/* Send a previously unpackaged mbuf when we have no metadata to send */
+#define NG_SEND_DATA_ONLY(error, hook, m)				\
+	do {								\
+		item_p item;						\
+		if ((item = ng_package_data((m), NULL))) {		\
+			NG_FWD_ITEM_HOOK(error, item, hook);		\
+		} else {						\
+			(error) = ENOMEM;				\
 		}							\
-		(item) = NULL;						\
 		(m) = NULL;						\
 	} while (0)
 
-/*
- * Assuming the data is already ok, just set the new address and send
- */
-#define NG_FWD_ITEM_HOOK(error, item, hook)				\
+/* Send previously unpackeged data and metadata. */
+#define NG_SEND_DATA(error, hook, m, meta)				\
 	do {								\
-		if (!((error) = ng_address_hook(NULL, (item),		\
-						(hook), NULL))) {	\
-			SAVE_LINE(item);				\
-			(error) = ng_snd_item((item), 0);		\
+		item_p item;						\
+		if ((item = ng_package_data((m), (meta)))) {		\
+			NG_FWD_ITEM_HOOK(error, item, hook);		\
 		} else {						\
-			(error) = ENXIO;				\
+			(error) = ENOMEM;				\
 		}							\
-		(item) = NULL;						\
+		(m) = NULL;						\
+		(meta) = NULL;						\
 	} while (0)
 
 #define NG_FREE_MSG(msg)						\
 	do {								\
 		if ((msg)) {						\
-			FREE((msg), M_NETGRAPH_MSG);		\
+			FREE((msg), M_NETGRAPH_MSG);			\
 			(msg) = NULL;					\
 		}	 						\
 	} while (0)
@@ -977,22 +963,6 @@ _ngi_hook(item_p item, char *file, int line)
 					(ID), (retaddr))) == 0) {	\
 			SAVE_LINE(item);				\
 			(error) = ng_snd_item((item), 0);		\
-		}							\
-		(msg) = NULL;						\
-	} while (0)
-
-#define NG_QUEUE_MSG(error, here, msg, path, retaddr)			\
-	do {								\
-		item_p item;						\
-		if ((item = ng_package_msg(msg)) == NULL) {		\
-			(msg) = NULL;					\
-			(error) = ENOMEM;				\
-			break;						\
-		}							\
-		if (((error) = ng_address_path((here), (item),		\
-					(path), (retaddr))) == 0) {	\
-			SAVE_LINE(item);				\
-			(error) = ng_snd_item((item), 1);		\
 		}							\
 		(msg) = NULL;						\
 	} while (0)
