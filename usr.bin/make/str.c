@@ -115,8 +115,8 @@ str_concat(char *s1, char *s2, int flags)
 
 	/* free original strings */
 	if (flags & STR_DOFREE) {
-		(void)efree(s1);
-		(void)efree(s2);
+		(void)free(s1);
+		(void)free(s2);
 	}
 	return(result);
 }
