@@ -154,7 +154,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	db_regs_t *regs;
 {
 	int ddb_mode = !(boothowto & RB_GDB);
-	int s;
+	critical_t s;
 
 	/*
 	 * Don't bother checking for usermode, since a benign entry
@@ -191,8 +191,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 
 	ddb_regs = *regs;
 
-	s = save_intr();
-	disable_intr();
+	s = critical_enter();
 
 #if 0
 	db_printf("stopping %x\n", PCPU_GET(other_cpus));
@@ -215,7 +214,7 @@ kdb_trap(a0, a1, a2, entry, regs)
 	restart_cpus(stopped_cpus);
 #endif
 
-	restore_intr(s);
+	critical_exit(s);
 
 	*regs = ddb_regs;
 
@@ -269,8 +268,12 @@ db_write_bytes(addr, size, data)
 void
 Debugger(const char* msg)
 {
+	u_int	saveintr;
+
 	printf("%s\n", msg);
+	saveintr = alpha_pal_swpipl(ALPHA_PSL_IPL_HIGH);
 	__asm("call_pal 0x81");		/* XXX bugchk */
+	alpha_pal_swpipl(saveintr);
 }
 
 /*
