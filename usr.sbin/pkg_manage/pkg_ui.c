@@ -28,15 +28,6 @@
 
 extern PKG_info p_inf;
 
-
-/*
- * Local prototypes
- */
-
-void 	install_pkgs_indir(void);
-
-
-
 /*
  * Functions
  */
