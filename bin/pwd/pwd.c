@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/param.h>
 
 void usage __P((void));
 
@@ -59,13 +60,13 @@ main(argc, argv)
 {
 	int ch;
 	char *p;
+	char buf[MAXPATHLEN];
 
 	/*
 	 * Flags for pwd are a bit strange.  The POSIX 1003.2B/D9 document
 	 * has an optional -P flag for physical, which is what this program
 	 * will produce by default.  The logical flag, -L, should fail, as
-	 * there's no way to display a logical path after forking.  We don't
-	 * document either flag, only adding -P for future portability.
+	 * there's no way to display a logical path after forking.
 	 */
 	while ((ch = getopt(argc, argv, "P")) != -1)
 		switch (ch) {
@@ -78,12 +79,20 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc != 0)
+	if (argc == 1) {
+		p = realpath(argv[0], buf);
+		if (p == NULL)
+			err(1, argv[0]);
+		(void)printf("%s\n", p);
+	} else  if (argc == 0) {
+		p = getcwd(NULL, 0);
+		if (p == NULL)
+			err(1, ".");
+		(void)printf("%s\n", p);
+	} else {
 		usage();
+	}
 
-	if ((p = getcwd(NULL, 0)) == NULL)
-		err(1, ".");
-	(void)printf("%s\n", p);
 	exit(0);
 }
 
