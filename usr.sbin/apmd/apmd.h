@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * 	$Id: apmd.h,v 1.1.3.8 1999/06/18 04:07:05 koie Exp $
+ * 	$Id: apmd.h,v 1.1.1.1 1999/07/10 17:39:35 iwasaki Exp $
  */
 
 #define APMD_CONFIGFILE		"/etc/apmd.conf"

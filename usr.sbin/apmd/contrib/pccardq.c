@@ -1,4 +1,4 @@
-/* $Id: pccardq.c,v 1.2 1999/06/08 15:18:52 koie Exp $ */
+/* $Id: pccardq.c,v 1.1.1.1 1999/07/10 17:39:36 iwasaki Exp $ */
 
 #include <err.h>
 #include <errno.h>
