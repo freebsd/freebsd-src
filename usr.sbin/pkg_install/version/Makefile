@@ -12,6 +12,6 @@ DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
 LDADD=	${LIBINSTALL} -lfetch -lmd
 
 test:
-	./test-pkg_version.sh
+	sh ${.CURDIR}/test-pkg_version.sh
 
 .include <bsd.prog.mk>
