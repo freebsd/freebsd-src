@@ -134,6 +134,7 @@ nd6_init()
 	nd6_init_done = 1;
 
 	/* start timer */
+	callout_init(&nd6_slowtimo_ch, 0);
 	callout_reset(&nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, NULL);
 }
