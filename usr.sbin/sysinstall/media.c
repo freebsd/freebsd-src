@@ -416,7 +416,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.shutdown = mediaShutdownFTP;
     ftpDevice.private = networkDev;
     mediaDevice = &ftpDevice;
-    return DITEM_SUCCESS | DITEM_LEAVE_MENU;
+    return DITEM_SUCCESS | DITEM_LEAVE_MENU | DITEM_RESTORE;
 }
 
 int

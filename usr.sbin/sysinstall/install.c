@@ -961,6 +961,7 @@ installFilesystems(dialogMenuItem *self)
 
     command_sort();
     command_execute();
+    dialog_clear_norefresh();
     return DITEM_SUCCESS;
 }
 

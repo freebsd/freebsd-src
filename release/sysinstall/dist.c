@@ -389,6 +389,7 @@ distMaybeSetDES(dialogMenuItem *self)
 {
     int i = DITEM_SUCCESS | DITEM_REDRAW;
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you wish to install DES cryptographic software?\n\n"
 		  "If you choose No, FreeBSD will use an MD5 based password scheme which,\n"
 		  "while perhaps more secure, is not interoperable with the traditional\n"
@@ -404,12 +405,13 @@ distMaybeSetDES(dialogMenuItem *self)
 	    i = DITEM_FAILURE;
     }
     distVerifyFlags();
-    return i | DITEM_REDRAW;
+    return i | DITEM_REDRAW | DITEM_RESTORE;
 }
 
 static int
 distMaybeSetPorts(dialogMenuItem *self)
 {
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to install the FreeBSD ports collection?\n\n"
 		  "This will give you ready access to over 2000 ported software packages,\n"
 		  "though at a cost of around 90MB of disk space when \"clean\" and possibly\n"
@@ -423,7 +425,7 @@ distMaybeSetPorts(dialogMenuItem *self)
 	Dists |= DIST_PORTS;
     else
 	Dists &= ~DIST_PORTS;
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 static Boolean
@@ -865,8 +867,8 @@ distExtractAll(dialogMenuItem *self)
     distVerifyFlags();
 
     dialog_clear_norefresh();
-    msgNotify("Attempting to install all selected distributions..");
     w = savescr();
+    msgNotify("Attempting to install all selected distributions..");
     
     /* Try for 3 times around the loop, then give up. */
     while (Dists && ++retries < 3)
