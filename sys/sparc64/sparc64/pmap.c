@@ -63,8 +63,11 @@
  * correct.
  */
 
+#include "opt_msgbuf.h"
+
 #include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -109,9 +112,10 @@ struct ofw_map {
 };
 
 /*
- * Virtual address of message buffer.
+ * Virtual and physical address of message buffer.
  */
 struct msgbuf *msgbufp;
+vm_offset_t msgbuf_phys;
 
 /*
  * Physical addresses of first and last available physical page.
@@ -179,7 +183,7 @@ mr_cmp(const void *a, const void *b)
  * Bootstrap the system enough to run with virtual memory.
  */
 void
-pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
+pmap_bootstrap(vm_offset_t ekva)
 {
 	struct pmap *pm;
 	struct stte *stp;
@@ -194,8 +198,16 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 	int j;
 
 	/*
+	 * Set the start and end of kva.  The kernel is loaded at the first
+	 * available 4 meg super page, so round up to the end of the page.
+	 */
+	virtual_avail = roundup2(ekva, PAGE_SIZE_4M);
+	virtual_end = VM_MAX_KERNEL_ADDRESS;
+
+	/*
 	 * Find out what physical memory is available from the prom and
-	 * initialize the phys_avail array.
+	 * initialize the phys_avail array.  This must be done before
+	 * pmap_bootstrap_alloc is called.
 	 */
 	if ((pmem = OF_finddevice("/memory")) == -1)
 		panic("pmap_bootstrap: finddevice /memory");
@@ -219,30 +231,38 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 	}
 
 	/*
-	 * Initialize the kernel pmap (which is statically allocated).
-	 */
-	pm = &kernel_pmap_store;
-	pm->pm_context = TLB_CTX_KERNEL;
-	pm->pm_active = ~0;
-	pm->pm_count = 1;
-	kernel_pmap = pm;
-
-	/*
 	 * Allocate the kernel tsb and lock it in the tlb.
 	 */
-	pa = pmap_bootstrap_alloc(TSB_KERNEL_SIZE);
+	pa = pmap_bootstrap_alloc(KVA_PAGES * PAGE_SIZE_4M);
 	if (pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: tsb unaligned\n");
 	tsb_kernel_phys = pa;
-	for (i = 0; i < TSB_KERNEL_PAGES; i++) {
-		va = TSB_KERNEL_MIN_ADDRESS + i * PAGE_SIZE_4M;
+	tsb_kernel = (struct stte *)virtual_avail;
+	virtual_avail += KVA_PAGES * PAGE_SIZE_4M;
+	for (i = 0; i < KVA_PAGES; i++) {
+		va = (vm_offset_t)tsb_kernel + i * PAGE_SIZE_4M;
 		tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(va);
 		tte.tte_data = TD_V | TD_4M | TD_VA_LOW(va) | TD_PA(pa) |
 		    TD_L | TD_CP | TD_P | TD_W;
 		tlb_store_slot(TLB_DTLB, va, TLB_CTX_KERNEL, tte,
 		    TLB_SLOT_TSB_KERNEL_MIN + i);
 	}
-	bzero((void *)va, TSB_KERNEL_SIZE);
+	bzero(tsb_kernel, KVA_PAGES * PAGE_SIZE_4M);
+
+	/*
+	 * Load the tsb registers.
+	 */
+	stxa(AA_DMMU_TSB, ASI_DMMU,
+	    (vm_offset_t)tsb_kernel >> (STTE_SHIFT - TTE_SHIFT));
+	stxa(AA_IMMU_TSB, ASI_IMMU,
+	    (vm_offset_t)tsb_kernel >> (STTE_SHIFT - TTE_SHIFT));
+	membar(Sync);
+	flush(va);
+
+	/*
+	 * Allocate the message buffer.
+	 */
+	msgbuf_phys = pmap_bootstrap_alloc(MSGBUF_SIZE);
 
 	/*
 	 * Add the prom mappings to the kernel tsb.
@@ -286,6 +306,21 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 	avail_end = phys_avail[i + 1];
 
 	/*
+	 * Allocate virtual address space for copying and zeroing pages of
+	 * physical memory.
+	 */
+	CADDR1 = virtual_avail;
+	virtual_avail += PAGE_SIZE;
+	CADDR2 = virtual_avail;
+	virtual_avail += PAGE_SIZE;
+
+	/*
+	 * Allocate virtual address space for the message buffer.
+	 */
+	msgbufp = (struct msgbuf *)virtual_avail;
+	virtual_avail += round_page(MSGBUF_SIZE);
+
+	/*
 	 * Allocate physical memory for the heads of the stte alias chains.
 	 */
 	sz = round_page(((avail_end - avail_start) >> PAGE_SHIFT) *
@@ -297,20 +332,13 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 		pvh_set_first(pv_table + i, 0);
 
 	/*
-	 * Set the start and end of kva.  The kernel is loaded at the first
-	 * available 4 meg super page, so round up to the end of the page.
+	 * Initialize the kernel pmap (which is statically allocated).
 	 */
-	virtual_avail = roundup(ekva, PAGE_SIZE_4M);
-	virtual_end = VM_MAX_KERNEL_ADDRESS;
-
-	/*
-	 * Allocate virtual address space for copying and zeroing pages of
-	 * physical memory.
-	 */
-	CADDR1 = virtual_avail;
-	virtual_avail += PAGE_SIZE;
-	CADDR2 = virtual_avail;
-	virtual_avail += PAGE_SIZE;
+	pm = &kernel_pmap_store;
+	pm->pm_context = TLB_CTX_KERNEL;
+	pm->pm_active = ~0;
+	pm->pm_count = 1;
+	kernel_pmap = pm;
 
 	/*
 	 * Set the secondary context to be the kernel context (needed for
@@ -454,8 +482,9 @@ pmap_kremove(vm_offset_t va)
 	struct stte *stp;
 
 	stp = tsb_kvtostte(va);
-	CTR2(KTR_PMAP, "pmap_kremove: va=%#lx stp=%p", va, stp);
-	tte_invalidate(&stp->st_tte);
+	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx stp=%p data=%#lx", va, stp,
+	    stp->st_tte.tte_data);
+	tsb_stte_remove(stp);
 }
 
 /*
@@ -550,6 +579,8 @@ pmap_remove(pmap_t pm, vm_offset_t start, vm_offset_t end)
 {
 	struct stte *stp;
 
+	CTR3(KTR_PMAP, "pmap_remove: pm=%p start=%#lx end=%#lx",
+	    pm, start, end);
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("pmap_remove: non current pmap"));
 	PMAP_LOCK(pm);
@@ -934,13 +965,12 @@ pmap_addr_hint(vm_object_t object, vm_offset_t va, vm_size_t size)
 void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
-	TODO;
+	/* XXX */
 }
 
 void
 pmap_collect(void)
 {
-	TODO;
 }
 
 void
@@ -957,6 +987,8 @@ void
 pmap_copy_page(vm_offset_t src, vm_offset_t dst)
 {
 	struct tte tte;
+
+	CTR2(KTR_PMAP, "pmap_copy_page: src=%#lx dst=%#lx", src, dst);
 
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR1);
 	tte.tte_data = TD_V | TD_8K | TD_PA(src) | TD_L | TD_CP | TD_P | TD_W;
@@ -980,6 +1012,8 @@ pmap_zero_page(vm_offset_t pa)
 {
 	struct tte tte;
 
+	CTR1(KTR_PMAP, "pmap_zero_page: pa=%#lx", pa);
+
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR2);
 	tte.tte_data = TD_V | TD_8K | TD_PA(pa) | TD_L | TD_CP | TD_P | TD_W;
 	tlb_store(TLB_DTLB, CADDR2, TLB_CTX_KERNEL, tte);
@@ -991,6 +1025,9 @@ void
 pmap_zero_page_area(vm_offset_t pa, int off, int size)
 {
 	struct tte tte;
+
+	CTR3(KTR_PMAP, "pmap_zero_page_area: pa=%#lx off=%#x size=%#x",
+	    pa, off, size);
 
 	KASSERT(off + size <= PAGE_SIZE, ("pmap_zero_page_area: bad off/size"));
 	tte.tte_tag = TT_CTX(TLB_CTX_KERNEL) | TT_VA(CADDR2);
@@ -1072,9 +1109,48 @@ pmap_prefault(pmap_t pm, vm_offset_t va, vm_map_entry_t entry)
 void
 pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
+	struct stte *stp;
+	vm_page_t m;
+	u_long data;
+
 	KASSERT(pm == &curproc->p_vmspace->vm_pmap || pm == kernel_pmap,
 	    ("pmap_protect: non current pmap"));
-	/* XXX */
+
+	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
+		pmap_remove(pm, sva, eva);
+		return;
+	}
+
+	if (prot & VM_PROT_WRITE)
+		return;
+
+	for (; sva < eva; sva += PAGE_SIZE) {
+		if ((stp = tsb_stte_lookup(pm, sva)) != NULL) {
+			data = stp->st_tte.tte_data;
+			if ((data & TD_MNG) != 0) {
+				m = NULL;
+				if ((data & TD_REF) != 0) {
+					m = PHYS_TO_VM_PAGE(TD_PA(data));
+					vm_page_flag_set(m, PG_REFERENCED);
+					data &= ~TD_REF;
+				}
+				if ((data & TD_W) != 0 &&
+				    pmap_track_modified(sva)) {
+					if (m == NULL)
+						m = PHYS_TO_VM_PAGE(TD_PA(data));
+					vm_page_dirty(m);
+					data &= ~TD_W;
+				}
+			}
+	
+			data &= ~TD_SW;
+	
+			if (data != stp->st_tte.tte_data) {
+				stp->st_tte.tte_data = data;
+				tsb_tte_local_remove(&stp->st_tte);
+			}
+		}
+	}
 }
 
 vm_offset_t
