@@ -14,6 +14,12 @@ the common items quick how-tos, followed by entries for versions of
 	should update your pccardd at the same time as you update your
 	kernel.
 
+20010811:
+	isdn4bsd was updated to version 1.00.1. for users of the isp<N>
+	(kernel PPP over ISDN) devices, this means that they now _must_
+	use ispppcontrol instead of spppcontrol to configure and control
+	their isp<N> devices. see /usr/share/examples/isdn for more info.
+
 20010725:
 	The ed driver has been updated.  It now allows mii attachments,
 	which means that you must include the miibus in your kernel if
