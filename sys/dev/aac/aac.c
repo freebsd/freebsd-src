@@ -484,14 +484,14 @@ aac_intr(void *arg)
 
     /* controller has a message for us? */
     if (reason & AAC_DB_COMMAND_READY) {
-	aac_host_command(sc);
 	AAC_CLEAR_ISTATUS(sc, AAC_DB_COMMAND_READY);
+	aac_host_command(sc);
     }
     
     /* controller has a response for us? */
     if (reason & AAC_DB_RESPONSE_READY) {
-	aac_host_response(sc);
 	AAC_CLEAR_ISTATUS(sc, AAC_DB_RESPONSE_READY);
+	aac_host_response(sc);
     }
 
     /* spurious interrupts that we don't use - reset the mask and clear the interrupts */
