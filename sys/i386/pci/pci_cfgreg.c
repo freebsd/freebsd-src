@@ -523,7 +523,6 @@ pciereg_findelem(vm_paddr_t papage)
 		TAILQ_REMOVE(pcielist, elem, elem);
 		TAILQ_INSERT_HEAD(pcielist, elem, elem);
 	}
-	critical_exit();
 	return (elem);
 }
 
