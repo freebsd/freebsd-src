@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134 1996/10/14 21:32:28 jkh Exp $
+ * $Id: install.c,v 1.135 1996/11/04 12:56:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -649,6 +649,10 @@ installFixup(dialogMenuItem *self)
 	/* BOGON #3: No /var/db/mountdtab complains */
 	Mkdir("/var/db");
 	creat("/var/db/mountdtab", 0644);
+
+	/* BOGON #4: We need a default /etc/sendmail.cw right now */
+	if (!file_readable("/etc/sendmail.cw"))
+	    vsystem("touch /etc/sendmail.cw");
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
