@@ -54,7 +54,16 @@ the vnode of the file
 .It Ar cred
 the caller's credentials
 .It Ar waitfor
-whether the function should wait for I/O to complete
+whether the function should wait for I/O to complete.
+Possible values are:
+.Bl -tag -width MNT_NOWAIT
+.It Dv MNT_WAIT
+synchronously wait for I/O to complete
+.It Dv MNT_NOWAIT
+start all I/O, but do not wait for it
+.It Dv MNT_LAZY
+push data not written by filesystem syncer
+.El
 .It Ar p
 the calling process
 .El
