@@ -223,7 +223,7 @@ main(int argc,
 		case 'v':
 			/* display version */
 			verbose++;
-			msglog("version 2.21");
+			msglog("version 2.22");
 			break;
 
 		default:
