@@ -16,7 +16,7 @@
  *
  * New configuration setup: dufault@hda.com
  *
- *      $Id: scsiconf.c,v 1.49 1996/01/31 07:32:11 jkh Exp $
+ *      $Id: scsiconf.c,v 1.50 1996/02/02 22:57:27 joerg Exp $
  */
 
 #include <sys/types.h>
@@ -326,11 +326,19 @@ static struct scsidevs knowndevs[] =
 #endif	/* NCD */
 #if NWORM > 0
 	{
-		T_WORM, T_WORM, T_REMOV, "YAMAHA", "CDR100", "*",
+		T_READONLY, T_WORM, T_REMOV, "HP", "C4324/C4325", "*",
 		"worm", SC_ONE_LU
 	},
+	/*
+	 * The Plasmon's are dual-faced: they appear as T_WORM if the
+	 * drive is empty, or a CD-R medium is in the drive, and they
+	 * announce theirselves as T_READONLY if a CD-ROM (or fixated
+	 * CD-R) is there.  This record catches the latter case, while
+	 * the former one falls under the terms of the generic T_WORM
+	 * below.
+	 */
 	{
-		T_READONLY, T_WORM, T_REMOV, "HP", "C4324/C4325", "*",
+		T_READONLY, T_WORM, T_REMOV, "PLASMON", "RF41*", "*",
 		"worm", SC_ONE_LU
 	},
 	{
