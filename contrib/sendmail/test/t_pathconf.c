@@ -26,7 +26,7 @@
 #include <sysexits.h>
 
 #ifndef lint
-static char id[] = "@(#)$Id: t_pathconf.c,v 8.6 2001/09/23 03:35:41 ca Exp $";
+static char id[] = "@(#)$Id: t_pathconf.c,v 1.1.1.3 2002/02/17 21:56:43 gshapiro Exp $";
 #endif /* ! lint */
 
 int

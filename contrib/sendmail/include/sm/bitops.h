@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: bitops.h,v 1.2 2001/09/22 22:05:42 ca Exp $
+ *	$Id: bitops.h,v 1.1.1.1 2002/02/17 21:56:43 gshapiro Exp $
  */
 
 #ifndef	SM_BITOPS_H

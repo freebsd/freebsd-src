@@ -13,5 +13,5 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: bsdi.m4,v 8.1 1999/11/19 05:18:13 gshapiro Exp $')
+VERSIONID(`$Id: bsdi.m4,v 1.1.1.1 2000/08/12 21:55:39 gshapiro Exp $')
 include(_CF_DIR_`'ostype/bsd4.4.m4)dnl

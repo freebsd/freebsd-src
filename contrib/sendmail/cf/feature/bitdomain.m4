@@ -13,7 +13,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: bitdomain.m4,v 8.28 2001/03/16 00:51:25 gshapiro Exp $')
+VERSIONID(`$Id: bitdomain.m4,v 1.1.1.4 2002/02/17 21:56:44 gshapiro Exp $')
 divert(-1)
 
 define(`_BITDOMAIN_TABLE_', `')

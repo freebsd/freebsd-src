@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sys/time.h>
 
-SM_RCSID("@(#)$Id: deliver.c,v 8.935 2002/03/23 18:30:40 gshapiro Exp $")
+SM_RCSID("@(#)$Id: deliver.c,v 1.1.1.11 2002/04/10 03:04:49 gshapiro Exp $")
 
 #if HASSETUSERCONTEXT
 # include <login_cap.h>

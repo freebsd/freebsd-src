@@ -8,7 +8,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: ldap.c,v 1.44 2002/02/22 21:54:02 gshapiro Exp $")
+SM_RCSID("@(#)$Id: ldap.c,v 1.1.1.2 2002/04/10 03:04:55 gshapiro Exp $")
 
 #if LDAPMAP
 # include <sys/types.h>

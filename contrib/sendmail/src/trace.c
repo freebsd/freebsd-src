@@ -15,7 +15,7 @@
 #include <sm/debug.h>
 #include <sm/string.h>
 
-SM_RCSID("@(#)$Id: trace.c,v 8.37 2001/09/11 04:05:17 gshapiro Exp $")
+SM_RCSID("@(#)$Id: trace.c,v 1.1.1.6 2002/02/17 21:56:42 gshapiro Exp $")
 
 static char	*tTnewflag __P((char *));
 static char	*tToldflag __P((char *));

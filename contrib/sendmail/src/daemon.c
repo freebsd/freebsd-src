@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: daemon.c,v 8.611 2002/03/18 23:08:50 gshapiro Exp $")
+SM_RCSID("@(#)$Id: daemon.c,v 1.1.1.11 2002/04/10 03:04:48 gshapiro Exp $")
 
 #if defined(SOCK_STREAM) || defined(__GNU_LIBRARY__)
 # define USE_SOCK_STREAM	1

@@ -18,7 +18,7 @@
 */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: bf.c,v 8.51 2002/03/04 21:51:25 gshapiro Exp $")
+SM_RCSID("@(#)$Id: bf.c,v 1.1.1.2 2002/04/10 03:04:47 gshapiro Exp $")
 
 #include <sys/types.h>
 #include <sys/stat.h>

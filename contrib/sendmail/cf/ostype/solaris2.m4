@@ -17,7 +17,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`$Id: solaris2.m4,v 8.22 1999/09/24 21:43:53 ca Exp $')
+VERSIONID(`$Id: solaris2.m4,v 1.1.1.3 2000/08/12 21:55:41 gshapiro Exp $')
 divert(-1)
 
 ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', `/usr/lib/mail.local')')
