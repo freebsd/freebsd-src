@@ -195,7 +195,7 @@ socreate(dom, aso, type, proto, cred, td)
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(M_NOWAIT);
+	so = soalloc(1);
 	if (so == NULL)
 		return (ENOBUFS);
 
