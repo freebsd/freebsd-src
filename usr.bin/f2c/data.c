@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1993 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -77,7 +77,8 @@ dataval(register expptr repp, register expptr valp)
 		p = nextdata(&elen);
 		if(p == NULL)
 		{
-			err("too many initializers");
+			if (lineno != err_lineno)
+				err("too many initializers");
 			toomanyinit = YES;
 			goto ret;
 		}
@@ -449,7 +450,7 @@ make_param(register struct Paramblock *p, expptr e)
 #endif
 {
 	register expptr q;
-	struct Constblock qc;
+	Constp qc;
 
 	if (p->vstg == STGARG)
 		errstr("Dummy argument %.50s appears in a parameter statement.",
@@ -463,11 +464,12 @@ make_param(register struct Paramblock *p, expptr e)
 		if (q->tag == TEXPR)
 			p->paramval = q = fixexpr((Exprp)q);
 		if (q->tag == TADDR && q->addrblock.uname_tag == UNAM_CONST) {
-			qc.Const = q->addrblock.user.Const;
-			qc.tag = TCONST;
-			qc.vtype = q->addrblock.vtype;
-			qc.vleng = q->addrblock.vleng;
-			q = (expptr)&qc;
+			qc = mkconst(TYCHAR);
+			qc->Const = q->addrblock.user.Const;
+			qc->vleng = q->addrblock.vleng;
+			q->addrblock.vleng = 0;
+			frexpr(q);
+			p->paramval = q = (expptr)qc;
 			}
 		if (!ISCONST(q) || q->constblock.vtype != TYCHAR) {
 			errstr("invalid value for character parameter %s",

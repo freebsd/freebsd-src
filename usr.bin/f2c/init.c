@@ -1,24 +1,24 @@
 /****************************************************************
-Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1996 by AT&T, Lucent Technologies and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
 granted, provided that the above copyright notice appear in all
 copies and that both that the copyright notice and this
 permission notice and warranty disclaimer appear in supporting
-documentation, and that the names of AT&T Bell Laboratories or
-Bellcore or any of their entities not be used in advertising or
-publicity pertaining to distribution of the software without
-specific, written prior permission.
+documentation, and that the names of AT&T, Bell Laboratories,
+Lucent or Bellcore or any of their entities not be used in
+advertising or publicity pertaining to distribution of the
+software without specific, written prior permission.
 
-AT&T and Bellcore disclaim all warranties with regard to this
-software, including all implied warranties of merchantability
-and fitness.  In no event shall AT&T or Bellcore be liable for
-any special, indirect or consequential damages or any damages
-whatsoever resulting from loss of use, data or profits, whether
-in an action of contract, negligence or other tortious action,
-arising out of or in connection with the use or performance of
-this software.
+AT&T, Lucent and Bellcore disclaim all warranties with regard to
+this software, including all implied warranties of
+merchantability and fitness.  In no event shall AT&T, Lucent or
+Bellcore be liable for any special, indirect or consequential
+damages or any damages whatsoever resulting from loss of use,
+data or profits, whether in an action of contract, negligence or
+other tortious action, arising out of or in connection with the
+use or performance of this software.
 ****************************************************************/
 
 #include "defs.h"
@@ -56,6 +56,7 @@ FILEP blkdfile;
 
 char *token;
 int maxtoklen, toklen;
+long err_lineno;
 long lineno;			/* Current line in the input file, NOT the
 				   Fortran statement label number */
 char *infname;
@@ -220,7 +221,7 @@ int nallchargs;
 flag multitype;
 ftnint procleng;
 long lastiolabno;
-int lastlabno;
+long lastlabno;
 int lastvarno;
 int lastargslot;
 int autonum[TYVOID];
