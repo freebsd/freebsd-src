@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.50 1997/05/23 08:38:46 asami Exp $
+#	$Id: bsd.prog.mk,v 1.51 1997/06/21 15:40:33 jkh Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -17,7 +17,7 @@ CXXINCLUDES+= -I${DESTDIR}/usr/include/g++
 STRIP?=	-s
 .endif
 
-.if defined(NOSHARED)
+.if defined(NOSHARED) && ( ${NOSHARED} != "no" && ${NOSHARED} != "NO" )
 LDFLAGS+= -static
 .endif
 
