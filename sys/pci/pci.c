@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.91 1998/11/09 08:08:06 peter Exp $
+ * $Id: pci.c,v 1.92 1999/01/12 01:44:42 eivind Exp $
  *
  */
 
@@ -190,6 +190,7 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 				testval = pci_cfgread(cfg, reg, 4);
 				pci_cfgwrite(cfg, reg, base, 4);
 
+				map[j].reg	= reg;
 				map[j].base     = pci_mapbase(base);
 				map[j].type     = pci_maptype(base);
 				map[j].ln2size  = pci_mapsize(testval);
