@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.343 1998/03/06 06:47:09 jkh Exp $
+#	$Id: Makefile,v 1.344 1998/03/06 23:03:49 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -631,8 +631,7 @@ doMFSKERN:
 	@rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	@cd ${.CURDIR}/../sys/i386/conf && \
-	  sed	-e '/SYSV/d' \
-		-e '/pty/d' \
+	  sed	-e '/pty/d' \
 		-e '/PROCFS/d' \
 		-e '/KTRACE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
