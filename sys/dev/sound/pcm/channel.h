@@ -76,7 +76,7 @@ int chn_sync(struct pcm_channel *c, int threshold);
 int chn_flush(struct pcm_channel *c);
 int chn_poll(struct pcm_channel *c, int ev, struct thread *td);
 
-int chn_init(struct pcm_channel *c, void *devinfo, int dir);
+int chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction);
 int chn_kill(struct pcm_channel *c);
 int chn_setdir(struct pcm_channel *c, int dir);
 int chn_reset(struct pcm_channel *c, u_int32_t fmt);
