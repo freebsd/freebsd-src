@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/wait.h>
 
 #include <err.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -297,7 +298,7 @@ void
 run(argv)
 	char **argv;
 {
-	volatile int noinvoke;
+	volatile int childerr;
 	char **p;
 	pid_t pid;
 	int status;
@@ -309,22 +310,24 @@ run(argv)
 		(void)fprintf(stderr, "\n");
 		(void)fflush(stderr);
 	}
-	noinvoke = 0;
-	switch(pid = fork()) {
+	childerr = 0;
+	switch(pid = vfork()) {
 	case -1:
-		err(1, "fork");
+		err(1, "vfork");
 	case 0:
 		execvp(argv[0], argv);
-		warn("%s", argv[0]);
-		noinvoke = 1;
+		childerr = errno;
 		_exit(1);
 	}
 	pid = waitpid(pid, &status, 0);
 	if (pid == -1)
 		err(1, "waitpid");
 	/* If we couldn't invoke the utility, exit 127. */
-	if (noinvoke)
+	if (childerr != 0) {
+		errno = childerr;
+		warn("%s", argv[0]);
 		exit(127);
+	}
 	/* If utility signaled or exited with a value of 255, exit 1-125. */
 	if (WIFSIGNALED(status) || WEXITSTATUS(status) == 255)
 		exit(1);
