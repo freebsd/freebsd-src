@@ -112,7 +112,7 @@ static int
 sndstat_open(dev_t i_dev, int flags, int mode, struct thread *td)
 {
 	intrmask_t s;
-	int err;
+	int error;
 
 	s = spltty();
 	mtx_lock(&sndstat_lock);
@@ -121,19 +121,24 @@ sndstat_open(dev_t i_dev, int flags, int mode, struct thread *td)
 		splx(s);
 		return EBUSY;
 	}
-	if (sbuf_new(&sndstat_sbuf, NULL, 4096, 0) == NULL) {
-		mtx_unlock(&sndstat_lock);
-		splx(s);
-		return ENXIO;
-	}
-	sndstat_bufptr = 0;
-	err = (sndstat_prepare(&sndstat_sbuf) > 0)? 0 : ENOMEM;
-	if (!err)
-		sndstat_isopen = 1;
-
+	sndstat_isopen = 1;
 	mtx_unlock(&sndstat_lock);
 	splx(s);
-	return err;
+	if (sbuf_new(&sndstat_sbuf, NULL, 4096, 0) == NULL) {
+		error = ENXIO;
+		goto out;
+	}
+	sndstat_bufptr = 0;
+	error = (sndstat_prepare(&sndstat_sbuf) > 0) ? 0 : ENOMEM;
+out:
+	if (error) {
+		s = spltty();
+		mtx_lock(&sndstat_lock);
+		sndstat_isopen = 0;
+		mtx_unlock(&sndstat_lock);
+		splx(s);
+	}
+	return (error);
 }
 
 static int

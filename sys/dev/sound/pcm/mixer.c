@@ -300,7 +300,9 @@ sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 	m = oidp->oid_arg1;
 	snd_mtxlock(m->lock);
 	strncpy(devname, snd_mixernames[m->hwvol_mixer], sizeof(devname));
+	snd_mtxunlock(m->lock);
 	error = sysctl_handle_string(oidp, &devname[0], sizeof(devname), req);
+	snd_mtxlock(m->lock);
 	if (error == 0 && req->newptr != NULL) {
 		dev = mixer_lookup(devname);
 		if (dev == -1) {
