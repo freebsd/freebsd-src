@@ -3,7 +3,6 @@
 #
 
 BINDIR= /usr/bin
-NOOBJ=noobj
 MAN1= send-pr.1
 DATADIR=/etc
 SUBMITTERS=current-users
