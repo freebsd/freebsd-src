@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd March 3, 2001
+.Dd June 14, 2004
 .Dt IP 4
 .Os
 .Sh NAME
@@ -529,6 +529,14 @@ ip->ip_id = 0;  /* 0 means kernel set appropriate value */
 ip->ip_off = offset;
 .Ed
 .Pp
+The ip_len and ip_off fields
+.Em must be provided in host byte order .
+All other fields must be provided in network byte order.
+See
+.Xr byteorder 4
+for more information on network byte order.
+If the ip_id field is set to 0, then the kernel will choose an
+appopriate value.
 If the header source address is set to
 .Dv INADDR_ANY ,
 the kernel will choose an appropriate address.
@@ -568,10 +576,24 @@ The IP option field was improperly formed;
 an option field was shorter than the minimum value
 or longer than the option buffer provided.
 .El
+.Pp
+The following errors may occur when attempting to send
+.Tn IP
+datagrams via a
+.Dq raw socket
+with the
+.Em IP_HDRINCL
+option set:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The user-supplied ip_len field was not equal to the length of the datagram
+written to the socket.
+.El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
 .Xr send 2 ,
+.Xr byteorder 4 ,
 .Xr icmp 4 ,
 .Xr inet 4 ,
 .Xr intro 4
