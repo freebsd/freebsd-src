@@ -3860,11 +3860,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	3.39.</para>
 
       <para><application>gcc</application> has been updated to
-	a pre-release snapshot of <application>gcc</application>
-	3.2.1, from 9 October 2002.
+	<application>gcc</application> 3.2.1 (released version).
 	<warning>
 	  <para>The C++ ABI from <application>gcc</application>
-	    3.2.<replaceable>X</replaceable> is not compatible with
+	    3.2.1 is not compatible with
 	    previous versions.</para>
 	</warning>
       </para>
@@ -3959,7 +3958,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	<application>S/Key</application>. &merged;</para>
 
       <para><application>Perl</application> has been removed from the
-	&os; base system.  It can still be installed from the &os;
+	&os; base system.  It can be installed from the &os;
 	Ports Collection, as a binary package, or via the <guimenuitem>Perl
 	distribution</guimenuitem> item in &man.sysinstall.8;'s
 	distribution menu.
@@ -3972,6 +3971,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
 	  <note>
 	    <para>The Perl script removal work is ongoing.</para>
+	  </note>
+
+	  <note>
+	    <para>Most of the distribution sets in &man.sysinstall.8;
+	      include the new Perl distribution.  This change will
+	      therefore be transparent to most users, with the exception
+	      that updating Perl will be done separately from the base
+	      system.</para>
 	  </note>
 
 	</para>
@@ -4464,6 +4471,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	now have a <filename>.tbz</filename> extension, rather than a
 	<filename>.tgz</filename> extension.)  The package
 	tools have been updated to handle the new format.</para>
+
+      <para>The Ports Collection now maintains a separate index file
+        (<filename>/usr/ports/INDEX-5</filename>) for use with &os;
+        &release.branch;.  A major motivation for a separate index
+        file is to cope with dependencies (such as <filename
+        role="package">lang/perl5</filename>) that exist in &os;
+        &release.branch; but not &os; 4-STABLE.  The index file for
+        each package set is still called
+        <filename>INDEX</filename>.</para>
+
     </sect3>
   </sect2>
 
