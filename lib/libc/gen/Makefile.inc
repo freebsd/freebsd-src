@@ -118,6 +118,6 @@ MLINKS+=tcsetattr.3 cfgetispeed.3 tcsetattr.3 cfgetospeed.3 \
 	tcsetattr.3 tcgetattr.3
 MLINKS+=ttyname.3 isatty.3 ttyname.3 ttyslot.3
 MLINKS+=tzset.3 tzsetwall.3
-MLINKS+=unvis.3 strunvis.3 
+MLINKS+=unvis.3 strunvis.3 unvis.3 strunvisx.3
 MLINKS+=vis.3 strvis.3 vis.3 strvisx.3
 .endif
