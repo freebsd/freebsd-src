@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.38 1995/06/28 16:40:58 se Exp $
+**  $Id: ncr.c,v 1.39 1995/07/07 12:30:39 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1223,7 +1223,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.38 1995/06/28 16:40:58 se Exp $\n";
+	"\n$Id: ncr.c,v 1.39 1995/07/07 12:30:39 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -4162,7 +4162,7 @@ void ncr_complete (ncb_p np, ccb_p cp)
 		printf ("COMMAND FAILED (%x %x) @%x.\n",
 			cp->host_status, cp->scsi_status, (unsigned)cp);
 
-		xp->error = XS_DRIVER_STUFFUP;
+		xp->error = XS_TIMEOUT;
 	}
 
 	xp->flags |= ITSDONE;
