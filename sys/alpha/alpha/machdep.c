@@ -1192,7 +1192,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
 
 	(void)grow_stack(p, (u_long)sip);
-	if (useracc((caddr_t)sip, fsize, B_WRITE) == 0) {
+	if (!useracc((caddr_t)sip, fsize, VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
@@ -1319,7 +1319,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		printf("sendsig(%d): sig %d ssp %p usp %p\n", p->p_pid,
 		       sig, &sf, sfp);
 #endif
-	if (useracc((caddr_t)sfp, sizeof(sf), B_WRITE) == 0) {
+	if (!useracc((caddr_t)sfp, sizeof(sf), VM_PROT_WRITE)) {
 #ifdef DEBUG
 		if ((sigdebug & SDB_KSTACK) && p->p_pid == sigpid)
 			printf("sendsig(%d): useracc failed on sig %d\n",
@@ -1421,7 +1421,7 @@ osigreturn(struct proc *p,
 	 * Test and fetch the context structure.
 	 * We grab it all at once for speed.
 	 */
-	if (useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0 ||
+	if (useracc((caddr_t)scp, sizeof (*scp), VM_PROT_WRITE) == 0 ||
 	    copyin((caddr_t)scp, (caddr_t)&ksc, sizeof ksc))
 		return (EINVAL);
 
@@ -1491,7 +1491,7 @@ sigreturn(struct proc *p,
 	 * Test and fetch the context structure.
 	 * We grab it all at once for speed.
 	 */
-	if (useracc((caddr_t)ucp, sizeof(ucontext_t), B_WRITE) == 0 ||
+	if (useracc((caddr_t)ucp, sizeof(ucontext_t), VM_PROT_WRITE) == 0 ||
 	    copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
 		return (EINVAL);
 

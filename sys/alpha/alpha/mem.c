@@ -202,7 +202,8 @@ kmemphys:
 				return (EFAULT);
 #else
 			if (!kernacc((caddr_t)v, c,
-			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
+			    uio->uio_rw == UIO_READ ? 
+			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
 #endif
 			error = uiomove((caddr_t)v, c, uio);

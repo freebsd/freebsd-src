@@ -204,7 +204,8 @@ mmrw(dev, uio, flags)
 					return EFAULT;
 			
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
-			    uio->uio_rw == UIO_READ ? B_READ : B_WRITE))
+			    uio->uio_rw == UIO_READ ? 
+			    VM_PROT_READ : VM_PROT_WRITE))
 				return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;

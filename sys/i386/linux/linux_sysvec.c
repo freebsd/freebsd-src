@@ -221,7 +221,8 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	 *	if access is denied.
 	 */
 	if ((grow_stack (p, (int)fp) == FALSE) ||
-	    (useracc((caddr_t)fp, sizeof (struct linux_sigframe), B_WRITE) == FALSE)) {
+	    !useracc((caddr_t)fp, sizeof (struct linux_sigframe), 
+	    VM_PROT_WRITE)) {
 		/*
 		 * Process has trashed its stack; give it an illegal
 		 * instruction to halt it in its tracks.
