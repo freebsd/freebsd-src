@@ -438,14 +438,14 @@ sched_rr_interval(void)
  * run much recently, and to round-robin among other processes.
  */
 void
-sched_clock(struct thread *td)
+sched_clock(struct kse *ke)
 {
-	struct kse *ke;
 	struct ksegrp *kg;
+	struct thread *td;
 
-	KASSERT((td != NULL), ("schedclock: null thread pointer"));
-	ke = td->td_kse;
-	kg = td->td_ksegrp;
+	kg = ke->ke_ksegrp;
+	td = ke->ke_thread;
+
 	ke->ke_sched->ske_cpticks++;
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
 	if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
@@ -463,25 +463,52 @@ sched_clock(struct thread *td)
  * aggregated all the estcpu into the 'built-in' ksegrp.
  */
 void
-sched_exit(struct ksegrp *kg, struct ksegrp *child)
+sched_exit(struct proc *p, struct proc *p1)
+{
+	sched_exit_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(p1));
+	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(p1));
+	sched_exit_thread(FIRST_THREAD_IN_PROC(p), FIRST_THREAD_IN_PROC(p1));
+}
+
+void
+sched_exit_kse(struct kse *ke, struct kse *child)
+{
+}
+
+void
+sched_exit_ksegrp(struct ksegrp *kg, struct ksegrp *child)
 {
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + child->kg_estcpu);
 }
 
 void
-sched_fork(struct ksegrp *kg, struct ksegrp *child)
+sched_exit_thread(struct thread *td, struct thread *child)
 {
-	struct kse *ke;
+}
 
-	/*
-	 * set priority of child to be that of parent.
-	 * XXXKSE this needs redefining..
-	 */     
+void
+sched_fork(struct proc *p, struct proc *p1)
+{
+	sched_fork_kse(FIRST_KSE_IN_PROC(p), FIRST_KSE_IN_PROC(p1));
+	sched_fork_ksegrp(FIRST_KSEGRP_IN_PROC(p), FIRST_KSEGRP_IN_PROC(p1));
+	sched_fork_thread(FIRST_THREAD_IN_PROC(p), FIRST_THREAD_IN_PROC(p1));
+}
+
+void
+sched_fork_kse(struct kse *ke, struct kse *child)
+{
+	child->ke_sched->ske_cpticks = 0;
+}
+
+void
+sched_fork_ksegrp(struct ksegrp *kg, struct ksegrp *child)
+{
 	child->kg_estcpu = kg->kg_estcpu;
+}
 
-	/* Set up scheduler specific data */
-	ke = FIRST_KSE_IN_KSEGRP(kg);
-	ke->ke_sched->ske_cpticks = 0;
+void
+sched_fork_thread(struct thread *td, struct thread *child)
+{
 }
 
 void
@@ -489,6 +516,12 @@ sched_nice(struct ksegrp *kg, int nice)
 {
 	kg->kg_nice = nice;
 	resetpriority(kg);
+}
+
+void
+sched_class(struct ksegrp *kg, int class)
+{
+	kg->kg_pri_class = class;
 }
 
 /*
