@@ -294,6 +294,7 @@ __END_DECLS
 #if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 __BEGIN_DECLS
 int	 asprintf __P((char **, const char *, ...)) __printflike(2, 3);
+char	*ctermid_r __P((char *));
 char	*fgetln __P((FILE *, size_t *));
 int	 fpurge __P((FILE *));
 int	 fseeko __P((FILE *, _BSD_OFF_T_, int));
