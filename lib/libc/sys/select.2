@@ -140,6 +140,9 @@ before any of the selected events occurred.
 .It Bq Er EINVAL
 The specified time limit is invalid.  One of its components is
 negative or too large.
+.It Bq Er EINVAL
+.Fa nfds
+was invalid.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
@@ -151,30 +154,29 @@ negative or too large.
 .Xr send 2 ,
 .Xr write 2 ,
 .Xr clocks 7
-.Sh BUGS
-Although the provision of
-.Xr getdtablesize 2
-was intended to allow user programs to be written independent
-of the kernel limit on the number of open files, the dimension
-of a sufficiently large bit field for select remains a problem.
-The default size
+.Sh NOTES
+The default size of
 .Dv FD_SETSIZE
-(currently 256) is somewhat larger than
-the current kernel limit to the number of open files.
-However, in order to accommodate programs which might potentially
-use a larger number of open files with select, it is possible
-to increase this size within a kernel by providing
-a larger definition of
-.Dv FD_SETSIZE
-in kernel configuration file and rebuilding a kernel.
-To increase default limit user program must define its own
-.Dv FD_SETSIZE
-which is less or equal new kernel
+is currently 256.
+In order to accomodate programs which might potentially 
+use a larger number of open files with
+.Fn select
+, it is possible
+to increase this size by having the program define
 .Dv FD_SETSIZE
 before the inclusion of any header which includes
 .Aq Pa sys/types.h .
 .Pp
-.Fn Select
+If
+.Fa nfds
+is greater than the number of open files, 
+.Fn select
+is not guaranteed to examine the unused file descriptors.   For historical
+reasons, 
+.Fn select
+will always examine the first 256 descriptors.
+.Sh BUGS
+.Fn select
 should probably return the time remaining from the original timeout,
 if any, by modifying the time value in place.
 This may be implemented in future versions of the system.
