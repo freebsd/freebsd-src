@@ -334,7 +334,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 
 	devlist_entry = NULL;
 
-	if (PCIB_READ_CONFIG(pcib, b, s, f, PCIR_DEVVENDOR, 4) != -1) {
+	if (REG(PCIR_DEVVENDOR, 4) != -1) {
 		devlist_entry = malloc(size, M_DEVBUF, M_WAITOK | M_ZERO);
 		if (devlist_entry == NULL)
 			return (NULL);
@@ -819,25 +819,32 @@ pci_add_resources(device_t pcib, device_t dev)
 void
 pci_add_children(device_t dev, int busno, size_t dinfo_size)
 {
+#define REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
 	struct pci_devinfo *dinfo;
 	int maxslots;
 	int s, f, pcifunchigh;
+	u_int8_t hdrtype;
 
 	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
 	    ("dinfo_size too small"));
 	maxslots = PCIB_MAXSLOTS(pcib);	
 	for (s = 0; s <= maxslots; s++) {
 		pcifunchigh = 0;
+		f = 0;
+		hdrtype = REG(PCIR_HEADERTYPE, 1);
+		if ((hdrtype & ~PCIM_MFDEV) > 2)
+			continue;
+		if (hdrtype & PCIM_MFDEV)
+			pcifunchigh = PCI_FUNCMAX;
 		for (f = 0; f <= pcifunchigh; f++) {
 			dinfo = pci_read_device(pcib, busno, s, f, dinfo_size);
 			if (dinfo != NULL) {
-				if (dinfo->cfg.mfdev)
-					pcifunchigh = PCI_FUNCMAX;
 				pci_add_child(dev, dinfo);
 			}
 		}
 	}
+#undef REG
 }
 
 void
