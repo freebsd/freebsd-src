@@ -962,6 +962,8 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 
     /* Enable and clear fixed events and install handlers. */
     if ((AcpiGbl_FADT != NULL) && (AcpiGbl_FADT->PwrButton == 0)) {
+	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, 0);
+	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
 				     acpi_eventhandler_power_button_for_sleep, sc);
 	if (first_time) {
@@ -969,6 +971,8 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 	}
     }
     if ((AcpiGbl_FADT != NULL) && (AcpiGbl_FADT->SleepButton == 0)) {
+	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, 0);
+	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
 				     acpi_eventhandler_sleep_button_for_sleep, sc);
 	if (first_time) {
@@ -1405,7 +1409,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    acpi_sleep_machdep(sc, state);
 
 	    /* AcpiEnterSleepState() maybe incompleted, unlock here if locked. */
-	    if (1/*AcpiGbl_AcpiMutexInfo[ACPI_MTX_HARDWARE].OwnerId != ACPI_MUTEX_NOT_ACQUIRED*/) {
+	    if (AcpiGbl_MutexInfo[ACPI_MTX_HARDWARE].OwnerId !=
+		ACPI_MUTEX_NOT_ACQUIRED) {
+
 		AcpiUtReleaseMutex(ACPI_MTX_HARDWARE);
 	    }
 
