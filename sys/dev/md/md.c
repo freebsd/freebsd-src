@@ -441,7 +441,7 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 		}
 		if (osp > 255)
 			uma_zfree(sc->uma, (void*)osp);
-		if (error)
+		if (error != 0)
 			break;
 		secno++;
 		dst += sc->sectorsize;
@@ -722,7 +722,7 @@ mdnew(int unit)
 	mtx_init(&sc->queue_mtx, "md bio queue", NULL, MTX_DEF);
 	sprintf(sc->name, "md%d", unit);
 	error = kthread_create(md_kthread, sc, &sc->procp, 0, 0,"%s", sc->name);
-	if (error) {
+	if (error != 0) {
 		free(sc, M_MD);
 		return (NULL);
 	}
@@ -869,7 +869,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	flags = FREAD|FWRITE;
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, -1);
-	if (error) {
+	if (error != 0) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
@@ -878,7 +878,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		error = vn_open(&nd, &flags, 0, -1);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	if (error)
+	if (error != 0)
 		return (error);
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
@@ -989,7 +989,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		}
 	}
 	error = mdsetcred(sc, td->td_ucred);
-	if (error) {
+	if (error != 0) {
 		vm_object_deallocate(sc->object);
 		sc->object = NULL;
 	}
