@@ -1434,6 +1434,14 @@ Parse_DoVar (line, ctxt)
 	Boolean	  oldOldVars = oldVars;
 
 	oldVars = FALSE;
+
+	/*
+	 * make sure that we set the variable the first time to nothing
+	 * so that it gets substituted!
+	 */
+	if (!Var_Exists(line, ctxt))
+	    Var_Set(line, "", ctxt);
+
 	cp = Var_Subst(NULL, cp, ctxt, FALSE);
 	oldVars = oldOldVars;
 
