@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
- *	$Id: procfs_rlimit.c,v 1.1 1999/04/30 13:04:21 phk Exp $
+ *	$Id: procfs_rlimit.c,v 1.2 1999/07/09 17:56:59 peter Exp $
  */
 
 /*
@@ -94,8 +94,7 @@ procfs_dorlimit(curp, p, pfs, uio)
 		if (p->p_rlimit[i].rlim_cur == RLIM_INFINITY) {
 			ps += sprintf(ps, "-1 ");
 		} else {
-			/* quad_t is a long on the Alpha, sigh.. */
-			ps += sprintf(ps, "%qu ",
+			ps += sprintf(ps, "%llu ",
 				(unsigned long long)p->p_rlimit[i].rlim_cur);
 		}
 
@@ -106,8 +105,7 @@ procfs_dorlimit(curp, p, pfs, uio)
 		if (p->p_rlimit[i].rlim_max == RLIM_INFINITY) {
 			ps += sprintf(ps, "-1\n");
 		} else {
-			/* quad_t is a long on the Alpha, sigh.. */
-			ps += sprintf(ps, "%qu\n",
+			ps += sprintf(ps, "%llu\n",
 				(unsigned long long)p->p_rlimit[i].rlim_max);
 		}
 	}
