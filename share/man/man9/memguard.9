@@ -1,0 +1,116 @@
+.\" Copyright (c) 2005 Christian Brueffer
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 22, 2005
+.Dt MEMGUARD 9
+.Os
+.Sh NAME
+.Nm MemGuard
+.Nd "memory allocator for debugging purposes"
+.Sh SYNOPSIS
+.Cd "options DEBUG_MEMGUARD"
+.Sh DESCRIPTION
+.Nm
+is a simple and small replacement memory allocator designed
+to help detect tamper-after-free scenarios.
+These problems are more and more common and likely with
+multithreaded kernels where race conditions are more prevalent.
+.Pp
+Currently,
+.Nm
+can only take over
+.Fn malloc ,
+.Fn realloc
+and
+.Fn free
+for a particular malloc type.
+.Nm
+takes over
+.Dv M_SUBPROC
+allocations by default.
+.Sh FILES
+.Bl -tag -width ".Pa src/sys/kern/kern_malloc.c" -compact
+.It Pa src/sys/kern/kern_malloc.c
+File to replace the malloc type in
+.El
+.Sh EXAMPLES
+The following steps are necessary to use
+.Nm :
+.Bl -enum
+.It
+Put the
+.Dv DEBUG_MEMGUARD
+option into your kernel config.
+.It
+Open
+.Pa src/sys/kern/kern_malloc.c
+in your favourite editor.
+Look for lines containing
+.Dq Li "XXX CHANGEME!"
+and replace
+.Dv M_SUBPROC
+with the appropriate malloc type.
+This might require additional but small/simple
+code modifications
+(e.g., if the malloc type is declared out of scope).
+.It
+Build and install your kernel.
+Tune the
+.Va vm.memguard_divisor
+boot-time tunable, which is used to scale how much of
+.Va kmem_map
+you want to allot for
+.Nm .
+The default is 10, so
+.Va kmem_size Ns /10
+bytes will be used.
+The
+.Va kmem_size
+value can be obtained via the
+.Va vm.kmem_size
+.Xr sysctl 8
+variable.
+.El
+.Sh SEE ALSO
+.Xr sysctl 8 ,
+.Xr vmstat 8 ,
+.Xr contigmalloc 9 ,
+.Xr malloc 9
+.Sh HISTORY
+.Nm
+first appeared in
+.Fx 6.0 .
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Bosko Milekic Aq bmilekic@FreeBSD.org .
+This manual page was written by
+.An Christian Brueffer Aq brueffer@FreeBSD.org .
+.Sh BUGS
+Currently, it is not possible to override UMA
+.Xr zone 9
+allocations.
