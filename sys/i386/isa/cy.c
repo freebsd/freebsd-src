@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.17 1995/11/04 13:23:31 bde Exp $
+ *	$Id: cy.c,v 1.18 1995/11/04 17:07:14 bde Exp $
  */
 
 #include "cy.h"
@@ -1675,10 +1675,14 @@ comparam(tp, t)
 	else
 		(void)commctl(com, TIOCM_DTR, DMBIS);
 
-	cd_outb(iobase, CD1400_RBPR, idivisor);
-	cd_outb(iobase, CD1400_RCOR, iprescaler);
-	cd_outb(iobase, CD1400_TBPR, odivisor);
-	cd_outb(iobase, CD1400_TCOR, oprescaler);
+	if (idivisor != 0) {
+		cd_outb(iobase, CD1400_RBPR, idivisor);
+		cd_outb(iobase, CD1400_RCOR, iprescaler);
+	}
+	if (odivisor != 0) {
+		cd_outb(iobase, CD1400_TBPR, odivisor);
+		cd_outb(iobase, CD1400_TCOR, oprescaler);
+	}
 
 	/*
 	 * channel control
