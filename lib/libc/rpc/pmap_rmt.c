@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_rmt.c 1.21 87/08/27 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_rmt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_rmt.c,v 1.2 1995/05/30 05:41:27 rgrimes Exp $";
+static char *rcsid = "$Id: pmap_rmt.c,v 1.3 1995/10/22 14:51:32 phk Exp $";
 #endif
 
 /*
@@ -330,8 +330,8 @@ clnt_broadcast(prog, vers, proc, xargs, argsp, xresults, resultsp, eachresult)
 		msg.acpted_rply.ar_results.where = (caddr_t)&r;
                 msg.acpted_rply.ar_results.proc = xdr_rmtcallres;
 		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (int *)NULL,
-			       (int *)NULL, &t)) {
+		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
+			       (fd_set *)NULL, &t)) {
 
 		case 0:  /* timed out */
 			stat = RPC_TIMEDOUT;
