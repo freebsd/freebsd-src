@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.67 1994/11/16 23:14:22 jmz Exp $
+# $Id: bsd.port.mk,v 1.68 1994/11/17 00:18:28 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -49,6 +49,8 @@
 # NO_PACKAGE	- Use a dummy (do-nothing) package target.
 # NO_INSTALL	- Use a dummy (do-nothing) install target.
 # NO_WRKSUBDIR	- Assume port unpacks directly into ${WRKDIR}.
+# NO_WRKDIR		- There's no work directory at all; port does this someplace
+#				  else.
 # NO_DEPENDS	- Don't verify build of dependencies.
 # USE_GMAKE		- Says that the port uses gmake.
 # USE_IMAKE		- Says that the port uses imake.
@@ -97,7 +99,11 @@ PORTSDIR?=		${DESTDIR}/usr/ports
 PREFIX?=		/usr/local
 DISTDIR?=		${PORTSDIR}/distfiles
 PACKAGES?=		${PORTSDIR}/packages
+.if !defined(NO_WRKDIR)
 WRKDIR?=		${.CURDIR}/work
+.else
+WRKDIR?=		${.CURDIR}
+.endif
 .if defined(NO_WRKSUBDIR)
 WRKSRC?=		${WRKDIR}
 .else
