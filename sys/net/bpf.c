@@ -1626,7 +1626,7 @@ bpf_mtap(bp, m)
 void
 bpf_mtap2(bp, d, l, m)
 	struct bpf_if *bp;
-	const void *d;
+	void *d;
 	u_int l;
 	struct mbuf *m;
 {
