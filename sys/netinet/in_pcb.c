@@ -321,7 +321,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			/* GROSS */
 			if (ntohs(lport) <= ipport_reservedhigh &&
 			    ntohs(lport) >= ipport_reservedlow &&
-			    suser_cred(cred, PRISON_ROOT))
+			    suser_cred(cred, SUSER_ALLOWJAIL))
 				return (EACCES);
 			if (jailed(cred))
 				prison = 1;
@@ -392,7 +392,7 @@ in_pcbbind_setup(inp, nam, laddrp, lportp, cred)
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if ((error = suser_cred(cred, PRISON_ROOT)) != 0)
+			if ((error = suser_cred(cred, SUSER_ALLOWJAIL)) != 0)
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
