@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Driver for extra ACPI-controlled gadgets (hotkeys, leds, etc) found on
- * recent Asus (and Medion) laptops.  Inspired by the Acpi4Asus project which
+ * recent Asus (and Medion) laptops.  Inspired by the acpi4asus project which
  * implements these features in the Linux kernel.
  *
  *   <http://sourceforge.net/projects/acpi4asus/>
@@ -75,6 +75,16 @@ struct acpi_asus_model {
 	char	*disp_set;
 };
 
+struct acpi_asus_led {
+	struct cdev	*cdev;
+	device_t	dev;
+	enum {
+		ACPI_ASUS_LED_MLED,
+		ACPI_ASUS_LED_TLED,
+		ACPI_ASUS_LED_WLED,
+	} type;
+};
+
 struct acpi_asus_softc {
 	device_t		dev;
 	ACPI_HANDLE		handle;
@@ -83,9 +93,9 @@ struct acpi_asus_softc {
 	struct sysctl_ctx_list	sysctl_ctx;
 	struct sysctl_oid	*sysctl_tree;
 
-	struct cdev *s_mled;
-	struct cdev *s_tled;
-	struct cdev *s_wled;
+	struct acpi_asus_led	s_mled;
+	struct acpi_asus_led	s_tled;
+	struct acpi_asus_led	s_wled;
 
 	int			s_brn;
 	int			s_disp;
@@ -170,9 +180,7 @@ static int	acpi_asus_probe(device_t dev);
 static int	acpi_asus_attach(device_t dev);
 static int	acpi_asus_detach(device_t dev);
 
-static void	acpi_asus_mled(device_t dev, int state);
-static void	acpi_asus_tled(device_t dev, int state);
-static void	acpi_asus_wled(device_t dev, int state);
+static void	acpi_asus_led(struct acpi_asus_led *led, int state);
 
 static int	acpi_asus_sysctl_brn(SYSCTL_HANDLER_ARGS);
 static int	acpi_asus_sysctl_lcd(SYSCTL_HANDLER_ARGS);
@@ -281,14 +289,26 @@ acpi_asus_attach(device_t dev)
 	    OID_AUTO, "asus", CTLFLAG_RD, 0, "");
 
 	/* Attach leds */
-	if (sc->model->mled_set)
-		sc->s_mled = led_create((led_t *)acpi_asus_mled, dev, "mled");
+	if (sc->model->mled_set) {
+		sc->s_mled.dev = dev;
+		sc->s_mled.type = ACPI_ASUS_LED_MLED;
+		sc->s_mled.cdev =
+		    led_create((led_t *)acpi_asus_led, &sc->s_mled, "mled");
+	}
 
-	if (sc->model->tled_set)
-		sc->s_tled = led_create((led_t *)acpi_asus_tled, dev, "tled");
+	if (sc->model->tled_set) {
+		sc->s_tled.dev = dev;
+		sc->s_tled.type = ACPI_ASUS_LED_TLED;
+		sc->s_tled.cdev =
+		    led_create((led_t *)acpi_asus_led, &sc->s_tled, "tled");
+	}
 
-	if (sc->model->wled_set)
-		sc->s_wled = led_create((led_t *)acpi_asus_wled, dev, "wled");
+	if (sc->model->wled_set) {
+		sc->s_wled.dev = dev;
+		sc->s_wled.type = ACPI_ASUS_LED_WLED;
+		sc->s_wled.cdev =
+		    led_create((led_t *)acpi_asus_led, &sc->s_wled, "wled");
+	}
 
 	/* Attach brightness for GPLV/SPLV models */
 	if (sc->model->brn_get && ACPI_SUCCESS(acpi_GetInteger(sc->handle,
@@ -376,13 +396,13 @@ acpi_asus_detach(device_t dev)
 
 	/* Turn the lights off */
 	if (sc->model->mled_set)
-		led_destroy(sc->s_mled);
+		led_destroy(sc->s_mled.cdev);
 
 	if (sc->model->tled_set)
-		led_destroy(sc->s_tled);
+		led_destroy(sc->s_tled.cdev);
 
 	if (sc->model->wled_set)
-		led_destroy(sc->s_wled);
+		led_destroy(sc->s_wled.cdev);
 
 	/* Remove notify handler */
 	AcpiRemoveNotifyHandler(sc->handle, ACPI_SYSTEM_NOTIFY,
@@ -395,37 +415,31 @@ acpi_asus_detach(device_t dev)
 }
 
 static void
-acpi_asus_mled(device_t dev, int state)
+acpi_asus_led(struct acpi_asus_led *led, int state)
 {
 	struct acpi_asus_softc	*sc;
+	char			*method;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
-	/* Note that the MLED value is inverted. */
-	sc = device_get_softc(dev);
-	acpi_SetInteger(sc->handle, sc->model->mled_set, !state);
-}
+	sc = device_get_softc(led->dev);
 
-static void
-acpi_asus_tled(device_t dev, int state)
-{
-	struct acpi_asus_softc	*sc;
+	switch (led->type) {
+		case ACPI_ASUS_LED_MLED:
+			method = sc->model->mled_set;
 
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+			/* Note: inverted */
+			state = !state;
+			break;
+		case ACPI_ASUS_LED_TLED:
+			method = sc->model->tled_set;
+			break;
+		case ACPI_ASUS_LED_WLED:
+			method = sc->model->wled_set;
+			break;
+	}
 
-	sc = device_get_softc(dev);
-	acpi_SetInteger(sc->handle, sc->model->tled_set, state);
-}
-
-static void
-acpi_asus_wled(device_t dev, int state)
-{
-	struct acpi_asus_softc	*sc;
-
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
-
-	sc = device_get_softc(dev);
-	acpi_SetInteger(sc->handle, sc->model->wled_set, state);
+	acpi_SetInteger(sc->handle, method, state);
 }
 
 static int
