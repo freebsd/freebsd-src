@@ -1,23 +1,9 @@
 #! /bin/sh -
 
 #
-#	$Id: stage2,v 1.1.1.1 1998/07/14 07:30:51 abial Exp $
+#	$Id: stage2,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
 #
 set -e
-
-if [ "${TYPE}" = "dial" ]
-then
-	suffix="-D"
-fi
-if [ "${TYPE}" = "net" ]
-then
-	suffix="-N"
-fi
-if [ "${TYPE}" = "isp" ]
-then
-	suffix="-I"
-fi
-
 
 if [ ! -f kernel ]; then
 	echo "-> ERROR: you must build PICOBSD${suffix}.${SIZE} kernel first"
