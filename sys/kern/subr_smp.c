@@ -119,12 +119,13 @@ forward_signal(struct thread *td)
 	int id;
 
 	/*
-	 * signotify() has already set PS_ASTPENDING on this process so all
-	 * we need to do is poke it if it is currently executing so that it
-	 * executes ast().
+	 * signotify() has already set KEF_ASTPENDING and PS_NEEDSIGCHECK on
+	 * this process, so all we need to do is poke it if it is currently
+	 * executing so that it executes ast().
 	 */
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(td->td_proc->p_stat == SRUN, ("forward_signal: process is not SRUN"));
+	KASSERT(td->td_proc->p_stat == SRUN,
+	    ("forward_signal: process is not SRUN"));
 
 	CTR1(KTR_SMP, "forward_signal(%p)", td->td_proc);
 
