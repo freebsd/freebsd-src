@@ -110,6 +110,14 @@ exits 2 if any error occurred.
 .Sh BUGS
 .Nm Tput
 can't really distinguish between different types of attributes.
+.Pp
+Some termcap entries depend upon having a
+.Sq %
+in them that is just a
+.Sq %
+and nothing more.  Right now we just warn about them if they don't
+have a valid type declaration.  These warnings are sent to
+stderr.
 .Sh HISTORY
 The
 .Nm
