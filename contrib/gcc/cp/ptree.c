@@ -1,5 +1,5 @@
 /* Prints out trees in human readable form.
-   Copyright (C) 1992, 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1992, 93-96, 1998, 1999 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -115,8 +115,6 @@ print_lang_type (file, node, indent)
     fputs (" delete", file);
   if (TYPE_GETS_DELETE (node) & 2)
     fputs (" delete[]", file);
-  if (TYPE_HAS_ASSIGNMENT (node))
-    fputs (" has=", file);
   if (TYPE_HAS_ASSIGN_REF (node))
     fputs (" this=(X&)", file);
   if (TYPE_OVERLOADS_CALL_EXPR (node))
@@ -130,18 +128,13 @@ print_lang_type (file, node, indent)
 
   if (TREE_CODE (node) == RECORD_TYPE)
     {
-      fprintf (file, " n_parents %d n_ancestors %d",
-	       CLASSTYPE_N_BASECLASSES (node),
-	       CLASSTYPE_N_SUPERCLASSES (node));
+      fprintf (file, " n_parents %d", CLASSTYPE_N_BASECLASSES (node));
       fprintf (file, " use_template=%d", CLASSTYPE_USE_TEMPLATE (node));
       if (CLASSTYPE_INTERFACE_ONLY (node))
 	fprintf (file, " interface-only");
       if (CLASSTYPE_INTERFACE_UNKNOWN (node))
 	fprintf (file, " interface-unknown");
       print_node (file, "member-functions", CLASSTYPE_METHOD_VEC (node),
-		  indent + 4);
-      print_node (file, "baselinks",
-		  TYPE_BINFO_BASETYPES (node) ? CLASSTYPE_BASELINK_VEC (node) : NULL_TREE,
 		  indent + 4);
     }
 }
@@ -154,7 +147,7 @@ print_lang_identifier (file, node, indent)
 {
   print_node (file, "bindings", IDENTIFIER_NAMESPACE_BINDINGS (node), indent + 4);
   print_node (file, "class", IDENTIFIER_CLASS_VALUE (node), indent + 4);
-  print_node (file, "local", IDENTIFIER_LOCAL_VALUE (node), indent + 4);
+  print_node (file, "local bindings", IDENTIFIER_BINDING (node), indent + 4);
   print_node (file, "label", IDENTIFIER_LABEL_VALUE (node), indent + 4);
   print_node (file, "template", IDENTIFIER_TEMPLATE (node), indent + 4);
   print_node (file, "implicit", IDENTIFIER_IMPLICIT_DECL (node), indent + 4);
@@ -170,7 +163,8 @@ lang_print_xnode (file, node, indent)
   switch (TREE_CODE (node))
     {
     case CPLUS_BINDING:
-      print_node (file, "scope", BINDING_SCOPE (node), indent+4);
+      fprintf (file, " scope ");
+      fprintf (file, HOST_PTR_PRINTF, BINDING_SCOPE (node));
       print_node (file, "value", BINDING_VALUE (node), indent+4);
       print_node (file, "chain", TREE_CHAIN (node), indent+4);
       break;
