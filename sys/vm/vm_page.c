@@ -447,6 +447,8 @@ vm_page_dirty(vm_page_t m)
 {
 	KASSERT(m->queue - m->pc != PQ_CACHE,
 	    ("vm_page_dirty: page in cache!"));
+	KASSERT(m->queue - m->pc != PQ_FREE,
+	    ("vm_page_dirty: page is free!"));
 	m->dirty = VM_PAGE_BITS_ALL;
 }
 
