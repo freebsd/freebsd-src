@@ -76,19 +76,17 @@ static struct g_class g_dev_class	= {
 	.taste = g_dev_taste,
 };
 
-int
+void
 g_dev_print(void)
 {
 	struct g_geom *gp;
+	char const *p = "";
 
-	g_waitidle();
-	if (LIST_EMPTY(&g_dev_class.geom))
-		return (0);
-	printf("List of GEOM disk devices:\n  ");
-	LIST_FOREACH(gp, &g_dev_class.geom, geom)
-		printf(" %s", gp->name);
+	LIST_FOREACH(gp, &g_dev_class.geom, geom) {
+		printf("%s%s", p, gp->name);
+		p = " ";
+	}
 	printf("\n");
-	return (1);
 }
 
 /*
