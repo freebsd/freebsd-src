@@ -52,5 +52,6 @@ beforeinstall:
 .if exists(${DESTDIR}${BINDIR}/${PROG}.old)
 	-chflags noschg ${DESTDIR}${BINDIR}/${PROG}.old
 .endif
-	cp -p ${DESTDIR}${BINDIR}/${PROG} ${DESTDIR}${BINDIR}/${PROG}.old
+	${INSTALL} -C -p ${DESTDIR}${BINDIR}/${PROG} \
+	    ${DESTDIR}${BINDIR}/${PROG}.old
 .endif
