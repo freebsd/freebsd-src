@@ -916,8 +916,8 @@ pps*)
 	;;
 
 usb)
-	mknod usb$unit c 108 255 root:operator
-	chmod 0660 usb$unit
+	mknod usb c 108 255 root:operator
+	chmod 0660 usb
 	;;
 
 usb*)
