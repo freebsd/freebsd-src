@@ -10,9 +10,6 @@ CATS=	africa america areas arith asia babies bard chinese collectives \
 HIDEGAME=hidegame
 
 beforeinstall:
-	@if [ ! -d ${DESTDIR}/usr/share/games/quiz.db ]; then \
-		mkdir -p ${DESTDIR}/usr/share/games/quiz.db;  \
-	fi
 	(cd ${.CURDIR}/datfiles; install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CATS} ${DESTDIR}/usr/share/games/quiz.db)
 
