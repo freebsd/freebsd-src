@@ -164,7 +164,9 @@ Sepcifies, in seconds, the average lifetime of prunes that are sent towards
 parents.  The actual lifetimes will be randomized in the range
 [.5\fIsecs\fP,1.5\fIsecs\fP].  The default is 7200 (2 hours).  Smaller values
 cause less state to be kept both at this router and the parent, at the
-cost of more frequent broadcasts.  However, some routers (e.g. mrouted <3.3
+cost of more frequent broadcasts.  However, some routers (e.g.\&
+.Nm
+<3.3
 and all currently known versions of cisco's IOS) do not use the
 DVMRP generation ID to determine that a neighbor has rebooted.  Prunes
 sent towards these neighbors should be kept short, in order to shorten
@@ -231,7 +233,8 @@ must use the same version of IGMP.
 Force
 .Nm
 to ignore other routers on this interface.
-mrouted will never send or accept neighbor probes or
+.Nm
+will never send or accept neighbor probes or
 route reports on this interface.
 .El
 .Pp
