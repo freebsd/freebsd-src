@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tlreg.h,v 1.20 1998/07/12 14:59:25 wpaul Exp wpaul $
+ *	$Id: if_tlreg.h,v 1.3 1998/08/02 23:54:37 root Exp $
  */
 
 

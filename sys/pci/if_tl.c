@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.1 1998/07/11 00:34:45 wpaul Exp wpaul $
+ *	$Id: if_tl.c,v 1.4 1998/08/03 00:44:48 root Exp $
  */
 
 /*
@@ -217,7 +217,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.1 1998/07/11 00:34:45 wpaul Exp wpaul $";
+	"$Id: if_tl.c,v 1.4 1998/08/03 00:44:48 root Exp $";
 #endif
 
 /*
@@ -734,14 +734,14 @@ static void tl_autoneg(sc, flag, verbose)
 	int			flag;
 	int			verbose;
 {
-	u_int16_t		phy_sts = 0, media = 0;
+	u_int16_t		phy_sts = 0, media = 0, advert, ability;
 	struct ifnet		*ifp;
 	struct ifmedia		*ifm;
 	volatile struct tl_csr	*csr;
 
+	csr = sc->csr;
 	ifm = &sc->ifmedia;
 	ifp = &sc->arpcom.ac_if;
-	csr = sc->csr;
 
 	/*
 	 * First, see if autoneg is supported. If not, there's
@@ -763,6 +763,8 @@ static void tl_autoneg(sc, flag, verbose)
  		 * for three whole seconds after we've gone multi-user
 		 * is really bad manners.
 	 	 */
+		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+		DELAY(500);
 		phy_sts = tl_phy_readreg(sc, PHY_BMCR);
 		phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
 		tl_phy_writereg(sc, PHY_BMCR, phy_sts);
@@ -779,6 +781,8 @@ static void tl_autoneg(sc, flag, verbose)
 			sc->tl_want_auto = 1;
 			return;
 		}
+		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+		DELAY(500);
 		phy_sts = tl_phy_readreg(sc, PHY_BMCR);
 		phy_sts |= PHY_BMCR_AUTONEGENBL|PHY_BMCR_AUTONEGRSTR;
 		tl_phy_writereg(sc, PHY_BMCR, phy_sts);
@@ -814,44 +818,68 @@ static void tl_autoneg(sc, flag, verbose)
 	if (phy_sts & PHY_BMSR_LINKSTAT) {
 		if (verbose)
 			printf("link status good ");
+
+		advert = tl_phy_readreg(sc, TL_PHY_ANAR);
+		ability = tl_phy_readreg(sc, TL_PHY_LPAR);
 		media = tl_phy_readreg(sc, PHY_BMCR);
 
+		/*
+	 	 * Be sure to turn off the ISOLATE and
+		 * LOOPBACK bits in the control register,
+		 * otherwise we may not be able to communicate.
+		 */
+		media &= ~(PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
 		/* Set the DUPLEX bit in the NetCmd register accordingly. */
-		if (media & PHY_BMCR_DUPLEX) {
-			if (verbose)
-				printf("(full-duplex, ");
-			ifm->ifm_media |= IFM_FDX;
-			ifm->ifm_media &= ~IFM_HDX;
-			DIO_SEL(TL_NETCMD);
-			DIO_BYTE0_SET(TL_CMD_DUPLEX);
-		} else {
-			if (verbose)
-				printf("(half-duplex, ");
-			ifm->ifm_media &= ~IFM_FDX;
-			ifm->ifm_media |= IFM_HDX;
+		if (advert & PHY_ANAR_100BT4 && ability & PHY_ANAR_100BT4) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_T4;
 			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
-		}
-
-		if (media & PHY_BMCR_SPEEDSEL) {
 			if (verbose)
-				printf("100Mb/s)\n");
-			ifm->ifm_media |= IFM_100_TX;
-			ifm->ifm_media &= ~IFM_10_T;
+				printf("(100baseT4)\n");
+		} else if (advert & PHY_ANAR_100BTXFULL &&
+			ability & PHY_ANAR_100BTXFULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_FDX;
+			media |= PHY_BMCR_SPEEDSEL;
+			media |= PHY_BMCR_DUPLEX;
+			DIO_SEL(TL_NETCMD);
+			DIO_BYTE0_SET(TL_CMD_DUPLEX);
+			if (verbose)
+				printf("(full-duplex, 100Mbps)\n");
+		} else if (advert & PHY_ANAR_100BTXHALF &&
+			ability & PHY_ANAR_100BTXHALF) {
+			ifm->ifm_media = IFM_ETHER|IFM_100_TX|IFM_HDX;
+			media |= PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			DIO_SEL(TL_NETCMD);
+			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
+			if (verbose)
+				printf("(half-duplex, 100Mbps)\n");
+		} else if (advert & PHY_ANAR_10BTFULL &&
+			ability & PHY_ANAR_10BTFULL) {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_FDX;
+			media &= ~PHY_BMCR_SPEEDSEL;
+			media |= PHY_BMCR_DUPLEX;
+			DIO_SEL(TL_NETCMD);
+			DIO_BYTE0_SET(TL_CMD_DUPLEX);
+			if (verbose)
+				printf("(full-duplex, 10Mbps)\n");
 		} else {
+			ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+			media &= ~PHY_BMCR_SPEEDSEL;
+			media &= ~PHY_BMCR_DUPLEX;
+			DIO_SEL(TL_NETCMD);
+			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 			if (verbose)
-				printf("10Mb/s)\n");
-			ifm->ifm_media &= ~IFM_100_TX;
-			ifm->ifm_media |= IFM_10_T;
+				printf("(half-duplex, 10Mbps)\n");
 		}
-
-		/* Turn off autoneg */
 		media &= ~PHY_BMCR_AUTONEGENBL;
 		tl_phy_writereg(sc, PHY_BMCR, media);
 	} else {
 		if (verbose)
 			printf("no carrier\n");
 	}
+
+	tl_init(sc);
 
 	if (sc->tl_tx_pend) {
 		sc->tl_autoneg = 0;
@@ -874,13 +902,14 @@ static void tl_setmode(sc, media)
 	volatile struct tl_csr	*csr;
 
 	csr = sc->csr;
+
 	bmcr = tl_phy_readreg(sc, PHY_BMCR);
 	anar = tl_phy_readreg(sc, PHY_ANAR);
 	ctl = tl_phy_readreg(sc, TL_PHY_CTL);
 	DIO_SEL(TL_NETCMD);
 
 	bmcr &= ~(PHY_BMCR_SPEEDSEL|PHY_BMCR_DUPLEX|PHY_BMCR_AUTONEGENBL|
-		  PHY_BMCR_LOOPBK);
+		  PHY_BMCR_LOOPBK|PHY_BMCR_ISOLATE);
 	anar &= ~(PHY_ANAR_100BT4|PHY_ANAR_100BTXFULL|PHY_ANAR_100BTXHALF|
 		  PHY_ANAR_10BTFULL|PHY_ANAR_10BTHALF);
 
@@ -892,22 +921,27 @@ static void tl_setmode(sc, media)
 	if (IFM_SUBTYPE(media) == IFM_AUTO)
 		bmcr |= PHY_BMCR_AUTONEGENBL;
 
-	if (IFM_SUBTYPE(media) == IFM_10_5)
+	if (IFM_SUBTYPE(media) == IFM_10_5) {
 		ctl |= PHY_CTL_AUISEL;
+		tl_phy_writereg(sc, TL_PHY_CTL, ctl);
+	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
 		bmcr |= PHY_BMCR_SPEEDSEL;
 		if ((media & IFM_GMASK) == IFM_FDX) {
 			bmcr |= PHY_BMCR_DUPLEX;
 			anar |= PHY_ANAR_100BTXFULL;
+			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_SET(TL_CMD_DUPLEX);
 		} else if ((media & IFM_GMASK) == IFM_HDX) {
 			bmcr &= ~PHY_BMCR_DUPLEX;
 			anar |= PHY_ANAR_100BTXHALF;
+			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 		} else {
 			bmcr &= ~PHY_BMCR_DUPLEX;
 			anar |= PHY_ANAR_100BTXHALF;
+			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 		}
 	}
@@ -917,14 +951,17 @@ static void tl_setmode(sc, media)
 		if ((media & IFM_GMASK) == IFM_FDX) {
 			bmcr |= PHY_BMCR_DUPLEX;
 			anar |= PHY_ANAR_10BTFULL;
+			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_SET(TL_CMD_DUPLEX);
 		} else if ((media & IFM_GMASK) == IFM_HDX) {
 			bmcr &= ~PHY_BMCR_DUPLEX;
 			anar |= PHY_ANAR_10BTHALF;
+			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 		} else {
 			bmcr &= ~PHY_BMCR_DUPLEX;
 			anar |= PHY_ANAR_10BTHALF;
+			DIO_SEL(TL_NETCMD);
 			DIO_BYTE0_CLR(TL_CMD_DUPLEX);
 		}
 	}
@@ -933,7 +970,8 @@ static void tl_setmode(sc, media)
 #ifdef notyet
 	tl_phy_writereg(sc, PHY_ANAR, anar);
 #endif
-	tl_phy_writereg(sc, TL_PHY_CTL, ctl);
+
+	tl_init(sc);
 
 	return;
 }
@@ -1160,7 +1198,7 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	caddr_t			roundptr;
 
 	if (tl_phy != TL_PHYADDR_MAX)
-		tl_softreset(csr, 0);
+		tl_softreset(csr, 1);
 
 	/* Reset the PHY again, just in case. */
 	bzero((char *)&frame, sizeof(frame));
@@ -1365,8 +1403,10 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	 * ThunderLAN chip defaults to half-duplex and stays there unless
 	 * told otherwise.
 	 */
-	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG)
-		tl_autoneg(sc, TL_FLAG_FORCEDELAY, 0);
+	if (sc->tl_phy_sts & PHY_BMSR_CANAUTONEG) {
+		tl_init(sc);
+		tl_autoneg(sc, TL_FLAG_SCHEDDELAY, 1);
+	}
 
 	/*
 	 * Call MI attach routines.
@@ -1448,6 +1488,28 @@ tl_attach_ctlr(config_id, unit)
 	}
 
 	/*
+	 * XXX Olicom, in its desire to be different from the
+	 * rest of the world, has done strange things with the
+	 * encoding of the station address in the EEPROM. First
+	 * of all, they store the address at offset 0xF8 rather
+	 * than at 0x83 like the ThunderLAN manual suggests.
+	 * Second, they store the address in 16-bit chunks in
+	 * network byte order, as opposed to storing it sequentially
+	 * like all the other ThunderLAN cards. In order to get
+	 * the station address in a form that matches what the Olicom
+	 * diagnostic utility specifies, we have to byte-swap each
+	 * word. To make things even more confusing, neither 00:00:28
+	 * nor 00:00:24 appear in the IEEE OUI database.
+	 */
+	if (ilist->tl_dinfo->tl_vid == OLICOM_VENDORID) {
+		for (i = 0; i < ETHER_ADDR_LEN; i += 2) {
+			u_int16_t		*p;
+			p = (u_int16_t *)&eaddr[i];
+			*p = ntohs(*p);
+		}
+	}
+
+	/*
 	 * A ThunderLAN chip was detected. Inform the world.
 	 */
 	printf("tlc%d: Ethernet address: %6D\n", unit, eaddr, ":");
@@ -1470,7 +1532,7 @@ tl_attach_ctlr(config_id, unit)
 		DELAY(500);
 		while(frame.mii_data & PHY_BMCR_RESET)
 			tl_mii_readreg(csr, &frame);
-		frame.mii_regaddr = TL_PHY_VENID;
+		frame.mii_regaddr = PHY_BMSR;
 		frame.mii_data = 0;
 		tl_mii_readreg(csr, &frame);
 		if (!frame.mii_data)
@@ -1490,8 +1552,20 @@ tl_attach_ctlr(config_id, unit)
 		goto fail;
 	}
 
-	at_shutdown(tl_shutdown, ilist, SHUTDOWN_POST_SYNC);
+	/* Reset internal PHY. */
+	frame.mii_phyaddr = TL_PHYADDR_MAX;
+	frame.mii_regaddr = TL_PHY_GENCTL;
+	frame.mii_data = PHY_BMCR_RESET;
+	tl_mii_writereg(csr, &frame);
+	DELAY(500);
+	/* Do it again. */
+	tl_mii_writereg(csr, &frame);
+	DELAY(500);
+	/* Now isolate it. */
+	frame.mii_data = PHY_BMCR_ISOLATE;
+	tl_mii_writereg(csr, &frame);
 
+	at_shutdown(tl_shutdown, ilist, SHUTDOWN_POST_SYNC);
 fail:
 	splx(s);
 	return;
@@ -2317,6 +2391,36 @@ static void tl_init(xsc)
 	/* Load the address of the rx list */
 	CMD_SET(sc->csr, TL_CMD_RT);
 	sc->csr->tl_ch_parm = vtophys(&sc->tl_ldata->tl_rx_list[0]);
+
+	/*
+	 * XXX The following is a kludge. I've recently encountered
+	 * a version of the Olicom OC-2326 with what looks like a
+	 * mutant version of the ThunderLAN chip with a high-speed
+	 * PHY at MII address 0, but whose vendor and device ID
+	 * registers return 0. The tricky thing about these cards is
+	 * that while you can autonegotiate 10/100 half/full duplex
+	 * modes using just the PHY at address 0, you need to isolate
+	 * the internal PHY at address 31 in order to use 100Mbps modes
+	 * and un-isolate it if you want to use 10Mbps modes.
+	 * I'm not sure if this nonsense is Olicom's doing or if this
+	 * really is a special version of the ThunderLAN with built-in
+	 * 100Mbps support, but I don't have a simple way to 'spot the
+	 * looney' other than checking the PHY vendor ID.
+	 */
+	if (!sc->tl_phy_vid) {
+		u_int8_t			addr = 0;
+		u_int16_t			bmcr;
+
+		bmcr = tl_phy_readreg(sc, PHY_BMCR);
+		addr = sc->tl_phy_addr;
+		sc->tl_phy_addr = TL_PHYADDR_MAX;
+		tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_RESET);
+		if (bmcr & PHY_BMCR_SPEEDSEL)
+			tl_phy_writereg(sc, PHY_BMCR, PHY_BMCR_ISOLATE);
+		else
+			tl_phy_writereg(sc, PHY_BMCR, bmcr);
+		sc->tl_phy_addr = addr;
+	}
 
 	/* Send the RX go command */
 	CMD_SET(sc->csr, (TL_CMD_GO|TL_CMD_RT));
