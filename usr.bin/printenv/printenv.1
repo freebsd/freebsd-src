@@ -32,7 +32,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)printenv.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: printenv.1,v 1.3 1999/07/12 20:23:52 nik Exp $
 .\"
 .Dd June 6, 1993
 .Dt PRINTENV 1
@@ -45,6 +45,7 @@
 .Op Ar name
 .Nm env
 .Op Fl
+.Op Fl i
 .Op Ar name=value ...
 .Op Ar command
 .Sh DESCRIPTION
@@ -72,12 +73,21 @@ an environment variable,
 .Ar name  ,
 with a value of
 .Ar value  .
-The option
-.Sq Fl
-causes
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl i
+Execute the
+.Ar command
+with only those environment values specified. The environment inherited
+by
 .Nm env
-to completely ignore the environment
-it inherits.
+is ignored completely.
+.It Fl
+Identical to the
+.Fl i
+option, available for backward compatibility.
+.El
 .Pp
 If no command is specified,
 .Nm env
