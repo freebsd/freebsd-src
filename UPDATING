@@ -1,8 +1,21 @@
-Updating Information for FreeBSD 5.0 users
+Updating Information for FreeBSD 5.0 Security Branch (RELENG_5_0) users.
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
+
+A reverse chronology since 5.0 was released is included, followed by
+the common items quick how-tos, followed by entries for versions of
+-current prior to 5.0 Release.
+
+This is for the 5.0 release branch.  All entries since 5.0 are an
+itemized list of commits to this branch, numbered from the beginning.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
 
 20030117:
 	FreeBSD 5.0-RELEASE
@@ -1137,7 +1150,7 @@ previous releases if your system is older than this.
 
 Copyright information:
 
-Copyright 1998, 2002 M. Warner Losh.  All Rights Reserved.
+Copyright 1998-2003 M. Warner Losh.  All Rights Reserved.
 
 Redistribution, publication, translation and use, with or without
 modification, in full or in part, in any form or format of this
