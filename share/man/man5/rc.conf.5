@@ -22,7 +22,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
+<<<<<<< rc.conf.5
+<<<<<<< rc.conf.5
+<<<<<<< rc.conf.5
 .\" $FreeBSD$
+=======
+.\" $FreeBSD$
+>>>>>>> 1.27.2.14
+=======
+.\" $FreeBSD$
+>>>>>>> 1.27.2.15
+=======
+.\" $FreeBSD$
+>>>>>>> 1.27.2.16
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -221,6 +233,34 @@ have no listening socket on them.
 by default.
 Setting to NO will disable probing idle TCP connections to verify that the
 peer is still up and reachable.
+.It Ar tcp_drop_synfin
+(bool) Set to
+.Ar NO
+by default.
+Setting to YES will cause the kernel to ignore TCP frames that have both
+the SYN and FIN flags set. This prevents OS fingerprinting, but may
+break some legitimate applications. This option is only available if the
+kernel was built with the TCP_DROP_SYNFIN option.
+.It Ar tcp_restrict_rst
+(bool) Set to
+.Ar NO
+by default.
+Setting to YES will cause the kernel to refrain from emitting TCP RST frames
+in response to invalid TCP packets (e.g. frames destined for closed ports).
+This option is only available if the kernel was built with the
+TCP_RESTRICT_RST option.
+.It Ar icmp_drop_redirect
+(bool) Set to
+.Ar NO
+by default.
+Setting to YES will cause the kernel to ignore ICMP REDIRECT packets.
+.It Ar icmp_log_redirect
+(bool) Set to
+.Ar NO
+by default.
+Setting to YES will cause the kernel to log ICMP REDIRECT packets. Note that
+the log messages are not rate-limited, so this option should only be used
+for troubleshooting your own network.
 .It Ar network_interfaces
 (str) Set to the list of network interfaces to configure on this host.
 For example, if you had a loopback device (standard) and an SMC Elite
