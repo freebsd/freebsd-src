@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.20 1997/03/03 09:50:21 imp Exp $";
+	"$Id: ping.c,v 1.21 1997/03/04 22:05:49 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -97,6 +97,8 @@ static const char rcsid[] =
 #define	MAXPACKET	(65536 - 60 - 8)/* max packet size */
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	NROUTES		9		/* number of record route slots */
+#define	FLOOD_BACKOFF	20000		/* usecs to back off if flooding */
+					/* reports we are out of buffer space */
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
 #define	B(bit)		(1 << ((bit) & 0x07))	/* identify bit in byte */
@@ -146,6 +148,7 @@ long nreceived;			/* # of packets we got back */
 long nrepeats;			/* number of duplicates */
 long ntransmitted;		/* sequence # for outbound packets = #sent */
 int interval = 1;		/* interval between packets */
+int finish_up = 0;		/* We've been told to finish up */
 
 /* timing */
 int timing;			/* flag to do timing */
@@ -160,6 +163,7 @@ static void fill(char *, char *);
 static u_short in_cksum(u_short *, int);
 static void catcher(int sig);
 static void check_status(void);
+static void stopit(int);
 static void finish(int) __dead2;
 static void pinger(void);
 static char *pr_addr(struct in_addr);
@@ -419,7 +423,7 @@ main(argc, argv)
 	else
 		(void)printf("PING %s: %d data bytes\n", hostname, datalen);
 
-	(void)signal(SIGINT, finish);
+	(void)signal(SIGINT, stopit);
 	(void)signal(SIGALRM, catcher);
 
 	/*
@@ -445,7 +449,7 @@ main(argc, argv)
 	if ((options & F_FLOOD) == 0)
 		catcher(0);		/* start things going */
 
-	for (;;) {
+	while (finish_up == 0) {
 		struct sockaddr_in from;
 		register int cc;
 		int fromlen;
@@ -478,6 +482,19 @@ main(argc, argv)
 }
 
 /*
+ * Stopit --
+ * 
+ * set the global bit that cause everything to quit..
+ * do rNOT quit and exit from the signal handler!
+ */
+void
+stopit(int ignored)
+{
+	finish_up = 1;
+}
+
+
+/*
  * catcher --
  *	This routine causes another PING to be transmitted, and then
  * schedules another SIGALRM for 1 second from now.
@@ -503,7 +520,7 @@ catcher(int sig)
 				waittime = 1;
 		} else
 			waittime = MAXWAIT;
-		(void)signal(SIGALRM, finish);
+		(void)signal(SIGALRM, stopit);
 		(void)alarm((u_int)waittime);
 	}
 }
@@ -546,6 +563,10 @@ pinger(void)
 
 	if (i < 0 || i != cc)  {
 		if (i < 0) {
+			if ((options & F_FLOOD) && (errno == ENOBUFS)) {
+				usleep(FLOOD_BACKOFF);
+				return;
+			}
 			warn("sendto");
 		} else {
 			warn("%s: partial write: %d of %d bytes",
@@ -577,7 +598,7 @@ pr_pack(buf, cc, from)
 	static char old_rr[MAX_IPOPTLEN];
 	struct ip *ip;
 	struct timeval tv, *tp;
-	double triptime;
+	double triptime = 0.0;
 	int hlen, dupflag;
 
 	(void)gettimeofday(&tv, (struct timezone *)NULL);
