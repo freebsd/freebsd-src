@@ -2144,7 +2144,7 @@ retry:
  * to be used for panic dumps.
  */
 void *
-pmap_kenter_temporary(vm_offset_t pa, int i)
+pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
 
