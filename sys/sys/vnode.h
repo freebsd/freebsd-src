@@ -164,7 +164,7 @@ struct vnode {
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
 #define	VDOOMED		0x40000	/* This vnode is being recycled */
 #define	VFREE		0x80000	/* This vnode is on the freelist */
-#define	VTBFREE		0x100000 /* This vnode is on the to-be-freelist */
+/* open for business	0x100000 */
 #define	VONWORKLST	0x200000 /* On syncer work-list */
 #define	VMOUNT		0x400000 /* Mount in progress */
 
@@ -298,7 +298,7 @@ extern void	(*lease_updatetime) __P((int deltat));
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
 #define VSHOULDBUSY(vp)	\
-	(((vp)->v_flag & (VFREE|VTBFREE)) && \
+	(((vp)->v_flag & VFREE) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
 
 #endif /* _KERNEL */
@@ -613,6 +613,7 @@ int	vop_defaultop __P((struct vop_generic_args *ap));
 int	vop_null __P((struct vop_generic_args *ap));
 int	vop_panic __P((struct vop_generic_args *ap));
 
+void	vfree __P((struct vnode *));
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));
@@ -620,9 +621,6 @@ void	vbusy __P((struct vnode *vp));
 
 extern	vop_t	**default_vnodeop_p;
 extern	vop_t **spec_vnodeop_p;
-
-extern TAILQ_HEAD(tobefreelist, vnode)
-	vnode_tobefree_list;	/* vnode free list */
 
 #endif /* _KERNEL */
 
