@@ -37,13 +37,15 @@
 #include <stdio.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
-#include <cam/scsi/scsi_ses.h>
+#include SESINC
 
-extern char *geteltnm(int);
-extern char *stat2ascii(int, u_char *);
+extern char *geteltnm __P((int));
+extern char *stat2ascii __P((int, u_char *));
 
 int
-main(int a, char **v)
+main(a, v)
+	int a;
+	char **v;
 {
 	ses_object *objp;
 	ses_objstat ob;
@@ -134,16 +136,16 @@ main(int a, char **v)
 			if ((ob.cstat[0] & 0xf) == SES_OBJSTAT_OK) {
 				if (verbose) {
 					fprintf(stdout,
-					    "%s Element(%x): OK (%s)\n",
-					    geteltnm(objp[i].object_type),
+					    "Element 0x%x: %s OK (%s)\n",
 					    ob.obj_id,
+					    geteltnm(objp[i].object_type),
 					    stat2ascii(objp[i].object_type,
 					    ob.cstat));
 				}
 				continue;
 			}
-			fprintf(stdout, "%s Element(%x): %s\n",
-			    geteltnm(objp[i].object_type), ob.obj_id,
+			fprintf(stdout, "Element 0x%x: %s, %s\n",
+			    ob.obj_id, geteltnm(objp[i].object_type),
 			    stat2ascii(objp[i].object_type, ob.cstat));
 		}
 		free(objp);
