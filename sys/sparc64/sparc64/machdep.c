@@ -198,6 +198,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	vm_offset_t end;
 	vm_offset_t va;
 	caddr_t kmdp;
+	char *env;
 	char type[8];
 
 	end = 0;
@@ -283,6 +284,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	init_param1();
 	init_param2(physmem);
+	env = getenv("kernelname");
+	if (env != NULL) {
+		strlcpy(kernelname, env, sizeof(kernelname));
+		freeenv(env);
+	}
 
 	/*
 	 * Disable tick for now.
