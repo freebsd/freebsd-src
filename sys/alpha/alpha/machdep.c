@@ -556,7 +556,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		kern_envp = bootinfo.envp;
 
 	/* Do basic tuning, hz etc */
-	init_param();
+	init_param1();
 
 	/*
 	 * Initalize the (temporary) bootstrap console interface, so
@@ -861,6 +861,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			physmem -= (sz - nsz);
 		}
 	}
+	init_param2(physmem);
 
 	/*
 	 * Initialize error message buffer (at end of core).
