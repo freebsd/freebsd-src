@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.15 1997/03/09 06:32:28 yokota Exp $
+ *  $Id: syscons.c,v 1.182.2.16 1997/04/10 12:39:08 yokota Exp $
  */
 
 #include "sc.h"
@@ -80,7 +80,10 @@
 #define WARM 1
 
 /* this may break on older VGA's but is useful on real 32 bit systems */
-#define bcopyw  bcopy
+/* XXX use sc_bcopy where video memory is concerned */
+#define bcopyw	 bcopy
+#define sc_bcopy generic_bcopy
+extern void generic_bcopy(const void *, void *, size_t);
 
 static default_attr user_default = {
     (FG_LIGHTGREY | BG_BLACK) << 8,
@@ -127,6 +130,7 @@ static  long       	scrn_time_stamp;
 	char		font_14[256*14];
 	char		font_16[256*16];
 	char        	palette[256*3];
+static  char		vgaregs[64];
 static	char 		*cut_buffer;
 static  u_short 	mouse_and_mask[16] = {
 				0xc000, 0xe000, 0xf000, 0xf800,
@@ -201,6 +205,9 @@ static int mask2attr(struct term_stat *term);
 static void set_keyboard(int command, int data);
 static void update_leds(int which);
 static void set_vgaregs(char *modetable);
+static void read_vgaregs(char *buf);
+static int comp_vgaregs(u_char *buf1, u_char *buf2);
+static void dump_vgaregs(u_char *buf);
 static void set_font_mode(void);
 static void set_normal_mode(void);
 static void set_destructive_cursor(scr_stat *scp);
@@ -489,6 +496,19 @@ scattach(struct isa_device *dev)
     scrn_timer();
 
     update_leds(scp->status);
+
+    if (bootverbose) {
+        printf("sc%d: BIOS video mode:%d\n", 
+	    dev->id_unit, *(u_char *)pa_to_va(0x449));
+        printf("sc%d: VGA registers upon power-up\n", dev->id_unit);
+        dump_vgaregs(vgaregs);
+        printf("sc%d: video mode:%d\n", dev->id_unit, scp->mode);
+        if (video_mode_ptr != NULL) {
+            printf("sc%d: VGA registers for mode:%d\n", 
+		dev->id_unit, scp->mode);
+            dump_vgaregs(video_mode_ptr + (64*scp->mode));
+        }
+    }
 
     printf("sc%d: ", dev->id_unit);
     if (crtc_vga)
@@ -1468,7 +1488,7 @@ sccnputc(dev_t dev, int c)
     s = splclock();
     if (scp == cur_console && !(scp->status & UNKNOWN_MODE)) {
 	if (/* timer not running && */ (scp->start <= scp->end)) {
-	    bcopyw(scp->scr_buf + scp->start, Crtat + scp->start,
+	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
 	    scp->start = scp->xsize * scp->ysize;
 	    scp->end = 0;
@@ -1560,7 +1580,7 @@ scrn_timer()
     if (!scrn_blanked) {
 	/* update screen image */
 	if (scp->start <= scp->end) {
-	    bcopyw(scp->scr_buf + scp->start, Crtat + scp->start,
+	    sc_bcopy(scp->scr_buf + scp->start, Crtat + scp->start,
 		   (1 + scp->end - scp->start) * sizeof(u_short));
 	}
 
@@ -2427,6 +2447,7 @@ scinit(void)
 	u_long  segoff;
 
 	crtc_vga = TRUE;
+	read_vgaregs(vgaregs);
 
 	/* Get the BIOS video mode pointer */
 	segoff = *(u_long *)pa_to_va(0x4a8);
@@ -2443,8 +2464,14 @@ scinit(void)
     init_scp(console[0]);
     cur_console = console[0];
 
+    /* discard the video mode table if we are not familiar with it... */
+    if (video_mode_ptr) {
+        if (comp_vgaregs(vgaregs, video_mode_ptr + 64*console[0]->mode)) 
+            video_mode_ptr = NULL;
+    }
+
     /* copy screen to temporary buffer */
-    bcopyw(Crtat, sc_buffer,
+    sc_bcopy(Crtat, sc_buffer,
 	   console[0]->xsize * console[0]->ysize * sizeof(u_short));
 
     console[0]->scr_buf = console[0]->mouse_pos = sc_buffer;
@@ -3319,6 +3346,80 @@ set_vgaregs(char *modetable)
 }
 
 static void
+read_vgaregs(char *buf)
+{
+    int i, j;
+    int s;
+
+    bzero(buf, 64);
+
+    s = splhigh();
+
+    outb(TSIDX, 0x00); outb(TSREG, 0x01);   	/* stop sequencer */
+    outb(TSIDX, 0x07); outb(TSREG, 0x00);   	/* unlock registers */
+    for (i=0, j=5; i<4; i++) {           
+	outb(TSIDX, i+1);
+	buf[j++] = inb(TSREG);
+    }
+    buf[9] = inb(MISC + 10);      		/* dot-clock */
+    outb(TSIDX, 0x00); outb(TSREG, 0x03);   	/* start sequencer */
+
+    for (i=0, j=10; i<25; i++) {       		/* crtc */
+	outb(crtc_addr, i);
+	buf[j++] = inb(crtc_addr+1);
+    }
+    for (i=0, j=35; i<20; i++) {          	/* attribute ctrl */
+        inb(crtc_addr+6);           		/* reset flip-flop */
+	outb(ATC, i);
+	buf[j++] = inb(ATC + 1);
+    }
+    for (i=0, j=55; i<9; i++) {           	/* graph data ctrl */
+	outb(GDCIDX, i);
+	buf[j++] = inb(GDCREG);
+    }
+    inb(crtc_addr+6);           		/* reset flip-flop */
+    outb(ATC, 0x20);            		/* enable palette */
+
+    buf[0] = *(char *)pa_to_va(0x44a);		/* COLS */
+    buf[1] = *(char *)pa_to_va(0x484);		/* ROWS */
+    buf[2] = *(char *)pa_to_va(0x485);		/* POINTS */
+    buf[3] = *(char *)pa_to_va(0x44c);
+    buf[4] = *(char *)pa_to_va(0x44d);
+
+    splx(s);
+}
+
+static int 
+comp_vgaregs(u_char *buf1, u_char *buf2)
+{
+    int i;
+
+    for(i = 0; i < 24; ++i) {
+	if (*buf1++ != *buf2++)
+	    return 1;
+    }
+    buf1 += 2;	/* skip the cursor position register value */
+    buf2 += 2;
+    for(i = 26; i < 64; ++i) {
+	if (*buf1++ != *buf2++)
+	    return 1;
+    }
+    return 0;
+}
+
+static void
+dump_vgaregs(u_char *buf)
+{
+    int i;
+
+    for(i = 0; i < 64;) {
+	printf("%02x ", buf[i]);
+	if ((++i % 16) == 0)
+	    printf("\n");
+    }
+}
+
+static void
 set_font_mode()
 {
     int s = splhigh();
@@ -3389,6 +3490,9 @@ set_normal_mode()
     default:
 	modetable = video_mode_ptr + (64*M_VGA_C80x25);
     }
+
+    if (video_mode_ptr == NULL)
+	modetable = vgaregs;
 
     /* setup vga for normal operation mode again */
     inb(crtc_addr+6);           		/* reset flip-flop */
@@ -3506,7 +3610,7 @@ set_destructive_cursor(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* wait for vertical retrace */ ;
 #endif
     set_font_mode();
-    bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
+    sc_bcopy(cursor, (char *)pa_to_va(address) + DEAD_CHAR * 32, 32);
     set_normal_mode();
 }
 
@@ -3666,7 +3770,7 @@ draw_mouse_image(scr_stat *scp)
     while (!(inb(crtc_addr+6) & 0x08)) /* idle */ ;
 #endif
     set_font_mode();
-    bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
+    sc_bcopy(scp->mouse_cursor, (char *)pa_to_va(address) + 0xd0 * 32, 128);
     set_normal_mode();
     *(crt_pos) = (*(scp->mouse_pos)&0xff00)|0xd0;
     *(crt_pos+scp->xsize) = (*(scp->mouse_pos+scp->xsize)&0xff00)|0xd2;
@@ -3801,8 +3905,12 @@ toggle_splash_screen(scr_stat *scp)
 {
     static int toggle = 0;
     static u_char save_mode;
-    int s = splhigh();
+    int s;
 
+    if (video_mode_ptr == NULL)
+	return;
+
+    s = splhigh();
     if (toggle) {
 	scp->mode = save_mode;
 	scp->status &= ~UNKNOWN_MODE;
