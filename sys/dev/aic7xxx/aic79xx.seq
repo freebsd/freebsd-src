@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#95 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#96 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -276,7 +276,7 @@ fetch_new_scb_done:
 	 * knows the correct location to store the SCB.
 	 * Set it to zero before processing the SCB.
 	 */
-	mov	SCB_FIFO_USE_COUNT, ALLZEROS;
+	clr	SCB_FIFO_USE_COUNT;
 	/* Update the next SCB address to download. */
 	bmov	NEXT_QUEUED_SCB_ADDR, SCB_NEXT_SCB_BUSADDR, 4;
 	mvi	SCB_NEXT[1], SCB_LIST_NULL;
