@@ -109,12 +109,13 @@ static struct device tcpdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   NULL
 };
 
 struct device *
 tcp_iov2device(int type, struct physical *p, struct iovec *iov,
-               int *niov, int maxiov)
+               int *niov, int maxiov, int *auxfd, int *nauxfd)
 {
   if (type == TCP_DEVICE) {
     free(iov[(*niov)++].iov_base);
@@ -131,7 +132,7 @@ tcp_Create(struct physical *p)
   char *cp, *host, *port, *svc;
 
   if (p->fd < 0) {
-    if ((cp = strchr(p->name.full, ':')) != NULL) {
+    if ((cp = strchr(p->name.full, ':')) != NULL && !strchr(cp + 1, ':')) {
       *cp = '\0';
       host = p->name.full;
       port = cp + 1;
@@ -140,8 +141,10 @@ tcp_Create(struct physical *p)
         *cp = ':';
         return 0;
       }
-      if (svc)
+      if (svc) {
+        p->fd--;     /* We own the device but maybe can't use it - change fd */
         *svc = '\0';
+      }
       if (*host && *port) {
         p->fd = tcp_OpenConnection(p->link.name, host, port);
         *cp = ':';

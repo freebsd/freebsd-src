@@ -77,12 +77,13 @@ static struct device execdevice = {
   NULL,
   NULL,
   NULL,
+  NULL,
   NULL
 };
 
 struct device *
 exec_iov2device(int type, struct physical *p, struct iovec *iov,
-                int *niov, int maxiov)
+                int *niov, int maxiov, int *auxfd, int *nauxfd)
 {
   if (type == EXEC_DEVICE) {
     free(iov[(*niov)++].iov_base);
@@ -98,6 +99,8 @@ exec_Create(struct physical *p)
 {
   if (p->fd < 0 && *p->name.full == '!') {
     int fids[2];
+
+    p->fd--;	/* We own the device but maybe can't use it - change fd */
 
     if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, fids) < 0)
       log_Printf(LogPHASE, "Unable to create pipe for line exec: %s\n",

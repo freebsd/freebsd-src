@@ -1245,7 +1245,7 @@ datalink_NewState(struct datalink *dl, int state)
 
 struct datalink *
 iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
-             int fd)
+             int fd, int *auxfd, int *nauxfd)
 {
   struct datalink *dl, *cdl;
   struct fsm_retry copy;
@@ -1306,7 +1306,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
   dl->fsmp.LayerFinish = datalink_LayerFinish;
   dl->fsmp.object = dl;
 
-  dl->physical = iov2physical(dl, iov, niov, maxiov, fd);
+  dl->physical = iov2physical(dl, iov, niov, maxiov, fd, auxfd, nauxfd);
 
   if (!dl->physical) {
     free(dl->name);
@@ -1335,7 +1335,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
 
 int
 datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
-             pid_t newpid)
+             int *auxfd, int *nauxfd, pid_t newpid)
 {
   /* If `dl' is NULL, we're allocating before a Fromiov() */
   int link_fd;
@@ -1363,7 +1363,8 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
     dl ? realloc(dl->name, DATALINK_MAXNAME) : malloc(DATALINK_MAXNAME);
   iov[(*niov)++].iov_len = DATALINK_MAXNAME;
 
-  link_fd = physical2iov(dl ? dl->physical : NULL, iov, niov, maxiov, newpid);
+  link_fd = physical2iov(dl ? dl->physical : NULL, iov, niov, maxiov, auxfd,
+                         nauxfd, newpid);
 
   if (link_fd == -1 && dl) {
     free(dl->name);
