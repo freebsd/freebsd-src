@@ -126,7 +126,7 @@ struct vinum_ioctl_msg {
 #define VINUM_INITSD 		_IOW(L, 82, int)	    /* initialize a subdisk */
 #define VINUM_REMOVE 		_IOWR(L, 83, struct vinum_ioctl_msg) /* remove an object */
 #define VINUM_READPOL 		_IOWR(L, 84, struct vinum_ioctl_msg) /* set read policy */
-/* 85 going begging */
+#define VINUM_SETSTATE_FORCE	_IOC(IOC_IN | IOC_OUT, L, 85, MAX_IOCTL_REPLY) /* diddle object state */
 #define VINUM_RESETSTATS	_IOWR(L, 86, struct vinum_ioctl_msg) /* reset object stats */
 #define VINUM_ATTACH		_IOWR(L, 87, struct vinum_ioctl_msg) /* attach an object */
 #define VINUM_DETACH		_IOWR(L, 88, struct vinum_ioctl_msg) /* remove an object */
