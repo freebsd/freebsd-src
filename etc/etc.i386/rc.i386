@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.i386,v 1.18.2.8 1997/09/13 18:02:56 jkh Exp $
+#	$Id: rc.i386,v 1.18.2.9 1997/09/14 12:17:26 jkh Exp $
 #	Do i386 specific processing
 #
 
@@ -99,7 +99,7 @@ if [ "X${saver}" != X"NO" ] ; then
 fi
 
 # mouse daemon
-if [ "X${moused_type}" != X"NO" ] ; then
+if [ "X${moused_enable}" = X"YES" ] ; then
 	echo -n ' moused'
 	moused ${moused_flags} -p ${moused_port} -t ${moused_type}
 	vidcontrol <${viddev} -m on
