@@ -132,7 +132,8 @@ print(PR *pr, u_char *bp)
 		(void)printf(pr->fmt, "");
 		break;
 	case F_C:
-		conv_c(pr, bp);
+		conv_c(pr, bp, eaddress ? eaddress - address :
+		    blocksize - address % blocksize);
 		break;
 	case F_CHAR:
 		(void)printf(pr->fmt, *bp);
@@ -261,6 +262,10 @@ get(void)
 				errx(1, "cannot skip past end of input");
 			if (need == blocksize)
 				return((u_char *)NULL);
+			/*
+			 * XXX bcmp() is not quite right in the presence
+			 * of multibyte characters.
+			 */
 			if (vflag != ALL && 
 			    valid_save && 
 			    bcmp(curp, savp, nread) == 0) {
@@ -284,6 +289,10 @@ get(void)
 		if (length != -1)
 			length -= n;
 		if (!(need -= n)) {
+			/*
+			 * XXX bcmp() is not quite right in the presence
+			 * of multibyte characters.
+			 */
 			if (vflag == ALL || vflag == FIRST ||
 			    valid_save == 0 ||
 			    bcmp(curp, savp, blocksize) != 0) {
@@ -301,6 +310,27 @@ get(void)
 		else
 			nread += n;
 	}
+}
+
+size_t
+peek(u_char *buf, size_t nbytes)
+{
+	size_t n, nread;
+	int c;
+
+	if (length != -1 && nbytes > length)
+		nbytes = length;
+	nread = 0;
+	while (nread < nbytes && (c = getchar()) != EOF) {
+		*buf++ = c;
+		nread++;
+	}
+	n = nread;
+	while (n-- > 0) {
+		c = *--buf;
+		ungetc(c, stdin);
+	}
+	return (nread);
 }
 
 int
