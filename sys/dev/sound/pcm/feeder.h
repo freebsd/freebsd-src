@@ -70,9 +70,10 @@ SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder ## _cl
 
 #define FEEDER_ROOT	1
 #define FEEDER_FMT 	2
-#define FEEDER_RATE 	3
-#define FEEDER_FILTER 	4
-#define FEEDER_VOLUME 	5
+#define	FEEDER_MIXER	3
+#define FEEDER_RATE 	4
+#define FEEDER_FILTER 	5
+#define FEEDER_VOLUME 	6
 #define FEEDER_LAST	FEEDER_VOLUME
 
 #define FEEDRATE_SRC	1
