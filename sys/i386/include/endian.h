@@ -68,16 +68,16 @@ __END_DECLS
 
 #ifdef __GNUC__
 
-static __inline unsigned int
-__uint16_swap_uint32(unsigned int __x)
+static __inline unsigned long
+__uint16_swap_uint32(unsigned long __x)
 {
 	__asm ("rorl $16, %1" : "=r" (__x) : "0" (__x));
 
 	return __x;
 }
 
-static __inline unsigned int
-__uint8_swap_uint32(unsigned int __x)
+static __inline unsigned long
+__uint8_swap_uint32(unsigned long __x)
 {
 #if defined(_KERNEL) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)) && !defined(I386_CPU)
 	__asm ("bswap %0" : "=r" (__x) : "0" (__x));
