@@ -1,6 +1,6 @@
 # ex:ts=8
 
-AMD (am-utils) 6.0b1
+AMD (am-utils) 6.0
 	originals can be found at: ftp://shekel.mcl.cs.columbia.edu/pub/am-utils
 
 
@@ -95,8 +95,8 @@ For the import of AMD the following files were removed:
 
 Imported by:
 
-	cvs import -ko -m 'Virgin import of AMD (am-utils) v6.0b1' \
-		src/contrib/amd COLUMBIA amd_6_0b1
+	cvs import -ko -m 'Virgin import of AMD (am-utils) v6.0' \
+		src/contrib/amd COLUMBIA amd_6_0
 
 
 To make local changes to amd, simply patch and commit to the main
@@ -106,4 +106,4 @@ All local changes should be submitted to "amd-dev@majordomo.cs.columbia.edu"
 for inclusion in the next vendor release.
 
 obrien@NUXI.com
-14-November-1998
+13-January-1999
