@@ -357,7 +357,7 @@ struct driver_info sound_drivers[] = {
 #endif
 #ifdef CONFIG_AWE32
     {"AWE32", 0, SNDCARD_AWE32,     "AWE32 Synth",
-		 attach_awe_obsolete, probe_awe_obsolete},
+		 attach_awe, probe_awe},
 #endif
 #ifdef CONFIG_MIDI
     {"SB16MIDI", 0, SNDCARD_SB16MIDI, "SB16 MIDI",

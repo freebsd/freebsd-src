@@ -130,8 +130,8 @@ void attach_sb_card(struct address_info *hw_config);
 int probe_sb(struct address_info *hw_config);
 
 /*  From awe_wave.c  */
-void  attach_awe_obsolete(struct address_info *hw_config);
-int probe_awe_obsolete(struct address_info *hw_config);
+void  attach_awe(struct address_info *hw_config);
+int probe_awe(struct address_info *hw_config);
 
 /*	From adlib_card.c	*/
 void attach_adlib_card(struct address_info *hw_config);

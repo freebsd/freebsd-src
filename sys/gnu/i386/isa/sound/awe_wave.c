@@ -22,7 +22,7 @@
  */
 
 #ifdef __FreeBSD__
-#  include <i386/isa/sound/awe_config.h>
+#  include <gnu/i386/isa/sound/awe_config.h>
 #else
 #  include "awe_config.h"
 #endif
@@ -32,9 +32,9 @@
 #ifdef CONFIG_AWE32_SYNTH
 
 #ifdef __FreeBSD__
-#  include <i386/isa/sound/awe_hw.h>
-#  include <i386/isa/sound/awe_version.h>
-#  include <i386/isa/sound/awe_voice.h>
+#  include <gnu/i386/isa/sound/awe_hw.h>
+#  include <gnu/i386/isa/sound/awe_version.h>
+#  include <gnu/i386/isa/sound/awe_voice.h>
 #else
 #  include "awe_hw.h"
 #  include "awe_version.h"
@@ -43,15 +43,18 @@
 
 #ifdef AWE_HAS_GUS_COMPATIBILITY
 /* include finetune table */
-#ifdef AWE_OBSOLETE_VOXWARE
-#  ifdef __FreeBSD__
+
+#ifdef __FreeBSD__
+#  ifdef AWE_OBSOLETE_VOXWARE
 #    define SEQUENCER_C
-#    include <i386/isa/sound/tuning.h>
-#  else
-#    include "tuning.h"
 #  endif
+#  include <i386/isa/sound/tuning.h>
 #else
-#  include "../tuning.h"
+#   ifdef AWE_OBSOLETE_VOXWARE
+#     include "tuning.h"
+#   else
+#     include "../tuning.h"
+#   endif
 #endif
 
 #ifdef linux
@@ -299,7 +302,7 @@ static struct voice_alloc_info *voice_alloc;	/* set at initialization */
  * function prototypes
  *----------------------------------------------------------------*/
 
-#ifndef AWE_OBSOLETE_VOXWARE
+#if defined(linux) && !defined(AWE_OBSOLETE_VOXWARE)
 static int awe_check_port(void);
 static void awe_request_region(void);
 static void awe_release_region(void);
@@ -444,7 +447,7 @@ static int awe_mixer_ioctl(int dev, unsigned int cmd, caddr_t arg);
 
 /* define macros for compatibility */
 #ifdef __FreeBSD__
-#  include <i386/isa/sound/awe_compat.h>
+#  include <gnu/i386/isa/sound/awe_compat.h>
 #else
 #  include "awe_compat.h"
 #endif
@@ -504,19 +507,27 @@ static struct mixer_operations awe_mixer_operations = {
 #define ATTACH_DECL	/**/
 #endif
 
+#if defined(__FreeBSD__) && !defined(AWE_OBSOLETE_VOXWARE)
+#  define ATTACH_RET
+void attach_awe(struct address_info *hw_config)
+#else
+#  define ATTACH_RET ret
 ATTACH_DECL
 int attach_awe(void)
+#endif
 {
+    int ret = 0;
+
 	/* check presence of AWE32 card */
 	if (! awe_detect()) {
 		printk("AWE32: not detected\n");
-		return 0;
+		return ATTACH_RET;
 	}
 
 	/* check AWE32 ports are available */
 	if (awe_check_port()) {
 		printk("AWE32: I/O area already used.\n");
-		return 0;
+		return ATTACH_RET;
 	}
 
 	/* set buffers to NULL */
@@ -534,7 +545,7 @@ int attach_awe(void)
 		my_free(voices);
 		my_free(channels);
 		printk("AWE32: can't allocate sample tables\n");
-		return 0;
+		return ATTACH_RET;
 	}
 
 	/* allocate sample tables */
@@ -582,7 +593,8 @@ int attach_awe(void)
 
 	awe_present = TRUE;
 
-	return 1;
+    ret = 1;
+    return ATTACH_RET;
 }
 
 
@@ -601,6 +613,7 @@ static void free_tables(void)
 #endif
 
 
+#ifdef linux
 ATTACH_DECL
 void unload_awe(void)
 {
@@ -613,6 +626,7 @@ void unload_awe(void)
 		awe_present = FALSE;
 	}
 }
+#endif
 
 
 /*----------------------------------------------------------------
@@ -639,7 +653,14 @@ int probe_awe_obsolete(struct address_info *hw_config)
 	/*return awe_detect();*/
 }
 
+#else
+#if defined(__FreeBSD__ )
+int probe_awe(struct address_info *hw_config)
+{
+	return 1;
+}
 #endif
+#endif /* AWE_OBSOLETE_VOXWARE */
 
 
 /*================================================================
@@ -743,7 +764,7 @@ awe_write_dram(unsigned short c)
 }
 
 
-#ifndef AWE_OBSOLETE_VOXWARE
+#if defined(linux) && !defined(AWE_OBSOLETE_VOXWARE)
 
 /*================================================================
  * port check / request
