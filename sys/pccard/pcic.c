@@ -778,33 +778,21 @@ pcic_reset(void *chan)
 	    case 0: /* Something funny happended on the way to the pub... */
 		return;
 	    case 1: /* Assert reset */
-#if 0
-		printf("R");
-#endif
 		clrb (sp, PCIC_INT_GEN, PCIC_CARDRESET);
 		slotp->insert_seq = 2;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 2: /* Deassert it again */
-#if 0
-		printf("r");
-#endif
 		setb (sp, PCIC_INT_GEN, PCIC_CARDRESET|PCIC_IOCARD);
 		slotp->insert_seq = 3;
 		timeout(pcic_reset, (void*) slotp, hz/4);
 		return;
 	    case 3: /* Wait if card needs more time */
 		if (!getb(sp, PCIC_STATUS) & PCIC_READY) {
-#if 0
-			printf("_");
-#endif
 			timeout(pcic_reset, (void*) slotp, hz/10);
 			return;
 		}
 	}
-#if 0
-	printf(".\n");
-#endif
 	slotp->insert_seq = 0;
 	if (sp->controller == PCIC_PD672X || sp->controller == PCIC_PD6710) {
 		putb(sp, PCIC_TIME_SETUP0, 0x1);

@@ -358,18 +358,6 @@ pccard_alloc_intr(int imask, inthand2_t *hand, int unit, int *maskp)
 	int irq;
 	unsigned int mask;
 
-#if 0
-	/* 
-	 * this overrides IRQ masks specified by pccardd,
-	 * so I removed this code. (hosokawa@mt.cs.keio.ac.jp)
-	 */
-	imask =  1<< 3;
-	imask |= 1<< 5;
-	imask |= 1<< 9;
-	imask |= 1<<11;
-	imask |= 1<<15;
-#endif	
-
 	for (irq = 1; irq < 16; irq++) {
 		mask = 1ul << irq;
 		if (!(mask & imask))
