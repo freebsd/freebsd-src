@@ -1756,9 +1756,9 @@ sscop_stat_ready(sop, m, trlr)
 	sscop_seq	seq1, seq2, opa;
 	int		cnt = 0;
 
-	NTOHL(sp->stat_nps);
-	NTOHL(sp->stat_nmr);
-	NTOHL(sp->stat_nr);
+	sp->stat_nps = ntohl(sp->stat_nps);
+	sp->stat_nmr = ntohl(sp->stat_nmr);
+	sp->stat_nr = ntohl(sp->stat_nr);
 
 	/*
 	 * Validate peer's received poll sequence number
@@ -2144,8 +2144,8 @@ sscop_ustat_ready(sop, m, trlr)
 	struct pdu_hdr	*php;
 	sscop_seq	seq1, seq2;
 
-	NTOHL(up->ustat_nmr);
-	NTOHL(up->ustat_nr);
+	up->ustat_nmr = ntohl(up->ustat_nmr);
+	up->ustat_nr = ntohl(up->ustat_nr);
 
 	/*
 	 * Validate peer's current receive data sequence number

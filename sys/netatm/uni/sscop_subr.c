@@ -147,7 +147,7 @@ sscop_stat_getelem(m, pelem)
 	/*
 	 * Put element (sequence number) into host order
 	 */
-	NTOHL(*pelem);
+	*pelem = ntohl(*pelem);
 
 	/*
 	 * Get pointers set for next call
