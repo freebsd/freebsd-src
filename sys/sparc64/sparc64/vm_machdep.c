@@ -300,6 +300,8 @@ cpu_fork(struct thread *td1, struct proc *p2, struct thread *td2, int flags)
 	fp->fr_local[0] = (u_long)fork_return;
 	fp->fr_local[1] = (u_long)td2;
 	fp->fr_local[2] = (u_long)tf;
+	/* Terminate stack traces at this frame. */
+	fp->fr_pc = fp->fr_fp = 0;
 	pcb2->pcb_sp = (u_long)fp - SPOFF;
 	pcb2->pcb_pc = (u_long)fork_trampoline - 8;
 
