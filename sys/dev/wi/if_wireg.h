@@ -90,9 +90,15 @@ struct wi_softc	{
 	device_t		dev;
 	int			wi_unit;
 	struct resource *	iobase;
+	int					iobase_rid;
 	struct resource *	irq;
+	int					irq_rid;
+	struct resource *	mem;
+	int					mem_rid;
 	bus_space_handle_t	wi_bhandle;
 	bus_space_tag_t		wi_btag;
+	bus_space_handle_t	wi_bmemhandle;
+	bus_space_tag_t		wi_bmemtag;
 	void *			wi_intrhand;
 	int			wi_io_addr;    
 	int			wi_tx_data_id;
@@ -140,6 +146,13 @@ struct wi_softc	{
 #define WI_PORT4	4
 #define WI_PORT5	5
 
+#define WI_PCI_IORES	0x1c
+
+#define WI_PCI_VENDOR_Eumitcom	0x1638
+#define WI_PCI_DEVICE_PRISM2STA	0x1100
+#define WI_HFA384x_SWSUPPORT0_OFF	0x28
+#define WI_PRISM2STA_MAGIC			0x4a2d
+
 /* Default port: 0 (only 0 exists on stations) */
 #define WI_DEFAULT_PORT	(WI_PORT0 << 8)
 
@@ -183,6 +196,13 @@ struct wi_softc	{
 	bus_space_read_2(sc->wi_btag, sc->wi_bhandle, reg)
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->wi_btag, sc->wi_bhandle, reg)
+
+#define CSM_WRITE_1(sc, off, val)	\
+	bus_space_write_1(sc->wi_bmemtag, sc->wi_bmemhandle, off, val)
+
+#define CSM_READ_1(sc, off)		\
+	bus_space_read_1(sc->wi_bmemtag, sc->wi_bmemhandle, off)
+
 
 /*
  * The WaveLAN/IEEE cards contain an 802.11 MAC controller which Lucent
@@ -348,6 +368,9 @@ struct wi_softc	{
 #define WI_AUX_PAGE		0x3A
 #define WI_AUX_OFFSET		0x3C
 #define WI_AUX_DATA		0x3E
+
+#define WI_COR_OFFSET	0x3e0
+#define WI_COR_VALUE	0x41
 
 /*
  * One form of communication with the Hermes is with what Lucent calls
