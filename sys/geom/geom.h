@@ -58,6 +58,7 @@ struct gctl_req;
 struct g_configargs;
 
 typedef int g_config_t (struct g_configargs *ca);
+typedef void g_ctl_req_t (struct gctl_req *, struct g_class *cp, char const *verb);
 typedef int g_ctl_create_geom_t (struct gctl_req *, struct g_class *cp, struct g_provider *pp);
 typedef int g_ctl_destroy_geom_t (struct gctl_req *, struct g_class *cp, struct g_geom *gp);
 typedef int g_ctl_config_geom_t (struct gctl_req *, struct g_geom *gp, const char *verb);
@@ -88,11 +89,10 @@ struct g_class {
 	const char		*name;
 	g_taste_t		*taste;
 	g_config_t		*config;
+	g_ctl_req_t		*ctlreq;
 	g_init_t		*init;
 	g_fini_t		*fini;
-	g_ctl_create_geom_t	*create_geom;
 	g_ctl_destroy_geom_t	*destroy_geom;
-	g_ctl_config_geom_t	*config_geom;
 	/*
 	 * The remaining elements are private
 	 */
@@ -304,9 +304,13 @@ extern struct sx topology_lock;
 #endif /* _KERNEL */
 
 /* geom_ctl.c */
-int gctl_set_param(struct gctl_req *req, const char *param, void *ptr, int len);
+void gctl_set_param(struct gctl_req *req, const char *param, void const *ptr, int len);
 void *gctl_get_param(struct gctl_req *req, const char *param, int *len);
+char const *gctl_get_asciiparam(struct gctl_req *req, const char *param);
 void *gctl_get_paraml(struct gctl_req *req, const char *param, int len);
 int gctl_error(struct gctl_req *req, const char *fmt, ...);
+struct g_class *gctl_get_class(struct gctl_req *req, char const *arg);
+struct g_geom *gctl_get_geom(struct gctl_req *req, struct g_class *mpr, char const *arg);
+struct g_provider *gctl_get_provider(struct gctl_req *req, char const *arg);
 
 #endif /* _GEOM_GEOM_H_ */
