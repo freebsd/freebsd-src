@@ -323,6 +323,9 @@ ihfc_control(ihfc_sc_t *sc, int flag)
 
 		S_SQXR	   |=  0x40;	/* power down */
 
+		S_INT_M2   &= ~0x01;
+		S_MASK	   |=  0x02;
+
 		S_SPCR	   &= ~0x0f;	/* send 1's only */
 		S_SCTRL	   &= ~0x83;	/* send 1's only + enable oscillator */
 
@@ -351,13 +354,13 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 	do
 	{	if (chan < 2)			/* D-Channel */
 		{
-			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
-			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
-
 			i4b_Dfreembuf(S_MBUF);
-			i4b_Dcleanifq(&S_IFQUEUE);
+			if (!IF_QEMPTY(&S_IFQUEUE)) i4b_Dcleanifq(&S_IFQUEUE);
 
 			RESET_SOFT_CHAN(sc, chan);
+
+			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
+			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
 
 			if (!activate) continue;
 
@@ -374,13 +377,13 @@ ihfc_init (ihfc_sc_t *sc, u_char chan, int prot, int activate)
 		}
 		else				/* B-Channel */
 		{
-			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
-			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
-
 			i4b_Bfreembuf(S_MBUF);
-			i4b_Bcleanifq(&S_IFQUEUE);
+			if (!IF_QEMPTY(&S_IFQUEUE))  i4b_Bcleanifq(&S_IFQUEUE);
 
 			RESET_SOFT_CHAN(sc, chan);
+
+			S_IFQUEUE.ifq_maxlen = IFQ_MAXLEN;
+			mtx_init(&S_IFQUEUE.ifq_mtx, "i4b_ihfc", MTX_DEF);
 
 			S_PROT = prot;
 
@@ -711,6 +714,10 @@ ihfc_intr1 (ihfc_sc_t *sc)
 		{
 			if (chan == 1) break;
 			if (S_FILTER) S_FILTER(sc, chan);
+
+			HFC_END;
+			DELAY(10);
+			HFC_BEG;
 		}
 	}
 
@@ -766,6 +773,10 @@ ihfc_intr2 (ihfc_sc_t *sc)
 		{
 			if (chan == 1) continue;
 			if (S_FILTER) S_FILTER(sc, chan);
+
+			HFC_END;
+			DELAY(10);
+			HFC_BEG;
 		}
 	}
 
@@ -1408,7 +1419,7 @@ ihfc_hdlc_Bwrite (ihfc_sc_t *sc, u_char chan)
 		{ 
 			/* XDU */
 
-			flag = -1;
+			flag = -2;
 			len  = 0;
 
 			NDBGL1(L1_S_ERR, "XDU (unit=%d)", S_UNIT);
@@ -1588,7 +1599,7 @@ ihfc_test_Bwrite (ihfc_sc_t *sc, u_char chan)
 
 	j0:
 
-	sendlen = (u_short)ihfc_Bsel_fifo(sc, chan, 0);
+	sendlen = /* (u_short)ihfc_Bsel_fifo(sc, chan, 0); */ 0;
 
 	if (sendlen == 0x5ff) printf("(send empty)");
 
@@ -1649,7 +1660,7 @@ ihfc_test_Bread (ihfc_sc_t *sc, u_char chan)
 
 	if (S_UNIT != 0) return;
 
-	reclen = (u_short)ihfc_Bsel_fifo(sc, chan, 0);
+	reclen = /* (u_short)ihfc_Bsel_fifo(sc, chan, 0); */ 0;
 
 	S_BYTES += reclen;
 
