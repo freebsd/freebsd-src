@@ -131,17 +131,6 @@ ENTRY(cpu_setregs)
 	mov	%o0, PCPU_REG
 
 	/*
-	 * MMU globals.
-	 */
-	wrpr	%g0, PSTATE_MMU, %pstate
-
-	/*
-	 * MMU %g7 points to the user tsb.  Initialize it to something sane
-	 * here to catch invalid use.
-	 */
-	mov	%g0, TSB_REG
-
-	/*
 	 * Normal globals again.
 	 */
 	wrpr	%g0, PSTATE_NORMAL, %pstate
