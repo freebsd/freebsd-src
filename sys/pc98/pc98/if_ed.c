@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.4 1996/08/31 15:06:47 asami Exp $
+ *	$Id: if_ed.c,v 1.5 1996/09/03 10:23:30 asami Exp $
  */
 
 /*
@@ -101,11 +101,7 @@
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
-#ifdef PC98
-#include <pc98/pc98/icu.h>
-#else
 #include <i386/isa/icu.h>
-#endif
 #include <i386/isa/if_edreg.h>
 
 #ifdef PC98

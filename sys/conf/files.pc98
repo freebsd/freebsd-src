@@ -2,7 +2,7 @@
 # files marked standard are always included.
 #
 # modified for PC-9801 after:
-#	$Id: files.pc98,v 1.4 1996/09/03 10:23:12 asami Exp $
+#	$Id: files.pc98,v 1.5 1996/09/04 09:52:08 asami Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -35,8 +35,8 @@ i386/apm/apm_setup.s		optional	apm
 #i386/eisa/aic7770.c		optional	ahc	device-driver
 #i386/eisa/aha1742.c		optional	ahb	device-driver
 #i386/eisa/bt74x.c		optional	bt	device-driver
-#i386/eisa/eisaconf.c		optional	eisa
-pc98/i386/autoconf.c		standard	device-driver
+i386/eisa/eisaconf.c		optional	eisa
+i386/i386/autoconf.c		standard	device-driver
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
 i386/i386/db_interface.c	optional	ddb
@@ -56,7 +56,7 @@ pc98/i386/microtime.s		standard
 i386/i386/perfmon.c		optional	perfmon
 pc98/i386/pmap.c		standard
 i386/i386/procfs_machdep.c	standard
-pc98/i386/support.s		standard
+i386/i386/support.s		standard
 i386/i386/swtch.s		standard
 i386/i386/sys_machdep.c		standard
 pc98/i386/trap.c		standard
@@ -118,8 +118,7 @@ pc98/pc98/if_fe.c		optional	fe	device-driver
 #i386/isa/if_sr.c		optional	sr	device-driver
 #pc98/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
-pc98/pc98/pc98.c		optional	nec	device-driver
-pc98/pc98/pc98.c		optional	epson	device-driver
+pc98/pc98/pc98.c		optional	isa	device-driver
 pc98/isa/istallion.c		optional	stli	device-driver
 pc98/isa/joy.c			optional        joy     device-driver
 pc98/pc98/labpc.c		optional	labpc	device-driver

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.4 1996/09/03 10:23:16 asami Exp $
+ *	$Id: machdep.c,v 1.5 1996/09/04 09:52:18 asami Exp $
  */
 
 #include "npx.h"
@@ -1068,17 +1068,9 @@ init386(first)
  	setidt(0x80, &IDTVEC(int0x80_syscall),
 			SDT_SYS386TGT, SEL_UPL, GSEL(GCODE_SEL, SEL_KPL));
 
-#ifdef PC98
-#include      "nec.h"
-#include      "epson.h"
-#if   NNEC > 0 || NEPSON > 0
-	isa_defaultirq();
-#endif
-#else /* IBM-PC */    
 #include	"isa.h"
 #if	NISA >0
 	isa_defaultirq();
-#endif
 #endif
 	rand_initialize();
 

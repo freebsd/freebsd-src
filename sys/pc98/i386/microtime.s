@@ -32,18 +32,17 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.2 1996/07/23 07:45:55 asami Exp $
+ *	$Id: microtime.s,v 1.16 1996/08/02 20:17:50 bde Exp $
  */
 
 #include <machine/asmacros.h>
 #include <machine/clock.h>
 
+#include <i386/isa/icu.h>
 #ifdef PC98
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/timerreg.h>
 #else
-#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/timerreg.h>
 #endif

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id: icu.h,v 1.6 1994/09/18 23:18:32 bde Exp $
+ *	$Id: icu.h,v 1.7 1994/10/01 02:56:11 davidg Exp $
  */
 
 /*
@@ -57,13 +57,21 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	INTRMASK(msk,s)		(msk |= (s))
 #define INTRUNMASK(msk,s)	(msk &= ~(s))
 #if 0
+#ifdef PC98
+#define	SET_ICUS()	(outb(IO_ICU1 + 2, imen), outb(IU_ICU2 + 2, imen >> 8))
+#else	/* IBM-PC */
 #define	SET_ICUS()	(outb(IO_ICU1 + 1, imen), outb(IU_ICU2 + 1, imen >> 8))
+#endif	/* PC98 */
 #else
 /*
  * XXX - IO_ICU* are defined in isa.h, not icu.h, and nothing much bothers to
  * include isa.h, while too many things include icu.h.
  */
+#ifdef PC98
+#define	SET_ICUS()	(outb(0x02, imen), outb(0x0a, imen >> 8))
+#else
 #define	SET_ICUS()	(outb(0x21, imen), outb(0xa1, imen >> 8))
+#endif
 #endif
 
 #endif /* LOCORE */
@@ -88,6 +96,13 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	IRQ5		0x0020
 #define	IRQ6		0x0040
 #define	IRQ7		0x0080		/* lowest - parallel printer */
+
+#ifdef PC98
+#undef	IRQ2
+#define IRQ2		0x0004
+#undef	IRQ_SLAVE
+#define	IRQ_SLAVE	0x0080
+#endif
 
 /*
  * Interrupt Control offset into Interrupt descriptor table (IDT)
