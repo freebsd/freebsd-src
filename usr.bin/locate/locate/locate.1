@@ -133,19 +133,16 @@ and then in
 .Pa /var/db/locate.database
 and then in
 .Pa /cdrom/locate.database .
-.Bd -literal
-$ locate -d db1 -d db2 -d db3 pattern
-.Ed
+.Pp
+.Dl "$ locate -d db1 -d db2 -d db3 pattern"
 .Pp
 is the same as
-.Bd -literal
-$ locate -d db1:db2:db3 pattern
-.Ed
+.Pp
+.Dl "$ locate -d db1:db2:db3 pattern"
 .Pp
 or
-.Bd -literal
-.Dq $ locate -d db1:db2 -d db3 pattern .
-.Ed
+.Pp
+.Dl "$ locate -d db1:db2 -d db3 pattern"
 .Pp
 If
 .Ar -
