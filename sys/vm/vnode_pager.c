@@ -148,6 +148,8 @@ vnode_pager_alloc(handle, size, prot, offset)
 		else
 			object->flags = 0;
 
+		if (vp->v_usecount == 0)
+			panic("vnode_pager_alloc: no vnode reference");
 		/*
 		 * Hold a reference to the vnode and initialize object data.
 		 */
