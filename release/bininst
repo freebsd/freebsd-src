@@ -13,7 +13,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.36 1994/11/13 06:32:40 jkh Exp $
+# $Id: bininst,v 1.37 1994/11/13 07:27:35 jkh Exp $
 
 # Some useful constants.
 PATH=/usr/bin:/usr/sbin:/bin:/sbin:/stand
@@ -223,10 +223,10 @@ system?  FreeBSD supports the following types:\n\n\
 		media_type=cdrom;
 		case $choice in
 			SCSI)
-				media_device=/dev/cd0d
+				media_device=/dev/cd0a
 			;;
 			Mitsumi)
-				media_device=/dev/mcd0d
+				media_device=/dev/mcd0a
 			;;
 		esac
 	;;
