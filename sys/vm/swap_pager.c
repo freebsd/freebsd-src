@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.78 1997/09/01 03:17:13 bde Exp $
+ * $Id: swap_pager.c,v 1.79 1997/12/02 21:07:19 phk Exp $
  */
 
 /*
@@ -75,10 +75,11 @@
 static int nswiodone;
 int swap_pager_full;
 extern int vm_swap_size;
+static int suggest_more_swap = 0;
 static int no_swap_space = 1;
 struct rlisthdr swaplist;
 
-#define MAX_PAGEOUT_CLUSTER 16
+#define MAX_PAGEOUT_CLUSTER 8
 
 TAILQ_HEAD(swpclean, swpagerclean);
 
@@ -377,7 +378,14 @@ swap_pager_getswapspace(object, amount, rtval)
 	daddr_t *rtval;
 {
 	unsigned location;
+
 	vm_swap_size -= amount;
+	if (!suggest_more_swap && (vm_swap_size < btodb(cnt.v_page_count * PAGE_SIZE))) {
+		printf("swap_pager: suggest more swap space: %d MB\n",
+			(2 * cnt.v_page_count * (PAGE_SIZE / 1024)) / 1000);
+		suggest_more_swap = 1;
+	}
+		
 	if (!rlist_alloc(&swaplist, amount, &location)) {
 		vm_swap_size += amount;
 		return 0;
@@ -1121,11 +1129,13 @@ swap_pager_getpages(object, m, count, reqpage)
 			 * must set the dirty bits so that the page contents
 			 * will be preserved.
 			 */
-			if (SWAPLOW) {
+			if (SWAPLOW ||
+				(vm_swap_size < btodb((cnt.v_page_count - cnt.v_wire_count)) * PAGE_SIZE)) {
 				for (i = 0; i < count; i++) {
 					m[i]->dirty = VM_PAGE_BITS_ALL;
 				}
-				swap_pager_freespace(object, m[0]->pindex + paging_offset, count);
+				swap_pager_freespace(object,
+					m[0]->pindex + paging_offset, count);
 			}
 		} else {
 			swap_pager_ridpages(m, count, reqpage);
@@ -1621,9 +1631,7 @@ swap_pager_iodone(bp)
 	if (bp->b_vp)
 		pbrelvp(bp);
 
-/*
 	if (bp->b_flags & B_WANTED)
-*/
 		wakeup(bp);
 
 	if (bp->b_rcred != NOCRED)
