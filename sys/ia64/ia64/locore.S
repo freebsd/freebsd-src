@@ -179,8 +179,9 @@ ENTRY(sigcode,0)
 	;; 
 	alloc	r14=ar.pfs,0,0,0,0	// discard call frame
 	;; 
-(p1)	br.cond.sptk.few 2f		// note: p1 is preserved
 	flushrs
+	;; 
+(p1)	br.cond.sptk.few 2f		// note: p1 is preserved
 	mov	ar.rsc=0
 	add	r8=UC_MCONTEXT_MC_AR_RNAT,r4 // address of mc_ar_rnat
 	;;
