@@ -38,6 +38,7 @@ SUBDIR=	IPXrouted \
 	manctl \
 	memcontrol \
 	mergemaster \
+	mixer \
 	moused \
 	mrouted \
 	mtest \
@@ -128,7 +129,6 @@ SUBDIR+=apm \
 	kgmon \
 	kgzip \
 	lptcontrol \
-	mixer \
 	mptable \
 	pcvt \
 	rndcontrol \
