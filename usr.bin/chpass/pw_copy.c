@@ -85,7 +85,6 @@ pw_copy(ffd, tfd, pw)
 				goto err;
 			continue;
 		}
-#ifdef PASSWD_IGNORE_COMMENTS
 		for (p = buf; *p != '\n'; p++)
 			if (*p != ' ' && *p != '\t')
 				break;
@@ -95,7 +94,6 @@ pw_copy(ffd, tfd, pw)
 				goto err;
 			continue;
 		}
-#endif
 		if (!(p = strchr(buf, ':'))) {
 			warnx("%s: corrupted entry", _PATH_MASTERPASSWD);
 			pw_error(NULL, 0, 1);
