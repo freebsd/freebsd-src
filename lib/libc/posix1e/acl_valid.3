@@ -74,20 +74,32 @@ will follow the symlink if the specified path is to a symlink,
 will not.
 .Pp
 For POSIX.1e semantics, the checks include:
-.Bd -literal -offset indent
-The three required entries (ACL_USER_OBJ, ACL_GROUP_OBJ,
-and ACL_OTHER) shall exist exactly once in the ACL.  If
-the ACL contains any ACL_USER, ACL_GROUP, or any other
+.Bl -bullet
+.It
+The three required entries
+.Dv ( ACL_USER_OBJ , ACL_GROUP_OBJ ,
+and
+.Dv ACL_OTHER )
+shall exist exactly once in the ACL.
+If the ACL contains any
+.Dv ACL_USER , ACL_GROUP ,
+or any other
 implementation-defined entries in the file group class
-then one ACL_MASK entry shall also be required.  The ACL
-shall contain at most on ACL_MASK entry.
-.Pp
+then one
+.Dv ACL_MASK
+entry shall also be required.
+The ACL shall contain at most one
+.Dv ACL_MASK
+entry.
+.It
 The qualifier field shall be unique among all entries of
-the same POSIX.1e ACL facility defined tag type.  The
+the same POSIX.1e ACL facility defined tag type.
+The
 tag type field shall contain valid values including any
-implementation-defined values.  Validation of the values
+implementation-defined values.
+Validation of the values
 of the qualifier field is implementation-defined.
-.Ed
+.El
 .Pp
 The POSIX.1e
 .Fn acl_valid
