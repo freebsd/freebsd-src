@@ -52,7 +52,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: ee.c,v 1.9 1998/01/12 07:51:07 charnier Exp $";
+	"$Id: ee.c,v 1.10 1998/04/30 12:49:11 ache Exp $";
 #endif /* not lint */
 
 char *ee_copyright_message = 
@@ -64,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3  $Revision: 1.9 $";
+char *version = "@(#) ee, version 1.3  $Revision: 1.10 $";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -197,7 +197,7 @@ char d_char;			/* deleted character			*/
 char *d_word;			/* deleted word				*/
 char *d_line;			/* deleted line				*/
 char in_string[513];		/* buffer for reading a file		*/
-char *print_command = "lp";	/* string to use for the print command 	*/
+char *print_command = "lpr";	/* string to use for the print command 	*/
 char *start_at_line = NULL;	/* move to this line at start of session*/
 int in;				/* input character			*/
 
@@ -5037,11 +5037,11 @@ strings_init()
 	emacs_help_text[19] = help_text[19];
 	emacs_help_text[20] = help_text[20];
 	emacs_help_text[21] = help_text[21];
-	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu  ^y search prompt  ^k delete line   ^p prev li   ^g prev page");
-	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code     ^x search         ^l undelete line ^n next li   ^v next page");
-	emacs_control_keys[2] = catgetlocal( 156, "^u end of file    ^a begin of line  ^w delete word   ^b back 1 char           ");
-	emacs_control_keys[3] = catgetlocal( 157, "^t top of text    ^e end of line    ^r restore word  ^f forward 1 char        ");
-	emacs_control_keys[4] = catgetlocal( 158, "^c command        ^d delete char    ^j undelete char ^z next word              ");
+	emacs_control_keys[0] = catgetlocal( 154, "^[ (escape) menu ^y search prompt ^k delete line    ^p prev line  ^g prev page");
+	emacs_control_keys[1] = catgetlocal( 155, "^o ascii code    ^x search        ^l undelete line  ^n next line  ^v next page");
+	emacs_control_keys[2] = catgetlocal( 156, "^u end of file   ^a begin of line ^w delete word    ^b back char  ^z next word");
+	emacs_control_keys[3] = catgetlocal( 157, "^t top of text   ^e end of line   ^r restore word   ^f forward char           ");
+	emacs_control_keys[4] = catgetlocal( 158, "^c command       ^d delete char   ^j undelete char              ESC-Enter: exit");
 	EMACS_string = catgetlocal( 159, "EMACS");
 	NOEMACS_string = catgetlocal( 160, "NOEMACS");
 	usage4 = catgetlocal( 161, "       +#   put cursor at line #\n");
