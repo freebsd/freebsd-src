@@ -906,14 +906,14 @@ cdrom.1:
 	touch cdrom.1
 
 iso.1:
-.if exist(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
+.if exists(${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh)
 	@echo "Creating ISO images..."
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    fbsd_miniinst \
 	    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    fbsd_livefs \
-	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}; \
+	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}
 .if defined(CD_EXTRA_BITS)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
 	    ${BOOTABLE} fbsd_boot \
@@ -923,7 +923,7 @@ iso.1:
 .endif
 	touch iso.1
 .else
-	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."; \
+	@echo "Do not know how to create an ISO for ${TARGET_ARCH}."
 .endif
 
 #
