@@ -10,10 +10,7 @@
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions, and the following disclaimer,
  *    without modification, immediately at the beginning of the file.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
+ * 2. The name of the author may not be used to endorse or promote products
  *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -28,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aicasm_symbol.h,v 1.2 1997/06/27 19:38:56 gibbs Exp $
+ *      $Id: aicasm_symbol.h,v 1.3 1997/09/27 19:37:30 gibbs Exp $
  */
 
 #include <sys/queue.h>
@@ -82,7 +79,7 @@ struct label_info {
 };
 
 struct cond_info {
-	int	value;
+	int	func_num;
 };
 
 typedef struct expression_info {
@@ -113,13 +110,32 @@ typedef struct symbol_node {
 	symbol_t *symbol;
 }symbol_node_t;
 
-typedef struct patch {
-        STAILQ_ENTRY(patch) links;
-	int	  negative;
-	int	  begin;
-        int	  end;  
-	int	  options;
-} patch_t;
+typedef enum {
+	SCOPE_ROOT,
+	SCOPE_IF,
+	SCOPE_ELSE_IF,
+	SCOPE_ELSE
+} scope_type;
+
+typedef struct patch_info {
+	int skip_patch;
+	int skip_instr;
+} patch_info_t;
+
+typedef struct scope {
+	SLIST_ENTRY(scope) scope_stack_links;
+	TAILQ_ENTRY(scope) scope_links;
+	TAILQ_HEAD(, scope) inner_scope;
+	scope_type type;
+	int inner_scope_patches;
+	int begin_addr;
+        int end_addr;
+	patch_info_t patches[2];
+	int func_num;
+} scope_t;
+
+SLIST_HEAD(scope_list, scope);
+TAILQ_HEAD(scope_tailq, scope);
 
 void	symbol_delete __P((symbol_t *symbol));
 
