@@ -45,7 +45,6 @@ struct pcb {
 	struct pmap 		*pcb_current_pmap;
 
 	uint64_t		pcb_onfault;	/* for copy faults */
-	uint64_t		pcb_accessaddr;	/* for [fs]uswintr */
 
 #if IA32
 	uint64_t		pcb_ia32_cflg;
