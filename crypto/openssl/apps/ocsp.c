@@ -136,6 +136,7 @@ int MAIN(int argc, char **argv)
 	int accept_count = -1;
 	int badarg = 0;
 	int i;
+	int ignore_err = 0;
 	STACK *reqnames = NULL;
 	STACK_OF(OCSP_CERTID) *ids = NULL;
 
@@ -195,6 +196,8 @@ int MAIN(int argc, char **argv)
 				}
 			else badarg = 1;
 			}
+		else if (!strcmp(*args, "-ignore_err"))
+			ignore_err = 1;
 		else if (!strcmp(*args, "-noverify"))
 			noverify = 1;
 		else if (!strcmp(*args, "-nonce"))
@@ -524,7 +527,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-serial n          serial number to check\n");
 		BIO_printf (bio_err, "-signer file       certificate to sign OCSP request with\n");
 		BIO_printf (bio_err, "-signkey file      private key to sign OCSP request with\n");
-		BIO_printf (bio_err, "-sign_certs file   additional certificates to include in signed request\n");
+		BIO_printf (bio_err, "-sign_other file   additional certificates to include in signed request\n");
 		BIO_printf (bio_err, "-no_certs          don't include any certificates in signed request\n");
 		BIO_printf (bio_err, "-req_text          print text form of request\n");
 		BIO_printf (bio_err, "-resp_text         print text form of response\n");
@@ -544,10 +547,10 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-validity_period n maximum validity discrepancy in seconds\n");
 		BIO_printf (bio_err, "-status_age n      maximum status age in seconds\n");
 		BIO_printf (bio_err, "-noverify          don't verify response at all\n");
-		BIO_printf (bio_err, "-verify_certs file additional certificates to search for signer\n");
+		BIO_printf (bio_err, "-verify_other file additional certificates to search for signer\n");
 		BIO_printf (bio_err, "-trust_other       don't verify additional certificates\n");
 		BIO_printf (bio_err, "-no_intern         don't search certificates contained in response for signer\n");
-		BIO_printf (bio_err, "-no_sig_verify     don't check signature on response\n");
+		BIO_printf (bio_err, "-no_signature_verify don't check signature on response\n");
 		BIO_printf (bio_err, "-no_cert_verify    don't check signing certificate\n");
 		BIO_printf (bio_err, "-no_chain          don't chain verify response\n");
 		BIO_printf (bio_err, "-no_cert_checks    don't do additional checks on signing certificate\n");
@@ -809,6 +812,8 @@ int MAIN(int argc, char **argv)
 		{
 		BIO_printf(out, "Responder Error: %s (%ld)\n",
 				OCSP_response_status_str(i), i);
+		if (ignore_err)
+			goto redo_accept;
 		ret = 0;
 		goto end;
 		}
