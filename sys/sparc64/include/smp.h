@@ -100,7 +100,6 @@ extern	void mp_startup(void);
 extern	char tl_ipi_dcache_page_inval[];
 extern	char tl_ipi_icache_page_inval[];
 extern	char tl_ipi_level[];
-extern	char tl_ipi_test[];
 extern	char tl_ipi_tlb_context_demap[];
 extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
