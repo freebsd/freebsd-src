@@ -69,6 +69,7 @@ struct mp_cpu {
 
 int	mp_hardware = 0;
 int	mp_ipi_vector[IPI_COUNT];
+int	mp_ipi_test;
 
 TAILQ_HEAD(, mp_cpu) ia64_cpus = TAILQ_HEAD_INITIALIZER(ia64_cpus);
 
@@ -158,6 +159,9 @@ cpu_mp_start()
 			if (bootverbose)
 				printf("SMP: waking up CPU%d\n", cpu->cpu_no);
 			ipi_send(cpu->cpu_lid, IPI_AP_WAKEUP);
+		} else {
+			mp_ipi_test = 0;
+			ipi_self(IPI_TEST);
 		}
 	}
 }
@@ -165,18 +169,12 @@ cpu_mp_start()
 static void
 cpu_mp_unleash(void *dummy)
 {
-	struct mp_cpu *cpu;
-	int awake = 0;
 
 	if (!mp_hardware)
 		return;
 
-	TAILQ_FOREACH(cpu, &ia64_cpus, cpu_next) {
-		if (cpu->cpu_awake)
-			awake++;
-	}
-
-	printf("SMP: %d CPUs, %d awake\n", mp_ncpus, awake);
+	if (mp_ipi_test != 1)
+		printf("SMP: sending of a test IPI to BSP failed\n");
 }
 
 /*
@@ -246,6 +244,7 @@ ipi_send(u_int64_t lid, int ipi)
 	    ((lid >> 12) & 0xFFFF0L));
 	vector = (u_int64_t)(mp_ipi_vector[ipi] & 0xff);
 	*pipi = vector;
+	ia64_mf_a();
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, cpu_mp_unleash, NULL);
