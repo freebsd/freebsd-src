@@ -794,10 +794,6 @@ again:
 	 * Entry structure for Fibre Channel with expanded lun firmware, we
 	 * can only support one lun (lun zero) when we don't know what kind
 	 * of firmware we're running.
-	 *
-	 * Note that we only do this once (the first time thru isp_reset)
-	 * because we may be called again after firmware has been loaded once
-	 * and released.
 	 */
 	if (IS_SCSI(isp)) {
 		if (dodnld) {
@@ -3153,7 +3149,7 @@ isp_start(XS_T *xs)
 		isp_update(isp);
 	}
 
-	if (isp_getrqentry(isp, &nxti, &optr, (void **)&qep)) {
+	if (isp_getrqentry(isp, &nxti, &optr, (void *)&qep)) {
 		isp_prt(isp, ISP_LOGDEBUG0, "Request Queue Overflow");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
@@ -3182,7 +3178,7 @@ isp_start(XS_T *xs)
 			isp_put_request(isp, reqp, qep);
 			ISP_ADD_REQUEST(isp, nxti);
 			isp->isp_sendmarker &= ~(1 << i);
-			if (isp_getrqentry(isp, &nxti, &optr, (void **) &qep)) {
+			if (isp_getrqentry(isp, &nxti, &optr, (void *) &qep)) {
 				isp_prt(isp, ISP_LOGDEBUG0,
 				    "Request Queue Overflow+");
 				XS_SETERR(xs, HBA_BOTCH);
@@ -4212,9 +4208,13 @@ isp_parse_async(struct ispsoftc *isp, u_int16_t mbox)
 			break;
 		case ISP_CONN_FATAL:
 			isp_prt(isp, ISP_LOGERR, "FATAL CONNECTION ERROR");
+#ifdef	ISP_FW_CRASH_DUMP
+			isp_async(isp, ISPASYNC_FW_CRASH, NULL);
+#else
 			isp_async(isp, ISPASYNC_FW_CRASH, NULL);
 			isp_reinit(isp);
 			isp_async(isp, ISPASYNC_FW_RESTARTED, NULL);
+#endif
 			return (-1);
 		case ISP_CONN_LOOPBACK:
 			isp_prt(isp, ISP_LOGWARN,
@@ -5197,7 +5197,7 @@ static char *fc_mbcmd_names[] = {
 	NULL,
 	NULL,
 	NULL,
-	NULL,
+	"DRIVER HEARTBEAT",
 	NULL,
 	"GET/SET DATA RATE",
 	NULL,
