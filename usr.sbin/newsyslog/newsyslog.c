@@ -36,6 +36,10 @@ static const char rcsid[] =
 #define	BZCOMPRESS_POSTFIX ".bz2"
 #endif
 
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -49,10 +53,6 @@ static const char rcsid[] =
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/param.h>
-#include <sys/wait.h>
 
 #include "pathnames.h"
 
@@ -944,7 +944,7 @@ parse8601(char *s, char *errline)
 			return -1;
 	}
 	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);  
+		errx(1, "nonexistent time:\n%s", errline); 
 	return tsecs;
 }
 
@@ -1115,6 +1115,6 @@ parseDWM(char *s, char *errline)
 			s = t;
 	}
 	if ((tsecs = mktime(&tm)) == -1)
-		errx(1, "nonexistent time:\n%s", errline);  
+		errx(1, "nonexistent time:\n%s", errline); 
 	return tsecs;
 }
