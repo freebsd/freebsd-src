@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.84 1998/05/07 04:58:58 msmith Exp $
+ * $Id: ufs_vnops.c,v 1.85 1998/05/17 11:53:46 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -71,6 +71,7 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
+static void itimes __P((struct vnode *vp));
 static int ufs_abortop __P((struct vop_abortop_args *));
 static int ufs_access __P((struct vop_access_args *));
 static int ufs_advlock __P((struct vop_advlock_args *));
@@ -104,7 +105,6 @@ static int ufsspec_close __P((struct vop_close_args *));
 static int ufsspec_read __P((struct vop_read_args *));
 static int ufsspec_write __P((struct vop_write_args *));
 
-
 union _qcvt {
 	int64_t qcvt;
 	int32_t val[2];
@@ -123,27 +123,6 @@ union _qcvt {
 }
 
 /*
- * XXX this is too long to be a macro, and isn't used in any time-critical
- * place; 
- */
-#define	ITIMES(ip) {							\
-	struct timeval tv;						\
-	getmicrotime(&tv);						\
-	if ((ip)->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) {	\
-		(ip)->i_flag |= IN_MODIFIED;				\
-		if ((ip)->i_flag & IN_ACCESS)				\
-			(ip)->i_atime = tv.tv_sec;			\
-		if ((ip)->i_flag & IN_UPDATE) {				\
-			(ip)->i_mtime = tv.tv_sec;			\
-			(ip)->i_modrev++;				\
-		}							\
-		if ((ip)->i_flag & IN_CHANGE)				\
-			(ip)->i_ctime = tv.tv_sec;			\
-		(ip)->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);	\
-	}								\
-}
-
-/*
  * A virgin directory (no blushing please).
  */
 static struct dirtemplate mastertemplate = {
@@ -154,6 +133,31 @@ static struct odirtemplate omastertemplate = {
 	0, 12, 1, ".",
 	0, DIRBLKSIZ - 12, 2, ".."
 };
+
+static void
+itimes(vp)
+	struct vnode *vp;
+{
+	struct inode *ip;
+	time_t tv_sec;
+
+	ip = VTOI(vp);
+	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
+		return;
+	if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
+		tv_sec = time_second;
+		ip->i_flag |= IN_MODIFIED;
+		if (ip->i_flag & IN_ACCESS)
+			ip->i_atime = tv_sec;
+		if (ip->i_flag & IN_UPDATE) {
+			ip->i_mtime = tv_sec;
+			ip->i_modrev++;
+		}
+		if (ip->i_flag & IN_CHANGE)
+			ip->i_ctime = tv_sec;
+	}
+	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
+}
 
 /*
  * Create a regular file
@@ -263,11 +267,10 @@ ufs_close(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct inode *ip = VTOI(vp);
 
 	simple_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
-		ITIMES(ip);
+		itimes(vp);
 	simple_unlock(&vp->v_interlock);
 	return (0);
 }
@@ -370,7 +373,7 @@ ufs_getattr(ap)
 	register struct inode *ip = VTOI(vp);
 	register struct vattr *vap = ap->a_vap;
 
-	ITIMES(ip);
+	itimes(vp);
 	/*
 	 * Copy from inode table
 	 */
@@ -1776,13 +1779,15 @@ ufsspec_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+	int error, resid;
+	struct uio *uio;
 
-	/*
-	 * Set access flag.
-	 */
-	if (!(ap->a_vp->v_mount->mnt_flag & MNT_NOATIME))
+	uio = ap->a_uio;
+	resid = uio->uio_resid;
+	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_read), ap);
+	if (uio->uio_resid != resid)
 		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
-	return (VOCALL (spec_vnodeop_p, VOFFSET(vop_read), ap));
+	return (error);
 }
 
 /*
@@ -1797,12 +1802,15 @@ ufsspec_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+	int error, resid;
+	struct uio *uio;
 
-	/*
-	 * Set update and change flags.
-	 */
-	VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
-	return (VOCALL (spec_vnodeop_p, VOFFSET(vop_write), ap));
+	uio = ap->a_uio;
+	resid = uio->uio_resid;
+	error = VOCALL(spec_vnodeop_p, VOFFSET(vop_write), ap);
+	if (uio->uio_resid != resid)
+		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
+	return (error);
 }
 
 /*
@@ -1820,17 +1828,16 @@ ufsspec_close(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct inode *ip = VTOI(vp);
 
 	simple_lock(&vp->v_interlock);
-	if (ap->a_vp->v_usecount > 1)
-		ITIMES(ip);
+	if (vp->v_usecount > 1)
+		itimes(vp);
 	simple_unlock(&vp->v_interlock);
-	return (VOCALL (spec_vnodeop_p, VOFFSET(vop_close), ap));
+	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
 /*
- * Read wrapper for fifo's
+ * Read wrapper for fifos.
  */
 int
 ufsfifo_read(ap)
@@ -1841,17 +1848,20 @@ ufsfifo_read(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
+	int error, resid;
+	struct uio *uio;
 
-	/*
-	 * Set access flag.
-	 */
-	if (!(ap->a_vp->v_mount->mnt_flag & MNT_NOATIME))
+	uio = ap->a_uio;
+	resid = uio->uio_resid;
+	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_read), ap);
+	if (uio->uio_resid != resid &&
+	    (ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0)
 		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
-	return (VOCALL (fifo_vnodeop_p, VOFFSET(vop_read), ap));
+	return (error);
 }
 
 /*
- * Write wrapper for fifo's.
+ * Write wrapper for fifos.
  */
 int
 ufsfifo_write(ap)
@@ -1862,15 +1872,19 @@ ufsfifo_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-	/*
-	 * Set update and change flags.
-	 */
-	VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
-	return (VOCALL (fifo_vnodeop_p, VOFFSET(vop_write), ap));
+	int error, resid;
+	struct uio *uio;
+
+	uio = ap->a_uio;
+	resid = uio->uio_resid;
+	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap);
+	if (uio->uio_resid != resid)
+		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
+	return (error);
 }
 
 /*
- * Close wrapper for fifo's.
+ * Close wrapper for fifos.
  *
  * Update the times on the inode then do device close.
  */
@@ -1884,13 +1898,12 @@ ufsfifo_close(ap)
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
-	struct inode *ip = VTOI(vp);
 
 	simple_lock(&vp->v_interlock);
-	if (ap->a_vp->v_usecount > 1)
-		ITIMES(ip);
+	if (vp->v_usecount > 1)
+		itimes(vp);
 	simple_unlock(&vp->v_interlock);
-	return (VOCALL (fifo_vnodeop_p, VOFFSET(vop_close), ap));
+	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
 /*
