@@ -18,14 +18,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	to maximize performance.
 
 20031112:
-	The statfs structure has been updated with 64-bit fields to allow
-	accurate reporting of multi-terabyte filesystem sizes. You should
-	build and boot a new kernel BEFORE doing a `make world' as the new
-	kernel will know about binaries using the old statfs structure,
-	but an old kernel will not know about the new system calls that
-	support the new statfs structure. Running an old kernel after a 
-	`make world' will cause programs such as `df' that do a statfs
-	system call to fail with a bad system call.
+	The statfs structure has been updated with 64-bit fields to
+	allow accurate reporting of multi-terabyte filesystem
+	sizes. You should build and boot a new kernel BEFORE doing a
+	`make world' as the new kernel will know about binaries using
+	the old statfs structure, but an old kernel will not know
+	about the new system calls that support the new statfs
+	structure.  Running an old kernel after a `make world' will
+	cause programs such as `df' that do a statfs system call to
+	fail with a bad system call.
+
+	****************************DANGER*******************************
+
+	DO NOT make installworld after the buildworld w/o building and
+	installing a new kernel FIRST.  You will be unable to build a
+	new kernel otherwise on a system with new binaries and an old
+	kernel.
 
 20031112:
 	Some netgraph string length constants have been changed. This
