@@ -449,7 +449,10 @@ icmp_input(m, off, proto)
 			break;
 		}
 		icp->icmp_type = ICMP_ECHOREPLY;
-		goto reflect;
+		if (badport_bandlim(BANDLIM_ECHO) < 0)
+			goto freeit;
+		else
+			goto reflect;
 
 	case ICMP_TSTAMP:
 		if (!icmpbmcastecho
@@ -464,7 +467,10 @@ icmp_input(m, off, proto)
 		icp->icmp_type = ICMP_TSTAMPREPLY;
 		icp->icmp_rtime = iptime();
 		icp->icmp_ttime = icp->icmp_rtime;	/* bogus, do later! */
-		goto reflect;
+		if (badport_bandlim(BANDLIM_TSTAMP) < 0)
+			goto freeit;
+		else
+			goto reflect;
 
 	case ICMP_MASKREQ:
 #define	satosin(sa)	((struct sockaddr_in *)(sa))
@@ -821,16 +827,23 @@ ip_next_mtu(mtu, dir)
 int
 badport_bandlim(int which)
 {
-	static int lticks[2];
-	static int lpackets[2];
+	static int lticks[BANDLIM_MAX + 1];
+	static int lpackets[BANDLIM_MAX + 1];
 	int dticks;
+	const char *bandlimittype[] = {
+		"Limiting icmp unreach response",
+		"Limiting closed port RST response",
+		"Limiting open port RST response",
+		"Limiting icmp ping response",
+		"Limiting icmp tstamp response"
+		};
 
 	/*
 	 * Return ok status if feature disabled or argument out of
 	 * ranage.
 	 */
 
-	if (icmplim <= 0 || which >= 2 || which < 0)
+	if (icmplim <= 0 || which > BANDLIM_MAX || which < 0)
 		return(0);
 	dticks = ticks - lticks[which];
 
@@ -840,7 +853,8 @@ badport_bandlim(int which)
 
 	if ((unsigned int)dticks > hz) {
 		if (lpackets[which] > icmplim && icmplim_output) {
-			printf("icmp-response bandwidth limit %d/%d pps\n",
+			printf("%s from %d to %d packets per second\n",
+				bandlimittype[which],
 				lpackets[which],
 				icmplim
 			);
