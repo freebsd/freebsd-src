@@ -73,7 +73,7 @@ Write_FreeBSD(int fd, const struct disk *new, const struct disk *old, const stru
 int
 Write_Disk(const struct disk *d1)
 {
-	int fd,i;
+	int fd;
 	struct disk *old = 0;
 	struct chunk *c1;
 	int ret = 0;
@@ -81,8 +81,6 @@ Write_Disk(const struct disk *d1)
 	u_char *mbr;
 	struct dos_partition *dp,work[NDOSPART];
 	int s[4];
-	int one = 1;
-	int zero = 0;
 
 	strcpy(device,_PATH_DEV);
         strcat(device,d1->name);
@@ -95,7 +93,6 @@ Write_Disk(const struct disk *d1)
 #endif
                 return 1;
         }
-	ioctl(fd, DIOCWLABEL, &one);
 
 	memset(s,0,sizeof s);
 	mbr = read_block(fd, 0, d1->sector_size);
@@ -111,13 +108,6 @@ Write_Disk(const struct disk *d1)
 
 	}
 
-	i = 1;
-	i = ioctl(fd, DIOCSYNCSLICEINFO, &i);
-#ifdef DEBUG
-	if (i != 0)
-		warn("ioctl(DIOCSYNCSLICEINFO)");
-#endif
-	ioctl(fd, DIOCWLABEL, &zero);
 	close(fd);
 	return 0;
 }

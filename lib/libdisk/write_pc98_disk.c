@@ -71,8 +71,6 @@ Write_Disk(const struct disk *d1)
 	struct dos_partition *dp,work[NDOSPART];
 	int s[7];
 	int PC98_EntireDisk = 0;
-	int one = 1;
-	int zero = 0;
 
 	strcpy(device,_PATH_DEV);
         strcat(device,d1->name);
@@ -90,7 +88,6 @@ Write_Disk(const struct disk *d1)
 #endif
                 return 1;
         }
-	ioctl(fd, DIOCWLABEL, &one);
 
 	memset(s,0,sizeof s);
 	mbr = read_block(fd, 1, d1->sector_size);
@@ -173,13 +170,6 @@ Write_Disk(const struct disk *d1)
 		for (i = 0; i * d1->sector_size < d1->bootmenu_size; i++)
 			write_block(fd, 2 + i, &d1->bootmenu[i * d1->sector_size], d1->sector_size);
 
-	i = 1;
-	i = ioctl(fd, DIOCSYNCSLICEINFO, &i);
-#ifdef DEBUG
-	if (i != 0)
-		warn("ioctl(DIOCSYNCSLICEINFO)");
-#endif
-	ioctl(fd, DIOCWLABEL, &zero);
 	close(fd);
 	return 0;
 }
