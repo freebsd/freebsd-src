@@ -131,7 +131,9 @@ smb_probe(device_t dev)
 static int
 smb_attach(device_t dev)
 {
-	cdevsw_add(&smb_cdevsw);
+	make_dev(&smb_cdevsw, device_get_unit(dev),	/* XXX cleanup */
+			UID_ROOT, GID_WHEEL,
+			0600, "smb%d", device_get_unit(dev));
 	return (0);
 }
 
