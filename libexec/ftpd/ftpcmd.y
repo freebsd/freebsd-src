@@ -516,7 +516,7 @@ cmd
 		}
 	| RNTO check_login_ro SP pathname CRLF
 		{
-			if ($2) {
+			if ($2 && $4 != NULL) {
 				if (fromname) {
 					renamecmd(fromname, $4);
 					free(fromname);
@@ -525,7 +525,8 @@ cmd
 					reply(503, "Bad sequence of commands.");
 				}
 			}
-			free($4);
+			if ($4 != NULL)
+				free($4);
 		}
 	| ABOR check_login CRLF
 		{
@@ -609,7 +610,7 @@ cmd
 		{
 			char p[64], *q;
 
-			if ($4) {
+			if ($4 && $6) {
 				q = MD5File($6, p);
 				if (q != NULL)
 					reply(200, "MD5(%s) = %s", $6, p);
