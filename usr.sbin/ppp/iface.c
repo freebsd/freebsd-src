@@ -83,6 +83,10 @@
 #include "prompt.h"
 #include "iface.h"
 
+#define IN6MASK128	{{{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, \
+			    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }}}
+static const struct in6_addr in6mask128 = IN6MASK128;
+
 
 struct iface *
 iface_Create(const char *name)
@@ -333,7 +337,8 @@ iface_addr_Add(const char *name, struct iface_addr *addr, int s)
     memcpy(&ifra6.ifra_prefixmask, &ssmsk, sizeof ifra6.ifra_prefixmask);
     if (ncpaddr_family(&addr->peer) == AF_UNSPEC)
       ifra6.ifra_dstaddr.sin6_family = AF_UNSPEC;
-    else
+    else if (memcmp(&((struct sockaddr_in6 *)&ssmsk)->sin6_addr, &in6mask128,
+		    sizeof in6mask128) == 0)
       memcpy(&ifra6.ifra_dstaddr, &sspeer, sizeof ifra6.ifra_dstaddr);
     ifra6.ifra_lifetime.ia6t_vltime = ND6_INFINITE_LIFETIME;
     ifra6.ifra_lifetime.ia6t_pltime = ND6_INFINITE_LIFETIME;
@@ -426,7 +431,7 @@ int
 iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
           const struct ncpaddr *peer, int how)
 {
-  int af, n, removed, s, width;
+  int af, n, removed, s;
   struct ncpaddr ncplocal;
   struct iface_addr *addr, newaddr;
 
@@ -452,11 +457,6 @@ iface_Add(struct iface *iface, struct ncp *ncp, const struct ncprange *ifa,
         return 1;	/* Already there */
       }
 
-      width =
-#ifndef NOINET6
-        (af == AF_INET6) ? 128 :
-#endif
-      32;
       removed = iface_addr_Zap(iface->name, iface->addr + n, s);
       if (removed)
         ncp_IfaceAddrDeleted(ncp, iface->addr + n);
