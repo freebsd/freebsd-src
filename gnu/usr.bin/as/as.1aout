@@ -1,5 +1,6 @@
 .\" Copyright (c) 1991, 1992 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
+.\"	$Id$
 .TH as 1 "21 January 1992" "cygnus support" "GNU Development Tools"
 
 .SH NAME
@@ -251,6 +252,12 @@ Using as: The GNU Assembler\c
 \&;
 .BR gcc "(" 1 "),"
 .BR ld "(" 1 ")."
+
+.SH HISTORY
+A
+.I as
+command appeared in
+Version 1 AT&T UNIX.
 
 .SH COPYING
 Copyright (c) 1991, 1992 Free Software Foundation, Inc.

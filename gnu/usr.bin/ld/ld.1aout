@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.9 1994/12/23 22:30:33 nate Exp $
+.\"	$Id: ld.1,v 1.10 1996/05/28 16:17:46 phk Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 1
@@ -219,6 +219,10 @@ All shared objects presented to
 are marked for run-time loading in the output file, even if no symbols
 are needed from them.
 .Sh HISTORY
+A
+.Nm
+command appeared in
+.At v1 .
 The shared library model employed by
-.Nm ld
+.Nm
 appeared first in SunOS 4.0
