@@ -104,10 +104,10 @@
 #define HAVE_LOCK_FLOCK 1
 
 /* Define if you want to compile in the Perl interpreter. */
-/* #undef HAVE_PERL_INTERP */
+/* #undef HAVE_PERL_INTERP */	/* XXX: SET IN Makefile CFLAGS */
 
 /* Define if your Perl is at least 5.003_01. */
-/* #undef HAVE_PERL_5_003_01 */
+/* #undef HAVE_PERL_5_003_01 */	/* XXX: SET IN Makefile CFLAGS */
 
 /* Define if you have the Berkeley style revoke(2) system call. */
 #define HAVE_REVOKE 1
@@ -122,7 +122,7 @@
 /* #undef HAVE_SYS5_PTY */
 
 /* Define if you want to compile in the Tcl interpreter. */
-#define HAVE_TCL_INTERP 1
+/* #define HAVE_TCL_INTERP */	/* XXX: SET IN Makefile CFLAGS */
 
 /* Define if your sprintf returns a pointer, not a length. */
 /* #undef SPRINTF_RET_CHARPNT */
