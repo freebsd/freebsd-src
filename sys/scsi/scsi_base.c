@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.46 1997/03/23 06:33:46 bde Exp $
+ *      $Id: scsi_base.c,v 1.47 1997/03/24 01:46:15 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -25,9 +25,13 @@
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+
+#include <machine/clock.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+
 #include <scsi/scsi_all.h>
 #include <scsi/scsi_disk.h>
 #include <scsi/scsiconf.h>
@@ -755,6 +759,7 @@ sc_err1(xs)
  		 * no, we could be at interrupt context..  use
  		 * timeout(scsi_resubmit,xs,hz); [jre] (not implimenteed yet)
  		 */
+		DELAY(1000);
 	case XS_TIMEOUT:
 		return sc_done(xs, SCSIRET_DO_RETRY);
 
