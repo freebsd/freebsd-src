@@ -262,14 +262,16 @@ printcpuinfo(void)
 			strcat(cpu_model, "Standard Am486DX");
 			break;
 		case 0x430:
-			strcat(cpu_model, "Am486DX2/4 Write-Through");
+			strcat(cpu_model, "Enhanced Am486DX2 Write-Through");
 			break;
 		case 0x470:
-		case 0x490:
-			strcat(cpu_model, "Enhanced Am486DX4 Write-Back");
+			strcat(cpu_model, "Enhanced Am486DX2 Write-Back");
 			break;
 		case 0x480:
-			strcat(cpu_model, "Enhanced Am486DX4 Write-Through");
+			strcat(cpu_model, "Enhanced Am486DX4/Am5x86 Write-Through");
+			break;
+		case 0x490:
+			strcat(cpu_model, "Enhanced Am486DX4/Am5x86 Write-Back");
 			break;
 		case 0x4E0:
 			strcat(cpu_model, "Am5x86 Write-Through");
@@ -1323,5 +1325,48 @@ print_transmeta_info()
 				 &crusoe_voltage, &crusoe_percentage);
 	printf("  LongRun mode: %d  <%dMHz %dmV %d%%>\n", crusoe_longrun,
 	       crusoe_frequency, crusoe_voltage, crusoe_percentage);
+}
+
+/*
+ * The AMD Elan sc520 is a system-on-chip gadget which is used in embedded
+ * kind of things, see www.soekris.com for instance, and it has a few quirks
+ * we need to deal with.
+ * Unfortunately we cannot identify the gadget by CPUID output because it
+ * depends on strapping options and only the stepping field may be useful
+ * and those are undocumented from AMDs side.
+ *
+ * So instead we recognize the on-chip host-PCI bridge and call back from
+ * sys/i386/pci/pci_bus.c to here if we find it.
+ */
+
+#include <sys/proc.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
+u_char *elan_mmcr;
+
+void
+init_AMD_Elan_sc520(void)
+{
+	u_int new;
+	int i;
+
+	printf("Doing h0h0magic for AMD Elan sc520\n");
+	elan_mmcr = pmap_mapdev(0xfffef000, 0x1000);
+	printf("MMCR at %p\n", elan_mmcr);
+
+	/*-
+	 * The i8254 is driven with a nonstandard frequency which is
+	 * derived thusly:
+	 *   f = 32768 * 45 * 25 / 31 = 1189161.29...
+	 * We use the sysctl to get the timecounter etc into whack.
+	 */
+	
+	new = 1189161;
+	i = kernel_sysctlbyname(&thread0, "machdep.i8254_freq", 
+	    NULL, 0, 
+	    &new, sizeof new, 
+	    NULL);
+	printf("sysctl machdep.i8254_freq=%d returns %d\n", new, i);
 }
 
