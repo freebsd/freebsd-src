@@ -33,17 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ar.c,v 1.6 1997/06/23 06:41:30 charnier Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)ar.c	8.3 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)ar.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,7 +80,7 @@ main(argc, argv)
 {
 	int c;
 	char *p;
-	int (*fcall) __P((char **));
+	int (*fcall) __P((char **)) = NULL;
 
 	(void) setlocale(LC_TIME, "");;
 

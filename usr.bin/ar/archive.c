@@ -35,7 +35,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)archive.c	8.3 (Berkeley) 4/2/94";
+static const char sccsid[] = "@(#)archive.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -279,7 +279,7 @@ copy_ar(cfp, size)
 {
 	static char pad = '\n';
 	off_t sz;
-	int from, nr, nw, off, to;
+	int from, nr = 0, nw, off, to;
 	char buf[8*1024];
 
 	if (!(sz = size))
