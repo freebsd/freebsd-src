@@ -456,7 +456,7 @@ pinode(ino)
 	if (preen)
 		printf("%s: ", cdevname);
 	printf("SIZE=%qu ", dp->di_size);
-	p = ctime(&dp->di_mtime.ts_sec);
+	p = ctime(&dp->di_mtime.tv_sec);
 	printf("MTIME=%12.12s %4.4s ", &p[4], &p[20]);
 }
 
@@ -527,7 +527,7 @@ allocino(request, type)
 		return (0);
 	}
 	dp->di_mode = type;
-	(void)time(&dp->di_atime.ts_sec);
+	(void)time(&dp->di_atime.tv_sec);
 	dp->di_mtime = dp->di_ctime = dp->di_atime;
 	dp->di_size = sblock.fs_fsize;
 	dp->di_blocks = btodb(sblock.fs_fsize);
