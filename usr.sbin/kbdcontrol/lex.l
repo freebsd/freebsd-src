@@ -1,12 +1,13 @@
 /*-
- * Copyright (c) 1994 Søren Schmidt
+ * Copyright (c) 1994-1995 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice, this list of conditions and the following disclaimer,
+ *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -24,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: lex.l,v 1.1 1994/05/20 12:18:08 sos Exp $
+ *	$Id: lex.l,v 1.1 1994/08/17 08:59:36 sos Exp $
  */
 
 %{
@@ -57,6 +58,7 @@ ashift 		{ return TASH; }
 meta 		{ return TMETA; }
 boot 		{ return TRBT; }
 debug 		{ return TDBG; }
+susp		{ return TSUSP; }
 
 NUL|nul		{ number = 0; return TNUM; }
 SOH|soh		{ number = 1; return TNUM; }
