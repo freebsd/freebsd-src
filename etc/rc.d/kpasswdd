@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: kpasswdd
-# REQUIRE: kadmind5
+# REQUIRE: kadmin
 # BEFORE: DAEMON
 # KEYWORD: FreeBSD
 
