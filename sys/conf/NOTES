@@ -192,6 +192,7 @@ options 	MUTEX_WAKE_ALL
 #	  bugs during development.  Enabling this option will reduce
 #	  performance and increase the frequency of kernel panics by
 #	  design.  If you aren't sure that you need it then you don't.
+#         DON'T TURN THIS ON.
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
 # SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
 #	  used to hold active sleep queues.
