@@ -44,7 +44,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: config.c,v 1.19 1998/10/05 02:48:15 grog Exp grog $
+ * $Id: config.c,v 1.20 1998/10/26 02:05:34 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -312,6 +312,12 @@ give_sd_to_plex(int plexno, int sdno)
 	} else						    /* first subdisk */
 	    sd->plexoffset = 0;				    /* start at the beginning */
     }
+    if (plex->subdisks == MAXSD)			    /* we already have our maximum */
+	throw_rude_remark(ENOSPC,			    /* crap out */
+	    "Can't add %s to %s: plex full\n",
+	    sd->name,
+	    plex->name);
+
     plex->subdisks++;					    /* another entry */
     if (plex->subdisks >= plex->subdisks_allocated)	    /* need more space */
 	EXPAND(plex->sdnos, int, plex->subdisks_allocated, INITIAL_SUBDISKS_IN_PLEX);
@@ -590,6 +596,7 @@ free_drive(struct drive *drive)
     if (drive->vp != NULL)				    /* device open */
 	vn_close(drive->vp, FREAD | FWRITE, FSCRED, drive->p);
     bzero(drive, sizeof(struct drive));			    /* this also sets drive_unallocated */
+    vinum_conf.drives_used--;				    /* one less drive */
 }
 
 /* Find the named subdisk in vinum_conf.sd.
@@ -707,6 +714,7 @@ free_sd(int sdno)
     }
     bzero(sd, sizeof(struct sd));			    /* and clear it out */
     sd->state = sd_unallocated;
+    vinum_conf.subdisks_used--;				    /* one less sd */
 }
 
 /* Find an empty plex in the plex table */
@@ -789,6 +797,7 @@ free_plex(int plexno)
 	Free(plex->unmapped_region);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
     plex->state = plex_unallocated;
+    vinum_conf.plexes_used--;				    /* one less plex */
 }
 
 /* Find an empty volume in the volume table */
@@ -861,6 +870,7 @@ free_volume(int volno)
     vol = &VOL[volno];
     bzero(vol, sizeof(struct volume));			    /* and clear it out */
     vol->state = volume_unallocated;
+    vinum_conf.volumes_used--;				    /* one less volume */
 }
 
 /* Handle a drive definition.  We store the information in the global variable
