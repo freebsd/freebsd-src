@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.5 1995/05/21 15:40:51 jkh Exp $
+ * $Id: media_strategy.c,v 1.6 1995/05/21 17:56:13 gpalmer Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -239,6 +239,7 @@ genericGetDist(char *path, struct attribs *dist_attrib)
 	    write(1, memory, sb.st_size);
 	    munmap(memory, sb.st_size);
 	    close(fd);
+	    close(fd);
 	    ++chunk;
 	}
     }
@@ -254,21 +255,24 @@ mediaInitCDROM(Device *dev)
     struct iso_args	args;
     struct stat		sb;
 
-    if (Mkdir("/mnt/cdrom", NULL))
+    if (Mkdir("/mnt", NULL))
 	return FALSE;
 
     args.fspec = dev->devname;
-    if (mount(MOUNT_CD9660, "/mnt/cdrom", 0, (caddr_t) &args) == -1)
+    args.export = NULL;
+    args.flags = 0;
+
+    if (mount(MOUNT_CD9660, "/mnt", 0, (caddr_t) &args) == -1)
     {
-	msgConfirm("Error mounting %s on /mnt/cdrom: %s\n",
-		   dev, strerror(errno));
+	msgConfirm("Error mounting %s on /mnt: %s (%u)\n",
+		   dev, strerror(errno), errno);
 	return FALSE;
     }
 
     /* Do a very simple check to see if this looks roughly like a 2.0.5 CDROM
        Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
        sure way of telling the disc version :-( */
-    if (stat("/mnt/cdrom/dists", &sb))
+    if (stat("/mnt/dists", &sb))
     {
 	if (errno == ENOENT)
 	{
@@ -276,7 +280,7 @@ mediaInitCDROM(Device *dev)
 Is this a 2.0.5 CDROM?\n");
 	    return FALSE;
 	} else {
-	    msgConfirm("Couldn't stat directory %s: %s", "/mnt/cdrom/dists", strerror(errno));
+	    msgConfirm("Couldn't stat directory %s: %s", "/mnt/dists", strerror(errno));
 	    return FALSE;
 	}
     }
@@ -288,6 +292,7 @@ mediaGetCDROM(char *dist)
 {
     char		buf[PATH_MAX];
     struct attribs	*dist_attr;
+    int			retval;
 
     dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
 
@@ -298,15 +303,17 @@ mediaGetCDROM(char *dist)
 	return FALSE;
     }
    
-    snprintf(buf, PATH_MAX, "/mnt/cdrom/%s", dist);
+    snprintf(buf, PATH_MAX, "/mnt/%s", dist);
 
-    return genericGetDist(buf, dist_attr);
+    retval = genericGetDist(buf, dist_attr);
+    free(dist_attr);
+    return retval;
 }
 
 void
 mediaCloseCDROM(Device *dev)
 {
-    if (unmount("/mnt/cdrom", 0) != 0)
+    if (unmount("/mnt", 0) != 0)
 	msgConfirm("Could not unmount the CDROM: %s\n", strerror(errno));
 
     return;
@@ -315,13 +322,34 @@ mediaCloseCDROM(Device *dev)
 Boolean
 mediaInitFloppy(Device *dev)
 {
+    if (Mkdir("/mnt", NULL))
+	return FALSE;
+
     return TRUE;
 }
 
 Boolean
 mediaGetFloppy(char *dist)
 {
-    return TRUE;
+    char		buf[PATH_MAX];
+    struct attribs	*dist_attr;
+    int			retval;
+
+    dist_attr = safe_malloc(sizeof(struct attribs) * MAX_ATTRIBS);
+
+    snprintf(buf, PATH_MAX, "/mnt/stand/info/%s.inf", dist);
+    if (attr_parse(&dist_attr, buf) == 0)
+    {
+	msgConfirm("Cannot load information file for distribution\n");
+	return FALSE;
+    }
+   
+    snprintf(buf, PATH_MAX, "/mnt/%s", dist);
+
+    retval = genericGetDist(buf, dist_attr);
+    free(dist_attr);
+
+    return retval;
 }
 
 void
