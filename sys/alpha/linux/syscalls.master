@@ -134,7 +134,7 @@
 80	STD	LINUX	{ int linux_getgroups(l_int gidsetsize, \
 				l_gid_t *grouplist); }
 81	UNIMPL	LINUX	
-82	NODEF	LINUX	setpgid
+82	NODEF	LINUX	setpgid setpgid setpgid_args int
 83	STD	OSF1	{ int osf1_setitimer(u_int which, \
 				struct itimerval *itv, \
 				struct itimerval *oitv); }
