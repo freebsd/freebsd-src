@@ -1,6 +1,6 @@
 # ex:ts=8
 #
-# $Id$
+# $Id: Makefile.inc,v 1.1 1998/08/27 08:09:38 obrien Exp $
 #
 # Makefile for amd
 # 	This file is under a "BSD" copyright (c) by David O'Brien 1998.
@@ -21,7 +21,7 @@ CFLAGS+=	-I${.CURDIR}/../../../contrib/amd
 CFLAGS+=	-DHAVE_CONFIG_H
 
 LIBAMUDIR!=	cd ${.CURDIR}/../libamu; \
-		printf 'xwhere: .MAKE\n\t@echo \$${.OBJDIR}\n' | ${MAKE} -s -f-
+		printf 'xwhere: .MAKE\n\t@echo \$${.OBJDIR}\n' | ${MAKE} -Bs -f-
 LIBAMU=		${LIBAMUDIR}/libamu.a
 
 
