@@ -79,7 +79,9 @@ int	profiling;
 static void configfile(void);
 static void get_srcdir(void);
 static void usage(void);
+#if 0
 static void cleanheaders(char *, time_t);
+#endif
 
 /*
  * Config builds a set of files for building a UNIX
@@ -176,7 +178,9 @@ main(int argc, char **argv)
 	makefile();			/* build Makefile */
 	headers();			/* make a lot of .h files */
 	configfile();			/* put config file into kernel*/
+#if 0
 	cleanheaders(p, starttime);
+#endif
 	printf("Kernel build directory is %s\n", p);
 	exit(0);
 }
@@ -416,6 +420,7 @@ moveifchanged(const char *from_name, const char *to_name)
 	}
 }
 
+#if 0
 static void
 cleanheaders(char *p, time_t starttime)
 {
@@ -465,4 +470,4 @@ cleanheaders(char *p, time_t starttime)
 	(void)closedir(dirp);
 
 }
-
+#endif
