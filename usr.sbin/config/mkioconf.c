@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.36 1998/06/09 14:02:06 dfr Exp $";
+	"$Id: mkioconf.c,v 1.37 1998/06/17 15:16:53 bde Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -1206,6 +1206,81 @@ news_ioconf()
 #endif
 
 #if MACHINE_ALPHA
+static char *
+devstr(struct device *dp)
+{
+    static char buf[100];
+
+    if (dp->d_unit >= 0) {
+	sprintf(buf, "%s%d", dp->d_name, dp->d_unit);
+	return buf;
+    } else
+	return dp->d_name;
+}
+
+static void
+write_device_resources(FILE *fp, struct device *dp)
+{
+    int count = 0;
+
+    fprintf(fp, "struct resource %s_resources[] = {\n", devstr(dp));
+    if (dp->d_conn) {
+	fprintf(fp, "\t\"at\",\tRES_STRING,\t(long)\"%s\",\n",
+		devstr(dp->d_conn));
+	count++;
+    }
+    if (dp->d_drive != -2) {
+	fprintf(fp, "\t\"drive\",\tRES_INT,\t%d,\n", dp->d_drive);
+	count++;
+    }
+    if (dp->d_target != -2) {
+	fprintf(fp, "\t\"target\",\tRES_INT,\t%d,\n", dp->d_target);
+	count++;
+    }
+    if (dp->d_lun != -2) {
+	fprintf(fp, "\t\"lun\",\tRES_INT,\t%d,\n", dp->d_lun);
+	count++;
+    }
+    if (dp->d_flags) {
+	fprintf(fp, "\t\"flags\",\tRES_INT,\t0x%x,\n", dp->d_flags);
+	count++;
+    }
+    if (dp->d_conflicts) {
+	fprintf(fp, "\t\"conflicts\",\tRES_INT,\t%d,\n", dp->d_conflicts);
+	count++;
+    }
+    if (dp->d_disabled) {
+	fprintf(fp, "\t\"disabled\",\tRES_INT,\t%d,\n", dp->d_disabled);
+	count++;
+    }
+    if (dp->d_port) {
+	fprintf(fp, "\t\"port\",\tRES_INT,\t%s,\n", dp->d_port);
+	count++;
+    }
+    if (dp->d_portn > 0) {
+	fprintf(fp, "\t\"port\",\tRES_INT,\t0x%x,\n", dp->d_portn);
+	count++;
+    }
+    if (dp->d_maddr > 0) {
+	fprintf(fp, "\t\"maddr\",\tRES_INT,\t0x%x,\n", dp->d_maddr);
+	count++;
+    }
+    if (dp->d_msize > 0) {
+	fprintf(fp, "\t\"msize\",\tRES_INT,\t0x%x,\n", dp->d_msize);
+	count++;
+    }
+    if (dp->d_drq > 0) {
+	fprintf(fp, "\t\"drq\",\tRES_INT,\t%d,\n", dp->d_drq);
+	count++;
+    }
+    if (dp->d_irq > 0) {
+	fprintf(fp, "\t\"irq\",\tRES_INT,\t%d,\n", dp->d_irq);
+	count++;
+    }
+    fprintf(fp, "};\n");
+    fprintf(fp, "#define %s_count %d\n", devstr(dp), count);
+}
+
 void
 alpha_ioconf()
 {
@@ -1213,6 +1288,7 @@ alpha_ioconf()
 	FILE *fp;
 	FILE *fp1;
 	int dev_id = 10;
+	int count;
 
 	fp = fopen(path("ioconf.c.new"), "w");
 	if (fp == 0)
@@ -1220,6 +1296,9 @@ alpha_ioconf()
 	fprintf(fp, "#include <sys/types.h>\n");
 	fprintf(fp, "#include <sys/time.h>\n");
 	fprintf(fp, "#include <ioconf.h>\n\n");
+	fprintf(fp, "#include <sys/queue.h>\n\n");
+	fprintf(fp, "#include <sys/bus_private.h>\n");
+	fprintf(fp, "#include <isa/isareg.h>\n\n");
 	fprintf(fp, "#define C (char *)\n\n");
 	fp1 = fopen(path("ioconf.h.new"), "w");
 	if (fp1 == 0)
@@ -1296,6 +1375,26 @@ alpha_ioconf()
 	}
 	fprintf(fp, "0\n};\n");
 #endif
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
+		    && dp->d_type != DEVICE)
+			continue;
+		write_device_resources(fp, dp);
+	}
+	count = 0;
+	fprintf(fp, "struct config_device devtab[] = {\n");
+	for (dp = dtab; dp != 0; dp = dp->d_next) {
+		char* n = devstr(dp);
+		if (dp->d_type != CONTROLLER && dp->d_type != MASTER
+		    && dp->d_type != DEVICE)
+			continue;
+		fprintf(fp, "\t\"%s\",\t%d,\t%s_count,\t%s_resources,\n",
+			dp->d_name, dp->d_unit, n, n);
+		count++;
+	}
+	fprintf(fp, "};\n");
+	fprintf(fp, "int devtab_count = %d;\n", count);
+	
 	if (seen_scbus)
 		scbus_devtab(fp, fp1, &dev_id);
 
