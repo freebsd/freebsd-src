@@ -1,4 +1,4 @@
-.\" @(#) $Id: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/tcpdump.1,v 1.3 1995/03/08 12:52:47 olah Exp $ (LBL)
+.\" @(#) $Id: tcpdump.1,v 1.4 1995/09/22 17:24:51 wollman Exp $ (LBL)
 .\"
 .\" Copyright (c) 1987, 1988, 1989, 1990, 1991, 1992, 1994
 .\"	The Regents of the University of California.  All rights reserved.
@@ -1122,7 +1122,7 @@ ethernet interface removed the packet from the wire and when the kernel
 serviced the `new packet' interrupt (of course,
 with Sun's lousy clock resolution this time lag is negligible.)
 .SH "SEE ALSO"
-traffic(1C), nit(4P), bpf(4)
+bpf(4)
 .SH AUTHORS
 Van Jacobson (van@helios.ee.lbl.gov),
 Craig Leres (leres@helios.ee.lbl.gov) and
@@ -1141,7 +1141,7 @@ We recommend that you use the latter.
 \fItcpdump\fP for Ultrix requires Ultrix version 4.0 or later; the kernel
 has to have been built with the \fIpacketfilter\fP pseudo-device driver
 (see
-.IR packetfilter (4)).
+.IR bpf (4)).
 In order to watch either your own outbound or inbound traffic,
 you will need to use Ultrix version 4.2 or later, and you will have
 to have used the
