@@ -174,8 +174,8 @@ setdef0.o: setdef0.c setdefs.h
 setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
-setdef0.c setdef1.c setdefs.h: ${OBJS} param.o
-	@gensetdefs ${OBJS} param.o
+setdef0.c setdef1.c setdefs.h: Makefile ${OBJS}
+	@gensetdefs ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
