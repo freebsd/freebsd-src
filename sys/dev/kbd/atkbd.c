@@ -344,6 +344,7 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	int fkeymap_size;
 	int delay[2];
 	int *data = (int *)arg;	/* data[0]: controller, data[1]: irq */
+	int error, needfree;
 
 	/* XXX */
 	if (unit == ATKBD_DEFAULT) {
@@ -356,26 +357,20 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		fkeymap = default_fkeytab;
 		fkeymap_size =
 			sizeof(default_fkeytab)/sizeof(default_fkeytab[0]);
+		needfree = 0;
 	} else if (*kbdp == NULL) {
 		*kbdp = kbd = malloc(sizeof(*kbd), M_DEVBUF, M_NOWAIT | M_ZERO);
 		state = malloc(sizeof(*state), M_DEVBUF, M_NOWAIT | M_ZERO);
+		/* NB: these will always be initialized 'cuz !KBD_IS_PROBED */
 		keymap = malloc(sizeof(key_map), M_DEVBUF, M_NOWAIT);
 		accmap = malloc(sizeof(accent_map), M_DEVBUF, M_NOWAIT);
 		fkeymap = malloc(sizeof(fkey_tab), M_DEVBUF, M_NOWAIT);
 		fkeymap_size = sizeof(fkey_tab)/sizeof(fkey_tab[0]);
+		needfree = 1;
 		if ((kbd == NULL) || (state == NULL) || (keymap == NULL)
 		     || (accmap == NULL) || (fkeymap == NULL)) {
-			if (state != NULL)
-				free(state, M_DEVBUF);
-			if (keymap != NULL)
-				free(keymap, M_DEVBUF);
-			if (accmap != NULL)
-				free(accmap, M_DEVBUF);
-			if (fkeymap != NULL)
-				free(fkeymap, M_DEVBUF);
-			if (kbd != NULL)
-				free(kbd, M_DEVBUF);
-			return ENOMEM;
+			error = ENOMEM;
+			goto bad;
 		}
 	} else if (KBD_IS_INITIALIZED(*kbdp) && KBD_IS_CONFIGURED(*kbdp)) {
 		return 0;
@@ -387,12 +382,15 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		accmap = kbd->kb_accentmap;
 		fkeymap = kbd->kb_fkeytab;
 		fkeymap_size = kbd->kb_fkeytab_size;
+		needfree = 0;
 	}
 
 	if (!KBD_IS_PROBED(kbd)) {
 		state->kbdc = atkbdc_open(data[0]);
-		if (state->kbdc == NULL)
-			return ENXIO;
+		if (state->kbdc == NULL) {
+			error = ENXIO;
+			goto bad;
+		}
 		kbd_init_struct(kbd, ATKBD_DRIVER_NAME, KB_OTHER, unit, flags,
 				0, 0);
 		bcopy(&key_map, keymap, sizeof(key_map));
@@ -403,8 +401,10 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		kbd->kb_data = (void *)state;
 	
 		if (probe_keyboard(state->kbdc, flags)) { /* shouldn't happen */
-			if (flags & KB_CONF_FAIL_IF_NO_KBD)
-				return ENXIO;
+			if (flags & KB_CONF_FAIL_IF_NO_KBD) {
+				error = ENXIO;
+				goto bad;
+			}
 		} else {
 			KBD_FOUND_DEVICE(kbd);
 		}
@@ -422,7 +422,8 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	    	    && init_keyboard(state->kbdc, &kbd->kb_type, kbd->kb_config)
 	    	    && (kbd->kb_config & KB_CONF_FAIL_IF_NO_KBD)) {
 			kbd_unregister(kbd);
-			return ENXIO;
+			error = ENXIO;
+			goto bad;
 		}
 		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
 		get_typematic(kbd);
@@ -432,12 +433,30 @@ atkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		KBD_INIT_DONE(kbd);
 	}
 	if (!KBD_IS_CONFIGURED(kbd)) {
-		if (kbd_register(kbd) < 0)
-			return ENXIO;
+		if (kbd_register(kbd) < 0) {
+			error = ENXIO;
+			goto bad;
+		}
 		KBD_CONFIG_DONE(kbd);
 	}
 
 	return 0;
+bad:
+	if (needfree) {
+		if (state != NULL)
+			free(state, M_DEVBUF);
+		if (keymap != NULL)
+			free(keymap, M_DEVBUF);
+		if (accmap != NULL)
+			free(accmap, M_DEVBUF);
+		if (fkeymap != NULL)
+			free(fkeymap, M_DEVBUF);
+		if (kbd != NULL) {
+			free(kbd, M_DEVBUF);
+			*kbdp = NULL;	/* insure ref doesn't leak to caller */
+		}
+	}
+	return error;
 }
 
 /* finish using this keyboard */
