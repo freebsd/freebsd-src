@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Nicolas Souchu
+ * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,6 +43,8 @@
 #define WINB_W83877AF	8
 #define WINB_UNKNOWN	9
 #define NS_PC87334	10
+#define SMC_37C935	11
+#define NS_PC87303	12
 
 /*
  * Parallel Port Chipset Type. SMC versus GENERIC (others)
@@ -61,6 +63,7 @@ struct ppc_data {
 
 	int ppc_mode;		/* chipset current mode */
 	int ppc_avm;		/* chipset available modes */
+	int ppc_dtm;		/* chipset detected modes */
 
 #define PPC_IRQ_NONE		0x0
 #define PPC_IRQ_nACK		0x1
@@ -103,6 +106,9 @@ struct ppc_data {
   	int rid_irq, rid_drq, rid_ioport;
 	struct resource *res_irq, *res_drq, *res_ioport;
 
+	bus_space_handle_t bsh;
+	bus_space_tag_t bst;
+
 	void *intr_cookie;
 
 	int ppc_registered;	/* 1 if ppcintr() is the registered interrupt */
@@ -144,23 +150,25 @@ struct ppc_data {
 #define PPC_DISABLE_INTR	(PPC_SERVICE_INTR | PPC_nFAULT_INTR)
 #define PPC_ECR_RESET		(PPC_ECR_PS2 | PPC_DISABLE_INTR)
 
-#define r_dtr(ppc) (inb((ppc)->ppc_base + PPC_SPP_DTR))
-#define r_str(ppc) (inb((ppc)->ppc_base + PPC_SPP_STR))
-#define r_ctr(ppc) (inb((ppc)->ppc_base + PPC_SPP_CTR))
-#define r_epp_A(ppc) (inb((ppc)->ppc_base + PPC_EPP_ADDR))
-#define r_epp_D(ppc) (inb((ppc)->ppc_base + PPC_EPP_DATA))
-#define r_cnfgA(ppc) (inb((ppc)->ppc_base + PPC_ECP_CNFGA))
-#define r_cnfgB(ppc) (inb((ppc)->ppc_base + PPC_ECP_CNFGB))
-#define r_ecr(ppc) (inb((ppc)->ppc_base + PPC_ECP_ECR))
-#define r_fifo(ppc) (inb((ppc)->ppc_base + PPC_ECP_D_FIFO))
+#define r_dtr(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_SPP_DTR))
+#define r_str(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_SPP_STR))
+#define r_ctr(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_SPP_CTR))
 
-#define w_dtr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_DTR, byte)
-#define w_str(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_STR, byte)
-#define w_ctr(ppc,byte) outb((ppc)->ppc_base + PPC_SPP_CTR, byte)
-#define w_epp_A(ppc,byte) outb((ppc)->ppc_base + PPC_EPP_ADDR, byte)
-#define w_epp_D(ppc,byte) outb((ppc)->ppc_base + PPC_EPP_DATA, byte)
-#define w_ecr(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_ECR, byte)
-#define w_fifo(ppc,byte) outb((ppc)->ppc_base + PPC_ECP_D_FIFO, byte)
+#define r_epp_A(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_EPP_ADDR))
+#define r_epp_D(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_EPP_DATA))
+#define r_cnfgA(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_CNFGA))
+#define r_cnfgB(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_CNFGB))
+#define r_ecr(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_ECR))
+#define r_fifo(ppc) (bus_space_read_1((ppc)->bst, (ppc)->bsh, PPC_ECP_D_FIFO))
+
+#define w_dtr(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_SPP_DTR, byte))
+#define w_str(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_SPP_STR, byte))
+#define w_ctr(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_SPP_CTR, byte))
+
+#define w_epp_A(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_EPP_ADDR, byte))
+#define w_epp_D(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_EPP_DATA, byte))
+#define w_ecr(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_ECP_ECR, byte))
+#define w_fifo(ppc, byte) (bus_space_write_1((ppc)->bst, (ppc)->bsh, PPC_ECP_D_FIFO, byte))
 
 /*
  * Register defines for the PC873xx parts
@@ -212,6 +220,32 @@ struct ppc_data {
 #define SMC_EPPSPP	0x1		/* EPP and SPP */
 #define SMC_ECP		0x2 		/* ECP */
 #define SMC_ECPEPP	0x3		/* ECP and EPP */
+
+/*
+ * Register defines for the SMC FDC37C935 parts
+ */
+
+/* Configuration ports */
+#define SMC935_CFG	0x370
+#define SMC935_IND	0x370
+#define SMC935_DAT	0x371
+
+/* Registers */
+#define SMC935_LOGDEV	0x7
+#define SMC935_ID	0x20
+#define SMC935_PORTHI	0x60
+#define SMC935_PORTLO	0x61
+#define SMC935_PPMODE	0xf0
+
+/* Parallel port modes */
+#define SMC935_SPP	0x38 + 0
+#define SMC935_EPP19SPP	0x38 + 1
+#define SMC935_ECP	0x38 + 2
+#define SMC935_ECPEPP19	0x38 + 3
+#define SMC935_CENT	0x38 + 4
+#define SMC935_EPP17SPP	0x38 + 5
+#define SMC935_UNUSED	0x38 + 6
+#define SMC935_ECPEPP17	0x38 + 7
 
 /*
  * Register defines for the Winbond W83877F parts
