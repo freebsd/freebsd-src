@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.357 1998/06/24 06:55:18 brian Exp $
+#	$Id: Makefile,v 1.358 1998/06/25 06:35:20 brian Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -326,9 +326,6 @@ release.4:
 		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean all \
 		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
-		( cd $${j}_crunch && \
-		  ${MAKE} -DRELEASE_CRUNCH -f $${j}_crunch.mk subclean \
-		    NOCRYPT=yes "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
 	touch release.4
@@ -338,7 +335,7 @@ release.4:
 #
 release.5:
 	# Handle some grief caused by the munition braindeadness.
-	for i in sbin/init bin/ed ; do \
+	for i in sbin/init bin/ed usr.sbin/ppp ; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
 	done
