@@ -1171,13 +1171,10 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 	    sizeof *psinfo);
 
 	/*
-	 * For backward compatibility, we dump the registers of the current
-	 * thread (as passed to us in td) first and set pr_pid to the PID of
-	 * the process.  We then dump the other threads, but with pr_pid set
-	 * to the TID of the thread itself. This has two advantages:
-	 * 1) We preserve the meaning of pr_pid for as much as is possible.
-	 * 2) The debugger will select the current thread as its initial
-	 *    "thread", which is likely what we want.
+	 * To have the debugger select the right thread (LWP) as the initial
+	 * thread, we dump the state of the thread passed to us in td first.
+	 * This is the thread that causes the core dump and thus likely to
+	 * be the right thread one wants to have selected in the debugger.
 	 */
 	thr = td;
 	while (thr != NULL) {
@@ -1188,7 +1185,7 @@ __elfN(puthdr)(struct thread *td, void *dst, size_t *off, int numsegs)
 			status->pr_fpregsetsz = sizeof(fpregset_t);
 			status->pr_osreldate = osreldate;
 			status->pr_cursig = p->p_sig;
-			status->pr_pid = (thr == td) ? p->p_pid : thr->td_tid;
+			status->pr_pid = thr->td_tid;
 			fill_regs(thr, &status->pr_reg);
 			fill_fpregs(thr, fpregset);
 		}
