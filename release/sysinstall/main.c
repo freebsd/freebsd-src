@@ -90,6 +90,9 @@ main(int argc, char **argv)
     /* Initialize PC-card */
     pccardInitialize();
 
+    /* Initialize USB */
+    usbInitialize();
+
     /* Probe for all relevant devices on the system */
     deviceGetAll();
 

@@ -481,12 +481,13 @@ release.8: write_mfs_in_kernel
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
-		ls console tty bpf0 ttyv0 ttyv1 ttyv2 ttyv3 null zero card0 card1 card2 card3 | \
+		ls console tty bpf0 ttyv0 ttyv1 ttyv2 ttyv3 null zero card0 card1 card2 card3 usb usb0 uhid0 ums0 ulpt0 ugen0 kbd0 | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	( cd ${RD}/mfsfd && mkdir -p bin sbin && ln -s /stand/sh bin/sh )
 	cp /sbin/dhclient-script ${RD}/mfsfd/sbin
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
+	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
