@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.235 1997/04/07 06:45:13 peter Exp $
+ *	$Id: machdep.c,v 1.236 1997/04/07 07:15:50 peter Exp $
  */
 
 #include "npx.h"
@@ -300,6 +300,8 @@ again:
 		if (bouncepages == 0) {
 			bouncepages = 64;
 			bouncepages += ((Maxmem - 4096) / 2048) * 32;
+			if (bouncepages > 128)
+				bouncepages = 128;
 		}
 		v = (caddr_t)((vm_offset_t)round_page(v));
 		valloc(bouncememory, char, bouncepages * PAGE_SIZE);
