@@ -1737,11 +1737,12 @@ fdcheckstd(td)
 	struct filedesc *fdp;
 	struct file *fp;
 	register_t retval;
-	int fd, i, error, flags, devnull, extraref;
+	int fd, i, error, flags, devnull;
 
 	fdp = td->td_proc->p_fd;
 	if (fdp == NULL)
 		return (0);
+	KASSERT(fdp->fd_refcnt == 1, ("the fdtable should not be shared"));
 	devnull = -1;
 	error = 0;
 	for (i = 0; i < 3; i++) {
@@ -1763,17 +1764,14 @@ fdcheckstd(td)
 				 * file descriptor table, so check it hasn't
 				 * changed before dropping the reference count.
 				 */
-				extraref = 0;
 				FILEDESC_LOCK(fdp);
-				if (fdp->fd_ofiles[fd] == fp) {
-					fdp->fd_ofiles[fd] = NULL;
-					fdunused(fdp, fd);
-					extraref = 1;
-				}
+				KASSERT(fdp->fd_ofiles[fd] == fp,
+				    ("table not shared, how did it change?"));
+				fdp->fd_ofiles[fd] = NULL;
+				fdunused(fdp, fd);
 				FILEDESC_UNLOCK(fdp);
 				fdrop(fp, td);
-				if (extraref)
-					fdrop(fp, td);
+				fdrop(fp, td);
 				break;
 			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);
