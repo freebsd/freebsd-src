@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)indent.c	5.17 (Berkeley) 6/7/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: indent.c,v 1.2 1997/07/15 09:50:59 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -209,10 +209,10 @@ main(argc, argv)
 	    set_option(argv[i]);
     }				/* end of for */
     if (input == 0) {
-		usage();
+	input = stdin;
     }
     if (output == 0)
-	if (troff)
+	if (troff || input == stdin)
 	    output = stdout;
 	else {
 	    out_name = in_name;
@@ -1133,7 +1133,7 @@ check_type:
 static void
 usage()
 {
-	fprintf(stderr, "usage: indent file [ outfile ] [ options ]\n");
+	fprintf(stderr, "usage: indent [ file [ outfile ] ] [ options ]\n");
 	exit(1);
 }
 
