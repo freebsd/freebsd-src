@@ -358,7 +358,8 @@ ugenclose(dev, flag, mode, p)
 	int dir;
 
 	DPRINTFN(5, ("ugenclose: flag=%d, mode=%d\n", flag, mode));
-	if (sc->sc_disconnected)
+
+	if (!sc || sc->sc_disconnected)
 		return (EIO);
 
 	if (endpt == USB_CONTROL_ENDPOINT) {
@@ -401,7 +402,7 @@ ugenread(dev, uio, flag)
 {
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
 	int endpt = UGENENDPOINT(dev);
-	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][IN];
+	struct ugen_endpoint *sce;
 	u_int32_t n, tn;
 	char buf[UGEN_BBSIZE];
 	usbd_request_handle reqh;
@@ -411,8 +412,10 @@ ugenread(dev, uio, flag)
 	u_char buffer[UGEN_CHUNK];
 
 	DPRINTFN(5, ("ugenread: %d:%d\n", UGENUNIT(dev), UGENENDPOINT(dev)));
-	if (sc->sc_disconnected)
+	if (!sc || sc->sc_disconnected)
 		return (EIO);
+
+	sce = &sc->sc_endpoints[endpt][IN];
 
 #ifdef DIAGNOSTIC
 	if (!sce->edesc) {
@@ -501,15 +504,17 @@ ugenwrite(dev, uio, flag)
 {
 	USB_GET_SC(ugen, UGENUNIT(dev), sc);
 	int endpt = UGENENDPOINT(dev);
-	struct ugen_endpoint *sce = &sc->sc_endpoints[endpt][OUT];
+	struct ugen_endpoint *sce;
 	size_t n;
 	int error = 0;
 	char buf[UGEN_BBSIZE];
 	usbd_request_handle reqh;
 	usbd_status r;
 
-	if (sc->sc_disconnected)
+	if (!sc || sc->sc_disconnected)
 		return (EIO);
+
+	sce = &sc->sc_endpoints[endpt][OUT];
 
 #ifdef DIAGNOSTIC
 	if (!sce->edesc) {
@@ -721,7 +726,7 @@ ugenioctl(dev, cmd, addr, flag, p)
 	u_int8_t conf, alt;
 
 	DPRINTFN(5, ("ugenioctl: cmd=%08lx\n", cmd));
-	if (sc->sc_disconnected)
+	if (!sc || sc->sc_disconnected)
 		return (EIO);
 
 	switch (cmd) {
@@ -963,7 +968,7 @@ ugenpoll(dev, events, p)
 	int revents = 0;
 	int s;
 
-	if (sc->sc_disconnected)
+	if (!sc || sc->sc_disconnected)
 		return (EIO);
 
 	sce = &sc->sc_endpoints[UGENENDPOINT(dev)][IN];
