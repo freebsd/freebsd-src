@@ -4,15 +4,15 @@
  * <Copyright.MIT>.
  *
  *	from: krb_dbm.c,v 4.9 89/04/18 16:15:13 wesommer Exp $
- *	$Id: krb_dbm.c,v 1.2 1995/01/25 19:45:25 ache Exp $
+ *	$Id: krb_dbm.c,v 1.3 1995/05/30 06:40:38 rgrimes Exp $
  */
 
 #ifndef	lint
 static char rcsid[] =
-"$Id: krb_dbm.c,v 1.2 1995/01/25 19:45:25 ache Exp $";
+"$Id: krb_dbm.c,v 1.3 1995/05/30 06:40:38 rgrimes Exp $";
 #endif	lint
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__NetBSD__)
 #define NDBM
 #endif
 
@@ -35,6 +35,10 @@ static char rcsid[] =
 /* before krb_db.h */
 #include <krb.h>
 #include <krb_db.h>
+
+#ifdef dbm_pagfno
+#define	DB
+#endif
 
 #define KERB_DB_MAX_RETRY 5
 
@@ -343,38 +347,38 @@ kerb_db_rename(from, to)
     char *from;
     char *to;
 {
-#ifndef __FreeBSD__
+#ifdef DB
+    char *fromdb = gen_dbsuffix (from, ".db");
+    char *todb = gen_dbsuffix (to, ".db");
+#else
     char *fromdir = gen_dbsuffix (from, ".dir");
     char *todir = gen_dbsuffix (to, ".dir");
     char *frompag = gen_dbsuffix (from , ".pag");
     char *topag = gen_dbsuffix (to, ".pag");
-#else
-    char *fromdb = gen_dbsuffix (from, ".db");
-    char *todb = gen_dbsuffix (to, ".db");
 #endif
     char *fromok = gen_dbsuffix(from, ".ok");
     long trans = kerb_start_update(to);
     int ok;
 
-#ifndef __FreeBSD__
+#ifdef DB
+    if (rename (fromdb, todb) == 0) {
+#else
     if ((rename (fromdir, todir) == 0)
 	&& (rename (frompag, topag) == 0)) {
-#else
-    if (rename (fromdb, todb) == 0) {
 #endif
 	(void) unlink (fromok);
 	ok = 1;
     }
 
     free (fromok);
-#ifndef __FreeBSD__
+#ifdef DB
+    free (fromdb);
+    free (todb);
+#else
     free (fromdir);
     free (todir);
     free (frompag);
     free (topag);
-#else
-    free(fromdb);
-    free(todb);
 #endif
     if (ok)
 	return kerb_end_update(to, trans);
