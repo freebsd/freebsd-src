@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
+#include <paths.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/param.h>
@@ -87,6 +88,7 @@ int initialpgrp;		/* pgrp of shell on invocation */
 int in_waitcmd = 0;		/* are we in waitcmd()? */
 int in_dowait = 0;		/* are we in dowait()? */
 volatile sig_atomic_t breakwaitcmd = 0;	/* should wait be terminated? */
+static int ttyfd = -1;
 
 #if JOBS
 STATIC void restartjob(struct job *);
@@ -122,21 +124,36 @@ MKINIT int jobctl;
 void
 setjobctl(int on)
 {
+	int i;
 
 	if (on == jobctl || rootshell == 0)
 		return;
 	if (on) {
+		if (ttyfd != -1)
+			close(ttyfd);
+		if ((ttyfd = open(_PATH_TTY, O_RDWR)) < 0) {
+			i = 0;
+			while (i <= 2 && !isatty(i))
+				i++;
+			if (i > 2 || (ttyfd = dup(i)) < 0)
+				goto out;
+		}
+		if (fcntl(ttyfd, FD_CLOEXEC, 1) < 0) {
+			close(ttyfd);
+			ttyfd = -1;
+			goto out;
+		}
 		do { /* while we are in the background */
-			initialpgrp = tcgetpgrp(2);
+			initialpgrp = tcgetpgrp(ttyfd);
 			if (initialpgrp < 0) {
-				out2str("sh: can't access tty; job control turned off\n");
+out:				out2str("sh: can't access tty; job control turned off\n");
 				mflag = 0;
 				return;
 			}
 			if (initialpgrp == -1)
 				initialpgrp = getpgrp();
 			else if (initialpgrp != getpgrp()) {
-				killpg(initialpgrp, SIGTTIN);
+				killpg(0, SIGTTIN);
 				continue;
 			}
 		} while (0);
@@ -144,10 +161,12 @@ setjobctl(int on)
 		setsignal(SIGTTOU);
 		setsignal(SIGTTIN);
 		setpgid(0, rootpid);
-		tcsetpgrp(2, rootpid);
+		tcsetpgrp(ttyfd, rootpid);
 	} else { /* turning job control off */
 		setpgid(0, initialpgrp);
-		tcsetpgrp(2, initialpgrp);
+		tcsetpgrp(ttyfd, initialpgrp);
+		close(ttyfd);
+		ttyfd = -1;
 		setsignal(SIGTSTP);
 		setsignal(SIGTTOU);
 		setsignal(SIGTTIN);
@@ -187,7 +206,7 @@ fgcmd(int argc __unused, char **argv)
 	out1c('\n');
 	flushout(&output);
 	pgrp = jp->ps[0].pid;
-	tcsetpgrp(2, pgrp);
+	tcsetpgrp(ttyfd, pgrp);
 	restartjob(jp);
 	INTOFF;
 	status = waitforjob(jp, (int *)NULL);
@@ -742,7 +761,7 @@ forkshell(struct job *jp, union node *n, int mode)
 				pgrp = jp->ps[0].pid;
 			if (setpgid(0, pgrp) == 0 && mode == FORK_FG) {
 				/*** this causes superfluous TIOCSPGRPS ***/
-				if (tcsetpgrp(2, pgrp) < 0)
+				if (tcsetpgrp(ttyfd, pgrp) < 0)
 					error("tcsetpgrp failed, errno=%d", errno);
 			}
 			setsignal(SIGTSTP);
@@ -840,7 +859,7 @@ waitforjob(struct job *jp, int *origstatus)
 			dotrap();
 #if JOBS
 	if (jp->jobctl) {
-		if (tcsetpgrp(2, mypgrp) < 0)
+		if (tcsetpgrp(ttyfd, mypgrp) < 0)
 			error("tcsetpgrp failed, errno=%d\n", errno);
 	}
 	if (jp->state == JOBSTOPPED)
