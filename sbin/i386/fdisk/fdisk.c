@@ -731,7 +731,9 @@ read_s0()
 static int
 write_s0()
 {
+#ifdef NOT_NOW
 	int	flag;
+#endif
 	if (iotest) {
 		print_s0(-1);
 		return 0;
