@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/ioccom.h>
 #include <sys/conf.h>
+#include <sys/serial.h>
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/select.h>
@@ -515,11 +516,11 @@ umodem_intr(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		mstatus = sc->sc_notify_buf.data[0];
 
 		if (ISSET(mstatus, UCDC_N_SERIAL_RI))
-			sc->sc_msr |= UMSR_RI;
+			sc->sc_msr |= SER_RI;
 		if (ISSET(mstatus, UCDC_N_SERIAL_DSR))
-			sc->sc_msr |= UMSR_DSR;
+			sc->sc_msr |= SER_DSR;
 		if (ISSET(mstatus, UCDC_N_SERIAL_DCD))
-			sc->sc_msr |= UMSR_DCD;
+			sc->sc_msr |= SER_DCD;
 		ucom_status_change(&sc->sc_ucom);
 		break;
 	default:
