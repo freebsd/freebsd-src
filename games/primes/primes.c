@@ -56,7 +56,7 @@ static const char rcsid[] =
  * chongo <for a good prime call: 391581 * 2^216193 - 1> /\oo/\
  *
  * usage:
- *	primes [start [stop]]
+ *	primes [-h] [start [stop]]
  *
  *	Print primes >= start and < stop.  If stop is omitted,
  *	the value 4294967295 (2^32-1) is assumed.  If start is
@@ -87,23 +87,6 @@ static const char rcsid[] =
  * We make TABSIZE large to reduce the overhead of inner loop setup.
  */
 static char table[TABSIZE];	 /* Eratosthenes sieve of odd numbers */
-
-/*
- * prime[i] is the (i-1)th prime.
- *
- * We are able to sieve 2^32-1 because this byte table yields all primes
- * up to 65537 and 65537^2 > 2^32-1.
- */
-extern ubig prime[];
-extern ubig *pr_limit;		/* largest prime in the prime array */
-
-/*
- * To avoid excessive sieves for small factors, we use the table below to
- * setup our sieve blocks.  Each element represents a odd number starting
- * with 1.  All non-zero elements are factors of 3, 5, 7, 11 and 13.
- */
-extern char pattern[];
-extern size_t pattern_size;	/* length of pattern array */
 
 static int	hflag;
 
@@ -193,7 +176,7 @@ static ubig
 read_num_buf(void)
 {
 	ubig val;
-	char *p, buf[100];		/* > max number of digits. */
+	char *p, buf[LINE_MAX];		/* > max number of digits. */
 
 	for (;;) {
 		if (fgets(buf, sizeof(buf), stdin) == NULL) {
@@ -225,8 +208,9 @@ primes(ubig start, ubig stop)
 	char *q;		/* sieve spot */
 	ubig factor;		/* index and factor */
 	char *tab_lim;		/* the limit to sieve on the table */
-	ubig *p;		/* prime table pointer */
+	const ubig *p;		/* prime table pointer */
 	ubig fact_lim;		/* highest prime for current block */
+	ubig mod;		/* temp storage for mod */
 
 	/*
 	 * A number of systems can not convert double values into unsigned
@@ -296,28 +280,28 @@ primes(ubig start, ubig stop)
 		/* note highest useful factor and sieve spot */
 		if (stop-start > TABSIZE+TABSIZE) {
 			tab_lim = &table[TABSIZE]; /* sieve it all */
-			fact_lim = (int)sqrt(
-					(double)(start)+TABSIZE+TABSIZE+1.0);
+			fact_lim = sqrt(start+1.0+TABSIZE+TABSIZE);
 		} else {
 			tab_lim = &table[(stop-start)/2]; /* partial sieve */
-			fact_lim = (int)sqrt((double)(stop)+1.0);
+			fact_lim = sqrt(stop+1.0);
 		}
 		/* sieve for factors >= 17 */
 		factor = 17;	/* 17 is first prime to use */
 		p = &prime[7];	/* 19 is next prime, pi(19)=7 */
 		do {
 			/* determine the factor's initial sieve point */
-			q = (char *)(start%factor); /* temp storage for mod */
-			if ((long)q & 0x1) {
-				q = &table[(factor-(long)q)/2];
+			mod = start%factor;
+			if (mod & 0x1) {
+				q = &table[(factor-mod)/2];
 			} else {
-				q = &table[q ? factor-((long)q/2) : 0];
+				q = &table[mod ? factor-(mod/2) : 0];
 			}
 			/* sive for our current factor */
 			for ( ; q < tab_lim; q += factor) {
 				*q = '\0'; /* sieve out a spot */
 			}
-		} while ((factor=(ubig)(*(p++))) <= fact_lim);
+			factor = *p++;
+		} while (factor <= fact_lim);
 
 		/*
 		 * print generated primes
@@ -333,6 +317,6 @@ primes(ubig start, ubig stop)
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: primes [-h] [start [stop]]\n");
+	fprintf(stderr, "usage: primes [-h] [start [stop]]\n");
 	exit(1);
 }
