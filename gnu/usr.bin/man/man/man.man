@@ -127,7 +127,7 @@ the man page.  By default,
 .B %pager%
 is used.
 .SH "SEE ALSO"
-apropos(1), whatis(1), manpath(1), less(1), groff(1).
+apropos(1), whatis(1), manpath(1), more(1), groff(1).
 .SH BUGS
 The
 .B \-t
