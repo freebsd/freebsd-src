@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.6 1998/09/02 02:51:12 jdp Exp $
+ *      $Id: rtld.c,v 1.7 1998/09/04 19:03:57 dfr Exp $
  */
 
 /*
@@ -75,6 +75,7 @@ static void digest_dynamic(Obj_Entry *);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t);
 static Obj_Entry *dlcheck(void *);
 static char *find_library(const char *, const Obj_Entry *);
+static const char *gethints(void);
 static void init_rtld(caddr_t);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
@@ -626,6 +627,12 @@ elf_hash(const char *name)
  *
  * If the second argument is non-NULL, then it refers to an already-
  * loaded shared object, whose library search path will be searched.
+ *
+ * The search order is:
+ *   LD_LIBRARY_PATH
+ *   ldconfig hints
+ *   rpath in the referencing file
+ *   /usr/lib
  */
 static char *
 find_library(const char *name, const Obj_Entry *refobj)
@@ -643,9 +650,10 @@ find_library(const char *name, const Obj_Entry *refobj)
 
     dbg(" Searching for \"%s\"", name);
 
-    if ((refobj != NULL &&
+    if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
+      (pathname = search_library_path(name, gethints())) != NULL ||
+      (refobj != NULL &&
       (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
-      (pathname = search_library_path(name, ld_library_path)) != NULL ||
       (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	return pathname;
 
@@ -744,6 +752,45 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 
     _rtld_error("%s: Undefined symbol \"%s\"", refobj->path, name);
     return NULL;
+}
+
+/*
+ * Return the search path from the ldconfig hints file, reading it if
+ * necessary.  Returns NULL if there are problems with the hints file,
+ * or if the search path there is empty.
+ */
+static const char *
+gethints(void)
+{
+    static char *hints;
+
+    if (hints == NULL) {
+	int fd;
+	struct elfhints_hdr hdr;
+	char *p;
+
+	/* Keep from trying again in case the hints file is bad. */
+	hints = "";
+
+	if ((fd = open(_PATH_ELF_HINTS, O_RDONLY)) == -1)
+	    return NULL;
+	if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
+	  hdr.magic != ELFHINTS_MAGIC ||
+	  hdr.version != 1) {
+	    close(fd);
+	    return NULL;
+	}
+	p = xmalloc(hdr.dirlistlen + 1);
+	if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
+	  read(fd, p, hdr.dirlistlen + 1) != hdr.dirlistlen + 1) {
+	    free(p);
+	    close(fd);
+	    return NULL;
+	}
+	hints = p;
+	close(fd);
+    }
+    return hints[0] != '\0' ? hints : NULL;
 }
 
 /*
