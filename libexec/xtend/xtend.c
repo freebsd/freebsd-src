@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: xtend.c,v 1.7 1999/08/08 07:05:46 stark Exp $";
 #endif /* not lint */
 
 /*
@@ -284,7 +284,7 @@ char *argv[];
 	logpacket(rpkt);
 	processpacket(rpkt);
       }
-    } else if(FD_ISSET(user, &fs)) {
+    } else if(FD_ISSET(user, &fs) && User != NULL) {
       if(User != NULL) {
 	if(user_command()) {
 	  fprintf(Log, "%s:  Closing user connection\n", thedate());
