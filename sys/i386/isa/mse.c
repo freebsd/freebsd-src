@@ -45,7 +45,6 @@
  */
 
 #include "mse.h"
-#if NMSE > 0
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
@@ -767,5 +766,3 @@ mse_getati(port, dx, dy, but)
 	outb(port + MSE_PORTA, MSE_INPORT_MODE);
 	outb(port + MSE_PORTB, MSE_INPORT_INTREN);
 }
-
-#endif /* NMSE */

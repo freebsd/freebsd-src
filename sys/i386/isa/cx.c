@@ -21,7 +21,6 @@
 #undef DEBUG
 
 #include "cx.h"
-#if NCX > 0
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -954,4 +953,3 @@ SYSINIT(cxdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cx_drvinit,NULL)
 
 
 #endif
-#endif /* NCX */
