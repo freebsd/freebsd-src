@@ -58,9 +58,11 @@ The
 .Nm
 utility uses a set of files provided by the user to make correspondences
 between uids and gids in the sub-tree's original environment and
-some other set of ids in the local environment.  For instance, user
+some other set of ids in the local environment.
+For instance, user
 smith might have uid 1000 in the original environment, while having
-uid 2000 in the local environment.  The
+uid 2000 in the local environment.
+The
 .Nm
 utility allows the subtree from smith's original environment to be
 mapped in such a way that all files with owning uid 1000 look like
@@ -86,7 +88,8 @@ where the mapped subtree is to be placed.
 Describe the mappings to be made between identifiers.
 Briefly, the format of these files is a count of the number of
 mappings on the first line, with each subsequent line containing
-a single mapping.  Each of these mappings consists of an id in
+a single mapping.
+Each of these mappings consists of an id in
 the local environment and the corresponding id from the original environment,
 separated by white space.
 .Ar Uid-mapfile
@@ -100,7 +103,8 @@ will be treated as user NOBODY,
 and any gids not mapped in
 .Ar gid-mapfile
 will be treated as group
-NULLGROUP.  At most 64 uids can be mapped for a given subtree, and
+NULLGROUP.
+At most 64 uids can be mapped for a given subtree, and
 at most 16 groups can be mapped by a given subtree.
 .El
 .Pp
@@ -109,21 +113,26 @@ must be owned by root, and they must be writable only by root.
 The
 .Nm
 utility will refuse to map the sub-tree if the ownership or permissions on
-these files are improper.  It will also balk if the count of mappings
+these files are improper.
+It will also balk if the count of mappings
 in the first line of the map files is not correct.
 .Pp
 The layer created by the
 .Nm
 utility is meant to serve as a simple example of file system layering.
-It is not meant for production use.  The implementation is not very
+It is not meant for production use.
+The implementation is not very
 sophisticated.
 .Sh SEE ALSO
 .Xr mount 8 ,
 .Xr mount_nullfs 8
 .Sh BUGS
 THIS FILE SYSTEM TYPE IS NOT YET FULLY SUPPORTED (READ: IT DOESN'T WORK)
-AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.  USE AT YOUR
-OWN RISK.  BEWARE OF DOG.  SLIPPERY WHEN WET.
+AND USING IT MAY, IN FACT, DESTROY DATA ON YOUR SYSTEM.
+USE AT YOUR
+OWN RISK.
+BEWARE OF DOG.
+SLIPPERY WHEN WET.
 .Pp
 This code also needs an owner in order to be less dangerous - serious
 hackers can apply by sending mail to

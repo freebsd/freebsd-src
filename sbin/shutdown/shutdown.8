@@ -112,7 +112,8 @@ specify a future time in one of two formats:
 or
 .Ar yymmddhhmm ,
 where the year, month, and day may be defaulted
-to the current system values.  The first form brings the system down in
+to the current system values.
+The first form brings the system down in
 .Ar number
 minutes and the second at the absolute time specified.
 .It Ar warning-message
@@ -127,15 +128,18 @@ input.
 .Pp
 At intervals, becoming more frequent as apocalypse approaches
 and starting at ten hours before shutdown, warning messages are displayed
-on the terminals of all users logged in.  Five minutes before
+on the terminals of all users logged in.
+Five minutes before
 shutdown, or immediately if shutdown is in less than 5 minutes,
 logins are disabled by creating
 .Pa /var/run/nologin
 and copying the
-warning message there.  If this file exists when a user attempts to
+warning message there.
+If this file exists when a user attempts to
 log in,
 .Xr login 1
-prints its contents and exits.  The file is
+prints its contents and exits.
+The file is
 removed just before
 .Nm
 exits.

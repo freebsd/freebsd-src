@@ -24,7 +24,8 @@ Sector 0 of the disk must contain boot code,
 a partition table,
 and a magic number.
 BIOS partitions can be used to break the disk up into several pieces.
-The BIOS brings in sector 0 and verifies the magic number.  The sector
+The BIOS brings in sector 0 and verifies the magic number.
+The sector
 0 boot code then searches the partition table to determine which
 partition is marked
 .Em active .
@@ -42,23 +43,27 @@ utility can be used to divide space on the disk into partitions and set one
 The
 .Fx
 .Nm
-utility serves a similar purpose to the DOS program.  The first form is used to
+utility serves a similar purpose to the DOS program.
+The first form is used to
 display partition information or to interactively edit the partition
-table.  The second is used to write a partition table using a
+table.
+The second is used to write a partition table using a
 .Ar configfile
 and is designed to be used by other scripts/programs.
 .Pp
 Options are:
 .Bl -tag -width time
 .It Fl a
-Change the active partition only.  Ignored if
+Change the active partition only.
+Ignored if
 .Fl f
 is given.
 .It Fl b Ar bootcode
 Get the boot code from the file
 .Ar bootcode .
 .It Fl B
-Reinitialize the boot code contained in sector 0 of the disk.  Ignored
+Reinitialize the boot code contained in sector 0 of the disk.
+Ignored
 if
 .Fl f
 is given.
@@ -72,11 +77,13 @@ always modifies existing partitions, unless
 is also given, in which case all existing partitions are deleted (marked
 as "unused") before the
 .Ar configfile
-is read.  The
+is read.
+The
 .Ar configfile
 can be "-", in which case
 .Ar stdin
-is read.  See
+is read.
+See
 .Sx CONFIGURATION FILE ,
 below, for file syntax.
 .Pp
@@ -84,7 +91,8 @@ below, for file syntax.
 when
 .Fl f
 is used, you are not asked if you really want to write the partition
-table (as you are in the interactive mode).  Use with caution!
+table (as you are in the interactive mode).
+Use with caution!
 .\" !PC98
 .\" .It Fl i
 .\" Initialize sector 0 of the disk.  This implies
@@ -100,22 +108,27 @@ table (as you are in the interactive mode).  Use with caution!
 .It Fl s
 Print summary information and exit.
 .It Fl t
-Test mode; do not write partition values.  Generally used with the
+Test mode; do not write partition values.
+Generally used with the
 .Fl f
-option to see what would be written to the partition table.  Implies
+option to see what would be written to the partition table.
+Implies
 .Fl v .
 .It Fl u
-Is used for updating (editing) sector 0 of the disk.  Ignored if
+Is used for updating (editing) sector 0 of the disk.
+Ignored if
 .Fl f
 is given.
 .It Fl v
-Be verbose.  When
+Be verbose.
+When
 .Fl f
 is used,
 .Nm
 prints out the partition table that is written to the disk.
 .It Fl 12345678
-Operate on a single fdisk entry only.  Ignored if
+Operate on a single fdisk entry only.
+Ignored if
 .Fl f
 is given.
 .El
@@ -219,7 +232,8 @@ The flags
 .Fl u
 are used to indicate that the partition data is to be updated, unless the
 .Fl f
-option is used.  If the
+option is used.
+If the
 .Fl f
 option is not used, the
 .Nm
@@ -275,7 +289,7 @@ it will setup the last BIOS partition to use the whole disk for
 .Fx ;
 and make it active.
 .Sh NOTES
-The automatic calculation of starting cylinder etc. uses
+The automatic calculation of starting cylinder etc.\& uses
 a set of figures that represent what the BIOS thinks is the
 geometry of the drive.
 These figures are by default taken from the incore disklabel,
@@ -294,8 +308,10 @@ Editing an existing partition will most likely cause you to
 lose all the data in that partition.
 .Pp
 You should run this program interactively once or twice to see how it
-works.  This is completely safe as long as you answer the last question
-in the negative.  There are subtleties that the program detects that are
+works.
+This is completely safe as long as you answer the last question
+in the negative.
+There are subtleties that the program detects that are
 not fully explained in this manual page.
 .Sh CONFIGURATION FILE
 When the
@@ -303,7 +319,8 @@ When the
 option is given, a disk's partition table can be written using values
 from a
 .Ar configfile .
-The syntax of this file is very simple.  Each line is either a comment or
+The syntax of this file is very simple.
+Each line is either a comment or
 a specification, and whitespace (except for newlines) are ignored:
 .Bl -tag -width Ds
 .It Xo
@@ -317,7 +334,8 @@ Lines beginning with a "#" are comments and are ignored.
 .Ar spec2
 .Ar spec3
 .Xc
-Set the BIOS geometry used in partition calculations.  There must be
+Set the BIOS geometry used in partition calculations.
+There must be
 three values specified, with a letter preceding each number:
 .Bl -tag -width Ds
 .Sm off
@@ -351,7 +369,8 @@ It is an error if the following is not true:
 .Ed
 .Pp
 The number of cylinders should be less than or equal to 1024, but this
-is not enforced, although a warning will be output.  Note that bootable
+is not enforced, although a warning will be output.
+Note that bootable
 .Fx
 partitions (the "/" file system) must lie completely within the
 first 1024 cylinders; if this is not true, booting may fail.
@@ -387,7 +406,8 @@ However, if an invalid partition table is present, or the
 .Fl i
 option is specified, all existing partition entries will be cleared
 (marked as unused), and these "p" lines will have to be used to
-explicitly set partition information.  If multiple partitions need to be
+explicitly set partition information.
+If multiple partitions need to be
 set, multiple "p" lines must be specified; one for each partition.
 .Pp
 These partition lines must occur after any geometry specification lines,
@@ -397,7 +417,8 @@ The
 .Ar type
 is 165 for
 .Fx
-partitions.  Specifying a partition type of zero is
+partitions.
+Specifying a partition type of zero is
 the same as clearing the partition and marking it as unused; however,
 dummy values (such as "0") must still be specified for
 .Ar start
@@ -427,7 +448,8 @@ p       1       165     1       2503871
 .Xc
 Make
 .Ar partition
-the active partition.  Can occur anywhere in the config file, but only
+the active partition.
+Can occur anywhere in the config file, but only
 one must be present.
 .Pp
 Example: to make partition 1 the active partition:
