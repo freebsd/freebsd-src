@@ -2,7 +2,7 @@
    Copyright 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
    Originally developed by Eric Youngdale <eric@andante.jic.com>
-   Modifications by Nick Clifton <nickc@cygnus.com>
+   Modifications by Nick Clifton <nickc@redhat.com>
 
    This file is part of GNU Binutils.
 
@@ -5896,6 +5896,20 @@ get_AT_name (attribute)
     case DW_AT_variable_parameter: return "DW_AT_variable_parameter";
     case DW_AT_virtuality: return "DW_AT_virtuality";
     case DW_AT_vtable_elem_location: return "DW_AT_vtable_elem_location";
+      /* DWARF 2.1 values.  */
+    case DW_AT_allocated: return "DW_AT_allocated";
+    case DW_AT_associated: return "DW_AT_associated";
+    case DW_AT_data_location: return "DW_AT_data_location";
+    case DW_AT_stride: return "DW_AT_stride";
+    case DW_AT_entry_pc: return "DW_AT_entry_pc";
+    case DW_AT_use_UTF8: return "DW_AT_use_UTF8";
+    case DW_AT_extension: return "DW_AT_extension";
+    case DW_AT_ranges: return "DW_AT_ranges";
+    case DW_AT_trampoline: return "DW_AT_trampoline";
+    case DW_AT_call_column: return "DW_AT_call_column";
+    case DW_AT_call_file: return "DW_AT_call_file";
+    case DW_AT_call_line: return "DW_AT_call_line";
+      /* SGI/MIPS extensions.  */
     case DW_AT_MIPS_fde: return "DW_AT_MIPS_fde";
     case DW_AT_MIPS_loop_begin: return "DW_AT_MIPS_loop_begin";
     case DW_AT_MIPS_tail_loop_begin: return "DW_AT_MIPS_tail_loop_begin";
@@ -5907,6 +5921,7 @@ get_AT_name (attribute)
     case DW_AT_MIPS_abstract_name: return "DW_AT_MIPS_abstract_name";
     case DW_AT_MIPS_clone_origin: return "DW_AT_MIPS_clone_origin";
     case DW_AT_MIPS_has_inlines: return "DW_AT_MIPS_has_inlines";
+      /* GNU extensions.  */
     case DW_AT_sf_names: return "DW_AT_sf_names";
     case DW_AT_src_info: return "DW_AT_src_info";
     case DW_AT_mac_info: return "DW_AT_mac_info";
@@ -6472,6 +6487,22 @@ decode_location_expression (data, pointer_size, length)
 	  printf ("DW_OP_nop");
 	  break;
 
+	  /* DWARF 2.1 extensions.  */
+	case DW_OP_push_object_address:
+	  printf ("DW_OP_push_object_address");
+	  break;
+	case DW_OP_call2:
+	  printf ("DW_OP_call2: <%lx>", (long) byte_get (data, 2));
+	  data += 2;
+	  break;
+	case DW_OP_call4:
+	  printf ("DW_OP_call4: <%lx>", (long) byte_get (data, 4));
+	  data += 4;
+	  break;
+	case DW_OP_calli:
+	  printf ("DW_OP_calli");
+	  break;
+
 	default:
 	  if (op >= DW_OP_lo_user
 	      && op <= DW_OP_hi_user)
@@ -6725,10 +6756,25 @@ read_and_display_attr (attribute, form, data, cu_offset, pointer_size)
 	}
       break;
 
+    case DW_AT_ordering:
+      switch (uvalue)
+	{
+	case -1: printf ("(undefined)"); break;
+	case 0:  printf ("(row major)"); break;
+	case 1:  printf ("(column major)"); break;
+	}
+      break;
+
     case DW_AT_frame_base:
     case DW_AT_location:
     case DW_AT_data_member_location:
     case DW_AT_vtable_elem_location:
+    case DW_AT_allocated:
+    case DW_AT_associated:
+    case DW_AT_data_location:
+    case DW_AT_stride:
+    case DW_AT_upper_bound:
+    case DW_AT_lower_bound:
       if (block_start)
 	{
 	  printf ("(");
