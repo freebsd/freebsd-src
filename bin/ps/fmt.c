@@ -127,6 +127,6 @@ fmt_argv(char **argv, char *cmd, size_t maxlen)
 	else if (strncmp(cmdpart(argv[0]), cmd, maxlen) != 0)
 		sprintf(cp, "%s (%.*s)", ap, (int)maxlen, cmd);
 	else
-		(void) strcpy(cp, ap);
+		strcpy(cp, ap);
 	return (cp);
 }
