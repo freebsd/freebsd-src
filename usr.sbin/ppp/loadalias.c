@@ -6,13 +6,14 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <dlfcn.h>
+#include <alias.h>
 #include "systems.h"
 #include "mbuf.h"
 #include "log.h"
 #include "loadalias.h"
 #include "vars.h"
 
-#define _PATH_ALIAS "/usr/lib/libalias.so.2.3"
+#define _PATH_ALIAS "/usr/lib/libalias.so." ## __libalias_version
 
 #define off(item) ((int)&(((struct aliasHandlers *)0)->item))
 #define entry(a) { off(a), "_" #a }
