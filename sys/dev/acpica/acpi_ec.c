@@ -618,9 +618,7 @@ EcWaitEventIntr(struct acpi_ec_softc *sc, EC_EVENT Event)
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Event);
 
     /* XXX this should test whether interrupts are available some other way */
-#ifdef ACPI_EC_EVENT_DRIVEN
     if(cold)
-#endif
 	return_ACPI_STATUS(EcWaitEvent(sc, Event));
 
     if (!EcIsLocked(sc))

@@ -129,6 +129,8 @@ AcpiOsRemoveInterruptHandler (UINT32 InterruptNumber, OSD_HANDLER ServiceRoutine
 static void
 InterruptWrapper(void *arg)
 {
+    ACPI_LOCK_DECL;
+
     ACPI_LOCK;
     InterruptHandler(arg);
     ACPI_UNLOCK;
