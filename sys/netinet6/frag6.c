@@ -133,7 +133,7 @@ frag6_input(mp, offp, proto)
 		dst->sin6_len = sizeof(struct sockaddr_in6);
 		dst->sin6_addr = ip6->ip6_dst;
 	}
-	rtcalloc((struct route *)&ro);
+	rtalloc((struct route *)&ro);
 	if (ro.ro_rt != NULL && ro.ro_rt->rt_ifa != NULL)
 		dstifp = ((struct in6_ifaddr *)ro.ro_rt->rt_ifa)->ia_ifp;
 #else
