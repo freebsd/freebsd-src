@@ -29,7 +29,6 @@
 .Dt ZONE 9
 .Os
 .Sh NAME
-.Nm zinit ,
 .Nm zalloc ,
 .Nm zfree ,
 .Nm zdestroy
@@ -38,8 +37,6 @@
 .In sys/param.h
 .In sys/queue.h
 .In vm/uma.h
-.Ft vm_zone_t
-.Fn zinit "char *name" "int size" "int nentries" "int flags" "int zalloc"
 .Ft void *
 .Fn zalloc "vm_zone_t z"
 .Ft void
@@ -79,36 +76,6 @@ After the first allocation of an item,
 it will have been cleared to zeroes, however subsequent allocations
 will retain the contents as of the last free, with the exception of the
 fields mentioned above.
-.Pp
-If the VM system is fully initialized, a dynamically allocated zone can
-be created using
-.Fn zinit .
-The
-.Fa name
-argument should be a pointer to a short, descriptive name for the
-zone; it is used for statistics and debugging purposes.
-The
-.Fa size
-and
-.Fa nentries
-are the size of the items held by the zone and the initial size (in
-items) of the zone, respectively.
-The
-.Fa flags
-argument should be set to
-.Dv ZONE_INTERRUPT
-if there is a chance that items may be allocated from the zone in
-interrupt context; note that in this case, the zone will never grow
-larger than
-.Fa nentries
-items.
-In all other cases,
-.Fa flags
-should be set to 0.
-The final argument,
-.Fa zalloc ,
-indicates the number of VM pages by which the zone should grow every
-time it fills up.
 .Pp
 To allocate an item from a zone, simply call
 .Fn zalloc
