@@ -43,7 +43,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In string.h
+.In strings.h
 .Ft char *
 .Fn rindex "const char *s" "int c"
 .Sh DESCRIPTION
@@ -83,3 +83,10 @@ A
 .Fn rindex
 function appeared in
 .At v6 .
+Its prototype existed previously in
+.Aq Pa string.h
+before it was moved to
+.Aq Pa strings.h
+for
+.St -p1003.1-2001
+compliance.
