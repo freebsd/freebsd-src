@@ -46,7 +46,7 @@
 static void	acpi_print_string(char *s, size_t length);
 static void	acpi_print_gas(struct ACPIgas *gas);
 static int	acpi_get_fadt_revision(struct FADTbody *fadt);
-static void	acpi_handle_fadt(struct FADTbody *fadt);
+static void	acpi_handle_fadt(struct ACPIsdt *fadt);
 static void	acpi_print_cpu(u_char cpu_id);
 static void	acpi_print_local_apic(u_char cpu_id, u_char apic_id,
 				      u_int32_t flags);
@@ -58,7 +58,7 @@ static void	acpi_print_apic(struct MADT_APIC *mp);
 static void	acpi_handle_apic(struct ACPIsdt *sdp);
 static void	acpi_handle_hpet(struct ACPIsdt *sdp);
 static void	acpi_print_sdt(struct ACPIsdt *sdp);
-static void	acpi_print_fadt(struct FADTbody *fadt);
+static void	acpi_print_fadt(struct ACPIsdt *sdp);
 static void	acpi_print_facs(struct FACSbody *facs);
 static void	acpi_print_dsdt(struct ACPIsdt *dsdp);
 static struct ACPIsdt *acpi_map_sdt(vm_offset_t pa);
@@ -142,13 +142,15 @@ acpi_get_fadt_revision(struct FADTbody *fadt)
 }
 
 static void
-acpi_handle_fadt(struct FADTbody *fadt)
+acpi_handle_fadt(struct ACPIsdt *sdp)
 {
 	struct ACPIsdt	*dsdp;
 	struct FACSbody	*facs;
+	struct FADTbody *fadt;
 	int		fadt_revision;
 
-	acpi_print_fadt(fadt);
+	fadt = (struct FADTbody *)sdp->body;
+	acpi_print_fadt(sdp);
 
 	fadt_revision = acpi_get_fadt_revision(fadt);
 	if (fadt_revision == 1)
@@ -427,13 +429,16 @@ static const char *acpi_pm_profiles[] = {
 };
 
 static void
-acpi_print_fadt(struct FADTbody *fadt)
+acpi_print_fadt(struct ACPIsdt *sdp)
 {
+	struct FADTbody *fadt;
 	const char *pm;
 	char	    sep;
 
+	fadt = (struct FADTbody *)sdp->body;
 	printf(BEGIN_COMMENT);
-	printf("  FADT:\tFACS=0x%x, DSDT=0x%x\n", fadt->facs_ptr,
+	acpi_print_sdt(sdp);
+	printf(" \tFACS=0x%x, DSDT=0x%x\n", fadt->facs_ptr,
 	       fadt->dsdt_ptr);
 	printf("\tINT_MODEL=%s\n", fadt->int_model ? "APIC" : "PIC");
 	if (fadt->pm_profile >= sizeof(acpi_pm_profiles) / sizeof(char *))
@@ -668,7 +673,7 @@ acpi_handle_rsdt(struct ACPIsdt *rsdp)
 		if (acpi_checksum(sdp, sdp->len))
 			errx(1, "RSDT entry %d is corrupt", i);
 		if (!memcmp(sdp->signature, "FACP", 4))
-			acpi_handle_fadt((struct FADTbody *) sdp->body);
+			acpi_handle_fadt(sdp);
 		else if (!memcmp(sdp->signature, "APIC", 4))
 			acpi_handle_apic(sdp);
 		else if (!memcmp(sdp->signature, "HPET", 4))
