@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.211 1999/07/16 22:03:27 jkh Exp $
+ * $Id: menus.c,v 1.212 1999/07/19 11:49:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -428,6 +428,10 @@ DMenu MenuMouse = {
 DMenu MenuXF86Config = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the XFree86 configuration tool you want to use.",
+#ifdef __alpha__
+    "Due to problems with the VGA16 server right now, only the\n"
+    "text-mode configuration tool (xf86config) is currently supported.",
+#else
     "The first tool, XF86Setup, is fully graphical and requires the\n"
     "VGA16 server in order to work (should have been selected by\n"
     "default, but if you de-selected it then you won't be able to\n"
@@ -435,14 +439,20 @@ DMenu MenuXF86Config = {
     "a more simplistic shell-script based tool and less friendly to\n"
     "new users, but it may work in situations where the fancier one\n"
     "does not.",
+#endif
     NULL,
     NULL,
+#ifdef __alpha__
+    { { "xf86config",	"Shell-script based XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
+#else
     { { "XF86Setup",	"Fully graphical XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF86Setup" },
       { "xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { "XF98Setup",	"Fully graphical XFree86 configuration tool (PC98).",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=XF98Setup" },
+#endif
       { "XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
       { NULL } },
