@@ -1369,7 +1369,7 @@ cpu_initclocks()
 	 * 19 July 2000).
 	 */
 	/* Setup the PIC clk handler.  The APIC handler is setup later */
-	inthand_add("clk", 0, (inthand2_t *)clkintr, NULL, PI_REALTIME,
+	inthand_add("clk", 0, (driver_intr_t *)clkintr, NULL, PI_REALTIME,
 		    INTR_EXCL);
 	INTREN(IRQ0);
 
@@ -1387,8 +1387,8 @@ cpu_initclocks()
 		 * XXX - if statclock is disabled, don't attempt the APIC
 		 * trial.  Not sure this is sane for APIC_IO.
 		 */
-		inthand_add("clk", apic_8254_intr, (inthand2_t *)clkintr, NULL,
-			    PI_REALTIME, INTR_EXCL);
+		inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr,
+			    NULL, PI_REALTIME, INTR_EXCL);
 		INTREN(1 << apic_8254_intr);
 #endif /* APIC_IO */
 		return;
@@ -1411,10 +1411,10 @@ cpu_initclocks()
 		 * interrupts.
 		 */
 		clkdesc = inthand_add("clk", apic_8254_intr,
-		    (inthand2_t *)clkintr, NULL, PI_REALTIME, INTR_FAST);
+		    (driver_intr_t *)clkintr, NULL, PI_REALTIME, INTR_FAST);
 		INTREN(1 << apic_8254_intr);
 
-		rtcdesc = inthand_add("rtc", 8, (inthand2_t *)rtcintr, NULL,
+		rtcdesc = inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL,
 		    PI_REALTIME, INTR_FAST);	    /* XXX */
 		INTREN(APIC_IRQ8);
 		writertc(RTC_STATUSB, rtc_statusb);
@@ -1464,13 +1464,13 @@ cpu_initclocks()
 	}
 
 	/* Finally, setup the real clock handlers */
-	inthand_add("clk", apic_8254_intr, (inthand2_t *)clkintr, NULL,
+	inthand_add("clk", apic_8254_intr, (driver_intr_t *)clkintr, NULL,
 		    PI_REALTIME, INTR_EXCL);
 	INTREN(1 << apic_8254_intr);
 #endif
 
 #ifndef PC98
-	inthand_add("rtc", 8, (inthand2_t *)rtcintr, NULL, PI_REALTIME,
+	inthand_add("rtc", 8, (driver_intr_t *)rtcintr, NULL, PI_REALTIME,
 		    INTR_EXCL);
 #ifdef APIC_IO
 	INTREN(APIC_IRQ8);
