@@ -282,20 +282,6 @@ typedef void	KTimeout_ret;
 
 #endif	/* _KERNEL */
 
-#ifndef NTOHL
-#if BYTE_ORDER == BIG_ENDIAN
-#define	NTOHL(x)	(x)
-#define	NTOHS(x)	(x)
-#define	HTONL(x)	(x)
-#define	HTONS(x)	(x)
-#else
-#define	NTOHL(x)	(x) = ntohl((u_long)(x))
-#define	NTOHS(x)	(x) = ntohs((u_short)(x))
-#define	HTONL(x)	(x) = htonl((u_long)(x))
-#define	HTONS(x)	(x) = htons((u_short)(x))
-#endif
-#endif	/* NTOHL */
-
 #ifndef MAX
 #define	MAX(a,b)	max((a),(b))
 #endif
