@@ -152,7 +152,7 @@ fetchGetURL(char *URL, char *flags)
     
     f = fetchGet(u, flags);
     
-    free(u);
+    fetchFreeURL(u);
     return f;
 }
 
@@ -171,7 +171,7 @@ fetchPutURL(char *URL, char *flags)
     
     f = fetchPut(u, flags);
     
-    free(u);
+    fetchFreeURL(u);
     return f;
 }
 
@@ -189,7 +189,7 @@ fetchStatURL(char *URL, struct url_stat *us, char *flags)
 
     s = fetchStat(u, us, flags);
 
-    free(u);
+    fetchFreeURL(u);
     return s;
 }
 
@@ -207,7 +207,7 @@ fetchListURL(char *URL, char *flags)
 
     ue = fetchList(u, flags);
 
-    free(u);
+    fetchFreeURL(u);
     return ue;
 }
 
@@ -282,19 +282,13 @@ fetchParseURL(char *URL)
 
 nohost:
     /* document */
-    if (*p) {
-	struct url *t;
-	t = realloc(u, sizeof *u + strlen(p) - 1);
-	if (t == NULL) {
-	    errno = ENOMEM;
-	    _fetch_syserr();
-	    goto ouch;
-	}
-	u = t;
-	strcpy(u->doc, p);
-    } else {
-	u->doc[0] = '/';
-	u->doc[1] = 0;
+    if (!*p)
+	p = "/";
+    
+    if ((u->doc = strdup(p)) == NULL) {
+	errno = ENOMEM;
+	_fetch_syserr();
+	goto ouch;
     }
     
     DEBUG(fprintf(stderr,
@@ -312,4 +306,14 @@ nohost:
 ouch:
     free(u);
     return NULL;
+}
+
+/*
+ * Free a URL
+ */
+void
+fetchFreeURL(struct url *u)
+{
+    free(u->doc);
+    free(u);
 }

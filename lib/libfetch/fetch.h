@@ -40,14 +40,14 @@
 #define URL_PWDLEN 256
 
 struct url {
-    off_t	 offset;
-    size_t	 length;
     char	 scheme[URL_SCHEMELEN+1];
     char	 user[URL_USERLEN+1];
     char	 pwd[URL_PWDLEN+1];
     char	 host[MAXHOSTNAMELEN+1];
     int		 port;
-    char	 doc[2];
+    char	*doc;
+    off_t	 offset;
+    size_t	 length;
 };
 
 struct url_stat {
@@ -81,7 +81,6 @@ int		 fetchStatFTP(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchListFTP(struct url *, char *);
 
 /* Generic functions */
-struct url	*fetchParseURL(char *);
 FILE		*fetchGetURL(char *, char *);
 FILE		*fetchPutURL(char *, char *);
 int		 fetchStatURL(char *, struct url_stat *, char *);
@@ -90,6 +89,10 @@ FILE		*fetchGet(struct url *, char *);
 FILE		*fetchPut(struct url *, char *);
 int		 fetchStat(struct url *, struct url_stat *, char *);
 struct url_ent	*fetchList(struct url *, char *);
+
+/* URL parsing */
+struct url	*fetchParseURL(char *);
+void		 fetchFreeURL(struct url *);
 
 /* Last error code */
 extern int	 fetchLastErrCode;
