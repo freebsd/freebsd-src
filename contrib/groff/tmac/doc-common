@@ -266,7 +266,7 @@
 .		if "\\n(mo"10" .ds dD October
 .		if "\\n(mo"11" .ds dD November
 .		if "\\n(mo"12" .ds dD December
-.		as dD \&\ \\n(dy, 19\\n(yr
+.		as dD \&\ \\n(dy, \\n(yr+1900
 .	\}
 .\}
 .el \{\
