@@ -40,6 +40,7 @@
 #include <sys/cdefs.h>
 #include <sys/types.h>			/* XXX adds too much pollution. */
 #include <sys/unistd.h>
+#include <sys/_null.h>
 #include <sys/_types.h>
 
 #ifndef _GID_T_DECLARED
@@ -80,10 +81,6 @@ typedef	__useconds_t	useconds_t;
 #define	 STDIN_FILENO	0	/* standard input file descriptor */
 #define	STDOUT_FILENO	1	/* standard output file descriptor */
 #define	STDERR_FILENO	2	/* standard error file descriptor */
-
-#ifndef NULL
-#define	NULL		0	/* null pointer constant */
-#endif
 
 #if __XSI_VISIBLE || __POSIX_VISIBLE >= 200112
 #define	F_ULOCK		0	/* unlock locked section */
