@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.20 1998/07/13 06:45:20 bde Exp $
+ *	$Id: stdio.h,v 1.22 1999/02/08 21:32:24 dt Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -296,6 +296,8 @@ __BEGIN_DECLS
 int	 asprintf __P((char **, const char *, ...)) __printflike(2, 3);
 char	*fgetln __P((FILE *, size_t *));
 int	 fpurge __P((FILE *));
+int	 fseeko __P((FILE *, _BSD_OFF_T_, int));
+_BSD_OFF_T_ ftello __P((FILE *));
 int	 getw __P((FILE *));
 int	 pclose __P((FILE *));
 FILE	*popen __P((const char *, const char *));
