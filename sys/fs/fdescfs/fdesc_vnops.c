@@ -491,18 +491,6 @@ done:
 }
 
 static int
-fdesc_poll(ap)
-	struct vop_poll_args /* {
-		struct vnode *a_vp;
-		int  a_events;
-		struct ucred *a_cred;
-		struct thread *a_td;
-	} */ *ap;
-{
-	return seltrue(0, ap->a_events, ap->a_td);
-}
-
-static int
 fdesc_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -544,7 +532,6 @@ static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) fdesc_lookup },
 	{ &vop_open_desc,		(vop_t *) fdesc_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
-	{ &vop_poll_desc,		(vop_t *) fdesc_poll },
 	{ &vop_readdir_desc,		(vop_t *) fdesc_readdir },
 	{ &vop_reclaim_desc,		(vop_t *) fdesc_reclaim },
 	{ &vop_setattr_desc,		(vop_t *) fdesc_setattr },
