@@ -1,5 +1,5 @@
 /*	$NetBSD: ohci_pci.c,v 1.5 1998/11/25 22:32:04 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	FreeBSD $Id: ohci_pci.c,v 1.5 1998/12/14 09:40:14 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -226,6 +226,7 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	usbd_status r;
 	ohci_softc_t *sc = NULL;
 	int rev;
+	vm_offset_t pbase;
 
 	sc = malloc(sizeof(ohci_softc_t), M_DEVBUF, M_NOWAIT);
 	/* Do not free it below, intr might use the sc */
@@ -235,7 +236,11 @@ ohci_pci_attach(pcici_t config_id, int unit)
 	}
 	memset(sc, 0, sizeof(ohci_softc_t));
 
-	sc->sc_iobase = pci_conf_read(config_id,PCI_OHCI_BASE_REG) & 0xfffff000;
+	if(!pci_map_mem(config_id, PCI_CBMEM,
+           (vm_offset_t *)&sc->sc_iobase, &pbase)) {
+		printf("usb%d: couldn't map memory\n", unit);
+		return;
+        }
 	sc->unit      = unit;
 
 	if ( !pci_map_int(config_id, (pci_inthand_t *)ohci_intr,
@@ -249,7 +254,7 @@ ohci_pci_attach(pcici_t config_id, int unit)
 #endif
 	{
 		/* XXX is this correct? Does the correct version show up? */
-		rev = inw(sc->sc_iobase+OHCI_REVISION);
+		rev = *((unsigned int *)(sc->sc_iobase+OHCI_REVISION));
 		printf("usb%d: OHCI version %d%d, interrupting at %d\n", unit,
 			OHCI_REV_HI(rev), OHCI_REV_LO(rev),
 			(int)pci_conf_read(config_id,PCI_INTERRUPT_REG) & 0xff);
