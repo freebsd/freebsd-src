@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.3 1998/10/13 21:35:42 rnordier Exp $
+#	$Id: Makefile,v 1.4 1998/10/14 00:24:16 rnordier Exp $
 
 PROG=		boot2
 NOMAN=
@@ -19,7 +19,7 @@ BTX=	${.CURDIR}/../btx
 ORG1=	0x7c00
 ORG2=	0x1000
 
-CFLAGS=	-elf -I${BTX}/lib -I. -fno-builtin \
+CFLAGS=	-elf -I${.CURDIR}/../btx/lib -I. -fno-builtin \
 	-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 -mrtd \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
