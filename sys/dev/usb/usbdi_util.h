@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi_util.h,v 1.12 1999/01/01 15:25:57 augustss Exp $	*/
+/*	$NetBSD: usbdi_util.h,v 1.16 1999/08/22 20:12:40 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -49,6 +49,8 @@ usbd_status	usbd_get_device_desc __P((usbd_device_handle dev,
 usbd_status	usbd_set_address __P((usbd_device_handle dev, int addr));
 usbd_status	usbd_get_port_status __P((usbd_device_handle, 
 				      int, usb_port_status_t *));
+usbd_status	usbd_set_hub_feature __P((usbd_device_handle dev, int));
+usbd_status	usbd_clear_hub_feature __P((usbd_device_handle, int));
 usbd_status	usbd_set_port_feature __P((usbd_device_handle dev, int, int));
 usbd_status	usbd_clear_port_feature __P((usbd_device_handle, int, int));
 usbd_status	usbd_get_device_status __P((usbd_device_handle,usb_status_t*));
@@ -67,7 +69,7 @@ usbd_status	usbd_get_report
 	__P((usbd_interface_handle iface,int type,int id,void *data,int len));
 usbd_status	usbd_set_idle 
 	__P((usbd_interface_handle iface, int duration, int id));
-#if defined(__NetBSD__)
+#if defined(__NetBSD__) || defined(__OpenBSD__)
 usbd_status	usbd_alloc_report_desc
 	__P((usbd_interface_handle ifc, void **descp, int *sizep, int mem));
 #elif defined(__FreeBSD__)
@@ -89,4 +91,8 @@ usbd_status usbd_set_config_index
 
 usbd_status usbd_bulk_transfer
 	__P((usbd_request_handle reqh, usbd_pipe_handle pipe, u_int16_t flags,
-	     void *buf, u_int32_t *size, char *lbl));
+	     u_int32_t timeout, void *buf, u_int32_t *size, char *lbl));
+
+void usb_detach_wait __P((bdevice *));
+void usb_detach_wakeup __P((bdevice *));
+
