@@ -96,8 +96,7 @@ hid_start_parse(void *d, int len, int kindset)
 {
 	struct hid_data *s;
 
-	s = malloc(sizeof *s, M_TEMP, M_WAITOK);
-	memset(s, 0, sizeof *s);
+	s = malloc(sizeof *s, M_TEMP, M_WAITOK|M_ZERO);
 	s->start = s->p = d;
 	s->end = (char *)d + len;
 	s->kindset = kindset;
