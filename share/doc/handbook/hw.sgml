@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.59 1997/01/12 09:36:52 obrien Exp $ -->
+<!-- $Id: hw.sgml,v 1.60 1997/01/12 10:07:52 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -372,7 +372,7 @@ Slippery when wet.  Beware of dog.
          starves for memory.
        <p>AMD K5 CPU chips are rated based on something AMD calls "PR" -- 
          Pentium Rating, rather than internal CPU clock speed.  So an AMD
-	 PR133 rated chip, is compairable to an Intel Pentium 133.  In
+	 PR133 rated chip, is comparable to an Intel Pentium 133.  In
 	 actuality, this CPU runs internally at 100 MHz, 66 MHz bus speed,
 	 and a 1.5 multiplier.
   <sect2><heading>* 486 class</heading>
