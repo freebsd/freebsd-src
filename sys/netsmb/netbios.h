@@ -60,8 +60,15 @@
 /*
  * name types
  */
-#define	NBT_WKSTA	0x00
-#define	NBT_SERVER	0x20
+#define	NBT_WKSTA		0x00
+#define	NBT_MESSENGER		0x03
+#define	NBT_RAS_SERVER		0x06
+#define	NBT_DOMAIN_MASTER_BROWSER	0x1B
+#define	NBT_DOMAIN_CONTROLLER	0x1C
+#define	NBT_MASTER_BROWSER	0x1D
+#define	NBT_NETDDE		0x1F
+#define	NBT_SERVER		0x20
+#define	NBT_RAS_CLIENT		0x21
 
 /*
  * Session packet types
