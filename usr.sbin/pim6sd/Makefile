@@ -42,8 +42,8 @@ MAN1=	pim6stat.1
 MAN5=	pim6sd.conf.5
 MAN8=	pim6sd.8
 
-afterinstall:
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
-		${INSTALLFLAGS} ${SRCDIR}/pim6stat ${DESTDIR}${BINDIR}
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    ${.CURDIR}/pim6stat ${DESTDIR}${BINDIR}
 
 .include <bsd.prog.mk>
