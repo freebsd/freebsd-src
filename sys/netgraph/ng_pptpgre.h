@@ -75,10 +75,54 @@ struct ng_pptpgre_conf {
 	}							\
 }
 
+/* Statistics struct */
+struct ng_pptpgre_stats {
+	u_int32_t xmitPackets;		/* number of GRE packets xmit */
+	u_int32_t xmitOctets;		/* number of GRE octets xmit */
+	u_int32_t xmitLoneAcks;		/* ack-only packets transmitted */
+	u_int32_t xmitDrops;		/* xmits dropped due to full window */
+	u_int32_t xmitTooBig;		/* xmits dropped because too big */
+	u_int32_t recvPackets;		/* number of GRE packets rec'd */
+	u_int32_t recvOctets;		/* number of GRE octets rec'd */
+	u_int32_t recvRunts;		/* too short packets rec'd */
+	u_int32_t recvBadGRE;		/* bogus packets rec'd (bad GRE hdr) */
+	u_int32_t recvBadAcks;		/* bogus ack's rec'd in GRE header */
+	u_int32_t recvBadCID;		/* pkts with unknown call ID rec'd */
+	u_int32_t recvOutOfOrder;	/* packets rec'd out of order */
+	u_int32_t recvDuplicates;	/* packets rec'd with duplicate seq # */
+	u_int32_t recvLoneAcks;		/* ack-only packets rec'd */
+	u_int32_t recvAckTimeouts;	/* times peer failed to ack in time */
+};
+
+/* Keep this in sync with the above structure definition */
+#define NG_PPTPGRE_STATS_TYPE_INFO	{			\
+	{							\
+	  { "xmitPackets",	&ng_parse_int32_type	},	\
+	  { "xmitOctets",	&ng_parse_int32_type	},	\
+	  { "xmitLoneAcks",	&ng_parse_int32_type	},	\
+	  { "xmitDrops",	&ng_parse_int32_type	},	\
+	  { "xmitTooBig",	&ng_parse_int32_type	},	\
+	  { "recvPackets",	&ng_parse_int32_type	},	\
+	  { "recvOctets",	&ng_parse_int32_type	},	\
+	  { "recvRunts",	&ng_parse_int32_type	},	\
+	  { "recvBadGRE",	&ng_parse_int32_type	},	\
+	  { "recvBadAcks",	&ng_parse_int32_type	},	\
+	  { "recvBadCID",	&ng_parse_int32_type	},	\
+	  { "recvOutOfOrder",	&ng_parse_int32_type	},	\
+	  { "recvDuplicates",	&ng_parse_int32_type	},	\
+	  { "recvLoneAcks",	&ng_parse_int32_type	},	\
+	  { "recvAckTimeouts",	&ng_parse_int32_type	},	\
+	  { NULL }						\
+	}							\
+}
+
 /* Netgraph commands */
 enum {
 	NGM_PPTPGRE_SET_CONFIG = 1,	/* supply a struct ng_pptpgre_conf */
 	NGM_PPTPGRE_GET_CONFIG,		/* returns a struct ng_pptpgre_conf */
+	NGM_PPTPGRE_GET_STATS,		/* returns struct ng_pptpgre_stats */
+	NGM_PPTPGRE_CLR_STATS,		/* clears stats */
+	NGM_PPTPGRE_GETCLR_STATS,	/* returns & clears stats */
 };
 
 #endif /* _NETGRAPH_PPTPGRE_H_ */
