@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.15 1998/10/16 03:54:59 peter Exp $
+ *  $Id: fpu_entry.c,v 1.16 1998/10/18 04:36:58 peter Exp $
  *
  */
 
@@ -523,8 +523,10 @@ gnufpu_modevent(module_t mod, modeventtype_t type, void *unused)
 		if (pmath_emulate) {
 			printf("Another Math emulator already present\n");
 			return EACCES;
-		} else
-			pmath_emulate = math_emulate;
+		}
+		pmath_emulate = math_emulate;
+		if (bootverbose)
+			printf("GPL Math emulator present\n");
 		break;
 	case MOD_UNLOAD:
 		if (pmath_emulate != math_emulate) {
@@ -532,6 +534,8 @@ gnufpu_modevent(module_t mod, modeventtype_t type, void *unused)
 			return EACCES;
 		}
 		pmath_emulate = 0;
+		if (bootverbose)
+			printf("GPL Math emulator unloaded\n");
 		break;
 	default:
 		break;
@@ -544,6 +548,6 @@ moduledata_t gnufpumod = {
 	gnufpu_modevent,
 	0
 };
-DECLARE_MODULE(gnufpu, gnufpumod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+DECLARE_MODULE(gnufpu, gnufpumod, SI_SUB_DRIVERS, SI_ORDER_ANY);
 
 #endif /* LKM */
