@@ -83,6 +83,8 @@ bs_deactivate(arg)
 	struct bs_softc *bsc = arg->id;
 
 	bsc->sc_flags |= BSINACTIVE;
+	bshw_dmaabort(bsc, NULL);
+	bshw_smitabort(bsc);
 	bs_terminate_timeout(bsc);
 
 	return 0;
