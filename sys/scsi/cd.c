@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.23 1994/08/31 22:50:08 se Exp $
+ *      $Id: cd.c,v 1.24 1994/09/16 23:43:28 se Exp $
  */
 
 #define SPLCD splbio
@@ -47,6 +47,13 @@ static errval cd_set_mode(u_int32 unit, struct cd_mode_data *);
 static errval cd_read_toc(u_int32, u_int32, u_int32, struct cd_toc_entry *,
 			  u_int32);
 
+static errval cd_pause __P((u_int32, u_int32));
+static errval cd_reset __P((u_int32));
+static errval cd_play_msf __P((u_int32, u_int32, u_int32, u_int32, u_int32, u_int32, u_int32));
+static errval cd_play __P((u_int32, u_int32, u_int32));
+static errval cd_play_tracks __P((u_int32, u_int32, u_int32, u_int32, u_int32));
+static errval cd_read_subchannel __P((u_int32, u_int32, u_int32, int, struct cd_sub_channel_info *, u_int32));
+static errval cd_getdisklabel __P((u_int8));
 
 int32   cdstrats, cdqueues;
 
@@ -76,7 +83,7 @@ struct scsi_device cd_switch =
     NULL,			/* use default 'done' routine */
     "cd",			/* we are to be refered to by this name */
     0,				/* no device specific flags */
-    0, 0			/* spares not used */
+    { 0, 0 }			/* spares not used */
 };
 
 struct cd_data {
@@ -116,8 +123,7 @@ int
 cdattach(sc_link)
 	struct scsi_link *sc_link;
 {
-	u_int32 unit, i;
-	unsigned char *tbl;
+	u_int32 unit;
 	struct cd_data *cd, **cdrealloc;
 	struct cd_parms *dp;
 
@@ -147,7 +153,7 @@ cdattach(sc_link)
 		    malloc(sizeof(cd_driver.cd_data) * next_cd_unit,
 		    M_DEVBUF, M_NOWAIT);
 		if (!cdrealloc) {
-			printf("cd%d: malloc failed for cdrealloc\n", unit);
+			printf("cd%ld: malloc failed for cdrealloc\n", unit);
 			return (0);
 		}
 		/* Make sure we have something to copy before we copy it */
@@ -162,7 +168,7 @@ cdattach(sc_link)
 		cd_driver.size++;
 	}
 	if (cd_driver.cd_data[unit]) {
-		printf("cd%d: Already has storage!\n", unit);
+		printf("cd%ld: Already has storage!\n", unit);
 		return (0);
 	}
 	/*
@@ -171,7 +177,7 @@ cdattach(sc_link)
 	cd = cd_driver.cd_data[unit] =
 	    malloc(sizeof(struct cd_data), M_DEVBUF, M_NOWAIT);
 	if (!cd) {
-		printf("cd%d: malloc failed for cd_data\n", unit);
+		printf("cd%ld: malloc failed for cd_data\n", unit);
 		return (0);
 	}
 	bzero(cd, sizeof(struct cd_data));
@@ -200,12 +206,12 @@ cdattach(sc_link)
 	 */
 	cd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
 	if (dp->disksize) {
-		printf("cd%d: cd present.[%d x %d byte records]\n",
+		printf("cd%ld: cd present.[%ld x %ld byte records]\n",
 		    unit,
 		    cd->params.disksize,
 		    cd->params.blksize);
 	} else {
-		printf("cd%d: drive empty\n", unit);
+		printf("cd%ld: drive empty\n", unit);
 	}
 	cd->flags |= CDINIT;
 	return (1);
@@ -220,10 +226,8 @@ cdopen(dev)
 {
 	errval  errcode = 0;
 	u_int32 unit, part;
-	struct cd_parms cd_parms;
 	struct cd_data *cd;
 	struct scsi_link *sc_link;
-	u_int32 heldflags;
 
 	unit = UNIT(dev);
 	part = PARTITION(dev);
@@ -289,7 +293,7 @@ cdopen(dev)
 	/*
 	 * Make up some partition information
 	 */
-	cdgetdisklabel(unit);
+	cd_getdisklabel(unit);
 	SC_DEBUG(sc_link, SDEV_DB3, ("Disklabel fabricated "));
 	/*
 	 * Check the partition is legal
@@ -337,7 +341,6 @@ cdclose(dev)
 	dev_t   dev;
 {
 	u_int8  unit, part;
-	u_int32 old_priority;
 	struct cd_data *cd;
 	struct scsi_link *sc_link;
 
@@ -345,7 +348,7 @@ cdclose(dev)
 	part = PARTITION(dev);
 	cd = cd_driver.cd_data[unit];
 	sc_link = cd->sc_link;
-	SC_DEBUG(sc_link, SDEV_DB2, ("cd%d: closing part %d\n", unit, part));
+	SC_DEBUG(sc_link, SDEV_DB2, ("cd%ld: closing part %d\n", unit, part));
 	cd->partflags[part] &= ~CDOPEN;
 	cd->openparts &= ~(1 << part);
 
@@ -390,7 +393,7 @@ cdstrategy(bp)
 
 	cdstrats++;
 	SC_DEBUG(cd->sc_link, SDEV_DB2, ("\ncdstrategy "));
-	SC_DEBUG(cd->sc_link, SDEV_DB1, ("cd%d: %d bytes @ blk%d\n",
+	SC_DEBUG(cd->sc_link, SDEV_DB1, ("cd%ld: %d bytes @ blk%d\n",
 		unit, bp->b_bcount, bp->b_blkno));
 	cdminphys(bp);
 	/*
@@ -559,7 +562,7 @@ cdstart(unit)
 		    SCSI_DATA_IN : SCSI_DATA_OUT))
 	    != SUCCESSFULLY_QUEUED) {
 	      bad:
-		printf("cd%d: oops not queued", unit);
+		printf("cd%ld: oops not queued", unit);
 		bp->b_error = EIO;
 		bp->b_flags |= B_ERROR;
 		biodone(bp);
@@ -576,7 +579,6 @@ errval
 cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 {
 	errval  error = 0;
-	u_int32 opri;
 	u_int8  unit, part;
 	register struct cd_data *cd;
 
@@ -634,11 +636,13 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct ioc_play_track *args
 			= (struct ioc_play_track *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.flags &= ~CD_PA_SOTC;
 			data.page.audio.flags |= CD_PA_IMMED;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 			return (cd_play_tracks(unit
 				,args->start_track
@@ -653,11 +657,13 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct ioc_play_msf *args
 			= (struct ioc_play_msf *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.flags &= ~CD_PA_SOTC;
 			data.page.audio.flags |= CD_PA_IMMED;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 			return (cd_play_msf(unit
 				,args->start_m
@@ -674,11 +680,13 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			struct ioc_play_blocks *args
 			= (struct ioc_play_blocks *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.flags &= ~CD_PA_SOTC;
 			data.page.audio.flags |= CD_PA_IMMED;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 			return (cd_play(unit, args->blk, args->len));
 
@@ -695,11 +703,12 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 				error = EINVAL;
 				break;
 			}
-			if (error = cd_read_subchannel(unit, args->address_format,
-				args->data_format, args->track, &data, len)) {
+			error = cd_read_subchannel(unit, args->address_format,
+				args->data_format, args->track, &data, len);
+			if (error)
 				break;
-			}
-			len = min(len, ((data.header.data_len[0] << 8) + data.header.data_len[1] +
+			len = min(len, ((data.header.data_len[0] << 8) + 
+				data.header.data_len[1] +
 				sizeof(struct cd_sub_channel_header)));
 			if (copyout(&data, args->data, len) != 0) {
 				error = EFAULT;
@@ -709,11 +718,11 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 	case CDIOREADTOCHEADER:
 		{		/* ??? useless bcopy? XXX */
 			struct ioc_toc_header th;
-			if (error = cd_read_toc(unit, 0, 0, 
-						(struct cd_toc_entry *)&th,
-						sizeof th))
+			error = cd_read_toc(unit, 0, 0, 
+					(struct cd_toc_entry *)&th, sizeof th);
+			if (error)
 				break;
-			th.len = (th.len & 0xff) << 8 + ((th.len >> 8) & 0xff);
+			th.len = ((th.len & 0xff) << 8) + ((th.len >> 8) & 0xff);
 			bcopy(&th, addr, sizeof th);
 		}
 		break;
@@ -733,10 +742,11 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 				error = EINVAL;
 				break;
 			}
-			if (error = cd_read_toc(unit, te->address_format,
+			error = cd_read_toc(unit, te->address_format,
 				te->starting_track,
 				(struct cd_toc_entry *)&data,
-				len + sizeof(struct ioc_toc_header)))
+				len + sizeof(struct ioc_toc_header));
+			if (error)
 				break;
 			len = min(len, ((((th->len & 0xff) << 8) + ((th->len >> 8))) - (sizeof(th->starting_track) + sizeof(th->ending_track))));
 			if (copyout(data.entries, te->data, len) != 0) {
@@ -748,13 +758,15 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		{
 			struct ioc_patch *arg = (struct ioc_patch *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = arg->patch[0];
 			data.page.audio.port[RIGHT_PORT].channels = arg->patch[1];
 			data.page.audio.port[2].channels = arg->patch[2];
 			data.page.audio.port[3].channels = arg->patch[3];
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break; /* eh? */
 		}
 		break;
@@ -762,7 +774,8 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		{
 			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			arg->vol[LEFT_PORT] = data.page.audio.port[LEFT_PORT].volume;
 			arg->vol[RIGHT_PORT] = data.page.audio.port[RIGHT_PORT].volume;
@@ -774,7 +787,8 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 		{
 			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = CHANNEL_0;
 			data.page.audio.port[LEFT_PORT].volume = arg->vol[LEFT_PORT];
@@ -782,77 +796,83 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 			data.page.audio.port[RIGHT_PORT].volume = arg->vol[RIGHT_PORT];
 			data.page.audio.port[2].volume = arg->vol[2];
 			data.page.audio.port[3].volume = arg->vol[3];
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 		}
 		break;
 	case CDIOCSETMONO:
 		{
-			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = LEFT_CHANNEL | RIGHT_CHANNEL | 4 | 8;
 			data.page.audio.port[RIGHT_PORT].channels = LEFT_CHANNEL | RIGHT_CHANNEL;
 			data.page.audio.port[2].channels = 0;
 			data.page.audio.port[3].channels = 0;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 		}
 		break;
 	case CDIOCSETSTERIO:
 		{
-			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = LEFT_CHANNEL;
 			data.page.audio.port[RIGHT_PORT].channels = RIGHT_CHANNEL;
 			data.page.audio.port[2].channels = 0;
 			data.page.audio.port[3].channels = 0;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 		}
 		break;
 	case CDIOCSETMUTE:
 		{
-			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = 0;
 			data.page.audio.port[RIGHT_PORT].channels = 0;
 			data.page.audio.port[2].channels = 0;
 			data.page.audio.port[3].channels = 0;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 		}
 		break;
 	case CDIOCSETLEFT:
 		{
-			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = LEFT_CHANNEL;
 			data.page.audio.port[RIGHT_PORT].channels = LEFT_CHANNEL;
 			data.page.audio.port[2].channels = 0;
 			data.page.audio.port[3].channels = 0;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 		}
 		break;
 	case CDIOCSETRIGHT:
 		{
-			struct ioc_vol *arg = (struct ioc_vol *) addr;
 			struct cd_mode_data data;
-			if (error = cd_get_mode(unit, &data, AUDIO_PAGE))
+			error = cd_get_mode(unit, &data, AUDIO_PAGE);
+			if (error)
 				break;
 			data.page.audio.port[LEFT_PORT].channels = RIGHT_CHANNEL;
 			data.page.audio.port[RIGHT_PORT].channels = RIGHT_CHANNEL;
 			data.page.audio.port[2].channels = 0;
 			data.page.audio.port[3].channels = 0;
-			if (error = cd_set_mode(unit, &data))
+			error = cd_set_mode(unit, &data);
+			if (error)
 				break;
 		}
 		break;
@@ -904,11 +924,10 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
  * data tracks from the TOC and put it in the disklabel
  */
 errval 
-cdgetdisklabel(unit)
+cd_getdisklabel(unit)
 	u_int8  unit;
 {
 	/*unsigned int n, m; */
-	char   *errstring;
 	struct cd_data *cd;
 
 	cd = cd_driver.cd_data[unit];
@@ -1000,7 +1019,7 @@ cd_size(unit, flags)
 		blksize = 2048;	/* some drives lie ! */
 	if (size < 100)
 		size = 400000;	/* ditto */
-	SC_DEBUG(cd->sc_link, SDEV_DB3, ("cd%d: %d %d byte blocks\n"
+	SC_DEBUG(cd->sc_link, SDEV_DB3, ("cd%ld: %d %d byte blocks\n"
 		,unit, size, blksize));
 	cd->params.disksize = size;
 	cd->params.blksize = blksize;
@@ -1070,7 +1089,6 @@ cd_play(unit, blk, len)
 	u_int32 unit, blk, len;
 {
 	struct scsi_play scsi_cmd;
-	errval  retval;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PLAY;
@@ -1099,7 +1117,6 @@ cd_play_big(unit, blk, len)
 	u_int32 unit, blk, len;
 {
 	struct scsi_play_big scsi_cmd;
-	errval  retval;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PLAY_BIG;
@@ -1130,7 +1147,6 @@ cd_play_tracks(unit, strack, sindex, etrack, eindex)
 	u_int32 unit, strack, sindex, etrack, eindex;
 {
 	struct scsi_play_track scsi_cmd;
-	errval  retval;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 	scsi_cmd.op_code = PLAY_TRACK;
@@ -1231,7 +1247,6 @@ cd_read_subchannel(unit, mode, format, track, data, len)
 	u_int32 len;
 {
 	struct scsi_read_subchannel scsi_cmd;
-	errval  error;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));
 
@@ -1264,7 +1279,6 @@ cd_read_toc(unit, mode, start, data, len)
 	u_int32 len;
 {
 	struct scsi_read_toc scsi_cmd;
-	errval  error;
 	u_int32 ntoc;
 
 	bzero(&scsi_cmd, sizeof(scsi_cmd));

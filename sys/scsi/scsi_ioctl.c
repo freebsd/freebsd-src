@@ -5,7 +5,7 @@
  * Berkeley style copyright.  
  *
  *
- * $Id$
+ * $Id: scsi_ioctl.c,v 1.7 1994/08/02 07:52:33 davidg Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -217,7 +217,6 @@ void scsiminphys(struct buf *bp)
 errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 {
 	errval ret = 0;
-	int phys;
 
 	SC_DEBUG(sc_link,SDEV_DB2,("scsi_do_ioctl(0x%x)\n",cmd));
 	switch(cmd)
@@ -293,7 +292,6 @@ errval	scsi_do_ioctl(struct scsi_link *sc_link, int cmd, caddr_t addr, int f)
 		}
 		case SCIOCREPROBE:
 		{
-			extern int scsibus;
 			struct scsi_addr *sca = (struct scsi_addr *) addr;
 
 			ret = scsi_probe_busses(sca->scbus,sca->target,sca->lun);
