@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.51 1994/11/27 14:26:16 davidg Exp $
+#	$Id: Makefile.i386,v 1.52 1994/12/31 19:27:28 gibbs Exp $
 #
 # Makefile for FreeBSD
 #
@@ -14,17 +14,16 @@
 #	/sys/i386/conf/Makefile.i386
 # after which config should be rerun for all machines.
 #
-# N.B.: NO DEPENDENCIES ON FOLLOWING FLAGS ARE INVISIBLE TO MAKEFILE
+# N.B.: DEPENDENCIES ON FOLLOWING FLAGS ARE INVISIBLE TO MAKEFILE
 #	IF YOU CHANGE THE DEFINITION OF ANY OF THESE RECOMPILE EVERYTHING
 #
 # -DTRACE	compile in kernel tracing hooks
 # -DQUOTA	compile in file system quotas
+# -DFOO		almost all options
 #
-TOUCH?=	touch -f -c
-LD?=	/usr/bin/ld
 CC?=	cc 
 CPP?=	cpp
-DBSYM?=	/usr/sbin/dbsym
+LD?=	/usr/bin/ld
 
 .if exists(./@/.)
 S=	./@
@@ -61,12 +60,16 @@ SFILES=	${I386}/i386/exception.s ${I386}/i386/microtime.s \
 	${I386}/i386/support.s ${I386}/i386/swtch.s ${I386}/apm/apm_setup.s
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c
 SYSTEM_SFILES= ${I386}/i386/locore.s
-SYSTEM_OBJS=locore.o vnode_if.o ${OBJS} ioconf.o param.o 
-SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS} libkern.a
-SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
+SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o 
+SYSTEM_DEP= Makefile symbols.exclude symbols.sort ${SYSTEM_OBJS} libkern.a
+SYSTEM_LD_HEAD= @echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o $@ -X ${SYSTEM_OBJS} vers.o libkern.a
-SYSTEM_LD_TAIL= @echo rearranging symbols; symorder symbols.sort $@; \
-	${DBSYM} -fT ${LOAD_ADDRESS} $@; size $@; chmod 755 $@
+.if ${CFLAGS:M-g} == ""
+SYMORDER_EXCLUDE=-x symbols.exclude
+.endif
+SYSTEM_LD_TAIL= @echo rearranging symbols; \
+	symorder ${SYMORDER_EXCLUDE} symbols.sort $@; \
+	size $@; chmod 755 $@
 
 %BEFORE_DEPEND
 
@@ -99,13 +102,18 @@ ${LIBKERN}:
 	@(cd $S/libkern; make)
 
 clean:
-	rm -f eddep kernel tags *.o *.s errs linterrs makelinks genassym
+	rm -f eddep kernel tags *.o *.s errs linterrs makelinks genassym \
+	      symbols.exclude symbols.sort
 
 #lint: /tmp param.c
 #	@lint -hbxn -DGENERIC -Dvolatile= ${COPTS} ${PARAM} \
 #	  ${I386}/i386/Locore.c ${CFILES} ioconf.c param.c | \
 #	    grep -v 'struct/union .* never defined' | \
 #	    grep -v 'possible pointer alignment problem'
+
+symbols.exclude: Makefile
+	echo "gcc2_compiled." >symbols.exclude
+	echo "___gnu_compiled_c" >>symbols.exclude
 
 symbols.sort: ${I386}/i386/symbols.raw
 	grep -v '^#' ${I386}/i386/symbols.raw \

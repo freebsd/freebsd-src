@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:26  rpd
- *	$Id: boot2.S,v 1.4 1994/06/22 05:52:25 jkh Exp $
+ *	$Id: boot2.S,v 1.5 1994/08/30 01:38:03 bde Exp $
  */
 
 #include	"asm.h"
@@ -49,8 +49,6 @@
  * boot2() -- second stage boot
  */
 
-.globl EXT(ouraddr)
-
 ENTRY(boot2)
 	data32
 	subl	%eax, %eax
@@ -59,9 +57,6 @@ ENTRY(boot2)
 	mov	%ax, %es
 	data32
 	shll	$4, %eax
-	addr32
-	data32
-	movl	%eax, EXT(ouraddr)
 
 	/* fix up GDT entries for bootstrap */
 #define FIXUP(gdt_index) \
@@ -175,12 +170,3 @@ ENTRY(boot2)
 oops:
 	hlt
 	jmp	oops
-
-	.data
-        .align 2
-#if 0 /* XXX this would give losing "_ouraddr :".  Better declared in C */
-EXT(ouraddr):
-#else
-_ouraddr:
-#endif
-        .long 0

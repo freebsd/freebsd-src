@@ -25,7 +25,7 @@ void	(*kernelentry)();
 struct	nfs_diskless nfsdiskless;
 int	hostnamelen;
 char	config_buffer[512];		/* Max TFTP packet */
-struct	bootinfo_t bootinfo;
+struct	bootinfo bootinfo;
 unsigned long	netmask;
 
 extern	char packet[];
@@ -281,9 +281,9 @@ load()
 	printf("entry=0x%X.\n\r",head.a_entry);
 
 		/* Jump to kernel */
-	bootinfo.version = 1;
-	bootinfo.kernelname = kernel;
-	bootinfo.nfs_diskless = &nfsdiskless;
+	bootinfo.bi_version = BOOTINFO_VERSION;
+	bootinfo.bi_kernelname = kernel;
+	bootinfo.bi_nfs_diskless = &nfsdiskless;
 	kernelentry = (void *)(head.a_entry & 0x00FFFFFF);
 	(*kernelentry)(0,NODEV,0,0,0,&bootinfo,0,0,0);
 	printf("*** %s execute failure ***\n",kernel);

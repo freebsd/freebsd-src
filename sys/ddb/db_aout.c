@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.8 1994/09/05 14:04:56 bde Exp $
+ *	$Id: db_aout.c,v 1.9 1994/09/27 03:34:52 phk Exp $
  */
 
 /*
@@ -37,6 +37,9 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+
+#include <machine/bootinfo.h>
+
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
 
@@ -67,13 +70,6 @@
 	(sp = (struct nlist *)((symtab) + 1), \
 	 ep = (struct nlist *)((char *)sp + *(symtab)))
 
-#ifndef	SYMTAB_SPACE
-#define SYMTAB_SPACE 73000
-#endif	/*SYMTAB_SPACE*/
-
-int db_symtabsize = SYMTAB_SPACE;
-char db_symtab[SYMTAB_SPACE] = { 1 };
-
 void
 X_db_sym_init(symtab, esymtab, name)
 	int *	symtab;		/* pointer to start of symbol table */
@@ -97,7 +93,6 @@ X_db_sym_init(symtab, esymtab, name)
 	strtab = (char *)sym_end;
 	strlen = *(int *)strtab;
 
-#if 0
 	if (strtab + ((strlen + sizeof(int) - 1) & ~(sizeof(int)-1))
 	    != esymtab)
 	{
@@ -107,7 +102,6 @@ X_db_sym_init(symtab, esymtab, name)
 
 	db_printf("[ preserving %#x bytes of %s symbol table ]\n",
 		esymtab - (char *)symtab, name);
-#endif
 
 	for (sp = sym_start; sp < sym_end; sp++) {
 	    register int strx;
@@ -233,9 +227,11 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 	sp = (struct nlist *)symtab->start;
 	ep = (struct nlist *)symtab->end;
 
-/* XXX - gcc specific */
-#define NEWSRC(str)	((str) != NULL && \
-			(str)[0] == 'g' && strcmp((str), "gcc_compiled.") == 0)
+/*
+ * XXX - this used to remove "gcc_compiled.", but that is obsolete.  We
+ * now remove unwanted names using symorder.
+ */
+#define NEWSRC(str)	0
 
 	for (; sp < ep; sp++) {
 
@@ -327,16 +323,11 @@ X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 void
 kdb_init(void)
 {
-#if 0
-	extern char	*esym;
-	extern int	end;
-
-	if (esym > (char *)&end) {
-	    X_db_sym_init((int *)&end, esym, "kernel");
-	}
-#endif
-
-	X_db_sym_init (db_symtab, 0, "kernel");
+	if (bootinfo.bi_esymtab != bootinfo.bi_symtab)
+		X_db_sym_init((int *)bootinfo.bi_symtab,
+			      (char *)((bootinfo.bi_esymtab + sizeof(int) - 1)
+				       & ~(sizeof(int) - 1)),
+			      "kernel");
 }
 
 #if 0

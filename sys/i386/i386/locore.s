@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.45 1994/11/18 05:27:34 phk Exp $
+ *	$Id: locore.s,v 1.46 1995/01/14 13:20:07 bde Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 #include <machine/cputypes.h>		/* x86 cpu type definitions */
 #include <sys/syscall.h>		/* system call numbers */
 #include <machine/asmacros.h>		/* miscellaneous asm macros */
+#include <sys/reboot.h>
 #include "apm.h"
 #if NAPM > 0
 #define ASM
@@ -124,7 +125,7 @@ tmpstk:
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
 _cpu_id:	.long	0			/* stepping ID */
 _cpu_vendor:	.space	20			/* CPU origin code */
-_bootinfo:	.space	BOOTINFO_SIZE		/* the bootstrapper knew it! */
+_bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
@@ -243,7 +244,7 @@ NON_GPROF_ENTRY(btext)
 	 */
 1:	/* newboot: */
 	movl	28(%ebp),%ebx		/* &bootinfo.version */
-	movl	BOOTINFO_VERSION(%ebx),%eax
+	movl	BI_VERSION(%ebx),%eax
 	cmpl	$1,%eax			/* We only understand version 1 */
 	je	1f
 	movl	$1,%eax			/* Return status */
@@ -254,7 +255,7 @@ NON_GPROF_ENTRY(btext)
 	/*
 	 * If we have a kernelname copy it in
 	 */
-	movl	BOOTINFO_KERNELNAME(%ebx),%esi
+	movl	BI_KERNELNAME(%ebx),%esi
 	cmpl	$0,%esi
 	je	1f			/* No kernelname */
 	lea	_kernelname-KERNBASE,%edi
@@ -265,11 +266,26 @@ NON_GPROF_ENTRY(btext)
 
 1:
 	/* 
-	 * Copy the bootinfo structure
+	 * Determine the size of the boot loader's copy of the bootinfo
+	 * struct.  This is impossible to do properly because old versions
+	 * of the struct don't contain a size field and there are 2 old
+	 * versions with the same version number.
+	 */
+	movl	$BI_ENDCOMMON,%ecx	/* prepare for sizeless version */
+	testl	$RB_BOOTINFO,8(%ebp)	/* bi_size (and bootinfo) valid? */
+	je	got_bi_size		/* no, sizeless version */
+	movl	BI_SIZE(%ebx),%ecx
+got_bi_size:
+
+	/* 
+	 * Copy the common part of the bootinfo struct
 	 */
 	movl	%ebx,%esi
-	lea	_bootinfo-KERNBASE,%edi
+	movl	$_bootinfo-KERNBASE,%edi
+	cmpl	$BOOTINFO_SIZE,%ecx
+	jbe	got_common_bi_size
 	movl	$BOOTINFO_SIZE,%ecx
+got_common_bi_size:
 	cld
 	rep
 	movsb
@@ -278,7 +294,7 @@ NON_GPROF_ENTRY(btext)
 	/*
 	 * If we have a nfs_diskless structure copy it in
 	 */
-	movl	BOOTINFO_NFS_DISKLESS(%ebx),%esi
+	movl	BI_NFS_DISKLESS(%ebx),%esi
 	cmpl	$0,%esi
 	je	2f
 	lea	_nfs_diskless-KERNBASE,%edi
@@ -516,6 +532,21 @@ NON_GPROF_ENTRY(btext)
 	cld
 	rep
 	stosb
+
+#ifdef DDB
+/* include symbols in "kernel image" if they are loaded */
+	movl	_bootinfo+BI_ESYMTAB-KERNBASE,%edi
+	testl	%edi,%edi
+	je	over_symalloc
+	addl	$NBPG-1,%edi
+	andl	$~(NBPG-1),%edi
+	movl	%edi,%esi
+	movl	%esi,_KERNend-KERNBASE
+	movl	$KERNBASE,%edi
+	addl	%edi,_bootinfo+BI_SYMTAB-KERNBASE
+	addl	%edi,_bootinfo+BI_ESYMTAB-KERNBASE
+over_symalloc:
+#endif
 
 /*
  * The value in esi is both the end of the kernel bss and a pointer to

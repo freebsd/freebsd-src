@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.3 1993/10/16 19:11:40 rgrimes Exp $
+ *	$Id: table.c,v 1.4 1994/08/30 01:38:04 bde Exp $
  */
 
 /*
@@ -129,3 +129,11 @@ struct pseudo_desc Gdtr = { sizeof Gdt - 1, RUN, RUN };
 struct pseudo_desc Idtr_prot = { sizeof Idt - 1, RUN, RUN };
 struct pseudo_desc Idtr_real = { 0x400 - 1, 0x0, 0x0 };
 #endif
+
+/*
+ * All initialized data is defined in one file to reduce space wastage from
+ * fragmentation.
+ */
+char *devs[] = { "wd", "hd", "fd", "wt", "sd", 0 };
+char *name = "/kernel";
+unsigned long tw_chars = 0x5C2D2F7C;	/* "\-/|" */
