@@ -5,7 +5,7 @@
 
 # PROVIDE: ppp-user
 # REQUIRE: netif isdnd
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

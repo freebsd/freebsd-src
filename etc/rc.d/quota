@@ -9,7 +9,7 @@
 # PROVIDE: quota
 # REQUIRE: mountcritremote
 # BEFORE: DAEMON
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 # PROVIDE: dumpon
 # REQUIRE: initrandom
 # BEFORE: disks savecore
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 # PROVIDE: jail
 # REQUIRE: LOGIN
 # BEFORE: securelevel
-# KEYWORD: FreeBSD shutdown
+# KEYWORD: FreeBSD nojail shutdown
 
 . /etc/rc.subr
 

@@ -6,7 +6,7 @@
 
 # PROVIDE: fsck
 # REQUIRE: localswap
-# KEYWORD: FreeBSD
+# KEYWORD: FreeBSD nojail
 
 . /etc/rc.subr
 
