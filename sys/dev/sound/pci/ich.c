@@ -453,11 +453,15 @@ ich_pci_probe(device_t dev)
 		return 0;
 
 	case 0x24258086:
-		device_set_desc(dev, "Intel 82901AB (ICH)");
+		device_set_desc(dev, "Intel 82801AB (ICH)");
 		return 0;
 
 	case 0x24458086:
 		device_set_desc(dev, "Intel 82801BA (ICH2)");
+		return 0;
+
+	case 0x24858086:
+		device_set_desc(dev, "Intel 82801CA (ICH3)");
 		return 0;
 
 	default:
