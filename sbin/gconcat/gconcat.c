@@ -238,8 +238,6 @@ concat_label(int argc, char *argv[])
 	if (argc < 2)
 		usage();
 
-	load_module();
-
 	strlcpy(md.md_magic, G_CONCAT_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_CONCAT_VERSION;
 	strlcpy(md.md_name, argv[0], sizeof(md.md_name));
@@ -293,6 +291,8 @@ concat_label(int argc, char *argv[])
 		if (verbose)
 			printf("Metadata value stored on %s.\n", argv[i]); 
 	}
+
+	load_module();
 
 	exit(status);
 }
