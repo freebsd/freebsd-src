@@ -6,7 +6,7 @@
 .\"this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\"----------------------------------------------------------------------------
 .\"
-.\"$Id$
+.\"$Id: jail.8,v 1.2 1999/05/04 18:20:53 phk Exp $
 .\"
 .\"
 .Dd April 28, 1999
@@ -14,12 +14,14 @@
 .Os FreeBSD 4.0
 .Sh NAME
 .Nm jail
-.Nd imprison process and decendants.
+.Nd imprison process and its descendants
 .Sh SYNOPSIS
 .Nm jail
 .Ar path
 .Ar hostname
 .Ar ip-number
+.Ar command
+.Ar ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -27,7 +29,7 @@ command imprisons a process and all future decendants.
 .Pp
 Please see the
 .Xr jail 2
-Manual page for further details.
+man page for further details.
 .Sh SEE ALSO
 .Xr chroot 2 ,
 .Xr jail 2
