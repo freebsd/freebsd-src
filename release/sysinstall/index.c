@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.8 1997/03/28 09:30:16 jkh Exp $
+ * $Id: index.c,v 1.38.2.9 1997/04/05 07:07:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -577,11 +577,11 @@ index_extract_one(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
 		    else
 			msgConfirm("Loading of dependant package %s failed", cp);
 		}
-		if (cp2)
-		    cp = cp2 + 1;
-		else
-		    cp = NULL;
 	    }
+	    if (cp2)
+		cp = cp2 + 1;
+	    else
+		cp = NULL;
 	}
     }
     /* Done with the deps?  Load the real m'coy */
