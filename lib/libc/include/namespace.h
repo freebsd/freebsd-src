@@ -42,6 +42,7 @@
  */
 #define		err				_err
 #define		warn				_warn
+#define		nsdispatch			_nsdispatch
 
 /*
  * Prototypes for syscalls/functions that need to be overridden
