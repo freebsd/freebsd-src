@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.250 1997/02/12 11:04:58 asami Exp $
+#	$Id: bsd.port.mk,v 1.251 1997/02/16 02:51:17 obrien Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -489,8 +489,7 @@ MASTER_SITE_TEX_CTAN?=  \
         ftp://wuarchive.wustl.edu/packages/TeX/${MASTER_SITE_SUBDIR}/  \
         ftp://ftp.funet.fi/pub/TeX/CTAN/${MASTER_SITE_SUBDIR}/  \
         ftp://ftp.tex.ac.uk/public/ctan/tex-archive/${MASTER_SITE_SUBDIR}/  \
-        ftp://ftp.dante.de/tex-archive/${MASTER_SITE_SUBDIR}/  \
-        ftp://ftp.shsu.edu/tex-archive/${MASTER_SITE_SUBDIR}/
+        ftp://ftp.dante.de/tex-archive/${MASTER_SITE_SUBDIR}/
 
 MASTER_SITE_SUNSITE?=	\
 	ftp://sunsite.unc.edu/pub/Linux/${MASTER_SITE_SUBDIR}/ \
