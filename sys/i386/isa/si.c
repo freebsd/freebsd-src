@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.72 1998/06/10 12:49:54 phk Exp $
+ *	$Id: si.c,v 1.73 1998/06/13 19:36:22 steve Exp $
  */
 
 #ifndef lint
@@ -110,7 +110,7 @@ enum si_mctl { GET, SET, BIS, BIC };
 static void si_command __P((struct si_port *, int, int));
 static int si_modem __P((struct si_port *, enum si_mctl, int));
 static void si_write_enable __P((struct si_port *, int));
-static int si_Sioctl __P((dev_t, int, caddr_t, int, struct proc *));
+static int si_Sioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 static void si_start __P((struct tty *));
 static timeout_t si_lstart;
 static void si_disc_optim __P((struct tty *tp, struct termios *t,
@@ -1493,7 +1493,7 @@ siioctl(dev, cmd, data, flag, p)
 	int oldspl;
 	int blocked = 0;
 #if defined(COMPAT_43)
-	int oldcmd;
+	u_long oldcmd;
 	struct termios term;
 #endif
 
@@ -1503,7 +1503,7 @@ siioctl(dev, cmd, data, flag, p)
 	pp = MINOR2PP(mynor);
 	tp = pp->sp_tty;
 
-	DPRINT((pp, DBG_ENTRY|DBG_IOCTL, "siioctl(%x,%x,%x,%x)\n",
+	DPRINT((pp, DBG_ENTRY|DBG_IOCTL, "siioctl(%x,%lx,%x,%x)\n",
 		dev, cmd, data, flag));
 	if (IS_STATE(mynor)) {
 		struct termios *ct;
@@ -1657,7 +1657,7 @@ out:
  * Handle the Specialix ioctls. All MUST be called via the CONTROL device
  */
 static int
-si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+si_Sioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct si_softc *xsc;
 	register struct si_port *xpp;
@@ -1669,7 +1669,7 @@ si_Sioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	int card, port;
 	int mynor = minor(dev);
 
-	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%x,%x,%x,%x)\n",
+	DPRINT((0, DBG_ENTRY|DBG_IOCTL, "si_Sioctl(%x,%lx,%x,%x)\n",
 		dev, cmd, data, flag));
 
 #if 1
