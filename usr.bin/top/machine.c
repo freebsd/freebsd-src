@@ -58,7 +58,7 @@
 #include "screen.h"
 #include "utils.h"
 
-static void getsysctl __P((char *, void *, int));
+static void getsysctl __P((char *, void *, size_t));
 
 #define GETSYSCTL(name, var) getsysctl(name, &(var), sizeof(var))
 
@@ -204,7 +204,7 @@ struct statics *statics;
 
 {
     register int pagesize;
-    int modelen;
+    size_t modelen;
     struct passwd *pw;
 
     modelen = sizeof(smpmode);
@@ -285,36 +285,28 @@ struct system_info *si;
 
 {
     long total;
-    load_avg avenrun[4]; /* 3 values and FSCALE. */
+    struct loadavg sysload;
     int mib[2];
     struct timeval boottime;
     size_t bt_size;
 
     /* get the cp_time array */
     GETSYSCTL("kern.cp_time", cp_time);
-    GETSYSCTL("vm.loadavg", avenrun);
+    GETSYSCTL("vm.loadavg", sysload);
     GETSYSCTL("kern.lastpid", lastpid);
 
     /* convert load averages to doubles */
     {
 	register int i;
 	register double *infoloadp;
-	load_avg *avenrunp;
-
-#ifdef notyet
-	struct loadavg sysload;
-	int size;
-	getkerninfo(KINFO_LOADAVG, &sysload, &size, 0);
-#endif
 
 	infoloadp = si->load_avg;
-	avenrunp = avenrun;
 	for (i = 0; i < 3; i++)
 	{
 #ifdef notyet
 	    *infoloadp++ = ((double) sysload.ldavg[i]) / sysload.fscale;
 #endif
-	    *infoloadp++ = loaddouble(*avenrunp++);
+	    *infoloadp++ = loaddouble(sysload.ldavg[i]);
 	}
     }
 
@@ -595,10 +587,10 @@ static void getsysctl (name, ptr, len)
 
 char *name;
 void *ptr;
-int len;
+size_t len;
 
 {
-    int nlen = len;
+    size_t nlen = len;
     if (sysctlbyname(name, ptr, &nlen, NULL, 0) == -1) {
 	    fprintf(stderr, "top: sysctl(%s...) failed: %s\n", name,
 		strerror(errno));
