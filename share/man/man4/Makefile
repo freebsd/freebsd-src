@@ -5,7 +5,7 @@ MAN4=	blackhole.4 bpf.4 bridge.4 ccd.4 cd.4 ch.4 da.4 ddb.4 \
 	icmp.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
 	inet.4 intpm.4 intro.4 ip.4 ipfirewall.4 kld.4 \
 	lo.4 lp.4 lpbb.4 lpt.4 natm.4 netintro.4 \
-	null.4 od.4 pass.4 ppbus.4 ppi.4 ppp.4 pt.4 pty.4 \
+	null.4 pass.4 ppbus.4 ppi.4 ppp.4 pt.4 pty.4 \
 	route.4 sa.4 scsi.4 \
 	sd.4 sl.4 smb.4 smbus.4 smp.4 snp.4 sppp.4 ssc.4 st.4 su.4 tcp.4 \
 	termios.4 ttcp.4 tty.4 tun.4 udp.4 uk.4 unix.4 update.4 vinum.4 vn.4 \
