@@ -621,20 +621,24 @@ const char *
 devtoname(struct cdev *dev)
 {
 	char *p;
+	struct cdevsw *csw;
 	int mynor;
 
 	if (dev->si_name[0] == '#' || dev->si_name[0] == '\0') {
 		p = dev->si_name;
-		if (devsw(dev))
-			sprintf(p, "#%s/", devsw(dev)->d_name);
-		else
-			sprintf(p, "#%d/", major(dev));
+		sprintf(p, "#%d", major(dev));
+		p += strlen(p);
+		csw = dev_refthread(dev);
+		if (csw != NULL) {
+			sprintf(p, "(%s)", csw->d_name);
+			dev_relthread(dev);
+		}
 		p += strlen(p);
 		mynor = minor(dev);
 		if (mynor < 0 || mynor > 255)
-			sprintf(p, "%#x", (u_int)mynor);
+			sprintf(p, "/%#x", (u_int)mynor);
 		else
-			sprintf(p, "%d", mynor);
+			sprintf(p, "/%d", mynor);
 	}
 	return (dev->si_name);
 }
