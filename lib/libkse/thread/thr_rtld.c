@@ -265,9 +265,10 @@ _thr_rtld_clr_flag(int mask)
 }
 
 void
-_thr_rtld_init()
+_thr_rtld_init(void)
 {
 	struct RtldLockInfo li;
+
         li.lock_create  = _thr_rtld_lock_create;
         li.lock_destroy = _thr_rtld_lock_destroy;
         li.rlock_acquire = _thr_rtld_rlock_acquire;
@@ -280,7 +281,7 @@ _thr_rtld_init()
 }
 
 void
-_thr_rtld_fini()
+_thr_rtld_fini(void)
 {
 	_rtld_thread_init(NULL);
 }
