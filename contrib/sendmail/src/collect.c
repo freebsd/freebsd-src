@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: collect.c,v 8.242 2002/05/10 15:40:09 ca Exp $")
+SM_RCSID("@(#)$Id: collect.c,v 8.242.2.2 2002/08/16 14:56:01 ca Exp $")
 
 static void	collecttimeout __P((time_t));
 static void	dferror __P((SM_FILE_T *volatile, char *, ENVELOPE *));
@@ -60,8 +60,8 @@ collect_eoh(e, numhdrs, hdrslen)
 	if (tTd(30, 10))
 		sm_dprintf("collect: rscheck(\"check_eoh\", \"%s $| %s\")\n",
 			   hnum, hsize);
-	(void) rscheck("check_eoh", hnum, hsize, e, false, true, 3, NULL,
-			e->e_id);
+	(void) rscheck("check_eoh", hnum, hsize, e, RSF_UNSTRUCTURED|RSF_COUNT,
+			3, NULL, e->e_id);
 
 	/*
 	**  Process the header,
@@ -765,6 +765,7 @@ readerr:
 	{
 		char *host;
 		char *problem;
+		ADDRESS *q;
 
 		host = RealHostName;
 		if (host == NULL)
@@ -794,6 +795,14 @@ readerr:
 		e->e_to = NULL;
 		e->e_flags &= ~EF_FATALERRS;
 		e->e_flags |= EF_CLRQUEUE;
+
+		/* Don't send any message notification to sender */
+		for (q = e->e_sendqueue; q != NULL; q = q->q_next)
+		{
+			if (QS_IS_DEAD(q->q_state))
+				continue;
+			q->q_state = QS_FATALERR;
+		}
 
 		finis(true, true, ExitStat);
 		/* NOTREACHED */
