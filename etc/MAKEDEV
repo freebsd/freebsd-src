@@ -116,6 +116,7 @@
 #	i4brbch* raw b channel access device(s)
 #
 # Special purpose devices:
+#	acpi	Advanced Configuration and Power Interface
 #	apm	Advanced Power Management BIOS
 #	apmctl	APM BIOS control device
 #	bpf*	packet filter
@@ -265,6 +266,7 @@ all)
 	sh MAKEDEV ipl tun0 tun1 tun2 tun3		# cdev, network
 	sh MAKEDEV tap0 tap1 tap2 tap3			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
+	sh MAKEDEV acpi					# cdev, ACPI
 	sh MAKEDEV apm apmctl card0 card1 card2 card3	# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
@@ -300,6 +302,7 @@ fixit)
 	sh MAKEDEV tun0					# cdev, network
 	sh MAKEDEV tap0					# cdev, network
 	sh MAKEDEV ch0					# cdev, miscellaneous
+	sh MAKEDEV acpi					# cdev, ACPI
 	sh MAKEDEV apm apmctl card0			# cdev, laptop
 	sh MAKEDEV pass1 xpt1				# cdev, CAM
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
@@ -1408,6 +1411,11 @@ gsc*)
 	mknod gsc${unit}d c 47 `unit2minor $(($unit + 32))`
 	mknod gsc${unit}pd c 47 `unit2minor $(($unit + 40))`
 	chmod 666 gsc${unit}*
+	;;
+
+acpi)
+	mknod acpi c 152 0 root:operator
+	chmod 660 acpi
 	;;
 
 apm)
