@@ -1528,6 +1528,9 @@ rl_strpbrk (string1, string2)
 {
   register char *scan;
 
+  if (string2 == NULL)
+    return ((char *)NULL);
+
   for (; *string1; string1++)
     {
       for (scan = string2; *scan; scan++)
