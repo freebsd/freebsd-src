@@ -350,7 +350,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 /*
  * Free a piece of memory and it's allociated dmamap, that was allocated
- * via bus_dmamem_alloc.
+ * via bus_dmamem_alloc.  Make the same choice for free/contigfree.
  */
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
@@ -361,9 +361,10 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	 */
 	if (map != NULL)
 		panic("bus_dmamem_free: Invalid map freed\n");
-	/* XXX There is no "contigfree" and "free" doesn't work */
 	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem))
 		free(vaddr, M_DEVBUF);
+	else
+		contigfree(vaddr, dmat->maxsize, M_DEVBUF);
 }
 
 #define BUS_DMAMAP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
