@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id: mkdep.gcc.sh,v 1.14 1998/08/24 10:16:39 cracauer Exp $
+#	$Id: mkdep.gcc.sh,v 1.15 1998/08/29 07:55:55 obrien Exp $
 
 D=.depend			# default dependency file is .depend
 append=0
@@ -80,7 +80,7 @@ trap 'rm -f $TMP' 0
 # pick the cpp.  mkdep must be told the cpp to use for exceptional cases.
 MKDEP_CPP=${MKDEP_CPP-"cc -E"}
 
-case $append in 
+case $nosyshdrs in 
 	0) CC_MKDEP_OPT="-M";;
 	*) CC_MKDEP_OPT="-MM -w";;
 esac
