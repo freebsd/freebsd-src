@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yp_mkdb.c,v 1.6 1997/02/22 16:14:50 peter Exp $
  */
 
 #include <stdio.h>
@@ -50,7 +50,7 @@
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: yp_mkdb.c,v 1.6 1997/02/22 16:14:50 peter Exp $";
 #endif
 
 char *yp_dir = "";	/* No particular default needed. */
@@ -121,7 +121,7 @@ main (argc, argv)
 	FILE *ifp;
 	char hname[MAXHOSTNAMELEN + 2];
 
-	while ((ch = getopt(argc, argv, "uhcbsd:i:o:m:")) != EOF) {
+	while ((ch = getopt(argc, argv, "uhcbsd:i:o:m:")) != -1) {
 		switch(ch) {
 		case 'u':
 			un++;

@@ -17,7 +17,7 @@
  */
 
 #if !defined(lint) && !defined(LINT)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: crontab.c,v 1.9 1997/02/22 16:04:53 peter Exp $";
 #endif
 
 /* crontab - install and manage per-user crontab files
@@ -147,7 +147,7 @@ parse_args(argc, argv)
 	strcpy(RealUser, User);
 	Filename[0] = '\0';
 	Option = opt_unknown;
-	while (EOF != (argch = getopt(argc, argv, "u:lerx:"))) {
+	while ((argch = getopt(argc, argv, "u:lerx:")) != -1) {
 		switch (argch) {
 		case 'x':
 			if (!set_debug_flags(optarg))

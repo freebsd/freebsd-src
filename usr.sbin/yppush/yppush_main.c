@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yppush_main.c,v 1.7 1997/02/22 16:15:02 peter Exp $
  */
 
 #include <stdio.h>
@@ -53,7 +53,7 @@ struct dom_binding {};
 #include "yppush_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: yppush_main.c,v 1.7 1997/02/22 16:15:02 peter Exp $";
 #endif
 
 char *progname = "yppush";
@@ -544,7 +544,7 @@ main(argc,argv)
 	struct hostlist *tmp;
 	struct sigaction sa;
 
-	while ((ch = getopt(argc, argv, "d:j:p:h:t:v")) != EOF) {
+	while ((ch = getopt(argc, argv, "d:j:p:h:t:v")) != -1) {
 		switch(ch) {
 		case 'd':
 			yppush_domain = optarg;

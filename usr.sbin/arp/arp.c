@@ -42,7 +42,7 @@ static char const copyright[] =
 
 #ifndef lint
 static char const sccsid[] = "@(#)from: arp.c	8.2 (Berkeley) 1/2/94";
-static char const freebsdid[] = "$Id$";
+static char const freebsdid[] = "$Id: arp.c,v 1.9 1997/02/22 16:04:19 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -103,7 +103,7 @@ main(argc, argv)
 	int ch;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "andfsS")) != EOF)
+	while ((ch = getopt(argc, argv, "andfsS")) != -1)
 		switch((char)ch) {
 		case 'a':
 			dump(0);

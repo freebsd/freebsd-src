@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: ac.c,v 1.6 1997/02/22 16:01:11 peter Exp $";
 #endif
 
 #include <sys/types.h>
@@ -229,7 +229,7 @@ main(argc, argv)
 	(void) setlocale(LC_TIME, "");
 
 	fp = NULL;
-	while ((c = getopt(argc, argv, "Dc:dpt:w:")) != EOF) {
+	while ((c = getopt(argc, argv, "Dc:dpt:w:")) != -1) {
 		switch (c) {
 #ifdef DEBUG
 		case 'D':
