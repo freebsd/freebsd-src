@@ -540,9 +540,7 @@ returns the next item on the tail queue, or NULL this item is the last.
 .Pp
 The macro
 .Nm STAILQ_REMOVE_HEAD
-removes the element
-.Fa elm
-from the head of the tail queue.
+removes the element at the head of the tail queue.
 For optimum efficiency,
 elements being removed from the head of the tail queue should
 use this macro explicitly rather than the generic 
