@@ -4,6 +4,7 @@ SUBDIR= doc
 
 LIB=    readline
 MAN=    doc/readline.3
+SHLIBDIR?=	/lib
 
 TILDESRC= tilde.c
 SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
