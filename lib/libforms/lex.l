@@ -36,7 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "parser.tab.h"
+#include "y.tab.h"
 extern int lineno;
 extern int charno;
 extern int off;
