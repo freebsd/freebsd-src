@@ -35,7 +35,7 @@ main(int ac, char **av)
 	perror("nlist");
 	return 1;
     }
-    fprintf(stdout, "struct nlist kern_nl[] = {\n");
+    fprintf(stdout, "struct nlist nl[] = {\n");
     for (i = 0; nl[i].n_name; i++) {
 	fprintf(stdout, "\t{ \"%s\", %d, %d, %d, %ld },\n",
 	nl[i].n_name, nl[i].n_type, nl[i].n_other,
