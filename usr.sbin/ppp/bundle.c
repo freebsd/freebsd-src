@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.42 1998/12/14 19:24:28 brian Exp $
+ *	$Id: bundle.c,v 1.43 1999/01/06 00:08:03 brian Exp $
  */
 
 #include <sys/param.h>
@@ -76,6 +76,9 @@
 #include "ccp.h"
 #include "link.h"
 #include "mp.h"
+#ifndef NORADIUS
+#include "radius.h"
+#endif
 #include "bundle.h"
 #include "async.h"
 #include "physical.h"
@@ -134,7 +137,6 @@ bundle_NewPhase(struct bundle *bundle, u_int new)
     break;
 
   case PHASE_NETWORK:
-    ipcp_Setup(&bundle->ncp.ipcp);
     fsm_Up(&bundle->ncp.ipcp.fsm);
     fsm_Open(&bundle->ncp.ipcp.fsm);
     bundle->phase = new;
@@ -874,6 +876,9 @@ bundle_Create(const char *prefix, int type, const char **argv)
   bundle.autoload.done = 0;
   bundle.autoload.running = 0;
   memset(&bundle.choked.timer, '\0', sizeof bundle.choked.timer);
+#ifndef NORADIUS
+  radius_Init(&bundle.radius);
+#endif
 
   /* Clean out any leftover crud */
   iface_Clear(bundle.iface, IFACE_CLEAR_ALL);
@@ -932,6 +937,11 @@ bundle_Destroy(struct bundle *bundle)
   mp_Down(&bundle->ncp.mp);
   ipcp_CleanInterface(&bundle->ncp.ipcp);
   bundle_DownInterface(bundle);
+
+#ifndef NORADIUS
+  /* Tell the radius server the bad news */
+  radius_Destroy(&bundle->radius);
+#endif
 
   /* Again, these are all DATALINK_CLOSED unless we're abending */
   dl = bundle->links;
@@ -1224,6 +1234,11 @@ bundle_ShowStatus(struct cmdargs const *arg)
 
   prompt_Printf(arg->prompt, " Choked Timer:  %ds\n",
                 arg->bundle->cfg.choked.timeout);
+
+#ifndef NORADIUS
+  radius_Show(&arg->bundle->radius, arg->prompt);
+#endif
+
   prompt_Printf(arg->prompt, " Idle Timer:    ");
   if (arg->bundle->cfg.idle_timeout) {
     prompt_Printf(arg->prompt, "%ds", arg->bundle->cfg.idle_timeout);
