@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id$
+* $Id: libdisk.h,v 1.26 1997/02/22 15:06:35 peter Exp $
 *
 */
 
@@ -20,7 +20,7 @@ typedef enum {
 	freebsd,
 	extended,
 	part,
-	unused,
+	unused
 } chunk_e;
 
 __BEGIN_DECLS
