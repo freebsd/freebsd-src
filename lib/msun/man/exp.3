@@ -127,14 +127,17 @@ of
 to the exponent
 .Ar y .
 .Sh ERROR (due to Roundoff etc.)
-.Fn exp(x) ,
-.Fn log(x) ,
-.Fn expm1(x) and
-.Fn log1p(x)
+.Fn exp x ,
+.Fn log x ,
+.Fn expm1 x
+and
+.Fn log1p x 
 are accurate to within 
 an
 .Em ulp ,
-and log10(x) to within about 2
+and
+.Fn log10 x 
+to within about 2
 .Em ulps ;
 an
 .Em ulp
