@@ -1343,7 +1343,7 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0)
  */
 
 static char linker_hintfile[] = "linker.hints";
-static char linker_path[MAXPATHLEN] = "/boot/kernel;/boot/modules;/modules";
+static char linker_path[MAXPATHLEN] = "/boot/kernel;/boot/modules";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
     sizeof(linker_path), "module load search path");
