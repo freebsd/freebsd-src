@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.60 1997/08/02 14:32:51 bde Exp $
+ *	$Id: ip_fw.c,v 1.61 1997/08/06 00:19:05 alex Exp $
  */
 
 /*
@@ -257,6 +257,10 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 	struct icmp *const icmp = (struct icmp *) ((u_long *) ip + ip->ip_hl);
 	int count;
 
+	count = f ? f->fw_pcnt : ++counter;
+	if (fw_verbose_limit != 0 && count > fw_verbose_limit)
+		return;
+
 	/* Print command name */
 	printf("ipfw: %d ", f ? f->fw_number : -1);
 	if (!f)
@@ -293,9 +297,6 @@ ipfw_report(struct ip_fw *f, struct ip *ip,
 		}
 	printf(" ");
 
-	count = f ? f->fw_pcnt : ++counter;
-	if (fw_verbose_limit != 0 && count > fw_verbose_limit)
-		return;
 	switch (ip->ip_p) {
 	case IPPROTO_TCP:
 		printf("TCP ");
