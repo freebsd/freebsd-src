@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: file.c,v 1.13 1997/11/19 02:31:40 nate Exp $";
+	"$Id: file.c,v 1.14 1998/03/09 05:18:56 hosokawa Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -56,6 +56,20 @@ static char *keys[] = {
 	"memsize",		/* 13 */
 	0
 };
+
+#define KWD_EOF			1
+#define KWD_IO			2
+#define KWD_IRQ			3
+#define KWD_MEMORY		4
+#define KWD_CARD		5
+#define KWD_DEVICE		6
+#define KWD_CONFIG		7
+#define KWD_RESET		8
+#define KWD_ETHER		9
+#define KWD_INSERT		10
+#define KWD_REMOVE		11
+#define KWD_IOSIZE		12
+#define KWD_MEMSIZE		13
 
 struct flags {
 	char   *name;
@@ -108,10 +122,10 @@ parsefile(void)
 	lineno = 1;
 	for (;;)
 		switch (keyword(next_tok())) {
-		case 1:
+		case KWD_EOF:
 			/* EOF */
 			return;
-		case 2:
+		case KWD_IO:
 			/* reserved I/O blocks */
 			while ((bp = ioblk_tok(0)) != 0) {
 				if (bp->size == 0 || bp->addr == 0) {
@@ -125,13 +139,13 @@ parsefile(void)
 			}
 			pusht = 1;
 			break;
-		case 3:
+		case KWD_IRQ:
 			/* reserved irqs */
 			while ((i = irq_tok(0)) > 0)
 				pool_irq[i] = 1;
 			pusht = 1;
 			break;
-		case 4:
+		case KWD_MEMORY:
 			/* reserved memory blocks. */
 			while ((bp = memblk_tok(0)) != 0) {
 				if (bp->size == 0 || bp->addr == 0) {
@@ -145,7 +159,7 @@ parsefile(void)
 			}
 			pusht = 1;
 			break;
-		case 5:
+		case KWD_CARD:
 			/* Card definition. */
 			parse_card();
 			break;
@@ -177,7 +191,7 @@ parse_card(void)
 	cards = cp;
 	for (;;) {
 		switch (keyword(next_tok())) {
-		case 7:
+		case KWD_CONFIG:
 			/* config */
 			i = num_tok();
 			if (i == -1) {
@@ -214,7 +228,7 @@ parse_card(void)
 			} else
 				free(confp);
 			break;
-		case 8:
+		case KWD_RESET:
 			/* reset */
 			i = num_tok();
 			if (i == -1) {
@@ -223,7 +237,7 @@ parse_card(void)
 			}
 			cp->reset_time = i;
 			break;
-		case 9:
+		case KWD_ETHER:
 			/* ether */
 			cp->ether = num_tok();
 			if (cp->ether == -1) {
@@ -231,11 +245,11 @@ parse_card(void)
 				cp->ether = 0;
 			}
 			break;
-		case 10:
+		case KWD_INSERT:
 			/* insert */
 			addcmd(&cp->insert);
 			break;
-		case 11:
+		case KWD_REMOVE:
 			/* remove */
 			addcmd(&cp->remove);
 			break;
