@@ -143,8 +143,9 @@ struct mixerctl {
 	u_int		mul;
 #if defined(__FreeBSD__) /* XXXXX */
 	unsigned	ctl;
-#else
+#endif
 	u_int8_t	class;
+#if !defined(__FreeBSD__)
 	char		ctlname[MAX_AUDIO_DEV_LEN];
 	char		*ctlunit;
 #endif
@@ -262,12 +263,16 @@ struct io_terminal {
 #define UAC_EQUAL	2
 #define UAC_RECORD	3
 #define UAC_NCLASSES	4
-#if !defined(__FreeBSD__)
 #ifdef USB_DEBUG
+#if defined(__FreeBSD__)
+#define AudioCinputs	"inputs"
+#define AudioCoutputs	"outputs"
+#define AudioCrecord	"record"
+#define AudioCequalization	"equalization"
+#endif
 Static const char *uac_names[] = {
 	AudioCoutputs, AudioCinputs, AudioCequalization, AudioCrecord,
 };
-#endif
 #endif
 
 Static usbd_status uaudio_identify_ac
@@ -306,9 +311,12 @@ Static void	uaudio_add_selector
 #ifdef USB_DEBUG
 Static const char *uaudio_get_terminal_name(int);
 #endif
-#if !defined(__FreeBSD__)
 Static int	uaudio_determine_class
 	(const struct io_terminal *, struct mixerctl *);
+#if defined(__FreeBSD__)
+Static const int uaudio_feature_name(const struct io_terminal *,
+		    struct mixerctl *);
+#else
 Static const char *uaudio_feature_name
 	(const struct io_terminal *, struct mixerctl *);
 #endif
@@ -737,7 +745,14 @@ uaudio_mixer_add_ctl(struct uaudio_softc *sc, struct mixerctl *mc)
 	size_t len;
 	struct mixerctl *nmc;
 
-#if !defined(__FreeBSD__)
+#if defined(__FreeBSD__)
+	if (mc->class < UAC_NCLASSES) {
+		DPRINTF(("%s: adding %s.%d\n",
+			 __func__, uac_names[mc->class], mc->ctl));
+	} else {
+		DPRINTF(("%s: adding %d\n", __func__, mc->ctl));
+	}
+#else
 	if (mc->class < UAC_NCLASSES) {
 		DPRINTF(("%s: adding %s.%s\n",
 			 __func__, uac_names[mc->class], mc->ctlname));
@@ -946,9 +961,7 @@ uaudio_add_mixer(struct uaudio_softc *sc, const struct io_terminal *iot, int id)
 
 	bm = d1->bmControls;
 	mix.wIndex = MAKE(d->bUnitId, sc->sc_ac_iface);
-#if !defined(__FreeBSD__)
 	uaudio_determine_class(&iot[id], &mix);
-#endif
 	mix.type = MIX_SIGNED_16;
 #if !defined(__FreeBSD__)	/* XXXXX */
 	mix.ctlunit = AudioNvolume;
@@ -1106,7 +1119,6 @@ uaudio_get_terminal_name(int terminal_type)
 }
 #endif
 
-#if !defined(__FreeBSD__)
 Static int
 uaudio_determine_class(const struct io_terminal *iot, struct mixerctl *mix)
 {
@@ -1157,6 +1169,108 @@ uaudio_determine_class(const struct io_terminal *iot, struct mixerctl *mix)
 	return terminal_type;
 }
 
+#if defined(__FreeBSD__)
+const int 
+uaudio_feature_name(const struct io_terminal *iot, struct mixerctl *mix)
+{
+	int terminal_type;
+
+	terminal_type = uaudio_determine_class(iot, mix);
+	if (mix->class == UAC_RECORD && terminal_type == 0)
+		return SOUND_MIXER_IMIX;
+	DPRINTF(("%s: terminal_type=%s\n", __func__,
+		 uaudio_get_terminal_name(terminal_type)));
+	switch (terminal_type) {
+	case UAT_STREAM:
+		return SOUND_MIXER_PCM;
+
+	case UATI_MICROPHONE:
+	case UATI_DESKMICROPHONE:
+	case UATI_PERSONALMICROPHONE:
+	case UATI_OMNIMICROPHONE:
+	case UATI_MICROPHONEARRAY:
+	case UATI_PROCMICROPHONEARR:
+		return SOUND_MIXER_MIC;
+
+	case UATO_SPEAKER:
+	case UATO_DESKTOPSPEAKER:
+	case UATO_ROOMSPEAKER:
+	case UATO_COMMSPEAKER:
+		return SOUND_MIXER_SPEAKER;
+
+	case UATE_ANALOGCONN:
+	case UATE_LINECONN:
+	case UATE_LEGACYCONN:
+		return SOUND_MIXER_LINE;
+
+	case UATE_DIGITALAUIFC:
+	case UATE_SPDIF:
+	case UATE_1394DA:
+	case UATE_1394DV:
+		return SOUND_MIXER_ALTPCM;
+
+	case UATF_CDPLAYER:
+		return SOUND_MIXER_CD;
+
+	case UATF_SYNTHESIZER:
+		return SOUND_MIXER_SYNTH;
+
+	case UATF_VIDEODISCAUDIO:
+	case UATF_DVDAUDIO:
+	case UATF_TVTUNERAUDIO:
+		return SOUND_MIXER_VIDEO;
+
+/* telephony terminal types */
+	case UATT_UNDEFINED:
+	case UATT_PHONELINE:
+	case UATT_TELEPHONE:
+	case UATT_DOWNLINEPHONE:
+		return SOUND_MIXER_PHONEIN;
+/*		return SOUND_MIXER_PHONEOUT;*/
+
+	case UATF_RADIORECV:
+	case UATF_RADIOXMIT:
+		return SOUND_MIXER_RADIO;
+
+	case UAT_UNDEFINED:
+	case UAT_VENDOR:
+	case UATI_UNDEFINED:
+/* output terminal types */
+	case UATO_UNDEFINED:
+	case UATO_DISPLAYAUDIO:
+	case UATO_SUBWOOFER:
+	case UATO_HEADPHONES:
+/* bidir terminal types */
+	case UATB_UNDEFINED:
+	case UATB_HANDSET:
+	case UATB_HEADSET:
+	case UATB_SPEAKERPHONE:
+	case UATB_SPEAKERPHONEESUP:
+	case UATB_SPEAKERPHONEECANC:
+/* external terminal types */
+	case UATE_UNDEFINED:
+/* embedded function terminal types */
+	case UATF_UNDEFINED:
+	case UATF_CALIBNOISE:
+	case UATF_EQUNOISE:
+	case UATF_DAT:
+	case UATF_DCC:
+	case UATF_MINIDISK:
+	case UATF_ANALOGTAPE:
+	case UATF_PHONOGRAPH:
+	case UATF_VCRAUDIO:
+	case UATF_SATELLITE:
+	case UATF_CABLETUNER:
+	case UATF_DSS:
+	case UATF_MULTITRACK:
+	case 0xffff:
+	default:
+		DPRINTF(("%s: 'master' for 0x%.4x\n", __func__, terminal_type));
+		return SOUND_MIXER_VOLUME;
+	}
+	return SOUND_MIXER_VOLUME;
+}
+#else
 Static const char *
 uaudio_feature_name(const struct io_terminal *iot, struct mixerctl *mix)
 {
@@ -1270,7 +1384,9 @@ uaudio_add_feature(struct uaudio_softc *sc, const struct io_terminal *iot, int i
 	u_int fumask, mmask, cmask;
 	struct mixerctl mix;
 	int chan, ctl, i, unit;
-#if !defined(__FreeBSD__)
+#if defined(__FreeBSD__)
+	int mixernumber;
+#else
 	const char *mixername;
 #endif
 
@@ -1315,7 +1431,9 @@ uaudio_add_feature(struct uaudio_softc *sc, const struct io_terminal *iot, int i
 		}
 #undef GET
 
-#if !defined(__FreeBSD__)
+#if defined(__FreeBSD__)
+		mixernumber = uaudio_feature_name(&iot[id], &mix);
+#else
 		mixername = uaudio_feature_name(&iot[id], &mix);
 #endif
 		switch (ctl) {
@@ -1332,8 +1450,7 @@ uaudio_add_feature(struct uaudio_softc *sc, const struct io_terminal *iot, int i
 		case VOLUME_CONTROL:
 			mix.type = MIX_SIGNED_16;
 #if defined(__FreeBSD__)
-			/* mix.ctl = SOUND_MIXER_VOLUME; */
-			mix.ctl = SOUND_MIXER_PCM;
+			mix.ctl = mixernumber;
 #else
 			mix.ctlunit = AudioNvolume;
 			strlcpy(mix.ctlname, mixername, sizeof(mix.ctlname));
@@ -1441,9 +1558,7 @@ uaudio_add_processing_updown(struct uaudio_softc *sc,
 	mix.wIndex = MAKE(d->bUnitId, sc->sc_ac_iface);
 	mix.nchan = 1;
 	mix.wValue[0] = MAKE(UD_MODE_SELECT_CONTROL, 0);
-#if !defined(__FreeBSD__)
 	uaudio_determine_class(&iot[id], &mix);
-#endif
 	mix.type = MIX_ON_OFF;	/* XXX */
 #if !defined(__FreeBSD__)
 	mix.ctlunit = "";
@@ -1474,9 +1589,7 @@ uaudio_add_processing(struct uaudio_softc *sc, const struct io_terminal *iot, in
 		mix.wIndex = MAKE(d->bUnitId, sc->sc_ac_iface);
 		mix.nchan = 1;
 		mix.wValue[0] = MAKE(XX_ENABLE_CONTROL, 0);
-#if !defined(__FreeBSD__)
 		uaudio_determine_class(&iot[id], &mix);
-#endif
 		mix.type = MIX_ON_OFF;
 #if !defined(__FreeBSD__)
 		mix.ctlunit = "";
@@ -1522,9 +1635,7 @@ uaudio_add_extension(struct uaudio_softc *sc, const struct io_terminal *iot, int
 		mix.wIndex = MAKE(d->bUnitId, sc->sc_ac_iface);
 		mix.nchan = 1;
 		mix.wValue[0] = MAKE(UA_EXT_ENABLE, 0);
-#if !defined(__FreeBSD__)
 		uaudio_determine_class(&iot[id], &mix);
-#endif
 		mix.type = MIX_ON_OFF;
 #if !defined(__FreeBSD__)
 		mix.ctlunit = "";
