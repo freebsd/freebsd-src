@@ -39,7 +39,8 @@ static inline void
 atomic_swap_long(long *dst, long val, long *res)
 {
 	/* $1 and $2 are t0 and t1 respectively. */
-	__asm (	"   ldq     $1, %1\n"	/* get cache line before lock */
+	__asm __volatile (
+		"   ldq     $1, %1\n"	/* get cache line before lock */
 		"1: ldq_l   $1, %1\n"	/* load *dst asserting lock */
 		"   mov     %2, $2\n"	/* save value to be swapped */
 		"   stq_c   $2, %1\n"	/* attempt the store; $2 clobbered */
@@ -55,7 +56,8 @@ static inline void
 atomic_swap_int(int *dst, int val, int *res)
 {
 	/* $1 and $2 are t0 and t1 respectively. */
-	__asm (	"   ldl     $1, %1\n"	/* get cache line before lock */
+	__asm __volatile (
+		"   ldl     $1, %1\n"	/* get cache line before lock */
 		"1: ldl_l   $1, %1\n"	/* load *dst asserting lock */
 		"   mov     %2, $2\n"	/* save value to be swapped */
 		"   stl_c   $2, %1\n"	/* attempt the store; $2 clobbered */
