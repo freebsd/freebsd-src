@@ -169,7 +169,7 @@ The
 parameters are the Manufacturer name, card version and
 additional information add_info1, add_info2 that
 is used to match the values from the card's CIS memory.
-These parameter can be described in extended regular expression
+These parameters can be described in extended regular expression
 .Xr regex 3
 if the string is enclosed by '/' like "/.*/".
 Each of the expressions is evaluated with a character '^' at top.
@@ -184,8 +184,13 @@ An optional set of flags may
 be assigned.
 In
 .Ar index ,
-specify either ``auto'' or ``default'' or the range available in the card's CIS.
-``auto'' allows to allocate resources automatically with information
+specify either 
+.Dq auto
+or
+.Dq default
+or the range available in the card's CIS.
+.Dq auto
+allows to allocate resources automatically with information
 from the CIS and status of using I/O resources.
 .Pp
 The optional
@@ -243,21 +248,29 @@ for generic type of the cards:
 .Pp
 The keyword
 .Em serial
-matches ``Functional ID: Serial port/modem'' and
+matches
+.Dq Functional ID: Serial port/modem
+and
 .Em fixed_disk
-matches ``Fixed disk card''.
-The syntax is the same of
+matches 
+.Dq Fixed disk card .
+The syntax is the same as for
 .Em "card identifiers"
-but used ``generic'' instead of ``card'' in the first line.
-These are in the last of
+but uses 
+.Dq generic
+instead of
+.Dq card
+in the first line.
+These are defined at the bottom of
 .Nm
-because unmatched cards with the other
-.Em card
-entries can match these entries secondly.
-The alias ``function'' can be used instead of ``generic'' because of
-the historical reason.
+so unmatched cards use the generic entries.
+The alias
+.Dq function
+can be used instead of
+.Dq generic ,
+this is supported due to historical reasons.
 .Sh EXAMPLES
-A typical configuration file may appear thus:
+A typical configuration file may look like this:
 .Bd -literal
 #
 # Sample configuration file.
