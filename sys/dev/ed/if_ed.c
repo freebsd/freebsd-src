@@ -3047,7 +3047,7 @@ ed_hpp_writemem(sc, src, dst, len)
  * Write to HP PC Lan+ NIC memory.  Access to the NIC can be by using 
  * outsw() or via the memory mapped interface to the same register.
  * Writes have to be in word units; byte accesses won't work and may cause
- * the NIC to behave wierdly. Long word accesses are permitted if the ASIC
+ * the NIC to behave weirdly. Long word accesses are permitted if the ASIC
  * allows it.
  */
 
