@@ -84,8 +84,9 @@ packets to network hosts
 .Ar host
 .Ek
 .Sh DESCRIPTION
+The
 .Nm
-uses the
+utility uses the
 .Tn ICMPv6
 protocol's mandatory
 .Tn ICMP6_ECHO_REQUEST
@@ -164,7 +165,7 @@ This can be very hard on a network and should be used with caution.
 Specifies to try reverse-lookup of IPv6 addresses.
 The
 .Nm
-command does not try reverse-lookup unless the option is specified.
+utility does not try reverse-lookup unless the option is specified.
 .It Fl h Ar hoplimit
 Set the IPv6 hoplimit.
 .It Fl I Ar interface
@@ -350,8 +351,9 @@ during normal operations or from automated scripts.
 .\" If less than eight bytes of pad are specified, no round trip times are
 .\" given.
 .Sh DUPLICATE AND DAMAGED PACKETS
+The
 .Nm
-will report duplicate and damaged packets.
+utility will report duplicate and damaged packets.
 Duplicate packets should never occur when pinging a unicast address,
 and seem to be caused by
 inappropriate link-level retransmissions.
@@ -398,8 +400,9 @@ using the
 option of
 .Nm .
 .Sh RETURN VALUES
+The
 .Nm
-returns 0 on success (the host is alive),
+utility returns 0 on success (the host is alive),
 and non-zero if the arguments are incorrect or the host is not responding.
 .Sh EXAMPLES
 Normally,
@@ -488,7 +491,7 @@ command appeared in
 .Bx 4.3 .
 The
 .Nm
-command with IPv6 support first appeared in WIDE Hydrangea IPv6 protocol stack
+utility with IPv6 support first appeared in WIDE Hydrangea IPv6 protocol stack
 kit.
 .Pp
 IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack

@@ -40,7 +40,7 @@
 .Os
 .Sh NAME
 .Nm quotacheck
-.Nd filesystem quota consistency checker
+.Nd file system quota consistency checker
 .Sh SYNOPSIS
 .Nm
 .Op Fl g
@@ -54,23 +54,24 @@
 .Op Fl v
 .Fl a
 .Sh DESCRIPTION
-.Nm Quotacheck
-examines each filesystem,
+The
+.Nm
+utility examines each file system,
 builds a table of current disk usage,
 and compares this table against that recorded
-in the disk quota file for the filesystem.
+in the disk quota file for the file system.
 If any inconsistencies are detected, both the
 quota file and the current system copy of the
 incorrect quotas are updated (the latter only
-occurs if an active filesystem is checked).
+occurs if an active file system is checked).
 By default both user and group quotas are checked.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl a
-If supplied in place of any filesystem names,
+If supplied in place of any file system names,
 .Nm
-will check all the filesystems indicated in
+will check all the file systems indicated in
 .Pa /etc/fstab
 to be read-write with disk quotas.
 By default only the types of quotas listed in
@@ -85,8 +86,7 @@ Only user quotas listed in
 .Pa /etc/fstab
 are to be checked.
 .It Fl v
-.Nm Quotacheck
-reports discrepancies between the
+Report discrepancies between the
 calculated and recorded disk quotas and other additional diagnostic messages.
 .El
 .Pp
@@ -95,7 +95,7 @@ Specifying both
 and
 .Fl u
 is equivalent to the default.
-Parallel passes are run on the filesystems required,
+Parallel passes are run on the file systems required,
 using the pass numbers in
 .Pa /etc/fstab
 in an identical fashion to
@@ -105,8 +105,9 @@ Normally,
 .Nm
 operates silently.
 .Pp
-.Nm Quotacheck
-expects each filesystem to be checked to have a
+The
+.Nm
+utility expects each file system to be checked to have a
 quota files named
 .Pa quota.user
 and
@@ -121,8 +122,9 @@ These files should be edited with the
 .Xr edquota 8
 utility.
 .Pp
-.Nm Quotacheck
-is normally run at boot time from the
+The
+.Nm
+utility is normally run at boot time from the
 .Pa /etc/rc
 file.
 The rc startup procedure is controlled by the
@@ -137,21 +139,22 @@ with the variable
 in
 .Pa /etc/rc.conf .
 .Pp
-.Nm Quotacheck
-accesses the raw device in calculating the actual
+The
+.Nm
+utility accesses the raw device in calculating the actual
 disk usage for each user.
-Thus, the filesystems
+Thus, the file systems
 checked should be quiescent while
 .Nm
 is running.
 .Sh FILES
 .Bl -tag -width quota.group -compact
 .It Pa quota.user
-at the filesystem root with user quotas
+at the file system root with user quotas
 .It Pa quota.group
-at the filesystem root with group quotas
+at the file system root with group quotas
 .It Pa /etc/fstab
-default filesystems
+default file systems
 .El
 .Sh SEE ALSO
 .Xr quota 1 ,
@@ -164,5 +167,5 @@ default filesystems
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.2 .
