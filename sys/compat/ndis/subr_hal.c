@@ -79,6 +79,7 @@ __stdcall static void hal_readport_buf_uchar(uint8_t *,
 __stdcall static uint8_t hal_lock(/*kspin_lock * */void);
 __stdcall static void hal_unlock(/*kspin_lock *, uint8_t*/void);
 __stdcall static uint8_t hal_irql(void);
+__stdcall static uint64_t hal_perfcount(uint64_t *);
 __stdcall static void dummy (void);
 
 extern struct mtx_pool *ndis_mtxpool;
@@ -231,7 +232,17 @@ hal_unlock(/*lock, newirql*/void)
 __stdcall static uint8_t
 hal_irql(void)
 {
-	return(0);
+	return(DISPATCH_LEVEL);
+}
+
+__stdcall static uint64_t
+hal_perfcount(freq)
+	uint64_t		*freq;
+{
+	if (freq != NULL)
+		*freq = hz;
+
+	return((uint64_t)ticks);
 }
 
 __stdcall
@@ -258,6 +269,7 @@ image_patch_table hal_functbl[] = {
 	{ "KfAcquireSpinLock", (FUNC)hal_lock },
 	{ "KfReleaseSpinLock", (FUNC)hal_unlock },
 	{ "KeGetCurrentIrql", (FUNC)hal_irql },
+	{ "KeQueryPerformanceCounter",	(FUNC)hal_perfcount },
 
 	/*
 	 * This last entry is a catch-all for any function we haven't

@@ -71,9 +71,9 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/ndis/pe_var.h>
 #include <compat/ndis/resource_var.h>
+#include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/ndis_var.h>
 #include <compat/ndis/hal_var.h>
-#include <compat/ndis/ntoskrnl_var.h>
 #include <compat/ndis/cfg_var.h>
 #include <dev/if_ndis/if_ndisvar.h>
 
@@ -1444,7 +1444,6 @@ ndis_load_driver(img, arg)
 	image_optional_header	opt_hdr;
 	image_import_descriptor imp_desc;
 	ndis_unicode_string	dummystr;
-	ndis_driver_object	drv;
         ndis_miniport_block     *block;
 	ndis_status		status;
 	int			idx;
@@ -1487,23 +1486,10 @@ ndis_load_driver(img, arg)
 	pe_get_optional_header(img, &opt_hdr);
 	entry = (driver_entry)pe_translate_addr(img, opt_hdr.ioh_entryaddr);
 
-	/*
-	 * Now call the DriverEntry() routine. This will cause
-	 * a callout to the NdisInitializeWrapper() and
-	 * NdisMRegisterMiniport() routines.
-	 */
-	dummystr.nus_len = strlen(NDIS_DUMMY_PATH);
-	dummystr.nus_maxlen = strlen(NDIS_DUMMY_PATH);
+	dummystr.nus_len = strlen(NDIS_DUMMY_PATH) * 2;
+	dummystr.nus_maxlen = strlen(NDIS_DUMMY_PATH) * 2;
 	dummystr.nus_buf = NULL;
 	ndis_ascii_to_unicode(NDIS_DUMMY_PATH, &dummystr.nus_buf);
-	drv.ndo_ifname = "ndis0";
-
-	status = entry(&drv, &dummystr);
-
-	free (dummystr.nus_buf, M_DEVBUF);
-
-	if (status != NDIS_STATUS_SUCCESS)
-		return(ENODEV);
 
 	/*
 	 * Now that we have the miniport driver characteristics,
@@ -1513,12 +1499,8 @@ ndis_load_driver(img, arg)
 	 */
 
 	block = &sc->ndis_block;
-	bcopy((char *)&drv.ndo_chars, (char *)&sc->ndis_chars,
-	    sizeof(ndis_miniport_characteristics));
 
-	/*block->nmb_signature = 0xcafebabe;*/
-
-		ptr = (uint32_t *)block;
+	ptr = (uint32_t *)block;
 	for (idx = 0; idx < sizeof(ndis_miniport_block) / 4; idx++) {
 		*ptr = idx | 0xdead0000;
 		ptr++;
@@ -1535,6 +1517,19 @@ ndis_load_driver(img, arg)
 	block->nmb_ifp = &sc->arpcom.ac_if;
 	block->nmb_dev = sc->ndis_dev;
 	block->nmb_img = img;
+	block->nmb_devobj.do_rsvd = block;
+
+	/*
+	 * Now call the DriverEntry() routine. This will cause
+	 * a callout to the NdisInitializeWrapper() and
+	 * NdisMRegisterMiniport() routines.
+	 */
+	status = entry(&block->nmb_devobj, &dummystr);
+
+	free (dummystr.nus_buf, M_DEVBUF);
+
+	if (status != NDIS_STATUS_SUCCESS)
+		return(ENODEV);
 
 	ndis_enlarge_thrqueue(8);
 
