@@ -578,23 +578,26 @@ SmartRAID IV SCSI/RAID controllers are supported.  The DPT SmartRAID/CACHE V
 is not yet supported.
 
 AMI MegaRAID Express and Enterprise family RAID controllers:
-    MegaRAID 418
-    MegaRAID Enterprise 1200 (428)
-    MegaRAID Enterprise 1300
-    MegaRAID Enterprise 1400
-    MegaRAID Enterprise 1500
-    MegaRAID Enterprise 1600
-    MegaRAID Elite 1500
-    MegaRAID Elite 1600
-    MegaRAID Express 200
-    MegaRAID Express 300
-    MegaRAID Express 500
+    MegaRAID Series 418
+    MegaRAID Enterprise 1200 (Series 428)
+    MegaRAID Enterprise 1300 (Series 434)
+    MegaRAID Enterprise 1400 (Series 438)
+    MegaRAID Enterprise 1500 (Series 467)
+    MegaRAID Enterprise 1600 (Series 471)
+    MegaRAID Elite 1500 (Series 467)
+    MegaRAID Elite 1600 (Series 493)
+    MegaRAID Express 100 (Series 466WS)
+    MegaRAID Express 200 (Series 466)
+    MegaRAID Express 300 (Series 490)
+    MegaRAID Express 500 (Series 475)
     Dell PERC
     Dell PERC 2/SC
     Dell PERC 2/DC
-Some HP NetRAID controllers are OEM versions of AMI designs, and
-these are also supported.  Booting from these controllers is 
-supported, but not possible due to SRM limitations.
+    HP NetRAID-1si
+    HP NetRAID-3si
+    HP Embedded NetRAID
+Booting from these controllers is supported, but not possible due to
+SRM limitations.
 
 Mylex DAC960 and DAC1100 RAID controllers with 2.x, 3.x, 4.x and 5.x 
 firmware:
