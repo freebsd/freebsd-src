@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.15 1998/10/25 17:44:51 phk Exp $
+ *	$Id: link_aout.c,v 1.16 1998/11/03 14:25:21 peter Exp $
  */
 
 #ifndef __alpha__
@@ -54,13 +54,6 @@ static int		link_aout_search_symbol(linker_file_t lf, caddr_t value,
 						linker_sym_t* sym, long* diffp);
 static void		link_aout_unload_file(linker_file_t);
 static void		link_aout_unload_module(linker_file_t);
-
-/*
- * The file representing the currently running kernel.  This contains
- * the global symbol table.
- */
-
-static linker_file_t linker_kernel_file;
 
 static struct linker_class_ops link_aout_class_ops = {
     link_aout_load_module,
@@ -308,8 +301,10 @@ load_dependancies(linker_file_t lf)
     /*
      * All files are dependant on /kernel.
      */
-    linker_kernel_file->refs++;
-    linker_file_add_dependancy(lf, linker_kernel_file);
+    if (linker_kernel_file) {
+	linker_kernel_file->refs++;
+	linker_file_add_dependancy(lf, linker_kernel_file);
+    }
 
     off = LD_NEED(af->dynamic);
 
