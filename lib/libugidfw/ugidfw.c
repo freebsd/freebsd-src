@@ -47,7 +47,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <ugidfw.h>
+#include "ugidfw.h"
 
 /*
  * Text format for rules: rules contain subjectand object elements, mode.
