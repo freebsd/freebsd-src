@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id$
+ * $Id: disklabe.h,v 1.4 1997/02/22 09:30:46 peter Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -100,7 +100,7 @@ struct disklabel {
 	 * the disklabel is read off the disk or in-core copy.
 	 * d_boot0 and d_boot1 are the (optional) names of the
 	 * primary (block 0) and secondary (block 1-15) bootstraps
-	 * as found in /usr/mdec.  These are returned when using
+	 * as found in /boot.  These are returned when using
 	 * getdiskbyname(3) to retrieve the values from /etc/disktab.
 	 */
 #if defined(KERNEL) || defined(STANDALONE)

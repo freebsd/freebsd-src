@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: newfs_msdos.c,v 1.5 1998/10/17 12:44:55 bde Exp $";
+	"$Id: newfs_msdos.c,v 1.6 1998/12/07 14:09:17 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -427,7 +427,7 @@ main(int argc, char *argv[])
     if (opt_B) {
 	bname = opt_B;
 	if (!strchr(bname, '/')) {
-	    snprintf(buf, sizeof(buf), "/usr/mdec/%s", bname);
+	    snprintf(buf, sizeof(buf), "/boot/%s", bname);
 	    if (!(bname = strdup(buf)))
 		err(1, NULL);
 	}

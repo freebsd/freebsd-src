@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.439 1998/12/24 08:55:05 jkh Exp $
+#	$Id: Makefile,v 1.440 1998/12/29 07:27:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -295,7 +295,7 @@ release.2:
 		make kprog \
 	)
 .endif
-	# XXX until lkm and mdec gets populated again by some other means
+	# XXX until lkm and gets populated again by some other means
 .if ${MACHINE_ARCH} == "i386"
 	cd ${.CURDIR}/.. && OBJFORMAT=aout MAKEOBJDIRPREFIX=/usr/obj/aout \
 		NOTOOLS=1 NOSECURE=1 NOCRYPT=1 \
@@ -491,7 +491,7 @@ release.9:
 	mkdir ${RD}/fixitfd
 	cd ${RD}/fixitfd && \
 		mkdir -p dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp \
-		usr/share/misc usr/mdec
+		usr/share/misc
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	( cd ${RD}/fixitfd/dev && \
@@ -502,11 +502,6 @@ release.9:
 		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	cp ${RD}/trees/bin/usr/share/misc/scsi_modes \
 		${RD}/fixitfd/usr/share/misc
-	cp ${RD}/trees/bin/usr/mdec/boot[12] ${RD}/fixitfd/usr/mdec
-	for type in fd od sd wd ; do \
-		( cd ${RD}/fixitfd/usr/mdec && ln -s boot1 $${type}boot && \
-			ln -s boot2 boot$${type} ) ; \
-	done
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
@@ -540,9 +535,6 @@ cdrom.1:
 	cd ${RD} && find floppies -print | cpio -dumpl ${CD_DISC1}
 	cd ${RD}/dists && find . -print | cpio -dumpl ${CD_DISC1}
 	ln -f ${RD}/kernels/MFSKERNEL.std ${CD_DISC1}/kernel
-.if ${MACHINE_ARCH} != "alpha"
-	ln -f ${RD}/trees/bin/usr/mdec/fbsdboot.exe ${CD_DISC1}
-.endif
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
