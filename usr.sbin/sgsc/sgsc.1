@@ -27,65 +27,71 @@
 .\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-.TH SGSC 1 "January 6, 1995" FreeBSD "FreeBSD Reference Manual"
-.SH NAME
-\fBsgsc\fP - set the options of the gsc scanner device
-.SH SYNOPSIS
-.TP 5
-\fBsgsc\fP
-[\fB-sq\fP]
-[\fB-b\fP\ \fIlen\fP]
-[\fB-f\fP\ \fIfile\fP]
-[\fB-h\fP\ \fIheight\fP]
-[\fB-r\fP\ \fIresolution\fP]
-[\fB-t\fP\ \fItimeout\fP]
-[\fB-w\fP\ \fIwidth\fP]
-.SH DESCRIPTION
-The \fBsgsc\fP utility provides shell level access to the ioctl
+.Dd January 6, 1995
+.Dt SGSC 1
+.Os
+.Sh NAME
+.Nm sgsc
+.Nd set the options of the gsc scanner device
+.Sh SYNOPSIS
+.Nm sgsc
+.Op Fl sq
+.Op Fl b Ar len
+.Op Fl f Ar file
+.Op Fl h Ar height
+.Op Fl r Ar resolution
+.Op Fl t Ar timeout
+.Op Fl w Ar width
+.Sh DESCRIPTION
+The
+.Nm
+utility provides shell level access to the ioctl
 requests served by the handy scanner device driver gsc. Please see
-gsc(4) for the exact meaning of the requests.  Generally they modify
-the output and behaviour of the gsc scanner device. When \fBsgsc\fP is
-called with no option only the current settings are reported.
-.SH OPTIONS
-.TP 3
-\fB-s\fP [GSC_SRESSW]
+.Xr gsc 4
+for the exact meaning of the requests.  Generally they modify
+the output and behaviour of the gsc scanner device. When
+.Nm
+is called with no option only the current settings are reported.
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl s Ar [GSC_SRESSW]
 Set the scanner with the values of the resolution selector switch.
-.TP
-\fB-q\fP
+.It Fl q
 Operate in quiet mode, i.e. do not report any of the current settings.
 Normally the parameters are shown after the modifications have been
 performed.
-.TP
-\fB-f\fP \fIfile\fP
+.It Fl f Ar file
 Operate on a different scanner device node given by filename. Note
 that even though there may exist more than one node of scanner device
 several of them will refer the same device unit. The modifications are
 performed od the unit regardless of the device node by which it is
 accessed.
-.TP
-\fB-r\fP \fIresolution\fP [GSC_SRES]
+.It Fl r Ar resolution [GSC_SRES]
 Set the resolution in dpi.
-.TP
-\fB-w\fP \fIwidth\fP [GSC_SWIDHT]
+.It Fl w Ar width [GSC_SWIDHT]
 Set the width of the bitmap in pixels.
-.TP
-\fB-h\fP \fIheight\fP [GSC_SHEIGHT]
+.It Fl h Ar height [GSC_SHEIGHT]
 Set the height of the bitmap in lines of pixels.
-.TP
-\fB-b\fP \fIlen\fP [GSC_SBLEN]
-Set the internal dma buffer to be \fIlen\fP lines in size.
-.TP
-\fB-t\fP \fItimeout\fP [GSC_SBTIME]
+.It Fl b Ar len [GSC_SBLEN]
+Set the internal dma buffer to be
+.Ar len
+lines in size.
+.It Fl t Ar timeout [GSC_SBTIME]
 Set the timeout time for reading one dma buffer.
-.SH FILES
-.TP 15
-.BI /dev/gsc0
-device node for \fIraw\fP output.
-.TP
-.BI /dev/gsc0p
-device node for output in \fIpbm\fP file format.
-.PB
-.SH SEE ALSO
-gsc(4)
-.SH AUTHOR
-Gunther Schadow <gusw@fub46.zedat.fu-berlin.de>
+.El
+.Sh FILES
+.Bl -tag -width /dev/gsc0p -compact
+.It Pa /dev/gsc0
+device node for
+.Em raw
+output
+.It Pa /dev/gsc0p
+device node for output in
+.Em pbm
+file format
+.El
+.Sh SEE ALSO
+.Xr gsc 4
+.Sh AUTHOR
+.An Gunther Schadow Aq gusw@fub46.zedat.fu-berlin.de
