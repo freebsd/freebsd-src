@@ -56,7 +56,7 @@
  *
  *	--------- DEPRECIATED ---------
  *
- *	$Id: subr_rlist.c,v 1.29 1999/01/10 01:58:25 eivind Exp $
+ *	$Id: subr_rlist.c,v 1.30 1999/01/21 08:29:04 dillon Exp $
  */
 
 #if 0
