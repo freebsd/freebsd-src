@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.18.2.1 1997/08/28 06:24:41 charnier Exp $";
+	"$Id: xinstall.c,v 1.27 1997/10/28 14:20:10 ache Exp $";
 #endif /* not lint */
 
 /*-
@@ -82,6 +82,11 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
+/* Bootstrap aid - this doesn't exist in most older releases */
+#ifndef MAP_FAILED
+#define MAP_FAILED ((caddr_t)-1)	/* from <sys/mman.h> */
+#endif
+
 int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
@@ -104,8 +109,8 @@ int	trymmap __P((int));
 #define ALLOW_NUMERIC_IDS 1
 #ifdef ALLOW_NUMERIC_IDS
 
-uid_t	uid;
-gid_t	gid;
+uid_t   uid = -1;
+gid_t   gid = -1;
 
 uid_t	resolve_uid __P((char *));
 gid_t	resolve_gid __P((char *));
@@ -131,7 +136,7 @@ main(argc, argv)
 	char *flags, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) !=  -1)
+	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) != -1)
 		switch((char)ch) {
 		case 'C':
 			docompare = docopy = 1;
@@ -180,7 +185,7 @@ main(argc, argv)
 	argv += optind;
 
 	/* some options make no sense when creating directories */
-	if ((docompare || dostrip) && dodir)
+	if (dostrip && dodir)
 		usage();
 
 	/* must have at least two arguments, except when creating directories */
@@ -383,8 +388,16 @@ install(from_name, to_name, fset, flags)
 		(void)close(from_fd);
 	}
 
-	if (dostrip)
+	if (dostrip) {
+		(void)close(to_fd);
+
 		strip(to_name);
+
+		/* Reopen target. */
+		to_fd = open(to_name, O_RDWR, 0);
+		if (to_fd < 0)
+			err(EX_OSERR, "%s", to_name);
+	}
 
 	/*
 	 * Unfortunately, because we strip the installed file and not the
@@ -515,11 +528,11 @@ compare(int from_fd, const char *from_name, int to_fd, const char *to_name,
 	if (tsize <= 8 * 1024 * 1024) {
 		done_compare = 0;
 		if (trymmap(from_fd) && trymmap(to_fd)) {
-			p = mmap(NULL, tsize, PROT_READ, 0, from_fd, (off_t)0);
-			if ((long)p == -1)
+			p = mmap(NULL, tsize, PROT_READ, MAP_SHARED, from_fd, (off_t)0);
+			if (p == (char *)MAP_FAILED)
 				goto out;
-			q = mmap(NULL, tsize, PROT_READ, 0, to_fd, (off_t)0);
-			if ((long)q == -1) {
+			q = mmap(NULL, tsize, PROT_READ, MAP_SHARED, to_fd, (off_t)0);
+			if (q == (char *)MAP_FAILED) {
 				munmap(p, tsize);
 				goto out;
 			}
@@ -583,7 +596,7 @@ copy(from_fd, from_name, to_fd, to_name, size)
 	done_copy = 0;
 	if (size <= 8 * 1048576 && trymmap(from_fd)) {
 		if ((p = mmap(NULL, (size_t)size, PROT_READ,
-				0, from_fd, (off_t)0)) == (char *)-1)
+				MAP_SHARED, from_fd, (off_t)0)) == (char *)MAP_FAILED)
 			goto out;
 		if ((nw = write(to_fd, p, size)) != size) {
 			serrno = errno;
@@ -656,19 +669,20 @@ install_dir(path)
 			ch = *p;
 			*p = '\0';
 			if (stat(path, &sb)) {
-				if (errno != ENOENT || mkdir(path, 0777) < 0) {
-					err(EX_OSERR, "%s", path);
+				if (errno != ENOENT || mkdir(path, 0755) < 0) {
+					err(EX_OSERR, "mkdir %s", path);
 					/* NOTREACHED */
 				}
-			}
+			} else if (!S_ISDIR(sb.st_mode))
+				errx(EX_OSERR, "%s exists but is not a directory", path);
 			if (!(*p = ch))
 				break;
  		}
 
-	if (((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid)) ||
-	    chmod(path, mode)) {
-		warn("%s", path);
-	}
+	if ((gid != (gid_t)-1 || uid != (uid_t)-1) && chown(path, uid, gid))
+		warn("chown %u:%u %s", uid, gid, path);
+	if (chmod(path, mode))
+		warn("chmod %o %s", mode, path);
 }
 
 /*
