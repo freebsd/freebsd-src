@@ -913,6 +913,13 @@ typedef struct bus_dma_segment	bus_dma_segment_t;
 typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 
 /*
+ * Like bus_dmamap_callback but includes map size in bytes.  This is
+ * defined as a separate interface to maintain compatiiblity for users
+ * of bus_dmamap_callback_t--at some point these interfaces should be merged.
+ */
+typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
+
+/*
  *	bus_dma_tag_t
  *
  *	A machine-dependent opaque type describing the implementation of
@@ -942,6 +949,10 @@ struct bus_dma_tag {
 	int	(*dmamap_destroy)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 	int	(*dmamap_load)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 	    void *, bus_size_t, bus_dmamap_callback_t *, void *, int);
+	int	(*dmamap_load_mbuf)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+	    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
+	int	(*dmamap_load_uio)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
+	    struct uio *, bus_dmamap_callback2_t *, void *, int);
 	void	(*dmamap_unload)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t);
 	void	(*dmamap_sync)(bus_dma_tag_t, bus_dma_tag_t, bus_dmamap_t,
 	    bus_dmasync_op_t);
@@ -1009,6 +1020,32 @@ sparc64_dmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 }
 #define	bus_dmamap_load(t, m, p, s, cb, cba, f)				\
 	sparc64_dmamap_load((t), (t), (m), (p), (s), (cb), (cba), (f))
+
+static __inline int
+sparc64_dmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
+    struct mbuf *mb, bus_dmamap_callback2_t *cb, void *cba, int f)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_load == NULL; lt = lt->parent)
+		;
+	return ((*lt->dmamap_load_mbuf)(lt, dt, m, mb, cb, cba, f));
+}
+#define	bus_dmamap_load_mbuf(t, m, mb, cb, cba, f)				\
+	sparc64_dmamap_load_mbuf((t), (t), (m), (mb), (cb), (cba), (f))
+
+static __inline int
+sparc64_dmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
+    struct uio *ui, bus_dmamap_callback2_t *cb, void *cba, int f)
+{
+	bus_dma_tag_t lt;
+
+	for (lt = pt; lt->dmamap_load == NULL; lt = lt->parent)
+		;
+	return ((*lt->dmamap_load_uio)(lt, dt, m, ui, cb, cba, f));
+}
+#define	bus_dmamap_load_uio(t, m, ui, cb, cba, f)				\
+	sparc64_dmamap_load_uio((t), (t), (m), (ui), (cb), (cba), (f))
 
 static __inline void
 sparc64_dmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t p)
