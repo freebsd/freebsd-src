@@ -563,7 +563,7 @@
       <para arch="i386,ia64">The &man.arcmsr.4; driver has been added.
 	It supports the Areca ARC-11<replaceable>xx</replaceable> and
 	ARC-12<replaceable>xx</replaceable> series of SATA RAID
-	controllers.</para>
+	controllers.  &merged;</para>
 
       <para>The SHSEC GEOM class has been added.  It provides for the
 	sharing of a secret between multiple GEOM providers.  All of
