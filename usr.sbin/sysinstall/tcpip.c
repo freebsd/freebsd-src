@@ -391,7 +391,7 @@ netconfig:
 	    sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	variable_set2(ifn, temp, 1);
 	ifaces = variable_get(VAR_INTERFACES);
-	if (!ifaces || !strcmp(ifaces, "auto"))
+	if (!ifaces || (ifaces && !strcmp(ifaces, "auto")))
 	    variable_set2(VAR_INTERFACES, ifaces = "lo0", 1);
 	/* Only add it if it's not there already */
 	if (!strstr(ifaces, devp->name)) {
