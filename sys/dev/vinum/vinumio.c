@@ -33,14 +33,9 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.21 1999/05/02 07:51:20 grog Exp $
+ * $Id: vinumio.c,v 1.24 1999/03/23 02:00:52 grog Exp grog $
  */
 
-#define STATIC						    /* nothing while we're testing XXX */
-
-#include "opt_vinum.h"
-
-#define REALLYKERNEL
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <miscfs/specfs/specdev.h>

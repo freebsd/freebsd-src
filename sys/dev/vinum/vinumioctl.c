@@ -40,13 +40,10 @@
  * $Id: vinumioctl.c,v 1.8 1999/03/23 02:46:39 grog Exp grog $
  */
 
-#define STATIC						    /* nothing while we're testing XXX */
-
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
+
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
 #endif

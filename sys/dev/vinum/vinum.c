@@ -38,8 +38,6 @@
 
 #define STATIC static					    /* nothing while we're testing XXX */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
 #ifdef VINUMDEBUG

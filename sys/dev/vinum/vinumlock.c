@@ -36,8 +36,6 @@
  * $Id: vinumlock.c,v 1.9 1999/03/13 03:26:00 grog Exp grog $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 
 /*

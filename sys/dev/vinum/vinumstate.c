@@ -36,8 +36,6 @@
  * $Id: vinumstate.c,v 2.11 1999/03/13 04:47:09 grog Exp grog $
  */
 
-#define REALLYKERNEL
-#include "opt_vinum.h"
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
