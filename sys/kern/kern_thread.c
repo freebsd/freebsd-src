@@ -429,10 +429,10 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	KASSERT((td->td_upcall != NULL), ("%s: not own an upcall", __func__));
 
 	kg = td->td_ksegrp;
-	/* Serialize killing KSE */
+	/* Serialize removing upcall */
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	if ((kg->kg_kses == 1) && (kg->kg_numthreads > 1)) {
+	if ((kg->kg_numupcalls == 1) && (kg->kg_numthreads > 1)) {
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		return (EDEADLK);
