@@ -888,3 +888,4 @@ static moduledata_t ieee80211_mod = {
 DECLARE_MODULE(wlan, ieee80211_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 MODULE_VERSION(wlan, 1);
 MODULE_DEPEND(wlan, rc4, 1, 1, 1);
+MODULE_DEPEND(wlan, ether, 1, 1, 1);
