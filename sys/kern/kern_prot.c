@@ -174,19 +174,14 @@ getpgid(td, uap)
 	mtx_lock(&Giant);
 	if (uap->pid == 0)
 		td->td_retval[0] = p->p_pgrp->pg_id;
+	else if ((pt = pfind(uap->pid)) == NULL)
+		error = ESRCH;
 	else {
-		if ((pt = pfind(uap->pid)) == NULL) {
-			error = ESRCH;
-			goto done2;
-		}
-		if ((error = p_cansee(p, pt))) {
-			PROC_UNLOCK(pt);
-			goto done2;
-		}
-		td->td_retval[0] = pt->p_pgrp->pg_id;
+		error = p_cansee(p, pt);
+		if (error == 0)
+			td->td_retval[0] = pt->p_pgrp->pg_id;
 		PROC_UNLOCK(pt);
 	}
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -213,21 +208,16 @@ getsid(td, uap)
 	int error = 0;
 
 	mtx_lock(&Giant);
-	if (uap->pid == 0) {
+	if (uap->pid == 0)
 		td->td_retval[0] = p->p_session->s_sid;
-	} else {
-		if ((pt = pfind(uap->pid)) == NULL) {
-			error = ESRCH;
-			goto done2;
-		}
-		if ((error = p_cansee(p, pt))) {
-			PROC_UNLOCK(pt);
-			goto done2;
-		}
-		td->td_retval[0] = pt->p_session->s_sid;
+	else if ((pt = pfind(uap->pid)) == NULL)
+		error = ESRCH;
+	else {
+		error = p_cansee(p, pt);
+		if (error == 0)
+			td->td_retval[0] = pt->p_session->s_sid;
 		PROC_UNLOCK(pt);
 	}
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
