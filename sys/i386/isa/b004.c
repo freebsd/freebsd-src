@@ -55,6 +55,8 @@
 /* #include "buf.h" */
 /* #include "kernel.h"  */
 #include <sys/uio.h>
+#include <sys/devconf.h>
+#include <i386/isa/isa.h>
 /* #include "sys/ioctl.h" */
 /* #include "syslog.h" */
 
