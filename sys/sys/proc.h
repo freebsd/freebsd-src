@@ -486,6 +486,8 @@ struct ksegrp {
 	int		kg_numupcalls;	/* (j) Num upcalls */
 	int		kg_upsleeps;	/* (c) Num threads in kse_release() */
 	struct kse_thr_mailbox *kg_completed; /* (c) completed thread mboxes */
+	int		kg_nextupcall;	/* next upcall time */
+	int		kg_upquantum;	/* quantum to schedule an upcall */
 #define	kg_endzero kg_pri_class
 
 #define	kg_startcopy	kg_endzero
@@ -946,7 +948,8 @@ void	upcall_unlink(struct kse_upcall *ku);
 void	upcall_remove(struct thread *td);
 void	upcall_stash(struct kse_upcall *ke);
 void	thread_sanity_check(struct thread *td, char *);
-void	thread_stopped(struct proc *);
+void	thread_stopped(struct proc *p);
+void	thread_switchout(struct thread *td);
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_PROC_H_ */

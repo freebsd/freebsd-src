@@ -501,8 +501,9 @@ mi_switch(void)
 	PCPU_SET(switchtime, new_switchtime);
 	CTR3(KTR_PROC, "mi_switch: old thread %p (pid %d, %s)", td, p->p_pid,
 	    p->p_comm);
-
 	sched_nest = sched_lock.mtx_recurse;
+	if (td->td_proc->p_flag & P_THREADED)
+		thread_switchout(td);
 	sched_switchout(td);
 
 	cpu_switch();		/* SHAZAM!!*/
