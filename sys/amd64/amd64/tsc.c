@@ -78,6 +78,13 @@ init_TSC(void)
 	if (bootverbose)
 		printf("TSC clock: %lu Hz\n", tsc_freq);
 
+	return;
+}
+
+void
+init_TSC_tc(void)
+{
+
 	if (tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);

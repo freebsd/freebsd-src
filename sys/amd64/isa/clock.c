@@ -896,6 +896,8 @@ cpu_initclocks()
 	intr_restore(crit);
 
 	writertc(RTC_STATUSB, rtc_statusb);
+
+	init_TSC_tc();
 }
 
 void
