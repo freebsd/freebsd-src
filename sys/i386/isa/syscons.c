@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.267 1998/07/15 12:18:17 bde Exp $
+ *  $Id: syscons.c,v 1.268 1998/08/03 09:09:34 yokota Exp $
  */
 
 #include "sc.h"
@@ -96,6 +96,8 @@
 
 #define MODE_MAP_SIZE		(M_VGA_CG320 + 1)
 #define MODE_PARAM_SIZE		64
+
+#define MAX_BLANKTIME		(7*24*60*60)	/* 7 days!? */
 
 /* for backward compatibility */
 #define OLD_CONS_MOUSECTL	_IOWR('c', 10, old_mouse_info_t)
@@ -1041,7 +1043,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	return 0;
 
     case CONS_BLANKTIME:    	/* set screen saver timeout (0 = no saver) */
-	if (*(int *)data < 0)
+	if (*(int *)data < 0 || *(int *)data > MAX_BLANKTIME)
             return EINVAL;
 	scrn_blank_time = *(int *)data;
 	if (scrn_blank_time == 0)
