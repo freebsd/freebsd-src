@@ -7,7 +7,7 @@
  * for some annoying circumstances.)
  */
 /*
- * $Id$
+ * $Id: procctl.c,v 1.1 1997/12/06 04:19:09 sef Exp $
  */
 
 #include <stdio.h>
@@ -39,13 +39,11 @@ main(int ac, char **av) {
 	      av[0], av[i], strerror(errno));
       continue;
     }
-    mask = ~0;
-    if (ioctl(fd, PIOCBIC, &mask) == -1) {
+    if (ioctl(fd, PIOCBIC, ~0) == -1) {
       fprintf(stderr, "%s:  cannot clear process %s's event mask: %s\n",
 	      av[0], av[i], strerror(errno));
     }
-    mask = 0;
-    if (ioctl(fd, PIOCCONT, &mask) == -1 && errno != EINVAL) {
+    if (ioctl(fd, PIOCCONT, 0) == -1 && errno != EINVAL) {
       fprintf(stderr, "%s:  cannot continue process %s:  %s\n",
 	      av[0], av[i], strerror(errno));
     }

@@ -3,7 +3,7 @@
  * I'm afraid.
  */
 /*
- * $Id: setup.c,v 1.3 1997/12/06 14:42:58 peter Exp $
+ * $Id: setup.c,v 1.4 1997/12/07 04:08:48 sef Exp $
  */
 
 #include <stdio.h>
@@ -47,7 +47,7 @@ setup_and_wait(char *command[]) {
     if (fd == -1)
       err(2, "cannot open /proc/curproc/mem");
     fcntl(fd, F_SETFD, 1);
-    if (ioctl(fd, PIOCBIS, &mask) == -1)
+    if (ioctl(fd, PIOCBIS, mask) == -1)
       err(3, "PIOCBIS");
     flags = PF_LINGER;
     /*
@@ -55,11 +55,11 @@ setup_and_wait(char *command[]) {
      * process on last close; normally, this is the behaviour
      * we want.
      */
-    if (ioctl(fd, PIOCSFL, &flags) == -1)
+    if (ioctl(fd, PIOCSFL, flags) == -1)
       perror("cannot set PF_LINGER");
     execvp(command[0], command);
     mask = ~0;
-    ioctl(fd, PIOCBIC, &mask);
+    ioctl(fd, PIOCBIC, ~0);
     err(4, "execvp %s", command[0]);
   }
   /* Only in the parent here */
@@ -78,9 +78,8 @@ setup_and_wait(char *command[]) {
   if (ioctl(fd, PIOCWAIT, &pfs) == -1)
     err(6, "PIOCWAIT");
   if (pfs.why == S_EXIT) {
-    int zero = 0;
     fprintf(stderr, "process exited before exec'ing\n");
-    ioctl(fd, PIOCCONT, &zero);
+    ioctl(fd, PIOCCONT, 0);
     wait(0);
     exit(7);
   }
@@ -110,7 +109,7 @@ start_tracing(int pid, int flags) {
   }
   evflags = tmp.events;
 
-  if (ioctl(fd, PIOCBIS, &flags) == -1)
+  if (ioctl(fd, PIOCBIS, flags) == -1)
     err(9, "cannot set procfs event bit mask");
 
   /*
@@ -119,8 +118,7 @@ start_tracing(int pid, int flags) {
    * needs to be woken up via procctl.
    */
 
-  flags = 0;
-  if (ioctl(fd, PIOCSFL, &flags) == -1)
+  if (ioctl(fd, PIOCSFL, 0) == -1)
     perror("cannot clear PF_LINGER");
 
   return fd;
@@ -135,11 +133,9 @@ start_tracing(int pid, int flags) {
 void
 restore_proc(int signo) {
   extern int Procfd;
-  int i;
 
-  i = ~0;
-  ioctl(Procfd, PIOCBIC, &i);
+  ioctl(Procfd, PIOCBIC, ~0);
   if (evflags)
-    ioctl(Procfd, PIOCBIS, &evflags);
+    ioctl(Procfd, PIOCBIS, evflags);
   exit(0);
 }
