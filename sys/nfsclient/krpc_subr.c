@@ -1,5 +1,5 @@
 /*	$NetBSD: krpc_subr.c,v 1.12.4.1 1996/06/07 00:52:26 cgd Exp $	*/
-/*	$Id:$	*/
+/*	$Id: krpc_subr.c,v 1.2 1997/05/11 18:05:39 tegge Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -494,99 +494,5 @@ xdr_string_encode(str, len)
 	m->m_len = mlen;
 	xs->len = txdr_unsigned(len);
 	bcopy(str, xs->data, len);
-	return (m);
-}
-
-struct mbuf *
-xdr_string_decode(m, str, len_p)
-	struct mbuf *m;
-	char *str;
-	int *len_p;		/* bufsize - 1 */
-{
-	struct xdr_string *xs;
-	int mlen;	/* message length */
-	int slen;	/* string length */
-
-	if (m->m_len < 4) {
-		m = m_pullup(m, 4);
-		if (m == NULL)
-			return (NULL);
-	}
-	xs = mtod(m, struct xdr_string *);
-	slen = fxdr_unsigned(u_int32_t, xs->len);
-	mlen = 4 + ((slen + 3) & ~3);
-
-	if (slen > *len_p)
-		slen = *len_p;
-	m_copydata(m, 4, slen, str);
-	m_adj(m, mlen);
-
-	str[slen] = '\0';
-	*len_p = slen;
-
-	return (m);
-}
-
-
-/*
- * Inet address in RPC messages
- * (Note, really four ints, NOT chars.  Blech.)
- */
-struct xdr_inaddr {
-	u_int32_t atype;
-	u_int32_t addr[4];
-};
-
-struct mbuf *
-xdr_inaddr_encode(ia)
-	struct in_addr *ia;		/* already in network order */
-{
-	struct mbuf *m;
-	struct xdr_inaddr *xi;
-	u_int8_t *cp;
-	u_int32_t *ip;
-
-	m = m_get(M_WAIT, MT_DATA);
-	xi = mtod(m, struct xdr_inaddr *);
-	m->m_len = sizeof(*xi);
-	xi->atype = txdr_unsigned(1);
-	ip = xi->addr;
-	cp = (u_int8_t *)&ia->s_addr;
-	*ip++ = txdr_unsigned(*cp++);
-	*ip++ = txdr_unsigned(*cp++);
-	*ip++ = txdr_unsigned(*cp++);
-	*ip++ = txdr_unsigned(*cp++);
-
-	return (m);
-}
-
-struct mbuf *
-xdr_inaddr_decode(m, ia)
-	struct mbuf *m;
-	struct in_addr *ia;		/* already in network order */
-{
-	struct xdr_inaddr *xi;
-	u_int8_t *cp;
-	u_int32_t *ip;
-
-	if (m->m_len < sizeof(*xi)) {
-		m = m_pullup(m, sizeof(*xi));
-		if (m == NULL)
-			return (NULL);
-	}
-	xi = mtod(m, struct xdr_inaddr *);
-	if (xi->atype != txdr_unsigned(1)) {
-		ia->s_addr = INADDR_ANY;
-		goto out;
-	}
-	ip = xi->addr;
-	cp = (u_int8_t *)&ia->s_addr;
-	*cp++ = fxdr_unsigned(u_int8_t, *ip++);
-	*cp++ = fxdr_unsigned(u_int8_t, *ip++);
-	*cp++ = fxdr_unsigned(u_int8_t, *ip++);
-	*cp++ = fxdr_unsigned(u_int8_t, *ip++);
-
-out:
-	m_adj(m, sizeof(*xi));
 	return (m);
 }
