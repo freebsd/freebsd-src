@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -22,6 +17,9 @@ static const char rcsid[] =
  * This is the main body of the delete module.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include "lib.h"
@@ -89,14 +87,14 @@ pkg_perform(char **pkgs)
 		 */
 		rbtmp = rb = alloca((errcode + 1) * sizeof(*rb));
 		if (rb == NULL) {
-		    warnx("%s(): alloca() failed", __FUNCTION__);
+		    warnx("%s(): alloca() failed", __func__);
 		    err_cnt++;
 		    continue;
 		}
 		STAILQ_FOREACH(rb_entry, rb_list, link) {
 		    *rbtmp = alloca(strlen(rb_entry->pkgname) + 1);
 		    if (*rbtmp == NULL) {
-			warnx("%s(): alloca() failed", __FUNCTION__);
+			warnx("%s(): alloca() failed", __func__);
 			err_cnt++;
 			continue;
 		    }
@@ -150,7 +148,7 @@ pkg_do(char *pkg)
 
     if (!getcwd(home, FILENAME_MAX)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to get current working directory!");
+	errx(2, "%s: unable to get current working directory!", __func__);
     }
 
     sprintf(LogDir, "%s/%s", LOG_DIR, pkg);
@@ -252,7 +250,8 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to return to working directory %s!", home);
+	errx(2, "%s: unable to return to working directory %s!", __func__,
+	    home);
     }
 
     /*
@@ -284,7 +283,8 @@ pkg_do(char *pkg)
 
     if (chdir(home) == FAIL) {
  	cleanup(0);
-	errx(2, __FUNCTION__ ": unable to return to working directory %s!", home);
+	errx(2, "%s: unable to return to working directory %s!", __func__,
+	    home);
     }
 
     if (!Fake) {
@@ -326,7 +326,8 @@ sanity_check(char *pkg)
 {
     if (!fexists(CONTENTS_FNAME)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": installed package %s has no %s file!", pkg, CONTENTS_FNAME);
+	errx(2, "%s: installed package %s has no %s file!", __func__,
+	    pkg, CONTENTS_FNAME);
     }
 }
 

@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -23,6 +18,9 @@ static const char rcsid[] =
  * among installed packages.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
@@ -184,7 +182,7 @@ requiredby(const char *pkgname, struct reqr_by_head **list, Boolean strict, Bool
 	retval++;
 	rb_entry = malloc(sizeof(*rb_entry));
 	if (rb_entry == NULL) {
-	    warnx("%s(): malloc() failed", __FUNCTION__);
+	    warnx("%s(): malloc() failed", __func__);
 	    retval = -1;
 	    break;
 	}

@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -22,6 +17,9 @@ static const char rcsid[] =
  * Various display routines for the info module.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include "info.h"
@@ -181,7 +179,8 @@ show_plist(const char *title, Package *plist, plist_t type, Boolean showall)
 
 	default:
 	    cleanup(0);
-	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", p->type, p->name);
+	    errx(2, "%s: unknown command type %d (%s)",
+		__func__, p->type, p->name);
 	    break;
 	}
 	p = p->next;

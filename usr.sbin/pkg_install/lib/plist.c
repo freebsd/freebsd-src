@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintainance
  * of non-core utilities.
@@ -22,6 +17,9 @@ static const char rcsid[] =
  * General packing list routines.
  *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
@@ -278,7 +276,7 @@ read_plist(Package *pkg, FILE *fp)
 	cmd = plist_cmd(pline + 1, &cp);
 	if (cmd == FAIL) {
 	    cleanup(0);
-	    errx(2, __FUNCTION__ ": bad command '%s'", pline);
+	    errx(2, "%s: bad command '%s'", __func__, pline);
 	}
 	if (*cp == '\0') {
 	    cp = NULL;
@@ -387,7 +385,8 @@ write_plist(Package *pkg, FILE *fp)
 
 	default:
 	    cleanup(0);
-	    errx(2, __FUNCTION__ ": unknown command type %d (%s)", plist->type, plist->name);
+	    errx(2, "%s: unknown command type %d (%s)", __func__,
+		plist->type, plist->name);
 	    break;
 	}
 	plist = plist->next;

@@ -1,8 +1,3 @@
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
-
 /*
  * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
@@ -19,6 +14,15 @@ static const char rcsid[] =
  * Maxim Sobolev
  * 31 July 2001
  *
+ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include "lib.h"
+#include <err.h>
+
+/*
  * Routines to assist with PLIST_FMT_VER numbers in the packing
  * lists.
  *
@@ -28,10 +32,6 @@ static const char rcsid[] =
  *	 value instead of the hash of an object this links points to.
  *
  */
-
-#include "lib.h"
-#include <err.h>
-
 int
 verscmp(Package *pkg, int major, int minor)
 {

@@ -90,7 +90,8 @@ pkg_perform(char **pkgs)
 	pkg_in = fopen(Contents, "r");
 	if (!pkg_in) {
 	    cleanup(0);
-	    errx(2, __FUNCTION__ ": unable to open contents file '%s' for input", Contents);
+	    errx(2, "%s: unable to open contents file '%s' for input",
+		__func__, Contents);
 	}
     }
     plist.head = plist.tail = NULL;
@@ -114,7 +115,7 @@ pkg_perform(char **pkgs)
 	    /* Create easy to use NULL-terminated list */
 	    deps = alloca(sizeof(*deps) * ndeps + 1);
 	    if (deps == NULL) {
-		errx(2, "%s: alloca() failed", __FUNCTION__);
+		errx(2, "%s: alloca() failed", __func__);
 		/* Not reached */
 	    }
 	    for (i = 0; Pkgdeps;) {
@@ -171,7 +172,7 @@ pkg_perform(char **pkgs)
 
     if (asprintf(&cp, "PKG_FORMAT_REVISION:%d.%d", PLIST_FMT_VER_MAJOR,
 		 PLIST_FMT_VER_MINOR) == -1) {
-	errx(2, "%s: asprintf() failed", __FUNCTION__);
+	errx(2, "%s: asprintf() failed", __func__);
     }
     add_plist_top(&plist, PLIST_COMMENT, cp);
     free(cp);
@@ -251,12 +252,14 @@ pkg_perform(char **pkgs)
     fp = fopen(CONTENTS_FNAME, "w");
     if (!fp) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": can't open file %s for writing", CONTENTS_FNAME);
+	errx(2, "%s: can't open file %s for writing",
+	    __func__, CONTENTS_FNAME);
     }
     write_plist(&plist, fp);
     if (fclose(fp)) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": error while closing %s", CONTENTS_FNAME);
+	errx(2, "%s: error while closing %s",
+	    __func__, CONTENTS_FNAME);
     }
 
     /* And stick it into a tar ball */
@@ -321,11 +324,11 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     /* Set up a pipe for passing the filenames, and fork off a tar process. */
     if (pipe(pipefds) == -1) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": cannot create pipe");
+	errx(2, "%s: cannot create pipe", __func__);
     }
     if ((pid = fork()) == -1) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": cannot fork process for tar");
+	errx(2, "%s: cannot fork process for tar", __func__);
     }
     if (pid == 0) {	/* The child */
 	dup2(pipefds[0], 0);
@@ -333,14 +336,14 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
 	close(pipefds[1]);
 	execv("/usr/bin/tar", (char * const *)(uintptr_t)args);
 	cleanup(0);
-	errx(2, __FUNCTION__ ": failed to execute tar command");
+	errx(2, "%s: failed to execute tar command", __func__);
     }
 
     /* Meanwhile, back in the parent process ... */
     close(pipefds[0]);
     if ((totar = fdopen(pipefds[1], "w")) == NULL) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": fdopen failed");
+	errx(2, "%s: fdopen failed", __func__);
     }
 
     fprintf(totar, "%s\n", CONTENTS_FNAME);
@@ -376,7 +379,7 @@ make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist
     /* assume either signal or bad exit is enough for us */
     if (ret) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": tar command failed with code %d", ret);
+	errx(2, "%s: tar command failed with code %d", __func__, ret);
     }
 }
 
@@ -385,15 +388,18 @@ sanity_check()
 {
     if (!Comment) {
 	cleanup(0);
-	errx(2, __FUNCTION__ ": required package comment string is missing (-c comment)");
+	errx(2, "%s: required package comment string is missing (-c comment)",
+	    __func__);
     }
     if (!Desc) {
 	cleanup(0);
-	errx(2,	__FUNCTION__ ": required package description string is missing (-d desc)");
+	errx(2,	"%s: required package description string is missing (-d desc)",
+	    __func__);
     }
     if (!Contents) {
 	cleanup(0);
-	errx(2,	__FUNCTION__ ": required package contents list is missing (-f [-]file)");
+	errx(2,	"%s: required package contents list is missing (-f [-]file)",
+	    __func__);
     }
 }
 
