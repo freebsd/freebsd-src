@@ -1196,6 +1196,7 @@ ata_promise_chipinit(device_t dev)
 	}
 	break;
     }
+
     ctlr->setmode = ata_promise_setmode;
     return 0;
 }
@@ -1212,8 +1213,8 @@ ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
     }
     ch->r_io[ATA_ALTSTAT].res = ctlr->r_io2;
     ch->r_io[ATA_ALTSTAT].offset = 0x238 + (ch->unit << 7);
-    ch->r_io[ATA_BMCTL_PORT].res = ctlr->r_io2;
-    ch->r_io[ATA_BMCTL_PORT].offset = 0x260 + (ch->unit << 7);
+    ch->r_io[ATA_BMCMD_PORT].res = ctlr->r_io2;
+    ch->r_io[ATA_BMCMD_PORT].offset = 0x260 + (ch->unit << 7);
     ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_io2;
     ch->r_io[ATA_BMDTP_PORT].offset = 0x244 + (ch->unit << 7);
     ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_io2;
@@ -1357,7 +1358,7 @@ ata_promise_setmode(struct ata_device *atadev, int mode)
    
     case PRMIO:
 	if (mode > ATA_UDMA2 &&
-	    (ATA_IDX_INL(atadev->channel, ATA_BMCTL_PORT) & 0x01000000)) {
+	    (ATA_IDX_INL(atadev->channel, ATA_BMCMD_PORT) & 0x01000000)) {
 	    ata_prtdev(atadev,
 		       "DMA limited to UDMA33, non-ATA66 cable or device\n");
 	    mode = ATA_UDMA2;
@@ -1445,8 +1446,8 @@ static int
 ata_promise_mio_dmastart(struct ata_channel *ch)
 {
     ATA_IDX_OUTL(ch, ATA_BMDTP_PORT, ch->dma->mdmatab);
-    ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
-		 (ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x000000c0) |
+    ATA_IDX_OUTL(ch, ATA_BMCMD_PORT,
+		 (ATA_IDX_INL(ch, ATA_BMCMD_PORT) & ~0x000000c0) |
 		 ((ch->dma->flags & ATA_DMA_READ) ? 0x00000080 : 0x000000c0));
     return 0;
 }
@@ -1454,8 +1455,8 @@ ata_promise_mio_dmastart(struct ata_channel *ch)
 static int
 ata_promise_mio_dmastop(struct ata_channel *ch)
 {
-    ATA_IDX_OUTL(ch, ATA_BMCTL_PORT,
-		 ATA_IDX_INL(ch, ATA_BMCTL_PORT) & ~0x00000080);
+    ATA_IDX_OUTL(ch, ATA_BMCMD_PORT,
+		 ATA_IDX_INL(ch, ATA_BMCMD_PORT) & ~0x00000080);
     return 0;
 }
 
