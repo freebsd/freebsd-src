@@ -38,6 +38,8 @@
 .Nm kvm_getloadavg
 .Nd get load average of the system
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
+.Fd #include <stdlib.h>
 .Fd #include <kvm.h>
 .Ft int
 .Fn kvm_getloadavg "kvm_t *kd" "double loadavg[]" "int nelem"
