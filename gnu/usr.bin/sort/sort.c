@@ -19,6 +19,17 @@
    The author may be reached (Email) at the address mike@gnu.ai.mit.edu,
    or (US mail) as Mike Haertel c/o Free Software Foundation. */
 
+#ifdef HAVE_CONFIG_H
+#if defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
+#include "config.h"
+#endif
+#endif
+
 /* Get isblank from GNU libc.  */
 #define _GNU_SOURCE
 
@@ -26,6 +37,8 @@
 #include <signal.h>
 #include <stdio.h>
 #include "system.h"
+#include "long-options.h"
+
 #ifdef _POSIX_VERSION
 #include <limits.h>
 #else
@@ -1447,6 +1460,9 @@ main (argc, argv)
 #endif				/* _POSIX_VERSION */
 
   program_name = argv[0];
+
+  parse_long_options (argc, argv, usage);
+
   have_read_stdin = 0;
   inittables ();
 
@@ -1528,7 +1544,7 @@ main (argc, argv)
 	  if (digits[UCHAR (*s)])
 	    {
 	      if (!key)
-		usage ();
+		usage (2);
 	      for (t = 0; digits[UCHAR (*s)]; ++s)
 		t = t * 10 + *s - '0';
 	      t2 = 0;
@@ -1662,10 +1678,14 @@ main (argc, argv)
 		  case 'u':
 		    unique = 1;
 		    break;
+		  case 'y':
+		    /* Accept and ignore e.g. -y0 for compatibility with
+		       Solaris 2.  */
+		    goto outer;
 		  default:
 		    fprintf (stderr, "%s: unrecognized option `-%c'\n",
 			     argv[0], *s);
-		    usage ();
+		    usage (2);
 		  }
 		if (*s)
 		  ++s;
@@ -1764,11 +1784,46 @@ main (argc, argv)
 }
 
 static void
-usage ()
+usage (status)
+     int status;
 {
-  fprintf (stderr, "\
-Usage: %s [-cmus] [-t separator] [-o output-file] [-T tempdir] [-bdfiMnr]\n\
-       [+POS1 [-POS2]] [-k POS1[,POS2]] [file...]\n",
-	   program_name);
-  exit (2);
+  if (status != 0)
+    fprintf (stderr, "Try `%s --help' for more information.\n",
+	     program_name);
+  else
+    {
+      printf ("\
+Usage: %s [OPTION]... [FILE]...\n\
+",
+	      program_name);
+      printf ("\
+\n\
+  +POS1 [-POS2]    start a key at POS1, end it before POS2\n\
+  -M               compare (unknown) < `JAN' < ... < `DEC', imply -b\n\
+  -T DIRECT        use DIRECTfor temporary files, not $TEMPDIR nor /tmp\n\
+  -b               ignore leading blanks in sort fields or keys\n\
+  -c               check if given files already sorted, do not sort\n\
+  -d               consider only [a-zA-Z0-9 ] characters in keys\n\
+  -f               fold lower case to upper case characters in keys\n\
+  -i               consider only [\\040-\\0176] characters in keys\n\
+  -k POS1[,POS2]   same as +POS1 [-POS2], but all positions counted from 1\n\
+  -m               merge already sorted files, do not sort\n\
+  -n               compare according to string numerical value, imply -b\n\
+  -o FILE          write result on FILE instead of standard output\n\
+  -r               reverse the result of comparisons\n\
+  -s               stabilize sort by disabling last resort comparison\n\
+  -t SEP           use SEParator instead of non- to whitespace transition\n\
+  -u               with -c, check for strict ordering\n\
+  -u               with -m, only output the first of an equal sequence\n\
+      --help       display this help and exit\n\
+      --version    output version information and exit\n\
+\n\
+POS is F[.C][OPTS], where F is the field number and C the character\n\
+position in the field, both counted from zero.  OPTS is made up of one\n\
+or more of Mbdfinr, this effectively disable global -Mbdfinr settings\n\
+for that key.  If no key given, use the entire line as key.  With no\n\
+FILE, or when FILE is -, read standard input.\n\
+");
+    }
+  exit (status);
 }
