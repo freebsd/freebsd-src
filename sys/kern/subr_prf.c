@@ -913,11 +913,11 @@ DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
 #endif /* DDB */
 
 void
-hexdump(void *ptr, int length, const char *hdr, int flags)
+hexdump(const void *ptr, int length, const char *hdr, int flags)
 {
 	int i, j, k;
 	int cols;
-	unsigned char *cp;
+	const unsigned char *cp;
 	char delim;
 
 	if ((flags & HD_DELIM_MASK) != 0)

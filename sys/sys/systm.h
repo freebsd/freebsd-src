@@ -171,7 +171,7 @@ u_long	strtoul(const char *, char **, int) __nonnull(1);
 quad_t	strtoq(const char *, char **, int) __nonnull(1);
 u_quad_t strtouq(const char *, char **, int) __nonnull(1);
 void	tprintf(struct proc *p, int pri, const char *, ...) __printflike(3, 4);
-void	hexdump(void *ptr, int length, const char *hdr, int flags);
+void	hexdump(const void *ptr, int length, const char *hdr, int flags);
 #define	HD_COLUMN_MASK	0xff
 #define	HD_DELIM_MASK	0xff00
 #define	HD_OMIT_COUNT	(1 << 16)
