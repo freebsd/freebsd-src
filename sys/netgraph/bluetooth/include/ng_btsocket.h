@@ -30,7 +30,7 @@
  */
 
 #ifndef _NETGRAPH_BTSOCKET_H_
-#define _NETGRAPH_BTSOCKET_H_ 1
+#define _NETGRAPH_BTSOCKET_H_
 
 /*
  * XXX FIXME: does not belong here, move to sys/socket.h later and fix AF_MAX
