@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: semctl.2,v 1.1 1995/10/03 19:17:17 joerg Exp $
 .\"
 .Dd September 12, 1995
 .Dt SEMCTL 2
@@ -88,11 +88,11 @@ or
 or it must have superuser privileges.
 .It IPC_RMID
 Immediately removes the semaphore set from the system.  The calling
-process's effictive uid must equal the semaphore set's
+process's effective uid must equal the semaphore set's
 .Fa sem_perm.uid
 or
 .Fa sem_perm.cuid ,
-or the process must have superuser priviliges.
+or the process must have superuser privileges.
 .It Dv GETVAL
 Return the value of semaphore number
 .Fa semnum .
