@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.c,v 1.11 1997/04/06 10:47:59 dufault Exp $
+ *	$Id: linux.c,v 1.12 1997/05/01 06:08:14 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -41,12 +41,13 @@ extern const struct execsw linux_execsw;
 
 MOD_EXEC(linux, -1, &linux_execsw);
 
-extern Elf32_Brandinfo linux_brand;
+extern Elf32_Brandinfo linux_brand, linux_glibc2brand;
 
 static int
 linux_load(struct lkm_table *lkmtp, int cmd)
 {
-	if (elf_insert_brand_entry(&linux_brand))
+	if ((elf_insert_brand_entry(&linux_brand)) ||
+	    (elf_insert_brand_entry(&linux_glibc2brand)))
 		uprintf("Could not install ELF interpreter entry\n");
 	/* uprintf("Linux emulator installed\n"); XXX - shut up, you! */
 	return 0;
