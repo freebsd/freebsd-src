@@ -75,7 +75,7 @@ MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_POWER
-MODULE_NAME("POWERRES")
+ACPI_MODULE_NAME("POWERRES")
 
 /* return values from _STA on a power resource */
 #define ACPI_PWR_OFF	0
@@ -148,10 +148,10 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     ACPI_OBJECT			*obj;
     struct acpi_powerresource	*rp, *srp;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     rp = NULL;
-    obj = NULL;
+    buf.Pointer = NULL;
     
     /* look to see if we know about this resource */
     if (acpi_pwr_find_resource(res) != NULL)
@@ -166,8 +166,8 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     rp->ap_resource = res;
 
     /* get the Power Resource object */
-    bzero(&buf, sizeof(buf));
-    if ((status = acpi_EvaluateIntoBuffer(res, NULL, NULL, &buf)) != AE_OK) {
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+    if (ACPI_FAILURE(status = AcpiEvaluateObject(res, NULL, NULL, &buf))) {
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "no power resource object\n"));
 	goto out;
     }
@@ -197,9 +197,9 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
  done:
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "registered power resource %s\n", acpi_name(res)));
  out:
-    if (obj != NULL)
-	AcpiOsFree(obj);
-    if ((status != AE_OK) && (rp != NULL))
+    if (buf.Pointer != NULL)
+	AcpiOsFree(buf.Pointer);
+    if (ACPI_FAILURE(status) && (rp != NULL))
 	free(rp, M_ACPIPWR);
     return_ACPI_STATUS(status);
 }
@@ -212,7 +212,7 @@ acpi_pwr_deregister_resource(ACPI_HANDLE res)
 {
     struct acpi_powerresource	*rp;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     rp = NULL;
     
@@ -243,7 +243,7 @@ acpi_pwr_register_consumer(ACPI_HANDLE consumer)
 {
     struct acpi_powerconsumer	*pc;
     
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /* check to see whether we know about this consumer already */
     if ((pc = acpi_pwr_find_consumer(consumer)) != NULL)
@@ -274,7 +274,7 @@ acpi_pwr_deregister_consumer(ACPI_HANDLE consumer)
 {
     struct acpi_powerconsumer	*pc;
     
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /* find the consumer */
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL)
@@ -307,11 +307,11 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
     char			*method_name, *reslist_name;
     int				res_changed;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /* find the consumer */
     if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
-	if ((status = acpi_pwr_register_consumer(consumer)) != AE_OK)
+	if (ACPI_FAILURE(status = acpi_pwr_register_consumer(consumer)))
 	    return_ACPI_STATUS(status);
 	if ((pc = acpi_pwr_find_consumer(consumer)) == NULL) {
 	    return_ACPI_STATUS(AE_ERROR);	/* something very wrong */
@@ -356,10 +356,11 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * support D0 and D3.  It's never an error to try to go to
      * D0.
      */
+    reslist_buffer.Pointer = NULL;
     reslist_object = NULL;
-    if (AcpiGetHandle(consumer, method_name, &method_handle) != AE_OK)
+    if (ACPI_FAILURE(AcpiGetHandle(consumer, method_name, &method_handle)))
 	method_handle = NULL;
-    if (AcpiGetHandle(consumer, reslist_name, &reslist_handle) != AE_OK)
+    if (ACPI_FAILURE(AcpiGetHandle(consumer, reslist_name, &reslist_handle)))
 	reslist_handle = NULL;
     if ((reslist_handle == NULL) && (method_handle == NULL)) {
 	if (state == ACPI_STATE_D0) {
@@ -371,12 +372,11 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	}
 
 	/* turn off the resources listed in _PR0 to go to D3. */
-	if (AcpiGetHandle(consumer, "_PR0", &pr0_handle) != AE_OK) {
+	if (ACPI_FAILURE(AcpiGetHandle(consumer, "_PR0", &pr0_handle))) {
 	    goto bad;
 	}
-	bzero(&reslist_buffer, sizeof(reslist_buffer));
-	status = acpi_EvaluateIntoBuffer(pr0_handle, NULL, NULL, &reslist_buffer);
-	if (status != AE_OK) {
+	reslist_buffer.Length = ACPI_ALLOCATE_BUFFER;
+	if (ACPI_FAILURE(status = AcpiEvaluateObject(pr0_handle, NULL, NULL, &reslist_buffer))) {
 	    goto bad;
 	}
 	reslist_object = (ACPI_OBJECT *)reslist_buffer.Pointer;
@@ -384,27 +384,28 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
 	    (reslist_object->Package.Count == 0)) {
 	    goto bad;
 	}
-	AcpiOsFree(reslist_object);
+	AcpiOsFree(reslist_buffer.Pointer);
+	reslist_buffer.Pointer = NULL;
+	reslist_object = NULL;
     }
 
     /*
      * Check that we can actually fetch the list of power resources
      */
     if (reslist_handle != NULL) {
-	bzero(&reslist_buffer, sizeof(reslist_buffer));
-	if ((status = acpi_EvaluateIntoBuffer(reslist_handle, NULL, NULL, &reslist_buffer)) != AE_OK) {
+	reslist_buffer.Length = ACPI_ALLOCATE_BUFFER;
+	if (ACPI_FAILURE(status = AcpiEvaluateObject(reslist_handle, NULL, NULL, &reslist_buffer))) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't evaluate resource list %s\n",
 			      acpi_name(reslist_handle)));
-	    return_ACPI_STATUS(status);
+	    goto out;
 	}
 	reslist_object = (ACPI_OBJECT *)reslist_buffer.Pointer;
 	if (reslist_object->Type != ACPI_TYPE_PACKAGE) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "resource list is not ACPI_TYPE_PACKAGE (%d)\n",
 			      reslist_object->Type));
-	    return_ACPI_STATUS(AE_TYPE);
+	    status = AE_TYPE;
+	    goto out;
 	}
-    } else {
-	reslist_object = NULL;
     }
 
     /*
@@ -435,21 +436,24 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * If we changed anything in the resource list, we need to run a switch
      * pass now.
      */
-    if ((status = acpi_pwr_switch_power()) != AE_OK) {
+    if (ACPI_FAILURE(status = acpi_pwr_switch_power())) {
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "failed to correctly switch resources to move %s to D%d\n",
 			  acpi_name(consumer), state));
-	return_ACPI_STATUS(status);	/* XXX is this appropriate?  Should we return to previous state? */
+	goto out;		/* XXX is this appropriate?  Should we return to previous state? */
     }
 
     /* invoke power state switch method (if present) */
     if (method_handle != NULL) {
 	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "invoking state transition method %s\n",
 			  acpi_name(method_handle)));
-	if ((status = AcpiEvaluateObject(method_handle, NULL, NULL, NULL)) != AE_OK)
-	    pc->ac_state = ACPI_STATE_UNKNOWN;
-	    return_ACPI_STATUS(status);	/* XXX is this appropriate?  Should we return to previous state? */
+	if (ACPI_FAILURE(status = AcpiEvaluateObject(method_handle, NULL, NULL, NULL))) {
+		ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "failed to set state - %s\n",
+				  AcpiFormatException(status)));
+		pc->ac_state = ACPI_STATE_UNKNOWN;
+		goto out;	/* XXX Should we return to previous state? */
+	}
     }
-
+	
     /* transition was successful */
     pc->ac_state = state;
     return_ACPI_STATUS(AE_OK);
@@ -457,9 +461,12 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
  bad:
     ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "attempt to set unsupported state D%d\n", 
 		      state));
-    if (reslist_object)
-	AcpiOsFree(reslist_object);
-    return_ACPI_STATUS(AE_BAD_PARAMETER);
+    status = AE_BAD_PARAMETER;
+
+ out:
+    if (reslist_buffer.Pointer != NULL)
+	AcpiOsFree(reslist_buffer.Pointer);
+    return_ACPI_STATUS(status);
 }
 
 /*
@@ -475,7 +482,7 @@ acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
     ACPI_HANDLE			res;
     ACPI_STATUS			status;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /* check the object type */
     if (obj->Type != ACPI_TYPE_STRING) {
@@ -533,7 +540,7 @@ acpi_pwr_switch_power(void)
     ACPI_STATUS			status;
     int				cur;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /*
      * Sweep the list forwards turning things on.
@@ -546,7 +553,7 @@ acpi_pwr_switch_power(void)
 	}
 
 	/* we could cache this if we trusted it not to change under us */
-	if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur)) != AE_OK) {
+	if (ACPI_FAILURE(status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur))) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));
 	    continue;	/* XXX is this correct?  Always switch if in doubt? */
@@ -580,7 +587,7 @@ acpi_pwr_switch_power(void)
 	}
 
 	/* we could cache this if we trusted it not to change under us */
-	if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur)) != AE_OK) {
+	if (ACPI_FAILURE(status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur))) {
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "can't get status of %s - %d\n",
 			      acpi_name(rp->ap_resource), status));
 	    continue;	/* XXX is this correct?  Always switch if in doubt? */
@@ -613,7 +620,7 @@ acpi_pwr_find_resource(ACPI_HANDLE res)
 {
     struct acpi_powerresource	*rp;
     
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     TAILQ_FOREACH(rp, &acpi_powerresources, ap_link)
 	if (rp->ap_resource == res)
@@ -629,7 +636,7 @@ acpi_pwr_find_consumer(ACPI_HANDLE consumer)
 {
     struct acpi_powerconsumer	*pc;
     
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     TAILQ_FOREACH(pc, &acpi_powerconsumers, ac_link)
 	if (pc->ac_consumer == consumer)

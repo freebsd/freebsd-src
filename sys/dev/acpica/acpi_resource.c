@@ -44,7 +44,7 @@
  * Hooks for the ACPI CA debugging infrastructure
  */
 #define _COMPONENT	ACPI_BUS
-MODULE_NAME("RESOURCE")
+ACPI_MODULE_NAME("RESOURCE")
 
 /*
  * Fetch a device's resources and associate them with the device.
@@ -65,7 +65,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     ACPI_STATUS		status;
     void		*context;
 
-    FUNCTION_TRACE(__func__);
+    ACPI_FUNCTION_TRACE(__func__);
 
     /*
      * Special-case some devices that abuse _PRS/_CRS to mean
@@ -80,7 +80,8 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
     /*
      * Fetch the device's current resources.
      */
-    if (((status = acpi_GetIntoBuffer(handle, AcpiGetCurrentResources, &buf)) != AE_OK)) {
+    buf.Length = ACPI_ALLOCATE_BUFFER;
+    if (ACPI_FAILURE((status = AcpiGetCurrentResources(handle, &buf)))) {
 	if (status != AE_NOT_FOUND)
 	    printf("can't fetch resources for %s - %s\n",
 		   acpi_name(handle), AcpiFormatException(status));
@@ -231,22 +232,22 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	case ACPI_RSTYPE_ADDRESS32:
 	    if (res->Data.Address32.AddressLength <= 0)
 		break;
-	    if (res->Data.Address32.ProducerConsumer != CONSUMER) {
+	    if (res->Data.Address32.ProducerConsumer != ACPI_CONSUMER) {
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "ignored Address32 %s producer\n",
-				  (res->Data.Address32.ResourceType == IO_RANGE) ?
+				  (res->Data.Address32.ResourceType == ACPI_IO_RANGE) ?
 				     "IO" : "Memory"));
 		break;
 	    }
-	    if ((res->Data.Address32.ResourceType != MEMORY_RANGE) ||
-		(res->Data.Address32.ResourceType != IO_RANGE)) {
+	    if ((res->Data.Address32.ResourceType != ACPI_MEMORY_RANGE) ||
+		(res->Data.Address32.ResourceType != ACPI_IO_RANGE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, 
 				  "ignored Address32 for non-memory, non-I/O\n"));
 		break;
 	    }
 
-	    if ((res->Data.Address32.MinAddressFixed == ADDRESS_FIXED) &&
-		(res->Data.Address32.MaxAddressFixed == ADDRESS_FIXED)) {
-		if (res->Data.Address32.ResourceType == MEMORY_RANGE) {
+	    if ((res->Data.Address32.MinAddressFixed == ACPI_ADDRESS_FIXED) &&
+		(res->Data.Address32.MaxAddressFixed == ACPI_ADDRESS_FIXED)) {
+		if (res->Data.Address32.ResourceType == ACPI_MEMORY_RANGE) {
 		    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "Address32/Memory 0x%x/%d\n",
 				      res->Data.Address32.MinAddressRange,
 				      res->Data.Address32.AddressLength));
@@ -262,7 +263,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 				    res->Data.Address32.AddressLength);
 		}
 	    } else {
-		if (res->Data.Address32.ResourceType == MEMORY_RANGE) {
+		if (res->Data.Address32.ResourceType == ACPI_MEMORY_RANGE) {
 		    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "Address32/Memory 0x%x-0x%x/%d\n",
 				      res->Data.Address32.MinAddressRange,
 				      res->Data.Address32.MaxAddressRange,
@@ -289,22 +290,22 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 	case ACPI_RSTYPE_ADDRESS16:
 	    if (res->Data.Address16.AddressLength <= 0)
 		break;
-	    if (res->Data.Address16.ProducerConsumer != CONSUMER) {
+	    if (res->Data.Address16.ProducerConsumer != ACPI_CONSUMER) {
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "ignored Address16 %s producer\n",
-				  (res->Data.Address16.ResourceType == IO_RANGE) ?
+				  (res->Data.Address16.ResourceType == ACPI_IO_RANGE) ?
 				     "IO" : "Memory"));
 		break;
 	    }
-	    if ((res->Data.Address16.ResourceType != MEMORY_RANGE) ||
-		(res->Data.Address16.ResourceType != IO_RANGE)) {
+	    if ((res->Data.Address16.ResourceType != ACPI_MEMORY_RANGE) ||
+		(res->Data.Address16.ResourceType != ACPI_IO_RANGE)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, 
 				  "ignored Address16 for non-memory, non-I/O\n"));
 		break;
 	    }
 
-	    if ((res->Data.Address16.MinAddressFixed == ADDRESS_FIXED) &&
-		(res->Data.Address16.MaxAddressFixed == ADDRESS_FIXED)) {
-		if (res->Data.Address16.ResourceType == MEMORY_RANGE) {
+	    if ((res->Data.Address16.MinAddressFixed == ACPI_ADDRESS_FIXED) &&
+		(res->Data.Address16.MaxAddressFixed == ACPI_ADDRESS_FIXED)) {
+		if (res->Data.Address16.ResourceType == ACPI_MEMORY_RANGE) {
 		    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "Address16/Memory 0x%x/%d\n",
 				      res->Data.Address16.MinAddressRange,
 				      res->Data.Address16.AddressLength));
@@ -320,7 +321,7 @@ acpi_parse_resources(device_t dev, ACPI_HANDLE handle, struct acpi_parse_resourc
 				    res->Data.Address16.AddressLength);
 		}
 	    } else {
-		if (res->Data.Address16.ResourceType == MEMORY_RANGE) {
+		if (res->Data.Address16.ResourceType == ACPI_MEMORY_RANGE) {
 		    ACPI_DEBUG_PRINT((ACPI_DB_RESOURCES, "Address16/Memory 0x%x-0x%x/%d\n",
 				      res->Data.Address16.MinAddressRange,
 				      res->Data.Address16.MaxAddressRange,
