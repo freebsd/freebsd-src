@@ -3,7 +3,7 @@
 
 /* Headers and function declarations for file-locking utilities */
 
-struct nlm4_holder * testlock __P((struct nlm4_lock *, int));
+struct nlm4_holder * testlock __P((struct nlm4_lock *, int, int));
 
 enum nlm_stats getlock __P((nlm4_lockargs *, struct svc_req *, int));
 enum nlm_stats unlock __P((nlm4_lock *, int));
