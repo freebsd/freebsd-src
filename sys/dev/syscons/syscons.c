@@ -964,6 +964,13 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	*(int *)data = scp->index + 1;
 	return 0;
 
+    case VT_LOCKSWITCH:		/* prevent vty switching */
+	if ((*(int *)data) & 0x01)
+	    sc->flags |= SC_SCRN_VTYLOCK;
+	else
+	    sc->flags &= ~SC_SCRN_VTYLOCK;
+	return 0;
+
     case KDENABIO:      	/* allow io operations */
 	error = suser(p);
 	if (error != 0)
@@ -2052,6 +2059,13 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
     int s;
 
     DPRINTF(5, ("sc0: sc_switch_scr() %d ", next_scr + 1));
+
+    /* prevent switch if previously requested */
+    if (sc->flags & SC_SCRN_VTYLOCK) {
+	    sc_bell(sc->cur_scp, sc->cur_scp->bell_pitch,
+		sc->cur_scp->bell_duration);
+	    return EPERM;
+    }
 
     /* delay switch if the screen is blanked or being updated */
     if ((sc->flags & SC_SCRN_BLANKED) || sc->write_in_progress
