@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.169 1995/04/14 15:12:24 dufault Exp $
+#	$Id: LINT,v 1.170 1995/04/18 11:02:22 ache Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -377,6 +377,9 @@ controller	isa0
 # TUNE_1542 enables the automatic ISA bus speed selection for the
 # Adaptec 1542 boards. Does not work for all boards, use it with caution.
 #
+# NSECS_MULTI enables and allows multi-block transfers in the wd driver.
+# suggested values would be 8 or 16.
+#
 #options	ALLOW_CONFLICT_DRQ
 #options	ALLOW_CONFLICT_IOADDR
 #options	ALLOW_CONFLICT_IRQ
@@ -386,6 +389,7 @@ options		"AUTO_EOI_1"
 options		BOUNCE_BUFFERS
 #options	DUMMY_NOPS
 #options        "TUNE_1542"
+#options	"NSECS_MULTI=16"
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
