@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.46 1998/04/28 03:37:23 dg Exp $";
+	"$Id: ftpd.c,v 1.49 1998/05/16 21:23:33 ache Exp $";
 #endif /* not lint */
 
 /*
@@ -234,7 +234,7 @@ static void	selecthost __P((struct in_addr *));
 #endif
 static void	 ack __P((char *));
 static void	 myoob __P((int));
-static int	 checkuser __P((char *, char *));
+static int	 checkuser __P((char *, char *, int));
 static FILE	*dataconn __P((char *, off_t, char *));
 static void	 dolog __P((struct sockaddr_in *));
 static char	*curdir __P((void));
@@ -784,8 +784,8 @@ user(name)
 
 	guest = 0;
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
-		if (checkuser(_PATH_FTPUSERS, "ftp") ||
-		    checkuser(_PATH_FTPUSERS, "anonymous"))
+		if (checkuser(_PATH_FTPUSERS, "ftp", 0) ||
+		    checkuser(_PATH_FTPUSERS, "anonymous", 0))
 			reply(530, "User %s access denied.", name);
 #ifdef VIRTUAL_HOSTING
 		else if ((pw = sgetpwnam(thishost->anonuser)) != NULL) {
@@ -816,7 +816,7 @@ user(name)
 				break;
 		endusershell();
 
-		if (cp == NULL || checkuser(_PATH_FTPUSERS, name)) {
+		if (cp == NULL || checkuser(_PATH_FTPUSERS, name, 1)) {
 			reply(530, "User %s access denied.", name);
 			if (logging)
 				syslog(LOG_NOTICE,
@@ -847,9 +847,10 @@ user(name)
  * Check if a user is in the file "fname"
  */
 static int
-checkuser(fname, name)
+checkuser(fname, name, pwset)
 	char *fname;
 	char *name;
+	int pwset;
 {
 	FILE *fd;
 	int found = 0;
@@ -870,6 +871,14 @@ checkuser(fname, name)
 
 					if ((grp = getgrnam(line+1)) == NULL)
 						continue;
+					/*
+					 * Check user's default group
+					 */
+					if (pwset && grp->gr_gid == pw->pw_gid)
+						found = 1;
+					/*
+					 * Check supplementary groups
+					 */
 					while (!found && grp->gr_mem[i])
 						found = strcmp(name,
 							grp->gr_mem[i++])
@@ -1016,7 +1025,7 @@ skip:
 #ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
 		login_getcapbool(lc, "ftp-chroot", 0) ||
 #endif
-		checkuser(_PATH_FTPCHROOT, pw->pw_name);
+		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1);
 	if (guest) {
 		/*
 		 * We MUST do a chdir() after the chroot. Otherwise
