@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.19 1994/08/10 03:51:05 wollman Exp $
+ *	$Id: locore.s,v 1.20 1994/08/13 03:49:41 wollman Exp $
  */
 
 /*
@@ -103,8 +103,8 @@ _esym:	.long	0				/* ptr to end of syms */
 
 	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
-_cpu_id:	.long 0				/* stepping ID */
-_cpu_vendor:	.space 17			/* CPU origin code */
+_cpu_id:	.long	0			/* stepping ID */
+_cpu_vendor:	.space	20			/* CPU origin code */
 _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
