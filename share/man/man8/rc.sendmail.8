@@ -108,10 +108,17 @@ run the
 .Xr sendmail 8
 daemon at system boot time.
 If set to
-.Dq Li NONE ,
-do not run any
+.Dq Li NO ,
+do not run a
 .Xr sendmail 8
-daemons at system boot time.
+daemon to listen for incoming network mail.
+This does not preclude a
+.Xr sendmail 8
+daemon listening on the SMTP port of the loopback interface.
+The
+.Dq Li NONE
+option is deprecated and should not be used.
+It will be removed in a future release.
 .It Va sendmail_flags
 .Pq Vt str
 If
@@ -233,6 +240,16 @@ if (${sendmail_enable} != NONE &&
         start sendmail with ${sendmail_msp_queue_flags}
 endif
 .Ed
+.Pp
+To completely prevent any sendmail daemons from starting you must
+set the following variables in
+/etc/rc.conf:
+.Bd -literal -offset indent
+sendmail_enable="NO"
+sendmail_submit_enable="NO"
+sendmail_outbound_enable="NO"
+sendmail_msp_queue_enable="NO"
+.El
 .Sh SEE ALSO
 .Xr rc.conf 5 ,
 .Xr rc 8 ,
