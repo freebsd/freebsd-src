@@ -166,7 +166,7 @@ int cold = 1;
 static void osendsig __P((sig_t catcher, int sig, sigset_t *mask, u_long code));
 
 static int
-sysctl_hw_physmem (SYSCTL_HANDLER_ARGS)
+sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 {
 	int error = sysctl_handle_int(oidp, 0, ctob(physmem), req);
 	return (error);
@@ -176,7 +176,7 @@ SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "I", "");
 
 static int
-sysctl_hw_usermem (SYSCTL_HANDLER_ARGS)
+sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 {
 	int error = sysctl_handle_int(oidp, 0,
 		ctob(physmem - cnt.v_wire_count), req);
@@ -187,7 +187,7 @@ SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_usermem, "I", "");
 
 static int
-sysctl_hw_availpages (SYSCTL_HANDLER_ARGS)
+sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
 {
 	int error = sysctl_handle_int(oidp, 0,
 		i386_btop(avail_end - avail_start), req);
@@ -198,7 +198,7 @@ SYSCTL_PROC(_hw, OID_AUTO, availpages, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_availpages, "I", "");
 
 static int
-sysctl_machdep_msgbuf (SYSCTL_HANDLER_ARGS)
+sysctl_machdep_msgbuf(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
@@ -221,7 +221,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, msgbuf, CTLTYPE_STRING|CTLFLAG_RD,
 static int msgbuf_clear;
 
 static int
-sysctl_machdep_msgbuf_clear (SYSCTL_HANDLER_ARGS)
+sysctl_machdep_msgbuf_clear(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
@@ -1078,7 +1078,7 @@ setregs(p, entry, stack, ps_strings)
 }
 
 static int
-sysctl_machdep_adjkerntz (SYSCTL_HANDLER_ARGS)
+sysctl_machdep_adjkerntz(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	error = sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,
