@@ -24,7 +24,7 @@ static const char copyright[] =
     "@(#) Copyright (c) 1988, 1989, 1991, 1994, 1995, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 static const char rcsid[] =
-    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.3 1996/10/05 01:43:13 sef Exp $ (LBL)";
+    "@(#)$Header: /home/ncvs/src/contrib/traceroute/traceroute.c,v 1.4 1996/10/08 02:44:26 sef Exp $ (LBL)";
 #endif
 
 /*
@@ -706,7 +706,7 @@ main(int argc, char **argv)
 			(void)fflush(stdout);
 		}
 		if (sump) {
-			Printf(" (%d%% loss)", (lost * 100) / nprobes);
+			Printf(" (%d%% loss)", (loss * 100) / nprobes);
 		}
 		putchar('\n');
 		if (got_there ||
