@@ -2229,8 +2229,8 @@ scrn_update(scr_stat *scp, int show_cursor)
         if (scp->status & MOUSE_MOVED) {
             /* do we need to remove old mouse pointer image ? */
             if (scp->mouse_cut_start != NULL ||
-                (scp->mouse_pos-scp->scr_buf) <= scp->start ||
-                (scp->mouse_pos+scp->xsize + 1 - scp->scr_buf) >= scp->end) {
+                (scp->mouse_oldpos-scp->scr_buf) <= scp->start ||
+                (scp->mouse_oldpos+scp->xsize + 1 - scp->scr_buf) >= scp->end) {
                 remove_mouse_image(scp);
             }
             scp->status &= ~MOUSE_MOVED;
