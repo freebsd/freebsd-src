@@ -268,8 +268,7 @@ main(argc, argv)
 	int udpsock, tcpsock, udp6sock, tcp6sock;
 	int xcreated = 0, s;
 	int one = 1;
-	int c, error, mib[3];
-	struct vfsconf vfc;
+	int c, error;
 
 	udp6conf = tcp6conf = NULL;
 	udp6sock = tcp6sock = NULL;
@@ -285,15 +284,11 @@ main(argc, argv)
 		have_v6 = 0;
 	else
 		close(s);
-	error = getvfsbyname("nfs", &vfc);
-	if (error && vfsisloadable("nfs")) {
-		if(vfsload("nfs"))
-			err(1, "vfsload(nfs)");
-		endvfsent();	/* flush cache */
-		error = getvfsbyname("nfs", &vfc);
+	if (modfind("nfsserver") < 0) {
+		/* Not present in kernel, try loading it */
+		if (kldload("nfsserver") < 0 || modfind("nfsserver") < 0)
+			errx(1, "NFS server is not available or loadable");
 	}
-	if (error)
-		errx(1, "NFS support is not available in the running kernel");
 
 	while ((c = getopt(argc, argv, "2dlnr")) != -1)
 		switch (c) {
@@ -377,11 +372,9 @@ main(argc, argv)
 
 skip_v6:
 	if (!resvport_only) {
-		mib[0] = CTL_VFS;
-		mib[1] = vfc.vfc_typenum;
-		mib[2] = NFS_NFSPRIVPORT;
-		if (sysctl(mib, 3, NULL, NULL, &resvport_only,
-		    sizeof(resvport_only)) != 0 && errno != ENOENT) {
+		if (sysctlbyname("vfs.nfsrv.nfs_privport", NULL, NULL,
+		    &resvport_only, sizeof(resvport_only)) != 0 &&
+		    errno != ENOENT) {
 			syslog(LOG_ERR, "sysctl: %m");
 			exit(1);
 		}
