@@ -165,7 +165,7 @@ main(ac, av)
 	for (sym = 0; sym <= N_TABLAST; sym++) {
 		if (verbose)
 			printf("\nTable: %s\n", nl[sym].n_name);
-		pos = nl[sym].n_value + NBPG - entry;
+		pos = nl[sym].n_value + getpagesize() - entry;
 
 		pos1 = nlk[0].n_value;
 

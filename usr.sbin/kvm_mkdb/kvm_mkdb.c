@@ -95,8 +95,8 @@ main(argc, argv)
 
 	/* don't handicap db/hash by using the defaults... */
 	memset(&hdefault,0,sizeof hdefault);
-	hdefault.bsize = NBPG;
-	hdefault.cachesize = 50*NBPG;
+	hdefault.bsize = getpagesize();
+	hdefault.cachesize = 50*getpagesize();
 	hdefault.nelem = 1000;
 
 	db = dbopen(dbtemp, O_CREAT | O_EXLOCK | O_TRUNC | O_RDWR,
