@@ -417,26 +417,37 @@ radius_Process(struct radius *r, int got)
 #ifndef NODES
               case RAD_MICROSOFT_MS_CHAP_ERROR:
                 free(r->errstr);
-                if ((r->errstr = rad_cvt_string(data, len)) == NULL) {
-                  log_Printf(LogERROR, "rad_cvt_string: %s\n",
-                             rad_strerror(r->cx.rad));
-                  auth_Failure(r->cx.auth);
-                  rad_close(r->cx.rad);
-                  return;
+                if (len == 0)
+                  r->errstr = NULL;
+                else {
+                  if ((r->errstr = rad_cvt_string((const char *)data + 1,
+                                                  len - 1)) == NULL) {
+                    log_Printf(LogERROR, "rad_cvt_string: %s\n",
+                               rad_strerror(r->cx.rad));
+                    auth_Failure(r->cx.auth);
+                    rad_close(r->cx.rad);
+                    return;
+                  }
+                  log_Printf(LogPHASE, " MS-CHAP-Error \"%s\"\n", r->errstr);
                 }
-                log_Printf(LogPHASE, " MS-CHAP-Error \"%s\"\n", r->errstr);
                 break;
 
               case RAD_MICROSOFT_MS_CHAP2_SUCCESS:
                 free(r->msrepstr);
-                if ((r->msrepstr = rad_cvt_string(data, len)) == NULL) {
-                  log_Printf(LogERROR, "rad_cvt_string: %s\n",
-                             rad_strerror(r->cx.rad));
-                  auth_Failure(r->cx.auth);
-                  rad_close(r->cx.rad);
-                  return;
+                if (len == 0)
+                  r->msrepstr = NULL;
+                else {
+                  if ((r->msrepstr = rad_cvt_string((const char *)data + 1,
+                                                    len - 1)) == NULL) {
+                    log_Printf(LogERROR, "rad_cvt_string: %s\n",
+                               rad_strerror(r->cx.rad));
+                    auth_Failure(r->cx.auth);
+                    rad_close(r->cx.rad);
+                    return;
+                  }
+                  log_Printf(LogPHASE, " MS-CHAP2-Success \"%s\"\n",
+                             r->msrepstr);
                 }
-                log_Printf(LogPHASE, " MS-CHAP2-Success \"%s\"\n", r->msrepstr);
                 break;
  
               case RAD_MICROSOFT_MS_MPPE_ENCRYPTION_POLICY:
