@@ -46,9 +46,9 @@
  *	  shouldn't happen (except maybe one for initialization).
  *	o Support extended DOS partitions.
  *	o Support swapping to DOS partitions.
- *	o Handle clustering, disklabelling, DOS
- *	  partitions and swapping driver-independently. 
- *	  Swapping will need new
+ *	o Handle bad sectors, clustering, disklabelling, DOS
+ *	  partitions and swapping driver-independently.  Use
+ *	  i386/dkbad.c for bad sectors.  Swapping will need new
  *	  driver entries for polled reinit and polled write).
  */
 
@@ -174,6 +174,7 @@ struct disk {
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
 #define	DKFL_32BIT	0x00100	/* use 32-bit i/o mode */
 #define	DKFL_MULTI	0x00200	/* use multi-i/o mode */
+#define	DKFL_BADSCAN	0x00400	/* report all errors */
 #define DKFL_USEDMA	0x00800	/* use DMA for data transfers */
 #define DKFL_DMA	0x01000 /* using DMA on this transfer-- DKFL_SINGLE
 				 * overrides this
@@ -1271,6 +1272,8 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	if (wdtab[du->dk_ctrlr_cmd640].b_active == 2)
 		wdtab[du->dk_ctrlr_cmd640].b_active = 0;
 
+	du->dk_flags &= ~DKFL_BADSCAN;
+
 	/* spin waiting for anybody else reading the disk label */
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
@@ -1340,9 +1343,6 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		    &du->dk_dd);
 		/* XXX check value returned by wdwsetctlr(). */
 		wdwsetctlr(du);
-		if (msg == NULL && du->dk_dd.d_flags & D_BADSECT)
-			msg = readbad144(dkmodpart(dev, RAW_PART),
-			    &du->dk_dd, &du->dk_bad);
 		du->dk_flags &= ~DKFL_LABELLING;
 		if (msg != NULL) {
 			log(LOG_WARNING, "wd%d: cannot find label (%s)\n",
@@ -1810,7 +1810,8 @@ again:
 		}
 		/*
 		 * Fake minimal drive geometry for reading the MBR.
-		 * readdisklabel() may enlarge it to read the label.
+		 * readdisklabel() may enlarge it to read the label and the
+		 * bad sector table.
 		 */
 		du->dk_dd.d_secsize = DEV_BSIZE;
 		du->dk_dd.d_nsectors = 17;
@@ -2028,17 +2029,7 @@ wdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
 #endif
-	switch (cmd) {
-	case DIOCSBADSCAN:
-		if (*(int *)addr)
-			du->dk_flags |= DKFL_BADSCAN;
-		else
-			du->dk_flags &= ~DKFL_BADSCAN;
-		return (0);
-
-	default:
-		return (ENOTTY);
-	}
+	return (ENOTTY);
 }
 
 int
@@ -2072,7 +2063,7 @@ wddump(dev_t dev)
 	long	num;		/* number of sectors to write */
 	int	lunit, part;
 	long	blkoff, blknum;
-	long	blkcnt, blknext;
+	long	blkchk, blkcnt, blknext;
 	u_long	ds_offset;
 	u_long	nblocks;
 	static int wddoingadump = 0;
@@ -2155,6 +2146,7 @@ wddump(dev_t dev)
 		 * sector is bad, then reduce reduce the transfer to
 		 * avoid any bad sectors.
 		 */
+out:
 
 		/* Compute disk address. */
 		cylin = blknum / secpercyl;
