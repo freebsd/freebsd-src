@@ -1,4 +1,4 @@
-# @(#)southamerica	7.6
+# @(#)southamerica	7.8
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -14,17 +14,18 @@
 # the rest are from earlier versions of this file, or from other sources.
 # Some of these are just plausible excuses for common English abbreviations.
 # Corrections are welcome!
-#		std dst
-#		LMT	Local Mean Time
-#	-2:00	FST FDT	Fernando de Noronha
-#	-3:00	EST EDT	Eastern South America (conflicts with -5:00)
-#	-4:00	AST ADT	Andes*, Antilles*, Asuncion*, Atlantic
-#	-4:00	CST CDT	Chile (conflicts with -6:00)
-#	-4:00	WST WDT	Western Brazil
-#	-5:00	AST ADT	Acre (conflicts with -4:00)
-#	-5:00	EST EDT	Eastern, Ecuador*
-#	-6:00	CST CDT	Archipelago of Columbus*, Central
-#	-7:00	MST MDT	Mataveri*, Mountain
+#		std	dst
+#		LMT		Local Mean Time
+#	-2:00	FST	FDT	Fernando de Noronha
+#	-3:00	EST	EDT	Eastern South America (conflicts with -5:00)
+#	-3:00	ARST	ARDT	Argentina
+#	-4:00	AST	ADT	Andes*, Antilles*, Asuncion*, Atlantic
+#	-4:00	CST	CDT	Chile (conflicts with -6:00)
+#	-4:00	WST	WDT	Western Brazil
+#	-5:00	AST	ADT	Acre (conflicts with -4:00)
+#	-5:00	EST	EDT	Eastern, Ecuador*
+#	-6:00	CST	CDT	Archipelago of Columbus*, Central
+#	-7:00	MST	MDT	Mataveri*, Mountain
 #
 # See the `africa' file for Zone naming conventions.
 
@@ -48,6 +49,10 @@
 
 # From U. S. Naval Observatory (January 19, 19889):
 # ARGENTINA           3 H BEHIND   UTC
+
+# From Hernan G. Otero <hernan@isoft.com.ar> (June 26, 1995):
+# I am sending modifications to the Argentinian time zone table...
+# AR was chosen because they are the ISO letters that represent Argentina.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Arg	1930	only	-	Dec	 1	0:00	1:00	D
@@ -79,19 +84,28 @@ Rule	Arg	1986	1987	-	Oct	25	0:00	1:00	D
 Rule	Arg	1987	only	-	Feb	13	0:00	0	S
 Rule	Arg	1988	only	-	Feb	 7	0:00	0	S
 Rule	Arg	1988	only	-	Dec	 1	0:00	1:00	D
-Rule	Arg	1989	only	-	Mar	16	0:00	0	S
-Rule	Arg	1989	only	-	Oct	15	0:00	1:00	D
-Rule	Arg	1990	only	-	Mar	 4	0:00	0	S
-# _The Economist_ (8 Jan 1994, p 42) reports that Argentina
-# had DST in 1991-2 and 1992-3, but not in 1990-1 or in 1993-4.
-# It has something to do with electricity companies meeting demand in summer.
-# We don't know the 1991-3 transition times, unfortunately.
+#
+# From Hernan G. Otero <hernan@isoft.com.ar> (June 26, 1995):
+# These corrections were contributed by InterSoft Argentina S.A.,
+# obtaining the data from the:
+# Talleres de Hidrografia Naval Argentina
+# (Argentinian Naval Hydrography Institute)
+#
+# Shanks gives 1989 Mar 16 and stops after 1990 Mar 4; go with Otero.
+Rule	Arg	1989	1993	-	Mar	Sun>=1	0:00	0	S
+Rule	Arg	1989	1992	-	Oct	Sun>=15	0:00	1:00	D
+#
+# From Hernan G. Otero <hernan@isoft.com.ar> (June 26, 1995):
+# From this moment on, the law that mandated the daylight saving
+# time corrections was derogated and no more modifications
+# to the time zones (for daylight saving) are now made.
+#
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Buenos_Aires -3:53:48 -	LMT	1894 Nov
 			-4:17	-	CMT	1920 May    # Cordoba Mean Time
 			-4:00	-	AST	1930 Dec
 			-4:00	Arg	A%sT	1969 Oct 5
-			-3:00	Arg	E%sT
+			-3:00	Arg	AR%sT
 
 # Bolivia
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]

@@ -1,4 +1,4 @@
-# @(#)australasia	7.20
+# @(#)australasia	7.21
 # This file also includes Pacific islands.
 
 # Notes are at the end of this file
@@ -21,9 +21,11 @@ Rule	Aus	1943	only	-	Oct	 3	2:00	1:00	-
 # 1944/1945 was just like 1943/1944; go with Shanks.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+# Northern Territory
 Zone Australia/Darwin	 8:43:20 -	LMT	1895 Feb
 			 9:30	-	CST	1917 Jan 1 0:01
 			 9:30	Aus	CST
+# Western Australia
 Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	-	WST	1917 Jan 1 0:01
 			 8:00	Aus	WST	1974 Oct lastSun 2:00
@@ -33,6 +35,7 @@ Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	-	WST	1991 Nov 17 2:00
 			 8:00	1:00	WST	1992 Mar Sun>=1 3:00
 			 8:00	-	WST
+# Queensland
 Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct lastSun 2:00
@@ -45,6 +48,7 @@ Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	1:00	EST	1992 Mar Sun>=1 3:00
 			10:00	-	EST
 
+# South Australia
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AS	1971	1985	-	Oct	lastSun	2:00	1:00	-
 Rule	AS	1986	only	-	Oct	19	2:00	1:00	-
@@ -52,8 +56,9 @@ Rule	AS	1987	max	-	Oct	lastSun	2:00	1:00	-
 Rule	AS	1972	only	-	Feb	27	3:00	0	-
 Rule	AS	1973	1985	-	Mar	Sun>=1	3:00	0	-
 Rule	AS	1986	1989	-	Mar	Sun>=15	3:00	0	-
-Rule	AS	1990	max	even	Mar	Sun>=18	3:00	0	-
-Rule	AS	1990	max	odd	Mar	Sun>=1	3:00	0	-
+Rule	AS	1990	1994	even	Mar	Sun>=18	3:00	0	-
+Rule	AS	1990	1994	odd	Mar	Sun>=1	3:00	0	-
+Rule	AS	1995	max	-	Mar	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
 			9:00	-	CST	1899 May
@@ -61,6 +66,7 @@ Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
 			9:30	Aus	CST	1971 Oct lastSun 2:00
 			9:30	AS	CST
 
+# Tasmania
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AT	1967	only	-	Oct	1	2:00	1:00	-
 Rule	AT	1968	only	-	Mar	31	3:00	0	-
@@ -81,6 +87,7 @@ Zone Australia/Hobart	9:49:16	-	LMT	1895 Sep
 			10:00	Aus	EST	1967 Oct 1 2:00
 			10:00	AT	EST
 
+# Victoria
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AV	1971	1985	-	Oct	lastSun	2:00	1:00	-
 Rule	AV	1972	only	-	Feb	27	3:00	0	-
@@ -88,19 +95,19 @@ Rule	AV	1973	1985	-	Mar	Sun>=1	3:00	0	-
 Rule	AV	1986	1990	-	Mar	Sun>=15	3:00	0	-
 Rule	AV	1986	only	-	Oct	19	2:00	1:00	-
 Rule	AV	1987	max	-	Oct	lastSun	2:00	1:00	-
-Rule	AV	1991	max	-	Mar	Sun>=1	3:00	0	-
+Rule	AV	1991	1994	-	Mar	Sun>=1	3:00	0	-
+Rule	AV	1995	max	-	Mar	lastSun	3:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	-	EST	1917 Jan 1 0:01
 			10:00	Aus	EST	1971 Oct 31 2:00
 			10:00	AV	EST
 
+# New South Wales
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AN	1971	1985	-	Oct	lastSun	2:00	1:00	-
 Rule	AN	1972	only	-	Feb	27	3:00	0	-
-Rule	AN	1973	1981	-	Mar	Sun>=1	3:00	0	-
-Rule	AN	1982	only	-	Apr	4	3:00	0	-
-Rule	AN	1983	1985	-	Mar	Sun>=1	3:00	0	-
+Rule	AN	1973	1985	-	Mar	Sun>=1	3:00	0	-
 Rule	AN	1986	1989	-	Mar	Sun>=15	3:00	0	-
 Rule	AN	1986	only	-	Oct	19	2:00	1:00	-
 Rule	AN	1987	max	-	Oct	lastSun	2:00	1:00	-
@@ -116,12 +123,23 @@ Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 			9:30	-	CST	1917 Jan 1 0:01
 			9:30	Aus	CST	1971 Oct 31 2:00
 			9:30	AN	CST
+
+# Australian Capital Territory
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Australia/Canberra	 9:56:32 -	LMT	1895 Feb
+			10:00	-	EST	1917 Jan  1 0:01
+			10:00	Aus	EST	1971 Oct 31 2:00
+			10:00	AN	EST	1981 Oct 25 2:00
+			10:00	1:00	EST	1982 Apr  4 3:00
+			10:00	AN	EST
+
+# Australian miscellany
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
 			10:30	AN	LHST
 Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 			7:00	-	JVT
-
 #
 # Ashmore Is, Cartier
 # no information; probably like Australia/Perth
@@ -129,10 +147,6 @@ Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 # Macquarie, Manihiki, Penrhyn, Rakehanga
 # no information
 
-
-# Belau
-Zone Pacific/Belau	8:58:00	-	LMT	1901
-			9:00	-	BLT
 
 # Cook Is
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -147,7 +161,7 @@ Zone Pacific/Rarotonga	-10:39:04 -	LMT	1901		# Avarua
 # Cocos
 # From USNO (1989):
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Pacific/Cocos	6:30	-	CCT
+Zone	Indian/Cocos	6:30	-	CCT
 
 # Fiji
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -223,13 +237,13 @@ Rule	NZ	1930	1933	-	Oct	Sun>=8	2:00	1:00	D
 # Shanks says DST stopped 1940 Sep lastSun; go with Whitman for war years.
 Rule	NZ	1934	1944	-	Apr	lastSun	2:00	0	S
 Rule	NZ	1934	1944	-	Sep	lastSun	2:00	1:00	D
-Rule	NZ	1974	only	-	Nov	 3	2:00	1:00	D
-Rule	NZ	1975	1988	-	Oct	lastSun	2:00	1:00	D
-Rule	NZ	1989	only	-	Oct	 8	2:00	1:00	D
-Rule	NZ	1990	max	-	Oct	Sun>=1	2:00	1:00	D
-Rule	NZ	1975	only	-	Feb	23	3:00	0	S
-Rule	NZ	1976	1989	-	Mar	Sun>=1	3:00	0	S
-Rule	NZ	1990	max	-	Mar	Sun>=15	3:00	0	S
+Rule	NZ	1974	only	-	Nov	 3	2:00s	1:00	D
+Rule	NZ	1975	1988	-	Oct	lastSun	2:00s	1:00	D
+Rule	NZ	1989	only	-	Oct	 8	2:00s	1:00	D
+Rule	NZ	1990	max	-	Oct	Sun>=1	2:00s	1:00	D
+Rule	NZ	1975	only	-	Feb	23	2:00s	0	S
+Rule	NZ	1976	1989	-	Mar	Sun>=1	2:00s	0	S
+Rule	NZ	1990	max	-	Mar	Sun>=15	2:00s	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Pacific/Auckland	11:39:04 -	LMT	1868
 						# Shanks gives 1940 Sep 29 2:00;
@@ -256,7 +270,7 @@ Zone	Pacific/Niue	-11:19:40 -	LMT	1901		# Alofi
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Pacific/Norfolk	11:11:52 -	LMT	1901		# Kingston
 			11:12	-	NMT	1951
-			11:30	-	NST
+			11:30	-	NRFT
 
 # Pacific Islands Trust Territories
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -273,8 +287,13 @@ Zone Pacific/Truk	10:07:08 -	LMT	1901
 Zone Pacific/Ponape	10:33:00 -	LMT	1901
 			11:00	-	NCST
 Zone Pacific/Yap	9:12:24	-	LMT	1901
-			9:00	-	BLT	1969 Oct
+			9:00	-	PLT	1969 Oct
 			10:00	-	GST
+
+# Palau
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone Pacific/Palau	8:57:56 -	LMT	1901		# Koror
+			9:00	-	PLT
 
 # Palmyra
 # no information; probably like Pacific/Kiritmati
@@ -366,14 +385,14 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	  6:30	CCT	Cocos*
 #	  7:00	JVT	Java*
 #	  8:00	WST WST	Western Australia
-#	  9:00	BLT	Belau*
 #	  9:00	JST	Japan
+#	  9:00	PLT	Palau*
 #	  9:30	CST CST	Central Australia
 #	 10:00	EST EST	Eastern Australia
 #	 10:00	GST	Guam*
 #	 10:30	LHST LHST Lord Howe*
 #	 11:00	NCST NCDT New Caledonia*
-#	 11:30	NRT	Norfolk*
+#	 11:30	NRFT	Norfolk*
 #	 12:00	NZST NZDT New Zealand
 #	 12:45	NZ-CHAT	Chatham
 #	 13:00	TGT	Tongatapu*
@@ -384,6 +403,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	- 9:30	MQT	Marquesas*
 #	- 9:00	GBT	Gambier*
 #	- 8:30	PIT	Pitcairn*
+#
+# See the `northamerica' file for Hawaii and Samoa.
+# See the `southamerica' file for Easter I and the Galapagos Is.
 #
 # See the `africa' file for Zone naming conventions.
 
@@ -415,20 +437,31 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	WST	for any place operating at a GMTOFF of 8:00
 #	EST	for any place operating at a GMTOFF of 10:00
 
-# Australia/North
+# From Paul Eggert (November 8, 1994):
+# Shanks reports 2:00 for all autumn changes in Australia and New Zealand.
+# Mark Prior <mrp@itd.adelaide.edu.au> writes that his newspaper
+# reports that NSW's fall 1995 change will occur at 2:00,
+# but Robert Elz says it's been 3:00 in Victoria since 1970
+# and perhaps the newspaper's `2:00' is referring to standard time.
+# And Robert Uzgalis <buz@cs.aukuni.ac.nz> says that the New Zealand Daylight
+# Savings Time Order in Council dated 1990-06-18 specifies 2:00 standard
+# time on both the first Sunday in October and the third Sunday in March.
+# For now we'll continue to assume 3:00 for changes since 1970.
+
+# Northern Territory
 
 # From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
 # # The NORTHERN TERRITORY..  [ Courtesy N.T. Dept of the Chief Minister ]
 # #					[ Nov 1990 ]
 # #	N.T. have never utilised any DST due to sub-tropical/tropical location.
 # ...
-# Zone	Australia/North		9:30	-	CST
+# Zone        Australia/North         9:30    -       CST
 
 # From Bradley White (March 4, 1991):
 # A recent excerpt from an Australian newspaper...
 # the Northern Territory do[es] not have daylight saving.
 
-# Australia/West
+# Western Australia
 
 # From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
 # #  The state of WESTERN AUSTRALIA..  [ Courtesy W.A. dept Premier+Cabinet ]
@@ -460,8 +493,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # The 1992 ending date used in the rules is a best guess;
 # it matches what was used in the past.
 
-# Australia/Queensland
-
+# Queensland
 # From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
 # #   The state of QUEENSLAND.. [ Courtesy Qld. Dept Premier Econ&Trade Devel ]
 # #						[ Dec 1990 ]
@@ -498,7 +530,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # From Arthur David Olson (March 8, 1992):
 # The chosen rules the union of the 1971/1972 change and the 1989-1992 changes.
 
-# Australia/Tasmania, Australia/South, and Australia/Victoria
+# South Australia, Tasmania, Victoria
 
 # From Arthur David Olson (March 8, 1992):
 # The rules from version 7.1 follow.
@@ -526,7 +558,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # The file I'm including says that happened in 1988, I think
 # that's incorrect, but I'm not 100% certain.
 
-# Australia/South
+# South Australia
 
 # From Bradley White (March 4, 1991):
 # A recent excerpt from an Australian newspaper...
@@ -565,7 +597,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # 1994 was at +0930 as John Connolly's customer seems to assert, then I can
 # only conclude that the actual rule is more complicated....
 
-# Australia/Tasmania
+# From John Warburton <jwarb@SACBH.com.au> (1994-10-07):
+# The new Daylight Savings dates for South Australia ...
+# was gazetted in the Government Hansard on Sep 26 1994....
+# start on last Sunday in October and end in last sunday in March.
+
+# Tasmania
 
 # From Bradley White (March 4, 1991):
 # A recent excerpt from an Australian newspaper...
@@ -608,7 +645,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # 6 weeks a year now when we are out of sync with the rest of Australia
 # (but nothing new about that).
 
-# Australia/Victoria
+# Victoria
 
 # From Bradley White (March 4, 1991):
 # A recent excerpt from an Australian newspaper...
@@ -628,7 +665,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	AV	1988	max	-	Oct	lastSun	2:00	1:00	D
 # Rule	AV	1991	max	-	Mar	Sun>=1	3:00	0	E
 
-# Australia/NSW
+# New South Wales
 
 # From Arthur David Olson:
 # New South Wales and subjurisdictions have their own ideas of a fun time.
@@ -664,7 +701,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Sources differ on whether DST ended March 6 or March 20 in 1988;
 # March 20 (the "confirmed" date) is in the chosen rules.
 
-# Australia/Yancowinna
+# Yancowinna
 
 # From John Basser (January 4, 1989):
 # `Broken Hill' means the County of Yancowinna.
@@ -685,7 +722,7 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # Rule	 AY	1972	only	-	Feb	lastSun	3:00	0	C
 # [followed by other Rules]
 
-# Australia/LHI
+# Lord Howe Island
 
 # From George Shepherd via Simon Woodhead via Robert Elz (March 6, 1991):
 # LHI...		[ Courtesy of Pauline Van Winsen.. pauline@Aus ]

@@ -1,4 +1,4 @@
-# @(#)northamerica	7.11
+# @(#)northamerica	7.15
 # also includes Central America and the Caribbean
 
 # This data is by no means authoritative; if you think you know better,
@@ -148,7 +148,7 @@ Zone America/Phoenix	-7:00	US	M%sT	1946
 # large size and location in three states."  (The "only" means that other
 # tribal nations don't use DST.)
 
-Link America/Denver Navajo
+Link	America/Denver	America/Shiprock
 
 # From Bob Devine (January 28, 1988):
 # Michigan didn't observe DST from 1968 to 1973.
@@ -222,6 +222,8 @@ Link	Pacific/Honolulu	HST
 #
 # I invented the abbreviation SPST for St Pierre Standard Time; SPDT likewise.
 # Corrections are welcome!
+#
+# See the `europe' file for Greenland.
 #
 # See the `africa' file for Zone naming conventions.
 
@@ -300,6 +302,39 @@ Link	Pacific/Honolulu	HST
 # From Arthur David Olson (November 21, 1992):
 # East-Saskatchewan kept to avoid problems for folks using that zone by name;
 # plain Saskatchewan added.
+
+# From Alain LaBont<e'> <ALB@immedia.ca> (1994-11-14):
+# I post here the time zone abbreviations standardized in Canada
+# for both English and French in the CAN/CSA-Z234.4-89 standard....
+#
+#	UTC	Standard time	Daylight savings time
+#	offset	French	English	French	English
+#	-2:30	-	-	HAT	NDT
+#	-3	-	-	HAA	ADT
+#	-3:30	HNT	NST	-	-
+#	-4	HNA	AST	HAE	EDT
+#	-5	HNE	EST	HAC	CDT
+#	-6	HNC	CST	HAR	MDT
+#	-7	HNR	MST	HAP	PDT
+#	-8	HNP	PST	HAY	YDT
+#	-9	HNY	YST	-	-
+#
+#	HN: Heure Normale	ST: Standard Time
+#	HA: Heure Avanc<e'>e	DT: Daylight saving Time
+#
+#	A: de l'Atlantique	Atlantic
+#	C: du Centre		Central
+#	E: de l'Est		Eastern
+#	M:			Mountain
+#	N:			Newfoundland
+#	P: du Pacifique		Pacific
+#	R: des Rocheuses
+#	T: de Terre-Neuve
+#	Y: du Yukon		Yukon
+#
+# From Paul Eggert <eggert@twinsun.com> (1994-11-22):
+# Alas, this sort of thing must be handled by localization software.
+
 
 
 # From Shanks (1991):
