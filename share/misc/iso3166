@@ -77,7 +77,7 @@ DK	DNK	208	Denmark
 DJ	DJI	262	Djibouti
 DM	DMA	212	Dominica
 DO	DOM	214	Dominican Republic
-TL	TLS	626	East Timor
+TL	TLS	626	Timor-Leste
 EC	ECU	218	Ecuador
 EG	EGY	818	Egypt
 SV	SLV	222	El Salvador
@@ -479,3 +479,10 @@ ZW	ZWE	716	Zimbabwe
 # Newsletter V-5 2002-05-20
 #  EAST TIMOR changed alpha-2 code from TP to TL and alpha-3 from TMP to TLS.
 #  Numeric remains 626.
+#
+# Newsletter V-6 2002-11-15
+#  EAST TIMOR (TL) changed short name to TIMOR-LESTE.  Codes unchanged.
+#
+# Newsletter V-7 2003-01-14
+#  COMOROS (KM) changed official name, not included in this file.
+#
