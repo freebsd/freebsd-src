@@ -1,6 +1,6 @@
-#	$Id: Makefile,v 1.1 1995/01/31 09:14:01 wpaul Exp $
+#	$Id: Makefile,v 1.2 1995/12/16 20:18:16 wpaul Exp $
 
 
-SUBDIR= yppasswdd yp_mkdb
+SUBDIR= yp_mkdb
 
 .include <bsd.subdir.mk>
