@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.96 1997/09/14 02:40:44 peter Exp $
+ * $Id: tty.c,v 1.97 1997/10/12 20:24:05 phk Exp $
  */
 
 /*-
@@ -1486,7 +1486,6 @@ loop:
 		int m = cc[VMIN];
 		long t = cc[VTIME];
 		struct timeval stime, timecopy;
-		int x;
 
 		/*
 		 * Check each of the four combinations.

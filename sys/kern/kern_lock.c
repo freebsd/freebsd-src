@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.12 1997/09/21 04:22:52 dyson Exp $
+ * $Id: kern_lock.c,v 1.13 1997/10/28 15:58:19 bde Exp $
  */
 
 #include <sys/param.h>
@@ -124,7 +124,6 @@ apause(struct lock *lkp, int flags) {
 static int
 acquire(struct lock *lkp, int extflags, int wanted) {
 	int error;
-	int lock_wait;
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted)) {
 		return EBUSY;
@@ -379,7 +378,6 @@ lockmgr(lkp, flags, interlkp, p)
 static int
 acquiredrain(struct lock *lkp, int extflags) {
 	int error;
-	int lock_wait;
 
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & LK_ALL)) {
 		return EBUSY;

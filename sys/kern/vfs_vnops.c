@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.39 1997/10/06 02:38:27 dyson Exp $
+ * $Id: vfs_vnops.c,v 1.40 1997/10/27 15:26:23 bde Exp $
  */
 
 #include <sys/param.h>
@@ -272,7 +272,7 @@ vn_read(fp, uio, cred)
 	struct vnode *vp = (struct vnode *)fp->f_data;
 	struct proc *p = uio->uio_procp;
 	int count, error;
-	int flag, seq;
+	int flag;
 
 	VOP_LEASE(vp, p, cred, LEASE_READ);
 	vn_lock(vp, LK_SHARED | LK_NOPAUSE | LK_RETRY, p);

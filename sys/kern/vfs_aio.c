@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.8 1997/10/12 20:24:19 phk Exp $
+ * $Id: vfs_aio.c,v 1.9 1997/11/06 19:29:27 phk Exp $
  */
 
 /*
@@ -469,7 +469,6 @@ aio_startproc(void *uproc)
 	while(1) {
 		struct vmspace *myvm, *tmpvm;
 		struct proc *cp = curproc;
-		struct proc *up = NULL;
 		struct	aiocblist *aiocbe;
 
 		if ((aiop->aioprocflags & AIOP_FREE) == 0) {
@@ -830,7 +829,6 @@ aio_return(struct proc *p, struct aio_return_args *uap) {
 	int jobref, status;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
-	struct proc *userp;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL) {
@@ -906,7 +904,7 @@ aio_marksuspend(struct proc *p, int njobs, int *joblist, int set) {
  */
 int
 aio_suspend(struct proc *p, struct aio_suspend_args *uap) {
-	struct timeval atv, utv;
+	struct timeval atv;
 	struct timespec ts;
 	struct aiocb *const *cbptr, *cbp;
 	struct kaioinfo *ki;
@@ -1036,11 +1034,10 @@ aio_cancel(struct proc *p, struct aio_cancel_args *uap) {
  */
 int
 aio_error(struct proc *p, struct aio_error_args *uap) {
-	int activeflag, errorcode;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
 	int jobref;
-	int error, status;
+	int status;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
@@ -1230,7 +1227,7 @@ aio_write(struct proc *p, struct aio_write_args *uap) {
 
 int
 lio_listio(struct proc *p, struct lio_listio_args *uap) {
-	int cnt, nent, nentqueued;
+	int nent, nentqueued;
 	struct aiocb *iocb, * const *cbptr;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;

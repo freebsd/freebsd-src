@@ -905,7 +905,6 @@ vxioctl(ifp, cmd, data)
     caddr_t data;
 {
     struct vx_softc *sc = vx_softc[ifp->if_unit];
-    struct ifaddr *ifa = (struct ifaddr *) data;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 

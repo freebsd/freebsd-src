@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.40 1997/10/27 13:33:41 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.41 1997/10/27 15:39:01 bde Exp $
  */
 
 /*
@@ -590,7 +590,6 @@ procfs_lookup(ap)
 	struct vnode *dvp = ap->a_dvp;
 	char *pname = cnp->cn_nameptr;
 	struct proc *curp = cnp->cn_proc;
-	int error = 0;
 	struct proc_target *pt;
 	struct vnode *fvp;
 	pid_t pid;
@@ -775,7 +774,6 @@ procfs_readdir(ap)
 		int pcnt = 0;
 		volatile struct proc *p = allproc.lh_first;
 
-	again:
 		for (; p && uio->uio_resid >= UIO_MX; i++, pcnt++) {
 			bzero((char *) dp, UIO_MX);
 			dp->d_reclen = UIO_MX;
@@ -846,7 +844,6 @@ static int
 procfs_readlink(ap)
 	struct vop_readlink_args *ap;
 {
-	struct uio *uio = ap->a_uio;
 	char buf[16];		/* should be enough */
 	int len;
 

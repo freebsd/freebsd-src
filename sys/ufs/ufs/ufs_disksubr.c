@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.31 1997/07/13 15:53:20 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.32 1997/09/21 22:10:49 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,6 @@ bufqdisksort(bufq, bp)
 {
 	struct buf *bq;
 	struct buf *bn;
-	int	    count;
 	
 	/*
 	 * If the queue is empty or we are an

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.94 1997/10/24 23:41:00 dyson Exp $
+ * $Id: vm_map.c,v 1.95 1997/10/28 15:59:26 bde Exp $
  */
 
 /*
@@ -152,7 +152,6 @@ static MALLOC_DEFINE(M_VMMAP, "VM map", "VM map structures");
 extern char kstack[];
 extern int inmprotect;
 
-static int kentry_count;
 static struct vm_zone kmapentzone_store, mapentzone_store, mapzone_store;
 static vm_zone_t mapentzone, kmapentzone, mapzone;
 static struct vm_object kmapentobj, mapentobj, mapobj;
@@ -1273,7 +1272,6 @@ vm_map_user_pageable(map, start, end, new_pageable)
 {
 	register vm_map_entry_t entry;
 	vm_map_entry_t start_entry;
-	register vm_offset_t failed = 0;
 	int rv;
 
 	vm_map_lock(map);

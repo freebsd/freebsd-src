@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.168 1997/10/27 00:34:15 dyson Exp $
+ *	$Id: pmap.c,v 1.169 1997/10/28 15:58:11 bde Exp $
  */
 
 /*
@@ -978,7 +978,6 @@ pmap_swapin_proc(p)
 	int i;
 	vm_object_t upobj;
 	vm_page_t m;
-	unsigned *pte;
 
 	upobj = p->p_upages_obj;
 	for(i=0;i<UPAGES;i++) {
@@ -1574,7 +1573,6 @@ get_pv_entry(void)
 void
 pmap_collect() {
 	pv_table_t *ppv;
-	pv_entry_t pv;
 	int i;
 	vm_offset_t pa;
 	vm_page_t m;

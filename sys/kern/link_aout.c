@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_aout.c,v 1.2 1997/08/02 14:31:35 bde Exp $
+ *	$Id: link_aout.c,v 1.3 1997/10/24 05:29:07 jmg Exp $
  */
 
 #include <sys/param.h>
@@ -101,12 +101,9 @@ static int
 link_aout_load_file(const char* filename, linker_file_t* result)
 {
     struct nameidata nd;
-    struct vnode* file;
     struct proc* p = curproc;	/* XXX */
     int error = 0;
     int resid;
-    struct iovec aiov;
-    struct uio auio;
     struct exec header;
     aout_file_t af;
     linker_file_t lf;
@@ -370,7 +367,6 @@ link_aout_lookup_symbol(linker_file_t file, const char* name,
 			caddr_t* address, size_t* size)
 {
     aout_file_t af = file->priv;
-    int buckets;
     long hashval;
     struct rrs_hash* hashbase;
     struct nzlist* symbolbase;

@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.34 1997/10/06 08:30:08 peter Exp $
+ * $Id: sys_pipe.c,v 1.35 1997/11/06 19:29:21 phk Exp $
  */
 
 /*
@@ -238,7 +238,6 @@ static void
 pipeinit(cpipe)
 	struct pipe *cpipe;
 {
-	int s;
 
 	cpipe->pipe_buffer.in = 0;
 	cpipe->pipe_buffer.out = 0;

@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.65 1997/08/21 20:33:42 bde Exp $
+ * $Id: vm_glue.c,v 1.66 1997/09/01 03:17:16 bde Exp $
  */
 
 #include "opt_rlimit.h"
@@ -205,8 +205,6 @@ vm_fork(p1, p2, flags)
 	int flags;
 {
 	register struct user *up;
-	int i;
-	pmap_t pvp;
 
 	if (flags & RFMEM) {
 		p2->p_vmspace = p1->p_vmspace;
@@ -285,7 +283,6 @@ void
 faultin(p)
 	struct proc *p;
 {
-	vm_offset_t i;
 	int s;
 
 	if ((p->p_flag & P_INMEM) == 0) {
@@ -458,8 +455,6 @@ static void
 swapout(p)
 	register struct proc *p;
 {
-	pmap_t pmap = &p->p_vmspace->vm_pmap;
-	int i;
 
 #if defined(SWAP_DEBUG)
 	printf("swapping out %d\n", p->p_pid);

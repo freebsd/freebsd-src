@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.72 1997/09/21 22:00:03 gibbs Exp $
+ * $Id: init_main.c,v 1.73 1997/11/06 19:29:07 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -588,7 +588,7 @@ start_init(p)
 {
 	vm_offset_t addr;
 	struct execve_args args;
-	int options, i, retval[2], error;
+	int options, i, error;
 	char **pathp, *path, *ucp, **uap, *arg0, *arg1;
 
 	initproc = p;

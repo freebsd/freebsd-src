@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.47 1997/06/15 17:56:49 dyson Exp $
+ * $Id: vfs_cluster.c,v 1.48 1997/08/02 14:31:43 bde Exp $
  */
 
 #include <sys/param.h>
@@ -85,7 +85,7 @@ cluster_read(vp, filesize, lblkno, size, cred, totread, seqcount, bpp)
 	struct buf **bpp;
 {
 	struct buf *bp, *rbp, *reqbp;
-	daddr_t blkno, rablkno, origblkno;
+	daddr_t blkno, origblkno;
 	int error, num_ra;
 	int i;
 	int maxra, racluster;

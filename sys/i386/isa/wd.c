@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.141 1997/10/12 16:22:01 sos Exp $
+ *	$Id: wd.c,v 1.142 1997/11/04 09:28:54 phk Exp $
  */
 
 /* TODO:
@@ -279,7 +279,6 @@ static int
 wdprobe(struct isa_device *dvp)
 {
 	int	unit = dvp->id_unit;
-	void	*cookie;
 	int	interface;
 	struct disk *du;
 

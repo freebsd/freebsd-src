@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: in_hostcache.c,v 1.1 1997/06/18 01:24:28 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -151,7 +151,6 @@ static struct hccallback inhc_cb = {
 int
 inhc_init(void)
 {
-	int error;
 
 	return (hc_init(AF_INET, &inhc_cb, 128, 0));
 }

@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.18 1997/09/10 19:43:15 phk Exp $
+ * $Id: cd9660_lookup.c,v 1.19 1997/10/16 10:47:33 phk Exp $
  */
 
 #include <sys/param.h>
@@ -117,7 +117,6 @@ cd9660_lookup(ap)
 	char *name;
 	struct vnode **vpp = ap->a_vpp;
 	struct componentname *cnp = ap->a_cnp;
-	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
 	struct proc *p = cnp->cn_proc;

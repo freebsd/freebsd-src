@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: bios.c,v 1.6 1997/09/24 07:47:43 phk Exp $
+ *      $Id: bios.c,v 1.7 1997/10/21 07:40:22 msmith Exp $
  */
 
 /*
@@ -208,7 +208,6 @@ u_int32_t
 bios_sigsearch(u_int32_t start, u_char *sig, int siglen, int paralen, int sigofs)
 {
     u_char	*sp, *end;
-    int		i;
     
     /* compute the starting address */
     if ((start >= BIOS_START) && (start <= (BIOS_START + BIOS_SIZE))) {

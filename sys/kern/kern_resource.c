@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.26 1997/08/26 00:20:11 bde Exp $
+ * $Id: kern_resource.c,v 1.27 1997/11/06 19:29:13 phk Exp $
  */
 
 #include "opt_rlimit.h"
@@ -75,7 +75,7 @@ getpriority(curp, uap)
 	struct proc *curp;
 	register struct getpriority_args *uap;
 {
-	register struct proc *p;
+	register struct proc *p = 0;
 	register int low = PRIO_MAX + 1;
 
 	switch (uap->which) {
