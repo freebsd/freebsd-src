@@ -22,9 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: kldload.c,v 1.2 1997/10/19 11:15:42 jmg Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <err.h>
 #include <stdio.h>
@@ -36,7 +39,7 @@
 static void
 usage(void)
 {
-    fprintf(stderr, "usage: kldload filename\n");
+    fprintf(stderr, "usage: kldload [-v] filename\n");
     exit(1);
 }
 
@@ -63,7 +66,7 @@ main(int argc, char** argv)
 
     fileid = kldload(argv[0]);
     if (fileid < 0)
-	err(1, "Can't load %s", argv[0]);
+	err(1, "can't load %s", argv[0]);
     else
 	if (verbose)
 	    printf("Loaded %s, id=%d\n", argv[0], fileid);

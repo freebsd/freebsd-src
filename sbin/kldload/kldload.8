@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: kldload.8,v 1.1 1997/05/07 18:19:21 dfr Exp $
+.\"	$Id: kldload.8,v 1.2 1997/10/21 09:59:18 jmg Exp $
 .\"
 .Dd April 25, 1997
 .Dt KLDLOAD 8
@@ -34,14 +34,14 @@
 .Sh SYNOPSIS
 .Nm kldload
 .Op Fl v
-.Ar file
+.Ar filename
 .Sh DESCRIPTION
 The
 .Nm
 loads a file into the kernel using the kernel linker.
 .Pp
-The options are:
-.Bl -tag -width XXX -offset indent
+The following option is available:
+.Bl -tag -width indent
 .It Fl v
 Be more verbose.
 .El
@@ -54,7 +54,4 @@ The
 command first appeared in
 .Fx 3.0 .
 .Sh AUTHOR
-.Bl -tag
-Doug Rabson
-.Aq dfr@freebsd.org
-.El.
+.An Doug Rabson Aq dfr@freebsd.org
