@@ -4,7 +4,8 @@
 
 .PATH: ${.CURDIR}/man
 
-MAN3+=	pthread_cleanup_pop.3 \
+MAN3+=	pthread_cancel.3 \
+	pthread_cleanup_pop.3 \
 	pthread_cleanup_push.3 \
 	pthread_cond_broadcast.3 \
 	pthread_cond_destroy.3 \
@@ -12,7 +13,6 @@ MAN3+=	pthread_cleanup_pop.3 \
 	pthread_cond_signal.3 \
 	pthread_cond_timedwait.3 \
 	pthread_cond_wait.3 \
-	pthread_cancel.3 \
 	pthread_create.3 \
 	pthread_detach.3 \
 	pthread_equal.3 \
@@ -38,7 +38,16 @@ MAN3+=	pthread_cleanup_pop.3 \
 	pthread_rwlockattr_setpshared.3 \
 	pthread_self.3 \
 	pthread_setspecific.3 \
-	pthread_testcancel.3
+	pthread_testcancel.3 \
+	sem_destroy.3 \
+	sem_getvalue.3 \
+	sem_init.3 \
+	sem_open.3 \
+	sem_post.3 \
+	sem_wait.3
 
 MLINKS+=	pthread_cancel.3 pthread_setcancelstate.3 \
-	pthread_cancel.3 pthread_getcancelstate.3 
+	pthread_cancel.3 pthread_getcancelstate.3 \
+	sem_open.3 sem_close.3 \
+	sem_open.3 sem_unlink.3 \
+	sem_wait.3 sem_trywait.3
