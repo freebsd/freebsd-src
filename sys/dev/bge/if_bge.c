@@ -2139,7 +2139,7 @@ bge_rxeof(sc)
 		}
 #endif
 		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.len = m->m_len = cur_rx->bge_len;
+		m->m_pkthdr.len = m->m_len = cur_rx->bge_len - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
 		/* Remove header from mbuf and pass it on. */
