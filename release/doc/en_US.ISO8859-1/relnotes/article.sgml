@@ -1156,6 +1156,10 @@
       smooth load peaks appearing when a lot of jobs are scheduled
       for a particular moment. &merged;</para>
 
+    <para>A bug that prevents &man.crontab.1 with the <option>-e</option>
+      option from properly prompting the user to re-edit the entries written in
+      the incorrect format, has been fixed.</para>
+
     <para>&man.cut.1; <option>-c</option>,
       <option>-d</option>, and <option>-f</option>
       now work correctly in locales with multibyte characters.</para>
