@@ -489,7 +489,7 @@ readcheck:
 	/* Check if we are stuck and reset [see XXX comment] */
 	if (vxstatus(sc)) {
 	    if (ifp->if_flags & IFF_DEBUG)
-	       printf("vx%d: adapter reset\n", ifp->if_unit);
+	       if_printf(ifp, "adapter reset\n");
 	    vxreset(sc);
 	}
     }
@@ -937,7 +937,7 @@ vxwatchdog(ifp)
     struct vx_softc *sc = ifp->if_softc;
 
     if (ifp->if_flags & IFF_DEBUG)
-	printf("vx%d: device timeout\n", ifp->if_unit);
+	if_printf(ifp, "device timeout\n");
     ifp->if_flags &= ~IFF_OACTIVE;
     vxstart(ifp);
     vxintr(sc);
