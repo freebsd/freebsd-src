@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.19 1998/07/29 17:38:14 bde Exp $
+ * $Id: kern_lockf.c,v 1.23 1999/07/04 14:43:01 bde Exp $
  */
 
 #include "opt_debug_lockf.h"
@@ -272,20 +272,22 @@ lf_setlock(lock)
 			lf_printlist("lf_setlock", block);
 		}
 #endif /* LOCKF_DEBUG */
-		if ((error = tsleep((caddr_t)lock, priority, lockstr, 0))) {
-                        /*
-			 * We may have been awakened by a signal (in
-			 * which case we must remove ourselves from the
-			 * blocked list) and/or by another process
-			 * releasing a lock (in which case we have already
-			 * been removed from the blocked list and our
-			 * lf_next field set to NOLOCKF).
-                         */
-			if (lock->lf_next)
-				TAILQ_REMOVE(&lock->lf_next->lf_blkhd, lock,
-					lf_block);
-                        free(lock, M_LOCKF);
-                        return (error);
+		error = tsleep((caddr_t)lock, priority, lockstr, 0);
+		/*
+		 * We may have been awakened by a signal and/or by a
+		 * debugger continuing us (in which cases we must remove
+		 * ourselves from the blocked list) and/or by another
+		 * process releasing a lock (in which case we have
+		 * already been removed from the blocked list and our
+		 * lf_next field set to NOLOCKF).
+		 */
+		if (lock->lf_next) {
+			TAILQ_REMOVE(&lock->lf_next->lf_blkhd, lock, lf_block);
+			lock->lf_next = NOLOCKF;
+		}
+		if (error) {
+			free(lock, M_LOCKF);
+			return (error);
 		}
 	}
 	/*
@@ -360,11 +362,13 @@ lf_setlock(lock)
 			    overlap->lf_type == F_WRLCK) {
 				lf_wakelock(overlap);
 			} else {
-				while (ltmp = overlap->lf_blkhd.tqh_first) {
+				while ((ltmp = overlap->lf_blkhd.tqh_first) !=
+				    NOLOCKF) {
 					TAILQ_REMOVE(&overlap->lf_blkhd, ltmp,
 					    lf_block);
 					TAILQ_INSERT_TAIL(&lock->lf_blkhd,
 					    ltmp, lf_block);
+					ltmp->lf_next = lock;
 				}
 			}
 			/*
@@ -717,7 +721,7 @@ lf_wakelock(listhead)
 {
 	register struct lockf *wakelock;
 
-	while (wakelock = listhead->lf_blkhd.tqh_first) {
+	while ((wakelock = listhead->lf_blkhd.tqh_first) != NOLOCKF) {
 		TAILQ_REMOVE(&listhead->lf_blkhd, wakelock, lf_block);
 		wakelock->lf_next = NOLOCKF;
 #ifdef LOCKF_DEBUG
