@@ -284,7 +284,6 @@ static sig_atomic_t interrupted;
 
 static int JobCondPassSig(void *, void *);
 static void JobPassSig(int);
-static int JobCmpPid(void *, void *);
 static int JobPrintCommand(void *, void *);
 static int JobSaveCommand(void *, void *);
 static void JobClose(Job *);
@@ -424,10 +423,10 @@ JobPassSig(int signo)
  *-----------------------------------------------------------------------
  */
 static int
-JobCmpPid(void *job, void *pid)
+JobCmpPid(const void *job, const void *pid)
 {
 
-    return (*(int *)pid - ((Job *)job)->pid);
+    return (*(const int *)pid - ((const Job *)job)->pid);
 }
 
 /*-

@@ -99,7 +99,6 @@ typedef enum {
 static void CondPushBack(Token);
 static int CondGetArg(char **, char **, char *, Boolean);
 static Boolean CondDoDefined(int, char *);
-static int CondStrMatch(void *, void *);
 static Boolean CondDoMake(int, char *);
 static Boolean CondDoExists(int, char *);
 static Boolean CondDoTarget(int, char *);
@@ -307,10 +306,10 @@ CondDoDefined(int argLen, char *arg)
  *-----------------------------------------------------------------------
  */
 static int
-CondStrMatch(void *string, void *pattern)
+CondStrMatch(const void *string, const void *pattern)
 {
 
-    return (!Str_Match((char *)string, (char *)pattern));
+    return (!Str_Match(string, pattern));
 }
 
 /*-
