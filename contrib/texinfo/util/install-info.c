@@ -1412,9 +1412,14 @@ For more information about these matters, see the files named COPYING.\n"),
                                                 dir_lines[i].start,
                                                 dir_lines[i].size)
                             && !dir_lines[i].delete)
-                          fatal (_("menu item `%s' already exists, for file `%s'"),
+			  {
+			    if (quiet_flag)
+			      dir_lines[i].delete = 1;
+			    else
+			      fatal (_("menu item `%s' already exists, for file `%s'"),
                                  extract_menu_item_name (entry->text),
                                  extract_menu_file_name (dir_lines[i].start));
+			  }
                         if (dir_lines[i].start[0] == '*'
                             && menu_line_lessp (entry->text, entry->text_len,
                                                 dir_lines[i].start,
