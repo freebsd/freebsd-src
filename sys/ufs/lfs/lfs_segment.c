@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_segment.c	8.10 (Berkeley) 6/10/95
- * $Id: lfs_segment.c,v 1.22 1997/06/15 17:56:46 dyson Exp $
+ * $Id: lfs_segment.c,v 1.23 1997/08/02 14:33:20 bde Exp $
  */
 
 #include <sys/param.h>
@@ -1222,7 +1222,7 @@ lfs_vref(vp)
 
 	if ((vp->v_flag & VXLOCK) ||	/* XXX */
 	    (vp->v_usecount == 0 &&
-	     vp->v_freelist.tqe_prev == (struct vnode **)0xdeadb))
+	     vp->v_flag & VDOOMED))
 		return(1);
 	return (vget(vp, 0, p));
 }

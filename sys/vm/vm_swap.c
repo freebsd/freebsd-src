@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.42 1997/02/22 09:48:40 peter Exp $
+ * $Id: vm_swap.c,v 1.43 1997/03/23 03:37:54 bde Exp $
  */
 
 #include <sys/param.h>
@@ -136,7 +136,7 @@ swstrategy(bp)
 		biodone(bp);
 		return;
 	}
-	VHOLD(sp->sw_vp);
+	vhold(sp->sw_vp);
 	if ((bp->b_flags & B_READ) == 0) {
 		vp = bp->b_vp;
 		if (vp) {

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.45 1997/08/18 03:29:08 fsmp Exp $
+ * $Id: vnode.h,v 1.46 1997/08/26 07:32:46 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -141,6 +141,8 @@ struct vnode {
 #define	VAGE		0x08000	/* Insert vnode at head of free list */
 #define	VOLOCK		0x10000	/* vnode is locked waiting for an object */
 #define	VOWANT		0x20000	/* a process is waiting for VOLOCK */
+#define	VDOOMED		0x40000	/* This vnode is being recycled */
+#define	VFREE		0x80000	/* This vnode is on the freelist */
 
 /*
  * Vnode attributes.  A field value of VNOVAL represents a field whose value
@@ -221,35 +223,12 @@ extern int		vttoif_tab[];
 #define	V_SAVEMETA	0x0002		/* vinvalbuf: leave indirect blocks */
 #define	REVOKEALL	0x0001		/* vop_revoke: revoke all aliases */
 
-#ifdef DIAGNOSTIC
-#define	HOLDRELE(vp)	holdrele(vp)
-#define	VATTR_NULL(vap)	vattr_null(vap)
-#define	VHOLD(vp)	vhold(vp)
 #define	VREF(vp)	vref(vp)
 
-void	holdrele __P((struct vnode *));
-void	vhold __P((struct vnode *));
-void 	vref __P((struct vnode *vp));
+#ifdef DIAGNOSTIC
+#define	VATTR_NULL(vap)	vattr_null(vap)
 #else
 #define	VATTR_NULL(vap)	(*(vap) = va_null)	/* initialize a vattr */
-#define	HOLDRELE(vp)	holdrele(vp)		/* decrease buf or page ref */
-static __inline void
-holdrele(struct vnode *vp)
-{
-	simple_lock(&vp->v_interlock);
-	vp->v_holdcnt--;
-	simple_unlock(&vp->v_interlock);
-}
-#define	VHOLD(vp)	vhold(vp)		/* increase buf or page ref */
-static __inline void
-vhold(struct vnode *vp)
-{
-	simple_lock(&vp->v_interlock);
-	vp->v_holdcnt++;
-	simple_unlock(&vp->v_interlock);
-}
-#define	VREF(vp)	vref(vp)		/* increase reference */
-void 	vref __P((struct vnode *vp));
 #endif /* DIAGNOSTIC */
 
 #define	NULLVP	((struct vnode *)NULL)
@@ -287,6 +266,15 @@ extern void	(*lease_updatetime) __P((int deltat));
 #define	LEASE_UPDATETIME(dt) \
 	do { if(lease_updatetime) lease_updatetime(dt); } while(0)
 #endif /* NFS */
+
+#define VSHOULDFREE(vp)	\
+	(!((vp)->v_flag & (VFREE|VDOOMED)) && \
+	 !(vp)->v_holdcnt && !(vp)->v_usecount)
+
+#define VSHOULDBUSY(vp)	\
+	(((vp)->v_flag & VFREE) && \
+	 ((vp)->v_holdcnt || (vp)->v_usecount))
+
 
 #endif /* KERNEL */
 
@@ -482,12 +470,16 @@ int 	getnewvnode __P((enum vtagtype tag,
 void	insmntque __P((struct vnode *vp, struct mount *mp));
 int	lease_check __P((struct vop_lease_args *ap));
 void 	vattr_null __P((struct vattr *vap));
+void	vbusy __P((struct vnode *));
 int 	vcount __P((struct vnode *vp));
+void	vdrop __P((struct vnode *));
 int	vfinddev __P((dev_t dev, enum vtype type, struct vnode **vpp));
+void	vfree __P((struct vnode *));
 void	vfs_opv_init __P((struct vnodeopv_desc **them));
 int	vflush __P((struct mount *mp, struct vnode *skipvp, int flags));
 int 	vget __P((struct vnode *vp, int lockflag, struct proc *p));
 void 	vgone __P((struct vnode *vp));
+void	vhold __P((struct vnode *));
 int	vinvalbuf __P((struct vnode *vp, int save, struct ucred *cred,
 	    struct proc *p, int slpflag, int slptimeo));
 void	vprint __P((char *label, struct vnode *vp));
@@ -514,8 +506,8 @@ int	vop_revoke __P((struct vop_revoke_args *));
 struct vnode *
 	checkalias __P((struct vnode *vp, dev_t nvp_rdev, struct mount *mp));
 void 	vput __P((struct vnode *vp));
+void 	vref __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
-void	vtouch __P((struct vnode *vp));
 #endif /* KERNEL */
 
 #endif /* !_SYS_VNODE_H_ */
