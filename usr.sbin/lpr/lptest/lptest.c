@@ -39,7 +39,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lptest.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <stdlib.h>
@@ -49,12 +53,10 @@ static char sccsid[] = "@(#)lptest.c	8.1 (Berkeley) 6/6/93";
  * lptest -- line printer test program (and other devices).
  */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	int len, count;
-	register i, j, fc, nc;
+	register int i, j, fc, nc;
 	char outbuf[BUFSIZ];
 
 	setbuf(stdout, outbuf);

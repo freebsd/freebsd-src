@@ -82,15 +82,14 @@ uid_t	 uid, euid;		/* real and effective user id's */
 
 static char	luser[16];	/* buffer for person */
 
-int main __P((int, char *[]));
-static void usage __P((void));
+int		 main(int argc, char *_argv[]);
+static void	 usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	char *arg, *printer;
+	char *arg;
+	const char *printer;
 	struct passwd *p;
 	static char root[] = "root";
 
@@ -158,7 +157,7 @@ main(argc, argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: lprm [-] [-Pprinter] [[job #] [user] ...]\n");
 	exit(2);

@@ -58,14 +58,16 @@ static const char rcsid[] =
 /*
  * Routines and data used in processing the printcap file.
  */
-static 	char *printcapdb[2] = { _PATH_PRINTCAP, 0 }; /* list for cget* */
+static char *printcapdb[2] = { _PATH_PRINTCAP, 0 };  /* list for cget* */
 
-static	char *capdb_canonical_name(const char *);
-static	int capdb_getaltlog(char *, const char *, const char *);
-static	int capdb_getaltnum(char *, const char *, const char *, long, long *);
-static	int capdb_getaltstr(char *, const char *, const char *, const char *,
-			    char **);
-static	int getprintcap_int(char *bp, struct printer *pp);
+static char 	*capdb_canonical_name(const char *_bp);
+static int	 capdb_getaltlog(char *_bp, const char *_shrt,
+		    const char *_lng);
+static int	 capdb_getaltnum(char *_bp, const char *_shrt,
+		    const char *_lng, long _dflt, long *_result);
+static int	 capdb_getaltstr(char *_bp, const char *_shrt,
+		    const char *lng, const char *_dflt, char **_result);
+static int	 getprintcap_int(char *_bp, struct printer *_pp);
 
 /*
  * Change the name of the printcap file.  Used by chkprintcap(8),
@@ -210,9 +212,7 @@ static const char *longfilters[] = {
  * and store a malloced copy of it in pp->printer.
  */
 static int
-getprintcap_int(bp, pp)
-	char *bp;
-	struct printer *pp;
+getprintcap_int(char *bp, struct printer *pp)
 {
 	enum lpd_filters filt;
 	char *rp_name;
@@ -371,7 +371,7 @@ free_printer(struct printer *pp)
  */
 static int
 capdb_getaltstr(char *bp, const char *shrt, const char *lng, 
-		const char *dflt, char **result)
+    const char *dflt, char **result)
 {
 	int status;
 
@@ -395,7 +395,7 @@ capdb_getaltstr(char *bp, const char *shrt, const char *lng,
  */
 static int
 capdb_getaltnum(char *bp, const char *shrt, const char *lng, long dflt,
-		long *result)
+    long *result)
 {
 	int status;
 
