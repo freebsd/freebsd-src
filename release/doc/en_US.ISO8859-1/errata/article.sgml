@@ -113,22 +113,17 @@
   <sect1>
     <title>Security Advisories</title>
 
-<![ %release.type.release [
     <para>No active security advisories.</para>
-]]>
-
-<![ %release.type.snapshot [
-]]>
   </sect1>
 
   <sect1>
     <title>System Update Information</title>
 
-<![ %release.type.release [
-    <para>No active updates.</para>
-]]>
-
-<![ %release.type.snapshot [
-]]>
+    <para>The handling of some types of comments in &man.printcap.5;
+      files is faulty.  If a comment line ends in
+      <literal>:\</literal> (the characters normally used to indicate
+      the continuation of a printer definition), the line following
+      the comment will be parsed as a part of the previous printer
+      definition.</para>
   </sect1>
 </article>
