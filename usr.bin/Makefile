@@ -224,10 +224,6 @@ SUBDIR+=dig \
 	host
 .endif
 
-.if !defined(NO_PERL_WRAPPER)
-SUBDIR+=perl
-.endif
-
 .if !defined(NO_SENDMAIL)
 SUBDIR+=vacation
 .endif
