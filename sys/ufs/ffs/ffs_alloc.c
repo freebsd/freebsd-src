@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.43 1997/11/22 07:00:40 bde Exp $
+ * $Id: ffs_alloc.c,v 1.44 1997/11/22 08:35:45 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -602,7 +602,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 	/*
 	 * Set up a new generation number for this inode.
 	 */
-	if (ip->i_gen == 0 || ++(ip->i_gen) == 0)
+	if (ip->i_gen == 0 || ++ip->i_gen == 0)
 		ip->i_gen = random() / 2 + 1;
 	return (0);
 noinodes:
