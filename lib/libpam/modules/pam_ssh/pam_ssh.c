@@ -199,7 +199,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	}
 	pam_auth_dsa = auth_via_key(pamh, KEY_DSA, SSH_CLIENT_ID_DSA, dotdir,
 	    pwd, pass);
-	pam_auth_rsa = auth_via_key(pamh, KEY_RSA, SSH_CLIENT_IDENTITY, dotdir,
+	pam_auth_rsa = auth_via_key(pamh, KEY_RSA1, SSH_CLIENT_IDENTITY, dotdir,
 	    pwd, pass);
 	authenticated = 0;
 	if (pam_auth_dsa == PAM_SUCCESS)
@@ -234,7 +234,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		/* RSA keys */
 		else if (strncmp(dotdir_ent->d_name, SSH2_RSA_PREFIX,
 		    strlen(SSH2_RSA_PREFIX)) == 0)
-			retval = auth_via_key(pamh, KEY_DSA,
+			retval = auth_via_key(pamh, KEY_RSA,
 			    dotdir_ent->d_name, dotdir, pwd, pass);
 		/* skip other files */
 		else
@@ -376,12 +376,12 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		if (env_fp)
 			fputs(env_string, env_fp);
 		env_value = strchr(env_string, '=');
-		if (env_value == NULL) {
-			env_end = strchr(env_value, ';');
-			if (env_end == NULL)
+		if (env_value == NULL)
+			continue;
+		env_end = strchr(env_value, ';');
+		if (env_end == NULL)
 				continue;
-			*env_end = '\0';
-		}
+		*env_end = '\0';
 		/* pass to the application ... */
 		retval = pam_putenv(pamh, env_string);
 		if (retval != PAM_SUCCESS) {
@@ -390,6 +390,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				fclose(env_fp);
 			PAM_RETURN(PAM_SERVICE_ERR);
 		}
+		putenv(env_string);
 
 		PAM_LOG("Put to environment: %s", env_string);
 
