@@ -46,6 +46,7 @@
 #include <machine/fp.h>
 #include <machine/frame.h>
 #include <machine/globals.h>
+#include <machine/intr_machdep.h>
 #include <machine/pcb.h>
 #include <machine/pstate.h>
 #include <machine/setjmp.h>
@@ -109,6 +110,7 @@ ASSYM(STTE_SIZEOF, sizeof(struct stte));
 
 ASSYM(TD_VA_LOW_MASK, TD_VA_LOW_MASK);
 ASSYM(TD_VA_LOW_SHIFT, TD_VA_LOW_SHIFT);
+ASSYM(TD_EXEC, TD_EXEC);
 ASSYM(TD_INIT, TD_INIT);
 ASSYM(TD_MOD, TD_MOD);
 ASSYM(TD_REF, TD_REF);
@@ -120,6 +122,25 @@ ASSYM(TT_CTX_SHIFT, TT_CTX_SHIFT);
 
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
 ASSYM(GD_CURPCB, offsetof(struct globaldata, gd_curpcb));
+
+ASSYM(GD_IQ, offsetof(struct globaldata, gd_iq));
+ASSYM(GD_IVT, offsetof(struct globaldata, gd_ivt));
+
+ASSYM(IQ_MASK, IQ_MASK);
+ASSYM(IQ_HEAD, offsetof(struct intr_queue, iq_head));
+ASSYM(IQ_TAIL, offsetof(struct intr_queue, iq_tail));
+
+ASSYM(IQE_SHIFT, IQE_SHIFT);
+ASSYM(IQE_TAG, offsetof(struct iqe, iqe_tag));
+ASSYM(IQE_PRI, offsetof(struct iqe, iqe_pri));
+ASSYM(IQE_VEC, offsetof(struct iqe, iqe_vec));
+ASSYM(IQE_FUNC, offsetof(struct iqe, iqe_func));
+ASSYM(IQE_ARG, offsetof(struct iqe, iqe_arg));
+
+ASSYM(IV_SHIFT, IV_SHIFT);
+ASSYM(IV_FUNC, offsetof(struct intr_vector, iv_func));
+ASSYM(IV_ARG, offsetof(struct intr_vector, iv_arg));
+ASSYM(IV_PRI, offsetof(struct intr_vector, iv_pri));
 
 ASSYM(JB_FP, offsetof(struct _jmp_buf, _jb[_JB_FP]));
 ASSYM(JB_PC, offsetof(struct _jmp_buf, _jb[_JB_PC]));
@@ -190,6 +211,7 @@ ASSYM(TF_O4, offsetof(struct trapframe, tf_out[4]));
 ASSYM(TF_O5, offsetof(struct trapframe, tf_out[5]));
 ASSYM(TF_O6, offsetof(struct trapframe, tf_out[6]));
 ASSYM(TF_O7, offsetof(struct trapframe, tf_out[7]));
+ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
 ASSYM(TF_TSTATE, offsetof(struct trapframe, tf_tstate));
 ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
 ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
