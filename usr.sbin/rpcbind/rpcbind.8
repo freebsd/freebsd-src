@@ -73,7 +73,7 @@ during operation, and will abort on certain errors.
 With this option, the name-to-address translation consistency
 checks are shown in detail.
 .It Fl i
-.Dq insecure
+.Dq Insecure
 mode.
 Allows calls to SET and UNSET from any host.
 Normally
@@ -85,7 +85,7 @@ loopback interface.
 .It Fl l
 Turns on libwrap connection logging.
 .It Fl s
-causes
+Causes
 .Nm
 to change to the user daemon as soon as possible.
 This causes
@@ -97,7 +97,7 @@ to connect to services from a privileged port.
 .It Fl L
 Allow old-style local connections over the loopback interface.
 Without this flag, local connections are only allowed over a local socket,
-.Pa /var/run/rpcbind.sock
+.Pa /var/run/rpcbind.sock .
 .El
 .Sh NOTES
 All RPC servers must be restarted if
