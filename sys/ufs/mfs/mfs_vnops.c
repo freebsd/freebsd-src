@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ufs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -44,6 +46,8 @@
 #include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/mman.h>
+
+#include <ufs/ufs/extattr.h>
 
 #include <ufs/mfs/mfsnode.h>
 #include <ufs/mfs/mfs_extern.h>
@@ -72,6 +76,9 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_destroyvobject_desc,	(vop_t *) vop_stddestroyvobject },
 	{ &vop_freeblks_desc,		(vop_t *) mfs_freeblks },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
+#ifdef UFS_EXTATTR
+	{ &vop_getextattr_desc,		(vop_t *) ufs_vop_getextattr },
+#endif
 	{ &vop_getpages_desc,		(vop_t *) mfs_getpages },
 	{ &vop_getvobject_desc,		(vop_t *) vop_stdgetvobject },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
@@ -81,6 +88,9 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_open_desc,		(vop_t *) mfs_open },
 	{ &vop_print_desc,		(vop_t *) mfs_print },
 	{ &vop_reclaim_desc,		(vop_t *) mfs_reclaim },
+#ifdef UFS_EXTATTR
+	{ &vop_setextattr_desc,		(vop_t *) ufs_vop_setextattr },
+#endif
 	{ &vop_strategy_desc,		(vop_t *) mfs_strategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_defaultop },
 	{ &vop_getwritemount_desc,	(vop_t *) vop_stdgetwritemount },
