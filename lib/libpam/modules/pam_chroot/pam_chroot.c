@@ -94,6 +94,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 		openpam_log(PAM_LOG_ERROR, "chdir(): %m");
 		return (PAM_SESSION_ERR);
 	}
+	pam_setenv(pamh, "HOME", cwd, 1);
 	return (PAM_SUCCESS);
 }
 
