@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.2 (Berkeley) 7/10/94
- * $Id: disklabel.h,v 1.36 1999/01/03 07:38:58 jkh Exp $
+ * $Id: disklabel.h,v 1.37 1999/03/23 04:08:42 grog Exp $
  */
 
-#ifndef	_SYS_DISKLABEL_H_
+#ifndef _SYS_DISKLABEL_H_
 #define	_SYS_DISKLABEL_H_
 
 #ifndef KERNEL
@@ -204,10 +204,10 @@ struct disklabel {
 #define	DTYPE_HPFL		8		/* HP Fiber-link */
 #define	DTYPE_FLOPPY		10		/* floppy */
 #define	DTYPE_CCD		11		/* concatenated disk */
-#define DTYPE_VINUM		12		/* vinum volume */
+#define	DTYPE_VINUM		12		/* vinum volume */
 
 #ifdef PC98
-#define DSTYPE_SEC256		0x80		/* physical sector size=256*/
+#define	DSTYPE_SEC256		0x80		/* physical sector size=256 */
 #endif
 
 #ifdef DKTYPENAMES
@@ -249,7 +249,8 @@ static char *dktypenames[] = {
 #define	FS_HPFS		11		/* OS/2 high-performance file system */
 #define	FS_ISO9660	12		/* ISO 9660, normally CD-ROM */
 #define	FS_BOOT		13		/* partition contains bootstrap */
-#define FS_VINUM	14		/* Vinum drive */
+#define	FS_VINUM	14		/* Vinum drive */
+
 #ifdef	DKTYPENAMES
 static char *fstypenames[] = {
 	"unused",
@@ -309,9 +310,9 @@ static char *fstypenames[] = {
  */
 struct format_op {
 	char	*df_buf;
-	int	df_count;		/* value-result */
-	daddr_t	df_startblk;
-	int	df_reg[8];		/* result */
+	int	 df_count;		/* value-result */
+	daddr_t	 df_startblk;
+	int	 df_reg[8];		/* result */
 };
 
 /*
