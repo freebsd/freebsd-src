@@ -2239,6 +2239,76 @@ set_dbregs(p, dbregs)
 	return (0);
 }
 
+/*
+ * Return > 0 if a hardware breakpoint has been hit, and the
+ * breakpoint was in user space.  Return 0, otherwise.
+ */
+int
+user_dbreg_trap(void)
+{
+        u_int32_t dr7, dr6; /* debug registers dr6 and dr7 */
+        u_int32_t bp;       /* breakpoint bits extracted from dr6 */
+        int nbp;            /* number of breakpoints that triggered */
+        caddr_t addr[4];    /* breakpoint addresses */
+        int i;
+        
+        dr7 = rdr7();
+        if ((dr7 & 0x000000ff) == 0) {
+                /*
+                 * all GE and LE bits in the dr7 register are zero,
+                 * thus the trap couldn't have been caused by the
+                 * hardware debug registers
+                 */
+                return 0;
+        }
+
+        nbp = 0;
+        dr6 = rdr6();
+        bp = dr6 & 0x0000000f;
+
+        if (!bp) {
+                /*
+                 * None of the breakpoint bits are set meaning this
+                 * trap was not caused by any of the debug registers
+                 */
+                return 0;
+        }
+
+        /*
+         * at least one of the breakpoints were hit, check to see
+         * which ones and if any of them are user space addresses
+         */
+
+        if (bp & 0x01) {
+                addr[nbp++] = (caddr_t)rdr0();
+        }
+        if (bp & 0x02) {
+                addr[nbp++] = (caddr_t)rdr1();
+        }
+        if (bp & 0x04) {
+                addr[nbp++] = (caddr_t)rdr2();
+        }
+        if (bp & 0x08) {
+                addr[nbp++] = (caddr_t)rdr3();
+        }
+
+        for (i=0; i<nbp; i++) {
+                if (addr[i] <
+                    (caddr_t)VM_MAXUSER_ADDRESS) {
+                        /*
+                         * addr[i] is in user space
+                         */
+                        return nbp;
+                }
+        }
+
+        /*
+         * None of the breakpoints are in user space.
+         */
+        return 0;
+}
+
+
 #ifndef DDB
 void
 Debugger(const char *msg)
