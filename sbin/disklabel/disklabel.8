@@ -37,7 +37,7 @@
 .\"
 .Dd July 30, 1999
 .Dt DISKLABEL 8
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm disklabel
 .Nd read and write disk pack label
@@ -639,7 +639,9 @@ Other common types are
 .Cm unused
 and
 .Cm swap .
-By convention, partition c represents the entire slice and should be of type
+By convention, partition
+.Dq c
+represents the entire slice and should be of type
 .Cm unused ,
 though
 .Nm
@@ -648,7 +650,8 @@ does not enforce this convention.
 also knows about a number of other partition types, none of which are in current
 use.
 See the definitions starting with
-.Dv FS_UNUSED in
+.Dv FS_UNUSED
+in
 .Pa /usr/include/sys/disklabel.h
 for more details.
 .It fsize
@@ -883,7 +886,9 @@ or
 thus replacing the
 .Em fdisk
 table by the dummy one in the bootstrap program.  This is only of
-concern if the disk is fully dedicated, so that the BSD disklabel
+concern if the disk is fully dedicated, so that the
+.Bx
+disklabel
 starts at absolute block 0 on the disk.
 .Pp
 .Nm

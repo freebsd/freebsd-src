@@ -37,7 +37,7 @@
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm init
 .Nd process control initialization
@@ -263,7 +263,7 @@ will time out after 30 seconds and print a warning message.
 will cease creating new processes
 and allow the system to slowly die away, if it is sent a terminal stop
 .Pq Dv TSTP
-signal, i.e.
+signal, i.e.\&
 .Dq Li "kill \-TSTP 1" .
 A later hangup will resume full
 multi-user operations, or a terminate will start a single-user shell.
@@ -276,7 +276,7 @@ and
 will terminate all possible processes (again, it will not wait
 for deadlocked processes) and reboot the machine if sent the interrupt
 .Pq Dv INT
-signal, i.e.
+signal, i.e.\&
 .Dq Li "kill \-INT 1".
 This is useful for shutting the machine down cleanly from inside the kernel
 or from X when the machine appears to be hung.
@@ -317,7 +317,7 @@ behavior, i.e. super-user can specify the desired
 on a command line, and
 .Nm
 will signal the original
-.Pq PID 1
+(PID 1)
 .Nm
 as follows:
 .Bl -column Run-level SIGTERM
