@@ -1553,10 +1553,11 @@ sigtd(struct proc *p, int sig, int prop)
 	/*
 	 * If we know the signal is bound for a specific thread then we
 	 * assume that we are in that threads context.  This is the case
-	 * for SIGXCPU, SIGILL, etc.  Otherwise someone did a kill() from
-	 * userland and the real thread doesn't actually matter.
+	 * for SIGXCPU, SIGILL, etc. Otherwise someone did a kill() from
+	 * userland, if current thread can handle the signal, it should
+	 * get the signal.
 	 */
-	if ((prop & SA_PROC) != 0 && curthread->td_proc == p)
+	if (curthread->td_proc == p && !SIGISMEMBER(curthread->td_sigmask, sig))
 		return (curthread);
 
 	/*
