@@ -131,6 +131,7 @@ struct file {
 	off_t	f_nextoff;	/*
 				 * offset of next expected read or write
 				 */
+	void	*f_label;	/* Place-holder for struct label pointer. */
 };
 
 #endif /* _KERNEL */
