@@ -91,6 +91,8 @@ main(int argc, char **argv)
 	Fake = TRUE;
 	msgConfirm("I'll be just faking it from here on out, OK?");
     }
+    if (argc > 1 && !strcmp(argv[1], "-restart"))
+	Restarting = TRUE;
 
     /* Try to preserve our scroll-back buffer */
     if (OnVTY) {
@@ -119,7 +121,7 @@ main(int argc, char **argv)
 
 	if (!strstr(argv[0], "sysinstall"))
 	    start_arg = 0;
-	else if (Fake)
+	else if (Fake || Restarting)
 	    start_arg = 2;
 	else
 	    start_arg = 1;
