@@ -29,54 +29,7 @@
 #define UWX_TRACE_COPYIN	64	/* UWX_TRACE=C: copyin callback */
 #define UWX_TRACE_LOOKUPIP	128	/* UWX_TRACE=L: lookupip callback */
 
-#ifndef UWX_TRACE_ENABLE
-
-#define TRACE_INIT
-#define TRACE_B_REUSE(id)
-#define TRACE_B_ALLOC(id)
-#define TRACE_B_POP(id)
-#define TRACE_B_LABEL(label)
-#define TRACE_B_LABEL_COPY(id)
-#define TRACE_B_LABEL_REVERSE(back, new)
-#define TRACE_B_COPY(label, id)
-#define TRACE_B_COPY_FREE(id)
-#define TRACE_B_COPY_FOUND(id)
-#define TRACE_B_COPY_COPY(id)
-#define TRACE_B_COPY_REVERSE(back, new)
-#define TRACE_B_FREE(id)
-#define TRACE_I_DECODE_RHDR_1(name, b0)
-#define TRACE_I_DECODE_RHDR_1L(name, b0, val)
-#define TRACE_I_DECODE_RHDR_2L(name, b0, b1, val)
-#define TRACE_I_DECODE_PROLOGUE_1(name, b0)
-#define TRACE_I_DECODE_PROLOGUE_1L(name, b0, val)
-#define TRACE_I_DECODE_PROLOGUE_1LL(name, b0, val1, val2)
-#define TRACE_I_DECODE_PROLOGUE_2(name, b0, b1)
-#define TRACE_I_DECODE_PROLOGUE_2L(name, b0, b1, parm1)
-#define TRACE_I_DECODE_PROLOGUE_3(name, b0, b1, b2)
-#define TRACE_I_DECODE_PROLOGUE_4(name, b0, b1, b2, b3)
-#define TRACE_I_DECODE_PROLOGUE_SPILL_BASE(spill_base)
-#define TRACE_I_DECODE_PROLOGUE_MASKS(gr_mem_mask, gr_gr_mask)
-#define TRACE_I_DECODE_PROLOGUE_NSPILL(ngr)
-#define TRACE_I_DECODE_BODY_1(name, b0)
-#define TRACE_I_DECODE_BODY_1L(name, b0, parm1)
-#define TRACE_I_DECODE_BODY_1LL(name, b0, parm1, parm2)
-#define TRACE_R_UIB(uentry, ulen)
-#define TRACE_R_DUMP_SB(scoreboard, rhdr, cur_slot, ip_slot)
-#define TRACE_S_STEP(rstate)
-#define TRACE_S_RESTORE_REG(regname, rstate, val)
-#define TRACE_S_RESTORE_GR(regid, rstate, val)
-#define TRACE_S_RESTORE_BR(regid, rstate, val)
-#define TRACE_S_RESTORE_FR(regid, rstate, val)
-#define TRACE_T_SEARCH32(ip)
-#define TRACE_T_BINSEARCH32(lb, ub, mid, code_start, code_end)
-#define TRACE_C_GET_REG(regid, bsp)
-#define TRACE_C_ROTATE_GR(regid, sor, rrb_gr, newregid)
-#define TRACE_SELF_COPYIN4(rem, len, wp)
-#define TRACE_SELF_COPYIN8(rem, len, dp)
-#define TRACE_SELF_LOOKUP(ip)
-#define TRACE_SELF_LOOKUP_DESC(text_base, unwind_base)
-
-#else /* !UWX_TRACE_ENABLE */
+#ifdef UWX_TRACE_ENABLE
 
 extern void uwx_trace_init(struct uwx_env *env);
 
@@ -235,7 +188,7 @@ extern void uwx_dump_scoreboard(
 
 #define TRACE_S_STEP(rstate) \
     if (env->trace & UWX_TRACE_STEP) { \
-	printf("uwx_step:\n"); \
+	printf("uwx_restore_markers:\n"); \
 	uwx_dump_rstate(SBREG_RP, (rstate)[SBREG_RP]); \
 	uwx_dump_rstate(SBREG_PSP, (rstate)[SBREG_PSP]); \
 	uwx_dump_rstate(SBREG_PFS, (rstate)[SBREG_PFS]); \
@@ -344,5 +297,52 @@ extern void uwx_dump_scoreboard(
 			(unsigned int) ((text_base)+(unwind_base)[2])); \
 	}
 
-#endif /* !UWX_TRACE_ENABLE */
+#else /* !UWX_TRACE_ENABLE */
+
+#define TRACE_INIT
+#define TRACE_B_REUSE(id)
+#define TRACE_B_ALLOC(id)
+#define TRACE_B_POP(id)
+#define TRACE_B_LABEL(label)
+#define TRACE_B_LABEL_COPY(id)
+#define TRACE_B_LABEL_REVERSE(back, new)
+#define TRACE_B_COPY(label, id)
+#define TRACE_B_COPY_FREE(id)
+#define TRACE_B_COPY_FOUND(id)
+#define TRACE_B_COPY_COPY(id)
+#define TRACE_B_COPY_REVERSE(back, new)
+#define TRACE_B_FREE(id)
+#define TRACE_I_DECODE_RHDR_1(name, b0)
+#define TRACE_I_DECODE_RHDR_1L(name, b0, val)
+#define TRACE_I_DECODE_RHDR_2L(name, b0, b1, val)
+#define TRACE_I_DECODE_PROLOGUE_1(name, b0)
+#define TRACE_I_DECODE_PROLOGUE_1L(name, b0, val)
+#define TRACE_I_DECODE_PROLOGUE_1LL(name, b0, val1, val2)
+#define TRACE_I_DECODE_PROLOGUE_2(name, b0, b1)
+#define TRACE_I_DECODE_PROLOGUE_2L(name, b0, b1, parm1)
+#define TRACE_I_DECODE_PROLOGUE_3(name, b0, b1, b2)
+#define TRACE_I_DECODE_PROLOGUE_4(name, b0, b1, b2, b3)
+#define TRACE_I_DECODE_PROLOGUE_SPILL_BASE(spill_base)
+#define TRACE_I_DECODE_PROLOGUE_MASKS(gr_mem_mask, gr_gr_mask)
+#define TRACE_I_DECODE_PROLOGUE_NSPILL(ngr)
+#define TRACE_I_DECODE_BODY_1(name, b0)
+#define TRACE_I_DECODE_BODY_1L(name, b0, parm1)
+#define TRACE_I_DECODE_BODY_1LL(name, b0, parm1, parm2)
+#define TRACE_R_UIB(uentry, ulen)
+#define TRACE_R_DUMP_SB(scoreboard, rhdr, cur_slot, ip_slot)
+#define TRACE_S_STEP(rstate)
+#define TRACE_S_RESTORE_REG(regname, rstate, val)
+#define TRACE_S_RESTORE_GR(regid, rstate, val)
+#define TRACE_S_RESTORE_BR(regid, rstate, val)
+#define TRACE_S_RESTORE_FR(regid, rstate, val)
+#define TRACE_T_SEARCH32(ip)
+#define TRACE_T_BINSEARCH32(lb, ub, mid, code_start, code_end)
+#define TRACE_C_GET_REG(regid, bsp)
+#define TRACE_C_ROTATE_GR(regid, sor, rrb_gr, newregid)
+#define TRACE_SELF_COPYIN4(rem, len, wp)
+#define TRACE_SELF_COPYIN8(rem, len, dp)
+#define TRACE_SELF_LOOKUP(ip)
+#define TRACE_SELF_LOOKUP_DESC(text_base, unwind_base)
+
+#endif /* UWX_TRACE_ENABLE */
 
