@@ -1180,7 +1180,7 @@ ng_btsocket_l2cap_raw_peeraddr(struct socket *so, struct sockaddr **nam)
 	sa.l2cap_len = sizeof(sa);
 	sa.l2cap_family = AF_BLUETOOTH;
 
-	*nam = dup_sockaddr((struct sockaddr *) &sa, 0);
+	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
 	return ((*nam == NULL)? ENOMEM : 0);
 } /* ng_btsocket_l2cap_raw_peeraddr */
@@ -1219,7 +1219,7 @@ ng_btsocket_l2cap_raw_sockaddr(struct socket *so, struct sockaddr **nam)
 	sa.l2cap_len = sizeof(sa);
 	sa.l2cap_family = AF_BLUETOOTH;
 
-	*nam = dup_sockaddr((struct sockaddr *) &sa, 0);
+	*nam = sodupsockaddr((struct sockaddr *) &sa, M_NOWAIT);
 
 	return ((*nam == NULL)? ENOMEM : 0);
 } /* ng_btsocket_l2cap_raw_sockaddr */

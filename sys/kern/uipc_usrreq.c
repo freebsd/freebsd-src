@@ -127,10 +127,11 @@ uipc_accept(struct socket *so, struct sockaddr **nam)
 	 * (our peer may have closed already!).
 	 */
 	if (unp->unp_conn && unp->unp_conn->unp_addr) {
-		*nam = dup_sockaddr((struct sockaddr *)unp->unp_conn->unp_addr,
-				    1);
+		*nam = sodupsockaddr(
+		    (struct sockaddr *)unp->unp_conn->unp_addr, M_WAITOK);
 	} else {
-		*nam = dup_sockaddr((struct sockaddr *)&sun_noname, 1);
+		*nam = sodupsockaddr((struct sockaddr *)&sun_noname,
+		    M_WAITOK);
 	}
 	return (0);
 }
@@ -220,15 +221,16 @@ uipc_peeraddr(struct socket *so, struct sockaddr **nam)
 	if (unp == 0)
 		return (EINVAL);
 	if (unp->unp_conn && unp->unp_conn->unp_addr)
-		*nam = dup_sockaddr((struct sockaddr *)unp->unp_conn->unp_addr,
-				    1);
+		*nam = sodupsockaddr(
+		    (struct sockaddr *)unp->unp_conn->unp_addr, M_WAITOK);
 	else {
 		/*
 		 * XXX: It seems that this test always fails even when
 		 * connection is established.  So, this else clause is
 		 * added as workaround to return PF_LOCAL sockaddr.
 		 */
-		*nam = dup_sockaddr((struct sockaddr *)&sun_noname, 1);
+		*nam = sodupsockaddr((struct sockaddr *)&sun_noname,
+		    M_WAITOK);
 	}
 	return (0);
 }
@@ -441,9 +443,11 @@ uipc_sockaddr(struct socket *so, struct sockaddr **nam)
 	if (unp == 0)
 		return (EINVAL);
 	if (unp->unp_addr)
-		*nam = dup_sockaddr((struct sockaddr *)unp->unp_addr, 1);
+		*nam = sodupsockaddr((struct sockaddr *)unp->unp_addr,
+		    M_WAITOK);
 	else
-		*nam = dup_sockaddr((struct sockaddr *)&sun_noname, 1);
+		*nam = sodupsockaddr((struct sockaddr *)&sun_noname,
+		    M_WAITOK);
 	return (0);
 }
 
@@ -665,7 +669,7 @@ restart:
 	vp = nd.ni_vp;
 	vp->v_socket = unp->unp_socket;
 	unp->unp_vnode = vp;
-	unp->unp_addr = (struct sockaddr_un *)dup_sockaddr(nam, 1);
+	unp->unp_addr = (struct sockaddr_un *)sodupsockaddr(nam, M_WAITOK);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	free(buf, M_TEMP);
@@ -724,8 +728,8 @@ unp_connect(so, nam, td)
 		unp3 = sotounpcb(so3);
 		if (unp2->unp_addr)
 			unp3->unp_addr = (struct sockaddr_un *)
-				dup_sockaddr((struct sockaddr *)
-					     unp2->unp_addr, 1);
+			    sodupsockaddr((struct sockaddr *)unp2->unp_addr,
+			    M_WAITOK);
 
 		/*
 		 * unp_peercred management:

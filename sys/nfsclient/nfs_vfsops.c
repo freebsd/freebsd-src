@@ -503,7 +503,7 @@ nfs_mountdiskless(char *path, char *which, int mountflag,
 
 	mp->mnt_kern_flag = 0;
 	mp->mnt_flag = mountflag;
-	nam = dup_sockaddr((struct sockaddr *)sin, 1);
+	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, which, path, vpp,
 	    td->td_ucred)) != 0) {
 		printf("nfs_mountroot: mount %s on %s: %d", path, which, error);
