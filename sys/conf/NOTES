@@ -5,7 +5,7 @@
 # 'makeoptions', 'hints' etc go into the kernel configuration that you
 # run config(8) with.
 #
-# Lines that begin with 'hints.' are NOT for config(8), they go into your
+# Lines that begin with 'hint.' are NOT for config(8), they go into your
 # hints file.  See /boot/device.hints and/or the 'hints' config(8) directive.
 #
 # Please use ``make LINT'' to create an old-style LINT file if you want to
@@ -1821,26 +1821,26 @@ hint.gusc.0.flags="0x13"
 #               device  rp	# core driver support
 #
 #   Comtrol Rocketport ISA single card
-#		hints.rp.0.at="isa"
-#		hints.rp.0.port="0x280"
+#		hint.rp.0.at="isa"
+#		hint.rp.0.port="0x280"
 #
 #   If instead you have two ISA cards, one installed at 0x100 and the
 #   second installed at 0x180, then you should add the following to
 #   your kernel probe hints:
-#		hints.rp.0.at="isa"
-#		hints.rp.0.port="0x100"
-#		hints.rp.1.at="isa"
-#		hints.rp.1.port="0x180"
+#		hint.rp.0.at="isa"
+#		hint.rp.0.port="0x100"
+#		hint.rp.1.at="isa"
+#		hint.rp.1.port="0x180"
 #
 #   For 4 ISA cards, it might be something like this:
-#		hints.rp.0.at="isa"
-#		hints.rp.0.port="0x180"
-#		hints.rp.1.at="isa"
-#		hints.rp.1.port="0x100"
-#		hints.rp.2.at="isa"
-#		hints.rp.2.port="0x340"
-#		hints.rp.3.at="isa"
-#		hints.rp.3.port="0x240"
+#		hint.rp.0.at="isa"
+#		hint.rp.0.port="0x180"
+#		hint.rp.1.at="isa"
+#		hint.rp.1.port="0x100"
+#		hint.rp.2.at="isa"
+#		hint.rp.2.port="0x340"
+#		hint.rp.3.at="isa"
+#		hint.rp.3.port="0x240"
 #
 #   For PCI cards, you need no hints.
 
