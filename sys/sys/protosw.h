@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)protosw.h	8.1 (Berkeley) 6/2/93
- *	$Id: protosw.h,v 1.17 1997/04/27 20:01:27 wollman Exp $
+ *	$Id: protosw.h,v 1.18 1997/05/24 17:23:10 peter Exp $
  */
 
 #ifndef _SYS_PROTOSW_H_
@@ -45,6 +45,7 @@ struct socket;
 struct sockproto;
 struct stat;
 struct uio;
+struct proc;
 
 /*
  * Protocol switch table.
