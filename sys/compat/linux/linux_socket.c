@@ -455,7 +455,7 @@ linux_sendto_hdrincl(struct thread *td, struct linux_sendto_args *linux_args)
 	 * then use an iovec to glue it to the rest of the user packet
 	 * when calling sendit().
 	 */
-	packet = (struct ip *)stackgap_alloc(sg, linux_ip_copysize);
+	packet = (struct ip *)stackgap_alloc(&sg, linux_ip_copysize);
 
 	/* Make a copy of the beginning of the packet to be sent */
 	if ((error = copyin(linux_args->msg, packet, linux_ip_copysize)))
