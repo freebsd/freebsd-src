@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.4 1999/08/14 22:30:33 obrien Exp $
+# $Id: Makefile,v 1.5 1999/08/15 22:36:41 obrien Exp $
 
 .PATH:	${.CURDIR}/../../../contrib/bison
 
@@ -9,7 +9,7 @@ MAN1=	bison.1
 
 DATADIR= ${SHAREDIR}/misc
 
-CFLAGS= -DHAVE_CONFIG_H
+CFLAGS+= -DHAVE_CONFIG_H
 CFLAGS+= -DXPFILE=\"${DATADIR}/bison.simple\"
 CFLAGS+= -DXPFILE1=\"${DATADIR}/bison.hairy\"
 CFLAGS+= -I${.CURDIR}
