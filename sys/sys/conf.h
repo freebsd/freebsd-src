@@ -84,6 +84,7 @@ struct cdev {
 	gid_t		si_gid;
 	mode_t		si_mode;
 	u_long		si_usecount;
+	u_long		si_threadcount;
 	union {
 		struct {
 			struct tty *__sit_tty;
@@ -153,6 +154,9 @@ typedef int d_kqfilter_t(struct cdev *dev, struct knote *kn);
 typedef int d_mmap_t(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
    		     int nprot);
 
+typedef int d_spare1_t(struct cdev *dev);
+typedef int d_spare2_t(struct cdev *dev);
+
 typedef int dumper_t(
 	void *priv,		/* Private to the driver. */
 	void *virtual,		/* Virtual (mapped) address. */
@@ -216,6 +220,8 @@ struct cdevsw {
 	d_strategy_t		*d_strategy;
 	dumper_t		*d_dump;
 	d_kqfilter_t		*d_kqfilter;
+	d_spare1_t		*d_spare1;
+	d_spare2_t		*d_spare2;
 
 	/* These fields should not be messed with by drivers */
 	LIST_ENTRY(cdevsw)	d_list;
