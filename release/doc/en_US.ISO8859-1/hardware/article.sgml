@@ -1475,7 +1475,8 @@
       </itemizedlist>
     </para>
     <para arch="i386,pc98,amd64">Serial devices (&man.ubsa.4;,
-      &man.uftdi.4; and &man.uplcom.4; drivers)
+      &man.ubser.4;,
+      &man.uftdi.4;, and &man.uplcom.4; drivers)
     </para>
     <para arch="i386,pc98,amd64">Scanners (through <application>SANE</application>) (&man.uscanner.4; driver)
     </para>
