@@ -69,7 +69,7 @@ create(int fd)
 	}
 
 	/* Get the amount of free space after the MBR */
-	blocks = map_unused(1LL, 0LL);
+	blocks = map_free(1LL, 0LL);
 	if (blocks == 0LL) {
 		warnx("%s: error: no room for the GPT header", device_name);
 		return;
@@ -125,7 +125,7 @@ create(int fd)
 	hdr->hdr_lba_alt = last;
 	hdr->hdr_lba_start = tbl->map_start + blocks;
 	hdr->hdr_lba_end = last - blocks - 1LL;
-	uuidgen(&hdr->hdr_uuid, 1);
+	uuid_create(&hdr->hdr_uuid, NULL);
 	hdr->hdr_lba_table = tbl->map_start;
 	hdr->hdr_entries = (blocks * secsz) / sizeof(struct gpt_ent);
 	if (hdr->hdr_entries > parts)
@@ -134,7 +134,7 @@ create(int fd)
 
 	ent = tbl->map_data;
 	for (i = 0; i < hdr->hdr_entries; i++)
-		uuidgen(&ent[i].ent_uuid, 1);
+		uuid_create(&ent[i].ent_uuid, NULL);
 
 	hdr->hdr_crc_table = crc32(ent, hdr->hdr_entries * hdr->hdr_entsz);
 	hdr->hdr_crc_self = crc32(hdr, hdr->hdr_size);

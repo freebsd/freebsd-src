@@ -33,7 +33,8 @@
 
 #include "map.h"
 
-static int lbawidth;
+int lbawidth;
+
 static map_t *mediamap;
 
 static map_t *
@@ -133,6 +134,31 @@ map_add(off_t start, off_t size, int type, void *data)
 }
 
 map_t *
+map_alloc(off_t start, off_t size)
+{
+	off_t delta;
+	map_t *m;
+
+	for (m = mediamap; m != NULL; m = m->map_next) {
+		if (m->map_type != MAP_TYPE_UNUSED || m->map_start < 2)
+			continue;
+		if (start != 0 && m->map_start > start)
+			return (NULL);
+		delta = (start != 0) ? start - m->map_start : 0;
+		if (size == 0 || m->map_size - delta >= size) {
+			if (m->map_size - delta <= 0)
+				continue;
+			if (size == 0)
+				size = m->map_size - delta;
+			return (map_add(m->map_start + delta, size,
+				    MAP_TYPE_GPT_PART, NULL));
+		}
+	}
+
+	return (NULL);
+}
+
+map_t *
 map_find(int type)
 {
 	map_t *m;
@@ -161,7 +187,7 @@ map_last(void)
 }
 
 off_t
-map_unused(off_t start, off_t size)
+map_free(off_t start, off_t size)
 {
 	map_t *m;
 
@@ -174,53 +200,6 @@ map_unused(off_t start, off_t size)
 	if (size)
 		return ((m->map_start + m->map_size >= start + size) ? 1 : 0);
 	return (m->map_size - (start - m->map_start));
-}
-
-void
-map_dump(void)
-{
-	off_t end;
-	map_t *m;
-
-	printf("  %*s", lbawidth, "start");
-	printf("  %*s", lbawidth, "end");
-	printf("  %*s", lbawidth, "size");
-	printf("  %s\n", "contents");
-
-	m = mediamap;
-	while (m != NULL) {
-		end = m->map_start + m->map_size - 1;
-		printf("  %*llu", lbawidth, (long long)m->map_start);
-		printf("  %*llu", lbawidth, (long long)end);
-		printf("  %*llu", lbawidth, (long long)m->map_size);
-
-		putchar(' '); putchar(' ');
-		switch (m->map_type) {
-		case MAP_TYPE_MBR:
-			printf("MBR");
-			break;
-		case MAP_TYPE_PRI_GPT_HDR:
-			printf("Pri GPT header");
-			break;
-		case MAP_TYPE_SEC_GPT_HDR:
-			printf("Sec GPT header");
-			break;
-		case MAP_TYPE_PRI_GPT_TBL:
-			printf("Pri GPT table");
-			break;
-		case MAP_TYPE_SEC_GPT_TBL:
-			printf("Sec GPT table");
-			break;
-		case MAP_TYPE_MBR_PART:
-			printf("MBR partition");
-			break;
-		case MAP_TYPE_GPT_PART:
-			printf("GPT partition");
-			break;
-		}
-		putchar('\n');
-		m = m->map_next;
-	}
 }
 
 void
