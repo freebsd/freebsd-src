@@ -80,28 +80,36 @@ MALLOC_DECLARE(M_USBHC);
 /*
  * The USB records contain some unaligned little-endian word
  * components.  The U[SG]ETW macros take care of both the alignment
- * and endian problem and should always be used to access 16 bit
+ * and endian problem and should always be used to access non-byte
  * values.
  */
 typedef u_int8_t uByte;
 typedef u_int8_t uWord[2];
+typedef u_int8_t uDWord[4];
+
+#define USETW2(w,h,l) ((w)[0] = (u_int8_t)(l), (w)[1] = (u_int8_t)(h))
+
+#if 1
 #define UGETW(w) ((w)[0] | ((w)[1] << 8))
 #define USETW(w,v) ((w)[0] = (u_int8_t)(v), (w)[1] = (u_int8_t)((v) >> 8))
-#define USETW2(w,h,l) ((w)[0] = (u_int8_t)(l), (w)[1] = (u_int8_t)(h))
-typedef u_int8_t uDWord[4];
 #define UGETDW(w) ((w)[0] | ((w)[1] << 8) | ((w)[2] << 16) | ((w)[3] << 24))
 #define USETDW(w,v) ((w)[0] = (u_int8_t)(v), \
 		     (w)[1] = (u_int8_t)((v) >> 8), \
 		     (w)[2] = (u_int8_t)((v) >> 16), \
 		     (w)[3] = (u_int8_t)((v) >> 24))
-/* 
+#else
+/*
  * On little-endian machines that can handle unanliged accesses
  * (e.g. i386) these macros can be replaced by the following.
  */
-#if 0
 #define UGETW(w) (*(u_int16_t *)(w))
 #define USETW(w,v) (*(u_int16_t *)(w) = (v))
+#define UGETDW(w) (*(u_int32_t *)(w))
+#define USETDW(w,v) (*(u_int32_t *)(w) = (v))
 #endif
+
+/* #define UPACKED __packed */
+#define UPACKED
 
 typedef struct {
 	uByte		bmRequestType;
@@ -109,7 +117,7 @@ typedef struct {
 	uWord		wValue;
 	uWord		wIndex;
 	uWord		wLength;
-} usb_device_request_t;
+} UPACKED usb_device_request_t;
 
 #define UT_WRITE		0x00
 #define UT_READ			0x80
@@ -182,17 +190,11 @@ typedef struct {
 #define USB_2_MAX_CTRL_PACKET	64
 #define USB_2_MAX_BULK_PACKET	512
 
-#define USB_2_MAX_CTRL_PACKET	64
-#define USB_2_MAX_BULK_PACKET	512
-
-#define USB_2_MAX_CTRL_PACKET	64
-#define USB_2_MAX_BULK_PACKET	512
-
 typedef struct {
 	uByte		bLength;
 	uByte		bDescriptorType;
 	uByte		bDescriptorSubtype;
-} usb_descriptor_t;
+} UPACKED usb_descriptor_t;
 
 typedef struct {
 	uByte		bLength;
@@ -212,7 +214,7 @@ typedef struct {
 	uByte		iProduct;
 	uByte		iSerialNumber;
 	uByte		bNumConfigurations;
-} usb_device_descriptor_t;
+} UPACKED usb_device_descriptor_t;
 #define USB_DEVICE_DESCRIPTOR_SIZE 18
 
 typedef struct {
@@ -228,7 +230,7 @@ typedef struct {
 #define UC_REMOTE_WAKEUP	0x20
 	uByte		bMaxPower; /* max current in 2 mA units */
 #define UC_POWER_FACTOR 2
-} usb_config_descriptor_t;
+} UPACKED usb_config_descriptor_t;
 #define USB_CONFIG_DESCRIPTOR_SIZE 9
 
 typedef struct {
@@ -241,7 +243,7 @@ typedef struct {
 	uByte		bInterfaceSubClass;
 	uByte		bInterfaceProtocol;
 	uByte		iInterface;
-} usb_interface_descriptor_t;
+} UPACKED usb_interface_descriptor_t;
 #define USB_INTERFACE_DESCRIPTOR_SIZE 9
 
 typedef struct {
@@ -268,14 +270,14 @@ typedef struct {
 #define UE_GET_ISO_TYPE(a)	((a) & UE_ISO_TYPE)
 	uWord		wMaxPacketSize;
 	uByte		bInterval;
-} usb_endpoint_descriptor_t;
+} UPACKED usb_endpoint_descriptor_t;
 #define USB_ENDPOINT_DESCRIPTOR_SIZE 7
 
 typedef struct {
 	uByte		bLength;
 	uByte		bDescriptorType;
 	uWord		bString[127];
-} usb_string_descriptor_t;
+} UPACKED usb_string_descriptor_t;
 #define USB_MAX_STRING_LEN 128
 #define USB_LANGUAGE_TABLE 0	/* # of the string language id table */
 
@@ -330,9 +332,35 @@ typedef struct {
 	uByte		DeviceRemovable[32]; /* max 255 ports */
 #define UHD_NOT_REMOV(desc, i) \
     (((desc)->DeviceRemovable[(i)/8] >> ((i) % 8)) & 1)
-	/* deprecated uByte		PortPowerCtrlMask[]; */
-} usb_hub_descriptor_t;
-#define USB_HUB_DESCRIPTOR_SIZE 8
+	/* deprecated */ uByte		PortPowerCtrlMask[1];
+} UPACKED usb_hub_descriptor_t;
+#define USB_HUB_DESCRIPTOR_SIZE 8 /* includes deprecated PortPowerCtrlMask */
+
+typedef struct {
+	uByte		bLength;
+	uByte		bDescriptorType;
+	uWord		bcdUSB;
+	uByte		bDeviceClass;
+	uByte		bDeviceSubClass;
+	uByte		bDeviceProtocol;
+	uByte		bMaxPacketSize0;
+	uByte		bNumConfigurations;
+	uByte		bReserved;
+} UPACKED usb_device_qualifier_t;
+#define USB_DEVICE_QUALIFIER_SIZE 10
+
+typedef struct {
+	uByte		bLength;
+	uByte		bDescriptorType;
+	uByte		bmAttributes;
+#define UOTG_SRP	0x01
+#define UOTG_HNP	0x02
+} UPACKED usb_otg_descriptor_t;
+
+/* OTG feature selectors */
+#define UOTG_B_HNP_ENABLE	3
+#define UOTG_A_HNP_SUPPORT	4
+#define UOTG_A_ALT_HNP_SUPPORT	5
 
 typedef struct {
 	uWord		wStatus;
@@ -341,14 +369,14 @@ typedef struct {
 #define UDS_REMOTE_WAKEUP		0x0002
 /* Endpoint status flags */
 #define UES_HALT			0x0001
-} usb_status_t;
+} UPACKED usb_status_t;
 
 typedef struct {
 	uWord		wHubStatus;
 #define UHS_LOCAL_POWER			0x0001
 #define UHS_OVER_CURRENT		0x0002
 	uWord		wHubChange;
-} usb_hub_status_t;
+} UPACKED usb_hub_status_t;
 
 typedef struct {
 	uWord		wPortStatus;
@@ -368,7 +396,7 @@ typedef struct {
 #define UPS_C_SUSPEND			0x0004
 #define UPS_C_OVERCURRENT_INDICATOR	0x0008
 #define UPS_C_PORT_RESET		0x0010
-} usb_port_status_t;
+} UPACKED usb_port_status_t;
 
 /* Device class codes */
 #define UDCLASS_IN_INTERFACE	0x00
@@ -472,8 +500,8 @@ typedef struct {
 
 #define USB_HUB_MAX_DEPTH 5
 
-/* 
- * Minimum time a device needs to be powered down to go through 
+/*
+ * Minimum time a device needs to be powered down to go through
  * a power cycle.  XXX Are these time in the spec?
  */
 #define USB_POWER_DOWN_TIME	200 /* ms */
@@ -506,8 +534,9 @@ typedef struct {
 
 #define USB_BUS_RESET_DELAY	100 /* ms XXX?*/
 
-#define USB_UNCONFIG_NO		0
-#define USB_UNCONFIG_INDEX	(-1)
+
+#define USB_UNCONFIG_NO 0
+#define USB_UNCONFIG_INDEX (-1)
 
 /*** ioctl() related stuff ***/
 
@@ -566,26 +595,26 @@ struct usb_ctl_report_desc {
 	u_char	ucrd_data[1024];	/* filled data size will vary */
 };
 
+#define MAXDEVNAMES 4
+#define MAXDEVNAMELEN 10
 struct usb_device_info {
-	u_int8_t	udi_bus;				/* bus number */
-	u_int8_t	udi_addr;				/* device address */
-#	define		MAXDEVNAMELEN	10		/* number of drivers */
-#	define		MAXDEVNAMES	4		/* attached drivers */
+	u_int8_t	udi_bus;
+	u_int8_t	udi_addr;	/* device address */
 	char		udi_devnames[MAXDEVNAMES][MAXDEVNAMELEN];
 							/* device names */
-	char		udi_product[USB_MAX_STRING_LEN];	/* iProduct */
-	char		udi_vendor[USB_MAX_STRING_LEN];	/* iManufacturer */
-	char		udi_release[8];			/* string of releaseNo*/
-	u_int16_t	udi_productNo;			/* idProduct */
-	u_int16_t	udi_vendorNo;			/* idVendor */
-	u_int16_t	udi_releaseNo;			/* bcdDevice */
-	u_int8_t	udi_class;				/* bDeviceClass */
-	u_int8_t	udi_subclass;			/* bDeviceSubclass */
-	u_int8_t	udi_protocol;			/* bDeviceProtocol */
-	u_int8_t	udi_config;				/* config index */
-	u_int8_t	udi_lowspeed;			/* lowsped yes/no */
+	char		udi_product[USB_MAX_STRING_LEN];
+	char		udi_vendor[USB_MAX_STRING_LEN];
+	char		udi_release[8];
+	u_int16_t	udi_productNo;
+	u_int16_t	udi_vendorNo;
+	u_int16_t	udi_releaseNo;
+	u_int8_t	udi_class;
+	u_int8_t	udi_subclass;
+	u_int8_t	udi_protocol;
+	u_int8_t	udi_config;
+	u_int8_t	udi_lowspeed;
 	int		udi_power;	/* power consumption in mA, 0 if selfpowered */
-	int		udi_nports;				/* 0 if not hub */
+	int		udi_nports;
 	u_int8_t	udi_ports[16];/* hub only: addresses of devices on ports */
 #define USB_PORT_ENABLED 0xff
 #define USB_PORT_SUSPENDED 0xfe
@@ -625,6 +654,7 @@ struct usb_event {
 #define USB_SET_IMMED		_IOW ('U', 22, int)
 #define USB_GET_REPORT		_IOWR('U', 23, struct usb_ctl_report)
 #define USB_SET_REPORT		_IOW ('U', 24, struct usb_ctl_report)
+#define USB_GET_REPORT_ID	_IOR ('U', 25, int)
 
 /* Generic USB device */
 #define USB_GET_CONFIG		_IOR ('U', 100, int)
