@@ -21,16 +21,11 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/buf.h>
-#include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/filio.h>
 #include <sys/sockio.h>
 #include <sys/ttycom.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
 #include <sys/poll.h>
-#include <sys/fcntl.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -38,6 +33,14 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 #include <sys/conf.h>
+#include <sys/uio.h>
+/*
+ * XXX stop <sys/vnode.h> from including <vnode_if.h>.  <vnode_if.h> doesn't
+ * exist if we are an LKM.
+ */
+#undef KERNEL
+#include <sys/vnode.h>
+#define KERNEL
 
 #include <net/if.h>
 #include <net/netisr.h>
@@ -45,10 +48,7 @@
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
 #endif
 
 #ifdef NS
@@ -58,7 +58,6 @@
 
 #include "bpfilter.h"
 #if NBPFILTER > 0
-#include <sys/time.h>
 #include <net/bpf.h>
 #endif
 
@@ -173,7 +172,11 @@ tunopen(dev, flag, mode, p)
  * routing info
  */
 static	int
-tunclose(dev_t dev, int foo, int bar, struct proc *p)
+tunclose(dev, foo, bar, p)
+	dev_t dev;
+	int foo;
+	int bar;
+	struct proc *p;
 {
 	register int	unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
@@ -409,10 +412,6 @@ tunioctl(dev, cmd, data, flag, p)
 		*(int *)data = tundebug;
 		break;
 	case FIONBIO:
-		if (*(int *)data)
-			tp->tun_flags |= TUN_NBIO;
-		else
-			tp->tun_flags &= ~TUN_NBIO;
 		break;
 	case FIOASYNC:
 		if (*(int *)data)
@@ -447,7 +446,10 @@ tunioctl(dev, cmd, data, flag, p)
  * least as much of a packet as can be read.
  */
 static	int
-tunread(dev_t dev, struct uio *uio, int flag)
+tunread(dev, uio, flag)
+	dev_t dev;
+	struct uio *uio;
+	int flag;
 {
 	int		unit = minor(dev);
 	struct tun_softc *tp = &tunctl[unit];
@@ -468,7 +470,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 	do {
 		IF_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == 0) {
-			if (tp->tun_flags & TUN_NBIO) {
+			if (flag & IO_NDELAY) {
 				splx(s);
 				return EWOULDBLOCK;
 			}
@@ -502,7 +504,10 @@ tunread(dev_t dev, struct uio *uio, int flag)
  * the cdevsw write interface - an atomic write is a packet - or else!
  */
 static	int
-tunwrite(dev_t dev, struct uio *uio, int flag)
+tunwrite(dev, uio, flag)
+	dev_t dev;
+	struct uio *uio;
+	int flag;
 {
 	int		unit = minor (dev);
 	struct ifnet	*ifp = &tunctl[unit].tun_if;
@@ -591,7 +596,10 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
  * anyway, it either accepts the packet or drops it.
  */
 static	int
-tunpoll(dev_t dev, int events, struct proc *p)
+tunpoll(dev, events, p)
+	dev_t dev;
+	int events;
+	struct proc *p;
 {
 	int		unit = minor(dev), s;
 	struct tun_softc *tp = &tunctl[unit];
