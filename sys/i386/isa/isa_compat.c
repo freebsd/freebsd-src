@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isa_compat.c,v 1.1 1999/04/16 21:22:23 peter Exp $
  */
 
 #include <sys/param.h>
@@ -231,7 +231,7 @@ isa_wrap_old_drivers(void)
 		driver->name = op->driver->name;
 		driver->methods = isa_compat_methods;
 		driver->type = op->type;
-		driver->softc = sizeof(struct isa_device *);
+		driver->softc = sizeof(struct isa_device);
 		driver->priv = op->driver;
 		devclass_add_driver(isa_devclass, driver);
 	}
