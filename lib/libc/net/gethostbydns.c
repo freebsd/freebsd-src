@@ -1,4 +1,6 @@
-/*-
+/*
+ * ++Copyright++ 1985, 1988, 1993
+ * -
  * Copyright (c) 1985, 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -53,7 +55,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: gethostbydns.c,v 1.14 1996/12/24 02:10:24 wpaul Exp $";
+static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.20 1996/09/28 06:51:07 vixie Exp";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.15 1996/12/27 18:21:05 wpaul Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -74,8 +77,6 @@ static char rcsid[] = "$Id: gethostbydns.c,v 1.14 1996/12/24 02:10:24 wpaul Exp 
 
 #include "res_config.h"
 
-extern void _res_close __P((void));
-
 #define SPRINTF(x) ((size_t)sprintf x)
 
 #define	MAXALIASES	35
@@ -85,7 +86,6 @@ static const char AskedForGot[] =
 		"gethostby*.gethostanswer: asked for \"%s\", got \"%s\"";
 
 static char *h_addr_ptrs[MAXADDRS + 1];
-static struct hostent *gethostbyname_ipv4 __P((const char *));
 
 static struct hostent host;
 static char *host_aliases[MAXALIASES];
@@ -147,7 +147,7 @@ gethostanswer(answer, anslen, qname, qtype)
 	int type, class, buflen, ancount, qdcount;
 	int haveanswer, had_error;
 	int toobig = 0;
-	char tbuf[MAXDNAME+1];
+	char tbuf[MAXDNAME];
 	const char *tname;
 	int (*name_ok) __P((const char *));
 
@@ -274,7 +274,7 @@ gethostanswer(answer, anslen, qname, qtype)
 		}
 		if (type != qtype) {
 			syslog(LOG_NOTICE|LOG_AUTH,
-       "gethostby*.gethostanswer: asked for \"%s %s %s\", got type \"%s\"",
+	"gethostby*.gethostanswer: asked for \"%s %s %s\", got type \"%s\"",
 			       qname, p_class(C_IN), p_type(qtype),
 			       p_type(type));
 			cp += n;
@@ -362,10 +362,11 @@ gethostanswer(answer, anslen, qname, qtype)
 			dprintf("Impossible condition (type=%d)\n", type);
 			h_errno = NO_RECOVERY;
 			return (NULL);
-		} /*switch*/
+			/* BIND has abort() here, too risky on bad data */
+		}
 		if (!had_error)
 			haveanswer++;
-	} /*while*/
+	}
 	if (haveanswer) {
 		*ap = NULL;
 		*hap = NULL;
@@ -494,6 +495,36 @@ _gethostbydnsname(name, af)
 				return (&host);
 			}
 			if (!isdigit(*cp) && *cp != '.') 
+				break;
+		}
+	if (isxdigit(name[0]) || name[0] == ':')
+		for (cp = name;; ++cp) {
+			if (!*cp) {
+				if (*--cp == '.')
+					break;
+				/*
+				 * All-IPv6-legal, no dot at the end.
+				 * Fake up a hostent as if we'd actually
+				 * done a lookup.
+				 */
+				if (inet_pton(af, name, host_addr) <= 0) {
+					h_errno = HOST_NOT_FOUND;
+					return (NULL);
+				}
+				strncpy(hostbuf, name, MAXDNAME);
+				hostbuf[MAXDNAME] = '\0';
+				bp = hostbuf + MAXDNAME;
+				len = sizeof hostbuf - MAXDNAME;
+				host.h_name = hostbuf;
+				host.h_aliases = host_aliases;
+				host_aliases[0] = NULL;
+				h_addr_ptrs[0] = (char *)host_addr;
+				h_addr_ptrs[1] = NULL;
+				host.h_addr_list = h_addr_ptrs;
+				h_errno = NETDB_SUCCESS;
+				return (&host);
+			}
+			if (!isxdigit(*cp) && *cp != ':' && *cp != '.') 
 				break;
 		}
 

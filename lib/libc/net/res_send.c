@@ -55,7 +55,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 8.9 1996/08/05 08:31:35 vixie Exp $";
+static char orig_rcsid[] = "From: Id: res_send.c,v 8.12 1996/10/08 04:51:06 vixie Exp";
+static char rcsid[] = "$Id: res_send.c,v 1.10 1996/08/30 21:13:42 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -81,12 +82,11 @@ static char rcsid[] = "$Id: res_send.c,v 8.9 1996/08/05 08:31:35 vixie Exp $";
 #include <string.h>
 #include <unistd.h>
 
-
-void _res_close __P((void));
-
 static int s = -1;	/* socket used for communications */
 static int connected = 0;	/* is the socket connected */
 static int vc = 0;	/* is the socket a virtual ciruit? */
+
+#define CAN_RECONNECT 1
 
 #ifndef DEBUG
 #   define Dprint(cond, args) /*empty*/
@@ -291,7 +291,7 @@ res_send(buf, buflen, ans, anssiz)
 		struct sockaddr_in *nsap = &_res.nsaddr_list[ns];
     same_ns:
 		if (badns & (1 << ns)) {
-			_res_close();
+			res_close();
 			goto next_ns;
 		}
 
@@ -308,7 +308,7 @@ res_send(buf, buflen, ans, anssiz)
 					done = 1;
 					break;
 				case res_nextns:
-					_res_close();
+					res_close();
 					goto next_ns;
 				case res_done:
 					return (resplen);
@@ -343,7 +343,7 @@ res_send(buf, buflen, ans, anssiz)
 			truncated = 0;
 			if ((s < 0) || (!vc)) {
 				if (s >= 0)
-					_res_close();
+					res_close();
 
 				s = socket(PF_INET, SOCK_STREAM, 0);
 				if (s < 0) {
@@ -358,7 +358,7 @@ res_send(buf, buflen, ans, anssiz)
 					Aerror(stderr, "connect/vc",
 					       errno, *nsap);
 					badns |= (1 << ns);
-					_res_close();
+					res_close();
 					goto next_ns;
 				}
 				vc = 1;
@@ -375,7 +375,7 @@ res_send(buf, buflen, ans, anssiz)
 				terrno = errno;
 				Perror(stderr, "write failed", errno);
 				badns |= (1 << ns);
-				_res_close();
+				res_close();
 				goto next_ns;
 			}
 			/*
@@ -392,7 +392,7 @@ read_len:
 			if (n <= 0) {
 				terrno = errno;
 				Perror(stderr, "read failed", errno);
-				_res_close();
+				res_close();
 				/*
 				 * A long running process might get its TCP
 				 * connection reset if the remote server was
@@ -404,10 +404,10 @@ read_len:
 				 */
 				if (terrno == ECONNRESET && !connreset) {
 					connreset = 1;
-					_res_close();
+					res_close();
 					goto same_ns;
 				}
-				_res_close();
+				res_close();
 				goto next_ns;
 			}
 			resplen = _getshort(ans);
@@ -428,7 +428,7 @@ read_len:
 			if (n <= 0) {
 				terrno = errno;
 				Perror(stderr, "read(vc)", errno);
-				_res_close();
+				res_close();
 				goto next_ns;
 			}
 			if (truncated) {
@@ -475,9 +475,12 @@ read_len:
 
 			if ((s < 0) || vc) {
 				if (vc)
-					_res_close();
+					res_close();
 				s = socket(PF_INET, SOCK_DGRAM, 0);
 				if (s < 0) {
+#if !CAN_RECONNECT
+ bad_dg_sock:
+#endif
 					terrno = errno;
 					Perror(stderr, "socket(dg)", errno);
 					return (-1);
@@ -512,7 +515,7 @@ read_len:
 						       "connect(dg)",
 						       errno, *nsap);
 						badns |= (1 << ns);
-						_res_close();
+						res_close();
 						goto next_ns;
 					}
 					connected = 1;
@@ -520,7 +523,7 @@ read_len:
 				if (send(s, (char*)buf, buflen, 0) != buflen) {
 					Perror(stderr, "send", errno);
 					badns |= (1 << ns);
-					_res_close();
+					res_close();
 					goto next_ns;
 				}
 			} else {
@@ -529,6 +532,7 @@ read_len:
 				 * for responses from more than one server.
 				 */
 				if (connected) {
+#if CAN_RECONNECT
 					struct sockaddr_in no_addr;
 
 					no_addr.sin_family = AF_INET;
@@ -538,6 +542,15 @@ read_len:
 						       (struct sockaddr *)
 						        &no_addr,
 						       sizeof(no_addr));
+#else
+					int s1 = socket(PF_INET, SOCK_DGRAM,0);
+					if (s1 < 0)
+						goto bad_dg_sock;
+					(void) dup2(s1, s);
+					(void) close(s1);
+					Dprint(_res.options & RES_DEBUG,
+						(stdout, ";; new DG socket\n"))
+#endif
 					connected = 0;
 					errno = 0;
 				}
@@ -547,7 +560,7 @@ read_len:
 				    != buflen) {
 					Aerror(stderr, "sendto", errno, *nsap);
 					badns |= (1 << ns);
-					_res_close();
+					res_close();
 					goto next_ns;
 				}
 			}
@@ -570,7 +583,7 @@ read_len:
 				if (errno == EINTR)
 					goto wait;
 				Perror(stderr, "select", errno);
-				_res_close();
+				res_close();
 				goto next_ns;
 			}
 			if (n == 0) {
@@ -580,7 +593,7 @@ read_len:
 				Dprint(_res.options & RES_DEBUG,
 				       (stdout, ";; timeout\n"));
 				gotsomewhere = 1;
-				_res_close();
+				res_close();
 				goto next_ns;
 			}
 			errno = 0;
@@ -589,7 +602,7 @@ read_len:
 					   (struct sockaddr *)&from, &fromlen);
 			if (resplen <= 0) {
 				Perror(stderr, "recvfrom", errno);
-				_res_close();
+				res_close();
 				goto next_ns;
 			}
 			gotsomewhere = 1;
@@ -641,7 +654,7 @@ read_len:
 					(stdout, "server rejected query:\n"),
 					ans, (resplen>anssiz)?anssiz:resplen);
 				badns |= (1 << ns);
-				_res_close();
+				res_close();
 				/* don't retry if called from dig */
 				if (!_res.pfcode)
 					goto next_ns;
@@ -654,7 +667,7 @@ read_len:
 				Dprint(_res.options & RES_DEBUG,
 				       (stdout, ";; truncated answer\n"));
 				v_circuit = 1;
-				_res_close();
+				res_close();
 				goto same_ns;
 			}
 		} /*if vc/dg*/
@@ -676,7 +689,7 @@ read_len:
 		 */
 		if ((v_circuit && (!(_res.options & RES_USEVC) || ns != 0)) ||
 		    !(_res.options & RES_STAYOPEN)) {
-			_res_close();
+			res_close();
 		}
 		if (Rhook) {
 			int done = 0, loops = 0;
@@ -692,7 +705,7 @@ read_len:
 					done = 1;
 					break;
 				case res_nextns:
-					_res_close();
+					res_close();
 					goto next_ns;
 				case res_modified:
 					/* give the hook another try */
@@ -711,7 +724,7 @@ read_len:
     next_ns: ;
 	   } /*foreach ns*/
 	} /*foreach retry*/
-	_res_close();
+	res_close();
 	if (!v_circuit)
 		if (!gotsomewhere)
 			errno = ECONNREFUSED;	/* no nameservers found */
@@ -730,7 +743,7 @@ read_len:
  * This routine is not expected to be user visible.
  */
 void
-_res_close()
+res_close()
 {
 	if (s >= 0) {
 		(void) close(s);

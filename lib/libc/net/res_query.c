@@ -55,7 +55,8 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 8.7 1996/08/05 08:31:35 vixie Exp $";
+static char orig_rcsid = "From: Id: res_query.c,v 8.9 1996/09/22 00:13:28 vixie Exp";
+static char rcsid[] = "$Id: res_query.c,v 1.9 1996/08/30 21:13:40 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -80,7 +81,7 @@ static char rcsid[] = "$Id: res_query.c,v 8.7 1996/08/05 08:31:35 vixie Exp $";
 #define MAXPACKET	1024
 #endif
 
-char *__hostalias __P((const char *));
+const char *hostalias __P((const char *));
 int h_errno;
 
 /*
@@ -315,7 +316,7 @@ res_querydomain(name, domain, class, type, answer, anslen)
 	u_char *answer;		/* buffer to put answer */
 	int anslen;		/* size of answer */
 {
-	char nbuf[2*MAXDNAME+2];
+	char nbuf[MAXDNAME];
 	const char *longname = nbuf;
 	int n;
 
@@ -345,8 +346,8 @@ res_querydomain(name, domain, class, type, answer, anslen)
 	return (res_query(longname, class, type, answer, anslen));
 }
 
-char *
-__hostalias(name)
+const char *
+hostalias(name)
 	register const char *name;
 {
 	register char *cp1, *cp2;
