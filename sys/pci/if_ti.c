@@ -461,8 +461,6 @@ ti_mem(sc, addr, len, buf)
 		segptr += segsize;
 		cnt -= segsize;
 	}
-
-	return;
 }
 
 static int
@@ -854,8 +852,6 @@ ti_loadfw(sc)
 		    sc->ti_unit);
 		break;
 	}
-
-	return;
 }
 
 /*
@@ -876,8 +872,6 @@ ti_cmd(sc, cmd)
 	TI_INC(index, TI_CMD_RING_CNT);
 	CSR_WRITE_4(sc, TI_MB_CMDPROD_IDX, index);
 	sc->ti_cmd_saved_prodidx = index;
-
-	return;
 }
 
 /*
@@ -907,8 +901,6 @@ ti_cmd_ext(sc, cmd, arg, len)
 	}
 	CSR_WRITE_4(sc, TI_MB_CMDPROD_IDX, index);
 	sc->ti_cmd_saved_prodidx = index;
-
-	return;
 }
 
 /*
@@ -962,8 +954,6 @@ ti_handle_events(sc)
 		TI_INC(sc->ti_ev_saved_considx, TI_EVENT_RING_CNT);
 		CSR_WRITE_4(sc, TI_GCR_EVENTCONS_IDX, sc->ti_ev_saved_considx);
 	}
-
-	return;
 }
 
 #ifdef TI_PRIVATE_JUMBOS
@@ -1087,8 +1077,6 @@ ti_jfree(buf, args)
 	entry->slot = i;
 	SLIST_REMOVE_HEAD(&sc->ti_jinuse_listhead, jpool_entries);
 	SLIST_INSERT_HEAD(&sc->ti_jfree_listhead, entry, jpool_entries);
-
-	return;
 }
 
 #endif /* TI_PRIVATE_JUMBOS */
@@ -1419,8 +1407,6 @@ ti_free_rx_ring_std(sc)
 		bzero((char *)&sc->ti_rdata->ti_rx_std_ring[i],
 		    sizeof(struct ti_rx_desc));
 	}
-
-	return;
 }
 
 static int
@@ -1455,8 +1441,6 @@ ti_free_rx_ring_jumbo(sc)
 		bzero((char *)&sc->ti_rdata->ti_rx_jumbo_ring[i],
 		    sizeof(struct ti_rx_desc));
 	}
-
-	return;
 }
 
 static int
@@ -1490,8 +1474,6 @@ ti_free_rx_ring_mini(sc)
 		bzero((char *)&sc->ti_rdata->ti_rx_mini_ring[i],
 		    sizeof(struct ti_rx_desc));
 	}
-
-	return;
 }
 
 static void
@@ -1511,8 +1493,6 @@ ti_free_tx_ring(sc)
 		bzero((char *)&sc->ti_rdata->ti_tx_ring[i],
 		    sizeof(struct ti_tx_desc));
 	}
-
-	return;
 }
 
 static int
@@ -1556,8 +1536,6 @@ ti_add_mcast(sc, addr)
 		printf("ti%d: unknown hwrev\n", sc->ti_unit);
 		break;
 	}
-
-	return;
 }
 
 static void
@@ -1586,8 +1564,6 @@ ti_del_mcast(sc, addr)
 		printf("ti%d: unknown hwrev\n", sc->ti_unit);
 		break;
 	}
-
-	return;
 }
 
 /*
@@ -1648,8 +1624,6 @@ ti_setmulti(sc)
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_4(sc, TI_MB_HOSTINTR, intrs);
-
-	return;
 }
 
 /*
@@ -2488,8 +2462,6 @@ ti_rxeof(sc)
 	TI_UPDATE_STDPROD(sc, sc->ti_std);
 	TI_UPDATE_MINIPROD(sc, sc->ti_mini);
 	TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
-
-	return;
 }
 
 static void
@@ -2538,8 +2510,6 @@ ti_txeof(sc)
 
 	if (cur_tx != NULL)
 		ifp->if_flags &= ~IFF_OACTIVE;
-
-	return;
 }
 
 static void
@@ -2582,8 +2552,6 @@ ti_intr(xsc)
 		ti_start(ifp);
 
 	TI_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -2600,8 +2568,6 @@ ti_stats_update(sc)
 	   sc->ti_rdata->ti_info.ti_stats.dot3StatsExcessiveCollisions +
 	   sc->ti_rdata->ti_info.ti_stats.dot3StatsLateCollisions) -
 	   ifp->if_collisions;
-
-	return;
 }
 
 /*
@@ -2769,8 +2735,6 @@ ti_start(ifp)
 	 */
 	ifp->if_timer = 5;
 	TI_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -2791,8 +2755,6 @@ ti_init(xsc)
 	}
 
 	TI_UNLOCK(sc);
-
-	return;
 }
 
 static void ti_init2(sc)
@@ -2876,8 +2838,6 @@ static void ti_init2(sc)
 	ifm->ifm_media = ifm->ifm_cur->ifm_media;
 	ti_ifmedia_upd(ifp);
 	ifm->ifm_media = tmp;
-
-	return;
 }
 
 /*
@@ -3031,8 +2991,6 @@ ti_ifmedia_sts(ifp, ifmr)
 		if (media & TI_LNK_HALF_DUPLEX)
 			ifmr->ifm_active |= IFM_HDX;
 	}
-
-	return;
 }
 
 static int
@@ -3441,8 +3399,6 @@ ti_watchdog(ifp)
 
 	ifp->if_oerrors++;
 	TI_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -3491,8 +3447,6 @@ ti_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
 	TI_UNLOCK(sc);
-
-	return;
 }
 
 /*
@@ -3509,6 +3463,4 @@ ti_shutdown(dev)
 	TI_LOCK(sc);
 	ti_chipinit(sc);
 	TI_UNLOCK(sc);
-
-	return;
 }
