@@ -58,9 +58,6 @@ int	 procfs_doproctype(PFS_FILL_ARGS);
 int	 procfs_ioctl(PFS_IOCTL_ARGS);
 int	 procfs_close(PFS_CLOSE_ARGS);
 
-/* Return 1 if process has special kernel digging privileges */
-int	 procfs_kmemaccess(struct proc *);
-
 /* Attributes */
 int	 procfs_attr(PFS_ATTR_ARGS);
 
