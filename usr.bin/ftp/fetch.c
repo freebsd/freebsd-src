@@ -204,7 +204,7 @@ url_get(origline, proxyenv)
 		port = httpport;
 
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = family;
 	hints.ai_socktype = SOCK_STREAM;
 	error = getaddrinfo(host, port, &hints, &res);
 	res0 = res;

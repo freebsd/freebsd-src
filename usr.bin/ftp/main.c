@@ -70,6 +70,8 @@ __RCSID_SOURCE("$NetBSD: main.c,v 1.26 1997/10/14 16:31:22 christos Exp $");
 #include "ftp_var.h"
 #include "pathnames.h"
 
+int family = AF_UNSPEC;
+
 int main __P((int, char **));
 
 int
@@ -151,8 +153,16 @@ main(argc, argv)
 	if (isatty(fileno(stdout)) && !dumbterm)
 		progress = 1;		/* progress bar on if tty is usable */
 
-	while ((ch = getopt(argc, argv, "adeginpP:s:tUvV")) != -1) {
+	while ((ch = getopt(argc, argv, "46adeginpP:s:tUvV")) != -1) {
 		switch (ch) {
+		case '4':
+			family = AF_INET;
+			break;
+#ifdef INET6
+		case '6':
+			family = AF_INET6;
+			break;
+#endif
 		case 'a':
 			anonftp = 1;
 			break;
@@ -228,7 +238,7 @@ main(argc, argv)
 		int error;
 
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_UNSPEC;
+		hints.ai_family = family;
 		hints.ai_socktype = SOCK_STREAM;
 		error = getaddrinfo(src_addr, NULL, &hints, &res);
 		if (error) {
@@ -697,7 +707,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: %s [-adeginptUvV] [-P port] [-s src_addr] [host [port]]\n"
+	    "usage: %s [-46adeginptUvV] [-P port] [-s src_addr] [host [port]]\n"
 	    "       %s host:path[/]\n"
 	    "       %s ftp://host[:port]/path[/]\n"
 	    "       %s http://host[:port]/file\n",
