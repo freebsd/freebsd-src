@@ -37,11 +37,11 @@ struct intstr {
 };
 
 typedef int (command_t)(int, char **);
-typedef struct cmd ctbl_t[];
 struct cmd {
 	const char *name;
 	command_t *handler;
 };
+typedef struct cmd ctbl_t[];
 
 command_t rule_main, ruleset_main;
 
