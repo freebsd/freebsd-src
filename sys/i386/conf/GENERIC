@@ -144,9 +144,6 @@ device		apm
 # Add suspend/resume support for the i8254.
 device		pmtimer
 
-# Audio support
-device		pcm
-
 # PCCARD (PCMCIA) support
 device		card		# pccard bus
 device		pcic		# PCMCIA bridge
