@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.4 1994/08/21 04:41:48 paul Exp $
+ * $Id: kernel.h,v 1.5 1994/09/23 19:07:41 wollman Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -79,6 +79,8 @@ extern int lbolt;			/* once a second sleep address */
 #define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
 #define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
 #define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
+
+#define PSEUDO_SET(sym)	   TEXT_SET(pseudo_set, sym)
 
 struct linker_set {
 	int ls_length;
