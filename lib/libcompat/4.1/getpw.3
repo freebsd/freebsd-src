@@ -76,3 +76,11 @@ A
 .Fn getpw
 function appeared in
 .At v6 .
+.Sh BUGS
+The area pointed to by
+.Fa buf
+must be large enough to hold the user name.
+
+All of the bugs from
+.Xr getpwent 3
+hold valid as well.
