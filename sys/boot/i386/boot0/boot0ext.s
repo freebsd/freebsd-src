@@ -157,10 +157,10 @@ main.3:		movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 # pointing at its first element which points to a "?".
 #
 		addw $TBL1SZ,%di		# Adjust
-main.4		movb (%di),%cl			# Partition
+main.4:		movb (%di),%cl			# Partition
 		addw %cx,%di			#  description
 		callw putx			# Display it
-main.5		incw %dx			# Next item
+main.5:		incw %dx			# Next item
 		addb $0x10,%bl			# Next entry
 		jnc main.3			# Till done
 #
