@@ -36,7 +36,7 @@ static char sccsid[] = "@(#)if.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.22 $"
+#ident "$Revision: 1.23 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -49,12 +49,12 @@ struct interface *ifnet;		/* all interfaces */
  * by name or address.
  */
 #define AHASH_LEN 211			/* must be prime */
-#define AHASH(a) &ahash[(a)%AHASH_LEN]
-struct interface *ahash[AHASH_LEN];
+#define AHASH(a) &ahash_tbl[(a)%AHASH_LEN]
+struct interface *ahash_tbl[AHASH_LEN];
 
 #define BHASH_LEN 211			/* must be prime */
-#define BHASH(a) &bhash[(a)%BHASH_LEN]
-struct interface *bhash[BHASH_LEN];
+#define BHASH(a) &bhash_tbl[(a)%BHASH_LEN]
+struct interface *bhash_tbl[BHASH_LEN];
 
 struct interface *remote_if;		/* remote interfaces */
 
@@ -63,7 +63,7 @@ struct interface *remote_if;		/* remote interfaces */
  * aliases are put on the end of the hash chains.
  */
 #define NHASH_LEN 97
-struct interface *nhash[NHASH_LEN];
+struct interface *nhash_tbl[NHASH_LEN];
 
 int	tot_interfaces;			/* # of remote and local interfaces */
 int	rip_interfaces;			/* # of interfaces doing RIP */
@@ -77,13 +77,24 @@ int	have_ripv1_out;			/* have a RIPv1 interface */
 int	have_ripv1_in;
 
 
+static struct interface**
+nhash(register char *p)
+{
+	register u_int i;
+
+	for (i = 0; *p != '\0'; p++) {
+		i = ((i<<1) & 0x7fffffff) | ((i>>31) & 1);
+		i ^= *p;
+	}
+	return &nhash_tbl[i % NHASH_LEN];
+}
+
+
 /* Link a new interface into the lists and hash tables.
  */
 void
 if_link(struct interface *ifp)
 {
-	int i;
-	char *p;
 	struct interface **hifp;
 
 	ifp->int_prev = &ifnet;
@@ -94,14 +105,12 @@ if_link(struct interface *ifp)
 
 	hifp = AHASH(ifp->int_addr);
 	ifp->int_ahash_prev = hifp;
-	ifp->int_ahash = *hifp;
 	if ((ifp->int_ahash = *hifp) != 0)
 		(*hifp)->int_ahash_prev = &ifp->int_ahash;
 	*hifp = ifp;
 
 	if (ifp->int_if_flags & IFF_BROADCAST) {
 		hifp = BHASH(ifp->int_brdaddr);
-		ifp->int_bhash = *hifp;
 		ifp->int_bhash_prev = hifp;
 		if ((ifp->int_bhash = *hifp) != 0)
 			(*hifp)->int_bhash_prev = &ifp->int_bhash;
@@ -116,15 +125,12 @@ if_link(struct interface *ifp)
 		remote_if = ifp;
 	}
 
-	for (i = 0, p = ifp->int_name; *p != '\0'; p++)
-		i += *p;
-	hifp = &nhash[i % NHASH_LEN];
+	hifp = nhash(ifp->int_name);
 	if (ifp->int_state & IS_ALIAS) {
 		/* put aliases on the end of the hash chain */
 		while (*hifp != 0)
 			hifp = &(*hifp)->int_nhash;
 	}
-	ifp->int_nhash = *hifp;
 	ifp->int_nhash_prev = hifp;
 	if ((ifp->int_nhash = *hifp) != 0)
 		(*hifp)->int_nhash_prev = &ifp->int_nhash;
@@ -177,15 +183,9 @@ ifwithname(char *name,			/* "ec0" or whatever */
 	   naddr addr)			/* 0 or network address */
 {
 	struct interface *ifp;
-	int i;
-	char *p;
 
 	for (;;) {
-		for (i = 0, p = name; *p != '\0'; p++)
-			i += *p;
-		ifp = nhash[i % NHASH_LEN];
-
-		while (ifp != 0) {
+		for (ifp = *nhash(name); ifp != 0; ifp = ifp->int_nhash) {
 			/* If the network address is not specified,
 			 * ignore any alias interfaces.  Otherwise, look
 			 * for the interface with the target name and address.
@@ -194,9 +194,7 @@ ifwithname(char *name,			/* "ec0" or whatever */
 			    && ((addr == 0 && !(ifp->int_state & IS_ALIAS))
 				|| (ifp->int_addr == addr)))
 				return ifp;
-			ifp = ifp->int_nhash;
 		}
-
 
 		/* If there is no known interface, maybe there is a
 		 * new interface.  So just once look for new interfaces.
@@ -445,6 +443,9 @@ ifdel(struct interface *ifp)
 	*ifp->int_ahash_prev = ifp->int_ahash;
 	if (ifp->int_ahash != 0)
 		ifp->int_ahash->int_ahash_prev = ifp->int_ahash_prev;
+	*ifp->int_nhash_prev = ifp->int_nhash;
+	if (ifp->int_nhash != 0)
+		ifp->int_nhash->int_nhash_prev = ifp->int_nhash_prev;
 	if (ifp->int_if_flags & IFF_BROADCAST) {
 		*ifp->int_bhash_prev = ifp->int_bhash;
 		if (ifp->int_bhash != 0)
