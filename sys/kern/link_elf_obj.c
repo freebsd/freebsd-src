@@ -722,10 +722,10 @@ link_elf_load_file(linker_class_t cls, const char* filename, linker_file_t* resu
 	/*
 	 * Wire down the pages
 	 */
-	vm_map_pageable(kernel_map,
-			(vm_offset_t) segbase,
-			(vm_offset_t) segbase + segs[i]->p_memsz,
-			FALSE);
+	vm_map_wire(kernel_map,
+		    (vm_offset_t) segbase,
+		    (vm_offset_t) segbase + segs[i]->p_memsz,
+		    FALSE);
 #endif
     }
 
