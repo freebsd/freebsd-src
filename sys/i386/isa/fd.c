@@ -46,12 +46,20 @@
  * Largely rewritten to handle multiple controllers and drives
  * By Julian Elischer, Sun Apr  4 16:34:33 WST 1993
  */
-char	rev[] = "$Revision: 1.2 $";
+char	rev[] = "$Revision: 1.3 $";
 /*
- * $Header: /freefall/a/cvs/386BSD/src/sys/i386/isa/fd.c,v 1.2 1993/07/15 17:53:04 davidg Exp $
+ * $Header: /a/cvs/386BSD/src/sys/i386/isa/fd.c,v 1.3 1993/08/12 09:21:20 rgrimes Exp $
  */
 /*
  * $Log: fd.c,v $
+ * Revision 1.3  1993/08/12  09:21:20  rgrimes
+ * Fixed poor timeout code in out_fdc.  The timeout counter was not being
+ * reinitialized between while loops.  Added comments about what was going
+ * on in the out_fdc routine.
+ *
+ * out_fdc now returns if the direction bit is not set in time instead of
+ * trying to wait for MRQ to get cleared.
+ *
  * Revision 1.2  1993/07/15  17:53:04  davidg
  * Modified attach printf's so that the output is compatible with the "new"
  * way of doing things. There still remain several drivers that need to
@@ -97,6 +105,7 @@ char	rev[] = "$Revision: 1.2 $";
 #include "conf.h"
 #include "file.h"
 #include "ioctl.h"
+#include "disklabel.h"
 #include "buf.h"
 #include "uio.h"
 #include "i386/isa/isa.h"
@@ -292,8 +301,11 @@ struct isa_device *dev;
 	   fdu++,fdsu++)
 	{
 		/* is there a unit? */
-		if ((fdt & 0xf0) == RTCFDT_NONE)
+		if ((fdt & 0xf0) == RTCFDT_NONE) {
+#define NO_TYPE NUMTYPES
+			fd_data[fdu].type = NO_TYPE;
 			continue;
+		}
 
 #ifdef notyet
 		/* select it */
@@ -403,7 +415,10 @@ bad:
 /*                            motor control stuff                           */
 /*		remember to not deselect the drive we're working on         */
 /****************************************************************************/
-set_motor(fdcu_t fdcu, fdu_t fdu, int reset)
+set_motor(fdcu, fdu, reset)
+	fdcu_t fdcu;
+	fdu_t fdu;
+	int reset;
 {
 	int m0,m1;
 	int selunit;
@@ -430,24 +445,35 @@ set_motor(fdcu_t fdcu, fdu_t fdu, int reset)
 		| (m1 ? FDO_MOEN1 : 0)));
 }
 
-fd_turnoff(fdu_t fdu)
+fd_turnoff(fdu)
+	fdu_t fdu;
 {
+	int	s;
+
 	fd_p fd = fd_data + fdu;
+	s = splbio();
 	fd->flags &= ~FD_MOTOR;
 	set_motor(fd->fdc->fdcu,fd->fdsu,0);
+	splx(s);
 }
 
-fd_motor_on(fdu_t fdu)
+fd_motor_on(fdu)
+	fdu_t fdu;
 {
+	int	s;
+
 	fd_p fd = fd_data + fdu;
+	s = splbio();
 	fd->flags &= ~FD_MOTOR_WAIT;
 	if((fd->fdc->fd == fd) && (fd->fdc->state == MOTORWAIT))
 	{
-		fd_pseudointr(fd->fdc->fdcu);
+		fdintr(fd->fdc->fdcu);
 	}
+	splx(s);
 }
 
-fd_turnon(fdu_t fdu) 
+fd_turnon(fdu) 
+	fdu_t fdu;
 {
 	fd_p fd = fd_data + fdu;
 	if(!(fd->flags & FD_MOTOR))
@@ -458,7 +484,8 @@ fd_turnon(fdu_t fdu)
 	}
 }
 
-fd_turnon1(fdu_t fdu) 
+fd_turnon1(fdu) 
+	fdu_t fdu;
 {
 	fd_p fd = fd_data + fdu;
 	fd->flags |= FD_MOTOR;
@@ -469,7 +496,8 @@ fd_turnon1(fdu_t fdu)
 /*                             fdc in/out                                   */
 /****************************************************************************/
 int
-in_fdc(fdcu_t fdcu)
+in_fdc(fdcu)
+	fdcu_t fdcu;
 {
 	int baseport = fdc_data[fdcu].baseport;
 	int i, j = 100000;
@@ -487,7 +515,9 @@ in_fdc(fdcu_t fdcu)
 #endif
 }
 
-out_fdc(fdcu_t fdcu,int x)
+out_fdc(fdcu, x)
+	fdcu_t fdcu;
+	int x;
 {
 	int baseport = fdc_data[fdcu].baseport;
 	int i;
@@ -508,7 +538,6 @@ out_fdc(fdcu_t fdcu,int x)
 	return (0);
 }
 
-static fdopenf;
 /****************************************************************************/
 /*                           fdopen/fdclose                                 */
 /****************************************************************************/
@@ -521,7 +550,7 @@ Fdopen(dev, flags)
 	int s;
 
 	/* check bounds */
-	if (fdu >= NFD) return(ENXIO);
+	if (fdu >= NFD || fd_data[fdu].type == NO_TYPE) return(ENXIO);
 	/*if (type >= NUMTYPES) return(ENXIO);*/
 	fd_data[fdu].flags |= FD_OPEN;
 
@@ -546,7 +575,8 @@ fdclose(dev, flags)
 * If the controller is already busy, we need do nothing, as it	*
 * will pick up our work when the present work completes		*
 \***************************************************************/
-fdstart(fdcu_t fdcu)
+fdstart(fdcu)
+	fdcu_t fdcu;
 {
 	register struct buf *dp,*bp;
 	int s;
@@ -560,13 +590,16 @@ fdstart(fdcu_t fdcu)
 	splx(s);
 }
 
-fd_timeout(fdcu_t fdcu)
+fd_timeout(fdcu)
+	fdcu_t fdcu;
 {
 	fdu_t fdu = fdc_data[fdcu].fdu;
 	int st0, st3, cyl;
 	struct buf *dp,*bp;
+	int	s;
 
 	dp = &fdc_data[fdcu].head;
+	s = splbio();
 	bp = dp->b_actf;
 
 	out_fdc(fdcu,NE7CMD_SENSED);
@@ -598,11 +631,13 @@ fd_timeout(fdcu_t fdcu)
 		fdc_data[fdcu].fdu = -1;
 		fdc_data[fdcu].state = DEVIDLE;
 	}
-	fd_pseudointr(fdcu);
+	fdintr(fdcu);
+	splx(s);
 }
 
 /* just ensure it has the right spl */
-fd_pseudointr(fdcu_t fdcu)
+fd_pseudointr(fdcu)
+	fdcu_t fdcu;
 {
 	int	s;
 	s = splbio();
@@ -615,7 +650,8 @@ fd_pseudointr(fdcu_t fdcu)
 * keep calling the state machine until it returns a 0			*
 * ALWAYS called at SPLBIO 						*
 \***********************************************************************/
-fdintr(fdcu_t fdcu)
+fdintr(fdcu)
+	fdcu_t fdcu;
 {
 	fdc_p fdc = fdc_data + fdcu;
 	while(fdstate(fdcu, fdc));
@@ -625,7 +661,9 @@ fdintr(fdcu_t fdcu)
 * The controller state machine.						*
 * if it returns a non zero value, it should be called again immediatly	*
 \***********************************************************************/
-int fdstate(fdcu_t fdcu, fdc_p fdc)
+int fdstate(fdcu, fdc)
+	fdcu_t fdcu;
+	fdc_p fdc;
 {
 	int read,head,trac,sec,i,s,sectrac,cyl,st0;
 	unsigned long blknum;
@@ -707,8 +745,10 @@ int fdstate(fdcu_t fdcu, fdc_p fdc)
 		out_fdc(fdcu,bp->b_cylin * fd->ft->steptrac);
 		fd->track = -2;
 		fdc->state = SEEKWAIT;
+		timeout(fd_timeout,fdcu,2 * hz);
 		return(0);	/* will return later */
 	case SEEKWAIT:
+		untimeout(fd_timeout,fdcu);
 		/* allow heads to settle */
 		timeout(fd_pseudointr,fdcu,hz/50);
 		fdc->state = SEEKCOMPLETE;
@@ -864,7 +904,8 @@ int fdstate(fdcu_t fdcu, fdc_p fdc)
 	return(1); /* Come back immediatly to new state */
 }
 
-retrier(fdcu_t fdcu)
+retrier(fdcu)
+	fdcu_t fdcu;
 {
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *dp,*bp;
@@ -901,14 +942,92 @@ retrier(fdcu_t fdcu)
 		dp->b_actf = bp->av_forw;
 		fdc->fd->skip = 0;
 		biodone(bp);
-		fdc->state = FINDWORK;
+		fdc->state = DEVIDLE;
 		fdc->fd = (fd_p) 0;
 		fdc->fdu = -1;
-		return(1);
+		/* XXX abort current command, if any.  */
+		return(0);
 	}
 	fdc->retry++;
 	return(1);
 }
 
-#endif
+/*
+ * fdioctl() from jc@irbs.UUCP (John Capo)
+ * i386/i386/conf.c needs to have fdioctl() declared and remove the line that
+ * defines fdioctl to be enxio.
+ *
+ * TODO: Reformat.
+ *       Think about allocating buffer off stack.
+ *       Don't pass uncast 0's and NULL's to read/write/setdisklabel().
+ *       Watch out for NetBSD's different *disklabel() interface.
+ */
 
+int
+fdioctl (dev, cmd, addr, flag)
+dev_t dev;
+int cmd;
+caddr_t addr;
+int flag;
+{
+    struct fd_type *fdt;
+    struct disklabel *dl;
+    char buffer[DEV_BSIZE];
+    int error;
+
+    error = 0;
+
+    switch (cmd)
+    {
+    case DIOCGDINFO:
+        bzero(buffer, sizeof (buffer));
+        dl = (struct disklabel *)buffer;
+        dl->d_secsize = FDBLK;
+        fdt = &fd_types[FDUNIT(minor(dev))];
+        dl->d_secpercyl = fdt->size / fdt->tracks;
+        dl->d_type = DTYPE_FLOPPY;
+
+        if (readdisklabel(dev, fdstrategy, dl, NULL, 0, 0) == NULL)
+            error = 0;
+        else
+            error = EINVAL;
+
+        *(struct disklabel *)addr = *dl;
+        break;
+
+    case DIOCSDINFO:
+
+        if ((flag & FWRITE) == 0)
+            error = EBADF;
+
+        break;
+
+    case DIOCWLABEL:
+        if ((flag & FWRITE) == 0)
+            error = EBADF;
+
+        break;
+
+    case DIOCWDINFO:
+        if ((flag & FWRITE) == 0)
+        {
+            error = EBADF;
+            break;
+        }
+
+        dl = (struct disklabel *)addr;
+
+        if (error = setdisklabel ((struct disklabel *)buffer, dl, 0, NULL))
+            break;
+
+        error = writedisklabel(dev, fdstrategy, (struct disklabel *)buffer, NULL);
+        break;
+
+     default:
+        error = EINVAL;
+        break;
+    }
+    return (error);
+}
+
+#endif
