@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.41 1994/04/01 18:33:12 ache Exp $
+ *	$Id: syscons.c,v 1.42 1994/04/07 23:21:35 ache Exp $
  *
  */
 
@@ -1452,6 +1452,12 @@ static void exchange_scr(void)
 	move_crsr(new_scp, new_scp->xpos, new_scp->ypos);
 	bcopy(new_scp->scr_buf, Crtat, new_scp->xsize * new_scp->ysize * 2);
 	update_leds(new_scp->status);
+	if ((old_scp->status & UNKNOWN_MODE) && crtc_vga) {
+		load_font(0, 16, font_8x16);
+		load_font(1, 8, font_8x8);
+		load_font(2, 14, font_8x14);
+		load_palette();
+	}
 	if (old_scp->status & KBD_RAW_MODE || new_scp->status & KBD_RAW_MODE)
 		shfts = ctls = alts = agrs = metas = 0;
 	delayed_next_scr = 0;
