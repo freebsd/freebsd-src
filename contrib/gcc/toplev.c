@@ -4858,10 +4858,10 @@ main (argc, argv)
 		    {
 		      #ifdef FORCE_OPTIMIZATION_DOWNGRADE
 		      optimize = 1;
-		      warning ("\n***\n***\t-O%d converted to \"-O1\" due to optimizer bugs on this platform\n***\n",
+		      warning ("\n***\n***\t-O%d converted to \"-O1\" due to optimizer bugs on this platform\n***",
 			      optimize_val);
 		      #else
-		      warning ("\n***\n***\tThe -O%d flag TRIGGERS KNOWN OPTIMIZER BUGS ON THIS PLATFORM\n***\n",
+		      warning ("\n***\n***\tThe -O%d flag TRIGGERS KNOWN OPTIMIZER BUGS ON THIS PLATFORM\n***",
 			      optimize_val);
 		      #endif
 		    }
