@@ -656,7 +656,7 @@ ioctl(td, uap)
 		else
 			fp->f_flag &= ~FNONBLOCK;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIONBIO, (caddr_t)&tmp, td);
+		error = fo_ioctl(fp, FIONBIO, &tmp, td);
 		break;
 
 	case FIOASYNC:
@@ -666,7 +666,7 @@ ioctl(td, uap)
 		else
 			fp->f_flag &= ~FASYNC;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIOASYNC, (caddr_t)&tmp, td);
+		error = fo_ioctl(fp, FIOASYNC, &tmp, td);
 		break;
 
 	default:
