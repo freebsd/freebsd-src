@@ -87,7 +87,7 @@ void setjobctl(int);
 int fgcmd(int, char **);
 int bgcmd(int, char **);
 int jobscmd(int, char **);
-void showjobs(int);
+void showjobs(int, int, int);
 int waitcmd(int, char **);
 int jobidcmd(int, char **);
 struct job *makejob(union node *, int);

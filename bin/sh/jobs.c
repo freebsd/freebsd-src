@@ -109,7 +109,7 @@ STATIC void setcurjob(struct job *);
 STATIC void deljob(struct job *);
 STATIC struct job *getcurjob(struct job *);
 #endif
-STATIC void showjob(struct job *);
+STATIC void showjob(struct job *, int, int);
 
 
 /*
@@ -271,31 +271,85 @@ restartjob(struct job *jp)
 
 
 int
-jobscmd(int argc __unused, char **argv __unused)
+jobscmd(int argc, char *argv[])
 {
-	showjobs(0);
-	return 0;
+	struct job *jp;
+	char *id;
+	int ch, sformat, lformat;
+
+	optind = optreset = 1;
+	sformat = lformat = 0;
+	while ((ch = getopt(argc, argv, "ls")) != -1) {
+		switch (ch) {
+		case 'l':
+			lformat = 1;
+			break;
+		case 's':
+			sformat = 1;
+			break;
+		case '?':
+		default:
+			error("unknown option: -%c", optopt);
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc == 0)
+		showjobs(0, sformat, lformat);
+	else
+		while ((id = *argv++) != NULL)
+			showjob(getjob(id), sformat, lformat);
+
+	return (0);
 }
 
 STATIC void
-showjob(struct job *jp)
+showjob(struct job *jp, int sformat, int lformat)
 {
 	char s[64];
 	struct procstat *ps;
-	int col, i, jobno, procno;
+	struct job *j;
+	int col, curr, i, jobno, prev, procno;
+	char c;
 
 	procno = jp->nprocs;
 	jobno = jp - jobtab + 1;
+	curr = prev = 0;
+#if JOBS
+	if ((j = getcurjob(NULL)) != NULL) {
+		curr = j - jobtab + 1;
+		if ((j = getcurjob(j)) != NULL)
+			prev = j - jobtab + 1;
+	}
+#endif
 	for (ps = jp->ps ; ; ps++) {	/* for each process */
-		if (ps == jp->ps)
-			fmtstr(s, 64, "[%d] %d ", jobno, ps->pid);
+		if (sformat) {
+			out1fmt("%d\n", ps->pid);
+			goto skip;
+		}
+		if (!lformat && ps != jp->ps)
+			goto skip;
+		if (jobno == curr)
+			c = '+';
+		else if (jobno == prev)
+			c = '-';
 		else
-			fmtstr(s, 64, "    %d ", ps->pid);
+			c = ' ';
+		if (ps == jp->ps)
+			fmtstr(s, 64, "[%d] %c ", jobno, c);
+		else
+			fmtstr(s, 64, "     %c ", c);
 		out1str(s);
 		col = strlen(s);
+		if (lformat) {
+			fmtstr(s, 64, "%d ", ps->pid);
+			out1str(s);
+			col += strlen(s);
+		}
 		s[0] = '\0';
 		if (ps->status == -1) {
-			/* don't print anything */
+			strcpy(s, "Running");
 		} else if (WIFEXITED(ps->status)) {
 			fmtstr(s, 64, "Exit %d", WEXITSTATUS(ps->status));
 		} else {
@@ -320,7 +374,7 @@ showjob(struct job *jp)
 		} while (col < 30);
 		out1str(ps->cmd);
 		out1c('\n');
-		if (--procno <= 0)
+skip:		if (--procno <= 0)
 			break;
 	}
 }
@@ -335,7 +389,7 @@ showjob(struct job *jp)
  */
 
 void
-showjobs(int change)
+showjobs(int change, int sformat, int lformat)
 {
 	int jobno;
 	struct job *jp;
@@ -351,7 +405,7 @@ showjobs(int change)
 		}
 		if (change && ! jp->changed)
 			continue;
-		showjob(jp);
+		showjob(jp, sformat, lformat);
 		jp->changed = 0;
 		if (jp->state == JOBDONE) {
 			freejob(jp);
@@ -909,7 +963,7 @@ dowait(int block, struct job *job)
 				sig = WTERMSIG(status);
 		}
 		if (sig != 0 && sig != SIGINT && sig != SIGPIPE)
-			showjob(thisjob);
+			showjob(thisjob, 0, 0);
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=0x%x\n", rootshell, job));
 		if (thisjob)

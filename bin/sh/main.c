@@ -229,7 +229,7 @@ cmdloop(int top)
 		inter = 0;
 		if (iflag && top) {
 			inter++;
-			showjobs(1);
+			showjobs(1, 0, 0);
 			chkmail(0);
 			flushout(&output);
 		}
