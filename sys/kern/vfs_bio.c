@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.27 1995/02/03 03:35:56 davidg Exp $
+ * $Id: vfs_bio.c,v 1.28 1995/02/18 02:55:09 davidg Exp $
  */
 
 /*
@@ -79,6 +79,10 @@ caddr_t buffers_kva;
 
 /*
  * bogus page -- for I/O to/from partially complete buffers
+ * this is a temporary solution to the problem, but it is not
+ * really that bad.  it would be better to split the buffer
+ * for input in the case of buffers partially already in memory,
+ * but the code is intricate enough already.
  */
 vm_page_t bogus_page;
 vm_offset_t bogus_offset;
@@ -370,6 +374,7 @@ brelse(struct buf * bp)
 		needsbuffer = 0;
 		wakeup((caddr_t) &needsbuffer);
 	}
+
 	/* anyone need this block? */
 	if (bp->b_flags & B_WANTED) {
 		bp->b_flags &= ~(B_PDWANTED | B_WANTED | B_AGE);
@@ -388,6 +393,13 @@ brelse(struct buf * bp)
 		if (((bp->b_flags & B_VMIO) == 0) && bp->b_vp)
 			brelvp(bp);
 	}
+	
+	/*
+	 * VMIO buffer rundown.  It is not very necessary to keep a VMIO buffer
+	 * constituted, so the B_INVAL flag is used to *invalidate* the buffer,
+	 * but the VM object is kept around.  The B_NOCACHE flag is used to
+	 * invalidate the pages in the VM object.
+	 */
 	if (bp->b_flags & B_VMIO) {
 		vm_offset_t foff;
 		vm_object_t obj;
@@ -503,7 +515,8 @@ brelse(struct buf * bp)
 
 /*
  * this routine implements clustered async writes for
- * clearing out B_DELWRI buffers...
+ * clearing out B_DELWRI buffers...  This is much better
+ * than the old way of writing only one buffer at a time.
  */
 void
 vfs_bio_awrite(struct buf * bp)
@@ -699,8 +712,9 @@ incore(struct vnode * vp, daddr_t blkno)
 }
 
 /*
- * returns true if no I/O is needed to access the
- * associated VM object.
+ * Returns true if no I/O is needed to access the
+ * associated VM object.  This is like incore except
+ * it also hunts around in the VM system for the data.
  */
 
 int
@@ -839,6 +853,13 @@ geteblk(int size)
 }
 
 /*
+ * This code constitutes the buffer memory from either anonymous system
+ * memory (in the case of non-VMIO operations) or from an associated
+ * VM object (in the case of VMIO operations).
+ *
+ * Note that this code is tricky, and has many complications to resolve
+ * deadlock or inconsistant data situations.  Tread lightly!!!
+ *
  * Modify the length of a buffer's underlying buffer storage without
  * destroying information (unless, of course the buffer is shrinking).
  */
@@ -851,6 +872,9 @@ allocbuf(struct buf * bp, int size, int vmio)
 	int i;
 
 	if ((bp->b_flags & B_VMIO) == 0) {
+		/*
+		 * Just get anonymous memory from the kernel
+		 */
 		mbsize = ((size + DEV_BSIZE - 1) / DEV_BSIZE) * DEV_BSIZE;
 		newbsize = round_page(size);
 
@@ -870,10 +894,6 @@ allocbuf(struct buf * bp, int size, int vmio)
 			    (vm_offset_t) bp->b_data + newbsize);
 			bufspace += (newbsize - bp->b_bufsize);
 		}
-		/*
-		 * adjust buffer cache's idea of memory allocated to buffer
-		 * contents
-		 */
 	} else {
 		vm_page_t m;
 		int desiredpages;
@@ -1188,6 +1208,12 @@ biodone(register struct buf * bp)
 				vm_page_set_valid(m, foff, resid);
 				vm_page_set_clean(m, foff, resid);
 			}
+
+			/*
+			 * when debugging new filesystems or buffer I/O methods, this
+			 * is the most common error that pops up.  if you see this, you
+			 * have not set the page busy flag correctly!!!
+			 */
 			if (m->busy == 0) {
 				printf("biodone: page busy < 0, off: %d, foff: %d, resid: %d, index: %d\n",
 				    m->offset, foff, resid, i);
@@ -1203,8 +1229,11 @@ biodone(register struct buf * bp)
 			foff += resid;
 			iosize -= resid;
 		}
-		if (obj && obj->paging_in_progress == 0)
+		if (obj && obj->paging_in_progress == 0 &&
+		    (obj->flags & OBJ_PIPWNT)) {
+			obj->flags &= ~OBJ_PIPWNT;
 			wakeup((caddr_t) obj);
+		}
 	}
 	/*
 	 * For asynchronous completions, release the buffer now. The brelse
@@ -1249,6 +1278,11 @@ vfs_update()
 	}
 }
 
+/*
+ * This routine is called in lieu of iodone in the case of
+ * incomplete I/O.  This keeps the busy status for pages
+ * consistant.
+ */
 void
 vfs_unbusy_pages(struct buf * bp)
 {
@@ -1276,11 +1310,22 @@ vfs_unbusy_pages(struct buf * bp)
 			--m->busy;
 			PAGE_WAKEUP(m);
 		}
-		if (obj->paging_in_progress == 0)
+		if (obj->paging_in_progress == 0 &&
+		    (obj->flags & OBJ_PIPWNT)) {
+			obj->flags &= ~OBJ_PIPWNT;
 			wakeup((caddr_t) obj);
+		}
 	}
 }
 
+/*
+ * This routine is called before a device strategy routine.
+ * It is used to tell the VM system that paging I/O is in
+ * progress, and treat the pages associated with the buffer
+ * almost as being PG_BUSY.  Also the object paging_in_progress
+ * flag is handled to make sure that the object doesn't become
+ * inconsistant.
+ */
 void
 vfs_busy_pages(struct buf * bp, int clear_modify)
 {
@@ -1314,6 +1359,11 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 	}
 }
 
+/*
+ * Tell the VM system that the pages associated with this buffer
+ * are dirty.  This is in case of the unlikely circumstance that
+ * a buffer has to be destroyed before it is flushed.
+ */
 void
 vfs_dirty_pages(struct buf * bp)
 {
@@ -1340,8 +1390,9 @@ vfs_dirty_pages(struct buf * bp)
 	}
 }
 /*
- * these routines are not in the correct place (yet)
- * also they work *ONLY* for kernel_pmap!!!
+ * vm_hold_load_pages and vm_hold_unload pages get pages into
+ * a buffers address space.  The pages are anonymous and are
+ * not associated with a file object.
  */
 void
 vm_hold_load_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
