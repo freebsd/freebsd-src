@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.71 1997/02/16 10:20:55 jkh Exp $
+ * $Id: config.c,v 1.16.2.72 1997/02/16 23:36:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -510,6 +510,7 @@ configResolv(void)
     cp = variable_get(VAR_NAMESERVER);
     if (!cp || !*cp)
 	goto skip;
+    Mkdir("/etc");
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp)
 	return;
