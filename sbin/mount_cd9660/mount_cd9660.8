@@ -34,6 +34,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount_cd9660.8	8.3 (Berkeley) 3/27/94
+.\"     $Id: mount_cd9660.8,v 1.10 1999/08/16 20:56:27 chris Exp $
+.\"
 .Dd March 27, 1994
 .Dt MOUNT_CD9660 8
 .Os BSD 4
@@ -108,16 +110,16 @@ is measured in CD-ROM blocks, with 2048 bytes each.  This is the same
 as for example the
 .Cm info
 command of
-.Xr cdcontrol 8
+.Xr cdcontrol 1
 is printing.
 .It Fl v
 Be verbose about the starting sector decisions made.
 .El
 .Sh SEE ALSO
+.Xr cdcontrol 1 ,
 .Xr mount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
-.Xr cdcontrol 8 ,
 .Xr mount 8
 .Sh BUGS
 POSIX device node mapping is currently not supported.
