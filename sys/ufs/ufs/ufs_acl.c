@@ -191,6 +191,7 @@ ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip,
 		ip->i_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
 		ip->i_mode |= acl_posix1e_perms_to_mode(acl_user_obj,
 		    acl_group_obj, acl_other);
+		DIP(ip, i_mode) = ip->i_mode;
 	} else {
 		/*
 		 * Use the ACL_MASK entry.
@@ -198,8 +199,10 @@ ufs_sync_inode_from_acl(struct acl *acl, struct inode *ip,
 		ip->i_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
 		ip->i_mode |= acl_posix1e_perms_to_mode(acl_user_obj,
 		    acl_mask, acl_other);
+		DIP(ip, i_mode) = ip->i_mode;
 	}
 	ip->i_mode |= preserve_mode;
+	DIP(ip, i_mode) = ip->i_mode;
 }
 
 /*

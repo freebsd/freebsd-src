@@ -35,6 +35,7 @@
  */
 
 #include <sys/param.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 
 /*

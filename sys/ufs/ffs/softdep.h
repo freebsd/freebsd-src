@@ -86,8 +86,11 @@
  * says that the files space has been accounted to the pending free
  * space count. The NEWBLOCK flag marks pagedep structures that have
  * just been allocated, so must be claimed by the inode before all
- * dependencies are complete. The ONWORKLIST flag shows whether the
- * structure is currently linked onto a worklist.
+ * dependencies are complete. The INPROGRESS flag marks worklist
+ * structures that are still on the worklist, but are being considered
+ * for action by some process. The UFS1FMT flag indicates that the
+ * inode being processed is a ufs1 format. The ONWORKLIST flag shows
+ * whether the structure is currently linked onto a worklist.
  */
 #define	ATTACHED	0x0001
 #define	UNDONE		0x0002
@@ -102,6 +105,7 @@
 #define	SPACECOUNTED	0x0400	/* inodedep only */
 #define	NEWBLOCK	0x0800	/* pagedep only */
 #define	INPROGRESS	0x1000	/* dirrem, freeblks, freefrag, freefile only */
+#define	UFS1FMT		0x2000	/* indirdep only */
 #define ONWORKLIST	0x8000
 
 #define	ALLCOMPLETE	(ATTACHED | COMPLETE | DEPCOMPLETE)
@@ -177,7 +181,7 @@ TAILQ_HEAD(allocdirectlst, allocdirect);
  * list, any removed operations are done, and the dependency structure
  * is freed.
  */
-#define DAHASHSZ 6
+#define DAHASHSZ 5
 #define DIRADDHASH(offset) (((offset) >> 2) % DAHASHSZ)
 struct pagedep {
 	struct	worklist pd_list;	/* page buffer */
@@ -245,7 +249,6 @@ struct inodedep {
 	struct	fs *id_fs;		/* associated filesystem */
 	ino_t	id_ino;			/* dependent inode */
 	nlink_t	id_nlinkdelta;		/* saved effective link count */
-	struct	dinode *id_savedino;	/* saved dinode contents */
 	LIST_ENTRY(inodedep) id_deps;	/* bmsafemap's list of inodedep's */
 	struct	buf *id_buf;		/* related bmsafemap (if pending) */
 	off_t	id_savedsize;		/* file size saved during rollback */
@@ -254,7 +257,13 @@ struct inodedep {
 	struct	workhead id_inowait;	/* operations waiting inode update */
 	struct	allocdirectlst id_inoupdt; /* updates before inode written */
 	struct	allocdirectlst id_newinoupdt; /* updates when inode written */
+	union {
+	struct	ufs1_dinode *idu_savedino1; /* saved ufs1_dinode contents */
+	struct	ufs2_dinode *idu_savedino2; /* saved ufs2_dinode contents */
+	} id_un;
 };
+#define id_savedino1 id_un.idu_savedino1
+#define id_savedino2 id_un.idu_savedino2
 
 /*
  * A "newblk" structure is attached to a bmsafemap structure when a block
@@ -267,8 +276,8 @@ struct inodedep {
 struct newblk {
 	LIST_ENTRY(newblk) nb_hash;	/* hashed lookup */
 	struct	fs *nb_fs;		/* associated filesystem */
-	ufs_daddr_t nb_newblkno;	/* allocated block number */
 	int	nb_state;		/* state of bitmap dependency */
+	ufs2_daddr_t nb_newblkno;	/* allocated block number */
 	LIST_ENTRY(newblk) nb_deps;	/* bmsafemap's list of newblk's */
 	struct	bmsafemap *nb_bmsafemap; /* associated bmsafemap */
 };
@@ -324,8 +333,8 @@ struct allocdirect {
 #	define	ad_state ad_list.wk_state /* block pointer state */
 	TAILQ_ENTRY(allocdirect) ad_next; /* inodedep's list of allocdirect's */
 	ufs_lbn_t ad_lbn;		/* block within file */
-	ufs_daddr_t ad_newblkno;	/* new value of block pointer */
-	ufs_daddr_t ad_oldblkno;	/* old value of block pointer */
+	ufs2_daddr_t ad_newblkno;	/* new value of block pointer */
+	ufs2_daddr_t ad_oldblkno;	/* old value of block pointer */
 	long	ad_newsize;		/* size of new block */
 	long	ad_oldsize;		/* size of old block */
 	LIST_ENTRY(allocdirect) ad_deps; /* bmsafemap's list of allocdirect's */
@@ -379,8 +388,8 @@ struct allocindir {
 #	define	ai_state ai_list.wk_state /* indirect block pointer state */
 	LIST_ENTRY(allocindir) ai_next;	/* indirdep's list of allocindir's */
 	int	ai_offset;		/* pointer offset in indirect block */
-	ufs_daddr_t ai_newblkno;	/* new block pointer value */
-	ufs_daddr_t ai_oldblkno;	/* old block pointer value */
+	ufs2_daddr_t ai_newblkno;	/* new block pointer value */
+	ufs2_daddr_t ai_oldblkno;	/* old block pointer value */
 	struct	freefrag *ai_freefrag;	/* block to be freed when complete */
 	struct	indirdep *ai_indirdep;	/* address of associated indirdep */
 	LIST_ENTRY(allocindir) ai_deps;	/* bmsafemap's list of allocindir's */
@@ -400,9 +409,8 @@ struct allocindir {
 struct freefrag {
 	struct	worklist ff_list;	/* id_inowait or delayed worklist */
 #	define	ff_state ff_list.wk_state /* owning user; should be uid_t */
-	struct	vnode *ff_devvp;	/* filesystem device vnode */
 	struct	mount *ff_mnt;		/* associated mount point */
-	ufs_daddr_t ff_blkno;		/* fragment physical block number */
+	ufs2_daddr_t ff_blkno;		/* fragment physical block number */
 	long	ff_fragsize;		/* size of fragment being deleted */
 	ino_t	ff_inum;		/* owning inode number */
 };
@@ -416,14 +424,14 @@ struct freefrag {
 struct freeblks {
 	struct	worklist fb_list;	/* id_inowait or delayed worklist */
 	ino_t	fb_previousinum;	/* inode of previous owner of blocks */
+	uid_t	fb_uid;			/* uid of previous owner of blocks */
 	struct	vnode *fb_devvp;	/* filesystem device vnode */
 	struct	mount *fb_mnt;		/* associated mount point */
 	off_t	fb_oldsize;		/* previous file size */
 	off_t	fb_newsize;		/* new file size */
-	int	fb_chkcnt;		/* used to check cnt of blks released */
-	uid_t	fb_uid;			/* uid of previous owner of blocks */
-	ufs_daddr_t fb_dblks[NDADDR];	/* direct blk ptrs to deallocate */
-	ufs_daddr_t fb_iblks[NIADDR];	/* indirect blk ptrs to deallocate */
+	ufs2_daddr_t fb_chkcnt;		/* used to check cnt of blks released */
+	ufs2_daddr_t fb_dblks[NDADDR];	/* direct blk ptrs to deallocate */
+	ufs2_daddr_t fb_iblks[NIADDR];	/* indirect blk ptrs to deallocate */
 };
 
 /*

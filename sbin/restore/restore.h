@@ -42,7 +42,6 @@
 /*
  * Flags
  */
-extern int	cvtflag;	/* convert from old to new tape format */
 extern int	bflag;		/* set input block size */
 extern int	dflag;		/* print out debugging info */
 extern int	hflag;		/* restore heirarchies */
@@ -64,7 +63,6 @@ extern time_t	dumptime;	/* time that this dump begins */
 extern time_t	dumpdate;	/* time that this dump was made */
 extern char	command;	/* opration being performed */
 extern FILE	*terminal;	/* file descriptor for the terminal input */
-extern int	oldinofmt;	/* reading tape with old format inodes */
 extern int	Bcvt;		/* need byte swapping on inodes and dirs */
 
 /*
@@ -106,10 +104,19 @@ struct entry {
  * The entry describes the next file available on the tape
  */
 struct context {
-	char	*name;		/* name of file */
+	short	action;		/* action being taken on this file */
+	mode_t	mode;		/* mode of file */
 	ino_t	ino;		/* inumber of file */
-	struct	dinode *dip;	/* pointer to inode */
-	char	action;		/* action being taken on this file */
+	uid_t	uid;		/* file owner */
+	gid_t	gid;		/* file group */
+	int	file_flags;	/* status flags (chflags) */
+	int	rdev;		/* device number of file */
+	time_t	atime_sec;	/* access time seconds */
+	time_t	mtime_sec;	/* modified time seconds */
+	int	atime_nsec;	/* access time nanoseconds */
+	int	mtime_nsec;	/* modified time nanoseconds */
+	off_t	size;		/* size of file */
+	char	*name;		/* name of file */
 } curfile;
 /* actions */
 #define	USING	1	/* extracting from the tape */

@@ -41,6 +41,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/stdint.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/conf.h>
@@ -398,11 +399,11 @@ diskerr(bp, what, blkdone, lp)
 	      bp->bio_cmd == BIO_READ ? "read" : "writ");
 	sn = bp->bio_blkno;
 	if (bp->bio_bcount <= DEV_BSIZE)
-		printf("%ld", (long)sn);
+		printf("%lld", (intmax_t)sn);
 	else {
 		if (blkdone >= 0) {
 			sn += blkdone;
-			printf("%ld of ", (long)sn);
+			printf("%lld of ", (intmax_t)sn);
 		}
 		printf("%ld-%ld", (long)bp->bio_blkno,
 		    (long)(bp->bio_blkno + (bp->bio_bcount - 1) / DEV_BSIZE));
@@ -416,9 +417,9 @@ diskerr(bp, what, blkdone, lp)
 		 * independent of slices, labels and bad sector remapping,
 		 * but some drivers don't set bp->b_pblkno.
 		 */
-		printf(" (%s bn %ld; cn %ld", sname, (long)sn,
-		    (long)(sn / lp->d_secpercyl));
-		sn %= (long)lp->d_secpercyl;
+		printf(" (%s bn %lld; cn %lld", sname, (intmax_t)sn,
+		    (intmax_t)(sn / lp->d_secpercyl));
+		sn %= lp->d_secpercyl;
 		printf(" tn %ld sn %ld)", (long)(sn / lp->d_nsectors),
 		    (long)(sn % lp->d_nsectors));
 	}

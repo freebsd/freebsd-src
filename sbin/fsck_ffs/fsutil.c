@@ -42,6 +42,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/disklabel.h>
 #include <sys/stat.h>
 #include <sys/disklabel.h>
 
@@ -63,9 +64,9 @@ static const char rcsid[] =
 long	diskreads, totalreads;	/* Disk cache statistics */
 
 int
-ftypeok(struct dinode *dp)
+ftypeok(union dinode *dp)
 {
-	switch (dp->di_mode & IFMT) {
+	switch (DIP(dp, di_mode) & IFMT) {
 
 	case IFDIR:
 	case IFREG:
@@ -78,7 +79,7 @@ ftypeok(struct dinode *dp)
 
 	default:
 		if (debug)
-			printf("bad file type 0%o\n", dp->di_mode);
+			printf("bad file type 0%o\n", DIP(dp, di_mode));
 		return (0);
 	}
 }
@@ -181,7 +182,7 @@ bufinit(void)
  * Manage a cache of directory blocks.
  */
 struct bufarea *
-getdatablk(ufs_daddr_t blkno, long size)
+getdatablk(ufs2_daddr_t blkno, long size)
 {
 	struct bufarea *bp;
 
@@ -207,9 +208,9 @@ foundit:
 }
 
 void
-getblk(struct bufarea *bp, ufs_daddr_t blk, long size)
+getblk(struct bufarea *bp, ufs2_daddr_t blk, long size)
 {
-	ufs_daddr_t dblk;
+	ufs2_daddr_t dblk;
 
 	totalreads++;
 	dblk = fsbtodb(&sblock, blk);
@@ -251,7 +252,7 @@ flush(int fd, struct bufarea *bp)
 }
 
 void
-rwerror(char *mesg, ufs_daddr_t blk)
+rwerror(char *mesg, ufs2_daddr_t blk)
 {
 
 	if (bkgrdcheck)
@@ -293,9 +294,10 @@ ckfini(int markclean)
 		return;
 	}
 	flush(fswritefd, &sblk);
-	if (havesb && sblk.b_bno != SBOFF / dev_bsize && cursnapshot == 0 &&
+	if (havesb && cursnapshot == 0 && sblock.fs_magic == FS_UFS2_MAGIC &&
+	    sblk.b_bno != fsbtodb(&sblock, sblock.fs_sblockloc) &&
 	    !preen && reply("UPDATE STANDARD SUPERBLOCK")) {
-		sblk.b_bno = SBOFF / dev_bsize;
+		sblk.b_bno = fsbtodb(&sblock, sblock.fs_sblockloc);
 		sbdirty();
 		flush(fswritefd, &sblk);
 	}
@@ -336,7 +338,7 @@ ckfini(int markclean)
 }
 
 int
-bread(int fd, char *buf, ufs_daddr_t blk, long size)
+bread(int fd, char *buf, ufs2_daddr_t blk, long size)
 {
 	char *cp;
 	int i, errs;
@@ -373,7 +375,7 @@ bread(int fd, char *buf, ufs_daddr_t blk, long size)
 }
 
 void
-bwrite(int fd, char *buf, ufs_daddr_t blk, long size)
+bwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 {
 	int i;
 	char *cp;
@@ -406,7 +408,7 @@ bwrite(int fd, char *buf, ufs_daddr_t blk, long size)
 /*
  * allocate a data block with the specified number of fragments
  */
-ufs_daddr_t
+ufs2_daddr_t
 allocblk(long frags)
 {
 	int i, j, k, cg, baseblk;
@@ -450,7 +452,7 @@ allocblk(long frags)
  * Free a previously allocated block
  */
 void
-freeblk(ufs_daddr_t blkno, long frags)
+freeblk(ufs2_daddr_t blkno, long frags)
 {
 	struct inodesc idesc;
 

@@ -55,7 +55,7 @@ void
 pass1b(void)
 {
 	int c, i;
-	struct dinode *dp;
+	union dinode *dp;
 	struct inodesc idesc;
 	ino_t inumber;
 
@@ -90,7 +90,7 @@ pass1bcheck(struct inodesc *idesc)
 {
 	struct dups *dlp;
 	int nfrags, res = KEEPON;
-	ufs_daddr_t blkno = idesc->id_blkno;
+	ufs2_daddr_t blkno = idesc->id_blkno;
 
 	for (nfrags = idesc->id_numfrags; nfrags > 0; blkno++, nfrags--) {
 		if (chkrange(blkno, 1))

@@ -119,7 +119,7 @@ FILES+=	loader.rc
 
 ${BASE}.sym: ${OBJS} ${LIBI386} ${LIBSTAND} ${LIBFICL} vers.o
 	${CC} ${LDFLAGS} -o ${.TARGET} ${BTXCRT} ${OBJS} vers.o \
-		${LIBFICL} ${LIBI386} ${LIBSTAND}
+		${LIBFICL} ${LIBI386} ${LIBSTAND} ${LIBI386}
 
 # If it's not there, don't consider it a target
 .if exists(${.CURDIR}/../../../i386/include)

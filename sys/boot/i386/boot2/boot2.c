@@ -73,9 +73,10 @@
 
 #define TYPE_AD		0
 #define TYPE_WD		1
-#define TYPE_WFD 	2
-#define TYPE_FD		3
-#define TYPE_DA		4
+#define TYPE_DA		2
+#define TYPE_MAXHARD	TYPE_DA
+#define TYPE_WFD 	3
+#define TYPE_FD		4
 
 extern uint32_t _end;
 
@@ -97,8 +98,8 @@ static const unsigned char flags[NOPT] = {
     RBX_VERBOSE
 };
 
-static const char *const dev_nm[] = {"ad", "wd", "  ", "fd", "da"};
-static const unsigned dev_maj[] = {30, 0, 1, 2, 4};
+static const char *const dev_nm[NDEV] = {"ad", "wd", "da", "  ", "fd"};
+static const unsigned char dev_maj[NDEV] = {30, 0, 4, 1, 2};
 
 static struct dsk {
     unsigned drive;
@@ -111,16 +112,14 @@ static struct dsk {
 } dsk;
 static char cmd[512];
 static char kname[1024];
-static uint32_t opts;
+static uint32_t opts = RB_BOOTINFO;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
 static void load(const char *);
 static int parse(char *);
-static ino_t lookup(const char *);
 static int xfsread(ino_t, void *, size_t);
-static ssize_t fsread(ino_t, void *, size_t);
 static int dskread(void *, unsigned, unsigned);
 static int printf(const char *,...);
 static int putchar(int);
@@ -131,16 +130,17 @@ static int xputc(int);
 static int xgetc(int);
 static int getc(int);
 
+#if 1
 #define memcpy __builtin_memcpy
-
-static inline void
-readfile(const char *fname, void *buf, size_t size)
+#else
+static void memcpy(char *, const char *, int);
+static void
+memcpy(char *dst, const char *src, int len)
 {
-    ino_t ino;
-
-    if ((ino = lookup(fname)))
-	fsread(ino, buf, size);
+    while (len--)
+	*dst++ = *src++;
 }
+#endif
 
 static inline int
 strcmp(const char *s1, const char *s2)
@@ -151,15 +151,14 @@ strcmp(const char *s1, const char *s2)
 
 #include "ufsread.c"
 
-static inline int
-getchar(void)
+static int
+xfsread(ino_t inode, void *buf, size_t nbyte)
 {
-    int c;
-
-    c = xgetc(0);
-    if (c == '\r')
-	c = '\n';
-    return c;
+    if (fsread(inode, buf, nbyte) != nbyte) {
+	printf("Invalid %s\n", "format");
+	return -1;
+    }
+    return 0;
 }
 
 static inline void
@@ -169,12 +168,13 @@ getstr(char *str, int size)
     int c;
 
     s = str;
-    do {
-	switch (c = getchar()) {
+    for (;;) {
+	switch (c = xgetc(0)) {
 	case 0:
 	    break;
-	case '\b':
 	case '\177':
+	    c = '\b';
+	case '\b':
 	    if (s > str) {
 		s--;
 		putchar('\b');
@@ -183,15 +183,16 @@ getstr(char *str, int size)
 		c = 0;
 	    break;
 	case '\n':
+	case '\r':
 	    *s = 0;
-	    break;
+	    return;
 	default:
 	    if (s - str < size - 1)
 		*s++ = c;
 	}
 	if (c)
 	    putchar(c);
-    } while (c != '\n');
+    }
 }
 
 static inline uint32_t
@@ -220,6 +221,7 @@ int
 main(void)
 {
     int autoboot, i;
+    ino_t ino;
 
     dmadat = (void *)(roundup2(__base + _end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
@@ -238,7 +240,10 @@ main(void)
     /* Process configuration file */
 
     autoboot = 1;
-    readfile(PATH_CONFIG, cmd, sizeof(cmd));
+
+    if ((ino = lookup(PATH_CONFIG)))
+	fsread(ino, cmd, sizeof(cmd));
+
     if (*cmd) {
 	printf("%s: %s", PATH_CONFIG, cmd);
 	if (parse(cmd))
@@ -328,7 +333,7 @@ load(const char *fname)
 	    return;
 	p += hdr.ex.a_data + roundup2(hdr.ex.a_bss, PAGE_SIZE);
 	bootinfo.bi_symtab = VTOP(p);
-	memcpy(p, &hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
+	memcpy(p, (char *)&hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
 	p += sizeof(hdr.ex.a_syms);
 	if (hdr.ex.a_syms) {
 	    if (xfsread(ino, p, hdr.ex.a_syms))
@@ -365,7 +370,7 @@ load(const char *fname)
 	    if (xfsread(ino, &es, sizeof(es)))
 		return;
 	    for (i = 0; i < 2; i++) {
-		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
+		memcpy(p, (char *)&es[i].sh_size, sizeof(es[i].sh_size));
 		p += sizeof(es[i].sh_size);
 		fs_off = es[i].sh_offset;
 		if (xfsread(ino, p, es[i].sh_size))
@@ -378,7 +383,7 @@ load(const char *fname)
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(fname);
     bootinfo.bi_bios_dev = dsk.drive;
-    __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
+    __exec((caddr_t)addr, opts & RBX_MASK,
 	   MAKEBOOTDEV(dev_maj[dsk.type], 0, dsk.slice, dsk.unit, dsk.part),
 	   0, 0, 0, VTOP(&bootinfo));
 }
@@ -449,9 +454,8 @@ parse(char *arg)
 		arg += 2;
 		if (drv == -1)
 		    drv = dsk.unit;
-		dsk.drive = (dsk.type == TYPE_WD ||
-			     dsk.type == TYPE_AD ||
-			     dsk.type == TYPE_DA ? DRV_HARD : 0) + drv;
+		dsk.drive = (dsk.type <= TYPE_MAXHARD
+			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 		fsread(0, NULL, 0);
 	    }
@@ -462,16 +466,6 @@ parse(char *arg)
 	    }
 	}
 	arg = p;
-    }
-    return 0;
-}
-
-static int
-xfsread(ino_t inode, void *buf, size_t nbyte)
-{
-    if (fsread(inode, buf, nbyte) != nbyte) {
-	printf("Invalid %s\n", "format");
-	return -1;
     }
     return 0;
 }

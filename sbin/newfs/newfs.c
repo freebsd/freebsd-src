@@ -1,4 +1,16 @@
 /*
+ * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * All rights reserved.
+ *
+ * This software was developed for the FreeBSD Project by Marshall
+ * Kirk McKusick and Network Associates Laboratories, the Security
+ * Research Division of Network Associates, Inc. under DARPA/SPAWAR
+ * contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA CHATS
+ * research program
+ *
+ * Copyright (c) 1982, 1989, 1993
+ *	The Regents of the University of California.  All rights reserved.
+ * (c) UNIX System Laboratories, Inc.
  * Copyright (c) 1983, 1989, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -84,19 +96,19 @@ static const char rcsid[] =
 #define	DFL_BLKSIZE	16384
 
 /*
- * Cylinder groups may have up to many cylinders. The actual
+ * Cylinder groups may have up to MAXBLKSPERCG blocks. The actual
  * number used depends upon how much information can be stored
- * on a single cylinder. The default is to use as many as possible
- * cylinders per group.
+ * in a cylinder group map which must fit in a single filesystem
+ * block. The default is to use as many as possible blocks per group.
  */
-#define	DESCPG		65536	/* desired fs_cpg ("infinity") */
+#define	MAXBLKSPERCG	0x7fffffff	/* desired fs_fpg ("infinity") */
 
 /*
  * MAXBLKPG determines the maximum number of data blocks which are
  * placed in a single cylinder group. The default is one indirect
  * block worth of data blocks.
  */
-#define MAXBLKPG(bsize)	((bsize) / sizeof(daddr_t))
+#define MAXBLKPG(bsize)	((bsize) / sizeof(ufs2_daddr_t))
 
 /*
  * Each filesystem has a number of inodes statically allocated.
@@ -105,26 +117,17 @@ static const char rcsid[] =
  */
 #define	NFPI		4
 
-/*
- * About the same time as the above, we knew what went where on the disks.
- * no longer so, so kill the code which finds the different platters too...
- * We do this by saying one head, with a lot of sectors on it.
- * The number of sectors are used to determine the size of a cyl-group.
- * Kirk suggested one or two meg per "cylinder" so we say two.
- */
-#define NSECTORS	4096	/* number of sectors */
-
 int	Nflag;			/* run without writing filesystem */
+int	Oflag = 1;		/* filesystem format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for filesystem */
-u_int	fssize;			/* filesystem size */
-u_int	secpercyl = NSECTORS;	/* sectors per cylinder */
-u_int	sectorsize;		/* bytes/sector */
+quad_t	fssize;			/* file system size */
+int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
 int	fsize = 0;		/* fragment size */
 int	bsize = 0;		/* block size */
-int	cpg = DESCPG;		/* cylinders/cylinder group */
-int	cpgflg;			/* cylinders/cylinder group flag was given */
+int	maxbsize = 0;		/* maximum clustering */
+int	maxblkspercg = MAXBLKSPERCG; /* maximum blocks per cylinder group */
 int	minfree = MINFREE;	/* free space threshold */
 int	opt = DEFAULTOPT;	/* optimization preference (space or time) */
 int	density;		/* number of bytes per inode */
@@ -136,7 +139,6 @@ int	fso;			/* filedescriptor to device */
 
 static char	device[MAXPATHLEN];
 static char	*disktype;
-static int	t_or_u_flag;	/* user has specified -t or -u */
 static int	unlabeled;
 
 static struct disklabel *getdisklabel(char *s);
@@ -151,14 +153,19 @@ main(int argc, char *argv[])
 	struct partition oldpartition;
 	struct stat st;
 	char *cp, *special;
-	int ch, n;
+	int ch;
 	off_t mediasize;
 
 	while ((ch = getopt(argc, argv,
-	    "NRS:T:Ua:b:c:e:f:g:h:i:m:o:s:u:")) != -1)
+	    "NO:RS:T:Ua:b:c:d:e:f:g:h:i:m:o:s:")) != -1)
 		switch (ch) {
 		case 'N':
 			Nflag = 1;
+			break;
+		case 'O':
+			if ((Oflag = atoi(optarg)) < 1 || Oflag > 2)
+				errx(1, "%s: bad filesystem format value",
+				    optarg);
 			break;
 		case 'R':
 			Rflag = 1;
@@ -183,13 +190,17 @@ main(int argc, char *argv[])
 				errx(1, "%s: bad block size", optarg);
 			break;
 		case 'c':
-			if ((cpg = atoi(optarg)) <= 0)
-				errx(1, "%s: bad cylinders/group", optarg);
-			cpgflg++;
+			if ((maxblkspercg = atoi(optarg)) <= 0)
+				errx(1, "%s: bad blocks per cylinder group",
+				    optarg);
+			break;
+		case 'd':
+			if ((maxbsize = atoi(optarg)) < MINBSIZE)
+				errx(1, "%s: bad extent block size", optarg);
 			break;
 		case 'e':
 			if ((maxbpg = atoi(optarg)) <= 0)
-		errx(1, "%s: bad blocks per file in a cylinder group",
+			  errx(1, "%s: bad blocks per file in a cylinder group",
 				    optarg);
 			break;
 		case 'f':
@@ -202,7 +213,7 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			if ((avgfilesperdir = atoi(optarg)) <= 0)
-				errx(1, "%s: bad average files per dir", optarg);
+			       errx(1, "%s: bad average files per dir", optarg);
 			break;
 		case 'i':
 			if ((density = atoi(optarg)) <= 0)
@@ -225,12 +236,6 @@ main(int argc, char *argv[])
 		case 's':
 			if ((fssize = atoi(optarg)) <= 0)
 				errx(1, "%s: bad filesystem size", optarg);
-			break;
-		case 'u':
-			t_or_u_flag++;
-			if ((n = atoi(optarg)) < 0)
-				errx(1, "%s: bad sectors/track", optarg);
-			secpercyl = n;
 			break;
 		case '?':
 		default:
@@ -293,8 +298,6 @@ main(int argc, char *argv[])
 		if (fssize > pp->p_size)
 			errx(1, 
 		    "%s: maximum filesystem size %d", special, pp->p_size);
-		if (secpercyl == 0)
-			secpercyl = lp->d_nsectors;
 		if (sectorsize == 0)
 			sectorsize = lp->d_secsize;
 		if (fsize == 0)
@@ -308,8 +311,8 @@ main(int argc, char *argv[])
 		fsize = MAX(DFL_FRAGSIZE, sectorsize);
 	if (bsize <= 0)
 		bsize = MIN(DFL_BLKSIZE, 8 * fsize);
-	if (secpercyl <= 0)
-		errx(1, "%s: no default #sectors/track", special);
+	if (maxbsize == 0)
+		maxbsize = bsize;
 	/*
 	 * Maxcontig sets the default for the maximum number of blocks
 	 * that may be allocated sequentially. With filesystem clustering
@@ -317,7 +320,7 @@ main(int argc, char *argv[])
 	 * transfer size permitted by the controller or buffering.
 	 */
 	if (maxcontig == 0)
-		maxcontig = MAX(1, MAXPHYS / bsize - 1);
+		maxcontig = MAX(1, MAXPHYS / bsize);
 	if (density == 0)
 		density = NFPI * fsize;
 	if (minfree < MINFREE && opt != FS_OPTSPACE) {
@@ -325,15 +328,6 @@ main(int argc, char *argv[])
 		fprintf(stderr, "because minfree is less than %d%%\n", MINFREE);
 		opt = FS_OPTSPACE;
 	}
-	/*
-	 * Only complain if -t or -u have been specified; the default
-	 * case (4096 sectors per cylinder) is intended to disagree
-	 * with the disklabel.
-	 */
-	if (t_or_u_flag && lp != NULL && secpercyl != lp->d_secpercyl)
-		fprintf(stderr, "%s (%d) %s (%lu)\n",
-		    "Warning: calculated sectors per cylinder", secpercyl,
-		    "disagrees with disk label", (u_long)lp->d_secpercyl);
 	if (maxbpg == 0)
 		maxbpg = MAXBLKPG(bsize);
 	realsectorsize = sectorsize;
@@ -341,7 +335,6 @@ main(int argc, char *argv[])
 		int secperblk = sectorsize / DEV_BSIZE;
 
 		sectorsize = DEV_BSIZE;
-		secpercyl *= secperblk;
 		fssize *= secperblk;
 		if (pp != NULL);
 			pp->p_size *= secperblk;
@@ -349,15 +342,13 @@ main(int argc, char *argv[])
 	mkfs(pp, special);
 	if (!unlabeled) {
 		if (realsectorsize != DEV_BSIZE)
-			pp->p_size /= realsectorsize /DEV_BSIZE;
+			pp->p_size /= realsectorsize / DEV_BSIZE;
 		if (!Nflag && bcmp(pp, &oldpartition, sizeof(oldpartition)))
 			rewritelabel(special, lp);
 	}
 	close(fso);
 	exit(0);
 }
-
-const char lmsg[] = "%s: can't read disk label; disk type must be specified";
 
 struct disklabel *
 getdisklabel(char *s)
@@ -399,13 +390,15 @@ usage()
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,
 	    "\t-N do not create filesystem, just print out parameters\n");
+	fprintf(stderr, "\t-O filesystem format: 1 => UFS1, 2 => UFS2\n");
 	fprintf(stderr, "\t-R regression test, supress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
 	fprintf(stderr, "\t-T disktype\n");
 	fprintf(stderr, "\t-U enable soft updates\n");
 	fprintf(stderr, "\t-a maximum contiguous blocks\n");
 	fprintf(stderr, "\t-b block size\n");
-	fprintf(stderr, "\t-c cylinders/group\n");
+	fprintf(stderr, "\t-c blocks per cylinders group\n");
+	fprintf(stderr, "\t-d maximum extent size\n");
 	fprintf(stderr, "\t-e maximum blocks per file in a cylinder group\n");
 	fprintf(stderr, "\t-f frag size\n");
 	fprintf(stderr, "\t-g average file size\n");
@@ -413,9 +406,6 @@ usage()
 	fprintf(stderr, "\t-i number of bytes per inode\n");
 	fprintf(stderr, "\t-m minimum free space %%\n");
 	fprintf(stderr, "\t-o optimization preference (`space' or `time')\n");
-	fprintf(stderr, "\t-s filesystem size (sectors)\n");
-	fprintf(stderr, "\t-u sectors/cylinder\n");
-	fprintf(stderr,
-        "\t-v do not attempt to determine partition name from device name\n");
+	fprintf(stderr, "\t-s file systemsize (sectors)\n");
 	exit(1);
 }

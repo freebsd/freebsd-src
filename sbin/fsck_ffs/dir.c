@@ -69,10 +69,10 @@ struct	odirtemplate odirhead = {
 
 static int chgino(struct inodesc *);
 static int dircheck(struct inodesc *, struct direct *);
-static int expanddir(struct dinode *dp, char *name);
+static int expanddir(union dinode *dp, char *name);
 static void freedir(ino_t ino, ino_t parent);
 static struct direct *fsck_readdir(struct inodesc *);
-static struct bufarea *getdirblk(ufs_daddr_t blkno, long size);
+static struct bufarea *getdirblk(ufs2_daddr_t blkno, long size);
 static int lftempname(char *bufp, ino_t ino);
 static int mkentry(struct inodesc *);
 
@@ -255,7 +255,7 @@ direrror(ino_t ino, char *errmesg)
 void
 fileerror(ino_t cwd, ino_t ino, char *errmesg)
 {
-	struct dinode *dp;
+	union dinode *dp;
 	char pathbuf[MAXPATHLEN + 1];
 
 	pwarn("%s ", errmesg);
@@ -269,7 +269,8 @@ fileerror(ino_t cwd, ino_t ino, char *errmesg)
 	dp = ginode(ino);
 	if (ftypeok(dp))
 		pfatal("%s=%s\n",
-		    (dp->di_mode & IFMT) == IFDIR ? "DIR" : "FILE", pathbuf);
+		    (DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE",
+		    pathbuf);
 	else
 		pfatal("NAME=%s\n", pathbuf);
 }
@@ -277,11 +278,11 @@ fileerror(ino_t cwd, ino_t ino, char *errmesg)
 void
 adjust(struct inodesc *idesc, int lcnt)
 {
-	struct dinode *dp;
+	union dinode *dp;
 	int saveresolved;
 
 	dp = ginode(idesc->id_number);
-	if (dp->di_nlink == lcnt) {
+	if (DIP(dp, di_nlink) == lcnt) {
 		/*
 		 * If we have not hit any unresolved problems, are running
 		 * in preen mode, and are on a filesystem using soft updates,
@@ -312,10 +313,10 @@ adjust(struct inodesc *idesc, int lcnt)
 	}
 	if (lcnt != 0) {
 		pwarn("LINK COUNT %s", (lfdir == idesc->id_number) ? lfname :
-			((dp->di_mode & IFMT) == IFDIR ? "DIR" : "FILE"));
+			((DIP(dp, di_mode) & IFMT) == IFDIR ? "DIR" : "FILE"));
 		pinode(idesc->id_number);
 		printf(" COUNT %d SHOULD BE %d",
-			dp->di_nlink, dp->di_nlink - lcnt);
+			DIP(dp, di_nlink), DIP(dp, di_nlink) - lcnt);
 		if (preen || usedsoftdep) {
 			if (lcnt < 0) {
 				printf("\n");
@@ -326,7 +327,7 @@ adjust(struct inodesc *idesc, int lcnt)
 		}
 		if (preen || reply("ADJUST") == 1) {
 			if (bkgrdflag == 0) {
-				dp->di_nlink -= lcnt;
+				DIP(dp, di_nlink) -= lcnt;
 				inodirty();
 			} else {
 				cmd.value = idesc->id_number;
@@ -383,7 +384,7 @@ chgino(struct inodesc *idesc)
 int
 linkup(ino_t orphan, ino_t parentdir, char *name)
 {
-	struct dinode *dp;
+	union dinode *dp;
 	int lostdir;
 	ino_t oldlfdir;
 	struct inodesc idesc;
@@ -391,10 +392,10 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 
 	memset(&idesc, 0, sizeof(struct inodesc));
 	dp = ginode(orphan);
-	lostdir = (dp->di_mode & IFMT) == IFDIR;
+	lostdir = (DIP(dp, di_mode) & IFMT) == IFDIR;
 	pwarn("UNREF %s ", lostdir ? "DIR" : "FILE");
 	pinode(orphan);
-	if (preen && dp->di_size == 0)
+	if (preen && DIP(dp, di_size) == 0)
 		return (0);
 	if (cursnapshot != 0) {
 		pfatal("FILE LINKUP IN SNAPSHOT");
@@ -438,7 +439,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		}
 	}
 	dp = ginode(lfdir);
-	if ((dp->di_mode & IFMT) != IFDIR) {
+	if ((DIP(dp, di_mode) & IFMT) != IFDIR) {
 		pfatal("lost+found IS NOT A DIRECTORY");
 		if (reply("REALLOCATE") == 0)
 			return (0);
@@ -475,7 +476,7 @@ linkup(ino_t orphan, ino_t parentdir, char *name)
 		    parentdir != (ino_t)-1)
 			(void)makeentry(orphan, lfdir, "..");
 		dp = ginode(lfdir);
-		dp->di_nlink++;
+		DIP(dp, di_nlink)++;
 		inodirty();
 		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", (u_long)orphan);
@@ -520,7 +521,7 @@ changeino(ino_t dir, char *name, ino_t newnum)
 int
 makeentry(ino_t parent, ino_t ino, char *name)
 {
-	struct dinode *dp;
+	union dinode *dp;
 	struct inodesc idesc;
 	char pathbuf[MAXPATHLEN + 1];
 
@@ -535,8 +536,8 @@ makeentry(ino_t parent, ino_t ino, char *name)
 	idesc.id_fix = DONTKNOW;
 	idesc.id_name = name;
 	dp = ginode(parent);
-	if (dp->di_size % DIRBLKSIZ) {
-		dp->di_size = roundup(dp->di_size, DIRBLKSIZ);
+	if (DIP(dp, di_size) % DIRBLKSIZ) {
+		DIP(dp, di_size) = roundup(DIP(dp, di_size), DIRBLKSIZ);
 		inodirty();
 	}
 	if ((ckinode(dp, &idesc) & ALTERED) != 0)
@@ -552,23 +553,24 @@ makeentry(ino_t parent, ino_t ino, char *name)
  * Attempt to expand the size of a directory
  */
 static int
-expanddir(struct dinode *dp, char *name)
+expanddir(union dinode *dp, char *name)
 {
-	ufs_daddr_t lastbn, newblk;
+	ufs2_daddr_t lastbn, newblk;
 	struct bufarea *bp;
 	char *cp, firstblk[DIRBLKSIZ];
 
-	lastbn = lblkno(&sblock, dp->di_size);
-	if (lastbn >= NDADDR - 1 || dp->di_db[lastbn] == 0 || dp->di_size == 0)
+	lastbn = lblkno(&sblock, DIP(dp, di_size));
+	if (lastbn >= NDADDR - 1 || DIP(dp, di_db[lastbn]) == 0 ||
+	    DIP(dp, di_size) == 0)
 		return (0);
 	if ((newblk = allocblk(sblock.fs_frag)) == 0)
 		return (0);
-	dp->di_db[lastbn + 1] = dp->di_db[lastbn];
-	dp->di_db[lastbn] = newblk;
-	dp->di_size += sblock.fs_bsize;
-	dp->di_blocks += btodb(sblock.fs_bsize);
-	bp = getdirblk(dp->di_db[lastbn + 1],
-		(long)dblksize(&sblock, dp, lastbn + 1));
+	DIP(dp, di_db[lastbn + 1]) = DIP(dp, di_db[lastbn]);
+	DIP(dp, di_db[lastbn]) = newblk;
+	DIP(dp, di_size) += sblock.fs_bsize;
+	DIP(dp, di_blocks) += btodb(sblock.fs_bsize);
+	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
+		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
 	if (bp->b_errs)
 		goto bad;
 	memmove(firstblk, bp->b_un.b_buf, DIRBLKSIZ);
@@ -581,8 +583,8 @@ expanddir(struct dinode *dp, char *name)
 	     cp += DIRBLKSIZ)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
-	bp = getdirblk(dp->di_db[lastbn + 1],
-		(long)dblksize(&sblock, dp, lastbn + 1));
+	bp = getdirblk(DIP(dp, di_db[lastbn + 1]),
+		sblksize(&sblock, DIP(dp, di_size), lastbn + 1));
 	if (bp->b_errs)
 		goto bad;
 	memmove(bp->b_un.b_buf, &emptydir, sizeof emptydir);
@@ -595,10 +597,10 @@ expanddir(struct dinode *dp, char *name)
 	inodirty();
 	return (1);
 bad:
-	dp->di_db[lastbn] = dp->di_db[lastbn + 1];
-	dp->di_db[lastbn + 1] = 0;
-	dp->di_size -= sblock.fs_bsize;
-	dp->di_blocks -= btodb(sblock.fs_bsize);
+	DIP(dp, di_db[lastbn]) = DIP(dp, di_db[lastbn + 1]);
+	DIP(dp, di_db[lastbn + 1]) = 0;
+	DIP(dp, di_size) -= sblock.fs_bsize;
+	DIP(dp, di_blocks) -= btodb(sblock.fs_bsize);
 	freeblk(newblk, sblock.fs_frag);
 	return (0);
 }
@@ -611,7 +613,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 {
 	ino_t ino;
 	char *cp;
-	struct dinode *dp;
+	union dinode *dp;
 	struct bufarea *bp;
 	struct inoinfo *inp;
 	struct dirtemplate *dirp;
@@ -621,7 +623,7 @@ allocdir(ino_t parent, ino_t request, int mode)
 	dirp->dot_ino = ino;
 	dirp->dotdot_ino = parent;
 	dp = ginode(ino);
-	bp = getdirblk(dp->di_db[0], sblock.fs_fsize);
+	bp = getdirblk(DIP(dp, di_db[0]), sblock.fs_fsize);
 	if (bp->b_errs) {
 		freeino(ino);
 		return (0);
@@ -632,10 +634,10 @@ allocdir(ino_t parent, ino_t request, int mode)
 	     cp += DIRBLKSIZ)
 		memmove(cp, &emptydir, sizeof emptydir);
 	dirty(bp);
-	dp->di_nlink = 2;
+	DIP(dp, di_nlink) = 2;
 	inodirty();
 	if (ino == ROOTINO) {
-		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
+		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
 		cacheino(dp, ino);
 		return(ino);
 	}
@@ -650,11 +652,11 @@ allocdir(ino_t parent, ino_t request, int mode)
 	inp->i_dotdot = parent;
 	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
 	if (inoinfo(ino)->ino_state == DSTATE) {
-		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
+		inoinfo(ino)->ino_linkcnt = DIP(dp, di_nlink);
 		inoinfo(parent)->ino_linkcnt++;
 	}
 	dp = ginode(parent);
-	dp->di_nlink++;
+	DIP(dp, di_nlink)++;
 	inodirty();
 	return (ino);
 }
@@ -665,11 +667,11 @@ allocdir(ino_t parent, ino_t request, int mode)
 static void
 freedir(ino_t ino, ino_t parent)
 {
-	struct dinode *dp;
+	union dinode *dp;
 
 	if (ino != parent) {
 		dp = ginode(parent);
-		dp->di_nlink--;
+		DIP(dp, di_nlink)--;
 		inodirty();
 	}
 	freeino(ino);
@@ -704,7 +706,7 @@ lftempname(char *bufp, ino_t ino)
  * Insure that it is held until another is requested.
  */
 static struct bufarea *
-getdirblk(ufs_daddr_t blkno, long size)
+getdirblk(ufs2_daddr_t blkno, long size)
 {
 
 	if (pdirbp != 0)

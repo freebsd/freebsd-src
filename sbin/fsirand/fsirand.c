@@ -40,8 +40,8 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/resource.h>
 
-#include <ufs/ffs/fs.h>
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <errno.h>
@@ -53,6 +53,11 @@ static const char rcsid[] =
 
 static void usage(void) __dead2;
 int fsirand(char *);
+
+/*
+ * Possible superblock locations ordered from most to least likely.
+ */
+static int sblock_try[] = SBLOCKSEARCH;
 
 int printonly = 0, force = 0, ignorelabel = 0;
 
@@ -104,14 +109,15 @@ main(int argc, char *argv[])
 int
 fsirand(char *device)
 {
-	static struct dinode *inodebuf;
-	static size_t oldibufsize;
+	struct ufs1_dinode *dp1;
+	struct ufs2_dinode *dp2;
+	caddr_t inodebuf;
 	size_t ibufsize;
 	struct fs *sblock;
 	ino_t inumber, maxino;
-	daddr_t dblk;
-	char sbuf[SBSIZE], sbuftmp[SBSIZE];
-	int devfd, n, cg;
+	ufs2_daddr_t sblockloc, dblk;
+	char sbuf[SBLOCKSIZE], sbuftmp[SBLOCKSIZE];
+	int i, devfd, n, cg;
 	u_int32_t bsize = DEV_BSIZE;
 	struct disklabel label;
 
@@ -132,27 +138,34 @@ fsirand(char *device)
 	/* Read in master superblock */
 	(void)memset(&sbuf, 0, sizeof(sbuf));
 	sblock = (struct fs *)&sbuf;
-	if (lseek(devfd, SBOFF, SEEK_SET) == -1) {
-		warn("can't seek to superblock (%qd) on %s", SBOFF, device);
-		return (1);
+	for (i = 0; sblock_try[i] != -1; i++) {
+		sblockloc = sblock_try[i];
+		if (lseek(devfd, sblockloc, SEEK_SET) == -1) {
+			warn("can't seek to superblock (%qd) on %s",
+			    sblockloc, device);
+			return (1);
+		}
+		if ((n = read(devfd, (void *)sblock, SBLOCKSIZE))!=SBLOCKSIZE) {
+			warnx("can't read superblock on %s: %s", device,
+			    (n < SBLOCKSIZE) ? "short read" : strerror(errno));
+			return (1);
+		}
+		if ((sblock->fs_magic == FS_UFS1_MAGIC ||
+		     (sblock->fs_magic == FS_UFS2_MAGIC &&
+		      sblock->fs_sblockloc ==
+			  numfrags(sblock, sblock_try[i]))) &&
+		    sblock->fs_bsize <= MAXBSIZE &&
+		    sblock->fs_bsize >= sizeof(struct fs))
+			break;
 	}
-	if ((n = read(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-		warnx("can't read superblock on %s: %s", device,
-		    (n < SBSIZE) ? "short read" : strerror(errno));
+	if (sblock_try[i] == -1) {
+		fprintf(stderr, "Cannot find filesystem superblock\n");
 		return (1);
 	}
 	maxino = sblock->fs_ncg * sblock->fs_ipg;
 
-	/* Simple sanity checks on the superblock */
-	if (sblock->fs_magic != FS_MAGIC) {
-		warnx("bad magic number in superblock");
-		return (1);
-	}
-	if (sblock->fs_sbsize > SBSIZE) {
-		warnx("superblock size is preposterous");
-		return (1);
-	}
-	if (sblock->fs_postblformat == FS_42POSTBLFMT) {
+	if (sblock->fs_magic == FS_UFS1_MAGIC &&
+	    sblock->fs_old_inodefmt < FS_44INODEFMT) {
 		warnx("filesystem format is too old, sorry");
 		return (1);
 	}
@@ -168,18 +181,19 @@ fsirand(char *device)
 		if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
 			warn("can't seek to %qd", (off_t)dblk * bsize);
 			return (1);
-		} else if ((n = write(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
+		} else if ((n = write(devfd, (void *)sblock, SBLOCKSIZE)) != SBLOCKSIZE) {
 			warn("can't read backup superblock %d on %s: %s",
-			    cg + 1, device, (n < SBSIZE) ? "short write"
+			    cg + 1, device, (n < SBLOCKSIZE) ? "short write"
 			    : strerror(errno));
 			return (1);
 		}
-		if (sblock->fs_magic != FS_MAGIC) {
+		if (sblock->fs_magic != FS_UFS1_MAGIC &&
+		    sblock->fs_magic != FS_UFS2_MAGIC) {
 			warnx("bad magic number in backup superblock %d on %s",
 			    cg + 1, device);
 			return (1);
 		}
-		if (sblock->fs_sbsize > SBSIZE) {
+		if (sblock->fs_sbsize > SBLOCKSIZE) {
 			warnx("size of backup superblock %d on %s is preposterous",
 			    cg + 1, device);
 			return (1);
@@ -188,15 +202,15 @@ fsirand(char *device)
 	sblock = (struct fs *)&sbuf;
 
 	/* XXX - should really cap buffer at 512kb or so */
-	ibufsize = sizeof(struct dinode) * sblock->fs_ipg;
-	if (oldibufsize < ibufsize) {
-		if ((inodebuf = realloc(inodebuf, ibufsize)) == NULL)
-			errx(1, "can't allocate memory for inode buffer");
-		oldibufsize = ibufsize;
-	}
+	if (sblock->fs_magic == FS_UFS1_MAGIC)
+		ibufsize = sizeof(struct ufs1_dinode) * sblock->fs_ipg;
+	else
+		ibufsize = sizeof(struct ufs2_dinode) * sblock->fs_ipg;
+	if ((inodebuf = malloc(ibufsize)) == NULL)
+		errx(1, "can't allocate memory for inode buffer");
 
 	if (printonly && (sblock->fs_id[0] || sblock->fs_id[1])) {
-		if (sblock->fs_inodefmt >= FS_44INODEFMT && sblock->fs_id[0])
+		if (sblock->fs_id[0])
 			(void)printf("%s was randomized on %s", device,
 			    ctime((const time_t *)&(sblock->fs_id[0])));
 		(void)printf("fsid: %x %x\n", sblock->fs_id[0],
@@ -204,19 +218,20 @@ fsirand(char *device)
 	}
 
 	/* Randomize fs_id unless old 4.2BSD filesystem */
-	if ((sblock->fs_inodefmt >= FS_44INODEFMT) && !printonly) {
+	if (!printonly) {
 		/* Randomize fs_id and write out new sblock and backups */
 		sblock->fs_id[0] = (u_int32_t)time(NULL);
 		sblock->fs_id[1] = random();
 
-		if (lseek(devfd, SBOFF, SEEK_SET) == -1) {
-			warn("can't seek to superblock (%qd) on %s", SBOFF,
+		if (lseek(devfd, sblockloc, SEEK_SET) == -1) {
+			warn("can't seek to superblock (%qd) on %s", sblockloc,
 			    device);
 			return (1);
 		}
-		if ((n = write(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-			warn("can't read superblock on %s: %s", device,
-			    (n < SBSIZE) ? "short write" : strerror(errno));
+		if ((n = write(devfd, (void *)sblock, SBLOCKSIZE)) !=
+		    SBLOCKSIZE) {
+			warn("can't write superblock on %s: %s", device,
+			    (n < SBLOCKSIZE) ? "short write" : strerror(errno));
 			return (1);
 		}
 	}
@@ -224,15 +239,16 @@ fsirand(char *device)
 	/* For each cylinder group, randomize inodes and update backup sblock */
 	for (cg = 0, inumber = 0; cg < sblock->fs_ncg; cg++) {
 		/* Update superblock if appropriate */
-		if ((sblock->fs_inodefmt >= FS_44INODEFMT) && !printonly) {
+		if (!printonly) {
 			dblk = fsbtodb(sblock, cgsblock(sblock, cg));
 			if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
 				warn("can't seek to %qd", (off_t)dblk * bsize);
 				return (1);
-			} else if ((n = write(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-				warn("can't read backup superblock %d on %s: %s",
-				    cg + 1, device, (n < SBSIZE) ? "short write"
-				    : strerror(errno));
+			} else if ((n = write(devfd, (void *)sblock,
+			    SBLOCKSIZE)) != SBLOCKSIZE) {
+			      warn("can't write backup superblock %d on %s: %s",
+				    cg + 1, device, (n < SBLOCKSIZE) ?
+				    "short write" : strerror(errno));
 				return (1);
 			}
 		}
@@ -249,12 +265,19 @@ fsirand(char *device)
 		}
 
 		for (n = 0; n < sblock->fs_ipg; n++, inumber++) {
+			if (sblock->fs_magic == FS_UFS1_MAGIC)
+				dp1 = &((struct ufs1_dinode *)inodebuf)[n];
+			else
+				dp2 = &((struct ufs2_dinode *)inodebuf)[n];
 			if (inumber >= ROOTINO) {
 				if (printonly)
-					(void)printf("ino %d gen %x\n", inumber,
-						     inodebuf[n].di_gen);
+					(void)printf("ino %d gen %qx\n",
+					    inumber,
+					    sblock->fs_magic == FS_UFS1_MAGIC ?
+					    (quad_t)dp1->di_gen : dp2->di_gen);
 				else
-					inodebuf[n].di_gen = random();
+					(sblock->fs_magic == FS_UFS1_MAGIC ?
+					dp1->di_gen : dp2->di_gen) = random();
 			}
 		}
 

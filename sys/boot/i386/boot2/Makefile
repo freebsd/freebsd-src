@@ -75,7 +75,7 @@ boot2.bin: boot2.out
 
 boot2.out: boot2.o sio.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} \
-		${BTX}/lib/crt0.o boot2.o sio.o
+		${BTX}/lib/crt0.o boot2.o sio.o ../libi386/libi386.a
 
 boot2.o: boot2.h
 

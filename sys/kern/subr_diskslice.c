@@ -152,15 +152,15 @@ dscheck(bp, ssp)
 	struct bio *bp;
 	struct diskslices *ssp;
 {
-	daddr_t	blkno;
-	u_long	endsecno;
-	daddr_t	labelsect;
+	daddr_t blkno;
+	daddr_t endsecno;
+	daddr_t labelsect;
 	struct disklabel *lp;
 	char *msg;
 	long	nsec;
 	struct partition *pp;
-	daddr_t	secno;
-	daddr_t	slicerel_secno;
+	daddr_t secno;
+	daddr_t slicerel_secno;
 	struct diskslice *sp;
 
 	blkno = bp->bio_blkno;

@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <sys/disklabel.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/ufsmount.h>
@@ -95,6 +96,9 @@ main(int argc, char *argv[])
 		case 'c':
 			skipclean = 0;
 			cvtlevel = argtoi('c', "conversion level", optarg, 10);
+			if (cvtlevel < 3)
+				errx(EEXIT, "cannot do level %d conversion",
+				    cvtlevel);
 			break;
 
 		case 'd':
@@ -180,14 +184,14 @@ argtoi(int flag, char *req, char *str, int base)
 static int
 checkfilesys(char *filesys)
 {
-	ufs_daddr_t n_ffree, n_bfree;
+	ufs2_daddr_t n_ffree, n_bfree;
 	struct ufs_args args;
 	struct dups *dp;
 	struct statfs *mntp;
 	struct zlncnt *zlnp;
-	ufs_daddr_t blks;
-	ufs_daddr_t files;
+	ufs2_daddr_t blks;
 	int cylno, size;
+	ino_t files;
 
 	cdevname = filesys;
 	if (debug && preen)
@@ -367,10 +371,9 @@ checkfilesys(char *filesys)
 		pwarn("Reclaimed: %ld directories, %ld files, %d fragments\n",
 		    countdirs, (long)files - countdirs, blks);
 	}
-	pwarn("%ld files, %ld used, %ld free ",
-	    (long)n_files, (long)n_blks, (long)(n_ffree +
-	    sblock.fs_frag * n_bfree));
-	printf("(%d frags, %d blocks, %.1f%% fragmentation)\n",
+	pwarn("%ld files, %ld used, %qu free ",
+	    (long)n_files, (long)n_blks, n_ffree + sblock.fs_frag * n_bfree);
+	printf("(%qu frags, %qu blocks, %.1f%% fragmentation)\n",
 	    n_ffree, n_bfree, n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {
 		if (files < 0)
@@ -404,7 +407,8 @@ checkfilesys(char *filesys)
 		 */
 		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
 			bwrite(fswritefd, (char *)&sblock,
-			    fsbtodb(&sblock, cgsblock(&sblock, cylno)), SBSIZE);
+			    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
+			    SBLOCKSIZE);
 	}
 	if (rerun)
 		resolved = 0;

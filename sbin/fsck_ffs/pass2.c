@@ -58,11 +58,12 @@ static int pass2check(struct inodesc *);
 void
 pass2(void)
 {
-	struct dinode *dp;
+	union dinode *dp;
 	struct inoinfo **inpp, *inp;
 	struct inoinfo **inpend;
 	struct inodesc curino;
-	struct dinode dino;
+	union dinode dino;
+	int i;
 	char pathbuf[MAXPATHLEN + 1];
 
 	switch (inoinfo(ROOTINO)->ino_state) {
@@ -105,8 +106,8 @@ pass2(void)
 			exit(EEXIT);
 		}
 		dp = ginode(ROOTINO);
-		dp->di_mode &= ~IFMT;
-		dp->di_mode |= IFDIR;
+		DIP(dp, di_mode) &= ~IFMT;
+		DIP(dp, di_mode) |= IFDIR;
 		inodirty();
 		break;
 
@@ -130,7 +131,6 @@ pass2(void)
 	memset(&curino, 0, sizeof(struct inodesc));
 	curino.id_type = DATA;
 	curino.id_func = pass2check;
-	dp = &dino;
 	inpend = &inpsort[inplast];
 	for (inpp = inpsort; inpp < inpend; inpp++) {
 		if (got_siginfo) {
@@ -147,9 +147,8 @@ pass2(void)
 			inp->i_isize = roundup(MINDIRSIZE, DIRBLKSIZ);
 			if (reply("FIX") == 1) {
 				dp = ginode(inp->i_number);
-				dp->di_size = inp->i_isize;
+				DIP(dp, di_size) = inp->i_isize;
 				inodirty();
-				dp = &dino;
 			}
 		} else if ((inp->i_isize & (DIRBLKSIZ - 1)) != 0) {
 			getpathname(pathbuf, inp->i_number, inp->i_number);
@@ -166,15 +165,22 @@ pass2(void)
 			inp->i_isize = roundup(inp->i_isize, DIRBLKSIZ);
 			if (preen || reply("ADJUST") == 1) {
 				dp = ginode(inp->i_number);
-				dp->di_size = roundup(inp->i_isize, DIRBLKSIZ);
+				DIP(dp, di_size) =
+				    roundup(inp->i_isize, DIRBLKSIZ);
 				inodirty();
-				dp = &dino;
 			}
 		}
-		memset(&dino, 0, sizeof(struct dinode));
-		dino.di_mode = IFDIR;
-		dp->di_size = inp->i_isize;
-		memmove(&dp->di_db[0], &inp->i_blks[0], (size_t)inp->i_numblks);
+		dp = &dino;
+		memset(dp, 0, sizeof(struct ufs2_dinode));
+		DIP(dp, di_mode) = IFDIR;
+		DIP(dp, di_size) = inp->i_isize;
+		for (i = 0;
+		     i < (inp->i_numblks<NDADDR ? inp->i_numblks : NDADDR);
+		     i++)
+			DIP(dp, di_db[i]) = inp->i_blks[i];
+		if (inp->i_numblks > NDADDR)
+			for (i = 0; i < NIADDR; i++)
+				DIP(dp, di_ib[i]) = inp->i_blks[NDADDR + i];
 		curino.id_number = inp->i_number;
 		curino.id_parent = inp->i_parent;
 		(void)ckinode(dp, &curino);
@@ -223,7 +229,7 @@ pass2check(struct inodesc *idesc)
 	struct direct *dirp = idesc->id_dirp;
 	struct inoinfo *inp;
 	int n, entrysize, ret = 0;
-	struct dinode *dp;
+	union dinode *dp;
 	char *errmsg;
 	struct direct proto;
 	char namebuf[MAXPATHLEN + 1];
@@ -392,8 +398,8 @@ again:
 				break;
 			dp = ginode(dirp->d_ino);
 			inoinfo(dirp->d_ino)->ino_state =
-			    (dp->di_mode & IFMT) == IFDIR ? DSTATE : FSTATE;
-			inoinfo(dirp->d_ino)->ino_linkcnt = dp->di_nlink;
+			   (DIP(dp, di_mode) & IFMT) == IFDIR ? DSTATE : FSTATE;
+			inoinfo(dirp->d_ino)->ino_linkcnt = DIP(dp, di_nlink);
 			goto again;
 
 		case DSTATE:

@@ -35,9 +35,6 @@
  * $FreeBSD$
  */
 
-#define MAXINOPB	(MAXBSIZE / sizeof(struct dinode))
-#define MAXNINDIR	(MAXBSIZE / sizeof(ufs_daddr_t))
-
 /*
  * Dump maps used to describe what is to be dumped.
  */
@@ -102,22 +99,23 @@ void	timeest(void);
 time_t	unctime(char *str);
 
 /* mapping rouintes */
-struct	dinode;
-long	blockest(struct dinode *dp);
+union	dinode;
+long	blockest(union dinode *dp);
 int	mapfiles(ino_t maxino, long *tapesize);
 int	mapdirs(ino_t maxino, long *tapesize);
 
 /* file dumping routines */
-void	blksout(ufs_daddr_t *blkp, int frags, ino_t ino);
-void	bread(ufs_daddr_t blkno, char *buf, int size);
-void	dumpino(struct dinode *dp, ino_t ino);
+void	ufs1_blksout(ufs1_daddr_t *blkp, int frags, ino_t ino);
+void	ufs2_blksout(ufs2_daddr_t *blkp, int frags, ino_t ino);
+void	bread(ufs2_daddr_t blkno, char *buf, int size);
+void	dumpino(union dinode *dp, ino_t ino);
 void	dumpmap(char *map, int type, ino_t ino);
 void	writeheader(ino_t ino);
 
 /* tape writing routines */
 int	alloctape(void);
 void	close_rewind(void);
-void	dumpblock(ufs_daddr_t blkno, int size);
+void	dumpblock(ufs2_daddr_t blkno, int size);
 void	startnewtape(int top);
 void	trewind(void);
 void	writerec(char *dp, int isspcl);
@@ -127,7 +125,7 @@ void	dumpabort(int signo);
 void	getfstab(void);
 
 char	*rawname(char *cp);
-struct	dinode *getino(ino_t inum);
+union	dinode *getino(ino_t inum, int *mode);
 
 /* rdump routines */
 #ifdef RDUMP

@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/stdint.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
@@ -280,15 +281,13 @@ single_block_read:
 #if defined(CLUSTERDEBUG)
 			if (rcluster) {
 				if (bp)
-					printf("A+(%ld,%ld,%ld,%d) ",
-					    (long)rbp->b_lblkno, rbp->b_bcount,
-					    (long)(rbp->b_lblkno - origblkno),
-					    seqcount);
+					printf("A+");
 				else
-					printf("A(%ld,%ld,%ld,%d) ",
-					    (long)rbp->b_lblkno, rbp->b_bcount,
-					    (long)(rbp->b_lblkno - origblkno),
-					    seqcount);
+					printf("A");
+				printf("(%lld,%ld,%lld,%d) ",
+				    (intmax_t)rbp->b_lblkno, rbp->b_bcount,
+				    (intmax_t)(rbp->b_lblkno - origblkno),
+				    seqcount);
 			}
 #endif
 

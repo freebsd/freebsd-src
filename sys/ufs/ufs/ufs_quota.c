@@ -54,6 +54,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
+#include <ufs/ufs/ufs_extern.h>
 
 static MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
 
@@ -62,8 +63,8 @@ static MALLOC_DEFINE(M_DQUOT, "UFS quota", "UFS quota entries");
  */
 static char *quotatypes[] = INITQFNAMES;
 
-static int chkdqchg(struct inode *, long, struct ucred *, int);
-static int chkiqchg(struct inode *, long, struct ucred *, int);
+static int chkdqchg(struct inode *, ufs2_daddr_t, struct ucred *, int);
+static int chkiqchg(struct inode *, ino_t, struct ucred *, int);
 static int dqget(struct vnode *,
 		u_long, struct ufsmount *, int, struct dquot **);
 static int dqsync(struct vnode *, struct dquot *);
@@ -118,13 +119,13 @@ getinoquota(ip)
 int
 chkdq(ip, change, cred, flags)
 	struct inode *ip;
-	long change;
+	ufs2_daddr_t change;
 	struct ucred *cred;
 	int flags;
 {
 	struct dquot *dq;
-	int i;
-	int ncurblocks, error;
+	ufs2_daddr_t ncurblocks;
+	int i, error;
 
 #ifdef DIAGNOSTIC
 	if ((flags & CHOWN) == 0)
@@ -184,12 +185,12 @@ chkdq(ip, change, cred, flags)
 static int
 chkdqchg(ip, change, cred, type)
 	struct inode *ip;
-	long change;
+	ufs2_daddr_t change;
 	struct ucred *cred;
 	int type;
 {
 	struct dquot *dq = ip->i_dquot[type];
-	long ncurblocks = dq->dq_curblocks + change;
+	ufs2_daddr_t ncurblocks = dq->dq_curblocks + change;
 
 	/*
 	 * If user would exceed their hard limit, disallow space allocation.
@@ -239,13 +240,13 @@ chkdqchg(ip, change, cred, type)
 int
 chkiq(ip, change, cred, flags)
 	struct inode *ip;
-	long change;
+	ino_t change;
 	struct ucred *cred;
 	int flags;
 {
 	struct dquot *dq;
-	int i;
-	int ncurinodes, error;
+	ino_t ncurinodes;
+	int i, error;
 
 #ifdef DIAGNOSTIC
 	if ((flags & CHOWN) == 0)
@@ -305,12 +306,12 @@ chkiq(ip, change, cred, flags)
 static int
 chkiqchg(ip, change, cred, type)
 	struct inode *ip;
-	long change;
+	ino_t change;
 	struct ucred *cred;
 	int type;
 {
 	struct dquot *dq = ip->i_dquot[type];
-	long ncurinodes = dq->dq_curinodes + change;
+	ino_t ncurinodes = dq->dq_curinodes + change;
 
 	/*
 	 * If user would exceed their hard limit, disallow inode allocation.

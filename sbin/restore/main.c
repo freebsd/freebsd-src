@@ -98,9 +98,9 @@ main(int argc, char *argv[])
 		inputdev = _PATH_DEFTAPE;
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define	optlist "b:cdf:hikmNRrs:tuvxy"
+#define	optlist "b:df:hikmNRrs:tuvxy"
 #else
-#define	optlist "b:cdf:himNRrs:tuvxy"
+#define	optlist "b:df:himNRrs:tuvxy"
 #endif
 	while ((ch = getopt(argc, argv, optlist)) != -1)
 		switch(ch) {
@@ -112,9 +112,6 @@ main(int argc, char *argv[])
 				errx(1, "illegal blocksize -- %s", optarg);
 			if (ntrec <= 0)
 				errx(1, "block size must be greater than 0");
-			break;
-		case 'c':
-			cvtflag = 1;
 			break;
 		case 'd':
 			dflag = 1;
