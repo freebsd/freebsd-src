@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.16 1995/01/15 07:31:34 davidg Exp $
+ *	$Id: vm_page.c,v 1.17 1995/01/24 10:13:35 davidg Exp $
  */
 
 /*
@@ -622,11 +622,11 @@ vm_page_alloc(object, offset, page_req)
 
 	s = splhigh();
 
-	if (object != kernel_object &&
+	if (((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) &&
+		object != kernel_object &&
 	    object != kmem_object &&
 	    curproc != pageproc &&
-	    curproc != &proc0 &&
-	    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
+	    curproc != &proc0) {
 		simple_unlock(&vm_page_queue_free_lock);
 		splx(s);
 		return (NULL);
@@ -641,10 +641,8 @@ vm_page_alloc(object, offset, page_req)
 			wakeup((caddr_t) &vm_pages_needed);
 			return NULL;
 		}
-		if( cnt.v_free_count < cnt.v_pageout_free_min)
-			wakeup((caddr_t) &vm_pages_needed);
 	} else {
-		if ((cnt.v_free_count < cnt.v_pageout_free_min) ||
+		if ((cnt.v_free_count < cnt.v_free_reserved) ||
 		    (mem = vm_page_queue_free.tqh_first) == 0) {
 			mem = vm_page_queue_cache.tqh_first;
 			if (mem) {
@@ -653,14 +651,16 @@ vm_page_alloc(object, offset, page_req)
 				cnt.v_cache_count--;
 				goto gotpage;
 			}
+
 			if( page_req == VM_ALLOC_SYSTEM) {
 				mem = vm_page_queue_free.tqh_first;
-				if( !mem) {
-					simple_unlock(&vm_page_queue_free_lock);
-					splx(s);
-					wakeup((caddr_t) &vm_pages_needed);
-					return (NULL);
-				}
+			}
+
+			if( !mem) {
+				simple_unlock(&vm_page_queue_free_lock);
+				splx(s);
+				wakeup((caddr_t) &vm_pages_needed);
+				return (NULL);
 			}
 		}
 	}
@@ -814,8 +814,10 @@ vm_page_free(mem)
 		 * if pageout daemon needs pages, then tell it that there are
 		 * some free.
 		 */
-		if (vm_pageout_pages_needed)
+		if (vm_pageout_pages_needed) {
 			wakeup((caddr_t) &vm_pageout_pages_needed);
+			vm_pageout_pages_needed = 0;
+		}
 
 		/*
 		 * wakeup processes that are waiting on memory if we hit a
@@ -954,8 +956,10 @@ vm_page_cache(m)
 		wakeup((caddr_t) &cnt.v_free_count);
 		wakeup((caddr_t) &proc0);
 	}
-	if (vm_pageout_pages_needed)
+	if (vm_pageout_pages_needed) {
 		wakeup((caddr_t) &vm_pageout_pages_needed);
+		vm_pageout_pages_needed = 0;
+	}
 
 	splx(s);
 }

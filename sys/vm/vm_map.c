@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.11 1995/01/10 07:32:46 davidg Exp $
+ * $Id: vm_map.c,v 1.12 1995/01/24 10:13:02 davidg Exp $
  */
 
 /*
@@ -216,6 +216,9 @@ vmspace_free(vm)
 	register struct vmspace *vm;
 {
 
+	if (vm->vm_refcnt == 0)
+		panic("vmspace_free: attempt to free already freed vmspace");
+
 	if (--vm->vm_refcnt == 0) {
 		/*
 		 * Lock the map, to wait out all other references to it.
@@ -225,6 +228,10 @@ vmspace_free(vm)
 		vm_map_lock(&vm->vm_map);
 		(void) vm_map_delete(&vm->vm_map, vm->vm_map.min_offset,
 		    vm->vm_map.max_offset);
+		vm_map_unlock(&vm->vm_map);
+		while( vm->vm_map.ref_count != 1)
+			tsleep(&vm->vm_map.ref_count, PVM, "vmsfre", 0);
+		--vm->vm_map.ref_count;
 		pmap_release(&vm->vm_pmap);
 		FREE(vm, M_VMMAP);
 	}
@@ -448,10 +455,15 @@ vm_map_deallocate(map)
 		return;
 
 	simple_lock(&map->ref_lock);
-	c = --map->ref_count;
+	c = map->ref_count;
 	simple_unlock(&map->ref_lock);
 
-	if (c > 0) {
+	if (c == 0)
+		panic("vm_map_deallocate: deallocating already freed map");
+
+	if (c != 1) {
+		--map->ref_count;
+		wakeup((caddr_t) &map->ref_count);
 		return;
 	}
 	/*
@@ -459,11 +471,14 @@ vm_map_deallocate(map)
 	 */
 
 	vm_map_lock(map);
-
 	(void) vm_map_delete(map, map->min_offset, map->max_offset);
+	--map->ref_count;
+	if( map->ref_count != 0) {
+		vm_map_unlock(map);
+		return;
+	}
 
 	pmap_destroy(map->pmap);
-
 	FREE(map, M_VMMAP);
 }
 
@@ -1039,8 +1054,10 @@ vm_map_protect(map, start, end, new_prot, set_max)
 
 	current = entry;
 	while ((current != &map->header) && (current->start < end)) {
-		if (current->is_sub_map)
+		if (current->is_sub_map) {
+			vm_map_unlock(map);
 			return (KERN_INVALID_ARGUMENT);
+		}
 		if ((new_prot & current->max_protection) != new_prot) {
 			vm_map_unlock(map);
 			return (KERN_PROTECTION_FAILURE);

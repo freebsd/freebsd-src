@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.c,v 1.8 1995/01/09 16:05:43 davidg Exp $
+ * $Id: vm_kern.c,v 1.9 1995/01/24 10:12:51 davidg Exp $
  */
 
 /*
@@ -72,6 +72,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -277,10 +278,10 @@ kmem_suballoc(parent, min, max, size, pageable)
  * for wired maps are statically allocated.
  */
 vm_offset_t
-kmem_malloc(map, size, canwait)
+kmem_malloc(map, size, waitflag)
 	register vm_map_t map;
 	register vm_size_t size;
-	boolean_t canwait;
+	boolean_t waitflag;
 {
 	register vm_offset_t offset, i;
 	vm_map_entry_t entry;
@@ -306,7 +307,7 @@ kmem_malloc(map, size, canwait)
 			panic("kmem_malloc: %s too small",
 			    map == kmem_map ? "kmem_map" : "mb_map");
 #endif
-		if (canwait)
+		if (waitflag == M_WAITOK)
 			panic("kmem_malloc: map too small");
 		return (0);
 	}
@@ -318,7 +319,7 @@ kmem_malloc(map, size, canwait)
 	 * If we can wait, just mark the range as wired (will fault pages as
 	 * necessary).
 	 */
-	if (canwait) {
+	if (waitflag == M_WAITOK) {
 		vm_map_unlock(map);
 		(void) vm_map_pageable(map, (vm_offset_t) addr, addr + size,
 		    FALSE);
@@ -331,7 +332,8 @@ kmem_malloc(map, size, canwait)
 	 */
 	vm_object_lock(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
-		m = vm_page_alloc(kmem_object, offset + i, VM_ALLOC_INTERRUPT);
+		m = vm_page_alloc(kmem_object, offset + i,
+			(waitflag == M_NOWAIT) ? VM_ALLOC_INTERRUPT : VM_ALLOC_SYSTEM);
 
 		/*
 		 * Ran out of space, free everything up and return. Don't need
