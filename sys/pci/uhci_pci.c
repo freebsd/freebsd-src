@@ -168,6 +168,14 @@ uhci_pci_attach(device_t self)
 	int intr;
 	int err;
 
+	/* For the moment, put in a message stating what is wrong */
+	intr = pci_read_config(self, PCIR_INTLINE, 1);
+	if (intr == 0 || intr == 255) {
+		device_printf(self, "Invalid irq %d\n", intr);
+		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
+		return ENXIO;
+	}
+
 	rid = PCI_UHCI_BASE_REG;
 	io_res = bus_alloc_resource(self, SYS_RES_IOPORT, &rid,
 				    0, ~0, 1, RF_ACTIVE);
@@ -237,14 +245,6 @@ uhci_pci_attach(device_t self)
 	default:
 		sc->sc_bus.usbrev = USBREV_UNKNOWN;
 		break;
-	}
-
-	intr = pci_read_config(self, PCIR_INTLINE, 1);
-	if (intr == 0 || intr == 255) {
-		device_printf(self, "Invalid irq %d\n", intr);
-		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
-		err = ENXIO;
-		goto bad3;
 	}
 
 	err = BUS_SETUP_INTR(parent, self, irq_res, INTR_TYPE_BIO,

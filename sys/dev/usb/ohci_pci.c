@@ -150,6 +150,14 @@ ohci_pci_attach(device_t self)
 	void *ih;
 	int intr;
 
+	/* For the moment, put in a message stating what is wrong */
+	intr = pci_read_config(self, PCIR_INTLINE, 1);
+	if (intr == 0 || intr == 255) {
+		device_printf(self, "Invalid irq %d\n", intr);
+		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
+		return ENXIO;
+	}
+
 	/* XXX where does it say so in the spec? */
 	sc->sc_bus.usbrev = USBREV_1_0;
 
@@ -212,14 +220,6 @@ ohci_pci_attach(device_t self)
 				      pci_get_devid(self));
 		device_set_desc(sc->sc_bus.bdev, ohci_device_generic);
 		sprintf(sc->sc_vendor, "(unknown)");
-	}
-
-	intr = pci_read_config(self, PCIR_INTLINE, 1);
-	if (intr == 0 || intr == 255) {
-		device_printf(self, "Invalid irq %d\n", intr);
-		device_printf(self, "Please switch on USB support and switch PNP-OS to 'No' in BIOS\n");
-		err = ENXIO;
-		goto bad3;
 	}
 
 	err = BUS_SETUP_INTR(parent, self, irq_res, INTR_TYPE_BIO,
