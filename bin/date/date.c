@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: date.c,v 1.12 1997/04/16 05:59:21 danny Exp $
+ *	$Id: date.c,v 1.13 1997/06/06 06:34:37 charnier Exp $
  */
 
 #ifndef lint
@@ -57,6 +57,7 @@ static char const sccsid[] = "@(#)date.c	8.2 (Berkeley) 4/28/95";
 #include <locale.h>
 
 #include "extern.h"
+#include "vary.h"
 
 time_t tval;
 int retval, nflag;
@@ -79,12 +80,16 @@ main(argc, argv)
 	char *format, buf[1024];
 	char *endptr;
 	int set_timezone;
+	struct vary *v;
+	const struct vary *badv;
+	struct tm lt;
 
+	v = NULL;
 	(void) setlocale(LC_TIME, "");
 	tz.tz_dsttime = tz.tz_minuteswest = 0;
 	rflag = 0;
 	set_timezone = 0;
-	while ((ch = getopt(argc, argv, "d:nr:ut:")) != -1)
+	while ((ch = getopt(argc, argv, "D:W:M:Y:d:nr:ut:")) != -1)
 		switch((char)ch) {
 		case 'd':		/* daylight savings time */
 			tz.tz_dsttime = strtol(optarg, &endptr, 10) ? 1 : 0;
@@ -108,6 +113,12 @@ main(argc, argv)
 			if (endptr == optarg || *endptr != '\0')
 				usage();
 			set_timezone = 1;
+			break;
+		case 'D':
+		case 'W':
+		case 'M':
+		case 'Y':
+			v = vary_append(v, ch, optarg);
 			break;
 		default:
 			usage();
@@ -141,7 +152,16 @@ main(argc, argv)
 	if (*argv && **argv == '+')
 		format = *argv + 1;
 
-	(void)strftime(buf, sizeof(buf), format, localtime(&tval));
+	lt = *localtime(&tval);
+	badv = vary_apply(v, &lt);
+	if (badv) {
+		fprintf(stderr, "-%c %s: Cannot apply date adjustment\n",
+			badv->flag, badv->arg);
+		vary_destroy(v);
+		usage();
+	}
+	vary_destroy(v);
+	(void)strftime(buf, sizeof(buf), format, &lt);
 	(void)printf("%s\n", buf);
 	exit(retval);
 }
@@ -239,6 +259,6 @@ usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n",
 		"usage: date [-nu] [-d dst] [-r seconds] [-t west] [+format]",
-		"            [yy[mm[dd[hh]]]]mm[.ss]]");
+		"            [-DWMY [+|-]val] [[[[yy]mm]dd]HH]MM[.ss]]");
 	exit(1);
 }
