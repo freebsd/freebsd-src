@@ -2,14 +2,14 @@
 --- Makefile	Sat Aug  1 20:40:38 1998
 ***************
 *** 2,24 ****
-  # $Id: passwd.diff,v 1.1 1998/08/19 06:31:06 abial Exp $
+  # $Id: passwd.diff,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
   
   PROG=	passwd
 ! SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c pw_yp.c \
 ! 	yp_passwd.c ypxfr_misc.c ${GENSRCS}
   GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
   	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
-  CFLAGS+=-Wall
+  CFLAGS+=-Wall -DPASSWD_IGNORE_COMMENTS
   
 ! DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
 ! LDADD=	-lcrypt -lrpcsvc -lutil
@@ -26,14 +26,14 @@
   
   CLEANFILES= ${GENSRCS}
 --- 2,21 ----
-  # $Id: passwd.diff,v 1.1 1998/08/19 06:31:06 abial Exp $
+  # $Id: passwd.diff,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
   
   PROG=	passwd
 ! SRCS=	local_passwd.c passwd.c pw_copy.c pw_util.c 
 ! 
   GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c \
   	yppasswd_private.h yppasswd_private_clnt.c yppasswd_private_xdr.c
-  CFLAGS+=-Wall
+  CFLAGS+=-Wall -DPASSWD_IGNORE_COMMENTS
   
 ! DPADD=	${LIBCRYPT} ${LIBUTIL}
 ! LDADD=	-lcrypt -lutil
