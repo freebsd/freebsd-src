@@ -23,10 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: easter.c,v 1.1.1.1 1997/12/04 10:41:49 helbig Exp $
  */
 
 #include "calendar.h"
+
+static int	 easterodn(int y);
 
 /* Compute Easter Sunday in Gregorian Calendar */
 date *
@@ -47,11 +49,26 @@ easterg(int y, date *dt)
 	return (dt);
 }
 
-/* Compute Easter Sunday in Julian Calendar */
-date   *
-easterj(int y, date * dt)
+/* Compute the Gregorian date of Easter Sunday in Julian Calendar */
+date *
+easterog(int y, date *dt)
 {
 
+	return (gdate(easterodn(y), dt));
+}
+
+/* Compute the Julian date of Easter Sunday in Julian Calendar */
+date   *
+easteroj(int y, date * dt)
+{
+
+	return (jdate(easterodn(y), dt));
+}
+
+/* Compute the day number of Easter Sunday in Julian Calendar */
+static int
+easterodn(int y)
+{
 	/*
 	 * Table for the easter limits in one metonic (19-year) cycle. 21
 	 * to 31 is in March, 1 through 18 in April. Easter is the first
@@ -62,21 +79,20 @@ easterj(int y, date * dt)
 
 	/* Offset from a weekday to next sunday */
 	int     ns[] = {6, 5, 4, 3, 2, 1, 7};
+	date	dt;
 	int     dn;
 
-	/* Assign the easter limit of y to *dt */
-	dt->d = mc[y % 19];
+	/* Assign the easter limit of y to dt */
+	dt.d = mc[y % 19];
 
-	if (dt->d < 21)
-		dt->m = 4;
+	if (dt.d < 21)
+		dt.m = 4;
 	else
-		dt->m = 3;
+		dt.m = 3;
 
-	dt->y = y;
+	dt.y = y;
 
-	/* Compute the next sunday after the easter limit */
-	dn = ndaysj(dt);
-	dn += ns[weekday(dn)];
-
-	return (jdate(dn, dt));
+	/* Return the next sunday after the easter limit */
+	dn = ndaysj(&dt);
+	return (dn + ns[weekday(dn)]);
 }
