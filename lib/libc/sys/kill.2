@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)kill.2	8.3 (Berkeley) 4/19/94
-.\"	$Id: kill.2,v 1.7 1997/04/11 18:47:03 bde Exp $
+.\"	$Id: kill.2,v 1.7.2.1 1999/06/18 10:26:08 ru Exp $
 .\"
 .Dd April 19, 1994
 .Dt KILL 2
@@ -85,7 +85,7 @@ this is a variant of
 If the user has super-user privileges,
 the signal is sent to all processes excluding
 system processes
-.Pq whose have Dv P_SYSTEM flag set ,
+.Pq with Dv P_SYSTEM flag set ,
 process with ID 1
 .Pq usually Xr init 8 ,
 and the process sending the signal.
