@@ -1,5 +1,5 @@
 #	from: @(#)Makefile    5.10 (Berkeley) 6/24/90
-#	$Id: Makefile,v 1.10 1997/05/28 04:53:07 wpaul Exp $
+#	$Id: Makefile,v 1.11 1998/02/25 01:30:05 bde Exp $
 
 .PATH: ${DESTDIR}/usr/include/rpcsvc
 
@@ -10,7 +10,7 @@ RPCSRCS= klm_prot.x mount.x nfs_prot.x nlm_prot.x rex.x rnusers.x \
 	ypupdate_prot.x
 
 OTHERSRCS=  rnusers.c rstat.c rwall.c yp_passwd.c yp_update.c
-SECRPCSRCS= publickey.c secretkey.c xcrypt.c
+SECRPCSRCS= secretkey.c xcrypt.c
 
 RPCCOM = rpcgen -C
 
