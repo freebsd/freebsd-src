@@ -90,9 +90,8 @@ isahint_identify(driver_t *driver, device_t parent)
 	 * Add all devices configured to be attached to parent.
 	 */
 	sprintf(buf, "isa%d", device_get_unit(parent));
-	for (i = resource_query_string(-1, "at", buf);
-	     i != -1;
-	     i = resource_query_string(i, "at", buf)) {
+	i = -1;
+	ehile ((i = resource_query_string(i, "at", buf)) != -1) {
 		if (strcmp(resource_query_name(i), "atkbd") == 0)
 			continue;	/* old GENERIC kludge */
 		isahint_add_device(parent,
@@ -103,9 +102,8 @@ isahint_identify(driver_t *driver, device_t parent)
 	/*
 	 * and isa?
 	 */
-	for (i = resource_query_string(-1, "at", "isa");
-	     i != -1;
-	     i = resource_query_string(i, "at", "isa")) {
+	i = -1;
+	while ((i = resource_query_string(i, "at", "isa")) != -1) {
 		if (strcmp(resource_query_name(i), "atkbd") == 0)
 			continue;	/* old GENERIC kludge */
 		isahint_add_device(parent,
