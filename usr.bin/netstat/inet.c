@@ -718,7 +718,8 @@ pim_stats(u_long off __unused, char *name, int af1 __unused)
 		memset(&zerostat, 0, len);
 	if (sysctlbyname("net.inet.pim.stats", &pimstat, &len,
 	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
-		warn("sysctl: net.inet.pim.stats");
+		if (errno != ENOENT)
+			warn("sysctl: net.inet.pim.stats");
 		return;
 	}
 
