@@ -251,7 +251,7 @@ pr_rthdr(wid_af)
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	if (lflag)
+	if (wid_af == AF_INET || lflag)
 		printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
 			wid_dst, wid_dst, "Destination",
 			wid_gw, wid_gw, "Gateway",
@@ -612,7 +612,7 @@ p_rtentry(rt)
 #endif
 		   WID_GW);
 	p_flags(rt->rt_flags, "%-6.6s ");
-	if (lflag)
+	if (addr.u_sa.sa_family == AF_INET || lflag)
 		printf("%6ld %8ld ", rt->rt_refcnt, rt->rt_use);
 	if (rt->rt_ifp) {
 		if (rt->rt_ifp != lastif) {
