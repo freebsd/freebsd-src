@@ -15,7 +15,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-   Written July 1992 by Mike Haertel.  */
+   Written July 1992 by Mike Haertel.  
+
+   Recursive searching and builtin decompression (libz)	
+   1996/1997 by Wolfram Schneider <wosch@FreeBSD.org>. */
 
 #include <errno.h>
 #include <stdio.h>
@@ -96,7 +99,7 @@ memchr(vp, c, n)
 #endif
 
 /* traverse a file hierarchy library */
-#ifdef HAVE_FTS
+#if HAVE_FTS > 0
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
@@ -211,6 +214,12 @@ static struct stat bufstat;	/* From fstat(). */
 static off_t bufoffset;		/* What read() normally remembers. */
 #endif
 
+#if HAVE_LIBZ > 0
+#include <zlib.h>
+static gzFile gzbufdesc;        /* zlib file descriptor. */
+static int  Zflag;              /* uncompress before searching */
+#endif
+
 /* Reset the buffer for a new file.  Initialize
    on the first time through. */
 void
@@ -237,9 +246,20 @@ reset(fd)
       bufbeg = buffer;
       buflim = buffer;
     }
-  bufdesc = fd;
+#if HAVE_LIBZ > 0
+  if (Zflag) {
+    gzbufdesc = gzdopen(fd, "r");
+    if (gzbufdesc == NULL) 
+      fatal("memory exhausted", 0); 
+  }
+#endif
+    bufdesc = fd;
 #if defined(HAVE_WORKING_MMAP)
-  if (fstat(fd, &bufstat) < 0 || !S_ISREG(bufstat.st_mode))
+  if (
+#if HAVE_LIBZ > 0
+      Zflag || 
+#endif
+      fstat(fd, &bufstat) < 0 || !S_ISREG(bufstat.st_mode))
     bufmapped = 0;
   else
     {
@@ -323,10 +343,20 @@ fillbuf(save)
 	  bufmapped = 0;
 	  lseek(bufdesc, bufoffset, 0);
 	}
-      cc = read(bufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
+#if HAVE_LIBZ > 0
+      if (Zflag) 
+    	cc = gzread(gzbufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
+      else	
+#endif
+        cc = read(bufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
     }
 #else
-  cc = read(bufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
+#if HAVE_LIBZ > 0
+  if (Zflag) 
+    cc = gzread(gzbufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
+  else
+#endif
+    cc = read(bufdesc, buffer + bufsalloc, bufalloc - bufsalloc);
 #endif
   if (cc > 0)
     buflim = buffer + bufsalloc + cc;
@@ -513,32 +543,22 @@ grepbuf(beg, lim)
 
 
 /*
- * try to guess if fd belong to a binary file 
+ * try to guess if buf belong to a binary file 
  */
 
-int isBinaryFile(fd)
-     int fd;
+int isBinaryFile(buf, len)
+     char *buf;
+     int len;
 {
 #define BINARY_BUF_LEN 32
-  static unsigned char buf[BINARY_BUF_LEN];
-  int i, n;
+  int i;
 
-  /* pipe, socket, fifo */
-  if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1)
-    return(0);
-
- if ((n =(int) read(fd, buf, (size_t)BINARY_BUF_LEN)) == -1)
-   return(0);
+  len = (len < BINARY_BUF_LEN ? len : BINARY_BUF_LEN);
 
   /* look for non-printable chars */
-  for(i = 0; i < n; i++)
-    if (!isprint((unsigned char)buf[i]) && !isspace((unsigned char)buf[i]))
+  for(i = 0; i < len; i++, buf++)
+    if (!isprint(*buf) && !isspace(*buf))
       return(1);
-
-  /* reset fd to begin of file */
-  if (lseek(fd, (off_t)0, SEEK_SET) == (off_t)-1)
-    return(0);
-
   
   return(0);
 }
@@ -553,10 +573,7 @@ grep(fd)
   int nlines, i;
   size_t residue, save;
   char *beg, *lim;
-
-  /* skip binary files */
-  if (aflag && isBinaryFile(fd))
-    return(0);
+  int first, cc;	
 
   reset(fd);
 
@@ -568,14 +585,22 @@ grep(fd)
   nlines = 0;
   residue = 0;
   save = 0;
+  first = 0;
+  cc = 0;	
 
   for (;;)
     {
-      if (fillbuf(save) < 0)
+      if ((cc = fillbuf(save)) < 0)
 	{
 	  error(filename, errno);
 	  return nlines;
 	}
+
+	 /* skip binary files */
+      if (!first && aflag && isBinaryFile(bufbeg, cc))
+         return(0);
+      first++;
+
       lastnl = bufbeg;
       if (lastout)
 	lastout = bufbeg;
@@ -620,21 +645,25 @@ grep(fd)
 }
 
 static char version[] = "GNU grep version 2.0";
-
-#ifdef HAVE_FTS
-#define USAGE \
-"usage: %s [-[AB] <num>] [-HRPS] [-CEFGLVabchilnqsvwx]\n\
-            [-e <expr>] [-f file] [files ...]\n"
+	
+#define GETOPT_STD "0123456789A:B:CEFGLVX:abce:f:hilnqsvwxy"
+#if HAVE_FTS > 0
+#define GETOPT_FTS "HPRS"
 #else
-#define USAGE \
-"usage: %s [-[AB] <num>] [-CEFGLVabchilnqsvwx]\n\
-            [-e <expr>] [-f file] [files ...]\n"
+#define GETOPT_FTS ""
+#endif
+#if HAVE_LIBZ > 0
+#define GETOPT_Z "Z"
+#else
+#define GETOPT_Z ""
 #endif
 
 static void
 usage()
 {
-  fprintf(stderr, USAGE, prog);
+  fprintf(stderr, "usage: %s [-[AB] <num>] [-CEFGLVX%s%s%s", 
+	prog, GETOPT_FTS, GETOPT_Z,
+	"abchilnqsvwxy]\n       [-e <expr>] [-f file] [files ...]\n");
   exit(2);
 }
 
@@ -656,6 +685,8 @@ setmatcher(name)
   return 0;
 }
 
+
+
 int
 main(argc, argv)
      int argc;
@@ -668,7 +699,7 @@ main(argc, argv)
   FILE *fp;
   extern char *optarg;
   extern int optind;
-#ifdef HAVE_FTS
+#if HAVE_FTS > 0
   int Rflag, Hflag, Pflag, Lflag;
   FTS *ftsp;
   FTSENT *ftsent;
@@ -691,19 +722,12 @@ main(argc, argv)
   suppress_errors = 0;
   matcher = NULL;
   aflag = 0;
-#ifdef HAVE_FTS
+#if HAVE_FTS > 0
   Rflag = Hflag = Pflag = Lflag = 0;
 #endif
 
   while ((opt = getopt(argc, argv, 
-
-#ifndef HAVE_FTS
-"0123456789A:B:CEFGVX:abce:f:hiLlnqsvwxy"
-#else
-"0123456789A:B:CEFGHLPRSVX:abce:f:hiLlnqsvwxy?"
-#endif 
-
-)) != EOF)
+      GETOPT_STD/**/GETOPT_FTS/**/GETOPT_Z)) != -1)
     switch (opt)
       {
       case '0':
@@ -755,8 +779,12 @@ main(argc, argv)
 	  fatal("matcher already specified", 0);
 	matcher = optarg;
 	break;
-
-#ifdef HAVE_FTS
+#if HAVE_LIBZ > 0
+      case 'Z':
+	Zflag = 1;
+	break;
+#endif
+#if HAVE_FTS > 0
 	/* symbolic links on the command line are followed */
       case 'H': 
 	Hflag = 1;
@@ -880,16 +908,16 @@ main(argc, argv)
 
   (*compile)(keys, keycc);
 
-#ifndef HAVE_FTS
-  if (argc - optind > 1 && !no_filenames)
-#else
+#if HAVE_FTS > 0
   if ((argc - optind > 1 || Rflag) && !no_filenames)
+#else
+  if (argc - optind > 1 && !no_filenames)
 #endif
     out_file = 1;
 
   status = 1;
 
-#if HAVE_FTS
+#if HAVE_FTS > 0
   if (Rflag) {
     fts_options = FTS_PHYSICAL | FTS_NOCHDIR;
 
@@ -984,8 +1012,14 @@ main(argc, argv)
 	else if (list_files == -1)
 	  printf("%s\n", filename);
 
-	if (desc != STDIN_FILENO)
+	if (desc != STDIN_FILENO) {
+#if HAVE_LIBZ > 0
+	  if (Zflag)
+	    gzclose(gzbufdesc);
+	  else
+#endif
 	  close(desc);
+	}
       }
 
       if (fts_close(ftsp) == -1)
@@ -1002,7 +1036,8 @@ main(argc, argv)
 
     while (optind < argc)
       {
-	desc = strcmp(argv[optind], "-") ? open(argv[optind], O_RDONLY) : 0;
+	desc = strcmp(argv[optind], "-") ? 
+	    open(argv[optind], O_RDONLY) : STDIN_FILENO;
 	if (desc < 0)
 	  {
 	    if (!suppress_errors)
@@ -1010,7 +1045,8 @@ main(argc, argv)
 	  }
 	else
 	  {
-	    filename = desc == 0 ? "(standard input)" : argv[optind];
+	    filename = desc == STDIN_FILENO ? 
+		"(standard input)" : argv[optind];
 	    count = grep(desc);
 	    if (count_matches)
 	      {
@@ -1026,9 +1062,17 @@ main(argc, argv)
 	      }
 	    else if (list_files == -1)
 	      printf("%s\n", filename);
-	  }
-	if (desc != 0)
-	  close(desc);
+
+	    if (desc != STDIN_FILENO) {
+#if HAVE_LIBZ > 0
+	      if (Zflag)
+	        gzclose(gzbufdesc);
+	    else
+#endif
+	      close(desc);
+
+	    }
+          }
 	++optind;
       }
 
@@ -1036,7 +1080,7 @@ main(argc, argv)
   else
     {
       filename = "(standard input)";
-      count = grep(0);
+      count = grep(STDIN_FILENO);
       if (count_matches)
 	printf("%d\n", count);
       if (count)
