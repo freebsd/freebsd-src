@@ -3,7 +3,7 @@
 
 PROG=	mklocale
 SRCS=	yacc.y lex.l y.tab.h
-CFLAGS+= -I${.CURDIR} -I.
+CFLAGS+= -I. -I${.CURDIR}
 MAN1=	mklocale.1
 
 .include <bsd.prog.mk>
