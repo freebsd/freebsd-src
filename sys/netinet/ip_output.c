@@ -139,7 +139,7 @@ ip_output(m0, opt, ro, flags, imo)
 	int isbroadcast;
 #ifdef IPSEC
 	struct route iproute;
-	struct socket *so;
+	struct socket *so = NULL;
 	struct secpolicy *sp = NULL;
 #endif
 	u_int16_t divert_cookie;		/* firewall cookie */
@@ -156,7 +156,6 @@ ip_output(m0, opt, ro, flags, imo)
 	divert_cookie = 0;
 #endif
 
-#ifdef IPSEC
 	/*
 	 * NOTE: If IP_SOCKINMRCVIF flag is set, 'socket *' is kept in
 	 * m->m_pkthdr.rcvif for later IPSEC check. In this case,
@@ -167,21 +166,6 @@ ip_output(m0, opt, ro, flags, imo)
 	 * It is also necessary because someone might consider it as
 	 * 'ifnet *', and cause SEGV.
 	 */
-	if ((flags & IP_SOCKINMRCVIF) != 0) {
-#if defined(IPFIREWALL) && defined(DUMMYNET)
-		if (m->m_type == MT_DUMMYNET) {
-			so = (struct socket *)m->m_next->m_pkthdr.rcvif;
-			m->m_next->m_pkthdr.rcvif = NULL;
-		} else
-#endif
-		{
-			so = (struct socket *)m->m_pkthdr.rcvif;
-			m->m_pkthdr.rcvif = NULL;
-		}
-	} else
-		so = NULL;
-#endif /*IPSEC*/
-  
 #if defined(IPFIREWALL) && defined(DUMMYNET)
         /*  
          * dummynet packet are prepended a vestigial mbuf with
@@ -200,13 +184,26 @@ ip_output(m0, opt, ro, flags, imo)
 	    imo = NULL ;
 	    dst = ((struct dn_pkt *)m)->dn_dst ;
 	    ifp = ((struct dn_pkt *)m)->ifp ;
+	    flags = ((struct dn_pkt *)m)->flags ;
 
             m0 = m = m->m_next ;
+#ifdef IPSEC
+	    if ((flags & IP_SOCKINMRCVIF) != 0) {
+	        so = (struct socket *)m->m_pkthdr.rcvif;
+	        m->m_pkthdr.rcvif = NULL;
+	    }
+#endif
             ip = mtod(m, struct ip *);
             hlen = IP_VHL_HL(ip->ip_vhl) << 2 ;
             goto sendit;
         } else
             rule = NULL ;
+#endif
+#ifdef IPSEC
+	if ((flags & IP_SOCKINMRCVIF) != 0) {
+		so = (struct socket *)m->m_pkthdr.rcvif;
+		m->m_pkthdr.rcvif = NULL;
+	}
 #endif
 
 #ifdef	DIAGNOSTIC
