@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.99 1996/06/27 20:52:06 jkh Exp $ -->
+<!-- $Id: contrib.sgml,v 1.100 1996/07/01 22:04:18 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -80,7 +80,7 @@
   <sect><heading>The FreeBSD Developers</heading>
 
     <p>These are the people who have commit privileges and do the work on
-       FreeBSD source tree.  All core team members are also developers.
+       the FreeBSD source tree.  All core team members are also developers.
 
       <itemize>
         <item>&a.torstenb;
