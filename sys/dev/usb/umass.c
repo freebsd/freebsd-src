@@ -106,6 +106,7 @@
 #include <cam/cam_ccb.h>
 #include <cam/cam_sim.h>
 #include <cam/cam_xpt_sim.h>
+#include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_da.h>
 
 #ifdef UMASS_DO_CAM_RESCAN
@@ -387,7 +388,7 @@ struct umass_softc {
 
 
 	/* SCSI/CAM specific variables */
-	unsigned char 		cam_scsi_sense[16];
+	struct scsi_sense	cam_scsi_sense;
 
 	int			transfer_speed;		/* in kb/s */
 	int			timeout;		/* in msecs */
@@ -840,8 +841,7 @@ USB_ATTACH(umass)
 	    (sc->proto & PROTO_8070) ||
 	    (sc->proto & PROTO_UFI)) {
 		/* Prepare the SCSI command block */
-		memset(&sc->cam_scsi_sense, 0, sizeof(sc->cam_scsi_sense));
-		sc->cam_scsi_sense[0] = REQUEST_SENSE;
+		sc->cam_scsi_sense.opcode = REQUEST_SENSE;
 
 		/* If this is the first device register the SIM */
 		if (umass_sim == NULL) {
@@ -2310,11 +2310,11 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			int cmdlen;
 
 			/* fetch sense data */
-			DPRINTF(UDMASS_SCSI,("%s: Fetching %d/%db sense data\n",
-				USBDEVNAME(sc->sc_dev), csio->sense_len,
-				sizeof(struct scsi_sense_data)));
+			DPRINTF(UDMASS_SCSI,("%s: Fetching %db sense data\n",
+				USBDEVNAME(sc->sc_dev),
+				sc->cam_scsi_sense.length));
 
-			sc->cam_scsi_sense[4] = csio->sense_len;
+			sc->cam_scsi_sense.length = csio->sense_len;
 
 			if (sc->transform(sc, (char *) &sc->cam_scsi_sense,
 				      sizeof(sc->cam_scsi_sense),
@@ -2335,8 +2335,8 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			}
 			break;
 		}
-		case XPT_RESET_DEV:
-			ccb->ccb_h.status = CAM_REQ_CMP;
+		case XPT_RESET_DEV: /* Reset failed */
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 			xpt_done(ccb);
 			break;
 		default:
@@ -2381,7 +2381,7 @@ umass_cam_sense_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			/* Ignore unit attention errors in the case where
 			 * the Unit Attention state is not cleared on
 			 * REQUEST SENSE. They will appear again at the next
-			 * command. The INQUIRY command succeeded in any case.
+			 * command.
 			 */
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		} else if ((csio->sense_data.flags & SSD_KEY)
@@ -2452,7 +2452,9 @@ umass_ufi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		    unsigned char **rcmd, int *rcmdlen)
 {
 	*rcmd = cmd;
-	*rcmdlen = 12;	/* XXX cmd[(cmdlen+1)..12] contains garbage */
+	/* A UFI command is always 12 bytes in length */
+	/* XXX cmd[(cmdlen+1)..12] contains garbage */
+	*rcmdlen = 12;
 
 	switch (cmd[0]) {
 	case TEST_UNIT_READY:
