@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.8 (Berkeley) 1/21/94
- * $Id: proc.h,v 1.11 1994/10/02 17:24:52 phk Exp $
+ * $Id: proc.h,v 1.12 1994/10/10 00:58:32 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -195,8 +195,9 @@ struct	proc {
 #define	P_WAITED	0x01000	/* Debugging process has waited for child. */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define P_EXEC		0x04000	/* Process called exec. */
+#define P_SWAPPING	0x40000	/* Process is being swapped */
 
-/* Should probably be changed into a hold count. */
+/* Should probably be changed into a hold count (They have. -DG). */
 #define	P_NOSWAP	0x08000	/* Another flag to prevent swap out. */
 #define	P_PHYSIO	0x10000	/* Doing physical I/O. */
 
