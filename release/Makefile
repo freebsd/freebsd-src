@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.59 1994/11/24 22:30:02 phk Exp $
+#	$Id: Makefile,v 1.60 1994/11/30 15:54:39 jkh Exp $
 #
 
 FLOPPY=		fd0
@@ -36,7 +36,7 @@ CPIO4B=	tzsetup
 
 # Somewhat on the rough side...
 CLEANFILES+=	*.o *.c *.cache *.mk *.lo ${CPIO1} *.flp *.gz 
-CLEANFILES+=	boot_flp boot.flp cpio_flp_1
+CLEANFILES+=	boot_flp cpio_flp_1
 
 MTREE_DIR=	${.CURDIR}/../etc/mtree
 
@@ -104,7 +104,6 @@ boot.flp:
 	-umount ${MNT}
 	fsck /dev/r${FLOPPY}
 	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot.flp
-	gzip -9 -v < boot.flp > boot.flp.gz
 	df -k /dev/r${FLOPPY}
 
 cpio.flp:
