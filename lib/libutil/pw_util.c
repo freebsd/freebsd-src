@@ -62,7 +62,6 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
-#include <libgen.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
@@ -290,6 +289,8 @@ pw_edit(int notsetuid)
 {
 	struct stat st1, st2;
 	const char *editor;
+	char *editcmd;
+	int editcmdlen;
 	int pstat;
 
 	if ((editor = getenv("EDITOR")) == NULL)
@@ -305,8 +306,17 @@ pw_edit(int notsetuid)
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
+		if ((editcmdlen = sysconf(_SC_ARG_MAX) - 6) <= 0 ||
+		    (editcmd = malloc(editcmdlen)) == NULL)
+			_exit(EXIT_FAILURE);
+		if (snprintf(editcmd, editcmdlen, "%s %s",
+		    editor, tempname) >= editcmdlen) {
+			free(editcmd);	/* pedantry */
+			_exit(EXIT_FAILURE);
+		}
 		errno = 0;
-		execlp(editor, basename(editor), tempname, NULL);
+		execl(_PATH_BSHELL, "sh", "-c", editcmd, NULL);
+		free(editcmd);
 		_exit(errno);
 	default:
 		/* parent */
