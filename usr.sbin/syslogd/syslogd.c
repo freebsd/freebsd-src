@@ -1988,7 +1988,10 @@ allowaddr(s)
 					maskp->s_addr = htonl(IN_CLASSC_NET);
 			} else if (masklen <= 32) {
 				/* convert masklen to netmask */
-				maskp->s_addr = htonl(~((1 << (32 - masklen)) - 1));
+				if (masklen == 0)
+					maskp->s_addr = 0;
+				else
+					maskp->s_addr = htonl(~((1 << (32 - masklen)) - 1));
 			} else {
 				freeaddrinfo(res);
 				return -1;
