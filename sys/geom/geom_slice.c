@@ -291,7 +291,7 @@ g_slice_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct 
 int
 g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length, u_int sectorsize, const char *fmt, ...)
 {
-	struct g_provider *pp;
+	struct g_provider *pp, *pp2;
 	struct g_slicer *gsp;
 	struct g_slice *gsl;
 	va_list ap;
@@ -346,8 +346,10 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	sbuf_vprintf(sb, fmt, ap);
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
-	pp->flags =
-		LIST_FIRST(&gp->consumer)->provider->flags & G_PF_CANDELETE;
+	pp2 = LIST_FIRST(&gp->consumer)->provider;
+	pp->flags = pp2->flags & G_PF_CANDELETE;
+	pp->stripesize = pp2->stripesize;
+	pp->stripeoffset = (pp2->stripeoffset + offset) % pp->stripesize;
 	if (bootverbose)
 		printf("GEOM: Configure %s, start %jd length %jd end %jd\n",
 		    pp->name, (intmax_t)offset, (intmax_t)length,
