@@ -19,6 +19,8 @@
 
 #include <sys/queue.h>
 
+struct g_geom;
+
 struct disk {
 	u_int			d_flags;
 	u_int			d_dsflags;
@@ -31,10 +33,7 @@ struct disk {
 	u_int			d_fwsectors;
 	u_int			d_fwheads;
 
-	struct diskslices	*d_slice;
-	struct disklabel	*d_label;
-	LIST_ENTRY(disk)	d_list;
-	void			*d_softc;
+	struct g_geom		*d_softc;
 };
 
 #define DISKFLAG_LOCK		0x1
