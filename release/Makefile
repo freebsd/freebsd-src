@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.385 1998/09/15 10:24:23 gibbs Exp $
+#	$Id: Makefile,v 1.386 1998/09/15 13:15:18 jhay Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -37,7 +37,7 @@ OBJFORMAT?=		elf
 
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
-#NODOC=  YES
+NODOC=  YES
 #NOPORTS=  YES
 # Comment the following if you want the release documentation to be
 # in English only.
@@ -676,11 +676,12 @@ doMFSKERN:
 	  sed	-e '/pty/d' \
 		-e '/pass0/d' \
 		-e '/PROCFS/d' \
+		-e '/MSDOSFS/d' \
 		-e '/SYSVSHM/d' \
 		-e '/KTRACE/d' \
 		-e '/MATH_EMULATE/d' \
 		-e 's/GENERIC/BOOTMFS/g' \
-		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
+		-e '/maxusers/s/32/4/' < GENERIC > BOOTMFS && \
 	  echo "options  MFS" >> BOOTMFS && \
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
