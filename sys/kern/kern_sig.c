@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.58 1999/07/18 13:40:11 peter Exp $
+ * $Id: kern_sig.c,v 1.59 1999/08/14 19:58:58 alfred Exp $
  */
 
 #include "opt_compat.h"
@@ -1288,7 +1288,7 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 
 char *
 expand_name(name, uid, pid)
-const char *name; int uid; int pid; {
+const char *name; uid_t uid; pid_t pid; {
 	char *temp;
 	char buf[11];		/* Buffer for pid/uid -- max 4B */
 	int i, n;
@@ -1310,7 +1310,7 @@ const char *name; int uid; int pid; {
 				break;
 			case 'N':	/* process name */
 				if ((n + namelen) > MAXPATHLEN) {
-					log(LOG_ERR, "pid %d (%s), uid (%d):  Path `%s%s' is too long\n",
+					log(LOG_ERR, "pid %d (%s), uid (%u):  Path `%s%s' is too long\n",
 					    pid, name, uid, temp, name);
 					free(temp, M_TEMP);
 					return NULL;
@@ -1321,7 +1321,7 @@ const char *name; int uid; int pid; {
 			case 'P':	/* process id */
 				l = sprintf(buf, "%u", pid);
 				if ((n + l) > MAXPATHLEN) {
-					log(LOG_ERR, "pid %d (%s), uid (%d):  Path `%s%s' is too long\n",
+					log(LOG_ERR, "pid %d (%s), uid (%u):  Path `%s%s' is too long\n",
 					    pid, name, uid, temp, name);
 					free(temp, M_TEMP);
 					return NULL;
@@ -1332,7 +1332,7 @@ const char *name; int uid; int pid; {
 			case 'U':	/* user id */
 				l = sprintf(buf, "%u", uid);
 				if ((n + l) > MAXPATHLEN) {
-					log(LOG_ERR, "pid %d (%s), uid (%d):  Path `%s%s' is too long\n",
+					log(LOG_ERR, "pid %d (%s), uid (%u):  Path `%s%s' is too long\n",
 					    pid, name, uid, temp, name);
 					free(temp, M_TEMP);
 					return NULL;
