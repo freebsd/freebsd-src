@@ -36,7 +36,7 @@ Thank you for your patience!";
 void
 stage5()
 {
-	dialog_msgbox(TITLE, msg, 12, 78, 1);
+	dialog_msgbox(TITLE, msg, strheight(msg) + 4, strwidth(msg) + 4, 1);
 	end_dialog();
 	dialog_active=0;
 	setenv("PATH","/stand",1);
