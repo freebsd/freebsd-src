@@ -359,9 +359,9 @@ void wcd_describe (struct wcd *t)
 	printf ("wcd%d: ", t->lun);
 	if (t->cap.cur_speed != t->cap.max_speed)
 		printf ("%d/", t->cap.cur_speed * 1000 / 1024);
-	printf ("%dKb/sec", t->cap.max_speed * 1000 / 1024);
+	printf ("%dKB/sec", t->cap.max_speed * 1000 / 1024);
 	if (t->cap.buf_size)
-		printf (", %dKb cache", t->cap.buf_size);
+		printf (", %dKB cache", t->cap.buf_size);
 
 	if (t->cap.audio_play)
 		printf (", audio play");
