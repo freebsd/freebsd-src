@@ -305,8 +305,6 @@ vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 static boolean_t pmap_initialized = FALSE;	/* Has pmap_init completed? */
 
-static vm_object_t kptobj;
-
 static int nklev3, nklev2;
 vm_offset_t kernel_vm_end;
 
@@ -647,10 +645,6 @@ pmap_init(phys_start, phys_end)
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
 	uma_prealloc(pvzone, initial_pvs);
-	/*
-	 * object for kernel page table pages
-	 */
-	kptobj = vm_object_allocate(OBJT_DEFAULT, NKLEV3MAPS + NKLEV2MAPS);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
@@ -1646,8 +1640,8 @@ pmap_growkernel(vm_offset_t addr)
 		if (!pmap_pte_v(pte)) {
 			int pindex = NKLEV3MAPS + pmap_lev1_index(kernel_vm_end) - K1SEGLEV1I;
 
-			nkpg = vm_page_alloc(kptobj, pindex,
-			    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
+			nkpg = vm_page_alloc(NULL, pindex,
+			    VM_ALLOC_NOOBJ | VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
 			if (!nkpg)
 				panic("pmap_growkernel: no memory to grow kernel");
 			printf("pmap_growkernel: growing to %lx\n", addr);
@@ -1681,8 +1675,8 @@ pmap_growkernel(vm_offset_t addr)
 		/*
 		 * This index is bogus, but out of the way
 		 */
-		nkpg = vm_page_alloc(kptobj, nklev3,
-		    VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
+		nkpg = vm_page_alloc(NULL, nklev3,
+		    VM_ALLOC_NOOBJ | VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED);
 		if (!nkpg)
 			panic("pmap_growkernel: no memory to grow kernel");
 
