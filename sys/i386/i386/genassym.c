@@ -148,6 +148,9 @@ main()
 
 	printf("#define\tSIGF_HANDLER %#x\n", OS(sigframe, sf_ahu.sf_handler));
 	printf("#define\tSIGF_SC %#x\n", OS(sigframe, sf_siginfo.si_sc));
+	printf("#define\tSC_PS %#x\n", OS(sigcontext, sc_ps));
+	printf("#define\tSC_FS %#x\n", OS(sigcontext, sc_fs));
+	printf("#define\tSC_GS %#x\n", OS(sigcontext, sc_gs));
 
 	printf("#define\tB_READ %#x\n", B_READ);
 	printf("#define\tENOENT %d\n", ENOENT);
