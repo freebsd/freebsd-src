@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.56 1997/08/09 00:02:44 dyson Exp $
+ *	$Id: support.s,v 1.57 1997/09/02 20:05:30 bde Exp $
  */
 
 #include "npx.h"
@@ -1517,6 +1517,9 @@ ENTRY(rcr3)
 
 /* void load_cr3(caddr_t cr3) */
 ENTRY(load_cr3)
+#if defined(SWTCH_OPTIM_STATS)
+	incl	_tlb_flush_count
+#endif
 	movl	4(%esp),%eax
 	movl	%eax,%cr3
 	ret
