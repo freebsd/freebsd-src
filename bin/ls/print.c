@@ -247,7 +247,7 @@ printcol(dp)
 			 * column number will be incremented incorrectly
 			 * for "stty oxtabs" mode.
 			 */
-			if (f_color)
+			if (f_color && !f_notabs)
 				while ((cnt = (chcnt + 1)) <= endcol) {
 					(void)putchar(' ');
 					chcnt = cnt;
