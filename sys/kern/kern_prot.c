@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.40 1998/06/10 10:28:29 dfr Exp $
+ * $Id: kern_prot.c,v 1.41 1998/11/09 15:07:42 truckman Exp $
  */
 
 /*
@@ -49,6 +49,7 @@
 #include <sys/acct.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>

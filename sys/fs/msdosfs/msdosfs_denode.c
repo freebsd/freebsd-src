@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.39 1998/08/17 19:09:36 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.40 1998/10/29 09:29:17 peter Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.28 1998/02/10 14:10:00 mrg Exp $	*/
 
 /*-
@@ -50,6 +50,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
