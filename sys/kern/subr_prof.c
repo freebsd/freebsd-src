@@ -443,9 +443,13 @@ addupc_task(p, pc, ticks)
 	register u_int i;
 	u_short v;
 
-	/* Testing P_PROFIL may be unnecessary, but is certainly safe. */
-	if ((p->p_flag & P_PROFIL) == 0 || ticks == 0)
+	/* Testing PS_PROFIL may be unnecessary, but is certainly safe. */
+	mtx_enter(&sched_lock, MTX_SPIN);
+	if ((p->p_sflag & PS_PROFIL) == 0 || ticks == 0) {
+		mtx_exit(&sched_lock, MTX_SPIN);
 		return;
+	}
+	mtx_exit(&sched_lock, MTX_SPIN);
 
 	prof = &p->p_stats->p_prof;
 	if (pc < prof->pr_off ||
