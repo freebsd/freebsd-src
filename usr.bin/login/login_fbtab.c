@@ -68,10 +68,11 @@
 #include <glob.h>
 #include <paths.h>
 #include <unistd.h>
+
+#include "login.h"
 #include "pathnames.h"
 
-void	login_protect	__P((char *, char *, int, uid_t, gid_t));
-void	login_fbtab	__P((char *tty, uid_t uid, gid_t gid));
+static void	login_protect	__P((const char *, char *, int, uid_t, gid_t));
 
 #define	WSPACE		" \t\n"
 
@@ -88,7 +89,7 @@ gid_t   gid;
     char   *devname;
     char   *cp;
     int     prot;
-    char *table;
+    const char *table;
 
     if ((fp = fopen(table = _PATH_FBTAB, "r")) == 0
     && (fp = fopen(table = _PATH_LOGINDEVPERM, "r")) == 0)
@@ -122,7 +123,7 @@ gid_t   gid;
 
 void
 login_protect(table, pattern, mask, uid, gid)
-char *table;
+const char *table;
 char *pattern;
 int mask;
 uid_t uid;
