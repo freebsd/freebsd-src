@@ -45,6 +45,7 @@
 #include <sys/systm.h>
 #include <sys/cons.h>
 #include <sys/imgact.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/linker.h>
@@ -108,6 +109,10 @@
 #include <machine/ver.h>
 
 typedef int ofw_vec_t(void *);
+
+#ifdef DDB
+extern vm_offset_t ksym_start, ksym_end;
+#endif
 
 struct tlb_entry *kernel_tlbs;
 int kernel_tlb_slots;
@@ -305,10 +310,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		cpu_block_zero = bzero;
 	}
 
-#ifdef DDB
-	kdb_init();
-#endif
-
 #ifdef SMP
 	mp_tramp = mp_tramp_alloc();
 #endif
@@ -383,9 +384,11 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	OF_getprop(root, "name", sparc64_model, sizeof(sparc64_model) - 1);
 
-#ifdef DDB
+	kdb_init();
+
+#ifdef KDB
 	if (boothowto & RB_KDB)
-		Debugger("Boot flags requested debugger");
+		kdb_enter("Boot flags requested debugger");
 #endif
 }
 
@@ -741,16 +744,6 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 
 	td->td_retval[0] = tf->tf_out[0];
 	td->td_retval[1] = tf->tf_out[1];
-}
-
-void
-Debugger(const char *msg)
-{
-
-	printf("Debugger(\"%s\")\n", msg);
-	critical_enter();
-	breakpoint();
-	critical_exit();
 }
 
 int
