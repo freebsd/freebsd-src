@@ -26,6 +26,7 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 alpha/alpha/autoconf.c		standard
 alpha/alpha/cpuconf.c		standard
 alpha/alpha/atomic.s		standard
+alpha/alpha/api_up1000.c	optional	api_up1000
 alpha/alpha/dec_kn8ae.c		optional	dec_kn8ae
 alpha/alpha/dec_eb164.c		optional	dec_eb164
 alpha/alpha/dec_eb64plus.c	optional	dec_eb64plus
@@ -129,6 +130,8 @@ alpha/pci/cia_pci.c		optional	dec_eb164
 alpha/pci/cia_pci.c		optional	dec_kn20aa
 alpha/pci/cia_pci.c		optional	dec_st550
 alpha/pci/cia_pci.c		optional	dec_1000a
+alpha/pci/irongate.c		optional	api_up1000
+alpha/pci/irongate_pci.c	optional	api_up1000
 alpha/pci/lca.c			optional	dec_axppci_33
 alpha/pci/lca_pci.c		optional	dec_axppci_33
 alpha/pci/pci_eb164_intr.s	optional	dec_eb164

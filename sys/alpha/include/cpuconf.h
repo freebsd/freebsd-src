@@ -121,7 +121,9 @@ const char	*alpha_variation_name __P((u_int64_t variation,
 const char	*alpha_unknown_sysname __P((void));
 
 extern struct cpuinit cpuinit[];
+extern struct cpuinit api_cpuinit[];
 extern int ncpuinit;
+extern int napi_cpuinit;
 extern void platform_not_configured __P((int));
 extern void platform_not_supported __P((int));
 

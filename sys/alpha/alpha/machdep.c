@@ -733,11 +733,21 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		 */
 		cputype = -cputype;
 	}
-	if (cputype >= ncpuinit) {
-		platform_not_supported(cputype);
-		/* NOTREACHED */
+	
+	if (cputype >= API_ST_BASE) {
+		if (cputype >= napi_cpuinit + API_ST_BASE) {
+			platform_not_supported(cputype);
+			/* NOTREACHED */
+		}
+		cputype -= API_ST_BASE;
+		api_cpuinit[cputype].init(cputype);
+	} else {
+		if (cputype >= ncpuinit) {
+			platform_not_supported(cputype);
+			/* NOTREACHED */
+		}	
+		cpuinit[cputype].init(cputype);
 	}
-	cpuinit[cputype].init(cputype);
 	snprintf(cpu_model, sizeof(cpu_model), "%s", platform.model);
 
 	/*
