@@ -467,10 +467,6 @@ device		apm
 hint.apm.0.flags="0x20"
 device		canbus
 device		canbepm
-device		pmc
-hint.pmc.0.at="isa"
-hint.pmc.0.port="0x8f0"
-device		pmtimer			# Adjust system timer at wakeup time
 device		cy	1
 options 	CY_PCI_FASTINTR		# Use with cy_pci unless irq is shared
 device		digi
@@ -485,6 +481,13 @@ device		digi_Xr
 device		olpt
 hint.olpt.0.at="isa"
 hint.olpt.0.port="0x040"
+device		pmc
+hint.pmc.0.at="isa"
+hint.pmc.0.port="0x8f0"
+device		pmtimer			# Adjust system timer at wakeup time
+# sx device is i386 and pc98 only at the moment.
+device		sx
+options 	SX_DEBUG
 
 #
 # Laptop/Notebook options:
@@ -638,10 +641,6 @@ device		"i4bing"	2
 device		"i4bcapi"
 #
 #---------------------------------------------------------------------------
-
-# sx device is i386 and pc98 only at the moment.
-device		sx
-options 	SX_DEBUG
 
 #
 # Set the number of PV entries per process.  Increasing this can
