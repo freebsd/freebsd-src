@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_axreg.h,v 1.6 1999/04/08 03:57:57 wpaul Exp $
+ *	$Id: if_axreg.h,v 1.2.2.3 1999/04/08 17:45:22 wpaul Exp $
  */
 
 /*
@@ -265,7 +265,7 @@ struct ax_desc {
 
 #define AX_MAXFRAGS		16
 #define AX_RX_LIST_CNT		64
-#define AX_TX_LIST_CNT		64
+#define AX_TX_LIST_CNT		128
 #define AX_MIN_FRAMELEN		60
 
 /*
