@@ -32,63 +32,16 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#ifndef lint
-#if 0
-static char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
-#endif
-#endif /* not lint */
+extern int build(void);
+extern int touch(void);
+extern int tmp(void);
+extern void error(char *);
+extern void badfmt(void);
+extern void settime(int);
 
-#include <sys/types.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/types.h>
-
-#include <ar.h>
-#include <dirent.h>
-#include <err.h>
-#include <fcntl.h>
-#include <ranlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
-#include <unistd.h>
-
-#include "archive.h"
-#include "extern.h"
-
-void settime( int );
-int touch( void );
-
-int
-touch(void)
-{
-	int afd;
-
-	afd = open_archive(O_RDWR);
-
-	if (!get_arobj(afd) ||
-	    strncmp(RANLIBMAG, chdr.name, sizeof(RANLIBMAG) - 1)) {
-		warnx("%s: no symbol table", archive);
-		return(1);
-	}
-	settime(afd);
-	close_archive(afd);
-	return(0);
-}
-
-void
-settime(int afd)
-{
-	struct ar_hdr *hdr;
-	off_t size;
-	char buf[50];
-
-	size = SARMAG + sizeof(hdr->ar_name);
-	if (lseek(afd, size, SEEK_SET) == (off_t)-1)
-		error(archive);
-	(void)sprintf(buf, "%-12ld", (long)time((time_t *)NULL) + RANLIBSKEW);
-	if (write(afd, buf, sizeof(hdr->ar_date)) != sizeof(hdr->ar_date))
-		error(archive);
-}
+extern CHDR chdr;			/* converted header */
+extern char *archive;			/* archive name */

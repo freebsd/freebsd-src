@@ -38,12 +38,15 @@
 #if 0
 static char sccsid[] = "@(#)build.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include <arpa/inet.h>
 
 #include <a.out.h>
 #include <ar.h>
@@ -56,15 +59,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "archive.h"
-
-extern int tmp( void );
-extern void error( char * );
-extern void badfmt( void );
-extern void settime( int );
-
-extern CHDR chdr;			/* converted header */
-extern char *archive;			/* archive name */
-extern char *tname;			/* temporary file "name" */
+#include "extern.h"
 
 typedef struct _rlib {
 	struct _rlib *next;		/* next structure */
@@ -81,6 +76,8 @@ long tsymlen;				/* total string length */
 
 static void rexec(int, int);
 static void symobj(void);
+
+static char tname[] = "temporary file";	/* temporary file "name" */
 
 int
 build(void)
@@ -131,14 +128,12 @@ build(void)
  *	exactly right.
  */
 static void
-rexec(rfd, wfd)
-	register int rfd;
-	int wfd;
+rexec(int rfd, int wfd)
 {
-	register RLIB *rp;
-	register long nsyms;
-	register int nr, symlen;
-	register char *strtab = 0, *sym;
+	RLIB *rp;
+	long nsyms;
+	int nr, symlen;
+	char *strtab = 0, *sym;
 	struct exec ebuf;
 	struct nlist nl;
 	off_t r_off, w_off;
@@ -231,9 +226,9 @@ bad1:	(void)lseek(rfd, r_off, SEEK_SET);
  *	writing.
  */
 static void
-symobj()
+symobj(void)
 {
-	register RLIB *rp, *rpnext;
+	RLIB *rp, *rpnext;
 	struct ranlib rn;
 	off_t ransize;
 	long size, stroff;
