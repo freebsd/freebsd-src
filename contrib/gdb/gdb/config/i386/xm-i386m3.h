@@ -19,11 +19,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define HOST_BYTE_ORDER LITTLE_ENDIAN
 
-/* Avoid "INT_MIN redefined" warnings -- by defining it here, exactly
-   the same as in the system <machine/machtypes.h> file.  */
-#undef	INT_MIN
-#define	INT_MIN		0x80000000
-
 /* Do implement the attach and detach commands.  */
 #define ATTACH_DETACH	1
 

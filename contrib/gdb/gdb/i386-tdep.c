@@ -1,5 +1,6 @@
 /* Intel 386 target-dependent stuff.
-   Copyright (C) 1988, 1989, 1991, 1994, 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1988, 1989, 1991, 1994, 1995, 1996, 1998
+   Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -25,6 +26,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "target.h"
 #include "floatformat.h"
 #include "symtab.h"
+#include "gdbcmd.h"
+#include "command.h"
 
 static long i386_get_frame_setup PARAMS ((CORE_ADDR));
 
@@ -35,6 +38,23 @@ static void codestream_read PARAMS ((unsigned char *, int));
 static void codestream_seek PARAMS ((CORE_ADDR));
 
 static unsigned char codestream_fill PARAMS ((int));
+
+CORE_ADDR skip_trampoline_code PARAMS ((CORE_ADDR, char *));
+
+static int gdb_print_insn_i386 (bfd_vma, disassemble_info *);
+
+void _initialize_i386_tdep PARAMS ((void));
+
+/* This is the variable the is set with "set disassembly-flavor",
+ and its legitimate values. */
+static char att_flavor[] = "att";
+static char intel_flavor[] = "intel";
+static char *valid_flavors[] = {
+  att_flavor,
+  intel_flavor,
+  NULL
+};
+static char *disassembly_flavor = att_flavor;
 
 /* Stdio style buffering was used to minimize calls to ptrace, but this
    buffering did not take into account that the code section being accessed
@@ -205,6 +225,39 @@ i386_get_frame_setup (pc)
       else if (memcmp (buf, proto2, 4) == 0)
 	pos += 4;
 
+      codestream_seek (pos);
+      op = codestream_get (); /* update next opcode */
+    }
+
+  if (op == 0x68 || op == 0x6a)
+    {
+      /*
+       * this function may start with
+       *
+       *   pushl constant
+       *   call _probe
+       *   addl $4, %esp
+       *      followed by 
+       *     pushl %ebp
+       *     etc.
+       */
+      int pos;
+      unsigned char buf[8];
+
+      /* Skip past the pushl instruction; it has either a one-byte 
+         or a four-byte operand, depending on the opcode.  */
+      pos = codestream_tell ();
+      if (op == 0x68)
+	pos += 4;
+      else
+	pos += 1;
+      codestream_seek (pos);
+
+      /* Read the following 8 bytes, which should be "call _probe" (6 bytes)
+         followed by "addl $4,%esp" (2 bytes).  */
+      codestream_read (buf, sizeof (buf));
+      if (buf[0] == 0xe8 && buf[6] == 0xc4 && buf[7] == 0x4)
+	pos += sizeof (buf);
       codestream_seek (pos);
       op = codestream_get (); /* update next opcode */
     }
@@ -390,10 +443,11 @@ i386_frame_find_saved_regs (fip, fsrp)
      struct frame_info *fip;
      struct frame_saved_regs *fsrp;
 {
-  long locals;
+  long locals = -1;
   unsigned char op;
   CORE_ADDR dummy_bottom;
   CORE_ADDR adr;
+  CORE_ADDR pc;
   int i;
   
   memset (fsrp, 0, sizeof *fsrp);
@@ -416,7 +470,9 @@ i386_frame_find_saved_regs (fip, fsrp)
       return;
     }
   
-  locals = i386_get_frame_setup (get_pc_function_start (fip->pc));
+  pc = get_pc_function_start (fip->pc);
+  if (pc != 0)
+    locals = i386_get_frame_setup (pc);
   
   if (locals >= 0) 
     {
@@ -655,6 +711,32 @@ i386v4_sigtramp_saved_pc (frame)
 }
 #endif /* I386V4_SIGTRAMP_SAVED_PC */
 
+#ifdef STATIC_TRANSFORM_NAME
+/* SunPRO encodes the static variables.  This is not related to C++ mangling,
+   it is done for C too.  */
+
+char *
+sunpro_static_transform_name (name)
+     char *name;
+{
+  char *p;
+  if (IS_STATIC_TRANSFORM_NAME (name))
+    {
+      /* For file-local statics there will be a period, a bunch
+	 of junk (the contents of which match a string given in the
+	 N_OPT), a period and the name.  For function-local statics
+	 there will be a bunch of junk (which seems to change the
+	 second character from 'A' to 'B'), a period, the name of the
+	 function, and the name.  So just skip everything before the
+	 last period.  */
+      p = strrchr (name, '.');
+      if (p != NULL)
+	name = p + 1;
+    }
+  return name;
+}
+#endif /* STATIC_TRANSFORM_NAME */
+
 
 
 /* Stuff for WIN32 PE style DLL's but is pretty generic really. */
@@ -681,8 +763,37 @@ skip_trampoline_code (pc, name)
   return 0;			/* not a trampoline */
 }
 
+static int
+gdb_print_insn_i386 (memaddr, info)
+     bfd_vma memaddr;
+     disassemble_info * info;
+{
+  /* XXX remove when binutils 2.9.2 is imported */
+#if 0
+  if (disassembly_flavor == att_flavor)
+    return print_insn_i386_att (memaddr, info);
+  else if (disassembly_flavor == intel_flavor)
+    return print_insn_i386_intel (memaddr, info);
+#else
+  return print_insn_i386 (memaddr, info);
+#endif
+}
+
 void
 _initialize_i386_tdep ()
 {
-  tm_print_insn = print_insn_i386;
+  tm_print_insn = gdb_print_insn_i386;
+  tm_print_insn_info.mach = bfd_lookup_arch (bfd_arch_i386, 0)->mach;
+
+  /* Add the variable that controls the disassembly flavor */
+  add_show_from_set(
+	    add_set_enum_cmd ("disassembly-flavor", no_class,
+				  valid_flavors,
+				  (char *) &disassembly_flavor,
+				  "Set the disassembly flavor, the valid values are \"att\" and \"intel\", \
+and the default value is \"att\".",
+				  &setlist),
+	    &showlist);
+
+  
 }

@@ -1,4 +1,4 @@
-/* Definitions to target GDB to Linux on 386.
+/* Definitions to target GDB to GNU/Linux on 386.
    Copyright 1992, 1993 Free Software Foundation, Inc.
 
 This file is part of GDB.
@@ -31,5 +31,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* We need this file for the SOLIB_TRAMPOLINE stuff. */
 
 #include "tm-sysv4.h"
+
+/* The following works around a problem with /usr/include/sys/procfs.h  */
+#define sys_quotactl 1
 
 #endif  /* #ifndef TM_LINUX_H */

@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $Id: ax-general.c,v 1.3 1998/12/02 23:22:58 msnyder Exp $ */
+/* $Id$ */
 
 /* Despite what the above comment says about this file being part of
    GDB, we would like to keep these functions free of GDB

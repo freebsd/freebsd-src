@@ -1,5 +1,5 @@
 /* Machine independent GDB support for core files on systems using "regsets".
-   Copyright 1993-1996 Free Software Foundation, Inc.
+   Copyright 1993-1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -47,6 +47,10 @@ regardless of whether or not the actual target has floating point hardware.
 #include "command.h"
 #include "gdbcore.h"
 
+static void fetch_core_registers PARAMS ((char *, unsigned, int, CORE_ADDR));
+
+void _initialize_core_regset PARAMS ((void));
+
 /*
 
 GLOBAL FUNCTION
@@ -57,7 +61,7 @@ SYNOPSIS
 
 	void fetch_core_registers (char *core_reg_sect,
 					  unsigned core_reg_size,
-					  int which, unsigned in reg_addr)
+					  int which, CORE_ADDR reg_addr)
 
 DESCRIPTION
 
@@ -77,7 +81,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      char *core_reg_sect;
      unsigned core_reg_size;
      int which;
-     unsigned int reg_addr;	/* Unused in this version */
+     CORE_ADDR reg_addr;	/* Unused in this version */
 {
 #if defined (HAVE_GREGSET_T) && defined (HAVE_FPREGSET_T)
   gregset_t gregset;

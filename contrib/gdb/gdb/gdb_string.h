@@ -1,5 +1,5 @@
 /* Portable <string.h>
-   Copyright 1995 Free Software Foundation, Inc.
+   Copyright 1995, 1998 Free Software Foundation, Inc.
 
 This file is part of GDB.
 
@@ -28,11 +28,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 # else
 #   include <strings.h>
 # endif
-extern char *strchr();
-extern char *strrchr();
-extern char *strstr();
-extern char *strtok();
-extern char *strerror();
+
+#ifndef strchr
+extern char *strchr PARAMS ((const char *, int));	/* X3.159-1989  4.11.5.2 */
+#endif
+
+#ifndef strrchr
+extern char *strrchr PARAMS ((const char *, int));	/* X3.159-1989  4.11.5.5 */
+#endif
+
+#ifndef strstr
+extern char *strstr PARAMS ((const char *, const char *));	/* X3.159-1989  4.11.5.7 */
+#endif
+
+#ifndef strtok
+extern char *strtok PARAMS ((char *, const char *));	/* X3.159-1989  4.11.5.8 */
+#endif
+
 # ifdef HAVE_MEMORY_H
 #   include <memory.h>
 # else
@@ -41,8 +53,16 @@ extern void *memcpy();
 extern void *memmove();
 extern int   memcmp();
 # endif
+#endif /* STDC_HEADERS */
+
+#ifdef NEED_DECLARATION_STRERROR
+#ifndef strerror
+extern char *strerror PARAMS ((int));	/* X3.159-1989  4.11.6.2 */
+#endif
 #endif
 
-extern char *strdup();
+#ifdef NEED_DECLARATION_STRDUP
+extern char *strdup (); /* full prototype collides w/ some OSes (AIX 3.2.5) */
+#endif
 
 #endif	/* !defined(GDB_STRING_H) */

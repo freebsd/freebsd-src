@@ -1,8 +1,11 @@
 # Host: Intel 386 running the GNU Hurd
 XDEPFILES= i387-tdep.o
-NATDEPFILES= i386gnu-nat.o gnu-nat.o fork-child.o solib.o notify_S.o process_reply_S.o msg_reply_S.o msg_U.o exc_request_U.o exc_request_S.o
+NATDEPFILES= i386gnu-nat.o gnu-nat.o fork-child.o solib.o corelow.o notify_S.o process_reply_S.o msg_reply_S.o msg_U.o exc_request_U.o exc_request_S.o
 XM_FILE= xm-i386gnu.h
 NAT_FILE= nm-gnu.h
+MH_CFLAGS = -D_GNU_SOURCE
+
+XM_CLIBS = -lshouldbeinlibc
 
 # Use our own user stubs for the msg rpcs, so we can make them time out, in
 # case the program is fucked, or we guess the wrong signal thread.
@@ -26,11 +29,3 @@ MIGCOM = $(MIG) -cc cat - /dev/null
 %_U.h %_U.c: %.defs
 	$(CPP) $(CPPFLAGS) $($*-MIGUFLAGS) -x c $< \
 	| $(MIGCOM) -sheader /dev/null -server /dev/null -user $*_U.c -header $*_U.h
-
-gnu-nat.o: process_reply_S.h exc_request_S.h notify_S.h msg_reply_S.h exc_request_U.h msg_U.h
-
-gnu-nat.o i386gnu-nat.o: gnu-nat.h
-
-# Don't use the mmalloc library in Mach 3.
-MMALLOC = 
-MMALLOC_DISABLE = -DNO_MMALLOC

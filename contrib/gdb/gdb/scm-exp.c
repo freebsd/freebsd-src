@@ -30,15 +30,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define USE_EXPRSTRING 0
 
+static void scm_lreadparen PARAMS ((int));
+static int scm_skip_ws PARAMS ((void));
+static void scm_read_token PARAMS ((int, int));
+static LONGEST scm_istring2number PARAMS ((char *, int, int));
+static LONGEST scm_istr2int PARAMS ((char *, int, int));
 static void scm_lreadr PARAMS ((int));
 
-LONGEST
+static LONGEST
 scm_istr2int(str, len, radix)
      char *str;
      int len;
      int radix;
 {
-  int j;
   int i = 0;
   LONGEST inum = 0;
   int c;
@@ -78,7 +82,7 @@ scm_istr2int(str, len, radix)
   return SCM_MAKINUM (inum);
 }
 
-LONGEST
+static LONGEST
 scm_istring2number(str, len, radix)
      char *str;
      int len;
@@ -87,7 +91,9 @@ scm_istring2number(str, len, radix)
   int i = 0;
   char ex = 0;
   char ex_p = 0, rx_p = 0;	/* Only allow 1 exactness and 1 radix prefix */
+#if 0
   SCM res;
+#endif
   if (len==1)
     if (*str=='+' || *str=='-') /* Catches lone `+' and `-' for speed */
       return SCM_BOOL_F;
@@ -224,7 +230,7 @@ scm_lreadr (skipping)
 {
   int c, j;
   struct stoken str;
-  LONGEST svalue;
+  LONGEST svalue = 0;
  tryagain:
   c = *lexptr++;
   switch (c)
@@ -319,7 +325,9 @@ scm_lreadr (skipping)
 	  goto tryagain;
 	case '.':
 	default:
+#if 0
 	callshrp:
+#endif
 	  scm_lreadr (skipping);
 	  return;
 	}
@@ -365,7 +373,9 @@ scm_lreadr (skipping)
     case ':':
       scm_read_token ('-', 0);
       return;
+#if 0
     do_symbol:
+#endif
     default:
       str.ptr = lexptr-1;
       scm_read_token (c, 0);
@@ -398,7 +408,6 @@ int
 scm_parse ()
 {
   char* start;
-  struct stoken str;
   while (*lexptr == ' ')
     lexptr++;
   start = lexptr;

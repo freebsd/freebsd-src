@@ -1,5 +1,5 @@
 /* Interface between GDB and target environments, including files and processes
-   Copyright 1990, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
+   Copyright 1990, 91, 92, 93, 94, 1999 Free Software Foundation, Inc.
    Contributed by Cygnus Support.  Written by John Gilmore.
 
 This file is part of GDB.
@@ -41,6 +41,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    stratum.  */
 
 #include "bfd.h"
+#include "symtab.h"
 
 enum strata {
 	dummy_stratum,		/* The lowest of the low */
@@ -49,6 +50,12 @@ enum strata {
 	kcore_stratum,		/* Kernel core files */
 	download_stratum,	/* Downloading of remote targets */
 	process_stratum		/* Executing processes */
+};
+
+enum thread_control_capabilities {
+	tc_none = 0, 		/* Default: can't control thread execution. */
+	tc_schedlock = 1,	/* Can lock the thread scheduler. */
+	tc_switch = 2 		/* Can switch the running thread on demand. */
 };
 
 /* Stuff for target_wait.  */
@@ -68,6 +75,27 @@ enum target_waitkind {
   /* The program is letting us know that it dynamically loaded something
      (e.g. it called load(2) on AIX).  */
   TARGET_WAITKIND_LOADED,
+
+  /* The program has forked.  A "related" process' ID is in value.related_pid.
+     I.e., if the child forks, value.related_pid is the parent's ID.
+     */
+  TARGET_WAITKIND_FORKED,
+
+  /* The program has vforked.  A "related" process's ID is in value.related_pid.
+     */
+  TARGET_WAITKIND_VFORKED,
+
+  /* The program has exec'ed a new executable file.  The new file's pathname
+     is pointed to by value.execd_pathname.
+     */
+  TARGET_WAITKIND_EXECD,
+
+  /* The program has entered or returned from a system call.  On HP-UX, this
+     is used in the hardware watchpoint implementation.  The syscall's unique
+     integer ID number is in value.syscall_id;
+     */
+  TARGET_WAITKIND_SYSCALL_ENTRY,
+  TARGET_WAITKIND_SYSCALL_RETURN,
 
   /* Nothing happened, but we stopped anyway.  This perhaps should be handled
      within target_wait, but I'm not sure target_wait should be resuming the
@@ -178,7 +206,15 @@ enum target_signal {
   TARGET_SIGNAL_REALTIME_61 = 73,
   TARGET_SIGNAL_REALTIME_62 = 74,
   TARGET_SIGNAL_REALTIME_63 = 75,
-
+#if defined(MACH) || defined(__MACH__)
+  /* Mach exceptions */
+  TARGET_EXC_BAD_ACCESS = 76,
+  TARGET_EXC_BAD_INSTRUCTION = 77,
+  TARGET_EXC_ARITHMETIC = 78,
+  TARGET_EXC_EMULATION = 79,
+  TARGET_EXC_SOFTWARE = 80,
+  TARGET_EXC_BREAKPOINT = 81,
+#endif
   /* Some signal we don't know about.  */
   TARGET_SIGNAL_UNKNOWN,
 
@@ -193,10 +229,13 @@ enum target_signal {
 struct target_waitstatus {
   enum target_waitkind kind;
 
-  /* Exit status or signal number.  */
+  /* Forked child pid, execd pathname, exit status or signal number.  */
   union {
     int integer;
     enum target_signal sig;
+    int  related_pid;
+    char *  execd_pathname;
+    int  syscall_id;
   } value;
 };
 
@@ -208,6 +247,7 @@ extern char *target_signal_to_name PARAMS ((enum target_signal));
 
 /* Given a name (SIGHUP, etc.), return its signal.  */
 enum target_signal target_signal_from_name PARAMS ((char *));
+
 
 /* If certain kinds of activity happen, target_wait should perform
    callbacks.  */
@@ -227,9 +267,13 @@ struct target_ops
   void 	      (*to_open) PARAMS ((char *, int));
   void 	      (*to_close) PARAMS ((int));
   void 	      (*to_attach) PARAMS ((char *, int));
+  void        (*to_post_attach) PARAMS ((int));
+  void 	      (*to_require_attach) PARAMS ((char *, int));
   void 	      (*to_detach) PARAMS ((char *, int));
+  void 	      (*to_require_detach) PARAMS ((int, char *, int));
   void 	      (*to_resume) PARAMS ((int, int, enum target_signal));
   int  	      (*to_wait) PARAMS ((int, struct target_waitstatus *));
+  void        (*to_post_wait) PARAMS ((int, int));
   void 	      (*to_fetch_registers) PARAMS ((int));
   void 	      (*to_store_registers) PARAMS ((int));
   void 	      (*to_prepare_to_store) PARAMS ((void));
@@ -289,11 +333,34 @@ struct target_ops
   void 	      (*to_load) PARAMS ((char *, int));
   int 	      (*to_lookup_symbol) PARAMS ((char *, CORE_ADDR *));
   void 	      (*to_create_inferior) PARAMS ((char *, char *, char **));
+  void        (*to_post_startup_inferior) PARAMS ((int));
+  void        (*to_acknowledge_created_inferior) PARAMS ((int));
+  void        (*to_clone_and_follow_inferior) PARAMS ((int, int *));
+  void        (*to_post_follow_inferior_by_clone) PARAMS ((void));
+  int         (*to_insert_fork_catchpoint) PARAMS ((int));
+  int         (*to_remove_fork_catchpoint) PARAMS ((int));
+  int         (*to_insert_vfork_catchpoint) PARAMS ((int));
+  int         (*to_remove_vfork_catchpoint) PARAMS ((int));
+  int         (*to_has_forked) PARAMS ((int, int *));
+  int         (*to_has_vforked) PARAMS ((int, int *));
+  int         (*to_can_follow_vfork_prior_to_exec) PARAMS ((void));
+  void        (*to_post_follow_vfork) PARAMS ((int, int, int, int));
+  int         (*to_insert_exec_catchpoint) PARAMS ((int));
+  int         (*to_remove_exec_catchpoint) PARAMS ((int));
+  int         (*to_has_execd) PARAMS ((int, char **));
+  int         (*to_reported_exec_events_per_exec_call) PARAMS ((void));
+  int         (*to_has_syscall_event) PARAMS ((int, enum target_waitkind *, int *));
+  int         (*to_has_exited) PARAMS ((int, int, int *));
   void 	      (*to_mourn_inferior) PARAMS ((void));
   int	      (*to_can_run) PARAMS ((void));
   void	      (*to_notice_signals) PARAMS ((int pid));
   int	      (*to_thread_alive) PARAMS ((int pid));
   void	      (*to_stop) PARAMS ((void));
+  int 	      (*to_query) PARAMS ((int/*char*/, char *, char *, int *));
+  struct symtab_and_line * (*to_enable_exception_callback) PARAMS ((enum exception_event_kind, int));
+  struct exception_event_record * (*to_get_current_exception_event) PARAMS ((void));
+  char *      (*to_pid_to_exec_file) PARAMS ((int pid));
+  char *      (*to_core_file_to_sym_file) PARAMS ((char *));
   enum strata   to_stratum;
   struct target_ops
 		*DONT_USE;	/* formerly to_next */
@@ -302,6 +369,7 @@ struct target_ops
   int		to_has_stack;
   int		to_has_registers;
   int		to_has_execution;
+  int		to_has_thread_control;	/* control thread execution */
   struct section_table
     	       *to_sections;
   struct section_table
@@ -366,6 +434,26 @@ extern struct target_stack_item *target_stack;
 #define	target_attach(args, from_tty)	\
 	(*current_target.to_attach) (args, from_tty)
 
+/* The target_attach operation places a process under debugger control,
+   and stops the process.
+
+   This operation provides a target-specific hook that allows the
+   necessary bookkeeping to be performed after an attach completes.
+   */
+#define target_post_attach(pid) \
+        (*current_target.to_post_attach) (pid)
+
+/* Attaches to a process on the target side, if not already attached.
+   (If already attached, takes no action.)
+
+   This operation can be used to follow the child process of a fork.
+   On some targets, such child processes of an original inferior process
+   are automatically under debugger control, and thus do not require an
+   actual attach operation.  */
+
+#define	target_require_attach(args, from_tty)	\
+	(*current_target.to_require_attach) (args, from_tty)
+
 /* Takes a program previously attached to and detaches it.
    The program may resume execution (some targets do, some don't) and will
    no longer stop on signals, etc.  We better not have left any breakpoints
@@ -375,6 +463,21 @@ extern struct target_stack_item *target_stack;
 
 extern void
 target_detach PARAMS ((char *, int));
+
+/* Detaches from a process on the target side, if not already dettached.
+   (If already detached, takes no action.)
+
+   This operation can be used to follow the parent process of a fork.
+   On some targets, such child processes of an original inferior process
+   are automatically under debugger control, and thus do require an actual
+   detach operation.
+
+   PID is the process id of the child to detach from.
+   ARGS is arguments typed by the user (e.g. a signal to send the process).
+   FROM_TTY says whether to be verbose or not.  */
+
+#define target_require_detach(pid, args, from_tty) \
+	(*current_target.to_require_detach) (pid, args, from_tty)
 
 /* Resume execution of the target process PID.  STEP says whether to
    single-step or to run free; SIGGNAL is the signal to be given to
@@ -394,6 +497,20 @@ target_detach PARAMS ((char *, int));
 
 #define	target_wait(pid, status)		\
 	(*current_target.to_wait) (pid, status)
+
+/* The target_wait operation waits for a process event to occur, and
+   thereby stop the process.
+
+   On some targets, certain events may happen in sequences.  gdb's
+   correct response to any single event of such a sequence may require
+   knowledge of what earlier events in the sequence have been seen.
+
+   This operation provides a target-specific hook that allows the
+   necessary bookkeeping to be performed to track such sequences.
+   */
+
+#define target_post_wait(pid, status) \
+        (*current_target.to_post_wait) (pid, status)
 
 /* Fetch register REGNO, or all regs if regno == -1.  No result.  */
 
@@ -419,7 +536,11 @@ target_detach PARAMS ((char *, int));
 extern int target_read_string PARAMS ((CORE_ADDR, char **, int, int *));
 
 extern int
-target_read_memory PARAMS ((CORE_ADDR, char *, int));
+target_read_memory PARAMS ((CORE_ADDR memaddr, char *myaddr, int len));
+
+extern int
+target_read_memory_section PARAMS ((CORE_ADDR memaddr, char *myaddr, int len,
+				    asection *bfd_section));
 
 extern int
 target_read_memory_partial PARAMS ((CORE_ADDR, char *, int, int *));
@@ -433,13 +554,79 @@ xfer_memory PARAMS ((CORE_ADDR, char *, int, int, struct target_ops *));
 extern int
 child_xfer_memory PARAMS ((CORE_ADDR, char *, int, int, struct target_ops *));
 
-/* Transfer LEN bytes between target address MEMADDR and GDB address MYADDR.
-   Returns 0 for success, errno code for failure (which includes partial
-   transfers--if you want a more useful response to partial transfers, try
-   target_read_memory_partial).  */
+extern char *
+child_pid_to_exec_file PARAMS ((int));
 
-extern int target_xfer_memory PARAMS ((CORE_ADDR memaddr, char *myaddr,
-				       int len, int write));
+extern char *
+child_core_file_to_sym_file PARAMS ((char *));
+
+#if defined(CHILD_POST_ATTACH)
+extern void
+child_post_attach PARAMS ((int));
+#endif
+
+extern void
+child_post_wait PARAMS ((int, int));
+
+extern void
+child_post_startup_inferior PARAMS ((int));
+
+extern void
+child_acknowledge_created_inferior PARAMS ((int));
+
+extern void
+child_clone_and_follow_inferior PARAMS ((int, int *));
+
+extern void
+child_post_follow_inferior_by_clone PARAMS ((void));
+
+extern int
+child_insert_fork_catchpoint PARAMS ((int));
+
+extern int
+child_remove_fork_catchpoint PARAMS ((int));
+
+extern int
+child_insert_vfork_catchpoint PARAMS ((int));
+
+extern int
+child_remove_vfork_catchpoint PARAMS ((int));
+
+extern int
+child_has_forked PARAMS ((int, int *));
+
+extern int
+child_has_vforked PARAMS ((int, int *));
+
+extern void
+child_acknowledge_created_inferior PARAMS ((int));
+
+extern int
+child_can_follow_vfork_prior_to_exec PARAMS ((void));
+
+extern void
+child_post_follow_vfork PARAMS ((int, int, int, int));
+
+extern int
+child_insert_exec_catchpoint PARAMS ((int));
+
+extern int
+child_remove_exec_catchpoint PARAMS ((int));
+
+extern int
+child_has_execd PARAMS ((int, char **));
+
+extern int
+child_reported_exec_events_per_exec_call PARAMS ((void));
+
+extern int
+child_has_syscall_event PARAMS ((int, enum target_waitkind *, int *));
+
+extern int
+child_has_exited PARAMS ((int, int, int *));
+
+extern int
+child_thread_alive PARAMS ((int));
 
 /* From exec.c */
 
@@ -536,6 +723,149 @@ print_section_info PARAMS ((struct target_ops *, bfd *));
 #define	target_create_inferior(exec_file, args, env)	\
 	(*current_target.to_create_inferior) (exec_file, args, env)
 
+
+/* Some targets (such as ttrace-based HPUX) don't allow us to request
+   notification of inferior events such as fork and vork immediately
+   after the inferior is created.  (This because of how gdb gets an
+   inferior created via invoking a shell to do it.  In such a scenario,
+   if the shell init file has commands in it, the shell will fork and
+   exec for each of those commands, and we will see each such fork
+   event.  Very bad.)
+   
+   Such targets will supply an appropriate definition for this function.
+   */
+#define target_post_startup_inferior(pid) \
+        (*current_target.to_post_startup_inferior) (pid)
+
+/* On some targets, the sequence of starting up an inferior requires
+   some synchronization between gdb and the new inferior process, PID.
+   */
+#define target_acknowledge_created_inferior(pid) \
+        (*current_target.to_acknowledge_created_inferior) (pid)
+
+/* An inferior process has been created via a fork() or similar
+   system call.  This function will clone the debugger, then ensure
+   that CHILD_PID is attached to by that debugger.
+
+   FOLLOWED_CHILD is set TRUE on return *for the clone debugger only*,
+   and FALSE otherwise.  (The original and clone debuggers can use this
+   to determine which they are, if need be.)
+
+   (This is not a terribly useful feature without a GUI to prevent
+   the two debuggers from competing for shell input.)
+   */
+#define target_clone_and_follow_inferior(child_pid,followed_child) \
+        (*current_target.to_clone_and_follow_inferior) (child_pid, followed_child)
+
+/* This operation is intended to be used as the last in a sequence of
+   steps taken when following both parent and child of a fork.  This
+   is used by a clone of the debugger, which will follow the child.
+
+   The original debugger has detached from this process, and the
+   clone has attached to it.
+
+   On some targets, this requires a bit of cleanup to make it work
+   correctly.
+   */
+#define target_post_follow_inferior_by_clone() \
+        (*current_target.to_post_follow_inferior_by_clone) ()
+
+/* On some targets, we can catch an inferior fork or vfork event when it
+   occurs.  These functions insert/remove an already-created catchpoint for
+   such events.
+   */
+#define target_insert_fork_catchpoint(pid) \
+        (*current_target.to_insert_fork_catchpoint) (pid)
+
+#define target_remove_fork_catchpoint(pid) \
+        (*current_target.to_remove_fork_catchpoint) (pid)
+
+#define target_insert_vfork_catchpoint(pid) \
+        (*current_target.to_insert_vfork_catchpoint) (pid)
+
+#define target_remove_vfork_catchpoint(pid) \
+        (*current_target.to_remove_vfork_catchpoint) (pid)
+
+/* Returns TRUE if PID has invoked the fork() system call.  And,
+   also sets CHILD_PID to the process id of the other ("child")
+   inferior process that was created by that call.
+   */
+#define target_has_forked(pid,child_pid) \
+        (*current_target.to_has_forked) (pid,child_pid)
+
+/* Returns TRUE if PID has invoked the vfork() system call.  And,
+   also sets CHILD_PID to the process id of the other ("child")
+   inferior process that was created by that call.
+   */
+#define target_has_vforked(pid,child_pid) \
+        (*current_target.to_has_vforked) (pid,child_pid)
+
+/* Some platforms (such as pre-10.20 HP-UX) don't allow us to do
+   anything to a vforked child before it subsequently calls exec().
+   On such platforms, we say that the debugger cannot "follow" the
+   child until it has vforked.
+
+   This function should be defined to return 1 by those targets
+   which can allow the debugger to immediately follow a vforked
+   child, and 0 if they cannot.
+   */
+#define target_can_follow_vfork_prior_to_exec() \
+        (*current_target.to_can_follow_vfork_prior_to_exec) ()
+
+/* An inferior process has been created via a vfork() system call.
+   The debugger has followed the parent, the child, or both.  The
+   process of setting up for that follow may have required some
+   target-specific trickery to track the sequence of reported events.
+   If so, this function should be defined by those targets that
+   require the debugger to perform cleanup or initialization after
+   the vfork follow.
+   */
+#define target_post_follow_vfork(parent_pid,followed_parent,child_pid,followed_child) \
+        (*current_target.to_post_follow_vfork) (parent_pid,followed_parent,child_pid,followed_child)
+
+/* On some targets, we can catch an inferior exec event when it
+   occurs.  These functions insert/remove an already-created catchpoint
+   for such events.
+   */
+#define target_insert_exec_catchpoint(pid) \
+        (*current_target.to_insert_exec_catchpoint) (pid)
+ 
+#define target_remove_exec_catchpoint(pid) \
+        (*current_target.to_remove_exec_catchpoint) (pid)
+
+/* Returns TRUE if PID has invoked a flavor of the exec() system call.
+   And, also sets EXECD_PATHNAME to the pathname of the executable file
+   that was passed to exec(), and is now being executed.
+   */
+#define target_has_execd(pid,execd_pathname) \
+        (*current_target.to_has_execd) (pid,execd_pathname)
+
+/* Returns the number of exec events that are reported when a process
+   invokes a flavor of the exec() system call on this target, if exec
+   events are being reported.
+   */
+#define target_reported_exec_events_per_exec_call() \
+        (*current_target.to_reported_exec_events_per_exec_call) ()
+
+/* Returns TRUE if PID has reported a syscall event.  And, also sets
+   KIND to the appropriate TARGET_WAITKIND_, and sets SYSCALL_ID to
+   the unique integer ID of the syscall.
+   */
+#define target_has_syscall_event(pid,kind,syscall_id) \
+  (*current_target.to_has_syscall_event) (pid,kind,syscall_id)
+
+/* Returns TRUE if PID has exited.  And, also sets EXIT_STATUS to the
+   exit code of PID, if any.
+   */
+#define target_has_exited(pid,wait_status,exit_status) \
+        (*current_target.to_has_exited) (pid,wait_status,exit_status)
+
+/* The debugger has completed a blocking wait() call.  There is now
+   some process event that must be processed.  This function should
+   be defined by those targets that require the debugger to perform
+   cleanup or internal state changes in response to the process event.
+   */
+
 /* The inferior process has died.  Do what is right.  */
 
 #define	target_mourn_inferior()	\
@@ -560,7 +890,32 @@ print_section_info PARAMS ((struct target_ops *, bfd *));
    should act like SIGSTOP).  This function is normally used by GUIs to
    implement a stop button.  */
 
-#define target_stop() current_target.to_stop ()
+#define target_stop current_target.to_stop
+
+/* Queries the target side for some information.  The first argument is a
+   letter specifying the type of the query, which is used to determine who
+   should process it.  The second argument is a string that specifies which 
+   information is desired and the third is a buffer that carries back the 
+   response from the target side. The fourth parameter is the size of the
+   output buffer supplied. */
+ 
+#define	target_query(query_type, query, resp_buffer, bufffer_size)	\
+	(*current_target.to_query) (query_type, query, resp_buffer, bufffer_size)
+
+/* Get the symbol information for a breakpointable routine called when
+   an exception event occurs. 
+   Intended mainly for C++, and for those
+   platforms/implementations where such a callback mechanism is available,
+   e.g. HP-UX with ANSI C++ (aCC).  Some compilers (e.g. g++) support
+   different mechanisms for debugging exceptions. */
+
+#define target_enable_exception_callback(kind, enable) \
+        (*current_target.to_enable_exception_callback) (kind, enable)
+
+/* Get the current exception event kind -- throw or catch, etc. */
+   
+#define target_get_current_exception_event() \
+        (*current_target.to_get_current_exception_event) ()
 
 /* Pointer to next target in the chain, e.g. a core file and an exec file.  */
 
@@ -600,6 +955,16 @@ print_section_info PARAMS ((struct target_ops *, bfd *));
 #define	target_has_execution	\
 	(current_target.to_has_execution)
 
+/* Can the target support the debugger control of thread execution?
+   a) Can it lock the thread scheduler?
+   b) Can it switch the currently running thread?  */
+
+#define target_can_lock_scheduler \
+ 	(current_target.to_has_thread_control & tc_schedlock)
+
+#define target_can_switch_threads \
+ 	(current_target.to_has_thread_control & tc_switch)
+
 extern void target_link PARAMS ((char *, CORE_ADDR *));
 
 /* Converts a process id to a string.  Usually, the string just contains
@@ -611,6 +976,38 @@ extern void target_link PARAMS ((char *, CORE_ADDR *));
 	normal_pid_to_str (PID)
 extern char *normal_pid_to_str PARAMS ((int pid));
 #endif
+
+#ifndef target_tid_to_str
+#define target_tid_to_str(PID) \
+        normal_pid_to_str (PID)
+extern char *normal_pid_to_str PARAMS ((int pid));
+#endif
+ 
+
+#ifndef target_new_objfile
+#define target_new_objfile(OBJFILE)
+#endif
+
+#ifndef target_pid_or_tid_to_str
+#define target_pid_or_tid_to_str(ID) \
+	normal_pid_to_str (ID)
+#endif
+
+/* Attempts to find the pathname of the executable file
+   that was run to create a specified process.
+
+   The process PID must be stopped when this operation is used.
+   
+   If the executable file cannot be determined, NULL is returned.
+
+   Else, a pointer to a character string containing the pathname
+   is returned.  This string should be copied into a buffer by
+   the client if the string will not be immediately used, or if
+   it must persist.
+   */
+
+#define target_pid_to_exec_file(pid) \
+	(current_target.to_pid_to_exec_file) (pid)
 
 /* Hook to call target-dependant code after reading in a new symbol table. */
 
@@ -634,6 +1031,18 @@ extern char *normal_pid_to_str PARAMS ((int pid));
 #define STOPPED_BY_WATCHPOINT(w) 0
 #endif
 
+/* HP-UX supplies these operations, which respectively disable and enable
+   the memory page-protections that are used to implement hardware watchpoints
+   on that platform.  See wait_for_inferior's use of these.
+   */
+#if !defined(TARGET_DISABLE_HW_WATCHPOINTS)
+#define TARGET_DISABLE_HW_WATCHPOINTS(pid)
+#endif
+
+#if !defined(TARGET_ENABLE_HW_WATCHPOINTS)
+#define TARGET_ENABLE_HW_WATCHPOINTS(pid)
+#endif
+
 /* Provide defaults for systems that don't support hardware watchpoints. */
 
 #ifndef TARGET_HAS_HARDWARE_WATCHPOINTS
@@ -645,9 +1054,26 @@ extern char *normal_pid_to_str PARAMS ((int pid));
 
 #define TARGET_CAN_USE_HARDWARE_WATCHPOINT(TYPE,CNT,OTHERTYPE) 0
 
-/* Set/clear a hardware watchpoint starting at ADDR, for LEN bytes.  TYPE is 1
-   for read and 2 for read/write accesses.  Returns 0 for success, non-zero for
-   failure.  */
+#if !defined(TARGET_REGION_SIZE_OK_FOR_HW_WATCHPOINT)
+#define TARGET_REGION_SIZE_OK_FOR_HW_WATCHPOINT(byte_count) \
+        (LONGEST)(byte_count) <= REGISTER_SIZE
+#endif
+
+/* However, some addresses may not be profitable to use hardware to watch,
+   or may be difficult to understand when the addressed object is out of
+   scope, and hence should be unwatched.  On some targets, this may have
+   severe performance penalties, such that we might as well use regular
+   watchpoints, and save (possibly precious) hardware watchpoints for other
+   locations.
+   */
+#if !defined(TARGET_RANGE_PROFITABLE_FOR_HW_WATCHPOINT)
+#define TARGET_RANGE_PROFITABLE_FOR_HW_WATCHPOINT(pid,start,len) 0
+#endif
+
+
+/* Set/clear a hardware watchpoint starting at ADDR, for LEN bytes.  TYPE is 0
+   for write, 1 for read, and 2 for read/write accesses.  Returns 0 for
+   success, non-zero for failure.  */
 
 #define target_remove_watchpoint(ADDR,LEN,TYPE) -1
 #define target_insert_watchpoint(ADDR,LEN,TYPE) -1
@@ -668,6 +1094,38 @@ extern char *normal_pid_to_str PARAMS ((int pid));
 
 #ifndef DECR_PC_AFTER_HW_BREAK
 #define DECR_PC_AFTER_HW_BREAK 0
+#endif
+
+/* Sometimes gdb may pick up what appears to be a valid target address
+   from a minimal symbol, but the value really means, essentially,
+   "This is an index into a table which is populated when the inferior
+   is run.  Therefore, do not attempt to use this as a PC."
+   */
+#if !defined(PC_REQUIRES_RUN_BEFORE_USE)
+#define PC_REQUIRES_RUN_BEFORE_USE(pc) (0)
+#endif
+
+/* This will only be defined by a target that supports catching vfork events,
+   such as HP-UX.
+
+   On some targets (such as HP-UX 10.20 and earlier), resuming a newly vforked
+   child process after it has exec'd, causes the parent process to resume as
+   well.  To prevent the parent from running spontaneously, such targets should
+   define this to a function that prevents that from happening.
+   */
+#if !defined(ENSURE_VFORKING_PARENT_REMAINS_STOPPED)
+#define ENSURE_VFORKING_PARENT_REMAINS_STOPPED(PID) (0)
+#endif
+
+/* This will only be defined by a target that supports catching vfork events,
+   such as HP-UX.
+
+   On some targets (such as HP-UX 10.20 and earlier), a newly vforked child
+   process must be resumed when it delivers its exec event, before the parent
+   vfork event will be delivered to us.
+   */
+#if !defined(RESUME_EXECD_VFORKING_CHILD_TO_GET_PARENT_VFORK)
+#define RESUME_EXECD_VFORKING_CHILD_TO_GET_PARENT_VFORK() (0)
 #endif
 
 /* Routines for maintenance of the target structures...
@@ -722,24 +1180,40 @@ build_section_table PARAMS ((bfd *, struct section_table **,
 
 /* From mem-break.c */
 
-extern int
-memory_remove_breakpoint PARAMS ((CORE_ADDR, char *));
+extern int memory_remove_breakpoint PARAMS ((CORE_ADDR, char *));
 
-extern int
-memory_insert_breakpoint PARAMS ((CORE_ADDR, char *));
+extern int memory_insert_breakpoint PARAMS ((CORE_ADDR, char *));
+
+extern breakpoint_from_pc_fn memory_breakpoint_from_pc;
+#ifndef BREAKPOINT_FROM_PC
+#define BREAKPOINT_FROM_PC(pcptr, lenptr) memory_breakpoint_from_pc (pcptr, lenptr)
+#endif
+
 
 /* From target.c */
 
-void
+extern void
+initialize_targets PARAMS ((void));
+
+extern void
 noprocess PARAMS ((void));
 
-void
+extern void
 find_default_attach PARAMS ((char *, int));
 
 void
+find_default_require_attach PARAMS ((char *, int));
+
+void
+find_default_require_detach PARAMS ((int, char *, int));
+
+extern void
 find_default_create_inferior PARAMS ((char *, char *, char **));
 
-struct target_ops *
+void
+find_default_clone_and_follow_inferior PARAMS ((int, int *));
+
+extern struct target_ops *
 find_core_target PARAMS ((void));
 
 /* Stuff that should be shared among the various remote targets.  */
@@ -750,6 +1224,10 @@ extern int remote_debug;
 
 /* Speed in bits per second, or -1 which means don't mess with the speed.  */
 extern int baud_rate;
+/* Timeout limit for response from target. */
+extern int remote_timeout;
+
+extern asection *target_memory_bfd_section;
 
 /* Functions for helping to write a native target.  */
 
@@ -762,5 +1240,26 @@ extern int target_signal_to_host PARAMS ((enum target_signal));
 
 /* Convert from a number used in a GDB command to an enum target_signal.  */
 extern enum target_signal target_signal_from_command PARAMS ((int));
+
+/* Any target can call this to switch to remote protocol (in remote.c). */
+extern void push_remote_target PARAMS ((char *name, int from_tty));
+
+/* Imported from machine dependent code */
+
+#ifndef SOFTWARE_SINGLE_STEP_P
+#define SOFTWARE_SINGLE_STEP_P 0
+#define SOFTWARE_SINGLE_STEP(sig,bp_p) abort ()
+#endif /* SOFTWARE_SINGLE_STEP_P */
+
+/* Blank target vector entries are initialized to target_ignore. */
+void target_ignore PARAMS ((void));
+
+/* Macro for getting target's idea of a frame pointer.
+   FIXME: GDB's whole scheme for dealing with "frames" and
+   "frame pointers" needs a serious shakedown.  */
+#ifndef TARGET_VIRTUAL_FRAME_POINTER
+#define TARGET_VIRTUAL_FRAME_POINTER(ADDR, REGP, OFFP) \
+   do { *(REGP) = FP_REGNUM; *(OFFP) =  0; } while (0)
+#endif /* TARGET_VIRTUAL_FRAME_POINTER */
 
 #endif	/* !defined (TARGET_H) */
