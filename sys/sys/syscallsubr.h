@@ -32,6 +32,8 @@
 #include <sys/uio.h>
 
 struct sockaddr;
+struct msghdr;
+struct mbuf;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -70,6 +72,8 @@ int	kern_rename(struct thread *td, char *from, char *to,
 int	kern_rmdir(struct thread *td, char *path, enum uio_seg pathseg);
 int	kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	    fd_set *fd_ex, struct timeval *tvp);
+int	kern_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
+	    struct mbuf *control);
 int	kern_shmat(struct thread *td, int shmid, const void *shmaddr,
 	    int shmflg, int wantrem);
 int	kern_shmctl(struct thread *td, int shmid, int cmd, void *buf,
