@@ -63,7 +63,7 @@ MAN1=	${MAN}
 .endif
 
 .MAIN: all
-all: objwarn ${PROG} ${SCRIPTS} ${FILES}
+all: objwarn ${PROG} ${SCRIPTS}
 .if !defined(NOMAN)
 all: _manpages
 .endif
@@ -156,32 +156,7 @@ _SCRIPTSINS_${script:T}: ${script}
 .endfor
 .endif
 
-.if defined(FILES) && !empty(FILES)
-realinstall: _filesinstall
-
-FILESDIR?=	${BINDIR}
-FILESOWN?=	${SHAREOWN}
-FILESGRP?=	${SHAREGRP}
-FILESMODE?=	${SHAREMODE}
-
-.for file in ${FILES}
-.if defined(FILESNAME)
-FILESNAME_${file:T}?=	${FILESNAME}
-.else
-FILESNAME_${file:T}?=	${file:T}
-.endif
-FILESDIR_${file:T}?=	${FILESDIR}
-FILESOWN_${file:T}?=	${FILESOWN}
-FILESGRP_${file:T}?=	${FILESGRP}
-FILESMODE_${file:T}?=	${FILESMODE}
-_filesinstall: _FILESINS_${file:T}
-_FILESINS_${file:T}: ${file}
-	${INSTALL} ${COPY} -o ${FILESOWN_${.ALLSRC:T}} \
-	    -g ${FILESGRP_${.ALLSRC:T}} -m ${FILESMODE_${.ALLSRC:T}} \
-	    ${.ALLSRC} \
-	    ${DESTDIR}${FILESDIR_${.ALLSRC:T}}/${FILESNAME_${.ALLSRC:T}}
-.endfor
-.endif
+.include <bsd.files.mk>
 
 .if !defined(NOMAN)
 realinstall: _maninstall

@@ -79,6 +79,17 @@ ${SUBDIR}::
 ${__target}: _SUBDIR
 .endfor
 
+.for __target in files
+.for __stage in build install
+${__stage}${__target}:
+.if make(${__stage}${__target})
+${__stage}${__target}: _SUBDIR
+.endif
+.endfor
+${__target}:
+	cd ${.CURDIR}; ${MAKE} build${__target}; ${MAKE} install${__target}
+.endfor
+
 .if !target(install)
 .if !target(beforeinstall)
 beforeinstall:

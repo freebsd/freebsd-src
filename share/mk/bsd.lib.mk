@@ -325,6 +325,8 @@ _libinstall:
 	done; true
 .endif
 
+.include <bsd.files.mk>
+
 .if !defined(NOMAN)
 realinstall: _maninstall
 .endif
