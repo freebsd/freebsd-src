@@ -3,7 +3,6 @@
 
 
 PROG=	ls
-SRCS=	cmp.c setflags.c ls.c print.c util.c
-.PATH:	${.CURDIR}/../../lib/libc/gen
+SRCS=	cmp.c ls.c print.c util.c
 
 .include <bsd.prog.mk>

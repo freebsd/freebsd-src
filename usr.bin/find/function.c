@@ -75,8 +75,6 @@ static const char rcsid[] =
 	}								\
 }
 
-u_long	setflags __P((char **, u_long *, u_long *));
-
 static PLAN *palloc __P((enum ntype, int (*) __P((PLAN *, FTSENT *))));
 
 /*
@@ -1060,7 +1058,7 @@ c_flags(flags_str)
 		new->flags = F_ATLEAST;
 		flags_str++;
 	}
-	if (setflags(&flags_str, &flags, &notflags) == 1)
+	if (strtofflags(&flags_str, &flags, &notflags) == 1)
 		errx(1, "-flags: %s: illegal flags string", flags_str);
 
 	new->fl_flags = flags;

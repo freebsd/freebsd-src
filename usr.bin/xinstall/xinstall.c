@@ -151,7 +151,7 @@ main(argc, argv)
 			break;
 		case 'f':
 			flags = optarg;
-			if (setflags(&flags, &fset, NULL))
+			if (strtofflags(&flags, &fset, NULL))
 				errx(EX_USAGE, "%s: invalid flag", flags);
 			iflags |= SETFLAGS;
 			break;
