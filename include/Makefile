@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.45.2.4 1997/09/10 07:18:44 peter Exp $
+#	$Id: Makefile,v 1.45.2.5 1998/01/27 16:23:37 jdp Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -16,8 +16,8 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	mpool.h ndbm.h netdb.h nl_types.h nlist.h paths.h pthread.h \
 	pthread_np.h pwd.h ranlib.h regex.h regexp.h resolv.h rune.h \
 	runetype.h setjmp.h sgtty.h signal.h stab.h stddef.h stdio.h \
-	stdlib.h string.h strings.h struct.h sysexits.h tar.h time.h \
-	timers.h ttyent.h unistd.h utime.h utmp.h vis.h
+	stdlib.h string.h stringlist.h strings.h struct.h sysexits.h \
+	tar.h time.h timers.h ttyent.h unistd.h utime.h utmp.h vis.h
 .if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
 .endif
