@@ -39,7 +39,6 @@
 
 #include <stand.h>
 
-#include <sys/disklabel.h>
 
 #include <machine/stdarg.h>
 

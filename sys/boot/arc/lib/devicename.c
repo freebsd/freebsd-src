@@ -28,7 +28,6 @@
 
 #include <stand.h>
 #include <string.h>
-#include <sys/disklabel.h>
 #include "bootstrap.h"
 #include "libarc.h"
 
