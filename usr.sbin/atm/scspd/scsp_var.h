@@ -333,132 +333,128 @@ extern FILE		*scsp_trace_file;
  * Executable functions
  */
 /* scsp_cafsm.c */
-extern int	scsp_cafsm __P((Scsp_dcs *, int, void *));
+extern int	scsp_cafsm(Scsp_dcs *, int, void *);
 
 /* scsp_config.c */
-extern int	scsp_config __P((char *));
-extern int	start_dcs __P((void));
-extern int	finish_dcs __P((void));
-extern int	set_dcs_addr __P((char *, char *));
-extern int	set_dcs_ca_rexmit __P((int));
-extern int	set_dcs_csus_rexmit __P((int));
-extern int	set_dcs_csu_rexmit __P((int));
-extern int	set_dcs_csu_rexmit_max __P((int));
-extern int	set_dcs_hello_df __P((int));
-extern int	set_dcs_hello_int __P((int));
-extern int	set_dcs_hops __P((int));
-extern int	set_dcs_id __P((char *));
-extern int	set_intf __P((char *));
-extern int	set_protocol __P((int));
-extern int	set_server_group __P((int));
-extern int	start_server __P((char *));
-extern int	finish_server __P((void));
-extern int	set_log_file __P((char *));
+extern int	scsp_config(char *);
+extern int	start_dcs(void);
+extern int	finish_dcs(void);
+extern int	set_dcs_addr(char *, char *);
+extern int	set_dcs_ca_rexmit(int);
+extern int	set_dcs_csus_rexmit(int);
+extern int	set_dcs_csu_rexmit(int);
+extern int	set_dcs_csu_rexmit_max(int);
+extern int	set_dcs_hello_df(int);
+extern int	set_dcs_hello_int(int);
+extern int	set_dcs_hops(int);
+extern int	set_dcs_id(char *);
+extern int	set_intf(char *);
+extern int	set_protocol(int);
+extern int	set_server_group(int);
+extern int	start_server(char *);
+extern int	finish_server(void);
+extern int	set_log_file(char *);
 
 /* scsp_config_lex.c */
-extern int	yylex __P((void));
+extern int	yylex(void);
 
 /* scsp_config_parse.y */
 #if __STDC__
-extern void	parse_error __P((const char *, ...));
+extern void	parse_error(const char *, ...);
 #else
-extern void	parse_error __P((char *, va_alist));
+extern void	parse_error(char *, va_alist);
 #endif
 
 /* scsp_hfsm.c */
-extern int	scsp_hfsm __P((Scsp_dcs *, int, Scsp_msg *));
+extern int	scsp_hfsm(Scsp_dcs *, int, Scsp_msg *);
 
 /* scsp_if.c */
-extern int	scsp_cfsm __P((Scsp_dcs *, int, Scsp_msg *,
-			Scsp_if_msg *));
+extern int	scsp_cfsm(Scsp_dcs *, int, Scsp_msg *, Scsp_if_msg *);
 
 /* scsp_input.c */
-extern void	scsp_free_msg __P((Scsp_msg *));
-extern Scsp_msg	*scsp_parse_msg __P((char *, int));
+extern void	scsp_free_msg(Scsp_msg *);
+extern Scsp_msg	*scsp_parse_msg(char *, int);
 
 /* scsp_log.c */
 #if __STDC__
-extern void	scsp_log __P((const int, const char *, ...));
-extern void	scsp_trace __P((const char *, ...));
+extern void	scsp_log(const int, const char *, ...);
+extern void	scsp_trace(const char *, ...);
 #else
-extern void	scsp_log __P((int, char *, va_alist));
-extern void	scsp_trace __P((const char *, va_alist));
+extern void	scsp_log(int, char *, va_alist);
+extern void	scsp_trace(const char *, va_alist);
 #endif
-extern void	scsp_open_trace __P(());
-extern void	scsp_trace_msg __P((Scsp_dcs *, Scsp_msg *, int));
-extern void	scsp_mem_err __P((char *));
+extern void	scsp_open_trace();
+extern void	scsp_trace_msg(Scsp_dcs *, Scsp_msg *, int);
+extern void	scsp_mem_err(char *);
 
 /* scsp_msg.c */
-extern void	scsp_csus_ack __P((Scsp_dcs *, Scsp_msg *));
-extern int	scsp_send_ca __P((Scsp_dcs *));
-extern int	scsp_send_csus __P((Scsp_dcs *));
-extern int	scsp_send_csu_req __P((Scsp_dcs *, Scsp_csa *));
-extern int	scsp_send_csu_reply __P((Scsp_dcs *, Scsp_csa *));
-extern int	scsp_send_hello __P((Scsp_dcs *));
+extern void	scsp_csus_ack(Scsp_dcs *, Scsp_msg *);
+extern int	scsp_send_ca(Scsp_dcs *);
+extern int	scsp_send_csus(Scsp_dcs *);
+extern int	scsp_send_csu_req(Scsp_dcs *, Scsp_csa *);
+extern int	scsp_send_csu_reply(Scsp_dcs *, Scsp_csa *);
+extern int	scsp_send_hello(Scsp_dcs *);
 
 /* scsp_output.c */
-extern int	scsp_format_msg __P((Scsp_dcs *, Scsp_msg *, char **));
-extern int	scsp_send_msg __P((Scsp_dcs *, Scsp_msg *));
+extern int	scsp_format_msg(Scsp_dcs *, Scsp_msg *, char **);
+extern int	scsp_send_msg(Scsp_dcs *, Scsp_msg *);
 
 /* scsp_print.c */
-extern char	*format_hfsm_state __P((int));
-extern char	*format_hfsm_event __P((int));
-extern char	*format_cafsm_state __P((int));
-extern char	*format_cafsm_event __P((int));
-extern char	*format_cifsm_state __P((int));
-extern char	*format_cifsm_event __P((int));
-extern void	print_scsp_cse __P((FILE *, Scsp_cse *));
-extern void	print_scsp_msg __P((FILE *, Scsp_msg *));
-extern void	print_scsp_if_msg __P((FILE *, Scsp_if_msg *));
-extern void	print_scsp_pending __P((FILE *, Scsp_pending *));
-extern void	print_scsp_server __P((FILE *, Scsp_server *));
-extern void	print_scsp_dcs __P((FILE *, Scsp_dcs *));
-extern void	print_scsp_dump __P(());
+extern char	*format_hfsm_state(int);
+extern char	*format_hfsm_event(int);
+extern char	*format_cafsm_state(int);
+extern char	*format_cafsm_event(int);
+extern char	*format_cifsm_state(int);
+extern char	*format_cifsm_event(int);
+extern void	print_scsp_cse(FILE *, Scsp_cse *);
+extern void	print_scsp_msg(FILE *, Scsp_msg *);
+extern void	print_scsp_if_msg(FILE *, Scsp_if_msg *);
+extern void	print_scsp_pending(FILE *, Scsp_pending *);
+extern void	print_scsp_server(FILE *, Scsp_server *);
+extern void	print_scsp_dcs(FILE *, Scsp_dcs *);
+extern void	print_scsp_dump();
 
 /* scsp_socket.c */
-extern Scsp_dcs *	scsp_find_dcs __P((int));
-extern Scsp_server *	scsp_find_server __P((int));
-extern int		scsp_dcs_connect __P((Scsp_dcs *));
-extern int		scsp_dcs_listen __P((Scsp_server *));
-extern Scsp_dcs *	scsp_dcs_accept __P((Scsp_server *));
-extern int		scsp_dcs_read __P((Scsp_dcs *));
-extern int		scsp_server_listen __P(());
-extern int		scsp_server_accept __P((int));
-extern Scsp_if_msg *	scsp_if_sock_read __P((int));
-extern int		scsp_if_sock_write __P((int, Scsp_if_msg *));
-extern int		scsp_server_read __P((Scsp_server *));
-extern int		scsp_send_cache_ind __P((Scsp_server *));
-extern int		scsp_pending_read __P((Scsp_pending *));
+extern Scsp_dcs *	scsp_find_dcs(int);
+extern Scsp_server *	scsp_find_server(int);
+extern int		scsp_dcs_connect(Scsp_dcs *);
+extern int		scsp_dcs_listen(Scsp_server *);
+extern Scsp_dcs *	scsp_dcs_accept(Scsp_server *);
+extern int		scsp_dcs_read(Scsp_dcs *);
+extern int		scsp_server_listen();
+extern int		scsp_server_accept(int);
+extern Scsp_if_msg *	scsp_if_sock_read(int);
+extern int		scsp_if_sock_write(int, Scsp_if_msg *);
+extern int		scsp_server_read(Scsp_server *);
+extern int		scsp_send_cache_ind(Scsp_server *);
+extern int		scsp_pending_read(Scsp_pending *);
 
 /* scsp_subr.c */
-extern int		scsp_hash __P((Scsp_ckey *));
-extern int		scsp_cmp_id __P((Scsp_id *, Scsp_id *));
-extern int		scsp_cmp_key __P((Scsp_ckey *, Scsp_ckey *));
-extern int		scsp_is_atmarp_server __P((char *));
-extern Scsp_cse *	scsp_dup_cse __P((Scsp_cse *));
-extern Scsp_csa *	scsp_dup_csa __P((Scsp_csa *));
-extern Scsp_csa *	scsp_cse2csas __P((Scsp_cse *));
-extern void		scsp_dcs_cleanup __P((Scsp_dcs *));
-extern void		scsp_dcs_delete __P((Scsp_dcs *));
-extern void		scsp_server_shutdown __P((Scsp_server *));
-extern void		scsp_server_delete __P((Scsp_server *));
-extern int		scsp_get_server_info __P((Scsp_server *));
-extern void		scsp_process_ca __P((Scsp_dcs *, Scsp_ca *));
-extern void		scsp_process_cache_rsp __P((Scsp_server *,
-				Scsp_if_msg *));
-extern int		scsp_propagate_csa __P(( Scsp_dcs *,
-				Scsp_csa *));
-extern void		scsp_update_cache __P(( Scsp_dcs *,
-				Scsp_csa *));
-extern void		scsp_reconfigure __P(());
+extern int		scsp_hash(Scsp_ckey *);
+extern int		scsp_cmp_id(Scsp_id *, Scsp_id *);
+extern int		scsp_cmp_key(Scsp_ckey *, Scsp_ckey *);
+extern int		scsp_is_atmarp_server(char *);
+extern Scsp_cse *	scsp_dup_cse(Scsp_cse *);
+extern Scsp_csa *	scsp_dup_csa(Scsp_csa *);
+extern Scsp_csa *	scsp_cse2csas(Scsp_cse *);
+extern void		scsp_dcs_cleanup(Scsp_dcs *);
+extern void		scsp_dcs_delete(Scsp_dcs *);
+extern void		scsp_server_shutdown(Scsp_server *);
+extern void		scsp_server_delete(Scsp_server *);
+extern int		scsp_get_server_info(Scsp_server *);
+extern void		scsp_process_ca(Scsp_dcs *, Scsp_ca *);
+extern void		scsp_process_cache_rsp(Scsp_server *, Scsp_if_msg *);
+extern int		scsp_propagate_csa( Scsp_dcs *, Scsp_csa *);
+extern void		scsp_update_cache( Scsp_dcs *, Scsp_csa *);
+extern void		scsp_reconfigure();
 
 /* scsp_timer.c */
-extern void	scsp_open_timeout __P((Harp_timer *));
-extern void	scsp_hello_timeout __P((Harp_timer *));
-extern void	scsp_hello_rcv_timeout __P((Harp_timer *));
-extern void	scsp_ca_retran_timeout __P((Harp_timer *));
-extern void	scsp_csus_retran_timeout __P((Harp_timer *));
-extern void	scsp_csu_req_retran_timeout __P((Harp_timer *));
+extern void	scsp_open_timeout(Harp_timer *);
+extern void	scsp_hello_timeout(Harp_timer *);
+extern void	scsp_hello_rcv_timeout(Harp_timer *);
+extern void	scsp_ca_retran_timeout(Harp_timer *);
+extern void	scsp_csus_retran_timeout(Harp_timer *);
+extern void	scsp_csu_req_retran_timeout(Harp_timer *);
 
 
 

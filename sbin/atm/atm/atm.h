@@ -54,7 +54,7 @@ struct cmd {
 	int	minp;			/* Minimum number of parameters */
 	int	maxp;			/* Maximum number of parameters */
 	void	(*func)			/* Processing function */
-			__P((int, char **, struct cmd *));
+(int, char **, struct cmd *);
 	char	*help;			/* User help string */
 };
 
@@ -128,86 +128,86 @@ extern char	prefix[];		/* Current command prefix */
  * Global function declarations
  */
 	/* atm.c */
-int		do_cmd __P((struct cmd *, int, char **));
-void		usage __P((struct cmd *, char *));
-void		attach __P((int, char **, struct cmd *));
-void		detach __P((int, char **, struct cmd *));
-void		pvc_add __P((int, char **, struct cmd *));
-void		arp_add __P((int, char **, struct cmd *));
-void		pvc_dlt __P((int, char **, struct cmd *));
-void		svc_dlt __P((int, char **, struct cmd *));
-void		vcc_dlt __P((int, char **, struct cmd *, struct atmdelreq *));
-void		arp_dlt __P((int, char **, struct cmd *));
-void		help __P((int, char **, struct cmd *));
+int		do_cmd(struct cmd *, int, char **);
+void		usage(struct cmd *, char *);
+void		attach(int, char **, struct cmd *);
+void		detach(int, char **, struct cmd *);
+void		pvc_add(int, char **, struct cmd *);
+void		arp_add(int, char **, struct cmd *);
+void		pvc_dlt(int, char **, struct cmd *);
+void		svc_dlt(int, char **, struct cmd *);
+void		vcc_dlt(int, char **, struct cmd *, struct atmdelreq *);
+void		arp_dlt(int, char **, struct cmd *);
+void		help(int, char **, struct cmd *);
 
 	/* atm_eni.c */
-void		show_eni_stats __P((char *, int, char **));
-void		print_eni_oc3 __P((struct air_vinfo_rsp *));
-void		print_eni_atm __P((struct air_vinfo_rsp *));
-void		print_eni_aal0 __P((struct air_vinfo_rsp *));
-void		print_eni_aal5 __P((struct air_vinfo_rsp *));
-void		print_eni_driver __P((struct air_vinfo_rsp *));
+void		show_eni_stats(char *, int, char **);
+void		print_eni_oc3(struct air_vinfo_rsp *);
+void		print_eni_atm(struct air_vinfo_rsp *);
+void		print_eni_aal0(struct air_vinfo_rsp *);
+void		print_eni_aal5(struct air_vinfo_rsp *);
+void		print_eni_driver(struct air_vinfo_rsp *);
 
 	/* atm_fore200.c */
-void		show_fore200_stats __P((char *, int, char **));
-void		print_fore200_taxi __P((struct air_vinfo_rsp *));
-void		print_fore200_oc3 __P((struct air_vinfo_rsp *));
-void		print_fore200_dev __P((struct air_vinfo_rsp *));
-void		print_fore200_atm __P((struct air_vinfo_rsp *));
-void		print_fore200_aal0 __P((struct air_vinfo_rsp *));
-void		print_fore200_aal4 __P((struct air_vinfo_rsp *));
-void		print_fore200_aal5 __P((struct air_vinfo_rsp *));
-void		print_fore200_driver __P((struct air_vinfo_rsp *));
+void		show_fore200_stats(char *, int, char **);
+void		print_fore200_taxi(struct air_vinfo_rsp *);
+void		print_fore200_oc3(struct air_vinfo_rsp *);
+void		print_fore200_dev(struct air_vinfo_rsp *);
+void		print_fore200_atm(struct air_vinfo_rsp *);
+void		print_fore200_aal0(struct air_vinfo_rsp *);
+void		print_fore200_aal4(struct air_vinfo_rsp *);
+void		print_fore200_aal5(struct air_vinfo_rsp *);
+void		print_fore200_driver(struct air_vinfo_rsp *);
 
 	/* atm_inet.c */
 void		ip_pvcadd __P((int, char **, struct cmd *, struct atmaddreq *,
 			struct air_int_rsp *));
 
 	/* atm_print.c */
-void		print_arp_info __P((struct air_arp_rsp *));
-void		print_asrv_info __P((struct air_asrv_rsp *));
-void		print_cfg_info __P((struct air_cfg_rsp *));
-void		print_intf_info __P((struct air_int_rsp *));
-void		print_ip_vcc_info __P((struct air_ip_vcc_rsp *));
-void		print_netif_info __P((struct air_netif_rsp *));
-void		print_intf_stats __P((struct air_phy_stat_rsp *));
-void		print_vcc_stats __P((struct air_vcc_rsp *));
-void		print_vcc_info __P((struct air_vcc_rsp *));
-void		print_version_info __P((struct air_version_rsp *));
+void		print_arp_info(struct air_arp_rsp *);
+void		print_asrv_info(struct air_asrv_rsp *);
+void		print_cfg_info(struct air_cfg_rsp *);
+void		print_intf_info(struct air_int_rsp *);
+void		print_ip_vcc_info(struct air_ip_vcc_rsp *);
+void		print_netif_info(struct air_netif_rsp *);
+void		print_intf_stats(struct air_phy_stat_rsp *);
+void		print_vcc_stats(struct air_vcc_rsp *);
+void		print_vcc_info(struct air_vcc_rsp *);
+void		print_version_info(struct air_version_rsp *);
 
 	/* atm_set.c */
-void		set_arpserver __P((int, char **, struct cmd *));
-void		set_macaddr __P((int, char **, struct cmd *));
-void		set_netif __P((int, char **, struct cmd *));
-void		set_prefix __P((int, char **, struct cmd *));
+void		set_arpserver(int, char **, struct cmd *);
+void		set_macaddr(int, char **, struct cmd *);
+void		set_netif(int, char **, struct cmd *);
+void		set_prefix(int, char **, struct cmd *);
 
 	/* atm_show.c */
-void		show_arp __P((int, char **, struct cmd *));
-void		show_arpserv __P((int, char **, struct cmd *));
-void		show_config __P((int, char **, struct cmd *));
-void		show_intf __P((int, char **, struct cmd *));
-void		show_ip_vcc __P((int, char **, struct cmd *));
-void		show_netif __P((int, char **, struct cmd *));
-void		show_intf_stats __P((int, char **, struct cmd *));
-void		show_vcc_stats __P((int, char **, struct cmd *));
-void		show_vcc __P((int, char **, struct cmd *));
-void		show_version __P((int, char **, struct cmd *));
+void		show_arp(int, char **, struct cmd *);
+void		show_arpserv(int, char **, struct cmd *);
+void		show_config(int, char **, struct cmd *);
+void		show_intf(int, char **, struct cmd *);
+void		show_ip_vcc(int, char **, struct cmd *);
+void		show_netif(int, char **, struct cmd *);
+void		show_intf_stats(int, char **, struct cmd *);
+void		show_vcc_stats(int, char **, struct cmd *);
+void		show_vcc(int, char **, struct cmd *);
+void		show_version(int, char **, struct cmd *);
 
 	/* atm_subr.c */
-char *		get_vendor __P((int));
-char *		get_adapter __P((int));
-char *		get_media_type __P((int));
-char *		get_bus_type __P((int));
-char *		get_bus_slot_info __P((int, u_long));
-char *		get_adapter_name __P((char *));
-int		do_info_ioctl __P((struct atminfreq *, int));
-int		get_vcc_info __P((char *, struct air_vcc_rsp **));
-int		verify_nif_name __P((char *));
+char *		get_vendor(int);
+char *		get_adapter(int);
+char *		get_media_type(int);
+char *		get_bus_type(int);
+char *		get_bus_slot_info(int, u_long);
+char *		get_adapter_name(char *);
+int		do_info_ioctl(struct atminfreq *, int);
+int		get_vcc_info(char *, struct air_vcc_rsp **);
+int		verify_nif_name(char *);
 struct sockaddr_in *
-		get_ip_addr __P((char *));
-int		get_hex_addr __P((char *, u_char *, int));
-char *		format_mac_addr __P((Mac_addr *));
-int		parse_ip_prefix __P((char *, struct in_addr *));
-int		compress_prefix_list __P((struct in_addr *, int));
-void		check_netif_name __P((char *));
-void		sock_error __P((int));
+		get_ip_addr(char *);
+int		get_hex_addr(char *, u_char *, int);
+char *		format_mac_addr(Mac_addr *);
+int		parse_ip_prefix(char *, struct in_addr *);
+int		compress_prefix_list(struct in_addr *, int);
+void		check_netif_name(char *);
+void		sock_error(int);

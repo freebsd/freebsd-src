@@ -70,28 +70,17 @@ __RCSID("@(#) $FreeBSD$");
  * SCSP client server interface FSM actions
  */
 #define	SCSP_CIFSM_ACTION_CNT	11
-int	scsp_client_act_00
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_01
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_02
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_03
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_04
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_05
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_06
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_07
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_08
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_09
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
-int	scsp_client_act_10
-			__P((Scsp_dcs *, Scsp_msg *, Scsp_if_msg *));
+int	scsp_client_act_00(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_01(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_02(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_03(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_04(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_05(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_06(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_07(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_08(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_09(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
+int	scsp_client_act_10(Scsp_dcs *, Scsp_msg *, Scsp_if_msg *);
 
 static int (*scsp_action_vector[SCSP_CIFSM_ACTION_CNT])() = {
 	scsp_client_act_00,

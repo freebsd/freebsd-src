@@ -180,46 +180,45 @@ extern FILE		*atmarp_log_file;
  */
 
 /* atmarp_config.c */
-extern int	atmarp_cfg_netif __P((char *));
+extern int	atmarp_cfg_netif(char *);
 
 /* atmarp_log.c */
 #if __STDC__
-extern void	atmarp_log __P((const int, const char *, ...));
+extern void	atmarp_log(const int, const char *, ...);
 #else
-extern void	atmarp_log __P((int, char *, va_alist));
+extern void	atmarp_log(int, char *, va_alist);
 #endif
-extern void	atmarp_mem_err __P((char *));
+extern void	atmarp_mem_err(char *);
 
 /* atmarp_scsp.c */
-extern int	atmarp_scsp_cache __P((Atmarp_intf *, Scsp_if_msg *));
-extern int	atmarp_scsp_update __P((Atmarp *, int));
-extern int	atmarp_scsp_update_in __P((Atmarp_intf *,
-			Scsp_if_msg *));
-extern int	atmarp_scsp_read __P((Atmarp_intf *));
-extern int	atmarp_scsp_out __P((Atmarp_intf *, char *, int));
-extern int	atmarp_scsp_connect __P((Atmarp_intf *));
-extern void	atmarp_scsp_close __P((Atmarp_intf *));
-extern int	atmarp_scsp_disconnect __P((Atmarp_intf *));
+extern int	atmarp_scsp_cache(Atmarp_intf *, Scsp_if_msg *);
+extern int	atmarp_scsp_update(Atmarp *, int);
+extern int	atmarp_scsp_update_in(Atmarp_intf *, Scsp_if_msg *);
+extern int	atmarp_scsp_read(Atmarp_intf *);
+extern int	atmarp_scsp_out(Atmarp_intf *, char *, int);
+extern int	atmarp_scsp_connect(Atmarp_intf *);
+extern void	atmarp_scsp_close(Atmarp_intf *);
+extern int	atmarp_scsp_disconnect(Atmarp_intf *);
 
 /* atmarp_subr.c */
-extern Atmarp_intf	 *atmarp_find_intf_sock __P((int));
-extern Atmarp_intf	 *atmarp_find_intf_name __P((char *));
-extern void	atmarp_clear_marks __P(());
-extern int	atmarp_is_server __P((Atmarp_intf *));
-extern int	atmarp_if_ready __P((Atmarp_intf *));
-extern Atmarp *	atmarp_copy_cache_entry __P((struct air_arp_rsp *));
-extern int	atmarp_update_kernel __P((Atmarp *));
-extern void	atmarp_get_updated_cache __P(());
-extern void	atmarp_process_cache_entry __P((struct air_arp_rsp *));
-extern void	print_atmarp_intf __P((FILE *, Atmarp_intf *));
-extern void	print_atmarp_cache __P((FILE *, Atmarp *));
-extern void	dump_atmarp_cache __P((FILE *, Atmarp_intf *));
-extern void	atmarp_sigint __P((int));
+extern Atmarp_intf	 *atmarp_find_intf_sock(int);
+extern Atmarp_intf	 *atmarp_find_intf_name(char *);
+extern void	atmarp_clear_marks();
+extern int	atmarp_is_server(Atmarp_intf *);
+extern int	atmarp_if_ready(Atmarp_intf *);
+extern Atmarp *	atmarp_copy_cache_entry(struct air_arp_rsp *);
+extern int	atmarp_update_kernel(Atmarp *);
+extern void	atmarp_get_updated_cache();
+extern void	atmarp_process_cache_entry(struct air_arp_rsp *);
+extern void	print_atmarp_intf(FILE *, Atmarp_intf *);
+extern void	print_atmarp_cache(FILE *, Atmarp *);
+extern void	dump_atmarp_cache(FILE *, Atmarp_intf *);
+extern void	atmarp_sigint(int);
 
 /* atmarp_timer.c */
-extern void	atmarp_cache_timeout __P((Harp_timer *));
-extern void	atmarp_perm_timeout __P((Harp_timer *));
-extern void	atmarp_keepalive_timeout __P((Harp_timer *));
+extern void	atmarp_cache_timeout(Harp_timer *);
+extern void	atmarp_perm_timeout(Harp_timer *);
+extern void	atmarp_keepalive_timeout(Harp_timer *);
 
 
 #endif	/* _ATMARP_ATMARP_VAR_H */

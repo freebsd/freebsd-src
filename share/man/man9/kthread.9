@@ -69,7 +69,7 @@ which describes the kernel thread that should be created:
 .Bd -literal -offset indent
 struct kproc_desc {
         char            *arg0;
-        void            (*func) __P((void));
+        void            (*func)(void);
         struct proc     **global_procpp;
 };
 .Ed
