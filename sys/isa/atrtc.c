@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.67 1996/08/02 21:16:26 bde Exp $
+ *	$Id: clock.c,v 1.68 1996/09/14 04:27:39 bde Exp $
  */
 
 /*
@@ -47,7 +47,7 @@
 /*
  * Primitive clock interrupt routines.
  */
-#include "opt_ddb.h"
+
 #include "opt_clock.h"
 
 #include <sys/param.h>
@@ -323,16 +323,18 @@ rtcintr(struct clockframe frame)
 	}
 }
 
+#include "opt_ddb.h"
 #ifdef DDB
-static void
-DDB_printrtc(void)
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(rtc, rtc)
 {
 	printf("%02x/%02x/%02x %02x:%02x:%02x, A = %02x, B = %02x, C = %02x\n",
 	       rtcin(RTC_YEAR), rtcin(RTC_MONTH), rtcin(RTC_DAY),
 	       rtcin(RTC_HRS), rtcin(RTC_MIN), rtcin(RTC_SEC),
 	       rtcin(RTC_STATUSA), rtcin(RTC_STATUSB), rtcin(RTC_INTR));
 }
-#endif
+#endif /* DDB */
 
 static int
 getit(void)
