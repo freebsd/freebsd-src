@@ -151,6 +151,14 @@
       <literal>0</literal>.  This value can also be set from the
       loader as a tunable of the same name.</para>
 
+    <para>Some of the packages contained in the first CD-ROM depend on
+      different versions of the <application>OpenLDAP</application>
+      packages, which cannot co-exist on the same host.  One
+      manifestation of this problem is that it is not possible to
+      install both the <filename role="package">x11/gnome2</filename>
+      and <filename role="package">x11/kde3</filename>
+      packages.</para>
+
 ]]>
   </sect1>
 </article>
