@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.h,v 1.2 1999/03/03 21:10:29 sos Exp $
+ *	$Id: atapi-all.h,v 1.3 1999/03/07 21:49:14 sos Exp $
  */
 
 /* ATAPI misc defines */
@@ -50,7 +50,7 @@
 #define ATAPI_SK_HARDWARE_ERROR   	0x40    /* non-recoverable HW failure */
 #define ATAPI_SK_ILLEGAL_REQUEST  	0x50    /* invalid command param(s) */
 #define ATAPI_SK_UNIT_ATTENTION   	0x60    /* media changed */
-#define ATAPI_SK_DATA_PROTECT     	0x70    /* reading read-protected sec */
+#define ATAPI_SK_DATA_PROTECT     	0x70    /* write protect */
 #define ATAPI_SK_BLANK_CHECK  		0x80    /* blank check */
 #define ATAPI_SK_VENDOR_SPECIFIC 	0x90    /* vendor specific skey */
 #define ATAPI_SK_COPY_ABORTED  		0xa0    /* copy aborted */
@@ -109,13 +109,25 @@ struct atapi_params {
     u_int8_t	proto 		:2;		/* command protocol */
 #define 	ATAPI_PROTO_ATAPI	2
 
-    int16_t	reserved1[9];
+    int16_t	reserved1;
+    int16_t	reserved2;
+    int16_t	reserved3;
+    int16_t	reserved4;
+    int16_t	reserved5;
+    int16_t	reserved6;
+    int16_t	reserved7;
+    int16_t	reserved8;
+    int16_t	reserved9;
     int8_t	serial[20];			/* serial number */
-    int16_t	reserved2[3];
+    int16_t	reserved20;
+    int16_t	reserved21;
+    int16_t	reserved22;
     int8_t	revision[8];			/* firmware revision */
     int8_t	model[40];			/* model name */
-    int16_t	reserved3[2];
-    u_int8_t	vendor_cap;			/* vendor capabilities */
+    int16_t	reserved47;
+    int16_t	reserved48;
+
+    u_int8_t	vendorcap;			/* vendor capabilities */
     u_int8_t	dmaflag 	:1;		/* DMA supported */
     u_int8_t	lbaflag		:1;		/* LBA supported - always 1 */
     u_int8_t	iordydis	:1;		/* IORDY can be disabled */
@@ -124,27 +136,52 @@ struct atapi_params {
     u_int8_t	ovlapflag	:1;		/* overlap supported */
     u_int8_t		 	:1;
     u_int8_t	idmaflag	:1;		/* interleaved DMA supported */
-    int16_t	reserved4;
-    u_int16_t	pio_timing;			/* PIO cycle timing */
-    u_int16_t	dma_timing;			/* DMA cycle timing */
-    u_int16_t	flags;
+    int16_t	capvalidate;			/* validation for above */
+
+    u_int16_t	piotiming;			/* PIO cycle timing */
+    u_int16_t	dmatiming;			/* DMA cycle timing */
+
+    u_int16_t	atavalid;			/* fields valid */
 #define 	ATAPI_FLAG_54_58	1	/* words 54-58 valid */
 #define 	ATAPI_FLAG_64_70	2	/* words 64-70 valid */
 
-    int16_t	reserved5[8];
-    u_int8_t	swdma_flag;			/* singleword DMA supported */
-    u_int8_t	swdma_active;			/* singleword DMA active */
-    u_int8_t	mwdma_flag;			/* multiword DMA supported */
-    u_int8_t	mwdma_active;			/* multiword DMA active */
-    u_int8_t	apio_flag;			/* advanced PIO supported */
-    u_int8_t	reserved6;
-    u_int16_t	mwdma_min;			/* min. M/W DMA time/word ns */
-    u_int16_t	mwdma_dflt;			/* rec. M/W DMA time ns */
-    u_int16_t	pio_nfctl_min;			/* min. PIO cycle w/o flow */
-    u_int16_t	pio_iordy_min;			/* min. PIO cycle IORDY flow */
-    int16_t	reserved7[2];
-    u_int16_t	rls_ovlap;			/* rel time (us) for overlap */
-    u_int16_t	rls_service;			/* rel time (us) for service */
+    int16_t	reserved54[8];
+
+    int16_t     sdmamodes;                      /* singleword DMA modes */
+    int16_t     wdmamodes;                      /* multiword DMA modes */
+    int16_t     apiomodes;                      /* advanced PIO modes */ 
+
+    u_int16_t	mwdmamin;			/* min. M/W DMA time/word ns */
+    u_int16_t	mwdmarec;			/* rec. M/W DMA time ns */
+    u_int16_t	pioblind;			/* min. PIO cycle w/o flow */
+    u_int16_t	pioiordy;			/* min. PIO cycle IORDY flow */
+
+    int16_t	reserved69;
+    int16_t	reserved70;
+    u_int16_t	rlsovlap;			/* rel time (us) for overlap */
+    u_int16_t	rlsservice;			/* rel time (us) for service */
+    int16_t     reserved73;
+    int16_t     reserved74;
+    int16_t     queuelen;
+    int16_t     reserved76;
+    int16_t     reserved77;
+    int16_t     reserved78;
+    int16_t     reserved79;
+    int16_t     versmajor;
+    int16_t     versminor;
+    int16_t     featsupp1;
+    int16_t     featsupp2;
+    int16_t     featsupp3;
+    int16_t     featenab1;
+    int16_t     featenab2;
+    int16_t     featenab3;
+    int16_t     udmamodes;			/* UltraDMA modes */
+    int16_t     erasetime;
+    int16_t     enherasetime;
+    int16_t     apmlevel;
+    int16_t     reserved92[34];
+    int16_t     rmvcap;
+    int16_t     securelevel;
 };
 
 /* ATAPI REQUEST SENSE structure */   
@@ -186,6 +223,8 @@ struct atapi_request {
     int32_t			ccbsize;	/* size of ccb (12 | 16) */
     int32_t			flags;
 #define		A_READ			0x0001
+#define		ATAPI_F_DMA_ENABLED	0x0002
+#define		ATAPI_F_DMA_USED	0x0004
 
     u_int32_t                   bytecount;      /* bytes to transfer */
     u_int32_t                   result;		/* result code */

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ata-disk.h,v 1.3 1999/03/05 09:43:30 sos Exp $
+ *	$Id: ata-disk.h,v 1.4 1999/03/07 21:49:14 sos Exp $
  */
 
 /* ATA device parameter information */
@@ -37,7 +37,7 @@ struct ata_params {
     int16_t	unfbytespertrk;			/* # unformatted bytes/track */
     int16_t	unfbytes;			/* # unformatted bytes/sector */
     u_int16_t	sectors;			/* # sectors/track */
-    int16_t	vendorunique[3];
+    int16_t	vendorunique0[3];
     int8_t	serial[20];			/* serial number */
     int16_t	buffertype;			/* buffer type */
 #define	ATA_BT_SINGLEPORTSECTOR		1	/* 1 port, 1 sector buffer */
@@ -51,14 +51,27 @@ struct ata_params {
     int8_t	nsecperint;			/* sectors per interrupt */
     int8_t	vendorunique1;
     int16_t	usedmovsd;			/* double word read/write? */
-    int8_t	vendorunique2;
-    int8_t	capability;			/* various capability bits */
-    int16_t	cap_validate;			/* validation for above */
+
+    u_int8_t    vendorcap;                      /* vendor capabilities */
+    u_int8_t    dmaflag         :1;             /* DMA supported - always 1 */
+    u_int8_t    lbaflag         :1;             /* LBA supported - always 1 */
+    u_int8_t    iordydis        :1;             /* IORDY may be disabled */
+    u_int8_t    iordyflag       :1;             /* IORDY supported */
+    u_int8_t                    :1;
+    u_int8_t    standby		:1;		/* standby timer supported */
+    u_int8_t                    :1;
+    u_int8_t    		:1;
+    int16_t	capvalidate;			/* validation for above */
+
     int8_t	vendorunique3;
     int8_t	opiomode;			/* PIO modes 0-2 */
     int8_t	vendorunique4;
     int8_t	odmamode;			/* old DMA modes, not ATA-3 */
+
     int16_t	atavalid;			/* fields valid */
+#define         ATA_FLAG_54_58        1         /* words 54-58 valid */
+#define         ATA_FLAG_64_70        2         /* words 64-70 valid */
+
     int16_t	currcyls;
     int16_t	currheads;
     int16_t	currsectors;
@@ -67,17 +80,20 @@ struct ata_params {
     int8_t	currmultsect;
     int8_t	multsectvalid;
     int32_t	lbasize;
-    int16_t	dmasword;			/* obsolete in ATA-3 */
-    int16_t	dmamword;			/* multiword DMA modes */
-    int16_t	eidepiomodes;			/* advanced PIO modes */
-    int16_t	eidedmamin;			/* fastest DMA timing */
-    int16_t	eidedmanorm;			/* recommended DMA timing */
-    int16_t	eidepioblind;			/* fastest possible blind PIO */
-    int16_t	eidepioacked;			/* fastest possible IORDY PIO */
+
+    int16_t     sdmamodes;                      /* singleword DMA modes */ 
+    int16_t     wdmamodes;                      /* multiword DMA modes */ 
+    int16_t     apiomodes;                      /* advanced PIO modes */ 
+
+    u_int16_t   mwdmamin;                       /* min. M/W DMA time/word ns */
+    u_int16_t   mwdmarec;                       /* rec. M/W DMA time ns */
+    u_int16_t   pioblind;                       /* min. PIO cycle w/o flow */
+    u_int16_t   pioiordy;                       /* min. PIO cycle IORDY flow */
+
     int16_t	reserved69;
     int16_t	reserved70;
-    int16_t	reserved71;
-    int16_t	reserved72;
+    u_int16_t   rlsovlap;                       /* rel time (us) for overlap */
+    u_int16_t   rlsservice;                     /* rel time (us) for service */
     int16_t	reserved73;
     int16_t	reserved74;
     int16_t	queuelen;
@@ -93,7 +109,7 @@ struct ata_params {
     int16_t	featenab1;
     int16_t	featenab2;
     int16_t	featenab3;
-    int16_t	udmamode;			/* UltraDMA modes */
+    int16_t	udmamodes;			/* UltraDMA modes */
     int16_t	erasetime;
     int16_t	enherasetime;
     int16_t	apmlevel;
@@ -120,8 +136,13 @@ struct ad_softc {
     u_int32_t			donecount;	/* bytes transferred */
     u_int32_t			active;		/* active processing request */
     u_int32_t			flags;		/* drive flags */
-    struct devstat 		stats;		/* devstat entry */
 #define		AD_F_LABELLING		0x0001		
+#define		AD_F_USE_LBA		0x0002
+#define		AD_F_USE_32BIT		0x0004
+#define		AD_F_DMA_ENABLED	0x0008
+#define		AD_F_DMA_USED		0x0010
+
+    struct devstat 		stats;		/* devstat entry */
 #ifdef DEVFS
     void			*cdevs_token;
     void			*bdevs_token;

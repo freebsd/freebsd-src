@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-fd.c,v 1.2 1999/03/05 09:43:30 sos Exp $
+ *	$Id: atapi-fd.c,v 1.3 1999/03/07 21:49:14 sos Exp $
  */
 
 #include "ata.h"
@@ -51,6 +51,7 @@
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
+#include <pci/pcivar.h>
 #include <dev/ata/ata-all.h>
 #include <dev/ata/atapi-all.h>
 #include <dev/ata/atapi-fd.h>
@@ -62,8 +63,8 @@ static	d_write_t	afdwrite;
 static  d_ioctl_t	afdioctl;
 static  d_strategy_t	afdstrategy;
 
-#define CDEV_MAJOR 87
-#define BDEV_MAJOR 1
+#define BDEV_MAJOR 32
+#define CDEV_MAJOR 118
 
 static struct cdevsw afd_cdevsw = {
 	  afdopen,	afdclose,	afdread,	afdwrite,
@@ -176,7 +177,7 @@ afd_describe(struct afd_softc *fdp)
     bpack(fdp->atp->atapi_parm->revision, revision_buf, sizeof(revision_buf));
     printf("afd%d: <%s/%s> rewriteable drive at ata%d as %s\n",
 	   fdp->lun, model_buf, revision_buf,
-           fdp->atp->controller->unit,
+           fdp->atp->controller->lun,
 	   (fdp->atp->unit == ATA_MASTER) ? "master" : "slave ");
     printf("afd%d: %luMB (%u sectors), %u cyls, %u heads, %u S/T, %u B/S\n",
            afdnlun, 
@@ -295,9 +296,7 @@ afdstrategy(struct buf *bp)
         return;
     }
     if (dscheck(bp, fdp->slices) <= 0) {
-        x = splbio();
         biodone(bp);
-	splx(x);
         return;
     }
     x = splbio();
