@@ -158,7 +158,7 @@
 #include "log.h"
 #include "atomicio.h"
 
-RCSID("$Id: loginrec.c,v 1.52 2003/07/06 05:20:46 dtucker Exp $");
+RCSID("$Id: loginrec.c,v 1.54 2004/02/10 05:49:35 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef HAVE_UTIL_H
@@ -443,7 +443,7 @@ login_write (struct logininfo *li)
 int
 login_utmp_only(struct logininfo *li)
 {
-	li->type = LTYPE_LOGIN; 
+	li->type = LTYPE_LOGIN;
 	login_set_current_time(li);
 # ifdef USE_UTMP
 	utmp_write_entry(li);
@@ -1185,6 +1185,7 @@ wtmp_get_entry(struct logininfo *li)
 static int
 wtmpx_write(struct logininfo *li, struct utmpx *utx)
 {
+#ifndef HAVE_UPDWTMPX
 	struct stat buf;
 	int fd, ret = 1;
 
@@ -1204,6 +1205,10 @@ wtmpx_write(struct logininfo *li, struct utmpx *utx)
 	(void)close(fd);
 
 	return ret;
+#else
+	updwtmpx(WTMPX_FILE, utx);
+	return 1;
+#endif
 }
 
 
@@ -1536,7 +1541,7 @@ lastlog_get_entry(struct logininfo *li)
 		lastlog_populate_entry(li, &last);
 		return (1);
 	case -1:
-		error("%s: Error reading from %s: %s", __func__, 
+		error("%s: Error reading from %s: %s", __func__,
 		    LASTLOG_FILE, strerror(errno));
 		return (0);
 	default:

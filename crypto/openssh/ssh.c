@@ -13,7 +13,7 @@
  * called by a name other than "ssh" or "Secure Shell".
  *
  * Copyright (c) 1999 Niels Provos.  All rights reserved.
- * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000, 2001, 2002, 2003 Markus Friedl.  All rights reserved.
  *
  * Modified to work with SSL by Niels Provos <provos@citi.umich.edu>
  * in Canada (German citizen).
@@ -40,7 +40,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh.c,v 1.201 2003/09/01 18:15:50 markus Exp $");
+RCSID("$OpenBSD: ssh.c,v 1.206 2003/12/16 15:49:51 markus Exp $");
 RCSID("$FreeBSD$");
 
 #include <openssl/evp.h>
@@ -156,6 +156,7 @@ usage(void)
 	fprintf(stderr, "  -A          Enable authentication agent forwarding.\n");
 	fprintf(stderr, "  -a          Disable authentication agent forwarding (default).\n");
 	fprintf(stderr, "  -X          Enable X11 connection forwarding.\n");
+	fprintf(stderr, "  -Y          Enable trusted X11 connection forwarding.\n");
 	fprintf(stderr, "  -x          Disable X11 connection forwarding (default).\n");
 	fprintf(stderr, "  -i file     Identity for public key authentication "
 	    "(default: ~/.ssh/identity)\n");
@@ -205,7 +206,7 @@ main(int ac, char **av)
 	int i, opt, exit_status;
 	u_short fwd_port, fwd_host_port;
 	char sfwd_port[6], sfwd_host_port[6];
-	char *p, *cp, buf[256];
+	char *p, *cp, *line, buf[256];
 	struct stat st;
 	struct passwd *pw;
 	int dummy;
@@ -221,7 +222,7 @@ main(int ac, char **av)
 	 */
 	original_real_uid = getuid();
 	original_effective_uid = geteuid();
- 
+
 	/*
 	 * Use uid-swapping to give up root privileges for the duration of
 	 * option processing.  We will re-instantiate the rights when we are
@@ -265,7 +266,7 @@ main(int ac, char **av)
 
 again:
 	while ((opt = getopt(ac, av,
-	    "1246ab:c:e:fgi:kl:m:no:p:qstvxACD:F:I:L:NPR:TVX")) != -1) {
+	    "1246ab:c:e:fgi:kl:m:no:p:qstvxACD:F:I:L:NPR:TVXY")) != -1) {
 		switch (opt) {
 		case '1':
 			options.protocol = SSH_PROTO_1;
@@ -292,6 +293,10 @@ again:
 		case 'X':
 			options.forward_x11 = 1;
 			break;
+		case 'Y':
+			options.forward_x11 = 1;
+			options.forward_x11_trusted = 1;
+			break;
 		case 'g':
 			options.gateway_ports = 1;
 			break;
@@ -305,7 +310,7 @@ again:
 			options.forward_agent = 1;
 			break;
 		case 'k':
-			/* ignored for backward compatibility */
+			options.gss_deleg_creds = 0;
 			break;
 		case 'i':
 			if (stat(optarg, &st) < 0) {
@@ -460,9 +465,11 @@ again:
 			break;
 		case 'o':
 			dummy = 1;
+			line = xstrdup(optarg);
 			if (process_config_line(&options, host ? host : "",
-			    optarg, "command-line", 0, &dummy) != 0)
+			    line, "command-line", 0, &dummy) != 0)
 				exit(1);
+			xfree(line);
 			break;
 		case 's':
 			subsystem_flag = 1;
@@ -730,7 +737,7 @@ again:
 	packet_close();
 
 	/*
-	 * Send SIGHUP to proxy command if used. We don't wait() in 
+	 * Send SIGHUP to proxy command if used. We don't wait() in
 	 * case it hangs and instead rely on init to reap the child
 	 */
 	if (proxy_command_pid > 1)
@@ -739,19 +746,25 @@ again:
 	return exit_status;
 }
 
+#define SSH_X11_PROTO "MIT-MAGIC-COOKIE-1"
+
 static void
 x11_get_proto(char **_proto, char **_data)
 {
+	char cmd[1024];
 	char line[512];
+	char xdisplay[512];
 	static char proto[512], data[512];
 	FILE *f;
-	int got_data = 0, i;
-	char *display;
+	int got_data = 0, generated = 0, do_unlink = 0, i;
+	char *display, *xauthdir, *xauthfile;
 	struct stat st;
 
+	xauthdir = xauthfile = NULL;
 	*_proto = proto;
 	*_data = data;
 	proto[0] = data[0] = '\0';
+
 	if (!options.xauth_location ||
 	    (stat(options.xauth_location, &st) == -1)) {
 		debug("No xauth program.");
@@ -760,28 +773,59 @@ x11_get_proto(char **_proto, char **_data)
 			debug("x11_get_proto: DISPLAY not set");
 			return;
 		}
-		/* Try to get Xauthority information for the display. */
-		if (strncmp(display, "localhost:", 10) == 0)
-			/*
-			 * Handle FamilyLocal case where $DISPLAY does
-			 * not match an authorization entry.  For this we
-			 * just try "xauth list unix:displaynum.screennum".
-			 * XXX: "localhost" match to determine FamilyLocal
-			 *      is not perfect.
-			 */
-			snprintf(line, sizeof line, "%s list unix:%s 2>"
-			    _PATH_DEVNULL, options.xauth_location, display+10);
-		else
-			snprintf(line, sizeof line, "%s list %.200s 2>"
-			    _PATH_DEVNULL, options.xauth_location, display);
-		debug2("x11_get_proto: %s", line);
-		f = popen(line, "r");
+		/*
+		 * Handle FamilyLocal case where $DISPLAY does
+		 * not match an authorization entry.  For this we
+		 * just try "xauth list unix:displaynum.screennum".
+		 * XXX: "localhost" match to determine FamilyLocal
+		 *      is not perfect.
+		 */
+		if (strncmp(display, "localhost:", 10) == 0) {
+			snprintf(xdisplay, sizeof(xdisplay), "unix:%s",
+			    display + 10);
+			display = xdisplay;
+		}
+		if (options.forward_x11_trusted == 0) {
+			xauthdir = xmalloc(MAXPATHLEN);
+			xauthfile = xmalloc(MAXPATHLEN);
+			strlcpy(xauthdir, "/tmp/ssh-XXXXXXXXXX", MAXPATHLEN);
+			if (mkdtemp(xauthdir) != NULL) {
+				do_unlink = 1;
+				snprintf(xauthfile, MAXPATHLEN, "%s/xauthfile",
+				    xauthdir);
+				snprintf(cmd, sizeof(cmd),
+				    "%s -f %s generate %s " SSH_X11_PROTO
+				    " untrusted timeout 120 2>" _PATH_DEVNULL,
+				    options.xauth_location, xauthfile, display);
+				debug2("x11_get_proto: %s", cmd);
+				if (system(cmd) == 0)
+					generated = 1;
+			}
+		}
+		snprintf(cmd, sizeof(cmd),
+		    "%s %s%s list %s . 2>" _PATH_DEVNULL,
+		    options.xauth_location,
+		    generated ? "-f " : "" ,
+		    generated ? xauthfile : "",
+		    display);
+		debug2("x11_get_proto: %s", cmd);
+		f = popen(cmd, "r");
 		if (f && fgets(line, sizeof(line), f) &&
 		    sscanf(line, "%*s %511s %511s", proto, data) == 2)
 			got_data = 1;
 		if (f)
 			pclose(f);
 	}
+
+	if (do_unlink) {
+		unlink(xauthfile);
+		rmdir(xauthdir);
+	}
+	if (xauthdir)
+		xfree(xauthdir);
+	if (xauthfile)
+		xfree(xauthfile);
+
 	/*
 	 * If we didn't get authentication data, just make up some
 	 * data.  The forwarding code will check the validity of the
@@ -793,12 +837,14 @@ x11_get_proto(char **_proto, char **_data)
 	if (!got_data) {
 		u_int32_t rand = 0;
 
-		logit("Warning: No xauth data; using fake authentication data for X11 forwarding.");
-		strlcpy(proto, "MIT-MAGIC-COOKIE-1", sizeof proto);
+		logit("Warning: No xauth data; "
+		    "using fake authentication data for X11 forwarding.");
+		strlcpy(proto, SSH_X11_PROTO, sizeof proto);
 		for (i = 0; i < 16; i++) {
 			if (i % 4 == 0)
 				rand = arc4random();
-			snprintf(data + 2 * i, sizeof data - 2 * i, "%02x", rand & 0xff);
+			snprintf(data + 2 * i, sizeof data - 2 * i, "%02x",
+			    rand & 0xff);
 			rand >>= 8;
 		}
 	}
@@ -1001,16 +1047,13 @@ client_subsystem_reply(int type, u_int32_t seq, void *ctxt)
 }
 
 void
-client_global_request_reply(int type, u_int32_t seq, void *ctxt)
+client_global_request_reply_fwd(int type, u_int32_t seq, void *ctxt)
 {
 	int i;
 
 	i = client_global_request_id++;
-	if (i >= options.num_remote_forwards) {
-		debug("client_global_request_reply: too many replies %d > %d",
-		    i, options.num_remote_forwards);
+	if (i >= options.num_remote_forwards)
 		return;
-	}
 	debug("remote forward %s for: listen %d, connect %s:%d",
 	    type == SSH2_MSG_REQUEST_SUCCESS ? "success" : "failure",
 	    options.remote_forwards[i].port,

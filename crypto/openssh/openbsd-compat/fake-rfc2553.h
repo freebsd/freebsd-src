@@ -1,4 +1,4 @@
-/* $Id: fake-rfc2553.h,v 1.6.2.1 2003/09/22 02:09:18 dtucker Exp $ */
+/* $Id: fake-rfc2553.h,v 1.8 2004/02/10 02:05:41 dtucker Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -134,19 +134,23 @@ struct addrinfo {
 #endif /* !HAVE_STRUCT_ADDRINFO */
 
 #ifndef HAVE_GETADDRINFO
+#define getaddrinfo(a,b,c,d)	(ssh_getaddrinfo(a,b,c,d))
 int getaddrinfo(const char *, const char *, 
     const struct addrinfo *, struct addrinfo **);
 #endif /* !HAVE_GETADDRINFO */
 
 #if !defined(HAVE_GAI_STRERROR) && !defined(HAVE_CONST_GAI_STRERROR_PROTO)
+#define gai_strerror(a)		(ssh_gai_strerror(a))
 char *gai_strerror(int);
 #endif /* !HAVE_GAI_STRERROR */
 
 #ifndef HAVE_FREEADDRINFO
+#define freeaddrinfo(a)		(ssh_freeaddrinfo(a))
 void freeaddrinfo(struct addrinfo *);
 #endif /* !HAVE_FREEADDRINFO */
 
 #ifndef HAVE_GETNAMEINFO
+#define getnameinfo(a,b,c,d,e,f,g) (ssh_getnameinfo(a,b,c,d,e,f,g))
 int getnameinfo(const struct sockaddr *, size_t, char *, size_t, 
     char *, size_t, int);
 #endif /* !HAVE_GETNAMEINFO */
