@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.84 1998/09/15 11:44:40 phk Exp $
+#	$Id: Makefile,v 1.85 1998/10/02 00:49:43 ache Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -100,9 +100,6 @@ beforeinstall: ${SHARED}
 	ln -sf posix4/$i ${DESTDIR}/usr/include/$i
 .endfor
 
-afterinstall:
-	-cd ${DESTDIR}/usr/include; \
-		h2ph -d ${DESTDIR}/usr/libdata/perl/5.00502/mach * sys/*
 
 copies:
 .for i in ${LDIRS} ${LNOHEADERDIRS} machine
