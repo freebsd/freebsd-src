@@ -13,27 +13,23 @@
  */
 
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/disklabel.h>
 #include <sys/ioctl.h>
 #include <sys/fcntl.h>
 #include <sys/uio.h>
-#include <ufs/ffs/fs.h>
-#include <string.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <string.h>
 #include <dialog.h>
 
 #include "mbr.h"
-#include "bootarea.h"
 #include "sysinstall.h"
 
 extern char *bootblocks;
 extern struct mbr *mbr;
 extern char boot1[];
 extern char boot2[];
-extern char **avail_disknames;
 
 int
 enable_label(int fd)
@@ -142,116 +138,4 @@ build_bootblocks(struct disklabel *label)
 			sizeof *label);
 
 	return(0);
-}
-
-/* Convert a size in Mb to a round number of cylinders */
-int
-Mb_to_cylbdry(int size, struct disklabel *label)
-{
-	int nsects, ncyls;
-
-	nsects = (size * 1024 * 1024) / label->d_secsize;
-	ncyls = nsects / label->d_secpercyl;
-	nsects = ++ncyls * label->d_secpercyl;
-
-	return(nsects);
-}
-
-void
-default_disklabel(struct disklabel *label, int avail_sects, int offset)
-{
-
-	int nsects;
-	int cylfill;
-
-	/* Fill in default label entries */
-	label->d_magic = DISKMAGIC;
-	bcopy("INSTALLATION",label->d_typename, strlen("INSTALLATION"));
-	label->d_rpm = 3600;
-	label->d_interleave = 1;
-	label->d_trackskew = 0;
-	label->d_cylskew = 0;
-	label->d_magic2 = DISKMAGIC;
-	label->d_checksum = 0;
-	label->d_bbsize = BBSIZE;
-	label->d_sbsize = SBSIZE;
-	label->d_npartitions = 5;
-
-	/* Set up c and d as raw partitions for now */
-	label->d_partitions[2].p_size = avail_sects;
-	label->d_partitions[2].p_offset = offset;
-	label->d_partitions[2].p_fsize = DEFFSIZE; /* XXX */
-	label->d_partitions[2].p_fstype = FS_UNUSED;
-	label->d_partitions[2].p_frag = DEFFRAG;
-
-	label->d_partitions[3].p_size = label->d_secperunit;
-	label->d_partitions[3].p_offset = 0;
-	label->d_partitions[3].p_fsize = DEFFSIZE;
-	label->d_partitions[3].p_fstype = FS_UNUSED;
-	label->d_partitions[3].p_frag = DEFFRAG;
-
-	/* Round offset to a cylinder */
-	cylfill = offset / label->d_secpercyl;
-	cylfill++;
-	cylfill *= label->d_secpercyl;
-	cylfill = cylfill - offset;
-
-	/* Default root */
-	nsects = Mb_to_cylbdry(DEFROOTSIZE, label);
-	nsects += cylfill;
-
-	label->d_partitions[0].p_size = nsects;
-	label->d_partitions[0].p_offset = offset;
-	label->d_partitions[0].p_fsize = DEFFSIZE;
-	label->d_partitions[0].p_fstype = FS_BSDFFS;
-	label->d_partitions[0].p_frag = DEFFRAG;
-
-	avail_sects -= nsects;
-	offset += nsects;
-	nsects = Mb_to_cylbdry(DEFSWAPSIZE, label);
-
-	label->d_partitions[1].p_size = nsects;
-	label->d_partitions[1].p_offset = offset;
-	label->d_partitions[1].p_fsize = DEFFSIZE;
-	label->d_partitions[1].p_fstype = FS_SWAP;
-	label->d_partitions[1].p_frag = DEFFRAG;
-
-	avail_sects -= nsects;
-	offset += nsects;
-	nsects = Mb_to_cylbdry(DEFUSRSIZE, label);
-
-	if (avail_sects > nsects)
-		nsects = avail_sects;
-
-	label->d_partitions[4].p_size = nsects;
-	label->d_partitions[4].p_offset = offset;
-	label->d_partitions[4].p_fsize = DEFFSIZE;
-	label->d_partitions[4].p_fstype = FS_BSDFFS;
-	label->d_partitions[4].p_frag = DEFFRAG;
-
-#ifdef notyet
-	if (custom_install)
-		customise_label()
-#endif
-
-	sprintf(scratch, "%sa", avail_disknames[inst_disk]);
-	devicename[0] = StrAlloc(scratch);
-	mountpoint[0] = StrAlloc("/");
-	sprintf(scratch, "%sb", avail_disknames[inst_disk]);
-	devicename[1] = StrAlloc(scratch);
-	mountpoint[1] = StrAlloc("swap");
-	sprintf(scratch, "%se", avail_disknames[inst_disk]);
-	devicename[2] = StrAlloc(scratch);
-	mountpoint[2] = StrAlloc("/usr");
-}
-
-int
-disk_size(int disk)
-{
-	struct disklabel *label = avail_disklabels + disk;
-	int size;
-
-	size = label->d_secsize * label->d_nsectors
-			 * label->d_ntracks * label->d_ncylinders;
-	return(size/1024/1024);
 }

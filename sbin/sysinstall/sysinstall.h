@@ -14,6 +14,9 @@
 
 #define TITLE	"FreeBSD 2.0.1-Development Installation"
 
+#define BOOT1 "/stand/sdboot"
+#define BOOT2 "/stand/bootsd"
+
 #define MAXFS	25
 
 #define MAX_NO_DISKS 10
@@ -21,7 +24,9 @@
 #define ERRMSGSIZE 256
 #define DEFROOTSIZE 16
 #define DEFSWAPSIZE 16
-#define DEFUSRSIZE 80		/* My disk is not that big Paul ! */
+#define DEFUSRSIZE 80
+#define DEFFSIZE 1024
+#define DEFFRAG 8
 
 #define BOOT_MAGIC 0xAA55
 #define ACTIVE 0x80
@@ -42,6 +47,7 @@ extern int inst_disk;
 extern unsigned char *scratch;
 extern unsigned char *errmsg;
 extern int *avail_fds;
+extern unsigned char **avail_disknames;
 extern struct disklabel *avail_disklabels;
 extern u_short dkcksum(struct disklabel *);
 
