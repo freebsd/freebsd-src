@@ -47,6 +47,11 @@ struct fxp_csr {
 	volatile u_int32_t	mdi_control;
 };
 
+#define FXP_PORT_SOFTWARE_RESET		0
+#define FXP_PORT_SELFTEST		1
+#define FXP_PORT_SELECTIVE_RESET	2
+#define FXP_PORT_DUMP			3
+
 #define FXP_SCB_RUS_IDLE		0
 #define FXP_SCB_RUS_SUSPENDED		1
 #define FXP_SCB_RUS_NORESOURCES		2
