@@ -62,14 +62,14 @@
 
 /* r must not be a */
 /* I've just gone over this and it is now %20 faster on x86 - eay - 27 Jun 96 */
-int BN_sqr(BIGNUM *r, BIGNUM *a, BN_CTX *ctx)
+int BN_sqr(BIGNUM *r, const BIGNUM *a, BN_CTX *ctx)
 	{
 	int max,al;
 	int ret = 0;
 	BIGNUM *tmp,*rr;
 
 #ifdef BN_COUNT
-printf("BN_sqr %d * %d\n",a->top,a->top);
+	fprintf(stderr,"BN_sqr %d * %d\n",a->top,a->top);
 #endif
 	bn_check_top(a);
 
@@ -88,7 +88,6 @@ printf("BN_sqr %d * %d\n",a->top,a->top);
 	max=(al+al);
 	if (bn_wexpand(rr,max+1) == NULL) goto err;
 
-	r->neg=0;
 	if (al == 4)
 		{
 #ifndef BN_SQR_COMBA
@@ -124,7 +123,6 @@ printf("BN_sqr %d * %d\n",a->top,a->top);
 			k=j+j;
 			if (al == j)
 				{
-				if (bn_wexpand(a,k*2) == NULL) goto err;
 				if (bn_wexpand(tmp,k*2) == NULL) goto err;
 				bn_sqr_recursive(rr->d,a->d,al,tmp->d);
 				}
@@ -141,6 +139,7 @@ printf("BN_sqr %d * %d\n",a->top,a->top);
 		}
 
 	rr->top=max;
+	rr->neg=0;
 	if ((max > 0) && (rr->d[max-1] == 0)) rr->top--;
 	if (rr != r) BN_copy(r,rr);
 	ret = 1;
@@ -150,10 +149,11 @@ printf("BN_sqr %d * %d\n",a->top,a->top);
 	}
 
 /* tmp must have 2*n words */
-void bn_sqr_normal(BN_ULONG *r, BN_ULONG *a, int n, BN_ULONG *tmp)
+void bn_sqr_normal(BN_ULONG *r, const BN_ULONG *a, int n, BN_ULONG *tmp)
 	{
 	int i,j,max;
-	BN_ULONG *ap,*rp;
+	const BN_ULONG *ap;
+	BN_ULONG *rp;
 
 	max=n*2;
 	ap=a;
@@ -197,14 +197,14 @@ void bn_sqr_normal(BN_ULONG *r, BN_ULONG *a, int n, BN_ULONG *tmp)
  * a[0]*b[0]+a[1]*b[1]+(a[0]-a[1])*(b[1]-b[0])
  * a[1]*b[1]
  */
-void bn_sqr_recursive(BN_ULONG *r, BN_ULONG *a, int n2, BN_ULONG *t)
+void bn_sqr_recursive(BN_ULONG *r, const BN_ULONG *a, int n2, BN_ULONG *t)
 	{
 	int n=n2/2;
 	int zero,c1;
 	BN_ULONG ln,lo,*p;
 
 #ifdef BN_COUNT
-printf(" bn_sqr_recursive %d * %d\n",n2,n2);
+	fprintf(stderr," bn_sqr_recursive %d * %d\n",n2,n2);
 #endif
 	if (n2 == 4)
 		{

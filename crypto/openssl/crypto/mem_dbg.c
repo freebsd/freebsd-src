@@ -102,6 +102,8 @@ typedef struct app_mem_info_st
 	int references;
 	} APP_INFO;
 
+static void app_info_free(APP_INFO *);
+
 static LHASH *amih=NULL; /* hash-table with those app_mem_info_st's
                           * that are at the top of their thread's stack
                           * (with `thread' as key);
@@ -139,6 +141,18 @@ static unsigned long disabling_thread = 0; /* Valid iff num_disable > 0.
                                             * exactly in this case (by the
                                             * thread named in disabling_thread).
                                             */
+
+static void app_info_free(APP_INFO *inf)
+	{
+	if (--(inf->references) <= 0)
+		{
+		if (inf->next != NULL)
+			{
+			app_info_free(inf->next);
+			}
+		OPENSSL_free(inf);
+		}
+	}
 
 int CRYPTO_mem_ctrl(int mode)
 	{
@@ -235,37 +249,43 @@ long CRYPTO_dbg_get_options(void)
 	return options;
 	}
 
-static int mem_cmp(MEM *a, MEM *b)
+/* static int mem_cmp(MEM *a, MEM *b) */
+static int mem_cmp(const void *a_void, const void *b_void)
 	{
-	return((char *)a->addr - (char *)b->addr);
+	return((const char *)((const MEM *)a_void)->addr
+		- (const char *)((const MEM *)b_void)->addr);
 	}
 
-static unsigned long mem_hash(MEM *a)
+/* static unsigned long mem_hash(MEM *a) */
+static unsigned long mem_hash(const void *a_void)
 	{
 	unsigned long ret;
 
-	ret=(unsigned long)a->addr;
+	ret=(unsigned long)((const MEM *)a_void)->addr;
 
 	ret=ret*17851+(ret>>14)*7+(ret>>4)*251;
 	return(ret);
 	}
 
-static int app_info_cmp(APP_INFO *a, APP_INFO *b)
+/* static int app_info_cmp(APP_INFO *a, APP_INFO *b) */
+static int app_info_cmp(const void *a_void, const void *b_void)
 	{
-	return(a->thread != b->thread);
+	return(((const APP_INFO *)a_void)->thread
+		!= ((const APP_INFO *)b_void)->thread);
 	}
 
-static unsigned long app_info_hash(APP_INFO *a)
+/* static unsigned long app_info_hash(APP_INFO *a) */
+static unsigned long app_info_hash(const void *a_void)
 	{
 	unsigned long ret;
 
-	ret=(unsigned long)a->thread;
+	ret=(unsigned long)((const APP_INFO *)a_void)->thread;
 
 	ret=ret*17851+(ret>>14)*7+(ret>>4)*251;
 	return(ret);
 	}
 
-static APP_INFO *pop_info()
+static APP_INFO *pop_info(void)
 	{
 	APP_INFO tmp;
 	APP_INFO *ret = NULL;
@@ -282,7 +302,7 @@ static APP_INFO *pop_info()
 				next->references++;
 				lh_insert(amih,(char *)next);
 				}
-#ifdef LEVITTE_DEBUG
+#ifdef LEVITTE_DEBUG_MEM
 			if (ret->thread != tmp.thread)
 				{
 				fprintf(stderr, "pop_info(): deleted info has other thread ID (%lu) than the current thread (%lu)!!!!\n",
@@ -318,7 +338,7 @@ int CRYPTO_push_info_(const char *info, const char *file, int line)
 			}
 		if (amih == NULL)
 			{
-			if ((amih=lh_new(app_info_hash,app_info_cmp)) == NULL)
+			if ((amih=lh_new(app_info_hash, app_info_cmp)) == NULL)
 				{
 				OPENSSL_free(ami);
 				ret=0;
@@ -335,7 +355,7 @@ int CRYPTO_push_info_(const char *info, const char *file, int line)
 
 		if ((amim=(APP_INFO *)lh_insert(amih,(char *)ami)) != NULL)
 			{
-#ifdef LEVITTE_DEBUG
+#ifdef LEVITTE_DEBUG_MEM
 			if (ami->thread != amim->thread)
 				{
 				fprintf(stderr, "CRYPTO_push_info(): previous info has other thread ID (%lu) than the current thread (%lu)!!!!\n",
@@ -411,7 +431,7 @@ void CRYPTO_dbg_malloc(void *addr, int num, const char *file, int line,
 				}
 			if (mh == NULL)
 				{
-				if ((mh=lh_new(mem_hash,mem_cmp)) == NULL)
+				if ((mh=lh_new(mem_hash, mem_cmp)) == NULL)
 					{
 					OPENSSL_free(addr);
 					OPENSSL_free(m);
@@ -435,8 +455,8 @@ void CRYPTO_dbg_malloc(void *addr, int num, const char *file, int line,
 				m->order=order;
 				}
 			m->order=order++;
-#ifdef LEVITTE_DEBUG
-			fprintf(stderr, "LEVITTE_DEBUG: [%5d] %c 0x%p (%d)\n",
+#ifdef LEVITTE_DEBUG_MEM
+			fprintf(stderr, "LEVITTE_DEBUG_MEM: [%5d] %c 0x%p (%d)\n",
 				m->order,
 				(before_p & 128) ? '*' : '+',
 				m->addr, m->num);
@@ -491,14 +511,12 @@ void CRYPTO_dbg_free(void *addr, int before_p)
 			mp=(MEM *)lh_delete(mh,(char *)&m);
 			if (mp != NULL)
 				{
-#ifdef LEVITTE_DEBUG
-			fprintf(stderr, "LEVITTE_DEBUG: [%5d] - 0x%p (%d)\n",
+#ifdef LEVITTE_DEBUG_MEM
+			fprintf(stderr, "LEVITTE_DEBUG_MEM: [%5d] - 0x%p (%d)\n",
 				mp->order, mp->addr, mp->num);
 #endif
 				if (mp->app_info != NULL)
-					{
-					mp->app_info->references--;
-					}
+					app_info_free(mp->app_info);
 				OPENSSL_free(mp);
 				}
 
@@ -516,8 +534,8 @@ void CRYPTO_dbg_realloc(void *addr1, void *addr2, int num,
 	{
 	MEM m,*mp;
 
-#ifdef LEVITTE_DEBUG
-	fprintf(stderr, "LEVITTE_DEBUG: --> CRYPTO_dbg_malloc(addr1 = %p, addr2 = %p, num = %d, file = \"%s\", line = %d, before_p = %d)\n",
+#ifdef LEVITTE_DEBUG_MEM
+	fprintf(stderr, "LEVITTE_DEBUG_MEM: --> CRYPTO_dbg_malloc(addr1 = %p, addr2 = %p, num = %d, file = \"%s\", line = %d, before_p = %d)\n",
 		addr1, addr2, num, file, line, before_p);
 #endif
 
@@ -543,8 +561,8 @@ void CRYPTO_dbg_realloc(void *addr1, void *addr2, int num,
 			mp=(MEM *)lh_delete(mh,(char *)&m);
 			if (mp != NULL)
 				{
-#ifdef LEVITTE_DEBUG
-				fprintf(stderr, "LEVITTE_DEBUG: [%5d] * 0x%p (%d) -> 0x%p (%d)\n",
+#ifdef LEVITTE_DEBUG_MEM
+				fprintf(stderr, "LEVITTE_DEBUG_MEM: [%5d] * 0x%p (%d) -> 0x%p (%d)\n",
 					mp->order,
 					mp->addr, mp->num,
 					addr2, num);
@@ -570,7 +588,7 @@ typedef struct mem_leak_st
 	long bytes;
 	} MEM_LEAK;
 
-static void print_leak(MEM *m, MEM_LEAK *l)
+static void print_leak(const MEM *m, MEM_LEAK *l)
 	{
 	char buf[1024];
 	char *bufp = buf;
@@ -646,7 +664,7 @@ static void print_leak(MEM *m, MEM_LEAK *l)
 		}
 	while(amip && amip->thread == ti);
 		
-#ifdef LEVITTE_DEBUG
+#ifdef LEVITTE_DEBUG_MEM
 	if (amip)
 		{
 		fprintf(stderr, "Thread switch detected in backtrace!!!!\n");
@@ -655,10 +673,11 @@ static void print_leak(MEM *m, MEM_LEAK *l)
 #endif
 	}
 
+static IMPLEMENT_LHASH_DOALL_ARG_FN(print_leak, const MEM *, MEM_LEAK *)
+
 void CRYPTO_mem_leaks(BIO *b)
 	{
 	MEM_LEAK ml;
-	char buf[80];
 
 	if (mh == NULL && amih == NULL)
 		return;
@@ -669,12 +688,12 @@ void CRYPTO_mem_leaks(BIO *b)
 	ml.bytes=0;
 	ml.chunks=0;
 	if (mh != NULL)
-		lh_doall_arg(mh,(void (*)())print_leak,(char *)&ml);
+		lh_doall_arg(mh, LHASH_DOALL_ARG_FN(print_leak),
+				(char *)&ml);
 	if (ml.chunks != 0)
 		{
-		sprintf(buf,"%ld bytes leaked in %d chunks\n",
-			ml.bytes,ml.chunks);
-		BIO_puts(b,buf);
+		BIO_printf(b,"%ld bytes leaked in %d chunks\n",
+			   ml.bytes,ml.chunks);
 		}
 	else
 		{
@@ -722,14 +741,19 @@ void CRYPTO_mem_leaks(BIO *b)
 	MemCheck_on(); /* release MALLOC2 lock */
 	}
 
-#ifndef NO_FP_API
+#ifndef OPENSSL_NO_FP_API
 void CRYPTO_mem_leaks_fp(FILE *fp)
 	{
 	BIO *b;
 
 	if (mh == NULL) return;
-	if ((b=BIO_new(BIO_s_file())) == NULL)
-		return;
+	/* Need to turn off memory checking when allocated BIOs ... especially
+	 * as we're creating them at a time when we're trying to check we've not
+	 * left anything un-free()'d!! */
+	MemCheck_off();
+	b = BIO_new(BIO_s_file());
+	MemCheck_on();
+	if(!b) return;
 	BIO_set_fp(b,fp,BIO_NOCLOSE);
 	CRYPTO_mem_leaks(b);
 	BIO_free(b);
@@ -741,16 +765,20 @@ void CRYPTO_mem_leaks_fp(FILE *fp)
 /* FIXME: We really don't allow much to the callback.  For example, it has
    no chance of reaching the info stack for the item it processes.  Should
    it really be this way?  -- Richard Levitte */
-static void cb_leak(MEM *m,
-		    void (**cb)(unsigned long, const char *, int, int, void *))
+/* NB: The prototypes have been typedef'd to CRYPTO_MEM_LEAK_CB inside crypto.h
+ * If this code is restructured, remove the callback type if it is no longer
+ * needed. -- Geoff Thorpe */
+static void cb_leak(const MEM *m, CRYPTO_MEM_LEAK_CB **cb)
 	{
 	(**cb)(m->order,m->file,m->line,m->num,m->addr);
 	}
 
-void CRYPTO_mem_leaks_cb(void (*cb)(unsigned long, const char *, int, int, void *))
+static IMPLEMENT_LHASH_DOALL_ARG_FN(cb_leak, const MEM *, CRYPTO_MEM_LEAK_CB **)
+
+void CRYPTO_mem_leaks_cb(CRYPTO_MEM_LEAK_CB *cb)
 	{
 	if (mh == NULL) return;
 	CRYPTO_w_lock(CRYPTO_LOCK_MALLOC2);
-	lh_doall_arg(mh,(void (*)())cb_leak,(void *)&cb);
+	lh_doall_arg(mh, LHASH_DOALL_ARG_FN(cb_leak), &cb);
 	CRYPTO_w_unlock(CRYPTO_LOCK_MALLOC2);
 	}

@@ -103,6 +103,9 @@ int MAIN(int argc, char **argv)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
 
+	if (!load_config(bio_err, NULL))
+		goto end;
+
 	prog=argv[0];
 	argc--;
 	argv++;
@@ -205,7 +208,7 @@ bad:
 		goto end;
 		}
 	BIO_set_fp(out,stdout,BIO_NOCLOSE|BIO_FP_TEXT);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 	{
 	BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 	out = BIO_push(tmpbio, out);
@@ -328,6 +331,7 @@ end:
 	if (at != NULL) ASN1_TYPE_free(at);
 	if (osk != NULL) sk_free(osk);
 	OBJ_cleanup();
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 

@@ -63,7 +63,7 @@
 #include <openssl/bio.h>
 
 /* BEGIN ERROR CODES */
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 static ERR_STRING_DATA BIO_str_functs[]=
 	{
 {ERR_PACK(0,BIO_F_ACPT_STATE,0),	"ACPT_STATE"},
@@ -91,6 +91,7 @@ static ERR_STRING_DATA BIO_str_functs[]=
 {ERR_PACK(0,BIO_F_CONN_CTRL,0),	"CONN_CTRL"},
 {ERR_PACK(0,BIO_F_CONN_STATE,0),	"CONN_STATE"},
 {ERR_PACK(0,BIO_F_FILE_CTRL,0),	"FILE_CTRL"},
+{ERR_PACK(0,BIO_F_FILE_READ,0),	"FILE_READ"},
 {ERR_PACK(0,BIO_F_LINEBUFFER_CTRL,0),	"LINEBUFFER_CTRL"},
 {ERR_PACK(0,BIO_F_MEM_READ,0),	"MEM_READ"},
 {ERR_PACK(0,BIO_F_MEM_WRITE,0),	"MEM_WRITE"},
@@ -120,6 +121,7 @@ static ERR_STRING_DATA BIO_str_reasons[]=
 {BIO_R_NO_HOSTNAME_SPECIFIED             ,"no hostname specified"},
 {BIO_R_NO_PORT_DEFINED                   ,"no port defined"},
 {BIO_R_NO_PORT_SPECIFIED                 ,"no port specified"},
+{BIO_R_NO_SUCH_FILE                      ,"no such file"},
 {BIO_R_NULL_PARAMETER                    ,"null parameter"},
 {BIO_R_TAG_MISMATCH                      ,"tag mismatch"},
 {BIO_R_UNABLE_TO_BIND_SOCKET             ,"unable to bind socket"},
@@ -141,7 +143,7 @@ void ERR_load_BIO_strings(void)
 	if (init)
 		{
 		init=0;
-#ifndef NO_ERR
+#ifndef OPENSSL_NO_ERR
 		ERR_load_strings(ERR_LIB_BIO,BIO_str_functs);
 		ERR_load_strings(ERR_LIB_BIO,BIO_str_reasons);
 #endif

@@ -59,8 +59,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <openssl/sha.h>
+#include <openssl/crypto.h>
 
-#ifndef NO_SHA0
+#ifndef OPENSSL_NO_SHA0
 unsigned char *SHA(const unsigned char *d, unsigned long n, unsigned char *md)
 	{
 	SHA_CTX c;
@@ -70,7 +71,7 @@ unsigned char *SHA(const unsigned char *d, unsigned long n, unsigned char *md)
 	SHA_Init(&c);
 	SHA_Update(&c,d,n);
 	SHA_Final(md,&c);
-	memset(&c,0,sizeof(c));
+	OPENSSL_cleanse(&c,sizeof(c));
 	return(md);
 	}
 #endif

@@ -62,11 +62,13 @@
 #include <errno.h>
 #include <signal.h>
 
+#include <openssl/e_os2.h>
+
 /* With IPv6, it looks like Digital has mixed up the proper order of
    recursive header file inclusion, resulting in the compiler complaining
    that u_int isn't defined, but only if _POSIX_C_SOURCE is defined, which
    is needed to have fileno() declared correctly...  So let's define u_int */
-#if defined(VMS) && defined(__DECC) && !defined(__U_INT)
+#if defined(OPENSSL_SYS_VMS_DECC) && !defined(__U_INT)
 #define __U_INT
 typedef unsigned int u_int;
 #endif
@@ -80,27 +82,27 @@ typedef unsigned int u_int;
 #include <openssl/ssl.h>
 
 static struct hostent *GetHostByName(char *name);
-#ifdef WINDOWS
-static void sock_cleanup(void);
+#ifdef OPENSSL_SYS_WINDOWS
+static void ssl_sock_cleanup(void);
 #endif
-static int sock_init(void);
+static int ssl_sock_init(void);
 static int init_client_ip(int *sock,unsigned char ip[4], int port);
 static int init_server(int *sock, int port);
 static int init_server_long(int *sock, int port,char *ip);
 static int do_accept(int acc_sock, int *sock, char **host);
 static int host_ip(char *str, unsigned char ip[4]);
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 #define SOCKET_PROTOCOL	0 /* more microsoft stupidity */
 #else
 #define SOCKET_PROTOCOL	IPPROTO_TCP
 #endif
 
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 static struct WSAData wsa_state;
 static int wsa_init_done=0;
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 static HWND topWnd=0;
 static FARPROC lpTopWndProc=NULL;
 static FARPROC lpTopHookProc=NULL;
@@ -116,7 +118,7 @@ static LONG FAR PASCAL topHookProc(HWND hwnd, UINT message, WPARAM wParam,
 		case WM_DESTROY:
 		case WM_CLOSE:
 			SetWindowLong(topWnd,GWL_WNDPROC,(LONG)lpTopWndProc);
-			sock_cleanup();
+			ssl_sock_cleanup();
 			break;
 			}
 		}
@@ -129,30 +131,38 @@ static BOOL CALLBACK enumproc(HWND hwnd,LPARAM lParam)
 	return(FALSE);
 	}
 
-#endif /* WIN32 */
-#endif /* WINDOWS */
+#endif /* OPENSSL_SYS_WIN32 */
+#endif /* OPENSSL_SYS_WINDOWS */
 
-#ifdef WINDOWS
-static void sock_cleanup(void)
+#ifdef OPENSSL_SYS_WINDOWS
+static void ssl_sock_cleanup(void)
 	{
 	if (wsa_init_done)
 		{
 		wsa_init_done=0;
+#ifndef OPENSSL_SYS_WINCE
 		WSACancelBlockingCall();
+#endif
 		WSACleanup();
 		}
 	}
 #endif
 
-static int sock_init(void)
+static int ssl_sock_init(void)
 	{
-#ifdef WINDOWS
+#ifdef WATT32
+	extern int _watt_do_exit;
+	_watt_do_exit = 0;
+	dbug_init();
+	if (sock_init())
+		return (0);
+#elif defined(OPENSSL_SYS_WINDOWS)
 	if (!wsa_init_done)
 		{
 		int err;
 	  
 #ifdef SIGINT
-		signal(SIGINT,(void (*)(int))sock_cleanup);
+		signal(SIGINT,(void (*)(int))ssl_sock_cleanup);
 #endif
 		wsa_init_done=1;
 		memset(&wsa_state,0,sizeof(wsa_state));
@@ -163,15 +173,15 @@ static int sock_init(void)
 			return(0);
 			}
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 		EnumTaskWindows(GetCurrentTask(),enumproc,0L);
 		lpTopWndProc=(FARPROC)GetWindowLong(topWnd,GWL_WNDPROC);
 		lpTopHookProc=MakeProcInstance((FARPROC)topHookProc,_hInstance);
 
 		SetWindowLong(topWnd,GWL_WNDPROC,(LONG)lpTopHookProc);
-#endif /* WIN16 */
+#endif /* OPENSSL_SYS_WIN16 */
 		}
-#endif /* WINDOWS */
+#endif /* OPENSSL_SYS_WINDOWS */
 	return(1);
 	}
 
@@ -194,7 +204,7 @@ static int init_client_ip(int *sock, unsigned char ip[4], int port)
 	struct sockaddr_in them;
 	int s,i;
 
-	if (!sock_init()) return(0);
+	if (!ssl_sock_init()) return(0);
 
 	memset((char *)&them,0,sizeof(them));
 	them.sin_family=AF_INET;
@@ -209,7 +219,7 @@ static int init_client_ip(int *sock, unsigned char ip[4], int port)
 	s=socket(AF_INET,SOCK_STREAM,SOCKET_PROTOCOL);
 	if (s == INVALID_SOCKET) { perror("socket"); return(0); }
 
-#ifndef MPE
+#ifndef OPENSSL_SYS_MPE
 	i=0;
 	i=setsockopt(s,SOL_SOCKET,SO_KEEPALIVE,(char *)&i,sizeof(i));
 	if (i < 0) { perror("keepalive"); return(0); }
@@ -259,7 +269,7 @@ static int init_server_long(int *sock, int port, char *ip)
 	struct sockaddr_in server;
 	int s= -1,i;
 
-	if (!sock_init()) return(0);
+	if (!ssl_sock_init()) return(0);
 
 	memset((char *)&server,0,sizeof(server));
 	server.sin_family=AF_INET;
@@ -285,7 +295,7 @@ static int init_server_long(int *sock, int port, char *ip)
 #endif
 	if (bind(s,(struct sockaddr *)&server,sizeof(server)) == -1)
 		{
-#ifndef WINDOWS
+#ifndef OPENSSL_SYS_WINDOWS
 		perror("bind");
 #endif
 		goto err;
@@ -316,9 +326,9 @@ static int do_accept(int acc_sock, int *sock, char **host)
 	int len;
 /*	struct linger ling; */
 
-	if (!sock_init()) return(0);
+	if (!ssl_sock_init()) return(0);
 
-#ifndef WINDOWS
+#ifndef OPENSSL_SYS_WINDOWS
 redoit:
 #endif
 
@@ -332,7 +342,7 @@ redoit:
 	ret=accept(acc_sock,(struct sockaddr *)&from,(void *)&len);
 	if (ret == INVALID_SOCKET)
 		{
-#ifdef WINDOWS
+#ifdef OPENSSL_SYS_WINDOWS
 		i=WSAGetLastError();
 		BIO_printf(bio_err,"accept error %d\n",i);
 #else
@@ -446,7 +456,7 @@ static int host_ip(char *str, unsigned char ip[4])
 		{ /* do a gethostbyname */
 		struct hostent *he;
 
-		if (!sock_init()) return(0);
+		if (!ssl_sock_init()) return(0);
 
 		he=GetHostByName(str);
 		if (he == NULL)
@@ -527,9 +537,12 @@ static struct hostent *GetHostByName(char *name)
 		ret=gethostbyname(name);
 		if (ret == NULL) return(NULL);
 		/* else add to cache */
-		strncpy(ghbn_cache[lowi].name,name,128);
-		memcpy((char *)&(ghbn_cache[lowi].ent),ret,sizeof(struct hostent));
-		ghbn_cache[lowi].order=ghbn_miss+ghbn_hits;
+		if(strlen(name) < sizeof ghbn_cache[0].name)
+			{
+			strcpy(ghbn_cache[lowi].name,name);
+			memcpy((char *)&(ghbn_cache[lowi].ent),ret,sizeof(struct hostent));
+			ghbn_cache[lowi].order=ghbn_miss+ghbn_hits;
+			}
 		return(ret);
 		}
 	else

@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 		{
 bad:
 		for (pp=usage; (*pp != NULL); pp++)
-			fprintf(stderr,*pp);
+			fprintf(stderr,"%s",*pp);
 		exit(1);
 		}
 
@@ -141,7 +141,7 @@ bad:
 			}
 		}
 		
-#ifdef MSDOS
+#ifdef OPENSSL_SYS_MSDOS
 	/* This should set the file to binary mode. */
 	{
 #include <fcntl.h>
@@ -155,15 +155,15 @@ bad:
 		i=EVP_read_pw_string(buf,BUFSIZ,"Enter RC4 password:",0);
 		if (i != 0)
 			{
-			memset(buf,0,BUFSIZ);
+			OPENSSL_cleanse(buf,BUFSIZ);
 			fprintf(stderr,"bad password read\n");
 			exit(1);
 			}
 		keystr=buf;
 		}
 
-	MD5((unsigned char *)keystr,(unsigned long)strlen(keystr),md);
-	memset(keystr,0,strlen(keystr));
+	EVP_Digest((unsigned char *)keystr,(unsigned long)strlen(keystr),md,NULL,EVP_md5());
+	OPENSSL_cleanse(keystr,strlen(keystr));
 	RC4_set_key(&key,MD5_DIGEST_LENGTH,md);
 	
 	for(;;)

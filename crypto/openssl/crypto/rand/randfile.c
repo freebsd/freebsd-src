@@ -61,7 +61,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef VMS
+#include "e_os.h"
+#include <openssl/crypto.h>
+#include <openssl/rand.h>
+
+#ifdef OPENSSL_SYS_VMS
 #include <unixio.h>
 #endif
 #ifndef NO_SYS_TYPES_H
@@ -72,10 +76,6 @@
 #else
 # include <sys/stat.h>
 #endif
-
-#include "openssl/e_os.h"
-#include <openssl/crypto.h>
-#include <openssl/rand.h>
 
 #undef BUFSIZE
 #define BUFSIZE	1024
@@ -124,7 +124,7 @@ int RAND_load_file(const char *file, long bytes)
 			}
 		}
 	fclose(in);
-	memset(buf,0,BUFSIZE);
+	OPENSSL_cleanse(buf,BUFSIZE);
 err:
 	return(ret);
 	}
@@ -136,7 +136,7 @@ int RAND_write_file(const char *file)
 	FILE *out = NULL;
 	int n;
 	
-#if defined(O_CREAT) && !defined(WIN32)
+#if defined(O_CREAT) && !defined(OPENSSL_SYS_WIN32)
 	/* For some reason Win32 can't write to files created this way */
 	
 	/* chmod(..., 0600) is too late to protect the file,
@@ -168,7 +168,7 @@ int RAND_write_file(const char *file)
 		ret+=i;
 		if (n <= 0) break;
                 }
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 	/* Try to delete older versions of the file, until there aren't
 	   any */
 	{
@@ -186,10 +186,10 @@ int RAND_write_file(const char *file)
 				      some point... */
 		}
 	}
-#endif /* VMS */
+#endif /* OPENSSL_SYS_VMS */
 
 	fclose(out);
-	memset(buf,0,BUFSIZE);
+	OPENSSL_cleanse(buf,BUFSIZE);
 err:
 	return (rand_err ? -1 : ret);
 	}
@@ -203,8 +203,9 @@ const char *RAND_file_name(char *buf, size_t size)
 		s=getenv("RANDFILE");
 	if (s != NULL)
 		{
-		strncpy(buf,s,size-1);
-		buf[size-1]='\0';
+		if(strlen(s) >= size)
+			return NULL;
+		strcpy(buf,s);
 		ret=buf;
 		}
 	else
@@ -220,7 +221,7 @@ const char *RAND_file_name(char *buf, size_t size)
 		if (s != NULL && (strlen(s)+strlen(RFILE)+2 < size))
 			{
 			strcpy(buf,s);
-#ifndef VMS
+#ifndef OPENSSL_SYS_VMS
 			strcat(buf,"/");
 #endif
 			strcat(buf,RFILE);

@@ -63,8 +63,9 @@
 #include <openssl/objects.h>
 #include <openssl/x509.h>
 
-int RSA_sign_ASN1_OCTET_STRING(int type, unsigned char *m, unsigned int m_len,
-	     unsigned char *sigret, unsigned int *siglen, RSA *rsa)
+int RSA_sign_ASN1_OCTET_STRING(int type,
+	const unsigned char *m, unsigned int m_len,
+	unsigned char *sigret, unsigned int *siglen, RSA *rsa)
 	{
 	ASN1_OCTET_STRING sig;
 	int i,j,ret=1;
@@ -72,11 +73,11 @@ int RSA_sign_ASN1_OCTET_STRING(int type, unsigned char *m, unsigned int m_len,
 
 	sig.type=V_ASN1_OCTET_STRING;
 	sig.length=m_len;
-	sig.data=m;
+	sig.data=(unsigned char *)m;
 
 	i=i2d_ASN1_OCTET_STRING(&sig,NULL);
 	j=RSA_size(rsa);
-	if ((i-RSA_PKCS1_PADDING) > j)
+	if (i > (j-RSA_PKCS1_PADDING_SIZE))
 		{
 		RSAerr(RSA_F_RSA_SIGN_ASN1_OCTET_STRING,RSA_R_DIGEST_TOO_BIG_FOR_RSA_KEY);
 		return(0);
@@ -95,14 +96,15 @@ int RSA_sign_ASN1_OCTET_STRING(int type, unsigned char *m, unsigned int m_len,
 	else
 		*siglen=i;
 
-	memset(s,0,(unsigned int)j+1);
+	OPENSSL_cleanse(s,(unsigned int)j+1);
 	OPENSSL_free(s);
 	return(ret);
 	}
 
-int RSA_verify_ASN1_OCTET_STRING(int dtype, unsigned char *m,
-	     unsigned int m_len, unsigned char *sigbuf, unsigned int siglen,
-	     RSA *rsa)
+int RSA_verify_ASN1_OCTET_STRING(int dtype,
+	const unsigned char *m,
+	unsigned int m_len, unsigned char *sigbuf, unsigned int siglen,
+	RSA *rsa)
 	{
 	int i,ret=0;
 	unsigned char *p,*s;
@@ -137,7 +139,7 @@ int RSA_verify_ASN1_OCTET_STRING(int dtype, unsigned char *m,
 		ret=1;
 err:
 	if (sig != NULL) M_ASN1_OCTET_STRING_free(sig);
-	memset(s,0,(unsigned int)siglen);
+	OPENSSL_cleanse(s,(unsigned int)siglen);
 	OPENSSL_free(s);
 	return(ret);
 	}

@@ -138,7 +138,7 @@
 #define INIT_DATA_h3 0x10325476UL
 #define INIT_DATA_h4 0xc3d2e1f0UL
 
-void HASH_INIT (SHA_CTX *c)
+int HASH_INIT (SHA_CTX *c)
 	{
 	c->h0=INIT_DATA_h0;
 	c->h1=INIT_DATA_h1;
@@ -148,6 +148,7 @@ void HASH_INIT (SHA_CTX *c)
 	c->Nl=0;
 	c->Nh=0;
 	c->num=0;
+	return 1;
 	}
 
 #define K_00_19	0x5a827999UL
@@ -223,10 +224,10 @@ void HASH_INIT (SHA_CTX *c)
 void HASH_BLOCK_HOST_ORDER (SHA_CTX *c, const void *d, int num)
 	{
 	const SHA_LONG *W=d;
-	register unsigned long A,B,C,D,E,T;
+	register unsigned MD32_REG_T A,B,C,D,E,T;
 #ifndef MD32_XARRAY
-	unsigned long	XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
-			XX8, XX9,XX10,XX11,XX12,XX13,XX14,XX15;
+	unsigned MD32_REG_T	XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
+				XX8, XX9,XX10,XX11,XX12,XX13,XX14,XX15;
 #else
 	SHA_LONG	XX[16];
 #endif
@@ -348,10 +349,10 @@ void HASH_BLOCK_HOST_ORDER (SHA_CTX *c, const void *d, int num)
 void HASH_BLOCK_DATA_ORDER (SHA_CTX *c, const void *p, int num)
 	{
 	const unsigned char *data=p;
-	register unsigned long A,B,C,D,E,T,l;
+	register unsigned MD32_REG_T A,B,C,D,E,T,l;
 #ifndef MD32_XARRAY
-	unsigned long	XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
-			XX8, XX9,XX10,XX11,XX12,XX13,XX14,XX15;
+	unsigned MD32_REG_T	XX0, XX1, XX2, XX3, XX4, XX5, XX6, XX7,
+				XX8, XX9,XX10,XX11,XX12,XX13,XX14,XX15;
 #else
 	SHA_LONG	XX[16];
 #endif

@@ -62,6 +62,12 @@
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/asn1.h>
+#ifndef OPENSSL_NO_RSA
+#include <openssl/rsa.h>
+#endif
+#ifndef OPENSSL_NO_DSA
+#include <openssl/dsa.h>
+#endif
 
 EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, unsigned char **pp,
 	     long length)
@@ -82,18 +88,20 @@ EVP_PKEY *d2i_PrivateKey(int type, EVP_PKEY **a, unsigned char **pp,
 	ret->type=EVP_PKEY_type(type);
 	switch (ret->type)
 		{
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 	case EVP_PKEY_RSA:
-		if ((ret->pkey.rsa=d2i_RSAPrivateKey(NULL,pp,length)) == NULL)
+		if ((ret->pkey.rsa=d2i_RSAPrivateKey(NULL,
+			(const unsigned char **)pp,length)) == NULL) /* TMP UGLY CAST */
 			{
 			ASN1err(ASN1_F_D2I_PRIVATEKEY,ERR_R_ASN1_LIB);
 			goto err;
 			}
 		break;
 #endif
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 	case EVP_PKEY_DSA:
-		if ((ret->pkey.dsa=d2i_DSAPrivateKey(NULL,pp,length)) == NULL)
+		if ((ret->pkey.dsa=d2i_DSAPrivateKey(NULL,
+			(const unsigned char **)pp,length)) == NULL) /* TMP UGLY CAST */
 			{
 			ASN1err(ASN1_F_D2I_PRIVATEKEY,ERR_R_ASN1_LIB);
 			goto err;
