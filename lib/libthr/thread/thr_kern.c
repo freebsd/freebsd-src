@@ -50,8 +50,6 @@
                 }                                                       \
         } while (0)
 
-static sigset_t restore;
-
 void
 _thread_critical_enter(pthread_t pthread)
 {
@@ -115,73 +113,6 @@ _thread_sigunblock()
 		    errno);
 		abort();
 	}
-}
-
-void
-GIANT_LOCK(pthread_t pthread)
-{
-	sigset_t set;
-	sigset_t sav;
-	int error;
-
-	/*
-	 * Block all signals.
-	 */
-	SIGFILLSET(set);
-
-	/*
-	 * We can not use the global 'restore' set until after we have
-	 * acquired the giant lock.
-	 */
-#if 0
-	error = __sys_sigprocmask(SIG_SETMASK, &set, &sav);
-	if (error) {
-		_thread_printf(STDERR_FILENO, "GIANT_LOCK: sig err %d\n",
-		    errno);
-		abort();
-	}
-#endif
-
-	error = umtx_lock(&_giant_mutex, pthread->thr_id);
-	if (error) {
-		_thread_printf(STDERR_FILENO, "GIANT_LOCK: %d\n", errno);
-		abort();
-	}
-	
-	restore = sav;
-}
-
-void
-GIANT_UNLOCK(pthread_t pthread)
-{
-	sigset_t set;
-	int error;
-
-	/*
-	 * restore is protected by giant.  We could restore our signal state
-	 * incorrectly if someone else set restore between unlocking giant
-	 * and restoring the signal mask.  To avoid this we cache a copy prior
-	 * to the unlock.
-	 */
-	set = restore;
-
-	error = umtx_unlock(&_giant_mutex, pthread->thr_id);
-	if (error) {
-		_thread_printf(STDERR_FILENO, "GIANT_UNLOCK: %d\n", errno);
-		abort();
-	}
-
-#if 0
-	/*
-	 * Restore signals.
-	 */
-	error = __sys_sigprocmask(SIG_SETMASK, &set, NULL);
-	if (error) {
-		_thread_printf(STDERR_FILENO, "GIANT_UNLOCK: sig err %d\n",
-		    errno);
-		abort();
-	}
-#endif
 }
 
 int
