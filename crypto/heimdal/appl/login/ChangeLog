@@ -1,3 +1,23 @@
+2002-08-23  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: if motd is set in login.conf, output its contents
+	before starting the shell
+
+2002-02-27  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: reset signals to default, needed on solaris 8
+
+2002-02-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login_locl.h: include netgroup.h and rpcsvc/ypclnt.h
+
+	* login.c: make this build without krb5
+
+2001-09-22  Assar Westerlund  <assar@sics.se>
+
+	* login_locl.h: kludge: use absolute path to find prot.h so we do
+	not get confused by athena's prot.h
+
 2001-09-17  Assar Westerlund  <assar@sics.se>
 
 	* login.c (do_login): add setpcred

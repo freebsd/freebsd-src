@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mk_error.c,v 1.16 2001/05/14 06:14:49 assar Exp $");
+RCSID("$Id: mk_error.c,v 1.17 2002/03/27 09:29:43 joda Exp $");
 
 krb5_error_code
 krb5_mk_error(krb5_context context,
@@ -42,8 +42,8 @@ krb5_mk_error(krb5_context context,
 	      const krb5_data *e_data,
 	      const krb5_principal client,
 	      const krb5_principal server,
-	      time_t *ctime,
-	      int *cusec,
+	      time_t *client_time,
+	      int *client_usec,
 	      krb5_data *reply)
 {
     KRB_ERROR msg;
@@ -60,8 +60,8 @@ krb5_mk_error(krb5_context context,
     msg.msg_type = krb_error;
     msg.stime    = sec;
     msg.susec    = usec;
-    msg.ctime    = ctime;
-    msg.cusec    = cusec;
+    msg.ctime    = client_time;
+    msg.cusec    = client_usec;
     /* Make sure we only send `protocol' error codes */
     if(error_code < KRB5KDC_ERR_NONE || error_code >= KRB5_ERR_RCSID) {
 	if(e_text == NULL)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -39,7 +39,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.52 2001/09/17 02:34:31 assar Exp $");
+RCSID("$Id: login.c,v 1.56 2002/08/23 12:11:09 joda Exp $");
 
 static int login_timeout = 60;
 
@@ -141,6 +141,10 @@ otp_verify(struct passwd *pwd, const char *password)
 }
 #endif /* OTP */
 
+
+#ifdef KRB4
+static int pag_set = 0;
+#endif
 
 #ifdef KRB5
 static krb5_context context;
@@ -266,8 +270,6 @@ krb5_finish (void)
 }
 
 #ifdef KRB4
-
-static int pag_set = 0;
 
 static void
 krb5_get_afs_tokens (const struct passwd *pwd)
@@ -416,6 +418,19 @@ checknologin(void)
     exit(0);
 }
 
+/* print contents of a file */
+static void
+show_file(const char *file)
+{
+    FILE *f;
+    char buf[BUFSIZ];
+    if((f = fopen(file, "r")) == NULL)
+	return;
+    while (fgets(buf, sizeof(buf), f))
+	fputs(buf, stdout);
+    fclose(f);
+}
+
 /* 
  * Actually log in the user.  `pwd' contains all the relevant
  * information about the user.  `ttyn' is the complete name of the tty
@@ -432,6 +447,7 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
     gid_t tty_gid;
     struct group *gr;
     const char *home_dir;
+    int i;
 
     if(!rootlogin)
 	checknologin();
@@ -491,6 +507,13 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 	if(rootlogin == 0)
 	    exit(1);
     }
+
+    /* make sure signals are set to default actions, apparently some
+       OS:es like to ignore SIGINT, which is not very convenient */
+    
+    for (i = 1; i < NSIG; ++i)
+	signal(i, SIG_DFL);
+
     /* all kinds of different magic */
 
 #ifdef HAVE_GETSPNAM
@@ -598,6 +621,18 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 		if(buf[0] == '\0')
 		    continue;
 		login_read_env(buf);
+	    }
+	}
+    }
+    {
+	const char *str = login_conf_get_string("motd");
+	char buf[MAXPATHLEN];
+
+	if(str != NULL) {
+	    while(strsep_copy(&str, ",", buf, sizeof(buf)) != -1) {
+		if(buf[0] == '\0')
+		    continue;
+		show_file(buf);
 	    }
 	}
     }

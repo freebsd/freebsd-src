@@ -1,4 +1,4 @@
-dnl $Id: auth-modules.m4,v 1.2 2001/09/01 11:56:05 assar Exp $
+dnl $Id: auth-modules.m4,v 1.3 2002/08/28 15:04:57 nectar Exp $
 dnl
 dnl Figure what authentication modules should be built
 
@@ -11,7 +11,14 @@ if test "$ac_cv_header_siad_h" = yes; then
 	LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS sia"
 fi
 
-if test "$ac_cv_header_security_pam_modules_h" = yes -a "$enable_shared" = yes; then
+case "${host}" in
+*-*-freebsd*)	ac_cv_want_pam_krb4=no ;;
+*)		ac_cv_want_pam_krb4=yes ;;
+esac
+
+if test "$ac_cv_want_pam_krb4" = yes -a \
+    "$ac_cv_header_security_pam_modules_h" = yes -a \
+    "$enable_shared" = yes; then
 	LIB_AUTH_SUBDIRS="$LIB_AUTH_SUBDIRS pam"
 fi
 

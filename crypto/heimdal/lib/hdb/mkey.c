@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2000 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 2000 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -36,7 +36,7 @@
 #define O_BINARY 0
 #endif
 
-RCSID("$Id: mkey.c,v 1.13 2001/12/05 14:41:45 nectar Exp $");
+RCSID("$Id: mkey.c,v 1.14 2002/08/16 18:59:49 assar Exp $");
 
 struct hdb_master_key_data {
     krb5_keytab_entry keytab;
@@ -199,6 +199,7 @@ read_master_encryptionkey(krb5_context context, const char *filename,
     krb5_error_code ret;
     unsigned char buf[256];
     ssize_t len;
+    size_t ret_len;
 	       
     fd = open(filename, O_RDONLY | O_BINARY);
     if(fd < 0) {
@@ -217,7 +218,7 @@ read_master_encryptionkey(krb5_context context, const char *filename,
 	return save_errno;
     }
 
-    ret = decode_EncryptionKey(buf, len, &key, &len);
+    ret = decode_EncryptionKey(buf, len, &key, &ret_len);
     memset(buf, 0, sizeof(buf));
     if(ret)
 	return ret;

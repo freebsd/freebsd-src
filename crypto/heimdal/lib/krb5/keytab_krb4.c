@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: keytab_krb4.c,v 1.9 2002/02/11 14:05:10 joda Exp $");
+RCSID("$Id: keytab_krb4.c,v 1.10 2002/04/18 14:04:46 joda Exp $");
 
 struct krb4_kt_data {
     char *filename;
@@ -139,6 +139,7 @@ krb4_kt_start_seq_get_int (krb5_context context,
 	return ret;
     }
     c->sp = krb5_storage_from_fd(c->fd);
+    krb5_storage_set_eof_code(c->sp, KRB5_KT_END);
     return 0;
 }
 
@@ -187,7 +188,7 @@ read_v4_entry (krb5_context context,
 	krb5_free_principal (context, ed->entry.principal);
 	return ret;
     }
-    ret = c->sp->fetch(c->sp, key, 8);
+    ret = krb5_storage_read(c->sp, key, 8);
     if (ret < 0) {
 	krb5_free_principal(context, ed->entry.principal);
 	return ret;
@@ -274,7 +275,7 @@ krb4_store_keytab_entry(krb5_context context,
 	ret = krb5_store_stringz(sp, instance);
 	ret = krb5_store_stringz(sp, realm);
 	ret = krb5_store_int8(sp, entry->vno);
-	ret = (*sp->store)(sp, entry->keyblock.keyvalue.data, 8);
+	ret = krb5_storage_write(sp, entry->keyblock.keyvalue.data, 8);
     }
     return 0;
 }
@@ -301,6 +302,7 @@ krb4_kt_add_entry (krb5_context context,
 	}
     }
     sp = krb5_storage_from_fd(fd);
+    krb5_storage_set_eof_code(sp, KRB5_KT_END);
     if(sp == NULL) {
 	close(fd);
 	return ENOMEM;

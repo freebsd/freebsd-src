@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2000, 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -35,7 +35,7 @@
 
 #include "45_locl.h"
 
-RCSID("$Id: mk_req.c,v 1.6 2000/04/11 00:49:35 assar Exp $");
+RCSID("$Id: mk_req.c,v 1.7 2002/05/24 15:21:00 joda Exp $");
 
 static int lifetime = 255;
 
@@ -108,8 +108,8 @@ krb_mk_req(KTEXT authent,
 
     krb5_store_int8(sp, req.length);
 
-    sp->store(sp, cr.ticket_st.dat, cr.ticket_st.length);
-    sp->store(sp, req.dat, req.length);
+    krb5_storage_write(sp, cr.ticket_st.dat, cr.ticket_st.length);
+    krb5_storage_write(sp, req.dat, req.length);
     krb5_storage_to_data(sp, &a);
     krb5_storage_free(sp);
     memcpy(authent->dat, a.data, a.length);

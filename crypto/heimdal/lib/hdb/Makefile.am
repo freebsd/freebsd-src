@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.51 2001/08/28 08:31:31 assar Exp $
+# $Id: Makefile.am,v 1.53 2002/08/19 16:17:16 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -20,7 +20,7 @@ LDADD = libhdb.la \
 	$(LIB_roken)
 
 lib_LTLIBRARIES = libhdb.la
-libhdb_la_LDFLAGS = -version-info 7:4:0
+libhdb_la_LDFLAGS = -version-info 7:5:0
 
 libhdb_la_SOURCES =				\
 	common.c				\
@@ -43,10 +43,10 @@ libhdb_la_LIBADD = ../krb5/libkrb5.la ../asn1/libasn1.la ../roken/libroken.la $(
 $(libhdb_la_OBJECTS): $(srcdir)/hdb-protos.h $(srcdir)/hdb-private.h
 
 $(srcdir)/hdb-protos.h:
-	cd $(srcdir); perl ../../cf/make-proto.pl -o hdb-protos.h $(libhdb_la_SOURCES) || rm -f hdb-protos.h
+	cd $(srcdir); perl ../../cf/make-proto.pl -q -P comment -o hdb-protos.h $(libhdb_la_SOURCES) || rm -f hdb-protos.h
 
 $(srcdir)/hdb-private.h:
-	cd $(srcdir); perl ../../cf/make-proto.pl -p hdb-private.h $(libhdb_la_SOURCES) || rm -f hdb-private.h
+	cd $(srcdir); perl ../../cf/make-proto.pl -q -P comment -p hdb-private.h $(libhdb_la_SOURCES) || rm -f hdb-private.h
 
 $(foo) hdb_asn1.h: asn1_files
 

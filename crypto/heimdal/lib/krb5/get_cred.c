@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: get_cred.c,v 1.87 2001/07/03 18:45:03 assar Exp $");
+RCSID("$Id: get_cred.c,v 1.88 2002/03/10 23:11:29 assar Exp $");
 
 /*
  * Take the `body' and encode it into `padata' using the credentials
@@ -712,8 +712,17 @@ get_cred_from_kdc_flags(krb5_context context,
 		krb5_set_error_string(context, "malloc: out of memory");
 		ret = ENOMEM;
 	    } else {
-		ret = get_cred_kdc_la(context, ccache, flags, 
-				      in_creds, &tgts, *out_creds);
+		krb5_boolean noaddr;
+
+		krb5_appdefault_boolean(context, NULL, tgts.server->realm,
+					"no-addresses", FALSE, &noaddr);
+
+		if (noaddr)
+		    ret = get_cred_kdc(context, ccache, flags, NULL,
+				       in_creds, &tgts, *out_creds);
+		else
+		    ret = get_cred_kdc_la(context, ccache, flags, 
+					  in_creds, &tgts, *out_creds);
 		if (ret) {
 		    free (*out_creds);
 		    *out_creds = NULL;
@@ -772,8 +781,16 @@ get_cred_from_kdc_flags(krb5_context context,
 	krb5_set_error_string(context, "malloc: out of memory");
 	ret = ENOMEM;
     } else {
-	ret = get_cred_kdc_la(context, ccache, flags, 
-				      in_creds, tgt, *out_creds);
+	krb5_boolean noaddr;
+
+	krb5_appdefault_boolean(context, NULL, tgt->server->realm,
+				"no-addresses", FALSE, &noaddr);
+	if (noaddr)
+	    ret = get_cred_kdc (context, ccache, flags, NULL,
+				in_creds, tgt, *out_creds);
+	else
+	    ret = get_cred_kdc_la(context, ccache, flags, 
+				  in_creds, tgt, *out_creds);
 	if (ret) {
 	    free (*out_creds);
 	    *out_creds = NULL;

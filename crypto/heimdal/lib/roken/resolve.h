@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: resolve.h,v 1.13 2001/06/09 01:35:04 joda Exp $ */
+/* $Id: resolve.h,v 1.15 2002/08/26 13:30:16 assar Exp $ */
 
 #ifndef __RESOLVE_H__
 #define __RESOLVE_H__
@@ -50,6 +50,9 @@
 #ifndef T_KEY
 #define T_KEY		25
 #endif
+#ifndef T_AAAA
+#define T_AAAA		28
+#endif
 #ifndef T_SRV
 #define T_SRV		33
 #endif
@@ -59,6 +62,21 @@
 #ifndef T_CERT
 #define T_CERT		37
 #endif
+
+#define dns_query		rk_dns_query
+#define mx_record		rk_mx_record
+#define srv_record		rk_srv_record
+#define key_record		rk_key_record
+#define sig_record		rk_sig_record
+#define cert_record		rk_cert_record
+#define resource_record		rk_resource_record
+#define dns_reply		rk_dns_reply
+
+#define dns_lookup		rk_dns_lookup
+#define dns_free_data		rk_dns_free_data
+#define dns_string_to_type	rk_dns_string_to_type
+#define dns_type_to_string	rk_dns_type_to_string
+#define dns_srv_order		rk_dns_srv_order
 
 struct dns_query{
     char *domain;

@@ -49,10 +49,10 @@
 #define _PATH_BSHELL "/bin/sh"
 #endif
 
-#define	_PATH_FTPUSERS		"/etc/ftpusers"
-#define	_PATH_FTPCHROOT		"/etc/ftpchroot"
-#define	_PATH_FTPWELCOME	"/etc/ftpwelcome"
-#define	_PATH_FTPLOGINMESG	"/etc/motd"
+#define	_PATH_FTPUSERS		SYSCONFDIR "/ftpusers"
+#define	_PATH_FTPCHROOT		SYSCONFDIR "/ftpchroot"
+#define	_PATH_FTPWELCOME	SYSCONFDIR "/ftpwelcome"
+#define	_PATH_FTPLOGINMESG	SYSCONFDIR "/motd"
 
-#define _PATH_ISSUE		"/etc/issue"
-#define _PATH_ISSUE_NET		"/etc/issue.net"
+#define _PATH_ISSUE		SYSCONFDIR "/issue"
+#define _PATH_ISSUE_NET		SYSCONFDIR "/issue.net"

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,12 +33,12 @@
 
 #include "hprop.h"
 
-RCSID("$Id: hprop.c,v 1.68 2001/09/23 05:13:17 assar Exp $");
+RCSID("$Id: hprop.c,v 1.69 2002/04/18 10:18:35 joda Exp $");
 
 static int version_flag;
 static int help_flag;
-static char *ktname = HPROP_KEYTAB;
-static char *database;
+static const char *ktname = HPROP_KEYTAB;
+static const char *database;
 static char *mkeyfile;
 static int to_stdout;
 static int verbose_flag;

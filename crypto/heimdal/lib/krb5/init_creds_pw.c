@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: init_creds_pw.c,v 1.51 2001/09/18 09:36:39 joda Exp $");
+RCSID("$Id: init_creds_pw.c,v 1.53 2002/04/18 09:14:51 joda Exp $");
 
 static int
 get_config_time (krb5_context context,
@@ -125,6 +125,24 @@ out:
 }
 
 /*
+ * Print a message (str) to the user about the expiration in `lr'
+ */
+
+static void
+report_expiration (krb5_context context,
+		   krb5_prompter_fct prompter,
+		   krb5_data *data,
+		   const char *str,
+		   time_t time)
+{
+    char *p;
+	    
+    asprintf (&p, "%s%s", str, ctime(&time));
+    (*prompter) (context, data, NULL, p, 0, NULL);
+    free (p);
+}
+
+/*
  * Parse the last_req data and show it to the user if it's interesting
  */
 
@@ -139,6 +157,7 @@ print_expire (krb5_context context,
     LastReq *lr = &rep->enc_part.last_req;
     krb5_timestamp sec;
     time_t t;
+    krb5_boolean reported = FALSE;
 
     krb5_timeofday (context, &sec);
 
@@ -148,26 +167,30 @@ print_expire (krb5_context context,
 			       7 * 24 * 60 * 60);
 
     for (i = 0; i < lr->len; ++i) {
-	if (abs(lr->val[i].lr_type) == LR_PW_EXPTIME
-	    && lr->val[i].lr_value <= t) {
-	    char *p;
-	    time_t tmp = lr->val[i].lr_value;
-	    
-	    asprintf (&p, "Your password will expire at %s", ctime(&tmp));
-	    (*prompter) (context, data, NULL, p, 0, NULL);
-	    free (p);
-	    return;
+	if (lr->val[i].lr_value <= t) {
+	    switch (abs(lr->val[i].lr_type)) {
+	    case LR_PW_EXPTIME :
+		report_expiration(context, prompter, data,
+				  "Your password will expire at ",
+				  lr->val[i].lr_value);
+		reported = TRUE;
+		break;
+	    case LR_ACCT_EXPTIME :
+		report_expiration(context, prompter, data,
+				  "Your account will expire at ",
+				  lr->val[i].lr_value);
+		reported = TRUE;
+		break;
+	    }
 	}
     }
 
-    if (rep->enc_part.key_expiration
+    if (!reported
+	&& rep->enc_part.key_expiration
 	&& *rep->enc_part.key_expiration <= t) {
-	char *p;
-	time_t t = *rep->enc_part.key_expiration;
-
-	asprintf (&p, "Your password/account will expire at %s", ctime(&t));
-	(*prompter) (context, data, NULL, p, 0, NULL);
-	free (p);
+	report_expiration(context, prompter, data,
+			  "Your password/account will expire at ",
+			  *rep->enc_part.key_expiration);
     }
 }
 
@@ -384,11 +407,12 @@ krb5_get_init_creds_password(krb5_context context,
 
     if (password == NULL) {
 	krb5_prompt prompt;
-	char *p;
+	char *p, *q;
 
 	krb5_unparse_name (context, this_cred.client, &p);
-	asprintf (&prompt.prompt, "%s's Password: ", p);
+	asprintf (&q, "%s's Password: ", p);
 	free (p);
+	prompt.prompt = q;
 	password_data.data   = buf;
 	password_data.length = sizeof(buf);
 	prompt.hidden = 1;
@@ -396,7 +420,7 @@ krb5_get_init_creds_password(krb5_context context,
 	prompt.type   = KRB5_PROMPT_TYPE_PASSWORD;
 
 	ret = (*prompter) (context, data, NULL, NULL, 1, &prompt);
-	free (prompt.prompt);
+	free (q);
 	if (ret) {
 	    memset (buf, 0, sizeof(buf));
 	    ret = KRB5_LIBOS_PWDINTR;
