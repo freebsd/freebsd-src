@@ -1714,6 +1714,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "DSS 150 Digital Speaker System",
 	},
 	{
+	    USB_VENDOR_PHILIPS, USB_PRODUCT_PHILIPS_DIVAUSB,
+	    0,
+	    "Philips",
+	    "DIVA USB mp3 player",
+	},
+	{
 	    USB_VENDOR_PHILIPSSEMI, USB_PRODUCT_PHILIPSSEMI_HUB1122,
 	    0,
 	    "Philips Semiconductors",
