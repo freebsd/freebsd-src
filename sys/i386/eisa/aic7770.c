@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.41 1997/08/21 19:55:49 bde Exp $
+ *	$Id: aic7770.c,v 1.42 1997/09/21 21:35:22 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -204,7 +204,7 @@ ahc_eisa_irq(bc, ioh)
 
 /*
  * Check the slots looking for a board we recognise
- * If we find one, note it's address (slot) and call
+ * If we find one, note its address (slot) and call
  * the actual probe routine to check it out.
  */
 int

@@ -330,7 +330,7 @@
 #endif
 
 #ifndef PCVT_UPDATEFAST		/* this is the rate at which the cursor */
-# define PCVT_UPDATEFAST (hz/10) /* gets updated with it's new position	*/
+# define PCVT_UPDATEFAST (hz/10) /* gets updated with its new position	*/
 #endif				/* see: async_update() in pcvt_sup.c	*/
 
 #ifndef PCVT_UPDATESLOW		/* this is the rate at which the cursor	*/

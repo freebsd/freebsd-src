@@ -93,7 +93,7 @@ node, and deletes them, no matter where they've been moved to.
 (active vnodes are redirected to point to the deadfs).
 
 If a directory has been moved, and a new backing node is inserted
-into it's own back node, the new front node will appear in that front
+into its own back node, the new front node will appear in that front
 directory, even though it's been moved, because the directory that
 gets the front node is found via the links and not by name.
 

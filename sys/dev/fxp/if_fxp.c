@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.50 1998/03/03 14:19:07 dg Exp $
+ *	$Id: if_fxp.c,v 1.51 1998/04/15 17:47:02 bde Exp $
  */
 
 /*
@@ -1474,7 +1474,7 @@ fxp_mediastatus(ifp, ifmr)
  * Add a buffer to the end of the RFA buffer list.
  * Return 0 if successful, 1 for failure. A failure results in
  * adding the 'oldm' (if non-NULL) on to the end of the list -
- * tossing out it's old contents and recycling it.
+ * tossing out its old contents and recycling it.
  * The RFA struct is stuck at the beginning of mbuf cluster and the
  * data pointer is fixed up to point just past it.
  */
@@ -1693,7 +1693,7 @@ fxp_ioctl(ifp, command, data)
  * must be the first command in the chain, so we take steps to ensure
  * that. By requiring this, it allows us to keep the performance of
  * the pre-initialized command ring (esp. link pointers) by not actually
- * inserting the mcsetup command in the ring - i.e. it's link pointer
+ * inserting the mcsetup command in the ring - i.e. its link pointer
  * points to the TxCB ring, but the mcsetup descriptor itself is not part
  * of it. We then can do 'CU_START' on the mcsetup descriptor and have it
  * lead into the regular TxCB ring when it completes.

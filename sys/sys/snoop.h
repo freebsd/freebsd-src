@@ -64,7 +64,7 @@ int	snpinc __P((struct snoop *snp, char c));
  * Theese are snoop io controls
  * SNPSTTY accepts 'struct snptty' as input.
  * If ever type or  unit set to -1,snoop device
- * detached from it's current tty.
+ * detached from its current tty.
  */
 
 #define SNPSTTY       _IOW('T', 90, dev_t)

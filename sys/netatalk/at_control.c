@@ -707,7 +707,7 @@ at_broadcast( sat )
  *
  * Split the range into two subranges such that the middle
  * of the two ranges is the point where the highest bit of difference
- * between the two addresses, makes it's transition
+ * between the two addresses makes its transition.
  * Each of the upper and lower ranges might not exist, or might be 
  * representable by 1 or more netmasks. In addition, if both
  * ranges can be represented by the same netmask, then teh can be merged

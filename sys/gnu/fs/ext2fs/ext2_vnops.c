@@ -938,7 +938,7 @@ ext2_mkdir(ap)
 		ip->i_flag |= IN_CHANGE;
 	}
 
-	/* Directory set up, now install it's entry in the parent directory. */
+	/* Directory set up, now install its entry in the parent directory. */
 	error = ext2_direnter(ip, dvp, cnp);
 	if (error) {
 		dp->i_nlink--;

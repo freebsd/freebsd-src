@@ -1141,7 +1141,7 @@ DMAbuf_outputintr(int dev, int event_type)
      * Event types: 0 = DMA transfer done. Device still has more data in
      * the local buffer. 1 = DMA transfer done. Device doesn't have local
      * buffer or it's empty now. 2 = No DMA transfer but the device has
-     * now more space in it's local buffer.
+     * now more space in its local buffer.
      */
 
     u_long   flags;

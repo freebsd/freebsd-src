@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
- *	$Id: procfs_mem.c,v 1.29 1998/02/04 22:32:49 eivind Exp $
+ *	$Id: procfs_mem.c,v 1.30 1998/02/06 12:13:41 eivind Exp $
  */
 
 /*
@@ -299,7 +299,7 @@ procfs_domem(curp, p, pfs, uio)
 
 /*
  * Given process (p), find the vnode from which
- * it's text segment is being executed.
+ * its text segment is being executed.
  *
  * It would be nice to grab this information from
  * the VM system, however, there is no sure-fire

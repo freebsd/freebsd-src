@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.26 1997/12/02 21:06:51 phk Exp $
+ *	$Id: fd.c,v 1.27 1998/01/24 02:54:37 eivind Exp $
  *
  */
 
@@ -1706,7 +1706,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
 		/*******************************************************\
 		* If the next drive has a motor startup pending, then	*
-		* it will start up in it's own good time		*
+		* it will start up in its own good time		*
 		\*******************************************************/
 		if(fd->flags & FD_MOTOR_WAIT)
 		{

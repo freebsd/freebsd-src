@@ -8,7 +8,7 @@
  * in any changes that are made.
  *
  * This driver takes packets off the IP i/f and hands them up to a
- * user process to have it's wicked way with. This driver has it's
+ * user process to have its wicked way with. This driver has it's
  * roots in a similar driver written by Phil Cockcroft (formerly) at
  * UCL. This driver is based much more on read/write/poll mode of
  * operation though.
