@@ -400,6 +400,7 @@ carp_clone_destroy(struct ifnet *ifp)
 			sc->sc_ifp->if_carp = NULL;
 			CARP_LOCK_DESTROY(cif);
 			FREE(cif, M_CARP);
+			ifpromisc(sc->sc_ifp, 0);
 		} else {
 			CARP_UNLOCK(cif);
 		}
