@@ -61,7 +61,6 @@
 
 /* #define SYM_DEBUG_GENERIC_SUPPORT */
 
-#include <pci.h>
 #include <sys/param.h>
 
 /*
