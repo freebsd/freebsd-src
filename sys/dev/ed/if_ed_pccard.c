@@ -192,7 +192,7 @@ static const struct ed_product {
 	 * MAC address check.
 	 */
 	{ PCMCIA_CARD(LINKSYS, COMBO_ECARD, 0),
-	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_AX88190 },
+	  -1, { 0x00, 0x90, 0xcc }, NE2000DVF_DL10019 },
 	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0),
 	  -1, { 0x00, 0x80, 0xc8 }, NE2000DVF_DL10019 },
 	{ PCMCIA_CARD(LINKSYS, ETHERFAST, 0),
@@ -201,8 +201,6 @@ static const struct ed_product {
 	  -1, { 0x00, 0xe0, 0x98 }, NE2000DVF_DL10019 },
 	{ PCMCIA_CARD2(LINKSYS, ETHERFAST, MELCO_LPC2_TX, 0),
 	  -1, { 0x00, 0x40, 0x26 }, NE2000DVF_DL10019 },
-	{ PCMCIA_CARD(LINKSYS, COMBO_ECARD, 0),
-	  -1, { 0x00, 0x80, 0xc8 } },
 	{ PCMCIA_CARD(LINKSYS, TRUST_COMBO_ECARD, 0), 
 	  0x0120, { 0x20, 0x04, 0x49 } },
 
@@ -300,7 +298,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(NETGEAR, FA410TXC, 0),
 	  -1, { 0x00, 0x48, 0x54 } },
 	{ PCMCIA_CARD(NETGEAR, FA411, 0),
-	  -1, { 0x00, 0x40, 0xf4 } },
+	  -1, { 0x00, 0x40, 0xf4 }, NE2000DVF_AX88190},
 
 #if 0
     /* the rest of these are stolen from the linux pcnet pcmcia device
@@ -389,15 +387,19 @@ static const struct ed_product {
 static int
 ed_pccard_match(device_t dev)
 {
-	const struct pccard_product *pp;
+	const struct ed_product *pp;
 
-	if ((pp = pccard_product_lookup(dev, 
+	if ((pp = (const struct ed_product *) pccard_product_lookup(dev, 
 	    (const struct pccard_product *) ed_pccard_products,
 	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
-		device_set_desc(dev, pp->pp_name);
-		return 0;
+		device_set_desc(dev, pp->prod.pp_name);
+		if (pp->flags & NE2000DVF_DL10019)
+			device_set_flags(dev, ED_FLAGS_LINKSYS);
+		else if (pp->flags & NE2000DVF_AX88190)
+			device_set_flags(dev, ED_FLAGS_AX88190);
+		return (0);
 	}
-	return EIO;
+	return (EIO);
 }
 
 /* 
@@ -621,6 +623,11 @@ ed_pccard_ax88190(device_t dev)
 	ax88190_geteprom(sc);
 	ed_release_resources(dev);
 	error = ed_probe_Novell(dev, 0, flags);
+	if (error == 0) {
+		sc->vendor = ED_VENDOR_PCCARD;
+		sc->type = ED_TYPE_NE2000;
+		sc->type_str = "AX88190";
+	}
 	return (error);
 }
 
