@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.3 (Berkeley) 9/21/93
- * $Id: mfs_vnops.c,v 1.7 1994/10/09 07:35:12 davidg Exp $
+ * $Id: mfs_vnops.c,v 1.8 1995/02/03 06:46:27 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -340,7 +340,7 @@ int
 mfs_badop()
 {
 
-	panic("mfs_badop called\n");
+	panic("mfs_badop called");
 	/* NOTREACHED */
 }
 

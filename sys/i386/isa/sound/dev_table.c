@@ -122,7 +122,7 @@ sndtable_init_card (int unit, struct address_info *hw_config)
     if (!unit)
       {
 	if (sndtable_init (0) != 0)
-	  panic ("snd: Invalid memory allocation\n");
+	  panic ("snd: Invalid memory allocation");
 	return TRUE;
       }
 
@@ -140,7 +140,7 @@ sndtable_init_card (int unit, struct address_info *hw_config)
 						 * Mark as not detected
 						 */
 	  else if (sound_drivers[drv].attach (0, hw_config) != 0)
-	    panic ("snd#: Invalid memory allocation\n");
+	    panic ("snd#: Invalid memory allocation");
 	  return TRUE;
 	}
 

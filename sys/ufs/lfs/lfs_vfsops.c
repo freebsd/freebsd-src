@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.7 (Berkeley) 4/16/94
- * $Id: lfs_vfsops.c,v 1.9 1994/11/17 01:30:53 gibbs Exp $
+ * $Id: lfs_vfsops.c,v 1.10 1995/03/16 18:16:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -356,7 +356,7 @@ lfs_unmount(mp, mntflags, p)
 	if (error = VFS_SYNC(mp, 1, p->p_ucred, p))
 		return (error);
 	if (fs->lfs_ivnode->v_dirtyblkhd.lh_first)
-		panic("lfs_unmount: still dirty blocks on ifile vnode\n");
+		panic("lfs_unmount: still dirty blocks on ifile vnode");
 	vrele(fs->lfs_ivnode);
 	vgone(fs->lfs_ivnode);
 

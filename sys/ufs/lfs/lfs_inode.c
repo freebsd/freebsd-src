@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_inode.c	8.5 (Berkeley) 12/30/93
- * $Id: lfs_inode.c,v 1.5 1995/01/04 23:46:31 gibbs Exp $
+ * $Id: lfs_inode.c,v 1.6 1995/01/09 16:05:21 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -136,7 +136,7 @@ lfs_update(ap)
 	if (lastseg != -1) { \
 		LFS_SEGENTRY(sup, fs, lastseg, sup_bp); \
 		if ((num << fs->lfs_bshift) > sup->su_nbytes) \
-			panic("lfs_truncate: negative bytes in segment %d\n", \
+			panic("lfs_truncate: negative bytes in segment %d", \
 			    lastseg); \
 		sup->su_nbytes -= num << fs->lfs_bshift; \
 		e1 = VOP_BWRITE(sup_bp); \
