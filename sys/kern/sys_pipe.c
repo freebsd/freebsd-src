@@ -311,9 +311,8 @@ pipespace(cpipe, size)
 	struct pipe *cpipe;
 	int size;
 {
-	struct vm_object *object;
 	caddr_t buffer;
-	int npages, error;
+	int error;
 	static int curfail = 0;
 	static struct timeval lastfail;
 
@@ -321,26 +320,19 @@ pipespace(cpipe, size)
 	       ("pipespace: pipe mutex locked"));
 
 	size = round_page(size);
-	npages = size / PAGE_SIZE;
 	/*
-	 * Create an object, I don't like the idea of paging to/from
-	 * kernel_object.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
-	object = vm_object_allocate(OBJT_DEFAULT, npages);
 	buffer = (caddr_t) vm_map_min(pipe_map);
 
 	/*
-	 * Insert the object into the kernel map, and allocate kva for it.
 	 * The map entry is, by default, pageable.
 	 * XXX -- minor change needed here for NetBSD/OpenBSD VM systems.
 	 */
-	error = vm_map_find(pipe_map, object, 0,
+	error = vm_map_find(pipe_map, NULL, 0,
 		(vm_offset_t *) &buffer, size, 1,
 		VM_PROT_ALL, VM_PROT_ALL, 0);
-
 	if (error != KERN_SUCCESS) {
-		vm_object_deallocate(object);
 		if (ppsratecheck(&lastfail, &curfail, 1))
 			printf("kern.maxpipekva exceeded, please see tuning(7).\n");
 		return (ENOMEM);
