@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: sys_pipe.c,v 1.27 1997/03/24 11:52:26 bde Exp $
+ * $Id: sys_pipe.c,v 1.28 1997/04/09 16:53:39 bde Exp $
  */
 
 /*
@@ -80,6 +80,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
+#include <vm/vm_zone.h>
 
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
@@ -144,6 +145,8 @@ static void pipe_clone_write_buffer __P((struct pipe *wpipe));
 #endif
 static void pipespace __P((struct pipe *cpipe));
 
+vm_zone_t pipe_zone;
+
 /*
  * The pipe system call for the DTYPE_PIPE type of pipes
  */
@@ -162,10 +165,20 @@ pipe(p, uap, retval)
 	struct pipe *rpipe, *wpipe;
 	int fd, error;
 
+	if (pipe_zone == NULL)
+		pipe_zone = zinit("PIPE", sizeof (struct pipe), 0,
+			ZONE_WAIT, 4);
+
+	rpipe = zalloc( pipe_zone);
+/*
 	rpipe = malloc( sizeof (*rpipe), M_TEMP, M_WAITOK);
+*/
 	pipeinit(rpipe);
 	rpipe->pipe_state |= PIPE_DIRECTOK;
+/*
 	wpipe = malloc( sizeof (*wpipe), M_TEMP, M_WAITOK);
+*/
+	wpipe = zalloc( pipe_zone);
 	pipeinit(wpipe);
 	wpipe->pipe_state |= PIPE_DIRECTOK;
 
@@ -1099,6 +1112,9 @@ pipeclose(cpipe)
 				cpipe->pipe_buffer.size + PAGE_SIZE);
 		}
 #endif
+		zfree(pipe_zone, cpipe);
+/*
 		free(cpipe, M_TEMP);
+*/
 	}
 }
