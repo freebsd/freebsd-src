@@ -663,7 +663,7 @@ single_user()
 		pp = getpwnam("root");
 		if (typ && (typ->ty_status & TTY_SECURE) == 0 &&
 		    pp && *pp->pw_passwd) {
-			write(2, banner, sizeof banner - 1);
+			write(STDERR_FILENO, banner, sizeof banner - 1);
 			for (;;) {
 				clear = getpass("Password:");
 				if (clear == 0 || *clear == '\0')

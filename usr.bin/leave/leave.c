@@ -81,7 +81,7 @@ main(argc, argv)
 
 	if (argc < 2) {
 #define	MSG1	"When do you have to leave? "
-		(void)write(1, MSG1, sizeof(MSG1) - 1);
+		(void)write(STDOUT_FILENO, MSG1, sizeof(MSG1) - 1);
 		cp = fgets(buf, sizeof(buf), stdin);
 		if (cp == NULL || *cp == '\n')
 			exit(0);
@@ -166,7 +166,7 @@ doalarm(secs)
 #define	MSG2	"\07\07You have to leave in 5 minutes.\n"
 	if (secs >= FIVEMIN) {
 		sleep(secs - FIVEMIN);
-		if (write(1, MSG2, sizeof(MSG2) - 1) != sizeof(MSG2) - 1)
+		if (write(STDOUT_FILENO, MSG2, sizeof(MSG2) - 1) != sizeof(MSG2) - 1)
 			exit(0);
 		secs = FIVEMIN;
 	}
@@ -175,19 +175,19 @@ doalarm(secs)
 #define	MSG3	"\07\07Just one more minute!\n"
 	if (secs >= ONEMIN) {
 		sleep(secs - ONEMIN);
-		if (write(1, MSG3, sizeof(MSG3) - 1) != sizeof(MSG3) - 1)
+		if (write(STDOUT_FILENO, MSG3, sizeof(MSG3) - 1) != sizeof(MSG3) - 1)
 			exit(0);
 	}
 
 #define	MSG4	"\07\07Time to leave!\n"
 	for (bother = 10; bother--;) {
 		sleep((u_int)ONEMIN);
-		if (write(1, MSG4, sizeof(MSG4) - 1) != sizeof(MSG4) - 1)
+		if (write(STDOUT_FILENO, MSG4, sizeof(MSG4) - 1) != sizeof(MSG4) - 1)
 			exit(0);
 	}
 
 #define	MSG5	"\07\07That was the last time I'll tell you.  Bye.\n"
-	(void)write(1, MSG5, sizeof(MSG5) - 1);
+	(void)write(STDOUT_FILENO, MSG5, sizeof(MSG5) - 1);
 	exit(0);
 }
 

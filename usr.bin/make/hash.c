@@ -50,6 +50,7 @@ __RCSID("$FreeBSD$");
  * 	table.  Hash tables grow automatically as the amount of
  * 	information increases.
  */
+#include <unistd.h>
 #include "sprite.h"
 #include "make.h"
 #include "hash.h"
@@ -293,7 +294,7 @@ Hash_DeleteEntry(t, e)
 			return;
 		}
 	}
-	(void) write(2, "bad call to Hash_DeleteEntry\n", 29);
+	(void) write(STDERR_FILENO, "bad call to Hash_DeleteEntry\n", 29);
 	abort();
 }
 

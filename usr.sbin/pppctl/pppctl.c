@@ -147,7 +147,7 @@ Receive(int fd, int display)
                     last = prompt;
                 if (last) {
                     last++;
-                    write(1, Buffer, last-Buffer);
+                    write(STDOUT_FILENO, Buffer, last-Buffer);
                 }
             }
             prompt = prompt == NULL ? Buffer : prompt+1;
@@ -162,7 +162,7 @@ Receive(int fd, int display)
                     sprintf(Buffer, "passwd %s\n", passwd);
                     memset(passwd, '\0', strlen(passwd));
                     if (display & REC_VERBOSE)
-                        write(1, Buffer, strlen(Buffer));
+                        write(STDOUT_FILENO, Buffer, strlen(Buffer));
                     write(fd, Buffer, strlen(Buffer));
                     memset(Buffer, '\0', strlen(Buffer));
                     return Receive(fd, display & ~REC_PASSWD);
@@ -180,13 +180,13 @@ Receive(int fd, int display)
                 flush = sizeof Buffer / 2;
             else
                 flush = last - Buffer + 1;
-            write(1, Buffer, flush);
+            write(STDOUT_FILENO, Buffer, flush);
             strcpy(Buffer, Buffer + flush);
             len -= flush;
         }
         if ((Result = select(fd + 1, &f, NULL, NULL, &t)) <= 0) {
             if (len)
-                write(1, Buffer, len);
+                write(STDOUT_FILENO, Buffer, len);
             break;
         }
     }
@@ -217,7 +217,7 @@ InputHandler(int sig)
             len = read(data, buf, sizeof buf);
 
             if (len > 0)
-                write(1, buf, len);
+                write(STDOUT_FILENO, buf, len);
             else if (data != -1)
                 longjmp(pppdead, -1);
         }
@@ -613,7 +613,7 @@ main(int argc, char **argv)
                     Buffer[sizeof(Buffer)-2] = '\0';
                     strcat(Buffer, "\n");
                     if (verbose)
-                        write(1, Buffer, strlen(Buffer));
+                        write(STDOUT_FILENO, Buffer, strlen(Buffer));
                     write(fd, Buffer, strlen(Buffer));
                     if (Receive(fd, verbose | REC_SHOW) != 0) {
                         fprintf(stderr, "Connection closed\n");
@@ -623,7 +623,7 @@ main(int argc, char **argv)
                         start = ++next;
                 } while (next && *next);
                 if (verbose)
-                    write(1, "quit\n", 5);
+                    write(STDOUT_FILENO, "quit\n", 5);
                 write(fd, "quit\n", 5);
                 while (Receive(fd, verbose | REC_SHOW) == 0)
                     ;

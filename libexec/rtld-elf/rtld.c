@@ -2107,6 +2107,6 @@ xprintf(const char *fmt, ...)
 
     va_start(ap, fmt);
     vsprintf(buf, fmt, ap);
-    (void)write(1, buf, strlen(buf));
+    (void)write(STDOUT_FILENO, buf, strlen(buf));
     va_end(ap);
 }

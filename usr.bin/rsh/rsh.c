@@ -427,7 +427,7 @@ done:
 				if (errno != EWOULDBLOCK)
 					FD_CLR(rfd2, &readfrom);
 			} else
-				(void)write(2, buf, cc);
+				(void)write(STDERR_FILENO, buf, cc);
 		}
 		if (FD_ISSET(rem, &ready)) {
 			errno = 0;
@@ -443,7 +443,7 @@ done:
 				if (errno != EWOULDBLOCK)
 					FD_CLR(rem, &readfrom);
 			} else
-				(void)write(1, buf, cc);
+				(void)write(STDOUT_FILENO, buf, cc);
 		}
 	} while (FD_ISSET(rfd2, &readfrom) || FD_ISSET(rem, &readfrom));
 }

@@ -1,4 +1,10 @@
+#include <unistd.h>
 #include "header.h"
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif
 
 println(s) char *s; {
   printf("%s\n", s);
@@ -144,7 +150,7 @@ char inchar() {
   lval = val;
   brkrd = 0;
   reading = 1;
-  read(0,&ch,1);
+  read(STDIN_FILENO,&ch,1);
   reading = 0;
   if (brkrd)
     val = 0177;
@@ -204,17 +210,17 @@ char *instr() {
   fflush(stdout);
 #ifdef XENIX
   while(rdchk(0)) {
-    read(0,result+i,1);
+    read(STDIN_FILENO,result+i,1);
     if (i++ == 78) break;
   }
 #else
 #ifdef SIII
-  while(read(2,result+i,1) == 1)
+  while(read(STDERR_FILENO,result+i,1) == 1)
     if (i++ == 78) break;
 #else
   while(ioctl(0,FIONREAD,&l1), l1 > 0L) {
     while(l1-- > 0L) {
-      read(0,result+i,1);
+      read(STDIN_FILENO,result+i,1);
       if (i++ == 78) goto out1;
     }
   }
@@ -358,14 +364,14 @@ inflush() {
 
 #ifdef UNIX
 #ifdef XENIX
-  while(rdchk(0)) read(0,&val,1);
+  while(rdchk(0)) read(STDIN_FILENO,&val,1);
 #else
 #ifdef SIII
-  while(read(2,&val,1));
+  while(read(STDERR_FILENO,&val,1));
 #else
   long l1;
   ioctl (0, FIONREAD, &l1);
-  while(l1-- > 0L) read(0,&val,1);
+  while(l1-- > 0L) read(STDIN_FILENO,&val,1);
 #endif
 #endif
 #endif

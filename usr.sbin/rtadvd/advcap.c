@@ -162,7 +162,8 @@ getent(bp, name, cp)
 				break;
 			}
 			if (cp >= bp+BUFSIZ) {
-				write(2,"Remcap entry too long\n", 23);
+				write(STDERR_FILENO, "Remcap entry too long\n",
+				      23);
 				break;
 			} else
 				*cp++ = c;
@@ -198,7 +199,7 @@ tnchktc()
 	p = tbuf + strlen(tbuf) - 2;	/* before the last colon */
 	while (*--p != ':')
 		if (p<tbuf) {
-			write(2, "Bad remcap entry\n", 18);
+			write(STDERR_FILENO, "Bad remcap entry\n", 18);
 			return (0);
 		}
 	p++;
@@ -211,7 +212,7 @@ tnchktc()
 		q++;
 	*q = 0;
 	if (++hopcount > MAXHOP) {
-		write(2, "Infinite tc= loop\n", 18);
+		write(STDERR_FILENO, "Infinite tc= loop\n", 18);
 		return (0);
 	}
 	if (getent(tcbuf, tcname, remotefile) != 1) {
@@ -221,7 +222,7 @@ tnchktc()
 		;
 	l = p - holdtbuf + strlen(q);
 	if (l > BUFSIZ) {
-		write(2, "Remcap entry too long\n", 23);
+		write(STDERR_FILENO, "Remcap entry too long\n", 23);
 		q[BUFSIZ - (p-holdtbuf)] = 0;
 	}
 	strcpy(p, q);

@@ -93,8 +93,8 @@ main() {
 
 #ifdef UNIX
   initterminal(setjmp(intrenv));
-  signal(SIGINT, onbrk);
-  signal(SIGTERM, onterm);
+  signal(SIGINT, (void *)onbrk);
+  signal(SIGTERM, (void *)onterm);
   reading = 0;
 #else
   initterminal(0);
@@ -1914,7 +1914,7 @@ bye () {
 
 #ifdef UNIX
 onbrk() {
-  signal(SIGINT, onbrk);
+  signal(SIGINT, (void *)onbrk);
   if (reading)
     brkrd = 1;
   else
@@ -1922,7 +1922,7 @@ onbrk() {
 }
 
 onterm() {
-  signal(SIGTERM, onterm);
+  signal(SIGTERM, (void *)onterm);
   longjmp(intrenv, 1);
 }
 #endif
@@ -1939,7 +1939,7 @@ readnl() {
   fflush(stdout);
   brkrd = 0;
   reading = 1;
-  do { read(0,&ch,1); } while(ch != '\n' && !brkrd);
+  do { read(STDIN_FILENO,&ch,1); } while(ch != '\n' && !brkrd);
   if (brkrd)
     kill(getpid(), SIGTERM);
   reading = 0;
