@@ -113,8 +113,10 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			/* state fields */
 		
 			ctrl_desc[nctrl].dl_est = DL_DOWN;
-			ctrl_desc[nctrl].bch_state[CHAN_B1] = BCH_ST_FREE;
-			ctrl_desc[nctrl].bch_state[CHAN_B2] = BCH_ST_FREE;	
+			ctrl_desc[nctrl].nbch = 2; /* XXX extra param? */
+			for (i = 0; i < ctrl_desc[nctrl].nbch; i++)
+			    ctrl_desc[nctrl].bch_state[i] = BCH_ST_FREE;
+
 			ctrl_desc[nctrl].tei = -1;
 			
 			/* init unit to controller table */
@@ -160,8 +162,8 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			}
 
 			ctrl_desc[utoc_tab[unit]].dl_est = DL_DOWN;
-			ctrl_desc[utoc_tab[unit]].bch_state[CHAN_B1] = BCH_ST_FREE;
-			ctrl_desc[utoc_tab[unit]].bch_state[CHAN_B2] = BCH_ST_FREE;
+			for (i = 0; i < ctrl_desc[utoc_tab[unit]].nbch; i++)
+			    ctrl_desc[utoc_tab[unit]].bch_state[i] = BCH_ST_FREE;
 			ctrl_desc[utoc_tab[unit]].tei = -1;
 
 			if(sendup)
@@ -189,8 +191,8 @@ i4b_mdl_status_ind(int unit, int status, int parm)
 			}
 
 			ctrl_desc[utoc_tab[unit]].dl_est = DL_DOWN;
-			ctrl_desc[utoc_tab[unit]].bch_state[CHAN_B1] = BCH_ST_FREE;
-			ctrl_desc[utoc_tab[unit]].bch_state[CHAN_B2] = BCH_ST_FREE;
+			for (i = 0; i < ctrl_desc[utoc_tab[unit]].nbch; i++)
+			    ctrl_desc[utoc_tab[unit]].bch_state[i] = BCH_ST_FREE;
 			ctrl_desc[utoc_tab[unit]].tei = -1;
 			break;
 
@@ -224,8 +226,8 @@ n_mgmt_command(int unit, int cmd, void *parm)
 			}
 
 			ctrl_desc[utoc_tab[unit]].dl_est = DL_DOWN;
-			ctrl_desc[utoc_tab[unit]].bch_state[CHAN_B1] = BCH_ST_FREE;
-			ctrl_desc[utoc_tab[unit]].bch_state[CHAN_B2] = BCH_ST_FREE;
+			for (i = 0; i < ctrl_desc[utoc_tab[unit]].nbch; i++)
+			    ctrl_desc[utoc_tab[unit]].bch_state[i] = BCH_ST_FREE;
 			ctrl_desc[utoc_tab[unit]].tei = -1;
 			break;
 
@@ -299,7 +301,7 @@ n_connect_response(u_int cdid, int response, int cause)
 			break;
 	}
 
-	if((cd->channelid == CHAN_B1) || (cd->channelid == CHAN_B2))
+	if((cd->channelid >= 0) && (cd->channelid < ctrl_desc[cd->controller].nbch))
 	{
 		ctrl_desc[cd->controller].bch_state[cd->channelid] = chstate;
 	}

@@ -941,24 +941,21 @@ static void
 hangup_channel(int controller, int channel, const char *source)
 {
 	cfg_entry_t * cep = NULL;
+	int i;
 
 	if(controller < ncontroller)
 	{	
 		if(isdn_ctrl_tab[controller].state != CTRL_UP)
 			return;
-		if(isdn_ctrl_tab[controller].stateb1 != CHAN_IDLE)
+		for (i = 0; i < isdn_ctrl_tab[controller].nbch; i++)
 		{
-			cep = get_cep_by_cc(controller, 0);
+		    if(isdn_ctrl_tab[controller].stateb[i] != CHAN_IDLE)
+		{
+			cep = get_cep_by_cc(controller, i);
 			if (cep != NULL && cep->isdnchannelused == channel &&
 				cep->isdncontrollerused == controller)
 				goto found;
-		}
-		if(isdn_ctrl_tab[controller].stateb2 != CHAN_IDLE)
-		{
-			cep = get_cep_by_cc(controller, 1);
-			if (cep != NULL && cep->isdnchannelused == channel &&
-				cep->isdncontrollerused == controller)
-				goto found;
+		    }
 		}
 	}
 	/* not found */

@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -30,11 +30,9 @@
  *	i4b daemon - runtime configuration parser
  *	-----------------------------------------
  *
- *	$Id: rc_parse.y,v 1.30 2000/10/09 11:17:07 hm Exp $ 
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  2 22:51:23 2000]
+ *      last edit-date: [Mon May 21 11:22:21 2001]
  *
  *---------------------------------------------------------------------------*/
 
@@ -94,6 +92,7 @@ int		controllercount = -1;
 %token		CALLIN
 %token		CALLOUT
 %token		CHANNELSTATE
+%token		CLONE
 %token		CONNECTPROG
 %token		CONTROLLER
 %token		DIALOUTTYPE
@@ -106,6 +105,7 @@ int		controllercount = -1;
 %token		EARLYHANGUP
 %token		ENTRY
 %token		EXTCALLATTR
+%token		FIRMWARE
 %token		FULLCMD
 %token		HOLIDAYFILE
 %token		IDLETIME_IN
@@ -170,7 +170,7 @@ int		controllercount = -1;
 
 %type	<num>	sysfilekeyword sysnumkeyword sysstrkeyword sysboolkeyword
 %type	<num>	filekeyword numkeyword strkeyword boolkeyword monrights monright
-%type	<num>	cstrkeyword
+%type	<num>	cstrkeyword cfilekeyword
 %type	<str>	filename
 
 %union {
@@ -441,6 +441,7 @@ strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| UNITLENGTHSRC		{ $$ = UNITLENGTHSRC; }		
 		| USRDEVICENAME		{ $$ = USRDEVICENAME; }
 		| VALID			{ $$ = VALID; }
+		| CLONE			{ $$ = CLONE; }
 		;
 
 numkeyword:	  ALERT			{ $$ = ALERT; }
@@ -502,9 +503,16 @@ strcontroller:	cstrkeyword '=' STRING '\n'
 			{ 
 			cfg_setval($1);
 			}
+		| cfilekeyword '=' filename '\n'
+			{ 
+			cfg_setval($1);
+			}
 		;
 
 cstrkeyword:	  PROTOCOL		{ $$ = PROTOCOL; }
+		;
+
+cfilekeyword:	  FIRMWARE		{ $$ = FIRMWARE; }
 		;
 
 

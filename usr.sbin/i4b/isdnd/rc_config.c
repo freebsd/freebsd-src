@@ -170,6 +170,7 @@ set_config_defaults(void)
 	for(i=0; i < ncontroller; i++)
 	{
 		isdn_ctrl_tab[i].protocol = PROTOCOL_DSS1;
+		isdn_ctrl_tab[i].firmware = NULL;
 	}
 
 	/* entry section cleanup */
@@ -568,6 +569,42 @@ cfg_setval(int keyword)
 			cfg_entry_tab[entrycount].calledbackwait = yylval.num;
 			break;
 
+		case CLONE:
+		    /*
+		     *  clone = <entryname>
+		     *      Loads the entry from the named, existing one.
+		     *      Fields such as name and usrdeviceunit should
+		     *      always be specified after clone as they must be
+		     *      unique.
+		     *
+		     *  NOTE: all malloc()'d fields must be dup()'d here,
+		     *  we can't have multiple references to same storage.
+		     */
+		    for (i = 0; i < entrycount; i++)
+			if (!strcmp(cfg_entry_tab[i].name, yylval.str))
+			    break;
+		    if (i == entrycount) {
+			log(LL_ERR, "entry %d: clone, unknown entry %s!", entrycount, yylval.str);
+			do_exit(1);
+		    }
+		    
+		    DBGL(DL_RCCF, (log(LL_DBG, "entry %d: clone = %s", entrycount, yylval.str)));
+
+		    memcpy(&cfg_entry_tab[entrycount], &cfg_entry_tab[i],
+			   sizeof(cfg_entry_tab[0]));
+
+		    if (cfg_entry_tab[entrycount].answerprog)
+			cfg_entry_tab[entrycount].answerprog = strdup(cfg_entry_tab[entrycount].answerprog);
+		    if (cfg_entry_tab[entrycount].budget_callbacks_file)
+			cfg_entry_tab[entrycount].budget_callbacks_file = strdup(cfg_entry_tab[entrycount].budget_callbacks_file);
+		    if (cfg_entry_tab[entrycount].budget_callouts_file)
+			cfg_entry_tab[entrycount].budget_callouts_file = strdup(cfg_entry_tab[entrycount].budget_callouts_file);
+		    if (cfg_entry_tab[entrycount].connectprog)
+			cfg_entry_tab[entrycount].connectprog = strdup(cfg_entry_tab[entrycount].connectprog);
+		    if (cfg_entry_tab[entrycount].disconnectprog)
+			cfg_entry_tab[entrycount].disconnectprog = strdup(cfg_entry_tab[entrycount].disconnectprog);
+		    break;
+
 		case CONNECTPROG:
 			if((cfg_entry_tab[entrycount].connectprog = malloc(strlen(yylval.str)+1)) == NULL)
 			{
@@ -657,6 +694,11 @@ cfg_setval(int keyword)
 			extcallattr = yylval.booln;
 			break;
 
+		case FIRMWARE:
+			DBGL(DL_RCCF, (log(LL_DBG, "controller %d: firmware = %s", controllercount, yylval.str)));
+			isdn_ctrl_tab[controllercount].firmware = strdup(yylval.str);
+			break;
+
 		case HOLIDAYFILE:
 			strcpy(holidayfile, yylval.str);
 			DBGL(DL_RCCF, (log(LL_DBG, "system: holidayfile = %s", yylval.str)));
@@ -696,25 +738,20 @@ cfg_setval(int keyword)
 			break;
 
 		case ISDNCHANNEL:
-			switch(yylval.num)
+		        if (yylval.num == 0 || yylval.num == -1)
 			{
-				case 0:
-				case -1:
 					cfg_entry_tab[entrycount].isdnchannel = CHAN_ANY;
 					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = any", entrycount)));
-					break;
-				case 1:
-					cfg_entry_tab[entrycount].isdnchannel = CHAN_B1;
-					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = one", entrycount)));
-					break;
-				case 2:
-					cfg_entry_tab[entrycount].isdnchannel = CHAN_B2;
-					DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = two", entrycount)));
-					break;
-				default:
+			}
+			else if (yylval.num > MAX_BCHAN)
+			{
 					log(LL_DBG, "entry %d: isdnchannel value out of range", entrycount);
 					config_error_flag++;
-					break;
+			}
+			else
+			{
+			    cfg_entry_tab[entrycount].isdnchannel = yylval.num-1;
+			    DBGL(DL_RCCF, (log(LL_DBG, "entry %d: isdnchannel = B%d", entrycount, yylval.num)));
 			}
 			break;
 
@@ -1523,11 +1560,8 @@ print_config(void)
 				case CHAN_ANY:
 					fprintf(PFILE, "-1\t\t# any ISDN B-channel may be used\n");
 					break;
-				case CHAN_B1:
-					fprintf(PFILE, "1\t\t# only ISDN B-channel 1 may be used\n");
-					break;
-				case CHAN_B2:
-					fprintf(PFILE, "2\t\t# only ISDN B-channel 2 ay be used\n");
+    		                default:
+					fprintf(PFILE, "%d\t\t# only ISDN B-channel %d may be used\n", cep->isdnchannel+1, cep->isdnchannel+1);
 					break;
 		}
 

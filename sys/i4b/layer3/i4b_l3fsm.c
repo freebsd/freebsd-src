@@ -218,7 +218,7 @@ struct l3state_tab {
 /* STATE:	ST_U0			ST_U1			ST_U3			ST_U4			ST_U6			ST_U7			ST_U8			ST_U9			ST_U10			ST_U11			ST_U12			ST_U19			ST_IWA			ST_IWR			ST_OW			ST_IWL			ST_SUBSET		ST_ILL	      */
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*EV_DLESTIN*/	{{F_ILL,  ST_ILL},	{F_DLEI, ST_U1},	{F_DLEI, ST_U3},	{F_DLEI, ST_U4},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_DLEI, ST_U1},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
-/*EV_DLRELIN*/	{{F_NCNA, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRIA,ST_U10},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
+/*EV_DLRELIN*/	{{F_NCNA, ST_U0},	{F_DLRIA, ST_OW},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRIA,ST_U10},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_DLRI, ST_U0},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_DLESTCF*/	{{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF, ST_SUSE},	{F_DECF2,ST_U8},	{F_DECF3,ST_U0},	{F_DECF1,ST_U1},	{F_DECF4,ST_U7},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_DLRELCF*/	{{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}},
 /*EV_ILL    */	{{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,  ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	 ST_ILL},	{F_ILL,	ST_ILL},        {F_ILL, ST_ILL}}
@@ -280,21 +280,25 @@ char *print_l3state(call_desc_t *cd)
  *---------------------------------------------------------------------------*/	
 static void F_00A(call_desc_t *cd)
 {
+	int s;
 	NDBGL3(L3_F_MSG, "FSM function F_00A executing");
 
+	cd->T303_first_to = 1;
+	T303_start(cd);
+
+	s = SPLI4B();
 	if(i4b_get_dl_stat(cd) == DL_DOWN)
 	{
+		splx(s);
 		DL_Est_Req(ctrl_desc[cd->controller].unit);
 		cd->Q931state = ST_OW;
 	}
 	else
 	{
-		i4b_l3_tx_setup(cd);
 		cd->Q931state = ST_U1;
+		splx(s);
+		i4b_l3_tx_setup(cd);
 	}		
-
-	cd->T303_first_to = 1;
-	T303_start(cd);
 }
 
 /*---------------------------------------------------------------------------*

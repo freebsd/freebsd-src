@@ -2323,6 +2323,10 @@ hint.pcf.0.irq="5"
 #	ifpnp - AVM Fritz!Card PnP driver 
 #	itjc  - Siemens ISAC / TJNet Tiger300/320 chipset
 #
+# i4b active ISDN cards support contains the following hardware drivers:
+#
+#	iavc  - AVM B1 PCI, AVM B1 ISA, AVM T1
+#
 # Note that the ``options'' (if given) and ``device'' lines must BOTH
 # be uncommented to enable support for a given card !
 #
@@ -2459,6 +2463,17 @@ device  iwic
 device  itjc
 #
 #---------------------------------------------------------------------------
+#	iavc driver (AVM active cards, needs i4bcapi driver!)
+#
+device	iavc
+#
+# AVM B1 ISA bus (PnP mode not supported!)
+# ----------------------------------------
+hint.iavc.0.at="isa"
+hint.iavc.0.port="0x150"
+hint.iavc.0.irq="5"
+#
+#---------------------------------------------------------------------------
 #	ISDN Protocol Stack - mandatory for all hardware drivers
 #
 # Q.921 / layer 2 - i4b passive cards D channel handling
@@ -2499,8 +2514,11 @@ options 	IPR_LOG=32
 # number of sppp device to be configured
 device		"i4bisppp"	4
 #
-# B-channel inteface to the netgraph subsystem
+# B-channel interface to the netgraph subsystem
 device		"i4bing"	2
+#
+# CAPI driver needed for active ISDN cards (see iavc driver above)
+device		"i4bcapi"
 #
 #---------------------------------------------------------------------------
 
