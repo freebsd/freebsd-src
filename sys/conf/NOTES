@@ -1126,18 +1126,6 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 # Optional devices:
 #
 
-# 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support. This will create
-# the /dev/3dfx0 device to work with glide implementations. This should get
-# linked to /dev/3dfx and /dev/voodoo. Note that this is not the same as
-# the tdfx DRI module from XFree86 and is completely unrelated.
-#
-# To enable Linuxulator support, one must also include COMPAT_LINUX in the
-# config as well, or you will not have the dependencies. The other option
-# is to load both as modules.
-
-device 		tdfx			# Enable 3Dfx Voodoo support
-options 	TDFX_LINUX		# Enable Linuxulator support
-
 #
 # SCSI host adapters:
 #
