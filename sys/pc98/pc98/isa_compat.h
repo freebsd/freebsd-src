@@ -55,6 +55,7 @@
 #include "opl.h"
 #include "mpu.h"
 #include "uart.h"
+#include "nss.h"
 #include "mcd.h"
 #include "scd.h"
 #include "matcd.h"
@@ -114,6 +115,7 @@ extern struct isa_driver sscape_mssdriver;
 extern struct isa_driver opldriver;
 extern struct isa_driver mpudriver;
 extern struct isa_driver uartdriver;
+extern struct isa_driver nssdriver;
 extern struct isa_driver mcddriver;
 extern struct isa_driver scddriver;
 extern struct isa_driver matcddriver;
@@ -311,6 +313,9 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 #if NUART > 0
 	{ INTR_TYPE_MISC, &uartdriver },
+#endif
+#if NNSS > 0
+	{ INTR_TYPE_MISC, &nssdriver },
 #endif
 #if NCTX > 0
 	{ INTR_TYPE_MISC, &ctxdriver },
