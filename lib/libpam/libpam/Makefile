@@ -24,16 +24,21 @@
 #
 #	$FreeBSD$
 
+LIBPAM_VERSION_MAJOR=	0
+LIBPAM_VERSION_MINOR=	75
+
 PAMDIR=		${.CURDIR}/../../../contrib/libpam
 MODOBJDIR=	../modules
 
 .PATH:		${PAMDIR}/libpam ${PAMDIR}/libpam_misc ${PAMDIR}/doc/man
 
 LIB=		pam
-CFLAGS+=	-I${PAMDIR}/libpam/include -I.
-CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\"
+CFLAGS+=	-I${PAMDIR}/libpam/include -I${PAMDIR}/libpam_misc/include \
+		-I${PAMDIR}/libpamc/include -I. -I${.CURDIR}
+CFLAGS+=	-DDEFAULT_MODULE_PATH=\"${SHLIBDIR}/\" \
+		-DLIBPAM_VERSION_MAJOR=${LIBPAM_VERSION_MAJOR} \
+		-DLIBPAM_VERSION_MINOR=${LIBPAM_VERSION_MINOR}
 NOPROFILE=	yes
-CLEANFILES+=	security
 
 # Files from ${PAMDIR}/libpam:
 SRCS=		pam_account.c pam_auth.c pam_data.c pam_delay.c \
@@ -106,10 +111,6 @@ pam_static_modules.o:	pam_static.o ${STATIC_MODULES}
 	${LD} -o ${.TARGET} -r -Bforcearchive ${.ALLSRC}
 .endif
 
-all:		security
-
-beforedepend:	security
-
 beforeinstall:
 	cd ${PAMDIR}/libpam/include/security; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -120,8 +121,5 @@ beforeinstall:
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS3} ${DESTDIR}/usr/include/security
-
-security:
-	ln -sf ${PAMDIR}/libpam_misc security
 
 .include <bsd.lib.mk>
