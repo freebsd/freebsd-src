@@ -303,10 +303,6 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	    error = ata_reinit(ch);
 	    return error;
 
-#ifdef DEV_ATADISK
-	case ATAREBUILD:
-	    return ata_raid_rebuild(iocmd->channel);
-#endif
 	case ATAGMODE:
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
@@ -367,6 +363,16 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 		      sizeof(struct ata_params));
 	    return 0;
 
+#ifdef DEV_ATADISK
+	case ATARAIDREBUILD:
+	    return ata_raid_rebuild(iocmd->channel);
+
+	case ATARAIDCREATE:
+	    return ata_raid_create(&iocmd->u.raid_setup);
+
+	case ATARAIDDELETE:
+	    return ata_raid_delete(iocmd->channel);
+#endif
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
 	case ATAPICMD: {
 	    struct ata_device *atadev;
