@@ -137,12 +137,10 @@ cv_switch_catch(struct proc *p)
 	 * sleep when CURSIG is called.  If the wakeup happens while we're
 	 * stopped, p->p_wchan will be 0 upon return from CURSIG.
 	 */
-	p->p_flag |= P_SINTR;
+	p->p_sflag |= PS_SINTR;
 	mtx_exit(&sched_lock, MTX_SPIN);
-	/* proc_lock(p); */
 	sig = CURSIG(p);
 	mtx_enter(&sched_lock, MTX_SPIN);
-	/* proc_unlock_noswitch(p); */
 	if (sig != 0) {
 		if (p->p_wchan != NULL)
 			cv_waitq_remove(p);
@@ -150,7 +148,7 @@ cv_switch_catch(struct proc *p)
 	} else if (p->p_wchan != NULL) {
 		cv_switch(p);
 	}
-	p->p_flag &= ~P_SINTR;
+	p->p_sflag &= ~PS_SINTR;
 
 	return sig;
 }
@@ -169,7 +167,7 @@ cv_waitq_add(struct cv *cvp, struct proc *p)
 	if (p->p_wchan != NULL)
 		unsleep(p);
 
-	p->p_flag |= P_CVWAITQ;
+	p->p_sflag |= PS_CVWAITQ;
 	p->p_wchan = cvp;
 	p->p_wmesg = cvp->cv_description;
 	p->p_slptime = 0;
@@ -342,8 +340,8 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	cv_switch(p);
 	curpriority = p->p_usrpri;
 
-	if (p->p_flag & P_TIMEOUT) {
-		p->p_flag &= ~P_TIMEOUT;
+	if (p->p_sflag & PS_TIMEOUT) {
+		p->p_sflag &= ~PS_TIMEOUT;
 		rval = EWOULDBLOCK;
 	} else
 		callout_stop(&p->p_slpcallout);
@@ -405,8 +403,8 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	sig = cv_switch_catch(p);
 	curpriority = p->p_usrpri;
 
-	if (p->p_flag & P_TIMEOUT) {
-		p->p_flag &= ~P_TIMEOUT;
+	if (p->p_sflag & PS_TIMEOUT) {
+		p->p_sflag &= ~PS_TIMEOUT;
 		rval = EWOULDBLOCK;
 	} else
 		callout_stop(&p->p_slpcallout);
@@ -444,11 +442,12 @@ cv_wakeup(struct cv *cvp)
 {
 	struct proc *p;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	p = TAILQ_FIRST(&cvp->cv_waitq);
 	KASSERT(p->p_wchan == cvp, ("%s: bogus wchan", __FUNCTION__));
-	KASSERT(p->p_flag & P_CVWAITQ, ("%s: not on waitq", __FUNCTION__));
+	KASSERT(p->p_sflag & PS_CVWAITQ, ("%s: not on waitq", __FUNCTION__));
 	TAILQ_REMOVE(&cvp->cv_waitq, p, p_slpq);
-	p->p_flag &= ~P_CVWAITQ;
+	p->p_sflag &= ~PS_CVWAITQ;
 	p->p_wchan = 0;
 	if (p->p_stat == SSLEEP) {
 		/* OPTIMIZED EXPANSION OF setrunnable(p); */
@@ -458,11 +457,11 @@ cv_wakeup(struct cv *cvp)
 			updatepri(p);
 		p->p_slptime = 0;
 		p->p_stat = SRUN;
-		if (p->p_flag & P_INMEM) {
+		if (p->p_sflag & PS_INMEM) {
 			setrunqueue(p);
 			maybe_resched(p);
 		} else {
-			p->p_flag |= P_SWAPINREQ;
+			p->p_sflag |= PS_SWAPINREQ;
 			wakeup(&proc0);
 		}
 		/* END INLINE EXPANSION */
@@ -515,9 +514,9 @@ cv_waitq_remove(struct proc *p)
 	struct cv *cvp;
 
 	mtx_enter(&sched_lock, MTX_SPIN);
-	if ((cvp = p->p_wchan) != NULL && p->p_flag & P_CVWAITQ) {
+	if ((cvp = p->p_wchan) != NULL && p->p_sflag & PS_CVWAITQ) {
 		TAILQ_REMOVE(&cvp->cv_waitq, p, p_slpq);
-		p->p_flag &= ~P_CVWAITQ;
+		p->p_sflag &= ~PS_CVWAITQ;
 		p->p_wchan = NULL;
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
@@ -541,7 +540,7 @@ cv_timedwait_end(void *arg)
 			setrunnable(p);
 		else
 			cv_waitq_remove(p);
-		p->p_flag |= P_TIMEOUT;
+		p->p_sflag |= PS_TIMEOUT;
 	}
 	mtx_exit(&sched_lock, MTX_SPIN);
 }
