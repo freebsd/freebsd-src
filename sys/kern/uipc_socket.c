@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.49 1999/01/10 01:58:25 eivind Exp $
+ *	$Id: uipc_socket.c,v 1.50 1999/01/20 17:31:54 fenner Exp $
  */
 
 #include <sys/param.h>
@@ -531,7 +531,7 @@ nopages:
 			 (resid <= 0)) ?
 				PRUS_EOF :
 			/* If there is more to send set PRUS_MORETOCOME */
-			(resid > 0) ? PRUS_MORETOCOME : 0,
+			(resid > 0 && space > 0) ? PRUS_MORETOCOME : 0,
 			top, addr, control, p);
 		    splx(s);
 		    if (dontroute)
