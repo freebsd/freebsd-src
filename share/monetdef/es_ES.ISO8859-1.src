@@ -18,9 +18,9 @@ Eu
 # negative_sign
 -
 # int_frac_digits
-0
+2
 # frac_digits
-0
+2
 # p_cs_precedes
 1
 # p_sep_by_space
