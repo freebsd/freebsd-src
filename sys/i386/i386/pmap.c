@@ -1578,16 +1578,12 @@ pmap_remove_entry(pmap, m, va)
 
 	s = splvm();
 	if (m->md.pv_list_count < pmap->pm_stats.resident_count) {
-		for (pv = TAILQ_FIRST(&m->md.pv_list);
-			pv;
-			pv = TAILQ_NEXT(pv, pv_list)) {
+		TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 			if (pmap == pv->pv_pmap && va == pv->pv_va) 
 				break;
 		}
 	} else {
-		for (pv = TAILQ_FIRST(&pmap->pm_pvlist);
-			pv;
-			pv = TAILQ_NEXT(pv, pv_plist)) {
+		TAILQ_FOREACH(pv, &pmap->pm_pvlist, pv_plist) {
 			if (va == pv->pv_va) 
 				break;
 		}
@@ -2886,9 +2882,7 @@ pmap_page_exists(pmap, m)
 	/*
 	 * Not found, check current mappings returning immediately if found.
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		if (pv->pv_pmap == pmap) {
 			splx(s);
 			return TRUE;
@@ -3003,10 +2997,7 @@ pmap_testbit(m, bit)
 
 	s = splvm();
 
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		/*
 		 * if the bit being tested is the modified bit, then
 		 * mark clean_map and ptes as never
@@ -3055,10 +3046,7 @@ pmap_changebit(m, bit, setem)
 	 * Loop over all current mappings setting/clearing as appropos If
 	 * setting RO do we need to clear the VAC?
 	 */
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		/*
 		 * don't write protect pager mappings
 		 */
@@ -3465,9 +3453,7 @@ pmap_pvdump(pa)
 
 	printf("pa %x", pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	for (pv = TAILQ_FIRST(&m->md.pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 #ifdef used_to_be
 		printf(" -> pmap %p, va %x, flags %x",
 		    (void *)pv->pv_pmap, pv->pv_va, pv->pv_flags);
