@@ -107,6 +107,8 @@
 #define		ATA_A_4BIT		0x08	/* 4 head bits */
 
 /* misc defines */
+#define ATA_PRIMARY			0x1f0
+#define ATA_SECONDARY			0x170
 #define ATA_MASTER			0x00
 #define ATA_SLAVE			0x10
 #define ATA_IOSIZE			0x08
