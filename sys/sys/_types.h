@@ -32,6 +32,8 @@
 #include <sys/cdefs.h>
 #include <machine/ansi.h>
 
+#define	_BSD_FSBLKCNT_T_	__uint64_t
+#define	_BSD_FSFILCNT_T_	__uint64_t
 #define	_BSD_GID_T_	__uint32_t
 #define	_BSD_SA_FAMILY_T_	__uint8_t
 #define	_BSD_UID_T_	__uint32_t
