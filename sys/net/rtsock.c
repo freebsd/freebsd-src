@@ -357,7 +357,7 @@ route_output(m, so)
 			saved_nrt->rt_rmx.rmx_locks &= ~(rtm->rtm_inits);
 			saved_nrt->rt_rmx.rmx_locks |=
 				(rtm->rtm_inits & rtm->rtm_rmx.rmx_locks);
-			saved_nrt->rt_refcnt--;
+			RT_REMREF(saved_nrt);
 			saved_nrt->rt_genmask = info.rti_info[RTAX_GENMASK];
 			RT_UNLOCK(saved_nrt);
 		}
@@ -386,7 +386,7 @@ route_output(m, so)
 		if (rt == NULL)		/* XXX looks bogus */
 			senderr(ESRCH);
 		RT_LOCK(rt);
-		rt->rt_refcnt++;
+		RT_ADDREF(rt);
 
 		switch(rtm->rtm_type) {
 

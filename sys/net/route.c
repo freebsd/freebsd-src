@@ -154,7 +154,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 				 */
 				newrt = rt;		/* existing route */
 				RT_LOCK(newrt);
-				newrt->rt_refcnt++;
+				RT_ADDREF(newrt);
 				goto miss;
 			}
 			KASSERT(newrt, ("no route and no error"));
@@ -180,7 +180,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 		} else {
 			KASSERT(rt == newrt, ("locking wrong route"));
 			RT_LOCK(newrt);
-			newrt->rt_refcnt++;
+			RT_ADDREF(newrt);
 		}
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 	} else {
@@ -228,7 +228,8 @@ rtfree(struct rtentry *rt)
 	 * decrement the reference count by one and if it reaches 0,
 	 * and there is a close function defined, call the close function
 	 */
-	if (--rt->rt_refcnt > 0)
+	RT_REMREF(rt);
+	if (rt->rt_refcnt > 0)
 		goto done;
 
 	/*
@@ -442,7 +443,7 @@ ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway)
 		struct rtentry *rt = rtalloc1(gateway, 0, 0UL);
 		if (rt == 0)
 			return (0);
-		--rt->rt_refcnt;
+		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 		if ((ifa = rt->rt_ifa) == 0)
 			return (0);
@@ -661,7 +662,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 			panic ("rtrequest delete");
 		rt = (struct rtentry *)rn;
 		RT_LOCK(rt);
-		rt->rt_refcnt++;
+		RT_ADDREF(rt);
 		rt->rt_flags &= ~RTF_UP;
 
 		/*
@@ -861,7 +862,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		 */
 		if (ret_nrt) {
 			*ret_nrt = rt;
-			rt->rt_refcnt++;
+			RT_ADDREF(rt);
 		}
 		RT_UNLOCK(rt);
 		break;
@@ -1229,7 +1230,7 @@ bad:
 				 * We just wanted to add it.. we don't actually
 				 * need a reference.
 				 */
-				rt->rt_refcnt--;
+				RT_REMREF(rt);
 			}
 			RT_UNLOCK(rt);
 		}
@@ -1269,7 +1270,7 @@ rt_check(struct rtentry **lrt, struct rtentry **lrt0, struct sockaddr *dst)
 			RT_UNLOCK(rt);
 			rt = rtalloc1(dst, 1, 0UL);
 			if (rt != NULL) {
-				rt->rt_refcnt--;
+				RT_REMREF(rt);
 				RT_UNLOCK(rt);
 			} else
 				senderr(EHOSTUNREACH);

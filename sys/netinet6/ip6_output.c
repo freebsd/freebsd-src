@@ -2908,7 +2908,7 @@ ip6_setpktoptions(control, opt, stickyopt, priv, needcopy, uproto)
 		*opt = *stickyopt;
 		if (opt->ip6po_nextroute.ro_rt) {
 			RT_LOCK(opt->ip6po_nextroute.ro_rt);
-			opt->ip6po_nextroute.ro_rt->rt_refcnt++;
+			RT_ADDREF(opt->ip6po_nextroute.ro_rt);
 			RT_UNLOCK(opt->ip6po_nextroute.ro_rt);
 		}
 	} else

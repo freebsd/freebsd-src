@@ -353,7 +353,7 @@ ipflow_create(const struct route *ro, struct mbuf *m)
 	 */
 	ipf->ipf_ro = *ro;
 	RT_LOCK(ro->ro_rt);
-	ro->ro_rt->rt_refcnt++;
+	RT_ADDREF(ro->ro_rt);
 	RT_UNLOCK(ro->ro_rt);
 	ipf->ipf_timer = IPFLOW_TIMER;
 	/*
