@@ -939,6 +939,9 @@ ifinfo(argc, argv)
 		}\
 	} while (0)
 		SETFLAG("nud", ND6_IFF_PERFORMNUD);
+#ifdef ND6_IFF_ACCEPT_RTADV
+		SETFLAG("accept_rtadv", ND6_IFF_ACCEPT_RTADV);
+#endif
 
 		ND.flags = newflags;
 		if (ioctl(s, SIOCSIFINFO_FLAGS, (caddr_t)&nd) < 0) {
@@ -982,9 +985,13 @@ ifinfo(argc, argv)
 #endif
 	if (ND.flags) {
 		printf("\nFlags: ");
-		if ((ND.flags & ND6_IFF_PERFORMNUD) != 0)
-			printf("PERFORMNUD ");
-	}
+		if ((ND.flags & ND6_IFF_PERFORMNUD))
+			printf("nud ");
+#ifdef ND6_IFF_ACCEPT_RTADV
+		if ((ND.flags & ND6_IFF_ACCEPT_RTADV))
+			printf("accept_rtadv ");
+#endif
+}
 	putc('\n', stdout);
 #undef ND
 	
