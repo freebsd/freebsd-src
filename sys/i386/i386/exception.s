@@ -81,34 +81,16 @@
 			.type __CONCAT(X,name),@function; __CONCAT(X,name):
 #define	TRAP(a)		pushl $(a) ; jmp alltraps
 
-#ifdef BDE_DEBUGGER
-#define	BDBTRAP(name) \
-	ss ; \
-	cmpb	$0,_bdb_exists ; \
-	je	1f ; \
-	testb	$SEL_RPL_MASK,4(%esp) ; \
-	jne	1f ; \
-	ss ; \
-	.globl	__CONCAT(__CONCAT(bdb_,name),_ljmp); \
-__CONCAT(__CONCAT(bdb_,name),_ljmp): \
-	ljmp	$0,$0 ; \
-1:
-#else
-#define BDBTRAP(name)
-#endif
-
 MCOUNT_LABEL(user)
 MCOUNT_LABEL(btrap)
 
 IDTVEC(div)
 	pushl $0; TRAP(T_DIVIDE)
 IDTVEC(dbg)
-	BDBTRAP(dbg)
 	pushl $0; TRAP(T_TRCTRAP)
 IDTVEC(nmi)
 	pushl $0; TRAP(T_NMI)
 IDTVEC(bpt)
-	BDBTRAP(bpt)
 	pushl $0; TRAP(T_BPTFLT)
 IDTVEC(ofl)
 	pushl $0; TRAP(T_OFLOW)

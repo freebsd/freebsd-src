@@ -2016,14 +2016,8 @@ init386(first)
 	gdt_segs[GPRIV_SEL].ssd_base = (int) pc;
 	gdt_segs[GPROC0_SEL].ssd_base = (int) &pc->pc_common_tss;
 
-	for (x = 0; x < NGDT; x++) {
-#ifdef BDE_DEBUGGER
-		/* avoid overwriting db entries with APM ones */
-		if (x >= GAPMCODE32_SEL && x <= GAPMDATA_SEL)
-			continue;
-#endif
+	for (x = 0; x < NGDT; x++)
 		ssdtosd(&gdt_segs[x], &gdt[x].sd);
-	}
 
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (int) gdt;
