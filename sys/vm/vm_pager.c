@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.47 1999/05/06 20:00:34 phk Exp $
+ * $Id: vm_pager.c,v 1.48 1999/06/26 02:46:48 mckusick Exp $
  */
 
 /*
@@ -339,7 +339,8 @@ vm_pager_object_lookup(pg_list, handle)
  */
 
 static void
-initpbuf(struct buf *bp) {
+initpbuf(struct buf *bp)
+{
 	bp->b_rcred = NOCRED;
 	bp->b_wcred = NOCRED;
 	bp->b_qindex = QUEUE_NONE;

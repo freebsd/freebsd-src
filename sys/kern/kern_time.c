@@ -31,10 +31,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.64 1999/04/07 19:48:09 nsayer Exp $
+ * $Id: kern_time.c,v 1.65 1999/04/27 11:16:07 phk Exp $
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/buf.h>
 #include <sys/sysproto.h>
 #include <sys/resourcevar.h>

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c  8.8 (Berkeley) 5/22/95
- * $Id: nfs_subs.c,v 1.76 1999/06/23 04:44:12 julian Exp $
+ * $Id: nfs_subs.c,v 1.77 1999/06/26 02:46:30 mckusick Exp $
  */
 
 /*
@@ -43,10 +43,10 @@
  * copy data between mbuf chains and uio lists.
  */
 #include <sys/param.h>
-#include <sys/buf.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/buf.h>
+#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
 #include <sys/namei.h>
