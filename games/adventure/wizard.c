@@ -51,7 +51,8 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-# include "hdr.h"
+#include <sys/cdefs.h>
+#include "hdr.h"
 
 static int wizard (void);
 

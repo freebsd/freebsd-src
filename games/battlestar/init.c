@@ -40,15 +40,19 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
-#include "externs.h"
 #include <pwd.h>
 #include <string.h>
+#include "externs.h"
 
+static int	 checkout __P((const char *));
+static void	 getutmp __P((char *));
+static int	 wizard __P((const char *));
+
+void
 initialize(startup)
-	char startup;
+	int  startup;
 {
 	const struct objs *p;
-	void die();
 
 	puts("Version 4.2, fall 1984.");
 	puts("First Adventure game written by His Lordship, the honorable");
@@ -74,13 +78,14 @@ initialize(startup)
 	signal(SIGINT, die);
 }
 
-getutmp(uname)
-	char *uname;
+void
+getutmp(battlestar_uname)
+	char *battlestar_uname;
 {
 	struct passwd *ptr;
 
 	ptr = getpwuid(getuid());
-	strcpy(uname, ptr ? ptr->pw_name : "");
+	strcpy(battlestar_uname, ptr ? ptr->pw_name : "");
 }
 
 const char *const list[] = {	/* hereditary wizards */
@@ -102,29 +107,29 @@ const char *const badguys[] = {
 };
 
 int
-wizard(uname)
-	const char *uname;
+wizard(battlestar_uname)
+	const char *battlestar_uname;
 {
 	char flag;
 
-	if (flag = checkout(uname))
-		printf("You are the Great wizard %s.\n", uname);
+	if ((flag = checkout(battlestar_uname)) > 0)
+		printf("You are the Great wizard %s.\n", battlestar_uname);
 	return flag;
 }
 
 int
-checkout(uname)
-	const char *uname;
+checkout(battlestar_uname)
+	const char *battlestar_uname;
 {
 	const char *const *ptr;
 
 	for (ptr = list; *ptr; ptr++)
-		if (strcmp(*ptr, uname) == 0)
+		if (strcmp(*ptr, battlestar_uname) == 0)
 			return 1;
 	for (ptr = badguys; *ptr; ptr++)
-		if (strcmp(*ptr, uname) == 0) {
+		if (strcmp(*ptr, battlestar_uname) == 0) {
 			printf("You are the Poor anti-wizard %s.  Good Luck!\n",
-				uname);
+				battlestar_uname);
 			if (location != NULL) {
 				CUMBER = 3;
 				WEIGHT = 9;     /* that'll get him! */

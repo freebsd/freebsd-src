@@ -88,7 +88,7 @@ struct hashtab                          /* hash table for vocabulary    */
 struct text
 #ifdef OLDSTUFF
 {       int seekadr;                    /* DATFILE must be < 2**16      */
-#endif OLDSTUFF
+#endif /* !OLDSTUFF */
 {       char *seekadr;                  /* Msg start in virtual disk    */
 	int txtlen;                     /* length of msg starting here  */
 };
@@ -160,59 +160,59 @@ int turns,lmwarn,iwest,knfloc,detail,   /* various flags & counters     */
 
 int demo,limit;
 
-int at(int);
-int bug(int);
-void carry(int,int);
-void caveclose(void);
-void checkhints(void);
-void ciao(void);
-void closing(void);
-unsigned long crc(const char *, int);
-void crc_start(void);
-int dark(void);
-void datime(int *, int *);
-char *decr(char,char,char,char,char);
-void die(int);
-void done(int);
-void drop(int,int);
-void dstroy(int);
-int fdwarf(void);
-int forced(int);
-void getin(char **, char **);
-int here(int);
-void init(void);
-void juggle(int);
-int liq(void);
-int liqloc(int);
-int march(void);
-void move(int,int);
-void mspeak(int);
-int pct(int);
-void poof(void);
-void pspeak(int, int);
-int put(int,int,int);
-int ran(int);
-void rdata(void);
-int restore(const char *);
-void rspeak(int);
-int save(const char *);
-int score(void);
-void speak(const struct text *);
-int Start(void);
-void startup(void);
-int toting(int);
-void trapdel(int);
-int trdrop(void);
-int trfeed(void);
-int trfill(void);
-int trkill(void);
-int tropen(void);
-int trsay(void);
-int trtake(void);
-int trtoss(void);
-int vocab(const char *,int,int);
-int yes(int,int,int);
-int yesm(int,int,int);
+int at (int objj);
+int bug (int n);
+void carry (int, int);
+void caveclose (void);
+void checkhints (void);
+void ciao (void);
+void closing (void);
+u_long crc (const char *ptr, int nr);
+void crc_start (void);
+int dark (void);
+void datime (int *d, int *t);
+char *decr (int, int, int, int, int);
+void die (int entry);
+void done (int entry);
+void drop (int object,int where);
+void dstroy (int);
+int fdwarf (void);
+int forced (int locc);
+void getin (char **wrd1, char **wrd2);
+int here (int objj);
+void init (void);
+void juggle (int);
+int liq (void);
+int liqloc (int locc);
+int march (void);
+void move (int, int);
+void mspeak (int);
+int pct (int n);
+void poof (void);
+void pspeak (int m, int skip);
+int put (int, int, int);
+int ran (int range);
+void rdata (void);
+int restore (const char *infile);
+void rspeak (int);
+int save (const char *);
+int score (void);
+void speak (const struct text *);
+int Start (void);
+void startup (void);
+int toting (int objj);
+void trapdel (int sig);
+int trdrop (void);
+int trfeed (void);
+int trfill (void);
+int trkill (void);
+int tropen (void);
+int trsay (void);
+int trtake (void);
+int trtoss (void);
+int vocab (const char *,int,int);
+int yes (int x, int y, int z);
+int yesm (int x, int y, int z);
 
 /* We need to get a little tricky to avoid strings */
 #define DECR(a,b,c,d,e) decr('a'+'+','b'+'-','c'+'#','d'+'&','e'+'%')

@@ -31,13 +31,17 @@
  * SUCH DAMAGE.
  *
  *	@(#)externs.h	8.1 (Berkeley) 5/31/93
+ *
+ *	$FreeBSD$
  */
 
 #include <errno.h>
 #include <sys/param.h>
 #include <sys/signal.h>
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define BITS (8)
 
@@ -229,18 +233,18 @@ struct room {
 #define down	link[6]
 #define flyhere	link[7]
 	const char *desc;
-	int objects[NUMOFWORDS];
+	unsigned int objects[NUMOFWORDS];
 };
 extern struct room dayfile[];
 extern struct room nightfile[];
 struct room *location;
 
 	/* object characteristics */
-const char *const objdes[NUMOFOBJECTS];
-const char *const objsht[NUMOFOBJECTS];
-const char *const ouch[NUMOFINJURIES];
-const int objwt[NUMOFOBJECTS];
-const int objcumber[NUMOFOBJECTS];
+extern const char *const objdes[NUMOFOBJECTS];
+extern const char *const objsht[NUMOFOBJECTS];
+extern const char *const ouch[NUMOFINJURIES];
+extern const int objwt[NUMOFOBJECTS];
+extern const int objcumber[NUMOFOBJECTS];
 
 	/* current input line */
 #define NWORD	20			/* words per line */
@@ -249,35 +253,88 @@ int wordvalue[NWORD];
 int wordtype[NWORD];
 int wordcount, wordnumber;
 
-const char *truedirec(), *rate();
-char *getcom(), *getword();
+
+int	 battlestar_move __P((int, int));
+void	 bury __P((void));
+int	 card __P((const char *, int));
+void	 chime __P((void));
+void	 crash __P((void));
+int	 cypher __P((void));
+void	 die __P((int));
+void	 dig __P((void));
+int	 draw __P((void));
+void	 drink __P((void));
+int	 drive __P((void));
+int	 drop __P((const char *name));
+int	 eat __P((void));
+int	 fight __P((int, int));
+int	 follow __P((void));
+char	*getcom __P((char *, int, const char *, const char *));
+char	*getword __P((char *, char *, int));
+int	 give __P((void));
+void	 initialize __P((int));
+int	 jump __P((void));
+void	 kiss __P((void));
+int	 land __P((void));
+int	 launch __P((void));
+void	 light __P((void));
+void	 live __P((void));
+void	 love __P((void));
+void	 murder __P((void));
+void	 news __P((void));
+void	 newway  __P((int));
+void	 open_score_file __P((void));
+void	 parse __P((void));
+void	 printobjs __P((void));
+int	 put __P((void));
+int	 puton __P((void));
+void	 ravage __P((void));
+const char *rate __P((void));
+void	 restore __P((void));
+int	 ride __P((void));
+void	 save __P((void));
+int	 shoot __P((void));
+int	 take __P((unsigned int from[]));
+int	 takeoff(void);
+int	 throw __P((const char *name));
+const char *truedirec __P((int, unsigned int));
+int	 ucard __P((const unsigned int *));
+int	 use __P((void));
+int	 visual __P((void));
+int	 wearit __P((void));
+void	 whichway __P((struct room));
+void	 wordinit __P((void));
+void	 writedes __P((void));
+int	 zzz __P((void));
 
 	/* state of the game */
+extern int gclock; 
 int gtime;
 int position;
 int direction;
 int left, right, ahead, back;
-int gclock, fuel, torps;
+int fuel, torps;
 int carrying, encumber;
 int rythmn;
-int followfight;
+extern int followfight;
 int ate;
 int snooze;
 int meetgirl;
-int followgod;
+extern int followgod;
 int godready;
-int win;
+extern int bs_win;
 int wintime;
 int wiz;
 int tempwiz;
-int matchlight, matchcount;
+int matchlight;
+extern int matchcount;
 int loved;
 int pleasure, power, ego;
-int WEIGHT;
-int CUMBER;
+extern int WEIGHT;
+extern int CUMBER;
 int notes[NUMOFNOTES];
-int inven[NUMOFWORDS];
-int wear[NUMOFWORDS];
+unsigned int inven[NUMOFWORDS];
+u_int wear[NUMOFWORDS];
 char beenthere[NUMOFROOMS+1];
 char injuries[NUMOFINJURIES];
 
@@ -301,4 +358,4 @@ struct objs {
 extern const struct objs dayobjs[];
 extern const struct objs nightobjs[];
 
-gid_t	egid;
+extern gid_t	egid;

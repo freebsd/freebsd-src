@@ -54,6 +54,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+int
 main(argc,argv)
 int  argc;
 char **argv;
@@ -97,4 +98,5 @@ run:
 		default:
 			exit(1); /* Shouldn't happen */
 	}
+	exit(1);
 }

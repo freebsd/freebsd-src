@@ -206,5 +206,5 @@ struct wlist wlist[] = {
 	{ "move",	0,		ADJS },
 	{ "make",	0,		ADJS },
 	{ "to",		0,		ADJS },
-	0
+	{ 0,		0,		0 }
 };

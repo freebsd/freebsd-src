@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include "externs.h"
 
+void
 dig()
 {
 	if (testbit(inven,SHOVEL)){
@@ -65,6 +66,7 @@ dig()
 		puts("You don't have a shovel.");
 }
 
+int
 jump()
 {
 	int n;
@@ -104,6 +106,7 @@ jump()
 	return(0);
 }
 
+void
 bury()
 {
 	int value;
@@ -167,6 +170,7 @@ bury()
 		puts("You aren't holding a shovel.");
 }
 
+void
 drink()
 {
 	int n;
@@ -187,6 +191,7 @@ drink()
 		puts("I'm not thirsty.");
 }
 
+int
 shoot()
 {
 	int firstnumber, value;
@@ -206,7 +211,7 @@ shoot()
 				gtime++;
 				printf("The %s explode%s\n",objsht[value],(objsht[value][n-1]=='s' ? (objsht[value][n-2]=='s' ? "s." : ".") : "s."));
 				if (value == BOMB)
-					die();
+					die(0);
 			}
 			else
 				printf("I dont see any %s around here.\n", objsht[value]);
@@ -241,7 +246,7 @@ shoot()
 						case 20:
 							puts("The blast hits the door and it explodes into flame.  The magnesium burns");
 							puts("so rapidly that we have no chance to escape.");
-							die();
+							die(0);
 						default:
 							puts("Nothing happens.");
 					}
@@ -288,7 +293,7 @@ shoot()
 					if (testbit(location[position].objects,MAN)){
 						puts("The man falls to the ground with blood pouring all over his white suit.");
 						puts("Your fantasy is over.");
-						die();
+						die(0);
 					}
 					else puts("What man?");
 					break;
