@@ -7,10 +7,10 @@ CFLAGS+=-Wall -DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../../sys
 #CFLAGS+=LOGIN_CAP_AUTH
 SRCS=	login.c login_tty.c logout.c logwtmp.c pty.c setproctitle.c \
 	login_cap.c login_class.c login_auth.c login_times.c login_ok.c \
-	_secure_path.c uucplock.c
+	_secure_path.c uucplock.c login_progok.c
 MAN3+=	login.3 login_tty.3 logout.3 logwtmp.3 pty.3 setproctitle.3 \
 	login_cap.3 login_class.3 login_times.3 login_ok.3 \
-	_secure_path.3 uucplock.3
+	_secure_path.3 uucplock.3 login_progok.3
 MAN5+=	login.conf.5
 MLINKS+= pty.3 openpty.3  pty.3 forkpty.3
 MLINKS+=login_cap.3 login_getclassbyname.3 login_cap.3 login_close.3 \
