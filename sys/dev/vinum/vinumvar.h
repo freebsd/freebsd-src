@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumvar.h,v 1.19 1999/03/23 02:48:20 grog Exp grog $
+ * $Id: vinumvar.h,v 1.20 1999/07/02 07:56:47 grog Exp $
  */
 
 #include <sys/time.h>
@@ -127,14 +127,14 @@ enum constants {
  */
 
 #ifdef VINUMDEBUG
-#define	VINUM_SUPERDEV VINUMBDEV (1, 0, 0, VINUM_SUPERDEV_TYPE)	/* superdevice number */
-#define	VINUM_WRONGSUPERDEV VINUMBDEV (2, 0, 0, VINUM_SUPERDEV_TYPE) /* non-debug superdevice number */
+#define	VINUM_SUPERDEV VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE) /* superdevice number */
+#define	VINUM_WRONGSUPERDEV VINUMMINOR (2, 0, 0, VINUM_SUPERDEV_TYPE) /* non-debug superdevice number */
 #else
-#define	VINUM_SUPERDEV VINUMBDEV (2, 0, 0, VINUM_SUPERDEV_TYPE)	/* superdevice number */
-#define	VINUM_WRONGSUPERDEV VINUMBDEV (1, 0, 0, VINUM_SUPERDEV_TYPE) /* debug superdevice number */
+#define	VINUM_SUPERDEV VINUMMINOR (2, 0, 0, VINUM_SUPERDEV_TYPE) /* superdevice number */
+#define	VINUM_WRONGSUPERDEV VINUMMINOR (1, 0, 0, VINUM_SUPERDEV_TYPE) /* debug superdevice number */
 #endif
 
-#define	VINUM_DAEMON_DEV VINUMBDEV (0, 0, 0, VINUM_SUPERDEV_TYPE) /* daemon superdevice number */
+#define	VINUM_DAEMON_DEV VINUMMINOR (0, 0, 0, VINUM_SUPERDEV_TYPE) /* daemon superdevice number */
 
 /*
  * the number of object entries to cater for initially, and also the
