@@ -339,6 +339,8 @@ intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
 				printf("%-17s ",
 				    ipx_phost((struct sockaddr *)sipx));
 				}
+
+				network_layer = 1;
 				break;
 
 			case AF_APPLETALK:
