@@ -53,7 +53,7 @@
 
 #define DEFAULT_NUM	1	/* Default number of pieces mailed per run. */
 
-int fts_sort(const FTSENT **, const FTSENT **);
+int fts_sort(const FTSENT * const *, const FTSENT * const *);
 int run_sendmail(int ifd);
 
 int
@@ -156,7 +156,7 @@ main(int argc, char **argv)
 }
 
 int
-fts_sort(const FTSENT ** a, const FTSENT ** b)
+fts_sort(const FTSENT * const * a, const FTSENT * const * b)
 {
     if ((*a)->fts_info != FTS_F)
 	return(0);

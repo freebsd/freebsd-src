@@ -40,7 +40,7 @@ struct store {
 static int rex_match(const char *, const char *);
 struct store *storecreate(struct store *);
 static int storeappend(struct store *, const char *);
-static int fname_cmp(const FTSENT **, const FTSENT **);
+static int fname_cmp(const FTSENT * const *, const FTSENT * const *);
 
 /*
  * Function to query names of installed packages.
@@ -337,7 +337,7 @@ storeappend(struct store *store, const char *item)
 }
 
 static int
-fname_cmp(const FTSENT **a, const FTSENT **b)
+fname_cmp(const FTSENT * const *a, const FTSENT * const *b)
 {
     return strcmp((*a)->fts_name, (*b)->fts_name);
 }
