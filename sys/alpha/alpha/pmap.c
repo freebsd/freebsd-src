@@ -172,7 +172,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/uma.h>
-#include <vm/uma_int.h>
 
 #include <sys/user.h>
 
