@@ -115,6 +115,11 @@ case "${host}" in
     tcsh_config_file=bsd4.4
   ;;
 
+  ## Mac OS X Server
+  *-*-darwin* )
+    tcsh_config_file=bsd4.4
+  ;;
+
   ## Silicon Graphics machines
   *-sgi-iri* )
     tcsh_config_file=irix
@@ -301,7 +306,16 @@ dnl else
 dnl   ipv6_cv_$1=no
 dnl   ifelse([$3], , :, [$3])
 dnl fi])
-dnl IPv6_CHECK_FUNC(getaddrinfo, DFLAGS="$DFLAGS -DINET6")
+dnl IPv6_CHECK_FUNC(getnameinfo, DFLAGS="$DFLAGS -DINET6")
+
+AC_CACHE_CHECK([ss_family in sockaddr_storage], ac_cv_ss_family,
+[AC_TRY_COMPILE([#include <sys/types.h>
+#include <sys/socket.h>], [struct sockaddr_storage ss; ss.ss_family;],
+  ac_cv_ss_family=yes, ac_cv_ss_family=no)]
+if test "$ac_cv_ss_family" = no; then
+  DFLAGS="$DFLAGS -DNO_SS_FAMILY"
+fi
+)
 
 AC_SUBST(DFLAGS)
 

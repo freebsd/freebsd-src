@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.exec.c,v 3.51 2000/11/11 23:03:36 christos Exp $ */
+/* $Header: /src/pub/tcsh/sh.exec.c,v 3.56 2002/06/25 19:02:11 christos Exp $ */
 /*
  * sh.exec.c: Search, find, and execute a command!
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.exec.c,v 3.51 2000/11/11 23:03:36 christos Exp $")
+RCSID("$Id: sh.exec.c,v 3.56 2002/06/25 19:02:11 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -151,13 +147,14 @@ int	hashname	__P((Char *));
 static	int 	iscommand	__P((Char *));
 
 void
-doexec(t)
+doexec(t, do_glob)
     register struct command *t;
+    bool do_glob;
 {
-    register Char *dp, **pv, **av, *sav;
-    register struct varent *v;
-    register bool slash;
-    register int hashval, i;
+    Char *dp, **pv, **av, *sav;
+    struct varent *v;
+    bool slash;
+    int hashval, i;
     Char   *blk[2];
 
     /*
@@ -167,7 +164,9 @@ doexec(t)
      */
     blk[0] = t->t_dcom[0];
     blk[1] = 0;
-    gflag = 0, tglob(blk);
+    gflag = 0;
+    if (do_glob)
+	tglob(blk);
     if (gflag) {
 	pv = globall(blk);
 	if (pv == 0) {
@@ -199,7 +198,8 @@ doexec(t)
      */
     gflag = 0;
     av = &t->t_dcom[1];
-    tglob(av);
+    if (do_glob)
+	tglob(av);
     if (gflag) {
 	av = globall(av);
 	if (av == 0) {
@@ -253,7 +253,7 @@ doexec(t)
      * If no path, no words in path, or a / in the filename then restrict the
      * command search.
      */
-    if (v == 0 || v->vec[0] == 0 || slash)
+    if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
 	pv = justabs;
     else
 	pv = v->vec;
@@ -472,7 +472,7 @@ texec(sf, st)
 	 * interpretation of the words at this point.
 	 */
 	    v = adrof1(STRshell, &aliases);
-	    if (v == 0) {
+	    if (v == NULL || v->vec == NULL) {
 		vp = lastsh;
 		vp[0] = adrof(STRshell) ? varval(STRshell) : STR_SHELLPATH;
 		vp[1] = NULL;
@@ -620,7 +620,7 @@ execash(t, kp)
 #ifdef WINNT_NATIVE
 	__nt_really_exec=1;
 #endif /* WINNT_NATIVE */
-	doexec(kp);
+	doexec(kp, 1);
     }
 
     (void) sigset(SIGINT, osigint);
@@ -651,9 +651,13 @@ xechoit(t)
     Char  **t;
 {
     if (adrof(STRecho)) {
+	int odidfds = didfds;
 	flush();
 	haderr = 1;
+	didfds = 0;
 	blkpr(t), xputchar('\n');
+	flush();
+	didfds = odidfds;
 	haderr = 0;
     }
 }
@@ -699,7 +703,7 @@ dohash(vv, c)
 	hashwidth = 0;
 	if (v == NULL)
 	    return;
-	for (pv = v->vec; *pv; pv++, hashwidth++)
+	for (pv = v->vec; pv && *pv; pv++, hashwidth++)
 	    continue;
 	if (hashwidth <= widthof(unsigned char))
 	    hashwidth = sizeof(unsigned char);
@@ -727,7 +731,7 @@ dohash(vv, c)
     havhash = 1;
     if (v == NULL)
 	return;
-    for (pv = v->vec; *pv; pv++, i++) {
+    for (pv = v->vec; pv && *pv; pv++, i++) {
 	if (!ABSOLUTEP(pv[0]))
 	    continue;
 	dirp = opendir(short2str(*pv));
@@ -847,7 +851,7 @@ iscommand(name)
     register int hashval, i;
 
     v = adrof(STRpath);
-    if (v == 0 || v->vec[0] == 0 || slash)
+    if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
 	pv = justabs;
     else
 	pv = v->vec;
@@ -1016,7 +1020,7 @@ tellmewhat(lexp, str)
 	bool    slash = any(short2str(sp->word), '/');
 
 	v = adrof(STRpath);
-	if (v == 0 || v->vec[0] == 0 || slash)
+	if (v == NULL || v->vec == NULL || v->vec[0] == NULL || slash)
 	    pv = justabs;
 	else
 	    pv = v->vec;
@@ -1104,7 +1108,8 @@ find_cmd(cmd, prt)
     if (prt && adrof1(cmd, &aliases)) {
 	if ((var = adrof1(cmd, &aliases)) != NULL) {
 	    xprintf(CGETS(13, 8, "%S is aliased to "), cmd);
-	    blkpr(var->vec);
+	    if (var->vec != NULL)
+		blkpr(var->vec);
 	    xputchar('\n');
 	    rval = 1;
 	}
@@ -1142,7 +1147,7 @@ find_cmd(cmd, prt)
 
     sv = Strspl(STRslash, cmd);
 
-    for (pv = var->vec, i = 0; *pv; pv++, i++) {
+    for (pv = var->vec, i = 0; pv && *pv; pv++, i++) {
 	if (havhash && !eq(*pv, STRdot)) {
 #ifdef FASTHASH
 	    if (!bit(hashval, i))

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.str.c,v 3.9 1996/04/26 19:21:42 christos Exp $ */
+/* $Header: /src/pub/tcsh/tc.str.c,v 3.10 2002/03/08 17:36:47 christos Exp $ */
 /*
  * tc.str.c: Short string package
  * 	     This has been a lesson of how to write buggy code!
@@ -15,11 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -37,7 +33,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.str.c,v 3.9 1996/04/26 19:21:42 christos Exp $")
+RCSID("$Id: tc.str.c,v 3.10 2002/03/08 17:36:47 christos Exp $")
 
 #define MALLOC_INCR	128
 

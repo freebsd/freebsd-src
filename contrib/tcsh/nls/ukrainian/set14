@@ -1,6 +1,6 @@
-$ $Id: set14,v 1.1 2000/11/11 23:03:42 christos Exp $
+$ $Id: set14,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ sh.file.c
 $set 14 
-1 \nYikes!! Too many %s!!\n
-2 names in password file
-3 files
+1 \nОй!! Забагато %s!!\n
+2 ╕мен у файл╕ парол╕в
+3 файл╕в

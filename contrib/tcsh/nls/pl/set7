@@ -1,27 +1,27 @@
 $ $Id: set7,v 1.3 1996/04/26 20:32:04 christos Exp $
 $ ed.screen.c
 $set 7
-1 \n\tTcsh my¶li ¿e twoj terminal posiada\n
-2 \tnastêpuj±c± charakterystykê:\n\n
-3 \tMa %d kolumn i %d linii\n
-4 \tKlawisze meta: %sposiada\n
+1 \n\tTcsh thinks your terminal has the\n
+2 \tfollowing characteristics:\n\n
+3 \tIt has %d columns and %d lines\n
+4 \tIt has %s meta key\n
 5 a
-6 nie 
-7 \tTabulatory: %spotrafi u¿ywaæ\n
-8 nie 
-9 \tAutomatyczne marginesy: %s\n
-10 tak
-11 nie
-12 \tMagiczne marginesy: %s\n
-13 (puste)
-14 tak
-15 nie
-16 ERROR: nie mo¿na usuwaæ\r\n
+6 no
+7 \tIt can%s use tabs\n
+8 not
+9 \tIt %s automatic margins\n
+10 has
+11 does not have
+12 \tIt %s magic margins\n
+13 (empty)
+14 yes
+15 no
+16 ERROR: cannot delete\r\n
 17 DeleteChars: num is riduculous: %d\r\n
-18 ERROR: nie mo¿na wstawiaæ\r\n
+18 ERROR: cannot insert\r\n
 19 StartInsert: num is riduculous: %d\r\n
-20 %s: Nie mo¿na otworzyæ /etc/termcap.\n
-21 %s: Brak wpisu dla terminala typu "%s"\n
+20 %s: Cannot open /etc/termcap.\n
+21 %s: No entry for terminal type "%s"\n
 22 %s: using dumb terminal settings.\n
 23 %s: WARNING: Your terminal cannot move up.\n
 24 Editing may be odd for long lines.\n

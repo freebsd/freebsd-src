@@ -165,7 +165,7 @@ NOTES	:	Does Ultrix 4.x still need YPBUGS?
 NOTES	:	Ultrix4.2 may need NAMEI_BUG
 VERSION	:	6.09.00
 
-VENDOR	:	apple
+VENDOR	:	Apple
 MODELS	:	macII
 COMPILER:	cc
 CFLAGS	:	normal		(-ZP)
@@ -353,6 +353,17 @@ ENVIRON	:	n/a
 NOTES	:	none
 VERSION	:	6.08
 
+VENDOR  :       Cray Research
+MODELS  :       SV1, probably also SV2
+COMPILER:       cc
+CFLAGS  :       normal
+LIBES   :       -ltermlib
+OS      :       Unicos 10.0.1.0
+CONFIG  :       cray
+ENVIRON :       n/a
+NOTES   :       none
+VERSION :       6.11
+
 VENDOR	:	pyramid
 MODELS	:	MIS4/2T 
 COMPILER:	cc
@@ -388,8 +399,18 @@ CFLAGS	:	-O3 -pipe -g -arch ppc -arch i386 -UNeXT
 OS	:	Rhapsody 5
 CONFIG	:	rhapsody
 ENVIRON	:	n/a
-NOTES	:	CFLAGS="-O3 -pipe -g -arch ppc -arch i386 -UNeXT" configure && make
+NOTES	:	CFLAGS="-O3 -pipe -g -UNeXT" configure && make
 VERSION	:	6.08.00
+
+VENDOR	:	Apple
+MODELS	:	any
+COMPILER:	cc
+CFLAGS	:	-O3 -pipe -g -arch ppc -arch i386
+OS	:	Darwin
+CONFIG	:	darwin
+ENVIRON	:	n/a
+NOTES	:	CFLAGS="-O3 -pipe -g -arch ppc -arch i386 -UNeXT" configure && make
+VERSION	:	6.11.05
 
 VENDOR	:	Heurikon
 MODELS	:	HK68

@@ -1,4 +1,4 @@
-$ $Id: set20,v 1.1 2000/11/11 23:03:43 christos Exp $
+$ $Id: set20,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Invalid key name `%S'\n
@@ -10,9 +10,9 @@ $set 20
 7 Alternative key bindings\n
 8 Multi-character bindings\n
 9 Arrow key bindings\n
-10 %-15s->  is undefined\n
+10 %-15s->  не визначено\n
 11 BUG!!! %s isn't bound to anything.\n
-12 Usage: bindkey [options] [--] [KEY [COMMAND]]\n
+12 Використання: bindkey [параметри] [--] [КЛЮЧ [КОМАНДА]]\n
 13     -a   list or bind KEY in alternative key map\n
 14     -b   interpret KEY as a C-, M-, F- or X- key name\n
 15     -s   interpret COMMAND as a literal string to be output\n
@@ -36,6 +36,6 @@ $set 20
 33 Bad function-key specification.\n
 34 Null key not allowed\n
 35 bad key specification -- unknown name "%S"\n
-36 usage: bind [KEY | COMMAND KEY | "emacs" | "vi" | "-a"]\n
-37 Invalid function
-38  %s\t\tis undefined\n
+36 Використання: bind [KEY | COMMAND KEY | "emacs" | "vi" | "-a"]\n
+37 Нев╕рна функц╕я
+38  %s\t\tне визначено\n

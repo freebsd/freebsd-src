@@ -1,4 +1,4 @@
-$ $Id: set19,v 1.1 2001/03/18 19:06:38 christos Exp $
+$ $Id: set19,v 1.2 2002/03/08 17:46:50 christos Exp $
 $ tc.alloc.c
 $set 19 
 1 nbytes=%d: Нет памяти\n
@@ -10,6 +10,6 @@ $set 19
 7 free(%lx) bad block index.
 8 %s current memory allocation:\nfree:\t
 9 \nused:\t
-10 \n\tTotal in use: %d, total free: %d\n
+10 \n\tВсего используется: %d, всего свободно: %d\n
 11 \tAllocated memory from 0x%lx to 0x%lx.  Real top at 0x%lx\n
 12 Allocated memory from 0x%lx to 0x%lx (%ld).\n

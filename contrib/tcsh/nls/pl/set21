@@ -1,5 +1,5 @@
 $ $Id: set21,v 1.2 1995/03/19 18:07:15 christos Exp $
 $ tc.disc.c
 $set 21 
-1 Nie mog³em pobraæ lokalnych znaków.\n
-2 Nie mog³em ustawiæ lokalnych znaków.\n
+1 Couldn't get local chars.\n
+2 Couldn't set local chars.\n

@@ -1,7 +1,7 @@
-$ $Id: set19,v 1.1 2000/11/11 23:03:43 christos Exp $
+$ $Id: set19,v 1.2 2002/07/01 20:50:22 christos Exp $
 $ tc.alloc.c
 $set 19 
-1 nbytes=%d: Out of memory\n
+1 nbytes=%d: Мало пам'ят╕\n
 2 free(%lx) called before any allocations.
 3 free(%lx) above top of memory.
 4 free(%lx) below bottom of memory.
@@ -11,5 +11,5 @@ $set 19
 8 Нин╕шн╓ розпод╕лення пам'ят╕ %s:\nв╕льно:\t
 9 \nзанято:\t
 10 \n\tВсього занято: %d, всього в╕льно: %d\n
-11 \tAllocated memory from 0x%lx to 0x%lx.  Real top at 0x%lx\n
-12 Allocated memory from 0x%lx to 0x%lx (%ld).\n
+11 \tЗанято пам'ять з 0x%lx до 0x%lx.  Real top at 0x%lx\n
+12 Занято пам'ять з 0x%lx до 0x%lx (%ld).\n

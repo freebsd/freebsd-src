@@ -3,7 +3,7 @@ $ tc.os.c
 $set 23 
 1 Bad cpu/site name
 2 Site path too long
-3 nieznany
+3 unknown
 4 site: %s\n
 5 %d: Nie znaleziono komputera\n
 6 setlocal: %s: %s\n

@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.hist.c,v 3.27 2000/06/10 22:07:56 kim Exp $ */
+/* $Header: /src/pub/tcsh/sh.hist.c,v 3.29 2002/06/25 19:02:11 christos Exp $ */
 /*
  * sh.hist.c: Shell history expansions and substitutions
  */
@@ -14,11 +14,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.hist.c,v 3.27 2000/06/10 22:07:56 kim Exp $")
+RCSID("$Id: sh.hist.c,v 3.29 2002/06/25 19:02:11 christos Exp $")
 
 #include "tc.h"
 
@@ -348,7 +344,7 @@ phist(hp, hflg)
 	Char buf[INBUFSIZE];
 	struct varent *vp = adrof(STRhistory);
 
-	if (vp && vp->vec[0] && vp->vec[1])
+	if (vp && vp->vec != NULL && vp->vec[0] && vp->vec[1])
 	    cp = vp->vec[1];
 
 	tprintf(FMT_HISTORY, buf, cp, INBUFSIZE, NULL, hp->Htime, (ptr_t) hp);
@@ -439,7 +435,7 @@ rechist(fname, ref)
      */
     oldidfds = didfds;
     didfds = 0;
-    if ((shist = adrof(STRsavehist)) != NULL)
+    if ((shist = adrof(STRsavehist)) != NULL && shist->vec != NULL)
 	if (shist->vec[1] && eq(shist->vec[1], STRmerge))
 	    loadhist(fname, 1);
     fp = creat(short2str(fname), 0600);
