@@ -79,7 +79,8 @@ g_slice_free(struct g_slicer *gsp)
 	g_free(gsp->slices);
 	if (gsp->hotspot != NULL)
 		g_free(gsp->hotspot);
-	g_free(gsp->softc);
+	if (gsp->softc != NULL)
+		g_free(gsp->softc);
 	g_free(gsp);
 }
 
