@@ -39,10 +39,14 @@
 
 #include <machine/rpb.h>
 #include <machine/cpuconf.h>
+#include <machine/clock.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 #include <pci/pci_ioctl.h>
 #include <alpha/pci/ciareg.h>
+
+#include "sio.h"
+#include "sc.h"
 
 #ifndef CONSPEED
 #define CONSPEED TTYDEF_SPEED
@@ -63,6 +67,7 @@ const struct alpha_variation_table dec_kn20aa_variations[] = {
 	{ 0, "AlphaStation 500 or 600 (KN20AA)" },
 	{ 0, NULL },
 };
+extern int comconsole; /* XXX for forcing comconsole when srm serial console is used */
 
 void
 dec_kn20aa_init()
@@ -83,26 +88,18 @@ dec_kn20aa_init()
 	platform.pci_intr_map  = dec_kn20aa_intr_map;
 	platform.pci_intr_disable = dec_kn20aa_intr_disable;
 	platform.pci_intr_enable = dec_kn20aa_intr_enable;
-#if 0
-	platform.device_register = dec_kn20aa_device_register;
-#endif
 }
 
 static void
 dec_kn20aa_cons_init()
 {
-	cia_init();
-#ifdef DDB
-	siocnattach(0x3f8, comcnrate);
-#endif
-#if 0
 	struct ctb *ctb;
-	struct cia_config *ccp;
-	extern struct cia_config cia_configuration;
 
-	ccp = &cia_configuration;
-	cia_init(ccp, 0);
+	cia_init();
 
+#ifdef DDB
+	siogdbattach(0x2f8, 9600);
+#endif
 	ctb = (struct ctb *)(((caddr_t)hwrpb) + hwrpb->rpb_ctb_off);
 
 	switch (ctb->ctb_term_type) {
@@ -116,30 +113,20 @@ dec_kn20aa_cons_init()
 			 * character time = (1000000 / (defaultrate / 10))
 			 */
 			DELAY(160000000 / comcnrate);
-
-			if(comcnattach(&ccp->cc_iot, 0x3f8, comcnrate,
-			    COM_FREQ,
-			    (TTYDEF_CFLAG & ~(CSIZE | PARENB)) | CS8))
+			comconsole = 0;
+			if (siocnattach(0x3f8, comcnrate))
 				panic("can't init serial console");
 
 			break;
 		}
 
 	case 3:
-#if	NPCKBD > 0
 		/* display console ... */
 		/* XXX */
-		(void) pckbc_cnattach(&ccp->cc_iot, PCKBC_KBD_SLOT);
-
-		if ((ctb->ctb_turboslot & 0xffff) == 0)
-			isa_display_console(&ccp->cc_iot, &ccp->cc_memt);
-		else
-			pci_display_console(&ccp->cc_iot, &ccp->cc_memt,
-			    &ccp->cc_pc, (ctb->ctb_turboslot >> 8) & 0xff,
-			    ctb->ctb_turboslot & 0xff, 0);
+#if	NPCKBD > 0
+		sccnattach();
 #else
 		panic("not configured to use display && keyboard console");
-#endif
 		break;
 
 	default:
@@ -308,12 +295,16 @@ dec_kn20aa_intr_map(void *arg)
 		return;
 
         default:
-                printf("dec_kn20aa_intr_map: weird slot %d\n",
-                    cfg->slot);
-                return;
+		if(!cfg->bus){
+			printf("dec_kn20aa_intr_map: weird slot %d\n",
+			       cfg->slot);
+			return;
+		} else {
+			cfg->intline = cfg->slot;
+		}
         }
-
-        cfg->intline += cfg->bus;
+	
+        cfg->intline += cfg->bus*16;
         if (cfg->intline > KN20AA_MAX_IRQ)
                 panic("dec_kn20aa_intr_map: cfg->intline too large (%d)\n",
                     cfg->intline);
