@@ -45,7 +45,7 @@ char copyright[] =
 static char sccsid[] = "@(#)mount_umap.c	8.5 (Berkeley) 4/26/95";
 */
 static const char rcsid[] =
-	"$Id: mount_umap.c,v 1.10 1997/03/11 12:39:32 peter Exp $";
+	"$Id: mount_umap.c,v 1.11 1997/03/29 03:32:47 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -197,7 +197,7 @@ main(argc, argv)
 #endif /* MAPSECURITY */
 
 	if ((fscanf(gfp, "%d\n", &gnentries)) != 1)
-		errx(EX_DATAERR, "nentries not found%s", gmapfile, not);
+		errx(EX_DATAERR, "%s: nentries not found%s", gmapfile, not);
 	if (gnentries > MAPFILEENTRIES)
 		errx(EX_DATAERR,
 		    "maximum number of entries is %d%s", GMAPFILEENTRIES, not);
