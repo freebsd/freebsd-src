@@ -88,9 +88,6 @@ vinumattach(void *dummy)
     dqend = NULL;
 
     cdevsw_add(&vinum_cdevsw);				    /* add the cdevsw entry */
-#ifdef DEVFS
-#error DEVFS not finished yet
-#endif
 
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
