@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.20 1995/06/05 03:15:31 jkh Exp $
+ * $Id: config.c,v 1.15.2.21 1995/06/05 04:00:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -179,7 +179,7 @@ configFstab(void)
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s %s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", nameof(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc", NULL);
     fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs rw 0 0\n");
