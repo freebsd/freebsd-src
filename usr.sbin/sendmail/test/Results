@@ -39,6 +39,7 @@ AIX	3.1.5	FAIL	93.08.07  David J. N. Begley
 AIX	3.2.3e	FAIL	93.07.26  Steve Bauer <sbauer@silver.sdsmt.edu>
 AIX	3.2.4	FAIL	93.10.07  David J. N. Begley
 AIX	3.2.5	FAIL	94.05.17  Steve Bauer <sbauer@hpcmmib.hpc.sdsmt.edu>
+AIX	4.1	FAIL	96.10.21  Hakan Lindholm <hakan@af.lu.se>
 AIX	4.2	OK	96.10.16  Steve Bauer <sbauer@krypton.hpc.sdsmt.edu>
 
 IRIX	4.0.4	OK	93.09.25  Robert Elz
@@ -77,6 +78,8 @@ Solaris	2.5	OK	96.02.29  Carson Gaspar <carson@lehman.com>
 
 Linux	1.2.13	FAIL	95.11.02  Sven Neuhaus <sven@ping.de>
 Linux	2.0.17	FAIL	96.09.03  Horst von Brand <vonbrand@sleipnir.valparaiso.cl>
+
+AIX	4.1	OK	96.10.21  Hakan Lindholm <hakan@af.lu.se>
 
 IRIX	5.2	OK	95.12.01  Mark Andrews <mandrews@aw.sgi.com>
 IRIX	5.3	OK	95.12.01  Mark Andrews <mandrews@aw.sgi.com>

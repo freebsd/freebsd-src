@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 1983 Eric P. Allman
+# Copyright (c) 1996 Eric P. Allman
 # Copyright (c) 1988, 1993
 #	The Regents of the University of California.  All rights reserved.
 #
@@ -32,8 +32,10 @@ divert(-1)
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-VERSIONID(`@(#)version.m4	8.8.3.1 (Berkeley) 11/16/96')
-#
+
 divert(0)
-# Configuration version number
-DZ8.8.3`'ifdef(`confCF_VERSION', `/confCF_VERSION')
+VERSIONID(`@(#)aix4.m4	8.1 (Berkeley) 11/13/96')
+ifdef(`LOCAL_MAILER_PATH',, `define(`LOCAL_MAILER_PATH', /bin/bellmail)')dnl
+ifdef(`LOCAL_MAILER_ARGS',, `define(`LOCAL_MAILER_ARGS', mail -F $g $u)')dnl
+ifdef(`LOCAL_MAILER_FLAGS',, `define(`LOCAL_MAILER_FLAGS', `mn9')')dnl
+define(`confTIME_ZONE', `USE_TZ')dnl
