@@ -28,13 +28,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.13 1995/02/20 22:23:11 davidg Exp $
+ *	$Id: kern_exec.c,v 1.14 1995/03/01 04:09:50 davidg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/signalvar.h>
-#include <sys/resourcevar.h>
 #include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/filedesc.h>
@@ -42,9 +41,7 @@
 #include <sys/acct.h>
 #include <sys/exec.h>
 #include <sys/imgact.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
-#include <sys/mman.h>
 #include <sys/malloc.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
