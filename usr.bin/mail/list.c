@@ -273,7 +273,7 @@ number:
 		for (i = 1; i <= msgCount; i++) {
 			for (mc = 0, np = &namelist[0]; *np != NULL; np++)
 				if (**np == '/') {
-					if (matchsubj(*np, i)) {
+					if (matchfield(*np, i)) {
 						mc++;
 						break;
 					}
@@ -730,16 +730,21 @@ matchto(str, mesg)
 }
 
 /*
- * See if the given string matches inside the subject field of the
- * given message.  For the purpose of the scan, we ignore case differences.
- * If it does, return true.  The string search argument is assumed to
- * have the form "/search-string."  If it is of the form "/," we use the
- * previous search string.
+ * See if the given substring is contained within the specified field. If
+ * 'searchheaders' is set, then the form '/x:y' will be accepted and matches
+ * any message with the substring 'y' in field 'x'. If 'x' is omitted or
+ * 'searchheaders' is not set, then the search matches any messages
+ * with the substring 'y' in the 'Subject'. The search is case insensitive.
+ *
+ * The form '/to:y' is a special case, and will match all messages
+ * containing the substring 'y' in the 'To', 'Cc', or 'Bcc' header
+ * fields. The search for 'to' is case sensitive, so that '/To:y' can
+ * be used to limit the search to just the 'To' field.
  */
 
 char lastscan[STRINGLEN];
 int
-matchsubj(str, mesg)
+matchfield(str, mesg)
 	char *str;
 	int mesg;
 {
@@ -758,8 +763,8 @@ matchsubj(str, mesg)
 	 */
 
 	if (value("searchheaders") && (cp = strchr(str, ':')) != NULL) {
-		/* Check for special case "/To:" */
-		if (strncasecmp(str, "To:", 3) == 0)
+		/* Check for special case "/to:" */
+		if (strncmp(str, "to:", 3) == 0)
 			return (matchto(cp, mesg));
 		*cp++ = '\0';
 		cp2 = hfield(*str != '\0' ? str : "subject", mp);
