@@ -69,7 +69,7 @@ struct linesw {
 	u_char		l_hotchar;
 };
 
-extern struct linesw linesw[];
+extern struct linesw *linesw[];
 extern int nlinesw;
 
 int ldisc_register(int , struct linesw *);
@@ -84,28 +84,28 @@ static __inline int
 ttyld_open(struct tty *tp, dev_t dev)
 {
 
-	return ((*linesw[tp->t_line].l_open)(dev, tp));
+	return ((*linesw[tp->t_line]->l_open)(dev, tp));
 }
 
 static __inline int
 ttyld_close(struct tty *tp, int flag)
 {
 
-	return ((*linesw[tp->t_line].l_close)(tp, flag));
+	return ((*linesw[tp->t_line]->l_close)(tp, flag));
 }
 
 static __inline int
 ttyld_read(struct tty *tp, struct uio *uio, int flag)
 {
 
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
+	return ((*linesw[tp->t_line]->l_read)(tp, uio, flag));
 }
 
 static __inline int
 ttyld_write(struct tty *tp, struct uio *uio, int flag)
 {
 
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+	return ((*linesw[tp->t_line]->l_write)(tp, uio, flag));
 }
 
 static __inline int
@@ -113,28 +113,28 @@ ttyld_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
     struct thread *td)
 {
 
-	return ((*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, td));
+	return ((*linesw[tp->t_line]->l_ioctl)(tp, cmd, data, flag, td));
 }
 
 static __inline int
 ttyld_rint(struct tty *tp, int c)
 {
 
-	return ((*linesw[tp->t_line].l_rint)(c, tp));
+	return ((*linesw[tp->t_line]->l_rint)(c, tp));
 }
 
 static __inline int
 ttyld_start(struct tty *tp)
 {
 
-	return ((*linesw[tp->t_line].l_start)(tp));
+	return ((*linesw[tp->t_line]->l_start)(tp));
 }
 
 static __inline int
 ttyld_modem(struct tty *tp, int flag)
 {
 
-	return ((*linesw[tp->t_line].l_modem)(tp, flag));
+	return ((*linesw[tp->t_line]->l_modem)(tp, flag));
 }
 
 #endif /* _KERNEL */

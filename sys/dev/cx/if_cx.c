@@ -1430,7 +1430,7 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 	    && (!(tp->t_iflag & PARMRK)\
 		|| (tp->t_iflag & (IGNPAR | IGNBRK)) == (IGNPAR | IGNBRK))\
 	    && !(t->c_lflag & (ECHO | ICANON | IEXTEN | ISIG | PENDIN))\
-	    && linesw[tp->t_line].l_rint == ttyinput)
+	    && linesw[tp->t_line]->l_rint == ttyinput)
 
 /*
  * Error callback function.
