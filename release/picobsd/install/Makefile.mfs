@@ -12,7 +12,7 @@ MY_DEVS= std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 wd0s1h pty0 wd0 wd1 wd2 wd3 da0 da
 all: tree links files
 
 tree:
-	mtree -deLU -f mfs.mtree -p ${DESTDIR}
+	mtree -deU -f mfs.mtree -p ${DESTDIR}
 
 links: tree
 	(cd ${DESTDIR}; \
