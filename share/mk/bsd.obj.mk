@@ -169,13 +169,17 @@ ${__target}: _SUBDIR
 _SUBDIR: .USE
 .if defined(SUBDIR) && !empty(SUBDIR)
 	@for entry in ${SUBDIR}; do \
-		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
-			cd ${.CURDIR}/$${entry}.${MACHINE_ARCH}; \
+			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
+			edir=$${entry}.${MACHINE_ARCH}; \
+			cd ${.CURDIR}/$${edir}; \
 		else \
-			cd ${.CURDIR}/$${entry}; \
+			${ECHODIR} "===> ${DIRPRFX}$$entry"; \
+			edir=$${entry}; \
+			cd ${.CURDIR}/$${edir}; \
 		fi; \
-		${MAKE} ${.TARGET:S/realinstall/install/} DIRPRFX=${DIRPRFX}$$entry/); \
+		${MAKE} ${.TARGET:realinstall=install} \
+		    DIRPRFX=${DIRPRFX}$$edir/; \
 	done
 .endif
 
