@@ -37,27 +37,25 @@
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)util.c	8.3 (Berkeley) 4/28/95";
-#else
+#endif
 static const char rcsid[] =
   "$FreeBSD$";
-#endif
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <ctype.h>
 #include <db.h>
 #include <err.h>
-#include <pwd.h>
-#include <utmp.h>
 #include <errno.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <pwd.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <paths.h>
-#include <errno.h>
+#include <unistd.h>
+#include <utmp.h>
 #include "finger.h"
 
 static void	 find_idle_and_ttywrite __P((WHERE *));
@@ -138,7 +136,7 @@ enter_lastlog(pn)
 		/*
 		 * and if it's not any of the current logins
 		 * can't use time comparison because there may be a small
-		 * discrepency since login calls time() twice
+		 * discrepancy since login calls time() twice
 		 */
 		for (w = pn->whead; doit && w != NULL; w = w->next)
 			if (w->info == LOGGEDIN &&
