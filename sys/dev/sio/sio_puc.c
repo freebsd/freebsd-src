@@ -52,6 +52,7 @@ static device_method_t sio_puc_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		sio_puc_probe),
 	DEVMETHOD(device_attach,	sio_puc_attach),
+	DEVMETHOD(device_detach,	siodetach),
 
 	{ 0, 0 }
 };
