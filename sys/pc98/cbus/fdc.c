@@ -47,7 +47,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.63 1999/06/01 13:14:34 kato Exp $
+ *	$Id: fd.c,v 1.64 1999/06/26 02:47:16 mckusick Exp $
  *
  */
 
@@ -2603,7 +2603,7 @@ fdformat(dev, finfo, p)
 	 */
 	PHOLD(p);
 	bzero((void *)bp, sizeof(struct buf));
-	BUF_INITLOCK(bp);
+	BUF_LOCKINIT(bp);
 	BUF_LOCK(bp, LK_EXCLUSIVE);
 	bp->b_flags = B_PHYS | B_FORMAT;
 
@@ -2642,7 +2642,7 @@ fdformat(dev, finfo, p)
 	 */
 	PRELE(p);
 	BUF_UNLOCK(bp);
-	BUF_FREELOCK(bp);
+	BUF_LOCKFREE(bp);
 	free(bp, M_TEMP);
 	return rv;
 }
