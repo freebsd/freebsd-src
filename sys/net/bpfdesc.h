@@ -43,8 +43,8 @@
 #ifndef _NET_BPFDESC_H_
 #define _NET_BPFDESC_H_
 
+#include <sys/_label.h>
 #include <sys/callout.h>
-#include <sys/mac.h>
 #include <sys/selinfo.h>
 
 /*
