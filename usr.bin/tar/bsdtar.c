@@ -481,7 +481,7 @@ main(int argc, char **argv)
 	if (bsdtar->option_no_subdirs)
 		only_mode(bsdtar, "-n", "cru");
 	if (bsdtar->option_stdout)
-		only_mode(bsdtar, "-O", "x");
+		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 

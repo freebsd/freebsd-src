@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
 #include "bsdtar.h"
 
 static void	cleanup_security(struct bsdtar *);
-static void	list_item_verbose(struct bsdtar *, struct archive_entry *);
+static void	list_item_verbose(struct bsdtar *, FILE *,
+		    struct archive_entry *);
 static void	read_archive(struct bsdtar *bsdtar, char mode);
 static int	security_problem(struct bsdtar *, struct archive_entry *);
 
@@ -68,6 +69,7 @@ tar_mode_x(struct bsdtar *bsdtar)
 static void
 read_archive(struct bsdtar *bsdtar, char mode)
 {
+	FILE			 *out;
 	struct archive		 *a;
 	struct archive_entry	 *entry;
 	int			  r;
@@ -117,30 +119,34 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			continue;
 
 		if (mode == 't') {
+			/* Perversely, gtar uses -O to mean "send to stderr"
+			 * when used with -t. */
+			out = bsdtar->option_stdout ? stderr : stdout;
+
 			if (bsdtar->verbose < 2)
-				safe_fprintf(stdout, "%s",
+				safe_fprintf(out, "%s",
 				    archive_entry_pathname(entry));
 			else
-				list_item_verbose(bsdtar, entry);
-			fflush(stdout);
+				list_item_verbose(bsdtar, out, entry);
+			fflush(out);
 			r = archive_read_data_skip(a);
 			if (r == ARCHIVE_WARN) {
-				fprintf(stdout, "\n");
+				fprintf(out, "\n");
 				bsdtar_warnc(bsdtar, 0, "%s",
 				    archive_error_string(a));
 			}
 			if (r == ARCHIVE_RETRY) {
-				fprintf(stdout, "\n");
+				fprintf(out, "\n");
 				bsdtar_warnc(bsdtar, 0, "%s",
 				    archive_error_string(a));
 			}
 			if (r == ARCHIVE_FATAL) {
-				fprintf(stdout, "\n");
+				fprintf(out, "\n");
 				bsdtar_warnc(bsdtar, 0, "%s",
 				    archive_error_string(a));
 				break;
 			}
-			fprintf(stdout, "\n");
+			fprintf(out, "\n");
 		} else {
 			if (bsdtar->option_interactive &&
 			    !yes("extract '%s'", archive_entry_pathname(entry)))
@@ -199,9 +205,8 @@ read_archive(struct bsdtar *bsdtar, char mode)
  * and 'pax -l' is documented as using the same format as 'ls -l'.
  */
 static void
-list_item_verbose(struct bsdtar *bsdtar, struct archive_entry *entry)
+list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 {
-	FILE			*out = stdout;
 	const struct stat	*st;
 	char			 tmp[100];
 	size_t			 w;
