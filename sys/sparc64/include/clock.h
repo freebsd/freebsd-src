@@ -33,4 +33,6 @@ extern u_long tick_increment;
 extern u_long tick_freq;
 extern u_long tick_MHz;
 
+int	sysbeep(int, int);
+
 #endif /* !_MACHINE_CLOCK_H_ */
