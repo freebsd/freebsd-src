@@ -620,7 +620,7 @@ extern int ix86_arch;
 %{mcpu=athlon-4|mcpu=athlon-xp|mcpu=athlon-mp:\
 -D__tune_athlon_sse__ }\
 %{mcpu=pentium4:-D__tune_pentium4__ }\
-%{march=athlon-tbird|march=athlon-xp|march=athlon-mp|march=pentium3|march=pentium4:\
+%{march=athlon-xp|march=athlon-mp|march=pentium3|march=pentium4:\
 -D__SSE__ }\
 %{march=pentium-mmx|march=k6|march=k6-2|march=k6-3\
 |march=athlon|march=athlon-tbird|march=athlon-4|march=athlon-xp\
@@ -794,12 +794,15 @@ extern int ix86_arch;
 /* The published ABIs say that doubles should be aligned on word
    boundaries, so lower the aligment for structure fields unless
    -malign-double is set.  */
-/* BIGGEST_FIELD_ALIGNMENT is also used in libobjc, where it must be
-   constant.  Use the smaller value in that context.  */
-#ifndef IN_TARGET_LIBS
-#define BIGGEST_FIELD_ALIGNMENT (TARGET_64BIT ? 128 : (TARGET_ALIGN_DOUBLE ? 64 : 32))
-#else
+
+/* ??? Blah -- this macro is used directly by libobjc.  Since it
+   supports no vector modes, cut out the complexity and fall back
+   on BIGGEST_FIELD_ALIGNMENT.  */
+#ifdef IN_TARGET_LIBS
 #define BIGGEST_FIELD_ALIGNMENT 32
+#else
+#define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) \
+   x86_field_alignment (FIELD, COMPUTED)
 #endif
 
 /* If defined, a C expression to compute the alignment given to a
@@ -3039,6 +3042,7 @@ extern int const svr4_dbx_register_map[FIRST_PSEUDO_REGISTER];
 				       SYMBOL_REF, LABEL_REF}},		\
   {"shiftdi_operand", {SUBREG, REG, MEM}},				\
   {"const_int_1_operand", {CONST_INT}},					\
+  {"const_int_1_31_operand", {CONST_INT}},				\
   {"symbolic_operand", {SYMBOL_REF, LABEL_REF, CONST}},			\
   {"aligned_operand", {CONST_INT, CONST_DOUBLE, CONST, SYMBOL_REF,	\
 		       LABEL_REF, SUBREG, REG, MEM}},			\
