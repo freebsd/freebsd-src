@@ -56,7 +56,8 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
-	const char *group, *user, *ruser;
+	const char *group, *user;
+	const void *ruser;
 	char *const *list;
 	struct passwd *pwd;
 	struct group *grp;
@@ -69,7 +70,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 		return (PAM_IGNORE);
 
 	/* get applicant */
-	if (pam_get_item(pamh, PAM_RUSER, (const void **)&ruser) != PAM_SUCCESS
+	if (pam_get_item(pamh, PAM_RUSER, &ruser) != PAM_SUCCESS
 	    || ruser == NULL || (pwd = getpwnam(ruser)) == NULL)
 		return (PAM_AUTH_ERR);
 

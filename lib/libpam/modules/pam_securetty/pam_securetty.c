@@ -57,7 +57,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
 {
 	struct passwd *pwd;
 	struct ttyent *ty;
-	const char *user, *tty;
+	const char *user;
+	const void *tty;
 	int pam_err;
 
 	pam_err = pam_get_user(pamh, &user, NULL);
@@ -72,7 +73,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
 	if (pwd->pw_uid != 0)
 		return (PAM_SUCCESS);
 
-	pam_err = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	pam_err = pam_get_item(pamh, PAM_TTY, &tty);
 	if (pam_err != PAM_SUCCESS)
 		return (pam_err);
 
@@ -81,7 +82,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh __unused, int flags __unused,
 	/* Ignore any "/dev/" on the PAM_TTY item */
 	if (tty != NULL && strncmp(TTY_PREFIX, tty, sizeof(TTY_PREFIX)) == 0) {
 		PAM_LOG("WARNING: PAM_TTY starts with " TTY_PREFIX);
-		tty += sizeof(TTY_PREFIX) - 1;
+		tty = (const char *)tty + sizeof(TTY_PREFIX) - 1;
 	}
 
 	if (tty != NULL && (ty = getttynam(tty)) != NULL &&

@@ -57,10 +57,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 {
 	struct opie opie;
 	struct passwd *pwent;
-	const char *luser, *rhost;
+	const void *luser, *rhost;
 	int r;
 
-	r = pam_get_item(pamh, PAM_USER, (const void **)&luser);
+	r = pam_get_item(pamh, PAM_USER, &luser);
 	if (r != PAM_SUCCESS)
 		return (r);
 	if (luser == NULL)
@@ -70,10 +70,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pwent == NULL || opielookup(&opie, __DECONST(char *, luser)) != 0)
 		return (PAM_SUCCESS);
 
-	r = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+	r = pam_get_item(pamh, PAM_RHOST, &rhost);
 	if (r != PAM_SUCCESS)
 		return (r);
-	if (rhost == NULL || *rhost == '\0')
+	if (rhost == NULL || *(const char *)rhost == '\0')
 		rhost = openpam_get_option(pamh, "allow_local") ?
 		    "" : "localhost";
 
