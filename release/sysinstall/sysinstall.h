@@ -683,6 +683,7 @@ extern void	msgConfirm(char *fmt, ...);
 extern void	msgNotify(char *fmt, ...);
 extern void	msgWeHaveOutput(char *fmt, ...);
 extern int	msgYesNo(char *fmt, ...);
+extern int	msgNoYes(char *fmt, ...);
 extern char	*msgGetInput(char *buf, char *fmt, ...);
 extern int	msgSimpleConfirm(char *);
 extern int	msgSimpleNotify(char *);
