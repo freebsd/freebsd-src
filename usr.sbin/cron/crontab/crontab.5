@@ -105,7 +105,11 @@ if it has any reason to send mail as a result of running
 commands in ``this'' crontab.  If
 .Ev MAILTO
 is defined (and non-empty), mail is
-sent to the user so named.  If
+sent to the user so named.  
+.Ev MAILTO 
+may also be used to direct mail to multiple recipients
+by seperating recipient users with a comma.
+If
 .Ev MAILTO
 is defined but empty (MAILTO=""), no
 mail will be sent.  Otherwise mail is sent to the owner of the crontab.  This
