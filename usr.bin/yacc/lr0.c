@@ -32,12 +32,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lr0.c	5.3 (Berkeley) 1/20/91";
+static char const sccsid[] = "@(#)lr0.c	5.3 (Berkeley) 1/20/91";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
 
 extern short *itemset;
@@ -49,8 +52,22 @@ core *first_state;
 shifts *first_shift;
 reductions *first_reduction;
 
-int get_state();
-core *new_state();
+static void allocate_itemsets __P((void));
+static void allocate_storage __P((void));
+static void append_states __P((void));
+static void free_storage __P((void));
+static void generate_states __P((void));
+static int get_state __P((int));
+static void initialize_states __P((void));
+static void new_itemsets __P((void));
+static core *new_state __P((int));
+#ifdef DEBUG
+static void print_derives __P((void));
+#endif
+static void save_reductions __P((void));
+static void save_shifts __P((void));
+static void set_derives __P((void));
+static void set_nullable __P((void));
 
 static core **state_set;
 static core *this_state;
@@ -69,6 +86,7 @@ static short **kernel_end;
 static short *kernel_items;
 
 
+static void
 allocate_itemsets()
 {
     register short *itemp;
@@ -111,6 +129,7 @@ allocate_itemsets()
 }
 
 
+static void
 allocate_storage()
 {
     allocate_itemsets();
@@ -120,6 +139,7 @@ allocate_storage()
 }
 
 
+static void
 append_states()
 {
     register int i;
@@ -149,6 +169,7 @@ append_states()
 }
 
 
+static void
 free_storage()
 {
     FREE(shift_symbol);
@@ -162,6 +183,7 @@ free_storage()
 
 
 
+static void
 generate_states()
 {
     allocate_storage();
@@ -189,7 +211,7 @@ generate_states()
 
 
 
-int
+static int
 get_state(symbol)
 int symbol;
 {
@@ -254,6 +276,7 @@ int symbol;
 
 
 
+static void
 initialize_states()
 {
     register int i;
@@ -281,6 +304,7 @@ initialize_states()
 }
 
 
+static void
 new_itemsets()
 {
     register int i;
@@ -317,7 +341,7 @@ new_itemsets()
 
 
 
-core *
+static core *
 new_state(symbol)
 int symbol;
 {
@@ -356,6 +380,7 @@ int symbol;
 }
 
 
+#if 0
 /* show_cores is used for debugging */
 
 show_cores()
@@ -430,8 +455,10 @@ show_shifts()
 	    printf("\t%d\n", p->shift[i]);
     }
 }
+#endif
 
 
+static void
 save_shifts()
 {
     register shifts *p;
@@ -466,6 +493,7 @@ save_shifts()
 
 
 
+static void
 save_reductions()
 {
     register short *isp;
@@ -515,6 +543,7 @@ save_reductions()
 }
 
 
+static void
 set_derives()
 {
     register int i, k;
@@ -545,13 +574,16 @@ set_derives()
 #endif
 }
 
+#if 0
 free_derives()
 {
     FREE(derives[start_symbol]);
     FREE(derives);
 }
+#endif
 
 #ifdef	DEBUG
+static void
 print_derives()
 {
     register int i;
@@ -574,6 +606,7 @@ print_derives()
 #endif
 
 
+static void
 set_nullable()
 {
     register int i, j;
@@ -623,12 +656,15 @@ set_nullable()
 }
 
 
+#if 0
 free_nullable()
 {
     FREE(nullable);
 }
+#endif
 
 
+void
 lr0()
 {
     set_derives();

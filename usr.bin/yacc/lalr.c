@@ -32,12 +32,15 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$Id$
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)lalr.c	5.3 (Berkeley) 6/1/90";
+static char const sccsid[] = "@(#)lalr.c	5.3 (Berkeley) 6/1/90";
 #endif /* not lint */
 
+#include <stdlib.h>
 #include "defs.h"
 
 typedef
@@ -60,7 +63,22 @@ short *goto_map;
 short *from_state;
 short *to_state;
 
-short **transpose();
+static void add_lookback_edge __P((int, int, int));
+static void build_relations __P((void));
+static void compute_FOLLOWS __P((void));
+static void compute_lookaheads __P((void));
+static void digraph __P((short **));
+static void initialize_F __P((void));
+static void initialize_LA __P((void));
+static int map_goto __P((int, int));
+static void set_accessing_symbol __P((void));
+static void set_goto_map __P((void));
+static void set_maxrhs __P((void));
+static void set_reduction_table __P((void));
+static void set_shift_table __P((void));
+static void set_state_table __P((void));
+static short **transpose __P((short **, int));
+static void traverse __P((register int));
 
 static int infinity;
 static int maxrhs;
@@ -74,6 +92,7 @@ static short *VERTICES;
 static int top;
 
 
+void
 lalr()
 {
     tokensetsize = WORDSIZE(ntokens);
@@ -93,6 +112,7 @@ lalr()
 
 
 
+static void
 set_state_table()
 {
     register core *sp;
@@ -104,6 +124,7 @@ set_state_table()
 
 
 
+static void
 set_accessing_symbol()
 {
     register core *sp;
@@ -115,6 +136,7 @@ set_accessing_symbol()
 
 
 
+static void
 set_shift_table()
 {
     register shifts *sp;
@@ -126,6 +148,7 @@ set_shift_table()
 
 
 
+static void
 set_reduction_table()
 {
     register reductions *rp;
@@ -137,6 +160,7 @@ set_reduction_table()
 
 
 
+static void
 set_maxrhs()
 {
   register short *itemp;
@@ -165,6 +189,7 @@ set_maxrhs()
 
 
 
+static void
 initialize_LA()
 {
   register int i, j, k;
@@ -202,6 +227,7 @@ initialize_LA()
 }
 
 
+static void
 set_goto_map()
 {
   register shifts *sp;
@@ -271,7 +297,7 @@ set_goto_map()
 
 /*  Map_goto maps a state/symbol pair into its numeric representation.	*/
 
-int
+static int
 map_goto(state, symbol)
 int state;
 int symbol;
@@ -300,6 +326,7 @@ int symbol;
 
 
 
+static void
 initialize_F()
 {
   register int i;
@@ -377,6 +404,7 @@ initialize_F()
 
 
 
+static void
 build_relations()
 {
   register int i;
@@ -469,6 +497,7 @@ build_relations()
 }
 
 
+static void
 add_lookback_edge(stateno, ruleno, gotono)
 int stateno, ruleno, gotono;
 {
@@ -496,7 +525,7 @@ int stateno, ruleno, gotono;
 
 
 
-short **
+static short **
 transpose(R, n)
 short **R;
 int n;
@@ -554,12 +583,14 @@ int n;
 
 
 
+static void
 compute_FOLLOWS()
 {
   digraph(includes);
 }
 
 
+static void
 compute_lookaheads()
 {
   register int i, n;
@@ -594,6 +625,7 @@ compute_lookaheads()
 }
 
 
+static void
 digraph(relation)
 short **relation;
 {
@@ -621,6 +653,7 @@ short **relation;
 
 
 
+static void
 traverse(i)
 register int i;
 {

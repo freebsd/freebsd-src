@@ -45,10 +45,13 @@ char copyright[] =
 static char sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.1.1.1.8.1 1997/08/29 11:40:45 charnier Exp $";
 #endif /* not lint */
 
 #include <signal.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 #include "defs.h"
 
 char dflag;
@@ -106,10 +109,15 @@ char  *rassoc;
 short **derives;
 char *nullable;
 
-extern char *mktemp();
-extern char *getenv();
+static void create_file_names __P((void));
+static void getargs __P((int, char **));
+static void onintr __P((int));
+static void open_files __P((void));
+static void set_signals __P((void));
+static void usage __P((void));
 
 
+void
 done(k)
 int k;
 {
@@ -120,7 +128,7 @@ int k;
 }
 
 
-void
+static void
 onintr(signo)
 	int signo;
 {
@@ -128,6 +136,7 @@ onintr(signo)
 }
 
 
+static void
 set_signals()
 {
 #ifdef SIGINT
@@ -148,12 +157,14 @@ set_signals()
 static void
 usage()
 {
-    fprintf(stderr,
-		"usage: yacc [-dlrtv] [-b file_prefix] [-p symbol_prefix] filename\n");
+    fprintf(stderr, "%s\n%s\n",
+		"usage: yacc [-dlrtv] [-b file_prefix] [-o output_filename]",
+		"            [-p symbol_prefix] filename");
     exit(1);
 }
 
 
+static void
 getargs(argc, argv)
 int argc;
 char *argv[];
@@ -192,6 +203,15 @@ char *argv[];
 	case 'l':
 	    lflag = 1;
 	    break;
+
+	case 'o':
+	    if (*++s)
+		output_file_name = s;
+	    else if (++i < argc)
+		output_file_name = argv[i];
+	    else
+		usage();
+	    continue;
 
 	case 'p':
 	    if (*++s)
@@ -274,6 +294,7 @@ unsigned n;
 }
 
 
+static void
 create_file_names()
 {
     int i, len;
@@ -318,13 +339,20 @@ create_file_names()
     mktemp(text_file_name);
     mktemp(union_file_name);
 
-    len = strlen(file_prefix);
-
-    output_file_name = MALLOC(len + 7);
-    if (output_file_name == 0)
-	no_space();
-    strcpy(output_file_name, file_prefix);
-    strcpy(output_file_name + len, OUTPUT_SUFFIX);
+    if (output_file_name != 0)
+    {
+	file_prefix = output_file_name;
+	len = strlen(file_prefix);
+    }
+    else
+    {
+	len = strlen(file_prefix);
+	output_file_name = MALLOC(len + 7);
+	if (output_file_name == 0)
+	    no_space();
+	strcpy(output_file_name, file_prefix);
+	strcpy(output_file_name + len, OUTPUT_SUFFIX);
+    }
 
     if (rflag)
     {
@@ -332,7 +360,21 @@ create_file_names()
 	if (code_file_name == 0)
 	    no_space();
 	strcpy(code_file_name, file_prefix);
-	strcpy(code_file_name + len, CODE_SUFFIX);
+	if (file_prefix == output_file_name)
+	{
+	    /*
+	     * XXX ".tab.c" here is OUTPUT_SUFFIX, but since its length is
+	     * in various magic numbers, don't bother using the macro.
+	     */
+	    if (len >= 6 && strcmp(code_file_name + len - 6, ".tab.c") == 0)
+		strcpy(code_file_name + len - 6, CODE_SUFFIX);
+	    else if (len >= 2 && strcmp(code_file_name + len - 2, ".c") == 0)
+		strcpy(code_file_name + len - 2, CODE_SUFFIX);
+	    else
+		strcpy(code_file_name + len, CODE_SUFFIX);
+	}
+	else
+	    strcpy(code_file_name + len, CODE_SUFFIX);
     }
     else
 	code_file_name = output_file_name;
@@ -343,7 +385,16 @@ create_file_names()
 	if (defines_file_name == 0)
 	    no_space();
 	strcpy(defines_file_name, file_prefix);
-	strcpy(defines_file_name + len, DEFINES_SUFFIX);
+	if (file_prefix == output_file_name)
+	{
+#define BISON_DEFINES_SUFFIX  ".h"
+	    if (len >= 2 && strcmp(defines_file_name + len - 2, ".c") == 0)
+		strcpy(defines_file_name + len - 2, BISON_DEFINES_SUFFIX);
+	    else
+		strcpy(defines_file_name + len, BISON_DEFINES_SUFFIX);
+	}
+	else
+	    strcpy(defines_file_name + len, DEFINES_SUFFIX);
     }
 
     if (vflag)
@@ -352,11 +403,22 @@ create_file_names()
 	if (verbose_file_name == 0)
 	    no_space();
 	strcpy(verbose_file_name, file_prefix);
-	strcpy(verbose_file_name + len, VERBOSE_SUFFIX);
+	if (file_prefix == output_file_name)
+	{
+	    if (len >= 6 && strcmp(verbose_file_name + len - 6, ".tab.c") == 0)
+		strcpy(verbose_file_name + len - 6, VERBOSE_SUFFIX);
+	    else if (len >= 2 && strcmp(verbose_file_name + len - 2, ".c") == 0)
+		strcpy(verbose_file_name + len - 2, VERBOSE_SUFFIX);
+	    else
+		strcpy(verbose_file_name + len, VERBOSE_SUFFIX);
+	}
+	else
+	    strcpy(verbose_file_name + len, VERBOSE_SUFFIX);
     }
 }
 
 
+static void
 open_files()
 {
     create_file_names();
@@ -424,4 +486,5 @@ char *argv[];
     output();
     done(0);
     /*NOTREACHED*/
+    return (0);
 }
