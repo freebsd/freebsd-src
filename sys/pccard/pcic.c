@@ -1303,7 +1303,7 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 	default:
 		err = EOPNOTSUPP;
 	}
-	return (0);
+	return (err);
 }
 
 static int
