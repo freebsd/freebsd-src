@@ -7,11 +7,13 @@ sed	\
 	-e '/DEC_3000_300/d' \
 	-e '/DEC_3000_500/d' \
 	-e '/SOFTUPDATES/d' \
+	-e '/UFS_ACL/d' \
 	-e '/UFS_DIRHASH/d' \
 	-e '/MFS/d' \
 	-e '/NFSSERVER/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/MSDOSFS/d' \
+	-e '/PSEUDOFS/d' \
 	-e '/PROCFS/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
@@ -24,6 +26,7 @@ sed	\
  	-e '/WITNESS/d' \
  	-e '/AHC_REG_PRETTY_PRINT/d' \
  	-e '/AHD_REG_PRETTY_PRINT/d' \
+ 	-e '/COMPAT_FREEBSD4/d' \
  	-e '/SMP/d' \
 	-e '/atapifd/d' \
 	-e '/atapist/d' \
@@ -72,6 +75,8 @@ sed	\
 	-e '/kue/d' \
 	-e '/maxusers/d' \
 	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
+
+echo "options  NO_COMPAT_FREEBSD4"
 
 # reset maxusers to something lower
 echo "maxusers	5"

@@ -148,8 +148,6 @@ CRYPTO_DISTS?=	crypto krb4 krb5
 BASE_DISTS?=	base
 DISTRIBUTIONS?=	${BASE_DISTS} ${OTHER_DISTS} ${COMPAT_DISTS} ${CRYPTO_DISTS}
 
-BOOT1=	etc/defaults/rc.conf
-
 # mountpoint for filesystems.
 MNT=			/mnt
 
@@ -625,13 +623,9 @@ release.9:
 	rm -rf ${RD}/mfsfd
 	mkdir ${RD}/mfsfd
 	cd ${RD}/mfsfd && \
-		mkdir -p etc/defaults dev mnt stand/help
+		mkdir -p etc/defaults dev mnt stand/etc/defaults stand/help
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=boot \
 		DIR=${RD}/mfsfd/stand ZIP=false
-	( cd ${RD}/trees/base/dev && \
-		ls console tty bpf0 ttyd0 ttyv0 ttyv1 ttyv2 ttyv3 null zero card0 card1 card2 card3 usb usb0 uhid0 ums0 ulpt0 ugen0 kbd0 kmem mem xpt0 | \
-	cpio -dump ${RD}/mfsfd/dev )
-	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	( cd ${RD}/mfsfd && \
 	  for dir in bin sbin ; do \
 		ln -sf /stand $$dir; \
@@ -641,8 +635,7 @@ release.9:
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
 .endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
-	cd ${RD}/trees/base && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
-	( for F in netconfig protocols ; do \
+	( for F in defaults/rc.conf netconfig protocols ; do \
 		sed -e '/^#.*$$/d' -e 's/[:space:]*#.*$$//g' \
 		${RD}/trees/base/etc/$$F > ${RD}/mfsfd/stand/etc/$$F ; \
 	  done )
@@ -671,7 +664,6 @@ release.9:
 .if ${TARGET} == "i386"
 	@cp ${RD}/trees/base/boot/mbr ${RD}/mfsfd/boot
 .endif
-	@cp ${RD}/trees/base/boot/loader.help ${RD}/mfsfd/boot
 	@echo "Making the regular boot floppy."
 	@tar --exclude CVS -cf - -C ${.CURDIR}/../usr.sbin/sysinstall help | \
 		tar xf - -C ${RD}/mfsfd/stand
