@@ -609,82 +609,81 @@
 
   </sect2>
 
-    <sect2 id="contrib">
-      <title>Contributed Software</title>
+  <sect2 id="contrib">
+    <title>Contributed Software</title>
 
-      <para><application>awk</application> from Bell Labs has been
-	updated to a 14 March 2003 snapshot.</para>
+    <para><application>awk</application> from Bell Labs has been
+      updated to a 14 March 2003 snapshot.</para>
 
-      <para><application>BIND</application> has been updated to
-        version 8.3.4. &merged;</para>
+    <para><application>BIND</application> has been updated to version
+      8.3.4. &merged;</para>
 
-      <para>All of the <application>bzip2</application> suite of
-        applications is now installed in the base system (in
-        particular, <command>bzip2recover</command> is now built and
-        installed). &merged;</para>
+    <para>All of the <application>bzip2</application> suite of
+      applications is now installed in the base system (in particular,
+      <command>bzip2recover</command> is now built and
+      installed). &merged;</para>
 
-      <para><application>CVS</application> has been updated to
-	1.11.5. &merged;</para>
+    <para><application>CVS</application> has been updated to
+      1.11.5. &merged;</para>
 
-      <para><application>FILE</application> has been updated to
-	3.41. &merged;</para>
+    <para><application>FILE</application> has been updated to
+      3.41. &merged;</para>
 
-      <para><application>GCC</application> has been updated to
-	3.2.2 (release version).</para>
+    <para><application>GCC</application> has been updated to
+      3.2.2 (release version).</para>
 
-      <para><application>IPFilter</application> has been updated to
-	3.4.31. &merged;</para>
+    <para><application>IPFilter</application> has been updated to
+      3.4.31. &merged;</para>
 
-      <para>The <application>ISC DHCP</application> client has been
-	updated to 3.0.1RC11. &merged;</para>
+    <para>The <application>ISC DHCP</application> client has been
+      updated to 3.0.1RC11. &merged;</para>
 
-      <para>The <application>ISC DHCP</application> client now
-	includes the &man.omshell.1; utility and the &man.dhcpctl.3;
-	library for run-time control of the client.</para>
+    <para>The <application>ISC DHCP</application> client now includes
+      the &man.omshell.1; utility and the &man.dhcpctl.3; library for
+      run-time control of the client.</para>
 
-      <para><application>Kerberos IV</application> support (in the
-	form of <application>KTH eBones</application>) has been
-	removed.  Users requiring this functionality can still get it
-	from the <filename role="port">security/krb4</filename> port
-	(or package).  Kerberos IV compatibility mode for Kerberos 5
-	has been removed, and the
-	<literal>k5<replaceable>program</replaceable></literal>
-	userland utilities have been renamed to
-	<literal>k<replaceable>program</replaceable></literal>.</para>
+    <para><application>Kerberos IV</application> support (in the form
+      of <application>KTH eBones</application>) has been removed.
+      Users requiring this functionality can still get it from the
+      <filename role="port">security/krb4</filename> port (or
+      package).  Kerberos IV compatibility mode for Kerberos 5 has
+      been removed, and the
+      <literal>k5<replaceable>program</replaceable></literal> userland
+      utilities have been renamed to
+      <literal>k<replaceable>program</replaceable></literal>.</para>
 
-      <para><application>libpcap</application> now has support for
-	selecting among multiple data link types on an
-	interface.</para>
+    <para><application>libpcap</application> now has support for
+      selecting among multiple data link types on an interface.</para>
 
-      <para><application>OpenPAM</application> has been updated to the
-        <quote>Daffodil</quote> release.</para>
+    <para><application>OpenPAM</application> has been updated to the
+      <quote>Daffodil</quote> release.</para>
 
-      <para><application>OpenSSL</application> has been updated to
-        release 0.9.7a.  Among other features, this release includes
-        support for AES and takes advantage of &man.crypto.4;
-        devices. &merged;</para>
+    <para><application>OpenSSL</application> has been updated to
+      release 0.9.7a.  Among other features, this release includes
+      support for AES and takes advantage of &man.crypto.4;
+      devices. &merged;</para>
 
-      <para><application>sendmail</application> has been updated to
-        version 8.12.9. &merged;</para>
+    <para><application>sendmail</application> has been updated to
+      version 8.12.9. &merged;</para>
 
-      <para>&man.tcpdump.1; has been updated to version 3.7.2.  &merged;
-	It also now supports a <option>-L</option> flag to
-	list the data link types available on an interface and a
-	<option>-y</option> option to specify the data link type to use while
-	capturing packets.</para>
+    <para>&man.tcpdump.1; has been updated to version 3.7.2.  &merged;
+      It also now supports a <option>-L</option> flag to list the data
+      link types available on an interface and a <option>-y</option>
+      option to specify the data link type to use while capturing
+      packets.</para>
 
-    </sect2>
+  </sect2>
 
-    <sect2 id="ports">
-      <title>Ports/Packages Collection Infrastructure</title>
+  <sect2 id="ports">
+    <title>Ports/Packages Collection Infrastructure</title>
 
-      <para>The one-line <filename>pkg-comment</filename> files have
-        been eliminated from each port skeleton; their contents have
-        been moved into each port's <filename>Makefile</filename>.
-        This change reduces the disk space and inodes used by the
-        ports tree. &merged;</para>
+    <para>The one-line <filename>pkg-comment</filename> files have
+      been eliminated from each port skeleton; their contents have
+      been moved into each port's <filename>Makefile</filename>.  This
+      change reduces the disk space and inodes used by the ports
+      tree. &merged;</para>
 
-    </sect2>
+  </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
