@@ -96,16 +96,19 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 
 /* various options */
 int options;
-#define	F_FLOOD		0x001
-#define	F_INTERVAL	0x002
-#define	F_NUMERIC	0x004
-#define	F_PINGFILLED	0x008
-#define	F_QUIET		0x010
-#define	F_RROUTE	0x020
-#define	F_SO_DEBUG	0x040
-#define	F_SO_DONTROUTE	0x080
-#define	F_VERBOSE	0x100
-#define	F_QUIET2	0x200
+#define	F_FLOOD		0x0001
+#define	F_INTERVAL	0x0002
+#define	F_NUMERIC	0x0004
+#define	F_PINGFILLED	0x0008
+#define	F_QUIET		0x0010
+#define	F_RROUTE	0x0020
+#define	F_SO_DEBUG	0x0040
+#define	F_SO_DONTROUTE	0x0080
+#define	F_VERBOSE	0x0100
+#define	F_QUIET2	0x0200
+#define	F_NOLOOP	0x0400
+#define	F_MTTL		0x0800
+#define	F_MIF		0x1000
 
 /*
  * MAX_DUP_CHK is the number of bits in received table, i.e. the maximum
@@ -157,6 +160,8 @@ main(argc, argv)
 	struct termios ts;
 	register int i;
 	int ch, fdmask, hold, packlen, preload, sockerrno;
+	struct in_addr ifaddr;
+	unsigned char ttl, loop;
 	u_char *datap, *packet;
 	char *target, hnamebuf[MAXHOSTNAMELEN], *malloc();
 #ifdef IP_OPTIONS
@@ -180,7 +185,7 @@ main(argc, argv)
 	preload = 0;
 
 	datap = &outpack[8 + sizeof(struct timeval)];
-	while ((ch = getopt(argc, argv, "QRc:dfh:i:l:np:qrs:v")) != EOF)
+	while ((ch = getopt(argc, argv, "I:LQRT:c:dfh:i:l:np:qrs:v")) != EOF)
 		switch(ch) {
 		case 'c':
 			npackets = atoi(optarg);
@@ -211,6 +216,14 @@ main(argc, argv)
 			}
 			options |= F_INTERVAL;
 			break;
+		case 'I':		/* multicast interface */
+			if (inet_aton(optarg, &ifaddr) == 0) {
+				(void)fprintf(stderr,
+				    "ping: bad multicast interface.\n");
+				exit(1);
+			}
+			options |= F_MIF;
+			break;
 		case 'l':
 			preload = atoi(optarg);
 			if (preload < 0) {
@@ -218,6 +231,10 @@ main(argc, argv)
 				    "ping: bad preload value.\n");
 				exit(1);
 			}
+			break;
+		case 'L':
+			options |= F_NOLOOP;
+			loop = 0;
 			break;
 		case 'n':
 			options |= F_NUMERIC;
@@ -250,6 +267,16 @@ main(argc, argv)
 				    "ping: illegal packet size.\n");
 				exit(1);
 			}
+			break;
+		case 'T':		/* multicast TTL */
+			i = atoi(optarg);
+			if (i < 0 || i > 255) {
+				(void)fprintf(stderr,
+				    "ping: illegal multicast TTL.\n");
+				exit(1);
+			}
+			ttl = i;
+			options |= F_MTTL;
 			break;
 		case 'v':
 			options |= F_VERBOSE;
@@ -335,6 +362,28 @@ main(argc, argv)
 		  "ping: record route not available in this implementation.\n");
 		exit(1);
 #endif /* IP_OPTIONS */
+	}
+
+	if (options & F_NOLOOP) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_LOOP, &loop,
+		    sizeof(loop)) < 0) {
+			perror("ping: IP_MULTICAST_LOOP");
+			exit(1);
+		}
+	}
+	if (options & F_MTTL) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_TTL, &ttl,
+		    sizeof(ttl)) < 0) {
+			perror("ping: IP_MULTICAST_TTL");
+			exit(1);
+		}
+	}
+	if (options & F_MIF) {
+		if (setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &ifaddr,
+		    sizeof(ifaddr)) < 0) {
+			perror("ping: IP_MULTICAST_IF");
+			exit(1);
+		}
 	}
 
 	/*
@@ -1085,6 +1134,6 @@ fill(bp, patp)
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: ping [-Rdfnqrv] [-c count] [-i wait] [-l preload]\n\t[-p pattern] [-s packetsize] host\n");
+	    "usage: ping [-LQRdfnqrv] [-c count] [-i wait] [-I interface]\n\t[-l preload] [-p pattern] [-s packetsize] [-T ttl] host\n");
 	exit(1);
 }
