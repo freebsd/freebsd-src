@@ -676,11 +676,11 @@ release.9:
 .endif
 .if defined(SMALLBOOTSIZE)
 .if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
-	@rm -rf ${RD}/mfsfd/stand/modules
-	@mkdir -p ${RD}/mfsfd/stand/modules
+	@rm -rf ${RD}/mfsfd/modules
+	@mkdir -p ${RD}/mfsfd/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers-small.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
+	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 .endif
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot-small ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
@@ -690,11 +690,11 @@ release.9:
 		${BOOTINODE} ${SMALLBOOTLABEL}
 .endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
-	@rm -rf ${RD}/mfsfd/stand/modules
-	@mkdir -p ${RD}/mfsfd/stand/modules
+	@rm -rf ${RD}/mfsfd/modules
+	@mkdir -p ${RD}/mfsfd/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
+	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/modules
 	@rm -rf ${RD}/driversfd
 	@mkdir ${RD}/driversfd
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 3 \
@@ -1030,7 +1030,7 @@ doMFSKERN:
 .endif
 	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "set hint.acpi.0.disabled=1" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "set module_path=\"/stand/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "set module_path=\"/modules;/dist\"" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "echo \\007\\007" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@echo "autoboot 10" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 .if ${TARGET_ARCH} == "i386" && ${AUTO_KEYBOARD_DETECT}
