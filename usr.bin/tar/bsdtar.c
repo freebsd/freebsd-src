@@ -610,7 +610,7 @@ long_help(struct bsdtar *bsdtar)
 	else
 		p = "";
 
-	fprintf(stderr, "%s%s: manipulate archive files\n", prog, p);
+	fprintf(stdout, "%s%s: manipulate archive files\n", prog, p);
 
 	for (msg = long_help_msg; *msg != NULL; msg++) {
 		for (p = *msg; p != NULL; p++) {
@@ -618,7 +618,7 @@ long_help(struct bsdtar *bsdtar)
 				break;
 			else if (*p == '%') {
 				if (p[1] == 'p') {
-					fputs(prog, stderr);
+					fputs(prog, stdout);
 					p++;
 				} else
 					putchar('%');
