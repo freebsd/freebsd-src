@@ -15,7 +15,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: inet_ntop.c,v 1.3 1997/02/22 15:00:21 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -24,9 +24,9 @@ static char rcsid[] = "$Id$";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
-#include <string.h>
 #include <errno.h>
 #include <stdio.h>
+#include <string.h>
 
 #define SPRINTF(x) ((size_t)sprintf x)
 
@@ -114,7 +114,7 @@ inet_ntop6(src, dst, size)
 	 */
 	char tmp[sizeof "ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255"], *tp;
 	struct { int base, len; } best, cur;
-	u_int words[IN6ADDRSZ / INT16SZ];
+	u_int words[NS_IN6ADDRSZ / NS_INT16SZ];
 	int i;
 
 	/*
@@ -123,11 +123,11 @@ inet_ntop6(src, dst, size)
 	 *	Find the longest run of 0x00's in src[] for :: shorthanding.
 	 */
 	memset(words, '\0', sizeof words);
-	for (i = 0; i < IN6ADDRSZ; i++)
+	for (i = 0; i < NS_IN6ADDRSZ; i++)
 		words[i / 2] |= (src[i] << ((1 - (i % 2)) << 3));
 	best.base = -1;
 	cur.base = -1;
-	for (i = 0; i < (IN6ADDRSZ / INT16SZ); i++) {
+	for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++) {
 		if (words[i] == 0) {
 			if (cur.base == -1)
 				cur.base = i, cur.len = 1;
@@ -152,7 +152,7 @@ inet_ntop6(src, dst, size)
 	 * Format the result.
 	 */
 	tp = tmp;
-	for (i = 0; i < (IN6ADDRSZ / INT16SZ); i++) {
+	for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++) {
 		/* Are we inside the best run of 0x00's? */
 		if (best.base != -1 && i >= best.base &&
 		    i < (best.base + best.len)) {
@@ -174,7 +174,8 @@ inet_ntop6(src, dst, size)
 		tp += SPRINTF((tp, "%x", words[i]));
 	}
 	/* Was it a trailing run of 0x00's? */
-	if (best.base != -1 && (best.base + best.len) == (IN6ADDRSZ / INT16SZ))
+	if (best.base != -1 && (best.base + best.len) ==
+	    (NS_IN6ADDRSZ / NS_INT16SZ))
 		*tp++ = ':';
 	*tp++ = '\0';
 

@@ -1,6 +1,4 @@
 /*
- * ++Copyright++ 1985, 1993
- * -
  * Copyright (c) 1985, 1993
  *    The Regents of the University of California.  All rights reserved.
  * 
@@ -31,7 +29,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * -
+ */
+
+/*
  * Portions Copyright (c) 1993 by Digital Equipment Corporation.
  * 
  * Permission to use, copy, modify, and distribute this software for any
@@ -49,28 +49,41 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
- * -
- * --Copyright--
+ */
+
+/*
+ * Portions Copyright (c) 1996 by Internet Software Consortium.
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
+ * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
+ * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+ * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+ * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+ * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+ * SOFTWARE.
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static char orig_rcsid[] = "From: Id: res_mkquery.c,v 8.5 1996/08/27 08:33:28 vixie Exp ";
-static char rcsid[] = "$Id$";
+static char orig_rcsid[] = "From: Id: res_mkquery.c,v 8.9 1997/04/24 22:22:36 vixie Exp $";
+static char rcsid[] = "$Id: res_mkquery.c,v 1.12 1997/02/22 15:00:33 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <netinet/in.h>
-
-#include "res_config.h"
 #include <arpa/nameser.h>
-
-#include <stdio.h>
 #include <netdb.h>
 #include <resolv.h>
+#include <stdio.h>
 #include <string.h>
 
+#include "res_config.h"
 
 /*
  * Form all types of queries.
@@ -106,7 +119,7 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	 */
 	if ((buf == NULL) || (buflen < HFIXEDSZ))
 		return (-1);
-	bzero(buf, HFIXEDSZ);
+	memset(buf, 0, HFIXEDSZ);
 	hp = (HEADER *) buf;
 	hp->id = htons(++_res.id);
 	hp->opcode = op;
@@ -173,7 +186,7 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 		__putshort(datalen, cp);
 		cp += INT16SZ;
 		if (datalen) {
-			bcopy(data, cp, datalen);
+			memcpy(cp, data, datalen);
 			cp += datalen;
 		}
 		hp->ancount = htons(1);

@@ -16,8 +16,8 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char orig_rcsid[] = "From Id: inet_net_pton.c,v 8.3 1996/11/11 06:36:52 vixie Exp";
-static const char rcsid[] = "$Id$";
+static const char orig_rcsid[] = "From Id: inet_net_pton.c,v 1.8 1996/11/21 10:28:12 vixie Exp $";
+static const char rcsid[] = "$Id: inet_net_pton.c,v 1.3 1997/02/22 15:00:18 peter Exp $";
 #endif
 
 #include <sys/types.h>
@@ -159,8 +159,7 @@ inet_net_pton_ipv4(src, dst, size)
 			assert(n >= 0 && n <= 9);
 			bits *= 10;
 			bits += n;
-		} while ((ch = *src++) != '\0' &&
-			 isascii(ch) && isdigit(ch));
+		} while ((ch = *src++) != '\0' && isascii(ch) && isdigit(ch));
 		if (ch != '\0')
 			goto enoent;
 		if (bits > 32)
