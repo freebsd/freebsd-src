@@ -242,10 +242,7 @@ extern	struct timecounter loran_timecounter;
 static int
 loranprobe(struct isa_device *dvp)
 {
-	static int once;
 
-	if (!once++)
-		cdevsw_add(&loran_cdevsw);
 	dvp->id_iobase = PORT;
 	return (8);
 }
@@ -298,7 +295,7 @@ loranattach(struct isa_device *isdp)
 	TAILQ_INIT(&working);
 	for (i = 0; i < NLORAN + 1; i++) {
 		TAILQ_INIT(&minors[i]);
-		
+		make_dev(&loran_cdevsw, i, UID_ROOT, GID_WHEEL, 0600, "loran%d", i);
 	}
 
 	for (i = 0; i < NDUMMY; i++) {
