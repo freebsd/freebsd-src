@@ -307,6 +307,11 @@ DECODE_PROTOTYPE(bar)
 
 	resource_list_add(&dinfo->pci.resources, type, bar, 0UL, ~0UL, len);
 
+	/*
+	 * Mark the appropriate bit in the PCI command register so that
+	 * device drivers will know which BARs can be used.
+	 */
+	pci_enable_io(child, type);
 	return (0);
 }
 
