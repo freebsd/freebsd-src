@@ -39,6 +39,7 @@
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 
 #include <dev/ofw/openfirm.h>
 
