@@ -2,11 +2,13 @@
  * Driver for a device we can't identify.
  * by Julian Elischer (julian@tfs.com)
  *
- *      $Id: uk.c,v 1.17 1997/03/23 06:33:54 bde Exp $
+ *      $Id: uk.c,v 1.18 1997/08/02 14:33:16 bde Exp $
  *
  * If you find that you are adding any code to this file look closely
  * at putting it in "scsi_driver.c" instead.
  */
+
+#include <opt_devfs.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -17,6 +19,12 @@
 #endif /*DEVFS*/
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_driver.h>
+
+struct scsi_data {
+#ifdef DEVFS 
+        void  *devfs_data_tok;
+#endif
+};
 
 static	d_open_t	ukopen;
 static	d_close_t	ukclose;
@@ -40,10 +48,10 @@ struct scsi_device uk_switch =
 	0,
 	{0, 0},
 	SDEV_ONCE_ONLY|SDEV_UK,	/* Only one open allowed */
-	0,
+	ukattach,
 	"Unknown",
 	ukopen,
-	0,
+	sizeof(struct scsi_data),
 	T_UNKNOWN,
 	0,
 	0,
@@ -55,6 +63,22 @@ struct scsi_device uk_switch =
 
 
 static uk_devsw_installed = 0;
+
+static errval
+ukattach(struct scsi_link *sc_link)
+{   
+#ifdef DEVFS
+        struct scsi_data *uk = sc_link->sd;
+
+        uk->devfs_data_tok = devfs_add_devswf(&uk_cdevsw,
+                                              sc_link->dev_unit,
+                                              DV_CHR,
+                                              UID_ROOT, GID_WHEEL, 0600,
+                                              "uk%d", sc_link->dev_unit);
+#endif
+        return 0;
+}
+
 
 static void 	uk_drvinit(void *unused)
 {
