@@ -55,7 +55,7 @@ static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
 extern vfs_init_t       union_init;
 static vfs_root_t       union_root;
-static vfs_nmount_t	union_mount;
+static vfs_mount_t	union_mount;
 static vfs_statfs_t	union_statfs;
 static vfs_unmount_t    union_unmount;
 
@@ -63,9 +63,8 @@ static vfs_unmount_t    union_unmount;
  * Mount union filesystem.
  */
 static int
-union_mount(mp, ndp, td)
+union_mount(mp, td)
 	struct mount *mp;
-	struct nameidata *ndp;
 	struct thread *td;
 {
 	int error = 0;
@@ -79,6 +78,7 @@ union_mount(mp, ndp, td)
 	int len;
 	size_t size;
 	struct componentname fakecn;
+	struct nameidata nd, *ndp = &nd;
 
 	UDEBUG(("union_mount(mp = %p)\n", (void *)mp));
 
@@ -486,7 +486,7 @@ union_statfs(mp, sbp, td)
 
 static struct vfsops union_vfsops = {
 	.vfs_init = 		union_init,
-	.vfs_nmount =		union_mount,
+	.vfs_mount =		union_mount,
 	.vfs_root =		union_root,
 	.vfs_statfs =		union_statfs,
 	.vfs_unmount =		union_unmount,

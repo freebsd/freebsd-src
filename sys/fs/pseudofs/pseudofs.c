@@ -257,8 +257,7 @@ pfs_destroy(struct pfs_node *node)
  * Mount a pseudofs instance
  */
 int
-pfs_mount(struct pfs_info *pi, struct mount *mp, struct nameidata *ndp,
-	  struct thread *td)
+pfs_mount(struct pfs_info *pi, struct mount *mp, struct thread *td)
 {
 	struct statfs *sbp;
 

@@ -51,7 +51,7 @@
 
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
 
-static vfs_nmount_t	devfs_nmount;
+static vfs_mount_t	devfs_mount;
 static vfs_unmount_t	devfs_unmount;
 static vfs_root_t	devfs_root;
 static vfs_statfs_t	devfs_statfs;
@@ -60,10 +60,7 @@ static vfs_statfs_t	devfs_statfs;
  * Mount the filesystem
  */
 static int
-devfs_nmount(mp, ndp, td)
-	struct mount *mp;
-	struct nameidata *ndp;
-	struct thread *td;
+devfs_mount(struct mount *mp, struct thread *td)
 {
 	int error;
 	struct devfs_mount *fmp;
@@ -187,7 +184,7 @@ devfs_statfs(mp, sbp, td)
 }
 
 static struct vfsops devfs_vfsops = {
-	.vfs_nmount =		devfs_nmount,
+	.vfs_mount =		devfs_mount,
 	.vfs_root =		devfs_root,
 	.vfs_statfs =		devfs_statfs,
 	.vfs_unmount =		devfs_unmount,

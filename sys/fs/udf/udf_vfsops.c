@@ -108,7 +108,7 @@ uma_zone_t udf_zone_ds = NULL;
 
 static vfs_init_t      udf_init;
 static vfs_uninit_t    udf_uninit;
-static vfs_nmount_t    udf_mount;
+static vfs_mount_t     udf_mount;
 static vfs_root_t      udf_root;
 static vfs_statfs_t    udf_statfs;
 static vfs_unmount_t   udf_unmount;
@@ -120,7 +120,7 @@ static int udf_find_partmaps(struct udf_mnt *, struct logvol_desc *);
 static struct vfsops udf_vfsops = {
 	.vfs_fhtovp =		udf_fhtovp,
 	.vfs_init =		udf_init,
-	.vfs_nmount =		udf_mount,
+	.vfs_mount =		udf_mount,
 	.vfs_root =		udf_root,
 	.vfs_statfs =		udf_statfs,
 	.vfs_uninit =		udf_uninit,
@@ -184,7 +184,7 @@ udf_uninit(struct vfsconf *foo)
 }
 
 static int
-udf_mount(struct mount *mp, struct nameidata *ndp, struct thread *td)
+udf_mount(struct mount *mp, struct thread *td)
 {
 	struct vnode *devvp;	/* vnode of the mount device */
 	struct udf_mnt *imp = 0;
@@ -193,6 +193,7 @@ udf_mount(struct mount *mp, struct nameidata *ndp, struct thread *td)
 	char *fspec, *cs_disk, *cs_local;
 	size_t size;
 	int error, len, *udf_flags;
+	struct nameidata nd, *ndp = &nd;
 
 	opts = mp->mnt_optnew;
 

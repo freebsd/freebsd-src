@@ -53,7 +53,7 @@
 
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
-static vfs_mount_t		umapfs_mount;
+static vfs_omount_t		umapfs_omount;
 static vfs_start_t		umapfs_start;
 static vfs_root_t		umapfs_root;
 static vfs_quotactl_t		umapfs_quotactl;
@@ -69,7 +69,7 @@ static vfs_extattrctl_t	umapfs_extattrctl;
  * Mount umap layer
  */
 static int
-umapfs_mount(mp, path, data, ndp, td)
+umapfs_omount(mp, path, data, ndp, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
@@ -430,7 +430,7 @@ static struct vfsops umap_vfsops = {
 	.vfs_extattrctl =		umapfs_extattrctl,
 	.vfs_fhtovp =    		umapfs_fhtovp,
 	.vfs_init =      		umapfs_init,
-	.vfs_mount =    		umapfs_mount,
+	.vfs_omount =    		umapfs_omount,
 	.vfs_quotactl = 		umapfs_quotactl,
 	.vfs_root =     		umapfs_root,
 	.vfs_start =    		umapfs_start,

@@ -65,7 +65,7 @@ MALLOC_DEFINE(M_ISOFSNODE, "ISOFS node", "ISOFS vnode private part");
 
 struct iconv_functions *cd9660_iconv = NULL;
 
-static vfs_mount_t	cd9660_mount;
+static vfs_omount_t	cd9660_omount;
 static vfs_unmount_t	cd9660_unmount;
 static vfs_root_t	cd9660_root;
 static vfs_statfs_t	cd9660_statfs;
@@ -76,7 +76,7 @@ static vfs_vptofh_t	cd9660_vptofh;
 static struct vfsops cd9660_vfsops = {
 	.vfs_fhtovp =		cd9660_fhtovp,
 	.vfs_init =		cd9660_init,
-	.vfs_mount =		cd9660_mount,
+	.vfs_omount =		cd9660_omount,
 	.vfs_root =		cd9660_root,
 	.vfs_statfs =		cd9660_statfs,
 	.vfs_uninit =		cd9660_uninit,
@@ -179,11 +179,10 @@ iso_mountroot(mp, td)
  * mount system call
  */
 static int
-cd9660_mount(mp, path, data, ndp, td)
+cd9660_omount(mp, path, data, td)
 	struct mount *mp;
 	char *path;
 	caddr_t data;
-	struct nameidata *ndp;
 	struct thread *td;
 {
 	struct vnode *devvp;
@@ -192,6 +191,7 @@ cd9660_mount(mp, path, data, ndp, td)
 	int error;
 	mode_t accessmode;
 	struct iso_mnt *imp = 0;
+	struct nameidata ndp;
 
 	if (path == NULL)	/* We are doing the initial root mount */
 		return (iso_mountroot(mp, td));
@@ -214,11 +214,11 @@ cd9660_mount(mp, path, data, ndp, td)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
-	if ((error = namei(ndp)))
+	NDINIT(&ndp, LOOKUP, FOLLOW, UIO_USERSPACE, args.fspec, td);
+	if ((error = namei(&ndp)))
 		return (error);
-	NDFREE(ndp, NDF_ONLY_PNBUF);
-	devvp = ndp->ni_vp;
+	NDFREE(&ndp, NDF_ONLY_PNBUF);
+	devvp = ndp.ni_vp;
 
 	if (!vn_isdisk(devvp, &error)) {
 		vrele(devvp);

@@ -104,7 +104,7 @@ static void	nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, char *, struct vnode **,
 		    struct ucred *cred);
-static vfs_mount_t nfs_mount;
+static vfs_omount_t nfs_omount;
 static vfs_unmount_t nfs_unmount;
 static vfs_root_t nfs_root;
 static vfs_statfs_t nfs_statfs;
@@ -116,7 +116,7 @@ static vfs_sysctl_t nfs_sysctl;
  */
 static struct vfsops nfs_vfsops = {
 	.vfs_init =		nfs_init,
-	.vfs_mount =		nfs_mount,
+	.vfs_omount =		nfs_omount,
 	.vfs_root =		nfs_root,
 	.vfs_statfs =		nfs_statfs,
 	.vfs_sync =		nfs_sync,
@@ -667,8 +667,7 @@ nfs_decode_args(struct nfsmount *nmp, struct nfs_args *argp)
  */
 /* ARGSUSED */
 static int
-nfs_mount(struct mount *mp, char *path, caddr_t data, struct nameidata *ndp,
-    struct thread *td)
+nfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 {
 	int error;
 	struct nfs_args args;

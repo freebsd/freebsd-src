@@ -338,10 +338,13 @@ struct nfs_public {
  * Filesystem configuration information. One of these exists for each
  * type of filesystem supported by the kernel. These are searched at
  * mount time to identify the requested filesystem.
+ *
+ * XXX: Never change the first two arguments!
  */
 struct vfsconf {
-	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
+	u_int	vfc_version;		/* ABI version number */
 	char	vfc_name[MFSNAMELEN];	/* filesystem type name */
+	struct	vfsops *vfc_vfsops;	/* filesystem operations vector */
 	int	vfc_typenum;		/* historic filesystem type number */
 	int	vfc_refcount;		/* number mounted of this type */
 	int	vfc_flags;		/* permanent flags */
@@ -462,8 +465,8 @@ struct mount_args;
 struct nameidata;
 struct sysctl_req;
 
-typedef int vfs_mount_t(struct mount *mp, char *path, caddr_t data,
-			struct nameidata *ndp, struct thread *td);
+typedef int vfs_omount_t(struct mount *mp, char *path, caddr_t data,
+			 struct thread *td);
 typedef int vfs_start_t(struct mount *mp, int flags, struct thread *td);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags, struct thread *td);
 typedef int vfs_root_t(struct mount *mp, struct vnode **vpp, struct thread *td);
@@ -484,13 +487,13 @@ typedef	int vfs_uninit_t(struct vfsconf *);
 typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
 		    struct vnode *filename_vp, int attrnamespace,
 		    const char *attrname, struct thread *td);
-typedef	int vfs_nmount_t(struct mount *mp, struct nameidata *ndp,
-		    struct thread *td);
+typedef	int vfs_mount_t(struct mount *mp, struct thread *td);
 typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
+	vfs_omount_t		*vfs_omount;
 	vfs_start_t		*vfs_start;
 	vfs_unmount_t		*vfs_unmount;
 	vfs_root_t		*vfs_root;
@@ -505,13 +508,12 @@ struct vfsops {
 	vfs_uninit_t		*vfs_uninit;
 	vfs_extattrctl_t	*vfs_extattrctl;
 	/* Additions below are not binary compatible with 5.0 and below. */
-	vfs_nmount_t		*vfs_nmount;
 	vfs_sysctl_t		*vfs_sysctl;
 };
 
-#define VFS_NMOUNT(MP, NDP, P)    (*(MP)->mnt_op->vfs_nmount)(MP, NDP, P)
-#define VFS_MOUNT(MP, PATH, DATA, NDP, P) \
-	(*(MP)->mnt_op->vfs_mount)(MP, PATH, DATA, NDP, P)
+#define VFS_MOUNT(MP, P)    (*(MP)->mnt_op->vfs_mount)(MP, P)
+#define VFS_OMOUNT(MP, PATH, DATA, P) \
+	(*(MP)->mnt_op->vfs_omount)(MP, PATH, DATA, P)
 #define VFS_START(MP, FLAGS, P)	  (*(MP)->mnt_op->vfs_start)(MP, FLAGS, P)
 #define VFS_UNMOUNT(MP, FORCE, P) (*(MP)->mnt_op->vfs_unmount)(MP, FORCE, P)
 #define VFS_ROOT(MP, VPP, P)	  (*(MP)->mnt_op->vfs_root)(MP, VPP, P)
@@ -532,10 +534,17 @@ struct vfsops {
 
 #include <sys/module.h>
 
+/*
+ * Version numbers.
+ */
+#define VFS_VERSION_00	0x19660120
+#define VFS_VERSION	VFS_VERSION_00
+
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\
-		.vfc_vfsops = &vfsops,				\
+		.vfc_version = VFS_VERSION,			\
 		.vfc_name = #fsname,				\
+		.vfc_vfsops = &vfsops,				\
 		.vfc_typenum = -1,				\
 		.vfc_flags = flags,				\
 	};							\

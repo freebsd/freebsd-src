@@ -57,7 +57,7 @@ static MALLOC_DEFINE(M_NULLFSMNT, "NULLFS mount", "NULLFS mount structure");
 
 static vfs_fhtovp_t	nullfs_fhtovp;
 static vfs_checkexp_t	nullfs_checkexp;
-static vfs_nmount_t	nullfs_mount;
+static vfs_mount_t	nullfs_mount;
 static vfs_quotactl_t	nullfs_quotactl;
 static vfs_root_t	nullfs_root;
 static vfs_start_t	nullfs_start;
@@ -72,10 +72,7 @@ static vfs_extattrctl_t	nullfs_extattrctl;
  * Mount null layer
  */
 static int
-nullfs_mount(mp, ndp, td)
-	struct mount *mp;
-	struct nameidata *ndp;
-	struct thread *td;
+nullfs_mount(struct mount *mp, struct thread *td)
 {
 	int error = 0;
 	struct vnode *lowerrootvp, *vp;
@@ -84,6 +81,7 @@ nullfs_mount(mp, ndp, td)
 	char *target;
 	size_t size;
 	int isvnunlocked = 0, len;
+	struct nameidata nd, *ndp = &nd;
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
 
@@ -403,7 +401,7 @@ static struct vfsops null_vfsops = {
 	.vfs_extattrctl =	nullfs_extattrctl,
 	.vfs_fhtovp =		nullfs_fhtovp,
 	.vfs_init =		nullfs_init,
-	.vfs_nmount =		nullfs_mount,
+	.vfs_mount =		nullfs_mount,
 	.vfs_quotactl =		nullfs_quotactl,
 	.vfs_root =		nullfs_root,
 	.vfs_start =		nullfs_start,

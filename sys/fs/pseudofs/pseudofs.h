@@ -198,7 +198,7 @@ struct pfs_node {
  * VFS interface
  */
 int		 pfs_mount	(struct pfs_info *pi, struct mount *mp,
-				 struct nameidata *ndp, struct thread *td);
+				 struct thread *td);
 int		 pfs_unmount	(struct mount *mp, int mntflags,
 				 struct thread *td);
 int		 pfs_root	(struct mount *mp, struct vnode **vpp,
@@ -236,9 +236,8 @@ static struct pfs_info name##_info = {					\
 };									\
 									\
 static int								\
-_##name##_mount(struct mount *mp, struct nameidata *ndp,		\
-	     struct thread *td) {					\
-	return pfs_mount(&name##_info, mp, ndp, td);			\
+_##name##_mount(struct mount *mp, struct thread *td) {			\
+	return pfs_mount(&name##_info, mp, td);				\
 }									\
 									\
 static int								\
@@ -253,7 +252,7 @@ _##name##_uninit(struct vfsconf *vfc) {					\
 									\
 static struct vfsops name##_vfsops = {					\
 	.vfs_init =		_##name##_init,				\
-	.vfs_nmount =		_##name##_mount,			\
+	.vfs_mount =		_##name##_mount,			\
 	.vfs_root =		pfs_root,				\
 	.vfs_statfs =		pfs_statfs,				\
 	.vfs_uninit =		_##name##_uninit,			\

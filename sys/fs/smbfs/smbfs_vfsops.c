@@ -78,7 +78,7 @@ static MALLOC_DEFINE(M_SMBFSHASH, "SMBFS hash", "SMBFS hash table");
 
 static vfs_init_t       smbfs_init;
 static vfs_uninit_t     smbfs_uninit;
-static vfs_mount_t      smbfs_mount;
+static vfs_omount_t     smbfs_omount;
 static vfs_start_t      smbfs_start;
 static vfs_root_t       smbfs_root;
 static vfs_quotactl_t   smbfs_quotactl;
@@ -87,7 +87,7 @@ static vfs_unmount_t    smbfs_unmount;
 
 static struct vfsops smbfs_vfsops = {
 	.vfs_init =		smbfs_init,
-	.vfs_mount =		smbfs_mount,
+	.vfs_omount =		smbfs_omount,
 	.vfs_quotactl =		smbfs_quotactl,
 	.vfs_root =		smbfs_root,
 	.vfs_start =		smbfs_start,
@@ -107,8 +107,7 @@ MODULE_DEPEND(smbfs, libmchain, 1, 1, 1);
 int smbfs_pbuf_freecnt = -1;	/* start out unlimited */
 
 static int
-smbfs_mount(struct mount *mp, char *path, caddr_t data, 
-	struct nameidata *ndp, struct thread *td)
+smbfs_omount(struct mount *mp, char *path, caddr_t data, struct thread *td)
 {
 	struct smbfs_args args; 	  /* will hold data from mount request */
 	struct smbmount *smp = NULL;

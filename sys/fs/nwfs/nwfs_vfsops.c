@@ -70,7 +70,7 @@ SYSCTL_INT(_vfs_nwfs, OID_AUTO, debuglevel, CTLFLAG_RW, &nwfs_debuglevel, 0, "")
 MODULE_DEPEND(nwfs, ncp, 1, 1, 1);
 MODULE_DEPEND(nwfs, libmchain, 1, 1, 1);
 
-static vfs_mount_t	nwfs_mount;
+static vfs_omount_t	nwfs_omount;
 static vfs_quotactl_t	nwfs_quotactl;
 static vfs_root_t	nwfs_root;
 static vfs_start_t	nwfs_start;
@@ -81,7 +81,7 @@ static vfs_uninit_t	nwfs_uninit;
 
 static struct vfsops nwfs_vfsops = {
 	.vfs_init =		nwfs_init,
-	.vfs_mount =		nwfs_mount,
+	.vfs_omount =		nwfs_omount,
 	.vfs_quotactl =		nwfs_quotactl,
 	.vfs_root =		nwfs_root,
 	.vfs_start =		nwfs_start,
@@ -136,8 +136,8 @@ nwfs_initnls(struct nwmount *nmp) {
  * mp - path - addr in user space of mount point (ie /usr or whatever)
  * data - addr in user space of mount params 
  */
-static int nwfs_mount(struct mount *mp, char *path, caddr_t data, 
-		      struct nameidata *ndp, struct thread *td)
+static int nwfs_omount(struct mount *mp, char *path, caddr_t data, 
+		      struct thread *td)
 {
 	struct nwfs_args args; 	  /* will hold data from mount request */
 	int error;
