@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.12 1999/08/07 08:06:30 grog Exp $
+ * $Id: vinuminterrupt.c,v 1.13 1999/08/08 18:42:39 phk Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -390,7 +390,7 @@ complete_raid5_write(struct rqelement *rqe)
 		    if (debug & DEBUG_LASTREQS)
 			logrq(loginfo_raid5_data, (union rqinfou) rqe, bp);
 #endif
-		    (*bdevsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
+		    (*devsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
 		}
 	    }
 	}
@@ -426,5 +426,5 @@ complete_raid5_write(struct rqelement *rqe)
     if (debug & DEBUG_LASTREQS)
 	logrq(loginfo_raid5_parity, (union rqinfou) rqe, bp);
 #endif
-    (*bdevsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
+    (*devsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
 }
