@@ -61,7 +61,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mrinfo.c,v 3.8 1995/11/29 22:36:34 fenner Rel $";
+    "@(#) $Id: mrinfo.c,v 1.8 1996/01/06 21:09:56 peter Exp $";
 /*  original rcsid:
     "@(#) Header: mrinfo.c,v 1.6 93/04/08 15:14:16 van Exp (LBL)";
 */
@@ -333,12 +333,16 @@ main(argc, argv)
 	char *host;
 	int curaddr;
 
-	setlinebuf(stderr);
-
 	if (geteuid() != 0) {
 		fprintf(stderr, "mrinfo: must be root\n");
 		exit(1);
 	}
+
+	init_igmp();
+	setuid(getuid());
+
+	setlinebuf(stderr);
+
 	argv++, argc--;
 	while (argc > 0 && argv[0][0] == '-') {
 		switch (argv[0][1]) {
@@ -385,8 +389,6 @@ main(argc, argv)
 	}
 	if (debug)
 		fprintf(stderr, "Debug level %u\n", debug);
-
-	init_igmp();
 
 	/* Check all addresses; mrouters often have unreachable interfaces */
 	for (curaddr = 0; hp->h_addr_list[curaddr] != NULL; curaddr++) {

@@ -50,7 +50,7 @@
 
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Id: mtrace.c,v 3.8 1995/11/29 22:36:34 fenner Rel $";
+    "@(#) $Id: mtrace.c,v 1.7 1996/01/06 21:10:05 peter Exp $";
 #endif
 
 #include <netdb.h>
@@ -629,8 +629,6 @@ passive_mode()
     int len, recvlen, dummy = 0;
     u_int32 smask;
 
-    init_igmp();
-
     if (raddr) {
 	if (IN_MULTICAST(ntohl(raddr))) k_join(raddr, INADDR_ANY);
     } else k_join(htonl(0xE0000120), INADDR_ANY);
@@ -1168,6 +1166,9 @@ char *argv[];
 	exit(1);
     }
 
+    init_igmp();
+    setuid(getuid());
+
     argv++, argc--;
     if (argc == 0) goto usage;
 
@@ -1303,8 +1304,6 @@ Usage: mtrace [-Mlnps] [-w wait] [-m max_hops] [-q nqueries] [-g gateway]\n\
               [-S statint] [-t ttl] [-r resp_dest] [-i if_addr] source [receiver] [group]\n");
 	exit(1);
     }
-
-    init_igmp();
 
     /*
      * Set useful defaults for as many parameters as possible.
