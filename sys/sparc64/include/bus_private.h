@@ -33,6 +33,8 @@
 
 #include <sys/queue.h>
 
+#define	BUS_DMAMAP_NSEGS	((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)
+
 struct bus_dmamap {
 	bus_dma_tag_t	dmat;
 	void		*buf;		/* unmapped buffer pointer */
