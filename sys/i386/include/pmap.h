@@ -195,7 +195,7 @@ pmap_kextract(vm_offset_t va)
 {
 	vm_paddr_t pa;
 
-	if ((pa = (vm_offset_t) PTD[va >> PDRSHIFT]) & PG_PS) {
+	if ((pa = PTD[va >> PDRSHIFT]) & PG_PS) {
 		pa = (pa & ~(NBPDR - 1)) | (va & (NBPDR - 1));
 	} else {
 		pa = *vtopte(va);
