@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.47 1996/05/21 19:05:31 wollman Exp $
+ * $Id: if_de.c,v 1.48 1996/06/14 05:25:32 davidg Exp $
  *
  */
 
@@ -3384,58 +3384,16 @@ tulip_ifioctl(
     caddr_t data)
 {
     tulip_softc_t * const sc = TULIP_IFP_TO_SOFTC(ifp);
-    struct ifaddr *ifa = (struct ifaddr *)data;
     struct ifreq *ifr = (struct ifreq *) data;
     int s, error = 0;
 
     s = splimp();
 
     switch (cmd) {
-	case SIOCSIFADDR: {
-	    ifp->if_flags |= IFF_UP;
-	    switch(ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET: {
-		    tulip_init(sc);
-		    arp_ifinit(&sc->tulip_ac, ifa);
-		    break;
-		}
-#endif /* INET */
-
-#ifdef NS
-		/*
-		 * This magic copied from if_is.c; I don't use XNS,
-		 * so I have no way of telling if this actually
-		 * works or not.
-		 */
-		case AF_NS: {
-		    struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-		    if (ns_nullhost(*ina)) {
-			ina->x_host = *(union ns_host *)(sc->tulip_ac.ac_enaddr);
-		    } else {
-			ifp->if_flags &= ~IFF_RUNNING;
-			bcopy((caddr_t)ina->x_host.c_host,
-			      (caddr_t)sc->tulip_ac.ac_enaddr,
-			      sizeof sc->tulip_ac.ac_enaddr);
-		    }
-		    tulip_init(sc);
-		    break;
-		}
-#endif /* NS */
-
-		default: {
-		    tulip_init(sc);
-		    break;
-		}
-	    }
-	    break;
-	}
-	case SIOCGIFADDR: {
-	    bcopy((caddr_t) sc->tulip_ac.ac_enaddr,
-		  (caddr_t) ((struct sockaddr *)&ifr->ifr_data)->sa_data,
-		  6);
-	    break;
-	}
+	case SIOCSIFADDR: 
+	case SIOCGIFADDR: 
+		ether_ioctl(ifp, cmd, data);
+		break;
 
 	case SIOCSIFFLAGS: {
 	    /*
@@ -3601,6 +3559,7 @@ tulip_attach(
     ifp->if_ioctl = tulip_ifioctl;
     ifp->if_start = tulip_ifstart;
     ifp->if_watchdog = tulip_ifwatchdog;
+    ifp->if_init = (if_init_f_t*)tulip_init;
     ifp->if_timer = 1;
 #if !defined(__bsdi__) || _BSDI_VERSION < 199401
     ifp->if_output = ether_output;
