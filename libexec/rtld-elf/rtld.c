@@ -120,6 +120,7 @@ static const Elf_Sym *symlook_default(const char *, unsigned long hash,
 static const Elf_Sym *symlook_list(const char *, unsigned long,
   Objlist *, const Obj_Entry **, bool in_plt, DoneList *);
 static void trace_loaded_objects(Obj_Entry *obj);
+static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 
@@ -2363,6 +2364,12 @@ unload_object(Obj_Entry *root)
 
     assert(root->refcount == 0);
 
+    /*
+     * Pass over the DAG removing unreferenced objects from
+     * appropriate lists.
+     */ 
+    unlink_object(root);
+
     /* Unmap all objects that are no longer referenced. */
     linkp = &obj_list->next;
     while ((obj = *linkp) != NULL) {
@@ -2380,19 +2387,12 @@ unload_object(Obj_Entry *root)
 }
 
 static void
-unref_dag(Obj_Entry *root)
+unlink_object(Obj_Entry *root)
 {
     const Needed_Entry *needed;
     Objlist_Entry *elm;
 
-    if (root->refcount == 0)
-	return;
-    root->refcount--;
     if (root->refcount == 0) {
-	for (needed = root->needed;  needed != NULL;  needed = needed->next)
-	    if (needed->obj != NULL)
-		unref_dag(needed->obj);
-
 	/* Remove the object from the RTLD_GLOBAL list. */
 	objlist_remove(&list_global, root);
 
@@ -2400,4 +2400,22 @@ unref_dag(Obj_Entry *root)
     	STAILQ_FOREACH(elm, &root->dagmembers , link)
 	    objlist_remove(&elm->obj->dldags, root);
     }
+
+    for (needed = root->needed;  needed != NULL;  needed = needed->next)
+	if (needed->obj != NULL)
+	    unlink_object(needed->obj);
+}
+
+static void
+unref_dag(Obj_Entry *root)
+{
+    const Needed_Entry *needed;
+
+    if (root->refcount == 0)
+	return;
+    root->refcount--;
+    if (root->refcount == 0) 
+	for (needed = root->needed;  needed != NULL;  needed = needed->next)
+	    if (needed->obj != NULL)
+		unref_dag(needed->obj);
 }
