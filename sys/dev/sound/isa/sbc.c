@@ -202,9 +202,9 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x44008c0e, "Creative SB AWE64 Gold"},		/* CTL0044 */
 	{0x45008c0e, "Creative SB AWE64"},		/* CTL0045 */
 
-	{0x01000000, "Avance Logic ALS100+"},		/* @@@0001 */
+	{0x01000000, "Avance Logic ALS100+"},		/* @@@0001 - ViBRA16X clone */
 	{0x01100000, "Avance Asound 110"},		/* @@@1001 */
-	{0x01200000, "Avance Logic ALS120"},		/* @@@2001 */
+	{0x01200000, "Avance Logic ALS120"},		/* @@@2001 - ViBRA16X clone */
 
 	{0x02017316, "ESS ES1688"},			/* ESS1688 */
 	{0x68187316, "ESS ES1868"},			/* ESS1868 */
@@ -292,6 +292,7 @@ sbc_attach(device_t dev)
 	scp->bd_ver = sb_identify_board(scp->io[0]) & 0x00000fff;
 	if (scp->bd_ver == 0) goto bad;
 	f = 0;
+	if (logical_id == 0x01200000 && scp->bd_ver < 0x0400) scp->bd_ver = 0x0499;
 	switch ((scp->bd_ver & 0x0f00) >> 8) {
     	case 1: /* old sound blaster has nothing... */
 		break;
@@ -341,6 +342,8 @@ sbc_attach(device_t dev)
 
 	switch (logical_id) {
     	case 0x43008c0e:	/* CTL0043 */
+	case 0x01200000:
+	case 0x01000000:
 		f |= BD_F_SB16X;
 		break;
 	}
