@@ -53,12 +53,13 @@ This structure should consist of the following members:
     long mtype;    /* message type */
     char mtext[1]; /* body of message */
 .Ed
-
+.Pp
 .Va mtype
 is an integer greater than 0 that can be used for selecting messages,
 .Va mtext
-is an array of bytes, with a size up to that of the system limit (MSGMAX).
-
+is an array of bytes, with a size up to that of the system limit
+.Pf ( Dv MSGMAX ) .
+.Pp
 The value of
 .Fa msgtyp
 has one of the following meanings:
@@ -78,26 +79,36 @@ less than or equal to the absolute value of
 .Fa msgtyp
 will be received.
 .El
-
+.Pp
 .Fa msgsz
 specifies the maximum length of the requested message. If the received
 message has a length greater than
 .Fa msgsz
-it will be silently truncated if the MSG_NOERROR flag is set in
+it will be silently truncated if the
+.Dv MSG_NOERROR
+flag is set in
 .Fa msgflg ,
 otherwise an error will be returned.
-
+.Pp
 If no matching message is present on the message queue specified by
 .Fa msqid ,
 the behavior of
 .Fn msgrcv
-depends on whether the IPC_NOWAIT flag is set in
+depends on whether the
+.Dv IPC_NOWAIT
+flag is set in
 .Fa msgflg
-or not. If IPC_NOWAIT is set,
+or not. If
+.Dv IPC_NOWAIT
+is set,
 .Fn msgrcv
 will immediately return a value of -1, and set
 .Va errno
-to EAGAIN. If IPC_NOWAIT is not set, the calling process will be blocked
+to
+.Er EAGAIN .
+If
+.Dv IPC_NOWAIT
+is not set, the calling process will be blocked
 until:
 .Bl -bullet
 .It
@@ -105,13 +116,15 @@ A message of the requested type becomes available on the message queue.
 .It
 The message queue is removed, in which case -1 will be returned, and
 .Va errno
-set to EINVAL.
+set to
+.Er EINVAL .
 .It
 A signal is received and caught. -1 is returned, and
 .Va errno
-set to EINTR.
+set to
+.Er EINTR .
 .El
-
+.Pp
 If a message is successfully received, the data structure associated with
 .Fa msqid
 is updated as follows:
@@ -144,18 +157,20 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa msqid
-is not a valid message queue identifier
-
+is not a valid message queue identifier.
+.Pp
 The message queue was removed while
 .Fn msgrcv
 was waiting for a message of the requested type to become available on it.
-
+.Pp
 .Fa msgsz
 is less than 0.
 .It Bq Er E2BIG
 A matching message was received, but its size was greater than
 .Fa msgsz
-and the MSG_NOERROR flag was not set in
+and the
+.Dv MSG_NOERROR
+flag was not set in
 .Fa msgflg .
 .It Bq Er EACCESS
 The calling process does not have read access to the message queue.
@@ -166,16 +181,27 @@ points to an invalid address.
 The system call was interrupted by the delivery of a signal.
 .It Bq Er EAGAIN
 There is no message of the requested type available on the message queue,
-and IPC_NOWAIT is set in
+and
+.Dv IPC_NOWAIT
+is set in
 .Fa msgflg .
 .Sh SEE ALSO
 .Xr msgctl 3 ,
 .Xr msgget 3 ,
 .Xr msgsnd 3
 .Sh BUGS
-NetBSD and FreeBSD do not define the EIDRM error value, which should be used in
-the case of a removed message queue, nor the ENOMSG value, which
-should be used when no suitable message is available and IPC_NOWAIT
+.Tn NetBSD
+and
+.Tn FreeBSD
+do not define the
+.Er EIDRM
+error value, which should be used in
+the case of a removed message queue, nor the
+.Er ENOMSG
+value, which
+should be used when no suitable message is available and
+.Dv IPC_NOWAIT
 is set.
 .Sh HISTORY
-Message queues appeared in the first release of AT&T Unix System V.
+Message queues appeared in the first release of
+AT&T Unix System V.
