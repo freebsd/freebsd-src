@@ -1805,7 +1805,7 @@ physmap_done:
 	 */
 	if ((cp = getenv("hw.physmem")) != NULL) {
 		u_int64_t AllowMem, sanity;
-		const char *ep;
+		char *ep;
 
 		sanity = AllowMem = strtouq(cp, &ep, 0);
 		if ((ep != cp) && (*ep != 0)) {

@@ -427,7 +427,7 @@ static ng_ID_t
 ng_decodeidname(const char *name)
 {
 	const int len = strlen(name);
-	const char *eptr;
+	char *eptr;
 	u_long val;
 
 	/* Check for proper length, brackets, no leading junk */

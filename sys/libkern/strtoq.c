@@ -48,7 +48,7 @@
  * alphabets and digits are each contiguous.
  */
 quad_t
-strtoq(const char *nptr, const char **endptr, int base)
+strtoq(const char *nptr, char **endptr, int base)
 {
 	const char *s;
 	u_quad_t acc;
@@ -128,6 +128,6 @@ strtoq(const char *nptr, const char **endptr, int base)
 	} else if (neg)
 		acc = -acc;
 	if (endptr != 0)
-		*endptr = (const char *)(any ? s - 1 : nptr);
+		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
 }

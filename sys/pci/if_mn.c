@@ -424,7 +424,7 @@ mn_parse_ts(const char *s)
 {
 	unsigned r;
 	int i, j;
-	const char *p;
+	char *p;
 
 	r = 0;
 	j = 0;
@@ -438,11 +438,11 @@ mn_parse_ts(const char *s)
 		j = 0;
 		r |= 1 << i;
 		if (*p == ',') {
-			s = p + 1;
+			s = (const char *)p + 1;
 			continue;
 		} else if (*p == '-') {
 			j = i;
-			s = p + 1;
+			s = (const char *)p + 1;
 			continue;
 		} else if (!*p) {
 			break;
