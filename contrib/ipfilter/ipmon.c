@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ipmon.c	1.21 6/5/96 (C)1993-1998 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.3 1999/11/28 04:05:28 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ipmon.c,v 2.3.2.4 2000/01/24 12:45:25 darrenr Exp $";
 #endif
 
 #ifndef SOLARIS
@@ -361,6 +361,7 @@ int	blen;
 	char	*t = line;
 	struct	tm	*tm;
 	int	res, i, len;
+	char	*proto;
 
 	nl = (struct natlog *)((char *)ipl + sizeof(*ipl));
 	res = (opts & OPT_RESOLVE) ? 1 : 0;
@@ -387,14 +388,16 @@ int	blen;
 		sprintf(t, "Type: %d ", nl->nl_type);
 	t += strlen(t);
 
+	proto = getproto(nl->nl_p);
+
 	(void) sprintf(t, "%s,%s <- -> ", hostname(res, nl->nl_inip),
-		portname(res, NULL, (u_int)nl->nl_inport));
+		portname(res, proto, (u_int)nl->nl_inport));
 	t += strlen(t);
 	(void) sprintf(t, "%s,%s ", hostname(res, nl->nl_outip),
-		portname(res, NULL, (u_int)nl->nl_outport));
+		portname(res, proto, (u_int)nl->nl_outport));
 	t += strlen(t);
 	(void) sprintf(t, "[%s,%s]", hostname(res, nl->nl_origip),
-		portname(res, NULL, (u_int)nl->nl_origport));
+		portname(res, proto, (u_int)nl->nl_origport));
 	t += strlen(t);
 	if (nl->nl_type == NL_EXPIRE) {
 #ifdef	USE_QUAD_T
