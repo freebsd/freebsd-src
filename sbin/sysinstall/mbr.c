@@ -83,7 +83,6 @@ void
 write_bootcode(int fd)
 {
     u_char buf[512];
-    extern const char boot0[];
 
     if (lseek(fd, 0, SEEK_SET) == -1) 
 	AskAbort("Couldn't seek for master boot record read\n");
@@ -106,8 +105,6 @@ WriteBootblock(int dfd,struct disklabel *label,struct dos_partition *dospart)
 {
     off_t of = label->d_partitions[OURPART].p_offset;
     u_char bootblocks[BBSIZE];
-    extern const char boot1[];
-    extern const char boot2[];
 
     memcpy(bootblocks, boot1, MBRSIZE);
 

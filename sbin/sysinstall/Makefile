@@ -5,7 +5,7 @@ NOMAN= yet
 .PATH: ${.CURDIR}/../disklabel
 
 SRCS =	exec.c dkcksum.c label.c main.c mbr.c \
-	stage0.c stage1.c stage2.c stage3.c stage4.c stage5.c \
+	stage0.c stage1.c stage2.c stage3.c stage5.c \
 	termcap.c utils.c makedevs.c ourcurses.c
 
 CFLAGS += -Wall -g -static
@@ -25,10 +25,13 @@ makedevs.c:	dev2c.sh Makefile
 	sh ${.CURDIR}/dev2c.sh dev > makedevs.tmp
 	rm -rf dev
 	uudecode < ${.CURDIR}/bteasy17.uu
-	file2c 'const char boot0[] = {' '};' < bteasy17 >> makedevs.tmp
+	file2c 'const unsigned char boot0[] = {' '};' \
+		< bteasy17 >> makedevs.tmp
 	rm -rf bteasy17
-	file2c 'const char boot1[] = {' '};' < ${BOOTS}/boot1 >> makedevs.tmp
-	file2c 'const char boot2[] = {' '};' < ${BOOTS}/boot2 >> makedevs.tmp
+	file2c 'const unsigned char boot1[] = {' '};' \
+		< ${BOOTS}/boot1 >> makedevs.tmp
+	file2c 'const unsigned char boot2[] = {' '};' \
+		< ${BOOTS}/boot2 >> makedevs.tmp
 	tset -Q -S cons25 | sed 's/^.* //' | \
 		file2c 'const char termcap_cons25[] = {' ',0};' \
 		>> makedevs.tmp

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.23 1995/02/02 05:35:36 phk Exp $
+ * $Id: stage2.c,v 1.24 1995/02/02 05:49:06 jkh Exp $
  *
  */
 
@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <sys/mount.h>
+#include <sys/wait.h>
 
 #include "sysinstall.h"
 
@@ -34,7 +35,9 @@ stage2()
     char pbuf[90];
     char dbuf[90];
     FILE *f1;
-    int i, j;
+    int i, j, k;
+    int ffd, pfd[2];
+    int zpid, cpid;
 
     memset(Fsize, 0, sizeof Fsize);
 
@@ -82,8 +85,9 @@ stage2()
 	if (!strcmp(Ftype[Fsize[j]], "ufs")) {
 	    MountUfs(p, dbuf, 1, 0);
 	    continue;
-        }
-	Mkdir(dbuf, FALSE);
+        } else {
+	    Mkdir(dbuf, FALSE);
+	}
     }
 
     Mkdir("/mnt/etc", TRUE);
@@ -152,20 +156,13 @@ stage2()
     fprintf(f1,"proc\t\t/proc\tprocfs rw 0 0\n");
     fclose(f1);
 
-#if 1   
-{
-#include <sys/wait.h>
-
-    int ffd, pfd[2];
-    int zpid, cpid;
-    int i,j,k;
-
     j = fork();
     if (!j) {
 	chroot("/mnt");
 	chdir("/");
+        ffd = cpio_fd;
 	retry:
-	    while (1) {
+	    while (ffd < 0) {
 		dialog_msgbox(TITLE, 
 			      "Insert CPIO floppy in floppy drive 0", -1, -1, 1);
 		ffd = open("/dev/rfd0",O_RDONLY);
@@ -209,6 +206,7 @@ stage2()
 	    /* bininst.sh MUST be the last file on the floppy */
 	    if (access("/stand/OK", R_OK) == -1) {
 		AskAbort("CPIO floppy was bad!  Please check media for defects and retry.");
+		ffd = -1;
 		goto retry;
 	    }
 	unlink("/stand/OK");
@@ -217,9 +215,7 @@ stage2()
     }
     i = wait(&k);
     Debug("chroot'er: %d %d %d",i,j,k);
-}
 
-#endif
 
     sync();
     TellEm("Unmount disks");

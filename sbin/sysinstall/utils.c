@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.34 1994/12/27 23:26:59 jkh Exp $
+ * $Id: utils.c,v 1.35 1995/01/14 10:31:29 jkh Exp $
  *
  */
 
@@ -66,8 +66,10 @@ TellEm(char *fmt, ...)
 	write(debug_fd,"Progress <",10);
 	write(debug_fd,p,strlen(p));
 	write(debug_fd,">\n\r",3);
-	dialog_clear_norefresh();
-	dialog_msgbox("Progress", p, -1, -1, 0);
+	if(!on_serial) {
+		dialog_clear_norefresh();
+		dialog_msgbox("Progress", p, -1, -1, 0);
+	}
 	free(p);
 }
 
@@ -81,7 +83,7 @@ Fatal(char *fmt, ...)
 	vsnprintf(p, 2048, fmt, ap);
 	va_end(ap);
 	strip_trailing_newlines(p);
-	if (dialog_active)
+	if (dialog_active && !on_serial)
 		dialog_msgbox("Fatal", p, -1, -1, 1);
 	else
 		fprintf(stderr, "Fatal -- %s\n", p);
