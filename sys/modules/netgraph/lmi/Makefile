@@ -3,6 +3,6 @@
 
 KMOD=		ng_lmi
 SRCS= 		ng_lmi.c
-MAN8=		ng_lmi.8
+MAN4=		ng_lmi.4
 
 .include "${.CURDIR}/../../../conf/kmod.mk"

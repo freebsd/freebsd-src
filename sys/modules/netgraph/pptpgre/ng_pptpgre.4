@@ -36,7 +36,7 @@
 .\" $Whistle: ng_pptpgre.8,v 1.2 1999/12/08 00:20:53 archie Exp $
 .\"
 .Dd November 29, 1999
-.Dt NG_PPTPGRE 8
+.Dt NG_PPTPGRE 4
 .Os FreeBSD
 .Sh NAME
 .Nm ng_pptpgre
@@ -55,13 +55,13 @@ the TCP control protocol or call negotiation defined by PPTP.
 The typical use for this node type would be to connect the
 .Dv upper
 hook to one of the link hooks of a
-.Xr ng_ppp 8
+.Xr ng_ppp 4
 node, and the
 .Dv lower
 hook to the
 .Dv "inet/raw/gre"
 hook of a
-.Xr ng_ksocket 8
+.Xr ng_ksocket 4
 node.
 .Sh HOOKS
 This node type supports the following hooks:
@@ -111,9 +111,9 @@ This node shuts down upon receipt of a
 control message, or when both hooks have been disconnected.
 .Sh SEE ALSO
 .Xr netgraph 4 ,
-.Xr ng_ksocket 8 ,
-.Xr ng_ppp 8 ,
-.Xr ngctl 8 .
+.Xr ng_ksocket 4 ,
+.Xr ng_ppp 4 ,
+.Xr ngctl 8
 .Rs
 .%A K. Hamzeh
 .%A G. Pall
