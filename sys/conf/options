@@ -599,6 +599,7 @@ WITNESS_SKIPSPIN	opt_witness.h
 ACPI_DEBUG		opt_acpi.h
 ACPI_MAX_THREADS	opt_acpi.h
 ACPI_NO_SEMAPHORES	opt_acpi.h
+ACPI_NO_RESET_VIDEO	opt_acpi.h
 ACPICA_PEDANTIC		opt_acpi.h
 
 # options for DEVFS, see sys/fs/devfs/devfs.h
