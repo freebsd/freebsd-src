@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)sync.8	8.1 (Berkeley) 5/31/93
-.\"	$Id$
+.\"	$Id: sync.8,v 1.6 1997/02/22 14:06:06 peter Exp $
 .\"
 .Dd May 31, 1993
 .Dt SYNC 8
@@ -48,14 +48,14 @@ processor is halted in a way not suitably done by
 or
 .Xr halt 8 .
 Generally, it is preferable to use
-.Xr reboot
+.Xr reboot 8
 or
-.Xr halt
+.Xr halt 8
 to shut down the system,
 as they may perform additional actions
 such as resynchronizing the hardware clock
 and flushing internal caches before performing a final
-.Nm sync .
+.Nm Ns .
 .Pp
 .Nm Sync
 utilizes the
@@ -69,6 +69,6 @@ function call.
 .Xr reboot 8
 .Sh HISTORY
 A
-.Nm sync
+.Nm
 command appeared in
 .At v6 .
