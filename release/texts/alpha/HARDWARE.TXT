@@ -1229,18 +1229,21 @@ kernel config file. The 'cpu EV5' is mandatory to keep config(8) happy.
 
 The AlphaServer 2[01]00 machines are aimed as departmental servers.
 This is medium iron, not a hobbyist system. These are multi-CPU machines, 
-up to 2 CPUs (AS2000) or 4 CPUs (2100[A]) can be in a single machine. 
+up to 2 CPUs (AS2000) or 4 CPUs (2100[A]) can be installed. 
 Both floorstanding and 19" rackmount boxes exist. Rackmount variations have
 different numbers of I/O expansion slots, different max number of CPUs and
 different maximum memory size. Some of the boxes come with an integral
-StorageWorks shelf to house hotswap SCSI disks. 
+StorageWorks shelf to house hotswap SCSI disks. There was an upgrade program
+available to convert your Sable machine into a Lynx by swapping the
+I/O backplane (the C-bus backplane remains). CPU upgrades were available 
+as well.
 
 Features:
 - 21064 EV4[5] CPU[s] at 200, 233, 275 MHz
 - 21164 EV5[6] CPU[s]s at 250, 300, 375, 400 MHz
 - cache: varies in size with the CPU model; 1, 4 or 8Mbyte per CPU
-- embedded floppy controller
-- embedded 10Mbit 21040 ethernet
+- embedded floppy controller driving a 2.88 Mbytes drive
+- embedded 10Mbit 21040 ethernet [AS2100 only]
 - 2 serial ports
 - 1 parallel port
 - PS/2 style keyboard & mouse port
@@ -1250,42 +1253,90 @@ NOTE: Lynx support is currently flagged as experimental due to lack of
 
 CPU:
 The CPUs spec-ed as 200 Mhz are in reality running at 190 MHz. Maximum
-number of CPUs is 4.  Currently FreeBSD only uses one CPU in a multiprocessor 
-machine. 
+number of CPUs is 4. All CPUs must be of the same type/speed. 
+
+Currently FreeBSD only uses one CPU in a multiprocessor machine. 
 
 Memory:
 The machines use dedicated memory boards. These boards live on a 128 bit 
 C-bus shared with the CPU boards. DemiSable supports up to 1Gb, Sable up 
 to 2Gb. One of the memory bus slots can either hold a CPU or a memory card.
-Some memory board modules house SIMMs. There are also memory modules that
-have soldered-on memory chips instead of SIMMs. SIMM boards are used in sets 
-of eight 72-pin 36 bit FPM memory of 70ns or faster. SIMM types supported 
-are 1Mb x36 bit (4 Mbyte) and 4Mb x36 bit (16 Mbyte). Each memory board 
-can house 4 banks of SIMMs. SIMM sizes can not be mixed on a single memory
-board.
+A 4 CPU machine can have a maximum of 2 memory boards.
+
+Some memory board modules house SIMMs. These are called SIMM carriers.
+There are also memory modules that have soldered-on memory chips 
+instead of SIMMs. These are called 'flat memory modules'.
+
+SIMM boards are used in sets of eight 72-pin 36 bit FPM memory of 70ns 
+or faster. SIMM types supported are 1Mb x36 bit (4 Mbyte) and 4Mb x36 
+bit (16 Mbyte). Each memory board can house 4 banks of SIMMs. SIMM 
+sizes can not be mixed on a single memory board. The first memory 
+module must be filled with SIMMs before starting to fill the next 
+memory module. Note that the spacing between the slots is not that 
+big, so make sure your SIMMs fit physically (before buying them..)
 
 Console:
 Both Lynx and Sable are somewhat stubborn when it comes to serial
 consoles. They need >>> SET CONSOLE SERIAL before they go for
 a serial console. Pulling the keyboard from the machine is not sufficient,
 like it is on most other Alpha models. Going back to a graphical console
-needs >>> SET CONSOLE GRAPHICS at the serial console.
+needs >>> SET CONSOLE GRAPHICS at the serial console. On Lynx keep the
+VGA card in one of the primary PCI slots.
+
+The machines are equipped with a small OCP (Operator Control Panel) LCD
+screen. On this screen the selftest messages are displayed during system
+initialisation. You can put your own little text there by using the SRM:
+>>> SET OCP_TEXT "FreeBSD"
+
+The SRM >>> SHOW FRU command produces an overview of your configuration
+with module serial numbers, hardware revisions and error log counts.
 
 Embedded SCSI:
 Both Sable, DemiSable and Lynx have NCR810 based Fast SCSI onboard.
+Check if it is set to Fast SCSI speed by >>> SHOW PKA0_FAST. If set to
+1 it is negotiating for Fast speeds. >>> SET PKA0_FAST 1 enables Fast
+speeds.
+
+Internal disk storage:
+AS2100[A] come equipped with a StorageWorks 7 slot SCSI cage. A second cage
+can be added inside the cabinet. AS2000 has a single 7 slot SCSI cage,
+which cannot be expanded with an additional one. Note that the slot
+locations in these cages map differently to SCSI IDs compared to the 
+standard StorageWorks shelves. Slot IDs from top to bottom 
+are 0, 4, 1, 5, 2, 6, 3 when using a single bus configuration. The cage
+can also be set to provide two independent SCSI buses. This is used for
+embedded RAID controllers like the KZPSC (Mylex DAC960). Slot ID assignments
+for split bus are, from top to bottom: 0A, 0B, 1A, 1B, 2A, 2B, 3A, 3B. 
+Where A and B signify a SCSI bus. In a single bus configuration the 
+terminator module on the back of the SCSI cage is on the TOP. The jumper
+module is on the BOTTOM. For split bus operation these two modules are
+reversed. The terminator can be distinguished from the jumper by noting the 
+chips on the terminator. The jumper does not have any active components on
+it.
 
 Expansion:
 DemiSable has 7 EISA slots and 3 PCI slots. Sable has 8 EISA and 3 PCI
-slots. Lynx, being newer, has 8 PCI and 3 EISA slots. Make sure you run the
-EISA Configuration Utility (from floppy) when adding/change expansion cards
-in EISA slots or after upgrading your console firmware.
+slots. Lynx, being newer, has 8 PCI and 3 EISA slots. The Lynx PCI slots 
+are grouped in sets of 4. The 4 PCI slots closest to the CPU/memory
+slots are the primary slots, so logically before the PCI bridge chip.
+Note that contrary to expectation the primary PCI slots are the highest
+numbered ones (PCI4 - PCI7). 
+
+Make sure you run the EISA Configuration Utility (from floppy) when 
+adding/change expansion cards in EISA slots or after upgrading your 
+console firmware. This is done by inserting the ECU floppy and typing
+RUNECU at the SRM >>> prompt.
 
 	NOTE: EISA slots are currently unsupported, but the Compaq Qvision
 	      EISA VGA adapter is treated as an ISA device. It therefore
 	      works OK as a console.
 
 Power:
-The machines can be equipped with redundant power supplies.
+The machines can be equipped with redundant power supplies. Note that
+the enclosure is equipped with interlock switches that switch off power
+when the enclosure is opened. The system's cooling fans are speed
+controlled. When the machine has more than 2 CPUs and more than 1 memory
+board dual power supplies are mandatory.
 
 The kernel config file must contain:
        options         DEC_2100_A500
