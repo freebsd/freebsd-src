@@ -103,6 +103,6 @@ extern int	main(int (*openfirm)(void *));
 
 struct ofw_reg
 {
-	uint32_t	base;
-	uint32_t	size;
+	cell_t		base;
+	cell_t		size;
 };
