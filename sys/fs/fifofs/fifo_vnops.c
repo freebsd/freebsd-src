@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo_vnops.c	8.2 (Berkeley) 1/4/94
- * $Id: fifo_vnops.c,v 1.12 1995/11/09 08:15:27 bde Exp $
+ * $Id: fifo_vnops.c,v 1.13 1995/12/11 09:24:13 phk Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,7 @@ struct fifoinfo {
 };
 
 vop_t **fifo_vnodeop_p;
-static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
+struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
@@ -107,7 +107,7 @@ static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, (vop_t *)fifo_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
-static struct vnodeopv_desc fifo_vnodeop_opv_desc =
+struct vnodeopv_desc fifo_vnodeop_opv_desc =
 	{ &fifo_vnodeop_p, fifo_vnodeop_entries };
 
 VNODEOP_SET(fifo_vnodeop_opv_desc);
@@ -382,7 +382,7 @@ fifo_bmap(ap)
  * At the moment we do not do any locking.
  */
 /* ARGSUSED */
-static int
+int
 fifo_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
@@ -393,7 +393,7 @@ fifo_lock(ap)
 }
 
 /* ARGSUSED */
-static int
+int
 fifo_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
@@ -459,7 +459,7 @@ fifo_printinfo(vp)
 /*
  * Print out the contents of a fifo vnode.
  */
-static int
+int
 fifo_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -503,7 +503,7 @@ fifo_pathconf(ap)
 /*
  * Fifo failed operation
  */
-static int
+int
 fifo_ebadf()
 {
 

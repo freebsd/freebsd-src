@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.2 (Berkeley) 2/2/94
- * $Id: fifo.h,v 1.7 1995/11/21 12:53:52 bde Exp $
+ * $Id: fifo.h,v 1.8 1995/12/11 09:24:09 phk Exp $
  */
 
 extern vop_t **fifo_vnodeop_p;
@@ -40,6 +40,7 @@ extern vop_t **fifo_vnodeop_p;
  * Prototypes for fifo operations on vnodes.
  */
 int	fifo_badop __P((void));
+int	fifo_ebadf __P((void));
 int	fifo_printinfo __P((struct vnode *));
 int	fifo_lookup __P((struct vop_lookup_args *));
 #define fifo_create ((int (*) __P((struct  vop_create_args *)))fifo_badop)
@@ -67,8 +68,11 @@ int	fifo_select __P((struct vop_select_args *));
 #define fifo_abortop ((int (*) __P((struct  vop_abortop_args *)))fifo_badop)
 #define fifo_inactive ((int (*) __P((struct  vop_inactive_args *)))nullop)
 #define fifo_reclaim ((int (*) __P((struct  vop_reclaim_args *)))nullop)
+int	fifo_lock __P((struct vop_lock_args *));
+int	fifo_unlock __P((struct vop_unlock_args *));
 int	fifo_bmap __P((struct vop_bmap_args *));
 #define fifo_strategy ((int (*) __P((struct  vop_strategy_args *)))fifo_badop)
+int	fifo_print __P((struct vop_print_args *));
 #define fifo_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
 int	fifo_pathconf __P((struct vop_pathconf_args *));
 int	fifo_advlock __P((struct vop_advlock_args *));
