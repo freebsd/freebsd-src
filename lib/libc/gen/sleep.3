@@ -67,8 +67,8 @@ This function is implemented using
 by pausing for
 .Fa seconds
 of time or until any signal occurse.
-For compatibility reasons SIGALRM signal unblocked and handled
-internally during
+For compatibility reasons SIGALRM signal handled internally
+(if not blocked) during
 .Fn sleep
 call.
 .Sh RETURN VALUES
