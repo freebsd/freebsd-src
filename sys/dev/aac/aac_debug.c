@@ -152,6 +152,7 @@ aac_printstate0(void)
 		break;
 	case AAC_HWIF_STRONGARM:
 		/* XXX implement */
+		break;
 	}
 }
 
