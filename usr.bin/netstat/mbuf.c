@@ -351,6 +351,10 @@ mbpr(u_long mbaddr, u_long mbtaddr __unused, u_long nmbcaddr, u_long nmbufaddr,
 	    totspace[1] / 1024);
 	printf("%lu requests for memory denied\n", mbstat->m_drops);
 	printf("%lu requests for memory delayed\n", mbstat->m_wait);
+	printf("%lu requests for sfbufs denied\n", mbstat->sf_allocfail);
+	printf("%lu requests for sfbufs delayed\n", mbstat->sf_allocwait);
+	printf("%lu requests for I/O initiated by sendfile\n",
+	    mbstat->sf_iocnt);
 	printf("%lu calls to protocol drain routines\n", mbstat->m_drain);
 
 err:
