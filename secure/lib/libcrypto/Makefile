@@ -203,6 +203,13 @@ SRCS+=	v3_akey.c v3_akeya.c v3_alt.c v3_bcons.c v3_bitst.c \
 INCS=		${HDRS} openssl/evp.h openssl/opensslconf.h
 INCSDIR=	${INCLUDEDIR}/openssl
 
+OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
+afterinstall:
+	@echo "Removing stale symlinks."
+.for symlink in ${OLDSYMLINKS}
+	rm -f ${LIBDIR}/${symlink}
+.endfor
+
 .include <bsd.lib.mk>
 
 .if defined(MAKE_IDEA) && ${MAKE_IDEA} == YES
