@@ -1,20 +1,14 @@
-# $Id$
+# $Id: Makefile,v 1.6 1997/02/22 14:21:56 peter Exp $
 
 .include "${.CURDIR}/../../usr.sbin/named/Makefile.inc"
 
-.PATH:	${BIND_DIR}/named
-.PATH:	${BIND_DIR}/man
+.PATH:	${BIND_DIR}/bin/named-xfer
+.PATH:	${BIND_DIR}/bin/named
+.PATH:	${BIND_DIR}/doc/man
 
 PROG=	named-xfer
-SRCS=	named-xfer.c db_glue.c storage.c version.c
+SRCS=	pathnames.h \
+	named-xfer.c db_glue.c ns_glue.c tmp_version.c 
 MAN8=	named-xfer.8
-
-CLEANFILES+= version.c
-
-version.c: Version.c ${BIND_DIR}/Makefile
-	(u=$${USER-root} d=`pwd` h=`hostname` t=`LC_TIME=C date`; \
-	sed -e "s|%WHEN%|$${t}|" -e "s|%VERSION%|"${VER}"|" \
-	    -e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
-	    < ${BIND_DIR}/named/Version.c > version.c)
 
 .include <bsd.prog.mk>
