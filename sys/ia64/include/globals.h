@@ -52,7 +52,6 @@ register struct globaldata *globalp __asm__("r13");
 #define	curproc		PCPU_GET(curproc)
 #define	idleproc	PCPU_GET(idleproc)
 #define	curpcb		PCPU_GET(curpcb)
-#define	fpcurproc	PCPU_GET(fpcurproc)
 #define	switchtime	PCPU_GET(switchtime)
 #define	switchticks	PCPU_GET(switchticks)
 #define cpuid		PCPU_GET(cpuno)

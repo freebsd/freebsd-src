@@ -161,8 +161,10 @@ ENTRY(cpu_switch, 0)
 	add	r16=GD_CURPROC,r13 ;;
 	ld8	r17=[r16] ;; 
 	add	r17=P_ADDR,r17 ;;
+	ld8	r17=[r17]
 
 	flushrs				// push out caller's dirty regs
+	mov	r2=ar.pfs
 	mov	r3=ar.unat		// caller's value for ar.unat
 	;;
 	mov	ar.rsc=0		// stop the RSE after the flush
@@ -214,13 +216,36 @@ ENTRY(cpu_switch, 0)
 	mov	ar.rsc=3		// turn RSE back on
 
 	br.call.sptk.few rp=chooseproc
-	add	r14=GD_CURPROC,r13 ;;
-	ld8	r14=[r14] ;;
-	cmp.eq	p6,p0=r14,ret0		// chooseproc() == curproc ?
-(p6)	br.dpnt.few 9f			// don't bother to restore
 
-	add	r15=P_ADDR,ret0 ;;
+	add	r14=GD_CURPROC,r13 ;;
+	ld8	r15=[r14] ;;
+
+#if 0
+	cmp.ne	p6,p0=r15,ret0		// chooseproc() == curproc ?
+(p6)	br.dptk.few 1f
+	;;
+	add	r17=P_ADDR,r15 ;;	// restore b0
+	ld8	r17=[r17] ;;
+	add	r17=U_PCB_B0,r17 ;;
+	ld8	r17=[r17] ;;
+	mov	b0=r17
+
+	br.sptk.few 9f			// don't bother to restore
+#endif
+
+1:
+	st8	[r14]=ret0
+	mov	ar.k7=ret0
+	mov	r4=ret0			// save from call
+	alloc	r15=ar.pfs,0,0,1,0	// create temporary output frame
+	;;
+	mov	out0=r4
+	br.call.sptk.few rp=pmap_activate // install RIDs etc.
+
+	add	r15=P_ADDR,r4 ;;
 	ld8	r15=[r15] ;;
+	add	r16=SIZEOF_USER,r15 ;;
+	mov	ar.k5=r16
 
 	add	r3=U_PCB_UNAT,r15	// point at NaT for r4..r7
 	mov	ar.rsc=0 ;;		// switch off the RSE
@@ -279,6 +304,322 @@ ENTRY(cpu_switch, 0)
 	br.ret.sptk.few rp
 
 END(cpu_switch)
+
+/*
+ * savehighfp: Save f32-f127
+ *
+ * Arguments:
+ *	in0	array of struct ia64_fpreg
+ */
+ENTRY(savehighfp, 1)
+
+	add	r14=16,in0
+	;;
+	stf.spill [in0]=f32,32
+	stf.spill [r14]=f33,32
+	;; 
+	stf.spill [in0]=f34,32
+	stf.spill [r14]=f35,32
+	;; 
+	stf.spill [in0]=f36,32
+	stf.spill [r14]=f37,32
+	;; 
+	stf.spill [in0]=f38,32
+	stf.spill [r14]=f39,32
+	;; 
+	stf.spill [in0]=f40,32
+	stf.spill [r14]=f41,32
+	;; 
+	stf.spill [in0]=f42,32
+	stf.spill [r14]=f43,32
+	;; 
+	stf.spill [in0]=f44,32
+	stf.spill [r14]=f45,32
+	;; 
+	stf.spill [in0]=f46,32
+	stf.spill [r14]=f47,32
+	;; 
+	stf.spill [in0]=f48,32
+	stf.spill [r14]=f49,32
+	;; 
+	stf.spill [in0]=f50,32
+	stf.spill [r14]=f51,32
+	;; 
+	stf.spill [in0]=f52,32
+	stf.spill [r14]=f53,32
+	;; 
+	stf.spill [in0]=f54,32
+	stf.spill [r14]=f55,32
+	;; 
+	stf.spill [in0]=f56,32
+	stf.spill [r14]=f57,32
+	;; 
+	stf.spill [in0]=f58,32
+	stf.spill [r14]=f59,32
+	;; 
+	stf.spill [in0]=f60,32
+	stf.spill [r14]=f61,32
+	;; 
+	stf.spill [in0]=f62,32
+	stf.spill [r14]=f63,32
+	;; 
+	stf.spill [in0]=f64,32
+	stf.spill [r14]=f65,32
+	;; 
+	stf.spill [in0]=f66,32
+	stf.spill [r14]=f67,32
+	;; 
+	stf.spill [in0]=f68,32
+	stf.spill [r14]=f69,32
+	;; 
+	stf.spill [in0]=f70,32
+	stf.spill [r14]=f71,32
+	;; 
+	stf.spill [in0]=f72,32
+	stf.spill [r14]=f73,32
+	;; 
+	stf.spill [in0]=f74,32
+	stf.spill [r14]=f75,32
+	;; 
+	stf.spill [in0]=f76,32
+	stf.spill [r14]=f77,32
+	;; 
+	stf.spill [in0]=f78,32
+	stf.spill [r14]=f79,32
+	;; 
+	stf.spill [in0]=f80,32
+	stf.spill [r14]=f81,32
+	;; 
+	stf.spill [in0]=f82,32
+	stf.spill [r14]=f83,32
+	;; 
+	stf.spill [in0]=f84,32
+	stf.spill [r14]=f85,32
+	;; 
+	stf.spill [in0]=f86,32
+	stf.spill [r14]=f87,32
+	;; 
+	stf.spill [in0]=f88,32
+	stf.spill [r14]=f89,32
+	;; 
+	stf.spill [in0]=f90,32
+	stf.spill [r14]=f91,32
+	;; 
+	stf.spill [in0]=f92,32
+	stf.spill [r14]=f93,32
+	;; 
+	stf.spill [in0]=f94,32
+	stf.spill [r14]=f95,32
+	;; 
+	stf.spill [in0]=f96,32
+	stf.spill [r14]=f97,32
+	;; 
+	stf.spill [in0]=f98,32
+	stf.spill [r14]=f99,32
+	;; 
+	stf.spill [in0]=f100,32
+	stf.spill [r14]=f101,32
+	;; 
+	stf.spill [in0]=f102,32
+	stf.spill [r14]=f103,32
+	;; 
+	stf.spill [in0]=f104,32
+	stf.spill [r14]=f105,32
+	;; 
+	stf.spill [in0]=f106,32
+	stf.spill [r14]=f107,32
+	;; 
+	stf.spill [in0]=f108,32
+	stf.spill [r14]=f109,32
+	;; 
+	stf.spill [in0]=f110,32
+	stf.spill [r14]=f111,32
+	;; 
+	stf.spill [in0]=f112,32
+	stf.spill [r14]=f113,32
+	;; 
+	stf.spill [in0]=f114,32
+	stf.spill [r14]=f115,32
+	;; 
+	stf.spill [in0]=f116,32
+	stf.spill [r14]=f117,32
+	;; 
+	stf.spill [in0]=f118,32
+	stf.spill [r14]=f119,32
+	;; 
+	stf.spill [in0]=f120,32
+	stf.spill [r14]=f121,32
+	;; 
+	stf.spill [in0]=f122,32
+	stf.spill [r14]=f123,32
+	;; 
+	stf.spill [in0]=f124,32
+	stf.spill [r14]=f125,32
+	;; 
+	stf.spill [in0]=f126
+	stf.spill [r14]=f127
+	;; 
+	br.ret.sptk.few rp
+
+END(savehighfp)
+
+/*
+ * restorehighfp: Restore f32-f127
+ *
+ * Arguments:
+ *	in0	array of struct ia64_fpreg
+ */
+ENTRY(restorehighfp, 1)
+	
+	add	r14=16,in0
+	;;
+	ldf.fill f32=[in0],32
+	ldf.fill f33=[r14],32
+	;; 
+	ldf.fill f34=[in0],32
+	ldf.fill f35=[r14],32
+	;; 
+	ldf.fill f36=[in0],32
+	ldf.fill f37=[r14],32
+	;; 
+	ldf.fill f38=[in0],32
+	ldf.fill f39=[r14],32
+	;; 
+	ldf.fill f40=[in0],32
+	ldf.fill f41=[r14],32
+	;; 
+	ldf.fill f42=[in0],32
+	ldf.fill f43=[r14],32
+	;; 
+	ldf.fill f44=[in0],32
+	ldf.fill f45=[r14],32
+	;; 
+	ldf.fill f46=[in0],32
+	ldf.fill f47=[r14],32
+	;; 
+	ldf.fill f48=[in0],32
+	ldf.fill f49=[r14],32
+	;; 
+	ldf.fill f50=[in0],32
+	ldf.fill f51=[r14],32
+	;; 
+	ldf.fill f52=[in0],32
+	ldf.fill f53=[r14],32
+	;; 
+	ldf.fill f54=[in0],32
+	ldf.fill f55=[r14],32
+	;; 
+	ldf.fill f56=[in0],32
+	ldf.fill f57=[r14],32
+	;; 
+	ldf.fill f58=[in0],32
+	ldf.fill f59=[r14],32
+	;; 
+	ldf.fill f60=[in0],32
+	ldf.fill f61=[r14],32
+	;; 
+	ldf.fill f62=[in0],32
+	ldf.fill f63=[r14],32
+	;; 
+	ldf.fill f64=[in0],32
+	ldf.fill f65=[r14],32
+	;; 
+	ldf.fill f66=[in0],32
+	ldf.fill f67=[r14],32
+	;; 
+	ldf.fill f68=[in0],32
+	ldf.fill f69=[r14],32
+	;; 
+	ldf.fill f70=[in0],32
+	ldf.fill f71=[r14],32
+	;; 
+	ldf.fill f72=[in0],32
+	ldf.fill f73=[r14],32
+	;; 
+	ldf.fill f74=[in0],32
+	ldf.fill f75=[r14],32
+	;; 
+	ldf.fill f76=[in0],32
+	ldf.fill f77=[r14],32
+	;; 
+	ldf.fill f78=[in0],32
+	ldf.fill f79=[r14],32
+	;; 
+	ldf.fill f80=[in0],32
+	ldf.fill f81=[r14],32
+	;; 
+	ldf.fill f82=[in0],32
+	ldf.fill f83=[r14],32
+	;; 
+	ldf.fill f84=[in0],32
+	ldf.fill f85=[r14],32
+	;; 
+	ldf.fill f86=[in0],32
+	ldf.fill f87=[r14],32
+	;; 
+	ldf.fill f88=[in0],32
+	ldf.fill f89=[r14],32
+	;; 
+	ldf.fill f90=[in0],32
+	ldf.fill f91=[r14],32
+	;; 
+	ldf.fill f92=[in0],32
+	ldf.fill f93=[r14],32
+	;; 
+	ldf.fill f94=[in0],32
+	ldf.fill f95=[r14],32
+	;; 
+	ldf.fill f96=[in0],32
+	ldf.fill f97=[r14],32
+	;; 
+	ldf.fill f98=[in0],32
+	ldf.fill f99=[r14],32
+	;; 
+	ldf.fill f100=[in0],32
+	ldf.fill f101=[r14],32
+	;; 
+	ldf.fill f102=[in0],32
+	ldf.fill f103=[r14],32
+	;; 
+	ldf.fill f104=[in0],32
+	ldf.fill f105=[r14],32
+	;; 
+	ldf.fill f106=[in0],32
+	ldf.fill f107=[r14],32
+	;; 
+	ldf.fill f108=[in0],32
+	ldf.fill f109=[r14],32
+	;; 
+	ldf.fill f110=[in0],32
+	ldf.fill f111=[r14],32
+	;; 
+	ldf.fill f112=[in0],32
+	ldf.fill f113=[r14],32
+	;; 
+	ldf.fill f114=[in0],32
+	ldf.fill f115=[r14],32
+	;; 
+	ldf.fill f116=[in0],32
+	ldf.fill f117=[r14],32
+	;; 
+	ldf.fill f118=[in0],32
+	ldf.fill f119=[r14],32
+	;; 
+	ldf.fill f120=[in0],32
+	ldf.fill f121=[r14],32
+	;; 
+	ldf.fill f122=[in0],32
+	ldf.fill f123=[r14],32
+	;; 
+	ldf.fill f124=[in0],32
+	ldf.fill f125=[r14],32
+	;; 
+	ldf.fill f126=[in0]
+	ldf.fill f127=[r14]
+	;; 
+	br.ret.sptk.few rp
+
+END(restorehighfp)
 
 /*
  * switch_trampoline()

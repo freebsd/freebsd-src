@@ -131,7 +131,6 @@ struct reg;
 struct rpb;
 struct trapframe;
 
-extern struct proc *fpcurproc;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
 
@@ -142,7 +141,7 @@ void	child_return __P((struct proc *p));
 u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
 void	do_sir __P((void));
 void	dumpconf __P((void));
-void	exception_return __P((void));				/* MAGIC */
+void	exception_restore __P((void));				/* MAGIC */
 void	frametoreg __P((struct trapframe *, struct reg *));
 long	fswintrberr __P((void));				/* MAGIC */
 int	ia64_pa_access __P((u_long));

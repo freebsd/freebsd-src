@@ -87,6 +87,8 @@ struct cpuhead cpuhead;
 struct mtx	sched_lock;
 struct mtx	Giant;
 
+struct	user *proc0paddr;
+
 char machine[] = "ia64";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
@@ -571,7 +573,7 @@ ia64_init()
 	/*
 	 * Init mapping for u page(s) for proc 0
 	 */
-	proc0.p_addr =
+	proc0paddr = proc0.p_addr =
 	    (struct user *)pmap_steal_memory(UPAGES * PAGE_SIZE);
 
 	/*
@@ -581,7 +583,7 @@ ia64_init()
 		size_t sz = round_page(UPAGES * PAGE_SIZE);
 		globalp = (struct globaldata *) pmap_steal_memory(sz);
 		globaldata_init(globalp, 0, sz);
-		ia64_set_k5((u_int64_t) globalp);
+		ia64_set_k4((u_int64_t) globalp);
 		PCPU_GET(next_asn) = 1;	/* 0 used for proc0 pmap */
 	}
 
@@ -1030,6 +1032,14 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	bzero(frame->tf_r, sizeof(frame->tf_r));
 	bzero(frame->tf_f, sizeof(frame->tf_f));
 	frame->tf_cr_iip = entry;
+	frame->tf_cr_ipsr = (IA64_PSR_IC
+			     /* | IA64_PSR_I XXX not yet */
+			     | IA64_PSR_IT
+			     | IA64_PSR_DT
+			     | IA64_PSR_RT
+			     | IA64_PSR_DFH
+			     | IA64_PSR_BN
+			     | IA64_PSR_CPL_USER);
 	frame->tf_r[FRAME_SP] = stack;
 	frame->tf_r[FRAME_R14] = ps_strings;
 
@@ -1040,6 +1050,8 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	frame->tf_ar_bspstore = p->p_md.md_bspstore;
 	frame->tf_ar_bsp = p->p_md.md_bspstore;
 	frame->tf_cr_ifs = (1L<<63); /* ifm=0, v=1 */
+	frame->tf_ar_rsc = 0xf;	/* user mode rsc */
+	frame->tf_ar_fpsr = IA64_FPSR_DEFAULT;
 
 	p->p_md.md_flags &= ~MDP_FPUSED;
 	ia64_fpstate_drop(p);
@@ -1257,64 +1269,32 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 void
 ia64_fpstate_check(struct proc *p)
 {
-#if 0
-	/* TODO panic if p has fp enabled and p != fpcurproc */
-	if (p->p_addr->u_pcb.pcb_hw.apcb_flags & IA64_PCB_FLAGS_FEN)
-		if (p != fpcurproc)
+	if ((p->p_md.md_tf->tf_cr_ipsr & IA64_PSR_DFH) == 0)
+		if (p != PCPU_GET(fpcurproc))
 			panic("ia64_check_fpcurproc: bogus");
-#endif
 }
 
-#define SET_FEN(p) /* TODO set fp enable for p */
-
-#define CLEAR_FEN(p) /* TODO clear fp enable for p */
-
 /*
- * Save the floating point state in the pcb. Use this to get read-only
- * access to the floating point state. If write is true, the current
- * fp process is cleared so that fp state can safely be modified. The
- * process will automatically reload the changed state by generating a 
- * FEN trap.
+ * Save the high floating point state in the pcb. Use this to get
+ * read-only access to the floating point state. If write is true, the
+ * current fp process is cleared so that fp state can safely be
+ * modified. The process will automatically reload the changed state
+ * by generating a disabled fp trap.
  */
 void
 ia64_fpstate_save(struct proc *p, int write)
 {
-#if 0
-	if (p == fpcurproc) {
-		/*
-		 * If curproc != fpcurproc, then we need to enable FEN 
-		 * so that we can dump the fp state.
-		 */
-		ia64_pal_wrfen(1);
-
+	if (p == PCPU_GET(fpcurproc)) {
 		/*
 		 * Save the state in the pcb.
 		 */
-		savefpstate(&p->p_addr->u_pcb.pcb_fp);
+		savehighfp(p->p_addr->u_pcb.pcb_highfp);
 
 		if (write) {
-			/*
-			 * If fpcurproc == curproc, just ask the
-			 * PALcode to disable FEN, otherwise we must
-			 * clear the FEN bit in fpcurproc's pcb.
-			 */
-			if (fpcurproc == curproc)
-				ia64_pal_wrfen(0);
-			else
-				CLEAR_FEN(fpcurproc);
-			fpcurproc = NULL;
-		} else {
-			/*
-			 * Make sure that we leave FEN enabled if
-			 * curproc == fpcurproc. We must have at most
-			 * one process with FEN enabled. Note that FEN 
-			 * must already be set in fpcurproc's pcb.
-			 */
-			if (curproc != fpcurproc)
-				ia64_pal_wrfen(0);
+			p->p_md.md_tf->tf_cr_ipsr |= IA64_PSR_DFH;
+			PCPU_SET(fpcurproc, NULL);
 		}
 	}
-#endif
 }
 
 /*
@@ -1325,23 +1305,10 @@ ia64_fpstate_save(struct proc *p, int write)
 void
 ia64_fpstate_drop(struct proc *p)
 {
-#if 0
-	if (p == fpcurproc) {
-		if (p == curproc) {
-			/*
-			 * Disable FEN via the PALcode. This will
-			 * clear the bit in the pcb as well.
-			 */
-			ia64_pal_wrfen(0);
-		} else {
-			/*
-			 * Clear the FEN bit of the pcb.
-			 */
-			CLEAR_FEN(p);
-		}
-		fpcurproc = NULL;
+	if (p == PCPU_GET(fpcurproc)) {
+		p->p_md.md_tf->tf_cr_ipsr |= IA64_PSR_DFH;
+		PCPU_SET(fpcurproc, NULL);
 	}
-#endif
 }
 
 /*
@@ -1351,35 +1318,20 @@ ia64_fpstate_drop(struct proc *p)
 void
 ia64_fpstate_switch(struct proc *p)
 {
-#if 0
-	/*
-	 * Enable FEN so that we can access the fp registers.
-	 */
-	ia64_pal_wrfen(1);
-	if (fpcurproc) {
+	if (PCPU_GET(fpcurproc)) {
 		/*
 		 * Dump the old fp state if its valid.
 		 */
-		savefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-		CLEAR_FEN(fpcurproc);
+		savehighfp(PCPU_GET(fpcurproc)->p_addr->u_pcb.pcb_highfp);
+		PCPU_GET(fpcurproc)->p_md.md_tf->tf_cr_ipsr |= IA64_PSR_DFH;
 	}
 
 	/*
 	 * Remember the new FP owner and reload its state.
 	 */
-	fpcurproc = p;
-	restorefpstate(&fpcurproc->p_addr->u_pcb.pcb_fp);
-
-	/*
-	 * If the new owner is curproc, leave FEN enabled, otherwise
-	 * mark its PCB so that it gets FEN when we context switch to
-	 * it later.
-	 */
-	if (p != curproc) {
-		ia64_pal_wrfen(0);
-		SET_FEN(p);
-	}
+	PCPU_SET(fpcurproc, p);
+	restorehighfp(p->p_addr->u_pcb.pcb_highfp);
+	p->p_md.md_tf->tf_cr_ipsr &= ~IA64_PSR_DFH;
 
 	p->p_md.md_flags |= MDP_FPUSED;
-#endif
 }

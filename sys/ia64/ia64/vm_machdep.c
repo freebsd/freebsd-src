@@ -246,7 +246,7 @@ cpu_fork(p1, p2, flags)
 		 * Setup the child's pcb so that its ar.bspstore
 		 * starts just above the region which we copied. This
 		 * should work since the child will normally return
-		 * straight into exception_return.
+		 * straight into exception_restore.
 		 */
 		up->u_pcb.pcb_bspstore = (u_int64_t)
 			(p2bs + (p1->p_md.md_tf->tf_ar_bsp
@@ -255,8 +255,8 @@ cpu_fork(p1, p2, flags)
 
 		/*
 		 * Arrange for continuation at child_return(), which
-		 * will return to exception_return().  Note that the child
-		 * process doesn't stay in the kernel for long!
+		 * will return to exception_restore().  Note that the
+		 * child process doesn't stay in the kernel for long!
 		 *
 		 * We should really deal with the function descriptor
 		 * for child_return in switch_trampoline so that a
@@ -265,7 +265,7 @@ cpu_fork(p1, p2, flags)
 		 */
 		up->u_pcb.pcb_sp = (u_int64_t)p2tf - 16;	
 		up->u_pcb.pcb_r4 = FDESC_FUNC(child_return);
-		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_return);
+		up->u_pcb.pcb_r5 = FDESC_FUNC(exception_restore);
 		up->u_pcb.pcb_r6 = (u_int64_t)p2;
 		up->u_pcb.pcb_b0 = FDESC_FUNC(switch_trampoline);
 

@@ -33,24 +33,31 @@
 /*
  * ar.k7 = curproc
  * ar.k6 = ksp
- * ar.k5 = globalp
+ * ar.k5 = kbsp
+ * ar.k4 = globalp
  */
 
 /*
  * Call exception_save_regs to preserve the interrupted state in a
- * trapframe and call trap() with the value of _n_ as an argument. We
- * arrange for trap() to return to exception_return which will restore 
- * the interrupted state before executing an rfi to resume it.
+ * trapframe. Note that we don't use a call instruction because we
+ * must be careful not to lose track of the RSE state. We then call
+ * trap() with the value of _n_ as an argument to handle the
+ * exception. We arrange for trap() to return to exception_restore
+ * which will restore the interrupted state before executing an rfi to
+ * resume it.
  */
-#define TRAP(_n_)					\
-	mov	r16=b0;					\
-	br.call.sptk.few b0=exception_save_regs;	\
-	alloc	r16=ar.pfs,0,0,2,0;			\
-	movl	r17=exception_return;			\
-	mov	out0=_n_;				\
-	mov	out1=sp;;				\
-	add	sp=-16,sp;;				\
-	mov	rp=r17;					\
+#define TRAP(_n_)				\
+	mov	r16=b0;				\
+1:	mov	r17=ip;;			\
+	add	r17=2f-1b,r17;;			\
+	mov	b0=r17;				\
+	br.sptk.few exception_save;		\
+2:	alloc	r14=ar.pfs,0,0,2,0;		\
+	movl	r15=exception_restore;		\
+	mov	out0=_n_;			\
+	mov	out1=sp;;			\
+	add	sp=-16,sp;;			\
+	mov	rp=r15;				\
 	br.call.sptk.few b6=trap
 	
 /*
@@ -77,15 +84,26 @@ ia64_vector_table:
 	thash	r18=r16
 	ttag	r19=r16
 	;;
+	add	r21=16,r18		// tag
 	add	r20=24,r18		// collision chain
 	;; 
-	ld8	r20=[r20]		// first entry
+	ld8	r21=[r21]		// check VHPT tag
+	;;
+	cmp.eq	p1,p2=r21,r19
+(p2)	br.dpnt.few 1f
+	;;
+	ld8	r21=[r18]		// read pte
+	;;
+	itc.i	r21			// insert pte
+	rfi				// done
+	;;
+1:	ld8	r20=[r20]		// first entry
 	;; 
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
 	;;
-1:	cmp.eq	p1,p2=r0,r20		// done?
+2:	cmp.eq	p1,p2=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
@@ -93,7 +111,7 @@ ia64_vector_table:
 	ld8	r21=[r21]		// read tag
 	;;
 	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+(p2)	br.cond.sptk.few 3f		// if not, read next in chain
 	;;
 	ld8	r21=[r20],8		// read pte
 	;; 
@@ -122,13 +140,17 @@ ia64_vector_table:
 	;;
 	rfi				// walker will retry the access
 	
-2:	add	r20=24,r20		// next in chain
+3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.cond.sptk.few 2b		// loop
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
-	TRAP(1)				// die horribly
+	ssm	psr.dt
+	;;
+	srlz.d
+	;; 
+	TRAP(20)			// Page Not Present trap
 
 	.align	1024
 
@@ -140,15 +162,26 @@ ia64_vector_table:
 	thash	r18=r16
 	ttag	r19=r16
 	;;
+	add	r21=16,r18		// tag
 	add	r20=24,r18		// collision chain
 	;; 
-	ld8	r20=[r20]		// first entry
+	ld8	r21=[r21]		// check VHPT tag
+	;;
+	cmp.eq	p1,p2=r21,r19
+	br.dpnt.few 1f
+	;;
+	ld8	r21=[r18]		// read pte
+	;;
+	itc.d	r21			// insert pte
+	rfi				// done
+	;;
+1:	ld8	r20=[r20]		// first entry
 	;; 
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
 	;;
-1:	cmp.eq	p1,p2=r0,r20		// done?
+2:	cmp.eq	p1,p2=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
@@ -156,7 +189,7 @@ ia64_vector_table:
 	ld8	r21=[r21]		// read tag
 	;;
 	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+(p2)	br.cond.sptk.few 3f		// if not, read next in chain
 	;;
 	ld8	r21=[r20],8		// read pte
 	;; 
@@ -185,13 +218,17 @@ ia64_vector_table:
 	;;
 	rfi				// walker will retry the access
 	
-2:	add	r20=24,r20		// next in chain
+3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
-	br.cond.sptk.few 1b		// loop
+	br.cond.sptk.few 2b		// loop
 
 9:	mov	pr=r17,0x1ffff		// restore predicates
-	TRAP(2)				// die horribly
+	ssm	psr.dt
+	;;
+	srlz.d
+	;; 
+	TRAP(20)			// Page Not Present trap
 
 	.align	1024
 
@@ -779,13 +816,14 @@ ia64_vhpt:	.quad 0
 #define rB0	r31		/* overlay rIIP */
 
 /*
- * exception_return:	restore interrupted state
- *	
+ * exception_restore:	restore interrupted state
+ *
  * Arguments:
  *	sp+16	trapframe pointer
+ *	r4	ar.pfs before the alloc in TRAP()
  *
  */
-ENTRY(exception_return, 0)
+ENTRY(exception_restore, 0)
 
 	rsm	psr.ic|psr.dt		// disable interrupt collection and vm
 	add	r3=16,sp;
@@ -793,13 +831,17 @@ ENTRY(exception_return, 0)
 	srlz.d
 	dep	r3=0,r3,61,3		// physical address
 	;; 
+	add	r16=TF_CR_IPSR,r3
+	;;
+	ld8	rIPSR=[r16]
+	;; 
 	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
 	;;
 	cmp.eq	p1,p2=r0,r16		// test for return to kernel mode
 	;;
-(p1)	add	r16=SIZEOF_TRAPFRAME+16,sp  // restore ar.k6 (kernel sp)
+(p2)	add	r16=SIZEOF_TRAPFRAME+16,sp  // restore ar.k6 (kernel sp)
 	;; 
-(p1)	mov	ar.k6=r16
+(p2)	mov	ar.k6=r16
 	add	r1=SIZEOF_TRAPFRAME-16,r3 // r1=&tf_f[FRAME_F15]
 	add	r2=SIZEOF_TRAPFRAME-32,r3 // r2=&tf_f[FRAME_F14]
 	;;
@@ -900,20 +942,9 @@ ENTRY(exception_return, 0)
 	ld8	rBSPSTORE=[r1],-16	// r1=&tf_cr_pfs
 	ld8	rIFS=[r2],-16		// r2=&tf_ar_rsc
 	;;
-	ld8	rPFS=[r1],-16		// r1=&tf_pr
-	ld8	rRSC=[r2],-16		// r2=&tf_cr_ifa
+(p1)	br.cond.dpnt.few 1f		// don't switch bs if kernel
 	;;
-	ld8	rPR=[r1],-16		// r1=&tf_cr_isr
-	ld8	rIFA=[r2],-16		// r2=&tf_cr_ipsr
-	;;
-	ld8	rIIP=[r1]
-	ld8	rIPSR=[r2]
-	;;
-	extr.u	r16=rIPSR,32,2		// extract ipsr.cpl
-	;;
-	cmp.eq	p1,p2=r0,r17		// test for kernel mode
-	;;
-(p2)	br.cond.dpnt.few 1f		// don't switch bs if not user
+	alloc	r16=ar.pfs,0,0,0,0	// discard current frame
 	;;
 	sub	r16=rBSP,rBSPSTORE	// how many bytes to load?
 	;;
@@ -926,9 +957,21 @@ ENTRY(exception_return, 0)
 	mov	ar.bspstore=rBSPSTORE
 	;;
 	mov	ar.rnat=rRNAT
-
-1:	mov	r1=rR1
+	;;
+1:	ld8	rPFS=[r1],-16		// r1=&tf_pr
+	ld8	rRSC=[r2],-16		// r2=&tf_cr_ifa
+	;;
+	ld8	rPR=[r1],-16		// r1=&tf_cr_isr
+	ld8	rIFA=[r2],-16		// r2=&tf_cr_ipsr
+	;;
+	ld8	rISR=[r1],-16		// r1=&tf_cr_iip
+	ld8	rIPSR=[r2]
+	;;
+	ld8	rIIP=[r1]
+	;; 
+	mov	r1=rR1
 	mov	r2=rR2
+	mov	ar.pfs=rPFS
 	mov	cr.ifs=rIFS
 	mov	ar.rsc=rRSC
 	mov	pr=rPR,0x1ffff
@@ -938,11 +981,11 @@ ENTRY(exception_return, 0)
 	;;
 	rfi
 
-	END(exception_return)
+	END(exception_restore)
 	
 
 /*
- * exception_save_regs: save interrupted state
+ * exception_save: save interrupted state
  *
  * Arguments:
  *	b0	return address
@@ -951,7 +994,7 @@ ENTRY(exception_return, 0)
  * Return:
  *	sp	kernel stack pointer
  */
-ENTRY(exception_save_regs, 0)
+ENTRY(exception_save, 0)
 	rsm	psr.dt			// turn off data translations
 	;;
 	srlz.d				// serialize
@@ -969,10 +1012,8 @@ ENTRY(exception_save_regs, 0)
 	mov	rSP=sp			// save sp
 	;; 
 (p2)	mov	sp=ar.k6		// and switch to kernel stack
-	mov	r16=SIZEOF_TRAPFRAME
 	;;
-	sub	sp=sp,r16		// reserve trapframe
-	;;
+	add	sp=-SIZEOF_TRAPFRAME,sp	// reserve trapframe
 	mov	rR1=r1
 	mov	rR2=r2
 	;; 
@@ -992,16 +1033,13 @@ ENTRY(exception_save_regs, 0)
 	mov	rRSC=ar.rsc
 	mov	rPFS=ar.pfs
 	cover
-(p2)	mov	r16=ar.k7		// curproc
 	mov	rIFS=cr.ifs
 	;; 
-(p2)	add	r16=P_ADDR,r16		// &curproc->p_addr
 	mov	ar.rsc=0
 	;; 
-(p2)	ld8	r16=[r16]		// curproc->p_addr
 	mov	rBSPSTORE=ar.bspstore
 	;; 
-(p2)	add	r16=SIZEOF_USER,r16	// kernel backing store
+(p2)	mov	r16=ar.k5		// kernel backing store
 	mov	rRNAT=ar.rnat
 	mov	rBSP=ar.bsp
 	;; 
@@ -1143,13 +1181,13 @@ ENTRY(exception_save_regs, 0)
 	stf.spill [r1]=f15		// 
 	;; 
 	movl	r1=__gp			// kernel globals
-	mov	r13=ar.k5		// processor globals
+	mov	r13=ar.k4		// processor globals
 	ssm	psr.ic|psr.dt		// enable interrupts & translation
 	;;
 	srlz.d				// serialize
 
-	br.ret.sptk.few b0
+	br.sptk.few b0			// not br.ret - we were not br.call'ed
 
-	END(exception_save_regs)
+	END(exception_save)
 	
 

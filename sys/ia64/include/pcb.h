@@ -62,6 +62,8 @@ struct pcb {
 
 	u_int64_t		pcb_onfault;	/* for copy faults */
 	u_int64_t		pcb_accessaddr;	/* for [fs]uswintr */
+
+	struct ia64_fpreg	pcb_highfp[96];	/* f32-f127 */
 };
 
 /*
