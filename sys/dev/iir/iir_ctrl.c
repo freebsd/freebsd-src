@@ -82,7 +82,7 @@ static struct cdevsw iir_cdevsw = {
         /* dump */      nodump,
         /* psize */     nopsize,
         /* flags */     0,
-        /* kq */        nokqfilter
+        /* kqfilter */  nokqfilter
 };
 
 #ifndef SDEV_PER_HBA
