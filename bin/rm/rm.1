@@ -125,9 +125,9 @@ only one argument,
 which must not be a directory,
 may be supplied.
 No options may be supplied in this simple mode of operation,
-which simply performs an
+which performs an
 .Xr unlink 2
-operation using the two passed arguments.
+operation on the passed argument.
 .Pp
 The
 .Nm
@@ -206,12 +206,13 @@ option if such behavior is desired.  This follows the historical
 behavior of
 .Nm
 with respect to directories.
+.Pp
+The simplified
+.Nm unlink
+command conforms to
+.St -susv2 .
 .Sh HISTORY
 A
 .Nm
 command appeared in
 .At v1 .
-The simplified
-.Nm unlink
-command conforms to
-.St -susv2 .
