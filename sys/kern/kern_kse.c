@@ -115,6 +115,7 @@ thread_dtor(void *mem, int size, void *arg)
 {
 	struct thread	*td;
 
+	mtx_assert(&Giant, MA_OWNED);
 	td = (struct thread *)mem;
 
 #ifdef INVARIANTS
@@ -137,6 +138,8 @@ thread_dtor(void *mem, int size, void *arg)
 		/* NOTREACHED */
 	}
 #endif
+
+	cpu_thread_dtor(td);
 }
 
 /*
