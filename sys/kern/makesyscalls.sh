@@ -253,6 +253,14 @@ s/\$//g
 			for (i = 5; i <= NF; i++)
 				comment = comment " " $i
 	}
+	mpsafe = 0;
+	# if the "MPSAFE" keyword is found, note it and shift the line
+	$2 == "MPSAFE" {
+		for (i = 2; i <= NF; i++)
+			$i = $(i + 1);
+		NF -= 1;
+		mpsafe = 1;
+	}
 	$2 == "STD" || $2 == "NODEF" || $2 == "NOARGS"  || $2 == "NOPROTO" \
 	    || $2 == "NOIMPL" {
 		parseline()
@@ -282,19 +290,22 @@ s/\$//g
 			nosys = 1
 		if (funcname == "lkmnosys")
 			lkmnosys = 1
+		printf("\t{ %s%d, (sy_call_t *)",
+			mpsafe == 1 ? "SYF_MPSAFE | " : "", argc+bigargc) > sysent
 	 	if ($2 != "NOIMPL") {
-			printf("\t{ %d, (sy_call_t *)%s },\t\t",
-			    argc+bigargc, funcname) > sysent
+			printf("%s },\t",
+			    funcname) > sysent
 			if(length(funcname) < 11)
-				printf("\t") > sysent
-			printf("/* %d = %s */\n", syscall, funcalias) > sysent
+			    printf("\t") > sysent
 		} else {
-			printf("\t{ %d, (sy_call_t *)%s },\t\t",
-			    argc+bigargc, "nosys") > sysent
+			printf("%s },\t",
+			    "nosys") > sysent
 			if(length("nosys") < 11)
-				printf("\t") > sysent
-			printf("/* %d = %s */\n", syscall, funcalias) > sysent
+			    printf("\t") > sysent
 		}
+		if (mpsafe == 0)
+			printf("\t") > sysent
+		printf("/* %d = %s */\n", syscall, funcalias) > sysent
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
 		if ($2 != "NODEF") {
@@ -323,7 +334,8 @@ s/\$//g
 			    argalias) > sysarg
 		printf("%s\to%s __P((struct proc *, struct %s *));\n",
 		    rettype, funcname, argalias) > syscompatdcl
-		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n",
+		printf("\t{ compat(%s%d,%s) },\t\t/* %d = old %s */\n",
+		    mpsafe == 1 ? "SYF_MPSAFE | " : "",
 		    argc+bigargc, funcname, syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
@@ -338,7 +350,8 @@ s/\$//g
 		ncompat++
 		parseline()
 		printf("%s\to%s();\n", rettype, funcname) > syscompatdcl
-		printf("\t{ compat(%d,%s) },\t\t/* %d = old %s */\n",
+		printf("\t{ compat(%s%d,%s) },\t\t/* %d = old %s */\n",
+		    mpsafe == 1 ? "SYF_MPSAFE | " : "",
 		    argc+bigargc, funcname, syscall, funcalias) > sysent
 		printf("\t\"old.%s\",\t\t/* %d = old %s */\n",
 		    funcalias, syscall, funcalias) > sysnames
