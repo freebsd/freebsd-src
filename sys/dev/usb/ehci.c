@@ -337,6 +337,7 @@ ehci_init(ehci_softc_t *sc)
 	usbd_status err;
 	ehci_soft_qh_t *sqh;
 	u_int ncomp;
+	int lev;
 
 	DPRINTF(("ehci_init: start\n"));
 #ifdef EHCI_DEBUG
@@ -426,9 +427,6 @@ ehci_init(ehci_softc_t *sc)
 	/*
 	 * Allocate the interrupt dummy QHs. These are arranged to give
 	 * poll intervals that are powers of 2 times 1ms.
-	 * XXX this probably isn't the most sensible arrangement, and it
-	 * would be better if we didn't leave all the QHs in the periodic
-	 * schedule all the time.
 	 */
 	for (i = 0; i < EHCI_INTRQHS; i++) {
 		sqh = ehci_alloc_sqh(sc);
@@ -438,7 +436,10 @@ ehci_init(ehci_softc_t *sc)
 		}
 		sc->sc_islots[i].sqh = sqh;
 	}
+	lev = 0;
 	for (i = 0; i < EHCI_INTRQHS; i++) {
+		if (i == EHCI_IQHIDX(lev + 1, 0))
+			lev++;
 		sqh = sc->sc_islots[i].sqh;
 		if (i == 0) {
 			/* The last (1ms) QH terminates. */
@@ -446,14 +447,14 @@ ehci_init(ehci_softc_t *sc)
 			sqh->next = NULL;
 		} else {
 			/* Otherwise the next QH has half the poll interval */
-			sqh->next = sc->sc_islots[(i + 1) / 2 - 1].sqh;
+			sqh->next =
+			    sc->sc_islots[EHCI_IQHIDX(lev - 1, i + 1)].sqh;
 			sqh->qh.qh_link = htole32(sqh->next->physaddr |
 			    EHCI_LINK_QH);
 		}
 		sqh->qh.qh_endp = htole32(EHCI_QH_SET_EPS(EHCI_QH_SPEED_HIGH));
-		sqh->qh.qh_link = EHCI_NULL;
+		sqh->qh.qh_endphub = htole32(EHCI_QH_SET_MULT(1));
 		sqh->qh.qh_curqtd = EHCI_NULL;
-		sqh->next = NULL;
 		sqh->qh.qh_qtd.qtd_next = EHCI_NULL;
 		sqh->qh.qh_qtd.qtd_altnext = EHCI_NULL;
 		sqh->qh.qh_qtd.qtd_status = htole32(EHCI_QTD_HALTED);
@@ -766,7 +767,7 @@ ehci_idone(struct ehci_xfer *ex)
 	struct ehci_pipe *epipe = (struct ehci_pipe *)xfer->pipe;
 	ehci_soft_qtd_t *sqtd, *lsqtd;
 	u_int32_t status = 0, nstatus = 0;
-	int actlen;
+	int actlen, cerr;
 	u_int pkts_left;
 
 	DPRINTFN(/*12*/2, ("ehci_idone: ex=%p\n", ex));
@@ -840,19 +841,19 @@ ehci_idone(struct ehci_xfer *ex)
 	    UGETW(xfer->pipe->endpoint->edesc->wMaxPacketSize);
 	epipe->nexttoggle ^= pkts_left % 2;
 
-	status &= EHCI_QTD_STATERRS;
-	DPRINTFN(/*10*/2, ("ehci_idone: len=%d, actlen=%d, status=0x%x\n",
-			   xfer->length, actlen, status));
+	cerr = EHCI_QTD_GET_CERR(status);
+	DPRINTFN(/*10*/2, ("ehci_idone: len=%d, actlen=%d, cerr=%d, "
+	    "status=0x%x\n", xfer->length, actlen, cerr, status));
 	xfer->actlen = actlen;
-	if (status != 0) {
+	if ((status & EHCI_QTD_HALTED) != 0) {
 #ifdef EHCI_DEBUG
 		char sbuf[128];
 
 		bitmask_snprintf((u_int32_t)status,
-				 "\20\7HALTED\6BUFERR\5BABBLE\4XACTERR"
-				 "\3MISSED", sbuf, sizeof(sbuf));
+		    "\20\7HALTED\6BUFERR\5BABBLE\4XACTERR"
+		    "\3MISSED\2SPLIT\1PING", sbuf, sizeof(sbuf));
 
-		DPRINTFN((status == EHCI_QTD_HALTED) ? 2 : 0,
+		DPRINTFN(2,
 			 ("ehci_idone: error, addr=%d, endpt=0x%02x, "
 			  "status 0x%s\n",
 			  xfer->pipe->device->address,
@@ -863,7 +864,7 @@ ehci_idone(struct ehci_xfer *ex)
 			ehci_dump_sqtds(ex->sqtdstart);
 		}
 #endif
-		if (status == EHCI_QTD_HALTED)
+		if ((status & EHCI_QTD_BABBLE) == 0 && cerr > 0)
 			xfer->status = USBD_STALLED;
 		else
 			xfer->status = USBD_IOERROR; /* more info XXX */
@@ -1408,14 +1409,13 @@ ehci_open(usbd_pipe_handle pipe)
 	case USB_SPEED_HIGH: speed = EHCI_QH_SPEED_HIGH; break;
 	default: panic("ehci_open: bad device speed %d", dev->speed);
 	}
-	if (speed != EHCI_QH_SPEED_HIGH) {
+	if (speed != EHCI_QH_SPEED_HIGH && xfertype == UE_ISOCHRONOUS) {
 		printf("%s: *** WARNING: opening low/full speed device, this "
 		       "does not work yet.\n",
 		       USBDEVNAME(sc->sc_bus.bdev));
 		DPRINTFN(1,("ehci_open: hshubaddr=%d hshubport=%d\n",
 			    hshubaddr, hshubport));
-		if (xfertype != UE_CONTROL)
-			return USBD_INVAL;
+		return USBD_INVAL;
 	}
 
 	naks = 8;		/* XXX */
@@ -1437,7 +1437,7 @@ ehci_open(usbd_pipe_handle pipe)
 		EHCI_QH_SET_MULT(1) |
 		EHCI_QH_SET_HUBA(hshubaddr) |
 		EHCI_QH_SET_PORT(hshubport) |
-		EHCI_QH_SET_CMASK(0xf0) | /* XXX */
+		EHCI_QH_SET_CMASK(0x1c) |
 		EHCI_QH_SET_SMASK(xfertype == UE_INTERRUPT ? 0x01 : 0)
 		);
 	sqh->qh.qh_curqtd = EHCI_NULL;
@@ -2572,7 +2572,7 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 
 	/* We will change them to point here */
 	snext = exfer->sqtdend->nextqtd;
-	next = snext ? snext->physaddr : htole32(EHCI_NULL);
+	next = snext ? htole32(snext->physaddr) : EHCI_NULL;
 
 	/*
 	 * Now loop through any qTDs before us and keep track of the pointer
@@ -2627,14 +2627,14 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 				sqh->qh.qh_qtd.qtd_status = 0;
 				sqh->qh.qh_qtd.qtd_next =
 				    sqh->qh.qh_qtd.qtd_altnext
-				        = htole32(EHCI_NULL);
+				        = EHCI_NULL;
 				DPRINTFN(1,("ehci_abort_xfer: no hit\n"));
 			}
 		}
 	}
 	ehci_add_qh(sqh, psqh);
 	/*
-	 * Step 4: Execute callback.
+	 * Step 5: Execute callback.
 	 */
 #ifdef DIAGNOSTIC
 	exfer->isdone = 1;
