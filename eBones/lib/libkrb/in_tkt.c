@@ -16,8 +16,8 @@ static char rcsid[] =
 #endif
 
 #include <unistd.h>
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 #include <krb.h>
 #include <sys/file.h>
 #include <sys/fcntl.h>
@@ -27,6 +27,8 @@ static char rcsid[] =
 #include <sys/param.h>
 #endif
 
+extern int krb_debug;
+
 /*
  * in_tkt() is used to initialize the ticket store.  It creates the
  * file to contain the tickets and writes the given user's name "pname"
@@ -34,7 +36,10 @@ static char rcsid[] =
  * success, or KFAILURE if something goes wrong.
  */
 
-int in_tkt(char *pname, char *pinst)
+int
+in_tkt(pname,pinst)
+    char *pname;
+    char *pinst;
 {
     int tktfile;
     uid_t me, metoo;

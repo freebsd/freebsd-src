@@ -28,7 +28,10 @@ static char rcsid[] =
  *
  */
 
-int krb_get_tf_realm(char *ticket_file, char *realm)
+int
+krb_get_tf_realm(ticket_file, realm)
+  char *ticket_file;
+  char *realm;
 {
     return(krb_get_tf_fullname(ticket_file, 0, 0, realm));
 }

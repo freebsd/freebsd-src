@@ -1,4 +1,4 @@
-/* -
+/*
  * Copyright (c) 1994 Geoffrey M. Rehmet, Rhodes University
  * All rights reserved.
  *
@@ -100,10 +100,10 @@
 #include <sys/param.h>
 #include <sys/types.h>
 
-#include <krb.h>
 #include <des.h>
+#include <krb.h>
 
-static bit_64		des_key;
+static des_cblock	des_key;
 static des_key_schedule	key_schedule;
 
 /*
@@ -120,10 +120,15 @@ static u_char		*buff_ptr = buffer;
  * inkey is the initial vector for the DES encryption, while insched is
  * the DES key, in unwrapped form.
  */
-void des_set_key(bit_64 *inkey, u_char *insched)
+
+int
+des_set_key(inkey, insched)
+	des_cblock *inkey;
+	des_key_schedule insched;
 {
-	bcopy(inkey, &des_key, sizeof(bit_64));
+	bcopy(inkey, des_key, sizeof(des_cblock));
 	bcopy(insched, &key_schedule, sizeof(des_key_schedule));
+	return 0;
 }
 
 /*
@@ -136,7 +141,11 @@ void des_clear_key()
 	bzero(&key_schedule, sizeof(des_key_schedule));
 }
 
-int des_read(int fd, char *buf, int len)
+int
+des_read(fd, buf, len)
+	int fd;
+	register char * buf;
+	int len;
 {
 	int	msg_length;	/* length of actual message data */
 	int	pad_length;	/* length of padded message */
@@ -161,7 +170,7 @@ int des_read(int fd, char *buf, int len)
 		}
 	}
 
-	nread = krb_net_read(fd,(char *)&msg_length, sizeof(msg_length));
+	nread = krb_net_read(fd, (char *)&msg_length, sizeof(msg_length));
 	if(nread != (int)(sizeof(msg_length)))
 		return(0);
 
@@ -200,7 +209,11 @@ int des_read(int fd, char *buf, int len)
  * Write a message onto a file descriptor (generally a socket), using
  * DES to encrypt the message.
  */
-int des_write(int fd, char *buf, int len)
+int
+des_write(fd, buf, len)
+	int fd;
+	char * buf;
+	int len;
 {
 	static	int seeded = 0;
 	char	garbage[8];

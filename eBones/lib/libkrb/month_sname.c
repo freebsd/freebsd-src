@@ -22,7 +22,8 @@ static char *rcsid =
  * month.  Returns 0 if the argument is out of range.
  */
 
-char *month_sname(int n)
+char *month_sname(n)
+    int n;
 {
     static char *name[] = {
         "Jan","Feb","Mar","Apr","May","Jun",

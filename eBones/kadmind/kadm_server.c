@@ -7,13 +7,17 @@
  * Kerberos administration server-side subroutines
  */
 
+#if 0
 #ifndef	lint
 static char rcsid_kadm_server_c[] =
 "Header: /afs/athena.mit.edu/astaff/project/kerberos/src/kadmin/RCS/kadm_server.c,v 4.2 89/09/26 09:30:23 jtkohl Exp ";
 #endif	lint
+#endif
 
+#include <string.h>
 #include <kadm.h>
 #include <kadm_err.h>
+#include "kadm_server.h"
 
 /*
 kadm_ser_cpw - the server side of the change_password routine
@@ -24,6 +28,7 @@ kadm_ser_cpw - the server side of the change_password routine
 Replaces the password (i.e. des key) of the caller with that specified in key.
 Returns no actual data from the master server, since this is called by a user
 */
+int
 kadm_ser_cpw(dat, len, ad, datout, outlen)
 u_char *dat;
 int len;
@@ -62,6 +67,7 @@ Adds and entry containing values to the database
 returns the values of the entry, so if you leave certain fields blank you will
    be able to determine the default values they are set to
 */
+int
 kadm_ser_add(dat,len,ad, datout, outlen)
 u_char *dat;
 int len;
@@ -94,6 +100,7 @@ Modifies all entries corresponding to the first values so they match the
    second values.
 returns the values for the changed entries
 */
+int
 kadm_ser_mod(dat,len,ad, datout, outlen)
 u_char *dat;
 int len;
@@ -129,6 +136,7 @@ gets the fields requested by flags from all entries matching values
 returns this data for each matching recipient, after a count of how many such
   matches there were
 */
+int
 kadm_ser_get(dat,len,ad, datout, outlen)
 u_char *dat;
 int len;

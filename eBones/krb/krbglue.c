@@ -22,10 +22,11 @@ $Id: krbglue.c,v 1.3 1995/07/18 16:39:05 mark Exp $";
 #include <stdio.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include "des.h"
+#include <des.h>
 #include "krb.h"
 
 /* These definitions should be in krb.h, no? */
+/*
 #if defined(__HIGHC__)
 #undef __STDC__
 #endif
@@ -59,7 +60,7 @@ extern char *krb_get_phost (char *);
 extern int krb_get_krbhst (char *, char *, int);
 #ifdef DEBUG
 extern KTEXT krb_create_death_packet (char *);
-#endif /* DEBUG */
+#endif
 #else
 extern int krb_mk_req ();
 extern int krb_rd_req ();
@@ -81,8 +82,11 @@ extern char *krb_get_phost ();
 extern int krb_get_krbhst ();
 #ifdef DEBUG
 extern KTEXT krb_create_death_packet ();
-#endif /* DEBUG */
-#endif /* STDC */
+#endif
+#endif
+*/
+
+
 int mk_ap_req(authent, service, instance, realm, checksum)
     KTEXT authent;
     char *service, *instance, *realm;

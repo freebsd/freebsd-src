@@ -3,9 +3,9 @@
 
 PROG=	kerberos
 SRCS=	kerberos.c cr_err_reply.c
-CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include
-DPADD=	${LIBKDB} ${LIBKRB} ${LIBDES}
-LDADD=	-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
+CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../include -Wall
+DPADD=	${LIBKDB} ${LIBKRB}
+LDADD=	-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes
 NOMAN=	noman
 
 .include <bsd.prog.mk>

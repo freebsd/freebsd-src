@@ -36,17 +36,23 @@
  * master kerberos server in a realm.
  */
 
+#if 0
 #ifndef	lint
 static char     rcsid_kpropd_c[] =
 "$Header: /usr/cvs/src/eBones/kpropd/kpropd.c,v 1.1.1.1 1995/08/03 07:37:19 mark Exp $";
 #endif	/* lint */
+#endif
 
+#include <errno.h>
+#include <unistd.h>
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -58,12 +64,15 @@ static char     rcsid_kpropd_c[] =
 
 static char     kprop_version[KPROP_PROT_VERSION_LEN] = KPROP_PROT_VERSION;
 
-extern int      errno;
 int             debug = 0;
 
 int             pause_int = 300;	/* 5 minutes in seconds */
-unsigned long   get_data_checksum();
-static void     SlowDeath();
+unsigned long   get_data_checksum(int fd, Key_schedule key_sched);
+void		recv_auth(int in, int out, int private,
+			struct sockaddr_in *remote, struct sockaddr_in *local,
+			AUTH_DAT *ad);
+static void     SlowDeath(void);
+void		 recv_clear(int in, int out);
 		/* leave room for private msg overhead */
 static char     buf[KPROP_BUFSIZ + 64];
 
@@ -74,23 +83,20 @@ usage()
 	exit(2);
 }
 
+void
 main(argc, argv)
 	int             argc;
 	char          **argv;
 {
 	struct sockaddr_in from;
 	struct sockaddr_in sin;
-	struct servent *sp;
-	int             s, s2, fd, n, fdlock;
+	int             s2, fd, n, fdlock;
 	int             from_len;
 	char            local_file[256];
 	char            local_temp[256];
 	struct hostent *hp;
 	char            hostname[256];
-	unsigned long   cksum_read;
-	unsigned long   cksum_calc;
 	char            from_str[128];
-	u_long          length;
 	long            kerror;
 	AUTH_DAT        auth_dat;
 	KTEXT_ST        ticket;
@@ -103,7 +109,7 @@ main(argc, argv)
 	int             c;
 	extern char    *optarg;
 	extern int      optind;
-	int             rflag;
+	int             rflag = 0;
 	char           *srvtab = "";
 	char           *local_db = DBM_FILE;
 	char           *kdb_util = KPROP_KDB_UTIL;
@@ -329,6 +335,7 @@ main(argc, argv)
 
 }
 
+void
 recv_auth(in, out, private, remote, local, ad)
 	int             in, out;
 	int             private;
@@ -345,14 +352,14 @@ recv_auth(in, out, private, remote, local, ad)
 #ifdef NOENCRYPTION
 		bzero((char *) session_sched, sizeof(session_sched));
 #else
-		if (key_sched(ad->session, session_sched)) {
+		if (key_sched((C_Block *)ad->session, session_sched)) {
 			syslog(LOG_ERR, "can't make key schedule");
 			SlowDeath();
 		}
 #endif
 
 	while (1) {
-		n = krb_net_read(in, &length, sizeof length);
+		n = krb_net_read(in, (char *)&length, sizeof length);
 		if (n == 0)
 			break;
 		if (n < 0) {
@@ -374,7 +381,7 @@ recv_auth(in, out, private, remote, local, ad)
 			kerror = krb_rd_priv(buf, n, session_sched, ad->session,
 					     remote, local, &msg_data);
 		else
-			kerror = krb_rd_safe(buf, n, ad->session,
+			kerror = krb_rd_safe(buf, n, (C_Block *)ad->session,
 					     remote, local, &msg_data);
 		if (kerror != KSUCCESS) {
 			syslog(LOG_ERR, "%s: %s",
@@ -390,6 +397,7 @@ recv_auth(in, out, private, remote, local, ad)
 	}
 }
 
+void
 recv_clear(in, out)
 	int             in, out;
 {

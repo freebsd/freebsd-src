@@ -48,7 +48,12 @@ static char *rcsid =
  * the password-changing server will be in the user's ticket file.
  */
 
-int get_pw_tkt(char *user, char *instance, char *realm, char *cpw)
+int
+get_pw_tkt(user,instance,realm,cpw)
+    char *user;
+    char *instance;
+    char *realm;
+    char *cpw;
 {
     int kerror;
 

@@ -15,8 +15,8 @@ static char *rcsid =
 #endif /* lint */
 #endif
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <sys/types.h>
 #include <krb.h>
 #include <string.h>
@@ -68,7 +68,9 @@ char *tkt_string()
  * and return an undesired ticket file name until this routine is called.
  */
 
-void krb_set_tkt_string(char *val)
+void
+krb_set_tkt_string(val)
+char *val;
 {
 
     (void) strncpy(krb_ticket_string, val, sizeof(krb_ticket_string)-1);

@@ -15,6 +15,7 @@ static char rcsid[] =
 #endif
 
 #include <stdio.h>
+#include <time.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <strings.h>
@@ -26,7 +27,9 @@ extern int debug;
 long    kerb_debug;
 static struct tm *time_p;
 
-void krb_print_principal(Principal *a_n)
+void
+krb_print_principal(a_n)
+    Principal *a_n;
 {
     /* run-time database does not contain string versions */
     time_p = localtime(&(a_n->exp_date));

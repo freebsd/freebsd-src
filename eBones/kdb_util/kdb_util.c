@@ -15,15 +15,20 @@
  *	$Id: kdb_util.c,v 1.5 1995/08/03 17:15:57 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kdb_util.c,v 1.5 1995/08/03 17:15:57 mark Exp $";
 #endif	lint
+#endif
 
+#include <errno.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <netinet/in.h>
-#include "time.h"
+#include <time.h>
 #include <strings.h>
 #include <des.h>
 #include <krb.h>
@@ -39,12 +44,16 @@ static des_key_schedule master_key_schedule, new_master_key_schedule;
 
 #define zaptime(foo) bzero((char *)(foo), sizeof(*(foo)))
 
-extern long kdb_get_master_key(), kdb_verify_master_key();
-extern char *malloc();
-extern int errno;
-
 char * progname;
 
+void convert_old_format_db (char *db_file, FILE *out);
+void convert_new_master_key (char *db_file, FILE *out);
+void update_ok_file (char *file_name);
+void print_time(FILE *file, unsigned long timeval);
+void load_db (char *db_file, FILE *input_file);
+int dump_db (char *db_file, FILE *output_file, void (*cv_key)());
+
+int
 main(argc, argv)
     int     argc;
     char  **argv;
@@ -140,6 +149,7 @@ main(argc, argv)
     exit(0);
   }
 
+void
 clear_secrets ()
 {
   bzero((char *)master_key, sizeof (des_cblock));
@@ -179,7 +189,7 @@ static int dump_db_1(arg, principal)
     if (a->cv_key != NULL) {
 	(*a->cv_key) (principal);
     }
-    fprintf(a->output_file, "%s %s %d %d %d %d %x %x",
+    fprintf(a->output_file, "%s %s %d %d %d %d %lx %lx",
 	    principal->name,
 	    principal->instance,
 	    principal->max_life,
@@ -196,6 +206,7 @@ static int dump_db_1(arg, principal)
     return 0;
 }
 
+int
 dump_db (db_file, output_file, cv_key)
      char *db_file;
      FILE *output_file;
@@ -210,6 +221,7 @@ dump_db (db_file, output_file, cv_key)
     return fflush(output_file);
 }
 
+void
 load_db (db_file, input_file)
      char *db_file;
      FILE *input_file;
@@ -235,7 +247,7 @@ load_db (db_file, input_file)
     for (;;) {			/* explicit break on eof from fscanf */
 	bzero((char *)&aprinc, sizeof(aprinc));
 	if (fscanf(input_file,
-		   "%s %s %d %d %d %hd %x %x %s %s %s %s\n",
+		   "%s %s %d %d %d %hd %lx %lx %s %s %s %s\n",
 		   aprinc.name,
 		   aprinc.instance,
 		   &temp1,
@@ -275,6 +287,7 @@ load_db (db_file, input_file)
     free(temp_db_file);
 }
 
+void
 print_time(file, timeval)
     FILE   *file;
     unsigned long timeval;
@@ -291,6 +304,7 @@ print_time(file, timeval)
 }
 
 /*ARGSUSED*/
+void
 update_ok_file (file_name)
      char *file_name;
 {
@@ -348,6 +362,7 @@ convert_key_new_master (p)
   (p->kdc_key_ver)++;
 }
 
+void
 convert_new_master_key (db_file, out)
      char *db_file;
      FILE *out;
@@ -355,7 +370,7 @@ convert_new_master_key (db_file, out)
 
   printf ("\n\nEnter the CURRENT master key.");
   if (kdb_get_master_key (TRUE, master_key, master_key_schedule) != 0) {
-    fprintf (stderr, "%s: Couldn't get master key.\n");
+    fprintf (stderr, "get_master_key: Couldn't get master key.\n");
     clear_secrets ();
     exit (-1);
   }
@@ -367,7 +382,7 @@ convert_new_master_key (db_file, out)
 
   printf ("\n\nNow enter the NEW master key.  Do not forget it!!");
   if (kdb_get_master_key (TRUE, new_master_key, new_master_key_schedule) != 0) {
-    fprintf (stderr, "%s: Couldn't get new master key.\n");
+    fprintf (stderr, "get_master_key: Couldn't get new master key.\n");
     clear_secrets ();
     exit (-1);
   }
@@ -401,6 +416,7 @@ convert_key_old_db (p)
   bzero((char *)key, sizeof (key));  /* a little paranoia ... */
 }
 
+void
 convert_old_format_db (db_file, out)
      char *db_file;
      FILE *out;
@@ -410,7 +426,7 @@ convert_old_format_db (db_file, out)
   int n, more;
 
   if (kdb_get_master_key (TRUE, master_key, master_key_schedule) != 0L) {
-    fprintf (stderr, "%s: Couldn't get master key.\n");
+    fprintf (stderr, "verify_master_key: Couldn't get master key.\n");
     clear_secrets();
     exit (-1);
   }
@@ -420,7 +436,7 @@ convert_old_format_db (db_file, out)
   n = kerb_get_principal(KERB_M_NAME, KERB_M_INST, principal_data,
 			 1 /* only one please */, &more);
   if ((n != 1) || more) {
-    fprintf(stderr, "verify_master_key: ",
+    fprintf(stderr, "verify_master_key: "
 	    "Kerberos error on master key lookup, %d found.\n",
 	    n);
     exit (-1);
@@ -438,8 +454,9 @@ convert_old_format_db (db_file, out)
   bcopy((char *)&principal_data[0].key_high,
 	(char *)(((long *) key_from_db) + 1), 4);
 #ifndef NOENCRYPTION
-  des_pcbc_encrypt(key_from_db,key_from_db,(long)sizeof(key_from_db),
-	master_key_schedule,(des_cblock *)master_key_schedule,DECRYPT);
+  des_pcbc_encrypt((des_cblock *)key_from_db,(des_cblock *)key_from_db,
+	(long)sizeof(key_from_db),master_key_schedule,
+	(des_cblock *)master_key_schedule,DECRYPT);
 #endif
   /* the decrypted database key had better equal the master key */
   n = bcmp((char *) master_key, (char *) key_from_db,
@@ -447,7 +464,7 @@ convert_old_format_db (db_file, out)
   bzero((char *)key_from_db, sizeof(key_from_db));
 
   if (n) {
-    fprintf(stderr, "\n\07\07%verify_master_key: Invalid master key, ");
+    fprintf(stderr, "\n\07\07verify_master_key: Invalid master key, ");
     fprintf(stderr, "does not match database.\n");
     exit (-1);
   }

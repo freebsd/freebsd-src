@@ -3,10 +3,10 @@
 
 PROG=	register
 SRCS=	register.c
-CFLAGS+=-DCRYPT -DDEBUG -DKERBEROS -I${.CURDIR}/../include
+CFLAGS+=-DCRYPT -DDEBUG -DKERBEROS -I${.CURDIR}/../include -Wall
 .PATH:	${.CURDIR}/../../usr.bin/rlogin
-DPADD=	${LIBKRB} ${LIBDES}
-LDADD=	-lkrb -ldes -lcrypt
+DPADD=	${LIBKRB}
+LDADD=	-L${KRBOBJDIR} -lkrb -ldes -lcrypt
 BINDIR=	/usr/bin
 BINOWN=	root
 BINMODE=4555

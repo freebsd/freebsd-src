@@ -15,10 +15,12 @@
  * exit returns 	 0 ==> success -1 ==> error
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kdb_edit.c,v 1.5 1995/08/03 17:15:54 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
 #include <signal.h>
@@ -33,11 +35,11 @@ static char rcsid[] =
 /* MKEYFILE is now defined in kdc.h */
 #include <kdc.h>
 
-extern char *errmsg();
-extern int errno;
-extern char *strcpy();
-
-void    sig_exit();
+void Usage(void);
+void cleanup(void);
+void sig_exit(int sig, int code, struct sigcontext *scp);
+void no_core_dumps(void);
+int change_principal(void);
 
 #define zaptime(foo) bzero((char *)(foo), sizeof(*(foo)))
 
@@ -90,6 +92,7 @@ static char * s_gets(char * str, int len)
 	return(s);
 }
 
+int
 main(argc, argv)
     int     argc;
     char   *argv[];
@@ -105,7 +108,7 @@ main(argc, argv)
 
     /* Assume a long is four bytes */
     if (sizeof(long) != 4) {
-	fprintf(stdout, "%s: size of long is %d.\n", sizeof(long), prog);
+	fprintf(stdout, "%s: size of long is %d.\n", prog, sizeof(long));
 	exit(-1);
     }
     /* Assume <=32 signals */
@@ -175,7 +178,7 @@ main(argc, argv)
 			   &default_princ, 1, &more);
     if (n != 1) {
 	fprintf(stderr,
-	     "%s: Kerberos error on default value lookup, %d found.\n",
+	     "%s: Kerberos error on default value lookup, %ld found.\n",
 		progname, n);
 	exit(-1);
     }
@@ -186,8 +189,10 @@ main(argc, argv)
     }
 
     cleanup();
+    return(0); /* make -Wall shut up - MRVM */
 }
 
+int
 change_principal()
 {
     static char temp[255];
@@ -269,7 +274,7 @@ change_principal()
 			bzero(new_key, sizeof(C_Block));
 			new_key[0] = 127;
 #else
-			string_to_key(pw_str, new_key);
+			string_to_key(pw_str, &new_key);
 #endif
 			bzero(pw_str, sizeof pw_str);	/* "RANDOM" */
 		    } else {
@@ -290,7 +295,7 @@ change_principal()
 			bzero(new_key, sizeof(C_Block));
 			new_key[0] = 127;
 #else
-			string_to_key(pw_str, new_key);
+			string_to_key(pw_str, &new_key);
 #endif
 			bzero(pw_str, sizeof pw_str);	/* "NULL" */
 		    } else {
@@ -304,7 +309,7 @@ change_principal()
 		    bzero(new_key, sizeof(C_Block));
 		    new_key[0] = 127;
 #else
-		    string_to_key(pw_str,new_key);
+		    string_to_key(pw_str, &new_key);
 #endif
 		    bzero(pw_str, sizeof pw_str);
 		}
@@ -360,7 +365,7 @@ change_principal()
 	    fprintf(stdout, "Max ticket lifetime (*5 minutes) [ %d ] ? ",
 		    principal_data[i].max_life);
 	    while (s_gets(temp, sizeof(temp)-1) && *temp) {
-		if (sscanf(temp, "%d", &temp_long) != 1)
+		if (sscanf(temp, "%ld", &temp_long) != 1)
 		    goto bad_life;
 		if (temp_long > 255 || (temp_long < 0)) {
 		bad_life:
@@ -380,7 +385,7 @@ change_principal()
 	    fprintf(stdout, "Attributes [ %d ] ? ",
 		    principal_data[i].attributes);
 	    while (s_gets(temp, sizeof(temp)-1) && *temp) {
-		if (sscanf(temp, "%d", &temp_long) != 1)
+		if (sscanf(temp, "%ld", &temp_long) != 1)
 		    goto bad_att;
 		if (temp_long > 65535 || (temp_long < 0)) {
 		bad_att:
@@ -425,19 +430,19 @@ change_principal()
     return 1;
 }
 
-
+void
 no_core_dumps()
 {
 
-    signal(SIGQUIT, sig_exit);
-    signal(SIGILL, sig_exit);
-    signal(SIGTRAP, sig_exit);
-    signal(SIGIOT, sig_exit);
-    signal(SIGEMT, sig_exit);
-    signal(SIGFPE, sig_exit);
-    signal(SIGBUS, sig_exit);
-    signal(SIGSEGV, sig_exit);
-    signal(SIGSYS, sig_exit);
+    signal(SIGQUIT, (sig_t)sig_exit);
+    signal(SIGILL, (sig_t)sig_exit);
+    signal(SIGTRAP, (sig_t)sig_exit);
+    signal(SIGIOT, (sig_t)sig_exit);
+    signal(SIGEMT, (sig_t)sig_exit);
+    signal(SIGFPE, (sig_t)sig_exit);
+    signal(SIGBUS, (sig_t)sig_exit);
+    signal(SIGSEGV, (sig_t)sig_exit);
+    signal(SIGSYS, (sig_t)sig_exit);
 }
 
 void
@@ -452,7 +457,7 @@ sig_exit(sig, code, scp)
     exit(-1);
 }
 
-
+void
 cleanup()
 {
 
@@ -463,6 +468,8 @@ cleanup()
     bzero(new_key, sizeof(new_key));
     bzero(pw_str, sizeof(pw_str));
 }
+
+void
 Usage()
 {
     fprintf(stderr, "Usage: %s [-n]\n", progname);

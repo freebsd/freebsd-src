@@ -24,8 +24,8 @@ static char rcsid[] =
 #endif
 
 /* system include files */
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -50,7 +50,12 @@ static char rcsid[] =
  * The AUTH_MSG_APPL_ERR message format can be found in mk_err.c
  */
 
-int krb_rd_err(u_char *in, u_long in_length, long *code, MSG_DAT *m_data)
+int
+krb_rd_err(in,in_length,code,m_data)
+    u_char *in;                 /* pointer to the msg received */
+    u_long in_length;           /* of in msg */
+    long *code;                 /* received error code */
+    MSG_DAT *m_data;
 {
     register u_char *p;
     int swap_bytes = 0;

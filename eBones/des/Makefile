@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$Id: Makefile,v 1.1.1.1 1994/09/30 14:49:50 csgr Exp $
+#	$Id: Makefile,v 1.5 1995/07/18 16:34:59 mark Exp $
 
 LIB=	des
 SRCS=	cbc_cksm.c cbc_enc.c ecb_enc.c enc_read.c enc_writ.c pcbc_enc.c \

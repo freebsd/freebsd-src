@@ -44,12 +44,18 @@ static is_open;
  * The return value is undefined.
  */
 
+__BEGIN_DECLS
+char	*month_sname __P((int));
+__END_DECLS
+
+
 /*VARARGS1 */
-void log(char *format,int a1,int a2,int a3,int a4,int a5,int a6,int a7,
-    int a8,int a9,int a0)
+void log(format,a1,a2,a3,a4,a5,a6,a7,a8,a9,a0)
+    char *format;
+    int a1,a2,a3,a4,a5,a6,a7,a8,a9,a0;
 {
-    FILE *logfile;
-    long now;
+    FILE *logfile, *fopen();
+    long time(),now;
     struct tm *tm;
 
     if ((logfile = fopen(log_name,"a")) == NULL)
@@ -73,7 +79,9 @@ void log(char *format,int a1,int a2,int a3,int a4,int a5,int a6,int a7,
  * the logfile defaults to KRBLOG, defined in "krb.h".
  */
 
-void set_logfile(char *filename)
+void
+set_logfile(filename)
+    char *filename;
 {
     log_name = filename;
     is_open = 0;
@@ -86,7 +94,10 @@ void set_logfile(char *filename)
  * on success.
  */
 
-int new_log(long t, char *string)
+int
+new_log(t,string)
+    long t;
+    char *string;
 {
     static FILE *logfile;
 

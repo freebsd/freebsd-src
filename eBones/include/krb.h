@@ -6,7 +6,7 @@
  * Include file for the Kerberos library.
  *
  *	from: krb.h,v 4.26 89/08/08 17:55:25 jtkohl Exp $
- *	$Id: krb.h,v 1.3 1995/08/25 22:50:15 markm Exp $
+ *	$Id: krb.h,v 1.6 1995/08/25 21:25:10 mark Exp $
  */
 
 /* Only one time, please */
@@ -375,71 +375,128 @@ char *tkt_string();
 #define	KOPT_DO_OLDSTYLE 0x00000008 /* use the old-style protocol */
 #endif ATHENA_COMPAT
 
-void acl_canonicalize_principal(char *principal, char *buf);
-int acl_check(char *acl, char *principal);
-int acl_exact_match(char *acl, char *principal);
-int acl_add(char *acl, char *principal);
-int acl_delete(char *acl, char *principal);
-int acl_initialize(char *acl_file, int mode);
+/* libacl */
+void acl_canonicalize_principal __P((char *principal, char *buf));
+int acl_check __P((char *acl, char *principal));
+int acl_exact_match __P((char *acl, char *principal));
+int acl_add __P((char *acl, char *principal));
+int acl_delete __P((char *acl, char *principal));
+int acl_initialize __P((char *acl_file, int mode));
 
-int krb_mk_req(KTEXT authent, char *service, char *instance, char *realm,
+/* libkrb - krb.3 */
+int krb_mk_req __P((KTEXT authent, char *service, char *instance, char *realm,
     long checksum);
-int krb_rd_req (KTEXT authent, char *service, char *instance, long from_addr,
-    AUTH_DAT *ad, char *fn);
-int krb_kntoln(AUTH_DAT *ad, char *lname);
-int krb_set_key(char *key, int cvt);
-int krb_get_cred(char *service, char *instance, char *realm, CREDENTIALS *c);
-long krb_mk_priv(u_char *in, u_char *out, u_long in_length,
+int krb_rd_req __P((KTEXT authent, char *service, char *instance,
+    long from_addr, AUTH_DAT *ad, char *fn));
+int krb_kntoln __P((AUTH_DAT *ad, char *lname));
+int krb_set_key __P((char *key, int cvt));
+int krb_get_cred __P((char *service, char *instance, char *realm,
+    CREDENTIALS *c));
+long krb_mk_priv __P((u_char *in, u_char *out, u_long in_length,
     des_key_schedule schedule, des_cblock key, struct sockaddr_in *sender,
-    struct sockaddr_in *receiver);
-long krb_rd_priv(u_char *in, u_long in_length, Key_schedule schedule,
+    struct sockaddr_in *receiver));
+long krb_rd_priv __P((u_char *in, u_long in_length, Key_schedule schedule,
     des_cblock key, struct sockaddr_in *sender, struct sockaddr_in *receiver,
-    MSG_DAT *msg_data);
-long krb_mk_safe(u_char *in, u_char *out, u_long in_length, des_cblock key,
-    struct sockaddr_in *sender, struct sockaddr_in *receiver);
-long krb_rd_safe(u_char *in, u_long length, des_cblock key,
+    MSG_DAT *msg_data));
+long krb_mk_safe __P((u_char *in, u_char *out, u_long in_length,
+    des_cblock *key, struct sockaddr_in *sender, struct sockaddr_in *receiver));
+long krb_rd_safe __P((u_char *in, u_long length, des_cblock *key,
     struct sockaddr_in *sender, struct sockaddr_in *receiver,
-    MSG_DAT *msg_data);
-long krb_mk_err(u_char *out, long code, char *string);
-int krb_rd_err(u_char *in, u_long in_length, long *code, MSG_DAT *m_data);
+    MSG_DAT *msg_data));
+long krb_mk_err __P((u_char *out, long code, char *string));
+int krb_rd_err __P((u_char *in, u_long in_length, long *code, MSG_DAT *m_data));
 
-int krb_get_lrealm(char *r, int n);
-char *krb_get_phost(char *alias);
-int krb_get_krbhst(char *h, char *r, int n);
-int krb_get_admhst(char *h, char *r, int n);
-int krb_net_write(int fd, char *buf, int len);
-int krb_net_read(int fd, char *buf, int len);
-int krb_get_tf_realm(char *ticket_file, char *realm);
-int krb_get_in_tkt(char *user, char *instance, char *realm, char *service,
+/* libkrb - krb_sendauth.3 */
+int krb_sendauth __P((long options, int fd, KTEXT ticket, char *service,
+    char *inst, char *realm, u_long checksum, MSG_DAT *msg_data,
+    CREDENTIALS *cred, Key_schedule schedule, struct sockaddr_in *laddr,
+    struct sockaddr_in *faddr, char *version));
+int krb_recvauth __P((long options, int fd, KTEXT ticket, char *service,
+    char *instance, struct sockaddr_in *faddr, struct sockaddr_in *laddr,
+    AUTH_DAT *kdata, char *filename, Key_schedule schedule, char *version));
+int krb_net_write __P((int fd, char *buf, int len));
+int krb_net_read __P((int fd, char *buf, int len));
+
+/* libkrb - krb_realmofhost.3 */
+char *krb_realmofhost __P((char *host));
+char *krb_get_phost __P((char *alias));
+int krb_get_krbhst __P((char *h, char *r, int n));
+int krb_get_admhst __P((char *h, char *r, int n));
+int krb_get_lrealm __P((char *r, int n));
+
+/* libkrb - krb_set_tkt_string.3 */
+void krb_set_tkt_string(char *val);
+
+/* libkrb - kuserok.3 */
+int kuserok __P((AUTH_DAT *authdata, char *localuser));
+
+/* libkrb - tf_util.3 */
+int tf_init __P((char *tf_name, int rw));
+int tf_get_pname __P((char *p));
+int tf_get_pinst __P((char *inst));
+int tf_get_cred __P((CREDENTIALS *c));
+void tf_close __P((void));
+
+/* Internal routines */
+int des_read __P((int fd, char *buf, int len));
+int des_write __P((int fd, char *buf, int len));
+int krb_get_tf_realm __P((char *ticket_file, char *realm));
+int krb_get_in_tkt __P((char *user, char *instance, char *realm, char *service,
     char *sinstance, int life, int (*key_proc)(), int (*decrypt_proc)(),
-    char *arg);
-int krb_get_pw_in_tkt(char *user, char *instance, char *realm, char *service,
-    char *sinstance, int life, char *password);
-int krb_get_tf_fullname(char *ticket_file, char *name, char *instance,
-    char *realm);
-int save_credentials(char *service, char *instance, char *realm,
-    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date);
-int read_service_key(char *service, char *instance, char *realm, int kvno,
-    char *file, char *key);
-int get_ad_tkt(char *service, char *sinstance, char *realm, int lifetime);
-int send_to_kdc(KTEXT pkt, KTEXT rpkt, char *realm);
-int decomp_ticket(KTEXT tkt, unsigned char *flags, char *pname,
+    char *arg));
+int krb_get_pw_in_tkt __P((char *user, char *instance, char *realm,
+    char *service, char *sinstance, int life, char *password));
+int krb_get_svc_in_tkt __P((char *user, char *instance, char *realm,
+    char *service, char *sinstance, int life, char *srvtab));
+int krb_get_tf_fullname __P((char *ticket_file, char *name, char *instance,
+    char *realm));
+int save_credentials __P((char *service, char *instance, char *realm,
+    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date));
+int read_service_key __P((char *service, char *instance, char *realm, int kvno,
+    char *file, char *key));
+int get_ad_tkt __P((char *service, char *sinstance, char *realm, int lifetime));
+int send_to_kdc __P((KTEXT pkt, KTEXT rpkt, char *realm));
+int krb_create_ticket __P((KTEXT tkt, unsigned char flags, char *pname,
+    char *pinstance, char *prealm, long paddress, char *session, short life,
+    long time_sec, char *sname, char *sinstance, C_Block key));
+int decomp_ticket __P((KTEXT tkt, unsigned char *flags, char *pname,
     char *pinstance, char *prealm, unsigned long *paddress, des_cblock session,
     int *life, unsigned long *time_sec, char *sname, char *sinstance,
-    des_cblock key, des_key_schedule key_s);
-int kname_parse(char *np, char *ip, char *rp, char *fullname);
-int tf_init(char *tf_name, int rw);
-int tf_save_cred(char *service, char *instance, char *realm,
-    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date);
-int tf_get_pname(char *p);
-int tf_get_pinst(char *inst);
-int tf_get_cred(CREDENTIALS *c);
-void tf_close(void);
-int getst(int fd, char *s, int n);
-int pkt_clen(KTEXT pkt);
-int in_tkt(char *pname, char *pinst);
-char *month_sname(int n);
-void log(); /* Actually VARARGS - markm */
+    des_cblock key, des_key_schedule key_s));
+int create_ciph __P((KTEXT c, C_Block session, char *service, char *instance,
+    char *realm, unsigned long life, int kvno, KTEXT tkt,
+    unsigned long kdc_time, C_Block key));
+int kname_parse __P((char *np, char *ip, char *rp, char *fullname));
+int tf_save_cred __P((char *service, char *instance, char *realm,
+    des_cblock session, int lifetime, int kvno, KTEXT ticket, long issue_date));
+int getst(int fd, char *s, int n));
+int pkt_clen __P((KTEXT pkt));
+int in_tkt __P((char *pname, char *pinst));
+int dest_tkt __P((void));
+char *month_sname __P((int n));
+void log __P(()); /* Actually VARARGS - markm */
+void kset_logfile __P((char *filename));
+void set_logfile __P((char *filename));
+int k_isinst __P((char *s));
+int k_isrealm __P((char *s));
+int k_isname __P((char *s));
+int k_gethostname __P((char *name, int namelen));
+int kerb_init __P((void));
+void kerb_fini __P((void));
+int kerb_db_set_name __P((char *name));
+int kerb_db_set_lockmode __P((int mode));
+int kerb_db_create __P((char *db_name));
+int kerb_db_iterate __P((int (*func)(), char *arg));
+int kerb_db_rename __P((char *from, char *to));
+long kerb_get_db_age __P((void));
+char * stime __P((long *t));
+
+long kdb_get_master_key __P((int prompt, C_Block master_key,
+    Key_schedule master_key_sched));
+long kdb_verify_master_key __P((C_Block master_key,
+    Key_schedule master_key_sched, FILE *out));
+void kdb_encrypt_key  __P((C_Block in, C_Block out, C_Block master_key,
+    Key_schedule master_key_sched, int e_d_flag));
 
 extern int krb_ap_req_debug;
 extern int krb_debug;

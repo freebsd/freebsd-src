@@ -7,20 +7,23 @@
  * Kerberos administration server-side database manipulation routines
  */
 
-#ifndef	lint
 #if 0
+#ifndef	lint
 static char rcsid_kadm_funcs_c[] =
 "Id: kadm_funcs.c,v 4.3 90/03/20 01:39:51 jon Exp ";
-#endif
 static const char rcsid[] =
 	"$Id: kadm_funcs.c,v 1.1 1995/07/18 16:37:02 mark Exp $";
 #endif	lint
+#endif
 
 /*
 kadm_funcs.c
 the actual database manipulation code
 */
 
+#include <stdio.h>
+#include <string.h>
+#include <com_err.h>
 #include <sys/param.h>
 #include <kadm.h>
 #include <kadm_err.h>
@@ -29,6 +32,7 @@ the actual database manipulation code
 
 extern Kadm_Server server_parm;
 
+int
 check_access(pname, pinst, prealm, acltype)
 char *pname;
 char *pinst;
@@ -39,17 +43,17 @@ enum acl_types acltype;
     char filename[MAXPATHLEN];
     extern char *acldir;
 
-    (void) sprintf(checkname, "%s.%s@%s", pname, pinst, prealm);
+    sprintf(checkname, "%s.%s@%s", pname, pinst, prealm);
 
     switch (acltype) {
     case ADDACL:
-	(void) sprintf(filename, "%s%s", acldir, ADD_ACL_FILE);
+	sprintf(filename, "%s%s", acldir, ADD_ACL_FILE);
 	break;
     case GETACL:
-	(void) sprintf(filename, "%s%s", acldir, GET_ACL_FILE);
+	sprintf(filename, "%s%s", acldir, GET_ACL_FILE);
 	break;
     case MODACL:
-	(void) sprintf(filename, "%s%s", acldir, MOD_ACL_FILE);
+	sprintf(filename, "%s%s", acldir, MOD_ACL_FILE);
 	break;
     }
     return(acl_check(filename, checkname));
@@ -66,6 +70,7 @@ char *str;
 
 #define failadd(code) {  (void) log("FAILED addding '%s.%s' (%s)", valsin->name, valsin->instance, error_message(code)); return code; }
 
+int
 kadm_add_entry (rname, rinstance, rrealm, valsin, valsout)
 char *rname;				/* requestors name */
 char *rinstance;			/* requestors instance */
@@ -171,6 +176,7 @@ Kadm_vals *valsout;
 
 #define failget(code) {  (void) log("FAILED retrieving '%s.%s' (%s)", valsin->name, valsin->instance, error_message(code)); return code; }
 
+int
 kadm_get_entry (rname, rinstance, rrealm, valsin, flags, valsout)
 char *rname;				/* requestors name */
 char *rinstance;			/* requestors instance */
@@ -214,6 +220,7 @@ Kadm_vals *valsout;			/* what data is there */
 
 #define failmod(code) {  (void) log("FAILED modifying '%s.%s' (%s)", valsin1->name, valsin1->instance, error_message(code)); return code; }
 
+int
 kadm_mod_entry (rname, rinstance, rrealm, valsin1, valsin2, valsout)
 char *rname;				/* requestors name */
 char *rinstance;			/* requestors instance */
@@ -313,6 +320,7 @@ Kadm_vals *valsout;		/* the actual record which is returned */
 
 #define failchange(code) {  (void) log("FAILED changing key for '%s.%s@%s' (%s)", rname, rinstance, rrealm, error_message(code)); return code; }
 
+int
 kadm_change (rname, rinstance, rrealm, newpw)
 char *rname;
 char *rinstance;

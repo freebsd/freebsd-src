@@ -56,9 +56,19 @@ static char *rcsid =
  *
  */
 
-int create_ciph(KTEXT c, des_cblock session, char *service, char *instance,
-    char *realm, unsigned long life, int kvno, KTEXT tkt,
-    unsigned long kdc_time, des_cblock key)
+int
+create_ciph(c, session, service, instance, realm, life, kvno, tkt,
+	    kdc_time, key)
+    KTEXT           c;		/* Text block to hold ciphertext */
+    C_Block         session;	/* Session key to send to user */
+    char            *service;	/* Service name on ticket */
+    char            *instance;	/* Instance name on ticket */
+    char            *realm;	/* Realm of this KDC */
+    unsigned long   life;	/* Lifetime of the ticket */
+    int             kvno;	/* Key version number for service */
+    KTEXT           tkt;	/* The ticket for the service */
+    unsigned long   kdc_time;	/* KDC time */
+    C_Block         key;	/* Key to encrypt ciphertext with */
 {
     char            *ptr;
     Key_schedule    key_s;
@@ -93,9 +103,9 @@ int create_ciph(KTEXT c, des_cblock session, char *service, char *instance,
     c->length = (((ptr - (char *) c->dat) + 7) / 8) * 8;
 
 #ifndef NOENCRYPTION
-    key_sched((des_cblock *)key,key_s);
-    pcbc_encrypt((des_cblock *)c->dat,(des_cblock *)c->dat,(long) c->length,
-    key_s,(des_cblock *)key,ENCRYPT);
+    key_sched((C_Block *)key,key_s);
+    pcbc_encrypt((C_Block *)c->dat,(C_Block *)c->dat,(long) c->length,key_s,
+	(C_Block *)key,ENCRYPT);
 #endif /* NOENCRYPTION */
 
     return(KSUCCESS);

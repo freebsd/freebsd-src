@@ -18,11 +18,15 @@
  *	$Id: kinit.c,v 1.4 1995/08/03 17:16:00 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kinit.c,v 1.4 1995/08/03 17:16:00 mark Exp $";
 #endif	lint
+#endif
 
+#include <unistd.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <pwd.h>
 #include <krb.h>
@@ -49,6 +53,8 @@ static char rcsid[] =
 
 char   *progname;
 
+void usage(void);
+
 void
 get_input(s, size, stream)
 char *s;
@@ -63,7 +69,9 @@ FILE *stream;
 		*p = '\0';
 }
 
+int
 main(argc, argv)
+    int argc;
     char   *argv[];
 {
     char    aname[ANAME_SZ];
@@ -205,8 +213,10 @@ main(argc, argv)
 	fprintf(stderr, "%s: %s\n", progname, krb_err_txt[k_errno]);
 	exit(1);
     }
+    return 0;
 }
 
+void
 usage()
 {
     fprintf(stderr, "Usage: %s [-irvl] [name]\n", progname);

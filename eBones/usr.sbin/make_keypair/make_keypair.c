@@ -31,30 +31,34 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
 static char sccsid[] = "@(#)make_keypair.c	8.1 (Berkeley) 6/1/93";
 #endif /* not lint */
+#endif
 
 #include <sys/types.h>
 #include <sys/file.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <string.h>
 #include <stdio.h>
 #include <netdb.h>
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #include "pathnames.h"
 #include "register_proto.h"
 
-void make_key(), usage();
+void usage(char *name);
+void make_key(struct in_addr addr);
 
 char * progname;
 
+void
 main(argc, argv)
 	int	argc;
 	char	**argv;
@@ -76,7 +80,7 @@ main(argc, argv)
 		exit(1);
 	}
 
-	for (i = 0; addr = hp->h_addr_list[i]; i++) {
+	for (i = 0; (addr = hp->h_addr_list[i]); i++) {
 		addr = hp->h_addr_list[i];
 		bcopy(addr, &sin.sin_addr, hp->h_length);
 

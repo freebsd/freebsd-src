@@ -7,14 +7,14 @@
  * Top-level loop of the kerberos Administration server
  */
 
-#ifndef	lint
 #if 0
+#ifndef	lint
 static char rcsid_admin_server_c[] =
 "Id: admin_server.c,v 4.8 90/01/02 13:50:38 jtkohl Exp ";
-#endif
 static const char rcsid[] =
 	"$Id";
 #endif	lint
+#endif
 
 /*
   admin_server.c
@@ -22,6 +22,8 @@ static const char rcsid[] =
 */
 
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <signal.h>
 #ifndef sigmask
@@ -31,6 +33,7 @@ static const char rcsid[] =
 #include <errno.h>
 #include <sys/socket.h>
 #include <syslog.h>
+#include <com_err.h>
 #include <kadm.h>
 #include <kadm_err.h>
 #include <krb_db.h>
@@ -45,10 +48,19 @@ char *acldir = DEFAULT_ACL_DIR;
 char krbrlm[REALM_SZ];
 extern Kadm_Server server_parm;
 
+void cleanexit(int val);
+void process_client(int fd, struct sockaddr_in *who);
+void kill_children(void);
+static void clear_secrets(void);
+void byebye(void);
+void close_syslog(void);
+int kadm_listen(void);
+
 /*
 ** Main does the logical thing, it sets up the database and RPC interface,
 **  as well as handling the creation and maintenance of the syslog file...
 */
+void
 main(argc, argv)		/* admin_server main routine */
 int argc;
 char *argv[];
@@ -79,7 +91,7 @@ char *argv[];
 	    break;
 	case 'd':
 	    /* put code to deal with alt database place */
-	    if (errval = kerb_db_set_name(optarg)) {
+	    if ((errval = kerb_db_set_name(optarg))) {
 		fprintf(stderr, "opening database %s: %s",
 			optarg, error_message(errval));
 		exit(1);
@@ -134,23 +146,25 @@ char *argv[];
 
 
 /* close the system log file */
+void
 close_syslog()
 {
    log("Shutting down admin server");
 }
 
+void
 byebye()			/* say goodnight gracie */
 {
    printf("Admin Server (kadm server) has completed operation.\n");
 }
 
-static clear_secrets()
+static void
+clear_secrets()
 {
     bzero((char *)server_parm.master_key, sizeof(server_parm.master_key));
     bzero((char *)server_parm.master_key_schedule,
 	  sizeof(server_parm.master_key_schedule));
     server_parm.master_key_version = 0L;
-    return;
 }
 
 static exit_now = 0;
@@ -173,6 +187,7 @@ int *pidarray = (int *)0;
 kadm_listen
 listen on the admin servers port for a request
 */
+int
 kadm_listen()
 {
     extern int errno;
@@ -182,7 +197,6 @@ kadm_listen()
     fd_set mask, readfds;
     struct sockaddr_in peer;
     int addrlen;
-    void process_client(), kill_children();
     int pid;
     sigtype do_child();
 
@@ -238,7 +252,7 @@ kadm_listen()
 #endif /* DEBUG */
 #ifndef DEBUG
 	    /* if you want a sep daemon for each server */
-	    if (pid = fork()) {
+	    if ((pid = fork())) {
 		/* parent */
 		if (pid < 0) {
 		    log("fork: %s",error_message(errno));
@@ -269,6 +283,7 @@ kadm_listen()
 	}
     }
     /*NOTREACHED*/
+    return(0); /* Shut -Wall up - markm */
 }
 
 #ifdef DEBUG
@@ -432,7 +447,9 @@ do_child()
 }
 
 #ifndef DEBUG
+void
 cleanexit(val)
+    int val;
 {
     kerb_fini();
     clear_secrets();

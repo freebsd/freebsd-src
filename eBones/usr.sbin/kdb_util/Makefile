@@ -3,11 +3,11 @@
 
 PROG=	kdb_util
 CFLAGS+=-DKERBEROS -DDEBUG -I${.CURDIR}/../kdb_edit \
-	-I${.CURDIR}/../include
+	-I${.CURDIR}/../include -Wall
 SRCS=	kdb_util.c maketime.c
 .PATH:	${.CURDIR}/../kdb_edit
-DPADD=	${LIBKDB} ${LIBKRB} ${LIBDES}
-LDADD=	-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -L${DESOBJDIR} -ldes
-NOMAN=	noman
+DPADD=	${LIBKDB} ${LIBKRB}
+LDADD=	-L${KDBOBJDIR} -lkdb -L${KRBOBJDIR} -lkrb -ldes
+MAN8=	kdb_util.8
 
 .include <bsd.prog.mk>

@@ -10,10 +10,12 @@
  *	$Id: kdb_init.c,v 1.4 1995/07/18 16:37:35 mark Exp $
  */
 
+#if 0
 #ifndef	lint
 static char rcsid[] =
 "$Id: kdb_init.c,v 1.4 1995/07/18 16:37:35 mark Exp $";
 #endif	lint
+#endif
 
 #include <stdio.h>
 #include <sys/types.h>
@@ -32,12 +34,16 @@ enum ap_op {
     RANDOM_KEY,			/* choose a random key */
 };
 
+int add_principal(char *name, char *instance, enum ap_op aap_op);
+
 int     debug = 0;
-char   *progname, *rindex();
+char   *progname;
 C_Block master_key;
 Key_schedule master_key_schedule;
 
+int
 main(argc, argv)
+    int argc;
     char   *argv[];
 {
     char    realm[REALM_SZ];
@@ -73,7 +79,7 @@ main(argc, argv)
 	    fprintf(stderr, "\nEOF reading realm\n");
 	    exit(1);
 	}
-	if (cp = index(realm, '\n'))
+	if ((cp = index(realm, '\n')))
 	    *cp = '\0';
 	if (!*realm)			/* no realm given */
 	    strcpy(realm, KRB_REALM);
@@ -112,14 +118,13 @@ main(argc, argv)
 /* use a return code to indicate success or failure.  check the return */
 /* values of the routines called by this routine. */
 
+int
 add_principal(name, instance, aap_op)
     char   *name, *instance;
     enum ap_op aap_op;
 {
     Principal principal;
-    char    datestring[50];
-    char    pw_str[255];
-    struct tm *tm, *localtime();
+    struct tm *tm;
     C_Block new_key;
 
     bzero(&principal, sizeof(principal));

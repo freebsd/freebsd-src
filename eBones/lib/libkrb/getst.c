@@ -26,7 +26,11 @@ static char rcsid[] =
  * the null terminator.
  */
 
-int getst(int fd, char *s, int n)
+int
+getst(fd, s, n)
+    int fd;
+    register char *s;
+    int n;
 {
     register count = n;
     while (read(fd, s, 1) > 0 && --count)

@@ -26,8 +26,8 @@ static char rcsid[]=
 #endif
 
 /* system include files */
-#include <stdio.h>
 #include <string.h>
+#include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <netinet/in.h>
@@ -38,6 +38,8 @@ static char rcsid[]=
 #include <krb.h>
 #include <prot.h>
 #include "lsb_addr_comp.h"
+
+extern int krb_debug;
 
 /* static storage */
 
@@ -68,9 +70,15 @@ int private_msg_ver = KRB_PROT_VERSION;
  * information, MSG_DAT, is defined in "krb.h".
  */
 
-long krb_rd_priv(u_char *in, u_long in_length, des_key_schedule schedule,
-    des_cblock key, struct sockaddr_in *sender, struct sockaddr_in *receiver,
-    MSG_DAT *m_data)
+long
+krb_rd_priv(in,in_length,schedule,key,sender,receiver,m_data)
+    u_char *in;			/* pointer to the msg received */
+    u_long in_length;		/* length of "in" msg */
+    Key_schedule schedule;	/* precomputed key schedule */
+    C_Block key;		/* encryption key for seed and ivec */
+    struct sockaddr_in *sender;
+    struct sockaddr_in *receiver;
+    MSG_DAT *m_data;		/*various input/output data from msg */
 {
     register u_char *p,*q;
     static u_long src_addr;	/* Can't send structs since no
@@ -103,8 +111,8 @@ long krb_rd_priv(u_char *in, u_long in_length, des_key_schedule schedule,
     q = p;			/* mark start of encrypted stuff */
 
 #ifndef NOENCRYPTION
-    pcbc_encrypt((des_cblock *)q,(des_cblock *)q,(long)c_length,schedule,
-    (des_cblock *)key,DECRYPT);
+    pcbc_encrypt((C_Block *)q,(C_Block *)q,(long)c_length,schedule,
+	(C_Block *)key,DECRYPT);
 #endif
 
     /* safely get application data length */

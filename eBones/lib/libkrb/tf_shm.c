@@ -28,6 +28,9 @@ static char rcsid[] =
 
 #define MAX_BUFF sizeof(des_cblock)*1000 /* room for 1k keys */
 
+extern int errno;
+extern int krb_debug;
+
 /*
  * krb_create_shmtkt:
  *
@@ -35,7 +38,9 @@ static char rcsid[] =
  * in the specified filename.
  */
 
-int krb_shm_create(char *file_name)
+int
+krb_shm_create(file_name)
+char *file_name;
 {
     int retval;
     int shmid;
@@ -133,7 +138,8 @@ int krb_is_diskless()
  * file pointing to it.
  */
 
-int krb_shm_dest(char *file)
+int krb_shm_dest(file)
+char *file;
 {
     int shmid;
     FILE *sfile;
@@ -165,3 +171,6 @@ int krb_shm_dest(char *file)
     } else
 	return(RET_TKFIL);		/* XXX */
 }
+
+
+
