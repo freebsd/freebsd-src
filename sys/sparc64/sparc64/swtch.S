@@ -113,7 +113,8 @@ ENTRY(cpu_switch)
 	rd	%fprs, %l3
 	stx	%l3, [%l2 + PCB_FPSTATE + FP_FPRS]
 	ldx	[%l1 + TF_TSTATE], %l1
-	andcc	%l1, TSTATE_PEF, %l1
+	srlx	%l1, TSTATE_PSTATE_SHIFT,  %l1
+	andcc	%l1, PSTATE_PEF, %l1
 	be,pt	%xcc, 1f
 	 nop
 	savefp	%l2 + PCB_FPSTATE, %l4, %l3
@@ -124,8 +125,6 @@ ENTRY(cpu_switch)
 	 */
 1:	flushw
 	wrpr	%g0, 0, %cleanwin
-	rdpr	%cwp, %l3
-	stx	%l3, [%l2 + PCB_CWP]
 	stx	%fp, [%l2 + PCB_FP]
 	stx	%i7, [%l2 + PCB_PC]
 
@@ -135,7 +134,7 @@ ENTRY(cpu_switch)
 	 */
 .Lsw1:	ldx	[%o0 + TD_PCB], %o1
 #if KTR_COMPILE & KTR_PROC
-	CATR(KTR_PROC, "cpu_switch: to=%p pc=%#lx fp=%#lx sp=%#lx cwp=%#lx"
+	CATR(KTR_PROC, "cpu_switch: to=%p pc=%#lx fp=%#lx sp=%#lx"
 	    , %g1, %g2, %g3, 7, 8, 9)
 	stx	%o0, [%g1 + KTR_PARM1]
 	ldx	[%o1 + PCB_PC], %g2
@@ -144,17 +143,7 @@ ENTRY(cpu_switch)
 	stx	%g2, [%g1 + KTR_PARM3]
 	sub	%g2, CCFSZ, %g2
 	stx	%g2, [%g1 + KTR_PARM4]
-	ldx	[%o1 + PCB_CWP], %g2
-	stx	%g2, [%g1 + KTR_PARM5]
 9:
-#endif
-#if 1
-	mov	%o0, %g4
-	mov	%l0, %g5
-	ldx	[%o1 + PCB_CWP], %o2
-	wrpr	%o2, %cwp
-	mov	%g4, %o0
-	mov	%g5, %l0
 #endif
 	ldx	[%o0 + TD_PCB], %o1
 	ldx	[%o1 + PCB_FP], %fp
@@ -187,7 +176,8 @@ ENTRY(cpu_switch)
 	 */
 	 ldx	[%o0 + TD_FRAME], %o4
 	ldx	[%o4 + TF_TSTATE], %o4
-	andcc	%o4, TSTATE_PEF, %o4
+	srlx	%o4, TSTATE_PSTATE_SHIFT,  %o4
+	andcc	%o4, PSTATE_PEF, %o4
 	be,pt	%xcc, 2f
 	 nop
 	restrfp	%o1 + PCB_FPSTATE, %o4
@@ -274,7 +264,8 @@ ENTRY(savectx)
 	ldx	[PCPU(CURTHREAD)], %l0
 	ldx	[%l0 + TD_FRAME], %l0
 	ldx	[%l0 + TF_TSTATE], %l0
-	andcc	%l0, TSTATE_PEF, %l0
+	srlx	%l0, TSTATE_PSTATE_SHIFT,  %l0
+	andcc	%l0, PSTATE_PEF, %l0
 	be,pt	%xcc, 1f
 	 stx	%fp, [%i0 + PCB_FP]
 	add	%i0, PCB_FPSTATE, %o0
