@@ -1,3 +1,38 @@
+2003-01-16  Derek Price  <derek@ximbiot.com>
+
+	* stamp-1: Regenerated for version (1.11.5).
+	* stamp-vti: Ditto.
+	* version-client.texi: Ditto.
+	* version.texi: Ditto.
+
+2003-01-16  Derek Price  <derek@ximbiot.com>
+
+	* stamp-1: Regenerated for dev version (1.11.4.1).
+	* stamp-vti: Ditto.
+	* version-client.texi: Ditto.
+	* version.texi: Ditto.
+
+2002-12-28  Derek Price  <derek@ximbiot.com>
+
+	* stamp-1: Regenerated for version 1.11.4.
+	* stamp-vti: Ditto.
+	* version-client.texi: Ditto.
+	* version.texi: Ditto.
+
+2002-12-27  Derek Price  <derek@ximbiot.com>
+
+	* stamp-1: Regenerated for dev version 1.11.3.1.
+	* stamp-vti: Ditto.
+	* version-client.texi: Ditto.
+	* version.texi: Ditto.
+
+2002-12-27  Derek Price  <derek@ximbiot.com>
+
+	* stamp-1: Regenerated.
+	* stamp-vti: Ditto.
+	* version-client.texi: Ditto.
+	* version.texi: Ditto.
+
 2002-11-18  Derek Price  <derek@ximbiot.com>
 
 	* cvs.texinfo (commitinfo): Explain the environment of commands

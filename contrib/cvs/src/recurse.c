@@ -512,7 +512,7 @@ do_recursion (frame)
     if (frame->flags == R_SKIP_ALL)
 	return (0);
 
-    locktype = noexec ? LOCK_NONE : frame->locktype;
+    locktype = noexec ? CVS_LOCK_NONE : frame->locktype;
 
     /* The fact that locks are not active here is what makes us fail to have
        the
@@ -552,7 +552,7 @@ do_recursion (frame)
      * generating data, to give the buffers a chance to drain to the
      * remote client.  We should not have locks active at this point,
      * but if there are writelocks around, we cannot pause here.  */
-    if (server_active && locktype != LOCK_NONE)
+    if (server_active && locktype != CVS_LOCK_NONE)
 	server_pause_check();
 #endif
 
@@ -707,12 +707,12 @@ do_recursion (frame)
 	/* read lock it if necessary */
 	if (repository)
 	{
-	    if (locktype == LOCK_READ)
+	    if (locktype == CVS_LOCK_READ)
 	    {
 		if (Reader_Lock (repository) != 0)
 		    error (1, 0, "read lock failed - giving up");
 	    }
-	    else if (locktype == LOCK_WRITE)
+	    else if (locktype == CVS_LOCK_WRITE)
 		lock_dir_for_write (repository);
 	}
 
@@ -737,7 +737,7 @@ do_recursion (frame)
 	err += walklist (filelist, do_file_proc, &frfile);
 
 	/* unlock it */
-	if (locktype != LOCK_NONE)
+	if (locktype != CVS_LOCK_NONE)
 	    Lock_Cleanup ();
 
 	/* clean up */

@@ -1,3 +1,7 @@
+2002-12-27  Derek Price  <derek@ximbiot.com>
+
+	* getdate.c: Regenerated with Bison 1.35.
+
 2002-11-04  Derek Price  <derek@ximbiot.com>
 
 	* getdate.y (Convert): Add comment as to the effectiveness of

@@ -108,7 +108,7 @@ allocate_buffer_datas ()
 #define ALLOC_COUNT (16)
 
     alc = ((struct buffer_data *)
-	   malloc (ALLOC_COUNT * sizeof (struct buffer_data)));
+	   xmalloc (ALLOC_COUNT * sizeof (struct buffer_data)));
     space = (char *) valloc (ALLOC_COUNT * BUFFER_DATA_SIZE);
     if (alc == NULL || space == NULL)
 	return;
@@ -156,7 +156,7 @@ buf_empty_p (buf)
 #ifdef SERVER_FLOWCONTROL
 /*
  * Count how much data is stored in the buffer..
- * Note that each buffer is a malloc'ed chunk BUFFER_DATA_SIZE.
+ * Note that each buffer is a xmalloc'ed chunk BUFFER_DATA_SIZE.
  */
 
 int
@@ -796,7 +796,7 @@ buf_read_line (buf, line, lenp)
 	    char *p;
 	    struct buffer_data *nldata;
 
-	    p = malloc (len + 1);
+	    p = xmalloc (len + 1);
 	    if (p == NULL)
 		return -2;
 	    *line = p;
@@ -1235,7 +1235,7 @@ stdio_buffer_initialize (fp, child_pid, input, memory)
      int input;
      void (*memory) PROTO((struct buffer *));
 {
-    struct stdio_buffer_closure *bc = malloc (sizeof (*bc));
+    struct stdio_buffer_closure *bc = xmalloc (sizeof (*bc));
 
     bc->fp = fp;
     bc->child_pid = child_pid;
@@ -1679,7 +1679,7 @@ packetizing_buffer_input (closure, data, need, size, got)
 	    /* We didn't allocate enough space in the initialize
                function.  */
 
-	    n = realloc (pb->holdbuf, count + 2);
+	    n = xrealloc (pb->holdbuf, count + 2);
 	    if (n == NULL)
 	    {
 		(*pb->buf->memory_error) (pb->buf);
@@ -1741,7 +1741,7 @@ packetizing_buffer_input (closure, data, need, size, got)
 	    outbuf = stackoutbuf;
 	else
 	{
-	    outbuf = malloc (count);
+	    outbuf = xmalloc (count);
 	    if (outbuf == NULL)
 	    {
 		(*pb->buf->memory_error) (pb->buf);
@@ -1813,7 +1813,7 @@ packetizing_buffer_output (closure, data, have, wrote)
 
     if (have > BUFFER_DATA_SIZE)
     {
-	/* It would be easy to malloc a buffer, but I don't think this
+	/* It would be easy to xmalloc a buffer, but I don't think this
            case can ever arise.  */
 	abort ();
     }

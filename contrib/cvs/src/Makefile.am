@@ -89,7 +89,6 @@ cvs_SOURCES = \
 	hardlink.h \
 	hash.h \
 	myndbm.h \
-	options.h \
 	rcs.h \
 	root.h \
 	server.h \

@@ -382,7 +382,7 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     err = start_recursion (check_fileproc, check_filesdoneproc,
                            (DIRENTPROC) NULL, (DIRLEAVEPROC) NULL, NULL,
 			   argc - 1, argv + 1, local_specified, which, 0,
-			   LOCK_READ, where, 1);
+			   CVS_LOCK_READ, where, 1);
     
     if (err)
     {
@@ -397,7 +397,7 @@ rtag_proc (argc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     err = start_recursion (is_rtag ? rtag_fileproc : tag_fileproc,
 			   (FILESDONEPROC) NULL, tag_dirproc,
 			   (DIRLEAVEPROC) NULL, NULL, argc - 1, argv + 1,
-			   local_specified, which, 0, LOCK_WRITE, where, 1);
+			   local_specified, which, 0, CVS_LOCK_WRITE, where, 1);
     dellist (&mtlist);
     if (where != NULL)
 	free (where);
@@ -1285,7 +1285,7 @@ Numeric tag %s contains characters other than digits and '.'", name);
 			   val_direntproc, (DIRLEAVEPROC) NULL,
 			   (void *)&the_val_args,
 			   argc, argv, local, which, aflag,
-			   LOCK_READ, NULL, 1);
+			   CVS_LOCK_READ, NULL, 1);
     if (repository != NULL && repository[0] != '\0')
     {
 	if (restore_cwd (&cwd, NULL))
