@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.21 1999/05/04 21:18:20 dfr Exp $
+ *	$Id: intr_machdep.c,v 1.22 1999/05/22 09:39:31 peter Exp $
  */
 /*
  * This file contains an aggregated module marked:
@@ -313,7 +313,7 @@ update_intr_masks(void)
 		maskptr = intr_mptr[intr];
 		if (!maskptr)
 			continue;
-		*maskptr |= 1 << intr;
+		*maskptr |= SWI_CLOCK_MASK | (1 << intr);
 		mask = *maskptr;
 		if (mask != intr_mask[intr]) {
 #if 0
@@ -400,7 +400,7 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	disable_intr();
 	intr_handler[intr] = handler;
 	intr_mptr[intr] = maskptr;
-	intr_mask[intr] = mask | (1 << intr);
+	intr_mask[intr] = mask | SWI_CLOCK_MASK | (1 << intr);
 	intr_unit[intr] = arg;
 #ifdef FAST_HI
 	if (flags & INTR_FAST) {
@@ -506,7 +506,7 @@ icu_unset(intr, handler)
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: intr_machdep.c,v 1.21 1999/05/04 21:18:20 dfr Exp $
+ * $Id: intr_machdep.c,v 1.22 1999/05/22 09:39:31 peter Exp $
  *
  */
 
@@ -531,22 +531,23 @@ typedef struct isarec {
 static isarec *isareclist[ICU_LEN];
 
 /*
- * The interrupt multiplexer calls each of the handlers in turn,
- * and applies the associated interrupt mask to "cpl", which is
- * defined as a ".long" in /sys/i386/isa/ipl.s
+ * The interrupt multiplexer calls each of the handlers in turn.  The
+ * ipl is initially quite low.  It is raised as necessary for each call
+ * and lowered after the call.  Thus out of order handling is possible
+ * even for interrupts of the same type.  This is probably no more
+ * harmful than out of order handling in general (not harmful except
+ * for real time response which we don't support anyway).
  */
-
 static void
 intr_mux(void *arg)
 {
-	intrec *p = arg;
-	int oldspl;
+	intrec *p;
+	intrmask_t oldspl;
 
-	while (p != NULL) {
+	for (p = arg; p != NULL; p = p->next) {
 		oldspl = splq(p->mask);
 		p->handler(p->argument);
 		splx(oldspl);
-		p = p->next;
 	}
 }
 
