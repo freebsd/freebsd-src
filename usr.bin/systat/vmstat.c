@@ -679,7 +679,7 @@ putint(n, l, lc, w)
 	}
 	snprintf(b, sizeof(b), "%*d", w, n);
 	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*dK", w - 1, n / 1000);
+		snprintf(b, sizeof(b), "%*dk", w - 1, n / 1000);
 	if ((int)strlen(b) > w)
 		snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
 	addstr(b);
