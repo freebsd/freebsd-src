@@ -66,7 +66,7 @@ sanity_check(struct sigframe *sf)
 static void
 generichandler(struct sigframe sf)
 {
-    if (sf.sf_uc.uc_mcontext.mc_tf.tf_eflags & PSL_VM) {
+    if (sf.sf_uc.uc_mcontext.mc_eflags & PSL_VM) {
 	saved_sigframe = &sf;
 	saved_regcontext = (regcontext_t *)&(sf.sf_uc.uc_mcontext);
 	saved_valid = 1;
