@@ -107,7 +107,7 @@ echo ''
 #
 case "${DONT_CHECK_PAGER}" in
 '')
-  if [ -n "${PAGER}" -a ! -x "${PAGER}" ]; then
+  if [ -n "${PAGER}" -a ! -x "${PAGER%% *}" ]; then
     echo " *** Your PAGER environment variable specifies '${PAGER}', but"
     echo "     I cannot execute it. In general it is good practice to"
     echo "     specify the full path for environment variables like"
