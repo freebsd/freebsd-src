@@ -74,17 +74,15 @@
 #define	FRAME_T12		24
 #define	FRAME_AT		25
 #define	FRAME_SP		26
+#define FRAME_FLAGS		27
+#define FRAME_FLAGS_SYSCALL		1 /* partial frame for syscalls */
 /* The following are set only when a signal is to be delivered to a process. */
-#define FRAME_TRAPARG_A0	27
-#define FRAME_TRAPARG_A1	28
-#define FRAME_TRAPARG_A2	29
-/* this is a flag area to see whether we need to restore all registers */
-#define	FRAME_FLAGS		30
+#define FRAME_TRAPARG_A0	28
+#define FRAME_TRAPARG_A1	29
+#define FRAME_TRAPARG_A2	30
 
-#define	FRAME_SW_SIZE	(FRAME_FLAGS + 1)
+#define	FRAME_SW_SIZE	(FRAME_TRAPARG_A2 + 1)
 #define	FRAME_HW_OFFSET	FRAME_SW_SIZE
-
-#define	FRAME_FLAGS_SYSCALL	0x1
 
 #define	FRAME_PS	(FRAME_HW_OFFSET + ALPHA_HWFRAME_PS)
 #define	FRAME_PC	(FRAME_HW_OFFSET + ALPHA_HWFRAME_PC)
