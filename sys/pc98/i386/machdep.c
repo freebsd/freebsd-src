@@ -240,7 +240,7 @@ SYSCTL_PROC(_machdep, OID_AUTO, msgbuf_clear, CTLTYPE_INT|CTLFLAG_RW,
 	&msgbuf_clear, 0, sysctl_machdep_msgbuf_clear, "I",
 	"Clear kernel message buffer");
 
-int bootverbose = 0, Maxmem = 0;
+int Maxmem = 0;
 #ifdef PC98
 int Maxmem_under16M = 0;
 #endif
@@ -274,13 +274,10 @@ cpu_startup(dummy)
 	vm_offset_t minaddr;
 	int physmem_est;
 
-	if (boothowto & RB_VERBOSE)
-		bootverbose++;
-
 	/*
 	 * Good {morning,afternoon,evening,night}.
 	 */
-	printf("%s", version);
+	mtx_lock(&vm_mtx);
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
@@ -414,9 +411,10 @@ again:
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*(ARG_MAX+(PAGE_SIZE*3))));
 
+	mtx_unlock(&vm_mtx);
 	/*
 	 * XXX: Mbuf system machine-specific initializations should
-	 *      go here, if anywhere. 
+	 *      go here, if anywhere.
 	 */
 
 	/*
@@ -1123,12 +1121,12 @@ setregs(p, entry, stack, ps_strings)
 	npxinit(__INITIAL_NPXCW__);
 #endif
 
-      /*
-       * XXX - Linux emulator
-       * Make sure sure edx is 0x0 on entry. Linux binaries depend
-       * on it.
-       */
-      p->p_retval[1] = 0;
+	/*
+	 * XXX - Linux emulator
+	 * Make sure sure edx is 0x0 on entry. Linux binaries depend
+	 * on it.
+	 */
+	p->p_retval[1] = 0;
 }
 
 void
@@ -2388,9 +2386,11 @@ f00f_hack(void *unused) {
 	r_idt.rd_base = (int)new_idt;
 	lidt(&r_idt);
 	idt = new_idt;
+	mtx_lock(&vm_mtx);
 	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
 			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
 		panic("vm_map_protect failed");
+	mtx_unlock(&vm_mtx);
 	return;
 }
 #endif /* defined(I586_CPU) && !NO_F00F_HACK */
