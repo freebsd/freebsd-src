@@ -1165,19 +1165,6 @@ em_media_change(struct ifnet *ifp)
 	return(0);
 }
 
-static void
-em_tx_cb(void *arg, bus_dma_segment_t *seg, int nsegs, bus_size_t mapsize, int error)
-{
-        struct em_q *q = arg;
-
-        if (error)
-                return;
-        KASSERT(nsegs <= EM_MAX_SCATTER,
-                ("Too many DMA segments returned when mapping tx packet"));
-        q->nsegs = nsegs;
-        bcopy(seg, q->segs, nsegs * sizeof(seg[0]));
-}
-
 /*********************************************************************
  *
  *  This routine maps the mbufs to tx descriptors.
@@ -1204,7 +1191,9 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 #else
         struct m_tag    *mtag;
 #endif   
-        struct em_q      q;
+	bus_dma_segment_t	segs[EM_MAX_SCATTER];
+	bus_dmamap_t		map;
+	int			nsegs;
         struct em_buffer   *tx_buffer = NULL;
         struct em_tx_desc *current_tx_desc = NULL;
         struct ifnet   *ifp = &adapter->interface_data.ac_if;
@@ -1226,22 +1215,22 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         /*
          * Map the packet for DMA.
          */
-        if (bus_dmamap_create(adapter->txtag, BUS_DMA_NOWAIT, &q.map)) {
+        if (bus_dmamap_create(adapter->txtag, BUS_DMA_NOWAIT, &map)) {
                 adapter->no_tx_map_avail++;
                 return (ENOMEM);
         }
-        error = bus_dmamap_load_mbuf(adapter->txtag, q.map,
-                                     m_head, em_tx_cb, &q, BUS_DMA_NOWAIT);
+        error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, m_head, segs,
+					&nsegs, BUS_DMA_NOWAIT);
         if (error != 0) {
                 adapter->no_tx_dma_setup++;
-                bus_dmamap_destroy(adapter->txtag, q.map);
+                bus_dmamap_destroy(adapter->txtag, map);
                 return (error);
         }
-        KASSERT(q.nsegs != 0, ("em_encap: empty packet"));
+        KASSERT(nsegs != 0, ("em_encap: empty packet"));
 
-        if (q.nsegs > adapter->num_tx_desc_avail) {
+        if (nsegs > adapter->num_tx_desc_avail) {
                 adapter->no_tx_desc_avail2++;
-                bus_dmamap_destroy(adapter->txtag, q.map);
+                bus_dmamap_destroy(adapter->txtag, map);
                 return (ENOBUFS);
         }
 
@@ -1276,20 +1265,20 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		m_head = m_pullup(m_head, sizeof(eh));
 		if (m_head == NULL) {
 			*m_headp = NULL;
-                	bus_dmamap_destroy(adapter->txtag, q.map);
+                	bus_dmamap_destroy(adapter->txtag, map);
 			return (ENOBUFS);
 		}
 		eh = *mtod(m_head, struct ether_header *);
 		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
 		if (m_head == NULL) {
 			*m_headp = NULL;
-                	bus_dmamap_destroy(adapter->txtag, q.map);
+                	bus_dmamap_destroy(adapter->txtag, map);
 			return (ENOBUFS);
 		}
 		m_head = m_pullup(m_head, sizeof(*evl));
 		if (m_head == NULL) {
 			*m_headp = NULL;
-                	bus_dmamap_destroy(adapter->txtag, q.map);
+                	bus_dmamap_destroy(adapter->txtag, map);
 			return (ENOBUFS);
 		}
 		evl = mtod(m_head, struct ether_vlan_header *);
@@ -1307,23 +1296,23 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		txd_saved = i;
 		txd_used = 0;
 	}
-        for (j = 0; j < q.nsegs; j++) {
+        for (j = 0; j < nsegs; j++) {
 		/* If adapter is 82544 and on PCIX bus */
 		if(adapter->pcix_82544) {
 			array_elements = 0;
-			address = htole64(q.segs[j].ds_addr);
+			address = htole64(segs[j].ds_addr);
 			/* 
 			 * Check the Address and Length combination and 
 			 * split the data accordingly 
 			 */
                         array_elements = em_fill_descriptors(address,
-							     htole32(q.segs[j].ds_len),
+							     htole32(segs[j].ds_len),
 							     &desc_array);
 			for (counter = 0; counter < array_elements; counter++) {
                                 if (txd_used == adapter->num_tx_desc_avail) {
                                          adapter->next_avail_tx_desc = txd_saved;
                                           adapter->no_tx_desc_avail2++;
-					  bus_dmamap_destroy(adapter->txtag, q.map);
+					  bus_dmamap_destroy(adapter->txtag, map);
                                           return (ENOBUFS);
                                 }
                                 tx_buffer = &adapter->tx_buffer_area[i];
@@ -1344,9 +1333,9 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 			tx_buffer = &adapter->tx_buffer_area[i];
 			current_tx_desc = &adapter->tx_desc_base[i];
 
-			current_tx_desc->buffer_addr = htole64(q.segs[j].ds_addr);
+			current_tx_desc->buffer_addr = htole64(segs[j].ds_addr);
 			current_tx_desc->lower.data = htole32(
-				adapter->txd_cmd | txd_lower | q.segs[j].ds_len);
+				adapter->txd_cmd | txd_lower | segs[j].ds_len);
 			current_tx_desc->upper.data = htole32(txd_upper);
 
 			if (++i == adapter->num_tx_desc)
@@ -1361,7 +1350,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		adapter->num_tx_desc_avail -= txd_used;
 	}
 	else {
-		adapter->num_tx_desc_avail -= q.nsegs;
+		adapter->num_tx_desc_avail -= nsegs;
 	}
 
 #if __FreeBSD_version < 500000
@@ -1379,8 +1368,8 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
         }
 
         tx_buffer->m_head = m_head;
-        tx_buffer->map = q.map;
-        bus_dmamap_sync(adapter->txtag, q.map, BUS_DMASYNC_PREWRITE);
+        tx_buffer->map = map;
+        bus_dmamap_sync(adapter->txtag, map, BUS_DMASYNC_PREWRITE);
 
         /*
          * Last Descriptor of Packet needs End Of Packet (EOP)
