@@ -341,6 +341,7 @@ main(int argc, char *argv[])
 	appcstrg(&cflags, "-D__extension__(x)=/*NOSTRICT*/0");
 #else
 	appcstrg(&cflags, "-U__GNUC__");
+	appcstrg(&cflags, "-undef");
 #endif
 	appcstrg(&cflags, "-Wp,-$");
 	appcstrg(&cflags, "-Wp,-CC");
