@@ -2,17 +2,17 @@
 
 	Sposob uzycia:
 
-	mount [-dfpruvw] [-o opcje] [-t [ufs|msdos|ext2fs] urzadzenie punkt
+	mount [-dfpruvw] [-o opcje] [-t [ufs|msdosfs|ext2fs] urzadzenie punkt
 
 	N.p.:
 
 	* zamontuj dyskietke DOS A: na katalogu /mnt:
 
-		mount -t msdos /dev/fd0a /mnt
+		mount -t msdosfs /dev/fd0a /mnt
 
 	* zamontuj pierwsza partycje DOS (na pierwszym dysku IDE) na /dos:
 
-		mount -t msdos /dev/wd0s1 /dos
+		mount -t msdosfs /dev/wd0s1 /dos
 
 	* zamontuj partycje Linux na /mnt:
 

@@ -14,7 +14,7 @@
 
 	* mount DOS primary partition (on primary IDE drive) on /dos:
 
-		mount -t msdos /dev/wd0s1 /dos
+		mount -t msdosfs /dev/wd0s1 /dos
 
 	* mount Linux partition on /mnt
 
