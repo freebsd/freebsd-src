@@ -314,7 +314,7 @@ sqrt_stage_3_no_error:
 	movl	%edx,%eax
 	divl	%esi
 
-	sarl	$1,%ecx		/ divide by 2*/
+	sarl	$1,%ecx		/* divide by 2*/
 	rcrl	$1,%eax
 
 	/* prepare to round the result*/
