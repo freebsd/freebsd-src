@@ -149,6 +149,9 @@ ata_pci_match(device_t dev)
     case 0x24cb8086:
 	return "Intel ICH4 ATA100 controller";
 
+    case 0x24d18086:
+	return "Intel ICH5 SATA150 controller";
+
     case 0x24db8086:
 	return "Intel ICH5 ATA100 controller";
 
@@ -605,6 +608,16 @@ ata_pci_intr(struct ata_channel *ch)
 	if (!(ATA_INB(ch->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
 	    return 1;
 	break;
+
+    case 0x24d18086:	/* Intel ICH5 SATA150 */
+	dmastat = ATA_INB(ch->r_bmio, ATA_BMSTAT_PORT);
+	if ((dmastat & (ATA_BMSTAT_ACTIVE | ATA_BMSTAT_INTERRUPT)) !=
+		ATA_BMSTAT_INTERRUPT)
+	    return 1;
+	ATA_OUTB(ch->r_bmio, ATA_BMSTAT_PORT, dmastat &
+	    ~(ATA_BMSTAT_DMA_SIMPLEX | ATA_BMSTAT_ERROR));
+	DELAY(1);
+	return 0;
     }
 
     if (ch->flags & ATA_DMA_ACTIVE) {
