@@ -227,7 +227,7 @@ zs_cnattach(vm_offset_t base, vm_offset_t offset)
 	/* should really bet part of ivars */
 	zs_console_addr = (caddr_t) ALPHA_PHYS_TO_K0SEG(base + offset);
 
-	zs_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
+	sprintf(zs_consdev.cn_name, "zs0");
 	zs_consdev.cn_pri = CN_NORMAL;
 	make_dev(&zs_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "zs0");
 	cnadd(&zs_consdev);
