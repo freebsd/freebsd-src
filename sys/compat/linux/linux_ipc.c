@@ -227,7 +227,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 
 	/* Make sure the arg parameter can be copied in. */
 	unptr = stackgap_alloc(&sg, sizeof(union semun));
-	bcopy(unptr, &args->arg, sizeof(union semun));
+	bcopy(&args->arg, unptr, sizeof(union semun));
 
 	bsd_args.semid = args->semid;
 	bsd_args.semnum = args->semnum;
