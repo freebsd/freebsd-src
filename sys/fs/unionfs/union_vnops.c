@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.54 1998/02/10 03:32:07 kato Exp $
+ * $Id: union_vnops.c,v 1.55 1998/02/26 03:23:56 kato Exp $
  */
 
 #include <sys/param.h>
@@ -773,7 +773,7 @@ union_getattr(ap)
 
 	if (vp == NULLVP) {
 		vp = un->un_lowervp;
-	} else if (vp->v_type == VDIR) {
+	} else if (vp->v_type == VDIR && un->un_lowervp != NULLVP) {
 		vp = un->un_lowervp;
 		vap = &va;
 	} else {
