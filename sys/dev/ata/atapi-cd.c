@@ -279,7 +279,8 @@ acd_clone(void *arg, char *name, int namelen, dev_t *dev)
     int unit, track = 0;
 
     if (*dev != NODEV ||
-	!dev_stdclone(name, &namep, "acd", &unit) || *namep++ != 't')
+	!dev_stdclone(name, &namep, "acd", &unit) || *namep++ != 't' ||
+	!ata_test_lun(&acd_lun_map, unit))
 	return;
     while (isdigit(*namep)) {
 	track *= 10;
@@ -287,7 +288,7 @@ acd_clone(void *arg, char *name, int namelen, dev_t *dev)
     }
     if (*namep)
 	return;
-    *dev = make_dev(&acd_cdevsw, unit | (track << 16), 0, 0, 0644, name, NULL);
+    *dev = make_dev(&acd_cdevsw, (unit<<3)|(track<<16), 0, 0, 0644, name, NULL);
 }
 
 static void 
@@ -373,8 +374,11 @@ acd_describe(struct acd_softc *cdp)
 	    if (cdp->cap.write_dvdram) {
 		printf("%s DVD-RAM", comma ? "," : ""); comma = 1; 
 	    }
-	    if (cdp->cap.test_write)
-		printf("%s test write", comma ? "," : "");
+	    if (cdp->cap.test_write) {
+		printf("%s test write", comma ? "," : ""); comma = 1;
+	    }
+	    if (cdp->cap.burnproof)
+		printf("%s burnproof", comma ? "," : "");
 	}
 	if (cdp->cap.audio_play) {
 	    printf("\nacd%d: Audio: ", cdp->lun);
@@ -505,10 +509,10 @@ static int
 acdopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
     struct acd_softc *cdp;
-    int track = (dev->si_udev & 0x00ff0000) >> 16;
+    int track = (dev->si_udev & 0x001f0000) >> 16;
 
     if (track) {
-	dev_t dev1 = makedev(major(dev), (dev->si_udev & 0xff0000ff));
+	dev_t dev1 = makedev(major(dev), (dev->si_udev & 0xffe000ff));
 
 	if (track <= ((struct acd_softc*)(dev1->si_drv1))->toc.hdr.ending_track)
 	    dev->si_drv1 = dev1->si_drv1;
