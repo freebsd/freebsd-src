@@ -37,12 +37,16 @@ static char sccsid[] = "@(#)logwtmp.c	8.1 (Berkeley) 6/4/93";
 
 #include <sys/types.h>
 #include <sys/file.h>
-#include <sys/time.h>
 #include <sys/stat.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
+#include <libutil.h>
+#include <netdb.h>
+#include <string.h>
+#include <time.h>
 #include <unistd.h>
 #include <utmp.h>
-#include <libutil.h>
 
 void
 logwtmp(line, name, host)
@@ -51,8 +55,18 @@ logwtmp(line, name, host)
 	struct utmp ut;
 	struct stat buf;
 	int fd;
-	time_t time();
-	char *strncpy();
+
+	if (strlen(host) > UT_HOSTSIZE) {
+		struct hostent *hp = gethostbyname(host);
+
+		if (hp != NULL) {
+			struct in_addr in;
+
+			memmove(&in, hp->h_addr, sizeof(in));
+			host = inet_ntoa(in);
+		} else
+			host = "invalid hostname";
+	}
 
 	if ((fd = open(_PATH_WTMP, O_WRONLY|O_APPEND, 0)) < 0)
 		return;
