@@ -646,17 +646,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">SDL Communication serial boards
-      <itemizedlist>
-        <listitem>
-	  <para>SDL Communications Riscom/8 Serial Board (rc driver)</para>
-	</listitem>
-        <listitem>
-	  <para>SDL Communications RISCom/N2 and N2pci high-speed sync
-	  serial boards (&man.sr.4; driver)</para>
-	</listitem>
-      </itemizedlist>
-    </para>
+    &hwlist.rc;
+
+    &hwlist.sr;
 
     <para arch="i386,amd64">Specialix SI/XIO/SX multiport serial cards, with both the
     older SIHOST2.x and the new <quote>enhanced</quote> (transputer
