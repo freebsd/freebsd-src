@@ -217,7 +217,11 @@ main(int argc, char **argv)
 			free(cp);
 			continue;
 		}
+#ifdef PC98
+		if (!strcasecmp(*cmds,"create") && ncmd == 7) {
+#else
 		if (!strcasecmp(*cmds,"create") && ncmd == 6) {
+#endif
 
 			printf("Create=%d\n",
 				Create_Chunk(d,
@@ -225,7 +229,12 @@ main(int argc, char **argv)
 					strtol(cmds[2],0,0),
 					strtol(cmds[3],0,0),
 					strtol(cmds[4],0,0),
+#ifdef PC98
+					strtol(cmds[5],0,0),
+					cmds[6]));
+#else
 					strtol(cmds[5],0,0)));
+#endif
 			continue;
 		}
 		if (!strcasecmp(*cmds,"read")) {
@@ -276,7 +285,11 @@ main(int argc, char **argv)
 #if 0
 		printf("\tcollapse [pointer]\n");
 #endif
+#ifdef PC98
+		printf("\tcreate offset size enum subtype flags name\n");
+#else
 		printf("\tcreate offset size enum subtype flags\n");
+#endif
 		printf("\t\tsubtype(part): swap=1, ffs=7\n");
 		printf("\tdelete pointer\n");
 		printf("\tlist\n");
