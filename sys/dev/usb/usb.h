@@ -1,4 +1,4 @@
-/*	$NetBSD: usb.h,v 1.67 2002/08/22 10:08:34 augustss Exp $	*/
+/*	$NetBSD: usb.h,v 1.68 2002/08/22 10:15:12 augustss Exp $	*/
 /*	$FreeBSD$    */
 
 /*
@@ -388,18 +388,18 @@ typedef struct {
 } UPACKED usb_port_status_t;
 
 /* Device class codes */
-#define UDCLASS_AUDIO		0x00
+#define UDCLASS_IN_INTERFACE	0x00
 #define UDCLASS_COMM		0x02
-#define UDCLASS_HID		0x00
 #define UDCLASS_HUB		0x09
 #define  UDSUBCLASS_HUB		0x00
 #define  UDPROTO_FSHUB		0x00
 #define  UDPROTO_HSHUBSTT	0x01
 #define  UDPROTO_HSHUBMTT	0x02
-#define UDCLASS_MASS		0x00
+#define UDCLASS_DIAGNOSTIC	0xdc
 #define UDCLASS_WIRELESS	0xe0
 #define  UDSUBCLASS_RF		0x01
 #define   UDPROTO_BLUETOOTH	0x01
+#define UDCLASS_VENDOR		0xff
 
 /* Interface class codes */
 #define UICLASS_UNSPEC		0x00
@@ -424,6 +424,8 @@ typedef struct {
 #define  UIPROTO_BOOT_KEYBOARD	1
 
 #define UICLASS_PHYSICAL	0x05
+
+#define UICLASS_IMAGE		0x06
 
 #define UICLASS_PRINTER		0x07
 #define  UISUBCLASS_PRINTER	1
@@ -465,7 +467,13 @@ typedef struct {
 #define   UIPROTO_DATA_PUF		0xfe    /* see Prot. Unit Func. Desc.*/
 #define   UIPROTO_DATA_VENDOR		0xff    /* Vendor specific */
 
-#define UICLASS_FIRM_UPD	0x0c
+#define UICLASS_SMARTCARD	0x0b
+
+/*#define UICLASS_FIRM_UPD	0x0c*/
+
+#define UICLASS_SECURITY	0x0d
+
+#define UICLASS_DIAGNOSTIC	0xdc
 
 #define UICLASS_WIRELESS	0xe0
 #define  UISUBCLASS_RF			0x01
