@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)file.h	8.3 (Berkeley) 1/9/95
- * $Id: file.h,v 1.7 1996/03/11 02:16:40 hsu Exp $
+ * $Id: file.h,v 1.8 1996/09/03 14:25:10 bde Exp $
  */
 
 #ifndef _SYS_FILE_H_
@@ -57,7 +57,8 @@ struct file {
 	short	f_flag;		/* see fcntl.h */
 #define	DTYPE_VNODE	1	/* file */
 #define	DTYPE_SOCKET	2	/* communications endpoint */
-#define DTYPE_PIPE	3	/* pipe */
+#define	DTYPE_PIPE	3	/* pipe */
+#define	DTYPE_FIFO	4	/* fifo (named pipe) */
 	short	f_type;		/* descriptor type */
 	short	f_count;	/* reference count */
 	short	f_msgcount;	/* references from message queue */
