@@ -33,6 +33,7 @@
 
 #include <sys/types.h>
 #include <ieeefp.h>
+#include <machine/fpu.h>
 
 fp_rnd
 fpsetround(rnd_dir)
@@ -41,18 +42,14 @@ fpsetround(rnd_dir)
 	double fpcrval;
 	u_int64_t old, new;
 
-	__asm__("trapb");
-	__asm__("mf_fpcr %0" : "=f" (fpcrval));
-	__asm__("trapb");
+	GET_FPCR(fpcrval);
 	old = *(u_int64_t *)&fpcrval;
 
-	new = old & ~(long)0x0c00000000000000;
-	new = (long)rnd_dir << 58;
+	new = old & (~FPCR_DYN_MASK);
+	new |= ((long) rnd_dir << FPCR_DYN_SHIFT) & FPCR_DYN_MASK;
+
 	*(u_int64_t *)&fpcrval = new;
+	SET_FPCR(fpcrval);
 
-	__asm__("trapb");
-	__asm__("mt_fpcr %0" : : "f" (fpcrval));
-	__asm__("trapb");
-
-	return ((old >> 58) & 0x3);
+	return ((old & FPCR_DYN_MASK) >> FPCR_DYN_SHIFT);
 }

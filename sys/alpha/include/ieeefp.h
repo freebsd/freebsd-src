@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ieeefp.h,v 1.1.1.1 1998/03/09 05:43:16 jb Exp $ */
 /* From: NetBSD: ieeefp.h,v 1.2 1997/04/06 08:47:28 cgd Exp */
 
 /* 
@@ -10,12 +10,14 @@
 #define _ALPHA_IEEEFP_H_
 
 typedef int fp_except;
-#define	FP_X_INV	0x01	/* invalid operation exception */
-#define	FP_X_DZ		0x02	/* divide-by-zero exception */
-#define	FP_X_OFL	0x04	/* overflow exception */
-#define	FP_X_UFL	0x08	/* underflow exception */
-#define	FP_X_IMP	0x10	/* imprecise (loss of precision; "inexact") */
-#define	FP_X_IOV	0x20    /* integer overflow XXX? */
+#define	FP_X_INV	(1LL << 1)	/* invalid operation exception */
+#define	FP_X_DZ		(1LL << 2)	/* divide-by-zero exception */
+#define	FP_X_OFL	(1LL << 3)	/* overflow exception */
+#define	FP_X_UFL	(1LL << 4)	/* underflow exception */
+#define	FP_X_IMP	(1LL << 5)	/* imprecise(inexact) exception */
+#if 0
+#define	FP_X_IOV	(1LL << 6)	/* integer overflow XXX? */
+#endif
 
 typedef enum {
     FP_RZ=0,			/* round to zero (truncate) */
