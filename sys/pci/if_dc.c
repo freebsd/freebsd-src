@@ -1204,7 +1204,7 @@ static void dc_setcfg(sc, media)
 
 		for (i = 0; i < DC_TIMEOUT; i++) {
 			isr = CSR_READ_4(sc, DC_ISR);
-			if (isr & DC_ISR_TX_IDLE &&
+			if (isr & DC_ISR_TX_IDLE ||
 			    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED)
 				break;
 			DELAY(10);
