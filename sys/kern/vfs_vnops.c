@@ -85,7 +85,7 @@ struct 	fileops vnops = {
 
 int
 vn_open(ndp, flagp, cmode, fdidx)
-	register struct nameidata *ndp;
+	struct nameidata *ndp;
 	int *flagp, cmode, fdidx;
 {
 	struct thread *td = ndp->ni_cnd.cn_thread;
@@ -102,7 +102,7 @@ vn_open(ndp, flagp, cmode, fdidx)
  */
 int
 vn_open_cred(ndp, flagp, cmode, cred, fdidx)
-	register struct nameidata *ndp;
+	struct nameidata *ndp;
 	int *flagp, cmode;
 	struct ucred *cred;
 	int fdidx;
@@ -235,7 +235,7 @@ restart:
 		vp->v_cachedfs = vap->va_fsid;
 		vp->v_cachedid = vap->va_fileid;
 	}
-	if ((error = VOP_OPEN(vp, fmode, cred, td, -1)) != 0)
+	if ((error = VOP_OPEN(vp, fmode, cred, td, fdidx)) != 0)
 		goto bad;
 	/*
 	 * Make sure that a VM object is created for VMIO support.
