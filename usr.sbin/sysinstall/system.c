@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.62 1996/07/10 11:38:29 jkh Exp $
+ * $Id: system.c,v 1.63 1996/08/01 10:58:54 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -65,7 +65,11 @@ systemInitialize(int argc, char **argv)
     /* Are we running as init? */
     if (getpid() == 1) {
 	setsid();
-	close(0); open("/dev/ttyv0", O_RDWR);
+	close(0);
+	if (open("/dev/ttyv0", O_RDWR) < 0)
+	    open("/dev/console", O_RDWR);
+	else
+	    OnVTY = TRUE;
 	close(1); dup(0);
 	close(2); dup(0);
 	printf("%s running as init\n", argv[0]);
