@@ -214,8 +214,26 @@ terminal support). [MERGED]
 sendmail upgraded from version 8.9.3 to version 8.11.1.  Important changes
 include: new default file locations (see
 /usr/src/contrib/sendmail/cf/README); newaliases is limited to root and
-trusted users; and the MSA port (587) is turned on by default.  See
-/usr/src/contrib/sendmail/RELEASE_NOTES for more information. [MERGED]
+trusted users; STARTTLS encryption; and the MSA port (587) is turned on by
+default.  See /usr/src/contrib/sendmail/RELEASE_NOTES for more
+information. [MERGED]
+
+mail.local(8) is no longer installed as a set-user-id binary.  If you are
+using a /etc/mail/sendmail.cf from the default sendmail.cf included with
+FreeBSD any time after 3.1.0, you are fine.  If you are using a
+hand-configured sendmail.cf and mail.local for delivery, check to make sure
+the F=S flag is set on the Mlocal line.  Those with .mc files who need to
+add the flag can do so by adding the following line to their your .mc file
+and regenerating the sendmail.cf file:
+    MODIFY_MAILER_FLAGS(`LOCAL', `+S')dnl
+Note that FEATURE(`local_lmtp') already does this.
+
+The default /etc/mail/sendmail.cf disables the SMTP EXPN and VRFY commands.
+
+vacation(1) has been updated to use the version included with sendmail.
+
+The sendmail(8) configuration building tools are installed in
+/usr/share/sendmail/cf/.
 
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
