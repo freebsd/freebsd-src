@@ -63,7 +63,6 @@ void	killdiv __P((void));
 ndptr	lookup __P((char *));
 void	map __P((char *, char *, char *, char *));
 void	onintr __P((int));
-void	oops __P((const char *, ...));
 void	pbnum __P((int));
 void    pbstr __P((unsigned char *));
 void	putback __P((int));
@@ -91,6 +90,5 @@ extern char lquote;		/* left quote character (`) */
 extern char *m4temp;		/* filename for diversions */
 extern char *m4wraps;		/* m4wrap string default. */
 extern char *null;		/* as it says.. just a null. */
-extern char *progname;		/* program name */
 extern char rquote;		/* right quote character (') */
 extern char scommt;		/* start character for comment */
