@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.212 1996/11/17 02:11:01 dyson Exp $
+ *	$Id: machdep.c,v 1.213 1996/11/29 13:12:14 bde Exp $
  */
 
 #include "npx.h"
@@ -421,7 +421,6 @@ again:
 			       max_head, max_head + 1,
 			       max_sector, max_sector);
 		}
-		printf(" %d accounted for\n", bootinfo.bi_n_bios_used);
 	}
 }
 
