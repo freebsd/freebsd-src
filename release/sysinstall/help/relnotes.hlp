@@ -58,54 +58,6 @@ A new VGA library (/usr/src/lib/libvgl) now exists for doing simple
 VGA graphics to syscons ttys (sort of like Linux's libSVGA).
 
 
-1. What's new since 2.2.1
--------------------------
-A number of bugs in the Adaptec 294x/394x (AHC) driver were fixed
-which could cause instability on heavily loaded systems.
-
-NFSv3 is now the default, with fall-back to NFSv2 occuring as necessary.
-
-An lchown() system call has been added for changing the ownership of symlinks.
-
-Login classes added for setting default user limits (see login.conf(5)).
-
-ftpd now supports virtual FTP hosting.
-
-Numerous security fixes (buffer overflows and other potential exploits fixed).
-
-Better build support for C++ libraries added.
-
-Support for the GLOBAL text/HTML source tag system added (man global).
-
-/etc/sysconfig now replaced by /etc/rc.conf - a more concise customization
-file with more knobs added.  Other things in /etc were also neatened
-up, /etc/netstart being replaced with /etc/rc.network
-
-User-mode ppp updated with various fixes and enhancements from 3.0-current.
-It's worth re-reading the manual page.  The following things may disturb
-peoples current configuration:
-
-  o The "set debug" command is now "set log".
-  o The LCP log has been split into an LCP, IPCP and CCP log, so any
-    "set log LCP" lines will need to be changed to "set log LCP IPCP CCP"
-    to see the same output as before.
-  o Ppp now uses syslogd to write its log files.
-  o Ppp now has LQR disabled and openmode active by default.
-  o Ppp now installs as group "network", with mode 4550.  You must add group
-    69 (network) to /etc/group.  If you wish to allow users to run "ppp
-    -direct ...", you must enable them by making them a member of group
-    "network".  Client-side ppp now requires user id 0.
-
-Refer to the ppp(8) man page and the relevent section of the handbook for
-full details.
-
-Texinfo documentation mechanisms cleaned up in source tree.
-
-fdisk(8) now numbers disk slices from 1 to 4 rather than from 0 to 3.
-This brings it in line with the numbers used in the device names
-in /dev.
-
-
 2. Supported Configurations
 ---------------------------
 
