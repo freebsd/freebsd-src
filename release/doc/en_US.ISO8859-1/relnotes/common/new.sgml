@@ -385,6 +385,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.ispppcontrol.8; has been deleted, and its functionality
       has been folded into &man.spppcontrol.8;.</para>
 
+    <para>&man.k5su.8; is no longer installed SUID
+      <username>root</username> by default.  Users requiring this
+      feature can either manually change the permissions on the
+      &man.k5su.8; executable or add
+      <literal>ENABLE_SUID_K5SU=yes</literal> to
+      <filename>/etc/make.conf</filename> before a source
+      upgrade.</para>
+
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
 
@@ -437,14 +445,18 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       flag to read a patch from a file, rather than standard
       input.</para>
 
-    <para>&man.pr.1; now supports the <option>-f</option> and
-      <option>-p</option> flags to pause output going to a
-      terminal.</para>
-
     <para>A &man.pam.ssh.8; module has been added to allow the use of
       SSH passphrases and keypairs for authentication.  This module
       also handles session management by invoking
       &man.ssh-agent.1;.</para>
+
+    <para>&man.pr.1; now supports the <option>-f</option> and
+      <option>-p</option> flags to pause output going to a
+      terminal.</para>
+
+    <para>The <option>-W</option> option to &man.ps.1; (to extract
+      information from a specified swap device) has been useless for
+      some time; it has been removed.</para>
 
     <para>&man.reboot.8; now takes a <option>-k</option> to specify
       the next kernel to boot.</para>
@@ -467,10 +479,6 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       set their output files.  &man.uuencode.1; can now be made to do base64 encoding
       when given the <option>-m</option> flag, while &man.uudecode.1;
       can now automatically decode base64 files.</para>
-
-    <para>The <option>-W</option> option to &man.ps.1; (to extract
-      information from a specified swap device) has been useless for
-      some time; it has been removed.</para>
 
     <para>&man.watch.8; now takes a <option>-f</option> option to
       specify a &man.snp.4; device to use.</para>
@@ -496,7 +504,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <title>Contributed Software</title>
 
       <para><application>BIND</application> has been updated to
-	8.3.1-REL.</para>
+	8.3.2-T1B.</para>
 
       <para><application>bzip2</application> has been updated to
 	1.0.2.</para>
