@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.22.2.10 1997/06/13 07:11:21 jkh Exp $
+ * $Id: misc.c,v 1.22.2.11 1997/11/05 05:54:30 obrien Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -337,7 +337,7 @@ Mount(char *mountp, void *dev)
 	msgDebug("mount %s %s\n", device, mountpoint);
 
     ufsargs.fspec = device;
-    if (mount(MOUNT_UFS, mountpoint, RunningAsInit ? MNT_ASYNC : 0,
+    if (mount(MOUNT_UFS, mountpoint, RunningAsInit ? MNT_ASYNC | MNT_NOATIME : 0,
 	(caddr_t)&ufsargs) == -1) {
 	msgConfirm("Error mounting %s on %s : %s", device, mountpoint, strerror(errno));
 	return DITEM_FAILURE;
