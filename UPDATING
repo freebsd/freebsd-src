@@ -1,11 +1,16 @@
 Updating Information for FreeBSD current users
 
 This file is maintained by imp@village.org.  Please send new entries
-directly to him.  See end of file for further details.  Common issues
-are listed first, followed by specific problems that upgradiung from
-prior versions of 4.x-stable.  Prior to the 4.0 release entry, there
-are some items that are relevant to upgrading from 4.0-current.  They
-will be removed after 4.1-RELEASE happens.
+directly to him.  See end of file for further details.  A reverse
+chronology since 4.0 was released is included, followed by the common
+items quick how-tos, followed by entries for versions of -current
+prior to 4.0 Release.
+
+20000315:
+	FreeBSD 4.0 RELEASE.  The rest of this file is historical
+	and will be removed in the future.
+
+****************************** 4.0 RELEASE ******************************
 
 COMMON ITEMS:
 
@@ -17,7 +22,10 @@ COMMON ITEMS:
 	make installkernel  KERNEL=<YOUR_KERNEL_HERE>
 	# Verify that the new kernel works, it will be installed as
 	# /YOUR_KERNEL_HERE
-	mv /YOUR_KERNEL_HERE
+	chflags noschg /kernel
+	mv /kernel /kernel.old
+	mv /YOUR_KERNEL_HERE /kernel
+	chflags schg /kernel
 
 	To rebuild disk /dev entries
 	----------------------------
@@ -38,14 +46,15 @@ COMMON ITEMS:
 
 	To update from 3.x to 4.0 stable
 	--------------------------------
+	<see notes below>				[***]
 	cd /usr/src
 	<see notes below>				[**]
 	make buildworld
 	cd sbin/mknod
 	make install
-	<follow directions to build/install a kernel>
 	cd sys/modules
 	make install
+	<follow directions to build/install a kernel>
 	<follow rebuild disk /dev entries above>	[*]
 	reboot
 	<in single user>
@@ -60,13 +69,15 @@ COMMON ITEMS:
 	please comment them out before following these instructions
 	and then do a make buildworld + make installworld after you
 	are back to <multi-user> above:
-		BUILD_KERBEROS4
+		MAKE_KERBEROS4
+	[***] Update to 4.0-stable sources.  Make sure that you get all
+	the parts.  If you are using cvsup files that are older than a
+	couple of months, be sure they have all the components listed
+	in /usr/share/examples/cvsup.  Crypto and secure are now
+	required.
 
-20000315:
-	FreeBSD 4.0 RELEASE.  The rest of this file is historical
-	and will be removed in the future.
-
-****************************** 4.0 RELEASE ******************************
+What follows are older entries for those people upgrading from earlier
+versions of -stable.
 
 20000308:
 	The binary interface of perl to its modules changed.  You
