@@ -18,6 +18,7 @@
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/ucontext.h>
+#include <machine/critical.h>
 
 /*
  * cpu_critical_fork_exit() - cleanup after fork
