@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.152 1997/10/06 09:58:11 jkh Exp $
+#	$Id: Makefile,v 1.153 1997/10/06 10:21:36 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -280,7 +280,7 @@ buildworld:
 	@echo "--------------------------------------------------------------"
 	@echo " Rebuilding dependencies"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${XMAKE} ${.MAKEFLAGS} par-depend
+	cd ${.CURDIR} && ${XMAKE} par-depend
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Building everything.."
@@ -353,19 +353,19 @@ most:
 	@echo "--------------------------------------------------------------"
 	@echo " Building programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} all
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} all
+	cd ${.CURDIR}/bin	&&	${MAKE} all
+	cd ${.CURDIR}/sbin	&&	${MAKE} all
+	cd ${.CURDIR}/libexec	&&	${MAKE} all
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} all
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} all
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} all
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} all
+	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} all
 #.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/kerberosIV	&&	${MAKE} ${.MAKEFLAGS} most
+#	cd ${.CURDIR}/kerberosIV	&&	${MAKE} most
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} most
+#	cd ${.CURDIR}/secure	&&	${MAKE} most
 #.endif
 
 #
@@ -378,19 +378,19 @@ installmost:
 	@echo "--------------------------------------------------------------"
 	@echo " Installing programs only"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/bin	&&	${MAKE} install
+	cd ${.CURDIR}/sbin	&&	${MAKE} install
+	cd ${.CURDIR}/libexec	&&	${MAKE} install
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} install
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} install
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} install
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} install
+	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} install
 #.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/kerberosIV &&	${MAKE} ${.MAKEFLAGS} installmost
+#	cd ${.CURDIR}/kerberosIV &&	${MAKE} installmost
 #.endif
 #.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} installmost
+#	cd ${.CURDIR}/secure	&&	${MAKE} installmost
 #.endif
 
 #
