@@ -1822,7 +1822,8 @@ pmap_clear_write(vm_page_t m)
 {
 	struct tte *tp;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
+	    (m->flags & PG_WRITEABLE) == 0)
 		return;
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		if ((tp->tte_data & TD_PV) == 0)
@@ -1836,6 +1837,7 @@ pmap_clear_write(vm_page_t m)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 
 int
