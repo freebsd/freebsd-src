@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.33.2.19 1998/03/23 08:33:34 jkh Exp $
+ * $Id: installUpgrade.c,v 1.33.2.20 1998/03/23 23:41:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,6 +93,7 @@ static HitList etc_files [] = {
    { JUST_COPY,		"motd",			TRUE, NULL },
    { JUST_COPY,		"namedb",		TRUE, NULL },
    { JUST_COPY,		"networks",		TRUE, NULL },
+   { JUST_COPY,		"newsyslog.conf",	TRUE, NULL },
    { JUST_COPY,		"passwd",		FALSE, NULL },
    { JUST_COPY,		"phones",		TRUE, NULL },
    { JUST_COPY,		"ppp",			TRUE, NULL },
