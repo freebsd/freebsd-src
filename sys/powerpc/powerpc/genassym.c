@@ -88,6 +88,8 @@ ASSYM(FRAME_EXC, offsetof(struct trapframe, exc));
 
 ASSYM(SFRAMELEN, roundup(sizeof(struct switchframe), 16));
 
+ASSYM(PCB_CONTEXT, offsetof(struct pcb, pcb_context));
+ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
 ASSYM(PCB_PMR, offsetof(struct pcb, pcb_pmreal));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_SPL, offsetof(struct pcb, pcb_spl));
