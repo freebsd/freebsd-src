@@ -343,7 +343,7 @@ ep_isa_attach(device_t dev)
 		device_printf(sc->dev, "Invalid EEPROM checksum!\n");
 		goto bad;
 	}
-	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, ep_intr,
+	if ((error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE, ep_intr,
 		    sc, &sc->ep_intrhand))) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
 		goto bad;
