@@ -36,11 +36,11 @@ static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
-#include <sys/queue.h>
 
 #include <net/route.h>
 #include <netinet/in.h>

@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)unix.c	8.1 (Berkeley) 6/6/93";
  */
 #include <kvm.h>
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>

@@ -39,11 +39,11 @@ static char sccsid[] = "@(#)netstat.c	8.1 (Berkeley) 6/6/93";
  * netstat
  */
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
-#include <sys/queue.h>
 
 #include <netinet/in.h>
 #include <net/route.h>
