@@ -52,7 +52,7 @@ static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 
 extern long int crc_total;
 
-int ftsoptions = FTS_PHYSICAL;
+int ftsoptions = FTS_LOGICAL;
 int cflag, dflag, eflag, iflag, nflag, rflag, sflag, uflag, Uflag;
 u_short keys;
 char fullpath[MAXPATHLEN];
