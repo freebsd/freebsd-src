@@ -213,8 +213,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_rt_sendsig(%p, %d, %p, %lu)\n",
-	    (long)p->p_pid, catcher, sig, (void*)mask, code);
+	if (ldebug(sigreturn))
+		printf(ARGS(rt_sendsig, "%p, %d, %p, %lu"),
+		    catcher, sig, (void*)mask, code);
 #endif
 	/*
 	 * Allocate space for the signal handler context.
@@ -247,8 +248,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigmask, SIGILL);
 		PROC_UNLOCK(p);
 #ifdef DEBUG
-		printf("Linux-emul(%ld): linux_rt_sendsig -- bad stack %p, "
-		    "oonstack=%x\n", (long)p->p_pid, fp, oonstack);
+		if (ldebug(sigreturn))
+			printf(LMSG("rt_sendsig: bad stack %p, oonstack=%x"),
+			    fp, oonstack);
 #endif
 		psignal(p, SIGILL);
 		return;
@@ -307,10 +309,10 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, "
-	    "mask: 0x%x\n", (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,
-	    p->p_sigstk.ss_sp, p->p_sigstk.ss_size,
-	    frame.sf_sc.uc_mcontext.sc_mask);
+	if (ldebug(sigreturn))
+		printf(LMSG("rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
+		    frame.sf_sc.uc_stack.ss_flags, p->p_sigstk.ss_sp,
+		    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
 #endif
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
@@ -368,8 +370,9 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
-	    (long)p->p_pid, catcher, sig, (void*)mask, code);
+	if (ldebug(sigreturn))
+		printf(ARGS(sendsig, "%p, %d, %p, %lu"),
+		    catcher, sig, (void*)mask, code);
 #endif
 
 	/*
@@ -492,8 +495,8 @@ linux_sigreturn(p, args)
 	regs = p->p_md.md_regs;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_sigreturn(%p)\n",
-	    (long)p->p_pid, (void *)args->sfp);
+	if (ldebug(sigreturn))
+		printf(ARGS(sigreturn, "%p"), (void *)args->sfp);
 #endif
 	/*
 	 * The trampoline code hands us the sigframe.
@@ -591,8 +594,8 @@ linux_rt_sigreturn(p, args)
 	regs = p->p_md.md_regs;
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): linux_rt_sigreturn(%p)\n",
-	    (long)p->p_pid, (void *)args->ucp);
+	if (ldebug(rt_sigreturn))
+		printf(ARGS(rt_sigreturn, "%p"), (void *)args->ucp);
 #endif
 	/*
 	 * The trampoline code hands us the ucontext.
@@ -669,8 +672,9 @@ linux_rt_sigreturn(p, args)
 	ss->ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sigret  flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
-	    (long)p->p_pid, ss->ss_flags, ss->ss_sp, ss->ss_size, context->sc_mask);
+	if (ldebug(rt_sigreturn))
+		printf(LMSG("rt_sigret flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x"),
+		    ss->ss_flags, ss->ss_sp, ss->ss_size, context->sc_mask);
 #endif
 	sasargs.ss = ss;
 	sasargs.oss = NULL;

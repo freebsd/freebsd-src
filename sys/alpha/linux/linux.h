@@ -33,6 +33,14 @@
 
 #include <alpha/linux/linux_syscall.h>
 
+/*
+ * debugging support
+ */
+extern u_char linux_debug_map[]; 
+#define ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
+#define ARGS(nm, fmt)	"Linux-emul(%ld): "#nm"("fmt")\n", (long)p->p_pid 
+#define LMSG(fmt)	"Linux-emul(%ld): "fmt"\n", (long)p->p_pid 
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
 #endif
