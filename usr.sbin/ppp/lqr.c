@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22.2.17 1998/03/25 18:37:51 brian Exp $
+ * $Id: lqr.c,v 1.22.2.18 1998/04/03 19:21:34 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -117,12 +117,20 @@ LqrChangeOrder(struct lqrdata * src, struct lqrdata * dst)
     *dp++ = ntohl(*sp++);
 }
 
+void
+SendLqrData(struct lcp *lcp)
+{
+  struct mbuf *bp;
+
+  bp = mballoc(sizeof(struct lqrdata), MB_LQR);
+  HdlcOutput(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
+}
+
 static void
 SendLqrReport(void *v)
 {
   struct lcp *lcp = (struct lcp *)v;
   struct hdlc *hdlc = &link2physical(lcp->fsm.link)->hdlc;
-  struct mbuf *bp;
 
   StopTimer(&hdlc->lqm.timer);
 
@@ -134,8 +142,7 @@ SendLqrReport(void *v)
       hdlc->lqm.method = 0;	/* Prevent recursion via bundle_Close() */
       bundle_Close(lcp->fsm.bundle, NULL, 0);
     } else {
-      bp = mballoc(sizeof(struct lqrdata), MB_LQR);
-      HdlcOutput(lcp->fsm.link, PRI_LINK, PROTO_LQR, bp);
+      SendLqrData(lcp);
       hdlc->lqm.lqr.resent++;
     }
   } else if (hdlc->lqm.method & LQM_ECHO) {
@@ -163,7 +170,7 @@ LqrInput(struct physical *physical, struct mbuf *bp)
   if (len != sizeof(struct lqrdata))
     LogPrintf(LogERROR, "LqrInput: Got packet size %d, expecting %d !\n",
               len, sizeof(struct lqrdata));
-  else if (!Acceptable(ConfLqr)) {
+  else if (!Acceptable(ConfLqr) && !(physical->hdlc.lqm.method & LQM_LQR)) {
     bp->offset -= 2;
     bp->cnt += 2;
     lcp_SendProtoRej(physical->hdlc.lqm.owner, MBUF_CTOP(bp), bp->cnt);
@@ -182,7 +189,6 @@ LqrInput(struct physical *physical, struct mbuf *bp)
        * Remember our PeerInLQRs, then convert byte order and save
        */
       lastLQR = physical->hdlc.lqm.lqr.peer.PeerInLQRs;
-      physical->hdlc.lqm.method |= LQM_LQR;
 
       LqrChangeOrder(lqr, &physical->hdlc.lqm.lqr.peer);
       LqrDump("Input", &physical->hdlc.lqm.lqr.peer);
@@ -195,11 +201,12 @@ LqrInput(struct physical *physical, struct mbuf *bp)
        * send our next one before the peers max timeout.
        */
       if (physical->hdlc.lqm.timer.load == 0 ||
+          !(physical->hdlc.lqm.method & LQM_LQR) ||
           (lastLQR && lastLQR == physical->hdlc.lqm.lqr.peer.PeerInLQRs) ||
           (physical->hdlc.lqm.lqr.peer_timeout && 
            physical->hdlc.lqm.timer.rest * 100 / SECTICKS >
            physical->hdlc.lqm.lqr.peer_timeout))
-        SendLqrReport(physical->hdlc.lqm.owner);
+        SendLqrData(physical->hdlc.lqm.owner);
     }
   }
   pfree(bp);
