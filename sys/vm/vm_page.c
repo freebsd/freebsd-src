@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.138 1999/08/11 05:12:00 alc Exp $
+ *	$Id: vm_page.c,v 1.139 1999/08/17 05:08:39 alc Exp $
  */
 
 /*
@@ -1060,7 +1060,7 @@ vm_page_free_wakeup()
 /*
  *	vm_page_free_toq:
  *
- *	Returns the given page to the PQ_FREE or PQ_ZERO list,
+ *	Returns the given page to the PQ_FREE list,
  *	disassociating it with any VM object.
  *
  *	Object and page must be locked prior to entry.
@@ -1163,14 +1163,6 @@ vm_page_free_toq(vm_page_t m)
 	if (m->flags & PG_ZERO) {
 		TAILQ_INSERT_TAIL(pq->pl, m, pageq);
 		++vm_page_zero_count;
-	} else if (curproc == pageproc) {
-		/*
-		 * If the pageout daemon is freeing pages, the pages are 
-		 * likely to NOT be in the L1 or L2 caches due to their age.
-		 * For now we do not try to do anything special with this
-		 * info.
-		 */
-		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
 	} else {
 		TAILQ_INSERT_HEAD(pq->pl, m, pageq);
 	}
