@@ -36,10 +36,10 @@
 static char sccsid[] = "@(#)mcount.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: mcount.c,v 1.12 1998/07/10 09:26:40 bde Exp $";
+	"$Id: mcount.c,v 1.13 1998/07/14 05:09:41 bde Exp $";
 #endif
 
-#ifndef __NETBSD_SYSCALLS
+#ifndef __alpha__
 
 #include <sys/param.h>
 #include <sys/gmon.h>
