@@ -1,10 +1,10 @@
-#	@(#)Makefile	5.2 (Berkeley) 6/8/93
+#	From: @(#)Makefile	5.2 (Berkeley) 6/8/93
+#	$Id$
 
+VOLUME=	papers
 SRCS=	beyond43.ms
 DOC=	beyond43
 MACROS=	-ms
-
-paper.ps: ${SRCS}
-	${TBL} ${.CURDIR}/${SRCS} | ${ROFF} > ${.TARGET}
+USE_TBL=	yes
 
 .include <bsd.doc.mk>
