@@ -471,9 +471,11 @@ nfs_bioread(vp, uio, ioflag, cred)
 				    rabp->b_flags |= B_INVAL|B_ERROR;
 				    vfs_unbusy_pages(rabp);
 				    brelse(rabp);
+				    break;
 				}
-			    } else
+			    } else {
 				brelse(rabp);
+			    }
 			}
 		    }
 		}
@@ -497,8 +499,19 @@ again:
 		} else if ((off_t)(lbn + 1) * biosize > np->n_size) {
 			bcount = np->n_size - (off_t)lbn * biosize;
 		}
-		if (bcount != biosize && nfs_rslock(np, p) == ENOLCK)
-			goto again;
+		if (bcount != biosize) {
+			switch(nfs_rslock(np, p)) {
+			case ENOLCK:
+				goto again;
+				/* not reached */
+			case EINTR:
+			case ERESTART:
+				return(EINTR);
+				/* not reached */
+			default:
+				break;
+			}
+		}
 
 		bp = nfs_getcacheblk(vp, lbn, bcount, p);
 
@@ -785,8 +798,17 @@ restart:
 	 */
 	if ((ioflag & IO_APPEND) ||
 	    uio->uio_offset + uio->uio_resid > np->n_size) {
-		if (nfs_rslock(np, p) == ENOLCK)
+		switch(nfs_rslock(np, p)) {
+		case ENOLCK:
 			goto restart;
+			/* not reached */
+		case EINTR:
+		case ERESTART:
+			return(EINTR);
+			/* not reached */
+		default:
+			break;
+		}
 		haverslock = 1;
 	}
 
@@ -1196,10 +1218,25 @@ nfs_asyncio(bp, cred, procp)
 	int slptimeo = 0;
 	int error;
 
+	/*
+	 * If no async daemons then return EIO to force caller to run the rpc
+	 * synchronously.
+	 */
 	if (nfs_numasync == 0)
 		return (EIO);
 
 	nmp = VFSTONFS(bp->b_vp->v_mount);
+
+	/*
+	 * Commits are usually short and sweet so lets save some cpu and 
+	 * leave the async daemons for more important rpc's (such as reads
+	 * and writes).
+	 */
+	if ((bp->b_flags & (B_READ|B_NEEDCOMMIT)) == B_NEEDCOMMIT &&
+	    (nmp->nm_bufqiods > nfs_numasync / 2)) {
+		return(EIO);
+	}
+
 again:
 	if (nmp->nm_flag & NFSMNT_INT)
 		slpflag = PCATCH;
@@ -1244,7 +1281,8 @@ again:
 	 */
 	if (gotiod) {
 		/*
-		 * Ensure that the queue never grows too large.
+		 * Ensure that the queue never grows too large.  We still want
+		 * to asynchronize so we block rather then return EIO.
 		 */
 		while (nmp->nm_bufqlen >= 2*nfs_numasync) {
 			NFS_DPF(ASYNCIO,
