@@ -69,7 +69,6 @@ struct g_concat_disk {
 };
 
 struct g_concat_softc {
-	int		sc_flags;	/* flags */
 	u_int		sc_type;	/* provider type */
 	struct g_provider *sc_provider;
 	char		sc_name[16];	/* concat name */
