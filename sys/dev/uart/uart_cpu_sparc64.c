@@ -107,8 +107,6 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 
 	if (OF_getprop(options, "input-device", dev, devsz) == -1)
 		return (-1);
-	if ((input = OF_finddevice(dev)) == -1)
-		return (-1);
 	if (OF_getprop(options, "output-device", buf, sizeof(buf)) == -1)
 		return (-1);
 	if (!strcmp(dev, "keyboard") && !strcmp(buf, "screen")) {
@@ -123,8 +121,12 @@ uart_cpu_getdev_console(phandle_t options, char *dev, size_t devsz)
 		if (OF_instance_to_package(stdout) != input)
 			return (-1);
 		snprintf(dev, devsz, "ttya");
-	} else if (OF_finddevice(buf) != input)
-		return (-1);
+	} else {
+		if ((input = OF_finddevice(dev)) == -1)
+			return (-1);
+		if (OF_finddevice(buf) != input)
+			return (-1);
+	}
 	if (OF_getprop(input, "device_type", buf, sizeof(buf)) == -1)
 		return (-1);
 	if (strcmp(buf, "serial") != 0)
