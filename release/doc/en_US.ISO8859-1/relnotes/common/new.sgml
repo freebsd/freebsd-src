@@ -157,7 +157,10 @@
     mass-storage devices.  Entropy from the &man.random.4; device is
     now periodically saved to files in
     <filename>/var/db/entropy</filename>, as well as at
-    shutdown time.</para>
+    shutdown time.  The semantics of <filename>/dev/random</filename>
+    have changed; it never blocks waiting for entropy bits but
+    generates a stream of pseudo-random data and now behaves exactly
+    as <filename>/dev/urandom</filename>.</para>
 
     <para>The &man.syscons.4; driver now supports keyboard-controlled
     pasting, by default bound to
@@ -1029,7 +1032,8 @@
 
     <para>&man.ls.1; can produce colorized listings with the
     <option>-G</option> flag (and appropriate terminal
-    support). &merged;</para>
+    support).  The <envar>CLICOLOR</envar> environment variable can be set
+    to enable colorized listings by default. &merged;</para>
 
     <para>&man.sysinstall.8; now properly preserves
     <filename>/etc/mail</filename> during a binary upgrade. &merged;</para>
@@ -1084,12 +1088,14 @@
     algorithm.  As a
     result, the native <application>OpenSSL</application>
     implementation of the RSA algorithm is now activated by default,
-    and the <filename>rsaref</filename> port and
-    <filename>librsaUSA</filename> are no longer required for USA
-    residents. &merged;</para>
+    and the <port>security/rsaref</port> port and the
+    <filename>librsaUSA</filename> and <filename>librsaINTL</filename>
+    libraries are
+    no longer required for USA and non-USA residents respectively. &merged;</para>
 
     <para>&man.ifconfig.8; command can set the link-layer address
-    of an interface. &merged;</para>
+    of an interface using the <option>lladdr</option> parameter. 
+    &merged;</para>
 
     <para>&man.ifconfig.8; can now accept addresses in slash/CIDR
     notation. &merged;</para>
@@ -1310,7 +1316,9 @@
     &man.wicontrol.8; doesn't start with a <literal>-</literal>, it is
     assumed to be an interface.</para>
 
-    <para>&man.rdist.1; has been retired.</para>
+    <para>&man.rdist.1; has been retired from the base system, but is still
+    available from &os; Ports Collection as 
+    <port>net/44bsd-rdist</port>.</para>
 
     <para>&man.ppp.8; has gained the <literal>tcpmssfixup</literal>
     option, which adjusts outgoing and incoming TCP SYN packets so that the maximum
@@ -1529,7 +1537,8 @@
 
     <para>NFS now works over IPv6.</para>
 
-    <para>&man.rpc.lockd.8; has been imported from NetBSD.</para>
+    <para>&man.rpc.lockd.8; has been imported from NetBSD.  This
+    daemon enables locking on NFS filesystems.</para>
 
     <para>&man.rc.8; now has an framework for handling dependencies between
     &man.rc.conf.5; variables. &merged;</para>
