@@ -46,26 +46,33 @@
 .Op Fl s Ar string2 Op Ar ...
 ]
 .Op Fl h
+.Op Fl l
 .Op Fl A Ar annexname
 .Op Fl U Ar upscript
 .Op Fl D Ar downscript
-.Op Fl p Ar father_pause
 .Op Fl t Ar script_timeout
+.Op Fl W Ar maxtries
 .Op Fl w Ar retry_pause
 .Ar device user passwd
 .Sh DESCRIPTION
+.Pp
 .Nm Startslip
 opens the specified
 .Ar device .
-.Pp
-Once carrier is asserted
+Once carrier is asserted (if modem control is enabled)
 .Nm startslip
 attempts to login as the specified
 .Ar user
 with the given
 .Ar password .
-If successful, it puts the device into the slip line discipline.
-If carrier drops or a
+Standard login: & Password: scheme assumed unless Annex option
+specified (see
+.Fl A ) .
+If successful, it puts the device into the slip line discipline,
+calls
+.Ar upscript
+and goes to wait mode.
+If carrier drops (modem control enabled) or a
 .Dv SIGHUP
 is sent to
 .Nm startslip ,
@@ -97,10 +104,12 @@ Default value is 9600.
 .It Fl t Ar script_timeout
 Set login script timeout in seconds, default value is 90.
 .It Fl w Ar retry_pause
-Set retry pause in seconds (increased from one try to another),
+Set connecting retry pause in seconds (increased from one retry to another),
 default value is 60.
-.It Fl p Ar father_pause
-Set after fork father pause in seconds, default is no pause there.
+.It Fl W Ar maxtries
+Set maximum number of connection retries for one session,
+default value is 6.
+Value 0 means infinite count.
 .It Fl s Ar string1
 The optional
 .Ar string
@@ -129,6 +138,10 @@ to determine when a connection has been established.
 Use hardware (CTS/RTS) flow control for
 .Ar device .
 Default value is no flow control.
+.It Fl l
+Disable modem control (waiting for carrier and carrier drop sense) for
+.Ar device .
+Modem control is enabled by default.
 .It Fl U Ar upscript
 Specifies a script to run when a SLIP interface becomes connected.  This may
 contain ifconfig, route, and other appropriate commands.  The arguments that
@@ -149,8 +162,8 @@ passed via
 environment variable.
 .El
 .Sh FILES
-.Bl -tag -width /var/run/startslip-<device>.pid -compact
-.It Pa /var/run/startslip-<device>.pid
+.Bl -tag -width /var/run/startslip.<device>.pid -compact
+.It Pa /var/run/startslip.<device>.pid
 pid stored here
 .Sh SEE ALSO
 .Xr sliplogin 8 ,
