@@ -1,4 +1,4 @@
-.\"	$KAME: faithd.8,v 1.33 2001/09/05 03:04:20 itojun Exp $
+.\"	$KAME: faithd.8,v 1.37 2002/05/09 14:21:23 itojun Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -41,10 +41,12 @@
 .Op Fl f Ar configfile
 .Ar service
 .Op Ar serverpath Op Ar serverargs
+.Nm ""
 .Sh DESCRIPTION
 The
 .Nm
-utility provides IPv6-to-IPv4 TCP relay.  It
+utility provides IPv6-to-IPv4 TCP relay.
+.Nm
 must be used on an IPv4/v6 dual stack router.
 .Pp
 When
@@ -65,7 +67,7 @@ destination.
 For example, if
 .Li 3ffe:0501:4819:ffff::
 is reserved for
-.Nm ,
+.Nm Ns ,
 and the
 .Tn TCPv6
 destination address is
@@ -116,7 +118,6 @@ at
 .Pa http://www.vermicelli.pasta.cs.uit.no/ipv6/software.html .
 Make sure you do not propagate translated DNS records to normal DNS cloud,
 it is highly harmful.
-.Pp
 .Ss Daemon mode
 When
 .Nm
@@ -147,7 +148,7 @@ or other standard mechanisms.
 By specifying
 .Ar serverpath
 to
-.Nm ,
+.Nm Ns ,
 you can run local daemons on the router.
 The
 .Nm
@@ -172,8 +173,6 @@ Use privileged TCP port number as source port,
 for IPv4 TCP connection toward final destination.
 For relaying
 .Xr ftp 1
-and
-.Xr rlogin 1 ,
 this flag is not necessary as special program code is supplied.
 .El
 .Pp
@@ -184,9 +183,7 @@ It is capable of emulating TCP half close as well.
 The
 .Nm
 utility includes special support for protocols used by
-.Xr ftp 1
-and
-.Xr rlogin 1 .
+.Xr ftp 1 .
 When translating FTP protocol,
 .Nm
 translates network level addresses in
@@ -194,18 +191,11 @@ translates network level addresses in
 and
 .Li PASV/LPSV/EPSV
 commands.
-For RLOGIN protocol,
-.Nm
-will relay back connection from
-.Xr rlogind 8
-on the server to
-.Xr rlogin 1
-on client.
 .Pp
 Inactive sessions will be disconnected in 30 minutes,
 to avoid stale sessions from chewing up resources.
 This may be inappropriate for some of the services
-(should this be configurable?).
+.Pq should this be configurable? .
 .Ss inetd mode
 When
 .Nm
@@ -243,10 +233,12 @@ To prevent malicious accesses,
 implements a simple address-based access control.
 With
 .Pa /etc/faithd.conf
-(or
+.Po
+or
 .Ar configfile
 specified by
-.Fl f ) ,
+.Fl f
+.Pc ,
 .Nm
 will avoid relaying unwanted traffic.
 The
@@ -254,35 +246,48 @@ The
 contains directives with the following format:
 .Bl -bullet
 .It
-.Ar src Ns / Ns Ar slen Cm deny Ar dst Ns / Ns Ar dlen
+.Xo
+.Ic Ar src/slen Li deny Ar dst/dlen
+.Xc
 .Pp
 If the source address of a query matches
-.Ar src Ns / Ns Ar slen ,
+.Ar src/slen ,
 and the translated destination address matches
-.Ar dst Ns / Ns Ar dlen ,
+.Ar dst/dlen ,
 deny the connection.
 .It
-.Ar src Ns / Ns Ar slen Cm permit Ar dst Ns / Ns Ar dlen
+.Xo
+.Ic Ar src/slen Li permit Ar dst/dlen
+.Xc
 .Pp
 If the source address of a query matches
-.Ar src Ns / Ns Ar slen ,
+.Ar src/slen ,
 and the translated destination address matches
-.Ar dst Ns / Ns Ar dlen ,
+.Ar dst/dlen ,
 permit the connection.
 .El
 .Pp
 The directives are evaluated in sequence,
 and the first matching entry will be effective.
 If there is no match
-(if we reach the end of the ruleset)
+.Pq if we reach the end of the ruleset
 the traffic will be denied.
 .Pp
 With inetd mode,
 traffic may be filtered by using access control functionality in
 .Xr inetd 8 .
+.Sh RETURN VALUES
+.Nm
+exits with
+.Dv EXIT_SUCCESS
+.Pq 0
+on success, and
+.Dv EXIT_FAILURE
+.Pq 1
+on error.
 .Sh EXAMPLES
 Before invoking
-.Nm ,
+.Nm Ns ,
 .Xr faith 4
 interface has to be configured properly.
 .Bd -literal -offset
@@ -320,26 +325,19 @@ If you would like to pass extra arguments to the local daemon:
 Here are some other examples.
 You may need
 .Fl p
-to translate rsh/rlogin services.
+if the service checks the source port range.
 .Bd -literal -offset
 # faithd ssh
-# faithd login /usr/libexec/rlogin rlogind
-# faithd shell /usr/libexec/rshd rshd
+# faithd telnet /usr/libexec/telnetd telnetd
 .Ed
-.Pp
-However, you should be careful when translating rlogin or rsh
-connections.
-See
-.Sx SECURITY CONSIDERATIONS
-for more details.
 .Ss inetd mode samples
 Add the following lines into
 .Xr inetd.conf 5 .
 Syntax may vary depending upon your operating system.
 .Bd -literal -offset
-telnet  stream  tcp6/faith  nowait  root  /usr/sbin/faithd  telnetd
-ftp     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  ftpd -l
-ssh     stream  tcp6/faith  nowait  root  /usr/sbin/faithd  /usr/sbin/sshd -i
+telnet  stream  tcp6/faith  nowait  root  faithd  telnetd
+ftp     stream  tcp6/faith  nowait  root  faithd  ftpd -l
+ssh     stream  tcp6/faith  nowait  root  faithd  /usr/sbin/sshd -i
 .Ed
 .Pp
 .Xr inetd 8
@@ -370,16 +368,6 @@ setting.
 3ffe:501:ffff::/48 deny 127.0.0.0/8
 3ffe:501:ffff::/48 permit 0.0.0.0/0
 .Ed
-.Sh RETURN VALUES
-The
-.Nm
-utility exits with
-.Dv EXIT_SUCCESS
-.Pq 0
-on success, and
-.Dv EXIT_FAILURE
-.Pq 1
-on error.
 .Sh SEE ALSO
 .Xr faith 4 ,
 .Xr route 8 ,
@@ -403,11 +391,9 @@ IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
 was initially integrated into
 .Fx 4.0
 .Sh SECURITY CONSIDERATIONS
-It is very insecure to use
-.Xr rhosts 5
-and other IP-address based authentication, for connections relayed by
-.Nm
-(and any other TCP relaying services).
+It is very insecure to use IP-address based authentication, for connections relayed by
+.Nm Ns ,
+and any other TCP relaying services.
 .Pp
 Administrators are advised to limit accesses to
 .Nm
