@@ -1,3 +1,5 @@
+.\" $FreeBSD$
+.\"
 .\" The following requests are required for all man pages.
 .Dd DATE
 .Os
@@ -8,6 +10,7 @@
 .Sh SYNOPSIS
 .Sh DESCRIPTION
 .\" The following requests should be uncommented and used where appropriate.
+.\" .Sh IMPLEMENTATION NOTES
 .\" This next request is for sections 2 and 3 function return values only.
 .\" .Sh RETURN VALUES
 .\" This next request is for sections 1, 6, 7 & 8 only
@@ -17,6 +20,7 @@
 .\" This next request is for sections 1, 6, 7 & 8 only
 .\"     (command return values (to shell) and fprintf/stderr type diagnostics)
 .\" .Sh DIAGNOSTICS
+.\" .Sh COMPATIBILITY
 .\" The next request is for sections 2 and 3 error and signal handling only.
 .\" .Sh ERRORS
 .\" .Sh SEE ALSO
