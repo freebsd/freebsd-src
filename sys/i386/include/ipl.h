@@ -30,15 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl.h,v 1.6 1997/04/26 20:04:21 peter Exp $
+ *	$Id: ipl.h,v 1.7 1997/04/27 21:17:56 fsmp Exp $
  */
 
 #ifndef _ISA_IPL_H_
 #define _ISA_IPL_H_
-
-#ifdef KERNEL
-#include "opt_smp.h"
-#endif
 
 #if defined(APIC_IO)
 
