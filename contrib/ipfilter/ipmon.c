@@ -692,7 +692,7 @@ int	blen;
 		p = (u_short)ip->ip_p;
 		s = (u_32_t *)&ip->ip_src;
 		d = (u_32_t *)&ip->ip_dst;
-		plen = ntohs(ip->ip_len);
+		plen = ip->ip_len;
 	} else {
 		goto printipflog;
 	}
