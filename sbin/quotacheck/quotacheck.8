@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)quotacheck.8	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
 .Dd June 5, 1993
 .Dt QUOTACHECK 8
@@ -45,7 +46,8 @@
 .Op Fl g
 .Op Fl u
 .Op Fl v
-.Ar filesystem Ar ...
+.Ar filesystem
+.Ar
 .Nm quotacheck
 .Op Fl g
 .Op Fl u
@@ -63,13 +65,11 @@ incorrect quotas are updated (the latter only
 occurs if an active filesystem is checked).
 By default both user and group quotas are checked.
 .Pp
-Available options:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl a
-If the
-.Fl a
-flag is supplied in place of any filesystem names,
-.Nm quotacheck
+If supplied in place of any filesystem names,
+.Nm
 will check all the filesystems indicated in
 .Pa /etc/fstab
 to be read-write with disk quotas.
@@ -85,7 +85,7 @@ Only user quotas listed in
 .Pa /etc/fstab
 are to be checked.
 .It Fl v
-.Nm quotacheck
+.Nm Quotacheck
 reports discrepancies between the
 calculated and recorded disk quotas and other additional diagnostic messages.
 .El
@@ -101,8 +101,8 @@ using the pass numbers in
 in an identical fashion to
 .Xr fsck 8 .
 .Pp
-Normally
-.Nm quotacheck
+Normally,
+.Nm
 operates silently.
 .Pp
 .Nm Quotacheck
@@ -115,7 +115,7 @@ which are located at the root of the associated file system.
 These defaults may be overridden in
 .Pa /etc/fstab .
 If a file is not present, 
-.Nm quotacheck
+.Nm
 will create it.
 .Pp
 .Nm Quotacheck
@@ -131,7 +131,7 @@ accesses the raw device in calculating the actual
 disk usage for each user.
 Thus, the filesystems
 checked should be quiescent while
-.Nm quotacheck
+.Nm
 is running.
 .Sh FILES
 .Bl -tag -width quota.group -compact
