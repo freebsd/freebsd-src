@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: stlload.c,v 1.2 1996/05/04 08:02:23 peter Exp $
  */
 
 /*****************************************************************************/
@@ -82,7 +82,7 @@ char	buf[BUFSIZE];
 cdkfeature_t	feature = { 0, 0, ETYP_CDK, 0, 0, 0, 0, 0 };
 
 /*
- *	Have local copys of the board signatures ready.
+ *	Have local copies of the board signatures ready.
  */
 cdkecpsig_t	ecpsig;
 cdkonbsig_t	onbsig;
@@ -103,7 +103,7 @@ void usage()
 {
 	fprintf(stderr, "Usage: %s [OPTION]\n\n", progname);
 	fprintf(stderr, "    -h      print this information\n");
-	fprintf(stderr, "    -v      print full diagnotsic trace\n");
+	fprintf(stderr, "    -v      print full diagnostic trace\n");
 	fprintf(stderr, "    -V      show version information and exit\n");
 	fprintf(stderr, "    -i      specify image file to use\n");
 	fprintf(stderr, "    -b      download board number\n");
