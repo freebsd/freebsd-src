@@ -103,7 +103,7 @@ static void	ex_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
 
 static int	ex_get_media	__P((u_int32_t iobase));
 
-static void	ex_stop		__P((struct ex_softc *));
+       void	ex_stop		__P((struct ex_softc *));
 static void	ex_reset	__P((struct ex_softc *));
 
 static void	ex_tx_intr	__P((struct ex_softc *));
@@ -543,7 +543,7 @@ ex_start(struct ifnet *ifp)
 	DODEBUG(Start_End, printf("ex_start%d: finish\n", unit););
 }
 
-static void
+void
 ex_stop(struct ex_softc *sc)
 {
 	int iobase = sc->iobase;
