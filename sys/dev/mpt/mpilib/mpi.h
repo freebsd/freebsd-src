@@ -28,7 +28,7 @@
  *          Title:  MPI Message independent structures and definitions
  *  Creation Date:  July 27, 2000
  *
- *    MPI Version:  01.02.03
+ *    MPI.H Version:  01.02.09
  *
  *  Version History
  *  ---------------
@@ -66,6 +66,13 @@
  *                      Added define MPI_FUNCTION_TOOLBOX.
  *  09-28-01  01.02.02  New function code MPI_SCSI_ENCLOSURE_PROCESSOR.
  *  11-01-01  01.02.03  Changed name to MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR.
+ *  03-14-02  01.02.04  Added MPI_HEADER_VERSION_ defines.
+ *  05-31-02  01.02.05  Bumped MPI_HEADER_VERSION_UNIT.
+ *  07-12-02  01.02.06  Added define for MPI_FUNCTION_MAILBOX.
+ *  09-16-02  01.02.07  Bumped value for MPI_HEADER_VERSION_UNIT.
+ *  11-15-02  01.02.08  Added define MPI_IOCSTATUS_TARGET_INVALID_IO_INDEX and
+ *                      obsoleted define MPI_IOCSTATUS_TARGET_INVALID_IOCINDEX.
+ *  04-01-03  01.02.09  New IOCStatus code: MPI_IOCSTATUS_FC_EXCHANGE_CANCELED
  *  --------------------------------------------------------------------------
  */
 
@@ -81,9 +88,26 @@
 
 #define MPI_VERSION_MAJOR                   (0x01)
 #define MPI_VERSION_MINOR                   (0x02)
-#define MPI_VERSION            ((MPI_VERSION_MAJOR << 8) | MPI_VERSION_MINOR)
+#define MPI_VERSION_MAJOR_MASK              (0xFF00)
+#define MPI_VERSION_MAJOR_SHIFT             (8)
+#define MPI_VERSION_MINOR_MASK              (0x00FF)
+#define MPI_VERSION_MINOR_SHIFT             (0)
+#define MPI_VERSION ((MPI_VERSION_MAJOR << MPI_VERSION_MAJOR_SHIFT) |   \
+                                      MPI_VERSION_MINOR)
 
+#define MPI_VERSION_01_00                   (0x0100)
+#define MPI_VERSION_01_01                   (0x0101)
+#define MPI_VERSION_01_02                   (0x0102)
 /* Note: The major versions of 0xe0 through 0xff are reserved */
+
+/* versioning for this MPI header set */
+#define MPI_HEADER_VERSION_UNIT             (0x09)
+#define MPI_HEADER_VERSION_DEV              (0x00)
+#define MPI_HEADER_VERSION_UNIT_MASK        (0xFF00)
+#define MPI_HEADER_VERSION_UNIT_SHIFT       (8)
+#define MPI_HEADER_VERSION_DEV_MASK         (0x00FF)
+#define MPI_HEADER_VERSION_DEV_SHIFT        (0)
+#define MPI_HEADER_VERSION ((MPI_HEADER_VERSION_UNIT << 8) | MPI_HEADER_VERSION_DEV)
 
 /*****************************************************************************
 *
@@ -249,6 +273,8 @@
 #define MPI_FUNCTION_TOOLBOX                        (0x17)
 
 #define MPI_FUNCTION_SCSI_ENCLOSURE_PROCESSOR       (0x18)
+
+#define MPI_FUNCTION_MAILBOX                        (0x19)
 
 #define MPI_FUNCTION_LAN_SEND                       (0x20)
 #define MPI_FUNCTION_LAN_RECEIVE                    (0x21)
@@ -617,7 +643,8 @@ typedef struct _MSG_DEFAULT_REPLY
 
 #define MPI_IOCSTATUS_TARGET_PRIORITY_IO         (0x0060)
 #define MPI_IOCSTATUS_TARGET_INVALID_PORT        (0x0061)
-#define MPI_IOCSTATUS_TARGET_INVALID_IOCINDEX    (0x0062)
+#define MPI_IOCSTATUS_TARGET_INVALID_IOCINDEX    (0x0062)   /* obsolete */
+#define MPI_IOCSTATUS_TARGET_INVALID_IO_INDEX    (0x0062)
 #define MPI_IOCSTATUS_TARGET_ABORTED             (0x0063)
 #define MPI_IOCSTATUS_TARGET_NO_CONN_RETRYABLE   (0x0064)
 #define MPI_IOCSTATUS_TARGET_NO_CONNECTION       (0x0065)
@@ -641,6 +668,7 @@ typedef struct _MSG_DEFAULT_REPLY
 #define MPI_IOCSTATUS_FC_RX_ID_INVALID          (0x0067)
 #define MPI_IOCSTATUS_FC_DID_INVALID            (0x0068)
 #define MPI_IOCSTATUS_FC_NODE_LOGGED_OUT        (0x0069)
+#define MPI_IOCSTATUS_FC_EXCHANGE_CANCELED      (0x006C)
 
 /****************************************************************************/
 /*  LAN values                                                              */

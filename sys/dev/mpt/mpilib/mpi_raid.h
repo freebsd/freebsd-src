@@ -28,7 +28,7 @@
  *          Title:  MPI RAID message and structures
  *  Creation Date:  February 27, 2001
  *
- *    MPI Version:  01.02.04
+ *    MPI_RAID.H Version:  01.02.09
  *
  *  Version History
  *  ---------------
@@ -42,6 +42,14 @@
  *  10-04-01  01.02.03  Added ActionData defines for
  *                      MPI_RAID_ACTION_DELETE_VOLUME action.
  *  11-01-01  01.02.04  Added define for MPI_RAID_ACTION_ADATA_DO_NOT_SYNC.
+ *  03-14-02  01.02.05  Added define for MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT.
+ *  05-07-02  01.02.06  Added define for MPI_RAID_ACTION_ACTIVATE_VOLUME,
+ *                      MPI_RAID_ACTION_INACTIVATE_VOLUME, and
+ *                      MPI_RAID_ACTION_ADATA_INACTIVATE_ALL.
+ *  07-12-02  01.02.07  Added structures for Mailbox request and reply.
+ *  11-15-02  01.02.08  Added missing MsgContext field to MSG_MAILBOX_REQUEST.
+ *  04-01-03  01.02.09  New action data option flag for
+ *                      MPI_RAID_ACTION_DELETE_VOLUME.
  *  --------------------------------------------------------------------------
  */
 
@@ -96,13 +104,22 @@ typedef struct _MSG_RAID_ACTION
 #define MPI_RAID_ACTION_DELETE_PHYSDISK             (0x0E)
 #define MPI_RAID_ACTION_FAIL_PHYSDISK               (0x0F)
 #define MPI_RAID_ACTION_REPLACE_PHYSDISK            (0x10)
+#define MPI_RAID_ACTION_ACTIVATE_VOLUME             (0x11)
+#define MPI_RAID_ACTION_INACTIVATE_VOLUME           (0x12)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_CREATE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_DO_NOT_SYNC           (0x00000001)
+#define MPI_RAID_ACTION_ADATA_LOW_LEVEL_INIT        (0x00000002)
 
 /* ActionDataWord defines for use with MPI_RAID_ACTION_DELETE_VOLUME action */
 #define MPI_RAID_ACTION_ADATA_KEEP_PHYS_DISKS       (0x00000000)
 #define MPI_RAID_ACTION_ADATA_DEL_PHYS_DISKS        (0x00000001)
+
+#define MPI_RAID_ACTION_ADATA_KEEP_LBA0             (0x00000000)
+#define MPI_RAID_ACTION_ADATA_ZERO_LBA0             (0x00000002)
+
+/* ActionDataWord defines for use with MPI_RAID_ACTION_ACTIVATE_VOLUME action */
+#define MPI_RAID_ACTION_ADATA_INACTIVATE_ALL        (0x00000001)
 
 
 /* RAID Action reply message */
@@ -193,6 +210,43 @@ typedef struct _MSG_SCSI_IO_RAID_PT_REPLY
 } MSG_SCSI_IO_RAID_PT_REPLY, MPI_POINTER PTR_MSG_SCSI_IO_RAID_PT_REPLY,
   SCSIIORaidPassthroughReply_t, MPI_POINTER pSCSIIORaidPassthroughReply_t;
 
+
+/****************************************************************************/
+/* Mailbox reqeust structure */
+/****************************************************************************/
+
+typedef struct _MSG_MAILBOX_REQUEST
+{
+    U16                     Reserved1;
+    U8                      ChainOffset;
+    U8                      Function;
+    U16                     Reserved2;
+    U8                      Reserved3;
+    U8                      MsgFlags;
+    U32                     MsgContext;
+    U8                      Command[10];
+    U16                     Reserved4;
+    SGE_IO_UNION            SGL;
+} MSG_MAILBOX_REQUEST, MPI_POINTER PTR_MSG_MAILBOX_REQUEST,
+  MailboxRequest_t, MPI_POINTER pMailboxRequest_t;
+
+
+/* Mailbox reply structure */
+typedef struct _MSG_MAILBOX_REPLY
+{
+    U16                     Reserved1;          /* 00h */
+    U8                      MsgLength;          /* 02h */
+    U8                      Function;           /* 03h */
+    U16                     Reserved2;          /* 04h */
+    U8                      Reserved3;          /* 06h */
+    U8                      MsgFlags;           /* 07h */
+    U32                     MsgContext;         /* 08h */
+    U16                     MailboxStatus;      /* 0Ch */
+    U16                     IOCStatus;          /* 0Eh */
+    U32                     IOCLogInfo;         /* 10h */
+    U32                     Reserved4;          /* 14h */
+} MSG_MAILBOX_REPLY, MPI_POINTER PTR_MSG_MAILBOX_REPLY,
+  MailboxReply_t, MPI_POINTER pMailboxReply_t;
 
 #endif
 
