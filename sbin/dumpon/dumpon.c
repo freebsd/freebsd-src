@@ -48,11 +48,11 @@ static const char rcsid[] =
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <fcntl.h>
+#include <paths.h>
 #include <unistd.h>
 #include <sys/param.h>
-#include <sys/sysctl.h>
-#include <sys/stat.h>
+#include <sys/disklabel.h>
 #include <sysexits.h>
 
 void	usage(void) __dead2;
@@ -61,8 +61,8 @@ int
 main(int argc, char *argv[])
 {
 	int ch, verbose, rv;
-	struct stat stab;
-	int mib[2];
+	int i, fd;
+	u_int u;
 
 	verbose = rv = 0;
 	while ((ch = getopt(argc, argv, "v")) != -1)
@@ -80,41 +80,29 @@ main(int argc, char *argv[])
 		usage();
 
 	if (strcmp(argv[0], "off")) {
-		rv = stat(argv[0], &stab);
-		if (rv) {
+		fd = open(argv[0], O_RDONLY);
+		if (fd < 0)
 			err(EX_OSFILE, "%s", argv[0]);
-		}
-
-		if (!S_ISCHR(stab.st_mode)) {
-			errx(EX_USAGE,
-			     "%s: must specify a character disk device",
-			     argv[0]);
-		}
+		u = 0;
+		i = ioctl(fd, DIOCGKERNELDUMP, &u);
+		u = 1;
+		i = ioctl(fd, DIOCGKERNELDUMP, &u);
+		if (i == 0 && verbose)
+			printf("kernel dumps on %s\n", argv[0]);
+			
 	} else {
-		stab.st_rdev = NODEV;
+		fd = open(_PATH_DEVNULL, O_RDONLY);
+		if (fd < 0)
+			err(EX_OSFILE, "%s", _PATH_DEVNULL);
+		u = 0;
+		i = ioctl(fd, DIOCGKERNELDUMP, &u);
+		if (i == 0 && verbose)
+			printf("kernel dumps disabled\n");
 	}
+	if (i < 0)
+		err(EX_OSERR, "ioctl(DIOCGKERNELDUMP)");
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_DUMPDEV;
-
-	rv = sysctl(mib, 2, (void *)0, (size_t *)0, &stab.st_rdev,
-		    sizeof stab.st_rdev);
-	if (rv) {
-		err(EX_OSERR, "sysctl: kern.dumpdev");
-	}
-
-	if (verbose) {
-		if (stab.st_rdev == NODEV) {
-			printf("dumpon: crash dumps disabled\n");
-		} else {
-			printf("dumpon: crash dumps to %s (%lu, %lu)\n",
-			       argv[0],
-			       (unsigned long)major(stab.st_rdev),
-			       (unsigned long)minor(stab.st_rdev));
-		}
-	}
-
-	return (0);
+	exit (0);
 }
 
 void
