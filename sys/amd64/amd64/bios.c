@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: bios.c,v 1.1 1997/08/01 06:07:11 msmith Exp $
  */
 
 /*
@@ -131,7 +131,7 @@ bios32_init(void *junk)
 
 	/* get a virtual pointer to the structure */
 	dmit = (struct DMI_table *)BIOS_PADDRTOVADDR(sigaddr);
-	for (cv = (u_int8_t *)dmit, ck = 0, i = 0; i < 16; i++) {
+	for (cv = (u_int8_t *)dmit, ck = 0, i = 0; i < 15; i++) {
 	    ck += cv[i];
 	}
 	/* if checksum is OK, we have action */
@@ -139,7 +139,8 @@ bios32_init(void *junk)
 	    DMItable = dmit;		/* save reference */
 	    if (bootverbose) {
 		printf("DMI header at %p\n", dmit);
-		printf("Version %x\n", dmit->bcd_revision);
+		printf("Version %d.%d\n", (dmit->bcd_revision >> 4),
+		       (dmit->bcd_revision & 0x0f));
 		printf("Table at 0x%x, %hd entries, %hd bytes\n",
 		       dmit->st_base, dmit->st_entries, dmit->st_size);
 	    }
