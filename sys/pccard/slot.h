@@ -66,8 +66,6 @@ struct slot_ctrl {
 				/* Set power values */
 	int	(*ioctl) __P((struct slot *, int, caddr_t));
 				/* ioctl to lower level */
-	void	(*mapirq) __P((struct slot *, int));
-				/* Map interrupt number */
 	void	(*resume) __P((struct slot *));
 				/* suspend/resume support */
 	int	maxmem;		/* Number of allowed memory windows */
