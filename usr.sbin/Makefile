@@ -6,7 +6,7 @@
 SUBDIR= ac accton adduser amd arp bootparamd chown chroot cron crunch ctm \
 	dev_mkdb diskpart edquota inetd kgmon kvm_mkdb lpr lsdev manctl \
 	mtree mrouted named nslookup pkg_install pkg_manage portmap ppp pppd \
-	pppstats pstat pwd_mkdb quotaon repquota routed rmt rwhod sa \
+	pppstats pstat pwd_mkdb quotaon rarpd repquota routed rmt rwhod sa \
 	sendmail sliplogin slstat sysctl syslogd tcpdump timed traceroute \
 	trpt tzsetup vipw vnconfig watch xntpd xten ypbind yppoll ypset zic
 
