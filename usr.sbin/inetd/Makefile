@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	inetd
+SRCS=	inetd.c builtins.c
 MAN8=	inetd.8
 MLINKS=	inetd.8 inetd.conf.5
 MAINTAINER=des@freebsd.org
