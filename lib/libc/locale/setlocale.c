@@ -129,7 +129,7 @@ setlocale(category, locale)
 		if (!env || !*env)
 			env = getenv("LANG");
 
-		if (!env || !*env)
+		if (!env || !*env || strchr(env, '/'))
 			env = "C";
 
 		(void) strncpy(new_categories[category], env, ENCODING_LEN);
