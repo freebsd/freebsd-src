@@ -6,7 +6,7 @@
  * And thus replied Lpd@NannyMUD:
  *    Who cares? :-) /Peter Eriksson <pen@signum.se>
  *
- *	$Id$
+ *	$Id: yp_svc.c,v 1.1 1995/01/31 08:58:56 wpaul Exp $
  */
 
 #include "system.h"
@@ -261,7 +261,7 @@ int main(int argc, char **argv)
     int			my_socket;
     struct sockaddr_in	socket_address;
     int			result;
-
+    int			sunos_4_kludge = 0;
     
     progname = strrchr (argv[0], '/');
     if (progname == (char *) NULL)
@@ -279,6 +279,8 @@ int main(int argc, char **argv)
 	    dns_flag = 1;
 	else if ((argv[i][1] == 'p') && (argv[i][2] >= '0') && (argv[i][2] <= '9'))
 	    my_port = atoi(argv[i] + 2);
+	else if (strcmp(argv[i], "-k") == 0)
+		sunos_4_kludge = 1;
 	else
 	{
 	    fprintf(stderr, "%s: Unknown command line switch: %s\n",
@@ -296,7 +298,7 @@ int main(int argc, char **argv)
 	    }
 
     if (debug_flag)
-	Perror("[Welcome to the NYS YP Server, version 0.11]\n");
+	Perror("[Welcome to the NYS YP Server, version 0.13]\n");
 
     if (i < argc)
     {
@@ -313,6 +315,8 @@ int main(int argc, char **argv)
     }
 	
     (void) pmap_unset(YPPROG, YPVERS);
+    if (sunos_4_kludge)
+	(void) pmap_unset(YPPROG, 1);
 
     if (my_port >= 0)
     {
@@ -348,6 +352,20 @@ int main(int argc, char **argv)
     if (!svc_register(transp, YPPROG, YPVERS, ypprog_2, IPPROTO_UDP)) {
 	Perror("unable to register (YPPROG, YPVERS, udp).");
 	exit(1);
+    }
+
+    if (sunos_4_kludge) {
+    /*
+    ** This is just to make us reply to YP version 1 calls which SunOS 4's
+    ** ypbind seems to insist on finding. If someone _really_ tries to
+    ** use this the they will probably be bitten - _hard_, since I haven't
+    ** got the faintest idea on how the XDR calls for YP version 1 should
+    ** look like. The Domain_NoNack call seems to be compatible though :-)
+    */
+	if (!svc_register(transp, YPPROG, 1, ypprog_2, IPPROTO_UDP)) {
+	    fprintf(stderr, "unable to register (YPPROG, 1, udp).");
+	    exit(1);
+ 	}
     }
 
     if (my_port >= 0)
