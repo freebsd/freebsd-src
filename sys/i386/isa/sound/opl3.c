@@ -872,7 +872,7 @@ opl3_init (long mem_start)
   opl3_ok = 1;
   if (opl3_enabled)
     {
-      printk (" <Yamaha OPL-3 FM>");
+      printk ("snd1: <Yamaha OPL-3 FM>");
       fm_model = 2;
       nr_voices = 18;
       fm_info.nr_drums = 0;
@@ -892,7 +892,7 @@ opl3_init (long mem_start)
     }
   else
     {
-      printk (" <Yamaha 2-OP FM>");
+      printk ("snd1: <Yamaha 2-OP FM>");
       fm_model = 1;
       nr_voices = 9;
       fm_info.nr_drums = 0;

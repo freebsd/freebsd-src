@@ -2304,7 +2304,7 @@ static struct synth_operations guswave_operations =
 long
 gus_wave_init (long mem_start, int irq, int dma)
 {
-  printk (" <Gravis UltraSound %dk>", gus_mem_size / 1024);
+  printk ("snd4: <Gravis UltraSound %dk>", gus_mem_size / 1024);
 
   if (irq < 0 || irq > 15)
     {
