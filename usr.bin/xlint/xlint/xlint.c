@@ -1,4 +1,4 @@
-/* $NetBSD: xlint.c,v 1.26 2002/01/22 01:14:03 thorpej Exp $ */
+/* $NetBSD: xlint.c,v 1.27 2002/01/31 19:09:33 tv Exp $ */
 
 /*
  * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
@@ -34,7 +34,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: xlint.c,v 1.26 2002/01/22 01:14:03 thorpej Exp $");
+__RCSID("$NetBSD: xlint.c,v 1.27 2002/01/31 19:09:33 tv Exp $");
 #endif
 __FBSDID("$FreeBSD$");
 
@@ -53,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include "lint.h"
 #include "pathnames.h"
+
+#define DEFAULT_PATH		_PATH_DEFPATH
 
 int main(int, char *[]);
 
@@ -581,7 +583,7 @@ static void
 fname(const char *name)
 {
 	const	char *bn, *suff;
-	char	**args, *ofn, *path;
+	char	**args, *ofn, *pathname, *CC;
 	size_t	len;
 	int is_stdin;
 	int	fd;
@@ -639,13 +641,12 @@ fname(const char *name)
 	/* run cc */
 
 	if (getenv("CC") == NULL) {
-		path = xmalloc(strlen(PATH_USRBIN) + sizeof ("/cc"));
-		(void)sprintf(path, "%s/cc", PATH_USRBIN);
-	} else {
-		path = strdup(getenv("CC"));
-	}
+		pathname = xmalloc(strlen(PATH_USRBIN) + sizeof ("/cc"));
+		(void)sprintf(pathname, "%s/cc", PATH_USRBIN);
+	} else
+		pathname = strdup(getenv("CC"));
 
-	appcstrg(&args, path);
+	appcstrg(&args, pathname);
 	applst(&args, cflags);
 	applst(&args, lcflags);
 	appcstrg(&args, name);
@@ -660,33 +661,33 @@ fname(const char *name)
 		terminate(-1);
 	}
 
-	runchild(path, args, cppout, cppoutfd);
-	free(path);
+	runchild(pathname, args, cppout, cppoutfd);
+	free(pathname);
 	freelst(&args);
 
 	/* run lint1 */
 
 	if (!Bflag) {
-		path = xmalloc(strlen(PATH_LIBEXEC) + sizeof ("/lint1") +
+		pathname = xmalloc(strlen(PATH_LIBEXEC) + sizeof ("/lint1") +
 		    strlen(target_prefix));
-		(void)sprintf(path, "%s/%slint1", PATH_LIBEXEC,
+		(void)sprintf(pathname, "%s/%slint1", PATH_LIBEXEC,
 		    target_prefix);
 	} else {
 		/*
 		 * XXX Unclear whether we should be using target_prefix
 		 * XXX here.  --thorpej@wasabisystems.com
 		 */
-		path = xmalloc(strlen(libexec_path) + sizeof ("/lint1"));
-		(void)sprintf(path, "%s/lint1", libexec_path);
+		pathname = xmalloc(strlen(libexec_path) + sizeof ("/lint1"));
+		(void)sprintf(pathname, "%s/lint1", libexec_path);
 	}
 
-	appcstrg(&args, path);
+	appcstrg(&args, pathname);
 	applst(&args, l1flags);
 	appcstrg(&args, cppout);
 	appcstrg(&args, ofn);
 
-	runchild(path, args, ofn, -1);
-	free(path);
+	runchild(pathname, args, ofn, -1);
+	free(pathname);
 	freelst(&args);
 
 	appcstrg(&p2in, ofn);
