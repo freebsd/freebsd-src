@@ -26,11 +26,15 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $Id$
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
+#include <err.h>
 #include <limits.h>
 #include <paths.h>
 #include <stdio.h>
@@ -39,7 +43,6 @@
 #include <unistd.h>
 
 #include <machine/lpt.h>
-#include <sys/errno.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -51,11 +54,9 @@
 #define DO_POLL		0
 #define USE_IRQ		1
 
-static void usage(const char * progname)
+static void usage()
 {
-	fprintf(stderr, "usage: %s -i | -p  [-u <unit no.>]\n", progname);
-	fprintf(stderr, "\tUnit no. is a value in the range 0 to 3\n");
-	fprintf(stderr, "\tThe default unit no is 0 (ie. /dev/lpt0)\n");
+	fprintf(stderr, "usage: lptcontrol -i | -p  [-u <unit no.>]\n");
 	exit(1);
 }
 
@@ -63,14 +64,10 @@ static void set_interrupt_status(int irq_status, const char * file)
 {
 	int	fd;
 
-	if((fd = open(file, O_WRONLY, 0660)) < 0) {
-		perror("open");
-		exit(1);
-	}
-	if(ioctl(fd, LPT_IRQ, &irq_status) < 0) {
-		perror("ioctl");
-		exit(1);
-	}
+	if((fd = open(file, O_WRONLY, 0660)) < 0)
+		err(1, "open");
+	if(ioctl(fd, LPT_IRQ, &irq_status) < 0)
+		err(1, "ioctl");
 	close(fd);
 }
 
@@ -98,16 +95,14 @@ int main (int argc, char * argv[])
 		case 'p': irq_status = DO_POLL; break;
 		case 'u': unit = optarg;
 			  if(!isdigit(*unit))
-				usage(argv[0]);
+				usage();
 			  break;
-		default : usage(argv[0]);
+		default : usage();
 		}
 	if(irq_status == IRQ_INVALID)
-		usage(argv[0]);
+		usage();
 
 	set_interrupt_status(irq_status, dev_file(*unit));
 
 	exit(0);
 }
-
-
