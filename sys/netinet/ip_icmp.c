@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_icmp.c,v 1.29 1997/08/25 16:29:27 wollman Exp $
+ *	$Id: ip_icmp.c,v 1.30 1998/05/26 11:34:30 dg Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ static int	icmpmaskrepl = 0;
 SYSCTL_INT(_net_inet_icmp, ICMPCTL_MASKREPL, maskrepl, CTLFLAG_RW,
 	&icmpmaskrepl, 0, "");
 
-static int	icmpbmcastecho = 1;
+static int	icmpbmcastecho = 0;
 SYSCTL_INT(_net_inet_icmp, OID_AUTO, bmcastecho, CTLFLAG_RW, &icmpbmcastecho,
 	   0, "");
 
