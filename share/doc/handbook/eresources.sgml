@@ -1,8 +1,8 @@
-<!-- $Id: eresources.sgml,v 1.2 1995/05/18 03:05:06 jfieber Exp $ -->
+<!-- $Id: eresources.sgml,v 1.4 1995/06/20 16:42:48 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
-  <heading>Resources on the Internet</heading>
+  <heading>Resources on the Internet<label id="eresources"></heading>
 
   <p>The rapid pace of FreeBSD progress makes print media
     impractical as a means for following the latest

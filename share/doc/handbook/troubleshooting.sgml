@@ -1,7 +1,7 @@
-<!-- $Id: m_troubleshooting.sgml,v 1.1 1995/04/10 02:36:24 jfieber Exp $ -->
+<!-- $Id: troubleshooting.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<chapt><heading>Troubleshooting</heading>
+<chapt><heading>Troubleshooting<label id="troubleshooting"></heading>
 
 <p>The following tips and tricks may help you turn a
 	failing (or failed) installation attempt into a success.

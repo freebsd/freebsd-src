@@ -1,7 +1,7 @@
-<!-- $Id: ports.sgml,v 1.2 1995/05/18 03:05:19 jfieber Exp $ -->
+<!-- $Id: ports.sgml,v 1.3 1995/06/23 13:59:37 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
-<sect><heading>The Ports collection<label id="ports:"></heading>
+<sect><heading>The Ports collection<label id="ports"></heading>
 
 <p><em>Contributed by &a.gpalmer; and &a.jkh;.</em>
 

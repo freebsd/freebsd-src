@@ -1,8 +1,8 @@
-<!-- $Id:$ -->
+<!-- $Id: bibliography.sgml,v 1.1.1.1 1995/04/28 16:19:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
-      <heading>Bibliography</heading>
+      <heading>Bibliography<label id="bibliography"></heading>
 
       <p>While the manual pages provide the definative reference
 	for individual pieces of the FreeBSD operating system,
