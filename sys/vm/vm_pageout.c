@@ -619,6 +619,7 @@ vm_pageout_page_free(vm_page_t m) {
 	vm_page_busy(m);
 	vm_page_protect(m, VM_PROT_NONE);
 	vm_page_free(m);
+	cnt.v_dfree++;
 	if (type == OBJT_SWAP || type == OBJT_DEFAULT)
 		vm_object_deallocate(object);
 }
@@ -783,8 +784,9 @@ rescan0:
 		 * Invalid pages can be easily freed
 		 */
 		if (m->valid == 0) {
+			vm_page_lock_queues();
 			vm_pageout_page_free(m);
-			cnt.v_dfree++;
+			vm_page_unlock_queues();
 			--page_shortage;
 
 		/*
@@ -1075,7 +1077,6 @@ rescan0:
 		}
 		cache_rover = (cache_rover + PQ_PRIME2) & PQ_L2_MASK;
 		vm_pageout_page_free(m);
-		cnt.v_dfree++;
 	}
 	splx(s);
 	vm_page_unlock_queues();
