@@ -52,6 +52,7 @@ static const char rcsid[] =
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/protosw.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
@@ -62,6 +63,7 @@ static const char rcsid[] =
 #include <net/route.h>
 #include <netinet/ip_mroute.h>
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "netstat.h"
@@ -152,13 +154,19 @@ void
 mrt_stats(u_long mstaddr)
 {
 	struct mrtstat mrtstat;
+	size_t len = sizeof mrtstat;
 
-	if (mstaddr == 0) {
-		printf("No IPv4 multicast routing compiled into this system.\n");
-		return;
+	if (sysctlbyname("net.inet.ip.mrtstat", &mrtstat, &len,
+				NULL, 0) < 0) {
+		warn("sysctl: net.inet.ip.mrtstat");
+		/* Compatability with older kernels - candidate for removal */
+		if (mstaddr == 0) {
+			printf("No IPv4 multicast routing compiled into this system.\n");
+			return;
+		}
+
+		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	}
-
-	kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	printf("IPv4 multicast forwarding:\n");
 	printf(" %10lu multicast forwarding cache lookup%s\n",
 	  mrtstat.mrts_mfc_lookups, plural(mrtstat.mrts_mfc_lookups));
