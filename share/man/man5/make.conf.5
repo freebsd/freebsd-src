@@ -354,6 +354,10 @@ Set this to build Kerberos5 (KTH Heimdal).
 This is still experimental code.
 If you need stable Kerberos5, use the
 port(s).
+.It Va ENABLE_SUID_K5SU
+.Pq Vt bool
+Set this if you wish to use the k5su utility.  Otherwise, it will be
+installed without the set-user-ID bit set.
 .It Va MODULES_WITH_WORLD
 .Pq Vt bool
 Set to build modules with the system instead of the kernel.
