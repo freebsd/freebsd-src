@@ -126,7 +126,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
 	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
 static int	ip_nfragpackets = 0;
-static int	ip_maxfragpackets = 200;
+static int	ip_maxfragpackets;	/* initialized in ip_init() */
 SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragpackets, CTLFLAG_RW,
 	&ip_maxfragpackets, 0,
 	"Maximum number of IPv4 fragment reassembly queue entries");
@@ -254,7 +254,8 @@ ip_init()
 	for (i = 0; i < IPREASS_NHASH; i++)
 	    TAILQ_INIT(&ipq[i]);
 
-	maxnipq = nmbclusters/4;
+	maxnipq = nmbclusters / 4;
+	ip_maxfragpackets = nmbclusters / 4;
 
 #ifndef RANDOM_IP_ID
 	ip_id = time_second & 0xffff;
