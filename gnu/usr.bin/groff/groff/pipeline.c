@@ -230,12 +230,5 @@ static char *itoa(n)
 static char *xstrsignal(n)
      int n;
 {
-  static char buf[sizeof("Signal ") + 1 + sizeof(int)*3];
-#ifdef HAVE_SYS_SIGLIST
-  extern char *sys_siglist[];
-  if (n >= 0 && n < NSIG && sys_siglist[n] != 0)
-    return sys_siglist[n];
-#endif /* HAVE_SYS_SIGLIST */
-  sprintf(buf, "Signal %d", n);
-  return buf;
+  return strerror(n);
 }

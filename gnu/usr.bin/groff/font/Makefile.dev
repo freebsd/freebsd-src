@@ -1,3 +1,46 @@
+#	@(#)Makefile.dev	6.2 (Berkeley) 3/16/91
+
+# Client Makefiles define DEVICE and FONTFILES and provide rules for
+#	individual font files
+
+.include "../Makefile.cfg"
+
+FONTDIR?=	/usr/share/groff_font
+DEVICEDIR?=	$(FONTDIR)/dev$(DEVICE)
+FONTOWN?=	bin
+FONTGRP?=	bin
+FONTMODE?=	444
+
+CLEANFILES+=	$(FONTFILES)
+
+all:	$(FONTFILES)
+
+.if !target(maninstall)
+maninstall:
+	@echo -n
+.endif
+
+.if !target(install)
+install:
+	-if test ! -d $(DESTDIR)$(DEVICEDIR); then \
+		mkdir $(DESTDIR)$(DEVICEDIR); \
+		chown $(BINOWN).$(BINGRP) $(DESTDIR)$(DEVICEDIR); \
+		chmod 755 $(DESTDIR)$(DEVICEDIR); \
+	fi
+	-if test -d $(.CURDIR)/generate; then \
+		if test ! -d $(DESTDIR)$(DEVICEDIR)/generate; then \
+			mkdir $(DESTDIR)$(DEVICEDIR)/generate; \
+			chown $(BINOWN).$(BINGRP) $(DESTDIR)$(DEVICEDIR)/generate; \
+			chmod 755 $(DESTDIR)$(DEVICEDIR)/generate; \
+		fi; \
+	fi
+	-for f in $(FONTFILES); do \
+		install -c -o $(FONTOWN) -g $(FONTGRP) -m $(FONTMODE) $$f \
+			$(DESTDIR)$(DEVICEDIR)/$$f; \
+	done
+.endif
+
+.include <bsd.prog.mk>
 all: $(DEVFILES)
 install_data: install_dev
 uninstall_sub: uninstall_dev
