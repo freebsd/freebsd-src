@@ -792,7 +792,7 @@ build_rq_buffer(struct rqelement *rqe, struct plex *plex)
     /* Initialize the buf struct */
     /* copy these flags from user bp */
     bp->b_flags = ubp->b_flags & (B_ORDERED | B_NOCACHE | B_ASYNC);
-    bp->b_iocmd = BIO_READ; 				    /* inform us when it's done */
+    bp->b_iocmd = ubp->b_iocmd;
     BUF_LOCKINIT(bp);					    /* get a lock for the buffer */
     BUF_LOCK(bp, LK_EXCLUSIVE);				    /* and lock it */
 
@@ -921,6 +921,7 @@ sdio(struct buf *bp)
     }
     bzero(sbp, sizeof(struct sdbuf));			    /* start with nothing */
     sbp->b.b_flags = bp->b_flags;
+    sbp->b.b_iocmd = bp->b_iocmd;
     sbp->b.b_bufsize = bp->b_bufsize;			    /* buffer size */
     sbp->b.b_bcount = bp->b_bcount;			    /* number of bytes to transfer */
     sbp->b.b_resid = bp->b_resid;			    /* and amount waiting */

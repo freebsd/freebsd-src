@@ -213,7 +213,7 @@ revive_block(int sdno)
 		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
 		    rq->sdno,
 		    rq,
-		    rq->bp->b_flags == BIO_READ ? "Read" : "Write",
+		    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 		    major(rq->bp->b_dev),
 		    minor(rq->bp->b_dev),
 		    rq->bp->b_blkno,
