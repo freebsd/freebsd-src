@@ -41,11 +41,7 @@
 #  include <unistd.h>
 #endif
 
-#if defined (HAVE_STRING_H)
-#  include <string.h>
-#else
-#  include <strings.h>
-#endif /* !HAVE_STRING_H */
+#include "rlmbutil.h"
 
 #include "history.h"
 #include "histlib.h"
@@ -56,7 +52,9 @@
 #define HISTORY_WORD_DELIMITERS		" \t\n;&()|<>"
 #define HISTORY_QUOTE_CHARACTERS	"\"'`"
 
-typedef int _hist_search_func_t __P((const char *, int));
+typedef int _hist_search_func_t PARAMS((const char *, int));
+
+extern int rl_byte_oriented;	/* declared in mbutil.c */
 
 static char error_pointer;
 
@@ -65,10 +63,10 @@ static char *subst_rhs;
 static int subst_lhs_len;
 static int subst_rhs_len;
 
-static char *get_history_word_specifier __P((char *, char *, int *));
-static char *history_find_word __P((char *, int));
+static char *get_history_word_specifier PARAMS((char *, char *, int *));
+static char *history_find_word PARAMS((char *, int));
 
-static char *quote_breaks __P((char *));
+static char *quote_breaks PARAMS((char *));
 
 /* Variables exported by this file. */
 /* The character that represents the start of a history expansion
@@ -204,15 +202,33 @@ get_history_event (string, caller_index, delimiting_quote)
 
   /* Only a closing `?' or a newline delimit a substring search string. */
   for (local_index = i; c = string[i]; i++)
-    if ((!substring_okay && (whitespace (c) || c == ':' ||
-	(history_search_delimiter_chars && member (c, history_search_delimiter_chars)) ||
-	string[i] == delimiting_quote)) ||
-	string[i] == '\n' ||
-	(substring_okay && string[i] == '?'))
-      break;
+#if defined (HANDLE_MULTIBYTE)
+    if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+      {
+	int v;
+	mbstate_t ps;
+
+	memset (&ps, 0, sizeof (mbstate_t));
+	/* These produce warnings because we're passing a const string to a
+	   function that takes a non-const string. */
+	_rl_adjust_point (string, i, &ps);
+	if ((v = _rl_get_char_len (string + i, &ps)) > 1)
+	  {
+	    i += v - 1;
+	    continue;
+	  }
+      }
+    else
+#endif /* HANDLE_MULTIBYTE */
+      if ((!substring_okay && (whitespace (c) || c == ':' ||
+	  (history_search_delimiter_chars && member (c, history_search_delimiter_chars)) ||
+	  string[i] == delimiting_quote)) ||
+	  string[i] == '\n' ||
+	  (substring_okay && string[i] == '?'))
+	break;
 
   which = i - local_index;
-  temp = xmalloc (1 + which);
+  temp = (char *)xmalloc (1 + which);
   if (which)
     strncpy (temp, string + local_index, which);
   temp[which] = '\0';
@@ -314,7 +330,7 @@ quote_breaks (s)
 	len += 2;
     }
 
-  r = ret = xmalloc (len);
+  r = ret = (char *)xmalloc (len);
   *r++ = '\'';
   for (p = s; p && *p; )
     {
@@ -379,7 +395,7 @@ hist_error(s, start, current, errtype)
       break;
     }
 
-  temp = xmalloc (ll + elen + 3);
+  temp = (char *)xmalloc (ll + elen + 3);
   strncpy (temp, s + start, ll);
   temp[ll] = ':';
   temp[ll + 1] = ' ';
@@ -405,17 +421,37 @@ get_subst_pattern (str, iptr, delimiter, is_rhs, lenptr)
      int *iptr, delimiter, is_rhs, *lenptr;
 {
   register int si, i, j, k;
-  char *s = (char *) NULL;
+  char *s;
+#if defined (HANDLE_MULTIBYTE)
+  mbstate_t ps;
+#endif
 
+  s = (char *)NULL;
   i = *iptr;
 
+#if defined (HANDLE_MULTIBYTE)
+  memset (&ps, 0, sizeof (mbstate_t));
+  _rl_adjust_point (str, i, &ps);
+#endif
+
   for (si = i; str[si] && str[si] != delimiter; si++)
-    if (str[si] == '\\' && str[si + 1] == delimiter)
-      si++;
+#if defined (HANDLE_MULTIBYTE)
+    if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+      {
+	int v;
+	if ((v = _rl_get_char_len (str + si, &ps)) > 1)
+	  si += v - 1;
+	else if (str[si] == '\\' && str[si + 1] == delimiter)
+	  si++;
+      }
+    else
+#endif /* HANDLE_MULTIBYTE */
+      if (str[si] == '\\' && str[si + 1] == delimiter)
+	si++;
 
   if (si > i || is_rhs)
     {
-      s = xmalloc (si - i + 1);
+      s = (char *)xmalloc (si - i + 1);
       for (j = 0, k = i; k < si; j++, k++)
 	{
 	  /* Remove a backslash quoting the search string delimiter. */
@@ -442,13 +478,13 @@ postproc_subst_rhs ()
   char *new;
   int i, j, new_size;
 
-  new = xmalloc (new_size = subst_rhs_len + subst_lhs_len);
+  new = (char *)xmalloc (new_size = subst_rhs_len + subst_lhs_len);
   for (i = j = 0; i < subst_rhs_len; i++)
     {
       if (subst_rhs[i] == '&')
 	{
 	  if (j + subst_lhs_len >= new_size)
-	    new = xrealloc (new, (new_size = new_size * 2 + subst_lhs_len));
+	    new = (char *)xrealloc (new, (new_size = new_size * 2 + subst_lhs_len));
 	  strcpy (new + j, subst_lhs);
 	  j += subst_lhs_len;
 	}
@@ -458,7 +494,7 @@ postproc_subst_rhs ()
 	  if (subst_rhs[i] == '\\' && subst_rhs[i + 1] == '&')
 	    i++;
 	  if (j >= new_size)
-	    new = xrealloc (new, new_size *= 2);
+	    new = (char *)xrealloc (new, new_size *= 2);
 	  new[j++] = subst_rhs[i];
 	}
     }
@@ -484,8 +520,13 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
   int substitute_globally, want_quotes, print_only;
   char *event, *temp, *result, *tstr, *t, c, *word_spec;
   int result_len;
+#if defined (HANDLE_MULTIBYTE)
+  mbstate_t ps;
 
-  result = xmalloc (result_len = 128);
+  memset (&ps, 0, sizeof (mbstate_t));
+#endif
+
+  result = (char *)xmalloc (result_len = 128);
 
   i = start;
 
@@ -514,8 +555,21 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	 quote, then this expansion takes place inside of the
 	 quoted string.  If we have to search for some text ("!foo"),
 	 allow the delimiter to end the search string. */
-      if (i && (string[i - 1] == '\'' || string[i - 1] == '"'))
-	quoted_search_delimiter = string[i - 1];
+#if defined (HANDLE_MULTIBYTE)
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  int c, l;
+	  l = _rl_find_prev_mbchar (string, i, MB_FIND_ANY);
+	  c = string[l];
+	  /* XXX - original patch had i - 1 ???  If i == 0 it would fail. */
+	  if (i && (c == '\'' || c == '"'))
+	    quoted_search_delimiter = c;
+	}
+      else
+#endif /* HANDLE_MULTIBYTE */	  
+	if (i && (string[i - 1] == '\'' || string[i - 1] == '"'))
+	  quoted_search_delimiter = string[i - 1];
+
       event = get_history_event (string, &i, quoted_search_delimiter);
     }
 	  
@@ -634,7 +688,20 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	    if (c == 's')
 	      {
 		if (i + 2 < (int)strlen (string))
-		  delimiter = string[i + 2];
+		  {
+#if defined (HANDLE_MULTIBYTE)
+		    if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+		      {
+			_rl_adjust_point (string, i + 2, &ps);
+			if (_rl_get_char_len (string + i + 2, &ps) > 1)
+			  delimiter = 0;
+			else
+			  delimiter = string[i + 2];
+		      }
+		    else
+#endif /* HANDLE_MULTIBYTE */
+		      delimiter = string[i + 2];
+		  }
 		else
 		  break;	/* no search delimiter */
 
@@ -698,7 +765,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	      if (STREQN (temp+si, subst_lhs, subst_lhs_len))
 		{
 		  int len = subst_rhs_len - subst_lhs_len + l_temp;
-		  new_event = xmalloc (1 + len);
+		  new_event = (char *)xmalloc (1 + len);
 		  strncpy (new_event, temp, si);
 		  strncpy (new_event + si, subst_rhs, subst_rhs_len);
 		  strncpy (new_event + si + subst_rhs_len,
@@ -759,7 +826,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 
   n = strlen (temp);
   if (n >= result_len)
-    result = xrealloc (result, n + 2);
+    result = (char *)xrealloc (result, n + 2);
   strcpy (result, temp);
   free (temp);
 
@@ -790,7 +857,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	      { \
 		while (j >= result_len) \
 		  result_len += 128; \
-		result = xrealloc (result, result_len); \
+		result = (char *)xrealloc (result, result_len); \
 	      } \
 	    strcpy (result + j - sl, s); \
 	  } \
@@ -800,7 +867,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	do \
 	  { \
 	    if (j >= result_len - 1) \
-	      result = xrealloc (result, result_len += 64); \
+	      result = (char *)xrealloc (result, result_len += 64); \
 	    result[j++] = c; \
 	    result[j] = '\0'; \
 	  } \
@@ -819,6 +886,11 @@ history_expand (hstring, output)
   int result_len;
   char *result;
 
+#if defined (HANDLE_MULTIBYTE)
+  char mb[MB_LEN_MAX];
+  mbstate_t ps;
+#endif
+
   /* Used when adding the string. */
   char *temp;
 
@@ -834,7 +906,7 @@ history_expand (hstring, output)
     }
     
   /* Prepare the buffer for printing error messages. */
-  result = xmalloc (result_len = 256);
+  result = (char *)xmalloc (result_len = 256);
   result[0] = '\0';
 
   only_printing = modified = 0;
@@ -851,7 +923,7 @@ history_expand (hstring, output)
      that is the substitution that we do. */
   if (hstring[0] == history_subst_char)
     {
-      string = xmalloc (l + 5);
+      string = (char *)xmalloc (l + 5);
 
       string[0] = string[1] = history_expansion_char;
       string[2] = ':';
@@ -861,6 +933,10 @@ history_expand (hstring, output)
     }
   else
     {
+#if defined (HANDLE_MULTIBYTE)
+      memset (&ps, 0, sizeof (mbstate_t));
+#endif
+
       string = hstring;
       /* If not quick substitution, still maybe have to do expansion. */
 
@@ -868,8 +944,21 @@ history_expand (hstring, output)
 	 is NOT an expansion. */
       for (i = 0; string[i]; i++)
 	{
+#if defined (HANDLE_MULTIBYTE)
+	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	    {
+	      int v;
+	      v = _rl_get_char_len (string + i, &ps);
+	      if (v > 1)
+		{
+		  i += v - 1;
+		  continue;
+		}
+	    }
+#endif /* HANDLE_MULTIBYTE */
+
 	  cc = string[i + 1];
-	  /* The history_comment_char, if set, appearing that the beginning
+	  /* The history_comment_char, if set, appearing at the beginning
 	     of a word signifies that the rest of the line should not have
 	     history expansion performed on it.
 	     Skip the rest of the line and break out of the loop. */
@@ -932,6 +1021,30 @@ history_expand (hstring, output)
 	  continue;
 	}
 
+#if defined (HANDLE_MULTIBYTE)
+      if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+	{
+	  int k, c;
+
+	  c = tchar;
+	  memset (mb, 0, sizeof (mb));
+	  for (k = 0; k < MB_LEN_MAX; k++)
+	    {
+	      mb[k] = (char)c;
+	      memset (&ps, 0, sizeof (mbstate_t));
+	      if (_rl_get_char_len (mb, &ps) == -2)
+		c = string[++i];
+	      else
+		break;
+	    }
+	  if (strlen (mb) > 1)
+	    {
+	      ADD_STRING (mb);
+	      break;
+	    }
+	}
+#endif /* HANDLE_MULTIBYTE */
+
       if (tchar == history_expansion_char)
 	tchar = -3;
       else if (tchar == history_comment_char)
@@ -960,7 +1073,7 @@ history_expand (hstring, output)
 		hist_string_extract_single_quoted (string, &i);
 
 		slen = i - quote + 2;
-		temp = xmalloc (slen);
+		temp = (char *)xmalloc (slen);
 		strncpy (temp, string + quote, slen);
 		temp[slen - 1] = '\0';
 		ADD_STRING (temp);
@@ -974,7 +1087,7 @@ history_expand (hstring, output)
 	case -2:		/* history_comment_char */
 	  if (i == 0 || member (string[i - 1], history_word_delimiters))
 	    {
-	      temp = xmalloc (l - i + 1);
+	      temp = (char *)xmalloc (l - i + 1);
 	      strcpy (temp, string + i);
 	      ADD_STRING (temp);
 	      free (temp);
@@ -1006,7 +1119,7 @@ history_expand (hstring, output)
 	    {
 	      if (result)
 		{
-		  temp = xmalloc (1 + strlen (result));
+		  temp = (char *)xmalloc (1 + strlen (result));
 		  strcpy (temp, result);
 		  ADD_STRING (temp);
 		  free (temp);
@@ -1140,7 +1253,14 @@ get_history_word_specifier (spec, from, caller_index)
 	  i++;
 	  last = '$';
 	}
-      else if (!spec[i] || spec[i] == ':')  /* could be modifier separator */
+#if 0
+      else if (!spec[i] || spec[i] == ':')
+	/* check against `:' because there could be a modifier separator */
+#else
+      else
+	/* csh seems to allow anything to terminate the word spec here,
+	   leaving it as an abbreviation. */
+#endif
 	last = -1;		/* x- abbreviates x-$ omitting word `$' */
     }
 
@@ -1196,7 +1316,7 @@ history_arg_extract (first, last, string)
     {
       for (size = 0, i = first; i < last; i++)
 	size += strlen (list[i]) + 1;
-      result = xmalloc (size + 1);
+      result = (char *)xmalloc (size + 1);
       result[0] = '\0';
 
       for (i = first, offset = 0; i < last; i++)
@@ -1329,7 +1449,7 @@ history_tokenize_internal (string, wind, indp)
       len = i - start;
       if (result_index + 2 >= size)
 	result = (char **)xrealloc (result, ((size += 10) * sizeof (char *)));
-      result[result_index] = xmalloc (1 + len);
+      result[result_index] = (char *)xmalloc (1 + len);
       strncpy (result[result_index], string + start, len);
       result[result_index][len] = '\0';
       result[++result_index] = (char *)NULL;

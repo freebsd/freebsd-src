@@ -28,6 +28,7 @@ posixstat.h	f
 readline.h	f
 rlconf.h	f
 rldefs.h	f
+rlmbutil.h	f
 rlprivate.h	f
 rlshell.h	f
 rlstdc.h	f
@@ -38,6 +39,7 @@ tcap.h		f
 tilde.h		f
 xmalloc.h	f
 bind.c		f
+callback.c	f
 compat.c	f
 complete.c	f
 display.c	f
@@ -48,6 +50,8 @@ isearch.c	f
 keymaps.c	f
 kill.c		f
 macro.c		f
+mbutil.c	f
+misc.c		f
 nls.c		f
 parens.c	f
 readline.c	f
@@ -57,12 +61,12 @@ search.c	f
 shell.c		f
 signals.c	f
 terminal.c	f
+text.c		f
 tilde.c		f
 undo.c		f
 util.c		f
 vi_keymap.c	f
 vi_mode.c	f
-callback.c	f
 xmalloc.c	f
 history.c	f
 histexpand.c	f
@@ -76,6 +80,7 @@ support/mkdirs		f
 support/mkdist		f
 support/shobj-conf	f
 support/shlib-install	f
+support/wcwidth.c	f
 doc/Makefile.in		f
 doc/texinfo.tex		f
 doc/manvers.texinfo	f
@@ -94,6 +99,8 @@ examples/Makefile.in	f
 examples/excallback.c	f
 examples/fileman.c	f
 examples/manexamp.c	f
+examples/readlinebuf.h	f
+examples/rlcat.c	f
 examples/rlfe.c		f
 examples/rltest.c	f
 examples/rl.c		f

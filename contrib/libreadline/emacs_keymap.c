@@ -35,11 +35,11 @@ KEYMAP_ENTRY_ARRAY emacs_standard_keymap = {
   /* Control keys. */
   { ISFUNC, rl_set_mark },			/* Control-@ */
   { ISFUNC, rl_beg_of_line },			/* Control-a */
-  { ISFUNC, rl_backward },			/* Control-b */
+  { ISFUNC, rl_backward_char },			/* Control-b */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* Control-c */
   { ISFUNC, rl_delete },			/* Control-d */
   { ISFUNC, rl_end_of_line },			/* Control-e */
-  { ISFUNC, rl_forward },			/* Control-f */
+  { ISFUNC, rl_forward_char },			/* Control-f */
   { ISFUNC, rl_abort },				/* Control-g */
   { ISFUNC, rl_rubout },			/* Control-h */
   { ISFUNC, rl_complete },			/* Control-i */

@@ -39,8 +39,8 @@
 
 #endif /* !PTR_T */
 
-extern char *xmalloc __P((int));
-extern char *xrealloc __P((void *, int));
-extern void xfree __P((void *));
+extern PTR_T xmalloc PARAMS((size_t));
+extern PTR_T xrealloc PARAMS((void *, size_t));
+extern void xfree PARAMS((void *));
 
 #endif /* _XMALLOC_H_ */

@@ -10,7 +10,7 @@ use these features.  There is a document entitled "readline.texinfo"
 which contains both end-user and programmer documentation for the
 GNU Readline Library.
 
-Copyright (C) 1988-2000 Free Software Foundation, Inc.
+Copyright (C) 1988-2002 Free Software Foundation, Inc.
 
 Authored by Brian Fox and Chet Ramey.
 
@@ -235,7 +235,7 @@ words, to the end of the next word.
 Word boundaries are the same as those used by @kbd{M-f}.
 
 @item M-@key{DEL}
-Kill from the cursor the start of the previous word, or, if between
+Kill from the cursor the start of the current word, or, if between
 words, to the start of the previous word.
 Word boundaries are the same as those used by @kbd{M-b}.
 
@@ -311,6 +311,10 @@ For instance, a @key{RET} will terminate the search and accept
 the line, thereby executing the command from the history list.
 A movement command will terminate the search, make the last line found
 the current line, and begin editing.
+
+Readline remembers the last incremental search string.  If two
+@kbd{C-r}s are typed without any intervening characters defining a new
+search string, any remembered search string is used.
 
 Non-incremental searches read the entire search string before starting
 to search for matching history lines.  The search string may be
@@ -452,6 +456,11 @@ arrow keys.  The default is @samp{off}.
 If set to @samp{on}, tilde expansion is performed when Readline
 attempts word completion.  The default is @samp{off}.
 
+@vindex history-preserve-point
+If set to @samp{on}, the history code attempts to place point at the
+same location on each history line retrived with @code{previous-history}
+or @code{next-history}.
+
 @item horizontal-scroll-mode
 @vindex horizontal-scroll-mode
 This variable can be set to either @samp{on} or @samp{off}.  Setting it
@@ -503,11 +512,32 @@ This variable, when set to @samp{on}, causes Readline to display an
 asterisk (@samp{*}) at the start of history lines which have been modified.
 This variable is @samp{off} by default.
 
+@item mark-symlinked-directories
+@vindex mark-symlinked-directories
+If set to @samp{on}, completed names which are symbolic links
+to directories have a slash appended (subject to the value of
+@code{mark-directories}).
+The default is @samp{off}.
+
+@item match-hidden-files
+@vindex match-hidden-files
+This variable, when set to @samp{on}, causes Readline to match files whose
+names begin with a @samp{.} (hidden files) when performing filename
+completion, unless the leading @samp{.} is
+supplied by the user in the filename to be completed.
+This variable is @samp{on} by default.
+
 @item output-meta
 @vindex output-meta
 If set to @samp{on}, Readline will display characters with the
 eighth bit set directly rather than as a meta-prefixed escape
 sequence.  The default is @samp{off}.
+
+@item page-completions
+@vindex page-completions
+If set to @samp{on}, Readline uses an internal @code{more}-like pager
+to display a screenful of possible completions at a time.
+This variable is @samp{on} by default.
 
 @item print-completions-horizontally
 If set to @samp{on}, Readline will display completions with matches
@@ -644,11 +674,11 @@ horizontal tab
 @item \v
 vertical tab
 @item \@var{nnn}
-the character whose @sc{ascii} code is the octal value @var{nnn}
+the eight-bit character whose value is the octal value @var{nnn}
 (one to three digits)
-@item \x@var{nnn}
-the character whose @sc{ascii} code is the hexadecimal value @var{nnn}
-(one to three digits)
+@item \x@var{HH}
+the eight-bit character whose value is the hexadecimal value @var{HH}
+(one or two hex digits)
 @end table
 
 When entering the text of a macro, single or double quotes must
@@ -740,14 +770,14 @@ binding, variable assignment, and conditional syntax.
 @example
 @page
 # This file controls the behaviour of line input editing for
-# programs that use the Gnu Readline library.  Existing programs
-# include FTP, Bash, and Gdb.
+# programs that use the GNU Readline library.  Existing
+# programs include FTP, Bash, and GDB.
 #
 # You can re-read the inputrc file with C-x C-r.
 # Lines beginning with '#' are comments.
 #
-# First, include any systemwide bindings and variable assignments from
-# /etc/Inputrc
+# First, include any systemwide bindings and variable
+# assignments from /etc/Inputrc
 $include /etc/Inputrc
 
 #
@@ -799,10 +829,12 @@ TAB: complete
 $if Bash
 # edit the path
 "\C-xp": "PATH=$@{PATH@}\e\C-e\C-a\ef\C-f"
-# prepare to type a quoted word -- insert open and close double quotes
+# prepare to type a quoted word --
+# insert open and close double quotes
 # and move to just after the open quote
 "\C-x\"": "\"\"\C-b"
-# insert a backslash (testing backslash escapes in sequences and macros)
+# insert a backslash (testing backslash escapes
+# in sequences and macros)
 "\C-x\\": "\\"
 # Quote the current or previous word
 "\C-xq": "\eb\"\ef\""
@@ -818,16 +850,16 @@ set bell-style visible
 # don't strip characters to 7 bits when reading
 set input-meta on
 
-# allow iso-latin1 characters to be inserted rather than converted to
-# prefix-meta sequences
+# allow iso-latin1 characters to be inserted rather
+# than converted to prefix-meta sequences
 set convert-meta off
 
-# display characters with the eighth bit set directly rather than
-# as meta-prefixed characters
+# display characters with the eighth bit set directly
+# rather than as meta-prefixed characters
 set output-meta on
 
-# if there are more than 150 possible completions for a word, ask the
-# user if he wants to see all of them
+# if there are more than 150 possible completions for
+# a word, ask the user if he wants to see all of them
 set completion-query-items 150
 
 # For FTP
@@ -1021,6 +1053,8 @@ Negative arguments have no effect.
 @item transpose-words (M-t)
 Drag the word before point past the word after point,
 moving point past that word as well.
+If the insertion point is at the end of the line, this transposes
+the last two words on the line.
 
 @item upcase-word (M-u)
 Uppercase the current (or following) word.  With a negative argument,
@@ -1033,6 +1067,20 @@ lowercase the previous word, but do not move the cursor.
 @item capitalize-word (M-c)
 Capitalize the current (or following) word.  With a negative argument,
 capitalize the previous word, but do not move the cursor.
+
+@item overwrite-mode ()
+Toggle overwrite mode.  With an explicit positive numeric argument,
+switches to overwrite mode.  With an explicit non-positive numeric
+argument, switches to insert mode.  This command affects only
+@code{emacs} mode; @code{vi} mode does overwrite differently.
+Each call to @code{readline()} starts in insert mode.
+
+In overwrite mode, characters bound to @code{self-insert} replace
+the text at point rather than pushing the text to the right.
+Characters bound to @code{backward-delete-char} replace the character
+before point with a space.
+
+By default, this command is unbound.
 
 @end ftable
 
@@ -1293,12 +1341,19 @@ of that character.  A negative count searches for subsequent
 occurrences.
 
 @item insert-comment (M-#)
-The value of the @code{comment-begin}
-variable is inserted at the beginning of the current line,
-and the line is accepted as if a newline had been typed.
+Without a numeric argument, the value of the @code{comment-begin}
+variable is inserted at the beginning of the current line.
+If a numeric argument is supplied, this command acts as a toggle:  if
+the characters at the beginning of the line do not match the value
+of @code{comment-begin}, the value is inserted, otherwise
+the characters in @code{comment-begin} are deleted from the beginning of
+the line.
+In either case, the line is accepted as if a newline had been typed.
 @ifset BashFeatures
 The default value of @code{comment-begin} causes this command
 to make the current line a shell comment.
+If a numeric argument causes the comment character to be removed, the line
+will be executed by the shell.
 @end ifset
 
 @item dump-functions ()
@@ -1320,13 +1375,22 @@ the output is formatted in such a way that it can be made part
 of an @var{inputrc} file.  This command is unbound by default.
 
 @ifset BashFeatures
+@item glob-complete-word (M-g)
+The word before point is treated as a pattern for pathname expansion,
+with an asterisk implicitly appended.  This pattern is used to
+generate a list of matching file names for possible completions.
+
 @item glob-expand-word (C-x *)
 The word before point is treated as a pattern for pathname expansion,
 and the list of matching file names is inserted, replacing the word.
+If a numeric argument is supplied, a @samp{*} is appended before
+pathname expansion.
 
 @item glob-list-expansions (C-x g)
 The list of expansions that would have been generated by
 @code{glob-expand-word} is displayed, and the line is redrawn.
+If a numeric argument is supplied, a @samp{*} is appended before
+pathname expansion.
 
 @item display-shell-version (C-x C-v)
 Display version information about the current instance of Bash.
@@ -1357,12 +1421,25 @@ Accept the current line for execution and fetch the next line
 relative to the current line from the history for editing.  Any
 argument is ignored.
 
-@item emacs-editing-mode (C-e)
-When in @code{vi} editing mode, this causes a switch back to
-@code{emacs} editing mode, as if the command @samp{set -o emacs} had
-been executed.
+@item edit-and-execute-command (C-xC-e)
+Invoke an editor on the current command line, and execute the result as shell
+commands.
+Bash attempts to invoke
+@code{$FCEDIT}, @code{$EDITOR}, and @code{emacs}
+as the editor, in that order.
 
 @end ifset
+
+@ifclear BashFeatures
+@item emacs-editing-mode (C-e)
+When in @code{vi} command mode, this causes a switch to @code{emacs}
+editing mode.
+
+@item vi-editing-mode (M-C-j)
+When in @code{emacs} editing mode, this causes a switch to @code{vi}
+editing mode.
+
+@end ifclear
 
 @end ftable
 
@@ -1499,6 +1576,12 @@ If the @option{-o default} option was supplied to @code{complete} when the
 compspec was defined, Readline's default completion will be performed
 if the compspec generates no matches.
 
+When a compspec indicates that directory name completion is desired,
+the programmable completion functions force Readline to append a slash
+to completed names which are symbolic links to directories, subject to
+the value of the @var{mark-directories} Readline variable, regardless
+of the setting of the @var{mark-symlinked-directories} Readline variable.
+
 @node Programmable Completion Builtins
 @section Programmable Completion Builtins
 @cindex completion builtins
@@ -1534,7 +1617,7 @@ matches were generated.
 @item complete
 @btindex complete
 @example
-@code{complete [-abcdefjkvu] [-o @var{comp-option}] [-A @var{action}] [-G @var{globpat}] [-W @var{wordlist}]
+@code{complete [-abcdefgjksuv] [-o @var{comp-option}] [-A @var{action}] [-G @var{globpat}] [-W @var{wordlist}]
 [-P @var{prefix}] [-S @var{suffix}] [-X @var{filterpat}] [-F @var{function}]
 [-C @var{command}] @var{name} [@var{name} @dots{}]}
 @code{complete -pr [@var{name} @dots{}]}
@@ -1567,7 +1650,8 @@ beyond the simple generation of completions.
 @table @code
 
 @item default
-Use readline's default completion if the compspec generates no matches.
+Use Readline's default filename completion if the compspec generates
+no matches.
 
 @item dirnames
 Perform directory name completion if the compspec generates no matches.
@@ -1577,6 +1661,10 @@ Tell Readline that the compspec generates filenames, so it can perform any
 filename\-specific processing (like adding a slash to directory names or
 suppressing trailing spaces).  This option is intended to be used with
 shell functions specified with @option{-F}.
+
+@item nospace
+Tell Readline not to append a space (the default) to words completed at
+the end of the line.
 @end table
 
 @item -A @var{action}
@@ -1617,6 +1705,9 @@ File names.  May also be specified as @option{-f}.
 @item function
 Names of shell functions.
 
+@item group
+Group names.  May also be specified as @option{-g}.
+
 @item helptopic
 Help topics as accepted by the @code{help} builtin (@pxref{Bash Builtins}).
 
@@ -1632,6 +1723,9 @@ Shell reserved words.  May also be specified as @option{-k}.
 
 @item running
 Names of running jobs, if job control is active.
+
+@item service
+Service names.  May also be specified as @option{-s}.
 
 @item setopt
 Valid arguments for the @option{-o} option to the @code{set} builtin
