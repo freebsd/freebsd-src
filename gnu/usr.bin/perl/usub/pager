@@ -22,10 +22,10 @@ sub initterm {
     $lines = $LINES; $lines1 = $lines - 1; $lines2 = $lines - 2;
     $cols = $COLS;   $cols1  = $cols  - 1; $cols2  = $cols  - 2;;
 
-    $dl = &getcap('dl');
-    $al = &getcap('al');
-    $ho = &getcap('ho');
-    $ce = &getcap('ce');
+#   $dl = &getcap('dl');
+#   $al = &getcap('al');
+#   $ho = &getcap('ho');
+#   $ce = &getcap('ce');
 }
 
 sub slurpfile {
@@ -84,15 +84,15 @@ sub pagearray {
 	elsif ($ch eq 'j') {
 	    next if $percent >= 100;
 	    $line += 1;
-	    if ($dl && $ho) {
-		print $ho, $dl;
-		&mvcur(0,0,$lines2,0);
-		print $ce,$lines[$line+$lines2],$ce;
-		&wmove($curscr,0,0);
-		&wdeleteln($curscr);
-		&wmove($curscr,$lines2,0);
-		&waddstr($curscr,$lines[$line+$lines2]);
-	    }
+#           if ($dl && $ho) {
+#               print $ho, $dl;
+#               &mvcur(0,0,$lines2,0);
+#               print $ce,$lines[$line+$lines2],$ce;
+#               &wmove($curscr,0,0);
+#               &wdeleteln($curscr);
+#               &wmove($curscr,$lines2,0);
+#               &waddstr($curscr,$lines[$line+$lines2]);
+#           }
 	    &wmove($stdscr,0,0);
 	    &wdeleteln($stdscr);
 	    &wmove($stdscr,$lines2,0);
@@ -104,12 +104,12 @@ sub pagearray {
 	elsif ($ch eq 'k') {
 	    next if $line <= 0;
 	    $line -= 1;
-	    if ($al && $ho && $ce) {
-		print $ho, $al, $ce, $lines[$line];
-		&wmove($curscr,0,0);
-		&winsertln($curscr);
-		&waddstr($curscr,$lines[$line]);
-	    }
+#           if ($al && $ho && $ce) {
+#               print $ho, $al, $ce, $lines[$line];
+#               &wmove($curscr,0,0);
+#               &winsertln($curscr);
+#               &waddstr($curscr,$lines[$line]);
+#           }
 	    &wmove($stdscr,0,0);
 	    &winsertln($stdscr);
 	    &waddstr($stdscr,$lines[$line]);
