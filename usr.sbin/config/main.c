@@ -49,7 +49,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #include <ctype.h>
 #include <err.h>
 #include <sysexits.h>
-#include "config.tab.h"
+#include "y.tab.h"
 #include "config.h"
 
 #ifndef TRUE

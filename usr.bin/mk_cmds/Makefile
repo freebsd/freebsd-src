@@ -2,12 +2,12 @@
 
 PROG=	mk_cmds
 #
-# NB: ct.c must come before cmd_tbl.c so that ct.tab.h will be generated.
+# NB: ct.c must come before cmd_tbl.c so that y.tab.h will be generated.
 #
 SRCS=	mk_cmds.c options.c utils.c ct.c cmd_tbl.c
 CFLAGS+= -I. -I${.CURDIR}/../../lib/libss -DIN_MK_CMDS
 LFLAGS=	-l
-CLEANFILES+=	ct.tab.h cmd_tbl.c ct.c
+CLEANFILES+=	y.tab.c y.tab.h lex.yy.c cmd_tbl.c ct.c
 NOMAN=		# XXX
 
 LDADD+=	-ll
