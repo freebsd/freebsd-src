@@ -2,6 +2,8 @@
  * Copyright (C) 1992-1993 Jean-loup Gailly.
  * This is free software; you can redistribute it and/or modify it under the
  * terms of the GNU General Public License, see the file COPYING.
+ *
+ * $FreeBSD$
  */
 
 #if defined(__STDC__) || defined(PROTO)
@@ -41,9 +43,10 @@
 
 #define local static
 
-typedef unsigned char  uch;
-typedef unsigned short ush;
-typedef unsigned long  ulg;
+#include <stdint.h>
+typedef uint8_t uch;
+typedef uint16_t ush;
+typedef uint32_t  ulg;
 
 /* Return codes from gzip */
 #define OK      0
