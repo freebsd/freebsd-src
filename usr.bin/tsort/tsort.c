@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tsort.c,v 1.4 1996/08/02 04:50:44 jkh Exp $
+ * $Id: tsort.c,v 1.4.2.1 1997/08/29 05:30:03 imp Exp $
  */
 
 #ifndef lint
@@ -56,6 +56,7 @@ static char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  *  Topological sort.  Input is a list of pairs of strings separated by
@@ -121,7 +122,7 @@ main(argc, argv)
 	int bsize, ch, nused;
 	BUF bufs[2];
 
-	while ((ch = getopt(argc, argv, "dlq")) !=  -1)
+	while ((ch = getopt(argc, argv, "dlq")) != -1)
 		switch (ch) {
 		case 'd':
 			debug = 1;

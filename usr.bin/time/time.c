@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)time.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: time.c,v 1.4.2.1 1997/08/18 07:10:55 charnier Exp $";
+	"$Id: time.c,v 1.4.2.2 1997/08/29 05:30:00 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -71,7 +71,7 @@ main(argc, argv)
 	struct rusage ru;
 
 	lflag = 0;
-	while ((ch = getopt(argc, argv, "l")) !=  -1)
+	while ((ch = getopt(argc, argv, "l")) != -1)
 		switch((char)ch) {
 		case 'l':
 			lflag = 1;

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)unidialer.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: unidialer.c,v 1.4.2.1 1997/08/20 07:06:09 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -421,7 +421,7 @@ static int unidialer_dialer (register char *num, char *acu)
 
 	if (lock_baud) {
 		int i;
-		if ((i = speed(number(value(BAUDRATE)))) == NULL)
+		if ((i = speed(number(value(BAUDRATE)))) == 0)
 			return 0;
 		ttysetup (i);
 	}

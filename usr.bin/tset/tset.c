@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tset.c	8.1 (Berkeley) 6/9/93";
 #endif
 static const char rcdif[] =
-	"$Id: tset.c,v 1.10.2.1 1997/08/20 07:19:30 charnier Exp $";
+	"$Id: tset.c,v 1.10.2.2 1997/08/29 05:30:03 imp Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -98,7 +98,7 @@ main(argc, argv)
 
 	obsolete(argv);
 	noinit = noset = quiet = Sflag = sflag = showterm = 0;
-	while ((ch = getopt(argc, argv, "-a:d:e:Ii:k:m:np:QSrs")) !=  -1) {
+	while ((ch = getopt(argc, argv, "-a:d:e:Ii:k:m:np:QSrs")) != -1) {
 		switch (ch) {
 		case '-':		/* display term only */
 			noset = 1;
