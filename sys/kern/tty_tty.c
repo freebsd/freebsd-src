@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_tty.c	8.2 (Berkeley) 9/23/93
- * $Id: tty_tty.c,v 1.8 1995/12/08 11:17:17 julian Exp $
+ * $Id: tty_tty.c,v 1.9 1995/12/08 23:21:37 phk Exp $
  */
 
 /*
@@ -186,7 +186,7 @@ ctty_drvinit(void *unused)
 		ctty_devsw_installed = 1;
 #ifdef DEVFS
 		ctty_devfs_token = devfs_add_devsw( "/", "tty",
-				&ctty_cdevsw, 0, DV_CHR, 0, 0, 0600);
+				&ctty_cdevsw, 0, DV_CHR, 0, 0, 0666);
 #endif
     	}
 }
