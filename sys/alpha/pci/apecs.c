@@ -60,7 +60,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
-#include <sys/mutex.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/proc.h>
