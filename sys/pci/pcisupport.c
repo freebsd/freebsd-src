@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.91 1999/02/06 02:28:52 peter Exp $
+**  $Id: pcisupport.c,v 1.92 1999/02/13 17:51:46 nsouch Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -366,8 +366,6 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return("AcerLabs M1543 desktop PCI-ISA bridge");
 	case 0x524710b9:
 		return("AcerLabs M5247 PCI-PCI(AGP Supported) bridge");
-	case 0x523710b9:
-		return("AcerLabs M5237 USB controller");
 	case 0x524310b9:/* 5243 seems like 5247, need more info to divide*/
 		return("AcerLabs M5243 PCI-PCI bridge");
 	case 0x710110b9:
