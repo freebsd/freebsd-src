@@ -54,7 +54,7 @@
  * W. Metzenthen   June 1994.
  *
  *
- *    $Id: exception.h,v 1.2 1994/04/29 21:07:13 gclarkii Exp $
+ *    $Id: exception.h,v 1.3 1994/06/10 07:44:12 rich Exp $
  *
  *
  */
@@ -91,8 +91,14 @@
 #ifndef LOCORE
 
 #ifdef DEBUG
-#define	EXCEPTION(x)	{ printf("exception in %s at line %d\n", \
-	__FILE__, __LINE__); exception(x); }
+#include <sys/param.h>
+#include <sys/systm.h>
+
+#define	EXCEPTION(x)							    \
+	do {								    \
+		printf("exception in %s at line %d\n", __FILE__, __LINE__); \
+		exception(x);						    \
+	} while (0)
 #else
 #define	EXCEPTION(x)	exception(x)
 #endif
