@@ -505,7 +505,11 @@ scan(fp, pw)
 	 *	-- The Who
 	 */
 	if (!(p = strchr(line, '\n'))) {
-		warnx("line too long");
+		/*
+		 * XXX: This may also happen if the last line in a
+		 * file does not have a trailing newline.
+		 */
+		warnx("line #%d too long", lcnt);
 		goto fmt;
 
 	}
