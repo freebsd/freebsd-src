@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.3 1998/07/12 16:30:58 dfr Exp $
+ *	$Id: vm_machdep.c,v 1.4 1998/10/15 09:53:27 dfr Exp $
  */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
@@ -79,6 +79,7 @@
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/fpu.h>
 #include <machine/md_var.h>
 #include <machine/prom.h>
 
@@ -145,6 +146,17 @@ cpu_fork(p1, p2)
 	 */
 	p2->p_addr->u_pcb = p1->p_addr->u_pcb;
 	p2->p_addr->u_pcb.pcb_hw.apcb_usp = alpha_pal_rdusp();
+
+	/*
+	 * Set the floating point state.
+	 */
+	if ((p2->p_addr->u_pcb.pcb_fp_control & IEEE_INHERIT) == 0) {
+		p2->p_addr->u_pcb.pcb_fp_control = (IEEE_TRAP_ENABLE_INV
+						    | IEEE_TRAP_ENABLE_DZE
+						    | IEEE_TRAP_ENABLE_OVF);
+		p2->p_addr->u_pcb.pcb_fp.fpr_cr = (FPCR_DYN_NORMAL
+						   | FPCR_INED | FPCR_UNFD);
+	}
 
 	/*
 	 * Arrange for a non-local goto when the new process

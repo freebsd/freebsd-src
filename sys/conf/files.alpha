@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.12 1998/11/08 18:39:57 nsouch Exp $
+#	$Id: files.alpha,v 1.13 1998/11/15 18:15:06 dfr Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -43,7 +43,8 @@ alpha/alpha/in_cksum.c		optional	inet
 # now normal.
 # alpha/alpha/locore.s		standard
 alpha/alpha/machdep.c		standard
-alpha/alpha/math_emulate.c	optional	math_emulate
+alpha/alpha/fp_emulate.c	standard
+alpha/alpha/ieee_float.c	standard
 alpha/alpha/mem.c		standard
 alpha/alpha/mp_machdep.c	optional	smp
 alpha/alpha/perfmon.c		optional	perfmon	profiling-routine
