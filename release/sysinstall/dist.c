@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.23 1995/10/27 17:00:19 jkh Exp $
+ * $Id: dist.c,v 1.36.2.24 1995/11/07 10:45:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -356,7 +356,8 @@ distExtract(char *parent, Distribution *me)
 
 	snprintf(buf, sizeof buf, "/stand/info/%s/%s.inf", path, dist);
 	if (file_readable(buf)) {
-	    msgDebug("Parsing attributes file for distribution %s\n", dist);
+	    if (isDebug())
+		msgDebug("Parsing attributes file for distribution %s\n", dist);
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (attr_parse_file(dist_attr, buf) == RET_FAIL) {
 		dialog_clear();

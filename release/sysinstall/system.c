@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.13 1995/10/22 14:06:38 jkh Exp $
+ * $Id: system.c,v 1.44.2.15 1995/10/26 08:56:13 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -99,11 +99,16 @@ int
 systemExecute(char *command)
 {
     int status;
+    struct termios foo;
 
     dialog_clear();
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
+    if (tcgetattr(0, &foo) != -1) {
+	foo.c_cc[VERASE] = '\010';
+	tcsetattr(0, TCSANOW, &foo);
+    }
     status = system(command);
     DialogActive = TRUE;
     dialog_clear();

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.37 1995/11/04 11:08:56 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.39 1995/11/04 17:16:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -104,7 +104,8 @@ ftpShouldAbort(Device *dev, int retries)
     maxretries = atoi(cp2);
     if (retries > maxretries || (cp && !strcmp(cp, "abort"))) {
 	rval = TRUE;
-	msgDebug("Aborting FTP connection.\n");
+	if (isDebug())
+	    msgDebug("Aborting FTP connection.\n");
 	dev->shutdown(dev);
     }
     return rval;
@@ -121,7 +122,8 @@ mediaInitFTP(Device *dev)
     if (ftpInitted)
 	return TRUE;
 
-    msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
+    if (isDebug())
+	msgDebug("Init routine for FTP called.  Net device is %x\n", netDevice);
     if (!netDevice->init(netDevice))
 	return FALSE;
 
@@ -211,7 +213,8 @@ retry:
     if (FtpChdir(ftp, getenv(VAR_RELNAME)) == -2)
 	goto punt;
 
-    msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
+    if (isDebug())
+	msgDebug("mediaInitFTP was successful (logged in and chdir'd)\n");
     ftpInitted = TRUE;
     return TRUE;
 
@@ -280,7 +283,8 @@ mediaGetFTP(Device *dev, char *file, Boolean tentative)
 Boolean
 mediaCloseFTP(Device *dev, int fd)
 {
-    msgDebug("FTP Close called\n");
+    if (isDebug())
+	msgDebug("FTP Close called\n");
     if (ftp)
 	FtpEOF(ftp);
     return FALSE;
@@ -294,7 +298,8 @@ mediaShutdownFTP(Device *dev)
     if (!ftpInitted)
 	return;
 
-    msgDebug("FTP shutdown called.  FTP = %x\n", ftp);
+    if (isDebug())
+	msgDebug("FTP shutdown called.  FTP = %x\n", ftp);
     if (ftp != NULL) {
 	FtpClose(ftp);
 	ftp = NULL;

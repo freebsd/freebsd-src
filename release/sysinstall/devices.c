@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.36.2.8 1995/10/30 08:04:44 jkh Exp $
+ * $Id: devices.c,v 1.36.2.9 1995/11/03 12:02:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,7 +87,7 @@ static struct {
     { DEVICE_TYPE_TAPE, 	"rst0",		"SCSI tape drive"					},
     { DEVICE_TYPE_TAPE, 	"rst1",		"SCSI tape drive (2nd unit)"				},
     { DEVICE_TYPE_TAPE, 	"ft0",		"Floppy tape drive (QIC-02)"				},
-    { DEVICE_TYPE_TAPE, 	"wt0",		"Wangtek tape drive"					},
+    { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},

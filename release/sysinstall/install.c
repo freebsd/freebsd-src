@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.75 1995/11/06 08:28:03 jkh Exp $
+ * $Id: install.c,v 1.71.2.76 1995/11/07 10:45:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -592,11 +592,15 @@ installFixup(char *str)
 	msgNotify("Fixing permissions..");
 	/* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
 	if (directoryExists("/usr/X11R6")) {
-	    chmod("/usr/X11R6", 0755);
-	    chmod("/usr/X11R6/bin", 0755);
+	    system("chmod -R a+r /usr/X11R6");
+	    system("find /usr/X11R6 -type d | xargs chmod a+x");
 	}
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
+
+	/* BOGON #3: No /var/db/mountdbtab complains */
+	Mkdir("/var/db", NULL);
+	creat("/var/db/mountdbtab", 0644);
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");

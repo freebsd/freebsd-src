@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.31.2.31 1995/11/04 15:45:20 jkh Exp $
+ * $Id: disks.c,v 1.31.2.32 1995/11/05 01:00:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -413,11 +413,12 @@ diskPartition(Device *dev, Disk *d)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("Are you sure you want to write this now?  You do also\n"
+	    if (!msgYesNo("Are you SURE you want to write this now?  You do also\n"
 			  "have the option of not modifying the disk until *all*\n"
 			  "configuration information has been entered, at which\n"
 			  "point you can do it all at once.  If you're unsure, then\n"
-			  "choose No at this dialog.")) {
+			  "PLEASE CHOOSE NO at this dialog!  This option is DANGEROUS\n"
+			  "if you do not know EXACTLY what you are doing!")) {
 		variable_set2(DISK_PARTITIONED, "yes");
 		clear();
 
@@ -434,7 +435,7 @@ diskPartition(Device *dev, Disk *d)
 		    msgConfirm("Disk partition write returned an error status!");
 		}
 		else {
-		    msgInfo("Wrote FDISK partition information out successfully.");
+		    msgConfirm("Wrote FDISK partition information out successfully.");
 		}
 	    }
 	    break;
