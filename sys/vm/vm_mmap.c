@@ -1046,7 +1046,7 @@ mlock(td, uap)
 #endif
 
 	error = vm_map_wire(&td->td_proc->p_vmspace->vm_map, addr,
-		     addr + size, TRUE);
+		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1064,14 +1064,54 @@ mlockall(td, uap)
 	struct thread *td;
 	struct mlockall_args *uap;
 {
-	/* mtx_lock(&Giant); */
-	/* mtx_unlock(&Giant); */
-	return 0;
+	vm_map_t map;
+	int error;
+
+	map = &td->td_proc->p_vmspace->vm_map;
+	error = 0;
+
+	if ((uap->how == 0) || ((uap->how & ~(MCL_CURRENT|MCL_FUTURE)) != 0))
+		return (EINVAL);
+
+#ifdef pmap_wired_count
+	/*
+	 * If wiring all pages in the process would cause it to exceed
+	 * a hard resource limit, return ENOMEM.
+	 */
+	if (map->size - ptoa(pmap_wired_count(vm_map_pmap(map)) >
+		td->td_proc->p_rlimit[RLIMIT_MEMLOCK].rlim_cur))
+		return (ENOMEM);
+#else
+	error = suser(td);
+	if (error)
+		return (error);
+#endif
+
+	if (uap->how & MCL_FUTURE) {
+		vm_map_lock(map);
+		vm_map_modflags(map, MAP_WIREFUTURE, 0);
+		vm_map_unlock(map);
+		error = 0;
+	}
+
+	if (uap->how & MCL_CURRENT) {
+		/*
+		 * P1003.1-2001 mandates that all currently mapped pages
+		 * will be memory resident and locked (wired) upon return
+		 * from mlockall(). vm_map_wire() will wire pages, by
+		 * calling vm_fault_wire() for each page in the region.
+		 */
+		error = vm_map_wire(map, vm_map_min(map), vm_map_max(map),
+		    VM_MAP_WIRE_USER|VM_MAP_WIRE_HOLESOK);
+		error = (error == KERN_SUCCESS ? 0 : EAGAIN);
+	}
+
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct munlockall_args {
-	int	how;
+	register_t dummy;
 };
 #endif
 
@@ -1083,9 +1123,26 @@ munlockall(td, uap)
 	struct thread *td;
 	struct munlockall_args *uap;
 {
-	/* mtx_lock(&Giant); */
-	/* mtx_unlock(&Giant); */
-	return 0;
+	vm_map_t map;
+	int error;
+
+	map = &td->td_proc->p_vmspace->vm_map;
+#ifndef pmap_wired_count
+	error = suser(td);
+	if (error)
+		return (error);
+#endif
+
+	/* Clear the MAP_WIREFUTURE flag from this vm_map. */
+	vm_map_lock(map);
+	vm_map_modflags(map, 0, MAP_WIREFUTURE);
+	vm_map_unlock(map);
+
+	/* Forcibly unwire all pages. */
+	error = vm_map_unwire(map, vm_map_min(map), vm_map_max(map),
+	    VM_MAP_WIRE_USER|VM_MAP_WIRE_HOLESOK);
+
+	return (error);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1125,7 +1182,7 @@ munlock(td, uap)
 #endif
 
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, addr,
-		     addr + size, TRUE);
+		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
 
@@ -1282,6 +1339,15 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (rv != KERN_SUCCESS)
 			(void) vm_map_remove(map, *addr, *addr + size);
 	}
+
+	/*
+	 * If the process has requested that all future mappings
+	 * be wired, then heed this.
+	 */
+	if ((rv == KERN_SUCCESS) && (map->flags & MAP_WIREFUTURE))
+		vm_map_wire(map, *addr, *addr + size,
+		    VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
+
 	switch (rv) {
 	case KERN_SUCCESS:
 		return (0);
