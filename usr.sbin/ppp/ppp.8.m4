@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.165 1999/04/23 13:45:50 brian Exp $
+.\" $Id: ppp.8,v 1.166 1999/05/02 08:52:50 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -40,8 +40,8 @@ also be optionally password protected for security.
 .It Supports both manual and automatic dialing.
 Interactive mode has a
 .Dq term
-command which enables you to talk to your modem directly.  When your
-modem is connected to the remote peer and it starts to talk
+command which enables you to talk to the device directly.  When you
+are connected to the remote peer and it starts to talk
 .Em PPP ,
 .Nm
 detects it and switches to packet mode automatically.  Once you have
@@ -490,9 +490,9 @@ on even parity when logging in:
 ppp ON awfulhak> set parity even
 .Ed
 .Pp
-You can now see what your current modem settings look like:
+You can now see what your current device settings look like:
 .Bd -literal -offset indent
-ppp ON awfulhak> show modem
+ppp ON awfulhak> show physical
 Name: deflink
  State:           closed
  Device:          N/A
@@ -511,7 +511,7 @@ Overall 0 bytes/sec
 ppp ON awfulhak> 
 .Ed
 .Pp
-The term command can now be used to talk directly to your modem:
+The term command can now be used to talk directly to the device:
 .Bd -literal -offset indent
 ppp ON awfulhak> term
 at
@@ -590,7 +590,7 @@ to help you.
 When the link is established, the show command can be used to see how
 things are going:
 .Bd -literal -offset indent
-PPP ON awfulhak> show modem
+PPP ON awfulhak> show physical
 * Modem related information is shown here *
 PPP ON awfulhak> show ccp
 * CCP (compression) related information is shown here *
@@ -2527,7 +2527,7 @@ layer shuts down, and is also available using the
 command.  Throughput statistics are available at the
 .Dq IPCP
 and 
-.Dq modem
+.Dq physical
 levels.
 .It utmp
 Default: Enabled.  Normally, when a user is authenticated using PAP or
@@ -2863,13 +2863,13 @@ If you wish to pause
 while the command executes, use the
 .Dq shell
 command instead.
-.It clear modem|ipcp Op current|overall|peak...
+.It clear physical|ipcp Op current|overall|peak...
 Clear the specified throughput values at either the
-.Dq modem
+.Dq physical
 or
 .Dq ipcp
 level.  If
-.Dq modem
+.Dq physical
 is specified, context must be given (see the
 .Dq link
 command below).  If no second argument is given, all values are
@@ -2956,7 +2956,7 @@ are terminated).  If
 .Sq lcp
 is specified, the
 .Em LCP
-layer is terminated but the modem is not brought offline and the link
+layer is terminated but the device is not brought offline and the link
 is not closed.  If
 .Sq ccp
 is specified, only the relevant compression layer(s) are terminated.
@@ -3587,7 +3587,7 @@ To do this, the first character of the expect or send string is an
 exclamation mark
 .Pq Dq \&! .
 When the command is executed, standard input and standard output are
-directed to the modem device (see the
+directed to the open device (see the
 .Dq set device
 command), and standard error is read by
 .Nm
@@ -3750,7 +3750,7 @@ section on
 .Sx PACKET FILTERING
 above for further details.
 .It set hangup Ar chat-script
-This specifies the chat script that will be used to reset the modem
+This specifies the chat script that will be used to reset the device
 before it is closed.  It should not normally be necessary, but can
 be used for devices that fail to reset themselves properly on close.
 .It set help|? Op Ar command
@@ -4351,7 +4351,7 @@ Show a list of available logical links.
 Show the current log values.
 .It show mem
 Show current memory statistics.
-.It show modem
+.It show physical
 Show low level link information.
 .It show mp
 Show Multi-link information.
@@ -4370,10 +4370,10 @@ Show the current version number of
 .Pp
 .It term
 Go into terminal mode.  Characters typed at the keyboard are sent to
-the modem.  Characters read from the modem are displayed on the
-screen.  When a
-.Nm
-peer is detected on the other side of the modem,
+the device.  Characters read from the device are displayed on the
+screen.  When a remote
+.Em PPP
+peer is detected,
 .Nm
 automatically enables Packet Mode and goes back into command mode.
 .El

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.40 1999/03/01 02:52:39 brian Exp $
+ * $Id: fsm.c,v 1.41 1999/03/29 08:21:26 brian Exp $
  *
  *  TODO:
  */
@@ -31,6 +31,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "ua.h"
 #include "mbuf.h"
 #include "log.h"
@@ -55,7 +56,7 @@
 #include "bundle.h"
 #include "async.h"
 #include "physical.h"
-#include "lcpproto.h"
+#include "proto.h"
 
 static void FsmSendConfigReq(struct fsm *);
 static void FsmSendTerminateReq(struct fsm *);
@@ -87,7 +88,7 @@ static const struct fsmcodedesc {
   { FsmRecvDiscReq,   0, 0, "DiscardReq"   },
   { FsmRecvIdent,     0, 0, "Ident"        },
   { FsmRecvTimeRemain,0, 0, "TimeRemain"   },
-  { FsmRecvResetReq,  0, 0, "ResetReqt"    },
+  { FsmRecvResetReq,  0, 0, "ResetReq"     },
   { FsmRecvResetAck,  0, 1, "ResetAck"     }
 };
 
@@ -140,7 +141,7 @@ fsm_Init(struct fsm *fp, const char *name, u_short proto, int mincode,
   fp->state = fp->min_code > CODE_TERMACK ? ST_OPENED : ST_INITIAL;
   fp->reqid = 1;
   fp->restart = 1;
-  fp->more.reqs = fp->more.naks = fp->more.rejs = 1;
+  fp->more.reqs = fp->more.naks = fp->more.rejs = 3;
   memset(&fp->FsmTimer, '\0', sizeof fp->FsmTimer);
   memset(&fp->OpenTimer, '\0', sizeof fp->OpenTimer);
   memset(&fp->StoppedTimer, '\0', sizeof fp->StoppedTimer);
@@ -204,7 +205,7 @@ fsm_Output(struct fsm *fp, u_int code, u_int id, u_char *ptr, int count)
   if (count)
     memcpy(MBUF_CTOP(bp) + sizeof(struct fsmheader), ptr, count);
   log_DumpBp(LogDEBUG, "fsm_Output", bp);
-  hdlc_Output(fp->link, PRI_LINK, fp->proto, bp);
+  link_PushPacket(fp->link, bp, fp->bundle, PRI_LINK, fp->proto);
 }
 
 static void
@@ -468,13 +469,13 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     if (fp->proto == PROTO_CCP && fp->link->lcp.fsm.state == ST_OPENED) {
       /*
        * ccp_SetOpenMode() leaves us in initial if we're disabling
-       * & denying everything.  This is a bit smelly, we know that
-       * ``bp'' really has ``fsmheader'' in front of it, and CCP_PROTO
-       * in front of that.  CCP_PROTO isn't compressed either 'cos it
-       * doesn't begin with 0x00....
+       * & denying everything.
+       *
+       * this is a bit smelly... we know that bp has a leading fsmheader.
        */
-      bp->offset -= sizeof(struct fsmheader) + 2;
-      bp->cnt += sizeof(struct fsmheader) + 2;
+      bp = mbuf_Prepend(bp, lhp, sizeof *lhp, 2);
+      bp = proto_Prepend(bp, fp->proto, 0, 0);
+      bp = mbuf_Contiguous(bp);
       lcp_SendProtoRej(&fp->link->lcp, MBUF_CTOP(bp), bp->cnt);
       mbuf_Free(bp);
       return;
@@ -500,6 +501,8 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     (*fp->parent->LayerDown)(fp->parent->object, fp);
     break;
   }
+
+  bp = mbuf_Contiguous(bp);
 
   dec.ackend = dec.ack;
   dec.nakend = dec.nak;
@@ -576,7 +579,6 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
   }
 
   if (dec.nakend != dec.nak && --fp->more.naks <= 0) {
-    fsm_Close(fp);
     log_Printf(LogPHASE, "%s: Too many %s NAKs sent - abandoning negotiation\n",
                fp->link->name, fp->name);
     fsm_Close(fp);
@@ -961,7 +963,7 @@ void
 fsm_Input(struct fsm *fp, struct mbuf *bp)
 {
   int len;
-  struct fsmheader *lhp;
+  struct fsmheader lh;
   const struct fsmcodedesc *codep;
 
   len = mbuf_Length(bp);
@@ -969,41 +971,41 @@ fsm_Input(struct fsm *fp, struct mbuf *bp)
     mbuf_Free(bp);
     return;
   }
-  lhp = (struct fsmheader *) MBUF_CTOP(bp);
-  if (lhp->code < fp->min_code || lhp->code > fp->max_code ||
-      lhp->code > sizeof FsmCodes / sizeof *FsmCodes) {
+  bp = mbuf_Read(bp, &lh, sizeof lh);
+  if (lh.code < fp->min_code || lh.code > fp->max_code ||
+      lh.code > sizeof FsmCodes / sizeof *FsmCodes) {
     /*
      * Use a private id.  This is really a response-type packet, but we
      * MUST send a unique id for each REQ....
      */
     static u_char id;
 
+    bp = mbuf_Prepend(bp, &lh, sizeof lh, 0);
+    bp = mbuf_Contiguous(bp);
     fsm_Output(fp, CODE_CODEREJ, id++, MBUF_CTOP(bp), bp->cnt);
     mbuf_Free(bp);
     return;
   }
-  bp->offset += sizeof(struct fsmheader);
-  bp->cnt -= sizeof(struct fsmheader);
 
-  codep = FsmCodes + lhp->code - 1;
-  if (lhp->id != fp->reqid && codep->check_reqid &&
+  codep = FsmCodes + lh.code - 1;
+  if (lh.id != fp->reqid && codep->check_reqid &&
       Enabled(fp->bundle, OPT_IDCHECK)) {
     log_Printf(fp->LogLevel, "%s: Recv%s(%d), dropped (expected %d)\n",
-	      fp->link->name, codep->name, lhp->id, fp->reqid);
+	      fp->link->name, codep->name, lh.id, fp->reqid);
     return;
   }
 
   log_Printf(fp->LogLevel, "%s: Recv%s(%d) state = %s\n",
-	    fp->link->name, codep->name, lhp->id, State2Nam(fp->state));
+	    fp->link->name, codep->name, lh.id, State2Nam(fp->state));
 
   if (log_IsKept(LogDEBUG))
     mbuf_Log();
 
-  if (codep->inc_reqid && (lhp->id == fp->reqid ||
+  if (codep->inc_reqid && (lh.id == fp->reqid ||
       (!Enabled(fp->bundle, OPT_IDCHECK) && codep->check_reqid)))
     fp->reqid++;	/* That's the end of that ``exchange''.... */
 
-  (*codep->recv)(fp, lhp, bp);
+  (*codep->recv)(fp, &lh, bp);
 
   if (log_IsKept(LogDEBUG))
     mbuf_Log();

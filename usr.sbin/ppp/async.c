@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.17 1998/06/16 19:40:34 brian Exp $
+ * $Id: async.c,v 1.18 1999/04/11 08:51:04 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -25,6 +25,7 @@
 #include <string.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -33,7 +34,7 @@
 #include "lqr.h"
 #include "hdlc.h"
 #include "lcp.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "async.h"
 #include "throughput.h"
 #include "ccp.h"
@@ -61,10 +62,10 @@ async_SetLinkParams(struct async *async, struct lcp *lcp)
 }
 
 /*
- * Encode into async HDLC byte code if necessary
+ * Encode into async HDLC byte code
  */
 static void
-HdlcPutByte(struct async *async, u_char **cp, u_char c, int proto)
+async_Encode(struct async *async, u_char **cp, u_char c, int proto)
 {
   u_char *wp;
 
@@ -82,39 +83,44 @@ HdlcPutByte(struct async *async, u_char **cp, u_char c, int proto)
   *cp = wp;
 }
 
-void
-async_Output(int pri, struct mbuf *bp, int proto, struct physical *physical)
+static struct mbuf *
+async_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
+                int pri, u_short *proto)
 {
+  struct physical *p = link2physical(l);
   u_char *cp, *sp, *ep;
   struct mbuf *wp;
   int cnt;
 
-  if (mbuf_Length(bp) > HDLCSIZE) {
+  if (!p || mbuf_Length(bp) > HDLCSIZE) {
     mbuf_Free(bp);
-    return;
+    return NULL;
   }
-  cp = physical->async.xbuff;
+
+  cp = p->async.xbuff;
   ep = cp + HDLCSIZE - 10;
   wp = bp;
   *cp++ = HDLC_SYN;
   while (wp) {
     sp = MBUF_CTOP(wp);
     for (cnt = wp->cnt; cnt > 0; cnt--) {
-      HdlcPutByte(&physical->async, &cp, *sp++, proto);
+      async_Encode(&p->async, &cp, *sp++, *proto);
       if (cp >= ep) {
 	mbuf_Free(bp);
-	return;
+	return NULL;
       }
     }
     wp = wp->next;
   }
   *cp++ = HDLC_SYN;
 
-  cnt = cp - physical->async.xbuff;
-  log_DumpBuff(LogASYNC, "WriteModem", physical->async.xbuff, cnt);
-  link_Write(&physical->link, pri, (char *)physical->async.xbuff, cnt);
-  link_AddOutOctets(&physical->link, cnt);
+  cnt = cp - p->async.xbuff;
   mbuf_Free(bp);
+  bp = mbuf_Alloc(cnt, MB_ASYNC);
+  memcpy(MBUF_CTOP(bp), p->async.xbuff, cnt);
+
+  log_DumpBp(LogASYNC, "WriteModem", bp);
+  return bp;
 }
 
 static struct mbuf *
@@ -160,25 +166,34 @@ async_Decode(struct async *async, u_char c)
   return NULL;
 }
 
-void
-async_Input(struct bundle *bundle, u_char *buff, int cnt,
-            struct physical *physical)
+static struct mbuf *
+async_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
+                u_short *proto)
 {
-  struct mbuf *bp;
+  struct mbuf *nbp, **last;
+  struct physical *p = link2physical(l);
+  u_char *ch;
+  size_t cnt;
 
-  link_AddInOctets(&physical->link, cnt);
-
-  if (physical_IsSync(physical)) {
-    bp = mbuf_Alloc(cnt, MB_ASYNC);
-    memcpy(MBUF_CTOP(bp), buff, cnt);
-    bp->cnt = cnt;
-    hdlc_Input(bundle, bp, physical);
-  } else {
-    while (cnt > 0) {
-      bp = async_Decode(&physical->async, *buff++);
-      if (bp)
-	hdlc_Input(bundle, bp, physical);
-      cnt--;
-    }
+  if (!p) {
+    log_Printf(LogERROR, "Can't Pull an async packet from a logical link\n");
+    return bp;
   }
+
+  last = &nbp;
+
+  while (bp) {
+    ch = MBUF_CTOP(bp);
+    for (cnt = bp->cnt; cnt; cnt--) {
+      *last = async_Decode(&p->async, *ch++);
+      if (*last != NULL)
+        last = &(*last)->pnext;
+    }
+    bp = mbuf_FreeSeg(bp);
+  }
+
+  return nbp;
 }
+
+struct layer asynclayer =
+  { LAYER_ASYNC, "async", async_LayerPush, async_LayerPull };

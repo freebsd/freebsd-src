@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,30 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: async.h,v 1.4 1998/06/27 12:03:48 brian Exp $
+ *	$Id:$
  */
 
-#define HDLCSIZE	(MAX_MRU*2+6)
-
-struct async {
-  int mode;
-  int length;
-  u_char hbuff[HDLCSIZE];	/* recv buffer */
-  u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_int32_t my_accmap;
-  u_int32_t his_accmap;
-
-  struct {
-    u_char EscMap[33];
-  } cfg;
-};
-
-struct lcp;
-struct mbuf;
-struct physical;
-struct bundle;
-
-extern void async_Init(struct async *);
-extern void async_SetLinkParams(struct async *, struct lcp *);
-
-extern struct layer asynclayer;
+extern const struct device tcpdevice;

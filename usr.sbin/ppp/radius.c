@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: radius.c,v 1.4 1999/03/03 23:00:41 brian Exp $
+ *	$Id: radius.c,v 1.5 1999/04/21 08:13:09 brian Exp $
  *
  */
 
@@ -42,6 +42,7 @@
 #include <sys/time.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "defs.h"
 #include "log.h"
 #include "descriptor.h"

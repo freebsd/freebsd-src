@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.h,v 1.15 1998/05/21 21:45:30 brian Exp $
+ * $Id: hdlc.h,v 1.16 1999/04/03 11:54:00 brian Exp $
  *
  *	TODO:
  */
@@ -109,7 +109,8 @@ extern const char *hdlc_Protocol2Nam(u_short);
 extern void hdlc_DecodePacket(struct bundle *, u_short, struct mbuf *,
                               struct link *);
 
-extern void hdlc_Input(struct bundle *, struct mbuf *, struct physical *);
-extern void hdlc_Output(struct link *, int, u_short, struct mbuf *bp);
-extern u_short hdlc_Fcs(u_short, u_char *, int);
+extern u_short hdlc_Fcs(u_char *, size_t);
 extern int hdlc_Detect(u_char const **, int, int);
+extern int hdlc_WrapperOctets(struct lcp *, u_short);
+
+extern struct layer hdlclayer;

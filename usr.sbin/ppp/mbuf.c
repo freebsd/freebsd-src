@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.c,v 1.23 1999/02/06 02:54:47 brian Exp $
+ * $Id: mbuf.c,v 1.24 1999/03/29 08:21:28 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -42,6 +42,7 @@ static struct memmap {
 } MemMap[MB_MAX + 2];
 
 static int totalalloced;
+static unsigned long long mbuf_Mallocs, mbuf_Frees;
 
 int
 mbuf_Length(struct mbuf * bp)
@@ -66,6 +67,7 @@ mbuf_Alloc(int cnt, int type)
                (long)sizeof(struct mbuf));
     AbortProgram(EX_OSERR);
   }
+  mbuf_Mallocs++;
   memset(bp, '\0', sizeof(struct mbuf));
   MemMap[type].fragments++;
   MemMap[type].octets += cnt;
@@ -76,7 +78,7 @@ mbuf_Alloc(int cnt, int type)
 }
 
 struct mbuf *
-mbuf_FreeSeg(struct mbuf * bp)
+mbuf_FreeSeg(struct mbuf *bp)
 {
   struct mbuf *nbp;
 
@@ -86,6 +88,7 @@ mbuf_FreeSeg(struct mbuf * bp)
     MemMap[bp->type].octets -= bp->size;
     totalalloced -= bp->size;
     free(bp);
+    mbuf_Frees++;
     bp = nbp;
   }
 
@@ -93,35 +96,108 @@ mbuf_FreeSeg(struct mbuf * bp)
 }
 
 void
-mbuf_Free(struct mbuf * bp)
+mbuf_Free(struct mbuf *bp)
 {
   while (bp)
     bp = mbuf_FreeSeg(bp);
 }
 
 struct mbuf *
-mbuf_Read(struct mbuf * bp, u_char * ptr, int len)
+mbuf_Read(struct mbuf *bp, void *v, size_t len)
 {
   int nb;
+  u_char *ptr = v;
 
   while (bp && len > 0) {
     if (len > bp->cnt)
       nb = bp->cnt;
     else
       nb = len;
-    memcpy(ptr, MBUF_CTOP(bp), nb);
-    ptr += nb;
-    bp->cnt -= nb;
-    len -= nb;
-    bp->offset += nb;
+    if (nb) {
+      memcpy(ptr, MBUF_CTOP(bp), nb);
+      ptr += nb;
+      bp->cnt -= nb;
+      len -= nb;
+      bp->offset += nb;
+    }
     if (bp->cnt == 0)
       bp = mbuf_FreeSeg(bp);
   }
-  return (bp);
+
+  while (bp && bp->cnt == 0)
+    bp = mbuf_FreeSeg(bp);
+
+  return bp;
+}
+
+size_t
+mbuf_View(struct mbuf *bp, void *v, size_t len)
+{
+  size_t nb, l = len;
+  u_char *ptr = v;
+
+  while (bp && l > 0) {
+    if (l > bp->cnt)
+      nb = bp->cnt;
+    else
+      nb = l;
+    memcpy(ptr, MBUF_CTOP(bp), nb);
+    ptr += nb;
+    l -= nb;
+    bp = bp->next;
+  }
+
+  return len - l;
+}
+
+struct mbuf *
+mbuf_Prepend(struct mbuf *bp, const void *ptr, size_t len, size_t extra)
+{
+  struct mbuf *head;
+
+  if (bp->offset) {
+    if (bp->offset >= len) {
+      bp->offset -= len;
+      bp->cnt += len;
+      memcpy(MBUF_CTOP(bp), ptr, len);
+      return bp;
+    }
+    len -= bp->offset;
+    memcpy(bp + sizeof *bp, (const char *)ptr + len, bp->offset);
+    bp->cnt += bp->offset;
+    bp->offset = 0;
+  }
+
+  head = mbuf_Alloc(len + extra, bp->type);
+  head->offset = extra;
+  head->cnt -= extra;
+  memcpy(MBUF_CTOP(head), ptr, len);
+  head->next = bp;
+
+  return head;
+}
+
+struct mbuf *
+mbuf_Truncate(struct mbuf *bp, size_t n)
+{
+  if (n == 0) {
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  for (; bp; bp = bp->next, n -= bp->cnt)
+    if (n < bp->cnt) {
+      bp->cnt = n;
+      mbuf_Free(bp->next);
+      bp->next = NULL;
+      break;
+    }
+
+  return bp;
 }
 
 void
-mbuf_Write(struct mbuf * bp, u_char * ptr, int cnt)
+mbuf_Write(struct mbuf *bp, const void *ptr, size_t cnt)
 {
   int plen;
   int nb;
@@ -143,8 +219,8 @@ mbuf_Show(struct cmdargs const *arg)
 {
   int i;
   static const char *mbuftype[] = { 
-    "async", "fsm", "cbcp", "hdlcout", "ipin", "echo", "lqr", "link",
-    "vjcomp", "ipq", "mp" };
+    "async", "fsm", "cbcp", "hdlcout", "ipin", "echo", "lqr", "vjcomp",
+    "ipq", "mp" };
 
   prompt_Printf(arg->prompt, "Fragments (octets) in use:\n");
   for (i = 1; i < MB_MAX; i += 2)
@@ -155,6 +231,9 @@ mbuf_Show(struct cmdargs const *arg)
   if (i == MB_MAX)
     prompt_Printf(arg->prompt, "%10.10s: %04d (%06d)\n",
                   mbuftype[i-1], MemMap[i].fragments, MemMap[i].octets);
+
+  prompt_Printf(arg->prompt, "Mallocs: %qu,   Frees: %qu\n",
+                mbuf_Mallocs, mbuf_Frees);
 
   return 0;
 }

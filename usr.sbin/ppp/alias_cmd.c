@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.22 1999/03/25 23:36:23 brian Exp $
+ *	$Id: alias_cmd.c,v 1.23 1999/04/26 08:54:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -24,6 +24,8 @@
 #else
 #include "alias.h"
 #endif
+#include "layer.h"
+#include "proto.h"
 #include "defs.h"
 #include "command.h"
 #include "log.h"
@@ -304,3 +306,96 @@ alias_Pptp(struct cmdargs const *arg)
   PacketAliasPptp(addr);
   return 0;
 }
+
+static struct mbuf *
+alias_PadMbuf(struct mbuf *bp, int type)
+{
+  struct mbuf **last;
+  int len;
+
+  for (last = &bp, len = 0; *last != NULL; last = &(*last)->next)
+    len += (*last)->cnt;
+
+  len = MAX_MRU - len;
+  *last = mbuf_Alloc(len, type);
+
+  return bp;
+}
+
+static struct mbuf *
+alias_LayerPush(struct bundle *bundle, struct link *l, struct mbuf *bp,
+                int pri, u_short *proto)
+{
+  if (!bundle->AliasEnabled || *proto != PROTO_IP)
+    return bp;
+  
+  bp = mbuf_Contiguous(alias_PadMbuf(bp, MB_IPQ));
+  PacketAliasOut(MBUF_CTOP(bp), bp->cnt);
+  bp->cnt = ntohs(((struct ip *)MBUF_CTOP(bp))->ip_len);
+
+  return bp;
+}
+
+static struct mbuf *
+alias_LayerPull(struct bundle *bundle, struct link *l, struct mbuf *bp,
+                u_short *proto)
+{
+  struct ip *pip, *piip;
+  int ret;
+  struct mbuf **last;
+  char *fptr;
+
+  if (!bundle->AliasEnabled || *proto != PROTO_IP)
+    return bp;
+
+  bp = mbuf_Contiguous(alias_PadMbuf(bp, MB_IPIN));
+  pip = (struct ip *)MBUF_CTOP(bp);
+  piip = (struct ip *)((char *)pip + (pip->ip_hl << 2));
+
+  if (pip->ip_p == IPPROTO_IGMP ||
+      (pip->ip_p == IPPROTO_IPIP && IN_CLASSD(ntohl(piip->ip_dst.s_addr))))
+    return bp;
+
+  ret = PacketAliasIn(MBUF_CTOP(bp), bp->cnt);
+
+  bp->cnt = ntohs(pip->ip_len);
+  if (bp->cnt > MAX_MRU) {
+    log_Printf(LogWARN, "alias_LayerPull: Problem with IP header length\n");
+    mbuf_Free(bp);
+    return NULL;
+  }
+
+  switch (ret) {
+    case PKT_ALIAS_OK:
+      break;
+
+    case PKT_ALIAS_UNRESOLVED_FRAGMENT:
+      /* Save the data for later */
+      fptr = malloc(bp->cnt);
+      mbuf_Read(bp, fptr, bp->cnt);
+      PacketAliasSaveFragment(fptr);
+      break;
+
+    case PKT_ALIAS_FOUND_HEADER_FRAGMENT:
+      /* Fetch all the saved fragments and chain them on the end of `bp' */
+      last = &bp->pnext;
+      while ((fptr = PacketAliasGetFragment(MBUF_CTOP(bp))) != NULL) {
+	PacketAliasFragmentIn(MBUF_CTOP(bp), fptr);
+        *last = mbuf_Alloc(ntohs(((struct ip *)fptr)->ip_len), MB_IPIN);
+        memcpy(MBUF_CTOP(*last), fptr, (*last)->cnt);
+        free(fptr);
+        last = &(*last)->pnext;
+      }
+      break;
+
+    default:
+      mbuf_Free(bp);
+      bp = NULL;
+      break;
+  }
+
+  return bp;
+}
+
+struct layer aliaslayer =
+  { LAYER_ALIAS, "alias", alias_LayerPush, alias_LayerPull };

@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: mbuf.h,v 1.14 1998/08/21 18:10:15 brian Exp $
+ * $Id: mbuf.h,v 1.15 1999/03/29 08:21:28 brian Exp $
  *
  *	TODO:
  */
@@ -46,10 +46,9 @@ struct mqueue {
 #define MB_IPIN		5
 #define MB_ECHO		6
 #define MB_LQR		7
-#define MB_LINK		8
-#define MB_VJCOMP	9
-#define	MB_IPQ		10
-#define	MB_MP		11
+#define MB_VJCOMP	8
+#define	MB_IPQ		9
+#define	MB_MP		10
 #define	MB_MAX		MB_MP
 
 struct cmdargs;
@@ -58,8 +57,11 @@ extern int mbuf_Length(struct mbuf *);
 extern struct mbuf *mbuf_Alloc(int, int);
 extern struct mbuf *mbuf_FreeSeg(struct mbuf *);
 extern void mbuf_Free(struct mbuf *);
-extern void mbuf_Write(struct mbuf *, u_char *, int);
-extern struct mbuf *mbuf_Read(struct mbuf *, u_char *, int);
+extern void mbuf_Write(struct mbuf *, const void *, size_t);
+extern struct mbuf *mbuf_Read(struct mbuf *, void *, size_t);
+extern size_t mbuf_View(struct mbuf *, void *, size_t);
+extern struct mbuf *mbuf_Prepend(struct mbuf *, const void *, size_t, size_t);
+extern struct mbuf *mbuf_Truncate(struct mbuf *, size_t);
 extern void mbuf_Log(void);
 extern int mbuf_Show(struct cmdargs const *);
 extern void mbuf_Enqueue(struct mqueue *, struct mbuf *);

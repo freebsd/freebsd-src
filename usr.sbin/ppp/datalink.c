@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.36 1999/04/05 21:52:10 brian Exp $
+ *	$Id: datalink.c,v 1.37 1999/04/06 14:48:10 brian Exp $
  */
 
 #include <sys/param.h>
@@ -39,6 +39,7 @@
 #include <sys/uio.h>
 #include <termios.h>
 
+#include "layer.h"
 #include "mbuf.h"
 #include "log.h"
 #include "defs.h"
@@ -64,9 +65,8 @@
 #include "bundle.h"
 #include "chat.h"
 #include "auth.h"
-#include "modem.h"
 #include "prompt.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "pap.h"
 #include "chap.h"
 #include "command.h"
@@ -114,13 +114,13 @@ static void
 datalink_HangupDone(struct datalink *dl)
 {
   if (dl->physical->type == PHYS_DEDICATED && !dl->bundle->CleaningUp &&
-      physical_GetFD(dl->physical) != -1) {
-    /* Don't close our modem if the link is dedicated */
+      dl->physical->fd != -1) {
+    /* Don't close our device if the link is dedicated */
     datalink_LoginDone(dl);
     return;
   }
 
-  modem_Close(dl->physical);
+  physical_Close(dl->physical);
   dl->phone.chosen = "N/A";
 
   if (dl->cbcp.required) {
@@ -202,18 +202,18 @@ datalink_LoginDone(struct datalink *dl)
     dl->dial.tries = -1;
     dl->dial.incs = 0;
     datalink_NewState(dl, DATALINK_READY);
-  } else if (modem_Raw(dl->physical, dl->bundle) < 0) {
+  } else if (!physical_Raw(dl->physical)) {
     dl->dial.tries = 0;
     log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
     if (dl->script.run) { 
       datalink_NewState(dl, DATALINK_HANGUP);
-      modem_Offline(dl->physical);
+      physical_Offline(dl->physical);
       chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
     } else {
       timer_Stop(&dl->physical->Timer);
       if (dl->physical->type == PHYS_DEDICATED)
         /* force a redial timeout */
-        modem_Close(dl->physical);
+        physical_Close(dl->physical);
       datalink_HangupDone(dl);
     }
   } else {
@@ -260,7 +260,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
       if (dl->dial.timer.state != TIMER_RUNNING) {
         if (--dl->dial.tries < 0)
           dl->dial.tries = 0;
-        if (modem_Open(dl->physical, dl->bundle) >= 0) {
+        if (physical_Open(dl->physical, dl->bundle) >= 0) {
           log_WritePrompts(dl, "%s: Entering terminal mode on %s\r\n"
                            "Type `~?' for help\r\n", dl->name,
                            dl->physical->name.full);
@@ -279,10 +279,10 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         } else {
           if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
               dl->cfg.dial.max)
-            log_Printf(LogCHAT, "Failed to open modem (attempt %u of %d)\n",
+            log_Printf(LogCHAT, "Failed to open device (attempt %u of %d)\n",
                        dl->cfg.dial.max - dl->dial.tries, dl->cfg.dial.max);
           else
-            log_Printf(LogCHAT, "Failed to open modem\n");
+            log_Printf(LogCHAT, "Failed to open device\n");
 
           if (dl->bundle->CleaningUp ||
               (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
@@ -338,7 +338,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_DIAL:
             case DATALINK_LOGIN:
               datalink_NewState(dl, DATALINK_HANGUP);
-              modem_Offline(dl->physical);	/* Is this required ? */
+              physical_Offline(dl->physical);	/* Is this required ? */
               chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, 1, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
           }
@@ -466,7 +466,7 @@ datalink_ComeDown(struct datalink *dl, int how)
     timer_Stop(&dl->physical->Timer);
     datalink_NewState(dl, DATALINK_READY);
   } else if (dl->state != DATALINK_CLOSED && dl->state != DATALINK_HANGUP) {
-    modem_Offline(dl->physical);
+    physical_Offline(dl->physical);
     chat_Destroy(&dl->chat);
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       datalink_NewState(dl, DATALINK_HANGUP);
@@ -764,7 +764,7 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   dl->fsmp.LayerFinish = datalink_LayerFinish;
   dl->fsmp.object = dl;
 
-  if ((dl->physical = modem_Create(dl, type)) == NULL) {
+  if ((dl->physical = physical_Create(dl, type)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
@@ -815,7 +815,7 @@ datalink_Clone(struct datalink *odl, const char *name)
   memcpy(&dl->fsmp, &odl->fsmp, sizeof dl->fsmp);
   dl->fsmp.object = dl;
 
-  if ((dl->physical = modem_Create(dl, PHYS_INTERACTIVE)) == NULL) {
+  if ((dl->physical = physical_Create(dl, PHYS_INTERACTIVE)) == NULL) {
     free(dl->name);
     free(dl);
     return NULL;
@@ -862,7 +862,7 @@ datalink_Destroy(struct datalink *dl)
 
   timer_Stop(&dl->dial.timer);
   result = dl->next;
-  modem_Destroy(dl->physical);
+  physical_Destroy(dl->physical);
   free(dl->name);
   free(dl);
 
@@ -1251,7 +1251,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
   dl->fsmp.LayerFinish = datalink_LayerFinish;
   dl->fsmp.object = dl;
 
-  dl->physical = iov2modem(dl, iov, niov, maxiov, fd);
+  dl->physical = iov2physical(dl, iov, niov, maxiov, fd);
 
   if (!dl->physical) {
     free(dl->name);
@@ -1306,7 +1306,7 @@ datalink2iov(struct datalink *dl, struct iovec *iov, int *niov, int maxiov,
     dl ? realloc(dl->name, DATALINK_MAXNAME) : malloc(DATALINK_MAXNAME);
   iov[(*niov)++].iov_len = DATALINK_MAXNAME;
 
-  link_fd = modem2iov(dl ? dl->physical : NULL, iov, niov, maxiov, newpid);
+  link_fd = physical2iov(dl ? dl->physical : NULL, iov, niov, maxiov, newpid);
 
   if (link_fd == -1 && dl) {
     free(dl->name);

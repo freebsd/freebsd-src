@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Brian Somers <brian@Awfulhak.org>
+ * Copyright (c) 1999 Brian Somers <brian@Awfulhak.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,30 +23,46 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: async.h,v 1.4 1998/06/27 12:03:48 brian Exp $
+ *	$Id:$
  */
 
-#define HDLCSIZE	(MAX_MRU*2+6)
+#include <sys/types.h>
 
-struct async {
-  int mode;
-  int length;
-  u_char hbuff[HDLCSIZE];	/* recv buffer */
-  u_char xbuff[HDLCSIZE];	/* xmit buffer */
-  u_int32_t my_accmap;
-  u_int32_t his_accmap;
+#include <stdio.h>
+#include <termios.h>
 
-  struct {
-    u_char EscMap[33];
-  } cfg;
-};
+#include "layer.h"
+#include "defs.h"
+#include "mbuf.h"
+#include "log.h"
+#include "sync.h"
+#include "timer.h"
+#include "lqr.h"
+#include "hdlc.h"
+#include "throughput.h"
+#include "fsm.h"
+#include "lcp.h"
+#include "ccp.h"
+#include "link.h"
+#include "async.h"
+#include "descriptor.h"
+#include "physical.h"
 
-struct lcp;
-struct mbuf;
-struct physical;
-struct bundle;
+static struct mbuf *
+sync_LayerPull(struct bundle *b, struct link *l, struct mbuf *bp,
+               u_short *proto)
+{
+  struct physical *p = link2physical(l);
 
-extern void async_Init(struct async *);
-extern void async_SetLinkParams(struct async *, struct lcp *);
+  if (!p)
+    log_Printf(LogERROR, "Can't Pull a sync packet from a logical link\n");
+  else {
+    /* Normally done by the HDLC layer */
+    p->hdlc.lqm.SaveInOctets += mbuf_Length(bp) + 1;
+    p->hdlc.lqm.SaveInPackets++;
+  }
 
-extern struct layer asynclayer;
+  return bp;
+}
+
+struct layer synclayer = { LAYER_SYNC, "sync", NULL, sync_LayerPull };

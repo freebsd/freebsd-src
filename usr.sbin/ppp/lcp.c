@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.69 1999/02/26 21:28:12 brian Exp $
+ * $Id: lcp.c,v 1.72 1999/04/11 08:51:04 brian Exp $
  *
  */
 
@@ -34,6 +34,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "layer.h"
 #include "ua.h"
 #include "defs.h"
 #include "command.h"
@@ -44,7 +45,7 @@
 #include "iplist.h"
 #include "lcp.h"
 #include "throughput.h"
-#include "lcpproto.h"
+#include "proto.h"
 #include "descriptor.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -1147,9 +1148,10 @@ reqreject:
   }
 }
 
-void
-lcp_Input(struct lcp *lcp, struct mbuf *bp)
+extern struct mbuf *
+lcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_LCP from link */
-  fsm_Input(&lcp->fsm, bp);
+  fsm_Input(&l->lcp.fsm, bp);
+  return NULL;
 }
