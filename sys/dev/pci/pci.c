@@ -957,7 +957,7 @@ int pci_register_lkm (struct pci_device *dvp, int if_revision)
 {
 	struct pci_lkm *lkm;
 
-	if (if_version != 0) {
+	if (if_revision != 0) {
 		return -1;
 	}
 
