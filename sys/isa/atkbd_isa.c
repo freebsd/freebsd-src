@@ -148,12 +148,21 @@ atkbdattach(device_t dev)
 static int
 atkbdresume(device_t dev)
 {
+	atkbd_softc_t *sc;
 	keyboard_t *kbd;
+	int args[2];
 
+	sc = device_get_softc(dev);
 	kbd = kbd_get_keyboard(kbd_find_keyboard(ATKBD_DRIVER_NAME,
 						 device_get_unit(dev)));
-	if (kbd)
+	if (kbd) {
+		kbd->kb_flags &= ~KB_INITIALIZED;
+		args[0] = device_get_unit(device_get_parent(dev));
+		args[1] = rman_get_start(sc->intr);
+		(*kbdsw[kbd->kb_index]->init)(device_get_unit(dev), &kbd,
+					      args, device_get_flags(dev));
 		(*kbdsw[kbd->kb_index]->clear_state)(kbd);
+	}
 	return 0;
 }
 
