@@ -30,7 +30,7 @@
   <para>For example, to create the kernel floppy image from DOS, you'd
   do something like this:</para>
 
-  <screen><userinput>C> fdimage kern.flp a:</userinput></screen>
+  <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
 
   <para>Assuming that you'd copied <filename>fdimage.exe</filename> and <filename>kern.flp</filename> into a directory
   somewhere.  You would do the same for <filename>mfsroot.flp</filename>, of course.</para>
