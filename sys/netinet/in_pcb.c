@@ -732,10 +732,8 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify, tcp_sequence, 
 		 * single session can match on src/dst ip addresses 
 		 * and TCP port numbers.
 		 */
-		if ((tcp_seq_check == 1) && (tcp_seq_vs_sess(inp, tcp_sequence) == 0)) {
-			inp = LIST_NEXT(inp, inp_list);
+		if ((tcp_seq_check == 1) && (tcp_seq_vs_sess(inp, tcp_sequence) == 0))
 			break;
-		}
 		oinp = inp;
 		inp = LIST_NEXT(inp, inp_list);
 		if (notify)
