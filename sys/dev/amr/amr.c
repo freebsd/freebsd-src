@@ -471,11 +471,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 
     /* handle inbound data buffer */
     if (au_length != 0 && au_cmd[0] != 0x06) {
-	if ((dp = malloc(au_length, M_DEVBUF, M_WAITOK)) == NULL)
-	    return(ENOMEM);
-
-	if ((ap = malloc(sizeof(struct amr_passthrough ), M_DEVBUF, M_WAITOK)) == NULL)
-	    return(ENOMEM);
+	dp = malloc(au_length, M_DEVBUF, M_WAITOK|M_ZERO);
 
 	if ((error = copyin(au_buffer, dp, au_length)) != 0) {
 	    free(dp, M_DEVBUF);
@@ -483,6 +479,10 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 	}
 	debug(2, "copyin %ld bytes from %p -> %p", au_length, au_buffer, dp);
     }
+
+    /* Allocate this now before the mutex gets held */
+    if (au_cmd[0] == AMR_CMD_PASS)
+	ap = malloc(sizeof(struct amr_passthrough), M_DEVBUF, M_WAITOK|M_ZERO);
 
     mtx_lock(&sc->amr_io_lock);
     if ((ac = amr_alloccmd(sc)) == NULL) {
@@ -563,10 +563,13 @@ out:
      * At this point, we know that there is a lock held and that these
      * objects have been allocated.
      */
-    free(dp, M_DEVBUF);
-    free(ap, M_DEVBUF);
-    amr_releasecmd(ac);
+    if (ac != NULL)
+	amr_releasecmd(ac);
     mtx_unlock(&sc->amr_io_lock);
+    if (dp != NULL)
+	free(dp, M_DEVBUF);
+    if (ap != NULL)
+	free(ap, M_DEVBUF);
     return(error);
 }
 
