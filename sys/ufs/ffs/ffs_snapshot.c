@@ -500,8 +500,8 @@ out1:
 	if (collectsnapstats && starttime.tv_sec > 0) {
 		nanotime(&endtime);
 		timespecsub(&endtime, &starttime);
-		printf("%s: suspended %d.%03ld sec, redo %ld of %d\n",
-		    vp->v_mount->mnt_stat.f_mntonname, endtime.tv_sec,
+		printf("%s: suspended %ld.%03ld sec, redo %ld of %d\n",
+		    vp->v_mount->mnt_stat.f_mntonname, (long)endtime.tv_sec,
 		    endtime.tv_nsec / 1000000, redo, fs->fs_ncg);
 	}
 	if (sbp == NULL)
