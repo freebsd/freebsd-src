@@ -177,10 +177,14 @@ main (argc, argv)
 	  continue;
 	}
 
-      if (apropos)
+      if (apropos) {
 	do_apropos (nextarg);
-      else if (whatis)
+	status = (status ? 0 : 1); /* reverts status, see below */
+      }
+      else if (whatis) {
 	do_whatis (nextarg);
+	status = (status ? 0 : 1); /* reverts status, see below */
+      }
       else
 	{
 	  status = man (nextarg);
