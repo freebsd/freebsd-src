@@ -121,6 +121,12 @@
 	the logical processors on HTT-capable machines.  The logical
 	processors will be treated like additional physical processors
 	for the purposes of process scheduling.</para>
+ 
+      <para arch="alpha">For use of &os; on AlphaServer 8200 and 8400
+        TurboLaser machines you have manually enable a getty on the
+        serial console line after installation. If you forget to do
+        this your system might appear hung as you never get a login
+        prompt. Look for zs0 in /etc/ttys.</para>
 
     </sect3>
 
