@@ -133,7 +133,7 @@ if sysctl vfs.devfs.generation > /dev/null 2>&1 ; then
 	true
 elif (/bin/mkdir /dev/.diskless 2> /dev/null); then
 	# if /dev is writable assume it has already been populated
-	# via rc.diskless1
+	# via /etc/rc.d/initdiskless
 	#
 	rmdir /dev/.diskless
 else
