@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_prot.c	8.6 (Berkeley) 1/21/94
- * $Id: kern_prot.c,v 1.28 1997/03/31 13:36:46 peter Exp $
+ * $Id: kern_prot.c,v 1.29 1997/03/31 13:41:49 peter Exp $
  */
 
 /*
@@ -616,17 +616,21 @@ setreuid(p, uap, retval)
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	if (euid != (uid_t)-1)
+	if (euid != (uid_t)-1 && pc->pc_ucred->cr_uid != euid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_uid = euid;
-	if (ruid != (uid_t)-1 && ruid != pc->p_ruid) {
+		p->p_flag |= P_SUGID;
+	}
+	if (ruid != (uid_t)-1 && pc->p_ruid != ruid) {
 		(void)chgproccnt(pc->p_ruid, -1);
 		(void)chgproccnt(ruid, 1);
 		pc->p_ruid = ruid;
+		p->p_flag |= P_SUGID;
 	}
-	if (ruid != (uid_t)-1 || pc->pc_ucred->cr_uid != pc->p_ruid)
+	if (ruid != (uid_t)-1 || pc->pc_ucred->cr_uid != pc->p_ruid) {
 		pc->p_svuid = pc->pc_ucred->cr_uid;
-	p->p_flag |= P_SUGID;
+		p->p_flag |= P_SUGID;
+	}
 	return (0);
 }
 
@@ -654,14 +658,19 @@ setregid(p, uap, retval)
 	    (error = suser(pc->pc_ucred, &p->p_acflag)))
 		return (error);
 
-	pc->pc_ucred = crcopy(pc->pc_ucred);
-	if (egid != (gid_t)-1)
+	if (egid != (gid_t)-1 && pc->pc_ucred->cr_groups[0] != egid) {
+		pc->pc_ucred = crcopy(pc->pc_ucred);
 		pc->pc_ucred->cr_groups[0] = egid;
-	if (rgid != (gid_t)-1)
+		p->p_flag |= P_SUGID;
+	}
+	if (rgid != (gid_t)-1 && pc->p_rgid != rgid) {
 		pc->p_rgid = rgid;
-	if (rgid != (gid_t)-1 || pc->pc_ucred->cr_groups[0] != pc->p_rgid)
+		p->p_flag |= P_SUGID;
+	}
+	if (rgid != (gid_t)-1 || pc->pc_ucred->cr_groups[0] != pc->p_rgid) {
 		pc->p_svgid = pc->pc_ucred->cr_groups[0];
-	p->p_flag |= P_SUGID;
+		p->p_flag |= P_SUGID;
+	}
 	return (0);
 }
 
