@@ -36,9 +36,9 @@
 
 #ifndef lint
 #if SMTP
-static char sccsid[] = "@(#)usersmtp.c	8.79 (Berkeley) 12/1/96 (with SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.80 (Berkeley) 1/18/97 (with SMTP)";
 #else
-static char sccsid[] = "@(#)usersmtp.c	8.79 (Berkeley) 12/1/96 (without SMTP)";
+static char sccsid[] = "@(#)usersmtp.c	8.80 (Berkeley) 1/18/97 (without SMTP)";
 #endif
 #endif /* not lint */
 
@@ -493,6 +493,12 @@ smtpmailfrom(m, mci, e)
 		smtpquit(m, mci, e);
 		return EX_TEMPFAIL;
 	}
+	else if (r == 452 && bitset(MCIF_SIZE, mci->mci_flags) &&
+		 e->e_msgsize > 0)
+	{
+		mci_setstat(mci, EX_NOTSTICKY, smtptodsn(r), SmtpReplyBuffer);
+		return EX_TEMPFAIL;
+	}
 	else if (REPLYTYPE(r) == 4)
 	{
 		mci_setstat(mci, EX_TEMPFAIL, smtptodsn(r), SmtpReplyBuffer);
@@ -684,6 +690,7 @@ smtpdata(m, mci, e)
 	register int r;
 	register EVENT *ev;
 	int rstat;
+	int xstat;
 	time_t timeout;
 
 	/*
@@ -790,17 +797,22 @@ smtpdata(m, mci, e)
 		return EX_TEMPFAIL;
 	}
 	mci->mci_state = MCIS_OPEN;
-	if (REPLYTYPE(r) == 4)
+	xstat = EX_NOTSTICKY;
+	if (r == 452)
 		rstat = EX_TEMPFAIL;
-	else if (REPLYCLASS(r) != 5)
-		rstat = EX_PROTOCOL;
-	else if (REPLYTYPE(r) == 2)
-		rstat = EX_OK;
-	else if (REPLYTYPE(r) == 5)
+	else if (r == 552)
 		rstat = EX_UNAVAILABLE;
+	else if (REPLYTYPE(r) == 4)
+		rstat = xstat = EX_TEMPFAIL;
+	else if (REPLYCLASS(r) != 5)
+		rstat = xstat = EX_PROTOCOL;
+	else if (REPLYTYPE(r) == 2)
+		rstat = xstat = EX_OK;
+	else if (REPLYTYPE(r) == 5)
+		rstat = xstat = EX_UNAVAILABLE;
 	else
 		rstat = EX_PROTOCOL;
-	mci_setstat(mci, rstat, smtptodsn(r), SmtpReplyBuffer);
+	mci_setstat(mci, xstat, smtptodsn(r), SmtpReplyBuffer);
 	if (e->e_statmsg != NULL)
 		free(e->e_statmsg);
 	e->e_statmsg = newstr(&SmtpReplyBuffer[4]);

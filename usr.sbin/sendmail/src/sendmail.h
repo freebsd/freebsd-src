@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)sendmail.h	8.216 (Berkeley) 12/1/96
+ *	@(#)sendmail.h	8.219 (Berkeley) 1/14/97
  */
 
 /*
@@ -41,7 +41,7 @@
 # ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailSccsId[] =	"@(#)sendmail.h	8.216		12/1/96";
+static char SmailSccsId[] =	"@(#)sendmail.h	8.219		1/14/97";
 # endif
 # else /*  _DEFINE */
 # define EXTERN extern
@@ -1135,7 +1135,7 @@ EXTERN bool	HasWildcardMX;	/* don't use MX records when canonifying */
 EXTERN char	SpaceSub;	/* substitution for <lwsp> */
 EXTERN int	PrivacyFlags;	/* privacy flags */
 EXTERN char	*ConfFile;	/* location of configuration file [conf.c] */
-extern char	*PidFile;	/* location of proc id file [conf.c] */
+EXTERN char	*PidFile;	/* location of proc id file [conf.c] */
 extern ADDRESS	NullAddress;	/* a null (template) address [main.c] */
 EXTERN long	WkClassFact;	/* multiplier for message class -> priority */
 EXTERN long	WkRecipFact;	/* multiplier for # of recipients -> priority */
@@ -1165,6 +1165,9 @@ EXTERN bool	AllowBogusHELO;	/* allow syntax errors on HELO command */
 EXTERN bool	UserSubmission;	/* initial (user) mail submission */
 EXTERN uid_t	RunAsUid;	/* UID to become for bulk of run */
 EXTERN gid_t	RunAsGid;	/* GID to become for bulk of run */
+#ifdef _FFR_DSN_RRT
+EXTERN bool	RrtImpliesDsn;	/* turn Return-Receipt-To: into DSN */
+#endif
 EXTERN bool	IgnoreHostStatus;	/* ignore long term host status files */
 EXTERN bool	SingleThreadDelivery;	/* single thread hosts on delivery */
 EXTERN bool	UnsafeGroupWrites;	/* group-writable files are unsafe */
@@ -1291,7 +1294,7 @@ extern void	makelower __P((char *));
 extern void	rebuildaliases __P((MAP *, bool));
 extern void	readaliases __P((MAP *, FILE *, bool, bool));
 extern void	finis __P(());
-extern void	setsender __P((char *, ENVELOPE *, char **, bool));
+extern void	setsender __P((char *, ENVELOPE *, char **, int, bool));
 extern FILE	*safefopen __P((char *, int, int, int));
 extern void	xputs __P((const char *));
 extern void	logsender __P((ENVELOPE *, char *));
