@@ -32,6 +32,10 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988 Regents of the University of California.\n\
@@ -39,12 +43,8 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
+static const char sccsid[] = "from: @(#)wall.c	5.14 (Berkeley) 3/2/91";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * This program is not related to David Wall, whose Stanford Ph.D. thesis
@@ -53,8 +53,9 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/time.h>
 #include <sys/uio.h>
+#include <rpc/rpc.h>
+#include <rpcsvc/rwall.h>
 #include <err.h>
 #include <paths.h>
 #include <pwd.h>
@@ -63,23 +64,17 @@ static const char rcsid[] =
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include <utmp.h>
 
-#include <rpc/rpc.h>
-#include <rpcsvc/rwall.h>
-
-int mbufsize;
 char *mbuf;
 
-void	makemsg __P((char *));
-static void usage __P((void));
-char   *ttymsg __P((struct iovec *, int, char *, int));
+static char notty[] = "no tty";
+
+void	makemsg(const char *);
+static void usage(void);
 
 /* ARGSUSED */
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char *argv[])
 {
 	char *wallhost, res;
 	CLIENT *cl;
@@ -108,7 +103,8 @@ main(argc, argv)
 
 	tv.tv_sec = 15;		/* XXX ?? */
 	tv.tv_usec = 0;
-	if (clnt_call(cl, WALLPROC_WALL, xdr_wrapstring, &mbuf, xdr_void, &res, tv) != RPC_SUCCESS) {
+	if (clnt_call(cl, WALLPROC_WALL, xdr_wrapstring, &mbuf, xdr_void,
+	    &res, tv) != RPC_SUCCESS) {
 		/*
 		 * An error occurred while calling the server.
 		 * Print error message and die.
@@ -116,19 +112,18 @@ main(argc, argv)
 		errx(1, "%s", clnt_sperror(cl, wallhost));
 	}
 
-	exit(0);
+	return (0);
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr, "usage: rwall hostname [file]\n");
+	fprintf(stderr, "usage: rwall hostname [file]\n");
 	exit(1);
 }
 
 void
-makemsg(fname)
-	char *fname;
+makemsg(const char *fname)
 {
 	struct tm *lt;
 	struct passwd *pw;
@@ -136,18 +131,24 @@ makemsg(fname)
 	time_t now;
 	FILE *fp;
 	int fd;
+	size_t mbufsize;
 	char *tty, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
 	const char *whom;
 
-	(void)snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
-	if ((fd = mkstemp(tmpname)) == -1 || !(fp = fdopen(fd, "r+")))
+	snprintf(tmpname, sizeof(tmpname), "%s/wall.XXXXXX", _PATH_TMP);
+	fd = mkstemp(tmpname);
+	fp = fdopen(fd, "r+");
+	if (fd == -1 || !fp)
 		err(1, "can't open temporary file");
-	(void)unlink(tmpname);
+	unlink(tmpname);
 
-	if (!(whom = getlogin()))
-		whom = (pw = getpwuid(getuid())) ? pw->pw_name : "???";
-	(void)gethostname(hostname, sizeof(hostname));
-	(void)time(&now);
+	whom = getlogin();
+	if (!whom) {
+		pw = getpwuid(getuid());
+		whom = pw ? pw->pw_name : "???";
+	}
+	gethostname(hostname, sizeof(hostname));
+	time(&now);
 	lt = localtime(&now);
 
 	/*
@@ -157,12 +158,12 @@ makemsg(fname)
 	 * Which means that we may leave a non-blank character
 	 * in column 80, but that can't be helped.
 	 */
-	(void)fprintf(fp, "Remote Broadcast Message from %s@%s\n",
+	fprintf(fp, "Remote Broadcast Message from %s@%s\n",
 	    whom, hostname);
 	tty = ttyname(STDERR_FILENO);
 	if (tty == NULL)
-		tty = "no tty";
-	(void)fprintf(fp, "        (%s) at %d:%02d ...\n", tty,
+		tty = notty;
+	fprintf(fp, "        (%s) at %d:%02d ...\n", tty,
 	    lt->tm_hour, lt->tm_min);
 
 	putc('\n', fp);
@@ -175,10 +176,11 @@ makemsg(fname)
 
 	if (fstat(fd, &sbuf))
 		err(1, "can't stat temporary file");
-	mbufsize = sbuf.st_size;
-	if (!(mbuf = malloc((u_int)mbufsize)))
+	mbufsize = (size_t)sbuf.st_size;
+	mbuf = malloc(mbufsize);
+	if (mbuf == NULL)
 		err(1, "out of memory");
 	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
 		err(1, "can't read temporary file");
-	(void)close(fd);
+	close(fd);
 }
