@@ -1,5 +1,5 @@
 #	$NetBSD: mkconf,v 1.1.1.1 1997/07/24 21:20:12 christos Exp $
-#	$Id$
+#	$Id: newvers.sh,v 1.1 1998/08/27 08:09:41 obrien Exp $
 # mkconf
 # Generate local configuration parameters for amd
 #
@@ -16,7 +16,7 @@ cat << __EOF
 #define HOST_OS "`uname -s | tr '[A-Z]' '[a-z]'``uname -r`"
 
 /* Define only name of host machine OS (eg. solaris2) */
-#define HOST_OS_NAME "`uname -s | tr '[A-Z]' '[a-z]'``uname -r | cut -d. -f 1`"
+#define HOST_OS_NAME "`uname -s | tr '[A-Z]' '[a-z]'``uname -r | sed -e 's/\..*$//'`"
 
 /* Define only version of host machine (eg. 2.5.1) */
 #define HOST_OS_VERSION "`uname -r`"
