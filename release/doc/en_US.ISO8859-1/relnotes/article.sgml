@@ -1891,7 +1891,7 @@
 
     <para>&man.syslogd.8; now has the ability to bind to a specific
     address--as opposed to using every available one--via the
-    <option>-b</option> option.</para>
+    <option>-b</option> option. &merged;</para>
 
     <para>&man.tail.1; now has the ability to work on files longer
     than 2GB. &merged;</para>
