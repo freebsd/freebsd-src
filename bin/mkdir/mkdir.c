@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  */
 
+#if 0
 #ifndef lint
 static char const copyright[] =
 "@(#) Copyright (c) 1983, 1992, 1993\n\
@@ -38,10 +39,9 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
-#endif
 #endif /* not lint */
+#endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
