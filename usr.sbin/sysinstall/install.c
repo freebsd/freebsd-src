@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.129 1996/10/05 10:43:47 jkh Exp $
+ * $Id: install.c,v 1.130 1996/10/05 16:33:01 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -902,6 +902,7 @@ create_termcap(void)
     }
 }
 
+#ifdef SAVE_USERCONFIG
 static void
 save_userconfig_to_kernel(char *kern)
 {
@@ -958,3 +959,4 @@ save_userconfig_to_kernel(char *kern)
     uc_close(core, 0);
     uc_close(boot, 1);
 }
+#endif
