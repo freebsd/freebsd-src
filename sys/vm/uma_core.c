@@ -178,6 +178,7 @@ static void page_free(void *, int, u_int8_t);
 static uma_slab_t slab_zalloc(uma_zone_t, int);
 static void cache_drain(uma_zone_t);
 static void bucket_drain(uma_zone_t, uma_bucket_t);
+static void bucket_cache_drain(uma_zone_t zone);
 static void zone_ctor(void *, int, void *);
 static void zone_dtor(void *, int, void *);
 static void zero_init(void *, int);
@@ -335,6 +336,8 @@ zone_timeout(uma_zone_t zone)
 
 	/*
 	 * Aggregate per cpu cache statistics back to the zone.
+	 *
+	 * XXX This should be done in the sysctl handler.
 	 *
 	 * I may rewrite this to set a flag in the per cpu cache instead of
 	 * locking.  If the flag is not cleared on the next round I will have
@@ -562,7 +565,6 @@ bucket_drain(uma_zone_t zone, uma_bucket_t bucket)
 static void
 cache_drain(uma_zone_t zone)
 {
-	uma_bucket_t bucket;
 	uma_cache_t cache;
 	int cpu;
 
@@ -582,12 +584,28 @@ cache_drain(uma_zone_t zone)
 			bucket_free(cache->uc_freebucket);
 		cache->uc_allocbucket = cache->uc_freebucket = NULL;
 	}
+	ZONE_LOCK(zone);
+	bucket_cache_drain(zone);
+	ZONE_UNLOCK(zone);
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (CPU_ABSENT(cpu))
+			continue;
+		CPU_UNLOCK(cpu);
+	}
+}
+
+/*
+ * Drain the cached buckets from a zone.  Expects a locked zone on entry.
+ */
+static void
+bucket_cache_drain(uma_zone_t zone)
+{
+	uma_bucket_t bucket;
 
 	/*
 	 * Drain the bucket queues and free the buckets, we just keep two per
 	 * cpu (alloc/free).
 	 */
-	ZONE_LOCK(zone);
 	while ((bucket = LIST_FIRST(&zone->uz_full_bucket)) != NULL) {
 		LIST_REMOVE(bucket, ub_link);
 		ZONE_UNLOCK(zone);
@@ -601,12 +619,6 @@ cache_drain(uma_zone_t zone)
 		LIST_REMOVE(bucket, ub_link);
 		bucket_free(bucket);
 	}
-	for (cpu = 0; cpu <= mp_maxid; cpu++) {
-		if (CPU_ABSENT(cpu))
-			continue;
-		CPU_UNLOCK(cpu);
-	}
-	ZONE_UNLOCK(zone);
 }
 
 /*
@@ -642,6 +654,7 @@ zone_drain(uma_zone_t zone)
 #ifdef UMA_DEBUG
 	printf("%s free items: %u\n", zone->uz_name, zone->uz_free);
 #endif
+	bucket_cache_drain(zone);
 	if (zone->uz_free == 0)
 		goto finished;
 
