@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.182.2.3 1996/11/12 09:08:53 phk Exp $
+ *  $Id: syscons.c,v 1.187 1996/11/14 22:19:14 sos Exp $
  */
 
 #include "sc.h"
@@ -1459,12 +1459,12 @@ scrn_timer()
 
     /* 
      * With release 2.1 of the Xaccel server, the keyboard is left
-     * hanging pretty often. Apparently the interrupt from the
+     * hanging pretty often. Apparently an interrupt from the
      * keyboard is lost, and I don't know why (yet).
-     * This Ugly hack calls scintr if input is ready and
-     * conveniently hides the problem.			XXX
+     * This ugly hack calls scintr if input is ready for the keyboard
+     * and conveniently hides the problem.			XXX
      */
-    if (inb(sc_port + KBD_STATUS_PORT) & KBDS_KBD_BUFFER_FULL)
+    if ((inb(sc_port+KBD_STATUS_PORT)&KBDS_BUFFER_FULL) == KBDS_KBD_BUFFER_FULL)
 	scintr(0);
 
     /* should we just return ? */
