@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage3,v 1.3 1998/09/26 17:27:18 abial Exp $
+#	$Id: stage3,v 1.4 1999/01/14 23:14:46 abial Exp $
 #
 set -e
 
@@ -99,8 +99,10 @@ kzip -v loader
 mv loader.kz /mnt/boot/loader
 rm -f loader loader.o
 echo "/boot/loader" >/mnt/boot.config
-echo "load /kernel">/mnt/boot/loader.rc
-echo "load -t userconfig_script /kernel.config">>/mnt/boot/loader.rc
+for i in menu frames screen boot
+do
+	cp ${SRC}/share/examples/bootforth/${i}.4th /mnt/boot/
+done
 (echo "-> Fixing permissions"; cd /mnt; chown -R root *)
 rm kernel.gz
 
