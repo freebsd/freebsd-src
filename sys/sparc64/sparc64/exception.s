@@ -131,17 +131,69 @@ DATA(eintrcnt)
 	.align	128
 	.endm
 
+	/* Fixups for kernel entry from tl0. */
+
+	/*
+	 * Split the register window using %otherwin. This is an optimization
+	 * to not have to flush all the register windows.
+	 * We need to use a special spill handler, because we are saving to
+	 * user-supplied addresses.
+	 * XXX:	this is obviously too big.
+	 */
+	.macro	tl0_split_save
+	wrpr	%g0, 1, %wstate
+	/* Make sure we have at least two register windows for our use. */
+	save
+	save
+	wrpr	%g0, 0, %wstate
+	restore
+	rdpr	%canrestore, %l0
+	wrpr	%l0, 0, %otherwin
+	wrpr	%g0, 0, %canrestore
+	.endm
+
+	/*
+	 * Flush out all but one of the user windows to the user's address
+	 * space. The remaining window is saved to the kernel stack later.
+	 */
+	.macro	tl0_flush_save
+	wrpr	%g0, 1, %wstate
+	flushw
+	wrpr	%g0, 0, %wstate
+	save
+	.endm
+
+	/*
+	 * Setup the kernel stack when faulting from user space. %l6 must be
+	 * used for fp with tl0_trap_flushed.
+	 */
+	.macro	tl0_setup_stack	tmp1, tmp2, tmp3, fp, sz
+	/* Set up the kernel stack. */
+	ldx	[PCPU(CURPCB)], \tmp1
+	setx	UPAGES * PAGE_SIZE - SPOFF - CCFSZ, \tmp2, \tmp3
+	mov	%fp, \fp
+	/*
+	 * Fake up the frame pointer of the previous window to point to the
+	 * kernel stack, so that the frame will be saved there. This is needed
+	 * e.g. for fork() (cpu_switch will do the flushw in that case).
+	 */
+	addx	\tmp1, \tmp3, %fp
+	sub	%fp, CCFSZ + TF_SIZEOF + \sz, %sp
+	.endm	
+
 	.macro	tl0_gen		type
-	save	%sp, -CCFSZ, %sp
-	b	%xcc, tl1_trap
-	 mov	\type, %o0
+	tl0_flush_save
+	rdpr	%pil, %o0
+	b	%xcc, tl0_trap_flushed
+	 mov	\type, %o1
 	.align	32
 	.endm
 
 	.macro	tl0_wide	type
-	save	%sp, -CCFSZ, %sp
-	b	%xcc, tl1_trap
-	 mov	\type, %o0
+	tl0_flush_save
+	rdpr	%pil, %o0
+	b	%xcc, tl0_trap_flushed
+	 mov	\type, %o1
 	.align	128
 	.endm
 
@@ -151,17 +203,189 @@ DATA(eintrcnt)
 	.endr
 	.endm
 
+	.macro	tl0_intr level, mask, type
+	tl0_flush_save
+	set	\level, %o3
+	set	\mask, %o2
+	b	%xcc, tl0_intr_call_trap
+	 mov	\type, %o1
+	.align	32
+	.endm
+
+/*
+ * Actually call tl0_trap_flushed, and do some work that cannot be done in
+ * tl0_intr because of space constraints.
+ */
+ENTRY(tl0_intr_call_trap)
+	rdpr	%pil, %o0
+	wrpr	%g0, %o3, %pil
+	b	%xcc, tl0_trap_flushed
+	 wr	%o2, 0, %asr21
+END(tl0_intr_call_trap)
+
+#define	INTR(level, traplvl)						\
+	tl ## traplvl ## _intr	level, 1 << level,			\
+	    T_INTR | (level << T_LEVEL_SHIFT)
+
+#define	TICK(traplvl) \
+	tl ## traplvl ## _intr	14, 1, T_INTR | (14 << T_LEVEL_SHIFT)
+
+#define	INTR_LEVEL(tl)							\
+	INTR(1, tl) ;							\
+	INTR(2, tl) ;							\
+	INTR(3, tl) ;							\
+	INTR(4, tl) ;							\
+	INTR(5, tl) ;							\
+	INTR(6, tl) ;							\
+	INTR(7, tl) ;							\
+	INTR(8, tl) ;							\
+	INTR(9, tl) ;							\
+	INTR(10, tl) ;							\
+	INTR(11, tl) ;							\
+	INTR(12, tl) ;							\
+	INTR(13, tl) ;							\
+	TICK(tl) ;							\
+	INTR(15, tl) ;
+
 	.macro	tl0_intr_level
-	tl0_reserved 15
+	INTR_LEVEL(0)
 	.endm
 
 	.macro	tl0_intr_vector
-	tl0_gen	0
+	b,a	intr_enqueue
+	 nop
+	.align	32
 	.endm
 
 	.macro	tl0_immu_miss
-	tl0_wide T_IMMU_MISS
+	/*
+	 * Extract the 8KB pointer and convert to an index.
+	 */
+	ldxa	[%g0] ASI_IMMU_TSB_8KB_PTR_REG, %g1	
+	srax	%g1, TTE_SHIFT, %g1
+
+	/*
+	 * Compute the stte address in the primary used tsb.
+	 */
+	and	%g1, (1 << TSB_PRIMARY_MASK_WIDTH) - 1, %g2
+	sllx	%g2, TSB_PRIMARY_STTE_SHIFT, %g2
+	setx	TSB_USER_MIN_ADDRESS, %g4, %g3
+	add	%g2, %g3, %g2
+
+	/*
+	 * Preload the tte tag target.
+	 */
+	ldxa	[%g0] ASI_IMMU_TAG_TARGET_REG, %g3
+
+	/*
+	 * Preload tte data bits to check inside the bucket loop.
+	 */
+	and	%g1, TD_VA_LOW_MASK >> TD_VA_LOW_SHIFT, %g4
+	sllx	%g4, TD_VA_LOW_SHIFT, %g4
+	or	%g4, TD_EXEC, %g4
+
+	/*
+	 * Preload mask for tte data check.
+	 */
+	setx	TD_VA_LOW_MASK, %g5, %g1
+	or	%g1, TD_EXEC, %g1
+
+	/*
+	 * Loop over the sttes in this bucket
+	 */
+
+	/*
+	 * Load the tte.
+	 */
+1:	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g6
+
+	/*
+	 * Compare the tag.
+	 */
+	cmp	%g6, %g3
+	bne,pn	%xcc, 2f
+
+	/*
+	 * Compare the data.
+	 */
+	 xor	%g7, %g4, %g5
+	brgez,pn %g7, 2f
+	 andcc	%g5, %g1, %g0
+	bnz,pn	%xcc, 2f
+
+	/*
+	 * We matched a tte, load the tlb.
+	 */
+
+	/*
+	 * Set the reference bit, if it's currently clear.
+	 */
+	 andcc	%g7, TD_REF, %g0
+	bz,a,pn	%xcc, immu_miss_user_set_ref
+	 nop
+
+	/*
+	 * Load the tte data into the tlb and retry the instruction.
+	 */
+	stxa	%g7, [%g0] ASI_ITLB_DATA_IN_REG
+	retry
+
+	/*
+	 * Check the low bits to see if we've finished the bucket.
+	 */
+2:	add	%g2, STTE_SIZEOF, %g2
+	andcc	%g2, TSB_PRIMARY_STTE_MASK, %g0
+	bnz	%xcc, 1b
+	b,a	%xcc, immu_miss_user_call_trap
+	.align	128
 	.endm
+
+ENTRY(immu_miss_user_set_ref)
+	/*
+	 * Set the reference bit.
+	 */
+	add	%g2, TTE_DATA, %g2
+1:	or	%g7, TD_REF, %g1
+	casxa	[%g2] ASI_N, %g7, %g1
+	cmp	%g1, %g7
+	bne,a,pn %xcc, 1b
+	 mov	%g1, %g7
+
+	/*
+	 * May have become invalid, in which case start over.
+	 */
+	brgez,pn %g1, 2f
+	 nop
+
+	/*
+	 * Load the tte data into the tlb and retry the instruction.
+	 */
+	stxa	%g1, [%g0] ASI_ITLB_DATA_IN_REG
+2:	retry
+END(immu_miss_user_set_ref)
+
+ENTRY(immu_miss_user_call_trap)
+	/*
+	 * Load the tar, sfar and sfsr aren't valid.
+	 */
+	mov	AA_IMMU_TAR, %g1
+	ldxa	[%g1] ASI_IMMU, %g1
+
+	/*
+	 * Save the mmu registers on the stack, switch to alternate globals,
+	 * and call common trap code.
+	 */
+	tl0_flush_save
+	mov	%g1, %l3
+	rdpr	%pstate, %l0
+	wrpr	%l0, PSTATE_AG | PSTATE_MG, %pstate
+	tl0_setup_stack	%l0, %l1, %l2, %l6, MF_SIZEOF
+	stx	%l3, [%sp + SPOFF + CCFSZ + TF_SIZEOF + MF_TAR]
+	rdpr	%pil, %o0
+	mov	T_IMMU_MISS, %o1
+	b	%xcc, tl0_trap_withstack
+	 add	%sp, SPOFF + CCFSZ + TF_SIZEOF, %o2
+END(immu_miss_user_call_trap)
 
 	.macro	dmmu_miss_user
 	/*
@@ -449,15 +673,17 @@ END(tl0_dmmu_prot_trap)
 
 	.macro	tl1_gen		type
 	save	%sp, -CCFSZ, %sp
+	rdpr	%pil, %o0
 	b	%xcc, tl1_trap
-	 mov	\type | T_KERNEL, %o0
+	 mov	\type | T_KERNEL, %o1
 	.align	32
 	.endm
 
 	.macro	tl1_wide	type
 	save	%sp, -CCFSZ, %sp
+	rdpr	%pil, %o0
 	b	%xcc, tl1_trap
-	 mov	\type | T_KERNEL, %o0
+	 mov	\type | T_KERNEL, %o1
 	.align	128
 	.endm
 
@@ -468,11 +694,12 @@ END(tl0_dmmu_prot_trap)
 	.endm
 
 	.macro	tl1_insn_excptn
-	rdpr	%pstate, %g1
-	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
 	save	%sp, -CCFSZ, %sp
+	rdpr	%pstate, %o0
+	wrpr	%o0, PSTATE_MG | PSTATE_AG, %pstate
+	rdpr	%pil, %o0
 	b	%xcc, tl1_trap
-	 mov	T_INSN_EXCPTN | T_KERNEL, %o0
+	 mov	T_INSN_EXCPTN | T_KERNEL, %o1
 	.align	32
 	.endm
 
@@ -491,30 +718,129 @@ ENTRY(tl1_sfsr_trap)
 	save	%sp, -(CCFSZ + MF_SIZEOF), %sp
 	stx	%g1, [%sp + SPOFF + CCFSZ + MF_SFAR]
 	stx	%g2, [%sp + SPOFF + CCFSZ + MF_SFSR]
-	mov	T_ALIGN | T_KERNEL, %o0
+	rdpr	%pil, %o0
+	mov	T_ALIGN | T_KERNEL, %o1
 	b	%xcc, tl1_trap
-	 add	%sp, SPOFF + CCFSZ, %o1
+	 add	%sp, SPOFF + CCFSZ, %o2
 END(tl1_sfsr_trap)
 
+	.macro	tl1_intr level, mask, type
+	save	%sp, -CCFSZ, %sp
+	rdpr	%pil, %o0
+	wrpr	%g0, \level, %pil
+	set	\mask, %o2
+	wr	%o2, 0, %asr21
+	b	%xcc, tl1_trap
+	 mov	\type | T_KERNEL, %o1
+	.align	32
+	.endm
+
 	.macro	tl1_intr_level
-	tl1_reserved 15
+	INTR_LEVEL(1)
 	.endm
 
 	.macro	tl1_intr_vector
-	rdpr	%pstate, %g1
-	wrpr	%g1, PSTATE_IG | PSTATE_AG, %pstate
-	save	%sp, -CCFSZ, %sp
-	b	%xcc, tl1_trap
-	 mov	T_INTERRUPT | T_KERNEL, %o0
-	.align	8
+	b,a	intr_enqueue
+	 nop
+	.align	32
 	.endm
 
+ENTRY(intr_enqueue)
+	/*
+	 * Find the head of the queue and advance it.
+	 */
+	ldx	[PCPU(IQ)], %g1
+	ldx	[%g1 + IQ_HEAD], %g2
+	add	%g2, 1, %g3
+	and	%g3, IQ_MASK, %g3
+	stx	%g3, [%g1 + IQ_HEAD]
+
+	/*
+	 * If the new head is the same as the tail, the next interrupt will
+	 * overwrite unserviced packets.  This is bad.
+	 */
+	ldx	[%g1 + IQ_TAIL], %g4
+	cmp	%g4, %g3
+	be	%xcc, 3f
+	 nop
+
+	/*
+	 * Load the interrupt packet from the hardware.
+	 */
+	wr	%g0, ASI_SDB_INTR_R, %asi
+	ldxa	[%g0] ASI_INTR_RECEIVE, %g3
+	ldxa	[%g0 + AA_SDB_INTR_D0] %asi, %g4
+	ldxa	[%g0 + AA_SDB_INTR_D1] %asi, %g5
+	ldxa	[%g0 + AA_SDB_INTR_D2] %asi, %g6
+	stxa	%g0, [%g0] ASI_INTR_RECEIVE
+	membar	#Sync
+
+	/*
+	 * Store the tag and first data word in the iqe.  These are always
+	 * valid.
+	 */
+	sllx	%g2, IQE_SHIFT, %g2
+	add	%g2, %g1, %g2
+	stw	%g3, [%g2 + IQE_TAG]
+	stx	%g4, [%g2 + IQE_VEC]
+
+	/*
+	 * Find the interrupt vector associated with this source.
+	 */
+	ldx	[PCPU(IVT)], %g3
+	sllx	%g4, IV_SHIFT, %g4
+
+	/*
+	 * If the 2nd data word, the function, is zero the actual function
+	 * and argument are in the interrupt vector table, so retrieve them.
+	 * The function is used as a lock on the vector data.  If it can be
+	 * read atomically as non-zero, the argument and priority are valid.
+	 * Otherwise this is either a true stray interrupt, or someone is
+	 * trying to deregister the source as we speak.  In either case,
+	 * bail and log a stray.
+	 */
+	brnz,pn %g5, 1f
+	 add	%g3, %g4, %g3
+	casxa	[%g3] ASI_N, %g0, %g5
+	brz,pn	%g5, 2f
+	 ldx	[%g3 + IV_ARG], %g6
+
+	/*
+	 * Save the priority and the two remaining data words in the iqe.
+	 */
+1:	lduw	[%g3 + IV_PRI], %g4
+	stw	%g4, [%g2 + IQE_PRI]
+	stx	%g5, [%g2 + IQE_FUNC]
+	stx	%g6, [%g2 + IQE_ARG]
+
+	/*
+	 * Trigger a softint at the level indicated by the priority.
+	 */
+	mov	1, %g3
+	sllx	%g3, %g4, %g3
+	wr	%g3, 0, %asr20
+	retry
+
+	/*
+	 * Either this is a true stray interrupt, or an interrupt occured
+	 * while the source was being deregistered.  In either case, just
+	 * log the stray and return.  XXX
+	 */
+2:	DEBUGGER()
+
+	/*
+	 * The interrupt queue is about to overflow.  We are in big trouble.
+	 */
+3:	DEBUGGER()
+END(intr_enqueue)
+
 	.macro	tl1_immu_miss
-	rdpr	%pstate, %g1
-	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
 	save	%sp, -CCFSZ, %sp
+	rdpr	%pstate, %o0
+	wrpr	%o0, PSTATE_MG | PSTATE_AG, %pstate
+	rdpr	%pil, %o0
 	b	%xcc, tl1_trap
-	 mov	T_IMMU_MISS | T_KERNEL, %o0
+	 mov	T_IMMU_MISS | T_KERNEL, %o1
 	.align	128
 	.endm
 
@@ -577,7 +903,8 @@ END(tl1_sfsr_trap)
 	 * For now just bail.  This might cause a red state exception,
 	 * but oh well.
 	 */
-2:	DEBUGGER()
+2:	b	%xcc, call_dmmu_trap
+	 nop
 	.align	128
 	.endm
 
@@ -590,7 +917,7 @@ ENTRY(tl1_dmmu_miss_user)
 	/*
 	 * Not in primary tsb, call c code.
 	 */
-
+call_dmmu_trap:	
 	/*
 	 * Load the tar, sfar and sfsr aren't valid.
 	 */
@@ -605,9 +932,10 @@ ENTRY(tl1_dmmu_miss_user)
 	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
 	rdpr	%pstate, %g1
 	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
-	mov	T_DMMU_MISS | T_KERNEL, %o0
+	rdpr	%pil, %o0
+	mov	T_DMMU_MISS | T_KERNEL, %o1
 	b	%xcc, tl1_trap
-	 add	%sp, SPOFF + CCFSZ, %o1
+	 add	%sp, SPOFF + CCFSZ, %o2
 END(tl1_dmmu_miss_user)
 
 	.macro	tl1_dmmu_prot
@@ -707,9 +1035,10 @@ ENTRY(tl1_dmmu_prot_user)
 	stx	%g4, [%sp + SPOFF + CCFSZ + MF_TAR]
 	rdpr	%pstate, %g1
 	wrpr	%g1, PSTATE_MG | PSTATE_AG, %pstate
-	mov	T_DMMU_PROT | T_KERNEL, %o0
+	rdpr	%pil, %o0
+	mov	T_DMMU_PROT | T_KERNEL, %o1
 	b	%xcc, tl1_trap
-	 add	%sp, SPOFF + CCFSZ, %o1
+	 add	%sp, SPOFF + CCFSZ, %o2
 END(tl1_dmmu_miss_user)
 
 	.macro	tl1_spill_0_n
@@ -719,6 +1048,21 @@ END(tl1_dmmu_miss_user)
 	.align	128
 	.endm
 
+	/*
+	 * This is used to spill windows that are still occupied with user
+	 * data on kernel entry.
+	 * tl0_spill_0_n is used for that for now; the the trap handler needs
+	 * to distinguish traps that happen while spilling the user windows from
+	 * normal tl1 traps by reading %wstate.
+	 */
+	.macro	tl1_spill_1_n
+	tl0_spill_0_n
+	.endm
+
+	.macro	tl1_spill_0_o
+	tl1_spill_0_n
+	.endm
+	
 	.macro	tl1_spill_bad	count
 	.rept	\count
 	tl1_wide T_SPILL
@@ -748,9 +1092,10 @@ ENTRY(tl1_breakpoint_trap)
 	save	%sp, -(CCFSZ + KF_SIZEOF), %sp
 	flushw
 	stx	%fp, [%sp + SPOFF + CCFSZ + KF_FP]
-	mov	T_BREAKPOINT | T_KERNEL, %o0
+	rdpr	%pil, %o0
+	mov	T_BREAKPOINT | T_KERNEL, %o1
 	b	%xcc, tl1_trap
-	 add	%sp, SPOFF + CCFSZ, %o1
+	 add	%sp, SPOFF + CCFSZ, %o2
 END(tl1_breakpoint_trap)
 
 	.macro	tl1_soft	count
@@ -918,8 +1263,14 @@ tl1_dmmu_prot:
 	tl1_reserved	16		! 0x270-0x27f reserved
 tl1_spill_0_n:
 	tl1_spill_0_n			! 0x280 spill 0 normal
-tl1_spill_bad:
-	tl1_spill_bad	15		! 0x284-0x2bf spill normal, other
+tl1_spill_1_n:
+	tl1_spill_1_n			! 0x284 spill 1 normal
+tl1_spill_bad_n:
+	tl1_spill_bad	6		! 0x288-0x29f spill normal, other
+tl1_spill_0_o:
+	tl1_spill_0_o			! 0x2a0 spill 0 other
+tl1_spill_bad_o:
+	tl1_spill_bad	7		! 0x2a4-0x2bf spill normal, other
 tl1_fill_0_n:
 	tl1_fill_0_n			! 0x2c0 fill 0 normal
 tl1_fill_bad:
@@ -930,10 +1281,90 @@ tl1_breakpoint:
 	tl1_soft	126		! 0x302-0x37f trap instruction
 	tl1_reserved	128		! 0x380-0x3ff reserved
 
-ENTRY(tl0_trap)
-	/* In every trap from tl0, we need to set PSTATE.PEF. */
-	illtrap
-END(tl0_trap)
+/*
+ * void tl0_trap_flushed(u_long o0, u_long o1, u_long o2, u_long type)
+ */
+ENTRY(tl0_trap_flushed)
+	tl0_setup_stack	%l0, %l1, %l2, %l6, 0
+	/* Fallthrough */
+END(tl0_trap_flushed)
+
+ENTRY(tl0_trap_withstack)
+	rdpr	%tstate, %l0
+	stx	%l0, [%sp + SPOFF + CCFSZ + TF_TSTATE]
+	rdpr	%tpc, %l1
+	stx	%l1, [%sp + SPOFF + CCFSZ + TF_TPC]
+	rdpr	%tnpc, %l2
+	stx	%l2, [%sp + SPOFF + CCFSZ + TF_TNPC]
+
+	stx	%i0, [%sp + SPOFF + CCFSZ + TF_O0]
+	stx	%i1, [%sp + SPOFF + CCFSZ + TF_O1]
+	stx	%i2, [%sp + SPOFF + CCFSZ + TF_O2]
+	stx	%i3, [%sp + SPOFF + CCFSZ + TF_O3]
+	stx	%i4, [%sp + SPOFF + CCFSZ + TF_O4]
+	stx	%i5, [%sp + SPOFF + CCFSZ + TF_O5]
+	stx	%l6, [%sp + SPOFF + CCFSZ + TF_O6]
+	stx	%i7, [%sp + SPOFF + CCFSZ + TF_O7]
+
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o2, [%sp + SPOFF + CCFSZ + TF_ARG]
+
+	mov	%g7, %l0
+	rdpr	%pstate, %g1
+	wrpr	%g1, PSTATE_AG | PSTATE_IE, %pstate
+	mov	%l0, %g7	/* set up the normal %g7 */
+
+	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
+	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
+	stx	%g3, [%sp + SPOFF + CCFSZ + TF_G3]
+	stx	%g4, [%sp + SPOFF + CCFSZ + TF_G4]
+	stx	%g5, [%sp + SPOFF + CCFSZ + TF_G5]
+	stx	%g6, [%sp + SPOFF + CCFSZ + TF_G6]
+	stx	%g7, [%sp + SPOFF + CCFSZ + TF_G7]
+
+	call	trap
+	 add	%sp, CCFSZ + SPOFF, %o0
+	
+	/* Fallthough. */
+END(tl0_trap_withstack)
+
+/* Return to tl0 (user process). */
+ENTRY(tl0_ret_flushed)
+	ldx	[%sp + SPOFF + CCFSZ + TF_G1], %g1
+	ldx	[%sp + SPOFF + CCFSZ + TF_G2], %g2
+	ldx	[%sp + SPOFF + CCFSZ + TF_G3], %g3
+	ldx	[%sp + SPOFF + CCFSZ + TF_G4], %g4
+	ldx	[%sp + SPOFF + CCFSZ + TF_G5], %g5
+	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
+	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
+
+	rdpr	%pstate, %o0
+	wrpr	%o0, PSTATE_AG | PSTATE_IE, %pstate
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_O0], %i0
+	ldx	[%sp + SPOFF + CCFSZ + TF_O1], %i1
+	ldx	[%sp + SPOFF + CCFSZ + TF_O2], %i2
+	ldx	[%sp + SPOFF + CCFSZ + TF_O3], %i3
+	ldx	[%sp + SPOFF + CCFSZ + TF_O4], %i4
+	ldx	[%sp + SPOFF + CCFSZ + TF_O5], %i5
+	ldx	[%sp + SPOFF + CCFSZ + TF_O6], %g1
+	ldx	[%sp + SPOFF + CCFSZ + TF_O7], %i7
+
+	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
+
+	wrpr	%l0, 0, %pil
+	wrpr	%l1, 0, %tstate
+	wrpr	%l2, 0, %tpc
+	wrpr	%l3, 0, %tnpc
+
+	restore
+	mov	%g1, %i6
+	retry
+END(tl0_ret_flushed)
 
 /*
  * void tl1_trap(u_long o0, u_long o1, u_long o2, u_long type)
@@ -951,8 +1382,9 @@ ENTRY(tl1_trap)
 	rdpr	%pstate, %l7
 	wrpr	%l7, PSTATE_AG | PSTATE_IE, %pstate
 
-	stx	%o0, [%sp + SPOFF + CCFSZ + TF_TYPE]
-	stx	%o1, [%sp + SPOFF + CCFSZ + TF_ARG]
+	stx	%o0, [%sp + SPOFF + CCFSZ + TF_PIL]
+	stx	%o1, [%sp + SPOFF + CCFSZ + TF_TYPE]
+	stx	%o2, [%sp + SPOFF + CCFSZ + TF_ARG]
 
 	stx	%g1, [%sp + SPOFF + CCFSZ + TF_G1]
 	stx	%g2, [%sp + SPOFF + CCFSZ + TF_G2]
@@ -973,17 +1405,20 @@ ENTRY(tl1_trap)
 	ldx	[%sp + SPOFF + CCFSZ + TF_G6], %g6
 	ldx	[%sp + SPOFF + CCFSZ + TF_G7], %g7
 
-	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l0
-	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l1
-	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_PIL], %l0
+	ldx	[%sp + SPOFF + CCFSZ + TF_TSTATE], %l1
+	ldx	[%sp + SPOFF + CCFSZ + TF_TPC], %l2
+	ldx	[%sp + SPOFF + CCFSZ + TF_TNPC], %l3
 
 	rdpr	%pstate, %o0
 	wrpr	%o0, PSTATE_AG | PSTATE_IE, %pstate
 
+	wrpr	%l0, 0, %pil
+
 	wrpr	%g0, 2, %tl
-	wrpr	%l0, 0, %tstate
-	wrpr	%l1, 0, %tpc
-	wrpr	%l2, 0, %tnpc
+	wrpr	%l1, 0, %tstate
+	wrpr	%l2, 0, %tpc
+	wrpr	%l3, 0, %tnpc
 
 	restore
 	retry
@@ -995,5 +1430,6 @@ ENTRY(fork_trampoline)
 	mov	%l2, %o2
 	call	fork_exit
 	 nop
-	DEBUGGER()
+	b	%xcc, tl0_ret_flushed
+	 nop
 END(fork_trampoline)
