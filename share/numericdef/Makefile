@@ -3,7 +3,8 @@
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
-LOCALES=	da_DK.ISO_8859-1 \
+LOCALES=	af_ZA.ISO_8859-1 \
+		da_DK.ISO_8859-1 \
 		de_DE.ISO_8859-1 \
 		en_US.ISO_8859-1 \
 		fr_FR.ISO_8859-1 \
