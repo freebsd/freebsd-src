@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_nat.h	1.5 2/4/96
- * $Id: ip_nat.h,v 2.0.2.23.2.1 1997/11/05 11:08:18 darrenr Exp $
+ * $Id: ip_nat.h,v 2.0.2.23.2.3 1998/05/23 18:52:44 darrenr Exp $
  */
 
 #ifndef	__IP_NAT_H__
@@ -44,8 +44,8 @@
 typedef	struct	nat	{
 	u_long	nat_age;
 	int	nat_flags;
-	u_long	nat_sumd;
-	u_long	nat_ipsumd;
+	u_32_t	nat_sumd;
+	u_32_t	nat_ipsumd;
 	void	*nat_data;
 	struct	in_addr	nat_inip;
 	struct	in_addr	nat_outip;
@@ -175,6 +175,7 @@ extern	int	ip_natout __P((ip_t *, int, fr_info_t *));
 extern	int	ip_natin __P((ip_t *, int, fr_info_t *));
 extern	void	ip_natunload __P((void)), ip_natexpire __P((void));
 extern	void	nat_log __P((struct nat *, u_short));
-extern	void	fix_incksum __P((u_short *, u_long));
-extern	void	fix_outcksum __P((u_short *, u_long));
+extern	void	fix_incksum __P((u_short *, u_32_t));
+extern	void	fix_outcksum __P((u_short *, u_32_t));
+
 #endif /* __IP_NAT_H__ */

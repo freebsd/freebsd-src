@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_compat.h	1.8 1/14/96
- * $Id: ip_compat.h,v 2.0.2.31.2.8 1997/12/02 13:42:52 darrenr Exp $
+ * $Id: ip_compat.h,v 2.0.2.31.2.11 1998/05/23 14:29:36 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__
@@ -123,7 +123,7 @@ typedef unsigned int    u_32_t;
 # else
 typedef unsigned long   u_32_t;
 # endif
-#endif /* __NetBSD__ || __OpenBSD__ || __FreeBSD__ */
+#endif /* __NetBSD__ || __OpenBSD__ || __FreeBSD__ || __sgi */
 
 #ifndef	MAX
 #define	MAX(a,b)	(((a) > (b)) ? (a) : (b))
@@ -369,6 +369,9 @@ typedef struct mbuf mb_t;
  * not be in other places or maybe one day linux will grow up and some
  * of these will turn up there too.
  */
+#ifndef	ICMP_MINLEN
+# define	ICMP_MINLEN	8
+#endif
 #ifndef	ICMP_UNREACH
 # define	ICMP_UNREACH	ICMP_DEST_UNREACH
 #endif
@@ -680,6 +683,12 @@ typedef	struct	uio	{
 #  undef UINT_MAX
 #  undef LONG_MAX
 #  undef ULONG_MAX
+#  define	s8 __s8
+#  define	u8 __u8
+#  define	s16 __s16
+#  define	u16 __u16
+#  define	s32 __s32
+#  define	u32 __u32
 #  include <linux/netdevice.h>
 #  undef	__KERNEL__
 # endif
@@ -714,4 +723,5 @@ struct	ether_addr	{
 #ifndef	ICMP_ROUTERSOLICIT
 # define	ICMP_ROUTERSOLICIT	10
 #endif
+
 #endif	/* __IP_COMPAT_H__ */
