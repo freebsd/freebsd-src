@@ -57,6 +57,7 @@ typedef nfs_fh fhandle_t;
 #endif /* NFS_HDR */
 #include <sys/mount.h>
 #include "mount.h"
+#include "mountres.h"
 
 /*
  * Network file system
@@ -93,16 +94,6 @@ typedef nfs_fh fhandle_t;
  * changes.  If it does, then you have other
  * problems...
  */
-typedef struct mountres {
-	int	mr_version;		/* 1 or 3 */
-	union {
-		struct fhstatus mru_fhstatus; /* mount v1 result */
-		struct mountres3 mru_mountres3;	/* mount v3 result */
-	} mr_un;
-} mountres;
-#define mr_fhstatus	mr_un.mru_fhstatus
-#define mr_mountres3	mr_un.mru_mountres3
-
 typedef struct fh_cache fh_cache;
 struct fh_cache {
 	qelem	fh_q;			/* List header */
@@ -232,9 +223,8 @@ fh_cache *fp;
 	dlog("Discarding filehandle for %s:%s", fp->fh_fs->fs_host, fp->fh_path);
 #endif /* DEBUG */
 	free_srvr(fp->fh_fs);
-	if (fp->fh_mountres.mr_version == MOUNTVERS3
-	    && fp->fh_mountres.mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_val)
-		free(fp->fh_mountres.mr_mountres3.mountres3_u.mountinfo.fhandle.fhandle3_val);
+	if (fp->fh_mountres.mr_version == MOUNTVERS3)
+		xdr_free(xdr_mountres3, (char *) &fp->fh_mountres.mr_mountres3);
 	free((voidp) fp->fh_path);
 	free((voidp) fp);
 }
