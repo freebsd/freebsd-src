@@ -110,7 +110,7 @@ default:
   set login
   set redial 3 5
   set timeout 0
-  enable lqr
+  enable lqr echo
   set lqrperiod 15
 
 isp1:

@@ -129,7 +129,7 @@ TA:
  set authname "somename"  # Replace these with your login name & password.
  set authkey "somepasswd" # This profile assumes you're using PAP or CHAP.
 
- enable lqr
+ enable lqr echo
  set reconnect 3 5
  set redial 3 10
  set lqrperiod 45
@@ -479,7 +479,7 @@ direct-client:
  set log Phase Chat LQM
  set login "ABORT NO\\sCARRIER TIMEOUT 5 ogin:--ogin: ppp word: ppp HELLO"
  set ifaddr 10.0.4.2 10.0.4.1
- enable lqr
+ enable lqr echo
  accept lqr
 
 direct-server:
@@ -487,7 +487,7 @@ direct-server:
  set lqrperiod 10
  set log Phase LQM
  set ifaddr 10.0.4.1 10.0.4.2
- enable lqr
+ enable lqr echo
  accept lqr
 
 
@@ -733,7 +733,7 @@ loginprompt:
 #
 pppoe:
  set device PPPoE:de0:pppoe-in
- enable lqr
+ enable lqr echo
  set cd 5
  set dial
  set login
@@ -747,7 +747,7 @@ pppoe:
 #
 pppoe-in:
  allow mode direct				# Only for use on server-side
- enable lqr proxy				# Enable LQR and proxy-arp
+ enable lqr echo proxy				# Enable LQR and proxy-arp
  enable chap pap passwdauth			# Force client authentication
  set ifaddr 10.0.0.1 10.0.0.100-10.0.0.199	# Hand out up to 100 IP numbers
  accept dns					# Allow DNS negotiation
