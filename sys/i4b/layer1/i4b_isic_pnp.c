@@ -49,11 +49,6 @@
 #include "isic.h"
 #include "opt_i4b.h"
 
-#if NPNP > 0
-#warning "Fix i4b pnp!"
-#undef NPNP
-#endif
-
 #if (NISIC > 0) && (NPNP > 0)
 
 #include <sys/param.h>
@@ -75,7 +70,7 @@ extern void isicintr(int unit);
 
 #include <machine/clock.h>
 #include <i386/isa/isa_device.h>
-/* #include <i386/isa/pnp.h> */
+#include <i386/isa/pnp.h>
 
 #include <i4b/include/i4b_global.h>
 #include <machine/i4b_ioctl.h>
