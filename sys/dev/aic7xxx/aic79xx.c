@@ -9391,7 +9391,7 @@ bus_reset:
 				 * untimed-out command is outstanding.
 				 */ 
 				if (ahd_other_scb_timeout(ahd, scb,
-							  active_scb) != 0)
+							  active_scb) == 0)
 					goto bus_reset;
 				continue;
 			} 
@@ -9430,7 +9430,7 @@ bus_reset:
 			 * some other command.  Reset the timer
 			 * and go on.
 			 */
-			if (ahd_other_scb_timeout(ahd, scb, NULL) != 0)
+			if (ahd_other_scb_timeout(ahd, scb, NULL) == 0)
 				goto bus_reset;
 		} else {
 			/*
