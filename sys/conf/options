@@ -1,4 +1,4 @@
-#	$Id: options,v 1.29 1997/02/22 09:28:14 peter Exp $
+#	$Id: options,v 1.30 1997/05/04 15:24:13 joerg Exp $
 
 # Format:
 # Option name	filename
@@ -7,6 +7,7 @@
 BOUNCE_BUFFERS	opt_bounce.h
 DDB
 DDB_UNATTENDED	opt_ddb.h
+GDB_REMOTE_CHAT	opt_ddb.h
 DEVFS_ROOT	opt_devfs.h
 KTRACE
 QUOTA
