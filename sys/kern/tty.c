@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.118 1999/05/08 06:39:42 phk Exp $
+ * $Id: tty.c,v 1.119 1999/05/22 20:10:31 dt Exp $
  */
 
 /*-
@@ -94,6 +94,7 @@
 #if NSNP > 0
 #include <sys/snoop.h>
 #endif
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <sys/lock.h>
@@ -193,6 +194,11 @@ static u_char const char_type[] = {
 
 #undef MAX_INPUT		/* XXX wrong in <sys/syslimits.h> */
 #define	MAX_INPUT	TTYHOG	/* XXX limit is usually larger for !ICANON */
+
+/*
+ * list of struct tty where pstat(8) can pick it up with sysctl
+ */
+static SLIST_HEAD(, tty) tty_list;
 
 /*
  * Initial open of tty, or (re)entry to standard tty line discipline.
@@ -2433,3 +2439,29 @@ ttyfree(tp)
         free(tp, M_TTYS);
 }
 #endif /* 0 */
+
+void
+ttyregister(tp)
+	struct tty *tp;
+{
+	SLIST_INSERT_HEAD(&tty_list, tp, t_list);
+}
+
+static int
+sysctl_kern_ttys SYSCTL_HANDLER_ARGS
+{
+	int error;
+	struct tty *tp, t;
+	SLIST_FOREACH(tp, &tty_list, t_list) {
+		t = *tp;
+		if (t.t_dev)
+			t.t_dev = (dev_t)dev2udev(t.t_dev);
+		error = SYSCTL_OUT(req, (caddr_t)&t, sizeof(t));
+		if (error)
+			return (error);
+	}
+	return (0);
+}
+
+SYSCTL_PROC(_kern, OID_AUTO, ttys, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_kern_ttys, "S,tty", "All struct ttys");
