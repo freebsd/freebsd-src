@@ -74,8 +74,9 @@ struct sysentvec osf1_sysvec = {
         &osf1_szsigcode,	/* use generic trampoline size */
         0,			/* prepsyscall */
 	"OSF/1 ECOFF",
-	NULL			/* we don't have an ECOFF coredump function */
-	
+	NULL,			/* we don't have an ECOFF coredump function */
+	NULL,
+	OSF1_MINSIGSTKSZ
 };
 
 /*
