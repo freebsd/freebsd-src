@@ -114,7 +114,7 @@
             mann
             ..
         ..
-	en.ISO8859-1
+        en.ISO8859-1
 /set uname=man
             cat1
             ..
@@ -149,7 +149,7 @@
             catn
             ..
         ..
-        ja      uname=root
+        ja              uname=root
             cat1
             ..
             cat2
