@@ -65,10 +65,10 @@ static char sccsid[] = "@(#)recvjob.c	8.2 (Berkeley) 4/27/95";
 
 #define ack()	(void) write(1, sp, 1);
 
-static char	 dfname[40];	/* data files */
+static char	 dfname[NAME_MAX];	/* data files */
 static int	 minfree;       /* keep at least minfree blocks available */
 static char	*sp = "";
-static char	 tfname[40];	/* tmp copy of cf before linking */
+static char	 tfname[NAME_MAX];	/* tmp copy of cf before linking */
 
 static int        chksize __P((int));
 static void       frecverr __P((const char *, ...));
@@ -94,7 +94,7 @@ recvjob()
 		frecverr("unknown printer %s", printer);
 	else if (status == -3)
 		fatal("potential reference loop detected in printcap file");
-
+	
 	if (cgetstr(bp, "lf", &LF) == -1)
 		LF = _PATH_CONSOLE;
 	if (cgetstr(bp, "sd", &SD) == -1)
@@ -146,10 +146,13 @@ readjob()
 		do {
 			if ((size = read(1, cp, 1)) != 1) {
 				if (size < 0)
-					frecverr("%s: Lost connection",printer);
+					frecverr("%s: Lost connection",
+					    printer);
 				return(nfiles);
 			}
-		} while (*cp++ != '\n');
+		} while (*cp++ != '\n' && (cp - line + 1) < sizeof(line));
+		if (cp - line + 1 >= sizeof(line))
+			frecverr("readjob overflow");
 		*--cp = '\0';
 		cp = line;
 		switch (*cp++) {
@@ -169,10 +172,14 @@ readjob()
 			 * something different than what gethostbyaddr()
 			 * returns
 			 */
-			strcpy(cp + 6, from);
-			strncpy(tfname, cp, sizeof tfname-1);
-			tfname[sizeof tfname-1] = '\0';
+			strncpy(cp + 6, from, sizeof(line) + line - cp - 7);
+			line[sizeof(line) - 1 ] = '\0';
+			strncpy(tfname, cp, sizeof(tfname) - 1);
+			tfname[sizeof (tfname) - 1] = '\0';
 			tfname[0] = 't';
+			if (strchr(tfname, '/'))
+				frecverr("readjob: %s: illegal path name",
+				    tfname);
 			if (!chksize(size)) {
 				(void) write(1, "\2", 1);
 				continue;
@@ -198,9 +205,9 @@ readjob()
 				(void) write(1, "\2", 1);
 				continue;
 			}
-			(void) strncpy(dfname, cp, sizeof dfname-1);
-			dfname[sizeof dfname-1] = '\0';
-			if (index(dfname, '/'))
+			(void) strncpy(dfname, cp, sizeof(dfname) - 1);
+			dfname[sizeof(dfname) - 1] = '\0';
+			if (strchr(dfname, '/'))
 				frecverr("readjob: %s: illegal path name",
 					dfname);
 			(void) readfile(dfname, size);
@@ -329,14 +336,14 @@ rcleanup(signo)
 	dfname[0] = '\0';
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 static void
-#if __STDC__
+#ifdef __STDC__
 frecverr(const char *msg, ...)
 #else
 frecverr(msg, va_alist)
@@ -345,7 +352,7 @@ frecverr(msg, va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
