@@ -1,8 +1,10 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.41 1997/10/10 05:48:16 dyson Exp $
+#	$Id: Makefile.inc,v 1.42 1997/10/15 16:16:34 bde Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
+
+.include "${.CURDIR}/../libc/${MACHINE}/sys/Makefile.inc"
 
 # modules with non-default implementations on at least one architecture:
 SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
