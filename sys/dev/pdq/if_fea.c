@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fea.c,v 1.10 1998/08/24 02:28:15 bde Exp $
+ * $Id: if_fea.c,v 1.11 1998/12/09 02:18:53 eivind Exp $
  */
 
 /*
@@ -205,7 +205,11 @@ pdq_eisa_attach(
 
     irq = TAILQ_FIRST(&ed->ioconf.irqs)->irq_no;
 
-    sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK);
+    sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT);
+    if (sc == NULL) {
+	printf("fea%d: malloc failed!\n", ed->unit);
+	return -1;
+    }
     pdqs_eisa[ed->unit] = sc;
 
     bzero(sc, sizeof(pdq_softc_t));	/* Zero out the softc*/
