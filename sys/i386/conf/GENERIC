@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46.2.5 1995/09/23 00:50:05 jkh Exp $
+#	$Id: GENERIC,v 1.46.2.6 1995/10/25 17:29:51 jkh Exp $
 #
 
 machine		"i386"
@@ -30,6 +30,7 @@ options		SYSVMSG
 config		kernel	root on wd0 
 
 controller	isa0
+controller	eisa0
 controller	pci0
 
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
@@ -49,12 +50,12 @@ disk		wd3	at wdc1 drive 1
 #device          wcd0    #IDE CD-ROM
 
 controller	ncr0
+controller	ahb0
 controller	ahc0
+controller	ahc1
 
-controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
+controller	bt0	at isa? port "IO_BT0" bio irq ? vector bt_isa_intr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
-controller	ahc1	at isa? bio irq ? vector ahcintr
-controller	ahb0	at isa? bio irq ? vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	aic0    at isa? port 0x340 bio irq 11 vector aicintr
 controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr

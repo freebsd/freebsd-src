@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.44 1995/12/10 13:33:47 phk Exp $
+ *      $Id: aha1742.c,v 1.45 1995/12/14 23:26:53 bde Exp $
  */
 
 #include <sys/types.h>
@@ -23,7 +23,6 @@
 #include "ahb.h"
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
@@ -293,7 +292,6 @@ static	struct	ecb *cheat;
 
 static  u_long		ahb_unit = 0;
 static 	int		ahb_debug = 0;
-SYSCTL_INT(_debug, OID_AUTO, ahb_debug, CTLFLAG_RW, &ahb_debug, 0, "");
 
 #define AHB_SHOWECBS 0x01
 #define AHB_SHOWINTS 0x02
