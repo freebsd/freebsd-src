@@ -92,7 +92,7 @@ static char *alt_system_name;
 
 #ifdef __FreeBSD__
 /* short_locale without country suffix */
-static char *locale, *short_locale, *locale_opts, *locale_nroff;
+static char *locale, *short_locale, *locale_nroff;
 static int use_original;
 struct ltable {
 	char *lcode;
@@ -101,7 +101,7 @@ struct ltable {
 static struct ltable ltable[] = {
 	{"KOI8-R", " -Tkoi8-r"},
 	{"ISO_8859-1", " -Tlatin1"},
-	{NULL, NULL}
+	{NULL, " -Tascii"}
 };
 #endif
 
@@ -479,11 +479,10 @@ man_getopt (argc, argv)
 
 		tmp = short_locale + 3;
 		for (pltable = ltable; pltable->lcode != NULL; pltable++) {
-			if (strcmp(pltable->lcode, tmp) == 0) {
-				locale_nroff = pltable->nroff;
+			if (strcmp(pltable->lcode, tmp) == 0)
 				break;
-			}
 		}
+		locale_nroff = pltable->nroff;
 	}
   }
 #endif
@@ -946,8 +945,7 @@ parse_roff_directive (cp, file, buf, bufsize)
 #ifdef __FreeBSD__
 	    char lbuf[FILENAME_MAX];
 
-	    snprintf(lbuf, sizeof(lbuf), "%s%s", NEQN,
-		     locale_opts == NULL ? " -Tascii" : locale_opts);
+	    snprintf(lbuf, sizeof(lbuf), "%s%s", NEQN, locale_nroff);
 	    add_directive (&first, lbuf, file, buf, bufsize);
 #else
 	    add_directive (&first, NEQN, file, buf, bufsize);
@@ -1025,8 +1023,7 @@ parse_roff_directive (cp, file, buf, bufsize)
 #ifdef __FreeBSD__
       char lbuf[FILENAME_MAX];
 
-      snprintf(lbuf, sizeof(lbuf), "%s%s", NROFF,
-	       locale_opts == NULL ? " -Tascii" : locale_opts);
+      snprintf(lbuf, sizeof(lbuf), "%s%s", NROFF, locale_nroff);
 	    add_directive (&first, lbuf, file, buf, bufsize);
 #else
       add_directive (&first, NROFF " -Tascii", file, buf, bufsize);
@@ -1589,7 +1586,6 @@ man (name)
 #ifdef __FreeBSD__
 	  l_found = 0;
 	  if (locale != NULL) {
-	    locale_opts = locale_nroff;
 	    snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
 	    if (is_directory (buf))
 	      l_found = try_section (buf, section, name, glob);
@@ -1598,7 +1594,6 @@ man (name)
 	      if (is_directory (buf))
 		l_found = try_section (buf, section, name, glob);
 	    }
-	    locale_opts = NULL;
 	  }
 	  if (!l_found) {
 #endif
@@ -1626,7 +1621,6 @@ man (name)
 #ifdef __FreeBSD__
 	      l_found = 0;
 	      if (locale != NULL) {
-		locale_opts = locale_nroff;
 		snprintf(buf, sizeof(buf), "%s/%s", *mp, locale);
 		if (is_directory (buf))
 		  l_found = try_section (buf, *sp, name, glob);
@@ -1635,7 +1629,6 @@ man (name)
 		  if (is_directory (buf))
 		    l_found = try_section (buf, *sp, name, glob);
 		}
-		locale_opts = NULL;
 	      }
 	      if (!l_found) {
 #endif
