@@ -217,8 +217,7 @@ cpu_fork(p1, p2, flags)
 		 * Copy enough of p1's backing store to include all
 		 * the user's stacked regs.
 		 */
-		bcopy(p1bs, p2bs, (p1->p_md.md_tf->tf_ar_bsp
-				   - p1->p_md.md_tf->tf_ar_bspstore));
+		bcopy(p1bs, p2bs, p1->p_md.md_tf->tf_ndirty);
 
 		/*
 		 * To calculate the ar.rnat for p2, we need to decide
@@ -228,9 +227,7 @@ cpu_fork(p1, p2, flags)
 		 * that one from memory, otherwise we take p1's
 		 * current ar.rnat.
 		 */
-		rnatloc = (u_int64_t)
-			(p1bs + (p1->p_md.md_tf->tf_ar_bsp
-				 - p1->p_md.md_tf->tf_ar_bspstore));
+		rnatloc = (u_int64_t)p1bs + p1->p_md.md_tf->tf_ndirty;
 		rnatloc |= 0x1f8;
 		if (bspstore > rnatloc)
 			rnat = *(u_int64_t *) rnatloc;
@@ -248,9 +245,8 @@ cpu_fork(p1, p2, flags)
 		 * should work since the child will normally return
 		 * straight into exception_restore.
 		 */
-		up->u_pcb.pcb_bspstore = (u_int64_t)
-			(p2bs + (p1->p_md.md_tf->tf_ar_bsp
-				 - p1->p_md.md_tf->tf_ar_bspstore));
+		up->u_pcb.pcb_bspstore =
+			(u_int64_t)p2bs + p1->p_md.md_tf->tf_ndirty;
 		up->u_pcb.pcb_rnat = rnat;
 
 		/*
@@ -306,6 +302,8 @@ cpu_exit(p)
 	ia64_fpstate_drop(p);
 
 	(void) splhigh();
+	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_exit(&Giant, MTX_DEF);
 	cnt.v_swtch++;
 	cpu_switch();
 	panic("cpu_exit");
