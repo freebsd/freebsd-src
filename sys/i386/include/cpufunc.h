@@ -52,7 +52,7 @@ __BEGIN_DECLS
 #define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
 #define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
 
-#define	CRITICAL_FORK	(read_eflags() | PSL_I)
+#define MACHINE_CRITICAL_ENTER	/* MD code defines critical_enter/exit/fork */
 
 #ifdef	__GNUC__
 
