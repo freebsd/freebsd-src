@@ -188,10 +188,14 @@ struct td_sched *thread0_sched = &td_sched;
  */
 
 struct kseq {
-	struct runq	ksq_runqs[2];
+	struct runq	ksq_ithd;	/* Queue of ITHD and REALTIME tds. */
+	struct runq	ksq_idle;	/* Queue of IDLE threads. */
+	struct runq	ksq_runqs[2];	/* Run queues for TIMESHARE. */
 	struct runq	*ksq_curr;
 	struct runq	*ksq_next;
-	int		ksq_load;	/* Total runnable */
+	int		ksq_itload;	/* Total runnable for ITHD. */
+	int		ksq_tsload;	/* Total runnable for TIMESHARE. */
+	int		ksq_idload;	/* Total runnable for IDLE. */
 #ifdef SMP
 	unsigned int	ksq_rslices;	/* Slices on run queue */
 	unsigned int	ksq_bload;	/* Threads waiting on IO */
@@ -221,7 +225,7 @@ int sched_pickcpu(void);
 static struct kse * kseq_choose(struct kseq *kseq);
 static int kseq_nice_min(struct kseq *kseq);
 static void kseq_setup(struct kseq *kseq);
-static __inline void kseq_add(struct kseq *kseq, struct kse *ke);
+static void kseq_add(struct kseq *kseq, struct kse *ke);
 static __inline void kseq_rem(struct kseq *kseq, struct kse *ke);
 #ifdef SMP
 static __inline void kseq_sleep(struct kseq *kseq, struct kse *ke);
@@ -229,19 +233,84 @@ static __inline void kseq_wakeup(struct kseq *kseq, struct kse *ke);
 struct kseq * kseq_load_highest(void);
 #endif
 
-static __inline void
+static void
 kseq_add(struct kseq *kseq, struct kse *ke)
 {
+	struct ksegrp *kg;
+
+	kg = ke->ke_ksegrp;
+
+	/*
+	 * Figure out what run queue we should go on and assign a slice.
+	 */
+	switch (kg->kg_pri_class) {
+	/*
+	 * If we're a real-time or interrupt thread place us on the curr
+	 * queue for the current processor.  Hopefully this will yield the
+	 * lowest latency response.
+	 */
+	case PRI_ITHD:
+	case PRI_REALTIME:
+		ke->ke_runq = &kseq->ksq_ithd;
+		ke->ke_slice = SCHED_SLICE_MAX;
+		kseq->ksq_itload++;
+		break;
+	/*
+	 * Timeshare threads get placed on the appropriate queue on their
+	 * bound cpu.
+	 */
+	case PRI_TIMESHARE:
+		if (ke->ke_runq == NULL) {
+			if (SCHED_CURR(kg))
+				ke->ke_runq = kseq->ksq_curr;
+			else
+				ke->ke_runq = kseq->ksq_next;
+		}
+		if (ke->ke_slice == 0)
+			sched_slice(ke);
+		kseq->ksq_tsload++;
+		break;
+	/*
+	 * Only grant PRI_IDLE processes a slice if there is nothing else
+	 * running.
+	 */
+	case PRI_IDLE:
+		ke->ke_runq = &kseq->ksq_idle;
+		ke->ke_slice = SCHED_SLICE_MIN;
+		kseq->ksq_idload++;
+		break;
+	default:
+		panic("Unknown priority class.\n");
+		break;
+	}
+
 	runq_add(ke->ke_runq, ke);
-	kseq->ksq_load++;
 #ifdef SMP
 	kseq->ksq_rslices += ke->ke_slice;
 #endif
 }
-static __inline void
+static void
 kseq_rem(struct kseq *kseq, struct kse *ke)
 {
-	kseq->ksq_load--;
+	struct ksegrp *kg;
+
+	kg = ke->ke_ksegrp;
+
+	/*
+	 * XXX Consider making the load an array.
+	 */
+	switch (kg->kg_pri_class) {
+	case PRI_ITHD:
+	case PRI_REALTIME:
+		kseq->ksq_itload--;
+		break;
+	case PRI_TIMESHARE:
+		kseq->ksq_tsload--;
+		break;
+	case PRI_IDLE:
+		kseq->ksq_idload--;
+		break;
+	}
 	runq_remove(ke->ke_runq, ke);
 #ifdef SMP
 	kseq->ksq_rslices -= ke->ke_slice;
@@ -276,8 +345,8 @@ kseq_load_highest(void)
 		if (CPU_ABSENT(i))
 			continue;
 		kseq = KSEQ_CPU(i);
-		if (kseq->ksq_load > load) {
-			load = kseq->ksq_load;
+		if (kseq->ksq_tsload > load) {
+			load = kseq->ksq_tsload;
 			cpu = i;
 		}
 	}
@@ -294,14 +363,23 @@ kseq_choose(struct kseq *kseq)
 	struct kse *ke;
 	struct runq *swap;
 
-	if ((ke = runq_choose(kseq->ksq_curr)) == NULL) {
+	if (kseq->ksq_itload)
+		return (runq_choose(&kseq->ksq_ithd));
+
+	if (kseq->ksq_tsload) {
+		if ((ke = runq_choose(kseq->ksq_curr)) != NULL)
+			return (ke);
+
 		swap = kseq->ksq_curr;
 		kseq->ksq_curr = kseq->ksq_next;
 		kseq->ksq_next = swap;
-		ke = runq_choose(kseq->ksq_curr);
-	}
 
-	return (ke);
+		return (runq_choose(kseq->ksq_curr));
+	}
+	if (kseq->ksq_idload)
+		return (runq_choose(&kseq->ksq_idle));
+
+	return (NULL);
 }
 
 static int
@@ -310,7 +388,7 @@ kseq_nice_min(struct kseq *kseq)
 	struct kse *ke0;
 	struct kse *ke1;
 
-	if (kseq->ksq_load == 0)
+	if (kseq->ksq_tsload == 0)
 		return (0);
 
 	ke0 = runq_choose(kseq->ksq_curr);
@@ -330,9 +408,13 @@ kseq_setup(struct kseq *kseq)
 {
 	kseq->ksq_curr = &kseq->ksq_runqs[0];
 	kseq->ksq_next = &kseq->ksq_runqs[1];
+	runq_init(&kseq->ksq_ithd);
 	runq_init(kseq->ksq_curr);
 	runq_init(kseq->ksq_next);
-	kseq->ksq_load = 0;
+	runq_init(&kseq->ksq_idle);
+	kseq->ksq_itload = 0;
+	kseq->ksq_tsload = 0;
+	kseq->ksq_idload = 0;
 #ifdef SMP
 	kseq->ksq_rslices = 0;
 	kseq->ksq_bload = 0;
@@ -381,7 +463,7 @@ sched_priority(struct ksegrp *kg)
 
 /*
  * Calculate a time slice based on the properties of the kseg and the runq
- * that we're on.
+ * that we're on.  This is only for PRI_TIMESHARE ksegrps.
  */
 static void
 sched_slice(struct kse *ke)
@@ -422,7 +504,7 @@ sched_slice(struct kse *ke)
 		nice_base = kseq_nice_min(kseq);
 		nice = kg->kg_nice + (0 - nice_base);
 
-		if (kseq->ksq_load == 0 || kg->kg_nice < nice_base)
+		if (kseq->ksq_tsload == 0 || kg->kg_nice < nice_base)
 			ke->ke_slice = SCHED_SLICE_MAX;
 		else if (nice <= SCHED_PRI_NHALF)
 			ke->ke_slice = SCHED_SLICE_NICE(nice);
@@ -432,9 +514,9 @@ sched_slice(struct kse *ke)
 		ke->ke_slice = SCHED_SLICE_MIN;
 
 	/*
-	 * Every time we grant a new slice check to see if we need to scale
-	 * back the slp and run time in the kg.  This will cause us to forget
-	 * old interactivity while maintaining the current ratio.
+	 * Check to see if we need to scale back the slp and run time
+	 * in the kg.  This will cause us to forget old interactivity
+	 * while maintaining the current ratio.
 	 */
 	if ((kg->kg_runtime + kg->kg_slptime) >  SCHED_SLP_RUN_MAX) {
 		kg->kg_runtime /= SCHED_SLP_RUN_THROTTLE;
@@ -516,9 +598,9 @@ sched_pickcpu(void)
 		if (CPU_ABSENT(i))
 			continue;
 		kseq = KSEQ_CPU(i);
-		if (kseq->ksq_load < load) {
+		if (kseq->ksq_tsload < load) {
 			cpu = i;
-			load = kseq->ksq_load;
+			load = kseq->ksq_tsload;
 		}
 	}
 
@@ -707,9 +789,11 @@ sched_exit(struct ksegrp *kg, struct ksegrp *child)
 {
 	/* XXX Need something better here */
 	mtx_assert(&sched_lock, MA_OWNED);
+#if 0
 	kg->kg_slptime = child->kg_slptime;
 	kg->kg_runtime = child->kg_runtime;
 	sched_priority(kg);
+#endif
 }
 
 void
@@ -732,6 +816,7 @@ sched_clock(struct thread *td)
 	/* Adjust ticks for pctcpu */
 	ke->ke_ticks++;
 	ke->ke_ltick = ticks;
+
 	/* Go up to one second beyond our max and then trim back down */
 	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
 		sched_pctcpu_update(ke);
@@ -752,6 +837,11 @@ sched_clock(struct thread *td)
 		td->td_flags |= TDF_NEEDRESCHED;
 #endif
 	/*
+	 * We only do slicing code for TIMESHARE ksegrps.
+	 */
+	if (kg->kg_pri_class != PRI_TIMESHARE)
+		return;
+	/*
 	 * We used a tick charge it to the ksegrp so that we can compute our
 	 * "interactivity".
 	 */
@@ -762,11 +852,11 @@ sched_clock(struct thread *td)
 	 */
 	ke->ke_slice--;
 	/*
-	 * We're out of time, recompute priorities and requeue
+	 * We're out of time, recompute priorities and requeue.  We'll get a
+	 * new slice when we're put back on the run queue.
 	 */
 	if (ke->ke_slice <= 0) {
 		sched_priority(kg);
-		sched_slice(ke);
 		td->td_flags |= TDF_NEEDRESCHED;
 		ke->ke_runq = NULL;
 	}
@@ -779,7 +869,7 @@ sched_runnable(void)
 
 	kseq = KSEQ_SELF();
 
-	if (kseq->ksq_load)
+	if (kseq->ksq_tsload || kseq->ksq_idload || kseq->ksq_itload)
 		return (1);
 #ifdef SMP
 	/*
@@ -798,7 +888,7 @@ sched_runnable(void)
 			if (CPU_ABSENT(i))
 				continue;
 			kseq = KSEQ_CPU(i);
-			if (kseq->ksq_load)
+			if (kseq->ksq_tsload)
 				return (1);
 		}
 	}
@@ -836,11 +926,12 @@ retry:
 
 		/*
 		 * If we dequeue a kse with a slice of zero it was below the
-		 * nice threshold to acquire a slice.  Recalculate the slice
-		 * to see if the situation has changed and then requeue.
+		 * nice threshold to acquire a slice.  Force it on to the
+		 * next run queue and let kseq_add() pick a new slice.
+		 *
+		 * XXX This code should live in a TIMESHARE specific section.
 		 */
 		if (ke->ke_slice == 0) {
-			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
 			kseq_add(kseq, ke);
 			goto retry;
@@ -859,6 +950,11 @@ retry:
 		kseq = kseq_load_highest();
 		if (kseq == NULL)
 			return (NULL);
+		/*
+		 * XXX Do we want to migrate interrupt or realtime threads?
+		 * Currently we'll only try to steal if there is a TIMESHARE
+		 * thread available but we will steal a REALTIME or interrupt
+		 */
 		ke = kseq_choose(kseq);
 		kseq_rem(kseq, ke);
 
@@ -885,28 +981,18 @@ sched_add(struct kse *ke)
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
 
-	/*
-	 * Timeshare threads get placed on the appropriate queue on their
-	 * bound cpu.
-	 */
-	if (ke->ke_ksegrp->kg_pri_class == PRI_TIMESHARE) {
-		kseq = KSEQ_CPU(ke->ke_cpu);
-
-		if (ke->ke_runq == NULL) {
-			if (SCHED_CURR(ke->ke_ksegrp))
-				ke->ke_runq = kseq->ksq_curr;
-			else
-				ke->ke_runq = kseq->ksq_next;
-		}
-	/*
-	 * If we're a real-time or interrupt thread place us on the curr
-	 * queue for the current processor.  Hopefully this will yield the
-	 * lowest latency response.
-	 */
-	} else {
+	switch (ke->ke_ksegrp->kg_pri_class) {
+	case PRI_ITHD:
+	case PRI_REALTIME:
 		kseq = KSEQ_SELF();
-		ke->ke_runq = kseq->ksq_curr;
+		break;
+	case PRI_TIMESHARE:
+	case PRI_IDLE:
+	default:
+		kseq = KSEQ_CPU(ke->ke_cpu);
+		break;
 	}
+
 	ke->ke_ksegrp->kg_runq_kses++;
 	ke->ke_state = KES_ONRUNQ;
 
