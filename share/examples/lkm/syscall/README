@@ -46,7 +46,7 @@
 		make load
 
 	The system call prints a message on the console when called.
-	This message will be preinted when running "make load" in
+	This message will be printed when running "make load" in
 	the "test" subdirectory.
 
 
