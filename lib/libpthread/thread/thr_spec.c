@@ -40,54 +40,47 @@
 
 /* Static variables: */
 static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
-static	long	key_table_lock	= 0;
 
 int
 pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 {
-	/* Lock the key table: */
-	_spinlock(&key_table_lock);
-
 	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
-		if (key_table[(*key)].count == 0) {
-			key_table[(*key)].count++;
+		/* Lock the key table entry: */
+		_spinlock(&key_table[*key].access_lock);
+
+		if (key_table[(*key)].allocated == 0) {
+			key_table[(*key)].allocated = 1;
 			key_table[(*key)].destructor = destructor;
 
-			/* Unlock the key table: */
-			_atomic_unlock(&key_table_lock);
+			/* Unlock the key table entry: */
+			_atomic_unlock(&key_table[*key].access_lock);
 			return (0);
 		}
-	}
 
-	/* Unlock the key table: */
-	_atomic_unlock(&key_table_lock);
+		/* Unlock the key table entry: */
+		_atomic_unlock(&key_table[*key].access_lock);
+	}
 	return (EAGAIN);
 }
 
 int
 pthread_key_delete(pthread_key_t key)
 {
-	int ret;
-
-	/* Lock the key table: */
-	_spinlock(&key_table_lock);
+	int ret = 0;
 
 	if (key < PTHREAD_KEYS_MAX) {
-		switch (key_table[key].count) {
-		case 1:
-			key_table[key].destructor = NULL;
-			key_table[key].count = 0;
-		case 0:
-			ret = 0;
-			break;
-		default:
-			ret = EBUSY;
-		}
+		/* Lock the key table entry: */
+		_spinlock(&key_table[key].access_lock);
+
+		if (key_table[key].allocated)
+			key_table[key].allocated = 0;
+		else
+			ret = EINVAL;
+
+		/* Unlock the key table entry: */
+		_atomic_unlock(&key_table[key].access_lock);
 	} else
 		ret = EINVAL;
-
-	/* Unlock the key table: */
-	_atomic_unlock(&key_table_lock);
 	return (ret);
 }
 
@@ -104,14 +97,14 @@ _thread_cleanupspecific(void)
 				/* Lock the key table entry: */
 				_spinlock(&key_table[key].access_lock);
 
-				if (_thread_run->specific_data[key]) {
-					data = (void *) _thread_run->specific_data[key];
-					_thread_run->specific_data[key] = NULL;
-					_thread_run->specific_data_count--;
-					if (key_table[key].destructor) {
-						key_table[key].destructor(data);
+				if (key_table[key].allocated) {
+					if (_thread_run->specific_data[key]) {
+						data = (void *) _thread_run->specific_data[key];
+						_thread_run->specific_data[key] = NULL;
+						_thread_run->specific_data_count--;
+						if (key_table[key].destructor)
+							key_table[key].destructor(data);
 					}
-					key_table[key].count--;
 				}
 
 				/* Unlock the key table entry: */
@@ -150,17 +143,13 @@ pthread_setspecific(pthread_key_t key, const void *value)
 			/* Lock the key table entry: */
 			_spinlock(&key_table[key].access_lock);
 
-			if (key_table[key].count) {
+			if (key_table[key].allocated) {
 				if (pthread->specific_data[key] == NULL) {
-					if (value != NULL) {
+					if (value != NULL)
 						pthread->specific_data_count++;
-						key_table[key].count++;
-					}
 				} else {
-					if (value == NULL) {
+					if (value == NULL)
 						pthread->specific_data_count--;
-						key_table[key].count--;
-					}
 				}
 				pthread->specific_data[key] = value;
 				ret = 0;
@@ -187,13 +176,12 @@ pthread_getspecific(pthread_key_t key)
 	pthread = _thread_run;
 
 	/* Check if there is specific data: */
-	if (pthread->specific_data != NULL &&
-	    (key < PTHREAD_KEYS_MAX) && (key_table)) {
+	if (pthread->specific_data != NULL && key < PTHREAD_KEYS_MAX) {
 		/* Lock the key table entry: */
 		_spinlock(&key_table[key].access_lock);
 
 		/* Check if this key has been used before: */
-		if (key_table[key].count) {
+		if (key_table[key].allocated) {
 			/* Return the value: */
 			data = (void *) pthread->specific_data[key];
 		} else {
