@@ -12,9 +12,7 @@ HARDWARE.TXT files.
 
 For the latest of these 4.0-stable snapshots, you should always see:
 
-        ftp://current.freebsd.org/pub/FreeBSD
-
-If you wish to get the latest post-4.0-RELEASE technology.
+        ftp://releng4.freebsd.org/pub/FreeBSD
 
 Table of contents:
 ------------------
@@ -26,8 +24,9 @@ Table of contents:
 2. Supported Configurations
    2.1 Disk Controllers
    2.2 Ethernet cards
-   2.3 ATM
-   2.4 Misc
+   2.3 FDDI
+   2.4 ATM
+   2.5 Misc
 
 3. Obtaining FreeBSD
    3.1 FTP/Mail
@@ -36,6 +35,7 @@ Table of contents:
 4. Upgrading from previous releases of FreeBSD
 
 5. Reporting problems, making suggestions, submitting code
+
 6. Acknowledgements
 
 
@@ -102,6 +102,15 @@ cope with MBR boot loaders of varying sizes.
 libfetch has been greatly improved.  fetch(1) and the pkg tools now use
 libfetch instead of libftpio, which means that the pkg tools have gained
 HTTP support, and both have gained IPv6 support.
+
+The csh(1) shell has been replaced by tcsh(1), although it can still
+be run as csh(1).
+
+The more(1) command has been replaced by less(1), although it can still
+be run as more(1).
+
+ls(1) can produce colorized listings with the -G flag (and appropriate
+terminal support).
 
 2. Supported Configurations
 ---------------------------
@@ -247,8 +256,8 @@ Unmaintained drivers, they might or might not work for your hardware:
 2.2. Ethernet cards
 -------------------
 
-Adaptec Duralink PCI fast ethernet adapters based on the Adaptec
-AIC-6915 fast ethernet controller chip, including the following:
+Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
+AIC-6915 Fast Ethernet controller chip, including the following:
   ANA-62011 64-bit single port 10/100baseTX adapter
   ANA-62022 64-bit dual port 10/100baseTX adapter
   ANA-62044 64-bit quad port 10/100baseTX adapter
@@ -257,7 +266,7 @@ AIC-6915 fast ethernet controller chip, including the following:
 
 Allied-Telesis AT1700 and RE2000 cards
 
-Alteon Networks PCI gigabit ethernet NICs based on the Tigon 1 and Tigon 2
+Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon 1 and Tigon 2
 chipsets, including the following:
   Alteon AceNIC (Tigon 1 and 2)
   3Com 3c985-SX (Tigon 1 and 2)
@@ -268,11 +277,11 @@ chipsets, including the following:
 
 AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 
-SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
+SMC Elite 16 WD8013 Ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
-RealTek 8129/8139 fast ethernet NICs including the following:
+RealTek 8129/8139 Fast Ethernet NICs including the following:
   Allied Telesyn AT2550
   Allied Telesyn AT2500TX
   Genius GF100TXR (RTL8139)
@@ -284,37 +293,37 @@ RealTek 8129/8139 fast ethernet NICs including the following:
   Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
   SMC EZ Card 10/100 PCI 1211-TX
 
-Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
+Lite-On 82c168/82c169 PNIC Fast Ethernet NICs including the following:
   LinkSys EtherFast LNE100TX
   NetGear FA310-TX Rev. D1
   Matrox FastNIC 10/100
   Kingston KNE110TX
 
-Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
+Macronix 98713, 98713A, 98715, 98715A and 98725 Fast Ethernet NICs
   NDC Communications SFA100A (98713A)
   CNet Pro120A (98713 or 98713A)
   CNet Pro120B (98715)
   SVEC PN102TX (98713)
 
-Macronix/Lite-On PNIC II LC82C115 fast ethernet NICs including the following:
+Macronix/Lite-On PNIC II LC82C115 Fast Ethernet NICs including the following:
   LinkSys EtherFast LNE100TX Version 2
 
-Winbond W89C840F fast ethernet NICs including the following:
+Winbond W89C840F Fast Ethernet NICs including the following:
   Trendware TE100-PCIE
 
-VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" Fast Ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE-530TX
   AOpen/Acer ALN-320
 
-Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
+Silicon Integrated Systems SiS 900 and SiS 7016 PCI Fast Ethernet NICs
 
-Sundance Technologies ST201 PCI fast ethernet NICs including
+Sundance Technologies ST201 PCI Fast Ethernet NICs including
 the following:
   D-Link DFE-550TX
 
-SysKonnect SK-984x PCI gigabit ethernet cards including the following:
+SysKonnect SK-984x PCI Gigabit Ethernet cards including the following:
   SK-9841 1000baseLX single mode fiber, single port
   SK-9842 1000baseSX multimode fiber, single port
   SK-9843 1000baseLX single mode fiber, dual port
@@ -328,21 +337,21 @@ Texas Instruments ThunderLAN PCI NICs, including the following:
   Racore 8165 10/100baseTX
   Racore 8148 10baseT/100baseTX/100baseFX multi-personality
 
-ADMtek Inc. AL981-based PCI fast ethernet NICs
-ADMtek Inc. AN985-based PCI fast ethernet NICs
-ADMtek Inc. AN986-based USB ethernet NICs including the following:
+ADMtek Inc. AL981-based PCI Fast Ethernet NICs
+ADMtek Inc. AN985-based PCI Fast Ethernet NICs
+ADMtek Inc. AN986-based USB Ethernet NICs including the following:
   LinkSys USB100TX
   Billionton USB100
   Melco Inc. LU-ATX
   D-Link DSB-650TX
   SMC 2202USB
 
-CATC USB-EL1210A-based USB ethernet NICs including the following:
+CATC USB-EL1210A-based USB Ethernet NICs including the following:
   CATC Netmate
   CATC Netmate II
   Belkin F5U111
 
-Kawasaki LSI KU5KUSB101B-based USB ethernet NICs including
+Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs including
 the following:
   LinkSys USB10T
   Entrega NET-USB-E45
@@ -363,9 +372,8 @@ ASIX Electronics AX88140A PCI NICs, including the following:
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
 DEC DC21040, DC21041, or DC21140 based NICs (SMC Etherpower 8432T, DE245, etc)
-DEC FDDI (DEFPA/DEFEA) NICs
 
-Davicom DM9100 and DM9102 PCI fast ethernet NICs, including the
+Davicom DM9100 and DM9102 PCI Fast Ethernet NICs, including the
 following:
   Jaton Corporation XpressNet
 
@@ -382,7 +390,7 @@ Intel PRO/100+ Management Adapter
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
 
-Novell NE1000, NE2000, and NE2100 ethernet interface.
+Novell NE1000, NE2000, and NE2100 Ethernet interface.
 
 PCI network cards emulating the NE2000: RealTek 8029, NetVin 5000,
 Winbond W89C940, Surecom NE-34, VIA VT86C926.
@@ -404,7 +412,7 @@ and EISA (Fast) Etherlink III / (Fast) Etherlink XL
 
 3Com 3cSOHO100-TX OfficeConnect adapter
 
-Toshiba ethernet cards
+Toshiba Ethernet cards
 
 Crystal Semiconductor CS89x0-based NICs, including:
   IBM Etherjet ISA
@@ -437,8 +445,14 @@ including the following:
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
 
-2.3 ATM
--------
+2.3. FDDI
+---------
+
+DEC FDDI (DEFPA/DEFEA) NICs
+
+
+2.4. ATM
+--------
 
    o ATM Host Interfaces
         - FORE Systems, Inc. PCA-200E ATM PCI Adapters
@@ -464,7 +478,7 @@ Megahertz X-Jack Ethernet PC-Card CC-10BT
    o ATM Sockets interface
 
 
-2.4. Misc
+2.5. Misc
 ---------
 
 AST 4 port serial card using shared IRQ.
@@ -597,14 +611,15 @@ unconditional return policy.
 ----------------------------------------------
 
 If you're upgrading from a previous release of FreeBSD, most likely
-it's 3.0 and some of the following issues may affect you, depending
+it's 3.0 and there may be some issues affecting you, depending
 of course on your chosen method of upgrading.  There are two popular
 ways of upgrading FreeBSD distributions:
 
         o Using sources, via /usr/src
         o Using sysinstall's (binary) upgrade option.
 
-Please read the UPGRADE.TXT file for more information.
+Please read the UPGRADE.TXT file for more information, preferably
+before beginning an upgrade.
 
 
 5. Reporting problems, making suggestions, submitting code.
@@ -638,6 +653,14 @@ the problem might have already been fixed since.
 Otherwise, for any questions or tech support issues, please send mail to:
 
                 freebsd-questions@FreeBSD.org
+
+
+If you're tracking the -stable development efforts, you should
+definitely join the -stable mailing list, in order to keep abreast
+of recent developments and changes that may affect the way you
+use and maintain the system:
+
+		freebsd-stable@FreeBSD.org
 
 
 Additionally, being a volunteer effort, we are always happy to have
