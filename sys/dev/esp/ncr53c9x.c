@@ -117,7 +117,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/time.h>
 #include <sys/callout.h>
-#include <vm/uma.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -185,9 +184,6 @@ static __inline void ncr53c9x_setsync(struct ncr53c9x_softc *,
 	    ((ms +0u) * hz) /1000u)
 #endif
 
-static int ecb_zone_initialized = 0;
-static uma_zone_t ecb_zone;
-
 /*
  * Names for the NCR53c9x variants, correspnding to the variant tags
  * in ncr53c9xvar.h.
@@ -228,6 +224,8 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	struct cam_devq *devq;
 	struct cam_sim *sim;
 	struct cam_path *path;
+	struct ncr53c9x_ecb *ecb;
+	int i;
 
 	mtx_init(&sc->sc_lock, "ncr", "ncr53c9x lock", MTX_DEF);
 
@@ -304,7 +302,8 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 		return (ENOMEM);
 
 	sim = cam_sim_alloc(ncr53c9x_action, ncr53c9x_poll, "esp", sc,
-			    device_get_unit(sc->sc_dev), 256, 256, devq);
+			    device_get_unit(sc->sc_dev), 1,
+			    NCR_TAG_DEPTH, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);
@@ -331,6 +330,19 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 #endif
 	sc->sc_state = 0;
 	ncr53c9x_init(sc, 1);
+
+	TAILQ_INIT(&sc->free_list);
+	if ((sc->ecb_array = malloc(sizeof(struct ncr53c9x_ecb) * NCR_TAG_DEPTH,
+				    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL) {
+		device_printf(sc->sc_dev, "Cannot allocate ecb array!\n");
+		return (ENOMEM);
+	}
+	for (i = 0; i < NCR_TAG_DEPTH; i++) {
+		ecb = &sc->ecb_array[i];
+		ecb->sc = sc;
+		ecb->tag_id = i;
+		TAILQ_INSERT_HEAD(&sc->free_list, ecb, free_links);
+	}
 
 	callout_reset(&sc->sc_watchdog, 60*hz, ncr53c9x_watch, sc);
 
@@ -452,14 +464,6 @@ ncr53c9x_init(struct ncr53c9x_softc *sc, int doreset)
 	int i, r;
 
 	NCR_MISC(("[NCR_INIT(%d) %d] ", doreset, sc->sc_state));
-
-	if (!ecb_zone_initialized) {
-		/* All instances share this zone */
-		ecb_zone = uma_zcreate("ncr53c9x ecb zone",
-				       sizeof(struct ncr53c9x_ecb), NULL, NULL,
-				       NULL, NULL, 0, 0);
-		ecb_zone_initialized = 1;
-	}
 
 	if (sc->sc_state == 0) {
 		/* First time through; initialize. */
@@ -791,7 +795,7 @@ ncr53c9x_free_ecb(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 {
 
 	ecb->flags = 0;
-	uma_zfree(ecb_zone, (void *)ecb);
+	TAILQ_INSERT_TAIL(&sc->free_list, ecb, free_links);
 	return;
 }
 
@@ -800,11 +804,14 @@ ncr53c9x_get_ecb(struct ncr53c9x_softc *sc)
 {
 	struct ncr53c9x_ecb *ecb;
 
-	ecb = (struct ncr53c9x_ecb *)uma_zalloc(ecb_zone, M_NOWAIT);
+	ecb = TAILQ_FIRST(&sc->free_list);
 	if (ecb) {
-		bzero(ecb, sizeof(struct ncr53c9x_ecb));
-		ecb->flags |= ECB_ALLOC;
-		ecb->sc = sc;
+		if (ecb->flags != 0)
+			panic("ecb flags not cleared\n");
+		TAILQ_REMOVE(&sc->free_list, ecb, free_links);
+		ecb->flags = ECB_ALLOC;
+		bzero(&ecb->ccb, sizeof(struct ncr53c9x_ecb) -
+		      offsetof(struct ncr53c9x_ecb, ccb));
 	}
 	return (ecb);
 }
@@ -847,7 +854,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_pathinq *cpi = &ccb->cpi;
 
 		cpi->version_num = 1;
-		cpi->hba_inquiry = PI_SDTR_ABLE/*|PI_TAG_ABLE*/;
+		cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE;
 		cpi->hba_inquiry |=
 		    (sc->sc_rev == NCR_VARIANT_FAS366) ? PI_WIDE_16 : 0;
 		cpi->target_sprt = 0;
@@ -1000,6 +1007,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 				ti->flags &= ~T_WIDE;
 				ti->width = 0;
 			}
+			ti->flags |= T_NEGOTIATE;
 		}
 
 		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
@@ -1088,6 +1096,10 @@ ncr53c9x_sched(struct ncr53c9x_softc *sc)
 			tag = 0;
 		else if ((ecb->flags & ECB_SENSE) != 0)
 			tag = 0;
+		else if ((ecb->ccb->ccb_h.flags & CAM_TAG_ACTION_VALID) == 0)
+			tag = 0;
+		else if (ecb->ccb->csio.tag_action == CAM_TAG_ACTION_NONE)
+			tag = 0;
 		else
 			tag = ecb->ccb->csio.tag_action;
 
@@ -1122,8 +1134,8 @@ ncr53c9x_sched(struct ncr53c9x_softc *sc)
 		}
 		ecb->tag[0] = tag;
 		if (tag != 0) {
-			li->queued[ecb->ccb->csio.tag_id] = ecb;
-			ecb->tag[1] = ecb->ccb->csio.tag_id;
+			li->queued[ecb->tag_id] = ecb;
+			ecb->tag[1] = ecb->tag_id;
 			li->used++;
 		}
 		if (li->untagged != NULL && (li->busy != 1)) {
@@ -1218,7 +1230,8 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	if (ccb->ccb_h.status == CAM_REQ_CMP) {
 		if ((ecb->flags & ECB_ABORT) != 0) {
 			ccb->ccb_h.status = CAM_CMD_TIMEOUT;
-		} else if ((ecb->flags & ECB_SENSE) != 0) {
+		} else if ((ecb->flags & ECB_SENSE) != 0 &&
+			   (ecb->stat != SCSI_STATUS_CHECK_COND)) {
 			ccb->ccb_h.status = CAM_AUTOSNS_VALID;
 		} else if (ecb->stat == SCSI_STATUS_CHECK_COND) {
 			if ((ecb->flags & ECB_SENSE) != 0)
