@@ -33,9 +33,9 @@ struct rtentry;
 #endif
 
 #include <net/if.h>
+#include <net/ethernet.h>
 
 #include <netinet/in.h>
-#include <netinet/if_ether.h>
 
 #include <stdlib.h>
 #include <memory.h>
