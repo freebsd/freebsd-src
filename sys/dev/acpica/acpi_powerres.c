@@ -77,6 +77,10 @@ MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
 #define _COMPONENT	ACPI_POWER
 MODULE_NAME("POWERRES")
 
+/* return values from _STA on a power resource */
+#define ACPI_PWR_OFF	0
+#define ACPI_PWR_ON	1
+
 /*
  * A relationship between a power resource and a consumer.
  */
@@ -106,9 +110,6 @@ struct acpi_powerresource {
     ACPI_HANDLE		ap_resource;		/* the resource's handle */
     ACPI_INTEGER	ap_systemlevel;
     ACPI_INTEGER	ap_order;
-    int			ap_state;
-#define ACPI_PWR_OFF	0
-#define ACPI_PWR_ON	1
 };
 
 TAILQ_HEAD(acpi_powerresource_list, acpi_powerresource)	acpi_powerresources;
@@ -171,35 +172,31 @@ acpi_pwr_register_resource(ACPI_HANDLE res)
     }
     obj = buf.Pointer;
     if (obj->Common.Type != ACPI_TYPE_POWER) {
-	DEBUG_PRINT(TRACE_OBJECTS, ("bad power resource object\n"));
-	status = AE_TYPE;
-	goto out;
+	DEBUG_PRINT(TRACE_OBJECTS, ("questionable power resource object %s\n", acpi_name(res)));
+	/* XXX ACPI CA seems to return ACPI_TYPE_ANY, needs to be fixed */
+	rp->ap_systemlevel = 0;
+	rp->ap_order = 0;
+    } else {
+	rp->ap_systemlevel = obj->PowerResource.SystemLevel;
+	rp->ap_order = obj->PowerResource.ResourceOrder;
     }
-    rp->ap_systemlevel = obj->PowerResource.SystemLevel;
-    rp->ap_order = obj->PowerResource.ResourceOrder;
     
-    /* get the current state of the resource */
-    if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &rp->ap_state)) != AE_OK) {
-	/* XXX is this an error? */
-	DEBUG_PRINT(TRACE_OBJECTS, ("can't get current power resource state\n"));
-	goto out;
-    }
-
     /* sort the resource into the list */
     status = AE_OK;
     srp = TAILQ_FIRST(&acpi_powerresources);
     if ((srp == NULL) || (rp->ap_order < srp->ap_order)) {
 	TAILQ_INSERT_HEAD(&acpi_powerresources, rp, ap_link);
-	goto out;
+	goto done;
     }
     TAILQ_FOREACH(srp, &acpi_powerresources, ap_link)
 	if (rp->ap_order < srp->ap_order) {
 	    TAILQ_INSERT_BEFORE(srp, rp, ap_link);
-	    goto out;
+	    goto done;
 	}
     TAILQ_INSERT_TAIL(&acpi_powerresources, rp, ap_link);
-    DEBUG_PRINT(TRACE_OBJECTS, ("registered power resource %s\n", acpi_name(res)));
 
+ done:
+    DEBUG_PRINT(TRACE_OBJECTS, ("registered power resource %s\n", acpi_name(res)));
  out:
     if (obj != NULL)
 	AcpiOsFree(obj);
@@ -397,9 +394,12 @@ acpi_pwr_switch_consumer(ACPI_HANDLE consumer, int state)
      * Now we are ready to switch, so  kill off any current power resource references.
      */
     res_changed = 0;
-    TAILQ_FOREACH(pr, &pc->ac_references, ar_clink) {
-	TAILQ_REMOVE(&pr->ar_resource->ap_references, pr, ar_rlink);
+    while((pr = TAILQ_FIRST(&pc->ac_references)) != NULL) {
 	res_changed = 1;
+	DEBUG_PRINT(TRACE_OBJECTS, ("removing reference to %s\n", acpi_name(pr->ar_resource->ap_resource)));
+	TAILQ_REMOVE(&pr->ar_resource->ap_references, pr, ar_rlink);
+	TAILQ_REMOVE(&pc->ac_references, pr, ar_clink);
+	free(pr, M_ACPIPWR);
     }
 
     /*
@@ -446,12 +446,52 @@ static void
 acpi_pwr_reference_resource(ACPI_OBJECT *obj, void *arg)
 {
     struct acpi_powerconsumer	*pc = (struct acpi_powerconsumer *)arg;
+    struct acpi_powerreference	*pr;
+    struct acpi_powerresource	*rp;
+    ACPI_HANDLE			res;
+    ACPI_STATUS			status;
 
     FUNCTION_TRACE(__func__);
 
-    DEBUG_PRINT(TRACE_OBJECTS, ("called to create a reference using object type %d\n",
-				obj->Type));
+    /* check the object type */
+    if (obj->Type != ACPI_TYPE_STRING) {
+	DEBUG_PRINT(TRACE_OBJECTS, ("don't know how to create a power reference to object type %d\n", 
+				    obj->Type));
+	return_VOID;
+    }
 
+    DEBUG_PRINT(TRACE_OBJECTS, ("building reference from %s to %s\n",
+				acpi_name(pc->ac_consumer), obj->String.Pointer));
+
+    /* get the handle of the resource */
+    if (ACPI_FAILURE(status = AcpiGetHandle(NULL, obj->String.Pointer, &res))) {
+	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't find power resource %s\n", 
+				    obj->String.Pointer));
+	return_VOID;
+    }
+
+    /* create/look up the resource */
+    if (ACPI_FAILURE(status = acpi_pwr_register_resource(res))) {
+	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't register power resource %s - %s\n",
+				    obj->String.Pointer, acpi_strerror(status)));
+	return_VOID;
+    }
+    if ((rp = acpi_pwr_find_resource(res)) == NULL) {
+	DEBUG_PRINT(TRACE_OBJECTS, ("power resource list corrupted\n"));
+	return_VOID;
+    }
+    DEBUG_PRINT(TRACE_OBJECTS, ("found power resource %s\n", acpi_name(rp->ap_resource)));
+
+    /* create a reference between the consumer and resource */
+    if ((pr = malloc(sizeof(*pr), M_ACPIPWR, M_NOWAIT | M_ZERO)) == NULL) {
+	DEBUG_PRINT(TRACE_OBJECTS, ("couldn't allocate memory for a power consumer reference\n"));
+	return_VOID;
+    }
+    pr->ar_consumer = pc;
+    pr->ar_resource = rp;
+    TAILQ_INSERT_TAIL(&pc->ac_references, pr, ar_clink);
+    TAILQ_INSERT_TAIL(&rp->ap_references, pr, ar_rlink);
+    
     return_VOID;
 }
 
@@ -475,8 +515,11 @@ acpi_pwr_switch_power(void)
      * Sweep the list forwards turning things on.
      */
     TAILQ_FOREACH(rp, &acpi_powerresources, ap_link) {
-	if (rp->ap_state != ACPI_PWR_ON)
-	    continue;	/* not turning this one on */
+	if (TAILQ_FIRST(&rp->ap_references) == NULL) {
+	    DEBUG_PRINT(TRACE_OBJECTS, ("%s has no references, not turning on\n",
+					acpi_name(rp->ap_resource)));
+	    continue;
+	}
 
 	/* we could cache this if we trusted it not to change under us */
 	if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur)) != AE_OK) {
@@ -490,16 +533,27 @@ acpi_pwr_switch_power(void)
 	 * effort; we don't know what to do if it fails, so checking wouldn't
 	 * help much.
 	 */
-	if (cur != ACPI_PWR_ON)
-	    AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL);
+	if (cur != ACPI_PWR_ON) {
+	    if (ACPI_FAILURE(status = AcpiEvaluateObject(rp->ap_resource, "_ON", NULL, NULL))) {
+		DEBUG_PRINT(TRACE_OBJECTS, ("failed to switch %s on - %s\n", 
+					    acpi_name(rp->ap_resource), acpi_strerror(status)));
+	    } else {
+		DEBUG_PRINT(TRACE_OBJECTS, ("switched %s on\n", acpi_name(rp->ap_resource)));
+	    }
+	} else {
+	    DEBUG_PRINT(TRACE_OBJECTS, ("%s is already on\n", acpi_name(rp->ap_resource)));
+	}
     }
     
     /*
      * Sweep the list backwards turning things off.
      */
     TAILQ_FOREACH_REVERSE(rp, &acpi_powerresources, acpi_powerresource_list, ap_link) {
-	if (rp->ap_state != ACPI_PWR_OFF)
-	    continue;	/* not turning this one off */
+	if (TAILQ_FIRST(&rp->ap_references) != NULL) {
+	    DEBUG_PRINT(TRACE_OBJECTS, ("%s has references, not turning off\n",
+					acpi_name(rp->ap_resource)));
+	    continue;
+	}
 
 	/* we could cache this if we trusted it not to change under us */
 	if ((status = acpi_EvaluateInteger(rp->ap_resource, "_STA", &cur)) != AE_OK) {
@@ -513,8 +567,16 @@ acpi_pwr_switch_power(void)
 	 * effort; we don't know what to do if it fails, so checking wouldn't
 	 * help much.
 	 */
-	if (cur != ACPI_PWR_OFF)
-	    AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL);
+	if (cur != ACPI_PWR_OFF) {
+	    if (ACPI_FAILURE(status = AcpiEvaluateObject(rp->ap_resource, "_OFF", NULL, NULL))) {
+		DEBUG_PRINT(TRACE_OBJECTS, ("failed to switch %s off - %s\n", 
+					    acpi_name(rp->ap_resource), acpi_strerror(status)));
+	    } else {
+		DEBUG_PRINT(TRACE_OBJECTS, ("switched %s off\n", acpi_name(rp->ap_resource)));
+	    }
+	} else {
+	    DEBUG_PRINT(TRACE_OBJECTS, ("%s is already off\n", acpi_name(rp->ap_resource)));
+	}
     }
     return_ACPI_STATUS(AE_OK);
 }
