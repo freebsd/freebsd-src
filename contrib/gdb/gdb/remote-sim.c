@@ -1,27 +1,28 @@
 /* Generic remote debugging interface for simulators.
-   Copyright 1993, 1994, 1996, 1997 Free Software Foundation, Inc.
+   Copyright 1993, 1994, 1996, 1997, 2000 Free Software Foundation, Inc.
    Contributed by Cygnus Support.
    Steve Chamberlain (sac@cygnus.com).
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "inferior.h"
-#include "wait.h"
+#include "gdb_wait.h"
 #include "value.h"
 #include "gdb_string.h"
 #include <ctype.h>
@@ -38,6 +39,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "command.h"
 
 /* Prototypes */
+
+extern void _initialize_remote_sim PARAMS ((void));
+
+extern int (*ui_loop_hook) PARAMS ((int signo));
 
 static void dump_mem PARAMS ((char *buf, int len));
 
@@ -56,13 +61,13 @@ static void gdb_os_flush_stderr PARAMS ((host_callback *));
 static int gdb_os_poll_quit PARAMS ((host_callback *));
 
 /* printf_filtered is depreciated */
-static void gdb_os_printf_filtered PARAMS ((host_callback *, const char *, ...));
+static void gdb_os_printf_filtered PARAMS ((host_callback *, const char *,...));
 
 static void gdb_os_vprintf_filtered PARAMS ((host_callback *, const char *, va_list));
 
 static void gdb_os_evprintf_filtered PARAMS ((host_callback *, const char *, va_list));
 
-static void gdb_os_error PARAMS ((host_callback *, const char *, ...));
+static void gdb_os_error PARAMS ((host_callback *, const char *,...));
 
 static void gdbsim_fetch_register PARAMS ((int regno));
 
@@ -82,16 +87,16 @@ static void gdbsim_detach PARAMS ((char *args, int from_tty));
 
 static void gdbsim_resume PARAMS ((int pid, int step, enum target_signal siggnal));
 
-static int gdbsim_wait PARAMS ((int pid, struct target_waitstatus *status));
+static int gdbsim_wait PARAMS ((int pid, struct target_waitstatus * status));
 
 static void gdbsim_prepare_to_store PARAMS ((void));
 
 static int gdbsim_xfer_inferior_memory PARAMS ((CORE_ADDR memaddr,
 						char *myaddr, int len,
 						int write,
-						struct target_ops *target));
+						struct target_ops * target));
 
-static void gdbsim_files_info PARAMS ((struct target_ops *target));
+static void gdbsim_files_info PARAMS ((struct target_ops * target));
 
 static void gdbsim_mourn_inferior PARAMS ((void));
 
@@ -126,7 +131,7 @@ dump_mem (buf, len)
 	{
 	  long l[2];
 	  memcpy (l, buf, len);
-	  printf_filtered ("\t0x%x", l[0]);
+	  printf_filtered ("\t0x%lx", l[0]);
 	  printf_filtered (len == 8 ? " 0x%x\n" : "\n", l[1]);
 	}
       else
@@ -148,7 +153,7 @@ static int callbacks_initialized = 0;
 static void
 init_callbacks ()
 {
-  if (! callbacks_initialized)
+  if (!callbacks_initialized)
     {
       gdb_callback = default_callback;
       gdb_callback.init (&gdb_callback);
@@ -180,7 +185,7 @@ end_callbacks ()
 
 /* GDB version of os_write_stdout callback.  */
 
-static int 
+static int
 gdb_os_write_stdout (p, buf, len)
      host_callback *p;
      const char *buf;
@@ -189,15 +194,7 @@ gdb_os_write_stdout (p, buf, len)
   int i;
   char b[2];
 
-  for (i = 0; i < len; i++) 
-    {
-      b[0] = buf[i];
-      b[1] = 0;
-      if (target_output_hook)
-	target_output_hook (b);
-      else
-	fputs_filtered (b, gdb_stdout);
-    }
+  ui_file_write (gdb_stdtarg, buf, len);
   return len;
 }
 
@@ -207,12 +204,12 @@ static void
 gdb_os_flush_stdout (p)
      host_callback *p;
 {
-  gdb_flush (gdb_stdout);
+  gdb_flush (gdb_stdtarg);
 }
 
 /* GDB version of os_write_stderr callback.  */
 
-static int 
+static int
 gdb_os_write_stderr (p, buf, len)
      host_callback *p;
      const char *buf;
@@ -221,14 +218,11 @@ gdb_os_write_stderr (p, buf, len)
   int i;
   char b[2];
 
-  for (i = 0; i < len; i++) 
+  for (i = 0; i < len; i++)
     {
       b[0] = buf[i];
       b[1] = 0;
-      if (target_output_hook)
-	target_output_hook (b);
-      else
-	fputs_filtered (b, gdb_stderr);
+      fputs_unfiltered (b, gdb_stdtarg);
     }
   return len;
 }
@@ -244,25 +238,11 @@ gdb_os_flush_stderr (p)
 
 /* GDB version of printf_filtered callback.  */
 
-/* VARARGS */
 static void
-#ifdef ANSI_PROTOTYPES
-gdb_os_printf_filtered (host_callback *p, const char *format, ...)
-#else
-gdb_os_printf_filtered (p, va_alist)
-     host_callback *p;
-     va_dcl
-#endif
+gdb_os_printf_filtered (host_callback * p, const char *format,...)
 {
   va_list args;
-#ifdef ANSI_PROTOTYPES
   va_start (args, format);
-#else
-  char *format;
-
-  va_start (args);
-  format = va_arg (args, char *);
-#endif
 
   vfprintf_filtered (gdb_stdout, format, args);
 
@@ -271,93 +251,72 @@ gdb_os_printf_filtered (p, va_alist)
 
 /* GDB version of error vprintf_filtered.  */
 
-/* VARARGS */
 static void
-#ifdef ANSI_PROTOTYPES
-gdb_os_vprintf_filtered (host_callback *p, const char *format, va_list ap)
-#else
-gdb_os_vprintf_filtered (p, format, ap)
-     host_callback *p;
-     char *format;
-     va_list ap;
-#endif
+gdb_os_vprintf_filtered (host_callback * p, const char *format, va_list ap)
 {
   vfprintf_filtered (gdb_stdout, format, ap);
 }
 
 /* GDB version of error evprintf_filtered.  */
 
-/* VARARGS */
 static void
-#ifdef ANSI_PROTOTYPES
-gdb_os_evprintf_filtered (host_callback *p, const char *format, va_list ap)
-#else
-gdb_os_evprintf_filtered (p, format, ap)
-     host_callback *p;
-     char *format;
-     va_list ap;
-#endif
+gdb_os_evprintf_filtered (host_callback * p, const char *format, va_list ap)
 {
   vfprintf_filtered (gdb_stderr, format, ap);
 }
 
 /* GDB version of error callback.  */
 
-/* VARARGS */
 static void
-#ifdef ANSI_PROTOTYPES
-gdb_os_error (host_callback *p, const char *format, ...)
-#else
-gdb_os_error (p, va_alist)
-     host_callback *p;
-     va_dcl
-#endif
+gdb_os_error (host_callback * p, const char *format,...)
 {
   if (error_hook)
     (*error_hook) ();
-  else 
+  else
     {
       va_list args;
-#ifdef ANSI_PROTOTYPES
       va_start (args, format);
-#else
-      char *format;
-
-      va_start (args);
-      format = va_arg (args, char *);
-#endif
-
-      error_begin ();
-      vfprintf_filtered (gdb_stderr, format, args);
-      fprintf_filtered (gdb_stderr, "\n");
+      verror (format, args);
       va_end (args);
-      return_to_top_level (RETURN_ERROR);
     }
 }
+
+#ifndef REGISTER_SIM_REGNO
+#define REGISTER_SIM_REGNO(N) (N)
+#endif
 
 static void
 gdbsim_fetch_register (regno)
      int regno;
 {
   static int warn_user = 1;
-  if (regno == -1) 
+  if (regno == -1)
     {
       for (regno = 0; regno < NUM_REGS; regno++)
 	gdbsim_fetch_register (regno);
     }
-  else if (REGISTER_NAME (regno) != NULL && *REGISTER_NAME (regno) != '\0')
+  else if (REGISTER_NAME (regno) != NULL
+	   && *REGISTER_NAME (regno) != '\0')
     {
       char buf[MAX_REGISTER_RAW_SIZE];
-      int nr_bytes = sim_fetch_register (gdbsim_desc, regno, buf, REGISTER_RAW_SIZE (regno));
+      int nr_bytes;
+      if (REGISTER_SIM_REGNO (regno) >= 0)
+	nr_bytes = sim_fetch_register (gdbsim_desc,
+				       REGISTER_SIM_REGNO (regno),
+				       buf, REGISTER_RAW_SIZE (regno));
+      else
+	nr_bytes = 0;
       if (nr_bytes == 0)
 	/* register not applicable, supply zero's */
 	memset (buf, 0, MAX_REGISTER_RAW_SIZE);
       else if (nr_bytes > 0 && nr_bytes != REGISTER_RAW_SIZE (regno)
 	       && warn_user)
 	{
-	  printf_unfiltered ("Size of register %s (%d) incorrect (%d instead of %d))",
-			     REGISTER_NAME (regno), regno,
-			     nr_bytes, REGISTER_RAW_SIZE (regno));
+	  fprintf_unfiltered (gdb_stderr,
+			      "Size of register %s (%d/%d) incorrect (%d instead of %d))",
+			      REGISTER_NAME (regno),
+			      regno, REGISTER_SIM_REGNO (regno),
+			      nr_bytes, REGISTER_RAW_SIZE (regno));
 	  warn_user = 0;
 	}
       supply_register (regno, buf);
@@ -375,19 +334,23 @@ static void
 gdbsim_store_register (regno)
      int regno;
 {
-  if (regno  == -1) 
+  if (regno == -1)
     {
       for (regno = 0; regno < NUM_REGS; regno++)
 	gdbsim_store_register (regno);
     }
-  else if (REGISTER_NAME (regno) != NULL && *REGISTER_NAME (regno) != '\0')
+  else if (REGISTER_NAME (regno) != NULL
+	   && *REGISTER_NAME (regno) != '\0'
+	   && REGISTER_SIM_REGNO (regno) >= 0)
     {
       char tmp[MAX_REGISTER_RAW_SIZE];
       int nr_bytes;
       read_register_gen (regno, tmp);
-      nr_bytes = sim_store_register (gdbsim_desc, regno, tmp, REGISTER_RAW_SIZE (regno));
+      nr_bytes = sim_store_register (gdbsim_desc,
+				     REGISTER_SIM_REGNO (regno),
+				     tmp, REGISTER_RAW_SIZE (regno));
       if (nr_bytes > 0 && nr_bytes != REGISTER_RAW_SIZE (regno))
-	fatal ("Register size different to expected");
+	internal_error ("Register size different to expected");
       if (sr_get_debug ())
 	{
 	  printf_filtered ("gdbsim_store_register: %d", regno);
@@ -453,44 +416,44 @@ gdbsim_create_inferior (exec_file, args, env)
      char **env;
 {
   int len;
-  char *arg_buf,**argv;
+  char *arg_buf, **argv;
 
   if (exec_file == 0 || exec_bfd == 0)
     warning ("No executable file specified.");
-  if (! program_loaded)
+  if (!program_loaded)
     warning ("No program loaded.");
 
   if (sr_get_debug ())
     printf_filtered ("gdbsim_create_inferior: exec_file \"%s\", args \"%s\"\n",
-		     (exec_file ? exec_file: "(NULL)"),
+		     (exec_file ? exec_file : "(NULL)"),
 		     args);
 
-  gdbsim_kill ();	 
+  gdbsim_kill ();
   remove_breakpoints ();
   init_wait_for_inferior ();
 
   if (exec_file != NULL)
     {
-      len = strlen (exec_file) + 1 + strlen (args) + 1 + /*slop*/ 10;
+      len = strlen (exec_file) + 1 + strlen (args) + 1 + /*slop */ 10;
       arg_buf = (char *) alloca (len);
       arg_buf[0] = '\0';
       strcat (arg_buf, exec_file);
       strcat (arg_buf, " ");
       strcat (arg_buf, args);
       argv = buildargv (arg_buf);
-      make_cleanup ((make_cleanup_func) freeargv, argv);
+      make_cleanup_freeargv (argv);
     }
   else
     argv = NULL;
   sim_create_inferior (gdbsim_desc, exec_bfd, argv, env);
 
   inferior_pid = 42;
-  insert_breakpoints (); /* Needed to get correct instruction in cache */
+  insert_breakpoints ();	/* Needed to get correct instruction in cache */
 
   clear_proceed_status ();
 
   /* NB: Entry point already set by sim_create_inferior. */
-  proceed ((CORE_ADDR)-1, TARGET_SIGNAL_DEFAULT, 0);
+  proceed ((CORE_ADDR) -1, TARGET_SIGNAL_DEFAULT, 0);
 }
 
 /* The open routine takes the rest of the parameters from the command,
@@ -519,13 +482,13 @@ gdbsim_open (args, from_tty)
   if (gdbsim_desc != NULL)
     unpush_target (&gdbsim_ops);
 
-  len = (7 + 1 /* gdbsim */
+  len = (7 + 1			/* gdbsim */
 	 + strlen (" -E little")
 	 + strlen (" --architecture=xxxxxxxxxx")
 	 + (args ? strlen (args) : 0)
-	 + 50) /* slack */;
+	 + 50) /* slack */ ;
   arg_buf = (char *) alloca (len);
-  strcpy (arg_buf, "gdbsim"); /* 7 */
+  strcpy (arg_buf, "gdbsim");	/* 7 */
   /* Specify the byte order for the target when it is both selectable
      and explicitly specified by the user (not auto detected). */
   if (TARGET_BYTE_ORDER_SELECTABLE_P
@@ -540,7 +503,7 @@ gdbsim_open (args, from_tty)
 	  strcat (arg_buf, " -E little");
 	  break;
 	default:
-	  fatal ("Value of TARGET_BYTE_ORDER unknown");
+	  internal_error ("Value of TARGET_BYTE_ORDER unknown");
 	}
     }
   /* Specify the architecture of the target when it has been
@@ -553,13 +516,13 @@ gdbsim_open (args, from_tty)
   /* finally, any explicit args */
   if (args)
     {
-      strcat (arg_buf, " "); /* 1 */
+      strcat (arg_buf, " ");	/* 1 */
       strcat (arg_buf, args);
     }
   argv = buildargv (arg_buf);
   if (argv == NULL)
     error ("Insufficient memory available to allocate simulator arg list.");
-  make_cleanup ((make_cleanup_func) freeargv, argv);
+  make_cleanup_freeargv (argv);
 
   init_callbacks ();
   gdbsim_desc = sim_open (SIM_OPEN_DEBUG, &gdb_callback, exec_bfd, argv);
@@ -597,6 +560,7 @@ gdbsim_close (quitting)
     }
 
   end_callbacks ();
+  generic_mourn_inferior ();
 }
 
 /* Takes a program previously attached to and detaches it.
@@ -609,7 +573,7 @@ gdbsim_close (quitting)
    Use this when you want to detach and do something else with your gdb.  */
 
 static void
-gdbsim_detach (args,from_tty)
+gdbsim_detach (args, from_tty)
      char *args;
      int from_tty;
 {
@@ -620,7 +584,7 @@ gdbsim_detach (args,from_tty)
   if (from_tty)
     printf_filtered ("Ending simulator %s debugging\n", target_shortname);
 }
- 
+
 /* Resume execution of the target process.  STEP says whether to single-step
    or to run free; SIGGNAL is the signal value (e.g. SIGINT) to be given
    to the target, or zero for no signal.  */
@@ -644,7 +608,7 @@ gdbsim_resume (pid, step, siggnal)
 }
 
 /* Notify the simulator of an asynchronous request to stop.
-   
+
    The simulator shall ensure that the stop request is eventually
    delivered to the simulator.  If the call is made while the
    simulator is not running then the stop request is processed when
@@ -655,7 +619,7 @@ gdbsim_resume (pid, step, siggnal)
 static void
 gdbsim_stop ()
 {
-  if (! sim_stop (gdbsim_desc))
+  if (!sim_stop (gdbsim_desc))
     {
       quit ();
     }
@@ -668,10 +632,13 @@ static int
 gdb_os_poll_quit (p)
      host_callback *p;
 {
+  if (ui_loop_hook != NULL)
+    ui_loop_hook (0);
+
   notice_quit ();
-  if (quit_flag) /* gdb's idea of quit */
+  if (quit_flag)		/* gdb's idea of quit */
     {
-      quit_flag = 0; /* we've stolen it */
+      quit_flag = 0;		/* we've stolen it */
       return 1;
     }
   else if (immediate_quit)
@@ -748,7 +715,7 @@ gdbsim_wait (pid, status)
     case sim_signalled:
       status->kind = TARGET_WAITKIND_SIGNALLED;
       /* The signal in sigrc is a host signal.  That probably
-	 should be fixed.  */
+         should be fixed.  */
       status->value.sig = target_signal_from_host (sigrc);
       break;
     case sim_running:
@@ -778,29 +745,32 @@ gdbsim_xfer_inferior_memory (memaddr, myaddr, len, write, target)
      char *myaddr;
      int len;
      int write;
-     struct target_ops *target;			/* ignored */
+     struct target_ops *target;	/* ignored */
 {
-  if (! program_loaded)
+  if (!program_loaded)
     error ("No program loaded.");
 
   if (sr_get_debug ())
     {
-      printf_filtered ("gdbsim_xfer_inferior_memory: myaddr 0x%x, memaddr 0x%x, len %d, write %d\n",
-		       myaddr, memaddr, len, write);
+      /* FIXME: Send to something other than STDOUT? */
+      printf_filtered ("gdbsim_xfer_inferior_memory: myaddr 0x");
+      gdb_print_host_address (myaddr, gdb_stdout);
+      printf_filtered (", memaddr 0x%s, len %d, write %d\n",
+		       paddr_nz (memaddr), len, write);
       if (sr_get_debug () && write)
-	dump_mem(myaddr, len);
+	dump_mem (myaddr, len);
     }
 
   if (write)
     {
       len = sim_write (gdbsim_desc, memaddr, myaddr, len);
     }
-  else 
+  else
     {
       len = sim_read (gdbsim_desc, memaddr, myaddr, len);
       if (sr_get_debug () && len > 0)
-	dump_mem(myaddr, len);
-    } 
+	dump_mem (myaddr, len);
+    }
   return len;
 }
 
@@ -827,8 +797,8 @@ gdbsim_files_info (target)
 /* Clear the simulator's notion of what the break points are.  */
 
 static void
-gdbsim_mourn_inferior () 
-{ 
+gdbsim_mourn_inferior ()
+{
   if (sr_get_debug ())
     printf_filtered ("gdbsim_mourn_inferior:\n");
 
@@ -913,45 +883,45 @@ simulator_command (args, from_tty)
 
   /* Invalidate the register cache, in case the simulator command does
      something funny. */
-  registers_changed (); 
+  registers_changed ();
 }
 
 /* Define the target subroutine names */
 
-struct target_ops gdbsim_ops ;
+struct target_ops gdbsim_ops;
 
-static void 
-init_gdbsim_ops(void)
+static void
+init_gdbsim_ops (void)
 {
-  gdbsim_ops.to_shortname =   "sim";		
-  gdbsim_ops.to_longname =   "simulator";		
-  gdbsim_ops.to_doc =   "Use the compiled-in simulator.";  
-  gdbsim_ops.to_open =   gdbsim_open;		
-  gdbsim_ops.to_close =   gdbsim_close;		
-  gdbsim_ops.to_attach =   NULL;
-  gdbsim_ops.to_post_attach = NULL;  
-  gdbsim_ops.to_require_attach = NULL;	
-  gdbsim_ops.to_detach =   gdbsim_detach;
-  gdbsim_ops.to_require_detach = NULL;	
-  gdbsim_ops.to_resume =   gdbsim_resume;	
-  gdbsim_ops.to_wait  =   gdbsim_wait;
-  gdbsim_ops.to_post_wait = NULL;		
-  gdbsim_ops.to_fetch_registers  =   gdbsim_fetch_register;
-  gdbsim_ops.to_store_registers  =   gdbsim_store_register;
-  gdbsim_ops.to_prepare_to_store =   gdbsim_prepare_to_store;
-  gdbsim_ops.to_xfer_memory  =   gdbsim_xfer_inferior_memory;
-  gdbsim_ops.to_files_info  =   gdbsim_files_info;	
-  gdbsim_ops.to_insert_breakpoint =   gdbsim_insert_breakpoint;
-  gdbsim_ops.to_remove_breakpoint =   gdbsim_remove_breakpoint;
-  gdbsim_ops.to_terminal_init  =   NULL;		
-  gdbsim_ops.to_terminal_inferior =   NULL;		
-  gdbsim_ops.to_terminal_ours_for_output =   NULL;
-  gdbsim_ops.to_terminal_ours  =   NULL;
-  gdbsim_ops.to_terminal_info  =   NULL;
-  gdbsim_ops.to_kill  =   gdbsim_kill;	
-  gdbsim_ops.to_load  =   gdbsim_load;	
-  gdbsim_ops.to_lookup_symbol =   NULL;	
-  gdbsim_ops.to_create_inferior =   gdbsim_create_inferior;
+  gdbsim_ops.to_shortname = "sim";
+  gdbsim_ops.to_longname = "simulator";
+  gdbsim_ops.to_doc = "Use the compiled-in simulator.";
+  gdbsim_ops.to_open = gdbsim_open;
+  gdbsim_ops.to_close = gdbsim_close;
+  gdbsim_ops.to_attach = NULL;
+  gdbsim_ops.to_post_attach = NULL;
+  gdbsim_ops.to_require_attach = NULL;
+  gdbsim_ops.to_detach = gdbsim_detach;
+  gdbsim_ops.to_require_detach = NULL;
+  gdbsim_ops.to_resume = gdbsim_resume;
+  gdbsim_ops.to_wait = gdbsim_wait;
+  gdbsim_ops.to_post_wait = NULL;
+  gdbsim_ops.to_fetch_registers = gdbsim_fetch_register;
+  gdbsim_ops.to_store_registers = gdbsim_store_register;
+  gdbsim_ops.to_prepare_to_store = gdbsim_prepare_to_store;
+  gdbsim_ops.to_xfer_memory = gdbsim_xfer_inferior_memory;
+  gdbsim_ops.to_files_info = gdbsim_files_info;
+  gdbsim_ops.to_insert_breakpoint = gdbsim_insert_breakpoint;
+  gdbsim_ops.to_remove_breakpoint = gdbsim_remove_breakpoint;
+  gdbsim_ops.to_terminal_init = NULL;
+  gdbsim_ops.to_terminal_inferior = NULL;
+  gdbsim_ops.to_terminal_ours_for_output = NULL;
+  gdbsim_ops.to_terminal_ours = NULL;
+  gdbsim_ops.to_terminal_info = NULL;
+  gdbsim_ops.to_kill = gdbsim_kill;
+  gdbsim_ops.to_load = gdbsim_load;
+  gdbsim_ops.to_lookup_symbol = NULL;
+  gdbsim_ops.to_create_inferior = gdbsim_create_inferior;
   gdbsim_ops.to_post_startup_inferior = NULL;
   gdbsim_ops.to_acknowledge_created_inferior = NULL;
   gdbsim_ops.to_clone_and_follow_inferior = NULL;
@@ -969,23 +939,23 @@ init_gdbsim_ops(void)
   gdbsim_ops.to_has_execd = NULL;
   gdbsim_ops.to_reported_exec_events_per_exec_call = NULL;
   gdbsim_ops.to_has_exited = NULL;
-  gdbsim_ops.to_mourn_inferior =   gdbsim_mourn_inferior;
-  gdbsim_ops.to_can_run  =   0;			
-  gdbsim_ops.to_notice_signals =   0;		
-  gdbsim_ops.to_thread_alive  =   0;		
-  gdbsim_ops.to_stop  =   gdbsim_stop;
-  gdbsim_ops.to_pid_to_exec_file = NULL;	
-  gdbsim_ops.to_core_file_to_sym_file = NULL;	
-  gdbsim_ops.to_stratum =   process_stratum;	
-  gdbsim_ops.DONT_USE =   NULL;		
-  gdbsim_ops.to_has_all_memory =   1;	
-  gdbsim_ops.to_has_memory =   1;	
-  gdbsim_ops.to_has_stack =   1;	
-  gdbsim_ops.to_has_registers =   1;	
-  gdbsim_ops.to_has_execution =   1;	
-  gdbsim_ops.to_sections =   NULL;	
-  gdbsim_ops.to_sections_end =   NULL;	
-  gdbsim_ops.to_magic =   OPS_MAGIC;	
+  gdbsim_ops.to_mourn_inferior = gdbsim_mourn_inferior;
+  gdbsim_ops.to_can_run = 0;
+  gdbsim_ops.to_notice_signals = 0;
+  gdbsim_ops.to_thread_alive = 0;
+  gdbsim_ops.to_stop = gdbsim_stop;
+  gdbsim_ops.to_pid_to_exec_file = NULL;
+  gdbsim_ops.to_core_file_to_sym_file = NULL;
+  gdbsim_ops.to_stratum = process_stratum;
+  gdbsim_ops.DONT_USE = NULL;
+  gdbsim_ops.to_has_all_memory = 1;
+  gdbsim_ops.to_has_memory = 1;
+  gdbsim_ops.to_has_stack = 1;
+  gdbsim_ops.to_has_registers = 1;
+  gdbsim_ops.to_has_execution = 1;
+  gdbsim_ops.to_sections = NULL;
+  gdbsim_ops.to_sections_end = NULL;
+  gdbsim_ops.to_magic = OPS_MAGIC;
 
 #ifdef TARGET_REDEFINE_DEFAULT_OPS
   TARGET_REDEFINE_DEFAULT_OPS (&gdbsim_ops);
@@ -995,9 +965,9 @@ init_gdbsim_ops(void)
 void
 _initialize_remote_sim ()
 {
-  init_gdbsim_ops() ;
+  init_gdbsim_ops ();
   add_target (&gdbsim_ops);
 
   add_com ("sim <command>", class_obscure, simulator_command,
-	   "Send a command to the simulator."); 
+	   "Send a command to the simulator.");
 }

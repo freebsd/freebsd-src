@@ -1,21 +1,22 @@
 /* Program to stuff files into a specially prepared space in kdb.
    Copyright (C) 1986, 1989, 1991 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 /* Written 13-Mar-86 by David Bridgham. */
 
@@ -38,11 +39,12 @@ main (argc, argv)
   struct stat stat_buf;
   int size, pad;
   char buf[1024];
-  static char zeros[4] = {0};
+  static char zeros[4] =
+  {0};
 
   if (argc < 4)
-    err("Not enough arguments\nUsage: %s -o kdb file1 file2 ...\n",
-	argv[0]);
+    err ("Not enough arguments\nUsage: %s -o kdb file1 file2 ...\n",
+	 argv[0]);
 
   outfile = 0;
   for (i = 1; i < argc; i++)
@@ -51,7 +53,7 @@ main (argc, argv)
 	outfile = argv[++i];
     }
   if (outfile == 0)
-    err("Output file not specified\n");
+    err ("Output file not specified\n");
 
   offset = get_offset (outfile, "_heap");
 
@@ -111,7 +113,7 @@ get_offset (file, sym_name)
     err ("File %s not an a.out file\n", file);
 
   /* read in symbol table */
-  if ((symbol_table = (struct nlist *)malloc (file_hdr.a_syms)) == 0)
+  if ((symbol_table = (struct nlist *) malloc (file_hdr.a_syms)) == 0)
     err ("Couldn't allocate space for symbol table\n");
   if (lseek (f, N_SYMOFF (file_hdr), 0) == -1)
     err ("lseek error: %s\n", strerror (errno));
@@ -122,7 +124,7 @@ get_offset (file, sym_name)
   /* read in string table */
   if (read (f, &size, 4) == -1)
     err ("reading string table size: %s\n", strerror (errno));
-  if ((strings = (char *)malloc (size)) == 0)
+  if ((strings = (char *) malloc (size)) == 0)
     err ("Couldn't allocate memory for string table\n");
   if (read (f, strings, size - 4) == -1)
     err ("reading string table: %s\n", strerror (errno));
@@ -147,15 +149,17 @@ find_symbol (sym_name, symbol_table, length, strings)
 
   /* Find symbol in question */
   for (sym = symbol_table;
-       sym != (struct nlist *)((char *)symbol_table + length);
+       sym != (struct nlist *) ((char *) symbol_table + length);
        sym++)
-      {
-	if ((sym->n_type & N_TYPE) != N_DATA) continue;
-	if (sym->n_un.n_strx == 0) continue;
-	if (STREQ (sym_name, strings + sym->n_un.n_strx - 4))
-	  return sym->n_value;
-      }
-    err ("Data symbol %s not found in %s\n", sym_name, file);
+    {
+      if ((sym->n_type & N_TYPE) != N_DATA)
+	continue;
+      if (sym->n_un.n_strx == 0)
+	continue;
+      if (STREQ (sym_name, strings + sym->n_un.n_strx - 4))
+	return sym->n_value;
+    }
+  err ("Data symbol %s not found in %s\n", sym_name, file);
 }
 
 /* VARARGS */

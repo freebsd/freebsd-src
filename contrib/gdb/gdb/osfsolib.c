@@ -1,21 +1,22 @@
 /* Handle OSF/1 shared libraries for GDB, the GNU Debugger.
    Copyright 1993, 94, 95, 96, 98, 1999 Free Software Foundation, Inc.
-   
-This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This file is part of GDB.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 /* FIXME: Most of this code could be merged with solib.c by using
    next_link_map_member and xfer_link_map_member in solib.c.  */
@@ -35,12 +36,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "command.h"
 #include "target.h"
 #include "frame.h"
-#include "gnu-regex.h"
+#include "gdb_regex.h"
 #include "inferior.h"
 #include "language.h"
 #include "gdbcmd.h"
 
-#define MAX_PATH_SIZE 1024		/* FIXME: Should be dynamic */
+#define MAX_PATH_SIZE 1024	/* FIXME: Should be dynamic */
 
 /* When handling shared libraries, GDB has to find out the pathnames
    of all shared libraries that are currently loaded (to read in their
@@ -50,16 +51,16 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
    Under OSF/1 there are two possibilities to get at this information:
    1) Peek around in the runtime loader structures.
-      These are not documented, and they are not defined in the system
-      header files. The definitions below were obtained by experimentation,
-      but they seem stable enough.
+   These are not documented, and they are not defined in the system
+   header files. The definitions below were obtained by experimentation,
+   but they seem stable enough.
    2) Use the undocumented libxproc.a library, which contains the
-      equivalent ldr_* routines.
-      This approach is somewhat cleaner, but it requires that the GDB
-      executable is dynamically linked. In addition it requires a
-      NAT_CLIBS= -lxproc -Wl,-expect_unresolved,ldr_process_context
-      linker specification for GDB and all applications that are using
-      libgdb.
+   equivalent ldr_* routines.
+   This approach is somewhat cleaner, but it requires that the GDB
+   executable is dynamically linked. In addition it requires a
+   NAT_CLIBS= -lxproc -Wl,-expect_unresolved,ldr_process_context
+   linker specification for GDB and all applications that are using
+   libgdb.
    We will use the peeking approach until it becomes unwieldy.  */
 
 #ifndef USE_LDR_ROUTINES
@@ -68,37 +69,40 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define RLD_CONTEXT_ADDRESS	0x3ffc0000000
 
 typedef struct
-{
-	CORE_ADDR next;
-	CORE_ADDR previous;
-	CORE_ADDR unknown1;
-	char *module_name;
-	CORE_ADDR modinfo_addr;
-	long module_id;
-	CORE_ADDR unknown2;
-	CORE_ADDR unknown3;
-	long region_count;
-	CORE_ADDR regioninfo_addr;
-} ldr_module_info_t;
+  {
+    CORE_ADDR next;
+    CORE_ADDR previous;
+    CORE_ADDR unknown1;
+    char *module_name;
+    CORE_ADDR modinfo_addr;
+    long module_id;
+    CORE_ADDR unknown2;
+    CORE_ADDR unknown3;
+    long region_count;
+    CORE_ADDR regioninfo_addr;
+  }
+ldr_module_info_t;
 
 typedef struct
-{
-	long unknown1;
-	CORE_ADDR regionname_addr;
-	long protection;
-	CORE_ADDR vaddr;
-	CORE_ADDR mapaddr;
-	long size;
-	long unknown2[5];
-} ldr_region_info_t;
+  {
+    long unknown1;
+    CORE_ADDR regionname_addr;
+    long protection;
+    CORE_ADDR vaddr;
+    CORE_ADDR mapaddr;
+    long size;
+    long unknown2[5];
+  }
+ldr_region_info_t;
 
 typedef struct
-{
-	CORE_ADDR unknown1;
-	CORE_ADDR unknown2;
-	CORE_ADDR head;
-	CORE_ADDR tail;
-} ldr_context_t;
+  {
+    CORE_ADDR unknown1;
+    CORE_ADDR unknown2;
+    CORE_ADDR head;
+    CORE_ADDR tail;
+  }
+ldr_context_t;
 
 static ldr_context_t ldr_context;
 
@@ -125,7 +129,7 @@ ldr_read_memory (memaddr, myaddr, len, readstring)
     {
       target_read_string (memaddr, &buffer, len, &result);
       if (result == 0)
-        strcpy (myaddr, buffer);
+	strcpy (myaddr, buffer);
       free (buffer);
     }
   else
@@ -141,34 +145,36 @@ ldr_read_memory (memaddr, myaddr, len, readstring)
 /* Define our own link_map structure.
    This will help to share code with solib.c.  */
 
-struct link_map {
-  CORE_ADDR l_offset;			/* prelink to load address offset */
-  char *l_name;				/* full name of loaded object */
+struct link_map
+{
+  CORE_ADDR l_offset;		/* prelink to load address offset */
+  char *l_name;			/* full name of loaded object */
   ldr_module_info_t module_info;	/* corresponding module info */
 };
 
 #define LM_OFFSET(so) ((so) -> lm.l_offset)
 #define LM_NAME(so) ((so) -> lm.l_name)
 
-struct so_list {
-  struct so_list *next;			/* next structure in linked list */
-  struct link_map lm;			/* copy of link map from inferior */
-  struct link_map *lmaddr;		/* addr in inferior lm was read from */
-  CORE_ADDR lmend;			/* upper addr bound of mapped object */
-  char so_name[MAX_PATH_SIZE];		/* shared object lib name (FIXME) */
-  char symbols_loaded;			/* flag: symbols read in yet? */
-  char from_tty;			/* flag: print msgs? */
-  struct objfile *objfile;		/* objfile for loaded lib */
-  struct section_table *sections;
-  struct section_table *sections_end;
-  struct section_table *textsection;
-  bfd *abfd;
-};
+struct so_list
+  {
+    struct so_list *next;	/* next structure in linked list */
+    struct link_map lm;		/* copy of link map from inferior */
+    struct link_map *lmaddr;	/* addr in inferior lm was read from */
+    CORE_ADDR lmend;		/* upper addr bound of mapped object */
+    char so_name[MAX_PATH_SIZE];	/* shared object lib name (FIXME) */
+    char symbols_loaded;	/* flag: symbols read in yet? */
+    char from_tty;		/* flag: print msgs? */
+    struct objfile *objfile;	/* objfile for loaded lib */
+    struct section_table *sections;
+    struct section_table *sections_end;
+    struct section_table *textsection;
+    bfd *abfd;
+  };
 
 static struct so_list *so_list_head;	/* List of known shared objects */
 
 extern int
-fdmatch PARAMS ((int, int));		/* In libiberty */
+fdmatch PARAMS ((int, int));	/* In libiberty */
 
 /* Local function prototypes */
 
@@ -182,13 +188,13 @@ static int
 symbol_add_stub PARAMS ((char *));
 
 static struct so_list *
-find_solib PARAMS ((struct so_list *));
+  find_solib PARAMS ((struct so_list *));
 
 static struct link_map *
-first_link_map_member PARAMS ((void));
+  first_link_map_member PARAMS ((void));
 
 static struct link_map *
-next_link_map_member PARAMS ((struct so_list *));
+  next_link_map_member PARAMS ((struct so_list *));
 
 static void
 xfer_link_map_member PARAMS ((struct so_list *, struct link_map *));
@@ -198,29 +204,29 @@ solib_map_sections PARAMS ((char *));
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	solib_map_sections -- open bfd and build sections for shared lib
+   solib_map_sections -- open bfd and build sections for shared lib
 
-SYNOPSIS
+   SYNOPSIS
 
-	static int solib_map_sections (struct so_list *so)
+   static int solib_map_sections (struct so_list *so)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Given a pointer to one of the shared objects in our list
-	of mapped objects, use the recorded name to open a bfd
-	descriptor for the object, build a section table, and then
-	relocate all the section addresses by the base address at
-	which the shared object was mapped.
+   Given a pointer to one of the shared objects in our list
+   of mapped objects, use the recorded name to open a bfd
+   descriptor for the object, build a section table, and then
+   relocate all the section addresses by the base address at
+   which the shared object was mapped.
 
-FIXMES
+   FIXMES
 
-	In most (all?) cases the shared object file name recorded in the
-	dynamic linkage tables will be a fully qualified pathname.  For
-	cases where it isn't, do we really mimic the systems search
-	mechanism correctly in the below code (particularly the tilde
-	expansion stuff?).
+   In most (all?) cases the shared object file name recorded in the
+   dynamic linkage tables will be a fully qualified pathname.  For
+   cases where it isn't, do we really mimic the systems search
+   mechanism correctly in the below code (particularly the tilde
+   expansion stuff?).
  */
 
 static int
@@ -234,10 +240,10 @@ solib_map_sections (arg)
   struct section_table *p;
   struct cleanup *old_chain;
   bfd *abfd;
-  
-  filename = tilde_expand (so -> so_name);
+
+  filename = tilde_expand (so->so_name);
   old_chain = make_cleanup (free, filename);
-  
+
   scratch_chan = openp (getenv ("PATH"), 1, filename, O_RDONLY, 0,
 			&scratch_pathname);
   if (scratch_chan < 0)
@@ -259,31 +265,31 @@ solib_map_sections (arg)
 	     scratch_pathname, bfd_errmsg (bfd_get_error ()));
     }
   /* Leave bfd open, core_xfer_memory and "info files" need it.  */
-  so -> abfd = abfd;
-  abfd -> cacheable = true;
+  so->abfd = abfd;
+  abfd->cacheable = true;
 
   if (!bfd_check_format (abfd, bfd_object))
     {
       error ("\"%s\": not in executable format: %s.",
 	     scratch_pathname, bfd_errmsg (bfd_get_error ()));
     }
-  if (build_section_table (abfd, &so -> sections, &so -> sections_end))
+  if (build_section_table (abfd, &so->sections, &so->sections_end))
     {
-      error ("Can't find the file sections in `%s': %s", 
+      error ("Can't find the file sections in `%s': %s",
 	     bfd_get_filename (exec_bfd), bfd_errmsg (bfd_get_error ()));
     }
 
-  for (p = so -> sections; p < so -> sections_end; p++)
+  for (p = so->sections; p < so->sections_end; p++)
     {
       /* Relocate the section binding addresses as recorded in the shared
-	 object's file by the offset to get the address to which the
-	 object was actually mapped.  */
-      p -> addr += LM_OFFSET (so);
-      p -> endaddr += LM_OFFSET (so);
-      so -> lmend = (CORE_ADDR) max (p -> endaddr, so -> lmend);
-      if (STREQ (p -> the_bfd_section -> name, ".text"))
+         object's file by the offset to get the address to which the
+         object was actually mapped.  */
+      p->addr += LM_OFFSET (so);
+      p->endaddr += LM_OFFSET (so);
+      so->lmend = (CORE_ADDR) max (p->endaddr, so->lmend);
+      if (STREQ (p->the_bfd_section->name, ".text"))
 	{
-	  so -> textsection = p;
+	  so->textsection = p;
 	}
     }
 
@@ -295,20 +301,20 @@ solib_map_sections (arg)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	first_link_map_member -- locate first member in dynamic linker's map
+   first_link_map_member -- locate first member in dynamic linker's map
 
-SYNOPSIS
+   SYNOPSIS
 
-	static struct link_map *first_link_map_member (void)
+   static struct link_map *first_link_map_member (void)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Read in a copy of the first member in the inferior's dynamic
-	link map from the inferior's dynamic linker structures, and return
-	a pointer to the copy in our address space.
-*/
+   Read in a copy of the first member in the inferior's dynamic
+   link map from the inferior's dynamic linker structures, and return
+   a pointer to the copy in our address space.
+ */
 
 static struct link_map *
 first_link_map_member ()
@@ -324,11 +330,11 @@ first_link_map_member ()
   ldr_set_core_reader (ldr_read_memory);
   ldr_xdetach (fake_ldr_process);
   if (ldr_xattach (fake_ldr_process) != 0
-      || ldr_next_module(fake_ldr_process, &mod_id) != 0
+      || ldr_next_module (fake_ldr_process, &mod_id) != 0
       || mod_id == LDR_NULL_MODULE
-      || ldr_inq_module(fake_ldr_process, mod_id,
-			&first_lm.module_info, sizeof(ldr_module_info_t),
-			&retsize) != 0)
+      || ldr_inq_module (fake_ldr_process, mod_id,
+			 &first_lm.module_info, sizeof (ldr_module_info_t),
+			 &retsize) != 0)
     return lm;
 #else
   CORE_ADDR ldr_context_addr;
@@ -363,11 +369,11 @@ next_link_map_member (so_list_ptr)
   ldr_module_t mod_id = so_list_ptr->lm.module_info.lmi_modid;
   size_t retsize;
 
-  if (ldr_next_module(fake_ldr_process, &mod_id) != 0
+  if (ldr_next_module (fake_ldr_process, &mod_id) != 0
       || mod_id == LDR_NULL_MODULE
-      || ldr_inq_module(fake_ldr_process, mod_id,
-			&next_lm.module_info, sizeof(ldr_module_info_t),
-			&retsize) != 0)
+      || ldr_inq_module (fake_ldr_process, mod_id,
+			 &next_lm.module_info, sizeof (ldr_module_info_t),
+			 &retsize) != 0)
     return lm;
 
   lm = &next_lm;
@@ -440,7 +446,7 @@ xfer_link_map_member (so_list_ptr, lm)
 			      &retsize) != 0)
 	    break;
 	  region_offset = (CORE_ADDR) region_info.lri_mapaddr
-			  - (CORE_ADDR) region_info.lri_vaddr;
+	    - (CORE_ADDR) region_info.lri_vaddr;
 	  if (i == 0)
 	    LM_OFFSET (so_list_ptr) = region_offset;
 	  else if (LM_OFFSET (so_list_ptr) != region_offset)
@@ -465,7 +471,7 @@ xfer_link_map_member (so_list_ptr, lm)
 	  CORE_ADDR region_offset;
 
 	  if (target_read_memory (lm->module_info.regioninfo_addr
-				   + i * sizeof (region_info),
+				  + i * sizeof (region_info),
 				  (char *) &region_info,
 				  sizeof (region_info)) != 0)
 	    break;
@@ -482,7 +488,7 @@ xfer_link_map_member (so_list_ptr, lm)
 	      else
 		region_name = "??";
 	      warning ("cannot handle shared library relocation for %s (%s)",
-		        so_list_ptr->so_name, region_name);
+		       so_list_ptr->so_name, region_name);
 	      free (buffer);
 	    }
 	}
@@ -496,25 +502,25 @@ xfer_link_map_member (so_list_ptr, lm)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	find_solib -- step through list of shared objects
+   find_solib -- step through list of shared objects
 
-SYNOPSIS
+   SYNOPSIS
 
-	struct so_list *find_solib (struct so_list *so_list_ptr)
+   struct so_list *find_solib (struct so_list *so_list_ptr)
 
-DESCRIPTION
+   DESCRIPTION
 
-	This module contains the routine which finds the names of any
-	loaded "images" in the current process. The argument in must be
-	NULL on the first call, and then the returned value must be passed
-	in on subsequent calls. This provides the capability to "step" down
-	the list of loaded objects. On the last object, a NULL value is
-	returned.
+   This module contains the routine which finds the names of any
+   loaded "images" in the current process. The argument in must be
+   NULL on the first call, and then the returned value must be passed
+   in on subsequent calls. This provides the capability to "step" down
+   the list of loaded objects. On the last object, a NULL value is
+   returned.
 
-	The arg and return value are "struct link_map" pointers, as defined
-	in <link.h>.
+   The arg and return value are "struct link_map" pointers, as defined
+   in <link.h>.
  */
 
 static struct so_list *
@@ -524,7 +530,7 @@ find_solib (so_list_ptr)
   struct so_list *so_list_next = NULL;
   struct link_map *lm = NULL;
   struct so_list *new;
-  
+
   if (so_list_ptr == NULL)
     {
       /* We are setting up for a new scan through the loaded images. */
@@ -537,27 +543,27 @@ find_solib (so_list_ptr)
   else
     {
       /* We have been called before, and are in the process of walking
-	 the shared library list.  Advance to the next shared object. */
+         the shared library list.  Advance to the next shared object. */
       lm = next_link_map_member (so_list_ptr);
-      so_list_next = so_list_ptr -> next;
+      so_list_next = so_list_ptr->next;
     }
   if ((so_list_next == NULL) && (lm != NULL))
     {
       /* Get next link map structure from inferior image and build a local
-	 abbreviated load_map structure */
+         abbreviated load_map structure */
       new = (struct so_list *) xmalloc (sizeof (struct so_list));
       memset ((char *) new, 0, sizeof (struct so_list));
-      new -> lmaddr = lm;
+      new->lmaddr = lm;
       /* Add the new node as the next node in the list, or as the root
-	 node if this is the first one. */
+         node if this is the first one. */
       if (so_list_ptr != NULL)
 	{
-	  so_list_ptr -> next = new;
+	  so_list_ptr->next = new;
 	}
       else
 	{
 	  so_list_head = new;
-	}      
+	}
       so_list_next = new;
       xfer_link_map_member (new, lm);
     }
@@ -570,54 +576,56 @@ static int
 symbol_add_stub (arg)
      char *arg;
 {
-  register struct so_list *so = (struct so_list *) arg;	/* catch_errs bogon */
+  register struct so_list *so = (struct so_list *) arg;		/* catch_errs bogon */
   CORE_ADDR text_addr = 0;
+  struct section_addr_info section_addrs;
 
-  if (so -> textsection)
-    text_addr = so -> textsection -> addr;
-  else if (so -> abfd != NULL)
+  memset (&section_addrs, 0, sizeof (section_addrs));
+  if (so->textsection)
+    text_addr = so->textsection->addr;
+  else if (so->abfd != NULL)
     {
       asection *lowest_sect;
 
       /* If we didn't find a mapped non zero sized .text section, set up
-	 text_addr so that the relocation in symbol_file_add does no harm.  */
+         text_addr so that the relocation in symbol_file_add does no harm.  */
 
-      lowest_sect = bfd_get_section_by_name (so -> abfd, ".text");
+      lowest_sect = bfd_get_section_by_name (so->abfd, ".text");
       if (lowest_sect == NULL)
-	bfd_map_over_sections (so -> abfd, find_lowest_section,
+	bfd_map_over_sections (so->abfd, find_lowest_section,
 			       (PTR) &lowest_sect);
       if (lowest_sect)
-	text_addr = bfd_section_vma (so -> abfd, lowest_sect) + LM_OFFSET (so);
+	text_addr = bfd_section_vma (so->abfd, lowest_sect) + LM_OFFSET (so);
     }
-  
-  so -> objfile = symbol_file_add (so -> so_name, so -> from_tty,
-				   text_addr,
-				   0, 0, 0, 0, 1);
+
+  section_addrs.text_addr = text_addr;
+  so->objfile = symbol_file_add (so->so_name, so->from_tty,
+				 &section_addrs, 0, OBJF_SHARED);
   return (1);
 }
 
 /*
 
-GLOBAL FUNCTION
+   GLOBAL FUNCTION
 
-	solib_add -- add a shared library file to the symtab and section list
+   solib_add -- add a shared library file to the symtab and section list
 
-SYNOPSIS
+   SYNOPSIS
 
-	void solib_add (char *arg_string, int from_tty,
-			struct target_ops *target)
+   void solib_add (char *arg_string, int from_tty,
+   struct target_ops *target)
 
-DESCRIPTION
+   DESCRIPTION
 
-*/
+ */
 
 void
 solib_add (arg_string, from_tty, target)
      char *arg_string;
      int from_tty;
      struct target_ops *target;
-{	
-  register struct so_list *so = NULL;   	/* link map state variable */
+{
+  register struct so_list *so = NULL;	/* link map state variable */
 
   /* Last shared library that we read.  */
   struct so_list *so_last = NULL;
@@ -625,13 +633,13 @@ solib_add (arg_string, from_tty, target)
   char *re_err;
   int count;
   int old;
-  
+
   if ((re_err = re_comp (arg_string ? arg_string : ".")) != NULL)
     {
       error ("Invalid regexp: %s", re_err);
     }
-  
-  
+
+
   /* Add the shared library sections to the section table of the
      specified target, if any.  */
   if (target)
@@ -641,72 +649,44 @@ solib_add (arg_string, from_tty, target)
       count = 0;
       while ((so = find_solib (so)) != NULL)
 	{
-	  if (so -> so_name[0])
+	  if (so->so_name[0])
 	    {
-	      count += so -> sections_end - so -> sections;
+	      count += so->sections_end - so->sections;
 	    }
 	}
-      
+
       if (count)
 	{
-	  int update_coreops;
-
-	  /* We must update the to_sections field in the core_ops structure
-	     here, otherwise we dereference a potential dangling pointer
-	     for each call to target_read/write_memory within this routine.  */
-	  update_coreops = core_ops.to_sections == target->to_sections;
-	     
-	  /* Reallocate the target's section table including the new size.  */
-	  if (target -> to_sections)
-	    {
-	      old = target -> to_sections_end - target -> to_sections;
-	      target -> to_sections = (struct section_table *)
-		xrealloc ((char *)target -> to_sections,
-			 (sizeof (struct section_table)) * (count + old));
-	    }
-	  else
-	    {
-	      old = 0;
-	      target -> to_sections = (struct section_table *)
-		xmalloc ((sizeof (struct section_table)) * count);
-	    }
-	  target -> to_sections_end = target -> to_sections + (count + old);
-	  
-	  /* Update the to_sections field in the core_ops structure
-	     if needed.  */
-	  if (update_coreops)
-	    {
-	      core_ops.to_sections = target->to_sections;
-	      core_ops.to_sections_end = target->to_sections_end;
-	    }
-
 	  /* Add these section table entries to the target's table.  */
+
+	  old = target_resize_to_sections (target, count);
+	  
 	  while ((so = find_solib (so)) != NULL)
 	    {
-	      if (so -> so_name[0])
+	      if (so->so_name[0])
 		{
-		  count = so -> sections_end - so -> sections;
-		  memcpy ((char *) (target -> to_sections + old),
-			  so -> sections, 
+		  count = so->sections_end - so->sections;
+		  memcpy ((char *) (target->to_sections + old),
+			  so->sections,
 			  (sizeof (struct section_table)) * count);
 		  old += count;
 		}
 	    }
 	}
     }
-  
+
   /* Now add the symbol files.  */
   so = NULL;
   while ((so = find_solib (so)) != NULL)
     {
-      if (so -> so_name[0] && re_exec (so -> so_name))
+      if (so->so_name[0] && re_exec (so->so_name))
 	{
-	  so -> from_tty = from_tty;
-	  if (so -> symbols_loaded)
+	  so->from_tty = from_tty;
+	  if (so->symbols_loaded)
 	    {
 	      if (from_tty)
 		{
-		  printf_unfiltered ("Symbols already loaded for %s\n", so -> so_name);
+		  printf_unfiltered ("Symbols already loaded for %s\n", so->so_name);
 		}
 	    }
 	  else if (catch_errors
@@ -715,7 +695,7 @@ solib_add (arg_string, from_tty, target)
 		    RETURN_MASK_ALL))
 	    {
 	      so_last = so;
-	      so -> symbols_loaded = 1;
+	      so->symbols_loaded = 1;
 	    }
 	}
     }
@@ -728,99 +708,99 @@ solib_add (arg_string, from_tty, target)
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	info_sharedlibrary_command -- code for "info sharedlibrary"
+   info_sharedlibrary_command -- code for "info sharedlibrary"
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void info_sharedlibrary_command ()
+   static void info_sharedlibrary_command ()
 
-DESCRIPTION
+   DESCRIPTION
 
-	Walk through the shared library list and print information
-	about each attached library.
-*/
+   Walk through the shared library list and print information
+   about each attached library.
+ */
 
 static void
 info_sharedlibrary_command (ignore, from_tty)
      char *ignore;
      int from_tty;
 {
-  register struct so_list *so = NULL;  	/* link map state variable */
+  register struct so_list *so = NULL;	/* link map state variable */
   int header_done = 0;
-  
+
   if (exec_bfd == NULL)
     {
-      printf_unfiltered ("No exec file.\n");
+      printf_unfiltered ("No executable file.\n");
       return;
     }
   while ((so = find_solib (so)) != NULL)
     {
-      if (so -> so_name[0])
+      if (so->so_name[0])
 	{
 	  unsigned long txt_start = 0;
 	  unsigned long txt_end = 0;
 
 	  if (!header_done)
 	    {
-	      printf_unfiltered("%-20s%-20s%-12s%s\n", "From", "To", "Syms Read",
-		     "Shared Object Library");
+	      printf_unfiltered ("%-20s%-20s%-12s%s\n", "From", "To", "Syms Read",
+				 "Shared Object Library");
 	      header_done++;
 	    }
-	  if (so -> textsection)
+	  if (so->textsection)
 	    {
-	      txt_start = (unsigned long) so -> textsection -> addr;
-	      txt_end = (unsigned long) so -> textsection -> endaddr;
+	      txt_start = (unsigned long) so->textsection->addr;
+	      txt_end = (unsigned long) so->textsection->endaddr;
 	    }
 	  printf_unfiltered ("%-20s", local_hex_string_custom (txt_start, "08l"));
 	  printf_unfiltered ("%-20s", local_hex_string_custom (txt_end, "08l"));
-	  printf_unfiltered ("%-12s", so -> symbols_loaded ? "Yes" : "No");
-	  printf_unfiltered ("%s\n",  so -> so_name);
+	  printf_unfiltered ("%-12s", so->symbols_loaded ? "Yes" : "No");
+	  printf_unfiltered ("%s\n", so->so_name);
 	}
     }
   if (so_list_head == NULL)
     {
-      printf_unfiltered ("No shared libraries loaded at this time.\n");	
+      printf_unfiltered ("No shared libraries loaded at this time.\n");
     }
 }
 
 /*
 
-GLOBAL FUNCTION
+   GLOBAL FUNCTION
 
-	solib_address -- check to see if an address is in a shared lib
+   solib_address -- check to see if an address is in a shared lib
 
-SYNOPSIS
+   SYNOPSIS
 
-	char *solib_address (CORE_ADDR address)
+   char *solib_address (CORE_ADDR address)
 
-DESCRIPTION
+   DESCRIPTION
 
-	Provides a hook for other gdb routines to discover whether or
-	not a particular address is within the mapped address space of
-	a shared library.  Any address between the base mapping address
-	and the first address beyond the end of the last mapping, is
-	considered to be within the shared library address space, for
-	our purposes.
+   Provides a hook for other gdb routines to discover whether or
+   not a particular address is within the mapped address space of
+   a shared library.  Any address between the base mapping address
+   and the first address beyond the end of the last mapping, is
+   considered to be within the shared library address space, for
+   our purposes.
 
-	For example, this routine is called at one point to disable
-	breakpoints which are in shared libraries that are not currently
-	mapped in.
+   For example, this routine is called at one point to disable
+   breakpoints which are in shared libraries that are not currently
+   mapped in.
  */
 
 char *
 solib_address (address)
      CORE_ADDR address;
 {
-  register struct so_list *so = 0;   	/* link map state variable */
-  
+  register struct so_list *so = 0;	/* link map state variable */
+
   while ((so = find_solib (so)) != NULL)
     {
-      if (so -> so_name[0] && so -> textsection)
+      if (so->so_name[0] && so->textsection)
 	{
-	  if ((address >= (CORE_ADDR) so -> textsection -> addr) &&
-	      (address < (CORE_ADDR) so -> textsection -> endaddr))
+	  if ((address >= (CORE_ADDR) so->textsection->addr) &&
+	      (address < (CORE_ADDR) so->textsection->endaddr))
 	    return (so->so_name);
 	}
     }
@@ -829,24 +809,24 @@ solib_address (address)
 
 /* Called by free_all_symtabs */
 
-void 
-clear_solib()
+void
+clear_solib ()
 {
   struct so_list *next;
   char *bfd_filename;
-  
+
   disable_breakpoints_in_shlibs (1);
 
   while (so_list_head)
     {
-      if (so_list_head -> sections)
+      if (so_list_head->sections)
 	{
-	  free ((PTR)so_list_head -> sections);
+	  free ((PTR) so_list_head->sections);
 	}
-      if (so_list_head -> abfd)
+      if (so_list_head->abfd)
 	{
-	  bfd_filename = bfd_get_filename (so_list_head -> abfd);
-	  if (!bfd_close (so_list_head -> abfd))
+	  bfd_filename = bfd_get_filename (so_list_head->abfd);
+	  if (!bfd_close (so_list_head->abfd))
 	    warning ("cannot close \"%s\": %s",
 		     bfd_filename, bfd_errmsg (bfd_get_error ()));
 	}
@@ -854,52 +834,52 @@ clear_solib()
 	/* This happens for the executable on SVR4.  */
 	bfd_filename = NULL;
 
-      next = so_list_head -> next;
+      next = so_list_head->next;
       if (bfd_filename)
-	free ((PTR)bfd_filename);
-      free ((PTR)so_list_head);
+	free ((PTR) bfd_filename);
+      free ((PTR) so_list_head);
       so_list_head = next;
     }
 }
-  
+
 /*
-  
-GLOBAL FUNCTION
-  
-	solib_create_inferior_hook -- shared library startup support
-  
-SYNOPSIS
-  
-	void solib_create_inferior_hook()
-  
-DESCRIPTION
 
-	When gdb starts up the inferior, it nurses it along (through the
-	shell) until it is ready to execute it's first instruction.  At this
-	point, this function gets called via expansion of the macro
-	SOLIB_CREATE_INFERIOR_HOOK.
-	For a statically bound executable, this first instruction is the
-	one at "_start", or a similar text label. No further processing is
-	needed in that case.
-	For a dynamically bound executable, this first instruction is somewhere
-	in the rld, and the actual user executable is not yet mapped in.
-	We continue the inferior again, rld then maps in the actual user
-	executable and any needed shared libraries and then sends
-	itself a SIGTRAP.
-	At that point we discover the names of all shared libraries and
-	read their symbols in.
+   GLOBAL FUNCTION
 
-FIXME
+   solib_create_inferior_hook -- shared library startup support
 
-	This code does not properly handle hitting breakpoints which the
-	user might have set in the rld itself.  Proper handling would have
-	to check if the SIGTRAP happened due to a kill call.
+   SYNOPSIS
 
-	Also, what if child has exit()ed?  Must exit loop somehow.
-  */
+   void solib_create_inferior_hook()
+
+   DESCRIPTION
+
+   When gdb starts up the inferior, it nurses it along (through the
+   shell) until it is ready to execute it's first instruction.  At this
+   point, this function gets called via expansion of the macro
+   SOLIB_CREATE_INFERIOR_HOOK.
+   For a statically bound executable, this first instruction is the
+   one at "_start", or a similar text label. No further processing is
+   needed in that case.
+   For a dynamically bound executable, this first instruction is somewhere
+   in the rld, and the actual user executable is not yet mapped in.
+   We continue the inferior again, rld then maps in the actual user
+   executable and any needed shared libraries and then sends
+   itself a SIGTRAP.
+   At that point we discover the names of all shared libraries and
+   read their symbols in.
+
+   FIXME
+
+   This code does not properly handle hitting breakpoints which the
+   user might have set in the rld itself.  Proper handling would have
+   to check if the SIGTRAP happened due to a kill call.
+
+   Also, what if child has exit()ed?  Must exit loop somehow.
+ */
 
 void
-solib_create_inferior_hook()
+solib_create_inferior_hook ()
 {
 
   /* Nothing to do for statically bound executables.  */
@@ -913,7 +893,7 @@ solib_create_inferior_hook()
      which point all of the libraries will have been mapped in and we
      can go groveling around in the rld structures to find
      out what we need to know about them. */
- 
+
   clear_proceed_status ();
   stop_soon_quietly = 1;
   stop_signal = TARGET_SIGNAL_0;
@@ -925,11 +905,11 @@ solib_create_inferior_hook()
   while (stop_signal != TARGET_SIGNAL_TRAP);
 
   /*  solib_add will call reinit_frame_cache.
-      But we are stopped in the runtime loader and we do not have symbols
-      for the runtime loader. So heuristic_proc_start will be called
-      and will put out an annoying warning.
-      Delaying the resetting of stop_soon_quietly until after symbol loading
-      suppresses the warning.  */
+     But we are stopped in the runtime loader and we do not have symbols
+     for the runtime loader. So heuristic_proc_start will be called
+     and will put out an annoying warning.
+     Delaying the resetting of stop_soon_quietly until after symbol loading
+     suppresses the warning.  */
   if (auto_solib_add)
     solib_add ((char *) 0, 0, (struct target_ops *) 0);
   stop_soon_quietly = 0;
@@ -938,33 +918,33 @@ solib_create_inferior_hook()
 
 /*
 
-LOCAL FUNCTION
+   LOCAL FUNCTION
 
-	sharedlibrary_command -- handle command to explicitly add library
+   sharedlibrary_command -- handle command to explicitly add library
 
-SYNOPSIS
+   SYNOPSIS
 
-	static void sharedlibrary_command (char *args, int from_tty)
+   static void sharedlibrary_command (char *args, int from_tty)
 
-DESCRIPTION
+   DESCRIPTION
 
-*/
+ */
 
 static void
 sharedlibrary_command (args, from_tty)
-char *args;
-int from_tty;
+     char *args;
+     int from_tty;
 {
   dont_repeat ();
   solib_add (args, from_tty, (struct target_ops *) 0);
 }
 
 void
-_initialize_solib()
+_initialize_solib ()
 {
   add_com ("sharedlibrary", class_files, sharedlibrary_command,
 	   "Load shared object library symbols for files matching REGEXP.");
-  add_info ("sharedlibrary", info_sharedlibrary_command, 
+  add_info ("sharedlibrary", info_sharedlibrary_command,
 	    "Status of loaded shared object libraries.");
 
   add_show_from_set

@@ -1,21 +1,22 @@
 /* Low level Alpha interface, for GDB when running native.
    Copyright 1993, 1995, 1996, 1998 Free Software Foundation, Inc.
 
-This file is part of GDB.
+   This file is part of GDB.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330,
+   Boston, MA 02111-1307, USA.  */
 
 #include "defs.h"
 #include "inferior.h"
@@ -23,10 +24,10 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "target.h"
 #include <sys/ptrace.h>
 #ifdef __linux__
-# include <asm/reg.h>
-# include <alpha/ptrace.h>
+#include <asm/reg.h>
+#include <alpha/ptrace.h>
 #else
-# include <machine/reg.h>
+#include <machine/reg.h>
 #endif
 #include <sys/user.h>
 
@@ -62,13 +63,13 @@ get_longjmp_target (pc)
   CORE_ADDR jb_addr;
   char raw_buffer[MAX_REGISTER_RAW_SIZE];
 
-  jb_addr = read_register(A0_REGNUM);
+  jb_addr = read_register (A0_REGNUM);
 
-  if (target_read_memory(jb_addr + JB_PC * JB_ELEMENT_SIZE, raw_buffer,
-			 sizeof(CORE_ADDR)))
+  if (target_read_memory (jb_addr + JB_PC * JB_ELEMENT_SIZE, raw_buffer,
+			  sizeof (CORE_ADDR)))
     return 0;
 
-  *pc = extract_address (raw_buffer, sizeof(CORE_ADDR));
+  *pc = extract_address (raw_buffer, sizeof (CORE_ADDR));
   return 1;
 }
 
@@ -78,11 +79,11 @@ get_longjmp_target (pc)
    CORE_REG_SECT points to the register values themselves, read into memory.
    CORE_REG_SIZE is the size of that area.
    WHICH says which set of registers we are handling (0 = int, 2 = float
-         on machines where they are discontiguous).
+   on machines where they are discontiguous).
    REG_ADDR is the offset from u.u_ar0 to the register values relative to
-            core_reg_sect.  This is used with old-fashioned core files to
-	    locate the registers in a large upage-plus-stack ".reg" section.
-	    Original upage address X is at location core_reg_sect+x+reg_addr.
+   core_reg_sect.  This is used with old-fashioned core files to
+   locate the registers in a large upage-plus-stack ".reg" section.
+   Original upage address X is at location core_reg_sect+x+reg_addr.
  */
 
 static void
@@ -101,17 +102,18 @@ fetch_osf_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   static int core_reg_mapping[NUM_REGS] =
   {
 #define EFL (EF_SIZE / 8)
-	EF_V0,	EF_T0,	EF_T1,	EF_T2,	EF_T3,	EF_T4,	EF_T5,	EF_T6,
-	EF_T7,	EF_S0,	EF_S1,	EF_S2,	EF_S3,	EF_S4,	EF_S5,	EF_S6,
-	EF_A0,	EF_A1,	EF_A2,	EF_A3,	EF_A4,	EF_A5,	EF_T8,	EF_T9,
-	EF_T10,	EF_T11,	EF_RA,	EF_T12,	EF_AT,	EF_GP,	EF_SP,	-1,
-	EFL+0,	EFL+1,	EFL+2,	EFL+3,	EFL+4,	EFL+5,	EFL+6,	EFL+7,
-	EFL+8,	EFL+9,	EFL+10,	EFL+11,	EFL+12,	EFL+13,	EFL+14,	EFL+15,
-	EFL+16,	EFL+17,	EFL+18,	EFL+19,	EFL+20,	EFL+21,	EFL+22,	EFL+23,
-	EFL+24,	EFL+25,	EFL+26,	EFL+27,	EFL+28,	EFL+29,	EFL+30,	EFL+31,
-	EF_PC,	-1
+    EF_V0, EF_T0, EF_T1, EF_T2, EF_T3, EF_T4, EF_T5, EF_T6,
+    EF_T7, EF_S0, EF_S1, EF_S2, EF_S3, EF_S4, EF_S5, EF_S6,
+    EF_A0, EF_A1, EF_A2, EF_A3, EF_A4, EF_A5, EF_T8, EF_T9,
+    EF_T10, EF_T11, EF_RA, EF_T12, EF_AT, EF_GP, EF_SP, -1,
+    EFL + 0, EFL + 1, EFL + 2, EFL + 3, EFL + 4, EFL + 5, EFL + 6, EFL + 7,
+    EFL + 8, EFL + 9, EFL + 10, EFL + 11, EFL + 12, EFL + 13, EFL + 14, EFL + 15,
+    EFL + 16, EFL + 17, EFL + 18, EFL + 19, EFL + 20, EFL + 21, EFL + 22, EFL + 23,
+    EFL + 24, EFL + 25, EFL + 26, EFL + 27, EFL + 28, EFL + 29, EFL + 30, EFL + 31,
+    EF_PC, -1
   };
-  static char zerobuf[MAX_REGISTER_RAW_SIZE] = {0};
+  static char zerobuf[MAX_REGISTER_RAW_SIZE] =
+  {0};
 
   for (regno = 0; regno < NUM_REGS; regno++)
     {
@@ -144,7 +146,7 @@ fetch_elf_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      int which;
      CORE_ADDR reg_addr;
 {
-  if (core_reg_size < 32*8)
+  if (core_reg_size < 32 * 8)
     {
       error ("Core file register section too small (%u bytes).", core_reg_size);
       return;
@@ -153,15 +155,15 @@ fetch_elf_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
   if (which == 2)
     {
       /* The FPU Registers.  */
-      memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], core_reg_sect, 31*8);
-      memset (&registers[REGISTER_BYTE (FP0_REGNUM+31)], 0, 8);
+      memcpy (&registers[REGISTER_BYTE (FP0_REGNUM)], core_reg_sect, 31 * 8);
+      memset (&registers[REGISTER_BYTE (FP0_REGNUM + 31)], 0, 8);
       memset (&register_valid[FP0_REGNUM], 1, 32);
     }
   else
     {
       /* The General Registers.  */
-      memcpy (&registers[REGISTER_BYTE (V0_REGNUM)], core_reg_sect, 31*8);
-      memcpy (&registers[REGISTER_BYTE (PC_REGNUM)], core_reg_sect+31*8, 8);
+      memcpy (&registers[REGISTER_BYTE (V0_REGNUM)], core_reg_sect, 31 * 8);
+      memcpy (&registers[REGISTER_BYTE (PC_REGNUM)], core_reg_sect + 31 * 8, 8);
       memset (&registers[REGISTER_BYTE (ZERO_REGNUM)], 0, 8);
       memset (&register_valid[V0_REGNUM], 1, 32);
       register_valid[PC_REGNUM] = 1;
@@ -201,18 +203,19 @@ kernel_u_size ()
  * See the comment in m68k-tdep.c regarding the utility of these functions.
  */
 
-void 
+void
 supply_gregset (gregsetp)
      gregset_t *gregsetp;
 {
   register int regi;
   register long *regp = ALPHA_REGSET_BASE (gregsetp);
-  static char zerobuf[MAX_REGISTER_RAW_SIZE] = {0};
+  static char zerobuf[MAX_REGISTER_RAW_SIZE] =
+  {0};
 
   for (regi = 0; regi < 31; regi++)
-    supply_register (regi, (char *)(regp + regi));
+    supply_register (regi, (char *) (regp + regi));
 
-  supply_register (PC_REGNUM, (char *)(regp + 31));
+  supply_register (PC_REGNUM, (char *) (regp + 31));
 
   /* Fill inaccessible registers with zero.  */
   supply_register (ZERO_REGNUM, zerobuf);
@@ -248,7 +251,7 @@ supply_fpregset (fpregsetp)
   register long *regp = ALPHA_REGSET_BASE (fpregsetp);
 
   for (regi = 0; regi < 32; regi++)
-    supply_register (regi + FP0_REGNUM, (char *)(regp + regi));
+    supply_register (regi + FP0_REGNUM, (char *) (regp + regi));
 }
 
 void
@@ -269,24 +272,28 @@ fill_fpregset (fpregsetp, regno)
     }
 }
 #endif
-
 
+
 /* Register that we are able to handle alpha core file formats. */
 
 static struct core_fns alpha_osf_core_fns =
 {
   /* This really is bfd_target_unknown_flavour.  */
 
-  bfd_target_unknown_flavour,
-  fetch_osf_core_registers,
-  NULL
+  bfd_target_unknown_flavour,		/* core_flavour */
+  default_check_format,			/* check_format */
+  default_core_sniffer,			/* core_sniffer */
+  fetch_osf_core_registers,		/* core_read_registers */
+  NULL					/* next */
 };
 
 static struct core_fns alpha_elf_core_fns =
 {
-  bfd_target_elf_flavour,
-  fetch_elf_core_registers,
-  NULL
+  bfd_target_elf_flavour,		/* core_flavour */
+  default_check_format,			/* check_format */
+  default_core_sniffer,			/* core_sniffer */
+  fetch_elf_core_registers,		/* core_read_registers */
+  NULL					/* next */
 };
 
 void
