@@ -2469,6 +2469,7 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 			sc->cam_scsi_sense.length = csio->sense_len;
 
 			rcmd = (unsigned char *) &sc->cam_scsi_command;
+			rcmdlen = sizeof(sc->cam_scsi_command);
 
 			if (sc->transform(sc,
 				    (unsigned char *) &sc->cam_scsi_sense,
