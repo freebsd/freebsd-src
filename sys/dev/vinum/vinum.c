@@ -35,17 +35,17 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.42 2003/05/04 05:25:14 grog Exp grog $
+ * $Id: vinum.c,v 1.44 2003/05/23 00:50:55 grog Exp $
  * $FreeBSD$
  */
 
-#define STATIC static					    /* nothing while we're testing XXX */
+#define STATIC static					    /* nothing while we're testing */
 
 #include <dev/vinum/vinumhdr.h>
 #include <sys/sysproto.h>				    /* for sync(2) */
 #ifdef VINUMDEBUG
 #include <sys/reboot.h>
-int debug = 0;
+int debug = 0;						    /* debug flags */
 extern int total_malloced;
 extern int malloccount;
 extern struct mc malloced[];
@@ -78,6 +78,15 @@ dev_t vinum_super_dev;
 static eventhandler_tag dev_clone_tag;
 
 /*
+ * Mutexes for plex synchronization.  Ideally each plex
+ * should have its own mutex, but the fact that the plex
+ * struct can move makes that very complicated.  Instead,
+ * have plexes use share these mutexes based on modulo plex
+ * number.
+ */
+struct mtx plexmutex[PLEXMUTEXES];
+
+/*
  * Called by main() during pseudo-device attachment.  All we need
  * to do is allocate enough space for devices to be configured later, and
  * add devsw entries.
@@ -86,6 +95,12 @@ void
 vinumattach(void *dummy)
 {
     char *envp;
+    int i;
+#define MUTEXNAMELEN 16
+    char mutexname[MUTEXNAMELEN];
+#if PLEXMUTEXES > 10000
+#error Increase size of MUTEXNAMELEN
+#endif
 /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
@@ -135,6 +150,11 @@ vinumattach(void *dummy)
     bzero(PLEX, sizeof(struct plex) * INITIAL_PLEXES);
     vinum_conf.plexes_allocated = INITIAL_PLEXES;	    /* number of plex slots allocated */
     vinum_conf.plexes_used = 0;				    /* and number in use */
+
+    for (i = 0; i < PLEXMUTEXES; i++) {
+	snprintf(mutexname, MUTEXNAMELEN, "vinumplex%d", i);
+	mtx_init(&plexmutex[i], mutexname, "plex", MTX_DEF);
+    }
 
     /* and subdisks */
     SD = (struct sd *) Malloc(sizeof(struct sd) * INITIAL_SUBDISKS);
@@ -250,6 +270,7 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 {
     struct sync_args dummyarg =
     {0};
+    int i;
 
     switch (type) {
     case MOD_LOAD:
@@ -291,6 +312,8 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #endif
 	destroy_dev(vinum_daemon_dev);			    /* daemon device */
 	destroy_dev(vinum_super_dev);
+	for (i = 0; i < PLEXMUTEXES; i++)
+	    mtx_destroy(&plexmutex[i]);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
     default:
