@@ -5,7 +5,7 @@
 
 #define SSH_VERSION             (ssh_version_get())
 #define SSH_VERSION_BASE        "OpenSSH_3.4p1"
-#define SSH_VERSION_ADDENDUM    "FreeBSD-20020702"
+#define SSH_VERSION_ADDENDUM    "FreeBSD-20030916"
 
 const char *ssh_version_get(void);
 void ssh_version_set_addendum(const char *add);
