@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Copyright (c) 1987, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
@@ -45,11 +46,14 @@
 #define	SETLINE		{++lineno;lineftell = ftell(inf);}
 #define	GETC(op,exp)	((c = getc(inf)) op (int)exp)
 
-#define	iswhite(arg)	(_wht[(unsigned)arg])	/* T if char is white */
-#define	begtoken(arg)	(_btk[(unsigned)arg])	/* T if char can start token */
-#define	intoken(arg)	(_itk[(unsigned)arg])	/* T if char can be in token */
-#define	endtoken(arg)	(_etk[(unsigned)arg])	/* T if char ends tokens */
-#define	isgood(arg)	(_gd[(unsigned)arg])	/* T if char can be after ')' */
+#define	_egrd(idx, array)	\
+	(((int)idx < 0)? NO : array [ (int) idx ])
+
+#define	iswhite(arg)	_egrd(arg, _wht)	/* T if char is white */
+#define	begtoken(arg)	_egrd(arg, _btk)	/* T if char can start token */
+#define	intoken(arg)	_egrd(arg, _itk)	/* T if char can be in token */
+#define	endtoken(arg)	_egrd(arg, _etk)	/* T if char ends tokens */
+#define	isgood(arg)	_egrd(arg, _gd)	/* T if char can be after ')' */
 
 typedef struct nd_st {			/* sorting structure */
 	struct nd_st	*left,
