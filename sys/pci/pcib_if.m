@@ -69,3 +69,13 @@ METHOD void write_config {
 	u_int32_t	value;
 	int		width;
 };
+
+#
+# Route an interrupt.  Returns a value suitable for stuffing into 
+# a device's interrupt register.
+#
+METHOD int route_interrupt {
+	device_t dev;
+	int device;
+	int pin;
+};
