@@ -48,6 +48,8 @@
 #include <isa/isavar.h>
 #include <dev/pcic/i82365reg.h>
 
+#include "card_if.h"
+
 /*
  *	Prototypes for interrupt handler.
  */
@@ -806,8 +808,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 	int err;
 
 	switch (type) {
-	case SYS_RES_IOPORT:
-	{
+	case SYS_RES_IOPORT: {
 		struct io_desc *ip;
 		ip = &devi->slt->io[rid];
 		if (ip->flags == 0) {
@@ -831,8 +832,7 @@ pcic_activate_resource(device_t dev, device_t child, int type, int rid,
 		 * interrupt messages.
 		 */
 		break;
-	case SYS_RES_MEMORY: 
-	{
+	case SYS_RES_MEMORY: {
 		struct mem_desc *mp;
 		if (rid >= NUM_MEM_WINDOWS)
 			return EINVAL;
@@ -860,8 +860,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	int err;
 
 	switch (type) {
-	case SYS_RES_IOPORT:
-	{
+	case SYS_RES_IOPORT: {
 		struct io_desc *ip = &devi->slt->io[rid];
 		ip->flags &= ~IODF_ACTIVE;
 		err = pcic_io(devi->slt, rid);
@@ -872,8 +871,7 @@ pcic_deactivate_resource(device_t dev, device_t child, int type, int rid,
 	}
 	case SYS_RES_IRQ:
 		break;
-	case SYS_RES_MEMORY:
-	{
+	case SYS_RES_MEMORY: {
 		struct mem_desc *mp = &devi->slt->mem[rid];
 		mp->flags &= ~(MDF_ACTIVE | MDF_ATTR);
 		err = pcic_memory(devi->slt, rid);
@@ -916,6 +914,41 @@ pcic_teardown_intr(device_t dev, device_t child, struct resource *irq,
 	return (bus_generic_teardown_intr(dev, child, irq, cookie));
 }
 
+static int
+pcic_set_res_flags(device_t bus, device_t child, int restype, int rid,
+    u_long value)
+{
+	struct pccard_devinfo *devi = device_get_ivars(child);
+	int err = 0;
+
+	switch (restype) {
+	case SYS_RES_MEMORY: {
+		struct mem_desc *mp = &devi->slt->mem[rid];
+		if (value)
+			mp->flags |= MDF_ATTR;
+		else
+			mp->flags &= ~MDF_ATTR;
+		err = pcic_memory(devi->slt, rid);
+		break;
+	}
+	default:
+		err = EOPNOTSUPP;
+	}
+	return (err);
+}
+
+static struct resource *
+pcic_alloc_resource(device_t bus, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	if (start == 0 && end == ~0 && type == SYS_RES_MEMORY && count != 1) {
+		start = 0xd0000;
+		end = 0xdffff;
+	}
+	return bus_generic_alloc_resource(bus, child, type, rid, start, end,
+	    count, flags);
+}
+
 static device_method_t pcic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pcic_probe),
@@ -927,7 +960,7 @@ static device_method_t pcic_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_alloc_resource,	pcic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, pcic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, pcic_deactivate_resource),

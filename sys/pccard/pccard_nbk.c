@@ -72,6 +72,8 @@
 #include <dev/pccard/pccardvar.h>
 #include <net/ethernet.h>
 
+#include "card_if.h"
+
 devclass_t	pccard_devclass;
 
 #define PCCARD_NPORT	2
@@ -213,6 +215,8 @@ pccard_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list_entry *rle;
 	struct resource *res;
 
+	/* XXX Do I need to add a special case here for the cis memory? XXX */
+
 	if (!passthrough && !isdefault) {
 		rle = resource_list_find(rl, type, *rid);
 		if (!rle) {
@@ -269,6 +273,32 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 	return ENOENT;
 }
 
+/* Pass card requests up to pcic.  This may mean a bad design XXX */
+
+static int
+pccard_set_res_flags(device_t bus, device_t child, int restype, int rid,
+    u_long value)
+{
+	return CARD_SET_RES_FLAGS(device_get_parent(bus), child, restype,
+	    rid, value);
+}
+
+static int
+pccard_get_res_flags(device_t bus, device_t child, int restype, int rid,
+    u_long *value)
+{
+	return CARD_GET_RES_FLAGS(device_get_parent(bus), child, restype,
+	    rid, value);
+}
+
+static int
+pccard_set_memory_offset(device_t bus, device_t child, int rid, 
+    u_int32_t offset)
+{
+	return CARD_SET_MEMORY_OFFSET(device_get_parent(bus), child, rid, 
+	    offset);	
+}
+
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
@@ -290,6 +320,11 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_get_resource,	pccard_get_resource),
 	DEVMETHOD(bus_delete_resource,	pccard_delete_resource),
 	DEVMETHOD(bus_read_ivar,	pccard_read_ivar),
+
+	/* Card interface */
+	DEVMETHOD(card_set_res_flags,	pccard_set_res_flags),
+	DEVMETHOD(card_get_res_flags,	pccard_get_res_flags),
+	DEVMETHOD(card_set_memory_offset, pccard_set_memory_offset),
 
 	{ 0, 0 }
 };
