@@ -15,7 +15,11 @@
 /* #undef HAVE_CC_OSFCN_H */
 
 /* Define if you have a C++ <stdint.h>. */
+#if __FreeBSD_version >= 500028
 #define HAVE_CC_STDINT_H 1
+#else
+/* #undef HAVE_CC_STDINT_H */
+#endif
 
 /* Define to 1 if you have the <dirent.h> header file. */
 #define HAVE_DIRENT_H 1
