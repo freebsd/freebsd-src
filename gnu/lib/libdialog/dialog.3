@@ -127,15 +127,15 @@
 .Fn end_dialog "void"
 .Ft "int"
 .Fn dialog_ftree "unsigned char *filename" "unsigned char FS" "unsigned char *title" "unsigned char *prompt" "int height" "int width" "int menu_height" "unsigned char **result"
-.Ft "int" 
-.Fo dialog_tree 
-.Fa "unsigned char **names" 
+.Ft "int"
+.Fo dialog_tree
+.Fa "unsigned char **names"
 .Fa "int size"
-.Fa "unsigned char FS" 
-.Fa "unsigned char *title" 
+.Fa "unsigned char FS"
+.Fa "unsigned char *title"
 .Fa "unsigned char *prompt"
-.Fa "int height" 
-.Fa "int width" 
+.Fa "int height"
+.Fa "int width"
 .Fa "int menu_height"
 .Fa "unsigned char **result"
 .Fc
@@ -711,7 +711,7 @@ box will be calculated automatically.
 .Va menu_height
 sets the height of the tree subwindow inside the
 .Fn dialog_ftree
-box and must be set. 
+box and must be set.
 .Va title
 is shown centered on the upper border of the
 .Fn dialog_ftree
@@ -758,7 +758,7 @@ function returns 1. In case of exiting
 on ESC, the function returns -1.
 .Pp
 The
-.Fn dialog_tree 
+.Fn dialog_tree
 function returns the same results as
 .Fn dialog_ftree .
 If 0 is returned, result will contain a pointer from the array

@@ -74,32 +74,32 @@ can be either segment_descriptor or gate_descriptor and are defined in
 These structures are defined by the architecture
 as disjoint bit-fields, so care must be taken in constructing them.
 .Pp
-If 
+If
 .Fa start_sel
-is 
+is
 .Em LDT_AUTO_ALLOC ,
 .Fa num_sels
-is 1 and the descriptor pointed to by 
+is 1 and the descriptor pointed to by
 .Fa descs
 is legal, then
 .Fn i386_set_ldt
-will allocate a descriptor and return its 
+will allocate a descriptor and return its
 selector number.
 .Pp
-If 
+If
 .Fa num_descs
 is 1,
 .Fa start_sels
-is valid, and 
+is valid, and
 .Fa descs
-is NULL, then 
+is NULL, then
 .Fn i386_set_ldt
 will free that descriptor
 (making it available to be reallocated again later).
 .Pp
-If 
-.Fa num_descs    
-is 0, 
+If
+.Fa num_descs
+is 0,
 .Fa start_sels
 is 0 and
 .Fa descs
