@@ -154,7 +154,7 @@ static int nextpid = 0;
 static int randompid = 0;
 
 static int
-sysctl_kern_randompid SYSCTL_HANDLER_ARGS
+sysctl_kern_randompid (SYSCTL_HANDLER_ARGS)
 {
 		int error, pid;
 
