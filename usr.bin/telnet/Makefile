@@ -31,7 +31,7 @@ CFLAGS+=	-DHAS_CGETENT
 .endif
 
 .if !defined(RELEASE_CRUNCH)
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 SRCS+=		authenc.c 
 CFLAGS+=	-DENCRYPTION -DAUTHENTICATION -DIPSEC
 DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}

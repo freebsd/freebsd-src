@@ -31,7 +31,7 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBMD}
 LDADD=	${LIBPARSE} ${LIBNTP} -lm -lmd
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 DPADD+=	${LIBCRYPTO}
 LDADD+=	-lcrypto
 .endif

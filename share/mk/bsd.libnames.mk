@@ -91,7 +91,7 @@ LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
 MINUSLPAM=	-lpam
 .if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 LIBPAM+=	${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
 		${LIBROKEN} ${LIBCOM_ERR}
 MINUSLPAM+=	-lkrb5 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
@@ -100,7 +100,7 @@ LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
 		${LIBUTIL} ${LIBOPIE} ${LIBMD}
 MINUSLPAM+=	-lradius -ltacplus -lcrypt \
 		-lutil -lopie -lmd
-.if !defined(NO_OPENSSH) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_OPENSSH) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
 MINUSLPAM+=	-lssh -lcrypto -lcrypt
 .endif

@@ -193,7 +193,7 @@ _atm=		atm
 .endif
 
 .if !defined(NO_BIND)
-.if !defined(NO_BIND_DNSSEC) && !defined(NOCRYPT)
+.if !defined(NO_BIND_DNSSEC) && !defined(NO_CRYPT)
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif
@@ -211,7 +211,7 @@ _rndc-confgen=		rndc-confgen
 _bluetooth=	bluetooth
 .endif
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _keyserv=	keyserv
 .endif
 

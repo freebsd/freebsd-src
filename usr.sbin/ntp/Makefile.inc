@@ -8,7 +8,7 @@ NTPDEFS=   -DSYS_FREEBSD
 #	-DMX4200 -DNMEA -DBOEDER
 CFLAGS+= ${NTPDEFS} ${DEFS_LOCAL} ${CLOCKDEFS}
 
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL) && !defined(RELEASE_CRUNCH)
 CFLAGS+= -DOPENSSL
 .endif
 

@@ -7,7 +7,7 @@
 #	-DNO_RESCUE do not build rescue binaries
 #	-DNOCLEANDIR run ${MAKE} clean, instead of ${MAKE} cleandir
 #	-DNOCLEAN do not clean at all
-#	-DNOCRYPT will prevent building of crypt versions
+#	-DNO_CRYPT will prevent building of crypt versions
 #	-DNO_MAN do not build the manual pages
 #	-DNO_PROFILE do not build profiled libraries
 #	-DNOGAMES do not go into games subdir
@@ -49,14 +49,14 @@ SUBDIR=	share/info include lib libexec bin
 SUBDIR+=games
 .endif
 SUBDIR+=gnu
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=kerberos5
 .endif
 .if !defined(NO_RESCUE)
 SUBDIR+=rescue
 .endif
 SUBDIR+=sbin
-.if !defined(NOCRYPT)
+.if !defined(NO_CRYPT)
 SUBDIR+=secure
 .endif
 .if !defined(NOSHARE)
@@ -393,7 +393,7 @@ build32:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${LIB32TMP}/usr/include >/dev/null
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 .for _t in obj depend all
 	cd ${.CURDIR}/kerberos5/tools; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} ${_t}
@@ -406,11 +406,11 @@ build32:
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 	cd ${.CURDIR}/gnu/lib; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
-.if !defined(NOCRYPT)
+.if !defined(NO_CRYPT)
 	cd ${.CURDIR}/secure/lib; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 	cd ${.CURDIR}/kerberos5/lib; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
 .endif
@@ -434,7 +434,7 @@ install32:
 	mkdir -p ${DESTDIR}/usr/lib32	# XXX add to mtree
 	cd ${.CURDIR}/lib; ${LIB32MAKE} install
 	cd ${.CURDIR}/gnu/lib; ${LIB32MAKE} install
-.if !defined(NOCRYPT)
+.if !defined(NO_CRYPT)
 	cd ${.CURDIR}/secure/lib; ${LIB32MAKE} install
 .endif
 	cd ${.CURDIR}/libexec/rtld-elf; PROG=ld-elf32.so.1 ${LIB32MAKE} install
@@ -880,7 +880,7 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _kerberos5_tools= kerberos5/tools
 .endif
 
@@ -994,7 +994,7 @@ _prebuild_libs=
 
 _generic_libs=	gnu/lib
 
-.if !defined(NO_KERBEROS) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_KERBEROS) && !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libgssapi
 _prebuild_libs+=	kerberos5/lib/libkrb5
@@ -1021,7 +1021,7 @@ _prebuild_libs+= lib/libpthread
 
 _generic_libs+=	lib
 
-.if !defined(NOCRYPT)
+.if !defined(NO_CRYPT)
 .if !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
 lib/libradius__L: secure/lib/libssl__L
@@ -1039,7 +1039,7 @@ secure/lib/libssh__L: kerberos5/lib/libgssapi__L kerberos5/lib/libkrb5__L \
 _generic_libs+=	secure/lib
 .endif
 
-.if defined(NOCRYPT) || defined(NO_OPENSSL)
+.if defined(NO_CRYPT) || defined(NO_OPENSSL)
 lib/libradius__L: lib/libmd__L
 .endif
 

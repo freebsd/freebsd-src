@@ -8,7 +8,7 @@ MAKEWHATIS?=	makewhatis
 
 makedb:
 	${MAKEWHATIS} ${DESTDIR}${BINDIR}/man
-.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NO_CRYPT) && !defined(NO_OPENSSL)
 	${MAKEWHATIS} ${DESTDIR}${BINDIR}/openssl/man
 .endif
 
