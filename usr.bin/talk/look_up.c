@@ -44,6 +44,7 @@ static const char sccsid[] = "@(#)look_up.c	8.1 (Berkeley) 6/6/93";
 #include <protocols/talkd.h>
 
 #include <errno.h>
+#include <string.h>
 
 #include "talk_ctl.h"
 #include "talk.h"
