@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.23 1997/05/30 20:39:32 phk Exp $
+ * $Id: malloc.c,v 1.24 1997/06/04 12:55:49 jb Exp $
  *
  */
 
@@ -215,6 +215,9 @@ static int malloc_hint;
 
 /* xmalloc behaviour ?  */
 static int malloc_xmalloc;
+
+/* sysv behaviour for malloc(0) ?  */
+static int malloc_sysv;
 
 /* zero fill ?  */
 static int malloc_zero;
@@ -488,6 +491,8 @@ malloc_init ()
 		case 'J': malloc_junk    = 1; break;
 		case 'u': malloc_utrace  = 0; break;
 		case 'U': malloc_utrace  = 1; break;
+		case 'v': malloc_sysv    = 0; break;
+		case 'V': malloc_sysv    = 1; break;
 		case 'x': malloc_xmalloc = 0; break;
 		case 'X': malloc_xmalloc = 1; break;
 		case 'z': malloc_zero    = 0; break;
@@ -774,7 +779,9 @@ imalloc(size_t size)
     if (suicide)
 	abort();
 
-    if ((size + malloc_pagesize) < size)	/* Check for overflow */
+    if (malloc_sysv && !size)
+	result = 0;
+    else if ((size + malloc_pagesize) < size)	/* Check for overflow */
 	result = 0;
     else if (size <= malloc_maxsize)
 	result =  malloc_bytes(size);
@@ -1179,9 +1186,6 @@ realloc(void *ptr, size_t size)
     }
     if (!ptr) {
 	r = imalloc(size);
-    } else if (ptr && !size) {
-	ifree(ptr);
-	r = 0;
     } else {
         r = irealloc(ptr, size);
     }
