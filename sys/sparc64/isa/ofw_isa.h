@@ -59,6 +59,8 @@ struct isa_ranges {
 #define	ISA_RANGE_CHILD(r) \
 	((((u_int64_t)((r)->child_hi)) << 32) | ((u_int64_t)(r)->child_lo))
 #define	ISA_RANGE_PS(r)	(((r)->phys_hi >> 24) & 0x03)
+#define	ISA_RANGE_PHYS(r) \
+	((((u_int64_t)(r)->phys_mid) << 32) | ((u_int64_t)(r)->phys_lo))
 
 typedef u_int32_t ofw_isa_intr_t;
 
@@ -76,8 +78,9 @@ struct isa_imap_msk {
 	ofw_isa_intr_t	intr;		/* interrupt */
 };
 
+int ofw_isa_range_restype(struct isa_ranges *);
 /* Map an IO range. Returns the resource type of the range. */
-int ofw_isa_map_iorange(struct isa_ranges *, int, u_long *, u_long *);
+int ofw_isa_range_map(struct isa_ranges *, int, u_long *, u_long *, int *);
 
 #ifdef OFW_NEWPCI
 ofw_pci_intr_t ofw_isa_route_intr(device_t, phandle_t, struct ofw_bus_iinfo *,
