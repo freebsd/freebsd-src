@@ -2452,7 +2452,7 @@ ap_init(void)
 
 	/* spin until all the AP's are ready */
 	while (!aps_ready)
-		/* spin */ ;
+		ia32_pause();
 
 	/* BSP may have changed PTD while we were waiting */
 	invltlb();
@@ -2500,7 +2500,8 @@ ap_init(void)
 	printf("SMP: AP CPU #%d Launched!\n", PCPU_GET(cpuid));
 
 	if (smp_cpus == mp_ncpus) {
-		smp_started = 1; /* enable IPI's, tlb shootdown, freezes etc */
+		/* enable IPI's, tlb shootdown, freezes etc */
+		atomic_store_rel_int(&smp_started, 1);
 		smp_active = 1;	 /* historic */
 	}
 
@@ -2508,13 +2509,14 @@ ap_init(void)
 
 	/* wait until all the AP's are up */
 	while (smp_started == 0)
-		; /* nothing */
+		ia32_pause();
+
+	/* ok, now grab sched_lock and enter the scheduler */
+	mtx_lock_spin(&sched_lock);
 
 	binuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
-	/* ok, now grab sched_lock and enter the scheduler */
-	mtx_lock_spin(&sched_lock);
 	cpu_throw();	/* doesn't return */
 
 	panic("scheduler returned us to %s", __func__);
@@ -2649,7 +2651,12 @@ ipi_self(u_int ipi)
 void
 release_aps(void *dummy __unused)
 {
+
+	mtx_lock_spin(&sched_lock);
 	atomic_store_rel_int(&aps_ready, 1);
+	while (smp_started == 0)
+		ia32_pause();
+	mtx_unlock_spin(&sched_lock);
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
