@@ -670,12 +670,23 @@ ctl_renametf(const char *ptrname, const char *tfname)
 		size1 = tfstat.st_size;
 		tfstat.st_size = 2;	/* certainly invalid value */
 		res = stat(tfname2, &tfstat);
-		/* if the sizes do not match, or either stat call failed,
-		 * then do not remove the temp files, but return "all OK".
-		 * This is just so I can see what this routine had changed.
+		/*
+		 * If the sizes do not match, or either stat call failed,
+		 * then do not remove the temp files, but just move them
+		 * out of the way.  This is so I can see what this routine
+		 * had changed (and the files won't interfere with some
+		 * later job coming in from the same host).  In this case,
+		 * we don't care if we clobber some previous file.
 		 */
-		if (size1 != tfstat.st_size)
+		if (size1 != tfstat.st_size) {
+			strlcpy(cfname2, tfname, sizeof(cfname2));
+			strlcat(cfname2, "._T", sizeof(cfname2));
+			rename(tfname, cfname2);
+			strlcpy(cfname2, tfname2, sizeof(cfname2));
+			strlcat(cfname2, "._T", sizeof(cfname2));
+			rename(tfname2, cfname2);
 			return NULL;
+		}
 	}
 #endif
 	unlink(tfname);
