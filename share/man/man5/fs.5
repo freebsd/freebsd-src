@@ -313,7 +313,7 @@ defines the amount of space allocated in
 the super-block for this name.
 The limit on the amount of summary information per file system
 is defined by
-.Dv MAXCSBUFS.
+.Dv MAXCSBUFS .
 For a 4096 byte block size, it is currently parameterized for a
 maximum of two million cylinders.
 .Pp
@@ -325,7 +325,7 @@ These blocks are read in from
 .Fa fs_cssize )
 in addition to the super-block.
 .Pp
-.Sy N.B.:
+.Sy N.B. :
 .Fn sizeof "struct csum"
 must be a power of two in order for
 the

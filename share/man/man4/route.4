@@ -219,7 +219,7 @@ struct rt_msghdr {
 
 struct if_msghdr {
     u_short ifm_msglen;         /* to skip over non-understood messages */
-    u_char  ifm_version;        /* future binary compatability */
+    u_char  ifm_version;        /* future binary compatibility */
     u_char  ifm_type;           /* message type */
     int     ifm_addrs;          /* like rtm_addrs */
     int     ifm_flags;          /* value of if_flags */
@@ -229,7 +229,7 @@ struct if_msghdr {
 
 struct ifa_msghdr {
     u_short ifam_msglen;        /* to skip over non-understood messages */
-    u_char  ifam_version;       /* future binary compatability */
+    u_char  ifam_version;       /* future binary compatibility */
     u_char  ifam_type;          /* message type */
     int     ifam_addrs;         /* like rtm_addrs */
     int     ifam_flags;         /* value of ifa_flags */
@@ -239,7 +239,7 @@ struct ifa_msghdr {
 
 struct ifma_msghdr {
     u_short ifmam_msglen;       /* to skip over non-understood messages */
-    u_char  ifmam_version;      /* future binary compatability */
+    u_char  ifmam_version;      /* future binary compatibility */
     u_char  ifmam_type;         /* message type */
     int     ifmam_addrs;        /* like rtm_addrs */
     int     ifmam_flags;        /* value of ifa_flags */

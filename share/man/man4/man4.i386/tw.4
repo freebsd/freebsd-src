@@ -84,12 +84,10 @@ The driver produces a series of three
 character packets.  In each packet, the first character consists of flags,
 the second character is a four bit house code (0-15), and the third character
 is a five bit key/function code (0-31).  The flags are the following:
-.Bl -diag
-.It
+.Bd -literal
 #define TW_RCV_LOCAL	1  /* The packet arrived during a local transmission */
-.It
 #define TW_RCV_ERROR	2  /* An invalid/corrupted packet was received */
-.El
+.Ed
 .Pp
 The
 .Fn select
@@ -98,10 +96,8 @@ is data ready for reading.
 .Sh SEE ALSO
 .Xr xten 1 ,
 .Xr xtend 8
-.Bl -diag
-.It
+.Pp
 TW-523 documentation from X-10 Inc.
-.El
 .Sh FILES
 .Bl -tag -width /dev/tw
 .It Pa /dev/tw?

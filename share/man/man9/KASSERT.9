@@ -36,7 +36,7 @@
 .Nd kernel expression verification macro
 .Sh SYNOPSIS
 .Cd options INVARIANTS
-.Fn KASSERT "int expression, const char *msg"
+.Fn KASSERT expression "const char *msg"
 .Sh DESCRIPTION
 In a kernel compiled with "options INVARIANTS",
 the 
@@ -72,4 +72,4 @@ vput(vp)
 .Sh AUTHORS
 This manual page was written by
 .An Jonathan M. Bresler
-.Aq jmb@freebsd.org .
+.Aq jmb@FreeBSD.org .

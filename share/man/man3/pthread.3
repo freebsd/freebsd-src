@@ -36,6 +36,8 @@
 .Sh NAME
 .Nm pthread
 .Nd POSIX thread functions
+.Sh SYNOPSIS
+.Fd #include <pthread.h>
 .Sh DESCRIPTION
 POSIX threads are a set of functions that support applications with
 requirements for multiple flows of control, called
@@ -64,142 +66,310 @@ Cleanup Routines
 .El
 .Sh THREAD ROUTINES
 .Bl -tag -width Er
-.It int Fn pthread_create "pthread_t *thread" "const pthread_attr_t *attr" "void *(*start_routine)(void *)" "void *arg"
+.It Xo
+.Ft int
+.Fn pthread_create "pthread_t *thread" "const pthread_attr_t *attr" "void *(*start_routine)(void *)" "void *arg"
+.Xc
 Creates a new thread of execution.
-.It int Fn pthread_detach "pthread_t thread"
+.It Xo
+.Ft int
+.Fn pthread_detach "pthread_t thread"
+.Xc
 Marks a thread for deletion.
-.It int Fn pthread_equal "pthread_t t1" "pthread_t t2"
+.It Xo
+.Ft int
+.Fn pthread_equal "pthread_t t1" "pthread_t t2"
+.Xc
 Compares two thread IDs.
-.It void Fn pthread_exit "void *value_ptr"
+.It Xo
+.Ft void
+.Fn pthread_exit "void *value_ptr"
+.Xc
 Terminates the calling thread.
-.It int Fn pthread_join "pthread_t thread" "void **value_ptr"
+.It Xo
+.Ft int
+.Fn pthread_join "pthread_t thread" "void **value_ptr"
+.Xc
 Causes the calling thread to wait for the termination of the specified thread.
-.It int Fn pthread_cancel "pthread_t thread"
+.It Xo
+.Ft int
+.Fn pthread_cancel "pthread_t thread"
+.Xc
 Cancels execution of a thread.
-.It int Fn pthread_once "pthread_once_t *once_control" "void (*init_routine)(void)"
+.It Xo
+.Ft int
+.Fn pthread_once "pthread_once_t *once_control" "void (*init_routine)(void)"
+.Xc
 Calls an initialization routine once.
-.It pthread_t Fn pthread_self void
+.It Xo
+.Ft pthread_t
+.Fn pthread_self void
+.Xc
 Returns the thread ID of the calling thread.
 .El
 .Sh ATTRIBUTE OBJECT ROUTINES
 .Bl -tag -width Er
-.It int Fn pthread_attr_destroy "pthread_attr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_attr_destroy "pthread_attr_t *attr"
+.Xc
 Destroy a thread attributes object.
-.It int Fn pthread_attr_getinheritsched "pthread_attr_t *attr" "int *inheritsched"
+.It Xo
+.Ft int
+.Fn pthread_attr_getinheritsched "const pthread_attr_t *attr" "int *inheritsched"
+.Xc
 Get the inherit scheduling attribute from a thread attributes object.
-.It int Fn pthread_attr_getschedparam "pthread_attr_t *attr" "struct sched_param *param"
+.It Xo
+.Ft int
+.Fn pthread_attr_getschedparam "const pthread_attr_t *attr" "struct sched_param *param"
+.Xc
 Get the scheduling parameter attribute from a thread attributes object.
-.It int Fn pthread_attr_getschedpolicy "pthread_attr_t *attr" "int *policy"
+.It Xo
+.Ft int
+.Fn pthread_attr_getschedpolicy "const pthread_attr_t *attr" "int *policy"
+.Xc
 Get the scheduling policy attribute from a thread attributes object.
-.It int Fn pthread_attr_getscope "pthread_attr_t *attr" "int *contentionscope"
+.It Xo
+.Ft int
+.Fn pthread_attr_getscope "const pthread_attr_t *attr" "int *contentionscope"
+.Xc
 Get the contention scope attribute from a thread attributes object.
-.It int Fn pthread_attr_getstacksize "pthread_attr_t *attr" "size_t *stacksize"
+.It Xo
+.Ft int
+.Fn pthread_attr_getstacksize "const pthread_attr_t *attr" "size_t *stacksize"
+.Xc
 Get the stack size attribute from a thread attributes object.
-.It int Fn pthread_attr_getstackaddr "pthread_attr_t *attr" "void **stackaddr"
+.It Xo
+.Ft int
+.Fn pthread_attr_getstackaddr "const pthread_attr_t *attr" "void **stackaddr"
+.Xc
 Get the stack address attribute from a thread attributes object.
-.It int Fn pthread_attr_getdetachstate "pthread_attr_t *attr" "int *detachstate"
+.It Xo
+.Ft int
+.Fn pthread_attr_getdetachstate "const pthread_attr_t *attr" "int *detachstate"
+.Xc
 Get the detach state attribute from a thread attributes object.
-.It int Fn pthread_attr_init "pthread_attr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_attr_init "pthread_attr_t *attr"
+.Xc
 Initialize a thread attributes object with default values.
-.It int Fn pthread_attr_setinheritsched "pthread_attr_t *attr" "int inheritsched"
+.It Xo
+.Ft int
+.Fn pthread_attr_setinheritsched "pthread_attr_t *attr" "int inheritsched"
+.Xc
 Set the inherit scheduling attribute in a thread attributes object.
-.It int Fn pthread_attr_setschedparam "pthread_attr_t *attr" "struct sched_param *param"
+.It Xo
+.Ft int
+.Fn pthread_attr_setschedparam "pthread_attr_t *attr" "const struct sched_param *param"
+.Xc
 Set the scheduling parameter attribute in a thread attributes object.
-.It int Fn pthread_attr_setschedpolicy "pthread_attr_t *attr" "int policy"
+.It Xo
+.Ft int
+.Fn pthread_attr_setschedpolicy "pthread_attr_t *attr" "int policy"
+.Xc
 Set the scheduling policy attribute in a thread attributes object.
-.It int Fn pthread_attr_setscope "pthread_attr_t *attr" "int contentionscope"
+.It Xo
+.Ft int
+.Fn pthread_attr_setscope "pthread_attr_t *attr" "int contentionscope"
+.Xc
 Set the contention scope attribute in a thread attributes object.
-.It int Fn pthread_attr_setstacksize "pthread_attr_t *attr" "size_t stacksize"
+.It Xo
+.Ft int
+.Fn pthread_attr_setstacksize "pthread_attr_t *attr" "size_t stacksize"
+.Xc
 Set the stack size attribute in a thread attributes object.
-.It int Fn pthread_attr_setstackaddr "pthread_attr_t *attr" "void *stackaddr"
+.It Xo
+.Ft int
+.Fn pthread_attr_setstackaddr "pthread_attr_t *attr" "void *stackaddr"
+.Xc
 Set the stack address attribute in a thread attributes object.
-.It int Fn pthread_attr_setdetachstate "pthread_attr_t *attr" "int detachstate"
+.It Xo
+.Ft int
+.Fn pthread_attr_setdetachstate "pthread_attr_t *attr" "int detachstate"
+.Xc
 Set the detach state in a thread attributes object.
 .El
 .Sh MUTEX ROUTINES
 .Bl -tag -width Er
-.It int Fn pthread_mutexattr_destroy "pthread_mutexattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_destroy "pthread_mutexattr_t *attr"
+.Xc
 Destroy a mutex attributes object.
-.It int Fn pthread_mutexattr_init "pthread_mutexattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_mutexattr_init "pthread_mutexattr_t *attr"
+.Xc
 Initialize a mutex attributes object with default values.
-.It int Fn pthread_mutex_destroy "pthread_mutex_t *mutex"
+.It Xo
+.Ft int
+.Fn pthread_mutex_destroy "pthread_mutex_t *mutex"
+.Xc
 Destroy a mutex.
-.It int Fn pthread_mutex_init "pthread_mutex_t *mutex" "const pthread_mutexattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_mutex_init "pthread_mutex_t *mutex" "const pthread_mutexattr_t *attr"
+.Xc
 Initialize a mutex with specified attributes.
-.It int Fn pthread_mutex_lock "pthread_mutex_t *mutex"
+.It Xo
+.Ft int
+.Fn pthread_mutex_lock "pthread_mutex_t *mutex"
+.Xc
 Lock a mutex and block until it becomes available.
-.It int Fn pthread_mutex_trylock "pthread_mutex_t *mutex"
+.It Xo
+.Ft int
+.Fn pthread_mutex_trylock "pthread_mutex_t *mutex"
+.Xc
 Try to lock a mutex, but don't block if the mutex is locked by another thread,
 including the current thread.
-.It int Fn pthread_mutex_unlock "pthread_mutex_t *mutex"
+.It Xo
+.Ft int
+.Fn pthread_mutex_unlock "pthread_mutex_t *mutex"
+.Xc
 Unlock a mutex.
 .El
 .Sh CONDITION VARIABLE ROUTINES
 .Bl -tag -width Er
-.It int Fn pthread_condattr_init "pthread_condattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_condattr_init "pthread_condattr_t *attr"
+.Xc
 Initialize a condition variable attributes object with default values.
-.It int Fn pthread_condattr_destroy "pthread_condattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_condattr_destroy "pthread_condattr_t *attr"
+.Xc
 Destroy a condition variable attributes object.
-.It int Fn pthread_cond_broadcast "pthread_cond_t *cond"
+.It Xo
+.Ft int
+.Fn pthread_cond_broadcast "pthread_cond_t *cond"
+.Xc
 Unblock all threads currently blocked on the specified condition variable.
-.It int Fn pthread_cond_destroy "pthread_cond_t *cond"
+.It Xo
+.Ft int
+.Fn pthread_cond_destroy "pthread_cond_t *cond"
+.Xc
 Destroy a condition variable.
-.It int Fn pthread_cond_init "pthread_cond_t *cond" "const pthread_condattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_cond_init "pthread_cond_t *cond" "const pthread_condattr_t *attr"
+.Xc
 Initialize a condition variable with specified attributes.
-.It int Fn pthread_cond_signal "pthread_cond_t *cond"
+.It Xo
+.Ft int
+.Fn pthread_cond_signal "pthread_cond_t *cond"
+.Xc
 Unblock at least one of the threads blocked on the specified condition variable.
-.It int Fn pthread_cond_timedwait "pthread_cond_t *cond" "pthread_mutex_t *mutex" "const struct timespec *abstime"
+.It Xo
+.Ft int
+.Fn pthread_cond_timedwait "pthread_cond_t *cond" "pthread_mutex_t *mutex" "const struct timespec *abstime"
+.Xc
 Wait no longer than the specified time for a condition and lock the specified mutex.
-.It int Fn pthread_cond_wait "pthread_cond_t *" "pthread_mutex_t *mutex"
+.It Xo
+.Ft int
+.Fn pthread_cond_wait "pthread_cond_t *" "pthread_mutex_t *mutex"
+.Xc
 Wait for a condition and lock the specified mutex.
 .El
 .Sh READ/WRITE LOCK ROUTINES
 .Bl -tag -width Er
-.It int Fn pthread_rwlock_destroy "pthread_rwlock_t *lock"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_destroy "pthread_rwlock_t *lock"
+.Xc
 Destroy a read/write lock object.
-.It int Fn pthread_rwlock_init "pthread_rwlock_t *lock" "const pthread_rwlockattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_init "pthread_rwlock_t *lock" "const pthread_rwlockattr_t *attr"
+.Xc
 Initialize a read/write lock object.
-.It int Fn pthread_rwlock_rdlock "pthread_rwlock_t *lock"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_rdlock "pthread_rwlock_t *lock"
+.Xc
 Lock a read/write lock for reading, blocking until the lock can be
 acquired.
-.It int Fn pthread_rwlock_tryrdlock "pthread_rwlock_t *lock"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_tryrdlock "pthread_rwlock_t *lock"
+.Xc
 Attempt to lock a read/write lock for reading, without blocking if the
 lock is unavailable.
-.It int Fn pthread_rwlock_trywrlock "pthread_rwlock_t *lock"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_trywrlock "pthread_rwlock_t *lock"
+.Xc
 Attempt to lock a read/write lock for writing, without blocking if the
 lock is unavailable.
-.It int Fn pthread_rwlock_unlock "pthread_rwlock_t *lock"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_unlock "pthread_rwlock_t *lock"
+.Xc
 Unlock a read/write lock.
-.It int Fn pthread_rwlock_wrlock "pthread_rwlock_t *lock"
+.It Xo
+.Ft int
+.Fn pthread_rwlock_wrlock "pthread_rwlock_t *lock"
+.Xc
 Lock a read/write lock for writing, blocking until the lock can be
 acquired.
-.It int Fn pthread_rwlockattr_destroy "pthread_rwlockattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_rwlockattr_destroy "pthread_rwlockattr_t *attr"
+.Xc
 Destroy a read/write lock attribute object.
-.It int Fn pthread_rwlockattr_getpshared "pthread_rwlockattr_t *attr" "int *pshared"
+.It Xo
+.Ft int
+.Fn pthread_rwlockattr_getpshared "const pthread_rwlockattr_t *attr" "int *pshared"
+.Xc
 Retrieve the process shared setting for the read/write lock attribute
 object.
-.It int Fn pthread_rwlockattr_init "pthread_rwlockattr_t *attr"
+.It Xo
+.Ft int
+.Fn pthread_rwlockattr_init "pthread_rwlockattr_t *attr"
+.Xc
 Initialize a read/write lock attribute object.
-.It int Fn pthread_rwlockattr_setpshared "pthread_rwlockattr_t *attr" "int *pshared"
+.It Xo
+.Ft int
+.Fn pthread_rwlockattr_setpshared "pthread_rwlockattr_t *attr" "int pshared"
+.Xc
 Set the process shared setting for the read/write lock attribute object.
 .El
 .Sh PER-THREAD CONTEXT ROUTINES
 .Bl -tag -width Er
-.It int Fn pthread_key_create "pthread_key_t *key" "void (*routine)(void *)"
+.It Xo
+.Ft int
+.Fn pthread_key_create "pthread_key_t *key" "void (*routine)(void *)"
+.Xc
 Create a thread-specific data key.
-.It int Fn pthread_key_delete "pthread_key_t key"
+.It Xo
+.Ft int
+.Fn pthread_key_delete "pthread_key_t key"
+.Xc
 Delete a thread-specific data key.
-.It void * Fn pthread_getspecific "pthread_key_t key" "void **value_ptr"
+.It Xo
+.Ft "void *"
+.Fn pthread_getspecific "pthread_key_t key"
+.Xc
 Get the thread-specific value for the specified key.
-.It int Fn pthread_setspecific "pthread_key_t key" "const void *value_ptr"
+.It Xo
+.Ft int
+.Fn pthread_setspecific "pthread_key_t key" "const void *value_ptr"
+.Xc
 Set the thread-specific value for the specified key.
 .El
 .Sh CLEANUP ROUTINES
 .Bl -tag -width Er
-.It void Fn pthread_cleanup_pop "int execute"
+.It Xo
+.Ft void
+.Fn pthread_cleanup_pop "int execute"
+.Xc
 Remove the routine at the top of the calling thread's cancellation cleanup
 stack and optionally invoke it.
-.It void Fn pthread_cleanup_push "void (*routine)(void *)" "void *routine_arg"
+.It Xo
+.Ft void
+.Fn pthread_cleanup_push "void (*routine)(void *)" "void *routine_arg"
+.Xc
 Push the specified cancellation cleanup handler onto the calling thread's 
 cancellation stack.
 .El
@@ -271,9 +441,8 @@ prefix and not
 .Fa _np
 suffix or
 .Fa pthread_rwlock
-prefix conform to IEEE
-.Pq Dq Tn POSIX
-Std 1003.1 Second Edition 1996-07-12
+prefix conform to
+.St -p1003.1-96 .
 .Pp
 The functions in libc_r with the
 .Fa pthread_
@@ -283,5 +452,5 @@ suffix are non-portable extensions to POSIX threads.
 .Pp
 The functions in libc_r with the
 .Fa pthread_rwlock
-prefix are extensions created by The Open Group as part of the Single
-UNIX Specification, Version 2.
+prefix are extensions created by The Open Group as part of the
+.St -susv2 .

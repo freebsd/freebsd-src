@@ -35,7 +35,7 @@
 .Nm device
 .Nd an abstract representation of a device
 .Sh SYNOPSIS
-.Dv typedef struct device *device_t;
+.Vt typedef struct device *device_t ;
 .Sh DESCRIPTION
 .Pp
 The device object represents a piece of hardware attached to the
@@ -62,7 +62,7 @@ In addition, any device can have children attached to it (see
 and
 .Xr device_delete_child 9 ) .
 .Pp
-A device which has been successfully been probed and attached to the
+A device which has been successfully probed and attached to the
 system will also have a driver (see
 .Xr device_get_driver 9
 and

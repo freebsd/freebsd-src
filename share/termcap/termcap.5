@@ -107,8 +107,7 @@ in 132-column mode would be
 .Dq vt100-w .
 The following suffixes should be used where possible:
 .Pp
-.Bd -filled -offset indent
-.Bl -column indent "With automatic margins (usually default)xx"
+.Bl -column indent "With automatic margins (usually default)xx" -offset indent
 .Sy "Suffix	Meaning	Example"
 -w	Wide mode (more than 80 columns)	vt100-w
 -am	With automatic margins (usually default)	vt100-am
@@ -118,7 +117,6 @@ The following suffixes should be used where possible:
 .Pf \- Ar \&np Ta No "Number of pages of memory	concept100-4p"
 -rv	Reverse video	concept100-rv
 .El
-.Ed
 .Sh CAPABILITIES
 The description field attempts to convey the semantics of the
 capability.
@@ -1131,7 +1129,7 @@ is safe to send.
 This turns out to be essential for the Ann Arbor 4080.)
 .Pp
 A final example is the Lear Siegler
-.Tn ADM Ns \-3a,
+.Tn ADM Ns \-3a ,
 which offsets row and column
 by a blank character, thus
 .Dq Li cm=\eE=%+ %+\ \& .
@@ -1245,7 +1243,7 @@ which all commands affect, it should be given as the parameterized string
 The four parameters are the starting and ending lines in memory
 and the starting and ending columns in memory, in that order.
 (This
-.Xr terminfo
+.Xr terminfo 5
 capability is described for completeness.
 It is unlikely that any
 .Nm Ns \-using
@@ -1468,7 +1466,7 @@ only those for which corresponding attribute commands exist.
 .Nm Ns \-using
 program will support this capability, which is defined for compatibility
 with
-.Xr terminfo . )
+.Xr terminfo 5 . )
 .Pp
 Terminals with the
 .Dq magic cookie
@@ -1480,7 +1478,7 @@ rather than maintaining extra attribute bits for each character cell,
 instead deposit special
 .Dq cookies ,
 or
-.Dq garbage characters ,,
+.Dq garbage characters ,
 when they receive mode-setting sequences,
 which affect the display algorithm.
 .Pp
@@ -1879,7 +1877,7 @@ this can be indicated with the parameterized string
 The first parameter is the character to be repeated and the second is
 the number of times to repeat it.
 (This is a
-.Xr terminfo
+.Xr terminfo 5
 feature that is unlikely to be supported by a program that uses
 .Nm . )
 .Pp
@@ -1998,7 +1996,7 @@ causes the string to be transmitted to the computer.
 Unfortunately, due to lack of a definition for string parameters in
 .Nm ,
 only
-.Xr terminfo
+.Xr terminfo 5
 supports these capabilities.
 .Ss Glitches and Braindamage
 Hazeltine terminals, which do not allow `~' characters to be displayed,
@@ -2116,7 +2114,7 @@ The
 .Nm
 functions
 were replaced by
-.Xr terminfo
+.Xr terminfo 5
 in
 .At V
 Release 2.0.

@@ -191,7 +191,7 @@ except that the last start address subtracted by the size displayed by it
 is used as the start address.
 .It Cm print Ns Op Cm /acdoruxz
 Print 
-.No Ar addr Ns s
+.Ar addr Ns s
 according to the modifier character (as described above for
 .Li examine ) .
 Valid formats are:
@@ -218,7 +218,7 @@ ecx = yyyyyy
 .Ed
 .It Xo
 .Cm write Ns Op Cm /bhl
-.No Ar addr Ar expr1 Op Ar "expr2 ..."
+.Ar addr Ar expr1 Op Ar "expr2 ..."
 .Xc
 Write the expressions specified after
 .Ar addr
@@ -239,7 +239,7 @@ things may happen.
 It's best to enclose each expression in parentheses.
 .It Xo
 .Cm set
-.No Li \&$ Ns Ar variable
+.Li \&$ Ns Ar variable
 .Op Li =
 .Ar expr
 .Xc
@@ -326,9 +326,9 @@ modifier is specified, print the call nesting depth and the
 cumulative instruction count at each call or return.  Otherwise,
 only print when the matching return is hit.
 .It Xo
-.No Cm trace Ns Op Cm /u
+.Cm trace Ns Op Cm /u
 .Op Ar frame
-.Op Ar ,count
+.Op , Ns Ar count
 .Xc
 Stack trace.  The
 .Li u
@@ -346,11 +346,11 @@ is omitted, all frames are printed.
 User space stack trace is valid
 only if the machine dependent code supports it.
 .It Xo
-.No Cm search Ns Op Cm /bhl
+.Cm search Ns Op Cm /bhl
 .Ar addr
 .Ar value
 .Op Ar mask
-.Op Ar ,count
+.Op , Ns Ar count
 .Xc
 Search memory for
 .Ar value .
@@ -405,7 +405,7 @@ complete object is printed.
 Displays all watchpoints.
 .It Xo
 .Cm watch
-.No Ar addr Ns Li \&, Ns Ar size
+.Ar addr Ns Li \&, Ns Ar size
 .Xc
 Set a watchpoint for a region.  Execution stops
 when an attempt to modify the region occurs.
@@ -433,7 +433,7 @@ abbreviations.
 .El
 .Sh VARIABLES
 The debugger accesses registers and variables as
-.No Li \&$ Ns Em name .
+.Li \&$ Ns Em name .
 Register names are as in the
 .Dq Cm show registers
 command.

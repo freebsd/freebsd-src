@@ -162,7 +162,7 @@ file descriptor zero by the following code fragment:
 Change to the new line discipline pointed to by
 .Fa ldisc .
 The available line disciplines are listed in
-.Pa Aq sys/ttycom.h
+.Aq Pa sys/ttycom.h
 and currently are:
 .Pp
 .Bl -tag -width NETGRAPHDISC -compact
@@ -303,7 +303,7 @@ If the value of the int pointed to by
 contains the
 .Dv FREAD
 bit as defined in
-.Pa Aq sys/file.h ,
+.Aq Pa sys/file.h ,
 then all characters in the input queue are cleared.  If it contains
 the
 .Dv FWRITE
@@ -324,7 +324,7 @@ and is the means by which most full\&-screen oriented programs determine the
 screen size.  The
 .Va winsize
 structure is defined in
-.Pa Aq sys/ioctl.h .
+.Aq Pa sys/ioctl.h .
 .It Dv TIOCSWINSZ Fa struct winsize *ws
 Set the window size associated with the terminal to be the value in
 the

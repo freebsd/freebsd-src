@@ -28,159 +28,166 @@
 .Dt STYLE.PERL 7
 .Os FreeBSD
 .Sh NAME
-.Nm style.perl 7
+.Nm style.perl
 .Nd "FreeBSD Perl source file style guide"
 .Sh DESCRIPTION
 This file specifies the preferred style for perl scripts in the
 .Fx
 source tree.
-.Bd -literal -offset 0i
- #
- # Style guide for Perl.  Based on the kernel style guide.
- #
+.Bd -literal
+#
+# Style guide for Perl.  Based on the kernel style guide.
+#
 
- #
- # VERY important single-line comments look like this.
- #
+#
+# VERY important single-line comments look like this.
+#
 
- # Most single-line comments look like this.
+# Most single-line comments look like this.
 
- # Multi-line comments look like this.  Make them real sentences.
- # Fill them so they look like real paragraphs.
+# Multi-line comments look like this.  Make them real sentences.
+# Fill them so they look like real paragraphs.
 .Ed
 .Pp
 All scripts should follow the copyright block at the start of the
 script with a comment block that describes what the script does.
-.Bd -literal -offset 0i
- #!/usr/bin/perl -w
+.Bd -literal
+#!/usr/bin/perl -w
 
- # COPYRIGHT
- # BLOCK
+# COPYRIGHT
+# BLOCK
 
- # This script processes an old kernel config file, which it gets on
- # stdin, and outputs a new style hints file to stdout.
+# This script processes an old kernel config file, which it gets on
+# stdin, and outputs a new style hints file to stdout.
 .Ed
+.Pp
 All scripts should use the
-.Fa strict
-module and run without warnings. For example:
-.Bd -literal -offset 0i
- #!/usr/bin/perl -w
+.Xr strict 3
+module and run without warnings.
+For example:
+.Bd -literal
+#!/usr/bin/perl -w
 
- # Copyright, description of what the script does, etc
+# Copyright, description of what the script does, etc
 
- use strict;
- ...
+use strict;
+\&...
 .Ed
 .Pp
-Where possible run the script with taint mode switched on.  This
-is documented in
+Where possible run the script with taint mode switched on.
+This is documented in
 .Xr perlsec 1 .
-.Bd -literal -offset 0i
- #!/usr/bin/perl -wT
+.Bd -literal
+#!/usr/bin/perl -wT
 .Ed
 .Pp
-The main program should be placed in a block labeled MAIN:.  This
+The main program should be placed in a block labeled MAIN:.
+This
 makes it easier to identify the entry point in a large perl script,
 and provides a scope for variables which are used in the main
 program but nowhere else.
-.Bd -literal -offset 0i
- MAIN:{
+.Bd -literal
+MAIN:{
 	print(foo("/usr/bin/man", "7", "style.perl"));
 	exit(0);
- }
+}
 .Ed
 .Pp
 All subroutines should be defined using argument prototypes as defined in
 .Xr perlsub 1 .
-.Bd -literal -offset 0i
- sub foo($@) {
+.Bd -literal
+sub foo($@) {
 	my $cmd = shift;
 	my @args = @_;
- }
+}
 .Ed
 .Pp
 All variables should be defined before use; this is enforced if operating
 under
-.Fa use strict .
+.Ic use Ar strict .
 .Pp
 Scope local variables should be defined using
-.Fa my
+.Ic my
 .Va $variable
 and not
-.Fa local
+.Ic local
 .Va $variable .
 The
-.Fa local
+.Ic local
 declaration should only be used when it is required, and not by
-default.  Lots of perl4 scripts use
-.Fa local
+default.
+Lots of perl4 scripts use
+.Ic local
 because the
-.Fa my
+.Ic my
 definition didn't exist prior to perl5.
 .Pp
 In most cases globals should be defined at the top of the code
 using a
-.Fa vars
+.Xr vars 3
 definition block:
-.Bd -literal -offset 0i
- use vars qw($globalscalar @globalarray %globalhash);
+.Bd -literal
+use vars qw($globalscalar @globalarray %globalhash);
 .Ed
 .Pp
 In some cases it may be appropriate to use
-.Fa my
+.Ic my
 statements at the top of the script as an alternative to using
-.Fa vars
+.Xr vars 3
 declarations.
 .Pp
 All variables should be commented.
-.Bd -literal -offset 0i
- sub foo($@) {
+.Bd -literal
+sub foo($@) {
 	my $cmd = shift;	# Command to run
 	my @args = @_;		# Arguments to $cmd
- }
+}
 .Ed
 .Pp
 Local variables should be separated from function arguments by a
 blank line:
-.Bd -literal -offset 0i
- sub foo($@) {
+.Bd -literal
+sub foo($@) {
 	my $cmd = shift;	# Command to run
 	my @args = @_;		# Arguments to command
 
 	my $pid;		# Child PID
 	local *PIPE;		# Pipe
 	my $output;		# Output from command
- }
+}
 .Ed
 .Pp
 Whenever possible code should be run through the code checker
 .Nm perl
-.Ar -wc
+.Fl wc
 .Ar script.pl
 or
 .Nm perl
-.Ar -wcT
+.Fl wcT
 .Ar script.pl
 and produce no warnings.
 .Pp
-Indentation is an 8 character tab.  Second level indents are four spaces.
-.Bd -literal -offset 0i
- while (cnt < 20) {
+Indentation is an 8 character tab.
+Second level indents are four spaces.
+.Bd -literal
+while (cnt < 20) {
 	z = a + really + long + statement + that + needs +
 	    two lines + gets + indented + four + spaces +
 	    on + the + second + and + subsequent + lines.
- }
+}
 .Ed
 .Pp
 Do not add whitespace at the end of a line, and only use tabs
-followed by spaces to form the indentation.  Do not use more spaces
+followed by spaces to form the indentation.
+Do not use more spaces
 than a tab will produce and do not use spaces in front of tabs.
 .Pp
-Opening braces should be at the end of the controlling line.  Else
+Opening braces should be at the end of the controlling line.
+Else
 and elsif belong on the same line as the closing brace for the
 previous if or elsif block:
-.Bd -literal -offset 0i
- sub foo($@) {
+.Bd -literal
+sub foo($@) {
 	my $cmd = shift;            # Command to run
 	my @args = @_;              # Arguments to command
 
@@ -205,23 +212,24 @@ previous if or elsif block:
 		die("$cmd returned exit code " . ($? >> 8) . "\\n");
 	}
 	return $output;
- }
+}
 .Ed
 .Pp
 Where possible scripts should use standard modules instead of
-rewriting the code inline.  It may be appropriate in some cases to
+rewriting the code inline.
+It may be appropriate in some cases to
 import a CPAN module into the base system to facilitate this.
 .Pp
 Use
-.Fa chomp
+.Ic chomp
 instead of
-.Fa chop
+.Ic chop
 where appropriate.
 .Pp
 Use
-.Fa unless
+.Ic unless
 instead of
-.Fa if (! ...\& )
+.Ic if Pq Cm \&! No ...\&
 where it improves readability.
 .Pp
 Where it doesn't conflict with this guide read
@@ -234,5 +242,5 @@ and adopt Larry Wall's style recommendations.
 .Sh HISTORY
 This man page is largely based on the
 .Xr style 9
-man-page in
+man page in
 .Fx .

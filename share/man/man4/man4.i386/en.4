@@ -41,12 +41,12 @@ To enable the link use the following commands:
 .Dl	# ifconfig en0 128.252.200.2 netmask 0xffffff00 up
 .Dl	# route add -iface 128.252.200.1 -link en0:3.0.0.c9
 .Sh DIAGNOSTICS
-.Bl -diag
-.It	"en0 <Efficient Networks ENI-155p> rev 0 int a irq 5 on pci0:16"
-.It	"en0: ATM midway v0, board IDs 6.0, Utopia (pipelined), 512KB on-board RAM"
-.It	"en0: maximum DMA burst length = 64 bytes"
-.It	"en0: 7 32KB receive buffers, 8 32KB transmit buffers allocated"
-.El
+.Bd -literal
+en0 <Efficient Networks ENI-155p> rev 0 int a irq 5 on pci0:16
+en0: ATM midway v0, board IDs 6.0, Utopia (pipelined), 512KB on-board RAM
+en0: maximum DMA burst length = 64 bytes
+en0: 7 32KB receive buffers, 8 32KB transmit buffers allocated
+.Ed
 .Sh CAVEATS
 The driver extensively uses DMA on PCI.
 The first

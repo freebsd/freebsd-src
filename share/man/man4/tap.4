@@ -51,11 +51,9 @@ and thus can be used with
 like any other Ethernet interface. When the system chooses to transmit
 an Ethernet frame on the network interface, the frame can be read from 
 the control device
-.Po
-it appears as
+(it appears as
 .Dq input
-there
-.Pc ;
+there);
 writing an Ethernet frame to the control device generates an input frame on
 the network interface, as if the
 .Pq non-existent
@@ -64,9 +62,7 @@ hardware had just received it.
 The Ethernet tunnel device, normally
 .Pa /dev/tap Ns Sy N ,
 is exclusive-open
-.Po
-it cannot be opened if it is already open
-.Pc
+(it cannot be opened if it is already open)
 and is restricted to the super-user.
 A
 .Fn read
@@ -121,11 +117,9 @@ value is or isn't zero
 .Pq Writes are always nonblocking .
 .It Dv FIOASYNC
 Turn asynchronous I/O for reads
-.Po
-i.e., generation of
+(i.e., generation of
 .Dv SIGIO
-when data is available to be read
-.Pc
+when data is available to be read)
 off or on, according as the argument
 .Va int Ns 's
 value is or isn't zero.
@@ -152,12 +146,10 @@ address of the
 .Dq remote
 side. This command is used by the VMware port and expected to be executed on
 descriptor, associated with control device
-.Po
-usually
+(usually
 .Pa /dev/vmnet Ns Sy N 
 or
-.Pa /dev/tap Ns Sy N 
-.Pc .
+.Pa /dev/tap Ns Sy N ) .
 The
 .Va buffer ,
 which is passed as the argument, is expected to have enough space to store
@@ -189,10 +181,9 @@ writes are always non-blocking.
 .Pp
 On the last close of the data device, the interface is
 brought down
-.Po
-as if with  
-.Dq ifconfig tap Ns Sy N No down
-.Pc unless the devices is a VMnet device.
+(as if with  
+.Dq ifconfig tap Ns Sy N No down )
+unless the devices is a VMnet device.
 All queued frames are thrown away. If the interface is up when the data 
 device is not open, output frames are thrown away rather than 
 letting them pile up.

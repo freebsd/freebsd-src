@@ -68,6 +68,7 @@
 .Nd Internet Control Message Protocol for IPv6
 .\"
 .Sh SYNOPSIS
+.Fd #include <sys/types.h>
 .Fd #include <sys/socket.h>
 .Fd #include <netinet/in.h>
 .Fd #include <netinet/icmp6.h>
@@ -148,25 +149,25 @@ and an option name of
 .Pp
 Six macros operate on an icmp6_filter structure:
 .\" is "Fn" legal for macros?
-.Bl -item -compact -offset indent
+.Bl -item -offset indent
 .It
 .Ft void
-.Fn ICMP6_FILTER_SETPASSALL "struct icmp6_filter *"
+.Fn ICMP6_FILTER_SETPASSALL "struct icmp6_filter *filterp"
 .It
 .Ft void
-.Fn ICMP6_FILTER_SETBLOCKALL "struct icmp6_filter *"
+.Fn ICMP6_FILTER_SETBLOCKALL "struct icmp6_filter *filterp"
 .It
 .Ft void
-.Fn ICMP6_FILTER_SETPASS "int" "struct icmp6_filter *"
+.Fn ICMP6_FILTER_SETPASS "int type" "struct icmp6_filter *filterp"
 .It
 .Ft void
-.Fn ICMP6_FILTER_SETBLOCK "int" "struct icmp6_filter *"
+.Fn ICMP6_FILTER_SETBLOCK "int type" "struct icmp6_filter *filterp"
 .It
 .Ft int
-.Fn ICMP6_FILTER_WILLPASS "int" "const struct icmp6_filter *"
+.Fn ICMP6_FILTER_WILLPASS "int type" "const struct icmp6_filter *filterp"
 .It
 .Ft int
-.Fn ICMP6_FILTER_WILLBLOCK "int" "const struct icmp6_filter *"
+.Fn ICMP6_FILTER_WILLBLOCK "int type" "const struct icmp6_filter *filterp"
 .El
 .Pp
 The first argument to the last four macros

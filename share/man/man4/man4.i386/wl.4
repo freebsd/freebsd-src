@@ -70,7 +70,7 @@ Point to point antennae can be purchased that will go miles.
 The card can either be initialized with the vendor supplied DOS setup software.
 Typically minimally an IRQ, port, and Network ID must be supplied.
 Michael Smith's 
-.Nm wlconfig(8) 
+.Xr wlconfig 8
 utility can now be used to do this work from
 the UNIX side.  The card is "not" plug and play.
 The network id controls whether one set of cards can hear another.
@@ -80,7 +80,7 @@ by the radio modem.
 In addition to the config utility, there are several sysctl
 switches that can be used to modify runtime parameters.
 The 
-.Nm sysctl(8) 
+.Xr sysctl 8
 variables are as follows:
 .Bl -diag
 .It "machdep.wl_xmit_delay <useconds>"
@@ -101,7 +101,7 @@ This switch is not currently useful.
 .Pp
 There is also a signal strength cache in the driver.  It may be interrogated
 with
-.Nm wlconfig(8) .
+.Xr wlconfig 8 .
 Incoming packets
 are checked for certain hardware radio-modem values including signal
 strength, silence, and quality, which range fro 0..63, 0..63, and 0..15
@@ -123,14 +123,15 @@ as are any other network protocol barring IPv4 packets.
 The 82586 has numerous defects.  It may experience transmit-side
 errors when modern faster cpus send packets at it faster than it can handle.
 The driver (and probably the chip) does not support an all multicast mode.
-As a result, it can be used with applications like mrouted(8), but
-it must go into promiscuous mode for that to work.  The driver
+As a result, it can be used with applications like
+.Xr mrouted 8 ,
+but it must go into promiscuous mode for that to work.  The driver
 is slow to change modes from "normal" to promiscuous mode, presumably
 due to delays in the configuration code.
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr wlconfig 8 ,
-.Xr http://www.wavelan.com
+.Pa http://www.wavelan.com
 .Sh HISTORY
 The
 .Nm

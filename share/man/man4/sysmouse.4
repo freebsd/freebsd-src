@@ -132,7 +132,7 @@ driver itself, and commands for the console and the console control drivers.
 There are a few commands for mouse drivers.
 General description of the commands is given in
 .Xr mouse 4 .
-Followings are the features specific to the
+Following are the features specific to the
 .Nm
 driver.
 .Pp
@@ -166,7 +166,7 @@ field holds the number of buttons detected by the driver.
 The
 .Dv iftype
 is always
-.Dv MOUSE_IF_SYSMOUSE.
+.Dv MOUSE_IF_SYSMOUSE .
 .Pp
 The
 .Dv type
@@ -252,8 +252,8 @@ is the bit mask to be ANDed with a byte.
 If the result is equal to
 .Dv syncmask[1] ,
 the byte is likely to be the first byte of the data packet.
-Note that this method of detecting the first byte is not 100% reliable,
-thus, should be taken only as an advisory measure.
+Note that this method of detecting the first byte is not 100% reliable;
+thus, it should be taken only as an advisory measure.
 .Pp
 .It Dv MOUSE_SETMODE Ar mousemode_t *mode
 The command changes the current operation parameters of the mouse driver
@@ -302,7 +302,7 @@ calls to the console control device
 to inform the console of mouse actions including mouse movement
 and button status.
 .Pp
-Both classes
+Both classes of
 .Fn ioctl
 commands are defined as
 .Dv CONS_MOUSECTL
@@ -348,7 +348,7 @@ The signal to be delivered is set in
 .Pp
 The above operations are for virtual consoles.
 The operations defined 
-below are for the console control device and used by 
+below are for the console control device and are used by 
 .Xr moused 8
 to pass mouse data to the console driver.
 .Pp
