@@ -3,7 +3,6 @@
 
 KMOD=		ng_cisco
 SRCS= 		ng_cisco.c
-MAN=		ng_cisco.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

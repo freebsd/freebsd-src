@@ -1,29 +1,189 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
-MAN=	aac.4 adv.4 adw.4 agp.4 \
-	aha.4 ahb.4 ahc.4 amd.4 amr.4 an.4 ata.4 atkbd.4 \
-	atkbdc.4 aue.4 bge.4 bktr.4 blackhole.4 bpf.4 bridge.4 bt.4 ccd.4 \
-	cd.4 ch.4 csa.4 cue.4 da.4 dc.4 ddb.4 de.4 \
-	divert.4 dpt.4 dummynet.4 ed.4 em.4 faith.4 fd.4 fdc.4 fpa.4 fxp.4 \
-	gif.4 gusc.4 gx.4 \
-	ichsmb.4 icmp.4 icmp6.4 ieee80211.4 ifmib.4 \
-	iic.4 iicbb.4 iicbus.4 iicsmb.4 \
-	inet.4 inet6.4 intpm.4 intro.4 ip.4 ip6.4 ipfirewall.4 ipsec.4 isp.4 \
-	ispfw.4 joy.4 kame.4 keyboard.4 kld.4 \
-	kue.4 lge.4 lo.4 lp.4 lpbb.4 lpt.4 md.4 mem.4 mlx.4 mly.4 mouse.4 \
-	mtio.4 natm.4 ncr.4 netintro.4 \
-	ng_bridge.4 ng_ether.4 ng_one2many.4 nge.4 nmdm.4 \
-	null.4 ohci.4 orm.4 pass.4 pci.4 pcic.4 pcm.4 pcn.4 pcvt.4 \
-	ppbus.4 ppc.4 ppi.4 ppp.4 psm.4 pt.4 pty.4 rl.4 \
-	route.4 sa.4 sbc.4 screen.4 scsi.4 \
-	sd.4 ses.4 sf.4 si.4 sio.4 sis.4 sk.4 sl.4 smb.4 smbus.4 smp.4 snp.4 \
-	splash.4 sppp.4 st.4 ste.4 stf.4 sym.4 syncer.4 syscons.4 sysmouse.4 \
-	tap.4 tcp.4 termios.4 ti.4 tl.4 ttcp.4 tty.4 tun.4 twe.4 txp.4 udp.4 \
+MAN=	aac.4 \
+	adv.4 \
+	adw.4 \
+	agp.4 \
+	aha.4 \
+	ahb.4 \
+	ahc.4 \
+	amd.4 \
+	amr.4 \
+	an.4 \
+	ata.4 \
+	atkbd.4 \
+	atkbdc.4 \
+	aue.4 \
+	bge.4 \
+	bktr.4 \
+	blackhole.4 \
+	bpf.4 \
+	bridge.4 \
+	bt.4 \
+	ccd.4 \
+	cd.4 \
+	ch.4 \
+	csa.4 \
+	cue.4 \
+	da.4 \
+	dc.4 \
+	ddb.4 \
+	de.4 \
+	divert.4 \
+	dpt.4 \
+	dummynet.4 \
+	ed.4 \
+	em.4 \
+	faith.4 \
+	fd.4 \
+	fdc.4 \
+	fpa.4 \
+	fxp.4 \
+	gif.4 \
+	gusc.4 \
+	gx.4 \
+	ichsmb.4 \
+	icmp.4 \
+	icmp6.4 \
+	ieee80211.4 \
+	ifmib.4 \
+	iic.4 \
+	iicbb.4 \
+	iicbus.4 \
+	iicsmb.4 \
+	inet.4 \
+	inet6.4 \
+	intpm.4 \
+	intro.4 \
+	ip.4 \
+	ip6.4 \
+	ipfirewall.4 \
+	ipsec.4 \
+	isp.4 \
+	ispfw.4 \
+	joy.4 \
+	kame.4 \
+	keyboard.4 \
+	kld.4 \
+	kue.4 \
+	lge.4 \
+	lo.4 \
+	lp.4 \
+	lpbb.4 \
+	lpt.4 \
+	md.4 \
+	mem.4 \
+	mlx.4 \
+	mly.4 \
+	mouse.4 \
+	mtio.4 \
+	natm.4 \
+	ncr.4 \
+	netgraph.4 \
+	netintro.4 \
+	ng_UI.4 \
+	ng_async.4 \
+	ng_bpf.4 \
+	ng_bridge.4 \
+	ng_cisco.4 \
+	ng_echo.4 \
+	ng_ether.4 \
+	ng_frame_relay.4 \
+	ng_hole.4 \
+	ng_iface.4 \
+	ng_ksocket.4 \
+	ng_lmi.4 \
+	ng_mppc.4 \
+	ng_one2many.4 \
+	ng_ppp.4 \
+	ng_pppoe.4 \
+	ng_pptpgre.4 \
+	ng_rfc1490.4 \
+	ng_socket.4 \
+	ng_tee.4 \
+	ng_tty.4 \
+	ng_vjc.4 \
+	nge.4 \
+	nmdm.4 \
+	null.4 \
+	ohci.4 \
+	orm.4 \
+	pass.4 \
+	pci.4 \
+	pcic.4 \
+	pcm.4 \
+	pcn.4 \
+	pcvt.4 \
+	ppbus.4 \
+	ppc.4 \
+	ppi.4 \
+	ppp.4 \
+	psm.4 \
+	pt.4 \
+	pty.4 \
+	rl.4 \
+	route.4 \
+	sa.4 \
+	sbc.4 \
+	screen.4 \
+	scsi.4 \
+	sd.4 \
+	ses.4 \
+	sf.4 \
+	si.4 \
+	sio.4 \
+	sis.4 \
+	sk.4 \
+	sl.4 \
+	smb.4 \
+	smbus.4 \
+	smp.4 \
+	snp.4 \
+	splash.4 \
+	sppp.4 \
+	st.4 \
+	ste.4 \
+	stf.4 \
+	sym.4 \
+	syncer.4 \
+	syscons.4 \
+	sysmouse.4 \
+	tap.4 \
+	tcp.4 \
+	termios.4 \
+	ti.4 \
+	tl.4 \
+	ttcp.4 \
+	tty.4 \
+	tun.4 \
+	twe.4 \
+	txp.4 \
+	udp.4 \
 	ugen.4 \
-	uhci.4 ukbd.4 umass.4 ums.4 unix.4 urio.4 usb.4 uscanner.4 vga.4 \
-	vinum.4 vlan.4 vn.4 \
-	vpo.4 vr.4 wb.4 wi.4 wx.4 worm.4 wst.4 xl.4 xpt.4 yp.4 zero.4
+	uhci.4 \
+	ukbd.4 \
+	umass.4 \
+	ums.4 \
+	unix.4 \
+	urio.4 \
+	usb.4 \
+	uscanner.4 \
+	vga.4 \
+	vinum.4 \
+	vlan.4 \
+	vn.4 \
+	vpo.4 \
+	vr.4 \
+	wb.4 \
+	wi.4 \
+	wx.4 \
+	worm.4 \
+	wst.4 \
+	xl.4 \
+	xpt.4 \
+	yp.4 \
+	zero.4
 
 MLINKS=	agp.4 agpgart.4
 MLINKS+=ata.4 acd.4 ata.4 ad.4 ata.4 afd.4 ata.4 ast.4

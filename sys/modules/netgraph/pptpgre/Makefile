@@ -3,7 +3,6 @@
 
 KMOD=		ng_pptpgre
 SRCS= 		ng_pptpgre.c
-MAN=		ng_pptpgre.4
 KMODDEPS=	netgraph
 
 .include <bsd.kmod.mk>

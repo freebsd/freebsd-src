@@ -3,7 +3,6 @@
 
 KMOD=		ng_vjc
 SRCS= 		ng_vjc.c slcompress.c
-MAN=		ng_vjc.4
 KMODDEPS=	netgraph
 
 .PATH:		${.CURDIR}/../../../net

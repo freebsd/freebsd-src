@@ -164,21 +164,6 @@ This node shuts down upon receipt of a
 control message, when all session have been disconnected or when the
 .Dv ethernet
 hook is disconnected.
-.Sh SYSCTLs
-If you are one of the unfortunate people who have an ISP that
-uses some "pppoe" equipment from (I believe) 3com, and who have to
-use a different ethertype on pppoe packets
-(hey why not change it from the standard for
-no reason?) then after you have kldloaded or compiled in your pppoe node,
-you may have to do the following sysctl:
-.Bd -literal
-(kldload netgraph)
-(kldload ng_pppoe)
-sysctl net.graph.stupid_isp=1
-.Ed
-.Pp
-to enable the alternate ethertypes. Then phone your ISP and ask them
-why you need to set option "stupid_isp" for you to be able to connect.
 .Sh EXAMPLES
 The following code uses
 .Dv libnetgraph
