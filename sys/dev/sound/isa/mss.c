@@ -164,13 +164,7 @@ static pcm_channel mss_chantemplate = {
 
 #define MD_AD1848	0x91
 #define MD_AD1845	0x92
-#define MD_CS4248	0xA1
-#define MD_CS4231	0xA2
-#define MD_CS4231A	0xA3
-#define MD_CS4232	0xA4
-#define MD_CS4232A	0xA5
-#define MD_CS4236	0xA6
-#define MD_CS4237	0xA7
+#define MD_CS42XX	0xA1
 #define	MD_OPTI931	0xB1
 #define MD_OPTI925	0xB2
 #define	MD_GUSPNP	0xB8
@@ -720,7 +714,7 @@ mss_detect(device_t dev, struct mss_info *mss)
 
 		/* It's at least CS4231 */
 		name = "CS4231";
-		mss->bd_id = MD_CS4231;
+		mss->bd_id = MD_CS42XX;
 
 		/*
 		* It could be an AD1845 or CS4231A as well.
@@ -740,12 +734,12 @@ mss_detect(device_t dev, struct mss_info *mss)
 
 		case 0xa0:
 			name = "CS4231A";
-			mss->bd_id = MD_CS4231A;
+			mss->bd_id = MD_CS42XX;
 		break;
 
 		case 0xa2:
 			name = "CS4232";
-			mss->bd_id = MD_CS4232;
+			mss->bd_id = MD_CS42XX;
 		break;
 
 		case 0xb2:
@@ -753,7 +747,7 @@ mss_detect(device_t dev, struct mss_info *mss)
 		* so this should be the same as 0xa2
 		*/
 			name = "CS4232A";
-			mss->bd_id = MD_CS4232A;
+			mss->bd_id = MD_CS42XX;
 		break;
 
 		case 0x80:
@@ -783,12 +777,12 @@ mss_detect(device_t dev, struct mss_info *mss)
 		case 0x83:	/* CS4236 */
 		case 0x03:      /* CS4236 on Intel PR440FX motherboard XXX */
 			name = "CS4236";
-			mss->bd_id = MD_CS4236;
+			mss->bd_id = MD_CS42XX;
 			break;
 
 		default:	/* Assume CS4231 */
 	 		BVDDB(printf("unknown id 0x%02x, assuming CS4231\n", id);)
-			mss->bd_id = MD_CS4231;
+			mss->bd_id = MD_CS42XX;
 		}
 	}
 	ad_write(mss, 25, tmp1);	/* Restore bits */
@@ -1330,69 +1324,33 @@ mss_trigger(struct mss_chinfo *ch, int go)
     	return 0;
 }
 
+static struct isa_pnp_id pnpmss_ids[] = {
+	{0x0000630e, "CS423x"},				/* CSC0000 */
+    	{0x01000000, "CMI8330"},			/* @@@0001 */
+	{0x2100a865, "Yamaha OPL-SAx"},			/* YMH0021 */
+	{0x1110d315, "ENSONIQ SoundscapeVIVO"},		/* ENS1011 */
+	{0x1093143e, "OPTi931"},			/* OPT9310 */
+	{0x5092143e, "OPTi925"},			/* OPT9250 XXX guess */
+#if 0
+	{0x0000561e, "GusPnP"},				/* GRV0000 */
+#endif
+	{0},
+};
+
 static int
 pnpmss_probe(device_t dev)
 {
-    	char *s = NULL;
-    	u_int32_t logical_id = isa_get_logicalid(dev);
-    	u_int32_t vend_id = isa_get_vendorid(dev);
-    	u_int32_t id = vend_id & 0xff00ffff;
-
-    	switch (logical_id) {
-    	case 0x0000630e: /* CSC0000 */
- 		if      (id == 0x3700630e) s = "CS4237";
- 		else if (id == 0x2500630e) s = "CS4235";
- 		else if (id == 0x3600630e) s = "CS4236";
- 		else if (id == 0x3500630e) s = "CS4236B";
- 		else if (id == 0x3200630e) s = "CS4232";
- 		else s = "Unknown CS";
- 		break;
-
-    	case 0x2100a865: /* YMH0021 */
- 		if      (id == 0x2000a865) s = "Yamaha SA2";
- 		else if (id == 0x3000a865) s = "Yamaha SA3";
- 		else if (id == 0x0000a865) s = "Yamaha YMF719 OPL-SA3";
- 		else s = "Yamaha OPL-SAx";
- 		break;
-
-    	case 0x1110d315: /* ENS1011 */
- 		s = "ENSONIQ SoundscapeVIVO";
- 		break;
-
-    	case 0x1093143e: /* OPT9310 */
- 		s = "OPTi931";
- 		break;
-
-    	case 0x5092143e: /* OPT9250 XXX guessing */
- 		s = "OPTi925";
- 		break;
-
-#if 0
-    	case 0x0000561e:
- 		s = "GusPnP";
- 		break;
-#endif
-
-    	case 0x01000000:
-		if (vend_id == 0x0100a90d) s = "CMI8330";
-		break;
-    	}
-
-    	if (s) {
-		device_set_desc(dev, s);
-		return 0;
-    	}
-    	return ENXIO;
+	return ISA_PNP_PROBE(device_get_parent(dev), dev, pnpmss_ids);
 }
 
 static int
 pnpmss_attach(device_t dev)
 {
 	struct mss_info *mss;
-        u_int32_t vend_id = isa_get_vendorid(dev);
 
 	mss = (struct mss_info *)malloc(sizeof *mss, M_DEVBUF, M_NOWAIT);
-	if (!mss) return ENXIO;
+	if (!mss)
+	    return ENXIO;
 	bzero(mss, sizeof *mss);
 
 	mss->io_rid = 0;
@@ -1401,47 +1359,36 @@ pnpmss_attach(device_t dev)
 	mss->drq1_rid = 0;
 	mss->drq2_rid = 1;
 
-	switch (vend_id & 0xff00ffff) {
-	case 0x2000a865:	/* Yamaha SA2 */
-	case 0x3000a865:	/* Yamaha SA3 */
-	case 0x0000a865:	/* Yamaha YMF719 SA3 */
-    	case 0x2100a865:	/* pnpbios sets vendor=logical */
+	switch (isa_get_logicalid(dev)) {
+	case 0x0000630e:			/* CSC0000 */
+	    mss->bd_flags |= BD_F_MSS_OFFSET;
+	    mss->bd_id = MD_CS42XX;
+	    break;
+
+	case 0x2100a865:			/* YHM0021 */
 	    mss->io_rid = 1;
 	    mss->conf_rid = 4;
 	    mss->bd_id = MD_YM0020;
 	    break;
 
-	case 0x8100d315:	/* ENSONIQ SoundscapeVIVO */
+	case 0x1110d315:			/* ENS1011 */
 	    mss->io_rid = 1;
 	    mss->bd_id = MD_VIVO;
 	    break;
 
-	case 0x3700630e:        /* CS4237 */
-	case 0x2500630e:	/* AOpen AW37, CS4235 */
-	    mss->bd_flags |= BD_F_MSS_OFFSET;
-	    mss->bd_id = MD_CS4237;
-	    break;
-
-	case 0x3500630e:        /* CS4236B */
-	case 0x3600630e:        /* CS4236 */
-	    mss->bd_flags |= BD_F_MSS_OFFSET;
-	    mss->bd_id = MD_CS4236;
-	    break;
-
-	case 0x3100143e: 	/* opti931 */
+	case 0x1093143e:			/* OPT9310 */
             mss->bd_flags |= BD_F_MSS_OFFSET;
     	    mss->conf_rid = 3;
             mss->bd_id = MD_OPTI931;
 	    break;
 
-	case 0x2500143e:	/* opti925 */
+	case 0x5092143e:			/* OPT9250 XXX guess */
             mss->io_rid = 1;
             mss->conf_rid = 3;
 	    mss->bd_id = MD_OPTI925;
 	    break;
-
 #if 0
-	case 0x0100561e:	/* guspnp */
+	case 0x0000561e:			/* GRV0000 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
             mss->io_rid = 2;
             mss->conf_rid = 1;
@@ -1450,10 +1397,10 @@ pnpmss_attach(device_t dev)
             mss->bd_id = MD_GUSPNP;
 	    break;
 #endif
-
+	/* Unknown MSS default.  We could let the CSC0000 stuff match too */
         default:
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
-	    mss->bd_id = MD_CS4232;
+	    mss->bd_id = MD_CS42XX;
 	    break;
 	}
     	return mss_doattach(dev, mss);
