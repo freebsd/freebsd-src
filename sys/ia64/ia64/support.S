@@ -53,9 +53,76 @@
  */
 
 #include <machine/asm.h>
+#include <machine/ia64_cpu.h>
 #include <assym.s>
 
 	.text
+
+/*
+ * ia64_change_mode:	change mode to/from physical mode
+ *
+ * Arguments:
+ *	r14	psr for desired mode
+ */
+ENTRY(ia64_change_mode, 0)
+
+	rsm	psr.i | psr.ic
+	mov	ar.rsc=0		// turn off RSE
+	tbit.nz	p6,p7=r14,17		// physical or virtual ?
+	;;
+(p6)	mov	r15=7			// RR base for virtual addresses
+(p7)	mov	r15=0			// RR base for physical addresses
+	flushrs				// no dirty registers please
+	srlz.i
+	;;
+	mov	r16=ar.bsp
+	mov	r17=rp
+	mov	r18=ar.rnat
+	;;
+	dep	r16=r15,r16,61,3	// new address of ar.bsp
+	dep	r17=r15,r17,61,3	// new address of rp
+	;;
+	mov	ar.bspstore=r16
+	mov	rp=r17
+	;;
+1:	mov	r16=ip
+	mov	ar.rnat=r18
+	mov	cr.ipsr=r14		// psr for physical mode
+	;; 
+	add	r16=2f-1b,r16		// address to rfi to
+	;;
+	dep	r16=r15,r16,61,3	// physical
+	;;
+	mov	cr.iip=r16		// setup for rfi
+	mov	cr.ifs=r0
+	;;
+	rfi
+	
+2:	br.ret.sptk.few rp		// now in physical mode
+	
+END(ia64_change_mode)
+
+/*
+ * ia64_physical_mode:	change mode to physical mode
+ *
+ * Return:
+ *	ret0	psr to restore
+ */
+ENTRY(ia64_physical_mode, 0)
+
+	mov	r14=psr
+	mov	ret0=psr
+	movl	r15=(IA64_PSR_I|IA64_PSR_IT|IA64_PSR_DT|IA64_PSR_RT)
+	movl	r16=IA64_PSR_BN
+	;;
+	andcm	r14=r14,r15		// clear various xT bits
+	;; 
+	or	r14=r14,r16		// make sure BN=1
+	or	ret0=ret0,r16		// make sure BN=1
+
+	br.cond.sptk.many ia64_change_mode
+
+END(ia64_physical_mode)
 
 /**************************************************************************/
 	
