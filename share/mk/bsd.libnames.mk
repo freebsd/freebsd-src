@@ -1,4 +1,9 @@
-#	$Id: bsd.libnames.mk,v 1.2 1996/10/04 08:52:43 peter Exp $
+#	$Id: bsd.libnames.mk,v 1.3 1996/10/04 08:55:05 peter Exp $
+#
+# The include file <bsd.libnames.mk> define library names. 
+# Other include files (e.g. bsd.prog.mk, bsd.lib.mk) include this 
+# file where necessary.
+
 
 LIBCRT0?=	${DESTDIR}/usr/lib/crt0.o
 LIBKZHEAD?=	${DESTDIR}/usr/lib/kzhead.o
