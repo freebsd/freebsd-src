@@ -307,43 +307,10 @@ cpu_thread_setup(struct thread *td)
 	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb - 16) - 1;
 }
 
-struct md_store {
-	struct pcb mds_pcb;
-	struct trapframe mds_frame;
-};
-
-void
-cpu_save_upcall(struct thread *td, struct kse *newkse)
-{
-	struct trapframe *tf;
-
-	newkse->ke_mdstorage = malloc(sizeof(struct md_store), M_TEMP,
-	    M_WAITOK);
-	/* Note: use of M_WAITOK means it won't fail. */
-	/* set up shortcuts in MI section */
-	newkse->ke_pcb =
-	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_pcb);
-	newkse->ke_frame =
-	    &(((struct md_store *)(newkse->ke_mdstorage))->mds_frame);
-	tf = newkse->ke_frame;
-
-	/* Copy the upcall pcb. Kernel mode & fp regs are here. */
-	/* XXXKSE this may be un-needed */
-	bcopy(td->td_pcb, newkse->ke_pcb, sizeof(struct pcb));
-
-	/*
-	 * This initialises most of the user mode register values
-	 * to good values. Eventually set them explicitly to know values
-	 */
-	bcopy(td->td_frame, newkse->ke_frame, sizeof(struct trapframe));
-	tf->tf_edi = 0;
-	tf->tf_esi = 0;		    /* trampoline arg */
-	tf->tf_ebp = 0;
-	tf->tf_esp = (int)newkse->ke_stackbase + newkse->ke_stacksize - 16;
-	tf->tf_ebx = 0;		    /* trampoline arg */
-	tf->tf_eip = (int)newkse->ke_upcall;
-}
-
+/*
+ * Initialize machine state (pcb and trap frame) for a new thread about to
+ * upcall.
+ */
 void
 cpu_set_upcall(struct thread *td, void *pcb)
 {
@@ -401,41 +368,28 @@ cpu_set_upcall(struct thread *td, void *pcb)
 	 pcb2->pcb_ext = NULL;
 }
 
+/*
+ * Set the machine state for performing an upcall that had to
+ * wait until we selected a KSE to perform the upcall on.
+ */
 void
-cpu_set_args(struct thread *td, struct kse *ke) 
-{
-	suword((void *)(ke->ke_frame->tf_esp + sizeof(void *)),
-	    (int)ke->ke_mailbox);
-}
-
-void
-cpu_free_kse_mdstorage(struct kse *kse)
+cpu_set_upcall_kse(struct thread *td, struct kse *ke)
 {
 
-	free(kse->ke_mdstorage, M_TEMP);
-	kse->ke_mdstorage = NULL;
-	kse->ke_pcb = NULL;
-	kse->ke_frame = NULL;
-}
-
-int
-cpu_export_context(struct thread *td)
-{
-	struct trapframe *frame;
-	struct thread_mailbox *tm;
-	struct trapframe *uframe;
-	int error;
-
-	frame = td->td_frame;
-	tm = td->td_mailbox;
-	uframe = &tm->ctx.tfrm.tf_tf;
-	error = copyout(frame, uframe, sizeof(*frame));
 	/*
-	 * "What about the fp regs?" I hear you ask.... XXXKSE
-	 * Don't know where gs and "onstack" come from.
-	 * May need to fiddle a few other values too.
+	 * Set the trap frame to point at the beginning of the uts
+	 * function.
 	 */
-	return (error);
+	td->td_frame->tf_esp =
+	    (int)ke->ke_stack.ss_sp + ke->ke_stack.ss_size - 16;
+	td->td_frame->tf_eip = (int)ke->ke_upcall;
+
+	/*
+	 * Pass the address of the mailbox for this kse to the uts
+	 * function as a parameter on the stack.
+	 */
+	suword((void *)(td->td_frame->tf_esp + sizeof(void *)),
+	    (int)ke->ke_mailbox);
 }
 
 void

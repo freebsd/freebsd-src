@@ -976,7 +976,7 @@ ENTRY(i586_copyin)
 ENTRY(fastmove)
 	pushl	%ebp
 	movl	%esp,%ebp
-	subl	$PCB_SAVE87_SIZE+3*4,%esp
+	subl	$PCB_SAVEFPU_SIZE+3*4,%esp
 
 	movl	8(%ebp),%ecx
 	cmpl	$63,%ecx
@@ -1018,7 +1018,7 @@ ENTRY(fastmove)
 	movl	PCPU(CURPCB),%esi
 	addl	$PCB_SAVEFPU,%esi
 	cld
-	movl	$PCB_SAVE87_SIZE>>2,%ecx
+	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
 	rep
 	movsl
 	movl	-12(%ebp),%ecx
@@ -1102,7 +1102,7 @@ fastmove_loop:
 	addl	$PCB_SAVEFPU,%edi
 	movl	%esp,%esi
 	cld
-	movl	$PCB_SAVE87_SIZE>>2,%ecx
+	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
 	rep
 	movsl
 	movl	-12(%ebp),%ecx
@@ -1147,7 +1147,7 @@ fastmove_fault:
 	addl	$PCB_SAVEFPU,%edi
 	movl	%esp,%esi
 	cld
-	movl	$PCB_SAVE87_SIZE>>2,%ecx
+	movl	$PCB_SAVEFPU_SIZE>>2,%ecx
 	rep
 	movsl
 
