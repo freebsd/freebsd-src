@@ -284,7 +284,11 @@ parse_long_options(char * const *nargv, const char *options,
 				optopt = long_options[match].val;
 			else
 				optopt = 0;
+#ifdef GNU_COMPATIBLE
+			return (BADCH);
+#else
 			return (BADARG);
+#endif
 		}
 		if (long_options[match].has_arg == required_argument ||
 		    long_options[match].has_arg == optional_argument) {
