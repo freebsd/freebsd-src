@@ -120,12 +120,12 @@ struct acpi_device {
 #define	ACPI_POWER		0x00040000
 #define	ACPI_EC			0x00080000
 #define	ACPI_AC_ADAPTER		0x00100000
-#define	ACPI_BATTERY		0x00110000
-#define	ACPI_BUTTON		0x00120000
-#define	ACPI_PROCESSOR		0x00140000
-#define	ACPI_THERMAL		0x00180000
-#define	ACPI_FAN		0x00200000
-#define	ACPI_TOSHIBA		0x00400000
+#define	ACPI_BATTERY		0x00200000
+#define	ACPI_BUTTON		0x00400000
+#define	ACPI_PROCESSOR		0x00800000
+#define	ACPI_THERMAL		0x01000000
+#define	ACPI_FAN		0x02000000
+#define	ACPI_TOSHIBA		0x04000000
 
 /*
  * Constants for different interrupt models used with acpi_SetIntrModel().
