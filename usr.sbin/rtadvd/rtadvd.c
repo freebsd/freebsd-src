@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: rtadvd.c,v 1.50 2001/02/04 06:15:15 itojun Exp $	*/
+/*	$KAME: rtadvd.c,v 1.82 2003/08/05 12:34:23 itojun Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -96,7 +96,7 @@ struct nd_optlist {
 	struct nd_opt_hdr *opt;
 };
 union nd_opts {
-	struct nd_opt_hdr *nd_opt_array[7];
+	struct nd_opt_hdr *nd_opt_array[9];
 	struct {
 		struct nd_opt_hdr *zero;
 		struct nd_opt_hdr *src_lladdr;
@@ -122,7 +122,7 @@ union nd_opts {
 
 u_int32_t ndopt_flags[] = {
 	0, NDOPT_FLAG_SRCLINKADDR, NDOPT_FLAG_TGTLINKADDR,
-	NDOPT_FLAG_PREFIXINFO, NDOPT_FLAG_RDHDR, NDOPT_FLAG_MTU
+	NDOPT_FLAG_PREFIXINFO, NDOPT_FLAG_RDHDR, NDOPT_FLAG_MTU,
 };
 
 int main __P((int, char *[]));
@@ -143,6 +143,7 @@ static void free_ndopts __P((union nd_opts *));
 static void ra_output __P((struct rainfo *));
 static void rtmsg_input __P((void));
 static void rtadvd_set_dump_file __P((int));
+static void set_short_delay __P((struct rainfo *));
 
 int
 main(argc, argv)
@@ -243,8 +244,8 @@ main(argc, argv)
 	pid = getpid();
 	if ((pidfp = fopen(pidfilename, "w")) == NULL) {
 		syslog(LOG_ERR,
-		    "<%s> failed to open a log file(%s), run anyway.",
-		    __func__, pidfilename);
+		    "<%s> failed to open the pid log file, run anyway.",
+		    __func__);
 	} else {
 		fprintf(pidfp, "%d\n", pid);
 		fclose(pidfp);
@@ -398,6 +399,7 @@ rtmsg_input()
 	struct rainfo *rai;
 	struct in6_addr *addr;
 	char addrbuf[INET6_ADDRSTRLEN];
+	int prefixchange = 0;
 
 	n = read(rtsock, msg, sizeof(msg));
 	if (dflag > 1) {
@@ -496,6 +498,7 @@ rtmsg_input()
 					 * make it available again.
 					 */
 					update_prefix(prefix);
+					prefixchange = 1;
 				} else if (dflag > 1) {
 					syslog(LOG_DEBUG,
 					    "<%s> new prefix(%s/%d) "
@@ -509,6 +512,7 @@ rtmsg_input()
 				break;
 			}
 			make_prefix(rai, ifindex, addr, plen);
+			prefixchange = 1;
 			break;
 		case RTM_DELETE:
 			/* init ifflags because it may have changed */
@@ -544,6 +548,7 @@ rtmsg_input()
 				break;
 			}
 			invalidate_prefix(prefix);
+			prefixchange = 1;
 			break;
 		case RTM_NEWADDR:
 		case RTM_DELADDR:
@@ -584,6 +589,14 @@ rtmsg_input()
 			    ra_timer_update, rai, rai);
 			ra_timer_update((void *)rai, &rai->timer->tm);
 			rtadvd_set_timer(&rai->timer->tm, rai->timer);
+		} else if (prefixchange &&
+		    (iflist[ifindex]->ifm_flags & IFF_UP)) {
+			/*
+			 * An advertised prefix has been added or invalidated.
+			 * Will notice the change in a short delay.
+			 */
+			rai->initcounter = 0;
+			set_short_delay(rai);
 		}
 	}
 
@@ -784,6 +797,7 @@ rs_input(int len, struct nd_router_solicit *rs,
 	u_char ntopbuf[INET6_ADDRSTRLEN], ifnamebuf[IFNAMSIZ];
 	union nd_opts ndopts;
 	struct rainfo *ra;
+	struct soliciter *sol;
 
 	syslog(LOG_DEBUG,
 	       "<%s> RS received from %s on %s",
@@ -841,71 +855,75 @@ rs_input(int len, struct nd_router_solicit *rs,
 	 * Decide whether to send RA according to the rate-limit
 	 * consideration.
 	 */
-	{
-		long delay;	/* must not be greater than 1000000 */
-		struct timeval interval, now, min_delay, tm_tmp, *rest;
-		struct soliciter *sol;
 
-		/*
-		 * record sockaddr waiting for RA, if possible
-		 */
-		sol = (struct soliciter *)malloc(sizeof(*sol));
-		if (sol) {
-			sol->addr = *from;
-			/*XXX RFC2553 need clarification on flowinfo */
-			sol->addr.sin6_flowinfo = 0;	
-			sol->next = ra->soliciter;
-			ra->soliciter = sol->next;
-		}
-
-		/*
-		 * If there is already a waiting RS packet, don't
-		 * update the timer.
-		 */
-		if (ra->waiting++)
-			goto done;
-
-		/*
-		 * Compute a random delay. If the computed value
-		 * corresponds to a time later than the time the next
-		 * multicast RA is scheduled to be sent, ignore the random
-		 * delay and send the advertisement at the
-		 * already-scheduled time. RFC-2461 6.2.6
-		 */
-		delay = random() % MAX_RA_DELAY_TIME;
-		interval.tv_sec = 0;
-		interval.tv_usec = delay;
-		rest = rtadvd_timer_rest(ra->timer);
-		if (TIMEVAL_LT(*rest, interval)) {
-			syslog(LOG_DEBUG,
-			       "<%s> random delay is larger than "
-			       "the rest of normal timer",
-			       __func__);
-			interval = *rest;
-		}
-
-		/*
-		 * If we sent a multicast Router Advertisement within
-		 * the last MIN_DELAY_BETWEEN_RAS seconds, schedule
-		 * the advertisement to be sent at a time corresponding to
-		 * MIN_DELAY_BETWEEN_RAS plus the random value after the
-		 * previous advertisement was sent.
-		 */
-		gettimeofday(&now, NULL);
-		TIMEVAL_SUB(&now, &ra->lastsent, &tm_tmp);
-		min_delay.tv_sec = MIN_DELAY_BETWEEN_RAS;
-		min_delay.tv_usec = 0;
-		if (TIMEVAL_LT(tm_tmp, min_delay)) {
-			TIMEVAL_SUB(&min_delay, &tm_tmp, &min_delay);
-			TIMEVAL_ADD(&min_delay, &interval, &interval);
-		}
-		rtadvd_set_timer(&interval, ra->timer);
-		goto done;
+	/* record sockaddr waiting for RA, if possible */
+	sol = (struct soliciter *)malloc(sizeof(*sol));
+	if (sol) {
+		sol->addr = *from;
+		/* XXX RFC2553 need clarification on flowinfo */
+		sol->addr.sin6_flowinfo = 0;
+		sol->next = ra->soliciter;
+		ra->soliciter = sol;
 	}
+
+	/*
+	 * If there is already a waiting RS packet, don't
+	 * update the timer.
+	 */
+	if (ra->waiting++)
+		goto done;
+
+	set_short_delay(ra);
 
   done:
 	free_ndopts(&ndopts);
 	return;
+}
+
+static void
+set_short_delay(rai)
+	struct rainfo *rai;
+{
+	long delay;	/* must not be greater than 1000000 */
+	struct timeval interval, now, min_delay, tm_tmp, *rest;
+
+	/*
+	 * Compute a random delay. If the computed value
+	 * corresponds to a time later than the time the next
+	 * multicast RA is scheduled to be sent, ignore the random
+	 * delay and send the advertisement at the
+	 * already-scheduled time. RFC-2461 6.2.6
+	 */
+#ifdef HAVE_ARC4RANDOM
+	delay = arc4random() % MAX_RA_DELAY_TIME;
+#else
+	delay = random() % MAX_RA_DELAY_TIME;
+#endif
+	interval.tv_sec = 0;
+	interval.tv_usec = delay;
+	rest = rtadvd_timer_rest(rai->timer);
+	if (TIMEVAL_LT(*rest, interval)) {
+		syslog(LOG_DEBUG, "<%s> random delay is larger than "
+		    "the rest of the current timer", __func__);
+		interval = *rest;
+	}
+
+	/*
+	 * If we sent a multicast Router Advertisement within
+	 * the last MIN_DELAY_BETWEEN_RAS seconds, schedule
+	 * the advertisement to be sent at a time corresponding to
+	 * MIN_DELAY_BETWEEN_RAS plus the random value after the
+	 * previous advertisement was sent.
+	 */
+	gettimeofday(&now, NULL);
+	TIMEVAL_SUB(&now, &rai->lastsent, &tm_tmp);
+	min_delay.tv_sec = MIN_DELAY_BETWEEN_RAS;
+	min_delay.tv_usec = 0;
+	if (TIMEVAL_LT(tm_tmp, min_delay)) {
+		TIMEVAL_SUB(&min_delay, &tm_tmp, &min_delay);
+		TIMEVAL_ADD(&min_delay, &interval, &interval);
+	}
+	rtadvd_set_timer(&interval, rai->timer);
 }
 
 static void
@@ -1125,7 +1143,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		gettimeofday(&now, NULL);
 		preferred_time += now.tv_sec;
 
-		if (rai->clockskew &&
+		if (!pp->timer && rai->clockskew &&
 		    abs(preferred_time - pp->pltimeexpire) > rai->clockskew) {
 			syslog(LOG_INFO,
 			       "<%s> preferred lifetime for %s/%d"
@@ -1141,7 +1159,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 			       pp->pltimeexpire);
 			inconsistent++;
 		}
-	} else if (preferred_time != pp->preflifetime) {
+	} else if (!pp->timer && preferred_time != pp->preflifetime) {
 		syslog(LOG_INFO,
 		       "<%s> preferred lifetime for %s/%d"
 		       " inconsistent on %s:"
@@ -1161,7 +1179,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 		gettimeofday(&now, NULL);
 		valid_time += now.tv_sec;
 
-		if (rai->clockskew &&
+		if (!pp->timer && rai->clockskew &&
 		    abs(valid_time - pp->vltimeexpire) > rai->clockskew) {
 			syslog(LOG_INFO,
 			       "<%s> valid lifetime for %s/%d"
@@ -1177,7 +1195,7 @@ prefix_check(struct nd_opt_prefix_info *pinfo,
 			       pp->vltimeexpire);
 			inconsistent++;
 		}
-	} else if (valid_time != pp->validlifetime) {
+	} else if (!pp->timer && valid_time != pp->validlifetime) {
 		syslog(LOG_INFO,
 		       "<%s> valid lifetime for %s/%d"
 		       " inconsistent on %s:"
@@ -1201,17 +1219,21 @@ find_prefix(struct rainfo *rai, struct in6_addr *prefix, int plen)
 {
 	struct prefix *pp;
 	int bytelen, bitlen;
+	u_char bitmask;
 
 	for (pp = rai->prefix.next; pp != &rai->prefix; pp = pp->next) {
 		if (plen != pp->prefixlen)
 			continue;
 		bytelen = plen / 8;
 		bitlen = plen % 8;
+		bitmask = 0xff << (8 - bitlen);
 		if (memcmp((void *)prefix, (void *)&pp->prefix, bytelen))
 			continue;
-		if (prefix->s6_addr[bytelen] >> (8 - bitlen) ==
-		    pp->prefix.s6_addr[bytelen] >> (8 - bitlen))
+		if (bitlen == 0 ||
+		    ((prefix->s6_addr[bytelen] & bitmask) == 
+		     (pp->prefix.s6_addr[bytelen] & bitmask))) {
 			return(pp);
+		}
 	}
 
 	return(NULL);
@@ -1223,16 +1245,20 @@ prefix_match(struct in6_addr *p0, int plen0,
 	     struct in6_addr *p1, int plen1)
 {
 	int bytelen, bitlen;
+	u_char bitmask;
 
 	if (plen0 < plen1)
 		return(0);
 	bytelen = plen1 / 8;
 	bitlen = plen1 % 8;
+	bitmask = 0xff << (8 - bitlen);
 	if (memcmp((void *)p0, (void *)p1, bytelen))
 		return(0);
-	if (p0->s6_addr[bytelen] >> (8 - bitlen) ==
-	    p1->s6_addr[bytelen] >> (8 - bitlen))
+	if (bitlen == 0 ||
+	    ((p0->s6_addr[bytelen] & bitmask) ==
+	     (p1->s6_addr[bytelen] & bitmask))) {
 		return(1);
+	}
 
 	return(0);
 }
@@ -1577,6 +1603,10 @@ struct rainfo *rainfo;
 			       strerror(errno));
 		}
 	}
+	/* update counter */
+	if (rainfo->initcounter < MAX_INITIAL_RTR_ADVERTISEMENTS)
+		rainfo->initcounter++;
+	rainfo->raoutput++;
 
 	/*
 	 * unicast advertisements
@@ -1590,11 +1620,6 @@ struct rainfo *rainfo;
 		free(sol);
 	}
 	rainfo->soliciter = NULL;
-
-	/* update counter */
-	if (rainfo->initcounter < MAX_INITIAL_RTR_ADVERTISEMENTS)
-		rainfo->initcounter++;
-	rainfo->raoutput++;
 
 	/* update timestamp */
 	gettimeofday(&rainfo->lastsent, NULL);

@@ -1,5 +1,5 @@
 .\"	$FreeBSD$
-.\"	$KAME: rtadvd.8,v 1.17 2001/02/04 05:34:38 jinmei Exp $
+.\"	$KAME: rtadvd.8,v 1.24 2002/05/31 16:16:08 jinmei Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
 .\" All rights reserved.
@@ -40,9 +40,8 @@
 .Op Fl c Ar configfile
 .Ar interface ...
 .Sh DESCRIPTION
-The
 .Nm
-utility sends router advertisement packets to the specified
+sends router advertisement packets to the specified
 .Ar interfaces .
 .Pp
 The program will daemonize itself on invocation.
@@ -62,9 +61,8 @@ In particular,
 reads all the interface routes from the routing table and advertises
 them as on-link prefixes.
 .Pp
-The
 .Nm
-utility also watches the routing table.
+also watches the routing table.
 If an interface direct route is
 added on an advertising interface and no static prefixes are
 specified by the configuration file,
@@ -126,25 +124,19 @@ Print debugging information.
 Even more debugging information is printed.
 .It Fl f
 Foreground mode (useful when debugging).
+Log messages will be dumped to stderr when this option is specified.
 .It Fl M
 Specify an interface to join the all-routers site-local multicast group.
 By default,
 .Nm
-tries to join the first advertising interface appeared in the command
+tries to join the first advertising interface appearing on the command
 line.
 This option has meaning only with the
 .Fl R
 option, which enables routing renumbering protocol support.
-.\".It Fl m
-.\"Enables mobile IPv6 support.
-.\"This changes the content of router advertisement option, as well as
-.\"permitted configuration directives.
 .It Fl R
 Accept router renumbering requests.
 If you enable it, certain IPsec setup is suggested for security reasons.
-On KAME-based systems,
-.Xr rrenumd 8
-generates router renumbering request packets.
 This option is currently disabled, and is ignored by
 .Nm
 with a warning message.
@@ -168,9 +160,11 @@ In this case,
 .Nm
 will transmit router advertisement with router lifetime 0
 to all the interfaces
-(in accordance with RFC2461 6.2.5).
-.Sh DIAGNOSTICS
-.Ex -std
+.Pq in accordance with RFC2461 6.2.5 .
+.Sh RETURN VALUES
+The
+.Nm
+program exits 0 on success, and >0 on failures.
 .Sh FILES
 .Bl -tag -width Pa -compact
 .It Pa /etc/rtadvd.conf
@@ -179,19 +173,18 @@ The default configuration file.
 contains the pid of the currently running
 .Nm .
 .It Pa /var/run/rtadvd.dump
-in which
+The file in which
 .Nm
 dumps its internal state.
 .El
 .Sh SEE ALSO
 .Xr rtadvd.conf 5 ,
-.Xr rrenumd 8 ,
 .Xr rtsol 8
 .Sh HISTORY
 The
 .Nm
-utility first appeared in WIDE Hydrangea IPv6 protocol stack kit.
-.Sh CAVEAT
+command first appeared in the WIDE Hydrangea IPv6 protocol stack kit.
+.Sh BUGS
 There used to be some text that recommended users not to let
 .Nm
 advertise Router Advertisement messages on an upstream link to avoid
