@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.246 1998/01/20 03:37:27 yokota Exp $
+ *  $Id: syscons.c,v 1.247 1998/01/24 02:54:26 eivind Exp $
  */
 
 #include "sc.h"
@@ -904,9 +904,6 @@ scintr(int unit)
     static struct tty *cur_tty;
     int c, len;
     u_char *cp;
-
-    /* make screensaver happy */
-    scrn_time_stamp = mono_time.tv_sec;
 
     /* 
      * Loop while there is still input to get from the keyboard.
@@ -2221,6 +2218,8 @@ scrn_timer(void *arg)
     }
 
     /* should we stop the screen saver? */
+    if (panicstr)
+	scrn_time_stamp = mono_time.tv_sec;
     if (mono_time.tv_sec <= scrn_time_stamp + scrn_blank_time)
 	if (scrn_blanked > 0)
             stop_scrn_saver(current_saver);
@@ -3420,12 +3419,17 @@ next_code:
     }
     scancode = (u_char)c;
 
-    /* do the /dev/random device a favour */
-    if (!(flags & SCGETC_CN))
+    /* make screensaver happy */
+    if (!(scancode & 0x80))
+	scrn_time_stamp = mono_time.tv_sec;
+
+    if (!(flags & SCGETC_CN)) {
+	/* do the /dev/random device a favour */
 	add_keyboard_randomness(scancode);
 
-    if (cur_console->status & KBD_RAW_MODE)
-	return scancode;
+	if (cur_console->status & KBD_RAW_MODE)
+	    return scancode;
+    }
 
     keycode = scancode & 0x7F;
     switch (esc_flag) {
@@ -3530,7 +3534,7 @@ next_code:
 	break;
     }
 
-    if (cur_console->status & KBD_CODE_MODE)
+    if (!(flags & SCGETC_CN) && (cur_console->status & KBD_CODE_MODE))
 	return (keycode | (scancode & 0x80));
 
     /* if scroll-lock pressed allow history browsing */
@@ -3769,8 +3773,10 @@ next_code:
 #endif
 		break;
 	    case RBT:
+#ifndef SC_DISABLE_REBOOT
 		accents = 0;
 		shutdown_nice();
+#endif
 		break;
 	    case SUSP:
 #if NAPM > 0
@@ -4851,6 +4857,9 @@ load_palette(char *palette)
 static void
 do_bell(scr_stat *scp, int pitch, int duration)
 {
+    if (cold)
+	return;
+
     if (flags & VISUAL_BELL) {
 	if (blink_in_progress)
 	    return;
