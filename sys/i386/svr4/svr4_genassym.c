@@ -6,8 +6,8 @@
 #include <sys/param.h>
 #include <sys/assym.h>
 
-#include <svr4/svr4_signal.h>
-#include <svr4/svr4_ucontext.h>
+#include <compat/svr4/svr4_signal.h>
+#include <compat/svr4/svr4_ucontext.h>
 
 /* XXX: This bit sucks rocks, but gets rid of compiler errors.  Maybe I should
  * fix the include files instead... */

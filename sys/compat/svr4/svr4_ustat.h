@@ -31,7 +31,7 @@
 #ifndef	_SVR4_USTAT_H_
 #define	_SVR4_USTAT_H_
 
-#include <svr4/svr4_types.h>
+#include <compat/svr4/svr4_types.h>
 
 struct svr4_ustat {
 	svr4_daddr_t	f_tfree;

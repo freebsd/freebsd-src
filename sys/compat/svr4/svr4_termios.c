@@ -37,10 +37,10 @@
 
 #include <sys/sysproto.h>
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_ioctl.h>
-#include <svr4/svr4_termios.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_ioctl.h>
+#include <compat/svr4/svr4_termios.h>
 
 #ifndef __CONCAT3
 # if __STDC__

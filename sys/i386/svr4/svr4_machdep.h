@@ -33,7 +33,7 @@
 
 #if !defined(SVR4_MACHDEP_JUST_REGS)
 #include <sys/signal.h>
-#include <svr4/svr4_types.h>
+#include <compat/svr4/svr4_types.h>
 #endif
 
 /*

@@ -38,10 +38,10 @@
 #include <net/if.h>
 
 
-#include <svr4/svr4.h>
-#include <svr4/svr4_util.h>
-#include <svr4/svr4_ioctl.h>
-#include <svr4/svr4_sockio.h>
+#include <compat/svr4/svr4.h>
+#include <compat/svr4/svr4_util.h>
+#include <compat/svr4/svr4_ioctl.h>
+#include <compat/svr4/svr4_sockio.h>
 
 static int bsd_to_svr4_flags __P((int));
 
