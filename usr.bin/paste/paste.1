@@ -105,11 +105,11 @@ option.
 .El
 .Pp
 If
-.Ql Fl
+.Sq Fl
 is specified for one or more of the input files, the standard
 input is used; standard input is read one line at a time, circularly,
 for each instance of
-.Ql Fl .
+.Sq Fl .
 .Sh EXAMPLES
 List the files in the current directory in three columns:
 .Pp
@@ -124,7 +124,9 @@ Number the lines in a file, similar to
 .Pp
 .Dl "sed = myfile | paste -s -d '\et\en' - -"
 .Pp
-Create a colon-separated list of directories named bin, suitable
+Create a colon-separated list of directories named
+.Pa bin ,
+suitable
 for use in the
 .Ev PATH
 environment variable:
