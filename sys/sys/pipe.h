@@ -43,6 +43,10 @@
 #define BIG_PIPE_SIZE	(64*1024)
 #endif
 
+#ifndef SMALL_PIPE_SIZE
+#define SMALL_PIPE_SIZE 4096
+#endif
+
 /*
  * PIPE_MINDIRECT MUST be smaller than PIPE_SIZE and MUST be bigger
  * than PIPE_BUF.
@@ -52,6 +56,13 @@
 #endif
 
 #define PIPENPAGES	(BIG_PIPE_SIZE / PAGE_SIZE + 1)
+
+/*
+ * See sys_pipe.c for info on what these limits mean. 
+ */
+extern int	maxpipes;
+extern int	maxpipekva;
+extern int	maxpipekvawired;
 
 /*
  * Pipe buffer information.
