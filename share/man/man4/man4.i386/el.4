@@ -21,9 +21,11 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\"	$Id$
+.\"
 .Dd July 10, 1995
 .Dt EL 4 i386
-.Os
+.Os FreeBSD
 .Sh NAME
 .Nm el
 .Nd Ethernet driver for 3Com Etherlink 3C501 device driver
@@ -32,8 +34,19 @@
 .Sh DESCRIPTION
 The
 .Nm
-interface provides access to a 10 Mb/s Ethernet network via the
-3Com 3c501 Ethernet cards.
+interface provides support for the 3Com 3c501 8bit ISA ethernet card.
+The 3c501 card is known to be quite slow, and a different ethernet card
+should be used if possible.
+However, they allows inexpensive access to 10 Mb/s Ethernet networks.
+.Pp
+The valid I/O ports are in the range 0x280-0x3f0.
+.Sh BUGS
+The driver assumes the card is configured for the same IRQ the kernel is.
+No probing or checking is done to determine if this is the case.
+.Pp
+Does not currently support DMA.
+.Pp
+Does not currently support multicasts.
 .Sh SEE ALSO
 .Xr ifconfig 8 ,
 .Xr intro 4 ,
