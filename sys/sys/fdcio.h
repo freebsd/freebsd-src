@@ -101,6 +101,17 @@ struct fdc_status {
 	u_int	status[7];
 };
 
+/*
+ * cyl and head are being passed into ioctl(FD_READID)
+ * all four fields are being returned
+ */
+struct fdc_readid {
+	u_char	cyl;		/* C - 0...79 */
+	u_char	head;		/* H - 0...1 */
+	u_char	sec;		/* R - 1...n */
+	u_char	secshift;	/* N - log2(secsize / 128) */
+};
+
 #define FD_FORM   _IOW('F', 61, struct fd_formb) /* format a track */
 #define FD_GTYPE  _IOR('F', 62, struct fd_type)  /* get drive type */
 #define FD_STYPE  _IOW('F', 63, struct fd_type)  /* set drive type */
@@ -111,6 +122,8 @@ struct fdc_status {
 #define FD_DEBUG  _IOW('F', 66, int)
 
 #define FD_CLRERR _IO('F', 67)	/* clear error counter */
+
+#define FD_READID _IOWR('F', 68, struct fdc_readid) /* read ID field */
 
 /*
  * Obtain NE765 status registers.  Only successful if there is
