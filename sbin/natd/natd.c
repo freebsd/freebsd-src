@@ -9,7 +9,7 @@
  *
  * Ari Suutari <suutari@iki.fi>
  *
- *	$Id: natd.c,v 1.11.2.3 1999/03/30 10:18:00 brian Exp $
+ *	$Id: natd.c,v 1.11.2.4 1999/05/16 11:59:52 brian Exp $
  */
 
 #define SYSLOG_NAMES
@@ -762,6 +762,8 @@ static void SetAliasAddressFromIfName (char* ifn)
 		}
 
 		extra = ifPtr->ifr_addr.sa_len - sizeof (struct sockaddr);
+		if (extra < 0)
+			extra = 0;
 
 		ifPtr++;
 		ifPtr = (struct ifreq*) ((char*) ifPtr + extra);
