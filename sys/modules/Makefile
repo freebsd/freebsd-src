@@ -9,7 +9,7 @@ _random=	random
 SUBDIR=	3dfx accf_data accf_http agp aha amr an aue \
 	cam ccd cd9660 coda cue dc de dgm ed fdesc fxp if_disc if_ef \
 	if_ppp if_sl if_tap if_tun ip6fw ipfilter ipfw ispfw joy kue \
-	libmchain linux lnc md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
+	libmchain lnc md mfs mii mlx msdos ncp netgraph nfs ntfs nullfs \
 	nwfs pcn portal procfs ${_random}  \
 	rl rp sf sis sk sn sound sppp ste sym syscons sysvipc ti tl twe tx \
 	udbp ugen uhid ukbd ulpt umapfs umass umodem ums union urio usb \
