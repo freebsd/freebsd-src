@@ -286,7 +286,7 @@ mcpcia_disable_intr_vec(int vector)
 		irq = (tmp / MCPCIA_VECWIDTH_PER_INTPIN);
 		irq = ((vector - 0x900) >> 4) - 8;
 	}
-	printf("D<%03x>=%d,%d\n", vector, mid, irq);
+/*	printf("D<%03x>=%d,%d\n", vector, mid, irq); */
 	while (sc) {
 		if (mcbus_get_mid(sc->dev) == mid) {
 			break;
@@ -326,7 +326,7 @@ mcpcia_enable_intr_vec(int vector)
 		tmp -= (2 * MCPCIA_VECWIDTH_PER_SLOT);
 		irq = (tmp / MCPCIA_VECWIDTH_PER_INTPIN);
 	}
-	printf("E<%03x>=%d,%d\n", vector, mid, irq);
+/*	printf("E<%03x>=%d,%d\n", vector, mid, irq); */
 	while (sc) {
 		if (mcbus_get_mid(sc->dev) == mid) {
 			break;
