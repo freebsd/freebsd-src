@@ -524,6 +524,7 @@ do {									\
 } while (0)
 
 void vop_rename_pre(void *a);
+void vop_strategy_pre(void *a);
 
 #else
 
