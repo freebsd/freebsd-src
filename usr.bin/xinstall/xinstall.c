@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id$";
+	"$Id: xinstall.c,v 1.4 1995/10/09 07:21:00 bde Exp $";
 #endif /* not lint */
 
 /*-
@@ -156,10 +156,10 @@ main(argc, argv)
 		usage();
 
 	/* get group and owner id's */
-	if (group && !(gp = getgrnam(group)))
-		errx(EX_NOUSER, "unknown group %s", group);
 	if (owner && !(pp = getpwnam(owner)))
 		errx(EX_NOUSER, "unknown user %s", owner);
+	if (group && !(gp = getgrnam(group)))
+		errx(EX_NOUSER, "unknown group %s", group);
 
 	no_target = stat(to_name = argv[argc - 1], &to_sb);
 	if (!no_target && (to_sb.st_mode & S_IFMT) == S_IFDIR) {
