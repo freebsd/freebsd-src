@@ -47,11 +47,6 @@ specific network interface with the
 ioctl.
 A given interface can be shared be multiple listeners, and the filter
 underlying each descriptor will see an identical packet stream.
-The total number of open
-files is limited to the value given in the kernel configuration; the
-example given in the
-.Sx SYNOPSIS
-above sets the limit to 16.
 .Pp
 A separate device file is required for each minor device.
 If a file is in use, the open will fail and
