@@ -59,19 +59,6 @@
 
 #define BSD_METHOD_NAME "SUNLABEL-method"
 
-static u_int
-g_u16be(u_char *p)
-{
-	return ((p[0] << 8) | p[1]);
-}
-
-static u_int
-g_u32be(u_char *p)
-{
-	return ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]);
-}
-
-
 struct g_sunlabel_softc {
 	int foo;
 };
@@ -141,43 +128,43 @@ g_sunlabel_taste(struct g_method *mp, struct g_provider *pp, struct thread *tp, 
 			break;
 
 		/* The second last short is a magic number */
-		if (g_u16be(buf + 508) != 0xdabe)
+		if (g_dec_be2(buf + 508) != 0xdabe)
 			break;
 		/* The shortword parity of the entire thing must be even */
 		u = 0;
 		for (i = 0; i < 512; i += 2)
-			u ^= g_u16be(buf + i);
+			u ^= g_dec_be2(buf + i);
 		if (u != 0)
 			break;
 		if (bootverbose) {
 			g_hexdump(buf, 128);
 			for (i = 0; i < 8; i++) {
 				printf("part %d %u %u\n", i,
-				    g_u32be(buf + 444 + i * 8),
-				    g_u32be(buf + 448 + i * 8));
+				    g_dec_be4(buf + 444 + i * 8),
+				    g_dec_be4(buf + 448 + i * 8));
 			}
-			printf("v_version = %d\n", g_u32be(buf + 128));
-			printf("v_nparts = %d\n", g_u16be(buf + 140));
+			printf("v_version = %d\n", g_dec_be4(buf + 128));
+			printf("v_nparts = %d\n", g_dec_be2(buf + 140));
 			for (i = 0; i < 8; i++) {
 				printf("v_part[%d] = %d %d\n",
-				    i, g_u16be(buf + 142 + i * 4),
-				    g_u16be(buf + 144 + i * 4));
+				    i, g_dec_be2(buf + 142 + i * 4),
+				    g_dec_be2(buf + 144 + i * 4));
 			}
-			printf("v_sanity %x\n", g_u32be(buf + 186));
-			printf("v_version = %d\n", g_u32be(buf + 128));
-			printf("v_rpm %d\n", g_u16be(buf + 420));
-			printf("v_totalcyl %d\n", g_u16be(buf + 422));
-			printf("v_cyl %d\n", g_u16be(buf + 432));
-			printf("v_alt %d\n", g_u16be(buf + 434));
-			printf("v_head %d\n", g_u16be(buf + 436));
-			printf("v_sec %d\n", g_u16be(buf + 438));
+			printf("v_sanity %x\n", g_dec_be4(buf + 186));
+			printf("v_version = %d\n", g_dec_be4(buf + 128));
+			printf("v_rpm %d\n", g_dec_be2(buf + 420));
+			printf("v_totalcyl %d\n", g_dec_be2(buf + 422));
+			printf("v_cyl %d\n", g_dec_be2(buf + 432));
+			printf("v_alt %d\n", g_dec_be2(buf + 434));
+			printf("v_head %d\n", g_dec_be2(buf + 436));
+			printf("v_sec %d\n", g_dec_be2(buf + 438));
 		}
 
-		csize = g_u16be(buf + 436) * g_u16be(buf + 438);
+		csize = g_dec_be2(buf + 436) * g_dec_be2(buf + 438);
 
 		for (i = 0; i < 8; i++) {
-			v = g_u32be(buf + 444 + i * 8);
-			u = g_u32be(buf + 448 + i * 8);
+			v = g_dec_be4(buf + 444 + i * 8);
+			u = g_dec_be4(buf + 448 + i * 8);
 			if (u == 0)
 				continue;
 			npart++;
