@@ -14,7 +14,7 @@
 
   <abstract>
     <para>The release notes for &os; &release.current; contain a
-      summary of the changes made in the &os; base system since
+      summary of the changes made to the &os; base system since
       &release.prev;.  Both changes for kernel and userland are
       listed, as well as applicable security advisories for the base
       system that were issued since the last release.  Some brief
@@ -89,7 +89,11 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para></para>
+    <para><literal>RLIMIT_VMEM</literal> support has been added.  This
+      feature defines a new resource limit that covers a process's
+      entire virtual memory space, including &man.mmap.2; space.  This
+      limit can be configured in &man.login.conf.5; via the new
+      <varname>vmemoryuse</varname> variable.</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
@@ -215,6 +219,19 @@
       specify the <quote>niceness</quote> of the utility being
       run.</para>
 
+    <para>&man.pam.opie.8; no longer emits fake challenges when the
+      <varname>no_fake_prompts</varname> variable is specified.</para>
+
+    <para>A &man.pam.opieaccess.8; module has been added.</para>
+
+    <para>&man.pam.radius.8;, &man.pam.ssh.8;, and &man.pam.tacplus.8;
+      have been synchronized with the versions in &os; -CURRENT as of 3
+      July 2002.</para>
+
+    <para>&man.pam.unix.8; has been synchronized with the version in
+      &os; -CURRENT as of 9 March 2002
+      (pre-<application>OpenPAM</application>).</para>
+
     <para>&man.pwd.1; now supports the <option>-L</option> flag to
       print the logical current working directory.</para>
 
@@ -246,6 +263,9 @@
 
     <sect3>
       <title>Contributed Software</title>
+
+      <para><application>BIND</application> has been updated to
+	8.3.3.</para>
 
       <para><application>gcc</application> has been updated to
 	2.95.4.</para>
@@ -355,7 +375,7 @@
       <listitem>
 	<para>From source code in <filename>/usr/src</filename>.  This
 	  route is more flexible, but requires more disk space, time,
-	  and more technical expertise.  More information can be found
+	  and technical expertise.  More information can be found
 	  in the <ulink
 	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
 	  <command>make world</command></quote></ulink> section of the <ulink
