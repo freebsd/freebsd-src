@@ -128,6 +128,7 @@ static void	kse_check_completed(struct kse *kse);
 static void	kse_check_waitq(struct kse *kse);
 static void	kse_check_signals(struct kse *kse);
 static void	kse_fini(struct kse *curkse);
+static void	kse_reinit(struct kse *kse);
 static void	kse_sched_multi(struct kse *curkse);
 #ifdef NOT_YET
 static void	kse_sched_single(struct kse *curkse);
@@ -270,6 +271,10 @@ _kse_single_thread(struct pthread *curthread)
 	/* Free the to-be-gc'd threads. */
 	while ((thread = TAILQ_FIRST(&_thread_gc_list)) != NULL) {
 		TAILQ_REMOVE(&_thread_gc_list, thread, gcle);
+		for (i = 0; i < MAX_THR_LOCKLEVEL; i++) {
+			_lockuser_destroy(&thread->lockusers[i]);
+		}
+		_lock_destroy(&thread->lock);
 		free(thread);
 	}
 	TAILQ_INIT(&gc_ksegq);
@@ -506,6 +511,12 @@ _kse_critical_leave(kse_critical_t crit)
 	_ksd_set_tmbx(crit);
 	if ((crit != NULL) && ((curthread = _get_curthread()) != NULL))
 		THR_YIELD_CHECK(curthread);
+}
+
+int
+_kse_in_critical(void)
+{
+	return (_ksd_get_tmbx() == NULL);
 }
 
 void
@@ -1777,6 +1788,8 @@ _kse_alloc(struct pthread *curthread)
 		}
 		KSE_LOCK_RELEASE(curthread->kse, &kse_lock);
 		_kse_critical_leave(crit);
+		if (kse != NULL)
+			kse_reinit(kse);
 	}
 	if ((kse == NULL) &&
 	    ((kse = (struct kse *)malloc(sizeof(*kse))) != NULL)) {
@@ -1850,6 +1863,24 @@ _kse_alloc(struct pthread *curthread)
 		}
 	}
 	return (kse);
+}
+
+static void
+kse_reinit(struct kse *kse)
+{
+	bzero(&kse->k_mbx, sizeof(struct kse_mailbox));
+	kse->k_curthread = 0;
+	kse->k_kseg = 0;
+	kse->k_schedq = 0;
+	kse->k_locklevel = 0;
+	sigemptyset(&kse->k_sigmask);
+	bzero(&kse->k_sigq, sizeof(kse->k_sigq));
+	kse->k_check_sigq = 0;
+	kse->k_flags = KF_INITIALIZED;
+	kse->k_waiting = 0;
+	kse->k_error = 0;
+	kse->k_cpu = 0;
+	kse->k_done = 0;
 }
 
 void
