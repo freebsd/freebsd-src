@@ -109,7 +109,7 @@ isic_attach_Cs0P(device_t dev)
 {
 	u_int32_t iobase1;
 	u_int32_t iobase2;
-	u_int32_t iocfg;
+	u_int32_t iocfg = 0;	/* quiet bogus gcc warning */
 	int unit = device_get_unit(dev);
 	struct l1_softc *sc = &l1_sc[unit];	
 	bus_space_tag_t t;
