@@ -189,7 +189,7 @@ safe_malloc(size_t size)
     void *ptr;
 
     if (size <= 0)
-	msgFatal("Invalid malloc size of %d!", size);
+	msgFatal("Invalid malloc size of %ld!", (long)size);
     ptr = malloc(size);
     if (!ptr)
 	msgFatal("Out of memory!");
@@ -204,7 +204,7 @@ safe_realloc(void *orig, size_t size)
     void *ptr;
 
     if (size <= 0)
-	msgFatal("Invalid realloc size of %d!", size);
+	msgFatal("Invalid realloc size of %ld!", (long)size);
     ptr = realloc(orig, size);
     if (!ptr)
 	msgFatal("Out of memory!");
