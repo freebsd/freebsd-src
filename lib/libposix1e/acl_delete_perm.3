@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_delete_perm
-.Nd Delete permissions from a permission set
+.Nd delete permissions from a permission set
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -41,34 +41,22 @@
 .Sh DESCRIPTION
 .Fn acl_delete_perm
 is a POSIX.1e call that removes specific permissions from permissions set
-.Ar perm .
+.Fa perm .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_delete_perm
 .Sh ERRORS
-If one of the following conditions occur, the
+The
 .Fn acl_delete_perm
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar permset_d
+.Fa permset_d
 is not a valid descriptor for a permission set.  Argument
-.Ar perm
+.Fa perm
 does not contain a valid
-.Ar acl_perm_t
+.Vt acl_perm_t
 value.
-.It Bq Er ENOSYS
-This function is not supported by the implementation.
 .El
 .Sh SEE ALSO
 .Xr acl 3 ,

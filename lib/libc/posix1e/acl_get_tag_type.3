@@ -30,42 +30,32 @@
 .Os
 .Sh NAME
 .Nm acl_get_tag_type
-.Nd Calculate and set ACL mask permissions
+.Nd calculate and set ACL mask permissions
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/acl.h>
 .Ft int
-.Fn acl_get_tag_type "acl_entry_t entry_d, acl_tag_t *tag_type_p"
+.Fn acl_get_tag_type "acl_entry_t entry_d" "acl_tag_t *tag_type_p"
 .Sh DESCRIPTION
 .Fn acl_get_tag_type
 is a POSIX.1e call that returs the tag type for the ACL entry
-.Ar entry_d .
+.Fa entry_d .
 Upon successful completion, the location referred to by the argument
-.Ar tag_type_p
+.Fa tag_type_p
 will be set to the tag type of the ACL entry
-.Ar entry_d .
+.Fa entry_d .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_get_tag_type
 .Sh ERRORS
-If any of the following conditions occur, the
+The
 .Fn acl_get_tag_type
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar entry_d
+.Fa entry_d
 is not a valid descriptor for an ACL entry;
 .El
 .Sh SEE ALSO

@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_copy_entry
-.Nd Copy an ACL entry to another ACL entry
+.Nd copy an ACL entry to another ACL entry
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -41,36 +41,26 @@
 .Sh DESCRIPTION
 .Fn acl_copy_entry
 is a POSIX.1e call that copies the contents of ACL entry
-.Ar src_d
+.Fa src_d
 to ACL entry
-.Ar dest_d .
+.Fa dest_d .
 .Sh RETURN VALUES
-Upon successful completion, the function will return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-will be returned, and
-.Va errno
-will be set to indicate the error.
+.Rv -std acl_copy_entry
 .Sh ERRORS
-If any of the following conditions occur, the
+The
 .Fn acl_copy_entry
-function will return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar src_d
+.Fa src_d
 or
-.Ar dest_d
+.Fa dest_d
 is not a valid descriptor for an ACL entry, or
 arguments
-.Ar src_d
+.Fa src_d
 and
-.Ar dest_d
+.Fa dest_d
 reference the same ACL entry.
 .El
 .Sh SEE ALSO
