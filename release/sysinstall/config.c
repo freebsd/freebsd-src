@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.116 1999/01/27 02:32:46 jkh Exp $
+ * $Id: config.c,v 1.117 1999/01/30 22:15:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -395,13 +395,11 @@ configRC_conf(char *config)
     for (v = VarHead; v; v = v->next) {
 	for (i = 0; i < nlines; i++) {
 	    /* Skip the comments & non-variable settings */
-	    if (lines[i][0] == '#' || !(cp = index(lines[i], '='))) {
-		free(lines[i]);
+	    if (lines[i][0] == '#' || !(cp = index(lines[i], '=')))
 		continue;
-	    }
 
 	    len = strlen(v->name);
-	    if (!strncmp(lines[i], v->name, cp - lines[i]) && (cp - lines[i]) == len) {
+	    if (!strncmp(lines[i], v->name, cp - lines[i]) && (cp - lines[i]) == len && strcmp(cp + 1, v->value)) {
 		char *cp2, *comment = NULL;
 
 		/* If trailing comment, try and preserve it */
@@ -415,7 +413,7 @@ configRC_conf(char *config)
 		    }
 		}
 		free(lines[i]);
-		lines[i] = (char *)alloca(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
+		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
 		if (comment)
 		    sprintf(lines[i], "%s=\"%s\"%s", v->name, v->value, comment);
 		else
@@ -454,10 +452,10 @@ configRC_conf(char *config)
 		    }
 		}
 	    }
-	    else
-		free(lines[i]);
 	}
     }
+    for (i = 0; i < nlines; i++)
+	free(lines[i]);
     fclose(rcSite);
 }
 
