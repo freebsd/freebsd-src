@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.2 1994/06/07 15:53:21 guido Exp $
+#	$Id: Makefile,v 1.1 1994/08/04 19:01:44 wollman Exp $
 
 .SUFFIXES: .x
 
@@ -17,10 +17,10 @@ CLEANFILES+= ${HDRS}
 all: ${HDRS}
 
 install: all
-	@echo "Creating RPC service headers directory"
+	@${ECHO} "Creating RPC service headers directory"
 	@/bin/rm -rf ${DESTDIR}/usr/include/rpcsvc
 	@-mkdir ${DESTDIR}/usr/include/rpcsvc
-	@echo "Installing RPC service header and definition files"
+	@${ECHO} "Installing RPC service header and definition files"
 	@for i in $(XFILES); do \
 		(install -c -m 644 ${.CURDIR}/$$i ${DESTDIR}/usr/include/rpcsvc) done
 	@for i in $(HDRS); do \
@@ -31,7 +31,7 @@ install: all
 	@chmod -R a-w ${DESTDIR}/usr/include/rpcsvc
 
 .x.h:
-	@echo generating $@...
+	@${ECHO} generating $@...
 	@CURPWD=`pwd` ; cd ${.CURDIR} ; ${RPCCOM} -h $*.x -o $$CURPWD/$@
 
 .include <bsd.prog.mk>
