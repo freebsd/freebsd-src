@@ -268,13 +268,13 @@ MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_enc_read.3 des_crypt.3 des_enc_write.3 \
 	des_crypt.3 des_set_odd_parity.3 des_crypt.3 des_is_weak_key.3
 
-beforeinstall:  openssl/opensslconf.h openssl/evp.h
+beforeinstall:  openssl/opensslconf.h openssl/_evp.h
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CRYPTO_HDRS} openssl/opensslconf.h \
 	    ${DESTDIR}/usr/include/openssl
 .if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    openssl/evp.h ${DESTDIR}/usr/include/openssl/evp.h
+	    openssl/_evp.h ${DESTDIR}/usr/include/openssl/evp.h
 .else
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${LCRYPTO_SRC}/evp/evp.h ${DESTDIR}/usr/include/openssl/evp.h
