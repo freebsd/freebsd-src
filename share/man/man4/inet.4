@@ -273,6 +273,21 @@ adaptation described above.
 .Pq ip.rtmaxcache
 Integer: trigger level of cached, unreferenced, protocol-cloned routes
 which initiates dynamic adaptation (default 128).
+.It Va ip.process_options
+Integer: control IP options processing.
+By setting this variable to 0, all IP options in the incoming packets
+will be ignored, and the packets will be passed unmodified.
+By setting to 1, IP options in the incoming packets will be processed
+accordingly.
+By setting to 2, an
+.Tn ICMP
+.Dq "prohibited by filter"
+message will be sent back in respose to incoming packets with IP options.
+Default is 1.
+This
+.Xr sysctl 8
+variable affects packets destined for a local host as well as packets
+forwarded to some other host.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
