@@ -252,7 +252,7 @@ sab82532_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 	sab82532_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Clear interrupts. */
-	uart_setreg(bas, SAB_IMR0, 0xff);
+	uart_setreg(bas, SAB_IMR0, (unsigned char)~SAB_IMR0_TCD);
 	uart_setreg(bas, SAB_IMR1, 0xff);
 	uart_barrier(bas);
 	uart_getreg(bas, SAB_ISR0);
