@@ -22,7 +22,7 @@
 .\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: boot0cfg.8,v 1.1.1.1 1999/02/21 21:23:42 rnordier Exp $
+.\"	$Id: boot0cfg.8,v 1.2 1999/02/22 09:36:54 rnordier Exp $
 .\"
 .Dd February 21, 1999
 .Dt BOOT0CFG 8
@@ -101,7 +101,7 @@ the conventional (CHS) interface, when accessing disk-related BIOS
 services.  The default is
 .Sq nopacket .
 .It setdrv
-Causes the drive containing the disk to be referenced using drive
+Forces the drive containing the disk to be referenced using drive
 number definable by means of the -d option.  The default is
 .Sq nosetdrv .
 .It update
@@ -131,7 +131,7 @@ option may cause
 .Sq boot0
 to fail, depending on the nature of BIOS support.
 .Pp
-The
+Use of the
 .Sq setdrv
-option is presently implemented
-.Dq syntactically but not semantically .
+option with an incorrect -d operand may cause the MBR to be written
+to the wrong disk.  Be careful!
