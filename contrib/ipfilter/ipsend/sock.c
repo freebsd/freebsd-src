@@ -283,12 +283,21 @@ struct	tcpiphdr *ti;
 		return NULL;
 
 	fd = (struct filedesc *)malloc(sizeof(*fd));
+#if defined( __FreeBSD_version) && __FreeBSD_version >= 500013
+	if (KMCPY(fd, p->ki_fd, sizeof(*fd)) == -1)
+	    {
+		fprintf(stderr, "read(%#lx,%#lx) failed\n",
+			(u_long)p, (u_long)p->ki_fd);
+		return NULL;
+	    }
+#else
 	if (KMCPY(fd, p->kp_proc.p_fd, sizeof(*fd)) == -1)
 	    {
 		fprintf(stderr, "read(%#lx,%#lx) failed\n",
 			(u_long)p, (u_long)p->kp_proc.p_fd);
 		return NULL;
 	    }
+#endif
 
 	o = (struct file **)calloc(1, sizeof(*o) * (fd->fd_lastfile + 1));
 	if (KMCPY(o, fd->fd_ofiles, (fd->fd_lastfile + 1) * sizeof(*o)) == -1)
