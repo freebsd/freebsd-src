@@ -52,7 +52,6 @@
 #include <sys/bus.h>
 #include <sys/file.h>
 #include <sys/select.h>
-#include <sys/proc.h>
 #include <sys/vnode.h>
 
 #include <dev/usb/usb.h>

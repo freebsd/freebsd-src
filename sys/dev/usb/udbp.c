@@ -78,7 +78,6 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/select.h>
-#include <sys/proc.h>
 #include <sys/poll.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

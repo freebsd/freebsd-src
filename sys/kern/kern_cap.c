@@ -39,7 +39,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/capability.h>

@@ -52,7 +52,6 @@
 #include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/select.h>
-#include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/poll.h>
 
