@@ -45,7 +45,7 @@ static char const copyright[] =
 static char const sccsid[] = "@(#)main.c	5.5 (Berkeley) 5/24/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.8 1997/08/28 06:33:53 charnier Exp $";
 #endif /* not lint */
 
 #include <signal.h>
@@ -335,10 +335,6 @@ create_file_names()
     text_file_name[len + 5] = 't';
     union_file_name[len + 5] = 'u';
 
-    mktemp(action_file_name);
-    mktemp(text_file_name);
-    mktemp(union_file_name);
-
     if (output_file_name != 0)
     {
 	file_prefix = output_file_name;
@@ -421,6 +417,8 @@ create_file_names()
 static void
 open_files()
 {
+    int fd;
+
     create_file_names();
 
     if (input_file == 0)
@@ -430,9 +428,24 @@ open_files()
 	    open_error(input_file_name);
     }
 
-    action_file = fopen(action_file_name, "w");
-    if (action_file == 0)
+    fd = mkstemp(action_file_name);
+    if (fd < 0 || (action_file = fdopen(fd, "w")) == NULL) {
+        if (fd >= 0)
+	    close(fd);
 	open_error(action_file_name);
+    }
+    fd = mkstemp(text_file_name);
+    if (fd < 0 || (text_file = fdopen(fd, "w")) == NULL) {
+        if (fd >= 0)
+	    close(fd);
+	open_error(text_file_name);
+    }
+    fd = mkstemp(union_file_name);
+    if (fd < 0 || (union_file = fdopen(fd, "w")) == NULL) {
+        if (fd >= 0)
+	    close(fd);
+	open_error(union_file_name);
+    }
 
     text_file = fopen(text_file_name, "w");
     if (text_file == 0)
