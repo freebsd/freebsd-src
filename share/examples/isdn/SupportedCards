@@ -3,9 +3,7 @@
                      ISDN cards supported by isdn4bsd
                      ================================
 
-                 last edit-date: [Mon Oct  9 17:55:15 2000]
-
-                 $Id: Cards,v 1.17 2000/09/04 09:17:26 hm Exp $
+                 last edit-date: [Fri May 25 14:08:36 2001]
 
  $FreeBSD$
 
@@ -93,12 +91,13 @@
   ISDN Master II	NO	YES	???	NO	(Note 12, Amiga/NetBSD)
 
 
-6. Active ISDN cards (currently unsupported!)
-=============================================
+6. Active ISDN cards
+====================
 
   Type (active, ISA)	FreeBSD NetBSD OpenBSD BSD/OS	Notes
   --------------------- -------	------ ------- ------	-----------------------
-  AVM B1		DEV	NO	NO	NO	(Note 6)
+  AVM B1		YES	NO	NO	NO	(Note 17)
+  AVM T1		YES	NO	NO	NO	(Note 18)
   DiehlS,SX,SCOM,QUATRO	NO	DEV	NO	NO	(Note 7)
   Miro P1		DEV	NO	NO	NO	( = Tina-dd )
   Stollmann Tina-dd	DEV	NO	NO	NO	(Note 8)
@@ -181,5 +180,12 @@ Note 16: The driver for the Asuscom ISDNlink 128K PnP was developed by
 	Ari Suutari (ari@suutari.iki.fi). Please contact Ari directly
 	in case of trouble with this driver.
 
+Note 17: The driver was written by Juha-Matti Liukkonen <jml@cubical.fi>,
+	Cubical Solutions Ltd. I have tested it with an AVM B1 PCI card 
+	V.4.0 and an AVM B1 ISA card V.2.0.
+
+Note 18: The driver was written by Juha-Matti Liukkonen <jml@cubical.fi>,
+	Cubical Solutions Ltd. I have no access to any PRI equipment at
+	all so i have not tested the driver, feedback welcome!
 
 EOF
