@@ -6,17 +6,17 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: libdisk.h,v 1.6 1995/04/30 06:09:27 phk Exp $
+ * $Id: libdisk.h,v 1.7 1995/04/30 11:04:14 phk Exp $
  *
  */
 
 #define MAX_NO_DISKS	20
 	/* Max # of disks Disk_Names() will return */
 
-typedef enum {whole, foo, fat, freebsd, extended, part, unused, reserved} chunk_e;
+typedef enum {whole, unknown, fat, freebsd, extended, part, unused, reserved} chunk_e;
 
 #define CHAR_N static char *chunk_n[] = { \
-	"whole","foo","fat","freebsd","extended","part","unused","reserved",0};
+	"whole","unknown","fat","freebsd","extended","part","unused","reserved",0};
 
 struct disk {
 	char		*name;
