@@ -353,9 +353,9 @@ m_mballoc_wait(void)
 
 	if (p == NULL) {
 		m_mballoc_wid++;
-		if (msleep(&m_mballoc_wid, &mmbfree.m_mtx, PVM, "mballc",
-		    mbuf_wait) == EWOULDBLOCK)
-			m_mballoc_wid--;
+		msleep(&m_mballoc_wid, &mmbfree.m_mtx, PVM, "mballc",
+		    mbuf_wait);
+		m_mballoc_wid--;
 
 		/*
 		 * Try again (one last time).
@@ -463,9 +463,8 @@ m_clalloc_wait(void)
 	caddr_t p = NULL;
 
 	m_clalloc_wid++;
-	if (msleep(&m_clalloc_wid, &mclfree.m_mtx, PVM, "mclalc", mbuf_wait)
-	    == EWOULDBLOCK)
-		m_clalloc_wid--;
+	msleep(&m_clalloc_wid, &mclfree.m_mtx, PVM, "mclalc", mbuf_wait);
+	m_clalloc_wid--;
 
 	/*
 	 * Now that we (think) that we've got something, try again.

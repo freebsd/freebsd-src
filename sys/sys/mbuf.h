@@ -273,10 +273,8 @@ struct mcntfree_lst {
  * Must be called with the appropriate mutex held.
  */
 #define	MBWAKEUP(m_wid) do {						\
-	if ((m_wid)) {							\
-		m_wid--;						\
+	if ((m_wid))							\
 		wakeup_one(&(m_wid)); 					\
-	}								\
 } while (0)
 
 /*
