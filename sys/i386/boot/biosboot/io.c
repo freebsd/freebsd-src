@@ -25,10 +25,8 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:57  rpd
- *	$Id: io.c,v 1.5 1994/06/15 19:09:14 jkh Exp $
+ *	$Id: io.c,v 1.6 1994/06/16 03:53:29 adam Exp $
  */
-
-#include <i386/include/pio.h>
 
 #define K_RDWR 		0x60		/* keyboard data & cmds (read/write) */
 #define K_STATUS 	0x64		/* keyboard status */

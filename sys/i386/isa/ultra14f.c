@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.23 1994/08/27 16:14:22 davidg Exp $
+ *      $Id: ultra14f.c,v 1.24 1994/08/28 16:08:51 bde Exp $
  */
 
 #include <sys/types.h>
@@ -39,7 +39,6 @@
 #include <sys/proc.h>
 #include <sys/user.h>
 
-#include <i386/include/pio.h>
 #include <i386/isa/isa_device.h>
 #endif /*KERNEL */
 #include <scsi/scsi_all.h>
