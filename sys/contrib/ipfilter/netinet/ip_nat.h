@@ -108,7 +108,7 @@ typedef	struct	nat	{
 	void	*nat_ifp;
 	int	nat_dir;
 	char	nat_ifname[IFNAMSIZ];
-#if SOLARIS || defined(__sgi)
+#if SOLARIS || defined(__sgi) || (__FreeBSD_version >= 500043)
 	kmutex_t	nat_lock;
 #endif
 } nat_t;

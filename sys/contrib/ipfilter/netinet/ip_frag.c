@@ -109,7 +109,7 @@ extern	timeout_id_t	ipfr_timer_id;
 extern	int	ipfr_timer_id;
 # endif
 #endif
-#if	(SOLARIS || defined(__sgi)) && defined(_KERNEL)
+#ifdef USE_MUTEX
 extern	KRWLOCK_T	ipf_frag, ipf_natfrag, ipf_nat, ipf_mutex;
 # if	SOLARIS
 extern	KRWLOCK_T	ipf_solaris;
