@@ -856,7 +856,8 @@ isa_pnp_probe(device_t dev, device_t child, struct isa_pnp_id *ids)
 		 */
 		if (idev->id_logicalid == ids->ip_id
 		    || idev->id_compatid == ids->ip_id) {
-			device_set_desc(child, ids->ip_desc);
+			if (ids->ip_desc)
+				device_set_desc(child, ids->ip_desc);
 			return 0;
 		}
 		ids++;
