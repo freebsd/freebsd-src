@@ -2138,19 +2138,20 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 			vm_page_lock_queues();
 			pmap_remove(map->pmap, s, e);
 			vm_page_unlock_queues();
-			if (object != NULL &&
-			    object->ref_count != 1 &&
-			    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
-			    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
-				vm_object_collapse(object);
+			if (object != NULL) {
 				VM_OBJECT_LOCK(object);
-				vm_object_page_remove(object, offidxstart, offidxend, FALSE);
-				if (object->type == OBJT_SWAP) {
-					swap_pager_freespace(object, offidxstart, count);
-				}
-				if (offidxend >= object->size &&
-				    offidxstart < object->size) {
-					object->size = offidxstart;
+				if (object->ref_count != 1 &&
+				    (object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING &&
+				    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
+					VM_OBJECT_UNLOCK(object);
+					vm_object_collapse(object);
+					VM_OBJECT_LOCK(object);
+					vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+					if (object->type == OBJT_SWAP)
+						swap_pager_freespace(object, offidxstart, count);
+					if (offidxend >= object->size &&
+					    offidxstart < object->size)
+						object->size = offidxstart;
 				}
 				VM_OBJECT_UNLOCK(object);
 			}
