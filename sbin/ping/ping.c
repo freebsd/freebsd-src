@@ -947,7 +947,7 @@ pr_pack(buf, cc, from, tv)
 #else
 			tp = icp->icmp_data;
 #endif
-			tp += phdr_len;
+			tp = (const char *)tp + phdr_len;
 
 			if (cc - ICMP_MINLEN - phdr_len >= sizeof(tv1)) {
 				/* Copy to avoid alignment problems: */

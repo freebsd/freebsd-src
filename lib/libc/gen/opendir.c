@@ -97,7 +97,7 @@ __opendir2(name, flags)
 	    (dirp = malloc(sizeof(DIR) + sizeof(struct _telldir))) == NULL)
 		goto fail;
 
-	dirp->dd_td = (void *)dirp + sizeof(DIR);
+	dirp->dd_td = (struct _telldir *)((char *)dirp + sizeof(DIR));
 	LIST_INIT(&dirp->dd_td->td_locq);
 	dirp->dd_td->td_loccnt = 0;
 

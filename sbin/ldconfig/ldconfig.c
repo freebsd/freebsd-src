@@ -578,8 +578,8 @@ readhints()
 	}
 	close(fd);
 
-	blist = (struct hints_bucket *)(addr + hdr->hh_hashtab);
-	strtab = (char *)(addr + hdr->hh_strtab);
+	blist = (struct hints_bucket *)((char *)addr + hdr->hh_hashtab);
+	strtab = (char *)addr + hdr->hh_strtab;
 
 	if (hdr->hh_version >= LD_HINTS_VERSION_2)
 		add_search_path(strtab + hdr->hh_dirlist);
