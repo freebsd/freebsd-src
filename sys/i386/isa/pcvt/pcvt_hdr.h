@@ -151,12 +151,6 @@
 #endif /* PCVT_FREEBSD >= 200 */
 #endif /* PCVT_NETBSD <= 9 */
 
-#if PCVT_FREEBSD >= 200
-#include <machine/stdarg.h>
-#else
-#include "machine/stdarg.h"
-#endif
-
 #if PCVT_NETBSD > 9
 #include <i386/isa/pcvt/pcvt_ioctl.h>
 #elif PCVT_FREEBSD >= 200
