@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.31 1998/12/22 20:05:21 eivind Exp $
+ *      $Id: cam_xpt.c,v 1.32 1998/12/24 02:43:41 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,6 +38,7 @@
 #include <sys/fcntl.h>
 #include <sys/md5.h>
 #include <sys/devicestat.h>
+#include <sys/interrupt.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
@@ -572,8 +573,8 @@ static xpt_devicefunc_t	xptfinishconfigfunc;
 static xpt_devicefunc_t xptpassannouncefunc;
 static void	 xpt_finishconfig(struct cam_periph *periph, union ccb *ccb);
 static void	 xptaction(struct cam_sim *sim, union ccb *work_ccb);
-       void	 swi_camnet(void);
-       void	 swi_cambio(void);
+static swihand_t swi_camnet;
+static swihand_t swi_cambio;
 static void	 camisr(cam_isrq_t *queue);
 #if 0
 static void	 xptstart(struct cam_periph *periph, union ccb *work_ccb);
@@ -1198,11 +1199,8 @@ xpt_init()
 	}
 
 	/* Install our software interrupt handlers */
-	/* XXX Should call some MI function to do this */
-#ifdef __i386__
-	ihandlers[SWI_CAMNET] = swi_camnet;
-	ihandlers[SWI_CAMBIO] = swi_cambio;
-#endif
+	register_swi(SWI_CAMNET, swi_camnet);
+	register_swi(SWI_CAMBIO, swi_cambio);
 }
 
 static cam_status
@@ -5783,18 +5781,16 @@ xptaction(struct cam_sim *sim, union ccb *work_ccb)
 /*
  * Should only be called by the machine interrupt dispatch routines,
  * so put these prototypes here instead of in the header.
- *
- * XXX we should really have a way to dynamically register SWI handlers.
  */
 
-void
-swi_camnet()
+static void
+swi_camnet(void)
 {
 	camisr(&cam_netq);
 }
 
-void
-swi_cambio()
+static void
+swi_cambio(void)
 {
 	camisr(&cam_bioq);
 }
