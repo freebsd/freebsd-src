@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: hlfsd.c,v 1.1.1.1 1998/08/23 22:07:20 obrien Exp $
+ * $Id: hlfsd.c,v 1.2 1998/08/23 22:52:08 obrien Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -308,7 +308,7 @@ main(int argc, char *argv[])
   }
 
   /* get hostname for logging and open log before we reset umask */
-  gethostname(hostname, sizeof hostname);
+  gethostname(hostname, sizeof(hostname));
   hostname[sizeof(hostname) - 1] = '\0';
   if ((dot = strchr(hostname, '.')) != NULL)
     *dot = '\0';
