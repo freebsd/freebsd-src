@@ -242,7 +242,9 @@ acd_detach(struct ata_device *atadev)
 	free(entry, M_ACD);
     }
     destroy_dev(cdp->dev);
+#ifndef BURN_BRIDGES
     EVENTHANDLER_DEREGISTER(dev_clone, cdp->clone_evh);
+#endif
     devstat_remove_entry(cdp->stats);
     ata_prtdev(atadev, "WARNING - removed from configuration\n");
     ata_free_name(atadev);
@@ -273,6 +275,7 @@ acd_init_lun(struct ata_device *atadev)
     return cdp;
 }
 
+#ifndef BURN_BRIDGES
 static void
 acd_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -289,6 +292,7 @@ acd_clone(void *arg, char *name, int namelen, dev_t *dev)
     if (unit == cdp->lun)
 	*dev = makedev(acd_cdevsw.d_maj, cdp->lun);
 }
+#endif
 
 static void
 acd_make_dev(struct acd_softc *cdp)
@@ -300,7 +304,9 @@ acd_make_dev(struct acd_softc *cdp)
     dev->si_drv1 = cdp;
     cdp->dev = dev;
     cdp->device->flags |= ATA_D_MEDIA_CHANGED;
+#ifndef BURN_BRIDGES
     cdp->clone_evh = EVENTHANDLER_REGISTER(dev_clone, acd_clone, cdp, 1000);
+#endif
     acd_set_ioparm(cdp);
 }
 
