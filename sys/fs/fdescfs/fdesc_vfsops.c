@@ -88,9 +88,7 @@ fdesc_mount(struct mount *mp, struct thread *td)
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
-	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
-	bcopy("fdescfs", mp->mnt_stat.f_mntfromname, sizeof("fdescfs"));
-	(void)fdesc_statfs(mp, &mp->mnt_stat, td);
+	vfs_mountedfrom(mp, "fdescfs");
 	return (0);
 }
 
