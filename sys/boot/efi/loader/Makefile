@@ -31,10 +31,10 @@ CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
 CFLAGS+= -DLOADER
 
 LDSCRIPT=	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/ldscript.${MACHINE_ARCH}
-LDFLAGS=	-Wl,-T${LDSCRIPT} -Wl,-M,-Map,loader.list -shared -symbolic
+LDFLAGS=	-Wl,-T${LDSCRIPT} -shared -symbolic
 OBJCOPY?=	objcopy
 
-CLEANFILES=	vers.c loader.efi loader.list loader.help
+CLEANFILES=	vers.c loader.efi loader.help
 
 vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
