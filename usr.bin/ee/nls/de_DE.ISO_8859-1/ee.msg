@@ -5,6 +5,7 @@ $ For ee patchlevel 3
 $ 
 $ $FreeBSD$
 $ 
+$ 
 $set 1
 $quote "
 1 "Modus-Menü"
@@ -61,8 +62,8 @@ $quote "
 52 "zeile   : Zeilennummer anzeigen         0-9     : Zur angegebenen Zeile    "
 53 "leer    : Tabulat. in Leerz. wandeln    tabs    : Tabulatoren belassen     "
 54 "                                                                             "
-55 "  ee [-i] [-e] [-h] [datei(en)]                                            "
-56 "   -i : ohne Hilfefenster      -e : Tabulatoren lassen   -h : k. Hervorheb."
+55 "  ee [+#] [-i] [-e] [-h] [datei(en)]                                         "
+56 "+#: zu Zeile #  -i: k. Hilfefenster -e: Tabulatoren lassen -h: k. Hervorheb."
 57 "^[ (Escape) Menü  ^e Textsuche      ^y Zeile löschen  ^u hoch   ^p Seite zur. "
 58 "^a ASCII-Code     ^x Weitersuchen   ^z Zeile rückhl.  ^d runter ^n Seite vor  "
 59 "^b Textende       ^g Zeilenanfang   ^w Wort löschen   ^l links                "
@@ -176,7 +177,9 @@ $quote "
 167 "speichern im Home-Verzeichnis"
 168 "ee-Konfiguration nicht gespeichert"
 169 "beim Aufruf von ree muß ein Dateiname angegeben werden"
-170 "Esc zum Verlassen"
 180 "Menü zu groß für den Bildschirm"
 181 "^^weiter^^"
 182 "VVweiterVV"
+183 "16-bit Zeichen       "
+184 "16BIT"
+185 "NO16BIT"

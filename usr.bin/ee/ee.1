@@ -353,6 +353,9 @@ A window showing the keyboard operations that can be performed can be
 displayed or not.
 .It emacs keys
 Control keys may be given bindings similar to emacs, or not.
+.It 16 bit characters
+Toggles whether sixteen bit characters are handled as one 16-bit quantities or 
+two 8-bit quantities.  This works primarily with the Chinese Big 5 code set.
 .El
 .Pp
 You may set these modes via the initialization file (see below), or with a 
@@ -496,10 +499,14 @@ Turn on display of eight bit characters.
 .It noeightbit
 Turn off display of eight bit characters (they are displayed as their decimal 
 value inside angle brackets, e.g., "<220>").
+.It 16bit
+Turns on handling of 16-bit characters.
+.It no16bit
+Turns off handling of 16-bit characters.
 .It emacs
-Turn on emacs key bindings.
+Turns on emacs key bindings.
 .It noemacs
-Turn off emacs key bindings.
+Turns off emacs key bindings.
 .El
 .Ss "Save Editor Configuration"
 When using this entry from the 
@@ -538,7 +545,10 @@ Always make a copy of files that cannot be easily reproduced before
 editing.  Save files early, and save often.
 .Ss "International Code Set Support"
 .Nm Ee
-supports single-byte character code sets (eight-bit clean).
+supports single-byte character code sets (eight-bit clean), or the 
+Chinese Big-5 code set.  (Other multi-byte code sets may function, but the 
+reason Big-5 works is that a two-byte character also takes up two columns on 
+the screen.)
 .Sh WARNINGS
 The automatic paragraph formatting operation 
 may be too slow for slower systems.
@@ -558,10 +568,10 @@ This software and documentation contains
 proprietary information which is protected by 
 copyright.  All rights are reserved. 
 .Pp
-Copyright (c) 1990, 1991, 1992, 1993, 1995 Hugh Mahon.
+Copyright (c) 1990, 1991, 1992, 1993, 1995, 1996 Hugh Mahon.
 .Sh "SEE ALSO"
 .Xr ispell 1 ,
-.Xr lp 1 ,
+.Xr lpr 1 ,
 .Xr spell 1 ,
 .Xr termcap 5 ,
 .Xr terminfo 5 ,

@@ -1,3 +1,5 @@
+$FreeBSD$
+
           THIS MATERIAL IS PROVIDED "AS IS".  THERE ARE NO WARRANTIES OF 
           ANY KIND WITH REGARD TO THIS MATERIAL, INCLUDING, BUT NOT 
           LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND 
@@ -15,7 +17,6 @@
 
       This software may be distributed under the terms of Larry Wall's 
       Artistic license, a copy of which is included in this distribution. 
-      (see doc/Artistic).
 
       This notice must be included with this software and any 
       derivatives. 
@@ -68,19 +69,17 @@ terminal's capabilities.
 While ee is based on curses, I have included here the source code to 
 new_curse, a subset of curses developed for use with ee.  'curses' often  
 will have a defect that reduces the usefulness of the editor relying upon 
-it.  This is unused by the FreeBSD version of ee (the existing ncurses
-library works just fine) but is included in the doc subdirectory for
-reference purposes should anyone wish to port ee to a platform for
-which the existing curses libraries are insufficient.
+it.  
 
-The files doc/new_curse.[ch] contain a subset of the 'curses' library
-used by applications to handle screen output.  Unfortunately, curses 
+The file new_curse.c contains a subset of 'curses', a package for 
+applications to use to handle screen output.  Unfortunately, curses 
 varies from system to system, so I developed new_curse to provide 
 consistent behavior across systems.  It works on both SystemV and BSD 
 systems, and while it can sometimes be slower than other curses packages, 
 it will get the information on the screen painted correctly more often 
-than vendor supplied curses.  Again, FreeBSD does not have this problem
-but you may find it useful on other platforms.
+than vendor supplied curses.  Unless problems occur during the building 
+of ee, it is recommended that you use new_curse rather than the curses 
+supplied with your system.
 
 If you experience problems with data being displayed improperly, check 
 your terminal configuration, especially if you're using a terminal 
@@ -93,7 +92,10 @@ else (like the terminal emulator being used).
 
 Both ee and new_curse were developed using K&R C (also known as "classic 
 C"), but it can also be compiled with ANSI C.  You should be able to 
-build ee by simply typing "make".
+build ee by simply typing "make".  A make file which takes into account 
+the characteristics of your system will be created, and then ee will be 
+built.  If there are problems encountered, you will be notified about 
+them. 
 
 ee is the result of several conflicting design goals.  While I know that it 
 solves the problems of some users, I also have no doubt that some will decry 
