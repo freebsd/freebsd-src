@@ -3,7 +3,7 @@
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  * Feral Software
  * All rights reserved.
  *
@@ -108,7 +108,7 @@ static int isp_handle_other_response
 __P((struct ispsoftc *, ispstatusreq_t *, u_int16_t *));
 static void isp_parse_status
 __P((struct ispsoftc *, ispstatusreq_t *, XS_T *));
-static void isp_fastpost_complete __P((struct ispsoftc *, u_int32_t));
+static void isp_fastpost_complete __P((struct ispsoftc *, u_int16_t));
 static void isp_scsi_init __P((struct ispsoftc *));
 static void isp_scsi_channel_init __P((struct ispsoftc *, int));
 static void isp_fibre_init __P((struct ispsoftc *));
@@ -933,7 +933,8 @@ isp_scsi_channel_init(isp, channel)
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return;
 	}
-	isp_prt(isp, ISP_LOGINFO, "Initiator ID is %d", sdp->isp_initiator_id);
+	isp_prt(isp, ISP_LOGINFO, "Initiator ID is %d on Channel %d",
+	    sdp->isp_initiator_id, channel);
 
 
 	/*
@@ -1076,11 +1077,6 @@ isp_fibre_init(isp)
 	 */
 	fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 
-	/*
-	 * We don't set ICBOPT_PORTNAME because we want our
-	 * Node Name && Port Names to be distinct.
-	 */
-
 	
 	/*
 	 * Make sure that target role reflects into fwoptions.
@@ -1148,6 +1144,7 @@ isp_fibre_init(isp)
 	nwwn = ISP_NODEWWN(isp);
 	pwwn = ISP_PORTWWN(isp);
 	if (nwwn && pwwn) {
+		icbp->icb_fwoptions |= ICBOPT_BOTH_WWNS;
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_nodename, nwwn);
 		MAKE_NODE_NAME_FROM_WWN(icbp->icb_portname, pwwn);
 		isp_prt(isp, ISP_LOGDEBUG1,
@@ -1158,7 +1155,7 @@ isp_fibre_init(isp)
 		    ((u_int32_t) (pwwn & 0xffffffff)));
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG1, "Not using any WWNs");
-		fcp->isp_fwoptions &= ~(ICBOPT_USE_PORTNAME|ICBOPT_FULL_LOGIN);
+		icbp->icb_fwoptions &= ~(ICBOPT_BOTH_WWNS|ICBOPT_FULL_LOGIN);
 	}
 	icbp->icb_rqstqlen = RQUEST_QUEUE_LEN(isp);
 	icbp->icb_rsltqlen = RESULT_QUEUE_LEN(isp);
@@ -2249,7 +2246,7 @@ isp_start(xs)
 	XS_T *xs;
 {
 	struct ispsoftc *isp;
-	u_int16_t iptr, optr;
+	u_int16_t iptr, optr, handle;
 	union {
 		ispreq_t *_reqp;
 		ispreqt2_t *_t2reqp;
@@ -2304,6 +2301,39 @@ isp_start(xs)
 	if (IS_FC(isp)) {
 		fcparam *fcp = isp->isp_param;
 		struct lportdb *lp;
+#ifdef	HANDLE_LOOPSTATE_IN_OUTER_LAYERS
+		if (fcp->isp_fwstate != FW_READY ||
+		    fcp->isp_loopstate != LOOP_READY) {
+			return (CMD_RQLATER);
+		}
+
+		/*
+		 * If we're not on a Fabric, we can't have a target
+		 * above FL_PORT_ID-1.
+		 *
+		 * If we're on a fabric and *not* connected as an F-port,
+		 * we can't have a target less than FC_SNS_ID+1. This
+		 * keeps us from having to sort out the difference between
+		 * local public loop devices and those which we might get
+		 * from a switch's database.
+		 */
+		if (fcp->isp_onfabric == 0) {
+			if (target >= FL_PORT_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+		} else {
+			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+			if (fcp->isp_topo != TOPO_F_PORT &&
+			    target < FL_PORT_ID) {
+				XS_SETERR(xs, HBA_SELTIMEOUT);
+				return (CMD_COMPLETE);
+			}
+		}
+#else
 		/*
 		 * Check for f/w being in ready state. If the f/w
 		 * isn't in ready state, then we don't know our
@@ -2420,6 +2450,7 @@ isp_start(xs)
 		 * XXX: Here's were we would cancel any loop_dead flag
 		 * XXX: also cancel in dead_loop timeout that's running
 		 */
+#endif
 
 		/*
 		 * Now check whether we should even think about pursuing this.
@@ -2551,18 +2582,19 @@ isp_start(xs)
 	if (isp->isp_sendmarker && reqp->req_time < 5) {
 		reqp->req_time = 5;
 	}
-	if (isp_save_xs(isp, xs, &reqp->req_handle)) {
+	if (isp_save_xs(isp, xs, &handle)) {
 		isp_prt(isp, ISP_LOGDEBUG1, "out of xflist pointers");
 		XS_SETERR(xs, HBA_BOTCH);
 		return (CMD_EAGAIN);
 	}
+	reqp->req_handle = handle;
 	/*
 	 * Set up DMA and/or do any bus swizzling of the request entry
 	 * so that the Qlogic F/W understands what is being asked of it.
  	*/
 	i = ISP_DMASETUP(isp, xs, reqp, &iptr, optr);
 	if (i != CMD_QUEUED) {
-		isp_destroy_handle(isp, reqp->req_handle);
+		isp_destroy_handle(isp, handle);
 		/*
 		 * dmasetup sets actual error in packet, and
 		 * return what we were given to return.
@@ -2597,7 +2629,7 @@ isp_control(isp, ctl, arg)
 	XS_T *xs;
 	mbreg_t mbs;
 	int bus, tgt;
-	u_int32_t handle;
+	u_int16_t handle;
 
 	switch (ctl) {
 	default:
@@ -2670,8 +2702,8 @@ isp_control(isp, ctl, arg)
 			mbs.param[1] =
 			    (bus << 15) | (XS_TGT(xs) << 8) | XS_LUN(xs);
 		}
-		mbs.param[3] = handle >> 16;
-		mbs.param[2] = handle & 0xffff;
+		mbs.param[3] = 0;
+		mbs.param[2] = handle;
 		isp_mboxcmd(isp, &mbs, MBLOGALL & ~MBOX_COMMAND_ERROR);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 			return (0);
@@ -2733,6 +2765,11 @@ isp_control(isp, ctl, arg)
 			return (isp_getmap(isp, arg));
 		}
 		break;
+
+	case ISPCTL_RUN_MBOXCMD:
+
+		isp_mboxcmd(isp, arg, MBLOGALL);
+		return(0);
 
 #ifdef	ISP_TARGET_MODE
 	case ISPCTL_TOGGLE_TMODE:
@@ -2849,10 +2886,10 @@ isp_intr(arg)
 				    mbox);
 			}
 		} else {
-			u_int32_t fhandle = isp_parse_async(isp, (int) mbox);
+			int fhandle = isp_parse_async(isp, (int) mbox);
 			isp_prt(isp, ISP_LOGDEBUG2, "Async Mbox 0x%x", mbox);
 			if (fhandle > 0) {
-				isp_fastpost_complete(isp, fhandle);
+				isp_fastpost_complete(isp, (u_int16_t) fhandle);
 			}
 		}
 		if (IS_FC(isp) || isp->isp_state != ISP_RUNSTATE) {
@@ -2990,7 +3027,9 @@ isp_intr(arg)
 		if (sp->req_handle > isp->isp_maxcmds || sp->req_handle < 1) {
 			MEMZERO(sp, sizeof (isphdr_t));
 			isp_prt(isp, ISP_LOGERR,
-			    "bad request handle %d", sp->req_handle);
+			    "bad request handle %d (type 0x%x, flags 0x%x)",
+			    sp->req_handle, sp->req_header.rqs_entry_type,
+			    sp->req_header.rqs_flags);
 			ISP_WRITE(isp, INMAILBOX5, optr);
 			continue;
 		}
@@ -3085,7 +3124,7 @@ isp_intr(arg)
 			break;
 		default:
 			isp_prt(isp, ISP_LOGWARN,
-			    "unhandled respose queue type 0x%x",
+			    "unhandled response queue type 0x%x",
 			    sp->req_header.rqs_entry_type);
 			if (XS_NOERR(xs)) {
 				XS_SETERR(xs, HBA_BOTCH);
@@ -3159,7 +3198,7 @@ isp_parse_async(isp, mbox)
 	int mbox;
 {
 	int bus;
-	u_int32_t fast_post_handle = 0;
+	u_int16_t fast_post_handle = 0;
 
 	if (IS_DUALBUS(isp)) {
 		bus = ISP_READ(isp, OUTMAILBOX6);
@@ -3178,7 +3217,8 @@ isp_parse_async(isp, mbox)
 	case ASYNC_SYSTEM_ERROR:
 		mbox = ISP_READ(isp, OUTMAILBOX1);
 		isp_prt(isp, ISP_LOGERR,
-		    "Internal FW Error @ RISC Addr 0x%x", mbox);
+		    "Internal Firmware Error @ RISC Addr 0x%x", mbox);
+		ISP_DUMPREGS(isp, "Firmware Error");
 		isp_reinit(isp);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, ASYNC_SYSTEM_ERROR);
@@ -3205,7 +3245,7 @@ isp_parse_async(isp, mbox)
 
 	case ASYNC_TIMEOUT_RESET:
 		isp_prt(isp, ISP_LOGWARN,
-		    "timeout initiated SCSI bus reset of bus %d\n", bus);
+		    "timeout initiated SCSI bus reset of bus %d", bus);
 		isp->isp_sendmarker |= (1 << bus);
 #ifdef	ISP_TARGET_MODE
 		isp_target_async(isp, bus, mbox);
@@ -3274,8 +3314,7 @@ isp_parse_async(isp, mbox)
 		break;
 
 	case ASYNC_CMD_CMPLT:
-		fast_post_handle = (ISP_READ(isp, OUTMAILBOX2) << 16) |
-		    ISP_READ(isp, OUTMAILBOX1);
+		fast_post_handle = ISP_READ(isp, OUTMAILBOX1);
 		isp_prt(isp, ISP_LOGDEBUG3, "fast post completion of %u",
 		    fast_post_handle);
 		break;
@@ -3452,6 +3491,9 @@ isp_handle_other_response(isp, sp, optrp)
 #endif
 	case RQSTYPE_REQUEST:
 	default:
+		if (isp_async(isp, ISPASYNC_UNHANDLED_RESPONSE, sp)) {
+			return (0);
+		}
 		isp_prt(isp, ISP_LOGWARN, "Unhandled Response Type 0x%x",
 		    sp->req_header.rqs_entry_type);
 		return (-1);
@@ -3796,11 +3838,11 @@ isp_parse_status(isp, sp, xs)
 static void
 isp_fastpost_complete(isp, fph)
 	struct ispsoftc *isp;
-	u_int32_t fph;
+	u_int16_t fph;
 {
 	XS_T *xs;
 
-	if (fph < 1) {
+	if (fph == 0) {
 		return;
 	}
 	xs = isp_find_xs(isp, fph);
@@ -4030,7 +4072,7 @@ static u_int16_t mbpfc[] = {
 	ISPOPMAP(0x01, 0x01),	/* 0x00: MBOX_NO_OP */
 	ISPOPMAP(0x1f, 0x01),	/* 0x01: MBOX_LOAD_RAM */
 	ISPOPMAP(0x03, 0x01),	/* 0x02: MBOX_EXEC_FIRMWARE */
-	ISPOPMAP(0x1f, 0x01),	/* 0x03: MBOX_DUMP_RAM */
+	ISPOPMAP(0xdf, 0x01),	/* 0x03: MBOX_DUMP_RAM */
 	ISPOPMAP(0x07, 0x07),	/* 0x04: MBOX_WRITE_RAM_WORD */
 	ISPOPMAP(0x03, 0x07),	/* 0x05: MBOX_READ_RAM_WORD */
 	ISPOPMAP(0xff, 0xff),	/* 0x06: MBOX_MAILBOX_REG_TEST */
@@ -4842,7 +4884,7 @@ isp_reinit(isp)
 	struct ispsoftc *isp;
 {
 	XS_T *xs;
-	u_int32_t handle;
+	u_int16_t handle;
 
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
