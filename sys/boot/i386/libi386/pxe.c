@@ -128,7 +128,8 @@ struct devsw pxedisk = {
 	pxe_open, 
 	pxe_close, 
 	noioctl,
-	pxe_print
+	pxe_print,
+	pxe_cleanup
 };
 
 /*
@@ -325,14 +326,15 @@ pxe_cleanup(void)
 	t_PXENV_UNDI_SHUTDOWN *undi_shutdown_p =
 	    (t_PXENV_UNDI_SHUTDOWN *)scratch_buffer;
 
-	pxe_call(PXENV_UNLOAD_STACK);
-	if (unload_stack_p->Status != 0)
-		panic("pxe_cleanup: UNLOAD_STACK failed");
-	
 	pxe_call(PXENV_UNDI_SHUTDOWN);
 	if (undi_shutdown_p->Status != 0)
-		panic("pxe_cleanup: UNDI_SHUTDOWN failed");
-	printf("All cleaned up!\n");
+		panic("pxe_cleanup: UNDI_SHUTDOWN failed %x",
+		    undi_shutdown_p->Status);
+
+	pxe_call(PXENV_UNLOAD_STACK);
+	if (unload_stack_p->Status != 0)
+		panic("pxe_cleanup: UNLOAD_STACK failed %x",
+		    unload_stack_p->Status);
 }
 
 void
