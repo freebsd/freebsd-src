@@ -174,6 +174,7 @@ ENTRY(cpu_switch)
 	je	sw1
 #endif
 1:
+#endif
 	movl	%cr3,%ebx			/* The same address space? */
 	cmpl	%ebx,%eax
 #ifdef SWTCH_OPTIM_STATS
@@ -181,8 +182,6 @@ ENTRY(cpu_switch)
 #else
 	je	sw1
 #endif
-#endif
-
 #ifdef SWTCH_OPTIM_STATS
 	incl	tlb_flush_count
 #endif
