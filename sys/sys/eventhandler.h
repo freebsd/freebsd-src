@@ -65,10 +65,12 @@ struct eventhandler_entry_ ## name 				\
 {								\
     struct eventhandler_entry	ee;				\
     type		eh_func;				\
-};
+};								\
+struct __hack
 
-#define EVENTHANDLER_FAST_DEFINE(name, type)			\
-struct eventhandler_list Xeventhandler_list_ ## name = { #name };
+#define EVENTHANDLER_FAST_DEFINE(name, type)				\
+struct eventhandler_list Xeventhandler_list_ ## name = { #name };	\
+struct __hack
 
 #define EVENTHANDLER_FAST_INVOKE(name, args...)				\
 do {									\
@@ -79,7 +81,7 @@ do {									\
 	((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , ## args); \
 	_ep = TAILQ_NEXT(_ep, ee_link);					\
     }									\
-} while (0);
+} while (0)
 
 #define EVENTHANDLER_FAST_REGISTER(name, func, arg, priority) \
     eventhandler_register(Xeventhandler_list_ ## name, #name, func, arg, priority)
@@ -100,7 +102,8 @@ struct eventhandler_entry_ ## name 		\
 {						\
     struct eventhandler_entry	ee;		\
     type		eh_func;		\
-};
+};						\
+struct __hack
 
 #define EVENTHANDLER_INVOKE(name, args...)				\
 do {									\
@@ -114,7 +117,7 @@ do {									\
 	    ((struct eventhandler_entry_ ## name *)_ep)->eh_func(_ep->ee_arg , ## args); \
 	}								\
     }									\
-} while (0);
+} while (0)
 
 #define EVENTHANDLER_REGISTER(name, func, arg, priority) \
     eventhandler_register(NULL, #name, func, arg, priority)
@@ -125,7 +128,7 @@ do {							\
 							\
     if ((_el = eventhandler_find_list(#name)) != NULL)	\
 	eventhandler_deregister(_el, tag);		\
-} while(0);
+} while(0)
 	
 
 extern eventhandler_tag	eventhandler_register(struct eventhandler_list *list, 
