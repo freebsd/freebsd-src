@@ -20,6 +20,8 @@ LOCALES=	am_ET.UTF-8 \
 		ru_RU.KOI8-R \
 		uk_UA.KOI8-U \
 		zh_CN.eucCN \
+		zh_CN.GB18030 \
+		zh_CN.GBK \
 		zh_TW.Big5
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
