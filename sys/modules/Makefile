@@ -2,8 +2,8 @@
 
 # XXX present but broken: ip_mroute_mod pcic
 
-SUBDIR=	aha amr ccd cd9660 coda dc fdesc fxp if_disc if_ppp if_sl if_tun \
-	ipfilter ipfw joy kernfs md mfs mii mlx msdos \
+SUBDIR=	aha amr ccd cd9660 coda dc fdesc fxp if_disc if_ef if_ppp if_sl \
+	if_tun ipfilter ipfw joy kernfs md mfs mii mlx msdos \
 	ncp netgraph nfs ntfs nullfs \
 	nwfs portal procfs rl sf sis sk ste ti tl \
 	ugen uhid ukbd ulpt umapfs umass umodem ums union usb vn vr wb xl
