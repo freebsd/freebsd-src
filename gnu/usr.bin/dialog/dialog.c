@@ -155,10 +155,9 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_yesno(title, argv[offset+2], atoi(argv[offset+3]),
                           atoi(argv[offset+4]));
 
-    if (clear_screen) {   /* clear screen before exit */
+    dialog_update();
+    if (clear_screen)    /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -171,10 +170,9 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_msgbox(title, argv[offset+2], atoi(argv[offset+3]),
                            atoi(argv[offset+4]), 1);
 
-    if (clear_screen) {   /* clear screen before exit */
+    dialog_update();
+    if (clear_screen){   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -187,10 +185,9 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_msgbox(title, argv[offset+2], atoi(argv[offset+3]),
                            atoi(argv[offset+4]), 0);
 
-    if (clear_screen) {   /* clear screen before exit */
+    dialog_update();
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -203,10 +200,9 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_textbox(title, argv[offset+2], atoi(argv[offset+3]),
                             atoi(argv[offset+4]));
 
-    if (clear_screen) {   /* clear screen before exit */
+    dialog_update();
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -220,12 +216,11 @@ int main(int argc, unsigned char *argv[])
                          atoi(argv[offset+4]), atoi(argv[offset+5]),
 			 (argc-offset-6)/2, argv+offset + 6, result);
 
+    dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
-    if (clear_screen) {   /* clear screen before exit */
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -239,6 +234,7 @@ int main(int argc, unsigned char *argv[])
                               atoi(argv[offset+4]), atoi(argv[offset+5]),
 			      (argc-offset-6)/3, argv+offset + 6, result);
 
+    dialog_update();
     if (retval == 0) {
       unsigned char *s, *h; int first;
 
@@ -254,10 +250,8 @@ int main(int argc, unsigned char *argv[])
 	h = s;
       }
     }
-    if (clear_screen) {   /* clear screen before exit */
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -271,12 +265,11 @@ int main(int argc, unsigned char *argv[])
                               atoi(argv[offset+4]), atoi(argv[offset+5]),
 			      (argc-offset-6)/3, argv+offset + 6, result);
 
+    dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
-    if (clear_screen) {   /* clear screen before exit */
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
@@ -289,12 +282,11 @@ int main(int argc, unsigned char *argv[])
     retval = dialog_inputbox(title, argv[offset+2], atoi(argv[offset+3]),
 			     atoi(argv[offset+4]), result);
 
+    dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
-    if (clear_screen) {   /* clear screen before exit */
+    if (clear_screen)   /* clear screen before exit */
       dialog_clear();
-      dialog_update();
-    }
     end_dialog();
     return retval;
   }
