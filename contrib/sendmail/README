@@ -1,25 +1,34 @@
-/*-
- *	@(#)README	8.51 (Berkeley) 1/25/1999
- */
 
 			SENDMAIL RELEASE 8
 
 This directory has the latest sendmail(TM) software from Sendmail, Inc.
-See doc/changes/changes.me for a summary of changes since 5.67.
 
 Report any bugs to sendmail-bugs@sendmail.ORG
 
-There is a web site at http://WWW.Sendmail.ORG -- see that site for
+There is a web site at http://WWW.Sendmail.ORG/ -- see that site for
 the latest updates.
 
-******************************************************************
-**  A new Build architecture is in place that allows you to	**
-**  use the "Build" shell script in any of the program		**
-**  directories.  On many environments this will do everything	**
-**  for you, no fuss, no muss.  See src/README for more details	**
-**  of compilation.  See cf/README for details about building	**
-**  a runtime configuration file.				**
-******************************************************************
++--------------+
+| INTRODUCTION |
++--------------+
+
+0. The vast majority of queries to <sendmail-questions@sendmail.org>
+   are answered in the README files noted below.
+
+1. Read this README file, especially this introduction, and the DIRECTORY
+   PERMISSIONS sections.
+
+2. Read sendmail/README, especially:
+   a. the introduction
+   b. the BUILDING SENDMAIL section
+   c. the relevant part(s) of the OPERATING SYSTEM AND COMPILE QUIRKS section
+
+   You may also find these useful:
+
+   d. devtools/README
+   e. devtools/Site/README
+
+3. Read cf/README.
 
 Sendmail is a trademark of Sendmail, Inc.
 
@@ -30,25 +39,24 @@ Sendmail is a trademark of Sendmail, Inc.
 Sendmail often gets blamed for many problems that are actually the
 result of other problems, such as overly permissive modes on directories.
 For this reason, sendmail checks the modes on system directories and
-files to determine if can have been trusted.  For sendmail to run
-without complaining, you MUST execute the following command:
+files to determine if they can be trusted.  For sendmail to run without
+complaining, you MUST execute the following command:
 
 	chmod go-w / /etc /etc/mail /usr /var /var/spool /var/spool/mqueue
 	chown root / /etc /etc/mail /usr /var /var/spool /var/spool/mqueue
 
 You will probably have to tweak this for your environment (for example,
 some systems put the spool directory into /usr/spool instead of
-/var/spool and use /etc/mail for aliases file instead of /etc).  If you
-set the RunAsUser option in your sendmail.cf, the /var/spool/mqueue
-directory will have to be owned by the RunAsUser user.  As a general rule,
-after you have compiled sendmail, run the command
+/var/spool).  If you set the RunAsUser option in your sendmail.cf, the
+/var/spool/mqueue directory will have to be owned by the RunAsUser user.
+As a general rule, after you have compiled sendmail, run the command
 
 	sendmail -v -bi
 
 to initialize the alias database.  If it gives messages such as
 
 	WARNING: writable directory /etc
-	WARNING: writable directory /usr/spool/mqueue
+	WARNING: writable directory /var/spool/mqueue
 
 then the directories listed have inappropriate write permissions and
 should be secured to avoid various possible security attacks.
@@ -81,8 +89,8 @@ the items in the file to be marked as safe for file and program
 delivery.
 
 Other files affected by this strengthened security include class
-files (i.e. Fw /etc/sendmail.cw), persistent host status files, and
-the files specified by the ErrorHeader and HelpFile options.  Similar
+files (i.e. Fw /etc/mail/local-host-names), persistent host status files,
+and the files specified by the ErrorHeader and HelpFile options.  Similar
 DontBlameSendmail flags are available for the class, ErrorHeader, and
 HelpFile files.
 
@@ -92,73 +100,22 @@ a "chmod go-w $FILE" on each.  Also, do a "chmod go-w $DIR" for
 each directory in the file's path.
 
 
-+--------------+
-| MANUAL PAGES |
-+--------------+
-
-The sendmail manual pages use contemporary Berkeley troff macros.  If
-your system does not process these manual pages, you can pick up the
-new macros in a BSD Net/2 FTP site (e.g.  on FTP.UU.NET, the files
-/systems/unix/bsd-sources/share/tmac/*).
-
-The strip.sed file is only used in installation.
-
-After installation, edit tmac.doc and tmac.andoc to reflect the
-installation path of the tmac files.  Those files contain pointers to
-/usr/share/tmac/, and those pointers are not changed by the `make
-install` process.  There's also a bug in those files -- make the
-following patch:
-
-*** tmac.an~    Tue Jul 12 14:29:09 1994
---- tmac.an     Fri Jul 15 13:17:54 1994
-***************
-*** 50,55 ****
-  .de TH
-  .rn TH xX
-  .so /usr/share/lib/tmac/tmac.an.old
-! .TH \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8
-  .rm xX
-  ..
---- 50,55 ----
-  .de TH
-  .rn TH xX
-  .so /usr/share/lib/tmac/tmac.an.old
-! .TH "\\$1" "\\$2" "\\$3" "\\$4" "\\$5" "\\$6" "\\$7" "\\$8"
-  .rm xX
-  ..
-
-Rename the existing tmac.an to be tmac.an.old, and rename tmac.andoc
-to be tmac.an.
-
-tmac.an will choose between tmac.an.old, your old macros, or tmac.doc,
-which are the new macros, so that both the new man pages and the
-existing man pages will be translated properly.
-
-I'm also told that the groff distribution from MIT has a tmac.doc
-macro set that is compatible with these macros.
-
-
 +-----------------------+
 | RELATED DOCUMENTATION |
 +-----------------------+
 
 There are other files you should read.  Rooted in this directory are:
 
-  doc/changes/changes.ps
-	Describes changes between Release 5 and Release 8 of sendmail.
-	There are some things that may behave somewhat differently.
-	For example, the rules governing when :include: files will
-	be read have been tightened up for security reasons.
   FAQ
 	Answers to Frequently Asked Questions.
+  INSTALL
+	Installation instructions for building and installing sendmail.
   KNOWNBUGS
-	Known bugs in the current release.  I try to keep this up
-	to date -- get the latest version from FTP.Sendmail.ORG
-	in /ucb/sendmail/KNOWNBUGS.
+	Known bugs in the current release.
   RELEASE_NOTES
 	A detailed description of the changes in each version.  This
 	is quite long, but informative.
-  src/README
+  sendmail/README
 	Details on compiling and installing sendmail.
   cf/README
 	Details on configuring sendmail.
@@ -180,15 +137,8 @@ There are other files you should read.  Rooted in this directory are:
 +--------------+
 
 There are several related RFCs that you may wish to read -- they are
-available via anonymous FTP to several sites, including:
-
-	ftp://nic.ddn.mil/rfc/
-	ftp://nis.nsf.net/documents/rfc/
-	ftp://nisc.jvnc.net/rfc/
-	ftp://venera.isi.edu/in-notes/
-	ftp://wuarchive.wustl.edu/doc/rfc/
-
-For a list of the primary repositories see:
+available via anonymous FTP to several sites.  For a list of the
+primary repositories see:
 
 	http://www.isi.edu/in-notes/rfc-retrieval.txt
 
@@ -233,7 +183,11 @@ Important RFCs for electronic mail are:
 	RFC1894	An Extensible Message Format for Delivery Status
 		Notifications
 	RFC1985	SMTP Service Extension for Remote Message Queue Starting
-	RFC2033 Local Mail Transfer Protocol
+	RFC2033 Local Mail Transfer Protocol (LMTP)
+	RFC2034 SMTP Service Extension for Returning Enhanced Error Codes
+	RFC2476 Message Submission
+	RFC2487 SMTP Service Extension for Secure SMTP over TLS
+	RFC2554 SMTP Service Extension for Authentication
 
 Other standards that may be of interest (but which are less directly
 relevant to sendmail) are:
@@ -244,6 +198,27 @@ relevant to sendmail) are:
 Warning to AIX users: this version of sendmail does not implement
 MB, MR, or MG DNS resource records, as defined (as experiments) in
 RFC1035.
+
+
++---------+
+| WARNING |
++---------+
+
+Since sendmail 8.11 and later includes hooks to cryptography, the
+following information from OpenSSL applies to sendmail as well.
+
+PLEASE REMEMBER THAT EXPORT/IMPORT AND/OR USE OF STRONG CRYPTOGRAPHY
+SOFTWARE, PROVIDING CRYPTOGRAPHY HOOKS OR EVEN JUST COMMUNICATING
+TECHNICAL DETAILS ABOUT CRYPTOGRAPHY SOFTWARE IS ILLEGAL IN SOME
+PARTS OF THE WORLD.  SO, WHEN YOU IMPORT THIS PACKAGE TO YOUR
+COUNTRY, RE-DISTRIBUTE IT FROM THERE OR EVEN JUST EMAIL TECHNICAL
+SUGGESTIONS OR EVEN SOURCE PATCHES TO THE AUTHOR OR OTHER PEOPLE
+YOU ARE STRONGLY ADVISED TO PAY CLOSE ATTENTION TO ANY EXPORT/IMPORT
+AND/OR USE LAWS WHICH APPLY TO YOU. THE AUTHORS ARE NOT LIABLE FOR
+ANY VIOLATIONS YOU MAKE HERE. SO BE CAREFUL, IT IS YOUR RESPONSIBILITY.
+
+If you use OpenSSL then make sure you read their README file which
+contains information about patents etc.
 
 
 +-------------------+
@@ -263,12 +238,12 @@ you will need to provide that directory when building:
 	Build -I/path/to/include/directory
 
 If you are using Berkeley DB versions 1.85 or 1.86, you are *strongly*
-urged to upgrade to DB version 2, available from http://www.sleepycat.com/.
-Berkeley DB versions 1.85 and 1.86 are known to be broken in various nasty
-ways (see http://www.sleepycat.com/db.185.html), and can cause sendmail
-to dump core.  In addition, the newest versions of gcc and the Solaris
-compilers perform optimizations in those versions that may cause fairly
-random core dumps.
+urged to upgrade to DB version 2 or later, available from
+http://www.sleepycat.com/.  Berkeley DB versions 1.85 and 1.86 are known to
+be broken in various nasty ways (see http://www.sleepycat.com/db.185.html),
+and can cause sendmail to dump core.  In addition, the newest versions of
+gcc and the Solaris compilers perform optimizations in those versions that
+may cause fairly random core dumps.
 
 If you have no choice but to use Berkeley DB 1.85 or 1.86, and you are
 using both Berkeley DB and files in the UNIX ndbm format, remove ndbm.h
@@ -285,10 +260,10 @@ If you are using Berkeley DB version 2.3.15 or greater, no changes are
 necessary.
 
 The underlying database file formats changed between Berkeley DB versions
-1.85 and 1.86, and again between DB 1.86 and version 2.0.  If you are
-upgrading from one of those versions, you must recreate your database
-file(s).  Do this by rebuilding all maps with makemap and rebuilding the
-alias file with newaliases.
+1.85 and 1.86, again between DB 1.86 and version 2.0, and finally between
+DB 2.X and 3.X.  If you are upgrading from one of those versions, you must
+recreate your database file(s).  Do this by rebuilding all maps with
+makemap and rebuilding the alias file with newaliases.
 
 
 +--------------------+
@@ -331,17 +306,16 @@ install it.
 +----------------+
 
 Sendmail 8 supports the IDENT protocol, as defined by RFC 1413.
-No ident server is included with this distribution.  I have found
-copies available on:
+Note that the RFC states a client should wait at least 30 seconds
+for a response.  As of 8.10.0, the default Timeout.ident is 5 seconds
+as many sites have adopted the practice of dropping IDENT queries.
+This has lead to delays processing mail.
 
-  ftp.lysator.liu.se		/pub/ident/servers
-  romulus.ucs.uoknor.edu	/networking/ident/servers
-  ftp.cyf-kr.edu.pl		/agh/uciagh/network/ident
+No ident server is included with this distribution.  It is available
+from:
 
-If you want to run an IDENT server, I suggest getting a copy from
-one of those sites.  Versions are available for several different
-systems, including Apollo, BSD, NeXT, AIX, TOPS20, and VMS.
-
+  ftp://ftp.lysator.liu.se/pub/ident/servers/
+  http://sf.www.lysator.liu.se/~pen/pidentd/
 
 +-------------------------+
 | INTEROPERATION PROBLEMS |
@@ -353,6 +327,14 @@ Microsoft Exchange Server 5.0
 	"connection reset" and "I/O error".''  Upgrading Exchange from
 	Version 5.0 to Version 5.5 Service Pack 2 solved this problem.
 
+CommuniGate Pro
+	CommuniGate Pro 3.2.4 does not accept the AUTH= -parameter on
+	the MAIL FROM command if the client is not authenticated.  Use
+
+		define(`confAUTH_OPTIONS', `A')
+
+	in .mc file if you have compiled sendmail with Cyrus SASL
+	and you communicate with CommuniGate Pro servers.
 
 +---------------------+
 | DIRECTORY STRUCTURE |
@@ -368,15 +350,19 @@ contrib		Some contributed tools to help with sendmail.  THESE
 		ARE NOT SUPPORTED by sendmail -- contact the original
 		authors if you have problems.  (This directory is not
 		on the 4.4BSD tape.)
+devtools	Build environment.  See devtools/README.
 doc		Documentation.  If you are getting source, read
 		op.me -- it's long, but worth it.
+include		Include files used by multiple programs in the distribution.
+libsmdb		sendmail database library with support for Berkeley DB 1.X,
+		Berkeley DB 2.X, Berkeley DB 3.X, and NDBM.
+libsmutil	sendmail utility library with functions used by different
+		programs.
 mail.local	The source for the local delivery agent used for 4.4BSD.
 		THIS IS NOT PART OF SENDMAIL! and may not compile
 		everywhere, since it depends on some 4.4-isms.  Warning:
 		it does mailbox locking differently than other systems.
-mailstats	Statistics printing program.  It has the pathname of
-		sendmail.st compiled in, so if you've changed that,
-		beware.
+mailstats	Statistics printing program.
 makemap		A program that creates the keyed maps used by the $( ... $)
 		construct in sendmail.  It is primitive but effective.
 		It takes a very simple input format, so you will probably
@@ -390,10 +376,13 @@ rmail		Source for rmail(8).  This is used as a delivery
 		other non-socket oriented mailers.  Older versions of
 		rmail are probably deficient.  RMAIL IS NOT PART OF
 		SENDMAIL!!!  The 4.4BSD source is included for you to
-		look at or try to port to your system.  I know it doesn't
-		compile on {SunOS, HP-UX, OSF/1, other} (pick one).
+		look at or try to port to your system.  There is no
+		guarantee it will even compile on your operating system.
 smrsh		The "sendmail restricted shell", which can be used as
 		a replacement for /bin/sh in the prog mailer to provide
 		increased security control.  NOT PART OF SENDMAIL!
-src		Source for the sendmail program itself.
+sendmail	Source for the sendmail program itself.
 test		Some test scripts (currently only for compilation aids).
+vacation	Source for the vacation program.  NOT PART OF SENDMAIL!
+
+$Revision: 8.71.4.6 $, Last updated $Date: 2000/06/29 04:18:43 $

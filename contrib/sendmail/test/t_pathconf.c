@@ -5,13 +5,24 @@
 **  both do and do not permit file giveaway.
 */
 
-#include <unistd.h>
-#include <errno.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+#ifdef EX_OK
+# undef EX_OK		/* unistd.h may have another use for this */
+#endif /* EX_OK */
 #include <sysexits.h>
 
-main()
+#ifndef lint
+static char id[] = "@(#)$Id: t_pathconf.c,v 8.5 1999/08/28 00:25:28 gshapiro Exp $";
+#endif /* ! lint */
+
+int
+main(argc, argv)
+	int argc;
+	char **argv;
 {
 	int fd;
 	int i;
@@ -58,6 +69,6 @@ main()
 		else
 			printf("*** but in fact it is safe ***\n");
 	}
-	unlink(tbuf);
+	(void) unlink(tbuf);
 	exit(EX_OK);
 }

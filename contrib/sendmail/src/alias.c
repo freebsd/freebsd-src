@@ -1,24 +1,29 @@
 /*
- * Copyright (c) 1998 Sendmail, Inc.  All rights reserved.
+ * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
+ * Copyright (c) 1988, 1993
+ *	The Regents of the University of California.  All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
- *
- * Copyright (c) 1988, 1993
- *	The Regents of the University of California.  All rights reserved.
  */
 
-# include "sendmail.h"
+#include <sendmail.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)alias.c	8.96 (Berkeley) 12/18/1998";
-#endif /* not lint */
+static char id[] = "@(#)$Id: alias.c,v 8.142.4.1 2000/05/25 18:56:12 gshapiro Exp $";
+#endif /* ! lint */
 
+# define SEPARATOR ':'
+# define ALIAS_SPEC_SEPARATORS	" ,/:"
 
-MAP	*AliasFileMap = NULL;	/* the actual aliases.files map */
-int	NAliasFileMaps;		/* the number of entries in AliasFileMap */
+static MAP	*AliasFileMap = NULL;	/* the actual aliases.files map */
+static int	NAliasFileMaps;	/* the number of entries in AliasFileMap */
+
+static char	*aliaslookup __P((char *, int *));
+
 /*
 **  ALIAS -- Compute aliases.
 **
@@ -53,15 +58,14 @@ alias(a, sendq, aliaslevel, e)
 {
 	register char *p;
 	char *owner;
-	auto int stat = EX_OK;
+	auto int status = EX_OK;
 	char obuf[MAXNAME + 7];
-	extern char *aliaslookup __P((char *, int *, ENVELOPE *));
 
 	if (tTd(27, 1))
-		printf("alias(%s)\n", a->q_user);
+		dprintf("alias(%s)\n", a->q_user);
 
 	/* don't realias already aliased names */
-	if (bitset(QDONTSEND|QBADADDR|QVERIFIED, a->q_flags))
+	if (!QS_IS_OK(a->q_state))
 		return;
 
 	if (NoAlias)
@@ -77,10 +81,33 @@ alias(a, sendq, aliaslevel, e)
 	**	bounce messages inappropriately.
 	*/
 
-	p = aliaslookup(a->q_user, &stat, e);
-	if (stat == EX_TEMPFAIL || stat == EX_UNAVAILABLE)
+
+#if _FFR_REDIRECTEMPTY
+	/*
+	**  envelope <> can't be sent to mailing lists, only owner-
+	**  send spam of this type to owner- of the list
+	**  ----  to stop spam from going to mailing lists!
+	*/
+	if (e->e_sender != NULL && *e->e_sender == '\0')
 	{
-		a->q_flags |= QQUEUEUP;
+		/* Look for owner of alias */
+		(void) strlcpy(obuf, "owner-", sizeof obuf);
+		(void) strlcat(obuf, a->q_user, sizeof obuf);
+		if (aliaslookup(obuf, &status) != NULL)
+		{
+			if (LogLevel > 8)
+				syslog(LOG_WARNING,
+				       "possible spam from <> to list: %s, redirected to %s\n",
+				       a->q_user, obuf);
+			a->q_user = newstr(obuf);
+		}
+	}
+#endif /* _FFR_REDIRECTEMPTY */
+
+	p = aliaslookup(a->q_user, &status);
+	if (status == EX_TEMPFAIL || status == EX_UNAVAILABLE)
+	{
+		a->q_state = QS_QUEUEUP;
 		if (e->e_message == NULL)
 			e->e_message = newstr("alias database unavailable");
 		return;
@@ -94,40 +121,52 @@ alias(a, sendq, aliaslevel, e)
 	*/
 
 	if (tTd(27, 1))
-		printf("%s (%s, %s) aliased to %s\n",
-		    a->q_paddr, a->q_host, a->q_user, p);
+		dprintf("%s (%s, %s) aliased to %s\n",
+			a->q_paddr, a->q_host, a->q_user, p);
 	if (bitset(EF_VRFYONLY, e->e_flags))
 	{
-		a->q_flags |= QVERIFIED;
+		a->q_state = QS_VERIFIED;
 		return;
 	}
 	message("aliased to %s", shortenstring(p, MAXSHORTSTR));
-	if (LogLevel > 9)
+	if (LogLevel > 10)
 		sm_syslog(LOG_INFO, e->e_id,
 			"alias %.100s => %s",
 			a->q_paddr, shortenstring(p, MAXSHORTSTR));
 	a->q_flags &= ~QSELFREF;
 	if (tTd(27, 5))
 	{
-		printf("alias: QDONTSEND ");
+		dprintf("alias: QS_EXPANDED ");
 		printaddr(a, FALSE);
 	}
-	a->q_flags |= QDONTSEND;
+	a->q_state = QS_EXPANDED;
+
+	/*
+	**  Always deliver aliased items as the default user.
+	**  Setting q_gid to 0 forces deliver() to use DefUser
+	**  instead of the alias name for the call to initgroups().
+	*/
+
+	a->q_uid = DefUid;
+	a->q_gid = 0;
+	a->q_fullname = NULL;
+	a->q_flags |= QGOODUID|QALIAS;
+
 	(void) sendtolist(p, a, sendq, aliaslevel + 1, e);
-	if (bitset(QSELFREF, a->q_flags))
-		a->q_flags &= ~QDONTSEND;
+	if (bitset(QSELFREF, a->q_flags) && QS_IS_EXPANDED(a->q_state))
+		a->q_state = QS_OK;
 
 	/*
 	**  Look for owner of alias
 	*/
 
-	(void) strcpy(obuf, "owner-");
+	(void) strlcpy(obuf, "owner-", sizeof obuf);
 	if (strncmp(a->q_user, "owner-", 6) == 0 ||
 	    strlen(a->q_user) > (SIZE_T) sizeof obuf - 7)
-		(void) strcat(obuf, "owner");
+		(void) strlcat(obuf, "owner", sizeof obuf);
 	else
-		(void) strcat(obuf, a->q_user);
-	owner = aliaslookup(obuf, &stat, e);
+		(void) strlcat(obuf, a->q_user, sizeof obuf);
+	owner = aliaslookup(obuf, &status);
 	if (owner == NULL)
 		return;
 
@@ -149,7 +188,6 @@ alias(a, sendq, aliaslevel, e)
 **	Parameters:
 **		name -- the name to look up.
 **		pstat -- a pointer to a place to put the status.
-**		e -- the current envelope.
 **
 **	Returns:
 **		the value of name.
@@ -162,11 +200,10 @@ alias(a, sendq, aliaslevel, e)
 **		The return value will be trashed across calls.
 */
 
-char *
-aliaslookup(name, pstat, e)
+static char *
+aliaslookup(name, pstat)
 	char *name;
 	int *pstat;
-	ENVELOPE *e;
 {
 	static MAP *map = NULL;
 
@@ -178,8 +215,7 @@ aliaslookup(name, pstat, e)
 			return NULL;
 		map = &s->s_map;
 	}
-	if (!bitset(MF_OPEN, map->map_mflags))
-		return NULL;
+	DYNOPENMAP(map);
 
 	/* special case POstMastER -- always use lower case */
 	if (strcasecmp(name, "postmaster") == 0)
@@ -209,7 +245,7 @@ setalias(spec)
 	STAB *s;
 
 	if (tTd(27, 8))
-		printf("setalias(%s)\n", spec);
+		dprintf("setalias(%s)\n", spec);
 
 	for (p = spec; p != NULL; )
 	{
@@ -229,7 +265,8 @@ setalias(spec)
 		}
 		if (AliasFileMap == NULL)
 		{
-			strcpy(buf, "aliases.files sequence");
+			(void) strlcpy(buf, "aliases.files sequence",
+				       sizeof buf);
 			AliasFileMap = makemapentry(buf);
 			if (AliasFileMap == NULL)
 			{
@@ -240,11 +277,10 @@ setalias(spec)
 		(void) snprintf(buf, sizeof buf, "Alias%d", NAliasFileMaps);
 		s = stab(buf, ST_MAP, ST_ENTER);
 		map = &s->s_map;
-		bzero(map, sizeof *map);
+		memset(map, '\0', sizeof *map);
 		map->map_mname = s->s_name;
-
-		p = strpbrk(p, " ,/:");
-		if (p != NULL && *p == ':')
+		p = strpbrk(p,ALIAS_SPEC_SEPARATORS);
+		if (p != NULL && *p == SEPARATOR)
 		{
 			/* map name */
 			*p++ = '\0';
@@ -259,12 +295,32 @@ setalias(spec)
 
 		/* find end of spec */
 		if (p != NULL)
-			p = strchr(p, ',');
+		{
+			bool quoted = FALSE;
+
+			for (; *p != '\0'; p++)
+			{
+				/*
+				**  Don't break into a quoted string.
+				**  Needed for ldap maps which use
+				**  commas in their specifications.
+				*/
+
+				if (*p == '"')
+					quoted = !quoted;
+				else if (*p == ',' && !quoted)
+					break;
+			}
+
+			/* No more alias specifications follow */
+			if (*p == '\0')
+				p = NULL;
+		}
 		if (p != NULL)
 			*p++ = '\0';
 
 		if (tTd(27, 20))
-			printf("  map %s:%s %s\n", class, s->s_name, spec);
+			dprintf("  map %s:%s %s\n", class, s->s_name, spec);
 
 		/* look up class */
 		s = stab(class, ST_MAPCLASS, ST_FIND);
@@ -310,7 +366,7 @@ bool
 aliaswait(map, ext, isopen)
 	MAP *map;
 	char *ext;
-	int isopen;
+	bool isopen;
 {
 	bool attimeout = FALSE;
 	time_t mtime;
@@ -318,7 +374,7 @@ aliaswait(map, ext, isopen)
 	char buf[MAXNAME + 1];
 
 	if (tTd(27, 3))
-		printf("aliaswait(%s:%s)\n",
+		dprintf("aliaswait(%s:%s)\n",
 			map->map_class->map_cname, map->map_file);
 	if (bitset(MF_ALIASWAIT, map->map_mflags))
 		return isopen;
@@ -346,12 +402,12 @@ aliaswait(map, ext, isopen)
 			*/
 
 			if (tTd(27, 2))
-				printf("aliaswait: sleeping for %d seconds\n",
+				dprintf("aliaswait: sleeping for %u seconds\n",
 					sleeptime);
 
 			map->map_class->map_close(map);
 			map->map_mflags &= ~(MF_OPEN|MF_WRITABLE);
-			sleep(sleeptime);
+			(void) sleep(sleeptime);
 			sleeptime *= 2;
 			if (sleeptime > 60)
 				sleeptime = 60;
@@ -363,14 +419,14 @@ aliaswait(map, ext, isopen)
 	if (!bitset(MCF_REBUILDABLE, map->map_class->map_cflags))
 	{
 		if (tTd(27, 3))
-			printf("aliaswait: not rebuildable\n");
+			dprintf("aliaswait: not rebuildable\n");
 		map->map_mflags &= ~MF_ALIASWAIT;
 		return isopen;
 	}
 	if (stat(map->map_file, &stb) < 0)
 	{
 		if (tTd(27, 3))
-			printf("aliaswait: no source file\n");
+			dprintf("aliaswait: no source file\n");
 		map->map_mflags &= ~MF_ALIASWAIT;
 		return isopen;
 	}
@@ -379,8 +435,10 @@ aliaswait(map, ext, isopen)
 		map->map_file, ext == NULL ? "" : ext);
 	if (stat(buf, &stb) < 0 || stb.st_mtime < mtime || attimeout)
 	{
+#if !_FFR_REMOVE_AUTOREBUILD
 		/* database is out of date */
-		if (AutoRebuild && stb.st_ino != 0 &&
+		if (AutoRebuild &&
+		    stb.st_ino != 0 &&
 		    (stb.st_uid == geteuid() ||
 		     (geteuid() == 0 && stb.st_uid == TrustedUid)))
 		{
@@ -406,6 +464,13 @@ aliaswait(map, ext, isopen)
 					buf);
 			message("Warning: alias database %s out of date", buf);
 		}
+#else /* !_FFR_REMOVE_AUTOREBUILD */
+		if (LogLevel > 3)
+			sm_syslog(LOG_INFO, NOQID,
+				  "alias database %s out of date",
+				  buf);
+		message("Warning: alias database %s out of date", buf);
+#endif /* !_FFR_REMOVE_AUTOREBUILD */
 	}
 	map->map_mflags &= ~MF_ALIASWAIT;
 	return isopen;
@@ -433,20 +498,20 @@ rebuildaliases(map, automatic)
 	FILE *af;
 	bool nolock = FALSE;
 	bool success = FALSE;
-	int sff = SFF_OPENASROOT|SFF_REGONLY|SFF_NOLOCK;	
+	long sff = SFF_OPENASROOT|SFF_REGONLY|SFF_NOLOCK;
 	sigfunc_t oldsigint, oldsigquit;
 #ifdef SIGTSTP
 	sigfunc_t oldsigtstp;
-#endif
+#endif /* SIGTSTP */
 
 	if (!bitset(MCF_REBUILDABLE, map->map_class->map_cflags))
 		return FALSE;
 
-	if (!bitset(DBS_LINKEDALIASFILEINWRITABLEDIR, DontBlameSendmail))
+	if (!bitnset(DBS_LINKEDALIASFILEINWRITABLEDIR, DontBlameSendmail))
 		sff |= SFF_NOWLINK;
-	if (!bitset(DBS_GROUPWRITABLEALIASFILE, DontBlameSendmail))
+	if (!bitnset(DBS_GROUPWRITABLEALIASFILE, DontBlameSendmail))
 		sff |= SFF_NOGWFILES;
-	if (!bitset(DBS_WORLDWRITABLEALIASFILE, DontBlameSendmail))
+	if (!bitnset(DBS_WORLDWRITABLEALIASFILE, DontBlameSendmail))
 		sff |= SFF_NOWWFILES;
 
 	/* try to lock the source file */
@@ -460,7 +525,7 @@ rebuildaliases(map, automatic)
 			int saveerr = errno;
 
 			if (tTd(27, 1))
-				printf("Can't open %s: %s\n",
+				dprintf("Can't open %s: %s\n",
 					map->map_file, errstring(saveerr));
 			if (!automatic && !bitset(MF_OPTIONAL, map->map_mflags))
 				message("newaliases: cannot open %s: %s",
@@ -489,7 +554,7 @@ rebuildaliases(map, automatic)
 			(void) lockfile(fileno(af), map->map_file, NULL,
 					LOCK_EX);
 		}
-		(void) xfclose(af, "rebuildaliases1", map->map_file);
+		(void) fclose(af);
 		errno = 0;
 		return FALSE;
 	}
@@ -498,7 +563,7 @@ rebuildaliases(map, automatic)
 	oldsigquit = setsignal(SIGQUIT, SIG_IGN);
 #ifdef SIGTSTP
 	oldsigtstp = setsignal(SIGTSTP, SIG_IGN);
-#endif
+#endif /* SIGTSTP */
 
 	if (map->map_class->map_open(map, O_RDWR))
 	{
@@ -517,7 +582,7 @@ rebuildaliases(map, automatic)
 	else
 	{
 		if (tTd(27, 1))
-			printf("Can't create database for %s: %s\n",
+			dprintf("Can't create database for %s: %s\n",
 				map->map_file, errstring(errno));
 		if (!automatic)
 			syserr("Cannot create database for alias file %s",
@@ -525,7 +590,7 @@ rebuildaliases(map, automatic)
 	}
 
 	/* close the file, thus releasing locks */
-	xfclose(af, "rebuildaliases2", map->map_file);
+	(void) fclose(af);
 
 	/* add distinguished entries and close the database */
 	if (bitset(MF_OPEN, map->map_mflags))
@@ -537,9 +602,9 @@ rebuildaliases(map, automatic)
 	/* restore the old signals */
 	(void) setsignal(SIGINT, oldsigint);
 	(void) setsignal(SIGQUIT, oldsigquit);
-#ifdef SIGTSTP
+# ifdef SIGTSTP
 	(void) setsignal(SIGTSTP, oldsigtstp);
-#endif
+# endif /* SIGTSTP */
 	return success;
 }
 /*
@@ -551,7 +616,7 @@ rebuildaliases(map, automatic)
 **	Parameters:
 **		map -- the alias database descriptor.
 **		af -- file to read the aliases from.
-**		announcestats -- anounce statistics regarding number of
+**		announcestats -- announce statistics regarding number of
 **			aliases, longest alias, etc.
 **		logstats -- lot the same info.
 **
@@ -585,14 +650,13 @@ readaliases(map, af, announcestats, logstats)
 	LineNumber = 0;
 	naliases = bytes = longest = 0;
 	skipping = FALSE;
-	while (fgets(line, sizeof (line), af) != NULL)
+	while (fgets(line, sizeof line, af) != NULL)
 	{
 		int lhssize, rhssize;
 		int c;
 
 		LineNumber++;
 		p = strchr(line, '\n');
-#if _FFR_BACKSLASH_IN_ALIASES
 		while (p != NULL && p > line && p[-1] == '\\')
 		{
 			p--;
@@ -601,12 +665,12 @@ readaliases(map, af, announcestats, logstats)
 			LineNumber++;
 			p = strchr(p, '\n');
 		}
-#endif
 		if (p != NULL)
 			*p = '\0';
 		else if (!feof(af))
 		{
-			syserr("554 alias line too long");
+			errno = 0;
+			syserr("554 5.3.0 alias line too long");
 
 			/* flush to end of line */
 			while ((c = getc(af)) != EOF && c != '\n')
@@ -626,7 +690,7 @@ readaliases(map, af, announcestats, logstats)
 		  case ' ':
 		  case '\t':
 			if (!skipping)
-				syserr("554 Non-continuation line starts with space");
+				syserr("554 5.3.5 Non-continuation line starts with space");
 			skipping = TRUE;
 			continue;
 		}
@@ -645,12 +709,12 @@ readaliases(map, af, announcestats, logstats)
 			continue;
 		if (*p++ != ':')
 		{
-			syserr("554 missing colon");
+			syserr("554 5.3.5 missing colon");
 			continue;
 		}
 		if (parseaddr(line, &al, RF_COPYALL, ':', NULL, CurEnv) == NULL)
 		{
-			syserr("554 %.40s... illegal alias name", line);
+			syserr("554 5.3.5 %.40s... illegal alias name", line);
 			continue;
 		}
 
@@ -685,7 +749,7 @@ readaliases(map, af, announcestats, logstats)
 						break;
 					if (parseaddr(p, &bl, RF_COPYNONE, ',',
 						      &delimptr, CurEnv) == NULL)
-						usrerr("553 %s... bad address", p);
+						usrerr("553 5.3.5 %s... bad address", p);
 					p = delimptr;
 				}
 			}
@@ -709,7 +773,7 @@ readaliases(map, af, announcestats, logstats)
 			/* check for line overflow */
 			if (strchr(p, '\n') == NULL && !feof(af))
 			{
-				usrerr("554 alias too long");
+				usrerr("554 5.3.5 alias too long");
 				while ((c = fgetc(af)) != EOF && c != '\n')
 					continue;
 				skipping = TRUE;
@@ -722,7 +786,7 @@ readaliases(map, af, announcestats, logstats)
 
 		if (!bitnset(M_ALIASABLE, al.q_mailer->m_flags))
 		{
-			syserr("554 %s... cannot alias non-local names",
+			syserr("554 5.3.5 %s... cannot alias non-local names",
 				al.q_paddr);
 			continue;
 		}
@@ -738,7 +802,29 @@ readaliases(map, af, announcestats, logstats)
 
 		lhssize = strlen(al.q_user);
 		rhssize = strlen(rhs);
-		map->map_class->map_store(map, al.q_user, rhs);
+		if (rhssize > 0)
+		{
+			/* is RHS empty (just spaces)? */
+			p = rhs;
+			while (isascii(*p) && isspace(*p))
+				p++;
+		}
+		if (rhssize == 0 || *p == '\0')
+		{
+			syserr("554 5.3.5 %.40s... missing value for alias",
+			       line);
+
+		}
+		else
+		{
+			map->map_class->map_store(map, al.q_user, rhs);
+
+			/* statistics */
+			naliases++;
+			bytes += lhssize + rhssize;
+			if (rhssize > longest)
+				longest = rhssize;
+		}
 
 		if (al.q_paddr != NULL)
 			free(al.q_paddr);
@@ -746,12 +832,6 @@ readaliases(map, af, announcestats, logstats)
 			free(al.q_host);
 		if (al.q_user != NULL)
 			free(al.q_user);
-
-		/* statistics */
-		naliases++;
-		bytes += lhssize + rhssize;
-		if (rhssize > longest)
-			longest = rhssize;
 	}
 
 	CurEnv->e_to = NULL;
@@ -798,14 +878,14 @@ forward(user, sendq, aliaslevel, e)
 	bool got_transient;
 
 	if (tTd(27, 1))
-		printf("forward(%s)\n", user->q_paddr);
+		dprintf("forward(%s)\n", user->q_paddr);
 
 	if (!bitnset(M_HASPWENT, user->q_mailer->m_flags) ||
-	    bitset(QBADADDR, user->q_flags))
+	    !QS_IS_OK(user->q_state))
 		return;
 	if (user->q_home == NULL)
 	{
-		syserr("554 forward: no home");
+		syserr("554 5.3.0 forward: no home");
 		user->q_home = "/no/such/directory";
 	}
 
@@ -820,18 +900,19 @@ forward(user, sendq, aliaslevel, e)
 	for (pp = ForwardPath; pp != NULL; pp = ep)
 	{
 		int err;
-		char buf[MAXPATHLEN+1];
+		char buf[MAXPATHLEN + 1];
+		struct stat st;
 
-		ep = strchr(pp, ':');
+		ep = strchr(pp, SEPARATOR);
 		if (ep != NULL)
 			*ep = '\0';
 		expand(pp, buf, sizeof buf, e);
 		if (ep != NULL)
-			*ep++ = ':';
+			*ep++ = SEPARATOR;
 		if (buf[0] == '\0')
 			continue;
 		if (tTd(27, 3))
-			printf("forward: trying %s\n", buf);
+			dprintf("forward: trying %s\n", buf);
 
 		err = include(buf, TRUE, user, sendq, aliaslevel, e);
 		if (err == 0)
@@ -841,11 +922,19 @@ forward(user, sendq, aliaslevel, e)
 			/* we may have to suspend this message */
 			got_transient = TRUE;
 			if (tTd(27, 2))
-				printf("forward: transient error on %s\n", buf);
+				dprintf("forward: transient error on %s\n",
+					buf);
 			if (LogLevel > 2)
+			{
+				char *curhost = CurHostName;
+
+				CurHostName = NULL;
 				sm_syslog(LOG_ERR, e->e_id,
-					"forward %s: transient error: %s",
-					buf, errstring(err));
+					  "forward %s: transient error: %s",
+					  buf, errstring(err));
+				CurHostName = curhost;
+			}
+
 		}
 		else
 		{
@@ -854,18 +943,27 @@ forward(user, sendq, aliaslevel, e)
 			  case ENOENT:
 				break;
 
+			  case E_SM_WWDIR:
+			  case E_SM_GWDIR:
+				/* check if it even exists */
+				if (stat(buf, &st) < 0 && errno == ENOENT)
+				{
+					if (bitnset(DBS_DONTWARNFORWARDFILEINUNSAFEDIRPATH,
+						    DontBlameSendmail))
+						break;
+				}
+				/* FALLTHROUGH */
+
 #if _FFR_FORWARD_SYSERR
 			  case E_SM_NOSLINK:
 			  case E_SM_NOHLINK:
 			  case E_SM_REGONLY:
 			  case E_SM_ISEXEC:
-			  case E_SM_WWDIR:
-			  case E_SM_GWDIR:
 			  case E_SM_WWFILE:
 			  case E_SM_GWFILE:
 				syserr("forward: %s: %s", buf, errstring(err));
 				break;
-#endif
+#endif /* _FFR_FORWARD_SYSERR */
 
 			  default:
 				if (LogLevel > (RunAsUid == 0 ? 2 : 10))
@@ -889,7 +987,7 @@ forward(user, sendq, aliaslevel, e)
 		*/
 
 		message("transient .forward open error: message queued");
-		user->q_flags |= QQUEUEUP;
+		user->q_state = QS_QUEUEUP;
 		return;
 	}
 }
