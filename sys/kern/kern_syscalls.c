@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *     $Id: kern_syscalls.c,v 1.1 1999/01/09 14:15:41 dfr Exp $
+ *     $Id: kern_syscalls.c,v 1.2 1999/01/09 14:59:50 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -36,6 +36,18 @@
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/proc.h>
+
+/*
+ * Acts like "nosys" but can be identified in sysent for dynamic call 
+ * number assignment for a limited number of calls. 
+ * 
+ * Place holder for system call slots reserved for loadable modules.
+ */     
+int
+lkmnosys(struct proc *p, struct nosys_args *args)
+{
+	return(nosys(p, args));
+}
 
 int
 syscall_register(int *offset, struct sysent *new_sysent,
