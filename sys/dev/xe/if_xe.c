@@ -1590,10 +1590,10 @@ xe_setmulti(struct xe_softc *scp) {
   int count;
 
   ifp = &scp->arpcom.ac_if;
-  maddr = LIST_FIRST(&ifp->if_multiaddrs);
+  maddr = TAILQ_FIRST(&ifp->if_multiaddrs);
 
   /* Get length of multicast list */
-  for (count = 0; maddr != NULL; maddr = LIST_NEXT(maddr, ifma_link), count++);
+  for (count = 0; maddr != NULL; maddr = TAILQ_NEXT(maddr, ifma_link), count++);
 
   if ((ifp->if_flags & IFF_PROMISC) || (ifp->if_flags & IFF_ALLMULTI) || (count > 9)) {
     /*
@@ -1643,7 +1643,7 @@ xe_setaddrs(struct xe_softc *scp) {
   u_int8_t *addr;
   u_int8_t page, slot, byte, i;
 
-  maddr = LIST_FIRST(&scp->arpcom.ac_if.if_multiaddrs);
+  maddr = TAILQ_FIRST(&scp->arpcom.ac_if.if_multiaddrs);
 
   XE_SELECT_PAGE(page = 0x50);
 
@@ -1653,7 +1653,7 @@ xe_setaddrs(struct xe_softc *scp) {
       addr = (u_int8_t *)(&scp->arpcom.ac_enaddr);
     else {
       while (maddr != NULL && maddr->ifma_addr->sa_family != AF_LINK)
-	maddr = LIST_NEXT(maddr, ifma_link);
+	maddr = TAILQ_NEXT(maddr, ifma_link);
       if (maddr != NULL)
 	addr = LLADDR((struct sockaddr_dl *)maddr->ifma_addr);
       else

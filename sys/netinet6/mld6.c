@@ -266,7 +266,7 @@ mld6_input(m, off)
 		mld6_all_nodes_linklocal.s6_addr16[1] =
 			htons(ifp->if_index); /* XXX */
 		
-		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		{
 			if (ifma->ifma_addr->sa_family != AF_INET6)
 				continue;

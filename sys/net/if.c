@@ -164,7 +164,7 @@ if_attach(ifp)
 	 */
 	TAILQ_INIT(&ifp->if_addrhead);
 	TAILQ_INIT(&ifp->if_prefixhead);
-	LIST_INIT(&ifp->if_multiaddrs);
+	TAILQ_INIT(&ifp->if_multiaddrs);
 	getmicrotime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
@@ -1182,7 +1182,7 @@ if_addmulti(ifp, sa, retifma)
 	 * If the matching multicast address already exists
 	 * then don't add a new one, just add a reference
 	 */
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (equal(sa, ifma->ifma_addr)) {
 			ifma->ifma_refcount++;
 			if (retifma)
@@ -1219,12 +1219,12 @@ if_addmulti(ifp, sa, retifma)
 	 * interrupt time; lock them out.
 	 */
 	s = splimp();
-	LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
+	TAILQ_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
 	splx(s);
 	*retifma = ifma;
 
 	if (llsa != 0) {
-		LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (equal(ifma->ifma_addr, llsa))
 				break;
 		}
@@ -1240,7 +1240,7 @@ if_addmulti(ifp, sa, retifma)
 			ifma->ifma_ifp = ifp;
 			ifma->ifma_refcount = 1;
 			s = splimp();
-			LIST_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
+			TAILQ_INSERT_HEAD(&ifp->if_multiaddrs, ifma, ifma_link);
 			splx(s);
 		}
 	}
@@ -1267,7 +1267,7 @@ if_delmulti(ifp, sa)
 	struct ifmultiaddr *ifma;
 	int s;
 
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		if (equal(sa, ifma->ifma_addr))
 			break;
 	if (ifma == 0)
@@ -1281,7 +1281,7 @@ if_delmulti(ifp, sa)
 	rt_newmaddrmsg(RTM_DELMADDR, ifma);
 	sa = ifma->ifma_lladdr;
 	s = splimp();
-	LIST_REMOVE(ifma, ifma_link);
+	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
 	free(ifma, M_IFMADDR);
@@ -1299,7 +1299,7 @@ if_delmulti(ifp, sa)
 	 * in the record for the link-layer address.  (So we don't complain
 	 * in that case.)
 	 */
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		if (equal(sa, ifma->ifma_addr))
 			break;
 	if (ifma == 0)
@@ -1311,7 +1311,7 @@ if_delmulti(ifp, sa)
 	}
 
 	s = splimp();
-	LIST_REMOVE(ifma, ifma_link);
+	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
 	ifp->if_ioctl(ifp, SIOCDELMULTI, 0);
 	splx(s);
 	free(ifma->ifma_addr, M_IFMADDR);
@@ -1374,7 +1374,7 @@ ifmaof_ifpforaddr(sa, ifp)
 {
 	struct ifmultiaddr *ifma;
 	
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		if (equal(ifma->ifma_addr, sa))
 			break;
 

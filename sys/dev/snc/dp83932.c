@@ -678,7 +678,7 @@ camprogram(sc)
 	ifp->if_flags &= ~IFF_ALLMULTI;
 
 	/* Loop through multicast addresses */
-        LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+        TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
                 if (ifma->ifma_addr->sa_family != AF_LINK)
                         continue;
 		if (mcount == MAXCAM) {

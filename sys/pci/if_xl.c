@@ -808,7 +808,7 @@ static void xl_setmulti(sc)
 		return;
 	}
 
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		mcnt++;
 
 	if (mcnt)
@@ -851,7 +851,7 @@ static void xl_setmulti_hash(sc)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
 
 	/* now program new ones */
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = xl_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));

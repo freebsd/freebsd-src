@@ -791,7 +791,7 @@ awi_init(sc)
 #ifdef __FreeBSD__
 	if (ifp->if_amcount != 0)
 		goto set_mib;
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (n == AWI_GROUP_ADDR_SIZE)
