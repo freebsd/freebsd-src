@@ -159,14 +159,15 @@ extern devclass_t isab_devclass;
 extern intrmask_t isa_irq_pending(void);
 extern void	isa_probe_children(device_t dev);
 
-extern void	isa_dmacascade(int chan);
-extern void	isa_dmadone(int flags, caddr_t addr, int nbytes, int chan);
-extern int	isa_dma_init(int chan, u_int bouncebufsize, int flag);
-extern void	isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan);
-extern int	isa_dma_acquire(int chan);
-extern void	isa_dma_release(int chan);
-extern int	isa_dmastatus(int chan);
-extern int	isa_dmastop(int chan);
+void	isa_dmacascade(int chan);
+void	isa_dmadone(int flags, caddr_t addr, int nbytes, int chan);
+int	isa_dma_init(int chan, u_int bouncebufsize, int flag);
+void	isa_dmastart(int flags, caddr_t addr, u_int nbytes, int chan);
+int	isa_dma_acquire(int chan);
+void	isa_dma_release(int chan);
+int	isa_dmastatus(int chan);
+int	isa_dmastop(int chan);
+int	isa_dmatc(int chan);
 
 #define isa_dmainit(chan, size) do { \
 	if (isa_dma_init(chan, size, M_NOWAIT)) \

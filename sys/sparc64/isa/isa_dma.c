@@ -84,6 +84,12 @@ isa_dmastatus(int chan)
 }
 
 int
+isa_dmatc(int chan)
+{
+	return (0);
+}
+
+int
 isa_dmastop(int chan)
 {
 	return (0);
