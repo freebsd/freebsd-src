@@ -669,6 +669,8 @@ filt_vnattach(struct knote *kn)
 	    kn->kn_fp->f_type != DTYPE_FIFO)
 		return (EBADF);
 
+	vp = (struct vnode *)kn->kn_fp->f_data;
+
 	/*
 	 * XXX
 	 * this is a hack simply to cause the filter attach to fail
@@ -676,8 +678,6 @@ filt_vnattach(struct knote *kn)
 	 */
 	if ((vp)->v_tag != VT_UFS)
 		return (EOPNOTSUPP);
-
-	vp = (struct vnode *)kn->kn_fp->f_data;
 
         simple_lock(&vp->v_pollinfo.vpi_lock);
 	SLIST_INSERT_HEAD(&vp->v_pollinfo.vpi_selinfo.si_note, kn, kn_selnext);
