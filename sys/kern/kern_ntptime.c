@@ -152,7 +152,7 @@ static l_fp time_freq;			/* frequency offset (ns/s) */
  * controlled by the PPS signal.
  */
 #define PPS_FAVG	2		/* min freq avg interval (s) (shift) */
-#define PPS_FAVGMAX	8		/* max freq avg interval (s) (shift) */
+#define PPS_FAVGMAX	7		/* max freq avg interval (s) (shift) */
 #define PPS_PAVG	4		/* phase avg interval (s) (shift) */
 #define PPS_VALID	120		/* PPS signal watchdog max (s) */
 #define MAXTIME		500000		/* max PPS error (jitter) (ns) */
@@ -161,15 +161,14 @@ static l_fp time_freq;			/* frequency offset (ns/s) */
 struct ppstime {
 	long sec;			/* PPS seconds */
 	long nsec;			/* PPS nanoseconds */
-	long count;			/* PPS nanosecond counter */
 };
 static struct ppstime pps_tf[3];	/* phase median filter */
 static struct ppstime pps_filt;		/* phase offset */
+static long pps_fcount;			/* frequency accumulator */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
 static long pps_offacc;			/* offset accumulator */
 static long pps_jitter;			/* scaled time dispersion (ns) */
 static long pps_stabil;			/* scaled frequency dispersion (ns/s) */
-static long pps_lastcount;		/* last counter offset */
 static long pps_lastsec;		/* time at last calibration (s) */
 static int pps_valid;			/* signal watchdog counter */
 static int pps_shift = PPS_FAVG;	/* interval duration (s) (shift) */
@@ -319,7 +318,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		ntv.offset = L_GINT(time_offset);
 	else
 		ntv.offset = L_GINT(time_offset) / 1000;
-	ntv.freq = L_GINT(time_freq) * SCALE_PPM;
+	ntv.freq = L_GINT((time_freq / 1000) * 65536);
 	ntv.maxerror = time_maxerror;
 	ntv.esterror = time_esterror;
 	ntv.status = time_status;
@@ -336,7 +335,7 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	ntv.tolerance = MAXFREQ * SCALE_PPM;
 #ifdef PPS_SYNC
 	ntv.shift = pps_shift;
-	ntv.ppsfreq = L_GINT(pps_freq) * SCALE_PPM;
+	ntv.ppsfreq = L_GINT((pps_freq / 1000) * 65536);
 	ntv.jitter = pps_jitter;
 	if (time_status & STA_NANO)
 		ntv.jitter = pps_jitter;
@@ -508,7 +507,8 @@ ntp_init()
 	L_CLR(time_offset);
 	L_CLR(time_freq);
 #ifdef PPS_SYNC
-	pps_filt.sec = pps_filt.nsec = pps_filt.count = 0;
+	pps_filt.sec = pps_filt.nsec = 0;
+	pps_fcount = 0;
 	pps_tf[0] = pps_tf[1] = pps_tf[2] = pps_filt; 
 	L_CLR(pps_freq);
 #endif /* PPS_SYNC */	   
@@ -658,13 +658,7 @@ hardpps(tsp, nsec)
 		u_nsec -= NANOSECOND;
 	else if (u_nsec < -(NANOSECOND >> 1))
 		u_nsec += NANOSECOND;
-#if 0
-	if (u_nsec > (time_tick >> 1))
-		u_nsec -= time_tick;
-	else if (u_nsec < -(time_tick >> 1))
-		u_nsec += time_tick;
-#endif
-	pps_tf[0].count = pps_tf[1].count + u_nsec;
+	pps_fcount += u_nsec;
 	if (v_nsec > MAXFREQ) {
 		return;
 	}
@@ -741,9 +735,9 @@ hardpps(tsp, nsec)
 	 * degrading frequency ccuracy.
 	 */
 	pps_calcnt++;
-	v_nsec = -pps_filt.count;
+	v_nsec = -pps_fcount;
 	pps_lastsec = pps_tf[0].sec;
-	pps_tf[0].count = 0;
+	pps_fcount = 0;
 	u_nsec = MAXFREQ << pps_shift;
 	if (v_nsec > u_nsec || v_nsec < -u_nsec || u_sec != (1 <<
 	    pps_shift)) {
@@ -801,7 +795,7 @@ hardpps(tsp, nsec)
 	 * The frequency offset is averaged into the PPS frequency. If
 	 * enabled, the system clock frequency is updated as well.
 	 */
-	L_RSHIFT(ftemp, PPS_FAVG);
+	L_RSHIFT(ftemp, 1);
 	L_ADD(pps_freq, ftemp);
 	u_nsec = L_GINT(pps_freq);
 	if (u_nsec > MAXFREQ)
