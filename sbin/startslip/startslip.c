@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.15 1995/09/18 14:01:11 ache Exp $
+ * $Id: startslip.c,v 1.16 1995/09/19 03:37:05 ache Exp $
  */
 
 #ifndef lint
@@ -70,10 +70,11 @@ int     speed = DEFAULT_BAUD;
 int	flowcontrol = FC_NONE;
 int     modem_control = 1;      /* !CLOCAL+HUPCL iff we watch carrier. */
 int     sl_unit = -1;
+int     uucp_lock = 0;          /* uucp locking */
 char	*annex;
 int	hup;
 int     terminate;
-int     locked;
+int     locked = 0;             /* uucp lock active */
 int	logged_in = 0;
 int	wait_time = 60;		/* then back off */
 int     script_timeout = 90;    /* connect script default timeout */
@@ -121,7 +122,7 @@ main(argc, argv)
 	pid_t pid;
 	struct termios t;
 
-	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:S:")) != EOF)
+	while ((ch = getopt(argc, argv, "dhlb:s:t:w:A:U:D:W:K:O:S:L")) != EOF)
 		switch (ch) {
 		case 'd':
 			debug = 1;
@@ -154,6 +155,9 @@ main(argc, argv)
 			break;
 		case 'D':
 			downscript = strdup(optarg);
+			break;
+		case 'L':
+			uucp_lock = 1;
 			break;
 		case 'l':
 			modem_control = 0;
@@ -240,7 +244,8 @@ restart:
 	if (wfd) {
 		printd("fclose, ");
 		fclose(wfd);
-		uu_unlock(dvname);
+		if (uucp_lock)
+			uu_unlock(dvname);
 		locked = 0;
 		wfd = NULL;
 		fd = -1;
@@ -248,7 +253,8 @@ restart:
 	} else if (fd >= 0) {
 		printd("close, ");
 		close(fd);
-		uu_unlock(dvname);
+		if (uucp_lock)
+			uu_unlock(dvname);
 		locked = 0;
 		fd = -1;
 		sleep(5);
@@ -275,17 +281,20 @@ restart:
 		fclose(pfd);
 	}
 	printd("open");
-	if (uu_lock(dvname)) {
-		syslog(LOG_ERR, "can't lock %s", devicename);
-		goto restart;
+	if (uucp_lock) {
+		if (uu_lock(dvname)) {
+			syslog(LOG_ERR, "can't lock %s", devicename);
+			goto restart;
+		}
+		locked = 1;
 	}
-	locked = 1;
 	if ((fd = open(devicename, O_RDWR | O_NONBLOCK)) < 0) {
 		syslog(LOG_ERR, "open %s: %m\n", devicename);
 		if (first)
 			down(1);
 		else {
-			uu_unlock(dvname);
+			if (uucp_lock)
+				uu_unlock(dvname);
 			locked = 0;
 			goto restart;
 		}
@@ -340,9 +349,6 @@ restart:
 	if (dialerstring) {
 		printd("send dialstring: %s\\r", dialerstring);
 		fprintf(wfd, "%s\r", dialerstring);
-	} else {
-		printd("send \\r");
-		putc('\r', wfd);
 	}
 	printd("\n");
 
@@ -558,7 +564,7 @@ down(code)
 		close(fd);
 	if (pfd)
 		unlink(pidfile);
-	if (locked)
+	if (uucp_lock && locked)
 		uu_unlock(dvname);
 	exit(code);
 }
@@ -567,7 +573,7 @@ usage()
 {
 	(void)fprintf(stderr, "\
 usage: startslip [-d] [-b speed] [-s string1 [-s string2 [...]]] [-A annexname] \\\n\
-	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout] \\\n\
+	[-h] [-l] [-U upscript] [-D downscript] [-t script_timeout] [-L]\\\n\
 	[-w retry_pause] [-W maxtries] [-K keepalive] [-O outfill] [-S unit] \\\n\
 	device user passwd\n");
 	exit(1);
