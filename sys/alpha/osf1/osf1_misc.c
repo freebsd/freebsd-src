@@ -95,6 +95,7 @@ static void cvtstat2osf1(struct stat *, struct osf1_stat *);
 static int  osf2bsd_pathconf(int *);
 
 static const char osf1_emul_path[] = "/compat/osf1";
+
 /*
  * [ taken from the linux emulator ]
  * Search an alternate path before passing pathname arguments on
@@ -105,133 +106,12 @@ static const char osf1_emul_path[] = "/compat/osf1";
  * be in exists.
  */
 int
-osf1_emul_find(td, sgp, prefix, path, pbuf, cflag)
-	struct thread	*td;
-	caddr_t		*sgp;          /* Pointer to stackgap memory */
-	const char	*prefix;
-	char		*path;
-	char		**pbuf;
-	int		cflag;
+osf1_emul_find(struct thread *td, char *path, enum uio_seg pathseg,
+    char **pbuf, int create)
 {
-        int			error;
-        size_t			len, sz;
-        char			*buf, *cp, *ptr;
-	struct ucred		*ucred;
-        struct nameidata	nd;
-        struct nameidata	ndroot;
-        struct vattr		vat;
-        struct vattr		vatroot;
 
-	buf = (char *) malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
-	*pbuf = path;
-
-	for (ptr = buf; (*ptr = *prefix) != '\0'; ptr++, prefix++)
-		continue;
-
-	sz = MAXPATHLEN - (ptr - buf);
-
-	/*
-	 * If sgp is not given then the path is already in kernel space
-	 */
-	if (sgp == NULL)
-		error = copystr(path, ptr, sz, &len);
-	else
-		error = copyinstr(path, ptr, sz, &len);
-
-	if (error) {
-		free(buf, M_TEMP);
-		return error;
-	}
-
-	if (*ptr != '/') {
-		free(buf, M_TEMP);
-		return EINVAL;
-	}
-
-	/*
-	 *  We know that there is a / somewhere in this pathname.
-	 *  Search backwards for it, to find the file's parent dir
-	 *  to see if it exists in the alternate tree. If it does,
-	 *  and we want to create a file (cflag is set). We don't
-	 *  need to worry about the root comparison in this case.
-	 */
-
-	if (cflag) {
-		for (cp = &ptr[len] - 1; *cp != '/'; cp--)
-			;
-		*cp = '\0';
-
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
-		*cp = '/';
-	} else {
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, buf, td);
-
-		if ((error = namei(&nd)) != 0) {
-			free(buf, M_TEMP);
-			return error;
-		}
-
-		/*
-		 * We now compare the vnode of the osf1_root to the one
-		 * vnode asked. If they resolve to be the same, then we
-		 * ignore the match so that the real root gets used.
-		 * This avoids the problem of traversing "../.." to find the
-		 * root directory and never finding it, because "/" resolves
-		 * to the emulation root directory. This is expensive :-(
-		 */
-		NDINIT(&ndroot, LOOKUP, FOLLOW, UIO_SYSSPACE, osf1_emul_path,
-		    td);
-
-		if ((error = namei(&ndroot)) != 0) {
-			/* Cannot happen! */
-			free(buf, M_TEMP);
-			vrele(nd.ni_vp);
-			return error;
-		}
-
-		ucred = td->td_ucred;
-		if ((error = VOP_GETATTR(nd.ni_vp, &vat, ucred, td)) != 0) {
-			goto bad;
-		}
-
-		if ((error = VOP_GETATTR(ndroot.ni_vp, &vatroot, ucred,
-		    td)) != 0) {
-			goto bad;
-		}
-
-		if (vat.va_fsid == vatroot.va_fsid &&
-		    vat.va_fileid == vatroot.va_fileid) {
-			error = ENOENT;
-			goto bad;
-		}
-
-	}
-	if (sgp == NULL)
-		*pbuf = buf;
-	else {
-		sz = &ptr[len] - buf;
-		*pbuf = stackgap_alloc(sgp, sz + 1);
-		error = copyout(buf, *pbuf, sz);
-		free(buf, M_TEMP);
-	}
-
-	vrele(nd.ni_vp);
-	if (!cflag)
-		vrele(ndroot.ni_vp);
-
-	return error;
-
-bad:
-	vrele(ndroot.ni_vp);
-	vrele(nd.ni_vp);
-	free(buf, M_TEMP);
-	return error;
+	return (kern_alternate_path(td, osf1_emul_path, path, pathseg, pbuf,
+	    create));
 }
 
 
@@ -240,21 +120,15 @@ osf1_open(td, uap)
 	struct thread *td;
 	struct osf1_open_args *uap;
 {
-	struct open_args /* {
-		syscallarg(char *) path;
-		syscallarg(int) flags;
-		syscallarg(int) mode;
-	} */ a;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &path);
 
-	a.path = uap->path;
-	a.flags = uap->flags;		/* XXX translate */
-	a.mode = uap->mode;
-
-	return open(td, &a);
+	/* XXX: translate flags */
+	error = kern_open(td, path, UIO_SYSSPACE, uap->flags, uap->mode);
+	free(path, M_TEMP);
+	return (error);
 }
 
 extern long totalphysmem;
@@ -608,22 +482,15 @@ osf1_stat(td, uap)
 	struct thread *td;
 	struct osf1_stat_args *uap;
 {
-	int error;
 	struct stat sb;
 	struct osf1_stat osb;
-	struct nameidata nd;
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
+	CHECKALTEXIST(td, uap->path, &path);
 
-	CHECKALTEXIST(td, &sg, uap->path);
-
-	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)))
-		return (error);
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
+	error = kern_stat(td, path, UIO_SYSSPACE, &sb);
+	free(path, M_TEMP);
 	if (error)
 		return (error);
 	cvtstat2osf1(&sb, &osb);
@@ -643,18 +510,13 @@ osf1_lstat(td, uap)
 {
 	struct stat sb;
 	struct osf1_stat osb;
+	char *path;
 	int error;
-	struct nameidata nd;
-	caddr_t sg = stackgap_init();
 
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &path);
 
-	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF, UIO_USERSPACE,
-	    uap->path, td);
-	if ((error = namei(&nd)))
-		return (error);
-	error = vn_stat(nd.ni_vp, &sb, td->td_ucred, NOCRED, td);
-	vput(nd.ni_vp);
+	error = kern_lstat(td, path, UIO_SYSSPACE, &sb);
+	free(path, M_TEMP);
 	if (error)
 		return (error);
 	cvtstat2osf1(&sb, &osb);
@@ -671,15 +533,13 @@ osf1_fstat(td, uap)
 	struct thread *td;
 	register struct osf1_fstat_args *uap;
 {
-	struct file *fp;
-	struct stat ub;
 	struct osf1_stat oub;
+	struct stat ub;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	error = kern_fstat(td, uap->fd, &ub);
+	if (error)
 		return (error);
-	error = fo_stat(fp, &ub, td->td_ucred, td);
-	fdrop(fp, td);
 	cvtstat2osf1(&ub, &oub);
 	if (error == 0)
 		error = copyout((caddr_t)&oub, (caddr_t)uap->sb,
@@ -735,12 +595,13 @@ osf1_access(td, uap)
 	struct thread *td;
 	struct osf1_access_args *uap;
 {
-	caddr_t sg;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
-
-	return access(td, (struct access_args *)uap);
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_access(td, path, UIO_SYSSPACE, uap->flags);
+	free(path, M_TEMP);
+	return (error);
 }
 
 
@@ -1239,17 +1100,13 @@ osf1_truncate(td, uap)
 	struct thread *td;
 	struct osf1_truncate_args *uap;
 {
-	caddr_t sg;
-	struct truncate_args a;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-        CHECKALTEXIST(td, &sg, uap->path);
-
-	a.path = uap->path;
-	a.pad = 0;
-	a.length = uap->length;
-
-	return truncate(td, &a);
+        CHECKALTEXIST(td, uap->path, &path);
+	error = kern_truncate(td, path, UIO_SYSSPACE, uap->length);
+	free(path, M_TEMP);
+	return (error);
 }
 
 
@@ -1309,11 +1166,15 @@ osf1_pathconf(td, uap)
 	struct thread *td;
 	struct osf1_pathconf_args *uap;
 {
+	char *path;
+	int error;
 
 	if (osf2bsd_pathconf(&uap->name))
 		return (EINVAL);
-	else
-		return (pathconf(td, (void *)uap));
+	CHECKALTEXIST(td, uap->path, &path);
+	error = kern_pathconf(td, path, UIO_SYSSPACE, uap->name);
+	free(path, M_TEMP);
+	return (error);
 }
 
 
@@ -1397,17 +1258,19 @@ osf1_execve(td, uap)
 	struct thread *td;
 	struct osf1_execve_args *uap;
 {
-	caddr_t sg;
-	struct execve_args ap;
+	struct image_args eargs;
+	char *path;
+	int error;
 
-	sg = stackgap_init();
-	CHECKALTEXIST(td, &sg, uap->path);
+	CHECKALTEXIST(td, uap->path, &path);
 
-	ap.fname = uap->path;
-	ap.argv = uap->argp;
-	ap.envv = uap->envp;
-
-	return execve(td, &ap);
+	error = exec_copyin_args(&eargs, path, UIO_SYSSPACE, uap->argp,
+	    uap->envp);
+	free(path, M_TEMP);
+	if (error == 0)
+		error = kern_execve(td, &eargs, NULL);
+	exec_free_args(&eargs);
+	return (error);
 }
 
 
@@ -1454,7 +1317,8 @@ osf1_usleep_thread(td, uap)
 }
 
 
-int osf1_gettimeofday(td, uap)
+int
+osf1_gettimeofday(td, uap)
 	struct thread *td;
 	register struct osf1_gettimeofday_args *uap;
 {
@@ -1482,26 +1346,24 @@ int osf1_gettimeofday(td, uap)
 }
 
 
-int osf1_select(td, uap)
+int
+osf1_select(td, uap)
 	struct thread *td;
 	register struct osf1_select_args *uap;
 {
-	if (uap->tv) {
-		int error;
-		caddr_t sg;
-		struct osf1_timeval otv;
-		struct timeval tv;
+	struct osf1_timeval otv;
+	struct timeval tv, *tvp;
+	int error;
 
-		sg = stackgap_init();
-
-		if ((error=copyin((caddr_t)uap->tv,(caddr_t)&otv,sizeof(otv))))
-			return(error);
-		TV_CP(otv,tv);
-		uap->tv = stackgap_alloc(&sg, sizeof(struct timeval));
-		if ((error=copyout((caddr_t)&tv, (caddr_t)uap->tv,sizeof(tv))))
-			return(error);
-	}
-	return(select(td, (struct select_args *)uap));
+	if (uap->tv != NULL) {
+		error = copyin(uap->tv, &otv, sizeof(otv));
+		if (error)
+			return (error);
+		TV_CP(otv, tv);
+		tvp = &tv;
+	} else
+		tvp = NULL;
+	return (kern_select(td, uap->nd, uap->in, uap->ou, uap->ex, tvp));
 }
 
 
@@ -1510,43 +1372,27 @@ osf1_setitimer(td, uap)
 	struct thread *td;
 	struct osf1_setitimer_args *uap;
 {
-
-	int error;
-	caddr_t old_oitv, sg;
-	struct itimerval itv;
+	struct itimerval itv, oitv;
 	struct osf1_itimerval otv;
+	int error;
 
-	error = 0;
-	old_oitv = (caddr_t)uap->oitv;
-	sg = stackgap_init();
+	error = copyin(uap->itv, &otv, sizeof(otv));
+	if (error) {
+		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
+		return (error);
+	}
+	TV_CP(otv.it_interval, itv.it_interval);
+	TV_CP(otv.it_value, itv.it_value);
+	error = kern_setitimer(td, uap->which, &itv, &oitv);
+	if (error || uap->oitv == NULL)
+		return (error);
 
-	if ((error = copyin((caddr_t)uap->itv,(caddr_t)&otv,sizeof(otv)))) {
+	TV_CP(oitv.it_interval, otv.it_interval);
+	TV_CP(oitv.it_value, otv.it_value);
+	error = copyout(&otv, uap->oitv, sizeof(otv));
+	if (error)
 		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-		return error;
-	}
-	TV_CP(otv.it_interval,itv.it_interval);
-	TV_CP(otv.it_value,itv.it_value);
-	uap->itv = stackgap_alloc(&sg, sizeof(struct itimerval));
-	if ((error = copyout((caddr_t)&itv,(caddr_t)uap->itv,sizeof(itv)))) {
-		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-		return error;
-	}
-	uap->oitv = stackgap_alloc(&sg, sizeof(struct itimerval));
-	if ((error = setitimer(td, (struct setitimer_args *)uap))) {
-		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-		return error;
-	}
-	if ((error = copyin((caddr_t)uap->oitv,(caddr_t)&itv,sizeof(itv)))) {
-		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-		return error;
-	}
-	TV_CP(itv.it_interval,otv.it_interval);
-	TV_CP(itv.it_value,otv.it_value);
-	if (old_oitv
-	    && (error = copyout((caddr_t)&otv, old_oitv, sizeof(otv)))) {
-		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-	}
-	return error;
+	return (error);
 }
 
 
@@ -1555,30 +1401,19 @@ osf1_getitimer(td, uap)
 	struct thread *td;
 	struct osf1_getitimer_args *uap;
 {
-	int error;
-	caddr_t old_itv, sg;
 	struct itimerval itv;
 	struct osf1_itimerval otv;
+	int error;
 
-	error = 0;
-	old_itv = (caddr_t)uap->itv;
-	sg = stackgap_init();
-
-	uap->itv = stackgap_alloc(&sg, sizeof(struct itimerval));
-	if ((error = getitimer(td, (struct getitimer_args *)uap))) {
+	error = kern_getitimer(td, uap->which, &itv);
+	if (error)
+		return (error);
+	TV_CP(itv.it_interval, otv.it_interval);
+	TV_CP(itv.it_value, otv.it_value);
+	error = copyout(&otv, uap->itv, sizeof(otv));
+	if (error)
 		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-		return error;
-	}
-	if ((error = copyin((caddr_t)uap->itv,(caddr_t)&itv,sizeof(itv)))) {
-		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-		return error;
-	}
-	TV_CP(itv.it_interval,otv.it_interval);
-	TV_CP(itv.it_value,otv.it_value);
-	if ((error = copyout((caddr_t)&otv, old_itv, sizeof(otv)))) {
-		printf("%s(%d): error = %d\n", __FILE__, __LINE__, error);
-	}
-	return error;
+	return (error);
 }
 
 

@@ -60,19 +60,17 @@ stackgap_alloc(sgp, sz)
 }
 
 
-extern const char osf1_emul_path[];
-int osf1_emul_find(struct thread *, caddr_t *, const char *, char *,
-			char **, int);
+int	osf1_emul_find(struct thread *td, char *path, enum uio_seg pathseg,
+	    char **pbuf, int create);
 
-#define CHECKALT(p, sgp, path, i)					\
+#define CHECKALT(td, upath, pathp, i)					\
 	do {								\
 		int _error;						\
 									\
-		_error = osf1_emul_find(p, sgp, osf1_emul_path, path,	\
-					&path, i);			\
-		if (_error == EFAULT)					\
+		_error = osf1_emul_find(td, upath, UIO_USERSPACE, pathp, i); \
+		if (*(pathp) == NULL)					\
 			return (_error);				\
 	} while (0)
 
-#define	CHECKALTEXIST(p, sgp, path) CHECKALT((p), (sgp), (path), 0)
-#define	CHECKALTCREAT(p, sgp, path) CHECKALT((p), (sgp), (path), 1)
+#define	CHECKALTEXIST(td, upath, pathp) CHECKALT((td), (upath), (pathp), 0)
+#define	CHECKALTCREAT(td, upath, pathp) CHECKALT((td), (upath), (pathp), 1)
