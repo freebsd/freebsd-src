@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.5 1998/10/24 18:55:53 msmith Exp $
+ *	$Id: if_plip.c,v 1.6 1998/11/07 14:35:41 nsouch Exp $
  */
 
 /*
@@ -336,16 +336,15 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	if (((ifp->if_flags & IFF_UP)) && (!(ifp->if_flags & IFF_RUNNING))) {
 
-	    /* 
-	     * Try to allocate the ppbus as soon as possible
-	     * With ppbus allocation, interrupts are enabled
-	     * Now IFF_UP means that we own the bus
-	     *
-	     * XXX
+	    /* XXX
 	     * Should the request be interruptible?
 	     */
 	    if ((error = ppb_request_bus(&sc->lp_dev, PPB_WAIT|PPB_INTR)))
 		return (error);
+
+	    /* Now IFF_UP means that we own the bus */
+
+	    ppb_set_mode(&sc->lp_dev, PPB_COMPATIBLE);
 
 	    if (lpinittables()) {
 		ppb_release_bus(&sc->lp_dev);
@@ -428,7 +427,7 @@ clpoutbyte (u_char byte, int spin, struct ppb_device *dev)
 static __inline int
 clpinbyte (int spin, struct ppb_device *dev)
 {
-	int c, cl;
+	u_char c, cl;
 
 	while((ppb_rstr(dev) & CLPIP_SHAKE))
 	    if(!--spin) {
