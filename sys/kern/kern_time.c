@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.39 1997/11/06 19:29:16 phk Exp $
+ * $Id: kern_time.c,v 1.40 1997/11/07 08:52:58 phk Exp $
  */
 
 #include <sys/param.h>
@@ -78,6 +78,7 @@ settime(tv)
 	struct timeval *tv;
 {
 	struct timeval delta;
+	struct timespec ts;
 	struct proc *p;
 	int s;
 
@@ -99,7 +100,9 @@ settime(tv)
 	 */
 	delta.tv_sec = tv->tv_sec - time.tv_sec;
 	delta.tv_usec = tv->tv_usec - time.tv_usec;
-	time = *tv;
+	ts.tv_sec = tv->tv_sec;
+	ts.tv_nsec = tv->tv_usec * 1000;
+	set_timecounter(&ts);
 	/*
 	 * XXX should arrange for microtime() to agree with *tv if
 	 * it is called now.  As it is, it may add up to about
@@ -138,13 +141,11 @@ clock_gettime(p, uap)
 	struct proc *p;
 	struct clock_gettime_args *uap;
 {
-	struct timeval atv;
 	struct timespec ats;
 
 	if (SCARG(uap, clock_id) != CLOCK_REALTIME)
 		return (EINVAL);
-	microtime(&atv);
-	TIMEVAL_TO_TIMESPEC(&atv, &ats);
+	nanotime(&ats);
 	return (copyout(&ats, SCARG(uap, tp), sizeof(ats)));
 }
 
@@ -199,7 +200,7 @@ clock_getres(p, uap)
 	error = 0;
 	if (SCARG(uap, tp)) {
 		ts.tv_sec = 0;
-		ts.tv_nsec = 1000000000 / hz;
+		ts.tv_nsec = 1000000000 / timecounter->frequency;
 		error = copyout(&ts, SCARG(uap, tp), sizeof(ts));
 	}
 	return (error);

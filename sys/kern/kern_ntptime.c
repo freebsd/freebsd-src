@@ -99,6 +99,7 @@ static long time_tolerance = MAXFREQ;	/* frequency tolerance (scaled ppm) */
 static long time_precision = 1;		/* clock precision (us) */
 static long time_maxerror = MAXPHASE;	/* maximum error (us) */
 static long time_esterror = MAXPHASE;	/* estimated error (us) */
+static int time_daemon = 0;		/* No timedaemon active */
 
 /*
  * The following variables establish the state of the PLL/FLL and the
@@ -285,11 +286,28 @@ hardupdate(offset)
 		time_freq = -time_tolerance;
 }
 
+/*
+ * On rollover of the second the phase adjustment to be used for
+ * the next second is calculated. Also, the maximum error is
+ * increased by the tolerance. If the PPS frequency discipline
+ * code is present, the phase is increased to compensate for the
+ * CPU clock oscillator frequency error.
+ *
+ * On a 32-bit machine and given parameters in the timex.h
+ * header file, the maximum phase adjustment is +-512 ms and
+ * maximum frequency offset is a tad less than) +-512 ppm. On a
+ * 64-bit machine, you shouldn't need to ask.
+ */
 void
-ntp_update_second(long *newsec)
+ntp_update_second(struct timecounter *tc)
 {
+	u_int32_t *newsec;
 	long ltemp;
 
+	if (!time_daemon)
+		return;
+
+	newsec = &tc->offset_sec;
 	time_maxerror += time_tolerance >> SHIFT_USEC;
 
 	/*
@@ -308,7 +326,7 @@ ntp_update_second(long *newsec)
 		if (ltemp > (MAXPHASE / MINSEC) << SHIFT_UPDATE)
 			ltemp = (MAXPHASE / MINSEC) << SHIFT_UPDATE;
 		time_offset += ltemp;
-		time_adj = -ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
+		time_adj = -ltemp << (SHIFT_SCALE - SHIFT_UPDATE);
 	} else {
 		ltemp = time_offset;
 		if (!(time_status & STA_FLL))
@@ -316,7 +334,7 @@ ntp_update_second(long *newsec)
 		if (ltemp > (MAXPHASE / MINSEC) << SHIFT_UPDATE)
 			ltemp = (MAXPHASE / MINSEC) << SHIFT_UPDATE;
 		time_offset -= ltemp;
-		time_adj = ltemp << (SHIFT_SCALE - SHIFT_HZ - SHIFT_UPDATE);
+		time_adj = ltemp << (SHIFT_SCALE - SHIFT_UPDATE);
 	}
 
 	/*
@@ -339,29 +357,12 @@ ntp_update_second(long *newsec)
 	ltemp = time_freq;
 #endif /* PPS_SYNC */
 	if (ltemp < 0)
-		time_adj -= -ltemp >> (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
+		time_adj -= -ltemp << (SHIFT_SCALE - SHIFT_USEC);
 	else
-		time_adj += ltemp >> (SHIFT_USEC + SHIFT_HZ - SHIFT_SCALE);
+		time_adj += ltemp << (SHIFT_SCALE - SHIFT_USEC);
 
-#if SHIFT_HZ == 7
-	/*
-	* When the CPU clock oscillator frequency is not a
-	* power of two in Hz, the SHIFT_HZ is only an
-	* approximate scale factor. In the SunOS kernel, this
-	* results in a PLL gain factor of 1/1.28 = 0.78 what it
-	* should be. In the following code the overall gain is
-	* increased by a factor of 1.25, which results in a
-	* residual error less than 3 percent.
-	*/
-	/* Same thing applies for FreeBSD --GAW */
-	if (hz == 100) {
-		if (time_adj < 0)
-			time_adj -= -time_adj >> 2;
-		else
-			time_adj += time_adj >> 2;
-	}
-#endif /* SHIFT_HZ */
-
+	tc->adjustment = time_adj;
+	
 	/* XXX - this is really bogus, but can't be fixed until
 	xntpd's idea of the system clock is fixed to know how
 	the user wants leap seconds handled; in the mean time,
@@ -489,6 +490,8 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 	int modes;
 	int s;
 	int error;
+
+	time_daemon = 1;
 
 	error = copyin((caddr_t)uap->tp, (caddr_t)&ntv, sizeof(ntv));
 	if (error)
