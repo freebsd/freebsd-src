@@ -289,9 +289,9 @@ nd6_option(ndopts)
 	int olen;
 
 	if (!ndopts)
-		panic("ndopts == NULL in nd6_option\n");
+		panic("ndopts == NULL in nd6_option");
 	if (!ndopts->nd_opts_last)
-		panic("uninitialized ndopts in nd6_option\n");
+		panic("uninitialized ndopts in nd6_option");
 	if (!ndopts->nd_opts_search)
 		return NULL;
 	if (ndopts->nd_opts_done)
@@ -341,9 +341,9 @@ nd6_options(ndopts)
 	int i = 0;
 
 	if (!ndopts)
-		panic("ndopts == NULL in nd6_options\n");
+		panic("ndopts == NULL in nd6_options");
 	if (!ndopts->nd_opts_last)
-		panic("uninitialized ndopts in nd6_options\n");
+		panic("uninitialized ndopts in nd6_options");
 	if (!ndopts->nd_opts_search)
 		return 0;
 
@@ -455,12 +455,12 @@ nd6_timer(ignored_arg)
 
 		/* sanity check */
 		if (!rt)
-			panic("rt=0 in nd6_timer(ln=%p)\n", ln);
+			panic("rt=0 in nd6_timer(ln=%p)", ln);
 		if (rt->rt_llinfo && (struct llinfo_nd6 *)rt->rt_llinfo != ln)
-			panic("rt_llinfo(%p) is not equal to ln(%p)\n",
+			panic("rt_llinfo(%p) is not equal to ln(%p)",
 			      rt->rt_llinfo, ln);
 		if (!dst)
-			panic("dst=0 in nd6_timer(ln=%p)\n", ln);
+			panic("dst=0 in nd6_timer(ln=%p)", ln);
 
 		switch (ln->ln_state) {
 		case ND6_LLINFO_INCOMPLETE:
