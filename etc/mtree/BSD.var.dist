@@ -28,7 +28,7 @@
     db
         entropy         uname=operator gname=operator mode=0700
         ..
-        ipf
+        ipf		mode=0700
         ..
         pkg
         ..
