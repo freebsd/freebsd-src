@@ -558,6 +558,7 @@ struct	mbuf	*m_split(struct mbuf *, int, int);
 #define	PACKET_TAG_DIVERT			17 /* divert info */
 #define	PACKET_TAG_IPFORWARD			18 /* ipforward info */
 #define	PACKET_TAG_MACLABEL	(19 | MTAG_PERSISTENT) /* MAC label */
+#define	PACKET_TAG_IPFASTFWD_OURS		20 /* IP fastforward dropback */
 
 /* Packet tag routines */
 struct	m_tag 	*m_tag_alloc(u_int32_t, int, int, int);
