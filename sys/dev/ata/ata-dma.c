@@ -1027,8 +1027,8 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	}
 	break;
 
-    case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
     case 0x0d30105a:	/* Promise OEM ATA100 controllers */
+    case 0x4d30105a:	/* Promise Ultra/FastTrak 100 controllers */
 	if (!ATAPI_DEVICE(atadev) && udmamode >= 5 && 
 	    !(pci_read_config(parent, 0x50, 2) & (channel ? 1<<11 : 1<<10))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
@@ -1044,6 +1044,7 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	}
 	/* FALLTHROUGH */
 
+    case 0x0d38105a:	/* Promise FastTrak 66 controllers */
     case 0x4d38105a:	/* Promise Ultra/FastTrak 66 controllers */
 	if (!ATAPI_DEVICE(atadev) && udmamode >= 4 && 
 	    !(pci_read_config(parent, 0x50, 2) & (channel ? 1<<11 : 1<<10))) {
@@ -1398,9 +1399,10 @@ promise_timing(struct ata_device *atadev, int devno, int mode)
 	}
 	break;
 
+    case 0x0d38105a:  /* Promise Fasttrak 66 */
     case 0x4d38105a:  /* Promise Ultra/Fasttrak 66 */
-    case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
     case 0x0d30105a:  /* Promise OEM ATA 100 */
+    case 0x4d30105a:  /* Promise Ultra/Fasttrak 100 */
 	switch (mode) {
 	default:
 	case ATA_PIO0:	t->pa = 15; t->pb = 31; t->mb = 7; t->mc = 15; break;
