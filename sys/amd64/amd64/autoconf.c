@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.37 1995/09/03 05:43:00 julian Exp $
+ *	$Id: autoconf.c,v 1.38 1995/09/09 18:09:41 davidg Exp $
  */
 
 /*
@@ -55,8 +55,16 @@
 #include <sys/kernel.h>
 #include <sys/mount.h>	/* mountrootvfsops, struct vfsops*/
 
+#include <machine/cons.h>
 #include <machine/md_var.h>
 #include <machine/pte.h>
+
+static void configure __P((void *));
+SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
+
+int find_cdrom_root __P((void *));
+void configure_start __P((void));
+void configure_finish __P((void));
 
 static void setroot(void);
 
@@ -128,7 +136,7 @@ find_cdrom_root(dummy)
 			rootdev = makedev(try_cdrom[k].major,j*8);
 			printf("trying rootdev=0x%lx (%s%d)\n",
 				rootdev, try_cdrom[k].name,j);
-			i = (*cd9660_mountroot)(NULL);
+			i = (*cd9660_mountroot)((void *)NULL);
 			if (!i) return i;
 		}
 	return EINVAL;
@@ -159,8 +167,8 @@ configure_finish()
 /*
  * Determine i/o configuration for a machine.
  */
-void
-configure(dummy) /* arg not used */
+static void
+configure(dummy)
 	void *dummy;
 {
 
@@ -184,6 +192,8 @@ configure(dummy) /* arg not used */
 #endif
 
 	configure_finish();
+
+	cninit_finish();
 
 #ifdef MFS_ROOT
 	mfs_initminiroot(mfs_root);		/* XXX UGLY*/
@@ -241,11 +251,6 @@ configure(dummy) /* arg not used */
 	setconf();
 	cold = 0;
 }
-/*
- * Add a SYSINIT entry so that Configure gets called at the right time.
- */
-SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_FIRST, configure, NULL)
-
 
 int
 setdumpdev(dev)
