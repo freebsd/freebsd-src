@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dmabuf.c,v 1.11 1995/02/13 22:49:04 jkh Exp $
+ * $Id: dmabuf.c,v 1.13 1995/03/05 08:10:23 jkh Exp $
  */
 
 #include "sound_config.h"
@@ -432,6 +432,20 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
 	reorganize_buffers (dev);
 
       return IOCTL_OUT (arg, dmap->fragment_size);
+      break;
+
+    case SNDCTL_DSP_SETBLKSIZE:
+      { 
+        int     size = IOCTL_IN (arg);
+
+        if(!(dmap->flags & DMA_ALLOC_DONE) && size)
+          {
+             dmap->fragment_size = size;
+             return 0;
+          }
+        else
+          return RET_ERROR (EINVAL);    /* Too late to change */
+      }
       break;
 
     case SNDCTL_DSP_SUBDIVIDE:
