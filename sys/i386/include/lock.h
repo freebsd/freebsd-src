@@ -37,24 +37,17 @@
 #define	MPLOCKED	lock ;
 
 /*
- * Some handy macros to allow logical organization and
- * convenient reassignment of various locks.
+ * Some handy macros to allow logical organization.
  */
 
-#define FPU_LOCK	call	_get_fpu_lock
-#define ALIGN_LOCK	call	_get_align_lock
-#define SYSCALL_LOCK	call	_get_syscall_lock
-#define ALTSYSCALL_LOCK	call	_get_altsyscall_lock
+#define MP_LOCK		call	_get_mplock
 
-/*
- * Protects INTR() ISRs.
- */
-#define ISR_TRYLOCK							\
+#define MP_TRYLOCK							\
 	pushl	$_mp_lock ;			/* GIANT_LOCK */	\
 	call	_MPtrylock ;			/* try to get lock */	\
 	add	$4, %esp
 
-#define ISR_RELLOCK							\
+#define MP_RELLOCK							\
 	movl	$_mp_lock,%edx ;		/* GIANT_LOCK */	\
 	call	_MPrellock_edx
 
@@ -69,55 +62,11 @@
 #define IMASK_UNLOCK							\
 	movl	$0, _imen_lock
 
-/*
- * Variations of CPL_LOCK protect spl updates as a critical region.
- * Items within this 'region' include:
- *  cpl
- *  cml
- *  cil
- *  ipending
- */
-
-/*
- * Bottom half routines, ie. those already protected from INTs.
- *
- * Used in:
- *  sys/i386/isa/ipl.s:		_doreti
- *  sys/i386/isa/apic_vector.s:	_Xintr0, ..., _Xintr23
- */
-#define CPL_LOCK							\
-	pushl	$_cpl_lock ;			/* address of lock */	\
-	call	_s_lock ;			/* MP-safe */		\
-	addl	$4, %esp
-
-#define CPL_UNLOCK							\
-	movl	$0, _cpl_lock
-
-/*
- * INT safe version for top half of kernel.
- *
- * Used in:
- *  sys/i386/i386/exception.s:	_Xfpu, _Xalign, _Xsyscall, _Xint0x80_syscall
- *  sys/i386/isa/apic_ipl.s:	splz()
- */
-#define SCPL_LOCK 							\
-	pushl	$_cpl_lock ;						\
-	call	_ss_lock ;						\
-	addl	$4, %esp
-
-#define SCPL_UNLOCK							\
-	pushl	$_cpl_lock ;						\
-	call	_ss_unlock ;						\
-	addl	$4, %esp
-
 #else  /* SMP */
 
 #define	MPLOCKED				/* NOP */
 
-#define FPU_LOCK				/* NOP */
-#define ALIGN_LOCK				/* NOP */
-#define SYSCALL_LOCK				/* NOP */
-#define ALTSYSCALL_LOCK				/* NOP */
+#define MP_LOCK					/* NOP */
 
 #endif /* SMP */
 
@@ -137,18 +86,6 @@
 #define MPINTR_LOCK()
 #define MPINTR_UNLOCK()
 #endif /* USE_MPINTRLOCK */
-
-/*
- * Protects cpl/cml/cil/ipending data as a critical region.
- *
- * Used in:
- *  sys/i386/isa/ipl_funcs.c:	DO_SETBITS, softclockpending(), GENSPL,
- *				spl0(), splx(), splq()
- */
-#define CPL_LOCK() 	s_lock(&cpl_lock)	/* Bottom end */
-#define CPL_UNLOCK() 	s_unlock(&cpl_lock)
-#define SCPL_LOCK() 	ss_lock(&cpl_lock)	/* INT safe: top end */
-#define SCPL_UNLOCK() 	ss_unlock(&cpl_lock)
 
 /*
  * sio/cy lock.
@@ -190,11 +127,6 @@
 
 #define MPINTR_LOCK()
 #define MPINTR_UNLOCK()
-
-#define CPL_LOCK()
-#define CPL_UNLOCK()
-#define SCPL_LOCK()
-#define SCPL_UNLOCK()
 
 #define COM_LOCK()
 #define COM_UNLOCK()

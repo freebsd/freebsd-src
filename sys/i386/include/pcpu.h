@@ -66,6 +66,7 @@ struct globaldata {
 	caddr_t		gd_prv_CADDR3;
 	unsigned	*gd_prv_PADDR1;
 #endif
+	u_int		gd_astpending;
 };
 
 #ifdef SMP

@@ -62,7 +62,7 @@ struct ktr_header {
 };
 
 /*
- * Test for kernel trace point
+ * Test for kernel trace point (MP SAFE)
  */
 #define KTRPOINT(p, type)	\
 	(((p)->p_traceflag & ((1<<(type))|KTRFAC_ACTIVE)) == (1<<(type)))
