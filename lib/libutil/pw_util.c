@@ -290,7 +290,6 @@ pw_edit(int notsetuid)
 	struct stat st1, st2;
 	const char *editor;
 	char *editcmd;
-	int editcmdlen;
 	int pstat;
 
 	if ((editor = getenv("EDITOR")) == NULL)
@@ -306,14 +305,8 @@ pw_edit(int notsetuid)
 			(void)setgid(getgid());
 			(void)setuid(getuid());
 		}
-		if ((editcmdlen = sysconf(_SC_ARG_MAX) - 6) <= 0 ||
-		    (editcmd = malloc(editcmdlen)) == NULL)
+		if (asprintf(&editcmd, "exec %s %s", editor, tempname) == NULL)
 			_exit(EXIT_FAILURE);
-		if (snprintf(editcmd, editcmdlen, "%s %s",
-		    editor, tempname) >= editcmdlen) {
-			free(editcmd);	/* pedantry */
-			_exit(EXIT_FAILURE);
-		}
 		errno = 0;
 		execl(_PATH_BSHELL, "sh", "-c", editcmd, NULL);
 		free(editcmd);
@@ -322,13 +315,16 @@ pw_edit(int notsetuid)
 		/* parent */
 		break;
 	}
+	setpgid(editpid, editpid);
+	tcsetpgrp(1, editpid);
 	for (;;) {
-		editpid = waitpid(editpid, &pstat, WUNTRACED);
-		if (editpid == -1) {
+		if (waitpid(editpid, &pstat, WUNTRACED) == -1) {
 			unlink(tempname);
 			return (-1);
 		} else if (WIFSTOPPED(pstat)) {
 			raise(WSTOPSIG(pstat));
+			tcsetpgrp(1, getpgid(editpid));
+			kill(editpid, SIGCONT);
 		} else if (WIFEXITED(pstat) && WEXITSTATUS(pstat) == 0) {
 			editpid = -1;
 			break;
