@@ -66,13 +66,7 @@ struct ufsmount {
 	dev_t	um_dev;				/* device mounted */
 	struct	vnode *um_devvp;		/* block device mounted vnode */
 
-	union {					/* pointer to superblock */
-		struct	fs *fs;			/* FFS */
-		struct	ext2_sb_info *e2fs;	/* EXT2FS */
-	} ufsmount_u;
-#define	um_fs	ufsmount_u.fs
-#define	um_e2fs	ufsmount_u.e2fs
-#define um_e2fsb ufsmount_u.e2fs->s_es
+	struct	fs *um_fs;			/* pointer to superblock */
 
 	struct	vnode *um_quotas[MAXQUOTAS];	/* pointer to quota files */
 	struct	ucred *um_cred[MAXQUOTAS];	/* quota file access cred */
@@ -85,7 +79,6 @@ struct ufsmount {
 	char	um_qflags[MAXQUOTAS];		/* quota specific flags */
 	int64_t	um_savedmaxfilesize;		/* XXX - limit maxfilesize */
 	struct malloc_type *um_malloctype;	/* The inodes malloctype */
-	int	um_i_effnlink_valid;		/* i_effnlink valid? */
 	int	(*um_balloc)(struct vnode *, off_t, int, struct ucred *, int, struct buf **);
 	int	(*um_blkatoff)(struct vnode *, off_t, char **, struct buf **);
 	int	(*um_truncate)(struct vnode *, off_t, int, struct ucred *, struct thread *);

@@ -310,9 +310,7 @@ ufs_close(ap)
 		 * XXX - EAGAIN is returned to prevent vn_close from
 		 * repeating the vrele operation.
 		 */
-		if (vp->v_type == VREG &&
-		    (VFSTOUFS(vp->v_mount)->um_i_effnlink_valid ?
-		    VTOI(vp)->i_effnlink : VTOI(vp)->i_nlink) == 0) {
+		if (vp->v_type == VREG && VTOI(vp)->i_effnlink == 0) {
 			(void) vn_start_write(vp, &mp, V_WAIT);
 			vrele(vp);
 			vn_finished_write(mp);
@@ -418,8 +416,7 @@ ufs_getattr(ap)
 	vap->va_fsid = dev2udev(ip->i_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode & ~IFMT;
-	vap->va_nlink = VFSTOUFS(vp->v_mount)->um_i_effnlink_valid ?
-	    ip->i_effnlink : ip->i_nlink;
+	vap->va_nlink = ip->i_effnlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
 	vap->va_rdev = ip->i_rdev;
