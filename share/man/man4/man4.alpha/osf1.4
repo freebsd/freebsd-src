@@ -31,6 +31,9 @@
 .Nm osf1
 .Nd OSF/1 ABI support
 .Sh SYNOPSIS
+To link OSF/1 ABI support into the kernel:
+.Cd options     COMPAT_OSF1
+.Pp
 To load the OSF/1 ABI support kernel module:
 .Dl kldload osf1
 .Sh DESCRIPTION
@@ -87,10 +90,6 @@ API, such as the JDK.
 OSF/1's pthreads library uses Mach system calls.  
 Mach system calls would be very difficult to support in
 .Fx .
-.Pp
-Linking the 
-.Nm
-module into the kernel statically is not supported.
 .Sh HISTORY
 OSF/1 ABI support first appeared in
 .Fx 4.0 .
