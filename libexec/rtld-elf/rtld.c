@@ -37,6 +37,7 @@
 
 #include <sys/param.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include <dlfcn.h>
 #include <err.h>
@@ -244,7 +245,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     if (aux_info[AT_EXECFD] != NULL) {	/* Load the main program. */
 	int fd = aux_info[AT_EXECFD]->a_un.a_val;
 	dbg("loading main program");
-	obj_main = map_object(fd, argv0);
+	obj_main = map_object(fd, argv0, NULL);
 	close(fd);
 	if (obj_main == NULL)
 	    die();
@@ -983,20 +984,42 @@ static Obj_Entry *
 load_object(char *path)
 {
     Obj_Entry *obj;
+    int fd = -1;
+    struct stat sb;
 
     for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
 	if (strcmp(obj->path, path) == 0)
 	    break;
 
-    if (obj == NULL) {	/* First use of this object, so we must map it in */
-	int fd;
-
+    /*
+     * If we didn't find a match by pathname, open the file and check
+     * again by device and inode.  This avoids false mismatches caused
+     * by multiple links or ".." in pathnames.
+     *
+     * To avoid a race, we open the file and use fstat() rather than
+     * using stat().
+     */
+    if (obj == NULL) {
 	if ((fd = open(path, O_RDONLY)) == -1) {
 	    _rtld_error("Cannot open \"%s\"", path);
 	    return NULL;
 	}
+	if (fstat(fd, &sb) == -1) {
+	    _rtld_error("Cannot fstat \"%s\"", path);
+	    close(fd);
+	    return NULL;
+	}
+	for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
+	    if (obj->ino == sb.st_ino && obj->dev == sb.st_dev) {
+		close(fd);
+		break;
+	    }
+	}
+    }
+
+    if (obj == NULL) {	/* First use of this object, so we must map it in */
 	dbg("loading \"%s\"", path);
-	obj = map_object(fd, path);
+	obj = map_object(fd, path, &sb);
 	close(fd);
 	if (obj == NULL) {
 	    free(path);
