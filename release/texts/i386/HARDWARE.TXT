@@ -383,7 +383,7 @@ The following CD-ROM type systems are supported at this time:
 (matcd) Matsushita/Panasonic (Creative SoundBlaster) proprietary
         interface (562/563 models)
 (scd)   Sony proprietary interface (all models)
-(wcd)   ATAPI IDE interface
+(acd)   ATAPI IDE interface
 
 The following drivers were supported under the old SCSI subsystem, but are
 NOT YET supported under the new CAM SCSI subsystem:
