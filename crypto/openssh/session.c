@@ -762,7 +762,7 @@ do_login(Session *s, const char *command)
 		return;
 
 #ifdef USE_PAM
-	if (options.print_lastlog && !is_pam_password_change_required())
+	if (!is_pam_password_change_required())
 		print_pam_messages();
 #endif /* USE_PAM */
 #ifdef WITH_AIXAUTHENTICATE
