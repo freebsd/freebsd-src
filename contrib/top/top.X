@@ -315,7 +315,7 @@ TOP	user-configurable defaults for options.
 .br
 /etc/passwd		used to map uid numbers to user names
 .br
-/kernel		system image
+/boot/kernel/kernel	system image
 .SH BUGS
 Don't shoot me, but the default for
 .B \-I
