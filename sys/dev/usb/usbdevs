@@ -379,6 +379,7 @@ vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor DAISY		0x3579	Daisy Technology
 vendor DELL		0x413c	Dell
 vendor INTEL		0x8086	Intel
+vendor SIIG2		0x0b39	SIIG
 vendor HP2		0xf003	Hewlett Packard
 
 /*
@@ -1192,6 +1193,7 @@ product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 
 /* SIIG products */
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
+product SIIG2 US2308		0x0421	USB to Serial
 
 /* Silicon Portals Inc. */
 product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
