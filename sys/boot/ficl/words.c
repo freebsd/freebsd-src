@@ -4439,6 +4439,14 @@ static void ansResize(FICL_VM *pVM)
     }
 }
 
+/*
+** Retrieves free space remaining on the dictionary
+*/
+
+static void freeHeap(FICL_VM *pVM)
+{
+    stackPushINT(pVM->pStack, dictCellsAvail(ficlGetDict()));
+}
 
 /*
 ** exit-inner 
@@ -4649,6 +4657,7 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "key?",	    keyQuestion,    FW_DEFAULT);
     dictAppendWord(dp, "ms",        ms,             FW_DEFAULT);
     dictAppendWord(dp, "seconds",   pseconds,       FW_DEFAULT);
+    dictAppendWord(dp, "heap?",     freeHeap,       FW_DEFAULT);
 #ifdef FICL_TRACE
     dictAppendWord(dp, "trace!",    ficlTrace,      FW_DEFAULT);
 #endif
