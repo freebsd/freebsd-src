@@ -308,7 +308,7 @@ tc_getfrequency(void)
 }
 
 /*
- * Step our concept of GMT.  This is done by modifying our estimate of
+ * Step our concept of UTC.  This is done by modifying our estimate of
  * when we booted.  XXX: needs futher work.
  */
 void
@@ -423,7 +423,7 @@ tc_windup(void)
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
 
-	/* Update the GMT timestamps used for the get*() functions. */
+	/* Update the UTC timestamps used for the get*() functions. */
 	bt = th->th_offset;
 	bintime_add(&bt, &boottimebin);
 	bintime2timeval(&bt, &th->th_microtime);
