@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.28 1995/02/18 02:55:09 davidg Exp $
+ * $Id: vfs_bio.c,v 1.29 1995/02/22 09:16:07 davidg Exp $
  */
 
 /*
@@ -90,6 +90,11 @@ vm_offset_t bogus_offset;
 int bufspace, maxbufspace;
 
 /*
+ * advisory minimum for size of LRU queue or VMIO queue
+ */
+int minbuf;
+
+/*
  * Initialize buffer headers and related structures.
  */
 void
@@ -128,10 +133,12 @@ bufinit()
 /*
  * this will change later!!!
  */
+	minbuf = nbuf / 3;
 	maxbufspace = 2 * (nbuf + 8) * PAGE_SIZE;
 
 	bogus_offset = kmem_alloc_pageable(kernel_map, PAGE_SIZE);
-	bogus_page = vm_page_alloc(kernel_object, bogus_offset - VM_MIN_KERNEL_ADDRESS, 0);
+	bogus_page = vm_page_alloc(kernel_object,
+			bogus_offset - VM_MIN_KERNEL_ADDRESS, VM_ALLOC_NORMAL);
 
 }
 
@@ -337,22 +344,25 @@ bdwrite(struct buf * bp)
 void
 bawrite(struct buf * bp)
 {
-#ifdef EVILFORNOW
+	struct vnode *vp;
+	vp = bp->b_vp;
+	bp->b_flags |= B_ASYNC;
+	(void) bwrite(bp);
 	/*
-	 * #ifdef EXTRA_DEADLOCKS is appropriate for this code for now :-)
+	 * this code supports limits on the amount of outstanding
+	 * writes to a disk file.  this helps keep from overwhelming
+	 * the buffer cache with writes, thereby allowing other files
+	 * to be operated upon.
 	 */
-	if (((bp->b_flags & B_DELWRI) == 0) && (bp->b_vp->v_numoutput > 24)) {
+	if (vp->v_numoutput > (nbuf/2)) {
 		int s = splbio();
 
-		while (bp->b_vp->v_numoutput > 16) {
-			bp->b_vp->v_flag |= VBWAIT;
-			tsleep((caddr_t) &bp->b_vp->v_numoutput, PRIBIO, "bawnmo", 0);
+		while (vp->v_numoutput > (nbuf/4)) {
+			vp->v_flag |= VBWAIT;
+			tsleep((caddr_t) &vp->v_numoutput, PRIBIO, "bawnmo", 0);
 		}
 		splx(s);
 	}
-#endif
-	bp->b_flags |= B_ASYNC;
-	(void) bwrite(bp);
 }
 
 /*
@@ -438,10 +448,13 @@ brelse(struct buf * bp)
 			} else {
 				vm_page_test_dirty(m);
 			}
-			if (bp->b_flags & B_INVAL) {
-				if (m->bmapped == 0) {
-					panic("brelse: bmapped is zero for page\n");
-				}
+			foff += resid;
+			iototal -= resid;
+		}
+
+		if (bp->b_flags & B_INVAL) {
+			for(i=0;i<bp->b_npages;i++) {
+				m = bp->b_pages[i];
 				--m->bmapped;
 				if (m->bmapped == 0) {
 					PAGE_WAKEUP(m);
@@ -456,11 +469,6 @@ brelse(struct buf * bp)
 						vm_page_activate(m);
 				}
 			}
-			foff += resid;
-			iototal -= resid;
-		}
-
-		if (bp->b_flags & B_INVAL) {
 			bufspace -= bp->b_bufsize;
 			pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
 			bp->b_npages = 0;
@@ -588,16 +596,18 @@ start:
 	}
 trytofreespace:
 	/*
-	 * we keep the file I/O from hogging metadata I/O
+	 * We keep the file I/O from hogging metadata I/O
+	 * This is desirable because file data is cached in the
+	 * VM/Buffer cache even if a buffer is freed.
 	 */
 	if (bp = bufqueues[QUEUE_AGE].tqh_first) {
 		if (bp->b_qindex != QUEUE_AGE)
 			panic("getnewbuf: inconsistent AGE queue");
-	} else if ((nvmio > (nbuf / 2))
+	} else if ((nvmio > nbuf - minbuf)
 	    && (bp = bufqueues[QUEUE_VMIO].tqh_first)) {
 		if (bp->b_qindex != QUEUE_VMIO)
 			panic("getnewbuf: inconsistent VMIO queue");
-	} else if ((!doingvmio || (nlru > (nbuf / 2))) &&
+	} else if ((!doingvmio || (nlru > nbuf - minbuf)) &&
 	    (bp = bufqueues[QUEUE_LRU].tqh_first)) {
 		if (bp->b_qindex != QUEUE_LRU)
 			panic("getnewbuf: inconsistent LRU queue");
@@ -763,9 +773,9 @@ getblk(struct vnode * vp, daddr_t blkno, int size, int slpflag, int slptimeo)
 
 	s = splbio();
 loop:
-	if ((cnt.v_free_count + cnt.v_cache_count) <
-	    cnt.v_free_reserved + MAXBSIZE / PAGE_SIZE)
+	if ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_cache_min)
 		wakeup((caddr_t) &vm_pages_needed);
+
 	if (bp = incore(vp, blkno)) {
 		if (bp->b_flags & B_BUSY) {
 			bp->b_flags |= B_WANTED;
@@ -807,16 +817,26 @@ loop:
 				return NULL;
 			goto loop;
 		}
+		/*
+		 * It is possible that another buffer has been constituted
+		 * during the time that getnewbuf is blocked.  This checks
+		 * for this possibility, and handles it.
+		 */
 		if (incore(vp, blkno)) {
 			bp->b_flags |= B_INVAL;
 			brelse(bp);
 			goto loop;
 		}
+		/*
+		 * Insert the buffer into the hash, so that it can
+		 * be found by incore.
+		 */
 		bp->b_blkno = bp->b_lblkno = blkno;
 		bgetvp(vp, bp);
 		LIST_REMOVE(bp, b_hash);
 		bh = BUFHASH(vp, blkno);
 		LIST_INSERT_HEAD(bh, bp, b_hash);
+
 		if (doingvmio) {
 			bp->b_flags |= (B_VMIO | B_CACHE);
 #if defined(VFS_BIO_DEBUG)
@@ -830,6 +850,7 @@ loop:
 			bp->b_flags &= ~B_VMIO;
 		}
 		splx(s);
+
 		if (!allocbuf(bp, size, 1)) {
 			s = splbio();
 			goto loop;
@@ -976,7 +997,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 					}
 					m = vm_page_lookup(obj, objoff);
 					if (!m) {
-						m = vm_page_alloc(obj, objoff, 0);
+						m = vm_page_alloc(obj, objoff, VM_ALLOC_NORMAL);
 						if (!m) {
 							int j;
 
@@ -1033,7 +1054,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 						int pb;
 
 						if ((m->flags & PG_CACHE) &&
-						    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
+						    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 							int j;
 
 							for (j = bp->b_npages; j < pageindex; j++) {
@@ -1075,13 +1096,6 @@ allocbuf(struct buf * bp, int size, int vmio)
 						m->bmapped++;
 						PAGE_WAKEUP(m);
 					}
-#if 0
-					if( bp->b_flags & B_CACHE) {
-						for (i = bp->b_npages; i < curbpnpages; i++) {
-							bp->b_pages[i]->flags |= PG_REFERENCED;
-						}
-					}
-#endif
 				} else {
 					if (!vm_page_is_valid(bp->b_pages[0], off, bsize))
 						bp->b_flags &= ~B_CACHE;
@@ -1148,7 +1162,12 @@ biodone(register struct buf * bp)
 	bp->b_flags |= B_DONE;
 
 	if ((bp->b_flags & B_READ) == 0) {
+		struct vnode *vp = bp->b_vp;
 		vwakeup(bp);
+		if (vp && (vp->v_numoutput == (nbuf/4)) && (vp->v_flag & VBWAIT)) {
+			vp->v_flag &= ~VBWAIT;
+			wakeup((caddr_t) &vp->v_numoutput);
+		}
 	}
 #ifdef BOUNCE_BUFFERS
 	if (bp->b_flags & B_BOUNCE)
@@ -1402,17 +1421,12 @@ vm_hold_load_pages(struct buf * bp, vm_offset_t froma, vm_offset_t toa)
 	vm_offset_t from = round_page(froma);
 	vm_offset_t to = round_page(toa);
 
-tryagain0:
-	if ((curproc != pageproc) && ((cnt.v_free_count + cnt.v_cache_count) <=
-		cnt.v_free_reserved + (toa - froma) / PAGE_SIZE)) {
-		VM_WAIT;
-		goto tryagain0;
-	}
 	for (pg = from; pg < to; pg += PAGE_SIZE) {
 
 tryagain:
 
-		p = vm_page_alloc(kernel_object, pg - VM_MIN_KERNEL_ADDRESS, 0);
+		p = vm_page_alloc(kernel_object, pg - VM_MIN_KERNEL_ADDRESS,
+		    VM_ALLOC_NORMAL);
 		if (!p) {
 			VM_WAIT;
 			goto tryagain;
