@@ -1276,6 +1276,7 @@ reassignbuf(bp, newvp)
 /*
  * Create a vnode for a block device.
  * Used for mounting the root file system.
+ * XXX: This now changed to a VCHR due to the block/char merging.
  */
 int
 bdevvp(dev, vpp)
@@ -1296,7 +1297,7 @@ bdevvp(dev, vpp)
 		return (error);
 	}
 	vp = nvp;
-	vp->v_type = VBLK;
+	vp->v_type = VCHR;
 	addalias(vp, dev);
 	*vpp = vp;
 	return (0);
