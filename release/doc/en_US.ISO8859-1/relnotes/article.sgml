@@ -2471,9 +2471,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para><application>Binutils</application> have been updated to
       a 27 January 2002 snapshot from the FSF 2.12 branch.</para>
 
-      <para><application>bzip2</application> 1.0.1 has been imported; this
+      <para><application>bzip2</application> 1.0.2 has been imported; this
       brings the &man.bzip2.1; program and the <filename>libbz2</filename>
-      library to the base system. &merged;</para>
+      library to the base system.</para>
 
       <para>The &man.ee.1; <application>Easy Editor</application> has
       been updated to 1.4.2. &merged;</para>
