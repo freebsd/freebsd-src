@@ -121,7 +121,6 @@ int f_color;			/* add type in color for non-regular files */
 char *ansi_bgcol;		/* ANSI sequence to set background colour */
 char *ansi_fgcol;		/* ANSI sequence to set foreground colour */
 char *ansi_coloff;		/* ANSI sequence to reset colours */
-extern void colorquit __P((int));
 #endif
 
 int rval;
