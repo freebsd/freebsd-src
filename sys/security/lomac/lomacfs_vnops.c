@@ -114,7 +114,7 @@ lomacfs_inactive(
 		const char *name = "[unknown]";
 #endif
 		printf("lomacfs: inactive(%p \"%s\"), lvp usecount down to %u\n",
-		    vp, name, lvp->v_usecount);
+		    vp, name, vrefcnt(lvp));
 	} while (0);
 #endif
 	/*
@@ -124,7 +124,7 @@ lomacfs_inactive(
 	 * Additionally, devices should be totally freed
 	 * on last close, not lazily.
 	 */
-	if (lvp->v_usecount == 0 &&
+	if (vrefcnt(lvp) == 0 &&
 	    (lvp->v_type != VREG && lvp->v_type != VDIR)) {
 		vdrop(lvp);
 		VTOLVP(vp) = NULL;
@@ -155,7 +155,7 @@ lomacfs_reclaim(
 		const char *name = "[unknown]";
 #endif
 		printf("lomacfs: reclaim(%p \"%s\"), lvp usecount down to %u\n",
-		    vp, name, lvp->v_usecount);
+		    vp, name, vrefcnt(lvp));
 	}
 #endif
 	if (lvp != NULL)
@@ -298,7 +298,7 @@ lomacfs_lookup(
 		const char *name = "[unknown]";
 #endif
 		printf("lomacfs: lookup(%p \"%s\"), lvp usecount up to %u\n",
-		    vp, name, VTOLVP(vp)->v_usecount);
+		    vp, name, vrefcnt(VTOLVP(vp)));
 	}
 #endif
 	return (error);
