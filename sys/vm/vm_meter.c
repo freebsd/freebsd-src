@@ -118,7 +118,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 				/* Need new statistics  XXX */
 				switch (td->td_state) {
 				case TDS_INHIBITED:
-					if (TD_ON_MUTEX(td) ||
+					if (TD_ON_LOCK(td) ||
 					    (td->td_inhibitors ==
 					    TDI_SWAPPED)) {
 						totalp->t_sw++;
