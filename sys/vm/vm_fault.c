@@ -347,7 +347,7 @@ RetryFault:;
 			if ((queue - fs.m->pc) == PQ_CACHE && vm_page_count_severe()) {
 				vm_page_activate(fs.m);
 				unlock_and_deallocate(&fs);
-				VM_WAIT;
+				VM_WAITPFAULT;
 				goto RetryFault;
 			}
 
@@ -388,7 +388,7 @@ RetryFault:;
 			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
-				VM_WAIT;
+				VM_WAITPFAULT;
 				goto RetryFault;
 			}
 		}
