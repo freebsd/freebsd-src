@@ -262,8 +262,11 @@ invalid:
 	 * This code assumes that we always get arguments through flags,
 	 * never through bits set in some random machine register.
 	 */
-	while ((c = getopt(argc, argv, "sf")) != -1)
+	while ((c = getopt(argc, argv, "dsf")) != -1)
 		switch (c) {
+		case 'd':
+			/* We don't support DEVFS. */
+			break;
 		case 's':
 			requested_transition = single_user;
 			break;
