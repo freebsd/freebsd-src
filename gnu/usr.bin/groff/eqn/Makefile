@@ -1,6 +1,7 @@
 # Makefile for eqn
 
 PROG=		eqn
+MAN1=		eqn.1 neqn.1
 SRCS=		main.cc lex.cc  box.cc limit.cc list.cc over.cc text.cc\
 		script.cc mark.cc other.cc delim.cc sqrt.cc pile.cc special.cc
 OBJS=		eqn.o
@@ -8,7 +9,7 @@ OBJS=		eqn.o
 LDADD+=		${LIBGROFF}
 DPADD+=		${LIBGROFF}
 
-MANDEPEND=	eqn.1
+MANDEPEND=	neqn.1 eqn.1
 CLEANFILES+=	eqn.cc eqn.tab.h neqn ${MANDEPEND}
 
 neqn:
