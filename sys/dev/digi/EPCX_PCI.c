@@ -42,4 +42,5 @@ struct digi_mod digi_mod_EPCX_PCI = {
 	{ NULL, 0 }
 };
 
+MODULE_VERSION(digi_EPCX_PCI, 1);
 DEV_MODULE(digi_EPCX_PCI, 0, 0);
