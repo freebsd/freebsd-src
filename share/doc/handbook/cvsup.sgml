@@ -1,4 +1,4 @@
-<!-- $Id: cvsup.sgml,v 1.13 1997/03/19 03:22:28 obrien Exp $ -->
+<!-- $Id: cvsup.sgml,v 1.14 1997/04/08 00:14:00 jdp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -440,6 +440,8 @@ cryptography code.
     Chinese language support.
     <tag><tt>ports-comms release=cvs</tt></tag>
     Communication software.
+    <tag><tt>ports-converters release=cvs</tt></tag>
+    character code converters.
     <tag><tt>ports-databases release=cvs</tt></tag>
     Databases.
     <tag><tt>ports-devel release=cvs</tt></tag>
@@ -482,6 +484,8 @@ cryptography code.
     Command line shells.
     <tag><tt>ports-sysutils release=cvs</tt></tag>
     System utilities.
+    <tag><tt>ports-textproc release=cvs</tt></tag>
+    text processing utilities (does not include desktop publishing).
     <tag><tt>ports-vietnamese release=cvs</tt></tag>
     Vietnamese language support.
     <tag><tt>ports-www release=cvs</tt></tag>

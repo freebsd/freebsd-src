@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.26 1997/03/06 05:55:09 asami Exp $ -->
+<!-- $Id: sup.sgml,v 1.27 1997/03/11 06:42:03 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -118,6 +118,7 @@ ports-benchmarks: /usr/ports/benchmarks	benchmarks
 ports-cad:	  /usr/ports/cad	CAD tools
 ports-chinese:	  /usr/ports/chinese	Chinese support
 ports-comms:	  /usr/ports/comms	communication software
+ports-converters: /usr/ports/converters	character code converters
 ports-databases:  /usr/ports/databases	databases
 ports-devel:	  /usr/ports/devel	development utilities
 ports-editors:    /usr/ports/editors	editors
@@ -139,6 +140,7 @@ ports-russian:    /usr/ports/russian    Russian support
 ports-security:	  /usr/ports/security	``security'' utilities, for better or for worse
 ports-shells:	  /usr/ports/shells	various UN*X shells
 ports-sysutils:	  /usr/ports/sysutils	system utilities
+ports-textproc:	  /usr/ports/textproc	text processing utilities (does not include desktop publishing)
 ports-vietnamese: /usr/ports/vietnamese	Vietnamese support
 ports-www:	  /usr/ports/www	software related to the world wide web
 ports-x11:	  /usr/ports/x11	X11 software
