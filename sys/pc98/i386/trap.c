@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.46 1998/03/24 08:27:21 kato Exp $
+ *	$Id: trap.c,v 1.47 1998/03/29 12:48:01 kato Exp $
  */
 
 /*
@@ -547,11 +547,11 @@ kernel_trap:
 		{
 		  static unsigned lastalert = 0;
 
-		  if(time.tv_sec - lastalert > 10)
+		  if(time_second - lastalert > 10)
 		    {
 		      log(LOG_WARNING, "NMI: power fail\n");
 		      sysbeep(TIMER_FREQ/880, hz);
-		      lastalert = time.tv_sec;
+		      lastalert = time_second;
 		    }
 		  return;
 		}
