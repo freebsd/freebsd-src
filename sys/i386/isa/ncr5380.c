@@ -215,7 +215,7 @@ adapter_t ncadata[NNCA];
 	if (cnt == -1 && msg)\
 		printf ("nca: %s timeout\n", msg); }
 
-int ncaintr (int unit);
+inthand2_t ncaintr;
 static int nca_probe (struct isa_device *dev);
 static int nca_attach (struct isa_device *dev);
 static int32 nca_scsi_cmd (struct scsi_xfer *xs);
@@ -539,7 +539,7 @@ void ncaminphys (struct buf *bp)
 /*
  * Catch an interrupt from the adaptor.
  */
-int ncaintr (int unit)
+void ncaintr (int unit)
 {
 	adapter_t *z = &ncadata[unit];
 
@@ -548,7 +548,6 @@ int ncaintr (int unit)
 	nca_start (z);
 	/* Reset interrupt state. */
 	inb (z->RPIR);
-	return (1);
 }
 
 /*

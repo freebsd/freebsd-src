@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.9 1995/05/30 08:01:12 rgrimes Exp $
+ * $Id: aic6360.c,v 1.10 1995/08/23 23:02:25 gibbs Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -683,7 +683,7 @@ void	aicattach       __P((struct device *, struct device *, void *));
 void	aic_minphys	__P((struct buf *));
 #ifdef __FreeBSD__
 u_int32	aic_adapter_info __P((int));
-int	aicintr		__P((int));
+inthand2_t aicintr;
 void 	aic_init	__P((struct aic_data *));
 int 	aic_find	__P((struct aic_data *));
 #else
@@ -2203,10 +2203,12 @@ aic_datain(aic)
  * 2) doesn't support synchronous transfers properly (yet)
  */
 
-int
 #ifdef __FreeBSD__
+void
 aicintr(int unit)
 #else
+#error /* the ifdefs for returning unused values were too much trouble */
+int
 aicintr(aic)
 	register struct aic_softc *aic;
 #endif
@@ -2245,7 +2247,7 @@ aicintr(aic)
 			aic_init(aic); /* Restart everything */
 			LOGLINE(aic);
 			outb(DMACNTRL0, INTEN);
-			return 1;
+			return;
 		} else {
 			printf("aic: SCSI bus parity error\n");
 			outb(CLRSINT1, CLRSCSIPERR);
@@ -2307,7 +2309,7 @@ aicintr(aic)
 			if (aic->phase & PH_PSBIT) {
 				LOGLINE(aic);
 				outb(DMACNTRL0, INTEN);
-				return 1; /* Come back when REQ is set */
+				return;	/* Come back when REQ is set */
 			}
 			if (aic->phase == PH_MSGI)
 				aic_msgin(aic);	/* Handle identify message */
@@ -2319,13 +2321,13 @@ aicintr(aic)
 				Debugger("aic6360");
 				fatal_if_no_DDB();
 				aic_init(aic);
-				return 1;
+				return;
 			}
 			if (aic->state != AIC_HASNEXUS) {/* IDENTIFY fail?! */
 				printf("aic at line %d: identify failed\n",
 				    __LINE__);
 				aic_init(aic);
-				return 1;
+				return;
 			} else {
 				outb(SIMODE1,
 				    ENSCSIRST|ENBUSFREE|ENSCSIPERR|ENREQINIT);
@@ -2385,7 +2387,7 @@ aicintr(aic)
 			}
 			LOGLINE(aic);
 			outb(DMACNTRL0, INTEN);
-			return 1;
+			return;
 		} else if (sstat1 & SELTO) {
 			/* Selection timed out. What to do:
 			 * Disable selections out and fail the command with
@@ -2406,7 +2408,7 @@ aicintr(aic)
 			aic_done(acb);
 			LOGLINE(aic);
 			outb(DMACNTRL0, INTEN);
-			return 1;
+			return;
 		} else {
 			/* Assume a bus free interrupt.  What to do:
 			 * Start selecting.
@@ -2419,7 +2421,7 @@ aicintr(aic)
 #endif
 			LOGLINE(aic);
 			outb(DMACNTRL0, INTEN);
-			return 1;
+			return;
 		}
 	}
 	/* Driver is now in state AIC_HASNEXUS, i.e. we have a current command
@@ -2487,7 +2489,7 @@ aicintr(aic)
 			untimeout(aic_timeout, (caddr_t)acb);
 			aic_done(acb);
 			aic_init(aic);
-			return 1;
+			return;
 		}
 		outb(SXFRCTL0, CHEN);	/* Clear SCSIEN & DMAEN */
 		outb(SIMODE0, 0);
@@ -2505,7 +2507,7 @@ aicintr(aic)
 			untimeout(aic_timeout, (caddr_t)acb);
 			aic_done(acb);
 			aic_init(aic);
-			return 1;
+			return;
 		}
 		outb(SIMODE1, ENSCSIRST|ENBUSFREE|ENSCSIPERR|ENREQINIT);
 		/* Enabled ints: BUSFREE, SCSIPERR, SCSIRSTI (unexpected)
@@ -2571,7 +2573,7 @@ aicintr(aic)
 	}
 	LOGLINE(aic);
 	outb(DMACNTRL0, INTEN);
-	return 1;
+	return;
 }
 
 void

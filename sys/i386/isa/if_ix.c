@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.6 1995/05/10 15:19:25 rgrimes Exp $
+ *	$Id: if_ix.c,v 1.7 1995/05/30 08:02:15 rgrimes Exp $
  */
 
 #include "ix.h"
@@ -148,7 +148,7 @@ int ixattach(struct isa_device *);
 void ixinit(int);
 void ixinit_rfa(int);
 void ixinit_tfa(int);
-int ixintr(int);
+inthand2_t ixintr;
 static inline void ixintr_cx(int);
 static inline void ixintr_cx_free(int, cb_t *);
 static inline void ixintr_fr(int);
@@ -1045,7 +1045,7 @@ ixinit_tfa(int unit) {
 	DEBUGEND
 }
 
-int
+void
 ixintr(int unit) {
 	ix_softc_t	*sc = &ix_softc[unit];
 	struct	ifnet	*ifp = &sc->arpcom.ac_if;
@@ -1114,7 +1114,6 @@ ixintr_exit:
 	DEBUGBEGIN(DEBUGINTR)
 	DEBUGDO(printf(" ixintr exited\n");)
 	DEBUGEND
-	return(0 /* XXX Should be ??? */);
 }
 
 static inline void

@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.9 1995/07/13 15:01:38 jkh Exp $
+ * $Id: seagate.c,v 1.10 1995/08/23 23:02:30 gibbs Exp $
  */
 
 /*
@@ -330,7 +330,7 @@ adapter_t seadata[NSEA];
 		(t)->ndelay.op = 1;\
 	(t)->init.op = 1; }
 
-int seaintr (int unit);
+inthand2_t seaintr;
 static int sea_probe (struct isa_device *dev);
 static int sea_detect (adapter_t *z, struct isa_device *dev);
 static int sea_attach (struct isa_device *dev);
@@ -591,13 +591,12 @@ void seaminphys (struct buf *bp)
 /*
  * Catch an interrupt from the adaptor.
  */
-int seaintr (int unit)
+void seaintr (int unit)
 {
 	adapter_t *z = &seadata[unit];
 
 	PRINT (("sea%d: interrupt status=%b\n", unit, *z->STATUS, STAT_BITS));
 	sea_start (z);
-	return (1);
 }
 
 /*

@@ -848,8 +848,8 @@ static	void	pcvt_timeout (void *arg)
 #endif
 
 
-int
-pcrint(void)
+void
+pcrint(int unit)
 {
 
 #if PCVT_KBD_FIFO
@@ -871,10 +871,8 @@ pcrint(void)
 #if PCVT_KBD_FIFO
 	if (kbd_polling)
 	{
-		if(sgetc(1) == 0)
-			return -1;
-		else
-			return 1;
+		sgetc(1);
+		return;
 	}
 
 	while (inb(CONTROLLER_CTRL) & STATUS_OUTPBF)	/* check 8042 buffer */
@@ -912,31 +910,29 @@ pcrint(void)
 			PCVT_ENABLE_INTR ();
 		}
 	}
-	return (ret);
 
 #else /* !PCVT_KBD_FIFO */
 
 	if((cp = sgetc(1)) == 0)
-		return -1;
+		return;
 
 	if (kbd_polling)
-		return 1;
+		return;
 
 	if(!(vs[current_video_screen].openf))	/* XXX was vs[minor(dev)] */
-		return 1;
+		return;
 
 #if PCVT_NULLCHARS
 	if(*cp == '\0')
 	{
 		/* pass a NULL character */
 		(*linesw[pcconsp->t_line].l_rint)('\0', pcconsp);
-		return 1;
+		return;
 	}
 #endif /* PCVT_NULLCHARS */
 
 	while (*cp)
 		(*linesw[pcconsp->t_line].l_rint)(*cp++ & 0xff, pcconsp);
-	return 1;
 
 #endif /* PCVT_KBD_FIFO */
 }

@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.39 1995/07/25 16:06:06 bde Exp $
+ *      $Id: bt742a.c,v 1.40 1995/08/23 23:02:27 gibbs Exp $
  */
 
 /*
@@ -394,7 +394,7 @@ int     bt_debug = 0;
 #ifdef	KERNEL
 int     btprobe();
 int     btattach();
-int     btintr();
+inthand2_t btintr;
 int32   bt_scsi_cmd();
 int	bt_poll __P((int unit, struct scsi_xfer *xs, struct bt_ccb *ccb));
 void	bt_timeout(void *);
@@ -737,7 +737,7 @@ bt_adapter_info(unit)
 /*
  * Catch an interrupt from the adaptor
  */
-int
+void
 btintr(unit)
 	int	unit;
 {
@@ -773,16 +773,16 @@ btintr(unit)
 		if (i == 0) {
 			printf("bt%d: bt_intr, cmd/data port full\n", unit);
 			outb(BT_CTRL_STAT_PORT, BT_SRST);
-			return 1;
+			return;
 		}
 		outb(BT_CMD_DATA_PORT, 0x00);	/* Disable */
 		wakeup((caddr_t)&bt->bt_mbx);
 		outb(BT_CTRL_STAT_PORT, BT_IRST);
-		return 1;
+		return;
 	}
 	if (!(stat & BT_MBIF)) {
 		outb(BT_CTRL_STAT_PORT, BT_IRST);
-		return 1;
+		return;
 	}
 	/*
 	 * If it IS then process the competed operation
@@ -863,7 +863,6 @@ btintr(unit)
 	}
 	wmbx->tmbi = wmbi;
 	outb(BT_CTRL_STAT_PORT, BT_IRST);
-	return 1;
 }
 
 /*

@@ -228,7 +228,7 @@ void wds_minphys(struct buf *);
 struct wds_req *wdsr_alloc(int);
 int32 wds_scsi_cmd(struct scsi_xfer *);
 u_int32 wds_adapter_info(int);
-int wdsintr(int);
+inthand2_t wdsintr;
 int wds_done(int, struct wds_cmd *, u_char);
 int wdsattach(struct isa_device *);
 int wds_init(struct isa_device *);
@@ -445,7 +445,7 @@ wds_adapter_info(int unit)
   return 1;
 }
 
-int
+void
 wdsintr(int unit)
 {
   struct wds_cmd *pc, *vc;
@@ -456,7 +456,7 @@ wdsintr(int unit)
   if(!inb(wds[unit].addr+WDS_STAT) & WDS_IRQ)
   {
     outb(wds[unit].addr + WDS_IRQACK, 0);
-    return 1;
+    return;
   }
 
   c = inb(wds[unit].addr + WDS_IRQSTAT);
@@ -474,7 +474,6 @@ wdsintr(int unit)
 
     outb(wds[unit].addr + WDS_IRQACK, 0);
   }
-  return 1;
 }
 
 int

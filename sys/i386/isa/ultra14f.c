@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.35 1995/08/23 23:02:32 gibbs Exp $
+ *      $Id: ultra14f.c,v 1.36 1995/08/25 20:39:01 bde Exp $
  */
 
 #include <sys/types.h>
@@ -264,7 +264,7 @@ struct uha_data {
 
 int     uhaprobe();
 int     uha_attach();
-int     uhaintr();
+inthand2_t uhaintr;
 int32   uha_scsi_cmd();
 timeout_t uha_timeout;
 void	uha_free_mscp();
@@ -585,7 +585,7 @@ uha_adapter_info(unit)
 /*
  * Catch an interrupt from the adaptor
  */
-int
+void
 uhaintr(unit)
 	int unit;
 {
@@ -621,13 +621,12 @@ uhaintr(unit)
 		mscp = uha_mscp_phys_kv(uha, mboxval);
 		if (!mscp) {
 			printf("uha: BAD MSCP RETURNED\n");
-			return (0);	/* whatever it was, it'll timeout */
+			return;		/* whatever it was, it'll timeout */
 		}
 		untimeout(uha_timeout, (caddr_t)mscp);
 
 		uha_done(unit, mscp);
 	}
-	return (1);
 }
 
 /*
