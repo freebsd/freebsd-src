@@ -7,9 +7,6 @@ WARNS?=	5
 DPADD=	${LIBKVM}
 LDADD=	-lkvm
 
-#BINGRP=	kmem
-#BINMODE=	2555
-
 LINKS=	${BINDIR}/pkill ${BINDIR}/pgrep
 MLINKS=	pkill.1 pgrep.1
 

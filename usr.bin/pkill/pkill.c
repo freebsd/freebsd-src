@@ -124,7 +124,7 @@ main(int argc, char **argv)
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
 	const char *execf, *coref;
 	int debug_opt;
-	int i, ch, bestidx, rv, criteria, drop_privs;
+	int i, ch, bestidx, rv, criteria;
 	size_t jsz;
 	void (*action)(struct kinfo_proc *);
 	struct kinfo_proc *kp;
@@ -166,7 +166,6 @@ main(int argc, char **argv)
 
 	criteria = 0;
 	debug_opt = 0;
-	drop_privs = 0;
 	execf = coref = _PATH_DEVNULL;
 
 	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
@@ -180,11 +179,9 @@ main(int argc, char **argv)
 			break;
 		case 'M':
 			coref = optarg;
-			drop_privs = 1;
 			break;
 		case 'N':
 			execf = optarg;
-			drop_privs = 1;
 			break;
 		case 'P':
 			makelist(&ppidlist, LT_GENERIC, optarg);
@@ -244,15 +241,6 @@ main(int argc, char **argv)
 		criteria = 1;
 	if (!criteria)
 		usage();
-
-	/*
-	 * Discard privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (drop_privs) {
-		setgid(getgid());
-		setuid(getuid());
-	}
 
 	mypid = getpid();
 

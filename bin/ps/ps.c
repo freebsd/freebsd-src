@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 	struct winsize ws;
 	const char *nlistf, *memf;
 	char *cols;
-	int all, ch, dropgid, elem, flag, _fmt, i, lineno;
+	int all, ch, elem, flag, _fmt, i, lineno;
 	int nentries, nkept, nselectors;
 	int prtheader, showthreads, wflag, what, xkeep, xkeep_implied;
 	char errbuf[_POSIX2_LINE_MAX];
@@ -196,7 +196,7 @@ main(int argc, char *argv[])
 	if (argc > 1)
 		argv[1] = kludge_oldps_options(PS_ARGS, argv[1], argv[2]);
 
-	all = dropgid = _fmt = nselectors = optfatal = 0;
+	all = _fmt = nselectors = optfatal = 0;
 	prtheader = showthreads = wflag = xkeep_implied = 0;
 	xkeep = -1;			/* Neither -x nor -X. */
 	init_list(&gidlist, addelem_gid, sizeof(gid_t), "group");
@@ -278,14 +278,12 @@ main(int argc, char *argv[])
 			break;
 		case 'M':
 			memf = optarg;
-			dropgid = 1;
 			break;
 		case 'm':
 			sortby = SORTMEM;
 			break;
 		case 'N':
 			nlistf = optarg;
-			dropgid = 1;
 			break;
 		case 'O':
 			parsefmt(o1, 1);
@@ -422,14 +420,6 @@ main(int argc, char *argv[])
 		exit(1);		/* Error messages already printed. */
 	if (xkeep < 0)			/* Neither -X nor -x was specified. */
 		xkeep = xkeep_implied;
-
-
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (dropgid)
-		setgid(getgid());
 
 	kd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, errbuf);
 	if (kd == 0)

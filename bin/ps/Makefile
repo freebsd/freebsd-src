@@ -13,7 +13,5 @@ WARNS?=	5
 CFLAGS+=-DLAZY_PS
 DPADD=	${LIBM} ${LIBKVM}
 LDADD=	-lm -lkvm
-#BINGRP=	kmem
-#BINMODE=2555
 
 .include <bsd.prog.mk>
