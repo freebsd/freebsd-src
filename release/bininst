@@ -256,6 +256,7 @@ setup_network_plip()
 	default_value=""
 	if ! network_dialog "What is the ip number for the remote host"; then return 1; fi
 	remote_hostip=$answer
+	interface=lp0
 }
 
 network_dialog()
