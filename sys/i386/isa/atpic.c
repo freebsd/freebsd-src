@@ -53,7 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/segments.h>
 
 #include <i386/isa/icu.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <isa/isavar.h>
 
 #define	MASTER	0
@@ -396,7 +400,9 @@ static driver_t atpic_driver = {
 static devclass_t atpic_devclass;
 
 DRIVER_MODULE(atpic, isa, atpic_driver, atpic_devclass, 0, 0);
+#ifndef PC98
 DRIVER_MODULE(atpic, acpi, atpic_driver, atpic_devclass, 0, 0);
+#endif
 
 /*
  * Return a bitmap of the current interrupt requests.  This is 8259-specific
