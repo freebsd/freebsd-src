@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.20 2000/04/22 05:32:50 grog Exp grog $
+ * $Id: vinumparser.c,v 1.21 2000/12/20 03:44:13 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -160,7 +160,8 @@ struct _keywords keywords[] =
     keypair(setstate),
     keypair(checkparity),
     keypair(rebuildparity),
-    keypair(dumpconfig)
+    keypair(dumpconfig),
+    keypair(retryerrors)
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
 
@@ -185,13 +186,12 @@ struct keywordset flag_set = KEYWORDSET(flag_keywords);
  * delimiter).
  */
 int
-tokenize(char *cptr, char *token[])
+tokenize(char *cptr, char *token[], int maxtoken)
 {
     char delim;						    /* delimiter for searching for the partner */
     int tokennr;					    /* index of this token */
-    tokennr = 0;					    /* none found yet */
 
-    for (;;) {
+    for (tokennr = 0; tokennr < maxtoken;) {
 	while (iswhite(*cptr))
 	    cptr++;					    /* skip initial white space */
 	if ((*cptr == '\0') || (*cptr == '\n') || (*cptr == '#')) /* end of line */
@@ -199,7 +199,8 @@ tokenize(char *cptr, char *token[])
 	delim = *cptr;
 	token[tokennr] = cptr;				    /* point to it */
 	tokennr++;					    /* one more */
-	/* XXX this is broken.  It leaves superfluous \\ characters in the text */
+	if (tokennr == maxtoken)			    /* run off the end? */
+	    return tokennr;
 	if ((delim == '\'') || (delim == '"')) {	    /* delimitered */
 	    for (;;) {
 		cptr++;
@@ -218,6 +219,7 @@ tokenize(char *cptr, char *token[])
 		*cptr++ = '\0';				    /* delimit and move to the next */
 	}
     }
+    return maxtoken;					    /* can't get here */
 }
 
 /* Find a keyword and return an index */
