@@ -1,6 +1,7 @@
 #!/bin/sh
+#
+# $Id$
 
-PATH="/usr/local/bin:$PATH"; export PATH
 if test "`echo -n a`" = "-n a"; then
   # looks like a SysV system:
   n1=''; n2='\c'
