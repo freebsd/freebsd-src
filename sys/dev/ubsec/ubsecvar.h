@@ -56,6 +56,7 @@
 struct ubsec_dma_alloc {
 	u_int32_t		dma_paddr;
 	caddr_t			dma_vaddr;
+	bus_dma_tag_t		dma_tag;
 	bus_dmamap_t		dma_map;
 	bus_dma_segment_t	dma_seg;
 	bus_size_t		dma_size;

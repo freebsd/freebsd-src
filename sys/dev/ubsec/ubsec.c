@@ -136,6 +136,8 @@ static	int ubsec_feed2(struct ubsec_softc *);
 static	void ubsec_rng(void *);
 static	int ubsec_dma_malloc(struct ubsec_softc *, bus_size_t,
 			     struct ubsec_dma_alloc *, int);
+#define	ubsec_dma_sync(_dma, _flags) \
+	bus_dmamap_sync((_dma)->dma_tag, (_dma)->dma_map, (_flags))
 static	void ubsec_dma_free(struct ubsec_softc *, struct ubsec_dma_alloc *);
 static	int ubsec_dmamap_aligned(struct ubsec_operand *op);
 
@@ -281,8 +283,6 @@ ubsec_attach(device_t dev)
 		sc->sc_flags |= UBS_FLAGS_KEY | UBS_FLAGS_RNG |
 		    UBS_FLAGS_LONGCTX | UBS_FLAGS_HWNORM | UBS_FLAGS_BIGKEY;
 	}
-	/* XXX no PK key support until we sort out the bus_dma stuff */
-	sc->sc_flags &= ~UBS_FLAGS_KEY;
  
 	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
 	cmd |= PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN;
@@ -320,7 +320,7 @@ ubsec_attach(device_t dev)
 					0, ~0, 1, RF_SHAREABLE|RF_ACTIVE);
 	if (sc->sc_irq == NULL) {
 		device_printf(dev, "could not map interrupt\n");
-		goto bad;
+		goto bad1;
 	}
 	/*
 	 * NB: Network code assumes we are blocked with splimp()
@@ -329,18 +329,13 @@ ubsec_attach(device_t dev)
 	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET,
 			   ubsec_intr, sc, &sc->sc_ih)) {
 		device_printf(dev, "could not establish interrupt\n");
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
-		goto bad;
+		goto bad2;
 	}
 
 	sc->sc_cid = crypto_get_driverid(0);
 	if (sc->sc_cid < 0) {
 		device_printf(dev, "could not get crypto driver id\n");
-		bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
-		goto bad;
+		goto bad3;
 	}
 
 	/*
@@ -351,17 +346,13 @@ ubsec_attach(device_t dev)
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
 			       NULL, NULL,		/* filter, filterarg */
-			       0x3ffff,			/* maxsize XXX */
+			       0x3ffff,			/* maxsize */
 			       UBS_MAX_SCATTER,		/* nsegments */
-			       0xffff,			/* maxsegsize XXX */
+			       0xffff,			/* maxsegsize */
 			       BUS_DMA_ALLOCNOW,	/* flags */
 			       &sc->sc_dmat)) {
 		device_printf(dev, "cannot allocate DMA tag\n");
-		crypto_unregister_all(sc->sc_cid);
-		bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
-		bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
-		goto bad;
+		goto bad4;
 	}
 	SIMPLEQ_INIT(&sc->sc_freequeue);
 	dmap = sc->sc_dmaa;
@@ -458,6 +449,14 @@ skip_rng:
 #endif
 	}
 	return (0);
+bad4:
+	crypto_unregister_all(sc->sc_cid);
+bad3:
+	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
+bad2:
+	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq);
+bad1:
+	bus_release_resource(dev, SYS_RES_MEMORY, BS_BAR, sc->sc_sr);
 bad:
 	return (ENXIO);
 }
@@ -473,11 +472,29 @@ ubsec_detach(device_t dev)
 
 	KASSERT(sc != NULL, ("ubsec_detach: null software carrier"));
 
+	/* XXX wait/abort active ops */
+
 	s = splimp();
 
 	callout_stop(&sc->sc_rngto);
 
 	crypto_unregister_all(sc->sc_cid);
+
+	while (!SIMPLEQ_EMPTY(&sc->sc_freequeue)) {
+		struct ubsec_q *q;
+
+		q = SIMPLEQ_FIRST(&sc->sc_freequeue);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q, q_next);
+		ubsec_dma_free(sc, &q->q_dma->d_alloc);
+		free(q, M_DEVBUF);
+	}
+#ifndef UBSEC_NO_RNG
+	if (sc->sc_flags & UBS_FLAGS_RNG) {
+		ubsec_dma_free(sc, &sc->sc_rng.rng_q.q_mcr);
+		ubsec_dma_free(sc, &sc->sc_rng.rng_q.q_ctx);
+		ubsec_dma_free(sc, &sc->sc_rng.rng_buf);
+	}
+#endif /* UBSEC_NO_RNG */
 
 	bus_generic_detach(dev);
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
@@ -604,12 +621,12 @@ ubsec_intr(void *arg)
 		while (!SIMPLEQ_EMPTY(&sc->sc_qchip2)) {
 			q2 = SIMPLEQ_FIRST(&sc->sc_qchip2);
 
-			bus_dmamap_sync(sc->sc_dmat, q2->q_mcr.dma_map,
+			ubsec_dma_sync(&q2->q_mcr,
 			    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
 
 			mcr = (struct ubsec_mcr *)q2->q_mcr.dma_vaddr;
 			if ((mcr->mcr_flags & htole16(UBS_MCR_DONE)) == 0) {
-				bus_dmamap_sync(sc->sc_dmat, q2->q_mcr.dma_map,
+				ubsec_dma_sync(&q2->q_mcr,
 				    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 				break;
 			}
@@ -734,7 +751,7 @@ ubsec_feed(struct ubsec_softc *sc)
 	sc->sc_nqchip += npkts;
 	if (sc->sc_nqchip > ubsecstats.hst_maxqchip)
 		ubsecstats.hst_maxqchip = sc->sc_nqchip;
-	bus_dmamap_sync(sc->sc_dmat, q->q_dma->d_alloc.dma_map,
+	ubsec_dma_sync(&q->q_dma->d_alloc,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 	WRITE_REG(sc, BS_MCR1, q->q_dma->d_alloc.dma_paddr +
 	    offsetof(struct ubsec_dmachunk, d_mcr));
@@ -758,7 +775,7 @@ feed1:
 		if (q->q_dst_map != NULL)
 			bus_dmamap_sync(sc->sc_dmat, q->q_dst_map,
 			    BUS_DMASYNC_PREREAD);
-		bus_dmamap_sync(sc->sc_dmat, q->q_dma->d_alloc.dma_map,
+		ubsec_dma_sync(&q->q_dma->d_alloc,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 		WRITE_REG(sc, BS_MCR1, q->q_dma->d_alloc.dma_paddr +
@@ -1298,6 +1315,10 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 				if (q->q_src_m->m_flags & M_PKTHDR) {
 					len = MHLEN;
 					MGETHDR(m, M_DONTWAIT, MT_DATA);
+					if (m && !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
+						m_free(m);
+						m = NULL;
+					}
 				} else {
 					len = MLEN;
 					MGET(m, M_DONTWAIT, MT_DATA);
@@ -1307,8 +1328,6 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 					err = sc->sc_nqueue ? ERESTART : ENOMEM;
 					goto errout;
 				}
-				if (len == MHLEN)
-					M_COPY_PKTHDR(m, q->q_src_m);
 				if (totlen >= MINCLSIZE) {
 					MCLGET(m, M_DONTWAIT);
 					if ((m->m_flags & M_EXT) == 0) {
@@ -1502,7 +1521,7 @@ ubsec_callback(struct ubsec_softc *sc, struct ubsec_q *q)
 	struct cryptodesc *crd;
 	struct ubsec_dma *dmap = q->q_dma;
 
-	bus_dmamap_sync(sc->sc_dmat, dmap->d_alloc.dma_map,
+	ubsec_dma_sync(&dmap->d_alloc,
 	    BUS_DMASYNC_POSTREAD|BUS_DMASYNC_POSTWRITE);
 	if (q->q_dst_map != NULL && q->q_dst_map != q->q_src_map) {
 		bus_dmamap_sync(sc->sc_dmat, q->q_dst_map,
@@ -1606,10 +1625,9 @@ ubsec_feed2(struct ubsec_softc *sc)
 			break;
 		q = SIMPLEQ_FIRST(&sc->sc_queue2);
 
-		bus_dmamap_sync(sc->sc_dmat, q->q_mcr.dma_map,
+		ubsec_dma_sync(&q->q_mcr,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-		bus_dmamap_sync(sc->sc_dmat, q->q_ctx.dma_map,
-		    BUS_DMASYNC_PREWRITE);
+		ubsec_dma_sync(&q->q_ctx, BUS_DMASYNC_PREWRITE);
 
 		WRITE_REG(sc, BS_MCR2, q->q_mcr.dma_paddr);
 		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue2, q, q_next);
@@ -1629,7 +1647,7 @@ ubsec_callback2(struct ubsec_softc *sc, struct ubsec_q2 *q)
 	struct ubsec_ctx_keyop *ctx;
 
 	ctx = (struct ubsec_ctx_keyop *)q->q_ctx.dma_vaddr;
-	bus_dmamap_sync(sc->sc_dmat, q->q_ctx.dma_map, BUS_DMASYNC_POSTWRITE);
+	ubsec_dma_sync(&q->q_ctx, BUS_DMASYNC_POSTWRITE);
 
 	switch (q->q_type) {
 #ifndef UBSEC_NO_RNG
@@ -1638,8 +1656,7 @@ ubsec_callback2(struct ubsec_softc *sc, struct ubsec_q2 *q)
 		u_int32_t *p;
 		int i;
 
-		bus_dmamap_sync(sc->sc_dmat, rng->rng_buf.dma_map,
-		    BUS_DMASYNC_POSTREAD);
+		ubsec_dma_sync(&rng->rng_buf, BUS_DMASYNC_POSTREAD);
 		p = (u_int32_t *)rng->rng_buf.dma_vaddr;
 		for (i = 0; i < UBSEC_RNG_BUFSIZ; p++, i++)
 			add_true_randomness(*p);
@@ -1656,14 +1673,10 @@ ubsec_callback2(struct ubsec_softc *sc, struct ubsec_q2 *q)
 		rlen = (me->me_modbits + 7) / 8;
 		clen = (krp->krp_param[krp->krp_iparams].crp_nbits + 7) / 8;
 
-		bus_dmamap_sync(sc->sc_dmat, me->me_M.dma_map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_sync(sc->sc_dmat, me->me_E.dma_map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_sync(sc->sc_dmat, me->me_C.dma_map,
-		    BUS_DMASYNC_POSTREAD);
-		bus_dmamap_sync(sc->sc_dmat, me->me_epb.dma_map,
-		    BUS_DMASYNC_POSTWRITE);
+		ubsec_dma_sync(&me->me_M, BUS_DMASYNC_POSTWRITE);
+		ubsec_dma_sync(&me->me_E, BUS_DMASYNC_POSTWRITE);
+		ubsec_dma_sync(&me->me_C, BUS_DMASYNC_POSTREAD);
+		ubsec_dma_sync(&me->me_epb, BUS_DMASYNC_POSTWRITE);
 
 		if (clen < rlen)
 			krp->krp_status = E2BIG;
@@ -1699,10 +1712,8 @@ ubsec_callback2(struct ubsec_softc *sc, struct ubsec_q2 *q)
 		u_int len;
 
 		krp = rp->rpr_krp;
-		bus_dmamap_sync(sc->sc_dmat, rp->rpr_msgin.dma_map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_sync(sc->sc_dmat, rp->rpr_msgout.dma_map,
-		    BUS_DMASYNC_POSTREAD);
+		ubsec_dma_sync(&rp->rpr_msgin, BUS_DMASYNC_POSTWRITE);
+		ubsec_dma_sync(&rp->rpr_msgout, BUS_DMASYNC_POSTREAD);
 
 		len = (krp->krp_param[UBS_RSAPRIV_PAR_MSGOUT].crp_nbits + 7) / 8;
 		bcopy(rp->rpr_msgout.dma_vaddr,
@@ -1762,7 +1773,7 @@ ubsec_rng(void *vsc)
 	ctx->rbp_op = htole16(UBS_CTXOP_RNGBYPASS);
 	rng->rng_q.q_type = UBS_CTXOP_RNGBYPASS;
 
-	bus_dmamap_sync(sc->sc_dmat, rng->rng_buf.dma_map, BUS_DMASYNC_PREREAD);
+	ubsec_dma_sync(&rng->rng_buf, BUS_DMASYNC_PREREAD);
 
 	SIMPLEQ_INSERT_TAIL(&sc->sc_queue2, &rng->rng_q, q_next);
 	rng->rng_used = 1;
@@ -1799,42 +1810,73 @@ ubsec_dma_malloc(
 {
 	int r;
 
-	r = bus_dmamap_create(sc->sc_dmat, BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0)
+	/* XXX could specify sc_dmat as parent but that just adds overhead */
+	r = bus_dma_tag_create(NULL,			/* parent */
+			       1, 0,			/* alignment, bounds */
+			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			       BUS_SPACE_MAXADDR,	/* highaddr */
+			       NULL, NULL,		/* filter, filterarg */
+			       size,			/* maxsize */
+			       1,			/* nsegments */
+			       size,			/* maxsegsize */
+			       BUS_DMA_ALLOCNOW,	/* flags */
+			       &dma->dma_tag);
+	if (r != 0) {
+		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
+			"bus_dma_tag_create failed; error %u\n", r);
 		goto fail_0;
+	}
 
-	r = bus_dmamem_alloc(sc->sc_dmat, (void**) &dma->dma_vaddr,
-			     BUS_DMA_NOWAIT, &dma->dma_map);
-	if (r != 0)
+	r = bus_dmamap_create(dma->dma_tag, BUS_DMA_NOWAIT, &dma->dma_map);
+	if (r != 0) {
+		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
+			"bus_dmamap_create failed; error %u\n", r);
 		goto fail_1;
+	}
 
-	r = bus_dmamap_load(sc->sc_dmat, dma->dma_map, dma->dma_vaddr,
+	r = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
+			     BUS_DMA_NOWAIT, &dma->dma_map);
+	if (r != 0) {
+		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
+			"bus_dmammem_alloc failed; size %u, error %u\n",
+			size, r);
+		goto fail_2;
+	}
+
+	r = bus_dmamap_load(dma->dma_tag, dma->dma_map, dma->dma_vaddr,
 		            size,
 			    ubsec_dmamap_cb,
 			    &dma->dma_paddr,
 			    mapflags | BUS_DMA_NOWAIT);
-	if (r != 0)
-		goto fail_2;
+	if (r != 0) {
+		device_printf(sc->sc_dev, "ubsec_dma_malloc: "
+			"bus_dmamap_load failed; error %u\n", r);
+		goto fail_3;
+	}
 
 	dma->dma_size = size;
 	return (0);
 
+fail_3:
+	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 fail_2:
-	bus_dmamap_unload(sc->sc_dmat, dma->dma_map);
+	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 fail_1:
-	bus_dmamem_free(sc->sc_dmat, dma->dma_vaddr, dma->dma_map);
+	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
+	bus_dma_tag_destroy(dma->dma_tag);
 fail_0:
-	bus_dmamap_destroy(sc->sc_dmat, dma->dma_map);
 	dma->dma_map = NULL;
+	dma->dma_tag = NULL;
 	return (r);
 }
 
 static void
 ubsec_dma_free(struct ubsec_softc *sc, struct ubsec_dma_alloc *dma)
 {
-	bus_dmamap_unload(sc->sc_dmat, dma->dma_map);
-	bus_dmamem_free(sc->sc_dmat, dma->dma_vaddr, dma->dma_map);
-	bus_dmamap_destroy(sc->sc_dmat, dma->dma_map);
+	bus_dmamap_unload(dma->dma_tag, dma->dma_map);
+	bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
+	bus_dmamap_destroy(dma->dma_tag, dma->dma_map);
+	bus_dma_tag_destroy(dma->dma_tag);
 }
 
 /*
@@ -2222,10 +2264,10 @@ ubsec_kprocess_modexp_sw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	 * ubsec_feed2 will sync mcr and ctx, we just need to sync
 	 * everything else.
 	 */
-	bus_dmamap_sync(sc->sc_dmat, me->me_M.dma_map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->sc_dmat, me->me_E.dma_map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->sc_dmat, me->me_C.dma_map, BUS_DMASYNC_PREREAD);
-	bus_dmamap_sync(sc->sc_dmat, me->me_epb.dma_map, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&me->me_M, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&me->me_E, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&me->me_C, BUS_DMASYNC_PREREAD);
+	ubsec_dma_sync(&me->me_epb, BUS_DMASYNC_PREWRITE);
 
 	/* Enqueue and we're done... */
 	s = splimp();
@@ -2372,8 +2414,10 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	epb->pb_len = htole32((ebits + 7) / 8);
 
 #ifdef UBSEC_DEBUG
-	printf("Epb ");
-	ubsec_dump_pb(epb);
+	if (ubsec_debug) {
+		printf("Epb ");
+		ubsec_dump_pb(epb);
+	}
 #endif
 
 	mcr->mcr_pkts = htole16(1);
@@ -2422,10 +2466,10 @@ ubsec_kprocess_modexp_hw(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	 * ubsec_feed2 will sync mcr and ctx, we just need to sync
 	 * everything else.
 	 */
-	bus_dmamap_sync(sc->sc_dmat, me->me_M.dma_map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->sc_dmat, me->me_E.dma_map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->sc_dmat, me->me_C.dma_map, BUS_DMASYNC_PREREAD);
-	bus_dmamap_sync(sc->sc_dmat, me->me_epb.dma_map, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&me->me_M, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&me->me_E, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&me->me_C, BUS_DMASYNC_PREREAD);
+	ubsec_dma_sync(&me->me_epb, BUS_DMASYNC_PREWRITE);
 
 	/* Enqueue and we're done... */
 	s = splimp();
@@ -2618,10 +2662,8 @@ ubsec_kprocess_rsapriv(struct ubsec_softc *sc, struct cryptkop *krp, int hint)
 	 * ubsec_feed2 will sync mcr and ctx, we just need to sync
 	 * everything else.
 	 */
-	bus_dmamap_sync(sc->sc_dmat, rp->rpr_msgin.dma_map,
-	    BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->sc_dmat, rp->rpr_msgout.dma_map,
-	    BUS_DMASYNC_PREREAD);
+	ubsec_dma_sync(&rp->rpr_msgin, BUS_DMASYNC_PREWRITE);
+	ubsec_dma_sync(&rp->rpr_msgout, BUS_DMASYNC_PREREAD);
 
 	/* Enqueue and we're done... */
 	s = splimp();
