@@ -1,13 +1,10 @@
+# $FreeBSD$
+
 PROG=	sysinstall
 MAN8=	sysinstall.8
 
-BINDIR=/stand
-NOSHARED=YES
-
 CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
 CLEANFILES+=	keymap.tmp keymap.h
-
-.PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
 SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	disks.c dispatch.c dist.c dmenu.c doc.c dos.c floppy.c \
@@ -17,7 +14,7 @@ SRCS=	anonFTP.c cdrom.c command.c config.c devices.c dhcp.c kget.c \
 	system.c tape.c tcpip.c termcap.c ufs.c usb.c user.c variable.c \
 	wizard.c keymap.h
 
-CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR}
+CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I.
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
@@ -25,7 +22,7 @@ CFLAGS+= -DPC98
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK} ${LIBFTPIO}
 LDADD=	-ldialog -lncurses -lutil -ldisk -lftpio
 
-makedevs.c:	Makefile rtermcap keymap.h
+makedevs.c:	Makefile rtermcap
 	rm -f makedevs.tmp
 	echo '#include <sys/types.h>' > makedevs.tmp
 	./rtermcap ansi | \
@@ -72,8 +69,8 @@ makedevs.c:	Makefile rtermcap keymap.h
 .endif
 	mv makedevs.tmp makedevs.c
 
-rtermcap:	${.CURDIR}/rtermcap.c
-	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
+rtermcap:	rtermcap.c
+	${CC} -o ${.TARGET} ${.ALLSRC} -ltermcap
 
 
 KEYMAPS= be.iso br275.iso danish.iso finnish.iso fr.iso \
@@ -95,10 +92,5 @@ keymap.h:
 	done
 	( echo "	{ 0 }"; echo "};" ; echo "" ) >> keymap.tmp
 	mv keymap.tmp keymap.h
-
-beforeinstall:
-	@if [ ! -d ${BINDIR}/ ]; then \
-		mkdir -p ${BINDIR}; \
-	fi
 
 .include <bsd.prog.mk>
