@@ -89,10 +89,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		bsdtar_errc(bsdtar, 1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
-	if (bsdtar->start_dir != NULL && chdir(bsdtar->start_dir))
-		bsdtar_errc(bsdtar, 1, errno,
-		    "chdir(%s) failed", bsdtar->start_dir);
-
+	do_chdir(bsdtar);
 	for (;;) {
 		/* Support --fast-read option */
 		if (bsdtar->option_fast_read &&
