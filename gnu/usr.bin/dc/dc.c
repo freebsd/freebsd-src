@@ -19,7 +19,6 @@
  * Inc.; 675 Mass Ave. Cambridge, MA 02139, USA.
  */
 
-#include <sys/stat.h>
 #include <stdio.h>
 #include "decimal.h"  /* definitions for our decimal arithmetic package */
 
@@ -37,8 +36,9 @@ typedef struct regstack *regstack;
 
 regstack freeregstacks;	/* Chain of free regstack structures for fast realloc */
 
-decimal regs[128];	/* "registers", with single-character names */
-regstack regstacks[128]; /* For each register, a stack of previous values */
+#define DC_MAX_REG 127
+decimal regs[DC_MAX_REG + 1];	/* "registers", with single-character names */
+regstack regstacks[DC_MAX_REG + 1]; /* For each register, a stack of previous values */
 
 int stacktop;		/* index of last used element in stack */
 int stacksize;		/* Current allocates size of stack */
@@ -221,7 +221,7 @@ execute ()
 	  {
 	    int regno;
 	    int somereg = 0;	/* set to 1 if we print any registers */
-	    for (regno = 0; regno < 128; regno++)
+	    for (regno = 0; regno <= DC_MAX_REG; regno++)
 	      {
 		if (regs[regno])
 		  {
@@ -266,9 +266,11 @@ execute ()
 
 	case 'l':		/* l<x> load register <x> onto stack */
 	  {
-	    char c1 = fetch ();
+	    int c1 = fetch ();
 	    if (c1 < 0) exit (0);
-	    if (!regs[c1])
+	    if (c1 > DC_MAX_REG)
+	      error ("invalid register %c", c1);
+	    else if (!regs[c1])
 	      error ("register %c empty", c1);
 	    else
 	      push (regs[c1]);
@@ -277,9 +279,11 @@ execute ()
 
 	case 'L':		/* L<x> load register <x> to stack, pop <x>'s own stack */
 	  {
-	    char c1 = fetch ();
+	    int c1 = fetch ();
 	    if (c1 < 0) exit (0);
-	    if (!regstacks[c1])
+	    if (c1 > DC_MAX_REG)
+	      error ("invalid register %c", c1);
+	    else if (!regstacks[c1])
 	      error ("nothing pushed on register %c", c1);
 	    else
 	      {
@@ -336,8 +340,13 @@ execute ()
 	    {
 	      int c1 = fetch ();
 	      if (c1 < 0) exit (0);
+	      if (c1 > DC_MAX_REG)
+	        error("invalid register %c", c1);
+	      else
+	      {
 	      if (regs[c1]) decref (regs[c1]);
 	      regs[c1] = stack[stacktop--];
+	      }
 	    }
 	  break;
 
@@ -348,8 +357,13 @@ execute ()
 	    {
 	      int c1 = fetch ();
 	      if (c1 < 0) exit (0);
+	      if (c1 > DC_MAX_REG)
+	        error("invalid register %c", c1);
+	      else
+	      {
 	      pushreg (c1);
 	      regs[c1] = stack[stacktop--];
+	      }
 	    }
 	  break;
 
@@ -466,7 +480,9 @@ condop (cond)
      int cond;
 {
   int regno = fetch ();
-  if (!regs[regno])
+  if (regno > DC_MAX_REG)
+    error ("invalid register %c", regno);
+  else if (!regs[regno])
     error ("register %c is empty", regno);
   else if (stacktop < 1)
     empty ();
@@ -509,16 +525,10 @@ fetch()
 	}
       else if (file_count)
 	{
-	  struct stat stat_buf;
-	  file_count--;
-	  if (stat(*next_file, &stat_buf) == 0) && !S_ISDIR(stat_buf.st_mode))
-	  {
 	  open_file = fopen (*next_file++, "r");
+	  file_count--;
 	  if (!open_file)
 	    perror_with_name (*(next_file - 1));
-	  }
-	  else
-	     next_file++;
 	}
       else break;
     }
