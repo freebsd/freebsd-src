@@ -29,6 +29,9 @@ License Agreement applies to this software.
 	Modified at NRL for OPIE 2.0.
 	Written at Bellcore for the S/Key Version 1 software distribution
 		(keyinfo)
+
+$FreeBSD$
+
 */
 
 #include "opie_cfg.h"
@@ -36,9 +39,6 @@ License Agreement applies to this software.
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
-#if HAVE_PWD_H
-#include <pwd.h>
-#endif /* HAVE_PWD_H */
 #include "opie.h"
 
 /* extern char *optarg; */
@@ -46,12 +46,14 @@ extern int errno, optind;
 
 static char *getusername FUNCTION_NOARGS
 {
-  struct passwd *p = getpwuid(getuid());
+  char *login;
 
-  if (!p)
-    return getlogin();
-
-  return p->pw_name;
+  login = getlogin();
+  if (login == NULL) {
+    fprintf(stderr, "Cannot find login name\n");
+    exit(1);
+  }
+  return login;
 }
 
 int main FUNCTION((argc, argv), int argc AND char *argv[])
@@ -71,9 +73,13 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
     }
   }
 
-  if (optind < argc)
+  if (optind < argc) {
+    if (getuid() != 0) {
+      fprintf(stderr, "Only superuser may get another user's keys\n");
+      exit(1);
+    }
     username = argv[optind];
-  else
+  } else
     username = getusername();
 
   if ((i = opielookup(&opie, username)) && (i != 2)) {
