@@ -2,15 +2,15 @@
 #
 # Makefile for NETBOOT
 #
-# Options:
+# Basic Options:
 #	-DASK_BOOT	- Ask "Boot from Network (Y/N) ?" at startup
-#	-DSMALL_ROM	- Compile for 8K ROMS
 #	-DROMSIZE	- Size of EPROM - Must be set (even for .COM files)
 #	-DRELOC		- Relocation address (usually 0x90000)
+#
+# NS8390 Options:
 #	-DINCLUDE_WD	- Include Western Digital/SMC support
 #	-DINCLUDE_NE	- Include NE1000/NE2000 support
 #	-DINCLUDE_3COM  - Include 3c503 support
-#	-DINCLUDE_3C509 - Include 3c509 support
 #       -D_3COM_USE_AUI - Disable transceiver on 3c503 by default
 #	-DNE_BASE	- Base I/O address for NE1000/NE2000
 #       -D_3COM_BASE    - Base I/O address for 3c503
@@ -19,20 +19,18 @@
 # changing an option.
 #
 
-PROG=	netboot.com
+PROG=	nb8390.com nb3c509.com nb8390.rom nb3c509.rom
 # Order is very important on the SRCS line for this prog
-SRCS=	start2.S main.c misc.c ether.c bootmenu.c rpc.c
+SRCS=	start2.S main.c misc.c bootmenu.c rpc.c
 
 BINDIR=		/usr/mdec
 BINMODE=	555
 CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR} -DASK_BOOT
-CFLAGS+=	-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
-CFLAGS+=	-DINCLUDE_NE -DNE_BASE=0x320
-CFLAGS+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
-CFLAGS+=	-DINCLUDE_3C509
-CLEANFILES+=	netboot.com.nohdr netboot.com.strip
-CLEANFILES+=	netboot.rom.nohdr netboot.rom.strip netboot.rom
-CLEANFILES+=	makerom start2.ro
+NS8390=		-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
+NS8390+=	-DINCLUDE_NE -DNE_BASE=0x320
+NS8390+=	-DINCLUDE_3COM -D_3COM_BASE=0x300
+CLEANFILES+=	netboot.com
+CLEANFILES+=	makerom start2.ro 3c509.o ns8390.o
 LDFLAGS+=	-N -T ${RELOCADDR} -e _start -nostdlib
 NOSHARED=	YES
 NOMAN=
@@ -46,35 +44,35 @@ RELOCADDR=0x90000
 .S.ro:
 	${CC} ${CFLAGS} -DBOOTROM -o ${.TARGET} -c ${.IMPSRC}
 
+ns8390.o:	ns8390.c
+	${CC} $(CFLAGS) $(NS8390) -o ${.TARGET} -c $<
+
 makerom: makerom.c
 	${CC} -o ${.TARGET} -DROMSIZE=${ROMSIZE} ${.CURDIR}/makerom.c
 
-netboot.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g}
-	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/}
-
-netboot.rom.strip:	netboot.rom
-	cp -p netboot.rom ${.TARGET}
+nb8390.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
+	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} ns8390.o
 	strip ${.TARGET}
 	size ${.TARGET}
-
-netboot.rom.nohdr:	netboot.rom.strip
-	dd ibs=32 skip=1 if=netboot.rom.strip of=${.TARGET}
 	${.OBJDIR}/makerom ${.TARGET}
 
-netboot.com.strip:	netboot.com
-	cp -p netboot.com ${.TARGET}
+nb3c509.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
+	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/} 3c509.o
 	strip ${.TARGET}
 	size ${.TARGET}
+	${.OBJDIR}/makerom ${.TARGET}
 
-netboot.com.nohdr:	netboot.com.strip
-	dd ibs=32 skip=1 if=netboot.com.strip of=${.TARGET}
+nb8390.com:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g} ns8390.o
+	${LD} ${LDFLAGS} -o netboot.com ${OBJS} ns8390.o
+	strip netboot.com
+	size netboot.com
+	dd ibs=32 skip=1 if=netboot.com of=${.TARGET}
 
-all:	netboot.com.nohdr netboot.rom.nohdr
+nb3c509.com:	start2.o ${SRCS:N*.h:R:S/$/.o/g} 3c509.o
+	${LD} ${LDFLAGS} -o netboot.com ${OBJS} 3c509.o
+	strip netboot.com
+	size netboot.com
+	dd ibs=32 skip=1 if=netboot.com of=${.TARGET}
 
-install:
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		netboot.com.nohdr ${DESTDIR}${BINDIR}/netboot.com
-	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
-		netboot.rom.nohdr ${DESTDIR}${BINDIR}/netboot.rom
 
 .include <bsd.prog.mk>
