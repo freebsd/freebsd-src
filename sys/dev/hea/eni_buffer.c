@@ -124,7 +124,7 @@ eni_test_memory ( eup )
 	 * This makes sure we don't leave anything funny in the
 	 * queues.
 	 */
-	bzero ( (uintptr_t)eup->eu_ram, ram_size );
+	bzero ( (void *)(uintptr_t)eup->eu_ram, ram_size );
 
 	/*
 	 * If we'd like to claim to have less memory, here's where
