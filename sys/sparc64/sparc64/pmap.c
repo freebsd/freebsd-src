@@ -66,6 +66,7 @@
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>

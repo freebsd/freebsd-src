@@ -33,6 +33,7 @@
 
 #include <sys/param.h>
 #include <sys/queue.h>
+#include <sys/ktr.h>
 #include <sys/linker_set.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
