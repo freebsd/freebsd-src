@@ -6,12 +6,12 @@
 .Nm procctl
 .Nd clear procfs event flags
 .Sh SYNOPSIS
-.Nm procctl
-.Ar command
-.Op Ar ...
+.Nm
+.Ar pid ...
 .Sh DESCRIPTION
-.Nm Procctl
-clears the
+The
+.Nm
+command clears the
 .Xr procfs 5
 event mask used by
 .Xr truss 1 .
@@ -19,7 +19,7 @@ This can be used in the event that a process is left stranded, since
 the
 .Xr procfs 5
 events result in a non-killable process.
-The options are a list of process ID's;
+The arguments are a list of process IDs;
 .Nm
 goes through the list and clears the event masks for each specified process.
 .Sh SEE ALSO
@@ -31,4 +31,4 @@ The
 command was written by
 .An Sean Eric Fagan
 for
-.Bx Free .
+.Fx .
