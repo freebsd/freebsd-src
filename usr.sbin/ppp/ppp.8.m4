@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.185 1999/08/02 21:45:36 brian Exp $
+.\" $Id: ppp.8,v 1.186 1999/08/03 16:14:38 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -3192,10 +3192,12 @@ will not attempt to make an immediate connection.
 .It open Op lcp|ccp|ipcp
 This is the opposite of the
 .Dq close
-command.  All closed links are immediately brought up (although some auto
-links may not come up depending on what
+command.  All closed links are immediately brought up apart from second
+and subsequent
+.Ar demand-dial
+links - these will come up based on the
 .Dq set autoload
-command has been used).
+command that has been used.
 .Pp
 If the
 .Dq lcp
@@ -3364,9 +3366,10 @@ mode with CHAP enabled,
 is used in the initial authentication challenge and should normally be set to
 the local machine name.
 .It set autoload Xo
-.Ar max-duration max-load Op Ar min-duration min-load
+.Ar min-percent max-percent period
 .Xc
-These settings apply only in multi-link mode and all default to zero.
+These settings apply only in multi-link mode and default to zero, zero and
+five respectively.
 When more than one
 .Ar demand-dial
 .Pq also known as Fl auto
@@ -3374,27 +3377,36 @@ mode link is available, only the first link is made active when
 .Nm
 first reads data from the tun device.  The next
 .Ar demand-dial
-link will be opened only when at least
-.Ar max-load
-packets have been in the send queue for
-.Ar max-duration
-seconds.  Because both values default to zero,
+link will be opened only when the current bundle throughput is at least
+.Ar max-percent
+percent of the total bundle bandwidth for
+.Ar period
+seconds.  When the current bundle throughput decreases to
+.Ar min-percent
+percent or less of the total bundle bandwidth for
+.Ar period
+seconds, a
 .Ar demand-dial
-links will simply come up one at a time by default.
+link will be brought down as long as it's not the last active
+.Ar demand-dial
+link.
 .Pp
-If two or more links are open, at least one of which is a
+The default values cause
 .Ar demand-dial
-link, a
-.Ar demand-dial
-link will be closed when there is less than
-.Ar min-packets
-in the queue for more than
-.Ar min-duration .
-If
-.Ar min-duration
-is zero, this timer is disabled.  Because both values default to zero,
-.Ar demand-dial
-links will stay active until the bundle idle timer expires.
+links to simply come up one at a time.
+.Pp
+Certain devices cannot determine their physical bandwidth, so it
+is sometimes necessary to use the
+.Dq set bandwidth
+command (described below) to make
+.Dq set autoload
+work correctly.
+.It set bandwidth Ar value
+This command sets the connection bandwidth in bits per second.
+.Ar value
+must be greater than zero.  It is currently only used by the
+.Dq set autoload
+command above.
 .It set callback Ar option Ns No ...
 If no arguments are given, callback is disabled, otherwise,
 .Nm
