@@ -941,13 +941,13 @@ static char *spin_order_list[] = {
 	/*
 	 * leaf locks
 	 */
+	"ng_node",
+	"ng_worklist",
 #ifdef SMP
 #ifdef __i386__
 	"ap boot",
 	"imen",
 #endif
-	"ng_node",
-	"ng_worklist",
 	"smp rendezvous",
 #endif
 	NULL
