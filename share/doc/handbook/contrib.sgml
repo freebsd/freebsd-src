@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.222 1997/03/03 12:07:53 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.223 1997/03/04 09:40:42 tg Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -256,6 +256,7 @@ groups of people:
 	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
 	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
 	  <item>Curt Mayer &lt;curt@toad.com&gt;
+	  <item>Dan Cross &lt;tenser@spitfire.ecsel.psu.edu&gt;
 	  <item>Daniel Baker &lt;dbaker@crash.ops.neosoft.com&gt;
 	  <item>Daniel M. Eischen &lt;deischen@iworks.InterWorks.org&gt;
 	  <item>Danny J. Zerkel &lt;dzerkel@feephi.phofarm.com&gt;
