@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	$Id: populate,v 1.6 1998/09/26 17:27:18 abial Exp $
+#	$Id: populate,v 1.7 1999/01/14 23:14:46 abial Exp $
 #
 
 . ../Version
@@ -53,8 +53,8 @@ then
 	cp help.a /mnt/help.a)
 elif [ "${TYPE}" != "router" ]
 then
-	cp ../../build/kvm_kernel.db /mnt/var/db/kvm_kernel.db
-	rm ../../build/kvm_kernel.db
+	#cp ../../build/kvm_kernel.db /mnt/var/db/kvm_kernel.db
+	#rm ../../build/kvm_kernel.db
 fi
 
 echo "-> Making and installing crunch1..."
