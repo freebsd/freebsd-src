@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: intr_machdep.h,v 1.1 1997/06/26 17:31:00 smp Exp smp $
+ *	$Id: intr_machdep.h,v 1.2 1997/06/27 23:48:05 fsmp Exp $
  */
 
 #ifndef _I386_ISA_INTR_MACHDEP_H_
@@ -91,6 +91,14 @@ inthand_t
 #define XCPUSTOP_OFFSET	(ICU_OFFSET + 64)
 inthand_t
 	Xcpustop;
+/*
+ * XXX FIXME: rethink location for this (and all IPI vectors)
+ * Note: this vector MUST be xxxx1111, 32 + 79 = 111 = 0x6f:
+ * also remember i386/include/segments.h: #define	NIDT	129
+ */
+#define XSPURIOUSINT_OFFSET	(ICU_OFFSET + 79)
+inthand_t
+	Xspuriousint;
 #endif  /* TEST_CPUSTOP */
 
 struct isa_device;
