@@ -119,14 +119,20 @@
 #include <sys/diskslice.h>
 
 #include <ctype.h>
-#include <stdio.h>
 #include <err.h>
+#include <stdio.h>
 #include <string.h>
 
 struct	device cur;
 struct	device *curp = 0;
 char	*temp_id;
 char	*val_id;
+
+int alreadychecked __P((dev_t, dev_t[], dev_t *));
+void deverror __P((char *, char *));
+int finddev __P((dev_t));
+void init_dev __P((struct device *));
+void verifycomp __P((struct file_list *));
 
 %}
 %%
@@ -401,7 +407,7 @@ Option:
 		op->op_next = opt;
 		op->op_value = 0;
 		opt = op;
-		if (s = strchr(op->op_name, '=')) {
+		if ((s = strchr(op->op_name, '='))) {
 			/* AARGH!!!! Old-style bogon */
 			*s = '\0';
 			op->op_value = ns(s + 1);
@@ -664,11 +670,12 @@ Id_list:
 
 %%
 
+void
 yyerror(s)
 	char *s;
 {
 
-	fprintf(stderr, "config: line %d: %s\n", yyline + 1, s);
+	warnx("line %d: %s", yyline + 1, s);
 }
 
 /*
@@ -688,6 +695,7 @@ ns(str)
 /*
  * add a device to the list of devices
  */
+void
 newdev(dp)
 	register struct device *dp;
 {
@@ -707,6 +715,7 @@ newdev(dp)
 /*
  * note that a configuration should be made
  */
+void
 mkconf(sysname)
 	char *sysname;
 {
@@ -745,12 +754,12 @@ newflist(ftype)
 /*
  * Add a swap device to the system's configuration
  */
+void
 mkswap(system, fl, size, flag)
 	struct file_list *system, *fl;
 	int size, flag;
 {
 	register struct file_list **flp;
-	char name[80];
 
 	if (system == 0 || system->f_type != SYSTEMSPEC) {
 		yyerror("\"swap\" spec precedes \"config\" specification");
@@ -783,6 +792,7 @@ mkswap(system, fl, size, flag)
 		system->f_fn = ns(system->f_needs);
 }
 
+void
 mkcomp(dp)
 	register struct device *dp;
 {
@@ -803,11 +813,11 @@ mkcomp(dp)
 	compp = flp;
 }
 
+void
 addcomp(compdev, fl)
 	struct file_list *compdev, *fl;
 {
 	register struct file_list **flp;
-	char name[80];
 
 	if (compdev == 0 || compdev->f_type != COMPDEVICE) {
 		yyerror("component spec precedes device specification");
@@ -913,6 +923,7 @@ huhcon(dev)
 	return (dp);
 }
 
+void
 init_dev(dp)
 	register struct device *dp;
 {
@@ -938,6 +949,7 @@ init_dev(dp)
 /*
  * make certain that this is a reasonable type of thing to connect to a nexus
  */
+void
 check_nexus(dev, num)
 	register struct device *dev;
 	int num;
@@ -981,6 +993,7 @@ check_nexus(dev, num)
  * Check system specification and apply defaulting
  * rules on root, argument, dump, and swap devices.
  */
+void
 checksystemspec(fl)
 	register struct file_list *fl;
 {
@@ -1048,6 +1061,7 @@ checksystemspec(fl)
  * Verify all devices specified in the system specification
  * are present in the device specifications.
  */
+void
 verifysystemspecs()
 {
 	register struct file_list *fl;
@@ -1085,8 +1099,7 @@ verifyswap(fl, checked, pchecked)
 		if (alreadychecked(fl->f_swapdev, checked, pchecked))
 			continue;
 		if (!finddev(fl->f_swapdev))
-			fprintf(stderr,
-			   "config: swap device %s not configured", fl->f_fn);
+			warnx("swap device %s not configured", fl->f_fn);
 		*pchecked++ = fl->f_swapdev;
 	}
 	return (pchecked);
@@ -1095,6 +1108,7 @@ verifyswap(fl, checked, pchecked)
 /*
  * Verify that components of a compound device have themselves been config'ed
  */
+void
 verifycomp(fl)
 	register struct file_list *fl;
 {
@@ -1103,9 +1117,7 @@ verifycomp(fl)
 	for (fl = fl->f_next; fl; fl = fl->f_next) {
 		if (fl->f_type != COMPSPEC || finddev(fl->f_compdev))
 			continue;
-		fprintf(stderr,
-			"config: %s: component device %s not configured\n",
-			dname, fl->f_needs);
+		warnx("%s: component device %s not configured", dname, fl->f_needs);
 	}
 }
 
@@ -1113,6 +1125,7 @@ verifycomp(fl)
  * Has a device already been checked
  * for its existence in the configuration?
  */
+int
 alreadychecked(dev, list, last)
 	dev_t dev, list[];
 	register dev_t *last;
@@ -1125,12 +1138,12 @@ alreadychecked(dev, list, last)
 	return (0);
 }
 
+void
 deverror(systemname, devtype)
 	char *systemname, *devtype;
 {
 
-	fprintf(stderr, "config: %s: %s device not configured\n",
-		systemname, devtype);
+	warnx("%s: %s device not configured", systemname, devtype);
 }
 
 /*
@@ -1139,6 +1152,7 @@ deverror(systemname, devtype)
  * take into account stuff wildcarded.
  */
 /*ARGSUSED*/
+int
 finddev(dev)
 	dev_t dev;
 {

@@ -33,25 +33,33 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)mkheaders.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
  * Make all the .h files for the optional entries
  */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
 #include "config.h"
 #include "y.tab.h"
 
+void read_options __P((void));
+void do_option __P((char *));
+
+void
 options()
 {
 	struct opt_list *ol;
 
 	/* fake the cpu types as options */
 	/* Please forgive me for this hack.. :-) */
-	struct opt *op;
 	struct cputype *cp;
 
 	for (cp = cputype; cp; cp = cp->cpu_next) {
@@ -72,6 +80,7 @@ options()
  * Generate an <options>.h file
  */
 
+void
 do_option(name)
 	char *name;
 {
@@ -100,10 +109,8 @@ do_option(name)
 	inf = fopen(file, "r");
 	if (inf == 0) {
 		outf = fopen(file, "w");
-		if (outf == 0) {
-			perror(file);
-			exit(1);
-		}
+		if (outf == 0)
+			err(1, "%s", file);
 
 		/* was the option in the config file? */
 		if (value) {
@@ -172,10 +179,8 @@ do_option(name)
 	}
 
 	outf = fopen(file, "w");
-	if (outf == 0) {
-		perror(file);
-		exit(1);
-	}
+	if (outf == 0)
+		err(1, "%s", file);
 	for (op = op_head; op != NULL; op = topp) {
 		/* was the option in the config file? */
 		if (op->op_value) {
@@ -218,6 +223,7 @@ tooption(name)
 /*
  * read the options and options.<machine> files
  */
+void
 read_options()
 {
 	FILE *fp;
