@@ -26,8 +26,9 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include "uwx_str.h"
 
 #ifdef _KERNEL
+static struct uwx_str_pool	uwx_str_pool;
 #define	free(p)		/* nullified */
-#define	malloc(sz)	NULL
+#define	malloc(sz)	((sz == sizeof(uwx_str_pool)) ? &uwx_str_pool : NULL)
 #endif
 
 /*

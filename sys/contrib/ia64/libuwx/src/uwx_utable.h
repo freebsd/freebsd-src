@@ -31,5 +31,6 @@ struct uwx_utable_entry {
 
 extern int uwx_search_utable(
     struct uwx_env *env,
+    uint64_t ip,
     uint64_t *uvec,
     struct uwx_utable_entry *uentry);

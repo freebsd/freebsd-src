@@ -42,6 +42,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 int uwx_search_utable32(
     struct uwx_env *env,
+    uint32_t ip,
     uint32_t text_base,
     uint32_t unwind_start,
     uint32_t unwind_end,
@@ -49,6 +50,7 @@ int uwx_search_utable32(
 
 int uwx_search_utable64(
     struct uwx_env *env,
+    uint64_t ip,
     uint64_t text_base,
     uint64_t unwind_start,
     uint64_t unwind_end,
@@ -59,13 +61,14 @@ int uwx_search_utable64(
 
 int uwx_search_utable(
     struct uwx_env *env,
+    uint64_t ip,
     uint64_t *uvec,
     struct uwx_utable_entry *uentry)
 {
-    uint64_t text_base = 0;
+    uint64_t text_base;
     uint64_t unwind_flags;
-    uint64_t unwind_start = 0;
-    uint64_t unwind_end = 0;
+    uint64_t unwind_start;
+    uint64_t unwind_end;
     int keys;
     int status;
 
@@ -73,7 +76,10 @@ int uwx_search_utable(
     /* Make sure all three required values are given. */
 
     keys = 0;
+    text_base = 0;
     unwind_flags = 0;
+    unwind_start = 0;
+    unwind_end = 0;
     while (*uvec != 0) {
 	switch ((int)*uvec++) {
 	    case UWX_KEY_TBASE:
@@ -107,13 +113,14 @@ int uwx_search_utable(
 
     if (unwind_flags & UNWIND_TBL_32BIT)
 	status = uwx_search_utable32(env,
+			(uint32_t) ip,
 			(uint32_t) text_base,
 			(uint32_t) unwind_start,
 			(uint32_t) unwind_end,
 			uentry);
     else
 	status = uwx_search_utable64(env,
-			text_base, unwind_start, unwind_end, uentry);
+			ip, text_base, unwind_start, unwind_end, uentry);
 
     return status;
 }
@@ -129,6 +136,7 @@ int uwx_search_utable(
 
 int uwx_search_utable32(
     struct uwx_env *env,
+    uint32_t ip,
     uint32_t text_base,
     uint32_t unwind_start,
     uint32_t unwind_end,
@@ -136,9 +144,8 @@ int uwx_search_utable32(
 {
     int lb;
     int ub;
-    int mid = 0;
+    int mid;
     int len;
-    uint32_t ip;
     uint32_t code_start;
     uint32_t code_end;
     uint32_t unwind_info;
@@ -146,7 +153,7 @@ int uwx_search_utable32(
     /* Since the unwind table uses segment-relative offsets, convert */
     /* the IP in the current context to a segment-relative offset. */
 
-    ip = env->context.special[UWX_REG_IP] - text_base;
+    ip -= text_base;
 
     TRACE_T_SEARCH32(ip)
 
@@ -155,12 +162,13 @@ int uwx_search_utable32(
 
     lb = 0;
     ub = (unwind_end - unwind_start) / (3 * WORDSZ);
+    mid = 0;
     while (ub > lb) {
 	mid = (lb + ub) / 2;
 	len = COPYIN_UINFO_4((char *)&code_start,
-	    (intptr_t)(unwind_start+mid*3*WORDSZ));
+	    (uintptr_t)(unwind_start+mid*3*WORDSZ));
 	len += COPYIN_UINFO_4((char *)&code_end,
-	    (intptr_t)(unwind_start+mid*3*WORDSZ+WORDSZ));
+	    (uintptr_t)(unwind_start+mid*3*WORDSZ+WORDSZ));
 	if (len != 2 * WORDSZ)
 	    return UWX_ERR_COPYIN_UTBL;
 	if (env->byte_swap) {
@@ -178,7 +186,7 @@ int uwx_search_utable32(
     if (ub <= lb)
 	return UWX_ERR_NOUENTRY;
     len = COPYIN_UINFO_4((char *)&unwind_info,
-	(intptr_t)(unwind_start+mid*3*WORDSZ+2*WORDSZ));
+	(uintptr_t)(unwind_start+mid*3*WORDSZ+2*WORDSZ));
     if (len != WORDSZ)
 	return UWX_ERR_COPYIN_UTBL;
     if (env->byte_swap)
@@ -200,6 +208,7 @@ int uwx_search_utable32(
 
 int uwx_search_utable64(
     struct uwx_env *env,
+    uint64_t ip,
     uint64_t text_base,
     uint64_t unwind_start,
     uint64_t unwind_end,
@@ -207,9 +216,8 @@ int uwx_search_utable64(
 {
     int lb;
     int ub;
-    int mid = 0;
+    int mid;
     int len;
-    uint64_t ip;
     uint64_t code_start;
     uint64_t code_end;
     uint64_t unwind_info;
@@ -217,13 +225,14 @@ int uwx_search_utable64(
     /* Since the unwind table uses segment-relative offsets, convert */
     /* the IP in the current context to a segment-relative offset. */
 
-    ip = env->context.special[UWX_REG_IP] - text_base;
+    ip -= text_base;
 
     /* Standard binary search. */
     /* Might modify this to do interpolation in the future. */
 
     lb = 0;
     ub = (unwind_end - unwind_start) / (3 * DWORDSZ);
+    mid = 0;
     while (ub > lb) {
 	mid = (lb + ub) / 2;
 	len = COPYIN_UINFO_8((char *)&code_start, unwind_start+mid*3*DWORDSZ);

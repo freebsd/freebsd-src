@@ -22,4 +22,9 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
+#define UVECSIZE 20	/* Size of uvec supplied by unwind engine */
+			/* for callback's use. */
+
+extern int uwx_lookupip_hook(int request, uint64_t ip, intptr_t tok,
+    uint64_t **vecp, size_t uvecsize);
 extern int uwx_restore_markers(struct uwx_env *env);
