@@ -115,7 +115,7 @@
 	pci_write_config(DEV, REG, (					\
 		pci_read_config(DEV, REG, SIZE) MASK1) MASK2, SIZE)
 
-#define PCCBB_START_MEM	0x84000000
+#define PCCBB_START_MEM	0x88000000
 #define PCCBB_START_32_IO 0x1000
 #define PCCBB_START_16_IO 0x100
 
@@ -663,6 +663,12 @@ pccbb_attach(device_t brdev)
 		cv_destroy(&sc->cv);
 		return (ENOMEM);
 	}
+
+	/* reset 16-bit pcmcia bus */
+	exca_clrb(&sc->exca, EXCA_INTR, EXCA_INTR_RESET);
+
+	/* turn off power */
+	pccbb_power(brdev, CARD_VCC_0V | CARD_VPP_0V);
 
 	/* CSC Interrupt: Card detect interrupt on */
 	pccbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
