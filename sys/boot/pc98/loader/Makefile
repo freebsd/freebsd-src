@@ -1,8 +1,9 @@
-# $Id: Makefile,v 1.1.2.1 1999/02/06 07:37:15 kato Exp $
+# $Id: Makefile,v 1.1.2.2 1999/02/25 13:45:40 kato Exp $
 
 BASE=		loader
 PROG=		${BASE}
-NOMAN=
+MAN8=		${.CURDIR}/../../i386/loader/loader.8
+#NOMAN=
 STRIP=
 NEWVERSWHAT=	"bootstrap loader"
 BINDIR?=	/boot
