@@ -10,6 +10,9 @@ EXPORT_SYMS	= _atapi_mod _atapi_debug_ptr _atapi_intr_ptr \
 		  _atapi_request_callback_ptr _atapi_request_immediate_ptr \
 		  _atapi_request_wait_ptr _atapi_start_ptr
 
+MODLOAD		= /sbin/modload
+MODUNLOAD	= /sbin/modunload
+
 load:           ${PROG}
 		${MODLOAD} -u -e atapi_mod $(PROG)
 
