@@ -44,8 +44,8 @@
 #endif
 
 int	issource __P((char *));
-void	findopen __P(());
+void	findopen __P((void));
 char	*findread __P((int *));
-void	findclose __P(());
+void	findclose __P((void));
 
 #endif /* ! _FIND_H_ */

@@ -1,7 +1,6 @@
 PROG   = gctags
-DEFS   = -DGLOBAL -DYACC
 CC     = gcc
-CFLAGS = -O $(DEFS) -I../lib -I/usr/include/db
+CFLAGS = -O -I../lib -I/usr/include/db
 LIBS   = -L../lib -lutil -ldb
 OBJS   = C.o assembler.o ctags.o fortran.o lisp.o print.o tree.o yacc.o
 BINDIR = /usr/bin

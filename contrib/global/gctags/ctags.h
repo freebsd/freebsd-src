@@ -33,6 +33,10 @@
  *	@(#)ctags.h	8.3 (Berkeley) 4/2/94
  */
 
+/* Definition for gctags */
+#define GLOBAL	1
+#define YACC	1
+
 #define	bool	char
 
 #define	YES		1
@@ -114,5 +118,6 @@ void	c_entries __P((void));
 void	skip_comment __P((void));
 #ifdef GLOBAL
 void	asm_entries __P((void));
+void	compact_print __P((char *, int, char *));
 int	portable_getc __P((FILE *));
 #endif

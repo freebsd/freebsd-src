@@ -31,17 +31,23 @@
  *	global.c				7-Nov-97
  *
  */
+
+#include <sys/stat.h>
+
+#include <ctype.h>
+#include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <regex.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "global.h"
 
 char	*progname  = "global";		/* command name */
 
 static void	usage __P((void));
 void	main __P((int, char **));
-char	*outfilter __P(());
+char	*outfilter __P((void));
 void	completelist __P((char *, char *));
 void	relative_filter __P((char *, char *, char *));
 void	grep __P((char *));
@@ -301,7 +307,7 @@ char	*argv[];
 		p = envbuf;
 		while (p) {
 			lib = p;
-			if (p = locatestring(p, ":", 0))
+			if ((p = locatestring(p, ":", 0)) != NULL)
 				*p++ = 0;
 			if (!strncmp(lib, cwd, strlen(cwd)) || !strncmp(cwd, lib, strlen(lib)))
 				continue;
@@ -341,7 +347,7 @@ char	*argv[];
  *	r)		output filter
  */
 char	*
-outfilter()
+outfilter(void)
 {
 	static char	filter[MAXCOMLINE+1];
 
@@ -459,7 +465,7 @@ int	compact;
 	int	opened = 0;
 	char	path[MAXPATHLEN+1];
 	char	*buffer;
-	int	line, tagline;
+	int	line = 0, tagline = 0;
 	FILE	*ip;
 
 	if (!xflag) {
@@ -483,7 +489,7 @@ int	compact;
 			;
 		lno = p;			/* lno = $3 */
 		sprintf(path, "%s/%s", root, file + 2);
-		if (ip = fopen(path, "r")) {
+		if ((ip = fopen(path, "r")) != NULL) {
 			opened = 1;
 			buffer = mgets(ip, 0, NULL);
 			line = 1;
@@ -538,7 +544,7 @@ char	*s;
 {
 	int	c;
 
-	while (c = *s++)
+	while ((c = *s++) != NULL)
 		if (	(c >= 'a' && c <= 'z')	||
 			(c >= 'A' && c <= 'Z')	||
 			(c >= '0' && c <= '9')	||
@@ -557,7 +563,7 @@ void
 grep(pattern)
 char	*pattern;
 {
-	FILE	*ip, *op, *fp;
+	FILE	*op, *fp;
 	char	*path;
 	char	edit[IDENTLEN+1];
 	char	*buffer, *p, *e;
@@ -583,11 +589,11 @@ char	*pattern;
 	if (!(op = popen(outfilter(), "w")))
 		die("cannot open output pipe.");
 	count = 0;
-	for (findopen(); path = findread(NULL); ) {
+	for (findopen(); (path = findread(NULL)) != NULL; ) {
 		if (!(fp = fopen(path, "r")))
 			die1("cannot open file '%s'.", path);
 		linenum = 0;
-		while (buffer = mgets(fp, 0, NULL)) {
+		while ((buffer = mgets(fp, 0, NULL)) != NULL) {
 			linenum++;
 			if (regexec(&preg, buffer, 0, 0, 0) == 0) {
 				count++;
@@ -656,7 +662,6 @@ int	db;
 	if (regexp(pattern) && regcomp(&preg, pattern, REG_EXTENDED) == 0) {
 		char	prefix_buf[IDENTLEN+1];
 		char	*prefix = (char *)0;
-		int	presize;
 
 		if (*pattern == '^' && *(p = pattern + 1) && (isalpha(*p) || *p == '_')) {
 			prefix = prefix_buf;
@@ -711,7 +716,7 @@ char	*line;
 	if (!(p = locatestring(line, "./", 0)))
 		die("illegal tag format (path not found).");
 	b = buf;
-	while (c = *b++ = *p++) {
+	while ((c = *b++ = *p++) != NULL) {
 		if (c == ' ' || c == '\t') {
 			*(b - 1) = 0;
 			break;

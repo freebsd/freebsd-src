@@ -35,12 +35,14 @@
 static char sccsid[] = "@(#)C.c	8.4 (Berkeley) 4/2/94";
 #endif /* LIBC_SCCS and not lint */
 
+#include <ctype.h>
 #include <limits.h>
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ctags.h"
+#include "lookup.h"
 
 static int	func_entry __P((void));
 static void	hash_entry __P((void));

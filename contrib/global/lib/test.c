@@ -31,9 +31,13 @@
  *	test.c					 12-Dec-97
  *
  */
-#include <unistd.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+
+#include <unistd.h>
+
+#include "test.h"
+
 /*
  * test: 
  *
@@ -60,7 +64,7 @@ char	*path;
 
 	if (stat(path, &sb) < 0)
 		return 0;
-	while (c = *flags++) {
+	while ((c = *flags++) != NULL) {
 		switch (c) {
 		case 'f':
 	 		if (!S_ISREG(sb.st_mode))

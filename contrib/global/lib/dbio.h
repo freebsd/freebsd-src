@@ -82,7 +82,7 @@ typedef	struct {
 DBIO	*db_open __P((char *, int, int, int));
 char	*db_get __P((DBIO *, char *));
 void	db_put __P((DBIO *, char *, char *));
-void	de_del __P((DBIO *, char *));
+void	db_del __P((DBIO *, char *));
 char	*db_first __P((DBIO *, char *, int));
 char	*db_next __P((DBIO *));
 void	db_close __P((DBIO *));

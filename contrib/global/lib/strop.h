@@ -43,10 +43,10 @@
 #endif
 #endif
 
-void	stropen __P(());
+void	stropen __P((void));
 void	strputs __P((char *));
 void	strnputs __P((char *, int));
 void	strputc __P((int));
-char	*strclose __P(());
+char	*strclose __P((void));
 
 #endif /* ! _STROP_H_ */

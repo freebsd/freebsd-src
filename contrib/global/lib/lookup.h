@@ -45,6 +45,6 @@
 
 void	lookupopen __P((char *));
 int	lookup __P((char *));
-void	lookupclose __P(());
+void	lookupclose __P((void));
 
 #endif /* ! _LOOKUP_H_ */

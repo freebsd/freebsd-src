@@ -73,7 +73,7 @@ int
 issource(path)
 char	*path;
 {
-	char	c, *p, *q;
+	char	*p;
 
 	if (!(p = locatestring(path, ".", 2)))
 		return 0;
@@ -88,7 +88,7 @@ char	*path;
 }
 
 void
-findopen()
+findopen(void)
 {
 	char	edit[512], *p, *q;
 	int	i, lim;
@@ -158,7 +158,7 @@ int	*length;
 	return (char *)0;
 }
 void
-findclose()
+findclose(void)
 {
 	pclose(ip);
 	opened = 0;
