@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.52 1998/05/13 16:03:33 gibbs Exp $
+ * $Id: buf.h,v 1.53 1998/07/15 04:17:48 bde Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -136,11 +136,11 @@ struct buf {
 #define	B_CACHE		0x00000020	/* Bread found us in the cache. */
 #define	B_CALL		0x00000040	/* Call b_iodone from biodone. */
 #define	B_DELWRI	0x00000080	/* Delay I/O until buffer reused. */
-#define	B_DIRTY		0x00000100	/* Dirty page to be pushed out async. */
+#define	B_AVAIL1	0x00000100	/* Available flag */
 #define	B_DONE		0x00000200	/* I/O completed. */
 #define	B_EINTR		0x00000400	/* I/O was interrupted */
 #define	B_ERROR		0x00000800	/* I/O error occurred. */
-#define	B_GATHERED	0x00001000	/* LFS: already in a segment. */
+#define	B_AVAIL2	0x00001000	/* Available flag */
 #define	B_INVAL		0x00002000	/* Does not contain valid info. */
 #define	B_LOCKED	0x00004000	/* Locked in core (not reusable). */
 #define	B_NOCACHE	0x00008000	/* Do not cache block after use. */
@@ -149,7 +149,7 @@ struct buf {
 #define	B_PHYS		0x00040000	/* I/O to user memory. */
 #define	B_RAW		0x00080000	/* Set by physio for raw transfers. */
 #define	B_READ		0x00100000	/* Read buffer. */
-#define	B_TAPE		0x00200000	/* Magnetic tape I/O. */
+#define	B_AVAIL3	0x00200000	/* Available flag */
 #define	B_RELBUF	0x00400000	/* Release VMIO buffer. */
 #define	B_WANTED	0x00800000	/* Process wants this buffer. */
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
