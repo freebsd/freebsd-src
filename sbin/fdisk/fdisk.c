@@ -171,6 +171,7 @@ struct part_type
 	,{0x08, "AIX filesystem"}
 	,{0x09, "AIX boot partition or Coherent"}
 	,{0x0A, "OS/2 Boot Manager or OPUS"}
+	,{0x0B, "Primary DOS with 32 bit FAT"}
 	,{0x10, "OPUS"}
 	,{0x40, "VENIX 286"}
 	,{0x50, "DM"}
