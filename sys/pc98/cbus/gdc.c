@@ -584,7 +584,7 @@ static void initialize_gdc(unsigned int mode, int isGraph)
     if ((PC98_SYSTEM_PARAMETER(0x597) & 0x80) ||
 	(PC98_SYSTEM_PARAMETER(0x458) & 0x80)) {
 	if (PC98_SYSTEM_PARAMETER(0x481) & 0x08) {
-	    hsync_clock = (m_mode == _25L) ? _24KHZ : _31KHZ;
+	    hsync_clock = (m_mode == _25L) ? gdc_FH : _31KHZ;
 	    outb(0x9a8, (hsync_clock == _31KHZ) ? 1 : 0);
 	} else {
 	    hsync_clock = gdc_FH;
