@@ -92,8 +92,8 @@ interruption_Instruction_TLB:
 	;; 
 	ld8	r21=[r21]		// check VHPT tag
 	;;
-	cmp.eq	p1,p2=r21,r19
-(p2)	br.dpnt.few 1f
+	cmp.ne	p1,p0=r21,r19
+(p1)	br.dpnt.few 1f
 	;;
 	ld8	r21=[r18]		// read pte
 	;;
@@ -106,15 +106,15 @@ interruption_Instruction_TLB:
 	;;
 	srlz.d				// serialize
 	;;
-2:	cmp.eq	p1,p2=r0,r20		// done?
+2:	cmp.eq	p1,p0=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
 	;;
 	ld8	r21=[r21]		// read tag
 	;;
-	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 3f		// if not, read next in chain
+	cmp.ne	p1,p0=r21,r19		// compare tags
+(p1)	br.cond.sptk.few 3f		// if not, read next in chain
 	;;
 	ld8	r21=[r20],8		// read pte
 	;; 
@@ -142,7 +142,7 @@ interruption_Instruction_TLB:
 	;;
 	itc.i	r21			// and place in TLB
 	rfi
-	
+
 3:	add	r20=24,r20		// next in chain
 	;;
 	ld8	r20=[r20]		// read chain
@@ -168,8 +168,8 @@ interruption_Data_TLB:
 	;; 
 	ld8	r21=[r21]		// check VHPT tag
 	;;
-	cmp.eq	p1,p2=r21,r19
-	br.dpnt.few 1f
+	cmp.ne	p1,p0=r21,r19
+(p1)	br.dpnt.few 1f
 	;;
 	ld8	r21=[r18]		// read pte
 	;;
@@ -182,15 +182,15 @@ interruption_Data_TLB:
 	;;
 	srlz.d				// serialize
 	;;
-2:	cmp.eq	p1,p2=r0,r20		// done?
+2:	cmp.eq	p1,p0=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
 	;;
 	ld8	r21=[r21]		// read tag
 	;;
-	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 3f		// if not, read next in chain
+	cmp.ne	p1,p0=r21,r19		// compare tags
+(p1)	br.cond.sptk.few 3f		// if not, read next in chain
 	;;
 	ld8	r21=[r20],8		// read pte
 	;; 
@@ -312,15 +312,15 @@ interruption_Dirty_Bit:
 	;;
 	srlz.d				// serialize
 	;;
-1:	cmp.eq	p1,p2=r0,r20		// done?
+1:	cmp.eq	p1,p0=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
 	;;
 	ld8	r21=[r21]		// read tag
 	;;
-	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+	cmp.ne	p1,p0=r21,r19		// compare tags
+(p1)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
 	mov	r22=PTE_D
@@ -381,15 +381,15 @@ interruption_Instruction_Access_Bit:
 	;;
 	srlz.d				// serialize
 	;;
-1:	cmp.eq	p1,p2=r0,r20		// done?
+1:	cmp.eq	p1,p0=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
 	;;
 	ld8	r21=[r21]		// read tag
 	;;
-	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+	cmp.ne	p1,p0=r21,r19		// compare tags
+(p1)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
 	mov	r22=PTE_A
@@ -450,15 +450,15 @@ interruption_Data_Access_Bit:
 	;;
 	srlz.d				// serialize
 	;;
-1:	cmp.eq	p1,p2=r0,r20		// done?
+1:	cmp.eq	p1,p0=r0,r20		// done?
 (p1)	br.cond.spnt.few 9f		// bail if done
 	;;
 	add	r21=16,r20		// tag location
 	;;
 	ld8	r21=[r21]		// read tag
 	;;
-	cmp.eq	p1,p2=r21,r19		// compare tags
-(p2)	br.cond.sptk.few 2f		// if not, read next in chain
+	cmp.ne	p1,p0=r21,r19		// compare tags
+(p1)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
 	mov	r22=PTE_A
@@ -505,12 +505,12 @@ interruption_Break:
 	mov	r16=pr			// save pr for a moment
 	mov	r17=cr.iim;;		// read break value
 	mov	r18=0x100000;;		// syscall number
-	cmp.eq	p6,p7=r18,r17;;		// check for syscall
-(p7)	br.dpnt.few 9f
+	cmp.ne	p6,p0=r18,r17;;		// check for syscall
+(p6)	br.dpnt.few 9f
 
 	mov	r17=cr.ipsr;;		// check for user mode
 	extr.u	r17=r17,32,2;;
-	cmp.eq	p6,p7=r0,r17
+	cmp.eq	p6,p0=r0,r17
 (p6)	br.dpnt.few 9f			// trap if kernel mode
 
 	// Note: p6 and p7 are temporaries so we don't need to restore
