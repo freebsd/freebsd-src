@@ -7,29 +7,24 @@ MESRCS=	acm.me chars.me deltext.me eqn.me float.me footnote.me \
 	index.me letterhead.me local.me null.me refer.me sh.me \
 	tbl.me thesis.me
 TMSRCS=	tmac.orig_me
-FILES=	${MESRCS} ${TMSRCS}
-CLEANFILES+=	${FILES:S/$/.tmp/}
+FILES=	${MESRCS:S/$/.tmp/} ${TMSRCS:S/$/.tmp/} revisions
+CLEANFILES+=	${MESRCS:S/$/.tmp/} ${TMSRCS:S/$/.tmp/}
 
 # XXX use groff version
 # MAN=	me.7
 
-all: ${FILES:S/$/.tmp/}
-
-.for file in ${FILES}
+.for file in ${MESRCS} ${TMSRCS}
 ${file}.tmp: ${file}
 	sed -f ${.CURDIR}/strip.sed < ${.ALLSRC} > ${.TARGET}
 .endfor
 
-beforeinstall:
-.for file in ${MESRCS}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${file}.tmp ${DESTDIR}${MELIB}/${file}
+.for file in ${MESRCS:S/$/.tmp/} revisions
+FILESDIR_${file}=	${MELIB}
+FILESNAME_${file}=	${file:R}
 .endfor
-.for file in ${TMSRCS}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${file}.tmp ${DESTDIR}${TMLIB}/${file}
+.for file in ${TMSRCS:S/$/.tmp/}
+FILESDIR_${file}=	${TMLIB}
+FILESNAME_${file}=	${file:R}
 .endfor
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${.CURDIR}/revisions ${DESTDIR}${MELIB}/
 
 .include <bsd.prog.mk>

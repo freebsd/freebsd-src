@@ -21,15 +21,10 @@ TYPE=	real
 # THE FOURTH LINE:
 #TYPE=	fake
 
+FILES+=	${BLDS}
 CLEANFILES+=${BLDS}
 
-all: ${BLDS}
-
-beforeinstall:
-	(cd ${.CURDIR} && ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
-	    -m ${SHAREMODE} ${FILES} ${DESTDIR}${SHAREDIR}/games/fortune)
-	${INSTALL} ${COPY} -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-	    ${BLDS} ${DESTDIR}${SHAREDIR}/games/fortune
+FILESDIR=	${SHAREDIR}/games/fortune
 
 .for f in fortunes fortunes2 fortunes2-o freebsd-tips limerick murphy murphy-o startrek zippy
 $f.dat: $f

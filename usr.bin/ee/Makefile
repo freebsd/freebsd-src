@@ -18,25 +18,21 @@ ENUS_LINKS =	ISO8859-1 ISO8859-15
 FILES=	${LANGS:S/$/.ee.cat/}
 CLEANFILES+=	${FILES}
 
-all: ${FILES}
-
 .for lang in ${LANGS}
 ${lang}.ee.cat: ${.CURDIR}/nls/${lang}/ee.msg
 	gencat -new ${.TARGET} ${.ALLSRC}
 .endfor
 
-beforeinstall:
 .for lang in ${LANGS}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
-	    ${lang}.ee.cat ${DESTDIR}${NLSDIR}/${lang}/ee.cat
+FILESDIR_${lang:S/$/.ee.cat/}=	${NLSDIR}/${lang}
+FILESNAME_${lang:S/$/.ee.cat/}=	ee.cat
 .endfor
+
 .for link in ${ENUS_LINKS}
-	ln -sf ../en_US.US-ASCII/ee.cat \
-		${DESTDIR}${NLSDIR}/en_US.${link}/ee.cat
+SYMLINKS+=	../en_US.US-ASCII/ee.cat ${NLSDIR}/en_US.${link}/ee.cat
 .endfor
 .for link in ${8859_15_LINKS}
-	ln -sf ../${link}.ISO8859-1/ee.cat \
-		${DESTDIR}${NLSDIR}/${link}.ISO8859-15/ee.cat
+SYMLINKS+=	../${link}.ISO8859-1/ee.cat ${NLSDIR}/${link}.ISO8859-15/ee.cat
 .endfor
 
 .include <bsd.prog.mk>

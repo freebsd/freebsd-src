@@ -2,17 +2,14 @@
 #
 # Doing a make install builds /usr/libdata/perl/BSDPAN
 
-DDIR=	${DESTDIR}/usr/libdata/perl/BSDPAN
+.include "Makefile.inc"
 
-NOOBJ=	noobj
+NOOBJ=		noobj
+FILES=		BSDPAN.pm Config.pm
+FILESDIR=	${BSDPANDIR}
 
-all clean cleandir depend lint tags:
+clean:
 
-FILES=	BSDPAN.pm BSDPAN/Override.pm Config.pm ExtUtils/MM_Unix.pm ExtUtils/Packlist.pm
-
-.for file in ${FILES}
-beforeinstall::
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${file} ${DDIR}/${file}
-.endfor
+SUBDIR=		BSDPAN ExtUtils
 
 .include <bsd.prog.mk>
