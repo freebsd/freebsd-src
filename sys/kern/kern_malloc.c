@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.29 1997/09/02 20:05:39 bde Exp $
+ * $Id: kern_malloc.c,v 1.30 1997/09/16 13:51:58 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#define MALLOC_INSTANTIATE
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
@@ -50,24 +51,14 @@
 #include <vm/vm_map.h>
 
 static void kmeminit __P((void *));
+static void malloc_init __P((struct kmemstats *));
 SYSINIT(kmem, SI_SUB_KMEM, SI_ORDER_FIRST, kmeminit, NULL)
 
-#if defined(KMEMSTATS) || defined(DIAGNOSTIC)
-#define	MAYBE_STATIC	static
-#else
-#define	MAYBE_STATIC
-#endif
-
-MAYBE_STATIC struct kmembuckets bucket[MINBUCKET + 16];
-#ifdef KMEMSTATS
-static struct kmemstats kmemstats[M_LAST];
-#endif
-MAYBE_STATIC struct kmemusage *kmemusage;
-MAYBE_STATIC char *kmembase;
+struct kmemstats *kmemstatistics = M_FREE;
+static struct kmembuckets bucket[MINBUCKET + 16];
+static struct kmemusage *kmemusage;
+static char *kmembase;
 static char *kmemlimit;
-#if defined(KMEMSTATS) || defined(DIAGNOSTIC)
-static char *memname[] = INITKMEMNAMES;
-#endif
 
 #ifdef DIAGNOSTIC
 /*
@@ -95,7 +86,7 @@ static long addrmask[] = { 0,
  */
 struct freelist {
 	long	spare0;
-	short	type;
+	struct kmemstats *type;
 	long	spare1;
 	caddr_t	next;
 };
@@ -111,7 +102,8 @@ struct freelist {
 void *
 malloc(size, type, flags)
 	unsigned long size;
-	int type, flags;
+	struct kmemstats *type;
+	int flags;
 {
 	register struct kmembuckets *kbp;
 	register struct kmemusage *kup;
@@ -124,16 +116,14 @@ malloc(size, type, flags)
 	int copysize;
 	char *savedtype;
 #endif
-#ifdef KMEMSTATS
-	register struct kmemstats *ksp = &kmemstats[type];
+	register struct kmemstats *ksp = type;
 
-	if (((unsigned long)type) > M_LAST)
-		panic("malloc - bogus type");
-#endif
+	if (!type->ks_next)
+		malloc_init(type);
+
 	indx = BUCKETINDX(size);
 	kbp = &bucket[indx];
 	s = splhigh();
-#ifdef KMEMSTATS
 	while (ksp->ks_memuse >= ksp->ks_limit) {
 		if (flags & M_NOWAIT) {
 			splx(s);
@@ -141,10 +131,9 @@ malloc(size, type, flags)
 		}
 		if (ksp->ks_limblocks < 65535)
 			ksp->ks_limblocks++;
-		tsleep((caddr_t)ksp, PSWP+2, memname[type], 0);
+		tsleep((caddr_t)ksp, PSWP+2, type->ks_shortdesc, 0);
 	}
 	ksp->ks_size |= 1 << indx;
-#endif
 #ifdef DIAGNOSTIC
 	copysize = 1 << indx < MAX_COPY ? 1 << indx : MAX_COPY;
 #endif
@@ -160,24 +149,18 @@ malloc(size, type, flags)
 			splx(s);
 			return ((void *) NULL);
 		}
-#ifdef KMEMSTATS
 		kbp->kb_total += kbp->kb_elmpercl;
-#endif
 		kup = btokup(va);
 		kup->ku_indx = indx;
 		if (allocsize > MAXALLOCSAVE) {
 			if (npg > 65535)
 				panic("malloc: allocation too large");
 			kup->ku_pagecnt = npg;
-#ifdef KMEMSTATS
 			ksp->ks_memuse += allocsize;
-#endif
 			goto out;
 		}
-#ifdef KMEMSTATS
 		kup->ku_freecnt = kbp->kb_elmpercl;
 		kbp->kb_totalfree += kbp->kb_elmpercl;
-#endif
 		/*
 		 * Just in case we blocked while allocating memory,
 		 * and someone else also allocated memory for this
@@ -210,13 +193,12 @@ malloc(size, type, flags)
 	kbp->kb_next = ((struct freelist *)va)->next;
 #ifdef DIAGNOSTIC
 	freep = (struct freelist *)va;
-	savedtype = (unsigned)freep->type < M_LAST ?
-		memname[freep->type] : "???";
+	savedtype = type->ks_shortdesc;
 #if BYTE_ORDER == BIG_ENDIAN
-	freep->type = WEIRD_ADDR >> 16;
+	freep->type = (struct kmemstats *)WEIRD_ADDR >> 16;
 #endif
 #if BYTE_ORDER == LITTLE_ENDIAN
-	freep->type = (short)WEIRD_ADDR;
+	freep->type = (struct kmemstats *)WEIRD_ADDR;
 #endif
 	if (((long)(&freep->next)) & 0x2)
 		freep->next = (caddr_t)((WEIRD_ADDR >> 16)|(WEIRD_ADDR << 16));
@@ -233,7 +215,6 @@ malloc(size, type, flags)
 	}
 	freep->spare0 = 0;
 #endif /* DIAGNOSTIC */
-#ifdef KMEMSTATS
 	kup = btokup(va);
 	if (kup->ku_indx != indx)
 		panic("malloc: wrong bucket");
@@ -248,9 +229,6 @@ out:
 	ksp->ks_calls++;
 	if (ksp->ks_memuse > ksp->ks_maxused)
 		ksp->ks_maxused = ksp->ks_memuse;
-#else
-out:
-#endif
 	splx(s);
 	return ((void *) va);
 }
@@ -261,7 +239,7 @@ out:
 void
 free(addr, type)
 	void *addr;
-	int type;
+	struct kmemstats *type;
 {
 	register struct kmembuckets *kbp;
 	register struct kmemusage *kup;
@@ -272,16 +250,14 @@ free(addr, type)
 	struct freelist *fp;
 	long *end, *lp, alloc, copysize;
 #endif
-#ifdef KMEMSTATS
-	register struct kmemstats *ksp = &kmemstats[type];
-#endif
+	register struct kmemstats *ksp = type;
+
+	if (!type->ks_next)
+		malloc_init(type);
 
 #ifdef DIAGNOSTIC
 	if ((char *)addr < kmembase || (char *)addr >= kmemlimit) {
 		panic("free: address 0x%x out of range", addr);
-	}
-	if ((u_long)type > M_LAST) {
-		panic("free: type %d out of range", type);
 	}
 #endif
 	kup = btokup(addr);
@@ -299,11 +275,10 @@ free(addr, type)
 		alloc = addrmask[kup->ku_indx];
 	if (((u_long)addr & alloc) != 0)
 		panic("free: unaligned addr 0x%x, size %d, type %s, mask %d",
-			addr, size, memname[type], alloc);
+			addr, size, type->ks_shortdesc, alloc);
 #endif /* DIAGNOSTIC */
 	if (size > MAXALLOCSAVE) {
 		kmem_free(kmem_map, (vm_offset_t)addr, ctob(kup->ku_pagecnt));
-#ifdef KMEMSTATS
 		size = kup->ku_pagecnt << PAGE_SHIFT;
 		ksp->ks_memuse -= size;
 		kup->ku_indx = 0;
@@ -313,7 +288,6 @@ free(addr, type)
 			wakeup((caddr_t)ksp);
 		ksp->ks_inuse--;
 		kbp->kb_total -= 1;
-#endif
 		splx(s);
 		return;
 	}
@@ -348,7 +322,6 @@ free(addr, type)
 		*lp = WEIRD_ADDR;
 	freep->type = type;
 #endif /* DIAGNOSTIC */
-#ifdef KMEMSTATS
 	kup->ku_freecnt++;
 	if (kup->ku_freecnt >= kbp->kb_elmpercl)
 		if (kup->ku_freecnt > kbp->kb_elmpercl)
@@ -361,7 +334,6 @@ free(addr, type)
 	    ksp->ks_memuse < ksp->ks_limit)
 		wakeup((caddr_t)ksp);
 	ksp->ks_inuse--;
-#endif
 #ifdef OLD_MALLOC_MEMORY_POLICY
 	if (kbp->kb_next == NULL)
 		kbp->kb_next = addr;
@@ -416,7 +388,6 @@ kmeminit(dummy)
 		(vm_offset_t *)&kmemlimit, (vm_size_t)(npg * PAGE_SIZE),
 		FALSE);
 	kmem_map->system_map = 1;
-#ifdef KMEMSTATS
 	for (indx = 0; indx < MINBUCKET + 16; indx++) {
 		if (1 << indx >= PAGE_SIZE)
 			bucket[indx].kb_elmpercl = 1;
@@ -424,14 +395,25 @@ kmeminit(dummy)
 			bucket[indx].kb_elmpercl = PAGE_SIZE / (1 << indx);
 		bucket[indx].kb_highwat = 5 * bucket[indx].kb_elmpercl;
 	}
+}
+
+static void
+malloc_init(type)
+	struct kmemstats *type;
+{
+	int npg;
+
+	printf("%p [%s]", type, type->ks_shortdesc);
 	/*
 	 * Limit maximum memory for each type to 60% of malloc area size or
 	 * 60% of physical memory, whichever is smaller.
 	 */
-	for (indx = 0; indx < M_LAST; indx++) {
-		kmemstats[indx].ks_limit = min(cnt.v_page_count * PAGE_SIZE,
-			(npg * PAGE_SIZE - nmbclusters * MCLBYTES
-			 - nmbufs * MSIZE)) * 6 / 10;
-	}
-#endif
+	npg = (nmbufs * MSIZE + nmbclusters * MCLBYTES + VM_KMEM_SIZE)
+		/ PAGE_SIZE;
+
+	type->ks_limit = min(cnt.v_page_count * PAGE_SIZE,
+		(npg * PAGE_SIZE - nmbclusters * MCLBYTES
+		 - nmbufs * MSIZE)) * 6 / 10;
+	type->ks_next = kmemstatistics;	
+	kmemstatistics = type;
 }
