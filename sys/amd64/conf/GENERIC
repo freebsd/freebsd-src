@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.50 1995/11/05 17:02:50 gibbs Exp $
+#	$Id: GENERIC,v 1.51 1995/11/09 22:46:58 gibbs Exp $
 #
 
 machine		"i386"
@@ -82,6 +82,8 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 #device		vt0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 #options		"PCVT_FREEBSD=210"	# pcvt running on FreeBSD 2.1
 #options		XSERVER			# include code for XFree86
+# If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
+#options		"PCVT_SCANSET=2"	# IBM keyboards are non-std
 
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
