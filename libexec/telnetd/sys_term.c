@@ -1799,6 +1799,13 @@ scrub_env()
 		    strncmp(*cpp, "_RLD_", 5) &&
 		    strncmp(*cpp, "LIBPATH=", 8) &&
 #endif
+		    strncmp(*cpp, "LOCALDOMAIN=", 12) &&
+		    strncmp(*cpp, "RES_OPTIONS=", 12) &&
+		    strncmp(*cpp, "TERMINFO=", 9) &&
+		    strncmp(*cpp, "TERMINFO_DIRS=", 14) &&
+		    strncmp(*cpp, "TERMPATH=", 9) &&
+		    strncmp(*cpp, "TERMCAP=/", 9) &&
+		    strncmp(*cpp, "ENV=", 4) &&
 		    strncmp(*cpp, "IFS=", 4))
 			*cpp2++ = *cpp;
 	}

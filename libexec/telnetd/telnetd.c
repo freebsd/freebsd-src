@@ -793,7 +793,7 @@ doit(who)
 			fatal(net, "Out of ptys");
 
 		if ((pty = open(lp, 2)) >= 0) {
-			strcpy(line,lp);
+			strlcpy(line,lp,sizeof(line));
 			line[5] = 't';
 			break;
 		}
@@ -1095,7 +1095,7 @@ telnet(f, p, host)
 		IM = Getstr("im", &cp);
 		IF = Getstr("if", &cp);
 		if (HN && *HN)
-			(void) strcpy(host_name, HN);
+			(void) strlcpy(host_name, HN, sizeof(host_name));
 		if (IF && (if_fd = open(IF, O_RDONLY, 000)) != -1)
 			IM = 0;
 		if (IM == 0)
