@@ -106,9 +106,9 @@ static int	pccard_get_resource(device_t dev, device_t child, int type,
 static void	pccard_delete_resource(device_t dev, device_t child, int type,
 		    int rid);
 static int	pccard_set_res_flags(device_t dev, device_t child, int type,
-		    int rid, u_int32_t flags);
+		    int rid, uint32_t flags);
 static int	pccard_set_memory_offset(device_t dev, device_t child, int rid,
-		    u_int32_t offset, u_int32_t *deltap);
+		    uint32_t offset, uint32_t *deltap);
 static void	pccard_probe_nomatch(device_t cbdev, device_t child);
 static int	pccard_read_ivar(device_t bus, device_t child, int which,
 		    u_char *result);
@@ -335,9 +335,9 @@ pccard_do_product_lookup(device_t bus, device_t dev,
 {
 	const struct pccard_product *ent;
 	int matches;
-	u_int32_t fcn;
-	u_int32_t vendor;
-	u_int32_t prod;
+	uint32_t fcn;
+	uint32_t vendor;
+	uint32_t prod;
 	const char *vendorstr;
 	const char *prodstr;
 	const char *cis3str;
@@ -959,7 +959,7 @@ pccard_delete_resource(device_t dev, device_t child, int type, int rid)
 
 static int
 pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
-    u_int32_t flags)
+    uint32_t flags)
 {
 	return (CARD_SET_RES_FLAGS(device_get_parent(dev), child, type,
 	    rid, flags));
@@ -967,7 +967,7 @@ pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
 
 static int
 pccard_set_memory_offset(device_t dev, device_t child, int rid,
-    u_int32_t offset, u_int32_t *deltap)
+    uint32_t offset, uint32_t *deltap)
 
 {
 	return (CARD_SET_MEMORY_OFFSET(device_get_parent(dev), child, rid,
@@ -1028,23 +1028,23 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 		bcopy(func->pf_funce_lan_nid, result, ETHER_ADDR_LEN);
 		break;
 	case PCCARD_IVAR_VENDOR:
-		*(u_int32_t *) result = sc->card.manufacturer;
+		*(uint32_t *) result = sc->card.manufacturer;
 		break;
 	case PCCARD_IVAR_PRODUCT:
-		*(u_int32_t *) result = sc->card.product;
+		*(uint32_t *) result = sc->card.product;
 		break;
 	case PCCARD_IVAR_PRODEXT:
-		*(u_int16_t *) result = sc->card.prodext;
+		*(uint16_t *) result = sc->card.prodext;
 		break;
 	case PCCARD_IVAR_FUNCTION:
-		*(u_int32_t *) result = func->function;
+		*(uint32_t *) result = func->function;
 		break;
 	case PCCARD_IVAR_FUNCTION_NUMBER:
 		if (!func) {
 			device_printf(bus, "No function number, bug!\n");
 			return (ENOENT);
 		}
-		*(u_int32_t *) result = func->number;
+		*(uint32_t *) result = func->number;
 		break;
 	case PCCARD_IVAR_VENDOR_STR:
 		*(char **) result = sc->card.cis1_info[0];
