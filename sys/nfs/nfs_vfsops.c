@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.69 1998/05/31 20:08:56 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.70 1998/06/01 10:01:31 peter Exp $
  */
 
 #include <sys/param.h>
@@ -859,7 +859,7 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	 * XXX Our "safe" limit on the client is what we can store in our
 	 * buffer cache using signed(!) block numbers.
 	 */
-	if ((argp->flags & NFSMNT_NFSV3) == 0) {
+	if ((argp->flags & NFSMNT_NFSV3) == 0)
 		nmp->nm_maxfilesize = 0xffffffffLL;
 	else
 		nmp->nm_maxfilesize = (u_int64_t)0x80000000 * DEV_BSIZE - 1;
