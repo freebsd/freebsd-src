@@ -89,7 +89,7 @@ as follows:
 .Bd -literal
 byte0 << ((\fIlen\fPN-1) * 8) | byte1 << ((\fIlen\fPN-2) * 8) | ... | byte\fIlen\fPN-1
 .Ed
-.sp
+.Pp
 The result is then ANDed with
 .Ar ~mask
 and ORed with
@@ -98,23 +98,23 @@ Codesets 2 and 3 are special in that the leading byte (0x8e or 0x8f) is
 first removed and the
 .Ar lenN
 argument is reduced by 1.
-.sp
+.Pp
 For example, the Japanese locale has the following
 .Ev VARIABLE
 line:
 .Bd -literal
 VARIABLE	1 0x0000 2 0x8080 2 0x0080 3 0x8000 0x8080
 .Ed
-.sp
+.Pp
 Codeset 1 consists of the values 0x0000 - 0x007f.
-.sp
+.Pp
 Codeset 2 consists of the values who have the bits 0x8080 set.
-.sp
+.Pp
 Codeset 3 consists of the values 0x0080 - 0x00ff.
-.sp
+.Pp
 Codeset 4 consists of the values 0x8000 - 0xff7f excluding the values
 which have the 0x0080 bit set.
-.sp
+.Pp
 Notice that the global
 .Ar mask
 is set to 0x8080, this implies that from those 2 bits the codeset can
