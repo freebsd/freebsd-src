@@ -37,6 +37,8 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/select.h>
+#include <vm/vm.h>
+#include <vm/pmap.h>
 
 #include <machine/clock.h>
 
@@ -52,6 +54,69 @@
 #include <pccard/driver.h>
 #include <pccard/slot.h>
 
+#ifdef LKM
+#define NPCI 0
+#else
+#include <pci.h>
+#endif
+
+#if NPCI > 0
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+
+static char *
+pcic_pci_probe(pcici_t tag, pcidi_t type)
+{
+	if (type == 0xac12104cul) 
+		return ("TI 1130 PCMCIA/CardBus Bridge");
+	return (NULL);
+}
+
+static void
+pcic_pci_attach(pcici_t tag, int unit)
+{
+	int i,j;
+	u_char *p;
+	u_long *pl;
+
+	if (!bootverbose)
+		return;
+
+	printf ("PCI Config space:\n");
+	for (j=0;j<0x98;j+=16) {
+		printf("%02x: ", j);
+		for (i=0;i<16;i+=4) {
+			printf(" %08x", pci_conf_read(tag, i+j));
+		}
+		printf("\n");
+	}
+	/* pci_conf_write(tag, 0x44, 1); */
+	p = (u_char*)pmap_mapdev(pci_conf_read(tag, 0x10), 0x1000);
+	pl = (u_long *)p;
+	printf ("Cardbus Socket registers:\n");
+	printf("00: ");
+	for (i=0;i<4;i+=1) printf(" %08x:",pl[i]);
+	printf("\n10: ");
+	for (i=4;i<8;i+=1) printf(" %08x:",pl[i]);
+	printf ("\nExCa registers:\n");
+	for (i=0;i<0x40;i+=16)
+		printf("%02x: %16D\n",i, p+0x800+i," ");
+	return;
+}
+
+static u_long pcic_pci_count;
+
+static struct pci_device pcic_pci_device = {
+	"pcic",
+	pcic_pci_probe,
+	pcic_pci_attach,
+	&pcic_pci_count,
+	NULL
+};
+
+DATA_SET(pcidevice_set, pcic_pci_device);
+
+#endif /* NPCI > 0 */
 /*
  *	Prototypes for interrupt handler.
  */
