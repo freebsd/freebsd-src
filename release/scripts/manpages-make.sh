@@ -1,4 +1,7 @@
 #!/bin/sh
+#
+# $FreeBSD$
+#
 
 # Move all the manpages out to their own dist, using the bin dist as a
 # starting point.
