@@ -944,8 +944,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       integrated from the TrustedBSD Project.  More details can be found in
       <filename>/usr/src/sys/ufs/ufs/README.acls</filename>.</para>
 
-      <para>The directory layout preference algorithm for FFS has been
-      changed to improve its speed on large filesystems. &merged;</para>
+      <para>The directory layout preference algorithm for FFS
+      (<literal>dirprefs</literal>) has been changed.  Rather than
+      scattering directory blocks across a disk, it attempts to group
+      related directory blocks together.  Operations traversing large
+      directory hierarchies, such as the &os; Ports tree, have shown
+      marked speedups.  This change is transparent and automatic for
+      new directories. &merged;</para>
 
       <para arch="i386">smbfs (CIFS) support in kernel has been added.
       The userland programs &man.smbutil.1; and &man.mount.smbfs.8;
