@@ -392,6 +392,9 @@ struct an_ltv_genconfig {
 #define AN_TXPOWER_100MW			100
 #define AN_TXPOWER_250MW			250
 
+#define AN_HOME_NETWORK				0x0001
+#define AN_HOME_INSTALL_AP			0x0002
+
 struct an_ltv_ssidlist {
 	u_int16_t		an_len;
 	u_int16_t		an_type;
@@ -523,7 +526,7 @@ struct an_ltv_status {
 	u_int16_t		an_max_noise_prev_sec;	/* 0x7A */
 	u_int16_t		an_avg_noise_prev_min;	/* 0x7C */
 	u_int16_t		an_max_noise_prev_min;	/* 0x7E */
-	u_int16_t		an_spare[2];
+	u_int16_t		an_spare[3];
 };
 
 #define AN_STATUS_OPMODE_CONFIGURED		0x0001
