@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.25 1996/03/20 10:38:53 jkh Exp $ -->
+<!-- $Id: install.sgml,v 1.26 1996/05/09 23:04:45 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -276,6 +276,8 @@ Boot:
 
 	    <item>Intel EtherExpress
 
+	    <item>Intel EtherExpress Pro 100Mbit.
+
 	    <item>Isolan AT 4141-0 (16 bit)
 	    <item>Isolink 4110     (8 bit)
 
@@ -290,6 +292,8 @@ Boot:
 	    <item>3Com 3C507 Etherlink 16/TP
 
 	    <item>3Com 3C509, 3C579, 3C589 (PCMCIA) Etherlink III
+
+	    <item>3Com 3C590, 3C595
 
 	    <item>Toshiba ethernet cards
 
@@ -320,16 +324,15 @@ Boot:
 
 	    <item>SDL Communications Riscom/8 Serial Board.
 
+	    <item>Digiboard Sync/570i high-speed sync serial card.
+
 	    <item>Adlib, SoundBlaster, SoundBlaster Pro,
 	      ProAudioSpectrum, Gravis UltraSound, Gravis UltraSound MAX
 	      and Roland MPU-401 sound cards.
 
 	  </itemize>
 
-	  FreeBSD currently does not support IBM's microchannel
-	  (MCA) bus, but support is apparently close to
-	  materializing.  Details will be posted as the situation
-	  develops.
+	  FreeBSD does not currently support IBM's microchannel (MCA) bus.
 
     <sect><heading>Preparing for the installation</heading>
 
@@ -339,9 +342,8 @@ Boot:
 
       <sect1><heading>Before installing from CDROM</heading>
 
-	<p>If your CDROM is of an unsupported type, such as an
-	  IDE CDROM, then please skip to <ref id="install:msdos" 
-          name="MS-DOS Preparation">.
+	<p>If your CDROM is of an unsupported type, then please
+	  skip to <ref id="install:msdos" name="MS-DOS Preparation">.
 
 	  There is not a lot of preparatory work that needs to be done to
 	  successfully install from one of Walnut Creek's FreeBSD CDROMs (other
