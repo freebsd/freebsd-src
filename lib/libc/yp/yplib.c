@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.6 1995/04/09 21:52:31 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.7 1995/04/21 18:04:22 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -50,6 +50,7 @@ static char *rcsid = "$Id: yplib.c,v 1.6 1995/04/09 21:52:31 wpaul Exp $";
 #define BINDINGDIR "/var/yp/binding"
 #endif
 #define YPMATCHCACHE
+#define MAX_RETRIES 20
 
 extern bool_t xdr_domainname(), xdr_ypbind_resp();
 extern bool_t xdr_ypreq_key(), xdr_ypresp_val();
@@ -200,7 +201,8 @@ struct dom_binding **ypdb;
 	struct sockaddr_in clnt_sin;
 	int clnt_sock, fd, gpid;
 	CLIENT *client;
-	int new=0, r;
+	int new = 0, r;
+	int retries = 0;
 
 	gpid = getpid();
 	if( !(pid==-1 || pid==gpid) ) {
@@ -233,35 +235,20 @@ struct dom_binding **ypdb;
 		new = 1;
 	}
 again:
+	retries++;
+	if (retries > MAX_RETRIES) {
+		if (new)
+			free(ysd);
+		return(YPERR_YPBIND);
+	}
 #ifdef BINDINGDIR
 	if(ysd->dom_vers==0) {
 		sprintf(path, "%s/%s.%d", BINDINGDIR, dom, 2);
 		if( (fd=open(path, O_RDONLY)) == -1) {
 			/* no binding file, YP is dead. */
-			/*
-			 * XXX Not necessarily: the caller might be asking
-			 * for a domain that we simply aren't bound to yet.
-			 * Check that the binding file for the default domain
-			 * is also unlocked before giving up.
-			 */
+			/* Try to bring it back to life. */
 			close(fd);
-			if (new) {
-				char *_defaultdom;
-
-				if (yp_get_default_domain(&_defaultdom))
-					return YPERR_NODOM;
-				if (!strcmp(dom, _defaultdom))
-					goto bail;
-				sprintf(path, "%s/%s.%d", BINDINGDIR, _defaultdom, 2);
-				if((fd=open(path, O_RDONLY)) > 0 && 
-					(flock(fd, LOCK_EX|LOCK_NB)) == -1 &&
-						errno==EWOULDBLOCK) {
-						close(fd);
-						goto skipit;
-				} else {
-					goto bail;
-				}
-			}
+			goto skipit;
 		}
 		if( flock(fd, LOCK_EX|LOCK_NB) == -1 && errno==EWOULDBLOCK) {
 			struct iovec iov[2];
@@ -293,32 +280,9 @@ again:
 			goto gotit;
 		} else {
 			/* no lock on binding file, YP is dead. */
-			/*
-			 * XXX Not necessarily: the caller might be asking
-			 * for a domain that we simply aren't bound to yet.
-			 * Check that the binding file for the default domain
-			 * is also unlocked before giving up.
-			 */
+			/* Try to bring it back to life. */
 			close(fd);
-			if (new) {
-				char *_defaultdom;
-
-				if (yp_get_default_domain(&_defaultdom))
-					return YPERR_NODOM;
-				sprintf(path, "%s/%s.%d", BINDINGDIR, _defaultdom, 2);
-				if (!strcmp(dom, _defaultdom))
-					goto bail;
-				if((fd=open(path, O_RDONLY)) > 0 && 
-					(flock(fd, LOCK_EX|LOCK_NB)) == -1 &&
-						errno==EWOULDBLOCK) {
-						close(fd);
-				} else {
-bail:
-					close(fd); /* for paranoia's sake */
-					free(ysd);
-					return YPERR_YPBIND;
-				}
-			}
+			goto skipit;
 		}
 	}
 skipit:
@@ -335,10 +299,10 @@ skipit:
 			clnt_pcreateerror("clnttcp_create");
 			if(new)
 				free(ysd);
-			return YPERR_YPBIND;
+			return (YPERR_YPBIND);
 		}
 
-		tv.tv_sec = _yplib_timeout;
+		tv.tv_sec = _yplib_timeout/2;
 		tv.tv_usec = 0;
 		r = clnt_call(client, YPBINDPROC_DOMAIN,
 			xdr_domainname, dom, xdr_ypbind_resp, &ypbr, tv);
@@ -350,9 +314,10 @@ skipit:
 			goto again;
 		} else {
 			if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
-				fprintf(stderr, "yp_bind: %s\n",
-					ypbinderr_string(ypbr.ypbind_status));
-				return YPERR_YPBIND;
+				clnt_destroy(client);
+				ysd->dom_vers = -1;
+				sleep(_yplib_timeout/2);
+				goto again;
 			}
 		}
 		clnt_destroy(client);
