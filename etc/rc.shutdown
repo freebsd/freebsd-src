@@ -124,6 +124,17 @@ case ${local_startup} in
 	;;
 esac
 
+# Save IP Filter state tables
+
+case ${ipfs_enable} in
+[Yy][Ee][Ss])
+	echo -n 'Saving IP Filter state tables:'
+	eval ${ipfs_program:-/sbin/ipfs -W} ${ipfs_flags}
+	;;
+esac
+
+echo .
+
 # Insert other shutdown procedures here
 
 echo '.'
