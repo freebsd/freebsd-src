@@ -1,4 +1,5 @@
-/*
+/*-
+ * Copyright (c) 2004 Poul-Henning Kamp
  * Copyright (c) 1994,1997 John S. Dyson
  * All rights reserved.
  *
@@ -6,10 +7,22 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice immediately at the beginning of the file, without modification,
- *    this list of conditions, and the following disclaimer.
- * 2. Absolutely no warranty of function or purpose is made by the author
- *		John S. Dyson.
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 /*
@@ -46,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <geom/geom.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_kern.h>
@@ -3061,26 +3075,48 @@ bufwait(struct buf *bp)
   * Call back function from struct bio back up to struct buf.
   */
 static void
-bufdonebio(struct bio *bp)
+bufdonebio(struct bio *bip)
 {
+	struct buf *bp;
 
 	/* Device drivers may or may not hold giant, hold it here. */
 	mtx_lock(&Giant);
-	bufdone(bp->bio_caller2);
+	bp = bip->bio_caller2;
+	bp->b_resid = bp->b_bcount - bip->bio_completed;
+	bp->b_resid = bip->bio_resid;	/* XXX: remove */
+	bp->b_ioflags = bip->bio_flags;
+	bp->b_error = bip->bio_error;
+	if (bp->b_error)
+		bp->b_ioflags |= BIO_ERROR;
+	bufdone(bp);
 	mtx_unlock(&Giant);
+	g_destroy_bio(bip);
 }
 
 void
-dev_strategy(struct buf *bp)
+dev_strategy(struct cdev *dev, struct buf *bp)
 {
 	struct cdevsw *csw;
-	struct cdev *dev;
+	struct bio *bip;
 
 	if ((!bp->b_iocmd) || (bp->b_iocmd & (bp->b_iocmd - 1)))
 		panic("b_iocmd botch");
-	bp->b_io.bio_done = bufdonebio;
-	bp->b_io.bio_caller2 = bp;
-	dev = bp->b_io.bio_dev;
+	for (;;) {
+		bip = g_new_bio();
+		if (bip != NULL)
+			break;
+		/* Try again later */
+		tsleep(&bp, PRIBIO, "dev_strat", hz/10);
+	}
+	bip->bio_cmd = bp->b_iocmd;
+	bip->bio_offset = bp->b_iooffset;
+	bip->bio_length = bp->b_bcount;
+	bip->bio_bcount = bp->b_bcount;	/* XXX: remove */
+	bip->bio_data = bp->b_data;
+	bip->bio_done = bufdonebio;
+	bip->bio_caller2 = bp;
+	bip->bio_dev = dev;
+
 	KASSERT(dev->si_refcount > 0,
 	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(dev)));
@@ -3093,7 +3129,7 @@ dev_strategy(struct buf *bp)
 		mtx_unlock(&Giant);	/* XXX: too defensive ? */
 		return;
 	}
-	(*csw->d_strategy)(&bp->b_io);
+	(*csw->d_strategy)(bip);
 	dev_relthread(dev);
 }
 
