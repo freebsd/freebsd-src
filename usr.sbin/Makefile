@@ -193,16 +193,18 @@ _atm=		atm
 .endif
 
 .if !defined(NO_BIND)
-.if !defined(NOCRYPT)
+.if !defined(NO_BIND_DNSSEC) && !defined(NOCRYPT)
 _dnssec-keygen=		dnssec-keygen
 _dnssec-signzone=	dnssec-signzone
 .endif
+.if !defined(NO_BIND_NAMED)
 _named=			named
 _named.reload=		named.reload
 _named-checkconf=	named-checkconf
 _named-checkzone=	named-checkzone
 _rndc=			rndc
 _rndc-confgen=		rndc-confgen
+.endif
 .endif
 
 .if !defined(NO_BLUETOOTH)

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 2004
+.Dd September 27, 2004
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -603,11 +603,39 @@ subdir.
 .Pq Vt bool
 Setting this variable will prevent any part of BIND from being built,
 regardless of the presence of any of the other *_BIND_* variables below.
+.It Va NO_BIND_DNSSEC
+.Pq Vt bool
+Set to avoid building or installing the DNSSEC related binaries,
+.Xr dnssec-keygen 8
+and
+.Xr dnssec-signzone 8 .
+.It Va NO_BIND_ETC
+.Pq Vt bool
+Set to avoid installing the default files to
+.Pa /etc/namedb .
 .It Va NO_BIND_LIBS_LWRES
 .Pq Vt bool
-Set to avoid installing the lwres library in
+Set to avoid installing the lightweight resolver library in
 .Pa /usr/lib .
 The library that is private to the build system may still be built as needed.
+.It Va NO_BIND_NAMED
+.Pq Vt bool
+Set to avoid building or installing
+.Xr named 8 ,
+.Xr named.reload 8 ,
+.Xr named-checkconf 8 ,
+.Xr named-checkzone 8 ,
+.Xr rndc 8 ,
+and
+.Xr rndc-confgen 8 .
+.It Va NO_BIND_UTILS
+.Pq Vt bool
+Set to avoid building or installing the BIND userland utilities,
+.Xr dig 1 ,
+.Xr host 1 ,
+.Xr nslookup 1 ,
+and
+.Xr nsupdate 8 .
 .It Va WITH_BIND_LIBS
 .Pq Vt bool
 Set to install BIND libraries and include files.
