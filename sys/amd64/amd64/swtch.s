@@ -33,12 +33,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.28 1996/02/02 18:30:06 davidg Exp $
+ *	$Id: swtch.s,v 1.29 1996/02/04 21:20:36 davidg Exp $
  */
 
 #include "npx.h"	/* for NNPX */
 #include "opt_user_ldt.h" /* for USER_LDT */
 #include "assym.s"	/* for preprocessor defines */
+#include "apm.h"	/* for NAPM */
 #include <sys/errno.h>	/* for error codes */
 
 #include <machine/asmacros.h>	/* for miscellaneous assembly macros */
@@ -248,26 +249,6 @@ _idle:
 
 	ALIGN_TEXT
 idle_loop:
-#if NAPM > 0 
-#if APM_SLOWSTART <=0 || !defined(APM_SLOWSTART)
-	movl	_apm_slowstart, %eax
-	orl	%eax, %eax
-	jz	1f
-	xorl	%eax, %eax
-	incl	%eax
-	movl	%eax, _apm_slowstart_stat
-	movl	_apm_ss_cnt, %eax
-	cmpl	$ APM_SLOWSTART, %eax
-	jae	2f
-	incl	%eax
-	movl	%eax, _apm_ss_cnt
-	call	_apm_cpu_idle
-	jmp	1f
-2:
-	call	_apm_cpu_busy
-1:	
-#endif
-#endif 
 	cli
 	movb	$1,_intr_nesting_level		/* charge Intr if we leave */
 	cmpl	$0,_whichrtqs			/* real-time queue */
@@ -281,28 +262,8 @@ idle_loop:
 	testl	%eax, %eax
 	jnz	idle_loop
 #if NAPM > 0
-#if APM_SLOWSTART <= 0 || !defined(APM_SLOWSTART)
-	/*
-	 * XXX it breaks the rules to call a function while interrupts are
-	 * disabled.  How long before apm enables them?
-	 */
 	call    _apm_cpu_idle
 	call    _apm_cpu_busy
-#else
-	movl    _apm_slowstart, %eax
-	orl     %eax, %eax
-	jz      1f
-	xorl    %eax, %eax
-	movl    %eax, _apm_ss_cnt
-	movl    %eax, _apm_slowstart_stat
-1:
-        call    _apm_cpu_idle
-        call    _apm_cpu_busy
-#endif
-
-
-	call	_apm_cpu_idle
-	call	_apm_cpu_busy
 #else
 	sti
 	hlt					/* wait for interrupt */
