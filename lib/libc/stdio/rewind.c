@@ -47,12 +47,11 @@ static const char rcsid[] =
 #include "libc_private.h"
 
 void
-rewind(fp)
-	register FILE *fp;
+rewind(FILE *fp)
 {
 	FLOCKFILE(fp);
 	(void) fseek(fp, 0L, SEEK_SET);
 	clearerr(fp);
 	FUNLOCKFILE(fp);
-	errno = 0;      /* not required, but seems reasonable */
+	errno = 0;	/* not required, but seems reasonable */
 }

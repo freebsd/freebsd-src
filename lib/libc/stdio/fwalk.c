@@ -42,18 +42,17 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
-#include <errno.h>
 #include <stdio.h>
 #include "local.h"
 #include "glue.h"
 
 int
 _fwalk(function)
-	register int (*function)(FILE *);
+	int (*function)(FILE *);
 {
-	register FILE *fp;
-	register int n, ret;
-	register struct glue *g;
+	FILE *fp;
+	int n, ret;
+	struct glue *g;
 
 	ret = 0;
 	for (g = &__sglue; g != NULL; g = g->next)

@@ -61,9 +61,9 @@ static const char rcsid[] =
 #include <varargs.h>
 #endif
 
+#include "libc_private.h"
 #include "local.h"
 #include "fvwrite.h"
-#include "libc_private.h"
 
 /* Define FLOATING_POINT to get floating point. */
 #define	FLOATING_POINT
@@ -80,11 +80,9 @@ static void	__grow_type_table __P((int, unsigned char **, int *));
  * then reset it so that it can be reused.
  */
 static int
-__sprint(fp, uio)
-	FILE *fp;
-	register struct __suio *uio;
+__sprint(FILE *fp, struct __suio *uio)
 {
-	register int err;
+	int err;
 
 	if (uio->uio_resid == 0) {
 		uio->uio_iovcnt = 0;
@@ -102,10 +100,7 @@ __sprint(fp, uio)
  * worries about ungetc buffers and so forth.
  */
 static int
-__sbprintf(fp, fmt, ap)
-	register FILE *fp;
-	const char *fmt;
-	va_list ap;
+__sbprintf(FILE *fp, const char *fmt, va_list ap)
 {
 	int ret;
 	FILE fake;
@@ -145,11 +140,7 @@ __sbprintf(fp, fmt, ap)
  * use the given digits.
  */
 static char *
-__ultoa(val, endp, base, octzero, xdigs)
-	register u_long val;
-	char *endp;
-	int base, octzero;
-	char *xdigs;
+__ultoa(u_long val, char *endp, int base, int octzero, char *xdigs)
 {
 	register char *cp = endp;
 	register long sval;
@@ -205,14 +196,10 @@ __ultoa(val, endp, base, octzero, xdigs)
 
 /* Identical to __ultoa, but for quads. */
 static char *
-__uqtoa(val, endp, base, octzero, xdigs)
-	register u_quad_t val;
-	char *endp;
-	int base, octzero;
-	char *xdigs;
+__uqtoa(u_quad_t val, char *endp, int base, int octzero, char *xdigs)
 {
-	register char *cp = endp;
-	register quad_t sval;
+	char *cp = endp;
+	quad_t sval;
 
 	/* quick test for small values; __ultoa is typically much faster */
 	/* (perhaps instead we should run until small, then call __ultoa?) */
@@ -288,17 +275,14 @@ static int exponent __P((char *, int, int));
 #define	ZEROPAD		0x080		/* zero (as opposed to blank) pad */
 #define FPT		0x100		/* Floating point number */
 int
-vfprintf(fp, fmt0, ap)
-	FILE *fp;
-	const char *fmt0;
-	va_list ap;
+vfprintf(FILE *fp, const char *fmt0, va_list ap)
 {
-	register char *fmt;	/* format string */
-	register int ch;	/* character from fmt */
-	register int n, n2;	/* handy integer (short term usage) */
-	register char *cp;	/* handy char pointer (short term usage) */
-	register struct __siov *iovp;/* for PRINT macro */
-	register int flags;	/* flags as above */
+	char *fmt;		/* format string */
+	int ch;			/* character from fmt */
+	int n, n2;		/* handy integer (short term usage) */
+	char *cp;		/* handy char pointer (short term usage) */
+	struct __siov *iovp;	/* for PRINT macro */
+	int flags;		/* flags as above */
 	int ret;		/* return value accumulator */
 	int width;		/* width from format (%8d), or 0 */
 	int prec;		/* precision from format (%.3d), or -1 */
@@ -914,16 +898,13 @@ error:
  * It will be replaces with a malloc-ed one if it overflows.
  */ 
 static void
-__find_arguments (fmt0, ap, argtable)
-	const char *fmt0;
-	va_list ap;
-	void ***argtable;
+__find_arguments (const char *fmt0, va_list ap, void ***argtable)
 {
-	register char *fmt;	/* format string */
-	register int ch;	/* character from fmt */
-	register int n, n2;	/* handy integer (short term usage) */
-	register char *cp;	/* handy char pointer (short term usage) */
-	register int flags;	/* flags as above */
+	char *fmt;		/* format string */
+	int ch;			/* character from fmt */
+	int n, n2;		/* handy integer (short term usage) */
+	char *cp;		/* handy char pointer (short term usage) */
+	int flags;		/* flags as above */
 	int width;		/* width from format (%8d), or 0 */
 	unsigned char *typetable; /* table of types */
 	unsigned char stattypetable [STATIC_ARG_TBL_SIZE];
@@ -1186,10 +1167,7 @@ done:
  * Increase the size of the type table.
  */
 static void
-__grow_type_table (nextarg, typetable, tablesize)
-	int nextarg;
-	unsigned char **typetable;
-	int *tablesize;
+__grow_type_table (int nextarg, unsigned char **typetable, int *tablesize)
 {
 	unsigned char *const oldtable = *typetable;
 	const int oldsize = *tablesize;
@@ -1218,11 +1196,8 @@ __grow_type_table (nextarg, typetable, tablesize)
 extern char *__dtoa __P((double, int, int, int *, int *, char **, char **));
 
 static char *
-cvt(value, ndigits, flags, sign, decpt, ch, length, dtoaresultp)
-	double value;
-	int ndigits, flags, *decpt, ch, *length;
-	char *sign;
-	char **dtoaresultp;
+cvt(double value, int ndigits, int flags, char *sign, int *decpt,
+    int ch, int *length, char **dtoaresultp)
 {
 	int mode, dsgn;
 	char *digits, *bp, *rve;
@@ -1264,11 +1239,9 @@ cvt(value, ndigits, flags, sign, decpt, ch, length, dtoaresultp)
 }
 
 static int
-exponent(p0, exp, fmtch)
-	char *p0;
-	int exp, fmtch;
+exponent(char *p0, int exp, int fmtch)
 {
-	register char *p, *t;
+	char *p, *t;
 	char expbuf[MAXEXP];
 
 	p = p0;

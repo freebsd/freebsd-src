@@ -50,8 +50,7 @@ static const char rcsid[] =
 static int lflush __P((FILE *));
 
 static int
-lflush(fp)
-	FILE *fp;
+lflush(FILE *fp)
 {
 
 	if ((fp->_flags & (__SLBF|__SWR)) == (__SLBF|__SWR))
