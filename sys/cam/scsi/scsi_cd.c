@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997 Justin T. Gibbs.
- * Copyright (c) 1997, 1998, 1999, 2000 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -3218,6 +3218,8 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 			(rpc_data->byte4 & RKD_RPC_VENDOR_RESET_MASK) >>
 			RKD_RPC_VENDOR_RESET_SHIFT;
 		authinfo->user_rsts = rpc_data->byte4 & RKD_RPC_USER_RESET_MASK;
+		authinfo->region = rpc_data->region_mask;
+		authinfo->rpc_scheme = rpc_data->rpc_scheme1;
 		break;
 	}
 	case DVD_INVALIDATE_AGID:
@@ -3297,9 +3299,6 @@ cdsendkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		scsi_ulto2b(length - sizeof(rpc_data->data_len),
 			    rpc_data->data_len);
 
-		/*
-		 * XXX KDM is this the right field from authinfo to use?
-		 */
 		rpc_data->region_code = authinfo->region;
 		break;
 	}
