@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.178 1995/05/25 01:51:44 jkh Exp $
+#	$Id: Makefile,v 1.179 1995/05/25 06:14:10 phk Exp $
 #
 # How to roll a release:
 #
@@ -22,7 +22,7 @@ EXPORT_DISTS=	games manpages proflibs dict info
 EXTRA_DISTS=	des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 
-CPIO1=	etc/services etc/protocols etc/sysconfig
+ROOT1=	etc/services etc/protocols etc/sysconfig
 
 FAQS=	README MIRROR.SITES
 
@@ -57,7 +57,7 @@ FD=			${RELEASEDIR}/ftp
 CD=			${RELEASEDIR}/cdrom
 
 .if !defined(WHICH_CRUNCH)
-WHICH_CRUNCH=	boot cpio fixit
+WHICH_CRUNCH=	boot root fixit
 .endif
 
 release:
@@ -140,7 +140,7 @@ rerelease:
 	chroot ${CHROOTDIR} /mk
 
 clean:
-	rm -rf cpio_crunch boot_crunch release.[0-9] release.1[0]
+	rm -rf root_crunch boot_crunch release.[0-9] release.1[0]
 
 # Clean out ${RELEASEDIR} and make the directory structure.
 release.1:
@@ -324,20 +324,20 @@ release.8:
 	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
 	touch release.8
 
-# Complete the cpiofd directory
+# Complete the rootfd directory
 release.9:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	rm -rf ${RD}/cpiofd
-	mkdir ${RD}/cpiofd
-	cd ${RD}/cpiofd && \
+	rm -rf ${RD}/rootfd
+	mkdir ${RD}/rootfd
+	cd ${RD}/rootfd && \
 		mkdir stand stand/info
-	ln -f ${RD}/kernels/GENERIC ${RD}/cpiofd/kernel
-	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
-		DIR=${RD}/cpiofd/stand ZIP=false
-	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
-	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/cpiofd/stand
-	cd ${RD}/cpiofd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/cpio.tmp
-	mv ${RD}/floppies/cpio.tmp ${RD}/floppies/cpio.flp
+	ln -f ${RD}/kernels/GENERIC ${RD}/rootfd/kernel
+	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=root \
+		DIR=${RD}/rootfd/stand ZIP=false
+	cd ${RD}/trees/bin ; ls ${ROOT1} | cpio -dump ${RD}/rootfd/stand
+	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/rootfd/stand
+	cd ${RD}/rootfd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/root.tmp
+	mv ${RD}/floppies/root.tmp ${RD}/floppies/root.flp
 	touch release.9
 
 # Complete the fixitfd
@@ -433,9 +433,9 @@ boot.flp:
 	rm -f release.4 release.8
 	cd ${.CURDIR} && ${MAKE} release.4 release.8 WHICH_CRUNCH=boot
 
-cpio.flp:
+root.flp:
 	rm -f release.4 release.9
-	cd ${.CURDIR} && ${MAKE} release.4 release.9 WHICH_CRUNCH=cpio
+	cd ${.CURDIR} && ${MAKE} release.4 release.9 WHICH_CRUNCH=root
 
 fixit.flp:
 	rm -f release.4 release.10
