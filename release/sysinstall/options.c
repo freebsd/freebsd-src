@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.12 1995/10/18 00:12:36 jkh Exp $
+ * $Id: options.c,v 1.13 1995/10/18 05:01:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -212,7 +212,7 @@ optionsEditor(char *str)
 	switch (key) {
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("options");
+	    systemDisplayHelp("options");
 	    break;
 
 	case KEY_UP:
@@ -240,13 +240,13 @@ optionsEditor(char *str)
 
 	case ' ':
 	    fire(Options[currOpt]);
-	    dialog_clear();
 	    clear();
+	    dialog_clear();
 	    continue;
 
 	case 'Q':
-	    dialog_clear();
 	    clear();
+	    dialog_clear();
 	    return RET_SUCCESS;
 
 	default:
