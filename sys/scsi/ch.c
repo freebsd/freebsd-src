@@ -1,16 +1,7 @@
 /* 
- */
-/*
- * HISTORY
- * 
+ * Written by Julian Elischer (julian@tfs.com)
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * 
+ *	$Id$
  */
 
 #include	<sys/types.h>
@@ -118,13 +109,13 @@ struct	scsi_switch *scsi_switch;
 	\*******************************************************/
 	if((ch_mode_sense(unit,  SCSI_NOSLEEP |  SCSI_NOMASK /*| SCSI_SILENT*/)))
 	{
-		printf("	ch%d: scsi changer, %d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s) \n",
+		printf("ch%d: scsi changer, %d slot(s) %d drive(s) %d arm(s) %d i/e-slot(s)\n",
 			unit, ch_data[unit].slots, ch_data[unit].drives, ch_data[unit].chms, ch_data[unit].imexs);
 		stat=CH_KNOWN;
 	}
 	else
 	{
-		printf("	ch%d: scsi changer :- offline\n", unit);
+		printf("ch%d: scsi changer :- offline\n", unit);
 		stat=CH_OPEN;
 	}
 	ch_initialized[unit] = stat;
@@ -151,7 +142,7 @@ chopen(dev)
 	\*******************************************************/
 	if ( unit >= NCH )
 	{
-		printf("ch %d  > %d\n",unit,NCH);
+		printf("ch%d: ch %d  > %d\n",unit,unit,NCH);
 		errcode = ENXIO;
 		return(errcode);
 	}
@@ -160,7 +151,7 @@ chopen(dev)
 	\*******************************************************/
 	if(ch_data[unit].flags & CH_OPEN)
 	{
-		printf("CH%d already open\n",unit);
+		printf("ch%d: already open\n",unit);
 		errcode = ENXIO;
 		goto bad;
 	}
@@ -181,7 +172,7 @@ chopen(dev)
 		}
 	  else
 		{
-			printf("  ch%d: scsi changer :- offline\n", unit);
+			printf("ch%d: scsi changer :- offline\n", unit);
 			return(ENXIO);
 		}
 	}
@@ -203,7 +194,7 @@ chopen(dev)
 
 	if(!(ch_test_ready(unit,0)))
 	{
-		printf("ch%d not ready\n",unit);
+		printf("ch%d: not ready\n",unit);
 		return(EIO);
 	}
 
@@ -549,7 +540,7 @@ int	unit,flags;
 	}
 	if (ch_info_valid[unit]!=CH_KNOWN)   {
 		if(!(flags & SCSI_SILENT))
-			printf("could not mode sense for unit %d\n", unit);
+			printf("ch%d: could not mode sense\n", unit);
 		return(FALSE);
 	}
 	l=scsi_sense[0]-3;
@@ -713,7 +704,7 @@ retry:		xs->error	=	XS_NOERROR;
 				break;
 			default:
 				retval = EIO;
-				printf("st%d: unknown error category from scsi driver\n"
+				printf("ch%d: unknown error category from scsi driver\n"
 					,unit);
 				break;
 			}	
@@ -734,7 +725,7 @@ retry:		xs->error	=	XS_NOERROR;
 	}
 	else
 	{
-		printf("chd: not set up\n",unit);
+		printf("ch%d: not set up\n",unit);
 		return(EINVAL);
 	}
 	return(retval);
@@ -828,59 +819,53 @@ struct	scsi_xfer	*xs;
 		case	0x1:
 			if(!silent)
 			{
-				printf("st%d: soft error(corrected) ", unit); 
+				printf("ch%d: soft error(corrected)", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(ESUCCESS);
 		case	0x2:
-			if(!silent) printf("st%d: not ready\n ", unit); 
+			if(!silent) printf("ch%d: not ready\n", unit); 
 			ch_data[unit].lsterr=(sense->ext.extended.info[12]<<8)|
-								sense->ext.extended.info[13] ;
+						sense->ext.extended.info[13] ;
 			return(ENODEV);
 		case	0x3:
 			if(!silent)
 			{
-				printf("st%d: medium error ", unit); 
+				printf("ch%d: medium error", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EIO);
 		case	0x4:
-			if(!silent) printf("st%d: non-media hardware failure\n ",
+			if(!silent) printf("ch%d: non-media hardware failure\n",
 				unit); 
 			ch_data[unit].lsterr=(sense->ext.extended.info[12]<<8)|
-								sense->ext.extended.info[13] ;
+						sense->ext.extended.info[13] ;
 			return(EIO);
 		case	0x5:
-			if(!silent) printf("st%d: illegal request\n ", unit); 
+			if(!silent) printf("ch%d: illegal request\n", unit); 
 			ch_data[unit].lsterr=(sense->ext.extended.info[12]<<8)|
-								sense->ext.extended.info[13] ;
+						sense->ext.extended.info[13] ;
 			return(EINVAL);
 		case	0x6:
-			if(!silent) printf("st%d: Unit attention.\n ", unit); 
+			if(!silent) printf("ch%d: Unit attention\n", unit); 
 			ch_data[unit].lsterr=(sense->ext.extended.info[12]<<8)|
-								sense->ext.extended.info[13] ;
+						sense->ext.extended.info[13] ;
 			ch_info_valid[unit] = FALSE;
 			if (ch_data[unit].flags & CH_OPEN) /* TEMP!!!! */
 				return(EIO);
@@ -889,98 +874,81 @@ struct	scsi_xfer	*xs;
 		case	0x7:
 			if(!silent)
 			{
-				printf("st%d: attempted protection violation "
+				printf("ch%d: attempted protection violation"
 								, unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)\n",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EACCES);
 		case	0x8:
 			if(!silent)
 			{
-				printf("st%d: block wrong state (worm)\n "
+				printf("ch%d: block wrong state (worm)"
 							, unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EIO);
 		case	0x9:
-			if(!silent) printf("st%d: vendor unique\n",
-				unit); 
+			if(!silent) printf("ch%d: vendor unique\n", unit); 
 			return(EIO);
 		case	0xa:
-			if(!silent) printf("st%d: copy aborted\n ",
-				unit); 
+			if(!silent) printf("ch%d: copy aborted\n", unit); 
 			return(EIO);
 		case	0xb:
-			if(!silent) printf("st%d: command aborted\n ",
-				unit); 
+			if(!silent) printf("ch%d: command aborted\n", unit); 
 			ch_data[unit].lsterr=(sense->ext.extended.info[12]<<8)|
-								sense->ext.extended.info[13] ;
+						sense->ext.extended.info[13] ;
 			return(EIO);
 		case	0xc:
 			if(!silent)
 			{
-				printf("st%d: search returned\n ", unit); 
+				printf("ch%d: search returned", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(ESUCCESS);
 		case	0xd:
-			if(!silent) printf("st%d: volume overflow\n ",
-				unit); 
+			if(!silent) printf("ch%d: volume overflow\n", unit); 
 			return(ENOSPC);
 		case	0xe:
 			if(!silent)
 			{
-			 	printf("st%d: verify miscompare\n ", unit); 
+			 	printf("ch%d: verify miscompare", unit); 
 				if(sense->error_code & SSD_ERRCODE_VALID)
 				{
-			   		printf("block no. %d (decimal)\n",
+			   		printf(" block no. %d (decimal)",
 			  		(sense->ext.extended.info[0] <<24)|
 			  		(sense->ext.extended.info[1] <<16)|
 			  		(sense->ext.extended.info[2] <<8)|
 			  		(sense->ext.extended.info[3] ));
 				}
-			 	else
-				{
-			 		printf("\n");
-				}
+		 		printf("\n");
 			}
 			return(EIO);
 		case	0xf:
-			if(!silent) printf("st%d: unknown error key\n ",
-				unit); 
+			if(!silent) printf("ch%d: unknown error key\n", unit); 
 			return(EIO);
 		}
 		break;
@@ -990,14 +958,20 @@ struct	scsi_xfer	*xs;
 	\***************************************************************/
 	default:
 		{
-			if(!silent) printf("st%d: error code %d\n",
-				unit,
-				sense->error_code & SSD_ERRCODE);
-		if(sense->error_code & SSD_ERRCODE_VALID)
-			if(!silent) printf("block no. %d (decimal)\n",
-			(sense->ext.unextended.blockhi <<16),
-			+ (sense->ext.unextended.blockmed <<8),
-			+ (sense->ext.unextended.blocklow ));
+			if(!silent)
+			{
+				printf("ch%d: error code %d",
+					unit,
+					sense->error_code & SSD_ERRCODE);
+				if(sense->error_code & SSD_ERRCODE_VALID)
+				{
+					printf(" block no. %d (decimal)",
+					(sense->ext.unextended.blockhi <<16),
+					+ (sense->ext.unextended.blockmed <<8),
+					+ (sense->ext.unextended.blocklow ));
+				}
+				printf("\n");
+			}
 		}
 		return(EIO);
 	}

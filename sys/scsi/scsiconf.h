@@ -12,17 +12,9 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- *
- */
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
+ *
+ *	$Id$
  */
 
 /***********************************************\
@@ -32,6 +24,7 @@
 \***********************************************/
 struct scsi_switch
 {
+	char		*name; /* name of scsi bus controller */
 	int		(*scsi_cmd)();
 	void		(*scsi_minphys)();
 	int		(*open_target_lu)();

@@ -1,38 +1,6 @@
 /*
- * HISTORY
- * $Log:	scsi_all.h,v $
- * Revision 1.4  93/08/05  21:37:37  julian
- * fix the definitionof the last byte of each scsi command.
- * 
- * Revision 1.3  93/08/01  02:39:21  julian
- * compiles.. no mode bitfields
- * 
- * Revision 1.2  93/07/31  22:52:26  julian
- * removed all bitfields
- * 
- * Revision 1.1  93/04/12  21:51:01  root
- * checkin for 'jules'
- * 
- * Revision 1.2  1992/11/20  23:07:13  julian
- * add a definition for device type T_NODEVICE
- *
- * Revision 1.1  1992/09/26  22:14:02  julian
- * Initial revision
- *
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00098
- * --------------------         -----   ----------------------
- *
- * 16 Feb 93	Julian Elischer		ADDED for SCSI system
- * 
- */
-
-/*
  * SCSI general  interface description
  */
-
 
 /*
  * Largely written by Julian Elischer (julian@tfs.com)
@@ -48,10 +16,9 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- */
-
-/*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
+ *
+ *	$Id$
  */
 
 /*
