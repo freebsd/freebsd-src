@@ -417,9 +417,17 @@ typedef struct	_ipfw_table {
  */
 #ifdef _KERNEL
 
-#define	IP_FW_PORT_DYNT_FLAG		0x00010000
-#define	IP_FW_PORT_TEE_FLAG		0x00020000
-#define	IP_FW_PORT_DENY_FLAG		0x00040000
+/* Return values from ipfw_chk() */
+enum {
+	IP_FW_PASS = 0,
+	IP_FW_DENY,
+	IP_FW_DIVERT,
+	IP_FW_TEE,
+	IP_FW_DUMMYNET,
+	IP_FW_NETGRAPH,
+};
+
+/* flags for divert mtag */
 #define	IP_FW_DIVERT_LOOPBACK_FLAG	0x00080000
 #define	IP_FW_DIVERT_OUTPUT_FLAG	0x00100000
 
@@ -438,7 +446,7 @@ struct ip_fw_args {
 	int flags;			/* for dummynet			*/
 
 	struct ipfw_flow_id f_id;	/* grabbed from IP header	*/
-	u_int32_t	retval;
+	u_int32_t	cookie;		/* a cookie depending on rule action */
 	struct inpcb	*inp;
 };
 
