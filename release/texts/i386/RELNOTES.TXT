@@ -505,6 +505,15 @@ including the following:
 
 Megahertz X-Jack Ethernet PC-Card CC-10BT
 
+Xircom CreditCard adapters(16bit) and workalikes
+    Accton EN2226/Fast EtherCard (16-bit verison)
+    Compaq Netelligent 10/100 PC Card
+    Intel EtherExpress PRO/100 Mobile Adapter (16-bit verison)
+    Xircom Realport card + modem(Ethernet part)
+    Xircom CreditCard Ethernet 10/100
+    Xircom CreditCard 10Base-T "CreditCard Ethernet Adaptor IIps" (PS-CE2-10)
+    Xircom CreditCard Ethernet 10/100 + modem (Ethernet part)
+
 National Semiconductor DP8393X (SONIC) Ethernet cards
     NEC PC-9801-83, -84, -103, and -104
     NEC PC-9801N-25 and -J02R
