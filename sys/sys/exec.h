@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 1/21/94
- * $Id: exec.h,v 1.6 1994/08/21 04:41:43 paul Exp $
+ * $Id: exec.h,v 1.7 1994/09/24 21:37:01 davidg Exp $
  */
 
 #ifndef _SYS_EXEC_H_
@@ -80,8 +80,6 @@ struct execsw {
 #ifdef KERNEL
 extern const struct execsw **execsw;
 
-extern int exec_extract_strings(/* struct image_params * */);
-extern int exec_new_vmspace(/* struct image_params * */);
 #endif
 
 #include <machine/exec.h>

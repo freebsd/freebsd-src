@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.11 1994/09/21 03:47:33 wollman Exp $
+ * $Id: sysctl.h,v 1.12 1994/09/23 19:07:42 wollman Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -315,7 +315,7 @@ struct kinfo_proc {
 #define	CTL_DEBUG_MAXID		20
 
 #ifdef	KERNEL
-#ifdef	DEBUG
+#if	defined(DEBUG) || defined(DIAGNOSTIC)
 /*
  * CTL_DEBUG variables.
  *

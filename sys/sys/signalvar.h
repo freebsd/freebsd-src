@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id: signalvar.h,v 1.2 1994/08/02 07:53:33 davidg Exp $
+ * $Id: signalvar.h,v 1.3 1994/09/25 19:34:01 phk Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -156,6 +156,7 @@ void	gsignal __P((int pgid, int sig));
 int	issig __P((struct proc *p));
 void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
 void	postsig __P((int sig));
+int	issignal __P((struct proc *p));
 void	psignal __P((struct proc *p, int sig));
 void	siginit __P((struct proc *p));
 void	trapsignal __P((struct proc *p, int sig, unsigned code));

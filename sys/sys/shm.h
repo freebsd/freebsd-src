@@ -1,4 +1,4 @@
-/* $Id: shm.h,v 1.1 1994/09/13 14:47:36 dfr Exp $ */
+/* $Id: shm.h,v 1.2 1994/09/17 13:24:29 davidg Exp $ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*
@@ -73,6 +73,9 @@ struct shminfo {
 extern struct shminfo	shminfo;
 struct shmid_ds	*shmsegs;
 
+void	shminit __P((void));
+void	shmexit __P((struct proc *));
+void	shmfork __P((struct proc *, struct proc *, int));
 #else /* !KERNEL */
 
 #include <sys/cdefs.h>
