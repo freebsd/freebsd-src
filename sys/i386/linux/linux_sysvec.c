@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.9 1996/10/16 17:51:07 sos Exp $
+ *  $Id: linux_sysvec.c,v 1.9.2.1 1998/05/13 07:04:46 tg Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -65,15 +65,19 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 
-int	linux_fixup __P((int **stack_base, struct image_params *iparams));
-int	elf_linux_fixup __P((int **stack_base, struct image_params *iparams));
-void	linux_prepsyscall __P((struct trapframe *tf, int *args, u_int *code, caddr_t *params));
-void    linux_sendsig __P((sig_t catcher, int sig, int mask, u_long code));
+static int	linux_fixup __P((int **stack_base,
+				struct image_params *iparams));
+static int	elf_linux_fixup __P((int **stack_base,
+				    struct image_params *iparams));
+static void	linux_prepsyscall __P((struct trapframe *tf, int *args,
+				       u_int *code, caddr_t *params));
+static void    linux_sendsig __P((sig_t catcher, int sig, int mask,
+				 u_long code));
 
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
-int bsd_to_linux_errno[ELAST] = {
+static int bsd_to_linux_errno[ELAST] = {
   	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
  	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
  	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
@@ -82,7 +86,7 @@ int bsd_to_linux_errno[ELAST] = {
 	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, 
+  	-6 
 };
 
 int bsd_to_linux_signal[NSIG] = {
@@ -123,7 +127,8 @@ translate_traps(int signal, int trap_code)
 	}
 }
 
-int linux_fixup(int **stack_base, struct image_params *imgp)
+static int
+linux_fixup(int **stack_base, struct image_params *imgp)
 {
 	int *argv, *envp;
 
@@ -138,7 +143,8 @@ int linux_fixup(int **stack_base, struct image_params *imgp)
 	return 0;
 }
 
-int elf_linux_fixup(int **stack_base, struct image_params *imgp)
+static int
+elf_linux_fixup(int **stack_base, struct image_params *imgp)
 {
 	Elf32_Auxargs *args = (Elf32_Auxargs *)imgp->auxargs;
 	int *pos;
@@ -185,7 +191,7 @@ extern int _ucodesel, _udatasel;
  * specified pc, psl.
  */
 
-void
+static void
 linux_sendsig(sig_t catcher, int sig, int mask, u_long code)
 {
 	register struct proc *p = curproc;
@@ -439,5 +445,17 @@ Elf32_Brandinfo linux_brand = {
  * XXX: this is WRONG, it needs to be SI_SUB_EXEC, but this is just at the
  * "proof of concept" stage and will be fixed shortly
  */
-SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, elf_insert_brand_entry, &linux_brand);
+static void linux_elf_init __P((void *dummy));
+
+static void
+linux_elf_init(dummy)
+	void *dummy;
+{
+	if (elf_insert_brand_entry(&linux_brand) < 0)
+		printf("cannot insert Linux elf brand handler\n");
+	else if (bootverbose)
+		printf("Linux-ELF exec handler installed\n");
+}
+
+SYSINIT(linuxelf, SI_SUB_VFS, SI_ORDER_ANY, linux_elf_init, NULL);
 #endif

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_socket.c,v 1.4.4.1 1996/12/03 15:47:29 phk Exp $
+ *  $Id: linux_socket.c,v 1.4.4.2 1997/12/15 02:10:38 msmith Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -35,6 +35,7 @@
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
+#include <sys/fcntl.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 
@@ -176,7 +177,7 @@ linux_sendto_hdrincl(struct proc *p, struct sendto_args *bsd_args, int *retval)
 {
 /*
  * linux_ip_copysize defines how many bytes we should copy
- * from the beginning of the IP packet before we change it for BSD.
+ * from the beginning of the IP packet before we customize it for BSD.
  * It should include all the fields we modify (ip_len and ip_off)
  * and be as small as possible to minimize copying overhead.
  */
@@ -198,6 +199,12 @@ linux_sendto_hdrincl(struct proc *p, struct sendto_args *bsd_args, int *retval)
     if (bsd_args->len < linux_ip_copysize)
 	return EINVAL;
 
+    /*
+     * Tweaking the user buffer in place would be bad manners.
+     * We create a corrected IP header with just the needed length,
+     * then use an iovec to glue it to the rest of the user packet
+     * when calling sendmsg().
+     */
     sg = stackgap_init();
     packet = (struct ip *)stackgap_alloc(&sg, linux_ip_copysize);
     msg = (struct msghdr *)stackgap_alloc(&sg, sizeof(*msg));
@@ -207,7 +214,7 @@ linux_sendto_hdrincl(struct proc *p, struct sendto_args *bsd_args, int *retval)
     if ((error = copyin(bsd_args->buf, (caddr_t)packet, linux_ip_copysize)))
         return error;
 
-    /* Convert it from Linux to BSD raw IP socket format */
+    /* Convert fields from Linux to BSD raw IP socket format */
     packet->ip_len = bsd_args->len;
     packet->ip_off = ntohs(packet->ip_off);
 
@@ -258,7 +265,7 @@ linux_socket(struct proc *p, struct linux_socket_args *args, int *retval)
 
     retval_socket = socket(p, &bsd_args, retval);
 
-    if (retval_socket != -1
+    if (retval_socket >= 0
 	&& bsd_args.type == SOCK_RAW
 	&& bsd_args.domain == AF_INET
 	&& (bsd_args.protocol == IPPROTO_RAW || bsd_args.protocol == 0)) {
@@ -272,20 +279,20 @@ linux_socket(struct proc *p, struct linux_socket_args *args, int *retval)
 	} */ bsd_setsockopt_args;
 
 	int retval_setsockopt, r;
-	caddr_t sg, hdrincl;
-	int hdrinclval = 1;
+	caddr_t sg;
+//, hdrincl;
+//	int hdrinclval = 1;
+	int *hdrincl;
 
 	sg = stackgap_init();
-	hdrincl = stackgap_alloc(&sg, sizeof hdrinclval);
-
-	if ((error=copyout(&hdrinclval, hdrincl, sizeof hdrinclval)))
-	   return error;
+	hdrincl = (int *)stackgap_alloc(&sg, sizeof(*hdrincl));
+	*hdrincl = 1;
 
 	bsd_setsockopt_args.s = *retval;
 	bsd_setsockopt_args.level = IPPROTO_IP;
 	bsd_setsockopt_args.name = IP_HDRINCL;
-	bsd_setsockopt_args.val = hdrincl;
-	bsd_setsockopt_args.valsize = sizeof hdrinclval;
+	bsd_setsockopt_args.val = (caddr_t)hdrincl;
+	bsd_setsockopt_args.valsize = sizeof(*hdrincl);
 	r = setsockopt(p, &bsd_setsockopt_args, &retval_setsockopt);
     }
     return retval_socket;
@@ -338,7 +345,58 @@ linux_connect(struct proc *p, struct linux_connect_args *args, int *retval)
     bsd_args.s = linux_args.s;
     bsd_args.name = (caddr_t)linux_args.name;
     bsd_args.namelen = linux_args.namelen;
-    return connect(p, &bsd_args, retval);
+    error = connect(p, &bsd_args, retval);
+    if (error == EISCONN) {
+	/*
+	 * Linux doesn't return EISCONN the first time it occurs,
+	 * when on a non-blocking socket. Instead it returns the
+	 * error getsockopt(SOL_SOCKET, SO_ERROR) would return on BSD.
+	 */
+	struct fcntl_args /* {
+	    int fd;
+	    int cmd;
+	    int arg;
+	} */ bsd_fcntl_args;
+	struct getsockopt_args /* {
+	    int s;
+	    int level;
+	    int name;
+	    caddr_t val;
+	    int *avalsize;
+	} */ bsd_getsockopt_args;
+	void *status, *statusl;
+	int stat, statl = sizeof stat;
+	caddr_t sg;
+
+	/* Check for non-blocking */
+	bsd_fcntl_args.fd = linux_args.s;
+	bsd_fcntl_args.cmd = F_GETFL;
+	bsd_fcntl_args.arg = 0;
+	error = fcntl(p, &bsd_fcntl_args, retval);
+	if (error == 0 && (*retval & O_NONBLOCK)) {
+	    sg = stackgap_init();
+	    status = stackgap_alloc(&sg, sizeof stat);
+	    statusl = stackgap_alloc(&sg, sizeof statusl);
+
+	    if ((error = copyout(&statl, statusl, sizeof statl)))
+		return error;
+
+	    bsd_getsockopt_args.s = linux_args.s;
+	    bsd_getsockopt_args.level = SOL_SOCKET;
+	    bsd_getsockopt_args.name = SO_ERROR;
+	    bsd_getsockopt_args.val = status;
+	    bsd_getsockopt_args.avalsize = statusl;
+
+	    error = getsockopt(p, &bsd_getsockopt_args, retval);
+	    if (error)
+		return error;
+	    if ((error = copyin(status, &stat, sizeof stat)))
+		return error;
+	    *retval = stat;
+	    return 0;
+	}
+    }
+    return error;
 }
 
 struct linux_listen_args {
@@ -651,6 +709,10 @@ linux_setsockopt(struct proc *p, struct linux_setsockopt_args *args, int *retval
     case IPPROTO_IP:
 	name = linux_to_bsd_ip_sockopt(linux_args.optname);
 	break;
+    case IPPROTO_TCP:
+	/* Linux TCP option values match BSD's */
+	name = linux_args.optname;
+	break;
     default:
 	return EINVAL;
     }
@@ -693,6 +755,10 @@ linux_getsockopt(struct proc *p, struct linux_getsockopt_args *args, int *retval
 	break;
     case IPPROTO_IP:
 	name = linux_to_bsd_ip_sockopt(linux_args.optname);
+	break;
+    case IPPROTO_TCP:
+	/* Linux TCP option values match BSD's */
+	name = linux_args.optname;
 	break;
     default:
 	return EINVAL;

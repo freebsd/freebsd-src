@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.1 1996/03/02 19:04:15 peter Exp $
+	$Id: syscalls.master,v 1.2 1996/03/04 20:58:47 peter Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -49,7 +49,7 @@
 13	STD	LINUX	{ int linux_time(linux_time_t *tm); }
 14	STD	LINUX	{ int linux_mknod(char *path, int mode, int dev); }
 15	STD	LINUX	{ int linux_chmod(char *path, int mode); }
-16	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
+16	STD	LINUX	{ int linux_lchown(char *path, int uid, int gid); }
 17	STD	LINUX	{ int linux_break(char *nsize); }
 18	STD	LINUX	{ int linux_stat(char *path, struct ostat *up); }
 19	STD	LINUX	{ int linux_lseek(int fdes, long off, int whence); }
@@ -67,7 +67,7 @@
 31	STD	LINUX	{ int linux_stty(void); }
 32	STD	LINUX	{ int linux_gtty(void); }
 33	STD	LINUX	{ int linux_access(char *path, int flags); }
-34	STD	LINUX	{ int linux_nice(void); }
+34	STD	LINUX	{ int linux_nice(int inc); }
 35	STD	LINUX	{ int linux_ftime(void); }
 36	NOPROTO	LINUX	{ int sync(void); }
 37	STD	LINUX	{ int linux_kill(int pid, int signum); }
@@ -209,3 +209,50 @@
 				u_int iovcnt); }
 146	NOPROTO	LINUX	{ int writev(int fd, struct iovec *iovp, \
 				u_int iovcnt); }
+
+; Turn on getsid after checking that it matches.
+
+147	UNIMPL	LINUX	getsid
+148	UNIMPL	LINUX	fdatasync
+149	UNIMPL	LINUX	_sysctl
+
+150	NOPROTO	BSD	{ int mlock(const void *addr, size_t len); }
+151	NOPROTO	BSD	{ int munlock(const void *addr, size_t len); }
+152	NOPROTO	BSD	{ int mlockall(int how); }
+153	NOPROTO	BSD	{ int munlockall(void); }
+
+154	NOPROTO	POSIX	{ int sched_setparam (pid_t pid, const struct sched_param *param); }
+155	NOPROTO	POSIX	{ int sched_getparam (pid_t pid, struct sched_param *param); }
+
+156	NOPROTO	POSIX	{ int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
+157	NOPROTO	POSIX	{ int sched_getscheduler (pid_t pid); }
+
+158	NOPROTO	POSIX	{ int sched_yield (void); }
+159	NOPROTO	POSIX	{ int sched_get_priority_max (int policy); }
+160	NOPROTO	POSIX	{ int sched_get_priority_min (int policy); }
+161	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
+
+162	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
+			    struct timespec *rmtp); }
+
+163	STD	LINUX	{ int linux_mremap(caddr_t addr, int old_len, \
+			    int new_len, int flags); }
+164	UNIMPL	LINUX	setresuid
+165	UNIMPL	LINUX	getresuid
+166	UNIMPL	LINUX	new_vm86
+167	UNIMPL	LINUX	query_module
+168	UNIMPL	LINUX	poll
+169	UNIMPL	LINUX	nfsservctl
+170	UNIMPL	LINUX	setresgid
+171	UNIMPL	LINUX	getresgid
+172	UNIMPL	LINUX	prctl
+173	UNIMPL	LINUX	rt_sigreturn
+174	UNIMPL	LINUX	rt_sigaction
+175	UNIMPL	LINUX	rt_sigprocmask
+176	UNIMPL	LINUX	rt_sigpending
+177	UNIMPL	LINUX	rt_sigtimedwait
+178	UNIMPL	LINUX	rt_sigqueueinfo
+179	UNIMPL	LINUX	rt_sigsuspend
+180	UNIMPL	LINUX	pread
+181	UNIMPL	LINUX	pwrite
+182	STD	LINUX	{ int linux_chown(char *path, int uid, int gid); }
