@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.10 1994/10/09 01:52:13 phk Exp $
+ *	$Id: vm_page.c,v 1.11 1994/10/18 14:59:19 davidg Exp $
  */
 
 /*
@@ -725,7 +725,8 @@ void vm_page_free(mem)
 	} else {
 		splx(s);
 	}
-	wakeup((caddr_t) mem);
+	if( mem->flags & PG_WANTED)
+		wakeup((caddr_t) mem);
 	cnt.v_tfree++;
 }
 
