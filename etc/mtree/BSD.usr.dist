@@ -483,6 +483,8 @@
             ..
             de_DE.ISO_8859-1
             ..
+	    el_GR.ISO_8859-7
+            ..
             en_AU.DIS_8859-15
             ..
             en_AU.ISO_8859-1
@@ -734,6 +736,8 @@
             de_DE.DIS_8859-15
             ..
             de_DE.ISO_8859-1
+            ..
+	    el_GR.ISO_8859-7
             ..
             en_AU.DIS_8859-15
             ..
