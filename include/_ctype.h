@@ -72,9 +72,9 @@
 
 /* See comments in <sys/_types.h> about __ct_rune_t. */
 __BEGIN_DECLS
-unsigned long	___runetype(__ct_rune_t);
-__ct_rune_t	___tolower(__ct_rune_t);
-__ct_rune_t	___toupper(__ct_rune_t);
+unsigned long	___runetype(__ct_rune_t) __pure;
+__ct_rune_t	___tolower(__ct_rune_t) __pure;
+__ct_rune_t	___toupper(__ct_rune_t) __pure;
 __END_DECLS
 
 /*
