@@ -1,6 +1,7 @@
 Installation Notes for X-10 software
 Eugene W. Stark (stark@cs.sunysb.edu)
 October 30, 1993
+(latest update May 29, 1997)
 
 The TW523 is a carrier-current modem for home control/automation purposes.
 It is made by:
@@ -35,7 +36,7 @@ programs and of a C function library suitable for controlling the TW523
 by an IBM PC under MS-DOS (not useful to me other than to verify that
 the unit worked).   I suggest saving money and buying the bare TW523
 rather than the TW523 development kit (what I bought), because if you
-are running 386BSD you don't really care about the DOS binaries.
+are running FreeBSD you don't really care about the DOS binaries.
 For details on the X-10 protocol itself, refer to the documentation from
 X-10 Inc.
 
@@ -48,7 +49,17 @@ the DB-25 connector to find out what they had done:
 	Transmit TX	  4 (Y)		2, 4, 6, 8	Data out
 	Receive RX	  3 (G)		10, 14		-ACK, -AutoFeed
 	Common		  2 (R)		25		Common
-	Zero crossing	  1 (B)		17		-Select Input
+	Zero crossing	  1 (B)		17 or 12	-Select or +PaperEnd
+
+NOTE: In the original cable I have (which I am still using, May, 1997)
+the Zero crossing signal goes to pin 17 (-Select) on the parallel port.
+In retrospect, this doesn't make a whole lot of sense, given that the
+-Select signal propagates the other direction.  Indeed, some people have
+reported problems with this, and have had success using pin 12 (+PaperEnd)
+instead.  This driver searches for the zero crossing signal on either
+pin 17 or pin 12, so it should work with either cable configuration.
+My suggestion would be to start by making the cable so that the zero
+crossing signal goes to pin 12 on the parallel port.
 
 I use the TW-523 and this software in the USA with 120V/60Hz power.
 Phil Sampson (vk2jnt@gw.vk2jnt.ampr.org OR sampson@gidday.enet.dec.com)
@@ -88,12 +99,10 @@ Cd to /sys/compile/YOURSYSTEM and do "make depend", then "make".
 (If you have any troubles, I suggest starting fresh by doing a full
 "make clean; make depend; make".)  Assuming the make works correctly, do
 
-	mv /386bsd /386bsd.old
-	mv 386bsd /386bsd
+	make install
 
-(If you are not a trusting person, or you don't have any spare fixit
-floppies with working kernels lying around, don't do this without testing
-the kernel first by copying it to a fixit floppy and booting from that.)
+(Take the usual precautions by saving a known working kernel until you
+verify that the new kernel actually boots.)
 
 Reboot the system.  You should see a line indicating that the TW523 has
 been configured as the system comes up.  If you see this line, then probably
@@ -115,34 +124,12 @@ In directory /dev, execute the command
 
 2.  Installing the X-10 Daemon
 
-Go to the xten source directory (probably /usr/src/contrib/xten).
-Check over the file "paths.h", if desired, to make sure that the entries
-are reasonable for your system.  On my system, I have a special UID "xten"
-for the daemon.  If you want to do this, too, you will have to add this UID
-to your /etc/master.passwd in the usual way.  Otherwise, use "root" or
-"daemon" or something.  You should change the ownership of /dev/tw0 to
-match this UID, so that the daemon will be able to access the TW-523.
-Edit the file Makefile.inc in the source directory to specify this UID:
+The X-10 daemon "xtend" is integrated in to the FreeBSD "/etc/sysconfig"
+system configuration file.  To enable the daemon, simply edit that file,
+find the "xtend" line, change it to read as below.
 
-	xtenuser= xten
-
-Then run "make".  If everything is OK, run
-
-	make install
-
-This should install the daemon "xtend" and the command "xten".
-
-Make sure the directory /var/spool/xten exists and is owned by the UID
-you selected above.  This directory is used by the daemon for its log and
-device status files.  When it is run, the daemon will also create a socket
-/var/run/tw523 and it will put its pid in /var/run/xtend.pid so that it can
-be signalled from shell scripts.
-
-Add the following lines to your /etc/rc.local file:
-
-	if [ -x /usr/libexec/xtend ]; then
-		echo -n ' xtend';   /usr/libexec/xtend
-	fi
+	# Set to YES if you want to run the X-10 power controller daemon
+	xtend=YES
 
 This will cause the X-10 daemon to be invoked automatically when you boot
 the system.  To test the installation, you can either reboot now, or
@@ -220,3 +207,161 @@ is data ready for reading.
 						Happy Controlling!
 						Gene Stark
 						stark@cs.sunysb.edu
+
+
+Appendix.  Miscellaneous Additional Information
+
+The following excerpts from my E-mail correspondence may be relevant
+to some situations:
+
+
+From: Steve Passe
+Subject: Re: tw woes 
+Date: Sat, 09 Dec 1995 20:57:15 -0700
+
+Hi,
+
+I have just verified that /dev/tw works on 2.1.0-RELEASE.  I can
+send and receive x10 commands via my x10 daemon and X11 based tools.
+
+I used a "cross-over" cable between tw523 and db-25 connector:
+
+  |||||-----------|||||
+   \                 /
+
+NOTE: I am NOT using the RadioShack brand of hood:
+
+looking at INSIDE of hood:
+
+----------
+|        |
+|        |
+|  B G B |  < Black, Green, Blue
+| W R Y  |  < White, Red, Yellow
+| |||||| |
+| |||||| |
+| |||||| |
+|        |
+|        |
+|        |
+----------
+
+OUTSIDE:
+
+ Hood                   TW523
+----------             ------------------
+|        |             |                |
+|        |             |                |
+| ------ |             |    +------+    |
+| |||||| |             |    | |||| |    |
+| |||||| |             |    | |||| |    |
+| --  -- |             |    +--  --+    |
+|  |  |  |             |      |  |      |
+|   --   |             |       --       |
+|        |             |                |
+|        |             |    1 2 3 4     |
+----------             ------------------
+ Y G R B                    B R G Y
+ | | | |                    | | | |
+ | | | |--------------------| | | |
+ | | |------------------------| | |
+ | |----------------------------| |
+ |--------------------------------|
+
+Be sure that the tw523 is NOWHERE NEAR a surge protector.  I have seen
+x-10 devices fail to work when plugged in NEXT to a surge protector!
+
+
+I placed the tw option before the lpt entries in my config file: 
+
+device          tw0     at isa? port 0x378 tty irq 7 vector twintr
+device          lpt0    at isa? port? tty irq 7 vector lptintr
+
+from dmesg I get:
+
+Dec  9 19:11:59 ilsa /kernel: tw0 at 0x378-0x37f irq 7 on isa
+Dec  9 19:11:59 ilsa /kernel: lpt0 not probed due to I/O address conflict with 
+tw0 at 0x378
+
+Once I have opened /dev/tw with my daemon I get messages 
+ (pressing UNIT J, key 16):
+
+Dec  9 20:18:26 ilsa /kernel: TWRCV: valid packet: (22, 1f8) J 16
+Dec  9 20:18:26 ilsa /kernel: TWRCV: valid packet: (22, 1f8) J 16
+
+These messages from the driver should be dis-abled once you get it working,
+you'll fill up the var partition with a lot of useless garbage otherwise!
+
+
+
+From: Steve Passe
+Subject: Re: tw woes 
+Date: Sat, 16 Dec 1995 11:56:59 -0700
+
+Hi,
+
+I now more or less understand the set of problems concerning cabling
+for using /dev/tw and a tw523.  Summary:
+
+
+ 1: modular cables come in 2 flavors:
+
+|||||----------|||||		<- "phone" cable
+ \                /
+
+                  \
+|||||----------|||||		<- "data" cable
+ \
+
+ we need to be able to clearly differentiate the two.  I suggest we
+ standardize on using "phone" cables only.
+
+
+ 2: modular db25 connectors ARE NOT CONSISTANT in their color code
+    scheme, EVEN within the same BRAND!
+
+ we can't describe the connection in terms of cable/connector wire color.
+ we must clearly explain the consequences of mis-connection: 
+ POSSIBLE damage to (but NOT limited to) the parallel port and/or tw523.
+
+
+ 3: not all parallel ports have pullups on their status inputs.  I found
+    2 different port boards in my junk box without pullups on paper-out.
+    As is, these boards failed to work, ie the probe routine failed.
+    By adding 10K pullup resistors (to +5v) to both ACK and paper-out
+    (pins 10 & 12) I was able to make these boards work: probe succeeds,
+    transmit and receive work reliably.
+
+ we must describe a test to determine if a parallel port will work as is.
+ perhaps something like:
+
+--------------------------------------------------------------------------
+Not a parallel ports will work with the connector described in this paper.
+To test your port for usability you should take the following measurements
+with a voltmeter.  The computer must be powered-up, and preferably in
+a safe state for tinkering, such as halted in a startup menu. Nothing
+should be attached to the parallel ports, except perhaps an extension
+cable for testing convenience.
+
+ 1: measure the voltage between pins 10 & 25 (GND) of the parallel port.
+
+ 2: measure the voltage between pins 12 & 25 (GND) of the parallel port.
+
+If both of these measurements have a value of >= 4.0 volts your port
+should work as is.  If either is below 4.0 volts (typically less than
+1.0 volt) your port will NOT WORK RELIABLY as is.  It can be made to 
+work by adding 10k ohm pull-up resistors to either line that is below
+the minimum 4.0 volts.  This is an ADVANCED TECHNIQUE that should NOT
+be attempted by anyone without some hardware construction experience.
+
+Assuming that you do feel competant to make these modifications it is
+easiest to tack 10k resistors on the bottom side of the port board
+from each of pins 10 & 12 of the parallel port connector to a source
+of +5 volts.  This will probably be the power pin of one of the ICs.
+CAUTION: there may also be +-12 volts on a port board supplying some
+of the ICs.  If your port is on your motherboard it would probably be
+best to obtain an external port card, and disable/re-address the 1st
+parallel port.
+--------------------------------------------------------------------------
+
+
