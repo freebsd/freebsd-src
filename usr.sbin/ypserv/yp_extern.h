@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_extern.h,v 1.3 1996/12/22 15:53:55 wpaul Exp $
+ *	$Id: yp_extern.h,v 1.4 1996/12/24 07:52:52 wpaul Exp $
  */
 #include <stdio.h>
 #include <string.h>
@@ -106,8 +106,7 @@ extern unsigned long	svcudp_get_xid __P(( SVCXPRT * ));
 #endif
 
 extern int	yp_init_resolver __P(( void ));
-extern int	yp_dnsq_pending __P(( void ));
 extern void	yp_run_dnsq __P(( void ));
 extern void	yp_prune_dnsq __P(( void ));
-extern ypstat	yp_async_lookup_name __P(( SVCXPRT *, char * ));
-extern ypstat	yp_async_lookup_addr __P(( SVCXPRT *, char * ));
+extern ypstat	yp_async_lookup_name __P(( struct svc_req *, char * ));
+extern ypstat	yp_async_lookup_addr __P(( struct svc_req *, char * ));
