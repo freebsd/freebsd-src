@@ -61,20 +61,17 @@
 
 /* Per hook info */
 struct hookinfo {
-	hook_p  hook;
-	int     bytes;
-	int     packets;
-	int     flags;
+	hook_p			hook;
+	struct ng_tee_hookstat	stats;
 };
 
 /* Per node info */
 struct privdata {
-	node_p  node;
-	int     flags;
-	struct hookinfo left;
-	struct hookinfo right;
-	struct hookinfo left2right;
-	struct hookinfo right2left;
+	node_p			node;
+	struct hookinfo		left;
+	struct hookinfo		right;
+	struct hookinfo		left2right;
+	struct hookinfo		right2left;
 };
 typedef struct privdata *sc_p;
 
@@ -136,23 +133,19 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
 
 	if (strcmp(name, NG_TEE_HOOK_RIGHT) == 0) {
 		sc->right.hook = hook;
-		sc->right.bytes = 0;
-		sc->right.packets = 0;
+		bzero(&sc->right.stats, sizeof(sc->right.stats));
 		hook->private = &sc->right;
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT) == 0) {
 		sc->left.hook = hook;
-		sc->left.bytes = 0;
-		sc->left.packets = 0;
+		bzero(&sc->left.stats, sizeof(sc->left.stats));
 		hook->private = &sc->left;
 	} else if (strcmp(name, NG_TEE_HOOK_RIGHT2LEFT) == 0) {
 		sc->right2left.hook = hook;
-		sc->right2left.bytes = 0;
-		sc->right2left.packets = 0;
+		bzero(&sc->right2left.stats, sizeof(sc->right2left.stats));
 		hook->private = &sc->right2left;
 	} else if (strcmp(name, NG_TEE_HOOK_LEFT2RIGHT) == 0) {
 		sc->left2right.hook = hook;
-		sc->left2right.bytes = 0;
-		sc->left2right.packets = 0;
+		bzero(&sc->left2right.stats, sizeof(sc->left2right.stats));
 		hook->private = &sc->left2right;
 	} else
 		return (EINVAL);
@@ -160,14 +153,65 @@ ngt_newhook(node_p node, hook_p hook, const char *name)
 }
 
 /*
- * We don't support any type-specific messages
+ * Receive a control message
  */
 static int
 ngt_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **resp)
+	   struct ng_mesg **rptr)
 {
+	const sc_p sc = node->private;
+	struct ng_mesg *resp = NULL;
+	int error = 0;
+
+	switch (msg->header.typecookie) {
+	case NGM_TEE_COOKIE:
+		switch (msg->header.cmd) {
+		case NGM_TEE_GET_STATS:
+		    {
+			struct ng_tee_stats *stats;
+
+			NG_MKRESPONSE(resp, msg,
+			    sizeof(struct ng_tee_stats), M_NOWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				goto done;
+			}
+			stats = (struct ng_tee_stats *) resp->data;
+			bcopy(&sc->right.stats,
+			    &stats->right, sizeof(stats->right));
+			bcopy(&sc->left.stats,
+			    &stats->left, sizeof(stats->left));
+			bcopy(&sc->right2left.stats,
+			    &stats->right2left, sizeof(stats->right2left));
+			bcopy(&sc->left2right.stats,
+			    &stats->left2right, sizeof(stats->left2right));
+			break;
+		    }
+		case NGM_TEE_CLR_STATS:
+			bzero(&sc->right.stats, sizeof(sc->right.stats));
+			bzero(&sc->left.stats, sizeof(sc->left.stats));
+			bzero(&sc->right2left.stats,
+			    sizeof(sc->right2left.stats));
+			bzero(&sc->left2right.stats,
+			    sizeof(sc->left2right.stats));
+			break;
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+	if (rptr)
+		*rptr = resp;
+	else if (resp)
+		FREE(resp, M_NETGRAPH);
+
+done:
 	FREE(msg, M_NETGRAPH);
-	return (EINVAL);
+	return (error);
 }
 
 /*
@@ -184,43 +228,65 @@ static int
 ngt_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 {
 	const sc_p sc = hook->node->private;
-	struct hookinfo *hi;
+	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;
 	struct hookinfo *dest;
 	struct hookinfo *dup;
-	struct mbuf *mdup;
 	int error = 0;
 
-	if ((hi = hook->private) != NULL) {
-		if (hi == &sc->left) {
-			dup = &sc->left2right;
-			dest = &sc->right;
-		} else if (hi == &sc->right) {
-			dup = &sc->right2left;
-			dest = &sc->left;
-		} else if (hi == &sc->right2left) {
-			dup = NULL;
-			dest = &sc->left;
-		} else if (hi == &sc->left2right) {
-			dup = NULL;
-			dest = &sc->right;
-		} else
-			goto out;
-		if (dup) {
-			mdup = m_copypacket(m, M_NOWAIT);
-			if (mdup) {
-				/* XXX should we duplicate meta? */
-				/* for now no.			 */
-				void   *x = NULL;
+	/* Which hook? */
+	if (hinfo == &sc->left) {
+		dup = &sc->left2right;
+		dest = &sc->right;
+	} else if (hinfo == &sc->right) {
+		dup = &sc->right2left;
+		dest = &sc->left;
+	} else if (hinfo == &sc->right2left) {
+		dup = NULL;
+		dest = &sc->left;
+	} else if (hinfo == &sc->left2right) {
+		dup = NULL;
+		dest = &sc->right;
+	} else
+		panic("%s: no hook!", __FUNCTION__);
 
-				NG_SEND_DATA(error, dup->hook, mdup, x);
-			}
+	/* Update stats on incoming hook */
+	hinfo->stats.inOctets += m->m_pkthdr.len;
+	hinfo->stats.inFrames++;
+
+	/* Duplicate packet and meta info if requried */
+	if (dup != NULL) {
+		struct mbuf *m2;
+		meta_p meta2;
+
+		/* Copy packet */
+		m2 = m_copypacket(m, M_NOWAIT);
+		if (m2 == NULL) {
+			NG_FREE_DATA(m, meta);
+			return (ENOBUFS);
 		}
-		NG_SEND_DATA(error, dest->hook, m, meta);
+
+		/* Copy meta info */
+		MALLOC(meta2, meta_p,
+		    meta->used_len, M_NETGRAPH, M_NOWAIT);
+		if (meta2 == NULL) {
+			m_freem(m2);
+			NG_FREE_DATA(m, meta);
+			return (ENOMEM);
+		}
+		meta2->allocated_len = meta->used_len;
+		bcopy(meta, meta2, meta->used_len);
+
+		/* Deliver duplicate */
+		dup->stats.outOctets += m->m_pkthdr.len;
+		dup->stats.outFrames++;
+		NG_SEND_DATA(error, dup->hook, m2, meta2);
 	}
 
-out:
-	NG_FREE_DATA(m, meta);
-	return (error);
+	/* Deliver frame out destination hook */
+	dest->stats.outOctets += m->m_pkthdr.len;
+	dest->stats.outFrames++;
+	NG_SEND_DATA(error, dest->hook, m, meta);
+	return (0);
 }
 
 /*
@@ -256,10 +322,10 @@ ngt_rmnode(node_p node)
 static int
 ngt_disconnect(hook_p hook)
 {
-	struct hookinfo *hi;
+	struct hookinfo *const hinfo = (struct hookinfo *) hook->private;
 
-	if ((hi = hook->private) != NULL)
-		hi->hook = NULL;
+	KASSERT(hinfo != NULL, ("%s: null info", __FUNCTION__));
+	hinfo->hook = NULL;
 	if (hook->node->numhooks == 0)
 		ng_rmnode(hook->node);
 	return (0);
