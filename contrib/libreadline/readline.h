@@ -624,9 +624,11 @@ extern int rl_inhibit_completion;
 #define SINGLE_MATCH    1
 #define MULT_MATCH      2
 
+#if !defined(RL_NO_COMPAT)
 #if !defined (savestring)
 #define savestring rl_savestring
 extern char *savestring __P((char *));	/* XXX backwards compatibility */
+#endif
 #endif
 
 #ifdef __cplusplus
