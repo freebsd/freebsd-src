@@ -512,7 +512,7 @@ npxinit(control)
 	u_short control;
 {
 	static union savefpu dummy;
-	critical_t savecrit;
+	register_t savecrit;
 
 	if (!npx_exists)
 		return;
@@ -521,7 +521,7 @@ npxinit(control)
 	 * fnsave to throw away any junk in the fpu.  npxsave() initializes
 	 * the fpu and sets fpcurthread = NULL as important side effects.
 	 */
-	savecrit = cpu_critical_enter();
+	savecrit = intr_disable();
 	npxsave(&dummy);
 	stop_emulating();
 #ifdef CPU_ENABLE_SSE
@@ -533,7 +533,7 @@ npxinit(control)
 	if (PCPU_GET(curpcb) != NULL)
 		fpusave(&PCPU_GET(curpcb)->pcb_save);
 	start_emulating();
-	cpu_critical_exit(savecrit);
+	intr_restore(savecrit);
 }
 
 /*
@@ -543,12 +543,12 @@ void
 npxexit(td)
 	struct thread *td;
 {
-	critical_t savecrit;
+	register_t savecrit;
 
-	savecrit = cpu_critical_enter();
+	savecrit = intr_disable();
 	if (td == PCPU_GET(fpcurthread))
 		npxsave(&PCPU_GET(curpcb)->pcb_save);
-	cpu_critical_exit(savecrit);
+	intr_restore(savecrit);
 #ifdef NPX_DEBUG
 	if (npx_exists) {
 		u_int	masked_exceptions;
@@ -759,7 +759,7 @@ static char fpetable[128] = {
 int
 npxtrap()
 {
-	critical_t savecrit;
+	register_t savecrit;
 	u_short control, status;
 	u_long *exstat;
 
@@ -768,7 +768,7 @@ npxtrap()
 		       PCPU_GET(fpcurthread), curthread, npx_exists);
 		panic("npxtrap from nowhere");
 	}
-	savecrit = cpu_critical_enter();
+	savecrit = intr_disable();
 
 	/*
 	 * Interrupt handling (for another interrupt) may have pushed the
@@ -789,7 +789,7 @@ npxtrap()
 		GET_FPU_SW(curthread) &= ~0x80bf;
 	else
 		fnclex();
-	cpu_critical_exit(savecrit);
+	intr_restore(savecrit);
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
 
@@ -804,7 +804,7 @@ int
 npxdna()
 {
 	u_long *exstat;
-	critical_t s;
+	register_t s;
 
 	if (!npx_exists)
 		return (0);
@@ -813,7 +813,7 @@ npxdna()
 		       PCPU_GET(fpcurthread), curthread);
 		panic("npxdna");
 	}
-	s = cpu_critical_enter();
+	s = intr_disable();
 	stop_emulating();
 	/*
 	 * Record new context early in case frstor causes an IRQ13.
@@ -835,7 +835,7 @@ npxdna()
 	 * first FPU instruction after a context switch.
 	 */
 	fpurstor(&PCPU_GET(curpcb)->pcb_save);
-	cpu_critical_exit(s);
+	intr_restore(s);
 
 	return (1);
 }

@@ -127,7 +127,7 @@ cpu_fork(td1, p2, td2, flags)
 	struct pcb *pcb2;
 	struct mdproc *mdp2;
 #ifdef DEV_NPX
-	int savecrit;
+	register_t savecrit;
 #endif
 
 	p1 = td1->td_proc;
@@ -152,10 +152,10 @@ cpu_fork(td1, p2, td2, flags)
 #ifdef DEV_NPX
 	if (td1 == curthread)
 		td1->td_pcb->pcb_gs = rgs();
-	savecrit = cpu_critical_enter();
+	savecrit = intr_disable();
 	if (PCPU_GET(fpcurthread) == td1)
 		npxsave(&td1->td_pcb->pcb_save);
-	cpu_critical_exit(savecrit);
+	intr_restore(savecrit);
 #endif
 
 	/* Point the pcb to the top of the stack */
