@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.37 1998/08/19 01:32:28 bde Exp $";
+	"$Id: pstat.c,v 1.38 1999/01/21 08:08:55 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -84,22 +84,14 @@ static const char rcsid[] =
 #include <unistd.h>
 
 struct nlist nl[] = {
-#define VM_SWAPLIST	0
-	{ "_swaplist" },/* list of free swap areas */
-#define NLMANDATORYBEG	1
-#define VM_SWDEVT	1
-	{ "_swdevt" },	/* list of swap devices and sizes */
-#define VM_NSWDEV	2
-	{ "_nswdev" },	/* number of swap devices */
-#define VM_DMMAX	3
-	{ "_dmmax" },	/* maximum size of a swap block */
-#define	V_MOUNTLIST	4
+#define NLMANDATORYBEG	0
+#define	V_MOUNTLIST	0
 	{ "_mountlist" },	/* address of head of mount list. */
-#define V_NUMV		5
+#define V_NUMV		1
 	{ "_numvnodes" },
-#define	FNL_NFILE	6
+#define	FNL_NFILE	2
 	{"_nfiles"},
-#define FNL_MAXFILE	7
+#define FNL_MAXFILE	3
 	{"_maxfiles"},
 #define NLMANDATORYEND FNL_MAXFILE	/* names up to here are mandatory */
 #define	SCONS		NLMANDATORYEND + 1
@@ -108,55 +100,53 @@ struct nlist nl[] = {
 	{ "_pt_tty" },
 #define	SNPTY		NLMANDATORYEND + 3
 	{ "_npty" },
-#define	VM_SWAPBLIST	NLMANDATORYEND + 4
-	{ "_swapblist" },
 
 #ifdef hp300
-#define	SDCA	(VM_SWAPBLIST+1)
+#define	SDCA	(SNPTY+1)
 	{ "_dca_tty" },
-#define	SNDCA	(VM_SWAPBLIST+2)
+#define	SNDCA	(SNPTY+2)
 	{ "_ndca" },
-#define	SDCM	(VM_SWAPBLIST+3)
+#define	SDCM	(SNPTY+3)
 	{ "_dcm_tty" },
-#define	SNDCM	(VM_SWAPBLIST+4)
+#define	SNDCM	(SNPTY+4)
 	{ "_ndcm" },
-#define	SDCL	(VM_SWAPBLIST+5)
+#define	SDCL	(SNPTY+5)
 	{ "_dcl_tty" },
-#define	SNDCL	(VM_SWAPBLIST+6)
+#define	SNDCL	(SNPTY+6)
 	{ "_ndcl" },
-#define	SITE	(VM_SWAPBLIST+7)
+#define	SITE	(SNPTY+7)
 	{ "_ite_tty" },
-#define	SNITE	(VM_SWAPBLIST+8)
+#define	SNITE	(SNPTY+8)
 	{ "_nite" },
 #endif
 
 #ifdef mips
-#define SDC	(VM_SWAPBLIST+1)
+#define SDC	(SNPTY+1)
 	{ "_dc_tty" },
-#define SNDC	(VM_SWAPBLIST+2)
+#define SNDC	(SNPTY+2)
 	{ "_dc_cnt" },
 #endif
 
 #ifdef __FreeBSD__
-#define SCCONS	(VM_SWAPBLIST+1)
+#define SCCONS	(SNPTY+1)
 	{ "_sccons" },
-#define NSCCONS	(VM_SWAPBLIST+2)
+#define NSCCONS	(SNPTY+2)
 	{ "_nsccons" },
-#define SIO  (VM_SWAPBLIST+3)
+#define SIO  (SNPTY+3)
 	{ "_sio_tty" },
-#define NSIO (VM_SWAPBLIST+4)
+#define NSIO (SNPTY+4)
 	{ "_nsio_tty" },
-#define RC  (VM_SWAPBLIST+5)
+#define RC  (SNPTY+5)
 	{ "_rc_tty" },
-#define NRC (VM_SWAPBLIST+6)
+#define NRC (SNPTY+6)
 	{ "_nrc_tty" },
-#define CY  (VM_SWAPBLIST+7)
+#define CY  (SNPTY+7)
 	{ "_cy_tty" },
-#define NCY (VM_SWAPBLIST+8)
+#define NCY (SNPTY+8)
 	{ "_ncy_tty" },
-#define SI  (VM_SWAPBLIST+9)
+#define SI  (SNPTY+9)
 	{ "_si_tty" },
-#define NSI (VM_SWAPBLIST+10)
+#define NSI (SNPTY+10)
 	{ "_si_Nports" },
 #endif
 	{ "" }
@@ -1035,329 +1025,72 @@ getfiles(abuf, alen)
 }
 
 /*
- * scanradix() - used by swapmode() to scan the swap device's new style 
- * 		 radix tree 
- */
-
-#define TABME	tab, tab, ""
-
-int
-scanradix(
-	blmeta_t *scan, 
-	daddr_t blk,
-	daddr_t radix,
-	daddr_t skip, 
-	daddr_t count,
-	int dmmax, 
-	int nswdev,
-	long *perdev,
-	int tab
-) {
-	blmeta_t meta;
-
-	KGET2(scan, &meta, sizeof(meta), "blmeta_t");
-
-	/*
-	 * Terminator
-	 */
-	if (meta.bm_bighint == (daddr_t)-1) {
-		if (swapflag > 1) {
-			printf("%*.*s(0x%06x,%d) Terminator\n", 
-			    TABME,
-			    blk, 
-			    radix
-			);
-		}
-		return(-1);
-	}
-
-	if (radix == BLIST_BMAP_RADIX) {
-		/*
-		 * Leaf bitmap
-		 */
-		int i;
-
-		if (swapflag > 1) {
-			printf("%*.*s(0x%06x,%d) Bitmap %08x big=%d\n", 
-			    TABME,
-			    blk, 
-			    radix,
-			    (int)meta.u.bmu_bitmap,
-			    meta.bm_bighint
-			);
-		}
-
-		/*
-		 * If not all allocated, count.
-		 */
-		if (meta.u.bmu_bitmap != 0) {
-			for (i = 0; i < BLIST_BMAP_RADIX && i < count; ++i) {
-				/*
-				 * A 0 bit means allocated
-				 */
-				if ((meta.u.bmu_bitmap & (1 << i))) {
-					int t = 0;
-
-					if (nswdev)
-						t = (blk + i) / dmmax % nswdev;
-					++perdev[t];
-				}
-			}
-		}
-	} else if (meta.u.bmu_avail == radix) {
-		/*
-		 * Meta node if all free
-		 */
-		if (swapflag > 1) {
-			printf("%*.*s(0x%06x,%d) Submap ALL-FREE {\n", 
-			    TABME,
-			    blk, 
-			    radix,
-			    (int)meta.u.bmu_avail,
-			    meta.bm_bighint
-			);
-		}
-		/*
-		 * Note: both dmmax and radix are powers of 2.  However, dmmax
-		 * may be larger then radix so use a smaller increment if
-		 * necessary.
-		 */
-		{
-			int t;
-			int tinc = dmmax;
-
-			while (tinc > radix)
-				tinc >>= 1;
-
-			for (t = blk; t < blk + radix; t += tinc) {
-				if (nswdev)
-					perdev[0] += tinc;
-				else
-					perdev[t / dmmax % nswdev] += tinc;
-			}
-		}
-	} else if (meta.u.bmu_avail == 0) {
-		/*
-		 * Meta node if all used
-		 */
-		if (swapflag > 1) {
-			printf("%*.*s(0x%06x,%d) Submap ALL-ALLOCATED\n", 
-			    TABME,
-			    blk, 
-			    radix,
-			    (int)meta.u.bmu_avail,
-			    meta.bm_bighint
-			);
-		}
-	} else {
-		/*
-		 * Meta node if not all free
-		 */
-		int i;
-		int next_skip;
-
-		radix >>= BLIST_META_RADIX_SHIFT;
-		next_skip = skip >> BLIST_META_RADIX_SHIFT;
-
-		if (swapflag > 1) {
-			printf("%*.*s(0x%06x,%d) Submap avail=%d big=%d {\n", 
-			    TABME,
-			    blk, 
-			    radix,
-			    (int)meta.u.bmu_avail,
-			    meta.bm_bighint
-			);
-		}
-
-		for (i = 1; i <= skip; i += next_skip) {
-			int r;
-			daddr_t vcount = (count > radix) ? radix : count;
-
-			r = scanradix(
-			    &scan[i],
-			    blk,
-			    radix,
-			    next_skip - 1,
-			    vcount,
-			    dmmax,
-			    nswdev,
-			    perdev,
-			    tab + 4
-			);
-			if (r < 0)
-				break;
-			blk += radix;
-		}
-		if (swapflag > 1) {
-			printf("%*.*s}\n", TABME);
-		}
-	}
-	return(0);
-}
-
-
-/*
  * swapmode is based on a program called swapinfo written
  * by Kevin Lahey <kml@rokkaku.atl.ga.us>.
  */
 void
 swapmode(void)
 {
-	char *header, *p;
-	int hlen, nswdev, dmmax;
-	int i, div, mul, avail, nfree, npfree, used;
-	struct swdevt *sw;
-	long blocksize, *perdev;
-	struct rlist head;
-	struct rlisthdr swaplist;
-	struct blist	*swapblist = NULL;
-	u_long ptr;
+	struct kvm_swap kswap[16];
+	int i;
+	int n;
+	int pagesize = getpagesize();
+	const char *header;
+	int hlen;
+	long blocksize;
 
-	KGET(VM_NSWDEV, nswdev);
-	KGET(VM_DMMAX, dmmax);	/* PAGE_BSIZE'd or PAGE_SIZE'd depending */
-	if (!KGET1N(VM_SWAPLIST, &swaplist, sizeof swaplist, "swaplist")) {
-	    KGET1(VM_SWAPBLIST, &swapblist, sizeof swapblist, "swapblist");
-	}
+	n = kvm_getswapinfo(
+	    kd, 
+	    kswap,
+	    sizeof(kswap)/sizeof(kswap[0]),
+	    (swapflag > 1) ? SWIF_DUMP_TREE : 0
+	);
 
-	if ((sw = malloc(nswdev * sizeof(*sw))) == NULL ||
-	    (perdev = malloc(nswdev * sizeof(*perdev))) == NULL)
-		errx(1, "malloc");
-	KGET1(VM_SWDEVT, &ptr, sizeof ptr, "swdevt");
-	KGET2(ptr, sw, nswdev * sizeof(*sw), "*swdevt");
-
-	/* Count up swap space. */
-	nfree = 0;
-	memset(perdev, 0, nswdev * sizeof(*perdev));
-
-	if (swapblist) {
-		/*
-		 * New swap radix tree (ugh!)
-		 */
-		struct blist blcopy = { 0 };
-		KGET2(swapblist, &blcopy, sizeof(blcopy), "*swapblist");
-		if (swapflag > 1) {
-			printf("radix tree: %d/%d/%d blocks, %dK wired\n",
-				blcopy.bl_free,
-				blcopy.bl_blocks,
-				blcopy.bl_radix,
-				(blcopy.bl_rootblks * sizeof(blmeta_t) + 1023)/
-				    1024
-			);
-		}
-		scanradix(blcopy.bl_root, 0, blcopy.bl_radix, blcopy.bl_skip, blcopy.bl_rootblks, dmmax, nswdev, perdev, 0);
-	} else {
-		/*
-		 * Old swap
-		 */
-		struct rlist *swapptr;
-
-		swapptr = swaplist.rlh_list;
-		while (swapptr) {
-			int	top, bottom, next_block;
-
-			KGET2(swapptr, &head, sizeof(struct rlist), "swapptr");
-
-			top = head.rl_end;
-			bottom = head.rl_start;
-
-			nfree += top - bottom + 1;
-
-			/*
-			 * Swap space is split up among the configured disks.
-			 *
-			 * For interleaved swap devices, the first dmmax blocks
-			 * of swap space some from the first disk, the next 
-			 * dmmax blocks from the next, and so.
-			 *
-			 * The list of free space joins adjacent free blocks,
-			 * ignoring device boundries.  If we want to keep track
-			 * of this information per device, we'll just have to
-			 * extract it ourselves.
-			 */
-			while (top / dmmax != bottom / dmmax) {
-				next_block = ((bottom + dmmax) / dmmax);
-				perdev[(bottom / dmmax) % nswdev] +=
-					next_block * dmmax - bottom;
-				bottom = next_block * dmmax;
-			}
-			perdev[(bottom / dmmax) % nswdev] +=
-				top - bottom + 1;
-
-			swapptr = head.rl_next;
-		}
-	}
+#define CONVERT(v)	((int)((quad_t)(v) * pagesize / blocksize))
 
 	header = getbsize(&hlen, &blocksize);
-	if (!totalflag)
+	if (totalflag == 0) {
 		(void)printf("%-11s %*s %8s %8s %8s  %s\n",
 		    "Device", hlen, header,
 		    "Used", "Avail", "Capacity", "Type");
 
-	mul = 1;
-	if (swapblist) {
-		if ((div = blocksize / PAGE_SIZE) == 0) {
-			mul = PAGE_SIZE / blocksize;
-			div = 1;
-		}
-	} else {
-		if ((div = blocksize / DEV_BSIZE) == 0) {
-			mul = DEV_BSIZE / blocksize;
-			div = 1;
+		for (i = 0; i < n; ++i) {
+			(void)printf(
+			    "/dev/%-6s %*d ",
+			    kswap[i].ksw_devname,
+			    hlen,
+			    CONVERT(kswap[i].ksw_total)
+			);
+			(void)printf(
+			    "%8d %8d %5.0f%%    %s\n",
+			    CONVERT(kswap[i].ksw_used),
+			    CONVERT(kswap[i].ksw_total - kswap[i].ksw_used),
+			    (double)kswap[i].ksw_used * 100.0 /
+				(double)kswap[i].ksw_total,
+			    (kswap[i].ksw_flags & SW_SEQUENTIAL) ?
+				"Sequential" : "Interleaved"
+			);
 		}
 	}
 
-	avail = npfree = 0;
-	for (i = 0; i < nswdev; i++) {
-		int xsize, xfree;
-
-		/*
-		 * Don't report statistics for partitions which have not
-		 * yet been activated via swapon(8).
-		 */
-		if (!(sw[i].sw_flags & SW_FREED))
-			continue;
-
-		if (!totalflag)
-			if (sw[i].sw_dev != NODEV) {
-				p = devname(sw[i].sw_dev, S_IFBLK);
-				(void)printf("/dev/%-6s %*d ",
-					     p == NULL ? "??" : p,
-					     hlen, sw[i].sw_nblks * mul / div);
-			} else
-				(void)printf("[NFS swap]  %*d ",
-					     hlen, sw[i].sw_nblks * mul / div);
-
-		/* The first dmmax is never allocated to avoid trashing of
-		 * disklabels
-		 */
-		xsize = sw[i].sw_nblks - dmmax;
-		xfree = perdev[i];
-		used = xsize - xfree;
-		npfree++;
-		avail += xsize;
-		if (totalflag)
-			continue;
-		(void)printf("%8d %8d %5.0f%%    %s\n",
-		    used * mul / div, xfree * mul / div,
-		    (double)used / (double)xsize * 100.0,
-		    (sw[i].sw_flags & SW_SEQUENTIAL) ?
-			     "Sequential" : "Interleaved");
-	}
-
-	/*
-	 * If only one partition has been set up via swapon(8), we don't
-	 * need to bother with totals.
-	 */
-	used = avail - nfree;
-	free(sw);
-	free(perdev);
 	if (totalflag) {
-		(void)printf("%dM/%dM swap space\n", used / 2048, avail / 2048);
-		return;
-	}
-	if (npfree > 1) {
-		(void)printf("%-11s %*d %8d %8d %5.0f%%\n",
-		    "Total", hlen, avail * mul / div, used * mul / div, nfree * mul / div,
-		    (double)used / (double)avail * 100.0);
+		blocksize = 1024 * 1024;
+
+		(void)printf(
+		    "%dM/%dM swap space\n", 
+		    CONVERT(kswap[n].ksw_used),
+		    CONVERT(kswap[n].ksw_total)
+		);
+	} else if (n > 1) {
+		(void)printf(
+		    "%-11s %*d %8d %8d %5.0f%%\n",
+		    "Total",
+		    hlen, 
+		    CONVERT(kswap[n].ksw_total),
+		    CONVERT(kswap[n].ksw_used),
+		    CONVERT(kswap[n].ksw_total - kswap[n].ksw_used),
+		    (double)kswap[n].ksw_used * 100.0 /
+			(double)kswap[n].ksw_total
+		);
 	}
 }
