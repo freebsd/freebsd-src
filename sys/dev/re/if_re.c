@@ -740,11 +740,13 @@ re_diag(sc)
 	eh->ether_type = htons(ETHERTYPE_IP);
 	m0->m_pkthdr.len = m0->m_len = ETHER_MIN_LEN - ETHER_CRC_LEN;
 
-	/* Queue the packet, start transmission */
+	/*
+	 * Queue the packet, start transmission.
+	 * Note: IF_HANDOFF() ultimately calls re_start() for us.
+	 */
 
-	IF_HANDOFF(&ifp->if_snd, m0, ifp);
 	CSR_WRITE_2(sc, RL_ISR, 0xFFFF);
-	re_start(ifp);
+	IF_HANDOFF(&ifp->if_snd, m0, ifp);
 	m0 = NULL;
 
 	/* Wait for it to propagate through the chip */
@@ -1892,7 +1894,7 @@ re_encap(sc, m_head, idx)
 	int			error;
 	struct m_tag		*mtag;
 
-	if (sc->rl_ldata.rl_tx_free < 4)
+	if (sc->rl_ldata.rl_tx_free <= 4)
 		return(EFBIG);
 
 	/*
@@ -1914,6 +1916,8 @@ re_encap(sc, m_head, idx)
 	arg.sc = sc;
 	arg.rl_idx = *idx;
 	arg.rl_maxsegs = sc->rl_ldata.rl_tx_free;
+	if (arg.rl_maxsegs > 4)
+		arg.rl_maxsegs -= 4;
 	arg.rl_ring = sc->rl_ldata.rl_tx_list;
 
 	map = sc->rl_ldata.rl_tx_dmamap[*idx];
