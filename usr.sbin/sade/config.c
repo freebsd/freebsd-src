@@ -955,6 +955,39 @@ configPCNFSD(dialogMenuItem *self)
 }
 
 int
+configInetd(dialogMenuItem *self)
+{
+    char cmd[256];
+
+    WINDOW *w = savescr();
+
+    if (msgYesNo("The Internet Super Server (inetd) allows a number of simple Internet\n"
+                 "services to be enabled, including finger, ftp, and telnetd.  Enabling\n"
+                 "these services may increase risk of security problems by increasing\n"
+                 "the exposure of your system.\n\n"
+                 "With this in mind, do you wish to enable inetd?\n")) {
+        variable_set2("inetd_enable", "NO", 1);
+    } else {
+        /* If inetd is enabled, we'll need an inetd.conf */
+
+	if (!msgYesNo("inetd(8) relies on its configuration file, /etc/inetd.conf, to determine\n"
+                   "which of its Internet services will be available.  The default FreeBSD\n"
+                   "inetd.conf(5) leaves all services disabled by default, so they must be\n"
+                   "specifically enabled in the configuration file before they will\n"
+                   "function, even once inetd(8) is enabled.  Note that services for\n"
+		   "IPv6 must be seperately enabled from IPv4 services.\n\n"
+                   "Select [Yes] now to invoke an editor on /etc/inetd.conf, or [No] to\n"
+                   "use the current settings.\n")) {
+            sprintf(cmd, "%s /etc/inetd.conf", variable_get(VAR_EDITOR));
+            dialog_clear();
+            systemExecute(cmd);
+            variable_set2("inetd_enable", "YES", 1);
+	}
+    }
+    restorescr(w);
+}
+
+int
 configNFSServer(dialogMenuItem *self)
 {
     char cmd[256];
