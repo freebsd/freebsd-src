@@ -705,15 +705,15 @@ Under
 the following sections are defined:
 .Pp
 .Bl -column LOCAL -offset indent -compact
-.It Li 1   Ta "\*[volume-ds-1]"
-.It Li 2   Ta "\*[volume-ds-2]"
-.It Li 3   Ta "\*[volume-ds-3]"
-.It Li 4   Ta "\*[volume-ds-4]"
-.It Li 5   Ta "\*[volume-ds-5]"
-.It Li 6   Ta "\*[volume-ds-6]"
-.It Li 7   Ta "\*[volume-ds-7]"
-.It Li 8   Ta "\*[volume-ds-8]"
-.It Li 9   Ta "\*[volume-ds-9]"
+.It Li 1   Ta "\*[volume-operating-system] \*[volume-ds-1]"
+.It Li 2   Ta "\*[volume-operating-system] \*[volume-ds-2]"
+.It Li 3   Ta "\*[volume-operating-system] \*[volume-ds-3]"
+.It Li 4   Ta "\*[volume-operating-system] \*[volume-ds-4]"
+.It Li 5   Ta "\*[volume-operating-system] \*[volume-ds-5]"
+.It Li 6   Ta "\*[volume-operating-system] \*[volume-ds-6]"
+.It Li 7   Ta "\*[volume-operating-system] \*[volume-ds-7]"
+.It Li 8   Ta "\*[volume-operating-system] \*[volume-ds-8]"
+.It Li 9   Ta "\*[volume-operating-system] \*[volume-ds-9]"
 .El
 .Pp
 .
@@ -744,8 +744,9 @@ for
 .Ql LOCAL .
 Values from the previous table will specify a new volume name.
 If the third parameter is a keyword designating a computer architecture,
-its value is appended to the volume name as specified by the second
-parameter.  By default, the following architecture keywords are defined:
+its value is prepended to the default volume name as specified by the
+second parameter.
+By default, the following architecture keywords are defined:
 .
 \# we use `No' to avoid hyphenation
 .Bd -ragged -offset indent
@@ -761,13 +762,13 @@ In the following examples, the left (which is identical to the right) and
 the middle part of the manual page header strings are shown.
 .
 .Bd -ragged
-.Bl -tag -width ".Li .Dt\ FOO\ 2\ mac68k" -compact -offset indent
+.Bl -tag -width ".Li .Dt\ FOO\ 2\ i386" -compact -offset indent
 .It Li ".Dt FOO 7"
 .Ql FOO(7)
-.Ql System Reference Manual
-.It Li ".Dt FOO 2 mac68k"
+.Ql \*[volume-operating-system] \*[volume-ds-7]
+.It Li ".Dt FOO 2 i386"
 .Ql FOO(2)
-.Ql System Programmer's Manual (mac68k Architecture)
+.Ql \*[volume-operating-system]/\*[volume-as-i386] \*[volume-ds-2]
 .It Li ".Dt FOO \*[q]\*[q] bar"
 .Ql FOO
 .Ql bar
@@ -828,11 +829,11 @@ the release ID.
 3, 4, 4.1, 4.2, 4.3, 4.3t, 4.3T, 4.3r, 4.3R, 4.4
 .It NetBSD
 0.8, 0.8a, 0.9, 0.9a, 1.0, 1.0a, 1.1, 1.2, 1.2a, 1.2b, 1.2c, 1.2d, 1.2e,
-1.3, 1.3a, 1.4, 1.5
+1.3, 1.3a, 1.4, 1.5, 1.6
 .It FreeBSD
 1.0, 1.1, 1.1.5, 1.1.5.1, 2.0, 2.0.5, 2.1, 2.1.5, 2.1.6, 2.1.7, 2.2, 2.2.1,
 2.2.2, 2.2.5, 2.2.6, 2.2.7, 2.2.8, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 4.0, 4.1,
-4.2, 5.0
+4.2, 4.3, 4.4, 4.5, 5.0
 .El
 .Ed
 .Pp
