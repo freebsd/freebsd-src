@@ -204,6 +204,7 @@ acd_detach(struct ata_device *atadev)
     mtx_lock(&cdp->queue_mtx);
     bioq_flush(&cdp->queue, NULL, ENXIO);
     mtx_unlock(&cdp->queue_mtx);
+    mtx_destroy(&cdp->queue_mtx);
     ata_prtdev(atadev, "WARNING - removed from configuration\n");
     ata_free_name(atadev);
     ata_free_lun(&acd_lun_map, cdp->lun);
