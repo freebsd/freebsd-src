@@ -532,8 +532,9 @@ cd9660_unmount(mp, mntflags, td)
  * Return root of a filesystem
  */
 static int
-cd9660_root(mp, vpp, td)
+cd9660_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {

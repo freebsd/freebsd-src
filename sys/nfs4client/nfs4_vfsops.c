@@ -706,7 +706,7 @@ nfs_unmount(struct mount *mp, int mntflags, struct thread *td)
  * Return root of a filesystem
  */
 static int
-nfs_root(struct mount *mp, struct vnode **vpp, struct thread *td)
+nfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct vnode *vp;
 	struct nfsmount *nmp;
