@@ -16,9 +16,12 @@ MLINKS+=	netgraph.3 NgSendMsg.3
 MLINKS+=	netgraph.3 NgSendAsciiMsg.3
 MLINKS+=	netgraph.3 NgSendMsgReply.3
 MLINKS+=	netgraph.3 NgRecvMsg.3
+MLINKS+=	netgraph.3 NgAllocRecvMsg.3
 MLINKS+=	netgraph.3 NgRecvAsciiMsg.3
+MLINKS+=	netgraph.3 NgAllocRecvAsciiMsg.3
 MLINKS+=	netgraph.3 NgSendData.3
 MLINKS+=	netgraph.3 NgRecvData.3
+MLINKS+=	netgraph.3 NgAllocRecvData.3
 MLINKS+=	netgraph.3 NgSetDebug.3
 MLINKS+=	netgraph.3 NgSetErrLog.3
 
