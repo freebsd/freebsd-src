@@ -2,14 +2,8 @@
 
 BINGRP=       games
 .if defined(HIDEGAME)
-BINDIR=        /usr/games/hide
-.if defined(SUIDGAME)
-BINOWN=         games
-BINMODE=        4550
-INSTALLFLAGS+=  -fschg
-.else
+BINDIR?=       /usr/games/hide
 BINMODE=       550
-.endif
 .else
 BINDIR=        /usr/games
 .endif
