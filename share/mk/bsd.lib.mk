@@ -339,7 +339,7 @@ realinstall:
 	done; true
 .endif
 
-realinstall: _incsinstall
+.include <bsd.incs.mk>
 
 .if !defined(NOMAN)
 realinstall: _maninstall
@@ -351,8 +351,6 @@ realinstall: _maninstall
 lint: ${SRCS:M*.c}
 	${LINT} ${LINTOBJFLAGS} ${CFLAGS:M-[DIU]*} ${.ALLSRC}
 .endif
-
-.include <bsd.incs.mk>
 
 .if !defined(NOMAN)
 .include <bsd.man.mk>
