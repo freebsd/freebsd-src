@@ -1,4 +1,4 @@
-.Dd April 4, 1993
+.Dd October 4, 1996
 .Dt FDISK 8
 .\".Os BSD 4
 .Sh NAME
@@ -10,32 +10,14 @@
 .Op Fl u
 .Op Fl a
 .Op Fl 0123
-.Op disk
+.Op Ar disk
 .Bl -tag -width time
-.It Fl u
-Is used for updating (editing) sector 0 of the disk.
-.It Fl i
-Initializes sector 0 of the disk.  This implies
-.Fl u .
-.It Fl a
-Change the active partition only.
-.It Fl 0123
-Operate on a single fdisk entry only.
-.El
-.Pp
-The final disk name can be provided as a
-.Sq bare
-disk name only, e.g.
-.Ql sd0 ,
-or as a fully qualified device node under
-.Pa /dev .
-If omitted, the disks
-.Ql wd0 ,
-.Ql sd0 ,
-and
-.Ql od0
-are being searched in that order, until one is
-being found responding.
+.Nm fdisk
+.Op Fl f Ar configfile
+.Op Fl i
+.Op Fl v
+.Op Fl t
+.Op Ar disk
 .Sh PROLOGUE
 In order for the BIOS to boot the kernel,
 certain conventions must be adhered to.
@@ -60,9 +42,84 @@ The DOS
 program can be used to divide space on the disk into partitions and set one
 .Em active.
 .Sh DESCRIPTION
+.Pp
 The FreeBSD program
 .Nm
-serves a similar purpose to the DOS program.
+serves a similar purpose to the DOS program.  The first form is used to
+display partition information or to interactively edit the partition
+table.  The second is used to write a partition table using a
+.Ar configfile
+and is designed to be used by other scripts/programs.
+.Pp
+Options are:
+.It Fl u
+Is used for updating (editing) sector 0 of the disk.  Ignored if
+.Fl f
+is given.
+.It Fl i
+Initializes sector 0 of the disk.  This implies
+.Fl u ,
+unless
+.Fl f
+is given.
+.It Fl a
+Change the active partition only.  Ignored if
+.Fl f
+is given.
+.It Fl 0123
+Operate on a single fdisk entry only.  Ignored if
+.Fl f
+is given.
+.It Fl f Ar configfile
+Set partition values using the file
+.Ar configfile .
+The
+.Ar configfile
+always modifies existing partitions, unless
+.Fl i
+is also given, in which case all existing partitions are deleted (marked
+as "unused") before the
+.Ar configfile
+is read.  The
+.Ar configfile
+can be "-", in which case
+.Ar stdin
+is read.  See
+.Em CONFIGURATION FILE ,
+below, for file syntax.
+.Pp
+.Em WARNING:
+when
+.Fl f
+is used, you are not asked if you really want to write the partition
+table (as you are in the interactive mode).  Use with caution!
+.It Fl t
+Test mode; do not write partition values.  Generally used with the
+.Fl f
+option to see what would be written to the partition table.  Implies
+.Fl v .
+.It Fl v
+Be verbose.  When
+.Fl f
+is used,
+.Nm
+prints out the partition table that is written to the disk.
+.El
+.Pp
+The final disk name can be provided as a
+.Sq bare
+disk name only, e.g.
+.Ql sd0 ,
+or as a fully qualified device node under
+.Pa /dev .
+If omitted, the disks
+.Ql wd0 ,
+.Ql sd0 ,
+and
+.Ql od0
+are being searched in that order, until one is
+being found responding.
+.Pp
 When called with no arguments, it prints the sector 0 partition table.
 An example follows:
 
@@ -119,8 +176,11 @@ The flags
 .Fl i
 or
 .Fl u
-are used to indicate that the partition data is to be updated.
-The
+are used to indicate that the partition data is to be updated, unless the
+.Fl f
+option is used.  If the
+.Fl f
+option is not used, the
 .Nm
 program will enter a conversational mode.
 This mode is designed not to change any data unless you explicitly tell it to.
@@ -188,11 +248,151 @@ A number of decisions made later may assume this.
 Editing an existing partition will most likely cause you to
 lose all the data in that partition.
 .Pp
-You should run this program interactively once or twice to see how it works.
-This is completely safe as long as you answer the last question in the negative.
-There are subtleties
-that the program detects
-that are not fully explained in this manual page.
+You should run this program interactively once or twice to see how it
+works.  This is completely safe as long as you answer the last question
+in the negative.  There are subtleties that the program detects that are
+not fully explained in this manual page.
+.Sh CONFIGURATION FILE
+.Pp
+When the
+.Fl f
+option is given, a disk's partition table can be written using values
+from a
+.Ar configfile .
+The syntax of this file is very simple.  Each line is either a comment or
+a specification, and whitespace (except for newlines) are ignored:
+.Bl -tag -width Ds
+.It Xo
+.Ic #
+.No Ar comment ...
+.Xc
+Lines beginning with a "#" are comments and are ignored.
+.It Xo
+.Ic g
+.No Ar spec1
+.No Ar spec2
+.No Ar spec3
+.Xc
+Set the BIOS geometry used in partition calculations.  There must be
+three values specfied, with a letter preceding each number:
+.Bl -tag -width Ds
+.Sm off
+.It Cm c No Ar num
+.Sm on
+Set the number of cylinders to
+.Ar num .
+.Sm off
+.It Cm h No Ar num
+.Sm on
+Set the number of heads to
+.Ar num .
+.Sm off
+.It Cm s No Ar num
+.Sm on
+Set the number of sectors/track to
+.Ar num .
+.El
+.Pp
+These specs can occur in any order, as the leading letter determines
+which value is which; however, all three must be specified.
+.Pp
+This line must occur before any lines that specify partition
+information.
+.Pp
+It is an error if the following is not true:
+.Pp
+.nf
+        1 <= number of cylinders
+        1 <= number of heads <= 256
+        1 <= number of sectors/track < 64
+.fi
+.Pp
+The number of cylinders should be less than or equal to 1024, but this
+is not enforced, although a warning will be output.  Note that bootable
+FreeBSD partitions (the "/" filesystem) must lie completely within the
+first 1024 cylinders; if this is not true, booting may fail.
+Non-bootable partitions do not have this restriction.
+.Pp
+Example (all of these are equivalent), for a disk with 1019 cylinders,
+39 heads, and 63 sectors:
+.Pp
+.nf
+        g       c1019   h39     s63
+        g       h39     c1019   s63
+        g       s63     h39     c1019
+.fi
+.It Xo
+.Ic p
+.No Ar partition
+.No Ar type
+.No Ar start
+.No Ar length
+.Xc
+Set the partition given by
+.Ar partition
+(0-3) to type
+.Ar type ,
+starting at sector
+.Ar start
+for
+.Ar length
+sectors.
+.Pp
+Only those partitions explicitly mentioned by these lines are modified;
+any partition not referenced by a "p" line will not be modified.
+However, if an invalid partition table is present, or the
+.Fl i
+option is specified, all existing partition entries will be cleared
+(marked as unused), and these "p" lines will have to be used to
+explicitly set partition information.  If multiple partitions need to be
+set, multiple "p" lines must be specified; one for each partition.
+.Pp
+These partition lines must occur after any geometry specification lines,
+if one is present.
+.Pp
+The
+.Ar type
+is 165 for FreeBSD partitions.  Specifying a partition type of zero is
+the same as clearing the partition and marking it as unused; however,
+dummy values (such as "0") must still be specified for
+.Ar start
+and
+.Ar length .
+.Pp
+Note: the start offset will be rounded upwards to a head boundary if
+necessary, and the end offset will be rounded downwards to a cylinder
+boundary if necessary.
+.Pp
+Example: to clear partition 3 and mark it as unused:
+.Pp
+.nf
+        p       3       0       0       0
+.fi
+.Pp
+Example: to set partition 0 to a FreeBSD partition, starting at sector 1
+for 2503871 sectors (note: these numbers will be rounded upwards and
+downwards to correspond to head and cylinder boundaries):
+.Pp
+.nf
+        p       0       165     1       2503871
+.fi
+.It Xo
+.Ic a
+.No Ar partition
+.Xc
+Make
+.Ar partition
+the active partition.  Can occur anywhere in the config file, but only
+one must be present.
+.Pp
+Example: to make partition 0 the active partition:
+.Pp
+.nf
+        a       0
+.fi
+
+.El
+.Pp
 .Sh SEE ALSO
 .Xr disklabel 8
 .Sh BUGS
@@ -203,3 +403,7 @@ Throughout this man page, the term
 is used where it should actually be
 .Sq slice ,
 in order to conform with the terms used elsewhere.
+.Pp
+You cannot use this command to completely dedicate a disk to FreeBSD.  The
+.Xr disklabel 8
+command must be used for this.
