@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: sysctl.8,v 1.2 1994/09/23 19:04:02 wollman Exp $
 .\"
 .Dd September 23, 1994
 .Dt SYSCTL 8
@@ -132,7 +132,6 @@ privilege can change the value.
 .It kern.osreldate	string	no
 .It kern.bootfile	string	yes
 .It vm.loadavg	struct	no
-.It machdep.console_device	dev_t	no
 .It net.inet.ip.forwarding	integer	yes
 .It net.inet.ip.redirect	integer	yes
 .It net.inet.ip.ttl	integer	yes
@@ -146,6 +145,10 @@ privilege can change the value.
 .It hw.usermem	integer	no
 .It hw.pagesize	integer	no
 .It hw.floatingpoint	integer	no
+.It machdep.console_device	dev_t	no
+.It machdep.adjkerntz	integer	yes
+.It machdep.disable_rtc_set	integer	yes
+.It machdep.color_display	integer	no
 .It user.cs_path	string	no
 .It user.bc_base_max	integer	no
 .It user.bc_dim_max	integer	no
