@@ -790,6 +790,7 @@ iso.1:
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
 			sh ${.CURDIR}/${MACHINE_ARCH}/mkisoimages.sh -b fbsd_boot \
 			  ${CD}/disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS}; \
+			    && false; \
 		fi \
 	else \
 		echo "Do not know how to create an ISO for ${MACHINE_ARCH}."; \
