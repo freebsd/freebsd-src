@@ -367,6 +367,18 @@ static const struct CARDTYPE cards[] = {
 	   { 0x02, 0x00, 0x00, 0x00, 1 },	/* audio MUX values */
 	   0x18e0 },				/* GPIO mask */
 
+	{  CARD_PINNACLE_PCTV_RAVE,		/* the card id */
+	  "Pinnacle PCTV Rave",			/* the 'name' */
+	   NULL,				/* the tuner */
+	   0,					/* the tuner i2c address */
+	   0,					/* dbx unknown */
+	   0,
+	   0,
+	   0,					/* EEProm unknown */
+	   0,					/* size unknown */
+	   { 0x02, 0x01, 0x00, 0x0a, 1 },	/* audio MUX values */
+	   0x03000F },				/* GPIO mask */
+
 };
 
 struct bt848_card_sig bt848_card_signature[1]= {
@@ -568,6 +580,7 @@ static int locate_eeprom_address( bktr_ptr_t bktr) {
 #define PCI_VENDOR_FLYVIDEO_2	0x1852
 #define PCI_VENDOR_PINNACLE_ALT	0xBD11
 #define PCI_VENDOR_IODATA	0x10fc
+#define PCI_VENDOR_PINNACLE_NEW	0x11BD
 
 #define MODEL_IODATA_GV_BCTV3_PCI	0x4020
 
@@ -712,6 +725,21 @@ probeCard( bktr_ptr_t bktr, int verbose, int unit )
 		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
 		    goto checkTuner;
 		}
+
+		if (subsystem_vendor_id == PCI_VENDOR_PINNACLE_NEW) {
+                    bktr->card = cards[ (card = CARD_PINNACLE_PCTV_RAVE) ];
+		    bktr->card.eepromAddr = eeprom_i2c_address;
+		    bktr->card.eepromSize = (u_char)(256 / EEPROMBLOCKSIZE);
+
+		    TDA9887_init(bktr, 0);
+
+		    /* look for a tuner */
+		    tuner_i2c_address = locate_tuner_address( bktr );
+		    printf( "%s: tuner @ %#x\n", bktr_name(bktr), tuner_i2c_address );
+		    select_tuner( bktr, TUNER_MT2032 );
+
+		    goto checkDBX;
+                }
 
                 /* Vendor is unknown. We will use the standard probe code */
 		/* which may not give best results */
