@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.31 1996/08/13 00:41:05 pst Exp $
+ * $Id: ipfw.c,v 1.32 1996/08/13 19:43:24 pst Exp $
  *
  */
 
@@ -43,6 +43,7 @@ int 		s;				/* main RAW socket 	   */
 int 		do_resolv=0;			/* Would try to resolv all */
 int		do_acct=0;			/* Show packet/byte count  */
 int		do_time=0;			/* Show time stamps        */
+int		do_force=0;			/* Don't ask for confirmation */
 
 int
 mask_bits(m_ad)
@@ -806,10 +807,16 @@ ipfw_main(ac,av)
 		show_usage(NULL);
 	}
 
-	while ((ch = getopt(ac, av ,"atN")) != EOF)
+	/* Set the force flag for non-interactive processes */
+	do_force = !isatty(STDIN_FILENO);
+
+	while ((ch = getopt(ac, av ,"aftN")) != EOF)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
+			break;
+		case 'f':
+			do_force=1;
 			break;
 		case 't':
 			do_time=1;
@@ -831,11 +838,33 @@ ipfw_main(ac,av)
 	} else if (!strncmp(*av, "delete", strlen(*av))) {
 		delete(ac,av);
 	} else if (!strncmp(*av, "flush", strlen(*av))) {
-		if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} 
-		printf("Flushed all rules.\n");
+		int do_flush = 0;
+
+		if ( do_force )
+			do_flush = 1;
+		else {
+			int c;
+
+			/* Ask the user */
+			printf("Are you sure? [yn] ");
+			do {
+                    		fflush(stdout);
+				c = toupper(getc(stdin));
+				while (c != '\n' && getc(stdin) != '\n')
+					if (feof(stdin))
+						return (0);
+			} while (c != 'Y' && c != 'N');
+			printf("\n");
+			if (c == 'Y') 
+				do_flush = 1;
+		}
+		if ( do_flush ) {
+			if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0)<0) {
+				fprintf(stderr,"%s: setsockopt failed.\n",progname);
+				exit(1);
+			}
+			printf("Flushed all rules.\n");
+		}
 	} else if (!strncmp(*av, "zero", strlen(*av))) {
 		zero(ac,av);
 	} else if (!strncmp(*av, "print", strlen(*av))) {
