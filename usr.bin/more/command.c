@@ -394,6 +394,16 @@ prompt()
 		}
 		so_exit();
 	}
+
+	/*
+	 * XXX This isn't correct, but until we get around to reworking
+	 * the whole prompt stuff the way we want it to be, this hack
+	 * is necessary to prevent input from being blocked if getinput()
+	 * is called and the user enters an input that fills the cmd
+	 * buffer (or reaches the far rightside end of the screen).
+	 */
+	cmd_col = 0;
+
 	return 1;
 }
 
