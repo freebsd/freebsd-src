@@ -159,7 +159,6 @@ SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
 	0, 0, sysctl_hw_physmem, "IU", "");
 
 int		Maxmem = 0;
-long		dumplo;
 
 static int	chosen;
 
