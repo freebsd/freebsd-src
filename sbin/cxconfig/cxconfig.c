@@ -21,12 +21,23 @@
  *      cxconfig <channel> <option>...
  *              -- set channel options
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <machine/cronyx.h>
 #include <net/if.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #define NBRD    3
 #define CXDEV   "/dev/cronyx"
@@ -54,8 +65,6 @@ char *symbol (unsigned char sym)
 
 unsigned char atosym (char *s)
 {
-	unsigned char c;
-
 	if (*s == '^')
 		return (*++s & 037);
 	if (*s == '\\')
@@ -65,16 +74,10 @@ unsigned char atosym (char *s)
 
 void usage ()
 {
-	printf ("Cronyx-Sigma Adapter Configuration Utility, Version 1.0\n");
-	printf ("Copyright (C) 1994 Cronyx Ltd.\n");
-	printf ("Usage:\n");
-	printf ("\tcxconfig [-a]\n");
-	printf ("\t\t-- print status of all channels\n");
-	printf ("\tcxconfig [-a] <channel>\n");
-	printf ("\t\t-- print status of the channel\n");
-	printf ("\tcxconfig <channel> [async | hdlc | bisync | x.21] [ispeed #] [ospeed #]\n");
-	printf ("\t\t[+cts | -cts]\n");
-	printf ("\t\t-- set channel options\n");
+	fprintf (stderr,
+		"Cronyx-Sigma Adapter Configuration Utility, Version 1.0\n");
+	fprintf (stderr, "Copyright (C) 1994 Cronyx Ltd.\n");
+	fprintf (stderr, "usage: cxconfig [-a] [<channel> [<option>...]]\n");
 	exit (1);
 }
 
@@ -106,22 +109,16 @@ char *chanmode (int mode)
 void getchan (int channel)
 {
 	int s = open (CXDEV, 0);
-	if (s < 0) {
-		perror (CXDEV);
-		exit (1);
-	}
+	if (s < 0)
+		err (1, "%s", CXDEV);
 	o.board = channel/NCHAN;
 	o.channel = channel%NCHAN;
-	if (ioctl (s, CXIOCGETMODE, (caddr_t)&o) < 0) {
-		perror ("cxconfig: CXIOCGETMODE");
-		exit (1);
-	}
+	if (ioctl (s, CXIOCGETMODE, (caddr_t)&o) < 0)
+		err (1, "CXIOCGETMODE");
 	close (s);
-	if (o.type == T_NONE) {
-		fprintf (stderr, "cx%d: channel %d not configured\n", o.board,
+	if (o.type == T_NONE)
+		errx (1, "cx%d: channel %d not configured", o.board,
 			o.channel);
-		exit (1);
-	}
 }
 
 int printstats (int channel, int hflag)
@@ -129,10 +126,8 @@ int printstats (int channel, int hflag)
 	int s, res;
 
 	s = open (CXDEV, 0);
-	if (s < 0) {
-		perror (CXDEV);
-		exit (1);
-	}
+	if (s < 0)
+		err (1, "%s", CXDEV);
 	st.board = channel/NCHAN;
 	st.channel = channel%NCHAN;
 	res = ioctl (s, CXIOCGETSTAT, (caddr_t)&st);
@@ -161,16 +156,12 @@ void printallstats ()
 void setchan (int channel)
 {
 	int s = open (CXDEV, 0);
-	if (s < 0) {
-		perror (CXDEV);
-		exit (1);
-	}
+	if (s < 0)
+		err (1, "%s", CXDEV);
 	o.board = channel/NCHAN;
 	o.channel = channel%NCHAN;
-	if (ioctl (s, CXIOCSETMODE, (caddr_t)&o) < 0) {
-		perror ("cxconfig: CXIOCSETMODE");
-		exit (1);
-	}
+	if (ioctl (s, CXIOCSETMODE, (caddr_t)&o) < 0)
+		err (1, "CXIOCSETMODE");
 	close (s);
 }
 
@@ -414,22 +405,16 @@ void printall ()
 	int s, c;
 
 	s = socket (AF_INET, SOCK_DGRAM, 0);
-	if (s < 0) {
-		perror ("cxconfig: socket");
-		exit (1);
-	}
+	if (s < 0)
+		err (1, "socket");
         ifc.ifc_len = sizeof (buf);
         ifc.ifc_buf = buf;
-	if (ioctl (s, SIOCGIFCONF, (caddr_t)&ifc) < 0) {
-		perror ("cxconfig: SIOCGIFCONF");
-		exit (1);
-	}
+	if (ioctl (s, SIOCGIFCONF, (caddr_t)&ifc) < 0)
+		err (1, "SIOCGIFCONF");
 	close (s);
 	s = open (CXDEV, 0);
-	if (s < 0) {
-		perror (CXDEV);
-		exit (1);
-	}
+	if (s < 0)
+		err (1, "%s", CXDEV);
 
         ifr = ifc.ifc_req;
 #define max(a,b) ((a)>(b) ? (a) : (b))
@@ -443,10 +428,8 @@ void printall ()
 		c = atoi (ifr->ifr_name + 2);
 		o.board = c/NCHAN;
 		o.channel = c%NCHAN;
-		if (ioctl (s, CXIOCGETMODE, (caddr_t)&o) < 0) {
-			perror ("cxconfig: CXIOCGETMODE");
-			exit (1);
-		}
+		if (ioctl (s, CXIOCGETMODE, (caddr_t)&o) < 0)
+			err (1, "CXIOCGETMODE");
 		printchan (c);
 	}
 	close (s);
