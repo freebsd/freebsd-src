@@ -303,4 +303,4 @@ define(`confMILTER_MACROS_ENVRCPT', ``{rcpt_mailer}, {rcpt_host}, {rcpt_addr}'')
 
 
 divert(0)dnl
-VERSIONID(`$Id: cfhead.m4,v 8.107 2001/07/22 03:25:37 ca Exp $')
+VERSIONID(`$Id: cfhead.m4,v 1.1.1.7 2002/02/17 21:56:44 gshapiro Exp $')
