@@ -98,8 +98,6 @@ struct __sFILEX;
  * that does not match the previous one in _bf.  When this happens,
  * _ub._base becomes non-nil (i.e., a stream has ungetc() data iff
  * _ub._base!=NULL) and _up and _ur save the current values of _p and _r.
- *
- * NB: see WARNING above before changing the layout of this structure!
  */
 typedef	struct __sFILE {
 	unsigned char *_p;	/* current position in (some) buffer */
@@ -131,7 +129,7 @@ typedef	struct __sFILE {
 
 	/* Unix stdio files get aligned to block boundaries on fseek() */
 	int	_blksize;	/* stat.st_blksize (may be != _bf._size) */
-	fpos_t	_offset;	/* current lseek offset (see WARNING) */
+	fpos_t	_offset;	/* current lseek offset */
 } FILE;
 
 #ifndef _STDSTREAM_DECLARED
