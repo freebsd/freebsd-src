@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.31 1998/01/24 02:54:07 eivind Exp $
+ *  dgb.c $Id: dgb.c,v 1.32 1998/04/15 17:44:55 bde Exp $
  *
  *  Digiboard driver.
  *
@@ -154,10 +154,12 @@ struct dgb_p {
 	u_char mustdrain; /* data must be waited to drain in dgbparam() */
 #ifdef	DEVFS
 	struct	{
-		void	*tty;
-		void	*init;
-		void	*lock;
-		void	*cua;
+		void	*ttyd;
+		void	*ttyi;
+		void	*ttyl;
+		void	*cuaa;
+		void	*cuai;
+		void	*cual;
 	} devfs_token;
 #endif
 };
@@ -931,30 +933,35 @@ load_fep:
 		port->it_in.c_ispeed = port->it_in.c_ospeed = dgbdefaultrate;
 		port->it_out = port->it_in;
 #ifdef	DEVFS
-/*XXX*/ /* fix the minor numbers */
-		port->devfs_token.tty = 
-			devfs_add_devswf(&dgb_cdevsw,
-					 (unit*32)+i,/*mytical number*/
-					 DV_CHR, 0, 0, 0600, "dgb%d.%d", unit, 
-					 i);
+		port->devfs_token.ttyd = 
+			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i,
+					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
+					 "dgb%d.%d", unit, i);
 
-		port->devfs_token.tty = 
-			devfs_add_devswf(&dgb_cdevsw,
-					 (unit*32)+i+64,/*mytical number*/
-					 DV_CHR, 0, 0, 0600, "idgb%d.%d", unit, 
-					 i);
+		port->devfs_token.ttyi = 
+			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+32,
+					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
+					 "idgb%d.%d", unit, i);
 
-		port->devfs_token.tty = 
-			devfs_add_devswf(&dgb_cdevsw,
-					 (unit*32)+i+128,/*mytical number*/
-					 DV_CHR, 0, 0, 0600, "ldgb%d.%d", unit,
-					 i);
+		port->devfs_token.ttyl = 
+			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+64,
+					 DV_CHR, UID_ROOT, GID_WHEEL, 0600,
+					 "ldgb%d.%d", unit, i);
 
-		port->devfs_token.tty = 
-			devfs_add_devswf(&dgb_cdevsw,
-					 (unit*32)+i+192,/*mytical number*/
-					 DV_CHR, 0, 0, 0600, "dgbcua%d.%d",
-					 unit, i);
+		port->devfs_token.cuaa = 
+			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+128,
+					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
+					 "dgbcua%d.%d", unit, i);
+
+		port->devfs_token.cuai = 
+			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+160,
+					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
+					 "idgbcua%d.%d", unit, i);
+
+		port->devfs_token.cual = 
+			devfs_add_devswf(&dgb_cdevsw, (unit*32)+i+192,
+					 DV_CHR, UID_UUCP, GID_DIALER, 0660,
+					 "ldgbcua%d.%d", unit, i);
 #endif
 	}
 
@@ -2209,14 +2216,14 @@ dgbstop(tp, rw)
 
 	BoardMemWinState ws=bmws_get();
 
-	DPRINT3(DB_WR,"dgb%d: port%d: stop\n",port->unit, port->pnum);
-
 	unit=MINOR_TO_UNIT(minor(tp->t_dev));
 	pnum=MINOR_TO_PORT(minor(tp->t_dev));
 
 	sc=&dgb_softc[unit];
 	port=&sc->ports[pnum];
 	bc=port->brdchan;
+
+	DPRINT3(DB_WR,"dgb%d: port%d: stop\n",port->unit, port->pnum);
 
 	s = spltty();
 	setwin(sc,0);
