@@ -32,8 +32,7 @@
 #ifndef	_MACHINE_TSB_H_
 #define	_MACHINE_TSB_H_
 
-#define	TSB_KERNEL_MIN_ADDRESS		(0xa0000000)
-#define	TSB_USER_MIN_ADDRESS		(0xb0000000)
+#define	TSB_USER_MIN_ADDRESS		(UPT_MIN_ADDRESS)
 
 #define	TSB_MASK_WIDTH			(6)
 
@@ -59,10 +58,11 @@
 
 #define	TSB_DEPTH			(7)
 
-#define	TSB_KERNEL_PAGES		(1)
-#define	TSB_KERNEL_SIZE			(TSB_KERNEL_PAGES * PAGE_SIZE_4M)
-#define	TSB_KERNEL_MASK			((TSB_KERNEL_SIZE >> STTE_SHIFT) - 1)
+#define	TSB_KERNEL_MASK \
+	(((KVA_PAGES * PAGE_SIZE_4M) >> STTE_SHIFT) - 1)
+#define	TSB_KERNEL_VA_MASK		(TSB_KERNEL_MASK << STTE_SHIFT)
 
+extern struct stte *tsb_kernel;
 extern vm_offset_t tsb_kernel_phys;
 
 static __inline struct stte *
@@ -128,7 +128,7 @@ tsb_stte_vtophys(pmap_t pm, struct stte *stp)
 
 	va = (vm_offset_t)stp;
 	if (pm == kernel_pmap)
-		return (tsb_kernel_phys + (va - TSB_KERNEL_MIN_ADDRESS));
+		return (tsb_kernel_phys + (va - (vm_offset_t)tsb_kernel));
 
 	if (trunc_page(va) == TSB_USER_MIN_ADDRESS)
 		data = pm->pm_stte.st_tte.tte_data;
@@ -154,11 +154,7 @@ tsb_vtobucket(vm_offset_t va, u_int level)
 static __inline struct stte *
 tsb_kvpntostte(vm_offset_t vpn)
 {
-	struct stte *stp;
-
-	stp = (struct stte *)(TSB_KERNEL_MIN_ADDRESS +
-	    ((vpn & TSB_KERNEL_MASK) << STTE_SHIFT));
-	return (stp);
+	return (&tsb_kernel[vpn & TSB_KERNEL_MASK]);
 }
 
 static __inline struct stte *

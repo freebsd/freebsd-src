@@ -64,7 +64,7 @@ struct pmap {
 	struct	pmap_statistics pm_stats;
 };
 
-void	pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva);
+void	pmap_bootstrap(vm_offset_t ekva);
 vm_offset_t pmap_kextract(vm_offset_t va);
 void	pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags);
 
@@ -76,6 +76,8 @@ extern	struct pmap *kernel_pmap;
 extern	vm_offset_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
+
+extern	vm_offset_t msgbuf_phys;
 
 static __inline int
 pmap_track_modified(vm_offset_t va)
