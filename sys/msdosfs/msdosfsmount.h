@@ -1,4 +1,4 @@
-/*	$Id: msdosfsmount.h,v 1.12 1997/10/12 20:25:02 phk Exp $ */
+/*	$Id: msdosfsmount.h,v 1.13 1998/02/18 09:28:47 jkh Exp $ */
 /*	$NetBSD: msdosfsmount.h,v 1.17 1997/11/17 15:37:07 ws Exp $	*/
 
 /*-
@@ -93,6 +93,7 @@ struct msdosfsmount {
 	u_int *pm_inusemap;	/* ptr to bitmap of in-use clusters */
 	u_int pm_flags;		/* see below */
 	struct netexport pm_export;	/* export information */
+	u_int16_t pm_u2w[128];  /* Local->Unicode table */
 };
 /* Byte offset in FAT on filesystem pmp, cluster cn */
 #define	FATOFS(pmp, cn)	((cn) * (pmp)->pm_fatmult / (pmp)->pm_fatdiv)
@@ -202,6 +203,7 @@ struct msdosfs_args {
 	mode_t	mask;		/* mask to be applied for msdosfs perms */
 	int	flags;		/* see below */
 	int magic;		/* version number */
+	u_int16_t u2w[128];     /* Local->Unicode table */
 };
 
 /*
@@ -213,10 +215,11 @@ struct msdosfs_args {
 #ifndef __FreeBSD__
 #define	MSDOSFSMNT_GEMDOSFS	8	/* This is a gemdos-flavour */
 #endif
+#define MSDOSFSMNT_U2WTABLE     0x10    /* Local->Unicode table is loaded */
 /* All flags above: */
 #define	MSDOSFSMNT_MNTOPT \
 	(MSDOSFSMNT_SHORTNAME|MSDOSFSMNT_LONGNAME|MSDOSFSMNT_NOWIN95 \
-	 /*|MSDOSFSMNT_GEMDOSFS*/)
+	 /*|MSDOSFSMNT_GEMDOSFS*/|MSDOSFSMNT_U2WTABLE)
 #define	MSDOSFSMNT_RONLY	0x80000000	/* mounted read-only	*/
 #define	MSDOSFSMNT_WAITONFAT	0x40000000	/* mounted synchronous	*/
 #define	MSDOSFS_FATMIRROR	0x20000000	/* FAT is mirrored */
