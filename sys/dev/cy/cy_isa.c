@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.41 1996/10/14 16:43:11 davidg Exp $
+ *	$Id: cy.c,v 1.42 1996/11/13 18:31:57 bde Exp $
  */
 
 #include "cy.h"
@@ -1913,16 +1913,21 @@ comparam(tp, t)
 	cd_outb(iobase, CD1400_COR5, com->cy_align, opt);
 
 	/*
-	 * XXX we probably alway want to track carrier changes, so that
-	 * TS_CARR_ON gives the true carrier.  If we don't track them,
-	 * then we should set TS_CARR_ON when CLOCAL drops.
+	 * We always generate modem status change interrupts for CD changes.
+	 * Among other things, this is necessary to track TS_CARR_ON for
+	 * pstat to print even when the driver doesn't care.  CD changes
+	 * should be rare so interrupts for them are not worth extra code to
+	 * avoid.  We avoid interrupts for other modem status changes (except
+	 * for CTS changes when SOFT_CTS_OFLOW is configured) since this is
+	 * simplest and best.
 	 */
+
 	/*
 	 * set modem change option register 1
 	 *	generate modem interrupts on which 1 -> 0 input transitions
 	 *	also controls auto-DTR output flow-control, which we don't use
 	 */
-	opt = cflag & CLOCAL ? 0 : CD1400_MCOR1_CDzd;
+	opt = CD1400_MCOR1_CDzd;
 #ifdef SOFT_CTS_OFLOW
 	if (cflag & CCTS_OFLOW)
 		opt |= CD1400_MCOR1_CTSzd;
@@ -1933,7 +1938,7 @@ comparam(tp, t)
 	 * set modem change option register 2
 	 *	generate modem interrupts on specific 0 -> 1 input transitions
 	 */
-	opt = cflag & CLOCAL ? 0 : CD1400_MCOR2_CDod;
+	opt = CD1400_MCOR2_CDod;
 #ifdef SOFT_CTS_OFLOW
 	if (cflag & CCTS_OFLOW)
 		opt |= CD1400_MCOR2_CTSod;
@@ -2200,6 +2205,7 @@ commctl(com, bits, how)
 	int	mcr;
 	int	msr;
 
+	iobase = com->iobase;
 	if (how == DMGET) {
 		if (com->channel_control & CD1400_CCR_RCVEN)
 			bits |= TIOCM_LE;
@@ -2209,7 +2215,17 @@ commctl(com, bits, how)
 		if (mcr & MCR_RTS)
 			/* XXX wired on for Cyclom-8Ys */
 			bits |= TIOCM_RTS;
-		msr = com->prev_modem_status;
+
+		/*
+		 * We must read the modem status from the hardware because
+		 * we don't generate modem status change interrupts for all
+		 * changes, so com->prev_modem_status is not guaranteed to
+		 * be up to date.  This is safe, unlike for sio, because
+		 * reading the status register doesn't clear pending modem
+		 * status change interrupts.
+		 */
+		msr = cd_inb(iobase, CD1400_MSVR2, com->cy_align);
+
 		if (msr & MSR_CTS)
 			bits |= TIOCM_CTS;
 		if (msr & MSR_DCD)
@@ -2221,7 +2237,6 @@ commctl(com, bits, how)
 			bits |= TIOCM_RI;
 		return (bits);
 	}
-	iobase = com->iobase;
 	mcr = 0;
 	if (bits & TIOCM_DTR)
 		mcr |= MCR_DTR;
