@@ -1,4 +1,4 @@
-#	$Id: bsd.info.mk,v 1.43 1997/10/09 18:14:18 wosch Exp $
+#	$Id: bsd.info.mk,v 1.44 1997/10/11 17:30:18 wosch Exp $
 #
 # The include file <bsd.info.mk> handles installing GNU (tech)info files.
 # Texinfo is a documentation system that uses a single source
@@ -14,13 +14,21 @@
 #
 # DISTRIBUTION	Name of distribution. [info]
 #
+# DVIPS		A program which convert a TeX DVI file to PostScript [dvips]
+#
+# DVIPS2ASCII	A program to convert a PostScript file which was prior
+#		converted from a TeX DVI file to ascii/latin1 [dvips2ascii]
+#
 # FORMATS 	Indicates which output formats will be generated
-#               (info, dvi, latin1, ps).  [info]
+#               (info, dvi, latin1, ps, html).  [info]
 #
 # ICOMPRESS_CMD	Program to compress info files. Output is to
 #		stdout. [${COMPRESS_CMD}]
 #
-# INFO		???
+# INFO		texinfo files, without suffix.  [set in Makefile] 
+#
+# INFO2HTML	A program for converting GNU info files into HTML files
+#		[info2html]
 #
 # INFODIR	Base path for GNU's hypertext system
 #		called Info (see info(1)). [${SHAREDIR}/info]
@@ -50,6 +58,8 @@
 #
 # NOINFOCOMPRESS	If you do not want info files be
 #			compressed when they are installed. [not set]
+#
+# TEX		A program for converting tex files into dvi files [tex]
 #
 #
 # +++ targets +++
@@ -84,10 +94,14 @@ INFOSECTION?=   Miscellaneous
 ICOMPRESS_CMD?=	${COMPRESS_CMD}
 ICOMPRESS_EXT?=	${COMPRESS_EXT}
 FORMATS?=	info
+INFO2HTML?=	info2html
+TEX?=		tex
+DVIPS?=		dvips
+DVIPS2ASCII?=	dvips2ascii
 
 .MAIN: all
 
-.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1
+.SUFFIXES: ${ICOMPRESS_EXT} .info .texi .texinfo .dvi .ps .latin1 .html
 
 # What to do if there's no dir file there.  This is really gross!!!
 ${DESTDIR}${INFODIR}/${INFODIRFILE}:
@@ -99,34 +113,38 @@ ${DESTDIR}${INFODIR}/${INFODIRFILE}:
 
 .texi.dvi .texinfo.dvi:
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
-		tex ${.IMPSRC} </dev/null
+		${TEX} ${.IMPSRC} </dev/null
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
-		tex ${.IMPSRC} </dev/null
+		${TEX} ${.IMPSRC} </dev/null
 
 .texinfo.latin1 .texi.latin1:
 	perl -npe 's/(^\s*\\input\s+texinfo\s+)/$$1\n@tex\n\\global\\hsize=120mm\n@end tex\n\n/' ${.IMPSRC} >> ${.IMPSRC:T:R}-la.texi
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
-		tex ${.IMPSRC:T:R}-la.texi </dev/null
+		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
 	env TEXINPUTS=${.CURDIR}:${SRCDIR}:$$TEXINPUTS \
-		tex ${.IMPSRC:T:R}-la.texi </dev/null
-	dvips -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
-		dvips2ascii > ${.TARGET}.new
+		${TEX} ${.IMPSRC:T:R}-la.texi </dev/null
+	${DVIPS} -o /dev/stdout ${.IMPSRC:T:R}-la.dvi | \
+		${DVIPS2ASCII} > ${.TARGET}.new
 	mv -f ${.TARGET}.new ${.TARGET}
 
 .dvi.ps:
-	dvips -o ${.TARGET} ${.IMPSRC} 	
+	${DVIPS} -o ${.TARGET} ${.IMPSRC} 	
+
+.info.html:
+	${INFO2HTML} ${.IMPSRC}
+	ln -f ${.TARGET:R}.info.Top.html ${.TARGET} 
 
 .PATH: ${.CURDIR} ${SRCDIR}
 
+
 .for _f in ${FORMATS}
 IFILENS+= ${INFO:S/$/.${_f}/g}
+CLEANFILES+=${INFO:S/$/.${_f}*/g}
 .endfor
 
 .if !defined(NOINFO)
 .if !defined(NOINFOCOMPRESS)
-.for _f in ${FORMATS}
-IFILES+=	${INFO:S/$/.${_f}${ICOMPRESS_EXT}/g}
-.endfor
+IFILES=	${IFILENS:S/$/${ICOMPRESS_EXT}/g:S/.html${ICOMPRESS_EXT}/.html/g}
 all: ${IFILES} _SUBDIR
 .else
 IFILES=	${IFILENS}
@@ -175,21 +193,30 @@ ${INFO}.texi: ${SRCS}
 depend: _SUBDIR
 	@echo -n
 
-.for _f in ${FORMATS}
-CLEANFILES+=${INFO:S/$/.${_f}*/g} ${INFO:S/$/-la.${_f}*/g}
-.endfor
-CLEANFILES+= ${INFO:S/$/-la.texi/g}
 
 # tex garbage
+.if ${FORMATS:Mps} || ${FORMATS:Mdvi} || ${FORMATS:Mlatin1}
 .for _f in aux cp fn ky log out pg toc tp vr dvi
 CLEANFILES+=	${INFO:S/$/.${_f}/g} ${INFO:S/$/-la.${_f}/g}
 .endfor
+CLEANFILES+= ${INFO:S/$/-la.texi/g}
+.endif
+
+.if ${FORMATS:Mhtml}
+CLEANFILES+= ${INFO:S/$/.info.*.html/g} ${INFO:S/$/.info/g}
+.endif
 
 
 .if !defined(NOINFO) && defined(INFO)
 install: ${INSTALLINFODIRS} _SUBDIR
+.if ${IFILES:N*.html}
 	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
-		${IFILES} ${DESTDIR}${INFODIR}
+		${IFILES:N*.html} ${DESTDIR}${INFODIR}
+.endif
+.if ${FORMATS:Mhtml}
+	${INSTALL} ${COPY} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \
+		${INFO:S/$/.info.*.html/g} ${DESTDIR}${INFODIR}
+.endif
 .else
 install:
 .endif
