@@ -117,7 +117,7 @@ main(argc, argv)
 			break;
 		}
 		if (secure && strchr(*ap, '@')) {
-			puts("fowarding service denied\r\n");
+			puts("forwarding service denied\r\n");
 			exit(1);
 		}
 
