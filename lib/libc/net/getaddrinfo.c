@@ -635,7 +635,9 @@ explore_numeric(pai, hostname, servname, res)
 		return 0;
 	flags = pai->ai_flags;
 
-	if (inet_pton(afd->a_af, hostname, pton) == 1) {
+	if ((afd->a_af == AF_INET
+	     ? inet_aton(hostname, (struct in_addr *)pton)
+	     : inet_pton(afd->a_af, hostname, pton)) == 1) {
 		if (pai->ai_family == afd->a_af ||
 		    pai->ai_family == PF_UNSPEC /*?*/) {
 			GET_AI(cur->ai_next, afd, pton);
