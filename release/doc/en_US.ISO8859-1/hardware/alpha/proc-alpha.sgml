@@ -1005,8 +1005,9 @@ cpu	EV4</programlisting>
   	  <para>21164PC [only on PC164SX]</para>
         </listitem>
         <listitem>
+          <para>21171 (Alcor) chip set [EB164]</para>
+          <para>21172 (Alcor2) chip set [PC164]</para>
           <para>21174 (Pyxis) chip [164LX, 164SX]</para>
-          <para>21171 (Alcor) chip set [EB164, PC164]</para>
         </listitem>
         <listitem>
           <para>Bcache / L3 cache:  EB164 uses special cache-SIMMs</para>
