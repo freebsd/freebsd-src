@@ -107,6 +107,8 @@ static u_char mfs_root[MD_ROOT_SIZE*1024] = "MFS Filesystem goes here";
 static u_char end_mfs_root[] __unused = "MFS Filesystem had better STOP here";
 #endif
 
+static g_init_t md_drvinit;
+
 static int	mdrootready;
 static int	mdunits;
 static dev_t	status_dev = 0;
@@ -339,6 +341,7 @@ s_write(struct indir *ip, off_t offset, uintptr_t ptr)
 
 struct g_class g_md_class = {
 	.name = "MD",
+	.init = md_drvinit,
 };
 
 static int
@@ -1160,7 +1163,7 @@ md_preloaded(u_char *image, unsigned length)
 }
 
 static void
-md_drvinit(void *unused)
+md_drvinit(struct g_class *mp __unused)
 {
 
 	caddr_t mod;
@@ -1172,6 +1175,7 @@ md_drvinit(void *unused)
 	md_preloaded(mfs_root, MD_ROOT_SIZE*1024);
 #endif
 	mod = NULL;
+	g_topology_unlock();
 	while ((mod = preload_search_next_name(mod)) != NULL) {
 		name = (char *)preload_search_info(mod, MODINFO_NAME);
 		type = (char *)preload_search_info(mod, MODINFO_TYPE);
@@ -1191,6 +1195,7 @@ md_drvinit(void *unused)
 	}
 	status_dev = make_dev(&mdctl_cdevsw, 0xffff00ff, UID_ROOT, GID_WHEEL,
 	    0600, MDCTL_NAME);
+	g_topology_lock();
 }
 
 static int
@@ -1201,7 +1206,6 @@ md_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		md_drvinit(NULL);
 		break;
 	case MOD_UNLOAD:
 		LIST_FOREACH(sc, &md_softc_list, list) {
