@@ -8,7 +8,7 @@
   This file is a part of bzip2 and/or libbzip2, a program and
   library for lossless, block-sorting data compression.
 
-  Copyright (C) 1996-2000 Julian R Seward.  All rights reserved.
+  Copyright (C) 1996-2002 Julian R Seward.  All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
   modification, are permitted provided that the following conditions
@@ -93,10 +93,39 @@ void BZ2_bz__AssertH__fail ( int errcode )
       "component, you should also report this bug to the author(s)\n"
       "of that program.  Please make an effort to report this bug;\n"
       "timely and accurate bug reports eventually lead to higher\n"
-      "quality software.  Thanks.  Julian Seward, 21 March 2000.\n\n",
+      "quality software.  Thanks.  Julian Seward, 30 December 2001.\n\n",
       errcode,
       BZ2_bzlibVersion()
    );
+
+   if (errcode == 1007) {
+   fprintf(stderr,
+      "\n*** A special note about internal error number 1007 ***\n"
+      "\n"
+      "Experience suggests that a common cause of i.e. 1007\n"
+      "is unreliable memory or other hardware.  The 1007 assertion\n"
+      "just happens to cross-check the results of huge numbers of\n"
+      "memory reads/writes, and so acts (unintendedly) as a stress\n"
+      "test of your memory system.\n"
+      "\n"
+      "I suggest the following: try compressing the file again,\n"
+      "possibly monitoring progress in detail with the -vv flag.\n"
+      "\n"
+      "* If the error cannot be reproduced, and/or happens at different\n"
+      "  points in compression, you may have a flaky memory system.\n"
+      "  Try a memory-test program.  I have used Memtest86\n"
+      "  (www.memtest86.com).  At the time of writing it is free (GPLd).\n"
+      "  Memtest86 tests memory much more thorougly than your BIOSs\n"
+      "  power-on test, and may find failures that the BIOS doesn't.\n"
+      "\n"
+      "* If the error can be repeatably reproduced, this is a bug in\n"
+      "  bzip2, and I would very much like to hear about it.  Please\n"
+      "  let me know, and, ideally, save a copy of the file causing the\n"
+      "  problem -- without which I will be unable to investigate it.\n"
+      "\n"
+   );
+   }
+
    exit(3);
 }
 #endif
@@ -1402,7 +1431,7 @@ BZFILE * bzopen_or_bzdopen
          smallMode = 1; break;
       default:
          if (isdigit((int)(*mode))) {
-            blockSize100k = *mode-'0';
+            blockSize100k = *mode-BZ_HDR_0;
          }
       }
       mode++;
