@@ -335,60 +335,85 @@ wi_get_id(sc, dev)
 	ver.wi_type = WI_RID_CARD_ID;
 	ver.wi_len = 5;
 	wi_read_record(sc, (struct wi_ltv_gen *)&ver);
-	device_printf(dev, "using ");
-	sc->wi_prism2 = 1;
-	sc->wi_nic_type = le16toh(ver.wi_ver[0]);
-	switch (sc->wi_nic_type) {
+	device_printf(sc->dev, "using ");
+	switch (le16toh(ver.wi_ver[0])) {
 	case WI_NIC_EVB2:
-		printf("RF:PRISM I MAC:HFA3841");
+		printf("RF:PRISM2 MAC:HFA3841");
 		break;
 	case WI_NIC_HWB3763:
-		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3763 rev.B");
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3763 rev.B");
 		break;
 	case WI_NIC_HWB3163:
-		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3163 rev.A");
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.A");
 		break;
 	case WI_NIC_HWB3163B:
-		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3163 rev.B");
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163 rev.B");
 		break;
 	case WI_NIC_EVB3:
-	case WI_NIC_3842:
-		printf("RF:PRISM II MAC:HFA3842");
+	case WI_NIC_3842_EVA:
+		printf("RF:PRISM2 MAC:HFA3842 CARD:HFA3842 EVAL");
 		break;
 	case WI_NIC_HWB1153:
-		printf("RF:PRISM I MAC:HFA3841 CARD:HWB1153");
+		printf("RF:PRISM1 MAC:HFA3841 CARD:HWB1153");
 		break;
 	case WI_NIC_P2_SST:
 	case WI_NIC_EVB2_SST:
-		printf("RF:PRISM II MAC:HFA3841 CARD:HWB3163-SST-flash");
+		printf("RF:PRISM2 MAC:HFA3841 CARD:HWB3163-SST-flash");
 		break;
-	case WI_NIC_PRISM2_5:
+	case WI_NIC_3842_PCMCIA_AMD:
+	case WI_NIC_3842_PCMCIA_SST:
+	case WI_NIC_3842_PCMCIA_ATM:
 		printf("RF:PRISM2.5 MAC:ISL3873");
 		break;
-	case WI_NIC_3874A:
-		printf("RF:PRISM2.5 MAC:ISL3874A(PCI)");
+	case WI_NIC_3842_MINI_AMD:
+	case WI_NIC_3842_MINI_SST:
+	case WI_NIC_3842_MINI_ATM:
+		printf("RF:PRISM2.5 MAC:ISL3874A(Mini-PCI)");
 		break;
-	case WI_NIC_37300P:
-		printf("RF:PRISM2.5 MAC:ISL37300P");
+	case WI_NIC_3842_PCI_AMD:
+	case WI_NIC_3842_PCI_SST:
+	case WI_NIC_3842_PCI_ATM:
+		printf("RF:PRISM2.5 MAC:ISL3874A(PCI-bridge)");
 		break;
-	case WI_NIC_P3_SST:
-		printf("RF:PRISM3");
+	case WI_NIC_P3_PCMCIA_AMD:
+	case WI_NIC_P3_PCMCIA_SST:
+		printf("RF:PRISM3(PCMCIA)");
 		break;
-	case WI_NIC_P3_PCI:
-		printf("RF:PRISM3");
+	case WI_NIC_P3_MINI_AMD:
+	case WI_NIC_P3_MINI_SST:
+		printf("RF:PRISM3(Mini-PCI)");
 		break;
 	case WI_NIC_LUCENT:
 	case WI_NIC_LUCENT_ALT:
-		printf("WaveLan/Lucent/Orinoco chip");
-		sc->wi_prism2 = 0;
+		printf("Lucent Technologies, WaveLAN/IEEE");
 		break;
 	default:
-		printf("Lucent chip or unknown chip %04x", ver.wi_ver[0]);
-		sc->wi_prism2 = 0;
+		if (le16toh(ver.wi_ver[0]) & 0x8000)
+			printf("Unknown PRISM2 chip");
+		else
+			printf("Unknown Lucent chip");
+		printf(" 0x%x", le16toh(ver.wi_ver[0]));
 		break;
 	}
+	if (le16toh(ver.wi_ver[0]) & 0x8000)
+		sc->sc_firmware_type = WI_INTERSIL;
+	else
+		sc->sc_firmware_type = WI_LUCENT;
 
-	/* get firmware version */
+	if (sc->sc_firmware_type != WI_LUCENT) {
+		/* get primary firmware version */
+		memset(&ver, 0, sizeof(ver));
+		ver.wi_type = WI_RID_PRI_IDENTITY;
+		ver.wi_len = 5;
+		wi_read_record(sc, (struct wi_ltv_gen *)&ver);
+		ver.wi_ver[1] = le16toh(ver.wi_ver[1]);
+		ver.wi_ver[2] = le16toh(ver.wi_ver[2]);
+		ver.wi_ver[3] = le16toh(ver.wi_ver[3]);
+		sc->sc_pri_firmware_ver = ver.wi_ver[2] * 10000 +
+		    ver.wi_ver[3] * 100 + ver.wi_ver[1];
+	}
+
+	/* get station firmware version */
 	memset(&ver, 0, sizeof(ver));
 	ver.wi_type = WI_RID_STA_IDENTITY;
 	ver.wi_len = 5;
@@ -396,11 +421,43 @@ wi_get_id(sc, dev)
 	ver.wi_ver[1] = le16toh(ver.wi_ver[1]);
 	ver.wi_ver[2] = le16toh(ver.wi_ver[2]);
 	ver.wi_ver[3] = le16toh(ver.wi_ver[3]);
-	sc->wi_firmware_ver = ver.wi_ver[2] * 100 + ver.wi_ver[3] *  10 +
-	    ver.wi_ver[1];
-	printf(", Firmware: %d.%02d variant %d\n", ver.wi_ver[2],
-	    ver.wi_ver[3], ver.wi_ver[1]);
+	sc->sc_sta_firmware_ver = ver.wi_ver[2] * 10000 +
+	    ver.wi_ver[3] * 100 + ver.wi_ver[1];
+	if (sc->sc_firmware_type == WI_INTERSIL &&
+	    (sc->sc_sta_firmware_ver == 10102 || 
+	     sc->sc_sta_firmware_ver == 20102)) {
+		struct wi_ltv_str sver;
+		char *p;
 
+		memset(&sver, 0, sizeof(sver));
+		sver.wi_type = WI_RID_SYMBOL_IDENTITY;
+		sver.wi_len = 7;
+		/* value should be "V2.00-11" */
+		if (wi_read_record(sc, (struct wi_ltv_gen *)&sver) == 0 &&
+		    *(p = (char *)sver.wi_str) == 'V' &&
+		    p[2] == '.' && p[5] == '-' && p[8] == '\0') {
+			sc->sc_firmware_type = WI_SYMBOL;
+			sc->sc_sta_firmware_ver = (p[1] - '0') * 10000 +
+			    (p[3] - '0') * 1000 + (p[4] - '0') * 100 +
+			    (p[6] - '0') * 10 + (p[7] - '0');
+		}
+	}
+	printf("\n");
+	device_printf(sc->dev, "%s Firmware: ",
+	     sc->sc_firmware_type == WI_LUCENT ? "Lucent" :
+	    (sc->sc_firmware_type == WI_SYMBOL ? "Symbol" : "Intersil"));
+
+	/*
+	 * The primary firmware is only valid on Prism based chipsets
+	 * (INTERSIL or SYMBOL).
+	 */
+	if (sc->sc_firmware_type != WI_LUCENT)
+	    printf("Primary %u.%02u.%02u, ", sc->sc_pri_firmware_ver / 10000,
+		    (sc->sc_pri_firmware_ver % 10000) / 100,
+		    sc->sc_pri_firmware_ver % 100);
+	printf("Station %u.%02u.%02u\n",
+	    sc->sc_sta_firmware_ver / 10000, (sc->sc_sta_firmware_ver % 10000) / 100,
+	    sc->sc_sta_firmware_ver % 100);
 	return;
 }
 
@@ -847,8 +904,17 @@ wi_reset(sc)
 {
 #define WI_INIT_TRIES 5
 	int i;
+	int tries;
 	
-	for (i = 0; i < WI_INIT_TRIES; i++) {
+	/* Symbol firmware cannot be initialized more than once */
+	if (sc->sc_firmware_type == WI_SYMBOL && sc->sc_enabled)
+		return;
+	if (sc->sc_firmware_type == WI_SYMBOL)
+		tries = 1;
+	else
+		tries = WI_INIT_TRIES;
+
+	for (i = 0; i < tries; i++) {
 		if (wi_cmd(sc, WI_CMD_INI, 0, 0, 0) == 0)
 			break;
 		DELAY(WI_DELAY * 1000);
@@ -861,6 +927,8 @@ wi_reset(sc)
 
 	/* Calibrate timer. */
 	WI_SETVAL(WI_RID_TICK_TIME, 8);
+
+	sc->sc_enabled = 1;
 
 	return;
 }
@@ -878,7 +946,7 @@ wi_read_record(sc, ltv)
 	struct wi_ltv_gen	*oltv, p2ltv;
 
 	oltv = ltv;
-	if (sc->wi_prism2) {
+	if (sc->sc_firmware_type != WI_LUCENT) {
 		switch (ltv->wi_type) {
 		case WI_RID_ENCRYPTION:
 			p2ltv.wi_type = WI_RID_P2_ENCRYPTION;
@@ -921,7 +989,7 @@ wi_read_record(sc, ltv)
 	for (i = 0; i < ltv->wi_len - 1; i++)
 		ptr[i] = CSR_READ_2(sc, WI_DATA1);
 
-	if (sc->wi_prism2) {
+	if (sc->sc_firmware_type != WI_LUCENT) {
 		switch (oltv->wi_type) {
 		case WI_RID_TX_RATE:
 		case WI_RID_CUR_TX_RATE:
@@ -972,7 +1040,7 @@ wi_write_record(sc, ltv)
 	int			i;
 	struct wi_ltv_gen	p2ltv;
 
-	if (sc->wi_prism2) {
+	if (sc->sc_firmware_type != WI_LUCENT) {
 		switch (ltv->wi_type) {
 		case WI_RID_TX_RATE:
 			p2ltv.wi_type = WI_RID_TX_RATE;
@@ -1437,8 +1505,9 @@ wi_ioctl(ifp, command, data)
 			wreq.wi_val[0] = sc->wi_procframe;
 		} else if (wreq.wi_type == WI_RID_PRISM2) {
 			wreq.wi_len = 2;
-			wreq.wi_val[0] = sc->wi_prism2;
-		} else if (wreq.wi_type == WI_RID_SCAN_RES && !sc->wi_prism2) {
+			wreq.wi_val[0] = sc->sc_firmware_type != WI_LUCENT;
+		} else if (wreq.wi_type == WI_RID_SCAN_RES && 
+		    sc->sc_firmware_type == WI_LUCENT) {
 			memcpy((char *)wreq.wi_val, (char *)sc->wi_scanbuf,
 			    sc->wi_scanbuf_len * 2);
 			wreq.wi_len = sc->wi_scanbuf_len;
@@ -1471,7 +1540,8 @@ wi_ioctl(ifp, command, data)
 		 * interrupt handler. otherwise the scan request can be
 		 * directly handled by a prism2 card's rid interface.
 		 */
-		} else if (wreq.wi_type == WI_RID_SCAN_REQ && !sc->wi_prism2) {
+		} else if (wreq.wi_type == WI_RID_SCAN_REQ && 
+		    sc->sc_firmware_type == WI_LUCENT) {
 			wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_SCAN_RESULTS, 0, 0);
 		} else {
 			error = wi_write_record(sc, (struct wi_ltv_gen *)&wreq);
@@ -1483,7 +1553,8 @@ wi_ioctl(ifp, command, data)
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
 			break;
-		if (!(ifp->if_flags & IFF_RUNNING) || !sc->wi_prism2) {
+		if (!(ifp->if_flags & IFF_RUNNING) ||
+		    sc->sc_firmware_type == WI_LUCENT) {
 			error = EIO;
 			break;
 		}
@@ -1780,18 +1851,19 @@ wi_init(xsc)
 		sc->wi_keys.wi_len = (sizeof(struct wi_ltv_keys) / 2) + 1;
 		sc->wi_keys.wi_type = WI_RID_DEFLT_CRYPT_KEYS;
 		wi_write_record(sc, (struct wi_ltv_gen *)&sc->wi_keys);
-		if (sc->wi_prism2 && sc->wi_use_wep) {
+		if (sc->sc_firmware_type != WI_LUCENT && sc->wi_use_wep) {
 			/*
 			 * ONLY HWB3163 EVAL-CARD Firmware version
-			 * less than 0.8 variant3
+			 * less than 0.8 variant2
 			 *
 			 *   If promiscuous mode disable, Prism2 chip
 			 *  does not work with WEP .
 			 * It is under investigation for details.
 			 * (ichiro@netbsd.org)
 			 */
-			if (sc->wi_firmware_ver < 83 ) {
-				/* firm ver < 0.8 variant 3 */
+			if (sc->sc_firmware_type == WI_INTERSIL &&
+			    sc->sc_sta_firmware_ver < 802 ) {
+				/* firm ver < 0.8 variant 2 */
 				WI_SETVAL(WI_RID_PROMISC, 1);
 			}
 			WI_SETVAL(WI_RID_AUTH_CNTL, sc->wi_authtype);

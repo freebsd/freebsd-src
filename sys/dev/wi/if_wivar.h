@@ -111,7 +111,14 @@ struct wi_softc	{
 	bus_space_handle_t	wi_bmemhandle;
 	bus_space_tag_t		wi_bmemtag;
 	void *			wi_intrhand;
-	int			wi_io_addr;    
+	int			sc_firmware_type;
+#define	WI_LUCENT	0
+#define	WI_INTERSIL	1
+#define	WI_SYMBOL	2
+	int			sc_pri_firmware_ver;	/* Primary firmware */
+	int			sc_sta_firmware_ver;	/* Station firmware */
+	int			sc_enabled;
+	int			wi_io_addr;
 	int			wi_tx_data_id;
 	int			wi_tx_mgmt_id;
 	int			wi_gone;
@@ -149,8 +156,6 @@ struct wi_softc	{
 #endif
 	struct callout_handle	wi_stat_ch;
 	struct mtx		wi_mtx;
-	int			wi_prism2;
-	int			wi_firmware_ver;
 	int			wi_nic_type;
 	int			wi_bus_type;	/* Bus attachment type */
 	struct {
