@@ -94,6 +94,8 @@
 
 #include <sys/user.h>
 
+#include <i386/include/psl.h>
+
 /*
  * quick version of vm_fault
  */
@@ -198,9 +200,15 @@ cpu_fork(td1, p2, td2, flags)
 	 * Set up return-value registers as fork() libc stub expects.
 	 */
 	p2tf = td2->td_frame;
-	p2tf->tf_r[FRAME_R8] = 0; 	/* child's pid (linux) 	*/
-	p2tf->tf_r[FRAME_R9] = 1;	/* is child (FreeBSD) 	*/
-	p2tf->tf_r[FRAME_R10] = 0;	/* no error 		*/
+	if (p2tf->tf_cr_ipsr & IA64_PSR_IS) {
+		p2tf->tf_r[FRAME_R8] = 0; /* child returns zero (eax) */
+		p2tf->tf_r[FRAME_R10] = 1; /* is child (edx) */
+		td2->td_pcb->pcb_eflag &= ~PSL_C; /* no error */
+	} else {
+		p2tf->tf_r[FRAME_R8] = 0; /* child's pid (linux) 	*/
+		p2tf->tf_r[FRAME_R9] = 1; /* is child (FreeBSD) 	*/
+		p2tf->tf_r[FRAME_R10] = 0; /* no error	 		*/
+	}
 
 	/*
 	 * Turn off RSE for a moment and work out our current
