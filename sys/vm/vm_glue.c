@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.44 1996/04/03 05:23:36 dyson Exp $
+ * $Id: vm_glue.c,v 1.45 1996/04/07 17:39:23 bde Exp $
  */
 
 #include "opt_ddb.h"
@@ -472,6 +472,7 @@ scheduler(dummy)
 	struct proc *pp;
 	int ppri;
 
+	spl0();
 loop:
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
@@ -561,22 +562,11 @@ retry:
 				(p->p_slptime <= 4))
 				continue;
 
-			vm_map_reference(&p->p_vmspace->vm_map);
-			/*
-			 * do not swapout a process that is waiting for VM
-			 * datastructures there is a possible deadlock.
-			 */
-			if (!lock_try_write(&p->p_vmspace->vm_map.lock)) {
-				vm_map_deallocate(&p->p_vmspace->vm_map);
-				continue;
-			}
-			vm_map_unlock(&p->p_vmspace->vm_map);
 			/*
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
 			swapout(p);
-			vm_map_deallocate(&p->p_vmspace->vm_map);
 			didswap++;
 			goto retry;
 		}
