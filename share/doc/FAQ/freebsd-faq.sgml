@@ -4,7 +4,7 @@
 
      This is the 2.0 version of the FAQ for FreeBSD 2.0
 
-     $Id: freebsd-faq.sgml,v 1.1.1.1 1995/04/28 16:36:02 jfieber Exp $
+     $Id: freebsd-faq.sgml,v 1.2 1995/05/10 00:11:01 jfieber Exp $
 -->
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
 
@@ -821,7 +821,7 @@
             <item> <tt/vi MYKERNEL/
             <item> <tt/config MYKERNEL/
             <item> <tt>cd ../../compile/MYKERNEL</tt>
-            <item> <tt/make all/
+            <item> <tt/make depend all/
             <item> <tt/make install/
             <item> <tt/reboot/
           </enum>
