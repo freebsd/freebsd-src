@@ -198,6 +198,7 @@ SRCS=	${GENHDR} ${GENSRC} \
 	trace_xnames.c \
 	tries.c \
 	tty_update.c \
+	version.c \
 	vsscanf.c \
 	wresize.c \
 	write_entry.c \
