@@ -4,9 +4,9 @@
 # WARNING: empty lines are essential too
 #
 # int_curr_symbol (last character always SPACE)
-DEM 
+EUR 
 # currency_symbol
-DM
+Eu
 # mon_decimal_point
 ,
 # mon_thousands_sep
