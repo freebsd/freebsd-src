@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.18 1995/06/05 04:16:06 jkh Exp $
+ * $Id: menus.c,v 1.41.2.19 1995/06/05 09:52:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -356,7 +356,7 @@ srcFlagCheck(DMenuItem *item)
 {
     if (isDebug())
 	msgDebug("Dists & DIST_SRC = %d\n", Dists & DIST_SRC);
-    return (Dists & DIST_SRC) ? "YES" : "NO";
+    return (Dists & DIST_SRC) ? "ON" : "OFF";
 }
 
 static char *
@@ -364,7 +364,7 @@ x11FlagCheck(DMenuItem *item)
 {
     if (isDebug())
 	msgDebug("Dists & DIST_XF86 = %d\n", Dists & DIST_XF86);
-    return (Dists & DIST_XF86) ? "YES" : "NO";
+    return (Dists & DIST_XF86) ? "ON" : "OFF";
 }
 
 DMenu MenuDistributions = {
