@@ -510,7 +510,7 @@ bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (curproc != idleproc)
+		if (curproc != PCPU_GET(idleproc))
 			curproc->p_stats->p_ru.ru_inblock++;
 		KASSERT(!(bp->b_flags & B_ASYNC), ("bread: illegal async bp %p", bp));
 		bp->b_iocmd = BIO_READ;
@@ -547,7 +547,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (curproc != idleproc)
+		if (curproc != PCPU_GET(idleproc))
 			curproc->p_stats->p_ru.ru_inblock++;
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
@@ -568,7 +568,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0);
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (curproc != idleproc)
+			if (curproc != PCPU_GET(idleproc))
 				curproc->p_stats->p_ru.ru_inblock++;
 			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~B_INVAL;
@@ -695,7 +695,7 @@ bwrite(struct buf * bp)
 
 	bp->b_vp->v_numoutput++;
 	vfs_busy_pages(bp, 1);
-	if (curproc != idleproc)
+	if (curproc != PCPU_GET(idleproc))
 		curproc->p_stats->p_ru.ru_oublock++;
 	splx(s);
 	if (oldflags & B_ASYNC)
@@ -2107,7 +2107,7 @@ loop:
 	 * XXX remove if 0 sections (clean this up after its proven)
          */
 	if (numfreebuffers == 0) {
-		if (curproc == idleproc)
+		if (curproc == PCPU_GET(idleproc))
 			return NULL;
 		needsbuffer |= VFS_BIO_NEED_ANY;
 	}

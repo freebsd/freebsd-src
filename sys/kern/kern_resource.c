@@ -534,13 +534,14 @@ calcru(p, up, sp, ip)
 		 * quantum, which is much greater than the sampling error.
 		 */
 		microuptime(&tv);
-		if (timevalcmp(&tv, &switchtime, <))
+		if (timevalcmp(&tv, PCPU_PTR(switchtime), <))
 			printf("microuptime() went backwards (%ld.%06ld -> %ld.%06ld)\n",
-			    switchtime.tv_sec, switchtime.tv_usec,
+			    PCPU_GET(switchtime.tv_sec), PCPU_GET(switchtime.tv_usec),
 			    tv.tv_sec, tv.tv_usec);
 		else
-			tu += (tv.tv_usec - switchtime.tv_usec) +
-			    (tv.tv_sec - switchtime.tv_sec) * (int64_t)1000000;
+			tu += (tv.tv_usec - PCPU_GET(switchtime.tv_usec)) +
+			    (tv.tv_sec - PCPU_GET(switchtime.tv_sec)) *
+			    (int64_t)1000000;
 	}
 	ptu = p->p_uu + p->p_su + p->p_iu;
 	if (tu < ptu || (int64_t)tu < 0) {

@@ -480,7 +480,7 @@ restart:
 			if (in_vm86call)
 				break;
 
-			if (intr_nesting_level != 0)
+			if (PCPU_GET(intr_nesting_level) != 0)
 				break;
 
 			/*
@@ -493,7 +493,7 @@ restart:
 			 * a signal.
 			 */
 			if (frame.tf_eip == (int)cpu_switch_load_gs) {
-				curpcb->pcb_gs = 0;
+				PCPU_GET(curpcb)->pcb_gs = 0;
 				psignal(p, SIGBUS);
 				goto out;
 			}
@@ -519,13 +519,15 @@ restart:
 			if (frame.tf_eip == (int)doreti_popl_es) {
 				frame.tf_eip = (int)doreti_popl_es_fault;
 				goto out;
-				}
+			}
 			if (frame.tf_eip == (int)doreti_popl_fs) {
 				frame.tf_eip = (int)doreti_popl_fs_fault;
 				goto out;
 			}
-			if (curpcb && curpcb->pcb_onfault) {
-				frame.tf_eip = (int)curpcb->pcb_onfault;
+			if (PCPU_GET(curpcb) != NULL &&
+			    PCPU_GET(curpcb)->pcb_onfault != NULL) {
+				frame.tf_eip =
+				    (int)PCPU_GET(curpcb)->pcb_onfault;
 				goto out;
 			}
 			break;
@@ -685,8 +687,9 @@ trap_pfault(frame, usermode, eva)
 
 		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
-		     (intr_nesting_level != 0 || curpcb == NULL ||
-		      curpcb->pcb_onfault == NULL))) {
+		     (PCPU_GET(intr_nesting_level) != 0 ||
+		      PCPU_GET(curpcb) == NULL ||
+		      PCPU_GET(curpcb)->pcb_onfault == NULL))) {
 			trap_fatal(frame, eva);
 			return (-1);
 		}
@@ -748,8 +751,10 @@ trap_pfault(frame, usermode, eva)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (intr_nesting_level == 0 && curpcb && curpcb->pcb_onfault) {
-			frame->tf_eip = (int)curpcb->pcb_onfault;
+		if (PCPU_GET(intr_nesting_level) == 0 &&
+		    PCPU_GET(curpcb) != NULL &&
+		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
+			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);
@@ -853,8 +858,10 @@ trap_pfault(frame, usermode, eva)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (intr_nesting_level == 0 && curpcb && curpcb->pcb_onfault) {
-			frame->tf_eip = (int)curpcb->pcb_onfault;
+		if (PCPU_GET(intr_nesting_level) == 0 &&
+		    PCPU_GET(curpcb) != NULL &&
+		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
+			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
 			return (0);
 		}
 		trap_fatal(frame, eva);
@@ -886,7 +893,7 @@ trap_fatal(frame, eva)
 			ISPL(frame->tf_cs) == SEL_UPL ? "user" : "kernel");
 #ifdef SMP
 	/* two seperate prints in case of a trap on an unmapped page */
-	printf("cpuid = %d; ", cpuid);
+	printf("cpuid = %d; ", PCPU_GET(cpuid));
 	printf("lapic.id = %08x\n", lapic.id);
 #endif
 	if (type == T_PAGEFLT) {
@@ -964,12 +971,12 @@ void
 dblfault_handler()
 {
 	printf("\nFatal double fault:\n");
-	printf("eip = 0x%x\n", common_tss.tss_eip);
-	printf("esp = 0x%x\n", common_tss.tss_esp);
-	printf("ebp = 0x%x\n", common_tss.tss_ebp);
+	printf("eip = 0x%x\n", PCPU_GET(common_tss.tss_eip));
+	printf("esp = 0x%x\n", PCPU_GET(common_tss.tss_esp));
+	printf("ebp = 0x%x\n", PCPU_GET(common_tss.tss_ebp));
 #ifdef SMP
 	/* two seperate prints in case of a trap on an unmapped page */
-	printf("cpuid = %d; ", cpuid);
+	printf("cpuid = %d; ", PCPU_GET(cpuid));
 	printf("lapic.id = %08x\n", lapic.id);
 #endif
 	panic("double fault");

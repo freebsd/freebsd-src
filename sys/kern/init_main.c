@@ -415,7 +415,7 @@ proc0_post(void *dummy __unused)
 		p->p_runtime = 0;
 	}
 	ALLPROC_LOCK(AP_RELEASE);
-	microuptime(&switchtime);
+	microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
 
 	/*
