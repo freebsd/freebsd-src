@@ -30,7 +30,7 @@
 .\" If you integrate this manpage in another OS, I'd appreciate a note 
 .\"	- eivind@freebsd.org
 .\"
-.\" $Id: namei.9,v 1.2 1999/03/06 17:07:29 bde Exp $
+.\" $Id: namei.9,v 1.1.2.1 1999/05/04 11:57:16 kris Exp $
 .\"
 .Dd September 26th, 1998
 .Os
@@ -100,7 +100,7 @@ takes the following set of 'operation flags' that influence
 how it operates:
 .Bl -tag -width WANTPARENT
 .It Dv LOCKLEAF
-Lock inode on return.  This is a full lock of the vnode; you'll have to use
+Lock vnode on return.  This is a full lock of the vnode; you'll have to use
 .Xr VOP_UNLOCK 9
 to release the lock (or use
 .Xr vput 9
