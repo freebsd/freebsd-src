@@ -107,6 +107,12 @@ int bt848_tuner = -1;
 int bt848_reverse_mute = -1; 
 int bt848_format = -1;
 int bt848_slow_msp_audio = -1;
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+int bt848_stereo_once = 0;	/* no continuous stereo monitoring */
+int bt848_amsound = 0;		/* hard-wire AM sound at 6.5 Hz (france),
+				   the autoscan seems work well only with FM... */
+int bt848_dolby = 0;
+#endif
 
 SYSCTL_NODE(_hw, OID_AUTO, bt848, CTLFLAG_RW, 0, "Bt848 Driver mgmt");
 SYSCTL_INT(_hw_bt848, OID_AUTO, card, CTLFLAG_RW, &bt848_card, -1, "");
@@ -114,6 +120,11 @@ SYSCTL_INT(_hw_bt848, OID_AUTO, tuner, CTLFLAG_RW, &bt848_tuner, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, reverse_mute, CTLFLAG_RW, &bt848_reverse_mute, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, format, CTLFLAG_RW, &bt848_format, -1, "");
 SYSCTL_INT(_hw_bt848, OID_AUTO, slow_msp_audio, CTLFLAG_RW, &bt848_slow_msp_audio, -1, "");
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+SYSCTL_INT(_hw_bt848, OID_AUTO, stereo_once, CTLFLAG_RW, &bt848_stereo_once, 0, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, amsound, CTLFLAG_RW, &bt848_amsound, 0, "");
+SYSCTL_INT(_hw_bt848, OID_AUTO, dolby, CTLFLAG_RW, &bt848_dolby, 0, "");
+#endif
 
 #endif /* end freebsd section */
 
@@ -473,6 +484,12 @@ bktr_detach( device_t dev )
 {
 	struct bktr_softc *bktr = device_get_softc(dev);
 
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+	/* Disable the soundchip and kernel thread */
+	if (bktr->msp3400c_info != NULL)
+		msp_detach(bktr);
+#endif
+
 	/* Disable the brooktree device */
 	OUTL(bktr, BKTR_INT_MASK, ALL_INTS_DISABLED);
 	OUTW(bktr, BKTR_GPIO_DMA_CTL, FIFO_RISC_DISABLED);
@@ -610,6 +627,26 @@ bktr_open( dev_t dev, int flags, int fmt, struct thread *td )
 	      bktr->slow_msp_audio = (bt848_slow_msp_audio & 0xff);
 	  }
 	}
+
+#ifdef BKTR_NEW_MSP34XX_DRIVER
+	if (bt848_stereo_once != 0) {
+	  if ((bt848_stereo_once >> 8) == unit ) {
+	      bktr->stereo_once = (bt848_stereo_once & 0xff);
+	  }
+	}
+
+	if (bt848_amsound != -1) {
+	  if ((bt848_amsound >> 8) == unit ) {
+	      bktr->amsound = (bt848_amsound & 0xff);
+	  }
+	}
+
+	if (bt848_dolby != -1) {
+	  if ((bt848_dolby >> 8) == unit ) {
+	      bktr->dolby = (bt848_dolby & 0xff);
+	  }
+	}
+#endif
 
 	switch ( FUNCTION( minor(dev) ) ) {
 	case VIDEO_DEV:
