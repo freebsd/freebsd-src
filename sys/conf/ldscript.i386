@@ -65,6 +65,7 @@ SECTIONS
     CONSTRUCTORS
   }
   .data1   : { *(.data1) }
+  . = ALIGN(32 / 8);
   _start_ctors = .;
   PROVIDE (start_ctors = .);
   .ctors         :
