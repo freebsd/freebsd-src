@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_mkquery.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_mkquery.c,v 1.3 1994/09/25 17:45:39 pst Exp $";
+static char rcsid[] = "$Id: res_mkquery.c,v 1.4 1995/05/30 05:40:56 rgrimes Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -63,6 +63,10 @@ static char rcsid[] = "$Id: res_mkquery.c,v 1.3 1994/09/25 17:45:39 pst Exp $";
 #include <stdio.h>
 #include <resolv.h>
 #include <string.h>
+#include <netdb.h>
+
+#include <res_config.h>
+
 
 /*
  * Form all types of queries.
@@ -82,12 +86,20 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	register HEADER *hp;
 	register u_char *cp;
 	register int n;
+#ifdef ALLOW_UPDATES
 	struct rrec *newrr = (struct rrec *) newrr_in;
+#endif
 	u_char *dnptrs[20], **dpp, **lastdnptr;
 
+	if ((_res.options & RES_INIT) == 0 && res_init() == -1) {
+		h_errno = NETDB_INTERNAL;
+		return (-1);
+	}
+#ifdef DEBUG
 	if (_res.options & RES_DEBUG)
 		printf(";; res_mkquery(%d, %s, %d, %d)\n",
 		       op, dname, class, type);
+#endif
 	/*
 	 * Initialize header fields.
 	 */
@@ -97,7 +109,6 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	hp = (HEADER *) buf;
 	hp->id = htons(++_res.id);
 	hp->opcode = op;
-	hp->pr = (_res.options & RES_PRIMARY) != 0;
 	hp->rd = (_res.options & RES_RECURSE) != 0;
 	hp->rcode = NOERROR;
 	cp = buf + HFIXEDSZ;
@@ -110,7 +121,8 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 	 * perform opcode specific processing
 	 */
 	switch (op) {
-	case QUERY:
+	case QUERY:	/*FALLTHROUGH*/
+	case NS_NOTIFY_OP:
 		if ((buflen -= QFIXEDSZ) < 0)
 			return(-1);
 		if ((n = dn_comp(dname, cp, buflen, dnptrs, lastdnptr)) < 0)
@@ -222,8 +234,9 @@ res_mkquery(op, dname, class, type, data, datalen, newrr_in, buf, buflen)
 		}
 		hp->ancount = htons(0);
 		break;
-
 #endif /* ALLOW_UPDATES */
+	default:
+		return (-1);
 	}
 	return (cp - buf);
 }

@@ -3,6 +3,7 @@
 # machine-independent net sources
 .PATH: ${.CURDIR}/${MACHINE}/net ${.CURDIR}/net
 
+CFLAGS+= -I${.CURDIR}/net
 SRCS+=	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservbyname.c \
