@@ -630,6 +630,8 @@ struct proc {
 #define	P_KTHREAD	0x00004	/* Kernel thread. (*)*/
 #define	P_NOLOAD	0x00008	/* Ignore during load avg calculations. */
 #define	P_PPWAIT	0x00010	/* Parent is waiting for child to exec/exit. */
+#define	P_PROFIL	0x00020	/* Has started profiling. */
+#define	P_STOPPROF	0x00040	/* Has thread in requesting to stop prof */
 #define	P_SUGID		0x00100	/* Had set id privileges since last exec. */
 #define	P_SYSTEM	0x00200	/* System proc: no sigs, stats or swapping. */
 #define	P_WAITED	0x01000	/* Someone is waiting for us */
@@ -661,8 +663,6 @@ struct proc {
 /* These flags are kept in p_sflag and are protected with sched_lock. */
 #define	PS_INMEM	0x00001	/* Loaded into memory. */
 #define	PS_XCPU		0x00002 /* Exceeded CPU limit. */
-#define	PS_PROFIL	0x00004	/* Has started profiling. */
-#define	PS_STOPPROF	0x00008	/* Has thread in requesting to stop prof */
 #define	PS_ALRMPEND	0x00020	/* Pending SIGVTALRM needs to be posted. */
 #define	PS_PROFPEND	0x00040	/* Pending SIGPROF needs to be posted. */
 #define	PS_SWAPINREQ	0x00100	/* Swapin request due to wakeup. */
