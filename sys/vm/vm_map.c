@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.156 1999/03/09 08:00:17 alc Exp $
+ * $Id: vm_map.c,v 1.157 1999/03/15 06:24:52 alc Exp $
  */
 
 /*
@@ -318,22 +318,29 @@ vm_map_entry_create(map)
  *
  *	Insert/remove entries from maps.
  */
-#define	vm_map_entry_link(map, after_where, entry) \
-		{ \
-		(map)->nentries++; \
-		(map)->timestamp++; \
-		(entry)->prev = (after_where); \
-		(entry)->next = (after_where)->next; \
-		(entry)->prev->next = (entry); \
-		(entry)->next->prev = (entry); \
-		}
-#define	vm_map_entry_unlink(map, entry) \
-		{ \
-		(map)->nentries--; \
-		(map)->timestamp++; \
-		(entry)->next->prev = (entry)->prev; \
-		(entry)->prev->next = (entry)->next; \
-		}
+static __inline void
+vm_map_entry_link(vm_map_t map,
+		  vm_map_entry_t after_where,
+		  vm_map_entry_t entry)
+{
+	map->nentries++;
+	entry->prev = after_where;
+	entry->next = after_where->next;
+	entry->next->prev = entry;
+	after_where->next = entry;
+}
+
+static __inline void
+vm_map_entry_unlink(vm_map_t map,
+		    vm_map_entry_t entry)
+{
+	vm_map_entry_t prev = entry->prev;
+	vm_map_entry_t next = entry->next;
+
+	next->prev = prev;
+	prev->next = next;
+	map->nentries--;
+}
 
 /*
  *	SAVE_HINT:
@@ -1679,7 +1686,6 @@ vm_map_pageable(map, start, end, new_pageable)
 					entry->wired_count--;
 					entry = entry->prev;
 				}
-				map->timestamp++;
 				vm_map_unlock(map);
 				return (KERN_INVALID_ARGUMENT);
 			}
@@ -1748,7 +1754,6 @@ vm_map_pageable(map, start, end, new_pageable)
 
 	vm_map_unlock(map);
 
-	map->timestamp++;
 	return (KERN_SUCCESS);
 }
 
