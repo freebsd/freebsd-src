@@ -16,9 +16,11 @@ SUBDIR=	adjkerntz \
 	dump \
 	dumpfs \
 	dumpon \
+	ffsinfo \
 	fsck \
 	fsdb \
 	fsirand \
+	growfs \
 	ifconfig \
 	init \
 	ip6fw \
