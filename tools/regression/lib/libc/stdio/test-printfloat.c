@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <err.h>
 #include <float.h>
+#include <ieeefp.h>
 #include <locale.h>
 #include <math.h>
 #include <stdio.h>
@@ -69,7 +70,7 @@ main(int argc, char *argv[])
 	testfmt("1234567.800000", "%Lf", 1234567.8L);
 	testfmt("1.23457E+06", "%LG", 1234567.8L);
 
-#if LDBL_MANT_DIG > DBL_MANT_DIG
+#if (LDBL_MANT_DIG > DBL_MANT_DIG) && !defined(__i386__)
 	testfmt("123456789.864210", "%Lf", 123456789.8642097531L);
 	testfmt("-1.23457E+08", "%LG", -123456789.8642097531L);
 	testfmt("123456789.8642097531", "%.10Lf", 123456789.8642097531L);
@@ -158,6 +159,42 @@ main(int argc, char *argv[])
 	testfmt(" 100", "%4.0f", 100.0);
 	testfmt("9.0e+01", "%4.1e", 90.0);
 	testfmt("1e+02", "%4.0e", 100.0);
+
+	/*
+	 * Hexadecimal floating point (%a, %A) tests.  Some of these
+	 * are only valid if the implementation converts to hex digits
+	 * on nibble boundaries.
+	 */
+
+	testfmt("0x0p+0", "%a", 0x0.0p0);
+	testfmt("0X0.P+0", "%#LA", 0x0.0p0L);
+	testfmt("inf", "%La", (long double)INFINITY);
+	testfmt("+INF", "%+A", INFINITY);
+	testfmt("nan", "%La", (long double)NAN);
+	testfmt("NAN", "%A", NAN);
+
+	testfmt(" 0x1.23p+0", "%10a", 0x1.23p0);
+	testfmt(" 0x1.23p-500", "%12a", 0x1.23p-500);
+	testfmt(" 0x1.2p+40", "%10.1a", 0x1.23p40);
+	testfmt(" 0X1.230000000000000000000000P-4", "%32.24A", 0x1.23p-4);
+
+#if (LDBL_MANT_DIG == 64) && !defined(__i386__)
+	testfmt("0xc.90fdaa22168c234p-2", "%La", 0x3.243f6a8885a308dp0L);
+#elif (LDBL_MANT_DIG == 113)
+	testfmt("0x1.921fb54442d18469898cc51701b8p+1", "%La",
+	    0x3.243f6a8885a308d313198a2e037p0L);
+#else
+	testfmt("0xc.90fdaa22168cp-2", "%La", 0x3.243f6a8885a31p0L);
+#endif
+
+	fpsetround(FP_RN);
+	testfmt("0x1.23456789abcdep+4", "%a", 0x1.23456789abcdep4);
+	testfmt("0X1.23456789ABDP+0", "%.11A", 0x1.23456789abcdep0);
+	testfmt("-0x1.23456p+0", "%.5a", -0x1.23456789abcdep0);
+	testfmt("0x1.234568p+0", "%.6a", 0x1.23456789abcdep0);
+	testfmt("-0x1.234566p+0", "%.6a", -0x1.23456689abcdep0);
+	testfmt("0x2.00p-1030", "%.2a", 0x1.fffp-1030);
+	testfmt("0x1.00p-1026", "%.2a", 0xf.fffp-1030);
 
 	printf("PASS printfloat\n");
 
