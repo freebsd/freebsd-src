@@ -333,6 +333,8 @@ end_final (filename)
 
       ASM_OUTPUT_ALIGN (asm_out_file, align);
 
+      fprintf(asm_out_file,".stabs \"bbset\", 25, 0, 0, LPBX0\n");
+
       ASM_OUTPUT_INTERNAL_LABEL (asm_out_file, "LPBX", 0);
       /* zero word */
       assemble_integer (const0_rtx, UNITS_PER_WORD, 1);
@@ -902,6 +904,8 @@ final_start_function (first, file, optimize)
 
   /* The Sun386i and perhaps other machines don't work right
      if the profiling code comes after the prologue.  */
+  if (profile_block_flag)
+    add_bb (file);
 #ifdef PROFILE_BEFORE_PROLOGUE
   if (profile_flag)
     profile_function (file);
@@ -1055,6 +1059,9 @@ final_end_function (first, file, optimize)
      code to restore the stack frame and return to the caller.  */
   FUNCTION_EPILOGUE (file, get_frame_size ());
 #endif
+  if (profile_block_flag)
+    add_bb (file);
+
 
 #ifdef SDB_DEBUGGING_INFO
   if (write_symbols == SDB_DEBUG)
