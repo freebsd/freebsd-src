@@ -1470,7 +1470,9 @@ static int
 age_old_log(char *file)
 {
 	struct stat sb;
-	char tmp[MAXPATHLEN + sizeof(".0") + sizeof(COMPRESS_POSTFIX) + 1];
+	char *endp;
+	char tmp[MAXPATHLEN + sizeof(".0") + sizeof(COMPRESS_POSTFIX) +
+		sizeof(BZCOMPRESS_POSTFIX) + 1];
 
 	if (archtodir) {
 		char *p;
@@ -1499,9 +1501,22 @@ age_old_log(char *file)
 		(void) strlcpy(tmp, file, sizeof(tmp));
 	}
 
-	if (stat(strcat(tmp, ".0"), &sb) < 0)
-		if (stat(strcat(tmp, COMPRESS_POSTFIX), &sb) < 0)
-			return (-1);
+	strlcat(tmp, ".0", sizeof(tmp));
+	if (stat(tmp, &sb) < 0) {
+		/*
+		 * A plain '.0' file does not exist.  Try again, first
+		 * with the added suffix of '.gz', then with an added
+		 * suffix of '.bz2' instead of '.gz'.
+		 */
+		endp = strchr(tmp, '\0');
+		strlcat(tmp, COMPRESS_POSTFIX, sizeof(tmp));
+		if (stat(tmp, &sb) < 0) {
+			*endp = '\0';		/* Remove .gz */
+			strlcat(tmp, BZCOMPRESS_POSTFIX, sizeof(tmp));
+			if (stat(tmp, &sb) < 0)
+				return (-1);
+		}
+	}
 	return ((int)(timenow - sb.st_mtime + 1800) / 3600);
 }
 
