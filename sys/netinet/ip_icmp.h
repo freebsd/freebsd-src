@@ -89,10 +89,10 @@ struct icmp {
 #define	icmp_wpa	icmp_hun.ih_rtradv.irt_wpa
 #define	icmp_lifetime	icmp_hun.ih_rtradv.irt_lifetime
 	union {
-		struct id_ts {
-			n_time its_otime;
-			n_time its_rtime;
-			n_time its_ttime;
+		struct id_ts {			/* ICMP Timestamp */
+			n_time its_otime;	/* Originate */
+			n_time its_rtime;	/* Receive */
+			n_time its_ttime;	/* Transmit */
 		} id_ts;
 		struct id_ip  {
 			struct ip idi_ip;
