@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
-.\"	$Id: symlink.7,v 1.6 1997/06/14 18:44:03 jdp Exp $
+.\"	$Id: symlink.7,v 1.2.8.1 1997/06/14 18:47:31 jdp Exp $
 .\"
 .Dd March 31, 1994
 .Dt SYMLINK 7
@@ -121,17 +121,12 @@ is an alias for
 .Xr unlink 2 ,
 it also does not follow symbolic links.
 .Pp
-Although symbolic links have owner and group attributes, they
-do not have permissions, access and modification times, etc.
-The only attributes returned from an
-.Xr lstat 2
-that refer to the symbolic link itself are the file type (S_IFLNK),
-owner, group, size, blocks, and link count (always 1).
-The other attributes are filled in from the directory that contains
-the link.
-For portability reasons, you should be aware that other implementations
-(including historic implementations of 4BSD), implement symbolic links
-such that they have the same attributes as any other file.
+The owner and group of an existing symbolic link can be changed by
+means of the
+.Xr lchown 2
+system call.
+The other file attributes, such as the modification time and access
+permissions, are not used by the system and cannot be changed.
 .Pp
 The
 .Bx 4.4
