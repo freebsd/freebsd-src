@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: main.c,v 1.36 1997/03/09 20:03:39 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -167,8 +167,10 @@ int excode;
   OsInterfaceDown(1);
   LogPrintf(LOG_PHASE_BIT, "PPP Terminated.\n");
   LogClose();
-  if (server > 0)
+  if (server >= 0) {
     close(server);
+    server = -1;
+  }
   TtyOldMode();
 
   exit(excode);
@@ -292,7 +294,7 @@ char **argv;
   argc--; argv++;
 
   mode = MODE_INTER;		/* default operation is interactive mode */
-  netfd = -1;
+  netfd = server = modem = tun_in = -1;
   ProcessArgs(argc, argv);
   Greetings();
   GetUid();
@@ -328,7 +330,7 @@ char **argv;
     mode &= ~MODE_INTER;
   if (mode & MODE_INTER) {
     printf("Interactive mode\n");
-    netfd = 0;
+    netfd = STDIN_FILENO;
   } else if (mode & MODE_AUTO) {
     printf("Automatic Dialer mode\n");
     if (dstsystem == NULL) {
@@ -398,7 +400,6 @@ char **argv;
 	perror("pipe");
 	Cleanup(EX_SOCK);
       }
-      server = -1;
     }
     else {
       /*
@@ -456,7 +457,7 @@ char **argv;
 	  close(fd);
       }
     }
-    if (server > 0)
+    if (server >= 0)
 	LogPrintf(LOG_PHASE_BIT, "Listening at %d.\n", port);
 #ifdef DOTTYINIT
     if (mode & (MODE_DIRECT|MODE_DEDICATED)) { /* } */
@@ -477,7 +478,6 @@ char **argv;
       }
     }
   } else {
-    server = -1;
     TtyInit();
     TtyCommandMode(1);
   }
@@ -691,7 +691,7 @@ static void
 DoLoop()
 {
   fd_set rfds, wfds, efds;
-  int pri, i, n, wfd;
+  int pri, i, n, wfd, nfds;
   struct sockaddr_in hisaddr;
   struct timeval timeout, *tp;
   int ssize = sizeof(hisaddr);
@@ -710,7 +710,7 @@ DoLoop()
     fflush(stderr);
     PacketMode();
   } else if (mode & MODE_DEDICATED) {
-    if (!modem)
+    if (modem < 0)
       modem = OpenModem(mode);
   }
 
@@ -722,6 +722,7 @@ DoLoop()
   dial_up = FALSE;			/* XXXX */
   tries = 0;
   for (;;) {
+    nfds = 0;
     FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
 
     /* 
@@ -741,7 +742,6 @@ DoLoop()
 #endif
       modem = OpenModem(mode);
       if (modem < 0) {
-	modem = 0;	       /* Set intial value for next OpenModem */
 	StartRedialTimer();
       } else {
 	tries++;
@@ -771,14 +771,20 @@ DoLoop()
       qlen = ModemQlen();
     }
 
-    if (modem) {
+    if (modem >= 0) {
+      if (modem + 1 > nfds)
+	nfds = modem + 1;
       FD_SET(modem, &rfds);
       FD_SET(modem, &efds);
       if (qlen > 0) {
 	FD_SET(modem, &wfds);
       }
     }
-    if (server > 0) FD_SET(server, &rfds);
+    if (server >= 0) {
+      if (server + 1 > nfds)
+	nfds = server + 1;
+      FD_SET(server, &rfds);
+    }
 
     /*  *** IMPORTANT ***
      *
@@ -793,10 +799,15 @@ DoLoop()
 #endif
 
     /* If there are aren't many packets queued, look for some more. */
-    if (qlen < 20)
+    if (qlen < 20 && tun_in >= 0) {
+      if (tun_in + 1 > nfds)
+	nfds = tun_in + 1;
       FD_SET(tun_in, &rfds);
+    }
 
-    if (netfd > -1) {
+    if (netfd >= 0) {
+      if (netfd + 1 > nfds)
+	nfds = netfd + 1;
       FD_SET(netfd, &rfds);
       FD_SET(netfd, &efds);
     }
@@ -807,7 +818,7 @@ DoLoop()
      *  In AUTO mode, select will block until we find packet from tun
      */
     tp = (RedialTimer.state == TIMER_RUNNING)? &timeout : NULL;
-    i = select(tun_in+10, &rfds, &wfds, &efds, tp);
+    i = select(nfds, &rfds, &wfds, &efds, tp);
 #else
     /*
      * When SIGALRM timer is running, a select function will be
@@ -816,7 +827,7 @@ DoLoop()
      * trying to dial, poll with a 0 value timer.
      */
     tp = (dial_up && RedialTimer.state != TIMER_RUNNING) ? &timeout : NULL;
-    i = select(tun_in+10, &rfds, &wfds, &efds, tp);
+    i = select(nfds, &rfds, &wfds, &efds, tp);
 #endif
 
     if ( i == 0 ) {
@@ -831,17 +842,17 @@ DoLoop()
        break;
     }
 
-    if ((netfd > 0 && FD_ISSET(netfd, &efds)) || FD_ISSET(modem, &efds)) {
+    if ((netfd >= 0 && FD_ISSET(netfd, &efds)) || (modem >= 0 && FD_ISSET(modem, &efds))) {
       logprintf("Exception detected.\n");
       break;
     }
 
-    if (server > 0 && FD_ISSET(server, &rfds)) {
+    if (server >= 0 && FD_ISSET(server, &rfds)) {
 #ifdef DEBUG
       logprintf("connected to client.\n");
 #endif
       wfd = accept(server, (struct sockaddr *)&hisaddr, &ssize);
-      if (netfd > 0) {
+      if (netfd >= 0) {
 	write(wfd, "already in use.\n", 16);
 	close(wfd);
 	continue;
@@ -867,12 +878,12 @@ DoLoop()
       Prompt(0);
     }
 
-    if ((mode & MODE_INTER) && FD_ISSET(netfd, &rfds) &&
+    if ((mode & MODE_INTER) && (netfd >= 0 && FD_ISSET(netfd, &rfds)) &&
 	((mode & MODE_AUTO) || pgroup == tcgetpgrp(0))) {
       /* something to read from tty */
       ReadTty();
     }
-    if (modem) {
+    if (modem >= 0) {
       if (FD_ISSET(modem, &wfds)) {	/* ready to write into modem */
 	 ModemStartOutput(modem);
       }
@@ -916,7 +927,7 @@ DoLoop()
       }
     }
 
-    if (FD_ISSET(tun_in, &rfds)) {	/* something to read from tun */
+    if (tun_in >= 0 && FD_ISSET(tun_in, &rfds)) {       /* something to read from tun */
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
 	perror("read from tun");
