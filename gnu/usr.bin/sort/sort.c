@@ -196,43 +196,67 @@ static int have_read_stdin;
 static struct keyfield keyhead;
 
 #ifdef __FreeBSD__
-static inline int
-colldiff (unsigned char A, unsigned char B)
+static int collates[UCHAR_LIM];
+
+#define COLLDIFF(A, B) (collates[UCHAR (A)] - collates[UCHAR (B)])
+
+static int
+collcompare (const void *sa, const void *sb)
 {
-	static unsigned char s1[2], s2[2];
+	int A = *((int *)sa), B = *((int *)sb);
+	static char s1[2], s2[2];
 
 	if (A == B)
 		return (0);
 	if (isascii(A) && isascii(B) || !isalpha(A) && !isalpha(B))
-		return ((int)A - (int)B);
+		return (A - B);
 	if (isupper(A) && islower(B))
 		return (-1);
 	else if (islower(A) && isupper(B))
 		return (1);
 	if (isalpha(A) && !isalpha(B)) {
 		if (isupper(A))
-			return ('A' - (int)B);
+			return ('A' - B);
 		else
-			return ('a' - (int)B);
+			return ('a' - B);
 	} else if (isalpha(B) && !isalpha(A)) {
 		if (isupper(B))
-			return ((int)A - 'A');
+			return (A - 'A');
 		else
-			return ((int)A - 'a');
+			return (A - 'a');
 	}
 	s1[0] = A;
 	s2[0] = B;
 	return strcoll(s1, s2);
 }
 
-int
+static void
+init_collates(void)
+{
+	register int i, j;
+	int reverse[UCHAR_LIM];
+
+	for (i = 0; i < UCHAR_LIM; i++)
+		reverse[i] = i;
+	qsort(reverse, UCHAR_LIM, sizeof(reverse[0]), collcompare);
+	for (i = 0; i < UCHAR_LIM; i++) {
+		for (j = 0; j < UCHAR_LIM; j++) {
+			if (reverse[j] == i) {
+				collates[i] = j;
+				break;
+			}
+		}
+	}
+}
+
+static int
 collcmp (const unsigned char *p1, const unsigned char *p2, size_t n)
 {
 	int r;
 
 	if (n != 0) {
 		do {
-			if ((r = colldiff (*p1++, *p2++)) != 0)
+			if ((r = COLLDIFF (*p1++, *p2++)) != 0)
 				return r;
 		} while (--n != 0);
 	}
@@ -499,6 +523,9 @@ inittables (void)
       else
 	fold_toupper[i] = i;
     }
+#ifdef __FreeBSD__
+    init_collates();
+#endif
 }
 
 /* Initialize BUF, allocating ALLOC bytes initially. */
@@ -877,7 +904,7 @@ numcompare (register const char *a, register const char *b)
 	return 0;
 
 #ifdef __FreeBSD__
-      return colldiff (tmpb, tmpa);
+      return COLLDIFF (tmpb, tmpa);
 #else
       return tmpb - tmpa;
 #endif
@@ -935,7 +962,7 @@ numcompare (register const char *a, register const char *b)
 	return 0;
 
 #ifdef __FreeBSD__
-      return colldiff (tmpa, tmpb);
+      return COLLDIFF (tmpa, tmpb);
 #else
       return tmpa - tmpb;
 #endif
@@ -1097,7 +1124,7 @@ keycompare (const struct line *a, const struct line *b)
       else if (ignore && translate)
 
 #ifdef __FreeBSD__
-#define CMP_FUNC(A, B) colldiff ((A), (B))
+#define CMP_FUNC(A, B) COLLDIFF ((A), (B))
 #else
 #define CMP_FUNC(A, B) (A) - (B)
 #endif
@@ -1157,7 +1184,7 @@ keycompare (const struct line *a, const struct line *b)
 	    if (translate[UCHAR (*texta++)] != translate[UCHAR (*textb++)])
 	      {
 #ifdef __FreeBSD__
-		diff = colldiff (translate[UCHAR (*--texta)],
+		diff = COLLDIFF (translate[UCHAR (*--texta)],
 			  translate[UCHAR (*--textb)]);
 #else
 		diff = (translate[UCHAR (*--texta)]
@@ -1213,7 +1240,7 @@ compare (register const struct line *a, register const struct line *b)
       char *ap = a->text, *bp = b->text;
 
 #ifdef __FreeBSD__
-      diff = colldiff (UCHAR (*ap), UCHAR (*bp));
+      diff = COLLDIFF (*ap, *bp);
 #else
       diff = UCHAR (*ap) - UCHAR (*bp);
 #endif
