@@ -363,7 +363,7 @@ align_uint64(uint64_t *pll) {
  * conditionally runs the command.
  */
 static int
-do_cmd(int optname, void *optval, socklen_t optlen)
+do_cmd(int optname, void *optval, uintptr_t optlen)
 {
 	static int s = -1;	/* the socket */
 	int i;
@@ -1556,7 +1556,7 @@ sets_handler(int ac, char *av[])
 		nbytes = sizeof(struct ip_fw);
 		if ((data = calloc(1, nbytes)) == NULL)
 			err(EX_OSERR, "calloc");
-		if (do_cmd(IP_FW_GET, data, (socklen_t)&nbytes) < 0)
+		if (do_cmd(IP_FW_GET, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_FW_GET)");
 		bcopy(&((struct ip_fw *)data)->next_rule,
 			&set_disable, sizeof(set_disable));
@@ -1701,7 +1701,7 @@ list(int ac, char *av[], int show_counters)
 		nbytes = nalloc;
 		if ((data = realloc(data, nbytes)) == NULL)
 			err(EX_OSERR, "realloc");
-		if (do_cmd(ocmd, data, (socklen_t)&nbytes) < 0)
+		if (do_cmd(ocmd, data, (uintptr_t)&nbytes) < 0)
 			err(EX_OSERR, "getsockopt(IP_%s_GET)",
 				do_pipe ? "DUMMYNET" : "FW");
 	}
@@ -3493,7 +3493,7 @@ done:
 
 	rule->cmd_len = (uint32_t *)dst - (uint32_t *)(rule->cmd);
 	i = (char *)dst - (char *)rule;
-	if (do_cmd(IP_FW_ADD, rule, (socklen_t)&i) == -1)
+	if (do_cmd(IP_FW_ADD, rule, (uintptr_t)&i) == -1)
 		err(EX_UNAVAILABLE, "getsockopt(%s)", "IP_FW_ADD");
 	if (!do_quiet)
 		show_ipfw(rule, 0, 0);
