@@ -32,6 +32,10 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <utmp.h>
 
+/* Copied from /usr/include/timeconv.h in 5.x */
+time_t _time32_to_time(__int32_t t32);
+time_t _int_to_time(int tint);
+
 /*
  * this is for our list of currently logged in sessions
  */
@@ -473,7 +477,8 @@ ac(fp)
 		if (!FirstTime)
 			FirstTime = usr.ut_time;
 		if (Flags & AC_D) {
-			ltm = localtime(&usr.ut_time);
+			time_t t = _int_to_time(usr.ut_time);
+			ltm = localtime(&t);
 			if (day >= 0 && day != ltm->tm_yday) {
 				day = ltm->tm_yday;
 				/*
@@ -524,7 +529,8 @@ ac(fp)
 	(void)strcpy(usr.ut_line, "~");
 
 	if (Flags & AC_D) {
-		ltm = localtime(&usr.ut_time);
+		time_t t = _int_to_time(usr.ut_time);
+		ltm = localtime(&t);
 		if (day >= 0 && day != ltm->tm_yday) {
 			/*
 			 * print yesterday's total
@@ -561,4 +567,19 @@ usage()
 	    "ac [-dp] [-t tty] [-w wtmp] [users ...]\n");
 #endif
 	exit(1);
+}
+
+/* Copied from src/lib/libc/stdtime/time32.c in 5.x-current. */
+time_t
+_time32_to_time(__int32_t t32)
+{
+    return((time_t)t32);
+}
+
+time_t
+_int_to_time(int tint)
+{
+    if (sizeof(int) == sizeof(__int32_t))
+	return(_time32_to_time(tint));
+    return((time_t)tint);
 }
