@@ -37,7 +37,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #include "mixer_if.h"
 
-#define MSS_BUFFSIZE (4096)
+#define MSS_DEFAULT_BUFSZ (4096)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 #define MSS_INDEXED_REGS 0x20
 #define OPL_INDEXED_REGS 0x19
@@ -79,6 +79,7 @@ struct mss_info {
     int indir_rid;
     int password;		/* password for opti9xx cards */
     int passwdreg;		/* password register */
+    unsigned int bufsize;
     struct mss_chinfo pch, rch;
 };
 
@@ -328,12 +329,12 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 	if (ok) {
 		pdma = rman_get_start(mss->drq1);
 		isa_dma_acquire(pdma);
-		isa_dmainit(pdma, MSS_BUFFSIZE);
+		isa_dmainit(pdma, mss->bufsize);
 		mss->bd_flags &= ~BD_F_DUPLEX;
 		if (mss->drq2) {
 			rdma = rman_get_start(mss->drq2);
 			isa_dma_acquire(rdma);
-			isa_dmainit(rdma, MSS_BUFFSIZE);
+			isa_dmainit(rdma, mss->bufsize);
 			mss->bd_flags |= BD_F_DUPLEX;
 		} else mss->drq2 = mss->drq1;
 	}
@@ -1120,7 +1121,7 @@ msschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, MSS_BUFFSIZE) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, mss->bufsize) == -1) return NULL;
 	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? mss->drq1 : mss->drq2);
 	return ch;
 }
@@ -1658,6 +1659,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
     	char status[SND_STATUSLEN];
 
 	mss->lock = snd_mtxcreate(device_get_nameunit(dev));
+	mss->bufsize = pcm_getbuffersize(dev, 4096, MSS_DEFAULT_BUFSZ, 65536);
     	if (!mss_alloc_resources(mss, dev)) goto no;
     	mss_init(mss, dev);
 	pdma = rman_get_start(mss->drq1);
@@ -1708,7 +1710,7 @@ mss_doattach(device_t dev, struct mss_info *mss)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/MSS_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/mss->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &mss->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
