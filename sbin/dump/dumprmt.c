@@ -63,6 +63,7 @@ static const char rcsid[] =
 #include <pwd.h>
 #include <stdio.h>
 #ifdef __STDC__
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -357,7 +358,6 @@ rmtreply(cmd)
 {
 	register char *cp;
 	char code[30], emsg[BUFSIZ];
-	extern int errno;
 
 	rmtgets(code, sizeof (code));
 	if (*code == 'E' || *code == 'F') {
