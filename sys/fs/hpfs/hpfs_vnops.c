@@ -69,7 +69,6 @@
 static int	hpfs_de_uiomove __P((struct hpfsmount *, struct hpfsdirent *,
 				     struct uio *));
 static int	hpfs_ioctl __P((struct vop_ioctl_args *ap));
-static int	hpfs_bypass __P((struct vop_generic_args *ap));
 static int	hpfs_read __P((struct vop_read_args *));
 static int	hpfs_write __P((struct vop_write_args *ap));
 static int	hpfs_getattr __P((struct vop_getattr_args *ap));
@@ -456,17 +455,6 @@ hpfs_write(ap)
 	}
 
 	dprintf(("hpfs_write: successful\n"));
-	return (0);
-}
-
-static int
-hpfs_bypass(ap)
-	struct vop_generic_args /* {
-		struct vnodeop_desc *a_desc;
-		<other random data follows, presumably>
-	} */ *ap;
-{
-	dprintf(("hpfs_bypass: %s\n", ap->a_desc->vdesc_name));
 	return (0);
 }
 
@@ -1368,7 +1356,7 @@ hpfs_pathconf(ap)
 vop_t **hpfs_vnodeop_p;
 #if defined(__FreeBSD__)
 struct vnodeopv_entry_desc hpfs_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *)hpfs_bypass },
+	{ &vop_default_desc, (vop_t *)vop_defaultop },
 
 	{ &vop_getattr_desc, (vop_t *)hpfs_getattr },
 	{ &vop_setattr_desc, (vop_t *)hpfs_setattr },
@@ -1406,7 +1394,7 @@ struct vnodeopv_desc hpfs_vnodeop_opv_desc =
 VNODEOP_SET(hpfs_vnodeop_opv_desc);
 #else /* defined(__NetBSD__) */
 struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
-	{ &vop_default_desc, (vop_t *) hpfs_bypass },
+	{ &vop_default_desc, (vop_t *) genfs_badop },	/* XXX */
 	{ &vop_lookup_desc, (vop_t *) hpfs_lookup },	/* lookup */
 	{ &vop_create_desc, genfs_eopnotsupp },		/* create */
 	{ &vop_mknod_desc, genfs_eopnotsupp },		/* mknod */
