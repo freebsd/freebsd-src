@@ -1385,42 +1385,37 @@ static char *
 try_auto_label(Device **devs, Device *dev, int perc, int *req)
 {
     daddr_t sz;
-    struct chunk *root_chunk = NULL;
-    struct chunk *swap_chunk = NULL;
-    struct chunk *usr_chunk = NULL;
-    struct chunk *var_chunk = NULL;
-    struct chunk *tmp_chunk = NULL;
-    struct chunk *home_chunk = NULL;
+    Chunk *AutoHome, *AutoRoot, *AutoSwap;
+    Chunk *AutoTmp, *AutoUsr, *AutoVar;
     int mib[2];
     unsigned long physmem;
     size_t size;
-    Chunk *rootdev, *swapdev, *usrdev, *vardev;
-    Chunk *tmpdev, *homedev;
     char *msg = NULL;
 
     sz = space_free(label_chunk_info[here].c);
     if (sz <= FS_MIN_SIZE)
 	return("Not enough free space to create a new partition in the slice");
 
-    (void)checkLabels(FALSE, &rootdev, &swapdev, &usrdev,
-			&vardev, &tmpdev, &homedev);
-    if (!rootdev) {
+    (void)checkLabels(FALSE);
+    AutoHome = AutoRoot = AutoSwap = NULL;
+    AutoTmp = AutoUsr = AutoVar = NULL;
+    if (RootChunk == NULL) {
 	sz = requested_part_size(VAR_ROOT_SIZE, ROOT_NOMINAL_SIZE, ROOT_DEFAULT_SIZE, perc);
 
-	root_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+	AutoRoot = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 			    label_chunk_info[here].c, sz, part,
 			    FS_BSDFFS,  CHUNK_IS_ROOT | CHUNK_AUTO_SIZE);
-	if (!root_chunk) {
+	if (!AutoRoot) {
 	    *req = 1;
 	    msg = "Unable to create the root partition. Too big?";
 	    goto done;
 	}
-	root_chunk->private_data = new_part(PART_FILESYSTEM, "/", TRUE);
-	root_chunk->private_free = safe_free;
-	root_chunk->flags |= CHUNK_NEWFS;
+	AutoRoot->private_data = new_part(PART_FILESYSTEM, "/", TRUE);
+	AutoRoot->private_free = safe_free;
+	AutoRoot->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
     }
-    if (!swapdev) {
+    if (SwapChunk == NULL) {
 	sz = requested_part_size(VAR_SWAP_SIZE, 0, 0, perc);
 	if (sz == 0) {
 	    daddr_t nom;
@@ -1438,53 +1433,53 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    nom = (int)(physmem / 512) / 8;
 	    sz = nom + (def - nom) * perc / 100;
 	}
-	swap_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
+	AutoSwap = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
 			    label_chunk_info[here].c, sz, part,
 			    FS_SWAP, CHUNK_AUTO_SIZE);
-	if (!swap_chunk) {
+	if (!AutoSwap) {
 	    *req = 1;
 	    msg = "Unable to create the swap partition. Too big?";
 	    goto done;
 	}
-	swap_chunk->private_data = 0;
-	swap_chunk->private_free = safe_free;
+	AutoSwap->private_data = 0;
+	AutoSwap->private_free = safe_free;
 	record_label_chunks(devs, dev);
     }
-    if (!vardev) {
+    if (VarChunk == NULL) {
 	sz = requested_part_size(VAR_VAR_SIZE, VAR_NOMINAL_SIZE, VAR_DEFAULT_SIZE, perc);
 
-	var_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
+	AutoVar = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
 				label_chunk_info[here].c, sz, part,
 				FS_BSDFFS, CHUNK_AUTO_SIZE);
-	if (!var_chunk) {
+	if (!AutoVar) {
 	    *req = 1;
 	    msg = "Not enough free space for /var - you will need to\n"
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
-	var_chunk->private_data = new_part(PART_FILESYSTEM, "/var", TRUE);
-	var_chunk->private_free = safe_free;
-	var_chunk->flags |= CHUNK_NEWFS;
+	AutoVar->private_data = new_part(PART_FILESYSTEM, "/var", TRUE);
+	AutoVar->private_free = safe_free;
+	AutoVar->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
     }
-    if (!tmpdev && !variable_get(VAR_NO_TMP)) {
+    if (TmpChunk == NULL && !variable_get(VAR_NO_TMP)) {
 	sz = requested_part_size(VAR_TMP_SIZE, TMP_NOMINAL_SIZE, TMP_DEFAULT_SIZE, perc);
 
-	tmp_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
+	AutoTmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, 
 				label_chunk_info[here].c, sz, part,
 				FS_BSDFFS, CHUNK_AUTO_SIZE);
-	if (!tmp_chunk) {
+	if (!AutoTmp) {
 	    *req = 1;
 	    msg = "Not enough free space for /tmp - you will need to\n"
 		   "partition your disk manually with a custom install!";
 	    goto done;
 	}
-	tmp_chunk->private_data = new_part(PART_FILESYSTEM, "/tmp", TRUE);
-	tmp_chunk->private_free = safe_free;
-	tmp_chunk->flags |= CHUNK_NEWFS;
+	AutoTmp->private_data = new_part(PART_FILESYSTEM, "/tmp", TRUE);
+	AutoTmp->private_free = safe_free;
+	AutoTmp->flags |= CHUNK_NEWFS;
 	record_label_chunks(devs, dev);
     }
-    if (!usrdev && !variable_get(VAR_NO_USR)) {
+    if (UsrChunk == NULL && !variable_get(VAR_NO_USR)) {
 	sz = requested_part_size(VAR_USR_SIZE, USR_NOMINAL_SIZE, USR_DEFAULT_SIZE, perc);
 #if AUTO_HOME == 0
 	    sz = space_free(label_chunk_info[here].c);
@@ -1496,22 +1491,22 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		       "partition your disk manually with a custom install!";
 	    }
 
-	    usr_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+	    AutoUsr = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c, sz, part,
 				    FS_BSDFFS, CHUNK_AUTO_SIZE);
-	    if (!usr_chunk) {
+	    if (!AutoUsr) {
 		msg = "Unable to create the /usr partition.  Not enough space?\n"
 			   "You will need to partition your disk manually with a custom install!";
 		goto done;
 	    }
-	    usr_chunk->private_data = new_part(PART_FILESYSTEM, "/usr", TRUE);
-	    usr_chunk->private_free = safe_free;
-	    usr_chunk->flags |= CHUNK_NEWFS;
+	    AutoUsr->private_data = new_part(PART_FILESYSTEM, "/usr", TRUE);
+	    AutoUsr->private_free = safe_free;
+	    AutoUsr->flags |= CHUNK_NEWFS;
 	    record_label_chunks(devs, dev);
 	}
     }
 #if AUTO_HOME == 1
-    if (!homedev && !variable_get(VAR_NO_HOME)) {
+    if (HomeChunk == NULL && !variable_get(VAR_NO_HOME)) {
 	sz = requested_part_size(VAR_HOME_SIZE, HOME_NOMINAL_SIZE, HOME_DEFAULT_SIZE, perc);
 	if (sz < space_free(label_chunk_info[here].c))
 	    sz = space_free(label_chunk_info[here].c);
@@ -1523,17 +1518,17 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 		goto done;
 	    }
 
-	    home_chunk = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+	    AutoHome = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
 				    label_chunk_info[here].c, sz, part,
 				    FS_BSDFFS, CHUNK_AUTO_SIZE);
-	    if (!home_chunk) {
+	    if (!AutoHome) {
 		msg = "Unable to create the /home partition.  Not enough space?\n"
 			   "You will need to partition your disk manually with a custom install!";
 		goto done;
 	    }
-	    home_chunk->private_data = new_part(PART_FILESYSTEM, "/home", TRUE);
-	    home_chunk->private_free = safe_free;
-	    home_chunk->flags |= CHUNK_NEWFS;
+	    AutoHome->private_data = new_part(PART_FILESYSTEM, "/home", TRUE);
+	    AutoHome->private_free = safe_free;
+	    AutoHome->flags |= CHUNK_NEWFS;
 	    record_label_chunks(devs, dev);
 	}
     }
@@ -1545,18 +1540,18 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 
 done:
     if (msg) {
-	if (root_chunk)
-	    Delete_Chunk(root_chunk->disk, root_chunk);
-	if (swap_chunk)
-	    Delete_Chunk(swap_chunk->disk, swap_chunk);
-	if (var_chunk)
-	    Delete_Chunk(var_chunk->disk, var_chunk);
-	if (tmp_chunk)
-	    Delete_Chunk(tmp_chunk->disk, tmp_chunk);
-	if (usr_chunk)
-	    Delete_Chunk(usr_chunk->disk, usr_chunk);
-	if (home_chunk)
-	    Delete_Chunk(home_chunk->disk, home_chunk);
+	if (AutoRoot != NULL)
+	    Delete_Chunk(AutoRoot->disk, AutoRoot);
+	if (AutoSwap != NULL)
+	    Delete_Chunk(AutoSwap->disk, AutoSwap);
+	if (AutoVar != NULL)
+	    Delete_Chunk(AutoVar->disk, AutoVar);
+	if (AutoTmp != NULL)
+	    Delete_Chunk(AutoTmp->disk, AutoTmp);
+	if (AutoUsr != NULL)
+	    Delete_Chunk(AutoUsr->disk, AutoUsr);
+	if (AutoHome != NULL)
+	    Delete_Chunk(AutoHome->disk, AutoHome);
 	record_label_chunks(devs, dev);
     }
     return(msg);

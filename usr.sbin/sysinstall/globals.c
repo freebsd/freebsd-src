@@ -54,6 +54,16 @@ int		BootMgr;	/* Which boot manager we're using */
 int		StatusLine;	/* Where to stick our status messages */
 jmp_buf		BailOut;	/* Beam me up, scotty! The natives are pissed! */
 
+Chunk		*HomeChunk;
+Chunk		*RootChunk;
+Chunk		*SwapChunk;
+Chunk		*TmpChunk;
+Chunk		*UsrChunk;
+Chunk		*VarChunk;
+#ifdef __ia64__
+Chunk		*EfiChunk;
+#endif
+
 /*
  * Yes, I know some of these are already automatically initialized as
  * globals.  I simply find it clearer to set everything explicitly.
@@ -70,4 +80,14 @@ globalsInit(void)
     VarHead = NULL;
     mediaDevice = NULL;
     RunningAsInit = FALSE;
+
+    HomeChunk = NULL;
+    RootChunk = NULL;
+    SwapChunk = NULL;
+    TmpChunk = NULL;
+    UsrChunk = NULL;
+    VarChunk = NULL;
+#ifdef __ia64__
+    EfiChunk = NULL;
+#endif
 }

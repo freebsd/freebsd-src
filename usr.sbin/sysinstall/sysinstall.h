@@ -480,6 +480,17 @@ extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
 extern const char *	StartName;		/* Which name we were started as */
 
+/* Important chunks. */
+extern Chunk *HomeChunk;
+extern Chunk *RootChunk;
+extern Chunk *SwapChunk;
+extern Chunk *TmpChunk;
+extern Chunk *UsrChunk;
+extern Chunk *VarChunk;
+#ifdef __ia64__
+extern Chunk *EfiChunk;
+#endif
+
 /* Stuff from libdialog which isn't properly declared outside */
 extern void display_helpfile(void);
 extern void display_helpline(WINDOW *w, int y, int width);
@@ -656,7 +667,7 @@ int		index_initialize(char *path);
 PkgNodePtr	index_search(PkgNodePtr top, char *str, PkgNodePtr *tp);
 
 /* install.c */
-extern Boolean	checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev, Chunk **vtdev, Chunk **hdev);
+extern Boolean	checkLabels(Boolean whinge);
 extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
