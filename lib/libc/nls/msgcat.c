@@ -1,4 +1,4 @@
-/*	$Id: msgcat.c,v 1.4 1995/10/22 14:39:22 phk Exp $ */
+/*	$Id: msgcat.c,v 1.5 1996/07/12 18:55:03 jkh Exp $ */
 
 /***********************************************************
 Copyright 1990, by Alfalfa Software Incorporated, Cambridge, Massachusetts.
@@ -87,7 +87,7 @@ int type;
 {
     char	path[MAXPATHLEN];
     __const char *catpath = NULL;
-    char	*nlspath, *tmppath = NULL;
+    char        *nlspath;
     char	*lang;
     long	len;
     char	*base, *cptr, *pathP;
@@ -136,7 +136,6 @@ int type;
 	    }
 	}
 	free(base);
-	if (tmppath) free(tmppath);
 
 	if (!catpath) return(0);
     }
@@ -284,8 +283,8 @@ nl_catd catd;
 
 /* Note that only malloc failures are allowed to return an error */
 #define ERRNAME	"Message Catalog System"
-#define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); return(0);}
-#define NOSPACE() {fprintf(stderr, "%s: no more memory.\n", ERRNAME); return(NLERR);}
+#define CORRUPT() {fprintf(stderr, "%s: corrupt file.\n", ERRNAME); free(cat); return(0);}
+#define NOSPACE() {fprintf(stderr, "%s: no more memory.\n", ERRNAME); free(cat); return(NLERR);}
 
 static nl_catd loadCat( catpath, type)
 __const char *catpath;
@@ -294,7 +293,7 @@ int type;
     MCHeaderT	header;
     MCCatT	*cat;
     MCSetT	*set;
-    long	i;
+    long        i, j;
     off_t	nextSet;
 
     cat = (MCCatT *) malloc(sizeof(MCCatT));
@@ -302,22 +301,25 @@ int type;
     cat->loadType = type;
 
     if ((cat->fd = open(catpath, O_RDONLY)) < 0) {
+	free(cat);
 	return(0);
     }
 
-    fcntl(cat->fd, F_SETFD, FD_CLOEXEC);
+    (void)fcntl(cat->fd, F_SETFD, FD_CLOEXEC);
 
     if (read(cat->fd, &header, sizeof(header)) != sizeof(header)) CORRUPT();
 
     if (strncmp(header.magic, MCMagic, MCMagicLen) != 0) CORRUPT();
 
     if (header.majorVer != MCMajorVer) {
+	free(cat);
 	fprintf(stderr, "%s: %s is version %ld, we need %ld.\n", ERRNAME,
 		catpath, header.majorVer, MCMajorVer);
 	return(0);
     }
 
     if (header.numSets <= 0) {
+	free(cat);
 	fprintf(stderr, "%s: %s has %ld sets!\n", ERRNAME, catpath,
 		header.numSets);
 	return(0);
@@ -329,11 +331,31 @@ int type;
 
     nextSet = header.firstSet;
     for (i = 0; i < cat->numSets; ++i) {
-	if (lseek(cat->fd, nextSet, 0) == -1) CORRUPT();
+	if (lseek(cat->fd, nextSet, 0) == -1) {
+		for (j = 0; j < i; j++) {
+			set = cat->sets + j;
+			if (!set->invalid) {
+			    free(set->data.str);
+			    free(set->u.msgs);
+			}
+		}
+		free(cat->sets);
+		CORRUPT();
+	}
 
 	/* read in the set header */
 	set = cat->sets + i;
-	if (read(cat->fd, set, sizeof(*set)) != sizeof(*set)) CORRUPT();
+	if (read(cat->fd, set, sizeof(*set)) != sizeof(*set)) {
+		for (j = 0; j < i; j++) {
+			set = cat->sets + j;
+			if (!set->invalid) {
+			    free(set->data.str);
+			    free(set->u.msgs);
+			}
+		}
+		free(cat->sets);
+		CORRUPT();
+	}
 
 	/* if it's invalid, skip over it (and backup 'i') */
 
@@ -345,7 +367,16 @@ int type;
 
 	if (cat->loadType == MCLoadAll) {
 	    nl_catd	res;
+
 	    if ((res = loadSet(cat, set)) <= 0) {
+		for (j = 0; j < i; j++) {
+			set = cat->sets + j;
+			if (!set->invalid) {
+			    free(set->data.str);
+			    free(set->u.msgs);
+			}
+		}
+		free(cat->sets);
 		if (res == -1) NOSPACE();
 		CORRUPT();
 	    }
@@ -369,15 +400,23 @@ MCSetT *set;
     /* Get the data */
     if (lseek(cat->fd, set->data.off, 0) == -1) return(0);
     if ((set->data.str = (char *) malloc(set->dataLen)) == NULL) return(-1);
-    if (read(cat->fd, set->data.str, set->dataLen) != set->dataLen) return(0);
+    if (read(cat->fd, set->data.str, set->dataLen) != set->dataLen) {
+	free(set->data.str); return(0);
+    }
 
     /* Get the messages */
-    if (lseek(cat->fd, set->u.firstMsg, 0) == -1) return(0);
-    if ((set->u.msgs = (MCMsgT *) malloc(sizeof(MCMsgT) * set->numMsgs)) == NULL) return(-1);
+    if (lseek(cat->fd, set->u.firstMsg, 0) == -1) {
+	free(set->data.str); return(0);
+    }
+    if ((set->u.msgs = (MCMsgT *) malloc(sizeof(MCMsgT) * set->numMsgs)) == NULL) {
+	free(set->data.str); return(-1);
+    }
 
     for (i = 0; i < set->numMsgs; ++i) {
 	msg = set->u.msgs + i;
-	if (read(cat->fd, msg, sizeof(*msg)) != sizeof(*msg)) return(0);
+	if (read(cat->fd, msg, sizeof(*msg)) != sizeof(*msg)) {
+	    free(set->u.msgs); free(set->data.str); return(0);
+	}
 	if (msg->invalid) {
 	    --i;
 	    continue;
@@ -387,8 +426,3 @@ MCSetT *set;
     set->invalid = False;
     return(1);
 }
-
-
-
-
-
