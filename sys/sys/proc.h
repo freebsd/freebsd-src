@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.36 1997/04/26 11:46:21 peter Exp $
+ * $Id: proc.h,v 1.37 1997/05/07 19:41:37 peter Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -105,6 +105,7 @@ struct	proc {
 	char	p_pad1[3];
 
 	pid_t	p_pid;			/* Process identifier. */
+	LIST_ENTRY(proc) p_hash;	/* Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* List of processes in pgrp. */
 	struct	proc *p_pptr;	 	/* Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* List of sibling processes. */
@@ -145,20 +146,11 @@ struct	proc {
 	char	p_lastcpu;		/* Last cpu we were on */
 	char	p_pad2;			/* alignment */
 
-	char    *p_selbits;             /* For select(), bits */
-	u_int   p_selbits_size;         /* For select(), fd_set size (bytes) */
-
 	short	p_locks;		/* DEBUG: lockmgr count of held locks */
 	short	p_simple_locks;		/* DEBUG: count of held simple locks */
 
 /* End area that is zeroed on creation. */
-#define	p_endzero	p_hash.le_next
-
-	/*
-	 * Not copied, not zero'ed.
-	 * Belongs after p_pid, but here to avoid shifting proc elements.
-	 */
-	LIST_ENTRY(proc) p_hash;	/* Hash chain. */
+#define	p_endzero	p_startcopy
 
 /* The following fields are all copied upon creation in fork. */
 #define	p_startcopy	p_sigmask
