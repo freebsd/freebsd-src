@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.82 1998/04/01 21:07:36 tegge Exp $
+ * $Id: pci.c,v 1.83 1998/06/07 17:12:42 dfr Exp $
  *
  */
 
@@ -335,6 +335,9 @@ pci_readcfg(pcicfgregs *probe)
 		cfg->lattimer		= pci_cfgread(cfg, PCIR_LATTIMER, 1);
 		cfg->intpin		= pci_cfgread(cfg, PCIR_INTPIN, 1);
 		cfg->intline		= pci_cfgread(cfg, PCIR_INTLINE, 1);
+#ifdef __alpha__
+		alpha_platform_assign_pciintr(cfg);
+#endif
 
 #ifdef APIC_IO
 		if (cfg->intpin != 0) {
