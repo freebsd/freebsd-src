@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.5 1995/04/16 13:38:39 amurai Exp $
+ * $Id: modem.c,v 1.6 1995/05/30 03:50:51 rgrimes Exp $
  *
  *  TODO:
  */
@@ -727,6 +727,7 @@ DialModem()
   }
   else
     fprintf(stderr, "dial failed.\n");
+  HangupModem(0);
   return(0);
 }
 
