@@ -1,6 +1,7 @@
 .\"
-.\" Copyright (c) 2004 Bruce M. Simpson <bms@spc.org>
-.\" Copyright (c) 2004 Darron Broad <darron@kewl.org>
+.\" Copyright (c) 2004	Bruce M. Simpson <bms@spc.org>,
+.\"			Darron Broad <darron@kewl.org>,
+.\"			David Young <dyoung@pobox.com>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -47,6 +48,22 @@ definitions provide a device-independent
 attachment for the
 capture of information about 802.11 traffic which is not part of
 the 802.11 frame structure.
+.Pp
+Radiotap was designed to balance the desire for a capture format
+that conserved CPU and memory bandwidth on embedded systems,
+with the desire for a hardware-independent, extensible format
+that would support the diverse capabilities of virtually all
+.Vt 802.11
+radios.
+.Pp
+These considerations led radiotap to settle on a format consisting of
+a standard preamble followed by an extensible bitmap indicating the
+presence of optional capture fields.
+.Pp
+The capture fields were packed into the header as compactly as possible,
+modulo the requirements that they had to be packed swiftly,
+with suitable alignment, in the same order as the bits indicating
+their presence.
 .Pp
 This typically includes information such as signal quality and
 timestamps.
@@ -202,6 +219,7 @@ definitions first appeared in
 .Nx 1.5 ,
 and were later ported to
 .Fx 4.6 .
+.\"
 .Sh AUTHORS
 The
 .Nm
