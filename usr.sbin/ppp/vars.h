@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.h,v 1.18 1997/06/09 03:27:42 brian Exp $
+ * $Id: vars.h,v 1.19 1997/06/11 03:57:51 brian Exp $
  *
  *	TODO:
  */
@@ -85,6 +85,7 @@ struct pppvars {
   char   phone_copy[200];       /* copy for strsep() */
   char   *next_phone;           /* Next phone from the list */
   char   shostname[MAXHOSTNAMELEN];/* Local short Host Name */
+  char hangup_script[200];      /* Hangup script before modem is closed */
   struct aliasHandlers handler; /* Alias function pointers */
 };
 
@@ -99,6 +100,7 @@ struct pppvars {
 #define	VarOpenMode	pppVars.open_mode
 #define	VarLocalAuth	pppVars.lauth
 #define	VarDialScript	pppVars.dial_script
+#define VarHangupScript pppVars.hangup_script
 #define	VarLoginScript	pppVars.login_script
 #define VarIdleTimeout  pppVars.idle_timeout
 #define	VarLqrTimeout	pppVars.lqr_timeout

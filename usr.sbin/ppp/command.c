@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.65 1997/06/30 03:03:29 brian Exp $
+ * $Id: command.c,v 1.66 1997/07/12 19:22:34 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1149,6 +1149,7 @@ char **argv;
 #define	VAR_DEVICE	4
 #define	VAR_ACCMAP	5
 #define	VAR_PHONE	6
+#define	VAR_HANGUP	7
 
 static int
 SetVariable(list, argc, argv, param)
@@ -1198,6 +1199,10 @@ int param;
       VarPhoneList[sizeof(VarPhoneList)-1] = '\0';
       strcpy(VarPhoneCopy, VarPhoneList);
       VarNextPhone = VarPhoneCopy;
+      break;
+    case VAR_HANGUP:
+      strncpy(VarHangupScript, arg, sizeof(VarHangupScript)-1);
+      VarHangupScript[sizeof(VarHangupScript)-1] = '\0';
       break;
   }
   return 0;
@@ -1259,6 +1264,8 @@ struct cmdtab const SetCommands[] = {
 	"Set dialing script", "set dial chat-script", (void *)VAR_DIAL},
   { "escape",   NULL,	  SetEscape, 		LOCAL_AUTH,
 	"Set escape characters", "set escape hex-digit ..."},
+  { "hangup",   NULL,     SetVariable,                LOCAL_AUTH,
+        "Set hangup script", "set hangup chat-script", (void *)VAR_HANGUP},
   { "ifaddr",   NULL,   SetInterfaceAddr,	LOCAL_AUTH,
 	"Set destination address", "set ifaddr [src-addr [dst-addr [netmask [trg-addr]]]]"},
   { "ifilter",  NULL,     SetIfilter, 		LOCAL_AUTH,

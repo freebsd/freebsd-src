@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.43 1997/06/30 03:03:35 brian Exp $
+.\" $Id: ppp.8,v 1.44 1997/07/01 21:31:28 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1558,6 +1558,11 @@ format.  The string \\\\T will be replaced with the current phone number
 below) and the string \\\\P will be replaced with the password (see
 .Dq set key
 above).
+
+.It set hangup chat-script
+This specifies the chat script that will be used to reset the modem
+before it is closed.  It should not normally be necessary, but can
+be used for devices that fail to reset themselves properly on close.
 
 .It set escape value...
 This option is similar to the

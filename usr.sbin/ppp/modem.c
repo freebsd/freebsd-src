@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.43 1997/06/11 03:57:50 brian Exp $
+ * $Id: modem.c,v 1.44 1997/06/23 23:10:13 brian Exp $
  *
  *  TODO:
  */
@@ -206,10 +206,14 @@ static time_t uptime;
 void
 DownConnection()
 {
+  char ScriptBuffer[200];
+
   LogPrintf(LogPHASE, "Disconnected!\n");
   if (uptime)
     LogPrintf(LogPHASE, "Connect time: %d secs\n", time(NULL) - uptime);
   uptime = 0;
+  strcpy(ScriptBuffer, VarHangupScript); /* arrays are the same size */
+  DoChat(ScriptBuffer);
   if (!TermMode) {
     CloseModem();
     LcpDown();
@@ -572,13 +576,19 @@ int flag;
     */
     if (modem >= 0)
     {
-	tcflush(modem, TCIOFLUSH);
-	UnrawModem(modem);
-	close(modem);
+      char ScriptBuffer[200];
+
+      strcpy(ScriptBuffer, VarHangupScript); /* arrays are the same size */
+      DoChat(ScriptBuffer);
+      tcflush(modem, TCIOFLUSH);
+      UnrawModem(modem);
+      close(modem);
     }
     modem = -1;                 /* Mark as modem has closed */
     (void) uu_unlock(VarBaseDevice);
   } else if (modem >= 0) {
+    char ScriptBuffer[200];
+
     mbits |= TIOCM_DTR;
 #ifndef notyet
     ioctl(modem, TIOCMSET, &mbits);
@@ -587,6 +597,8 @@ int flag;
     cfsetspeed(&ts, IntToSpeed(VarSpeed));
     tcsetattr(modem, TCSADRAIN, &ts);
 #endif
+    strcpy(ScriptBuffer, VarHangupScript); /* arrays are the same size */
+    DoChat(ScriptBuffer);
   }
 }
 
