@@ -318,7 +318,9 @@ static void
 read_ether(struct slot *sp)
 {
 	unsigned char net_addr[12];
+	int flags = MDF_ATTR;	/* attribute memory */
 
+	ioctl(sp->fd, PIOCRWFLAG, &flags);
 	lseek(sp->fd, (off_t)sp->card->ether->value, SEEK_SET);
 	if (read(sp->fd, net_addr, sizeof(net_addr)) != sizeof(net_addr)) {
 		logerr("read err on net addr");
