@@ -158,7 +158,7 @@ tunopen(dev, flag, mode, p)
 		return (ENXIO);
 	tp = &tunctl[unit];
 	if (tp->tun_flags & TUN_OPEN)
-		return ENXIO;
+		return EBUSY
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
 	TUNDEBUG("%s%d: open\n", ifp->if_name, ifp->if_unit);
