@@ -219,8 +219,6 @@ static void	mac_destroy_socket_label(struct label *label);
 static int	mac_setlabel_vnode_extattr(struct ucred *cred,
 		    struct vnode *vp, struct label *intlabel);
 
-
-MALLOC_DEFINE(M_MACOPVEC, "macopvec", "MAC policy operation vector");
 MALLOC_DEFINE(M_MACPIPELABEL, "macpipelabel", "MAC labels for pipes");
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
