@@ -269,19 +269,9 @@ _kgmon=		kgmon
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
-.if ${MACHINE} == "i386" && !defined(NO_ACPI)
-_acpi=		acpi
-.endif
 _apm=		apm
 _apmd=		apmd
 _asf=		asf
-.if ${MACHINE} == "i386"
-_arlcontrol=	arlcontrol
-_boot0cfg=	boot0cfg
-.endif
-.if ${MACHINE} == "pc98"
-_boot98cfg=	boot98cfg
-.endif
 _btxld=		btxld
 .if !defined(NO_I4B)
 _i4b=		i4b
@@ -294,19 +284,24 @@ _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pccard=	pccard
-.if ${MACHINE} == "i386"
-_pcvt=		pcvt
-.endif
 _pnpinfo=	pnpinfo
 .if !defined(NO_LIBPTHREAD)
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
 _spkrtest=	spkrtest
-.if ${MACHINE} == "i386"
-_wlconfig=	wlconfig
-.endif
 _zzz=		zzz
+.if ${MACHINE} == "i386" 
+.if !defined(NO_ACPI)
+_acpi=		acpi
+.endif
+_arlcontrol=	arlcontrol
+_boot0cfg=	boot0cfg
+_pcvt=		pcvt
+_wlconfig=	wlconfig
+.elif ${MACHINE} == "pc98"
+_boot98cfg=	boot98cfg
+.endif
 .endif
 
 .if ${MACHINE_ARCH} == "alpha"
