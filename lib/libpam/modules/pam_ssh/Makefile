@@ -7,6 +7,7 @@ LIB=	pam_ssh
 MAN=	pam_ssh.8
 SRCS=	pam_ssh.c
 
+WARNS?=	0
 CFLAGS+= -I${SSHSRC}
 
 DPADD=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
