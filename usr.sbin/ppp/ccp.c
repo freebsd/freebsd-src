@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.34 1998/06/15 19:06:02 brian Exp $
+ * $Id: ccp.c,v 1.35 1998/06/25 22:33:12 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -30,6 +30,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <termios.h>
 
 #include "defs.h"
@@ -135,8 +136,7 @@ ccp_ReportStatus(struct cmdargs const *arg)
   struct link *l;
   struct ccp *ccp;
 
-  if (!(l = command_ChooseLink(arg)))
-    return -1;
+  l = command_ChooseLink(arg);
   ccp = &l->ccp;
 
   prompt_Printf(arg->prompt, "%s: %s [%s]\n", l->name, ccp->fsm.name,
@@ -302,7 +302,7 @@ static void
 CcpLayerStart(struct fsm *fp)
 {
   /* We're about to start up ! */
-  log_Printf(LogCCP, "%s: CcpLayerStart.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: LayerStart.\n", fp->link->name);
 }
 
 static void
@@ -312,7 +312,7 @@ CcpLayerDown(struct fsm *fp)
   struct ccp *ccp = fsm2ccp(fp);
   struct ccp_opt *next;
 
-  log_Printf(LogCCP, "%s: CcpLayerDown.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: LayerDown.\n", fp->link->name);
   if (ccp->in.state != NULL) {
     (*algorithm[ccp->in.algorithm]->i.Term)(ccp->in.state);
     ccp->in.state = NULL;
@@ -337,7 +337,7 @@ static void
 CcpLayerFinish(struct fsm *fp)
 {
   /* We're now down */
-  log_Printf(LogCCP, "%s: CcpLayerFinish.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: LayerFinish.\n", fp->link->name);
 }
 
 /*
@@ -348,7 +348,7 @@ CcpLayerUp(struct fsm *fp)
 {
   /* We're now up */
   struct ccp *ccp = fsm2ccp(fp);
-  log_Printf(LogCCP, "%s: CcpLayerUp.\n", fp->link->name);
+  log_Printf(LogCCP, "%s: LayerUp.\n", fp->link->name);
   if (ccp->in.state == NULL && ccp->in.algorithm >= 0 &&
       ccp->in.algorithm < NALGORITHMS) {
     ccp->in.state = (*algorithm[ccp->in.algorithm]->i.Init)(&ccp->in.opt);

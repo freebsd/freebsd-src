@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: id.c,v 1.9 1998/05/28 23:15:36 brian Exp $
+ *	$Id: id.c,v 1.10 1998/05/29 18:33:08 brian Exp $
  */
 
 #include <sys/types.h>
@@ -153,7 +153,7 @@ ID0write(int fd, const void *data, size_t len)
 
   ID0set0();
   ret = write(fd, data, len);
-  log_Printf(LogID0, "%d = write(%d, data, %d)\n", ret, fd, len);
+  log_Printf(LogID0, "%d = write(%d, data, %ld)\n", ret, fd, (long)len);
   ID0setuser();
   return ret;
 }
@@ -236,7 +236,7 @@ ID0bind_un(int s, const struct sockaddr_un *name)
   ID0set0();
   result = bind(s, (const struct sockaddr *)name, sizeof *name);
   log_Printf(LogID0, "%d = bind(%d, \"%s\", %d)\n",
-            result, s, name->sun_path, sizeof *name);
+            result, s, name->sun_path, (int)sizeof(*name));
   ID0setuser();
   return result;
 }
@@ -249,7 +249,7 @@ ID0connect_un(int s, const struct sockaddr_un *name)
   ID0set0();
   result = connect(s, (const struct sockaddr *)name, sizeof *name);
   log_Printf(LogID0, "%d = connect(%d, \"%s\", %d)\n",
-            result, s, name->sun_path, sizeof *name);
+            result, s, name->sun_path, (int)sizeof(*name));
   ID0setuser();
   return result;
 }

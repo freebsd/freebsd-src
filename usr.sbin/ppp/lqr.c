@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.27 1998/06/16 19:40:38 brian Exp $
+ * $Id: lqr.c,v 1.28 1998/06/26 19:02:40 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -92,11 +92,11 @@ lqr_RecvEcho(struct fsm *fp, struct mbuf * bp)
            seq > hdlc->lqm.echo.seq_recv))
         hdlc->lqm.echo.seq_recv = seq;
     } else
-      log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08x, expecting 0x%08x !\n",
-                (unsigned)ntohl(lqr->signature), (unsigned)SIGNATURE);
+      log_Printf(LogWARN, "lqr_RecvEcho: Got sig 0x%08lx, not 0x%08lx !\n",
+                (u_long)ntohl(lqr->signature), (u_long)SIGNATURE);
   } else
-    log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %d !\n",
-              mbuf_Length(bp), sizeof(struct echolqr));
+    log_Printf(LogWARN, "lqr_RecvEcho: Got packet size %d, expecting %ld !\n",
+              mbuf_Length(bp), (long)sizeof(struct echolqr));
 }
 
 void
@@ -166,8 +166,8 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
 
   len = mbuf_Length(bp);
   if (len != sizeof(struct lqrdata))
-    log_Printf(LogWARN, "lqr_Input: Got packet size %d, expecting %d !\n",
-              len, sizeof(struct lqrdata));
+    log_Printf(LogWARN, "lqr_Input: Got packet size %d, expecting %ld !\n",
+              len, (long)sizeof(struct lqrdata));
   else if (!IsAccepted(physical->link.lcp.cfg.lqr) &&
            !(physical->hdlc.lqm.method & LQM_LQR)) {
     bp->offset -= 2;
@@ -181,9 +181,10 @@ lqr_Input(struct physical *physical, struct mbuf *bp)
     lqr = (struct lqrdata *)MBUF_CTOP(bp);
     lcp = physical->hdlc.lqm.owner;
     if (ntohl(lqr->MagicNumber) != physical->hdlc.lqm.owner->his_magic)
-      log_Printf(LogWARN, "lqr_Input: magic 0x%x is wrong, expecting 0x%x\n",
-		(unsigned)ntohl(lqr->MagicNumber),
-                physical->hdlc.lqm.owner->his_magic);
+      log_Printf(LogWARN, "lqr_Input: magic 0x%08lx is wrong,"
+                 " expecting 0x%08lx\n",
+		 (u_long)ntohl(lqr->MagicNumber),
+                 (u_long)physical->hdlc.lqm.owner->his_magic);
     else {
       /*
        * Remember our PeerInLQRs, then convert byte order and save
