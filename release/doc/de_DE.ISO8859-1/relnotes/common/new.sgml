@@ -1,7 +1,7 @@
 <articleinfo>
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.8 2002/03/18 19:40:38 ue Exp $
-  basiert auf: 1.300
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.9 2002/03/19 05:27:04 ue Exp $
+  basiert auf: 1.303
 -->
   <title>&os;/&arch; &release.current; Release Notes</title>
 
@@ -1839,6 +1839,17 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>).
       &merged;</para>
 
+    <para>Durch einen Fehler in <application>zlib</application> war es
+      m&ouml;glich, da&szlig; Speicher doppelt freigegeben wurde.  Die
+      &man.malloc.3;/&man.free.3; Routinen von &os; sind von diesem
+      Fehler nicht betroffen, einzelne Anwendungen k&ouml;nnten aber
+      durch entsprechend konstruierte Pakete mit komprimierten Daten
+      beeintr&auml;chtigt oder zum Absturz gebracht werden.  Der
+      Fehler in <application>zlib</application> wurde mittlerweile
+      beseitigt.  Informationen, wie Sie dieses Problem umgehen bzw.
+      beseitigen k&ouml;nnen, finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>.
+      &merged;</para>
   </sect2>
 
   <sect2 id="userland">
