@@ -165,7 +165,7 @@ creator_configure(int flags)
 	struct upa_regs reg[FFB_NREG];
 	struct creator_softc *sc;
 	phandle_t chosen;
-	phandle_t stdout;
+	ihandle_t stdout;
 	phandle_t child;
 	char buf[32];
 	int i;
@@ -183,7 +183,7 @@ creator_configure(int flags)
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
-	if (child == stdout)
+	if (child == OF_instance_to_package(stdout))
 		sc->sc_console = 1;
 
 	OF_getprop(child, "reg", reg, sizeof(reg));
