@@ -248,13 +248,10 @@ wdattach(struct isa_device *dvp)
 			}
 			printf("\n");
 			du->dk_unit = unit;
-		}
-		else {
-			/* old ST506 controller */
-			printf("wd%d: unit %d type old ST506\n", unit, unit);
+			return(1);
 		}
 	}
-	return(1);
+	return(0);
 }
 
 /* Read/write routine for a buffer.  Finds the proper unit, range checks
@@ -632,22 +629,19 @@ wdintr(struct intrframe wdif)
 			if (++wdtab.b_errcnt < RETRIES) {
 				wdtab.b_active = 0;
 			} else {
-				if((du->dk_flags&DKFL_QUIET) == 0) {
-					diskerr(bp, "wd", "hard error",
-						LOG_PRINTF, du->dk_skip,
-						&du->dk_dd);
+				diskerr(bp, "wd", "hard error", LOG_PRINTF,
+					du->dk_skip, &du->dk_dd);
 #ifdef WDDEBUG
-					printf( "status %b error %b\n",
-						status, WDCS_BITS,
-						inb(wdc+wd_error), WDERR_BITS);
+				printf( "status %b error %b\n",
+					status, WDCS_BITS,
+					inb(wdc+wd_error), WDERR_BITS);
 #endif
-				}
 				bp->b_error = EIO;	/* 17 Sep 92*/
 				bp->b_flags |= B_ERROR;	/* flag the error */
 			}
-		} else if((du->dk_flags&DKFL_QUIET) == 0) {
-				diskerr(bp, "wd", "soft ecc", 0,
-					du->dk_skip, &du->dk_dd);
+		} else {
+			diskerr(bp, "wd", "soft ecc", 0,
+				du->dk_skip, &du->dk_dd);
 		}
 	}
 outt:
@@ -677,7 +671,7 @@ outt:
 	if (wdtab.b_active) {
 		if ((bp->b_flags & B_ERROR) == 0) {
 			du->dk_skip++;		/* Add to successful sectors. */
-			if (wdtab.b_errcnt && (du->dk_flags & DKFL_QUIET) == 0)
+			if (wdtab.b_errcnt)
 				diskerr(bp, "wd", "soft error", 0,
 					du->dk_skip, &du->dk_dd);
 			wdtab.b_errcnt = 0;
@@ -758,17 +752,15 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 		du->dk_dd.d_secpercyl = 17*8;
 		du->dk_state = WANTOPEN;
 		du->dk_unit = unit;
-		du->dk_flags &= ~DKFL_QUIET;
 
 		/* read label using "c" partition */
 		if (msg = readdisklabel(makewddev(major(dev), wdunit(dev), WDRAW),
 				wdstrategy, &du->dk_dd, du->dk_dospartitions,
 				&du->dk_bad, 0)) {
-			if((du->dk_flags&DKFL_QUIET) == 0) {
-				log(LOG_WARNING, "wd%d: cannot find label (%s)\n",
-					unit, msg);
+			log(LOG_WARNING, "wd%d: cannot find label (%s)\n",
+				unit, msg);
+			if (part != WDRAW)
 				error = EINVAL;		/* XXX needs translation */
-			}
 			goto done;
 		} else {
 
@@ -874,12 +866,9 @@ wdcontrol(register struct buf *bp)
 
 	case RECAL:
 		if ((stat = inb(wdc+wd_status)) & WDCS_ERR) {
-			if ((du->dk_flags & DKFL_QUIET) == 0) {
-				printf("wd%d: recal", du->dk_unit);
-				printf(": status %b error %b\n",
-					stat, WDCS_BITS, inb(wdc+wd_error),
-					WDERR_BITS);
-			}
+			printf("wd%d: recal", du->dk_unit);
+			printf(": status %b error %b\n", stat, WDCS_BITS,
+				inb(wdc+wd_error), WDERR_BITS);
 			if (++wdtab.b_errcnt < RETRIES) {
 				du->dk_state = WANTOPEN;
 				goto tryagainrecal;
@@ -905,9 +894,8 @@ wdcontrol(register struct buf *bp)
 	/* NOTREACHED */
 
 badopen:
-	if ((du->dk_flags & DKFL_QUIET) == 0) 
-		printf(": status %b error %b\n",
-			stat, WDCS_BITS, inb(wdc + wd_error), WDERR_BITS);
+	printf(": status %b error %b\n", stat, WDCS_BITS,
+		inb(wdc + wd_error), WDERR_BITS);
 	bp->b_flags |= B_ERROR;
 	return(1);
 }
@@ -995,10 +983,26 @@ wdgetctlr(int u, struct disk *du) {
 		splx(x);
 		return(stat);
 	}
+	/*
+	 * If WDCC_READP fails then we might have an old ST506 type drive
+	 * so we try a seek to 0; if that passes then the
+	 * drive is there but it's OLD AND KRUSTY
+	 */
 	if (stat & WDCS_ERR) {
-	  	stat = inb(wdc+wd_error);
+		stat = wdcommand(du, WDCC_RESTORE | WD_STEP);
+		if (stat & WDCS_ERR) {
+	  		stat = inb(wdc+wd_error);
+			splx(x);
+			return(stat);
+		}
+
+		strncpy(du->dk_dd.d_typename, "ST506",
+			sizeof du->dk_dd.d_typename);
+		strncpy(du->dk_params.wdp_model, "Unknown Type",
+			sizeof du->dk_params.wdp_model);
+		du->dk_dd.d_type = DTYPE_ST506;
 		splx(x);
-		return(stat);
+		return(0);
 	}
 
 	/* obtain parameters */
