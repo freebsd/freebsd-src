@@ -52,10 +52,13 @@ static __inline u_int
 in_cksum_hdr(const struct ip *ip)
 {
 	register u_int sum = 0;
-		    
-#define ADD(n)	__asm("addl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (ip))
-#define ADDC(n)	__asm("adcl " #n "(%2), %0" : "=r" (sum) : "0" (sum), "r" (ip))
-#define MOP	__asm("adcl         $0, %0" : "=r" (sum) : "0" (sum))
+
+/* __volatile is necessary here because the condition codes are used. */
+#define ADD(n)	__asm __volatile ("addl %1, %0" : "+r" (sum) : \
+    "g" (((const u_int32_t *)ip)[n / 4]))
+#define ADDC(n)	__asm __volatile ("adcl %1, %0" : "+r" (sum) : \
+    "g" (((const u_int32_t *)ip)[n / 4]))
+#define MOP	__asm __volatile ("adcl $0, %0" : "+r" (sum))
 
 	ADD(0);
 	ADDC(4);
@@ -84,9 +87,9 @@ in_cksum_update(struct ip *ip)
 static __inline u_short
 in_addword(u_short sum, u_short b)
 {
-		    
-	__asm("addw %2, %0" : "=r" (sum) : "0" (sum), "r" (b));
-	__asm("adcw $0, %0" : "=r" (sum) : "0" (sum));
+	/* __volatile is necessary because the condition codes are used. */
+	__asm __volatile ("addw %1, %0" : "+r" (sum) : "r" (b));
+	__asm __volatile ("adcw $0, %0" : "+r" (sum));
 
 	return (sum);
 }
@@ -94,10 +97,10 @@ in_addword(u_short sum, u_short b)
 static __inline u_short
 in_pseudo(u_int sum, u_int b, u_int c)
 {
-		    
-	__asm("addl %2, %0" : "=r" (sum) : "0" (sum), "r" (b));
-	__asm("adcl %2, %0" : "=r" (sum) : "0" (sum), "r" (c));
-	__asm("adcl $0, %0" : "=r" (sum) : "0" (sum));
+	/* __volatile is necessary because the condition codes are used. */
+	__asm __volatile ("addl %1, %0" : "+r" (sum) : "g" (b));
+	__asm __volatile ("adcl %1, %0" : "+r" (sum) : "g" (c));
+	__asm __volatile ("adcl $0, %0" : "+r" (sum));
 
 	sum = (sum & 0xffff) + (sum >> 16);
 	if (sum > 0xffff)
