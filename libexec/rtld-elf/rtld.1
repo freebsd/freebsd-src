@@ -39,7 +39,8 @@
 .Nm
 is a self-contained shared object providing run-time
 support for loading and link-editing shared objects into a process'
-address space.  It is also commonly known as the dynamic linker.
+address space.
+It is also commonly known as the dynamic linker.
 It uses the data structures
 contained within dynamically linked programs to determine which shared
 libraries are needed and loads them using the
@@ -49,15 +50,18 @@ system call.
 After all shared libraries have been successfully loaded,
 .Nm
 proceeds to resolve external references from both the main program and
-all objects loaded. A mechanism is provided for initialization routines
+all objects loaded.
+A mechanism is provided for initialization routines
 to be called on a per-object basis, giving a shared object an opportunity
 to perform any extra set-up before execution of the program proper begins.
 This is useful for C++ libraries that contain static constructors.
 .Pp
 .Nm
 itself is loaded by the kernel together with any dynamically-linked
-program that is to be executed.  The kernel transfers control to the
-dynamic linker.  After the dynamic linker has finished loading,
+program that is to be executed.
+The kernel transfers control to the
+dynamic linker.
+After the dynamic linker has finished loading,
 relocating, and initializing the program and its required shared
 objects, it transfers control to the entry point of the program.
 .Pp
@@ -73,7 +77,7 @@ utility.
 recognizes a number of environment variables that can be used to modify
 its behaviour as follows:
 .Pp
-.Bl -tag -width LD_LIBRARY_PATH
+.Bl -tag -width ".Ev LD_LIBRARY_PATH"
 .It Ev LD_LIBRARY_PATH
 A colon separated list of directories, overriding the default search path
 for shared libraries.
@@ -81,15 +85,19 @@ This is ignored for set-user-ID and set-group-ID programs.
 .It Ev LD_PRELOAD
 A list of shared libraries, separated by colons and/or white space,
 to be linked in before any
-other shared libraries.  If the directory is not specified then
-the directories specified by LD_LIBRARY_PATH will be searched first
+other shared libraries.
+If the directory is not specified then
+the directories specified by
+.Ev LD_LIBRARY_PATH
+will be searched first
 followed by the set of built-in standard directories.
 This is ignored for set-user-ID and set-group-ID programs.
 .It Ev LD_BIND_NOW
 When set to a nonempty string, causes
 .Nm
 to relocate all external function calls before starting execution of the
-program.  Normally, function calls are bound lazily, at the first call
+program.
+Normally, function calls are bound lazily, at the first call
 of each function.
 .Ev LD_BIND_NOW
 increases the start-up time of a program, but it avoids run-time
@@ -110,30 +118,30 @@ option and allows
 .Xr ldd 1
 to be operated as a filter more conveniently.
 The following conversions can be used:
-.Bl -tag -width "xxxx"
-.It \&%a
+.Bl -tag -width 4n
+.It Li %a
 The main program's name
 (also known as
 .Dq __progname ) .
-.It \&%A
+.It Li \&%A
 The value of the environment variable
 .Ev LD_TRACE_LOADED_OBJECTS_PROGNAME
-.It \&%o
+.It Li %o
 The library name.
-.It \&%m
+.It Li %m
 The library's major version number.
-.It \&%p
+.It Li %p
 The full pathname as determined by
 .Nm rtld Ns 's
 library search rules.
-.It \&%x
+.It Li %x
 The library's load address.
 .El
 .Pp
 Additionally,
-.Sy \en
+.Ql \en
 and
-.Sy \et
+.Ql \et
 are recognized and have their usual meaning.
 .El
 .Sh FILES
