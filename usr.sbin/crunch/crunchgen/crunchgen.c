@@ -572,7 +572,9 @@ void fillin_program_objs(prog_t *p, char *path)
     fprintf(f, ".if defined(PROG) && !defined(%s)\n", objvar);
     fprintf(f, "%s=${PROG}.o\n", objvar);
     fprintf(f, ".endif\n");
-    fprintf(f, "crunchgen_objs:\n\t@echo 'OBJS= '${%s}\n", objvar);
+    fprintf(f, "loop:\n\t@echo 'OBJS= '${%s}\n", objvar);
+    fprintf(f, "crunchgen_objs:\n\t@make -f %s $(OPTS) $(%s_OPTS) loop\n",
+		tempfname, p->ident);
     fclose(f);
 
     sprintf(line, "make -f %s crunchgen_objs 2>&1", tempfname);
@@ -809,8 +811,10 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 	fprintf(outmk, "%s_OBJS=", p->ident);
 	output_strlst(outmk, p->objs);
 	fprintf(outmk, "%s_make:\n", p->ident);
-	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make depend && make $(%s_OBJS))\n",
-		p->ident, p->ident);
+	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make obj && \\\n"
+		"\t\tmake $(OPTS) $(%s_OPTS) depend && \\\n"
+		"\t\tmake $(OPTS) $(%s_OPTS) $(%s_OBJS))\n",
+		p->ident, p->ident, p->ident, p->ident);
 	fprintf(outmk, "%s_clean:\n", p->ident);
 	fprintf(outmk, "\t(cd $(%s_SRCDIR) && make clean)\n\n", p->ident);
     }
