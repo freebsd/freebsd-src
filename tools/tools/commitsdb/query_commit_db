@@ -13,7 +13,8 @@ use Digest::MD5 qw(md5_hex);
 my $dbname = "commitsdb";
 
 # Take the filename and revision number from the command line.
-my ($file, $revision) = (shift, shift);
+# Also take a flag to say whether to generate a patch or not.
+my ($file, $revision, $genpatch) = (shift, shift, shift);
 
 # Find the checksum of the named revision.
 my %possible_files;
@@ -56,6 +57,33 @@ while (<DB>) {
 }
 close DB;
 
-print map { "$_\n" } sort @results;
+foreach my $r (sort @results) {
+	print "$r\n";
+	next unless $genpatch;
+
+	my ($name, $rev) = split /\s/, $r, 2;
+	my $prevrev = previous_revision($rev);
+	print `cvs diff -u -r$prevrev -r$rev $name`;
+	print "\n\n";
+}
+
+#
+# Return the previous revision number.
+#
+sub previous_revision {
+	my $rev = shift;
+
+	$rev =~ /(?:(.*)\.)?([^\.]+)\.([^\.]+)$/;
+	my ($base, $r1, $r2) = ($1, $2, $3);
+
+	my $prevrev = "";
+	if ($r2 == 1) {
+		$prevrev = $base;
+	} else {
+		$prevrev = "$base." if $base;
+		$prevrev .= "$r1." . ($r2 - 1);
+	}
+	return $prevrev;
+}
 
 #end
