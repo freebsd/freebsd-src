@@ -513,7 +513,7 @@ from_oct (digs, where)
 {
   register long value;
 
-  while (isspace (*where))
+  while (isspace ((unsigned char) *where))
     {				/* Skip spaces */
       where++;
       if (--digs <= 0)
@@ -526,7 +526,7 @@ from_oct (digs, where)
       --digs;
     }
 
-  if (digs > 0 && *where && !isspace (*where))
+  if (digs > 0 && *where && !isspace ((unsigned char) *where))
     return -1;			/* Ended on non-space/nul */
 
   return value;
