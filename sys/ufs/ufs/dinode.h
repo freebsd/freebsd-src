@@ -112,11 +112,11 @@ struct ufs2_dinode {
 	ufs_time_t	di_atime;	/*  32: Last access time. */
 	ufs_time_t	di_mtime;	/*  40: Last modified time. */
 	ufs_time_t	di_ctime;	/*  48: Last inode change time. */
-	ufs_time_t	di_createtime;	/*  56: Last inode change time. */
+	ufs_time_t	di_birthtime;	/*  56: Inode creation time. */
 	int32_t		di_mtimensec;	/*  64: Last modified time. */
 	int32_t		di_atimensec;	/*  68: Last access time. */
 	int32_t		di_ctimensec;	/*  72: Last inode change time. */
-	int32_t		di_creatensec;	/*  76: Last inode change time. */
+	int32_t		di_birthnsec;	/*  76: Inode creation time. */
 	int32_t		di_gen;		/*  80: Generation number. */
 	u_int32_t	di_kernflags;	/*  84: Kernel flags. */
 	u_int32_t	di_flags;	/*  88: Status flags (chflags). */
