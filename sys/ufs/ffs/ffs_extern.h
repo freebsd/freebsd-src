@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_extern.h	8.3 (Berkeley) 4/16/94
- * $Id: ffs_extern.h,v 1.8 1995/11/09 08:14:04 bde Exp $
+ * $Id: ffs_extern.h,v 1.9 1995/12/17 21:09:30 phk Exp $
  */
 
 struct buf;
@@ -89,4 +89,3 @@ __END_DECLS
 extern vop_t **ffs_vnodeop_p;
 extern vop_t **ffs_specop_p;
 extern vop_t **ffs_fifoop_p;
-#define FFS_FIFOOPS ffs_fifoop_p
