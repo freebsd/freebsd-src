@@ -49,7 +49,7 @@
  * 20 Apr 93	Bruce Evans		New npx-0.5 code
  * 25 Apr 93	Bruce Evans		New intr-0.1 code
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/machdep.c,v 1.4 1993/07/16 23:55:07 davidg Exp $";
+static char rcsid[] = "$Header: /freefall/a/cvs/386BSD/src/sys/i386/i386/machdep.c,v 1.5 1993/07/27 10:52:17 davidg Exp $";
 
 
 #include <stddef.h>
@@ -1008,6 +1008,10 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_tss.tss_esp0 = (int) kstack + UPAGES*NBPG;
 	proc0.p_addr->u_pcb.pcb_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 	_gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
+
+	((struct i386tss *)gdt_segs[GPROC0_SEL].ssd_base)->tss_ioopt = 
+		(sizeof(tss))<<16;
+
 	ltr(_gsel_tss);
 
 	/* make a call gate to reenter kernel with */
