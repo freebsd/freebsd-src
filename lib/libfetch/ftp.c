@@ -348,7 +348,8 @@ _ftp_readfn(void *v, char *buf, int len)
 	io->eof = 1;
 	return _ftp_closefn(v);
     }
-    io->err = errno;
+    if (errno != EINTR)
+	io->err = errno;
     return -1;
 }
 
@@ -374,7 +375,8 @@ _ftp_writefn(void *v, const char *buf, int len)
     w = write(io->dsd, buf, len);
     if (w >= 0)
 	return w;
-    io->err = errno;
+    if (errno != EINTR)
+	io->err = errno;
     return -1;
 }
 
