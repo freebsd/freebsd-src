@@ -162,17 +162,15 @@ try:
 	 * rel.  If it succeeds we break out.  If it fails, then we go back to
 	 * the base directory and try again.  Lots of chdirs, but oh well. :)
 	 */
-	fdir = 0;
-	while (ftp_dirs[fdir] != NULL) {
-	    if (ftpChdir(OpenConn, ftp_dirs[fdir++]) != 0)
+	for (fdir = 0; ftp_dirs[fdir]; fdir++) {
+	    if (ftpChdir(OpenConn, (char *)ftp_dirs[fdir]) != 0)
 		continue;
 	    if (ftpChdir(OpenConn, rel) == 0) {
 		ftpInitted = TRUE;
 		return TRUE;
 	    }
-	    ftpChdir(OpenConn, "/");
-	    if (dir && *dir != '\0')
-		ftpChdir(OpenConn, dir);
+	    else	/* reset to "root" dir for a fresh try */
+		ftpChdir(OpenConn, "/");
 	}
 
 	/*
