@@ -2319,7 +2319,7 @@ options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
 #options	IPR_LOG=32
 #
-# network driver for sync PPP over ISDN
+# network driver for sync PPP over ISDN - requires sppp
 pseudo-device	"i4bisppp"	4
 
 

@@ -6,7 +6,7 @@
  * Author: Serge Vakulenko, <vak@cronyx.ru>
  *
  * Heavily revamped to conform to RFC 1661.
- * Copyright (C) 1997, Joerg Wunsch.
+ * Copyright (C) 1997, 2001 Joerg Wunsch.
  *
  * This software is distributed with NO WARRANTIES, not even the implied
  * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -58,6 +58,10 @@
 #include <net/netisr.h>
 #include <net/if_types.h>
 #include <net/route.h>
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <net/slcompress.h>
 
 #if defined (__NetBSD__) || defined (__OpenBSD__)
 #include <machine/cpu.h> /* XXX for softnet */
@@ -65,19 +69,19 @@
 
 #include <machine/stdarg.h>
 
-#ifdef INET
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
+
+#ifdef INET
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-# if defined (__FreeBSD__) || defined (__OpenBSD__)
-#  include <netinet/if_ether.h>
-# else
-#  include <net/ethertypes.h>
-# endif
+#endif
+
+#if defined (__FreeBSD__) || defined (__OpenBSD__)
+# include <netinet/if_ether.h>
 #else
-# error Huh? sppp without INET?
+# include <net/ethertypes.h>
 #endif
 
 #ifdef IPX
@@ -135,6 +139,8 @@
 #define PPP_ISO		0x0023		/* ISO OSI Protocol */
 #define PPP_XNS		0x0025		/* Xerox NS Protocol */
 #define PPP_IPX		0x002b		/* Novell IPX Protocol */
+#define PPP_VJ_COMP	0x002d		/* VJ compressed TCP/IP */
+#define PPP_VJ_UCOMP	0x002f		/* VJ uncompressed TCP/IP */
 #define PPP_IPV6	0x0057		/* Internet Protocol Version 6 */
 #define PPP_LCP		0xc021		/* Link Control Protocol */
 #define PPP_PAP		0xc023		/* Password Authentication Protocol */
@@ -170,6 +176,8 @@
 #define IPV6CP_OPT_IFID	1	/* interface identifier */
 #define IPV6CP_OPT_COMPRESSION	2	/* IPv6 compression protocol */
 
+#define IPCP_COMP_VJ		0x2d	/* Code for VJ compression */
+
 #define PAP_REQ			1	/* PAP name/password request */
 #define PAP_ACK			2	/* PAP acknowledge */
 #define PAP_NAK			3	/* PAP fail */
@@ -204,14 +212,14 @@ struct ppp_header {
 	u_char address;
 	u_char control;
 	u_short protocol;
-};
+} __attribute__((__packed__));
 #define PPP_HEADER_LEN          sizeof (struct ppp_header)
 
 struct lcp_header {
 	u_char type;
 	u_char ident;
 	u_short len;
-};
+} __attribute__((__packed__));
 #define LCP_HEADER_LEN          sizeof (struct lcp_header)
 
 struct cisco_packet {
@@ -221,8 +229,8 @@ struct cisco_packet {
 	u_short rel;
 	u_short time0;
 	u_short time1;
-};
-#define CISCO_PACKET_LEN 18
+} __attribute__((__packed__));
+#define CISCO_PACKET_LEN	sizeof (struct cisco_packet)
 
 /*
  * We follow the spelling and capitalization of RFC 1661 here, to make
@@ -269,6 +277,7 @@ static struct callout_handle keepalive_ch;
 #define	SPP_ARGS(ifp)	(ifp)->if_xname
 #endif
 
+#ifdef INET
 /*
  * The following disgusting hack gets around the problem that IP TOS
  * can't be set yet.  We want to put "interactive" traffic on a high
@@ -282,6 +291,7 @@ static u_short interactive_ports[8] = {
 	0,	21,	0,	23,
 };
 #define INTERACTIVE(p) (interactive_ports[(p) & 7] == (p))
+#endif
 
 /* almost every function needs these */
 #define STDDCL							\
@@ -501,6 +511,8 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	struct ifqueue *inq = 0;
 	int s;
 	struct sppp *sp = (struct sppp *)ifp;
+	u_char *iphdr;
+	int hlen, vjlen, do_account = 0;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	if (ifp->if_flags & IFF_UP)
@@ -514,9 +526,10 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			    SPP_FMT "input packet is too small, %d bytes\n",
 			    SPP_ARGS(ifp), m->m_pkthdr.len);
 	  drop:
+		m_freem (m);
+	  drop2:
 		++ifp->if_ierrors;
 		++ifp->if_iqdrops;
-		m_freem (m);
 		return;
 	}
 
@@ -576,6 +589,57 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_IP);
 				inq = &ipintrq;
 			}
+			do_account++;
+			break;
+		case PPP_VJ_COMP:
+			if (sp->state[IDX_IPCP] == STATE_OPENED) {
+				if ((vjlen =
+				     sl_uncompress_tcp_core(mtod(m, u_char *),
+							    m->m_len, m->m_len,
+							    TYPE_COMPRESSED_TCP,
+							    sp->pp_comp,
+							    &iphdr, &hlen)) <= 0) {
+					if (debug)
+						log(LOG_INFO,
+			    SPP_FMT "VJ uncompress failed on compressed packet\n",
+						    SPP_ARGS(ifp));
+					goto drop;
+				}
+
+				/*
+				 * Trim the VJ header off the packet, and prepend
+				 * the uncompressed IP header (which will usually
+				 * end up in two chained mbufs since there's not
+				 * enough leading space in the existing mbuf).
+				 */
+				m_adj(m, vjlen);
+				M_PREPEND(m, hlen, M_DONTWAIT);
+				if (m == NULL)
+					goto drop2;
+				bcopy(iphdr, mtod(m, u_char *), hlen);
+
+				schednetisr (NETISR_IP);
+				inq = &ipintrq;
+			}
+			do_account++;
+			break;
+		case PPP_VJ_UCOMP:
+			if (sp->state[IDX_IPCP] == STATE_OPENED) {
+				if (sl_uncompress_tcp_core(mtod(m, u_char *),
+							   m->m_len, m->m_len,
+							   TYPE_UNCOMPRESSED_TCP,
+							   sp->pp_comp,
+							   &iphdr, &hlen) != 0) {
+					if (debug)
+						log(LOG_INFO,
+			    SPP_FMT "VJ uncompress failed on uncompressed packet\n",
+						    SPP_ARGS(ifp));
+					goto drop;
+				}
+				schednetisr (NETISR_IP);
+				inq = &ipintrq;
+			}
+			do_account++;
 			break;
 #endif
 #ifdef INET6
@@ -590,6 +654,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_IPV6);
 				inq = &ip6intrq;
 			}
+			do_account++;
 			break;
 #endif
 #ifdef IPX
@@ -599,6 +664,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_IPX);
 				inq = &ipxintrq;
 			}
+			do_account++;
 			break;
 #endif
 #ifdef NS
@@ -608,6 +674,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 				schednetisr (NETISR_NS);
 				inq = &nsintrq;
 			}
+			do_account++;
 			break;
 #endif
 		}
@@ -636,24 +703,28 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		case ETHERTYPE_IP:
 			schednetisr (NETISR_IP);
 			inq = &ipintrq;
+			do_account++;
 			break;
 #endif
 #ifdef INET6
 		case ETHERTYPE_IPV6:
 			schednetisr (NETISR_IPV6);
 			inq = &ip6intrq;
+			do_account++;
 			break;
 #endif
 #ifdef IPX
 		case ETHERTYPE_IPX:
 			schednetisr (NETISR_IPX);
 			inq = &ipxintrq;
+			do_account++;
 			break;
 #endif
 #ifdef NS
 		case ETHERTYPE_NS:
 			schednetisr (NETISR_NS);
 			inq = &nsintrq;
+			do_account++;
 			break;
 #endif
 		}
@@ -685,6 +756,13 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 	}
 	IF_ENQUEUE(inq, m);
 	splx(s);
+	if (do_account)
+		/*
+		 * Do only account for network packets, not for control
+		 * packets.  This is used by some subsystems to detect
+		 * idle lines.
+		 */
+		sp->pp_last_recv = time_second;
 }
 
 /*
@@ -698,18 +776,35 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	struct ppp_header *h;
 	struct ifqueue *ifq = NULL;
 	int s, rv = 0;
+	int ipproto = PPP_IP;
 	int debug = ifp->if_flags & IFF_DEBUG;
 
 	s = splimp();
 
 	if ((ifp->if_flags & IFF_UP) == 0 ||
 	    (ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == 0) {
+#ifdef INET6
+	  drop:
+#endif
 		m_freem (m);
 		splx (s);
 		return (ENETDOWN);
 	}
 
 	if ((ifp->if_flags & (IFF_RUNNING | IFF_AUTO)) == IFF_AUTO) {
+#ifdef INET6
+		/*
+		 * XXX
+		 *
+		 * Hack to prevent the initialization-time generated
+		 * IPv6 multicast packet to erroneously cause a
+		 * dialout event in case IPv6 has been
+		 * administratively disabled on that interface.
+		 */
+		if (dst->sa_family == AF_INET6 &&
+		    !(sp->confflags & CONF_ENABLE_IPV6))
+			goto drop;
+#endif
 		/*
 		 * Interface is not yet running, but auto-dial.  Need
 		 * to start LCP for it.
@@ -764,6 +859,28 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			ifq = &sp->pp_fastq;
 		else if (INTERACTIVE (ntohs (tcp->th_dport)))
 			ifq = &sp->pp_fastq;
+
+		/*
+		 * Do IP Header compression
+		 */
+		if (sp->pp_mode != IFF_CISCO && (sp->ipcp.flags & IPCP_VJ) &&
+		    ip->ip_p == IPPROTO_TCP)
+			switch (sl_compress_tcp(m, ip, sp->pp_comp,
+						sp->ipcp.compress_cid)) {
+			case TYPE_COMPRESSED_TCP:
+				ipproto = PPP_VJ_COMP;
+				break;
+			case TYPE_UNCOMPRESSED_TCP:
+				ipproto = PPP_VJ_UCOMP;
+				break;
+			case TYPE_IP:
+				ipproto = PPP_IP;
+				break;
+			default:
+				m_freem(m);
+				splx(s);
+				return (EINVAL);
+			}
 	}
 #endif
 
@@ -813,7 +930,7 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			 * not ready to carry IP packets, and return
 			 * ENETDOWN, as opposed to ENOBUFS.
 			 */
-			h->protocol = htons(PPP_IP);
+			h->protocol = htons(ipproto);
 			if (sp->state[IDX_IPCP] != STATE_OPENED)
 				rv = ENETDOWN;
 		}
@@ -851,7 +968,6 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 			ETHERTYPE_IPX : PPP_IPX);
 		break;
 #endif
-nosupport:
 	default:
 		m_freem (m);
 		++ifp->if_oerrors;
@@ -881,6 +997,13 @@ nosupport:
 	 */
 	ifp->if_obytes += m->m_pkthdr.len + 3;
 	splx (s);
+	/*
+	 * Unlike in sppp_input(), we can always bump the timestamp
+	 * here since sppp_output() is only called on behalf of
+	 * network-layer traffic; control-layer traffic is handled
+	 * by sppp_cp_send().
+	 */
+	sp->pp_last_sent = time_second;
 	return (0);
 }
 
@@ -914,7 +1037,16 @@ sppp_attach(struct ifnet *ifp)
 	sp->pp_phase = PHASE_DEAD;
 	sp->pp_up = lcp.Up;
 	sp->pp_down = lcp.Down;
-
+	sp->pp_last_recv = sp->pp_last_sent = time_second;
+	sp->confflags = 0;
+#ifdef INET
+	sp->confflags |= CONF_ENABLE_VJ;
+#endif
+#ifdef INET6
+	sp->confflags |= CONF_ENABLE_IPV6;
+#endif
+	sp->pp_comp = malloc(sizeof(struct slcompress), M_TEMP, M_WAIT);
+	sl_compress_init(sp->pp_comp, -1);
 	sppp_lcp_init(sp);
 	sppp_ipcp_init(sp);
 	sppp_ipv6cp_init(sp);
@@ -1633,12 +1765,13 @@ sppp_cp_input(const struct cp *cp, struct sppp *sp, struct mbuf *m)
 		if (upper == NULL)
 			catastrophic++;
 
-		log(LOG_INFO,
-		    SPP_FMT "%s: RXJ%c (%s) for proto 0x%x (%s/%s)\n",
-		    SPP_ARGS(ifp), cp->name, catastrophic ? '-' : '+',
-		    sppp_cp_type_name(h->type), proto,
-		    upper ? upper->name : "unknown",
-		    upper ? sppp_state_name(sp->state[upper->protoidx]) : "?");
+		if (catastrophic || debug)
+			log(catastrophic? LOG_INFO: LOG_DEBUG,
+			    SPP_FMT "%s: RXJ%c (%s) for proto 0x%x (%s/%s)\n",
+			    SPP_ARGS(ifp), cp->name, catastrophic ? '-' : '+',
+			    sppp_cp_type_name(h->type), proto,
+			    upper ? upper->name : "unknown",
+			    upper ? sppp_state_name(sp->state[upper->protoidx]) : "?");
 
 		/*
 		 * if we got RXJ+ against conf-req, the peer does not implement
@@ -2046,6 +2179,10 @@ sppp_lcp_up(struct sppp *sp)
 			lcp.Open(sp);
 		} else if (debug)
 			addlog("\n");
+	} else if ((ifp->if_flags & (IFF_AUTO | IFF_PASSIVE)) == 0 &&
+		   (sp->state[IDX_LCP] == STATE_INITIAL)) {
+		ifp->if_flags |= IFF_RUNNING;
+		lcp.Open(sp);
 	}
 
 	sppp_up_event(&lcp, sp);
@@ -2144,7 +2281,7 @@ sppp_lcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 			if (len >= 6 && p[1] == 6)
 				continue;
 			if (debug)
-				log(-1, "[invalid] ");
+				addlog("[invalid] ");
 			break;
 		case LCP_OPT_ASYNC_MAP:
 			/* Async control character map. */
@@ -2521,7 +2658,16 @@ sppp_lcp_tlu(struct sppp *sp)
 	if (sp->pp_phase == PHASE_NETWORK) {
 		/* Notify all NCPs. */
 		for (i = 0; i < IDX_COUNT; i++)
-			if ((cps[i])->flags & CP_NCP)
+			if (((cps[i])->flags & CP_NCP) &&
+			    /*
+			     * XXX
+			     * Hack to administratively disable IPv6 if
+			     * not desired.  Perhaps we should have another
+			     * flag for this, but right now, we can make
+			     * all struct cp's read/only.
+			     */
+			    (cps[i] != &ipv6cp ||
+			     (sp->confflags & CONF_ENABLE_IPV6)))
 				(cps[i])->Open(sp);
 	}
 
@@ -2715,7 +2861,9 @@ sppp_ipcp_open(struct sppp *sp)
 	STDDCL;
 	u_long myaddr, hisaddr;
 
-	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN|IPCP_MYADDR_SEEN|IPCP_MYADDR_DYN);
+	sp->ipcp.flags &= ~(IPCP_HISADDR_SEEN | IPCP_MYADDR_SEEN |
+			    IPCP_MYADDR_DYN | IPCP_VJ);
+	sp->ipcp.opts = 0;
 
 	sppp_get_ip_addrs(sp, &myaddr, &hisaddr, 0);
 	/*
@@ -2731,7 +2879,6 @@ sppp_ipcp_open(struct sppp *sp)
 			    SPP_ARGS(ifp));
 		return;
 	}
-
 	if (myaddr == 0L) {
 		/*
 		 * I don't have an assigned address, so i need to
@@ -2741,6 +2888,11 @@ sppp_ipcp_open(struct sppp *sp)
 		sp->ipcp.opts |= (1 << IPCP_OPT_ADDRESS);
 	} else
 		sp->ipcp.flags |= IPCP_MYADDR_SEEN;
+	if (sp->confflags & CONF_ENABLE_VJ) {
+		sp->ipcp.opts |= (1 << IPCP_OPT_COMPRESSION);
+		sp->ipcp.max_state = MAX_STATES - 1;
+		sp->ipcp.compress_cid = 1;
+	}
 	sppp_open_event(&ipcp, sp);
 }
 
@@ -2775,6 +2927,7 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	int rlen, origlen, debug = ifp->if_flags & IFF_DEBUG;
 	u_long hisaddr, desiredaddr;
 	int gotmyaddr = 0;
+	int desiredcomp;
 
 	len -= 4;
 	origlen = len;
@@ -2795,6 +2948,36 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			addlog(" %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			if (!(sp->confflags & CONF_ENABLE_VJ)) {
+				/* VJ compression administratively disabled */
+				if (debug)
+					addlog("[locally disabled] ");
+				break;
+			}
+			/*
+			 * In theory, we should only conf-rej an
+			 * option that is shorter than RFC 1618
+			 * requires (i.e. < 4), and should conf-nak
+			 * anything else that is not VJ.  However,
+			 * since our algorithm always uses the
+			 * original option to NAK it with new values,
+			 * things would become more complicated.  In
+			 * pratice, the only commonly implemented IP
+			 * compression option is VJ anyway, so the
+			 * difference is negligible.
+			 */
+			if (len >= 6 && p[1] == 6) {
+				/*
+				 * correctly formed compression option
+				 * that could be VJ compression
+				 */
+				continue;
+			}
+			if (debug)
+				addlog("optlen %d [invalid/unsupported] ",
+				    p[1]);
+			break;
 		case IPCP_OPT_ADDRESS:
 			if (len >= 6 && p[1] == 6) {
 				/* correctly formed address option */
@@ -2833,15 +3016,35 @@ sppp_ipcp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			addlog(" %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			desiredcomp = p[2] << 8 | p[3];
+			/* We only support VJ */
+			if (desiredcomp == IPCP_COMP_VJ) {
+				if (debug)
+					addlog("VJ [ack] ");
+				sp->ipcp.flags |= IPCP_VJ;
+				sl_compress_init(sp->pp_comp, p[4]);
+				sp->ipcp.max_state = p[4];
+				sp->ipcp.compress_cid = p[5];
+				continue;
+			}
+			if (debug)
+				addlog("compproto %#04x [not supported] ",
+				    desiredcomp);
+			p[2] = IPCP_COMP_VJ >> 8;
+			p[3] = IPCP_COMP_VJ;
+			p[4] = sp->ipcp.max_state;
+			p[5] = sp->ipcp.compress_cid;
+			break;
 		case IPCP_OPT_ADDRESS:
 			/* This is the address he wants in his end */
 			desiredaddr = p[2] << 24 | p[3] << 16 |
 				p[4] << 8 | p[5];
 			if (desiredaddr == hisaddr ||
-			    (hisaddr == 1 && desiredaddr != 0)) {
+			    (hisaddr >= 1 && hisaddr <= 254 && desiredaddr != 0)) {
 				/*
 				 * Peer's address is same as our value,
-				 * or we have set it to 0.0.0.1 to
+				 * or we have set it to 0.0.0.* to
 				 * indicate that we do not really care,
 				 * this is agreeable.  Gonna conf-ack
 				 * it.
@@ -2943,6 +3146,9 @@ sppp_ipcp_RCN_rej(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			addlog(" %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			sp->ipcp.opts &= ~(1 << IPCP_OPT_COMPRESSION);
+			break;
 		case IPCP_OPT_ADDRESS:
 			/*
 			 * Peer doesn't grok address option.  This is
@@ -2969,6 +3175,7 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 	u_char *buf, *p;
 	struct ifnet *ifp = &sp->pp_if;
 	int debug = ifp->if_flags & IFF_DEBUG;
+	int desiredcomp;
 	u_long wantaddr;
 
 	len -= 4;
@@ -2985,6 +3192,23 @@ sppp_ipcp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 		if (debug)
 			addlog(" %s ", sppp_ipcp_opt_name(*p));
 		switch (*p) {
+		case IPCP_OPT_COMPRESSION:
+			if (len >= 6 && p[1] == 6) {
+				desiredcomp = p[2] << 8 | p[3];
+				if (debug)
+					addlog("[wantcomp %#04x] ",
+						desiredcomp);
+				if (desiredcomp == IPCP_COMP_VJ) {
+					sl_compress_init(sp->pp_comp, p[4]);
+					sp->ipcp.max_state = p[4];
+					sp->ipcp.compress_cid = p[5];
+					if (debug)
+						addlog("[agree] ");
+				} else
+					sp->ipcp.opts &=
+						~(1 << IPCP_OPT_COMPRESSION);
+			}
+			break;
 		case IPCP_OPT_ADDRESS:
 			/*
 			 * Peer doesn't like our local IP address.  See
@@ -3057,6 +3281,14 @@ sppp_ipcp_scr(struct sppp *sp)
 	u_long ouraddr;
 	int i = 0;
 
+	if (sp->ipcp.opts & (1 << IPCP_OPT_COMPRESSION)) {
+		opt[i++] = IPCP_OPT_COMPRESSION;
+		opt[i++] = 6;
+		opt[i++] = IPCP_COMP_VJ >> 8;
+		opt[i++] = IPCP_COMP_VJ;
+		opt[i++] = sp->ipcp.max_state;
+		opt[i++] = sp->ipcp.compress_cid;
+	}
 	if (sp->ipcp.opts & (1 << IPCP_OPT_ADDRESS)) {
 		sppp_get_ip_addrs(sp, &ouraddr, 0, 0);
 		opt[i++] = IPCP_OPT_ADDRESS;
@@ -4649,7 +4881,7 @@ sppp_set_ip_addr(struct sppp *sp, u_long src)
 		}
 #endif
 	}
-}			
+}
 
 #ifdef INET6
 /*
@@ -4802,23 +5034,32 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 {
 	u_long subcmd;
 	struct ifreq *ifr = (struct ifreq *)data;
-	struct spppreq spr;
+	struct spppreq *spr;
+	int rv = 0;
 
+	if ((spr = malloc(sizeof(struct spppreq), M_TEMP, M_NOWAIT)) == 0)
+		return (EAGAIN);
 	/*
 	 * ifr->ifr_data is supposed to point to a struct spppreq.
 	 * Check the cmd word first before attempting to fetch all the
 	 * data.
 	 */
-	if ((subcmd = fuword(ifr->ifr_data)) == -1)
-		return EFAULT;
+	if ((subcmd = fuword(ifr->ifr_data)) == -1) {
+		rv = EFAULT;
+		goto quit;
+	}
 
-	if (copyin((caddr_t)ifr->ifr_data, &spr, sizeof spr) != 0)
-		return EFAULT;
+	if (copyin((caddr_t)ifr->ifr_data, spr, sizeof(struct spppreq)) != 0) {
+		rv = EFAULT;
+		goto quit;
+	}
 
 	switch (subcmd) {
 	case SPPPIOGDEFS:
-		if (cmd != SIOCGIFGENERIC)
-			return EINVAL;
+		if (cmd != SIOCGIFGENERIC) {
+			rv = EINVAL;
+			break;
+		}
 		/*
 		 * We copy over the entire current state, but clean
 		 * out some of the stuff we don't wanna pass up.
@@ -4826,23 +5067,42 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * called by any user.  No need to ever get PAP or
 		 * CHAP secrets back to userland anyway.
 		 */
-		bcopy(sp, &spr.defs, sizeof(struct sppp));
-		bzero(spr.defs.myauth.secret, AUTHKEYLEN);
-		bzero(spr.defs.myauth.challenge, AUTHKEYLEN);
-		bzero(spr.defs.hisauth.secret, AUTHKEYLEN);
-		bzero(spr.defs.hisauth.challenge, AUTHKEYLEN);
-		return copyout(&spr, (caddr_t)ifr->ifr_data, sizeof spr);
+		spr->defs.pp_phase = sp->pp_phase;
+		spr->defs.enable_vj = (sp->confflags & CONF_ENABLE_VJ) != 0;
+		spr->defs.enable_ipv6 = (sp->confflags & CONF_ENABLE_IPV6) != 0;
+		spr->defs.lcp = sp->lcp;
+		spr->defs.ipcp = sp->ipcp;
+		spr->defs.ipv6cp = sp->ipv6cp;
+		spr->defs.myauth = sp->myauth;
+		spr->defs.hisauth = sp->hisauth;
+		bzero(spr->defs.myauth.secret, AUTHKEYLEN);
+		bzero(spr->defs.myauth.challenge, AUTHKEYLEN);
+		bzero(spr->defs.hisauth.secret, AUTHKEYLEN);
+		bzero(spr->defs.hisauth.challenge, AUTHKEYLEN);
+		/*
+		 * Fixup the LCP timeout value to milliseconds so
+		 * spppcontrol doesn't need to bother about the value
+		 * of "hz".  We do the reverse calculation below when
+		 * setting it.
+		 */
+		spr->defs.lcp.timeout = sp->lcp.timeout * 1000 / hz;
+		rv = copyout(spr, (caddr_t)ifr->ifr_data,
+			     sizeof(struct spppreq));
+		break;
 
 	case SPPPIOSDEFS:
-		if (cmd != SIOCSIFGENERIC)
-			return EINVAL;
+		if (cmd != SIOCSIFGENERIC) {
+			rv = EINVAL;
+			break;
+		}
 		/*
-		 * We have a very specific idea of which fields we allow
-		 * being passed back from userland, so to not clobber our
-		 * current state.  For one, we only allow setting
-		 * anything if LCP is in dead phase.  Once the LCP
-		 * negotiations started, the authentication settings must
-		 * not be changed again.  (The administrator can force an
+		 * We have a very specific idea of which fields we
+		 * allow being passed back from userland, so to not
+		 * clobber our current state.  For one, we only allow
+		 * setting anything if LCP is in dead or establish
+		 * phase.  Once the authentication negotiations
+		 * started, the authentication settings must not be
+		 * changed again.  (The administrator can force an
 		 * ifconfig down in order to get LCP back into dead
 		 * phase.)
 		 *
@@ -4858,47 +5118,70 @@ sppp_params(struct sppp *sp, u_long cmd, void *data)
 		 * only without clobbering the secret (which he didn't get
 		 * back in a previous SPPPIOGDEFS call).  However, the
 		 * secrets are cleared if the authentication protocol is
-		 * reset to 0.
-		 */
-		if (sp->pp_phase != PHASE_DEAD)
-			return EBUSY;
+		 * reset to 0.  */
+		if (sp->pp_phase != PHASE_DEAD &&
+		    sp->pp_phase != PHASE_ESTABLISH) {
+			rv = EBUSY;
+			break;
+		}
 
-		if ((spr.defs.myauth.proto != 0 && spr.defs.myauth.proto != PPP_PAP &&
-		     spr.defs.myauth.proto != PPP_CHAP) ||
-		    (spr.defs.hisauth.proto != 0 && spr.defs.hisauth.proto != PPP_PAP &&
-		     spr.defs.hisauth.proto != PPP_CHAP))
-			return EINVAL;
+		if ((spr->defs.myauth.proto != 0 && spr->defs.myauth.proto != PPP_PAP &&
+		     spr->defs.myauth.proto != PPP_CHAP) ||
+		    (spr->defs.hisauth.proto != 0 && spr->defs.hisauth.proto != PPP_PAP &&
+		     spr->defs.hisauth.proto != PPP_CHAP)) {
+			rv = EINVAL;
+			break;
+		}
 
-		if (spr.defs.myauth.proto == 0)
+		if (spr->defs.myauth.proto == 0)
 			/* resetting myauth */
 			bzero(&sp->myauth, sizeof sp->myauth);
 		else {
 			/* setting/changing myauth */
-			sp->myauth.proto = spr.defs.myauth.proto;
-			bcopy(spr.defs.myauth.name, sp->myauth.name, AUTHNAMELEN);
-			if (spr.defs.myauth.secret[0] != '\0')
-				bcopy(spr.defs.myauth.secret, sp->myauth.secret,
+			sp->myauth.proto = spr->defs.myauth.proto;
+			bcopy(spr->defs.myauth.name, sp->myauth.name, AUTHNAMELEN);
+			if (spr->defs.myauth.secret[0] != '\0')
+				bcopy(spr->defs.myauth.secret, sp->myauth.secret,
 				      AUTHKEYLEN);
 		}
-		if (spr.defs.hisauth.proto == 0)
+		if (spr->defs.hisauth.proto == 0)
 			/* resetting hisauth */
 			bzero(&sp->hisauth, sizeof sp->hisauth);
 		else {
 			/* setting/changing hisauth */
-			sp->hisauth.proto = spr.defs.hisauth.proto;
-			sp->hisauth.flags = spr.defs.hisauth.flags;
-			bcopy(spr.defs.hisauth.name, sp->hisauth.name, AUTHNAMELEN);
-			if (spr.defs.hisauth.secret[0] != '\0')
-				bcopy(spr.defs.hisauth.secret, sp->hisauth.secret,
+			sp->hisauth.proto = spr->defs.hisauth.proto;
+			sp->hisauth.flags = spr->defs.hisauth.flags;
+			bcopy(spr->defs.hisauth.name, sp->hisauth.name, AUTHNAMELEN);
+			if (spr->defs.hisauth.secret[0] != '\0')
+				bcopy(spr->defs.hisauth.secret, sp->hisauth.secret,
 				      AUTHKEYLEN);
 		}
+		/* set LCP restart timer timeout */
+		if (spr->defs.lcp.timeout != 0)
+			sp->lcp.timeout = spr->defs.lcp.timeout * hz / 1000;
+		/* set VJ enable and IPv6 disable flags */
+#ifdef INET
+		if (spr->defs.enable_vj)
+			sp->confflags |= CONF_ENABLE_VJ;
+		else
+			sp->confflags &= ~CONF_ENABLE_VJ;
+#endif
+#ifdef INET6
+		if (spr->defs.enable_ipv6)
+			sp->confflags |= CONF_ENABLE_IPV6;
+		else
+			sp->confflags &= ~CONF_ENABLE_IPV6;
 		break;
+#endif
 
 	default:
-		return EINVAL;
+		rv = EINVAL;
 	}
 
-	return 0;
+ quit:
+	free(spr, M_TEMP);
+
+	return (rv);
 }
 
 static void
