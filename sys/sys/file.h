@@ -48,6 +48,7 @@
 struct stat;
 struct proc;
 struct uio;
+struct knote;
 
 /*
  * Kernel descriptor table.
@@ -77,6 +78,8 @@ struct file {
 					    caddr_t data, struct proc *p));
 		int	(*fo_poll)	__P((struct file *fp, int events,
 					    struct ucred *cred, struct proc *p));
+		int	(*fo_kqfilter)	__P((struct file *fp,
+					    struct knote *kn));
 		int	(*fo_stat)	__P((struct file *fp, struct stat *sb,
 					    struct proc *p));
 		int	(*fo_close)	__P((struct file *fp, struct proc *p));
@@ -126,6 +129,7 @@ static __inline int fo_poll __P((struct file *fp, int events,
 static __inline int fo_stat __P((struct file *fp, struct stat *sb,
     struct proc *p));
 static __inline int fo_close __P((struct file *fp, struct proc *p));
+static __inline int fo_kqfilter __P((struct file *fp, struct knote *kn));
 
 static __inline int
 fo_read(fp, uio, cred, flags, p)
@@ -210,6 +214,15 @@ fo_close(fp, p)
 {
 
 	return ((*fp->f_ops->fo_close)(fp, p));
+}
+
+static __inline int
+fo_kqfilter(fp, kn)
+	struct file *fp;
+	struct knote *kn;
+{
+
+	return ((*fp->f_ops->fo_kqfilter)(fp, kn));
 }
 
 #endif /* _KERNEL */

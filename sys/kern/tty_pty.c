@@ -86,8 +86,9 @@ static struct cdevsw pts_cdevsw = {
 	/* maj */	CDEV_MAJOR_S,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* flags */	D_TTY | D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	ttykqfilter,
 };
 
 #define	CDEV_MAJOR_C	6
@@ -104,8 +105,9 @@ static struct cdevsw ptc_cdevsw = {
 	/* maj */	CDEV_MAJOR_C,
 	/* dump */	nodump,
 	/* psize */	nopsize,
-	/* flags */	D_TTY,
-	/* bmaj */	-1
+	/* flags */	D_TTY | D_KQFILTER,
+	/* bmaj */	-1,
+	/* kqfilter */	ttykqfilter,
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */

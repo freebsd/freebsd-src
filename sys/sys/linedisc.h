@@ -105,6 +105,7 @@ struct bio;
 struct buf;
 struct proc;
 struct uio;
+struct knote;
 
 typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
 typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
@@ -118,6 +119,7 @@ typedef int d_psize_t __P((dev_t dev));
 typedef int d_read_t __P((dev_t dev, struct uio *uio, int ioflag));
 typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
 typedef int d_poll_t __P((dev_t dev, int events, struct proc *p));
+typedef int d_kqfilter_t __P((dev_t dev, struct knote *kn));
 typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
 
 typedef int l_open_t __P((dev_t dev, struct tty *tp));
@@ -169,11 +171,12 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 /*
  * Flags for d_flags.
  */
-#define	D_MEMDISK	0x10000		/* memory type disk */
-#define	D_NAGGED	0x20000		/* nagged about missing make_dev() */
-#define	D_CANFREE	0x40000		/* can free blocks */
-#define	D_TRACKCLOSE	0x80000		/* track all closes */
-#define D_MMAP_ANON	0x100000	/* special treatment in vm_mmap.c */
+#define	D_MEMDISK	0x00010000	/* memory type disk */
+#define	D_NAGGED	0x00020000	/* nagged about missing make_dev() */
+#define	D_CANFREE	0x00040000	/* can free blocks */
+#define	D_TRACKCLOSE	0x00080000	/* track all closes */
+#define D_MMAP_ANON	0x00100000	/* special treatment in vm_mmap.c */
+#define D_KQFILTER	0x00200000	/* has kqfilter entry */
 
 /*
  * Character device switch table
@@ -194,6 +197,8 @@ struct cdevsw {
 	u_int		d_flags;
 	/* This following field is deprecated.  Please don't initialize */
 	int		d_XXXbmaj;
+	/* additions below are not binary compatible with 4.2 and below */
+	d_kqfilter_t	*d_kqfilter;
 };
 
 /*
@@ -241,6 +246,7 @@ d_read_t	noread;
 d_write_t	nowrite;
 d_ioctl_t	noioctl;
 d_mmap_t	nommap;
+d_kqfilter_t	nokqfilter;
 #define	nostrategy	((d_strategy_t *)NULL)
 #define	nopoll	seltrue
 

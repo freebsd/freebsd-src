@@ -48,15 +48,6 @@
 
 #include <vm/vm_zone.h>
 
-static int 	filt_nullattach(struct knote *kn);
-static int 	filt_rwtypattach(struct knote *kn);
-static int	filt_kqattach(struct knote *kn);
-static void	filt_kqdetach(struct knote *kn);
-static int	filt_kqueue(struct knote *kn, long hint);
-static int	filt_procattach(struct knote *kn);
-static void	filt_procdetach(struct knote *kn);
-static int	filt_proc(struct knote *kn, long hint);
-
 static int	kqueue_scan(struct file *fp, int maxevents,
 		    struct kevent *ulistp, const struct timespec *timeout,
 		    struct proc *p);
@@ -68,9 +59,20 @@ static int	kqueue_ioctl(struct file *fp, u_long com, caddr_t data,
 		    struct proc *p);
 static int 	kqueue_poll(struct file *fp, int events, struct ucred *cred,
 		    struct proc *p);
+static int 	kqueue_kqfilter(struct file *fp, struct knote *kn);
 static int 	kqueue_stat(struct file *fp, struct stat *st, struct proc *p);
 static int 	kqueue_close(struct file *fp, struct proc *p);
 static void 	kqueue_wakeup(struct kqueue *kq);
+
+static struct fileops kqueueops = {
+	kqueue_read,
+	kqueue_write,
+	kqueue_ioctl,
+	kqueue_poll,
+	kqueue_kqfilter,
+	kqueue_stat,
+	kqueue_close
+};
 
 static void 	knote_attach(struct knote *kn, struct filedesc *fdp);
 static void 	knote_drop(struct knote *kn, struct proc *p);
@@ -79,6 +81,20 @@ static void 	knote_dequeue(struct knote *kn);
 static void 	knote_init(void);
 static struct 	knote *knote_alloc(void);
 static void 	knote_free(struct knote *kn);
+
+static void	filt_kqdetach(struct knote *kn);
+static int	filt_kqueue(struct knote *kn, long hint);
+static int	filt_procattach(struct knote *kn);
+static void	filt_procdetach(struct knote *kn);
+static int	filt_proc(struct knote *kn, long hint);
+static int	filt_fileattach(struct knote *kn);
+
+static struct filterops kqread_filtops =
+	{ 1, NULL, filt_kqdetach, filt_kqueue };
+static struct filterops proc_filtops =
+	{ 0, filt_procattach, filt_procdetach, filt_proc };
+static struct filterops file_filtops =
+	{ 1, filt_fileattach, NULL, NULL };
 
 static vm_zone_t	knote_zone;
 
@@ -91,85 +107,38 @@ static vm_zone_t	knote_zone;
 #define	KN_HASHSIZE		64		/* XXX should be tunable */
 #define KN_HASH(val, mask)	(((val) ^ (val >> 8)) & (mask))
 
-static struct fileops kqueueops = {
-	kqueue_read,
-	kqueue_write,
-	kqueue_ioctl,
-	kqueue_poll,
-	kqueue_stat,
-	kqueue_close
-};
-
-extern struct filterops so_rwfiltops[];
-extern struct filterops fifo_rwfiltops[];
-extern struct filterops pipe_rwfiltops[];
-extern struct filterops vn_rwfiltops[];
-
-static struct filterops kq_rwfiltops[] = {
-    { 1, filt_kqattach, filt_kqdetach, filt_kqueue },
-    { 1, filt_nullattach, NULL, NULL },
-};
-
 extern struct filterops aio_filtops;
 extern struct filterops sig_filtops;
-extern struct filterops vn_filtops;
-
-static struct filterops rwtype_filtops =
-	{ 1, filt_rwtypattach, NULL, NULL };
-static struct filterops proc_filtops =
-	{ 0, filt_procattach, filt_procdetach, filt_proc };
 
 /*
- * XXX
- * These must match the order of defines in <sys/file.h>
- */
-static struct filterops *rwtypfilt_sw[] = {
-	NULL,				/* 0 */
-	vn_rwfiltops,			/* DTYPE_VNODE */
-	so_rwfiltops,			/* DTYPE_SOCKET */
-	pipe_rwfiltops,			/* DTYPE_PIPE */
-	fifo_rwfiltops,			/* DTYPE_FIFO */
-	kq_rwfiltops,			/* DTYPE_KQUEUE */
-};
-
-/*
- * table for for all system-defined filters.
+ * Table for for all system-defined filters.
  */
 static struct filterops *sysfilt_ops[] = {
-	&rwtype_filtops,		/* EVFILT_READ */
-	&rwtype_filtops,		/* EVFILT_WRITE */
+	&file_filtops,			/* EVFILT_READ */
+	&file_filtops,			/* EVFILT_WRITE */
 	&aio_filtops,			/* EVFILT_AIO */
-	&vn_filtops,			/* EVFILT_VNODE */
+	&file_filtops,			/* EVFILT_VNODE */
 	&proc_filtops,			/* EVFILT_PROC */
 	&sig_filtops,			/* EVFILT_SIGNAL */
 };
 
 static int
-filt_nullattach(struct knote *kn)
+filt_fileattach(struct knote *kn)
 {
-	return (ENXIO);
+	
+	return (fo_kqfilter(kn->kn_fp, kn));
 }
 
-/*
- * file-type specific attach routine for read/write filters
- */
+/*ARGSUSED*/
 static int
-filt_rwtypattach(struct knote *kn)
-{
-	struct filterops *fops;
-
-	fops = rwtypfilt_sw[kn->kn_fp->f_type];
-	if (fops == NULL)
-		return (EINVAL);
-	kn->kn_fop = &fops[~kn->kn_filter];	/* convert to 0-base index */
-	return (kn->kn_fop->f_attach(kn));
-}
-
-static int
-filt_kqattach(struct knote *kn)
+kqueue_kqfilter(struct file *fp, struct knote *kn)
 {
 	struct kqueue *kq = (struct kqueue *)kn->kn_fp->f_data;
 
+	if (kn->kn_filter != EVFILT_READ)
+		return (1);
+
+	kn->kn_fop = &kqread_filtops;
 	SLIST_INSERT_HEAD(&kq->kq_sel.si_note, kn, kn_selnext);
 	return (0);
 }
