@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.78 1998/08/18 07:46:58 msmith Exp $
+ *	$Id: mp_machdep.c,v 1.79 1998/08/24 02:28:15 bde Exp $
  */
 
 #include "opt_smp.h"
@@ -278,6 +278,8 @@ struct {
 } apic_isrbit_location[32];
 #endif
 
+struct apic_intmapinfo	int_to_apicintpin[APIC_INTMAPSIZE];
+
 /*
  * APIC ID logical/physical mapping structures.
  * We oversize these to simplify boot-time config.
@@ -315,7 +317,7 @@ extern pd_entry_t *my_idlePTD;
 
 struct pcb stoppcbs[NCPU];
 
-static int smp_started;		/* has the system started? */
+int smp_started;		/* has the system started? */
 
 /*
  * Local data and functions.
@@ -334,6 +336,7 @@ static int	mptable_pass1(void);
 static int	mptable_pass2(void);
 static void	default_mp_table(int type);
 static void	fix_mp_table(void);
+static void	setup_apic_irq_mapping(void);
 static void	init_locks(void);
 static int	start_all_aps(u_int boot_addr);
 static void	install_ap_tramp(u_int boot_addr);
@@ -569,6 +572,7 @@ mp_enable(u_int boot_addr)
 
 	/* post scan cleanup */
 	fix_mp_table();
+	setup_apic_irq_mapping();
 
 #if defined(APIC_IO)
 
@@ -675,6 +679,7 @@ typedef struct INTDATA {
 	u_char  src_bus_irq;
 	u_char  dst_apic_id;
 	u_char  dst_apic_int;
+	u_char	int_vector;
 }       io_int, local_int;
 
 typedef struct BUSTYPENAME {
@@ -905,8 +910,10 @@ mptable_pass2(void)
 		bus_data[x].bus_id = 0xff;
 
 	/* clear IO APIC INT table */
-	for (x = 0; x < NINTR; ++x)
+	for (x = 0; x < NINTR; ++x) {
 		io_apic_ints[x].int_type = 0xff;
+		io_apic_ints[x].int_vector = 0xff;
+	}
 
 	/* setup the cpu/apic mapping arrays */
 	boot_cpu_id = -1;
@@ -965,6 +972,29 @@ mptable_pass2(void)
 	return 0;
 }
 
+
+static void
+assign_apic_irq(int apic, int intpin, int irq)
+{
+	int x;
+	
+	if (int_to_apicintpin[irq].ioapic != -1)
+		panic("assign_apic_irq: inconsistent table");
+	
+	int_to_apicintpin[irq].ioapic = apic;
+	int_to_apicintpin[irq].int_pin = intpin;
+	int_to_apicintpin[irq].apic_address = ioapic[apic];
+	int_to_apicintpin[irq].redirindex = IOAPIC_REDTBL + 2 * intpin;
+	
+	for (x = 0; x < nintrs; x++) {
+		if ((io_apic_ints[x].int_type == 0 || 
+		     io_apic_ints[x].int_type == 3) &&
+		    io_apic_ints[x].int_vector == 0xff &&
+		    io_apic_ints[x].dst_apic_id == IO_TO_ID(apic) &&
+		    io_apic_ints[x].dst_apic_int == intpin)
+			io_apic_ints[x].int_vector = irq;
+	}
+}
 
 /*
  * parse an Intel MP specification table
@@ -1036,6 +1066,50 @@ fix_mp_table(void)
 				continue;
 			if (bus_data[x].bus_id >= num_pci_bus)
 				panic("bad PCI bus numbering");
+		}
+	}
+}
+
+
+static void
+setup_apic_irq_mapping(void)
+{
+	int	x;
+	int	int_vector;
+
+	/* Assign low level interrupt handlers */
+	for (x = 0; x < APIC_INTMAPSIZE; x++) {
+		int_to_apicintpin[x].ioapic = -1;
+		int_to_apicintpin[x].int_pin = 0;
+		int_to_apicintpin[x].apic_address = NULL;
+		int_to_apicintpin[x].redirindex = 0;
+	}
+	for (x = 0; x < nintrs; x++) {
+		if (io_apic_ints[x].dst_apic_int <= APIC_INTMAPSIZE &&
+		    io_apic_ints[x].dst_apic_id == IO_TO_ID(0) &&
+		    io_apic_ints[x].int_vector == 0xff && 
+		    (io_apic_ints[x].int_type == 0 ||
+		     io_apic_ints[x].int_type == 3)) {
+			assign_apic_irq(0, 
+					io_apic_ints[x].dst_apic_int,
+					io_apic_ints[x].dst_apic_int);
+		}
+	}
+	int_vector = 0;
+	while (int_vector < APIC_INTMAPSIZE &&
+	       int_to_apicintpin[int_vector].ioapic != -1)
+		int_vector++;
+	for (x = 0; x < nintrs && int_vector < APIC_INTMAPSIZE; x++) {
+		if ((io_apic_ints[x].int_type == 0 ||
+		     io_apic_ints[x].int_type == 3) &&
+		    io_apic_ints[x].int_vector == 0xff) {
+			assign_apic_irq(ID_TO_IO(io_apic_ints[x].dst_apic_id),
+					io_apic_ints[x].dst_apic_int,
+					int_vector);
+			int_vector++;
+			while (int_vector < APIC_INTMAPSIZE &&
+			       int_to_apicintpin[int_vector].ioapic != -1)
+				int_vector++;
 		}
 	}
 }
@@ -1164,7 +1238,7 @@ isa_apic_mask(u_int isa_mask)
 		return 0;
 	--isa_irq;				/* make it zero based */
 
-	apic_pin = isa_apic_pin(isa_irq);	/* look for APIC connection */
+	apic_pin = isa_apic_irq(isa_irq);	/* look for APIC connection */
 	if (apic_pin == -1)
 		return 0;
 
@@ -1177,10 +1251,12 @@ isa_apic_mask(u_int isa_mask)
  */
 #define INTTYPE(I)	(io_apic_ints[(I)].int_type)
 #define INTPIN(I)	(io_apic_ints[(I)].dst_apic_int)
+#define INTIRQ(I)	(io_apic_ints[(I)].int_vector)
+#define INTAPIC(I)	(ID_TO_IO(io_apic_ints[(I)].dst_apic_id))
 
 #define SRCBUSIRQ(I)	(io_apic_ints[(I)].src_bus_irq)
 int
-isa_apic_pin(int isa_irq)
+isa_apic_irq(int isa_irq)
 {
 	int     intr;
 
@@ -1189,7 +1265,7 @@ isa_apic_pin(int isa_irq)
 			if (SRCBUSIRQ(intr) == isa_irq) {
 				if (apic_int_is_bus_type(intr, ISA) ||
 			            apic_int_is_bus_type(intr, EISA))
-					return INTPIN(intr);	/* found */
+					return INTIRQ(intr);	/* found */
 			}
 		}
 	}
@@ -1204,7 +1280,7 @@ isa_apic_pin(int isa_irq)
 #define SRCBUSDEVICE(I)	((io_apic_ints[(I)].src_bus_irq >> 2) & 0x1f)
 #define SRCBUSLINE(I)	(io_apic_ints[(I)].src_bus_irq & 0x03)
 int
-pci_apic_pin(int pciBus, int pciDevice, int pciInt)
+pci_apic_irq(int pciBus, int pciDevice, int pciInt)
 {
 	int     intr;
 
@@ -1216,13 +1292,13 @@ pci_apic_pin(int pciBus, int pciDevice, int pciInt)
 		    && (SRCBUSDEVICE(intr) == pciDevice)
 		    && (SRCBUSLINE(intr) == pciInt))	/* a candidate IRQ */
 			if (apic_int_is_bus_type(intr, PCI))
-				return INTPIN(intr);	/* exact match */
+				return INTIRQ(intr);	/* exact match */
 
 	return -1;					/* NOT found */
 }
 
 int
-next_apic_pin(int pin) 
+next_apic_irq(int irq) 
 {
 	int intr, ointr;
 	int bus, bustype;
@@ -1230,7 +1306,7 @@ next_apic_pin(int pin)
 	bus = 0;
 	bustype = 0;
 	for (intr = 0; intr < nintrs; intr++) {
-		if (INTPIN(intr) != pin || INTTYPE(intr) != 0)
+		if (INTIRQ(intr) != irq || INTTYPE(intr) != 0)
 			continue;
 		bus = SRCBUSID(intr);
 		bustype = apic_bus_type(bus);
@@ -1265,7 +1341,7 @@ next_apic_pin(int pin)
 	if (ointr >= nintrs) {
 		return -1;
 	}
-	return INTPIN(ointr);
+	return INTIRQ(ointr);
 }
 #undef SRCBUSLINE
 #undef SRCBUSDEVICE
@@ -1273,6 +1349,8 @@ next_apic_pin(int pin)
 #undef SRCBUSIRQ
 
 #undef INTPIN
+#undef INTIRQ
+#undef INTAPIC
 #undef INTTYPE
 
 
@@ -1395,6 +1473,27 @@ apic_int_type(int apic, int pin)
 			return (io_apic_ints[x].int_type);
 
 	return -1;		/* NOT found */
+}
+
+int 
+apic_irq(int apic, int pin)
+{
+	int x;
+	int res;
+
+	for (x = 0; x < nintrs; ++x)
+		if ((apic == ID_TO_IO(io_apic_ints[x].dst_apic_id)) &&
+		    (pin == io_apic_ints[x].dst_apic_int)) {
+			res = io_apic_ints[x].int_vector;
+			if (res == 0xff)
+				return -1;
+			if (apic != int_to_apicintpin[res].ioapic)
+				panic("apic_irq: inconsistent table");
+			if (pin != int_to_apicintpin[res].int_pin)
+				panic("apic_irq inconsistent table (2)");
+			return res;
+		}
+	return -1;
 }
 
 
@@ -2127,9 +2226,11 @@ ap_init()
 	 * quite correct yet.  We should have a bitfield for cpus willing
 	 * to accept TLB flush IPI's or something and sync them.
 	 */
-	invltlb_ok = 1;
-	smp_started = 1;	/* enable IPI's, tlb shootdown, freezes etc */
-	smp_active = 1;		/* historic */
+	if (smp_cpus == mp_ncpus) {
+		invltlb_ok = 1;
+		smp_started = 1; /* enable IPI's, tlb shootdown, freezes etc */
+		smp_active = 1;	 /* historic */
+	}
 
 	curproc = NULL;		/* make sure */
 }
