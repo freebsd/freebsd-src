@@ -225,7 +225,8 @@ float	__kernel_cosf(float,float);
 float	__kernel_tanf(float,float,int);
 int	__kernel_rem_pio2f(float*,float*,int,int,int,const int*);
 
-#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__)
+#if defined(__alpha__) || defined(__ia64__) || defined(__sparc64__) || \
+    defined(__powerpc__)
 #define __generic___ieee754_acos	__ieee754_acos
 #define __generic___ieee754_asin	__ieee754_asin
 #define __generic___ieee754_atan2	__ieee754_atan2
