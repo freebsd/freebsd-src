@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.303
+     Original revision: 1.22.2.304
 -->
 
 <articleinfo>
@@ -203,6 +203,9 @@
 
       <para><application>cvs</application> a &eacute;t&eacute; mis
       &agrave; jour en version 1.11.2.</para>
+
+      <para>La base de données des zones de temps a été mise à jour en
+      version <filename>tzdata2002d</filename>.</para>
 
     </sect3>
 
