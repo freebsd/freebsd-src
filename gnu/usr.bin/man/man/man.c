@@ -926,8 +926,17 @@ parse_roff_directive (cp, file, buf, bufsize)
 
 	  if (troff)
 	    add_directive (&first, EQN, file, buf, bufsize);
-	  else
+	  else {
+#ifdef __FreeBSD__
+	    char lbuf[FILENAME_MAX];
+
+	    snprintf(lbuf, sizeof(lbuf), "%s%s", NEQN,
+		     locale_opts == NULL ? " -Tascii" : locale_opts);
+	    add_directive (&first, lbuf, file, buf, bufsize);
+#else
 	    add_directive (&first, NEQN, file, buf, bufsize);
+#endif
+	  }
 
 	  break;
 
