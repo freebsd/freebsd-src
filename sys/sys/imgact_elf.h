@@ -37,6 +37,8 @@
 
 #define AUXARGS_ENTRY(pos, id, val) {suword(pos++, id); suword(pos++, val);}
 
+struct thread;
+
 #if ELF_TARG_CLASS == ELFCLASS32
 
 /*
@@ -57,6 +59,7 @@ typedef struct {
 
 typedef struct {
 	int brand;
+	int machine;
 	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
 	const char *emul_path;
 	const char *interp_path;
@@ -65,9 +68,11 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
-int	elf_brand_inuse(Elf32_Brandinfo *entry);
-int	elf_insert_brand_entry(Elf32_Brandinfo *entry);
-int	elf_remove_brand_entry(Elf32_Brandinfo *entry);
+int	elf32_brand_inuse(Elf32_Brandinfo *entry);
+int	elf32_insert_brand_entry(Elf32_Brandinfo *entry);
+int	elf32_remove_brand_entry(Elf32_Brandinfo *entry);
+int	elf32_freebsd_fixup(register_t **, struct image_params *);
+int	elf32_coredump(struct thread *, struct vnode *, off_t);
 
 #else /* !(ELF_TARG_CLASS == ELFCLASS32) */
 
@@ -89,6 +94,7 @@ typedef struct {
 
 typedef struct {
 	int brand;
+	int machine;
 	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
 	const char *emul_path;
 	const char *interp_path;
@@ -97,15 +103,13 @@ typedef struct {
 
 #define MAX_BRANDS      8
 
-int	elf_brand_inuse(Elf64_Brandinfo *entry);
-int	elf_insert_brand_entry(Elf64_Brandinfo *entry);
-int	elf_remove_brand_entry(Elf64_Brandinfo *entry);
+int	elf64_brand_inuse(Elf64_Brandinfo *entry);
+int	elf64_insert_brand_entry(Elf64_Brandinfo *entry);
+int	elf64_remove_brand_entry(Elf64_Brandinfo *entry);
+int	elf64_freebsd_fixup(register_t **, struct image_params *);
+int	elf64_coredump(struct thread *, struct vnode *, off_t);
 
 #endif /* ELF_TARG_CLASS == ELFCLASS32 */
-
-struct thread;
-
-int	elf_coredump(struct thread *, struct vnode *, off_t);
 
 #endif /* _KERNEL */
 

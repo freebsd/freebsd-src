@@ -85,7 +85,7 @@ vm_offset_t vm_page_alloc_contig(vm_offset_t, vm_offset_t, vm_offset_t, vm_offse
 void vm_set_page_size(void);
 struct vmspace *vmspace_alloc(vm_offset_t, vm_offset_t);
 struct vmspace *vmspace_fork(struct vmspace *);
-void vmspace_exec(struct proc *);
+void vmspace_exec(struct proc *, vm_offset_t, vm_offset_t);
 void vmspace_unshare(struct proc *);
 void vmspace_free(struct vmspace *);
 void vmspace_exitfree(struct proc *);

@@ -2586,14 +2586,13 @@ Retry:
  * mapped to it, then create a new one.  The new vmspace is null.
  */
 void
-vmspace_exec(struct proc *p) 
+vmspace_exec(struct proc *p, vm_offset_t minuser, vm_offset_t maxuser)
 {
 	struct vmspace *oldvmspace = p->p_vmspace;
 	struct vmspace *newvmspace;
-	vm_map_t map = &p->p_vmspace->vm_map;
 
 	GIANT_REQUIRED;
-	newvmspace = vmspace_alloc(map->min_offset, map->max_offset);
+	newvmspace = vmspace_alloc(minuser, maxuser);
 	bcopy(&oldvmspace->vm_startcopy, &newvmspace->vm_startcopy,
 	    (caddr_t) (newvmspace + 1) - (caddr_t) &newvmspace->vm_startcopy);
 	/*

@@ -333,7 +333,7 @@ exec_coff_imgact(imgp)
 		return error;
 	}
 
-	exec_new_vmspace(imgp);
+	exec_new_vmspace(imgp, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS, USRSTACK);
 	vmspace = imgp->proc->p_vmspace;
 
 	for (i = 0; i < nscns; i++) {
