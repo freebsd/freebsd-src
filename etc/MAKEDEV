@@ -39,9 +39,8 @@
 #	cd*	"NEW type cdrom disks"
 #
 # Console ports:
-#	pc*	devices for stock pccons (cleans up co devices) 
-#	co*	devices for codrv (cleans up pc devices)
-#	vty*	virtual console devices for codrv (cleans up pc devices)
+#	pc*	devices for stock pccons
+#	vty*	virtual console devices for syscons/pcvt/codrv
 # 
 # Terminal ports:
 #	com*	standard PC COM ports (really makes tty* entries for com)
@@ -50,7 +49,7 @@
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
-#	vty*	virtual terminals using codrv console
+#	vty*	virtual terminals using syscons/pcvt/codrv console
 #
 # Printers:
 #	lpt*	stock lp
@@ -64,7 +63,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #
-#	$Id: MAKEDEV,v 1.5 1993/08/30 07:48:38 rgrimes Exp $
+#	$Id: MAKEDEV,v 1.6 1993/09/05 15:53:39 rgrimes Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -80,7 +79,7 @@ all)
 	sh MAKEDEV ch0 tw0 bpf0 dcf0 lpa0 lpa1 lpa2		# cdev
 	sh MAKEDEV speaker mse0 sio0 sio1 sio2 sio3		# cdev
 	# NOTE: co0 and vty04 is not done by a sh MAKEDEV all, rgrimes
-	#       these are for codrv and interfear with other stuff!
+	#       these are for codrv and interfere with other stuff!
 	;;
 std)
 	rm -f console drum mem kmem null tty klog stdin stdout stderr
@@ -285,26 +284,6 @@ tw*)
 	chown root.wheel tw$unit
 	;;
 
-# hv 22-apr-93 use this to create the necessary devices for codrv
-# this will cleanup /dev/vga left from pccons
-co*)
-	chr=21
-	name=vga
- 	rm -rf ${name}
-	mknod ${name} c ${chr} 128
-	ln ${name} ${name}co
-	chmod 644 ${name}
-	chown root.wheel ${name}
-
-	chr=21
-	name=kbd
- 	rm -rf ${name}
-	mknod ${name} c ${chr} 0
-	ln ${name} ${name}co
-	chmod 644 ${name}
-	chown root.wheel ${name}
-	;;
-
 # hv 22-apr-93 use this to create the necessary video device for
 # pccons driver
 pc*)
@@ -316,7 +295,7 @@ pc*)
 	chown root.wheel $name
 	;;
 
-# hv 22-apr-93 use this to create virtual consoles for codrv
+# Use this to create virtual consoles for syscons, pcvt or codrv
 # /dev/ttyv00-12
 # use as MAKEDEV vtyNN to create NN entries
 vty*)
