@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 42 $
+ *              $Revision: 43 $
  *
  *****************************************************************************/
 
@@ -165,7 +165,6 @@ AcpiNsLoadNamespace (
      * Load the namespace.  The DSDT is required,
      * but the SSDT and PSDT tables are optional.
      */
-
     Status = AcpiNsLoadTableByType (ACPI_TABLE_DSDT);
     if (ACPI_FAILURE (Status))
     {
@@ -294,7 +293,6 @@ AcpiNsParseTable (
      * to service the entire parse.  The second pass of the parse then
      * performs another complete parse of the AML..
      */
-
     Status = AcpiNsOneCompleteParse (1, TableDesc);
     if (ACPI_FAILURE (Status))
     {
@@ -311,7 +309,6 @@ AcpiNsParseTable (
      * overhead of this is compensated for by the fact that the
      * parse objects are all cached.
      */
-
     Status = AcpiNsOneCompleteParse (2, TableDesc);
     if (ACPI_FAILURE (Status))
     {
@@ -371,7 +368,6 @@ AcpiNsLoadTable (
      * to another control method, we can't continue parsing
      * because we don't know how many arguments to parse next!
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Loading table into namespace ****\n"));
 
     AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
@@ -389,7 +385,6 @@ AcpiNsLoadTable (
      * just-in-time parsing, we delete the control method
      * parse trees.
      */
-
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "**** Begin Table Method Parsing and Object Initialization ****\n"));
 
@@ -435,7 +430,6 @@ AcpiNsLoadTableByType (
      * Table types supported are:
      * DSDT (one), SSDT/PSDT (multiple)
      */
-
     switch (TableType)
     {
 
@@ -473,7 +467,6 @@ AcpiNsLoadTableByType (
         /*
          * Traverse list of SSDT tables
          */
-
         TableDesc = &AcpiGbl_AcpiTables[ACPI_TABLE_SSDT];
         for (i = 0; i < AcpiGbl_AcpiTables[ACPI_TABLE_SSDT].Count; i++)
         {
@@ -481,7 +474,6 @@ AcpiNsLoadTableByType (
              * Only attempt to load table if it is not
              * already loaded!
              */
-
             if (!TableDesc->LoadedIntoNamespace)
             {
                 Status = AcpiNsLoadTable (TableDesc, AcpiGbl_RootNode);
@@ -506,7 +498,6 @@ AcpiNsLoadTableByType (
         /*
          * Traverse list of PSDT tables
          */
-
         TableDesc = &AcpiGbl_AcpiTables[ACPI_TABLE_PSDT];
 
         for (i = 0; i < AcpiGbl_AcpiTables[ACPI_TABLE_PSDT].Count; i++)
@@ -584,7 +575,6 @@ AcpiNsDeleteSubtree (
      * Traverse the tree of objects until we bubble back up
      * to where we started.
      */
-
     while (Level > 0)
     {
         /* Attempt to get the next object in this scope */
@@ -608,7 +598,6 @@ AcpiNsDeleteSubtree (
                  * There is at least one child of this object,
                  * visit the object
                  */
-
                 Level++;
                 ParentHandle = ChildHandle;
                 ChildHandle  = 0;

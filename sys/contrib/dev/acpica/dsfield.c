@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsfield - Dispatcher field routines
- *              $Revision: 43 $
+ *              $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -227,7 +227,6 @@ AcpiDsCreateField (
              * Initialize an object for the new Node that is on
              * the object stack
              */
-
             Status = AcpiExPrepRegionFieldValue (Node, RegionNode, FieldFlags,
                             FieldBitPosition, Arg->Value.Size);
             if (ACPI_FAILURE (Status))
@@ -358,7 +357,6 @@ AcpiDsCreateBankField (
              * Initialize an object for the new Node that is on
              * the object stack
              */
-
             Status = AcpiExPrepBankFieldValue (Node, RegionNode, RegisterNode,
                             BankValue, FieldFlags, FieldBitPosition,
                             Arg->Value.Size);
@@ -486,7 +484,6 @@ AcpiDsCreateIndexField (
              * Initialize an object for the new Node that is on
              * the object stack
              */
-
             Status = AcpiExPrepIndexFieldValue (Node, IndexRegisterNode,
                             DataRegisterNode, FieldFlags,
                             FieldBitPosition, Arg->Value.Size);

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: psfind - Parse tree search routine
- *              $Revision: 25 $
+ *              $Revision: 28 $
  *
  *****************************************************************************/
 
@@ -191,23 +191,27 @@ AcpiPsFindName (
 {
     ACPI_PARSE_OBJECT       *Op;
     ACPI_PARSE_OBJECT       *Field;
+    const ACPI_OPCODE_INFO  *OpInfo;
 
 
     /* search scope level for matching name segment */
 
     Op = AcpiPsGetChild (Scope);
+    OpInfo = AcpiPsGetOpcodeInfo (Op->Opcode);
 
     while (Op)
     {
 
-        if (AcpiPsIsFieldOp (Op->Opcode))
+        if (OpInfo->Flags & AML_FIELD)
         {
             /* Field, search named fields */
 
             Field = AcpiPsGetChild (Op);
             while (Field)
             {
-                if (AcpiPsIsNamedOp (Field->Opcode) &&
+                OpInfo = AcpiPsGetOpcodeInfo (Field->Opcode);
+
+                if ((OpInfo->Flags & AML_NAMED) &&
                    AcpiPsGetName (Field) == Name &&
                    (!Opcode || Field->Opcode == Opcode))
                 {
@@ -218,7 +222,7 @@ AcpiPsFindName (
             }
         }
 
-        else if (AcpiPsIsCreateFieldOp (Op->Opcode))
+        else if (OpInfo->Flags & AML_CREATE)
         {
             if (Op->Opcode == AML_CREATE_FIELD_OP)
             {
@@ -240,7 +244,7 @@ AcpiPsFindName (
             }
         }
 
-        else if ((AcpiPsIsNamedOp (Op->Opcode)) &&
+        else if ((OpInfo->Flags & AML_NAMED) &&
                  (AcpiPsGetName (Op) == Name) &&
                  (!Opcode || Op->Opcode == Opcode || Opcode == AML_SCOPE_OP))
         {
@@ -288,7 +292,7 @@ AcpiPsFind (
 
     if (!Scope || !Path)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Null path (%p) or scope (%p)!\n", 
+        ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "Null path (%p) or scope (%p)!\n",
             Path, Scope));
         return_PTR (NULL);
     }

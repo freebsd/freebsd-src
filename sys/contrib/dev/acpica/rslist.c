@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: rslist - Linked list utilities
- *              $Revision: 17 $
+ *              $Revision: 19 $
  *
  ******************************************************************************/
 
@@ -141,6 +141,9 @@ AcpiRsGetResourceType (
     UINT8                   ResourceStartByte)
 {
 
+    FUNCTION_ENTRY ();
+
+
     /*
      * Determine if this is a small or large resource
      */
@@ -216,7 +219,7 @@ AcpiRsByteStreamToList (
             /*
              * 24-Bit Memory Resource
              */
-            Status = AcpiRsMemory24Resource (ByteStreamBuffer, 
+            Status = AcpiRsMemory24Resource (ByteStreamBuffer,
                         &BytesConsumed, Buffer, &StructureSize);
             break;
 
@@ -435,6 +438,7 @@ AcpiRsListToByteStream (
 
     FUNCTION_TRACE ("RsListToByteStream");
 
+
     while (!Done)
     {
         switch (LinkedList->Id)
@@ -529,7 +533,7 @@ AcpiRsListToByteStream (
             /*
              * 16-Bit Address Descriptor Resource
              */
-            Status = AcpiRsAddress16Stream (LinkedList, &Buffer, 
+            Status = AcpiRsAddress16Stream (LinkedList, &Buffer,
                         &BytesConsumed);
             break;
 
@@ -581,7 +585,7 @@ AcpiRsListToByteStream (
         /*
          * Point to the next object
          */
-        LinkedList = POINTER_ADD (ACPI_RESOURCE, 
+        LinkedList = POINTER_ADD (ACPI_RESOURCE,
                         LinkedList, LinkedList->Length);
     }
 

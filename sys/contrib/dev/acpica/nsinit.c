@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
- *              $Revision: 29 $
+ *              $Revision: 31 $
  *
  *****************************************************************************/
 
@@ -270,7 +270,7 @@ AcpiNsInitOneObject (
     ACPI_OPERAND_OBJECT     *ObjDesc;
 
 
-    PROC_NAME ("AcpiNsInitOneObject");
+    PROC_NAME ("NsInitOneObject");
 
 
     Info->ObjectCount++;
@@ -396,7 +396,7 @@ AcpiNsInitOneDevice (
     ACPI_DEVICE_WALK_INFO  *Info = (ACPI_DEVICE_WALK_INFO *) Context;
 
 
-    FUNCTION_TRACE ("AcpiNsInitOneDevice");
+    FUNCTION_TRACE ("NsInitOneDevice");
 
 
     if (!(AcpiDbgLevel & ACPI_LV_INIT))
@@ -420,7 +420,6 @@ AcpiNsInitOneDevice (
     /*
      * Run _STA to determine if we can run _INI on the device.
      */
-
     DEBUG_EXEC (AcpiUtDisplayInitPathname (Node, "_STA  [Method]"));
     Status = AcpiUtExecute_STA (Node, &Flags);
     if (ACPI_FAILURE (Status))

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psargs - Parse AML opcode arguments
- *              $Revision: 50 $
+ *              $Revision: 51 $
  *
  *****************************************************************************/
 
@@ -362,7 +362,6 @@ AcpiPsGetNextNamepath (
         /*
          * Lookup the name in the parsed namespace
          */
-
         Op = NULL;
         if (MethodCall)
         {
@@ -380,7 +379,6 @@ AcpiPsGetNextNamepath (
                  * associated with this method, and 2) Change the NAMEPATH
                  * object into a METHODCALL object.
                  */
-
                 Count = AcpiPsGetArg (Op, 0);
                 if (Count && Count->Opcode == AML_BYTE_OP)
                 {
@@ -414,13 +412,11 @@ AcpiPsGetNextNamepath (
         }
     }
 
-
     /*
      * Either we didn't find the object in the namespace, or the object is
      * something other than a control method.  Just initialize the Op with the
      * pathname
      */
-
     AcpiPsInitOp (Arg, AML_INT_NAMEPATH_OP);
     Arg->Value.Name = Path;
 
@@ -479,7 +475,6 @@ AcpiPsGetNextNamepath (
          * parent tree, but don't open a new scope -- we just want to lookup the
          * object  (MUST BE mode EXECUTE to perform upsearch)
          */
-
         Status = AcpiNsLookup (&ScopeInfo, Path, ACPI_TYPE_ANY, IMODE_EXECUTE,
                                 NS_SEARCH_PARENT | NS_DONT_OPEN_SCOPE, NULL,
                                 &Node);
@@ -529,7 +524,6 @@ AcpiPsGetNextNamepath (
      * something other than a control method.  Just initialize the Op with the
      * pathname.
      */
-
     AcpiPsInitOp (Arg, AML_INT_NAMEPATH_OP);
     Arg->Value.Name = Path;
 
@@ -559,7 +553,6 @@ AcpiPsGetNextSimpleArg (
     UINT32                  ArgType,
     ACPI_PARSE_OBJECT       *Arg)
 {
-
 
     FUNCTION_TRACE_U32 ("PsGetNextSimpleArg", ArgType);
 

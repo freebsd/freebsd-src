@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 48 $
+ *              $Revision: 50 $
  *
  *****************************************************************************/
 
@@ -163,7 +163,7 @@ AcpiDsResultInsert (
 
     if (Index >= OBJ_NUM_OPERANDS)
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
             "Index out of range: %X Obj=%p State=%p Num=%X\n",
             Index, Object, WalkState, State->Results.NumResults));
         return (AE_BAD_PARAMETER);
@@ -289,7 +289,6 @@ AcpiDsResultPop (
         return (AE_OK);
     }
 
-
     if (!State->Results.NumResults)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Result stack is empty! State=%p\n",
@@ -317,7 +316,6 @@ AcpiDsResultPop (
             return (AE_OK);
         }
     }
-
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "No result objects! State=%p\n", WalkState));
     return (AE_AML_NO_RETURN_VALUE);
@@ -367,7 +365,6 @@ AcpiDsResultPopFromBottom (
     /* Remove Bottom element */
 
     *Object = State->Results.ObjDesc [0];
-
 
     /* Push entire stack down one element */
 
@@ -846,7 +843,7 @@ AcpiDsGetCurrentWalkState (
     PROC_NAME ("DsGetCurrentWalkState");
 
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "DsGetCurrentWalkState, =%p\n", 
+    ACPI_DEBUG_PRINT ((ACPI_DB_PARSE, "DsGetCurrentWalkState, =%p\n",
         WalkList->WalkState));
 
     if (!WalkList)
@@ -876,8 +873,6 @@ AcpiDsPushWalkState (
     ACPI_WALK_STATE         *WalkState,
     ACPI_WALK_LIST          *WalkList)
 {
-
-
     FUNCTION_TRACE ("DsPushWalkState");
 
 
@@ -985,7 +980,6 @@ AcpiDsCreateWalkState (
         return_PTR (NULL);
     }
 
-
     /* Put the new state at the head of the walk list */
 
     AcpiDsPushWalkState (WalkState, WalkList);
@@ -1057,7 +1051,6 @@ AcpiDsDeleteWalkState (
 
         AcpiUtDeleteGenericState (State);
     }
-
 
     AcpiUtReleaseToCache (ACPI_MEM_LIST_WALK, WalkState);
     return_VOID;

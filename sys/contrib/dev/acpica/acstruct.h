@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acstruct.h - Internal structs
- *       $Revision: 3 $
+ *       $Revision: 5 $
  *
  *****************************************************************************/
 
@@ -139,7 +139,7 @@
 
 typedef struct acpi_walk_state
 {
-    UINT8                   DataType;                           /* To differentiate various internal objs */\
+    UINT8                   DataType;                           /* To differentiate various internal objs MUST BE FIRST!*/\
     ACPI_OWNER_ID           OwnerId;                            /* Owner of objects created during the walk */
     BOOLEAN                 LastPredicate;                      /* Result of last predicate */
     UINT8                   NextOpInfo;                         /* Info about NextOp */
@@ -159,7 +159,7 @@ typedef struct acpi_walk_state
     ACPI_GENERIC_STATE      *ScopeInfo;                         /* Stack of nested scopes */
     ACPI_PARSE_STATE        *ParserState;                       /* Current state of parser */
     UINT8                   *AmlLastWhile;
-    ACPI_OPCODE_INFO        *OpInfo;                            /* Info on current opcode */
+    const ACPI_OPCODE_INFO  *OpInfo;                            /* Info on current opcode */
     ACPI_PARSE_DOWNWARDS    DescendingCallback;
     ACPI_PARSE_UPWARDS      AscendingCallback;
 

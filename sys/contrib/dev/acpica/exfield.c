@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 92 $
+ *              $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -176,7 +176,6 @@ AcpiExReadDataFromField (
      *
      * Note: Field.length is in bits.
      */
-
     Length = ROUND_BITS_UP_TO_BYTES (ObjDesc->Field.BitLength);
 
     if (Length > sizeof (ACPI_INTEGER))
@@ -373,7 +372,7 @@ AcpiExAccessBufferField (
     ACPI_STATUS             Status;
 
 
-    FUNCTION_TRACE_PTR ("AcpiExAccessBufferField", ObjDesc);
+    FUNCTION_TRACE_PTR ("ExAccessBufferField", ObjDesc);
 
 
     /*
@@ -483,7 +482,6 @@ AcpiExAccessBankField (
      * BankField ASL declaration.  The BankRegister is always a Field in
      * an operation region.
      */
-
     Status = AcpiExCommonAccessField (ACPI_WRITE,
                             ObjDesc->BankField.BankRegisterObj,
                             &ObjDesc->BankField.Value,
@@ -604,10 +602,9 @@ AcpiExCommonAccessField (
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Obj=%p Type=%X Buf=%p Len=%X\n",
         ObjDesc, ObjDesc->Common.Type, Buffer, BufferLength));
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Mode=%d BitLen=%X BitOff=%X ByteOff=%X\n",
-        Mode, ObjDesc->CommonField.BitLength, 
+        Mode, ObjDesc->CommonField.BitLength,
         ObjDesc->CommonField.StartFieldBitOffset,
         ObjDesc->CommonField.BaseByteOffset));
-
 
 
     /* Perform the actual read or write of the field */
