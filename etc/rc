@@ -543,6 +543,12 @@ if [ -r /etc/rc.${arch} ]; then
 	. /etc/rc.${arch}
 fi
 
+# Configure the system console
+#
+if [ -r /etc/rc.syscons ]; then
+	. /etc/rc.syscons
+fi
+
 # Run rc.devfs if readable to customize devfs
 #
 if [ -r /etc/rc.devfs ]; then
