@@ -276,8 +276,12 @@ ptrace(curp, uap)
 			return EPERM;
 
 		/* not being traced by YOU */
-		if (p->p_pptr != curp)
+		PROCTREE_LOCK(PT_SHARED);
+		if (p->p_pptr != curp) {
+			PROCTREE_LOCK(PT_RELEASE);
 			return EBUSY;
+		}
+		PROCTREE_LOCK(PT_RELEASE);
 
 		/* not currently stopped */
 		mtx_enter(&sched_lock, MTX_SPIN);
@@ -311,15 +315,19 @@ ptrace(curp, uap)
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
+		PROCTREE_LOCK(PT_SHARED);
 		p->p_oppid = p->p_pptr->p_pid;
+		PROCTREE_LOCK(PT_RELEASE);
 		return 0;
 
 	case PT_ATTACH:
 		/* security check done above */
 		p->p_flag |= P_TRACED;
+		PROCTREE_LOCK(PT_EXCLUSIVE);
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != curp)
 			proc_reparent(p, curp);
+		PROCTREE_LOCK(PT_RELEASE);
 		uap->data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
@@ -350,12 +358,14 @@ ptrace(curp, uap)
 
 		if (uap->req == PT_DETACH) {
 			/* reset process parent */
+			PROCTREE_LOCK(PT_EXCLUSIVE);
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				struct proc *pp;
 
 				pp = pfind(p->p_oppid);
 				proc_reparent(p, pp ? pp : initproc);
 			}
+			PROCTREE_LOCK(PT_RELEASE);
 
 			p->p_flag &= ~(P_TRACED | P_WAITED);
 			p->p_oppid = 0;

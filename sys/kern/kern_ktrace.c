@@ -317,7 +317,6 @@ ktrace(curp, uap)
 				ret |= ktrsetchildren(curp, p, ops, facs, vp);
 			else
 				ret |= ktrops(curp, p, ops, facs, vp);
-
 	} else {
 		/*
 		 * by pid
@@ -426,6 +425,7 @@ ktrsetchildren(curp, top, ops, facs, vp)
 	register int ret = 0;
 
 	p = top;
+	PROCTREE_LOCK(PT_SHARED);
 	for (;;) {
 		ret |= ktrops(curp, p, ops, facs, vp);
 		/*
@@ -436,8 +436,10 @@ ktrsetchildren(curp, top, ops, facs, vp)
 		if (!LIST_EMPTY(&p->p_children))
 			p = LIST_FIRST(&p->p_children);
 		else for (;;) {
-			if (p == top)
+			if (p == top) {
+				PROCTREE_LOCK(PT_RELEASE);
 				return (ret);
+			}
 			if (LIST_NEXT(p, p_sibling)) {
 				p = LIST_NEXT(p, p_sibling);
 				break;

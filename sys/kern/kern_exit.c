@@ -267,17 +267,10 @@ exit1(p, rv)
 	ALLPROC_LOCK(AP_EXCLUSIVE);
 	LIST_REMOVE(p, p_list);
 	LIST_INSERT_HEAD(&zombproc, p, p_list);
-
 	LIST_REMOVE(p, p_hash);
 	ALLPROC_LOCK(AP_RELEASE);
-	/*
-	 * We have to wait until after releasing this lock before
-	 * changing p_stat.  If we block on a mutex while waiting to
-	 * release the allproc_lock, then we will be back at SRUN when
-	 * we resume here and our parent will never harvest us.
-	 */
-	p->p_stat = SZOMB;
 
+	PROCTREE_LOCK(PT_EXCLUSIVE);
 	q = LIST_FIRST(&p->p_children);
 	if (q)		/* only need this if any child is S_ZOMB */
 		wakeup((caddr_t) initproc);
@@ -343,7 +336,7 @@ exit1(p, rv)
 	        psignal(p->p_pptr, SIGCHLD);
 	}
 
-	wakeup((caddr_t)p->p_pptr);
+	PROCTREE_LOCK(PT_RELEASE);
 	/*
 	 * Clear curproc after we've done all operations
 	 * that could block, and before tearing down the rest
@@ -419,6 +412,7 @@ wait1(q, uap, compat)
 		return (EINVAL);
 loop:
 	nfound = 0;
+	PROCTREE_LOCK(PT_SHARED);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
 		if (uap->pid != WAIT_ANY &&
 		    p->p_pid != uap->pid && p->p_pgid != -uap->pid)
@@ -440,6 +434,7 @@ loop:
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (p->p_stat == SZOMB) {
 			mtx_exit(&sched_lock, MTX_SPIN);
+			PROCTREE_LOCK(PT_RELEASE);
 
 			/* charge childs scheduling cpu usage to parent */
 			if (curproc->p_pid != 1) {
@@ -466,12 +461,17 @@ loop:
 			 * If we got the child via a ptrace 'attach',
 			 * we need to give it back to the old parent.
 			 */
-			if (p->p_oppid && (t = pfind(p->p_oppid))) {
-				p->p_oppid = 0;
-				proc_reparent(p, t);
-				psignal(t, SIGCHLD);
-				wakeup((caddr_t)t);
-				return (0);
+			if (p->p_oppid) {
+				PROCTREE_LOCK(PT_EXCLUSIVE);
+				if ((t = pfind(p->p_oppid)) != NULL) {
+					p->p_oppid = 0;
+					proc_reparent(p, t);
+					psignal(t, SIGCHLD);
+					wakeup((caddr_t)t);
+					PROCTREE_LOCK(PT_RELEASE);
+					return (0);
+				}
+				PROCTREE_LOCK(PT_RELEASE);
 			}
 			p->p_xstat = 0;
 			ruadd(&q->p_stats->p_cru, p->p_ru);
@@ -519,10 +519,14 @@ loop:
 			 * Unlink it from its process group and free it.
 			 */
 			leavepgrp(p);
+
 			ALLPROC_LOCK(AP_EXCLUSIVE);
 			LIST_REMOVE(p, p_list);	/* off zombproc */
 			ALLPROC_LOCK(AP_RELEASE);
+
+			PROCTREE_LOCK(PT_EXCLUSIVE);
 			LIST_REMOVE(p, p_sibling);
+			PROCTREE_LOCK(PT_RELEASE);
 
 			if (--p->p_procsig->ps_refcnt == 0) {
 				if (p->p_sigacts != &p->p_addr->u_sigacts)
@@ -545,6 +549,7 @@ loop:
 		if (p->p_stat == SSTOP && (p->p_flag & P_WAITED) == 0 &&
 		    (p->p_flag & P_TRACED || uap->options & WUNTRACED)) {
 			mtx_exit(&sched_lock, MTX_SPIN);
+			PROCTREE_LOCK(PT_RELEASE);
 			p->p_flag |= P_WAITED;
 			q->p_retval[0] = p->p_pid;
 #ifdef COMPAT_43
@@ -563,6 +568,7 @@ loop:
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
 	}
+	PROCTREE_LOCK(PT_RELEASE);
 	if (nfound == 0)
 		return (ECHILD);
 	if (uap->options & WNOHANG) {
@@ -575,7 +581,8 @@ loop:
 }
 
 /*
- * make process 'parent' the new parent of process 'child'.
+ * Make process 'parent' the new parent of process 'child'.
+ * Must be called with an exclusive hold of proctree lock.
  */
 void
 proc_reparent(child, parent)
@@ -583,6 +590,7 @@ proc_reparent(child, parent)
 	register struct proc *parent;
 {
 
+	PROCTREE_ASSERT(PT_EXCLUSIVE);
 	if (child->p_pptr == parent)
 		return;
 

@@ -256,6 +256,18 @@ cpu_exit(p)
 	mtx_enter(&sched_lock, MTX_SPIN);
 	mtx_exit(&Giant, MTX_DEF | MTX_NOSWITCH);
 	mtx_assert(&Giant, MA_NOTOWNED);
+
+	/*
+	 * We have to wait until after releasing all locks before
+	 * changing p_stat.  If we block on a mutex then we will be
+	 * back at SRUN when we resume and our parent will never
+	 * harvest us.
+	 */
+	p->p_stat = SZOMB;
+
+	mp_fixme("assumption: p_pptr won't change at this time");
+	wakeup(p->p_pptr);
+
 	cnt.v_swtch++;
 	cpu_switch();
 	panic("cpu_exit");

@@ -144,10 +144,12 @@ procfs_control(curp, p, op)
 		p->p_flag |= P_TRACED;
 		faultin(p);
 		p->p_xstat = 0;		/* XXX ? */
+		PROCTREE_LOCK(PT_EXCLUSIVE);
 		if (p->p_pptr != curp) {
 			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, curp);
 		}
+		PROCTREE_LOCK(PT_RELEASE);
 		psignal(p, SIGSTOP);
 		return (0);
 	}
@@ -164,12 +166,15 @@ procfs_control(curp, p, op)
 		break;
 
 	default:
+		PROCTREE_LOCK(PT_SHARED);
 		mtx_enter(&sched_lock, MTX_SPIN);
 		if (!TRACE_WAIT_P(curp, p)) {
 			mtx_exit(&sched_lock, MTX_SPIN);
+			PROCTREE_LOCK(PT_RELEASE);
 			return (EBUSY);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
+		PROCTREE_LOCK(PT_RELEASE);
 	}
 
 
@@ -204,6 +209,7 @@ procfs_control(curp, p, op)
 		SIGDELSET(p->p_siglist, SIGTRAP);
 
 		/* give process back to original parent */
+		PROCTREE_LOCK(PT_EXCLUSIVE);
 		if (p->p_oppid != p->p_pptr->p_pid) {
 			struct proc *pp;
 
@@ -211,6 +217,7 @@ procfs_control(curp, p, op)
 			if (pp)
 				proc_reparent(p, pp);
 		}
+		PROCTREE_LOCK(PT_RELEASE);
 
 		p->p_oppid = 0;
 		p->p_flag &= ~P_WAITED;	/* XXX ? */
@@ -244,19 +251,23 @@ procfs_control(curp, p, op)
 	case PROCFS_CTL_WAIT:
 		error = 0;
 		if (p->p_flag & P_TRACED) {
+			PROCTREE_LOCK(PT_SHARED);
 			mtx_enter(&sched_lock, MTX_SPIN);
 			while (error == 0 &&
 					(p->p_stat != SSTOP) &&
 					(p->p_flag & P_TRACED) &&
 					(p->p_pptr == curp)) {
 				mtx_exit(&sched_lock, MTX_SPIN);
+				PROCTREE_LOCK(PT_RELEASE);
 				error = tsleep((caddr_t) p,
 						PWAIT|PCATCH, "procfsx", 0);
+				PROCTREE_LOCK(PT_SHARED);
 				mtx_enter(&sched_lock, MTX_SPIN);
 			}
 			if (error == 0 && !TRACE_WAIT_P(curp, p))
 				error = EBUSY;
 			mtx_exit(&sched_lock, MTX_SPIN);
+			PROCTREE_LOCK(PT_RELEASE);
 		} else {
 			mtx_enter(&sched_lock, MTX_SPIN);
 			while (error == 0 && p->p_stat != SSTOP) {
@@ -317,6 +328,7 @@ procfs_doctl(curp, p, pfs, uio)
 	} else {
 		nm = vfs_findname(signames, msg, xlen);
 		if (nm) {
+			PROCTREE_LOCK(PT_SHARED);
 			mtx_enter(&sched_lock, MTX_SPIN);
 			if (TRACE_WAIT_P(curp, p)) {
 				p->p_xstat = nm->nm_val;
@@ -325,8 +337,10 @@ procfs_doctl(curp, p, pfs, uio)
 #endif
 				setrunnable(p);
 				mtx_exit(&sched_lock, MTX_SPIN);
+				PROCTREE_LOCK(PT_RELEASE);
 			} else {
 				mtx_exit(&sched_lock, MTX_SPIN);
+				PROCTREE_LOCK(PT_RELEASE);
 				psignal(p, nm->nm_val);
 			}
 			error = 0;
