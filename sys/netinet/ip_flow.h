@@ -44,6 +44,8 @@ struct ipflow {
 	struct in_addr ipf_dst;		/* destination address */
 	struct in_addr ipf_src;		/* source address */
 
+	/* NB: this assumes the size of the list head hash table is <=256 */
+	u_int8_t ipf_hash;		/* index in list head table */
 	u_int8_t ipf_tos;		/* type-of-service */
 	struct route ipf_ro;		/* associated route entry */
 	u_long ipf_uses;		/* number of uses in this period */
@@ -52,6 +54,11 @@ struct ipflow {
 	u_long ipf_dropped;		/* ENOBUFS returned by if_output */
 	u_long ipf_errors;		/* other errors returned by if_output */
 	u_long ipf_last_uses;		/* number of uses in last period */
+};
+
+struct ipflow_head {
+	LIST_HEAD(ipflowhead, ipflow) ipfh_head;
+	struct mtx ipfh_mtx;
 };
 
 #endif
