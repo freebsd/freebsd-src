@@ -42,7 +42,7 @@ case "$daily_status_security_enable" in
 		    *)
 			echo "    (output mailed separately)"
 			sh /etc/security $args 2>&1 |
-			    sendmail $daily_status_security_output;;
+			    mail -s "`hostname` security check output" $daily_status_security_output;;
 		esac;;
 	esac;;
 
