@@ -145,6 +145,8 @@ on return, the entire string was valid.)
 .Sh RETURN VALUES
 The
 .Fn strtoul
+or
+.Fn strtoull
 function
 returns either the result of the conversion
 or, if there was a leading minus sign,
@@ -153,15 +155,8 @@ unless the original (non-negated) value would overflow;
 in the latter case,
 .Fn strtoul
 returns
-.Dv ULONG_MAX .
-The
-.Fn strtoull
-function
-returns either the result of the conversion
-or, if there was a leading minus sign,
-the negation of the result of the conversion,
-unless the original (non-negated) value would overflow;
-in the latter case,
+.Dv ULONG_MAX
+and
 .Fn strtoull
 returns
 .Dv ULLONG_MAX .
@@ -169,8 +164,16 @@ In all cases,
 .Va errno
 is set to
 .Er ERANGE .
+If no conversion could be performed, 0 shall be returned and
+.Va errno
+will be
+set to
+.Er EINVAL .
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The value of base is not supported or
+no conversion could be performed.
 .It Bq Er ERANGE
 The given string was out of range; the value converted has been clamped.
 .El
@@ -191,5 +194,3 @@ The
 .Bx
 .Fn strtoq
 function is deprecated.
-.Sh BUGS
-Ignores the current locale.
