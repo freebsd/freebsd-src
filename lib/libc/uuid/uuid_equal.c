@@ -34,7 +34,6 @@
  * uuid_equal() - compare for equality.
  * See also:
  *	http://www.opengroup.org/onlinepubs/009629399/uuid_equal.htm
- *	http://www.transarc.ibm.com/Library/documentation/dce/1.1/uuid_equal.html
  */
 int32_t
 uuid_equal(uuid_t *a, uuid_t *b, uint32_t *status)
