@@ -881,7 +881,7 @@ do_status(int action, struct uio *buf)
 	case 0: /* open */
 		if (status_open)
 			return EBUSY;
-		if (sbuf_new(&s, NULL, 4096, 0))
+		if (sbuf_new(&s, NULL, 4096, 0) == NULL)
 			return ENXIO;
 		bufptr = 0;
 		err = (status_init(&s) > 0)? 0 : ENOMEM;
