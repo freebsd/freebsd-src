@@ -132,7 +132,7 @@ g_event_procbody(void)
 	tp->td_base_pri = PRIBIO;
 	for(;;) {
 		g_run_events();
-		tsleep(&g_wait_event, PRIBIO, "g_events", hz/10);
+		tsleep(&g_wait_event, PRIBIO, "-", hz/10);
 	}
 }
 
@@ -152,6 +152,8 @@ geom_shutdown(void *foo __unused)
 void
 g_init(void)
 {
+
+	g_trace(G_T_TOPOLOGY, "g_ignition");
 	sx_init(&topology_lock, "GEOM topology");
 	g_io_init();
 	g_event_init();
