@@ -113,6 +113,8 @@ MLINKS+=shm_open.3 shm_unlink.3
 MLINKS+=sigsetops.3 sigaddset.3 sigsetops.3 sigdelset.3 \
 	sigsetops.3 sigemptyset.3 sigsetops.3 sigfillset.3 \
 	sigsetops.3 sigismember.3
+MLINKS+=stringlist.3 sl_add.3 stringlist.3 sl_find.3 \
+	stringlist.3 sl_free.3 stringlist.3 sl_init.3
 MLINKS+=sysctl.3 sysctlbyname.3
 MLINKS+=syslog.3 closelog.3 syslog.3 openlog.3 syslog.3 setlogmask.3 \
 	syslog.3 vsyslog.3
