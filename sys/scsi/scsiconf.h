@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.44 1996/06/24 04:54:31 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.45 1996/09/08 10:44:17 phk Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -122,6 +122,10 @@ struct proc;
  *     instance down in the adapter drivers is removed.
  */
 
+/*
+ * XXX this is so that everything that includes this bloated header doesn't
+ * also need to include <sys/conf.h>.
+ */
 typedef int yet_another_d_open_t __P((dev_t, int, int, struct proc *));
 
 struct scsi_device
