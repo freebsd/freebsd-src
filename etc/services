@@ -1195,6 +1195,8 @@ accessbuilder	888/tcp
 accessbuilder	888/udp
 telnets		992/tcp
 imaps		993/tcp
+ircs		994/tcp			# irc protocol over TLS/SSL
+ircs		994/udp			# irc protocol over TLS/SSL
 pop3s		995/tcp
 vsinet		996/tcp
 vsinet		996/udp
