@@ -138,6 +138,8 @@ talk()
 			 */
 			int i;
 			ioctl(0, FIONREAD, (void *) &nb);
+			if (nb > sizeof buf)
+				nb = sizeof buf;
 			nb = read(STDIN_FILENO, buf, nb);
 			display(&my_win, buf, nb);
 			/* might lose data here because sockt is non-blocking */
