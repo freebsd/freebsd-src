@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.43 1996/05/12 13:07:50 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.44 1996/05/19 05:20:18 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -517,7 +517,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           instructions given above will almost always get you going.
 
       <sect1>
-	<heading>When I install the boot manager and try to boot FreeBSD for the first time, it just comes back with the boot manager prompt again.</heading>
+	<heading>When I install the boot manager and try to boot FreeBSD for the first time, it just comes back with the boot manager prompt `F?' again.</heading>
 
         <p>
           This is another symptom of the problem described in the preceding
@@ -648,7 +648,8 @@ sea32550N|Seagate 32550N:\
           using the same IRQ).  FreeBSD prior to 2.0.5R used to be tolerant
           of this, and  the  network driver  would  still function  in  the
           presence  of IRQ conflicts.  However, with  2.0.5R and later, IRQ
-          conflicts are no  longer tolerated.  
+          conflicts are no  longer tolerated.  Boot with the -c option and
+          change the ed0/de0/... entry to match your board.
  
       <sect1>
 	<heading>Do I need to install the complete sources?</heading>
@@ -1010,11 +1011,8 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 	<heading>I am about to buy a new machine to run FreeBSD on and want an idea of what other people are running. Is there list of other systems anywhere?</heading>
 
         <p>
-          Yes.  Please look at the file <tt>Systems.FAQ</tt>.  This file is
-          a listing of hardware that people are running in their machines.
-          Please note, this is a raw listing of equipment that other users
-          have sent in, and does not constitute any kind of endorsement by
-          the FreeBSD Project.
+          See the <htmlurl url="handbook/hw.html" name="hardware section">
+	  of the handbook.
 -->
       <sect1>
 	<heading>I have a lap-top with power management. Can FreeBSD take advantage of this?</heading>
@@ -1247,6 +1245,12 @@ crw-rw-rw-  1 root  wheel   41,   1 Oct 15 22:14 spx
           This is much cleaner than the way it was done before.  If you
           want the <tt/spx/ driver for a local socket X connection, define
           <tt/SPX&lowbar;HACK/ when you compile the system.
+
+      <sect1>
+        <heading>How do I configure the INN (Internet News) software on my machine?</heading>
+	
+        <p>After installing the inn package or port, the
+        <htmlurl url="http://elwing.unibe.ch/%7Eguggis/faqs/inn/inn-faq.home.html" name="INN FAQ"> may be an excellent place to start.
 
     <sect>
       <heading>Miscellaneous Questions</heading>
