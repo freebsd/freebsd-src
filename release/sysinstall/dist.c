@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.20 1995/05/25 18:48:24 jkh Exp $
+ * $Id: dist.c,v 1.21 1995/05/26 08:41:39 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -177,44 +177,44 @@ static Distribution SrcDistTable[] = {
 
 /* The XFree86 distribution */
 static Distribution XF86DistTable[] = {
-{ "bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
-{ "lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
-{ "doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
+{ "x311bin",	"/usr",			&XF86Dists,	DIST_XF86_BIN,		NULL		},
+{ "x311lib",	"/usr",			&XF86Dists,	DIST_XF86_LIB,		NULL		},
+{ "x311doc",	"/usr",			&XF86Dists,	DIST_XF86_DOC,		NULL		},
 { "xf86311/",	"/usr",			&XF86Dists,	DIST_XF86_FONTS,	XF86FontDistTable },
-{ "man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
-{ "prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
-{ "link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
-{ "pex",	"/usr",			&XF86Dists,	DIST_XF86_PEX,		NULL		},
-{ "lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
-{ "xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
-{ "xdmcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
+{ "x311man",	"/usr",			&XF86Dists,	DIST_XF86_MAN,		NULL		},
+{ "x311prog",	"/usr",			&XF86Dists,	DIST_XF86_PROG,		NULL		},
+{ "x311link",	"/usr",			&XF86Dists,	DIST_XF86_LINK,		NULL		},
+{ "x311pex",	"/usr",			&XF86Dists,	DIST_XF86_PEX,		NULL		},
+{ "x311lbx",	"/usr",			&XF86Dists,	DIST_XF86_LBX,		NULL		},
+{ "x311xicf",	"/usr",			&XF86Dists,	DIST_XF86_XINIT,	NULL		},
+{ "x311xdmcf",	"/usr",			&XF86Dists,	DIST_XF86_XDMCF,	NULL		},
 { "xf86311/",	"/usr",			&XF86Dists,	DIST_XF86_SERVER,	XF86ServerDistTable },
 { NULL },
 };
 
 /* The XFree86 server distribution */
 static Distribution XF86ServerDistTable[] = {
-{ "X3118514",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
-{ "X311AGX",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
-{ "X311Mch3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
-{ "X311Mch8",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
-{ "X311Mono",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
-{ "X311P9K",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
-{ "X311S3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
-{ "X311SVGA",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
-{ "X311VG16",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
-{ "X311W32",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
-{ "X311nest",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
+{ "x3118514",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_8514,	NULL		},
+{ "x311AGX",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_AGX,	NULL		},
+{ "x311Mch3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH32,NULL		},
+{ "x311Mch8",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MACH8,	NULL		},
+{ "x311Mono",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_MONO,	NULL		},
+{ "x311P9K",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_P9000,	NULL		},
+{ "x311S3",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_S3,	NULL		},
+{ "x311SVGA",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_SVGA,	NULL		},
+{ "x311VG16",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_VGA16,	NULL		},
+{ "x311W32",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_W32,	NULL		},
+{ "x311nest",	"/usr",		&XF86ServerDists,	DIST_XF86_SERVER_NEST,	NULL		},
 { NULL },
 };
 
 /* The XFree86 font distribution */
 static Distribution XF86FontDistTable[] = {
-{ "X311fnts",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
-{ "X311f100",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
-{ "X311fscl",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
-{ "X311fnon",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
-{ "X311fsrv",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
+{ "x311fnts",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_MISC,	NULL		},
+{ "x311f100",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_100,	NULL		},
+{ "x311fscl",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SCALE,	NULL		},
+{ "x311fnon",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_NON,	NULL		},
+{ "x311fsrv",	"/usr",		&XF86FontDists,		DIST_XF86_FONTS_SERVER,	NULL		},
 { NULL },
 };
 
@@ -235,9 +235,8 @@ distExtract(char *parent, Distribution *me)
 	    else {
 		char dparent[FILENAME_MAX];
 
-		if (parent)	/* Yetch */
-		    snprintf(dparent, FILENAME_MAX, "%s/", parent);
-		fd = (*mediaDevice->get)(parent ? dparent : me[i].my_name, me[i].my_name);
+		snprintf(dparent, FILENAME_MAX, "%s/", parent ? parent : me[i].my_name);
+		fd = (*mediaDevice->get)(dparent, me[i].my_name);
 		if (fd != -1) {
 		    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
 		    if (mediaDevice->close)
