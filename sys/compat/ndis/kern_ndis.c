@@ -328,8 +328,8 @@ ndis_flush_sysctls(arg)
 }
 
 void
-ndis_return_packet(packet, arg)
-	void			*packet;
+ndis_return_packet(buf, arg)
+	void			*buf;	/* not used */
 	void			*arg;
 {
 	struct ndis_softc	*sc;
@@ -337,25 +337,25 @@ ndis_return_packet(packet, arg)
 	ndis_packet		*p;
 	__stdcall ndis_return_handler	returnfunc;
 
-	if (arg == NULL || packet == NULL)
+	if (arg == NULL)
 		return;
 
-	p = packet;
+	p = arg;
 
 	/* Decrement refcount. */
-	p->np_private.npp_count--;
+	p->np_refcnt--;
 
 	/* Release packet when refcount hits zero, otherwise return. */
-	if (p->np_private.npp_count)
+	if (p->np_refcnt)
 		return;
 
-	sc = arg;
+	sc = p->np_softc;
 	returnfunc = sc->ndis_chars.nmc_return_packet_func;
 	adapter = sc->ndis_block.nmb_miniportadapterctx;
 	if (returnfunc == NULL)
-		ndis_free_packet((ndis_packet *)packet);
+		ndis_free_packet(p);
 	else
-		returnfunc(adapter, (ndis_packet *)packet);
+		returnfunc(adapter, p);
 	return;
 }
 
@@ -474,7 +474,7 @@ ndis_ptom(m0, p)
 
 	priv = &p->np_private;
 	buf = priv->npp_head;
-	priv->npp_count = 0;
+	p->np_refcnt = 0;
 
 	for (buf = priv->npp_head; buf != NULL; buf = buf->nb_next) {
 		if (buf == priv->npp_head)
@@ -489,9 +489,8 @@ ndis_ptom(m0, p)
 		m->m_len = buf->nb_bytecount;
 		m->m_data = MDL_VA(buf);
 		MEXTADD(m, m->m_data, m->m_len, ndis_return_packet,
-		    p->np_rsvd[0], 0, EXT_NDIS);
-		m->m_ext.ext_buf = (void *)p; /* XXX */
-		priv->npp_count++;
+		    p, 0, EXT_NDIS);
+		p->np_refcnt++;
 		totlen += m->m_len;
 		if (m->m_flags & MT_HEADER)
 			*m0 = m;
