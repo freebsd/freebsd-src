@@ -135,7 +135,7 @@ yp_passwd(char *user)
   printf("Changing NIS password for %s on %s.\n", pw->pw_name, master);
 
   /* Get old password */
-  if(pw->pw_passwd) {
+  if(pw->pw_passwd[0]) {
     char prompt[40];
 
     s = getpass ("Old password: ");
@@ -144,7 +144,8 @@ yp_passwd(char *user)
         exit (1);
     }
     yppasswd.oldpass = strdup(s);
-  }
+  } else
+    yppasswd.oldpass = "";
 
   if ((s = getnewpasswd(pw, 1)) == NULL)
 	exit (1);
