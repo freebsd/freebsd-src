@@ -171,7 +171,7 @@ done:	argv += optind;
 	}
 
 	if ((ftsp = fts_open(++argv, fts_options, 0)) == NULL)
-		err(1, NULL);
+		err(1, "fts_open");
 	for (rval = 0; (p = fts_read(ftsp)) != NULL;) {
 		switch (p->fts_info) {
 		case FTS_D:			/* Change it at FTS_DP. */
