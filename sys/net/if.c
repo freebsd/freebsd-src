@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.8 1994/10/05 20:11:23 wollman Exp $
+ * $Id: if.c,v 1.9 1994/10/08 01:40:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -622,12 +622,10 @@ ifconf(cmd, data)
 	register struct ifconf *ifc = (struct ifconf *)data;
 	register struct ifnet *ifp = ifnet;
 	register struct ifaddr *ifa;
-	register char *ep;
 	struct ifreq ifr, *ifrp;
 	int space = ifc->ifc_len, error = 0;
 
 	ifrp = ifc->ifc_req;
-	ep = ifr.ifr_name + sizeof (ifr.ifr_name) - 2;
 	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_next) {
 		char workbuf[12], *unitname;
 		int unitlen, ifnlen;
