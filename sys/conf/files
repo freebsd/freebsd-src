@@ -404,6 +404,8 @@ dev/sn/if_sn.c		optional sn
 dev/sn/if_sn_isa.c	optional sn isa
 dev/sn/if_sn_pccard.c	optional sn card
 dev/snp/snp.c		optional snp
+dev/sr/if_sr.c		optional sr
+dev/sr/if_sr_pci.c	optional sr pci
 dev/stg/tmc18c30.c	optional stg
 dev/stg/tmc18c30_isa.c	optional stg isa
 dev/stg/tmc18c30_pccard.c	optional stg card
@@ -1025,7 +1027,6 @@ pci/if_sf.c		optional sf
 pci/if_sis.c		optional sis
 pci/if_sk.c		optional sk
 pci/if_ste.c		optional ste
-pci/if_sr_p.c		optional sr pci
 pci/if_ti.c		optional ti
 pci/if_tl.c		optional tl
 pci/if_tx.c		optional tx
