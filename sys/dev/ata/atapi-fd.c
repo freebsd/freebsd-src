@@ -28,12 +28,7 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
-#include "atapifd.h"
 #include "apm.h"
-
-#if NATA > 0 && NATAPIFD > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -102,9 +97,6 @@ afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
     dev_t dev;
-
-    if (!afd_cdevsw.d_maxio)
-        afd_cdevsw.d_maxio = 254 * DEV_BSIZE;
 
     fdp = malloc(sizeof(struct afd_softc), M_TEMP, M_NOWAIT);
     if (!fdp) {
@@ -218,6 +210,8 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct afd_softc *fdp = dev->si_drv1;
     struct disklabel *label;
+
+    dev->si_iosize_max = 254 * DEV_BSIZE;
 
     fdp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
     afd_prevent_allow(fdp, 1);
@@ -377,9 +371,7 @@ afd_eject(struct afd_softc *fdp, int32_t close)
 {
     int32_t error;
      
-    error = afd_start_stop(fdp, 0);
-    if (((fdp->atp->controller->error&ATAPI_SK_MASK)==ATAPI_SK_NOT_READY) ||
-	((fdp->atp->controller->error&ATAPI_SK_MASK)==ATAPI_SK_UNIT_ATTENTION)){
+    if ((error = afd_start_stop(fdp, 0)) == EBUSY) {
 	if (!close)
 	    return 0;
 	if ((error = afd_start_stop(fdp, 3)))
@@ -390,8 +382,6 @@ afd_eject(struct afd_softc *fdp, int32_t close)
 	return error;
     if (close)
 	return 0;
-    tsleep((caddr_t) &lbolt, PRIBIO, "afdej1", 0);
-    tsleep((caddr_t) &lbolt, PRIBIO, "afdej2", 0);
     if ((error = afd_prevent_allow(fdp, 0)))
 	return error;
     fdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
@@ -419,4 +409,3 @@ afd_prevent_allow(struct afd_softc *fdp, int32_t lock)
     
     return atapi_error(fdp->atp, atapi_immed_cmd(fdp->atp, ccb, NULL, 0, 0,30));
 }
-#endif /* NATA & NATAPIFD */

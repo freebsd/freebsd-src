@@ -101,6 +101,7 @@
 #define ATAPI_PLAY_BIG			0xa5	/* play by lba */
 #define ATAPI_LOAD_UNLOAD		0xa6	/* changer control command */
 #define ATAPI_PLAY_CD			0xb4	/* universal play command */
+#define ATAPI_SET_SPEED			0xbb	/* set drive speed */
 #define ATAPI_MECH_STATUS		0xbd	/* get changer status */
 #define ATAPI_READ_CD			0xbe	/* read data */
 

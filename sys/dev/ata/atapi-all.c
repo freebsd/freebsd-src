@@ -28,14 +28,10 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
+#include "apm.h"
 #include "atapicd.h"
 #include "atapist.h"
 #include "atapifd.h" 
-#include "apm.h"
-
-#if NATA > 0 && (NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0)
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -780,4 +776,3 @@ atapi_init(void)
 }
 
 SYSINIT(atconf, SI_SUB_CONFIGURE, SI_ORDER_SECOND, atapi_init, NULL)
-#endif /* NATA > 0 && (NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0) */

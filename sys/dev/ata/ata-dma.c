@@ -28,12 +28,8 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
 #include "pci.h"
 #include "apm.h"
-
-#if NATA > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -282,7 +278,13 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	}
 	break;
 
-    default:		/* well, we have no support for this, but try anyways */
+    default:		/* unknown controller chip */
+	/* better not try generic DMA on ATAPI devices it almost never works */
+	if ((device == ATA_MASTER && scp->devices & ATA_ATAPI_MASTER) ||
+	    (device == ATA_SLAVE && scp->devices & ATA_ATAPI_SLAVE))
+	    break;
+
+	/* well, we have no support for this, but try anyways */
 	if (((wdmamode >= 2 && apiomode >= 4) || udmamode >= 2) &&
 	    (inb(scp->bmaddr + ATA_BMSTAT_PORT) & 
 		((device == ATA_MASTER) ? 
@@ -426,4 +428,3 @@ ata_dmastatus(struct ata_softc *scp, int32_t device)
 }
 
 #endif /* NPCI > 0 */
-#endif /* NATA > 0 */ 

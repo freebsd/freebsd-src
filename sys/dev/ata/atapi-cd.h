@@ -344,7 +344,6 @@ struct acd_softc {
     int32_t			slot;		/* this lun's slot number */
     u_int32_t			block_size;	/* blocksize currently used */
     u_int8_t			dummy;		/* use dummy writes */
-    u_int8_t			speed;		/* select drive speed */
     u_int32_t			next_writeable_addr; /* next writable address */
     struct wormio_prepare_track preptrack;	/* scratch region */
     struct devstat		*stats;		/* devstat entry */

@@ -28,12 +28,7 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
-#include "atapist.h"
 #include "apm.h"
-
-#if NATA > 0 && NATAPIST > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -98,10 +93,10 @@ static int32_t ast_prevent_allow(struct ast_softc *stp, int32_t lock);
 static int32_t ast_load_unload(struct ast_softc *, u_int8_t);
 static int32_t ast_rewind(struct ast_softc *);
 static int32_t ast_erase(struct ast_softc *);
-static void ast_drvinit(void *);
 
 /* internal vars */
 static int32_t astnlun = 0;		/* number of config'd drives */
+static int ast_cdev_done = 0;
 static u_int64_t ast_total = 0;
 static int32_t ast_buffermode = 0;
 
@@ -112,6 +107,10 @@ astattach(struct atapi_softc *atp)
     struct ast_readposition position;
     dev_t dev;
 
+    if (!ast_cdev_done) {
+	cdevsw_add(&ast_cdevsw);
+	ast_cdev_done = 1;
+    }
     if (astnlun >= NUNIT) {
 	printf("ast: too many units\n");
 	return -1;
@@ -247,6 +246,7 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     if (ast_sense(stp))
 	printf("ast%d: sense media type failed\n", stp->lun);
     
+    dev->si_iosize_max = 254 * DEV_BSIZE;
     stp->flags &= ~(F_DATA_WRITTEN | F_FM_WRITTEN);
     stp->flags |= F_OPEN;
     stp->atp->flags &= ~ATAPI_F_MEDIA_CHANGED;
@@ -653,19 +653,3 @@ ast_erase(struct ast_softc *stp)
     return atapi_error(stp->atp,
 		       atapi_immed_cmd(stp->atp, ccb, NULL, 0, 0, 60*60));
 }
-
-static void 
-ast_drvinit(void *unused)
-{
-    static int32_t ast_devsw_installed = 0;
-
-    if (!ast_devsw_installed) {
-	if (!ast_cdevsw.d_maxio)
-	    ast_cdevsw.d_maxio = 254 * DEV_BSIZE;
-	cdevsw_add(&ast_cdevsw);
-	ast_devsw_installed = 1;
-    }
-}
-
-SYSINIT(astdev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, ast_drvinit, NULL)
-#endif /* NATA & NATAPIST */

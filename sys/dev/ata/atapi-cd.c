@@ -28,12 +28,7 @@
  * $FreeBSD$
  */
 
-#include "ata.h"
-#include "atapicd.h"
 #include "apm.h"
-
-#if NATA > 0 && NATAPICD > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -87,7 +82,7 @@ static struct cdevsw acd_cdevsw = {
 
 /* prototypes */
 int32_t acdattach(struct atapi_softc *);
-static struct acd_softc *acd_init_lun(struct atapi_softc *, int, struct devstat *);
+static struct acd_softc *acd_init_lun(struct atapi_softc *, int32_t, struct devstat *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
 static int32_t msf2lba(u_int8_t, u_int8_t, u_int8_t);
@@ -96,19 +91,19 @@ static void acd_done(struct atapi_request *);
 static int32_t acd_read_toc(struct acd_softc *);
 static int32_t acd_setchan(struct acd_softc *, u_int8_t, u_int8_t, u_int8_t, u_int8_t);
 static void acd_select_slot(struct acd_softc *);
-static int32_t acd_open_disk(struct acd_softc *, int);
+static int32_t acd_open_disk(struct acd_softc *, int32_t);
 static int32_t acd_open_track(struct acd_softc *, struct wormio_prepare_track *);
 static int32_t acd_close_track(struct acd_softc *);
 static int32_t acd_close_disk(struct acd_softc *);
-static int32_t acd_read_track_info(struct acd_softc *, int, struct acd_track_info*);
-static int32_t acd_eject(struct acd_softc *, int);
+static int32_t acd_read_track_info(struct acd_softc *, int32_t, struct acd_track_info*);
+static int32_t acd_eject(struct acd_softc *, int32_t);
 static int32_t acd_blank(struct acd_softc *);
 static int32_t acd_prevent_allow(struct acd_softc *, int32_t);
 static int32_t acd_start_stop(struct acd_softc *, int32_t);
 static int32_t acd_pause_resume(struct acd_softc *, int32_t);
 static int32_t acd_mode_sense(struct acd_softc *, u_int8_t, void *, int32_t);
 static int32_t acd_mode_select(struct acd_softc *, void *, int32_t);
-static void acd_drvinit(void *);
+static int32_t acd_set_speed(struct acd_softc *cdp, int32_t);
 
 /* internal vars */
 static int32_t acdnlun = 0;		/* number of configured drives */
@@ -119,7 +114,12 @@ acdattach(struct atapi_softc *atp)
     struct acd_softc *cdp;
     struct changer *chp;
     int32_t error, count;
+    static int once;
 
+    if (!once) {
+	cdevsw_add(&acd_cdevsw);
+	once++;
+    }
     if (acdnlun >= NUNIT) {
 	printf("acd: too many units\n");
 	return -1;
@@ -439,11 +439,12 @@ acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     }
 
     dev->si_bsize_phys = 2048; /* XXX SOS */
+    dev->si_iosize_max = 254 * DEV_BSIZE;
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
-	acd_prevent_allow(cdp, 1);	/* prevent user eject */
+	acd_prevent_allow(cdp, 1);
 	cdp->flags |= F_LOCKED;
-	if (!(flags & O_NONBLOCK) && acd_read_toc(cdp) && !(flags & FWRITE))
-	    printf("acd%d: read_toc failed\n", cdp->lun);
+	if (!(flags & O_NONBLOCK) && !(flags & FWRITE))
+	    acd_read_toc(cdp);
     }
     if (fmt == S_IFBLK)
 	cdp->flags |= F_BOPEN;
@@ -938,8 +939,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 		if (error == 0) {
 		    cdp->flags |= F_DISK_PREPED;
 		    cdp->dummy = w->dummy;
-		    cdp->speed = w->speed;
 		}
+		/* set speed in KB/s (approximate) */
+		acd_set_speed(cdp, w->speed * 173);
 	    }
 	    break;
 	}
@@ -1407,9 +1409,7 @@ acd_eject(struct acd_softc *cdp, int32_t close)
     int32_t error;
 
     acd_select_slot(cdp);
-    error = acd_start_stop(cdp, 0);
-    if (((cdp->atp->controller->error&ATAPI_SK_MASK)==ATAPI_SK_NOT_READY) ||
-	((cdp->atp->controller->error&ATAPI_SK_MASK)==ATAPI_SK_UNIT_ATTENTION)){
+    if ((error = acd_start_stop(cdp, 0)) == EBUSY) {
 	if (!close)
 	    return 0;
 	if ((error = acd_start_stop(cdp, 3)))
@@ -1423,9 +1423,6 @@ acd_eject(struct acd_softc *cdp, int32_t close)
 	return error;
     if (close)
 	return 0;
-
-    tsleep((caddr_t) &lbolt, PRIBIO, "acdej1", 0);
-    tsleep((caddr_t) &lbolt, PRIBIO, "acdej2", 0);
     acd_prevent_allow(cdp, 0);
     cdp->flags &= ~F_LOCKED;
     cdp->flags &= ~(F_WRITTEN|F_TRACK_PREP|F_TRACK_PREPED);
@@ -1502,18 +1499,12 @@ acd_mode_select(struct acd_softc *cdp, void *pagebuf, int32_t pagesize)
 						 pagebuf, pagesize, 0, 30));
 }
 
-static void 
-acd_drvinit(void *unused)
+static int32_t
+acd_set_speed(struct acd_softc *cdp, int32_t speed)
 {
-    static int32_t acd_devsw_installed = 0;
+    int8_t ccb[16] = { ATAPI_SET_SPEED, 0, 0xff, 0xff, speed>>8, speed, 
+		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-    if (!acd_devsw_installed) {
-	if (!acd_cdevsw.d_maxio)
-	    acd_cdevsw.d_maxio = 254 * DEV_BSIZE;
-	cdevsw_add(&acd_cdevsw);
-	acd_devsw_installed = 1;
-    }
+    return atapi_error(cdp->atp, atapi_immed_cmd(cdp->atp, ccb, NULL, 0, 0,30));
 }
 
-SYSINIT(acddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, acd_drvinit, NULL)
-#endif /* NATA && NATAPICD */
