@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.90 1994/11/14 14:19:55 bde Exp $
+ *	$Id: machdep.c,v 1.91 1994/11/14 14:23:54 bde Exp $
  */
 
 #include "npx.h"
@@ -159,8 +159,6 @@ vm_offset_t pager_sva, pager_eva;
 extern int pager_map_size;
 
 #define offsetof(type, member)	((size_t)(&((type *)0)->member))
-
-static union descriptor ldt[NLDT];	/* local descriptor table */
 
 void
 cpu_startup()
@@ -932,15 +930,18 @@ cpu_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
  * Initialize segments & interrupt table
  */
 
+int currentldt;
+int _default_ldt;
 union descriptor gdt[NGDT];		/* global descriptor table */
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
+union descriptor ldt[NLDT];		/* local descriptor table */
 
 struct	i386tss	tss, panic_tss;
 
 extern  struct user *proc0paddr;
 
 /* software prototypes -- in more palatable form */
-static struct soft_segment_descriptor gdt_segs[] = {
+struct soft_segment_descriptor gdt_segs[] = {
 /* GNULL_SEL	0 Null Descriptor */
 {	0x0,			/* segment base address  */
 	0x0,			/* length */
@@ -1087,7 +1088,8 @@ struct soft_segment_descriptor ldt_segs[] = {
 	1,			/* segment descriptor present */
 	0, 0,
 	1,			/* default 32 vs 16 bit size */
-	1  			/* limit granularity (byte/page units)*/ } };
+	1  			/* limit granularity (byte/page units)*/ },
+};
 
 void
 setidt(idx, func, typ, dpl)
@@ -1245,7 +1247,9 @@ init386(first)
 	r_idt.rd_base = (int) idt;
 	lidt(&r_idt);
 
-	lldt(GSEL(GLDT_SEL, SEL_KPL));
+	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
+	lldt(_default_ldt);
+	currentldt = _default_ldt;
 
 #ifdef DDB
 	kdb_init();
