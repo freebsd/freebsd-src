@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.140 1997/12/09 07:22:04 danny Exp $
+#	$Id: rc,v 1.141 1997/12/09 10:06:49 danny Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -227,9 +227,11 @@ fi
 # Make shared lib searching a little faster.  Leave /usr/lib first if you
 # add your own entries or you may come to grief.
 _LDC=/usr/lib
-if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
-if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
-if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
+for i in $ldconfig_paths; do
+	if test -d $i; then
+		_LDC="${_LDC} $i"
+	fi
+done
 echo 'setting ldconfig path:' ${_LDC}
 ldconfig ${_LDC}
 
