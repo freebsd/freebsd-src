@@ -1076,6 +1076,7 @@ pmap_pinit(pmap)
 	/*
 	 * allocate the page directory page
 	 */
+	VM_OBJECT_LOCK(pmap->pm_pteobj);
 	lev1pg = vm_page_grab(pmap->pm_pteobj, NUSERLEV3MAPS + NUSERLEV2MAPS,
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED);
 
@@ -1083,6 +1084,7 @@ pmap_pinit(pmap)
 	vm_page_flag_clear(lev1pg, PG_BUSY);
 	lev1pg->valid = VM_PAGE_BITS_ALL;
 	vm_page_unlock_queues();
+	VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	pmap->pm_lev1 = (pt_entry_t*) ALPHA_PHYS_TO_K0SEG(VM_PAGE_TO_PHYS(lev1pg));
 	if ((lev1pg->flags & PG_ZERO) == 0)
@@ -1199,12 +1201,17 @@ _pmap_allocpte(pmap, ptepindex)
 	pt_entry_t* pte;
 	vm_offset_t ptepa;
 	vm_page_t m;
+	int is_object_locked;
 
 	/*
 	 * Find or fabricate a new pagetable page
 	 */
+	if (!(is_object_locked = VM_OBJECT_LOCKED(pmap->pm_pteobj)))
+		VM_OBJECT_LOCK(pmap->pm_pteobj);
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
+	if ((m->flags & PG_ZERO) == 0)
+		pmap_zero_page(m);
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
@@ -1249,14 +1256,13 @@ _pmap_allocpte(pmap, ptepindex)
 	 */
 	pmap->pm_ptphint = m;
 
-	if ((m->flags & PG_ZERO) == 0)
-		bzero((caddr_t) ALPHA_PHYS_TO_K0SEG(ptepa), PAGE_SIZE);
-
 	vm_page_lock_queues();
 	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
+	if (!is_object_locked)
+		VM_OBJECT_UNLOCK(pmap->pm_pteobj);
 
 	return m;
 }
