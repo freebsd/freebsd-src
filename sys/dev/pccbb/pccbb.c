@@ -1365,7 +1365,7 @@ cbb_cardbus_reset(device_t brdev)
 	DELAY(delay_us);
 
 	/* If a card exists, unreset it! */
-	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE)))
+	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
 		DELAY(delay_us);
