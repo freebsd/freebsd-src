@@ -138,15 +138,6 @@ int vfs_ioopt;
 SYSCTL_INT(_vfs, OID_AUTO, ioopt, CTLFLAG_RW, &vfs_ioopt, 0, "");
 #endif
 
-/* List of mounted filesystems. */
-struct mntlist mountlist = TAILQ_HEAD_INITIALIZER(mountlist);
-
-/* For any iteration/modification of mountlist */
-struct mtx mountlist_mtx;
-
-/* For any iteration/modification of mnt_vnodelist */
-struct mtx mntvnode_mtx;
-
 /*
  * Cache for the mount type id assigned to NFS.  This is used for
  * special checks in nfs/nfs_nqlease.c and vm/vnode_pager.c.
@@ -495,106 +486,6 @@ vfs_timestamp(tsp)
 		nanotime(tsp);
 		break;
 	}
-}
-
-/*
- * Build a linked list of mount options from a struct uio.
- */
-int
-vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
-{
-	struct vfsoptlist *opts;
-	struct vfsopt *opt;
-	unsigned int i, iovcnt;
-	int error, namelen, optlen;
-
-	iovcnt = auio->uio_iovcnt;
-	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
-	TAILQ_INIT(opts);
-	for (i = 0; i < iovcnt; i += 2) {
-		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
-		namelen = auio->uio_iov[i].iov_len;
-		optlen = auio->uio_iov[i + 1].iov_len;
-		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
-		opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
-		opt->len = optlen;
-		if (auio->uio_segflg == UIO_SYSSPACE) {
-			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
-			bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
-			    optlen);
-		} else {
-			error = copyin(auio->uio_iov[i].iov_base, opt->name,
-			    namelen);
-			if (!error)
-				error = copyin(auio->uio_iov[i + 1].iov_base,
-				    opt->value, optlen);
-			if (error)
-				goto bad;
-		}
-		TAILQ_INSERT_TAIL(opts, opt, link);
-	}
-	*options = opts;
-	return (0);
-bad:
-	vfs_freeopts(opts);
-	return (error);
-}
-
-/*
- * Get a mount option by its name.
- *
- * Return 0 if the option was found, ENOENT otherwise.
- * If len is non-NULL it will be filled with the length
- * of the option. If buf is non-NULL, it will be filled
- * with the address of the option.
- */
-int
-vfs_getopt(opts, name, buf, len)
-	struct vfsoptlist *opts;
-	const char *name;
-	void **buf;
-	int *len;
-{
-	struct vfsopt *opt;
-
-	TAILQ_FOREACH(opt, opts, link) {
-		if (strcmp(name, opt->name) == 0) {
-			if (len != NULL)
-				*len = opt->len;
-			if (buf != NULL)
-				*buf = opt->value;
-			return (0);
-		}
-	}
-	return (ENOENT);
-}
-
-/*
- * Find and copy a mount option.
- *
- * The size of the buffer has to be specified
- * in len, if it is not the same length as the
- * mount option, EINVAL is returned.
- * Returns ENOENT if the option is not found.
- */
-int
-vfs_copyopt(opts, name, dest, len)
-	struct vfsoptlist *opts;
-	const char *name;
-	void *dest;
-	int len;
-{
-	struct vfsopt *opt;
-
-	TAILQ_FOREACH(opt, opts, link) {
-		if (strcmp(name, opt->name) == 0) {
-			if (len != opt->len)
-				return (EINVAL);
-			bcopy(opt->value, dest, opt->len);
-			return (0);
-		}
-	}
-	return (ENOENT);
 }
 
 /*
