@@ -47,7 +47,8 @@ _close(int fd)
 	struct stat	sb;
 	struct fd_table_entry	*entry;
 
-	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1]) ||
+	if ((fd < 0) || (fd >= _thread_dtablesize) ||
+	    (fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1]) ||
 	    (_thread_fd_table[fd] == NULL)) {
 		/*
 		 * Don't allow silly programs to close the kernel pipe
