@@ -32,8 +32,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: skeleton.c,v 1.17 1999/07/29 09:42:14 obrien Exp $
  */
 
 #ifndef lint
@@ -57,8 +55,8 @@ static char const sccsid[] = "@(#)skeleton.c	5.8 (Berkeley) 4/29/95";
 char *banner[] =
 {
     "#ifndef lint",
-    "static char const yysccsid[] = \"@(#)yaccpar	1.9 (Berkeley) 02/21/93\";",
-    "static char const yyrcsid[] = \"$Id$\";",
+    "static char const ",
+	"rcsid[] = \"$Id: skeleton.c,v 1.18 1999/07/29 09:59:06 obrien Exp $\";",
     "#endif",
     "#include <stdlib.h>",
     "#define YYBYACC 1",
