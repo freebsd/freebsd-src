@@ -671,7 +671,7 @@ proc_reparent(child, parent)
 	register struct proc *parent;
 {
 
-	SX_ASSERT_XLOCKED(&proctree_lock);
+	sx_assert(&proctree_lock, SX_XLOCKED);
 	PROC_LOCK_ASSERT(child, MA_OWNED);
 	if (child->p_pptr == parent)
 		return;
