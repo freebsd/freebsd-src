@@ -159,7 +159,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, isn_reseed_interval, CTLFLAG_RW,
  * 1024 exists only for debugging.  A good production default would be 
  * something like 6100.
  */
-static int	tcp_inflight_enable = 0;
+static int	tcp_inflight_enable = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, inflight_enable, CTLFLAG_RW,
     &tcp_inflight_enable, 0, "Enable automatic TCP inflight data limiting");
 
