@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.319 1997/09/04 11:28:32 jkh Exp $
+#	$Id: Makefile,v 1.320 1997/09/04 11:54:01 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -281,7 +281,8 @@ release.3:
 # NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
 # Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
-	cd ${.CURDIR}/sysinstall && make obj depend all
+	@mkdir -p /stand
+	cd ${.CURDIR}/sysinstall && make obj depend all install
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
 	export RELEASE_BUILD_FIXIT=noway ; \
