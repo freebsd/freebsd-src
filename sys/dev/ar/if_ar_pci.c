@@ -43,8 +43,8 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#include <i386/isa/ic/hd64570.h>
-#include <i386/isa/if_arregs.h>
+#include <dev/ic/hd64570.h>
+#include <dev/ar/if_arregs.h>
 
 #ifdef TRACE
 #define TRC(x)               x
