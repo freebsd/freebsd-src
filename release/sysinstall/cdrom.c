@@ -81,8 +81,14 @@ mediaInitCDROM(Device *dev)
     if (!file_readable("/cdrom/cdrom.inf")) {
 	Mkdir("/cdrom");
 	if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
-	    if (errno != EBUSY) {
+	    if (errno == EINVAL) {
+		msgConfirm("The CD in your drive looks more like an Audio CD than a FreeBSD release.");
+		cdromMounted = CD_UNMOUNTED;
+		return FALSE;
+	    }
+	    else if (errno != EBUSY) {
 	    	msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
+		cdromMounted = CD_UNMOUNTED;
 		return FALSE;
 	    }
 	}
