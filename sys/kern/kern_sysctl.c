@@ -890,7 +890,9 @@ sysctl_handle_opaque(SYSCTL_HANDLER_ARGS)
 	 * depending on the size of the data.
 	 */
 	if (arg2 > PAGE_SIZE) {
+#if 0
 		sysctl_wire_old_buffer(req, arg2);
+#endif
 		error = SYSCTL_OUT(req, arg1, arg2);
 	} else {
 		tmparg = malloc(arg2, M_SYSCTLTMP, M_WAITOK);
@@ -975,9 +977,10 @@ kernel_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	SYSCTL_LOCK();
 
 	error = sysctl_root(0, name, namelen, &req);
-
+#if 0
 	if (req.lock == REQ_WIRED)
 		vsunlock(req.oldptr, req.oldlen);
+#endif
 
 	SYSCTL_UNLOCK();
 
@@ -1071,11 +1074,13 @@ sysctl_new_user(struct sysctl_req *req, void *p, size_t l)
 void
 sysctl_wire_old_buffer(struct sysctl_req *req, size_t len)
 {
+#if 0
 	if (req->lock == REQ_LOCKED && req->oldptr &&
 	    req->oldfunc == sysctl_old_user) {
 		vslock(req->oldptr, req->oldlen);
 		req->lock = REQ_WIRED;
 	}
+#endif
 }
 
 int
@@ -1284,8 +1289,10 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 	} while (error == EAGAIN);
 
 	req = req2;
+#if 0
 	if (req.lock == REQ_WIRED)
 		vsunlock(req.oldptr, req.oldlen);
+#endif
 
 	SYSCTL_UNLOCK();
 
