@@ -62,9 +62,9 @@ typedef struct Var {
 
 typedef struct {
     char    	  *lhs;	    /* String to match */
-    int	    	  leftLen;  /* Length of string */
+    size_t    	  leftLen;  /* Length of string */
     char    	  *rhs;	    /* Replacement string (w/ &'s removed) */
-    int	    	  rightLen; /* Length of replacement */
+    size_t    	  rightLen; /* Length of replacement */
     int	    	  flags;
 } VarPattern;
 
