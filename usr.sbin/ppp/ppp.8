@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.182 1999/07/27 23:44:00 brian Exp $
+.\" $Id: ppp.8,v 1.183 1999/07/28 03:01:52 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -170,7 +170,7 @@ DEFLATE compression pre-compresses
 .Em all
 network traffic flowing through the link, thus reducing overheads to a
 minimum.
-.It Supports Microsoft's IPCP extensions.
+.It Supports Microsoft's IPCP extensions (rfc 1877).
 Name Server Addresses and NetBIOS Name Server Addresses can be negotiated
 with clients using the Microsoft
 .Em PPP
