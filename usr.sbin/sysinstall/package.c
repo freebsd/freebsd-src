@@ -121,7 +121,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     last_msg = 0;
 
     /* Check to make sure it's not already there */
-    if (package_exists(name))
+    if (package_installed(name))
 	return DITEM_SUCCESS;
 
     if (!DEVICE_INIT(dev)) {
