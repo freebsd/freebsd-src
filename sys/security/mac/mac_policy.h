@@ -272,6 +272,10 @@ struct mac_policy_ops {
 	int	(*mpo_check_kenv_set)(struct ucred *cred, char *name,
 		    char *value);
 	int	(*mpo_check_kenv_unset)(struct ucred *cred, char *name);
+	int	(*mpo_check_kld_load)(struct ucred *cred, struct vnode *vp,
+		    struct label *vlabel);
+	int	(*mpo_check_kld_stat)(struct ucred *cred);
+	int	(*mpo_check_kld_unload)(struct ucred *cred);
 	int	(*mpo_check_mount_stat)(struct ucred *cred, struct mount *mp,
 		    struct label *mntlabel);
 	int	(*mpo_check_pipe_ioctl)(struct ucred *cred, struct pipe *pipe,
