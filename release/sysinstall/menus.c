@@ -1276,11 +1276,11 @@ DMenu MenuStartup = {
 #ifdef __i386__
       { "linux",	"This host wants to be able to run linux binaries.",
 	dmenuVarCheck, configLinux, NULL, VAR_LINUX_ENABLE "=YES" },
+      { "SCO",		"This host wants to be able to run IBCS2 binaries.",
+	dmenuVarCheck, dmenuToggleVariable, NULL, "ibcs2_enable=YES" },
 #endif
       { "quotas",	"This host wishes to check quotas on startup.",
 	dmenuVarCheck, dmenuToggleVariable, NULL, "check_quotas=YES" },
-      { "SCO",		"This host wants to be able to run IBCS2 binaries.",
-	dmenuVarCheck, dmenuToggleVariable, NULL, "ibcs2_enable=YES" },
       { "Exit",		"Exit this menu (returning to previous)",
 	checkTrue,	dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } },
