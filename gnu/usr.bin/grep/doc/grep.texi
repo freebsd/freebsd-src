@@ -275,6 +275,21 @@ This version number should be included in all bug reports.
 Print a usage message briefly summarizing these command-line options
 and the bug-reporting address, then exit.
 
+@itemx --binary-files=@var{type}
+@opindex --binary-files
+@cindex binary files
+If the first few bytes of a file indicate that the file contains binary
+data, assume that the file is of type @var{type}.  By default,
+@var{type} is @samp{binary}, and @command{grep} normally outputs either
+a one-line message saying that a binary file matches, or no message if
+there is no match.  If @var{type} is @samp{without-match},
+@command{grep} assumes that a binary file does not match.  If @var{type}
+is @samp{text}, @command{grep} processes a binary file as if it were
+text; this is equivalent to the @samp{-a} or @samp{--text} option.
+@emph{Warning:} @samp{--binary-files=text} might output binary garbage,
+which can have nasty side effects if the output is a terminal and if the
+terminal driver interprets some of it as commands.
+
 @item -b
 @itemx --byte-offset
 @opindex -b
@@ -329,16 +344,8 @@ The scanning of every file will stop on the first match.
 @opindex --text
 @cindex suppress binary data
 @cindex binary files
-Do not suppress output lines that contain binary data.
-Normally, if the first few bytes of a file indicate
-that the file contains binary data, grep outputs only a
-message saying that the file matches the pattern.  This
-option causes grep to act as if the file is a text
-file, even if it would otherwise be treated as binary.
-@emph{Warning:} the result might be binary garbage
-printed to the terminal, which can have nasty
-side-effects if the terminal driver interprets some of
-it as commands.
+Process a binary file as if it were text; this is equivalent to the
+@samp{--binary-files=text} option.
 
 @item -w
 @itemx --word-regexp
