@@ -103,7 +103,8 @@ procfs_domap(curp, p, pfs, uio)
 		return (0);
 	
 	error = 0;
-	vm_map_lock(map);
+	if (map != &curproc->p_vmspace->vm_map)
+		vm_map_lock(map);
 	for (entry = map->header.next;
 		((uio->uio_resid > 0) && (entry != &map->header));
 		entry = entry->next) {
@@ -174,7 +175,8 @@ case OBJT_DEVICE:
 		if (error)
 			break;
 	}
-	vm_map_unlock(map);
+	if (map != &curproc->p_vmspace->vm_map)
+		vm_map_unlock(map);
 	return error;
 }
 
