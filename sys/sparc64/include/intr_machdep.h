@@ -68,22 +68,16 @@ struct intr_queue {
 struct ithd;
 
 struct intr_vector {
-	iv_func_t *iv_func;		/* must be first */
+	iv_func_t *iv_func;
 	void	*iv_arg;
 	struct	ithd *iv_ithd;
 	u_int	iv_pri;
-	int	iv_stray;
+	u_int	iv_vec;
 };
 
 extern struct intr_handler intr_handlers[];
 extern struct intr_queue intr_queues[];
 extern struct intr_vector intr_vectors[];
-
-static __inline void
-intr_dispatch(int level, struct trapframe *tf)
-{
-	intr_handlers[level].ih_func(tf);
-}
 
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 		   void *iva);
