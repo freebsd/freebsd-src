@@ -1,4 +1,4 @@
-#	$Id: BSD.root.dist,v 1.38 1999/02/09 22:17:15 jkh Exp $
+#	$Id: BSD.root.dist,v 1.39 1999/03/10 03:33:17 dcs Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -48,8 +48,6 @@
 	..
         uucp            uname=uucp gname=uucp mode=0770
         ..
-    ..
-    lkm
     ..
     mnt
     ..
