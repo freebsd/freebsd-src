@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.7 1998/10/21 20:07:04 msmith Exp $
+ *	$Id: interp.c,v 1.8 1998/11/04 00:29:01 msmith Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -34,6 +34,15 @@
 #include <stand.h>
 #include <string.h>
 #include "bootstrap.h"
+
+#ifdef BOOT_FORTH
+#include "ficl.h"
+#define	RETURN(x)	stackPushINT32(bf_vm->pStack,!x); return(x)
+
+extern FICL_VM *bf_vm;
+#else
+#define	RETURN(x)	return(x)
+#endif
 
 #define	MAXARGS	20			/* maximum number of arguments allowed */
 
@@ -68,7 +77,7 @@ perform(int argc, char *argv[])
     } else {
 	command_errmsg = "unknown command";
     }
-    return(result);
+    RETURN(result);
 }
 
 /*
@@ -138,7 +147,7 @@ command_source(int argc, char *argv[])
 
     for (i = 1; i < argc; i++)
 	source(argv[i]);
-    return(CMD_OK);
+    RETURN(CMD_OK);
 }
 
 struct sourceline 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.9 1998/10/09 23:15:39 peter Exp $
+ *	$Id: load_aout.c,v 1.10 1998/10/12 09:05:12 peter Exp $
  */
 
 #include <sys/param.h>
@@ -223,29 +223,33 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
 
     /* symbol table size */
     ssym = addr;
-    archsw.arch_copyin(&ehdr->a_syms, addr, sizeof(ehdr->a_syms));
-    addr += sizeof(ehdr->a_syms);
+    if(ehdr->a_syms!=NULL) {
+    	archsw.arch_copyin(&ehdr->a_syms, addr, sizeof(ehdr->a_syms));
+    	addr += sizeof(ehdr->a_syms);
 
-    /* symbol table */
-    printf("symbols=[0x%x+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
-    if (archsw.arch_readin(fd, addr, ehdr->a_syms) != ehdr->a_syms)
-	return(0);
-    addr += ehdr->a_syms;
+    	/* symbol table */
+    	printf("symbols=[0x%x+0x%lx", sizeof(ehdr->a_syms), ehdr->a_syms);
+    	if (archsw.arch_readin(fd, addr, ehdr->a_syms) != ehdr->a_syms)
+		return(0);
+    	addr += ehdr->a_syms;
 
-    /* string table */
-    read(fd, &ss, sizeof(ss));
-    archsw.arch_copyin(&ss, addr, sizeof(ss));
-    addr += sizeof(ss);
-    ss -= sizeof(ss);
-    printf("+0x%x+0x%x]", sizeof(ss), ss);
-    if (archsw.arch_readin(fd, addr, ss) != ss)
-	return(0);
-    printf(" \n");
-    addr += ss;
+    	/* string table */
+    	read(fd, &ss, sizeof(ss));
+    	archsw.arch_copyin(&ss, addr, sizeof(ss));
+    	addr += sizeof(ss);
+    	ss -= sizeof(ss);
+    	printf("+0x%x+0x%x]", sizeof(ss), ss);
+    	if (archsw.arch_readin(fd, addr, ss) != ss)
+		return(0);
+    	addr += ss;
+
+    	mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
+    	mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
+    } else {
+	printf("symbols=[none]");
+    }
+    printf("\n");
     esym = addr;
-
-    mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
-    mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
 
     return(addr - loadaddr);
 }
