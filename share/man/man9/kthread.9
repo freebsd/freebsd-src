@@ -25,45 +25,271 @@
 .\"
 .\" $FreeBSD$
 .\"
+.Dd October 24, 2000
 .Dt KTHREAD 9
-.Os FreeBSD
+.Os
 .Sh NAME
-.Nm kthread_start ,
+.Nm kproc_start ,
+.Nm kproc_suspend_loop ,
 .Nm kthread_create ,
 .Nm kthread_exit ,
-.Nm suspend_kproc ,
-.Nm resume_kproc
+.Nm resume_kproc ,
+.Nm shutdown_kproc ,
+.Nm suspend_kproc
 .Nd kernel threads
 .Sh SYNOPSIS
 .Fd #include <sys/kthread.h>
 .Ft void
 .Fn kproc_start "const void *udata"
+.Ft void
+.Fn kproc_suspend_loop "struct proc *p"
 .Ft int
-.Fn kthread_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "const char *fmt" "..."
+.Fn kthread_create "void (*func)(void *)" "void *arg" "struct proc **newpp" "int flags" "const char *fmt" "..."
 .Ft void
 .Fn kthread_exit "int ecode"
 .Ft int
-.Fn suspend_kproc "struct proc *p" "int timo"
-.Ft int
 .Fn resume_kproc "struct proc *p"
+.Ft void
+.Fn shutdown_kproc "void *arg" "int howto"
+.Ft int
+.Fn suspend_kproc "struct proc *p" "int timo"
 .Sh DESCRIPTION
 .Pp
 The function
 .Fn kproc_start
-is used to start "internal" daemons and intended to be called from
-.Fn SYSINIT 9 .
-The function
+is used to start
+.Dq internal
+daemons such as bufdaemon, pagedaemon, vmdaemon, and the syncer and is intended
+to be called from
+.Xr SYSINIT 9 .
+The
+.Fa udata
+argument is actually a pointer to a
+.Li struct kproc_desc
+which describes the kernel thread that should be created:
+.Bd -literal -offset indent
+struct kproc_desc {
+        char            *arg0;
+        void            (*func) __P((void));
+        struct proc     **global_procpp;
+};
+.Ed
+.Pp
+The structure members are used by
+.Fn kproc_start
+as follows:
+.Bl -tag -width "global_procpp" -offset indent
+.It Va arg0
+String to be used for the name of the process.
+This string will be copied into the
+.Va p_comm
+member of the new process'
+.Li struct proc .
+.It Va func
+The main function for this kernel process to run.
+.It Va global_procpp
+A pointer to a
+.Li struct proc
+pointer that should be updated to point to the newly created process' process
+structure.
+If this variable is
+.Dv NULL ,
+then it is ignored.
+.El
+.Pp
+The
 .Fn kthread_create
-is used to create a kernel process/thread.
-It shares its address space with proc0; kernel only.
-The function
+function is used to create a kernel thread.
+The new thread shares its address space with process 0, the swapper process,
+and runs in kernel mode only.
+The
+.Fa func
+argument specifies the function that the thread should execute.
+The
+.Fa arg
+argument is an arbitrary pointer that is passed in as the only argument to
+.Fa func
+when it is called by the new process.
+The
+.Fa newpp
+pointer points to a
+.Li struct proc
+pointer that is to be updated to point to the newly created process.
+If this argument is
+.Dv NULL ,
+then it is ignored.
+The
+.Fa flags
+argument specifies a set of flags as described in
+.Xr rfork 2 .
+The rest of the arguments form a
+.Xr printf 9
+argument list that is used to build the name of the new thread and is stored
+in the
+.Va p_comm
+member of the new thread's
+.Li struct proc .
+.Pp
+The
 .Fn kthread_exit
-is used to terminate kernel processes/threads.
-To suspend and resume a kernel thread/process, the functions
-.Fn suspend_kproc
+function is used to terminate kernel threads.
+It should be called by the main function of the kernel thread rather than
+letting the main function return to its caller.
+The
+.Fa ecode
+argument specifies the exit status of the thread.
+.Pp
+The
+.Fn kproc_suspend_loop ,
+.Fn resume_kproc ,
 and
+.Fn suspend_kproc
+functions are used to suspend and resume a kernel thread.
+During the main loop of its execution, a kernel thread that wishes to allow
+itself to be suspended should call
+.Fn kproc_suspend_loop
+passing in
+.Va curproc
+as the only argument.
+This function checks to see if the kernel thread has been asked to suspend.
+If it has, it will
+.Xr tsleep 9
+until it is told to resume.
+Once it has been told to resume it will return allowing execution of the
+kernel thread to continue.
+The other two functions are used to notify a kernel thread of a suspend or
+resume request.
+The
+.Fa p
+argument points to the
+.Li struct proc
+of the kernel thread to suspend or resume.
+For
+.Fn suspend_kproc ,
+the
+.Fa timo
+argument specifies a timeout to wait for the kernel thread to acknowledge the
+suspend request and suspend itself.
+.Pp
+The
+.Fn shutdown_kproc
+function is meant to be registered as a shutdown event for kernel threads that
+need to be suspended voluntarily during system shutdown so as not to interfere
+with system shutdown activities.
+The actual suspension of the kernel thread is done with
+.Fn suspend_kproc .
+.Sh RETURN VALUES
+The
+.Fn kthread_create ,
+.Fn resume_kproc ,
+and
+.Fn suspend_kproc
+functions return zero on success and non-zero on failure.
+Upon failure, the global variable
+.Va errno
+is set to indicate the error.
+.Sh EXAMPLES
+This example demonstrates the use of a
+.Li struct kproc_desc
+and the functions
+.Fn kproc_start ,
+.Fn shutdown_kproc,
+and
+.Fn kproc_suspend_loop
+to run the
+.Dq bufdaemon
+process.
+.Bd -literal -offset indent
+static struct proc *bufdaemonproc;
+
+static struct kproc_desc buf_kp = {
+	"bufdaemon",
+	buf_daemon,
+	&bufdaemonproc
+};
+SYSINIT(bufdaemon, SI_SUB_KTHREAD_BUF, SI_ORDER_FIRST, kproc_start,
+    &buf_kp)
+
+static void
+buf_daemon()
+{
+	...
+	/*
+	 * This process needs to be suspended prior to shutdown sync.
+	 */
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc,
+	    bufdaemonproc, SHUTDOWN_PRI_LAST);
+	...
+	for (;;) {
+		kproc_suspend_loop(bufdaemonproc);
+		...
+	}
+}
+.Ed
+.Sh ERRORS
+The
 .Fn resume_kproc
-are used.
-Participation in this scheme is voluntary.
+and
+.Fn suspend_kproc
+functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINVAL
+The
+.Fa p
+argument does not reference a kernel thread.
+.El
+.Pp
+The
+.Fn kthread_create
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EAGAIN
+The system-imposed limit on the total
+number of processes under execution would be exceeded.
+The limit is given by the
+.Xr sysctl 3
+MIB variable
+.Dv KERN_MAXPROC .
+.It Bq Er EINVAL
+The
+.Dv RFCFDG
+flag was specified in the
+.Fa flags
+parameter.
 .Sh SEE ALSO
-.Xr SYSINIT 9
+.Xr SYSINIT 9 ,
+.Xr rfork 2
+.Sh HISTORY
+The
+.Fn kproc_start
+function first appeared in
+.Fx 2.2 .
+The
+.Fn kproc_suspend_loop ,
+.Fn kthread_create ,
+.Fn kthread_exit ,
+.Fn resume_kproc ,
+.Fn shutdown_kproc ,
+and
+.Fn suspend_kproc
+functions were introducted in
+.Fx 4.0 .
+.Sh BUGS
+If a kernel thread exits its main function (specified as the
+.Fa func
+argument to
+.Fn kthread_create
+or in the
+.Li struct kproc_desc
+passed to
+.Fn kpoc_start )
+then it will attempt to return backwards through the
+.Fn fork1
+trampoline code with unpredictable results.
+The code should instead use a trampoline function to launch
+.Fa func
+and call
+.Fn kthread_exit
+if
+.Fa func
+returns.
