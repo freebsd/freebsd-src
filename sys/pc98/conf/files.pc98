@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.19 1997/03/24 07:20:13 kato Exp $
+#	$Id: files.pc98,v 1.20 1997/04/03 09:55:26 kato Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
@@ -120,7 +120,7 @@ pc98/pc98/if_fe.c		optional	fe	device-driver
 #pc98/isa/if_ie.c		optional	ie	device-driver
 #pc98/isa/if_ix.c		optional	ix	device-driver
 #pc98/isa/if_le.c		optional	le	device-driver
-#pc98/isa/if_lnc.c		optional	lnc	device-driver
+i386/isa/if_lnc.c		optional	lnc	device-driver
 #i386/isa/if_sr.c		optional	sr	device-driver
 #pc98/isa/if_ze.c		optional	ze	device-driver
 i386/isa/if_zp.c		optional	zp	device-driver
