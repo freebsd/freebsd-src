@@ -26,13 +26,15 @@
  * $Id: mount_autofs.c,v 1.5 2004/09/08 08:12:21 bright Exp $
  * $FreeBSD$
  */
+#include <err.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/uio.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <err.h>
-#include <unistd.h>
 
 void usage(void);
 
@@ -77,7 +79,7 @@ mymount(char *type, char *dir, int flags, void *data)
 int
 main(int argc, char **argv)
 {
-	int error, i;
+	int error;
 	int ch;
 
 	progname = argv[0];
