@@ -169,9 +169,9 @@ typeerr:		LABEL;
 	 * XXX
 	 * Catches nano-second differences, but doesn't display them.
 	 */
-	if ((s->flags & F_TIME &&
-	     s->st_mtimespec.ts_sec != p->fts_statp->st_mtimespec.ts_sec) ||
-	    (s->st_mtimespec.ts_nsec != p->fts_statp->st_mtimespec.ts_nsec)) {
+	if ((s->flags & F_TIME) &&
+	     ((s->st_mtimespec.ts_sec != p->fts_statp->st_mtimespec.ts_sec) ||
+	     (s->st_mtimespec.ts_nsec != p->fts_statp->st_mtimespec.ts_nsec))) {
 		LABEL;
 		(void)printf("%smodification time (%.24s, ",
 		    tab, ctime(&s->st_mtimespec.ts_sec));
