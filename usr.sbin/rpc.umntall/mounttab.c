@@ -60,7 +60,8 @@ add_mtab(char *hostp, char *dirp) {
 	if ((mtabfile = fopen(PATH_MOUNTTAB, "a")) == NULL)
 		return (0);
 	else {
-		fprintf(mtabfile, "%ld\t%s\t%s\n", time(now), hostp, dirp);
+		fprintf(mtabfile, "%ld\t%s\t%s\n",
+		    (long)time(now), hostp, dirp);
 		fclose(mtabfile);
 		return (1);
 	}
@@ -149,8 +150,9 @@ write_mtab() {
 	for (mtabp = mtabhead; mtabp != NULL; mtabp = mtabp->mtab_next) {
 		if (mtabp->mtab_host != NULL &&
 		    strlen(mtabp->mtab_host) > 0) {
-			fprintf(mtabfile, "%ld\t%s\t%s\n", mtabp->mtab_time,
-			    mtabp->mtab_host, mtabp->mtab_dirp);
+			fprintf(mtabfile, "%ld\t%s\t%s\n",
+			    (long)mtabp->mtab_time, mtabp->mtab_host,
+			    mtabp->mtab_dirp);
 			if (verbose) {
 				warnx("write entry " "%s:%s",
 				    mtabp->mtab_host, mtabp->mtab_dirp);
