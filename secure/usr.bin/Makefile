@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SUBDIR= bdes openssl
+SUBDIR= bdes
 .if !defined(NOCRYPT) && !defined(MAKE_KERBEROS4)
 SUBDIR+=telnet
 .endif
