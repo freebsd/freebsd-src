@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.45 1996/05/02 05:31:12 fenner Exp $
+ *	$Id: tcp_input.c,v 1.46 1996/05/02 05:54:12 fenner Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -450,7 +450,8 @@ findpcb:
 	 * Reset idle time and keep-alive timer.
 	 */
 	tp->t_idle = 0;
-	tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+	if (TCPS_HAVEESTABLISHED(tp->t_state))
+		tp->t_timer[TCPT_KEEP] = tcp_keepidle;
 
 	/*
 	 * Process options if not in LISTEN state,
@@ -832,9 +833,10 @@ findpcb:
 				tp->t_state = TCPS_FIN_WAIT_1;
 				tp->t_flags &= ~TF_NEEDFIN;
 				tiflags &= ~TH_SYN;
-			} else
+			} else {
 				tp->t_state = TCPS_ESTABLISHED;
-
+				tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+			}
 		} else {
 		/*
 		 *  Received initial SYN in SYN-SENT[*] state => simul-
@@ -859,8 +861,10 @@ findpcb:
 					if (tp->t_flags & TF_NEEDFIN) {
 						tp->t_state = TCPS_FIN_WAIT_1;
 						tp->t_flags &= ~TF_NEEDFIN;
-					} else
+					} else {
 						tp->t_state = TCPS_ESTABLISHED;
+						tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+					}
 					tp->t_flags |= TF_NEEDSYN;
 				} else
 					tp->t_state = TCPS_SYN_RECEIVED;
@@ -1183,8 +1187,10 @@ trimthenstep6:
 		if (tp->t_flags & TF_NEEDFIN) {
 			tp->t_state = TCPS_FIN_WAIT_1;
 			tp->t_flags &= ~TF_NEEDFIN;
-		} else
+		} else {
 			tp->t_state = TCPS_ESTABLISHED;
+			tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+		}
 		/*
 		 * If segment contains data or ACK, will call tcp_reass()
 		 * later; if not, do so now to pass queued data to user.
