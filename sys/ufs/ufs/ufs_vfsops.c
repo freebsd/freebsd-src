@@ -149,7 +149,6 @@ ufs_init(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	ufs_ihashinit();
 #ifdef QUOTA
 	dqinit();
 #endif
@@ -167,7 +166,6 @@ ufs_uninit(vfsp)
 	struct vfsconf *vfsp;
 {
 
-	ufs_ihashuninit();
 #ifdef QUOTA
 	dquninit();
 #endif

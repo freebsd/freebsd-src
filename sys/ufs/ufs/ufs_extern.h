@@ -71,11 +71,6 @@ int	 ufs_direnter(struct vnode *, struct vnode *, struct direct *,
 int	 ufs_dirremove(struct vnode *, struct inode *, int, int);
 int	 ufs_dirrewrite(struct inode *, struct inode *, ino_t, int, int);
 int	 ufs_getlbns(struct vnode *, ufs2_daddr_t, struct indir *, int *);
-int	 ufs_ihashget(struct cdev *, ino_t, int, struct vnode **);
-void	 ufs_ihashinit(void);
-int	 ufs_ihashins(struct inode *, int, struct vnode **);
-void	 ufs_ihashrem(struct inode *);
-void	 ufs_ihashuninit(void);
 int	 ufs_inactive(struct vop_inactive_args *);
 int	 ufs_init(struct vfsconf *);
 void	 ufs_itimes(struct vnode *vp);
