@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.17 1996/05/31 03:10:25 peter Exp $
+ *	$Id: ftpd.c,v 1.18 1996/08/04 22:40:35 pst Exp $
  */
 
 #ifndef lint
@@ -117,11 +117,11 @@ int	timeout = 900;    /* timeout after 15 minutes of inactivity */
 int	maxtimeout = 7200;/* don't allow idle time to be set beyond 2 hours */
 int	logging;
 int	restricted_data_ports = 1;
+int	paranoid = 1;	  /* be extra careful about security */
 int	guest;
-#ifdef STATS
+int	dochroot;
 int	stats;
 int	statfd = -1;
-#endif
 int	type;
 int	form;
 int	stru;			/* avoid C keyword */
@@ -139,8 +139,14 @@ int	defumask = CMASK;		/* default umask value */
 char	tmpline[7];
 char	hostname[MAXHOSTNAMELEN];
 char	remotehost[MAXHOSTNAMELEN];
-#ifdef STATS
 char	*ident = NULL;
+
+static char ttyline[20];
+char	*tty = ttyline;		/* for klogin */
+
+#if defined(KERBEROS)
+int	notickets = 1;
+char	*krbtkfile_env = NULL;
 #endif
 
 /*
@@ -188,7 +194,7 @@ char	addr_string[20];	/* XXX */
 
 static void	 ack __P((char *));
 static void	 myoob __P((int));
-static int	 checkuser __P((char *));
+static int	 checkuser __P((char *, char *));
 static FILE	*dataconn __P((char *, off_t, char *));
 static void	 dolog __P((struct sockaddr_in *));
 static char	*curdir __P((void));
@@ -202,9 +208,7 @@ static struct passwd *
 		 sgetpwnam __P((char *));
 static char	*sgetsave __P((char *));
 static void	 reapchild __P((int));
-#ifdef  STATS
 static void      logxfer __P((char *, long, long));
-#endif
 
 static char *
 curdir()
@@ -242,26 +246,32 @@ main(argc, argv, envp)
 #endif /* OLD_SETPROCTITLE */
 
 
-#ifdef STATS
-	while ((ch = getopt(argc, argv, "dlDSt:T:u:v")) != EOF) {
-#else
-	while ((ch = getopt(argc, argv, "dlDUt:T:u:v")) != EOF) {
-#endif
+	while ((ch = getopt(argc, argv, "dlDSUt:T:u:v")) != EOF) {
 		switch (ch) {
 		case 'D':
 			daemon_mode++;
 			break;
 
 		case 'd':
-			debug = 1;
+			debug++;
 			break;
 
 		case 'l':
 			logging++;	/* > 1 == extra logging */
 			break;
 
-		case 'U':
-			restricted_data_ports = 0;
+		case 'R':
+			paranoid = 0;
+			break;
+
+		case 'S':
+			stats++;
+			break;
+
+		case 'T':
+			maxtimeout = atoi(optarg);
+			if (timeout > maxtimeout)
+				timeout = maxtimeout;
 			break;
 
 		case 't':
@@ -269,15 +279,9 @@ main(argc, argv, envp)
 			if (maxtimeout < timeout)
 				maxtimeout = timeout;
 			break;
-#ifdef STATS
-		case 'S':
-			stats =  1;
-			break;
-#endif
-		case 'T':
-			maxtimeout = atoi(optarg);
-			if (timeout > maxtimeout)
-				timeout = maxtimeout;
+
+		case 'U':
+			restricted_data_ports = 0;
 			break;
 
 		case 'u':
@@ -397,6 +401,9 @@ main(argc, argv, envp)
 #endif
 	data_source.sin_port = htons(ntohs(ctrl_addr.sin_port) - 1);
 
+	/* set this here so klogin can use it... */
+	(void)sprintf(ttyline, "ftp%d", getpid());
+
 	/* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
 	if (setsockopt(0, SOL_SOCKET, SO_OOBINLINE, (char *)&on, sizeof(on)) < 0)
@@ -457,8 +464,6 @@ lostconn(signo)
 		syslog(LOG_DEBUG, "lost connection");
 	dologout(-1);
 }
-
-static char ttyline[20];
 
 /*
  * Helper function for sgetpwnam().
@@ -533,13 +538,17 @@ user(name)
 		if (guest) {
 			reply(530, "Can't change user from guest login.");
 			return;
+		} else if (dochroot) {
+			reply(530, "Can't change user from chroot user.");
+			return;
 		}
 		end_login();
 	}
 
 	guest = 0;
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
-		if (checkuser("ftp") || checkuser("anonymous"))
+		if (checkuser(_PATH_FTPUSERS, "ftp") ||
+		    checkuser(_PATH_FTPUSERS, "anonymous"))
 			reply(530, "User %s access denied.", name);
 		else if ((pw = sgetpwnam("ftp")) != NULL) {
 			guest = 1;
@@ -561,7 +570,7 @@ user(name)
 				break;
 		endusershell();
 
-		if (cp == NULL || checkuser(name)) {
+		if (cp == NULL || checkuser(_PATH_FTPUSERS, name)) {
 			reply(530, "User %s access denied.", name);
 			if (logging)
 				syslog(LOG_NOTICE,
@@ -589,17 +598,18 @@ user(name)
 }
 
 /*
- * Check if a user is in the file _PATH_FTPUSERS
+ * Check if a user is in the file "fname"
  */
 static int
-checkuser(name)
+checkuser(fname, name)
+	char *fname;
 	char *name;
 {
 	FILE *fd;
 	int found = 0;
 	char *p, line[BUFSIZ];
 
-	if ((fd = fopen(_PATH_FTPUSERS, "r")) != NULL) {
+	if ((fd = fopen(fname, "r")) != NULL) {
 		while (fgets(line, sizeof(line), fd) != NULL)
 			if ((p = strchr(line, '\n')) != NULL) {
 				*p = '\0';
@@ -629,13 +639,14 @@ end_login()
 	pw = NULL;
 	logged_in = 0;
 	guest = 0;
+	dochroot = 0;
 }
 
 void
 pass(passwd)
 	char *passwd;
 {
-	char *salt, *xpasswd;
+	int rval;
 	FILE *fd;
 	static char homedir[MAXPATHLEN];
 
@@ -645,20 +656,33 @@ pass(passwd)
 	}
 	askpasswd = 0;
 	if (!guest) {		/* "ftp" is only account allowed no password */
-		if (pw == NULL)
-			salt = "xx";
-		else
-			salt = pw->pw_passwd;
+		if (pw == NULL) {
+			rval = 1;	/* failure below */
+			goto skip;
+		}
+#if defined(KERBEROS)
+		rval = klogin(pw, "", hostname, passwd);
+		if (rval == 0)
+			goto skip;
+#endif
 #ifdef SKEY
-		xpasswd = skey_crypt(passwd, salt, pw, pwok);
+		rval = strcmp(skey_crypt(passwd, pw->pw_passwd, pw, pwok),
+			      passwd);
 		pwok = 0;
 #else
-		xpasswd = crypt(passwd, salt);
+		rval = strcmp(crypt(passwd, pw->passwd), passwd);
 #endif
 		/* The strcmp does not catch null passwords! */
-		if (pw == NULL || *pw->pw_passwd == '\0' ||
-		    (pw->pw_expire && time(NULL) >= pw->pw_expire) ||
-		    strcmp(xpasswd, pw->pw_passwd)) {
+		if (*pw->pw_passwd == '\0' ||
+		    (pw->pw_expire && time(NULL) >= pw->pw_expire))
+			rval = 1;	/* failure */
+skip:
+		/*
+		 * If rval == 1, the user failed the authentication check
+		 * above.  If rval == 0, either Kerberos or local authentication
+		 * succeeded.
+		 */
+		if (rval) {
 			reply(530, "Login incorrect.");
 			if (logging)
 				syslog(LOG_NOTICE,
@@ -682,16 +706,14 @@ pass(passwd)
 	(void) initgroups(pw->pw_name, pw->pw_gid);
 
 	/* open wtmp before chroot */
-	(void)sprintf(ttyline, "ftp%d", getpid());
 	logwtmp(ttyline, pw->pw_name, remotehost);
 	logged_in = 1;
 
-#ifdef STATS
-	if (guest && stats == 1 && statfd < 0)
+	if (guest && stats && statfd < 0)
 		if ((statfd = open(_PATH_FTPDSTATFILE, O_WRONLY|O_APPEND)) < 0)
 			stats = 0;
-#endif
 
+	dochroot = checkuser(_PATH_FTPCHROOT, pw->pw_name);
 	if (guest) {
 		/*
 		 * We MUST do a chdir() after the chroot. Otherwise
@@ -700,6 +722,11 @@ pass(passwd)
 		 */
 		if (chroot(pw->pw_dir) < 0 || chdir("/") < 0) {
 			reply(550, "Can't set guest privileges.");
+			goto bad;
+		}
+	} else if (dochroot) {
+		if (chroot(pw->pw_dir) < 0 || chdir("/") < 0) {
+			reply(550, "Can't change root.");
 			goto bad;
 		}
 	} else if (chdir(pw->pw_dir) < 0) {
@@ -737,16 +764,12 @@ pass(passwd)
 		(void) fclose(fd);
 	}
 	if (guest) {
-#ifdef STATS
-		char * copy();
-
 		if (ident != NULL)
 			free(ident);
 		ident = strdup(passwd);
 		if (ident == NULL)
 			fatal("Ran out of memory.");
 
-#endif
 		reply(230, "Guest login ok, access restrictions apply.");
 #ifdef SETPROCTITLE
 		snprintf(proctitle, sizeof(proctitle),
@@ -783,9 +806,7 @@ retrieve(cmd, name)
 	FILE *fin, *dout;
 	struct stat st;
 	int (*closefunc) __P((FILE *));
-#ifdef STATS
 	long start;
-#endif
 
 	if (cmd == 0) {
 		fin = fopen(name, "r"), closefunc = fclose;
@@ -835,15 +856,11 @@ retrieve(cmd, name)
 	dout = dataconn(name, st.st_size, "w");
 	if (dout == NULL)
 		goto done;
-#ifdef STATS
 	time(&start);
-#endif
 	send_data(fin, dout, st.st_blksize, st.st_size,
 		  restart_point == 0 && cmd == 0 && S_ISREG(st.st_mode));
-#ifdef STATS
 	if (cmd == 0 && guest && stats)
 		logxfer(name, st.st_size, start);
-#endif
 	(void) fclose(dout);
 	data = -1;
 	pdata = -1;
@@ -941,6 +958,7 @@ getdatasock(mode)
 	    (char *) &on, sizeof(on)) < 0)
 		goto bad;
 	/* anchor socket to avoid multi-homing problems */
+	data_source.sin_len = sizeof(struct sockaddr_in);
 	data_source.sin_family = AF_INET;
 	data_source.sin_addr = ctrl_addr.sin_addr;
 	for (tries = 1; ; tries++) {
@@ -1022,7 +1040,7 @@ dataconn(name, size, mode)
 		(void) close(pdata);
 		pdata = s;
 #ifdef IP_TOS
-		tos = IPTOS_LOWDELAY;
+		tos = IPTOS_THROUGHPUT;
 		(void) setsockopt(s, IPPROTO_IP, IP_TOS, (char *)&tos,
 		    sizeof(int));
 #endif
@@ -1578,6 +1596,10 @@ dologout(status)
 	if (logged_in) {
 		(void) seteuid((uid_t)0);
 		logwtmp(ttyline, "", "");
+#if defined(KERBEROS)
+		if (!notickets && krbtkfile_env)
+			unlink(krbtkfile_env);
+#endif
 	}
 	/* beware of flushing buffers after a SIGPIPE */
 	_exit(status);
@@ -1906,7 +1928,6 @@ setproctitle(fmt, va_alist)
 }
 #endif /* OLD_SETPROCTITLE */
 
-#ifdef STATS
 static void
 logxfer(name, size, start)
 	char *name;
@@ -1925,4 +1946,3 @@ logxfer(name, size, start)
 		write(statfd, buf, strlen(buf));
 	}
 }
-#endif
