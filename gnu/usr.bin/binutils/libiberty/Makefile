@@ -10,6 +10,9 @@ SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
 	hex.c floatformat.c lbasename.c objalloc.c obstack.c safe-ctype.c \
 	xatexit.c xexit.c xmalloc.c \
 	xstrdup.c xstrerror.c
+.if defined(BOOTSTRAPPING)
+SRCS+=	basename.c
+.endif
 CFLAGS+=	-DHAVE_CONFIG_H
 NOPROFILE=	true
 NOPIC=		true
