@@ -14,12 +14,11 @@
  * in $srcdir/aux/macros.
  */
 
-/* $srcdir/conf/trap/trap_freebsd3.h */
+/* $srcdir/conf/trap/trap_default.h */
 #ifdef COMMENT_GET_DIRECTLY_FROM_FILE
-extern int mount_freebsd3(MTYPE_TYPE type, const char *dir, int flags, voidp data);
-#define MOUNT_TRAP(type, mnt, flags, mnt_data) mount_freebsd3(type, mnt->mnt_dir, flags, mnt_data)
+#define MOUNT_TRAP(type, mnt, flags, mnt_data) mount(type, mnt->mnt_dir, flags, mnt_data)
 #endif	/* COMMENT_GET_DIRECTLY_FROM_FILE */
-#include "conf/trap/trap_freebsd3.h"
+#include "conf/trap/trap_default.h"
 /* End of included MOUNT_TRAP macro definition file */
 
 
