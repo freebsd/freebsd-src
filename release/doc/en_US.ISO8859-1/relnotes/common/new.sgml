@@ -132,11 +132,11 @@
 
     <para arch="i386">The &man.ctau.4; driver has been added for Cronyx-Tau
       synchronous serial adapters. This driver was known for a long time as
-      <quote>ct</quote> in its previous life outside &os; source tree.
+      <quote>ct</quote> in its previous life outside the &os; source tree.
 
       <note>
 	<para>The driver name has changed, but the network interface still
-	  has <quote>ct</quote> name.</para>
+	  has the <quote>ct</quote> name.</para>
       </note>
     </para>
 
@@ -280,10 +280,10 @@
     <para>&man.makewhatis.1;, formerly a Perl script, has been
       reimplemented in C.</para>
 
-    <para>&man.ps.1; has been improved in the POSIX/SUSv3 compatibility.
+    <para>&man.ps.1; compatibility with POSIX/SUSv3 has been improved.
       The changes include <option>-p</option> for a list of process IDs,
       <option>-t</option> for a list of terminal names,
-      <option>-A</option> which is equivalent with <option>-ax</option>,
+      <option>-A</option> which is equivalent to <option>-ax</option>,
       <option>-G</option> for a list of group IDs,
       <option>-X</option> which is the opposite of <option>-x</option>,
       and some minor improvements.  For more information, see &man.ps.1;.</para>
@@ -296,7 +296,7 @@
       feature can be found in &man.libmap.conf.5;.<para>
 
     <para arch="i386">The &man.sconfig.8; utility was added as a part of
-      &man.cx.4; driver update. It replaces cxconfig utility for managing
+      &man.cx.4; driver update. It replaces the cxconfig utility for managing
       &man.cx.4; devices. <para>
 
     <para>&man.stat.1; from <application>NetBSD</application>, as of 5
