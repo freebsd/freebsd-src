@@ -1065,14 +1065,6 @@ closef(fp, p)
 		vp = (struct vnode *)fp->f_data;
 		(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_UNLCK, &lf, F_POSIX);
 	}
-	if ((fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		lf.l_type = F_UNLCK;
-		vp = (struct vnode *)fp->f_data;
-		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
-	}
 	return (fdrop(fp, p));
 }
 
@@ -1081,12 +1073,22 @@ fdrop(fp, p)
 	struct file *fp;
 	struct proc *p;
 {
+	struct flock lf;
+	struct vnode *vp;
 	int error;
 
 	if (--fp->f_count > 0)
 		return (0);
 	if (fp->f_count < 0)
 		panic("fdrop: count < 0");
+	if ((fp->f_flag & FHASLOCK) && fp->f_type == DTYPE_VNODE) {
+		lf.l_whence = SEEK_SET;
+		lf.l_start = 0;
+		lf.l_len = 0;
+		lf.l_type = F_UNLCK;
+		vp = (struct vnode *)fp->f_data;
+		(void) VOP_ADVLOCK(vp, (caddr_t)fp, F_UNLCK, &lf, F_FLOCK);
+	}
 	if (fp->f_ops != &badfileops)
 		error = fo_close(fp, p);
 	else
