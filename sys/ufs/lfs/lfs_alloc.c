@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_alloc.c	8.4 (Berkeley) 1/4/94
- * $Id: lfs_alloc.c,v 1.7 1995/03/28 07:58:02 bde Exp $
+ * $Id: lfs_alloc.c,v 1.8 1995/04/16 11:25:47 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -162,9 +162,17 @@ lfs_vcreate(mp, ino, vpp)
 	struct ufsmount *ump;
 	int error, i;
 
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(ip, struct inode *, sizeof(struct inode), M_LFSNODE, M_WAITOK);
+
 	/* Create the vnode. */
 	if (error = getnewvnode(VT_LFS, mp, lfs_vnodeop_p, vpp)) {
 		*vpp = NULL;
+		FREE(ip, M_LFSNODE);
 		return (error);
 	}
 
@@ -172,7 +180,6 @@ lfs_vcreate(mp, ino, vpp)
 	ump = VFSTOUFS(mp);
 
 	/* Initialize the inode. */
-	MALLOC(ip, struct inode *, sizeof(struct inode), M_LFSNODE, M_WAITOK);
 	(*vpp)->v_data = ip;
 	ip->i_vnode = *vpp;
 	ip->i_devvp = ump->um_devvp;

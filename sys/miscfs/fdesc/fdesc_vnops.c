@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.10 1995/09/02 20:19:12 mpp Exp $
+ * $Id: fdesc_vnops.c,v 1.9.4.1 1995/09/12 08:48:26 davidg Exp $
  */
 
 /*
@@ -146,10 +146,18 @@ loop:
 	}
 	fdcache_lock |= FDL_LOCKED;
 
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(fd, struct fdescnode *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
+
 	error = getnewvnode(VT_FDESC, mp, fdesc_vnodeop_p, vpp);
-	if (error)
+	if (error) {
+		FREE(fd, M_TEMP);
 		goto out;
-	MALLOC(fd, void *, sizeof(struct fdescnode), M_TEMP, M_WAITOK);
+	}
 	(*vpp)->v_data = fd;
 	fd->fd_vnode = *vpp;
 	fd->fd_type = ftype;

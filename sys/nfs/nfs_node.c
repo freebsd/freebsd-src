@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.2 (Berkeley) 12/30/93
- * $Id: nfs_node.c,v 1.8 1995/03/16 18:15:36 bde Exp $
+ * $Id: nfs_node.c,v 1.8.4.1 1995/07/22 03:40:56 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -139,16 +139,23 @@ loop:
 	}
 	nfs_node_hash_lock = 1;
 		
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(np, struct nfsnode *, sizeof *np, M_NFSNODE, M_WAITOK);
+
 	error = getnewvnode(VT_NFS, mntp, nfsv2_vnodeop_p, &nvp);
 	if (error) {
 		if (nfs_node_hash_lock < 0)
 			wakeup(&nfs_node_hash_lock);
 		nfs_node_hash_lock = 0;
-		*npp = 0;
+		*npp = NULL;
+		FREE(np, M_NFSNODE);
 		return (error);
 	}
 	vp = nvp;
-	MALLOC(np, struct nfsnode *, sizeof *np, M_NFSNODE, M_WAITOK);
 	vp->v_data = np;
 	np->n_vnode = vp;
 	/*

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.21.4.1 1995/07/22 03:43:39 davidg Exp $
+ * $Id: ffs_vfsops.c,v 1.21.4.2 1996/06/11 05:17:34 bde Exp $
  */
 
 #include <sys/param.h>
@@ -776,6 +776,16 @@ restart:
 	}
 	ffs_inode_hash_lock = 1;
 
+	/*
+	 * If this MALLOC() is performed after the getnewvnode()
+	 * it might block, leaving a vnode with a NULL v_data to be
+	 * found by ffs_sync() if a sync happens to fire right then,
+	 * which will cause a panic because ffs_sync() blindly
+	 * dereferences vp->v_data (as well it should).
+	 */
+	type = ump->um_devvp->v_tag == VT_MFS ? M_MFSNODE : M_FFSNODE; /* XXX */
+	MALLOC(ip, struct inode *, sizeof(struct inode), type, M_WAITOK);
+
 	/* Allocate a new vnode/inode. */
 	error = getnewvnode(VT_UFS, mp, ffs_vnodeop_p, &vp);
 	if (error) {
@@ -783,10 +793,9 @@ restart:
 			wakeup(&ffs_inode_hash_lock);
 		ffs_inode_hash_lock = 0;
 		*vpp = NULL;
+		FREE(ip, type);
 		return (error);
 	}
-	type = ump->um_devvp->v_tag == VT_MFS ? M_MFSNODE : M_FFSNODE; /* XXX */
-	MALLOC(ip, struct inode *, sizeof(struct inode), type, M_WAITOK);
 	bzero((caddr_t)ip, sizeof(struct inode));
 	vp->v_data = ip;
 	ip->i_vnode = vp;
