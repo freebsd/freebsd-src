@@ -1073,6 +1073,7 @@ pmap_pinit0(pmap)
 	pmap->pm_pdpt = (pdpt_entry_t *)(KERNBASE + (vm_offset_t)IdlePDPT);
 #endif
 	pmap->pm_active = 0;
+	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 	mtx_lock_spin(&allpmaps_lock);
@@ -3240,14 +3241,17 @@ void
 pmap_activate(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	pmap_t	pmap;
+	pmap_t	pmap, oldpmap;
 	u_int32_t  cr3;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
+	oldpmap = PCPU_GET(curpmap);
 #if defined(SMP)
+	atomic_clear_int(&oldpmap->pm_active, PCPU_GET(cpumask));
 	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
 #else
+	oldpmap->pm_active &= ~1;
 	pmap->pm_active |= 1;
 #endif
 #ifdef PAE
@@ -3271,6 +3275,7 @@ pmap_activate(struct thread *td)
 #ifdef SWTCH_OPTIM_STATS
 	tlb_flush_count++;
 #endif
+	PCPU_SET(curpmap, pmap);
 	critical_exit();
 }
 

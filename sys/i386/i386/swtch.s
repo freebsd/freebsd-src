@@ -67,12 +67,11 @@ ENTRY(cpu_throw)
 	testl	%ecx,%ecx			/* no thread? */
 	jz	1f
 	/* release bit from old pm_active */
-	movl	TD_PROC(%ecx), %eax		/* thread->td_proc */
-	movl	P_VMSPACE(%eax), %ebx		/* proc->p_vmspace */
+	movl	PCPU(CURPMAP), %ebx
 #ifdef SMP
 	lock
 #endif
-	btrl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* clear old */
+	btrl	%esi, PM_ACTIVE(%ebx)		/* clear old */
 1:
 	movl	8(%esp),%ecx			/* New thread */
 	movl	TD_PCB(%ecx),%edx
@@ -84,10 +83,12 @@ ENTRY(cpu_throw)
 	/* set bit in new pm_active */
 	movl	TD_PROC(%ecx),%eax
 	movl	P_VMSPACE(%eax), %ebx
+	addl	$VM_PMAP, %ebx
+	movl	%ebx, PCPU(CURPMAP)
 #ifdef SMP
 	lock
 #endif
-	btsl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* set new */
+	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
 	jmp	sw1
 
 /*
@@ -188,20 +189,21 @@ ENTRY(cpu_switch)
 	movl	%eax,%cr3			/* new address space */
 
 	/* Release bit from old pmap->pm_active */
-	movl	TD_PROC(%edi), %eax		/* oldproc */
-	movl	P_VMSPACE(%eax), %ebx
+	movl	PCPU(CURPMAP), %ebx
 #ifdef SMP
 	lock
 #endif
-	btrl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* clear old */
+	btrl	%esi, PM_ACTIVE(%ebx)		/* clear old */
 
 	/* Set bit in new pmap->pm_active */
 	movl	TD_PROC(%ecx),%eax		/* newproc */
 	movl	P_VMSPACE(%eax), %ebx
+	addl	$VM_PMAP, %ebx
+	movl	%ebx, PCPU(CURPMAP)
 #ifdef SMP
 	lock
 #endif
-	btsl	%esi, VM_PMAP+PM_ACTIVE(%ebx)	/* set new */
+	btsl	%esi, PM_ACTIVE(%ebx)		/* set new */
 
 #ifdef LAZY_SWITCH
 #ifdef SWTCH_OPTIM_STATS
