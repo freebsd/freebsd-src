@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>   
 #include <sys/malloc.h>
 #include <sys/endian.h>
+#include <sys/kernel.h>
  
 #include <sys/socket.h>
 
@@ -705,6 +706,7 @@ ieee80211_defrag(struct ieee80211com *ic, struct ieee80211_node *ni,
 		*(u_int16_t *) lwh->i_seq = *(u_int16_t *) wh->i_seq;
 	}
 	if (more_frag) {			/* more to come, save */
+		ni->ni_rxfragstamp = ticks;
 		ni->ni_rxfrag[0] = mfrag;
 		mfrag = NULL;
 	}
