@@ -230,22 +230,15 @@ VarPossiblyExpand(const char *name, GNode *ctxt)
 {
 	Buffer	*buf;
 	char	*str;
-	char	*tmp;
 
-	/*
-	 * XXX make a temporary copy of the name because Var_Subst insists
-	 * on writing into the string.
-	 */
-	tmp = estrdup(name);
 	if (strchr(name, '$') != NULL) {
-		buf = Var_Subst(NULL, tmp, ctxt, 0);
+		buf = Var_Subst(NULL, name, ctxt, 0);
 		str = Buf_GetAll(buf, NULL);
 		Buf_Destroy(buf, FALSE);
 
-		free(tmp);
 		return (str);
 	} else {
-		return (tmp);
+		return estrdup(name);
 	}
 }
 
@@ -933,7 +926,7 @@ modifier_M(VarParser *vp, const char value[], char endc)
 		}
 		if ((vp->ptr[0] == '\\') &&
 		    ((vp->ptr[1] == endc) || (vp->ptr[1] == ':'))) {
-			vp->ptr++;	/* skip over backslash */
+			vp->ptr++;	/* consume backslash */
 		}
 		*ptr = vp->ptr[0];
 		ptr++;
@@ -1497,21 +1490,6 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freeResult)
 				return (value);
 			}
 		}
-
-		/*
-		 * Still need to get to the end of the variable
-		 * specification, so kludge up a Var structure for the
-		 * modifications
-		 */
-		v = VarCreate(vname, NULL, VAR_JUNK);
-		value = ParseModifier(vp, startc, v, freeResult);
-		if (*freeResult) {
-			free(value);
-		}
-		VarDestroy(v, TRUE);
-
-		*freeResult = FALSE;
-		return (vp->err ? var_Error : varNoError);
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1531,22 +1509,22 @@ ParseRestModifier(VarParser *vp, char startc, Buffer *buf, Boolean *freeResult)
 				return (value);
 			}
 		}
-
-		/*
-		 * Still need to get to the end of the variable
-		 * specification, so kludge up a Var structure for the
-		 * modifications
-		 */
-		v = VarCreate(vname, NULL, VAR_JUNK);
-		value = ParseModifier(vp, startc, v, freeResult);
-		if (*freeResult) {
-			free(value);
-		}
-		VarDestroy(v, TRUE);
-
-		*freeResult = FALSE;
-		return (vp->err ? var_Error : varNoError);
 	}
+
+	/*
+	 * Still need to get to the end of the variable
+	 * specification, so kludge up a Var structure for the
+	 * modifications
+	 */
+	v = VarCreate(vname, NULL, VAR_JUNK);
+	value = ParseModifier(vp, startc, v, freeResult);
+	if (*freeResult) {
+		free(value);
+	}
+	VarDestroy(v, TRUE);
+
+	*freeResult = FALSE;
+	return (vp->err ? var_Error : varNoError);
 }
 
 static char *
@@ -1609,9 +1587,6 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freeResult)
 				return (value);
 			}
 		}
-
-		*freeResult = FALSE;
-		return (vp->err ? var_Error : varNoError);
 	} else {
 		/*
 		 * Check for D and F forms of local variables since we're in
@@ -1646,10 +1621,10 @@ ParseRestEnd(VarParser *vp, Buffer *buf, Boolean *freeResult)
 				return (val);
 			}
 		}
-
-		*freeResult = FALSE;
-		return (vp->err ? var_Error : varNoError);
 	}
+
+	*freeResult = FALSE;
+	return (vp->err ? var_Error : varNoError);
 }
 
 /**
@@ -1665,15 +1640,15 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 
 	buf = Buf_Init(MAKE_BSIZE);
 
-	/*
-	 * Process characters until we reach an end character or a
-	 * colon, replacing embedded variables as we go.
-	 */
 	startc = vp->ptr[0];
-	vp->ptr++;	/* consume opening paren or brace */
+	vp->ptr++;		/* consume opening paren or brace */
 
 	endc = (startc == OPEN_PAREN) ? CLOSE_PAREN : CLOSE_BRACE;
 
+	/*
+	 * Process characters until we reach an end character or a colon,
+	 * replacing embedded variables as we go.
+	 */
 	while (*vp->ptr != '\0') {
 		if (*vp->ptr == endc) {
 			value = ParseRestEnd(vp, buf, freeResult);
@@ -1693,7 +1668,8 @@ VarParseLong(VarParser *vp, Boolean *freeResult)
 			char	*rval;
 
 			rlen = 0;
-			rval = Var_Parse(vp->ptr, vp->ctxt, vp->err, &rlen, &rfree);
+			rval = Var_Parse(vp->ptr, vp->ctxt, vp->err,
+			    &rlen, &rfree);
 			if (rval == var_Error) {
 				Fatal("Error expanding embedded variable.");
 			}
@@ -1780,9 +1756,7 @@ static char *
 VarParse(VarParser *vp, Boolean *freeResult)
 {
 
-	/* assert(vp->ptr[0] == '$'); */
-
-	vp->ptr++;	/* consume '$' */
+	vp->ptr++;	/* consume '$' or last letter of conditional */
 
 	if (vp->ptr[0] == '\0') {
 		/* Error, there is only a dollar sign in the input string. */
@@ -1817,10 +1791,6 @@ VarParse(VarParser *vp, Boolean *freeResult)
  *
  * Side Effects:
  *	None.
- *
- * Assumption:
- *	It is assumed that Var_Parse() is called with input[0] == '$'.
- *
  *-----------------------------------------------------------------------
  */
 char *
