@@ -57,6 +57,7 @@ point (with some assistance from the
 driver).
 The Lucent Hermes and Symbol Spectrum24 chipsets do not contain this
 functionality.
+PRISM-II and PRISM-2.5 chips do not support the WDS functionality.
 .Pp
 The
 .Nm
@@ -84,7 +85,7 @@ This mode requires the use of an access point (base station).
 The
 .Nm
 driver also supports an ad-hoc (point-to-point) mode where
-the nwid is ignored and stations can communicate amongst
+the ssid is ignored and stations can communicate amongst
 themselves without the aid of an access point.
 Note that there are two possible ad-hoc modes.
 One mode, referred to as
@@ -217,13 +218,15 @@ Join an ad-hoc network with network name
 # ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
 	mediaopt adhoc
 .Ed
-.\".Pp
-.\"Create an IBBS network with network name
-.\".Dq my_net .
-.\".Bd -literal -compact -offset indent
-.\"# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-.\"	mediaopt master-ibss
-.\".Ed
+.Pp
+Create an IBBS network with network name
+.Dq my_net .
+.Bd -literal -compact -offset indent
+# ifconfig wi0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
+	mediaopt ibss-master
+.Ed
+Note: The infrastructure for mediaopt ibss-master has not been
+committed yet.
 .Pp
 Join an IBBS network with network name
 .Dq my_net .
@@ -231,6 +234,8 @@ Join an IBBS network with network name
 # ifconfig wi0 inet 192.168.0.22 netmask 0xffffff00 ssid my_net \e
 	mediaopt ibss
 .Ed
+Note: The infrastructure for mediaopt ibss has not been
+committed yet.
 .Pp
 Create a host-based access point (Prism only):
 .Bd -literal -compact -offset indent
@@ -252,6 +257,8 @@ Add BRIDGE to the kernel config.
 # sysctl net.link.ether.bridge_cfg="wi0 fxp0"
 # sysctl net.inet.ip.forwarding=1
 .Ed
+This will give you approximately the same functionality as an access
+point.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "wi%d: init failed"
@@ -292,6 +299,7 @@ The original Lucent WaveLAN cards usually default to channel 3;
 newer cards use channel 10 by default.
 Non-Lucent cards vary, for instance the Addtron cards use channel
 11 by default.
+Different regulatory domains have different default channels.
 See
 .Xr wicontrol 8
 for information on how to change the channel.
@@ -300,3 +308,6 @@ IBSS creation does not currently work with Symbol cards.
 .Pp
 Prism2 host-based access point mode has bugs for firmware versions
 prior to 0.8.3.
+.Pp
+Lucent cards prior to firmware version 6.0.4 do not support ibss
+mode.
