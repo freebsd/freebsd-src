@@ -59,10 +59,12 @@ __FBSDID("$FreeBSD$");
 #include <vis.h>
 #include <sys/syslog.h>
 
+char s_msgbufp[] = "_msgbufp";
+
 struct nlist nl[] = {
 #define	X_MSGBUF	0
-	{ "_msgbufp" },
-	{ NULL },
+	{ s_msgbufp, 0, 0, 0, 0 },
+	{ NULL, 0, 0, 0, 0 },
 };
 
 void usage(void) __dead2;
@@ -134,10 +136,10 @@ main(int argc, char *argv[])
 		/* Unwrap the circular buffer to start from the oldest data. */
 		bufpos = MSGBUF_SEQ_TO_POS(&cur, cur.msg_wseq);
 		if (kvm_read(kd, (long)&cur.msg_ptr[bufpos], bp,
-		    cur.msg_size - bufpos) != cur.msg_size - bufpos)
+		    cur.msg_size - bufpos) != (ssize_t)(cur.msg_size - bufpos))
 			errx(1, "kvm_read: %s", kvm_geterr(kd));
 		if (bufpos != 0 && kvm_read(kd, (long)cur.msg_ptr,
-		    &bp[cur.msg_size - bufpos], bufpos) != bufpos)
+		    &bp[cur.msg_size - bufpos], bufpos) != (ssize_t)bufpos)
 			errx(1, "kvm_read: %s", kvm_geterr(kd));
 		kvm_close(kd);
 		buflen = cur.msg_size;
