@@ -2,7 +2,9 @@
 
 TESTS=	test-mbrtowc	\
 	test-wcrtomb	\
+	test-mbsnrtowcs	\
 	test-mbsrtowcs	\
+	test-wcsnrtombs	\
 	test-wcsrtombs	\
 	test-btowc	\
 	test-mbrlen	\
