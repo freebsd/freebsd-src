@@ -28,6 +28,8 @@
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/ktr.h>
+#include <machine/pstate.h>
 
 #include "assym.s"
 
@@ -181,6 +183,14 @@ END(memcpy)
  */
 ENTRY(copyin)
 	CATCH_SETUP(.Lefault)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "copyin: ua=%#lx ka=%#lx len=%ld"
+	    , %o3, %o4, %o5, 7, 8, 9)
+	stx	%o0, [%o3 + KTR_PARM1]
+	stx	%o1, [%o3 + KTR_PARM2]
+	stx	%o2, [%o3 + KTR_PARM3]
+9:
+#endif
 	COPYIN(%o0, %o1, %o2)
 	CATCH_END()
 	retl
@@ -192,6 +202,15 @@ END(copyin)
  */
 ENTRY(copyinstr)
 	CATCH_SETUP(.Lefault)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "copyinstr: ua=%#lx ka=%#lx len=%ld done=%p"
+	    , %g1, %g2, %g3, 7, 8, 9)
+	stx	%o0, [%g1 + KTR_PARM1]
+	stx	%o1, [%g1 + KTR_PARM2]
+	stx	%o2, [%g1 + KTR_PARM3]
+	stx	%o3, [%g1 + KTR_PARM4]
+9:
+#endif
 	COPYINSTR(%o0, %o1, %o2, %o3)
 	CATCH_END()
 	retl
@@ -203,6 +222,14 @@ END(copyinstr)
  */
 ENTRY(copyout)
 	CATCH_SETUP(.Lefault)
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "copyout: ka=%#lx ua=%#lx len=%ld"
+	    , %o3, %o4, %o5, 7, 8, 9)
+	stx	%o0, [%o3 + KTR_PARM1]
+	stx	%o1, [%o3 + KTR_PARM2]
+	stx	%o2, [%o3 + KTR_PARM3]
+9:
+#endif
 	COPYOUT(%o0, %o1, %o2)
 	CATCH_END()
 	retl
@@ -211,6 +238,11 @@ END(copyout)
 
 .Lefault:
 	CATCH_END()
+#if KTR_COMPILE & KTR_CT1
+	CATR(KTR_CT1, "copy{in,out}: return efault"
+	    , %o0, %o1, %o2, 7, 8, 9)
+9:
+#endif
 	retl
 	 mov	EFAULT, %o0
 
