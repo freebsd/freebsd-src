@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.306 1997/06/22 17:59:04 jkh Exp $
+#	$Id: Makefile,v 1.307 1997/06/23 01:49:35 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -85,11 +85,10 @@ BOOTSTRAPUTILS+= /usr/bin/cpio
 CRUNCH_TARGETS=	boot fixit
 .endif
 
-EXTRAS=
 .if !defined(NOPORTS)
 EXTRAS+= ports.1
 .endif
-EXTRAS+= cdrom.1
+EXTRAS+= ftp.1 cdrom.1
 
 .if !defined(NODOC)
 DOCREL= doc.1
@@ -182,8 +181,14 @@ rerelease release:
 .if defined(NOPORTS)
 	echo "export NOPORTS=${NOPORTS}"	>> ${CHROOTDIR}/mk
 .endif
+.if defined(BOOT_CONFIG)
+	echo "export BOOT_CONFIG=\"${BOOT_CONFIG}\"">> ${CHROOTDIR}/mk
+.endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(NOSRC)
+	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
 .endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=/R"		>> ${CHROOTDIR}/mk
@@ -350,6 +355,7 @@ release.6:
 # --==## Make source dists ##==--
 #
 release.7:
+.if !defined(NOSRC)
 	@cd ${.CURDIR} && $(MAKE) doTARBALL SD=/usr/src \
 		TD=src TN=sbase ARG="[A-Z]*"
 	@for i in `cd /usr/src && echo [a-z]*` ; do \
@@ -374,6 +380,7 @@ release.7:
 		if [ -f ssecure.inf ] ; then mv ssecure.inf ../des ; fi && \
 		if [ -f sebones.inf ] ; then mv sebones.inf ../des ; fi ; )
 	@echo "src distribution is finished."
+.endif
 	touch release.7
 
 # Complete the bootfd
@@ -636,6 +643,9 @@ doMFSKERN:
 	@mkdir  ${RD}/boot.${FSIMAGE}
 	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+.if defined(BOOT_CONFIG)
+	@echo "${BOOT_CONFIG}" >${RD}/boot.${FSIMAGE}/boot.config
+endif
 	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
 	@mkdir -p /tmp/mnt_xx
 	@mount /dev/vn0 /tmp/mnt_xx
