@@ -17,6 +17,9 @@ CFLAGS+=	-mno-fp-regs
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS+=	-mpreferred-stack-boundary=2
 .endif
+.if ${MACHINE_ARCH} == "powerpc"
+CFLAGS+=	-msoft-float
+.endif
 .if ${MACHINE} == "pc98"
 CFLAGS+=	-DPC98
 .endif
