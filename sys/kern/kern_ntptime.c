@@ -436,13 +436,11 @@ done2:
  * simulation.
  */
 void
-ntp_update_second(struct timecounter *tcp)
+ntp_update_second(int64_t *adjustment, time_t *newsec)
 {
-	u_int32_t *newsec;
 	int tickrate;
 	l_fp ftemp;		/* 32/64-bit temporary */
 
-	newsec = &tcp->tc_offset.sec;
 	/*
 	 * On rollover of the second both the nanosecond and microsecond
 	 * clocks are updated and the state machine cranked as
@@ -558,7 +556,7 @@ ntp_update_second(struct timecounter *tcp)
 		L_LINT(ftemp, tickrate * 1000);
 		L_ADD(time_adj, ftemp);
 	}
-	tcp->tc_adjustment = time_adj;
+	*adjustment = time_adj;
 		
 #ifdef PPS_SYNC
 	if (pps_valid > 0)
