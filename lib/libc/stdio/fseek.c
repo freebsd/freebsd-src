@@ -344,7 +344,7 @@ _sseek(fp, offset, whence)
 		}
 		fp->_flags &= ~__SOFF;
 		ret = -1;
-	} else {
+	} else if (fp->_flags & __SOPT) {
 		fp->_flags |= __SOFF;
 		fp->_offset = ret;
 	}
