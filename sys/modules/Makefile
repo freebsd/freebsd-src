@@ -129,6 +129,8 @@ SUBDIR+=aac \
 	gnufpu \
 	ibcs2 \
 	linux \
+	ncv \
+	nsp \
 	mly \
 	netgraph \
 	oltr \
@@ -136,9 +138,11 @@ SUBDIR+=aac \
 	ray \
 	s3 \
 	sbni \
+	scsi_low \
 	smbfs \
 	splash \
 	sr \
+	stg \
 	streams \
 	vesa \
 	wi
