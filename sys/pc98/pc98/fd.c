@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.4 1996/08/31 15:06:42 asami Exp $
+ *	$Id: fd.c,v 1.5 1996/09/03 10:23:25 asami Exp $
  *
  */
 
@@ -69,7 +69,6 @@
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syslog.h>
-#include <sys/devconf.h>
 #include <sys/dkstat.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
@@ -86,89 +85,11 @@
 #include <machine/stdarg.h>
 #if NFT > 0
 #include <sys/ftape.h>
-#ifdef PC98
-#include <pc98/pc98/ftreg.h>
-#else
 #include <i386/isa/ftreg.h>
-#endif
 #endif
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif
-
-
-static int fd_goaway(struct kern_devconf *, int);
-static int fdc_goaway(struct kern_devconf *, int);
-static int fd_externalize(struct kern_devconf *, struct sysctl_req *);
-
-/*
- * Templates for the kern_devconf structures used when we attach.
- */
-static struct kern_devconf kdc_fd[NFD] = { {
-	0, 0, 0,		/* filled in by kern_devconf.c */
-	"fd", 0, { MDDT_DISK, 0 },
-	fd_externalize, 0, fd_goaway, DISK_EXTERNALLEN,
-	0,			/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"floppy disk",
-	DC_CLS_DISK		/* class */
-} };
-
-struct kern_devconf kdc_fdc[NFDC] = { {
-	0, 0, 0,		/* filled in by kern_devconf.c */
-	"fdc", 0, { MDDT_ISA, 0, "bio" },
-	isa_generic_externalize, 0, fdc_goaway, ISA_EXTERNALLEN,
-	0,			/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"floppy disk/tape controller",
-	DC_CLS_MISC		/* class */
-} };
-
-static inline void
-fd_registerdev(int ctlr, int unit)
-{
-	if(unit != 0)
-		kdc_fd[unit] = kdc_fd[0];
-
-	kdc_fd[unit].kdc_unit = unit;
-	kdc_fd[unit].kdc_parent = &kdc_fdc[ctlr];
-	kdc_fd[unit].kdc_parentdata = 0;
-	dev_attach(&kdc_fd[unit]);
-}
-
-static inline void
-fdc_registerdev(struct isa_device *dvp)
-{
-	int unit = dvp->id_unit;
-
-	if(unit != 0)
-		kdc_fdc[unit] = kdc_fdc[0];
-
-	kdc_fdc[unit].kdc_unit = unit;
-	kdc_fdc[unit].kdc_parent = &kdc_isa0;
-	kdc_fdc[unit].kdc_parentdata = dvp;
-	dev_attach(&kdc_fdc[unit]);
-}
-
-static int
-fdc_goaway(struct kern_devconf *kdc, int force)
-{
-	if(force) {
-		dev_detach(kdc);
-		return 0;
-	} else {
-		return EBUSY;	/* XXX fix */
-	}
-}
-
-static int
-fd_goaway(struct kern_devconf *kdc, int force)
-{
-	dev_detach(kdc);
-	return 0;
-}
 
 #define	b_cylin	b_resid		/* XXX now spelled b_cylinder elsewhere */
 
@@ -452,15 +373,6 @@ static struct bdevsw fd_bdevsw =
 
 static struct isa_device *fdcdevs[NFDC];
 
-/*
- * Provide hw.devconf information.
- */
-static int
-fd_externalize(struct kern_devconf *kdc, struct sysctl_req *req)
-{
-	return disk_externalize(fd_data[kdc->kdc_unit].fdsu, req);
-}
-
 static int
 fdc_err(fdcu_t fdcu, const char *s)
 {
@@ -703,10 +615,6 @@ fdprobe(struct isa_device *dev)
 	fdcdevs[fdcu] = dev;
 	fdc_data[fdcu].baseport = dev->id_iobase;
 
-#ifndef DEV_LKM
-	fdc_registerdev(dev);
-#endif
-
 #ifndef PC98
 	/* First - lets reset the floppy controller */
 	outb(dev->id_iobase+FDOUT, 0);
@@ -727,7 +635,6 @@ fdprobe(struct isa_device *dev)
 	{
 		return(0);
 	}
-	kdc_fdc[fdcu].kdc_state = DC_IDLE;
 	return (IO_FDCSIZE);
 }
 
@@ -863,10 +770,7 @@ fdattach(struct isa_device *dev)
 			continue;
 		}
 
-#ifdef PC98
-		kdc_fdc[fdcu].kdc_description =
-			"NEC 765 floppy disk/tape controller";
-#else
+#ifndef PC98
 		/* select it */
 		set_motor(fdcu, fdsu, TURNON);
 		DELAY(1000000);	/* 1 sec */
@@ -880,20 +784,14 @@ fdattach(struct isa_device *dev)
 			case 0x80:
 				printf("NEC 765\n");
 				fdc->fdct = FDC_NE765;
-				kdc_fdc[fdcu].kdc_description =
-					"NEC 765 floppy disk/tape controller";
 				break;
 			case 0x81:
 				printf("Intel 82077\n");
 				fdc->fdct = FDC_I82077;
-				kdc_fdc[fdcu].kdc_description =
-					"Intel 82077 floppy disk/tape controller";
 				break;
 			case 0x90:
 				printf("NEC 72065B\n");
 				fdc->fdct = FDC_NE72065;
-				kdc_fdc[fdcu].kdc_description =
-					"NEC 72065B floppy disk/tape controller";
 				break;
 			default:
 				printf("unknown IC type %02x\n", ic_type);
@@ -953,7 +851,6 @@ fdattach(struct isa_device *dev)
 		fd->options = 0;
 		printf("fd%d: ", fdu);
 
-		fd_registerdev(fdcu, fdu);
 		switch (fdt) {
 #ifdef PC98
 		case FDT_12M:
@@ -968,8 +865,6 @@ fdattach(struct isa_device *dev)
 #endif /* EPSON_NRDISK */
 			fd->type = FD_1200;
 			fd->pc98_trans = 0;
-			kdc_fd[fdu].kdc_description = 
-				"1M/640K floppy disk drive";
 #ifdef	DEVFS
 			sprintf(name,"rfd%d.1200",fdu);
 #endif	/* DEVFS */
@@ -979,8 +874,6 @@ fdattach(struct isa_device *dev)
 			fd->type = FD_1200;
 			fd->pc98_trans = 0;
 			outb(0x4be, (fdu << 5) | 0x10);
-			kdc_fd[fdu].kdc_description =
-				"1.44MB (1440K) 3.5in floppy disk drive";
 #ifdef	DEVFS
 			sprintf(name,"rfd%d.1440",fdu);
 #endif	/* DEVFS */
@@ -989,42 +882,30 @@ fdattach(struct isa_device *dev)
 		case RTCFDT_12M:
 			printf("1.2MB 5.25in\n");
 			fd->type = FD_1200;
-			kdc_fd[fdu].kdc_description =
-				"1.2MB (1200K) 5.25in floppy disk drive";
 			break;
 		case RTCFDT_144M:
 			printf("1.44MB 3.5in\n");
 			fd->type = FD_1440;
-			kdc_fd[fdu].kdc_description =
-				"1.44MB (1440K) 3.5in floppy disk drive";
 			break;
 		case RTCFDT_288M:
 		case RTCFDT_288M_1:
 			printf("2.88MB 3.5in - 1.44MB mode\n");
 			fd->type = FD_1440;
-			kdc_fd[fdu].kdc_description =
-				"2.88MB (2880K) 3.5in floppy disk drive in 1.44 mode";
 			break;
 		case RTCFDT_360K:
 			printf("360KB 5.25in\n");
 			fd->type = FD_360;
-			kdc_fd[fdu].kdc_description =
-				"360KB 5.25in floppy disk drive";
 			break;
 		case RTCFDT_720K:
 			printf("720KB 3.5in\n");
 			fd->type = FD_720;
-			kdc_fd[fdu].kdc_description =
-				"720KB 3.5in floppy disk drive";
 			break;
 #endif
 		default:
 			printf("unknown\n");
 			fd->type = NO_TYPE;
-			dev_detach(&kdc_fd[fdu]);
 			continue;
 		}
-		kdc_fd[fdu].kdc_state = DC_IDLE;
 #ifdef DEVFS
 		mynor = fdu << 6;
 		fd->bdevs[0] = devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK,
@@ -1139,9 +1020,6 @@ set_motor(fdcu_t fdcu, int fdsu, int turnon)
 	outb(fdc_data[fdcu].baseport+FDOUT, fdout);
 	DELAY(10);
 	fdc_data[fdcu].fdout = fdout;
-#ifndef PC98
-	kdc_fdc[fdcu].kdc_state = (fdout & FDO_FRST)? DC_BUSY: DC_IDLE;
-#endif
 	TRACE1("[0x%x->FDOUT]", fdout);
 
 	if(needspecify) {
@@ -1415,7 +1293,6 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 #endif
 	fd_data[fdu].ft = fd_types + type - 1;
 	fd_data[fdu].flags |= FD_OPEN;
-	kdc_fd[fdu].kdc_state = DC_BUSY;
 
 	return 0;
 }
@@ -1433,7 +1310,6 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 #endif
 	fd_data[fdu].flags &= ~FD_OPEN;
 	fd_data[fdu].options &= ~FDOPT_NORETRY;
-	kdc_fd[fdu].kdc_state = DC_IDLE;
 
 	return(0);
 }

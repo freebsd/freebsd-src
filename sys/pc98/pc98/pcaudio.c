@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.3 1996/08/31 15:07:08 asami Exp $
+ *	$Id: pcaudio.c,v 1.4 1996/09/03 10:23:50 asami Exp $
  */
 
 #include "pca.h"
@@ -38,7 +38,6 @@
 #include <sys/ioctl.h>
 #include <sys/file.h>
 #include <sys/proc.h>
-#include <sys/devconf.h>
 #include <sys/kernel.h>
 
 #include <machine/clock.h>
@@ -296,34 +295,11 @@ pcaprobe(struct isa_device *dvp)
 }
 
 
-static struct kern_devconf kdc_pca[NPCA] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"pca", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNKNOWN,		/* not supported */
-	"PC speaker audio driver"
-} };
-
-
-static inline void
-pca_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_pca[id->id_unit] = kdc_pca[0];
-	kdc_pca[id->id_unit].kdc_unit = id->id_unit;
-	kdc_pca[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_pca[id->id_unit]);
-}
-
-
 static int
 pcaattach(struct isa_device *dvp)
 {
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);
 	pca_init();
-	pca_registerdev(dvp);
 #ifdef DEVFS
 	pca_devfs_token = 
 		devfs_add_devswf(&pca_cdevsw, 0, DV_CHR, 0, 0, 0600, "pcaudio");

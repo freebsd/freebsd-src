@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.3 1996/08/31 15:06:33 asami Exp $
+ **      $Id: userconfig.c,v 1.4 1996/09/03 10:23:18 asami Exp $
  **/
 
 /**
@@ -198,25 +198,33 @@ static DEV_INFO device_info[] = {
 {"sbic",        "PC-9801-55 SCSI Interface",		0,		CLS_STORAGE},
 {"bs",          "PC-9801-55 SCSI Interface",        0, CLS_STORAGE},
 {"aic",        "Adaptec 152x SCSI and compatible sound cards", 0, CLS_STORAGE},
+{"ahc",         "Adaptec 274x/284x/294x SCSI controller",	0,	CLS_STORAGE},
+{"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
 {"wdc",         "IDE/ESDI/MFM disk controller",		0,		CLS_STORAGE},
 {"fdc",         "Floppy disk controller",		FLG_FIXED,	CLS_STORAGE},
 {"scd",         "Sony CD-ROM",				0,		CLS_STORAGE},
+{"mcd",         "Mitsumi CD-ROM",			0,		CLS_STORAGE},
 {"matcdc",       "Matsushita/Panasonic/Creative CDROM",	0,		CLS_STORAGE},
-{"wt",          "Wangtek/Archive QIC-02 Tape drive",	0,		CLS_STORAGE},
+
 {"ed",          "NS8390 Ethernet adapters",	0,	CLS_NETWORK},
+{"el",          "3C501 Ethernet adapter",		0,		CLS_NETWORK},
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"fe",         "Fujitsu MD86960A/MB869685A Ethernet adapters", 0, CLS_NETWORK},
 {"zp",          "3COM PCMCIA Etherlink III Ethernet adapter", 0, CLS_NETWORK},
+{"de",          "DEC DC21040 Ethernet adapter",		FLG_FIXED,	CLS_NETWORK},
+{"fpa",         "DEC DEFPA PCI FDDI adapter",		FLG_FIXED,	CLS_NETWORK},
+
 {"sio",         "8250/16450/16550 Serial port",		0,		CLS_COMMS},
+
 {"lpt",         "Parallel printer port",		0,		CLS_COMMS},
 {"mse",         "PC-9801 Bus Mouse",			0,		CLS_INPUT},
 {"sc",          "Syscons console driver",		FLG_FIXED,	CLS_INPUT},
 
 {"pcm",         "PC-9801-86 Sound Board",		0,		CLS_MMEDIA},
-{"mss",         "Microsoft Sound System",		0,		CLS_MMEDIA},
 {"sb",          "Soundblaster PCM (SB, SBPro, SB16, ProAudio Spectrum)",0,CLS_MMEDIA},
 {"sbxvi",       "Soundblaster 16",			0,		CLS_MMEDIA},
 {"sbmidi",      "Soundblaster MIDI interface",		0,		CLS_MMEDIA},
+{"mss",         "Microsoft Sound System",		0,		CLS_MMEDIA},
 {"opl",         "OPL-2/3 FM, Soundblaster, SBPro, SB16, ProAudio Spectrum",0,CLS_MMEDIA},
 {"mpu",         "Roland MPU401 MIDI",			0,		CLS_MMEDIA},
 {"pca",         "PC speaker PCM audio driver",	FLG_FIXED,		CLS_MMEDIA},
@@ -2194,7 +2202,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.43 1996/08/10 22:06:09 joerg Exp $
+ *      $Id: userconfig.c,v 1.4 1996/09/03 10:23:18 asami Exp $
  */
 
 #include "scbus.h"

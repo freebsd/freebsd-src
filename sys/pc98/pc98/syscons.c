@@ -25,12 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.6 1996/09/04 09:52:29 asami Exp $
+ *  $Id: syscons.c,v 1.166 1996/09/06 23:35:54 pst Exp $
  */
 
 #include "sc.h"
 #include "apm.h"
 #include "opt_ddb.h"
+#include "opt_syscons.h"
 
 #if NSC > 0
 #include <sys/param.h>
@@ -46,7 +47,6 @@
 #include <sys/syslog.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
-#include <sys/devconf.h>
 #ifdef	DEVFS
 #include <sys/devfsext.h>
 #endif
@@ -354,9 +354,12 @@ scprobe(struct isa_device *dev)
 	}
     }
 gotres:
-    if (retries < 0)
+    if (retries < 0) {
 	printf("scprobe: keyboard won't accept RESET command\n");
-    else {
+#ifdef	SC_KBD_PROBE_WORKS
+	return (0);
+#endif
+    } else {
 	i = 10;			/* At most 10 retries. */
 gotack:
 	DELAY(100);
@@ -366,8 +369,12 @@ gotack:
 	val = inb(KB_DATA);
 	if (val == KB_ACK && --i > 0)
 	    goto gotack;
-	if (val != KB_RESET_DONE)
+	if (val != KB_RESET_DONE) {
 	    printf("scprobe: keyboard RESET failed (result = 0x%02x)\n", val);
+#ifdef	SC_KBD_PROBE_WORKS
+	    return (0);
+#endif
+	}
     }
 #ifdef XT_KEYBOARD
     kbd_wait();
@@ -378,27 +385,6 @@ gotack:
 #endif /* XT_KEYBOARD */
     return (IO_KBDSIZE);
 #endif
-}
-
-static struct kern_devconf kdc_sc[NSC] = {
-    0, 0, 0,        		/* filled in by dev_attach */
-    "sc", 0, { MDDT_ISA, 0, "tty" },
-    isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-    &kdc_isa0,      		/* parent */
-    0,          		/* parentdata */
-    DC_BUSY,        		/* the console is almost always busy */
-    "Graphics console",
-    DC_CLS_DISPLAY		/* class */
-};
-
-static inline void
-sc_registerdev(struct isa_device *id)
-{
-    if(id->id_unit)
-	kdc_sc[id->id_unit] = kdc_sc[0];
-    kdc_sc[id->id_unit].kdc_unit = id->id_unit;
-    kdc_sc[id->id_unit].kdc_isa = id;
-    dev_attach(&kdc_sc[id->id_unit]);
 }
 
 #if NAPM > 0
@@ -560,7 +546,6 @@ scattach(struct isa_device *dev)
     scrn_timer();
 
     update_leds(scp->status);
-    sc_registerdev(dev);
 
     printf("sc%d: ", dev->id_unit);
 #ifdef PC98

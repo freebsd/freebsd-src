@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.3 1996/09/03 10:23:45 asami Exp $
+ * $Id: mse.c,v 1.4 1996/09/07 02:13:57 asami Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -54,7 +54,6 @@
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
 #include <sys/uio.h>
-#include <sys/devconf.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
@@ -255,27 +254,6 @@ static struct mse_types {
 	{ 0, },
 };
 
-static struct kern_devconf kdc_mse[NMSE] = { {
-	0, 0, 0,		/* filled in by dev_attach */
-	"mse", 0, { MDDT_ISA, 0, "tty" },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
-	&kdc_isa0,		/* parent */
-	0,			/* parentdata */
-	DC_UNCONFIGURED,	/* state */
-	"ATI or Logitech bus mouse adapter",
-	DC_CLS_MISC		/* class */
-} };
-
-static inline void
-mse_registerdev(struct isa_device *id)
-{
-	if(id->id_unit)
-		kdc_mse[id->id_unit] = kdc_mse[0];
-	kdc_mse[id->id_unit].kdc_unit = id->id_unit;
-	kdc_mse[id->id_unit].kdc_isa = id;
-	dev_attach(&kdc_mse[id->id_unit]);
-}
-
 int
 mseprobe(idp)
 	register struct isa_device *idp;
@@ -283,7 +261,6 @@ mseprobe(idp)
 	register struct mse_softc *sc = &mse_sc[idp->id_unit];
 	register int i;
 
-	mse_registerdev(idp);
 	/*
 	 * Check for each mouse type in the table.
 	 */
@@ -321,7 +298,6 @@ mseattach(idp)
 #endif
 
 	sc->sc_port = idp->id_iobase;
-	kdc_mse[unit].kdc_state = DC_IDLE;
 #ifdef	DEVFS
 	sc->devfs_token = 
 		devfs_add_devswf(&mse_cdevsw, unit << 1, DV_CHR, 0, 0, 
@@ -352,7 +328,6 @@ mseopen(dev, flags, fmt, p)
 	if (sc->sc_flags & MSESC_OPEN)
 		return (EBUSY);
 	sc->sc_flags |= MSESC_OPEN;
-	kdc_mse[MSE_UNIT(dev)].kdc_state = DC_BUSY;
 	sc->sc_obuttons = sc->sc_buttons = 0x7;
 	sc->sc_deltax = sc->sc_deltay = 0;
 	sc->sc_bytesread = PROTOBYTES;
@@ -382,7 +357,6 @@ mseclose(dev, flags, fmt, p)
 	s = spltty();
 	(*sc->sc_disablemouse)(sc->sc_port);
 	sc->sc_flags &= ~MSESC_OPEN;
-	kdc_mse[MSE_UNIT(dev)].kdc_state = DC_IDLE;
 	splx(s);
 	return(0);
 }
