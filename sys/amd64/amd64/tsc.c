@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.26 1994/11/05 23:55:07 bde Exp $
+ *	$Id: clock.c,v 1.27 1994/11/10 12:53:13 ache Exp $
  */
 
 /*
@@ -436,7 +436,6 @@ startrtclock()
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
 		printf("RTC BIOS diagnostic error %b\n", s, RTCDG_BITS);
-	writertc(RTC_DIAG, 0);
 }
 
 /*
