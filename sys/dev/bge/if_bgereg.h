@@ -1800,6 +1800,12 @@ struct bge_status_block {
 #define SK_SUBSYSID_9D41		0x4441
 
 /*
+ * Altima PCI vendor/device ID.
+ */
+#define ALTIMA_VENDORID			0x173b
+#define ALTIMA_DEVICE_AC1000		0x03e8
+
+/*
  * Offset of MAC address inside EEPROM.
  */
 #define BGE_EE_MAC_OFFSET		0x7C
