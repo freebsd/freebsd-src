@@ -127,9 +127,11 @@ SRCS+=	rmd_dgst.c rmd_one.c
 .if defined(WITH_RSA) && ${WITH_RSA} == YES
 SRCS+=	rsa_chk.c rsa_err.c rsa_gen.c rsa_lib.c rsa_none.c rsa_oaep.c \
 	rsa_pk1.c rsa_saos.c rsa_sign.c rsa_ssl.c
+.if (!defined(RSAREF) || ${RSAREF} != YES) && exists(${LCRYPTO_SRC}/rsa/rsa_eay.c)
+SRCS+=	rsa_eay.c				# native rsa
+.else
+SRCS+=	rsar_err.c rsaref.c rsaref_stubs.c	# external rsaref
 HDRS+=	../rsaref/rsaref.h
-.if !defined(RSAREF) || ${RSAREF} != YES
-SRCS+=	rsa_eay.c
 .endif
 .endif
 
@@ -214,7 +216,7 @@ beforeinstall: ${.OBJDIR}/openssl/opensslconf.h
 	${LCRYPTO_SRC}/mdc2 ${LCRYPTO_SRC}/objects ${LCRYPTO_SRC}/pem \
 	${LCRYPTO_SRC}/pkcs7 ${LCRYPTO_SRC}/pkcs12 ${LCRYPTO_SRC}/rand \
 	${LCRYPTO_SRC}/rc2 ${LCRYPTO_SRC}/rc4 ${LCRYPTO_SRC}/rc5 \
-	${LCRYPTO_SRC}/ripemd ${LCRYPTO_SRC}/rsa \
+	${LCRYPTO_SRC}/ripemd ${LCRYPTO_SRC}/rsa ${LCRYPTO_SRC}/../rsaref \
 	${LCRYPTO_SRC}/sha ${LCRYPTO_SRC}/stack ${LCRYPTO_SRC}/txt_db \
 	${LCRYPTO_SRC}/x509 ${LCRYPTO_SRC}/x509v3
 
