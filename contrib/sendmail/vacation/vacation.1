@@ -11,6 +11,8 @@
 .\"
 .\"	$Id: vacation.1,v 8.11.4.6 2000/12/29 18:12:23 gshapiro Exp $
 .\"
+.\" $FreeBSD$
+.\"
 .TH VACATION 1 "$Date: 2000/12/29 18:12:23 $"
 .SH NAME
 vacation
@@ -24,8 +26,10 @@ vacation
 .RB [ \-x ]
 .RB [ \-a
 .IR alias ]
+.RB [ \-d ]
 .RB [ \-f
 .IR database ]
+.RB [ \-l ]
 .RB [ \-m
 .IR message ]
 .RB [ \-s
@@ -59,6 +63,15 @@ Handle messages for
 in the same manner as those received for the user's
 login name.
 .TP
+.B \-d
+Send error/debug messages to stdout instead of syslog.
+Otherwise, fatal errors, such as calling
+.B vacation
+with incorrect arguments, or with non-existent
+.IR login s,
+are logged in the system log file, using
+syslog(8).
+.TP
 .BI \-f " filename"
 Use
 .I filename
@@ -78,6 +91,10 @@ file.
 Same as
 .B \-i
 (for backwards compatibility).
+.TP
+.B \-l
+List the content of the vacation database file including the address
+and the associated time of the last auto-response to that address.
 .TP
 .BI \-m " filename"
 Use
