@@ -24,10 +24,6 @@
  * $FreeBSD$
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The mn device requires the old pci compatibility shims"
-#endif
-
 /*
  * Stuff to describe the MUNIC32X and FALC54 chips.
  */
@@ -58,6 +54,10 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/ng_sample.h>
 #include <netgraph/netgraph.h>  
+
+#ifndef COMPAT_OLDPCI
+#error "The mn device requires the old pci compatibility shims"
+#endif
 
 static int mn_maxlatency = 1000;
 SYSCTL_INT(_debug, OID_AUTO, mn_maxlatency, CTLFLAG_RW, 

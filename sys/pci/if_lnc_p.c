@@ -20,10 +20,6 @@
  * $FreeBSD$
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The lnc device requires the old pci compatibility shims"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -32,6 +28,10 @@
 #include <pci/pcivar.h>
 
 #include "lnc.h"
+
+#ifndef COMPAT_OLDPCI
+#error "The lnc device requires the old pci compatibility shims"
+#endif
 
 #define PCI_DEVICE_ID_PCNet_PCI	0x20001022
 #define PCI_DEVICE_ID_PCHome_PCI 0x20011022
