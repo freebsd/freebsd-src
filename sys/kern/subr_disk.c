@@ -201,6 +201,8 @@ diskstrategy(struct bio *bp)
 		return;
 	}
 
+	KASSERT(dp->d_devsw != NULL, ("NULL devsw"));
+	KASSERT(dp->d_devsw->d_strategy != NULL, ("NULL d_strategy"));
 	dp->d_devsw->d_strategy(bp);
 	return;
 	
