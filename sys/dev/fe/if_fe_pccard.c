@@ -122,7 +122,6 @@ static driver_t fe_pccard_driver = {
 
 DRIVER_MODULE(fe, pccard, fe_pccard_driver, fe_devclass, 0, 0);
 
-
 static int fe_probe_mbh(device_t);
 static int fe_probe_tdk(device_t);
 
