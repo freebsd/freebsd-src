@@ -18,7 +18,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	to maximize performance.
 
 20040724:
-	The rc.d/loclpkg script now "does the right thing" with respect
+	The rc.d/localpkg script now "does the right thing" with respect
 	to ports rc.d scripts. The most disruptive change is that scripts
 	ending in *.sh are sourced in the same shell as rc.d/localpkg (as
 	opposed to a subshell) and may cause the script to end prematurely
