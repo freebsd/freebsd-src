@@ -83,6 +83,7 @@
 
 struct sabtty_softc {
 	device_t		sc_dev;
+	struct sab_softc	*sc_parent;
 	bus_space_tag_t		sc_bt;
 	bus_space_handle_t	sc_bh;
 	dev_t			sc_si;
@@ -122,6 +123,7 @@ struct sab_softc {
 	int			sc_irqrid;
 	struct resource		*sc_iores;
 	int			sc_iorid;
+	uint8_t			sc_ipc;
 };
 
 static int sab_probe(device_t dev);
@@ -130,6 +132,7 @@ static int sab_detach(device_t dev);
 
 static void sab_intr(void *vsc);
 static void sab_softintr(void *vsc);
+static void sab_shutdown(void *vsc);
 
 static int sabtty_probe(device_t dev);
 static int sabtty_attach(device_t dev);
@@ -328,18 +331,20 @@ sab_attach(device_t dev)
 	sc->sc_irqrid = irqrid;
 	sc->sc_bt = rman_get_bustag(iores);
 	sc->sc_bh = rman_get_bushandle(iores);
-	for (i = 0; i < SAB_NCHAN; i++)
-		child[i] = device_add_child(dev, "sabtty", i);
-	bus_generic_attach(dev);
-	for (i = 0; i < SAB_NCHAN; i++)
-		sc->sc_child[i] = device_get_softc(child[i]);
 
 	/* Set all pins, except DTR pins to be inputs */
 	SAB_WRITE(sc, SAB_PCR, ~(SAB_PVR_DTR_A | SAB_PVR_DTR_B));
 	/* Disable port interrupts */
 	SAB_WRITE(sc, SAB_PIM, 0xff);
 	SAB_WRITE(sc, SAB_PVR, SAB_PVR_DTR_A | SAB_PVR_DTR_B | SAB_PVR_MAGIC);
-	SAB_WRITE(sc, SAB_IPC, SAB_IPC_ICPL);
+	sc->sc_ipc = SAB_IPC_ICPL | SAB_IPC_VIS;
+	SAB_WRITE(sc, SAB_IPC, sc->sc_ipc);
+
+	for (i = 0; i < SAB_NCHAN; i++)
+		child[i] = device_add_child(dev, "sabtty", i);
+	bus_generic_attach(dev);
+	for (i = 0; i < SAB_NCHAN; i++)
+		sc->sc_child[i] = device_get_softc(child[i]);
 
 	swi_add(&tty_ithd, "tty:sab", sab_softintr, sc, SWI_TTY,
 	    INTR_TYPE_TTY, &sc->sc_softih);
@@ -349,6 +354,9 @@ sab_attach(device_t dev)
 		device_printf(sabtty_cons->sc_dev, "console, %d baud\n",
 		    sabtty_cons->sc_tty->t_ospeed);
 	}
+
+	EVENTHANDLER_REGISTER(shutdown_final, sab_shutdown, sc,
+	    SHUTDOWN_PRI_DEFAULT);
 
 	return (0);
 
@@ -403,6 +411,15 @@ sab_softintr(void *vsc)
 	sabtty_softintr(sc->sc_child[1]);
 }
 
+static void
+sab_shutdown(void *vsc)
+{
+	struct sab_softc *sc = vsc;
+
+	SAB_WRITE(sc, SAB_IPC, SAB_IPC_ICPL | SAB_IPC_VIS);
+	SAB_WRITE(sc, SAB_RFC, SAB_READ(sc, SAB_RFC) & ~SAB_RFC_RFDF);
+}
+
 static int
 sabtty_probe(device_t dev)
 {
@@ -423,7 +440,6 @@ sabtty_probe(device_t dev)
 static int
 sabtty_attach(device_t dev)
 {
-	struct sab_softc *parent;
 	struct sabtty_softc *sc;
 	struct tty *tp;
 	char mode[32];
@@ -436,8 +452,8 @@ sabtty_attach(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_init(&sc->sc_mtx, "sabtty", NULL, MTX_SPIN);
 	sc->sc_dev = dev;
-	parent = device_get_softc(device_get_parent(dev));
-	sc->sc_bt = parent->sc_bt;
+	sc->sc_parent = device_get_softc(device_get_parent(dev));
+	sc->sc_bt = sc->sc_parent->sc_bt;
 	sc->sc_rend = sc->sc_rbuf + SABTTY_RBUF_SIZE;
 	sc->sc_xend = sc->sc_xbuf + SABTTY_XBUF_SIZE;
 
@@ -445,12 +461,12 @@ sabtty_attach(device_t dev)
 	case 0:	/* port A */
 		sc->sc_pvr_dtr = SAB_PVR_DTR_A;
 		sc->sc_pvr_dsr = SAB_PVR_DSR_A;
-		sc->sc_bh = parent->sc_bh + SAB_CHAN_A;
+		sc->sc_bh = sc->sc_parent->sc_bh + SAB_CHAN_A;
 		break;
 	case 1:	/* port B */
 		sc->sc_pvr_dtr = SAB_PVR_DTR_B;
 		sc->sc_pvr_dsr = SAB_PVR_DSR_B;
-		sc->sc_bh = parent->sc_bh + SAB_CHAN_B;
+		sc->sc_bh = sc->sc_parent->sc_bh + SAB_CHAN_B;
 		break;
 	default:
 		return (ENXIO);
@@ -476,6 +492,7 @@ sabtty_attach(device_t dev)
 		DELAY(100000);
 		sabtty_reset(sc);
 
+		ttychars(tp);
 		if (sscanf(mode, "%d,%d,%c,%d,%c", &baud, &clen, &parity,
 		    &stop, &c) == 5) {
 			tp->t_ospeed = baud;
@@ -537,6 +554,8 @@ sabtty_intr(struct sabtty_softc *sc)
 {
 	uint8_t isr0, isr1;
 	int i, len = 0, needsoft = 0, clearfifo = 0;
+	int brk = 0;
+	uint8_t data;
 	uint8_t *ptr;
 
 	SABTTY_LOCK(sc);
@@ -563,7 +582,41 @@ sabtty_intr(struct sabtty_softc *sc)
 	if (len != 0) {
 		ptr = sc->sc_rput;
 		for (i = 0; i < len; i++) {
-			*ptr++ = SAB_READ(sc, SAB_RFIFO);
+			data = SAB_READ(sc, SAB_RFIFO);
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+			/*
+			 * Solaris implements a new BREAK which is initiated
+			 * by a character sequence CR ~ ^b which is similar
+			 * to a familiar pattern used on Sun servers by the
+			 * Remote Console.
+			 */
+#define	KEY_CR		13	/* CR '\r' */
+#define	KEY_TILDE	126	/* ~ */
+#define	KEY_CRTLB	2	/* ^B */
+
+			if ((sc->sc_flags & SABTTYF_CONS) != 0 &&
+			    (i & 1) == 0) {
+				static int state;
+				switch (data) {
+				case KEY_CR:
+					state = KEY_TILDE;
+					break;
+				case KEY_TILDE:
+					if (state == KEY_TILDE)
+						state = KEY_CRTLB;
+					else
+						state = 0;
+					break;
+				case KEY_CRTLB:
+					if (state == KEY_CRTLB)
+						brk = 1;
+				default:
+					state = 0;
+					break;
+				}
+			}
+#endif
+			*ptr++ = data;
 			if (ptr == sc->sc_rend)
 				ptr = sc->sc_rbuf;
 			if (ptr == sc->sc_rget) {
@@ -586,11 +639,6 @@ sabtty_intr(struct sabtty_softc *sc)
 		sc->sc_flags |= SABTTYF_CDCHG;
 		needsoft = 1;
 	}
-
-#if defined(DDB) && defined(BREAK_TO_DEBUGGER)
-	if ((isr1 & SAB_ISR1_BRKT) && (sc->sc_flags & SABTTYF_CONS))
-		Debugger("break");
-#endif
 
 	if (isr1 & SAB_ISR1_ALLS) {
 		if (sc->sc_flags & SABTTYF_TXDRAIN)
@@ -624,6 +672,12 @@ sabtty_intr(struct sabtty_softc *sc)
 	}
 
 	SABTTY_UNLOCK(sc);
+
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+	if (brk)
+		breakpoint();
+#endif
+	
 	return (needsoft);
 }
 
@@ -702,6 +756,8 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 
 		sabtty_reset(sc);
 		sabtty_param(sc, tp, &tp->t_termios);
+		sc->sc_parent->sc_ipc = SAB_IPC_ICPL;
+		SAB_WRITE(sc->sc_parent, SAB_IPC, sc->sc_parent->sc_ipc);
 		sc->sc_imr0 = SAB_IMR0_PERR | SAB_IMR0_FERR | SAB_IMR0_PLLA;
 		SAB_WRITE(sc, SAB_IMR0, sc->sc_imr0);
 		sc->sc_imr1 = SAB_IMR1_BRK | SAB_IMR1_ALLS | SAB_IMR1_XDU |
@@ -1106,7 +1162,7 @@ sabtty_tec_wait(struct sabtty_softc *sc)
 	}
 }
 
-void
+static void
 sabtty_reset(struct sabtty_softc *sc)
 {
 	/* power down */
@@ -1131,7 +1187,7 @@ sabtty_reset(struct sabtty_softc *sc)
 	SAB_READ(sc, SAB_ISR1);
 }
 
-void
+static void
 sabtty_flush(struct sabtty_softc *sc)
 {
 
@@ -1221,12 +1277,31 @@ sab_cndbctl(dev_t dev, int c)
 {
 }
 
+static void
+sabtty_cnopen(struct sabtty_softc *sc)
+{
+
+	SAB_WRITE(sc, SAB_IMR0, 0xff);
+	SAB_WRITE(sc, SAB_IMR1, 0xff);
+	SAB_WRITE(sc->sc_parent, SAB_IPC, sc->sc_parent->sc_ipc | SAB_IPC_VIS);
+}
+
+static void
+sabtty_cnclose(struct sabtty_softc *sc)
+{
+
+	SAB_WRITE(sc, SAB_IMR0, sc->sc_imr0);
+	SAB_WRITE(sc, SAB_IMR1, sc->sc_imr1);
+	SAB_WRITE(sc->sc_parent, SAB_IPC, sc->sc_parent->sc_ipc);
+}
+
 static int
 sabtty_cngetc(struct sabtty_softc *sc)
 {
 	uint8_t len;
 	uint8_t r;
 
+	sabtty_cnopen(sc);
 again:
 	do {
 		r = SAB_READ(sc, SAB_STAR);
@@ -1255,25 +1330,32 @@ again:
 	 */
 	sabtty_cec_wait(sc);
 	SAB_WRITE(sc, SAB_CMDR, SAB_CMDR_RMC);
+	sabtty_cnclose(sc);
 	return (r);
 }
 
 static int
 sabtty_cncheckc(struct sabtty_softc *sc)
 {
+	int8_t r;
 
+	r = -1;
+	sabtty_cnopen(sc);
 	if ((SAB_READ(sc, SAB_STAR) & SAB_STAR_RFNE) != 0)
-		return (sabtty_cngetc(sc));
-	return (-1);
+		r = sabtty_cngetc(sc);
+	sabtty_cnclose(sc);
+	return (r);
 }
 
 static void
 sabtty_cnputc(struct sabtty_softc *sc, int c)
 {
 
+	sabtty_cnopen(sc);
 	sabtty_tec_wait(sc);
 	SAB_WRITE(sc, SAB_TIC, c);
 	sabtty_tec_wait(sc);
+	sabtty_cnclose(sc);
 }
 
 static int
