@@ -749,7 +749,12 @@ struct SREGS *sregs;
 	Dump('>', (char *)regs, sizeof *regs);
 	Dump('>', (char *)sregs, sizeof *sregs);
 #ifdef	MSDOS
-	{ char buf[10];  gets(buf); }
+	{
+	    int ch;
+
+	    while ((ch = getchar()) != '\n' && ch != EOF)
+		;
+	}
 #endif	/* MSDOS */
     }
 }
