@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.31 1997/09/10 19:52:24 phk Exp $
+ * $Id: nfs.h,v 1.32 1997/10/12 20:25:38 phk Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -291,13 +291,13 @@ struct nfsstats {
 }
 
 /*
- * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.
- * What should be in this set is open to debate, but I believe that since
- * I/O system calls on ufs are never interrupted by signals the set should
- * be minimal. My reasoning is that many current programs that use signals
- * such as SIGALRM will not expect file I/O system calls to be interrupted
- * by them and break.
+ * Network address hash list element
  */
+union nethostaddr {
+	u_long had_inetaddr;
+	struct sockaddr *had_nam;
+};
+
 #ifdef KERNEL
 
 #ifdef MALLOC_DECLARE
@@ -313,6 +313,14 @@ MALLOC_DECLARE(M_NFSBIGFH);
 
 struct uio; struct buf; struct vattr; struct nameidata;	/* XXX */
 
+/*
+ * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.
+ * What should be in this set is open to debate, but I believe that since
+ * I/O system calls on ufs are never interrupted by signals the set should
+ * be minimal. My reasoning is that many current programs that use signals
+ * such as SIGALRM will not expect file I/O system calls to be interrupted
+ * by them and break.
+ */
 #define	NFSINT_SIGMASK	(sigmask(SIGINT)|sigmask(SIGTERM)|sigmask(SIGKILL)| \
 			 sigmask(SIGHUP)|sigmask(SIGQUIT))
 
@@ -383,14 +391,6 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 	(&(nmp)->nm_uidhashtbl[(uid) % NFS_MUIDHASHSIZ])
 #define	NFSNOHASH(fhsum) \
 	(&nfsnodehashtbl[(fhsum) & nfsnodehash])
-
-/*
- * Network address hash list element
- */
-union nethostaddr {
-	u_long had_inetaddr;
-	struct sockaddr *had_nam;
-};
 
 struct nfsuid {
 	TAILQ_ENTRY(nfsuid) nu_lru;	/* LRU chain */
