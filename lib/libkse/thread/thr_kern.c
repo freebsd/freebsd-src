@@ -411,7 +411,7 @@ _thread_kern_scheduler(struct kse_mailbox *km)
 			DBG_MSG("No runnable threads, idling.\n");
 			if (_kern_idle_running) {
 				DBG_MSG("kse_release");
-				kse_release();
+				kse_release(NULL);
 			}
 			_kern_idle_running = 1;
 			if ((pthread == NULL) ||
