@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.49 1996/10/02 08:09:09 jkh Exp $
+ **      $Id: userconfig.c,v 1.50 1996/10/03 01:01:01 jkh Exp $
  **/
 
 /**
@@ -219,7 +219,7 @@ static DEV_INFO device_info[] = {
 {"ep",          "3C509 Ethernet adapter",		0,		CLS_NETWORK},
 {"fe",          "Fujitsu MD86960A/MB869685A Ethernet adapters",	0,	CLS_NETWORK},
 {"fea",         "DEC DEFEA EISA FDDI adapter",		0,		CLS_NETWORK},
-{"fxp0",        "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
+{"fxp",         "Intel EtherExpress Pro/100B Ethernet adapter",	0,	CLS_NETWORK},
 {"ie",          "AT&T Starlan 10 and EN100, 3C507, NI5210 Ethernet adapters",0,CLS_NETWORK},
 {"ix",          "Intel EtherExpress Ethernet adapter",	0,		CLS_NETWORK},
 {"le",          "DEC Etherworks 2 and 3 Ethernet adapters",	0,	CLS_NETWORK},
@@ -2185,7 +2185,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.49 1996/10/02 08:09:09 jkh Exp $
+ *      $Id: userconfig.c,v 1.50 1996/10/03 01:01:01 jkh Exp $
  */
 
 #include "scbus.h"
