@@ -1543,12 +1543,12 @@ aio_suspend(struct proc *p, struct aio_suspend_args *uap)
 				}
 			}
 		}
+		splx(s);
 
 		ki->kaio_flags |= KAIO_WAKEUP;
 		error = tsleep(p, PRIBIO | PCATCH, "aiospn", timo);
-		splx(s);
 
-		if (error == EINTR) {
+		if (error == ERESTART || error == EINTR) {
 			zfree(aiol_zone, ijoblist);
 			zfree(aiol_zone, ujoblist);
 			return EINTR;
@@ -1606,6 +1606,16 @@ aio_error(struct proc *p, struct aio_error_args *uap)
 	s = splnet();
 
 	for (cb = TAILQ_FIRST(&ki->kaio_jobqueue); cb; cb = TAILQ_NEXT(cb,
+	    plist)) {
+		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
+		    jobref) {
+			p->p_retval[0] = EINPROGRESS;
+			splx(s);
+			return 0;
+		}
+	}
+
+	for (cb = TAILQ_FIRST(&ki->kaio_sockqueue); cb; cb = TAILQ_NEXT(cb,
 	    plist)) {
 		if (((intptr_t)cb->uaiocb._aiocb_private.kernelinfo) ==
 		    jobref) {
