@@ -31,12 +31,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/types.h>
 #include <ieeefp.h>
+#include <machine/sysarch.h>
+
+struct params {
+        u_int64_t mask;
+};
 
 fp_except
 fpgetmask()
 {
+        struct params p;
 
-	/* XXX */
-	abort();
+	sysarch(ALPHA_GET_FPMASK, (char *) &p);
+	return((fp_except) p.mask);
 }
