@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.205 1998/02/10 18:31:24 jkh Exp $
+ * $Id: install.c,v 1.206 1998/03/09 15:00:56 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -223,17 +223,16 @@ installInitial(void)
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return DITEM_FAILURE;
     }
-    else if (isDebug())
-	msgDebug("installInitial: Scribbled successfully on the disk(s)\n");
 
     if (!copySelf()) {
-	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
-		   "Aborting.");
+	msgConfirm("installInitial: Couldn't clone the boot floppy onto the\n"
+		   "root file system.  Aborting!");
 	return DITEM_FAILURE;
     }
 
     if (chroot("/mnt") == -1) {
-	msgConfirm("Unable to chroot to %s - this is bad!", "/mnt");
+	msgConfirm("installInitial: Unable to chroot to %s - this is bad!",
+		   "/mnt");
 	return DITEM_FAILURE;
     }
 
@@ -704,6 +703,9 @@ try_media:
 	if (need_bin && !(Dists & DIST_BIN))
 	    i = installFixup(self);
     }
+    /* When running as init, *now* it's safe to grab the rc.foo vars */
+    installEnvironment();
+
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
 
     return i | DITEM_RESTORE;
