@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id: Makefile.inc,v 1.18 1996/05/09 11:30:51 phk Exp $
+#	$Id: Makefile.inc,v 1.19 1996/05/28 16:24:53 phk Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/${MACHINE}/sys ${.CURDIR}/sys
@@ -33,8 +33,9 @@ ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
 	setregid.o setreuid.o setrlimit.o \
 	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
 	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
-	swapon.o symlink.o sync.o sysarch.o umask.o unlink.o unmount.o \
-	utimes.o vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
+	swapon.o symlink.o sync.o sysarch.o \
+	umask.o unlink.o unmount.o utimes.o utrace.o \
+	vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
 
 PSEUDO=	_exit.o _getlogin.o
 
