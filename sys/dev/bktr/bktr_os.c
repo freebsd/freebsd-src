@@ -333,7 +333,7 @@ bktr_attach( device_t dev )
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_TTY,
                                bktr_intr, bktr, &bktr->res_ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
@@ -702,12 +702,13 @@ bktr_mmap( dev_t dev, vm_offset_t offset, int nprot )
 	if (offset >= bktr->alloc_pages * PAGE_SIZE)
 		return( -1 );
 
-	return( i386_btop(vtophys(bktr->bigbuf) + offset) );
+	return( atop(vtophys(bktr->bigbuf) + offset) );
 }
 
 int bktr_poll( dev_t dev, int events, struct proc *p)
 {
 	int		unit;
+	int		s;
 	bktr_ptr_t	bktr;
 	int revents = 0; 
 
@@ -720,7 +721,7 @@ int bktr_poll( dev_t dev, int events, struct proc *p)
 		return (ENXIO);
 	}
 
-	disable_intr();
+	s = DISABLE_INTR;
 
 	if (events & (POLLIN | POLLRDNORM)) {
 
@@ -734,7 +735,7 @@ int bktr_poll( dev_t dev, int events, struct proc *p)
 		}
 	}
 
-	enable_intr();
+	ENABLE_INTR(s);
 
 	return (revents);
 }
@@ -882,7 +883,7 @@ bktr_attach( pcici_t tag, int unit )
 	/*
 	 * setup the interrupt handling routine
 	 */
-	pci_map_int(tag, bktr_intr, (void*) bktr, &net_imask);
+	pci_map_int(tag, bktr_intr, (void*) bktr, &tty_imask);
 
 
 	/* Update the Device Control Register */
