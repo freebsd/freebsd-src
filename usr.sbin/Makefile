@@ -2,13 +2,13 @@
 
 # XXX MISSING:		cron mkproto sa
 # XXX MISSING SOURCES:	ac quot
-# XXX TEMP. BROKEN:	iostat xntpd
-SUBDIR=	accton amd arp chown chroot cron dbsym dev_mkdb diskpart \
+# XXX TEMP. BROKEN:	iostat
+SUBDIR=	accton amd arp chown chroot cron crunch dbsym dev_mkdb diskpart \
 	edquota inetd kbdcontrol kgmon kvm_mkdb lpr lptcontrol \
-	mtree portmap pstat \
+	manctl mtree portmap pstat \
 	pwd_mkdb quotaon repquota routed rmt rtprio rwhod sendmail \
 	sliplogin sysctl syslogd tcpdump traceroute trpt vidcontrol \
-	vipw ypbind yppoll ypset
+	vipw xntpd ypbind yppoll ypset
 
 #
 # XNSrouted and trsp are of very marginal utility to anyone at this
