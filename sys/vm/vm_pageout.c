@@ -1143,9 +1143,12 @@ rescan0:
 			 * if the process is in a non-running type state,
 			 * don't touch it.
 			 */
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
 			}
+			mtx_exit(&sched_lock, MTX_SPIN);
 			/*
 			 * get the process size
 			 */
@@ -1459,9 +1462,12 @@ vm_daemon()
 			 * if the process is in a non-running type state,
 			 * don't touch it.
 			 */
+			mtx_enter(&sched_lock, MTX_SPIN);
 			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+				mtx_exit(&sched_lock, MTX_SPIN);
 				continue;
 			}
+			mtx_exit(&sched_lock, MTX_SPIN);
 			/*
 			 * get a limit
 			 */
