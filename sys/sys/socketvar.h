@@ -173,6 +173,7 @@ extern struct mtx accept_mtx;
 #define	SOCKBUF_OWNED(_sb)		mtx_owned(SOCKBUF_MTX(_sb))
 #define	SOCKBUF_UNLOCK(_sb)		mtx_unlock(SOCKBUF_MTX(_sb))
 #define	SOCKBUF_LOCK_ASSERT(_sb)	mtx_assert(SOCKBUF_MTX(_sb), MA_OWNED)
+#define	SOCKBUF_UNLOCK_ASSERT(_sb)	mtx_assert(SOCKBUF_MTX(_sb), MA_NOTOWNED)
 
 /*
  * Per-socket mutex: we reuse the receive socket buffer mutex for space
