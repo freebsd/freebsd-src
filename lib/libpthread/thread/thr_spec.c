@@ -38,6 +38,14 @@
 #include <pthread.h>
 #include "pthread_private.h"
 
+struct pthread_key {
+	spinlock_t	lock;
+	volatile int	allocated;
+	volatile int	count;
+	int		seqno;
+	void            (*destructor) ();
+};
+
 /* Static variables: */
 static	struct pthread_key key_table[PTHREAD_KEYS_MAX];
 
@@ -57,6 +65,7 @@ _pthread_key_create(pthread_key_t * key, void (*destructor) (void *))
 		if (key_table[(*key)].allocated == 0) {
 			key_table[(*key)].allocated = 1;
 			key_table[(*key)].destructor = destructor;
+			key_table[(*key)].seqno++;
 
 			/* Unlock the key table entry: */
 			_SPINUNLOCK(&key_table[*key].lock);
@@ -101,18 +110,20 @@ _thread_cleanupspecific(void)
 
 	for (itr = 0; itr < PTHREAD_DESTRUCTOR_ITERATIONS; itr++) {
 		for (key = 0; key < PTHREAD_KEYS_MAX; key++) {
-			if (curthread->specific_data_count) {
+			if (curthread->specific_data_count > 0) {
 				/* Lock the key table entry: */
 				_SPINLOCK(&key_table[key].lock);
 				destructor = NULL;
 
-				if (key_table[key].allocated) {
-					if (curthread->specific_data[key]) {
-						data = (void *) curthread->specific_data[key];
-						curthread->specific_data[key] = NULL;
-						curthread->specific_data_count--;
+				if (key_table[key].allocated &&
+				    (curthread->specific[key].data != NULL)) {
+					if (curthread->specific[key].seqno ==
+					    key_table[key].seqno) {
+						data = (void *) curthread->specific[key].data;
 						destructor = key_table[key].destructor;
 					}
+					curthread->specific[key].data = NULL;
+					curthread->specific_data_count--;
 				}
 
 				/* Unlock the key table entry: */
@@ -125,22 +136,28 @@ _thread_cleanupspecific(void)
 				if (destructor)
 					destructor(data);
 			} else {
-				free(curthread->specific_data);
-				curthread->specific_data = NULL;
+				free(curthread->specific);
+				curthread->specific = NULL;
 				return;
 			}
 		}
 	}
-	free(curthread->specific_data);
-	curthread->specific_data = NULL;
+	if (curthread->specific != NULL) {
+		free(curthread->specific);
+		curthread->specific = NULL;
+	}
 }
 
-static inline const void **
+static inline struct pthread_specific_elem *
 pthread_key_allocate_data(void)
 {
-	const void    **new_data;
-	if ((new_data = (const void **) malloc(sizeof(void *) * PTHREAD_KEYS_MAX)) != NULL) {
-		memset((void *) new_data, 0, sizeof(void *) * PTHREAD_KEYS_MAX);
+	struct pthread_specific_elem *new_data;
+
+	new_data = (struct pthread_specific_elem *)
+	    malloc(sizeof(struct pthread_specific_elem) * PTHREAD_KEYS_MAX);
+	if (new_data != NULL) {
+		memset((void *) new_data, 0,
+		    sizeof(struct pthread_specific_elem) * PTHREAD_KEYS_MAX);
 	}
 	return (new_data);
 }
@@ -154,18 +171,20 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 	/* Point to the running thread: */
 	pthread = _get_curthread();
 
-	if ((pthread->specific_data) ||
-	    (pthread->specific_data = pthread_key_allocate_data())) {
+	if ((pthread->specific) ||
+	    (pthread->specific = pthread_key_allocate_data())) {
 		if (key < PTHREAD_KEYS_MAX) {
 			if (key_table[key].allocated) {
-				if (pthread->specific_data[key] == NULL) {
+				if (pthread->specific[key].data == NULL) {
 					if (value != NULL)
 						pthread->specific_data_count++;
 				} else {
 					if (value == NULL)
 						pthread->specific_data_count--;
 				}
-				pthread->specific_data[key] = value;
+				pthread->specific[key].data = value;
+				pthread->specific[key].seqno =
+				    key_table[key].seqno;
 				ret = 0;
 			} else
 				ret = EINVAL;
@@ -186,11 +205,12 @@ _pthread_getspecific(pthread_key_t key)
 	pthread = _get_curthread();
 
 	/* Check if there is specific data: */
-	if (pthread->specific_data != NULL && key < PTHREAD_KEYS_MAX) {
+	if (pthread->specific != NULL && key < PTHREAD_KEYS_MAX) {
 		/* Check if this key has been used before: */
-		if (key_table[key].allocated) {
+		if (key_table[key].allocated &&
+		    (pthread->specific[key].seqno == key_table[key].seqno)) {
 			/* Return the value: */
-			data = (void *) pthread->specific_data[key];
+			data = (void *) pthread->specific[key].data;
 		} else {
 			/*
 			 * This key has not been used before, so return NULL
