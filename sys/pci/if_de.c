@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.14 1995/02/02 12:36:15 davidg Exp $
+ * $Id: if_de.c,v 1.15 1995/02/02 13:12:13 davidg Exp $
  *
  */
 
@@ -315,6 +315,7 @@ tulip_init(
 	    tulip_start(&sc->tulip_if);
 	}
 	sc->tulip_cmdmode |= TULIP_CMD_THRSHLD160;
+	sc->tulip_cmdmode |= TULIP_CMD_CAPTREFFCT;
 	*sc->tulip_csrs.csr_intr = sc->tulip_intrmask;
 	*sc->tulip_csrs.csr_command = sc->tulip_cmdmode;
     } else {
