@@ -51,10 +51,12 @@
 #define RBX_GDB 	0xf	/* -g */
 #define RBX_MUTE	0x10	/* -m */
 #define RBX_PAUSE	0x12	/* -p */
+#define RBX_NOINTR	0x1c	/* -n */
 #define RBX_DUAL	0x1d	/* -D */
 #define RBX_PROBEKBD	0x1e	/* -P */
-#define RBX_NOINTR	0x1f	/* -n */
+/* 0x1f is reserved for the historical RB_BOOTINFO option */
 
+/* pass: -a, -s, -r, -d, -c, -v, -h, -C, -g, -m, -p, -D */
 #define RBX_MASK	0x2005ffff
 
 #define PATH_CONFIG	"/boot.config"
@@ -109,7 +111,7 @@ static struct dsk {
 } dsk;
 static char cmd[512];
 static char kname[1024];
-static uint32_t opts = RB_BOOTINFO;
+static uint32_t opts = 0;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
