@@ -682,6 +682,8 @@ testsuite(int priv)
 		 */
 		if (getuid() != 0 && socktype == SOCK_RAW)
 			continue;
+		if (geteuid() != 0 && !priv && socktype == SOCK_RAW)
+			continue;
 
 		/*
 		 * XXXRW: On 5.3, this seems not to work for SOCK_RAW.
@@ -823,13 +825,13 @@ main(int argc, char *argv[])
 		if (seteuid(65534) != 0)
 			err(-1, "seteuid(65534)");
 		fprintf(stderr,
-		    "Running tests with ruid %d euid %d sock uid 0\n",
-		    getuid(), geteuid());
-		testsuite(PRIV_GETROOT);
-		fprintf(stderr,
 		    "Running tests with ruid %d euid %d sock uid 65534\n",
 		    getuid(), geteuid());
 		testsuite(PRIV_ASIS);
+		fprintf(stderr,
+		    "Running tests with ruid %d euid %d sock uid 0\n",
+		    getuid(), geteuid());
+		testsuite(PRIV_GETROOT);
 	}
 	fprintf(stderr, "PASS\n");
 	exit(0);
