@@ -59,7 +59,7 @@
       これにより DHCP を使ったネットワーク経由の起動が可能になっています. &merged;</para>
 
     <para arch="i386">&os; ブートローダに対して,
-      疑似フロッピの第一セクタに有効な MS-DOS BPB を想定している
+      疑似フロッピの第一セクタに変更のできる有効な MS-DOS BPB を想定している
       IBM BIOS での起動に対応するための修正が行なわれました.
       <!-- hrs: need to be revised here --></para>
 
@@ -398,7 +398,7 @@ hw.pcic.irq="0"</programlisting>
         Netgear GA620T 1000baseT ギガビットカードに対応しました.
         &merged;</para>
 
-      <para>The &man.xl.4; ドライバが
+      <para>&man.xl.4; ドライバが
         ラップトップで使われている 3Com 3C556 および
         3C556B MiniPCI アダプタに対応しました.
         &merged;</para>
@@ -567,7 +567,7 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para>&man.rc.conf.5; の標準設定において
-        TCP の RFC 1323 拡張が有効化されました.
+        TCP の RFC 1323 拡張が有効化されるようになりました.
         &merged;</para>
 
       <para>接続が確立される際, 三番目の SYN
@@ -656,11 +656,11 @@ hw.pcic.irq="0"</programlisting>
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para arch="i386">The &man.asr.4; ドライバが
+      <para arch="i386">&man.asr.4; ドライバが
         Adaptec 2000S, 2005S Zero-Channel RAID コントローラに対応しました.
         &merged;</para>
 
-      <para arch="i386">The &man.aac.4; ドライバが
+      <para arch="i386">&man.aac.4; ドライバが
         Adaptec SCSI RAID 5400S コントローラに対応しました.
         &merged;</para>
 
@@ -984,7 +984,7 @@ hw.pcic.irq="0"</programlisting>
         <title>KAME</title>
 
         <para>IPv6 スタックが KAME プロジェクトの
-          2001 年 5 月 28 日のスナップショットをベースとしたものになりました.
+          2001 年 5 月 28 日づけのスナップショットをベースとしたものになりました.
           この節の項目のほとんどは, それが取り込まれたことによるものです.
           KAME IPv6 スタックのユーザランドにおける更新情報は
           <xref linkend="kame-userland"> に書かれています.
@@ -1000,10 +1000,6 @@ hw.pcic.irq="0"</programlisting>
           Rijndael, SHA2 アルゴリズムを利用できるようになりました.
           特許の問題のため IPSec の RC5 対応は削除されています.
           &merged;</para>
-
-	<para>&man.stf.4; now conforms to RFC 3056; the
-	<literal>IFF_LINK2</literal> interface flag can be used to
-	control ingress filtering. &merged;</para>
 
 	<para>&man.stf.4; が RFC 3056 に準拠し,
           イングレスフィルタの制御を
@@ -1452,7 +1448,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para>ユーザランド &man.ppp.8; に対して,
       数多くの更新とバグ修正が加えられました.
-      &merged;</para
+      &merged;</para>
 
     <para>&man.make.1; において,
       <literal>:C///</literal> (正規表現置換),
@@ -1991,7 +1987,7 @@ hw.pcic.irq="0"</programlisting>
 
     <para><filename>libcrypt</filename> が Blowfish
       パスワードハッシュに対応しました.
-      &merged;</para
+      &merged;</para>
 
     <para><filename>libposix1e</filename> の関数が
       <filename>libc</filename> に統合されました.</para>
@@ -2038,7 +2034,7 @@ hw.pcic.irq="0"</programlisting>
       バグ修正が含まれます.</para>
 
     <para>&os; コンソールがウクライナ語に対応しました.
-      &merged;</para
+      &merged;</para>
 
     <para>ELF 動的リンカである &man.rtld.1; のパフォーマンスが向上しました.
       &merged;</para>
@@ -2253,7 +2249,7 @@ hw.pcic.irq="0"</programlisting>
       <para><application>cvs</application> がバージョン 1.11.1p1 に更新されました.
         &merged;</para>
 
-      <para>The &man.ee.1; <application>Easy Editor</application>
+      <para>&man.ee.1; <application>Easy Editor</application>
         がバージョン 1.4.2 に更新されました.
         &merged;</para>
 
@@ -2352,7 +2348,7 @@ hw.pcic.irq="0"</programlisting>
       <para><application>tcpdump</application> がバージョン
         3.6.3 に更新されました. &merged;</para>
 
-      <para>The &man.csh.1; シェルが &man.tcsh.1; に置き換えられました.
+      <para>&man.csh.1; シェルが &man.tcsh.1; に置き換えられました.
         ただし <command>csh</command> というコマンド名はそのまま使用できます.
         <application>tcsh</application> はバージョン 6.11 に更新されました.
         &merged;</para>
@@ -2369,7 +2365,7 @@ hw.pcic.irq="0"</programlisting>
           &os; Ports Collection で良く使われるユーティリティの一つです.
           以前はこれをインストールする複数の port/package が存在しましたが,
           <port>net/cvsup-bin</port> および <port>net/cvsupd-bin</port>
-          は廃止され, <port>net/cvsup</port> になりました.</para>
+          は廃止され, <port>net/cvsup</port> になりました. &merged;</para>
 
         <para>&os; Ports Collection の <port>net/cvsup</port>
           からインストールできる
@@ -2378,15 +2374,15 @@ hw.pcic.irq="0"</programlisting>
           (UNIX epoch から 1,000,000,000 秒後)
           以降のすべてのファイルのタイムスタンプに影響する,
           長い間存在していた (ただし表面化しなかった)
-          バグが修正されました.</para>
+          バグが修正されました. &merged;</para>
       </sect4>
 
       <sect4 id="kame-userland">
         <title>KAME</title>
 
-        <para>IPv6 スタックが KAME Project の 2001 年 5 月 28 日づけの
-          IPv6 スナップショットをベースとしたものになりました.
-          この節に書かれている内容のほとんどは, この import によるものです.
+        <para>IPv6 スタックが KAME プロジェクトの
+          2001 年 5 月 28 日づけのスナップショットをベースとしたものになりました.
+          この節の項目のほとんどは, それが取り込まれたことによるものです.
           KAME IPv6 スタックに関するカーネルへの変更点は
           <xref linkend="kame-kernel"> にあります.
             &merged;</para>
