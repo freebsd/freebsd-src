@@ -1696,20 +1696,8 @@ ciss_wait_request(struct ciss_request *cr, int timeout)
 	return(error);
 
     s = splcam();
-    while (cr->cr_flags & CISS_REQ_SLEEP) {
-	error = tsleep(cr, PCATCH, "cissREQ", (timeout * hz) / 1000);
-	/* 
-	 * On wakeup or interruption due to restartable activity, go
-	 * back and check to see if we're done.
-	 */
-	if ((error == 0) || (error == ERESTART)) {
-	    error = 0;
-	    continue;
-	}
-	/*
-	 * Timeout, interrupted system call, etc.
-	 */
-	break;
+    while ((cr->cr_flags & CISS_REQ_SLEEP) && (error != EWOULDBLOCK)) {
+	error = tsleep(cr, PRIBIO, "cissREQ", (timeout * hz) / 1000);
     }
     splx(s);
     return(error);
