@@ -97,59 +97,62 @@ __FBSDID("$FreeBSD$");
 #include "opt_maxmem.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/eventhandler.h>
-#include <sys/imgact.h>
-#include <sys/kdb.h>
-#include <sys/sysproto.h>
-#include <sys/ktr.h>
-#include <sys/signalvar.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
-#include <sys/pcpu.h>
-#include <sys/malloc.h>
-#include <sys/reboot.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
-#include <sys/mbuf.h>
-#include <sys/vmmeter.h>
-#include <sys/msgbuf.h>
+#include <sys/cpu.h>
+#include <sys/eventhandler.h>
 #include <sys/exec.h>
+#include <sys/imgact.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/ktr.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/msgbuf.h>
+#include <sys/mutex.h>
+#include <sys/pcpu.h>
+#include <sys/ptrace.h>
+#include <sys/reboot.h>
+#include <sys/signalvar.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/ucontext.h>
 #include <sys/uio.h>
-#include <sys/linker.h>
-#include <sys/cons.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+
 #include <net/netisr.h>
+
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/ptrace.h>
-#include <sys/ucontext.h>
-#include <machine/clock.h>
-#include <machine/md_var.h>
-#include <machine/fpu.h>
-#include <machine/pal.h>
-#include <machine/cpuconf.h>
-#include <machine/bootinfo.h>
-#include <machine/pcb.h>
-#include <machine/rpb.h>
-#include <machine/prom.h>
-#include <machine/chipset.h>
-#include <machine/vmparam.h>
-#include <machine/elf.h>
-#include <alpha/alpha/db_instruction.h>
-#include <sys/vnode.h>
-#include <machine/sigframe.h>
 
+#include <machine/bootinfo.h>
+#include <machine/chipset.h>
+#include <machine/clock.h>
+#include <machine/cpuconf.h>
+#include <machine/elf.h>
+#include <machine/fpu.h>
+#include <machine/md_var.h>
+#include <machine/pal.h>
+#include <machine/pcb.h>
+#include <machine/prom.h>
+#include <machine/rpb.h>
+#include <machine/sigframe.h>
+#include <machine/vmparam.h>
+
+#include <alpha/alpha/db_instruction.h>
 
 u_int64_t cycles_per_usec;
 u_int32_t cycles_per_sec;
@@ -1716,6 +1719,14 @@ sigreturn(struct thread *td,
 void
 cpu_boot(int howto)
 {
+}
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+
+	return (ENXIO);
 }
 
 /*

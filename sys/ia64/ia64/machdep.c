@@ -23,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
@@ -33,63 +34,70 @@
 #include "opt_msgbuf.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/eventhandler.h>
-#include <sys/kdb.h>
-#include <sys/sysproto.h>
-#include <sys/signalvar.h>
-#include <sys/imgact.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
-#include <sys/lock.h>
-#include <sys/pcpu.h>
-#include <sys/malloc.h>
-#include <sys/reboot.h>
+#include <sys/systm.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
-#include <sys/mbuf.h>
-#include <sys/vmmeter.h>
-#include <sys/msgbuf.h>
-#include <sys/exec.h>
-#include <sys/sysctl.h>
-#include <sys/uio.h>
-#include <sys/linker.h>
-#include <sys/random.h>
+#include <sys/bus.h>
 #include <sys/cons.h>
-#include <sys/uuid.h>
+#include <sys/cpu.h>
+#include <sys/eventhandler.h>
+#include <sys/exec.h>
+#include <sys/imgact.h>
+#include <sys/kdb.h>
+#include <sys/kernel.h>
+#include <sys/linker.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mbuf.h>
+#include <sys/msgbuf.h>
+#include <sys/pcpu.h>
+#include <sys/ptrace.h>
+#include <sys/random.h>
+#include <sys/reboot.h>
+#include <sys/signalvar.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
+#include <sys/sysproto.h>
+#include <sys/ucontext.h>
+#include <sys/uio.h>
+#include <sys/uuid.h>
+#include <sys/vmmeter.h>
+#include <sys/vnode.h>
+
+#include <ddb/ddb.h>
+
 #include <net/netisr.h>
+
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_pager.h>
-#include <sys/ptrace.h>
+
+#include <machine/bootinfo.h>
 #include <machine/clock.h>
 #include <machine/cpu.h>
-#include <machine/md_var.h>
-#include <machine/reg.h>
+#include <machine/efi.h>
+#include <machine/elf.h>
 #include <machine/fpu.h>
 #include <machine/mca.h>
+#include <machine/md_var.h>
+#include <machine/mutex.h>
 #include <machine/pal.h>
+#include <machine/pcb.h>
+#include <machine/reg.h>
 #include <machine/sal.h>
+#include <machine/sigframe.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
-#include <machine/bootinfo.h>
-#include <machine/mutex.h>
-#include <machine/vmparam.h>
-#include <machine/elf.h>
-#include <ddb/ddb.h>
-#include <sys/vnode.h>
-#include <sys/ucontext.h>
-#include <machine/sigframe.h>
-#include <machine/efi.h>
 #include <machine/unwind.h>
+#include <machine/vmparam.h>
+
 #include <i386/include/specialreg.h>
-#include <machine/pcb.h>
 
 u_int64_t processor_frequency;
 u_int64_t bus_frequency;
@@ -282,6 +290,17 @@ cpu_boot(int howto)
 {
 
 	ia64_efi_runtime->ResetSystem(EfiResetWarm, EFI_SUCCESS, 0, 0);
+}
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+
+	if (pcpu_find(cpu_id) == NULL || rate == NULL)
+		return (EINVAL);
+	*rate = processor_frequency;
+	return (0);
 }
 
 void
