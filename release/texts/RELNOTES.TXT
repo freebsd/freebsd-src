@@ -93,6 +93,17 @@ Support has been added for Joliet extensions on ISO 9660 filesystems.
 Only iso8859-1 characters (latin-1) are supported at this time, though.
 
 
+There have been a couple of kernel changes that will break the binary
+interface for clients of the CAM passthrough interface or the devstat(9)
+statistics interface.  These changes were made to fix some interface
+deficiencies.  We regret any inconvenience this will cause, but we
+anticipate that this will have minimal impact as there are no known
+commercial binary-only applications that use either interface.  This will
+require that programs that use those two interfaces be recompiled.  Ports
+that use the CAM interface include xmcd, tosha, SANE, cdrecord and cdda2wav.
+Ports that use the devstat interface include xsysinfo and xperfmon.
+
+
 1.2. SECURITY FIXES
 -------------------
 See ftp://ftp.freebsd.org/pub/FreeBSD/CERT/ for details:
@@ -130,6 +141,19 @@ syntax is the default.  See `man 5 hosts_options' for more information.
 Gdb has been updated to version 4.18 and is now part of the standard
 release for FreeBSD/alpha.
 
+Camcontrol now allows users to view the number of tagged openings for
+any given device, and allows users to set the number of tagged openings
+for any device that supports tagged queueing.
+
+Camcontrol also now allows users to change SCSI negotiation parameters
+(e.g. sync rate, offset, bus width, disconnection) for devices on certain
+controllers.  Note that this feature is only fully functional for Adaptec
+7xxx series controllers, Advansys narrow controllers and NCR/Symbios
+controllers.
+
+Systat, vmstat, and iostat now print out statistics in a more "interesting"
+order based on "importance" of the device vs. the probe order.
+
 
 2. Supported Configurations
 ---------------------------
@@ -154,7 +178,7 @@ ATA
 Adaptec 1535 ISA SCSI controllers
 Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
-Adaptec 274X/284X/2920C/294x/2950/3940/3950 (Narrow/Wide/Twin) series
+Adaptec 274X/284X/2920C/2930U2/294x/2950/3940/3950 (Narrow/Wide/Twin) series
 EISA/VLB/PCI SCSI controllers.
 Adaptec AIC7850, AIC7860, AIC7880, AIC789x, on-board SCSI controllers.
 
