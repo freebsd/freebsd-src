@@ -1151,6 +1151,16 @@ sndioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc * p)
 	*(int *) arg |= DSP_CAP_REALTIME ;
 	break ;
 
+    case SNDCTL_DSP_GETODELAY:
+	if (FULL_DUPLEX(d)) {
+		snd_dbuf *b = &(d->dbuf_out);
+		if (b->dl)
+			dsp_wr_dmaupdate( b );
+		*arg = b->total;
+	} else
+		ret = EINVAL;
+	break;
+
     case SOUND_PCM_READ_BITS:
 	if (d->play_fmt == AFMT_S16_LE)
 	    *(int *) arg = 16 ;
