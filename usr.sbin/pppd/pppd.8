@@ -1,5 +1,5 @@
 .\" manual page [] for pppd 2.0
-.\" $Id: pppd.8,v 1.9 1997/02/22 16:11:54 peter Exp $
+.\" $Id: pppd.8,v 1.10 1997/04/13 01:07:00 brian Exp $
 .\" SH section heading
 .\" SS subsection heading
 .\" LP paragraph
@@ -566,6 +566,11 @@ set of IP addresses that each user can use.  Typically, when using the
 \fBlogin\fR option, the secret in /etc/ppp/pap-secrets would be "", to
 avoid the need to have the same secret in two places.
 .LP
+Additional checks are performed when the \fBlogin\fR option is used.  
+If the file /etc/ppp/ppp.disabled exists, and the user is listed in it,
+the authentication fails.  If the file /etc/ppp/ppp.shells exists and 
+the user's normal login shell is not listed, the authentication fails.
+.LP
 Secrets are selected from the CHAP secrets file as follows:
 .TP 2
 *
@@ -682,6 +687,9 @@ process.  This signal acts as a toggle.
 .B /var/run/ppp\fIn\fB.pid \fR(BSD or Linux), \fB/etc/ppp/ppp\fIn\fB.pid \fR(others)
 Process-ID for \fIpppd\fR process on ppp interface unit \fIn\fR.
 .TP
+.B /var/run/tty\fIXn\fB.if \fR(BSD or Linux), \fB/etc/ppp/tty\fIXn\fB.if \fR(others)
+Interface for \fIpppd\fR process on serial device /dev/tty\fIXn\fR.
+.TP
 .B /etc/ppp/ip-up
 A program or script which is executed when the link is available for
 sending and receiving IP packets (that is, IPCP has come up).  It is
@@ -726,6 +734,13 @@ User default options, read before command-line options.
 .B /etc/ppp/options.\fIttyname
 System default options for the serial port being used, read after
 command-line options.
+.TP
+.B /etc/ppp/ppp.disabled
+Lists users who may not use the system password PAP authentication.
+.TP
+.B /etc/ppp/ppp.shells
+Lists user shells which are approved for system password PAP authentication
+logins.
 .SH SEE ALSO
 .IR chat(8),
 .IR ppp(8)
