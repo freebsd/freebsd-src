@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.94 1997/06/22 15:47:16 peter Exp $
+ * $Id: vm_object.c,v 1.95 1997/08/05 00:02:04 dyson Exp $
  */
 
 /*
@@ -127,10 +127,10 @@ static void	vm_object_cache_trim __P((void));
 
 int vm_object_cache_max;
 struct object_q vm_object_cached_list;
-static int vm_object_cached;
+static int vm_object_cached;		/* size of cached list */
 struct object_q vm_object_list;
 struct simplelock vm_object_list_lock;
-static long vm_object_count;
+static long vm_object_count;		/* count of all objects */
 vm_object_t kernel_object;
 vm_object_t kmem_object;
 static struct vm_object kernel_object_store;
