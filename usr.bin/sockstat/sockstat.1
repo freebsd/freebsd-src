@@ -35,7 +35,7 @@
 .Nd list open sockets
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46u
+.Op Fl 46clu
 .Sh DESCRIPTION
 The
 .Nm
@@ -47,13 +47,30 @@ The following options are available:
 Show AF_INET (IPv4) sockets.
 .It Fl 6
 Show AF_INET6 (IPv6) sockets.
+.It Fl c
+Show connected sockets.
+.It Fl l
+Show listening sockets.
 .It Fl u
 Show AF_LOCAL (Unix) sockets.
 .El
 .Pp
-If no option is specified,
+If neither
+.Fl 4 ,
+.Fl 6
+or
+.Fl u
+is specified,
 .Nm
-will list sockets of all three types.
+will list sockets in all three domains.
+.Pp
+If neither
+.Fl c
+or
+.Fl l
+is specified,
+.Nm
+will list both listening and connected sockets.
 .Pp
 The information listed for each
 socket is:
@@ -71,7 +88,7 @@ The transport protocol associated with the socket for Internet
 sockets, or the type of socket (stream or datagram) for Unix sockets.
 .It Li ADDRESS
 (Unix sockets only)
-For listening sockets, this is the filename of the socket.
+For bound sockets, this is the filename of the socket.
 For other sockets, it is the name, PID and file descriptor number of
 the peer, or "(none)" if the socket is neither bound nor connected.
 .It Li LOCAL ADDRESS
