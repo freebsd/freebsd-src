@@ -910,9 +910,6 @@ vm_object_shadow(object, offset, length)
 	     source->type == OBJT_SWAP))
 		return;
 
-	KASSERT((source->flags & OBJ_ONEMAPPING) == 0,
-		("vm_object_shadow: source object has OBJ_ONEMAPPING set.\n"));
-
 	/*
 	 * Allocate a new object with the given length
 	 */
