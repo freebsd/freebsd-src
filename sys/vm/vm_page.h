@@ -76,7 +76,6 @@
 #endif
 
 #include <vm/pmap.h>
-#include <machine/atomic.h>
 
 /*
  *	Management of resident (logical) pages.

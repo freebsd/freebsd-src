@@ -324,16 +324,14 @@ void
 vm_page_flag_set(vm_page_t m, unsigned short bits)
 {
 	GIANT_REQUIRED;
-	atomic_set_short(&(m)->flags, bits);
-	/* m->flags |= bits; */
+	m->flags |= bits;
 } 
 
 void
 vm_page_flag_clear(vm_page_t m, unsigned short bits)
 {
 	GIANT_REQUIRED;
-	atomic_clear_short(&(m)->flags, bits);
-	/* m->flags &= ~bits; */
+	m->flags &= ~bits;
 }
 
 void
@@ -384,14 +382,14 @@ void
 vm_page_io_start(vm_page_t m)
 {
 	GIANT_REQUIRED;
-	atomic_add_char(&(m)->busy, 1);
+	m->busy++;
 }
 
 void
 vm_page_io_finish(vm_page_t m)
 {
 	GIANT_REQUIRED;
-	atomic_subtract_char(&(m)->busy, 1);
+	m->busy--;
 	if (m->busy == 0)
 		vm_page_flash(m);
 }
