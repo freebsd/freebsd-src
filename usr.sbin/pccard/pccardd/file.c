@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: file.c,v 1.4 1996/04/18 04:25:13 nate Exp $
+ * $Id: file.c,v 1.5 1996/06/18 19:52:29 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,21 +58,19 @@ struct flags {
 	int     mask;
 };
 
-void    parsefile(void);
-char   *token(void);
-char   *getline(void);
-char   *next_tok(void);
-int     num_tok(void);
-void    error(char *);
-int     keyword(char *);
-struct allocblk *ioblk_tok(int);
-struct allocblk *memblk_tok(int);
-int     irq_tok(int);
-void    setflags(struct flags *, int *);
-struct driver *new_driver(char *);
+static void    parsefile(void);
+static char   *getline(void);
+static char   *next_tok(void);
+static int     num_tok(void);
+static void    error(char *);
+static int     keyword(char *);
+static int     irq_tok(int);
+static struct allocblk *ioblk_tok(int);
+static struct allocblk *memblk_tok(int);
+static struct driver *new_driver(char *);
 
-void    addcmd(struct cmd **cp);
-void    parse_card(void);
+static void    addcmd(struct cmd **cp);
+static void    parse_card(void);
 
 /*
  * Read a file and parse the pcmcia configuration data.
@@ -91,12 +89,13 @@ readfile(char *name)
 	parsefile();
 	for (cp = cards; cp; cp = cp->next) {
 		if (cp->config == 0)
-			fprintf(stderr, "warning: card %s(%s) has no valid configuration\n",
+			fprintf(stderr,
+			    "warning: card %s(%s) has no valid configuration\n",
 			    cp->manuf, cp->version);
 	}
 }
 
-void
+static void
 parsefile(void)
 {
 	int     i;
@@ -116,7 +115,8 @@ parsefile(void)
 					free(bp);
 					continue;
 				}
-				bit_nset(io_avail, bp->addr, bp->addr + bp->size - 1);
+				bit_nset(io_avail, bp->addr,
+					 bp->addr + bp->size - 1);
 				bp->next = pool_ioblks;
 				pool_ioblks = bp;
 			}
@@ -156,7 +156,7 @@ parsefile(void)
 /*
  *	Parse a card definition.
  */
-void
+static void
 parse_card(void)
 {
 	char   *man, *vers;
@@ -247,7 +247,7 @@ parse_card(void)
  *	Generate a new driver structure. If one exists, use
  *	that one after confirming the correct class.
  */
-struct driver *
+static struct driver *
 new_driver(char *name)
 {
 	struct driver *drvp;
@@ -279,7 +279,7 @@ new_driver(char *name)
 /*
  *	Parse one I/O block.
  */
-struct allocblk *
+static struct allocblk *
 ioblk_tok(int force)
 {
 	struct allocblk *io;
@@ -311,7 +311,7 @@ ioblk_tok(int force)
 /*
  *	Parse a memory block.
  */
-struct allocblk *
+static struct allocblk *
 memblk_tok(int force)
 {
 	struct allocblk *mem;
@@ -343,7 +343,7 @@ memblk_tok(int force)
  *	IRQ token. Must be number > 0 && < 16.
  *	If force is set, IRQ must exist, and can also be '?'.
  */
-int
+static int
 irq_tok(int force)
 {
 	int     i;
@@ -362,7 +362,7 @@ irq_tok(int force)
 /*
  *	search the table for a match.
  */
-int
+static int
 keyword(char *str)
 {
 	char  **s;
@@ -375,38 +375,10 @@ keyword(char *str)
 }
 
 /*
- *	Set/clear flags
- */
-void
-setflags(struct flags *flags, int *value)
-{
-	char   *s;
-	struct flags *fp;
-	int     set = 1;
-
-	do {
-		s = next_tok();
-		if (*s == '!') {
-			s++;
-			set = 0;
-		}
-		for (fp = flags; fp->name; fp++)
-			if (strcmp(s, fp->name) == 0) {
-				if (set)
-					*value |= fp->mask;
-				else
-					*value &= ~fp->mask;
-				break;
-			}
-	} while (fp->name);
-	pusht = 1;
-}
-
-/*
  *	addcmd - Append the command line to the list of
  *	commands.
  */
-void
+static void
 addcmd(struct cmd **cp)
 {
 	struct cmd *ncp;
@@ -421,7 +393,8 @@ addcmd(struct cmd **cp)
 	}
 
 }
-void
+
+static void
 error(char *msg)
 {
 	pusht = 1;
@@ -430,9 +403,9 @@ error(char *msg)
 	pusht = 1;
 }
 
-int     last_char;
+static int     last_char;
 
-int
+static int
 get(void)
 {
 	int     c;
@@ -473,7 +446,7 @@ get(void)
  *	Looks for a 'k' at the end of decimal numbers
  *	and multiplies by 1024.
  */
-int
+static int
 num_tok(void)
 {
 	char   *s = next_tok(), c;
@@ -543,9 +516,9 @@ num_tok(void)
 	return (val);
 }
 
-char   *_next_tok(void);
+static char   *_next_tok(void);
 
-char   *
+static char *
 next_tok(void)
 {
 	char   *s = _next_tok();
@@ -558,7 +531,7 @@ next_tok(void)
 /*
  *	get one token. Handles string quoting etc.
  */
-char   *
+static char *
 _next_tok(void)
 {
 	static char buf[1024];
@@ -598,12 +571,10 @@ _next_tok(void)
 			} else
 				*p++ = c;
 			break;
-/*
- *	Special characters that must be tokens on their own.
- */
 		case '-':
 		case '?':
 		case '*':
+			/* Special characters that are tokens on their own. */
 			if (instr)
 				*p++ = c;
 			else {
@@ -625,13 +596,14 @@ _next_tok(void)
 		}
 	}
 }
+
 /*
  *	get the rest of the line. If the
  *	last character scanned was a newline, then
  *	return an empty line. If this isn't checked, then
  *	a getline may incorrectly return the next line.
  */
-char   *
+static char *
 getline(void)
 {
 	char    buf[1024], *p = buf;
