@@ -28,7 +28,8 @@ INCSDIR=${INCLUDEDIR}/objc
 CFLAGS+= -fpic
 .endif
 
-CFLAGS+= -fgnu-runtime -DHAVE_GTHR_DEFAULT -DIN_GCC -DIN_TARGET_LIBS
+OBJCFLAGS= -fgnu-runtime ${CFLAGS}
+CFLAGS+= -DHAVE_GTHR_DEFAULT -DIN_GCC -DIN_TARGET_LIBS
 CFLAGS+= -I. -I${.CURDIR}/../../usr.bin/cc/cc_tools
 CFLAGS+= -I${OBJCDIR}/objc -I${OBJCDIR} 
 CFLAGS+= -I${GCCDIR}/config -I${GCCDIR}
