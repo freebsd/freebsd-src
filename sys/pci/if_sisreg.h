@@ -84,6 +84,14 @@
 #define NS_ANER			0x98
 #define NS_ANNPTR		0x9C
 
+#define NS_PHY_CR		0xE4
+#define NS_PHY_10BTSCR		0xE8
+#define NS_PHY_PAGE		0xCC
+#define NS_PHY_EXTCFG		0xF0
+#define NS_PHY_DSPCFG		0xF4
+#define NS_PHY_SDCFG		0xF8
+#define NS_PHY_TDATA		0xFC
+
 #define SIS_CSR_TX_ENABLE	0x00000001
 #define SIS_CSR_TX_DISABLE	0x00000002
 #define SIS_CSR_RX_ENABLE	0x00000004
@@ -205,9 +213,13 @@
 #define SIS_TXDMA_128BYTES	0x00600000
 #define SIS_TXDMA_256BYTES	0x00700000
 
-#define SIS_TXCFG	\
+#define SIS_TXCFG_100	\
 	(SIS_TXDMA_64BYTES|SIS_TXCFG_AUTOPAD|\
-	 SIS_TXCFG_FILL(64)|SIS_TXCFG_DRAIN(1500))
+	 SIS_TXCFG_FILL(64)|SIS_TXCFG_DRAIN(1536))
+
+#define SIS_TXCFG_10	\
+	(SIS_TXDMA_32BYTES|SIS_TXCFG_AUTOPAD|\
+	 SIS_TXCFG_FILL(64)|SIS_TXCFG_DRAIN(1536))
 
 #define SIS_RXCFG_DRAIN_THRESH	0x0000003E /* 8-byte units */
 #define SIS_RXCFG_DMABURST	0x00700000
@@ -373,6 +385,7 @@ struct sis_softc {
 	device_t		sis_miibus;
 	u_int8_t		sis_unit;
 	u_int8_t		sis_type;
+	u_int8_t		sis_link;
 	struct sis_list_data	*sis_ldata;
 	struct sis_ring_data	sis_cdata;
 	struct callout_handle	sis_stat_ch;
