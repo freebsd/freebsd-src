@@ -205,7 +205,9 @@ char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */
 int	returntosingle;		/* 1 => return to single user mode on exit */
 char	resolved;		/* cleared if unresolved changes => not clean */
+int	markclean;		/* mark file system clean when done */
 char	havesb;			/* superblock has been read */
+char	skipclean;		/* skip clean file systems if preening */
 int	fsmodified;		/* 1 => write done to file system */
 int	fsreadfd;		/* file descriptor for reading file system */
 int	fswritefd;		/* file descriptor for writing file system */
@@ -252,9 +254,6 @@ void		cacheino __P((struct dinode *dp, ino_t inumber));
 void		catch __P((int));
 void		catchquit __P((int));
 int		changeino __P((ino_t dir, char *name, ino_t newnum));
-int		checkfstab __P((int preen, int maxrun,
-			int (*docheck)(struct fstab *),
-			int (*chkit)(char *, char *, long, int)));
 int		chkrange __P((ufs_daddr_t blk, int cnt));
 void		ckfini __P((int markclean));
 int		ckinode __P((struct dinode *dp, struct inodesc *));
