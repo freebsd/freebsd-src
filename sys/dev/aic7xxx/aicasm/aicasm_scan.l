@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 
@@ -38,7 +40,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sysexits.h>
+#ifdef __linux__
+#include "../queue.h"
+#else
 #include <sys/queue.h>
+#endif
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
@@ -87,11 +93,20 @@ if[ \t]*\(		{
 				}
 			}
 <CEXPR>\n		{ ++yylineno; }
-<CEXPR>[^()\n]+		{
+<CEXPR>[^()\n]+	{
 				char *yptr = yytext;
 
-				while (*yptr != '\0')
-					*string_buf_ptr++ = *yptr++;
+				while (*yptr != '\0') {
+					/* Remove duplicate spaces */
+					if (*yptr == '\t')
+						*yptr = ' ';
+					if (*yptr == ' '
+					 && string_buf_ptr != string_buf
+					 && string_buf_ptr[-1] == ' ')
+						yptr++;
+					else 
+						*string_buf_ptr++ = *yptr++;
+				}
 			}
 
 {SPACE}			;
@@ -210,9 +225,7 @@ typedef struct include {
 SLIST_HEAD(, include) include_stack;
 
 void
-include_file(file_name, type)
-	char	*file_name;
-	include_type type;
+include_file(char *file_name, include_type type)
 {
 	FILE *newfile;
 	include_t *include;
