@@ -69,6 +69,7 @@ struct	udpstat {
 	u_long	udps_ipackets;		/* total input packets */
 	u_long	udps_hdrops;		/* packet shorter than header */
 	u_long	udps_badsum;		/* checksum error */
+	u_long	udps_nosum;		/* no checksum */
 	u_long	udps_badlen;		/* data length larger than packet */
 	u_long	udps_noport;		/* no socket on port */
 	u_long	udps_noportbcast;	/* of above, arrived as broadcast */
@@ -78,6 +79,8 @@ struct	udpstat {
 				/* output statistics: */
 	u_long	udps_opackets;		/* total output packets */
 	u_long	udps_fastout;		/* output packets on fast path */
+	/* of no socket on port, arrived as multicast */
+	u_long	udps_noportmcast;
 };
 
 /*
@@ -103,11 +106,19 @@ struct	udpstat {
 SYSCTL_DECL(_net_inet_udp);
 
 extern struct	pr_usrreqs udp_usrreqs;
+extern struct	inpcbhead udb;
 extern struct	inpcbinfo udbinfo;
+extern u_long	udp_sendspace;
+extern u_long	udp_recvspace;
+extern struct	udpstat udpstat;
+extern int	log_in_vain;
 
-void	 udp_ctlinput __P((int, struct sockaddr *, void *));
-void	 udp_init __P((void));
-void	 udp_input __P((struct mbuf *, int));
+void	udp_ctlinput __P((int, struct sockaddr *, void *));
+void	udp_init __P((void));
+void	udp_input __P((struct mbuf *, int));
+
+void	udp_notify __P((struct inpcb *inp, int errno));
+int	udp_shutdown __P((struct socket *so));
 #endif
 
 #endif

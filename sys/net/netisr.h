@@ -61,11 +61,12 @@
 #define	NETISR_NS	6		/* same as AF_NS */
 #define	NETISR_ISO	7		/* same as AF_ISO */
 #define	NETISR_CCITT	10		/* same as AF_CCITT */
-#define NETISR_ATALK    16              /* same as AF_APPLETALK */
+#define	NETISR_ATALK    16              /* same as AF_APPLETALK */
 #define	NETISR_ARP	18		/* same as AF_LINK */
-#define NETISR_IPX	23		/* same as AF_IPX */
+#define	NETISR_IPX	23		/* same as AF_IPX */
 #define	NETISR_ISDN	26		/* same as AF_E164 */
 #define	NETISR_PPP	27		/* PPP soft interrupt */
+#define	NETISR_IPV6	28		/* same as AF_INET6 */
 #define	NETISR_NATM	29		/* same as AF_NATM */
 #define	NETISR_NETGRAPH	31		/* same as AF_NETGRAPH */
 

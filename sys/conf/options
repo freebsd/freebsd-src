@@ -214,6 +214,7 @@ BOOTP_WIRED_TO		opt_bootp.h
 BRIDGE			opt_bdg.h
 MROUTING		opt_mrouting.h
 INET			opt_inet.h
+INET6			opt_inet.h
 IPDIVERT
 DUMMYNET		opt_ipdn.h
 IPFILTER_LKM		opt_ipfilter.h

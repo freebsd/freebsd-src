@@ -60,7 +60,6 @@
 
 struct	in_addr zeroin_addr;
 
-static void	in_pcbremlists __P((struct inpcb *));
 static void	in_rtchange __P((struct inpcb *, int));
 
 /*
@@ -889,7 +888,7 @@ in_pcbrehash(inp)
 /*
  * Remove PCB from various lists.
  */
-static void
+void
 in_pcbremlists(inp)
 	struct inpcb *inp;
 {
