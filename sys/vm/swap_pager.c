@@ -125,10 +125,15 @@ static struct swblock **swhash;
 static int swhash_mask;
 static int swap_async_max = 4;	/* maximum in-progress async I/O's	*/
 
-extern struct vnode *swapdev_vp;	/* from vm_swap.c */
+/* from vm_swap.c */
+extern struct vnode *swapdev_vp;
+extern struct swdevt *swdevt;
+extern int nswdev;
 
 SYSCTL_INT(_vm, OID_AUTO, swap_async_max,
         CTLFLAG_RW, &swap_async_max, 0, "Maximum running async swap ops");
+
+#define BLK2DEVIDX(blk) (nswdev > 1 ? blk / dmmax % nswdev : 0)
 
 /*
  * "named" and "unnamed" anon region objects.  Try to reduce the overhead
@@ -490,6 +495,8 @@ swp_pager_getswapspace(npages)
 		}
 	} else {
 		vm_swap_size -= npages;
+		/* per-swap area stats */
+		swdevt[BLK2DEVIDX(blk)].sw_used += npages;
 		swp_sizecheck();
 	}
 	return(blk);
@@ -517,6 +524,8 @@ swp_pager_freeswapspace(blk, npages)
 {
 	blist_free(swapblist, blk, npages);
 	vm_swap_size += npages;
+	/* per-swap area stats */
+	swdevt[BLK2DEVIDX(blk)].sw_used -= npages;
 	swp_sizecheck();
 }
 

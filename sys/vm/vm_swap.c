@@ -51,6 +51,7 @@
 #include <sys/lock.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_zone.h>
@@ -64,10 +65,13 @@
 #define NSWAPDEV	4
 #endif
 static struct swdevt should_be_malloced[NSWAPDEV];
-static struct swdevt *swdevt = should_be_malloced;
+struct swdevt *swdevt = should_be_malloced;
 static int nswap;		/* first block after the interleaved devs */
-static int nswdev = NSWAPDEV;
+int nswdev = NSWAPDEV;
 int vm_swap_size;
+static int ncswdev = 0;         /* # of configured swap devs */
+SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, 
+   &ncswdev, 0, "Number of swap devices");
 
 static int swapdev_strategy __P((struct vop_strategy_args *ap));
 struct vnode *swapdev_vp;
@@ -246,6 +250,8 @@ swaponvp(p, vp, dev, nblks)
 	swblk_t dvbase;
 	int error;
 	u_long aligned_nblks;
+	struct sysctl_oid *oid;
+	char name[11];
 
 	if (!swapdev_vp) {
 		error = getnewvnode(VT_NON, NULL, swapdev_vnodeop_p,
@@ -305,6 +311,7 @@ swaponvp(p, vp, dev, nblks)
 	sp->sw_device = dev;
 	sp->sw_flags |= SW_FREED;
 	sp->sw_nblks = nblks;
+	sp->sw_used = 0;
 
 	/*
 	 * nblks, nswap, and dmmax are PAGE_SIZE'd parameters now, not
@@ -327,6 +334,29 @@ swaponvp(p, vp, dev, nblks)
 		blist_free(swapblist, vsbase, blk);
 		vm_swap_size += blk;
 	}
+	/* 
+	 * Add sysctl entries for new swap area. XXX: if some day swap devices 
+	 * can be removed, add an oid member to swdevt.
+	 */
+	if (snprintf(name, sizeof(name), "swapdev%d", ncswdev) < sizeof(name)) {
+		oid = SYSCTL_ADD_NODE(NULL, SYSCTL_STATIC_CHILDREN(_vm), 
+		    OID_AUTO, name, CTLFLAG_RD, NULL, "Swap device stats");
+		if (oid != NULL) {
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, 
+			    "flags", CTLFLAG_RD, &sp->sw_flags, 0, "Flags");
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, 
+			    "nblks", CTLFLAG_RD, &sp->sw_nblks, 0, 
+			    "Number of blocks");
+			SYSCTL_ADD_INT(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, 
+			    "used", CTLFLAG_RD, &sp->sw_used, 0, 
+			    "Number of blocks in use");
+			SYSCTL_ADD_OPAQUE(NULL, SYSCTL_CHILDREN(oid), OID_AUTO, 
+			    "dev", CTLFLAG_RD, &sp->sw_dev, sizeof(sp->sw_dev), 
+			    "T,dev_t", "Device");
+		}
+	} else
+		printf("XXX: swaponvp() name buffer too small!\n");
+	ncswdev++;
 
 	return (0);
 }
