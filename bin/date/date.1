@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.20 1997/10/03 12:49:28 danny Exp $
+.\"	$Id: date.1,v 1.21 1997/10/03 18:09:17 wosch Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -43,14 +43,14 @@
 .Nd display or set date and time
 .Sh SYNOPSIS
 .Nm date
+.Op Fl nu
 .Op Fl d Ar dst
 .Op Fl r Ar seconds
 .Op Fl t Ar minutes_west
-.Op Fl nu
-.Op Cm + Ns Ar format
-.Op Fl v Ar [+|-]val[ymwdHM]
+.Op Fl v Ns Ar [+|-]val Ns Op ymwdHM
 .Ar ...
 .Op Fl f Ar fmt Ar date | [[[[yy]mm]dd]HH]MM[\&.ss]
+.Op Cm + Ns Ar format
 .Sh DESCRIPTION
 .Nm
 displays the current date and time when invoked without arguments.
