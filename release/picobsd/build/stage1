@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage1,v 1.2 1998/09/07 06:46:25 abial Exp $
+#	$Id: stage1,v 1.3 1998/09/11 13:14:25 abial Exp $
 #
 
 set -e
@@ -64,19 +64,19 @@ INODES=16000
 # You can save some space on MFS if you don't want so many inodes...
 if [ "${TYPE}" = "dial" ]
 then
-	INODES=10240
+	INODES=4096
 fi
 if [ "${TYPE}" = "router" ]
 then
-	INODES=12000
+	INODES=3072
 fi
 if [ "${TYPE}" = "net" ]
 then
-	INODES=16000
+	INODES=4096
 fi
 if [ "${TYPE}" = "isp" ]
 then
-	INODES=15000
+	INODES=4096
 fi
 newfs -i $INODES -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
 mount /dev/vn0c /mnt
