@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.37 1999/03/11 15:09:41 phk Exp $
+ * $Id: time.h,v 1.38 1999/04/25 08:59:55 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -121,11 +121,14 @@ struct timezone {
  * used in a safe way.  Such changes may be adopted with a delay of up to 1/HZ,
  * index one & two are used alternately for the actual timekeeping.
  *
- * `other' points to the opposite "work" timecounter, ie, in index one it
- *      points to index two and vice versa
+ * 'tc_avail' points to the next available (external) timecounter in a
+ *      circular queue.  This is only valid for index 0.
  *
- * `tweak' points to index zero.
+ * `tc_other' points to the next "work" timecounter in a circular queue,
+ *      i.e., for index i > 0 it points to index 1 + (i - 1) % NTIMECOUNTER.
+ *      We also use it to point from index 0 to index 1.
  *
+ * `tc_tweak' points to index 0.
  */
 
 struct timecounter;
@@ -151,6 +154,7 @@ struct timecounter {
 	u_int64_t		tc_offset_nano;
 	struct timeval		tc_microtime;
 	struct timespec		tc_nanotime;
+	struct timecounter	*tc_avail;
 	struct timecounter	*tc_other;
 	struct timecounter	*tc_tweak;
 };
