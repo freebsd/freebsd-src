@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)nohup.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: nohup.c,v 1.3 1999/05/22 06:57:22 hoek Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -86,17 +86,20 @@ main(argc, argv)
 void
 dofile()
 {
+	int append;
 	int fd;
 	char *p, path[MAXPATHLEN];
 
 #define	FILENAME	"nohup.out"
 	p = FILENAME;
+	append = !access(p, F_OK);
 	if ((fd = open(p, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR)) >= 0)
 		goto dupit;
 	if ((p = getenv("HOME"))) {
 		(void)strcpy(path, p);
 		(void)strcat(path, "/");
 		(void)strcat(path, FILENAME);
+		append = !access(path, F_OK);
 		if ((fd = open(p = path,
 		    O_RDWR|O_CREAT, S_IRUSR | S_IWUSR)) >= 0)
 			goto dupit;
@@ -106,7 +109,10 @@ dofile()
 dupit:	(void)lseek(fd, (off_t)0, SEEK_END);
 	if (dup2(fd, STDOUT_FILENO) == -1)
 		err(1, NULL);
-	(void)fprintf(stderr, "sending output to %s\n", p);
+	if (append)
+		(void)fprintf(stderr, "appending output to existing %s\n", p);
+	else
+		(void)fprintf(stderr, "sending output to %s\n", p);
 }
 
 void
