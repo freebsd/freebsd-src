@@ -1071,7 +1071,7 @@ sub home_create {
     print "Copy files from $dotdir to $homedir\n" if $verbose;
     system('cp', '-R', $dotdir, $homedir);
     system('chmod', '-R', 'u+wrX,go-w', $homedir);
-    system('chown', '-R', "$name:$group", $homedir);
+    system('chown', '-Rh', "$name:$group", $homedir);
 
     # security
     opendir(D, $homedir);
