@@ -172,7 +172,7 @@ ffs_snapshot(mp, snapfile)
 	 * Create the snapshot file.
 	 */
 restart:
-	NDINIT(&nd, CREATE, LOCKPARENT | LOCKLEAF, UIO_USERSPACE, snapfile, td);
+	NDINIT(&nd, CREATE, LOCKPARENT | LOCKLEAF, UIO_SYSSPACE, snapfile, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
