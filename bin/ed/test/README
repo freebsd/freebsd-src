@@ -37,5 +37,5 @@ i1-err.ed
 k1-err.ed
 r1-err.ed
 
-In addition, one of !1-err.ed or !2.ed will fail, depending on whether or
+In addition, one of bang1-err.ed or bang2.ed will fail, depending on whether or
 not ed was compiled with the VI_BANG directive.
