@@ -215,6 +215,10 @@ pfs_vncache_free(struct vnode *vp)
 
 /*
  * Free all vnodes associated with a defunct process
+ *
+ * XXXRW: It is unfortunate that pfs_exit() always acquires and releases two
+ * mutexes (one of which is Giant) for every process exit, even if procfs
+ * isn't mounted.
  */
 static void
 pfs_exit(void *arg, struct proc *p)
