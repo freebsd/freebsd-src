@@ -10,4 +10,4 @@ SYSDIR=	${_dir}
 .error "can't find kernel source tree"
 .endif
 
-.include "${SYSDIR}/kmod.mk"
+.include "${SYSDIR}/conf/kmod.mk"
