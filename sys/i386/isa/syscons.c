@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.140 1996/02/05 14:08:39 ache Exp $
+ *  $Id: syscons.c,v 1.141 1996/02/08 06:30:31 pst Exp $
  */
 
 #include "sc.h"
@@ -295,7 +295,6 @@ scattach(struct isa_device *dev)
 {
     scr_stat	*scp;
     int		vc;
-    char	name[32];
 
     scinit();
     configuration = dev->id_flags;
@@ -359,9 +358,8 @@ scattach(struct isa_device *dev)
 
 #ifdef DEVFS
     for ( vc = 0 ; vc < MAXCONS; vc++) {
-	sprintf(name,"ttyv%x", vc);
-        sc_devfs_token[vc] = devfs_add_devsw("/" ,name, &scdevsw, vc,
-					DV_CHR, 0, 0, 0600 );
+        sc_devfs_token[vc] = devfs_add_devswf(&scdevsw, vc,
+					DV_CHR, 0, 0, 0600, "ttyv%n", vc );
     }
 #endif
     {
