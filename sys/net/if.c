@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: if.c,v 1.2 1994/08/02 07:46:05 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -486,6 +486,10 @@ ifioctl(so, cmd, data, p)
 		ifr->ifr_metric = ifp->if_metric;
 		break;
 
+	case SIOCGIFMTU:
+		ifr->ifr_mtu = ifp->if_mtu;
+		break;
+
 	case SIOCSIFFLAGS:
 		if (error = suser(p->p_ucred, &p->p_acflag))
 			return (error);
@@ -510,6 +514,13 @@ ifioctl(so, cmd, data, p)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
 		break;
+
+	case SIOCSIFMTU:
+		if (error = suser(p->p_ucred, &p->p_acflag))
+			return (error);
+		if (ifp->if_ioctl == NULL)
+			return (EOPNOTSUPP);
+		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
