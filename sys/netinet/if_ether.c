@@ -980,6 +980,6 @@ arp_init(void)
 	mtx_init(&arpintrq.ifq_mtx, "arp_inq", NULL, MTX_DEF);
 	LIST_INIT(&llinfo_arp);
 	callout_init(&arp_callout, CALLOUT_MPSAFE);
-	netisr_register(NETISR_ARP, arpintr, &arpintrq);
+	netisr_register(NETISR_ARP, arpintr, &arpintrq, NETISR_MPSAFE);
 }
 SYSINIT(arp, SI_SUB_PROTO_DOMAIN, SI_ORDER_ANY, arp_init, 0);

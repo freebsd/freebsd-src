@@ -334,7 +334,7 @@ ip_init()
 #endif
 	ipintrq.ifq_maxlen = ipqmaxlen;
 	mtx_init(&ipintrq.ifq_mtx, "ip_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IP, ip_input, &ipintrq);
+	netisr_register(NETISR_IP, ip_input, &ipintrq, NETISR_MPSAFE);
 }
 
 /*
@@ -1009,6 +1009,7 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 	 * Switch out to protocol's input routine.
 	 */
 	ipstat.ips_delivered++;
+	NET_PICKUP_GIANT();
 	if (args.next_hop && ip->ip_p == IPPROTO_TCP) {
 		/* TCP needs IPFORWARD info if available */
 		struct m_hdr tag;
@@ -1022,6 +1023,7 @@ DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
 			(struct mbuf *)&tag, hlen);
 	} else
 		(*inetsw[ip_protox[ip->ip_p]].pr_input)(m, hlen);
+	NET_DROP_GIANT();
 	return;
 bad:
 	m_freem(m);

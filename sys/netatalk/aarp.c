@@ -312,6 +312,8 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
     int			op;
     u_short		net;
 
+    GIANT_REQUIRED;
+
     ea = mtod( m, struct ether_aarp *);
 
     /* Check to see if from my hardware address */

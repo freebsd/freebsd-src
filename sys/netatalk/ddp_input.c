@@ -39,6 +39,7 @@ static void     ddp_input(struct mbuf *, struct ifnet *, struct elaphdr *, int);
 void
 at2intr(struct mbuf *m)
 {
+	GIANT_REQUIRED;
 
 	/*
 	 * Phase 2 packet handling 
@@ -65,6 +66,8 @@ at1intr(struct mbuf *m)
 	 */
 	elhp = mtod(m, struct elaphdr *);
 	m_adj(m, SZ_ELAPHDR);
+
+	GIANT_REQUIRED;
 
 	if (elhp->el_type == ELAP_DDPEXTEND) {
 		ddp_input(m, m->m_pkthdr.rcvif, NULL, 1);

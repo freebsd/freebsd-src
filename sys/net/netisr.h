@@ -91,7 +91,8 @@ typedef void netisr_t (struct mbuf *);
   
 void	netisr_dispatch(int, struct mbuf *);
 int	netisr_queue(int, struct mbuf *);
-void	netisr_register(int, netisr_t *, struct ifqueue *);
+#define	NETISR_MPSAFE	0x0001		/* ISR does not need Giant */
+void	netisr_register(int, netisr_t *, struct ifqueue *, int);
 void	netisr_unregister(int);
 
 #endif

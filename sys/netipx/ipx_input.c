@@ -119,7 +119,7 @@ ipx_init()
 
 	ipxintrq.ifq_maxlen = ipxqmaxlen;
 	mtx_init(&ipxintrq.ifq_mtx, "ipx_inq", NULL, MTX_DEF);
-	netisr_register(NETISR_IPX, ipxintr, &ipxintrq);
+	netisr_register(NETISR_IPX, ipxintr, &ipxintrq, 0);
 }
 
 /*
@@ -132,6 +132,8 @@ ipxintr(struct mbuf *m)
 	register struct ipxpcb *ipxp;
 	struct ipx_ifaddr *ia;
 	int len;
+
+	GIANT_REQUIRED;
 
 	/*
 	 * If no IPX addresses have been set yet but the interfaces
