@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 2.0.0.8 94/08/21 19:57:39 wolf Exp $
+**  $Id: pci.c,v 1.2 1994/09/01 02:01:34 se Exp $
 **
 **  General subroutines for the PCI bus on 80*86 systems.
 **  pci_configure ()
@@ -35,7 +35,12 @@
 **
 **-------------------------------------------------------------------------
 **
-**  $Log:	pci.c,v $
+**  $Log: pci.c,v $
+ * Revision 1.2  1994/09/01  02:01:34  se
+ * Submitted by:	Wolfgang Stanglmeier <wolf@dentaro.GUN.de>
+ * Merged in changes required for NetBSD support (by mycroft@gnu.ai.mit.edu)
+ * and support for multiple NCR chips.
+ *
 **  Revision 2.0.0.8  94/08/21  19:57:39  wolf
 **  Unneeded declarations removed (FreeBSD2.0)
 **  
@@ -104,10 +109,9 @@
 **========================================================
 */
 
-#include <types.h>
-#include <cdefs.h>
-#include <errno.h>
-#include <param.h>
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/errno.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -122,15 +126,13 @@
 
 
 char ident_pci_c[] =
-	"\n$Id: pci.c,v 2.0.0.8 94/08/21 19:57:39 wolf Exp $\n"
+	"\n$Id: pci.c,v 1.2 1994/09/01 02:01:34 se Exp $\n"
 	"Copyright (c) 1994, Wolfgang Stanglmeier\n";
 
 /*
 **	Function prototypes missing in system headers
 */
 
-extern int printf();
-extern int ffs();
 #if ! (__FreeBSD__ >= 2)
 extern pmap_t pmap_kernel(void);
 #endif
@@ -273,7 +275,7 @@ void pci_configure()
 #ifndef PCI_QUIET
 	printf ("PCI configuration mode %d.\n", pci_mode);
 	printf ("Scanning device 0..%d on pci bus 0..%d "
-		"($Revision: 2.0.0.8 $)\n",
+		"($Revision: 1.2 $)\n",
 		last_device, last_bus);
 #endif
 
@@ -288,34 +290,67 @@ void pci_configure()
 		**	lookup device in ioconfiguration:
 		*/
 
-		for (dvp = pci_devtab; drp=dvp->pd_driver; dvp++) {
-			if (drp->device_id == type) break;
+		for (dvp = pci_devtab; dvp->pd_device_id; dvp++) {
+			if (dvp->pd_device_id == type) break;
 		};
+		drp = dvp->pd_driver;
 
-#ifdef PCI_QUIET
-		if (!drp) continue;
-#endif
-		printf ("on pci%d:%d ", bus, device);
+		if (!dvp->pd_device_id) {
+			int data = pci_conf_read(tag, PCI_CLASS_REV_REG);
+			enum pci_majclass class = PCI_MAJCLASS_OF(data);
+			vm_offset_t va;
+			vm_offset_t pa;
+			int reg;
+
+			switch(class) {
+			      case PCI_MJC_OLD:
+				if(PCI_MINCLASS_OF(data) != PCI_MIN_OVGA)
+				  break;
+			      case PCI_MJC_DISPLAY:
+				for (reg = PCI_MAP_REG_START;
+				     reg < PCI_MAP_REG_END;
+				     reg += 4) {
+					data = pci_map_mem(tag, reg, &va, &pa);
+					if(data == 0)
+					  printf(
+"pci%d:%d: mapped VGA-like device at physaddr %lx\n",
+						 bus, device, (u_long)pa);
+
+				}
+				continue;
+			      default:
 #ifndef PCI_QUIET
-		if (!drp) {
-			not_supported (tag, type);
-			continue;
-		};
+				printf("pci%d:%d: ", bus, device);
+				not_supported (tag, type);
 #endif
+			}
+		}
+
+		if (!drp) {
+			if(dvp->pd_flags & PDF_LOADABLE) {
+				printf("%s: loadable device on pci%d:%d\n",
+				       dvp->pd_name, bus, device);
+			}
+			continue;
+		}
 
 		/*
 		**	found it.
 		**	probe returns the device unit.
 		*/
-
-		printf ("<%s>", drp -> vendor);
-
 		unit = (*drp->probe) (tag);
 
 		if (unit<0) {
-			printf (" probe failed.\n");
+			printf ("%s <%s>: probe failed on pci%d:%d\n",
+				drp->name, drp->vendor, bus, device);
 			continue;
 		};
+
+		if (drp->name) {
+			printf ("%s%d <%s>", drp->name, unit, drp->vendor);
+		} else {
+			printf ("pci%d: <%s>", bus, drp->vendor);
+		}
 
 		/*
 		**	install interrupts
@@ -337,8 +372,8 @@ void pci_configure()
 				for (idx = 0; idx < NPCI; idx++) {
 					if (pcidata[idx].isanum == isanum)
 						break;
-				};
-			};
+				}
+			}
 
 			/*
 			**	Or believe to the interrupt pin register.
@@ -362,8 +397,8 @@ void pci_configure()
 				pcidata[idx].number=entry;
 			} else {
 				printf (" not installed");
-			};
-		};
+			}
+		}
 
 		/*
 		**	enable memory access
@@ -372,19 +407,20 @@ void pci_configure()
 			& 0xffff | PCI_COMMAND_MEM_ENABLE;
 		pci_conf_write (tag, (u_char) PCI_COMMAND_STATUS_REG, data);
 
+		printf (" on pci%d:%d\n", bus, device);
+
 		/*
 		**	attach device
 		**	may produce additional log messages,
 		**	i.e. when installing subdevices.
 		*/
-
-		printf (" as %s%d\n", drp->name,unit);
 		(void) (*drp->attach) (tag);
+	}
 
-	};
-
-	printf ("pci uses physical addresses from %x to %x\n",
-			PCI_PMEM_START, pci_paddr);
+#ifndef PCI_QUIET
+	printf ("pci uses physical addresses from %lx to %lx\n",
+			(u_long)PCI_PMEM_START, (u_long)pci_paddr);
+#endif
 }
 
 /*-----------------------------------------------------------------------
@@ -455,24 +491,8 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 
 	vsize = round_page (-(data &  PCI_MAP_MEMORY_ADDRESS_MASK));
 
-	printf ("          memory size=0x%x", vsize);
-
 	if (!vsize) return (EINVAL);
 
-	/*
-	**	try to map device to virtual space
-	*/
-
-	vaddr  = vm_map_min (kernel_map);
-
-	result = vm_map_find (kernel_map, (void*)0, (vm_offset_t) 0,
-				&vaddr, vsize, TRUE);
-
-	if (result != KERN_SUCCESS) {
-		printf (" vm_map_find failed(%d)\n", result);
-		return (ENOMEM);
-	};
-
 	/*
 	**	align physical address to virtual size
 	*/
@@ -480,11 +500,16 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	if (data = pci_paddr % vsize)
 		pci_paddr += vsize - data;
 
+	vaddr = pmap_mapdev (pci_paddr, vsize);
+
+#if 0
 	/*
 	**	display values.
 	*/
 
-	printf (" virtual=0x%x physical=0x%x\n", vaddr, pci_paddr);
+	printf (" virtual=0x%lx physical=0x%lx\n", (u_long)vaddr, 
+		(u_long)pci_paddr);
+#endif
 
 	/*
 	**	return them to the driver
@@ -498,18 +523,6 @@ int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa)
 	*/
 
 	pci_conf_write (tag, reg, pci_paddr);
-
-	/*
-	**	map physical
-	*/
-
-	while (vsize >= NBPG) {
-		pmap_enter (pmap_kernel(), vaddr, pci_paddr,
-				VM_PROT_READ|VM_PROT_WRITE, TRUE);
-		vaddr     += NBPG;
-		pci_paddr += NBPG;
-		vsize     -= NBPG;
-	};
 
 	return (0);
 }
@@ -542,6 +555,11 @@ static struct dt DeviceTable[] = {
 	{0x04A38086, " 82434LX pci cache memory controller"},
 	{0,0}
 };
+
+static const char *const majclasses[] = {
+	"old", "storage", "network", "display", "multimedia", "memory",
+	"bridge" 
+};
 
 void not_supported (pcici_t tag, u_long type)
 {
@@ -567,10 +585,14 @@ void not_supported (pcici_t tag, u_long type)
 	*/
 
 	if (vp->ident) printf (vp->name);
-		else   printf ("vendor=%x", type & 0xffff);
+		else   printf ("vendor=%lx", type & 0xffff);
 
 	if (dp->ident) printf (dp->name);
-		else   printf (", device=%x", type >> 16);
+		else   printf (", device=%lx", type >> 16);
+
+	data = pci_conf_read(tag, PCI_CLASS_REV_REG);
+	if (PCI_MAJCLASS_OF(data) < sizeof(majclasses) / sizeof(majclasses[0]))
+		printf(", class=%s", majclasses[PCI_MAJCLASS_OF(data)]);
 
 	printf (" [not supported]\n");
 
@@ -581,18 +603,18 @@ void not_supported (pcici_t tag, u_long type)
 
 		case 1:
 		case 5:
-			printf ("	map(%x): io(%x)\n", reg, data & ~3);
+			printf ("	map(%lx): io(%lx)\n", reg, data & ~3);
 			break;
 		case 0:
-			printf ("	map(%x): mem32(%x)\n", reg, data & ~7);
+			printf ("	map(%lx): mem32(%lx)\n", reg, data & ~7);
 			break;
 		case 2:
-			printf ("	map(%x): mem20(%x)\n", reg, data & ~7);
+			printf ("	map(%lx): mem20(%lx)\n", reg, data & ~7);
 			break;
 		case 4:
-			printf ("	map(%x): mem64(%x)\n", reg, data & ~7);
+			printf ("	map(%lx): mem64(%lx)\n", reg, data & ~7);
 			break;
-		};
-	};
+		}
+	}
 }
 #endif
