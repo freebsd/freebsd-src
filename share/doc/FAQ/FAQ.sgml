@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.17 1996/12/21 00:11:58 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.18 1996/12/21 03:00:26 alex Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1996/12/21 00:11:58 $
+<date>$Date: 1996/12/21 03:00:26 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -452,7 +452,7 @@ Any entries with a &lt;XXX&gt; are under construction.
           and changes requested by users with help of the <url
           url="http://www.freebsd.org/send-pr.html" name="send-pr">
           command can be reached at
-          <url url="http://www.freebsd.org/cgi-bin/query-pr-summary.cgi"
+          <url url="http://www.freebsd.org/cgi/query-pr-summary.cgi"
           name="PR Database Summary">
 
       <sect1>
