@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.4 (Berkeley) 2/23/94
- * $Id: systm.h,v 1.3 1994/08/02 07:53:44 davidg Exp $
+ * $Id: systm.h,v 1.4 1994/08/04 06:15:10 davidg Exp $
  */
 
 #include <machine/cpufunc.h>
@@ -63,7 +63,7 @@
  * (/etc/rc.local) using sysctl(1). If it is desired to run the system
  * in level 0 mode while multiuser, initialize the variable securelevel
  * in /sys/kern/kern_sysctl.c to -1. Note that it is NOT initialized to
- * zero as that would allow the vmunix binary to be patched to -1.
+ * zero as that would allow the kernel binary to be patched to -1.
  * Without initialization, securelevel loads in the BSS area which only
  * comes into existence when the kernel is loaded and hence cannot be
  * patched by a stalking hacker.
