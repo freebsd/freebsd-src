@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-MAN9=	CONDSPLASSERT.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
+MAN9=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
 	VFS_ROOT.9 VFS_START.9 VFS_STATFS.9 VFS_SYNC.9 VFS_UNMOUNT.9 \
 	VFS_VGET.9 VFS_VPTOFH.9 VFS_CHECKEXP.9 \
@@ -21,7 +21,7 @@ MAN9=	CONDSPLASSERT.9 DELAY.9 KASSERT.9 MD5.9 SPLASSERT.9 \
 	ifnet.9 inittodr.9 intro.9 ithread.9 \
 	kernacc.9 kthread.9 \
 	malloc.9 make_dev.9 mbuf.9 microseq.9 microtime.9 microuptime.9 \
-	mi_switch.9 mutex.9 \
+	mi_switch.9 module.9 mutex.9 \
 	namei.9 \
 	panic.9 pfil.9 physio.9 posix4.9 psignal.9 \
 	random.9 resettodr.9 rtalloc.9 rtentry.9 runqueue.9 \
