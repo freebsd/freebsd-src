@@ -33,6 +33,7 @@
 #include <sys/param.h>
 
 #include <machine/prom.h>
+#include <machine/rpb.h>
 
 #define DEBUGxx
 
@@ -152,7 +153,7 @@ devread(char *buf, int block, size_t size)
     prom_read(prom_fd, size, buf, block);
 }
 
-void
+static void
 devclose()
 {
     if (prom_fd) {
@@ -161,35 +162,36 @@ devclose()
     }
 }
 
-void
+static void
 getfilename(char *filename)
 {
     int c;
-    char *p;
+    char *p = filename;
 
     puts("Boot: ");
 
-    while ((c = getchar()) != '\n') {
-	if (c == '\b') {
+    while ((c = getchar()) != '\r') {
+	if (c == '\b' || c == 0177) {
 	    if (p > filename) {
 		puts("\b \b");
 		p--;
 	    }
-	} else
+	} else {
+	    putchar(c);
 	    *p++ = c;
+	}
     }
+    putchar('\n');
     *p = '\0';
     return;
 }
 
-void
+static void
 loadfile(char *name, char *addr)
 {
     int n;
-    char filename[512];
     char *p;
 
- restart:
     puts("Loading ");
     puts(name);
     puts("\n");
@@ -205,32 +207,46 @@ loadfile(char *name, char *addr)
     do {
 	n = readit(p, 1024);
 	p += n;
-	if (ischar()) {
-	    puts("Stop!\n");
-	    devclose();
-	    getfilename(filename);
-	    name = filename;
-	    goto restart;
-	}
 	twiddle();
     } while (n > 0);
 
     devclose();
 }
 
-void
+static inline u_long rpcc()
+{
+    u_long v;
+    __asm__ __volatile__ ("rpcc %0" : "=r"(v));
+    return v & 0xffffffff;
+}
+
+int
 main()
 {
     char *loadaddr = (char*) SECONDARY_LOAD_ADDRESS;
+    char *name = "/boot/loader";
     char *p;
+    char filename[512];
     void (*entry) __P((void));
-
-    int		i;
+    u_long start, freq;
+    int	i;
 
     init_prom_calls();
-    
-    loadfile("/boot/loader", loadaddr);
+
+    start = rpcc();
+    freq = ((struct rpb *)HWRPB_ADDR)->rpb_cc_freq;
+    while (rpcc() < start + freq) {
+	if (ischar()) {
+	    getfilename(filename);
+	    name = filename;
+	    break;
+	}
+    }
+
+    loadfile(name, loadaddr);
 
     entry = (void (*)())loadaddr;
     (*entry)();
+
+    return 0;
 }
