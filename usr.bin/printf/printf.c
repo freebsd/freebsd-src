@@ -86,7 +86,7 @@ static void	 escape __P((char *));
 static int	 getchr __P((void));
 static double	 getdouble __P((void));
 static int	 getint __P((int *));
-static int	 getlong __P((long *));
+static int	 getquad __P((quad_t *));
 static char	*getstr __P((void));
 static char	*mklong __P((char *, int));
 static void	 usage __P((void));
@@ -214,12 +214,12 @@ next:		for (start = fmt;; ++fmt) {
 			break;
 		}
 		case 'd': case 'i': case 'o': case 'u': case 'x': case 'X': {
-			long p;
+			quad_t p;
 			char *f;
 
 			if ((f = mklong(start, convch)) == NULL)
 				return (1);
-			if (getlong(&p))
+			if (getquad(&p))
 				return (1);
 			PF(f, p);
 			break;
@@ -249,8 +249,11 @@ mklong(str, ch)
 	int len;
 
 	len = strlen(str) + 2;
+	if (len > sizeof copy)
+		return NULL;
+
 	memmove(copy, str, len - 3);
-	copy[len - 3] = 'l';
+	copy[len - 3] = 'q';
 	copy[len - 2] = ch;
 	copy[len - 1] = '\0';
 	return (copy);
@@ -338,23 +341,23 @@ static int
 getint(ip)
 	int *ip;
 {
-	long val;
+	quad_t val;
 
-	if (getlong(&val))
+	if (getquad(&val))
 		return (1);
-	if (val > INT_MAX) {
+	if (val < INT_MIN || val > INT_MAX) {
 		warnx3("%s: %s", *gargv, strerror(ERANGE));
 		return (1);
 	}
-	*ip = val;
+	*ip = (int)val;
 	return (0);
 }
 
 static int
-getlong(lp)
-	long *lp;
+getquad(lp)
+	quad_t *lp;
 {
-	long val;
+	quad_t val;
 	char *ep;
 
 	if (!*gargv) {
@@ -363,17 +366,17 @@ getlong(lp)
 	}
 	if (strchr(Number, **gargv)) {
 		errno = 0;
-		val = strtol(*gargv, &ep, 0);
+		val = strtoq(*gargv, &ep, 0);
 		if (*ep != '\0') {
 			warnx2("%s: illegal number", *gargv, NULL);
 			return (1);
 		}
 		if (errno == ERANGE)
-			if (val == LONG_MAX) {
+			if (val == QUAD_MAX) {
 				warnx3("%s: %s", *gargv, strerror(ERANGE));
 				return (1);
 			}
-			if (val == LONG_MIN) {
+			if (val == QUAD_MIN) {
 				warnx3("%s: %s", *gargv, strerror(ERANGE));
 				return (1);
 			}

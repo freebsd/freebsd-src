@@ -153,6 +153,8 @@ static int binop __P((void));
 static int filstat __P((char *, enum token));
 static int isoperand __P((void));
 static int getn __P((const char *));
+static quad_t getq __P((const char *));
+static int intcmp __P((const char *, const char *));
 static int newerf __P((const char *, const char *));
 static int olderf __P((const char *, const char *));
 static int equalf __P((const char *, const char *));
@@ -298,17 +300,17 @@ binop()
 	case STRGT:
 		return strcmp(opnd1, opnd2) > 0;
 	case INTEQ:
-		return getn(opnd1) == getn(opnd2);
+		return intcmp(opnd1, opnd2) == 0;
 	case INTNE:
-		return getn(opnd1) != getn(opnd2);
+		return intcmp(opnd1, opnd2) != 0;
 	case INTGE:
-		return getn(opnd1) >= getn(opnd2);
+		return intcmp(opnd1, opnd2) >= 0;
 	case INTGT:
-		return getn(opnd1) > getn(opnd2);
+		return intcmp(opnd1, opnd2) > 0;
 	case INTLE:
-		return getn(opnd1) <= getn(opnd2);
+		return intcmp(opnd1, opnd2) <= 0;
 	case INTLT:
-		return getn(opnd1) < getn(opnd2);
+		return intcmp(opnd1, opnd2) < 0;
 	case FILNT:
 		return newerf (opnd1, opnd2);
 	case FILOT:
@@ -441,6 +443,48 @@ getn(s)
 	  errx(2, "%s: bad number", s);
 
 	return (int) r;
+}
+
+/* atoi with error detection and 64 bit range */
+static quad_t
+getq(s)
+	const char *s;
+{
+	char *p;
+	quad_t r;
+
+	errno = 0;
+	r = strtoq(s, &p, 10);
+
+	if (errno != 0)
+	  errx(2, "%s: out of range", s);
+
+	while (isspace((unsigned char)*p))
+	  p++;
+
+	if (*p)
+	  errx(2, "%s: bad number", s);
+
+	return r;
+}
+
+static int
+intcmp (s1, s2)
+	const char *s1, *s2;
+{
+	quad_t q1, q2;
+
+
+	q1 = getq(s1);
+	q2 = getq(s2);
+
+	if (q1 > q2)
+		return 1;
+
+	if (q1 < q2)
+		return -1;
+
+	return 0;
 }
 
 static int
