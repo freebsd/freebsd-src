@@ -50,11 +50,12 @@
 #include <machine/bus.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+#include <sys/sysctl.h>
 
-#include <pci/es1370_reg.h>
 #include <i386/isa/snd/sound.h>
 #include <i386/isa/snd/ulaw.h>
 
+#include <pci/es1370_reg.h>
 #if NPCI != 0
 
 
@@ -89,26 +90,11 @@
  */
 
 #define ES1370_PCI_ID 0x50001274
-
+#define ES1371_PCI_ID 0x13711274
 
 /* -------------------------------------------------------------------- */
 
-/*
- * device private data
- */
-
-struct es_info {
-	bus_space_tag_t st;
-	bus_space_handle_t sh;
-
-	bus_dma_tag_t	parent_dmat;
-	bus_dmamap_t	dmam_in, dmam_out;
-
-	/* Contents of board's registers */
-	u_long		ctrl;
-	u_long		sctrl;
-};
-
+SYSCTL_INT(_debug, OID_AUTO, es_debug, CTLFLAG_RW, &es_debug, 0, "");
 
 /* -------------------------------------------------------------------- */
 
@@ -116,28 +102,27 @@ struct es_info {
  * prototypes
  */
 
-static void	dma_wrintr(snddev_info *);
-static void	dma_rdintr(snddev_info *);
-static int      es_init(snddev_info *);
+static void	          dma_wrintr(snddev_info *);
+static void	          dma_rdintr(snddev_info *);
+static int            es_init(snddev_info *);
 static snd_callback_t es_callback;
-static d_open_t es_dsp_open;
-static d_close_t es_dsp_close;
-static d_ioctl_t es_dsp_ioctl;
-static d_read_t es_dsp_read;
-static d_write_t es_dsp_write;
-static void     es_intr(void *);
-static int      es_rdabort(snddev_info *);
-static void     es_rd_map(void *, bus_dma_segment_t *, int, int);
-static int      es_wrabort(snddev_info *);
-static void     es_wr_map(void *, bus_dma_segment_t *, int, int);
-static char    *es_pci_probe __P((pcici_t, pcidi_t));
-static void	es_pci_attach __P((pcici_t, int));
-static int	es_rd_dmaupdate(snddev_info *);
-static d_select_t es_select;
-static int	es_wr_dmaupdate(snddev_info *);
-static int	alloc_dmabuf(snddev_info *, int);
-static int      write_codec(snddev_info *, u_char, u_char);
-
+static d_open_t       es_dsp_open;
+static d_close_t      es_dsp_close;
+static d_ioctl_t      es_dsp_ioctl;
+static d_read_t       es_dsp_read;
+static d_write_t      es_dsp_write;
+static void           es_intr(void *);
+static int            es_rdabort(snddev_info *);
+static void           es_rd_map(void *, bus_dma_segment_t *, int, int);
+static int            es_wrabort(snddev_info *);
+static void           es_wr_map(void *, bus_dma_segment_t *, int, int);
+static const char    *es_pci_probe __P((pcici_t, pcidi_t));
+static void	          es_pci_attach __P((pcici_t, int));
+static int	          es_rd_dmaupdate(snddev_info *);
+static d_select_t     es_select;
+static int	          es_wr_dmaupdate(snddev_info *);
+static int	          alloc_dmabuf(snddev_info *, int);
+static int            write_codec(snddev_info *, u_char, u_char);
 
 /* -------------------------------------------------------------------- */
 
@@ -158,7 +143,7 @@ DATA_SET(pcidevice_set, es_pci_driver);
 static snddev_info es_op_desc = {
 	"ENSONIQ AudioPCI",
 
-	0,			/* type, apparently unused */
+	0,			/* type, apparently unused */ /* RMC: use to store board type */
 	NULL,			/* ISA probe */
 	NULL,			/* ISA attach */
 
@@ -290,6 +275,8 @@ es_dsp_open(dev_t dev, int oflags, int devtype, struct proc *p)
 	int		unit = UNIT(minor(dev));
 	snddev_info    *d = &pcm_info[unit];
 
+	if(es_debug > 0) printf("es_dsp_open\n");
+
 	if (d->flags & SND_F_BUSY)
 		return (EBUSY);
 	d->flags = 0;
@@ -351,6 +338,7 @@ es_dsp_read(dev_t dev, struct uio *buf, int flag)
 	snddev_info    *d = &pcm_info[unit];
 	snd_dbuf       *b = &d->dbuf_in;
 
+	if(es_debug > 0) printf ("es_dsp_read\n");
 	if (d->flags & SND_F_READING) {
 		/* This shouldn't happen and is actually silly */
 		tsleep(&s, PZERO, "sndar", hz);
@@ -402,14 +390,14 @@ es_dsp_read(dev_t dev, struct uio *buf, int flag)
 
 		if ((l1 = b->bufsize - b->rp) < l) {
 			if (d->flags & SND_F_XLAT8) {
-				translate_bytes(ulaw_dsp, b->buf + b->rp, l1);
-				translate_bytes(ulaw_dsp, b->buf, l - l1);
+				translate_bytes(dsp_ulaw, b->buf + b->rp, l1);
+				translate_bytes(dsp_ulaw, b->buf, l - l1);
 			}
 			uiomove(b->buf + b->rp, l1, buf);
 			uiomove(b->buf, l - l1, buf);
 		} else {
 			if (d->flags & SND_F_XLAT8)
-				translate_bytes(ulaw_dsp, b->buf + b->rp, l);
+				translate_bytes(dsp_ulaw, b->buf + b->rp, l);
 			uiomove(b->buf + b->rp, l, buf);
 		}
 
@@ -505,109 +493,136 @@ es_dsp_write(dev_t dev, struct uio *buf, int flag)
 static int
 es_dsp_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 {
-	int		ret = 0, unit = UNIT(minor(dev));
-	snddev_info    *d = &pcm_info[unit];
-	long		s;
+  int		ret = 0, unit = UNIT(minor(dev));
+  snddev_info    *d = &pcm_info[unit];
+  long		s;
+  int cmdi = cmd & 0xff;
+  
+  if(es_debug > 0) printf("es_dsp_ioctl cmd 0x%x cmdi 0x%x write %s read %s ",(int)cmd,cmdi,
+					   (((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0))?"yes":"no"),
+					   (((cmd & MIXER_READ(0)) == MIXER_READ(0))?"yes":"no"));
 
-	if ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0))
-		return mixer_ioctl(d, cmd, data, fflag, p);
 
-	switch(cmd) {
-	case AIONWRITE:
-		if (d->dbuf_out.dl != 0) {
-			s = spltty();
-			es_wr_dmaupdate(d);
-			splx(s);
-		}
-		*(int *)data = d->dbuf_out.fl;
-		break;
+  if ((d->type == ES1371_PCI_ID) &&
+	  ((cmd & MIXER_WRITE(0)) == MIXER_WRITE(0) ||
+	   (cmd & MIXER_READ(0)) == MIXER_READ(0)))
+	return mixer_ioctl_1371(d, cmd, data, fflag, p);
 
-	case FIONREAD:
-		if (d->dbuf_in.dl != 0) {
-			s = spltty();
-			es_rd_dmaupdate(d);
-			splx(s);
-		}
-		*(int *)data = d->dbuf_in.rl;
-		break;
-
-	case SNDCTL_DSP_GETISPACE:
-		{
-			audio_buf_info *a = (audio_buf_info *)data;
-			snd_dbuf       *b = &d->dbuf_in;
-			if (b->dl != 0) {
-				s = spltty();
-				es_rd_dmaupdate(d);
-				splx(s);
-			}
-			a->bytes = b->fl;
-			a->fragments = b->fl / d->rec_blocksize;
-			a->fragstotal = b->bufsize / d->rec_blocksize;
-			a->fragsize = d->rec_blocksize;
-		}
-		break;
-
-	case SNDCTL_DSP_GETOSPACE:
-		{
-			audio_buf_info *a = (audio_buf_info *)data;
-			snd_dbuf       *b = &d->dbuf_out;
-			if (b->dl != 0) {
-				s = spltty();
-				es_wr_dmaupdate(d);
-				splx(s);
-			}
-			a->bytes = b->fl;
-			a->fragments = b->fl / d->rec_blocksize;
-			a->fragstotal = b->bufsize / d->play_blocksize;
-			a->fragsize = d->play_blocksize;
-		}
-		break;
-
-	case SNDCTL_DSP_GETIPTR:
-		{
-			count_info     *c = (count_info *)data;
-			snd_dbuf       *b = &d->dbuf_in;
-			if (b->dl != 0) {
-				s = spltty();
-				es_rd_dmaupdate(d);
-				splx(s);
-			}
-			c->bytes = b->total;
-			c->blocks = (b->total - b->prev_total +
-				d->rec_blocksize - 1) / d->rec_blocksize;
-			c->ptr = b->fp;
-			b->prev_total = b->total;
-		}
-		break;
-
-	case SNDCTL_DSP_GETOPTR:
-		{
-			count_info     *c = (count_info *)data;
-			snd_dbuf       *b = &d->dbuf_out;
-			if (b->dl != 0) {
-				s = spltty();
-				es_wr_dmaupdate(d);
-				splx(s);
-			}
-			c->bytes = b->total;
-			c->blocks = (b->total - b->prev_total +
-				d->play_blocksize - 1) / d->play_blocksize;
-			c->ptr = b->rp;
-			b->prev_total = b->total;
-		}
-		break;
-
-	case AIOSTOP:
-	case SNDCTL_DSP_RESET:
-	case SNDCTL_DSP_SYNC:
-		ret = EINVAL;
-		break;
-
-	default:
-		ret = ENOSYS;
-		break;
+  if ((d->type == ES1370_PCI_ID) &&
+	  (cmd & MIXER_WRITE(0)) == MIXER_WRITE(0)) 
+	ret = mixer_ioctl(d, cmd, data, fflag, p);
+  
+  
+  switch(cmd) {
+  case AIONWRITE:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  AIONWRITE\n",cmd);
+	if (d->dbuf_out.dl != 0) {
+	  s = spltty();
+	  es_wr_dmaupdate(d);
+	  splx(s);
 	}
-	return (ret);
+	*(int *)data = d->dbuf_out.fl;
+	break;
+	
+  case FIONREAD:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  FIONREAD\n",cmd);
+	if (d->dbuf_in.dl != 0) {
+	  s = spltty();
+	  es_rd_dmaupdate(d);
+	  splx(s);
+	}
+	*(int *)data = d->dbuf_in.rl;
+	break;
+	
+  case SNDCTL_DSP_GETISPACE:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  SNDCTL_DSP_GETISPACE\n",cmd);
+	{
+	  audio_buf_info *a = (audio_buf_info *)data;
+	  snd_dbuf       *b = &d->dbuf_in;
+	  if (b->dl != 0) {
+		s = spltty();
+		es_rd_dmaupdate(d);
+		splx(s);
+	  }
+	  a->bytes = b->fl;
+	  a->fragments = b->fl / d->rec_blocksize;
+	  a->fragstotal = b->bufsize / d->rec_blocksize;
+	  a->fragsize = d->rec_blocksize;
+	}
+	break;
+	
+  case SNDCTL_DSP_GETOSPACE:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  SNDCTL_DSP_GETOSPACE\n",cmd);
+	{
+	  audio_buf_info *a = (audio_buf_info *)data;
+	  snd_dbuf       *b = &d->dbuf_out;
+	  if (b->dl != 0) {
+		s = spltty();
+		es_wr_dmaupdate(d);
+		splx(s);
+	  }
+	  a->bytes = b->fl;
+	  a->fragments = b->fl / d->rec_blocksize;
+	  a->fragstotal = b->bufsize / d->play_blocksize;
+	  a->fragsize = d->play_blocksize;
+	}
+	break;
+	
+  case SNDCTL_DSP_GETIPTR:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: 0x%x  SNDCTL_DSP_GETIPTR\n",(u_int)cmd);
+	{
+	  count_info     *c = (count_info *)data;
+	  snd_dbuf       *b = &d->dbuf_in;
+	  if (b->dl != 0) {
+		s = spltty();
+		es_rd_dmaupdate(d);
+		splx(s);
+	  }
+	  c->bytes = b->total;
+	  c->blocks = (b->total - b->prev_total +
+				   d->rec_blocksize - 1) / d->rec_blocksize;
+	  c->ptr = b->fp;
+	  b->prev_total = b->total;
+	}
+	break;
+	
+  case SNDCTL_DSP_GETOPTR:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  SNDCTL_DSP_GETOPTR\n",cmd);
+	{
+	  count_info     *c = (count_info *)data;
+	  snd_dbuf       *b = &d->dbuf_out;
+	  if (b->dl != 0) {
+		s = spltty();
+		es_wr_dmaupdate(d);
+		splx(s);
+	  }
+	  c->bytes = b->total;
+	  c->blocks = (b->total - b->prev_total +
+				   d->play_blocksize - 1) / d->play_blocksize;
+	  c->ptr = b->rp;
+	  b->prev_total = b->total;
+	}
+	break;
+	
+  case AIOSTOP:		  
+  case SNDCTL_DSP_RESET:
+  case SNDCTL_DSP_SYNC:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  SNDCTL_DSP_SYNC or SNDCTL_DSP_RESET or AIOSTOP \n",cmd);
+	/* this was removed from the driver for some reason ....
+	 * and relplace with a return EINVAL
+	 * this causes mpg123 to complain "Can't reset Audio" 
+	 * So I'm going to put it back RMC 10/22/99 
+	 */
+	es_wrabort(d);
+	es_rdabort(d);
+	break;
+	
+  default:
+	if(es_debug > 0) printf("es_dsp_ioctl cmd: %ld  default... ret ENOSYS\n",cmd);
+	ret = ENOSYS;
+	break;
+  }
+  return (ret);
 }
 
 static int
@@ -631,6 +646,8 @@ es_intr (void *p)
 	unsigned	intsrc, sctrl;
 
 	intsrc = bus_space_read_4(es->st, es->sh, ES1370_REG_STATUS);
+	/*	if (es_debug > 2) printf("es_intr intsrc:%d p:0x%p es:0x%p\n",intsrc,p,es); */
+
 	if ((intsrc & STAT_INTR) == 0)
 		return;
 
@@ -643,8 +660,7 @@ es_intr (void *p)
 		sctrl &= ~SCTRL_P2INTEN;
 	}
 	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, sctrl);
-	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL,
-		es->sctrl);
+	bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 	if (intsrc & STAT_DAC2)
 		dma_wrintr(d);
 	if (intsrc & STAT_ADC)
@@ -728,10 +744,17 @@ es_callback(snddev_info *d, int reason)
 	struct es_info *es = (struct es_info *)d->device_data;
 	int		rd = reason & SND_CB_RD;
 
+	if(es_debug > 0) printf("es_callback reason %d speed %d \t",reason ,d->play_speed);
 	switch(reason & SND_CB_REASON_MASK) {
 	case SND_CB_INIT:
-		es->ctrl = (es->ctrl & ~CTRL_PCLKDIV) |
-			(DAC2_SRTODIV(d->play_speed) << CTRL_SH_PCLKDIV);
+/* 	  if(es_debug > 0) printf("case SND_CB_INIT\n"); */
+	  if (d->type == ES1371_PCI_ID){
+		es1371_dac2_rate(d,d->play_speed,1); /* codec DAC */
+		es1371_dac1_rate(d,d->play_speed,1); /* codec FM DAC */ /* NOT used */
+		es1371_adc_rate(d, d->rec_speed, 1); /* record */
+	  } else /* 1370 */ {
+	    es->ctrl = (es->ctrl & ~CTRL_PCLKDIV) | (DAC2_SRTODIV(d->play_speed) << CTRL_SH_PCLKDIV);
+	  }
 		snd_set_blocksize(d);
 
 		es->sctrl &= ~(SCTRL_R1FMT | SCTRL_P2FMT);
@@ -773,13 +796,12 @@ es_callback(snddev_info *d, int reason)
 		if (d->flags & SND_F_STEREO)
 			es->sctrl |= SCTRL_P2SMB | SCTRL_R1SMB;
 
-		bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL,
-			es->ctrl);
-		bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL,
-			es->sctrl);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 		break;
 
 	case SND_CB_START:
+	  if(es_debug > 0) printf("case SND_CB_START flag rd 0x%x\n",rd);
 		if (rd) {
 			es->ctrl |= CTRL_ADC_EN;
 			es->sctrl = (es->sctrl & ~SCTRL_R1LOOPSEL) |
@@ -787,23 +809,34 @@ es_callback(snddev_info *d, int reason)
 			bus_space_write_4(es->st, es->sh, ES1370_REG_ADC_SCOUNT,
 				d->dbuf_in.dl / d->dbuf_in.sample_size - 1);
 		} else {
+#if 0
+		  if(es_debug > 0) printf("CB_START CONTROL 0x%x\n",bus_space_read_4(es->st, es->sh, ES1370_REG_CONTROL)); 
+		  if(es_debug > 0) printf("CB_START DAC2_SCOUNT 0x%x\n",bus_space_read_4(es->st, es->sh, ES1370_REG_DAC2_SCOUNT)); 
+#endif
 			es->ctrl |= CTRL_DAC2_EN;
 			es->sctrl = (es->sctrl & ~(SCTRL_P2ENDINC |
-			    SCTRL_P2STINC | SCTRL_P2LOOPSEL | SCTRL_P2PAUSE |
-			    SCTRL_P2DACSEN)) | SCTRL_P2INTEN |
-			    (((d->play_fmt == AFMT_S16_LE) ? 2 : 1)
-				<< SCTRL_SH_P2ENDINC);
+									   SCTRL_P2STINC |
+									   SCTRL_P2LOOPSEL |
+									   SCTRL_P2PAUSE |
+									   SCTRL_P2DACSEN)) |
+			  SCTRL_P2INTEN |
+			  (((d->play_fmt == AFMT_S16_LE) ? 2 : 1)
+			   << SCTRL_SH_P2ENDINC);
 			bus_space_write_4(es->st, es->sh,
-			    ES1370_REG_DAC2_SCOUNT,
-			    d->dbuf_out.dl / d->dbuf_out.sample_size - 1);
+							  ES1370_REG_DAC2_SCOUNT,
+							  d->dbuf_out.dl / d->dbuf_out.sample_size - 1);
 		}
-		bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL,
-			es->sctrl);
+		bus_space_write_4(es->st, es->sh, ES1370_REG_SERIAL_CONTROL, es->sctrl);
 		bus_space_write_4(es->st, es->sh, ES1370_REG_CONTROL, es->ctrl);
+#if 0
+		if(es_debug > 0) printf("CB_START CONTROL 0x%x\n",bus_space_read_4(es->st, es->sh, ES1370_REG_CONTROL));
+		if(es_debug > 0) printf("CB_START DAC2_SCOUNT 0x%x\n",bus_space_read_4(es->st, es->sh, ES1370_REG_DAC2_SCOUNT));
+#endif
 		break;
 
 	case SND_CB_ABORT:
 	case SND_CB_STOP:
+ 	  if(es_debug > 0) printf("case SND_CB_STOP flag rd 0x%x\n",rd); 
 		if (rd)
 			es->ctrl &= ~CTRL_ADC_EN;
 		else
@@ -823,6 +856,7 @@ write_codec(snddev_info *d, u_char i, u_char data)
 	struct es_info *es = (struct es_info *)d->device_data;
 	int		wait = 100;	/* 100 msec timeout */
 
+	if (es_debug > 1) printf("write_codec \n");
 	do {
 		if ((bus_space_read_4(es->st, es->sh, ES1370_REG_STATUS) &
 		      STAT_CSTAT) == 0) {
@@ -1021,13 +1055,18 @@ es_init(snddev_info *d)
 	return (0);
 }
 
-static char *
+static const char *
 es_pci_probe(pcici_t tag, pcidi_t type)
 {
-	if (type == ES1370_PCI_ID)
+	if(es_debug > 0) printf ("es_pci_probe 0x%x\n",type);
+	switch(type){
+	case ES1370_PCI_ID:
 		return ("AudioPCI ES1370");
-
-	return (NULL);
+	case ES1371_PCI_ID:
+	  	return ("AudioPCI ES1371");
+	default:
+	  return (NULL);
+	};
 }
 
 static void
@@ -1039,7 +1078,9 @@ es_pci_attach(pcici_t config_id, int unit)
 	pci_port_t	io_port;
 	int		i, mapped;
 	vm_offset_t	vaddr, paddr;
+	int ret;
 
+	if(es_debug > 0) printf("es_pci_attach\n");
 	if (unit > NPCM_MAX)
 		return;
 
@@ -1051,7 +1092,8 @@ es_pci_attach(pcici_t config_id, int unit)
 	}
 	bzero(es, sizeof(*es));
 	d->device_data = es;
-
+	d->type = ((config_id->device << 16) | config_id->vendor);
+	if (es_debug >0 ) printf("es_pci_attach device_data %p d->type 0x%x\n",d->device_data,d->type);
 	vaddr = paddr = NULL;
 	mapped = 0;
 	data = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
@@ -1087,12 +1129,25 @@ es_pci_attach(pcici_t config_id, int unit)
 		if (mixtable[i].recmask)
 			d->mix_rec_devs |= (1 << i);
 
-	if (es_init(d) == -1) {
+	switch (d->type){
+	case ES1370_PCI_ID:
+	  ret = es_init(d);
+	  break;
+	case ES1371_PCI_ID:
+	  ret = es_init_1371(d);
+	  break;
+	default:
+	  printf("pcm%d: unknow card type 0x%x\n",unit,d->type);
+	  ret = -1;
+	}
+
+	if (ret == -1) {
 		printf("pcm%d: unable to initialize the card\n", unit);
 		free(es, M_DEVBUF);
 		d->io_base = 0;
 		return;
 	}
+
 	if (pci_map_int(config_id, es_intr, d, &tty_imask) == 0) {
 		printf("pcm%d: unable to map interrupt\n", unit);
 		free(es, M_DEVBUF);
@@ -1123,5 +1178,6 @@ es_pci_attach(pcici_t config_id, int unit)
 
 	return;
 }
+
 
 #endif /* NPCI != 0 */
