@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- *	$Id: socketvar.h,v 1.25 1998/03/01 19:39:29 guido Exp $
+ *	$Id: socketvar.h,v 1.26 1998/05/15 20:11:39 wollman Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -99,7 +99,7 @@ struct socket {
 #define	SB_WAIT		0x04		/* someone is waiting for data/space */
 #define	SB_SEL		0x08		/* someone is selecting */
 #define	SB_ASYNC	0x10		/* ASYNC I/O, need signals */
-#define	SB_NOTIFY	(SB_WAIT|SB_SEL|SB_ASYNC)
+#define	SB_UPCALL	0x20		/* someone wants an upcall */
 #define	SB_NOINTR	0x40		/* operations not interruptible */
 
 	void	(*so_upcall) __P((struct socket *so, caddr_t arg, int waitf));
@@ -164,6 +164,11 @@ struct	xsocket {
  */
 
 /*
+ * Do we need to notify the other side when I/O is possible?
+ */
+#define sb_notify(sb)	(((sb)->sb_flags & (SB_WAIT|SB_SEL|SB_ASYNC|SB_UPCALL)) != 0)
+
+/*
  * How much space is there in a socket buffer (so->so_snd or so->so_rcv)?
  * This is problematical if the fields are unsigned, as the space might
  * still be negative (cc > hiwat or mbcnt > mbmax).  Should detect
@@ -225,12 +230,15 @@ struct	xsocket {
 	} \
 }
 
-#define	sorwakeup(so)	{ sowakeup((so), &(so)->so_rcv); \
-			  if ((so)->so_upcall) \
-			    (*((so)->so_upcall))((so), (so)->so_upcallarg, M_DONTWAIT); \
-			}
+#define	sorwakeup(so)	do { \
+			  if (sb_notify(&(so)->so_rcv)) \
+			    sowakeup((so), &(so)->so_rcv); \
+			} while (0)
 
-#define	sowwakeup(so)	sowakeup((so), &(so)->so_snd)
+#define	sowwakeup(so)	do { \
+			  if (sb_notify(&(so)->so_snd)) \
+			    sowakeup((so), &(so)->so_snd); \
+			} while (0)
 
 #ifdef KERNEL
 
