@@ -1,3 +1,5 @@
+$FreeBSD$
+
 NOTES FROM THE MOD.SOURCES MODERATOR:
 I split the source up into the three separate pieces it now is.
 In doing this, I put lines like "int reading;" in a header file
@@ -23,9 +25,9 @@ serious bug, or ported it to VMS, do tell me. I can't promise any new
 version release, though. From this version on (1.7b) VTTEST will have
 to live its own life without its father holding its hand.
 
-My adress is:
+My address is:
 
-Network-mail adress:     (mcvax,seismo)!enea!suadb!lindberg
+Network-mail address:     (mcvax,seismo)!enea!suadb!lindberg
 
 Real-world-mail address: Per Lindberg
                          QZ, Stockholm University Computing Center

@@ -1605,7 +1605,7 @@ setup_mode:
 	params.regs[5-1+0x04] |= 0x04;
 	/* turn off doubleword mode */
 	params.regs[10+0x14] &= 0xbf;
-	/* turn off word adressing */
+	/* turn off word addressing */
 	params.regs[10+0x17] |= 0x40;
 	/* set logical screen width */
 	params.regs[10+0x13] = 80;
