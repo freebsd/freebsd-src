@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2001, 2002
    Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
@@ -371,8 +371,8 @@ int file_input::read_line()
       int c = getc(fp);
       if (c == EOF)
 	break;
-      else if (illegal_input_char(c))
-	lex_error("illegal input character code %1", c);
+      else if (invalid_input_char(c))
+	lex_error("invalid input character code %1", c);
       else {
 	line += char(c);
 	if (c == '\n') 
@@ -467,7 +467,7 @@ int top_input::get_location(char **fnp, int *lnp)
   return 1;
 }
 
-// Character representing $1.  Must be illegal input character.
+// Character representing $1.  Must be invalid input character.
 #define ARG1 14
 
 argument_macro_input::argument_macro_input(const char *body, int ac, 

@@ -38,12 +38,27 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 #include <unistd.h>
 #endif
 
+#undef DEBUGGING
+// #define DEBUGGING
+
 #if !defined(TRUE)
 #   define TRUE  (1==1)
 #endif
 #if !defined(FALSE)
 #   define FALSE (1==0)
 #endif
+
+
+#if defined(DEBUGGING)
+#  define FPUTC(X,Y)   do { fputc((X),(Y)); fputc((X), stderr); fflush(stderr); } while (0)
+#  define FPUTS(X,Y)   do { fputs((X),(Y)); fputs((X), stderr); fflush(stderr); } while (0)
+#  define PUTC(X,Y)    do { putc((X),(Y)); putc((X), stderr); fflush(stderr); } while (0)
+#else
+#  define FPUTC(X,Y)   do { fputc((X),(Y)); } while (0)
+#  define FPUTS(X,Y)   do { fputs((X),(Y)); } while (0)
+#  define PUTC(X,Y)    do { putc((X),(Y)); } while (0)
+#endif
+
 
 /*
  *  word - initialise a word and set next to NULL
@@ -88,7 +103,7 @@ int word_list::flush (FILE *f)
   while (head != 0) {
     t = head;
     head = head->next;
-    fputs(t->s, f);
+    FPUTS(t->s, f);
     delete t;
   }
   head   = 0;
@@ -146,7 +161,7 @@ simple_output &simple_output::copy_file(FILE *infp)
 {
   int c;
   while ((c = getc(infp)) != EOF)
-    putc(c, fp);
+    PUTC(c, fp);
   return *this;
 }
 
@@ -154,7 +169,7 @@ simple_output &simple_output::end_line()
 {
   flush_last_word();
   if (col != 0) {
-    putc('\n', fp);
+    PUTC('\n', fp);
     col = 0;
   }
   return *this;
@@ -169,10 +184,10 @@ simple_output &simple_output::simple_comment(const char *s)
 {
   flush_last_word();
   if (col != 0)
-    putc('\n', fp);
-  fputs("<!-- ", fp);
-  fputs(s, fp);
-  fputs(" -->\n", fp);
+    PUTC('\n', fp);
+  FPUTS("<!-- ", fp);
+  FPUTS(s, fp);
+  FPUTS(" -->\n", fp);
   col = 0;
   return *this;
 }
@@ -181,7 +196,7 @@ simple_output &simple_output::begin_comment(const char *s)
 {
   flush_last_word();
   if (col != 0)
-    putc('\n', fp);
+    PUTC('\n', fp);
   col = 0;
   put_string("<!--");
   space_or_newline();
@@ -205,7 +220,7 @@ simple_output &simple_output::end_comment()
 simple_output &simple_output::check_newline(int n)
 {
   if ((col + n + last_word.get_length() + 1 > max_line_length) && (newlines)) {
-    fputc('\n', fp);
+    FPUTC('\n', fp);
     col = last_word.flush(fp);
   }
   return *this;
@@ -218,11 +233,8 @@ simple_output &simple_output::check_newline(int n)
 
 simple_output &simple_output::space_or_newline (void)
 {
-#if defined(DEBUGGING)
-  fflush(fp);   // just for testing
-#endif
   if ((col + last_word.get_length() + 1 > max_line_length) && (newlines)) {
-    fputc('\n', fp);
+    FPUTC('\n', fp);
     if (last_word.get_length() > 0) {
       col = last_word.flush(fp);
     } else {
@@ -231,7 +243,7 @@ simple_output &simple_output::space_or_newline (void)
   } else {
     if (last_word.get_length() != 0) {
       if (col > 0) {
-	fputc(' ', fp);
+	FPUTC(' ', fp);
 	col++;
       }
       col += last_word.flush(fp);
@@ -250,7 +262,7 @@ simple_output &simple_output::nl (void)
   space_or_newline();
   col += last_word.flush(fp);
   if (col != 0) {
-    fputc('\n', fp);
+    FPUTC('\n', fp);
     col = 0;
   }
   return *this ;
@@ -266,7 +278,7 @@ simple_output &simple_output::set_fixed_point(int n)
 simple_output &simple_output::put_raw_char(char c)
 {
   col += last_word.flush(fp);
-  putc(c, fp);
+  PUTC(c, fp);
   col++;
   return *this;
 }
@@ -280,6 +292,12 @@ simple_output &simple_output::put_string(const char *s, int n)
 simple_output &simple_output::put_string(const char *s)
 {
   last_word.add_word(s, strlen(s));
+  return *this;
+}
+
+simple_output &simple_output::put_string(const string &s)
+{
+  last_word.add_word(s.contents(), s.length());
   return *this;
 }
 
@@ -322,15 +340,15 @@ void simple_output::flush_last_word (void)
   if (len > 0) {
     if (newlines) {
       if (col + len + 1 > max_line_length) {
-	fputs("\n", fp);
+	FPUTS("\n", fp);
 	col = 0;
       } else {
-	fputs(" ", fp);
+	FPUTS(" ", fp);
 	col++;
       }
       len += last_word.flush(fp);
     } else {
-      fputs(" ", fp);
+      FPUTS(" ", fp);
       col++;
       col += last_word.flush(fp);
     }

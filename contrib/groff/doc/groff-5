@@ -1,0 +1,1185 @@
+This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.18.
+
+   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Miscellaneous
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Page Control,  Next: Fonts,  Prev: Page Layout,  Up: gtroff Reference
+
+Page Control
+============
+
+ - Request: .bp [page]
+ - Request: .bp +page
+ - Request: .bp -page
+     Stop processing the current page and move to the next page.  This
+     request causes a break.  It can also take an argument to set
+     (increase, decrease) the page number of the next page.  The only
+     difference between `bp' and `pn' is that `pn' does not cause a
+     break or actually eject a page.
+
+
+          .de newpage                         \" define macro
+          'bp                                 \" begin page
+          'sp .5i                             \" vertical space
+          .tl 'left top'center top'right top' \" title
+          'sp .3i                             \" vertical space
+          ..                                  \" end macro
+
+     `bp' has no effect if not called within the top-level diversion
+     (*note Diversions::).
+
+ - Request: .ne [space]
+     It is often necessary to force a certain amount of space before a
+     new page occurs.  This is most useful to make sure that there is
+     not a single "orphan" line left at the bottom of a page.  The `ne'
+     request ensures that there is a certain distance, specified by the
+     first argument, before the next page is triggered (see *Note
+     Traps::, for further information).  The default scaling indicator
+     for `ne' is `v'; the default value of SPACE is 1v if no argument
+     is given.
+
+     For example, to make sure that no fewer than 2 lines get orphaned,
+     do the following before each paragraph:
+
+
+          .ne 2
+          text text text
+
+     `ne' will then automatically cause a page break if there is space
+     for one line only.
+
+ - Request: .sv [space]
+ - Request: .os
+     `sv' is similar to the `ne' request; it reserves the specified
+     amount of vertical space.  If the desired amount of space exists
+     before the next trap (or the bottom page boundary if no trap is
+     set), the space is output immediately (ignoring a partially filled
+     line which stays untouched).  If there is not enough space, it is
+     stored for later output via the `os' request.  The default value
+     is 1v if no argument is given; the default scaling indicator is
+     `v'.
+
+     Both `sv' and `os' ignore no-space mode.  While the `sv' request
+     allows negative values for SPACE, `os' will ignore them.
+
+ - Register: \n[nl]
+     This register contains the current vertical position.  If the
+     vertical position is zero and the top of page transition hasn't
+     happened yet, `nl' is set to negative value.  `gtroff' itself does
+     this at the very beginning of a document before anything has been
+     printed, but the main usage is to plant a header trap on a page if
+     this page has already started.
+
+     Consider the following:
+
+
+          .de xxx
+          .  sp
+          .  tl ''Header''
+          .  sp
+          ..
+          .
+          First page.
+          .bp
+          .wh 0 xxx
+          .nr nl (-1)
+          Second page.
+
+     Result:
+
+
+          First page.
+          
+          ...
+          
+                                       Header
+          
+          Second page.
+          
+          ...
+
+     Without resetting `nl' to a negative value, the just planted trap
+     would be active beginning with the _next_ page, not the current
+     one.
+
+     *Note Diversions::, for a comparison with the `.h' and `.d'
+     registers.
+
+
+File: groff,  Node: Fonts,  Next: Sizes,  Prev: Page Control,  Up: gtroff Reference
+
+Fonts
+=====
+
+   `gtroff' can switch fonts at any point in the text.
+
+   The basic set of fonts is `R', `I', `B', and `BI'.  These are Times
+Roman, Italic, Bold, and Bold Italic.  For non-TTY devices, there is
+also at least one symbol font which contains various special symbols
+(Greek, mathematics).
+
+* Menu:
+
+* Changing Fonts::
+* Font Families::
+* Font Positions::
+* Using Symbols::
+* Special Fonts::
+* Artificial Fonts::
+* Ligatures and Kerning::
+
+
+File: groff,  Node: Changing Fonts,  Next: Font Families,  Prev: Fonts,  Up: Fonts
+
+Changing Fonts
+--------------
+
+ - Request: .ft [font]
+ - Escape: \fF
+ - Escape: \f(FN
+ - Escape: \f[FONT]
+     The `ft' request and the `\f' escape change the current font to
+     FONT (one-character name F, two-character name FN).
+
+     If FONT is a style name (as set with the `sty' request or with the
+     `styles' command in the `DESC' file), use it within the current
+     font family (as set with the `fam' request, `\F' escape, or with
+     the `family' command in the `DESC' file).
+
+     With no argument or using `P' as an argument, `.ft' switches to
+     the previous font.  Use `\f[]' to do this with the escape.  The
+     old syntax forms `\fP' or `\f[P]' are also supported.
+
+     Fonts are generally specified as upper-case strings, which are
+     usually 1 to 4 characters representing an abbreviation or acronym
+     of the font name.  This is no limitation, just a convention.
+
+     The example below produces two identical lines.
+
+
+          eggs, bacon,
+          .ft B
+          spam
+          .ft
+          and sausage.
+          
+          eggs, bacon, \fBspam\fP and sausage.
+
+     Note that `\f' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font on the fly:
+
+
+          .mc \f[I]x\f[]
+
+     *Note Font Positions::, for an alternative syntax.
+
+ - Request: .ftr f [g]
+     Translate font F to font G.  Whenever a font named F is referred
+     to in a `\f' escape sequence, or in the `ft', `ul', `bd', `cs',
+     `tkf', `special', `fspecial', `fp', or `sty' requests, font G is
+     used.  If G is missing or equal to F the translation is undone.
+
+
+File: groff,  Node: Font Families,  Next: Font Positions,  Prev: Changing Fonts,  Up: Fonts
+
+Font Families
+-------------
+
+   Due to the variety of fonts available, `gtroff' has added the
+concept of "font families" and "font styles".  The fonts are specified
+as the concatenation of the font family and style.  Specifying a font
+without the family part causes `gtroff' to use that style of the
+current family.
+
+   Currently, fonts for the devices `-Tps', `-Tdvi', and `-Tlbp' are
+set up to this mechanism.  By default, `gtroff' uses the Times family
+with the four styles `R', `I', `B', and `BI'.
+
+   This way, it is possible to use the basic four fonts and to select a
+different font family on the command line (*note Groff Options::).
+
+ - Request: .fam [family]
+ - Register: \n[.fam]
+ - Escape: \FF
+ - Escape: \F(FM
+ - Escape: \F[FAMILY]
+ - Register: \n[.fn]
+     Switch font family to FAMILY (one-character name F, two-character
+     name FM).  If no argument is given, switch back to the previous
+     font family.  Use `\F[]' to do this with the escape.  Note that
+     `\FP' doesn't work; it selects font family `P' instead.
+
+     The value at start-up is `T'.  The current font family is
+     available in the read-only number register `.fam' (this is a
+     string-valued register); it is associated with the current
+     environment.
+
+
+          spam,
+          .fam H    \" helvetica family
+          spam,     \" used font is family H + style R = HR
+          .ft B     \" family H + style B = font HB
+          spam,
+          .fam T    \" times family
+          spam,     \" used font is family T + style B = TB
+          .ft AR    \" font AR (not a style)
+          baked beans,
+          .ft R     \" family T + style R = font TR
+          and spam.
+
+     Note that `\F' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font family on the
+     fly:
+
+
+          .mc \F[P]x\F[]
+
+     The `.fn' register contains the current "real font name" of the
+     current font.  This is a string-valued register.  If the current
+     font is a style, the value of `\n[.fn]' is the proper
+     concatenation of family and style name.
+
+ - Request: .sty n style
+     Associate STYLE with font position N.  A font position can be
+     associated either with a font or with a style.  The current font
+     is the index of a font position and so is also either a font or a
+     style.  If it is a style, the font that is actually used is the
+     font which name is the concatenation of the name of the current
+     family and the name of the current style.  For example, if the
+     current font is 1 and font position 1 is associated with style `R'
+     and the current font family is `T', then font `TR' will be used.
+     If the current font is not a style, then the current family is
+     ignored.  If the requests `cs', `bd', `tkf', `uf', or `fspecial'
+     are applied to a style, they will instead be applied to the member
+     of the current family corresponding to that style.
+
+     N must be a non-negative integer value.
+
+     The default family can be set with the `-f' option (*note Groff
+     Options::).  The `styles' command in the `DESC' file controls
+     which font positions (if any) are initially associated with styles
+     rather than fonts.  For example, the default setting for
+     POSTSCRIPT fonts
+
+
+          styles R I B BI
+
+     is equivalent to
+
+
+          .sty 1 R
+          .sty 2 I
+          .sty 3 B
+          .sty 4 BI
+
+     `fam' and `\F' always check whether the current font position is
+     valid; this can give surprising results if the current font
+     position is associated with a style.
+
+     In the following example, we want to access the POSTSCRIPT font
+     `FooBar' from the font family `Foo':
+
+
+          .sty \n[.fp] Bar
+          .fam Foo
+              => warning: can't find font `FooR'
+
+     The default font position at start-up is 1; for the POSTSCRIPT
+     device, this is associated with style `R', so `gtroff' tries to
+     open `FooR'.
+
+     A solution to this problem is to use a dummy font like the
+     following:
+
+
+          .fp 0 dummy TR    \" set up dummy font at position 0
+          .sty \n[.fp] Bar  \" register style `Bar'
+          .ft 0             \" switch to font at position 0
+          .fam Foo          \" activate family `Foo'
+          .ft Bar           \" switch to font `FooBar'
+
+     *Note Font Positions::.
+
+
+File: groff,  Node: Font Positions,  Next: Using Symbols,  Prev: Font Families,  Up: Fonts
+
+Font Positions
+--------------
+
+   For the sake of old phototypesetters and compatibility with old
+versions of `troff', `gtroff' has the concept of font "positions", on
+which various fonts are mounted.
+
+ - Request: .fp pos font [external-name]
+ - Register: \n[.f]
+ - Register: \n[.fp]
+     Mount font FONT at position POS (which must be a non-negative
+     integer).  This numeric position can then be referred to with font
+     changing commands.  When `gtroff' starts it is using font
+     position 1 (which must exist; position 0 is unused usually at
+     start-up).
+
+     The current font in use, as a font position, is available in the
+     read-only number register `.f'.  This can be useful to remember the
+     current font for later recall.  It is associated with the current
+     environment (*note Environments::).
+
+
+          .nr save-font \n[.f]
+          .ft B
+          ... text text text ...
+          .ft \n[save-font]
+
+     The number of the next free font position is available in the
+     read-only number register `.fp'.  This is useful when mounting a
+     new font, like so:
+
+
+          .fp \n[.fp] NEATOFONT
+
+     Fonts not listed in the `DESC' file are automatically mounted on
+     the next available font position when they are referenced.  If a
+     font is to be mounted explicitly with the `fp' request on an unused
+     font position, it should be mounted on the first unused font
+     position, which can be found in the `.fp' register.  Although
+     `gtroff' does not enforce this strictly, it is not allowed to
+     mount a font at a position whose number is much greater (approx.
+     1000 positions) than that of any currently used position.
+
+     The `fp' request has an optional third argument.  This argument
+     gives the external name of the font, which is used for finding the
+     font description file.  The second argument gives the internal
+     name of the font which is used to refer to the font in `gtroff'
+     after it has been mounted.  If there is no third argument then the
+     internal name is used as the external name.  This feature makes it
+     possible to use fonts with long names in compatibility mode.
+
+   Both the `ft' request and the `\f' escape have alternative syntax
+forms to access font positions.
+
+ - Request: .ft nnn
+ - Escape: \fN
+ - Escape: \f(NN
+ - Escape: \f[NNN]
+     Change the current font position to NNN (one-digit position N,
+     two-digit position NN), which must be a non-negative integer.
+
+     If NNN is associated with a style (as set with the `sty' request
+     or with the `styles' command in the `DESC' file), use it within
+     the current font family (as set with the `fam' request, the `\F'
+     escape, or with the `family' command in the `DESC' file).
+
+
+          this is font 1
+          .ft 2
+          this is font 2
+          .ft                   \" switch back to font 1
+          .ft 3
+          this is font 3
+          .ft
+          this is font 1 again
+
+     *Note Changing Fonts::, for the standard syntax form.
+
+
+File: groff,  Node: Using Symbols,  Next: Special Fonts,  Prev: Font Positions,  Up: Fonts
+
+Using Symbols
+-------------
+
+   A "glyph" is a graphical representation of a "character".  While a
+character is an abstract entity containing semantic information, a
+glyph is something which can be actually seen on screen or paper.  It
+is possible that a character has multiple glyph representation forms
+(for example, the character `A' can be either written in a roman or an
+italic font, yielding two different glyphs); sometimes more than one
+character maps to a single glyph (this is a "ligature" - the most
+common is `fi').
+
+   A "symbol" is simply a named glyph.  Within `gtroff', all glyph
+names of a particular font are defined in its font file.  If the user
+requests a glyph not available in this font, `gtroff' looks up an
+ordered list of "special fonts".  By default, the POSTSCRIPT output
+device supports the two special fonts `SS' (slanted symbols) and `S'
+(symbols) (the former is looked up before the latter).  Other output
+devices use different names for special fonts.  Fonts mounted with the
+`fonts' keyword in the `DESC' file are globally available.  To install
+additional special fonts locally (i.e. for a particular font), use the
+`fspecial' request.
+
+   In summary, `gtroff' tries the following to find a given symbol:
+
+   * If the symbol has been defined with the `char' request, use it.
+     This hides a symbol with the same name in the current font.
+
+   * Check the current font.
+
+   * If the symbol has been defined with the `fchar' request, use it.
+
+   * Check all fonts given with the `fspecial' request, in the order of
+     appearance in `fspecial' calls.
+
+   * Check all fonts given with the `special' request, in the order of
+     appearance in `special' calls (inclusively the special fonts
+     defined in the `DESC' file, which come first).
+
+   * As a last resort, consult all fonts loaded up to now (in the order
+     they have been called the first time) for special fonts and check
+     them.
+
+   *Note Font Files::, and *Note Special Fonts::, for more details.
+
+ - Escape: \(NM
+ - Escape: \[NAME]
+     Insert a symbol NAME (two-character name NM).  There is no special
+     syntax for one-character names - the natural form `\N' would
+     collide with escapes.(1) (*note Using Symbols-Footnote-1::)
+
+     If NAME is undefined, a warning of type `char' is generated, and
+     the escape is ignored.  *Note Debugging::, for information about
+     warnings.
+
+     The list of available symbols is device dependent; see the
+     `groff_char(7)' man page for a complete list for the given output
+     device.  For example, say
+
+
+          man -Tdvi groff_char > groff_char.dvi
+
+     for a list using the default DVI fonts (not all versions of the
+     `man' program support the `-T' option).  If you want to use an
+     additional macro package to change the used fonts, `groff' must be
+     called directly:
+
+
+          groff -Tdvi -mec -man groff_char.7 > groff_char.dvi
+
+
+ - Escape: \C'XXX'
+     Typeset the glyph named XXX.(2) (*note Using Symbols-Footnote-2::)
+     Normally it is more convenient to use `\[XXX]', but `\C' has the
+     advantage that it is compatible with newer versions of AT&T
+     `troff' and is available in compatibility mode.
+
+ - Escape: \N'N'
+     Typeset the glyph with code N in the current font (`n' is *not*
+     the input character code).  The number N can be any non-negative
+     decimal integer.  Most devices only have glyphs with codes between
+     0 and 255; the Unicode output device uses codes in the range
+     0-65535.  If the current font does not contain a glyph with that
+     code, special fonts are _not_ searched.  The `\N' escape sequence
+     can be conveniently used in conjunction with the `char' request:
+
+
+          .char \[phone] \f[ZD]\N'37'
+
+     The code of each glyph is given in the fourth column in the font
+     description file after the `charset' command.  It is possible to
+     include unnamed glyphs in the font description file by using a
+     name of `---'; the `\N' escape sequence is the only way to use
+     these.
+
+   Some escape sequences directly map onto special glyphs.
+
+ - Escape: \'
+     This is a backslash followed by the apostrophe character, ASCII
+     character `0x27' (EBCDIC character `0x7D').  The same as `\[aa]',
+     the acute accent.
+
+ - Escape: \`
+     This is a backslash followed by ASCII character `0x60' (EBCDIC
+     character `0x79' usually).  The same as `\[ga]', the grave accent.
+
+ - Escape: \-
+     This is the same as `\[-]', the minus sign in the current font.
+
+ - Request: .cflags n c1 c2 ...
+     Input characters and symbols have certain properties associated
+     with it.(3) (*note Using Symbols-Footnote-3::)  These properties
+     can be modified with the `cflags' request.  The first argument is
+     the sum of the desired flags and the remaining arguments are the
+     characters or symbols to have those properties.  It is possible to
+     omit the spaces between the characters or symbols.
+
+    `1'
+          The character ends sentences (initially characters `.?!' have
+          this property).
+
+    `2'
+          Lines can be broken before the character (initially no
+          characters have this property).
+
+    `4'
+          Lines can be broken after the character (initially the
+          character `-' and the symbols `\(hy' and `\(em' have this
+          property).
+
+    `8'
+          The character overlaps horizontally (initially the symbols
+          `\(ul\(rn\(ru' have this property).
+
+    `16'
+          The character overlaps vertically (initially symbol `\(br' has
+          this property).
+
+    `32'
+          An end-of-sentence character followed by any number of
+          characters with this property is treated as the end of a
+          sentence if followed by a newline or two spaces; in other
+          words the character is "transparent" for the purposes of
+          end-of-sentence recognition - this is the same as having a
+          zero space factor in TeX (initially characters `"')]*' and
+          the symbols `\(dg\(rq' have this property).
+
+ - Request: .char g [string]
+ - Request: .fchar g [string]
+     Define a new glyph G to be STRING (which can be empty).(4) (*note
+     Using Symbols-Footnote-4::)  Every time glyph G needs to be
+     printed, STRING is processed in a temporary environment and the
+     result is wrapped up into a single object.  Compatibility mode is
+     turned off and the escape character is set to `\' while STRING is
+     being processed.  Any emboldening, constant spacing or track
+     kerning is applied to this object rather than to individual
+     characters in STRING.
+
+     A glyph defined by this request can be used just like a normal
+     glyph provided by the output device.  In particular, other
+     characters can be translated to it with the `tr' or `trin'
+     requests; it can be made the leader character by the `lc' request;
+     repeated patterns can be drawn with the glyph using the `\l' and
+     `\L' escape sequences; words containing the glyph can be
+     hyphenated correctly if the `hcode' request is used to give the
+     glyph's symbol a hyphenation code.
+
+     There is a special anti-recursion feature: Use of `g' within the
+     glyph's definition is handled like normal characters and symbols
+     not defined with `char'.
+
+     Note that the `tr' and `trin' requests take precedence if `char'
+     accesses the same symbol.
+
+
+          .tr XY
+          X
+              => Y
+          .char X Z
+          X
+              => Y
+          .tr XX
+          X
+              => Z
+
+     The `fchar' request defines a fallback glyph: `gtroff' only checks
+     for glyphs defined with `fchar' if it cannot find the glyph in the
+     current font.  `gtroff' carries out this test before checking
+     special fonts.
+
+ - Request: .rchar c1 c2 ...
+     Remove the definitions of glyphs C1, C2, .... This undoes the
+     effect of a `char' or `fchar' request.
+
+     It is possible to omit the whitespace between arguments.
+
+   *Note Special Characters::.
+
+
+File: groff,  Node: Using Symbols-Footnotes,  Up: Using Symbols
+
+   (1) Note that a one-character symbol is not the same as an input
+character, i.e., the character `a' is not the same as `\[a]'.  By
+default, `groff' defines only a single one-character symbol, `\[-]'; it
+is usually accessed as `\-'.  On the other hand, `gtroff' has the
+special feature that `\[charXXX]' is the same as the input character
+with character code XXX.  For example, `\[char97]' is identical to the
+letter `a' if ASCII encoding is active.
+
+   (2) `\C' is actually a misnomer since it accesses an output glyph.
+
+   (3) Note that the output glyphs themselves don't have such
+properties.  For `gtroff', a glyph is a numbered box with a given
+width, depth, and height, nothing else.  All manipulations with the
+`cflags' request work on the input level.
+
+   (4) `char' is a misnomer since an output glyph is defined.
+
+
+File: groff,  Node: Special Fonts,  Next: Artificial Fonts,  Prev: Using Symbols,  Up: Fonts
+
+Special Fonts
+-------------
+
+   Special fonts are those that `gtroff' searches when it cannot find
+the requested glyph in the current font.  The Symbol font is usually a
+special font.
+
+   `gtroff' provides the following two requests to add more special
+fonts.  *Note Using Symbols::, for a detailed description of the glyph
+searching mechanism in `gtroff'.
+
+   Usually, only non-TTY devices have special fonts.
+
+ - Request: .special s1 s2 ...
+ - Request: .fspecial f s1 s2 ...
+     Use the `special' request to define special fonts.  They are
+     appended to the list of global special fonts in the given order.
+     The first entries in this list are the fonts defined with the
+     `fonts' command in the `DESC' file which are marked as special in
+     the corresponding font description files.
+
+     Use the `fspecial' request to designate special fonts only when
+     font F font is active.  They are appended to the list of special
+     fonts for F in the given order.  Initially, this list is empty.
+
+
+File: groff,  Node: Artificial Fonts,  Next: Ligatures and Kerning,  Prev: Special Fonts,  Up: Fonts
+
+Artificial Fonts
+----------------
+
+   There are a number of requests and escapes for artificially creating
+fonts.  These are largely vestiges of the days when output devices did
+not have a wide variety of fonts, and when `nroff' and `troff' were
+separate programs.  Most of them are no longer necessary in GNU
+`troff'.  Nevertheless, they are supported.
+
+ - Escape: \H'HEIGHT'
+ - Escape: \H'+HEIGHT'
+ - Escape: \H'-HEIGHT'
+     Change (increment, decrement) the height of the current font, but
+     not the width.  If HEIGHT is zero, restore the original height.
+     Default scaling indicator is `z'.
+
+     Currently, only the `-Tps' device supports this feature.
+
+     Note that `\H' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font on the fly:
+
+
+          .mc \H'+5z'x\H'0'
+
+     In compatibility mode, `gtroff' behaves differently:  If an
+     increment or decrement is used, it is always taken relative to the
+     current point size and not relative to the previously selected font
+     height.  Thus,
+
+
+          .cp 1
+          \H'+5'test \H'+5'test
+
+     prints the word `test' twice with the same font height (five
+     points larger than the current font size).
+
+ - Escape: \S'SLANT'
+     Slant the current font by SLANT degrees.  Positive values slant to
+     the right.
+
+     Currently, only the `-Tps' device supports this feature.
+
+     Note that `\S' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font on the fly:
+
+
+          .mc \S'20'x\S'0'
+
+     This request is incorrectly documented in the original UNIX troff
+     manual; the slant is always set to an absolute value.
+
+ - Request: .ul [lines]
+     The `ul' request normally underlines subsequent lines if a TTY
+     output device is used.  Otherwise, the lines are printed in italics
+     (only the term `underlined' is used in the following).  The single
+     argument is the number of input lines to be underlined; with no
+     argument, the next line is underlined.  If LINES is zero or
+     negative, stop the effects of `ul' (if it was active).  Requests
+     and empty lines do not count for computing the number of underlined
+     input lines, even if they produce some output like `tl'.  Lines
+     inserted by macros (e.g. invoked by a trap) do count.
+
+     At the beginning of `ul', the current font is stored and the
+     underline font is activated.  Within the span of a `ul' request,
+     it is possible to change fonts, but after the last line affected by
+     `ul' the saved font is restored.
+
+     This number of lines still to be underlined is associated with the
+     current environment (*note Environments::).  The underline font
+     can be changed with the `uf' request.
+
+     The `ul' request does not underline spaces.
+
+ - Request: .cu [lines]
+     The `cu' request is similar to `ul' but underlines spaces as well
+     (if a TTY output device is used).
+
+ - Request: .uf font
+     Set the underline font (globally) used by `ul' and `cu'.  By
+     default, this is the font at position 2.  FONT can be either a
+     non-negative font position or the name of a font.
+
+ - Request: .bd font [offset]
+ - Request: .bd font1 font2 [offset]
+ - Register: \n[.b]
+     Artificially create a bold font by printing each glyph twice,
+     slightly offset.
+
+     Two syntax forms are available.
+
+        * Imitate a bold font unconditionally.  The first argument
+          specifies the font to embolden, and the second is the number
+          of basic units, minus one, by which the two glyphs are
+          offset.  If the second argument is missing, emboldening is
+          turned off.
+
+          FONT can be either a non-negative font position or the name
+          of a font.
+
+          OFFSET is available in the `.b' read-only register if a
+          special font is active; in the `bd' request, its default unit
+          is `u'.
+
+        * Imitate a bold form conditionally.  Embolden FONT1 by OFFSET
+          only if font FONT2 is the current font.  This command can be
+          issued repeatedly to set up different emboldening values for
+          different current fonts.  If the second argument is missing,
+          emboldening is turned off for this particular current font.
+
+          This affects special fonts only (either set up with the
+          `special' command in font files or with the `fspecial'
+          request).
+
+ - Request: .cs font [width [em-size]]
+     Switch to and from "constant glyph space mode".  If activated, the
+     width of every glyph is WIDTH/36 ems.  The em size is given
+     absolutely by EM-SIZE; if this argument is missing, the em value
+     is taken from the current font size (as set with the `ps' request)
+     when the font is effectively in use.  Without second and third
+     argument, constant glyph space mode is deactivated.
+
+     Default scaling indicator for EM-SIZE is `z'; WIDTH is an integer.
+
+
+File: groff,  Node: Ligatures and Kerning,  Prev: Artificial Fonts,  Up: Fonts
+
+Ligatures and Kerning
+---------------------
+
+   Ligatures are groups of characters that are run together, i.e,
+producing a single glyph.  For example, the letters `f' and `i' can
+form a ligature `fi' as in the word `file'.  This produces a cleaner
+look (albeit subtle) to the printed output.  Usually, ligatures are not
+available in fonts for TTY output devices.
+
+   Most POSTSCRIPT fonts support the fi and fl ligatures.  The C/A/T
+typesetter that was the target of AT&T `troff' also supported `ff',
+`ffi', and `ffl' ligatures.  Advanced typesetters or `expert' fonts may
+include ligatures for `ft' and `ct', although GNU `troff' does not
+support these (yet).
+
+ - Request: .lg [flag]
+ - Register: \n[.lg]
+     Switch the ligature mechanism on or off; if the parameter is
+     non-zero or missing, ligatures are enabled, otherwise disabled.
+     Default is on.  The current ligature mode can be found in the
+     read-only number register `.lg' (set to 1 or 2 if ligatures are
+     enabled, 0 otherwise).
+
+     Setting the ligature mode to 2 enables the two-character ligatures
+     (fi, fl, and ff) and disables the three-character ligatures (ffi
+     and ffl).
+
+   "Pairwise kerning" is another subtle typesetting mechanism that
+modifies the distance between a glyph pair to improve readability.  In
+most cases (but not always) the distance is decreased.  Typewriter-like
+fonts and fonts for terminals where all glyphs have the same width
+don't use kerning.
+
+ - Request: .kern [flag]
+ - Register: \n[.kern]
+     Switch kerning on or off.  If the parameter is non-zero or missing,
+     enable pairwise kerning, otherwise disable it.  The read-only
+     number register `.kern' is set to 1 if pairwise kerning is enabled,
+     0 otherwise.
+
+     If the font description file contains pairwise kerning information,
+     glyphs from that font are kerned.  Kerning between two glyphs can
+     be inhibited by placing `\&' between them: `V\&A'.
+
+     *Note Font File Format::.
+
+   "Track kerning" expands or reduces the space between glyphs.  This
+can be handy, for example, if you need to squeeze a long word onto a
+single line or spread some text to fill a narrow column.  It must be
+used with great care since it is usually considered bad typography if
+the reader notices the effect.
+
+ - Request: .tkf f s1 n1 s2 n2
+     Enable track kerning for font F.  If the current font is F the
+     width of every glyph is increased by an amount between N1 and N2
+     (N1, N2 can be negative); if the current point size is less than
+     or equal to S1 the width is increased by N1; if it is greater than
+     or equal to S2 the width is increased by N2; if the point size is
+     greater than or equal to S1 and less than or equal to S2 the
+     increase in width is a linear function of the point size.
+
+     The default scaling indicator is `z' for S1 and S2, `p' for N1 and
+     N2.
+
+     Note that the track kerning amount is added even to the rightmost
+     glyph in a line; for large values it is thus recommended to
+     increase the line length by the same amount to compensate it.
+
+   Sometimes, when typesetting letters of different fonts, more or less
+space at such boundaries are needed.  There are two escapes to help
+with this.
+
+ - Escape: \/
+     Increase the width of the preceding glyph so that the spacing
+     between that glyph and the following glyph is correct if the
+     following glyph is a roman glyph.  For example, if an italic `f'
+     is immediately followed by a roman right parenthesis, then in many
+     fonts the top right portion of the `f' overlaps the top left of
+     the right parenthesis.  Use this escape sequence whenever an
+     italic glyph is immediately followed by a roman glyph without any
+     intervening space.  This small amount of space is also called
+     "italic correction".
+
+
+ - Escape: \,
+     Modify the spacing of the following glyph so that the spacing
+     between that glyph and the preceding glyph is correct if the
+     preceding glyph is a roman glyph.  Use this escape sequence
+     whenever a roman glyph is immediately followed by an italic glyph
+     without any intervening space.  In analogy to above, this space
+     could be called "left italic correction", but this term isn't used
+     widely.
+
+
+ - Escape: \&
+     Insert a zero-width character, which is invisible.  Its intended
+     use is to stop interaction of a character with its surrounding.
+
+        * It prevents the insertion of extra space after an
+          end-of-sentence character.
+
+
+               Test.
+               Test.
+                   => Test.  Test.
+               Test.\&
+               Test.
+                   => Test. Test.
+
+        * It prevents interpretation of a control character at the
+          beginning of an input line.
+
+
+               .Test
+                   => warning: `Test' not defined
+               \&.Test
+                   => .Test
+
+        * It prevents kerning between two glyphs.
+
+        * It is needed to map an arbitrary character to nothing in the
+          `tr' request (*note Character Translations::).
+
+ - Escape: \)
+     This escape is similar to `\&' except that it behaves like a
+     character declared with the `cflags' request to be transparent for
+     the purposes of an end-of-sentence character.
+
+     Its main usage is in macro definitions to protect against arguments
+     starting with a control character.
+
+
+          .de xxx
+          \)\\$1
+          ..
+          .de yyy
+          \&\\$1
+          ..
+          This is a test.\c
+          .xxx '
+          This is a test.
+              =>This is a test.'  This is a test.
+          This is a test.\c
+          .yyy '
+          This is a test.
+              =>This is a test.' This is a test.
+
+
+
+File: groff,  Node: Sizes,  Next: Strings,  Prev: Fonts,  Up: gtroff Reference
+
+Sizes
+=====
+
+   `gtroff' uses two dimensions with each line of text, type size and
+vertical spacing.  The "type size" is approximately the height of the
+tallest glyph.(1) (*note Sizes-Footnote-1::)  "Vertical spacing" is the
+amount of space `gtroff' allows for a line of text; normally, this is
+about 20% larger than the current type size.  Ratios smaller than this
+can result in hard-to-read text; larger than this, it spreads the text
+out more vertically (useful for term papers).  By default, `gtroff'
+uses 10 point type on 12 point spacing.
+
+   The difference between type size and vertical spacing is known, by
+typesetters, as "leading" (this is pronounced `ledding').
+
+* Menu:
+
+* Changing Type Sizes::
+* Fractional Type Sizes::
+
+
+File: groff,  Node: Sizes-Footnotes,  Up: Sizes
+
+   (1) This is usually the parenthesis.  Note that in most cases the
+real dimensions of the glyphs in a font are _not_ related to its type
+size!  For example, the standard POSTSCRIPT font families `Times
+Roman', `Helvetica', and `Courier' can't be used together at 10pt; to
+get acceptable output, the size of `Helvetica' has to be reduced by one
+point, and the size of `Courier' must be increased by one point.
+
+
+File: groff,  Node: Changing Type Sizes,  Next: Fractional Type Sizes,  Prev: Sizes,  Up: Sizes
+
+Changing Type Sizes
+-------------------
+
+ - Request: .ps [size]
+ - Request: .ps +size
+ - Request: .ps -size
+ - Escape: \sSIZE
+ - Register: \n[.s]
+     Use the `ps' request or the `\s' escape to change (increase,
+     decrease) the type size (in points).  Specify SIZE as either an
+     absolute point size, or as a relative change from the current size.
+     The size 0, or no argument, goes back to the previous size.
+
+     Default scaling indicator of `size' is `z'.  If `size' is zero or
+     negative, it is set to 1u.
+
+     The read-only number register `.s' returns the point size in
+     points as a decimal fraction.  This is a string.  To get the point
+     size in scaled points, use the `.ps' register instead.
+
+     `.s' is associated with the current environment (*note
+     Environments::).
+
+
+          snap, snap,
+          .ps +2
+          grin, grin,
+          .ps +2
+          wink, wink, \s+2nudge, nudge,\s+8 say no more!
+          .ps 10
+
+     The `\s' escape may be called in a variety of ways.  Much like
+     other escapes there must be a way to determine where the argument
+     ends and the text begins.  Any of the following forms are valid:
+
+    `\sN'
+          Set the point size to N points.  N must be either 0 or in the
+          range 4 to 39.
+
+    `\s+N'
+    `\s-N'
+          Increase or decrease the point size by N points.  N must be
+          exactly one digit.
+
+    `\s(NN'
+          Set the point size to NN points.  NN must be exactly two
+          digits.
+
+    `\s+(NN'
+    `\s-(NN'
+    `\s(+NN'
+    `\s(-NN'
+          Increase or decrease the point size by NN points.  NN must be
+          exactly two digits.
+
+     Note that `\s' doesn't produce an input token in `gtroff'.  As a
+     consequence, it can be used in requests like `mc' (which expects a
+     single character as an argument) to change the font on the fly:
+
+
+          .mc \s[20]x\s[0]
+
+     *Note Fractional Type Sizes::, for yet another syntactical form of
+     using the `\s' escape.
+
+ - Request: .sizes s1 s2 ... sn [0]
+     Some devices may only have certain permissible sizes, in which case
+     `gtroff' rounds to the nearest permissible size.  The `DESC' file
+     specifies which sizes are permissible for the device.
+
+     Use the `sizes' request to change the permissible sizes for the
+     current output device.  Arguments are in scaled points; the
+     `sizescale' line in the `DESC' file for the output device provides
+     the scaling factor.  For example, if the scaling factor is 1000,
+     then the value 12000 is 12 points.
+
+     Each argument can be a single point size (such as `12000'), or a
+     range of sizes (such as `4000-72000').  You can optionally end the
+     list with a zero.
+
+ - Request: .vs [space]
+ - Request: .vs +space
+ - Request: .vs -space
+ - Register: \n[.v]
+     Change (increase, decrease) the vertical spacing by SPACE.  The
+     default scaling indicator is `p'.
+
+     If `vs' is called without an argument, the vertical spacing is
+     reset to the previous value before the last call to `vs'.
+
+     `gtroff' creates a warning of type `range' if SPACE is zero or
+     negative; the vertical spacing is then set to the vertical
+     resolution (as given in the `.V' register).
+
+     The read-only number register `.v' contains the current vertical
+     spacing; it is associated with the current environment (*note
+     Environments::).
+
+   The effective vertical line spacing consists of four components.
+
+   * The vertical line spacing as set with the `vs' request.
+
+   * The "post-vertical line spacing" as set with the `pvs' request.
+     This is vertical space which will be added after a line has been
+     output.
+
+   * The "extra pre-vertical line space" as set with the `\x' request,
+     using a negative value.  This is vertical space which will be
+     added once before the current line has been output.
+
+   * The "extra post-vertical line space" as set with the `\x' request,
+     using a positive value.  This is vertical space which will be
+     added once after the current line has been output.
+
+   It is usually better to use `vs' or `pvs' instead of `ls' to produce
+double-spaced documents: `vs' and `pvs' have a finer granularity for
+the inserted vertical space compared to `ls'; furthermore, certain
+preprocessors assume single-spacing.
+
+   *Note Manipulating Spacing::, for more details on the `\x' escape
+and the `ls' request.
+
+ - Request: .pvs [space]
+ - Request: .pvs +space
+ - Request: .pvs -space
+ - Register: \n[.pvs]
+     Change (increase, decrease) the post-vertical spacing by SPACE.
+     The default scaling indicator is `p'.
+
+     If `pvs' is called without an argument, the post-vertical spacing
+     is reset to the previous value before the last call to `pvs'.
+
+     `gtroff' creates a warning of type `range' if SPACE is zero or
+     negative; the vertical spacing is then set to zero.
+
+     The read-only number register `.pvs' contains the current
+     post-vertical spacing; it is associated with the current
+     environment (*note Environments::).
+
+
+File: groff,  Node: Fractional Type Sizes,  Prev: Changing Type Sizes,  Up: Sizes
+
+Fractional Type Sizes
+---------------------
+
+   A "scaled point" is equal to 1/SIZESCALE points, where SIZESCALE is
+specified in the `DESC' file (1 by default).  There is a new scale
+indicator `z' which has the effect of multiplying by SIZESCALE.
+Requests and escape sequences in `gtroff' interpret arguments that
+represent a point size as being in units of scaled points, but they
+evaluate each such argument using a default scale indicator of `z'.
+Arguments treated in this way are the argument to the `ps' request, the
+third argument to the `cs' request, the second and fourth arguments to
+the `tkf' request, the argument to the `\H' escape sequence, and those
+variants of the `\s' escape sequence that take a numeric expression as
+their argument (see below).
+
+   For example, suppose SIZESCALE is 1000; then a scaled point is
+equivalent to a millipoint; the request `.ps 10.25' is equivalent to
+`.ps 10.25z' and thus sets the point size to 10250 scaled points, which
+is equal to 10.25 points.
+
+   `gtroff' disallows the use of the `z' scale indicator in instances
+where it would make no sense, such as a numeric expression whose
+default scale indicator was neither `u' nor `z'.  Similarly it would
+make no sense to use a scaling indicator other than `z' or `u' in a
+numeric expression whose default scale indicator was `z', and so
+`gtroff' disallows this as well.
+
+   There is also new scale indicator `s' which multiplies by the number
+of units in a scaled point.  So, for example, `\n[.ps]s' is equal to
+`1m'.  Be sure not to confuse the `s' and `z' scale indicators.
+
+ - Register: \n[.ps]
+     A read-only number register returning the point size in scaled
+     points.
+
+     `.ps' is associated with the current environment (*note
+     Environments::).
+
+ - Register: \n[.psr]
+ - Register: \n[.sr]
+     The last-requested point size in scaled points is contained in the
+     `.psr' read-only number register.  The last requested point size
+     in points as a decimal fraction can be found in `.sr'.  This is a
+     string-valued read-only number register.
+
+     Note that the requested point sizes are device-independent, whereas
+     the values returned by the `.ps' and `.s' registers are not.  For
+     example, if a point size of 11pt is requested, and a `sizes'
+     request (or a `sizescale' line in a `DESC' file) specifies 10.95pt
+     instead, this value is actually used.
+
+     Both registers are associated with the current environment (*note
+     Environments::).
+
+   The `\s' escape has the following syntax for working with fractional
+type sizes:
+
+`\s[N]'
+`\s'N''
+     Set the point size to N scaled points; N is a numeric expression
+     with a default scale indicator of `z'.
+
+`\s[+N]'
+`\s[-N]'
+`\s+[N]'
+`\s-[N]'
+`\s'+N''
+`\s'-N''
+`\s+'N''
+`\s-'N''
+     Increase or or decrease the point size by N scaled points; N is a
+     numeric expression with a default scale indicator of `z'.
+
+   *Note Font Files::.
+

@@ -1,0 +1,1316 @@
+This is groff, produced by makeinfo version 4.2 from ./groff.texinfo.
+
+This manual documents GNU `troff' version 1.18.
+
+   Copyright (C) 1994-2000, 2001, 2002 Free Software Foundation, Inc.
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.1 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, with the Front-Cover texts
+     being `A GNU Manual," and with the Back-Cover Texts as in (a)
+     below.  A copy of the license is included in the section entitled
+     `GNU Free Documentation License."
+
+     (a) The FSF's Back-Cover Text is: `You have freedom to copy and
+     modify this GNU Manual, like GNU software.  Copies published by
+     the Free Software Foundation raise funds for GNU development."
+   
+INFO-DIR-SECTION Miscellaneous
+START-INFO-DIR-ENTRY
+* Groff: (groff).               The GNU troff document formatting system.
+END-INFO-DIR-ENTRY
+
+
+File: groff,  Node: Manipulating Hyphenation,  Next: Manipulating Spacing,  Prev: Manipulating Filling and Adjusting,  Up: gtroff Reference
+
+Manipulating Hyphenation
+========================
+
+   As discussed in *Note Hyphenation::, `gtroff' hyphenates words.
+There are a number of ways to influence hyphenation.
+
+ - Request: .hy [mode]
+ - Register: \n[.hy]
+     Enable hyphenation.  The request has an optional numeric argument,
+     MODE, to restrict hyphenation if necessary:
+
+    `1'
+          The default argument if MODE is omitted.  Hyphenate without
+          restrictions.  This is also the start-up value of `gtroff'.
+
+    `2'
+          Do not hyphenate the last word on a page or column.
+
+    `4'
+          Do not hyphenate the last two characters of a word.
+
+    `8'
+          Do not hyphenate the first two characters of a word.
+
+     Values in the previous table are additive.  For example, the
+     value 12 causes `gtroff' to neither hyphenate the last two nor the
+     first two characters of a word.
+
+     The current hyphenation restrictions can be found in the read-only
+     number register `.hy'.
+
+     The hyphenation mode is associated with the current environment
+     (*note Environments::).
+
+ - Request: .nh
+     Disable hyphenation (i.e., set the hyphenation mode to zero).  Note
+     that the hyphenation mode of the last call to `hy' is not
+     remembered.
+
+     The hyphenation mode is associated with the current environment
+     (*note Environments::).
+
+ - Request: .hlm [nnn]
+ - Register: \n[.hlm]
+ - Register: \n[.hlc]
+     Set the maximum number of consecutive hyphenated lines to NNN.  If
+     this number is negative, there is no maximum.  The default value
+     is -1 if NNN is omitted.  This value is associated with the
+     current environment (*note Environments::).  Only lines output
+     from a given environment count towards the maximum associated with
+     that environment.  Hyphens resulting from `\%' are counted;
+     explicit hyphens are not.
+
+     The current setting of `hlm' is available in the `.hlm' read-only
+     number register.  Also the number of immediately preceding
+     consecutive hyphenated lines are available in the read-only number
+     register `.hlc'.
+
+ - Request: .hw word1 word2 ...
+     Define how WORD1, WORD2, etc. are to be hyphenated.  The words
+     must be given with hyphens at the hyphenation points.  For example:
+
+
+          .hw in-sa-lub-rious
+
+     Besides the space character, any character whose hyphenation code
+     value is zero can be used to separate the arguments of `hw' (see
+     the documentation for the `hcode' request below for more
+     information).  In addition, this request can be used more than
+     once.
+
+     Hyphenation exceptions specified with the `hw' request are
+     associated with the current hyphenation language; it causes an
+     error if there is no current hyphenation language.
+
+     This request is ignored if there is no parameter.
+
+     In old versions of `troff' there was a limited amount of space to
+     store such information; fortunately, with `gtroff', this is no
+     longer a restriction.
+
+ - Escape: \%
+ - Escape: \:
+     To tell `gtroff' how to hyphenate words on the fly, use the `\%'
+     escape, also known as the "hyphenation character".  Preceding a
+     word with this character prevents it from being hyphenated;
+     putting it inside a word indicates to `gtroff' that the word may
+     be hyphenated at that point.  Note that this mechanism only
+     affects that one occurrence of the word; to change the hyphenation
+     of a word for the entire document, use the `hw' request.
+
+     The `\:' escape inserts a zero-width break point (that is, the
+     word breaks but without adding a hyphen).
+
+
+          ... check the /var/log/\:httpd/\:access_log file ...
+
+     Note that `\X' and `\Y' start a word, that is, the `\%' escape in
+     (say) ` \X'...'\%foobar' and ` \Y'...'\%foobar' no longer prevents
+     hyphenation but inserts a hyphenation point at the beginning of
+     `foobar'; most likely this isn't what you want to do.
+
+ - Request: .hc [char]
+     Change the hyphenation character to CHAR.  This character then
+     works the same as the `\%' escape, and thus, no longer appears in
+     the output.  Without an argument, `hc' resets the hyphenation
+     character to be `\%' (the default) only.
+
+     The hyphenation character is associated with the current
+     environment (*note Environments::).
+
+ - Request: .hpf pattern_file
+ - Request: .hpfa pattern_file
+ - Request: .hpfcode a b [c d ...]
+     Read in a file of hyphenation patterns.  This file is searched for
+     in the same way as `NAME.tmac' (or `tmac.NAME') is searched for if
+     the `-mNAME' option is specified.
+
+     It should have the same format as (simple) TeX patterns files.
+     More specifically, the following scanning rules are implemented.
+
+        * A percent sign starts a comment (up to the end of the line)
+          even if preceded by a backslash.
+
+        * No support for `digraphs' like `\$'.
+
+        * `^^XX' (X is 0-9 or a-f) and `^^X' (character code of X in
+          the range 0-127) are recognized; other use of `^' causes an
+          error.
+
+        * No macro expansion.
+
+        * `hpf' checks for the expression `\patterns{...}' (possibly
+          with whitespace before and after the braces).  Everything
+          between the braces is taken as hyphenation patterns.
+          Consequently, `{' and `}' are not allowed in patterns.
+
+        * Similarly, `\hyphenation{...}' gives a list of hyphenation
+          exceptions.
+
+        * `\endinput' is recognized also.
+
+        * For backwards compatibility, if `\patterns' is missing, the
+          whole file is treated as a list of hyphenation patterns (only
+          recognizing the `%' character as the start of a comment).
+
+     If no `hpf' request is specified (either in the document or in a
+     macro package), `gtroff' won't hyphenate at all.
+
+     The `hpfa' request appends a file of patterns to the current list.
+
+     The `hpfcode' request defines mapping values for character codes in
+     hyphenation patterns.  `hpf' or `hpfa' then apply the mapping
+     (after reading the patterns) before replacing or appending them to
+     the current list of patterns.  Its arguments are pairs of
+     character codes - integers from 0 to 255.  The request maps
+     character code A to code B, code C to code D, and so on.  You can
+     use character codes which would be invalid otherwise.
+
+     The set of hyphenation patterns is associated with the current
+     language set by the `hla' request.  The `hpf' request is usually
+     invoked by the `troffrc' or `troffrc-end' file; by default,
+     `troffrc' loads hyphenation patterns for American English (in file
+     `hyphen.us').
+
+     A second call to `hpf' (for the same language) will replace the
+     hyphenation patterns with the new ones.
+
+     Invoking `hpf' causes an error if there is no current hyphenation
+     language.
+
+ - Request: .hcode c1 code1 c2 code2 ...
+     Set the hyphenation code of character C1 to CODE1, that of C2 to
+     CODE2, etc.  A hyphenation code must be a single input character
+     (not a special character) other than a digit or a space.
+     Initially each lower-case letter (`a'-`z') has its hyphenation
+     code set to itself, and each upper-case letter (`A'-`Z') has a
+     hyphenation code which is the lower-case version of itself.
+
+     This request is ignored if it has no parameter.
+
+ - Request: .hym [length]
+ - Register: \n[.hym]
+     Set the (right) hyphenation margin to LENGTH.  If the current
+     adjustment mode is not `b' or `n', the line is not hyphenated if
+     it is shorter than LENGTH.  Without an argument, the hyphenation
+     margin is reset to its default value, which is 0.  The default
+     scaling indicator for this request is `m'.  The hyphenation margin
+     is associated with the current environment (*note Environments::).
+
+     A negative argument resets the hyphenation margin to zero, emitting
+     a warning of type `range'.
+
+     The current hyphenation margin is available in the `.hym' read-only
+     number register.
+
+ - Request: .hys [hyphenation_space]
+ - Register: \n[.hys]
+     Set the hyphenation space to HYPHENATION_SPACE.  If the current
+     adjustment mode is `b' or `n', don't hyphenate the line if it can
+     be justified by adding no more than HYPHENATION_SPACE extra space
+     to each word space.  Without argument, the hyphenation space is
+     set to its default value, which is 0.  The default scaling
+     indicator for this request is `m'.  The hyphenation space is
+     associated with the current environment (*note Environments::).
+
+     A negative argument resets the hyphenation space to zero, emitting
+     a warning of type `range'.
+
+     The current hyphenation space is available in the `.hys' read-only
+     number register.
+
+ - Request: .shc [glyph]
+     Set the "soft hyphen character" to GLYPH.(1) (*note Manipulating
+     Hyphenation-Footnote-1::)  If the argument is omitted, the soft
+     hyphen character is set to the default glyph `\(hy' (this is the
+     start-up value of `gtroff' also).  The soft hyphen character is
+     the glyph that is inserted when a word is hyphenated at a line
+     break.  If the soft hyphen character does not exist in the font of
+     the character immediately preceding a potential break point, then
+     the line is not broken at that point.  Neither definitions
+     (specified with the `char' request) nor translations (specified
+     with the `tr' request) are considered when finding the soft hyphen
+     character.
+
+ - Request: .hla language
+ - Register: \n[.hla]
+     Set the current hyphenation language to the string LANGUAGE.
+     Hyphenation exceptions specified with the `hw' request and
+     hyphenation patterns specified with the `hpf' and `hpfa' requests
+     are both associated with the current hyphenation language.  The
+     `hla' request is usually invoked by the `troffrc' or the
+     `troffrc-end' files; `troffrc' sets the default language to `us'.
+
+     The current hyphenation language is available as a string in the
+     read-only number register `.hla'.
+
+
+          .ds curr_language \n[.hla]
+          \*[curr_language]
+              => us
+
+
+
+File: groff,  Node: Manipulating Hyphenation-Footnotes,  Up: Manipulating Hyphenation
+
+   (1) "Soft hyphen character" is a misnomer since it is an output
+glyph.
+
+
+File: groff,  Node: Manipulating Spacing,  Next: Tabs and Fields,  Prev: Manipulating Hyphenation,  Up: gtroff Reference
+
+Manipulating Spacing
+====================
+
+ - Request: .sp [distance]
+     Space downwards DISTANCE.  With no argument it advances 1 line.  A
+     negative argument causes `gtroff' to move up the page the
+     specified distance.  If the argument is preceded by a `|' then
+     `gtroff' moves that distance from the top of the page.  This
+     request causes a line break.  The default scaling indicator is `v'.
+
+ - Request: .ls [nnn]
+ - Register: \n[.L]
+     Output NNN-1 blank lines after each line of text.  With no
+     argument, `gtroff' uses the previous value before the last `ls'
+     call.
+
+
+          .ls 2    \" This causes double-spaced output
+          .ls 3    \" This causes triple-spaced output
+          .ls      \" Again double-spaced
+
+     The line spacing is associated with the current environment (*note
+     Environments::).
+
+     The read-only number register `.L' contains the current line
+     spacing setting.
+
+   *Note Changing Type Sizes::, for the requests `vs' and `pvs' as
+alternatives to `ls'.
+
+ - Escape: \x'SPACING'
+ - Register: \n[.a]
+     Sometimes, extra vertical spacing is only needed occasionally, e.g.
+     to allow space for a tall construct (like an equation).  The `\x'
+     escape does this.  The escape is given a numerical argument,
+     usually enclosed in quotes (like `\x'3p''); the default scaling
+     indicator is `v'.  If this number is positive extra vertical space
+     is inserted below the current line.  A negative number adds space
+     above.  If this escape is used multiple times on the same line,
+     the maximum of the values is used.
+
+     *Note Escapes::, for details on parameter delimiting characters.
+
+     The `.a' read-only number register contains the most recent
+     (nonnegative) extra vertical line space.
+
+     Using `\x' can be necessary in combination with the `\b' escape,
+     as the following example shows.
+
+
+          This is a test with the \[rs]b escape.
+          .br
+          This is a test with the \[rs]b escape.
+          .br
+          This is a test with \b'xyz'\x'-1m'\x'1m'.
+          .br
+          This is a test with the \[rs]b escape.
+          .br
+          This is a test with the \[rs]b escape.
+
+     produces
+
+
+          This is a test with the \b escape.
+          This is a test with the \b escape.
+                              x
+          This is a test with y.
+                              z
+          This is a test with the \b escape.
+          This is a test with the \b escape.
+
+
+ - Request: .ns
+ - Request: .rs
+ - Register: \n[.ns]
+     Enable "no-space mode".  In this mode, spacing (either via `sp' or
+     via blank lines) is disabled.  The `bp' request to advance to the
+     next page is also disabled, except if it is accompanied by a page
+     number (see *Note Page Control::, for more information).  This
+     mode ends when actual text is output or the `rs' request is
+     encountered which ends no-space mode.  The read-only number
+     register `.ns' is set to 1 as long as no-space mode is active.
+
+     This request is useful for macros that conditionally insert
+     vertical space before the text starts (for example, a paragraph
+     macro could insert some space except when it is the first
+     paragraph after a section header).
+
+
+File: groff,  Node: Tabs and Fields,  Next: Character Translations,  Prev: Manipulating Spacing,  Up: gtroff Reference
+
+Tabs and Fields
+===============
+
+   A tab character (ASCII char 9, EBCDIC char 5) causes a horizontal
+movement to the next tab stop (much like it did on a typewriter).
+
+ - Escape: \t
+     This escape is a non-interpreted tab character.  In copy mode
+     (*note Copy-in Mode::), `\t' is the same as a real tab character.
+
+ - Request: .ta [n1 n2 ... nn T r1 r2 ... rn]
+ - Register: \n[.tabs]
+     Change tab stop positions.  This request takes a series of tab
+     specifiers as arguments (optionally divided into two groups with
+     the letter `T') which indicate where each tab stop is to be
+     (overriding any previous settings).
+
+     Tab stops can be specified absolutely, i.e., as the distance from
+     the left margin.  For example, the following sets 6 tab stops every
+     one inch.
+
+
+          .ta 1i 2i 3i 4i 5i 6i
+
+     Tab stops can also be specified using a leading `+' which means
+     that the specified tab stop is set relative to the previous tab
+     stop.  For example, the following is equivalent to the previous
+     example.
+
+
+          .ta 1i +1i +1i +1i +1i +1i
+
+     `gtroff' supports an extended syntax to specify repeat values after
+     the `T' mark (these values are always taken as relative) - this is
+     the usual way to specify tabs set at equal intervals.  The
+     following is, yet again, the same as the previous examples.  It
+     does even more since it defines an infinite number of tab stops
+     separated by one inch.
+
+
+          .ta T 1i
+
+     Now we are ready to interpret the full syntax given at the
+     beginning: Set tabs at positions N1, N2, ..., NN and then set tabs
+     at NN+R1, NN+R2, ..., NN+RN and then at NN+RN+R1, NN+RN+R2, ...,
+     NN+RN+RN, and so on.
+
+     Example: `4c +6c T 3c 5c 2c' is equivalent to `4c 10c 13c 18c 20c
+     23c 28c 30c ...'.
+
+     The material in each tab column (i.e., the column between two tab
+     stops) may be justified to the right or left or centered in the
+     column.  This is specified by appending `R', `L', or `C' to the tab
+     specifier.  The default justification is `L'.  Example:
+
+
+          .ta 1i 2iC 3iR
+
+     Some notes:
+
+        * The default unit of the `ta' request is `m'.
+
+        * A tab stop is converted into a non-breakable horizontal
+          movement which can be neither stretched nor squeezed.  For
+          example,
+
+
+               .ds foo a\tb\tc
+               .ta T 5i
+               \*[foo]
+
+          creates a single line which is a bit longer than 10 inches (a
+          string is used to show exactly where the tab characters are).
+          Now consider the following:
+
+
+               .ds bar a\tb b\tc
+               .ta T 5i
+               \*[bar]
+
+          `gtroff' first converts the tab stops of the line into
+          unbreakable horizontal movements, then splits the line after
+          the second `b' (assuming a sufficiently short line length).
+          Usually, this isn't what the user wants.
+
+        * Superfluous tabs (i.e., tab characters which do not
+          correspond to a tab stop) are ignored except the first one
+          which delimits the characters belonging to the last tab stop
+          for right-justifying or centering.  Consider the following
+          example
+
+
+               .ds Z   foo\tbar\tfoo
+               .ds ZZ  foo\tbar\tfoobar
+               .ds ZZZ foo\tbar\tfoo\tbar
+               .ta 2i 4iR
+               \*[Z]
+               .br
+               \*[ZZ]
+               .br
+               \*[ZZZ]
+               .br
+
+          which produces the following output:
+
+
+               foo                 bar              foo
+               foo                 bar           foobar
+               foo                 bar              foobar
+
+          The first line right-justifies the second `foo' relative to
+          the tab stop.  The second line right-justifies `foobar'.  The
+          third line finally right-justifies only `foo' because of the
+          additional tab character which marks the end of the string
+          belonging to the last defined tab stop.
+
+        * Tab stops are associated with the current environment (*note
+          Environments::).
+
+        * Calling `ta' without an argument removes all tab stops.
+
+        * The start-up value of `gtroff' is `T 0.5i' in troff mode and
+          `T 0.8i' in nroff mode (the latter is done with an explicit
+          call to the `ta' request in the file `tty.tmac'.
+
+     The read-only number register `.tabs' contains a string
+     representation of the current tab settings suitable for use as an
+     argument to the `ta' request.
+
+
+          .ds tab-string \n[.tabs]
+          \*[tab-string]
+              => T120u
+
+     The `troff' version of the Plan 9 operating system uses register
+     `.S' for the same purpose.
+
+ - Request: .tc [fill-glyph]
+     Normally `gtroff' fills the space to the next tab stop with
+     whitespace.  This can be changed with the `tc' request.  With no
+     argument `gtroff' reverts to using whitespace, which is the
+     default.  The value of this "tab repetition character" is
+     associated with the current environment (*note Environments::).(1)
+     (*note Tabs and Fields-Footnote-1::)
+
+ - Request: .linetabs n
+ - Register: \n[.linetabs]
+     If N is missing or not zero, enable "line-tabs" mode, or disable
+     it otherwise (the default).  In line-tabs mode, `gtroff' computes
+     tab distances relative to the (current) output line instead of the
+     input line.
+
+     For example, the following code:
+
+
+          .ds x a\t\c
+          .ds y b\t\c
+          .ds z c
+          .ta 1i 3i
+          \*x
+          \*y
+          \*z
+
+     in normal mode, results in the output
+
+
+          a         b         c
+
+     in line-tabs mode, the same code outputs
+
+
+          a         b                   c
+
+     Line-tabs mode is associated with the current environment.  The
+     read-only register `.linetabs' is set to 1 if in line-tabs mode,
+     and 0 in normal mode.
+
+* Menu:
+
+* Leaders::
+* Fields::
+
+
+File: groff,  Node: Tabs and Fields-Footnotes,  Up: Tabs and Fields
+
+   (1) "Tab repetition character" is a misnomer since it is an output
+glyph.
+
+
+File: groff,  Node: Leaders,  Next: Fields,  Prev: Tabs and Fields,  Up: Tabs and Fields
+
+Leaders
+-------
+
+   Sometimes it may may be desirable to use the `tc' request to fill a
+particular tab stop with a given glyph (for example dots in a table of
+contents), but also normal tab stops on the rest of the line.  For this
+`gtroff' provides an alternate tab mechanism, called "leaders" which
+does just that.
+
+   A leader character (character code 1) behaves similarly to a tab
+character: It moves to the next tab stop.  The only difference is that
+for this movement, the fill glyph defaults to a period character and
+not to space.
+
+ - Escape: \a
+     This escape is a non-interpreted leader character.  In copy mode
+     (*note Copy-in Mode::), `\a' is the same as a real leader
+     character.
+
+ - Request: .lc [fill-glyph]
+     Declare the "leader repetition character".(1) (*note
+     Leaders-Footnote-1::) Without an argument, leaders act the same as
+     tabs (i.e., using whitespace for filling).  `gtroff''s start-up
+     value is a dot (`.').  The value of the leader repetition
+     character is associated with the current environment (*note
+     Environments::).
+
+   For a table of contents, to name an example, tab stops may be
+defined so that the section number is one tab stop, the title is the
+second with the remaining space being filled with a line of dots, and
+then the page number slightly separated from the dots.
+
+
+     .ds entry 1.1\tFoo\a\t12
+     .lc .
+     .ta 1i 5i +.25i
+     \*[entry]
+
+This produces
+
+
+     1.1  Foo..........................................  12
+
+
+File: groff,  Node: Leaders-Footnotes,  Up: Leaders
+
+   (1) "Leader repetition character" is a misnomer since it is an
+output glyph.
+
+
+File: groff,  Node: Fields,  Prev: Leaders,  Up: Tabs and Fields
+
+Fields
+------
+
+   "Fields" are a more general way of laying out tabular data.  A field
+is defined as the data between a pair of "delimiting characters".  It
+contains substrings which are separated by "padding characters".  The
+width of a field is the distance on the _input_ line from the position
+where the field starts to the next tab stop.  A padding character
+inserts stretchable space similar to TeX's `\hss' command (thus it can
+even be negative) to make the sum of all substring lengths plus the
+stretchable space equal to the field width.  If more than one padding
+character is inserted, the available space is evenly distributed among
+them.
+
+ - Request: .fc [delim-char [padding-char]]
+     Define a delimiting and a padding character for fields.  If the
+     latter is missing, the padding character defaults to a space
+     character.  If there is no argument at all, the field mechanism is
+     disabled (which is the default).  Note that contrary to e.g. the
+     tab repetition character, delimiting and padding characters are
+     _not_ associated to the current environment (*note Environments::).
+
+     Example:
+
+
+          .fc # ^
+          .ta T 3i
+          #foo^bar^smurf#
+          .br
+          #foo^^bar^smurf#
+
+     and here the result:
+
+
+          foo         bar          smurf
+          foo            bar       smurf
+
+
+
+File: groff,  Node: Character Translations,  Next: Troff and Nroff Mode,  Prev: Tabs and Fields,  Up: gtroff Reference
+
+Character Translations
+======================
+
+   The control character (`.') and the no-break control character (`'')
+can be changed with the `cc' and `c2' requests, respectively.
+
+ - Request: .cc [c]
+     Set the control character to C.  With no argument the default
+     control character `.' is restored.  The value of the control
+     character is associated with the current environment (*note
+     Environments::).
+
+ - Request: .c2 [c]
+     Set the no-break control character to C.  With no argument the
+     default control character `'' is restored.  The value of the
+     no-break control character is associated with the current
+     environment (*note Environments::).
+
+ - Request: .eo
+     Disable the escape mechanism completely.  After executing this
+     request, the backslash character `\' no longer starts an escape
+     sequence.
+
+     This request can be very helpful in writing macros since it is not
+     necessary then to double the escape character.  Here an example:
+
+
+          .\" This is a simplified version of the
+          .\" .BR request from the man macro package
+          .eo
+          .de BR
+          .  ds result \&
+          .  while (\n[.$] >= 2) \{\
+          .    as result \fB\$1\fR\$2
+          .    shift 2
+          .  \}
+          .  if \n[.$] .as result \fB\$1
+          \*[result]
+          .  ft R
+          ..
+          .ec
+
+
+ - Request: .ec [c]
+     Set the escape character to C.  With no argument the default
+     escape character `\' is restored.  It can be also used to
+     re-enable the escape mechanism after an `eo' request.
+
+     Note that changing the escape character globally will likely break
+     macro packages since `gtroff' has no mechanism to `intern' macros,
+     i.e., to convert a macro definition into an internal form which is
+     independent of its representation (TeX has this mechanism).  If a
+     macro is called, it is executed literally.
+
+ - Request: .ecs
+ - Request: .ecr
+     The `ecs' request saves the current escape character in an
+     internal register.  Use this request in combination with the `ec'
+     request to temporarily change the escape character.
+
+     The `ecr' request restores the escape character saved with `ecs'.
+     Without a previous call to `ecs', this request sets the escape
+     character to `\'.
+
+ - Escape: \\
+ - Escape: \e
+ - Escape: \E
+     Print the current escape character (which is the backslash
+     character `\' by default).
+
+     `\\' is a `delayed' backslash; more precisely, it is the default
+     escape character followed by a backslash, which no longer has
+     special meaning due to the leading escape character.  It is _not_
+     an escape sequence in the usual sense!  In any unknown escape
+     sequence `\X' the escape character is ignored and X is printed.
+     But if X is equal to the current escape character, no warning is
+     emitted.
+
+     As a consequence, only at top-level or in a diversion a backslash
+     glyph is printed; in copy-in mode, it expands to a single
+     backslash which then combines with the following character to an
+     escape sequence.
+
+     The `\E' escape differs from `\e' by printing an escape character
+     that is not interpreted in copy mode.  Use this to define strings
+     with escapes that work when used in copy mode (for example, as a
+     macro argument).  The following example defines strings to begin
+     and end a superscript:
+
+
+          .ds { \v'-.3m'\s'\Es[.s]*60/100'
+          .ds } \s0\v'.3m'
+
+     Another example to demonstrate the differences between the various
+     escape sequences, using a strange escape character, `-'.
+
+
+          .ec -
+          .de xxx
+          --A'123'
+          ..
+          .xxx
+              => -A'foo'
+
+     The result is surprising for most users, expecting `1' since `foo'
+     is a valid identifier.  What has happened?  As mentioned above,
+     the leading escape character makes the following character
+     ordinary.  Written with the default escape character the sequence
+     `--' becomes `\-' - this is the minus sign.
+
+     If the escape character followed by itself is a valid escape
+     sequence, only `\E' yields the expected result:
+
+
+          .ec -
+          .de xxx
+          -EA'123'
+          ..
+          .xxx
+              => 1
+
+
+ - Escape: \.
+     Similar to `\\', the sequence `\.' isn't a real escape sequence.
+     As before, a warning message is suppressed if the escape character
+     is followed by a dot, and the dot itself is printed.
+
+
+          .de foo
+          .  nop foo
+          .
+          .  de bar
+          .    nop bar
+          \\..
+          .
+          ..
+          .foo
+          .bar
+              => foo bar
+
+     The first backslash is consumed while the macro is read, and the
+     second is swallowed while exexuting macro `foo'.
+
+   A "translation" is a mapping of an input character to an output
+glyph.  The mapping occurs at output time, i.e., the input character
+gets assigned the metric information of the mapped output character
+right before input tokens are converted to nodes (*note Gtroff
+Internals::, for more on this process).
+
+ - Request: .tr abcd...
+ - Request: .trin abcd...
+     Translate character A to glyph B, character C to glyph D, etc.  If
+     there is an odd number of arguments, the last one is translated to
+     an unstretchable space (`\ ').
+
+     The `trin' request is identical to `tr', but when you unformat a
+     diversion with `asciify' it ignores the translation.  *Note
+     Diversions::, for details about the `asciify' request.
+
+     Some notes:
+
+        * Special characters (`\(XX', `\[XXX]', `\C'XXX'', `\'', `\`',
+          `\-', `\_'), glyphs defined with the `char' request, and
+          numbered glyphs (`\N'XXX'') can be translated also.
+
+        * The `\e' escape can be translated also.
+
+        * Characters can be mapped onto the `\%' and `\~' escapes (but
+          `\%' and `\~' can't be mapped onto another glyph).
+
+        * The following characters can't be translated: space (with one
+          exception, see below), backspace, newline, leader (and `\a'),
+          tab (and `\t').
+
+        * Translations are not considered for finding the soft hyphen
+          character set with the `shc' request.
+
+        * The pair `C\&' (this is an arbitrary character C followed by
+          the zero width space character) maps this character to
+          nothing.
+
+
+               .tr a\&
+               foo bar
+                   => foo br
+
+          It is even possible to map the space character to nothing:
+
+
+               .tr aa \&
+               foo bar
+                   => foobar
+
+          As shown in the example, the space character can't be the
+          first character/glyph pair as an argument of `tr'.
+          Additionally, it is not possible to map the space character
+          to any other glyph; requests like `.tr aa x' undo `.tr aa \&'
+          instead.
+
+          If justification is active, lines are justified in spite of
+          the `empty' space character (but there is no minimal
+          distance, i.e. the space character, between words).
+
+        * After an output glyph has been constructed (this happens at
+          the moment immediately before the glyph is appended to an
+          output glyph list, either by direct output, in a macro,
+          diversion, or string), it is no longer affected by `tr'.
+
+        * Translating character to glyphs where one of them or both are
+          undefined is possible also; `tr' does not check whether the
+          entities in its argument do exist.
+
+          *Note Gtroff Internals::.
+
+        * `troff' no longer has a hard-coded dependency on Latin-1; all
+          `charXXX' entities have been removed from the font
+          description files.  This has a notable consequence which
+          shows up in warnings like `can't find character with input
+          code XXX' if the `tr' request isn't handled properly.
+
+          Consider the following translation:
+
+
+               .tr e'E'
+
+          This maps input character `e'' onto glyph `E'', which is
+          identical to glyph `char201'.  But this glyph intentionally
+          doesn't exist!  Instead, `\[char201]' is treated as an input
+          character entity and is by default mapped onto `\['E]', and
+          `gtroff' doesn't handle translations of translations.
+
+          The right way to write the above translation is
+
+
+               .tr e'\['E]
+
+          With other words, the first argument of `tr' should be an
+          input character or entity, and the second one a glyph entity.
+
+        * Without an argument, the `tr' request is ignored.
+
+ - Request: .trnt abcd...
+     `trnt' is the same as the `tr' request except that the
+     translations do not apply to text that is transparently throughput
+     into a diversion with `\!'.  *Note Diversions::, for more
+     information.
+
+     For example,
+
+
+          .tr ab
+          .di x
+          \!.tm a
+          .di
+          .x
+
+     prints `b' to the standard error stream; if `trnt' is used instead
+     of `tr' it prints `a'.
+
+
+File: groff,  Node: Troff and Nroff Mode,  Next: Line Layout,  Prev: Character Translations,  Up: gtroff Reference
+
+Troff and Nroff Mode
+====================
+
+   Originally, `nroff' and `troff' were two separate programs, the
+former for TTY output, the latter for everything else.  With GNU
+`troff', both programs are merged into one executable, sending its
+output to a device driver (`grotty' for TTY devices, `grops' for
+POSTSCRIPT, etc.) which interprets the intermediate output of `gtroff'.
+For UNIX `troff' it makes sense to talk about "Nroff mode" and "Troff
+mode" since the differences are hardcoded.  For GNU `troff', this
+distinction is not appropriate because `gtroff' simply takes the
+information given in the font files for a particular device without
+handling requests specially if a TTY output device is used.
+
+   Usually, a macro package can be used with all output devices.
+Nevertheless, it is sometimes necessary to make a distinction between
+TTY and non-TTY devices: `gtroff' provides two built-in conditions `n'
+and `t' for the `if', `ie', and `while' requests to decide whether
+`gtroff' shall behave like `nroff' or like `troff'.
+
+ - Request: .troff
+     Make the `t' built-in condition true (and the `n' built-in
+     condition false) for `if', `ie', and `while' conditional requests.
+     This is the default if `gtroff' (_not_ `groff') is started with
+     the `-R' switch to avoid loading of the start-up files `troffrc'
+     and `troffrc-end'.  Without `-R', `gtroff' stays in troff mode if
+     the output device is not a TTY (e.g. `ps').
+
+ - Request: .nroff
+     Make the `n' built-in condition true (and the `t' built-in
+     condition false) for `if', `ie', and `while' conditional requests.
+     This is the default if `gtroff' uses a TTY output device; the
+     code for switching to nroff mode is in the file `tty.tmac' which
+     is loaded by the start-up file `troffrc'.
+
+   *Note Conditionals and Loops::, for more details on built-in
+conditions.
+
+
+File: groff,  Node: Line Layout,  Next: Line Control,  Prev: Troff and Nroff Mode,  Up: gtroff Reference
+
+Line Layout
+===========
+
+   The following drawing shows the dimensions which `gtroff' uses for
+placing a line of output onto the page.  They are labeled with the
+request which manipulates each dimension.
+
+
+                     -->| in |<--
+                        |<-----------ll------------>|
+                   +----+----+----------------------+----+
+                   |    :    :                      :    |
+                   +----+----+----------------------+----+
+                -->| po |<--
+                   |<--------paper width---------------->|
+
+These dimensions are:
+
+`po'
+     "Page offset" - this is the leftmost position of text on the final
+     output, defining the "left margin".
+
+`in'
+     "Indentation" - this is the distance from the left margin where
+     text is printed.
+
+`ll'
+     "Line length" - this is the distance from the left margin to right
+     margin.
+
+   A simple demonstration:
+
+
+     .ll 3i
+     This is text without indentation.
+     The line length has been set to 3\~inch.
+     .in +.5i
+     .ll -.5i
+     Now the left and right margins are both increased.
+     .in
+     .ll
+     Calling .in and .ll without parameters restore
+     the previous values.
+
+   Result:
+
+
+     This  is text without indenta-
+     tion.   The  line  length  has
+     been set to 3 inch.
+          Now   the  left  and
+          right  margins   are
+          both increased.
+     Calling  .in  and  .ll without
+     parameters restore the  previ-
+     ous values.
+
+ - Request: .po [offset]
+ - Request: .po +offset
+ - Request: .po -offset
+ - Register: \n[.o]
+     Set horizontal page offset to OFFSET (or increment or decrement
+     the current value by OFFSET).  Note that this request does not
+     cause a break, so changing the page offset in the middle of text
+     being filled may not yield the expected result.  The initial value
+     is 1i.  For TTY output devices, it is set to 0 in the startup file
+     `troffrc'; the default scaling indicator is `m' (and not `v' as
+     incorrectly documented in the original UNIX troff manual).
+
+     The current page offset can be found in the read-only number
+     register `.o'.
+
+     If `po' is called without an argument, the page offset is reset to
+     the previous value before the last call to `po'.
+
+
+          .po 3i
+          \n[.o]
+              => 720
+          .po -1i
+          \n[.o]
+              => 480
+          .po
+          \n[.o]
+              => 720
+
+
+ - Request: .in [indent]
+ - Request: .in +indent
+ - Request: .in -indent
+ - Register: \n[.i]
+     Set indentation to INDENT (or increment or decrement the current
+     value by INDENT).  This request causes a break.  Initially, there
+     is no indentation.
+
+     If `in' is called without an argument, the indentation is reset to
+     the previous value before the last call to `in'.  The default
+     scaling indicator is `m'.
+
+     The indentation is associated with the current environment (*note
+     Environments::).
+
+     If a negative indentation value is specified (which is not
+     allowed), `gtroff' emits a warning of type `range' and sets the
+     indentation to zero.
+
+     The effect of `in' is delayed until a partially collected line (if
+     it exists) is output.  A temporary indent value is reset to zero
+     also.
+
+     The current indentation (as set by `in') can be found in the
+     read-only number register `.i'.
+
+ - Request: .ti offset
+ - Request: .ti +offset
+ - Request: .ti -offset
+ - Register: \n[.in]
+     Temporarily indent the next output line by OFFSET.  If an
+     increment or decrement value is specified, adjust the temporary
+     indentation relative to the value set by the `in' request.
+
+     This request causes a break; its value is associated with the
+     current environment (*note Environments::).  The default scaling
+     indicator is `m'.  A call of `ti' without an argument is ignored.
+
+     If the total indentation value is negative (which is not allowed),
+     `gtroff' emits a warning of type `range' and sets the temporary
+     indentation to zero.  `Total indentation' is either OFFSET if
+     specified as an absolute value, or the temporary plus normal
+     indentation, if OFFSET is given as a relative value.
+
+     The effect of `ti' is delayed until a partially collected line (if
+     it exists) is output.
+
+     The read-only number register `.in' is the indentation that applies
+     to the current output line.
+
+     The difference between `.i' and `.in' is that the latter takes
+     into account whether a partially collected line still uses the old
+     indentation value or a temporary indentation value is active.
+
+ - Request: .ll [length]
+ - Request: .ll +length
+ - Request: .ll -length
+ - Register: \n[.l]
+ - Register: \n[.ll]
+     Set the line length to LENGTH (or increment or decrement the
+     current value by LENGTH).  Initially, the line length is set to
+     6.5i.  The effect of `ll' is delayed until a partially collected
+     line (if it exists) is output.  The default scaling indicator is
+     `m'.
+
+     If `ll' is called without an argument, the line length is reset to
+     the previous value before the last call to `ll'.  If a negative
+     line length is specified (which is not allowed), `gtroff' emits a
+     warning of type `range' and sets the line length to zero.
+
+     The line length is associated with the current environment (*note
+     Environments::).
+
+     The current line length (as set by `ll') can be found in the
+     read-only number register `.l'.  The read-only number register
+     `.ll' is the line length that applies to the current output line.
+
+     Similar to `.i' and `.in', the difference between `.l' and `.ll'
+     is that the latter takes into account whether a partially
+     collected line still uses the old line length value.
+
+
+File: groff,  Node: Line Control,  Next: Page Layout,  Prev: Line Layout,  Up: gtroff Reference
+
+Line Control
+============
+
+   It is important to understand how `gtroff' handles input and output
+lines.
+
+   Many escapes use positioning relative to the input line.  For
+example, this
+
+
+     This is a \h'|1.2i'test.
+     
+     This is a
+     \h'|1.2i'test.
+
+produces
+
+
+     This is a   test.
+     
+     This is a             test.
+
+   The main usage of this feature is to define macros which act exactly
+at the place where called.
+
+
+     .\" A simple macro to underline a word
+     .de underline
+     .  nop \\$1\l'|0\[ul]'
+     ..
+
+In the above example, `|0' specifies a negative distance from the
+current position (at the end of the just emitted argument `\$1') back
+to the beginning of the input line.  Thus, the `\l' escape draws a line
+from right to left.
+
+   `gtroff' makes a difference between input and output line
+continuation; the latter is also called "interrupting" a line.
+
+ - Escape: \<RET>
+ - Escape: \c
+ - Register: \n[.int]
+     Continue a line.  `\<RET>' (this is a backslash at the end of a
+     line immediately followed by a newline) works on the input level,
+     suppressing the effects of the following newline in the input.
+
+
+          This is a \
+          .test
+              => This is a .test
+
+     The `|' operator is also affected.
+
+     `\c' works on the output level.  Anything after this escape on the
+     same line is ignored, except `\R' which works as usual.  Anything
+     before `\c' on the same line will be appended to the current
+     partial output line.  The next non-command line after an
+     interrupted line counts as a new input line.
+
+     The visual results depend on whether no-fill mode is active.
+
+        * If no-fill mode is active (using the `nf' request), the next
+          input text line after `\c' will be handled as a continuation
+          of the same input text line.
+
+
+               .nf
+               This is a \c
+               test.
+                   => This is a test.
+
+        * If fill mode is active (using the `fi' request), a word
+          interrupted with `\c' will be continued with the text on the
+          next input text line, without an intervening space.
+
+
+               This is a te\c
+               st.
+                   => This is a test.
+
+
+     Note that an intervening control line which causes a break is
+     stronger than `\c', flushing out the current partial line in the
+     usual way.
+
+     The `.int' register contains a positive value if the last output
+     line was interrupted with `\c'; this is associated with the
+     current environment (*note Environments::).
+
+
+
+File: groff,  Node: Page Layout,  Next: Page Control,  Prev: Line Control,  Up: gtroff Reference
+
+Page Layout
+===========
+
+   `gtroff' provides some very primitive operations for controlling
+page layout.
+
+ - Request: .pl [length]
+ - Request: .pl +length
+ - Request: .pl -length
+ - Register: \n[.p]
+     Set the "page length" to LENGTH (or increment or decrement the
+     current value by LENGTH).  This is the length of the physical
+     output page.  The default scaling indicator is `v'.
+
+     The current setting can be found in the read-only number register
+     `.p'.
+
+     Note that this only specifies the size of the page, not the top and
+     bottom margins.  Those are not set by `gtroff' directly.  *Note
+     Traps::, for further information on how to do this.
+
+     Negative `pl' values are possible also, but not very useful: No
+     trap is sprung, and each line is output on a single page (thus
+     suppressing all vertical spacing).
+
+     If no argument or an invalid argument is given, `pl' sets the page
+     length to 11i.
+
+   `gtroff' provides several operations which help in setting up top
+and bottom titles (or headers and footers).
+
+ - Request: .tl 'left'center'right'
+     Print a "title line".  It consists of three parts: a left
+     justified portion, a centered portion, and a right justified
+     portion.  The argument separator `'' can be replaced with any
+     character not occurring in the title line.  The `%' character is
+     replaced with the current page number.  This character can be
+     changed with the `pc' request (see below).
+
+     Without argument, `tl' is ignored.
+
+     Some notes:
+
+        * A title line is not restricted to the top or bottom of a page.
+
+        * `tl' prints the title line immediately, ignoring a partially
+          filled line (which stays untouched).
+
+        * It is not an error to omit closing delimiters.  For example,
+          `.tl /foo' is equivalent to `.tl /foo///': It prints a title
+          line with the left justified word `foo'; the centered and
+          right justfied parts are empty.
+
+        * `tl' accepts the same parameter delimiting characters as the
+          `\A' escape; see *Note Escapes::.
+
+ - Request: .lt [length]
+ - Request: .lt +length
+ - Request: .lt -length
+ - Register: \n[.lt]
+     The title line is printed using its own line length, which is
+     specified (or incremented or decremented) with the `lt' request.
+     Initially, the title line length is set to 6.5i.  If a negative
+     line length is specified (which is not allowed), `gtroff' emits a
+     warning of type `range' and sets the title line length to zero.
+     The default scaling indicator is `m'.  If `lt' is called without
+     an argument, the title length is reset to the previous value
+     before the last call to `lt'.
+
+     The current setting of this is available in the `.lt' read-only
+     number register; it is associated with the current environment
+     (*note Environments::).
+
+
+ - Request: .pn page
+ - Request: .pn +page
+ - Request: .pn -page
+ - Register: \n[.pn]
+     Change (increase or decrease) the page number of the _next_ page.
+     The only argument is the page number; the request is ignored
+     without a parameter.
+
+     The read-only number register `.pn' contains the number of the next
+     page: either the value set by a `pn' request, or the number of the
+     current page plus 1.
+
+ - Register: \n[%]
+     A read-write register holding the current page number.
+
+ - Request: .pc [char]
+     Change the page number character (used by the `tl' request) to a
+     different character.  With no argument, this mechanism is disabled.
+     Note that this doesn't affect the number register `%'.
+
+   *Note Traps::.
+

@@ -72,7 +72,7 @@ Three mailing lists are available:
                              commitments to the CVS repository
 
 Note that groff@gnu.org is an alias for groff@ffii.org; you must be
-subscribed to the `groff' and `groff-commit' lists to send mails.
+subscribed to the `groff' list to send mails.
 
 To subscribe, send a mail to <list>-request@<domain> (example:
 groff-request@ffii.org) with the word `subscribe' in either the subject

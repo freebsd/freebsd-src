@@ -1,6 +1,6 @@
-PROG=lkbib
+PROG=lkbib$(EXEEXT)
 MAN1=lkbib.n
 XLIBS=$(LIBBIB) $(LIBGROFF)
 MLIB=$(LIBM)
-OBJS=lkbib.o
+OBJS=lkbib.$(OBJEXT)
 CCSRCS=$(srcdir)/lkbib.cc

@@ -1,5 +1,5 @@
 
-$Id: README,v 2.1 2000/11/17 04:27:03 jhaegg Exp $
+$Id: README,v 2.2 2002/05/22 06:26:12 jhaegg Exp $
 
 This is mgm, a macro package for groff.
 
@@ -29,9 +29,3 @@ This README should be bigger :-)
 Thanks to everyone who have sent me bug-reports and fixes.
 
 
-Yes, my version numbering differs from the groff CVS, but I
-like mine better. :-)
-
-More likely, I'm too lazy to change it, but someday I'll
-try to sync them...
-The step to 2.0 is an attempt, let's see if it works.

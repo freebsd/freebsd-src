@@ -1,60 +1,106 @@
 .\" pspic.tmac
 .\"
 .\" Define the PSPIC macro.
-.\" When used other than with -Tps, it will draw a box around where
+.\"
+.\" When used other than with -Tps or -Tdvi, it will draw a box around where
 .\" the picture would go.
+.
 .de PSPIC
-.nr ps-offset-mode 0
-.ie '\\$1'-L' \{\
-.	nr ps-offset-mode 1
-.	shift
-.       HTML-DO-IMAGE \\$1 l
-.\}
-.el \{\
-.       ie '\\$1'-R' \{\
-.              nr ps-offset-mode 2
-.              shift
-.              HTML-DO-IMAGE \\$1 r
-.       \}
-.       el \{\
-.              if '\\$1'-I' \{\
-.                     nr ps-offset-mode 3
-.                     nr ps-offset (m;\\$2)
-.                     shift 2
-.              \}
-.              HTML-DO-IMAGE \\$1 i
-.       \}
-.\}
-.br
-.psbb \\$1
-.if (\\n[llx] : \\n[lly] : \\n[urx] : \\n[ury]) \{\
-.	nr ps-wid (\\n[urx]-\\n[llx])
-.	nr ps-ht (\\n[ury]-\\n[lly])
-.	if \\n[ps-wid]<0 .nr ps-wid 0-\\n[ps-wid]
-.	if \\n[ps-ht]<0 .nr ps-ht 0-\\n[ps-ht]
-.	ie \\n[.$]>=2 .nr ps-deswid (i;\\$2)
-.	el .nr ps-deswid \\n[.l]-\\n[.i]<?\\n[ps-wid]p
-.	nr ps-desht \\n[ps-deswid]*1000+(\\n[ps-wid]/2)/\\n[ps-wid]\
-*\\n[ps-ht]+500/1000
-.	if \\n[.$]>=3&(\\n[ps-desht]>(i;0\\$3)) \{\
-.		nr ps-desht (i;\\$3)
-.		nr ps-deswid \\n[ps-desht]*1000+(\\n[ps-ht]/2)/\\n[ps-ht]\
-*\\n[ps-wid]+500/1000
-.	\}
-.	ne \\n[ps-desht]u+1v
-.       if \\n[ps-offset-mode]=0 .nr ps-offset \\n[.l]-\\n[.i]-\\n[ps-deswid]/2
-.       if \\n[ps-offset-mode]=1 .nr ps-offset 0
-.       if \\n[ps-offset-mode]=2 .nr ps-offset \\n[.l]-\\n[.i]-\\n[ps-deswid]
-.	ie \\n[.$]>=3 .ds ps-desht \\n[ps-desht]
-.	el .ds ps-desht \" empty
+.  nr ps-offset-mode 0
+.  ie '\\$1'-L' \{\
+.    nr ps-offset-mode 1
+.    shift
+.    HTML-DO-IMAGE \\$1 l
+.  \}
+.  el \{\
+.    ie '\\$1'-R' \{\
+.      nr ps-offset-mode 2
+.      shift
+.      HTML-DO-IMAGE \\$1 r
+.    \}
+.    el \{\
+.      ie '\\$1'-I' \{\
+.        nr ps-offset-mode 3
+.        nr ps-offset (m;\\$2)
+.        shift 2
+.        HTML-DO-IMAGE \\$1 i
+.      \}
+.      el \
+.        HTML-DO-IMAGE \\$1 c
+.    \}
+.  \}
+.
+.  br
+.
+.  psbb \\$1
+.  if (\\n[llx] : \\n[lly] : \\n[urx] : \\n[ury]) \{\
+.    nr ps-wid (\\n[urx] - \\n[llx])
+.    nr ps-ht (\\n[ury] - \\n[lly])
+.    if (\\n[ps-wid] < 0) \
+.      nr ps-wid (-\\n[ps-wid])
+.    if (\\n[ps-ht] < 0) \
+.      nr ps-ht (-\\n[ps-ht])
+.    ie (\\n[.$] >= 2) \
+.      nr ps-deswid (i;\\$2)
+.    el \
+.      nr ps-deswid ((\\n[.l] - \\n[.i]) <? \\n[ps-wid]p)
+.    nr ps-desht (\\n[ps-deswid] * 1000 + (\\n[ps-wid] / 2) \
+                  / \\n[ps-wid] * \\n[ps-ht] \
+                  + 500 / 1000)
+.    if ((\\n[.$] >= 3) & (\\n[ps-desht] > (i;0\\$3))) \{\
+.      nr ps-desht (i;\\$3)
+.      nr ps-deswid (\\n[ps-desht] * 1000 + (\\n[ps-ht] / 2) \
+                     / \\n[ps-ht] * \\n[ps-wid] \
+                     + 500 / 1000)
+.    \}
+.
+.    ne (\\n[ps-desht]u + 1v)
+.
+.    if (\\n[ps-offset-mode] == 0) \
+.      nr ps-offset (\\n[.l] - \\n[.i] - \\n[ps-deswid] / 2)
+.    if (\\n[ps-offset-mode] == 1) \
+.      nr ps-offset 0
+.    if (\\n[ps-offset-mode] == 2) \
+.      nr ps-offset (\\n[.l] - \\n[.i] - \\n[ps-deswid])
+.
+.    ie '\*[.T]'dvi' \{\
+.      ie (\\n[ps-wid]p == \\n[ps-deswid]) \{\
+.        ds ps-scale \" empty
+.        ds ps-hoffset hoffset=-\\n[llx]
+.        ds ps-voffset voffset=-\\n[lly]
+.      \}
+.      el \{\
+.        nr ps-scale (\\n[ps-deswid] * 100 / \\n[ps-wid]p)
+.        nr ps-hoffset (-\\n[llx] * \\n[ps-scale] / 100)
+.        nr ps-voffset (-\\n[lly] * \\n[ps-scale] / 100)
+.        ds ps-scale hscale=\\n[ps-scale] vscale=\\n[ps-scale]
+.        ds ps-hoffset hoffset=\\n[ps-hoffset]
+.        ds ps-voffset voffset=\\n[ps-voffset]
+.      \}
+.
+\h'\\n[ps-offset]u'\
+\v'\\n[ps-desht]u'\
+\X'psfile=\\$1 \\*[ps-hoffset] \\*[ps-voffset] \\*[ps-scale]'
+.    \}
+.    el \{\
+.      ie (\\n[.$] >= 3) \
+.        ds ps-desht \\n[ps-desht]
+.      el \
+.        ds ps-desht \" empty
+.
 \h'\\n[ps-offset]u'\
 \X'ps: invis'\
 \Z'\D'p 0 \\n[ps-desht]u \\n[ps-deswid]u 0 0 -\\n[ps-desht]u''\
 \X'ps: endinvis'\
-\v'\\n[ps-desht]u'\X'ps: import \\$1 \
-\\n[llx] \\n[lly] \\n[urx] \\n[ury] \\n[ps-deswid] \\*[ps-desht]'
-.	br
-.	sp \\n[ps-desht]u
-.\}
-.HTML-IMAGE-END
+\v'\\n[ps-desht]u'\
+\X'ps: import \
+       \\$1 \\n[llx] \\n[lly] \\n[urx] \\n[ury] \\n[ps-deswid] \\*[ps-desht]'
+.    \}
+.
+.    br
+.    sp \\n[ps-desht]u
+.  \}
+.  HTML-IMAGE-END
 ..
+.
+.\" end of pspic.tmac

@@ -1,5 +1,6 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992, 2001 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2001, 2002
+   Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -61,9 +62,9 @@ int over_box::compute_metrics(int style)
 {
   if (reduce_size) {
     style = script_style(style);
-    printf(".nr " SIZE_FORMAT " \\n[.s]\n", uid);
+    printf(".nr " SIZE_FORMAT " \\n[.ps]\n", uid);
     set_script_size();
-    printf(".nr " SMALL_SIZE_FORMAT " \\n[.s]\n", uid);
+    printf(".nr " SMALL_SIZE_FORMAT " \\n[.ps]\n", uid);
   }
   int mark_uid = 0;
   int res = num->compute_metrics(style);
@@ -77,7 +78,7 @@ int over_box::compute_metrics(int style)
     res = r;
   }
   if (reduce_size)
-    printf(".ps \\n[" SIZE_FORMAT "]\n", uid);
+    printf(".ps \\n[" SIZE_FORMAT "]u\n", uid);
   printf(".nr " WIDTH_FORMAT " (\\n[" WIDTH_FORMAT "]>?\\n[" WIDTH_FORMAT "]", 
 	 uid, num->uid, den->uid);
   // allow for \(ru being wider than both the numerator and denominator
@@ -118,7 +119,7 @@ int over_box::compute_metrics(int style)
 void over_box::output()
 {
   if (reduce_size)
-    printf("\\s[\\n[" SMALL_SIZE_FORMAT "]]", uid);
+    printf("\\s[\\n[" SMALL_SIZE_FORMAT "]u]", uid);
 #ifdef USE_Z
   printf("\\Z" DELIMITER_CHAR);
 #endif
@@ -165,7 +166,7 @@ void over_box::output()
   printf("\\v'-\\n[" SUB_LOWER_FORMAT "]u'", uid);
 #endif
   if (reduce_size)
-    printf("\\s[\\n[" SIZE_FORMAT "]]", uid);
+    printf("\\s[\\n[" SIZE_FORMAT "]u]", uid);
   // draw the line
   printf("\\h'%dM'", null_delimiter_space);
   printf("\\v'-%dM'", axis_height);

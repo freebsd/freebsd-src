@@ -1,4 +1,5 @@
-/* Copyright (C) 1989, 1990, 1991, 1992, 2000 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2000, 2002
+     Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -18,6 +19,7 @@ with groff; see the file COPYING.  If not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA. */
 
 #define INT_DIGITS 19		/* enough for 64 bit integer */
+#define UINT_DIGITS 20
 
 char *i_to_a(i)
      int i;
@@ -39,5 +41,18 @@ char *i_to_a(i)
     } while (i != 0);
     *--p = '-';
   }
+  return p;
+}
+
+char *ui_to_a(i)
+     unsigned int i;
+{
+  /* Room for UINT_DIGITS digits and '\0' */
+  static char buf[UINT_DIGITS + 1];
+  char *p = buf + UINT_DIGITS;	/* points to terminating '\0' */
+  do {
+    *--p = '0' + (i % 10);
+    i /= 10;
+  } while (i != 0);
   return p;
 }

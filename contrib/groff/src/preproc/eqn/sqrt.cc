@@ -1,5 +1,5 @@
 // -*- C++ -*-
-/* Copyright (C) 1989, 1990, 1991, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1989, 1990, 1991, 1992, 2002 Free Software Foundation, Inc.
      Written by James Clark (jjc@jclark.com)
 
 This file is part of groff.
@@ -54,7 +54,7 @@ int sqrt_box::compute_metrics(int style)
 	 "]+%dM+(%dM/4)\n",
 	 p->uid, p->uid, default_rule_thickness,
 	 (style > SCRIPT_STYLE ? x_height : default_rule_thickness));
-  printf(".nr " SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SIZE_FORMAT " \\n[.ps]\n", uid);
   printf(".ds " SQRT_STRING_FORMAT " " SQRT_CHAR "\n", uid);
   printf(".ds " BAR_STRING " " RADICAL_EXTENSION_CHAR "\n");
   printf(".nr " SQRT_WIDTH_FORMAT
@@ -84,8 +84,8 @@ int sqrt_box::compute_metrics(int style)
 
   // Determine the maximum point size
   printf(".ps 1000\n");
-  printf(".nr " MAX_SIZE_REG " \\n[.s]\n");
-  printf(".ps \\n[" SIZE_FORMAT "]\n", uid);
+  printf(".nr " MAX_SIZE_REG " \\n[.ps]\n");
+  printf(".ps \\n[" SIZE_FORMAT "]u\n", uid);
   // We define a macro that will increase the current point size
   // until we get a radical sign that's tall enough or we reach
   // the maximum point size.
@@ -93,7 +93,7 @@ int sqrt_box::compute_metrics(int style)
 	 ".nr " SQRT_WIDTH_FORMAT
 	 " 0\\w" DELIMITER_CHAR "\\*[" SQRT_STRING_FORMAT "]" DELIMITER_CHAR "\n"
 	 ".if \\\\n[rst]-\\\\n[rsb]-%dM<\\n[" TEMP_REG "]"
-	 "&(\\\\n[.s]<\\n[" MAX_SIZE_REG "]) \\{"
+	 "&(\\\\n[.ps]<\\n[" MAX_SIZE_REG "]) \\{"
 	 ".ps +1\n"
 	 "." TEMP_MACRO "\n"
 	 ".\\}\n"
@@ -103,7 +103,7 @@ int sqrt_box::compute_metrics(int style)
   
   printf(".\\}\\}\n");
 
-  printf(".nr " SMALL_SIZE_FORMAT " \\n[.s]\n", uid);
+  printf(".nr " SMALL_SIZE_FORMAT " \\n[.ps]\n", uid);
   // set TEMP_REG to the amount by which the radical sign is too big
   printf(".nr " TEMP_REG " \\n[rst]-\\n[rsb]-%dM-\\n[" TEMP_REG "]\n",
 	 default_rule_thickness);
@@ -143,17 +143,17 @@ int sqrt_box::compute_metrics(int style)
 	 uid, p->uid, uid);
   // put a bit of extra space above the bar
   printf(".nr " HEIGHT_FORMAT " +%dM\n", uid, default_rule_thickness);
-  printf(".ps \\n[" SIZE_FORMAT "]\n", uid);
+  printf(".ps \\n[" SIZE_FORMAT "]u\n", uid);
   return r;
 }
 
 void sqrt_box::output()
 {
   printf("\\Z" DELIMITER_CHAR);
-  printf("\\s[\\n[" SMALL_SIZE_FORMAT "]]", uid);
+  printf("\\s[\\n[" SMALL_SIZE_FORMAT "]u]", uid);
   printf("\\v'-\\n[" SUP_RAISE_FORMAT "]u'", uid);
   printf("\\*[" SQRT_STRING_FORMAT "]", uid);
-  printf("\\s[\\n[" SIZE_FORMAT "]]", uid);
+  printf("\\s[\\n[" SIZE_FORMAT "]u]", uid);
   printf(DELIMITER_CHAR);
 
   printf("\\Z" DELIMITER_CHAR);

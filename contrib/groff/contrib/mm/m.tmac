@@ -3,8 +3,8 @@
 .ds RE \\$2
 ..
 .\"
-.\" $Id: m.tmac,v 2.4 2001/05/16 11:07:52 wlemb Exp $
-.@revision $Revision: 2.4 $
+.\" $Id: m.tmac,v 2.15 2002/08/07 23:23:34 wlemb Exp $
+.@revision $Revision: 2.15 $
 .ig
 
 Copyright (C) 1991-2000 Free Software Foundation, Inc.
@@ -33,8 +33,9 @@ Env.var		environ:name
 Index		array!index
 ..
 .if !\n(.g .ab These mm macros require groff.
+.do if d PH .nx
 .if \n(.C .ab The groff mm macros do not work in compatibility mode.
-.warn
+.if (\n[.warn] == 65543) .warn
 .\" ######## init #######
 .\"	Contents level [0:7], contents saved if heading level <= Cl
 .nr Cl 2
@@ -220,12 +221,12 @@ Index		array!index
 .\"
 .\" These variables controls the number of lines preceding .H.
 .\" Hps1 is the number of lines when level > Hps
-.nr Hps1 0.5
-.if n .nr Hps1 1
+.nr Hps1 0.5v
+.if n .nr Hps1 1v
 .\"
 .\" Hps2 is the number of lines when level <= Hps
-.nr Hps2 1
-.if n .nr Hps2 2
+.nr Hps2 1v
+.if n .nr Hps2 2v
 .\"
 .\" Hss is the number of lines (Lsp) after the header.
 .nr Hss 1
@@ -401,7 +402,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\" ####### module par #################################
 .nr par@ind-flag 1	\" indent on following P if Pt=2
 .nr hd*last-pos -1
-.nr hd*last-hpos -1
+.nr hd*last-hsize -1
 .nr par*number 0 1
 .af par*number 01
 .nr par*number2 0 1
@@ -417,31 +418,31 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\" paragraph
 .de P
 .\"	skip P if previous heading
-.ie !((\\n[nl]=\\n[hd*last-pos]):(\\n[nl]=(\\n[hd*last-pos]-.5v))) \{\
-.	if \\n[D]>2 .tm Paragraph nl=\\n[nl]
-.	par@doit \\$*
-.	if \\n[Np] \\n[H1].\\n+[par*number]\ \ \c
+.if \\n[D]>2 \{\
+.	tm Paragraph nl=\\n[nl], last=\\n[hd*last-pos]
+.	tm Paragraph .k=\\n[.k], hsize=\\n[hd*last-hsize]
 .\}
-.el .if !(\\n[hd*last-hpos]=\\n[.k]) \{\
-.	if \\n[D]>2 .tm Paragraph nl=\\n[nl]
-.	par@doit \\$*
-.	if \\n[Np] \\n[H1].\\n+[par*number]\ \ \c
+.if !((\\n[nl]=\\n[hd*last-pos]):(\\n[hd*last-hsize]=\\n[.k])) \{\
+.	if \\n[D]>2 .tm Paragraph set ind-flag=1
+.	nr par@ind-flag 1
 .\}
-.nr par@ind-flag 1
+.\" any collected unprinted text?
+.par@doit \\$*
+.if \\n[Np] \\n[H1].\\n+[par*number]\ \ \c
 ..
 .\"------------
 .de nP
 .\"	skip P if previous heading
-.ie !((\\n[nl]=\\n[hd*last-pos]):(\\n[nl]=(\\n[hd*last-pos]-.5v))) \{\
-.	if \\n[D]>2 .tm Paragraph nl=\\n[nl]
-.	par@doit \\$*
-\\n[H2].\\n+[par*number2]\ \ \c
+.if \\n[D]>2 \{\
+.	tm Paragraph nl=\\n[nl], last=\\n[hd*last-pos]
+.	tm Paragraph .k=\\n[.k], hsize=\\n[hd*last-hsize]
 .\}
-.el .if !(\\n[hd*last-hpos]=\\n[.k]) \{\
-.	if \\n[D]>2 .tm Paragraph nl=\\n[nl]
-.	par@doit \\$*
-\\n[H2].\\n+[par*number2]\ \ \c
+.if !((\\n[nl]=\\n[hd*last-pos]):(\\n[hd*last-hsize]=\\n[.k])) \{\
+.	if \\n[D]>2 .tm Paragraph set ind-flag=1
+.	nr par@ind-flag 1
 .\}
+.par@doit \\$*
+\\n[H2].\\n+[par*number2]\ \ \c
 .nr par@ind-flag 1
 ..
 .\"------------
@@ -770,10 +771,12 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .		shift
 .	\}
 .\}
+.\" let mmroff know the filename and id
 .if \\n[Ref]>0 \{\
 .	tm .\\\\" PIC id \\n[pict*id]
 .	tm .\\\\" PIC file \\*[pict*f]
 .\}
+.\" these are defined by mmroff in the second pass
 .if d pict*file!\\n[pict*id] \{\
 .	ds pict*f \\*[pict*file!\\n[pict*id]]
 .	nr pict*llx \\n[pict*llx!\\n[pict*id]]
@@ -809,41 +812,52 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .	ds pict*h "
 .	if \\n[pict*h]>0 .ds pict*h \\n[pict*h]
 .	\"
-.	ne \\n[pict*h]u
+.	ne \\n[pict*h]u-1v
 .	\"
 .	\" these lines are copied and modified from tmac.pspic.
 .	\" Originally written by James Clark
 .	br
 .	ie \\n[pict*box]>0 \{\
-\h'\\n[pict*in]u'\
+\v'-1v'\h'\\n[pict*in]u'\
 \Z'\D'p 0 \\n[pict*h]u \\n[pict*w]u 0 0 -\\n[pict*h]u''\
 \v'\\n[pict*h]u'\X'ps: import \\*[pict*f] \
-\\n[pict*llx] \\n[pict*lly] \\n[pict*urx] \\n[pict*ury] \\n[pict*w] \\n[pict*h]'
+\\n[pict*llx] \\n[pict*lly] \
+\\n[pict*urx] \\n[pict*ury] \
+\\n[pict*w] \\n[pict*h]'
 .\}
 .	el \{\
-\h'\\n[pict*in]u'\
+\v'-1v'\h'\\n[pict*in]u'\
 \X'ps: invis'\
 \Z'\D'p 0 \\n[pict*h]u \\n[pict*w]u 0 0 -\\n[pict*h]u''\
 \X'ps: endinvis'\
 \v'\\n[pict*h]u'\X'ps: import \\*[pict*f] \
-\\n[pict*llx] \\n[pict*lly] \\n[pict*urx] \\n[pict*ury] \\n[pict*w] \\n[pict*h]'
+\\n[pict*llx] \\n[pict*lly] \
+\\n[pict*urx] \\n[pict*ury] \
+\\n[pict*w] \\n[pict*h]'
 .	\}
 .	br
-.	sp \\n[pict*h]u
+.	sp \\n[pict*h]u-1v
 .\}
 ..
 .\" external picture
+.\" -L	left adjust
 .de EPIC
-.if \\n[.$]< 2 .@error "EPIC: Not enough arguments"
+.if \\n[.$]<2 .@error "EPIC: Not enough arguments"
+.nr pict*adj 0		\" centered
+.if '\\$1'-L' \{\
+.	shift 1		\" left adjust
+.	nr pict*adj 1
+.\}
+.if \\n[nl]<0 \&
 .nr pict*w \\$1
 .nr pict*h \\$2
 .ds pict*name "External picture
 .if !''$3' .ds pict*name \\$3
-\&
-.br
 .ne \\n[pict*h]u
-.sp \\n[pict*h]u
-.nr pict*ind (u;(\\n[.l]-\\n[.i]-\\n[pict*w])/2)
+.sp \\n[pict*h]u-1v
+.nr pict*ind 0
+.if !\\n[pict*adj] .nr pict*ind (u;(\\n[.l]-\\n[.i]-\\n[pict*w])/2)
+.mk
 .in +\\n[pict*ind]u
 \D'l \\n[pict*w]u 0'\
 \D'l 0 -\\n[pict*h]u'\
@@ -852,6 +866,8 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 \v'-(u;\\n[pict*h]/2)'\
 \h'(u;(\\n[pict*w]-\w'\\*[pict*name]'/2))'\\*[pict*name]
 .in
+.rt
+.sp 1v
 ..
 .\" ######## module acc #################
 .\"-----------
@@ -1054,7 +1070,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"---------- user macro HZ ----------
 .if d HZ .HZ \\n[hd*level] \\n[hd*arg1] "\\$2\\$3"
 .nr hd*last-pos \\n[nl]
-.nr hd*last-hpos \\n[.k]
+.nr hd*last-hsize \\n[.k]
 .nr par@ind-flag 0
 ..
 .\"--------
@@ -1093,8 +1109,8 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .nr pg*top-margin 0
 .nr pg*foot-margin 0
 .nr pg*block-size 0
-.nr pg*footer-size 5\"			 1v+footer+even/odd footer+2v
-.nr pg*header-size 7\"			 3v+header+even/odd header+2v
+.nr pg*footer-size 5v\"			 1v+footer+even/odd footer+2v
+.nr pg*header-size 7v\"			 3v+header+even/odd header+2v
 .nr pg*extra-footer-size 0
 .nr pg*extra-header-size 0
 .nr ft*note-size 0
@@ -1108,14 +1124,14 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"-------------------------
 .\" footer TRAPS: set, enable and disable
 .de pg@set-new-trap
-.nr pg*foot-trap \\n[@pl]u-(\\n[pg*block-size]u+\\n[ft*note-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]v+\\n[pg*extra-footer-size]u)
+.nr pg*foot-trap \\n[@pl]u-(\\n[pg*block-size]u+\\n[ft*note-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]u+\\n[pg*extra-footer-size]u)
 .\"
-.if \\n[D]>2 .tm pg*foot-trap \\n[@pl]u-(\\n[pg*block-size]u+\\n[ft*note-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]v+\\n[pg*extra-footer-size]u) = \\n[pg*foot-trap]
+.if \\n[D]>2 .tm pg*foot-trap \\n[@pl]u-(\\n[pg*block-size]u+\\n[ft*note-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]u+\\n[pg*extra-footer-size]u) = \\n[pg*foot-trap]
 .\"
 .\" last-pos points to the position of the footer and bottom 
 .\" block below foot-notes.
-.nr pg*last-pos \\n[@pl]u-(\\n[pg*block-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]v)
-.if \\n[D]>2 .tm pg*last-pos \\n[@pl]u-(\\n[pg*block-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]v) = \\n[pg*last-pos]
+.nr pg*last-pos \\n[@pl]u-(\\n[pg*block-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]u)
+.if \\n[D]>2 .tm pg*last-pos \\n[@pl]u-(\\n[pg*block-size]u+\\n[pg*foot-margin]u+\\n[pg*footer-size]u) = \\n[pg*last-pos]
 ..
 .de pg@enable-trap
 .wh \\n[pg*foot-trap]u pg@footer
@@ -1379,16 +1395,28 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 ..
 .\"-------------------------
 .\" set top and bottom margins 
+.\" -T	sets pg*footer-size and pg*header-size instead
 .de VM
-.if \\n[.$]=0 \{\
-.	nr pg*extra-footer-size 0
-.	nr pg*extra-header-size 0
+.ie '\\$1'-T' \{\
+.	shift
+.	if \\n[.$]=0 \{\
+.		nr pg*footer-size 5v
+.		nr pg*header-size 7v
+.	\}
+.	if \\n[.$]>0 .nr pg*header-size (v;\\$1)
+.	if \\n[.$]>1 .nr pg*footer-size (v;\\$2)
 .\}
-.if \\n[.$]>0 .nr pg*extra-header-size (v;\\$1)
-.if \\n[.$]>1 .nr pg*extra-footer-size (v;\\$2)
-.if \\n[D]>2 \{\
-.	tm extra top \\n[pg*extra-footer-size]
-.	tm extra bottom \\n[pg*extra-header-size]
+.el \{\
+.	if \\n[.$]=0 \{\
+.		nr pg*extra-footer-size 0
+.		nr pg*extra-header-size 0
+.	\}
+.	if \\n[.$]>0 .nr pg*extra-header-size (v;\\$1)
+.	if \\n[.$]>1 .nr pg*extra-footer-size (v;\\$2)
+.	if \\n[D]>2 \{\
+.		tm extra top \\n[pg*extra-footer-size]
+.		tm extra bottom \\n[pg*extra-header-size]
+.	\}
 .\}
 .pg@move-trap
 ..
@@ -1977,6 +2005,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\" nested DS/DE is allowed. No limit on depth.
 .de DS
 .br
+.nr XXX \\n[nl]
 .nr ds*lvl +1
 .ds@set-format \\$@
 .\"
@@ -2012,7 +2041,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 'nf
 .\" calculate needed space
 .nr ds*need \\n[ds*height]
-.nr ds*i \\n[pg*foot-trap]-\\n[pg*header-size]v-\\n[pg*extra-header-size]v
+.nr ds*i \\n[pg*foot-trap]-\\n[pg*header-size]u-\\n[pg*extra-header-size]u
 .if (\\n[ds*height]>\\n[ds*i])&(\\n[.t]<(\\n[ds*i]/2)) .nr ds*need \\n[.t]u+1v
 .if (\\n[ds*height]<\\n[ds*i])&(\\n[.t]<(\\n[ds*height])) .nr ds*need \\n[.t]u+1v
 .\"	Eject page if display will fit one page and
@@ -2034,9 +2063,9 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .nr ds*i \\n[Lsp]
 .if r Dsp .nr ds*i \\n[Dsp]
 .\"
-.if \\n[Ds] .SP \\n[ds*i]u
+.if \\n[Ds] .sp \\n[ds*i]u
 .ds*div!\\n[ds*snr]
-.if \\n[Ds] .SP \\n[ds*i]u
+.if \\n[Ds] .sp \\n[ds*i]u
 .\"
 .if \\n[ds*format]=2 'ce 0
 .if \\n[ds*format]=4 'rj 0
@@ -2078,7 +2107,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .ds li*mark \\$5\"			mark
 .ie !'\\$6'' .nr li*li-spc \\$6\"	LI-space
 .el .nr li*li-spc 1
-.ie !'\\$7'' .nr li*lb-spc \\$6\"	LB-space
+.ie !'\\$7'' .nr li*lb-spc \\$7\"	LB-space
 .el .nr li*lb-spc 0
 .\" init listcounter
 .nr li*cnt!\\n[li*lvl] 0 1
@@ -2312,10 +2341,11 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .de eq@check
 .if !'\\*[eq*label]'' \{\
 .	mk
-'	sp (u;\\$1/2-.45v)
+.	\" space down to middle of equation
+'	sp (u;\\$1/2)
 .	ie (\\n[Eq]%2) \{\
 .		\"	label to the left
-\h'|0'\\*[eq*label]\c
+\h'|0'\\*[eq*label]
 .	\}
 .	el \{\
 .		\"	label to the right
@@ -3096,7 +3126,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .\"########################### module ind ############################
 .\" Support for mgs-style indexing, borrowed from mgs.
 .de IX
-.tm \\$1\t\\$2\t\\$3\t\\$4 ... \\n[%]
+.	tm \\$1\t\\$2\t\\$3\t\\$4 ... \\n[%]
 ..
 .\"--------------------
 .\" Another type of index system
@@ -3405,6 +3435,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .if \\n[.$] .ds let*ia-name!\\n+[let*ia-n] \\$1
 .if \\n[.$]>1 .ds let*ia-title!\\n[let*ia-n] \\$2
 .ev let@ev
+.init@reset
 'nf
 .di let@ia-div
 .eo
@@ -3421,6 +3452,7 @@ in=\\n[.i] fi=\\n[.u] .d=\\n[.d] nl=\\n[nl] pg=\\n[%]
 .if \\n[.$] .ds let*wa-name!\\n+[let*wa-n] \\$1
 .if \\n[.$]>1 .ds let*wa-title!\\n[let*wa-n] \\$2
 .ev let@ev
+.init@reset
 'nf
 .di let@wa-div
 .it \\n[Letwam] let@wa-drain
