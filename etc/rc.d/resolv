@@ -73,6 +73,13 @@ mount_md ${varsize:=32m} /var 1
 echo "+++ populate /var using /etc/mtree/BSD.var.dist"
 /usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
 case ${sendmail_enable} in
+[Nn][Oo][Nn][Ee])
+	;;
+*)
+	/usr/sbin/mtree -deU -f /etc/mtree/BSD.sendmail.dist -p /
+	;;
+esac
+
 echo "+++ create log files based on the contents of /etc/newsyslog.conf"
 LOGFILES=`/usr/bin/awk '$1 != "#" { printf "%s ", $1 } ' /etc/newsyslog.conf`
 if [ -n "$LOGFILES" ]; then
