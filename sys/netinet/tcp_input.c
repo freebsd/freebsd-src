@@ -149,6 +149,7 @@ static void	 tcp_pulloutofband __P((struct socket *,
 static int	 tcp_reass __P((struct tcpcb *, struct tcphdr *, int *,
 				struct mbuf *));
 static void	 tcp_xmit_timer __P((struct tcpcb *, int));
+static int	 tcp_newreno __P((struct tcpcb *, struct tcphdr *));
 
 /* Neighbor Discovery, Neighbor Unreachability Detection Upper layer hint. */
 #ifdef INET6
@@ -1122,6 +1123,7 @@ findpcb:
 		tp->irs = th->th_seq;
 		tcp_sendseqinit(tp);
 		tcp_rcvseqinit(tp);
+		tp->snd_recover = tp->snd_una;
 		/*
 		 * Initialization of the tcpcb for transaction;
 		 *   set SND.WND = SEG.WND,
@@ -1810,10 +1812,20 @@ trimthenstep6:
 					u_int win =
 					    min(tp->snd_wnd, tp->snd_cwnd) / 2 /
 						tp->t_maxseg;
-
+					if (tcp_do_newreno && SEQ_LT(th->th_ack,
+					    tp->snd_recover)) {
+						/* False retransmit, should not
+						 * cut window
+						 */
+						tp->snd_cwnd += tp->t_maxseg;
+						tp->t_dupacks = 0;
+						(void) tcp_output(tp);
+						goto drop;
+					}
 					if (win < 2)
 						win = 2;
 					tp->snd_ssthresh = win * tp->t_maxseg;
+					tp->snd_recover = tp->snd_max;
 					callout_stop(tp->tt_rexmt);
 					tp->t_rtttime = 0;
 					tp->snd_nxt = th->th_ack;
@@ -1837,10 +1849,26 @@ trimthenstep6:
 		 * If the congestion window was inflated to account
 		 * for the other side's cached packets, retract it.
 		 */
-		if (tp->t_dupacks >= tcprexmtthresh &&
-		    tp->snd_cwnd > tp->snd_ssthresh)
-			tp->snd_cwnd = tp->snd_ssthresh;
-		tp->t_dupacks = 0;
+		if (tcp_do_newreno == 0) {
+                        if (tp->t_dupacks >= tcprexmtthresh &&
+                                tp->snd_cwnd > tp->snd_ssthresh)
+                                tp->snd_cwnd = tp->snd_ssthresh;
+                        tp->t_dupacks = 0;
+                } else if (tp->t_dupacks >= tcprexmtthresh &&
+		    !tcp_newreno(tp, th)) {
+                        /*
+                         * Window inflation should have left us with approx.
+                         * snd_ssthresh outstanding data.  But in case we
+                         * would be inclined to send a burst, better to do
+                         * it via the slow start mechanism.
+                         */
+			if (SEQ_GT(th->th_ack + tp->snd_ssthresh, tp->snd_max))
+                                tp->snd_cwnd =
+				    tp->snd_max - th->th_ack + tp->t_maxseg;
+			else
+                        	tp->snd_cwnd = tp->snd_ssthresh;
+                        tp->t_dupacks = 0;
+                }
 		if (SEQ_GT(th->th_ack, tp->snd_max)) {
 			tcpstat.tcps_rcvacktoomuch++;
 			goto dropafterack;
@@ -1933,7 +1961,13 @@ process_ACK:
 
 		if (cw > tp->snd_ssthresh)
 			incr = incr * incr / cw;
-		tp->snd_cwnd = min(cw + incr, TCP_MAXWIN << tp->snd_scale);
+		/*
+		 * If t_dupacks != 0 here, it indicates that we are still
+		 * in NewReno fast recovery mode, so we leave the congestion
+		 * window alone.
+		 */
+		if (tcp_do_newreno == 0 || tp->t_dupacks == 0)
+			tp->snd_cwnd = min(cw + incr,TCP_MAXWIN<<tp->snd_scale);
 		}
 		if (acked > so->so_snd.sb_cc) {
 			tp->snd_wnd -= so->so_snd.sb_cc;
@@ -2822,4 +2856,43 @@ tcp_mssopt(tp)
 			tcp_mssdflt;
 
 	return rt->rt_ifp->if_mtu - min_protoh;
+}
+
+
+/*
+ * Checks for partial ack.  If partial ack arrives, force the retransmission
+ * of the next unacknowledged segment, do not clear tp->t_dupacks, and return
+ * 1.  By setting snd_nxt to ti_ack, this forces retransmission timer to
+ * be started again.  If the ack advances at least to tp->snd_recover, return 0.
+ */
+static int
+tcp_newreno(tp, th)
+	struct tcpcb *tp;
+	struct tcphdr *th;
+{
+	if (SEQ_LT(th->th_ack, tp->snd_recover)) {
+		tcp_seq onxt = tp->snd_nxt;
+		u_long  ocwnd = tp->snd_cwnd;
+
+		callout_stop(tp->tt_rexmt);
+		tp->t_rtttime = 0;
+		tp->snd_nxt = th->th_ack;
+		/*
+		 * Set snd_cwnd to one segment beyond acknowledged offset
+		 * (tp->snd_una has not yet been updated when this function 
+		 *  is called)
+		 */
+		tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
+		(void) tcp_output(tp);
+		tp->snd_cwnd = ocwnd;
+		if (SEQ_GT(onxt, tp->snd_nxt))
+			tp->snd_nxt = onxt;
+		/*
+		 * Partial window deflation.  Relies on fact that tp->snd_una
+		 * not updated yet.
+		 */
+		tp->snd_cwnd -= (th->th_ack - tp->snd_una - tp->t_maxseg);
+		return (1);
+	}
+	return (0);
 }
