@@ -1682,7 +1682,7 @@ ed_pio_testmem(sc, page_offset, isa16bit, flags)
 	ed_nic_outb(sc, ED_P0_PSTART, page_offset / ED_PAGE_SIZE);
 	ed_nic_outb(sc, ED_P0_PSTOP, (page_offset + memsize) / ED_PAGE_SIZE);
 #ifdef ED_DEBUG
-	printf("ed?: ed_pio_testmem: page start=%x, end=%x",
+	printf("ed?: ed_pio_testmem: page start=%x, end=%lx",
 		      page_offset, page_offset + memsize);
 #endif
 

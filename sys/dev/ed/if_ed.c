@@ -370,8 +370,8 @@ ed_probe_WD80x3_generic(dev, flags, intr_vals)
 	if (error)
 		return (error);
 
-#if ED_DEBUG
-	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%d\n",
+#ifdef ED_DEBUG
+	printf("type = %x type_str=%s isa16bit=%d memsize=%d id_msize=%lu\n",
 	       sc->type, sc->type_str, isa16bit, memsize, conf_msize);
 	for (i = 0; i < 8; i++)
 		printf("%x -> %x\n", i, ed_asic_inb(sc, i));
