@@ -757,18 +757,14 @@ cbb_attach(device_t brdev)
 	sc->cbdev = device_add_child(brdev, "cardbus", -1);
 	if (sc->cbdev == NULL)
 		DEVPRINTF((brdev, "WARNING: cannot add cardbus bus.\n"));
-	else if (device_probe_and_attach(sc->cbdev) != 0) {
+	else if (device_probe_and_attach(sc->cbdev) != 0)
 		DEVPRINTF((brdev, "WARNING: cannot attach cardbus bus!\n"));
-		sc->cbdev = NULL;
-	}
 
 	sc->exca.pccarddev = device_add_child(brdev, "pccard", -1);
 	if (sc->exca.pccarddev == NULL)
 		DEVPRINTF((brdev, "WARNING: cannot add pccard bus.\n"));
-	else if (device_probe_and_attach(sc->exca.pccarddev) != 0) {
+	else if (device_probe_and_attach(sc->exca.pccarddev) != 0)
 		DEVPRINTF((brdev, "WARNING: cannot attach pccard bus.\n"));
-		sc->exca.pccarddev = NULL;
-	}
 
 	/* Map and establish the interrupt. */
 	rid = 0;
