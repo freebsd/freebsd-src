@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -76,6 +76,8 @@ mac_labelzone_dtor(void *mem, int size, void *arg)
 
 	KASSERT(size == sizeof(*label), ("mac_labelzone_dtor: wrong size\n"));
 	label = mem;
+	KASSERT(label->l_flags & MAC_FLAG_INITIALIZED,
+	    ("mac_labelzone_dtor: label not initialized"));
 #ifdef DIAGNOSTIC
 	bzero(label, sizeof(*label));
 #else
