@@ -1,4 +1,4 @@
-/* $Id: mcclock_isa.c,v 1.4 1999/05/08 21:58:38 dfr Exp $ */
+/* $Id: mcclock_isa.c,v 1.5 1999/05/18 21:24:11 dfr Exp $ */
 /* $NetBSD: mcclock_tlsb.c,v 1.8 1998/05/13 02:50:29 thorpej Exp $ */
 
 /*
@@ -36,12 +36,19 @@
 #include <sys/systm.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <machine/bus_pio.h>
+#include <machine/bus.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <isa/isavar.h>
 #include <machine/clockvar.h>
 #include <dev/dec/mcclockvar.h>
-
 #include <dev/dec/mc146818reg.h>
+
+struct mcclock_softc {
+	struct resource	*port;
+};
 
 static int	mcclock_isa_probe(device_t dev);
 static int	mcclock_isa_attach(device_t dev);
@@ -77,7 +84,19 @@ static devclass_t mcclock_devclass;
 int
 mcclock_isa_probe(device_t dev)
 {
-	isa_set_portsize(dev, 2);
+	struct mcclock_softc *sc = device_get_softc(dev);
+	int rid;
+
+	/* No pnp support */
+	if (isa_get_vendorid(dev))
+		return (ENXIO);
+
+	rid = 0;
+	sc->port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				      0ul, ~0ul, 2, RF_ACTIVE);
+	if (!sc->port)
+		return ENXIO;
+
 	device_set_desc(dev, "MC146818A real time clock");
 	return 0;
 }
@@ -92,17 +111,23 @@ mcclock_isa_attach(device_t dev)
 static void
 mcclock_isa_write(device_t dev, u_int reg, u_int val)
 {
-	u_int port = isa_get_port(dev);
-	outb(port, reg);
-	outb(port+1, val);
+	struct mcclock_softc *sc = device_get_softc(dev);
+	bus_space_tag_t iot = rman_get_bustag(sc->port);
+	bus_space_tag_t ioh = rman_get_bushandle(sc->port);
+
+	bus_space_write_1(iot, ioh, 0, reg);
+	bus_space_write_1(iot, ioh, 1, val);
 }
 
 static u_int
 mcclock_isa_read(device_t dev, u_int reg)
 {
-	u_int port = isa_get_port(dev);
-	outb(port, reg);
-	return inb(port+1);
+	struct mcclock_softc *sc = device_get_softc(dev);
+	bus_space_tag_t iot = rman_get_bustag(sc->port);
+	bus_space_tag_t ioh = rman_get_bushandle(sc->port);
+
+	bus_space_write_1(iot, ioh, 0, reg);
+	return bus_space_read_1(iot, ioh, 1);
 }
 
 DRIVER_MODULE(mcclock, isa, mcclock_isa_driver, mcclock_devclass, 0, 0);
