@@ -162,6 +162,7 @@ _thread_init(void)
 	size_t		len;
 	int		mib[2];
 	sigset_t	set;
+	int		error;
 
 	struct clockinfo clockinfo;
 	struct sigaction act;
@@ -221,7 +222,7 @@ _thread_init(void)
 	memset(pthread, 0, sizeof(struct pthread));
 
 	_thread_initial = pthread;
-	pthread->arch_id = _set_curthread(NULL, pthread);
+	pthread->arch_id = _set_curthread(NULL, pthread, &error);
 
 	/* Get our thread id. */
 	thr_self(&pthread->thr_id);

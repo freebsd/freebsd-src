@@ -116,7 +116,18 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->ctx.uc_stack.ss_sp = new_thread->stack;
 	new_thread->ctx.uc_stack.ss_size = pattr->stacksize_attr;
 	makecontext(&new_thread->ctx, _thread_start, 0);
-	new_thread->arch_id = _set_curthread(&new_thread->ctx, new_thread);
+	new_thread->arch_id = _set_curthread(&new_thread->ctx, new_thread, &ret);
+	if (ret != 0) {
+		if (pattr->stackaddr_attr == NULL) {
+			/* XXX - We really need to decouple from this lock */
+			DEAD_LIST_LOCK;
+			_thread_stack_free(new_thread->stack,
+			    pattr->stacksize_attr, pattr->guardsize_attr);
+			DEAD_LIST_UNLOCK;
+		}
+		free(new_thread);
+		return (ret);
+	}
 
 	/* Copy the thread attributes: */
 	memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
