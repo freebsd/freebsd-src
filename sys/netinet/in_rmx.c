@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.13 1995/05/30 08:09:31 rgrimes Exp $
+ * $Id: in_rmx.c,v 1.14 1995/06/21 19:48:53 wollman Exp $
  */
 
 /*
@@ -57,6 +57,15 @@
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
 
+#include <netinet/ip.h>
+#include <netinet/ip_var.h>
+
+#include <netinet/tcp.h>
+#include <netinet/tcp_seq.h>
+#include <netinet/tcp_timer.h>
+#include <netinet/tcp_var.h>
+#include <netinet/tcpip.h>
+
 #define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
 /*
@@ -67,16 +76,44 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	    struct radix_node *treenodes)
 {
 	struct rtentry *rt = (struct rtentry *)treenodes;
+	struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
 
 	/*
 	 * For IP, all unicast non-host routes are automatically cloning.
 	 */
 	if(!(rt->rt_flags & (RTF_HOST | RTF_CLONING))) {
-		struct sockaddr_in *sin = (struct sockaddr_in *)rt_key(rt);
 		if(!IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			rt->rt_flags |= RTF_PRCLONING;
 		}
 	}
+
+	/*
+	 * We also specify a send and receive pipe size for every
+	 * route added, to help TCP a bit.  TCP doesn't actually
+	 * want a true pipe size, which would be prohibitive in memory
+	 * costs and is hard to compute anyway; it simply uses these
+	 * values to size its buffers.  So, we fill them in with the
+	 * same values that TCP would have used anyway, and allow the
+	 * installing program or the link layer to override these values
+	 * as it sees fit.  This will hopefully allow TCP more
+	 * opportunities to save its ssthresh value.
+	 */
+	if (!rt->rt_rmx.rmx_sendpipe && !(rt->rt_rmx.rmx_locks & RTV_SPIPE))
+		rt->rt_rmx.rmx_sendpipe = tcp_sendspace;
+
+	if (!rt->rt_rmx.rmx_recvpipe && !(rt->rt_rmx.rmx_locks & RTV_RPIPE))
+		rt->rt_rmx.rmx_recvpipe = tcp_recvspace;
+
+	/*
+	 * Finally, set an MTU, again duplicating logic in TCP.
+	 * The in_localaddr() business will go away when we have
+	 * proper PMTU discovery.
+	 */
+	if (!rt->rt_rmx.rmx_mtu && !(rt->rt_rmx.rmx_locks & RTV_MTU) 
+	    && rt->rt_ifp)
+		rt->rt_rmx.rmx_mtu = (in_localaddr(sin->sin_addr)
+				      ? rt->rt_ifp->if_mtu
+				      : tcp_mssdflt + sizeof(struct tcpiphdr));
 
 	return rn_addroute(v_arg, n_arg, head, treenodes);
 }
