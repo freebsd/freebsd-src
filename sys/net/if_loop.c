@@ -120,8 +120,7 @@ locreate(int unit)
 {
 	struct lo_softc *sc;
 
-	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO,
-	    M_WAITOK | M_ZERO | M_PANIC);
+	MALLOC(sc, struct lo_softc *, sizeof(*sc), M_LO, M_WAITOK | M_ZERO);
 
 	sc->sc_if.if_name = "lo";
 	sc->sc_if.if_unit = unit;
