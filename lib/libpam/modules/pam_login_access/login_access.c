@@ -5,8 +5,11 @@
   * non-networked logins. Diagnostics are reported through syslog(3).
   *
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
-  * $FreeBSD$
   */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
 
 #ifdef LOGIN_ACCESS
 #ifndef lint
