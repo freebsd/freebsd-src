@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: NETWORKING NETWORK
-# REQUIRE: network dhclient altqd netif network2 network_ipv6 isdnd ppp-user
+# REQUIRE: network dhclient altqd netif routing network_ipv6 isdnd ppp-user
 # REQUIRE: routed mrouted route6d mroute6d
 # KEYWORD: FreeBSD NetBSD
 
