@@ -157,9 +157,16 @@
 #define	ctob(x)		((x) << PAGE_SHIFT)
 #define	btoc(x)		(((x) + PAGE_MASK) >> PAGE_SHIFT)
 
-/* bytes to disk blocks */
-#define	btodb(x)	((x) >> DEV_BSHIFT)
-#define	dbtob(x)	((x) << DEV_BSHIFT)
+/*
+ * btodb() is messy and perhaps slow because `bytes' may be an off_t.  We
+ * want to shift an unsigned type to avoid sign extension and we don't
+ * want to widen `bytes' unnecessarily.  Assume that the result fits in
+ * a daddr_t.
+ */
+#define btodb(bytes)	 		/* calculates (bytes / DEV_BSIZE) */ \
+	(daddr_t)((unsigned long)(bytes) >> DEV_BSHIFT)
+#define dbtob(db)			/* calculates (db * DEV_BSIZE) */ \
+	((off_t)(db) << DEV_BSHIFT)
 
 /*
  * Mach derived conversion macros
