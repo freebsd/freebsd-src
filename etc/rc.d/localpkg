@@ -3,18 +3,18 @@
 # $FreeBSD$
 #
 
-# PROVIDE: localdaemons
+# PROVIDE: localpkg
 # REQUIRE: abi
 # BEFORE:  securelevel
-# KEYWORD: FreeBSD nostart
+# KEYWORD: FreeBSD shutdown
 
 . /etc/rc.subr
 
-name="localdaemons"
-start_cmd="locald_start"
-stop_cmd="locald_stop"
+name="localpkg"
+start_cmd="pkg_start"
+stop_cmd="pkg_stop"
 
-locald_start()
+pkg_start()
 {
 	# For each dir in $local_startup, search for init scripts matching *.sh
 	#
@@ -51,7 +51,7 @@ locald_start()
 	esac
 }
 
-locald_stop()
+pkg_stop()
 {
 	echo -n 'Shutting down daemon processes:'
 
