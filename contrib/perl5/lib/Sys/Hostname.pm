@@ -93,14 +93,20 @@ sub hostname {
 
     # method 3 - trusty old hostname command
     || eval {
+	$pathstack = $ENV{'PATH'};
+	$ENV{'PATH'} = "/bin:/usr/bin";
 	local $SIG{__DIE__};
 	$host = `(hostname) 2>/dev/null`; # bsdish
+	$ENV{'PATH'} = $pathstack;
     }
 
     # method 4 - sysV uname command (may truncate)
     || eval {
+	$pathstack = $ENV{'PATH'};
+	$ENV{'PATH'} = "/bin:/usr/bin";
 	local $SIG{__DIE__};
 	$host = `uname -n 2>/dev/null`; ## sysVish
+	$ENV{'PATH'} = $pathstack;
     }
 
     # method 5 - Apollo pre-SR10
