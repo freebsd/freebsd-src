@@ -775,9 +775,16 @@ cpu_halt(void)
 }
 
 /*
- * Hook to idle the CPU when possible.  This currently only works in
- * the !SMP case, as there is no clean way to ensure that a CPU will be
- * woken when there is work available for it.
+ * Hook to idle the CPU when possible.  In the SMP case we default to
+ * off because a halted cpu will not currently pick up a new thread in the
+ * run queue until the next timer tick.  If turned on this will result in
+ * approximately a 4.2% loss in real time performance in buildworld tests
+ * (but improves user and sys times oddly enough), and saves approximately
+ * 5% in power consumption on an idle machine (tests w/2xCPU 1.1GHz P3).
+ *
+ * XXX we need to have a cpu mask of idle cpus and generate an IPI or
+ * otherwise generate some sort of interrupt to wake up cpus sitting in HLT.
+ * Then we can have our cake and eat it too.
  */
 #ifdef SMP
 static int	cpu_idle_hlt = 0;
