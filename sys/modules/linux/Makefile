@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../i386/linux
+.PATH:	${.CURDIR}/../../${MACHINE_ARCH}/linux
 
 MAINTAINER=	marcel@FreeBSD.org
 
