@@ -68,16 +68,18 @@ __FBSDID("$FreeBSD$");
 static char gpio_config[33];
 
 static volatile uint16_t *mmcrptr;
-volatile struct elan_mmcr * elan_mmcr;
+volatile struct elan_mmcr *elan_mmcr;
 
 #ifdef CPU_ELAN_PPS
 static struct pps_state elan_pps;
-u_int	pps_a, pps_d;
-u_int	echo_a, echo_d;
+static volatile uint16_t *pps_ap[3];
+static u_int	pps_a, pps_d;
+static u_int	echo_a, echo_d;
 #endif /* CPU_ELAN_PPS */
+
 #ifdef CPU_SOEKRIS
-u_int	led_cookie[32];
-dev_t	led_dev[32];
+static u_int	led_cookie[32];
+static dev_t	led_dev[32];
 
 static void
 gpio_led(void *cookie, int state)
@@ -158,6 +160,9 @@ sysctl_machdep_elan_gpio_config(SYSCTL_HANDLER_ARGS)
 		case 'P':
 			pps_d = u;
 			pps_a = 0xc30 + v;
+			pps_ap[0] = &mmcrptr[pps_a / 2];
+			pps_ap[1] = &elan_mmcr->GPTMR2CNT;
+			pps_ap[2] = &elan_mmcr->GPTMR1CNT;
 			mmcrptr[(0xc2a + v) / 2] &= ~u;
 			gpio_config[i] = buf[i];
 			break;
@@ -208,7 +213,20 @@ elan_poll_pps(struct timecounter *tc)
 {
 	static int state;
 	int i;
-	u_int u;
+	uint16_t u, x, y, z;
+	u_long eflags;
+
+	/*
+	 * Grab the HW state as quickly and compactly as we can.  Disable
+	 * interrupts to avoid measuring our interrupt service time on
+	 * hw with quality clock sources.
+	 */
+	eflags = read_eflags();
+	disable_intr();
+	x = *pps_ap[0];	/* state, must be first, see below */
+	y = *pps_ap[1]; /* timer2 */
+	z = *pps_ap[2]; /* timer1 */
+	write_eflags(eflags);
 
 	/*
 	 * Order is important here.  We need to check the state of the GPIO
@@ -217,13 +235,8 @@ elan_poll_pps(struct timecounter *tc)
 	 * harmlessly read the REVID register and the contents of pps_d is
 	 * of no concern.
 	 */
-	i = mmcrptr[pps_a / 2] & pps_d;
 
-	/*
-	 * Subtract timer1 from timer2 to compensate for time from the
-	 * edge until now.
-	 */
-	u = elan_mmcr->GPTMR2CNT - elan_mmcr->GPTMR1CNT;
+	i = x & pps_d;
 
 	/* If state did not change or we don't have a GPIO pin, return */
 	if (i == state || pps_a == 0)
@@ -238,9 +251,14 @@ elan_poll_pps(struct timecounter *tc)
 		return;
 	}
 
-	/* State is "high", record the pps data */
+	/*
+	 * Subtract timer1 from timer2 to compensate for time from the
+	 * edge until we read the counters.
+	 */
+	u = y - z;
+
 	pps_capture(&elan_pps);
-	elan_pps.capcount = u & 0xffff;
+	elan_pps.capcount = u;
 	pps_event(&elan_pps, PPS_CAPTUREASSERT);
 
 	/* Twiddle echo bit */
