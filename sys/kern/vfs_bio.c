@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.125 1997/09/07 16:56:29 bde Exp $
+ * $Id: vfs_bio.c,v 1.126 1997/09/10 20:09:22 phk Exp $
  */
 
 /*
@@ -1786,11 +1786,26 @@ biodone(register struct buf * bp)
 		int iosize;
 		struct vnode *vp = bp->b_vp;
 
+		obj = vp->v_object;
+
+#if defined(VFS_BIO_DEBUG)
+		if (vp->v_usecount == 0) {
+			panic("biodone: zero vnode ref count");
+		}
+
+		if (vp->v_object == NULL) {
+			panic("biodone: missing VM object");
+		}
+
+		if ((vp->v_flag & VVMIO) == 0) {
+			panic("biodone: vnode is not setup for merged cache");
+		}
+#endif
+
 		if (vp->v_type == VBLK)
 			foff = (vm_ooffset_t) DEV_BSIZE * bp->b_lblkno;
 		else
 			foff = (vm_ooffset_t) vp->v_mount->mnt_stat.f_iosize * bp->b_lblkno;
-		obj = vp->v_object;
 #if !defined(MAX_PERF)
 		if (!obj) {
 			panic("biodone: no object");
@@ -2188,7 +2203,8 @@ vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 
 tryagain:
 
-		p = vm_page_alloc(kernel_object, ((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
+		p = vm_page_alloc(kernel_object,
+			((pg - VM_MIN_KERNEL_ADDRESS) >> PAGE_SHIFT),
 		    VM_ALLOC_NORMAL);
 		if (!p) {
 			VM_WAIT;
@@ -2199,7 +2215,7 @@ tryagain:
 		bp->b_pages[index] = p;
 		PAGE_WAKEUP(p);
 	}
-	bp->b_npages = to >> PAGE_SHIFT;
+	bp->b_npages = index;
 }
 
 void
@@ -2207,11 +2223,11 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
-	int index;
+	int index, newnpages;
 
 	from = round_page(from);
 	to = round_page(to);
-	index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
+	newnpages = index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
@@ -2228,7 +2244,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 			vm_page_free(p);
 		}
 	}
-	bp->b_npages = from >> PAGE_SHIFT;
+	bp->b_npages = newnpages;
 }
 
 
@@ -2257,5 +2273,18 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		  "b_blkno = %d, b_pblkno = %d\n",
 		  bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 		  bp->b_dev, bp->b_un.b_addr, bp->b_blkno, bp->b_pblkno);
+	if (bp->b_npages) {
+		int i;
+		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);
+		for (i = 0; i < bp->b_npages; i++) {
+			vm_page_t m;
+			m = bp->b_pages[i];
+			db_printf("(0x%x, 0x%x, 0x%x)", m->object, m->pindex,
+				VM_PAGE_TO_PHYS(m));
+			if ((i + 1) < bp->b_npages)
+				db_printf(",");
+		}
+		db_printf("\n");
+	}
 }
 #endif /* DDB */
