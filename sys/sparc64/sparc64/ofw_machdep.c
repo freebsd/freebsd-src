@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 by Thomas Moestl <tmm@FreeBSD.org>.
+ * Copyright (c) 2005 by Marius Strobl <marius@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,17 +37,13 @@
 #include <net/ethernet.h>
 
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_pci.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/idprom.h>
+#include <machine/ofw_bus.h>
 #include <machine/ofw_machdep.h>
-#include <machine/ofw_upa.h>
-#include <machine/resource.h>
-
-#include <sparc64/pci/ofw_pci.h>
-#include <sparc64/isa/ofw_isa.h>
-#include <sparc64/sbus/ofw_sbus.h>
 
 void
 OF_getetheraddr(device_t dev, u_char *addr)
@@ -71,105 +68,199 @@ OF_getetheraddr(device_t dev, u_char *addr)
 	bcopy(&idp.id_ether, addr, ETHER_ADDR_LEN);
 }
 
+static __inline uint32_t
+phys_hi_mask_space(const char *bus, uint32_t phys_hi)
+{
+	uint32_t space;
+
+	space = phys_hi;
+	if (strcmp(bus, "ebus") == 0 || strcmp(bus, "isa") == 0)
+		space &= 0x1;
+	else if (strcmp(bus, "pci") == 0)
+		space &= OFW_PCI_PHYS_HI_SPACEMASK;
+	/* The phys.hi cells of the other busses only contain space bits. */
+	return (space);
+}
+
+/*
+ * Return the physical address and the bus space to use for a node
+ * referenced by its package handle and the index of the register bank
+ * to decode. Intended to be used to together with sparc64_fake_bustag()
+ * by console drivers in early boot only.
+ * Works by mapping the address of the node's bank given in the address
+ * space of its parent upward in the device tree at each bridge along the
+ * path.
+ * Currently only really deals with max. 64-bit addresses, i.e. addresses
+ * consisting of max. 2 phys cells (phys.hi and phys.lo). If we encounter
+ * a 3 phys cells address (as with PCI addresses) we assume phys.hi can
+ * be ignored except for the space bits (generally contained in phys.hi)
+ * and treat phys.mid as phys.hi.
+ */
 int
-OF_decode_addr(phandle_t node, int *space, bus_addr_t *addr)
+OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 {
 	char name[32];
-	union {
-		struct isa_ranges isa[4];
-		struct sbus_ranges sbus[8];
-		struct upa_ranges upa[4];
-	} range;
-	union {
-		struct isa_regs isa;
-		struct sbus_regs sbus;
-	} reg;
-	phandle_t bus, pbus;
-	u_long child, dummy, phys;
-	int cs, i, rsz, type;
+	uint64_t cend, cstart, end, phys, sz, start;
+	pcell_t addrc, szc, paddrc;
+	phandle_t bus, lbus, pbus;
+	uint32_t banks[10 * 5];	/* 10 PCI banks */
+	uint32_t cspace, spc;
+	int i, j, nbank;
 
+	/*
+	 * In general the addresses are contained in the "reg" property
+	 * of a node. The first address in the "reg" property of a PCI
+	 * node however is the address of its configuration registers in
+	 * the configuration space of the host bridge. Additional entries
+	 * denote the memory and I/O addresses. For relocatable addresses
+	 * the "reg" property contains the BAR, for non-relocatable
+	 * addresses it contains the absolute PCI address. The PCI-only
+	 * "assigned-addresses" property however always contains the
+	 * absolute PCI addresses.
+	 * The "assigned-addresses" and "reg" properties are arrays of
+	 * address structures consisting of #address-cells 32-bit phys
+	 * cells and #size-cells 32-bit size cells. If a parent lacks
+	 * the "#address-cells" or "#size-cells" property the default
+	 * for #address-cells to use is 2 and for #size-cells 1.
+	 */
 	bus = OF_parent(node);
 	if (bus == 0)
 		return (ENXIO);
 	if (OF_getprop(bus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
 	name[sizeof(name) - 1] = '\0';
-	if (strcmp(name, "ebus") == 0 || strcmp(name, "isa") == 0) {
-		if (OF_getprop(node, "reg", &reg.isa, sizeof(reg.isa)) == -1)
+	if (OF_getprop(bus, "#address-cells", &addrc, sizeof(addrc)) == -1)
+		addrc = 2;
+	if (OF_getprop(bus, "#size-cells", &szc, sizeof(szc)) == -1)
+		szc = 1;
+	if (szc > 2)
+		return (ENXIO);
+	if (strcmp(name, "pci") == 0) {
+		if (addrc > 3)
 			return (ENXIO);
-		rsz = OF_getprop(bus, "ranges", range.isa, sizeof(range.isa));
-		if (rsz == -1)
+		nbank = OF_getprop(node, "assigned-addresses", &banks,
+		    sizeof(banks));
+	} else {
+		if (addrc > 2)
 			return (ENXIO);
-		phys = ISA_REG_PHYS(&reg.isa);
-		dummy = phys + 1;
-		type = ofw_isa_range_map(range.isa, rsz / sizeof(*range.isa),
-		    &phys, &dummy, NULL);
-		if (type == SYS_RES_MEMORY) {
-			cs = PCI_CS_MEM32;
-			*space = PCI_MEMORY_BUS_SPACE;
-		} else {
-			cs = PCI_CS_IO;
-			*space = PCI_IO_BUS_SPACE;
-		}
+		nbank = OF_getprop(node, "reg", &banks, sizeof(banks));
+	}
+	if (nbank == -1)
+		return (ENXIO);
+	nbank /= sizeof(banks[0]) * (addrc + szc);
+	if (bank < 0 || bank > nbank - 1)
+		return (ENXIO);
+	phys = 0;
+	for (i = 0; i < MIN(2, addrc); i++)
+		phys |= (uint64_t)banks[(addrc + szc) * bank + addrc - 2 + i] <<
+		    32 * (MIN(2, addrc) - i - 1);
+	sz = 0;
+	for (i = 0; i < szc; i++)
+		sz |= (uint64_t)banks[(addrc + szc) * bank + addrc + i] <<
+		    32 * (szc - i - 1);
+	start = phys;
+	end = phys + sz - 1;
+	spc = phys_hi_mask_space(name, banks[(addrc + szc) * bank]);
 
-		/* Find the topmost PCI node (the host bridge) */
-		while (1) {
-			pbus = OF_parent(bus);
-			if (pbus == 0)
-				return (ENXIO);
+	/*
+	 * Map upward in the device tree at every bridge we encounter
+	 * using their "ranges" properties.
+	 * The "ranges" property of a bridge is an array of a structure
+	 * consisting of that bridge's #address-cells 32-bit child-phys
+	 * cells, its parent bridge #address-cells 32-bit parent-phys
+	 * cells and that bridge's #size-cells 32-bit size cells.
+	 * If a bridge doesn't have a "ranges" property no mapping is
+	 * necessary at that bridge.
+	 */
+	cspace = 0;
+	lbus = bus;
+	while ((pbus = OF_parent(bus)) != 0) {
+		if (OF_getprop(pbus, "#address-cells", &paddrc,
+		    sizeof(paddrc)) == -1)
+			paddrc = 2;
+		if (paddrc > 3)
+			return (ENXIO);
+		nbank = OF_getprop(bus, "ranges", &banks, sizeof(banks));
+		if (nbank == -1) {
 			if (OF_getprop(pbus, "name", name, sizeof(name)) == -1)
 				return (ENXIO);
 			name[sizeof(name) - 1] = '\0';
-			if (strcmp(name, "pci") != 0)
-				break;
-			bus = pbus;
+			goto skip;
 		}
-
-		/* There wasn't a PCI bridge. */
-		if (bus == OF_parent(node))
-			return (ENXIO);
-
-		/* Make sure we reached the UPA/PCI node. */
-		if (OF_getprop(pbus, "device_type", name, sizeof(name)) == -1)
-			return (ENXIO);
-		name[sizeof(name) - 1] = '\0';
-		if (strcmp(name, "upa") != 0)
-			return (ENXIO);
-
-		rsz = OF_getprop(bus, "ranges", range.upa, sizeof(range.upa));
-		if (rsz == -1)
-			return (ENXIO);
-		for (i = 0; i < (rsz / sizeof(range.upa[0])); i++) {
-			child = UPA_RANGE_CHILD(&range.upa[i]);
-			if (UPA_RANGE_CS(&range.upa[i]) == cs &&
-			    phys >= child &&
-			    phys - child < UPA_RANGE_SIZE(&range.upa[i])) {
-				*addr = UPA_RANGE_PHYS(&range.upa[i]) + phys;
-				return (0);
-			}
+		if (lbus != bus) {
+			if (OF_getprop(bus, "#size-cells", &szc,
+			    sizeof(szc)) == -1)
+				szc = 1;
+			if (szc > 2)
+				return (ENXIO);
 		}
-	} else if (strcmp(name, "sbus") == 0) {
-		if (OF_getprop(node, "reg", &reg.sbus, sizeof(reg.sbus)) == -1)
-			return (ENXIO);
-		rsz = OF_getprop(bus, "ranges", range.sbus,
-		    sizeof(range.sbus));
-		if (rsz == -1)
-			return (ENXIO);
-		for (i = 0; i < (rsz / sizeof(range.sbus[0])); i++) {
-			if (reg.sbus.sbr_slot != range.sbus[i].cspace)
+		nbank /= sizeof(banks[0]) * (addrc + paddrc + szc);
+		for (i = 0; i < nbank; i++) {
+			cspace = phys_hi_mask_space(name,
+			    banks[(addrc + paddrc + szc) * i]);
+			if (cspace != spc)
 				continue;
-			if (reg.sbus.sbr_offset < range.sbus[i].coffset ||
-			    reg.sbus.sbr_offset >= range.sbus[i].coffset +
-			    range.sbus[i].size)
+			phys = 0;
+			for (j = 0; j < MIN(2, addrc); j++)
+				phys |= (uint64_t)banks[
+				    (addrc + paddrc + szc) * i +
+				    addrc - 2 + j] <<
+				    32 * (MIN(2, addrc) - j - 1);
+			sz = 0;
+			for (j = 0; j < szc; j++)
+				sz |= (uint64_t)banks[
+				    (addrc + paddrc + szc) * i + addrc +
+				    paddrc + j] <<
+				    32 * (szc - j - 1);
+			cstart = phys;
+			cend = phys + sz - 1;
+			if (start < cstart || start > cend)
 				continue;
-			/* Found it... */
-			phys = range.sbus[i].poffset |
-			    ((bus_addr_t)range.sbus[i].pspace << 32);
-			phys += reg.sbus.sbr_offset - range.sbus[i].coffset;
-			*addr = phys;
-			*space = SBUS_BUS_SPACE;
+			if (end < cstart || end > cend)
+				return (ENXIO);
+			phys = 0;
+			for (j = 0; j < MIN(2, paddrc); j++)
+				phys |= (uint64_t)banks[
+				    (addrc + paddrc + szc) * i + addrc +
+				    paddrc - 2 + j] <<
+				    32 * (MIN(2, paddrc) - j - 1);
+			start += phys - cstart;
+			end += phys - cstart;
+			if (OF_getprop(pbus, "name", name, sizeof(name)) == -1)
+				return (ENXIO);
+			name[sizeof(name) - 1] = '\0';
+			spc = phys_hi_mask_space(name,
+			    banks[(addrc + paddrc + szc) * i + addrc]);
+			break;
+		}
+		if (i == nbank)
+			return (ENXIO);
+ skip:
+		addrc = paddrc;
+		lbus = bus;
+		bus = pbus;
+	}
+
+	/* Done with mapping. Return the bus space as used by FreeBSD. */
+	*addr = start;
+	if (OF_getprop(lbus, "name", name, sizeof(name)) == -1)
+		return (ENXIO);
+	name[sizeof(name) - 1] = '\0';
+	if (strcmp(name, "central") == 0) {
+		*space = UPA_BUS_SPACE;
+		return (0);
+	} else if (strcmp(name, "pci") == 0) {
+		switch (cspace) {
+		case OFW_PCI_PHYS_HI_SPACE_IO:
+			*space = PCI_IO_BUS_SPACE;
+			return (0);
+		case OFW_PCI_PHYS_HI_SPACE_MEM32:
+			*space = PCI_MEMORY_BUS_SPACE;
 			return (0);
 		}
+	} else if (strcmp(name, "sbus") == 0) {
+		*space = SBUS_BUS_SPACE;
+		return (0);
 	}
 	return (ENXIO);
 }
