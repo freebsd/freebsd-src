@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iiconf.c,v 1.1.1.1 1998/09/03 20:51:50 nsouch Exp $
+ *	$Id: iiconf.c,v 1.2 1998/10/31 11:31:07 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -213,7 +213,7 @@ iicbus_block_read(device_t bus, u_char slave, char *buf, int len, int *read)
 u_char
 iicbus_get_addr(device_t dev)
 {
-	u_long addr;
+	uintptr_t addr;
 	device_t parent = device_get_parent(dev);
 
 	BUS_READ_IVAR(parent, dev, IICBUS_IVAR_ADDR, &addr);
