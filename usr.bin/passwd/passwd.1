@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)passwd.1	8.1 (Berkeley) 6/6/93
-.\"	$Id$
+.\"	$Id: passwd.1,v 1.5.2.2 1998/01/03 19:16:40 steve Exp $
 .\"
 .Dd June 6, 1993
 .Dt PASSWD 1
@@ -77,8 +77,8 @@ password file, and not with the Kerberos database.
 When changing only the local password,
 .Xr pwd_mkdb  8
 is used to update the password databases.
-.El
 .Pp
+.El
 When changing local or NIS password, the next password change date
 is set according to "passwordperiod" capability in the user's
 login class.
@@ -161,7 +161,7 @@ option and
 .Nm passwd
 is unable to determine the name of the NIS master server (possibly because
 the local domainname isn't set), the name of the NIS master is assumed to
-be ``localhost''. This can be overriden with the
+be ``localhost''. This can be overidden with the
 .Fl s
 flag. The specified hostname need not be the name of an NIS master: the
 name of the NIS master for a given map can be determined by querying any
