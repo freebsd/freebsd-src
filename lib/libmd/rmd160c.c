@@ -55,7 +55,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- *	$Id: rmd160c.c,v 1.2 1999/02/26 20:06:46 wollman Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

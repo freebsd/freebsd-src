@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)putc.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: putc.c,v 1.5 1997/02/22 15:02:17 peter Exp $";
+  "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

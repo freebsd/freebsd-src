@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigsetjmp.S,v 1.10 1997/02/22 14:58:43 peter Exp $
+ * $FreeBSD$
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigsetjmp.S,v 1.10 1997/02/22 14:58:43 peter Exp $"
+	.asciz "$FreeBSD$"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"

@@ -1,4 +1,4 @@
-.\" $Id: atrun.man,v 1.5 1998/07/01 05:47:58 jkoshy Exp $
+.\" $FreeBSD$
 .Dd April 12, 1995
 .Dt ATRUN 8
 .Os FreeBSD 2.1

@@ -54,7 +54,7 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  *
- *	$Id: sha.h,v 1.1 1999/02/26 04:24:56 wollman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _SHA_H_

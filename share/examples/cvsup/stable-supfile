@@ -1,4 +1,4 @@
-# $Id: stable-supfile,v 1.14 1999/02/11 18:14:03 jdp Exp $
+# $FreeBSD$
 #
 # This file contains all of the "CVSup collections" that make up the
 # FreeBSD-stable source tree.

@@ -1,4 +1,4 @@
-# $Id: Makefile.inc,v 1.4 1998/07/31 09:09:19 phk Exp $
+# $FreeBSD$
 
 # POSIX thread man files
 

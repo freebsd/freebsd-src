@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $FreeBSD$ */
 /*	From: NetBSD: s_copysignf.S,v 1.3 1997/07/30 23:58:41 jtc Exp */
 
 /*-

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.9 1998/02/23 09:10:56 ache Exp $
+# $FreeBSD$
 #
 
 PROG=	mount_msdos

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_nanosleep.c,v 1.8 1999/08/19 23:06:10 alfred Exp $
+ * $FreeBSD$
  */
 #include <stdio.h>
 #include <errno.h>

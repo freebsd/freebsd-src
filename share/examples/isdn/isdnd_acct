@@ -29,7 +29,7 @@
 #	accounting report script for the isdnd daemon accounting info
 #	-------------------------------------------------------------
 #
-#	$Id: isdnd_acct,v 1.2 1999/05/05 14:25:59 hm Exp $
+# $FreeBSD$
 #
 #	last edit-date: [Wed May  5 16:24:16 1999]
 #

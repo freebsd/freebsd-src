@@ -1,6 +1,6 @@
 # Makefile for libopie
 #
-# $Id: Makefile,v 1.7 1997/09/29 21:40:17 ache Exp $
+# $FreeBSD$
 #
 OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 DIST_DIR=	${OPIE_DIST}/${.CURDIR:T}

@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/4/94
-#	$Id: Makefile,v 1.25 1998/11/21 02:11:16 jdp Exp $
+# $FreeBSD$
 
 PROG=	ftpd
 MAN8=	ftpd.8

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.20 1999/08/12 19:34:39 deischen Exp $
+ * $FreeBSD$
  *
  */
 #include <errno.h>

@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fsdb.c,v 1.11 1998/11/09 03:43:55 truckman Exp $";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include <sys/types.h>

@@ -1,6 +1,6 @@
 # Make `routed` for FreeBSD
-# $Revision: 2.15 $
-#       $Id$
+# $Revision: 1.6 $
+# $FreeBSD$
 
 PROG=   routed
 SRCS=   if.c input.c main.c output.c parms.c radix.c rdisc.c table.c trace.c

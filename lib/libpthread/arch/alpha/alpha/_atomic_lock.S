@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF  
  * SUCH DAMAGE.    
  *
- * $Id: _atomic_lock.S,v 1.1 1998/06/09 08:21:55 jb Exp $
+ * $FreeBSD$
  *
  */
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1997/02/22 15:06:55 peter Exp $
+# $FreeBSD$
 
 LIB=		gnumalloc
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a

@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.6 1999/04/09 00:28:31 jdp Exp $
+# $FreeBSD$
 #
 MAINTAINER=	jdp
 PROG=		ld-elf.so.1

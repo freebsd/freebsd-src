@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file providing the above
  *    conditions are met.
  *
- *	$Id: _secure_path.c,v 1.3 1998/10/09 00:39:08 jkh Exp $
+ * $FreeBSD$
  */
 
 

@@ -1,4 +1,4 @@
-#	$Id: Makefile.inc,v 1.4 1998/08/17 03:38:54 jb Exp $
+# $FreeBSD$
 
 SRCS+=	_setjmp.S fabs.S frexp.c infinity.c isinf.c ldexp.c modf.c setjmp.S
 SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \

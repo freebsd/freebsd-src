@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm.h,v 1.2 1999/01/20 18:36:58 mks Exp $
+ *	@(#) $FreeBSD$
  *
  */
 

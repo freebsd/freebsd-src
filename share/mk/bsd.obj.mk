@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.27 1999/03/14 20:41:13 markm Exp $
+# $FreeBSD$
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.

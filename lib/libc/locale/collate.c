@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.15 1997/02/22 14:59:52 peter Exp $
+ * $FreeBSD$
  */
 
 #include <rune.h>

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_create.c,v 1.17 1999/07/11 06:06:52 jasone Exp $
+ * $FreeBSD$
  */
 #include <errno.h>
 #include <stdlib.h>

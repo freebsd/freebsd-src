@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_fork.c,v 1.11 1999/08/05 12:15:11 deischen Exp $
+ * $FreeBSD$
  */
 #include <errno.h>
 #include <string.h>

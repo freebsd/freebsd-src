@@ -25,7 +25,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.15 1999/04/24 17:01:58 ache Exp $
+ * $FreeBSD$
  */
 
 #include <stdio.h>

@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1999/02/27 02:16:01 brian Exp $
+# $FreeBSD$
 
 LIB=		alias
 SHLIB_MAJOR=	3

@@ -1,5 +1,5 @@
 #	from @(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.6 1997/12/19 21:56:38 bde Exp $
+# $FreeBSD$
 
 # Quad support, if needed
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/quad ${.CURDIR}/../libc/quad

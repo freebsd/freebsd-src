@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_target.c,v 1.3 1999/03/05 23:12:02 gibbs Exp $
+ * $FreeBSD$
  */
 
 #include <sys/types.h>

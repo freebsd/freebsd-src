@@ -6,7 +6,7 @@
 * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 * ----------------------------------------------------------------------------
 *
-* $Id: libdisk.h,v 1.29 1998/10/06 11:57:08 dfr Exp $
+* $FreeBSD$
 *
 */
 

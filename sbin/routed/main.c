@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ * $FreeBSD$
  */
 
 #include "defs.h"
@@ -52,7 +52,7 @@ __RCSID("$NetBSD$");
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif
-#ident "$Revision: 2.17 $"
+#ident "$Revision: 1.9 $"
 
 
 pid_t	mypid;

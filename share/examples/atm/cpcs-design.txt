@@ -80,5 +80,5 @@ o The Streaming Mode service is not supported.
 o The Abort service is not supported.
 
 
-	@(#) $Id: cpcs.design,v 1.1.1.1 1996/12/04 20:48:14 mks Exp $
+	@(#) $FreeBSD$
 
