@@ -214,14 +214,16 @@ static void
 in6_ifaddloop(struct ifaddr *ifa)
 {
 	struct rtentry *rt;
+	int need_loop;
 
 	/* If there is no loopback entry, allocate one. */
 	rt = rtalloc1(ifa->ifa_addr, 0, 0);
-	if (rt == NULL || (rt->rt_flags & RTF_HOST) == 0 ||
-	    (rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0)
-		in6_ifloop_request(RTM_ADD, ifa);
+	need_loop = (rt == NULL || (rt->rt_flags & RTF_HOST) == 0 ||
+	    (rt->rt_ifp->if_flags & IFF_LOOPBACK) == 0);
 	if (rt)
 		rtfree(rt);
+	if (need_loop)
+		in6_ifloop_request(RTM_ADD, ifa);
 }
 
 /*
