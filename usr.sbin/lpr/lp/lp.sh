@@ -36,17 +36,12 @@
 #
 # Posix 1003.2 compliant print spooler interface.
 #
-# $Id: lp.sh,v 1.1 1995/01/22 17:47:33 j Exp $
+# $Id: lp.sh,v 1.1 1995/01/23 19:22:43 joerg Exp $
 #
 #
 # XXX Bugs:
 # . Our lpr command is not smart enough about dashes as input file names,
 #   they should indicate the use of standard input.
-# . Our /bin/sh is not Posix-1003.2 compliant in its getopts command;
-#   if the user specifies an option argument immediately after the
-#   option, the variable OPTIND will be set wrong.  (This way of
-#   specifying option arguments is deprecated by Posix, but explicitly
-#   allowed.)
 # . Our lpr command should allow the Posix-compliant way of specifying
 #   options that take an argument; it currently requires the argument
 #   to follow the option immediately.
