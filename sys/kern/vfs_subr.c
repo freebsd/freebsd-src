@@ -1531,7 +1531,7 @@ sched_sync(void)
 	int syncer_final_iter;
 
 	mtx_lock(&Giant);
-	last_work_seen = -1;
+	last_work_seen = 0;
 	syncer_final_iter = 0;
 	syncer_state = SYNCER_RUNNING;
 	starttime = time_second;
@@ -1585,11 +1585,10 @@ sched_sync(void)
 		 * Return to the SHUTTING_DOWN state if any
 		 * new work appears.
 		 */
-		if (net_worklist_len > 0) {
+		if (net_worklist_len > 0 || syncer_state == SYNCER_RUNNING)
 			last_work_seen = syncer_delayno;
-			if (syncer_state == SYNCER_FINAL_DELAY)
-				syncer_state = SYNCER_SHUTTING_DOWN;
-		}
+		if (net_worklist_len > 0 && syncer_state == SYNCER_FINAL_DELAY)
+			syncer_state = SYNCER_SHUTTING_DOWN;
 		while ((vp = LIST_FIRST(slp)) != NULL) {
 			if (VOP_ISLOCKED(vp, NULL) != 0 ||
 			    vn_start_write(vp, &mp, V_NOWAIT) != 0) {
