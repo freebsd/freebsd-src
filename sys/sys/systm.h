@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)systm.h	8.7 (Berkeley) 3/29/95
- * $Id: systm.h,v 1.68 1998/01/14 20:48:01 phk Exp $
+ * $Id: systm.h,v 1.69 1998/01/21 18:28:49 gibbs Exp $
  */
 
 #ifndef _SYS_SYSTM_H_
@@ -78,7 +78,12 @@ extern int bootverbose;		/* nonzero to print verbose messages */
  * General function declarations.
  */
 
+struct clockframe;
 struct malloc_type;
+struct proc;
+struct timeval;
+struct tty;
+struct uio;
 
 void	Debugger __P((const char *msg));
 int	nullop __P((void));
@@ -126,11 +131,9 @@ int	suword __P((void *base, int word));
 int	fusword __P((void *base));
 int	susword __P((void *base, int word));
 
-struct timeval;
 int	hzto __P((struct timeval *tv));
 void	realitexpire __P((void *));
 
-struct clockframe;
 void	hardclock __P((struct clockframe *frame));
 void	softclock __P((void));
 void	statclock __P((struct clockframe *frame));
