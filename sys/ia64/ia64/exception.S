@@ -52,7 +52,8 @@
 	add	r17=2f-1b,r17;;			\
 	mov	b0=r17;				\
 	br.sptk.few exception_save;		\
-2:	alloc	r14=ar.pfs,0,0,2,0;		\
+2: (p3)	ssm	psr.i;				\
+	alloc	r14=ar.pfs,0,0,2,0;		\
 	movl	r15=exception_restore;		\
 	mov	out0=_n_;			\
 	mov	out1=sp;;			\
@@ -511,7 +512,37 @@ ia64_vector_table:
 		
 /* 0x3000:	External Interrupt vector */
 
-	TRAP(12)
+	mov	r16=b0			// save user's b0
+1:	mov	r17=ip;;		// construct return address
+	add	r17=2f-1b,r17;;		// for exception_save
+	mov	b0=r17
+	br.sptk.few exception_save	// 'call' exception_save
+
+2:	alloc	r14=ar.pfs,0,0,2,0	// make a frame for calling with
+
+	mov	out1=sp;;
+	add	sp=-16,sp;;
+
+3:	mov	out0=cr.ivr		// find interrupt vector
+	;;
+	cmp.eq	p6,p0=15,out0		// check for spurious vector number
+(p6)	br.dpnt.few exception_restore	// if spurious, we are done
+	;;
+	ssm	psr.i			// re-enable interrupts
+	;;				// now that we are in-progress
+	srlz.d
+	;;
+	br.call.sptk.many rp=interrupt	// call high-level handler
+
+	rsm	psr.i			// disable interrupts
+	;;
+	srlz.d
+	;;
+	mov	cr.eoi=r0		// and ack the interrupt
+	;;
+	srlz.d
+	br.sptk.few 3b			// loop for more
+
 	.align	1024
 		
 /* 0x3400:	Reserved */
@@ -993,6 +1024,9 @@ ENTRY(exception_restore, 0)
  *
  * Return:
  *	sp	kernel stack pointer
+ *	p1	true if user mode
+ *	p2	true if kernel mode
+ *	p3	true if interrupts were enabled
  */
 ENTRY(exception_save, 0)
 	rsm	psr.dt			// turn off data translations
@@ -1005,6 +1039,7 @@ ENTRY(exception_save, 0)
 	mov	rIFA=cr.ifa
 	mov	rPR=pr
 	;; 
+	tbit.nz	p3,p0=rIPSR,14		// check for interrupt enable state
 	extr.u	r17=rIPSR,32,2		// extract ipsr.cpl
 	;;
 	cmp.eq	p1,p2=r0,r17		// test for kernel mode

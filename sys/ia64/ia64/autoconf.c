@@ -94,7 +94,7 @@ configure(void *dummy)
 	 * Now we're ready to handle (pending) interrupts.
 	 * XXX this is slightly misplaced.
 	 */
-	spl0();
+	enable_intr();
 
 	cold = 0;
 }

@@ -151,8 +151,7 @@ void	ia64_fpstate_save __P((struct proc *p, int write));
 void	ia64_fpstate_drop __P((struct proc *p));
 void	ia64_fpstate_switch __P((struct proc *p));
 void	init_prom_interface __P((struct rpb*));
-void	interrupt
-	__P((unsigned long, unsigned long, unsigned long, struct trapframe *));
+void	interrupt __P((u_int64_t, struct trapframe *));
 void	machine_check
 	__P((unsigned long, struct trapframe *, unsigned long, unsigned long));
 u_int64_t hwrpb_checksum __P((void));
