@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.12 1994/11/17 10:53:21 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.13 1994/12/06 00:51:34 jkh Exp $";
 #endif
 
 /*
@@ -100,7 +100,7 @@ pkg_do(char *pkg)
 	    return 1;
 	}
 	sb.st_size *= 4;
-	(void)make_playpen(PlayPen, sb.st_size);
+	Home = make_playpen(PlayPen, sb.st_size);
 	if (unpack(pkg_fullname, NULL))
 	    return 1;
 
@@ -142,13 +142,28 @@ pkg_do(char *pkg)
     for (p = Plist.head; p ; p = p->next) {
 	if (p->type != PLIST_PKGDEP)
 	    continue;
-	if (Verbose)
-	    printf("Checking dependency on package list `%s'\n", p->name);
 	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
-	    whinge("Package `%s' depends on missing package `%s'%s.", PkgName,
+	    char tmp[120];
+
+	    sprintf(tmp, "%s/%s.tgz", Home, p->name);
+	    if (fexists(tmp)) {
+		if (Verbose)
+		    printf("Package `%s' depends on `%s':  Trying to load it.\n", PkgName, p->name);
+		if (vsystem("pkg_add %s", tmp)) {
+		    whinge("Autoload of dependency package `%s' failed!%s",
+			   p->name, Force ? " (proceeding anyway)" : "");
+		    if (!Force)
+			code++;
+		}
+		else if (Verbose)
+		    printf("Dependency `%s' loaded successfully.\n", p->name);
+	    }
+	    else {
+	    	whinge("Package `%s' depends on missing package `%s'%s.", PkgName,
 		   p->name, Force ? " (proceeding anyway)" : "");
-	    if (!Force)
-		code++;
+	    	if (!Force)
+		    code++;
+	    }
 	}
     }
     if (code != 0)

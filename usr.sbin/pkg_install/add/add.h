@@ -1,4 +1,4 @@
-/* $Id: add.h,v 1.3 1993/09/05 04:53:47 jkh Exp $ */
+/* $Id: add.h,v 1.4 1994/12/06 00:51:31 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -36,6 +36,7 @@ extern char	*Directory;
 extern char	*PkgName;
 extern char	*PlayPen;
 extern add_mode_t AddMode;
+extern char	*Home;
 
 int		make_hierarchy(char *);
 void		extract_plist(char *, Package *);

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: main.c,v 1.7 1994/05/19 18:27:40 alm Exp $";
+static const char *rcsid = "$Id: main.c,v 1.8 1994/12/06 00:51:36 jkh Exp $";
 #endif
 
 /*
@@ -16,7 +16,7 @@ static const char *rcsid = "$Id: main.c,v 1.7 1994/05/19 18:27:40 alm Exp $";
 #include "lib.h"
 #include "create.h"
 
-static char Options[] = "YNhvf:p:c:d:i:k:r:t:X:D:m:";
+static char Options[] = "YNhvf:p:P:c:d:i:k:r:t:X:D:m:";
 
 char	*Prefix		= NULL;
 char	*Comment        = NULL;
@@ -29,6 +29,7 @@ char	*Require	= NULL;
 char	*PlayPen	= NULL;
 char	*ExcludeFrom	= NULL;
 char	*Mtree		= NULL;
+char	*Pkgdeps	= NULL;
 int	Dereference	= 0;
 
 int
@@ -101,6 +102,10 @@ main(int argc, char **argv)
 	    Mtree = optarg;
 	    break;
 
+	case 'P':
+	    Pkgdeps = optarg;
+	    break;
+
 	case '?':
 	default:
 	    usage(prog_name, NULL);
@@ -153,6 +158,7 @@ usage(const char *name, const char *fmt, ...)
     fprintf(stderr, "-k script  de-install script\n");
     fprintf(stderr, "-D file    install notice\n");
     fprintf(stderr, "-m file    mtree spec for directories\n");
+    fprintf(stderr, "-P pkgs    set package dependency list to pkgs\n");
     fprintf(stderr, "-p prefix  install prefix will be arg\n");
     fprintf(stderr, "-r script  pre/post requirements script\n");
     fprintf(stderr, "-t temp    use temp as template for mktemp()\n");
