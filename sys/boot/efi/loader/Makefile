@@ -33,7 +33,7 @@ CFLAGS+= -I${.CURDIR}/../include/${MACHINE_ARCH}
 CFLAGS+= -I${.CURDIR}/../../common -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/../../.. -I.
 CFLAGS+= -I${.CURDIR}/../libefi
-CFLAGS+= -I/usr/src/lib/libstand
+CFLAGS+= -I${.CURDIR}/../../../../lib/libstand
 CFLAGS+= -DLOADER
 
 LDSCRIPT=	${.CURDIR}/../libefi/arch/${MACHINE_ARCH}/ldscript.${MACHINE_ARCH}
