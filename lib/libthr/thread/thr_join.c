@@ -160,12 +160,12 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			*thread_return = pthread->ret;
 		}
 
-		/* Make the thread collectable by the garbage collector. */
+		/* Free all remaining memory allocated to the thread. */
 		pthread->attr.flags |= PTHREAD_DETACHED;
 		UMTX_UNLOCK(&pthread->lock);
+		TAILQ_REMOVE(&_dead_list, pthread, dle);
+		deadlist_free_onethread(pthread);
 		THREAD_LIST_UNLOCK;
-		if (pthread_cond_signal(&_gc_cond) != 0)
-			PANIC("Cannot signal gc cond");
 		DEAD_LIST_UNLOCK;
 	}
 
