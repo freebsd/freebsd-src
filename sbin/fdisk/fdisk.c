@@ -508,7 +508,7 @@ init_boot(void)
 static void
 init_sector0(unsigned long start)
 {
-	struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[3]);
+	struct dos_partition *partp = (struct dos_partition *) (&mboot.parts[0]);
 
 	init_boot();
 
@@ -536,9 +536,9 @@ change_part(int i)
 
 	if (i_flag) {
 		bzero((char *)partp, sizeof (struct dos_partition));
-		if (i == 4) {
+		if (i == 1) {
 			init_sector0(1);
-			printf("\nThe static data for the DOS partition 4 has been reinitialized to:\n");
+			printf("\nThe static data for the slice 1 has been reinitialized to:\n");
 			print_part(i);
 		}
 	}
