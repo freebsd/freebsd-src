@@ -93,8 +93,7 @@ int uwx_decode_uinfo(
     /* to the current IP. This helps the client find */
     /* the symbolic information. */
 
-    env->function_offset = env->context.special[UWX_REG_IP] -
-						uentry->code_start;
+    env->function_offset = env->remapped_ip - uentry->code_start;
 
     /* Read the unwind info header using the copyin callback. */
     /* (If we're reading a 32-bit unwind table, we need to */
@@ -420,7 +419,7 @@ int uwx_decode_prologue(
 		    b1 = uwx_get_byte(bstream);
 		    if (b1 < 0)
 			return UWX_ERR_BADUDESC;
-		    r = ((b0 & 0x3) << 1) | (b1 >> 7);
+		    r = ((b0 & 0x7) << 1) | (b1 >> 7);
 		    reg = b1 & 0x7f;
 		    switch (r) {
 			case 0:		/* psp_gr */

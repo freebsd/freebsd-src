@@ -22,38 +22,91 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 */
 
-#ifndef _KERNEL
+#ifndef __UWX_SELF_INCLUDED
+#define __UWX_SELF_INCLUDED 1
+
 #include <signal.h>
+
+#ifndef __UWX_INCLUDED
+#include "uwx.h"
+#endif /* __UWX_INCLUDED */
+
+#if defined(__cplusplus)
+#define __EXTERN_C extern "C"
+#else
+#define __EXTERN_C extern
 #endif
 
 struct uwx_self_info;
 
-extern struct uwx_self_info *uwx_self_init_info(struct uwx_env *env);
+__EXTERN_C struct uwx_self_info *uwx_self_init_info(struct uwx_env *env);
 
-extern int uwx_self_free_info(struct uwx_self_info *info);
+__EXTERN_C int uwx_self_free_info(struct uwx_self_info *info);
 
-extern int uwx_self_init_context(struct uwx_env *env);
+__EXTERN_C int uwx_self_init_context(struct uwx_env *env);
 
-extern int uwx_self_init_from_sigcontext(
+__EXTERN_C int uwx_self_init_from_sigcontext(
     struct uwx_env *env,
     struct uwx_self_info *info,
     ucontext_t *ucontext);
 
-extern int uwx_self_do_context_frame(
+__EXTERN_C int uwx_self_do_context_frame(
     struct uwx_env *env,
     struct uwx_self_info *info);
 
-extern int uwx_self_copyin(
+__EXTERN_C int uwx_self_copyin(
     int request,
     char *loc,
     uint64_t rem,
     int len,
     intptr_t tok);
 
-extern int uwx_self_lookupip(
+__EXTERN_C int uwx_self_lookupip(
     int request,
     uint64_t ip,
     intptr_t tok,
     uint64_t **resultp);
 
 #define UWX_SELF_ERR_BADABICONTEXT  (-101)
+
+#undef __EXTERN_C
+
+#if defined(__cplusplus)
+
+class UnwindExpressSelf : public UnwindExpress {
+
+public:
+
+    UnwindExpressSelf() {
+	info = uwx_self_init_info(env);
+	(void)uwx_register_callbacks(env, (intptr_t)info,
+				uwx_self_copyin, uwx_self_lookupip);
+    }
+
+    ~UnwindExpressSelf() {
+	if (info != 0)
+	    uwx_self_free_info(info);
+	info = 0;
+    }
+
+    int init_context() {
+	return uwx_self_init_context(env);
+    }
+
+    int init_context(ucontext_t *ucontext) {
+	return uwx_self_init_from_sigcontext(env, info, ucontext);
+    }
+
+    int do_context_frame() {
+	return uwx_self_do_context_frame(env, info);
+    }
+
+protected:
+
+    struct uwx_self_info *info;
+
+};
+
+#endif /* __cplusplus */
+
+#endif /* __UWX_SELF_INCLUDED */

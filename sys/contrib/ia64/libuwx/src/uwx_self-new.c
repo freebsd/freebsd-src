@@ -32,7 +32,18 @@ OTHER DEALINGS IN THE SOFTWARE.
 #include "uwx_trace.h"
 #include "uwx_self.h"
 
+#define MODULE_CACHE_SIZE 10
+
 #define UWX_ABI_HPUX_SIGCONTEXT 0x0101	/* abi = HP-UX, context = 1 */
+
+struct uwx_self_module_info {
+    uint64_t text_base;
+    uint64_t text_size;
+    uint64_t *unwind_base;
+    uint64_t last_access;
+    char *name;
+    struct uwx_self_module_info *next;
+};
 
 struct uwx_self_info {
     struct uwx_env *env;
@@ -44,20 +55,27 @@ struct uwx_self_info {
     alloc_cb allocate_cb;
     free_cb free_cb;
     int trace;
+    struct load_module_desc desc;
+    struct uwx_self_module_info *module_cache;
 };
 
 struct uwx_self_info *uwx_self_init_info(struct uwx_env *env)
 {
     struct uwx_self_info *info;
+    struct uwx_self_module_info *modules;
+    size_t size;
+
+    size = sizeof(struct uwx_self_info) +
+		MODULE_CACHE_SIZE * sizeof(struct uwx_self_module_info);
 
     if (env->allocate_cb == 0)
-	info = (struct uwx_self_info *)
-			malloc(sizeof(struct uwx_self_info));
+	info = (struct uwx_self_info *) malloc(size);
     else
-	info = (struct uwx_self_info *)
-			(*env->allocate_cb)(sizeof(struct uwx_self_info));
+	info = (struct uwx_self_info *) (*env->allocate_cb)(size);
     if (info == 0)
 	return 0;
+
+    modules = (struct uwx_self_module_info *) (info + 1);
 
     info->env = env;
     info->ucontext = 0;
@@ -68,6 +86,17 @@ struct uwx_self_info *uwx_self_init_info(struct uwx_env *env)
     info->allocate_cb = env->allocate_cb;
     info->free_cb = env->free_cb;
     info->trace = env->trace;
+    info->module_cache = modules;
+
+    for (i = 0; i < MODULE_CACHE_SIZE; i++) {
+	modules[i].text_base = 0;
+	modules[i].text_size = 0;
+	modules[i].unwind_base = 0;
+	modules[i].last_access = 0;
+	modules[i].name = 0;
+	modules[i].next = 0;
+    }
+
     return info;
 }
 
@@ -230,6 +259,28 @@ int uwx_self_copyin(
     return len;
 }
 
+int uwx_self_find_module(
+    uint64_t ip,
+    struct uwx_self_info *info,
+    uint64_t *text_base,
+    uint64_t **unwind_base)
+{
+    UINT64 handle;
+
+    /* Search our cache for the module containing the IP */
+
+    /* Not in the cache -- call dlmodinfo */
+
+    handle = dlmodinfo(ip, &info->desc, sizeof(info->desc), 0, 0, 0);
+    if (handle == 0)
+	return UWX_ERR_IPNOTFOUND;
+
+    /* Store it in the cache */
+
+    *text_base = info->desc.text_base;
+    *unwind_base = (uint64_t *) info->desc.unwind_base;
+    return UWX_OK;
+}
 
 int uwx_self_lookupip(
     int request,
@@ -238,8 +289,7 @@ int uwx_self_lookupip(
     uint64_t **resultp)
 {
     struct uwx_self_info *info = (struct uwx_self_info *) tok;
-    UINT64 handle;
-    struct load_module_desc desc;
+    uint64_t text_base;
     uint64_t *unwind_base;
     uint64_t *rvec;
     int i;
@@ -257,21 +307,20 @@ int uwx_self_lookupip(
 	    return UWX_LKUP_FDESC;
 	}
 	else {
-	    handle = dlmodinfo(ip, &desc, sizeof(desc), 0, 0, 0);
-	    if (handle == 0)
+	    if (uwx_self_find_module(ip, info,
+					&text_base, &unwind_base) != UWX_OK)
 		return UWX_LKUP_ERR;
-	    unwind_base = (uint64_t *) desc.unwind_base;
-	    TRACE_SELF_LOOKUP_DESC(desc.text_base, unwind_base)
+	    TRACE_SELF_LOOKUP_DESC(text_base, unwind_base)
 	    i = 0;
 	    rvec = info->rvec;
 	    rvec[i++] = UWX_KEY_TBASE;
-	    rvec[i++] = desc.text_base;
+	    rvec[i++] = text_base;
 	    rvec[i++] = UWX_KEY_UFLAGS;
 	    rvec[i++] = unwind_base[0];
 	    rvec[i++] = UWX_KEY_USTART;
-	    rvec[i++] = desc.text_base + unwind_base[1];
+	    rvec[i++] = text_base + unwind_base[1];
 	    rvec[i++] = UWX_KEY_UEND;
-	    rvec[i++] = desc.text_base + unwind_base[2];
+	    rvec[i++] = text_base + unwind_base[2];
 	    rvec[i++] = 0;
 	    rvec[i++] = 0;
 	    *resultp = rvec;
@@ -280,5 +329,8 @@ int uwx_self_lookupip(
     }
     else if (request == UWX_LKUP_FREE) {
 	return 0;
+    }
+    else if (request == UWX_LKUP_SYMBOLS) {
+	return UWX_LKUP_ERR;
     }
 }
