@@ -189,14 +189,14 @@ exec_osf1_imgact(struct image_params *imgp)
 	/* set up text segment */
 	if ((error = vm_mmap(&vmspace->vm_map, &taddr, tsize,
 	    VM_PROT_READ|VM_PROT_EXECUTE, VM_PROT_ALL, MAP_FIXED|MAP_COPY,
-	    (caddr_t)imgp->vp, ECOFF_TXTOFF(execp)))) {
+	    OBJT_VNODE, imgp->vp, ECOFF_TXTOFF(execp)))) {
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
 		goto bail;
 	}
 	/* .. data .. */
 	if ((error = vm_mmap(&vmspace->vm_map, &daddr, dsize,
 	    VM_PROT_READ|VM_PROT_EXECUTE|VM_PROT_WRITE, VM_PROT_ALL,
-	    MAP_FIXED|MAP_COPY, (caddr_t)imgp->vp, ECOFF_DATOFF(execp)))) {
+	    MAP_FIXED|MAP_COPY, OBJT_VNODE, imgp->vp, ECOFF_DATOFF(execp)))) {
 		DPRINTF(("%s(%d): error = %d\n", __FILE__, __LINE__, error));
 		goto bail;
 	}	

@@ -109,6 +109,8 @@ vmmapentry_rsrc_init(dummy)
 
 static int vm_mmap_vnode(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
     int *, struct vnode *, vm_ooffset_t, vm_object_t *);
+static int vm_mmap_cdev(struct thread *, vm_size_t, vm_prot_t, vm_prot_t *,
+    int *, struct cdev *, vm_ooffset_t, vm_object_t *);
 
 /*
  * MPSAFE
@@ -205,6 +207,7 @@ mmap(td, uap)
 	vm_size_t size, pageoff;
 	vm_prot_t prot, maxprot;
 	void *handle;
+	objtype_t handle_type;
 	int flags, error;
 	off_t pos;
 	struct vmspace *vms = td->td_proc->p_vmspace;
@@ -282,6 +285,7 @@ mmap(td, uap)
 		 * Mapping blank space is trivial.
 		 */
 		handle = NULL;
+		handle_type = OBJT_DEFAULT;
 		maxprot = VM_PROT_ALL;
 		pos = 0;
 	} else {
@@ -344,6 +348,7 @@ mmap(td, uap)
 			maxprot |= VM_PROT_WRITE;
 		}
 		handle = (void *)vp;
+		handle_type = OBJT_VNODE;
 	}
 
 	/*
@@ -358,7 +363,7 @@ mmap(td, uap)
 	}
 
 	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
-	    flags, handle, pos);
+	    flags, handle_type, handle, pos);
 	if (error == 0)
 		td->td_retval[0] = (register_t) (addr + pageoff);
 done:
@@ -1166,6 +1171,55 @@ done:
 }
 
 /*
+ * vm_mmap_cdev()
+ *
+ * MPSAFE
+ *
+ * Helper function for vm_mmap.  Perform sanity check specific for mmap
+ * operations on cdevs.
+ */
+int
+vm_mmap_cdev(struct thread *td, vm_size_t objsize,
+    vm_prot_t prot, vm_prot_t *maxprotp, int *flagsp,
+    struct cdev *cdev, vm_ooffset_t foff, vm_object_t *objp)
+{
+	vm_object_t obj;
+	int flags;
+
+	flags = *flagsp;
+
+	/* XXX: lack thredref on device */
+	if (cdev->si_devsw->d_flags & D_MMAP_ANON) {
+		*maxprotp = VM_PROT_ALL;
+		*flagsp |= MAP_ANON;
+		return (0);
+	}
+	/*
+	 * cdevs does not provide private mappings of any kind.
+	 */
+	if ((*maxprotp & VM_PROT_WRITE) == 0 &&
+	    (prot & PROT_WRITE) != 0)
+		return (EACCES);
+	if (flags & (MAP_PRIVATE|MAP_COPY))
+		return (EINVAL);
+	/*
+	 * Force device mappings to be shared.
+	 */
+	flags |= MAP_SHARED;
+#ifdef MAC_XXX
+	error = mac_check_cdev_mmap(td->td_ucred, cdev, prot);
+	if (error != 0)
+		return (error);
+#endif
+	obj = vm_pager_allocate(OBJT_DEVICE, cdev, objsize, prot, foff);
+	if (obj == NULL)
+		return (EINVAL);
+	*objp = obj;
+	*flagsp = flags;
+	return (0);
+}
+
+/*
  * vm_mmap()
  *
  * MPSAFE
@@ -1176,7 +1230,7 @@ done:
 int
 vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	vm_prot_t maxprot, int flags,
-	void *handle,
+	objtype_t handle_type, void *handle,
 	vm_ooffset_t foff)
 {
 	boolean_t fitit;
@@ -1222,13 +1276,26 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 	/*
 	 * Lookup/allocate object.
 	 */
-	if (handle != NULL) {
+	switch (handle_type) {
+	case OBJT_DEVICE:
+		error = vm_mmap_cdev(td, size, prot, &maxprot, &flags,
+		    handle, foff, &object);
+		break;
+	case OBJT_VNODE:
 		error = vm_mmap_vnode(td, size, prot, &maxprot, &flags,
 		    handle, foff, &object);
-		if (error) {
-			return (error);
+		break;
+	case OBJT_DEFAULT:
+		if (handle == NULL) {
+			error = 0;
+			break;
 		}
+		/* FALLTHROUGH */
+	default:
+		error = EINVAL;
 	}
+	if (error)
+		return (error);
 	if (flags & MAP_ANON) {
 		object = NULL;
 		docow = 0;
