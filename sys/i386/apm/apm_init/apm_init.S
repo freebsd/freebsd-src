@@ -1,7 +1,7 @@
 /*
- * LP (Laptop Package)
+ * APM (Advanced Power Management) BIOS Device Driver
  *
- * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
@@ -12,7 +12,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_init.S,v 1.2 1994/10/01 05:12:29 davidg Exp $
+ *	$Id: apm_init.S,v 1.3 1994/10/01 21:29:49 phk Exp $
  */
 
 /*
@@ -128,6 +128,7 @@ ENTRY(apm_init)
 					/* don't support 32bit connection */
 	jmp	finish
 1:
+	andl	$0x0000ffff, %edx
 	movl	%edx, apm_version
 	andl	$0x0000ffff, %ecx
 	movl	%ecx, apm_flags
@@ -174,15 +175,12 @@ finish:
 	movl	old_esp, %esp		/* restore old stack pointer */
 	movl	apm_version, %ebp	/* stored to %eax later */
 	movl	apm_flags, %edi
-#if 0
-	movw	$(BOOTSTRAP_DS_SEL), %ax
-					/* restore old data segments */
-#else
 	movw	%fs, %ax
-#endif
 	movw	%ax, %ss
 	movw	%ax, %es
 	movw	%ax, %ds
+	xorl	%eax, %eax
+	movw	%ax, %fs
 	movl	%ebp, %eax
 	popl	%ebp			/* restore old base pointer */
 	lret				/* restore old code segment */

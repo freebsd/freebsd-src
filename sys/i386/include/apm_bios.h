@@ -1,7 +1,7 @@
 /*
- * Advanced Power Management (APM) BIOS driver for laptop PCs.
- * 
- * Copyright (c) 1994 by HOSOKAWA Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * APM (Advanced Power Management) BIOS Device Driver
+ *
+ * Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
  *
  * This software may be used, modified, copied, and distributed, in
  * both source and binary form provided that the above copyright and
@@ -12,7 +12,7 @@
  *
  * Aug, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_bios.h,v 1.2 1994/10/01 05:13:36 davidg Exp $
+ *	$Id: apm_bios.h,v 1.3 1994/10/02 17:31:27 phk Exp $
  */
 
 #ifndef _MACHINE_APM_BIOS_H_
@@ -118,25 +118,28 @@
 /* 0x0040 - 0x007f	OEM-defined device states	*/
 /* 0x0080 - 0xffff	Reserved device states		*/
 
-#if !defined(ASM) && !defined(INITIALIZER)
+#if !defined(ASSEMBLER) && !defined(INITIALIZER)
 
 /* C definitions */
-typedef struct apm_hook_func {
-	struct apm_hook_func	*next;		/* Linked list */
-	int			(*func)(void);
-	const char		*name;
-	int			order; 
-} *apm_hook_func_t;
+struct apmhook {
+	struct apmhook	*ah_next;
+	int		(*ah_fun)();
+	void		*ah_arg;
+	const char	*ah_name;
+	int		ah_order;
+};
+#define APM_HOOK_NONE		(-1)
+#define APM_HOOK_SUSPEND        0
+#define APM_HOOK_RESUME         1
+#define NAPM_HOOK               2
 
-apm_hook_func_t apm_resume_hook_init(int (*func)(void), char *name, int order);
-void apm_resume_hook_delete(apm_hook_func_t delete_func);
-apm_hook_func_t apm_suspend_hook_init(int (*func)(void), char *name, int order);
-void apm_suspend_hook_delete(apm_hook_func_t delete_func);
-void apm_suspend_resume(void);
+void apm_suspend(void);
+struct apmhook *apm_hook_establish (int apmh, struct apmhook *);
+void apm_hook_disestablish (int apmh, struct apmhook *);
 void apm_cpu_idle(void);
 void apm_cpu_busy(void);
 
-#endif /* !ASM && !INITIALIZER */
+#endif /* !ASSEMBLER && !INITIALIZER */
 
 #define APM_MIN_ORDER		0x00
 #define APM_MID_ORDER		0x80
@@ -163,7 +166,7 @@ void apm_cpu_busy(void);
 /* 0x0300 - 0xffff	Reserved		*/
 #define PMEV_DEFAULT		0xffffffff	/* used for customization */
 
-#if !defined(ASM) && !defined(INITIALIZER)
+#if !defined(ASSEMBLER) && !defined(INITIALIZER)
 
 typedef struct apm_info {
 	u_int	ai_major;	/* APM major version */
@@ -173,14 +176,16 @@ typedef struct apm_info {
 	u_int	ai_batt_life;	/* Remaining battery life */
 } *apm_info_t;
 
-
+#ifdef __FreeBSD__
 #define APMIO_SUSPEND		_IO('P', 1)
 #define APMIO_GETINFO		_IOR('P', 2, struct apm_info)
 #define APMIO_ENABLE		_IO('P', 5)
 #define APMIO_DISABLE		_IO('P', 6)
 #define APMIO_HALTCPU		_IO('P', 7)
 #define APMIO_NOTHALTCPU	_IO('P', 8)
+#define APMIO_DISPLAYOFF	_IO('P', 9)
+#endif /* __FreeBSD__ */
 
-#endif /* !ASM && !INITIALIZER */
+#endif /* !ASSEMBLER && !INITIALIZER */
 
 #endif /* _MACHINE_APM_BIOS_H_ */
