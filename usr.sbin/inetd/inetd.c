@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.48 1999/04/11 09:22:17 markm Exp $";
+	"$Id: inetd.c,v 1.46.2.1 1999/05/01 22:01:52 obrien Exp $";
 #endif /* not lint */
 
 /*
@@ -465,17 +465,17 @@ main(argc, argv, envp)
 		exit(EX_OSERR);
 	}
 	FD_SET(signalpipe[0], &allsock);
-	if (signalpipe[0]>maxsock) maxsock = signalpipe[0];
+	nsock++;
+	if (signalpipe[0] > maxsock)
+	    maxsock = signalpipe[0];
 
 	for (;;) {
 	    int n, ctrl;
 	    fd_set readable;
 
 	    if (nsock == 0) {
-		(void) sigblock(SIGBLOCK);
-		while (nsock == 0)
-		    sigpause(0L);
-		(void) sigsetmask(0L);
+		syslog(LOG_ERR, "%s: nsock=0", __FUNCTION__);
+		exit(EX_SOFTWARE);
 	    }
 	    readable = allsock;
 	    if ((n = select(maxsock + 1, &readable, (fd_set *)0,
