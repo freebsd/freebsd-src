@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.105 1998/01/12 01:44:31 dyson Exp $
+ * $Id: vm_map.c,v 1.106 1998/01/17 09:16:51 dyson Exp $
  */
 
 /*
@@ -2310,15 +2310,17 @@ RetryLookup:;
 	 * COW for debuggers.
 	 */
 
-	prot = entry->protection;
+	if (fault_type & VM_PROT_OVERRIDE_WRITE)
+		prot = entry->max_protection;
+	else
+		prot = entry->protection;
 
 	fault_type &= (VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE);
 	if ((fault_type & prot) != fault_type) {
 			RETURN(KERN_PROTECTION_FAILURE);
 	}
 
-	if (entry->wired_count &&
-			(fault_type & VM_PROT_WRITE) &&
+	if (entry->wired_count && (fault_type & VM_PROT_WRITE) &&
 			(entry->eflags & MAP_ENTRY_COW) &&
 			(fault_typea & VM_PROT_OVERRIDE_WRITE) == 0) {
 			RETURN(KERN_PROTECTION_FAILURE);
