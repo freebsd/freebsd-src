@@ -189,17 +189,18 @@ dev/iicbus/iicbus.c	optional iicbus
 dev/iicbus/if_ic.c	optional ic
 dev/iicbus/iic.c	optional iic
 dev/vinum/vinum.c		optional vinum device-driver
-dev/vinum/vinumparser.c		optional vinum device-driver
 dev/vinum/vinumconfig.c		optional vinum device-driver
-dev/vinum/vinumio.c		optional vinum device-driver
-dev/vinum/vinumutil.c		optional vinum device-driver
-dev/vinum/vinumstate.c		optional vinum device-driver
-dev/vinum/vinummemory.c		optional vinum device-driver
-dev/vinum/vinumrequest.c	optional vinum device-driver
-dev/vinum/vinumlock.c		optional vinum device-driver
-dev/vinum/vinumrevive.c		optional vinum device-driver
-dev/vinum/vinumioctl.c		optional vinum device-driver
+dev/vinum/vinumdaemon.c		optional vinum device-driver
 dev/vinum/vinuminterrupt.c	optional vinum device-driver
+dev/vinum/vinumio.c		optional vinum device-driver
+dev/vinum/vinumioctl.c		optional vinum device-driver
+dev/vinum/vinumlock.c		optional vinum device-driver
+dev/vinum/vinummemory.c		optional vinum device-driver
+dev/vinum/vinumparser.c		optional vinum device-driver
+dev/vinum/vinumrequest.c	optional vinum device-driver
+dev/vinum/vinumrevive.c		optional vinum device-driver
+dev/vinum/vinumstate.c		optional vinum device-driver
+dev/vinum/vinumutil.c		optional vinum device-driver
 dev/vn/vn.c			optional vn
 dev/vx/if_vx.c			optional vx  device-driver
 gnu/ext2fs/ext2_alloc.c		optional ext2fs
