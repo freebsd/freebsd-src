@@ -71,21 +71,20 @@ static const char rcsid[] =
 
 static char	 dfname[NAME_MAX];	/* data files */
 static int	 minfree;       /* keep at least minfree blocks available */
-static char	*sp = "";
+static const char	*sp = "";
 static char	 tfname[NAME_MAX];	/* tmp copy of cf before linking */
 
-static int        chksize __P((int));
-static void       frecverr __P((const char *, ...));
-static int        noresponse __P((void));
-static void       rcleanup __P((int));
-static int        read_number __P((char *));
-static int        readfile __P((struct printer *pp, char *, int));
-static int        readjob __P((struct printer *pp));
+static int	 chksize(int _size);
+static void	 frecverr(const char *_msg, ...);
+static int	 noresponse(void);
+static void	 rcleanup(int _signo);
+static int	 read_number(const char *_fn);
+static int	 readfile(struct printer *_pp, char *_file, int _size);
+static int	 readjob(struct printer *_pp);
 
 
 void
-recvjob(printer)
-	const char *printer;
+recvjob(const char *printer)
 {
 	struct stat stb;
 	int status;
@@ -138,8 +137,7 @@ recvjob(printer)
  * Return the number of jobs successfully transfered.
  */
 static int
-readjob(pp)
-	struct printer *pp;
+readjob(struct printer *pp)
 {
 	register int size;
 	register char *cp;
@@ -246,10 +244,7 @@ readjob(pp)
  * Read files send by lpd and copy them to the spooling directory.
  */
 static int
-readfile(pp, file, size)
-	struct printer *pp;
-	char *file;
-	int size;
+readfile(struct printer *pp, char *file, int size)
 {
 	register char *cp;
 	char buf[BUFSIZ];
@@ -301,7 +296,7 @@ readfile(pp, file, size)
 }
 
 static int
-noresponse()
+noresponse(void)
 {
 	char resp;
 
@@ -319,8 +314,7 @@ noresponse()
  * 1 == OK, 0 == Not OK.
  */
 static int
-chksize(size)
-	int size;
+chksize(int size)
 {
 	int spacefree;
 	struct statfs sfb;
@@ -337,8 +331,7 @@ chksize(size)
 }
 
 static int
-read_number(fn)
-	char *fn;
+read_number(const char *fn)
 {
 	char lin[80];
 	register FILE *fp;
@@ -357,8 +350,7 @@ read_number(fn)
  * Remove all the files associated with the current job being transfered.
  */
 static void
-rcleanup(signo)
-	int signo;
+rcleanup(int signo __unused)
 {
 	if (tfname[0] && strchr(tfname, '/') == NULL)
 		(void) unlink(tfname);

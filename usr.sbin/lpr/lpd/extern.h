@@ -44,8 +44,8 @@ struct	printer;
 struct termios;
 
 __BEGIN_DECLS
-void    printjob __P((struct printer *pp));
-void	startprinting __P((const char *printer));
-void    recvjob __P((const char *printer));
-int	msearch __P((char *str, struct termios *ip));
+void	 printjob(struct printer *_pp);
+void	 startprinting(const char *_printer);
+void	 recvjob(const char *_printer);
+int	 msearch(char *_str, struct termios *_ip);
 __END_DECLS

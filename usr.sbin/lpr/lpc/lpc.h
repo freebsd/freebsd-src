@@ -31,6 +31,8 @@
  * SUCH DAMAGE.
  *
  *	@(#)lpc.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
 /*
@@ -39,10 +41,10 @@
 struct	printer;
 
 struct	cmd {
-	char	*c_name;		/* command name */
-	char	*c_help;		/* help message */
+	const char	*c_name;	/* command name */
+	const char	*c_help;	/* help message */
 					/* routine to do the work */
-	void	(*c_handler) __P((int, char *[]));
+	void	(*c_handler)(int, char *[]);
 	int	c_priv;			/* privileged command */
-	void	(*c_generic) __P((struct printer *)); /* generic command */
+	void	(*c_generic)(struct printer *); /* generic command */
 };

@@ -64,11 +64,11 @@ static const char rcsid[] =
  * Routines and data common to all the line printer functions.
  */
 char	line[BUFSIZ];
-char	*name;		/* program name */
+const char	*name;		/* program name */
 
 extern uid_t	uid, euid;
 
-static int compar __P((const void *, const void *));
+static int compar(const void *_p1, const void *_p2);
 
 /*
  * Getline reads a line from the control file cfp, removes tabs, converts
@@ -76,8 +76,7 @@ static int compar __P((const void *, const void *));
  * Returns 0 at EOF or the number of characters read.
  */
 int
-getline(cfp)
-	FILE *cfp;
+getline(FILE *cfp)
 {
 	register int linel = 0;
 	register char *lp = line;
@@ -106,9 +105,7 @@ getline(cfp)
  * Return the number of entries and a pointer to the list.
  */
 int
-getq(pp, namelist)
-	const struct printer *pp;
-	struct jobqueue *(*namelist[]);
+getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 {
 	register struct dirent *d;
 	register struct jobqueue *q, **queue;
@@ -179,8 +176,7 @@ errdone:
  * Compare modification times.
  */
 static int
-compar(p1, p2)
-	const void *p1, *p2;
+compar(const void *p1, const void *p2)
 {
 	const struct jobqueue *qe1, *qe2;
 
@@ -207,24 +203,20 @@ compar(p1, p2)
 
 /* sleep n milliseconds */
 void
-delay(n)
-	int n;
+delay(int millisec)
 {
 	struct timeval tdelay;
 
-	if (n <= 0 || n > 10000)
+	if (millisec <= 0 || millisec > 10000)
 		fatal((struct printer *)0, /* fatal() knows how to deal */
-		      "unreasonable delay period (%d)", n);
-	tdelay.tv_sec = n / 1000;
-	tdelay.tv_usec = n * 1000 % 1000000;
+		    "unreasonable delay period (%d)", millisec);
+	tdelay.tv_sec = millisec / 1000;
+	tdelay.tv_usec = millisec * 1000 % 1000000;
 	(void) select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tdelay);
 }
 
 char *
-lock_file_name(pp, buf, len)
-	const struct printer *pp;
-	char *buf;
-	size_t len;
+lock_file_name(const struct printer *pp, char *buf, size_t len)
 {
 	static char staticbuf[MAXPATHLEN];
 
@@ -243,10 +235,7 @@ lock_file_name(pp, buf, len)
 }
 
 char *
-status_file_name(pp, buf, len)
-	const struct printer *pp;
-	char *buf;
-	size_t len;
+status_file_name(const struct printer *pp, char *buf, size_t len)
 {
 	static char staticbuf[MAXPATHLEN];
 
@@ -266,10 +255,7 @@ status_file_name(pp, buf, len)
 
 /* routine to get a current timestamp, optionally in a standard-fmt string */
 void
-lpd_gettime(tsp, strp, strsize)
-	struct timespec *tsp;
-	char 	*strp;
-	int 	 strsize;
+lpd_gettime(struct timespec *tsp, char *strp, int strsize)
 {
 	struct timespec local_ts;
 	struct timeval btime;
@@ -331,10 +317,7 @@ lpd_gettime(tsp, strp, strsize)
 
 /* routines for writing transfer-statistic records */
 void
-trstat_init(pp, fname, filenum)
-	struct printer *pp;
-	const char *fname;
-	int filenum;
+trstat_init(struct printer *pp, const char *fname, int filenum)
 {
 	register const char *srcp;
 	register char *destp, *endp;
@@ -369,13 +352,8 @@ trstat_init(pp, fname, filenum)
 }
 
 void
-trstat_write(pp, sendrecv, bytecnt, userid, otherhost, orighost)
-	struct printer *pp;
-	tr_sendrecv sendrecv;
-	size_t	bytecnt;
-	const char *userid;
-	const char *otherhost;
-	const char *orighost;
+trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
+    const char *userid, const char *otherhost, const char *orighost)
 {
 #define STATLINE_SIZE 1024
 	double trtime;
@@ -594,8 +572,7 @@ fatal(pp, msg, va_alist)
  * be better to close the first N fds, for some small value of N.
  */
 void
-closeallfds(start)
-	int start;
+closeallfds(int start)
 {
 	int stop = getdtablesize();
 	for (; start < stop; start++)
