@@ -41,8 +41,8 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
-#include <i386/isa/atapi.h>
-#include <i386/isa/wd_cd.h>
+#include <pc98/pc98/atapi.h>
+#include <pc98/pc98/wd_cd.h>
 
 static d_open_t		acdopen;
 static d_close_t	acdclose;

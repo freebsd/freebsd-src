@@ -116,7 +116,7 @@
 
 #include <machine/clock.h>
 
-#include <i386/isa/atapi.h>
+#include <pc98/pc98/atapi.h>
 
 /* this code is compiled part of the module */
 

@@ -91,7 +91,7 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <i386/isa/atapi.h>
+#include <pc98/pc98/atapi.h>
 
 extern void wdstart(int ctrlr);
 
