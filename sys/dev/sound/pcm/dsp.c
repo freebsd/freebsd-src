@@ -283,34 +283,40 @@ dsp_open(dev_t i_dev, int flags, int mode, struct thread *td)
 	/* finished with snddev, new channels still locked */
 
 	/* bump refcounts, reset and unlock any channels that we just opened */
-	if (flags & FREAD) {
-		if (chn_reset(rdch, fmt)) {
-			pcm_lock(d);
-			pcm_chnrelease(rdch);
-			if (wrch && (flags & FWRITE))
-				pcm_chnrelease(wrch);
-			pcm_unlock(d);
-			splx(s);
-			return ENODEV;
-		}
-		if (flags & O_NONBLOCK)
-			rdch->flags |= CHN_F_NBIO;
+	if (rdch) {
+		if (flags & FREAD) {
+	        	if (chn_reset(rdch, fmt)) {
+				pcm_lock(d);
+				pcm_chnrelease(rdch);
+				if (wrch && (flags & FWRITE))
+					pcm_chnrelease(wrch);
+				pcm_unlock(d);
+				splx(s);
+				return ENODEV;
+			}
+			if (flags & O_NONBLOCK)
+				rdch->flags |= CHN_F_NBIO;
+		} else
+			CHN_LOCK(rdch);
 
 		pcm_chnref(rdch, 1);
 	 	CHN_UNLOCK(rdch);
 	}
-	if (flags & FWRITE) {
-		if (chn_reset(wrch, fmt)) {
-			pcm_lock(d);
-			pcm_chnrelease(wrch);
-			if (rdch && (flags & FREAD))
-				pcm_chnrelease(rdch);
-			pcm_unlock(d);
-			splx(s);
-			return ENODEV;
-		}
-		if (flags & O_NONBLOCK)
-			wrch->flags |= CHN_F_NBIO;
+	if (wrch) {
+		if (flags & FWRITE) {
+	        	if (chn_reset(wrch, fmt)) {
+				pcm_lock(d);
+				pcm_chnrelease(wrch);
+				if (rdch && (flags & FREAD))
+					pcm_chnrelease(rdch);
+				pcm_unlock(d);
+				splx(s);
+				return ENODEV;
+			}
+			if (flags & O_NONBLOCK)
+				wrch->flags |= CHN_F_NBIO;
+		} else
+			CHN_LOCK(wrch);
 
 		pcm_chnref(wrch, 1);
 	 	CHN_UNLOCK(wrch);
@@ -339,23 +345,18 @@ dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 	if (rdch) {
 		CHN_LOCK(rdch);
 		if (pcm_chnref(rdch, -1) > 0) {
+			CHN_UNLOCK(rdch);
 			exit = 1;
 		}
-		CHN_UNLOCK(rdch);
 	}
 	if (wrch) {
 		CHN_LOCK(wrch);
 		if (pcm_chnref(wrch, -1) > 0) {
+			CHN_UNLOCK(wrch);
 			exit = 1;
 		}
-		CHN_UNLOCK(wrch);
 	}
-	/* XXX And what happens if one of the channels had 2 references and
-	the other has but one? The latter won't get reset. Can that
-	happen? */
 	if (exit) {
-		i_dev->si_drv1 = NULL;
-		i_dev->si_drv2 = NULL;
 		pcm_unlock(d);
 		splx(s);
 		return 0;
@@ -365,6 +366,9 @@ dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 
 	if (pcm_getfakechan(d))
 		pcm_getfakechan(d)->flags = 0;
+
+	i_dev->si_drv1 = NULL;
+	i_dev->si_drv2 = NULL;
 
 	dsp_set_flags(i_dev, dsp_get_flags(i_dev) & ~SD_F_TRANSIENT);
 	pcm_unlock(d);
@@ -381,8 +385,6 @@ dsp_close(dev_t i_dev, int flags, int mode, struct thread *td)
 		chn_reset(wrch, 0);
 		pcm_chnrelease(wrch);
 	}
-	i_dev->si_drv1 = NULL;
-	i_dev->si_drv2 = NULL;
 
 	splx(s);
 	return 0;
