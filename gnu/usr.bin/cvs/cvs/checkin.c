@@ -65,8 +65,15 @@ Checkin (type, file, repository, rcs, rev, tag, message, entries)
 	     */
 
 	    /* XXX - make sure -k options are used on the co; and tag/date? */
+#ifdef FREEBSD_DEVELOPER
+	    run_setup ("%s%s -q %s%s %s", Rcsbin, RCS_CO,
+		       rev ? "-r" : "", rev ? rev : "",
+		       freebsd ? "-KeAuthor,Date,Header,Id,Locker,Log,"
+		       "RCSfile,Revision,Source,State -KiFreeBSD" : "");
+#else
 	    run_setup ("%s%s -q %s%s", Rcsbin, RCS_CO,
 		       rev ? "-r" : "", rev ? rev : "");
+#endif /* FREEBSD_DEVELOPER */
 	    run_arg (rcs);
 	    (void) run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL);
 	    xchmod (file, 1);

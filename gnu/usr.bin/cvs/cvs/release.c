@@ -155,7 +155,11 @@ release (argc, argv)
 	     * is "popen()" instead of "Popen()" since we don't want "-n" to
 	     * stop it.
 	     */
+#ifdef FREEBSD_DEVELOPER
+	    fp = popen ("ncvs -n -q update", "r");
+#else
 	    fp = popen ("cvs -n -q update", "r");
+#endif /* FREEBSD_DEVELOPER */
 	    c = 0;
 	    while (fgets (line, sizeof (line), fp))
 	    {

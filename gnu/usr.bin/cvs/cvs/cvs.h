@@ -257,6 +257,9 @@ extern int cvswrite;
 extern int trace;			/* Show all commands */
 extern int noexec;			/* Don't modify disk anywhere */
 extern int logoff;			/* Don't write history entry */
+#ifdef FREEBSD_DEVELOPER
+extern int freebsd;			/* Assume option defaults for FreBSD */
+#endif /* FREEBSD_DEVELOPER */
 
 /* Externs that are included directly in the CVS sources */
 #if __STDC__
