@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.30 1995/10/06 05:17:28 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.31 1995/10/06 05:56:58 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -165,6 +165,7 @@
 	  <item>Martin Birgmeier
 	  <item>Martin Renters &lt;martin@innovus.com&gt;
 	  <item>Matt Thomas &lt;thomas@lkg.dec.com&gt;
+	  <item>Michael Elbel &lt;me@freebsd.org&gt;
 	  <item>Michael Smith &lt;msmith@atrad.adelaide.edu.au&gt;
 	  <item>Mike Pritchard &lt;mpp@mpp.minn.net&gt;
 	  <item>NIIMI Satoshi &lt;sa2c@and.or.jp&gt;
