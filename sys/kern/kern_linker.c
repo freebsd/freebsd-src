@@ -98,6 +98,9 @@ struct modlist {
 typedef struct modlist *modlist_t;
 static modlisthead_t found_modules;
 
+static modlist_t	modlist_lookup2(const char *name,
+			    struct mod_depend *verinfo);
+
 static char *
 linker_strdup(const char *str)
 {
@@ -345,11 +348,19 @@ out:
 	return (error);
 }
 
-/* XXX: function parameters are incomplete */
 int
-linker_reference_module(const char *modname, linker_file_t *result)
+linker_reference_module(const char *modname, struct mod_depend *verinfo,
+    linker_file_t *result)
 {
-	return (linker_load_module(NULL, modname, NULL, NULL, result));
+	modlist_t mod;
+
+	if ((mod = modlist_lookup2(modname, verinfo)) != NULL) {
+		*result = mod->container;
+		(*result)->refs++;
+		return (0);
+	}
+
+	return (linker_load_module(NULL, modname, NULL, verinfo, result));
 }
 
 linker_file_t
