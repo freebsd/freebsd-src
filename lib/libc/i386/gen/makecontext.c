@@ -29,11 +29,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/signal.h>
+#include <sys/ucontext.h>
 
 #include <errno.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <ucontext.h>
 #include <unistd.h>
 
 /* Prototypes */
@@ -53,7 +53,7 @@ _ctx_done (ucontext_t *ucp)
 		 * to be restarted without being reinitialized (via
 		 * setcontext or swapcontext).
 		 */
-		ucp->uc_mcontext.mc_flags = 0;
+		ucp->uc_mcontext.mc_len = 0;
 
 		/* Set context to next one in link */
 		/* XXX - what to do for error, abort? */
@@ -80,14 +80,14 @@ __makecontext(ucontext_t *ucp, void (*start)(void), int argc, ...)
 		 * a void function.   At least make sure that the context
 		 * isn't valid so it can't be used without an error.
 		 */
-		ucp->uc_mcontext.mc_flags = 0;
+		ucp->uc_mcontext.mc_len = 0;
 	}
 	/* XXX - Do we want to sanity check argc? */
 	else if ((argc < 0) || (argc > NCARGS)) {
-		ucp->uc_mcontext.mc_flags = 0;
+		ucp->uc_mcontext.mc_len = 0;
 	}
 	/* Make sure the context is valid. */
-	else if ((ucp->uc_mcontext.mc_flags & __UC_MC_VALID) != 0) {
+	else if (ucp->uc_mcontext.mc_len == sizeof(mcontext_t)) {
 		/*
 		 * Arrange the stack as follows:
 		 *

@@ -30,14 +30,13 @@ __FBSDID("$FreeBSD$");
 /*
  * Where do we define these?
  */
-#define	UC_MC_VALID		0x0001	/* __UC_MC_VALID <machine/ucontext.h> */
-#define	UC_FP_VALID		0x0002	/* __UC_FP_VALID <machine/ucontext.h> */
-#define	MC_FP_VALID		UC_MC_VALID | UC_FP_VALID
+#define	MC_SIZE			640	/* sizeof mcontext_t */
 #define	UC_MC_OFFSET		16	/* offset to mcontext from ucontext */
-#define	UC_FLAGS_OFFSET		208	/* offset to flags from ucontext */
-#define	MC_FLAGS_OFFSET		192	/* offset to flags from mcontext */
-#define	MC_FP_REGS_OFFSET	80	/* offset to FP regs from mcontext */
-#define	MC_FP_CW_OFFSET		80	/* offset to FP control word */
+#define	UC_MC_LEN_OFFSET	96	/* offset to mc_len from mcontext */
+#define	MC_LEN_OFFSET		80	/* offset to mc_len from mcontext */
+#define	MC_FP_REGS_OFFSET	96	/* offset to FP regs from mcontext */
+#define	MC_FP_CW_OFFSET		96	/* offset to FP control word */
+#define	MC_OWNEDFP_OFFSET	88	/* offset to mc_ownedfp from mcontext */
 
 /*
  * int setcontext(ucontext_t *ucp);
@@ -54,8 +53,8 @@ ENTRY(__setcontext)
 	jne	1f
 	movl	$-1, %eax
 	jmp	5f
-1:	testl	$UC_MC_VALID, UC_FLAGS_OFFSET(%eax) /* is context valid? */
-	jnz	2f
+1:	cmpl	$MC_SIZE, UC_MC_LEN_OFFSET(%eax) /* is context valid? */
+	je	2f
 	movl	$-1, %eax		/* bzzzt, invalid context */
 	jmp	5f
 2:	PIC_PROLOGUE
@@ -80,18 +79,19 @@ ENTRY(__setcontext)
 	subl	$4, %esp		/* leave space for the return address */
 	movl	60(%edx), %eax		/* put return address at top of stack */
 	movl	%eax, (%esp)
-	testl	$UC_FP_VALID, MC_FLAGS_OFFSET(%edx) /* are FP regs valid? */
+	cmpl	$0, MC_OWNEDFP_OFFSET(%edx) /* are FP regs valid? */
 	jz	3f
 	frstor	MC_FP_REGS_OFFSET(%edx) /* restore FP regs */
 	jmp	4f
 3:	fninit
 	fldcw	MC_FP_CW_OFFSET(%edx)
-4:	movl	68(%edx), %eax		/* restore flags register */
-	sahf
-	movl	48(%edx), %eax		/* restore ax, bx, cx, and dx last */
+4:	movl	48(%edx), %eax		/* restore ax, bx, cx */
 	movl	36(%edx), %ebx
 	movl	44(%edx), %ecx
-	movl	40(%edx), %edx
+	pushl	68(%edx)		/* flags on stack */
+	pushl	40(%edx)		/* %edx on stack  */
+	popl	%edx			/* %edx off stack */
+	popf				/* flags off stack */
 5:	ret
 
 /*
@@ -109,8 +109,8 @@ ENTRY(__getcontext)
 	jne	1f
 	movl	$-1, %eax
 	jmp	2f
-	movl	4(%esp), %eax		/* get address of context and sigset */
-1:	PIC_PROLOGUE
+1:	movl	4(%esp), %eax		/* get address of context and sigset */
+	PIC_PROLOGUE
 	pushl	%eax			/* oset = &ucp->uc_sigmask */
 	pushl	$0			/* set = NULL */
 	pushl	$3			/* how = SIG_SETMASK */
@@ -136,30 +136,23 @@ ENTRY(__getcontext)
 	movl	%ecx, 44(%edx)
 	movl	(%esp), %eax		/* get return address */
 	movl	%eax, 60(%edx)		/* save return address */
+	movl	%ss, 76(%edx)
 	/*
-	 * XXX - Do we really need to save floating point registers?
+	 * Don't save floating point registers here.
 	 *
 	 * This is an explicit call to get the current context, so
-	 * shouldn't the caller be done with the floating point registers?
+	 * the caller is done with the floating point registers.
 	 * Contexts formed by involuntary switches, such as signal delivery,
-	 * should have floating point registers saved by the kernel.
-	 *
-	 * As of this writing, the kernel doesn't yet save the FPU state
-	 * on signal delivery, so a setcontext on the interrupted context
-	 * may yield incorrect results regardless.
+	 * have floating point registers saved by the kernel.
 	 */
-#if 1
 	fnstcw	MC_FP_CW_OFFSET(%edx)
-	movl	$UC_MC_VALID, MC_FLAGS_OFFSET(%edx) /* mcontext valid, no FP */
-#else
-	fnsave	MC_FP_REGS_OFFSET(%edx) /* save FP regs */
-	movl	$MC_FP_VALID, MC_FLAGS_OFFSET(%edx) /* mcontext and FP valid */
-#endif
+	movl	$0, MC_OWNEDFP_OFFSET(%edx) /* no FP */
 	lahf				/* get eflags */
 	movl	%eax, 68(%edx)		/* store eflags */
 	movl	%esp, %eax		/* setcontext pushes the return  */
 	addl	$4, %eax		/*   address onto the top of the */
 	movl	%eax, 72(%edx)		/*   stack; account for this     */
+	movl	$MC_SIZE, MC_LEN_OFFSET(%edx) /* context is now valid */
 	movl	40(%edx), %edx		/* restore edx -- is this needed? */
 	xorl	%eax, %eax		/* return 0 */
 2:	ret

@@ -3,4 +3,4 @@
 
 SRCS+=	_ctx_start.S _setjmp.S alloca.S getcontext.S fabs.S frexp.c \
 	infinity.c isinf.c ldexp.c makecontext.c modf.S \
-	rfork_thread.S setjmp.S sigsetjmp.S swapcontext.c
+	rfork_thread.S setjmp.S sigsetjmp.S swapcontext.c signalcontext.c
