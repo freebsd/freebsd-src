@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.9 1995/04/02 03:51:53 ache Exp $
+ * $Id: tty_compat.c,v 1.10 1995/04/02 04:15:08 ache Exp $
  */
 
 /* 
@@ -50,9 +50,9 @@
 #include <sys/kernel.h>
 #include <sys/syslog.h>
 
-int ttcompatgetflags     __P((struct tty *tp));
-void ttcompatsetflags    __P((struct tty *tp, struct termios *t));
-void ttcompatsetlflags   __P((struct tty *tp, struct termios *t));
+static int ttcompatgetflags	__P((struct tty	*tp));
+static void ttcompatsetflags	__P((struct tty	*tp, struct termios *t));
+static void ttcompatsetlflags	__P((struct tty	*tp, struct termios *t));
 
 int ttydebug = 0;
 
@@ -78,7 +78,7 @@ static struct speedtab compatspeeds[] = {
 	{ 0,	0 },
 	{ -1,	-1 },
 };
-int compatspcodes[] = {
+static int compatspcodes[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
 	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
 };
@@ -236,14 +236,14 @@ ttcompat(tp, com, data, flag)
 	return (0);
 }
 
-int
+static int
 ttcompatgetflags(tp)
 	register struct tty *tp;
 {
-	register long iflag = tp->t_iflag;
-	register long lflag = tp->t_lflag;
-	register long oflag = tp->t_oflag;
-	register long cflag = tp->t_cflag;
+	register tcflag_t iflag	= tp->t_iflag;
+	register tcflag_t lflag	= tp->t_lflag;
+	register tcflag_t oflag	= tp->t_oflag;
+	register tcflag_t cflag	= tp->t_cflag;
 	register flags = 0;
 
 	if (iflag&IXOFF)
@@ -297,16 +297,16 @@ ttcompatgetflags(tp)
 	return (flags);
 }
 
-void
+static void
 ttcompatsetflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
 {
 	register flags = tp->t_flags;
-	register long iflag = t->c_iflag;
-	register long oflag = t->c_oflag;
-	register long lflag = t->c_lflag;
-	register long cflag = t->c_cflag;
+	register tcflag_t iflag	= t->c_iflag;
+	register tcflag_t oflag	= t->c_oflag;
+	register tcflag_t lflag	= t->c_lflag;
+	register tcflag_t cflag	= t->c_cflag;
 
 	if (flags & RAW) {
 		iflag = IGNBRK;
@@ -375,16 +375,16 @@ ttcompatsetflags(tp, t)
 	t->c_cflag = cflag;
 }
 
-void
+static void
 ttcompatsetlflags(tp, t)
 	register struct tty *tp;
 	register struct termios *t;
 {
 	register flags = tp->t_flags;
-	register long iflag = t->c_iflag;
-	register long oflag = t->c_oflag;
-	register long lflag = t->c_lflag;
-	register long cflag = t->c_cflag;
+	register tcflag_t iflag	= t->c_iflag;
+	register tcflag_t oflag	= t->c_oflag;
+	register tcflag_t lflag	= t->c_lflag;
+	register tcflag_t cflag	= t->c_cflag;
 
 	iflag &= ~(PARMRK|IGNPAR|IGNCR|INLCR);
 	if (flags&CRTERA)
