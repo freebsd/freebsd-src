@@ -158,7 +158,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "Usage: %s [-i <inffile>] -s <sysfile> "
-	    "[-d devname] [-o outfile]\n", __progname);
+	    "[-n devname] [-o outfile]\n", __progname);
 	exit(1);
 }
 
