@@ -89,7 +89,7 @@ implementation causes
 of a descriptor returned by
 .Nm shm_open
 to behave as if the
-.Dv MAP_ASYNC
+.Dv MAP_NOSYNC
 flag had been specified to
 .Xr mmap 2 .
 (It does so by setting a special file flag using
