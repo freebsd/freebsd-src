@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
+static const char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -66,7 +66,7 @@ static const char rcsid[] =
 FILE	*fscript;
 int	master, slave;
 int	child;
-const char	*fname;
+const char *fname;
 int	qflg;
 
 struct	termios tt;
@@ -83,7 +83,7 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	register int cc;
+	int cc;
 	struct termios rtt, stt;
 	struct winsize win;
 	int aflg, kflg, ch, n;
