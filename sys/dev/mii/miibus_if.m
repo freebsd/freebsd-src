@@ -31,6 +31,13 @@ METHOD void statchg {
 };
 
 #
+# Notify bus about PHY link change.
+#
+METHOD void linkchg {
+	device_t		dev;
+};
+
+#
 # Notify bus that media has been set.
 #
 METHOD void mediainit {
