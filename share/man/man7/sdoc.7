@@ -187,7 +187,7 @@ Instead, use
 .Fn strncpy 
 and ensure that no more characters are copied to the destination buffer
 than it can hold.
-Don't forget to NUL-terminate the destination buffer,
+Do not forget to NUL-terminate the destination buffer,
 as
 .Fn strncpy
 will not terminate the destination string if it is truncated.
@@ -210,7 +210,7 @@ foo(const char *arbitrary_string)
 
 #if defined(BAD)
 	/*
-	 * This first strcpy is bad behavior.  Don't use strcpy()!
+	 * This first strcpy is bad behavior.  Do not use strcpy()!
 	 */
 	(void)strcpy(onstack, arbitrary_string);     /* BAD! */
 #elif defined(BETTER)
