@@ -569,7 +569,8 @@ struct pthread {
 	char		active_priority;
 
 	/* Number of priority ceiling or protection mutexes owned. */
-	int		priority_mutex_count;
+	int		prio_inherit_count;
+	int		prio_protect_count;
 
 	/*
 	 * Queue of currently owned mutexes.
@@ -784,10 +785,13 @@ void	_thread_critical_enter(pthread_t);
 void	_thread_critical_exit(pthread_t);
 void	_thread_sigblock();
 void	_thread_sigunblock();
+void	adjust_prio_inheritance(struct pthread *);
+void	adjust_prio_protection(struct pthread *);
 void	init_td_common(struct pthread *, struct pthread_attr *, int);
 void	init_tdlist(struct pthread *, int);
 void	proc_sigact_copyin(int, const struct sigaction *);
 void	proc_sigact_copyout(int, struct sigaction *);
+void	readjust_priorities(struct pthread *, struct pthread_mutex *);
 struct sigaction *proc_sigact_sigaction(int);
 
 /* #include <sys/aio.h> */
