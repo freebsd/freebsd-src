@@ -592,9 +592,12 @@ via_attach(device_t dev)
 
 	via->codec_caps = ac97_getextcaps(via->codec);
 
-	/* Try to set VRA (depends on codec) */
-	ac97_setextmode(via->codec, via->codec_caps & 
-			(AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
+	/* Try to set VRA without generating an error, VRM not reqrd yet */
+	if (via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM)) {
+		u_int16_t ext = ac97_getextmode(via->codec);
+		ext |= (via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
+		ac97_setextmode(via->codec, ext);
+	}
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld", 
 		 rman_get_start(via->reg), rman_get_start(via->irq));
