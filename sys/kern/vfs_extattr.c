@@ -812,7 +812,7 @@ chroot(td, uap)
 	int error;
 	struct nameidata nd;
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->path, td);
@@ -1170,7 +1170,7 @@ kern_mknod(struct thread *td, char *path, enum uio_seg pathseg, int mode,
 		error = suser(td);
 		break;
 	default:
-		error = suser_cred(td->td_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 		break;
 	}
 	if (error)
@@ -1365,7 +1365,7 @@ can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
 	struct vattr va;
 	int error;
 
-	if (suser_cred(cred, PRISON_ROOT) == 0)
+	if (suser_cred(cred, SUSER_ALLOWJAIL) == 0)
 		return (0);
 
 	if (!hardlink_check_uid && !hardlink_check_gid)
@@ -2300,7 +2300,7 @@ setfflags(td, vp, flags)
 	 * chown can't fail when done as root.
 	 */
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
-		error = suser_cred(td->td_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -3727,7 +3727,7 @@ revoke(td, uap)
 	}
 	VOP_UNLOCK(vp, 0, td);
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
-		error = suser_cred(td->td_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 		if (error)
 			goto out;
 	}

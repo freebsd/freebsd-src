@@ -766,7 +766,7 @@ devfs_setattr(ap)
 	if (uid != de->de_uid || gid != de->de_gid) {
 		if (((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
 		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) &&
-		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)) != 0)
+		    (error = suser_cred(ap->a_td->td_ucred, SUSER_ALLOWJAIL)) != 0)
 			return (error);
 		de->de_uid = uid;
 		de->de_gid = gid;
@@ -775,7 +775,7 @@ devfs_setattr(ap)
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
+		    (error = suser_cred(ap->a_td->td_ucred, SUSER_ALLOWJAIL)))
 			return (error);
 		de->de_mode = vap->va_mode;
 		c = 1;

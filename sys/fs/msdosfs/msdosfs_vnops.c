@@ -387,7 +387,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_cred(cred, PRISON_ROOT)))
+		    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
 			return (error);
 		/*
 		 * We are very inconsistent about handling unsupported
@@ -401,7 +401,7 @@ msdosfs_setattr(ap)
 		 * set ATTR_ARCHIVE for directories `cp -pr' from a more
 		 * sensible filesystem attempts it a lot.
 		 */
-		if (suser_cred(cred, PRISON_ROOT)) {
+		if (suser_cred(cred, SUSER_ALLOWJAIL)) {
 			if (vap->va_flags & SF_SETTABLE)
 				return EPERM;
 		}
@@ -428,7 +428,7 @@ msdosfs_setattr(ap)
 			gid = pmp->pm_gid;
 		if ((cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
 		    (gid != pmp->pm_gid && !groupmember(gid, cred))) &&
-		    (error = suser_cred(cred, PRISON_ROOT)))
+		    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
 			return error;
 		if (uid != pmp->pm_uid || gid != pmp->pm_gid)
 			return EINVAL;
@@ -460,7 +460,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_cred(cred, PRISON_ROOT)) &&
+		    (error = suser_cred(cred, SUSER_ALLOWJAIL)) &&
 		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
 		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_td))))
 			return (error);
@@ -489,7 +489,7 @@ msdosfs_setattr(ap)
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
 		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_cred(cred, PRISON_ROOT)))
+		    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
 			return (error);
 		if (vp->v_type != VDIR) {
 			/* We ignore the read and execute bits. */

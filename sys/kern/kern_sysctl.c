@@ -1196,7 +1196,7 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 		int flags;
 
 		if (oid->oid_kind & CTLFLAG_PRISON)
-			flags = PRISON_ROOT;
+			flags = SUSER_ALLOWJAIL;
 		else
 			flags = 0;
 		error = suser_cred(req->td->td_ucred, flags);

@@ -524,7 +524,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		uifree(uip);
 		crfree(newcred);
@@ -544,7 +544,7 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use the clause from B.4.2.2 */
 	    uid == oldcred->cr_uid ||
 #endif
-	    suser_cred(oldcred, PRISON_ROOT) == 0) /* we are using privs */
+	    suser_cred(oldcred, SUSER_ALLOWJAIL) == 0) /* we are using privs */
 #endif
 	{
 		/*
@@ -606,7 +606,7 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 	oldcred = p->p_ucred;
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		uifree(euip);
 		crfree(newcred);
@@ -668,7 +668,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);
@@ -684,7 +684,7 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* use the clause from B.4.2.2 */
 	    gid == oldcred->cr_groups[0] ||
 #endif
-	    suser_cred(oldcred, PRISON_ROOT) == 0) /* we are using privs */
+	    suser_cred(oldcred, SUSER_ALLOWJAIL) == 0) /* we are using privs */
 #endif
 	{
 		/*
@@ -743,7 +743,7 @@ setegid(struct thread *td, struct setegid_args *uap)
 	oldcred = p->p_ucred;
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);
@@ -789,7 +789,7 @@ setgroups(struct thread *td, struct setgroups_args *uap)
 	newcred = crget();
 	PROC_LOCK(p);
 	oldcred = p->p_ucred;
-	error = suser_cred(oldcred, PRISON_ROOT);
+	error = suser_cred(oldcred, SUSER_ALLOWJAIL);
 	if (error) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
@@ -853,7 +853,7 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		uifree(ruip);
 		uifree(euip);
@@ -909,7 +909,7 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);
@@ -977,7 +977,7 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		uifree(ruip);
 		uifree(euip);
@@ -1045,7 +1045,7 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = suser_cred(oldcred, PRISON_ROOT)) != 0) {
+	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);
@@ -1233,7 +1233,7 @@ suser_cred(struct ucred *cred, int flag)
 		return (EPERM);
 	if (((flag & SUSER_RUID) ? cred->cr_ruid : cred->cr_uid) != 0)
 		return (EPERM);
-	if (jailed(cred) && !(flag & PRISON_ROOT))
+	if (jailed(cred) && !(flag & SUSER_ALLOWJAIL))
 		return (EPERM);
 	return (0);
 }
@@ -1324,7 +1324,7 @@ cr_seeotheruids(struct ucred *u1, struct ucred *u2)
 {
 
 	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
-		if (suser_cred(u1, PRISON_ROOT) != 0)
+		if (suser_cred(u1, SUSER_ALLOWJAIL) != 0)
 			return (ESRCH);
 	}
 	return (0);
@@ -1363,7 +1363,7 @@ cr_seeothergids(struct ucred *u1, struct ucred *u2)
 				break;
 		}
 		if (!match) {
-			if (suser_cred(u1, PRISON_ROOT) != 0)
+			if (suser_cred(u1, SUSER_ALLOWJAIL) != 0)
 				return (ESRCH);
 		}
 	}
@@ -1480,7 +1480,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 			break;
 		default:
 			/* Not permitted without privilege. */
-			error = suser_cred(cred, PRISON_ROOT);
+			error = suser_cred(cred, SUSER_ALLOWJAIL);
 			if (error)
 				return (error);
 		}
@@ -1495,7 +1495,7 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	    cred->cr_uid != proc->p_ucred->cr_ruid &&
 	    cred->cr_uid != proc->p_ucred->cr_svuid) {
 		/* Not permitted without privilege. */
-		error = suser_cred(cred, PRISON_ROOT);
+		error = suser_cred(cred, SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -1564,11 +1564,11 @@ p_cansched(struct thread *td, struct proc *p)
 		return (0);
 	if (td->td_ucred->cr_uid == p->p_ucred->cr_ruid)
 		return (0);
-	if (suser_cred(td->td_ucred, PRISON_ROOT) == 0)
+	if (suser_cred(td->td_ucred, SUSER_ALLOWJAIL) == 0)
 		return (0);
 
 #ifdef CAPABILITIES
-	if (!cap_check(NULL, td, CAP_SYS_NICE, PRISON_ROOT))
+	if (!cap_check(NULL, td, CAP_SYS_NICE, SUSER_ALLOWJAIL))
 		return (0);
 #endif
 
@@ -1607,7 +1607,7 @@ p_candebug(struct thread *td, struct proc *p)
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!unprivileged_proc_debug) {
-		error = suser_cred(td->td_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -1659,7 +1659,7 @@ p_candebug(struct thread *td, struct proc *p)
 	 * require CAP_SYS_PTRACE.
 	 */
 	if (!grpsubset || !uidsubset || credentialchanged) {
-		error = suser_cred(td->td_ucred, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -1927,7 +1927,7 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
-	error = suser_cred(td->td_ucred, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);

@@ -720,7 +720,7 @@ ffs_write(ap)
 	 * tampering.
 	 */
 	if (resid > uio->uio_resid && ap->a_cred && 
-	    suser_cred(ap->a_cred, PRISON_ROOT)) {
+	    suser_cred(ap->a_cred, SUSER_ALLOWJAIL)) {
 		ip->i_mode &= ~(ISUID | ISGID);
 		DIP(ip, i_mode) = ip->i_mode;
 	}
@@ -1158,7 +1158,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	 * tampering.
 	 */
 	if (resid > uio->uio_resid && ucred && 
-	    suser_cred(ucred, PRISON_ROOT)) {
+	    suser_cred(ucred, SUSER_ALLOWJAIL)) {
 		ip->i_mode &= ~(ISUID | ISGID);
 		dp->di_mode = ip->i_mode;
 	}

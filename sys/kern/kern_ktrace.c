@@ -895,7 +895,7 @@ ktrcanset(td, targetp)
 
 	PROC_LOCK_ASSERT(targetp, MA_OWNED);
 	if (targetp->p_traceflag & KTRFAC_ROOT &&
-	    suser_cred(td->td_ucred, PRISON_ROOT))
+	    suser_cred(td->td_ucred, SUSER_ALLOWJAIL))
 		return (0);
 
 	if (p_candebug(td, targetp) != 0)
