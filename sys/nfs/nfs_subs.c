@@ -2186,7 +2186,7 @@ loop:
 			nbp = TAILQ_NEXT(bp, b_vnbufs);
 			if ((bp->b_flags & (B_BUSY | B_DELWRI | B_NEEDCOMMIT))
 				== (B_DELWRI | B_NEEDCOMMIT))
-				bp->b_flags &= ~B_NEEDCOMMIT;
+				bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		}
 	}
 	splx(s);

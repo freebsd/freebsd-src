@@ -812,7 +812,7 @@ again:
 		}
 
 		error = uiomove((char *)bp->b_data + on, n, uio);
-		bp->b_flags &= ~B_NEEDCOMMIT;
+		bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		if (error) {
 			bp->b_flags |= B_ERROR;
 			brelse(bp);
@@ -844,7 +844,7 @@ again:
 		 * Since this block is being modified, it must be written
 		 * again and not just committed.
 		 */
-		bp->b_flags &= ~B_NEEDCOMMIT;
+		bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 
 		/*
 		 * If the lease is non-cachable or IO_SYNC do bwrite().
@@ -1239,7 +1239,7 @@ nfs_doio(bp, cr, p)
 			&& bp->b_dirtyend == bp->b_bufsize)
 			bp->b_flags |= B_CLUSTEROK;
 		} else
-		    bp->b_flags &= ~B_NEEDCOMMIT;
+		    bp->b_flags &= ~(B_NEEDCOMMIT | B_CLUSTEROK);
 		bp->b_flags &= ~B_WRITEINPROG;
 
 		/*
