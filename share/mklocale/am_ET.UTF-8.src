@@ -1,0 +1,44 @@
+/*
+ * Amharic Language (Ethiopic) Locale with UTF-8 Encoding
+ *
+ * ሚካኤል ጥላሁን <mtm@FreeBSD.Org>
+ * Last updated Mon Aug 04 02:06:00 EST 2003
+ *
+ * $FreeBSD$
+ */
+
+ENCODING	"UTF-8"
+
+/* ALPHA	'A' - 'Z' 'a' - 'z' 'ሀ' - 'ፚ' */
+ALPHA		'A' - 'Z' 'a' - 'z' 0xe18880 - 0xe18d9a
+CONTROL		0x00 - 0x1f 0x7f - 0x9f
+
+/* DIGIT	'0' - '9' '፩' - '፱' */
+DIGIT		'0' - '9' 0xe18da9 - 0xe18db1
+GRAPH		0x21 - 0x7e 0xa1 - 0xfa
+LOWER		'a' - 'z'
+
+/*
+ * PUNCT 0x21 - 0x2f 0x3a - 0x40 0x5b - 0x60 0x7b - 0x7e '።' - '፨'
+ */
+PUNCT		0x21 - 0x2f 0x3a - 0x40 0x5b - 0x60 0x7b - 0x7e 0xe18da2 - 0xe18da8
+SPACE		0x09 - 0x0d 0x20 0xe18da1
+UPPER		'A' - 'Z'
+XDIGIT		'0' - '9' 'a' - 'f' 'A' - 'F'
+BLANK		' ' '\t' 0xe18da1
+PRINT		0x20 - 0x7e 0x1200 - 0x137c
+
+MAPLOWER	<'A' - 'Z' : 'a'>
+MAPLOWER	<'a' - 'z' : 'a'>
+
+MAPUPPER	<'A' - 'Z' : 'A'>
+MAPUPPER	<'a' - 'z' : 'A'>
+
+/*
+ * TODIGIT	<0xe18da8'፨' - '፱' : 1>
+ *		No Zero digit
+ */
+TODIGIT		<0xe18da8 - 0xe18db1 : 1>
+TODIGIT		<'0' - '9' : 0>
+TODIGIT		<'A' - 'F' : 10>
+TODIGIT		<'a' - 'f' : 10>
