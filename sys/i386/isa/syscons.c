@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from:@(#)syscons.c	1.3 940129
- *	$Id: syscons.c,v 1.47 1994/08/01 10:38:19 davidg Exp $
+ *	$Id: syscons.c,v 1.48 1994/08/13 03:50:16 wollman Exp $
  *
  */
 
@@ -333,6 +333,9 @@ int pcprobe(struct isa_device *dev)
 		    kbd_reply() == 0xaa)        /* self test passed */
 			break;
 		printf("Keyboard reset failed\n");
+#ifdef KBD_RESET_FAIL_OK
+		break;
+#endif
 	}
 	return (IO_KBDSIZE);
 }
