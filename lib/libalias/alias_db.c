@@ -2732,7 +2732,7 @@ fill_rule(void *buf, int bufsize, int rulenum,
 
     rule->cmd_len = (u_int32_t *)cmd - (u_int32_t *)rule->cmd;
 
-    return ((void *)cmd - buf);
+    return ((char *)cmd - (char *)buf);
 }
 #endif /* IPFW2 */
 
