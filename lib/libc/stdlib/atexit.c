@@ -65,7 +65,7 @@ atexit(fn)
 	void (*fn)();
 {
 	static struct atexit __atexit0;	/* one guaranteed table */
-	register struct atexit *p;
+	struct atexit *p;
 
 	_MUTEX_LOCK(&atexit_mutex);
 	if ((p = __atexit) == NULL)

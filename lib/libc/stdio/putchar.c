@@ -63,7 +63,7 @@ putchar(c)
 	int c;
 {
 	int retval;
-	register FILE *so = stdout;
+	FILE *so = stdout;
 
 	FLOCKFILE(so);
 	retval = __sputc(c, so);

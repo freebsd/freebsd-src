@@ -44,10 +44,10 @@ __FBSDID("$FreeBSD$");
  */
 char *
 strpbrk(s1, s2)
-	register const char *s1, *s2;
+	const char *s1, *s2;
 {
-	register const char *scanp;
-	register int c, sc;
+	const char *scanp;
+	int c, sc;
 
 	while ((c = *s1++) != 0) {
 		for (scanp = s2; (sc = *scanp++) != 0;)

@@ -81,7 +81,7 @@ static char sccsid[] = "@(#)random.c	8.2 (Berkeley) 5/19/95";
  * period of the generator is approximately deg*(2**deg - 1); thus doubling
  * the amount of state information has a vast influence on the period of the
  * generator.  Note: the deg*(2**deg - 1) is an approximation only good for
- * large deg, when the period of the shift register is the dominant factor.
+ * large deg, when the period of the shift is the dominant factor.
  * With deg equal to seven, the period is actually much longer than the
  * 7*(2**7 - 1) predicted by this formula.
  *
@@ -217,7 +217,7 @@ static long *end_ptr = &randtbl[DEG_3 + 1];
 static inline long good_rand __P((long));
 
 static inline long good_rand (x)
-	register long x;
+	long x;
 {
 #ifdef  USE_WEAK_SEEDING
 /*
@@ -235,7 +235,7 @@ static inline long good_rand (x)
  * Park and Miller, Communications of the ACM, vol. 31, no. 10,
  * October 1988, p. 1195.
  */
-	register long hi, lo;
+	long hi, lo;
 
 	hi = x / 127773;
 	lo = x % 127773;
@@ -262,7 +262,7 @@ void
 srandom(x)
 	unsigned long x;
 {
-	register long i;
+	long i;
 
 	if (rand_type == TYPE_0)
 		state[0] = x;
@@ -351,8 +351,8 @@ initstate(seed, arg_state, n)
 	char *arg_state;		/* pointer to state array */
 	long n;				/* # bytes of state info */
 {
-	register char *ostate = (char *)(&state[-1]);
-	register long *long_arg_state = (long *) arg_state;
+	char *ostate = (char *)(&state[-1]);
+	long *long_arg_state = (long *) arg_state;
 
 	if (rand_type == TYPE_0)
 		state[-1] = rand_type;
@@ -417,9 +417,9 @@ char *
 setstate(arg_state)
 	char *arg_state;		/* pointer to state array */
 {
-	register long *new_state = (long *) arg_state;
-	register long type = new_state[0] % MAX_TYPES;
-	register long rear = new_state[0] / MAX_TYPES;
+	long *new_state = (long *) arg_state;
+	long type = new_state[0] % MAX_TYPES;
+	long rear = new_state[0] / MAX_TYPES;
 	char *ostate = (char *)(&state[-1]);
 
 	if (rand_type == TYPE_0)
@@ -469,8 +469,8 @@ setstate(arg_state)
 long
 random()
 {
-	register long i;
-	register long *f, *r;
+	long i;
+	long *f, *r;
 
 	if (rand_type == TYPE_0) {
 		i = state[0];

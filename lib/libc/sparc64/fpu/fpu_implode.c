@@ -62,7 +62,7 @@
 #include "fpu_emu.h"
 #include "fpu_extern.h"
 
-static int round __P((register struct fpemu *, register struct fpn *));
+static int round __P((struct fpemu *, struct fpn *));
 static int toinf __P((struct fpemu *, int));
 
 /*
@@ -78,10 +78,10 @@ static int toinf __P((struct fpemu *, int));
  * responsibility to fix this if necessary.
  */
 static int
-round(register struct fpemu *fe, register struct fpn *fp)
+round(struct fpemu *fe, struct fpn *fp)
 {
-	register u_int m0, m1, m2, m3;
-	register int gr, s;
+	u_int m0, m1, m2, m3;
+	int gr, s;
 
 	m0 = fp->fp_mant[0];
 	m1 = fp->fp_mant[1];
@@ -193,10 +193,10 @@ toinf(struct fpemu *fe, int sign)
 u_int
 __fpu_ftoi(fe, fp)
 	struct fpemu *fe;
-	register struct fpn *fp;
+	struct fpn *fp;
 {
-	register u_int i;
-	register int sign, exp;
+	u_int i;
+	int sign, exp;
 
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
@@ -242,11 +242,11 @@ __fpu_ftoi(fe, fp)
 u_int
 __fpu_ftox(fe, fp, res)
 	struct fpemu *fe;
-	register struct fpn *fp;
+	struct fpn *fp;
 	u_int *res;
 {
-	register u_int64_t i;
-	register int sign, exp;
+	u_int64_t i;
+	int sign, exp;
 
 	sign = fp->fp_sign;
 	switch (fp->fp_class) {
@@ -294,10 +294,10 @@ __fpu_ftox(fe, fp, res)
 u_int
 __fpu_ftos(fe, fp)
 	struct fpemu *fe;
-	register struct fpn *fp;
+	struct fpn *fp;
 {
-	register u_int sign = fp->fp_sign << 31;
-	register int exp;
+	u_int sign = fp->fp_sign << 31;
+	int exp;
 
 #define	SNG_EXP(e)	((e) << SNG_FRACBITS)	/* makes e an exponent */
 #define	SNG_MASK	(SNG_EXP(1) - 1)	/* mask for fraction */
@@ -378,11 +378,11 @@ done:
 u_int
 __fpu_ftod(fe, fp, res)
 	struct fpemu *fe;
-	register struct fpn *fp;
+	struct fpn *fp;
 	u_int *res;
 {
-	register u_int sign = fp->fp_sign << 31;
-	register int exp;
+	u_int sign = fp->fp_sign << 31;
+	int exp;
 
 #define	DBL_EXP(e)	((e) << (DBL_FRACBITS & 31))
 #define	DBL_MASK	(DBL_EXP(1) - 1)
@@ -439,11 +439,11 @@ done:
 u_int
 __fpu_ftoq(fe, fp, res)
 	struct fpemu *fe;
-	register struct fpn *fp;
+	struct fpn *fp;
 	u_int *res;
 {
-	register u_int sign = fp->fp_sign << 31;
-	register int exp;
+	u_int sign = fp->fp_sign << 31;
+	int exp;
 
 #define	EXT_EXP(e)	((e) << (EXT_FRACBITS & 31))
 #define	EXT_MASK	(EXT_EXP(1) - 1)
@@ -499,9 +499,9 @@ done:
 void
 __fpu_implode(fe, fp, type, space)
 	struct fpemu *fe;
-	register struct fpn *fp;
+	struct fpn *fp;
 	int type;
-	register u_int *space;
+	u_int *space;
 {
 
 	switch (type) {

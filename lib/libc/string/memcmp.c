@@ -51,7 +51,7 @@ memcmp(s1, s2, n)
 	size_t n;
 {
 	if (n != 0) {
-		register const unsigned char *p1 = s1, *p2 = s2;
+		const unsigned char *p1 = s1, *p2 = s2;
 
 		do {
 			if (*p1++ != *p2++)

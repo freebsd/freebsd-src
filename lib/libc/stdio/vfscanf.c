@@ -702,10 +702,10 @@ match_failure:
  */
 static u_char *
 __sccl(tab, fmt)
-	register char *tab;
-	register u_char *fmt;
+	char *tab;
+	u_char *fmt;
 {
-	register int c, n, v, i;
+	int c, n, v, i;
 
 	/* first `clear' the whole table */
 	c = *fmt++;		/* first char hat => negated scanset */

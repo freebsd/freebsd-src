@@ -104,11 +104,11 @@ mktemp(path)
 static int
 _gettemp(path, doopen, domkdir, slen)
 	char *path;
-	register int *doopen;
+	int *doopen;
 	int domkdir;
 	int slen;
 {
-	register char *start, *trv, *suffp;
+	char *start, *trv, *suffp;
 	char *pad;
 	struct stat sbuf;
 	int rval;

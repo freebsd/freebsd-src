@@ -37,6 +37,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)heapsort.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <stddef.h>
@@ -143,8 +145,8 @@ heapsort(vbase, nmemb, size, compar)
 	size_t nmemb, size;
 	int (*compar) __P((const void *, const void *));
 {
-	register int cnt, i, j, l;
-	register char tmp, *tmp1, *tmp2;
+	int cnt, i, j, l;
+	char tmp, *tmp1, *tmp2;
 	char *base, *k, *p, *t;
 
 	if (nmemb <= 1)

@@ -57,12 +57,12 @@ static const char rcsid[] =
 char *
 fgets(buf, n, fp)
 	char *buf;
-	register int n;
-	register FILE *fp;
+	int n;
+	FILE *fp;
 {
-	register size_t len;
-	register char *s;
-	register unsigned char *p, *t;
+	size_t len;
+	char *s;
+	unsigned char *p, *t;
 
 	if (n <= 0)		/* sanity check */
 		return (NULL);

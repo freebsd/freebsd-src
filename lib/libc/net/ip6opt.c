@@ -70,7 +70,7 @@ inet6_option_init(bp, cmsgp, type)
 	struct cmsghdr **cmsgp;
 	int type;
 {
-	register struct cmsghdr *ch = (struct cmsghdr *)bp;
+	struct cmsghdr *ch = (struct cmsghdr *)bp;
 
 	/* argument validation */
 	if (type != IPV6_HOPOPTS && type != IPV6_DSTOPTS)
@@ -102,7 +102,7 @@ inet6_option_append(cmsg, typep, multx, plusy)
 	int plusy;
 {
 	int padlen, optlen, off;
-	register u_char *bp = (u_char *)cmsg + cmsg->cmsg_len;
+	u_char *bp = (u_char *)cmsg + cmsg->cmsg_len;
 	struct ip6_ext *eh = (struct ip6_ext *)CMSG_DATA(cmsg);
 
 	/* argument validation */
@@ -176,7 +176,7 @@ inet6_option_alloc(cmsg, datalen, multx, plusy)
 	int plusy;
 {
 	int padlen, off;
-	register u_int8_t *bp = (u_char *)cmsg + cmsg->cmsg_len;
+	u_int8_t *bp = (u_char *)cmsg + cmsg->cmsg_len;
 	u_int8_t *retval;
 	struct ip6_ext *eh = (struct ip6_ext *)CMSG_DATA(cmsg);
 

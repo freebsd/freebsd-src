@@ -54,7 +54,7 @@ fdopen(fd, mode)
 	int fd;
 	const char *mode;
 {
-	register FILE *fp;
+	FILE *fp;
 	static int nofile;
 	int flags, oflags, fdflags, tmp;
 

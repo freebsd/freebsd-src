@@ -55,12 +55,12 @@ static const char rcsid[] =
  */
 int
 setvbuf(fp, buf, mode, size)
-	register FILE *fp;
+	FILE *fp;
 	char *buf;
-	register int mode;
-	register size_t size;
+	int mode;
+	size_t size;
 {
-	register int ret, flags;
+	int ret, flags;
 	size_t iosize;
 	int ttyflag;
 

@@ -58,7 +58,7 @@ static const char rcsid[] =
 int
 putc(c, fp)
 	int c;
-	register FILE *fp;
+	FILE *fp;
 {
 	int retval;
 	FLOCKFILE(fp);

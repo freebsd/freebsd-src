@@ -34,6 +34,8 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)bsearch.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -56,16 +58,16 @@ static char sccsid[] = "@(#)bsearch.c	8.1 (Berkeley) 6/4/93";
  */
 void *
 bsearch(key, base0, nmemb, size, compar)
-	register const void *key;
+	const void *key;
 	const void *base0;
 	size_t nmemb;
-	register size_t size;
-	register int (*compar) __P((const void *, const void *));
+	size_t size;
+	int (*compar) __P((const void *, const void *));
 {
-	register const char *base = base0;
-	register size_t lim;
-	register int cmp;
-	register const void *p;
+	const char *base = base0;
+	size_t lim;
+	int cmp;
+	const void *p;
 
 	for (lim = nmemb; lim != 0; lim >>= 1) {
 		p = base + (lim >> 1) * size;

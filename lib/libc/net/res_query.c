@@ -373,7 +373,7 @@ const char *
 hostalias(name)
 	const char *name;
 {
-	register char *cp1, *cp2;
+	char *cp1, *cp2;
 	FILE *fp;
 	char *file;
 	char buf[BUFSIZ];

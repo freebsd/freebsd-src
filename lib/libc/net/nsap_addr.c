@@ -30,7 +30,7 @@ static char rcsid[] = "$FreeBSD$";
 
 static char
 xtob(c)
-	register int c;
+	int c;
 {
 	return (c - (((c >= '0') && (c <= '9')) ? '0' : '7'));
 }
@@ -74,10 +74,10 @@ inet_nsap_addr(ascii, binary, maxlen)
 char *
 inet_nsap_ntoa(binlen, binary, ascii)
 	int binlen;
-	register const u_char *binary;
-	register char *ascii;
+	const u_char *binary;
+	char *ascii;
 {
-	register int nib;
+	int nib;
 	int i;
 	static char tmpbuf[255*3];
 	char *start;

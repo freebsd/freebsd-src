@@ -86,8 +86,8 @@
  */
 int
 __fpu_itof(fp, i)
-	register struct fpn *fp;
-	register u_int i;
+	struct fpn *fp;
+	u_int i;
 {
 
 	if (i == 0)
@@ -112,8 +112,8 @@ __fpu_itof(fp, i)
  */
 int
 __fpu_xtof(fp, i)
-	register struct fpn *fp;
-	register u_int64_t i;
+	struct fpn *fp;
+	u_int64_t i;
 {
 
 	if (i == 0)
@@ -173,11 +173,11 @@ __fpu_xtof(fp, i)
  */
 int
 __fpu_stof(fp, i)
-	register struct fpn *fp;
-	register u_int i;
+	struct fpn *fp;
+	u_int i;
 {
-	register int exp;
-	register u_int frac, f0, f1;
+	int exp;
+	u_int frac, f0, f1;
 #define SNG_SHIFT (SNG_FRACBITS - FP_LG)
 
 	exp = (i >> (32 - 1 - SNG_EXPBITS)) & mask(SNG_EXPBITS);
@@ -193,11 +193,11 @@ __fpu_stof(fp, i)
  */
 int
 __fpu_dtof(fp, i, j)
-	register struct fpn *fp;
-	register u_int i, j;
+	struct fpn *fp;
+	u_int i, j;
 {
-	register int exp;
-	register u_int frac, f0, f1, f2;
+	int exp;
+	u_int frac, f0, f1, f2;
 #define DBL_SHIFT (DBL_FRACBITS - 32 - FP_LG)
 
 	exp = (i >> (32 - 1 - DBL_EXPBITS)) & mask(DBL_EXPBITS);
@@ -214,11 +214,11 @@ __fpu_dtof(fp, i, j)
  */
 int
 __fpu_qtof(fp, i, j, k, l)
-	register struct fpn *fp;
-	register u_int i, j, k, l;
+	struct fpn *fp;
+	u_int i, j, k, l;
 {
-	register int exp;
-	register u_int frac, f0, f1, f2, f3;
+	int exp;
+	u_int frac, f0, f1, f2, f3;
 #define EXT_SHIFT (-(EXT_FRACBITS - 3 * 32 - FP_LG))	/* left shift! */
 
 	/*
@@ -235,7 +235,7 @@ __fpu_qtof(fp, i, j, k, l)
 }
 
 /*
- * Explode the contents of a register / regpair / regquad.
+ * Explode the contents of a / regpair / regquad.
  * If the input is a signalling NaN, an NV (invalid) exception
  * will be set.  (Note that nothing but NV can occur until ALU
  * operations are performed.)

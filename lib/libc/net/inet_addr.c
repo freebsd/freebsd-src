@@ -74,7 +74,7 @@ static char rcsid[] = "$FreeBSD$";
  */
 in_addr_t		/* XXX should be struct in_addr :( */
 inet_addr(cp)
-	register const char *cp;
+	const char *cp;
 {
 	struct in_addr val;
 
@@ -92,7 +92,7 @@ inet_addr(cp)
  */
 int
 inet_aton(cp, addr)
-	register const char *cp;
+	const char *cp;
 	struct in_addr *addr;
 {
 	u_long parts[4];

@@ -56,7 +56,7 @@ funopen(cookie, readfn, writefn, seekfn, closefn)
 #endif
 	int (*closefn)();
 {
-	register FILE *fp;
+	FILE *fp;
 	int flags;
 
 	if (readfn == NULL) {

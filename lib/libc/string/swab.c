@@ -48,9 +48,9 @@ swab(from, to, len)
 	void *to;
 	size_t len;
 {
-	register unsigned long temp;
-	register int n;
-	register char *fp, *tp;
+	unsigned long temp;
+	int n;
+	char *fp, *tp;
 
 	n = (len >> 1) + 1;
 	fp = (char *)from;

@@ -64,11 +64,11 @@
 
 struct fpn *
 __fpu_add(fe)
-	register struct fpemu *fe;
+	struct fpemu *fe;
 {
-	register struct fpn *x = &fe->fe_f1, *y = &fe->fe_f2, *r;
-	register u_int r0, r1, r2, r3;
-	register int rd;
+	struct fpn *x = &fe->fe_f1, *y = &fe->fe_f2, *r;
+	u_int r0, r1, r2, r3;
+	int rd;
 
 	/*
 	 * Put the `heavier' operand on the right (see fpu_emu.h).
