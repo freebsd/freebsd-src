@@ -57,9 +57,9 @@ __select(int numfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
 		TIMEVAL_TO_TIMESPEC(timeout, &ts);
 		return nanosleep(&ts, NULL);
 	} else {
-		_thr_enter_cancellation_point(curthread);
+		_thr_cancel_enter(curthread);
 		ret = __sys_select(numfds, readfds, writefds, exceptfds, timeout);
-		_thr_leave_cancellation_point(curthread);
+		_thr_cancel_leave(curthread, 1);
 	}
 	return ret;
 }

@@ -48,9 +48,9 @@ __write(int fd, const void *buf, size_t nbytes)
 	struct pthread *curthread = _get_curthread();
 	ssize_t	ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __sys_write(fd, buf, nbytes);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	return ret;
 }

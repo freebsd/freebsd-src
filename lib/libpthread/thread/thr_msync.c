@@ -25,9 +25,9 @@ __msync(void *addr, size_t len, int flags)
 	 * write. The only real use of this wrapper is to guarantee
 	 * a cancellation point, as per the standard. sigh.
 	 */
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __sys_msync(addr, len, flags);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	return ret;
 }

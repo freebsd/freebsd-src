@@ -44,9 +44,9 @@ _waitpid(pid_t wpid, int *status, int options)
 	struct pthread *curthread = _get_curthread();
 	pid_t	ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __waitpid(wpid, status, options);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 	
 	return ret;
 }

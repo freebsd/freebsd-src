@@ -49,9 +49,9 @@ _pselect(int count, fd_set *rfds, fd_set *wfds, fd_set *efds,
 	struct pthread *curthread = _get_curthread();
 	int ret;
 
-	_thr_enter_cancellation_point(curthread);
+	_thr_cancel_enter(curthread);
 	ret = __pselect(count, rfds, wfds, efds, timo, mask);
-	_thr_leave_cancellation_point(curthread);
+	_thr_cancel_leave(curthread, 1);
 
 	return (ret);
 }
