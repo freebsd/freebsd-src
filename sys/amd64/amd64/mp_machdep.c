@@ -187,6 +187,26 @@ cpu_add(u_int apic_id, char boot_cpu)
 	
 }
 
+void
+cpu_mp_setmaxid(void)
+{
+
+	/*
+	 * mp_maxid should be already set by calls to cpu_add().
+	 * Just sanity check its value here.
+	 */
+	if (mp_ncpus == 0)
+		KASSERT(mp_maxid == 0,
+		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
+	else if (mp_ncpus == 1)
+		mp_maxid = 0;
+	else
+		KASSERT(mp_maxid >= mp_ncpus - 1,
+		    ("%s: counters out of sync: max %d, count %d", __func__,
+			mp_maxid, mp_ncpus));
+		
+}
+
 int
 cpu_mp_probe(void)
 {
@@ -202,8 +222,6 @@ cpu_mp_probe(void)
 		 * the variables to represent a system with a single CPU
 		 * with an id of 0.
 		 */
-		KASSERT(mp_maxid == 0,
-		    ("%s: mp_ncpus is zero, but mp_maxid is not", __func__));
 		mp_ncpus = 1;
 		return (0);
 	}
@@ -219,9 +237,6 @@ cpu_mp_probe(void)
 	}
 
 	/* At least two CPUs were found. */
-	KASSERT(mp_maxid >= mp_ncpus - 1,
-	    ("%s: counters out of sync: max %d, count %d", __func__, mp_maxid,
-	    mp_ncpus));
 	return (1);
 }
 

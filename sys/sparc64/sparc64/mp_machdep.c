@@ -140,8 +140,8 @@ mp_tramp_alloc(void)
 /*
  * Probe for other cpus.
  */
-int
-cpu_mp_probe(void)
+void
+cpu_mp_setmaxid(void)
 {
 	phandle_t child;
 	phandle_t root;
@@ -160,7 +160,13 @@ cpu_mp_probe(void)
 			cpus++;
 	}
 	mp_maxid = cpus;
-	return (cpus > 1);
+}
+
+int
+cpu_mp_probe(void)
+{
+
+	return (mp_maxid > 1);
 }
 
 static void
