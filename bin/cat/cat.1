@@ -35,7 +35,7 @@
 .\"     @(#)cat.1	8.3 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2001
+.Dd March 21, 2004
 .Dt CAT 1
 .Os
 .Sh NAME
@@ -199,3 +199,11 @@ Because of the shell language mechanism used to perform output
 redirection, the command
 .Dq Li cat file1 file2 > file1
 will cause the original data in file1 to be destroyed!
+.Pp
+The
+.Nm
+utility does not recognize multibyte characters when the
+.Fl t
+or
+.Fl v
+option is in effect.
