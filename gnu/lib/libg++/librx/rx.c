@@ -33,7 +33,6 @@ char rx_version_string[] = "GNU Rx version 0.06";
 
 
 #include <stdio.h>
-#include <unistd.h>     /* For _POSIX_VERSION */
 #include <ctype.h>
 #ifndef isgraph
 #define isgraph(c) (isprint (c) && !isspace (c))
@@ -6814,10 +6813,11 @@ re_compile_fastmap (rxb)
 
 
 
+#if !defined(BSD) || (BSD < 199306)
 /* Entry points compatible with 4.2 BSD regex library.  We don't define
    them if this is an Emacs or POSIX compilation.  */
 
-#if (!defined (emacs) && !defined (_POSIX_VERSION)) || defined(USE_BSD_REGEX)
+#if (!defined (emacs) && !defined (_POSIX_SOURCE)) || defined(USE_BSD_REGEX)
 
 /* BSD has one and only one pattern buffer.  */
 static struct re_pattern_buffer rx_comp_buf;
@@ -6886,13 +6886,13 @@ re_exec (s)
   return
     0 <= re_search (&rx_comp_buf, s, len, 0, len, (struct re_registers *) 0);
 }
-#endif /* not emacs and not _POSIX_VERSION */
+#endif /* not emacs and not _POSIX_SOURCE */
 
 
 
 /* POSIX.2 functions.  Don't define these for Emacs.  */
 
-#if !defined(emacs) && !defined(_POSIX_VERSION)
+#if !defined(emacs)
 
 /* regcomp takes a regular expression as a string and compiles it.
 
@@ -7152,8 +7152,8 @@ regfree (preg)
   preg->translate = 0;
 }
 
-#endif /* not emacs && not POSIX */
-
+#endif /* not emacs */
+#endif /* not BSD4.4 */
 
 
 
