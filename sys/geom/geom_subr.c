@@ -374,11 +374,11 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 
 	g_topology_assert();
 	KASSERT(gp->start != NULL,
-	    ("new provider on geom(%s) without ->start (class:%s)",
-	    gp->class->name, gp->class->name));
+	    ("new provider on geom(%s) without ->start (class %s)",
+	    gp->name, gp->class->name));
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
-	    ("new provider on WITHERing geom(%s) (class:%s)",
-	    gp->class->name, gp->class->name));
+	    ("new provider on WITHERing geom(%s) (class %s)",
+	    gp->name, gp->class->name));
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
@@ -605,8 +605,8 @@ g_access_rel(struct g_consumer *cp, int dcr, int dcw, int dce)
 	 */
 	if (cp->geom->spoiled != NULL && cp->spoiled) {
 		KASSERT(dcr <= 0, ("spoiled but dcr = %d", dcr));
-		KASSERT(dcw <= 0, ("spoiled but dce = %d", dcw));
-		KASSERT(dce <= 0, ("spoiled but dcw = %d", dce));
+		KASSERT(dcw <= 0, ("spoiled but dcw = %d", dcw));
+		KASSERT(dce <= 0, ("spoiled but dce = %d", dce));
 	}
 
 	/*
