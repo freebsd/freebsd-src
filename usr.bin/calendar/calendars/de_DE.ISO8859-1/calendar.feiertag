@@ -14,13 +14,27 @@ LANG=de_DE.ISO8859-1
 05/01	Maifeiertag
 10/03	Tag der deutschen Einheit
 
-/*  arbeitsfreie christliche Feiertage */
+/*  christliche Feiertage, meist irgendwo arbeitsfrei */
 Easter-2	Karfreitag
 Easter		Ostersonntag
 Easter+1 	Ostermontag
 Easter+49	Pfingstsonntag
 Easter+50	Pfingstmontag
 Easter+39	Christi Himmelfahrt
+Easter+60	Fronleichnam
+
+08/08		Friedensfest (Augsburg)
+08/15		Mariä Himmelfahrt
+
+10/31		Reformationstag
+11/01		Allerheiligen
+11/02		Allerseelen
+11/Wed+4 	Buß- und Bettag 
+
+12/24		Heiligabend
+12/25		Erster Weihnachtstag
+12/26		Zweiter Weihnachtstag
+12/31		Silvester
 
 /*  Gedenktage - nicht arbeitsfreie Feiertage :-( */
 06/17	Arbeiteraufstand am 17. Juni 1953
