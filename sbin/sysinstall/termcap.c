@@ -38,19 +38,23 @@ set_termcap()
 				return -1;
 			if (setenv("TERMCAP", termcap_vt100, 1) < 0)
 				return -1;
+			debug_fd = dup(1);
 		} else if (color_display) {
 			if (setenv("TERM", "cons25", 1) < 0)
 				return -1;
 			if (setenv("TERMCAP", termcap_cons25, 1) < 0)
 				return -1;
+		        debug_fd = open("/dev/ttyv1",O_WRONLY);
 		} else {
 			if (setenv("TERM", "cons25-m", 1) < 0)
 				return -1;
 			if (setenv("TERMCAP", termcap_cons25_m, 1) < 0)
 				return -1;
+		        debug_fd = open("/dev/ttyv1",O_WRONLY);
 		}
+	} else {
+		debug_fd = open("sysinstall.debug",
+			O_WRONLY|O_CREAT|O_TRUNC,0644);
 	}
-	printf("TERM=%s\n",getenv("TERM"));
-	printf("TERMCAP=%s\n",getenv("TERMCAP"));
 	return 0;
 }
