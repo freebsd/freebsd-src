@@ -74,4 +74,4 @@ int fwohci_init __P((struct fwohci_softc *, device_t));
 void fwohci_reset __P((struct fwohci_softc *, device_t));
 int fwohci_detach __P((struct fwohci_softc *, device_t));
 int fwohci_resume __P((struct fwohci_softc *, device_t));
-int fwohci_shutdown __P((struct fwohci_softc *, device_t dev));
+int fwohci_stop __P((struct fwohci_softc *, device_t dev));
