@@ -69,7 +69,6 @@
 #include <dev/aac/aac_ioctl.h>
 #include <dev/aac/aacvar.h>
 #include <dev/aac/aac_tables.h>
-#include <dev/aac/aac_cam.h>
 
 static void	aac_startup(void *arg);
 static void	aac_add_container(struct aac_softc *sc,
@@ -321,9 +320,10 @@ aac_attach(struct aac_softc *sc)
 		panic("Could not create AIF thread\n");
 
 	/* Register the shutdown method to only be called post-dump */
-	if ((EVENTHANDLER_REGISTER(shutdown_final, aac_shutdown, sc->aac_dev,
-				   SHUTDOWN_PRI_DEFAULT)) == NULL)
-	device_printf(sc->aac_dev, "shutdown event registration failed\n");
+	if ((sc->eh = EVENTHANDLER_REGISTER(shutdown_final, aac_shutdown,
+	    sc->aac_dev, SHUTDOWN_PRI_DEFAULT)) == NULL)
+		device_printf(sc->aac_dev,
+			      "shutdown event registration failed\n");
 
 	/* Register with CAM for the non-DASD devices */
 	if (!(sc->quirks & AAC_QUIRK_NOCAM)) {
@@ -508,8 +508,6 @@ aac_detach(device_t dev)
 			return (error);
 	}
 
-	bus_generic_detach(dev);
-
 	if (sc->aifflags & AAC_AIFFLAGS_RUNNING) {
 		sc->aifflags |= AAC_AIFFLAGS_EXIT;
 		wakeup(sc->aifthread);
@@ -521,6 +519,8 @@ aac_detach(device_t dev)
 
 	if ((error = aac_shutdown(dev)))
 		return(error);
+
+	EVENTHANDLER_DEREGISTER(shutdown_final, sc->eh);
 
 	aac_free(sc);
 
