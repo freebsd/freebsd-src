@@ -61,17 +61,23 @@ headers(void)
 {
 	struct file_list *fl;
 	struct device *dp;
+	int match;
 
 	for (fl = ftab; fl != 0; fl = fl->f_next) {
 		if (fl->f_needs != 0) {
+			match = 0;
 			for (dp = dtab; dp != 0; dp = dp->d_next) {
 				if (eq(dp->d_name, fl->f_needs)) {
+					match++;
 					if ((dp->d_type & TYPEMASK) == DEVICE)
 						dp->d_type |= DEVDONE;
 				}
 			}
-			if (fl->f_flags & NEED_COUNT)
+			if (fl->f_flags & NEED_COUNT) {
+				if (match)
+printf("warning: static limits for %s are set\n", fl->f_needs);
 				do_count(fl->f_needs);
+			}
 		}
 	}
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
@@ -118,6 +124,7 @@ do_header(char *dev, int count)
 
 	file = toheader(dev);
 	name = tomacro(dev);
+	remember(file);
 	inf = fopen(file, "r");
 	oldcount = -1;
 	if (inf == 0) {

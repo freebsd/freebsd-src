@@ -161,6 +161,7 @@ do_option(char *name)
 		}
 	}
 
+	remember(file);
 	inf = fopen(file, "r");
 	if (inf == 0) {
 		outf = fopen(file, "w");
