@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.19 1997/09/10 02:23:29 brian Exp $
+ * $Id: modem.c,v 1.24.2.20 1997/09/16 23:20:20 brian Exp $
  *
  *  TODO:
  */
@@ -454,7 +454,7 @@ OpenModem(int mode)
     } else {
       /* must be a tcp connection */
       LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
-      return modem = dup(1);
+      return modem = dup(0);
     }
   } else {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
