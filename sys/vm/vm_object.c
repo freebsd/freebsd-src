@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.144 1999/02/04 17:47:52 dillon Exp $
+ * $Id: vm_object.c,v 1.145 1999/02/07 08:44:53 dillon Exp $
  */
 
 /*
@@ -1569,8 +1569,8 @@ _vm_object_in_map(map, object, entry)
 			}
 			tmpe = tmpe->next;
 		}
-	} else if (entry->eflags & (MAP_ENTRY_IS_A_MAP|MAP_ENTRY_IS_SUB_MAP)) {
-		tmpm = entry->object.share_map;
+	} else if (entry->eflags & MAP_ENTRY_IS_SUB_MAP) {
+		tmpm = entry->object.sub_map;
 		tmpe = tmpm->header.next;
 		entcount = tmpm->nentries;
 		while (entcount-- && tmpe != &tmpm->header) {
