@@ -17,6 +17,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/diskslice.h>
 #include <sys/disklabel.h>
+#include <sys/diskmbr.h>
 #include "libdisk.h"
 
 int

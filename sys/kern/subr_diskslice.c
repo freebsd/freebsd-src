@@ -53,6 +53,11 @@
 #include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/diskslice.h>
+#if defined(PC98) && !defined(PC98_ATCOMPAT)
+#include <sys/diskpc98.h>
+#else
+#include <sys/diskmbr.h>
+#endif
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/stat.h>
