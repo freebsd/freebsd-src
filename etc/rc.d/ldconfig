@@ -25,8 +25,8 @@ ldconfig_start()
 		checkyesno ldconfig_insecure && _ins="-i"
 		if [ -x "${ldconfig_command}" ]; then
 			_LDC=/usr/lib
-			for i in ${ldconfig_paths}; do
-				if [ -d "${i}" ]; then
+			for i in ${ldconfig_paths} /etc/ld-elf.so.conf; do
+				if [ -r "${i}" ]; then
 					_LDC="${_LDC} ${i}"
 				fi
 			done
@@ -39,8 +39,8 @@ ldconfig_start()
 				# Default the a.out ldconfig path.
 				: ${ldconfig_paths_aout=${ldconfig_paths}}
 				_LDC=/usr/lib/aout
-				for i in ${ldconfig_paths_aout}; do
-					if [ -d "${i}" ]; then
+				for i in ${ldconfig_paths_aout} /etc/ld.so.conf; do
+					if [ -r "${i}" ]; then
 						_LDC="${_LDC} ${i}"
 					fi
 				done
