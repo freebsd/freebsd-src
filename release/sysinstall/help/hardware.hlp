@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.27 1997/05/21 18:49:34 nate Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.28 1997/08/30 10:42:21 helbig Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -232,8 +232,9 @@ when the field is active.
 
 To finish configuring a driver, press 'Q'.
 
-Note that PCI and EISA devices can be probed reliably, therefore are
-not shown in the table above, nor can be changed using UserConfig.
+Note that PCI and EISA devices can be probed reliably, therefore they
+are not shown in the table above nor can their settings be changed
+using UserConfig.
 
 
 3.      LINT - other possible configurations
