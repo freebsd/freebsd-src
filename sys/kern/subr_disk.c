@@ -29,55 +29,35 @@ static d_close_t diskclose;
 static d_ioctl_t diskioctl;
 static d_psize_t diskpsize;
  
-static struct cdevsw disk_cdevsw = {
-	/* open */      diskopen,
-	/* close */     diskclose,
-	/* read */      physread,
-	/* write */     physwrite,
-	/* ioctl */     diskioctl,
-	/* stop */      nostop,
-	/* reset */     noreset,
-	/* devtotty */  nodevtotty,
-	/* poll */      nopoll,
-	/* mmap */      nommap,
-	/* strategy */  diskstrategy,
-	/* name */      "disk",
-	/* parms */     noparms,
-	/* maj */       -1,
-	/* dump */      nodump,
-	/* psize */     diskpsize,
-	/* flags */     D_DISK,
-	/* maxio */     0,
-	/* bmaj */      -1,
-};      
-
 dev_t
 disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw)
 {
 	dev_t dev;
 	struct cdevsw *cds;
 
-	dev = makedev(cdevsw->d_maj, 0);	
-	cds = devsw(dev);
-	if (!cds) {
-		/* Build the "real" cdevsw */
-		MALLOC(cds, struct cdevsw *, sizeof(*cds), M_DISK, M_WAITOK);
-		*cds = disk_cdevsw;
-		cds->d_name = cdevsw->d_name;
-		cds->d_maj = cdevsw->d_maj;
-		cds->d_bmaj = cdevsw->d_bmaj;
-		cds->d_flags = cdevsw->d_flags & ~D_TRACKCLOSE;
-		cds->d_dump = cdevsw->d_dump;
-
-		cdevsw_add(cds);
-	}
-
-	printf("Creating DISK %s%d\n", cds->d_name, unit);
-	dev = make_dev(cds, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
-	    0, 0, 0, "r%s%d", cds->d_name, unit);
+	MALLOC(cds, struct cdevsw *, sizeof(*cds), M_DISK, M_WAITOK);
 
 	bzero(dp, sizeof(*dp));
-	dp->d_devsw = cdevsw;
+
+	dev = makedev(cdevsw->d_maj, 0);	
+	if (!devsw(dev)) {
+		dp->d_open = cdevsw->d_open;
+		cdevsw->d_open = diskopen;
+		dp->d_close = cdevsw->d_close;
+		cdevsw->d_close = diskclose;
+		dp->d_ioctl = cdevsw->d_ioctl;
+		cdevsw->d_ioctl = diskioctl;
+		dp->d_strategy = cdevsw->d_strategy;
+		cdevsw->d_strategy = diskstrategy;
+		dp->d_psize = cdevsw->d_psize;
+		cdevsw->d_psize = diskpsize;
+		cdevsw_add(cdevsw);
+	}
+
+	printf("Creating DISK %s%d\n", cdevsw->d_name, unit);
+	dev = make_dev(cdevsw, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
+	    0, 0, 0, "r%s%d", cdevsw->d_name, unit);
+
 	dev->si_disk = dp;
 	dp->d_dev = dev;
 	dp->d_flags = flags;
@@ -146,7 +126,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	dev->si_drv2 = pdev->si_drv2;
 
 	if (!dsisopen(dp->d_slice))
-		error = dp->d_devsw->d_open(dev, oflags, devtype, p);
+		error = dp->d_open(dev, oflags, devtype, p);
 
 	if (error)
 		return(error);
@@ -154,7 +134,7 @@ diskopen(dev_t dev, int oflags, int devtype, struct proc *p)
 	error = dsopen(dev, devtype, dp->d_flags, &dp->d_slice, &dp->d_label);
 
 	if (!dsisopen(dp->d_slice)) 
-		dp->d_devsw->d_close(dev, oflags, devtype, p);
+		dp->d_close(dev, oflags, devtype, p);
 	
 	return(error);
 }
@@ -169,7 +149,7 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 	dp = dev->si_disk;
 	dsclose(dev, devtype, dp->d_slice);
 	if (dsisopen(dp->d_slice))
-		error = dp->d_devsw->d_close(dev, fflag, devtype, p);
+		error = dp->d_close(dev, fflag, devtype, p);
 	return (error);
 }
 
@@ -202,7 +182,7 @@ diskstrategy(struct buf *bp)
 		return;
 	}
 
-	dp->d_devsw->d_strategy(bp);
+	dp->d_strategy(bp);
 	return;
 	
 }
@@ -216,7 +196,7 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	dp = dev->si_disk;
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
-		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, p);
+		error = dp->d_ioctl(dev, cmd, data, fflag, p);
 	return (error);
 }
 
