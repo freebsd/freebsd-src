@@ -53,6 +53,11 @@
 
 #include <sys/queue.h>
 
+struct bufobj;
+struct buf_ops;
+
+extern struct buf_ops buf_ops_bio;
+
 TAILQ_HEAD(buflists, buf);
 
 /* A Buffer splay list */
@@ -62,12 +67,22 @@ struct bufv {
 	int		bv_cnt;		/* Number of buffers */
 };
 
+typedef void b_strategy_t(struct bufobj *, struct buf *);
+typedef int b_write_t(struct buf *);
+
+struct buf_ops {
+	char		*bop_name;
+	b_write_t	*bop_write;
+	b_strategy_t	*bop_strategy;
+};
+
 struct bufobj {
 	struct mtx	*bo_mtx;	/* Mutex which protects "i" things */
 	struct bufv	bo_clean;	/* i Clean buffers */
 	struct bufv	bo_dirty;	/* i Dirty buffers */
 	long		bo_numoutput;	/* i Writes in progress */
 	u_int		bo_flag;	/* i Flags */
+	struct buf_ops	*bo_ops;	/* - buffer operatoins */
 };
 
 #define	BO_WWAIT	(1 << 1)	/* Wait for output to complete */

@@ -479,10 +479,7 @@ vnode_pager_input_smlfs(object, m)
 
 			/* do the input */
 			bp->b_iooffset = dbtob(bp->b_blkno);
-			if (dp->v_type == VCHR)
-				VOP_SPECSTRATEGY(bp->b_vp, bp);
-			else
-				VOP_STRATEGY(bp->b_vp, bp);
+			bstrategy(bp);
 
 			/* we definitely need to be at splvm here */
 
@@ -833,10 +830,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 
 	/* do the input */
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	if (dp->v_type == VCHR)
-		VOP_SPECSTRATEGY(bp->b_vp, bp);
-	else
-		VOP_STRATEGY(bp->b_vp, bp);
+	bstrategy(bp);
 
 	bwait(bp, PVM, "vnread");
 

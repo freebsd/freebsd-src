@@ -2551,7 +2551,7 @@ swapdev_strategy(struct buf *bp, struct swdevt *sp)
 	bp->b_vp = vp2;
 	splx(s);
 	bp->b_iooffset = dbtob(bp->b_blkno);
-	VOP_STRATEGY(vp2, bp);
+	bstrategy(bp);
 	return;
 }
 

@@ -38,6 +38,7 @@
 #ifndef _SYS_BUF_H_
 #define	_SYS_BUF_H_
 
+#include <sys/bufobj.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
 #include <sys/lockmgr.h>
@@ -66,13 +67,6 @@ extern struct bio_ops {
 	void	(*io_movedeps)(struct buf *, struct buf *);
 	int	(*io_countdeps)(struct buf *, int);
 } bioops;
-
-struct buf_ops {
-	char	*bop_name;
-	int	(*bop_write)(struct buf *);
-};
-
-extern struct buf_ops buf_ops_bio;
 
 struct vm_object;
 
@@ -110,7 +104,6 @@ struct buf {
 #define	b_ioflags	b_io.bio_flags
 #define	b_iooffset	b_io.bio_offset
 #define	b_resid		b_io.bio_resid
-	struct buf_ops	*b_op;
 	struct bufobj	*b_bufobj;
 	unsigned		b_magic;
 #define B_MAGIC_BIO	0x10b10b10
@@ -402,6 +395,25 @@ struct cluster_save {
 
 #ifdef _KERNEL
 
+static __inline int
+bwrite(struct buf *bp)
+{
+	KASSERT(bp->b_bufobj != NULL, ("bwrite: no bufobj bp=%p", bp));
+	KASSERT(bp->b_bufobj->bo_ops != NULL, ("bwrite: no bo_ops bp=%p", bp));
+	KASSERT(bp->b_bufobj->bo_ops->bop_write != NULL,
+	    ("bwrite: no bop_write bp=%p", bp));
+	return (bp->b_bufobj->bo_ops->bop_write(bp));
+}
+
+static __inline void
+bstrategy(struct buf *bp)
+{
+	KASSERT(bp->b_bufobj != NULL, ("bwrite: no bufobj bp=%p", bp));
+	KASSERT(bp->b_bufobj->bo_ops != NULL, ("bwrite: no bo_ops bp=%p", bp));
+	KASSERT(bp->b_bufobj->bo_ops->bop_strategy != NULL,
+	    ("bwrite: no bop_strategy bp=%p", bp));
+	bp->b_bufobj->bo_ops->bop_strategy(bp->b_bufobj, bp);
+}
 
 static __inline int
 buf_prewrite(struct vnode *vp, struct buf *bp)
@@ -488,11 +500,11 @@ void	bremfree(struct buf *);
 int	bread(struct vnode *, daddr_t, int, struct ucred *, struct buf **);
 int	breadn(struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **);
-int	bwrite(struct buf *);
 void	bdwrite(struct buf *);
 void	bawrite(struct buf *);
 void	bdirty(struct buf *);
 void	bundirty(struct buf *);
+void	bufstrategy(struct bufobj *, struct buf *);
 void	brelse(struct buf *);
 void	bqrelse(struct buf *);
 int	vfs_bio_awrite(struct buf *);
@@ -502,6 +514,7 @@ struct buf *gbincore(struct bufobj *, daddr_t);
 struct buf *getblk(struct vnode *, daddr_t, int, int, int, int);
 struct buf *geteblk(int);
 int	bufwait(struct buf *);
+int	bufwrite(struct buf *);
 void	bufdone(struct buf *);
 
 void	cluster_callback(struct buf *);

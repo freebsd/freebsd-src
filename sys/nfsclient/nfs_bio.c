@@ -64,35 +64,6 @@ __FBSDID("$FreeBSD$");
 
 #include <nfs4client/nfs4.h>
 
-/*
- * Just call nfs_writebp() with the force argument set to 1.
- *
- * NOTE: B_DONE may or may not be set in a_bp on call.
- */
-static int
-nfs4_bwrite(struct buf *bp)
-{
-
-	return (nfs4_writebp(bp, 1, curthread));
-}
-
-static int
-nfs_bwrite(struct buf *bp)
-{
-
-	return (nfs_writebp(bp, 1, curthread));
-}
-
-struct buf_ops buf_ops_nfs4 = {
-	"buf_ops_nfs4",
-	nfs4_bwrite
-};
-
-struct buf_ops buf_ops_nfs = {
-	"buf_ops_nfs",
-	nfs_bwrite
-};
-
 static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
 		    struct thread *td);
 
@@ -866,10 +837,6 @@ again:
 				allocbuf(bp, bcount);
 				bp->b_flags |= save;
 				bp->b_magic = B_MAGIC_NFS;
-				if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
-					bp->b_op = &buf_ops_nfs4;
-				else
-					bp->b_op = &buf_ops_nfs;
 			}
 		} else {
 			/*
@@ -1403,7 +1370,7 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 
 		    off = ((u_quad_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		    retv = (nmp->nm_rpcops->nr_commit)(
-				bp->b_vp, off, bp->b_dirtyend-bp->b_dirtyoff,
+				vp, off, bp->b_dirtyend-bp->b_dirtyoff,
 				bp->b_wcred, td);
 		    if (retv == 0) {
 			    bp->b_dirtyoff = bp->b_dirtyend = 0;
@@ -1413,7 +1380,7 @@ nfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td)
 			    return (0);
 		    }
 		    if (retv == NFSERR_STALEWRITEVERF) {
-			    nfs_clearcommit(bp->b_vp->v_mount);
+			    nfs_clearcommit(vp->v_mount);
 		    }
 	    }
 
