@@ -153,6 +153,10 @@ makemsg(fname)
 	(void)unlink(tmpname);
 
 	if (!nobanner) {
+		char *tty = ttyname(2);
+		if (!tty)
+			tty = "no tty";
+
 		if (!(whom = getlogin()))
 			whom = (pw = getpwuid(getuid())) ? pw->pw_name : "???";
 		(void)gethostname(hostname, sizeof(hostname));
@@ -172,7 +176,7 @@ makemsg(fname)
 		    whom, hostname);
 		(void)fprintf(fp, "%-79.79s\007\007\r\n", lbuf);
 		(void)snprintf(lbuf, sizeof(lbuf), 
-		    "        (%s) at %d:%02d %s...", ttyname(2),
+		    "        (%s) at %d:%02d %s...", tty,
 		    lt->tm_hour, lt->tm_min, lt->tm_zone);
 		(void)fprintf(fp, "%-79.79s\r\n", lbuf);
 	}
