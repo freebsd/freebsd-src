@@ -1,4 +1,5 @@
 /* Shared between kernel & process */
+/* $FreeBSD$ */
 
 #ifndef	_SYS_WORMIO_H_
 #define	_SYS_WORMIO_H_
@@ -97,6 +98,9 @@ struct wormio_first_writable_addr {
     int *addr;
 };
 #define WORMIOCFIRSTWRITABLEADDR  _IOWR('W', 33, struct wormio_first_writable_addr)
+
+#define CDRIOCBLANK		_IO('c', 100)
+#define CDRIOCNEXTWRITEABLEADDR	_IOR('c', 101, int)
 
 /* Errors/warnings */
 #define WORM_SEQUENCE_ERROR                  1
