@@ -458,8 +458,11 @@ struct peer {
 #define REFCLK_HOPF_SERIAL	38	/* hopf DCF77/GPS serial line receiver  */
 #define REFCLK_HOPF_PCI		39	/* hopf DCF77/GPS PCI receiver  */
 #define REFCLK_JJY		40	/* JJY receiver  */
-#define REFCLK_ZYFER		41	/* Zyfer GPStarplus receiver  */
-#define REFCLK_MAX		41	/* Grow as needed... */
+#define	REFCLK_TT560		41	/* TrueTime 560 IRIG-B decoder */
+#define REFCLK_ZYFER		42	/* Zyfer GPStarplus receiver  */
+#define REFCLK_RIPENCC		43	/* RIPE NCC Trimble driver */
+#define REFCLK_NEOCLOCK4X       44      /* NeoClock4X DCF77 or TDF receiver */
+#define REFCLK_MAX		44	/* Grow as needed... */
 
 /*
  * We tell reference clocks from real peers by giving the reference

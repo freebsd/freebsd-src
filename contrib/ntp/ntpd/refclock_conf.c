@@ -258,6 +258,18 @@ extern	struct refclock	refclock_zyfer;
 #define	refclock_zyfer refclock_none
 #endif
 
+#ifdef CLOCK_RIPENCC
+extern struct refclock refclock_ripencc;
+#else
+#define refclock_ripencc refclock_none
+#endif
+
+#ifdef CLOCK_NEOCLOCK4X
+extern	struct refclock	refclock_neoclock4x;
+#else
+#define	refclock_neoclock4x	refclock_none
+#endif
+
 /*
  * Order is clock_start(), clock_shutdown(), clock_poll(),
  * clock_control(), clock_init(), clock_buginfo, clock_flags;
@@ -307,7 +319,9 @@ struct refclock *refclock_conf[] = {
 	&refclock_hopfpci,	/* 39 REFCLK_HOPF_PCI */
 	&refclock_jjy,		/* 40 REFCLK_JJY */
 	&refclock_tt560,	/* 41 REFCLK_TT560 */
-	&refclock_zyfer		/* 42 REFCLK_ZYFER */
+	&refclock_zyfer,	/* 42 REFCLK_ZYFER */
+	&refclock_ripencc,	/* 43 REFCLK_RIPENCC */
+	&refclock_neoclock4x    /* 44 REFCLK_NEOCLOCK4X */
 };
 
 u_char num_refclock_conf = sizeof(refclock_conf)/sizeof(struct refclock *);

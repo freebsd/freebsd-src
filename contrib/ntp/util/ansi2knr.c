@@ -1,6 +1,6 @@
-/* Copyright (C) 1989, 1997, 1998, 1999 Aladdin Enterprises.  All rights reserved. */
+/* Copyright (C) 1989, 2000 Aladdin Enterprises.  All rights reserved. */
 
-/*$Id$*/
+/*$Id: ansi2knr.c,v 1.3 2000/04/13 03:41:48 lpd Exp $*/
 /* Convert ANSI C function definitions to K&R ("traditional C") syntax */
 
 /*
@@ -61,6 +61,25 @@ program under the GPL.
  * The original and principal author of ansi2knr is L. Peter Deutsch
  * <ghost@aladdin.com>.  Other authors are noted in the change history
  * that follows (in reverse chronological order):
+
+	lpd 2000-04-12 backs out Eggert's changes because of bugs:
+	- concatlits didn't declare the type of its bufend argument;
+	- concatlits didn't't recognize when it was inside a comment;
+	- scanstring could scan backward past the beginning of the string; when
+	- the check for \ + newline in scanstring was unnecessary.
+
+	2000-03-05  Paul Eggert  <eggert@twinsun.com>
+
+	Add support for concatenated string literals.
+	* ansi2knr.c (concatlits): New decl.
+	(main): Invoke concatlits to concatenate string literals.
+	(scanstring): Handle backslash-newline correctly.  Work with
+	character constants.  Fix bug when scanning backwards through
+	backslash-quote.  Check for unterminated strings.
+	(convert1): Parse character constants, too.
+	(appendline, concatlits): New functions.
+	* ansi2knr.1: Document this.
+
 	lpd 1999-08-17 added code to allow preprocessor directives
 		wherever comments are allowed
 	lpd 1999-04-12 added minor fixes from Pavel Roskin

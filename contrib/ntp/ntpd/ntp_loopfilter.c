@@ -292,7 +292,7 @@ local_clock(
 		step_systime(fp_offset);
 		NLOG(NLOG_SYNCEVENT|NLOG_SYSEVENT)
 		    msyslog(LOG_NOTICE, "time set %.6f s", fp_offset);
-		rstclock(S_FREQ, peer->epoch, fp_offset);
+		rstclock(S_FREQ, peer->epoch, 0);
 		return (1);
 	}
 
