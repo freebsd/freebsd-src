@@ -53,11 +53,7 @@ static struct
 
 static u_int32_t	initial_howto;
 static u_int32_t	initial_bootdev;
-#ifdef PC98
-struct bootinfo	*initial_bootinfo;
-#else
 static struct bootinfo	*initial_bootinfo;
-#endif
 
 struct arch_switch	archsw;		/* MI/MD interface boundary */
 
