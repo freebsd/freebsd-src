@@ -2266,6 +2266,12 @@ ap_init(void)
 	while (!aps_ready)
 		/* spin */ ;
 
+	/*
+	 * Set curproc to our per-cpu idleproc so that mutexes have
+	 * something unique to lock with.
+	 */
+	PCPU_SET(curproc, PCPU_GET(idleproc));
+
 	/* lock against other AP's that are waking up */
 	mtx_enter(&ap_boot_mtx, MTX_SPIN);
 
@@ -2321,12 +2327,6 @@ ap_init(void)
 	/* wait until all the AP's are up */
 	while (smp_started == 0)
 		; /* nothing */
-
-	/*
-	 * Set curproc to our per-cpu idleproc so that mutexes have
-	 * something unique to lock with.
-	 */
-	PCPU_SET(curproc, PCPU_GET(idleproc));
 
 	microuptime(PCPU_PTR(switchtime));
 	PCPU_SET(switchticks, ticks);
