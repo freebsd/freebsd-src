@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs.h	8.3 (Berkeley) 9/23/93
- * $Id: lfs.h,v 1.5 1994/11/17 01:30:47 gibbs Exp $
+ * $Id: lfs.h,v 1.6 1995/05/30 08:15:11 rgrimes Exp $
  */
 
 #ifndef _UFS_LFS_LFS_H_
@@ -79,7 +79,7 @@ struct finfo {
 	u_long	fi_nblocks;		/* number of blocks */
 	u_long	fi_version;		/* version number */
 	u_long	fi_ino;			/* inode number */
-	long	fi_blocks[1];		/* array of logical block numbers */
+	daddr_t	fi_blocks[1];		/* array of logical block numbers */
 };
 
 /* On-disk and in-memory super block. */
