@@ -1,5 +1,7 @@
 # Makefile for libmytinfo
-# $Id: Makefile,v 1.2 1994/10/09 16:37:19 ache Exp $
+# Use 'make update_term_h' manually after changing internal
+# mytinfo structures
+# $Id: Makefile,v 1.3 1994/10/09 17:50:50 ache Exp $
 
 LIB=    mytinfo
 SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
@@ -7,17 +9,18 @@ SRCS=   addstr.c binorder.c buildpath.c caplist.c capsort.c compar.c\
 	gettcap.c gettinfo.c tcapconv.c tcapvars.c termcap.c\
 	terminfo.c tgoto.c tiget.c tmatch.c tparm.c tputs.c tty.c version.c
 CLEANFILES+= binorder.c caplist.c capsort.c mkbinorder mkcaplist \
-		mkcapsort mktermhead mkversion readcaps.o term.h* \
-		version.c
+	mkcapsort mktermhead mkversion readcaps.o version.c
 
 CFLAGS+=-Wall
 
 CAPS=   1000
 
-beforeinstall: term.h
-	-cmp -s term.h ${DESTDIR}/usr/include/term.h > \
+update_term_h: ${.CURDIR}/term.h
+
+beforeinstall:
+	-cmp -s ${.CURDIR}/term.h ${DESTDIR}/usr/include/term.h > \
 	    /dev/null 2>&1 || \
-	    $(INSTALL) $(COPY) -o ${BINOWN} -g ${BINGRP} -m 444 term.h \
+	    $(INSTALL) $(COPY) -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/term.h \
 	    ${DESTDIR}/usr/include
 
 capsort.c: mkcapsort
@@ -39,11 +42,11 @@ version.c: mkversion
 mkversion: mkversion.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o mkversion ${.CURDIR}/mkversion.c
 
-term.h: term.head ${.CURDIR}/term.tail
-	cat term.head ${.CURDIR}/term.tail > term.h
+${.CURDIR}/term.h: ${.CURDIR}/term.head ${.CURDIR}/term.tail
+	cat ${.CURDIR}/term.head ${.CURDIR}/term.tail > ${.CURDIR}/term.h
 
-term.head: mktermhead ${.CURDIR}/cap_list
-	./mktermhead -n $(CAPS) ${.CURDIR}/cap_list > term.head
+${.CURDIR}/term.head: mktermhead ${.CURDIR}/cap_list
+	./mktermhead -n $(CAPS) ${.CURDIR}/cap_list > ${.CURDIR}/term.head
 
 caplist.c: mkcaplist ${.CURDIR}/cap_list
 	./mkcaplist -n $(CAPS) ${.CURDIR}/cap_list > caplist.c
