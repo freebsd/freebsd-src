@@ -9,7 +9,7 @@
 # entries, and in cases where getty is called with no table name
 #
 # cb, ce and ck are desirable on most crt's.  The non-crt entries need to
-# be changed to turn them off (ce@:ce@:ck@:).
+# be changed to turn them off (cb@:ce@:ck@:).
 #
 # Parity defaults to even.  There ought to be more alternative entries with
 # no parity.  The Pc entry already has no parity..  The different parities
