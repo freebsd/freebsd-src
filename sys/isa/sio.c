@@ -561,6 +561,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x0030320d, NULL},	/* CIR3000 - Cirrus Logic V43 */
 	{0x1200c31e, NULL},	/* GVC0012 - VF1128HV-R9 (win modem?) */
 	{0x0303c31e, NULL},	/* GVC0303 - MaxTech 33.6 PnP D/F/V */
+	{0x0505c31e, NULL},	/* GVC0505 - GVC 56k Faxmodem */
 	{0x0050c31e, NULL},	/* GVC5000 - some GVC modem */
 	{0x3800f91e, NULL},	/* GWY0038 - Telepath with v.90 */
 	{0x9062f91e, NULL},	/* GWY6290 - Telepath with x2 Technology */
