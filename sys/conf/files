@@ -120,10 +120,10 @@ miscfs/nullfs/null_vnops.c	optional nullfs
 miscfs/portal/portal_vfsops.c	optional portal
 miscfs/portal/portal_vnops.c	optional portal
 miscfs/procfs/procfs_ctl.c	optional procfs
-miscfs/procfs/procfs_fpregs.c	optional procfs
-miscfs/procfs/procfs_mem.c	optional procfs
+miscfs/procfs/procfs_fpregs.c	standard
+miscfs/procfs/procfs_mem.c	standard
 miscfs/procfs/procfs_note.c	optional procfs
-miscfs/procfs/procfs_regs.c	optional procfs
+miscfs/procfs/procfs_regs.c	standard
 miscfs/procfs/procfs_status.c	optional procfs
 miscfs/procfs/procfs_subr.c	optional procfs
 miscfs/procfs/procfs_vfsops.c	optional procfs
