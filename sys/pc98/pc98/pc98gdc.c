@@ -50,6 +50,9 @@
 
 #include <dev/fb/fbreg.h>
 
+#ifdef LINE30
+#include <pc98/pc98/pc98.h>
+#endif
 #include <pc98/pc98/pc98_machdep.h>
 #include <isa/isavar.h>
 
