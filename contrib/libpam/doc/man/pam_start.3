@@ -1,10 +1,10 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
 .\" $Id: pam_start.3,v 1.2 1997/02/15 18:51:54 morgan Exp $
 .\" Copyright (c) Andrew G. Morgan 1996-7 <morgan@parc.power.net>
-.TH PAM_START 3 "1997 Feb 15" "Linux-PAM 0.56" "Application Programmers' Manual"
+.TH PAM_START 3 "1997 Feb 15" "PAM 0.56" "Application Programmers' Manual"
 .SH NAME
 
-pam_start, pam_end \- activating Linux-PAM
+pam_start, pam_end \- activating PAM
 
 .SH SYNOPSIS
 .B #include <security/pam_appl.h>
@@ -17,7 +17,7 @@ pam_start, pam_end \- activating Linux-PAM
 .TP
 .B pam_start
 Initialize the
-.I Linux-PAM
+.I PAM
 library.  Identifying the application with a particular
 .IR service
 name.  The
@@ -29,7 +29,7 @@ conversation structure is passed to the library via the
 .IR conv
 argument.  (For a complete description of this and other structures
 the reader is directed to the more verbose
-.IR Linux-PAM
+.IR PAM
 application developers' guide).  Upon successful initialization, an
 opaque pointer-handle for future access to the library is returned
 through the contents of the
@@ -39,7 +39,7 @@ pointer.
 .TP
 .B pam_end
 Terminate the
-.B Linux-PAM
+.B PAM
 library.  The service application associated with the
 .IR pamh
 handle, is terminated.  The argument,

@@ -1,7 +1,7 @@
 .\" Hey Emacs! This file is -*- nroff -*- source.
 .\" $Id: pam_authenticate.3,v 1.2 1997/02/15 18:39:59 morgan Exp $
 .\" Copyright (c) Andrew G. Morgan 1996-7 <morgan@parc.power.net>
-.TH PAM_AUTHENTICATE 3 "1996 Dec 9" "Linux-PAM 0.55" "App. Programmers' Manual"
+.TH PAM_AUTHENTICATE 3 "1996 Dec 9" "PAM 0.55" "App. Programmers' Manual"
 .SH NAME
 
 pam_authenticate \- authenticate a user
@@ -18,7 +18,7 @@ pam_authenticate \- authenticate a user
 Use this function to authenticate an applicant user.  It is linked
 .I dynamically
 to the authentication modules by
-.BR Linux-PAM ". "
+.BR PAM ". "
 It is the task of these module to perform such an authentication.  The
 specific nature of the authentication is not the concern of the
 application.
@@ -27,7 +27,7 @@ application.
 Following successful completion, the
 .BR name
 of the authenticated user will be present in the
-.BR Linux-PAM
+.BR PAM
 item
 .BR PAM_USER ". "
 This item may be recovered with a call to
@@ -83,7 +83,7 @@ and
 .BR pam_strerror "(3). "
 
 Also, see the three
-.BR Linux-PAM
+.BR PAM
 Guides, for
 .BR "System administrators" ", "
 .BR "module developers" ", "
