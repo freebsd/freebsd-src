@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: cvsup.sgml,v 1.8 1997/02/22 12:58:17 peter Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect><heading>CVSup<label id="cvsup"></heading>
@@ -477,15 +477,10 @@ cryptography code.
   </descrip>
 <tag><tt>cvs-crypto release=cvs</tt></tag>
 The export-restricted cryptography code.
-  <p>
+<p>
   <descrip>
-  <tag><tt>cvs-crypto release=cvs</tt></tag>
-  The export-restricted cryptography code.
-    <p>
-    <descrip>
-    <tag><tt>src-eBones release=cvs</tt></tag><p>
-    <tag><tt>src-secure release=cvs</tt></tag><p>
-    </descrip>
+  <tag><tt>src-eBones release=cvs</tt></tag><p>
+  <tag><tt>src-secure release=cvs</tt></tag><p>
   </descrip>
 <tag><tt>distrib release=self</tt></tag>
 The CVSup server's own configuration files.
