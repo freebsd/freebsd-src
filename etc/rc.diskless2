@@ -40,19 +40,18 @@ fi
 
 echo "+++ mfs_mount of /var"
 mount_mfs -s ${varsize:=65536} -T qp120at dummy /var
-var_dirs="run dev db msgs tmp spool spool/mqueue spool/lpd spool/output \
-	spool/output/lpd"
-echo "+++ mfs_mount of /var"
-for i in ${var_dirs}
-do
-    mkdir /var/${i}
-done
-chmod 755 /var/run /var/db /var/spool
-chmod 1777 /var/tmp
-chown -R root.daemon /var/spool/output
-chgrp daemon /var/spool/lpd
+
+echo "+++ populate /var using /etc/mtree/BSD.var.dist"
+/usr/sbin/mtree -deU -f /etc/mtree/BSD.var.dist -p /var
+
+echo "+++ create log files based on the contents of /etc/newsyslog.conf"
+LOGFILES=`/usr/bin/awk '$1 != "#" { printf "%s ", $1 } ' /etc/newsyslog.conf`
+if [ -n "$LOGFILES" ]; then
+	/usr/bin/touch $LOGFILES
+fi
 
 mount -a       # chown and chgrp are in /usr
+
 #
 # XXX make sure to create one dir for each printer as requested by lpd
 #
