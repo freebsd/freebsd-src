@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.5 1999/02/05 17:09:22 jkh Exp $
+#	$Id: Makefile,v 1.460.2.6 1999/02/10 09:15:41 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -661,11 +661,11 @@ doMFSKERN:
 	@mkdir -p ${RD}/image.${FSIMAGE}/boot
 	@cp /boot/boot[12] /boot/loader ${RD}/image.${FSIMAGE}/boot
 .if !defined(BIGBOOT) || ${MACHINE_ARCH} == "alpha"
-	@echo "@load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "@echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "@read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "@load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
-	@echo "@boot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "load /kernel" > ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "echo Please insert MFS root floppy and press enter:" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "read" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "load -t mfs_root /mfsroot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
+	@echo "boot" >> ${RD}/image.${FSIMAGE}/boot/loader.rc
 	@touch ${RD}/image.${FSIMAGE}/boot/loader.config
 .endif
 .if defined(BIGBOOT)
