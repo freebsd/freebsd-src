@@ -177,10 +177,8 @@ struct td_sched *thread0_sched = &td_sched;
  */
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
-#define	SCHED_CURR(kg, ke)	SCHED_INTERACTIVE(kg)
-#if 0
+#define	SCHED_CURR(kg, ke)						\
     (ke->ke_thread->td_priority < PRI_MIN_TIMESHARE || SCHED_INTERACTIVE(kg))
-#endif
 
 /*
  * Cpu percentage computation macros and defines.
