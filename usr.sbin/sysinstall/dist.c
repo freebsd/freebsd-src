@@ -35,6 +35,8 @@
  */
 
 #include "sysinstall.h"
+#include <sys/param.h>
+#include <sys/mount.h>
 #include <sys/time.h>
 #include <signal.h>
 #include <libutil.h>
@@ -544,7 +546,7 @@ check_for_interrupt(void)
 static Boolean
 distExtract(char *parent, Distribution *me)
 {
-    int i,j, status, total, intr;
+    int i,j, status, total, intr, unmounted_dev;
     int cpid, zpid, fd2, chunk, numchunks;
     char *path, *dist, buf[300000];
     const char *tmp;
@@ -684,6 +686,12 @@ distExtract(char *parent, Distribution *me)
 	total = 0;
 	(void)gettimeofday(&start, (struct timezone *)0);
 
+	if (me[i].my_bit == DIST_BIN && RunningAsInit && !Fake) {
+		unmounted_dev = 1;
+		unmount("/dev", MNT_FORCE);
+	} else
+		unmounted_dev = 0;
+ 
 	/* We have one or more chunks, initialize unpackers... */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
 
@@ -810,6 +818,11 @@ distExtract(char *parent, Distribution *me)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
 	else
 	    continue;
+	if (unmounted_dev) {
+	    (void)mount("devfs", "/dev", 0, NULL);
+	    unmounted_dev = 0;
+	}
+      }
     }
     properties_free(dist_attr);
     sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
