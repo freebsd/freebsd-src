@@ -302,7 +302,14 @@ extern struct sx topology_lock;
 
 #endif /* _KERNEL */
 
-#define GEOMGETCONF _IOWR('G',  0, struct sbuf)
+/*
+ * IOCTLS for talking to the geom.ctl device.
+ */
+struct geomgetconf {
+	char	*ptr;
+	u_int	len;
+};
+#define GEOMGETCONF _IOW('G',  0, struct geomgetconf)
 
 /* geom_enc.c */
 uint16_t g_dec_be2(u_char *p);
