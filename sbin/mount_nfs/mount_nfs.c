@@ -815,6 +815,7 @@ tryagain:
 		}
 		if (--retrycnt > 0) {
 			if (opflags & BGRND) {
+				warnx("Cannot immediately mount %s:%s, backgrounding", hostp, spec);
 				opflags &= ~BGRND;
 				if ((i = fork())) {
 					if (i == -1)
