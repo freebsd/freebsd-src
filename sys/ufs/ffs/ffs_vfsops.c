@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.8 (Berkeley) 4/18/94
- * $Id: ffs_vfsops.c,v 1.34 1996/01/14 18:54:59 bde Exp $
+ * $Id: ffs_vfsops.c,v 1.35 1996/01/19 03:59:14 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -920,7 +920,7 @@ restart:
 	 * Initialize the vnode from the inode, check for aliases.
 	 * Note that the underlying vnode may have changed.
 	 */
-	error = ufs_vinit(mp, ffs_specop_p, FFS_FIFOOPS, &vp);
+	error = ufs_vinit(mp, ffs_specop_p, ffs_fifoop_p, &vp);
 	if (error) {
 		vput(vp);
 		*vpp = NULL;

@@ -117,9 +117,4 @@ __END_DECLS
 
 extern vop_t **ext2_vnodeop_p;
 extern vop_t **ext2_specop_p;
-#ifdef FIFO
 extern vop_t **ext2_fifoop_p;
-#define EXT2_FIFOOPS ext2_fifoop_p
-#else
-#define EXT2_FIFOOPS NULL
-#endif
