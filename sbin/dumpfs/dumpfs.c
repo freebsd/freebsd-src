@@ -128,32 +128,32 @@ main(int argc, char *argv[])
 int
 dumpfs(const char *name)
 {
-	time_t time;
+	time_t fstime;
 	int64_t fssize;
 	int i;
 
 	switch (disk.d_ufs) {
 	case 2:
 		fssize = afs.fs_size;
-		time = afs.fs_time;
+		fstime = afs.fs_time;
 		printf("magic\t%x (UFS2)\ttime\t%s",
-		    afs.fs_magic, ctime(&time));
+		    afs.fs_magic, ctime(&fstime));
 		printf("superblock location\t%qd\tid\t[ %x %x ]\n",
 		    afs.fs_sblockloc, afs.fs_id[0], afs.fs_id[1]);
-		printf("ncg\t%d\tsize\t%qd\tblocks\t%d\n",
-		    afs.fs_ncg, fssize, afs.fs_dsize);
+		printf("ncg\t%d\tsize\t%qd\tblocks\t%jd\n",
+		    afs.fs_ncg, fssize, (intmax_t)afs.fs_dsize);
 		break;
 	case 1:
 		fssize = afs.fs_old_size;
-		time = afs.fs_old_time;
+		fstime = afs.fs_old_time;
 		printf("magic\t%x (UFS1)\ttime\t%s",
-		    afs.fs_magic, ctime(&time));
+		    afs.fs_magic, ctime(&fstime));
 		printf("id\t[ %x %x ]\n", afs.fs_id[0], afs.fs_id[1]);
-		printf("ncg\t%d\tsize\t%qd\tblocks\t%d\n",
-		    afs.fs_ncg, fssize, afs.fs_dsize);
+		printf("ncg\t%d\tsize\t%qd\tblocks\t%jd\n",
+		    afs.fs_ncg, fssize, (intmax_t)afs.fs_dsize);
 		break;
 	default:
-		break;
+		goto err;
 	}
 	printf("bsize\t%d\tshift\t%d\tmask\t0x%08x\n",
 	    afs.fs_bsize, afs.fs_bshift, afs.fs_bmask);
@@ -176,8 +176,9 @@ dumpfs(const char *name)
 		    afs.fs_fpg / afs.fs_frag, afs.fs_fpg, afs.fs_ipg);
 		printf("nindir\t%d\tinopb\t%d\tmaxfilesize\t%qu\n",
 		    afs.fs_nindir, afs.fs_inopb, afs.fs_maxfilesize);
-		printf("sbsize\t%d\tcgsize\t%d\tcsaddr\t%d\tcssize\t%d\n",
-		    afs.fs_sbsize, afs.fs_cgsize, afs.fs_csaddr, afs.fs_cssize);
+		printf("sbsize\t%d\tcgsize\t%d\tcsaddr\t%jd\tcssize\t%d\n",
+		    afs.fs_sbsize, afs.fs_cgsize, (intmax_t)afs.fs_csaddr,
+		    afs.fs_cssize);
 		break;
 	case 1:
 		printf("maxbpg\t%d\tmaxcontig %d\tcontigsumsize %d\n",
@@ -203,7 +204,7 @@ dumpfs(const char *name)
 		    afs.fs_old_nsect, afs.fs_old_npsect, afs.fs_old_spc);
 		break;
 	default:
-		break;
+		goto err;
 	}
 	printf("sblkno\t%d\tcblkno\t%d\tiblkno\t%d\tdblkno\t%d\n",
 	    afs.fs_sblkno, afs.fs_cblkno, afs.fs_iblkno, afs.fs_dblkno);
@@ -243,8 +244,8 @@ dumpfs(const char *name)
 			printf("cylinders in last group %d\n",
 			    howmany(afs.fs_old_size % afs.fs_fpg,
 			    afs.fs_old_spc / afs.fs_old_nspf));
-		printf("blocks in last group %d\n\n",
-		    (fssize % afs.fs_fpg) / afs.fs_frag);
+		printf("blocks in last group %ld\n\n",
+		    (long)((fssize % afs.fs_fpg) / afs.fs_frag));
 	}
 	while ((i = cgread(&disk)) != 0) {
 		if (i == -1 || dumpcg())
@@ -259,7 +260,7 @@ err:	ufserr(name);
 int
 dumpcg(void)
 {
-	time_t time;
+	time_t cgtime;
 	off_t cur;
 	int i, j;
 
@@ -267,16 +268,16 @@ dumpcg(void)
 	cur = fsbtodb(&afs, cgtod(&afs, disk.d_lcg)) * disk.d_bsize;
 	switch (disk.d_ufs) {
 	case 2:
-		time = acg.cg_time;
+		cgtime = acg.cg_time;
 		printf("magic\t%x\ttell\t%qx\ttime\t%s",
-		    acg.cg_magic, cur, ctime(&time));
+		    acg.cg_magic, cur, ctime(&cgtime));
 		printf("cgx\t%d\tndblk\t%d\tniblk\t%d\tinitiblk %d\n",
 		    acg.cg_cgx, acg.cg_ndblk, acg.cg_niblk, acg.cg_initediblk);
 		break;
 	case 1:
-		time = acg.cg_old_time;
+		cgtime = acg.cg_old_time;
 		printf("magic\t%x\ttell\t%qx\ttime\t%s",
-		    acg.cg_magic, cur, ctime(&time));
+		    acg.cg_magic, cur, ctime(&cgtime));
 		printf("cgx\t%d\tncyl\t%d\tniblk\t%d\tndblk\t%d\n",
 		    acg.cg_cgx, acg.cg_old_ncyl, acg.cg_old_niblk,
 		    acg.cg_ndblk);
