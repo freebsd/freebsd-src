@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.71 1999/06/28 09:21:41 peter Exp $
+ *	$Id: genassym.c,v 1.72 1999/07/06 07:13:32 cracauer Exp $
  */
 
 #include "opt_user_ldt.h"
@@ -128,6 +128,13 @@ main()
 	printf("#define\tTSS_ESP0 %#x\n", OS(i386tss, tss_esp0));
 	printf("#define\tPCB_USERLDT %#x\n", OS(pcb, pcb_ldt));
 	printf("#define\tPCB_GS %#x\n", OS(pcb, pcb_gs));
+	printf("#define\tPCB_DR0 %#x\n", OS(pcb, pcb_dr0));
+	printf("#define\tPCB_DR1 %#x\n", OS(pcb, pcb_dr1));
+	printf("#define\tPCB_DR2 %#x\n", OS(pcb, pcb_dr2));
+	printf("#define\tPCB_DR3 %#x\n", OS(pcb, pcb_dr3));
+	printf("#define\tPCB_DR6 %#x\n", OS(pcb, pcb_dr6));
+	printf("#define\tPCB_DR7 %#x\n", OS(pcb, pcb_dr7));
+	printf("#define\tPCB_DBREGS %#x\n", PCB_DBREGS );
 	printf("#define\tPCB_EXT %#x\n", OS(pcb, pcb_ext));
 #ifdef SMP
 	printf("#define\tPCB_MPNEST %#x\n", OS(pcb, pcb_mpnest));

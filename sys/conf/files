@@ -362,6 +362,7 @@ miscfs/nullfs/null_vnops.c	optional nullfs
 miscfs/portal/portal_vfsops.c	optional portal
 miscfs/portal/portal_vnops.c	optional portal
 miscfs/procfs/procfs_ctl.c	optional procfs
+miscfs/procfs/procfs_dbregs.c	standard
 miscfs/procfs/procfs_fpregs.c	standard
 miscfs/procfs/procfs_map.c	optional procfs
 miscfs/procfs/procfs_mem.c	standard

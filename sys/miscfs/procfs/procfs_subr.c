@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_subr.c	8.6 (Berkeley) 5/14/95
  *
- *	$Id: procfs_subr.c,v 1.23 1999/01/27 22:42:07 dillon Exp $
+ *	$Id: procfs_subr.c,v 1.24 1999/04/30 13:04:21 phk Exp $
  */
 
 #include <sys/param.h>
@@ -167,6 +167,7 @@ loop:
 
 	case Pregs:
 	case Pfpregs:
+	case Pdbregs:
 		pfs->pfs_mode = (VREAD|VWRITE);
 		vp->v_type = VREG;
 		break;
@@ -263,6 +264,10 @@ procfs_rw(ap)
 	case Pfpregs:
 		rtval = procfs_dofpregs(curp, p, pfs, uio);
 		break;
+
+        case Pdbregs:
+                rtval = procfs_dodbregs(curp, p, pfs, uio);
+                break;
 
 	case Pctl:
 		rtval = procfs_doctl(curp, p, pfs, uio);
