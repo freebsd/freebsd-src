@@ -323,7 +323,7 @@ _thread_kern_scheduler(void)
 		 * Avoid polling file descriptors if there are none
 		 * waiting:
 		 */
-		if (TAILQ_EMPTY(&_workq) == 0) {
+		if (TAILQ_EMPTY(&_workq) != 0) {
 		}
 		/*
 		 * Poll file descriptors only if a new scheduling signal
