@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.48 1998/10/09 06:21:12 jkh Exp $
+ * $Id: mfs_vfsops.c,v 1.49 1998/10/09 23:37:37 peter Exp $
  */
 
 
@@ -100,17 +100,20 @@ static struct vfsops mfs_vfsops = {
 VFS_SET(mfs_vfsops, mfs, 0);
 
 #ifdef MFS_ROOT
-#ifdef MFS_ROOT_SIZE
 
+#ifdef MFS_ROOT_SIZE
 /* Image was already written into mfs_root */
 static u_char mfs_root[MFS_ROOT_SIZE*1024] = "MFS Filesystem goes here";
 static u_char end_mfs_root[] = "MFS Filesystem had better STOP here";
+#endif
 
-#else	/* load it from preload area */
-
-static u_char *
+u_char *
 mfs_getimage(void)
 {
+#ifdef MFS_ROOT_SIZE
+	/* Get it from compiled-in code */
+	return mfs_root;
+#else
 	caddr_t p;
 	vm_offset_t *q;
 
@@ -121,9 +124,9 @@ mfs_getimage(void)
 	if (!q)
 		return NULL;
 	return (u_char *)*q;
+#endif
 }
 
-#endif	/* MFS_ROOT_SIZE */
 #endif	/* MFS_ROOT */
 
 /*
@@ -192,15 +195,10 @@ mfs_mount(mp, path, data, ndp, p)
 		 */
 
 #ifdef MFS_ROOT
-#ifdef MFS_ROOT_SIZE
-		/* Get it from compiled-in code */
-		base = mfs_root;
-#else
 		/* Get it from preload area */
 		base = mfs_getimage();
 		if (!base)
-		    panic("No module of type mfs_root loaded; can't continue!");
-#endif /* MFS_ROOT_SIZE */
+		    panic("No mfs_root image loaded; can't continue!");
 		fs = (struct fs *)(base + SBOFF);
 		/* check for valid super block */
 		if (fs->fs_magic != FS_MAGIC || fs->fs_bsize > MAXBSIZE ||

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.106 1998/09/15 10:03:42 gibbs Exp $
+ *	$Id: autoconf.c,v 1.108 1998/10/05 21:09:21 obrien Exp $
  */
 
 /*
@@ -172,6 +172,10 @@ find_cdrom_root()
 #endif /* CD9660 || CD9660_ROOT */
 
 extern void xpt_init __P((void));
+
+#ifdef MFS_ROOT
+extern u_char *mfs_getimage __P((void));
+#endif
 
 static void
 configure_start()
@@ -326,17 +330,20 @@ cpu_rootconf()
 	if (!mountrootfsname) {
 		if (bootverbose)
 			printf("Considering MFS root f/s.\n");
-		mountrootfsname = "mfs";
-		/*
-		 * Ignore the -a flag if this kernel isn't compiled
-		 * with a generic root/swap configuration: if we skip
-		 * setroot() and we aren't a generic kernel, chaos
-		 * will ensue because setconf() will be a no-op.
-		 * (rootdev is always initialized to NODEV in a
-		 * generic configuration, so we test for that.)
-		 */
-		if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
-			setroot();
+		if (mfs_getimage()) {
+			mountrootfsname = "mfs";
+			/*
+			 * Ignore the -a flag if this kernel isn't compiled
+			 * with a generic root/swap configuration: if we skip
+			 * setroot() and we aren't a generic kernel, chaos
+			 * will ensue because setconf() will be a no-op.
+			 * (rootdev is always initialized to NODEV in a
+			 * generic configuration, so we test for that.)
+			 */
+			if ((boothowto & RB_ASKNAME) == 0 || rootdev != NODEV)
+				setroot();
+		} else if (bootverbose)
+			printf("No MFS image available as root f/s.\n");
 	}
 #endif
 
