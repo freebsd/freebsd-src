@@ -7,8 +7,16 @@
 #ifndef _ss_h
 #define _ss_h __FILE__
 
+#if 0
 #include <ss/mit-sipb-copyright.h>
-#include <ss/ss_err.h>
+#endif
+#ifndef IN_MK_CMDS
+#  ifdef IN_LIBSS
+#    include "ss_err.h"
+#  else
+#    include <ss/ss_err.h>
+#  endif
+#endif
 
 extern int errno;
 

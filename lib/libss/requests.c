@@ -3,10 +3,10 @@
  *
  * Copyright 1987, 1988, 1989 by MIT
  *
- * For copyright information, see mit-sipb-copyright.h.
+ * For copyright information, see copyright.h.
  */
 
-#include "mit-sipb-copyright.h"
+#include "copyright.h"
 #include <stdio.h>
 #include "ss_internal.h"
 
