@@ -41,8 +41,12 @@ pkg_perform(char **pkgs)
     signal(SIGINT, cleanup);
     signal(SIGHUP, cleanup);
 
-    for (i = 0; pkgs[i]; i++)
-	err_cnt += pkg_do(pkgs[i]);
+    if (AddMode == SLAVE)
+	err_cnt = pkg_do(NULL);
+    else {
+	for (i = 0; pkgs[i]; i++)
+	    err_cnt += pkg_do(pkgs[i]);
+    }
     return err_cnt;
 }
 
@@ -61,40 +65,65 @@ pkg_do(char *pkg)
     if (Plist.head)
 	free_plist(&Plist);
     LogDir[0] = '\0';
-    home = make_playpen();
-    if (pkg[0] == '/')	/* full pathname? */
-	strcpy(pkg_fullname, pkg);
-    else
-	sprintf(pkg_fullname, "%s/%s", home, pkg);
-    if (!fexists(pkg_fullname)) {
-	whinge("Can't open package '%s'.", pkg_fullname);
-	return 1;
+    if (AddMode == SLAVE) {
+	char tmp_dir[FILENAME_MAX];
+
+	fgets(tmp_dir, FILENAME_MAX, stdin);
+	tmp_dir[strlen(tmp_dir) - 1] = '\0'; /* pesky newline! */
+	if (chdir(tmp_dir) == FAIL) {
+	    whinge("pkg_add in SLAVE mode can't chdir to %s.", tmp_dir);
+	    return 1;
+	}
+	read_plist(&Plist, stdin);
     }
+    else {
+	home = make_playpen(PlayPen);
+	if (pkg[0] == '/')	/* full pathname? */
+	    strcpy(pkg_fullname, pkg);
+	else
+	    sprintf(pkg_fullname, "%s/%s", home, pkg);
+	if (!fexists(pkg_fullname)) {
+	    whinge("Can't open package '%s'.", pkg_fullname);
+	    return 1;
+	}
 
-    if (unpack(pkg_fullname, NULL))
-	return 1;
+	if (unpack(pkg_fullname, NULL))
+	    return 1;
 
-    if (sanity_check(pkg_fullname))
-	return 1;
+	if (sanity_check(pkg_fullname))
+	    return 1;
 
-    cfile = fopen(CONTENTS_FNAME, "r");
-    if (!cfile) {
-	whinge("Unable to open %s file.", CONTENTS_FNAME);
-	goto fail;
+	cfile = fopen(CONTENTS_FNAME, "r");
+	if (!cfile) {
+	    whinge("Unable to open %s file.", CONTENTS_FNAME);
+	    goto fail;
+	}
+	read_plist(&Plist, cfile);
+	fclose(cfile);
+	if (Prefix) {
+	    /*
+	     * If we have a prefix, delete the first one we see and add this
+	     * one in place of it.
+	     */
+	    delete_plist(&Plist, FALSE, PLIST_CWD, NULL);
+	    add_plist_top(&Plist, PLIST_CWD, Prefix);
+	}
+	/* Just to be safe - overridden if package has made a choice */
+	else
+	    add_plist_top(&Plist, PLIST_CWD, home);
+	/* If we're running in MASTER mode, just output the plist and return */
+	if (AddMode == MASTER) {
+	    printf("%s\n", where_playpen());
+	    write_plist(&Plist, stdout);
+	    return;
+	}
     }
-    /* If we have a prefix, add it now */
-    if (Prefix)
-	add_plist(&Plist, PLIST_CWD, Prefix);
-    else
-	add_plist(&Plist, PLIST_CWD, home);
-    read_plist(&Plist, cfile);
-    fclose(cfile);
     PkgName = find_name(&Plist);
     if (fexists(REQUIRE_FNAME)) {
 	vsystem("chmod +x %s", REQUIRE_FNAME);	/* be sure */
 	if (Verbose)
 	    printf("Running requirements file first for %s..\n", PkgName);
-	if (vsystem("%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
+	if (!Fake && vsystem("%s %s INSTALL", REQUIRE_FNAME, PkgName)) {
 	    whinge("Package %s fails requirements - not installed.",
 		   pkg_fullname);
 	    goto fail;
@@ -104,7 +133,7 @@ pkg_do(char *pkg)
 	vsystem("chmod +x %s", INSTALL_FNAME);	/* make sure */
 	if (Verbose)
 	    printf("Running install with PRE-INSTALL for %s..\n", PkgName);
-	if (vsystem("%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
+	if (!Fake && vsystem("%s %s PRE-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
 	    goto fail;
 	}
@@ -113,12 +142,15 @@ pkg_do(char *pkg)
     if (!NoInstall && fexists(INSTALL_FNAME)) {
 	if (Verbose)
 	    printf("Running install with POST-INSTALL for %s..\n", PkgName);
-	if (vsystem("%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
+	if (!Fake && vsystem("%s %s POST-INSTALL", INSTALL_FNAME, PkgName)) {
 	    whinge("Install script returned error status.");
 	    goto fail;
 	}
     }
     if (!NoRecord && !Fake) {
+	char contents[FILENAME_MAX];
+	FILE *cfile;
+
 	if (getuid() != 0)
 	    whinge("Not running as root - trying to record install anyway.");
 	if (!PkgName) {
@@ -140,7 +172,15 @@ pkg_do(char *pkg)
 	    copy_file(".", DEINSTALL_FNAME, LogDir);
 	if (fexists(REQUIRE_FNAME))
 	    copy_file(".", REQUIRE_FNAME, LogDir);
-	copy_file(".", CONTENTS_FNAME, LogDir);
+	sprintf(contents, "%s/%s", LogDir, CONTENTS_FNAME);
+	cfile = fopen(contents, "w");
+	if (!cfile) {
+	    whinge("Can't open new contents file '%s'!  Can't register pkg.",
+		   contents);
+	    goto success; /* can't log, but still keep pkg */
+	}
+	write_plist(&Plist, cfile);
+	fclose(cfile);
 	copy_file(".", DESC_FNAME, LogDir);
 	copy_file(".", COMMENT_FNAME, LogDir);
 	if (Verbose)
@@ -194,6 +234,8 @@ find_name(Package *pkg)
 void
 cleanup(int signo)
 {
+    if (signo)
+	printf("Signal %d received, cleaning up..\n", signo);
     if (Plist.head) {
 	if (!Fake)
 	    delete_package(FALSE, &Plist);
