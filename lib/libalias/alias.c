@@ -124,6 +124,8 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 
+#include <stdio.h>
+
 #include "alias_local.h"
 #include "alias.h"
 
@@ -288,7 +290,7 @@ IcmpAliasIn1(struct ip *pip)
 /* Adjust ICMP checksum */
         accumulate  = ic->icmp_id;
         accumulate -= original_id;
-        ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+        ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /* Put original sequence number back in */
         ic->icmp_id = original_id;
@@ -367,7 +369,7 @@ IcmpAliasIn2(struct ip *pip)
             accumulate -= *sptr;
             accumulate += ud->uh_sport;
             accumulate -= original_port;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /* Un-alias address in IP header */
             DifferentialChecksum(&pip->ip_sum,
@@ -400,7 +402,7 @@ fragment contained in ICMP data section */
             accumulate -= *sptr;
             accumulate += ic2->icmp_id;
             accumulate -= original_id;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /* Un-alias address in IP header */
             DifferentialChecksum(&pip->ip_sum,
@@ -481,7 +483,7 @@ IcmpAliasOut1(struct ip *pip)
 /* Since data field is being modified, adjust ICMP checksum */
         accumulate  = ic->icmp_id;
         accumulate -= alias_id;
-        ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+        ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /* Alias sequence number */
         ic->icmp_id = alias_id;
@@ -561,7 +563,7 @@ IcmpAliasOut2(struct ip *pip)
             accumulate -= *sptr;
             accumulate += ud->uh_dport;
             accumulate -= alias_port;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /*
  * Alias address in IP header if it comes from the host
@@ -599,7 +601,7 @@ fragment contained in ICMP data section */
             accumulate -= *sptr;
             accumulate += ic2->icmp_id;
             accumulate -= alias_id;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
 /*
  * Alias address in IP header if it comes from the host
@@ -783,7 +785,7 @@ UdpAliasIn(struct ip *pip)
             sptr = (u_short *) &original_address;
             accumulate -= *sptr++;
             accumulate -= *sptr;
-            ADJUST_CHECKSUM(accumulate, ud->uh_sum)
+            ADJUST_CHECKSUM(accumulate, ud->uh_sum);
         }
 
 /* Restore original IP address */
@@ -854,7 +856,7 @@ UdpAliasOut(struct ip *pip)
             sptr = (u_short *) &alias_address;
             accumulate -= *sptr++;
             accumulate -= *sptr;
-            ADJUST_CHECKSUM(accumulate, ud->uh_sum)
+            ADJUST_CHECKSUM(accumulate, ud->uh_sum);
         }
 
 /* Put alias port in UDP header */
@@ -1111,7 +1113,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
             }
         }
 
-        ADJUST_CHECKSUM(accumulate, tc->th_sum)
+        ADJUST_CHECKSUM(accumulate, tc->th_sum);
 
 /* Change source address */
         sptr = (u_short *) &(pip->ip_src);
@@ -1122,7 +1124,7 @@ TcpAliasOut(struct ip *pip, int maxpacketsize)
         accumulate -= *sptr++;
         accumulate -= *sptr;
 
-        ADJUST_CHECKSUM(accumulate, pip->ip_sum)
+        ADJUST_CHECKSUM(accumulate, pip->ip_sum);
 
         return(PKT_ALIAS_OK);
     }
@@ -1502,11 +1504,11 @@ PacketUnaliasOut(char *ptr,           /* valid IP packet */
             if (pip->ip_p == IPPROTO_UDP) {
                 accumulate += ud->uh_sport;
                 accumulate -= original_port;
-                ADJUST_CHECKSUM(accumulate, ud->uh_sum)
+                ADJUST_CHECKSUM(accumulate, ud->uh_sum);
 	    } else { 
                 accumulate += tc->th_sport;
                 accumulate -= original_port;
-                ADJUST_CHECKSUM(accumulate, tc->th_sum)
+                ADJUST_CHECKSUM(accumulate, tc->th_sum);
 	    }
 
             /* Adjust IP checksum */
@@ -1543,7 +1545,7 @@ PacketUnaliasOut(char *ptr,           /* valid IP packet */
             accumulate -= *sptr;
             accumulate += ic->icmp_id;
             accumulate -= original_id;
-            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum)
+            ADJUST_CHECKSUM(accumulate, ic->icmp_cksum);
 
             /* Adjust IP checksum */
             DifferentialChecksum(&pip->ip_sum,
