@@ -1,24 +1,329 @@
 
-$Id$
+$Id: CHANGELOG,v 1.61 2001/04/08 06:17:04 agmorgan Exp $
 
 -----------------------------
 
-0.66: whenever
+TODO:
 
-TODO
-  - need to supply a backward compatability path for syslog & friends
-  - need to make pam_system_log() thread safe.
-  - need to make logging fix available to non-Linux PAM libraries
-  - need to change modules to make use of new logging API.
+  - sanitize use of md5 throughout distribution.. Make a static
+    library for helping to develop modules that contains it and other
+    stuff. Also add sha-1 and ripemd-160 digest algorithms.
+  - once above is done. remove hacks from the secret@here module etc..
+  - remove prototype for gethostname in pam_access.c (Derrick)
   - document PAM_INCOMPLETE changes
-  - document pam_system_log() changes
   - verify that the PAM_INCOMPLETE interface is sensible.   Can we
-    catch errors? should we permit item changing etc between
+    catch errors? should we permit item changing etc., between
     pam_authenticate re-invocations?
-  - verify that the PAM_INCOMPLETE interface works
-  - add PAM_INCOMPLETE support to modules
-  - verify that 
+  - verify that the PAM_INCOMPLETE interface works (auth seems ok..)
+  - add PAM_INCOMPLETE support to modules (partially added to pam_pwdb)
   - work on RFC.
+  - do we still need to remove openlog/closelog from modules..?
+  - auth and acct support in pam_cracklib, "yes, I know the password
+    you just typed was valid, I just don't think it was very strong..."
+  - add in the pam_cap and pam_netid modules
+
+====================================================================
+Note, as of release 0.73, all checkins should be accompanied with a
+Bug ID. The bug IDs relate to sourceforge IDs.. You can query the
+related bug description with the following URL:
+
+ http://sourceforge.net/tracker/index.php?func=detail&aid=XXXXXX&group_id=6663&atid=106663
+
+Where you should replace XXXXXX with a bug-id.
+
+If you have found a bug in Linux-PAM, please consider filing such a
+bug report - outstanding bugs are listed here:
+
+ http://sourceforge.net/tracker/?atid=106663&group_id=6663&func=browse
+
+(to file another bug see the 'submit bug' button on this page).
+
+====================================================================
+
+0.76: please submit patches for this section with actual code/doc
+      patches!
+
+*
+
+0.75: Sat Apr  7 23:10:50 PDT 2001
+
+                          ** WARNING **
+
+This release contains backwardly incompatible changes to
+libpam. Prior versions were buggy - see bugfix for Bug 129775.
+
+                          ** WARNING **
+
+* made 0.75 release (Bug 414665 - agmorgan)
+* pam_pwdb has been removed from the suggested pam.conf template. I've
+  replaced it with pam_unix. (Bug 227565 - agmorgan)
+* pam_limits - Richard M. Yumul reported that "<domain> -" didn't
+  work, first fix suggested by Werner Puschitz (Bug 404953 - agmorgan)
+* Nicolay Pelov suggested a simple fix for freebsd support (Bug 407282
+  - agmorgan)
+* Michel D'HOOGE submitted documentation fixes (Bug 408961 - agmorgan)
+* fix for module linking directions (Bug 133545 - agmorgan)
+* fix for glibc-2.2.2 compilation of pam_issue (Bug 133542 - agmorgan)
+* fix pam_userdb to make and link both .o files it needs - converse()
+  wasn't being linked! (Bug 132880 - agmorgan)
+* added some sys-admin documentation for the pam_tally module (Bug
+  126210 - agmorgan).
+* added a link to module examples from the module writers doc (Bug
+  131192 - agmorgan).
+* fixed a small security hole (more of a user confusion issue) with
+  the unix and pwdb password helper binaries. The beef is described in
+  the bug report, but no uid change was possible so no-one should
+  think they need to issue a security bulletin over this one! (Bug
+  112540 - agmorgan)
+* pam_lastlog needs to be linked with -lutil, also removed ambiguity
+  from sysadmin guide regarding this module being a 'session' module
+  (Bug 131549 - agmorgan).
+* pam_cracklib needs to be linked with -lcrypt (old password checking)
+  (Bug 131601 - agmorgan).
+* fixes for static library builds and also the examples when linked
+  with the debugging build of the libraries. (Bug 131783 - agmorgan)
+* fixed URL for original RFC to a cached kernel.org file. (Bug 131503
+  - agmorgan)
+* quoted the $CRACKLIB_DICTPATH test in configure.in (Bug 130130 -
+  agmorgan).
+* improved handling of the setcred/close_session and update chauthtok
+  stack. *Warning* This is a backwardly incompatable change, but 'more
+  sane' than before. (Bug 129775 - agmorgan)
+* bumped the version number, and added some code to assist in making
+  documentation releases (Bug 129644 - agmorgan).
+
+0.74: Sun Jan 21 22:36:08 PST 2001
+
+* made 0.74 release (Bug 129642 - agmorgan)
+* libpam - cleaned up a few non-static functions to be static and added
+  support for libpam to enforce things like pam_[gs]et_data() and
+  AUTHTOK rules for using the API. Also documented pam_[gs]et_item()
+  a little better including return codes (Bugs 129027, 128576 -
+  agmorgan).
+* pam_access - fixed the non-default config file option (Bug 127561 -
+  agmorgan)
+* pam.8 manual page clarified with respect to the default location for
+  finding modules, also added some text describing the [...] control
+  syntax. (Bug 127625 - agmorgan)
+* md5.h ia64 fixes for pam_unix and pam_pwdb (Bug 127700 - agmorgan)
+* removed requirement for c++ from the configure{.in,} files (Bug
+  128298 - agmorgan)
+* removed subdirectories from man page redirections (124396 - baggins)
+* per David Lee, fixed non-POSIX shell command in modules/pam_filter/Makefile
+  (Bug 126440 - vorlon)
+* modify format of pam_unix log messages to include service name
+  (Bug 126423 - vorlon)
+* prevent pam_unix from logging unknown usernames (Bug 126431 - vorlon)
+* changed format of pam_unix 'authentication failure' log messages to make
+  them clearer and more consistent (Bug 126036 - vorlon)
+* improved portability of pam_unix by eliminating Linux-specific utmp
+  defines in PAM_getlogin() (Bug 125704 - vorlon)
+* removed static variables from pam_tally (Bug 117434 - agmorgan)
+* added copyright message to pam_access module from original logdaemon
+  sources (Bug 125022 - agmorgan)
+* configure.in - removed the GCC -Wtraditional flag (Bug 124923 - agmorgan)
+* pam_mail - use PAM_PATH_MAILDIR as the location of mail spool
+  (Bug 124397 - baggins)
+* _pam_aconf.h.in, configure.in - added PAM_PATH_MAILDIR set via
+  --with-mailspool=dir option (default is _PAM_MAILDIR if defined
+  in paths.h otherwise /var/spool/mail (Bug 124397 - baggins)
+* removed unnecessary CVS Log tags from all over the source
+  (Bug 124391 - baggins)
+* pam_tally - check for PAM_TTY if PAM_RHOST is not set when writing
+  to faillog (Bug 124394 - baggins)
+* use O_NOFOLLOW if available when opening debug log (Bug 124385 - baggins)
+* pam_cracklib - removed comments about pam_unix not working with
+  pam_cracklib, added information about use_authtok parameter
+  (Bug 124388 - baggins)
+* pam_userdb - fixed wrong definition of struct pam_module (was pam_wheel)
+  (Bug 124386 - baggins)
+* fixed example/Makefile include path (Bug 124187, 127563(?) - agmorgan)
+* pam_userdb compiles on RH5x. Also removed circular dependency on
+  configure.in. Also bumped revision number to 0.74. (Bug 124136 -
+  agmorgan)
+
+0.73: Sat Dec  2 00:04:04 PST 2000
+
+* updated documentaion revisions and added 'make release' support
+  to the top level Makefile (Bug 124132 - agmorgan).
+* documented Qmail support in pam_mail (Bug 109219 - baggins)
+* add change_uid option to pam_limits, and set real uid only if
+  this option is present (Bug 124062 - baggins)
+* pam_limits - set real uid to the user for who we set limits.
+  (Bug 123972 - baggins)
+* removed static variables from pam_limits (thread safe now). (Bug
+  117450 - agmorgan).
+* removed static variable from pam_wheel (module should be thread safe
+  now). (Bug 112906 - agmorgan)
+* added support for '/' symbols in pam_time and pam_group config files
+  (support for modern terminal devices). Fixed infinite loop problem
+  with '\\[^\n]' in these files. (Bug 116076 - agmorgan)
+* avoid potential SIGPIPE when writing to helper binaries with (Bug
+  123399 - agmorgan)
+* replaced bogus logic in the pam_cracklib module for determining if
+  the replacement is too similar to the old password (Bug 115055 -
+  agmorgan)
+* added accessconf=<filename> feature to pam_access - request from
+  Aldrin Martoq and Meelis Roos (Bugs 111927,117240 - agmorgan)
+* fix for pam_limit module not dealing with all limits Adam J. Richter
+  (Bug 119554 - agmorgan)
+* comment fix describing fail_delay callback in _pam_types.h (Bug
+  112646 - agmorgan)
+* "likeauth" fix for pam_unix and pam_pwdb which (Bug 113596 - agmorgan)
+* fix for pam_unix (support.c) to avoid segfault with NULL password
+  (Bug 113238 - vorlon)
+* fix to pam_unix_passwd: try repeatedly to get a lock on the password
+  file, instead of failing immediately (Bug 108845 - fix vorlon)
+* fix to pam_shells: logged information was not formatted correctly
+  (extra comma) (Bug 111491 - fix vorlon)
+* fix for C++ application support (Bug 111645 - fix agmorgan)
+* fix for typo in pam_client.h (Bug 111648 - fix agmorgan)
+* removal of -lpam from pam_mkhomedir Makefile (Bug 116380 - fix agmorgan)
+* autoconf support [Task ID 15788, Bug ID 108297 - agmorgan with help!]
+ - bugfix for libpamc.h include file [Bug ID 117476 - agmorgan]
+ - bugfix for pam_filter.h inclusion [Bug ID 117474 - agmorgan]
+
+0.72: Mon Dec 13 22:41:11 PST 1999
+
+* patches from Debian (Ben Collins): pam_ftp supports event driven
+  conversations now; pwdb_chkpwd cleanup; pam_warn static compile fix;
+  user_db compiler warnings removed; debian defs file; pam_mail can
+  now be used as a session module
+* ndbm compilation option for user_db module (fix explained by Richard Khoo)
+* pam_cracklib bug fix
+* packaging fixes & build from scratch stuff (Konst Bulatnikov & Frodo
+  Looijaard)
+* -ldl appended to the libpam.so compilation make rule. (Charles Seeger)
+* Red Hat security patch for pam_pwdb forwarded by Debian! (Ben
+  Collins. Fix provided by Andrey as it caught the problem earlier in the
+  code.)
+* heuristic to prevent leaking filedescriptors to an agent. [This needs
+  to be better supported perhaps by an additional libpamc API function?]
+* pam_userdb segfault fix from (Ben Collins)
+* PAM draft spec extras added at request of 'sen_ml'
+
+0.71: Sun Nov  7 20:21:19 PST 1999
+
+* added -lc to linker pass for pam_nologin module (glibc is weird).
+* various header changes to lower the number of warnings on glibc
+  systems (Dan Yefimov)
+* merged a bunch of Debian fixes/patches/documentation (Ben Collins)
+  things touched: libpam (minor); doc/modules/pam_unix.sgml; pam_env
+  (plus docs); pam_mkhomedir (new module for new home directories on
+  the fly...); pam_motd (new module); pam_limits (adjust to match
+  docs); pam_issue (new module + doc) [Some of these were also
+  submitted by Thorsten Kukuk]
+* small hack to lower the number of warnings that pam_client.h was
+  generating.
+* debian and SuSE apparently can use the pam_ftp module, so
+  removed the obsolete comment about this from the docs. (Thorsten
+  Kukuk)
+
+0.70: Fri Oct  8 22:05:30 PDT 1999
+
+* bug fix for parsing of value=action tokens in libpam/pam_misc.c was
+  segfaulting (Jan Rekorajski and independently Matthew Melvin)
+* numerous fixes from Thorsten Kukuk (icluding much needed fixes for
+  bitrot in modules and some documentation) that got included in SuSE 6.2.
+* reentrancy issues in pam_unix and pam_cracklib resolved (Jan Rekorajski)
+* added hosts_equiv_rootok module option to pam_rhosts module (Tim Berger)
+* added comment about 'expose_account' module argument to admin and
+  module writers' docs (request from Michael K Johnson).
+* myriad of bug fixes for libpamc - library now built by default and
+  works with the biomouse fingerprint scanner agent/module
+  (distributed separately).
+
+0.69: Sun Aug  1 20:25:37 PDT 1999
+
+* c++ header #ifdef'ing for pam_appl.h (Tuomo Pyhala)
+* added pam_userdb module (Cristian Gafton)
+* minor documentation changes
+* added in revised pam_client library (libpamc). Not installed by
+  default yet, since the example agent/module combo is not very secure.
+* glibc fixes (Thorsten Kukuk, Adam J. Richter)
+
+0.68: Sun Jul  4 23:04:13 PDT 1999
+
+* completely new pam_unix module from Jan Rekorajski and Stephen Langasek
+* Jan Rekorajski pam_mail - support for Maildir format mailboxes
+* Jan Rekorajski pam_cracklib - support for old password comparison
+* Jan Rekorajski bug fix for pam_pwdb setcred reusing auth retval
+* Andrey's pam_tally patch (lstat -> fstat)
+* Robert Milkowski's additional pam_tally patches to **change format of
+  /var/log/faillog** to one from shadow-utils, add new option "per_user"
+  for pam_tally module, failure time logging, support for fail_line
+  field, and support for fail_locktime field with new option
+  no_lock_time.
+* pam_tally: clean up the tally application too.
+* Marcin Korzonek added process priority settings to pam_limits (bonus
+  points for adding to documentation!)
+* Andrey's pam_pwdb patch (cleanup + md5 endian fubar fix)
+* more binary prompt preparations (make misc conv more compatible with spec)
+* modified callback hook for fail delay to be more useful with event
+  driven applications (changed function prototype - suspect no one
+  will notice). Documented this in app developer guide.
+* documentation for pam_access from Tim Berger
+* syntax fixes for the documentation - a long time since I've built it :*(
+  added some more names to the CREDITS file.
+
+0.67: Sat Jun 19 14:01:24 PDT 1999
+
+* [dropped libpam_client - libpamc will be in the next release and
+   conforms to the developing spec in doc/specs/draft-morgan-pam.raw.
+   Sorry if you are keeping a PAM tree in CVS. CVS is a pain for
+   directories, but this directory was actually not referenced by
+   anything so the disruption should be light.]
+* updates to pam_tally from Tim
+* multiple updates from Stephen Langasek to pam_unix
+* pam_filter had some trouble compiling (bug report from Sridhar)
+* pam_wheel now attempts to identify the wheel group for the local
+  system instead of blindly assuming it is gid=0. In the case that
+  there is no "wheel" group, we default to assuming gid=0 is what was
+  meant - former behavior. (courtesy of Sridhar)
+* NIS+ changes to pam_unix module from Dmitry O Panov
+* hopefully, a fix for redefinition of LOG_AUTHPRIV (bug report Luke
+  Kenneth Casson Leighton)
+* fix for minor typo in pam_wheel documentation (Jacek Kopecky)
+* slightly more explanation of the [x=y] pam.conf syntax in the sys
+  admin guide.
+
+0.66: Mon Dec 28 20:22:23 PST 1998 <morgan@linux.kernel.org>
+
+* Started using cvs to keep track of changes to Linux-PAM.  This will
+  likely break some of the automated building stuff (RPMs etc..).
+* security bug fix to pam_unix and pam_tally from Andrey.
+* modules make file is now more automatic.  It should be possible to
+  unpack an external module in the modules directory and have it automatically
+  added to the build process.  Also added a modules/download-all script
+  that will make such downloading easier.  I'm happy to receive patches to
+  this file, informing the distribution of places from which to enrich itself.
+* removed pam_system_log stuff.  Thought about it long and hard: a
+  bad idea.  If libc cannot guarantee a thread safe syslog, it needs
+  to be fixed and compatibility with other PAM libraries was
+  unnecessarily strained.
+* SAG documentation changes: Seth Chaiklin
+* rhosts: problems with NIS lookup failures with the root-uid check.
+  As a work-around, I've partially eliminated the need for the lookup
+  by supplying two new arguments: no_uid_check, superuser=<username>.
+  As a general rule this is more pluggable, since this module might be
+  used as an authentication scheme for a network service that does not
+  need root privilege...
+* authenticate retval -> setcred for pam_pwdb (likeauth arg).
+* pam_pwdb event driven support
+* non openlog pam_listfile logging
+* BUGFIX: close filedescriptor in pam_group and pam_time (Emmanuel Galanos)
+* Chris Adams' mailhash change for pam_mail module
+* fixed malloc failure check in pam_handlers.c (follow up to comment
+  by Brad M. Garcia).
+* update to _pam_compat.h (Brad M. Garcia)
+* support static modules in libpam again (Brad M. Garcia)
+* libpam/pam_misc.c for egcs to grok the code (Brad M. Garcia)
+* added a solaris-2.5.1 defs file (revived by Derrick J Brashear)
+* pam_listfile logs failed attempts
+* added a comment (Michael K Johnson pointed it out) about sgml2latex
+  having a new syntax.  I'll make it the change real when I upgrade...
+* a little more text to the RFC, spelling fix from William J Buffam.
+* minor changes to pam_securetty to accommodate event driven support.
 
 0.65: Sun Apr  5 22:29:09 PDT 1998 <morgan@linux.kernel.org>
 

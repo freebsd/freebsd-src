@@ -1,0 +1,17 @@
+This is the README for pam_mail
+-------------------------------
+
+This PAM module tells the User that he has new/unread email.
+
+Options for:
+auth:	for authentication it provides pam_authenticate() and
+	pam_setcred() hooks.
+
+	"debug"		write more information to syslog
+	"dir=maildir"	users mailbox is maildir/<login> 
+	"hash=count"	mail directory hash depth
+	"close"		print message also on logout
+	"nopen"		print message not on login
+	"noenv"		don't set the MAIL environment variable
+	"empty"		also print message if user has no mail
+
