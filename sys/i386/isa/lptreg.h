@@ -53,5 +53,5 @@
 #define	LPC_AUTOL		0x02	/* automatic linefeed */
 #define	LPC_NINIT		0x04	/* initialize printer */
 #define	LPC_SEL			0x08	/* printer selected */
+#define	LPC_ENA			0x10	/* enable IRQ */
 #endif
-#define	LPC_ENA			0x10	/* printer out of paper */
