@@ -211,6 +211,7 @@ DECODE_PROTOTYPE(linktarget)
 DECODE_PROTOTYPE(vers_1)
 {
 	int i;
+
 	printf("Product version: %d.%d\n", tupledata[0], tupledata[1]);
 	printf("Product name: ");
 	for (i = 2; i < len; i++) {
@@ -227,8 +228,9 @@ DECODE_PROTOTYPE(vers_1)
 
 DECODE_PROTOTYPE(funcid)
 {
-	int i;
+	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int numnames = sizeof(funcnames) / sizeof(funcnames[0]);
+	int i;
 
 	printf("Functions: ");
 	for (i = 0; i < len; i++) {
@@ -239,27 +241,88 @@ DECODE_PROTOTYPE(funcid)
 		if (i < len-1)
 			printf(", ");
 	}
+
+	if (len > 0)
+		dinfo->funcid = tupledata[0];		/* use first in list */
 	printf("\n");
 	return (0);
 }
 
 DECODE_PROTOTYPE(manfid)
 {
+	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int i;
+
 	printf("Manufacturer ID: ");
 	for (i = 0; i < len; i++)
 		printf("%02x", tupledata[i]);
 	printf("\n");
+
+	if (len == 5) {
+		dinfo->mfrid = tupledata[1] | (tupledata[2]<<8);
+		dinfo->prodid = tupledata[3] | (tupledata[4]<<8);
+	}
 	return (0);
 }
 
 DECODE_PROTOTYPE(funce)
 {
-	int i;
+	struct cardbus_devinfo *dinfo = device_get_ivars(child);
+	int type, i;
+
 	printf("Function Extension: ");
 	for (i = 0; i < len; i++)
 		printf("%02x", tupledata[i]);
 	printf("\n");
+	if (len < 2)			/* too short */
+		return (0);
+	type = tupledata[0];		/* XXX <32 always? */
+	switch (dinfo->funcid) {
+	case TPL_FUNC_SERIAL:
+		if (type == TPL_FUNCE_SER_UART) {	/* NB: len known > 1 */
+			dinfo->funce.sio.type = tupledata[1] & 0x1f;
+		}
+		dinfo->fepresent |= 1<<type;
+		break;
+	case TPL_FUNC_LAN:
+		switch (type) {
+		case TPL_FUNCE_LAN_TECH:
+			dinfo->funce.lan.tech = tupledata[1];	/* XXX mask? */
+			break;
+#if 0
+		case TPL_FUNCE_LAN_SPEED:
+			for (i = 0; i < 3; i++) {
+				if (dinfo->funce.lan.speed[i] == 0) {
+					if (len > 4) {
+						dinfo->funce.lan.speed[i] =
+							...;
+					}
+					break;
+				}
+			}
+			break;
+#endif
+		case TPL_FUNCE_LAN_MEDIA:
+			for (i = 0; i < 4 && dinfo->funce.lan.media[i]; i++) {
+				if (dinfo->funce.lan.media[i] == 0) {
+					/* NB: len known > 1 */
+					dinfo->funce.lan.media[i] =
+						tupledata[1];	/*XXX? mask */
+					break;
+				}
+			}
+			break;
+		case TPL_FUNCE_LAN_NID:
+			if (len > 6)
+				bcopy(&tupledata[1], dinfo->funce.lan.nid, 6);
+			break;
+		case TPL_FUNCE_LAN_CONN:
+			dinfo->funce.lan.contype = tupledata[1];/*XXX mask? */
+			break;
+		}
+		dinfo->fepresent |= 1<<type;
+		break;
+	}
 	return (0);
 }
 
