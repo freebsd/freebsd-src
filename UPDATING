@@ -174,6 +174,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	and send the output of "camcontrol inquiry da0" to scsi@freebsd.org
 	so the quirk can be re-enabled.
 
+20030724:
+	Problems with entry 20030714 have been corrected and no known issues
+	with /rescue and -j exist for host systems after this point in time.
+
 20030722:
 	FPU-less support has been removed from FreeBSD.  Chances are you won't
 	notice.  386+387 support should still work after this change, but
@@ -191,7 +195,20 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	across this point.  Further, it might be a good idea to remove
 	/usr/obj.
 
-20030613: [retrospective]
+20030610:
+	Remove deprecated locale names and transition period code
+	for them, finishing switching to the new scheme. Check your
+	LANG environment variable.
+
+20030609:
+	CCD has been changed to be a fully GEOMified class.  Kernel
+	and ccdconfig(8) needs to be in sync, this is particularly
+	important to remember beforehand if your source tree is on
+	a ccd device.  Consider making a copy of the old ccdconfig
+	into /boot/kernel.good or wherever you keep your backup
+	kernel.
+
+20030605:
 	There was a small window in which sed(1) was broken.  If you
 	happen to have sed(1) installed during that window, which is
 	evidenced by an inability to build world with the failure
@@ -208,19 +225,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	The window of "sed(1)-uction" is from Wed Jun 4 15:31:55 2003 UTC
 	to Thu Jun 5 12:10:19 2003 UTC (from rev 1.30 to rev 1.31 of
 	usr.bin/sed/process.c).
-
-20030610:
-	Remove deprecated locale names and transition period code
-	for them, finishing switching to the new scheme. Check your
-	LANG environment variable.
-
-20030609:
-	CCD has been changed to be a fully GEOMified class.  Kernel
-	and ccdconfig(8) needs to be in sync, this is particularly
-	important to remember beforehand if your source tree is on
-	a ccd device.  Consider making a copy of the old ccdconfig
-	into /boot/kernel.good or wherever you keep your backup
-	kernel.
 
 20030505:
 	Kerberos 5 (Heimdal) is now built by default. Setting
