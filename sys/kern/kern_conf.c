@@ -317,7 +317,6 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
 		    dev->si_name);
 		panic("don't do that");
-		return (dev);
 	}
 	va_start(ap, fmt);
 	i = vsnrprintf(dev->__si_namebuf, sizeof dev->__si_namebuf, 32, fmt, ap);
@@ -402,7 +401,6 @@ destroy_dev(dev_t dev)
 		printf( "WARNING: Driver mistake: destroy_dev on %d/%d\n",
 		    major(dev), minor(dev));
 		panic("don't do that");
-		return;
 	}
 		
 	devfs_destroy(dev);
