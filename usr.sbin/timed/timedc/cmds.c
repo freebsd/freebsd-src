@@ -77,7 +77,7 @@ void bytenetorder(struct tsp *);
 void bytehostorder(struct tsp *);
 
 
-#define BU ((unsigned long)2208988800)	/* seconds before UNIX epoch */
+#define BU (2208988800UL)	/* seconds before UNIX epoch */
 
 
 /* compute the difference between our date and another machine
