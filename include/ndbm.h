@@ -63,8 +63,10 @@ typedef DB DBM;
 #define	dbm_pagfno(a)	DBM_PAGFNO_NOT_AVAILABLE
 
 __BEGIN_DECLS
+int	 dbm_clearerr __P((DBM *));
 void	 dbm_close __P((DBM *));
 int	 dbm_delete __P((DBM *, datum));
+int	 dbm_error __P((DBM *));
 datum	 dbm_fetch __P((DBM *, datum));
 datum	 dbm_firstkey __P((DBM *));
 long	 dbm_forder __P((DBM *, datum));
