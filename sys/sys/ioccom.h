@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ioccom.h	8.2 (Berkeley) 3/28/94
- * $Id: ioccom.h,v 1.2 1994/08/02 07:53:03 davidg Exp $
+ * $Id: ioccom.h,v 1.3 1996/05/02 14:20:59 phk Exp $
  */
 
 #ifndef	_SYS_IOCCOM_H_
@@ -61,5 +61,15 @@
 #define	_IOW(g,n,t)	_IOC(IOC_IN,	(g), (n), sizeof(t))
 /* this should be _IORW, but stdio got there first */
 #define	_IOWR(g,n,t)	_IOC(IOC_INOUT,	(g), (n), sizeof(t))
+
+#ifndef KERNEL
+
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
+int	ioctl __P((int, unsigned long, ...));
+__END_DECLS
+
+#endif /* !KERNEL */
 
 #endif /* !_SYS_IOCCOM_H_ */
