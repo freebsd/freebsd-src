@@ -2059,6 +2059,7 @@ PacketAliasCheckNewLink(void)
 
 /* Firewall include files */
 #include <sys/queue.h>
+#include <net/if.h>
 #include <netinet/ip_fw.h>
 #include <string.h>
 #include <err.h>
