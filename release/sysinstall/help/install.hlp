@@ -114,8 +114,9 @@ distribution from CDROM.  No other types of installation media should
 be required.
 
 After your system is fully installed and you have rebooted from the
-hard disk, you should find the CD mounted on the directory /cdrom.  A
-utility called `lndir' comes with the XFree86 distribution which you
+hard disk, you can mount the cdrom at any time by typing: ``mount /cdrom''
+
+A utility called `lndir' comes with the XFree86 distribution which you
 may also find useful: It allows you to create "link tree" directories
 to things on Read-Only media like CDROM.  One example might be
 something like this:
