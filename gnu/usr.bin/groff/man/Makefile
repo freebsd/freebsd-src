@@ -6,9 +6,5 @@ MAN7=	groff_char.7
 MANDEPEND=	${MAN5} ${MAN7}
 CLEANFILES+=	${MANDEPEND}
 
-.if exists(${.CURDIR}/obj)
-MANSRC=${.CURDIR}/obj
-.endif
-
 .include "../Makefile.cfg"
 .include <bsd.prog.mk>
