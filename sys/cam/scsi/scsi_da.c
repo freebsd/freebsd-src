@@ -123,6 +123,7 @@ struct da_softc {
 	da_quirks quirks;
 	int	 minimum_cmd_size;
 	int	 ordered_tag_count;
+	int	 outstanding_cmds;
 	struct	 disk_params params;
 	struct	 disk disk;
 	union	 ccb saved_ccb;
@@ -1298,6 +1299,7 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 			oldspl = splcam();
 			LIST_INSERT_HEAD(&softc->pending_ccbs,
 					 &start_ccb->ccb_h, periph_links.le);
+			softc->outstanding_cmds++;
 			splx(oldspl);
 
 			/* We expect a unit attention from this device */
@@ -1499,10 +1501,10 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		oldspl = splcam();
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
-		splx(oldspl);
-
-		if (softc->disk.d_devstat->busy_count == 0)
+		softc->outstanding_cmds--;
+		if (softc->outstanding_cmds == 0)
 			softc->flags |= DA_FLAG_WENT_IDLE;
+		splx(oldspl);
 
 		biodone(bp);
 		break;
@@ -1781,7 +1783,7 @@ dasendorderedtag(void *arg)
 		 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
 			softc->flags |= DA_FLAG_NEED_OTAG;
 		}
-		if (softc->disk.d_devstat->busy_count > 0)
+		if (softc->outstanding_cmds > 0)
 			softc->flags &= ~DA_FLAG_WENT_IDLE;
 
 		softc->ordered_tag_count = 0;
