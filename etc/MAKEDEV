@@ -126,7 +126,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.194 1999/04/08 21:23:18 msmith Exp $
+#	$Id: MAKEDEV,v 1.195 1999/04/24 20:57:39 peter Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -232,7 +232,7 @@ all)
 	sh MAKEDEV ums0 ulpt0 ugen0			# cdev, USB devices
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
-	sh MAKEDEV apm card0 card1			# cdev, laptop
+	sh MAKEDEV apm card0 card1 card2 card3		# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
 	sh MAKEDEV i4brbch0 i4brbch1 i4btel0 i4btel1	# cdev, ISDN
