@@ -21,7 +21,6 @@
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL?=	kernel
-KODIR?=		/modules
 STD8X16FONT?=	iso
 
 .if !defined(S)
@@ -238,7 +237,7 @@ install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
 .endif
 
-MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules
 .if defined(MODULES_OVERRIDE)
 MKMODULESENV+=	MODULES_OVERRIDE="${MODULES_OVERRIDE}"
 .endif
