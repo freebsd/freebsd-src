@@ -234,6 +234,7 @@ struct atapi {                          /* ATAPI controller data */
 	u_char           cmd16 : 1;     /* 16-byte command flag */
 	u_char           intrcmd : 1;   /* interrupt before cmd flag */
 	u_char           slow : 1;      /* slow reaction device */
+	u_char           accel : 1;     /* accelerated device */
 	u_char           attached[2];   /* units are attached to subdrivers */
 	struct atapi_params *params[2]; /* params for units 0,1 */
 	struct atapicmd *queue;         /* queue of commands to perform */

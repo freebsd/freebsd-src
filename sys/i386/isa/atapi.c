@@ -218,12 +218,21 @@ int atapi_attach (int ctlr, int unit, int port)
 	switch (ap->drqtype) {
 	case AT_DRQT_MPROC: ata->slow = 1; break;
 	case AT_DRQT_INTR:  printf (", intr"); ata->intrcmd = 1; break;
-	case AT_DRQT_ACCEL: printf (", accel"); break;
+	case AT_DRQT_ACCEL: printf (", accel"); ata->accel = 1; break;
 	default:            printf (", drq%d", ap->drqtype);
 	}
 	/* When 'slow' is set, clear 'intrcmd' */
 	if (ata->slow)
 		ata->intrcmd = 0;
+
+	/*
+	 * If we have two devices, one supporting INTR and one ACCEL, we
+	 * have to pessimise - clear INTR and set slow.
+	 */
+	if (ata->accel && ata->intrcmd) {
+	ata->intrcmd = 0;
+	ata->slow=1;
+	}
 
 	/* overlap operation supported */
 	if (ap->ovlapflag)
