@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 MAN=	assert.3 bitstring.3 end.3 fpgetround.3 intro.3 pthread.3 queue.3 \
-	stdarg.3 sysexits.3
+	stdarg.3 sysexits.3 timeradd.3
 MLINKS+=bitstring.3 bit_alloc.3 bitstring.3 bit_clear.3 \
 	bitstring.3 bit_decl.3 bitstring.3 bit_ffc.3 bitstring.3 bit_ffs.3 \
 	bitstring.3 bit_nclear.3 bitstring.3 bit_nset.3 bitstring.3 bit_set.3 \
@@ -70,5 +70,7 @@ MLINKS+=queue.3 TAILQ_REMOVE.3
 
 MLINKS+=stdarg.3 varargs.3 stdarg.3 va_arg.3 stdarg.3 va_end.3
 MLINKS+=stdarg.3 va_start.3
+
+MLINKS+=timeradd.3 timersub.3 timerclear.3 timerisset.3 timercmp.3
 
 .include <bsd.prog.mk>
