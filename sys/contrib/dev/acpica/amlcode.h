@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 69 $
+ *       $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -563,7 +563,6 @@ typedef enum
 #define METHOD_FLAGS_ARG_COUNT      0x07
 #define METHOD_FLAGS_SERIALIZED     0x08
 #define METHOD_FLAGS_SYNCH_LEVEL    0xF0
-
 
 
 #endif /* __AMLCODE_H__ */

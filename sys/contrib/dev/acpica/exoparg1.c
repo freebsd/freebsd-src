@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 141 $
+ *              $Revision: 142 $
  *
  *****************************************************************************/
 
@@ -304,7 +304,6 @@ AcpiExOpcode_1A_1T_1R (
 
 
     ACPI_FUNCTION_TRACE_STR ("ExOpcode_1A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
-
 
 
     /* Examine the AML opcode */
@@ -894,8 +893,8 @@ AcpiExOpcode_1A_0T_1R (
                  * 2) Dereference the node to an actual object.  Could be a Field, so we nee
                  *    to resolve the node to a value.
                  */
-                Status = AcpiNsGetNodeByPath (Operand[0]->String.Pointer, 
-                                WalkState->ScopeInfo->Scope.Node, ACPI_NS_SEARCH_PARENT, 
+                Status = AcpiNsGetNodeByPath (Operand[0]->String.Pointer,
+                                WalkState->ScopeInfo->Scope.Node, ACPI_NS_SEARCH_PARENT,
                                 ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ReturnDesc));
                 if (ACPI_FAILURE (Status))
                 {
@@ -946,7 +945,7 @@ AcpiExOpcode_1A_0T_1R (
                     TempDesc = Operand[0]->Reference.Object;
 
                     /*
-                     * Create a new object that contains one element of the 
+                     * Create a new object that contains one element of the
                      * buffer -- the element pointed to by the index.
                      *
                      * NOTE: index into a buffer is NOT a pointer to a
@@ -973,7 +972,7 @@ AcpiExOpcode_1A_0T_1R (
                 case ACPI_TYPE_PACKAGE:
 
                     /*
-                     * Return the referenced element of the package.  We must add 
+                     * Return the referenced element of the package.  We must add
                      * another reference to the referenced object, however.
                      */
                     ReturnDesc = *(Operand[0]->Reference.Where);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmwalk - AML disassembly tree walk
- *              $Revision: 6 $
+ *              $Revision: 8 $
  *
  ******************************************************************************/
 
@@ -124,12 +124,11 @@
 
 #ifdef ACPI_DISASSEMBLER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmwalk")
 
 
 #define DB_FULL_OP_INFO     "%5.5X #%4.4hX "
-
 
 
 /*******************************************************************************
@@ -421,7 +420,7 @@ AcpiDmListType (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: First visitation of a parse object during tree descent.  
+ * DESCRIPTION: First visitation of a parse object during tree descent.
  *              Decode opcode name and begin parameter list(s), if any.
  *
  ******************************************************************************/
@@ -483,7 +482,7 @@ AcpiDmDescendingOp (
      */
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
 
-    if ((OpInfo->Flags & AML_HAS_ARGS) || 
+    if ((OpInfo->Flags & AML_HAS_ARGS) ||
         (Op->Common.AmlOpcode == AML_EVENT_OP))
     {
         /* This opcode has an argument list */
@@ -680,7 +679,7 @@ AcpiDmDescendingOp (
             if (Op->Common.DisasmOpcode == ACPI_DASM_RESOURCE)
             {
                 /*
-                 * We have a resource list.  Don't need to output 
+                 * We have a resource list.  Don't need to output
                  * the buffer size Op.  Open up a new block
                  */
                 NextOp->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;

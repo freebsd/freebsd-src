@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utinit - Common ACPI subsystem initialization
- *              $Revision: 112 $
+ *              $Revision: 113 $
  *
  *****************************************************************************/
 
@@ -301,13 +301,13 @@ AcpiUtSubsystemShutdown (void)
     AcpiGbl_Shutdown = TRUE;
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Shutting down ACPI Subsystem...\n"));
 
-    /* Close the Namespace */
-
-    AcpiNsTerminate ();
-
     /* Close the AcpiEvent Handling */
 
     AcpiEvTerminate ();
+
+    /* Close the Namespace */
+
+    AcpiNsTerminate ();
 
     /* Close the globals */
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmutils - AML disassembler utilities
- *              $Revision: 2 $
+ *              $Revision: 4 $
  *
  ******************************************************************************/
 
@@ -122,10 +122,8 @@
 
 #ifdef ACPI_DISASSEMBLER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmutils")
-
-
 
 
 /* Data used in keeping track of fields */
@@ -399,7 +397,6 @@ AcpiDmCommaIfFieldMember (
         AcpiOsPrintf (", ");
     }
 }
-
 
 
 #endif

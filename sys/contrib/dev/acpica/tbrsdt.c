@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbrsdt - ACPI RSDT table utilities
- *              $Revision: 2 $
+ *              $Revision: 3 $
  *
  *****************************************************************************/
 
@@ -166,7 +166,7 @@ AcpiTbVerifyRsdp (
             return_ACPI_STATUS (Status);
         }
         break;
-    
+
     default:
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
@@ -346,7 +346,7 @@ AcpiTbGetTableRsdt (
 {
     ACPI_TABLE_DESC         TableInfo;
     ACPI_STATUS             Status;
-    ACPI_POINTER            Address; 
+    ACPI_POINTER            Address;
 
 
     ACPI_FUNCTION_TRACE ("TbGetTableRsdt");

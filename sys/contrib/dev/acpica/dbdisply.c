@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 76 $
+ *              $Revision: 78 $
  *
  ******************************************************************************/
 
@@ -124,10 +124,10 @@
 #include "acdebug.h"
 
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbdisply")
 
 
@@ -453,9 +453,9 @@ AcpiDbDecodeInternalObject (
         }
         break;
 
-    
+
     default:
-        
+
         AcpiOsPrintf ("%p", ObjDesc);
         break;
     }
@@ -619,7 +619,7 @@ AcpiDbDisplayInternalObject (
 
             default:
 
-                AcpiOsPrintf ("Unknown Reference opcode %X\n", 
+                AcpiOsPrintf ("Unknown Reference opcode %X\n",
                     ObjDesc->Reference.Opcode);
                 break;
             }
@@ -998,5 +998,5 @@ AcpiDbDisplayArgumentObject (
     AcpiDbDisplayInternalObject (ObjDesc, WalkState);
 }
 
-#endif /* ENABLE_DEBUGGER */
+#endif /* ACPI_DEBUGGER */
 

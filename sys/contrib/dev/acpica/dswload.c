@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 69 $
+ *              $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -404,7 +404,7 @@ AcpiDsLoad2BeginOp (
     NATIVE_CHAR             *BufferPtr;
 
 
-    ACPI_FUNCTION_NAME ("DsLoad2BeginOp");
+    ACPI_FUNCTION_TRACE ("DsLoad2BeginOp");
 
 
     Op = WalkState->Op;
@@ -417,7 +417,7 @@ AcpiDsLoad2BeginOp (
         if ((!(WalkState->OpInfo->Flags & AML_NSOPCODE) && (WalkState->Opcode != AML_INT_NAMEPATH_OP)) ||
             (!(WalkState->OpInfo->Flags & AML_NAMED)))
         {
-            return (AE_OK);
+            return_ACPI_STATUS (AE_OK);
         }
 
         /*
@@ -432,7 +432,7 @@ AcpiDsLoad2BeginOp (
             {
                 /* No name, just exit */
 
-                return (AE_OK);
+                return_ACPI_STATUS (AE_OK);
             }
         }
         else
@@ -488,11 +488,11 @@ AcpiDsLoad2BeginOp (
                 Status = AcpiDsScopeStackPush (Node, ObjectType, WalkState);
                 if (ACPI_FAILURE (Status))
                 {
-                    return (Status);
+                    return_ACPI_STATUS (Status);
                 }
 
             }
-            return (AE_OK);
+            return_ACPI_STATUS (AE_OK);
         }
 
         /*
@@ -513,7 +513,7 @@ AcpiDsLoad2BeginOp (
             Op = AcpiPsAllocOp (WalkState->Opcode);
             if (!Op)
             {
-                return (AE_NO_MEMORY);
+                return_ACPI_STATUS (AE_NO_MEMORY);
             }
 
             /* Initialize the new op */
@@ -535,7 +535,7 @@ AcpiDsLoad2BeginOp (
         Op->Common.Node = Node;
     }
 
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -569,7 +569,7 @@ AcpiDsLoad2EndOp (
 #endif
 
 
-    ACPI_FUNCTION_NAME ("DsLoad2EndOp");
+    ACPI_FUNCTION_TRACE ("DsLoad2EndOp");
 
     Op = WalkState->Op;
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Opcode [%s] Op %p State %p\n",
@@ -579,7 +579,7 @@ AcpiDsLoad2EndOp (
 
     if (!(WalkState->OpInfo->Flags & AML_NSOBJECT))
     {
-        return (AE_OK);
+        return_ACPI_STATUS (AE_OK);
     }
 
     if (Op->Common.AmlOpcode == AML_SCOPE_OP)
@@ -606,7 +606,7 @@ AcpiDsLoad2EndOp (
 
     /* Pop the scope stack */
 
-    if (AcpiNsOpensScope (ObjectType))
+    if (AcpiNsOpensScope (ObjectType) && (Op->Common.AmlOpcode != AML_INT_METHODCALL_OP))
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "(%s) Popping scope for Op %p\n",
             AcpiUtGetTypeName (ObjectType), Op));
@@ -614,7 +614,7 @@ AcpiDsLoad2EndOp (
         Status = AcpiDsScopeStackPop (WalkState);
         if (ACPI_FAILURE (Status))
         {
-            return (Status);
+            return_ACPI_STATUS (Status);
         }
     }
 
@@ -871,7 +871,7 @@ Cleanup:
 
     WalkState->Operands[0] = NULL;
     WalkState->NumOperands = 0;
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 

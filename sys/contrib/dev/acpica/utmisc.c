@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 78 $
+ *              $Revision: 80 $
  *
  ******************************************************************************/
 
@@ -201,8 +201,7 @@ AcpiUtSetIntegerWidth (
 }
 
 
-
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtDisplayInitPathname

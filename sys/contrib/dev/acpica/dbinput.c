@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 86 $
+ *              $Revision: 87 $
  *
  ******************************************************************************/
 
@@ -119,9 +119,9 @@
 #include "acdebug.h"
 
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dbinput")
 
 
@@ -980,5 +980,5 @@ AcpiDbUserCommands (
 }
 
 
-#endif  /* ENABLE_DEBUGGER */
+#endif  /* ACPI_DEBUGGER */
 
