@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.9 1995/02/16 14:47:38 bde Exp $
+ * $Id: ufs_disksubr.c,v 1.10 1995/02/22 22:46:48 bde Exp $
  */
 
 #include <sys/param.h>
@@ -629,7 +629,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 		pr = addlog;
 	} else
 		pr = printf;
-	sname = dsname("", unit, slice, part, partname);
+	sname = dsname(dname, unit, slice, part, partname);
 	(*pr)("%s%s: %s %sing fsbn ", sname, partname, what,
 	      bp->b_flags & B_READ ? "read" : "writ");
 	sn = bp->b_blkno;
