@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.9 1996/10/03 06:14:48 peter Exp $
+ *	$Id: imgact_elf.c,v 1.10 1996/10/16 17:51:05 sos Exp $
  */
 
 #include <sys/param.h>
@@ -674,7 +674,7 @@ exec_elf_imgact(struct image_params *imgp)
                 }
 	}
 
-	uprintf("Executing %s binary\n", elf_brand_list[i]->brand);
+	UPRINTF("Executing %s binary\n", elf_brand_list[i]->brand);
 
 	/*
 	 * Construct auxargs table (used by the fixup routine)
