@@ -177,6 +177,7 @@ void	u_sleep			__P((int));
 /* global data in init_smp.c */
 extern int			invltlb_ok;
 extern int			smp_active;
+extern int			smp_started;
 extern volatile int		smp_idle_loops;
 
 #endif /* !LOCORE */
