@@ -25,7 +25,7 @@
   */
 
 #ifndef lint
-static char rcsid[] = "$Id: tc-i386.c,v 1.3 1993/10/27 00:14:50 pk Exp $";
+static char rcsid[] = "$Id: tc-i386.c,v 1.1 1993/11/03 00:54:23 paul Exp $";
 #endif
 
 #include "as.h"
@@ -1191,30 +1191,35 @@ char *line;
 			 * Remember # of opcode bytes to put in pcrel_adjust
 			 * for use in _GLOBAL_OFFSET_TABLE_ expressions.
 			 */
-			long opoffset = 0;
-			if (flagseen['k'])
-				opoffset = obstack_next_free(&frags) - frag_now->fr_literal;
+			int	nopbytes = 0;
 #endif
 			
 			/* First the prefix bytes. */
 			for (q = i.prefix; q < i.prefix + i.prefixes; q++) {
 				p =  frag_more (1);
+				nopbytes += 1;
 				md_number_to_chars (p, (unsigned int) *q, 1);
 			}
 			
 			/* Now the opcode; be careful about word order here! */
 			if (fits_in_unsigned_byte(t->base_opcode)) {
+				nopbytes += 1;
 				FRAG_APPEND_1_CHAR (t->base_opcode);
 			} else if (fits_in_unsigned_word(t->base_opcode)) {
 				p =  frag_more (2);
+				nopbytes += 2;
 				/* put out high byte first: can't use md_number_to_chars! */
 				*p++ = (t->base_opcode >> 8) & 0xff;
 				*p = t->base_opcode & 0xff;
 			} else {			/* opcode is either 3 or 4 bytes */
 				if (t->base_opcode & 0xff000000) {
 					p = frag_more (4);
+					nopbytes += 4;
 					*p++ = (t->base_opcode >> 24) & 0xff;
-				} else p = frag_more (3);
+				} else {
+					p = frag_more (3);
+					nopbytes += 3;
+				}
 				*p++ = (t->base_opcode >> 16) & 0xff;
 				*p++ = (t->base_opcode >>  8) & 0xff;
 				*p =   (t->base_opcode      ) & 0xff;
@@ -1223,20 +1228,18 @@ char *line;
 			/* Now the modrm byte and base index byte (if present). */
 			if (t->opcode_modifier & Modrm) {
 				p =  frag_more (1);
+				nopbytes += 1;
 				/* md_number_to_chars (p, i.rm, 1); */
 				md_number_to_chars (p, (i.rm.regmem<<0 | i.rm.reg<<3 | i.rm.mode<<6), 1);
 				/* If i.rm.regmem == ESP (4) && i.rm.mode != Mode 3 (Register mode)
 				   ==> need second modrm byte. */
 				if (i.rm.regmem == ESCAPE_TO_TWO_BYTE_ADDRESSING && i.rm.mode != 3) {
 					p =  frag_more (1);
+					nopbytes += 1;
 					/* md_number_to_chars (p, i.bi, 1); */
 					md_number_to_chars (p,(i.bi.base<<0 | i.bi.index<<3 | i.bi.scale<<6), 1);
 				}
 			}
-#ifdef PIC
-			if (flagseen['k'])
-				opoffset = obstack_next_free(&frags) - frag_now->fr_literal - opoffset;
-#endif
 			
 			if (i.disp_operands) {
 				register unsigned int n;
@@ -1264,8 +1267,7 @@ char *line;
 								 i.disps[n]->X_add_number, 0, i.disp_reloc[n], i.disps[n]->X_got_symbol);
 #ifdef PIC
 							if (i.disps[n]->X_got_symbol) {
-								fixP->fx_pcrel_adjust = opoffset;
-								opoffset = 0;
+								fixP->fx_pcrel_adjust = nopbytes;
 							}
 #endif
 						}
@@ -1307,8 +1309,7 @@ char *line;
 								 i.imms[n]->X_add_number, 0, NO_RELOC, i.imms[n]->X_got_symbol);
 #ifdef PIC
 							if (i.imms[n]->X_got_symbol) {
-								fixP->fx_pcrel_adjust = opoffset;
-								opoffset = 0;
+								fixP->fx_pcrel_adjust = nopbytes;
 							}
 #endif
 						}
@@ -1615,13 +1616,13 @@ char *operand_string;
 					strcat(tmpbuf, cp+1+3);
 					*cp = '@';
 				} else if (strncmp(cp+1, "GOTOFF", 6) == 0) {
-					i.disp_reloc[this_operand] = RELOC_GLOB_DAT;
+					i.disp_reloc[this_operand] = RELOC_GOTOFF;
 					*cp = '\0';
 					strcpy(tmpbuf, input_line_pointer);
 					strcat(tmpbuf, cp+1+6);
 					*cp = '@';
 				} else if (strncmp(cp+1, "GOT", 3) == 0) {
-					i.disp_reloc[this_operand] = RELOC_GLOB_DAT;
+					i.disp_reloc[this_operand] = RELOC_GOT;
 					*cp = '\0';
 					strcpy(tmpbuf, input_line_pointer);
 					strcat(tmpbuf, cp+1+3);
@@ -1634,7 +1635,7 @@ char *operand_string;
 #endif
 			exp_seg = expression(exp);
 #ifdef PIC
-			if (i.disp_reloc[this_operand] == RELOC_GLOB_DAT)
+			if (i.disp_reloc[this_operand] == RELOC_GOTOFF)
 				exp->X_add_symbol->sy_forceout = 1;
 #endif
 			if (*input_line_pointer)
@@ -2044,11 +2045,20 @@ relax_addressT segment_address_in_file;
 		r_symbolnum = fixP->fx_addsy->sy_number;
 		extrn_bit = 1;
 		break;
-	case RELOC_GLOB_DAT:
+	case RELOC_GOT:
 		extra_bits = (1 << 4) & 0x10; /* r_baserel */
 		r_symbolnum = fixP->fx_addsy->sy_number;
-		if (S_IS_EXTERNAL(fixP->fx_addsy))
-			extrn_bit = 1;
+		if (!extrn_bit && !S_IS_EXTERNAL(fixP->fx_addsy))
+			as_warn("GOT relocation burb: `%s' should be global",
+					S_GET_NAME(fixP->fx_addsy));
+		extrn_bit = 1;
+		break;
+	case RELOC_GOTOFF:
+		extra_bits = (1 << 4) & 0x10; /* r_baserel */
+		r_symbolnum = fixP->fx_addsy->sy_number;
+		if (extrn_bit || S_IS_EXTERNAL(fixP->fx_addsy))
+			as_warn("GOT relocation burb: `%s' should be static",
+					S_GET_NAME(fixP->fx_addsy));
 		break;
 	case RELOC_JMP_TBL:
 		extra_bits = (1 << 5) & 0x20; /* r_jmptable */

@@ -17,7 +17,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: struc-symbol.h,v 1.4 1993/10/02 20:57:53 pk Exp $
+ * $Id: struc-symbol.h,v 1.2 1993/11/03 00:52:18 paul Exp $
  */
 
 
@@ -47,7 +47,12 @@ struct symbol			/* our version of an nlist node */
 	int	sy_forceout;
 #endif
 	/* Size of symbol as given by the .size directive */
-	int	sy_size;
+	void 	*sy_sizexp;	/* (expressionS *) */
+
+	/* Auxiliary type information as given by the .type directive */
+	int	sy_aux;
+#define AUX_OBJECT	1
+#define AUX_FUNC	2
 };
 
 typedef struct symbol symbolS;

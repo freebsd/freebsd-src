@@ -17,7 +17,7 @@
    License along with GAS; see the file COPYING.  If not, write
    to the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA. */
 /*
- * $Id: obj-aout.h,v 1.1 1993/10/02 20:58:55 pk Exp $
+ * $Id: obj-aout.h,v 1.1 1993/11/03 00:53:50 paul Exp $
  */
 
 
@@ -38,6 +38,9 @@ extern const segT  N_TYPE_seg[];
 #ifndef DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE
 #define DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE	(OMAGIC)
 #endif /* DEFAULT_MAGIC_NUMBER_FOR_OBJECT_FILE */
+
+/* First character of operand in `.type' directives */
+#define TYPE_OPERAND_FMT	'@'
 
 /* SYMBOL TABLE */
 /* Symbol table entry data type */

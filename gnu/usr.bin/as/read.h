@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: read.h,v 1.3 1993/10/02 20:57:53 pk Exp $
+ * $Id: read.h,v 1.2 1993/11/03 00:52:16 paul Exp $
  */
 
 
@@ -95,6 +95,7 @@ void s_set(void);
 void s_size(void);
 void s_space(void);
 void s_text(void);
+void s_type(void);
 
 #else /* not __STDC__ */
 
@@ -134,6 +135,7 @@ void s_set();
 void s_size();
 void s_space();
 void s_text();
+void s_type();
 
 #endif /* not __STDC__ */
 
