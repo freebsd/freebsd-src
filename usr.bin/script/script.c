@@ -210,7 +210,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: script [-a] [-q] [-k] [-t time] [file] [command]\n");
+	    "usage: script [-akq] [-t time] [file [command ...]]\n");
 	exit(1);
 }
 
