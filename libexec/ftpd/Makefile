@@ -19,7 +19,7 @@ DPADD+=	${LIBOPIE}
 
 LSDIR=	../../bin/ls
 .PATH:	${.CURDIR}/${LSDIR}
-SRCS+=	ls.c cmp.c print.c util.c
+SRCS+=	ls.c cmp.c print.c util.c lomac.c
 CFLAGS+=-Dmain=ls_main -I${.CURDIR}/${LSDIR}
 
 .if !defined(NOPAM)
