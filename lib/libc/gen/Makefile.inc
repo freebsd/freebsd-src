@@ -17,7 +17,7 @@ SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c ctermid.c \
 	sigsetjmp.c sigsetops.c sleep.c sysconf.c sysctl.c syslog.c \
 	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
 	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
-	wait3.c waitpid.c 
+	wait3.c waitpid.c getvfsent.c
 
 # machine-dependent gen sources
 .include "${.CURDIR}/${MACHINE}/gen/Makefile.inc"
