@@ -90,7 +90,7 @@ ufs_inactive(ap)
 		(void) vn_write_suspend_wait(vp, NULL, V_WAIT);
 #ifdef QUOTA
 		if (!getinoquota(ip))
-			(void)chkiq(ip, -1, NOCRED, 0);
+			(void)chkiq(ip, -1, NOCRED, FORCE);
 #endif
 #ifdef UFS_EXTATTR
 		ufs_extattr_vnode_inactive(ap->a_vp, ap->a_td);
