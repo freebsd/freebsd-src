@@ -58,7 +58,7 @@
 /* Global variables for the kernel. */
 
 /* 1.1 */
-extern long hostid;
+extern unsigned long hostid;
 extern char hostname[MAXHOSTNAMELEN];
 extern int hostnamelen;
 extern char domainname[MAXHOSTNAMELEN];
