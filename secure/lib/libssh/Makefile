@@ -1,8 +1,6 @@
 # $FreeBSD$
 #
 
-SSHSRC=	${.CURDIR}/../../../crypto/openssh
-
 LIB=	ssh
 SRCS=   authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
 	cipher.c compat.c compress.c crc32.c deattack.c \
@@ -11,18 +9,13 @@ SRCS=   authfd.c authfile.c bufaux.c buffer.c canohost.c channels.c \
 	key.c dispatch.c dsa.c kex.c hmac.c uuencode.c util.c \
 	cli.c rijndael.c
 
-NOPIC=	yes
-
-install:
+NOPIC=		yes
+INTERNALLIB=	yes
+INTERNALSTATICLIB=	yes
 
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
-
-.include <bsd.own.mk>
-
-.PATH:		${SSHSRC}
-.PATH:		${SSHSRC}/lib
 
 .if defined(MAKE_KERBEROS4) && \
 	((${MAKE_KERBEROS4} == "yes") || (${MAKE_KERBEROS4} == "YES"))
@@ -38,4 +31,7 @@ CFLAGS+= -DSKEY
 DPADD+=	${LIBOPIE}
 LDADD+= -lopie
 SRCS+=	auth-skey.c auth2-skey.c
+
 .include <bsd.lib.mk>
+
+.PATH:	${SSHDIR} ${SSHDIR}/lib

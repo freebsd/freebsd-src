@@ -1,4 +1,5 @@
 #	$FreeBSD$
 
-BINDIR=	/usr/libexec
+BINDIR?=	/usr/libexec
+
 .include "${.CURDIR}/../../Makefile.inc"
