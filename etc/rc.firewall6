@@ -115,9 +115,9 @@ case ${ipv6_firewall_type} in
 	#
 	# This needs more work
 	#
-	net="3ffe:505:2:1::"
+	net="2001:db8:2:1::"
 	prefixlen="64"
-	ip="3ffe:505:2:1::1"
+	ip="2001:db8:2:1::1"
 
 	setup_local
 
@@ -172,15 +172,15 @@ case ${ipv6_firewall_type} in
 
 	# set these to your outside interface network and prefixlen and ip
 	oif="ed0"
-	onet="3ffe:505:2:1::"
+	onet="2001:db8:2:1::"
 	oprefixlen="64"
-	oip="3ffe:505:2:1::1"
+	oip="2001:db8:2:1::1"
 
 	# set these to your inside interface network and prefixlen and ip
 	iif="ed1"
-	inet="3ffe:505:2:2::"
+	inet="2001:db8:2:2::"
 	iprefixlen="64"
-	iip="3ffe:505:2:2::1"
+	iip="2001:db8:2:2::1"
 
 	setup_local
 

@@ -42,8 +42,8 @@ ALL : my.machine.example.com 192.0.2.35 : allow
 # To use IPv6 addresses you must enclose them in []'s
 ALL : [fe80::%fxp0]/10 : allow
 ALL : [fe80::]/10 : deny
-ALL : [3ffe:fffe:2:1:2:3:4:3fe1] : deny
-ALL : [3ffe:fffe:2:1::]/64 : allow
+ALL : [2001:db8:2:1:2:3:4:3fe1] : deny
+ALL : [2001:db8:2:1::]/64 : allow
 
 # Sendmail can help protect you against spammers and relay-rapers
 sendmail : localhost : allow
