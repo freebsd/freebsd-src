@@ -1,10 +1,10 @@
 /*
  * sound/sound_switch.c
- *
+ * 
  * The system call switch
- *
+ * 
  * Copyright by Hannu Savolainen 1993
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met: 1. Redistributions of source code must retain the above copyright
@@ -12,7 +12,7 @@
  * Redistributions in binary form must reproduce the above copyright notice,
  * this list of conditions and the following disclaimer in the documentation
  * and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -24,27 +24,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
+ * 
  */
 
 #include <i386/isa/sound/sound_config.h>
 
-#ifdef CONFIGURE_SOUNDCARD
+#if NSND > 0
 
-struct sbc_device
-  {
-    int             usecount;
-  };
-
-static struct sbc_device sbc_devices[SND_NDEVS] =
-{
-  {0}};
-
-static int      in_use = 0;	/*
-
-
-				 * *  * * Total # of open device files
-				 * (excluding * * * minor 0)   */
+#define	SNDSTAT_BUF_SIZE	4000
 
 /*
  * /dev/sndstatus -device
@@ -54,491 +41,459 @@ static int      status_len, status_ptr;
 static int      status_busy = 0;
 
 static int
-put_status (char *s)
+put_status(char *s)
 {
-  int             l;
+    int             l = strlen(s);
 
-  for (l = 0; l < 256, s[l]; l++);	/*
-					 * l=strlen(s);
-					 */
+    if (status_len + l >= SNDSTAT_BUF_SIZE)
+	return 0;
 
-  if (status_len + l >= 4000)
-    return 0;
+    bcopy(s, &status_buf[status_len], l);
+    status_len += l;
 
-  memcpy (&status_buf[status_len], s, l);
-  status_len += l;
-
-  return 1;
+    return 1;
 }
 
+/*
+ * in principle, we never overflow the buffer. But... if radix=2 ...
+ * and if smaller... lr970711
+ */
+
 static int
-put_status_int (unsigned int val, int radix)
+put_status_int(u_int val, int radix)
 {
-  int             l, v;
+    int             l, v;
+    static char     hx[] = "0123456789abcdef";
+    char            buf[33]; /* int is 32 bit+null, in base 2 */
 
-  static char     hx[] = "0123456789abcdef";
-  char            buf[11];
+    if (radix < 2 || radix > 16)	/* better than panic */
+	return put_status("???");
 
-  if (!val)
-    return put_status ("0");
+    if (!val)
+	return put_status("0");
 
-  l = 0;
-  buf[10] = 0;
+    l = 0;
+    buf[10] = 0;
 
-  while (val)
-    {
-      v = val % radix;
-      val = val / radix;
+    while (val) {
+	v = val % radix;
+	val = val / radix;
 
-      buf[9 - l] = hx[v];
-      l++;
+	buf[9 - l] = hx[v];
+	l++;
     }
 
-  if (status_len + l >= 4000)
-    return 0;
+    if (status_len + l >= SNDSTAT_BUF_SIZE)
+	return 0;
 
-  memcpy (&status_buf[status_len], &buf[10 - l], l);
-  status_len += l;
+    bcopy(&buf[10 - l], &status_buf[status_len], l);
+    status_len += l;
 
-  return 1;
+    return 1;
 }
 
 static void
-init_status (void)
+init_status(void)
 {
-  /*
-   * Write the status information to the status_buf and update status_len.
-   * There is a limit of 4000 bytes for the data.
-   */
+    /*
+     * Write the status information to the status_buf and update
+     * status_len. There is a limit of SNDSTAT_BUF_SIZE bytes for the data.
+     * put_status handles this and returns 0 in case of failure. Since
+     * it never oveflows the buffer, we do not care to check.
+     */
 
-  int             i;
+    int             i;
 
-  status_ptr = 0;
+    status_ptr = 0;
 
-  put_status ("VoxWare Sound Driver:" SOUND_VERSION_STRING
-	      " (" SOUND_CONFIG_DATE " " SOUND_CONFIG_BY "@"
-	      SOUND_CONFIG_HOST "." SOUND_CONFIG_DOMAIN ")"
-	      "\n");
-
-  if (!put_status ("Config options: "))
-    return;
-  if (!put_status_int (SELECTED_SOUND_OPTIONS, 16))
-    return;
-
-  if (!put_status ("\n\nInstalled drivers: \n"))
-    return;
-
-  for (i = 0; i < (num_sound_drivers - 1); i++)
-    {
-      if (!put_status ("Type "))
-	return;
-      if (!put_status_int (sound_drivers[i].card_type, 10))
-	return;
-      if (!put_status (": "))
-	return;
-      if (!put_status (sound_drivers[i].name))
-	return;
-
-      if (!put_status ("\n"))
-	return;
-    }
-
-  if (!put_status ("\n\nCard config: \n"))
-    return;
-
-  for (i = 0; i < (num_sound_cards - 1); i++)
-    {
-      int             drv;
-
-      if (!snd_installed_cards[i].enabled)
-	if (!put_status ("("))
-	  return;
-
-      /*
-       * if (!put_status_int(snd_installed_cards[i].card_type, 10)) return;
-       * if (!put_status (": ")) return;
-       */
-
-      if ((drv = snd_find_driver (snd_installed_cards[i].card_type)) != -1)
-	if (!put_status (sound_drivers[drv].name))
-	  return;
-
-      if (!put_status (" at 0x"))
-	return;
-      if (!put_status_int (snd_installed_cards[i].config.io_base, 16))
-	return;
-      if (!put_status (" irq "))
-	return;
-      if (!put_status_int (snd_installed_cards[i].config.irq, 10))
-	return;
-#ifdef PC98
-      if (snd_installed_cards[i].config.dma >= 0) {
-#endif
-      if (!put_status (" drq "))
-	return;
-      if (!put_status_int (snd_installed_cards[i].config.dma, 10))
-	return;
-#ifdef PC98
-      }
-#endif
-
-      if (!snd_installed_cards[i].enabled)
-	if (!put_status (")"))
-	  return;
-
-      if (!put_status ("\n"))
-	return;
-    }
-
-#ifdef EXCLUDE_AUDIO
-  if (!put_status ("\nAudio devices: NOT ENABLED IN CONFIG\n"))
-    return;
+#ifdef SOUND_UNAME_A
+    put_status("VoxWare Sound Driver:" SOUND_VERSION_STRING
+	       " (" SOUND_CONFIG_DATE " " SOUND_CONFIG_BY ",\n"
+	       SOUND_UNAME_A ")\n");
 #else
-  if (!put_status ("\nAudio devices:\n"))
-    return;
-
-  for (i = 0; i < num_audiodevs; i++)
-    {
-      if (!put_status_int (i, 10))
-	return;
-      if (!put_status (": "))
-	return;
-      if (!put_status (audio_devs[i]->name))
-	return;
-      if (!put_status ("\n"))
-	return;
-    }
+    put_status("VoxWare Sound Driver:" SOUND_VERSION_STRING
+	       " (" SOUND_CONFIG_DATE " " SOUND_CONFIG_BY "@"
+	       SOUND_CONFIG_HOST "." SOUND_CONFIG_DOMAIN ")\n");
 #endif
 
-#ifdef EXCLUDE_SEQUENCER
-  if (!put_status ("\nSynth devices: NOT ENABLED IN CONFIG\n"))
-    return;
+    put_status("Config options: ") ;
+    /*   put_status_int(SELECTED_SOUND_OPTIONS, 16) ; */
+    put_status("\n\nInstalled drivers: \n") ;
+
+    for (i = 0; i < num_sound_drivers; i++)
+	if (sound_drivers[i].card_type != 0) {
+	    put_status("Type ") ;
+	    put_status_int(sound_drivers[i].card_type, 10);
+	    put_status(": ") ;
+	    put_status(sound_drivers[i].name) ;
+	    put_status("\n") ;
+	}
+    put_status("\n\nCard config: \n") ;
+
+    for (i = 0; i < num_sound_cards; i++)
+	if (snd_installed_cards[i].card_type != 0) {
+	    int             drv, tmp;
+
+	    if (!snd_installed_cards[i].enabled)
+		put_status("(") ;
+
+	    if ((drv = snd_find_driver(snd_installed_cards[i].card_type)) != -1)
+		put_status(sound_drivers[drv].name) ;
+
+	    put_status(" at 0x") ;
+	    put_status_int(snd_installed_cards[i].config.io_base, 16);
+
+	    put_status(" irq ") ;
+	    tmp = snd_installed_cards[i].config.irq;
+	    if (tmp < 0)
+		tmp = -tmp;
+	    put_status_int(tmp, 10) ;
+
+	    if (snd_installed_cards[i].config.dma != -1) {
+		put_status(" drq ") ;
+		put_status_int(snd_installed_cards[i].config.dma, 10) ;
+		if (snd_installed_cards[i].config.dma2 != -1) {
+		    put_status(",") ;
+		    put_status_int(snd_installed_cards[i].config.dma2, 10) ;
+		}
+	    }
+	    if (!snd_installed_cards[i].enabled)
+		put_status(")") ;
+
+	    put_status("\n") ;
+	}
+    if (!sound_started) {
+	put_status("\n\n***** Sound driver not started *****\n\n");
+	return;
+    }
+#ifndef CONFIG_AUDIO
+    put_status("\nAudio devices: NOT ENABLED IN CONFIG\n") ;
 #else
-  if (!put_status ("\nSynth devices:\n"))
-    return;
+    put_status("\nAudio devices:\n") ;
 
-  for (i = 0; i < num_synths; i++)
-    {
-      if (!put_status_int (i, 10))
-	return;
-      if (!put_status (": "))
-	return;
-      if (!put_status (synth_devs[i]->info->name))
-	return;
-      if (!put_status ("\n"))
-	return;
+    for (i = 0; i < num_audiodevs; i++) {
+	put_status_int(i, 10) ;
+	put_status(": ") ;
+	put_status(audio_devs[i]->name) ;
+
+	if (audio_devs[i]->flags & DMA_DUPLEX)
+	    put_status(" (DUPLEX)") ;
+
+	put_status("\n") ;
     }
 #endif
 
-#ifdef EXCLUDE_MIDI
-  if (!put_status ("\nMidi devices: NOT ENABLED IN CONFIG\n"))
-    return;
+#ifndef CONFIG_SEQUENCER
+    put_status("\nSynth devices: NOT ENABLED IN CONFIG\n");
 #else
-  if (!put_status ("\nMidi devices:\n"))
-    return;
+    put_status("\nSynth devices:\n") ;
 
-  for (i = 0; i < num_midis; i++)
-    {
-      if (!put_status_int (i, 10))
-	return;
-      if (!put_status (": "))
-	return;
-      if (!put_status (midi_devs[i]->info.name))
-	return;
-      if (!put_status ("\n"))
-	return;
+    for (i = 0; i < num_synths; i++) {
+	put_status_int(i, 10) ;
+	put_status(": ") ;
+	put_status(synth_devs[i]->info->name) ;
+	put_status("\n") ;
     }
 #endif
 
-  if (!put_status ("\nTimers:\n"))
-    return;
+#ifndef CONFIG_MIDI
+    put_status("\nMidi devices: NOT ENABLED IN CONFIG\n") ;
+#else
+    put_status("\nMidi devices:\n") ;
 
-  for (i = 0; i < num_sound_timers; i++)
-    {
-      if (!put_status_int (i, 10))
-	return;
-      if (!put_status (": "))
-	return;
-      if (!put_status (sound_timer_devs[i]->info.name))
-	return;
-      if (!put_status ("\n"))
-	return;
+    for (i = 0; i < num_midis; i++) {
+	put_status_int(i, 10) ;
+	put_status(": ") ;
+	put_status(midi_devs[i]->info.name) ;
+	put_status("\n") ;
+    }
+#endif
+
+    put_status("\nTimers:\n");
+
+    for (i = 0; i < num_sound_timers; i++) {
+	put_status_int(i, 10);
+	put_status(": ");
+	put_status(sound_timer_devs[i]->info.name);
+	put_status("\n");
     }
 
-  if (!put_status ("\nMixers:\n"))
-    return;
+    put_status("\nMixers:\n");
 
-  for (i = 0; i < num_mixers; i++)
-    {
-      if (!put_status_int (i, 10))
-	return;
-      if (!put_status (": "))
-	return;
-      if (!put_status (mixer_devs[i]->name))
-	return;
-      if (!put_status ("\n"))
-	return;
+    for (i = 0; i < num_mixers; i++) {
+	put_status_int(i, 10);
+	put_status(": ");
+	put_status(mixer_devs[i]->name);
+	put_status("\n");
     }
 }
 
 static int
-read_status (snd_rw_buf * buf, int count)
+read_status(snd_rw_buf * buf, int count)
 {
-  /*
-   * Return at most 'count' bytes from the status_buf.
-   */
-  int             l, c;
+    /*
+     * Return at most 'count' bytes from the status_buf.
+     */
+    int             l, c;
 
-  l = count;
-  c = status_len - status_ptr;
+    l = count;
+    c = status_len - status_ptr;
 
-  if (l > c)
-    l = c;
-  if (l <= 0)
-    return 0;
+    if (l > c)
+	l = c;
+    if (l <= 0)
+	return 0;
 
-  COPY_TO_USER (buf, 0, &status_buf[status_ptr], l);
-  status_ptr += l;
 
-  return l;
+    if (uiomove(&status_buf[status_ptr], l, buf)) {
+	printf("sb: Bad copyout()!\n");
+    };
+    status_ptr += l;
+
+    return l;
 }
 
 int
-sound_read_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
+sound_read_sw(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 {
-  DEB (printk ("sound_read_sw(dev=%d, count=%d)\n", dev, count));
+    DEB(printf("sound_read_sw(dev=%d, count=%d)\n", dev, count));
 
-  switch (dev & 0x0f)
-    {
+    switch (dev & 0x0f) {
     case SND_DEV_STATUS:
-      return read_status (buf, count);
-      break;
+	return read_status(buf, count);
+	break;
 
+#ifdef CONFIG_AUDIO
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
-      return audio_read (dev, file, buf, count);
-      break;
+	return audio_read(dev, file, buf, count);
+	break;
+#endif
 
+#ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-      return sequencer_read (dev, file, buf, count);
-      break;
+	return sequencer_read(dev, file, buf, count);
+	break;
+#endif
 
-#ifndef EXCLUDE_MIDI
+#ifdef CONFIG_MIDI
     case SND_DEV_MIDIN:
-      return MIDIbuf_read (dev, file, buf, count);
+	return MIDIbuf_read(dev, file, buf, count);
 #endif
 
     default:
-      printk ("Sound: Undefined minor device %d\n", dev);
+	printf("Sound: Undefined minor device %d\n", dev);
     }
 
-  return RET_ERROR (EPERM);
+    return -(EPERM);
 }
 
 int
-sound_write_sw (int dev, struct fileinfo *file, snd_rw_buf * buf, int count)
+sound_write_sw(int dev, struct fileinfo * file, snd_rw_buf * buf, int count)
 {
 
-  DEB (printk ("sound_write_sw(dev=%d, count=%d)\n", dev, count));
+    DEB(printf("sound_write_sw(dev=%d, count=%d)\n", dev, count));
 
-  switch (dev & 0x0f)
-    {
+    switch (dev & 0x0f) {
 
+#ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-      return sequencer_write (dev, file, buf, count);
-      break;
+	return sequencer_write(dev, file, buf, count);
+	break;
+#endif
 
+#ifdef CONFIG_AUDIO
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
-      return audio_write (dev, file, buf, count);
-      break;
+	return audio_write(dev, file, buf, count);
+	break;
+#endif
 
-#ifndef EXCLUDE_MIDI
+#ifdef CONFIG_MIDI
     case SND_DEV_MIDIN:
-      return MIDIbuf_write (dev, file, buf, count);
+	return MIDIbuf_write(dev, file, buf, count);
 #endif
 
     default:
-      return RET_ERROR (EPERM);
+	return -(EPERM);
     }
 
-  return count;
+    return count;
 }
 
 int
-sound_open_sw (int dev, struct fileinfo *file)
+sound_open_sw(int dev, struct fileinfo * file)
 {
-  int             retval;
+    int             retval;
 
-  DEB (printk ("sound_open_sw(dev=%d) : usecount=%d\n", dev, sbc_devices[dev].usecount));
+    DEB(printf("sound_open_sw(dev=%d)\n", dev));
 
-  if ((dev >= SND_NDEVS) || (dev < 0))
-    {
-      printk ("Invalid minor device %d\n", dev);
-      return RET_ERROR (ENXIO);
+    if ((dev >= SND_NDEVS) || (dev < 0)) {
+	printf("Invalid minor device %d\n", dev);
+	return -(ENXIO);
     }
-
-  switch (dev & 0x0f)
-    {
+    switch (dev & 0x0f) {
     case SND_DEV_STATUS:
-      if (status_busy)
-	return RET_ERROR (EBUSY);
-      status_busy = 1;
-      if ((status_buf = (char *) KERNEL_MALLOC (4000)) == NULL)
-	return RET_ERROR (EIO);
-      status_len = status_ptr = 0;
-      init_status ();
-      break;
+	if (status_busy)
+	    return -(EBUSY);
+	status_busy = 1;
+	if ((status_buf = (char *) malloc(SNDSTAT_BUF_SIZE, M_TEMP, M_WAITOK)) == NULL)
+	    return -(EIO);
+	status_len = status_ptr = 0;
+	init_status();
+	break;
 
     case SND_DEV_CTL:
-      return 0;
-      break;
+	return 0;
+	break;
 
+#ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-      if ((retval = sequencer_open (dev, file)) < 0)
-	return retval;
-      break;
-
-#ifndef EXCLUDE_MIDI
-    case SND_DEV_MIDIN:
-      if ((retval = MIDIbuf_open (dev, file)) < 0)
-	return retval;
-      break;
+	if ((retval = sequencer_open(dev, file)) < 0)
+	    return retval;
+	break;
 #endif
 
+#ifdef CONFIG_MIDI
+    case SND_DEV_MIDIN:
+	if ((retval = MIDIbuf_open(dev, file)) < 0)
+	    return retval;
+	break;
+#endif
+
+#ifdef CONFIG_AUDIO
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
-      if ((retval = audio_open (dev, file)) < 0)
-	return retval;
-      break;
+	if ((retval = audio_open(dev, file)) < 0)
+	    return retval;
+	break;
+#endif
 
     default:
-      printk ("Invalid minor device %d\n", dev);
-      return RET_ERROR (ENXIO);
+	printf("Invalid minor device %d\n", dev);
+	return -(ENXIO);
     }
 
-  sbc_devices[dev].usecount++;
-  in_use++;
-
-  return 0;
+    return 0;
 }
 
 void
-sound_release_sw (int dev, struct fileinfo *file)
+sound_release_sw(int dev, struct fileinfo * file)
 {
 
-  DEB (printk ("sound_release_sw(dev=%d)\n", dev));
+    DEB(printf("sound_release_sw(dev=%d)\n", dev));
 
-  switch (dev & 0x0f)
-    {
+    switch (dev & 0x0f) {
     case SND_DEV_STATUS:
-      if (status_buf)
-	KERNEL_FREE (status_buf);
-      status_buf = NULL;
-      status_busy = 0;
-      break;
+	if (status_buf)
+	    free(status_buf, M_TEMP);
+	status_buf = NULL;
+	status_busy = 0;
+	break;
 
     case SND_DEV_CTL:
-      break;
+	break;
 
+#ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-      sequencer_release (dev, file);
-      break;
-
-#ifndef EXCLUDE_MIDI
-    case SND_DEV_MIDIN:
-      MIDIbuf_release (dev, file);
-      break;
+	sequencer_release(dev, file);
+	break;
 #endif
 
+#ifdef CONFIG_MIDI
+    case SND_DEV_MIDIN:
+	MIDIbuf_release(dev, file);
+	break;
+#endif
+
+#ifdef CONFIG_AUDIO
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
-      audio_release (dev, file);
-      break;
+	audio_release(dev, file);
+	break;
+#endif
 
     default:
-      printk ("Sound error: Releasing unknown device 0x%02x\n", dev);
+	printf("Sound error: Releasing unknown device 0x%02x\n", dev);
     }
-
-  sbc_devices[dev].usecount--;
-  in_use--;
 }
 
 int
-sound_ioctl_sw (int dev, struct fileinfo *file,
-		unsigned int cmd, unsigned long arg)
+sound_ioctl_sw(int dev, struct fileinfo * file, u_int cmd, ioctl_arg arg)
 {
-  DEB (printk ("sound_ioctl_sw(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
+    DEB(printf("sound_ioctl_sw(dev=%d, cmd=0x%x, arg=0x%x)\n", dev, cmd, arg));
 
-  if ((cmd >> 8) & 0xff == 'M' && num_mixers > 0)	/* Mixer ioctl */
-    if ((dev & 0x0f) != SND_DEV_CTL)
-      {
-	int             dtype = dev & 0x0f;
-	int             mixdev;
+    if (((cmd >> 8) & 0xff) == 'M' && num_mixers > 0)	/* Mixer ioctl */
+	if ((dev & 0x0f) != SND_DEV_CTL) {
+	    int             dtype = dev & 0x0f;
+	    int             mixdev;
 
-	switch (dtype)
-	  {
-	  case SND_DEV_DSP:
-	  case SND_DEV_DSP16:
-	  case SND_DEV_AUDIO:
-	    mixdev = audio_devs[dev >> 4]->mixer_dev;
-	    if (mixdev < 0 || mixdev >= num_mixers)
-	      return RET_ERROR (ENXIO);
-	    return mixer_devs[mixdev]->ioctl (mixdev, cmd, arg);
-	    break;
+	    switch (dtype) {
+#ifdef CONFIG_AUDIO
+	    case SND_DEV_DSP:
+	    case SND_DEV_DSP16:
+	    case SND_DEV_AUDIO:
+		mixdev = audio_devs[dev >> 4]->mixer_dev;
+		if (mixdev < 0 || mixdev >= num_mixers)
+		    return -(ENXIO);
+		return mixer_devs[mixdev]->ioctl(mixdev, cmd, arg);
+		break;
+#endif
 
-	  default:
-	    return mixer_devs[0]->ioctl (0, cmd, arg);
-	  }
-      }
-
-  switch (dev & 0x0f)
-    {
+	    default:
+		return mixer_devs[0]->ioctl(0, cmd, arg);
+	    }
+	}
+    switch (dev & 0x0f) {
 
     case SND_DEV_CTL:
 
-      if (!num_mixers)
-	return RET_ERROR (ENXIO);
+	if (!num_mixers)
+	    return -(ENXIO);
 
-      dev = dev >> 4;
+	dev = dev >> 4;
 
-      if (dev >= num_mixers)
-	return RET_ERROR (ENXIO);
+	if (dev >= num_mixers)
+	    return -(ENXIO);
 
-      return mixer_devs[dev]->ioctl (dev, cmd, arg);
-      break;
+	return mixer_devs[dev]->ioctl(dev, cmd, arg);
+	    break;
 
+#ifdef CONFIG_SEQUENCER
     case SND_DEV_SEQ:
     case SND_DEV_SEQ2:
-      return sequencer_ioctl (dev, file, cmd, arg);
-      break;
+	return sequencer_ioctl(dev, file, cmd, arg);
+	break;
+#endif
 
+#ifdef CONFIG_AUDIO
     case SND_DEV_DSP:
     case SND_DEV_DSP16:
     case SND_DEV_AUDIO:
-      return audio_ioctl (dev, file, cmd, arg);
-      break;
+	return audio_ioctl(dev, file, cmd, arg);
+	break;
+#endif
 
-#ifndef EXCLUDE_MIDI
+#ifdef CONFIG_MIDI
     case SND_DEV_MIDIN:
-      return MIDIbuf_ioctl (dev, file, cmd, arg);
-      break;
+	return MIDIbuf_ioctl(dev, file, cmd, arg);
+	break;
 #endif
 
     default:
-      return RET_ERROR (EPERM);
-      break;
+	return -(EPERM);
+	break;
     }
 
-  return RET_ERROR (EPERM);
+    return -(EPERM);
 }
 
 #endif
