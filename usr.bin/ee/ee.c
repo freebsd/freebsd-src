@@ -64,7 +64,7 @@ char *ee_long_notice[] = {
 	"copyright.  All rights are reserved."
 	};
 
-char *version = "@(#) ee, version 1.3";
+char *version = "@(#) ee, version 1.4.1";
 
 #ifdef NCURSE
 #include "new_curse.h"
@@ -124,7 +124,7 @@ nl_catd catalog;
 #define COMMANDS     2
 
 struct text {
-	char *line;			/* line of characters		*/
+	unsigned char *line;		/* line of characters		*/
 	int line_number;		/* line number			*/
 	int line_length;	/* actual number of characters in the line */
 	int max_length;	/* maximum number of characters the line handles */
@@ -139,7 +139,7 @@ struct text *tmp_line;		/* temporary line pointer		*/
 struct text *srch_line;		/* temporary pointer for search routine */
 
 struct files {		/* structure to store names of files to be edited*/
-	char *name;		/* name of file				*/
+	unsigned char *name;		/* name of file				*/
 	struct files *next_name;
 	};
 
@@ -185,21 +185,28 @@ int local_LINES = 0;		/* copy of LINES, to detect when win resizes */
 int local_COLS = 0;		/* copy of COLS, to detect when win resizes  */
 int curses_initialized = FALSE;	/* flag indicating if curses has been started*/
 int emacs_keys_mode = FALSE;	/* mode for if emacs key binings are used    */
+int ee_chinese = FALSE;		/* allows handling of multi-byte characters  */
+				/* by checking for high bit in a byte the    */
+				/* code recognizes a two-byte character      */
+				/* sequence				     */
 
-char *point;			/* points to current position in line	*/
-char *srch_str;			/* pointer for search string		*/
-char *u_srch_str;		/* pointer to non-case sensitive search	*/
-char *srch_1;			/* pointer to start of suspect string	*/
-char *srch_2;			/* pointer to next character of string	*/
-char *srch_3;
-char *in_file_name = NULL;	/* name of input file			*/
-char *tmp_file;			/* temporary file name			*/
-char d_char;			/* deleted character			*/
-char *d_word;			/* deleted word				*/
-char *d_line;			/* deleted line				*/
-char in_string[513];		/* buffer for reading a file		*/
-char *print_command = "lpr";	/* string to use for the print command 	*/
-char *start_at_line = NULL;	/* move to this line at start of session*/
+unsigned char *point;		/* points to current position in line	*/
+unsigned char *srch_str;	/* pointer for search string		*/
+unsigned char *u_srch_str;	/* pointer to non-case sensitive search	*/
+unsigned char *srch_1;		/* pointer to start of suspect string	*/
+unsigned char *srch_2;		/* pointer to next character of string	*/
+unsigned char *srch_3;
+unsigned char *in_file_name = NULL;	/* name of input file		*/
+char *tmp_file;	/* temporary file name			*/
+unsigned char *d_char;		/* deleted character			*/
+unsigned char *d_word;		/* deleted word				*/
+unsigned char *d_line;		/* deleted line				*/
+char in_string[513];	/* buffer for reading a file		*/
+unsigned char *print_command = "lpr";	/* string to use for the print command 	*/
+unsigned char *start_at_line = NULL;	/* move to this line at start of session*/
+const char count_text_default[] = "===============================================================================";
+int count_text_len = sizeof(count_text_default);	/* length of the line above	*/
+char count_text[sizeof(count_text_default)];	/* buffer for current position display	*/
 int in;				/* input character			*/
 
 FILE *temp_fp;			/* temporary file pointer		*/
@@ -215,6 +222,7 @@ WINDOW *com_win;
 WINDOW *text_win;
 WINDOW *help_win;
 WINDOW *info_win;
+WINDOW *count_win;
 
 #if defined(__STDC__) || defined(__cplusplus)
 #define P_(s) s
@@ -248,22 +256,22 @@ struct menu_entries {
 	struct menu_entries *ptr_argument;
 	int (*iprocedure)P_((int));
 	void (*nprocedure)P_((void));
-	unsigned int argument;
+	int argument;
 	};
 
 int main P_((int argc, char *argv[]));
-char *resiz_line P_((int factor, struct text *rline, int rpos));
+unsigned char *resiz_line P_((int factor, struct text *rline, int rpos));
 void insert P_((int character));
 void delete P_((int disp));
-void scanline P_((char *pos));
+void scanline P_((unsigned char *pos));
 int tabshift P_((int temp_int));
 int out_char P_((WINDOW *window, int character, int column));
 int len_char P_((int character, int column));
-void draw_line P_((int vertical, int horiz, char *ptr, int t_pos, int length));
+void draw_line P_((int vertical, int horiz, unsigned char *ptr, int t_pos, int length));
 void insert_line P_((int disp));
 struct text *txtalloc P_((void));
 struct files *name_alloc P_((void));
-char *next_word P_((char *string));
+unsigned char *next_word P_((unsigned char *string));
 void prev_word P_((void));
 void control P_((void));
 void emacs_control P_((void));
@@ -284,11 +292,11 @@ int scan P_((char *line, int offset, int column));
 char *get_string P_((char *prompt, int advance));
 int compare P_((char *string1, char *string2, int sensitive));
 void goto_line P_((char *cmd_str));
-void midscreen P_((int line, char *pnt));
+void midscreen P_((int line, unsigned char *pnt));
 void get_options P_((int numargs, char *arguments[]));
 void check_fp P_((void));
 void get_file P_((char *file_name));
-void get_line P_((int length, char *in_string, int *append));
+void get_line P_((int length, unsigned char *in_string, int *append));
 void draw_screen P_((void));
 void finish P_((void));
 int quit P_((int noverify));
@@ -335,6 +343,7 @@ char *is_in_string P_((char *string, char *substring));
 char *resolve_name P_((char *name));
 int restrict_mode P_((void));
 int unique_test P_((char *string, char *list[]));
+void renumber_lines P_((struct text *firstline, int startnumber));
 void strings_init P_((void));
 
 #undef P_
@@ -343,22 +352,23 @@ void strings_init P_((void));
  */
 
 struct menu_entries modes_menu[] = {
-	{"", NULL, NULL, NULL, NULL, 0}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, NULL, -1}, 
-	{"", NULL, NULL, NULL, dump_ee_conf, -1},
-	{NULL, NULL, NULL, NULL, NULL, -1}
+	{"", NULL, NULL, NULL, NULL, 0}, 	/* title		*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 1. tabs to spaces	*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 2. case sensitive search*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 3. margins observed	*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 4. auto-paragraph	*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 5. eightbit characters*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 6. info window	*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 7. emacs key bindings*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 8. right margin	*/
+	{"", NULL, NULL, NULL, NULL, -1}, 	/* 9. chinese text	*/
+	{"", NULL, NULL, NULL, dump_ee_conf, -1}, /* 10. save editor config */
+	{NULL, NULL, NULL, NULL, NULL, -1}	/* terminator		*/
 	};
 
-char *mode_strings[10]; 
+char *mode_strings[11]; 
 
-#define NUM_MODES_ITEMS 9
+#define NUM_MODES_ITEMS 10
 
 struct menu_entries config_dump_menu[] = {
 	{"", NULL, NULL, NULL, NULL, 0}, 
@@ -421,15 +431,15 @@ struct menu_entries main_menu[] = {
 	{NULL, NULL, NULL, NULL, NULL, -1}
 	};
 
-char *help_text[22];
+char *help_text[23];
 char *control_keys[5];
 
 char *emacs_help_text[22];
 char *emacs_control_keys[5];
 
 char *command_strings[5];
-char *commands[30];
-char *init_strings[20];
+char *commands[32];
+char *init_strings[22];
 
 #define MENU_WARN 1
 
@@ -528,6 +538,8 @@ char *cancel_string;
 char *menu_too_lrg_msg;
 char *more_above_str, *more_below_str;
 
+char *chinese_cmd, *nochinese_cmd;
+
 #ifndef __STDC__
 #ifndef HAS_STDLIB
 extern char *malloc();
@@ -551,13 +563,13 @@ char *argv[];
 	signal(SIGSEGV, SIG_DFL);
 	signal(SIGINT, edit_abort);
 
-	d_char = 0;
+	d_char = malloc(3);	/* provide a buffer for multi-byte chars */
 	d_word = malloc(150);
 	*d_word = (char) NULL;
 	d_line = NULL;
 	dlt_line = txtalloc();
 	dlt_line->line = d_line;
-	dlt_line->line_length = 1;
+	dlt_line->line_length = 0;
 	curr_line = first_line = txtalloc();
 	curr_line->line = point = malloc(10);
 	curr_line->line_length = 1;
@@ -602,7 +614,20 @@ char *argv[];
 
 	while(edit) 
 	{
-		wrefresh(text_win);
+		if (info_window)
+		{
+			snprintf(count_text, count_text_len, "L: %d C: %d %s", \
+				curr_line->line_number, scr_horz + 1, count_text_default);
+			wmove(count_win, 0, 0);
+			if (!nohighlight)
+				wstandout(count_win);
+			wprintw(count_win, count_text);
+			wstandend(count_win);
+			wnoutrefresh(count_win);
+		}
+
+		wnoutrefresh(text_win);
+		doupdate();
 		in = wgetch(text_win);
 		if (in == -1)
 			exit(0);
@@ -624,7 +649,10 @@ char *argv[];
 		if (in > 255)
 			function_key();
 		else if ((in == '\10') || (in == 127))
+		{
+			in = 8;		/* make sure key is set to backspace */
 			delete(TRUE);
+		}
 		else if ((in > 31) || (in == 9))
 			insert(in);
 		else if ((in >= 0) && (in <= 31))
@@ -638,13 +666,13 @@ char *argv[];
 	return(0);
 }
 
-char *
+unsigned char *
 resiz_line(factor, rline, rpos)	/* resize the line to length + factor*/
 int factor;		/* resize factor				*/
 struct text *rline;	/* position in line				*/
 int rpos;
 {
-	char *rpoint;
+	unsigned char *rpoint;
 	int resiz_var;
  
 	rline->max_length += factor;
@@ -660,8 +688,8 @@ int character;			/* new character			*/
 {
 	int counter;
 	int value;
-	char *temp;		/* temporary pointer			*/
-	char *temp2;		/* temporary pointer			*/
+	unsigned char *temp;	/* temporary pointer			*/
+	unsigned char *temp2;	/* temporary pointer			*/
 
 	if ((character == '\011') && (expand_tabs))
 	{
@@ -743,31 +771,46 @@ void
 delete(disp)			/* delete character		*/
 int disp;
 {
-	char *tp;
-	char *temp2;
+	unsigned char *tp;
+	unsigned char *temp2;
 	struct text *temp_buff;
 	int temp_vert;
 	int temp_pos;
+	int del_width = 1;
 
 	if (point != curr_line->line)	/* if not at beginning of line	*/
 	{
 		text_changes = TRUE;
 		temp2 = tp = point;
-		tp--;
-		point--;
-		if ((*tp >= '\000') && (*tp < ' '))	/* check for TAB	*/
+		if ((ee_chinese) && (position >= 2) && (*(point - 2) > 127))
+		{
+			del_width = 2;
+		}
+		tp -= del_width;
+		point -= del_width;
+		position -= del_width;
+		temp_pos = position;
+		curr_line->line_length -= del_width;
+		if ((*tp < ' ') || (*tp >= 127))	/* check for TAB */
 			scanline(tp);
 		else
-			--scr_horz;
+			scr_horz -= del_width;
 		scr_pos = scr_horz;
 		if (in == 8)
-			d_char = *point;	/* save deleted character  */
-		temp_pos = --position;
-		curr_line->line_length--;
+		{
+			if (del_width == 1)
+				*d_char = *point; /* save deleted character  */
+			else
+			{
+				d_char[0] = *point;
+				d_char[1] = *(point + 1);
+			}
+			d_char[del_width] = (unsigned char) NULL;
+		}
 		while (temp_pos <= curr_line->line_length)
 		{
 			temp_pos++;
-			*tp= *temp2;
+			*tp = *temp2;
 			tp++;
 			temp2++;
 		}
@@ -786,9 +829,13 @@ int disp;
 		if (temp_buff->next_line != NULL)
 			temp_buff->next_line->prev_line = curr_line;
 		curr_line->next_line = temp_buff->next_line;
+		renumber_lines(curr_line->next_line, curr_line->line_number + 1);
 		temp2 = temp_buff->line;
 		if (in == 8)
-			d_char = '\n';
+		{
+			d_char[0] = '\n';
+			d_char[1] = (unsigned char) NULL;
+		}
 		tp = point;
 		temp_pos = 1;
 		while (temp_pos < temp_buff->line_length)
@@ -830,16 +877,16 @@ int disp;
 
 void 
 scanline(pos)	/* find the proper horizontal position for the pointer	*/
-char *pos;
+unsigned char *pos;
 {
 	int temp;
-	char *ptr;
+	unsigned char *ptr;
 
 	ptr = curr_line->line;
 	temp = 0;
 	while (ptr < pos)
 	{
-		if ((*ptr >= 0) && (*ptr <= 8))
+		if (*ptr <= 8)
 			temp += 2;
 		else if (*ptr == 9)
 			temp += tabshift(temp);
@@ -888,7 +935,7 @@ char character;
 int column;
 {
 	int i1, i2;
-	char *string;
+	unsigned char *string;
 	char string2[8];
 
 	if (character == TAB)
@@ -957,12 +1004,12 @@ void
 draw_line(vertical, horiz, ptr, t_pos, length)	/* redraw line from current position */
 int vertical;	/* current vertical position on screen		*/
 int horiz;	/* current horizontal position on screen	*/
-char *ptr;	/* pointer to line				*/
+unsigned char *ptr;	/* pointer to line				*/
 int t_pos;	/* current position (offset in bytes) from bol	*/
 int length;	/* length (in bytes) of line			*/
 {
 	int d;		/* partial length of special or tab char to display  */
-	char *temp;	/* temporary pointer to position in line	     */
+	unsigned char *temp;	/* temporary pointer to position in line	     */
 	int abs_column;	/* offset in screen units from begin of line	     */
 	int column;	/* horizontal position on screen		     */
 	int row;	/* vertical position on screen			     */
@@ -991,7 +1038,7 @@ int length;	/* length (in bytes) of line			*/
 	wclrtoeol(text_win);
 	while ((posit < length) && (column <= last_col))
 	{
-		if ((*temp < 32) || (*temp == 127))
+		if ((*temp < 32) || (*temp >= 127))
 		{
 			column += len_char(*temp, abs_column);
 			abs_column += out_char(text_win, *temp, abs_column);
@@ -1016,8 +1063,8 @@ int disp;
 {
 	int temp_pos;
 	int temp_pos2;
-	char *temp;
-	char *extra;
+	unsigned char *temp;
+	unsigned char *extra;
 	struct text *temp_nod;
 
 	text_changes = TRUE;
@@ -1027,8 +1074,8 @@ int disp;
 	temp_nod->line = extra= malloc(10);
 	temp_nod->line_length = 1;
 	temp_nod->max_length = 10;
-	temp_nod->line_number = curr_line->line_number + 1;
 	temp_nod->next_line = curr_line->next_line;
+	renumber_lines(temp_nod, curr_line->line_number + 1);
 	if (temp_nod->next_line != NULL)
 		temp_nod->next_line->prev_line = temp_nod;
 	temp_nod->prev_line = curr_line;
@@ -1096,8 +1143,8 @@ struct files *name_alloc()	/* allocate space for file name list node */
 	return((struct files *) malloc(sizeof( struct files)));
 }
 
-char *next_word(string)		/* move to next word in string		*/
-char *string;
+unsigned char *next_word(string)		/* move to next word in string		*/
+unsigned char *string;
 {
 	while ((*string != (char) NULL) && ((*string != 32) && (*string != 9)))
 		string++;
@@ -1349,6 +1396,11 @@ int disp;
 {
 	if (point != curr_line->line)	/* if not at begin of line	*/
 	{
+		if ((ee_chinese) && (position >= 2) && (*(point - 2) > 127))
+		{
+			point--;
+			position--;
+		}
 		point--;
 		position--;
 		scanline(point);
@@ -1378,6 +1430,12 @@ int disp;
 {
 	if (position < curr_line->line_length)
 	{
+		if ((ee_chinese) && (*point > 127) && 
+		    ((curr_line->line_length - position) >= 2))
+		{
+			point++;
+			position++;
+		}
 		point++;
 		position++;
 		scanline(point);
@@ -1414,8 +1472,15 @@ find_pos()		/* move to the same column as on other line	*/
 	{
 		if (*point == 9)
 			scr_horz += tabshift(scr_horz);
-		else if ((*point >= '\0') && (*point < ' '))
+		else if (*point < ' ')
 			scr_horz += 2;
+		else if ((ee_chinese) && (*point > 127) && 
+		    ((curr_line->line_length - position) >= 2))
+		{
+			scr_horz += 2;
+			point++;
+			position++;
+		}
 		else
 			scr_horz++;
 		position++;
@@ -1675,10 +1740,7 @@ char *cmd_str1;
 	{
 		wmove(com_win, 0, 0);
 		wclrtoeol(com_win);
-		if (*point >= '\0')
-			wprintw(com_win, char_str, *point);
-		else
-			wprintw(com_win, char_str, (*point + 256));
+		wprintw(com_win, char_str, *point);
 	}
 	else if (compare(cmd_str, REDRAW, FALSE))
 		redraw();
@@ -1713,6 +1775,20 @@ char *cmd_str1;
 		expand_tabs = FALSE;
 	else if (compare(cmd_str, Exit_string, FALSE))
 		finish();
+	else if (compare(cmd_str, chinese_cmd, FALSE))
+	{
+		ee_chinese = TRUE;
+#ifdef NCURSE
+		nc_setattrib(A_NC_BIG5);
+#endif /* NCURSE */
+	}
+	else if (compare(cmd_str, nochinese_cmd, FALSE))
+	{
+		ee_chinese = FALSE;
+#ifdef NCURSE
+		nc_clearattrib(A_NC_BIG5);
+#endif /* NCURSE */
+	}
 	else if (compare(cmd_str, QUIT_string, FALSE))
 		quit(0);
 	else if (*cmd_str == '!')
@@ -1946,7 +2022,7 @@ char *cmd_str;
 void 
 midscreen(line, pnt)	/* put current line in middle of screen	*/
 int line;
-char *pnt;
+unsigned char *pnt;
 {
 	struct text *mid_line;
 	int i;
@@ -2200,11 +2276,11 @@ char *file_name;
 void 
 get_line(length, in_string, append)	/* read string and split into lines */
 int length;		/* length of string read by read		*/
-char *in_string;	/* string read by read				*/
+unsigned char *in_string;	/* string read by read				*/
 int *append;	/* TRUE if must append more text to end of current line	*/
 {
-	char *str1;
-	char *str2;
+	unsigned char *str1;
+	unsigned char *str2;
 	int num;		/* offset from start of string		*/
 	int char_count;		/* length of new line (or added portion	*/
 	int temp_counter;	/* temporary counter value		*/
@@ -2238,14 +2314,14 @@ int *append;	/* TRUE if must append more text to end of current line	*/
 		if (!(*append))	/* if not append to current line, insert new one */
 		{
 			tline = txtalloc();	/* allocate data structure for next line */
-			tline->line_number = curr_line->line_number + 1;
 			tline->next_line = curr_line->next_line;
+			renumber_lines(tline, curr_line->line_number + 1);
 			tline->prev_line = curr_line;
 			curr_line->next_line = tline;
 			if (tline->next_line != NULL)
 				tline->next_line->prev_line = tline;
 			curr_line = tline;
-			curr_line->line = point = (char *) malloc(char_count);
+			curr_line->line = point = (unsigned char *) malloc(char_count);
 			curr_line->line_length = char_count;
 			curr_line->max_length = char_count;
 		}
@@ -2271,7 +2347,7 @@ void
 draw_screen()		/* redraw the screen from current postion	*/
 {
 	struct text *temp_line;
-	char *line_out;
+	unsigned char *line_out;
 	int temp_vert;
 
 	temp_line = curr_line;
@@ -2358,6 +2434,7 @@ int noverify;
 		recv_file = TRUE;
 		input_file = TRUE;
 		check_fp();
+		text_changes = FALSE;
 	}
 	return(0);
 }
@@ -2607,6 +2684,12 @@ del_char()			/* delete current character	*/
 	in = 8;  /* backspace */
 	if (position < curr_line->line_length)	/* if not end of line	*/
 	{
+		if ((ee_chinese) && (*point > 127) && 
+		    ((curr_line->line_length - position) >= 2))
+		{
+			point++;
+			position++;
+		}
 		position++;
 		point++;
 		scanline(point);
@@ -2622,12 +2705,17 @@ del_char()			/* delete current character	*/
 void 
 undel_char()			/* undelete last deleted character	*/
 {
-	if (d_char == '\n')	/* insert line if last del_char deleted eol */
+	if (d_char[0] == '\n')	/* insert line if last del_char deleted eol */
 		insert_line(TRUE);
 	else
 	{
-		in = d_char;
+		in = d_char[0];
 		insert(in);
+		if (d_char[1] != (unsigned char) NULL)
+		{
+			in = d_char[1];
+			insert(in);
+		}
 	}
 }
 
@@ -2636,14 +2724,16 @@ del_word()			/* delete word in front of cursor	*/
 {
 	int tposit;
 	int difference;
-	char *d_word2;
-	char *d_word3;
-	char tmp_char;
+	unsigned char *d_word2;
+	unsigned char *d_word3;
+	unsigned char tmp_char[3];
 
 	if (d_word != NULL)
 		free(d_word);
 	d_word = malloc(curr_line->line_length);
-	tmp_char = d_char;
+	tmp_char[0] = d_char[0];
+	tmp_char[1] = d_char[1];
+	tmp_char[2] = d_char[2];
 	d_word3 = point;
 	d_word2 = d_word;
 	tposit = position;
@@ -2676,7 +2766,9 @@ del_word()			/* delete word in front of cursor	*/
 	curr_line->line_length -= difference;
 	*d_word2 = (char) NULL;
 	draw_line(scr_vert, scr_horz,point,position,curr_line->line_length);
-	d_char = tmp_char;
+	d_char[0] = tmp_char[0];
+	d_char[1] = tmp_char[1];
+	d_char[2] = tmp_char[2];
 	text_changes = TRUE;
 	formatted = FALSE;
 }
@@ -2686,10 +2778,10 @@ undel_word()		/* undelete last deleted word		*/
 {
 	int temp;
 	int tposit;
-	char *tmp_old_ptr;
-	char *tmp_space;
-	char *tmp_ptr;
-	char *d_word_ptr;
+	unsigned char *tmp_old_ptr;
+	unsigned char *tmp_space;
+	unsigned char *tmp_ptr;
+	unsigned char *d_word_ptr;
 
 	/*
 	 |	resize line to handle undeleted word
@@ -2746,8 +2838,8 @@ undel_word()		/* undelete last deleted word		*/
 void 
 del_line()			/* delete from cursor to end of line	*/
 {
-	char *dl1;
-	char *dl2;
+	unsigned char *dl1;
+	unsigned char *dl2;
 	int tposit;
 
 	if (d_line != NULL)
@@ -2779,9 +2871,12 @@ del_line()			/* delete from cursor to end of line	*/
 void 
 undel_line()			/* undelete last deleted line		*/
 {
-	char *ud1;
-	char *ud2;
+	unsigned char *ud1;
+	unsigned char *ud2;
 	int tposit;
+
+	if (dlt_line->line_length == 0)
+		return;
 
 	insert_line(TRUE);
 	left(TRUE);
@@ -3157,14 +3252,23 @@ set_up_term()		/* set up the terminal for operating with ae	*/
 	if (info_window)
 	{
 		info_type = CONTROL_KEYS;
-		info_win = newwin(6, COLS, 0, 0);
+		info_win = newwin(5, COLS, 0, 0);
 		werase(info_win);
 		paint_info_win();
+		count_win = newwin(1, COLS, 5, 0);
+		leaveok(count_win, TRUE);
+		wrefresh(count_win);
 	}
 
 	last_col = COLS - 1;
 	local_LINES = LINES;
 	local_COLS = COLS;
+
+#ifdef NCURSE
+	if (ee_chinese)
+		nc_setattrib(A_NC_BIG5);
+#endif /* NCURSE */
+
 }
 
 void 
@@ -3178,6 +3282,7 @@ resize_check()
 	delwin(text_win);
 	delwin(com_win);
 	delwin(help_win);
+	delwin(count_win);
 	set_up_term();
 	redraw();
 	wrefresh(text_win);
@@ -3217,7 +3322,7 @@ struct menu_entries menu_list[];
 			max_width = length;
 	}
 	max_width += 3;
-	max_width = max(max_width, strlen(cancel_string));
+	max_width = max(max_width, strlen(menu_cancel_msg));
 	max_width = max(max_width, max(strlen(more_above_str), strlen(more_below_str)));
 	max_width += 6;
 
@@ -3438,7 +3543,7 @@ int off_start, vert_size;
 		waddstr(menu_win, menu_list[0].item_string);
 		wmove(menu_win, (max_height - 3), 3);
 		if (menu_list[0].argument != MENU_WARN)
-			waddstr(menu_win, cancel_string);
+			waddstr(menu_win, menu_cancel_msg);
 	}
 	if (!nohighlight)
 		wstandout(menu_win);
@@ -3552,11 +3657,6 @@ paint_info_win()
 		else if (info_type == COMMANDS)
 			waddstr(info_win, command_strings[counter]);
 	}
-	wmove(info_win, 5, 0);
-	if (!nohighlight)
-		wstandout(info_win);
-	waddstr(info_win, "===============================================================================");
-	wstandend(info_win);
 	wrefresh(info_win);
 }
 
@@ -3720,7 +3820,7 @@ int
 Blank_Line(test_line)	/* test if line has any non-space characters	*/
 struct text *test_line;
 {
-	char *line;
+	unsigned char *line;
 	int length;
 	
 	if (test_line == NULL)
@@ -3758,11 +3858,15 @@ Format()	/* format the paragraph according to set margins	*/
 	int status;
 	int tmp_af;
 	int counter;
-	char *line;
-	char *tmp_srchstr;
-	char *temp1, *temp2;
-	char *temp_dword;
-	char temp_d_char = d_char;
+	unsigned char *line;
+	unsigned char *tmp_srchstr;
+	unsigned char *temp1, *temp2;
+	unsigned char *temp_dword;
+	unsigned char temp_d_char[3];
+
+	temp_d_char[0] = d_char[0];
+	temp_d_char[1] = d_char[1];
+	temp_d_char[2] = d_char[2];
 
 /*
  |	if observ_margins is not set, or the current line is blank, 
@@ -3796,7 +3900,7 @@ Format()	/* format the paragraph according to set margins	*/
 	temp_case = case_sen;
 	case_sen = TRUE;
 	tmp_srchstr = srch_str;
-	temp2 = srch_str = (char *) malloc(1 + curr_line->line_length - position);
+	temp2 = srch_str = (unsigned char *) malloc(1 + curr_line->line_length - position);
 	if ((*point == ' ') || (*point == '\t'))
 		adv_word();
 	offset -= position;
@@ -3957,7 +4061,9 @@ Format()	/* format the paragraph according to set margins	*/
 	case_sen = temp_case;
 	free(srch_str);
 	srch_str = tmp_srchstr;
-	d_char = temp_d_char;
+	d_char[0] = temp_d_char[0];
+	d_char[1] = temp_d_char[1];
+	d_char[2] = temp_d_char[2];
 	auto_format = tmp_af;
 
 	midscreen(scr_vert, point);
@@ -3965,7 +4071,7 @@ Format()	/* format the paragraph according to set margins	*/
 	wrefresh(com_win);
 }
 
-char *init_name[3] = {
+unsigned char *init_name[3] = {
 	"/usr/share/misc/init.ee", 
 	NULL, 
 	".init.ee"
@@ -3975,9 +4081,9 @@ void
 ee_init()	/* check for init file and read it if it exists	*/
 {
 	FILE *init_file;
-	char *string;
-	char *str1;
-	char *str2;
+	unsigned char *string;
+	unsigned char *str1;
+	unsigned char *str2;
 	char *home;
 	int counter;
 	int temp_int;
@@ -4058,17 +4164,37 @@ ee_init()	/* check for init file and read it if it exists	*/
 				else if (compare(str1, EIGHTBIT, FALSE))
 					eightbit = TRUE;
 				else if (compare(str1, NOEIGHTBIT, FALSE))
+				{
 					eightbit = FALSE;
+					ee_chinese = FALSE;
+				}
 				else if (compare(str1, EMACS_string, FALSE))
 					emacs_keys_mode = TRUE;
 				else if (compare(str1, NOEMACS_string, FALSE))
 					emacs_keys_mode = FALSE;
+				else if (compare(str1, chinese_cmd, FALSE))
+				{
+					ee_chinese = TRUE;
+					eightbit = TRUE;
+				}
+				else if (compare(str1, nochinese_cmd, FALSE))
+					ee_chinese = FALSE;
 			}
 			fclose(init_file);
 		}
 	}
 	free(string);
 	free(home);
+
+	string = getenv("LANG");
+	if (string != NULL)
+	{
+		if (strcmp(string, "zh_TW.big5") == 0)
+		{
+			ee_chinese = TRUE;
+			eightbit = TRUE;
+		}
+	}
 }
 
 /*
@@ -4162,6 +4288,7 @@ dump_ee_conf()
 	fprintf(init_file, "%s\n", nohighlight ? NOHIGHLIGHT : HIGHLIGHT );
 	fprintf(init_file, "%s\n", eightbit ? EIGHTBIT : NOEIGHTBIT );
 	fprintf(init_file, "%s\n", emacs_keys_mode ? EMACS_string : NOEMACS_string );
+	fprintf(init_file, "%s\n", ee_chinese ? chinese_cmd : nochinese_cmd );
 
 	fclose(init_file);
 
@@ -4276,7 +4403,7 @@ first_word_len(test_line)
 struct text *test_line;
 {
 	int counter;
-	char *pnt;
+	unsigned char *pnt;
 
 	if (test_line == NULL)
 		return(0);
@@ -4321,12 +4448,17 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 	int status;
 	int counter;
 	char not_blank;
-	char *line;
-	char *tmp_srchstr;
-	char *temp1, *temp2;
-	char *temp_dword;
-	char temp_d_char = d_char;
-	char *tmp_d_line;
+	unsigned char *line;
+	unsigned char *tmp_srchstr;
+	unsigned char *temp1, *temp2;
+	unsigned char *temp_dword;
+	unsigned char temp_d_char[3];
+	unsigned char *tmp_d_line;
+
+
+	temp_d_char[0] = d_char[0];
+	temp_d_char[1] = d_char[1];
+	temp_d_char[2] = d_char[2];
 
 /*
  |	if observ_margins is not set, or the current line is blank, 
@@ -4355,7 +4487,7 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 	temp_case = case_sen;
 	case_sen = TRUE;
 	tmp_srchstr = srch_str;
-	temp2 = srch_str = (char *) malloc(1 + curr_line->line_length - position);
+	temp2 = srch_str = (unsigned char *) malloc(1 + curr_line->line_length - position);
 	if ((*point == ' ') || (*point == '\t'))
 		adv_word();
 	offset -= position;
@@ -4552,7 +4684,9 @@ Auto_Format()	/* format the paragraph according to set margins	*/
 	case_sen = temp_case;
 	free(srch_str);
 	srch_str = tmp_srchstr;
-	d_char = temp_d_char;
+	d_char[0] = temp_d_char[0];
+	d_char[1] = temp_d_char[1];
+	d_char[2] = temp_d_char[2];
 	auto_format = TRUE;
 	dlt_line->line_length = tmp_d_line_length;
 	d_line = tmp_d_line;
@@ -4586,6 +4720,8 @@ modes_op()
 					(emacs_keys_mode ? ON : OFF));
 		sprintf(modes_menu[8].item_string, "%s %d", mode_strings[8], 
 					right_margin);
+		sprintf(modes_menu[9].item_string, "%s %s", mode_strings[9], 
+					(ee_chinese ? ON : OFF));
 
 		ret_value = menu_op(modes_menu);
 
@@ -4607,6 +4743,15 @@ modes_op()
 				break;
 			case 5:
 				eightbit = !eightbit;
+				if (!eightbit)
+					ee_chinese = FALSE;
+#ifdef NCURSE
+				if (ee_chinese)
+					nc_setattrib(A_NC_BIG5);
+				else
+					nc_clearattrib(A_NC_BIG5);
+#endif /* NCURSE */
+
 				redraw();
 				wnoutrefresh(text_win);
 				break;
@@ -4630,6 +4775,18 @@ modes_op()
 						right_margin = counter;
 					free(string);
 				}
+				break;
+			case 9:
+				ee_chinese = !ee_chinese;
+				if (ee_chinese != FALSE)
+					eightbit = TRUE;
+#ifdef NCURSE
+				if (ee_chinese)
+					nc_setattrib(A_NC_BIG5);
+				else
+					nc_clearattrib(A_NC_BIG5);
+#endif /* NCURSE */
+				redraw();
 				break;
 			default:
 				break;
@@ -4827,6 +4984,19 @@ char *list[];
 	return(num_match);
 }
 
+void
+renumber_lines(firstline, startnumber)
+struct text *firstline;
+int startnumber;
+{
+	struct text *lineptr;
+	int i;
+	
+	i = startnumber;
+	for (lineptr = firstline; lineptr != NULL; lineptr = lineptr->next_line)
+		lineptr->line_number = i++;
+}
+
 #ifndef NO_CATGETS
 /*
  |	Get the catalog entry, and if it got it from the catalog, 
@@ -4924,8 +5094,8 @@ strings_init()
 	help_text[17] = catgetlocal( 52, "line    : display line #                0-9     : go to line \"#\"           ");
 	help_text[18] = catgetlocal( 53, "expand  : expand tabs                   noexpand: do not expand tabs         ");
 	help_text[19] = catgetlocal( 54, "                                                                             ");
-	help_text[20] = catgetlocal( 55, "  ee [-i] [-e] [-h] [file(s)]                                                 ");
-	help_text[21] = catgetlocal( 56, "   -i : no information window  -e : do not expand tabs   -h : no highlight ");
+	help_text[20] = catgetlocal( 55, "  ee [+#] [-i] [-e] [-h] [file(s)]                                            ");
+	help_text[21] = catgetlocal( 56, "+# :go to line #  -i :no info window  -e : don't expand tabs  -h :no highlight");
 	control_keys[0] = catgetlocal( 57, "^[ (escape) menu  ^e search prompt  ^y delete line    ^u up     ^p prev page  ");
 	control_keys[1] = catgetlocal( 58, "^a ascii code     ^x search         ^z undelete line  ^d down   ^n next page  ");
 	control_keys[2] = catgetlocal( 59, "^b bottom of text ^g begin of line  ^w delete word    ^l left                 ");
@@ -5050,16 +5220,18 @@ strings_init()
 	usage4 = catgetlocal( 161, "       +#   put cursor at line #\n");
 	conf_dump_err_msg = catgetlocal( 162, "unable to open .init.ee for writing, no configuration saved!");
 	conf_dump_success_msg = catgetlocal( 163, "ee configuration saved in file %s");
-	modes_menu[9].item_string = catgetlocal( 164, "save editor configuration");
+	modes_menu[10].item_string = catgetlocal( 164, "save editor configuration");
 	config_dump_menu[0].item_string = catgetlocal( 165, "save ee configuration");
 	config_dump_menu[1].item_string = catgetlocal( 166, "save in current directory");
 	config_dump_menu[2].item_string = catgetlocal( 167, "save in home directory");
 	conf_not_saved_msg = catgetlocal( 168, "ee configuration not saved");
 	ree_no_file_msg = catgetlocal( 169, "must specify a file when invoking ree");
-	cancel_string = catgetlocal( 170, "press Esc to cancel");
 	menu_too_lrg_msg = catgetlocal( 180, "menu too large for window");
 	more_above_str = catgetlocal( 181, "^^more^^");
 	more_below_str = catgetlocal( 182, "VVmoreVV");
+	mode_strings[9] = catgetlocal( 183, "16 bit characters    ");
+	chinese_cmd = catgetlocal( 184, "16BIT");
+	nochinese_cmd = catgetlocal( 185, "NO16BIT");
 
 	commands[0] = HELP;
 	commands[1] = WRITE;
@@ -5090,7 +5262,9 @@ strings_init()
 	commands[26] = "8";
 	commands[27] = "9";
 	commands[28] = CHARACTER;
-	commands[29] = NULL;
+	commands[29] = chinese_cmd;
+	commands[30] = nochinese_cmd;
+	commands[31] = NULL;
 	init_strings[0] = CASE;
 	init_strings[1] = NOCASE;
 	init_strings[2] = EXPAND;
@@ -5110,7 +5284,9 @@ strings_init()
 	init_strings[16] = NOEIGHTBIT;
 	init_strings[17] = EMACS_string;
 	init_strings[18] = NOEMACS_string;
-	init_strings[19] = NULL;
+	init_strings[19] = chinese_cmd;
+	init_strings[20] = nochinese_cmd;
+	init_strings[21] = NULL;
 
 	/*
 	 |	allocate space for strings here for settings menu

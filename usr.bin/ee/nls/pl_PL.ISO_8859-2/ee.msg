@@ -5,6 +5,7 @@ $ For ee patchlevel 3
 $ 
 $ $FreeBSD$
 $ 
+$ 
 $set 1
 $quote "
 1 "menu Tryb pracy"
@@ -62,7 +63,7 @@ $quote "
 52 "line    : wy¶wietl numer wiersza        0-9     : id¼ do wiersza \"#\"       "
 53 "expand  : rozwiñ tabulacje na spacje    noexpand: nie rozwijaj tabulacji   "
 54 "                                                                             "
-55 "  ee [-i] [-e] [-h] [plik(i)]                                                 "
+55 "  ee [+#] [-i] [-e] [-h] [plik(i)]                                           "
 56 "   -i : bez okna inform.       -e : nie rozwijaj tab.  -h : bez pod¶wietl."
 57 "^[ (escape) menu  ^e szukanie     ^y usuñ wiersz     ^u do góry ^p poprz. str "
 58 "^a kod ASCII      ^x szukaj       ^z przywróæ wiersz ^d do do³u ^n nast. str. "
@@ -178,7 +179,9 @@ zapisuj"
 167 "zachowaj w katalogu home"
 168 "nie zachowano konfiguracji ee"
 169 "musisz podaæ nazwê pliku przy wywo³aniu ree"
-170 "naci¶nij Esc ¿eby anulowaæ"
 180 "menu zbyt du¿e dla tego okna"
 181 "^^dalej^^"
 182 "VVdalejVV"
+183 "16 bit characters    "
+184 "16BIT"
+185 "NO16BIT"

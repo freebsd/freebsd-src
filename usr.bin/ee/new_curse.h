@@ -37,6 +37,8 @@
  |	Copyright (c) 1986, 1987, 1988, 1991, 1995 Hugh Mahon
  |	All are rights reserved.
  |
+ | $FreeBSD$
+ |
  */
 
 #include <stdio.h>
@@ -142,7 +144,8 @@
 #define TRUE 1
 #define FALSE 0
 
-#define A_STANDOUT 0001	/* standout mode			*/
+#define A_STANDOUT 0001		/* standout mode		*/
+#define A_NC_BIG5  0x0100	/* Handle Chinese Big5 characters	*/
 #define SCROLL 1		/* text has been scrolled	*/
 #define CLEAR  2		/* window has been cleared	*/
 #define CHANGE 3		/* window has been changed	*/
@@ -195,6 +198,7 @@ extern int Get_int P_((void));
 extern int INFO_PARSE P_((void));
 extern int AtoI P_((void));
 extern void Key_Get P_((void));
+extern void keys_vt100 P_((void));
 extern struct _line *Screenalloc P_((int columns));
 extern WINDOW *newwin P_((int lines, int cols, int start_l, int start_c));
 extern int Operation P_((int Temp_Stack[], int place));
@@ -251,5 +255,7 @@ extern void attribute_on P_((void));
 extern void attribute_off P_((void));
 extern void Char_out P_((int newc, int newatt, char *line, char *attrib, int offset));
 
+extern void nc_setattrib P_((int));
+extern void nc_clearattrib P_((int));
 #undef P_
 
