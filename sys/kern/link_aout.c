@@ -563,17 +563,17 @@ link_aout_search_symbol(linker_file_t lf, caddr_t value,
 	aout_file_t af = lf->priv;
 	u_long off = (uintptr_t) (void *) value;
 	u_long diff = off;
+	u_long sp_nz_value;
 	struct nzlist* sp;
 	struct nzlist* ep;
 	struct nzlist* best = 0;
-	u_long sp_nz_value;
 
 	for (sp = AOUT_RELOC(af, struct nzlist, LD_SYMBOL(af->dynamic)),
 		 ep = (struct nzlist *) ((caddr_t) sp + LD_STABSZ(af->dynamic));
 	     sp < ep; sp++) {
 		if (sp->nz_name == 0)
 			continue;
-		sp_nz_value = sp->nz_value + (u_long)af->address;
+		sp_nz_value = sp->nz_value + (uintptr_t) (void *) af->address;
 		if (off >= sp_nz_value) {
 			if (off - sp_nz_value < diff) {
 				diff = off - sp_nz_value;
