@@ -768,13 +768,13 @@
 
     <para arch="i386,amd64">OPTi 931/82C931 (&man.pcm.4; driver)</para>
 
-    <para arch="i386,amd64">S3 Sonicvibes</para>
+    &hwlist.snd.vibes;
 
     &hwlist.snd.emu10k1;
 
     <para arch="i386,amd64">Trident 4DWave DX/NX (&man.pcm.4; driver)</para>
 
-    <para arch="i386,amd64">VIA Technologies VT82C686A</para>
+    &hwlist.snd.via82c686;
 
     &hwlist.snd.ds1;
 
