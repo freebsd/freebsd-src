@@ -1997,12 +1997,12 @@ options 	AHD_REG_PRETTY_PRINT
 #
 device		ahc		# AHA2940 and onboard AIC7xxx devices
 device		ahd		# AIC79xx devices
-device		amd		# AMD 53C974 (Teckram DC-390(T))
+device		amd		# AMD 53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 device		ispfw		# Firmware for QLogic HBAs
 device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets)
-device		sym		# Tekram DC395U/UW/F and DC315U
+device		trm		# Tekram DC395U/UW/F and DC315U
 #
 # Options for ISP
 #
