@@ -867,7 +867,10 @@ static driver_t ess_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(ess, sbc, ess_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_ess, sbc, ess_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_ess, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_ess, 1);
+
 
 static devclass_t esscontrol_devclass;
 
@@ -923,7 +926,4 @@ static driver_t esscontrol_driver = {
 };
 
 DRIVER_MODULE(esscontrol, isa, esscontrol_driver, esscontrol_devclass, 0, 0);
-
-
-
 

@@ -619,4 +619,8 @@ static driver_t ad1816_driver = {
 	sizeof(snddev_info),
 };
 
-DRIVER_MODULE(ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);
+DRIVER_MODULE(snd_ad1816, isa, ad1816_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_ad1816, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_ad1816, 1);
+
+
