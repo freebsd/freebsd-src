@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.274 1996/07/10 19:44:17 julian Exp $
+#	$Id: LINT,v 1.275 1996/08/15 10:41:34 asami Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -501,6 +501,8 @@ options		PCVT_SCANSET=2 		# IBM keyboards are non-std
 
 # The syscons console driver (sco color console compatible) - default.
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
+options		SC_KBD_PROBE_WORKS	# keyboard probe should determine
+					# if syscons is available
 
 #
 # This device is mandatory.
