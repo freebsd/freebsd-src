@@ -1,8 +1,5 @@
-#ifndef SOUNDCARD_H
-#define SOUNDCARD_H
-
-#ifndef _I386_MACHINE_SOUNDCARD_H_
-#define _I386_MACHINE_SOUNDCARD_H_
+#ifndef _MACHINE_SOUNDCARD_H_
+#define	_MACHINE_SOUNDCARD_H_
 
 /*
  * Copyright by Hannu Savolainen 1993
@@ -28,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.h,v 1.8 1994/09/27 17:58:00 davidg Exp $
+ * $Id: soundcard.h,v 1.9 1994/10/01 02:32:23 swallace Exp $
  */
 
  /* 
@@ -955,6 +952,6 @@ void seqbuf_dump(void);	/* This function must be provided by programs */
 					   perror("Write patch: /dev/sequencer");}
 #define SEQ_WRPATCH2(patchx, len)	(seqbuf_dump(), write(seqfd, (char*)(patchx), len))
 
-#endif
-#endif
-#endif
+#endif /* !_KERNEL_SPAM */
+
+#endif /* !_MACHINE_SOUNDCARD_H_ */
