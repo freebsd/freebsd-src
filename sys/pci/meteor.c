@@ -116,6 +116,19 @@
 	3/25/96		Added YUV_9 and YUV_12 modes.  Cleaned up some of the
 			code and converted variables to use the new register
 			types.
+	4/8/96		Fixed the a bug in with the range enable.  Pointed
+			out by Jim Bray.
+	5/13/96		Fix the FPS ioctl so it actually sets the frames
+			per second.  Code supplied by ian@robots.ox.ac.uk.
+			The new code implements a new define:
+			METEOR_SYSTEM_DEFAULT  which should be defined as
+			METEOR_PAL, METEOR_SECAM, or METEOR_NTSC in your system
+			configuration file.  If METEOR_SYSTEM_DEFAULT isn't
+			defined, and there is not a signal when set_fps is
+			called, then the call has no effect.
+			Changed the spelling of PLANER to PLANAR as pointed
+			out by Paco Hope <paco@cs.virigina.edu> and define
+			PLANER to be PLANAR for backward compatibility.
 */
 
 #include "meteor.h"
@@ -140,6 +153,9 @@
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 #include <machine/clock.h>
+#if defined(METEOR_FreeBSD_210)
+#include <machine/cpu.h>	/* bootverbose */
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -604,7 +620,7 @@ meteor_intr(void *arg)
 		mtr->flags &= ~METEOR_WANT_EVEN;
 		if((mtr->flags & METEOR_SYNCAP) && !mtr->synch_wait) {
 			*base = next_base;
-			/* XXX should add adjustments for YUV_422 & PLANER */
+			/* XXX should add adjustments for YUV_422 & PLANAR */
 		}
 	}
 	if (status & 0x2) {		/* odd field */
@@ -612,7 +628,7 @@ meteor_intr(void *arg)
 		mtr->flags &= ~METEOR_WANT_ODD;
 		if((mtr->flags & METEOR_SYNCAP) && !mtr->synch_wait) {
 			*(base+3) = next_base + *(base+6);
-			/* XXX should add adjustments for YUV_422 & PLANER */
+			/* XXX should add adjustments for YUV_422 & PLANAR */
 		}
 	}
 
@@ -727,29 +743,67 @@ meteor_intr(void *arg)
 static void
 set_fps(meteor_reg_t *mtr, u_short fps)
 {
-	mreg_t	*field_mask_even = &mtr->base->fme;
-	mreg_t	*field_mask_odd = &mtr->base->fmo;
-	mreg_t	*field_mask_length = &mtr->base->fml;
-	int	is_ntsc=1;	/* assume ntsc  */
+	struct saa7116_regs *s7116 = mtr->base;
 	unsigned status;
+	unsigned maxfps, mask = 0x1, length = 0;
 
 	SAA7196_WRITE(mtr, SAA7196_STDC, SAA7196_REG(mtr, SAA7196_STDC) | 0x02);
 	SAA7196_READ(mtr);
-	status = (mtr->base->i2c_read & 0xff000000L) >> 24;
-	if((status & 0x40) == 0)
-		is_ntsc = ((status & 0x20) != 0) ;
+	status = (s7116->i2c_read & 0xff000000L) >> 24;
+
+	/*
+	 * Determine if there is an input signal.  Depending on the
+	 * frequency we either have a max of 25 fps (50 hz) or 30 fps (60 hz).
+	 * If there is no input signal, then we need some defaults.  If the
+	 * user neglected to specify any defaults, just set to the fps to max.
+	 */
+	if((status & 0x40) == 0) {	/* Is there a signal ? */
+		if(status & 0x20) {
+			maxfps = 30;	/* 60 hz system */
+		} else {
+			maxfps = 25;	/* 50 hz system */
+		}
+	} else {			/* We have no signal, check defaults */
+#if METEOR_SYSTEM_DEFAULT == METEOR_PAL || METEOR_SYSTEM_DEFAULT == METEOR_SECAM
+		maxfps = 25;
+#elif METEOR_SYSTEM_DEFAULT == METEOR_NTSC
+		maxfps = 30;
+#else
+		/* Don't really know what to do, just set max */
+		maxfps = 30;
+		fps = 30;
+#endif
+	}
 
 	/*
 	 * A little sanity checking...
 	 */
-	if(fps <  1)		 fps = 1;
-	if(!is_ntsc && fps > 25) fps = 25;
-	if( is_ntsc && fps > 30) fps = 30;
-	mtr->fps = fps;	
+	if(fps <  1)	  fps = 1;
+	if(fps > maxfps) fps = maxfps;
+
 	/*
-	 * Set the fps using the mask/length.
+	 * Compute the mask/length using the fps.
 	 */
-	/* XXX we need some code to actually do this here... */
+	if(fps < maxfps) {
+		float	b, step;
+
+		mask = (1 << maxfps) - 1;
+		length = ((maxfps - 1) << 16) | (maxfps - 1);
+		step = (float)(maxfps - 1) / (float)(maxfps - fps);
+		for(b=step; b < maxfps; b += step) {
+			mask &= ~(1<<((int)b));
+		}
+	}
+
+	/*
+	 * Set the fps.
+	 */
+	s7116->fme = s7116->fmo = mask;
+	s7116->fml = length;
+
+	mtr->fps = fps;
+
+	return;
 
 }
 
@@ -1305,7 +1359,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		break;
 	case METEORSHWS:	/* set horizontal window start */
 		SAA7196_WRITE(mtr, SAA7196_HWS, *(char *)arg);
-	break;
+		break;
 	case METEORGHWS:	/* get horizontal window start */
 		*(char *)arg = SAA7196_REG(mtr, SAA7196_HWS);
 		break;
@@ -1498,7 +1552,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 	    case METEOR_CAP_N_FRAMES:
 		if (mtr->flags & METEOR_CAP_MASK)
 			return(EIO);
-		if (mtr->flags & (METEOR_YUV_PLANER | METEOR_YUV_422)) /* XXX */
+		if (mtr->flags & (METEOR_YUV_PLANAR | METEOR_YUV_422)) /* XXX */
 			return(EINVAL); /* should fix intr so we allow these */
 		if (mtr->bigbuf == NULL)
 			return(ENOMEM);
@@ -1646,12 +1700,8 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		base->stride2o = 0;
 		base->stride3o = 0;
 				/* set end of DMA location, even/odd */
-		if(mtr->range_enable)
-			base->dma_end_e =
-			base->dma_end_o = buf + mtr->alloc_pages * PAGE_SIZE;
-		else
-			base->dma_end_e =
-			base->dma_end_o = 0xffffffff;
+		base->dma_end_e =
+		base->dma_end_o = buf + mtr->alloc_pages * PAGE_SIZE;
 
 		/*
 		 * Determine if we can use the hardware range detect.
@@ -1660,8 +1710,11 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 		  ((buf & 0xff000000) | base->dma_end_e) ==
 			(buf + mtr->alloc_pages * PAGE_SIZE) )
                         mtr->range_enable = 0x8000;
-		else
+		else {
 			mtr->range_enable = 0x0;
+			base->dma_end_e =
+			base->dma_end_o = 0xffffffff;
+		}
 
 
 		switch (geo->oformat & METEOR_GEO_OUTPUT_MASK) {
@@ -1749,12 +1802,12 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			}
 			base->routee= base->routeo= 0x39393900;
 			break;
-		case METEOR_GEO_YUV_PLANER:
+		case METEOR_GEO_YUV_PLANAR:
 			mtr->depth = 2;
 			temp = mtr->rows * mtr->cols;	/* compute frame size */
 			mtr->frame_size = temp * mtr->depth;
 			mtr->flags &= ~METEOR_OUTPUT_FMT_MASK;
-			mtr->flags |= METEOR_YUV_PLANER;
+			mtr->flags |= METEOR_YUV_PLANAR;
 			/* recal stride and starting point */
 			switch(mtr->flags & METEOR_ONLY_FIELDS_MASK) {
 			case METEOR_ONLY_ODD_FIELDS:

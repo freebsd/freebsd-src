@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.257 1996/05/13 04:29:14 nate Exp $
+#	$Id: LINT,v 1.258 1996/05/13 04:38:10 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -849,6 +849,8 @@ controller	ahc0
 #   options METEOR_DEALLOC_ABOVE=xxx	remove all allocated pages above the
 #	specified amount. If this value is below the allocated amount no action
 #	taken
+#   option METEOR_SYSTEM_DEFAULT={METEOR_PAL|METEOR_NTSC|METEOR_SECAM}, used
+#	for initialization of fps routine when a signal is not present.
 #
 controller	pci0
 controller	ahc1

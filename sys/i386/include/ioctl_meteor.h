@@ -143,7 +143,8 @@ struct meteor_video {
 #define METEOR_GEO_RGB24	0x0020000 /* RBG 24 bits packed */
 					  /* internally stored in 32 bits */
 #define METEOR_GEO_YUV_PACKED	0x0040000 /* 4-2-2 YUV 16 bits packed */
-#define METEOR_GEO_YUV_PLANER	0x0080000 /* 4-2-2 YUV 16 bits planer */
+#define METEOR_GEO_YUV_PLANAR	0x0080000 /* 4-2-2 YUV 16 bits planer */
+#define METEOR_GEO_YUV_PLANER	METEOR_GEO_YUV_PLANAR
 #define METEOR_GEO_UNSIGNED	0x0400000 /* unsigned uv outputs */
 #define METEOR_GEO_EVEN_ONLY	0x1000000 /* set for even only field capture */
 #define METEOR_GEO_ODD_ONLY	0x2000000 /* set for odd only field capture */
