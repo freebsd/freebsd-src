@@ -828,7 +828,6 @@ Copyright (c) 1989-1997 Brian Berliner, david d `zoo' zuhn, \n\
 		    error (1, save_errno, "%s", path);
 		}
 		free (path);
-		parseopts(CVSroot_directory);
 	    }
 
 #ifdef HAVE_PUTENV
@@ -940,6 +939,9 @@ Copyright (c) 1989-1997 Brian Berliner, david d `zoo' zuhn, \n\
 	       if we didn't, then there would be no way to check in a new
 	       CVSROOT/config file to fix the broken one!  */
 	    parse_config (CVSroot_directory);
+
+	    /* Now is a convenient time to read CVSROOT/options */
+	    parseopts(CVSroot_directory);
 	}
     } /* end of stuff that gets done if the user DOESN'T ask for help */
 
@@ -1057,13 +1059,6 @@ parseopts(root)
 
 		rcs_localid = buf + 4;
 		RCS_setlocalid(rcs_localid);
-		what = malloc(sizeof("RCSLOCALID") + 2 + strlen(rcs_localid));
-		if (what == NULL) {
-			printf("no memory for local tag\n");
-			return;
-		}
-		sprintf(what, "RCSLOCALID=%s", rcs_localid);
-		putenv(what);
 	    }
 	    if (!strncmp(buf, "tagexpand=", 10)) {
 		char *what;
@@ -1071,19 +1066,12 @@ parseopts(root)
 
 		rcs_incexc = buf + 10;
 		RCS_setincexc(rcs_incexc);
-		what = malloc(sizeof("RCSINCEXC") + 2 + strlen(rcs_incexc));
-		if (what == NULL) {
-			printf("no memory for tag expand mode\n");
-			return;
-		}
-		sprintf(what, "RCSINCEXC=%s", rcs_incexc);
-		putenv(what);
 	    }
 	    /*
 	     * OpenBSD has a "umask=" and "dlimit=" command, we silently
 	     * ignore them here since they are not much use to us.  cvsumask
 	     * defaults to 002 already, and the dlimit (data size limit)
-	     * should really be handled elsewhere.
+	     * should really be handled elsewhere (eg: login.conf).
 	     */
 	}
 	fclose(fp);
