@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.154 1999/05/08 11:07:05 brian Exp $
+ * $Id: main.c,v 1.155 1999/05/13 16:34:57 brian Exp $
  *
  *	TODO:
  */
@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #ifndef NOALIAS
 #ifdef __FreeBSD__
@@ -305,7 +306,9 @@ main(int argc, char **argv)
 
     snprintf(conf, sizeof conf, "%s/%s", _PATH_PPP, CONFFILE);
     do {
-      if (!access(conf, W_OK)) {
+      struct stat sb;
+
+      if (stat(conf, &sb) == 0 && sb.st_mode & S_IWOTH) {
         log_Printf(LogALERT, "ppp: Access violation: Please protect %s\n",
                    conf);
         return -1;
