@@ -286,6 +286,7 @@
 #define _shrxs				shrxs
 #define _sigcode			sigcode
 #define _smp_active			smp_active
+#define _smp_rendezvous_action		smp_rendezvous_action
 #define _soft_imask			soft_imask
 #define _softclock			softclock
 #define _softnet_imask			softnet_imask
