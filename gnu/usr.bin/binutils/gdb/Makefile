@@ -45,7 +45,7 @@ XSRCS=	annotate.c arch-utils.c ax-general.c ax-gdb.c bcache.c		\
 	scm-exp.c scm-lang.c scm-valprint.c				\
 	coffread.c dbxread.c dwarfread.c dwarf2read.c elfread.c		\
 	solib.c solib-svr4.c solib-legacy.c
-XSRCS+=	freebsd-uthread.c kvm-fbsd.c solib-fbsd-kld.c
+XSRCS+=	freebsd-uthread.c kvm-fbsd.c kvm-fbsd-machine.h solib-fbsd-kld.c
 SRCS=	init.c ${XSRCS} nm.h tm.h xm.h gdbversion.c xregex.h
 
 .include "${.CURDIR}/Makefile.${TARGET_ARCH}"
@@ -73,7 +73,7 @@ LDADD+=		-lgnuregex
 LDADD+=		${RELTOP}/libiberty/libiberty.a
 LDADD+=		-lreadline -ltermcap
 
-CLEANFILES=	init.c init.c-tmp nm.h tm.h xm.h gdbversion.c xregex.h
+CLEANFILES=	init.c init.c-tmp nm.h tm.h xm.h gdbversion.c xregex.h kvm-fbsd-machine.h
 
 # We do this by grepping through sources.  If that turns out to be too slow,
 # maybe we could just require every .o file to have an initialization routine
@@ -126,6 +126,9 @@ tm.h:
 ${H:C/-.*$//}.h:
 	ln -sf ${GDBDIR}/gdb/config/${GDB_CPU}/${H}.h ${.TARGET}
 .endfor
+
+kvm-fbsd-machine.h:
+	ln -sf ${.CURDIR}/kvm-fbsd-${TARGET_ARCH}.h ${.TARGET}
 
 GDB_VERSION=	"5.2.1 (FreeBSD)"
 gdbversion.c: Makefile
