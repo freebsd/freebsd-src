@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.22 1996/01/04 20:28:48 wollman Exp $
+	$Id: syscalls.master,v 1.23 1996/01/08 04:13:25 peter Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -261,7 +261,7 @@
 158	STD	BSD	{ int fstatfs(int fd, struct statfs *buf); }
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
-#ifdef NFS
+#if defined(NFS) && !defined (NFS_NOSERVER)
 161	STD	BSD	{ int getfh(char *fname, fhandle_t *fhp); }
 #else
 161	UNIMPL	BSD	nosys
