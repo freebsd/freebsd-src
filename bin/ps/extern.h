@@ -45,6 +45,7 @@ extern int sumrusage, termwidth, totwidth;
 extern VARENT *vhead;
 
 __BEGIN_DECLS
+void	 arguments(KINFO *, VARENT *);
 void	 command(KINFO *, VARENT *);
 void	 cputime(KINFO *, VARENT *);
 int	 donlist(void);

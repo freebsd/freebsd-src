@@ -91,6 +91,36 @@ printheader(void)
 }
 
 void
+arguments(KINFO *k, VARENT *ve)
+{
+	VAR *v;
+	int left;
+	char *cp, *vis_args;
+
+	v = ve->var;
+
+	if ((vis_args = malloc(strlen(k->ki_args) * 4 + 1)) == NULL)
+		errx(1, "malloc failed");
+	strvis(vis_args, k->ki_args, VIS_TAB | VIS_NL | VIS_NOSLASH);
+
+	if (ve->next == NULL) {
+		/* last field */
+		if (termwidth == UNLIMITED) {
+			(void)printf("%s", vis_args);
+		} else {
+			left = termwidth - (totwidth - v->width);
+			if (left < 1) /* already wrapped, just use std width */
+				left = v->width;
+			for (cp = vis_args; --left >= 0 && *cp != '\0';)
+				(void)putchar(*cp++);
+		}
+	} else {
+		(void)printf("%-*.*s", v->width, v->width, vis_args);
+	}
+	free(vis_args);
+}
+
+void
 command(KINFO *k, VARENT *ve)
 {
 	VAR *v;
