@@ -441,8 +441,7 @@ interpret:
 	pa = p->p_args;
 	p->p_args = NULL;
 	PROC_UNLOCK(p);
-	if (pa != NULL && --pa->ar_ref == 0)
-		FREE(pa, M_PARGS);
+	pargs_drop(pa);
 
 	/* Set values passed into the program in registers. */
 	setregs(td, imgp->entry_addr, (u_long)(uintptr_t)stack_base,
@@ -451,10 +450,7 @@ interpret:
 	/* Cache arguments if they fit inside our allowance */
 	i = imgp->endargs - imgp->stringbase;
 	if (ps_arg_cache_limit >= i + sizeof(struct pargs)) {
-		MALLOC(pa, struct pargs *, sizeof(struct pargs) + i, 
-		    M_PARGS, M_WAITOK);
-		pa->ar_ref = 1;
-		pa->ar_length = i;
+		pa = pargs_alloc(i);
 		bcopy(imgp->stringbase, pa->ar_args, i);
 		PROC_LOCK(p);
 		p->p_args = pa;

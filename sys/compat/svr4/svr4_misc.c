@@ -1330,8 +1330,7 @@ loop:
 			/*
 			 * Remove unused arguments
 			 */
-			if (q->p_args && --q->p_args->ar_ref == 0)
-				FREE(q->p_args, M_PARGS);
+			pargs_drop(q->p_args);
 			PROC_UNLOCK(q);
 
 			/*

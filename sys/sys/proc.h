@@ -55,6 +55,8 @@
 #else
 #include <sys/pcpu.h>
 #endif
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
 #include <vm/uma.h>
@@ -667,6 +669,10 @@ sigonstack(size_t sp)
 	(--(p)->p_lock);						\
 } while (0)
 
+/* Lock and unlock process arguments. */
+#define	PARGS_LOCK(p)		mtx_lock(&pargs_ref_lock)
+#define	PARGS_UNLOCK(p)		mtx_unlock(&pargs_ref_lock)
+
 #define	PIDHASH(pid)	(&pidhashtbl[(pid) & pidhash])
 extern LIST_HEAD(pidhashhead, proc) *pidhashtbl;
 extern u_long pidhash;
@@ -678,6 +684,7 @@ extern u_long pgrphash;
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
 extern struct sx pgrpsess_lock;
+extern struct mtx pargs_ref_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0 */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
@@ -699,6 +706,50 @@ extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 extern uma_zone_t proc_zone;
 
 extern int lastpid;
+
+static __inline struct pargs *
+pargs_alloc(int len)
+{
+	struct pargs *pa;
+
+	MALLOC(pa, struct pargs *, sizeof(struct pargs) + len, M_PARGS,
+		M_WAITOK);
+	pa->ar_ref = 1;
+	pa->ar_length = len;
+	return (pa);
+}
+
+static __inline void
+pargs_free(struct pargs *pa)
+{
+
+	FREE(pa, M_PARGS);
+}
+
+static __inline void
+pargs_hold(struct pargs *pa)
+{
+
+	if (pa == NULL)
+		return;
+	PARGS_LOCK(pa);
+	pa->ar_ref++;
+	PARGS_UNLOCK(pa);
+}
+
+static __inline void
+pargs_drop(struct pargs *pa)
+{
+
+	if (pa == NULL)
+		return;
+	PARGS_LOCK(pa);
+	if (--pa->ar_ref == 0) {
+		PARGS_UNLOCK(pa);
+		pargs_free(pa);
+	} else
+		PARGS_UNLOCK(pa);
+}
 
 /*
  * XXX macros for scheduler.  Shouldn't be here, but currently needed for
