@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signalvar.h	8.3 (Berkeley) 1/4/94
- * $Id: signalvar.h,v 1.7 1995/11/19 00:51:29 bde Exp $
+ * $Id: signalvar.h,v 1.8 1995/12/14 08:32:34 phk Exp $
  */
 
 #ifndef	_SYS_SIGNALVAR_H_		/* tmp for user.h */
@@ -154,9 +154,10 @@ static int sigprop[NSIG + 1] = {
 void	execsigs __P((struct proc *p));
 void	gsignal __P((int pgid, int sig));
 int	issig __P((struct proc *p));
+int	issignal __P((struct proc *p));
+void	killproc __P((struct proc *, char *));
 void	pgsignal __P((struct pgrp *pgrp, int sig, int checkctty));
 void	postsig __P((int sig));
-int	issignal __P((struct proc *p));
 void	psignal __P((struct proc *p, int sig));
 void	setsigvec __P((struct proc *, int, struct sigaction *));
 void	sigexit	__P((struct proc *, int));
