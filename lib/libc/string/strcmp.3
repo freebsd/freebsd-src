@@ -58,6 +58,12 @@ lexicographically compare the null-terminated strings
 .Fa s1
 and
 .Fa s2 .
+.Pp
+The
+.Fn strncmp
+compares not more than
+.Fa len
+characters.
 .Sh RETURN VALUES
 The
 .Fn strcmp
@@ -72,12 +78,6 @@ The comparison is done using unsigned characters, so that
 .Ql \e200
 is greater than
 .Ql \e0 .
-.Pp
-The
-.Fn strncmp
-compares not more than
-.Fa len
-characters.
 .Sh SEE ALSO
 .Xr bcmp 3 ,
 .Xr memcmp 3 ,
