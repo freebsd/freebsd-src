@@ -2510,6 +2510,22 @@ pmap_zpi_switchout3(void)
 
 #endif
 
+static __inline void
+pagezero(void *page)
+{
+#if defined(I686_CPU)
+	if (cpu_class == CPUCLASS_686) {
+#if defined(CPU_ENABLED_SSE)
+		if (cpu_feature & CPUID_SSE2)
+			sse2_pagezero(page);
+		else
+#endif
+			i686_pagezero(page);
+	} else
+#endif
+		bzero(page, PAGE_SIZE);
+}
+
 /*
  *	pmap_zero_page zeros the specified hardware page by mapping 
  *	the page into KVM and using bzero to clear its contents.
@@ -2525,12 +2541,7 @@ pmap_zero_page(vm_page_t m)
 	curthread->td_pcb->pcb_switchout = pmap_zpi_switchout2;
 #endif
 	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686)
-		i686_pagezero(CADDR2);
-	else
-#endif
-		bzero(CADDR2, PAGE_SIZE);
+	pagezero(CADDR2);
 	*CMAP2 = 0;
 #ifdef I386_CPU
 	invltlb();
@@ -2560,11 +2571,9 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 	curthread->td_pcb->pcb_switchout = pmap_zpi_switchout2;
 #endif
 	*CMAP2 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686 && off == 0 && size == PAGE_SIZE)
-		i686_pagezero(CADDR2);
+	if (off == 0 && size == PAGE_SIZE) 
+		pagezero(CADDR2);
 	else
-#endif
 		bzero((char *)CADDR2 + off, size);
 	*CMAP2 = 0;
 #ifdef I386_CPU
@@ -2594,12 +2603,7 @@ pmap_zero_page_idle(vm_page_t m)
 	curthread->td_pcb->pcb_switchout = pmap_zpi_switchout3;
 #endif
 	*CMAP3 = PG_V | PG_RW | VM_PAGE_TO_PHYS(m) | PG_A | PG_M;
-#if defined(I686_CPU)
-	if (cpu_class == CPUCLASS_686)
-		i686_pagezero(CADDR3);
-	else
-#endif
-		bzero(CADDR3, PAGE_SIZE);
+	pagezero(CADDR3);
 	*CMAP3 = 0;
 #ifdef I386_CPU
 	invltlb();
