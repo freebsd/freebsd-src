@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.22 1994/10/23 21:03:09 davidg Exp $
+ * $Id: vm_pageout.c,v 1.23 1994/10/25 05:35:44 davidg Exp $
  */
 
 /*
@@ -95,6 +95,8 @@ int	vm_desired_cache_size;
 extern int npendingio;
 extern int hz;
 int	vm_pageout_proc_limit;
+int	vm_pageout_req_swapout;
+int vm_daemon_needed;
 extern int nswiodone;
 extern int swap_pager_full;
 extern int vm_swap_size;
@@ -172,16 +174,9 @@ vm_pageout_clean(m, sync)
 		cnt.v_free_count < vm_pageout_free_min)
 		return 0;
 
-	if (!object->pager &&
-		object->shadow &&
-		object->shadow->paging_in_progress)
-		return 0;
-
 	if( !sync) {
 		if (object->shadow) {
 			vm_object_collapse(object);
-			if (!vm_page_lookup(object, offset))
-				return 0;
 		}
 
 		if ((m->busy != 0) ||
@@ -198,6 +193,10 @@ vm_pageout_clean(m, sync)
 		for (i = 1; i < vm_pageout_page_count; i++) {
 			ms[i] = vm_page_lookup(object, offset+i*NBPG);
 			if (ms[i]) {
+				if (((ms[i]->flags & PG_CLEAN) != 0) &&
+				    pmap_is_modified(VM_PAGE_TO_PHYS(ms[i]))) {
+					ms[i]->flags &= ~PG_CLEAN;
+				}
 				if (( ((ms[i]->flags & (PG_CLEAN|PG_INACTIVE|PG_BUSY)) == PG_INACTIVE)
 					|| ( (ms[i]->flags & (PG_CLEAN|PG_BUSY)) == 0 && sync == VM_PAGEOUT_FORCE))
 					&& (ms[i]->wire_count == 0)
@@ -344,6 +343,7 @@ vm_pageout_object_deactivate_pages(map, object, count)
 	if (count == 0)
 		count = 1;
 
+#ifndef REL2_1
 	if (object->shadow) {
 		int scount = count;
 		if( object->shadow->ref_count > 1)
@@ -351,6 +351,12 @@ vm_pageout_object_deactivate_pages(map, object, count)
 		if( scount)
 			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, scount);
 	}
+#else
+	if (object->shadow) {
+		if( object->shadow->ref_count == 1)
+			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, count/2);
+	}
+#endif
 
 	if (object->paging_in_progress)
 		return dcount;
@@ -473,6 +479,18 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	return;
 }
 
+#ifdef REL2_1
+void
+vm_req_vmdaemon() {
+	extern	int ticks;
+	static lastrun = 0;
+	if( (ticks > (lastrun + hz/10)) || (ticks < lastrun)) {
+		wakeup((caddr_t) &vm_daemon_needed);
+		lastrun = ticks;
+	}
+}
+#endif
+
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
  */
@@ -490,52 +508,7 @@ vm_pageout_scan()
 	int		force_wakeup = 0;
 	int		cache_size, orig_cache_size;
 
-#if 0
-	/*
-	 * We manage the cached memory by attempting to keep it
-	 * at about the desired level.
-	 * We deactivate the pages for the oldest cached objects
-	 * first.  This keeps pages that are "cached" from hogging
-	 * physical memory.
-	 */
-	orig_cache_size = 0;
-	object = vm_object_cached_list.tqh_first;
-
-	/* calculate the total cached size */
-
-	while( object) {
-		orig_cache_size += object->resident_page_count;
-		object = object->cached_list.tqe_next;
-	}
-
-redeact:
-	cache_size = orig_cache_size;
-	object = vm_object_cached_list.tqh_first;
-	vm_object_cache_lock();
-	while ( object && (cnt.v_inactive_count < cnt.v_inactive_target)) {
-		vm_object_cache_unlock();
-		/*
-		 * if there are no resident pages -- get rid of the object
-		 */
-		if( object->resident_page_count == 0) {
-			if (object != vm_object_lookup(object->pager))
-				panic("vm_pageout_scan: I'm sooo confused.");
-			pager_cache(object, FALSE);
-			goto redeact;
-		} else if( cache_size >= (vm_swap_size?vm_desired_cache_size:0)) {
-		/*
-		 * if there are resident pages -- deactivate them
-		 */
-			vm_object_deactivate_pages(object);
-			cache_size -= object->resident_page_count;
-		}
-		object = object->cached_list.tqe_next;
-
-		vm_object_cache_lock();
-	}
-	vm_object_cache_unlock();
-#endif
-
+#ifndef REL2_1
 morefree:
 	/*
 	 * now swap processes out if we are in low memory conditions
@@ -597,6 +570,23 @@ morefree:
 		(cnt.v_inactive_target + cnt.v_free_target)) &&
 		(cnt.v_free_count >= cnt.v_free_target))
 		return force_wakeup;
+#else
+	/* calculate the total cached size */
+
+	if( cnt.v_inactive_count < cnt.v_inactive_target) {
+		vm_req_vmdaemon();
+	}
+
+morefree:
+	/*
+	 * now swap processes out if we are in low memory conditions
+	 */
+	if ((cnt.v_free_count <= cnt.v_free_min) && !swap_pager_full && vm_swap_size&& vm_pageout_req_swapout == 0) {
+		vm_pageout_req_swapout = 1;
+		vm_req_vmdaemon();
+	}
+
+#endif
 
 	pages_freed = 0;
 	desired_free = cnt.v_free_target;
@@ -641,20 +631,24 @@ rescan1:
 			continue;
 		}
 
-		/*
-		 * NOTE: PG_CLEAN doesn't guarantee that the page is clean.
-		 */
+		if (((m->flags & PG_CLEAN) != 0) && pmap_is_modified(VM_PAGE_TO_PHYS(m)))
+			m->flags &= ~PG_CLEAN;
+
+		if (((m->flags & PG_REFERENCED) == 0) && pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
+			m->flags |= PG_REFERENCED;
+			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+		}
+
 		if (m->flags & PG_CLEAN) {
 			/*
 			 * If we're not low on memory and the page has been reference,
-			 * or if the page has been modified, then reactivate the page.
+			 * then reactivate the page.
 			 */
-			if (((cnt.v_free_count > vm_pageout_free_min) &&
-			    (pmap_is_referenced(VM_PAGE_TO_PHYS(m)) || ((m->flags & PG_REFERENCED) != 0))) ||
-			    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
+			if ((cnt.v_free_count > vm_pageout_free_min) &&
+			    ((m->flags & PG_REFERENCED) != 0)) {
 				m->flags &= ~PG_REFERENCED;
 				vm_page_activate(m);
-			} else if (!m->act_count) {
+			} else if (m->act_count == 0) {
 				pmap_page_protect(VM_PAGE_TO_PHYS(m),
 						  VM_PROT_NONE);
 				vm_page_free(m);
@@ -667,14 +661,13 @@ rescan1:
 			}
 		} else if ((m->flags & PG_LAUNDRY) && maxlaunder > 0) {
 			int written;
-			if (pmap_is_referenced(VM_PAGE_TO_PHYS(m)) ||
-				((m->flags & PG_REFERENCED) != 0)) {
-				pmap_clear_reference(VM_PAGE_TO_PHYS(m));
-				vm_page_activate(m);
+			if ((m->flags & PG_REFERENCED) != 0) {
 				m->flags &= ~PG_REFERENCED;
+				vm_page_activate(m);
 				m = next;
 				continue;
 			}
+
 			/*
 			 *	If a page is dirty, then it is either
 			 *	being washed (but not yet cleaned)
@@ -682,7 +675,6 @@ rescan1:
 			 *	still in the laundry, then we start the
 			 *	cleaning operation.
 			 */
-
 			written = vm_pageout_clean(m,0);
 			if (written) 
 				maxlaunder -= written;
@@ -692,11 +684,9 @@ rescan1:
 			/*
 			 * if the next page has been re-activated, start scanning again
 			 */
-			if ((next->flags & PG_INACTIVE) == 0)
+			if ((written != 0) || ((next->flags & PG_INACTIVE) == 0))
 				goto rescan1;
-		} else if ((m->flags & PG_REFERENCED) ||
-				pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-			pmap_clear_reference(VM_PAGE_TO_PHYS(m));
+		} else if ((m->flags & PG_REFERENCED) != 0) {
 			m->flags &= ~PG_REFERENCED;
 			vm_page_activate(m);
 		} 
@@ -879,11 +869,6 @@ vm_pageout()
 	 */
 	while (TRUE) {
 		int force_wakeup;
-/*
-		cnt.v_free_min = 12 + averunnable.ldavg[0] / 1024;
-		cnt.v_free_target = 2*cnt.v_free_min + cnt.v_free_reserved;
-		cnt.v_inactive_target = cnt.v_free_target*2;
-*/
 		
 		tsleep((caddr_t) &vm_pages_needed, PVM, "psleep", 0);
 		cnt.v_pdwakeups++;
@@ -903,3 +888,107 @@ vm_pageout()
 	}
 }
 
+#ifdef REL2_1
+void
+vm_daemon() {
+	int cache_size;
+	vm_object_t object;
+	struct proc *p;
+	while(TRUE) {
+		tsleep((caddr_t) &vm_daemon_needed, PUSER, "psleep", 0);
+		if( vm_pageout_req_swapout) {
+		/*
+		 * swap out inactive processes
+		 */
+			swapout_threads();
+			vm_pageout_req_swapout = 0;
+		}
+	/*
+	 * scan the processes for exceeding their rlimits or if process
+	 * is swapped out -- deactivate pages 
+	 */
+
+		for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+			int overage;
+			quad_t limit;
+			vm_offset_t size;
+
+			/*
+			 * if this is a system process or if we have already
+			 * looked at this process, skip it.
+			 */
+			if (p->p_flag & (P_SYSTEM|P_WEXIT)) {
+				continue;
+			}
+
+		/*
+		 * if the process is in a non-running type state,
+		 * don't touch it.
+		 */
+			if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
+				continue;
+			}
+
+		/*
+		 * get a limit
+		 */
+			limit = qmin(p->p_rlimit[RLIMIT_RSS].rlim_cur,
+				    p->p_rlimit[RLIMIT_RSS].rlim_max);
+			
+		/*
+		 * let processes that are swapped out really be swapped out
+		 * set the limit to nothing (will force a swap-out.)
+		 */
+			if ((p->p_flag & P_INMEM) == 0)
+				limit = 0;
+
+			size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
+			if (limit >= 0 && size >= limit) {
+				overage = (size - limit) / NBPG;
+				vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
+					(vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
+			}
+		}
+
+	/*
+	 * We manage the cached memory by attempting to keep it
+	 * at about the desired level.
+	 * We deactivate the pages for the oldest cached objects
+	 * first.  This keeps pages that are "cached" from hogging
+	 * physical memory.
+	 */
+restart:
+		cache_size = 0;
+		object = vm_object_cached_list.tqh_first;
+	/* calculate the total cached size */
+		while( object) {
+			cache_size += object->resident_page_count;
+			object = object->cached_list.tqe_next;
+		}
+
+		vm_object_cache_lock();
+		object = vm_object_cached_list.tqh_first;
+		while ( object) {
+			vm_object_cache_unlock();
+		/*
+		 * if there are no resident pages -- get rid of the object
+		 */
+			if( object->resident_page_count == 0) {
+				if (object != vm_object_lookup(object->pager))
+					panic("vm_object_cache_trim: I'm sooo confused.");
+				pager_cache(object, FALSE);
+				goto restart;
+			} else if( cache_size >= (vm_swap_size?vm_desired_cache_size:0)) {
+		/*
+		 * if there are resident pages -- deactivate them
+		 */
+				vm_object_deactivate_pages(object);
+				cache_size -= object->resident_page_count;
+			}
+			object = object->cached_list.tqe_next;
+			vm_object_cache_lock();
+		}
+		vm_object_cache_unlock();
+	}
+}
+#endif
