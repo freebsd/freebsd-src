@@ -738,6 +738,8 @@ got_match:
 			break;
 		  }
 		default:	/* Send an ICMP unreachable using code */
+			if (oif)
+				(*m)->m_pkthdr.rcvif = oif;
 			icmp6_error(*m, ICMP6_DST_UNREACH,
 			    rule->fw_reject_code, 0);
 			*m = NULL;
