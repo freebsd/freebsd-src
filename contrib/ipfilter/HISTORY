@@ -20,6 +20,55 @@
 # and especially those who have found the time to port IP Filter to new
 # platforms.
 #
+3.4.8	19/07/2000 - Released
+
+create fake opt_inet6.h for FreeBSD-4 compile as LKM
+
+add #ifdef's for KLD_MODULE sanity
+
+NAT fastroute'd packets which come out of return-*
+
+fix upper/lower case crap in ftp proxy and get seq# checking fixed up.
+
+3.4.7	08/07/2000 - Released
+
+make "ipf -y" lookup NAT if's which are unknown
+
+prepend line numbers to ioctl error messages in ipf/ipnat
+
+don't apply patches to FreeBSD twice
+
+allow for ip_len to be on an unaligned boundary early on in fr_precheck
+
+fix printing of icmp code when it is 0
+
+correct printing of port numbers in map rules with from/to
+
+don't allow fr_func to be called at securelevel > 0 or rules to be added
+if securelevel > 0 if they have a non-zero fr_func.
+
+3.4.6	11/06/2000 - Released
+
+add extra regression tests for new nat functionality
+
+place restrictions on using '!' in map/rdr rules
+
+fix up solaris compile problems
+
+3.4.5	10/06/2000 - Released
+
+mention -sl in ipfstat.8
+
+fix/support '!' in from/to rules (rdr) for NAT
+
+add from/to support to rdr NAT rules
+
+don't send ICMP errors in response to ICMP errors
+
+fix sunos5 compilation for "ipfstat-top" and cleanup ipfboot
+
+input accounting list used for both outbound and inbound packets
+
 3.4.4	23/05/2000 - Released
 
 don't add TCP state if it is an RST packet and (attempt) to send out
