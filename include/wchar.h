@@ -129,14 +129,9 @@ int	swscanf(const wchar_t * __restrict, const wchar_t * __restrict, ...);
 wint_t	ungetwc(wint_t, struct __sFILE *);
 int	vfwprintf(struct __sFILE * __restrict, const wchar_t * __restrict,
 	    __va_list);
-int	vfwscanf(struct __sFILE * __restrict, const wchar_t * __restrict,
-	    __va_list);
 int	vswprintf(wchar_t * __restrict, size_t n, const wchar_t * __restrict,
 	    __va_list);
-int	vswscanf(const wchar_t * __restrict, const wchar_t * __restrict,
-	    __va_list);
 int	vwprintf(const wchar_t * __restrict, __va_list);
-int	vwscanf(const wchar_t * __restrict, __va_list);
 size_t	wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 wchar_t	*wcscat(wchar_t * __restrict, const wchar_t * __restrict);
 wchar_t	*wcschr(const wchar_t *, wchar_t);
@@ -163,12 +158,8 @@ double	wcstod(const wchar_t * __restrict, wchar_t ** __restrict);
 wchar_t	*wcstok(wchar_t * __restrict, const wchar_t * __restrict,
 	    wchar_t ** __restrict);
 long	 wcstol(const wchar_t * __restrict, wchar_t ** __restrict, int);
-long long
-	wcstoll(const wchar_t * __restrict, wchar_t ** __restrict, int);
 unsigned long
 	 wcstoul(const wchar_t * __restrict, wchar_t ** __restrict, int);
-unsigned long long
-	 wcstoull(const wchar_t * __restrict, wchar_t ** __restrict, int);
 wchar_t	*wmemchr(const wchar_t *, wchar_t, size_t);
 int	wmemcmp(const wchar_t *, const wchar_t *, size_t);
 wchar_t	*wmemcpy(wchar_t * __restrict, const wchar_t * __restrict, size_t);
@@ -176,6 +167,22 @@ wchar_t	*wmemmove(wchar_t *, const wchar_t *, size_t);
 wchar_t	*wmemset(wchar_t *, wchar_t, size_t);
 int	wprintf(const wchar_t * __restrict, ...);
 int	wscanf(const wchar_t * __restrict, ...);
+
+#if __ISO_C_VISIBLE >= 1999
+int	vfwscanf(struct __sFILE * __restrict, const wchar_t * __restrict,
+	    __va_list);
+int	vswscanf(const wchar_t * __restrict, const wchar_t * __restrict,
+	    __va_list);
+int	vwscanf(const wchar_t * __restrict, __va_list);
+#ifdef __LONG_LONG_SUPPORTED
+/* LONGLONG */
+long long
+	wcstoll(const wchar_t * __restrict, wchar_t ** __restrict, int);
+/* LONGLONG */
+unsigned long long
+	 wcstoull(const wchar_t * __restrict, wchar_t ** __restrict, int);
+#endif
+#endif	/* __ISO_C_VISIBLE >= 1999 */
 
 #if __XSI_VISIBLE
 int	wcswidth(const wchar_t *, size_t);
