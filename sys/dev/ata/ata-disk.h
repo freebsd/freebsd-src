@@ -60,6 +60,7 @@ struct ad_softc {
     u_int8_t			sectors;
     u_int32_t			transfersize;	/* size of each transfer */
     int				num_tags;	/* number of tags supported */
+    int				max_iosize;	/* max size of transfer */
     int				flags;		/* drive flags */
 #define		AD_F_LABELLING		0x0001		
 #define		AD_F_CHS_USED		0x0002
