@@ -427,7 +427,6 @@ static void
 cn_drvinit(void *unused)
 {
 
-	cdevsw_add(&cn_cdevsw);
 	condev_t = make_dev (&cn_cdevsw, 0,
 			UID_ROOT, GID_WHEEL, 0600, "console");
 }
