@@ -164,7 +164,7 @@ struct psm_softc {		/* Driver status information */
     dev_t	  dev;
     dev_t	  bdev;
 };
-devclass_t psm_devclass;
+static devclass_t psm_devclass;
 #define PSM_SOFTC(unit)	((struct psm_softc*)devclass_get_softc(psm_devclass, unit))
 
 /* driver state flags (state) */

@@ -234,7 +234,7 @@ struct dev_event_info
 
 TAILQ_HEAD(devq, dev_event_info);
 
-struct dev_softc
+static struct dev_softc
 {
 	int	inuse;
 	int 	nonblock;
@@ -245,7 +245,7 @@ struct dev_softc
 	struct proc *async_proc;
 } devsoftc;
 
-dev_t		devctl_dev;
+static dev_t		devctl_dev;
 
 static void
 devinit(void)

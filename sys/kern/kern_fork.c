@@ -83,7 +83,7 @@ struct fork_args {
 };
 #endif
 
-int forksleep; /* Place for fork1() to sleep on. */
+static int forksleep; /* Place for fork1() to sleep on. */
 
 /*
  * MPSAFE

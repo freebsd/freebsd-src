@@ -231,7 +231,7 @@ SYSCTL_INT(_regression, OID_AUTO, securelevel_nonmonotonic, CTLFLAG_RW,
 #endif
 
 int securelevel = -1;
-struct mtx securelevel_mtx;
+static struct mtx securelevel_mtx;
 
 MTX_SYSINIT(securelevel_lock, &securelevel_mtx, "securelevel mutex lock",
     MTX_DEF);

@@ -102,7 +102,7 @@ int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
 void	(*ng_ether_attach_p)(struct ifnet *ifp);
 void	(*ng_ether_detach_p)(struct ifnet *ifp);
 
-void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
+static void	(*vlan_input_p)(struct ifnet *, struct mbuf *);
 
 /* bridge support */
 int do_bridge;

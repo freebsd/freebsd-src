@@ -75,7 +75,7 @@
 static MALLOC_DEFINE(M_FILEDESC, "file desc", "Open file descriptor table");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
-uma_zone_t file_zone;
+static uma_zone_t file_zone;
 
 static	 d_open_t  fdopen;
 #define	NUMFDESC 64

@@ -228,7 +228,7 @@ struct mb_lstmngr {
 };
 static struct mb_lstmngr mb_list_mbuf, mb_list_clust;
 static struct mtx mbuf_gen, mbuf_pcpu[NCPU];
-u_int *cl_refcntmap;
+static u_int *cl_refcntmap;
 
 /*
  * Local macros for internal allocator structure manipulations.
