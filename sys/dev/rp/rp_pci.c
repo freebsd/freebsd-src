@@ -208,7 +208,6 @@ nogo:
 	return (retval);
 }
 
-#if notdef
 static int
 rp_pcidetach(device_t dev)
 {
@@ -238,20 +237,22 @@ rp_pcishutdown(device_t dev)
 
 	return (0);
 }
-#endif /* notdef */
 
 static void
 rp_pcireleaseresource(CONTROLLER_t *ctlp)
 {
-	rp_releaseresource(ctlp);
-
+	rp_untimeout();
 	if (ctlp->io != NULL) {
 		if (ctlp->io[0] != NULL)
 			bus_release_resource(ctlp->dev, SYS_RES_IOPORT, ctlp->io_rid[0], ctlp->io[0]);
 		free(ctlp->io, M_DEVBUF);
+		ctlp->io = NULL;
 	}
-	if (ctlp->io_rid != NULL)
+	if (ctlp->io_rid != NULL) {
 		free(ctlp->io_rid, M_DEVBUF);
+		ctlp->io = NULL;
+	}
+	rp_releaseresource(ctlp);
 }
 
 static int
@@ -351,10 +352,8 @@ static device_method_t rp_pcimethods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		rp_pciprobe),
 	DEVMETHOD(device_attach,	rp_pciattach),
-#if notdef
 	DEVMETHOD(device_detach,	rp_pcidetach),
 	DEVMETHOD(device_shutdown,	rp_pcishutdown),
-#endif /* notdef */
 
 	{ 0, 0 }
 };
