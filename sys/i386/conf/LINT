@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.385 1997/12/12 14:08:43 peter Exp $
+#	$Id: LINT,v 1.386 1997/12/23 08:01:16 yokota Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1361,14 +1361,14 @@ options		GATEWAY
 
 options		CLK_CALIBRATION_LOOP
 options		"CLK_USE_I8254_CALIBRATION"
-options		"CLK_USE_I586_CALIBRATION"
+options		"CLK_USE_TSC_CALIBRATION"
 options		CLUSTERDEBUG
 options		COMPAT_LINUX
 options		CPU_UPGRADE_HW_CACHE
 options		DEBUG
 options		DEVFS_ROOT
 options		"EXT2FS"
-options		"I586_CTR_GUPROF"
+options		"TSC_GUPROF"
 options		"I586_PMC_GUPROF=0x70000"
 options		"IBCS2"
 options		LOCKF_DEBUG
