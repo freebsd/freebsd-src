@@ -41,12 +41,15 @@
     <note>
       <para>You will see references to DEC, Digital Equipment Corporation and 
       Compaq used more or less interchangeably. Now that Compaq has acquired 
-      Digital Equipment it would be more correct to refer to Compaq only.</para>
+      Digital Equipment it would be more correct to refer to Compaq only.
+      Given the fact that you will see the mix of names everywhere I don't
+      bother.</para>
     </note>
 
     <note>
       <para>SRM commands will be in <userinput>UPPER CASE</userinput>. 
-      Lower case input is also acceptible to SRM.
+      Lower case input is also acceptible to SRM. Upper case is used for
+      clarity.
     </note>
   </sect2>
 
@@ -116,7 +119,7 @@
     Alpha). The PAL code can be thought of as a software abstraction
     layer between the hardware and the operating system. It uses
     normal CPU instruction plus a handful of privileged instructions
-    specific for PAL use. PAL is not microcode by the way.  The ARC console
+    specific for PAL use. PAL is not microcode.  The ARC console
     firmware contains a different PAL code, geared towards WinNT and
     in no way suitable for use by &os; (or more generic: Unix or
     OpenVMS).  Before someone asks: Linux/alpha brings its own PAL
@@ -751,6 +754,10 @@ Jan  3 12:22:32 miata /kernel: pcib0: &lt;2117x PCI host bus adapter&gt; on cia0
       Mbytes/sec assuming a suitable drive. Miata's CMD646 chip will
       support up to WDMA2 mode as the chip is too buggy for use
       with UDMA.</para>
+
+      <para>Miata MX5s generally use Qlogic 1040 based SCSI adapters.
+      These are bootable by the SRM console. Note that Adaptec cards
+      are <emphasis>not</emphasis> bootable by the Miata SRM console.</para>
 
       <para>The MiataGL has a faster PCI-PCI bridge chip on the PCI
       riser card than some of the MX5 riser card versions. Some of
@@ -1956,7 +1963,8 @@ cpu	EV5</programlisting></para>
       <para>For 500 MHz CPUs 83 MHz DIMMs will do. Compaq specifies PC100 
       DIMMs for all CPU speeds. DIMMs are installed in sets of 4, starting 
       with the DIMM slots marked <quote>0</quote> Memory capacity is max 4 GB. 
-      DIMMs are installed <quote>physically interleaved</quote>, note the markings of the
+      DIMMs are installed <quote>physically interleaved</quote>, note the 
+      markings of the
       slots. Memory bandwidth of Monet is twice that of Webbrick. The DIMMs 
       live on the CPU daughter-card. Note that the system uses ECC RAM so you 
       need DIMMs with 72 bits (not the generic PC-class 64 bit DIMMs)</para>
@@ -2518,14 +2526,14 @@ cpu	EV5</programlisting>
       <para>Features:
 	<itemizedlist>
 	  <listitem>
-	    <para>21164 EV5 CPUs at up to 467 MHz or 21264 EV67 CPUs at 
+	    <para>21164 EV5/EV56 CPUs at up to 467 MHz or 21264 EV67 CPUs at 
 	    up to 625 MHz</para>
 	  </listitem>
 	  <listitem>
             <para>one or two CPUs per CPU module</para>
 	  </listitem>
 	  <listitem>
-            <para>cache: 4Mbytes per CPU</para>
+            <para>cache: 4Mbytes B-cache per CPU</para>
 	  </listitem>
 	  <listitem>
             <para>memory bus: 256 bit with ECC</para>
@@ -2535,7 +2543,7 @@ cpu	EV5</programlisting>
 	    which in turn hold special SIMM modules. Memory modules come 
 	    in varying sizes, up to 4 GBytes a piece. Uses ECC (8 bits 
 	    per 64 bits of data) 7 memory modules max for AS8400, 
-	    3 modules max for AS8200. Maximum memory is 14 GBytes.</para>
+	    3 modules max for AS8200. Maximum memory is 28 GBytes.</para>
 	  </listitem>
 	  <listitem>
             <para>expansion: 3 system <quote>I/O ports</quote> that allow up to 
@@ -2546,7 +2554,10 @@ cpu	EV5</programlisting>
       </para>
        
       <para>&os; supports (and has been tested with) up to 2 GBytes 
-      of memory on TurboLaser.</para>
+      of memory on TurboLaser. There is a trade-off to be made between
+      TLSB slots occupied by memory modules and TLSB slots occupied by
+      CPU modules. For example you can have 28GBytes of memory but only
+      2 CPUs (1 module) at the same time.</para>
 
       <para>Only PCI expansion is supported on &os;. XMI or 
       Futurebus+ (which are AS8400 only) are both unsupported.</para>
@@ -2576,8 +2587,8 @@ cpu	EV5</programlisting>
       <para>Currently PCI expansion cards containing PCI bridges are 
       not usable with &os;. Don't use them at this time.</para>
 
-      <para>The single ended SCSI bus on the KFTIA will turn up as 
-      the <emphasis>fourth</emphasis> SCSI bus. The 3 
+      <para>The single ended narrow SCSI bus on the KFTIA will turn up as 
+      the <emphasis>fourth</emphasis> SCSI bus. The 3 fast-wide
       differential SCSI buses of the KFTIA precede it. </para>
 
       <para>AS8x00 are generally run with serial consoles. Some 
