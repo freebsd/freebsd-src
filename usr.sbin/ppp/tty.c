@@ -109,8 +109,9 @@ tty_Timeout(void *data)
   if (p->fd >= 0) {
     if (ioctl(p->fd, TIOCMGET, &dev->mbits) < 0) {
       /* we must be a pty ? */
-      log_Printf(LogDEBUG, "%s: ioctl error (%s)!\n", p->link.name,
-                 strerror(errno));
+      if (p->cfg.cd.necessity != CD_DEFAULT)
+        log_Printf(LogWARN, "%s: Carrier ioctl not supported, "
+                   "using ``set cd off''\n", p->link.name);
       timer_Stop(&dev->Timer);
       return;
     }
@@ -121,8 +122,8 @@ tty_Timeout(void *data)
     /* First time looking for carrier */
     if (Online(dev))
       log_Printf(LogPHASE, "%s: %s: CD detected\n", p->link.name, p->name.full);
-    else if (++dev->carrier_seconds >= p->cfg.cd.delay) {
-      if (p->cfg.cd.necessity == CD_REQUIRED)
+    else if (++dev->carrier_seconds >= dev->dev.cd.delay) {
+      if (dev->dev.cd.necessity == CD_REQUIRED)
         log_Printf(LogPHASE, "%s: %s: Required CD not detected\n",
                    p->link.name, p->name.full);
       else {
@@ -136,7 +137,7 @@ tty_Timeout(void *data)
       /* Keep waiting */
       log_Printf(LogDEBUG, "%s: %s: Still no carrier (%d/%d)\n",
                  p->link.name, p->name.full, dev->carrier_seconds,
-                 p->cfg.cd.delay);
+                 dev->dev.cd.delay);
       dev->mbits = -1;
     }
   } else {
@@ -176,7 +177,7 @@ tty_AwaitCarrier(struct physical *p)
 {
   struct ttydevice *dev = device2tty(p->handler);
 
-  if (p->cfg.cd.necessity == CD_NOTREQUIRED || physical_IsSync(p))
+  if (dev->dev.cd.necessity == CD_NOTREQUIRED || physical_IsSync(p))
     return CARRIER_OK;
 
   if (dev->mbits == -1) {
@@ -187,7 +188,7 @@ tty_AwaitCarrier(struct physical *p)
     return CARRIER_PENDING;			/* Not yet ! */
   }
 
-  return Online(dev) || !p->cfg.cd.necessity == CD_REQUIRED ?
+  return Online(dev) || !dev->dev.cd.necessity == CD_REQUIRED ?
     CARRIER_OK : CARRIER_LOST;
 }
 
@@ -331,6 +332,7 @@ tty_device2iov(struct device *d, struct iovec *iov, int *niov,
 static struct device basettydevice = {
   TTY_DEVICE,
   "tty",
+  { CD_VARIABLE, DEF_TTYCDDELAY },
   tty_AwaitCarrier,
   NULL,
   tty_Raw,
@@ -406,6 +408,10 @@ tty_Create(struct physical *p)
   dev->mbits = -1;
   tcgetattr(p->fd, &ios);
   dev->ios = ios;
+
+  if (p->cfg.cd.necessity != CD_DEFAULT)
+    /* Any override is ok for the tty device */
+    dev->dev.cd = p->cfg.cd;
 
   log_Printf(LogDEBUG, "%s: tty_Create: physical (get): fd = %d,"
              " iflag = %lx, oflag = %lx, cflag = %lx\n", p->link.name, p->fd,

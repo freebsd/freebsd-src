@@ -188,8 +188,8 @@ physical_Create(struct datalink *dl, int type)
   p->cfg.parity = CS8;
   memcpy(p->cfg.devlist, MODEM_LIST, sizeof MODEM_LIST);
   p->cfg.ndev = NMODEMS;
-  p->cfg.cd.necessity = CD_VARIABLE;
-  p->cfg.cd.delay = DEF_CDDELAY;
+  p->cfg.cd.necessity = CD_DEFAULT;
+  p->cfg.cd.delay = 0;		/* reconfigured or device specific default */
 
   lcp_Init(&p->link.lcp, dl->bundle, &p->link, &dl->fsmp);
   ccp_Init(&p->link.ccp, dl->bundle, &p->link, &dl->fsmp);
@@ -411,6 +411,7 @@ int
 physical_ShowStatus(struct cmdargs const *arg)
 {
   struct physical *p = arg->cx->physical;
+  struct cd *cd;
   const char *dev;
   int n;
 
@@ -476,9 +477,12 @@ physical_ShowStatus(struct cmdargs const *arg)
   prompt_Printf(arg->prompt, ", CTS/RTS %s\n", (p->cfg.rts_cts ? "on" : "off"));
 
   prompt_Printf(arg->prompt, " CD check delay:  ");
-  if (p->cfg.cd.necessity == CD_NOTREQUIRED)
+  cd = p->handler ? &p->handler->cd : &p->cfg.cd;
+  if (cd->necessity == CD_NOTREQUIRED)
     prompt_Printf(arg->prompt, "no cd");
-  else {
+  else if (p->cfg.cd.necessity == CD_DEFAULT) {
+    prompt_Printf(arg->prompt, "device specific");
+  } else {
     prompt_Printf(arg->prompt, "%d second%s", p->cfg.cd.delay,
                   p->cfg.cd.delay == 1 ? "" : "s");
     if (p->cfg.cd.necessity == CD_REQUIRED)

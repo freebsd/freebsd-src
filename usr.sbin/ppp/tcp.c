@@ -99,6 +99,7 @@ tcp_OpenConnection(const char *name, char *host, char *port)
 static struct device tcpdevice = {
   TCP_DEVICE,
   "tcp",
+  { CD_NOTREQUIRED, 0 },
   NULL,
   NULL,
   NULL,
@@ -187,6 +188,8 @@ tcp_Create(struct physical *p)
         p->name.base = p->name.full;
       }
       physical_SetupStack(p, tcpdevice.name, PHYSICAL_FORCE_ASYNC);
+      if (p->cfg.cd.necessity != CD_DEFAULT)
+        log_Printf(LogWARN, "Carrier settings ignored\n");
       return &tcpdevice;
     }
   }
