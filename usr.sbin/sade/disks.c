@@ -399,19 +399,17 @@ diskPartition(Device *dev)
 	    if (chunk_info[current_chunk]->type != unused)
 		msg = "Slice in use, delete it first or move to an unused one.";
 	    else {
-		char *val, tmp[20], *cp;
-		int size;
+		char *val, tmp[20], name[16], *cp;
+		int size, subtype;
+		chunk_e partitiontype;
 #ifdef PC98
-		char name[16];
-
-		snprintf(name, 16, "%s", "FreeBSD");
+		snprintf(name, sizeof (name), "%s", "FreeBSD");
 		val = msgGetInput(name,
 			"Please specify the name for new FreeBSD slice.");
 		if (val)
-			strncpy(name, val, 16);
+			strncpy(name, val, sizeof (name));
 #else
-		int subtype;
-		chunk_e partitiontype;
+		name[0] = '\0';
 #endif
 		snprintf(tmp, 20, "%lu", chunk_info[current_chunk]->size);
 		val = msgGetInput(tmp, "Please specify the size for new FreeBSD slice in blocks\n"
@@ -421,15 +419,17 @@ diskPartition(Device *dev)
 			size *= ONE_MEG;
 		    else if (*cp && toupper(*cp) == 'G')
 			size *= ONE_GIG;
-#ifdef PC98
-		    Create_Chunk(d, chunk_info[current_chunk]->offset, size,
-			freebsd, 3,
-			(chunk_info[current_chunk]->flags & CHUNK_ALIGN),
-			name);
-		    variable_set2(DISK_PARTITIONED, "yes", 0);
-		    record_chunks(d);
-#else
 		    sprintf(tmp, "%d", SUBTYPE_FREEBSD);
+#ifdef PC98
+		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
+				      "Pressing Enter will choose the default, a native FreeBSD\n"
+				      "slice (type 50324).  You can choose other types, 37218 for a\n"
+				      "DOS partition, for example.\n\n"
+				      "Note:  If you choose a non-FreeBSD partition type, it will not\n"
+				      "be formatted or otherwise prepared, it will simply reserve space\n"
+				      "for you to use another tool, such as DOS FORMAT, to later format\n"
+				      "and use the partition.");
+#else
 		    val = msgGetInput(tmp, "Enter type of partition to create:\n\n"
 				      "Pressing Enter will choose the default, a native FreeBSD\n"
 				      "slice (type 165).  You can choose other types, 6 for a\n"
@@ -438,6 +438,7 @@ diskPartition(Device *dev)
 				      "be formatted or otherwise prepared, it will simply reserve space\n"
 				      "for you to use another tool, such as DOS FORMAT, to later format\n"
 				      "and use the partition.");
+#endif /* PC98 */
 		    if (val && (subtype = strtol(val, NULL, 0)) > 0) {
 			if (subtype == SUBTYPE_FREEBSD)
 			    partitiontype = freebsd;
@@ -453,11 +454,10 @@ diskPartition(Device *dev)
 			else
 #endif
 			Create_Chunk(d, chunk_info[current_chunk]->offset, size, partitiontype, subtype,
-				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN), "");
+				     (chunk_info[current_chunk]->flags & CHUNK_ALIGN), name);
 			variable_set2(DISK_PARTITIONED, "yes", 0);
 			record_chunks(d);
 		    }
-#endif /* PC98 */
 		}
 		clear();
 	    }
