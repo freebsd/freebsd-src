@@ -43,7 +43,7 @@
  *	from: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: subr_diskslice.c,v 1.61 1998/12/10 19:57:00 eivind Exp $
+ *	$Id: subr_diskslice.c,v 1.62 1999/05/07 09:10:10 phk Exp $
  */
 
 #include "opt_devfs.h"
@@ -585,8 +585,10 @@ dsioctl(dname, dev, cmd, data, flags, sspp, strat, setgeom)
 		return (error);
 
 	case DIOCWLABEL:
+#ifndef __alpha__
 		if (slice == WHOLE_DISK_SLICE)
 			return (ENODEV);
+#endif
 		if (!(flags & FWRITE))
 			return (EBADF);
 		set_ds_wlabel(ssp, slice, *(int *)data != 0);
@@ -802,7 +804,11 @@ dsopen(dname, dev, mode, flags, sspp, lp, strat, setgeom, cdevsw)
 	 */
 	for (slice = 0; slice < ssp->dss_nslices; slice++) {
 		sp = &ssp->dss_slices[slice];
-		if (sp->ds_label != NULL)
+		if (sp->ds_label != NULL
+#ifdef __alpha__
+		    && slice != WHOLE_DISK_SLICE
+#endif
+		    )
 			continue;
 		dev1 = dkmodslice(dkmodpart(dev, RAW_PART), slice);
 		sname = dsname(dname, unit, slice, RAW_PART, partname);
