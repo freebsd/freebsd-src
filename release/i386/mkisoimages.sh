@@ -25,7 +25,7 @@
 
 if [ "x$1" = "x-b" ]; then
 	# This is highly x86-centric and will be used directly below.
-	bootable="-b floppies/boot.flp -c floppies/boot.catalog"
+	bootable="-b boot/cdboot -no-emul-boot"
 	shift
 else
 	bootable=""
