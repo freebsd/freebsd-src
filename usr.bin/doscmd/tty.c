@@ -29,7 +29,7 @@
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
  *
- * $Id: tty.c,v 1.1 1997/08/09 01:43:03 dyson Exp $
+ * $Id: tty.c,v 1.2 1997/08/16 00:16:48 jlemon Exp $
  */
 
 #ifndef NO_X
@@ -167,6 +167,7 @@ u_short read_raw_kbd(int fd, u_short *code);
 #define	K_BUFENDP	*(u_short *)0x482
 #define	K_BUFSTART	((u_short *)(0x400 + *(u_short *)0x480))
 #define	K_BUFEND	((u_short *)(0x400 + *(u_short *)0x482))
+#define	K_BUF(i)	*((u_short *)((u_char *)0x400 + (i)))
 
 #define	K1_STATUS	BIOSDATA[0x17]
 #define	K1_RSHIFT	0x01
@@ -1579,7 +1580,7 @@ tty_report(int *r, int *c)
 void
 tty_flush()
 {
-	K_NEXT = K_FREE = 0;
+	K_NEXT = K_FREE = K_BUFSTARTP;
 }
 
 void
@@ -1911,37 +1912,44 @@ KbdEmpty()
 void
 KbdWrite(u_short code)
 {
-	int klen = K_BUFEND - K_BUFSTART;
-	int kf = (K_FREE + 1) % klen;
+	int kf;
+
+	kf = K_FREE + 2;
+	if (kf == K_BUFENDP)
+		kf = K_BUFSTARTP;
+
 	if (kf == K_NEXT) {
 #ifndef NO_X
 		XBell(dpy, 0);
 #endif
 		return;
 	}
-	K_BUFSTART[K_FREE] = code;
+	K_BUF(K_FREE) = code;
 	K_FREE = kf;
 }
 
 void
 KbdRepl(u_short code)
 {
-	K_BUFSTART[K_NEXT] = code;
+	K_BUF(K_NEXT) = code;
 }
 
 u_short
 KbdRead()
 {
-	int klen = K_BUFEND - K_BUFSTART;
 	int kf = K_NEXT;
-	K_NEXT = (K_NEXT + 1) % klen;
-	return(K_BUFSTART[kf]);
+
+	K_NEXT = K_NEXT + 2;
+	if (K_NEXT == K_BUFENDP)
+		K_NEXT = K_BUFSTARTP;
+
+	return(K_BUF(kf));
 }
 
 u_short
 KbdPeek()
 {
-	return(K_BUFSTART[K_NEXT]);
+	return(K_BUF(K_NEXT));
 }
 
 void int10(REGISTERS);
@@ -1984,7 +1992,7 @@ video_init()
 
     K_BUFSTARTP = 0x1e;	/* Start of keyboard buffer */
     K_BUFENDP = 0x3e;	/* End of keyboard buffer */
-    K_NEXT = K_FREE = 0x00;
+    K_NEXT = K_FREE = K_BUFSTARTP;
 
     vec = insert_hardint_trampoline();
     ivec[0x09] = vec;
