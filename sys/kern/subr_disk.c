@@ -27,6 +27,8 @@ static d_open_t diskopen;
 static d_close_t diskclose; 
 static d_ioctl_t diskioctl;
 static d_psize_t diskpsize;
+
+static LIST_HEAD(, disk) disklist = LIST_HEAD_INITIALIZER(&disklist);
  
 dev_t
 disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct cdevsw *proto)
@@ -49,12 +51,13 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, struct 
 	if (bootverbose)
 		printf("Creating DISK %s%d\n", cdevsw->d_name, unit);
 	dev = make_dev(proto, dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART),
-	    0, 0, 0, "r%s%d", cdevsw->d_name, unit);
+	    0, 0, 0, "%s%d", cdevsw->d_name, unit);
 
 	dev->si_disk = dp;
 	dp->d_dev = dev;
 	dp->d_dsflags = flags;
 	dp->d_devsw = cdevsw;
+	LIST_INSERT_HEAD(&disklist, dp, d_list);
 	return (dev);
 }
 
@@ -95,9 +98,20 @@ disk_invalidate (struct disk *disk)
 void
 disk_destroy(dev_t dev)
 {
+	LIST_REMOVE(dev->si_disk, d_list);
+	bzero(dev->si_disk, sizeof(*dev->si_disk));
     	dev->si_disk = NULL;
 	destroy_dev(dev);
 	return;
+}
+
+struct disk *
+disk_enumerate(struct disk *disk)
+{
+	if (!disk)
+		return (LIST_FIRST(&disklist));
+	else
+		return (LIST_NEXT(disk, d_list));
 }
 
 /*

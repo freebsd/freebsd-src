@@ -72,23 +72,6 @@ static struct cdevsw ad_cdevsw = {
 	/* bmaj */	30
 };
 static struct cdevsw addisk_cdevsw;
-static struct cdevsw fakewd_cdevsw = {
-	/* open */	adopen,
-	/* close */	nullclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	adstrategy,
-	/* name */	"wd",
-	/* maj */	3,
-	/* dump */	addump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
-	/* bmaj */	0
-};
-static struct cdevsw fakewddisk_cdevsw;
 
 /* prototypes */
 static void ad_timeout(struct ad_request *);
@@ -196,12 +179,6 @@ ad_attach(struct ata_softc *scp, int32_t device)
     dev->si_iosize_max = 256 * DEV_BSIZE;
     adp->dev1 = dev;
 
-    dev = disk_create(adp->lun, &adp->disk, 0, &fakewd_cdevsw,
-		       &fakewddisk_cdevsw);
-    dev->si_drv1 = adp;
-    dev->si_iosize_max = 256 * DEV_BSIZE;
-    adp->dev2 = dev;
-
     bioq_init(&adp->queue);
 }
 
@@ -210,7 +187,6 @@ ad_detach(struct ad_softc *adp)
 {
     disk_invalidate(&adp->disk);
     disk_destroy(adp->dev1);
-    disk_destroy(adp->dev2);
     devstat_remove_entry(&adp->stats);
     ata_free_lun(&adp_lun_map, adp->lun);
     free(adp, M_AD);
