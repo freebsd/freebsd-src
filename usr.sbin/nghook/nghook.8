@@ -43,10 +43,12 @@
 node
 .Sh SYNOPSIS
 .Nm
+.Op Fl S
 .Op Fl a
 .Op Fl d
 .Op Fl l
 .Op Fl n
+.Op Fl s
 .Ar path
 .Op Ar hookname
 .Sh DESCRIPTION
@@ -76,6 +78,8 @@ is detected on standard input.
 The options are as follows:
 .Pp
 .Bl -tag -width indent
+.It Fl S
+Use file descriptor 0 for output instead of the default 1.
 .It Fl a
 Output each packet read in human-readable decoded
 .Tn ASCII
@@ -90,6 +94,8 @@ Don't attempt to read any data from standard input.
 The
 .Nm
 utility will continue reading from the node until stopped by a signal.
+.It Fl s
+Use file descriptor 1 for input instead of the default 0.
 .El
 .Sh BUGS
 Although all input is read in unbuffered mode,
