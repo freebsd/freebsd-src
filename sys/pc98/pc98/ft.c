@@ -569,11 +569,7 @@ restate:
 		async_state = 1;
 		i = 0;
 		if (out_fdc(fdcu, NE7CMD_SEEK) < 0) i = 1;
-#ifdef PC98
-		if (!i && out_fdc(fdcu, 3) < 0) i = 1;
-#else
 		if (!i && out_fdc(fdcu, ftu) < 0) i = 1;
-#endif
 		if (!i && out_fdc(fdcu, newcn) < 0) i = 1;
 		if (i) {
 			if (++async_retries >= 10) {
@@ -636,11 +632,7 @@ restate:
 		/* NOTREACHED */
 	    case 1:
 		out_fdc(fdcu, NE7CMD_SENSED);
-#ifdef PC98
-		out_fdc(fdcu, 3);
-#else
 		out_fdc(fdcu, ftu);
-#endif
 		st3 = in_fdc(fdcu);
 		if (st3 < 0) {
 		DPRT(("ft%d: async_status timed out on bit %d r=$%02x\n",
@@ -752,11 +744,7 @@ restate:
 		}
 		async_state = 1;
 		out_fdc(fdcu, 0x4a);		/* READ_ID */
-#ifdef PC98
-		out_fdc(fdcu, 3);
-#else
 		out_fdc(fdcu, ftu);
-#endif
 		break;
 	    case 1:
 		for (i = 0; i < 7; i++) ft->rid[i] = in_fdc(fdcu);
@@ -1139,11 +1127,7 @@ restate:
 	/* Tape is now moving and in position-- start DMA now! */
 	isa_dmastart(B_READ, ft->xptr, QCV_BLKSIZE, 2);
 	out_fdc(fdcu, 0x66);				/* read */
-#ifdef PC98
-	out_fdc(fdcu, 3);
-#else
 	out_fdc(fdcu, ftu);				/* unit */
-#endif
 	out_fdc(fdcu, (ft->xblk % ftg->g_fdside) / ftg->g_fdtrk); 	/* cylinder */
 	out_fdc(fdcu, ft->xblk / ftg->g_fdside);		/* head */
 	out_fdc(fdcu, (ft->xblk % ftg->g_fdtrk) + 1);	/* sector */
@@ -1264,11 +1248,7 @@ restate:
 	/* Tape is now moving and in position-- start DMA now! */
 	isa_dmastart(B_WRITE, ft->xptr, QCV_BLKSIZE, 2);
 	out_fdc(fdcu, 0x45);				/* write */
-#ifdef PC98
-	out_fdc(fdcu, 3);
-#else
 	out_fdc(fdcu, ftu);				/* unit */
-#endif
 	out_fdc(fdcu, (ft->xblk % ftg->g_fdside) / ftg->g_fdtrk); /* cyl */
 	out_fdc(fdcu, ft->xblk / ftg->g_fdside);		/* head */
 	out_fdc(fdcu, (ft->xblk % ftg->g_fdtrk) + 1);	/* sector */
@@ -1545,11 +1525,7 @@ tape_recal(ftu_t ftu, int totape)
 
   s = splbio();
   out_fdc(fdcu, NE7CMD_RECAL);
-#ifdef PC98
-  out_fdc(fdcu, 3);
-#else
   out_fdc(fdcu, ftu);
-#endif
 
   if (ftintr_wait(ftu, FTCMD_RECAL, hz)) {
 	splx(s);
@@ -1615,11 +1591,7 @@ retry:
   /* Perform seek */
   s = splbio();
   out_fdc(fdcu, NE7CMD_SEEK);
-#ifdef PC98
-  out_fdc(fdcu, 3);
-#else
   out_fdc(fdcu, ftu);
-#endif
   out_fdc(fdcu, newcn);
 
   if (ftintr_wait(ftu, FTCMD_SEEK, hz)) {
@@ -2061,11 +2033,7 @@ qic_status(ftu_t ftu, int cmd, int nbits)
 
   /* Sense drive status */
   out_fdc(fdcu, NE7CMD_SENSED);
-#ifdef PC98
-  out_fdc(fdcu, 3);
-#else
   out_fdc(fdcu, ftu);
-#endif
   st3 = in_fdc(fdcu);
 
   if ((st3 & 0x10) == 0) {	/* track 0 */
@@ -2080,11 +2048,7 @@ qic_status(ftu_t ftu, int cmd, int nbits)
 	}
 
 	out_fdc(fdcu, NE7CMD_SENSED);
-#ifdef PC98
-	out_fdc(fdcu, 3);
-#else
 	out_fdc(fdcu, ftu);
-#endif
 	st3 = in_fdc(fdcu);
 	if (st3 < 0) {
 		DPRT(("ft%d: controller timed out on bit %d r=$%02x\n",
