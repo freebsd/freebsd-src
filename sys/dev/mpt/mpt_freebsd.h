@@ -32,7 +32,7 @@
 #ifndef  _MPT_FREEBSD_H_
 #define  _MPT_FREEBSD_H_
 
-/* #define RELENG_4	1 */
+#define RELENG_4	1
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -43,8 +43,6 @@
 #else
 #include <sys/endian.h>
 #include <sys/lock.h>
-#include <sys/kernel.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
