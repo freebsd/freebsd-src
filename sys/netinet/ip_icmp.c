@@ -172,6 +172,11 @@ icmp_error(n, type, code, dest, destifp)
 	if (m == NULL)
 		goto freeit;
 	icmplen = min(oiplen + 8, oip->ip_len);
+	if (icmplen < sizeof(struct ip)) {
+		printf("icmp_error: bad length\n");
+		m_free(m);
+		goto freeit;
+	}
 	m->m_len = icmplen + ICMP_MINLEN;
 	MH_ALIGN(m, m->m_len);
 	icp = mtod(m, struct icmp *);
@@ -197,7 +202,7 @@ icmp_error(n, type, code, dest, destifp)
 	}
 
 	icp->icmp_code = code;
-	bcopy((caddr_t)oip, (caddr_t)&icp->icmp_ip, icmplen);
+	m_copydata(n, 0, icmplen, (caddr_t)&icp->icmp_ip);
 	nip = &icp->icmp_ip;
 
 	/*
