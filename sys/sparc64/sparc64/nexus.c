@@ -248,8 +248,10 @@ nexus_probe(device_t dev)
 			dinfo->ndi_bustag = &nexus_bustag;
 			dinfo->ndi_dmatag = &nexus_dmatag;
 			device_set_ivars(cdev, dinfo);
-		} else
+		} else {
 			free(name, M_OFWPROP);
+			free(type, M_OFWPROP);
+		}
 
 	}
 	device_set_desc(dev, "OpenFirmware Nexus device");
