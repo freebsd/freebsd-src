@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_disasm.c,v 1.5 1993/12/19 00:49:58 wollman Exp $
+ *	$Id: db_disasm.c,v 1.6 1994/08/13 03:49:35 wollman Exp $
  */
 
 /*
@@ -861,7 +861,7 @@ db_read_address(loc, short_addr, regmodrm, addrp)
 	int		regmodrm;
 	struct i_addr	*addrp;		/* out */
 {
-	int		mod, rm, sib, index, ss, disp;
+	int		mod, rm, sib, index, disp;
 
 	mod = f_mod(regmodrm);
 	rm  = f_rm(regmodrm);

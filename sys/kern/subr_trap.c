@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.34 1994/09/11 11:26:18 davidg Exp $
+ *	$Id: trap.c,v 1.35 1994/10/01 02:56:05 davidg Exp $
  */
 
 /*
@@ -63,6 +63,7 @@
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
+#include <machine/../isa/isa_device.h>
 
 #include "isa.h"
 #include "npx.h"
@@ -110,7 +111,7 @@ userret(p, frame, oticks)
 {
 	int sig, s;
 
-	while (sig = CURSIG(p))
+	while ((sig = CURSIG(p)) != 0)
 		postsig(sig);
 	p->p_priority = p->p_usrpri;
 	if (want_resched) {
@@ -127,7 +128,7 @@ userret(p, frame, oticks)
 		p->p_stats->p_ru.ru_nivcsw++;
 		mi_switch();
 		splx(s);
-		while (sig = CURSIG(p))
+		while ((sig = CURSIG(p)) != 0)
 			postsig(sig);
 	}
 	if (p->p_stats->p_prof.pr_scale) {
@@ -161,7 +162,7 @@ trap(frame)
 {
 	struct proc *p = curproc;
 	u_quad_t sticks = 0;
-	int i = 0, ucode = 0, type, code, eva, fault_type;
+	int i = 0, ucode = 0, type, code;
 
 	frame.tf_eflags &= ~PSL_NT;	/* clear nested trap XXX */
 	type = frame.tf_trapno;
@@ -339,7 +340,7 @@ trap_pfault(frame, usermode)
 	vm_offset_t va;
 	struct vmspace *vm = NULL;
 	vm_map_t map = 0;
-	int rv = 0, oldflags;
+	int rv = 0;
 	vm_prot_t ftype;
 	extern vm_map_t kernel_map;
 	int eva;
@@ -377,7 +378,6 @@ trap_pfault(frame, usermode)
 		ftype = VM_PROT_READ;
 
 	if (map != kernel_map) {
-		vm_offset_t pa;
 		vm_offset_t v = (vm_offset_t) vtopte(va);
 		vm_page_t ptepg;
 
@@ -496,8 +496,8 @@ trap_fatal(frame)
 	printf("IOPL = %d\n", (frame->tf_eflags & PSL_IOPL) >> 12);
 	printf("current process		= ");
 	if (curproc) {
-		printf("%d (%s)\n",
-		    curproc->p_pid, curproc->p_comm ?
+		printf("%lu (%s)\n",
+		    (u_long)curproc->p_pid, curproc->p_comm ?
 		    curproc->p_comm : "");
 	} else {
 		printf("Idle\n");
@@ -539,7 +539,6 @@ int trapwrite(addr)
 	struct proc *p;
 	vm_offset_t va, v;
 	struct vmspace *vm;
-	int oldflags;
 	int rv;
 
 	va = trunc_page((vm_offset_t)addr);

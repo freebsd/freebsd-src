@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.35 1994/09/04 04:11:57 davidg Exp $
+ *	$Id: pmap.c,v 1.36 1994/09/16 13:33:26 davidg Exp $
  */
 
 /*
@@ -86,6 +86,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/user.h>
@@ -213,9 +214,7 @@ pmap_extract(pmap, va)
 	register pmap_t	pmap;
 	vm_offset_t va;
 {
-	pd_entry_t save;
 	vm_offset_t pa;
-	int s;
 
 	if (pmap && *pmap_pde(pmap, va)) {
 		vm_offset_t frame = (int) pmap->pm_pdir[PTDPTDI] & PG_FRAME;
@@ -260,7 +259,7 @@ pmap_is_managed(pa)
 /*
  * find the vm_page_t of a pte (only) given va of pte and pmap
  */
-inline vm_page_t
+__inline vm_page_t
 pmap_pte_vm_page(pmap, pt)
 	pmap_t pmap;
 	vm_offset_t pt;
@@ -406,11 +405,9 @@ void
 pmap_init(phys_start, phys_end)
 	vm_offset_t	phys_start, phys_end;
 {
-	vm_offset_t	addr, addr2;
+	vm_offset_t	addr;
 	vm_size_t	npg, s;
-	int		rv;
 	int i;
-	extern int KPTphys;
 
 	/*
 	 * Now that kernel map has been allocated, we can mark as
@@ -677,7 +674,8 @@ pmap_alloc_pv_entry()
 		/*
 		 * allocate a physical page out of the vm system
 		 */
-		if (m = vm_page_alloc(kernel_object, pvva-vm_map_min(kernel_map))) {
+		m = vm_page_alloc(kernel_object, pvva-vm_map_min(kernel_map));
+		if (m) {
 			int newentries;
 			int i;
 			pv_entry_t entry;
@@ -769,7 +767,6 @@ pmap_remove_entry(pmap, pv, va)
 	vm_offset_t va;
 {
 	pv_entry_t npv;
-	int wired;
 	int s;
 	s = splhigh();
 	if (pmap == pv->pv_pmap && va == pv->pv_va) {
@@ -880,7 +877,6 @@ pmap_remove(pmap, sva, eva)
 
 		if ( *pmap_pde(pmap, i386_ptob(sva)) == 0 ) {
 			/* We can race ahead here, straight to next pde.. */
-	nextpde:
 			sva = ((sva + NPTEPG) & ~(NPTEPG - 1));
 			continue;
 		}
@@ -978,7 +974,6 @@ pmap_remove_all(pa)
 	register pt_entry_t *pte, *ptp;
 	vm_offset_t va;
 	struct pmap *pmap;
-	struct map *map;
 	vm_page_t m;
 	int s;
 	int anyvalid = 0;
@@ -1049,7 +1044,6 @@ pmap_protect(pmap, sva, eva, prot)
 	int i386prot;
 	register pt_entry_t *ptp;
 	int evap = i386_btop(eva);
-	int s;
 	int anyvalid = 0;;
 
 	if (pmap == NULL)
@@ -1178,12 +1172,11 @@ pmap_enter(pmap, va, pa, prot, wired)
 		 * resident as long as there are valid mappings in them.
 		 * Hence, if a user page is wired, the PT page will be also.
 		 */
-		if (wired && !pmap_pte_w(pte) || !wired && pmap_pte_w(pte)) {
-			if (wired)
-				pmap->pm_stats.wired_count++;
-			else
-				pmap->pm_stats.wired_count--;
-		}
+		if (wired && !pmap_pte_w(pte))
+			pmap->pm_stats.wired_count++;
+		else if (!wired && pmap_pte_w(pte))
+			pmap->pm_stats.wired_count--;
+
 		goto validate;
 	}
 
@@ -1430,8 +1423,6 @@ pmap_enter_quick(pmap, va, pa)
 	 */
 	pmap->pm_stats.resident_count++;
 
-validate:
-
 	if (*pte)
 		anyvalid++;
 	/*
@@ -1458,9 +1449,7 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 
 	vm_offset_t tmpoff;
 	vm_page_t p;
-	int s;
-	vm_offset_t v, lastv=0;
-	pt_entry_t pte;
+	vm_offset_t v;
 	vm_offset_t objbytes;
 	int anyvalid = 0;
 
@@ -1502,7 +1491,8 @@ pmap_object_init_pt(pmap, addr, object, offset, size)
 	 * else lookup the pages one-by-one.
 	 */
 		for(tmpoff = 0; tmpoff < size; tmpoff += NBPG) {
-			if( p = vm_page_lookup(object, tmpoff + offset)) {
+			p = vm_page_lookup(object, tmpoff + offset);
+			if (p) {
 				if( (p->flags & (PG_BUSY|PG_FICTITIOUS)) == 0) {
 					vm_page_hold(p);
 					v = i386_trunc_page(((vm_offset_t)vtopte( addr+tmpoff)));
@@ -1538,12 +1528,12 @@ pmap_change_wiring(pmap, va, wired)
 		return;
 
 	pte = pmap_pte(pmap, va);
-	if (wired && !pmap_pte_w(pte) || !wired && pmap_pte_w(pte)) {
-		if (wired)
-			pmap->pm_stats.wired_count++;
-		else
-			pmap->pm_stats.wired_count--;
-	}
+
+	if (wired && !pmap_pte_w(pte))
+		pmap->pm_stats.wired_count++;
+	else if (!wired && pmap_pte_w(pte))
+		pmap->pm_stats.wired_count--;
+
 	/*
 	 * Wiring is not a hardware characteristic so there is no need
 	 * to invalidate TLB.
