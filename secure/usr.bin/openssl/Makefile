@@ -15,13 +15,6 @@ CFLAGS+= -DMONOLITH -DNO_IDEA -I${.CURDIR}
 WITH_RSA?=	YES
 .if ${WITH_RSA} == NO
 CFLAGS+=	-DNO_RSA -DNO_SSL2
-.else
-.if !defined(USA_RESIDENT) || ${USA_RESIDENT} != NO
-RSAREF=		YES
-.endif
-.endif
-.if (defined(RSAREF) && ${RSAREF} == YES) || !exists(${LCRYPTO_SRC}/rsa/rsa_eay.c)
-CFLAGS+=	-DRSAref
 .endif
 
 SRCS=	apps.c asn1pars.c ca.c ciphers.c crl.c crl2p7.c dgst.c dh.c \
