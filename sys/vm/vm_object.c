@@ -238,8 +238,13 @@ vm_object_init(void)
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
 
+	/*
+	 * The kmem object's mutex is given a unique name, instead of
+	 * "vm object", to avoid false reports of lock-order reversal
+	 * with a system map mutex.
+	 */
 	kmem_object = &kmem_object_store;
-	VM_OBJECT_LOCK_INIT(&kmem_object_store);
+	mtx_init(VM_OBJECT_MTX(kmem_object), "kmem object", NULL, MTX_DEF);
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 
