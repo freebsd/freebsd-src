@@ -180,6 +180,7 @@ CHANGER_MIN_BUSY_SECONDS	opt_cd.h
 CHANGER_MAX_BUSY_SECONDS	opt_cd.h
 
 # Options used only in cam/scsi/scsi_sa.c.
+SA_IO_TIMEOUT		opt_sa.h
 SA_SPACE_TIMEOUT	opt_sa.h
 SA_REWIND_TIMEOUT	opt_sa.h
 SA_ERASE_TIMEOUT	opt_sa.h
