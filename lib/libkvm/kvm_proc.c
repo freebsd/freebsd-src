@@ -810,7 +810,7 @@ kvm_doargv(kd, kp, nchr, info)
 	static u_long ps_strings;
 	size_t len;
 
-	if (ps_strings == NULL) {
+	if (ps_strings == 0) {
 		len = sizeof(ps_strings);
 		if (sysctlbyname("kern.ps_strings", &ps_strings, &len, NULL,
 		    0) == -1)
