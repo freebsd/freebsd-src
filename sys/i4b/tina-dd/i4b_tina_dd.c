@@ -28,7 +28,7 @@
  *	i4b_tina_dd.c - i4b Stollman Tina-dd control device driver
  *	----------------------------------------------------------
  *
- *	$Id: i4b_tina_dd.c,v 1.3 1998/12/05 18:06:19 hm Exp $
+ *	$Id: i4b_tina_dd.c,v 1.1 1998/12/27 21:46:53 phk Exp $
  *
  *	last edit-date: [Sat Dec  5 18:41:38 1998]
  *
@@ -71,6 +71,7 @@ static int openflag = 0;
 
 int tinaprobe(struct isa_device *dev);
 int tinaattach(struct isa_device *dev);
+void tinaintr(int unit);
 
 struct isa_driver tinadriver = {
 	tinaprobe,
@@ -113,7 +114,6 @@ static void writeblock(unsigned short iobase, unsigned char *src,
 int
 tinaprobe(struct isa_device *dev)
 {
-	struct tina_softc *sc = &tina_sc[dev->id_unit];
 	u_char byte;
 	
 #define SETLOW	0x55
@@ -176,7 +176,6 @@ tinaattach(struct isa_device *dev)
 void
 tinaintr(int unit)
 {
-	struct tina_softc *sc = &tina_sc[unit];
 }
 
 #if BSD > 199306 && defined(__FreeBSD__)
@@ -233,7 +232,6 @@ tinaioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	struct tina_softc *sc = &tina_sc[minor(dev)];
 	u_short iobase = sc->sc_iobase;
 	int error = 0;
-	char *ptr;
 	int s;
 
 	if(minor(dev))

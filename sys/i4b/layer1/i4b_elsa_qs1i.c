@@ -27,7 +27,7 @@
  *	isic - I4B Siemens ISDN Chipset Driver for ELSA Quickstep 1000pro ISA
  *	=====================================================================
  *
- *	$Id: i4b_elsa_qs1i.c,v 1.12 1998/12/16 09:32:50 hm Exp $
+ *	$Id: i4b_elsa_qs1i.c,v 1.1 1998/12/27 21:46:45 phk Exp $
  *
  *      last edit-date: [Mon Dec 14 17:27:08 1998]
  *
@@ -86,7 +86,7 @@
 #include <i4b/layer1/i4b_hscx.h>
 
 #ifdef __FreeBSD__
-static void i4b_eq1i_clrirq(void* base);
+/* static void i4b_eq1i_clrirq(void* base); */
 #else
 static void i4b_eq1i_clrirq(struct isic_softc *sc);
 void isic_attach_Eqs1pi __P((struct isic_softc *sc));
@@ -125,12 +125,13 @@ void isic_attach_Eqs1pi __P((struct isic_softc *sc));
  *      ELSA QuickStep 1000pro/ISA clear IRQ routine
  *---------------------------------------------------------------------------*/
 #ifdef __FreeBSD__
+#ifdef notdef
 static void
 i4b_eq1i_clrirq(void* base)
 {
 	outb((u_int)base + ELSA_OFF_IRQ, 0);
 }
-
+#endif
 #else
 static void
 i4b_eq1i_clrirq(struct isic_softc *sc)

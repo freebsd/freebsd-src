@@ -26,7 +26,7 @@
  *	i4b_itk_ix1.c - ITK ix1 micro passive card driver for isdn4bsd
  *	--------------------------------------------------------------
  *
- *	$Id: i4b_itk_ix1.c,v 1.1 1998/12/16 13:43:20 hm Exp $
+ *	$Id: i4b_itk_ix1.c,v 1.1 1998/12/27 21:46:46 phk Exp $
  *
  *      last edit-date: [Wed Dec 16 14:46:36 1998]
  *
@@ -406,6 +406,7 @@ itkix1_read_reg(u_char *base, u_int offset)
 		outb(port+ITK_ALE, HSCXB+offset);
 		return (inb(port+ITK_HSCX_DATA));
 	}
+	panic("itkix1_read_reg: Fallthrough\n");
 }
 #else
 static u_int8_t itkix1_read_reg(struct isic_softc *sc, int what, bus_size_t offs)

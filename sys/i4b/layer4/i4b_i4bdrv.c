@@ -27,7 +27,7 @@
  *	i4b_i4bdrv.c - i4b userland interface driver
  *	--------------------------------------------
  *
- *	$Id: i4b_i4bdrv.c,v 1.33 1998/12/12 19:44:36 hm Exp $ 
+ *	$Id: i4b_i4bdrv.c,v 1.1 1998/12/27 21:46:52 phk Exp $ 
  *
  *      last edit-date: [Sat Dec  5 18:35:02 1998]
  *
@@ -162,7 +162,7 @@ i4battach()
 #ifdef DEVFS
 	devfs_token = devfs_add_devswf(&i4b_cdevsw, 0, DV_CHR,
 				       UID_ROOT, GID_WHEEL, 0600,
-				       "i4b", 0);
+				       "i4b");
 #endif
 }
 
