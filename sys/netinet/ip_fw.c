@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 1996 Alex Nash
  * Copyright (c) 1993 Daniel Boulet
  * Copyright (c) 1994 Ugen J.S.Antsilevich
+ * Copyright (c) 1996 Alex Nash
  *
  * Redistribution and use in source forms, with and without modification,
  * are permitted provided that this entire comment appears intact.
@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.51.2.11 1998/02/07 00:28:25 alex Exp $
+ *	$Id: ip_fw.c,v 1.51.2.12 1998/02/13 01:58:13 alex Exp $
  */
 
 /*
@@ -160,6 +160,23 @@ icmptype_match(struct icmp *icmp, struct ip_fw *f)
 		return(1);
 
 	return(0); /* no match */
+}
+
+static int
+is_icmp_query(struct ip *ip)
+{
+	const struct icmp *icmp;
+	int icmp_type;
+
+	icmp = (struct icmp *)((u_long *)ip + ip->ip_hl);
+	icmp_type = icmp->icmp_type;
+
+	if (icmp_type == ICMP_ECHO || icmp_type == ICMP_ROUTERSOLICIT ||
+	    icmp_type == ICMP_TSTAMP || icmp_type == ICMP_IREQ ||
+	    icmp_type == ICMP_MASKREQ)
+		return(1);
+
+	return(0);
 }
 
 static int
@@ -592,11 +609,11 @@ got_match:
 	 * Send a reject notice if all of the following are true:
 	 *
 	 * - The packet matched a reject rule
-	 * - The packet is not an ICMP packet
+	 * - The packet is not an ICMP packet, or is an ICMP query packet
 	 * - The packet is not a multicast or broadcast packet
 	 */
 	if ((rule->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_REJECT
-	    && ip->ip_p != IPPROTO_ICMP
+	    && (ip->ip_p != IPPROTO_ICMP || is_icmp_query(ip))
 	    && !((*m)->m_flags & (M_BCAST|M_MCAST))
 	    && !IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		switch (rule->fw_reject_code) {
