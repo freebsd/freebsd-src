@@ -781,58 +781,27 @@ daioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 }
 
 static int
-dadump(dev_t dev)
+dadump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 	struct	    cam_periph *periph;
 	struct	    da_softc *softc;
 	u_int	    unit;
 	u_int	    part;
 	u_int	    secsize;
-	u_int	    num;	/* number of sectors to write */
-	u_int	    blknum;
-	long	    blkcnt;
-	vm_offset_t addr;	
 	struct	    ccb_scsiio csio;
-	int         dumppages = MAXDUMPPGS;
-	int	    error;
-	int         i;
-
-	/* toss any characters present prior to dump */
-	while (cncheckc() != -1)
-		;
 
 	unit = dkunit(dev);
 	part = dkpart(dev);
 	periph = cam_extend_get(daperiphs, unit);
-	if (periph == NULL) {
+	if (periph == NULL)
 		return (ENXIO);
-	}
 	softc = (struct da_softc *)periph->softc;
+	secsize = softc->params.secsize;
 	
 	if ((softc->flags & DA_FLAG_PACK_INVALID) != 0)
 		return (ENXIO);
 
-	error = disk_dumpcheck(dev, &num, &blknum, &secsize);
-	if (error)
-		return (error);
-
-	addr = 0;	/* starting address */
-	blkcnt = howmany(PAGE_SIZE, secsize);
-
-	while (num > 0) {
-		caddr_t va = NULL;
-
-		if ((num / blkcnt) < dumppages)
-			dumppages = num / blkcnt;
-
-		for (i = 0; i < dumppages; ++i) {
-			vm_offset_t a = addr + (i * PAGE_SIZE);
-			if (is_physical_memory(a))
-				va = pmap_kenter_temporary(trunc_page(a), i);
-			else
-				va = pmap_kenter_temporary(trunc_page(0), i);
-		}
-
+	if (length > 0) {
 		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
 		csio.ccb_h.ccb_state = DA_CCB_DUMP;
 		scsi_read_write(&csio,
@@ -842,10 +811,10 @@ dadump(dev_t dev)
 				/*read*/FALSE,
 				/*byte2*/0,
 				/*minimum_cmd_size*/ softc->minimum_cmd_size,
-				blknum,
-				blkcnt * dumppages,
-				/*data_ptr*/(u_int8_t *) va,
-				/*dxfer_len*/blkcnt * secsize * dumppages,
+				offset / secsize,
+				length / secsize,
+				/*data_ptr*/(u_int8_t *) virtual,
+				/*dxfer_len*/length,
 				/*sense_len*/SSD_FULL_SIZE,
 				DA_DEFAULT_TIMEOUT * 1000);		
 		xpt_polled_action((union ccb *)&csio);
@@ -860,16 +829,9 @@ dadump(dev_t dev)
 				       csio.ccb_h.status, csio.scsi_status);
 			return(EIO);
 		}
+		return(0);
+	} 
 		
-		if (dumpstatus(addr, (off_t)num * softc->params.secsize) < 0)
-			return (EINTR);
-
-		/* update block count */
-		num -= blkcnt * dumppages;
-		blknum += blkcnt * dumppages;
-		addr += PAGE_SIZE * dumppages;
-	}
-
 	/*
 	 * Sync the disk cache contents to the physical media.
 	 */
