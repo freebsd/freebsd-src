@@ -86,14 +86,21 @@
 #define AUTOHUNT
 
 
-/*	FULLCONFIG	Allows up to four host interface boards for a
-			total of 16 drives.  If disabled, only a single
-			host interface (of any type) is allowed.  The
-			additional driver size is insignificant.
-			Leaving FULLCONFIG enabled is the recommended setting.
+/*	NUMCTRLRS	Configures support for between one and four
+			host interfaces, for up to 16 drives.
+			The number of entries in the kernel config
+			file is used by default, but this may be changed
+			to a specific value if desired.
+
+			Leaving NUMCTRLRS based on NMATCD is the
+			recommended setting.
 */
 
-#define FULLCONFIG
+#if NMATCD >= 4
+#define	NUMCTRLRS	4	/*Limit driver to four host interfaces*/
+#else	/*NMATCD*/
+#define	NUMCTRLRS	NMATCD
+#endif	/*NMATCD*/
 
 
 /*	FULLDRIVER	If not set, the audio, non-data functions and
@@ -103,7 +110,9 @@
 			Leaving FULLDRIVER enabled is the recommended setting.
 */
 
+#ifndef BOOTMFS
 #define FULLDRIVER
+#endif /*BOOTMFS*/
 
 
 /*	RESETONBOOT	causes the driver to reset the drive(s) to be
@@ -170,14 +179,45 @@
 
 	If you add entries to the table, add them immediately before
 	the -1 end-of-table marker.  The values already present are
-	the ones found on standard SoundBlaster 16 and standalone cards.
+	the ones used by Creative Labs boards and those of a few
+	other vendors.
+
+	Each additional entry increases the boot time by four seconds,
+	and can increase the chance of accessing some other device.
+	Therefore, the list should be kept to a minimum.  Once the
+	devices have been correctly located, the kernel should be
+	configured so that it looks only at the correct location from
+	that point on.
+
+	Be sure to search devices located below 0x3ff BEFORE scanning
+	higher locations.  Some boards don't decode all I/O address lines,
+	so 0x230 and 0x630 appear identical.
 ---------------------------------------------------------------------------*/
 
 #ifdef AUTOHUNT
 int	port_hints[]={
-			0x230,0x240,	/*Ports SB audio boards can use*/
-			0x250,0x260,	/*Ports standalone CD/IF board can*/
-			      -1};	/*use.  Table MUST end with -1*/
+			0x230,	/*SB Pro & SB16*/
+			0x240,	/*SB Pro & SB16*/
+			0x250,	/*Creative omniCD standalone boards*/
+			0x260,	/*Creative omniCD standalone boards*/
+			0x340,	/*Laser Mate*/
+			0x360,	/*Laser Mate*/
+	 		0x630,	/*IBM*/
+#if 0
+/*	These locations are alternate settings for LaserMate and IBM
+	boards, but they usually conflict with network and SCSI cards.
+	I recommend against probing these randomly.
+*/
+			0x310,	/*Laser Mate*/
+			0x320,	/*Laser Mate*/
+			0x330,	/*Laser Mate*/
+			0x350,	/*Laser Mate*/
+			0x370,	/*Laser Mate*/
+			0x650,	/*IBM*/
+			0x670,	/*IBM*/
+			0x690,	/*IBM*/
+#endif /*0*/
+			-1};	/*use.  Table MUST end with -1*/
 #endif /*AUTOHUNT*/
 
 
