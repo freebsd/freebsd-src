@@ -24,7 +24,11 @@ int	pccard_mode = 0;
 /*
  * Set up defines for pccardd interrupt selection.
  */
+#ifdef PC98
+#define IRQ_COUNT	11
+#else
 #define IRQ_COUNT	9
+#endif /* PC98 */
 #define IRQ_10		0x00001
 #define IRQ_11		0x00002
 #define IRQ_03		0x00004
@@ -34,6 +38,10 @@ int	pccard_mode = 0;
 #define IRQ_05		0x00040
 #define IRQ_06		0x00080
 #define IRQ_15		0x00100
+#ifdef PC98
+#define IRQ_12		0x00200
+#define IRQ_13		0x00400
+#endif /* PC98 */
 
 unsigned int CardIrq;
 
@@ -55,6 +63,10 @@ static Irq IrqTable[] = {
     { "irq_10", "-i 10", ~IRQ_10, IRQ_10 },
     { "irq_11", "-i 11", ~IRQ_11, IRQ_11 },
     { "irq_15", "-i 15", ~IRQ_15, IRQ_15 },
+#ifdef PC98
+    { "irq_12", "-i 12", ~IRQ_12, IRQ_12 },
+    { "irq_13", "-i 13", ~IRQ_13, IRQ_13 },
+#endif /* PC98 */
     {NULL},
 };
 
@@ -77,7 +89,13 @@ DMenu MenuPCICMem = {
     "PC-card controller uses memory area to get card information.\n"
     "Please specify an address that is not used by other devices.\n"
     "If you're uncertain of detailed specification of your hardware,\n"
+#ifdef PC98
+    "leave it untouched (default == 0xd0000).\n"
+    "If you use PC-9801 P, NS/A, NX/C, NL/R or PC-9821 Ne please \n"
+    "select [DA] here.",
+#else
     "leave it untouched (default == 0xd0000).",
+#endif /* PC98 */
     "Press F1 for more HELP",
     "pccard",
     { { "Default",  "I/O address 0xd0000 - 0xd3fff",
@@ -88,6 +106,10 @@ DMenu MenuPCICMem = {
 	NULL,  dmenuSetVariable, NULL, "_pcicmem=2"},
       { "DC", "I/O address 0xdc000 - 0xdffff",
 	NULL,  dmenuSetVariable, NULL, "_pcicmem=3"},
+#ifdef PC98
+      { "DA", "I/O address 0xda000 - 0xdbfff",
+	NULL,  dmenuSetVariable, NULL, "_pcicmem=4"},
+#endif /* PC98 */
       { NULL } },
 };
 
@@ -106,6 +128,22 @@ DMenu MenuCardIRQ = {
 	checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' }, 
     { "Reset",     "Reset selected IRQ list",
 	NULL, pccardIrqReset, NULL, NULL, ' ', ' ', ' ' },
+#ifdef PC98
+    { "3 IRQ 3",    "(INT 0) is 2nd serial port, internal modem",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_03 },
+    { "4 IRQ 5",    "(INT 1) is Infrared communication, SCSI I/F, (2nd serial)",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_05 },
+    { "5 IRQ 6",    "(INT 2) is PC-card Controller",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_06 },
+    { "6 IRQ 9",    "(INT 3) is IDE disk Controller",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_09 },
+    { "7 IRQ 10",   "(INT 41) is often free",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_10 },
+    { "8 IRQ 12",   "(INT 5) is Internal sound",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_12 },
+    { "9 IRQ 13",   "(INT 6) is Bus Mouse",
+	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_13 },
+#else
     { "3 IRQ 10",   "IRQ 10 is often free (verify in BIOS)",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_10 },
     { "4 IRQ 11",   "Verify IRQ 11 is not being used as PCI shared interrupt",
@@ -124,6 +162,7 @@ DMenu MenuCardIRQ = {
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_15 },
     { "11 IRQ 6",  "IRQ 6 will be free if laptop only has USB floppy drive",
 	dmenuFlagCheck, dmenuSetFlag, NULL, &CardIrq, '[', 'X', ']', IRQ_06 },
+#endif /* PC98 */
     { NULL } },
 };
 
@@ -185,6 +224,12 @@ pccardInitialize(void)
 	pcic_mem = 0xdc000;
 	variable_set2("pccard_mem", "0xdc000", 1);
 	break;
+#ifdef PC98
+      case 4:
+	pcic_mem = 0xda000;
+	variable_set2("pccard_mem", "0xda000", 1);
+	break;
+#endif /* PC98 */
     }
 
     /* get card_irq out of CardIrq somehow */
