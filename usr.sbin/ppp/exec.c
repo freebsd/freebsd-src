@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exec.c,v 1.3 1999/05/24 16:39:10 brian Exp $
+ *	$Id: exec.c,v 1.4 1999/06/01 19:08:57 brian Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -98,6 +99,7 @@ exec_iov2device(int type, struct physical *p, struct iovec *iov,
                 int *niov, int maxiov)
 {
   if (type == EXEC_DEVICE) {
+    free(iov[(*niov)++].iov_base);
     physical_SetupStack(p, execdevice.name, PHYSICAL_FORCE_ASYNC);
     return &execdevice;
   }

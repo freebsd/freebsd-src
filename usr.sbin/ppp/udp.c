@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: udp.c,v 1.1 1999/05/12 09:49:09 brian Exp $
+ *	$Id: udp.c,v 1.2 1999/05/24 16:39:17 brian Exp $
  */
 
 #include <sys/types.h>
@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <sys/uio.h>
 #include <termios.h>
 #include <unistd.h>
@@ -56,6 +57,7 @@
 #include "async.h"
 #include "descriptor.h"
 #include "physical.h"
+#include "main.h"
 #include "udp.h"
 
 struct udpdevice {
@@ -65,6 +67,12 @@ struct udpdevice {
 };
 
 #define device2udp(d) ((d)->type == UDP_DEVICE ? (struct udpdevice *)d : NULL)
+
+int
+udp_DeviceSize(void)
+{
+  return sizeof(struct udpdevice);
+}
 
 static ssize_t
 udp_Sendto(struct physical *p, const void *v, size_t n)
@@ -108,11 +116,17 @@ udp_Free(struct physical *p)
 }
 
 static void
-udp_device2iov(struct physical *p, struct iovec *iov, int *niov,
+udp_device2iov(struct device *d, struct iovec *iov, int *niov,
                int maxiov, pid_t newpid)
 {
-  iov[*niov].iov_base = p ? p->handler : malloc(sizeof(struct udpdevice));
-  iov[*niov].iov_len = sizeof(struct udpdevice);
+  int sz = physical_MaxDeviceSize();
+
+  iov[*niov].iov_base = realloc(d, sz);
+  if (iov[*niov].iov_base == NULL) {
+    log_Printf(LogALERT, "Failed to allocate memory: %d\n", sz);
+    AbortProgram(EX_OSERR);
+  }
+  iov[*niov].iov_len = sz;
   (*niov)++;
 }
 
@@ -137,6 +151,13 @@ udp_iov2device(int type, struct physical *p, struct iovec *iov, int *niov,
 {
   if (type == UDP_DEVICE) {
     struct udpdevice *dev = (struct udpdevice *)iov[(*niov)++].iov_base;
+
+    dev = realloc(dev, sizeof *dev);	/* Reduce to the correct size */
+    if (dev == NULL) {
+      log_Printf(LogALERT, "Failed to allocate memory: %d\n",
+                 (int)(sizeof *dev));
+      AbortProgram(EX_OSERR);
+    }
 
     /* Refresh function pointers etc */
     memcpy(&dev->dev, &baseudpdevice, sizeof dev->dev);
