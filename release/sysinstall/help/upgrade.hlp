@@ -32,7 +32,7 @@ close to the edge, that's all we can say!
 NOTE to 2.0 users: We're sorry, but the "slice" changes that were
 added in FreeBSD 2.0.5 made automated upgrades pretty difficult due to
 the fact that a complete reinstall is pretty much called for.  Things
-may still *work* after a 2.1 upgrade, but you will also no doubt
-receive many warnings at boot time about non-aligned slices and such;
-we really do recommend a fresh installation for 2.0 systems!  (But
-back up your user data first :-).
+may still *work* after an upgrade, but you will also no doubt receive
+many warnings at boot time about non-aligned slices and such; we
+really do recommend a fresh installation for 2.0 systems!  (But back
+up your user data first :-).
