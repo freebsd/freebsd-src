@@ -314,6 +314,7 @@ wwinit()
 			wwerrno = WWE_SYS;
 			goto bad;
 		}
+	fcntl(0,F_SETOWN,getpid());
 	/* catch typeahead before ASYNC was set */
 	(void) kill(getpid(), SIGIO);
 	wwstart1();
