@@ -250,6 +250,8 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 {
 	int ret, timeout, newsize, count, sz;
 	struct snd_dbuf *bs = c->bufsoft;
+	void *off;
+	int t, x,togo,p;
 
 	CHN_LOCKASSERT(c);
 	/*
@@ -291,7 +293,24 @@ chn_write(struct pcm_channel *c, struct uio *buf)
 			sz = MIN(sz, buf->uio_resid);
 			KASSERT(sz > 0, ("confusion in chn_write"));
 			/* printf("sz: %d\n", sz); */
-			ret = sndbuf_uiomove(bs, buf, sz);
+
+			/*
+			 * The following assumes that the free space in
+			 * the buffer can never be less around the
+			 * unlock-uiomove-lock sequence.
+			 */
+			togo = sz;
+			while (ret == 0 && togo> 0) {
+				p = sndbuf_getfreeptr(bs);
+				t = MIN(togo, sndbuf_getsize(bs) - p);
+				off = sndbuf_getbufofs(bs, p);
+				CHN_UNLOCK(c);
+				ret = uiomove(off, t, buf);
+				CHN_LOCK(c);
+				togo -= t;
+				x = sndbuf_acquire(bs, NULL, t);
+			}
+			ret = 0;
 			if (ret == 0 && !(c->flags & CHN_F_TRIGGERED))
 				chn_start(c, 0);
 		}
@@ -395,6 +414,8 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 {
 	int		ret, timeout, sz, count;
 	struct snd_dbuf       *bs = c->bufsoft;
+	void *off;
+	int t, x,togo,p;
 
 	CHN_LOCKASSERT(c);
 	if (!(c->flags & CHN_F_TRIGGERED))
@@ -406,7 +427,23 @@ chn_read(struct pcm_channel *c, struct uio *buf)
 		sz = MIN(buf->uio_resid, sndbuf_getready(bs));
 
 		if (sz > 0) {
-			ret = sndbuf_uiomove(bs, buf, sz);
+			/*
+			 * The following assumes that the free space in
+			 * the buffer can never be less around the
+			 * unlock-uiomove-lock sequence.
+			 */
+			togo = sz;
+			while (ret == 0 && togo> 0) {
+				p = sndbuf_getreadyptr(bs);
+				t = MIN(togo, sndbuf_getsize(bs) - p);
+				off = sndbuf_getbufofs(bs, p);
+				CHN_UNLOCK(c);
+				ret = uiomove(off, t, buf);
+				CHN_LOCK(c);
+				togo -= t;
+				x = sndbuf_dispose(bs, NULL, t);
+			}
+			ret = 0;
 		} else {
 			if (c->flags & CHN_F_NBIO) {
 				ret = EWOULDBLOCK;
