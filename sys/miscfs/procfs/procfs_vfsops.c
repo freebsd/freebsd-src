@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
- *	$Id: procfs_vfsops.c,v 1.25 1998/07/27 22:47:17 alex Exp $
+ *	$Id: procfs_vfsops.c,v 1.26 1998/09/07 13:17:01 bde Exp $
  */
 
 /*
@@ -77,11 +77,6 @@ procfs_mount(mp, path, data, ndp, p)
 {
 	size_t size;
 	int error;
-
-	if (UIO_MX & (UIO_MX-1)) {
-		log(LOG_ERR, "procfs: invalid directory entry size\n");
-		return (EINVAL);
-	}
 
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);

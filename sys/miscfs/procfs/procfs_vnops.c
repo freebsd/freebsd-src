@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.67 1999/04/30 13:04:21 phk Exp $
+ *	$Id: procfs_vnops.c,v 1.68 1999/05/04 08:01:55 phk Exp $
  */
 
 /*
@@ -784,16 +784,10 @@ procfs_validfile(p)
 }
 
 /*
- * readdir returns directory entries from pfsnode (vp).
+ * readdir() returns directory entries from pfsnode (vp).
  *
- * the strategy here with procfs is to generate a single
- * directory entry at a time (struct pfsdent) and then
- * copy that out to userland using uiomove.  a more efficent
- * though more complex implementation, would try to minimize
- * the number of calls to uiomove().  for procfs, this is
- * hardly worth the added code complexity.
- *
- * this should just be done through read()
+ * We generate just one directory entry at a time, as it would probably
+ * not pay off to buffer several entries locally to save uiomove calls.
  */
 static int
 procfs_readdir(ap)
@@ -807,21 +801,28 @@ procfs_readdir(ap)
 	} */ *ap;
 {
 	struct uio *uio = ap->a_uio;
-	struct pfsdent d;
-	struct pfsdent *dp = &d;
+	struct dirent d;
+	struct dirent *dp = &d;
 	struct pfsnode *pfs;
 	int count, error, i, off;
+	static u_int delen;
+
+	if (!delen) {
+
+		d.d_namlen = PROCFS_NAMELEN;
+		delen = GENERIC_DIRSIZ(&d);
+	}
 
 	pfs = VTOPFS(ap->a_vp);
 
 	off = (int)uio->uio_offset;
-	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||
-	    uio->uio_resid < UIO_MX)
+	if (off != uio->uio_offset || off < 0 || 
+	    off % delen != 0 || uio->uio_resid < delen)
 		return (EINVAL);
 
 	error = 0;
 	count = 0;
-	i = (u_int)off / UIO_MX;
+	i = off / delen;
 
 	switch (pfs->pfs_type) {
 	/*
@@ -840,17 +841,17 @@ procfs_readdir(ap)
 			break;
 
 		for (pt = &proc_targets[i];
-		     uio->uio_resid >= UIO_MX && i < nproc_targets; pt++, i++) {
+		     uio->uio_resid >= delen && i < nproc_targets; pt++, i++) {
 			if (pt->pt_valid && (*pt->pt_valid)(p) == 0)
 				continue;
 
-			dp->d_reclen = UIO_MX;
+			dp->d_reclen = delen;
 			dp->d_fileno = PROCFS_FILENO(pfs->pfs_pid, pt->pt_pfstype);
 			dp->d_namlen = pt->pt_namlen;
 			bcopy(pt->pt_name, dp->d_name, pt->pt_namlen + 1);
 			dp->d_type = pt->pt_type;
 
-			if ((error = uiomove((caddr_t)dp, UIO_MX, uio)) != 0)
+			if ((error = uiomove((caddr_t)dp, delen, uio)) != 0)
 				break;
 		}
 
@@ -873,9 +874,9 @@ procfs_readdir(ap)
 		int pcnt = 0;
 		volatile struct proc *p = allproc.lh_first;
 
-		for (; p && uio->uio_resid >= UIO_MX; i++, pcnt++) {
-			bzero((char *) dp, UIO_MX);
-			dp->d_reclen = UIO_MX;
+		for (; p && uio->uio_resid >= delen; i++, pcnt++) {
+			bzero((char *) dp, delen);
+			dp->d_reclen = delen;
 
 			switch (i) {
 			case 0:		/* `.' */
@@ -916,7 +917,7 @@ procfs_readdir(ap)
 				break;
 			}
 
-			if ((error = uiomove((caddr_t)dp, UIO_MX, uio)) != 0)
+			if ((error = uiomove((caddr_t)dp, delen, uio)) != 0)
 				break;
 		}
 	done:
@@ -938,7 +939,7 @@ procfs_readdir(ap)
 		break;
 	}
 
-	uio->uio_offset = i * UIO_MX;
+	uio->uio_offset = i * delen;
 
 	return (error);
 }
