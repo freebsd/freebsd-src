@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.49 1999/01/27 23:45:39 dillon Exp $
+ * $Id: cd9660_vfsops.c,v 1.50 1999/01/30 12:26:22 phk Exp $
  */
 
 #include <sys/param.h>
@@ -576,9 +576,6 @@ cd9660_statfs(mp, sbp, p)
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}
-	/* Use the first spare for flags: */
-	/* Don't do this!!! XXX */
-	/* sbp->f_spare[0] = isomp->im_flags; */
 	return 0;
 }
 
