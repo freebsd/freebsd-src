@@ -279,18 +279,7 @@ ia32_setregs(td, entry, stack, ps_strings)
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucode32sel;
 	regs->tf_rbx = ps_strings;
-
-	/*
-	 * Arrange to trap the next npx or `fwait' instruction (see npx.c
-	 * for why fwait must be trapped at least if there is an npx or an
-	 * emulator).  This is mainly to handle the case where npx0 is not
-	 * configured, since the npx routines normally set up the trap
-	 * otherwise.  It should be done only at boot time, but doing it
-	 * here allows modifying `npx_exists' for testing the emulator on
-	 * systems with an npx.
-	 */
 	load_cr0(rcr0() | CR0_MP | CR0_TS);
-
 	fpstate_drop(td);
 
 	/* Return via doreti so that we can change to a different %cs */
