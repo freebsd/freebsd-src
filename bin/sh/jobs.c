@@ -49,12 +49,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdlib.h>
 #include <sys/param.h>
-#ifdef BSD
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <paths.h>
-#endif
 #include <sys/ioctl.h>
 
 #include "shell.h"
@@ -96,9 +94,6 @@ STATIC void restartjob(struct job *);
 STATIC void freejob(struct job *);
 STATIC struct job *getjob(char *);
 STATIC pid_t dowait(int, struct job *);
-#if SYSV
-STATIC int onsigchild(void);
-#endif
 STATIC pid_t waitproc(int, int *);
 STATIC void cmdtxt(union node *);
 STATIC void cmdputs(char *);
@@ -112,10 +107,6 @@ STATIC void showjob(struct job *, pid_t, int, int);
 
 /*
  * Turn job control on and off.
- *
- * Note:  This code assumes that the third arg to ioctl is a character
- * pointer, which is true on Berkeley systems but not System V.  Since
- * System V doesn't have job control yet, this isn't a problem now.
  */
 
 MKINIT int jobctl;
@@ -1005,44 +996,10 @@ dowait(int block, struct job *job)
  * Do a wait system call.  If job control is compiled in, we accept
  * stopped processes.  If block is zero, we return a value of zero
  * rather than blocking.
- *
- * System V doesn't have a non-blocking wait system call.  It does
- * have a SIGCLD signal that is sent to a process when one of it's
- * children dies.  The obvious way to use SIGCLD would be to install
- * a handler for SIGCLD which simply bumped a counter when a SIGCLD
- * was received, and have waitproc bump another counter when it got
- * the status of a process.  Waitproc would then know that a wait
- * system call would not block if the two counters were different.
- * This approach doesn't work because if a process has children that
- * have not been waited for, System V will send it a SIGCLD when it
- * installs a signal handler for SIGCLD.  What this means is that when
- * a child exits, the shell will be sent SIGCLD signals continuously
- * until is runs out of stack space, unless it does a wait call before
- * restoring the signal handler.  The code below takes advantage of
- * this (mis)feature by installing a signal handler for SIGCLD and
- * then checking to see whether it was called.  If there are any
- * children to be waited for, it will be.
- *
- * If neither SYSV nor BSD is defined, we don't implement nonblocking
- * waits at all.  In this case, the user will not be informed when
- * a background process until the next time she runs a real program
- * (as opposed to running a builtin command or just typing return),
- * and the jobs command may give out of date information.
  */
-
-#ifdef SYSV
-STATIC sig_atomic_t gotsigchild;
-
-STATIC int onsigchild() {
-	gotsigchild = 1;
-}
-#endif
-
-
 STATIC pid_t
 waitproc(int block, int *status)
 {
-#ifdef BSD
 	int flags;
 
 #if JOBS
@@ -1053,24 +1010,6 @@ waitproc(int block, int *status)
 	if (block == 0)
 		flags |= WNOHANG;
 	return wait3(status, flags, (struct rusage *)NULL);
-#else
-#ifdef SYSV
-	int (*save)();
-
-	if (block == 0) {
-		gotsigchild = 0;
-		save = signal(SIGCLD, onsigchild);
-		signal(SIGCLD, save);
-		if (gotsigchild == 0)
-			return 0;
-	}
-	return wait(status);
-#else
-	if (block == 0)
-		return 0;
-	return wait(status);
-#endif
-#endif
 }
 
 /*
