@@ -8,8 +8,11 @@
 # wouldn't be much point).
 #
 #                                       Jordan
-# $Id$
+# $Id: mkchecksums.sh,v 1.1 1994/11/17 15:20:04 jkh Exp $
 #
+
+# Remove any previous attempts.
+rm -rf CKSUMS do_cksum.sh
 
 # First generate the CKSUMS file for the benefit of those who wish to
 # use it in some other way.  If we find out that folks aren't even using
