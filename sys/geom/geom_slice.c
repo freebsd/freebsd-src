@@ -184,11 +184,12 @@ g_slice_start(struct bio *bp)
 		 * Check if we collide with any hot spaces, and call the
 		 * method once if so.
 		 */
+		t = bp->bio_offset + gsl->offset;
 		for (m_index = 0; m_index < gsp->nhot; m_index++) {
 			gmp = &gsp->hot[m_index];
-			if (bp->bio_offset >= gmp->offset + gmp->length)
+			if (t >= gmp->offset + gmp->length)
 				continue;
-			if (bp->bio_offset + bp->bio_length <= gmp->offset)
+			if (t + bp->bio_length <= gmp->offset)
 				continue;
 			error = gsp->start(bp);
 			if (error == EJUSTRETURN)
