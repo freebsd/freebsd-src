@@ -629,10 +629,6 @@ trap_fatal(frame, eva)
 		printf("Idle\n");
 	}
 
-#ifdef KDB
-	if (kdb_trap(&psl))
-		return;
-#endif
 #ifdef DDB
 	if ((debugger_on_panic || db_active) && kdb_trap(type, 0, frame))
 		return;
