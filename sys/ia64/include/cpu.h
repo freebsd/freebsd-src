@@ -78,6 +78,11 @@ struct clockframe {
 
 #ifdef _KERNEL
 
+#ifdef GPROF
+extern char btext[];
+extern char etext[];
+#endif
+
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
  * for non-critical timing.
