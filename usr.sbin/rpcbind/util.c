@@ -77,40 +77,38 @@ static void in6_fillscopeid __P((struct sockaddr_in6 *));
 
 /*
  * For all bits set in "mask", compare the corresponding bits in
- * "dst" and "src", and see if they match.
+ * "dst" and "src", and see if they match. Returns 0 if the addresses
+ * match.
  */
 static int
 bitmaskcmp(void *dst, void *src, void *mask, int bytelen)
 {
-	int i, j;
+	int i;
 	u_int8_t *p1 = dst, *p2 = src, *netmask = mask;
-	u_int8_t bitmask;
 
-	for (i = 0; i < bytelen; i++) {
-		for (j = 0; j < 8; j++) {
-			bitmask = 1 << j;
-			if (!(netmask[i] & bitmask))
-				continue;
-			if ((p1[i] & bitmask) != (p2[i] & bitmask))
-				return 1;
-		}
-	}
-
-	return 0;
+	for (i = 0; i < bytelen; i++)
+		if ((p1[i] & netmask[i]) != (p2[i] & netmask[i]))
+			return (1);
+	return (0);
 }
 
 /*
- * Taken from ifconfig.c
+ * Similar to code in ifconfig.c. Fill in the scope ID for link-local
+ * addresses returned by getifaddrs().
  */
 #ifdef INET6
 static void
 in6_fillscopeid(struct sockaddr_in6 *sin6)
 {
+	u_int16_t ifindex;
+
         if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr)) {
-                sin6->sin6_scope_id =
-                        ntohs(*(u_int16_t *)&sin6->sin6_addr.s6_addr[2]);
-                sin6->sin6_addr.s6_addr[2] = sin6->sin6_addr.s6_addr[3] = 0;
-        }
+		ifindex = ntohs(*(u_int16_t *)&sin6->sin6_addr.s6_addr[2]);
+		if (sin6->sin6_scope_id == 0 && ifindex != 0) {
+			sin6->sin6_scope_id = ifindex;
+			*(u_int16_t *)&sin6->sin6_addr.s6_addr[2] = 0;
+		}
+	}
 }
 #endif
 
@@ -344,9 +342,8 @@ network_init()
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 
 	/*
-	 * Loop through all interfaces. For each interface, see if the
-	 * network portion of its address is equal to that of the client.
-	 * If so, we have found the interface that we want to use.
+	 * Loop through all interfaces. For each IPv6 multicast-capable
+	 * interface, join the RPC multicast group on that interface.
 	 */
 	for (ifap = ifp; ifap != NULL; ifap = ifap->ifa_next) {
 		if (ifap->ifa_addr->sa_family != AF_INET6 ||
