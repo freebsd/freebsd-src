@@ -465,7 +465,7 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
  */
 /*
 struct kse_release_args {
-	register_t dummy;
+	struct timespec *timeout;
 };
 */
 int
@@ -473,6 +473,9 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 {
 	struct proc *p;
 	struct ksegrp *kg;
+	struct timespec ts, ts2, ts3, timeout;
+	struct timeval tv;
+	int error;
 
 	p = td->td_proc;
 	kg = td->td_ksegrp;
@@ -483,25 +486,38 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	if ((td->td_mailbox != NULL) || (td->td_ksegrp->kg_numupcalls == 0))
 		return (EINVAL);
 	KASSERT((td->td_upcall != NULL), ("%s: not own an upcall", __func__));
-
-	PROC_LOCK(p);
+	if (uap->timeout != NULL) {
+		if ((error = copyin(uap->timeout, &timeout, sizeof(timeout))))
+			return (error);
+		getnanouptime(&ts);
+		timespecadd(&ts, &timeout);
+		TIMESPEC_TO_TIMEVAL(&tv, &timeout);
+	}
 	mtx_lock_spin(&sched_lock);
 	/* Change OURSELF to become an upcall. */
 	td->td_flags = TDF_UPCALLING;
 	if (p->p_sflag & PS_NEEDSIGCHK)
 		td->td_flags |= TDF_ASTPENDING;
-	if ((td->td_upcall->ku_flags & KUF_DOUPCALL) == 0 && 
-	    (kg->kg_completed == NULL)) {
+	mtx_unlock_spin(&sched_lock);
+	PROC_LOCK(p);
+	while ((td->td_upcall->ku_flags & KUF_DOUPCALL) == 0 &&
+	       (kg->kg_completed == NULL)) {
 		kg->kg_upsleeps++;
-		mtx_unlock_spin(&sched_lock);
-		msleep(&kg->kg_completed, &p->p_mtx, PPAUSE|PCATCH, "ksepause",
-		       NULL);
+		error = msleep(&kg->kg_completed, &p->p_mtx, PPAUSE|PCATCH,
+			"kse_rel", (uap->timeout ? tvtohz(&tv) : 0));
 		kg->kg_upsleeps--;
 		PROC_UNLOCK(p);
-	} else {
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
+		if (uap->timeout == NULL || error != EWOULDBLOCK)
+			return (0);
+		getnanouptime(&ts2);
+		if (timespeccmp(&ts2, &ts, >=))
+			return (0);
+		ts3 = ts;
+		timespecsub(&ts3, &ts2);
+		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		PROC_LOCK(p);
 	}
+	PROC_UNLOCK(p);
 	return (0);
 }
 
