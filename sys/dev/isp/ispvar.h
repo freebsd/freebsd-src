@@ -1,5 +1,4 @@
-/* $Id: ispvar.h,v 1.16 1999/07/02 22:46:31 mjacob Exp $ */
-/* release_6_5_99 */
+/* $Id: ispvar.h,v 1.17 1999/07/05 20:42:08 mjacob Exp $ */
 /*
  * Soft Definitions for for Qlogic ISP SCSI adapters.
  *
@@ -68,7 +67,7 @@ struct ispmdvec {
 	const u_int16_t *dv_ispfw;	/* ptr to f/w */
 	u_int16_t 	dv_fwlen;	/* length of f/w */
 	u_int16_t	dv_codeorg;	/* code ORG for f/w */
-	u_int16_t	dv_fwrev;	/* f/w revision */
+	u_int32_t	dv_fwrev;	/* f/w revision */
 	/*
 	 * Initial values for conf1 register
 	 */
@@ -82,6 +81,17 @@ struct ispmdvec {
 #else
 #define	MAX_FC_TARG	126
 #endif
+
+#define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
+#ifdef	ISP2100_SCCLUN
+#define	_ISP_FC_LUN(isp)	65536
+#else
+#define	_ISP_FC_LUN(isp)	16
+#endif
+#define	_ISP_SCSI_LUN(isp)	\
+ 	((ISP_FW_REVX(isp->isp_fwrev) >= ISP_FW_REV(7, 55, 0))? 32 : 8)
+#define	ISP_MAX_LUNS(isp)	\
+	(IS_FC(isp)? _ISP_FC_LUN(isp) : _ISP_SCSI_LUN(isp))
 
 /* queue length must be a power of two */
 #define	QENTRY_LEN			64
@@ -352,6 +362,9 @@ struct ispsoftc {
 	void		(*isp_tmd_notify) __P((void *, tmd_notify_t *));
 #endif	   
 };
+
+#define	SDPARAM(isp)	((sdparam *) (isp)->isp_param)
+#define	FCPARAM(isp)	((fcparam *) (isp)->isp_param)
 
 /*
  * ISP States
