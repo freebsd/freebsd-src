@@ -300,10 +300,12 @@ swap_pager_swap_init()
 	/*
 	 * Initialize our zone.  Right now I'm just guessing on the number
 	 * we need based on the number of pages in the system.  Each swblock
-	 * can hold 16 pages, so this is probably overkill.
+	 * can hold 16 pages, so this is probably overkill.  This reservation
+	 * is typically limited to around 70MB by default.
 	 */
-
 	n = cnt.v_page_count;
+	if (maxswzone && n > maxswzone / sizeof(struct swblock))
+		n = maxswzone / sizeof(struct swblock);
 
 	swap_zone = zinit(
 	    "SWAPMETA", 

@@ -409,6 +409,33 @@ This overrides completely the value
 determined when the kernel was compiled.
 Modifies
 .Va VM_KMEM_SIZE .
+.It Va kern.maxswzone
+Limits the amount of KVM to be used to hold swap
+meta information, which directly governs the
+maximum amount of swap the system can support.
+This value is specified in bytes of KVA space
+and defaults to around 70MBytes.  Care should be taken
+to not reduce this value such that the actual
+amount of configured swap exceeds 1/2 the
+kernel-supported swap.  The default 70MB allows
+the kernel to support a maximum of (approximately)
+14GB of configured swap.  Only mess around with
+this parameter if you need to greatly extend the
+KVM reservation for other resources such as the
+buffer cache or NMBCLUSTERS.  Modifies
+.Va VM_SWZONE_SIZE_MAX
+.It Va kern.maxbcache
+Limits the amount of KVM reserved for use by the
+buffer cache, specified in bytes.  The default
+maximum is 200MB.  This parameter is used to
+prevent the buffer cache from eating to much
+KVM in large-memory machine configurations.
+Only mess around with this parameter if you need to
+greatly extend the KVM reservation for other resources
+such as the swap zone or NMBCLUSTERS.  Note that
+the NBUF parameter will override this limit.
+Modifies
+.Va VM_BCACHE_SIZE_MAX
 .It Va machdep.pccard.pcic_irq
 Overrides the IRQ normally assigned to a PCCARD controller.
 Typically the first available interrupt will be allocated,
