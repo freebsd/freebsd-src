@@ -2225,10 +2225,7 @@ vm_map_split(vm_map_entry_t entry)
 		source->shadow_count++;
 		source->generation++;
 	}
-
 	for (idx = 0; idx < size; idx++) {
-		vm_page_t m;
-
 	retry:
 		m = vm_page_lookup(orig_object, offidxstart + idx);
 		if (m == NULL)
@@ -2249,7 +2246,6 @@ vm_map_split(vm_map_entry_t entry)
 		/* page automatically made dirty by rename and cache handled */
 		vm_page_busy(m);
 	}
-
 	if (orig_object->type == OBJT_SWAP) {
 		vm_object_pip_add(orig_object, 1);
 		/*
@@ -2260,14 +2256,11 @@ vm_map_split(vm_map_entry_t entry)
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 		vm_object_pip_wakeup(orig_object);
 	}
-
 	for (idx = 0; idx < size; idx++) {
 		m = vm_page_lookup(new_object, idx);
-		if (m) {
+		if (m != NULL)
 			vm_page_wakeup(m);
-		}
 	}
-
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;
 	vm_object_deallocate(orig_object);
