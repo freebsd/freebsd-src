@@ -39,7 +39,7 @@
 /*
  * RAY_DEBUG settings
  *
- *	RECERR		Recoverable error's
+ *	RECERR		Recoverable error's, deprecated use RAY_RECERR macro
  *	SUBR		Subroutine entry
  *	BOOTPARAM	Startup CM dump
  *	STARTJOIN	State transitions for start/join
