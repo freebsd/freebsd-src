@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.31 1996/01/04 21:13:17 wollman Exp $
+ * $Id: vm_map.c,v 1.32 1996/01/19 03:59:52 dyson Exp $
  */
 
 /*
@@ -1529,16 +1529,17 @@ vm_map_clean(map, start, end, syncio, invalidate)
 			 *     the object before it completes is probably a very bad
 			 *     idea.
 			 */
-			if (current->protection & VM_PROT_WRITE)
+			if (current->protection & VM_PROT_WRITE) {
 		   	    	vm_object_page_clean(object,
 					OFF_TO_IDX(offset),
 					OFF_TO_IDX(offset + size),
-					syncio, TRUE);
-			if (invalidate)
-				vm_object_page_remove(object,
-					OFF_TO_IDX(offset),
-					OFF_TO_IDX(offset + size),
-					FALSE);
+					(syncio||invalidate)?1:0, TRUE);
+				if (invalidate)
+					vm_object_page_remove(object,
+						OFF_TO_IDX(offset),
+						OFF_TO_IDX(offset + size),
+						FALSE);
+			}
 		}
 		start += size;
 	}
