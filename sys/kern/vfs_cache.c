@@ -98,6 +98,10 @@ static u_long	numneg;		/* number of cache entries allocated */
 SYSCTL_ULONG(_debug, OID_AUTO, numneg, CTLFLAG_RD, &numneg, 0, "");
 static u_long	numcache;		/* number of cache entries allocated */
 SYSCTL_ULONG(_debug, OID_AUTO, numcache, CTLFLAG_RD, &numcache, 0, "");
+static u_long	numcachehv;		/* number of cache entries with vnodes held */
+SYSCTL_ULONG(_debug, OID_AUTO, numcachehv, CTLFLAG_RD, &numcachehv, 0, "");
+static u_long	numcachepl;		/* number of cache purge for leaf entries */
+SYSCTL_ULONG(_debug, OID_AUTO, numcachepl, CTLFLAG_RD, &numcachepl, 0, "");
 struct	nchstats nchstats;		/* cache effectiveness statistics */
 
 static int	doingcache = 1;		/* 1 => enable the cache */
@@ -227,8 +231,10 @@ cache_zap(ncp)
 {
 	LIST_REMOVE(ncp, nc_hash);
 	LIST_REMOVE(ncp, nc_src);
-	if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) 
+	if (LIST_EMPTY(&ncp->nc_dvp->v_cache_src)) {
 		vdrop(ncp->nc_dvp);
+		numcachehv--;
+	}
 	if (ncp->nc_vp) {
 		TAILQ_REMOVE(&ncp->nc_vp->v_cache_dst, ncp, nc_dst);
 	} else {
@@ -404,8 +410,10 @@ cache_enter(dvp, vp, cnp)
 	hash = fnv_32_buf(&dvp->v_id, sizeof(dvp->v_id), hash);
 	ncpp = NCHHASH(hash);
 	LIST_INSERT_HEAD(ncpp, ncp, nc_hash);
-	if (LIST_EMPTY(&dvp->v_cache_src))
+	if (LIST_EMPTY(&dvp->v_cache_src)) {
 		vhold(dvp);
+		numcachehv++;
+	}
 	LIST_INSERT_HEAD(&dvp->v_cache_src, ncp, nc_src);
 	if (vp) {
 		TAILQ_INSERT_HEAD(&vp->v_cache_dst, ncp, nc_dst);
@@ -488,6 +496,62 @@ cache_purgevfs(mp)
 			}
 		}
 	}
+}
+
+/*
+ * Flush all dirctory entries with no child directories held in
+ * the cache.
+ *
+ * Since we need to check it anyway, we will flush all the invalid
+ * entries at the same time.
+ */
+void
+cache_purgeleafdirs(ndir)
+	int ndir;
+{
+	struct nchashhead *ncpp;
+	struct namecache *ncp, *nnp, *ncpc, *nnpc;
+	struct vnode *dvp;
+
+	/* Scan hash tables for applicable entries */
+	for (ncpp = &nchashtbl[nchash]; ncpp >= nchashtbl && ndir > 0; ncpp--) {
+		for (ncp = LIST_FIRST(ncpp); ncp != 0 && ndir > 0; ncp = nnp) {
+			nnp = LIST_NEXT(ncp, nc_hash);
+			if (ncp->nc_dvp != 0) {
+				/*
+				 * Skip over if nc_dvp of this cache holds
+				 * a child directory, or the hold count of
+				 * nc_dvp is greater than 1 (in which case
+				 * nc_dvp is likely to be the working
+				 * directory of a process).
+				 */
+				if (ncp->nc_dvp->v_holdcnt > 1)
+					continue;
+				for (ncpc = LIST_FIRST(&ncp->nc_dvp->v_cache_src);
+				     ncpc != 0; ncpc = nnpc) {
+					nnpc = LIST_NEXT(ncpc, nc_src);
+					if (ncpc->nc_vp != 0 && ncpc->nc_vp->v_type == VDIR)
+						break;
+				}
+				if (ncpc == 0) {
+					/*
+					 * Zap all of this directory's children,
+					 * held in ncp->nc_dvp->v_cache_src.
+					 */
+					dvp = ncp->nc_dvp;
+					while (!LIST_EMPTY(&dvp->v_cache_src))
+						cache_zap(LIST_FIRST(&dvp->v_cache_src));
+
+					ndir--;
+
+					/* Restart in case where nnp is reclaimed. */
+					nnp = LIST_FIRST(ncpp);
+					continue;
+				}
+			}
+		}
+	}
+	numcachepl++;
 }
 
 /*
