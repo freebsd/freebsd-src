@@ -107,7 +107,6 @@ IDTVEC(spuriousint)
 
 	iret
 
-MCOUNT_LABEL(bintr2)
 	ISR_VEC(1, apic_isr1)
 	ISR_VEC(2, apic_isr2)
 	ISR_VEC(3, apic_isr3)
@@ -115,7 +114,6 @@ MCOUNT_LABEL(bintr2)
 	ISR_VEC(5, apic_isr5)
 	ISR_VEC(6, apic_isr6)
 	ISR_VEC(7, apic_isr7)
-MCOUNT_LABEL(eintr2)
 
 #ifdef SMP
 /*

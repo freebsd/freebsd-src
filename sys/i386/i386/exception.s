@@ -30,6 +30,7 @@
  * $FreeBSD$
  */
 
+#include "opt_apic.h"
 #include "opt_npx.h"
 
 #include <machine/asmacros.h>
@@ -217,12 +218,40 @@ ENTRY(fork_trampoline)
 
 
 /*
- * Include vm86 call routines, which want to call doreti.
+ * To efficiently implement classification of trap and interrupt handlers
+ * for profiling, there must be only trap handlers between the labels btrap
+ * and bintr, and only interrupt handlers between the labels bintr and
+ * eintr.  This is implemented (partly) by including files that contain
+ * some of the handlers.  Before including the files, set up a normal asm
+ * environment so that the included files doen't need to know that they are
+ * included.
  */
-#include "i386/i386/vm86bios.s"
 
 	.data
-	ALIGN_DATA
+	.p2align 4
+	.text
+	SUPERALIGN_TEXT
+MCOUNT_LABEL(bintr)
+
+#include <i386/isa/atpic_vector.s>
+
+#ifdef DEV_APIC
+	.data
+	.p2align 4
+	.text
+	SUPERALIGN_TEXT
+
+#include <i386/i386/apic_vector.s>
+#endif
+
+	.data
+	.p2align 4
+	.text
+	SUPERALIGN_TEXT
+#include <i386/i386/vm86bios.s>
+
+	.text
+MCOUNT_LABEL(eintr)
 
 /*
  * void doreti(struct trapframe)
@@ -231,7 +260,6 @@ ENTRY(fork_trampoline)
  */
 	.text
 	SUPERALIGN_TEXT
-	.globl	doreti
 	.type	doreti,@function
 doreti:
 	FAKE_MCOUNT($bintr)		/* init "from" bintr -> doreti */
