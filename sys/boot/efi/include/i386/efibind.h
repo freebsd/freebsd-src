@@ -231,17 +231,7 @@ typedef uint32_t   UINTN;
 
 #endif /* EFI_FW_NT */
 
-/*
- * Some compilers don't support the forward reference construct:
- *  typedef struct XXXXX
- *
- * The following macro provide a workaround for such cases.
- */
-#ifdef NO_INTERFACE_DECL
-#define INTERFACE_DECL(x)
-#else
-#define INTERFACE_DECL(x) typedef struct x
-#endif
+#define INTERFACE_DECL(x) struct x
 
 #if _MSC_EXTENSIONS
 #pragma warning ( disable : 4731 )
