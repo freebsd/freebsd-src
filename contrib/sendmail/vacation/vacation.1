@@ -9,33 +9,36 @@
 .\" the sendmail distribution.
 .\"
 .\"
-.\"	$Id: vacation.1,v 8.11.4.8 2001/07/20 04:19:38 gshapiro Exp $
+.\"	$Id: vacation.1,v 8.26 2001/11/21 04:21:35 gshapiro Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.TH VACATION 1 "$Date: 2001/07/20 04:19:38 $"
+.TH VACATION 1 "$Date: 2001/11/21 04:21:35 $"
 .SH NAME
 vacation
 \- return ``I am not here'' indication
 .SH SYNOPSIS
 .B vacation
-.RB [ \-i ]
-.RB [ \-I ]
-.RB [ \-r 
-.IR interval ]
-.RB [ \-x ]
 .RB [ \-a
 .IR alias ]
+.RB [ \-C
+.IR cffile ]
 .RB [ \-d ]
 .RB [ \-f
 .IR database ]
+.RB [ \-i ]
+.RB [ \-I ]
 .RB [ \-l ]
 .RB [ \-m
 .IR message ]
+.RB [ \-r 
+.IR interval ]
 .RB [ \-s
 .IR address ]
 .RB [ \-t
 .IR time ]
+.RB [ \-U ]
+.RB [ \-x ]
 .RB [ \-z ]
 .I login
 .SH DESCRIPTION
@@ -63,6 +66,14 @@ Handle messages for
 in the same manner as those received for the user's
 login name.
 .TP
+.BI \-C " cfpath"
+Specify pathname of the sendmail configuration file.
+This option is ignored if
+.B \-U
+is specified.
+This option defaults to the standard sendmail configuration file,
+located at /etc/mail/sendmail.cf on most systems.
+.TP
 .B \-d
 Send error/debug messages to stdout instead of syslog.
 Otherwise, fatal errors, such as calling
@@ -76,7 +87,9 @@ syslog(8).
 Use
 .I filename
 as name of the database instead of
-.IR ~/.vacation.db .
+.IR ~/.vacation.db
+or
+.IR ~/.vacation.{dir,pag} .
 Unless the
 .I filename
 starts with / it is relative to ~.
@@ -92,10 +105,6 @@ Same as
 .B \-i
 (for backwards compatibility).
 .TP
-.B \-l
-List the content of the vacation database file including the address
-and the associated time of the last auto-response to that address.
-.TP
 .BI \-m " filename"
 Use
 .I filename
@@ -104,6 +113,10 @@ as name of the file containing the message to send instead of
 Unless the
 .I filename
 starts with / it is relative to ~.
+.TP
+.B \-l
+List the content of the vacation database file including the address
+and the associated time of the last auto-response to that address.
 .TP
 .BI \-r " interval"
 Set the reply interval to
@@ -124,6 +137,13 @@ line as the recipient for the vacation message.
 .BI \-t " time"
 Ignored, available only for compatibility with Sun's
 vacation program.
+.TP
+.B \-U
+Do not attempt to lookup 
+.I login
+in the password file.
+The -f and -m options must be used to specify the database and message file
+since there is no home directory for the default settings for these options.
 .TP
 .B \-x
 reads an exclusion list from stdin (one address per line).
@@ -170,8 +190,12 @@ or
 line is included in the mail headers.
 The people who have sent you messages are maintained as a
 db(3)
+or
+dbm(3)
 database in the file
 .I .vacation.db
+or
+.I .vacation.{dir,pag}
 in your home directory.
 .PP
 .B Vacation
@@ -201,17 +225,13 @@ Sendmail(8)
 includes this
 ``From''
 line automatically.
-.PP
-Fatal errors, such as calling
-.B vacation
-with incorrect arguments, or with non-existent
-.IR login s,
-are logged in the system log file, using
-syslog(8).
 .SH FILES
 .TP 1.8i
 ~/.vacation.db
-default database file
+default database file for db(3)
+.TP 1.8i
+~/.vacation.{dir,pag}
+default database file for dbm(3)
 .TP
 ~/.vacation.msg
 default message to send
