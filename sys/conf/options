@@ -134,7 +134,6 @@ UDF		opt_dontuse.h
 
 # Broken - ffs_snapshot() dependency from ufs_lookup() :-(
 FFS		opt_ffs_broken_fixme.h
-IFS		opt_ffs_broken_fixme.h
 
 # These static filesystems has one slightly bogus static dependency in
 # sys/i386/i386/autoconf.c.  If any of these filesystems are
