@@ -41,45 +41,78 @@ static char sccsid[] = "From: @(#)swapon.c	8.1 (Berkeley) 6/5/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <err.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <paths.h>
-#include <string.h>
-#include <unistd.h>
 #include <sys/param.h>
 #include <sys/disk.h>
-#include <sysexits.h>
+#include <sys/sysctl.h>
 
-void	usage(void) __dead2;
+#include <err.h>
+#include <fcntl.h>
+#include <paths.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sysexits.h>
+#include <unistd.h>
+
+static int	verbose;
+
+static void
+usage(void)
+{
+	fprintf(stderr, "%s\n%s\n",
+	    "usage: dumpon [-v] special_file",
+	    "       dumpon [-v] off");
+	exit(EX_USAGE);
+}
+
+static void
+check_size(int fd, const char *fn)
+{
+	int name[] = { CTL_HW, HW_PHYSMEM };
+	size_t namelen = sizeof name / sizeof *name;
+	unsigned long physmem;
+	size_t len = sizeof physmem;
+	off_t mediasize;
+
+	if (sysctl(name, namelen, &physmem, &len, NULL, 0) != 0)
+		err(EX_OSERR, "can't get memory size");
+	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
+		err(EX_OSERR, "%s: can't get size", fn);
+	if (mediasize < physmem) {
+		if (verbose)
+			printf("%s is smaller than physical memory\n", fn);
+		exit(EX_IOERR);
+	}
+}
 
 int
 main(int argc, char *argv[])
 {
-	int ch, verbose, rv;
+	int ch;
 	int i, fd;
 	u_int u;
 
-	verbose = rv = 0;
 	while ((ch = getopt(argc, argv, "v")) != -1)
 		switch((char)ch) {
 		case 'v':
 			verbose = 1;
 			break;
-		case '?':
 		default:
 			usage();
 		}
+
+	argc -= optind;
 	argv += optind;
 
-	if (!argv[0] || argv[1])
+	if (argc != 1)
 		usage();
 
-	if (strcmp(argv[0], "off")) {
+	if (strcmp(argv[0], "off") != 0) {
 		fd = open(argv[0], O_RDONLY);
 		if (fd < 0)
 			err(EX_OSFILE, "%s", argv[0]);
+		check_size(fd, argv[0]);
 		u = 0;
 		i = ioctl(fd, DIOCSKERNELDUMP, &u);
 		u = 1;
@@ -100,13 +133,4 @@ main(int argc, char *argv[])
 		err(EX_OSERR, "ioctl(DIOCSKERNELDUMP)");
 
 	exit (0);
-}
-
-void
-usage(void)
-{
-	fprintf(stderr,
-		"usage: dumpon [-v] special_file\n"
-		"       dumpon [-v] off\n");
-	exit(EX_USAGE);
 }
