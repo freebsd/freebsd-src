@@ -58,7 +58,7 @@ extern	void	(*netisrs[32]) __P((void));
 extern	int	nfs_diskless_valid;
 extern	void	(*ovbcopy_vector) __P((const void *from, void *to, size_t len));
 extern	char	sigcode[];
-extern	int	szsigcode, oszsigcode;
+extern	int	szsigcode, szosigcode;
 
 typedef void alias_for_inthand_t __P((u_int cs, u_int ef, u_int esp, u_int ss));
 struct	proc;
