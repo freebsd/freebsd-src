@@ -429,7 +429,7 @@ wi_generic_attach(device_t dev)
 	/* Read the station address. */
 	mac.wi_type = WI_RID_MAC_NODE;
 	mac.wi_len = 4;
-	if (error = wi_read_record(sc, (struct wi_ltv_gen *)&mac)) {
+	if ((error = wi_read_record(sc, (struct wi_ltv_gen *)&mac)) != 0) {
 		device_printf(dev, "mac read failed %d\n", error);
 		wi_free(dev);
 		return (error);
@@ -815,7 +815,7 @@ static int wi_cmd(sc, cmd, val)
 static void wi_reset(sc)
 	struct wi_softc		*sc;
 {
-	int i, err;
+	int i;
 	
 	for (i = 0; i < 5; i++) {
 		if (wi_cmd(sc, WI_CMD_INI, 0) == 0)
