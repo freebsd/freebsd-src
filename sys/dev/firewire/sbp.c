@@ -129,7 +129,7 @@ static char *orb_fun_name[] = {
 #define ORB_RES_ILLE 2
 #define ORB_RES_VEND 3
 
-static int debug = 1;
+static int debug = 0;
 static int auto_login = 1;
 static int max_speed = 2;
 
@@ -555,8 +555,10 @@ END_DEBUG
 				}
 				break;
 			}
+SBP_DEBUG(0)
 			sbp_show_sdev_info(sdev, 
 					(sdev->status == SBP_DEV_TOATTACH));
+END_DEBUG
 		} else {
 			switch (sdev->status) {
 			case SBP_DEV_ATTACHED:
@@ -1063,8 +1065,10 @@ sbp_mgm_orb(struct sbp_dev *sdev, int func)
 		sdev->target->target_id,
 		sdev->lun_id));
 
+SBP_DEBUG(0)
 	sbp_show_sdev_info(sdev, 2);
 	printf("%s\n", orb_fun_name[(func>>16)&0xf]);
+END_DEBUG
 	switch (func) {
 	case ORB_FUN_LGI:
 		ocb->orb[2] = htonl(nid << 16);
@@ -1325,10 +1329,10 @@ SBP_DEBUG(0)
 
 		sbp_show_sdev_info(sdev, 2);
 		printf("ORB status src:%x resp:%x dead:%x"
-				" len:%x stat:%x orb:%x%08x\n",
+				" len:%x stat:%x orb:%x%08lx\n",
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
-			ntohl(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
+			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
 		sbp_show_sdev_info(sdev, 2);
 		status = sbp_status->status;
 		switch(sbp_status->resp) {
@@ -1994,7 +1998,7 @@ sbp_execute_ocb(void *arg,  bus_dma_segment_t *segments, int seg, int error)
 SBP_DEBUG(1)
 		printf("sbp_execute_ocb: seg %d", seg);
 		for (i = 0; i < seg; i++)
-			printf(", %x:%d", segments[i].ds_addr,
+			printf(", %x:%zd", segments[i].ds_addr,
 						segments[i].ds_len);
 		printf("\n");
 END_DEBUG
@@ -2003,7 +2007,7 @@ END_DEBUG
 #if 1			/* XXX LSI Logic "< 16 byte" bug might be hit */
 			if (s->ds_len < 16)
 				printf("sbp_execute_ocb: warning, "
-					"segment length(%d) is less than 16."
+					"segment length(%zd) is less than 16."
 					"(seg=%d/%d)\n", s->ds_len, i+1, seg);
 #endif
 			ocb->ind_ptr[i].hi = htonl(s->ds_len << 16);
@@ -2038,7 +2042,7 @@ sbp_dequeue_ocb(struct sbp_dev *sdev, u_int32_t orb_lo)
 		next = STAILQ_NEXT(ocb, ocb);
 		flags = ocb->flags;
 SBP_DEBUG(1)
-		printf("orb: 0x%x next: 0x%x, flags %x\n",
+		printf("orb: 0x%x next: 0x%lx, flags %x\n",
 			vtophys(&ocb->orb[0]), ntohl(ocb->orb[1]), flags);
 END_DEBUG
 		if (vtophys(&ocb->orb[0]) == orb_lo) {
