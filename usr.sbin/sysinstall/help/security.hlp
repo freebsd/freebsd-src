@@ -3,19 +3,14 @@ profiles. The following table is intended to give you a rough idea just
 which services are enabled (or disabled) by each of the canned security
 profiles:
 
-               Extreme        High           Medium         Low
-               -------        ----           --------       ---
-inetd          NO             NO             YES            YES
-sendmail       NO             YES            YES            YES
-sshd           NO             YES            YES            YES
-portmap        NO             NO             *              YES
-nfs_server     NO             NO             **             ***
-securelevel    YES (2)        YES (1)        NO             NO
+               Extreme        Medium
+               -------        ------
+nfs_server     NO             *
+sendmail       NO             YES
+sshd           NO             YES
+securelevel    YES (2)        NO
 
 
 NOTES:
-*   Portmap is enabled if the machine has been configured as either an NFS
-    client or an NFS server earlier in the installation process.
-**  If the machine has been configured as an NFS server, NFS will only run
-    on a reserved port.
-*** No changes are made to the NFS configuration.
+*  If the machine has been configured as an NFS server, NFS will only run
+   on a reserved port.
