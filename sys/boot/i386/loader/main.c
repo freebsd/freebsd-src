@@ -112,7 +112,7 @@ main(void)
     /*
      * Special handling for PXE and CD booting.
      */
-    if (kargs->bootinfo == NULL) {
+    if (kargs->bootinfo == 0) {
 	/*
 	 * We only want the PXE disk to try to init itself in the below
 	 * walk through devsw if we actually booted off of PXE.
@@ -177,7 +177,7 @@ extract_currdev(void)
     new_currdev.d_dev = &biosdisk;
 
     /* new-style boot loaders such as pxeldr and cdldr */
-    if (kargs->bootinfo == NULL) {
+    if (kargs->bootinfo == 0) {
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
 	    /* we are booting from a CD with cdboot */
 	    new_currdev.d_dev = &bioscd;
