@@ -34,6 +34,6 @@
  * $FreeBSD$
  */
 
-int arith_assign(char *, arith_t);
 int arith(char *);
-int expcmd(int , char **);
+int arith_assign(char *, arith_t);
+int expcmd(int, char **);
