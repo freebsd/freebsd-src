@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.48.2.7 1997/02/14 21:24:21 jkh Exp $
+ * $Id: package.c,v 1.48.2.8 1997/03/08 11:13:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -40,6 +40,14 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/stat.h>
+
+static Boolean sigpipe_caught = FALSE;
+
+static void
+catch_pipe(int sig)
+{
+    sigpipe_caught = TRUE;
+}
 
 /* Like package_extract, but assumes current media device */
 int
@@ -104,9 +112,10 @@ package_extract(Device *dev, char *name, Boolean depended)
 	sprintf(path, "%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     fp = dev->get(dev, path, TRUE);
     if (fp) {
-	int i, tot, pfd[2];
+	int i = 0, tot, pfd[2];
 	pid_t pid;
 
+	signal(SIGPIPE, catch_pipe);
 	msgNotify("Adding %s%s\nfrom %s", path, depended ? " (as a dependency)" : "", dev->name);
 	pipe(pfd);
 	pid = fork();
@@ -128,7 +137,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 	    tot = 0;
 	    (void)gettimeofday(&start, (struct timezone *)0);
 
-	    while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
+	    while (!sigpipe_caught && (i = fread(buf, 1, BUFSIZ, fp)) > 0) {
 		int seconds;
 
 		tot += i;
@@ -143,20 +152,22 @@ package_extract(Device *dev, char *name, Boolean depended)
 		    seconds = 1;
 		msgInfo("%10d bytes read from package %s @ %4.1f KBytes/second", tot, name, (tot / seconds) / 1024.0);
 		/* Write it out */
-		if (write(pfd[1], buf, i) != i) {
+		if (sigpipe_caught || write(pfd[1], buf, i) != i) {
 		    msgInfo("Write failure to pkg_add!  Package may be corrupt.");
 		    break;
 		}
 	    }
 	    close(pfd[1]);
 	    fclose(fp);
-	    if (i == -1)
-		msgDebug("I/O error while reading in the %s package.\n", name);
+	    if (sigpipe_caught)
+		msgInfo("pkg_add(1) apparently did not like the %s package.", name);
+	    else if (i == -1)
+		msgInfo("I/O error while reading in the %s package.", name);
 	    else
-		msgInfo("Package %s read successfully - waiting for pkg_add", name);
+		msgInfo("Package %s read successfully - waiting for pkg_add(1)", name);
 	    refresh();
 	    i = waitpid(pid, &tot, 0);
-	    if (i < 0 || WEXITSTATUS(tot)) {
+	    if (sigpipe_caught || i < 0 || WEXITSTATUS(tot)) {
 		if (variable_get(VAR_NO_CONFIRM))
 		    msgNotify("Add of package %s aborted, error code %d -\n"
 			      "Please check the debug screen for more info.", name, WEXITSTATUS(tot));
@@ -172,6 +183,7 @@ package_extract(Device *dev, char *name, Boolean depended)
 
 	    sleep(1);
 	    restorescr(w);
+	    sigpipe_caught = FALSE;
 	}
     }
     else {
