@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.9 1996/08/03 11:58:53 jkh Exp $
+ * $Id: ftpio.c,v 1.10 1996/08/21 01:12:10 jkh Exp $
  *
  */
 
@@ -676,9 +676,10 @@ ftp_file_op(FTP_t ftp, char *operation, char *file, FILE **fp, char *mode, int *
 	    if (i < 0 || FTP_TIMEOUT(i)) {
 		close(s);
 		ftp->errno = i;
+		*seekto = 0;
 		return i;
 	    }
-	    else if (i != 350)
+	    else if (i == 350)
 		*seekto = 0;
 	}
 	i = cmd(ftp, "%s %s", operation, file);
