@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2000
+.Dd August 26, 2004
 .Dt KUE 4
 .Os
 .Sh NAME
@@ -44,20 +44,40 @@
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for USB ethernet adapters based on the Kawasaki
-LSI KL5KLUSB101B chipset, including the following:
+driver provides support for USB Ethernet adapters based on the Kawasaki
+LSI KL5KLUSB101B chipset.
+.Pp
+The KL5KLUSB101B supports a 128-entry multicast filter, single perfect
+filter entry for the station address and promiscuous mode.
+Packets are
+received and transmitted over separate USB bulk transfer endpoints.
+.Pp
+The Kawasaki chipset supports only 10Mbps half-duplex mode, hence there
+are no
+.Xr ifmedia 4
+modes to select.
+.Pp
+For more information on configuring this device, see
+.Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Kawasaki LSI KL5KLUSB101B based USB Ethernet
+adapters including:
 .Pp
 .Bl -bullet -compact
 .It
 3Com 3c19250
 .It
-AOX USB101
-.It
-Abocom URE 450
+3Com 3c460 HomeConnect Ethernet USB Adapter
 .It
 ADS Technologies USB-10BT
 .It
+AOX USB101
+.It
 ATen UC10T
+.It
+Abocom URE 450
 .It
 Corega USB-T
 .It
@@ -77,19 +97,6 @@ Peracom USB Ethernet Adapter
 .It
 SMC 2102USB, 2104USB
 .El
-.Pp
-The KL5KLUSB101B supports a 128-entry multicast filter, single perfect
-filter entry for the station address and promiscuous mode.
-Packets are
-received and transmitted over separate USB bulk transfer endpoints.
-.Pp
-The Kawasaki adapter supports only 10Mbps half-duplex mode, hence there
-are no
-.Xr ifmedia 4
-modes to select.
-.Pp
-For more information on configuring this device, see
-.Xr ifconfig 8 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "kue%d: watchdog timeout"
@@ -117,5 +124,5 @@ driver was written by
 .Sh BUGS
 The
 .Nm
-driver does not accumulate ethernet collisions statistics because the
+driver does not accumulate Ethernet collisions statistics because the
 Kawasaki firmware does not appear to maintain any internal statistics.
