@@ -203,35 +203,8 @@ tcp_usrreq(so, req, m, nam, control)
 			break;
 		}
 			
-#ifdef TTCP
 		if ((error = tcp_connect(tp, nam)) != 0)
 			break;
-#else /* TTCP */
-		if (inp->inp_lport == 0) {
-			error = in_pcbbind(inp, (struct mbuf *)0);
-			if (error)
-				break;
-		}
-		error = in_pcbconnect(inp, nam);
-		if (error)
-			break;
-		tp->t_template = tcp_template(tp);
-		if (tp->t_template == 0) {
-			in_pcbdisconnect(inp);
-			error = ENOBUFS;
-			break;
-		}
-		/* Compute window scaling to request.  */
-		while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-		    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
-			tp->request_r_scale++;
-		soisconnecting(so);
-		tcpstat.tcps_connattempt++;
-		tp->t_state = TCPS_SYN_SENT;
-		tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
-		tp->iss = tcp_iss; tcp_iss += TCP_ISSINCR/2;
-		tcp_sendseqinit(tp);
-#endif /* TTCP */
 		error = tcp_output(tp);
 		break;
 
@@ -287,12 +260,9 @@ tcp_usrreq(so, req, m, nam, control)
 	 * Do a send by putting data in output queue and updating urgent
 	 * marker if URG set.  Possibly send more data.
 	 */
-#ifdef TTCP
 	case PRU_SEND_EOF:
-#endif
 	case PRU_SEND:
 		sbappend(&so->so_snd, m);
-#ifdef TTCP
 		if (nam && tp->t_state < TCPS_SYN_SENT) {
 			/*
 			 * Do implied connect if not yet connected,
@@ -316,7 +286,6 @@ tcp_usrreq(so, req, m, nam, control)
 			tp = tcp_usrclosed(tp);
 		}
 		if (tp != NULL)
-#endif TTCP
 			error = tcp_output(tp);
 		break;
 
@@ -401,7 +370,6 @@ tcp_usrreq(so, req, m, nam, control)
 	return (error);
 }
 
-#ifdef TTCP
 /*
  * Common subroutine to open a TCP connection to remote host specified
  * by struct sockaddr_in in mbuf *nam.  Call in_pcbbind to assign a local
@@ -476,7 +444,6 @@ tcp_connect(tp, nam)
 
 	return 0;
 }
-#endif /* TTCP */
 
 int
 tcp_ctloutput(op, so, level, optname, mp)
@@ -528,7 +495,6 @@ tcp_ctloutput(op, so, level, optname, mp)
 				error = EINVAL;
 			break;
 
-#ifdef TTCP
 		case TCP_NOOPT:
 			if (m == NULL || m->m_len < sizeof (int))
 				error = EINVAL;
@@ -546,7 +512,6 @@ tcp_ctloutput(op, so, level, optname, mp)
 			else
 				tp->t_flags &= ~TF_NOPUSH;
 			break;
-#endif /* TTCP */
 
 		default:
 			error = ENOPROTOOPT;
@@ -567,14 +532,12 @@ tcp_ctloutput(op, so, level, optname, mp)
 		case TCP_MAXSEG:
 			*mtod(m, int *) = tp->t_maxseg;
 			break;
-#ifdef TTCP
 		case TCP_NOOPT:
 			*mtod(m, int *) = tp->t_flags & TF_NOOPT;
 			break;
 		case TCP_NOPUSH:
 			*mtod(m, int *) = tp->t_flags & TF_NOPUSH;
 			break;
-#endif /* TTCP */
 		default:
 			error = ENOPROTOOPT;
 			break;
@@ -675,22 +638,15 @@ tcp_usrclosed(tp)
 
 	case TCPS_CLOSED:
 	case TCPS_LISTEN:
-#ifndef TTCP
-	case TCPS_SYN_SENT:
-#endif
 		tp->t_state = TCPS_CLOSED;
 		tp = tcp_close(tp);
 		break;
 
-#ifdef TTCP
 	case TCPS_SYN_SENT:
 	case TCPS_SYN_RECEIVED:
 		tp->t_flags |= TF_NEEDFIN;
 		break;
 
-#else
-	case TCPS_SYN_RECEIVED:
-#endif
 	case TCPS_ESTABLISHED:
 		tp->t_state = TCPS_FIN_WAIT_1;
 		break;
@@ -717,9 +673,7 @@ tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	size_t newlen;
 {
 	extern	int tcp_do_rfc1323; /* XXX */
-#ifdef TTCP
 	extern	int tcp_do_rfc1644; /* XXX */
-#endif
 	extern	int tcp_mssdflt; /* XXX */
 	extern	int tcp_rttdflt; /* XXX */
 
@@ -731,11 +685,9 @@ tcp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	case TCPCTL_DO_RFC1323:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,
 		    &tcp_do_rfc1323));
-#ifdef TTCP
 	case TCPCTL_DO_RFC1644:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,
 		    &tcp_do_rfc1644));
-#endif
 	case TCPCTL_MSSDFLT:
 		return (sysctl_int(oldp, oldlenp, newp, newlen,
 		    &tcp_mssdflt));
