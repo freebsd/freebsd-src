@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wi.c,v 1.48 1999/05/05 00:32:13 wpaul Exp $
+ *	$Id: if_wi.c,v 1.48 1999/05/05 00:32:13 wpaul Exp wpaul $
  */
 
 /*
@@ -116,7 +116,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-	"$Id: if_wi.c,v 1.48 1999/05/05 00:32:13 wpaul Exp $";
+	"$Id: if_wi.c,v 1.48 1999/05/05 00:32:13 wpaul Exp wpaul $";
 #endif
 
 static struct wi_softc wi_softc[NWI];
@@ -1118,11 +1118,11 @@ static void wi_init(xsc)
 	wi_cmd(sc, WI_CMD_ENABLE|sc->wi_portnum, 0);
 
 	if (wi_alloc_nicmem(sc, 1518 + sizeof(struct wi_frame) + 8, &id))
-		printf("wi%d: mem allocation failed...\n", sc->wi_unit);
+		printf("wi%d: tx buffer allocation failed\n", sc->wi_unit);
 	sc->wi_tx_data_id = id;
 
 	if (wi_alloc_nicmem(sc, 1518 + sizeof(struct wi_frame) + 8, &id))
-		printf("wi%d: mem allocation failed...\n", sc->wi_unit);
+		printf("wi%d: mgmt. buffer allocation failed\n", sc->wi_unit);
 	sc->wi_tx_mgmt_id = id;
 
 	/* enable interrupts */

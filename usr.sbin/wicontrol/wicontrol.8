@@ -1,0 +1,187 @@
+.\" Copyright (c) 1997, 1998, 1999
+.\"	Bill Paul <wpaul@ctr.columbia.edu> All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by Bill Paul.
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Bill Paul AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Bill Paul OR THE VOICES IN HIS HEAD
+.\" BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd April 21, 1999
+.Dt WICONTROL 8
+.Os FreeBSD 3.0
+.Sh NAME
+.Nm wicontrol
+.Nd configure WaveLAN/IEEE devices
+.Sh SYNOPSIS
+.Nm wicontrol
+.Fl i Ar iface Op Fl o
+.Nm wicontrol
+.Fl i Ar iface Fl t Ar tx rate
+.Nm wicontrol
+.Fl i Ar iface Fl n Ar network name
+.Nm wicontrol
+.Fl i Ar iface Fl s Ar station name
+.Nm wicontrol
+.Fl i Ar iface Fl c Ar 0|1
+.Nm wicontrol
+.Fl i Ar iface Fl q Ar SSID
+.Nm wicontrol
+.Fl i Ar iface Fl p Ar port type
+.Nm wicontrol
+.Fl i Ar iface Fl a Ar access point density
+.Nm wicontrol
+.Fl i Ar iface Fl m Ar mac address
+.Nm wicontrol
+.Fl i Ar iface Fl d Ar max data length
+.Nm wicontrol
+.Fl i Ar iface Fl r Ar RTS threshold
+.Sh DESCRIPTION
+The
+.Nm
+command controls the operation of WaveLAN/IEEE wireless networking
+devices via the
+.Xr wi 4
+driver. Most of the parameters that can be changed relate to the
+IEEE 802.11 protocol which the WaveLAN implements. This includes
+the station name, whether the station is operating in ad-hoc (point
+to point) or BSS (service set) mode, and the network name of a service
+set to join (IBSS) if BSS mode is enabled. The
+.Nm
+command can also be used to view the current settings of these paremeters
+and to dump out the values of the card's statistics counters.
+.Pp
+The
+.Ar iface
+argument given to
+.Nm
+should be the logical interface name associated with the WaveLAN/IEEE
+device (wi0, wi1, etc...). Interface parameters should only be changed
+when the interface is down. If the interface is already up, you should
+use the
+.Xr ifconfig 8
+command to bring the interface down, then set the interface parameters
+with
+.Nm ,
+and then bring the interface up again.
+.Sh OPTIONS
+The options are as follows:
+.Bl -tag -width Fl
+.It Fl i Ar iface Op Fl o
+Display the current settings of the specified WaveLAN/IEEE interface.
+This retrives the current card settings from the driver and prints them
+out. Using the additional
+.Fl o
+flag will cause
+.Nm
+to print out the statistics counters instead of the card settings.
+.It Fl i Ar iface Fl t Ar tx rate
+Set the transmit rate of the specified interface. The permitted values
+for the transmit rate are 1, 2 and 3, where 1 is fixed 1Mbps, 2 is
+fixed 2Mbps and 3 is 2Mbps with automatic fallback to 1Mbps. The default
+driver setting is 3.
+.It Fl i Ar iface Fl n Ar network name
+Set the name of the service set (IBSS) that this station wishes to
+join. The
+.Ar network name
+can be any text string up to 30 characters in length. The default name
+is the string "ANY" which should allow the station to connect to the first
+available access point. The interface should be set for BSS mode using
+the
+.Fl p
+flag in order for this to work.
+.Pp
+Note: the WaveLAN manual indicates that an empty string will allow the
+host to connect to any access point, however I have also seen a reference
+in another driver which indicates that the "ANY" string works as well.
+.It Fl i Ar iface Fl s Ar station name
+Sets the
+.Ar station name
+for the specified interface. The
+.Ar station name
+is used for diagnostic purposes. The Lucent WaveMANAGER sofware can
+poll the names of remove hosts.
+.It Fl i Ar iface Fl c Ar 0|1
+Allow the station to create a service set (IBSS). Permitted values
+are 0 (don't create IBSS) and 1 (enable creation of IBSS). The default
+is 0.
+.Pp
+Note: this option is provided for experimental purposes only: enabling
+the creation of an IBSS on a host system doesn't appear to actually work.
+.It Fl i Ar iface Fl q Ar SSID
+Specify the name of an IBSS (SSID) to create on a given interface.
+The
+.Ar SSID
+can be any text string up to 30 characters long.
+.Pp
+Note: this option is provided for experimental purposes only: enabling
+the creation of an IBSS on a host system doesn't appear to actually work.
+.It Fl i Ar iface Fl p Ar port type
+Set the
+.Ar port type
+for a specified interface. The legal values for
+.Ar port type
+are 1 (BSS mode) and 3 (ad-hoc) mode. In ad-hoc mode, the station can
+comminicate directly with any other stations within direct radio range
+(provided that they are also operating in ad-hoc mode). In BSS mode,
+hosts must associate with a service set controlled by an access point,
+which relays traffic between end stations. The default setting is 3
+(ad-hoc mode).
+.It Fl i Ar iface Fl a Ar access_point_density
+Specify the
+.Ar access point density
+for a given interface. Legal values are 1 (low), 2 (medium) and 3 (high).
+This setting influences some of the radio modem threshold settings.
+.It Fl i Ar iface Fl m Ar mac address
+Set the station address for the specified interface. The
+.Ar mac address
+is specified as a series of six hexadecimal values separated by colons,
+e.g.: 00:60:1d:12:34:56. This programs the new address into the card
+and updates the interface as well.
+.It Fl i Ar iface Fl d Ar max_data_length
+Set the maximum receive and transmit frame size for a specified interface.
+The
+.Ar max data length
+can be any number from 350 to 2304. The default is 2304.
+.It Fl i Ar iface Fl r Ar RTS threshold
+Set the RTS/CTS threshold for a given interface. This controls the
+number of bytes used for the RTS/CTS handhake boundary. The
+.Ar RTS threshold
+can be any value between 0 and 2047. The default is 2347.
+.El
+.Sh SEE ALSO
+.Xr wi 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+command first appeared in
+.Fx 3.0 .
+.Sh AUTHOR
+The
+.Nm
+command was written by
+.An Bill Paul Aq wpaul@ctr.columbia.edu .
