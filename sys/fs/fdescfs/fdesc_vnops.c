@@ -382,11 +382,12 @@ fdesc_attr(fd, vap, cred, p)
 		}
 		break;
 
+	case DTYPE_PIPE:
 	case DTYPE_SOCKET:
-		error = soo_stat((struct socket *)fp->f_data, &stb);
+		error = fo_stat(fp, &stb, p);
 		if (error == 0) {
 			vattr_null(vap);
-			vap->va_type = VSOCK;
+			vap->va_type = VSOCK;	/* XXX pipe? */
 			vap->va_mode = stb.st_mode;
 			vap->va_nlink = stb.st_nlink;
 			vap->va_uid = stb.st_uid;
