@@ -148,26 +148,25 @@ struct getpgid_args {
 int
 getpgid(struct thread *td, struct getpgid_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct proc *pt;
+	struct proc *p;
 	int error;
 
-	mtx_lock(&Giant);
-	error = 0;
 	if (uap->pid == 0) {
+		p = td->td_proc;
 		PROC_LOCK(p);
-		td->td_retval[0] = p->p_pgrp->pg_id;
-		PROC_UNLOCK(p);
-	} else if ((pt = pfind(uap->pid)) == NULL)
-		error = ESRCH;
-	else {
-		error = p_cansee(td, pt);
-		if (error == 0)
-			td->td_retval[0] = pt->p_pgrp->pg_id;
-		PROC_UNLOCK(pt);
+	} else {
+		p = pfind(uap->pid);
+		if (p == NULL)
+			return (ESRCH);
+		error = p_cansee(td, p);
+		if (error) {
+			PROC_UNLOCK(p);
+			return (error);
+		}
 	}
-	mtx_unlock(&Giant);
-	return (error);
+	td->td_retval[0] = p->p_pgrp->pg_id;
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 /*
@@ -184,26 +183,25 @@ struct getsid_args {
 int
 getsid(struct thread *td, struct getsid_args *uap)
 {
-	struct proc *p = td->td_proc;
-	struct proc *pt;
+	struct proc *p;
 	int error;
 
-	mtx_lock(&Giant);
-	error = 0;
 	if (uap->pid == 0) {
+		p = td->td_proc;
 		PROC_LOCK(p);
-		td->td_retval[0] = p->p_session->s_sid;
-		PROC_UNLOCK(p);
-	} else if ((pt = pfind(uap->pid)) == NULL)
-		error = ESRCH;
-	else {
-		error = p_cansee(td, pt);
-		if (error == 0)
-			td->td_retval[0] = pt->p_session->s_sid;
-		PROC_UNLOCK(pt);
+	} else {
+		p = pfind(uap->pid);
+		if (p == NULL)
+			return (ESRCH);
+		error = p_cansee(td, p);
+		if (error) {
+			PROC_UNLOCK(p);
+			return (error);
+		}
 	}
-	mtx_unlock(&Giant);
-	return (error);
+	td->td_retval[0] = p->p_session->s_sid;
+	PROC_UNLOCK(p);
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_
