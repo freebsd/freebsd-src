@@ -44,11 +44,12 @@ static char const copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)rcp.c	8.2 (Berkeley) 4/2/94";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -590,7 +591,7 @@ sink(int argc, char *argv[])
 	off_t i, j, size;
 	int amt, count, exists, first, mask, mode, ofd, omode;
 	int setimes, targisdir, wrerrno = 0;
-	char ch, *cp, *np, *targ, *why, *vect[1], buf[BUFSIZ];
+	char ch, *cp, *np, *targ, *why, *vect[1], buf[BUFSIZ], path[PATH_MAX];
 
 #define	atime	tv[0]
 #define	mtime	tv[1]
@@ -687,21 +688,15 @@ sink(int argc, char *argv[])
 		if (*cp++ != ' ')
 			SCREWUP("size not delimited");
 		if (targisdir) {
-			static char *namebuf = NULL;
-			static size_t cursize;
-			size_t need;
-
-			need = strlen(targ) + strlen(cp) + 250;
-			if (need > cursize) {
-				if (namebuf != NULL)
-					free(namebuf);
-				if (!(namebuf = malloc(need)))
-					run_err("%s", strerror(errno));
-				cursize = need;
+			if (strlen(targ) + (*targ ? 1 : 0) + strlen(cp)
+					>= sizeof(path)) {
+				run_err("%s%s%s: name too long", targ,
+					*targ ? "/" : "", cp);
+				exit(1);
 			}
-			(void)snprintf(namebuf, need, "%s%s%s", targ,
+			(void)snprintf(path, sizeof(path), "%s%s%s", targ,
 			    *targ ? "/" : "", cp);
-			np = namebuf;
+			np = path;
 		} else
 			np = targ;
 		exists = stat(np, &stb) == 0;
