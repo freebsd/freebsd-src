@@ -38,12 +38,12 @@
 #
 # First written May 16, 1992 by Van Jacobson, Lawrence Berkeley Laboratory.
 #
-# $Id$
+# from: $Header: systags.sh,v 1.3 96/08/08 20:23:13 leres Exp $
 
 rm -f tags tags.tmp tags.cfiles tags.sfiles tags.hfiles
-MACHINE=`machine`
-sed -e "s,\./machine/,../../$MACHINE/include/,g" \
-    -e 's,[a-z][^/ 	]*/\.\./,,g' .depend | awk   '{
+MACHINE=`uname -m`
+sed -e "s, machine/, ../../$MACHINE/include/,g" \
+	-e 's,[a-z][^/    ]*/\.\./,,g' .depend | awk '{
 		for (i = 1; i <= NF; ++i) {
 			t = substr($i, length($i) - 1)
 			if (t == ".c")
@@ -64,7 +64,7 @@ sed -e "s,\./machine/,../../$MACHINE/include/,g" \
 	}'
 
 ctags -t -d -w `cat tags.cfiles tags.hfiles tags.sfiles`
-egrep -o "^ENTRY\(.*\)|^ALTENTRY\(.*\)" `cat tags.sfiles` | \
+egrep "^ENTRY\(.*\)|^ALTENTRY\(.*\)" `cat tags.sfiles` | \
     sed "s;\([^:]*\):\([^(]*\)(\([^, )]*\)\(.*\);\3	\1	/^\2(\3\4$/;" >> tags
 
 mv tags tags.tmp
