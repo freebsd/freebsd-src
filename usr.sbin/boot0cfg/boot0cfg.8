@@ -22,7 +22,7 @@
 .\" OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 .\" EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: boot0cfg.8,v 1.3 1999/02/26 14:57:17 rnordier Exp $
+.\"	$Id: boot0cfg.8,v 1.3.2.1 1999/04/25 11:35:58 rnordier Exp $
 .\"
 .Dd February 21, 1999
 .Dt BOOT0CFG 8
@@ -36,6 +36,7 @@
 .Op Fl b Ar boot0
 .Op Fl d Ar drive
 .Op Fl f Ar file
+.Op Fl m Ar mask
 .Op Fl o Ar options
 .Op Fl t Ar ticks
 .Ar disk
@@ -89,6 +90,11 @@ is acceptable here.
 Specify that a backup copy of the preexisting MBR should be written to
 .Ar file .
 This file is created if it does not exist, and truncated if it does.
+.It Fl m Ar mask
+Specify slices to be enabled/disabled, where
+.Ar mask
+is an integer between 0 (no slices enabled) and 0xf (all four slices
+enabled).
 .It Fl o Ar options
 A comma-separated string of any of the following options may be
 specified (with

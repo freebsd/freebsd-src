@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: boot0cfg.c,v 1.3 1999/02/26 14:57:17 rnordier Exp $";
+	"$Id: boot0cfg.c,v 1.3.2.1 1999/04/25 11:35:58 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -72,11 +72,15 @@ static const char fmt0[] = "#   flag     start chs   type"
 static const char fmt1[] = "%d   0x%02x   %4u:%3u:%2u   0x%02x"
     "   %4u:%3u:%2u   %10u   %10u\n";
 
+static int boot0bs(const u_int8_t *);
 static void stropt(const char *, int *, int *);
 static char *mkrdev(const char *);
 static int argtoi(const char *, int, int, int);
 static void usage(void);
 
+/*
+ * Boot manager installation/configuration utility.
+ */
 int
 main(int argc, char *argv[])
 {
@@ -85,17 +89,17 @@ main(int argc, char *argv[])
     const char *bpath, *fpath, *disk;
     ssize_t n;
     int B_flag, v_flag, o_flag;
-    int d_arg, t_arg;
+    int d_arg, m_arg, t_arg;
     int o_and, o_or;
     int fd, fd1, up, c, i;
 
     bpath = "/boot/boot0";
     fpath = NULL;
     B_flag = v_flag = o_flag = 0;
-    d_arg = t_arg = -1;
+    d_arg = m_arg = t_arg = -1;
     o_and = 0xff;
     o_or = 0;
-    while ((c = getopt(argc, argv, "Bvb:d:f:o:t:")) != -1)
+    while ((c = getopt(argc, argv, "Bvb:d:f:m:o:t:")) != -1)
         switch (c) {
         case 'B':
             B_flag = 1;
@@ -112,6 +116,9 @@ main(int argc, char *argv[])
         case 'f':
             fpath = optarg;
             break;
+        case 'm':
+            m_arg = argtoi(optarg, 0, 0xf, 'm');
+            break;
         case 'o':
             stropt(optarg, &o_and, &o_or);
             o_flag = 1;
@@ -127,7 +134,7 @@ main(int argc, char *argv[])
     if (argc != 1)
         usage();
     disk = mkrdev(*argv);
-    up = B_flag || d_arg != -1 || o_flag || t_arg != -1;
+    up = B_flag || d_arg != -1 || m_arg != -1 || o_flag || t_arg != -1;
     if ((fd = open(disk, up ? O_RDWR : O_RDONLY)) == -1)
         err(1, "%s", disk);
     if ((n = read(fd, buf, MBRSIZE)) == -1)
@@ -136,6 +143,8 @@ main(int argc, char *argv[])
         errx(1, "%s: short read", disk);
     if (cv2(buf + OFF_MAGIC) != 0xaa55)
         errx(1, "%s: bad magic", disk);
+    if (!B_flag && !boot0bs(buf))
+	errx(1, "%s: unknown or incompatible boot code", disk);
     if (fpath) {
         if ((fd1 = open(fpath, O_WRONLY | O_CREAT | O_TRUNC,
                         0666)) == -1 ||
@@ -151,12 +160,16 @@ main(int argc, char *argv[])
             err(1, "%s", bpath);
         if (n != MBRSIZE)
             errx(1, "%s: short read", bpath);
-        if (cv2(buf + OFF_MAGIC) != 0xaa55)
-            errx(1, "%s: bad magic", bpath);
+        if (!boot0bs(buf))
+            errx(1, "%s: unknown or incompatible boot code", bpath);
         memcpy(buf + OFF_PTBL, part, sizeof(part));
     }
     if (d_arg != -1)
 	buf[OFF_DRIVE] = d_arg;
+    if (m_arg != -1) {
+	buf[OFF_FLAGS] &= 0xf0;
+	buf[OFF_FLAGS] |= m_arg;
+    }
     if (o_flag) {
         buf[OFF_FLAGS] &= o_and;
         buf[OFF_FLAGS] |= o_or;
@@ -188,7 +201,8 @@ main(int argc, char *argv[])
                        part[i].dp_size);
             }
         printf("\n");
-        printf("drive=0x%x  options=", buf[OFF_DRIVE]);
+        printf("drive=0x%x  mask=0x%x  options=", buf[OFF_DRIVE],
+	       buf[OFF_FLAGS] & 0xf);
         for (i = 0; i < nopt; i++) {
             if (i)
                 printf(",");
@@ -201,6 +215,34 @@ main(int argc, char *argv[])
     return 0;
 }
 
+/*
+ * Decide if we have valid boot0 boot code by looking for
+ * characteristic byte sequences at fixed offsets.
+ */
+static int
+boot0bs(const u_int8_t *bs)
+{
+    static u_int8_t id0[] = {0xfe, 0x45, 0xf2, 0xe9, 0x00, 0x8a};
+    static u_int8_t id1[] = {'D', 'r', 'i', 'v', 'e', ' '};
+    static struct {
+	unsigned off;
+	unsigned len;
+	u_int8_t *key;
+    } ident[2] = {
+        {0x1c,  sizeof(id0), id0},
+        {0x1b2, sizeof(id1), id1}
+    };
+    int i;
+
+    for (i = 0; i < sizeof(ident) / sizeof(ident[0]); i++)
+	if (memcmp(bs + ident[i].off, ident[i].key, ident[i].len))
+	    return 0;
+    return 1;
+};
+
+/*
+ * Adjust "and" and "or" masks for a -o option argument.
+ */
 static void
 stropt(const char *arg, int *xa, int *xo)
 {
@@ -229,6 +271,9 @@ stropt(const char *arg, int *xa, int *xo)
     free(s);
 }
 
+/*
+ * Produce a device path for a "canonical" name, where appropriate.
+ */
 static char *
 mkrdev(const char *fname)
 {
@@ -236,7 +281,7 @@ mkrdev(const char *fname)
     struct stat sb;
     char *s;
 
-    s = (char *) fname;
+    s = (char *)fname;
     if (!strchr(fname, '/')) {
         snprintf(buf, sizeof(buf), "%sr%s", _PATH_DEV, fname);
         if (stat(buf, &sb))
@@ -247,6 +292,9 @@ mkrdev(const char *fname)
     return s;
 }
 
+/*
+ * Convert and check an option argument.
+ */
 static int
 argtoi(const char *arg, int lo, int hi, int opt)
 {
@@ -260,11 +308,14 @@ argtoi(const char *arg, int lo, int hi, int opt)
     return x;
 }
 
+/*
+ * Display usage information.
+ */
 static void
 usage(void)
 {
     fprintf(stderr, "%s\n%s\n",
-    "usage: boot0cfg [-Bv] [-b boot0] [-d drive] [-f file] [-o options]",
-    "                [-t ticks] disk");
+    "usage: boot0cfg [-Bv] [-b boot0] [-d drive] [-f file] [-m mask]",
+    "                [-o options] [-t ticks] disk");
     exit(1);
 }
