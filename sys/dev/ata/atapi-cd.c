@@ -1139,7 +1139,7 @@ acd_start(struct ata_device *atadev)
     ccb[8] = count;
 
     if (!(request = ata_alloc_request())) {
-	g_io_deliver(bp, EIO);
+	g_io_deliver(bp, ENOMEM);
 	return;
     }
     request->device = atadev;
@@ -1335,9 +1335,9 @@ acd_select_slot(struct acd_softc *cdp)
 		       cdp->changer_info->current_slot, 0, 0, 0, 0, 0, 0, 0 };
 
     /* unload the current media from player */
-    if (!(request = ata_alloc_request())) {
+    if (!(request = ata_alloc_request()))
 	return;
-    }
+
     request->device = cdp->device;
     request->driver = cdp;
     bcopy(ccb, request->u.atapi.ccb,
