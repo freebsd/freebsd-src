@@ -55,6 +55,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/resource.h>
 
 #include <machine/bus.h>
