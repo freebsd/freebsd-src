@@ -30,6 +30,7 @@
 #define	_MACHINE_DB_MACHDEP_H_
 
 #include <machine/frame.h>
+#include <machine/trap.h>
 #include <machine/psl.h>
 
 #define i386_saved_state trapframe

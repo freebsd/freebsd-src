@@ -414,18 +414,38 @@ NON_GPROF_ENTRY(prepare_usermode)
  * Signal trampoline, copied to top of user stack
  */
 NON_GPROF_ENTRY(sigcode)
-	call	SIGF_HANDLER(%esp)
-	lea	SIGF_SC(%esp),%eax		/* scp (the call may have clobbered the */
-						/* copy at 8(%esp)) */
+	call	SIGF_HANDLER(%esp)		/* call signal handler */
+	movl	SIGF_SIGRET(%esp),%eax		/* Get sigreturn cookie */
+	cmpl	$0x0ABCDEF0,%eax		/* New one? */
+	jne	3f
+/* New signalling code */
+	lea	SIGF_UC(%esp),%eax		/* get ucontext */
 	pushl	%eax
-	pushl	%eax				/* junk to fake return address */
-	testl	$PSL_VM,SC_PS(%eax)
+	testl	$PSL_VM,UC_EFLAGS(%eax)
 	jne	1f
-	movl	SC_GS(%eax),%gs			/* restore %gs */
+	movl	UC_GS(%eax),%gs			/* restore %gs */
 1:
-	movl	$SYS_sigreturn,%eax		/* sigreturn() */
-	int	$0x80				/* enter kernel with args on stack */
-2:	jmp	2b
+	movl	$SYS_sigreturn,%eax
+	pushl	%eax				/* junk to fake return addr. */
+	int	$0x80				/* enter kernel with args */
+						/* on stack */
+2:
+	jmp	2b
+/* Old signalling code */
+3:
+	lea	SIGF_SC(%esp),%eax		/* get sigcontext */
+	pushl	%eax
+	testl	$PSL_VM,SC_PS(%eax)
+	jne	4f
+	movl	SC_GS(%eax),%gs			/* restore %gs */
+4:
+	movl	$SYS_osigreturn,%eax
+	pushl	%eax				/* junk to fake return addr. */
+	int	$0x80				/* enter kernel with args */
+						/* on stack */
+5:
+	jmp	5b
+
 	ALIGN_TEXT
 _esigcode:
 
