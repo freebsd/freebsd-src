@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci_compat.c,v 1.26 1999/05/08 21:59:41 dfr Exp $
+ * $Id: pci_compat.c,v 1.27 1999/05/10 16:06:32 peter Exp $
  *
  */
 
@@ -50,13 +50,14 @@
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
 
-#ifdef RESOURCE_CHECK
-#include <sys/drvresource.h>
-#endif
-
 #ifdef APIC_IO
 #include <machine/smp.h>
 #endif
+
+#ifdef __i386__
+#include <i386/isa/intr_machdep.h>
+#endif
+
 
 #ifdef PCI_COMPAT
 
@@ -157,7 +158,7 @@ pci_map_int(pcici_t cfg, pci_inthand_t *handler, void *arg, intrmask_t *maskptr)
 
 int
 pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
-		  intrmask_t *maskptr, u_int flags)
+		  intrmask_t *maskptr, u_int intflags)
 {
 	int error;
 #ifdef APIC_IO
@@ -168,10 +169,18 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		int rid = 0;
 		struct resource *res;
 		int flags = 0;
+		int resflags = RF_SHAREABLE|RF_ACTIVE;
 		void *ih;
 
+#ifdef INTR_FAST
+		if (intflags & INTR_FAST)
+			flags |= INTR_FAST;
+		if (intflags & INTR_EXCL)
+			resflags &= ~RF_SHAREABLE;
+#endif
+
 		res = bus_alloc_resource(cfg->dev, SYS_RES_IRQ, &rid,
-					 irq, irq, 1, RF_SHAREABLE|RF_ACTIVE);
+					 irq, irq, 1, resflags);
 		if (!res) {
 			printf("pci_map_int: can't allocate interrupt\n");
 			return 0;
@@ -181,13 +190,13 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 		 * This is ugly. Translate the mask into an interrupt type.
 		 */
 		if (maskptr == &tty_imask)
-			flags = INTR_TYPE_TTY;
+			flags |= INTR_TYPE_TTY;
 		else if (maskptr == &bio_imask)
-			flags = INTR_TYPE_BIO;
+			flags |= INTR_TYPE_BIO;
 		else if (maskptr == &net_imask)
-			flags = INTR_TYPE_NET;
+			flags |= INTR_TYPE_NET;
 		else if (maskptr == &cam_imask)
-			flags = INTR_TYPE_CAM;
+			flags |= INTR_TYPE_CAM;
 
 		error = BUS_SETUP_INTR(device_get_parent(cfg->dev), cfg->dev,
 				       res, flags, handler, arg, &ih);
@@ -234,7 +243,7 @@ pci_map_int_right(pcici_t cfg, pci_inthand_t *handler, void *arg,
 			rid = 0;
 			res = bus_alloc_resource(cfg->dev, SYS_RES_IRQ, &rid,
 						 nextpin, nextpin, 1,
-						 RF_SHAREABLE|RF_ACTIVE);
+						 resflags);
 			if (!res) {
 				printf("pci_map_int: can't allocate extra interrupt\n");
 				return 0;
