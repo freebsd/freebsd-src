@@ -3658,7 +3658,7 @@ ncr_attach (pcici_t config_id, int unit)
 	} else if (sizeof (struct script) > PAGE_SIZE) {
 		np->script  = (struct script*) vm_page_alloc_contig 
 			(round_page(sizeof (struct script)), 
-			 0x100000, 0xffffffff, PAGE_SIZE);
+			 0, 0xffffffff, PAGE_SIZE);
 	} else {
 		np->script  = (struct script *)
 			malloc (sizeof (struct script), M_DEVBUF, M_WAITOK);
@@ -3668,7 +3668,7 @@ ncr_attach (pcici_t config_id, int unit)
 	if (sizeof (struct scripth) > PAGE_SIZE) {
 		np->scripth = (struct scripth*) vm_page_alloc_contig 
 			(round_page(sizeof (struct scripth)), 
-			 0x100000, 0xffffffff, PAGE_SIZE);
+			 0, 0xffffffff, PAGE_SIZE);
 	} else 
 		{
 		np->scripth = (struct scripth *)

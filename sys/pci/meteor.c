@@ -871,10 +871,9 @@ get_meteor_mem(int unit, unsigned size)
 {
 vm_offset_t	addr = 0;
 
-	addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff, 1<<24);
+	addr = vm_page_alloc_contig(size, 0, 0xffffffff, 1<<24);
 	if(addr == 0)
-		addr = vm_page_alloc_contig(size, 0x100000, 0xffffffff,
-								PAGE_SIZE);
+		addr = vm_page_alloc_contig(size, 0, 0xffffffff, PAGE_SIZE);
 	if(addr == 0) {
 		printf("meteor%d: Unable to allocate %d bytes of memory.\n",
 			unit, size);
