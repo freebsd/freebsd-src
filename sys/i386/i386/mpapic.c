@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.c,v 1.14 1997/07/18 21:27:53 fsmp Exp $
+ *	$Id: mpapic.c,v 1.14 1997/07/20 17:40:39 smp Exp smp $
  */
 
 #include "opt_smp.h"
@@ -103,7 +103,7 @@ apic_initialize(void)
 	lapic.svr = temp;
 
 	if (bootverbose)
-		apic_dump();
+		apic_dump("apic_initialize()");
 }
 
 
@@ -111,10 +111,10 @@ apic_initialize(void)
  * dump contents of local APIC registers
  */
 void
-apic_dump(void)
+apic_dump(char* str)
 {
-	printf("SMP: CPU%02d bsp_apic_configure() lint0: 0x%08x\n",
-	       cpuid, lapic.lvt_lint0);
+	printf("SMP: CPU%02d %s lint0: 0x%08x\n",
+	       cpuid, str, lapic.lvt_lint0);
 	printf("                                lint1: 0x%08x\n",
 	       lapic.lvt_lint1);
 	printf("                                TPR:   0x%08x\n", lapic.tpr);

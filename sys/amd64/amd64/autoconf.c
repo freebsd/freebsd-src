@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.70 1997/07/08 23:42:02 fsmp Exp $
+ *	$Id: autoconf.c,v 1.3 1997/07/20 17:06:24 smp Exp smp $
  */
 
 /*
@@ -220,6 +220,15 @@ configure(dummy)
 	cninit_finish();
 
 	if (bootverbose) {
+
+#ifdef APIC_IO
+		printf("SMP: enabled INTs: ");
+		for (i = 0; i < 24; ++i)
+			if ((imen & (1 << i)) == 0)
+	        		printf("%d, ", i);
+		printf("imen: 0x%08x\n", imen);
+#endif /* APIC_IO */
+
 		/*
 		 * Print out the BIOS's idea of the disk geometries.
 		 */
