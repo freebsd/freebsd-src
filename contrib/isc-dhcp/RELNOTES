@@ -1,7 +1,7 @@
 	    Internet Software Consortium DHCP Distribution
 			     Version 3.0.1
-			  Release Candidate 9
-			    April 30, 2002
+			 Release Candidate 10
+			       June, 2002
 
 			     Release Notes
 
@@ -45,6 +45,72 @@ Measurement Systems, Igor Sharfmesser at Kazakh Telecom, and Brian
 Murrell at BC Tel Advanced Communications.  I'd like to express my
 thanks to all of these good people here, both for working on the code
 and for prodding me into improving it.
+
+			Changes since 3.0.1rc10
+
+- Potential buffer overflows in minires repaired.
+
+- A change to the linux client script to use /bin/bash, since /bin/sh may
+  not be bash.
+
+- Some missing va_end cleanups thanks to a patch from Thomas Klausner.
+
+- A correction of boolean parsing syntax validation - some illegal syntaxes
+  that worked before are now detected and produce errs, some legal syntaxes
+  that errored before will now work properly.
+
+- Some search-and-replace errors that caused some options to change their
+  names was repaired.
+
+- Shu-min Chang of the Intel corporation has contributed a perl script and
+  module that converts the MS NT4 DHCP configuration to a ISC DHCP3
+  configuration file.
+
+- Applied the remainder of the dhcpctl memory leak patch provided by Bill
+  Squier at ReefEdge, Inc.  (groo@reefedge.com).
+
+- Missing non-optional failover peer configurations will now result in a soft
+  error rather than a null dereference.
+
+			Changes since 3.0.1rc9
+
+- A format string was corrected to fix compiler warnings.
+
+- A number of spelling corrections were made in the man pages.
+
+- The dhclient.conf.5 man page was changed to refer to do-forward-updates
+  rather than a configuration option that doesn't exist.
+
+- A FreeBSD-specific bug in the interface removal handling was fixed.
+
+- A Linux-specific Token Ring detection problem was fixed.
+
+- Hashes removed from as-yet-unknown agent options, having those options
+  appear in reality before we know about them will no longer produce
+  self-corrupting lease databases.
+
+- dhclient will use the proper port numbers now when using the -g option.
+
+- A order-of-operations bug with 2 match clauses in 1 class statement is
+  fixed thanks to a patch from Andrew Matheson.
+
+- Compilation problems on Solaris were fixed.
+
+- Compilation problems when built with DEBUG or DEBUG_PACKET were repaired.
+
+- A fix to the dhcp ack process which makes certain group options will be
+  included in the first DHCPOFFER message was made thanks to a patch from
+  Ling Gou.
+
+- A few memory leaks were repaired thanks to patches from Bill Squier at
+  ReefEdge, Inc.  (groo@reefedge.com).
+
+- A fix for shared-networks that sometimes give clients options for the
+  wrong subnets (in particular, 'option routers') was applied, thanks to
+  Ted Lemon for the patch.
+
+- Omshell's handling of dotted octets as values was changed such that dots
+  one after the other produce zero values in the integer string.
 
 			Changes since 3.0.1rc8
 

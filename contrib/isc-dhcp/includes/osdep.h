@@ -276,6 +276,10 @@
 # define HAVE_ARPHRD_IEEE802
 #endif
 
+#if defined (ARPHRD_IEEE802_TR) && !defined (HAVE_ARPHRD_IEEE802_TR)
+# define HAVE_ARPHRD_IEEE802_TR
+#endif
+
 #if defined (ARPHRD_FDDI) && !defined (HAVE_ARPHRD_FDDI)
 # define HAVE_ARPHRD_FDDI
 #endif
