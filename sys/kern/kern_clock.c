@@ -353,6 +353,8 @@ stopprofclock(p)
 				    "stopprof", 0);
 			p->p_flag &= ~P_STOPPROF;
 		}
+		if ((p->p_flag & P_PROFIL) == 0)
+			return;
 		mtx_lock_spin(&sched_lock);
 		p->p_flag &= ~P_PROFIL;
 		if (--profprocs == 0)
