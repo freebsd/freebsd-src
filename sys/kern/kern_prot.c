@@ -1354,42 +1354,30 @@ p_cansee(struct proc *p1, struct proc *p2)
 }
 
 /*-
- * Determine whether p1 may deliver the specified signal to p2.
- * Returns: 0 for permitted, an errno value otherwise
- * Locks: Sufficient locks to protect various components of p1 and p2
- *        must be held.  Normally, p1 will be curproc, and a lock must
- *        be held for p2.
- * References: p1 and p2 must be valid for the lifetime of the call
+ * Determine whether cred may deliver the specified signal to proc.
+ * Returns: 0 for permitted, an errno value otherwise.
+ * Locks: A lock must be held for proc.
+ * References: cred and proc must be valid for the lifetime of the call.
  */
 int
-p_cansignal(struct proc *p1, struct proc *p2, int signum)
+cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 {
 	int error;
 
-	if (p1 == p2)
-		return (0);
-
 	/*
-	 * Jail semantics limit the scope of signalling to p2 in the same
-	 * jail as p1, if p1 is in jail.
+	 * Jail semantics limit the scope of signalling to proc in the
+	 * same jail as cred, if cred is in jail.
 	 */
-	if ((error = prison_check(p1->p_ucred, p2->p_ucred)))
+	error = prison_check(cred, proc->p_ucred);
+	if (error)
 		return (error);
-
-	/*
-	 * UNIX signalling semantics require that processes in the same
-	 * session always be able to deliver SIGCONT to one another,
-	 * overriding the remaining protections.
-	 */
-	if (signum == SIGCONT && p1->p_session == p2->p_session)
-		return (0);
 
 	/*
 	 * UNIX signal semantics depend on the status of the P_SUGID
 	 * bit on the target process.  If the bit is set, then additional
 	 * restrictions are placed on the set of available signals.
 	 */
-	if (p2->p_flag & P_SUGID) {
+	if (proc->p_flag & P_SUGID) {
 		switch (signum) {
 		case 0:
 		case SIGKILL:
@@ -1408,8 +1396,8 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 			 */
 			break;
 		default:
-			/* Not permitted, privilege is required. */
-			error = suser_xxx(NULL, p1, PRISON_ROOT);
+			/* Not permitted without privilege. */
+			error = suser_xxx(cred, NULL, PRISON_ROOT);
 			if (error)
 				return (error);
 		}
@@ -1419,17 +1407,44 @@ p_cansignal(struct proc *p1, struct proc *p2, int signum)
 	 * Generally, the target credential's ruid or svuid must match the
 	 * subject credential's ruid or euid.
 	 */
-	if (p1->p_ucred->cr_ruid != p2->p_ucred->cr_ruid &&
-	    p1->p_ucred->cr_ruid != p2->p_ucred->cr_svuid &&
-	    p1->p_ucred->cr_uid != p2->p_ucred->cr_ruid &&
-	    p1->p_ucred->cr_uid != p2->p_ucred->cr_svuid) {
-		/* Not permitted, try privilege. */
-		error = suser_xxx(NULL, p1, PRISON_ROOT);
+	if (cred->cr_ruid != proc->p_ucred->cr_ruid &&
+	    cred->cr_ruid != proc->p_ucred->cr_svuid &&
+	    cred->cr_uid != proc->p_ucred->cr_ruid &&
+	    cred->cr_uid != proc->p_ucred->cr_svuid) {
+		/* Not permitted without privilege. */
+		error = suser_xxx(cred, NULL, PRISON_ROOT);
 		if (error)
 			return (error);
 	}
 
 	return (0);
+}
+
+
+/*-
+ * Determine whether p1 may deliver the specified signal to p2.
+ * Returns: 0 for permitted, an errno value otherwise
+ * Locks: Sufficient locks to protect various components of p1 and p2
+ *        must be held.  Normally, p1 will be curproc, and a lock must
+ *        be held for p2.
+ * References: p1 and p2 must be valid for the lifetime of the call
+ */
+int
+p_cansignal(struct proc *p1, struct proc *p2, int signum)
+{
+
+	if (p1 == p2)
+		return (0);
+
+	/*
+	 * UNIX signalling semantics require that processes in the same
+	 * session always be able to deliver SIGCONT to one another,
+	 * overriding the remaining protections.
+	 */
+	if (signum == SIGCONT && p1->p_session == p2->p_session)
+		return (0);
+
+	return (cr_cansignal(p1->p_ucred, p2, signum));
 }
 
 /*-
