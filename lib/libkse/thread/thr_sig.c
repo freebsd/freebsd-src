@@ -349,7 +349,7 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	intr_save = curthread->interrupted;
 	_kse_critical_enter();
 	/* Get a fresh copy of signal mask */
-	curthread->sigmask = ucp->uc_sigmask;
+	__sys_sigprocmask(SIG_BLOCK, NULL, &curthread->sigmask);
 	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
 	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
 	sa_flags = _thread_sigact[sig - 1].sa_flags & SA_SIGINFO;
@@ -1072,6 +1072,7 @@ thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf)
 		PANIC("invalid pthread_sigframe\n");
 	thread->flags = psf->psf_flags;
 	thread->interrupted = psf->psf_interrupted;
+	thread->timeout = psf->psf_timeout;
 	thread->state = psf->psf_state;
 	thread->data = psf->psf_wait_data;
 	thread->wakeup_time = psf->psf_wakeup_time;
@@ -1084,6 +1085,7 @@ thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
 	psf->psf_flags =
 	    thread->flags & (THR_FLAGS_PRIVATE | THR_FLAGS_IN_TDLIST);
 	psf->psf_interrupted = thread->interrupted;
+	psf->psf_timeout = thread->timeout;
 	psf->psf_state = thread->state;
 	psf->psf_wait_data = thread->data;
 	psf->psf_wakeup_time = thread->wakeup_time;
