@@ -258,6 +258,20 @@ gather_inet(int proto)
 		}
 		if ((inp->inp_vflag & vflag) == 0)
 			continue;
+		if (inp->inp_vflag & INP_IPV4) {
+			if ((inp->inp_fport == 0 && !opt_l) ||
+			    (inp->inp_fport != 0 && !opt_c))
+				continue;
+		} else if (inp->inp_vflag & INP_IPV6) {
+			if ((inp->in6p_fport == 0 && !opt_l) ||
+			    (inp->in6p_fport != 0 && !opt_c))
+				continue;
+		} else {
+			if (opt_v)
+				warnx("invalid vflag 0x%x", inp->inp_vflag);
+			free(sock);
+			continue;
+		}
 		if ((sock = calloc(1, sizeof *sock)) == NULL)
 			err(1, "malloc()");
 		sock->socket = so->xso_so;
@@ -274,11 +288,6 @@ gather_inet(int proto)
 			    &inp->in6p_laddr, inp->in6p_lport);
 			sockaddr(&sock->faddr, sock->family,
 			    &inp->in6p_faddr, inp->in6p_fport);
-		} else {
-			if (opt_v)
-				warnx("invalid vflag 0x%x", inp->inp_vflag);
-			free(sock);
-			continue;
 		}
 		sock->vflag = inp->inp_vflag;
 		sock->protoname = protoname;
@@ -348,6 +357,9 @@ gather_unix(int proto)
 			warnx("struct xunpcb size mismatch");
 			goto out;
 		}
+		if ((xup->xu_unp.unp_conn == NULL && !opt_l) ||
+		    (xup->xu_unp.unp_conn != NULL && !opt_c))
+			continue;
 		if ((sock = calloc(1, sizeof *sock)) == NULL)
 			err(1, "malloc()");
 		sock->socket = xup->xu_socket.xso_so;
@@ -454,7 +466,6 @@ display(void)
 	setpassent(1);
 	for (xf = xfiles, n = 0; n < nxfiles; ++n, ++xf) {
 		hash = (int)((uintptr_t)xf->xf_data % HASHSIZE);
-		/*xprintf("%p %d\n", xf->xf_data, hash);*/
 		for (s = sockhash[hash]; s != NULL; s = s->next)
 			if (s->socket == xf->xf_data)
 				break;
