@@ -1349,6 +1349,7 @@ vm_pageout()
 {
 	int pass;
 
+	mtx_lock(&Giant);
 	mtx_lock(&vm_mtx);
 
 	/*
@@ -1465,11 +1466,7 @@ vm_pageout()
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
 		splx(s);
-		mtx_unlock(&vm_mtx);
-		mtx_lock(&Giant);
-		mtx_lock(&vm_mtx);
 		vm_pageout_scan(pass);
-		mtx_unlock(&Giant);
 		vm_pageout_deficit = 0;
 	}
 }
@@ -1500,13 +1497,8 @@ vm_daemon()
 {
 	struct proc *p;
 
-#ifndef rlimlocked
 	mtx_lock(&Giant);
-#endif
 	while (TRUE) {
-#ifdef rlimlocked
-		mtx_lock(&Giant);
-#endif
 		mtx_lock(&vm_mtx);
 		msleep(&vm_daemon_needed, &vm_mtx, PPAUSE, "psleep", 0);
 		if (vm_pageout_req_swapout) {
@@ -1515,13 +1507,6 @@ vm_daemon()
 			vm_pageout_req_swapout = 0;
 		}
 		mtx_unlock(&vm_mtx);
-#ifdef rlimlocked
-		/*
-		 * XXX: we can't do this yet because Giant still protects
-		 * the per-process resource limits that we check below.
-		 */
-		mtx_unlock(&Giant);
-#endif
 		/*
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
