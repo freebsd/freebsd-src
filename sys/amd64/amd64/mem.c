@@ -36,8 +36,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	Utah $Hdr: mem.c 1.13 89/10/08$
- *	@(#)mem.c	7.2 (Berkeley) 5/9/91
+ *	from: Utah $Hdr: mem.c 1.13 89/10/08$
+ *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
  */
 
 #include <sys/cdefs.h>
@@ -175,6 +175,7 @@ kmemphys:
 			}
 
 			c = iov->iov_len;
+
 			/*
 			 * Make sure that all of the pages are currently resident so
 			 * that we don't create any zero-fill pages.

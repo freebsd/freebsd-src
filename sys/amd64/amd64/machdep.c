@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)machdep.c	7.4 (Berkeley) 6/3/91
+ *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
  */
 
 #include <sys/cdefs.h>

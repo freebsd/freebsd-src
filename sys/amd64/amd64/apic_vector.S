@@ -104,13 +104,13 @@
 	SUPERALIGN_TEXT ;						\
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
+	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX avoid double count */	\
 	movq	lapic, %rdx ;	/* pointer to local APIC */		\
 	movl	LA_ISR + 16 * (index)(%rdx), %eax ;	/* load ISR */	\
 	bsrl	%eax, %eax ;	/* index of highset set bit in ISR */	\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
 1: ;									\
-	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX avoid double count */	\
 	movq	%rax, %rdi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	MEXITCOUNT ;							\

@@ -346,3 +346,4 @@ pcireg_cfgopen(void)
 	devmax = 0;
 	return (cfgmech);
 }
+

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)npx.c	7.2 (Berkeley) 5/12/91
+ *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
  */
 
 #include <sys/cdefs.h>

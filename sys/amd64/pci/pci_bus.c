@@ -84,8 +84,8 @@ legacy_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 
 static const char *
 legacy_pcib_is_host_bridge(int bus, int slot, int func,
-			   u_int32_t id, u_int8_t class, u_int8_t subclass,
-			   u_int8_t *busnum)
+			  u_int32_t id, u_int8_t class, u_int8_t subclass,
+			  u_int8_t *busnum)
 {
 	const char *s = NULL;
 	static u_int8_t pxb[4];	/* hack for 450nx */
