@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.6 1999/01/06 12:31:28 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.7 1999/01/06 19:55:49 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -146,7 +146,7 @@ uhci_pci_attach(pcici_t config_id, int unit)
 
 	if ( !pci_map_int(config_id, (pci_inthand_t *)uhci_intr,
 			  (void *) sc, &bio_imask)) {
-		printf("usb%d: Unable to map irq\n", unit);
+		printf("usb%d: could not map irq\n", unit);
 		return;                    
 	}
 
@@ -193,7 +193,7 @@ uhci_pci_attach(pcici_t config_id, int unit)
 	 */
 	sc->sc_bus.bdev = device_add_child(root_bus, "usb", unit, sc);
 	if (!sc->sc_bus.bdev) {
-		printf("%s%d: unable to add USB device to root bus\n",
+		printf("%s%d: could not add USB device to root bus\n",
 			device_get_name(sc->sc_bus.bdev),
 			device_get_unit(sc->sc_bus.bdev));
 		return;
