@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: popen.c,v 1.14 1998/05/15 16:51:06 ache Exp $";
+	"$Id: popen.c,v 1.4.2.7 1998/05/15 16:53:45 ache Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,6 +57,7 @@ static const char rcsid[] =
 #ifdef	INTERNAL_LS
 #include "pathnames.h"
 #include <syslog.h>
+#include <time.h>
 #include <varargs.h>
 #endif
 
@@ -79,7 +80,6 @@ ftpd_popen(program, type)
 	FILE *iop;
 	int argc, gargc, pdes[2], pid;
 	char **pop, *argv[MAXUSRARGS], *gargv[MAXGLOBARGS];
-	static char *envtz[2] = {"TZ=", NULL};
 
 	if (((*type != 'r') && (*type != 'w')) || type[1])
 		return (NULL);
@@ -153,11 +153,17 @@ ftpd_popen(program, type)
 			optreset = optind = optopt = 1;
 			/* Close syslogging to remove pwd.db missing msgs */
 			closelog();
-			setenv("TZ", "", 1);
+			/* Trigger to sense new /etc/localtime after chroot */
+			if (getenv("TZ") == NULL) {
+				setenv("TZ", "", 0);
+				tzset();
+				unsetenv("TZ");
+				tzset();
+			}
 			exit(ls_main(gargc, gargv));
 		}
 #endif
-		execve(gargv[0], gargv, envtz);
+		execv(gargv[0], gargv);
 		_exit(1);
 	}
 	/* parent; assume fdopen can't fail...  */
