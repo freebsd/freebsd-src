@@ -53,6 +53,11 @@
 #include <pccard/cardinfo.h>
 #include <pccard/driver.h>
 #include <pccard/slot.h>
+#include <pccard/pcic.h>
+
+#ifdef APIC_IO
+#include <machine/smp.h>
+#endif 
 
 /*
  *	Prototypes for interrupt handler.
@@ -159,6 +164,41 @@ putw(struct pcic_slot *sp, int reg, unsigned short word)
 
 
 /*
+ * Gerneral functions for registering and unregistering interrupts.
+ * isa_to_apic() is used to map the ISA IRQ onto the APIC IRQ to
+ * check if the APIC IRQ is used or free.
+ */
+#ifdef APIC_IO
+int register_pcic_intr(int intr, int device_id, u_int flags,
+                       inthand2_t handler, u_int *maskptr, int unit){
+	int apic_intr;
+	apic_intr = isa_apic_irq(intr);
+	if (apic_intr <0)  return -1;
+	else  return register_intr(apic_intr, device_id, flags, handler,
+			           maskptr, unit);
+}
+
+int unregister_pcic_intr(int intr, inthand2_t handler){
+	int apic_intr;
+	apic_intr = isa_apic_irq(intr);
+	return  unregister_intr(apic_intr, handler);
+}
+
+#else /* Not APIC_IO */
+
+static int register_pcic_intr(int intr, int device_id, u_int flags,
+                              inthand2_t handler, u_int *maskptr, int unit){
+	return register_intr(intr, device_id, flags, handler, maskptr, unit);
+}
+
+static int unregister_pcic_intr(int intr, inthand2_t handler){
+	return unregister_intr(intr, handler);
+}
+
+#endif /* APIC_IO */
+
+
+/*
  *	Loadable kernel module interface.
  */
 
@@ -228,7 +268,7 @@ pcic_unload()
 			if (sp->slt)
 				sp->putb(sp, PCIC_STAT_INT, 0);
 		}
-		unregister_intr(pcic_irq, pcicintr);
+		unregister_pcic_intr(pcic_irq, pcicintr);
 	}
 	pccard_remove_controller(&cinfo);
 	return(0);
@@ -282,12 +322,12 @@ build_freelist(u_int pcic_mask)
 		 */ 
 		mask = 1 << irq; 
 		if (!(mask & pcic_mask)) continue; 
- 
+
 		/* See if the IRQ is free. */
-		if (register_intr(irq, 0, 0, nullfunc, NULL, irq) == 0) {
+		if (register_pcic_intr(irq, 0, 0, nullfunc, NULL, irq) == 0) {
 			/* Give it back, but add it to the mask */ 
 			INTRMASK(freemask, mask); 
-			unregister_intr(irq, nullfunc); 
+			unregister_pcic_intr(irq, nullfunc); 
 		}
 	} 
 #ifdef PCIC_DEBUG
