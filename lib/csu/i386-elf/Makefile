@@ -3,21 +3,17 @@
 .PATH: ${.CURDIR}/../common
 
 SRCS=		crt1.c crti.S crtn.S
-OBJS=		${SRCS:N*.h:R:S/$/.o/g}
-OBJS+=		gcrt1.o
+FILES=		${SRCS:N*.h:R:S/$/.o/g} gcrt1.o
+FILESOWN=	${LIBOWN}
+FILESGRP=	${LIBGRP}
+FILESMODE=	${LIBMODE}
+FILESDIR=	${LIBDIR}
 WARNS?=		6
 CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
-
-all: ${OBJS}
-
-CLEANFILES=	${OBJS}
+CLEANFILES=	${FILES}
 
 gcrt1.o: crt1.c
 	${CC} ${CFLAGS} -DGCRT -c -o gcrt1.o ${.CURDIR}/crt1.c
 
-realinstall:
-	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${OBJS} ${DESTDIR}${LIBDIR}
-
-.include <bsd.lib.mk>
+.include <bsd.prog.mk>
