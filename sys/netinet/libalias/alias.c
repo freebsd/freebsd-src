@@ -254,16 +254,16 @@ static int	IcmpAliasIn(struct libalias *, struct ip *);
 
 static int	IcmpAliasOut1(struct libalias *, struct ip *);
 static int	IcmpAliasOut2(struct libalias *, struct ip *);
-static int	IcmpAliasOut(struct libalias *, struct ip *);
+static int	IcmpAliasOut(struct libalias *, struct ip *, int create);
 
 static int	ProtoAliasIn(struct libalias *, struct ip *);
-static int	ProtoAliasOut(struct libalias *, struct ip *);
+static int	ProtoAliasOut(struct libalias *, struct ip *, int create);
 
-static int	UdpAliasOut(struct libalias *, struct ip *);
 static int	UdpAliasIn(struct libalias *, struct ip *);
+static int	UdpAliasOut(struct libalias *, struct ip *, int create);
 
-static int	TcpAliasOut(struct libalias *, struct ip *, int);
 static int	TcpAliasIn(struct libalias *, struct ip *);
+static int	TcpAliasOut(struct libalias *, struct ip *, int, int create);
 
 
 static int
@@ -589,7 +589,7 @@ fragment contained in ICMP data section */
 
 
 static int
-IcmpAliasOut(struct libalias *la, struct ip *pip)
+IcmpAliasOut(struct libalias *la, struct ip *pip, int create)
 {
 	int iresult;
 	struct icmp *ic;
@@ -656,7 +656,7 @@ ProtoAliasIn(struct libalias *la, struct ip *pip)
 
 
 static int
-ProtoAliasOut(struct libalias *la, struct ip *pip)
+ProtoAliasOut(struct libalias *la, struct ip *pip, int create)
 {
 /*
   Handle outgoing IP packets. The
@@ -751,7 +751,7 @@ UdpAliasIn(struct libalias *la, struct ip *pip)
 }
 
 static int
-UdpAliasOut(struct libalias *la, struct ip *pip)
+UdpAliasOut(struct libalias *la, struct ip *pip, int create)
 {
 	struct udphdr *ud;
 	struct alias_link *link;
@@ -764,7 +764,7 @@ UdpAliasOut(struct libalias *la, struct ip *pip)
 
 	link = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
 	    ud->uh_sport, ud->uh_dport,
-	    IPPROTO_UDP, 1);
+	    IPPROTO_UDP, create);
 	if (link != NULL) {
 		u_short alias_port;
 		struct in_addr alias_address;
@@ -905,7 +905,7 @@ TcpAliasIn(struct libalias *la, struct ip *pip)
 }
 
 static int
-TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize)
+TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize, int create)
 {
 	int proxy_type;
 	u_short dest_port;
@@ -943,7 +943,9 @@ TcpAliasOut(struct libalias *la, struct ip *pip, int maxpacketsize)
 	}
 	link = FindUdpTcpOut(la, pip->ip_src, pip->ip_dst,
 	    tc->th_sport, tc->th_dport,
-	    IPPROTO_TCP, 1);
+	    IPPROTO_TCP, create);
+	if (link == NULL)
+		return (PKT_ALIAS_IGNORED);
 	if (link != NULL) {
 		u_short alias_port;
 		struct in_addr alias_address;
@@ -1234,6 +1236,16 @@ LibAliasOut(struct libalias *la, char *ptr,	/* valid IP packet */
 				 * and IRC inline changes) */
 )
 {
+	return (LibAliasOutTry(la, ptr, maxpacketsize, 1));
+}
+
+int
+LibAliasOutTry(struct libalias *la, char *ptr,	/* valid IP packet */
+    int maxpacketsize,		/* How much the packet data may grow (FTP
+				 * and IRC inline changes) */
+    int create			/* Create new entries ? */
+)
+{
 	int iresult;
 	struct in_addr addr_save;
 	struct ip *pip;
@@ -1277,22 +1289,22 @@ LibAliasOut(struct libalias *la, char *ptr,	/* valid IP packet */
 	if ((ntohs(pip->ip_off) & IP_OFFMASK) == 0) {
 		switch (pip->ip_p) {
 		case IPPROTO_ICMP:
-			iresult = IcmpAliasOut(la, pip);
+			iresult = IcmpAliasOut(la, pip, create);
 			break;
 		case IPPROTO_UDP:
-			iresult = UdpAliasOut(la, pip);
+			iresult = UdpAliasOut(la, pip, create);
 			break;
-		case IPPROTO_TCP:
-			iresult = TcpAliasOut(la, pip, maxpacketsize);
+			case IPPROTO_TCP:
+			iresult = TcpAliasOut(la, pip, maxpacketsize, create);
 			break;
 		case IPPROTO_GRE:
 			if (AliasHandlePptpGreOut(la, pip) == 0)
 				iresult = PKT_ALIAS_OK;
 			else
-				iresult = ProtoAliasOut(la, pip);
+				iresult = ProtoAliasOut(la, pip, create);
 			break;
 		default:
-			iresult = ProtoAliasOut(la, pip);
+			iresult = ProtoAliasOut(la, pip, create);
 			break;
 		}
 	} else {
