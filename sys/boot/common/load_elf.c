@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_elf.c,v 1.4 1998/10/12 09:13:50 peter Exp $
+ *	$Id: load_elf.c,v 1.5 1998/10/13 09:25:27 peter Exp $
  */
 
 #include <sys/param.h>
@@ -155,10 +155,11 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	mp->m_name = strdup(filename);
     mp->m_type = strdup(kernel ? elf_kerneltype : elf_moduletype);
 
-
 #ifdef ELF_VERBOSE
     if (kernel)
 	printf("%s entry at %p\n", filename, (void *) dest);
+#else
+    printf("%s ", filename);
 #endif
 
     mp->m_size = elf_loadimage(mp, fd, dest, &ehdr, kernel);
