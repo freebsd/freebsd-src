@@ -124,9 +124,10 @@ main(int argc, char *argv[])
 	 */
 	fd3 = dup(STDIN_FILENO);
 	if (fd3 != fd2 + 2) {
-		fprintf(stderr, "TEST FAILED (%d, %d, %d)\n", fd1, fd2, fd3);
+		fprintf(stderr, "FAIL (%d, %d, %d)\n", fd1, fd2, fd3);
 		exit(-1);
-	}
+	} else
+		fprintf(stderr, "PASS\n");
 
 	return (0);
 }
