@@ -1862,7 +1862,6 @@ options 	SCSI_ISP_WWN="0x5000000099990000"
 device		miibus0
 
 # PCI Ethernet NICs that use the common MII bus controller code.
-controller	miibus0		# MII bus support
 device		dc0		# DEC/Intel 21143 and various workalikes
 device		rl0		# RealTek 8129/8139
 device		sf0		# Adaptec AIC-6915 (``Starfire'')
