@@ -1,9 +1,8 @@
 #	$Id: Makefile,v 1.4 1999/05/23 10:02:46 obrien Exp $
 
-EGCSDIR=	${.CURDIR}/../../../contrib/egcs
+SRCDIR=	${.CURDIR}/../../../contrib/egcs/libf2c
 
-.PATH: ${EGCSDIR}/libf2c ${EGCSDIR}/libf2c/libU77 ${EGCSDIR}/libf2c/libF77 \
-       ${EGCSDIR}/libf2c/libI77
+.PATH: ${SRCDIR} ${SRCDIR}/libU77 ${SRCDIR}/libF77 ${SRCDIR}/libI77
 
 LIB=		g2c
 SHLIB_MAJOR=	1
@@ -88,15 +87,13 @@ OBJS=		${E77OBJS}
 CFLAGS+=	-DHAVE_CONFIG_H=1 -DSTDC_HEADERS=1 -DHAVE_TEMPNAM=1
 CFLAGS+=	-DNO_EOF_CHAR_CHECK=1 -DRETSIGTYPE=void
 CFLAGS+=	-DSkip_f2c_Undefs=1 -DIEEE_drem=1 -DAllow_TYQUAD -DPedantic
-CFLAGS+=	-I${EGCSDIR}/libf2c -I${EGCSDIR}/libf2c/libF77
-CFLAGS+=	-I${EGCSDIR}/libf2c/libI77 -I${EGCSDIR}/libf2c/libU77
-CFLAGS+=	-I${EGCSDIR}/gcc/f -I${EGCSDIR}/gcc -I${EGCSDIR}/gcc/config
+CFLAGS+=	-I${SRCDIR} -I${SRCDIR}/libF77 -I${SRCDIR}/libI77 -I${SRCDIR}/libU77
 CFLAGS+=	-I${.CURDIR}
 
 .for x in F I U
 ${x}77SRCS+=	Version${x}.c
 CLEANFILES+=	Version${x}.c
-Version${x}.c: ${EGCSDIR}/libf2c/lib${x}77/Version.c
+Version${x}.c: ${SRCDIR}/lib${x}77/Version.c
 	ln -sf ${.ALLSRC} ${.TARGET}
 .endfor
 
