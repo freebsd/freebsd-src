@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 int	fflag;				/* Unlink existing files. */
+int	iflag;				/* Interactive mode. */
 int	sflag;				/* Symbolic, not hard, link. */
 int	vflag;				/* Verbose output. */
 					/* System link call. */
@@ -70,7 +71,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern int optind;
 	struct stat sb;
 	int ch, exitval;
 	char *p, *sourcedir;
@@ -92,10 +92,15 @@ main(argc, argv)
 			usage();
 	}
 
-	while ((ch = getopt(argc, argv, "fsv")) != -1)
+	while ((ch = getopt(argc, argv, "fisv")) != -1)
 		switch (ch) {
 		case 'f':
 			fflag = 1;
+			iflag = 0;
+			break;
+		case 'i':
+			iflag = 1;
+			fflag = 0;
 			break;
 		case 's':
 			sflag = 1;
@@ -139,7 +144,7 @@ linkit(target, source, isdir)
 	int isdir;
 {
 	struct stat sb;
-	int exists;
+	int ch, exists, first;
 	char *p, path[MAXPATHLEN];
 
 	if (!sflag) {
@@ -169,10 +174,34 @@ linkit(target, source, isdir)
 		exists = !lstat(source, &sb);
 
 	/*
-	 * If the file exists, and -f was specified, unlink it.
-	 * Attempt the link.
+	 * If the file exists, then unlink it forcibly if -f was specified
+	 * and interactively if -i was specified.
 	 */
-	if ((fflag && exists && unlink(source)) || (*linkf)(target, source)) {
+	if (fflag && exists) {
+		if (unlink(source)) {
+			warn("%s", source);
+			return (1);
+		}
+	} else if (iflag && exists) {
+		fflush(stdout);
+		fprintf(stderr, "replace %s? ", source);
+
+		first = ch = getchar();
+		while(ch != '\n' && ch != EOF)
+			ch = getchar();
+		if (first != 'y' && first != 'Y') {
+			fprintf(stderr, "not replaced\n");
+			return (1);
+		}
+
+		if (unlink(source)) {
+			warn("%s", source);
+			return (1);
+		}
+	}
+
+	/* Attempt the link. */
+	if ((*linkf)(target, source)) {
 		warn("%s", source);
 		return (1);
 	}
@@ -185,8 +214,8 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: ln [-fsv] file1 file2",
-	    "       ln [-fsv] file ... directory",
+	    "usage: ln [-fisv] file1 file2",
+	    "       ln [-fisv] file ... directory",
 	    "       link file1 file2");
 	exit(1);
 }

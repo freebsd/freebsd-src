@@ -78,8 +78,6 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern int optind;
-	extern char *optarg;
 	struct timezone tz;
 	int ch, rflag;
 	int jflag, nflag;
