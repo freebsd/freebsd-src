@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.141 1996/10/17 19:31:45 bde Exp $
+#	$Id: files.i386,v 1.142 1996/11/04 22:16:36 guido Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/aic7xxx_asm.c"			   \
@@ -17,12 +17,12 @@ aic7xxx_seq.h			optional	ahc	device-driver	   \
 #
 linux_genassym			optional	compat_linux		   \
 	dependency 	"$S/i386/linux/linux_genassym.c $S/i386/linux/linux.h" \
-	compile-with	"${CC} ${CFLAGS} -o $@ $<"			   \
+	compile-with	"${CC} ${CFLAGS} ${PARAM} -UKERNEL -o $@ $<"	   \
 	no-obj no-implicit-rule						   \
 	clean		"linux_genassym"
 #
 linux_assym.h			optional	compat_linux		   \
-	dependency 	"linux_genassym"		   \
+	dependency 	"linux_genassym"				   \
 	compile-with	"./linux_genassym > $@"				   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"linux_assym.h"
