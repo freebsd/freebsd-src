@@ -196,8 +196,9 @@ EPSON_BOUNCEDMA		opt_pc98.h
 EPSON_MEMWIN		opt_pc98.h
 LINE30			opt_syscons.h
 
-# NPX options
+# Device options
 DEV_NPX			opt_npx.h
+DEV_APM			opt_apm.h
 
 # -------------------------------
 # EOF

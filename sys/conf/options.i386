@@ -193,8 +193,9 @@ OLTR_NO_BULLSEYE_MAC	opt_oltr.h
 # Defaults to NDGB*16.
 NDGBPORTS		opt_dgb.h
 
-# NPX options
+# Device options
 DEV_NPX			opt_npx.h
+DEV_APM			opt_apm.h
 
 # -------------------------------
 # EOF
