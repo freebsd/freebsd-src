@@ -64,7 +64,8 @@
     <sect3>
       <title>Filesystems</title>
 
-      <para></para>
+      <para>The directory layout preference algorithm for FFS has been
+      changed to improve its speed on large filesystems.</para>
     </sect3>
 
     <sect3>
@@ -93,6 +94,9 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+    <para>&man.cat.1; now has the ability to read from UNIX-domain
+    sockets. &merged;</para>
+
     <para>&man.netstat.1; now has a <option>-z</option> flag to reset
     statistics.</para>
 
@@ -102,7 +106,17 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para></para>
+      <sect4>
+        <title>CVS</title>
+      
+        <para>&man.cvs.1; now supports a <option>-T</option> option to
+        update a sandbox's <filename>CVS/Template</filename> file from
+        the repository.</para>
+
+	<para>&man.cvs.1; <literal>diff</literal> now supports the
+	<option>-j</option> option to perform differences against a
+	revision relative to a branch tag.</para>
+      </sect4>
     </sect3>
 
     <sect3>
