@@ -1,6 +1,6 @@
 /* $FreeBSD$ */
 
-#include <sys/param.h>
+#include <osreldate.h>
 
 /* auto-host.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader.  */
