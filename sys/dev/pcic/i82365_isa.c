@@ -54,6 +54,8 @@
 #include <dev/pcic/i82365reg.h>
 #include <dev/pcic/i82365var.h>
 
+#include "power_if.h"
+
 /*****************************************************************************
  * Configurable parameters.
  *****************************************************************************/
@@ -359,10 +361,11 @@ static device_method_t pcic_isa_methods[] = {
 	/* pccard/cardbus interface */
 	DEVMETHOD(card_set_resource_attribute, pcic_set_resource_attribute),
 	DEVMETHOD(card_get_resource_attribute, pcic_get_resource_attribute),
+#endif
 
 	/* Power Interface */
-	/* Not yet */
-#endif
+	DEVMETHOD(power_enable_socket,	pcic_enable_socket),
+	DEVMETHOD(power_disable_socket,	pcic_disable_socket),
 	{ 0, 0 }
 };
 
