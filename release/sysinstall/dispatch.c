@@ -263,6 +263,13 @@ dispatchCommand(char *str)
 	    msgNotify("Warning: No such command ``%s''", str);
 	    i = DITEM_FAILURE;
 	}
+	/*
+	 * Allow a user to prefix a command with "noError" to cause
+	 * us to ignore any errors for that one command.
+	 */
+	if (i != DITEM_SUCCESS && variable_get(VAR_NO_ERROR))
+	    i = DITEM_SUCCESS;
+	variable_unset(VAR_NO_ERROR);
     }
     return i;
 }
@@ -320,18 +327,10 @@ dispatch_execute(qelement *head)
 	item = (command_buffer *) head->q_forw;
 	
 	if (DITEM_STATUS(dispatchCommand(item->string)) != DITEM_SUCCESS) {
-	    /*
-	     * Allow a user to prefix a command with "noError" to cause
-	     * us to ignore any errors for that one command.
-	     */
-	    if (variable_get(VAR_NO_ERROR))
-		variable_unset(VAR_NO_ERROR);
-	    else {
-		msgConfirm("Command `%s' failed - rest of script aborted.\n",
-			   item->string);
-		result |= DITEM_FAILURE;
-		break;
-	    }
+	    msgConfirm("Command `%s' failed - rest of script aborted.\n",
+		       item->string);
+	    result |= DITEM_FAILURE;
+	    break;
 	}
 	dispatch_free_command(item);
     }
