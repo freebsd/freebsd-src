@@ -28,6 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/vnode.h>
+#include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/exec.h>
@@ -51,7 +53,8 @@ exec_shell_imgact(imgp)
 	const char *image_header = imgp->image_header;
 	const char *ihp;
 	int error, offset;
-	size_t length;
+	size_t length, clength;
+	struct vattr vattr;
 
 	/* a shell script? */
 	if (((const short *) image_header)[0] != SHELLMAGIC)
@@ -67,13 +70,25 @@ exec_shell_imgact(imgp)
 	imgp->interpreted = 1;
 
 	/*
+	 * At this point we have the first page of the file mapped.
+	 * However, we don't know how far into the page the contents are
+	 * valid -- the actual file might be much shorter than the page.
+	 * So find out the file size.
+ 	 */
+	error = VOP_GETATTR(imgp->vp, &vattr, imgp->proc->p_ucred, curthread);
+	if (error)
+		return (error);
+
+	clength = (vattr.va_size > MAXSHELLCMDLEN) ?
+	    MAXSHELLCMDLEN : vattr.va_size;
+	/*
 	 * Figure out the number of bytes that need to be reserved in the
 	 * argument string to copy the contents of the interpreter's command
 	 * line into the argument string.
 	 */
 	ihp = &image_header[2];
 	offset = 0;
-	while (ihp < &image_header[MAXSHELLCMDLEN]) {
+	while (ihp < &image_header[clength]) {
 		/* Skip any whitespace */
 		if ((*ihp == ' ') || (*ihp == '\t')) {
 			ihp++;
@@ -85,12 +100,12 @@ exec_shell_imgact(imgp)
 			break;
 
 		/* Found a token */
-		while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
-		    (*ihp != '#') && (*ihp != '\0') &&
-		    (ihp < &image_header[MAXSHELLCMDLEN])) {
+		do {
 			offset++;
 			ihp++;
-		}
+		} while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
+		    (*ihp != '#') && (*ihp != '\0') &&
+		    (ihp < &image_header[clength]));
 		/* Include terminating nulls in the offset */
 		offset++;
 	}
@@ -100,7 +115,7 @@ exec_shell_imgact(imgp)
 		return (ENOEXEC);
 
 	/* Check that we aren't too big */
-	if (offset > MAXSHELLCMDLEN)
+	if (ihp == &image_header[MAXSHELLCMDLEN])
 		return (ENAMETOOLONG);
 
 	/*
@@ -139,7 +154,7 @@ exec_shell_imgact(imgp)
 	 */
 	ihp = &image_header[2];
 	offset = 0;
-	while (ihp < &image_header[MAXSHELLCMDLEN]) {
+	while (ihp < &image_header[clength]) {
 		/* Skip whitespace */
 		if ((*ihp == ' ') || (*ihp == '\t')) {
 			ihp++;
@@ -151,11 +166,11 @@ exec_shell_imgact(imgp)
 			break;
 
 		/* Found a token, copy it */
-		while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
-		    (*ihp != '#') && (*ihp != '\0') &&
-		    (ihp < &image_header[MAXSHELLCMDLEN])) {
+		do {
 			imgp->args->begin_argv[offset++] = *ihp++;
-		}
+		} while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
+		    (*ihp != '#') && (*ihp != '\0') &&
+		    (ihp < &image_header[MAXSHELLCMDLEN]));
 		imgp->args->begin_argv[offset++] = '\0';
 		imgp->args->argc++;
 	}
