@@ -75,7 +75,7 @@ static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 
 extern  struct domain inet6domain;
 struct ip6protosw in6_gif_protosw =
-{ SOCK_RAW,	&inet6domain,	0/*IPPROTO_IPV[46]*/,	PR_ATOMIC|PR_ADDR,
+{ SOCK_RAW,	&inet6domain,	0/* IPPROTO_IPV[46] */,	PR_ATOMIC|PR_ADDR,
   in6_gif_input, rip6_output,	0,		rip6_ctloutput,
   0,
   0,		0,		0,		0,
@@ -143,7 +143,7 @@ in6_gif_output(ifp, family, m)
 		m_freem(m);
 		return EAFNOSUPPORT;
 	}
-	
+
 	/* prepend new IP header */
 	M_PREPEND(m, sizeof(struct ip6_hdr), M_DONTWAIT);
 	if (m && m->m_len < sizeof(struct ip6_hdr))
@@ -208,7 +208,7 @@ in6_gif_output(ifp, family, m)
 			- sizeof(struct ip6_hdr);
 #endif
 	}
-	
+
 #ifdef IPV6_MINMTU
 	/*
 	 * force fragmentation to minimum MTU, to avoid path MTU discovery.
@@ -221,7 +221,8 @@ in6_gif_output(ifp, family, m)
 #endif
 }
 
-int in6_gif_input(mp, offp, proto)
+int
+in6_gif_input(mp, offp, proto)
 	struct mbuf **mp;
 	int *offp, proto;
 {
@@ -288,7 +289,7 @@ int in6_gif_input(mp, offp, proto)
 		m_freem(m);
 		return IPPROTO_DONE;
 	}
-		
+
 	gif_input(m, af, gifp);
 	return IPPROTO_DONE;
 }

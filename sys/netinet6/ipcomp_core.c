@@ -168,7 +168,7 @@ do { \
 								\
 	zs.next_out = mtod(n, u_int8_t *);			\
 	zs.avail_out = n->m_len;				\
-} while (0)
+} while (/*CONSTCOND*/ 0)
 
 	for (mprev = m; mprev && mprev->m_next != md; mprev = mprev->m_next)
 		;

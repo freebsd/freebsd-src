@@ -275,7 +275,7 @@ ipcomp6_input(mp, offp, proto)
 
 	if (cpi >= IPCOMP_CPI_NEGOTIATE_MIN) {
 		sav = key_allocsa(AF_INET6, (caddr_t)&ip6->ip6_src,
-			(caddr_t)&ip6->ip6_dst, IPPROTO_IPCOMP, htonl(cpi));
+		    (caddr_t)&ip6->ip6_dst, IPPROTO_IPCOMP, htonl(cpi));
 		if (sav != NULL
 		 && (sav->state == SADB_SASTATE_MATURE
 		  || sav->state == SADB_SASTATE_DYING)) {

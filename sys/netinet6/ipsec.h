@@ -157,9 +157,9 @@ struct secspacq {
  * DISCARD, IPSEC and NONE are allowed for setkey() in SPD.
  * DISCARD and NONE are allowed for system default.
  */
-#define IPSEC_POLICY_DISCARD	0	/* discarding packet */
-#define IPSEC_POLICY_NONE	1	/* through IPsec engine */
-#define IPSEC_POLICY_IPSEC	2	/* do IPsec */
+#define IPSEC_POLICY_DISCARD	0	/* discard the packet */
+#define IPSEC_POLICY_NONE	1	/* bypass IPsec engine */
+#define IPSEC_POLICY_IPSEC	2	/* pass to IPsec */
 #define IPSEC_POLICY_ENTRUST	3	/* consulting SPD if present. */
 #define IPSEC_POLICY_BYPASS	4	/* only for privileged socket. */
 
@@ -295,7 +295,7 @@ extern int ip4_ipsec_dfbit;
 extern int ip4_ipsec_ecn;
 extern int ip4_esp_randpad;
 
-#define ipseclog(x)	do { if (ipsec_debug) log x; } while (0)
+#define ipseclog(x)	do { if (ipsec_debug) log x; } while (/*CONSTCOND*/ 0)
 
 struct inpcb;
 extern struct secpolicy *ipsec4_getpolicybypcb
@@ -305,15 +305,14 @@ extern struct secpolicy *ipsec4_getpolicybysock
 extern struct secpolicy *ipsec4_getpolicybyaddr
 	__P((struct mbuf *, u_int, int, int *));
 
-extern int ipsec_init_policy __P((struct socket *so, struct inpcbpolicy **));
+extern int ipsec_init_policy __P((struct socket *, struct inpcbpolicy **));
 extern int ipsec_copy_policy
 	__P((struct inpcbpolicy *, struct inpcbpolicy *));
 extern u_int ipsec_get_reqlevel __P((struct ipsecrequest *));
 
-extern int ipsec4_set_policy __P((struct inpcb *inp, int optname,
-	caddr_t request, size_t len, int priv));
-extern int ipsec4_get_policy __P((struct inpcb *inpcb, caddr_t request,
-	size_t len, struct mbuf **mp));
+extern int ipsec4_set_policy __P((struct inpcb *, int, caddr_t, size_t, int));
+extern int ipsec4_get_policy __P((struct inpcb *, caddr_t, size_t,
+	struct mbuf **));
 extern int ipsec4_delete_pcbpolicy __P((struct inpcb *));
 extern int ipsec4_in_reject_so __P((struct mbuf *, struct socket *));
 extern int ipsec4_in_reject __P((struct mbuf *, struct inpcb *));
@@ -338,7 +337,7 @@ extern int ipsec4_tunnel_validate __P((struct mbuf *, int, u_int,
 	struct secasvar *));
 extern struct mbuf *ipsec_copypkt __P((struct mbuf *));
 extern void ipsec_delaux __P((struct mbuf *));
-extern int ipsec_addhist __P((struct mbuf *, int, u_int32_t)); 
+extern int ipsec_addhist __P((struct mbuf *, int, u_int32_t));
 extern struct ipsec_history *ipsec_gethist __P((struct mbuf *, int *));
 #endif /* _KERNEL */
 

@@ -105,9 +105,8 @@ struct	in6_ifaddr {
 	struct in6_addrlifetime ia6_lifetime;
 	struct ifprefix *ia6_ifpr; /* back pointer to ifprefix */
 
-	struct nd_prefix *ia6_ndpr; /* back pointer to the ND prefix
-				     * (for autoconfigured addresses only)
-				     */
+	/* back pointer to the ND prefix (for autoconfigured addresses only) */
+	struct nd_prefix *ia6_ndpr;
 };
 
 /*
@@ -458,14 +457,14 @@ do {								\
 	 && in6_ifstat && in6_ifstat[(ifp)->if_index]) {	\
 		in6_ifstat[(ifp)->if_index]->tag++;		\
 	}							\
-} while (0)
+} while (/*CONSTCOND*/ 0)
 
 extern struct in6_addr zeroin6_addr;
 extern u_char inet6ctlerrmap[];
 extern unsigned long in6_maxmtu;
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IPMADDR);
-#endif
+#endif /* MALLOC_DECLARE */
 
 /*
  * Macro for finding the internet address structure (in6_ifaddr) corresponding
@@ -484,7 +483,7 @@ do {									\
 			break;						\
 	}								\
 	(ia) = (struct in6_ifaddr *)ifa;				\
-} while (0)
+} while (/*CONSTCOND*/ 0)
 
 #endif /* _KERNEL */
 
@@ -564,15 +563,15 @@ do { \
 } while(0)
 
 struct	in6_multi *in6_addmulti __P((struct in6_addr *, struct ifnet *,
-				     int *));
+	int *));
 void	in6_delmulti __P((struct in6_multi *));
 extern int in6_ifindex2scopeid __P((int));
 extern int in6_mask2len __P((struct in6_addr *, u_char *));
 extern void in6_len2mask __P((struct in6_addr *, int));
-int	in6_control __P((struct socket *,
-			 u_long, caddr_t, struct ifnet *, struct thread *));
+int	in6_control __P((struct socket *, u_long, caddr_t, struct ifnet *,
+	struct thread *));
 int	in6_update_ifa __P((struct ifnet *, struct in6_aliasreq *,
-			    struct in6_ifaddr *));
+	struct in6_ifaddr *));
 void	in6_purgeaddr __P((struct ifaddr *));
 int	in6if_do_dad __P((struct ifnet *));
 void	in6_purgeif __P((struct ifnet *));
@@ -581,18 +580,16 @@ void	in6_setmaxmtu   __P((void));
 void	in6_restoremkludge __P((struct in6_ifaddr *, struct ifnet *));
 void	in6_purgemkludge __P((struct ifnet *));
 struct in6_ifaddr *in6ifa_ifpforlinklocal __P((struct ifnet *, int));
-struct in6_ifaddr *in6ifa_ifpwithaddr __P((struct ifnet *,
-					     struct in6_addr *));
+struct in6_ifaddr *in6ifa_ifpwithaddr __P((struct ifnet *, struct in6_addr *));
 char	*ip6_sprintf __P((const struct in6_addr *));
 int	in6_addr2scopeid __P((struct ifnet *, struct in6_addr *));
 int	in6_matchlen __P((struct in6_addr *, struct in6_addr *));
-int	in6_are_prefix_equal __P((struct in6_addr *p1, struct in6_addr *p2,
-				  int len));
-void	in6_prefixlen2mask __P((struct in6_addr *maskp, int len));
-int	in6_prefix_ioctl __P((struct socket *so, u_long cmd, caddr_t data,
-			      struct ifnet *ifp));
-int	in6_prefix_add_ifid __P((int iilen, struct in6_ifaddr *ia));
-void	in6_prefix_remove_ifid __P((int iilen, struct in6_ifaddr *ia));
+int	in6_are_prefix_equal __P((struct in6_addr *, struct in6_addr *, int));
+void	in6_prefixlen2mask __P((struct in6_addr *, int));
+int	in6_prefix_ioctl __P((struct socket *, u_long, caddr_t,
+	struct ifnet *));
+int	in6_prefix_add_ifid __P((int, struct in6_ifaddr *));
+void	in6_prefix_remove_ifid __P((int, struct in6_ifaddr *));
 void	in6_purgeprefix __P((struct ifnet *));
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
