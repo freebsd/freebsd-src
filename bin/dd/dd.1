@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
-.\"	$Id: dd.1,v 1.5 1997/04/28 04:07:29 steve Exp $
+.\"	$Id: dd.1,v 1.6 1997/10/11 20:09:04 joerg Exp $
 .\"
 .Dd January 13, 1994
 .Dt DD 1
@@ -52,7 +52,7 @@ Input data is read and written in 512-byte blocks.
 If input reads are short, input from multiple reads are aggregated
 to form the output block.
 When finished,
-.Nm dd
+.Nm
 displays the number of complete and partial input and output blocks
 and truncated input records to the standard error output.
 .Pp
@@ -237,7 +237,7 @@ will be positioned past the block in which the error occurred using
 Do not truncate the output file.
 This will preserve any blocks in the output file not explicitly written
 by
-.Nm dd .
+.Nm Ns .
 The
 .Cm notrunc
 value is not supported for tapes.
@@ -287,7 +287,7 @@ in an integer, respectively.
 Two or more numbers may be separated by an ``x'' to indicate a product.
 .Pp
 When finished,
-.Nm dd
+.Nm
 displays the number of complete and partial input and output blocks,
 truncated input records and odd-length byte-swapping blocks to the
 standard error output.
@@ -310,7 +310,7 @@ This means that the final output block may be shorter than the output
 block size.
 .Pp
 If
-.Nm dd
+.Nm
 receives a
 .Dv SIGINFO
 (see the ``status'' argument for
@@ -319,17 +319,17 @@ signal, the current input and output block counts will
 be written to the standard error output
 in the same format as the standard completion message.
 If
-.Nm dd
+.Nm
 receives a
 .Dv SIGINT
 signal, the current input and output block counts will
 be written to the standard error output
 in the same format as the standard completion message and
-.Nm dd
+.Nm
 will exit.
 .Pp
 The
-.Nm dd
+.Nm
 utility exits 0 on success and >0 if an error occurred.
 .Sh SEE ALSO
 .Xr cp 1 ,
@@ -337,7 +337,7 @@ utility exits 0 on success and >0 if an error occurred.
 .Xr tr 1
 .Sh STANDARDS
 The
-.Nm dd
+.Nm
 utility is expected to be a superset of the
 .St -p1003.2
 standard.

@@ -33,8 +33,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: dd.c,v 1.12 1997/10/11 20:09:05 joerg Exp $
  */
 
 #ifndef lint
@@ -44,12 +42,15 @@ static char const copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
 #include <sys/mtio.h>
 
 #include <ctype.h>
@@ -57,7 +58,6 @@ static char const sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
-#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

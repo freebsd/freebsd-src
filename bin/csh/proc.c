@@ -36,11 +36,10 @@
 static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: proc.c,v 1.7 1997/10/07 16:43:16 eivind Exp $";
+	"$Id: proc.c,v 1.8 1998/02/28 10:49:59 jraynard Exp $";
 #endif
 #endif /* not lint */
 
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
 #include <unistd.h>

@@ -33,12 +33,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: args.c,v 1.10 1997/10/11 20:09:04 joerg Exp $
  */
 
 #ifndef lint
+#if 0
 static char const sccsid[] = "@(#)args.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -46,7 +48,6 @@ static char const sccsid[] = "@(#)args.c	8.3 (Berkeley) 4/2/94";
 #include <err.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
