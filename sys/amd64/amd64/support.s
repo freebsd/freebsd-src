@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.13 1994/06/11 05:12:15 davidg Exp $
+ *	$Id: support.s,v 1.14 1994/08/04 19:51:01 davidg Exp $
  */
 
 #include "assym.s"				/* system definitions */
@@ -1077,31 +1077,6 @@ ENTRY(copystr)
 /*
  * Miscellaneous kernel support functions
  */
-ALTENTRY(ntohl)
-ENTRY(htonl)
-	movl	4(%esp),%eax
-#ifndef I386_CPU
-/* XXX */
-/* Since Gas 1.38 does not grok bswap this has been coded as the
- * equivalent bytes.  This can be changed back to bswap when we
- * upgrade to a newer version of Gas
- */
-	/* bswap	%eax */
-	.byte	0x0f
-	.byte	0xc8
-#else
-	xchgb	%al,%ah
-	roll	$16,%eax
-	xchgb	%al,%ah
-#endif
-	ret
-
-ALTENTRY(ntohs)
-ENTRY(htons)
-	movzwl	4(%esp),%eax
-	xchgb	%al,%ah
-	ret
-
 ENTRY(ffs)
 	bsfl	4(%esp),%eax
 	jz	1f
