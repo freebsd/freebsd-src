@@ -66,6 +66,7 @@ main(int argc, char **argv)
 		usage();
 
 	dir = argv[1];
+	memset(&args, 0, sizeof args);
 	args.fspec = argv[2];
 
 	/*
@@ -103,7 +104,7 @@ main(int argc, char **argv)
 	 */
 	if ((grp = getgrnam("operator")) == NULL)
 		errx(1, "Cannot retrieve operator gid");
-	if (mount("ffs", dir, MNT_UPDATE | MNT_SNAPSHOT | stfsbuf.f_flags,
+	if (mount("ufs", dir, MNT_UPDATE | MNT_SNAPSHOT | stfsbuf.f_flags,
 	    &args) < 0)
 		err(1, "Cannot create %s", args.fspec);
 	if ((fd = open(args.fspec, O_RDONLY)) < 0)
