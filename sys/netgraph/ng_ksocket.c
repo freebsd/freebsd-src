@@ -74,8 +74,12 @@
 struct ng_ksocket_private {
 	hook_p		hook;
 	struct socket	*so;
+	u_int32_t	flags;
 };
 typedef struct ng_ksocket_private *priv_p;
+
+/* Flags for priv_p */
+#define	KSF_SENDING	0x00000020	/* Sending on socket */
 
 /* Netgraph node methods */
 static ng_constructor_t	ng_ksocket_constructor;
@@ -792,6 +796,12 @@ ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	struct sockaddr *sa = NULL;
 	int error;
 
+	/* Avoid reentrantly sending on the socket */
+	if ((priv->flags & KSF_SENDING) != 0) {
+		NG_FREE_DATA(m, meta);
+		return (EDEADLK);
+	}
+
 	/* If any meta info, look for peer socket address */
 	if (meta != NULL) {
 		struct meta_field_header *field;
@@ -810,7 +820,9 @@ ng_ksocket_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 	}
 
 	/* Send packet */
+	priv->flags |= KSF_SENDING;
 	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, sa, 0, m, 0, 0, p);
+	priv->flags &= ~KSF_SENDING;
 
 	/* Clean up and exit */
 	NG_FREE_META(meta);
