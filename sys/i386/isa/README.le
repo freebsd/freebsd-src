@@ -1,4 +1,4 @@
-$Id$
+$Id: README.le,v 1.4 1997/02/22 09:35:49 peter Exp $
 
 ----------------
 
@@ -38,7 +38,7 @@ i386/conf/files.i386 file.
 After that is done you will need to edit your config file (in
 i386/conf) and a line similar to:
 
-device le0 at isa? port 0x300 net irq 5 iomem 0xd0000 vector le_intr
+device le0 at isa? port 0x300 net irq 5 iomem 0xd0000
 
 [The above line assumes the board is still at the factory defaults.]
 Change the port, irq, and iomem value if needed to your configuration.
