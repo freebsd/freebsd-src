@@ -1880,7 +1880,7 @@ pmap_remove_all(vm_page_t m)
 	 * pages!
 	 */
 	if (!pmap_initialized || (m->flags & PG_FICTITIOUS)) {
-		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%lx", VM_PAGE_TO_PHSY(m));
+		panic("pmap_page_protect: illegal for unmanaged page, va: 0x%lx", VM_PAGE_TO_PHYS(m));
 	}
 #endif
 
