@@ -225,7 +225,7 @@ union mterrstat {
 #define	MTIOCGETEOTMODEL	_IOR('m', 8, u_int32_t)
 
 #ifndef _KERNEL
-#define	DEFTAPE	"/dev/nrsa0"
+#define	DEFTAPE	"/dev/nsa0"
 #endif
 
 #ifdef	_KERNEL
