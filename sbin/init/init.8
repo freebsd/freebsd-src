@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)init.8	8.3 (Berkeley) 4/18/94
-.\"	$Id: init.8,v 1.11 1998/06/19 08:34:52 jkoshy Exp $
+.\"	$Id: init.8,v 1.12 1998/07/06 06:56:07 charnier Exp $
 .\"
 .Dd April 18, 1994
 .Dt INIT 8
@@ -113,6 +113,13 @@ This level precludes tampering with filesystems by unmounting them,
 but also inhibits running
 .Xr newfs 8
 while the system is multi-user.
+.It Ic 3
+Network secure mode \- same as highly secure mode, plus
+IP packet filter rules (see
+.Xr ipfw 8
+and
+.Xr ipfirewall 4 )
+can not be changed and dummynet configuration can not be adjusted.
 .El
 .Pp
 If the security level is initially -1, then
@@ -300,10 +307,12 @@ system shutdown commands
 .Xr kill 1 ,
 .Xr login 1 ,
 .Xr sh 1 ,
+.Xr ipfirewall 4 ,
 .Xr ttys 5 ,
 .Xr crash 8 ,
 .Xr getty 8 ,
 .Xr halt 8 ,
+.Xr ipfw 8 ,
 .Xr rc 8 ,
 .Xr reboot 8 ,
 .Xr shutdown 8 ,
@@ -318,7 +327,7 @@ Systems without
 .Xr sysctl
 behave as though they have security level \-1.
 .Pp
-Setting the security level to 2 too early in the boot sequence can 
+Setting the security level above 1 too early in the boot sequence can 
 prevent 
 .Xr fsck 8 
 from repairing inconsistent filesystems.  The 
