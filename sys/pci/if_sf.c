@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Adaptec AIC-6915 "Starfire" PCI fast ethernet driver for FreeBSD.
  * Programming manual is available from:
- * ftp.adaptec.com:/pub/BBS/userguides/aic6915_pg.pdf.
+ * http://download.adaptec.com/pdfs/user_guides/aic6915_pg.pdf.
  *
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Department of Electical Engineering
