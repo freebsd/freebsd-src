@@ -33,7 +33,6 @@
  * SUCH DAMAGE.
  */
 #include <dev/isp/isp_freebsd.h>
-#include <sys/malloc.h>
 
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
 static void isp_poll(struct cam_sim *);

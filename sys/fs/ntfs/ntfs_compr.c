@@ -36,7 +36,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/file.h>
-#include <sys/malloc.h>
 
 #if defined(__NetBSD__)
 #include <miscfs/specfs/specdev.h>

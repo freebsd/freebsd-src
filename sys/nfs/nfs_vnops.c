@@ -61,7 +61,6 @@
 #include <sys/lockf.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
-#include <sys/conf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
