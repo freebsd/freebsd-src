@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrstat.c,v 2.0.0.6 94/08/10 19:36:32 wolf Exp $
+**  $Id: ncrstat.c,v 2.0.0.7 94/08/27 20:13:42 wolf Exp $
 **
 **  Utility for NCR 53C810 device driver.
 **
@@ -45,6 +45,10 @@
 **-------------------------------------------------------------------------
 **
 **  $Log:	ncrstat.c,v $
+**  Revision 2.0.0.7  94/08/27  20:13:42  wolf
+**  New: "-sflags=xxx"
+**  flags=1: command tracing.
+**  
 **  Revision 2.0.0.6  94/08/10  19:36:32  wolf
 **  Multiple "-s" options per line supported.
 **  Ported to NetBSD.
@@ -764,6 +768,14 @@ void do_set (char * arg)
 		if (t<=SCSI_NCR_MAX_TAGS) {
 			user.data = t;
 			user.cmd  = UC_SETTAGS;
+		};
+	};
+
+	if (!strncmp(arg, "flags=", 6)) {
+		u_char t = strtoul (arg+6, (char**)0, 0);
+		if (t<=0xff) {
+			user.data = t;
+			user.cmd  = UC_SETFLAG;
 		};
 	};
 
