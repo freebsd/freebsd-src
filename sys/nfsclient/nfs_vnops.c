@@ -112,7 +112,6 @@ static	int	nfs_access __P((struct vop_access_args *));
 static	int	nfs_getattr __P((struct vop_getattr_args *));
 static	int	nfs_setattr __P((struct vop_setattr_args *));
 static	int	nfs_read __P((struct vop_read_args *));
-static	int	nfs_mmap __P((struct vop_mmap_args *));
 static	int	nfs_fsync __P((struct vop_fsync_args *));
 static	int	nfs_remove __P((struct vop_remove_args *));
 static	int	nfs_link __P((struct vop_link_args *));
@@ -155,7 +154,6 @@ static struct vnodeopv_entry_desc nfsv2_vnodeop_entries[] = {
 	{ &vop_lookup_desc,		(vop_t *) nfs_lookup },
 	{ &vop_mkdir_desc,		(vop_t *) nfs_mkdir },
 	{ &vop_mknod_desc,		(vop_t *) nfs_mknod },
-	{ &vop_mmap_desc,		(vop_t *) nfs_mmap },
 	{ &vop_open_desc,		(vop_t *) nfs_open },
 	{ &vop_poll_desc,		(vop_t *) nfs_poll },
 	{ &vop_print_desc,		(vop_t *) nfs_print },
@@ -2744,25 +2742,6 @@ nfs_strategy(ap)
 		nfs_asyncio(bp, NOCRED, p))
 		error = nfs_doio(bp, cr, p);
 	return (error);
-}
-
-/*
- * Mmap a file
- *
- * NB Currently unsupported.
- */
-/* ARGSUSED */
-static int
-nfs_mmap(ap)
-	struct vop_mmap_args /* {
-		struct vnode *a_vp;
-		int  a_fflags;
-		struct ucred *a_cred;
-		struct proc *a_p;
-	} */ *ap;
-{
-
-	return (EINVAL);
 }
 
 /*

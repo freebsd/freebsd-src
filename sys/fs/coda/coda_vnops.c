@@ -119,7 +119,6 @@ struct vnodeopv_entry_desc coda_vnodeop_entries[] = {
     { &vop_read_desc, coda_read },		/* read */
     { &vop_write_desc, coda_write },		/* write */
     { &vop_ioctl_desc, coda_ioctl },		/* ioctl */
-    { &vop_mmap_desc, coda_vop_error },		/* mmap */
     { &vop_fsync_desc, coda_fsync },		/* fsync */
     { &vop_remove_desc, coda_remove },		/* remove */
     { &vop_link_desc, coda_link },		/* link */
