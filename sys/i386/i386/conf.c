@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.14 1993/11/03 18:07:32 nate Exp $
+ *	$Id: conf.c,v 1.15 1993/11/18 05:01:51 rgrimes Exp $
  */
 
 #include "param.h"
@@ -188,7 +188,7 @@ extern	struct tty pccons;
 
 int	cttyopen(), cttyread(), cttywrite(), cttyioctl(), cttyselect();
 
-int 	mmopen(), mmclose(), mmrw();
+int 	mmopen(), mmclose(), mmrw(), memmmap();
 #define	mmselect	seltrue
 
 #include "pty.h"
@@ -393,7 +393,7 @@ struct cdevsw	cdevsw[] =
 	  cttyselect,	enodev,		NULL },
 	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
 	  enodev,	nullop,		nullop,		NULL,	/* memory */
-	  mmselect,	enodev,		NULL },
+	  mmselect,	memmmap,	NULL },
 	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
 	  wdioctl,	enodev,		nullop,		NULL,	/* wd */
 	  seltrue,	enodev,		wdstrategy },
