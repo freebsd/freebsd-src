@@ -1,25 +1,33 @@
-#       $Id: Makefile,v 1.22 1996/08/30 02:13:06 peter Exp $
+#       $Id: Makefile,v 1.23 1996/08/30 18:33:31 ache Exp $
 
+SRCDIR= ${.CURDIR}/../../../contrib/libreadline
+.PATH: ${SRCDIR}
 
-CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER -DHAVE_CONFIG_H \
-	-DHAVE_STDLIB_H=1 -DHAVE_UNISTD_H=1 -DHAVE_STRING_H=1
+SUBDIR= doc
 
 LIB=    readline
 SHLIB_MAJOR= 3
 SHLIB_MINOR= 0
-SRCS+=  readline.c funmap.c keymaps.c vi_mode.c parens.c \
-	   rltty.c complete.c bind.c isearch.c display.c signals.c \
-	   history.c search.c tilde.c xmalloc.c
-HEADERS= history.h readline.h keymaps.h chardefs.h tilde.h
 MAN3=   readline.3
+
+CFLAGS+= -I${.CURDIR} -I${SRCDIR} -DHAVE_CONFIG_H
+
+HISTSRC=  history.c histexpand.c histfile.c histsearch.c
+TILDESRC= tilde.c
+SRCS=     readline.c vi_mode.c funmap.c keymaps.c parens.c search.c \
+	  rltty.c complete.c bind.c isearch.c display.c signals.c \
+	  util.c kill.c undo.c macro.c input.c callback.c terminal.c \
+	  nls.c xmalloc.c \
+	  $(HISTSRC) $(TILDESRC)
+
+INSTALLED_HEADERS= readline.h chardefs.h keymaps.h history.h tilde.h
+
 DPADD+= $(LIBTERMCAP)
 LDADD+= -ltermcap
 
-SUBDIR+= doc
-
 beforeinstall:
-.for i in ${HEADERS}
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
+.for i in ${INSTALLED_HEADERS}
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${SRCDIR}/$i \
 		${DESTDIR}/usr/include/readline
 .endfor
 
