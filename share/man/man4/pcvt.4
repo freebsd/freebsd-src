@@ -464,7 +464,7 @@ Since VGA's
 might have up to eight simultaneously loaded fonts, they can take
 CH_SET4, CH_SET5, CH_SET6, or CH_SET7, too.
 .Pp
-Note that there's a dependence between the font size
+Note that there is a dependence between the font size
 and a possible screen height
 (in character rows),
 depending on the video adaptor used:
@@ -568,7 +568,7 @@ being set to
 .Pp
 .Em VGA color palette interface
 .Pp
-Only on VGA adaptors, there's a color palette register at the output.
+Only on VGA adaptors, there is a color palette register at the output.
 It is responsible for the red, green and blue output voltage provided
 for each of the 256 internal color codes, each lying in the range of
 0 through 63 (with 63 representing the brightest value for a base color).
@@ -598,7 +598,7 @@ struct vgapel {
 .Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGAPCVTID
-returns information if the current compiled in driver is pcvt and it's
+returns information if the current compiled in driver is pcvt and its
 major and minor revision numbers.
 the call is taking a pointer to the
 following structure as argument:
@@ -617,7 +617,7 @@ struct pcvtid {
 .Pp
 .Bl -tag -width 20n -offset indent -compact
 .It VGAPCVTINFO
-returns information if the current compiled in driver is pcvt and it's
+returns information if the current compiled in driver is pcvt and its
 compile time options.
 the call is taking a pointer to the following
 structure as argument:

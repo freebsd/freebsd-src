@@ -48,7 +48,7 @@ Normally,
 .Em PPP
 is implemented as a part of the kernel (e.g., as managed by
 .Xr pppd 8 )
-and it's thus somewhat hard to debug and/or modify its behaviour.
+and it is thus somewhat hard to debug and/or modify its behaviour.
 However, in this implementation
 .Em PPP
 is done as a user process with the help of the
@@ -184,7 +184,7 @@ This mode is equivalent to
 .Fl auto
 mode except that
 .Nm
-will bring the link back up any time it's dropped for any reason.
+will bring the link back up any time it is dropped for any reason.
 .It Fl interactive
 This is a no-op, and gives the same behaviour as if none of the above
 modes have been specified.
@@ -347,7 +347,7 @@ into synchronous mode.
 .It Supports PPP over ISDN.
 If
 .Nm
-is given a raw B-channel i4b device to open as a link, it's able to talk
+is given a raw B-channel i4b device to open as a link, it is able to talk
 to the
 .Xr isdnd 8
 daemon to establish an ISDN connection.
@@ -436,7 +436,7 @@ as the user id that invoked
 .Nm .
 Refer to the
 .Sq ID0
-logging facility if you're interested in what exactly is done as user id
+logging facility if you are interested in what exactly is done as user id
 zero.
 .Sh GETTING STARTED
 When you first run
@@ -447,7 +447,7 @@ you may need to deal with some initial configuration details.
 Your kernel must {include} a tunnel device (the GENERIC kernel includes
 one by default).
 If it does not, or if you require more than one tun
-interface, you'll need to rebuild your kernel with the following line in
+interface, you will need to rebuild your kernel with the following line in
 your kernel configuration file:
 .Pp
 .Dl pseudo-device tun N
@@ -589,7 +589,7 @@ connection, try turning CTS/RTS off with
 .Dq set ctsrts off .
 If you need to do this, check the
 .Dq set accmap
-description below too - you'll probably need to
+description below too - you will probably need to
 .Dq set accmap 000a0000 .
 .Pp
 Usually, parity is set to
@@ -599,7 +599,7 @@ and this is
 default.
 Parity is a rather archaic error checking mechanism that is no
 longer used because modern modems do their own error checking, and most
-link-layer protocols (that's what
+link-layer protocols (that is what
 .Nm
 is) use much more reliable checking mechanisms.
 Parity has a relatively
@@ -663,7 +663,7 @@ PPp ON awfulhak>               # We've authenticated
 PPP ON awfulhak>               # We've agreed IP numbers
 .Ed
 .Pp
-If it does not, it's probable that the peer is waiting for your end to
+If it does not, it is probable that the peer is waiting for your end to
 start negotiating.
 To force
 .Nm
@@ -868,7 +868,7 @@ ppp ON awfulhak> load MyISP
 .Pp
 Note, no action is taken by
 .Nm
-after a section is loaded, whether it's the result of passing a label on
+after a section is loaded, whether it is the result of passing a label on
 the command line or using the
 .Dq load
 command.
@@ -1480,7 +1480,7 @@ Do not forget to send a
 .Dv HUP
 signal to
 .Xr inetd 8
-after you've updated
+after you have updated
 .Pa /etc/inetd.conf .
 Here, we use a label named
 .Dq ppp-in .
@@ -1515,7 +1515,7 @@ To enable PAP, add the following line:
  enable PAP
 .Ed
 .Pp
-You'll also need to create the following entry in
+You will also need to create the following entry in
 .Pa /etc/ppp/ppp.secret :
 .Bd -literal -offset indent
 MyAuthName MyAuthPasswd
@@ -1549,7 +1549,7 @@ ui-gate:
  add 10.0.2.0/24 HISADDR
 .Ed
 .Pp
-Again, if you're enabling PAP, you'll also need this in the
+Again, if you are enabling PAP, you will also need this in the
 .Pa /etc/ppp/ppp.conf
 profile:
 .Bd -literal -offset indent
@@ -1557,7 +1557,7 @@ profile:
  set authkey MyAuthKey
 .Ed
 .Pp
-We're assigning the address of 10.0.4.1 to ui-gate, and the address
+We are assigning the address of 10.0.4.1 to ui-gate, and the address
 10.0.4.2 to awfulhak.
 To open the connection, just type
 .Pp
@@ -1629,7 +1629,7 @@ on the server:
   deny deflate pred1
 .Ed
 .Pp
-ensuring that you've put the requisite entry in
+ensuring that you have put the requisite entry in
 .Pa /etc/ppp/ppp.secret
 (MSCHAPv2 is challenge based, so
 .Xr passwd 5
@@ -1833,7 +1833,7 @@ If no rule in a defined set of rules matches a packet, that packet will
 be discarded (blocked).
 If there are no rules in a given filter, the packet will be permitted.
 .It
-It's possible to filter based on the payload of UDP frames where those
+It is possible to filter based on the payload of UDP frames where those
 frames contain a
 .Em PROTO_IP
 .Em PPP
@@ -1925,7 +1925,7 @@ For IPv4,
 .Nm
 uses IPCP to negotiate IP addresses.
 Each side of the connection
-specifies the IP address that it's willing to use, and if the requested
+specifies the IP address that it is willing to use, and if the requested
 IP address is acceptable then
 .Nm
 returns an ACK to the requester.
@@ -2016,10 +2016,10 @@ The above example means:
 .Pp
 .Bl -bullet -compact
 .It
-I'd like to use 192.244.177.38 as my address if it is possible, but I'll
+I would like to use 192.244.177.38 as my address if it is possible, but I will
 also accept any IP address between 192.244.177.0 and 192.244.177.255.
 .It
-I'd like to make him use 192.244.177.2 as his own address, but I'll also
+I would like to make him use 192.244.177.2 as his own address, but I will also
 permit him to use any IP address between 192.244.176.0 and
 192.244.191.255.
 .It
@@ -2031,7 +2031,7 @@ preferred IP address and will obey the remote peers selection.
 When using zero, no routing table entries will be made until a connection
 is established.
 .It
-192.244.177.2/0 means that I'll accept/permit any IP address but I'll
+192.244.177.2/0 means that I will accept/permit any IP address but I will
 suggest that 192.244.177.2 be used first.
 .El
 .Pp
@@ -2124,7 +2124,7 @@ Expect nothing.
 Send ATZ.
 .It
 Expect OK.
-If that's not received within the 4 second timeout, send ATZ
+If that is not received within the 4 second timeout, send ATZ
 and expect OK.
 .It
 Send ATDTxxxxxxx where xxxxxxx is the next number in the phone list from
@@ -2150,7 +2150,7 @@ This login "chat" string means:
 Set the timeout to 15 seconds.
 .It
 Expect "login:".
-If it's not received, send a carriage return and expect
+If it is not received, send a carriage return and expect
 "login:" again.
 .It
 Send "awfulhak"
@@ -2180,7 +2180,7 @@ logging is enabled, the actual password is not logged;
 is logged instead.
 .Pp
 Login scripts vary greatly between ISPs.
-If you're setting one up for the first time,
+If you are setting one up for the first time,
 .Em ENABLE CHAT LOGGING
 so that you can see if your script is behaving as you expect.
 .It
@@ -2196,7 +2196,7 @@ set speed 115200
 .Pp
 Cuad0 is the first serial port on
 .Fx .
-If you're running
+If you are running
 .Nm
 on
 .Ox ,
@@ -3005,7 +3005,7 @@ the UDP wrapper.
 The UDP frame payload must not be compressed in any way, otherwise
 .Nm
 will not be able to interpret it.
-It's therefore recommended that you
+It is therefore recommended that you
 .Ic disable vj pred1 deflate
 and
 .Ic deny vj pred1 deflate
@@ -3390,7 +3390,7 @@ section is always checked first (even though it is only ever automatically
 loaded at startup).
 .Dq allow users
 commands are cumulative in a given section, but users allowed in any given
-section override users allowed in the default section, so it's possible to
+section override users allowed in the default section, so it is possible to
 allow users access to everything except a given label by specifying default
 users in the
 .Sq default
@@ -3658,7 +3658,7 @@ This is replaced with the peers IP number.
 .It Li HISADDR6
 This is replaced with the peers IPv6 number.
 .It Li INTERFACE
-This is replaced with the name of the interface that's in use.
+This is replaced with the name of the interface that is in use.
 .It Li IPOCTETSIN
 This is replaced with the number of IP bytes received since the connection
 was established.
@@ -3762,7 +3762,7 @@ Clone the specified link, creating one or more new links according to the
 argument(s).
 This command must be used from the
 .Dq link
-command below unless you've only got a single link (in which case that
+command below unless you have only got a single link (in which case that
 link becomes the default).
 Links may be removed using the
 .Dq remove
@@ -3838,8 +3838,8 @@ and is provided for backwards compatibility.
 .It down Op Ar lcp|ccp
 Bring the relevant layer down ungracefully, as if the underlying layer
 had become unavailable.
-It's not considered polite to use this command on
-a Finite State Machine that's in the OPEN state.
+It is not considered polite to use this command on
+a Finite State Machine that is in the OPEN state.
 If no arguments are
 supplied, the entire link is closed (or if no context is given, all links
 are terminated).
@@ -4044,7 +4044,7 @@ IPCP is already open, it will be renegotiated and the network
 interface will be reconfigured.
 .Pp
 It is probably not good practice to re-open the PPP state machines
-like this as it's possible that the peer will not behave correctly.
+like this as it is possible that the peer will not behave correctly.
 It
 .Em is
 however useful as a way of forcing the CCP or VJ dictionaries to be reset.
@@ -4281,7 +4281,7 @@ in the CHAP response packet.
 .Pp
 When configuring
 .Nm
-in this manner, it's expected that the host challenge is a series of ASCII
+in this manner, it is expected that the host challenge is a series of ASCII
 digits or characters.
 An encryption device or Secure ID card is usually
 required to calculate the secret appropriate for the given challenge.
@@ -4319,7 +4319,7 @@ percent or less of the total bundle bandwidth for
 .Ar period
 seconds, a
 .Ar demand-dial
-link will be brought down as long as it's not the last active link.
+link will be brought down as long as it is not the last active link.
 .Pp
 Bundle throughput is measured as the maximum of inbound and outbound
 traffic.
@@ -4469,7 +4469,7 @@ that has been opened:
 .Bl -tag -width XXX -offset XXX
 .It Terminal Devices
 Carrier is checked one second after the login script is complete.
-If it's not set,
+If it is not set,
 .Nm
 assumes that this is because the device does not support carrier (which
 is true for most
@@ -4481,13 +4481,13 @@ As ptys do not support the TIOCMGET ioctl, the tty device will switch all
 carrier detection off when it detects that the device is a pty.
 .It ISDN (i4b) Devices
 Carrier is checked once per second for 6 seconds.
-If it's not set after
+If it is not set after
 the sixth second, the connection attempt is considered to have failed and
 the device is closed.
 Carrier is always required for i4b devices.
 .It PPPoE (netgraph) Devices
 Carrier is checked once per second for 5 seconds.
-If it's not set after
+If it is not set after
 the fifth second, the connection attempt is considered to have failed and
 the device is closed.
 Carrier is always required for PPPoE devices.
@@ -5036,7 +5036,7 @@ This is useful if the peer wants
 to re-establish a link using the same IP number as was previously
 allocated (thus maintaining any existing tcp or udp connections).
 .Pp
-If the peer requests an IP number that's either outside
+If the peer requests an IP number that is either outside
 of this range or is already in use,
 .Nm
 will suggest a random unused IP number from the range.
@@ -5226,7 +5226,7 @@ If any arguments are given,
 .Nm
 will
 .Em insist
-on using MPPE and will close the link if it's rejected by the peer (Note;
+on using MPPE and will close the link if it is rejected by the peer (Note;
 this behaviour can be overridden by a configured RADIUS server).
 .Pp
 The first argument specifies the number of bits that
@@ -5282,7 +5282,7 @@ is specified.
 The default MTU is 1500.
 At negotiation time,
 .Nm
-will accept whatever MRU the peer requests (assuming it's
+will accept whatever MRU the peer requests (assuming it is
 not less than 296 bytes or greater than the assigned maximum).
 If the MTU is set,
 .Nm
@@ -5393,7 +5393,7 @@ as it is not known when the commands in
 .Pa ppp.conf
 are executed.
 .It set radius Op Ar config-file
-This command enables RADIUS support (if it's compiled in).
+This command enables RADIUS support (if it is compiled in).
 .Ar config-file
 refers to the radius client configuration file as described in
 .Xr radius.conf 5 .
@@ -5584,7 +5584,7 @@ encryption.
 .It RAD_MICROSOFT_MS_MPPE_RECV_KEY
 If this
 .Dv RAD_VENDOR_MICROSOFT
-vendor specific attribute is supplied, it's value is used as the master
+vendor specific attribute is supplied, it is value is used as the master
 key for decryption of incoming data.
 When clients are authenticated using
 MSCHAPv2, the RADIUS server MUST provide this attribute if inbound MPPE is
@@ -5592,7 +5592,7 @@ to function.
 .It RAD_MICROSOFT_MS_MPPE_SEND_KEY
 If this
 .Dv RAD_VENDOR_MICROSOFT
-vendor specific attribute is supplied, it's value is used as the master
+vendor specific attribute is supplied, it is value is used as the master
 key for encryption of outgoing data.
 When clients are authenticated using
 MSCHAPv2, the RADIUS server MUST provide this attribute if outbound MPPE is
@@ -5986,7 +5986,7 @@ Use
 .Dq set ?\&
 and
 .Dq show ?\&
-to get online information about what's available.
+to get online information about what is available.
 .It
 The following URLs contain useful information:
 .Bl -bullet -compact
