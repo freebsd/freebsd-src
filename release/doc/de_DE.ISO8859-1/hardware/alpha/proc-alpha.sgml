@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.13 2002/11/23 18:12:30 ue Exp $
-  basiert auf: 1.13.2.27
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.14 2002/12/07 22:49:40 ue Exp $
+  basiert auf: 1.13.2.28
 -->
 
 <sect1>
@@ -1963,7 +1963,7 @@ cpu             EV5</programlisting>
         wenn man die folgende Zeile in die Konfigurationsdatei
         f&uuml;r den angepa&szlig;ten Kernel einf&uuml;gt:</para>
 
-      <programlisting>device pcm0 at isa? port 0x530 irq 9 drq 0 flags 0x10011</programlisting>
+      <programlisting>device pcm0 at isa? port 0x530 irq 10 drq 0 flags 0x10011</programlisting>
 
       <para>Die Modelle AlphaStation 200 und 250 verf&uuml;gen
         &uuml;ber einen automatischen SCSI-Terminator.  Sobald Sie

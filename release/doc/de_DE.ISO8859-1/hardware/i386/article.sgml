@@ -1,7 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/article.sgml,v 1.2.2.3 2002/10/13 09:34:06 ue Exp $
-  basiert auf: 1.1.2.3
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/i386/article.sgml,v 1.2.2.4 2002/12/07 22:25:29 ue Exp $
+  basiert auf: 1.1.2.4
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -18,7 +18,7 @@
 <!-- Architecture-specific customization -->
 
 <!ENTITY arch "i386">
-<!ENTITY arch.print "IA-32">
+<!ENTITY arch.print "i386">
 
 ]>
 
