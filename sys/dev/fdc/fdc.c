@@ -53,6 +53,9 @@
 #endif
 #include "fd.h"
 
+/* Flags */
+#define FT_PROBE		0x1
+
 #if NFDC > 0
 
 #include <sys/param.h>
@@ -578,7 +581,7 @@ fdattach(struct isa_device *dev)
 #if NFT > 0
 			/* If BIOS says no floppy, or > 2nd device */
 			/* Probe for and attach a floppy tape.     */
-			if (ftattach(dev, fdup))
+			if ((dev->id_flags & FT_PROBE) && ftattach(dev, fdup))
 				continue;
 			if (fdsu < DRVS_PER_CTLR) 
 				fd->type = NO_TYPE;
