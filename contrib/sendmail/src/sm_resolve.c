@@ -233,6 +233,7 @@ parse_dns_reply(data, len)
 			dns_free_data(r);
 			return NULL;
 		}
+		memset(*rr, 0, sizeof(**rr));
 		(*rr)->rr_domain = sm_strdup(host);
 		if ((*rr)->rr_domain == NULL)
 		{
