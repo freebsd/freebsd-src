@@ -195,11 +195,16 @@ doit(struct sockaddr *fromp)
 	int one = 1;
 	const char *cp, *errorstr;
 	char sig, buf[BUFSIZ];
-	char cmdbuf[NCARGS+1], luser[16], ruser[16];
+	char *cmdbuf, luser[16], ruser[16];
 	char rhost[2 * MAXHOSTNAMELEN + 1];
 	char numericname[INET6_ADDRSTRLEN];
 	int af, srcport;
+	int maxcmdlen;
 	login_cap_t *lc;
+
+	maxcmdlen = (int)sysconf(_SC_ARG_MAX);
+	if (maxcmdlen <= 0 || (cmdbuf = malloc(maxcmdlen)) == NULL)
+		exit(1);
 
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
@@ -301,7 +306,7 @@ doit(struct sockaddr *fromp)
 	(void) alarm(60);
 	getstr(ruser, sizeof(ruser), "ruser");
 	getstr(luser, sizeof(luser), "luser");
-	getstr(cmdbuf, sizeof(cmdbuf), "command");
+	getstr(cmdbuf, maxcmdlen, "command");
 	(void) alarm(0);
 
 	pam_err = pam_start("rsh", luser, &pamc, &pamh);

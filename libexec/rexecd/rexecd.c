@@ -132,7 +132,8 @@ main(int argc, char *argv[])
 static void
 doit(struct sockaddr *fromp)
 {
-	char cmdbuf[NCARGS+1], *cp;
+	char *cmdbuf, *cp;
+	int maxcmdlen;
 	char user[16], pass[16];
 	struct passwd *pwd;
 	int fd, r, sd;
@@ -141,6 +142,10 @@ doit(struct sockaddr *fromp)
 	fd_set rfds, fds;
 	char buf[BUFSIZ], sig;
 	int one = 1;
+
+	maxcmdlen = (int)sysconf(_SC_ARG_MAX);
+	if (maxcmdlen <= 0 || (cmdbuf = malloc(maxcmdlen)) == NULL)
+		exit(1);
 
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
@@ -182,7 +187,7 @@ doit(struct sockaddr *fromp)
 	}
 	getstr(user, sizeof(user), "username");
 	getstr(pass, sizeof(pass), "password");
-	getstr(cmdbuf, sizeof(cmdbuf), "command");
+	getstr(cmdbuf, maxcmdlen, "command");
 	(void) alarm(0);
 
 	if ((pwd = getpwnam(user))  == NULL || (pwd->pw_uid = 0 && no_uid_0) ||
