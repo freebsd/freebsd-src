@@ -187,6 +187,7 @@ tcp_stats(off, name)
 		"\t\t%d data packet%s (%d byte%s)\n");
 	p2(tcps_sndrexmitpack, tcps_sndrexmitbyte,
 		"\t\t%d data packet%s (%d byte%s) retransmitted\n");
+	p(tcps_mturesent, "\t\t%d resend%s initiated by MTU discovery\n");
 	p2(tcps_sndacks, tcps_delack,
 		"\t\t%d ack-only packet%s (%d delayed)\n");
 	p(tcps_sndurg, "\t\t%d URG only packet%s\n");
