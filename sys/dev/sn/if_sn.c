@@ -165,6 +165,7 @@ sn_attach(device_t dev)
 	int             rev;
 	uint16_t        address;
 	int		j;
+	int		err;
 
 	sc->dev = dev;
 	sn_activate(dev);
@@ -234,6 +235,16 @@ sn_attach(device_t dev)
 		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDR_LEN);
 	}
 
+	/*
+	 * Activate the interrupt so we can get card interrupts.  This
+	 * needs to be done last so that we don't have/hold the lock
+	 * during startup to avoid LORs in the network layer.
+	 */
+	if ((err = bus_setup_intr(dev, sc->irq_res,
+	    INTR_TYPE_NET | INTR_MPSAFE, sn_intr, sc, &sc->intrhand)) != 0) {
+		sn_detach(dev);
+		return err;
+	}
 	return 0;
 }
 
@@ -1223,7 +1234,6 @@ int
 sn_activate(device_t dev)
 {
 	struct sn_softc *sc = device_get_softc(dev);
-	int err;
 
 	sc->port_rid = 0;
 	sc->port_res = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->port_rid,
@@ -1243,12 +1253,6 @@ sn_activate(device_t dev)
 		sn_deactivate(dev);
 		return ENOMEM;
 	}
-	if ((err = bus_setup_intr(dev, sc->irq_res,
-	    INTR_TYPE_NET | INTR_MPSAFE, sn_intr, sc, &sc->intrhand)) != 0) {
-		sn_deactivate(dev);
-		return err;
-	}
-	
 	sc->bst = rman_get_bustag(sc->port_res);
 	sc->bsh = rman_get_bushandle(sc->port_res);
 	return (0);
