@@ -84,6 +84,7 @@ _pthread_setschedparam(pthread_t pthread, int policy,
 			else
 				break;
 		} else {
+			mtx = NULL;
 			break;
 		}
 	} while (1);
