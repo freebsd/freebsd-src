@@ -31,10 +31,8 @@
  * ------+---------+---------+---------+---------+---------+---------+---------*
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
+__FBSDID("$FreeBSD$");
 
 /*
  * ctlinfo - This collection of routines will know everything there is to

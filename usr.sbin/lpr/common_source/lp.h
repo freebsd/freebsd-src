@@ -253,7 +253,7 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 #define	CMD_SHOWQ_LONG	'\4'
 #define	CMD_RMJOB	'\5'
 
-#include <sys/cdefs.h>
+#include "lp.cdefs.h"		/* A cross-platform version of <sys/cdefs.h> */
 
 __BEGIN_DECLS
 struct	 dirent;
