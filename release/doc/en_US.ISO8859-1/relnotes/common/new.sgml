@@ -243,9 +243,14 @@
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
 
-      <para arch="i386">PCI interrupts are always routed on i386 UP
-	machines, which may improve the usability of some PCI devices
-	(particularly on laptops).</para>
+      <para arch="i386">Large changes have been made to the i386
+	machine-dependent code to improve interrupt routing and
+	handling, as well as SMP support.  Two major user-visible
+	changes are that SMP kernels can run on UP systems and that
+	SMP functionality is now enabled by default in the
+	<filename>GENERIC</filename> kernel.  Also, the
+	<literal>options APIC_IO</literal> kernel option has been
+	replaced by <literal>device apic</literal>.</para>
 
       <para arch="i386">An integer overflow that could cause kernel
         panics on PAE machines of certain large memory sizes has been
@@ -425,12 +430,16 @@
         Applications using this API have been updated
         accordingly.</para>
 
+      <para>Support for the source address selection part of RFC 3484
+	has been added.  The &man.ip6addrctl.8; utility can be used to
+	configure the address selection policy.</para>
+
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para>The &man.amr.4; driver now has system crashdump support.</para>
+      <para>The &man.amr.4; driver now has system crashdump support. &merged;</para>
 
       <para>A major rework of the &man.ata.4; driver has been
 	committed.  One of the more notable changes is that the
@@ -476,10 +485,11 @@
       <title>File Systems</title>
 
       <para>Multi-byte character conversion with the cd9660, msdosfs,
-	and ntfs filesystems is now supported by including the
+	ntfs, and udf filesystems is now supported by including the
 	<literal>CD9660_ICONV</literal>,
-	<literal>MSDOSFS_ICONV</literal>, and
-	<literal>NTFS_ICONV</literal> kernel options,
+	<literal>MSDOSFS_ICONV</literal>,
+	<literal>NTFS_ICONV</literal>, and
+	<literal>UDF_ICONV</literal> kernel options,
 	respectively.</para>
 
       <para>Some off-by-one errors in the smbfs that prevented it from
@@ -525,6 +535,10 @@
       polling interval can be controlled with the <option>-i</option>
       option.</para>
 
+    <para>The default mode for the <filename>lost+found</filename>
+      directory of &man.fsck.8; is now <literal>0700</literal> instead
+      of <literal>01777</literal>. &merged;</para>
+
     <para>The &man.ffsinfo.8; utility has been updated to understand
       UFS2 filesystems and has been re-enabled.</para>
 
@@ -548,7 +562,7 @@
       &man.natd.8;, and &man.ppp.8; now support Cisco Skinny Station protocol,
       which is the protocol used by Cisco IP phones to talk to Cisco Call
       Managers.  Note that currently having the Call Manager behind
-      the NAT gateway is not supported.</para>
+      the NAT gateway is not supported. &merged;</para>
 
     <para>The <filename>libcipher</filename> DES cryptography library
       has been removed.  All of its functionality is provided by the
@@ -668,7 +682,7 @@
       to 8.3.6.</para>
 
     <para><application>GCC</application> has been updated from 3.2.2 to
-      3.3.1-release.
+      a 3.3.3 post-release snapshot from 6 November 2003.
 
       <note>
         <para>Previous versions of <application>GCC</application>
@@ -703,7 +717,7 @@
       updated from 3.0.1rc11 to 3.0.1rc12.</para>
 
     <para><application>lukemftp</application> has been updated from
-      1.6beta2 to a 30 June 2003 snapshot from NetBSD.</para>
+      1.6beta2 to a 11 November 2003 snapshot from NetBSD.</para>
 
     <para><application>OpenPAM</application> has been updated from the
       <quote>Dianthus</quote> release to the
