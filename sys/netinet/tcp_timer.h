@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.h,v 1.7 1995/11/14 20:34:45 phk Exp $
+ *	$Id: tcp_timer.h,v 1.8 1996/01/30 22:58:29 mpp Exp $
  */
 
 #ifndef _NETINET_TCP_TIMER_H_
@@ -90,6 +90,7 @@
 #define	TCPTV_MSL	( 30*PR_SLOWHZ)		/* max seg lifetime (hah!) */
 #define	TCPTV_SRTTBASE	0			/* base roundtrip time;
 						   if 0, no idea yet */
+#define	TCPTV_RTOBASE	(  3*PR_SLOWHZ)		/* assumed RTO if no info */
 #define	TCPTV_SRTTDFLT	(  3*PR_SLOWHZ)		/* assumed RTT if no info */
 
 #define	TCPTV_PERSMIN	(  5*PR_SLOWHZ)		/* retransmit persistence */

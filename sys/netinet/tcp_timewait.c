@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.28 1996/03/27 18:23:16 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.29 1996/06/05 16:57:37 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -266,15 +266,13 @@ tcp_newtcpcb(inp)
 	tp->t_inpcb = inp;
 	/*
 	 * Init srtt to TCPTV_SRTTBASE (0), so we can tell that we have no
-	 * rtt estimate.  Set rttvar so that srtt + 2 * rttvar gives
+	 * rtt estimate.  Set rttvar so that srtt + 4 * rttvar gives
 	 * reasonable initial retransmit time.
 	 */
 	tp->t_srtt = TCPTV_SRTTBASE;
-	tp->t_rttvar = tcp_rttdflt * PR_SLOWHZ << TCP_RTTVAR_SHIFT;
+	tp->t_rttvar = ((TCPTV_RTOBASE - TCPTV_SRTTBASE) << TCP_RTTVAR_SHIFT) / 4;
 	tp->t_rttmin = TCPTV_MIN;
-	TCPT_RANGESET(tp->t_rxtcur,
-	    ((TCPTV_SRTTBASE >> 2) + (TCPTV_SRTTDFLT << 2)) >> 1,
-	    TCPTV_MIN, TCPTV_REXMTMAX);
+	tp->t_rxtcur = TCPTV_RTOBASE;
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	inp->inp_ip.ip_ttl = ip_defttl;
