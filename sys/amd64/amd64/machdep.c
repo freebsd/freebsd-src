@@ -121,6 +121,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <machine/sigframe.h>
 
+/* Sanity check for __curthread() */
+CTASSERT(offsetof(struct pcpu, pc_curthread) == 0);
+
 extern u_int64_t hammer_time(u_int64_t, u_int64_t);
 extern void dblfault_handler(void);
 
