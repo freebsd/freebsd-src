@@ -7,30 +7,35 @@
  */
 
 #include "includes.h"
-RCSID("$Id: ssh-add.c,v 1.15 1999/12/02 20:05:40 markus Exp $");
+RCSID("$Id: ssh-add.c,v 1.16 2000/04/26 20:56:29 markus Exp $");
+
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
 
 #include "rsa.h"
 #include "ssh.h"
 #include "xmalloc.h"
 #include "authfd.h"
 #include "fingerprint.h"
+#include "key.h"
+#include "authfile.h"
 
 void
 delete_file(AuthenticationConnection *ac, const char *filename)
 {
-	RSA *key;
+	Key *public;
 	char *comment;
 
-	key = RSA_new();
-	if (!load_public_key(filename, key, &comment)) {
+	public = key_new(KEY_RSA);
+	if (!load_public_key(filename, public, &comment)) {
 		printf("Bad key file %s: %s\n", filename, strerror(errno));
 		return;
 	}
-	if (ssh_remove_identity(ac, key))
+	if (ssh_remove_identity(ac, public->rsa))
 		fprintf(stderr, "Identity removed: %s (%s)\n", filename, comment);
 	else
 		fprintf(stderr, "Could not remove identity: %s\n", filename);
-	RSA_free(key);
+	key_free(public);
 	xfree(comment);
 }
 
@@ -85,20 +90,19 @@ ssh_askpass(char *askpass, char *msg)
 void
 add_file(AuthenticationConnection *ac, const char *filename)
 {
-	RSA *key;
-	RSA *public_key;
+	Key *public;
+	Key *private;
 	char *saved_comment, *comment, *askpass = NULL;
 	char buf[1024], msg[1024];
 	int success;
 	int interactive = isatty(STDIN_FILENO);
 
-	key = RSA_new();
-	public_key = RSA_new();
-	if (!load_public_key(filename, public_key, &saved_comment)) {
+	public = key_new(KEY_RSA);
+	if (!load_public_key(filename, public, &saved_comment)) {
 		printf("Bad key file %s: %s\n", filename, strerror(errno));
 		return;
 	}
-	RSA_free(public_key);
+	key_free(public);
 
 	if (!interactive && getenv("DISPLAY")) {
 		if (getenv(SSH_ASKPASS_ENV))
@@ -108,7 +112,8 @@ add_file(AuthenticationConnection *ac, const char *filename)
 	}
 
 	/* At first, try empty passphrase */
-	success = load_private_key(filename, "", key, &comment);
+	private = key_new(KEY_RSA);
+	success = load_private_key(filename, "", private, &comment);
 	if (!success) {
 		printf("Need passphrase for %.200s\n", filename);
 		if (!interactive && askpass == NULL) {
@@ -129,7 +134,7 @@ add_file(AuthenticationConnection *ac, const char *filename)
 				xfree(saved_comment);
 				return;
 			}
-			success = load_private_key(filename, pass, key, &comment);
+			success = load_private_key(filename, pass, private, &comment);
 			memset(pass, 0, strlen(pass));
 			xfree(pass);
 			if (success)
@@ -139,11 +144,11 @@ add_file(AuthenticationConnection *ac, const char *filename)
 	}
 	xfree(saved_comment);
 
-	if (ssh_add_identity(ac, key, comment))
+	if (ssh_add_identity(ac, private->rsa, comment))
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 	else
 		fprintf(stderr, "Could not add identity: %s\n", filename);
-	RSA_free(key);
+	key_free(private);
 	xfree(comment);
 }
 

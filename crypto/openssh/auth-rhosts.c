@@ -1,22 +1,22 @@
 /*
- * 
+ *
  * auth-rhosts.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Fri Mar 17 05:12:18 1995 ylo
- * 
+ *
  * Rhosts authentication.  This file contains code to check whether to admit
  * the login based on rhosts authentication.  This file also processes
  * /etc/hosts.equiv.
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: auth-rhosts.c,v 1.12 1999/12/27 10:46:11 markus Exp $");
+RCSID("$Id: auth-rhosts.c,v 1.13 2000/04/14 10:30:29 markus Exp $");
 
 #include "packet.h"
 #include "ssh.h"
@@ -30,7 +30,7 @@ RCSID("$Id: auth-rhosts.c,v 1.12 1999/12/27 10:46:11 markus Exp $");
  * based on the file, and returns zero otherwise.
  */
 
-int 
+int
 check_rhosts_file(const char *filename, const char *hostname,
 		  const char *ipaddr, const char *client_user,
 		  const char *server_user)
@@ -146,7 +146,7 @@ check_rhosts_file(const char *filename, const char *hostname,
  * /etc/hosts.equiv will be considered (.rhosts and .shosts are ignored).
  */
 
-int 
+int
 auth_rhosts(struct passwd *pw, const char *client_user)
 {
 	extern ServerOptions options;

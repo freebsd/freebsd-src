@@ -1,17 +1,17 @@
 /*
- * 
+ *
  * bufaux.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Wed Mar 29 02:18:23 1995 ylo
- * 
+ *
  */
 
-/* RCSID("$Id: bufaux.h,v 1.4 1999/11/24 19:53:44 markus Exp $"); */
+/* RCSID("$Id: bufaux.h,v 1.6 2000/04/14 10:30:30 markus Exp $"); */
 
 #ifndef BUFAUX_H
 #define BUFAUX_H
@@ -23,9 +23,11 @@
  * by (bits+7)/8 bytes of binary data, msb first.
  */
 void    buffer_put_bignum(Buffer * buffer, BIGNUM * value);
+void    buffer_put_bignum2(Buffer * buffer, BIGNUM * value);
 
 /* Retrieves an BIGNUM from the buffer. */
 int     buffer_get_bignum(Buffer * buffer, BIGNUM * value);
+int	buffer_get_bignum2(Buffer *buffer, BIGNUM * value);
 
 /* Returns an integer from the buffer (4 bytes, msb first). */
 unsigned int buffer_get_int(Buffer * buffer);
@@ -51,5 +53,6 @@ char   *buffer_get_string(Buffer * buffer, unsigned int *length_ptr);
 
 /* Stores and arbitrary binary string in the buffer. */
 void    buffer_put_string(Buffer * buffer, const void *buf, unsigned int len);
+void	buffer_put_cstring(Buffer *buffer, const char *s);
 
 #endif				/* BUFAUX_H */
