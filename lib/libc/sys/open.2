@@ -166,6 +166,13 @@ and calls
 Before returning,
 .Fn open
 enables thread rescheduling.
+.Sh RETURN VALUES
+If successful,
+.Fn open
+returns a non-negative integer, termed a file descriptor.
+It returns -1 on failure, and sets
+.Va errno
+to indicate the error.
 .Sh ERRORS
 The named file is opened unless:
 .Bl -tag -width Er

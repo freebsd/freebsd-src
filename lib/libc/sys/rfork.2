@@ -14,7 +14,7 @@
 .Ft int
 .Fn rfork "int flags"
 .Sh DESCRIPTION
-Forking, vforking or rforking is the only way new processes are created.
+Forking, vforking or rforking are the only ways new processes are created.
 The
 .Fa flags
 argument to
@@ -28,7 +28,7 @@ the open file descriptor table (which, when shared, permits processes
 to open and close files for other processes),
 and open files.
 .Fa Flags
-is the logical OR of some subset of
+is the logical OR of some subset of:
 .Bl -tag -width "RFCNAMEG" -compact -offset indent
 .It RFPROC
 If set a new process is created; otherwise changes affect the
@@ -81,6 +81,16 @@ will sleep, if necessary, until required process resources are available.
 can be implemented as a call to
 .Fn rfork "RFFDG|RFPROC"
 but isn't for backwards compatibility.
+.Sh RETURN VALUES
+Upon successful completion,
+.Fn rfork
+returns a value
+of 0 to the child process and returns the process ID of the child
+process to the parent process.  Otherwise, a value of -1 is returned
+to the parent process, no child process is created, and the global
+variable
+.Va errno
+is set to indicate the error.
 .Sh ERRORS
 .Fn Rfork
 will fail and no child process will be created if:
