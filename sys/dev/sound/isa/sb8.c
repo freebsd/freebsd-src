@@ -1275,6 +1275,10 @@ sbpnp_probe(device_t dev)
     	case 0x68187316: /* ESS1868 */
 		s = "ESS1868";
 		break;
+
+	case 0x69187316: /* ESS1869 */
+		s = "ESS1869";
+		break;
     	}
     	if (s) {
 		device_set_desc(dev, s);
