@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ep.c,v 1.21 1995/03/23 07:31:08 gibbs Exp $
+ *	if_ep.c,v 1.19 1995/01/24 20:53:45 davidg Exp
  */
 
 /*
@@ -35,6 +35,19 @@
  *		 	Andres Vega Garcia 
  *			INRIA - Sophia Antipolis, France
  *			avega@sophia.inria.fr
+ */
+
+/*
+ *  March 28 1995
+ *
+ *  Promiscuous mode added and interrupt logic slightly changed
+ *  to reduce the number of adapter failures. Transceiver select
+ *  logic changed to use value from EEPROM. Autoconfiguration
+ *  features added.
+ *  Done by:
+ *          Serge Babkin
+ *          Chelindbank (Chelyabinsk, Russia)
+ *          babkin@hq.icb.chel.su
  */
 
 #include "ep.h"
@@ -114,7 +127,8 @@ struct ep_softc ep_softc[NEP];
 struct isa_driver epdriver = {
     epprobe,
     epattach,
-    "ep"
+    "ep",
+	0
 };
 
 static struct kern_devconf kdc_ep[NEP] = { {
@@ -139,7 +153,11 @@ ep_registerdev(struct isa_device *id)
 
 int ep_current_tag = EP_LAST_TAG + 1;
 
-int ep_board[EP_MAX_BOARDS + 1];
+struct {
+	int epb_addr;	/* address of this board */
+	char epb_used;	/* was this entry already used for configuring ? */
+	}
+	ep_board[EP_MAX_BOARDS + 1];
 
 static int
 eeprom_rdy(is)
@@ -184,7 +202,8 @@ ep_look_for_board_at(is)
 	     * Once activated, all the registers are mapped in the range
 	     * x000 - x00F, where x is the slot number.
              */
-	    ep_board[neisa++] = j * EP_EISA_START;
+	    ep_board[neisa].epb_used = 0;
+	    ep_board[neisa++].epb_addr = j * EP_EISA_START;
 	}
 	ep_current_tag--;
 
@@ -204,38 +223,61 @@ ep_look_for_board_at(is)
 	    for (j = 0; j < 3; j++)
 		data = get_eeprom_data(id_port, j);
 
-	    ep_board[neisa+nisa++] =
+	    ep_board[neisa+nisa].epb_used = 0;
+	    ep_board[neisa+nisa++].epb_addr =
 		(get_eeprom_data(id_port, EEPROM_ADDR_CFG) & 0x1f) * 0x10 + 0x200;
 	    outb(id_port, ep_current_tag);	/* tags board */
 	    outb(id_port, ACTIVATE_ADAPTER_TO_CONFIG);
 	    ep_current_tag--;
 	}
 
-	ep_board[neisa+nisa] = 0;
+	ep_board[neisa+nisa].epb_addr = 0;
 	if (neisa) {
 	    printf("%d 3C5x9 board(s) on EISA found at", neisa);
-	    for (j = 0; ep_board[j]; j++)
-		if (ep_board[j] >= EP_EISA_START)
-		    printf(" 0x%x", ep_board[j]);
+	    for (j = 0; ep_board[j].epb_addr; j++)
+		if (ep_board[j].epb_addr >= EP_EISA_START)
+		    printf(" 0x%x", ep_board[j].epb_addr);
 	    printf("\n");
 	}
 	if (nisa) {
 	    printf("%d 3C5x9 board(s) on ISA found at", nisa);
-	    for (j = 0; ep_board[j]; j++)
-		if (ep_board[j] < EP_EISA_START)
-		    printf(" 0x%x", ep_board[j]);
+	    for (j = 0; ep_board[j].epb_addr; j++)
+		if (ep_board[j].epb_addr < EP_EISA_START)
+		    printf(" 0x%x", ep_board[j].epb_addr);
 	    printf("\n");
 	}
     }
 
-    for (i = 0; ep_board[i] && ep_board[i] != IS_BASE; i++);
-    if (ep_board[i] == IS_BASE) {
+    /* we have two cases:
+     *
+     *  1. Device was configured with 'port ?'
+     *      In this case we search for the first unused card in list
+     *
+     *  2. Device was configured with 'port xxx'
+     *      In this case we search for the unused card with that address
+     *
+     */
+
+    if(IS_BASE==-1) { /* port? */
+	for (i = 0; ep_board[i].epb_addr && ep_board[i].epb_used; i++);
+	if(ep_board[i].epb_addr==0)
+	    return 0;
+
+	IS_BASE=ep_board[i].epb_addr;
+	ep_board[i].epb_used=1;
+	return 1;
+    } else {
+	for (i=0; ep_board[i].epb_addr && ep_board[i].epb_addr != IS_BASE; i++);
+
+	if( ep_board[i].epb_used || ep_board[i].epb_addr != IS_BASE) 
+	    return 0;
+
 	if (inw(IS_BASE + EP_W0_EEPROM_COMMAND) & EEPROM_TST_MODE)
 	    printf("ep%d: 3c5x9 at 0x%x in test mode. Erase pencil mark!\n",
 		   is->id_unit, IS_BASE);
-	return (1);
+	ep_board[i].epb_used=1;
+	return 1;
     }
-    return (0);
 }
 
 /*
@@ -278,9 +320,19 @@ epprobe(is)
 
     k = get_e(is, EEPROM_RESOURCE_CFG);
     k >>= 12;
-    if (is->id_irq != (1 << ((k == 2) ? 9 : k))) {
-	printf("epprobe: interrupt number %d doesn't match\n",is->id_irq);
-	return (0);
+
+    /* Now we have two cases again:
+     *
+     *  1. Device was configured with 'irq?'
+     *      In this case we use irq read from the board
+     *
+     *  2. Device was configured with 'irq xxx'
+     *      In this case we set up the board to use specified interrupt
+     *
+     */
+
+    if(is->id_irq==0) { /* irq? */
+	is->id_irq= 1 << ( (k==2) ? 9 : k );
     }
 
     if (BASE >= EP_EISA_START) /* we have an EISA board, we allow 32 bits access */
@@ -304,6 +356,7 @@ epattach(is)
     u_short i, j, *p;
     struct ifaddr *ifa;
     struct sockaddr_dl *sdl;
+    int irq;
 
     /* BASE = IS_BASE; */
     sc->ep_io_addr = is->id_iobase;
@@ -312,7 +365,7 @@ epattach(is)
 
     sc->ep_connectors = 0;
     i = inw(IS_BASE + EP_W0_CONFIG_CTRL);
-    j = inw(IS_BASE + EP_W0_ADDRESS_CFG) >> 14;
+    j = inw(IS_BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
     if (i & IS_AUI) {
 	printf("aui");
 	sc->ep_connectors |= AUI;
@@ -344,7 +397,25 @@ epattach(is)
 	GO_WINDOW(2);
 	outw(BASE + EP_W2_ADDR_0 + (i * 2), ntohs(p[i]));
     }
-    printf(" address %s\n", ether_sprintf(sc->arpcom.ac_enaddr));
+    printf(" address %s", ether_sprintf(sc->arpcom.ac_enaddr));
+
+    /*
+     * Write IRQ value to board
+     */
+
+    i=is->id_irq;
+    if(i==0) {
+	printf(" irq STRANGE\n");
+	return 0;
+	}
+
+    for(irq=0; !(i & 1) && irq<16 ; i>>=1, irq++);
+
+    if(irq==9)
+	irq=2;
+    printf(" irq %d\n",irq);
+    GO_WINDOW(0);
+    outw(BASE + EP_W0_RESOURCE_CFG, SET_IRQ(irq));
 
     ifp->if_unit = is->id_unit;
     ifp->if_name = "ep";
@@ -418,7 +489,7 @@ epinit(unit)
 {
     register struct ep_softc *sc = &ep_softc[unit];
     register struct ifnet *ifp = &sc->arpcom.ac_if;
-    int s, i;
+    int s, i, j;
 
     if (ifp->if_addrlist == (struct ifaddr *) 0)
 	return;
@@ -426,6 +497,10 @@ epinit(unit)
     s = splimp();
     while (inw(BASE + EP_STATUS) & S_COMMAND_IN_PROGRESS);
 
+    GO_WINDOW(0);
+    outw(BASE + EP_COMMAND, STOP_TRANSCEIVER);
+    GO_WINDOW(4);
+    outw(BASE + EP_W4_MEDIA_TYPE, DISABLE_UTP);
     GO_WINDOW(0);
 
     /* Disable the card */
@@ -455,39 +530,68 @@ epinit(unit)
 
     outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS);
 
-	if(ep_ftst(F_PROMISC))
+	if(ifp->if_flags & IFF_PROMISC)
 		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 		 FIL_GROUP | FIL_BRDCST | FIL_ALL);
 	else
 		outw(BASE + EP_COMMAND, SET_RX_FILTER | FIL_INDIVIDUAL |
 		 FIL_GROUP | FIL_BRDCST);
 
-	/*
-	 * you can `ifconfig ep0 (bnc|aui)' to get the following
-	 * behaviour:
-	 *	bnc	disable AUI/UTP. enable BNC.
-	 *	aui	disable BNC. enable AUI. if the card has a UTP
-	 *		connector, that is enabled too. not sure, but it
-	 * 		seems you have to be careful to not plug things
-	 *		into both AUI & UTP.
-	 */
-#if defined(__NetBSD__)
-    if (!(ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & BNC)) {
-#else
-    if (!(ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & BNC)) {
-#endif
+	 /*
+	  * S.B.
+	  *
+	  * Now behavior was slightly changed:
+	  *
+	  * if any of flags link[0-2] is used and its connector is
+	  * physically present the following connectors are used:
+	  *
+	  *   link0 - AUI * highest precedence
+	  *   link1 - BNC
+	  *   link2 - UTP * lowest precedence
+	  *
+	  * If none of them is specified then
+	  * connector specified in the EEPROM is used
+	  * (if present on card or AUI if not).
+	  *
+	  */
+
+    if(ifp->if_flags & IFF_LINK0 && sc->ep_connectors & AUI) {
+	/* nothing */
+    } else if(ifp->if_flags & IFF_LINK1 && sc->ep_connectors & BNC) {
 	outw(BASE + EP_COMMAND, START_TRANSCEIVER);
 	DELAY(1000);
-    }
-#if defined(__NetBSD__)
-    if ((ifp->if_flags & IFF_LINK0) && (sc->ep_connectors & UTP)) {
-#else
-    if ((ifp->if_flags & IFF_ALTPHYS) && (sc->ep_connectors & UTP)) {
-#endif
+    } else if(ifp->if_flags & IFF_LINK2 && sc->ep_connectors & UTP) {
 	GO_WINDOW(4);
 	outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
 	GO_WINDOW(1);
+    } else {
+	GO_WINDOW(0);
+	j = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
+	GO_WINDOW(1);
+	switch(j) {
+	    case ACF_CONNECTOR_UTP:
+		if(sc->ep_connectors & UTP) {
+		    GO_WINDOW(4);
+		    outw(BASE + EP_W4_MEDIA_TYPE, ENABLE_UTP);
+		    GO_WINDOW(1);
+		}
+		break;
+	    case ACF_CONNECTOR_BNC:
+		if(sc->ep_connectors & BNC) {
+		    outw(BASE + EP_COMMAND, START_TRANSCEIVER);
+		    DELAY(1000);
+		}
+		break;
+	    case ACF_CONNECTOR_AUI:
+		/* nothing to do */
+		break;
+	    default:
+		printf("ep%d: strange connector type in EEPROM: assuming AUI\n",
+		    unit);
+		break;
+	}
     }
+
     outw(BASE + EP_COMMAND, RX_ENABLE);
     outw(BASE + EP_COMMAND, TX_ENABLE);
 
@@ -654,16 +758,16 @@ epintr(unit)
 rescan:
 
     while ((status = inw(BASE + EP_STATUS)) & S_5_INTS) {
+
+	/* first acknowledge all interrupt sources */
+	outw(BASE + EP_COMMAND, ACK_INTR | (status & S_MASK));
+
 	if (status & (S_RX_COMPLETE | S_RX_EARLY)) {
-	    /* we just need ACK for RX_EARLY */
-	    if (status & S_RX_EARLY)
-		outw(BASE + EP_COMMAND, C_RX_EARLY);
 	    epread(sc);
 	    continue;
 	}
 	if (status & S_TX_AVAIL) {
 	    /* we need ACK */
-	    outw(BASE + EP_COMMAND, C_TX_AVAIL);
 	    sc->arpcom.ac_if.if_flags &= ~IFF_OACTIVE;
 	    epstart(&sc->arpcom.ac_if);
 	}
@@ -722,8 +826,6 @@ rescan:
 	    }			/* while */
 	}			/* end TX_COMPLETE */
     }
-    /* re-enable ints */
-    /* outw(BASE + EP_COMMAND, SET_INTR_MASK | S_5_INTS); */
 
     outw(BASE + EP_COMMAND, C_INTR_LATCH);	/* ACK int Latch */
 
@@ -1025,7 +1127,14 @@ epioctl(ifp, cmd, data)
 	    epstop(ifp->if_unit);
 	    epmbufempty(sc);
 	    break;
+	} else {
+	    /* reinitialize card on any parameter change */
+	    epinit(ifp->if_unit);
+	    break;
 	}
+
+	/* NOTREACHED */
+
 	if (ifp->if_flags & IFF_UP && (ifp->if_flags & IFF_RUNNING) == 0)
 	    epinit(ifp->if_unit);
 
