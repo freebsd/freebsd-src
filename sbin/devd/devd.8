@@ -47,7 +47,7 @@ Enable debugging messages and run in the foreground instead of
 becoming a daemon.
 .El
 .Sh IMPLEMENTATION NOTES
-.Nm 
+.Nm
 is a system daemon that runs in the background all the time.
 Whenever a device is added to or removed from the device tree,
 .Nm
@@ -66,7 +66,7 @@ to use a table to locate and load via
 .Xr kldload 8
 the proper driver for an unrecognized device that is added to the system.
 .Pp
-.Nm 
+.Nm
 hooks into the
 .Xr devctl 4
 device driver.
@@ -74,8 +74,8 @@ This device driver has hooks into the device configuration system.
 When nodes are added or deleted from the tree, this device will
 deliver information about the event to
 .Nm .
-Once 
-.Nm 
+Once
+.Nm
 has parsed the message, it will search its action list for that kind
 of event and perform the action with the highest matching value.
 For most mundane uses, the default handlers are adequate.
@@ -84,8 +84,8 @@ aspect of what happens.
 .Pp
 .Nm
 reads /etc/devd.conf and uses that file to drive the rest of the process.
-While the format of this file is described in 
-.Xr devd.conf 5 
+While the format of this file is described in
+.Xr devd.conf 5
 some basics are covered here.
 In the options section, one can define multiple directories to search
 for config files.
@@ -102,4 +102,4 @@ config files.
 .An M. Warner Losh
 .Sh BUGS
 devd currently always runs "/etc/devd-generic $device $startstop" for
-all device events, reguardless of what the config file says to do.
+all device events, regardless of what the config file says to do.

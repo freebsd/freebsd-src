@@ -93,10 +93,10 @@ be rewritten to make use of it.
 The
 .Nm
 functions were mostly imported from
-.Nx 
+.Nx
 and it is intended that they remain synced between the
 two projects. With that in mind there are several variable
-defenitions that can help in this regard. They are:
+definitions that can help in this regard. They are:
 .Bl -tag -width 4n
 .It Ic OSTYPE
 Its value will be either
@@ -243,7 +243,7 @@ log it to the system log using
 .Xr logger 1 ,
 and
 return to the caller.
-The error message consists of the sript name
+The error message consists of the script name
 (from
 .Sy $0 ) ,
 followed by
@@ -251,7 +251,7 @@ followed by
 and then
 .Ar message .
 This function is intended to be used by developers
-as an aid to debuging scripts. It can be turned on or off
+as an aid to debugging scripts. It can be turned on or off
 by the
 .Xr rc.conf 5
 variable
@@ -296,7 +296,7 @@ The message consists of the script name
 followed by
 .Dq ": INFO: " ,
 and then
-.Ar mesage .
+.Ar message .
 The display of this informational output can be
 turned on or off by the
 .Xr rc.conf 5
@@ -531,7 +531,7 @@ checks and process (non-)existence checks.
 Shell commands to run if running
 .Ar argument Ns Sy _cmd
 or the default method for
-.Ar argument 
+.Ar argument
 returned a zero exit code.
 .It Sy sig_stop
 Signal to send the processes to stop in the default
@@ -618,7 +618,7 @@ Argument provided to
 .Sy run_rc_command ,
 after fast and force processing has been performed.
 .It Sy rc_flags
-Flasg to start the default command with.
+Flags to start the default command with.
 Defaults to
 .Sy ${name}_flags ,
 unless overridden by the environment variable
