@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.14 1996/07/21 09:28:03 phk Exp $ */
+/* $Id: ccd.c,v 1.15 1996/07/23 21:51:13 phk Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -208,10 +208,6 @@ static	void ccdmakedisklabel __P((struct ccd_softc *));
 static	int ccdlock __P((struct ccd_softc *));
 static	void ccdunlock __P((struct ccd_softc *));
 
-#ifdef CCD_DEBUG
-static	void loopdelay __P((void));
-#endif
-
 #ifdef DEBUG
 static	void printiinfo __P((struct ccdiinfo *));
 #endif
@@ -335,6 +331,10 @@ ccdinit(ccd, cpaths, p)
 				printf("ccd%d: can't copy path, error = %d\n",
 				    ccd->ccd_unit, error);
 #endif
+			while (ci > cs->sc_cinfo) {
+				ci--;
+				free(ci->ci_path, M_DEVBUF);
+			}
 			free(cs->sc_cinfo, M_DEVBUF);
 			return (error);
 		}
@@ -351,7 +351,10 @@ ccdinit(ccd, cpaths, p)
 				    ccd->ccd_unit, ci->ci_path,
 				    "error", error);
 #endif
-			free(ci->ci_path, M_DEVBUF);
+			while (ci >= cs->sc_cinfo) {
+				free(ci->ci_path, M_DEVBUF);
+				ci--;
+			}
 			free(cs->sc_cinfo, M_DEVBUF);
 			return (error);
 		}
@@ -367,7 +370,10 @@ ccdinit(ccd, cpaths, p)
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
 				     ccd->ccd_unit, ci->ci_path, error);
 #endif
-			free(ci->ci_path, M_DEVBUF);
+			while (ci >= cs->sc_cinfo) {
+				free(ci->ci_path, M_DEVBUF);
+				ci--;
+			}
 			free(cs->sc_cinfo, M_DEVBUF);
 			return (error);
 		}
@@ -382,7 +388,10 @@ ccdinit(ccd, cpaths, p)
 				printf("ccd%d: %s: incorrect partition type\n",
 				    ccd->ccd_unit, ci->ci_path);
 #endif
-			free(ci->ci_path, M_DEVBUF);
+			while (ci >= cs->sc_cinfo) {
+				free(ci->ci_path, M_DEVBUF);
+				ci--;
+			}
 			free(cs->sc_cinfo, M_DEVBUF);
 			return (EFTYPE);
 		}
@@ -405,7 +414,10 @@ ccdinit(ccd, cpaths, p)
 				printf("ccd%d: %s: size == 0\n",
 				    ccd->ccd_unit, ci->ci_path);
 #endif
-			free(ci->ci_path, M_DEVBUF);
+			while (ci >= cs->sc_cinfo) {
+				free(ci->ci_path, M_DEVBUF);
+				ci--;
+			}
 			free(cs->sc_cinfo, M_DEVBUF);
 			return (ENODEV);
 		}
@@ -427,7 +439,10 @@ ccdinit(ccd, cpaths, p)
 			printf("ccd%d: interleave must be at least %d\n",
 			    ccd->ccd_unit, (maxsecsize / DEV_BSIZE));
 #endif
-		free(ci->ci_path, M_DEVBUF);
+		while (ci >= cs->sc_cinfo) {
+			free(ci->ci_path, M_DEVBUF);
+			ci--;
+		}
 		free(cs->sc_cinfo, M_DEVBUF);
 		return (EINVAL);
 	}
@@ -441,10 +456,18 @@ ccdinit(ccd, cpaths, p)
 		     ci < &cs->sc_cinfo[cs->sc_nccdisks]; ci++)
 			ci->ci_size = minsize;
 		if (ccd->ccd_flags & CCDF_MIRROR) {
+			/*
+			 * Check to see if an even number of components
+			 * have been specified.
+			 */
 			if (cs->sc_nccdisks % 2) {
-				cs->sc_nccdisks--;
-				printf("ccd%d: mirroring requires even number of disks; using %d\n",
-				       ccd->ccd_unit, cs->sc_nccdisks);
+				printf("ccd%d: mirroring requires an even number of disks\n", ccd->ccd_unit );
+				while (ci > cs->sc_cinfo) {
+					ci--;
+					free(ci->ci_path, M_DEVBUF);
+				}
+				free(cs->sc_cinfo, M_DEVBUF);
+				return (EINVAL);
 			}
 			cs->sc_size = (cs->sc_nccdisks/2) * minsize;
 		}
@@ -1007,21 +1030,6 @@ ccdiodone(cbp)
 		ccdintr(&ccd_softc[unit], bp);
 	splx(s);
 }
-
-
-#ifdef CCD_DEBUG
-static void
-loopdelay()
-{
-	int i, j, k, l;
-	printf("I'm now gonna wait for fifteen seconds\n");
-	printf("Press Ctl-Alt-Esc NOW!\n");
-	for (i = 0; i < 1000; i++)
-		for (j = 0; j < 1000; j++)
-			for (k = 0; k < 100; k++)
-				l = i * j * k;
-}
-#endif
 
 int
 ccdioctl(dev, cmd, data, flag, p)
