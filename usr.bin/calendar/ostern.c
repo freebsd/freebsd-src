@@ -35,46 +35,35 @@
 
 /* return year day for Easter */
 
+/*
+ * This code is based on the Calendar FAQ's code for how to calculate
+ * easter is. This is the Gregorian calendar version. They refer to
+ * the Algorithm of Oudin in the "Explanatory Supplement to the
+ * Astronomical Almanac".
+ */
+
 int easter (year)
     int year;            /* 0 ... abcd, NOT since 1900 */
 {
+    int G,	/* Golden number - 1 */
+	C,	/* Century */
+	H,	/* 23 - epact % 30 */
+	I,	/* days from 21 March to Paschal full moon */
+	J,	/* weekday of full moon */
+	L;	/* days from 21 March to Sunday on of before full moon */
 
-    int e_a, e_b, e_c, e_d, e_e,e_f, e_g, e_h, e_i, e_k,
-        e_l, e_m, e_n, e_p, e_q;
+    G = year % 19;
+    C = year / 100;
+    H = (C - C/4 - (8*C+13)/25 + 19*G + 15) % 30;
+    I = H - (H/28)*(1 - (H/28)*(29/(H + 1))*((21 - G)/11));
+    J = (year + year/4 + I + 2 - C + C/4) % 7;
 
-    /* silly, but it works */
-    e_a = year % 19;
-    e_b = year / 100;
-    e_c = year % 100;
+    L = I - J;
 
-    e_d = e_b / 4;
-    e_e = e_b % 4;
-    e_f = (e_b + 8) / 25;
-    e_g = (e_b + 1 - e_f) / 3;
-    e_h = ((19 * e_a) + 15 + e_b - (e_d + e_g)) % 30;
-    e_i = e_c / 4;
-    e_k = e_c % 4;
-    e_l = (32 + 2 * e_e + 2 * e_i - (e_h + e_k)) % 7;
-    e_m = (e_a + 11 * e_h + 22 * e_l) / 451;
-    e_n = (e_h + e_l + 114 - (7 * e_m)) / 31;
-    e_p = (e_h + e_l + 114 - (7 * e_m)) % 31;
-    e_p = e_p + 1;
-
-    e_q = 31 + 28;
-
-    if (e_k == 0 && e_c != 0)
-	e_q += 1;
-
-    if (e_n == 4)
-	e_q += 31;
-
-    e_q += e_p;
-
-#if DEBUG
-    printf("%d %d %d %d %d %d %d %d %d %d %d %d %d %d %d\n", e_a , e_b , e_c , e_d , e_e , e_f , e_g , e_h , e_i , e_k , e_l , e_m , e_n  , e_p , e_q);
-#endif
-
-    return (e_q);
+    if (year % 400 == 0 || (year % 4 == 0 && year % 100 != 0))
+	return 31 + 29 + 21 + L + 7;
+    else
+	return 31 + 28 + 21 + L + 7;
 }
 
 /* return year day for  Easter or easter depending days 
