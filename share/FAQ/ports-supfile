@@ -1,0 +1,7 @@
+ports-editors release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-lang release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-mail release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-net release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-shells release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-utils release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
+ports-x11 release=current host=freefall.cdrom.com hostbase=/home base=/usr prefix=/usr/ports delete old 
