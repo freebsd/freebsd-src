@@ -21,7 +21,7 @@ static const char rcsid[] =
 ** On some ancient hosts, predicates like `isspace(C)' are defined
 ** only if isascii(C) || C == EOF.  Modern hosts obey the C Standard,
 ** which says they are defined only if C == ((unsigned char) C) || C == EOF.
-** Neither the C Standard nor Posix require that `isascii' exist.
+** Neither the C Standard nor POSIX require that `isascii' exist.
 ** For portability, we check both ancient and modern requirements.
 ** If isascii is not defined, the isascii check succeeds trivially.
 */
@@ -500,7 +500,11 @@ _("more than one -l option specified"));
 			case 'm':
 			{
 				void *set = setmode(optarg);
+				if (set == NULL)
+					errx(EXIT_FAILURE,
+_("invalid file mode"));
 				getmode(set, mflag);
+				free(set);
 				break;
 			}
 			case 'p':
