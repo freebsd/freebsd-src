@@ -95,7 +95,7 @@ static int	pcic_activate(device_t dev);
 static void	pcic_intr(void *arg);
 
 static void	pcic_attach_card(struct pcic_handle *);
-static void	pcic_detach_card(struct pcic_handle *, int);
+static void	pcic_detach_card(struct pcic_handle *);
 
 static void	pcic_chip_do_mem_map(struct pcic_handle *, int);
 static void	pcic_chip_do_io_map(struct pcic_handle *, int);
@@ -563,7 +563,7 @@ pcic_event_thread(void *arg)
 			splx(s);
 
 			DEVPRINTF((h->dev, "removal event\n"));
-			pcic_detach_card(h, DETACH_FORCE);
+			pcic_detach_card(h);
 			break;
 
 		default:
@@ -670,7 +670,7 @@ pcic_intr_socket(struct pcic_handle *h)
 			if (h->laststate == PCIC_LASTSTATE_PRESENT) {
 				/* Deactivate the card now. */
 				DEVPRINTF((h->dev, "detaching card\n"));
-				pcic_detach_card(h, DETACH_FORCE);
+				pcic_detach_card(h);
 				DEVPRINTF((h->dev,"enqueing REMOVAL event\n"));
 				pcic_queue_event(h, PCIC_EVENT_REMOVAL);
 			}
@@ -720,14 +720,12 @@ pcic_attach_card(struct pcic_handle *h)
 }
 
 static void
-pcic_detach_card(struct pcic_handle *h, int flags)
+pcic_detach_card(struct pcic_handle *h)
 {
 	if (h->flags & PCIC_FLAG_CARDP) {
 		h->flags &= ~PCIC_FLAG_CARDP;
 		/* call the MI detach function */
-		CARD_DETACH_CARD(h->dev, flags);
-	} else {
-		DPRINTF(("pcic_detach_card: already detached\n"));
+		CARD_DETACH_CARD(h->dev);
 	}
 }
 
