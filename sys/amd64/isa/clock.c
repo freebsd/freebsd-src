@@ -212,6 +212,7 @@ release_timer2()
 static void
 rtcintr(struct clockframe *frame)
 {
+
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
 		if (profprocs != 0) {
 			if (--pscnt == 0)
@@ -295,7 +296,7 @@ DELAY(int n)
 	 * multiplications and divisions to scale the count take a while).
 	 *
 	 * However, if ddb is active then use a fake counter since reading
-	 * the i8254 counter involves acquiring a lock.  ddb must not go
+	 * the i8254 counter involves acquiring a lock.  ddb must not do
 	 * locking for many reasons, but it calls here for at least atkbd
 	 * input.
 	 */
