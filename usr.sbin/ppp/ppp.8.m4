@@ -2217,7 +2217,9 @@ to
 .Pa /etc/ppp/ppp.conf
 (or to
 .Pa /etc/ppp/ppp.linkup
-for setups that don't use -auto mode).
+for setups that don't use
+.Fl auto
+mode).
 .Pp
 This tells
 .Nm
@@ -2958,7 +2960,7 @@ The option can only be enabled if network address translation is enabled
 .Pp
 With this option enabled,
 .Nm
-will pass traffic for old interface addresses through the NAT 
+will pass traffic for old interface addresses through the NAT
 ifdef({LOCALNAT},{engine,},{engine
 (see
 .Xr libalias 3 ) ,})
@@ -3337,7 +3339,7 @@ for a description of what an
 is.
 })dnl
 .Pp
-It should be noted under what circumstances an aliasing link is 
+It should be noted under what circumstances an aliasing link is
 ifdef({LOCALNAT},{created.},{created by
 .Xr libalias 3 .})
 It may be necessary to further protect your network from outside
@@ -3467,7 +3469,7 @@ network.
 .Pp
 The target address may be set to
 .Dq MYADDR ,
-in which case 
+in which case
 ifdef({LOCALNAT},{all packets will be redirected},
 {libalias will redirect all packets})
 to the interface address.
