@@ -1,4 +1,4 @@
-# @(#)africa	7.5
+# @(#)africa	7.6
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -52,6 +52,10 @@
 #	Use `_' to represent a space.
 #	Omit `.' from abbreviations in names, e.g. prefer `St_Helena'
 #		to `St._Helena'.
+#
+# We typically use traditional English time zone abbreviations,
+# and assume that applications translate them to other languages
+# as part of the normal localization process.
 #
 # I made up the following time zone abbreviations; corrections are welcome!
 #		LMT	Local Mean Time
