@@ -3644,7 +3644,7 @@ retry:
 			vm_page_unlock_queues();
 			return(-1);
 		}
-		pa = trunc_page(pmap_extract(pmap, (vm_offset_t) addr));
+		pa = pmap_extract(pmap, (vm_offset_t)addr);
 		if (pa == 0) {
 			printf("vmapbuf: warning, race against user address during I/O");
 			goto retry;
