@@ -218,11 +218,26 @@ linkit(existing, new, type)
 			return (FAIL);
 		}
 	} else if (type == HARDLINK) {
-		if (!Nflag && link(existing, new) < 0) {
-			fprintf(stderr,
-			    "warning: cannot create hard link %s->%s: %s\n",
-			    new, existing, strerror(errno));
-			return (FAIL);
+		int ret;
+
+		if (!Nflag && (ret = link(existing, new)) < 0) {
+			struct stat s;
+
+			/*
+			 * Most likely, the schg flag is set.  Clear the
+			 * flags and try again.
+			 */
+			if (stat(existing, &s) == 0 && s.st_flags != 0 &&
+			    chflags(existing, 0) == 0) {
+				ret = link(existing, new);
+				chflags(existing, s.st_flags);
+			}
+			if (ret < 0) {
+				fprintf(stderr, "warning: cannot create "
+				    "hard link %s->%s: %s\n",
+				    new, existing, strerror(errno));
+				return (FAIL);
+			}
 		}
 	} else {
 		panic("linkit: unknown type %d\n", type);
