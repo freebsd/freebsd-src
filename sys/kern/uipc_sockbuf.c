@@ -31,12 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.46 1999/05/10 18:15:40 peter Exp $
+ *	$Id: uipc_socket2.c,v 1.47 1999/06/17 23:54:48 green Exp $
  */
 
+#include "opt_param.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/domain.h>
+#include <sys/file.h>	/* for maxfiles */
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
@@ -47,6 +49,8 @@
 #include <sys/socketvar.h>
 #include <sys/signalvar.h>
 #include <sys/sysctl.h>
+
+int	maxsockets;
 
 /*
  * Primitive routines for operating on sockets and socket buffers
@@ -954,6 +958,13 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RD,
     &maxsockets, 0, "Maximum number of sockets avaliable");
 SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
     &sb_efficiency, 0, "");
-SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, 
-    &nmbclusters, 0, "Maximum number of mbuf clusters avaliable");
 
+/*
+ * Initialise maxsockets 
+ */
+static void init_maxsockets(void *ignored)
+{
+    TUNABLE_INT_FETCH("kern.ipc.maxsockets", 0, maxsockets);
+    maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+}
+SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);

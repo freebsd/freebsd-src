@@ -31,9 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- *	$Id: uipc_mbuf.c,v 1.39 1999/04/12 10:07:15 des Exp $
+ *	$Id: uipc_mbuf.c,v 1.40 1999/07/01 13:21:39 peter Exp $
  */
 
+#include "opt_param.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -59,6 +60,8 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
+int	nmbclusters;
+int	nmbufs;
 
 SYSCTL_DECL(_kern_ipc);
 SYSCTL_INT(_kern_ipc, KIPC_MAX_LINKHDR, max_linkhdr, CTLFLAG_RW,
@@ -69,6 +72,13 @@ SYSCTL_INT(_kern_ipc, KIPC_MAX_HDR, max_hdr, CTLFLAG_RW, &max_hdr, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_MAX_DATALEN, max_datalen, CTLFLAG_RW,
 	   &max_datalen, 0, "");
 SYSCTL_STRUCT(_kern_ipc, KIPC_MBSTAT, mbstat, CTLFLAG_RW, &mbstat, mbstat, "");
+SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, 
+	   &nmbclusters, 0, "Maximum number of mbuf clusters avaliable");
+#ifndef NMBCLUSTERS
+#define NMBCLUSTERS	(512 + MAXUSERS * 16)
+#endif
+TUNABLE_INT_DECL("kern.ipc.nmbclusters", NMBCLUSTERS, nmbclusters);
+TUNABLE_INT_DECL("kern.ipc.nmbufs", NMBCLUSTERS * 4, nmbufs);	/* XXX fixup? */
 
 static void	m_reclaim __P((void));
 
