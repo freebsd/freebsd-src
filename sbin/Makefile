@@ -53,6 +53,7 @@ SUBDIR=	adjkerntz \
 	natd \
 	newfs \
 	newfs_msdos \
+	nfsiod \
 	nologin \
 	nos-tun \
 	ping \
