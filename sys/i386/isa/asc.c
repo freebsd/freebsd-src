@@ -76,7 +76,7 @@
 #ifdef  DEVFS
 #include <sys/devfsext.h>
 
-int ascopen(dev_t dev, int flag);
+extern d_open_t ascopen;
 #endif
 
 #endif /* FREEBSD_1_X */
@@ -533,7 +533,7 @@ ascintr(int unit)
  ***/
 
 int
-ascopen(dev_t dev, int flag)
+ascopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev)) & UNIT_MASK;
   struct asc_unit *scu = unittab + unit;
@@ -607,7 +607,7 @@ asc_startread(struct asc_unit *scu)
  ***/
 
 int
-ascclose(dev_t dev, int flag)
+ascclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct asc_unit *scu = unittab + unit;
@@ -665,7 +665,7 @@ pbm_init(struct asc_unit *scu)
  ***/
 
 int
-ascread(dev_t dev, struct uio *uio)
+ascread(dev_t dev, struct uio *uio, int ioflag)
 {
   int unit = UNIT(minor(dev));
   struct asc_unit *scu = unittab + unit;
@@ -753,7 +753,7 @@ ascread(dev_t dev, struct uio *uio)
  ***/
 
 int
-ascioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
+ascioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
 {
   int unit = UNIT(minor(dev));
   struct asc_unit *scu = unittab + unit;
