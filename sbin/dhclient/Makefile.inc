@@ -39,4 +39,10 @@ LIBDST= 	${.OBJDIR}/../dst/libdst.a
 LIBDST=		${.CURDIR}/../dst/libdst.a
 .endif
 
+.if exists(${.OBJDIR}/../dhcpctl)
+LIBDHCPCTL= 	${.OBJDIR}/../dhcpctl/libdhcpctl.a
+.else
+LIBDHCPCTL=	${.CURDIR}/../dhcpctl/libdhcpctl.a
+.endif
+
 .include "../Makefile.inc"
