@@ -108,16 +108,12 @@ int keypad(WINDOW *win, int flag)
 {
 	T(("keypad(%x,%d) called", win, flag));
 
-   	win->_use_keypad = flag;
-
-	if (flag  &&  keypad_xmit)
-	    putp(keypad_xmit);
-	else if (! flag  &&  keypad_local)
-	    putp(keypad_local);
-
-	if (SP->_keytry == UNINITIALISED)
-	    init_keytry();
-	return OK;
+	if (win) {
+	  win->_use_keypad = flag;
+	  return _nc_keypad(flag);
+	}
+	else
+	  return ERR;
 }
 
 
@@ -249,4 +245,29 @@ int intrflush(WINDOW *win, bool flag)
 {
 	T(("intrflush(%x, %d) called", win, flag));
 	return OK;
+}
+
+/* Turn the keypad on/off
+ *
+ * Note:  we flush the output because changing this mode causes some terminals
+ * to emit different escape sequences for cursor and keypad keys.  If we don't
+ * flush, then the next wgetch may get the escape sequence that corresponds to
+ * the terminal state _before_ switching modes.
+ */
+int _nc_keypad(bool flag)
+{
+	if (flag  &&  keypad_xmit)
+	{
+	    putp(keypad_xmit);
+	    (void) fflush(SP->_ofp);
+	}
+	else if (! flag  &&  keypad_local)
+	{
+	    putp(keypad_local);
+	    (void) fflush(SP->_ofp);
+	}
+
+	if (SP->_keytry == UNINITIALISED)
+	    init_keytry();
+	return(OK);
 }

@@ -55,34 +55,40 @@ int wattroff(WINDOW *win, chtype at)
   	return OK;
 }
 
-#ifndef MYTINFO
 int reset_prog_mode()
 {
+	int ret = ERR;
+
 	T(("reset_prog_mode() called"));
 
-#ifdef TERMIOS
-	tcsetattr(cur_term->Filedes, TCSANOW, &cur_term->Nttyb);
-#else
-	stty(cur_term->Filedes, &cur_term->Nttyb);
-#endif
-
-	return OK;
+	if (cur_term != 0) {
+		if (tcsetattr(cur_term->fd, TCSADRAIN, &cur_term->prog_mode)==0)
+			ret = OK;
+		if (SP && stdscr && stdscr->_use_keypad)
+			_nc_keypad(TRUE);
+	}
+	return ret;
 }
 
 
 int reset_shell_mode()
 {
+	int ret = ERR;
+
 	T(("reset_shell_mode() called"));
 
-#ifdef TERMIOS
-	tcsetattr(cur_term->Filedes, TCSANOW, &cur_term->Ottyb);
-#else
-	stty(cur_term->Filedes, &cur_term->Ottyb);
-#endif
+	if (cur_term != 0) {
+		if (SP)
+		{
+			fflush(SP->_ofp);
+			_nc_keypad(FALSE);
+		}
+		if (tcsetattr(cur_term->fd, TCSADRAIN, &cur_term->shell_mode)==0)
+			ret = OK;
+	}
 
-	return OK;
+	return ret;
 }
-#endif
 
 int curs_set(int vis)
 {
