@@ -279,9 +279,7 @@ MakeDev(struct chunk *c1, const char *path)
     if (!strcmp(p, "X"))
 	return 0;
     
-    if (!strncmp(p, "wd", 2))
-	cmaj = 3, p += 2;
-    else if (!strncmp(p, "ad", 2))
+    if (!strncmp(p, "ad", 2))
 	cmaj = 116, p += 2;
     else if (!strncmp(p, "wfd", 3))
 	cmaj = 87, p += 3;
