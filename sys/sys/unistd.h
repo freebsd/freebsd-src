@@ -201,6 +201,11 @@
 #define	_SC_IOV_MAX		56
 
 #ifndef _POSIX_SOURCE
+
+/* Linux/Solaris/AIX/SVR4.0MP API */
+#define	_SC_NPROCESSORS_CONF	57
+#define	_SC_NPROCESSORS_ONLN	58
+
 /*
  * rfork() options.
  *
