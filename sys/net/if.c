@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.20 1995/09/22 17:57:46 wollman Exp $
+ * $Id: if.c,v 1.21 1995/09/27 15:00:49 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -73,8 +73,8 @@ struct	ifnet *ifnet;
  */
 /* ARGSUSED*/
 void
-ifinit(udata)
-	void *udata;		/* not used*/
+ifinit(dummy)
+	void *dummy;
 {
 	register struct ifnet *ifp;
 
@@ -590,7 +590,8 @@ ifioctl(so, cmd, data, p)
 			return (EOPNOTSUPP);
 #ifndef COMPAT_43
 		return ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL,
-			cmd, data, ifp));
+			(struct mbuf *)cmd, (struct mbuf *)data,
+			(struct mbuf *)ifp));
 #else
 	    {
 		int ocmd = cmd;
@@ -629,7 +630,13 @@ ifioctl(so, cmd, data, p)
 			cmd = SIOCGIFNETMASK;
 		}
 		error =  ((*so->so_proto->pr_usrreq)(so, PRU_CONTROL,
-							    cmd, data, ifp));
+			  /*
+			   * XXX callees reverse the following bogus casts,
+			   * but it would be easier to use a separate
+			   * interface that is guaranteed to work.
+			   */
+			  (struct mbuf *)cmd, (struct mbuf *)data,
+			  (struct mbuf *)ifp));
 		switch (ocmd) {
 
 		case OSIOCGIFADDR:
