@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1998/10/11 19:40:38 jdp Exp $
+#	$Id: Makefile,v 1.13 1999/04/29 17:56:22 jdp Exp $
 
 CFLAGS+= -DHAVE_PATHS_H
 
@@ -28,12 +28,21 @@ LDADD+=	-lpcap
 DPADD+=	${LIBPCAP}
 
 # MS-CHAP support.  Requires the DES library.
-.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE) && !defined(RELEASE_CRUNCH)
 DISTRIBUTION=des
 CFLAGS+=-DCHAPMS
 SRCS+=	chap_ms.c
 LDADD+=	-ldes
 DPADD+=	${LIBDES}
+.endif
+
+.if defined(RELEASE_CRUNCH)
+# We must create these objects because crunchgen will link them,
+# and we don't want any unused symbols to spoil the final link.
+SRCS+= chap_ms.c
+chap_ms.o:
+	>null_${.PREFIX}.c
+	cc -c -o ${.TARGET} null_${.PREFIX}.c
 .endif
 
 .include <bsd.prog.mk>
