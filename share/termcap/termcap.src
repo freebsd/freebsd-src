@@ -4501,11 +4501,10 @@ rxvt-mono|rxvt terminal emulator (monochrome) (X Window System):\
 rxvt|rxvt terminal emulator (X Window System):\
 	:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39;49m:tc=rxvt-mono:
 
-# Termcap entry for Eterm, taken from the sources of Eterm-0.9.1
-# From Jeremy Norris <ishmael27@home.com>
-Eterm|Eterm-color|Eterm with xterm-style color support (X Window System):\
+# Termcap entry for Eterm, taken from the sources of Eterm-0.9.2
+Eterm|Eterm Terminal Emulator (X11 Window System):\
 	:am:bw:eo:km:mi:ms:xn:xo:\
-	:co#80:it#8:li#24:lm#0:\
+	:co#80:it#8:li#24:lm#0:pa#64:Co#8:AF=\E[3%dm:AB=\E[4%dm:op=\E[39m\E[49m:\
 	:AL=\E[%dL:DC=\E[%dP:DL=\E[%dM:DO=\E[%dB:IC=\E[%d@:\
 	:K1=\E[7~:K2=\EOu:K3=\E[5~:K4=\E[8~:K5=\E[6~:LE=\E[%dD:\
 	:RI=\E[%dC:UP=\E[%dA:ae=^O:al=\E[L:as=^N:bl=^G:cd=\E[J:\
@@ -4520,7 +4519,8 @@ Eterm|Eterm-color|Eterm with xterm-style color support (X Window System):\
 	:me=\E[m\017:mr=\E[7m:nd=\E[C:rc=\E8:\
 	:sc=\E7:se=\E[27m:sf=^J:so=\E[7m:sr=\EM:st=\EH:ta=^I:\
 	:te=\E[2J\E[?47l\E8:ti=\E7\E[?47h:ue=\E[24m:up=\E[A:\
-	:us=\E[4m:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:
+	:us=\E[4m:vb=\E[?5h\E[?5l:ve=\E[?25h:vi=\E[?25l:\
+	:ac=``aaffggiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz{{||}}~~:
 
 #
 # END OF TERMCAP
