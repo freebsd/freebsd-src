@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.48 1998/10/25 17:44:57 phk Exp $
+ * $Id: ffs_inode.c,v 1.49 1998/10/31 15:31:27 peter Exp $
  */
 
 #include "opt_quota.h"
@@ -81,12 +81,10 @@ ffs_update(vp, access, modify, waitfor)
 	struct inode *ip;
 	int error;
 
-	ip = VTOI(vp);
-	if (((ip->i_flag &
-	      (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0) &&
-	    (waitfor != MNT_WAIT))
-		return (0);
 	ufs_itimes(vp);
+	ip = VTOI(vp);
+	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor != MNT_WAIT)
+		return (0);
 	ip->i_flag &= ~(IN_LAZYMOD | IN_MODIFIED);
 	if (vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (0);
