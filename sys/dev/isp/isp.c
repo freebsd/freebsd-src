@@ -207,13 +207,12 @@ isp_reset(isp)
 	ISP_WRITE(isp, HCCR, HCCR_CMD_PAUSE);
 
 	if (IS_FC(isp)) {
-		revname = "2X00";
 		switch (isp->isp_type) {
 		case ISP_HA_FC_2100:
-			revname[1] = '1';
+			revname = "2100";
 			break;
 		case ISP_HA_FC_2200:
-			revname[1] = '2';
+			revname = "2200";
 			break;
 		default:
 			break;
