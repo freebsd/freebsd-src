@@ -222,7 +222,7 @@ devfs_rules_ioctl(struct mount *mp, u_long cmd, caddr_t data, struct thread *td)
 			error = ESRCH;
 			goto out;
 		}
-		dk = malloc(sizeof(*dk), M_TEMP, M_ZERO);
+		dk = malloc(sizeof(*dk), M_TEMP, M_WAITOK | M_ZERO);
 		memcpy(&dk->dk_rule, dr, sizeof(*dr));
 		lockmgr(&dm->dm_lock, LK_UPGRADE, 0, td);
 		devfs_rule_applydm(dk, dm);
@@ -556,7 +556,7 @@ devfs_rule_insert(struct devfs_rule *dr)
 			return (error);
 	}
 
-	dk = malloc(sizeof(*dk), M_DEVFS, 0);
+	dk = malloc(sizeof(*dk), M_DEVFS, M_WAITOK);
 	dk->dk_ruleset = ds;
 	if (dsi != NULL)
 		++dsi->ds_refcount;
@@ -749,7 +749,7 @@ devfs_ruleset_create(devfs_rsnum rsnum)
 	KASSERT(devfs_ruleset_bynum(rsnum) == NULL,
 	    ("creating already existent ruleset %d", rsnum));
 
-	ds = malloc(sizeof(*ds), M_DEVFS, M_ZERO);
+	ds = malloc(sizeof(*ds), M_DEVFS, M_WAITOK | M_ZERO);
 	ds->ds_number = rsnum;
 	ds->ds_refcount = ds->ds_flags = 0;
 	SLIST_INIT(&ds->ds_rules);

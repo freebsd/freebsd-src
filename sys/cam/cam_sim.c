@@ -67,7 +67,7 @@ cam_sim_alloc(sim_action_func sim_action, sim_poll_func sim_poll,
 	 */
 	if (strcmp(sim_name, "xpt") == 0)
 		sim = (struct cam_sim *)malloc(sizeof(struct cam_sim),
-					       M_DEVBUF, 0);
+					       M_DEVBUF, M_WAITOK);
 	else
 		sim = (struct cam_sim *)malloc(sizeof(struct cam_sim),
 					       M_DEVBUF, M_NOWAIT);

@@ -171,7 +171,7 @@ USB_ATTACH(uftdi)
 	usbd_status err;
 	struct ucom_softc *ucom = &sc->sc_ucom;
 	DPRINTFN(10,("\nuftdi_attach: sc=%p\n", sc));
-	devinfo = malloc(1024, M_USBDEV, 0);
+	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;

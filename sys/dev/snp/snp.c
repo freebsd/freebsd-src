@@ -150,7 +150,7 @@ snplwrite(tp, uio, flag)
 	snp = tp->t_sc;
 	while (uio->uio_resid > 0) {
 		ilen = imin(512, uio->uio_resid);
-		ibuf = malloc(ilen, M_SNP, 0);
+		ibuf = malloc(ilen, M_SNP, M_WAITOK);
 		error = uiomove(ibuf, ilen, uio);
 		if (error != 0)
 			break;
@@ -391,7 +391,7 @@ snpopen(dev, flag, mode, td)
 			make_dev(&snp_cdevsw, minor(dev), UID_ROOT, GID_WHEEL,
 			    0600, "snp%d", dev2unit(dev));
 		dev->si_drv1 = snp = malloc(sizeof(*snp), M_SNP,
-		    M_ZERO);
+		    M_WAITOK | M_ZERO);
 		snp->snp_unit = dev2unit(dev);
 	} else
 		return (EBUSY);
@@ -402,7 +402,7 @@ snpopen(dev, flag, mode, td)
 	 */
 	snp->snp_flags = SNOOP_OPEN;
 
-	snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, 0);
+	snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, M_WAITOK);
 	snp->snp_blen = SNOOP_MINLEN;
 	snp->snp_base = 0;
 	snp->snp_len = 0;
@@ -480,7 +480,7 @@ snp_down(snp)
 
 	if (snp->snp_blen != SNOOP_MINLEN) {
 		free(snp->snp_buf, M_SNP);
-		snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, 0);
+		snp->snp_buf = malloc(SNOOP_MINLEN, M_SNP, M_WAITOK);
 		snp->snp_blen = SNOOP_MINLEN;
 	}
 	snp->snp_flags |= SNOOP_DOWN;

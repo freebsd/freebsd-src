@@ -61,7 +61,7 @@ sc_vtb_init(sc_vtb_t *vtb, int type, int cols, int rows, void *buf, int wait)
 			vtb->vtb_buffer =
 				(vm_offset_t)malloc(cols*rows*sizeof(u_int16_t),
 						    M_DEVBUF, 
-						    (wait) ? 0 : M_NOWAIT);
+						    (wait) ? M_WAITOK : M_NOWAIT);
 			if (vtb->vtb_buffer != 0) {
 				bzero((void *)sc_vtb_pointer(vtb, 0),
 				      cols*rows*sizeof(u_int16_t));

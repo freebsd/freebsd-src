@@ -279,7 +279,7 @@ spans_timer(tip)
 		/*
 		 * Send out SPANS_STAT_REQ message
 		 */
-		msg = uma_zalloc(spans_msg_zone, 0);
+		msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 		if (msg == NULL) {
 			/* XXX arr: This is bogus and will go away RSN */
 			/* Retry later if no memory */

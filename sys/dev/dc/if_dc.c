@@ -2428,11 +2428,11 @@ dc_newbuf(sc, i, m)
 	c = &sc->dc_ldata->dc_rx_list[i];
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_NOWAIT, MT_DATA);
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
 
-		MCLGET(m_new, M_NOWAIT);
+		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			return(ENOBUFS);
@@ -3192,11 +3192,11 @@ dc_coal(sc, m_head)
 	struct mbuf		*m_new, *m;
 
 	m = *m_head;
-	MGETHDR(m_new, M_NOWAIT, MT_DATA);
+	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
 	if (m_new == NULL)
 		return(ENOBUFS);
 	if (m->m_pkthdr.len > MHLEN) {
-		MCLGET(m_new, M_NOWAIT);
+		MCLGET(m_new, M_DONTWAIT);
 		if (!(m_new->m_flags & M_EXT)) {
 			m_freem(m_new);
 			return(ENOBUFS);

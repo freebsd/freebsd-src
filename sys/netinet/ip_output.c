@@ -802,7 +802,7 @@ spd_done:
 
 			/* Clone packet if we're doing a 'tee' */
 			if ((off & IP_FW_PORT_TEE_FLAG) != 0)
-				clone = m_dup(m, M_NOWAIT);
+				clone = m_dup(m, M_DONTWAIT);
 
 			/*
 			 * XXX
@@ -1108,7 +1108,7 @@ smart_frag_failure:
 	m0 = m;
 	mhlen = sizeof (struct ip);
 	for (; off < (u_short)ip->ip_len; off += len) {
-		MGETHDR(m, M_NOWAIT, MT_HEADER);
+		MGETHDR(m, M_DONTWAIT, MT_HEADER);
 		if (m == 0) {
 			error = ENOBUFS;
 			ipstat.ips_odropped++;
@@ -1274,7 +1274,7 @@ ip_insertoptions(m, opt, phlen)
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
-		MGETHDR(n, M_NOWAIT, MT_HEADER);
+		MGETHDR(n, M_DONTWAIT, MT_HEADER);
 		if (n == 0) {
 			*phlen = 0;
 			return (m);
@@ -1379,7 +1379,7 @@ ip_ctloutput(so, sopt)
 				error = EMSGSIZE;
 				break;
 			}
-			MGET(m, sopt->sopt_td ? 0 : M_NOWAIT, MT_HEADER);
+			MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_HEADER);
 			if (m == 0) {
 				error = ENOBUFS;
 				break;
@@ -1773,7 +1773,7 @@ ip_setmoptions(sopt, imop)
 		 * allocate one and initialize to default values.
 		 */
 		imo = (struct ip_moptions*)malloc(sizeof(*imo), M_IPMOPTS,
-		    0);
+		    M_WAITOK);
 
 		if (imo == NULL)
 			return (ENOBUFS);

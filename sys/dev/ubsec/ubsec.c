@@ -1332,14 +1332,14 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 				totlen = q->q_src_mapsize;
 				if (q->q_src_m->m_flags & M_PKTHDR) {
 					len = MHLEN;
-					MGETHDR(m, M_NOWAIT, MT_DATA);
-					if (m && !m_dup_pkthdr(m, q->q_src_m, M_NOWAIT)) {
+					MGETHDR(m, M_DONTWAIT, MT_DATA);
+					if (m && !m_dup_pkthdr(m, q->q_src_m, M_DONTWAIT)) {
 						m_free(m);
 						m = NULL;
 					}
 				} else {
 					len = MLEN;
-					MGET(m, M_NOWAIT, MT_DATA);
+					MGET(m, M_DONTWAIT, MT_DATA);
 				}
 				if (m == NULL) {
 					ubsecstats.hst_nombuf++;
@@ -1347,7 +1347,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 					goto errout;
 				}
 				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_NOWAIT);
+					MCLGET(m, M_DONTWAIT);
 					if ((m->m_flags & M_EXT) == 0) {
 						m_free(m);
 						ubsecstats.hst_nomcl++;
@@ -1362,7 +1362,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 
 				while (totlen > 0) {
 					if (top) {
-						MGET(m, M_NOWAIT, MT_DATA);
+						MGET(m, M_DONTWAIT, MT_DATA);
 						if (m == NULL) {
 							m_freem(top);
 							ubsecstats.hst_nombuf++;
@@ -1372,7 +1372,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 						len = MLEN;
 					}
 					if (top && totlen >= MINCLSIZE) {
-						MCLGET(m, M_NOWAIT);
+						MCLGET(m, M_DONTWAIT);
 						if ((m->m_flags & M_EXT) == 0) {
 							*mp = m;
 							m_freem(top);

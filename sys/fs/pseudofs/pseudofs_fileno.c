@@ -82,7 +82,7 @@ pfs_fileno_init(struct pfs_info *pi)
 	struct pfs_bitmap *pb;
 
 	MALLOC(pb, struct pfs_bitmap *, sizeof *pb,
-	    M_PFSFILENO, M_ZERO);
+	    M_PFSFILENO, M_WAITOK|M_ZERO);
 
 	mtx_lock(&pi->pi_mutex);
 
@@ -144,7 +144,7 @@ pfs_get_fileno(struct pfs_info *pi)
 	if (pb == NULL) {
 		mtx_unlock(&pi->pi_mutex);
 		MALLOC(pb, struct pfs_bitmap *, sizeof *pb,
-		    M_PFSFILENO, M_ZERO);
+		    M_PFSFILENO, M_WAITOK|M_ZERO);
 		mtx_lock(&pi->pi_mutex);
 		/* protect against possible race */
 		while (ppb->pb_next)

@@ -126,8 +126,8 @@
 #include <sys/mbuf.h>
 typedef struct mbuf	KBuffer;
 
-#define	KB_F_WAIT	0
-#define	KB_F_NOWAIT	M_NOWAIT
+#define	KB_F_WAIT	M_TRYWAIT
+#define	KB_F_NOWAIT	M_DONTWAIT
 
 #define	KB_T_HEADER	MT_HEADER
 #define	KB_T_DATA	MT_DATA

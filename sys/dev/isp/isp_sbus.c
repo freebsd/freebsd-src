@@ -498,14 +498,14 @@ isp_sbus_mbxdma(struct ispsoftc *isp)
 	}
 
 	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_ZERO);
+	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		ISP_LOCK(isp);
 		return (1);
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
-	sbs->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF, 0);
+	sbs->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
 	if (sbs->dmaps == NULL) {
 		isp_prt(isp, ISP_LOGERR, "can't alloc dma map storage");
 		free(isp->isp_xflist, M_DEVBUF);

@@ -406,7 +406,7 @@ ieee80211_input(struct ifnet *ifp, struct mbuf *m, int rssi, u_int32_t rstamp)
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP) {
 			eh = mtod(m, struct ether_header *);
 			if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-				m1 = m_copym(m, 0, M_COPYALL, M_NOWAIT);
+				m1 = m_copym(m, 0, M_COPYALL, M_DONTWAIT);
 				if (m1 == NULL)
 					ifp->if_oerrors++;
 				else
@@ -517,7 +517,7 @@ ieee80211_mgmt_output(struct ifnet *ifp, struct ieee80211_node *ni,
 	if (ni == NULL)
 		ni = &ic->ic_bss;
 	ni->ni_inact = 0;
-	M_PREPEND(m, sizeof(struct ieee80211_frame), M_NOWAIT);
+	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
 	if (m == NULL)
 		return ENOMEM;
 	wh = mtod(m, struct ieee80211_frame *);
@@ -585,7 +585,7 @@ ieee80211_encap(struct ifnet *ifp, struct mbuf *m)
 	llc->llc_snap.org_code[1] = 0;
 	llc->llc_snap.org_code[2] = 0;
 	llc->llc_snap.ether_type = eh.ether_type;
-	M_PREPEND(m, sizeof(struct ieee80211_frame), M_NOWAIT);
+	M_PREPEND(m, sizeof(struct ieee80211_frame), M_DONTWAIT);
 	if (m == NULL)
 		return NULL;
 	wh = mtod(m, struct ieee80211_frame *);
@@ -671,7 +671,7 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 		pktlen = m->m_pkthdr.len;
 		while (pktlen > off) {
 			if (n0 == NULL) {
-				MGETHDR(n, M_NOWAIT, MT_DATA);
+				MGETHDR(n, M_DONTWAIT, MT_DATA);
 				if (n == NULL) {
 					m_freem(m);
 					return NULL;
@@ -679,7 +679,7 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 				M_MOVE_PKTHDR(n, m);
 				n->m_len = MHLEN;
 			} else {
-				MGET(n, M_NOWAIT, MT_DATA);
+				MGET(n, M_DONTWAIT, MT_DATA);
 				if (n == NULL) {
 					m_freem(m);
 					m_freem(n0);
@@ -688,7 +688,7 @@ ieee80211_decap(struct ifnet *ifp, struct mbuf *m)
 				n->m_len = MLEN;
 			}
 			if (pktlen - off >= MINCLSIZE) {
-				MCLGET(n, M_NOWAIT);
+				MCLGET(n, M_DONTWAIT);
 				if (n->m_flags & M_EXT)
 					n->m_len = n->m_ext.ext_size;
 			}
@@ -1407,7 +1407,7 @@ ieee80211_send_prreq(struct ieee80211com *ic, struct ieee80211_node *ni,
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
 	 */
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	m->m_data += sizeof(struct ieee80211_frame);
@@ -1450,7 +1450,7 @@ ieee80211_send_prresp(struct ieee80211com *ic, struct ieee80211_node *bs0,
 	 *	[tlv] supported rates
 	 *	[tlv] parameter set (IBSS)
 	 */
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	m->m_data += sizeof(struct ieee80211_frame);
@@ -1503,7 +1503,7 @@ ieee80211_send_auth(struct ieee80211com *ic, struct ieee80211_node *ni,
 	u_int16_t *frm;
 	int ret;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	MH_ALIGN(m, 2 * 3);
@@ -1529,7 +1529,7 @@ ieee80211_send_deauth(struct ieee80211com *ic, struct ieee80211_node *ni,
 	if (ifp->if_flags & IFF_DEBUG)
 		if_printf(ifp, "station %s deauthenticate (reason %d)\n",
 		    ether_sprintf(ni->ni_macaddr), reason);
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	MH_ALIGN(m, 2);
@@ -1555,7 +1555,7 @@ ieee80211_send_asreq(struct ieee80211com *ic, struct ieee80211_node *ni,
 	 *	[tlv] ssid
 	 *	[tlv] supported rates
 	 */
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	m->m_data += sizeof(struct ieee80211_frame);
@@ -1613,7 +1613,7 @@ ieee80211_send_asresp(struct ieee80211com *ic, struct ieee80211_node *ni,
 	 *	[2] association ID
 	 *	[tlv] supported rates
 	 */
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	m->m_data += sizeof(struct ieee80211_frame);
@@ -1659,7 +1659,7 @@ ieee80211_send_disassoc(struct ieee80211com *ic, struct ieee80211_node *ni,
 	if (ifp->if_flags & IFF_DEBUG)
 		if_printf(ifp, "station %s disassociate (reason %d)\n",
 		    ether_sprintf(ni->ni_macaddr), reason);
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOMEM;
 	MH_ALIGN(m, 2);
@@ -2476,7 +2476,7 @@ ieee80211_wep_crypt(struct ifnet *ifp, struct mbuf *m0, int txflag)
 	}
 	m = m0;
 	left = m->m_pkthdr.len;
-	MGET(n, M_NOWAIT, m->m_type);
+	MGET(n, M_DONTWAIT, m->m_type);
 	n0 = n;
 	if (n == NULL)
 		goto fail;
@@ -2490,7 +2490,7 @@ ieee80211_wep_crypt(struct ifnet *ifp, struct mbuf *m0, int txflag)
 	}
 	n->m_len = MHLEN;
 	if (n->m_pkthdr.len >= MINCLSIZE) {
-		MCLGET(n, M_NOWAIT);
+		MCLGET(n, M_DONTWAIT);
 		if (n->m_flags & M_EXT)
 			n->m_len = n->m_ext.ext_size;
 	}
@@ -2544,13 +2544,13 @@ ieee80211_wep_crypt(struct ifnet *ifp, struct mbuf *m0, int txflag)
 		if (len > n->m_len - noff) {
 			len = n->m_len - noff;
 			if (len == 0) {
-				MGET(n->m_next, M_NOWAIT, n->m_type);
+				MGET(n->m_next, M_DONTWAIT, n->m_type);
 				if (n->m_next == NULL)
 					goto fail;
 				n = n->m_next;
 				n->m_len = MLEN;
 				if (left >= MINCLSIZE) {
-					MCLGET(n, M_NOWAIT);
+					MCLGET(n, M_DONTWAIT);
 					if (n->m_flags & M_EXT)
 						n->m_len = n->m_ext.ext_size;
 				}
@@ -2579,7 +2579,7 @@ ieee80211_wep_crypt(struct ifnet *ifp, struct mbuf *m0, int txflag)
 			n->m_len = noff + sizeof(crcbuf);
 		else {
 			n->m_len = noff;
-			MGET(n->m_next, M_NOWAIT, n->m_type);
+			MGET(n->m_next, M_DONTWAIT, n->m_type);
 			if (n->m_next == NULL)
 				goto fail;
 			n = n->m_next;

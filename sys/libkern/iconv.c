@@ -186,7 +186,7 @@ iconv_register_cspair(const char *to, const char *from,
 	ucsfrom = strcmp(from, iconv_unicode_string) == 0;
 	if (!ucsfrom)
 		csize += strlen(from) + 1;
-	csp = malloc(csize, M_ICONV, 0);
+	csp = malloc(csize, M_ICONV, M_WAITOK);
 	bzero(csp, csize);
 	csp->cp_id = iconv_csid++;
 	csp->cp_dcp = dcp;
@@ -360,7 +360,7 @@ iconv_sysctl_add(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return error;
 	if (din.ia_datalen) {
-		csp->cp_data = malloc(din.ia_datalen, M_ICONVDATA, 0);
+		csp->cp_data = malloc(din.ia_datalen, M_ICONVDATA, M_WAITOK);
 		error = copyin(din.ia_data, csp->cp_data, din.ia_datalen);
 		if (error)
 			goto bad;

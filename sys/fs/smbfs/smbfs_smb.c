@@ -1264,7 +1264,7 @@ static int
 smbfs_findopenLM2(struct smbfs_fctx *ctx, struct smbnode *dnp,
 	const char *wildcard, int wclen, int attr, struct smb_cred *scred)
 {
-	ctx->f_name = malloc(SMB_MAXFNAMELEN, M_SMBFSDATA, 0);
+	ctx->f_name = malloc(SMB_MAXFNAMELEN, M_SMBFSDATA, M_WAITOK);
 	if (ctx->f_name == NULL)
 		return ENOMEM;
 	ctx->f_infolevel = SMB_DIALECT(SSTOVC(ctx->f_ssp)) < SMB_DIALECT_NTLM0_12 ?
@@ -1371,7 +1371,7 @@ smbfs_findnextLM2(struct smbfs_fctx *ctx, int limit)
 		if (ctx->f_rnamelen <= nmlen) {
 			if (ctx->f_rname)
 				free(ctx->f_rname, M_SMBFSDATA);
-			ctx->f_rname = malloc(nmlen + 1, M_SMBFSDATA, 0);
+			ctx->f_rname = malloc(nmlen + 1, M_SMBFSDATA, M_WAITOK);
 			ctx->f_rnamelen = nmlen;
 		}
 		bcopy(ctx->f_name, ctx->f_rname, nmlen);
@@ -1404,7 +1404,7 @@ smbfs_findopen(struct smbnode *dnp, const char *wildcard, int wclen, int attr,
 	struct smbfs_fctx *ctx;
 	int error;
 
-	ctx = malloc(sizeof(*ctx), M_SMBFSDATA, 0);
+	ctx = malloc(sizeof(*ctx), M_SMBFSDATA, M_WAITOK);
 	if (ctx == NULL)
 		return ENOMEM;
 	bzero(ctx, sizeof(*ctx));

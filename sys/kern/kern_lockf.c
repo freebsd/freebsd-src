@@ -160,7 +160,7 @@ lf_advlock(ap, head, size)
 	/*
 	 * Create the lockf structure
 	 */
-	MALLOC(lock, struct lockf *, sizeof *lock, M_LOCKF, 0);
+	MALLOC(lock, struct lockf *, sizeof *lock, M_LOCKF, M_WAITOK);
 	lock->lf_start = start;
 	lock->lf_end = end;
 	lock->lf_id = ap->a_id;
@@ -726,7 +726,7 @@ lf_split(lock1, lock2)
 	 * Make a new lock consisting of the last part of
 	 * the encompassing lock
 	 */
-	MALLOC(splitlock, struct lockf *, sizeof *splitlock, M_LOCKF, 0);
+	MALLOC(splitlock, struct lockf *, sizeof *splitlock, M_LOCKF, M_WAITOK);
 	bcopy(lock1, splitlock, sizeof *splitlock);
 	splitlock->lf_start = lock2->lf_end + 1;
 	TAILQ_INIT(&splitlock->lf_blkhd);

@@ -126,7 +126,7 @@ uniarp_cache_svc(uip, ip, atm, atmsub, origin)
 	 * If there aren't any entries yet, create one
 	 */
 	if ((ipuap == NULL) && (nouap == NULL)) {
-		ipuap = uma_zalloc(uniarp_zone, 0);
+		ipuap = uma_zalloc(uniarp_zone, M_WAITOK);
 		if (ipuap == NULL)
 			return (ENOMEM);
 		ipuap->ua_dstip.s_addr = ip->s_addr;

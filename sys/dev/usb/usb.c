@@ -596,7 +596,7 @@ usbioctl(dev_t devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 				ur->ucr_request.bmRequestType & UT_READ ?
 				UIO_READ : UIO_WRITE;
 			uio.uio_procp = p;
-			ptr = malloc(len, M_TEMP, 0);
+			ptr = malloc(len, M_TEMP, M_WAITOK);
 			if (uio.uio_rw == UIO_WRITE) {
 				error = uiomove(ptr, len, &uio);
 				if (error)
@@ -774,7 +774,7 @@ usb_add_event(int type, struct usb_event *uep)
 	struct timeval thetime;
 	int s;
 
-	ueq = malloc(sizeof *ueq, M_USBDEV, 0);
+	ueq = malloc(sizeof *ueq, M_USBDEV, M_WAITOK);
 	ueq->ue = *uep;
 	ueq->ue.ue_type = type;
 	microtime(&thetime);

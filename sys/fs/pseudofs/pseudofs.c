@@ -92,7 +92,7 @@ _pfs_fixup_dir(struct pfs_node *parent)
 	struct pfs_node *dir;
 
 	MALLOC(dir, struct pfs_node *, sizeof *dir,
-	    M_PFSNODES, M_ZERO);
+	    M_PFSNODES, M_WAITOK|M_ZERO);
 	dir->pn_name[0] = '.';
 	dir->pn_type = pfstype_this;
 
@@ -102,7 +102,7 @@ _pfs_fixup_dir(struct pfs_node *parent)
 	}
 
 	MALLOC(dir, struct pfs_node *, sizeof *dir,
-	    M_PFSNODES, M_ZERO);
+	    M_PFSNODES, M_WAITOK|M_ZERO);
 	dir->pn_name[0] = dir->pn_name[1] = '.';
 	dir->pn_type = pfstype_parent;
 
@@ -127,7 +127,7 @@ pfs_create_dir(struct pfs_node *parent, char *name,
 	    ("%s(): node name is too long", __func__));
 
 	MALLOC(dir, struct pfs_node *, sizeof *dir,
-	    M_PFSNODES, M_ZERO);
+	    M_PFSNODES, M_WAITOK|M_ZERO);
 	strcpy(dir->pn_name, name);
 	dir->pn_type = (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir;
 	dir->pn_attr = attr;
@@ -160,7 +160,7 @@ pfs_create_file(struct pfs_node *parent, char *name, pfs_fill_t fill,
 	    ("%s(): node name is too long", __func__));
 
 	MALLOC(node, struct pfs_node *, sizeof *node,
-	    M_PFSNODES, M_ZERO);
+	    M_PFSNODES, M_WAITOK|M_ZERO);
 	strcpy(node->pn_name, name);
 	node->pn_type = pfstype_file;
 	node->pn_func = fill;
@@ -320,7 +320,7 @@ pfs_init(struct pfs_info *pi, struct vfsconf *vfc)
 
 	/* set up the root diretory */
 	MALLOC(root, struct pfs_node *, sizeof *root,
-	    M_PFSNODES, M_ZERO);
+	    M_PFSNODES, M_WAITOK|M_ZERO);
 	root->pn_type = pfstype_root;
 	root->pn_name[0] = '/';
 	root->pn_info = pi;

@@ -124,7 +124,7 @@ ipatm_nifstat(cmd, nip, arg)
 		/*
 		 * Get a new interface block
 		 */
-		inp = uma_zalloc(ipatm_nif_zone, 0);
+		inp = uma_zalloc(ipatm_nif_zone, M_WAITOK);
 		if (inp == NULL) {
 			err = ENOMEM;
 			break;

@@ -106,7 +106,7 @@ sc_alloc_cut_buffer(scr_stat *scp, int wait)
 	    free(p, M_DEVBUF);
 	cut_buffer_size = scp->xsize * scp->ysize + 1;
 	p = (u_char *)malloc(cut_buffer_size, 
-			     M_DEVBUF, (wait) ? 0 : M_NOWAIT);
+			     M_DEVBUF, (wait) ? M_WAITOK : M_NOWAIT);
 	if (p != NULL)
 	    p[0] = '\0';
 	cut_buffer = p;

@@ -278,14 +278,14 @@ ng_rfc1490_rcvdata(hook_p hook, item_p item)
 			break;
 		}
 	} else if (hook == priv->ppp) {
-		M_PREPEND(m, 2, M_NOWAIT);	/* Prepend PPP NLPID */
+		M_PREPEND(m, 2, M_DONTWAIT);	/* Prepend PPP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;
 		mtod(m, u_char *)[1] = NLPID_PPP;
 		NG_FWD_NEW_DATA(error, item, priv->downlink, m);
 	} else if (hook == priv->inet) {
-		M_PREPEND(m, 2, M_NOWAIT);	/* Prepend IP NLPID */
+		M_PREPEND(m, 2, M_DONTWAIT);	/* Prepend IP NLPID */
 		if (!m)
 			ERROUT(ENOBUFS);
 		mtod(m, u_char *)[0] = HDLC_UI;

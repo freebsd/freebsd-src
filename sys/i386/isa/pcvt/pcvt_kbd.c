@@ -330,7 +330,7 @@ void ovlinit(int force)
 	{
 		if(ovlinitflag == 0 &&
 		   (ovltbl = (Ovl_tbl *)malloc(sizeof(Ovl_tbl) * OVLTBL_SIZE,
-					       M_DEVBUF, 0)) == NULL)
+					       M_DEVBUF, M_WAITOK)) == NULL)
 			panic("pcvt_kbd: malloc of Ovl_tbl failed");
 
 		for(i=0; i<OVLTBL_SIZE; i++)

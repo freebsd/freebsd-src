@@ -1171,10 +1171,10 @@ nicstar_ld_rcv_buf(IDT * idt)
 		idt_sysctl_buflarge = 10;
 
 	while (card_small < idt_sysctl_bufsmall) {	/* 05/25/2001 from fixed */
-		MGETHDR(m1, M_NOWAIT, MT_DATA);
+		MGETHDR(m1, M_DONTWAIT, MT_DATA);
 		if (m1 == NULL)
 			break;
-		MGETHDR(m2, M_NOWAIT, MT_DATA);
+		MGETHDR(m2, M_DONTWAIT, MT_DATA);
 		if (m2 == NULL) {
 			m_free(m1);
 			break;
@@ -2006,11 +2006,11 @@ idt_mbufcl_get(void)
 {
 	struct mbuf *m;
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 
-	MCLGET(m, M_NOWAIT);
+	MCLGET(m, M_DONTWAIT);
 	if (m->m_flags & M_EXT)
 		return (m);
 

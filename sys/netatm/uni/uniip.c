@@ -188,7 +188,7 @@ uniip_ipact(inp)
 	/*
 	 * Get a new interface control block
 	 */
-	uip = uma_zalloc(uniip_zone, M_ZERO);
+	uip = uma_zalloc(uniip_zone, M_WAITOK | M_ZERO);
 	if (uip == NULL)
 		return (ENOMEM);
 

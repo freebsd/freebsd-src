@@ -1244,9 +1244,9 @@ again:
 				error = EMSGSIZE;
 				goto fail;
 			}
-			MGET(n, M_NOWAIT, MT_DATA);
+			MGET(n, M_DONTWAIT, MT_DATA);
 			if (n && hlen > MLEN) {
-				MCLGET(n, M_NOWAIT);
+				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
 					m_free(n);
 					n = NULL;
@@ -1359,9 +1359,9 @@ again:
 				error = EMSGSIZE;
 				goto fail;
 			}
-			MGET(n, M_NOWAIT, MT_DATA);
+			MGET(n, M_DONTWAIT, MT_DATA);
 			if (n && totlen > MLEN) {
-				MCLGET(n, M_NOWAIT);
+				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
 					m_free(n);
 					n = NULL;
@@ -1510,9 +1510,9 @@ ah6_calccksum(m, ahdat, len, algo, sav)
 				error = EMSGSIZE;
 				goto fail;
 			}
-			MGET(n, M_NOWAIT, MT_DATA);
+			MGET(n, M_DONTWAIT, MT_DATA);
 			if (n && newoff - off > MLEN) {
-				MCLGET(n, M_NOWAIT);
+				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
 					m_free(n);
 					n = NULL;
@@ -1545,9 +1545,9 @@ ah6_calccksum(m, ahdat, len, algo, sav)
 			error = EMSGSIZE;
 			goto fail;
 		}
-		MGET(n, M_NOWAIT, MT_DATA);
+		MGET(n, M_DONTWAIT, MT_DATA);
 		if (n && newoff - off > MLEN) {
-			MCLGET(n, M_NOWAIT);
+			MCLGET(n, M_DONTWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_free(n);
 				n = NULL;

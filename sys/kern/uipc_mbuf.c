@@ -164,7 +164,7 @@ m_prepend(struct mbuf *m, int len, int how)
 /*
  * Make a copy of an mbuf chain starting "off0" bytes from the beginning,
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
- * The wait parameter is a choice of 0/M_NOWAIT from caller.
+ * The wait parameter is a choice of M_TRYWAIT/M_DONTWAIT from caller.
  * Note that the copy is read-only, because clusters are not copied,
  * only their reference counts are incremented.
  */
@@ -522,7 +522,7 @@ m_pullup(struct mbuf *n, int len)
 	} else {
 		if (len > MHLEN)
 			goto bad;
-		MGET(m, M_NOWAIT, n->m_type);
+		MGET(m, M_DONTWAIT, n->m_type);
 		if (m == NULL)
 			goto bad;
 		m->m_len = 0;
@@ -639,7 +639,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 	if (off < 0 || off > MHLEN)
 		return (NULL);
 
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (NULL);
 	m->m_pkthdr.rcvif = ifp;
@@ -648,7 +648,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 
 	while (totlen > 0) {
 		if (top) {
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
 				m_freem(top);
 				return (NULL);
@@ -656,7 +656,7 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 			len = MLEN;
 		}
 		if (totlen + off >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
+			MCLGET(m, M_DONTWAIT);
 			if (m->m_flags & M_EXT)
 				len = MCLBYTES;
 		} else {
@@ -704,7 +704,7 @@ m_copyback(struct mbuf *m0, int off, int len, caddr_t cp)
 		off -= mlen;
 		totlen += mlen;
 		if (m->m_next == NULL) {
-			n = m_get_clrd(M_NOWAIT, m->m_type);
+			n = m_get_clrd(M_DONTWAIT, m->m_type);
 			if (n == NULL)
 				goto out;
 			n->m_len = min(MLEN, len + off);
@@ -723,7 +723,7 @@ m_copyback(struct mbuf *m0, int off, int len, caddr_t cp)
 		if (len == 0)
 			break;
 		if (m->m_next == NULL) {
-			n = m_get(M_NOWAIT, m->m_type);
+			n = m_get(M_DONTWAIT, m->m_type);
 			if (n == NULL)
 				break;
 			n->m_len = min(MLEN, len);

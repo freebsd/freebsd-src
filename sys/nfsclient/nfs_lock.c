@@ -114,7 +114,7 @@ nfs_dolock(struct vop_advlock_args *ap)
 	 */
 	if (p->p_nlminfo == NULL) {
 		MALLOC(p->p_nlminfo, struct nlminfo *,
-			sizeof(struct nlminfo), M_LOCKF, M_ZERO);
+			sizeof(struct nlminfo), M_LOCKF, M_WAITOK | M_ZERO);
 		p->p_nlminfo->pid_start = p->p_stats->p_start;
 	}
 	msg.lm_msg_ident.pid_start = p->p_nlminfo->pid_start;

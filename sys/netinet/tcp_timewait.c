@@ -332,7 +332,7 @@ tcp_maketemplate(tp)
 	struct mbuf *m;
 	struct tcptemp *n;
 
-	m = m_get(M_NOWAIT, MT_HEADER);
+	m = m_get(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		return (0);
 	m->m_len = sizeof(struct tcptemp);
@@ -412,7 +412,7 @@ tcp_respond(tp, ipgen, th, m, ack, seq, flags)
 	      }
 	}
 	if (m == 0) {
-		m = m_gethdr(M_NOWAIT, MT_HEADER);
+		m = m_gethdr(M_DONTWAIT, MT_HEADER);
 		if (m == NULL)
 			return;
 		tlen = 0;
@@ -901,7 +901,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return error;
 
-	inp_list = malloc(n * sizeof *inp_list, M_TEMP, 0);
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
 	if (inp_list == 0)
 		return ENOMEM;
 	
@@ -1495,7 +1495,7 @@ ipsec_hdrsiz_tcp(tp)
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return 0;
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (!m)
 		return 0;
 

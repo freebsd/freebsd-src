@@ -112,7 +112,7 @@ exec_osf1_imgact(struct image_params *imgp)
 		printf("unknown ecoff magic %x\n", eap->magic);
 		return ENOEXEC;
 	}
-	osf_auxargs = malloc(sizeof(Osf_Auxargs), M_TEMP, M_ZERO);
+	osf_auxargs = malloc(sizeof(Osf_Auxargs), M_TEMP, M_WAITOK | M_ZERO);
 	imgp->auxargs = osf_auxargs;
 	osf_auxargs->executable = osf_auxargs->exec_path;
 	path_not_saved = copyinstr(imgp->fname, osf_auxargs->executable,
@@ -135,7 +135,7 @@ exec_osf1_imgact(struct image_params *imgp)
 		 * page of the loader.
 		 */
 		ndp = (struct nameidata *)malloc(sizeof(struct nameidata),
-		    M_TEMP, 0);
+		    M_TEMP, M_WAITOK);
 		NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME, UIO_SYSSPACE,
 		    "/compat/osf1/sbin/loader",
 		    FIRST_THREAD_IN_PROC(imgp->proc));
@@ -218,7 +218,7 @@ exec_osf1_imgact(struct image_params *imgp)
 	raw_dend = (eap->data_start + eap->dsize);
 	if (dend > raw_dend) {
 		caddr_t zeros;
-		zeros = malloc(dend-raw_dend, M_TEMP, M_ZERO);
+		zeros = malloc(dend-raw_dend,M_TEMP,M_WAITOK|M_ZERO);
 		if ((error = copyout(zeros, (caddr_t)raw_dend,
 		    dend-raw_dend))) {
 			uprintf("Can't zero start of bss, error %d\n",error);

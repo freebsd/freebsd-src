@@ -392,7 +392,7 @@ aio_init_aioinfo(struct proc *p)
 	struct kaioinfo *ki;
 
 	if (p->p_aioinfo == NULL) {
-		ki = uma_zalloc(kaio_zone, 0);
+		ki = uma_zalloc(kaio_zone, M_WAITOK);
 		p->p_aioinfo = ki;
 		ki->kaio_flags = 0;
 		ki->kaio_maxactive_count = max_aio_per_proc;
@@ -777,7 +777,7 @@ aio_daemon(void *uproc)
 	 * Allocate and ready the aio control info.  There is one aiop structure
 	 * per daemon.
 	 */
-	aiop = uma_zalloc(aiop_zone, 0);
+	aiop = uma_zalloc(aiop_zone, M_WAITOK);
 	aiop->aiothread = td;
 	aiop->aiothreadflags |= AIOP_FREE;
 
@@ -801,9 +801,9 @@ aio_daemon(void *uproc)
 	mtx_unlock(&Giant);
 	/* The daemon resides in its own pgrp. */
 	MALLOC(newpgrp, struct pgrp *, sizeof(struct pgrp), M_PGRP,
-		M_ZERO);
+		M_WAITOK | M_ZERO);
 	MALLOC(newsess, struct session *, sizeof(struct session), M_SESSION,
-		M_ZERO);
+		M_WAITOK | M_ZERO);
 
 	sx_xlock(&proctree_lock);
 	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
@@ -1301,7 +1301,7 @@ _aio_aqueue(struct thread *td, struct aiocb *job, struct aio_liojob *lj, int typ
 	struct kqueue *kq;
 	struct file *kq_fp;
 
-	aiocbe = uma_zalloc(aiocb_zone, 0);
+	aiocbe = uma_zalloc(aiocb_zone, M_WAITOK);
 	aiocbe->inputcharge = 0;
 	aiocbe->outputcharge = 0;
 	callout_handle_init(&aiocbe->timeouthandle);
@@ -1647,8 +1647,8 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 		return (EAGAIN);
 
 	njoblist = 0;
-	ijoblist = uma_zalloc(aiol_zone, 0);
-	ujoblist = uma_zalloc(aiol_zone, 0);
+	ijoblist = uma_zalloc(aiol_zone, M_WAITOK);
+	ujoblist = uma_zalloc(aiol_zone, M_WAITOK);
 	cbptr = uap->aiocbp;
 
 	for (i = 0; i < uap->nent; i++) {
@@ -1971,7 +1971,7 @@ lio_listio(struct thread *td, struct lio_listio_args *uap)
 	if ((nent + ki->kaio_queue_count) > ki->kaio_qallowed_count)
 		return (EAGAIN);
 
-	lj = uma_zalloc(aiolio_zone, 0);
+	lj = uma_zalloc(aiolio_zone, M_WAITOK);
 	if (!lj)
 		return (EAGAIN);
 

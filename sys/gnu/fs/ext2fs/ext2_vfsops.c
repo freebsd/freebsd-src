@@ -135,7 +135,7 @@ ext2_mountroot()
 		printf("ext2_mountroot: can't find rootvp\n");
 		return (error);
 	}
-	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, 0);
+	mp = bsd_malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
@@ -473,7 +473,7 @@ static int compute_sb_data(devvp, es, fs)
     V(s_db_per_group)
 
     fs->s_group_desc = bsd_malloc(db_count * sizeof (struct buf *),
-		M_EXT2MNT, 0);
+		M_EXT2MNT, M_WAITOK);
 
     /* adjust logic_sb_block */
     if(fs->s_blocksize > SBSIZE) 
@@ -683,16 +683,16 @@ ext2_mountfs(devvp, mp, td)
 			goto out;
 		}
 	}
-	ump = bsd_malloc(sizeof *ump, M_EXT2MNT, 0);
+	ump = bsd_malloc(sizeof *ump, M_EXT2MNT, M_WAITOK);
 	bzero((caddr_t)ump, sizeof *ump);
 	/* I don't know whether this is the right strategy. Note that
 	   we dynamically allocate both an ext2_sb_info and an ext2_super_block
 	   while Linux keeps the super block in a locked buffer
 	 */
 	ump->um_e2fs = bsd_malloc(sizeof(struct ext2_sb_info), 
-		M_EXT2MNT, 0);
+		M_EXT2MNT, M_WAITOK);
 	ump->um_e2fs->s_es = bsd_malloc(sizeof(struct ext2_super_block), 
-		M_EXT2MNT, 0);
+		M_EXT2MNT, M_WAITOK);
 	bcopy(es, ump->um_e2fs->s_es, (u_int)sizeof(struct ext2_super_block));
 	if ((error = compute_sb_data(devvp, ump->um_e2fs->s_es, ump->um_e2fs)))
 		goto out;
@@ -1005,7 +1005,7 @@ restart:
 	 * which will cause a panic because ext2_sync() blindly
 	 * dereferences vp->v_data (as well it should).
 	 */
-	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, 0);
+	MALLOC(ip, struct inode *, sizeof(struct inode), M_EXT2NODE, M_WAITOK);
 
 	/* Allocate a new vnode/inode. */
 	if ((error = getnewvnode("ext2fs", mp, ext2_vnodeop_p, &vp)) != 0) {

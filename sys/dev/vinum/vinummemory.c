@@ -152,7 +152,7 @@ MMalloc(int size, char *file, int line)
     /* Wait for malloc if we can */
     result = malloc(size,
 	M_DEVBUF,
-	curthread->td_intr_nesting_level == 0 ? 0 : M_NOWAIT);
+	curthread->td_intr_nesting_level == 0 ? M_WAITOK : M_NOWAIT);
     if (result == NULL)
 	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {

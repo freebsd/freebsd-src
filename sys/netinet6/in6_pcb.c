@@ -640,7 +640,7 @@ in6_sockaddr(port, addr_p)
 {
 	struct sockaddr_in6 *sin6;
 
-	MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6, M_SONAME, 0);
+	MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6, M_SONAME, M_WAITOK);
 	bzero(sin6, sizeof *sin6);
 	sin6->sin6_family = AF_INET6;
 	sin6->sin6_len = sizeof(*sin6);
@@ -671,7 +671,7 @@ in6_v4mapsin6_sockaddr(port, addr_p)
 	sin.sin_addr = *addr_p;
 
 	MALLOC(sin6_p, struct sockaddr_in6 *, sizeof *sin6_p, M_SONAME,
-		0);
+		M_WAITOK);
 	in6_sin_2_v4mapsin6(&sin, sin6_p);
 
 	return (struct sockaddr *)sin6_p;

@@ -966,7 +966,7 @@ wlread(int unit, u_short fd_p)
     /*
      * Allocate a cluster'd mbuf to receive the packet.
      */
-    m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
+    m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
     if (m == NULL) {
 	if (wlhwrst(unit) != TRUE) {
 	    sc->hacr &= ~HACR_INTRON;

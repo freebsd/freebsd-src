@@ -314,7 +314,7 @@ shmat(td, uap)
 	shmmap_s = p->p_vmspace->vm_shm;
 	if (shmmap_s == NULL) {
 		size = shminfo.shmseg * sizeof(struct shmmap_state);
-		shmmap_s = malloc(size, M_SHM, 0);
+		shmmap_s = malloc(size, M_SHM, M_WAITOK);
 		for (i = 0; i < shminfo.shmseg; i++)
 			shmmap_s[i].shmid = -1;
 		p->p_vmspace->vm_shm = shmmap_s;
@@ -643,7 +643,7 @@ shmget_allocate_segment(td, uap, mode)
 	shmseg->shm_perm.key = uap->key;
 	shmseg->shm_perm.seq = (shmseg->shm_perm.seq + 1) & 0x7fff;
 	shm_handle = (struct shm_handle *)
-	    malloc(sizeof(struct shm_handle), M_SHM, 0);
+	    malloc(sizeof(struct shm_handle), M_SHM, M_WAITOK);
 	shmid = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
 	
 	/*
@@ -756,7 +756,7 @@ shmfork_myhook(p1, p2)
 	int i;
 
 	size = shminfo.shmseg * sizeof(struct shmmap_state);
-	shmmap_s = malloc(size, M_SHM, 0);
+	shmmap_s = malloc(size, M_SHM, M_WAITOK);
 	bcopy(p1->p_vmspace->vm_shm, shmmap_s, size);
 	p2->p_vmspace->vm_shm = shmmap_s;
 	for (i = 0; i < shminfo.shmseg; i++, shmmap_s++)
@@ -791,7 +791,7 @@ shmrealloc(void)
 	if (shmalloced >= shminfo.shmmni)
 		return;
 
-	newsegs = malloc(shminfo.shmmni * sizeof(*newsegs), M_SHM, 0);
+	newsegs = malloc(shminfo.shmmni * sizeof(*newsegs), M_SHM, M_WAITOK);
 	if (newsegs == NULL)
 		return;
 	for (i = 0; i < shmalloced; i++)
@@ -822,7 +822,7 @@ shminit()
 	TUNABLE_INT_FETCH("kern.ipc.shm_use_phys", &shm_use_phys);
 
 	shmalloced = shminfo.shmmni;
-	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, 0);
+	shmsegs = malloc(shmalloced * sizeof(shmsegs[0]), M_SHM, M_WAITOK);
 	if (shmsegs == NULL)
 		panic("cannot allocate initial memory for sysvshm");
 	for (i = 0; i < shmalloced; i++) {

@@ -324,7 +324,7 @@ tapcreate(dev)
 	char			*name = NULL;
 
 	/* allocate driver storage and create device */
-	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_ZERO);
+	MALLOC(tp, struct tap_softc *, sizeof(*tp), M_TAP, M_WAITOK | M_ZERO);
 	SLIST_INSERT_HEAD(&taphead, tp, tap_next);
 
 	unit = dev2unit(dev) & TAPMAXUNIT;
@@ -839,7 +839,7 @@ tapwrite(dev, uio, flag)
 	tlen = uio->uio_resid;
 
 	/* get a header mbuf */
-	MGETHDR(m, M_NOWAIT, MT_DATA);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	mlen = MHLEN;
@@ -852,7 +852,7 @@ tapwrite(dev, uio, flag)
 		*mp = m;
 		mp = &m->m_next;
 		if (uio->uio_resid > 0) {
-			MGET(m, M_NOWAIT, MT_DATA);
+			MGET(m, M_DONTWAIT, MT_DATA);
 			if (m == NULL) {
 				error = ENOBUFS;
 				break;

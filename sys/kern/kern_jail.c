@@ -72,7 +72,7 @@ jail(td, uap)
 	if (j.version != 0)
 		return (EINVAL);
 
-	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_ZERO);
+	MALLOC(pr, struct prison *, sizeof *pr , M_PRISON, M_WAITOK | M_ZERO);
 	mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF);
 	pr->pr_securelevel = securelevel;
 	error = copyinstr(j.hostname, &pr->pr_host, sizeof pr->pr_host, 0);

@@ -92,7 +92,7 @@ linux_sysctl(struct thread *td, struct linux_sysctl_args *args)
 	if (la.nlen <= 0 || la.nlen > LINUX_CTL_MAXNAME)
 		return (ENOTDIR);
 
-	mib = malloc(la.nlen * sizeof(l_int), M_TEMP, 0);
+	mib = malloc(la.nlen * sizeof(l_int), M_TEMP, M_WAITOK);
 	error = copyin(la.name, mib, la.nlen * sizeof(l_int));
 	if (error) {
 		free(mib, M_TEMP);

@@ -352,9 +352,9 @@ alq_open(struct alq **alqp, const char *file, int size, int count)
 	/* We just unlock so we hold a reference */
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 
-	alq = malloc(sizeof(*alq), M_ALD, M_ZERO);
-	alq->aq_entbuf = malloc(count * size, M_ALD, M_ZERO);
-	alq->aq_first = malloc(sizeof(*ale) * count, M_ALD, M_ZERO);
+	alq = malloc(sizeof(*alq), M_ALD, M_WAITOK|M_ZERO);
+	alq->aq_entbuf = malloc(count * size, M_ALD, M_WAITOK|M_ZERO);
+	alq->aq_first = malloc(sizeof(*ale) * count, M_ALD, M_WAITOK|M_ZERO);
 	alq->aq_vp = nd.ni_vp;
 	alq->aq_cred = crhold(td->td_ucred);
 	alq->aq_entmax = count;

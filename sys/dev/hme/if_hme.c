@@ -491,7 +491,7 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 		hme_discard_rxbuf(sc, ri);
 		return (0);
 	}
-	if ((m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	if ((m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
 	b = mtod(m, uintptr_t);

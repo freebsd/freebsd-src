@@ -449,7 +449,7 @@ udf_transname(char *cs0string, char *destname, int len)
 	int i, unilen = 0;
 
 	/* allocate a buffer big enough to hold an 8->16 bit expansion */
-	transname = uma_zalloc(udf_zone_trans, 0);
+	transname = uma_zalloc(udf_zone_trans, M_WAITOK);
 
 	if ((unilen = udf_UncompressUnicode(len, cs0string, transname)) == -1) {
 		printf("udf: Unicode translation failed\n");
@@ -486,7 +486,7 @@ udf_cmpname(char *cs0string, char *cmpname, int cs0len, int cmplen)
 	int error = 0;
 
 	/* This is overkill, but not worth creating a new zone */
-	transname = uma_zalloc(udf_zone_trans, 0);
+	transname = uma_zalloc(udf_zone_trans, M_WAITOK);
 
 	cs0len = udf_transname(cs0string, transname, cs0len);
 
@@ -532,7 +532,7 @@ udf_opendir(struct udf_node *node, int offset, int fsize, struct udf_mnt *udfmp)
 {
 	struct udf_dirstream *ds;
 
-	ds = uma_zalloc(udf_zone_ds, M_ZERO);
+	ds = uma_zalloc(udf_zone_ds, M_WAITOK | M_ZERO);
 
 	ds->node = node;
 	ds->offset = offset;
@@ -597,7 +597,7 @@ udf_getfid(struct udf_dirstream *ds)
 		 * logical sector in size.
 		 */
 		MALLOC(ds->buf, uint8_t*, ds->udfmp->bsize, M_UDFFID,
-		     M_ZERO);
+		     M_WAITOK | M_ZERO);
 		bcopy(fid, ds->buf, frag_size);
 
 		/* Reduce all of the casting magic */
@@ -697,7 +697,7 @@ udf_readdir(struct vop_readdir_args *a)
 		 */
 		ncookies = uio->uio_resid / 8;
 		MALLOC(cookies, u_long *, sizeof(u_long) * ncookies,
-		    M_TEMP, 0);
+		    M_TEMP, M_WAITOK);
 		if (cookies == NULL)
 			return (ENOMEM);
 		uiodir.ncookies = ncookies;

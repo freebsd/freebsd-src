@@ -190,7 +190,7 @@ ng_l2cap_process_signal_cmd(ng_l2cap_con_p con)
 
 		/* Get the command, save the rest (if any) */
 		if (con->rx_pkt->m_pkthdr.len > hdr->length)
-			m = m_split(con->rx_pkt, hdr->length, M_NOWAIT);
+			m = m_split(con->rx_pkt, hdr->length, M_DONTWAIT);
 		else
 			m = NULL;
 

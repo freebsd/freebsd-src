@@ -1501,7 +1501,7 @@ msdosfs_readdir(ap)
 	if (ap->a_ncookies) {
 		ncookies = uio->uio_resid / 16;
 		MALLOC(cookies, u_long *, ncookies * sizeof(u_long), M_TEMP,
-		       0);
+		       M_WAITOK);
 		*ap->a_cookies = cookies;
 		*ap->a_ncookies = ncookies;
 	}

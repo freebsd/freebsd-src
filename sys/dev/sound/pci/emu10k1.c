@@ -1455,7 +1455,7 @@ emu_pci_attach(device_t dev)
 	int i, gotmic;
 	char status[SND_STATUSLEN];
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_ZERO)) == NULL) {
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}

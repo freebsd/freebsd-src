@@ -643,7 +643,7 @@ xe_intr(void *xscp)
 	if (len & 0x01)
 	  len++;
 
-	MGETHDR(mbp, M_NOWAIT, MT_DATA);	/* Allocate a header mbuf */
+	MGETHDR(mbp, M_DONTWAIT, MT_DATA);	/* Allocate a header mbuf */
 	if (mbp != NULL) {
 	  mbp->m_pkthdr.rcvif = ifp;
 	  mbp->m_pkthdr.len = mbp->m_len = len;
@@ -654,7 +654,7 @@ xe_intr(void *xscp)
 	   * alignment hack below.
 	   */
 	  if (len + 2 > MHLEN) {
-	    MCLGET(mbp, M_NOWAIT);
+	    MCLGET(mbp, M_DONTWAIT);
 	    if ((mbp->m_flags & M_EXT) == 0) {
 	      m_freem(mbp);
 	      mbp = NULL;

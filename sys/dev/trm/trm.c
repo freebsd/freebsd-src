@@ -2887,7 +2887,7 @@ trm_initACB(PACB pACB, u_int16_t unit)
 			for (j = 0; j < (pACB->max_lun +1); j++) {
 				pACB->scan_devices[i][j] = 1;
 				pACB->pDCB[i][j]= (PDCB) malloc (
-				    sizeof (struct _DCB), M_DEVBUF, 0);
+				    sizeof (struct _DCB), M_DEVBUF, M_WAITOK);
 				trm_initDCB(pACB,
 				    pACB->pDCB[i][j], unit, i, j);
 				TRM_DPRINTF("pDCB= %8x \n",
@@ -3292,7 +3292,7 @@ trm_attach(device_t pci_config_id)
 	 * of the multi-channel controller.
 	 * trm_action     : sim_action_func
 	 * trm_poll       : sim_poll_func
-	 * "trm"        : sim_name ,if sim_name =  "xpt" ..M_DEVBUF,0
+	 * "trm"        : sim_name ,if sim_name =  "xpt" ..M_DEVBUF,M_WAITOK
 	 * pACB         : *softc    if sim_name <> "xpt" ..M_DEVBUF,M_NOWAIT
 	 * pACB->unit   : unit
 	 * 1            : max_dev_transactions

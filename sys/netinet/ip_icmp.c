@@ -163,7 +163,7 @@ icmp_error(n, type, code, dest, destifp)
 	/*
 	 * First, formulate icmp message
 	 */
-	m = m_gethdr(M_NOWAIT, MT_HEADER);
+	m = m_gethdr(M_DONTWAIT, MT_HEADER);
 	if (m == NULL)
 		goto freeit;
 #ifdef MAC
@@ -656,7 +656,7 @@ match:
 		 */
 		cp = (u_char *) (ip + 1);
 		if ((opts = ip_srcroute()) == 0 &&
-		    (opts = m_gethdr(M_NOWAIT, MT_HEADER))) {
+		    (opts = m_gethdr(M_DONTWAIT, MT_HEADER))) {
 			opts->m_len = sizeof(struct in_addr);
 			mtod(opts, struct in_addr *)->s_addr = 0;
 		}

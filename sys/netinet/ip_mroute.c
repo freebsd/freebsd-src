@@ -1403,7 +1403,7 @@ encap_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
      * new mbuf so we can modify it.  Try to fill the new
      * mbuf since if we don't the ethernet driver will.
      */
-    MGETHDR(mb_copy, M_NOWAIT, MT_HEADER);
+    MGETHDR(mb_copy, M_DONTWAIT, MT_HEADER);
     if (mb_copy == NULL)
 	return;
 #ifdef MAC

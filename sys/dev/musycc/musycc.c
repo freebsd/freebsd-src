@@ -696,9 +696,9 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 		m->m_len = m->m_pkthdr.len = status & 0x3fff;
 		error = (status >> 16) & 0xf;
 		if (error == 0) {
-			MGETHDR(m2, M_NOWAIT, MT_DATA);
+			MGETHDR(m2, M_DONTWAIT, MT_DATA);
 			if (m2 != NULL) {
-				MCLGET(m2, M_NOWAIT);
+				MCLGET(m2, M_DONTWAIT);
 				if((m2->m_flags & M_EXT) != 0) {
 					/* Substitute the mbuf+cluster. */
 					md->m = m2;
@@ -1069,7 +1069,7 @@ musycc_newhook(node_p node, hook_p hook, const char *name)
 		return (EINVAL);
 		
 	if (sc->chan[chan] == NULL) {
-		MALLOC(sch, struct schan *, sizeof(*sch), M_MUSYCC, M_ZERO);
+		MALLOC(sch, struct schan *, sizeof(*sch), M_MUSYCC, M_WAITOK | M_ZERO);
 		sch->sc = sc;
 		sch->state = DOWN;
 		sch->chan = chan;
@@ -1268,9 +1268,9 @@ musycc_connect(hook_p hook)
 	sch->nmd = nmd = 200 + nts * 4;
 	sch->rx_last_md = 0;
 	MALLOC(sc->mdt[ch], struct mdesc *, 
-	    sizeof(struct mdesc) * nmd, M_MUSYCC, 0);
+	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
 	MALLOC(sc->mdr[ch], struct mdesc *, 
-	    sizeof(struct mdesc) * nmd, M_MUSYCC, 0);
+	    sizeof(struct mdesc) * nmd, M_MUSYCC, M_WAITOK);
 	for (i = 0; i < nmd; i++) {
 		if (i == nmd - 1) {
 			sc->mdt[ch][i].snext = &sc->mdt[ch][0];
@@ -1287,13 +1287,13 @@ musycc_connect(hook_p hook)
 		sc->mdt[ch][i].m = NULL;
 		sc->mdt[ch][i].data = 0;
 
-		MGETHDR(m, 0, MT_DATA);
+		MGETHDR(m, M_TRYWAIT, MT_DATA);
 		if (m == NULL)
 			goto errfree;
-		MCLGET(m, 0);
+		MCLGET(m, M_TRYWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			/* We've waited mbuf_wait and still got nothing.
-			   We're calling with 0 anyway - a little
+			   We're calling with M_TRYWAIT anyway - a little
 			   defensive programming costs us very little - if
 			   anything at all in the case of error. */
 			m_free(m);
@@ -1455,7 +1455,7 @@ musycc_attach(device_t self)
 	f = pci_get_function(self);
 	/* For function zero allocate a csoftc */
 	if (f == 0) {
-		MALLOC(csc, struct csoftc *, sizeof(*csc), M_MUSYCC, M_ZERO);
+		MALLOC(csc, struct csoftc *, sizeof(*csc), M_MUSYCC, M_WAITOK | M_ZERO);
 		csc->bus = pci_get_bus(self);
 		csc->slot = pci_get_slot(self);
 		LIST_INSERT_HEAD(&sc_list, csc, list);
@@ -1529,7 +1529,7 @@ musycc_attach(device_t self)
 		sc->reg = (struct globalr *)
 		    (csc->virbase[0] + i * 0x800);
 		MALLOC(sc->mycg, struct mycg *, 
-		    sizeof(struct mycg), M_MUSYCC, M_ZERO);
+		    sizeof(struct mycg), M_MUSYCC, M_WAITOK | M_ZERO);
 		sc->ram = &sc->mycg->cg;
 
 		error = ng_make_node_common(&ngtypestruct, &sc->node);

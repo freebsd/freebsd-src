@@ -164,7 +164,7 @@ sysctl_rule(SYSCTL_HANDLER_ARGS)
 		if (rules[index] == NULL) {
 			/* printf("addition\n"); */
 			MALLOC(ruleptr, struct mac_bsdextended_rule *,
-			    sizeof(*ruleptr), M_MACBSDEXTENDED,
+			    sizeof(*ruleptr), M_MACBSDEXTENDED, M_WAITOK |
 			    M_ZERO);
 			*ruleptr = temprule;
 			rules[index] = ruleptr;

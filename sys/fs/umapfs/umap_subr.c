@@ -210,7 +210,7 @@ umap_node_alloc(mp, lowervp, vpp)
 	 * elsewhere if MALLOC should block.
 	 */
 	MALLOC(xp, struct umap_node *, sizeof(struct umap_node),
-	    M_TEMP, 0);
+	    M_TEMP, M_WAITOK);
 
 	error = getnewvnode("umap", mp, umap_vnodeop_p, vpp);
 	if (error) {
