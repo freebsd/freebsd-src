@@ -92,6 +92,25 @@
 
 #define	CBBR_LEGACY				0x44	/* len=4 */
 
+/* TI * */
+#define CBBR_SYSCTRL				0x80	/* len=4 */
+# define	CBBM_SYSCTRL_INTRTIE			0x20000000u
+
+/* TI [14][245]xx */
+#define CBBR_MMCTRL				0x84	/* len=4 */
+
+/* TI 12xx/14xx/15xx (except 1250/1251/1251B/1450) */
+#define CBBR_MFUNC				0x8c	/* len=4 */
+# define	CBBM_MFUNC_PIN0				0x0000000f
+# define		CBBM_MFUNC_PIN0_INTA			0x02
+# define	CBBM_MFUNC_PIN1				0x000000f0
+# define		CBBM_MFUNC_PIN1_INTB			0x20
+# define	CBBM_MFUNC_PIN2				0x00000f00
+# define	CBBM_MFUNC_PIN3				0x0000f000
+# define	CBBM_MFUNC_PIN4				0x000f0000
+# define	CBBM_MFUNC_PIN5				0x00f00000
+# define	CBBM_MFUNC_PIN6				0x0f000000
+
 #define	CBBR_CBCTRL				0x91	/* len=1 */
   /* bits for TI 113X */
 # define	CBBM_CBCTRL_113X_RI_EN		0x80
@@ -102,7 +121,7 @@
 # define	CBBM_CBCTRL_113X_PCI_CSC_D		0x04
 # define	CBBM_CBCTRL_113X_SPEAKER_EN		0x02
 # define	CBBM_CBCTRL_113X_INTR_DET		0x01
-  /* bits for TI 12XX */
+  /* TI [14][245]xx */
 # define	CBBM_CBCTRL_12XX_RI_EN		0x80
 # define	CBBM_CBCTRL_12XX_ZV_EN		0x40
 # define	CBBM_CBCTRL_12XX_AUD2MUX		0x04
@@ -210,3 +229,5 @@
 #define CBB_SOCKET_FORCE		0x0c
 #define CBB_SOCKET_CONTROL		0x10
 #define CBB_SOCKET_POWER		0x14
+
+#define CBB_EXCA_OFFSET			0x800	/* offset for exca regs */
