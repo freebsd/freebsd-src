@@ -664,7 +664,7 @@ monitor_handle_connect(int sockfd, int is_local)
 		char nbuf[64];		
 		p = &cfg_entry_tab[i];		/* get ptr to enry */
 
-		sprintf(nbuf, "%s%d ", bdrivername(p->usrdevicename), p->usrdeviceunit);
+		snprintf(nbuf, sizeof(nbuf), "%s%d ", bdrivername(p->usrdevicename), p->usrdeviceunit);
 
 		I4B_PREP_CMD(ictrl, I4B_MON_IDEV_CODE);
 /*XXX*/		I4B_PUT_2B(ictrl, I4B_MON_IDEV_STATE, 1);

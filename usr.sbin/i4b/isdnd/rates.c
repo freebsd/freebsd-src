@@ -91,7 +91,7 @@ int main( int argc, char **argv )
 int
 readrates(char *filename)
 {
-	char buffer[1024];
+	char buffer[MAXPATHLEN];
 	register char *bp;
 	struct rates *rt, *ort;
 	int rateindx;
@@ -108,7 +108,7 @@ readrates(char *filename)
 
 	if((fp = fopen(filename, "r")) == NULL)
 	{
-		sprintf(error, "error open %s: %s", filename, sys_errlist[errno]);
+		snprintf(error, sizeof(error), "error open %s: %s", filename, sys_errlist[errno]);
 		rate_error = error;
 		return(WARNING);
 	}
@@ -140,12 +140,12 @@ readrates(char *filename)
 		}
 		else
 		{
-			sprintf(error, "rates: invalid rate type %c%c%c in line %d", *bp, *(bp+1), *(bp+2), line);
+			snprintf(error, sizeof(error), "rates: invalid rate type %c%c%c in line %d", *bp, *(bp+1), *(bp+2), line);
 			goto rate_error;
 		}
 		if (rateindx >= NRATES)
 		{
-			sprintf(error, "rates: invalid rate index %d in line %d", rateindx, line);
+			snprintf(error, sizeof(error), "rates: invalid rate index %d in line %d", rateindx, line);
 			goto rate_error;
 		}
 
@@ -159,7 +159,7 @@ readrates(char *filename)
 		}
 		else
 		{
-			sprintf(error, "rates: invalid day digit %c in line %d", *bp, line);
+			snprintf(error, sizeof(error), "rates: invalid day digit %c in line %d", *bp, line);
 			goto rate_error;
 		}
 
@@ -168,7 +168,7 @@ readrates(char *filename)
 			rt = (struct rates *)malloc(sizeof (struct rates));
 			if (rt == NULL)
 			{
-				sprintf(error, "rates: cannot malloc space for rate structure");
+				snprintf(error, sizeof(error), "rates: cannot malloc space for rate structure");
 				goto rate_error;
 		  	}
 			rt->next = NULL;
@@ -202,7 +202,7 @@ readrates(char *filename)
 				rt = (struct rates *)malloc(sizeof (struct rates));
 				if (rt == NULL)
 				{
-					sprintf(error, "rates: cannot malloc space2 for rate structure");
+					snprintf(error, sizeof(error), "rates: cannot malloc space2 for rate structure");
 					goto rate_error;
 			  	}
 				ort->next = rt;
@@ -218,7 +218,7 @@ readrates(char *filename)
 			}
 		  	else
 			{
-				sprintf(error, "rates: start_hr error in line %d", line);
+				snprintf(error, sizeof(error), "rates: start_hr error in line %d", line);
 				goto rate_error;
 		  	}
 
@@ -230,7 +230,7 @@ readrates(char *filename)
 		  	}
 		  	else
 		  	{
-				sprintf(error, "rates: no '.' after start_hr in line %d", line);
+				snprintf(error, sizeof(error), "rates: no '.' after start_hr in line %d", line);
 				goto rate_error;
 			}
 		  	
@@ -243,7 +243,7 @@ readrates(char *filename)
 			}
 		  	else
 			{
-				sprintf(error, "rates: start_min error in line %d", line);
+				snprintf(error, sizeof(error), "rates: start_min error in line %d", line);
 				goto rate_error;
 		  	}
 
@@ -257,7 +257,7 @@ readrates(char *filename)
 		  	}
 		  	else
 		  	{
-				sprintf(error, "rates: no '-' after start_min in line %d", line);
+				snprintf(error, sizeof(error), "rates: no '-' after start_min in line %d", line);
 				goto rate_error;
 			}
 
@@ -270,7 +270,7 @@ readrates(char *filename)
 			}
 		  	else
 			{
-				sprintf(error, "rates: end_hr error in line %d", line);
+				snprintf(error, sizeof(error), "rates: end_hr error in line %d", line);
 				goto rate_error;
 		  	}
 
@@ -282,7 +282,7 @@ readrates(char *filename)
 		  	}
 		  	else
 		  	{
-				sprintf(error, "rates: no '.' after end_hr in line %d", line);
+				snprintf(error, sizeof(error), "rates: no '.' after end_hr in line %d", line);
 				goto rate_error;
 			}
 		  	
@@ -295,7 +295,7 @@ readrates(char *filename)
 			}
 		  	else
 			{
-				sprintf(error, "rates: end_min error in line %d", line);
+				snprintf(error, sizeof(error), "rates: end_min error in line %d", line);
 				goto rate_error;
 		  	}
 
@@ -306,7 +306,7 @@ readrates(char *filename)
 
 			if( rt->end_time <= rt->start_time )
 				{
-				sprintf(error, "rates: end_time must be greater then start_time %d", line);
+				snprintf(error, sizeof(error), "rates: end_time must be greater then start_time %d", line);
 				goto rate_error;
 				}
 
@@ -318,7 +318,7 @@ readrates(char *filename)
 		  	}
 		  	else
 		  	{
-				sprintf(error, "rates: no ':' after end_min in line %d", line);
+				snprintf(error, sizeof(error), "rates: no ':' after end_min in line %d", line);
 				goto rate_error;
 			}
 
@@ -332,7 +332,7 @@ readrates(char *filename)
 			}
 		  	else
 			{
-				sprintf(error, "rates: first rate digit error in line %d", line);
+				snprintf(error, sizeof(error), "rates: first rate digit error in line %d", line);
 				goto rate_error;
 		  	}
 
