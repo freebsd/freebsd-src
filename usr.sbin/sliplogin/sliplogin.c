@@ -105,6 +105,29 @@ int     slunit;
 char	loginargs[BUFSIZ];
 char	loginfile[MAXPATHLEN];
 char	loginname[BUFSIZ];
+static char raddr[32];
+
+
+char *
+make_ipaddr(void)
+{
+static char address[20] ="";
+struct hostent *he;
+unsigned long ipaddr;
+int i;
+
+address[0] = '\0';
+if ((he = gethostbyname(raddr)) != NULL) {
+	ipaddr = ntohl(*(long *)he->h_addr_list[0]);
+	sprintf(address, "%lu.%lu.%lu.%lu",
+		ipaddr >> 24,
+		(ipaddr & 0x00ff0000) >> 16,
+		(ipaddr & 0x0000ff00) >> 8,
+		(ipaddr & 0x000000ff));
+	}
+
+return address;
+}
 
 struct slip_modes {
 	char	*sm_name;
@@ -124,7 +147,6 @@ findid(name)
 	FILE *fp;
 	static char slopt[5][16];
 	static char laddr[16];
-	static char raddr[16];
 	static char mask[16];
 	char   slparmsfile[MAXPATHLEN];
 	char user[16];
@@ -386,6 +408,10 @@ main(argc, argv)
 	}
 	(void) fchmod(0, 0600);
 	(void) fprintf(stderr, "starting slip login for %s\n", loginname);
+        (void) fprintf(stderr, "your address is %s\n\n", make_ipaddr());
+
+	(void) fflush(stderr);
+	sleep(1);
 
 	/* set up the line parameters */
 	if (tcgetattr(0, &tios) < 0) {
