@@ -2230,9 +2230,12 @@ asr_pci_map_int(device_t tag, Asr_softc_t *sc)
 static int
 asr_attach(device_t tag)
 {
+	PI2O_EXEC_STATUS_GET_REPLY status;
+	PI2O_LCT_ENTRY		 Device;
 	Asr_softc_t		 *sc, **ha;
 	struct scsi_inquiry_data *iq;
-	int			 unit = device_get_unit(tag);
+	union asr_ccb		 *ccb;
+	int			 bus, size, unit = device_get_unit(tag);
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		return(ENOMEM);
@@ -2252,83 +2255,75 @@ asr_attach(device_t tag)
 	/* Link us into the HA list */
 	for (ha = &Asr_softc; *ha; ha = &((*ha)->ha_next));
 		*(ha) = sc;
-	{
-		PI2O_EXEC_STATUS_GET_REPLY status;
-		int size;
 
-		/*
-		 *	This is the real McCoy!
-		 */
-		if (!asr_pci_map_mem(tag, sc)) {
-			printf ("asr%d: could not map memory\n", unit);
-			return(ENXIO);
-		}
-		/* Enable if not formerly enabled */
-		pci_write_config (tag, PCIR_COMMAND,
-		  pci_read_config (tag, PCIR_COMMAND, sizeof(char))
-		  | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
-		/* Knowledge is power, responsibility is direct */
-		{
-			struct pci_devinfo {
-				STAILQ_ENTRY(pci_devinfo) pci_links;
-				struct resource_list	  resources;
-				pcicfgregs		  cfg;
-			} * dinfo = device_get_ivars(tag);
-			sc->ha_pciBusNum = dinfo->cfg.bus;
-			sc->ha_pciDeviceNum = (dinfo->cfg.slot << 3)
-					    | dinfo->cfg.func;
-		}
-		/* Check if the device is there? */
-		if ((ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt) == 0)
-		 || ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc (
-		  sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL)
-		 || (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, status) == NULL)) {
-			printf ("asr%d: could not initialize hardware\n", unit);
-			return(ENODEV);	/* Get next, maybe better luck */
-		}
-		sc->ha_SystemTable.OrganizationID = status->OrganizationID;
-		sc->ha_SystemTable.IOP_ID = status->IOP_ID;
-		sc->ha_SystemTable.I2oVersion = status->I2oVersion;
-		sc->ha_SystemTable.IopState = status->IopState;
-		sc->ha_SystemTable.MessengerType = status->MessengerType;
-		sc->ha_SystemTable.InboundMessageFrameSize
-		  = status->InboundMFrameSize;
-		sc->ha_SystemTable.MessengerInfo.InboundMessagePortAddressLow
-		  = (U32)(sc->ha_Base) + (U32)offsetof(i2oRegs_t, ToFIFO);
-
-		if (!asr_pci_map_int(tag, (void *)sc)) {
-			printf ("asr%d: could not map interrupt\n", unit);
-			return(ENXIO);
-		}
-
-		/* Adjust the maximim inbound count */
-		if (((sc->ha_QueueSize
-		  = I2O_EXEC_STATUS_GET_REPLY_getMaxInboundMFrames(status))
-		     > MAX_INBOUND)
-		 || (sc->ha_QueueSize == 0)) {
-			sc->ha_QueueSize = MAX_INBOUND;
-		}
-
-		/* Adjust the maximum outbound count */
-		if (((sc->ha_Msgs_Count
-		  = I2O_EXEC_STATUS_GET_REPLY_getMaxOutboundMFrames(status))
-		     > MAX_OUTBOUND)
-		 || (sc->ha_Msgs_Count == 0)) {
-			sc->ha_Msgs_Count = MAX_OUTBOUND;
-		}
-		if (sc->ha_Msgs_Count > sc->ha_QueueSize) {
-			sc->ha_Msgs_Count = sc->ha_QueueSize;
-		}
-
-		/* Adjust the maximum SG size to adapter */
-		if ((size = (I2O_EXEC_STATUS_GET_REPLY_getInboundMFrameSize(
-		  status) << 2)) > MAX_INBOUND_SIZE) {
-			size = MAX_INBOUND_SIZE;
-		}
-		free (status, M_TEMP);
-		sc->ha_SgSize = (size - sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
-		  + sizeof(I2O_SG_ELEMENT)) / sizeof(I2O_SGE_SIMPLE_ELEMENT);
+	/*
+	 *	This is the real McCoy!
+	 */
+	if (!asr_pci_map_mem(tag, sc)) {
+		printf ("asr%d: could not map memory\n", unit);
+		return(ENXIO);
 	}
+	/* Enable if not formerly enabled */
+	pci_write_config(tag, PCIR_COMMAND,
+	    pci_read_config(tag, PCIR_COMMAND, sizeof(char)) |
+	    PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN, sizeof(char));
+	/* Knowledge is power, responsibility is direct */
+	{
+		struct pci_devinfo {
+			STAILQ_ENTRY(pci_devinfo) pci_links;
+			struct resource_list	  resources;
+			pcicfgregs		  cfg;
+		} * dinfo = device_get_ivars(tag);
+		sc->ha_pciBusNum = dinfo->cfg.bus;
+		sc->ha_pciDeviceNum = (dinfo->cfg.slot << 3) | dinfo->cfg.func;
+	}
+	/* Check if the device is there? */
+	if ((ASR_resetIOP(sc->ha_Virt, sc->ha_Fvirt) == 0) ||
+	    ((status = (PI2O_EXEC_STATUS_GET_REPLY)malloc(
+	    sizeof(I2O_EXEC_STATUS_GET_REPLY), M_TEMP, M_WAITOK)) == NULL) ||
+	    (ASR_getStatus(sc->ha_Virt, sc->ha_Fvirt, status) == NULL)) {
+		printf ("asr%d: could not initialize hardware\n", unit);
+		return(ENODEV);	/* Get next, maybe better luck */
+	}
+	sc->ha_SystemTable.OrganizationID = status->OrganizationID;
+	sc->ha_SystemTable.IOP_ID = status->IOP_ID;
+	sc->ha_SystemTable.I2oVersion = status->I2oVersion;
+	sc->ha_SystemTable.IopState = status->IopState;
+	sc->ha_SystemTable.MessengerType = status->MessengerType;
+	sc->ha_SystemTable.InboundMessageFrameSize = status->InboundMFrameSize;
+	sc->ha_SystemTable.MessengerInfo.InboundMessagePortAddressLow =
+	    (U32)(sc->ha_Base) + (U32)offsetof(i2oRegs_t, ToFIFO);
+
+	if (!asr_pci_map_int(tag, (void *)sc)) {
+		printf ("asr%d: could not map interrupt\n", unit);
+		return(ENXIO);
+	}
+
+	/* Adjust the maximim inbound count */
+	if (((sc->ha_QueueSize =
+	    I2O_EXEC_STATUS_GET_REPLY_getMaxInboundMFrames(status)) >
+	    MAX_INBOUND) || (sc->ha_QueueSize == 0)) {
+		sc->ha_QueueSize = MAX_INBOUND;
+	}
+
+	/* Adjust the maximum outbound count */
+	if (((sc->ha_Msgs_Count =
+	    I2O_EXEC_STATUS_GET_REPLY_getMaxOutboundMFrames(status)) >
+	    MAX_OUTBOUND) || (sc->ha_Msgs_Count == 0)) {
+		sc->ha_Msgs_Count = MAX_OUTBOUND;
+	}
+	if (sc->ha_Msgs_Count > sc->ha_QueueSize) {
+		sc->ha_Msgs_Count = sc->ha_QueueSize;
+	}
+
+	/* Adjust the maximum SG size to adapter */
+	if ((size = (I2O_EXEC_STATUS_GET_REPLY_getInboundMFrameSize(status) <<
+	    2)) > MAX_INBOUND_SIZE) {
+		size = MAX_INBOUND_SIZE;
+	}
+	free (status, M_TEMP);
+	sc->ha_SgSize = (size - sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
+	  + sizeof(I2O_SG_ELEMENT)) / sizeof(I2O_SGE_SIMPLE_ELEMENT);
 
 	/*
 	 *	Only do a bus/HBA reset on the first time through. On this
@@ -2365,41 +2360,36 @@ asr_attach(device_t tag)
 	 * Done here because of we need both the acquireLct and
 	 * acquireHrt data.
 	 */
-	{	PI2O_LCT_ENTRY Device;
-
-		for (Device = sc->ha_LCT->LCTEntry; Device < (PI2O_LCT_ENTRY)
-		  (((U32 *)sc->ha_LCT)+I2O_LCT_getTableSize(sc->ha_LCT));
-		  ++Device) {
-			if (Device->le_type == I2O_UNKNOWN) {
-				continue;
+	for (Device = sc->ha_LCT->LCTEntry; Device < (PI2O_LCT_ENTRY)
+	    (((U32 *)sc->ha_LCT)+I2O_LCT_getTableSize(sc->ha_LCT)); ++Device) {
+		if (Device->le_type == I2O_UNKNOWN) {
+			continue;
+		}
+		if (I2O_LCT_ENTRY_getUserTID(Device) == 0xFFF) {
+			if (Device->le_target > sc->ha_MaxId) {
+				sc->ha_MaxId = Device->le_target;
 			}
-			if (I2O_LCT_ENTRY_getUserTID(Device) == 0xFFF) {
-				if (Device->le_target > sc->ha_MaxId) {
-					sc->ha_MaxId = Device->le_target;
-				}
-				if (Device->le_lun > sc->ha_MaxLun) {
-					sc->ha_MaxLun = Device->le_lun;
-				}
-			}
-			if (((Device->le_type & I2O_PORT) != 0)
-			 && (Device->le_bus <= MAX_CHANNEL)) {
-				/* Do not increase MaxId for efficiency */
-				sc->ha_adapter_target[Device->le_bus]
-					= Device->le_target;
+			if (Device->le_lun > sc->ha_MaxLun) {
+				sc->ha_MaxLun = Device->le_lun;
 			}
 		}
+		if (((Device->le_type & I2O_PORT) != 0)
+		 && (Device->le_bus <= MAX_CHANNEL)) {
+			/* Do not increase MaxId for efficiency */
+			sc->ha_adapter_target[Device->le_bus] =
+			    Device->le_target;
+		}
 	}
-
 
 	/*
 	 *	Print the HBA model number as inquired from the card.
 	 */
 
-	printf ("asr%d:", unit);
+	printf("asr%d:", unit);
 
-	if ((iq = (struct scsi_inquiry_data *)malloc (
-	    sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK | M_ZERO))
-	  != NULL) {
+	if ((iq = (struct scsi_inquiry_data *)malloc(
+	    sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK | M_ZERO)) !=
+	    NULL) {
 		defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
 		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	      Message_Ptr;
 		int					      posted = 0;
@@ -2434,7 +2424,8 @@ asr_attach(device_t tag)
 		    DPT_ORGANIZATION_ID);
 		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_setCDBLength(Message_Ptr, 6);
 		Message_Ptr->CDB[0] = INQUIRY;
-		Message_Ptr->CDB[4] = (unsigned char)sizeof(struct scsi_inquiry_data);
+		Message_Ptr->CDB[4] =
+		    (unsigned char)sizeof(struct scsi_inquiry_data);
 		if (Message_Ptr->CDB[4] == 0) {
 			Message_Ptr->CDB[4] = 255;
 		}
@@ -2479,60 +2470,51 @@ asr_attach(device_t tag)
 	/*
 	 * fill in the prototype cam_path.
 	 */
-	{
-		int		bus;
-		union asr_ccb * ccb;
-
-		if ((ccb = asr_alloc_ccb (sc)) == NULL) {
-			printf ("asr%d: CAM could not be notified of asynchronous callback parameters\n", unit);
-			return(ENOMEM);
-		}
-		for (bus = 0; bus <= sc->ha_MaxBus; ++bus) {
-			struct cam_devq	  * devq;
-			int		    QueueSize = sc->ha_QueueSize;
-
-			if (QueueSize > MAX_INBOUND) {
-				QueueSize = MAX_INBOUND;
-			}
-
-			/*
-			 *	Create the device queue for our SIM(s).
-			 */
-			if ((devq = cam_simq_alloc(QueueSize)) == NULL) {
-				continue;
-			}
-
-			/*
-			 *	Construct our first channel SIM entry
-			 */
-			sc->ha_sim[bus] = cam_sim_alloc(
-			  asr_action, asr_poll, "asr", sc,
-			  unit, 1, QueueSize, devq);
-			if (sc->ha_sim[bus] == NULL) {
-				continue;
-			}
-
-			if (xpt_bus_register(sc->ha_sim[bus], bus)
-			  != CAM_SUCCESS) {
-				cam_sim_free(sc->ha_sim[bus],
-				  /*free_devq*/TRUE);
-				sc->ha_sim[bus] = NULL;
-				continue;
-			}
-
-			if (xpt_create_path(&(sc->ha_path[bus]), /*periph*/NULL,
-			  cam_sim_path(sc->ha_sim[bus]), CAM_TARGET_WILDCARD,
-			  CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-				xpt_bus_deregister(
-				  cam_sim_path(sc->ha_sim[bus]));
-				cam_sim_free(sc->ha_sim[bus],
-				  /*free_devq*/TRUE);
-				sc->ha_sim[bus] = NULL;
-				continue;
-			}
-		}
-		asr_free_ccb (ccb);
+	if ((ccb = asr_alloc_ccb(sc)) == NULL) {
+		printf ("asr%d: CAM could not be notified of asynchronous callback parameters\n", unit);
+		return(ENOMEM);
 	}
+	for (bus = 0; bus <= sc->ha_MaxBus; ++bus) {
+		struct cam_devq	  * devq;
+		int		    QueueSize = sc->ha_QueueSize;
+
+		if (QueueSize > MAX_INBOUND) {
+			QueueSize = MAX_INBOUND;
+		}
+
+		/*
+		 *	Create the device queue for our SIM(s).
+		 */
+		if ((devq = cam_simq_alloc(QueueSize)) == NULL) {
+			continue;
+		}
+
+		/*
+		 *	Construct our first channel SIM entry
+		 */
+		sc->ha_sim[bus] = cam_sim_alloc(asr_action, asr_poll, "asr", sc,
+						unit, 1, QueueSize, devq);
+		if (sc->ha_sim[bus] == NULL) {
+			continue;
+		}
+
+		if (xpt_bus_register(sc->ha_sim[bus], bus) != CAM_SUCCESS) {
+			cam_sim_free(sc->ha_sim[bus],
+			  /*free_devq*/TRUE);
+			sc->ha_sim[bus] = NULL;
+			continue;
+		}
+
+		if (xpt_create_path(&(sc->ha_path[bus]), /*periph*/NULL,
+		    cam_sim_path(sc->ha_sim[bus]), CAM_TARGET_WILDCARD,
+		    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			xpt_bus_deregister( cam_sim_path(sc->ha_sim[bus]));
+			cam_sim_free(sc->ha_sim[bus], /*free_devq*/TRUE);
+			sc->ha_sim[bus] = NULL;
+			continue;
+		}
+	}
+	asr_free_ccb (ccb);
 	/*
 	 *	Generate the device node information
 	 */
