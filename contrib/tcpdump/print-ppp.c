@@ -588,13 +588,11 @@ pppoe_print(const u_char *p, u_int length)
 	    ntohs(*(u_short *)(p + 2)), len);
 
 	if (type == 0x00) {
-		p += 4;
-		length -= 4;
-		if (len > length)
-			len = length;	/* puke ! */
 		/* This is a data packet */
+		p += 4;
 		fputs("] ", stdout);
-		do_ppp_print(p, len, len);
+		/* If eflag is set, ignore the trailing 2 bytes for LCP... */
+		do_ppp_print(p, eflag ? len - 2 : len + 2, len + 4);
 		return;
 	}
 
