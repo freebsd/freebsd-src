@@ -45,7 +45,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)mount_nfs.c	8.11 (Berkeley) 5/4/95";
 */
 static const char rcsid[] =
-	"$Id: mount_nfs.c,v 1.24 1997/10/19 16:40:01 joerg Exp $";
+	"$Id: mount_nfs.c,v 1.25 1997/12/24 00:58:39 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -694,7 +694,8 @@ getnfsargs(spec, nfsargsp)
 			return (0);
 		}
 	} else if ((hp = gethostbyname(hostp)) != NULL)
-		memmove(&saddr.sin_addr, hp->h_addr, MIN(hp->h_length, sizeof(saddr.sin_addr)));
+		memmove(&saddr.sin_addr, hp->h_addr, 
+		    MIN(hp->h_length, sizeof(saddr.sin_addr)));
 	else {
 		warnx("can't get net id for host");
 		return (0);
@@ -706,7 +707,8 @@ getnfsargs(spec, nfsargsp)
 			warnx("can't reverse resolve net address");
 			return (0);
 		}
-		memmove(&saddr.sin_addr, hp->h_addr, MIN(hp->h_length, sizeof(saddr.sin_addr)));
+		memmove(&saddr.sin_addr, hp->h_addr, 
+		    MIN(hp->h_length, sizeof(saddr.sin_addr)));
 		strncpy(inst, hp->h_name, INST_SZ);
 		inst[INST_SZ - 1] = '\0';
 		if (cp = strchr(inst, '.'))

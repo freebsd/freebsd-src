@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)route.c	8.3 (Berkeley) 3/19/94";
 */
 static const char rcsid[] =
-	"$Id: route.c,v 1.26 1997/07/18 09:05:12 julian Exp $";
+	"$Id: route.c,v 1.27 1997/12/24 00:59:49 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -920,7 +920,7 @@ netdone:
 		*hpp = hp;
 		su->sin.sin_family = hp->h_addrtype;
 		bcopy(hp->h_addr, (char *)&su->sin.sin_addr, 
-				MIN(hp->h_length, sizeof(su->sin.sin_addr)));
+		    MIN(hp->h_length, sizeof(su->sin.sin_addr)));
 		return (1);
 	}
 	errx(EX_NOHOST, "bad address: %s", s);
