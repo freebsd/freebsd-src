@@ -33,11 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	from: @(#)print.c	8.4 (Berkeley) 4/17/94";
  */
 
 #ifndef lint
-static char const sccsid[] = "@(#)print.c	8.4 (Berkeley) 4/17/94";
+static const char rcsid[] =
+	"$Id: print.c,v 1.12 1997/02/22 14:04:01 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -272,11 +273,9 @@ printtype(mode)
 	case S_IFSOCK:
 		(void)putchar('=');
 		return (1);
-#ifndef BSD4_4_LITE
 	case S_IFWHT:
 		(void)putchar('%');
 		return (1);
-#endif
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		(void)putchar('*');
