@@ -423,6 +423,7 @@ NGATM_ATMBASE		opt_netgraph.h
 NGATM_SSCOP		opt_netgraph.h
 NGATM_SSCFU		opt_netgraph.h
 NGATM_UNI		opt_netgraph.h
+NGATM_CCATM		opt_netgraph.h
 
 # DRM options
 DRM_DEBUG		opt_drm.h
