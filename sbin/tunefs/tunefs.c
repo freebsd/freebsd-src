@@ -116,16 +116,15 @@ again:
 		if (*special != '/') {
 			if (*special == 'r')
 				special++;
-			(void)snprintf(device, sizeof(device), "%s/%s",
+			(void)snprintf(device, sizeof(device), "%s%s",
 				       _PATH_DEV, special);
 			special = device;
 			goto again;
 		}
 		err(1, "%s", special);
 	}
-	if ((st.st_mode & S_IFMT) != S_IFBLK &&
-	    (st.st_mode & S_IFMT) != S_IFCHR)
-		errx(10, "%s: not a block or character device", special);
+	if (fs == NULL && (st.st_mode & S_IFMT) == S_IFDIR)
+		errx(10, "%s: unknown file system", special);
 	getsb(&sblock, special);
 	for (; argc > 0 && argv[0][0] == '-'; argc--, argv++) {
 		for (cp = &argv[0][1]; *cp; cp++)
@@ -322,7 +321,7 @@ getsb(fs, file)
 	if (bread((daddr_t)SBOFF, (char *)fs, SBSIZE))
 		err(4, "%s: bad super block", file);
 	if (fs->fs_magic != FS_MAGIC)
-		err(5, "%s: bad magic number", file);
+		errx(5, "%s: bad magic number", file);
 	dev_bsize = fs->fs_fsize / fsbtodb(fs, 1);
 }
 
