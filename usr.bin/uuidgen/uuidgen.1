@@ -34,14 +34,15 @@
 .Nm
 .Op Fl 1
 .Op Fl n Ar count
+.Op Fl o Ar filename
 .Sh DESCRIPTION
 The
 .Nm
 utility by default generates a single universally unique identifier (UUID),
 also known as a globally unique identifier (GUID).
-The UUID is written to stdout.
-The following options can be used to change the number of identifiers
-and the method used:
+The UUID is written to stdout by default.
+The following options can be used to change the behaviour of
+.Nm :
 .Bl -tag -width indent
 .It Fl 1
 This option only has effect if multiple identifiers are to be generated and
@@ -52,6 +53,10 @@ to not generate them in batch, but one at a time.
 This option controls the number of identifiers generated.
 By default, multiple
 identifiers are generated in batch.
+.It Fl o
+Redirect output to
+.Ar filename 
+instead of stdout.
 .El
 .Pp
 Batched generation yields a dense set of identifiers in such a way that there
