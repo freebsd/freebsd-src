@@ -47,8 +47,8 @@
  * 
  */
 
-#ifndef	_MACHINE_RANDOM_H_
-#define	_MACHINE_RANDOM_H_
+#ifndef	_SYS_RANDOM_H_
+#define	_SYS_RANDOM_H_
 
 #include <sys/ioccom.h>
 
@@ -83,8 +83,9 @@ u_int read_random_unlimited(void *buf, u_int size);
 #ifdef notused
 u_int write_random(const char *buf, u_int nbytes);
 #endif
+struct proc;
 int random_poll(dev_t dev, int events, struct proc *p);
 
 #endif /* _KERNEL */
 
-#endif /* !_MACHINE_RANDOM_H_ */
+#endif /* !_SYS_RANDOM_H_ */
