@@ -713,9 +713,10 @@ static int
 fxp_suspend(device_t dev)
 {
 	struct fxp_softc *sc = device_get_softc(dev);
-	int i, s;
+	int i;
+	FXP_SPLVAR(s)
 
-	s = splimp();
+	FXP_LOCK(sc, s);
 
 	fxp_stop(sc);
 	
@@ -728,7 +729,7 @@ fxp_suspend(device_t dev)
 
 	sc->suspended = 1;
 
-	splx(s);
+	FXP_UNLOCK(sc, s);
 
 	return 0;
 }
@@ -744,9 +745,10 @@ fxp_resume(device_t dev)
 	struct fxp_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->sc_if;
 	u_int16_t pci_command;
-	int i, s;
+	int i;
+	FXP_SPLVAR(s)
 
-	s = splimp();
+	FXP_LOCK(sc, s);
 
 	/* better way to do this? */
 	for (i=0; i<5; i++)
@@ -770,7 +772,7 @@ fxp_resume(device_t dev)
 
 	sc->suspended = 0;
 
-	splx(s);
+	FXP_UNLOCK(sc, s);
 
 	return 0;
 }
