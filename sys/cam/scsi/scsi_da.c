@@ -634,7 +634,9 @@ dadump(dev_t dev)
 	long	    blkcnt;
 	vm_offset_t addr;	
 	struct	    ccb_scsiio csio;
+	int         dumppages = MAXDUMPPGS;
 	int	    error;
+	int         i;
 
 	/* toss any characters present prior to dump */
 	while (cncheckc() != -1)
@@ -659,12 +661,17 @@ dadump(dev_t dev)
 	blkcnt = howmany(PAGE_SIZE, secsize);
 
 	while (num > 0) {
-		void *va;
+		caddr_t va;
 
-		if (is_physical_memory(addr)) {
-			va = pmap_kenter_temporary(trunc_page(addr));
-		} else {
-			va = pmap_kenter_temporary(trunc_page(0));
+		if ((num / blkcnt) < dumppages)
+			dumppages = num / blkcnt;
+
+		for (i = 0; i < dumppages; ++i) {
+			vm_offset_t a = addr + (i * PAGE_SIZE);
+			if (is_physical_memory(a))
+				va = pmap_kenter_temporary(trunc_page(a), i);
+			else
+				va = pmap_kenter_temporary(trunc_page(0), i);
 		}
 
 		xpt_setup_ccb(&csio.ccb_h, periph->path, /*priority*/1);
@@ -677,9 +684,9 @@ dadump(dev_t dev)
 				/*byte2*/0,
 				/*minimum_cmd_size*/ softc->minimum_cmd_size,
 				blknum,
-				blkcnt,
+				blkcnt * dumppages,
 				/*data_ptr*/(u_int8_t *) va,
-				/*dxfer_len*/blkcnt * secsize,
+				/*dxfer_len*/blkcnt * secsize * dumppages,
 				/*sense_len*/SSD_FULL_SIZE,
 				DA_DEFAULT_TIMEOUT * 1000);		
 		xpt_polled_action((union ccb *)&csio);
@@ -706,9 +713,9 @@ dadump(dev_t dev)
 		}
 		
 		/* update block count */
-		num -= blkcnt;
-		blknum += blkcnt;
-		addr += PAGE_SIZE;
+		num -= blkcnt * dumppages;
+		blknum += blkcnt * dumppages;
+		addr += PAGE_SIZE * dumppages;
 
 		/* operator aborting dump? */
 		if (cncheckc() != -1)

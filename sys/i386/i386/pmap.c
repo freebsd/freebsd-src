@@ -182,6 +182,12 @@ static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
 
+/*
+ * Crashdump maps.
+ */
+static pt_entry_t *pt_crashdumpmap;
+static caddr_t crashdumpmap;
+
 #ifdef SMP
 extern pt_entry_t *SMPpt;
 #else
@@ -332,6 +338,11 @@ pmap_bootstrap(firstaddr, loadaddr)
 	 */
 	SYSMAP(caddr_t, CMAP1, CADDR1, 1)
 	SYSMAP(caddr_t, CMAP2, CADDR2, 1)
+
+	/*
+	 * Crashdump maps.
+	 */
+	SYSMAP(caddr_t, pt_crashdumpmap, crashdumpmap, MAXDUMPPGS);
 
 	/*
 	 * ptvmmap is used for reading arbitrary physical pages via /dev/mem.
@@ -2231,10 +2242,10 @@ retry:
  * to be used for panic dumps.
  */
 void *
-pmap_kenter_temporary(vm_offset_t pa)
+pmap_kenter_temporary(vm_offset_t pa, int i)
 {
-	pmap_kenter((vm_offset_t)CADDR1, pa);
-	return ((void *)CADDR1);
+	pmap_kenter((vm_offset_t)crashdumpmap + (i * PAGE_SIZE), pa);
+	return ((void *)crashdumpmap);
 }
 
 #define MAX_INIT_PT (96)
