@@ -217,6 +217,9 @@ enum tokens {
 	TOK_KEEPSTATE,
 	TOK_LAYER2,
 	TOK_OUT,
+	TOK_DIVERTED,
+	TOK_DIVERTEDLOOPBACK,
+	TOK_DIVERTEDOUTPUT,
 	TOK_XMIT,
 	TOK_RECV,
 	TOK_VIA,
@@ -325,6 +328,9 @@ struct _s_x rule_options[] = {
 	{ "bridged",		TOK_LAYER2 },
 	{ "layer2",		TOK_LAYER2 },
 	{ "out",		TOK_OUT },
+	{ "diverted",		TOK_DIVERTED },
+	{ "diverted-loopback",	TOK_DIVERTEDLOOPBACK },
+	{ "diverted-output",	TOK_DIVERTEDOUTPUT },
 	{ "xmit",		TOK_XMIT },
 	{ "recv",		TOK_RECV },
 	{ "via",		TOK_VIA },
@@ -1300,6 +1306,23 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 
 			case O_IN:
 				printf(cmd->len & F_NOT ? " out" : " in");
+				break;
+
+			case O_DIVERTED:
+				switch (cmd->arg1) {
+				case 3:
+					printf(" diverted");
+					break;
+				case 1:
+					printf(" diverted-loopback");
+					break;
+				case 2:
+					printf(" diverted-output");
+					break;
+				default:
+					printf(" diverted-?<%u>", cmd->arg1);
+					break;
+				}
 				break;
 
 			case O_LAYER2:
@@ -3358,6 +3381,18 @@ read_options:
 		case TOK_OUT:
 			cmd->len ^= F_NOT; /* toggle F_NOT */
 			fill_cmd(cmd, O_IN, 0, 0);
+			break;
+
+		case TOK_DIVERTED:
+			fill_cmd(cmd, O_DIVERTED, 0, 3);
+			break;
+
+		case TOK_DIVERTEDLOOPBACK:
+			fill_cmd(cmd, O_DIVERTED, 0, 1);
+			break;
+
+		case TOK_DIVERTEDOUTPUT:
+			fill_cmd(cmd, O_DIVERTED, 0, 2);
 			break;
 
 		case TOK_FRAG:

@@ -135,6 +135,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_ANTISPOOF,		/* none				*/
 	O_JAIL,			/* u32 = id			*/
 	O_ALTQ,			/* u32 = altq classif. qid	*/
+	O_DIVERTED,		/* arg1=bitmap (1:loop, 2:out)	*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };
@@ -415,9 +416,11 @@ typedef struct	_ipfw_table {
  */
 #ifdef _KERNEL
 
-#define	IP_FW_PORT_DYNT_FLAG	0x10000
-#define	IP_FW_PORT_TEE_FLAG	0x20000
-#define	IP_FW_PORT_DENY_FLAG	0x40000
+#define	IP_FW_PORT_DYNT_FLAG		0x00010000
+#define	IP_FW_PORT_TEE_FLAG		0x00020000
+#define	IP_FW_PORT_DENY_FLAG		0x00040000
+#define	IP_FW_DIVERT_LOOPBACK_FLAG	0x00080000
+#define	IP_FW_DIVERT_OUTPUT_FLAG	0x00100000
 
 /*
  * Arguments for calling ipfw_chk() and dummynet_io(). We put them
