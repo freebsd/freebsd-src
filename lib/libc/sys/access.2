@@ -32,12 +32,12 @@
 .\"     @(#)access.2	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd April 1, 1994
+.Dd September 21, 2001
 .Dt ACCESS 2
 .Os
 .Sh NAME
-.Nm access
-.Nd check access permissions of a file or pathname
+.Nm access , eaccess
+.Nd check accessibility of a file
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -53,35 +53,42 @@ and
 .Fn eaccess
 functions check the accessibility of the
 file named by
+the
 .Fa path
+argument
 for the access permissions indicated by
-.Fa mode .
+the
+.Fa mode
+argument.
 The value of
 .Fa mode
-is the bitwise inclusive OR of the access permissions to be
+is either the bitwise-inclusive OR of the access permissions to be
 checked
-.Pf ( Dv R_OK
+.Dv ( R_OK
 for read permission,
 .Dv W_OK
-for write permission and
+for write permission, and
 .Dv X_OK
-for execute/search permission) or the existence test,
-.Dv F_OK .
+for execute/search permission),
+or the existence test
+.Pq Dv F_OK .
 .Pp
 For additional information, see the
-.Dq File Access Permission
+.Sx "File Access Permission"
 section of
 .Xr intro 2 .
 .Pp
+The
 .Fn eaccess
-uses the effective user ID, group ID, and additional groups to authorize
-the request.
+call uses
+the effective user ID and the group access list
+to authorize the request;
+the
 .Fn access
-uses
-the real user ID in place of the effective user ID
-and the real group access list
-(including the real group ID) are
-used in place of the effective ID for verifying permission.
+call uses
+the real user ID in place of the effective user ID,
+the real group ID in place of the effective group ID,
+and the rest of the group access list.
 .Pp
 Even if a process's real or effective user has appropriate privileges
 and indicates success for
@@ -92,11 +99,7 @@ Likewise for
 and
 .Dv W_OK .
 .Sh RETURN VALUES
-If
-.Fa path
-cannot be found or if any of the desired access modes would
-not be granted, then a -1 value is returned; otherwise
-a 0 value is returned.
+.Rv -std
 .Sh ERRORS
 Access to the file is denied if:
 .Bl -tag -width Er
@@ -119,7 +122,7 @@ Permission bits of the file mode do not permit the requested
 access, or search permission is denied on a component of the
 path prefix.
 .It Bq Er EFAULT
-.Fa Path
+.Fa path
 points outside the process's allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from or writing to the file system.
@@ -134,14 +137,19 @@ The
 function call is expected to conform to
 .St -p1003.1-90 .
 .Sh CAVEAT
-.Fn Access
+The
+.Fn access
+call
 is a potential security hole due to race conditions and
 should never be used.
-Setuid and setgid applications should restore the effective uid or gid
+Set-user-ID and set-group-ID applications should restore the
+effective user or group ID,
 and perform actions directly rather than use
 .Fn access
-to simulate access checks for the real user of group id.
-.Fn Eaccess
+to simulate access checks for the real user or group ID.
+The
+.Fn eaccess
+call
 likewise may be subject to races if used inappropriately.
 .Sh HISTORY
 An
