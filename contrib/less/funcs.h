@@ -72,7 +72,6 @@
 	public void init_cmds ();
 	public void add_fcmd_table ();
 	public void add_ecmd_table ();
-	public int cmd_search ();
 	public int fcmd_decode ();
 	public int ecmd_decode ();
 	public char * lgetenv ();

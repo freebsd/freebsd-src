@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 354: 23 Mar 2000"
+.TH LESS 1 "Version 358: 08 Jul 2000"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -86,13 +86,16 @@ Scroll backward N lines, default one half of the screen size.
 If N is specified, it becomes the new default for 
 subsequent d and u commands.
 .IP "ESC-) or RIGHTARROW"
-Scroll horizontally right N characters, default 8.
-This behaves best if you also set the -S option (chop lines).
+Scroll horizontally right N characters, default half the screen width
+(see the -# option).
+While the text is scrolled, it acts as though the -S option
+(chop lines) were in effect.
 Note that if you wish to enter a number N, you must use ESC-), not RIGHTARROW,
 because the arrow is taken to be a line editing command
 (see the LINE EDITING section).
 .IP "ESC-( or LEFTARROW"
-Scroll horizontally left N characters, default 8.
+Scroll horizontally left N characters, default half the screen width
+(see the -# option).
 .IP "r or ^R or ^L"
 Repaint the screen.
 .IP R
@@ -549,6 +552,9 @@ after the target line.
 For example, if "-j4" is used, the target line is the
 fourth line on the screen, so searches begin at the fifth line
 on the screen.
+.IP "-J or --status-column"
+Displays a status column at the left edge of the screen.
+The status column is used only if the -w or -W option is in effect.
 .IP "-k\fIfilename\fP or --lesskey-file=\fIfilename\fP"
 Causes
 .I less
@@ -727,6 +733,8 @@ The first "new" line is the line immediately following the line previously
 at the bottom of the screen.
 Also highlights the target line after a g or p command.
 The highlight is removed at the next command which causes movement.
+The entire line is highlighted, unless the -J option is in effect,
+in which case only the status column is highlighted.
 .IP "-W or --HILITE-UNREAD"
 Like -w, but temporarily highlights the first new line after any 
 forward movement command larger than one line.
@@ -776,6 +784,11 @@ remains -" (a dash followed by a double quote).
 .IP "-~ or --tilde"
 Normally lines after end of file are displayed as a single tilde (~).
 This option causes lines after end of file to be displayed as blank lines.
+.IP "-# or --shift"
+Specifies the default number of positions to scroll horizontally
+in the RIGHTARROW and LEFTARROW commands.
+If the number specified is zero, it sets the default number of
+positions to one half of the screen width.
 .IP --
 A command line argument of "--" marks the end of option arguments.
 Any arguments following this are interpreted as filenames.

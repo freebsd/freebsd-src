@@ -23,6 +23,7 @@
 
 extern int squeeze;
 extern int chopline;
+extern int hshift;
 extern int quit_if_one_screen;
 extern int sigs;
 extern int ignore_eoi;
@@ -111,7 +112,7 @@ forw_line(curr_pos)
 			 * is too long to print in the screen width.
 			 * End the line here.
 			 */
-			if (chopline)
+			if (chopline || hshift > 0)
 			{
 				do
 				{
@@ -289,7 +290,7 @@ back_line(curr_pos)
 			 * reached our curr_pos yet.  Discard the line
 			 * and start a new one.
 			 */
-			if (chopline)
+			if (chopline || hshift > 0)
 			{
 				endline = TRUE;
 				quit_if_one_screen = FALSE;
