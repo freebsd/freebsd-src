@@ -1371,6 +1371,7 @@ pnpmss_attach(device_t dev)
 	    break;
 
 	case 0x3100143e: 	/* opti931 */
+	case 0x1093143e:	/* OPT9310 */
             mss->bd_flags |= BD_F_MSS_OFFSET;
     	    mss->conf_rid = 3;
             mss->bd_id = MD_OPTI931;
@@ -1383,6 +1384,7 @@ pnpmss_attach(device_t dev)
 	    break;
 
 	case 0x0100561e:	/* guspnp */
+	    mss->bd_flags |= BD_F_MSS_OFFSET;
             mss->io_rid = 2;
             mss->conf_rid = 1;
 	    mss->drq1_rid = 1;
