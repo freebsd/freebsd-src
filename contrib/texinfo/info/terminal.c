@@ -1,7 +1,8 @@
+/* $FreeBSD$ */
 /* terminal.c -- How to handle the physical terminal for Info.
-   $Id: terminal.c,v 1.19 1999/09/20 12:28:54 karl Exp $
+   $Id: terminal.c,v 1.23 2001/11/16 23:16:04 karl Exp $
 
-   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 97, 98, 99
+   Copyright (C) 1988, 89, 90, 91, 92, 93, 96, 97, 98, 99, 2001
    Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -26,7 +27,6 @@
 
 #include <sys/types.h>
 #include <signal.h>
-#include <sys/ioctl.h> /* TIOCGWINSZ on LynxOS, at least */
 
 /* The Unix termcap interface code. */
 #ifdef HAVE_NCURSES_TERMCAP_H
@@ -217,12 +217,17 @@ int terminal_use_visible_bell_p = 0;
 int terminal_can_scroll = 0;
 
 /* The key sequences output by the arrow keys, if this terminal has any. */
-char *term_ku = (char *)NULL;
-char *term_kd = (char *)NULL;
-char *term_kr = (char *)NULL;
-char *term_kl = (char *)NULL;
-char *term_kP = (char *)NULL;   /* page-up */
-char *term_kN = (char *)NULL;   /* page-down */
+char *term_ku = NULL;
+char *term_kd = NULL;
+char *term_kr = NULL;
+char *term_kl = NULL;
+char *term_kP = NULL;   /* page-up */
+char *term_kN = NULL;   /* page-down */
+char *term_kh = NULL;	/* home */
+char *term_ke = NULL;	/* end */
+char *term_kD = NULL;	/* delete */
+char *term_ki = NULL;	/* ins */
+char *term_kx = NULL;	/* del */
 
 /* Move the cursor to the terminal location of X and Y. */
 void
@@ -555,6 +560,8 @@ terminal_initialize_terminal (terminal_name)
       term_up = term_dn = audible_bell = visible_bell = NULL;
       term_ku = term_kd = term_kl = term_kr = NULL;
       term_kP = term_kN = NULL;
+      term_kh = term_ke = NULL;
+      term_kD = NULL;
       return;
     }
 
@@ -601,7 +608,7 @@ terminal_initialize_terminal (terminal_name)
   if (term_invbeg)
     term_invend = tgetstr ("me", &buffer);
   else
-    term_invend = (char *)NULL;
+    term_invend = NULL;
 
   if (!term_cr)
     term_cr =  "\r";
@@ -611,7 +618,7 @@ terminal_initialize_terminal (terminal_name)
   term_up = tgetstr ("up", &buffer);
   term_dn = tgetstr ("dn", &buffer);
   visible_bell = tgetstr ("vb", &buffer);
-  terminal_has_visible_bell_p = (visible_bell != (char *)NULL);
+  terminal_has_visible_bell_p = (visible_bell != NULL);
   audible_bell = tgetstr ("bl", &buffer);
   if (!audible_bell)
     audible_bell = "\007";
@@ -630,8 +637,8 @@ terminal_initialize_terminal (terminal_name)
     }
   else
     {
-      term_mm = (char *)NULL;
-      term_mo = (char *)NULL;
+      term_mm = NULL;
+      term_mo = NULL;
     }
 
   /* Attempt to find the arrow keys.  */
@@ -642,6 +649,19 @@ terminal_initialize_terminal (terminal_name)
 
   term_kP = tgetstr ("kP", &buffer);
   term_kN = tgetstr ("kN", &buffer);
+
+#if defined(INFOKEY)
+  term_kh = tgetstr ("kh", &buffer);
+  term_ke = tgetstr ("@7", &buffer);
+  term_ki = tgetstr ("kI", &buffer);
+  term_kx = tgetstr ("kD", &buffer);
+#endif /* defined(INFOKEY) */
+
+  /* Home and end keys. */
+  term_kh = tgetstr ("kh", &buffer);
+  term_ke = tgetstr ("@7", &buffer);
+
+  term_kD = tgetstr ("kD", &buffer);
 
   /* If this terminal is not cursor addressable, then it is really dumb. */
   if (!term_goto)
@@ -736,11 +756,22 @@ terminal_prep_terminal ()
 #endif /* VLNEXT */
 #endif /* TERMIOS or TERMIO */
 
+/* cf. emacs/src/sysdep.c for being sure output is on. */
 #if defined (HAVE_TERMIOS_H)
+  /* linux kernel 2.2.x needs a TCOFF followed by a TCOON to turn output
+     back on if the user presses ^S at the very beginning; just a TCOON
+     doesn't work.  --Kevin Ryde <user42@zip.com.au>, 16jun2000.  */
   tcsetattr (tty, TCSANOW, &ttybuff);
+#  ifdef TCOON
+  tcflow (tty, TCOOFF);
+  tcflow (tty, TCOON);
+#  endif
 #else
 #  if defined (HAVE_TERMIO_H)
   ioctl (tty, TCSETA, &ttybuff);
+#    ifdef TCXONC
+  ioctl (tty, TCXONC, 1);
+#    endif
 #  endif
 #endif
 
