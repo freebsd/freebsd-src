@@ -7,7 +7,7 @@ MAN4=	ahc.4 al.4 alpm.4 amd.4 atkbd.4 atkbdc.4 ax.4 bpf.4 bridge.4 ccd.4 \
 	icmp.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
 	imm.4 inet.4 intpm.4 intro.4 ip.4 ipfirewall.4 isp.4 keyboard.4 kld.4 \
 	lkm.4 lo.4 lp.4 lpbb.4 mem.4 mouse.4 mtio.4 mx.4 natm.4 ncr.4 \
-	netintro.4 nlpt.4 \
+	netintro.4 ng_ether.4 nlpt.4 \
 	null.4 pass.4 pcm.4 pcvt.4 pn.4 ppbus.4 ppi.4 ppp.4 psm.4 pt.4 pty.4 \
 	route.4 rl.4 sa.4 screen.4 scsi.4 \
 	sd.4 sf.4 si.4 sio.4 sis.4 sk.4 sl.4 smb.4 smbus.4 smp.4 snp.4 \
