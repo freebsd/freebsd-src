@@ -874,7 +874,7 @@ main(int argc, char **argv)
 
 	Lst_Destroy(variables, NOFREE);
 	Lst_Destroy(makefiles, NOFREE);
-	Lst_Destroy(create, (void (*)(void *)) free);
+	Lst_Destroy(create, free);
 
 	/* print the graph now it's been processed if the user requested it */
 	if (DEBUG(GRAPH2))
