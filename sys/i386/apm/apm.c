@@ -622,6 +622,9 @@ apm_suspend(int state)
 {
 	struct apm_softc *sc = &apm_softc;
 
+	if (!sc->initialized)
+		return;
+
 	switch (state) {
 	case PMST_SUSPEND:
 		if (sc->suspends)
