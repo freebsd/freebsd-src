@@ -2576,10 +2576,12 @@ OptSet(struct cmdargs const *arg)
   if (ident_cmd(arg->argv[arg->argn - 2], &keep, &add) == NULL)
     return 1;
 
+#ifndef NOINET6
   if (add == NEG_ENABLED && bit == OPT_IPV6CP && !probe.ipv6_available) {
     log_Printf(LogWARN, "IPv6 is not available on this machine\n");
     return 1;
   }
+#endif
 
   if (add)
     arg->bundle->cfg.opt |= bit;
