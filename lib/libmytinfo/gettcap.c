@@ -174,6 +174,9 @@ struct term_path *path; {
 							*dp++ = '0';
 						}
 						sp++;
+					} else if (*sp == '?') {
+						*dp++ = '\177';
+						sp++;
 					} else 
 						*dp++ = '^';
 					break;
