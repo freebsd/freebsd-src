@@ -52,6 +52,13 @@ programs and configuration files used during operating system bootstrap
 .It Li defaults/
 default bootstrapping configuration files; see
 .Xr loader.conf 5
+.It Li kernel/
+pure kernel executable (the operating system loaded into memory
+at boot time).  
+.It Li modules/
+third-part loadable kernel modules;
+see 
+.Xr kldstat 8 
 .El
 .It Li /dev/
 block and character device files
@@ -117,13 +124,6 @@ uucp configuration files;
 see
 .Xr uucp 1
 .El
-.It Li /kernel
-pure kernel executable (the operating system loaded into memory
-at boot time).  
-.It Li /modules/
-loadable kernel modules;
-see 
-.Xr kldstat 8 
 .It Li /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
