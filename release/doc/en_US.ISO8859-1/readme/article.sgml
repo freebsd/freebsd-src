@@ -1,14 +1,8 @@
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
-<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
-%man;
-<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
-%authors;
-<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//EN">
-%mlists;
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
-%misc;
 ]>
 
 <article>
@@ -25,6 +19,7 @@
       <year>2002</year>
       <year>2003</year>
       <year>2004</year>
+      <year>2005</year>
       <holder role="mailto:doc@FreeBSD.org">The FreeBSD Documentation Project</holder>
     </copyright>
   </articleinfo>
