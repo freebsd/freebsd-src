@@ -30,7 +30,7 @@
 .Sh NAME
 .Nm g_attach ,
 .Nm g_detach
-.Nd "attach/detach consumer to/from provider"
+.Nd "attach/detach GEOM consumers to/from providers"
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft int
@@ -40,23 +40,26 @@
 .Sh DESCRIPTION
 The
 .Fn g_attach
-function attaches given consumer to given provider.
-For real provider access (ie. I/O operations), one still need to call the
-.Fn g_access
-function on consumer to gain access to attached provider.
+function attaches given consumer
+.Fa cp
+to given provider
+.Fa pp ,
+thus establishing a communication channel between the consumer and the
+provider that allows to change access counts or perform I/O operations.
 .Pp
 The
 .Fn g_detach
-function detaches the given consumer from the corresponding provider.
-This function is used when we do not want to communicate with the
-provider anymore.
+function detaches given consumer
+.Fa cp
+from its corresponding provider, tearing down the communication channel
+between them.
 .Sh RESTRICTIONS/CONDITIONS
 .Fn g_attach :
 .Bl -item -offset indent
 .It
-The consumer can not be attached already.
+The consumer must not be attached to a provider.
 .It
-The operation should not create a topology loop.
+The operation must not create a topology loop.
 .It
 The topology lock has to be held.
 .El
@@ -73,8 +76,9 @@ There must be no active requests.
 The topology lock has to be held.
 .El
 .Sh RETURN VALUES
+The
 .Fn g_attach
-returns the value 0 if successful; otherwise an error code is returned.
+function returns 0 if successful; otherwise an error code is returned.
 .Sh ERRORS
 Possible errors:
 .Bl -tag -width Er
@@ -82,7 +86,7 @@ Possible errors:
 The operation creates a topology loop.
 .El
 .Sh EXAMPLES
-Create consumer, attach it to given provider, gain read access and clean up.
+Create a consumer, attach it to a given provider, gain read access and clean up.
 .Bd -literal -offset indent
 void
 some_function(struct g_geom *mygeom, struct g_provider *pp)

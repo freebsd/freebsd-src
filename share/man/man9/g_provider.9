@@ -41,7 +41,7 @@
 .Ft void
 .Fn g_error_provider "struct g_provider *pp" "int error"
 .Sh DESCRIPTION
-The GEOM provider is the front gate at which a geom offers service.
+A GEOM provider is the front gate at which a geom offers service.
 A provider is
 .Dq a disk\-like thing which appears in Pa /dev
 \- a logical disk in other words.
@@ -49,33 +49,30 @@ All providers have three main properties: name, sectorsize and size.
 .Pp
 The
 .Fn g_new_providerf
-function creates a new provider and attaches it to geom
+function creates a new provider on given geom
 .Fa gp .
-The provider name is created in a printf\-like way from the rest of
+The name of the provider, which will appear as device in devfs, is created
+in a printf\-like way from the rest of
 the arguments.
-After creation, the provider is unusable, because
-.Fn g_new_providerf
-sets its error to
-.Er ENXIO .
-The function
-.Fn g_error_provider
-should be used to reset this error, but before it is called, two
-fields should be set in the provider structure:
+After creation, the caller has to set the provider's
 .Va mediasize
 and
-.Va sectorsize
-as well as other initialization things should be done first.
+.Va sectorsize ,
+as well as other desired initializations, and then call
+.Fn g_error_provider
+to reset the provider's error, which is initially set to
+.Er ENXIO .
 .Pp
 The
 .Fn g_destroy_provider
 function destroys the given provider, cancels all related pending events and
-removes corresponding devfs entry.
+removes the corresponding devfs entry.
 .Pp
 The
 .Fn g_error_provider
-function is used to set a provider error value.
-If it set to a nonzero value, all I/O requests will be denied,
-increasing its access count will not be possible (error
+function is used to set the provider's error value.
+If set to a nonzero, all I/O requests will be denied,
+as well as increasing its access count will not be possible (error
 .Fa error
 will be returned).
 .Sh RESTRICTIONS/CONDITIONS
@@ -84,11 +81,13 @@ will be returned).
 .It
 The provider name should be unique, but this is not enforced by GEOM.
 If the name is not unique, one will end up with two (or more) files
-with the same name, which is programmer error.
+with the same name, which is a programmer error.
 .It
-The geom related to the created provider must have
+The geom
+.Fa gp
+has to have a
 .Fa start
-field defined.
+method defined.
 .It
 The topology lock has to be held.
 .El
@@ -96,15 +95,16 @@ The topology lock has to be held.
 .Fn g_destroy_provider :
 .Bl -item -offset indent
 .It
-No consumers have to be attached.
+The provider must not have consumers attached.
 .It
 The access count has to be 0.
 .It
 The topology lock has to be held.
 .El
 .Sh RETURN VALUES
+The
 .Fn g_new_providerf
-returns a pointer to the newly created provider.
+function returns a pointer to the newly created provider.
 .Sh EXAMPLES
 Create an example provider, set its parameters and make it usable.
 .Bd -literal -offset indent

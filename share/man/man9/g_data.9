@@ -30,7 +30,7 @@
 .Sh NAME
 .Nm g_read_data ,
 .Nm g_write_data
-.Nd "read/write data through consumer"
+.Nd "read/write data from/to GEOM consumer"
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft "void *"
@@ -40,19 +40,19 @@
 .Sh DESCRIPTION
 The
 .Fn g_read_data
-reads
+function reads
 .Fa length
-bytes of data from a provider through attached consumer
-.Fa cp
+bytes of data from the provider attached to consumer
+.Fa cp ,
 starting at offset
 .Fa offset .
-Memory for data is allocated inside
+The buffer returned from
 .Fn g_read_data
-with
+is allocated with
 .Fn g_malloc ,
-and should therefor be freed by the caller with the
+so it should be freed by the caller with
 .Fn g_free
-function after use.
+after use.
 If the operation fails, an error value will be stored in the
 .Fa error
 argument if it is not
@@ -60,16 +60,17 @@ argument if it is not
 .Pp
 The
 .Fn g_write_data
-writes
+function writes
 .Fa length
-bytes of data from address
+bytes of data from the buffer pointed to by
 .Fa ptr
+to the provider attached to consumer
+.Fa cp ,
 starting at offset
-.Fa offset
-to a provider through the attached consumer
-.Fa cp .
+.Fa offset .
 .Sh RESTRICTIONS/CONDITIONS
-Length of data should be a multiple of the sectorsize for the provider
+.Fa length
+should be a multiple of the provider's sectorsize
 and less than or equal to
 .Dv DFLTPHYS
 .Dv ( DFLTPHYS is defined in
@@ -77,17 +78,19 @@ and less than or equal to
 .Pp
 The topology lock must not be held.
 .Sh RETURN VALUES
+The
 .Fn g_read_data
-returns a pointer to the read data or
+function returns a pointer to a data buffer or
 .Dv NULL
 if an error occured.
 In that case an error value is stored in the
 .Fa error
-argument unsless it is
+argument unless it is
 .Dv NULL .
 .Pp
+The
 .Fn g_write_data
-returns the value 0 if successful; otherwise an error code is returned.
+function returns 0 if successful; otherwise an error code is returned.
 .Sh ERRORS
 Possible errors:
 .Bl -tag -width Er

@@ -32,7 +32,7 @@
 .Nm g_clone_bio ,
 .Nm g_destroy_bio ,
 .Nm g_print_bio
-.Nd "bio controlling functions"
+.Nd "GEOM bio controlling functions"
 .Sh SYNOPSIS
 .In sys/bio.h
 .In geom/geom.h
@@ -45,30 +45,28 @@
 .Ft void
 .Fn g_print_bio "struct bio *bp"
 .Sh DESCRIPTION
-The
-.Fa bio
-structure is used by GEOM to describe I/O requests.
-Most important fields of
+A
 .Fa struct bio
-are described below:
+is used by GEOM to describe I/O requests, its
+most important fields are described below:
 .Bl -tag -width ".Va bio_attribute"
 .It Va bio_cmd
-I/O request number.
+I/O request command.
 There are four I/O requests available in GEOM:
 .Bl -tag -width BIO_GETATTR
 .It Dv BIO_READ
-Self explanatory.
+A read request.
 .It Dv BIO_WRITE
-Self explanatory.
+A write request.
 .It Dv BIO_DELETE
-Delete indicates that a certain range of data is no longer used and that
+Indicates that a certain range of data is no longer used and that
 it can be erased or freed as the underlying technology supports.
 Technologies like flash adaptation layers can arrange to erase the relevant
 blocks before they will become reassigned and cryptographic devices may
 want to fill random bits into the range to reduce the amount of data
 available for attack.
 .It Dv BIO_GETATTR
-Get attribute supports inspection and manipulation of out\-of\-band
+Inspect and manipulate out\-of\-band
 attributes on a particular provider or path.
 Attributes are named by ascii strings and are stored in the
 .Va bio_attribute
@@ -83,8 +81,8 @@ Available flags:
 .Bl -tag -width BIO_GETATTR
 .It Dv BIO_ERROR
 Request failed (error value is stored in
-.Va bio_error )
-field.
+.Va bio_error
+field).
 .It Dv BIO_DONE
 Request finished.
 .It Dv BIO_FLAG1
@@ -95,7 +93,7 @@ Avaliable for private use.
 .It Va bio_error
 Error value when BIO_ERROR is set.
 .It Va bio_done
-Pointer to function which will be called on request finish.
+Pointer to function which will be called when the request is finished.
 .It Va bio_driver1
 Private use by the callee (ie: the provider).
 .It Va bio_driver2
@@ -135,9 +133,9 @@ The
 .Fn g_clone_bio
 function allocates a new
 .Vt bio
-structure and copies those fields from the
+structure and copies the following fields from the
 .Vt bio
-structure given as an argument to clone:
+given as an argument to clone:
 .Va bio_cmd ,
 .Va bio_length ,
 .Va bio_offset ,
@@ -145,11 +143,13 @@ structure given as an argument to clone:
 .Va bio_attribute .
 The field
 .Va bio_parent
-in clone is set to source
+in the clone points to the passed
 .Vt bio
 and the field
 .Va bio_children
-in parent is increased.
+in the passed
+.Vt bio
+is incremented.
 .Pp
 This function should be used for every request which enters through
 the provider of a particular geom and needs to be scheduled down.
@@ -157,7 +157,7 @@ Proper order is:
 .Pp
 .Bl -enum -compact
 .It
-Clone
+Clone the received
 .Vt "struct bio" .
 .It
 Modify the clone.
@@ -167,15 +167,23 @@ Schedule the clone on its own consumer.
 .Pp
 The
 .Fn g_destroy_bio
-function kills the given
+function deallocates and destroys the given
 .Vt bio
 structure.
 .Pp
 The
 .Fn g_print_bio
-function prints informations about given
+function prints information about the given
 .Vt bio
-structure.
+structure (for debugging purposes).
+.Sh RETURN VALUES
+The
+.Fn g_new_bio
+and
+.Fn g_clone_bio
+functions return a pointer to the allocated
+.Vt bio ,
+or NULL if an error occurred.
 .Sh EXAMPLES
 Implementation of
 .Dq Dv NULL Ns \-transformation ,

@@ -29,7 +29,7 @@
 .Os
 .Sh NAME
 .Nm g_wither_geom
-.Nd "destroy geom and releated providers and consumers when you get a chance"
+.Nd "destroy geom and related providers and consumers when you get a chance"
 .Sh SYNOPSIS
 .In geom/geom.h
 .Ft void
@@ -40,12 +40,12 @@ The
 function tells GEOM that geom
 .Fa gp
 is to be destroyed.
-GEOM sets an error for every provider related to the given geom (in
-orphan process) and waits for a chance to destroy the geom.
-If access count of any possessed consumer goes to 0, consumer will be
+GEOM sets an error on each provider of the given geom (in the
+orphaning process) and waits for a chance to destroy the geom.
+If the access count of any possessed consumer goes to 0, the consumer will be
 detached and destroyed automatically.
-If last consumer attached to any possesed provider will be detached,
-provider will be destroyed.
+If the last consumer attached to any possessed provider will be detached,
+the provider will be destroyed.
 If there are no more providers nor consumers, the geom will be
 destroyed.
 .Pp
@@ -58,10 +58,10 @@ should be disposed off and set to
 .Dv NULL .
 Note that the
 .Fn g_wither_geom
-function gives no guarantee that geom will be immediately destroyed, mostly
-because access counts of corresponding consumers and providers may not be 0.
-That is why calling this function for every geom from given class is not enough
-to be sure that class can be unloaded.
+function gives no guarantee that the geom will be immediately destroyed, mostly
+because the access counts of the geom's consumers and providers may not be 0.
+That is why calling this function for every geom from a given class is not enough
+to be sure that the class can be unloaded.
 .Sh RESTRICTIONS/CONDITIONS
 The argument
 .Fa error
