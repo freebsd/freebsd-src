@@ -174,6 +174,7 @@ MLINKS+=pfil.9 pfil_hook_get.9 pfil.9 pfil_add_hook.9 pfil.9 pfil_remove_hook.9
 MLINKS+=pfind.9 zpfind.9
 MLINKS+=psignal.9 gsignal.9 psignal.9 pgsignal.9
 MLINKS+=random.9 srandom.9 random.9 arc4random.9 random.9 read_random.9
+MLINKS+=random.9 arc4rand.9
 MLINKS+=rtalloc.9 rtalloc1.9 rtalloc.9 rtalloc_ign.9
 MLINKS+=runqueue.9 chooseproc.9 runqueue.9 procrunnable.9
 MLINKS+=runqueue.9 remrunqueue.9 runqueue.9 setrunqueue.9
