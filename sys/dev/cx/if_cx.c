@@ -2716,11 +2716,11 @@ static int ng_cx_rmnode (node_p node)
 		splx (s);
 	}
 #ifdef	KLD_MODULE
-	if (node->nd_flags & NG_REALLY_DIE) {
+	if (node->nd_flags & NGF_REALLY_DIE) {
 		NG_NODE_SET_PRIVATE (node, NULL);
 		NG_NODE_UNREF (node);
 	}
-	node->nd_flags &= ~NG_INVALID;
+	NG_NODE_REVIVE(node);		/* Persistant node */
 #endif
 #else /* __FreeBSD_version < 500000 */
 	drv_t *d = node->private;

@@ -345,11 +345,16 @@ struct ng_node {
 };
 
 /* Flags for a node */
-#define NG_INVALID	0x00000001	/* free when refs go to 0 */
-#define NG_WORKQ	0x00000002	/* node is on the work queue */
-#define NG_FORCE_WRITER	0x00000004	/* Never multithread this node */
-#define NG_CLOSING	0x00000008	/* ng_rmnode() at work */
-#define NG_REALLY_DIE	0x00000010	/* "persistant" node is unloading */
+#define NGF_INVALID	0x00000001	/* free when refs go to 0 */
+#define NG_INVALID	NGF_INVALID	/* compat for old code */
+#define NGF_WORKQ	0x00000002	/* node is on the work queue */
+#define NG_WORKQ	NGF_WORKQ	/* compat for old code */
+#define NGF_FORCE_WRITER	0x00000004	/* Never multithread this node */
+#define NG_FORCE_WRITER	NGF_FORCE_WRITER /* compat for old code */
+#define NGF_CLOSING	0x00000008	/* ng_rmnode() at work */
+#define NG_CLOSING	NGF_CLOSING	/* compat for old code */
+#define NGF_REALLY_DIE	0x00000010	/* "persistent" node is unloading */
+#define NG_REALLY_DIE	NGF_REALLY_DIE	/* compat for old code */
 #define NGF_TYPE1	0x10000000	/* reserved for type specific storage */
 #define NGF_TYPE2	0x20000000	/* reserved for type specific storage */
 #define NGF_TYPE3	0x40000000	/* reserved for type specific storage */
@@ -367,13 +372,15 @@ int	ng_unref_node(node_p node); /* don't move this */
 #define	_NG_NODE_UNREF(node)	ng_unref_node(node)
 #define	_NG_NODE_SET_PRIVATE(node, val)	do {(node)->nd_private = val;} while (0)
 #define	_NG_NODE_PRIVATE(node)	((node)->nd_private)
-#define _NG_NODE_IS_VALID(node)	(!((node)->nd_flags & NG_INVALID))
-#define _NG_NODE_NOT_VALID(node)	((node)->nd_flags & NG_INVALID)
+#define _NG_NODE_IS_VALID(node)	(!((node)->nd_flags & NGF_INVALID))
+#define _NG_NODE_NOT_VALID(node)	((node)->nd_flags & NGF_INVALID)
 #define _NG_NODE_NUMHOOKS(node)	((node)->nd_numhooks + 0) /* rvalue */
 #define _NG_NODE_FORCE_WRITER(node)					\
-	do{ node->nd_flags |= NG_FORCE_WRITER; }while (0)
+	do{ node->nd_flags |= NGF_FORCE_WRITER; }while (0)
 #define _NG_NODE_REALLY_DIE(node)					\
-	do{ node->nd_flags |= (NG_REALLY_DIE|NG_INVALID); }while (0)
+	do{ node->nd_flags |= (NGF_REALLY_DIE|NGF_INVALID); }while (0)
+#define _NG_NODE_REVIVE(node) \
+	do { node->nd_flags &= ~NGF_INVALID; } while (0)
 /*
  * The hook iterator.
  * This macro will call a function of type ng_fn_eachhook for each
@@ -411,6 +418,7 @@ static __inline int _ng_node_numhooks(node_p node, char *file, int line);
 static __inline void _ng_node_force_writer(node_p node, char *file, int line);
 static __inline hook_p _ng_node_foreach_hook(node_p node,
 			ng_fn_eachhook *fn, void *arg, char *file, int line);
+static __inline void _ng_node_revive(node_p node, char *file, int line);
 
 static void __inline 
 _chknode(node_p node, char *file, int line)
@@ -508,6 +516,13 @@ _ng_node_really_die(node_p node, char *file, int line)
 	_NG_NODE_REALLY_DIE(node);
 }
 
+static __inline void
+_ng_node_revive(node_p node, char *file, int line)
+{
+	_chknode(node, file, line);
+	_NG_NODE_REVIVE(node);
+}
+
 static __inline hook_p
 _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 						char *file, int line)
@@ -530,6 +545,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_FORCE_WRITER(node) 	_ng_node_force_writer(node, _NN_)
 #define NG_NODE_REALLY_DIE(node) 	_ng_node_really_die(node, _NN_)
 #define NG_NODE_NUMHOOKS(node)		_ng_node_numhooks(node, _NN_)
+#define NG_NODE_REVIVE(node)		_ng_node_revive(node, _NN_)
 #define NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			      \
 	do {								      \
 		rethook = _ng_node_foreach_hook(node, fn, (void *)arg, _NN_); \
@@ -549,6 +565,7 @@ _ng_node_foreach_hook(node_p node, ng_fn_eachhook *fn, void *arg,
 #define NG_NODE_FORCE_WRITER(node) 	_NG_NODE_FORCE_WRITER(node)
 #define NG_NODE_REALLY_DIE(node) 	_NG_NODE_REALLY_DIE(node)
 #define NG_NODE_NUMHOOKS(node)		_NG_NODE_NUMHOOKS(node)	
+#define NG_NODE_REVIVE(node)		_NG_NODE_REVIVE(node)
 #define NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)			\
 		_NG_NODE_FOREACH_HOOK(node, fn, arg, rethook)
 #endif	/* NETGRAPH_DEBUG */ /*----------------------------------------------*/

@@ -492,7 +492,7 @@ ng_gif_shutdown(node_p node)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (node->nd_flags & NG_REALLY_DIE) {
+	if (node->nd_flags & NGF_REALLY_DIE) {
 		/*
 		 * WE came here because the gif interface is being destroyed,
 		 * so stop being persistant.
@@ -504,7 +504,7 @@ ng_gif_shutdown(node_p node)
 		NG_NODE_UNREF(node);	/* free node itself */
 		return (0);
 	}
-	node->nd_flags &= ~NG_INVALID;	/* Signal ng_rmnode we are persisant */
+	NG_NODE_REVIVE(node);		/* Signal ng_rmnode we are persisant */
 	return (0);
 }
 

@@ -433,7 +433,6 @@ ng_source_rmnode(node_p node)
 
 	sc = NG_NODE_PRIVATE(node);
 	KASSERT(sc != NULL, ("%s: null node private", __func__));
-	node->nd_flags |= NG_INVALID;
 	ng_source_stop(sc);
 	ng_source_clr_data(sc);
 	NG_NODE_SET_PRIVATE(node, NULL);
