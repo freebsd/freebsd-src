@@ -275,28 +275,8 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	struct buf *bp;
 	struct ntfsmount *ntmp;
 	struct cdev *dev = devvp->v_rdev;
-	int error, ronly, ncount, i;
+	int error, ronly, i;
 	struct vnode *vp;
-
-	/*
-	 * Disallow multiple mounts of the same device.
-	 * Disallow mounting of a device that is currently in use
-	 * (except for root, which might share swap device for miniroot).
-	 * Flush out any old buffers remaining from a previous use.
-	 */
-	error = vfs_mountedon(devvp);
-	if (error)
-		return (error);
-	ncount = vcount(devvp);
-	if (devvp->v_object)
-		ncount -= 1;
-	if (ncount > 1)
-		return (EBUSY);
-	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-	error = vinvalbuf(devvp, V_SAVE, td->td_ucred, td, 0, 0);
-	VOP_UNLOCK(devvp, 0, td);
-	if (error)
-		return (error);
 
 	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
@@ -451,7 +431,6 @@ ntfs_mountfs(devvp, mp, argsp, td)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
 	mp->mnt_flag |= MNT_LOCAL;
-	devvp->v_rdev->si_mountpoint = mp;
 	return (0);
 
 out1:
@@ -462,7 +441,6 @@ out1:
 		dprintf(("ntfs_mountfs: vflush failed\n"));
 
 out:
-	devvp->v_rdev->si_mountpoint = NULL;
 	if (bp)
 		brelse(bp);
 
@@ -507,13 +485,6 @@ ntfs_unmount(
 	error = vflush(mp, 0, flags, td);
 	if (error)
 		printf("ntfs_unmount: vflush failed(sysnodes): %d\n",error);
-
-	/* Check if the type of device node isn't VBAD before
-	 * touching v_cdev.  If the device vnode is revoked, the
-	 * field is NULL and touching it causes null pointer derefercence.
-	 */
-	if (ntmp->ntm_devvp->v_type != VBAD)
-		ntmp->ntm_devvp->v_rdev->si_mountpoint = NULL;
 
 	vinvalbuf(ntmp->ntm_devvp, V_SAVE, NOCRED, td, 0, 0);
 
