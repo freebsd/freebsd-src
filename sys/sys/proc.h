@@ -291,8 +291,9 @@ struct thread {
 	u_int		td_prticks;	/* (*) Profclock hits in sys for user */
 	struct kse_upcall *td_upcall;	/* (*) Upcall structure. */
 	u_int64_t	td_sticks;	/* (j) Statclock hits in system mode. */
-	u_int		td_uuticks;	/* (*) Statclock hits in user, for UTS */
-	u_int		td_usticks;	/* (*) Statclock hits in kernel, for UTS */
+	u_int		td_uuticks;	/* (*) Statclock in user, for UTS */
+	u_int		td_usticks;	/* (*) Statclock in kernel, for UTS */
+	int		td_intrval;	/* (*) Return value of TDF_INTERRUPT */
 	u_int		td_critnest;	/* (k) Critical section nest level. */
 	sigset_t	td_oldsigmask;	/* (k) Saved mask from pre sigpause. */
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
@@ -340,6 +341,7 @@ struct thread {
 #define	TDF_SELECT	0x000040 /* Selecting; wakeup/waiting danger. */
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
+#define	TDF_NOSIGPOST	0x000400 /* Thread doesn't want signals */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
@@ -637,7 +639,7 @@ struct proc {
 #define	P_STOPPED_SINGLE	0x80000	/* Only one thread can continue */
 					/* (not to user) */
 #define	P_PROTECTED	0x100000 /* Do not kill on memory overcommit. */
-
+#define	P_SIGEVENT	0x200000 /* Process pending signals changed */
 /* Should be moved to machine-dependent areas. */
 #define	P_COWINPROGRESS	0x400000 /* Snapshot copy-on-write in progress. */
 
@@ -897,7 +899,6 @@ void	kse_unlink(struct kse *ke);
 void	ksegrp_link(struct ksegrp *kg, struct proc *p);
 void	ksegrp_unlink(struct ksegrp *kg);
 void	thread_signal_add(struct thread *td, int sig);
-void	thread_signal_upcall(struct thread *td);
 struct	thread *thread_alloc(void);
 void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td);
@@ -928,6 +929,7 @@ void	upcall_stash(struct kse_upcall *ke);
 void	thread_sanity_check(struct thread *td, char *);
 void	thread_stopped(struct proc *p);
 void	thread_switchout(struct thread *td);
+void	thread_siginfo(int sig, u_long code, siginfo_t *si);
 void	thr_exit1(void);
 #endif	/* _KERNEL */
 
