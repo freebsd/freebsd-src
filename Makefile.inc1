@@ -774,6 +774,8 @@ libraries:
 # gnu/lib/csu, gnu/lib/libgcc and lib/csu must be built before all
 # shared libraries for ELF.
 #
+# lib/libc (libc_pic.a) must be built before lib/libpthread.
+#
 _startup_libs=	gnu/lib/csu gnu/lib/libgcc
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH}-elf)
 _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
@@ -781,7 +783,7 @@ _startup_libs+=	lib/csu/${MACHINE_ARCH}-elf
 _startup_libs+=	lib/csu/${MACHINE_ARCH}
 .endif
 
-_prebuild_libs+= lib/libc
+_prebuild_libs=
 _generic_libs=	gnu/lib
 
 .if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
@@ -793,6 +795,9 @@ _prebuild_libs+=	kerberos5/lib/libroken
 _generic_libs+=	kerberos5/lib
 .endif
 
+.if !defined(NOLIBPTHREAD)
+_prebuild_libs+= lib/libc
+.endif
 _prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
 		lib/libkvm lib/libmd \
 		lib/libncurses lib/libopie lib/libpam lib/libradius \
