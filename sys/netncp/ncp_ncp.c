@@ -187,6 +187,7 @@ ncp_do_request(struct ncp_conn *conn, struct ncp_rq *rqp) {
 	struct mbuf *m, *mreply = NULL;
 	
 	conn->nc_rq = rqp;
+	rqp->conn = conn;
 	if (p == NULL)
 		p = curproc;	/* XXX maybe procpage ? */
 	if (!ncp_conn_valid(conn)) {
