@@ -176,8 +176,11 @@ main(argc, argv)
 			continue;
 
 		/* Try reading/writing. */
-		if (rw(*argv, &sb, fflag))
+		if (!S_ISLNK(sb.st_mode) && !S_ISDIR(sb.st_mode) &&
+		    rw(*argv, &sb, fflag))
 			rval = 1;
+		else
+			warn("%s", *argv);
 	}
 	exit(rval);
 }
@@ -302,8 +305,8 @@ rw(fname, sbp, force)
 	int fd, needed_chmod, rval;
 	u_char byte;
 
-	/* Try regular files and directories. */
-	if (!S_ISREG(sbp->st_mode) && !S_ISDIR(sbp->st_mode)) {
+	/* Try regular files. */
+	if (!S_ISREG(sbp->st_mode)) {
 		warnx("%s: %s", fname, strerror(EFTYPE));
 		return (1);
 	}
