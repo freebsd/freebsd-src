@@ -265,12 +265,19 @@ Note, the first character of a symbolic mode may not be a dash (``\-'').
 .It Ic -print
 This primary always evaluates to true.
 It prints the pathname of the current file to standard output.
-The expression is appended to the user specified expression if neither
+The expression is appended to the user specified expression if none of
 .Ic -exec ,
-.Ic -ls
+.Ic -ls ,
+.Ic -print0 ,
 or
 .Ic \&-ok
-is specified.
+are specified.
+.It Ic -print0
+This primary always evaluates to true.
+It prints the pathname of the current file to standard output, followed by a
+.Tn ASCII
+.Tn NUL
+character (character code 0).
 .It Ic -prune
 This primary always evaluates to true.
 It causes
@@ -404,7 +411,8 @@ The
 and
 .Fl X
 options and the
-.Ic -inum
+.Ic -inum ,
+.Ic -print0 ,
 and
 .Ic -ls
 primaries are extensions to
