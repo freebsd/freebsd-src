@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf.c,v 1.389.2.2 2004/03/14 00:13:42 brad Exp $ */
+/*	$OpenBSD: pf.c,v 1.389.2.3 2004/04/10 09:38:19 brad Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -4004,6 +4004,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
 			struct pf_tree_node	 key;
 			struct pf_state_peer	*src, *dst;
 			u_int8_t		 dws;
+			int			 copyback = 0;
 
 			/*
 			 * Only the first 8 bytes of the TCP header can be
@@ -4041,9 +4042,11 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
 
 			/* Demodulate sequence number */
 			seq = ntohl(th.th_seq) - src->seqdiff;
-			if (src->seqdiff)
-				pf_change_a(&th.th_seq, &th.th_sum,
+			if (src->seqdiff) {
+				pf_change_a(&th.th_seq, icmpsum,
 				    htonl(seq), 0);
+				copyback = 1;
+			}
 
 			if (!SEQ_GEQ(src->seqhi, seq) ||
 			    !SEQ_GEQ(seq, src->seqlo - (dst->max_win << dws))) {
@@ -4063,7 +4066,7 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
 			if (STATE_TRANSLATE(*state)) {
 				if (direction == PF_IN) {
 					pf_change_icmp(pd2.src, &th.th_sport,
-					    saddr, &(*state)->lan.addr,
+					    daddr, &(*state)->lan.addr,
 					    (*state)->lan.port, NULL,
 					    pd2.ip_sum, icmpsum,
 					    pd->ip_sum, 0, pd2.af);
@@ -4074,6 +4077,10 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
 					    pd2.ip_sum, icmpsum,
 					    pd->ip_sum, 0, pd2.af);
 				}
+				copyback = 1;
+			}
+
+			if (copyback) {
 				switch (pd2.af) {
 #ifdef INET
 				case AF_INET:
@@ -4093,8 +4100,6 @@ pf_test_state_icmp(struct pf_state **state, int direction, struct ifnet *ifp,
 					break;
 #endif /* INET6 */
 				}
-				m_copyback(m, off2, 8, &th);
-			} else if (src->seqdiff) {
 				m_copyback(m, off2, 8, &th);
 			}
 
