@@ -71,7 +71,7 @@ static struct cdevsw acd_cdevsw = {
 };
 
 /* prototypes */
-static struct acd_softc *acd_init_lun(struct ata_device *, struct devstat *);
+static struct acd_softc *acd_init_lun(struct ata_device *);
 static void acd_make_dev(struct acd_softc *);
 static void acd_describe(struct acd_softc *);
 static void lba2msf(u_int32_t, u_int8_t *, u_int8_t *, u_int8_t *);
@@ -111,7 +111,7 @@ acdattach(struct ata_device *atadev)
     struct acd_softc *cdp;
     struct changer *chp;
 
-    if ((cdp = acd_init_lun(atadev, NULL)) == NULL) {
+    if ((cdp = acd_init_lun(atadev)) == NULL) {
 	ata_prtdev(atadev, "acd: out of memory\n");
 	return 0;
     }
@@ -149,7 +149,7 @@ acdattach(struct ata_device *atadev)
 	    }
 	    for (count = 0; count < chp->slots; count++) {
 		if (count > 0) {
-		    tmpcdp = acd_init_lun(atadev, NULL);
+		    tmpcdp = acd_init_lun(atadev);
 		    if (!tmpcdp) {
 			ata_prtdev(atadev, "out of memory\n");
 			break;
@@ -160,13 +160,14 @@ acdattach(struct ata_device *atadev)
 		tmpcdp->slot = count;
 		tmpcdp->changer_info = chp;
 		acd_make_dev(tmpcdp);
-		devstat_add_entry(cdp->stats, "acd", tmpcdp->lun, DEV_BSIZE,
+		devstat_add_entry(tmpcdp->stats, "acd", tmpcdp->lun, DEV_BSIZE,
 				  DEVSTAT_NO_ORDERED_TAGS,
 				  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 				  DEVSTAT_PRIORITY_CD);
 	    }
-	    name = malloc(strlen(atadev->name) + 1, M_ACD, M_NOWAIT);
+	    name = malloc(strlen(atadev->name) + 2, M_ACD, M_NOWAIT);
 	    strcpy(name, atadev->name);
+	    strcat(name, "-");
 	    ata_free_name(atadev);
 	    ata_set_name(atadev, name, cdp->lun + cdp->changer_info->slots - 1);
 	    free(name, M_ACD);
@@ -231,7 +232,7 @@ acddetach(struct ata_device *atadev)
 }
 
 static struct acd_softc *
-acd_init_lun(struct ata_device *atadev, struct devstat *stats)
+acd_init_lun(struct ata_device *atadev)
 {
     struct acd_softc *cdp;
 
@@ -244,15 +245,11 @@ acd_init_lun(struct ata_device *atadev, struct devstat *stats)
     cdp->block_size = 2048;
     cdp->slot = -1;
     cdp->changer_info = NULL;
-    if (stats == NULL) {
-	if (!(cdp->stats = malloc(sizeof(struct devstat), M_ACD,
-				  M_NOWAIT | M_ZERO))) {
-	    free(cdp, M_ACD);
-	    return NULL;
-	}
+    if (!(cdp->stats = malloc(sizeof(struct devstat), M_ACD,
+			      M_NOWAIT | M_ZERO))) {
+	free(cdp, M_ACD);
+	return NULL;
     }
-    else
-	cdp->stats = stats;
     return cdp;
 }
 
@@ -1177,7 +1174,7 @@ acd_start(struct ata_device *atadev)
     ccb[8] = count;
 
     devstat_start_transaction(cdp->stats);
-
+    bp->bio_caller1 = cdp;
     atapi_queue_cmd(cdp->device, ccb, bp->bio_data, count * blocksize,
 		    bp->bio_cmd == BIO_READ ? ATPR_F_READ : 0, 
 		    (ccb[0] == ATAPI_WRITE_BIG) ? 60 : 30, acd_done, bp);
@@ -1187,7 +1184,7 @@ static int
 acd_done(struct atapi_request *request)
 {
     struct bio *bp = request->driver;
-    struct acd_softc *cdp = request->device->driver;
+    struct acd_softc *cdp = bp->bio_caller1;
     
     if (request->error) {
 	bp->bio_error = request->error;
