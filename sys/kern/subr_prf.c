@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.22 1996/01/16 18:08:57 phk Exp $
+ * $Id: subr_prf.c,v 1.23 1996/01/18 10:23:02 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -357,6 +357,7 @@ sprintf(char *buf, const char *cfmt, ...)
 
 	va_start(ap, cfmt);
 	retval = kvprintf(cfmt, NULL, (void *)buf, 10, ap);
+	buf[retval] = '\0';
 	va_end(ap);
 	return retval;
 }
@@ -431,10 +432,10 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 	char padc;
 	int retval = 0;
 
-	if (func == NULL)
+	if (!func)
 		d = (char *) arg;
 	else
-		d = 0;
+		d = NULL;
 
 	if (fmt == NULL)
 		fmt = "(fmt null)\n";
@@ -442,7 +443,7 @@ kvprintf(char const *fmt, void (*func)(int, void*), void *arg, int radix, va_lis
 		padc = ' ';
 		width = 0;
 		while ((ch = *(u_char *)fmt++) != '%') {
-			if (ch == '\0')
+			if (ch == '\0') 
 				return retval;
 			PCHAR(ch);
 		}
@@ -539,9 +540,12 @@ reswitch:	switch (ch = *(u_char *)fmt++) {
 			goto number;
 		case 'r':
 			p = va_arg(ap, char *);
-			n = kvprintf(p, func, arg, radix, ap);
-			if (!func)
+			if (!func) {
+				n = kvprintf(p, func, d, radix, ap);
 				d += n;
+			} else {
+				n = kvprintf(p, func, arg, radix, ap);
+			}
 			retval += n;
 			break;
 		case 's':
