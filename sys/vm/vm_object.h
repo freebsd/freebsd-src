@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.54 1999/02/08 19:00:15 dillon Exp $
+ * $Id: vm_object.h,v 1.55 1999/06/19 18:42:52 alc Exp $
  */
 
 /*
@@ -100,8 +100,6 @@ struct vm_object {
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	u_short	behavior;		/* see below */
 	int resident_page_count;	/* number of resident pages */
-	int cache_count;		/* number of cached pages */
-	int	wire_count;		/* number of wired pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	vm_offset_t last_read;		/* last read in object -- detect seq behavior */
