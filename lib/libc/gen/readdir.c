@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
 #include <sys/param.h>
 #include <dirent.h>
 #include <errno.h>
+#include <string.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
