@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.192.2.1 1995/05/31 22:36:51 jkh Exp $
+#	$Id: Makefile,v 1.192.2.2 1995/05/31 23:53:09 jkh Exp $
 #
 # How to roll a release:
 #
@@ -45,7 +45,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 # Size of the mfs to put in the kernel we boot.
 # You want to keep this as small as possible, it costs dearly in RAM.
 BOOTMFSSIZE=		1075
-MFSINODE=		70000
+MFSINODE=		80000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
