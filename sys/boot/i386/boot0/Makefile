@@ -36,3 +36,9 @@ AFLAGS+=--defsym FLAGS=${BOOT_BOOT0_FLAGS} \
 LDFLAGS=-N -e start -Ttext ${BOOT_BOOT0_ORG} -Wl,-S,--oformat,binary
 
 .include <bsd.prog.mk>
+
+boot0.s:	boot0_512.s
+	cpp -USIO < ${.CURDIR}/boot0_512.s > boot0.s
+
+boot0sio.s:	${.CURDIR}/../boot0/boot0_512.s
+	cpp -DSIO < ${.CURDIR}/../boot0/boot0_512.s > boot0sio.s
