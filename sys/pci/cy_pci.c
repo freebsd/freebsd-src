@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cy_pci.c,v 1.1 1996/10/13 01:09:23 davidg Exp $
+ *	$Id: cy_pci.c,v 1.2 1996/10/15 19:22:37 bde Exp $
  */
 
 /*
@@ -120,7 +120,7 @@ cy_attach(config_id, unit)
 	 * Enable the "local" interrupt input to generate a
 	 * PCI interrupt.
 	 */
-	outw(ioport + CY_PLX_ICS, inw(CY_PLX_ICS) |
+	outw(ioport + CY_PLX_ICS, inw(ioport + CY_PLX_ICS) |
 	    CY_PLX_ICS_IENABLE | CY_PLX_ICS_LOCAL_IENABLE);
 
 	return;
