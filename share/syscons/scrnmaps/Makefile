@@ -7,18 +7,12 @@ SCRMAPS = armscii8-2haik8.scm \
 	  us-ascii_to_cp437.scm
 
 SCRMAPS_MK = ${SCRMAPS:R:S/$/.mk/g}
-SCRDIR = ${SHAREDIR}/syscons/scrnmaps
 CLEANFILES+= ${SCRMAPS_MK} ${SCRMAPS}
 
-NOMAN = noman
-
-all: ${SCRMAPS}
+FILES=	${SCRMAPS}
+FILESDIR= ${SHAREDIR}/syscons/scrnmaps
 
 build-tools: ${SCRMAPS_MK}
-
-install:
-	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${SHAREMODE} \
-	    ${SCRMAPS} ${DESTDIR}${SCRDIR}
 
 ${SCRMAPS}: ${.TARGET:R}.mk
 	./${.TARGET:R}.mk ${.TARGET:R}.tmp
