@@ -373,7 +373,7 @@ add_var_table(tlist, buf, len)
 /*
  * Search a single command table for the command string in cmd.
  */
-	public int
+	static int
 cmd_search(cmd, table, endtable, sp)
 	char *cmd;
 	char *table;
@@ -384,6 +384,7 @@ cmd_search(cmd, table, endtable, sp)
 	register char *q;
 	register int a;
 
+	*sp = NULL;
 	for (p = table, q = cmd;  p < endtable;  p++, q++)
 	{
 		if (*p == *q)
@@ -417,8 +418,7 @@ cmd_search(cmd, table, endtable, sp)
 				{
 					*sp = ++p;
 					a &= ~A_EXTRA;
-				} else
-					*sp = NULL;
+				}
 				return (a);
 			}
 		} else if (*q == '\0')
@@ -484,6 +484,8 @@ cmd_decode(tlist, cmd, sp)
 		if (action != A_INVALID)
 			break;
 	}
+	if (action == A_UINVALID)
+		action = A_INVALID;
 	return (action);
 }
 
