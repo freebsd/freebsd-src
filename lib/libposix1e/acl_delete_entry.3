@@ -30,7 +30,7 @@
 .Os
 .Sh NAME
 .Nm acl_delete_entry
-.Nd Delete an ACL entry from an ACL
+.Nd delete an ACL entry from an ACL
 .Sh LIBRARY
 .Lb libposix1e
 .Sh SYNOPSIS
@@ -41,33 +41,23 @@
 .Sh DESCRIPTION
 .Fn acl_delete_entry
 is a POSIX.1e call that removes the ACL entry
-.Ar entry_d
+.Fa entry_d
 from ACL
-.Ar acl .
+.Fa acl .
 .Sh RETURN VALUES
-Upon successful completion, the function shall return a value of
-.Va 0 .
-Otherwise, a value of
-.Va -1
-shall be returned, and
-.Va errno
-shall be set to indicate the error.
+.Rv -std acl_delete_entry
 .Sh ERRORS
-If the following condition occurs, the
+The
 .Fn acl_delete_entry
-function shall return a value of
-.Va -1
-and set
-.Va errno
-to the corresponding value:
+function fails if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Argument
-.Ar acl
+.Fa acl
 does not point to a valid ACL.  Argument
-.Ar entry_d
+.Fa entry_d
 is not a valid descriptor for an ACL entry in
-.Ar acl .
+.Fa acl .
 .El
 .Sh SEE ALSO
 .Xr acl 3 ,
