@@ -1592,6 +1592,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	pv_entry_t pv;
 
 	s = splvm();
+	vm_page_lock_queues();
 	pv = get_pv_entry();
 	pv->pv_va = va;
 	pv->pv_pmap = pmap;
@@ -1601,6 +1602,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t mpte, vm_page_t m)
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
 
+	vm_page_unlock_queues();
 	splx(s);
 }
 
