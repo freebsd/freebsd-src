@@ -50,7 +50,7 @@
 #include <string.h>
 #include <unistd.h>
 
-void
+static void
 usage(void)
 {
 	printf("fwcontrol [-g gap_count] [-b pri_req] [-c node]"
@@ -66,7 +66,7 @@ usage(void)
 	exit(0);
 }
 
-void
+static void
 get_num_of_dev(int fd, struct fw_devlstreq *data)
 {
 	data->n = 64;
@@ -75,7 +75,7 @@ get_num_of_dev(int fd, struct fw_devlstreq *data)
 	}
 }
 
-void
+static void
 list_dev(int fd)
 {
 	struct fw_devlstreq data;
@@ -94,7 +94,7 @@ list_dev(int fd)
 	}
 }
 
-u_int32_t
+static u_int32_t
 read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int32_t data)
 {
         struct fw_asyreq *asyreq;
@@ -130,7 +130,8 @@ read_write_quad(int fd, struct fw_eui64 eui, u_int32_t addr_lo, int read, u_int3
 	else
 		return 0;
 }
-void
+
+static void
 send_phy_config(int fd, int root_node, int gap_count)
 {
         struct fw_asyreq *asyreq;
@@ -155,7 +156,7 @@ send_phy_config(int fd, int root_node, int gap_count)
 	}
 }
 
-void
+static void
 set_pri_req(int fd, int pri_req)
 {
 	struct fw_devlstreq data;
@@ -183,7 +184,8 @@ set_pri_req(int fd, int pri_req)
 	}
 }
 
-void parse_bus_info_block(u_int32_t *p, int info_len)
+static void
+parse_bus_info_block(u_int32_t *p, int info_len)
 {
 	int i;
 
@@ -192,7 +194,7 @@ void parse_bus_info_block(u_int32_t *p, int info_len)
 	}
 }
 
-int
+static int
 get_crom(int fd, int node, void *crom_buf, int len)
 {
 	struct fw_crom_buf buf;
@@ -219,6 +221,7 @@ get_crom(int fd, int node, void *crom_buf, int len)
 	return error;
 }
 
+static void
 show_crom(u_int32_t *crom_buf)
 {
 	int i;
@@ -245,6 +248,8 @@ show_crom(u_int32_t *crom_buf)
 	dir = cc.stack[0].dir;
 	printf("root_directory: len=0x%04x(%d) crc=0x%04x\n",
 			dir->crc_len, dir->crc_len, dir->crc);
+	if (dir->crc_len < 1)
+		return;
 	while (cc.depth >= 0) {
 		desc = crom_desc(&cc, info, sizeof(info));
 		reg = crom_get(&cc);
@@ -261,6 +266,7 @@ show_crom(u_int32_t *crom_buf)
 
 #define DUMP_FORMAT	"%08x %08x %08x %08x %08x %08x %08x %08x\n"
 
+static void
 dump_crom(u_int32_t *p)
 {
 	int len=1024, i;
@@ -272,6 +278,7 @@ dump_crom(u_int32_t *p)
 	}
 }
 
+static void
 load_crom(char *filename, u_int32_t *p)
 {
 	FILE *file;
