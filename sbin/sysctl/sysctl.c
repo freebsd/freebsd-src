@@ -415,10 +415,16 @@ show_var(int *oid, int nlen)
 		if (!nflag)
 			printf("%s: ", name);
 		fmt++;
-		if(*fmt == 'U')
-			printf("%lu", *(unsigned long *)p);
-		else
-			printf("%ld", *(long *)p);
+		val = "";
+		while (len >= sizeof(long)) {
+			if(*fmt == 'U')
+				printf("%s%lu", val, *(unsigned long *)p);
+			else
+				printf("%s%ld", val, *(long *)p);
+			val = " ";
+			len -= sizeof (int);
+			p += sizeof (int);
+		}
 		return (0);
 
 	case 'P':
