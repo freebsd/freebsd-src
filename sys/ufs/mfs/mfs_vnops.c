@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.33 1997/11/01 20:40:13 tegge Exp $
+ * $Id: mfs_vnops.c,v 1.34 1998/01/01 12:40:25 bde Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@ static int	mfs_open __P((struct vop_open_args *));
 static int	mfs_reclaim __P((struct vop_reclaim_args *)); /* XXX */
 static int	mfs_print __P((struct vop_print_args *)); /* XXX */
 static int	mfs_strategy __P((struct vop_strategy_args *)); /* XXX */
+static int	mfs_getpages __P((struct vop_getpages_args *)); /* XXX */
 /*
  * mfs vnode operations.
  */
@@ -66,7 +67,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc,		(vop_t *) vop_defaultop },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
-	{ &vop_getpages_desc,		(vop_t *) vop_defaultop },
+	{ &vop_getpages_desc,		(vop_t *) mfs_getpages },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
 	{ &vop_islocked_desc,		(vop_t *) vop_defaultop },
@@ -310,4 +311,13 @@ mfs_badop(struct vop_generic_args *ap)
 	i = vop_defaultop(ap);
 	printf("mfs_badop[%s] = %d\n", ap->a_desc->vdesc_name,i);
 	return (i);
+}
+
+
+static int
+mfs_getpages(ap)
+	struct vop_getpages_args *ap;
+{
+
+	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_getpages), ap));
 }
