@@ -62,6 +62,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "find.h"
 
@@ -442,11 +443,9 @@ c_delete(option, argvp)
 
 
 /*
- * -depth functions --
+ * always_true --
  *
- *	Always true, causes descent of the directory hierarchy to be done
- *	so that all entries in a directory are acted on before the directory
- *	itself.
+ *	Always true, used for -maxdepth, -mindepth, -xdev and -follow
  */
 int
 f_always_true(plan, entry)
@@ -456,16 +455,59 @@ f_always_true(plan, entry)
 	return 1;
 }
 
+/*
+ * -depth functions --
+ *
+ *	With argument: True if the file is at level n.
+ *	Without argument: Always true, causes descent of the directory hierarchy
+ *	to be done so that all entries in a directory are acted on before the
+ *	directory itself.
+ */
+int
+f_depth(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	if (plan->flags & F_DEPTH)
+		COMPARE(entry->fts_level, plan->d_data);
+	else
+		return 1;
+}
+
 PLAN *
 c_depth(option, argvp)
 	OPTION *option;
 	char ***argvp;
 {
-	isdepth = 1;
+	PLAN *new;
+	char *str;
 
-	return palloc(option);
+	new = palloc(option);
+
+	str = **argvp;
+	if (str && !(new->flags & F_DEPTH)) {
+		/* skip leading + or - */
+		if (*str == '+' || *str == '-')
+			str++;
+		/* skip sign */
+		if (*str == '+' || *str == '-')
+			str++;
+		if (isdigit(*str))
+			new->flags |= F_DEPTH;
+	}
+
+	if (new->flags & F_DEPTH) {	/* -depth n */
+		char *ndepth;
+
+		ndepth = nextarg(option, argvp);
+		new->d_data = find_parsenum(new, option->name, ndepth, NULL);
+	} else {			/* -d */
+		isdepth = 1;
+	}
+
+	return new;
 }
-
+ 
 /*
  * -empty functions --
  *

@@ -34,7 +34,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd May 3, 2001
+.Dd June 11, 2004
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -131,6 +131,19 @@ visits directories in pre\-order, i.e., before their contents.
 Note, the default is
 .Em not
 a breadth\-first traversal.
+.Pp
+This option is equivalent to the
+.Ic -depth
+primary of
+.St -p1003.1-2001 .
+.Fl d
+can be useful when
+.Nm
+is used with
+.Xr cpio 1
+to process files that are contained in directories with unusual permissions.
+It ensures that you have write permission while you are placing files in a
+directory, then sets the directory's permissions as the last thing.
 .It Fl f
 Specify a file hierarchy for
 .Nm
@@ -249,14 +262,10 @@ Always true;
 same as the
 .Fl d
 option.
-.Ic -depth
-can be useful when
-.Nm
-is used with
-.Xr cpio 1
-to process files that are contained in directories with unusual permissions.
-It ensures that you have write permission while you are placing files in a
-directory, then sets the directory's permissions as the last thing.
+.It Ic -depth Ar n
+True if the depth of the file relative to the starting point of the traversal
+is 
+.Ar n .
 .It Ic -empty
 True if the current file or directory is empty.
 .It Ic -exec Ar utility Oo Ar argument ...  Oc Li \&;
@@ -741,6 +750,17 @@ recent than the current time minus one minute.
 Use the
 .Xr echo 1
 command to print out a list of all the files.
+.It Li "find -L /usr/ports/packages -type l -delete"
+Delete all broken symbolic links in
+.Pa /usr/ports/packages .
+.It Li "find /usr/src -name CVS -prune -o -depth +6 -print"
+Find files and directories that are at least seven levels deep
+in the working directory
+.Pa /usr/src .
+.It Li "find /usr/src -name CVS -prune -o -mindepth 7 -print"
+Is not equivalent to the previous example, since
+.Ic -prune
+is not evaluated below level seven.
 .El
 .Sh COMPATIBILITY
 The
@@ -767,15 +787,19 @@ is considered to be a suitable replacement.
 The
 .Nm
 utility syntax is a superset of the syntax specified by the
-.St -p1003.2
+.St -p1003.1-2001
 standard.
 .Pp
-All the single character options as well as the
+All the single character options except
+.Ic -H
+and
+.Ic -L
+as well as the
 .Ic -iname , -inum , -iregex , -print0 , -delete , -ls ,
 and
 .Ic -regex
 primaries are extensions to
-.St -p1003.2 .
+.St -p1003.1-2001 .
 .Pp
 Historically, the
 .Fl d , H

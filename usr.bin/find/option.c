@@ -68,7 +68,7 @@ static OPTION const options[] = {
 	{ "-cnewer",	c_newer,	f_newer,	F_TIME_C },
 	{ "-ctime",	c_Xtime,	f_Xtime,	F_TIME_C },
 	{ "-delete",	c_delete,	f_delete,	0 },
-	{ "-depth",	c_depth,	f_always_true,	0 },
+	{ "-depth",	c_depth,	f_depth,	0 },
 	{ "-empty",	c_empty,	f_empty,	0 },
 	{ "-exec",	c_exec,		f_exec,		0 },
 	{ "-execdir",	c_exec,		f_exec,		F_EXECDIR },
