@@ -27,9 +27,10 @@ int	i;
 	free(win->_firstchar);
 	free(win->_lastchar);
 	free(win->_line);
-	free(win);
 
-	touchwin(curscr);
+	touchwin((win->_flags & _SUBWIN) ? win->_parent : curscr);
+
+	free(win);
 
 	return(OK);
 }
