@@ -16,7 +16,8 @@
 .Id $Id: grep.1,v 1.9 2000/01/26 03:42:16 alainm Exp $
 .TH GREP 1 \*(Dt "GNU Project"
 .SH NAME
-grep, egrep, fgrep, zgrep, zegrep, zfgrep \- print lines matching a pattern
+grep, egrep, fgrep, zgrep, zegrep, zfgrep,
+bzgrep, bzegrep, bzfgrep \- print lines matching a pattern
 .SH SYNOPSIS
 .B grep
 .RI [ options ]
@@ -350,10 +351,14 @@ even those that contain newline characters.
 .TP
 .BR \-Z ", " \-\^\-decompress
 Decompress the input data before searching.
-This option is only available if compiled with zlib(3) library.
+This option is only available if compiled with
+.BR zlib (3)
+library.
+.TP
 .BR \-J ", " \-\^\-bz2decompress
-Decompress the bzip2ed input data before searching.
-This option is only available if compiled with zlib(3) library.
+Decompress the
+.BR bzip2 (1)
+compressed input data before searching.
 .SH "REGULAR EXPRESSIONS"
 A regular expression is a pattern that describes a set of strings.
 Regular expressions are constructed analogously to arithmetic
