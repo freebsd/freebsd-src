@@ -133,6 +133,11 @@ clockattach(device_t dev)
 #ifdef EVCNT_COUNTERS
 	evcnt_attach(dev, "intr", &clock_intr_evcnt);
 #endif
+
+	/*
+	 * Get the clock started.
+	 */
+	CLOCK_INIT(clockdev);
 }
 
 /*
@@ -156,9 +161,6 @@ void
 cpu_initclocks()
 {
 	u_int32_t freq;
-
-	if (clockdev == NULL)
-		panic("cpu_initclocks: no clock attached");
 
 	/*
 	 * We use cr.itc and cr.itm to implement a 1024hz clock.
@@ -190,11 +192,6 @@ cpu_initclocks()
 	tc_init(&ia64_timecounter);
 
 	stathz = 128;
-
-	/*
-	 * Get the clock started.
-	 */
-	CLOCK_INIT(clockdev);
 }
 
 static u_int32_t

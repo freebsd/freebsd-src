@@ -788,20 +788,26 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	oonstack = (p->p_sigstk.ss_flags & SS_ONSTACK) ? 1 : 0;
 	rndfsize = ((sizeof(sf) + 15) / 16) * 16;
 
+	/*
+	 * Make sure that we restore the entire trapframe after a
+	 * signal.
+	 */
+	frame->tf_flags &= ~FRAME_SYSCALL;
+
 	/* save user context */
 	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = p->p_sigstk;
 	sf.sf_uc.uc_mcontext.mc_flags = IA64_MC_FLAG_ONSTACK;
 
-	sf.sf_uc.uc_mcontext.mc_nat = 0; /* XXX */
+	sf.sf_uc.uc_mcontext.mc_nat     = 0; /* XXX */
 	sf.sf_uc.uc_mcontext.mc_sp	= frame->tf_r[FRAME_SP];
-	sf.sf_uc.uc_mcontext.mc_ip	= frame->tf_cr_iip;
-	sf.sf_uc.uc_mcontext.mc_cfm     = 0; /* XXX */
+	sf.sf_uc.uc_mcontext.mc_ip	= (frame->tf_cr_iip
+					   | ((frame->tf_cr_ipsr >> 41) & 3));
+	sf.sf_uc.uc_mcontext.mc_cfm     = frame->tf_cr_ifs & ~(1<<31);
 	sf.sf_uc.uc_mcontext.mc_um      = frame->tf_cr_ipsr & 0x1fff;
 	sf.sf_uc.uc_mcontext.mc_ar_rsc  = frame->tf_ar_rsc;
-	sf.sf_uc.uc_mcontext.mc_ar_bsp  = (frame->tf_ar_bspstore
-					   + frame->tf_ndirty);
+	sf.sf_uc.uc_mcontext.mc_ar_bsp  = frame->tf_ar_bspstore;
 	sf.sf_uc.uc_mcontext.mc_ar_rnat = frame->tf_ar_rnat;
 	sf.sf_uc.uc_mcontext.mc_ar_ccv  = frame->tf_ar_ccv;
 	sf.sf_uc.uc_mcontext.mc_ar_unat = frame->tf_ar_unat;
@@ -812,8 +818,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	bcopy(&frame->tf_b[0],
 	      &sf.sf_uc.uc_mcontext.mc_br[0],
 	      8 * sizeof(unsigned long));
+	sf.sf_uc.uc_mcontext.mc_gr[0] = 0;
 	bcopy(&frame->tf_r[0],
-	      &sf.sf_uc.uc_mcontext.mc_gr[0],
+	      &sf.sf_uc.uc_mcontext.mc_gr[1],
 	      31 * sizeof(unsigned long));
 
 	/* XXX mc_fr[] */
@@ -831,6 +838,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sfp = (struct sigframe *)((caddr_t)p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - rndfsize);
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
+		sf.sf_uc.uc_mcontext.mc_onstack |= 1;
 	} else
 		sfp = (struct sigframe *)(frame->tf_r[FRAME_SP] - rndfsize);
 
@@ -868,12 +876,6 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	sf.sf_uc.uc_mcontext.mc_fp_control = p->p_addr->u_pcb.pcb_fp_control;
 #endif
 
-#ifdef COMPAT_OSF1
-	/*
-	 * XXX Create an OSF/1-style sigcontext and associated goo.
-	 */
-#endif
-
 	/*
 	 * copy the frame out to userland.
 	 */
@@ -887,10 +889,11 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Set up the registers to return to sigcode.
 	 */
+	frame->tf_cr_ipsr &= ~IA64_PSR_RI;
 	frame->tf_cr_iip = PS_STRINGS - (esigcode - sigcode);
 	frame->tf_r[FRAME_R1] = sig;
 	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
-		frame->tf_r[FRAME_R2] = (u_int64_t)&(sfp->sf_si);
+		frame->tf_r[FRAME_R15] = (u_int64_t)&(sfp->sf_si);
 
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
@@ -898,12 +901,14 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_si.si_addr = (void*)frame->tf_cr_ifa;
 	}
 	else
-		frame->tf_r[FRAME_R2] = code;
+		frame->tf_r[FRAME_R15] = code;
 
-	frame->tf_r[FRAME_R3] = (u_int64_t)&(sfp->sf_uc);
-	frame->tf_r[FRAME_R4] = (u_int64_t)catcher;
-	frame->tf_r[FRAME_R5] = sbs;
 	frame->tf_r[FRAME_SP] = (u_int64_t)sfp - 16;
+	frame->tf_r[FRAME_R14] = sig;
+	frame->tf_r[FRAME_R15] = (u_int64_t) &sfp->sf_si;
+	frame->tf_r[FRAME_R16] = (u_int64_t) &sfp->sf_uc;
+	frame->tf_r[FRAME_R17] = (u_int64_t)catcher;
+	frame->tf_r[FRAME_R18] = sbs;
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
@@ -949,10 +954,10 @@ sigreturn(struct proc *p,
 		ucontext_t *sigcntxp;
 	} */ *uap)
 {
-#if 0
 	ucontext_t uc, *ucp;
 	struct pcb *pcb;
-	unsigned long val;
+	struct trapframe *frame = p->p_md.md_tf;
+	struct __mcontext *mcp;
 
 	ucp = uap->sigcntxp;
 	pcb = &p->p_addr->u_pcb;
@@ -964,19 +969,45 @@ sigreturn(struct proc *p,
 
 	/*
 	 * Fetch the entire context structure at once for speed.
+	 * We don't use a normal argument to simplify RSE handling.
 	 */
-	if (copyin((caddr_t)ucp, (caddr_t)&uc, sizeof(ucontext_t)))
+	if (copyin((caddr_t)frame->tf_r[FRAME_R4],
+		   (caddr_t)&uc, sizeof(ucontext_t)))
 		return (EFAULT);
 
 	/*
 	 * Restore the user-supplied information
 	 */
-	set_regs(p, (struct reg *)uc.uc_mcontext.mc_regs);
-	val = (uc.uc_mcontext.mc_regs[R_PS] | IA64_PSL_USERSET) &
-	    ~IA64_PSL_USERCLR;
-	p->p_md.md_tf->tf_regs[FRAME_PS] = val;
-	p->p_md.md_tf->tf_regs[FRAME_PC] = uc.uc_mcontext.mc_regs[R_PC];
-	ia64_pal_wrusp(uc.uc_mcontext.mc_regs[R_SP]);
+	mcp = &uc.uc_mcontext;
+	bcopy(&mcp->mc_br[0], &frame->tf_b[0], 8*sizeof(u_int64_t));
+	bcopy(&mcp->mc_gr[1], &frame->tf_r[0], 31*sizeof(u_int64_t));
+	/* XXX mc_fr */
+
+	frame->tf_flags &= ~FRAME_SYSCALL;
+	frame->tf_cr_iip = mcp->mc_ip & ~15;
+	frame->tf_cr_ipsr &= ~IA64_PSR_RI;
+	switch (mcp->mc_ip & 15) {
+	case 1:
+		frame->tf_cr_ipsr |= IA64_PSR_RI_1;
+		break;
+	case 2:
+		frame->tf_cr_ipsr |= IA64_PSR_RI_2;
+		break;
+	}
+	frame->tf_cr_ipsr     = ((frame->tf_cr_ipsr & ~0x1fff)
+				 | (mcp->mc_um & 0x1fff));
+	frame->tf_pr          = mcp->mc_pr;
+	frame->tf_ar_rsc      = (mcp->mc_ar_rsc & 3) | 12; /* user, loadrs=0 */
+	frame->tf_ar_pfs      = mcp->mc_ar_pfs;
+	frame->tf_cr_ifs      = mcp->mc_cfm | (1UL<<63);
+	frame->tf_ar_bspstore = mcp->mc_ar_bsp;
+	frame->tf_ar_rnat     = mcp->mc_ar_rnat;
+	frame->tf_ndirty      = 0; /* assumes flushrs in sigcode */
+	frame->tf_ar_unat     = mcp->mc_ar_unat;
+	frame->tf_ar_ccv      = mcp->mc_ar_ccv;
+	frame->tf_ar_fpsr     = mcp->mc_ar_fpsr;
+
+	frame->tf_r[FRAME_SP] = mcp->mc_sp;
 
 	if (uc.uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
@@ -988,14 +1019,16 @@ sigreturn(struct proc *p,
 
 	/* XXX ksc.sc_ownedfp ? */
 	ia64_fpstate_drop(p);
+#if 0
 	bcopy((struct fpreg *)uc.uc_mcontext.mc_fpregs,
 	      &p->p_addr->u_pcb.pcb_fp, sizeof(struct fpreg));
-	p->p_addr->u_pcb.pcb_fp_control = uc.uc_mcontext.mc_fp_control;
+	p->p_addr->u_pcb.pcb_fp_control =
+		uc.uc_mcontext.mc_fp_control;
+#endif
 
 #ifdef DEBUG
 	if (sigdebug & SDB_FOLLOW)
 		printf("sigreturn(%d): returns\n", p->p_pid);
-#endif
 #endif
 	return (EJUSTRETURN);
 }
@@ -1029,6 +1062,12 @@ setregs(struct proc *p, u_long entry, u_long stack, u_long ps_strings)
 	struct trapframe *frame;
 
 	frame = p->p_md.md_tf;
+
+	/*
+	 * Make sure that we restore the entire trapframe after an
+	 * execve.
+	 */
+	frame->tf_flags &= ~FRAME_SYSCALL;
 
 	bzero(frame->tf_r, sizeof(frame->tf_r));
 	bzero(frame->tf_f, sizeof(frame->tf_f));

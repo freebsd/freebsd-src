@@ -84,11 +84,11 @@ ia64_cmpxchg_rel_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 static __inline u_int##width##_t				\
 ia64_ld_acq_##width(volatile u_int##width##_t* p)		\
 {								\
-	u_int##width_t v;					\
+	u_int##width##_t v;					\
 								\
 	__asm __volatile ("ld" size ".acq %0=%1"		\
-			  : "r" (v)				\
-			  : "=m" (*p)				\
+			  : "=r" (v)				\
+			  : "m" (*p)				\
 			  : "memory");				\
 	return (v);						\
 }								\
@@ -96,11 +96,11 @@ ia64_ld_acq_##width(volatile u_int##width##_t* p)		\
 static __inline u_int##width##_t				\
 atomic_load_acq_##width(volatile u_int##width##_t* p)		\
 {								\
-	u_int##width_t v;					\
+	u_int##width##_t v;					\
 								\
 	__asm __volatile ("ld" size ".acq %0=%1"		\
-			  : "r" (v)				\
-			  : "=m" (*p)				\
+			  : "=r" (v)				\
+			  : "m" (*p)				\
 			  : "memory");				\
 	return (v);						\
 }								\
@@ -108,11 +108,11 @@ atomic_load_acq_##width(volatile u_int##width##_t* p)		\
 static __inline u_int##width##_t				\
 atomic_load_acq_##type(volatile u_int##width##_t* p)		\
 {								\
-	u_int##width_t v;					\
+	u_int##width##_t v;					\
 								\
 	__asm __volatile ("ld" size ".acq %0=%1"		\
-			  : "r" (v)				\
-			  : "=m" (*p)				\
+			  : "=r" (v)				\
+			  : "m" (*p)				\
 			  : "memory");				\
 	return (v);						\
 }								\
@@ -265,6 +265,18 @@ IA64_ATOMIC(8, u_int64_t, subtract,	64,	-)
 #define atomic_clear_rel_long		atomic_clear_rel_64
 #define atomic_add_rel_long		atomic_add_rel_64
 #define atomic_subtract_rel_long	atomic_subtract_rel_64
+
+static __inline void
+atomic_set_ptr(volatile void *p, u_int64_t v)
+{
+	atomic_set_64((volatile u_int64_t *) p, v);
+}
+
+static __inline void
+atomic_clear_ptr(volatile void *p, u_int64_t v)
+{
+	atomic_clear_64((volatile u_int64_t *) p, v);
+}
 
 /*
  * Atomically compare the value stored at *p with cmpval and if the

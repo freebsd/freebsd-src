@@ -33,11 +33,11 @@
 
 /*
  * Software trap, exception, and syscall frame.
- *
- * This is loosely based on the Linux pt_regs structure. When I
- * understand things better, I might change it.
  */
 struct trapframe {
+	u_int64_t		tf_flags;
+#define FRAME_SYSCALL		1	/* syscalls use a partial trapframe */
+
 	u_int64_t		tf_cr_iip;
 	u_int64_t		tf_cr_ipsr;
 	u_int64_t		tf_cr_isr;
@@ -90,8 +90,6 @@ struct trapframe {
 #define FRAME_R29		28
 #define FRAME_R30		29
 #define FRAME_R31		30
-
-	u_int64_t		tf_pad1;
 
 	/*
 	 * We rely on the compiler to save/restore f2-f5 and
