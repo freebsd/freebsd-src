@@ -34,6 +34,8 @@
  * $FreeBSD$
  */
 
+#include "opt_devfs.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -41,9 +43,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/malloc.h>
-#include <sys/eventhandler.h>
 
-#define DEVFS_INTERN
 #include <fs/devfs/devfs.h>
 
 MALLOC_DEFINE(M_DEVFS, "DEVFS", "DEVFS data");
@@ -82,12 +82,13 @@ devfs_mount(mp, path, data, ndp, p)
 	MALLOC(fmp, struct devfs_mount *, sizeof(struct devfs_mount),
 	    M_DEVFS, M_WAITOK);
 	bzero(fmp, sizeof(*fmp));
+	lockinit(&fmp->dm_lock, PVFS, "devfs", 0, LK_NOPAUSE);
 
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = (qaddr_t) fmp;
 	vfs_getnewfsid(mp);
 
-	fmp->dm_inode = NDEVINO;
+	fmp->dm_inode = DEVFSINOMOUNT;
 
 	fmp->dm_rootdir = devfs_vmkdir("(root)", 6, NULL);
 	fmp->dm_rootdir->de_inode = 2;
@@ -110,7 +111,6 @@ devfs_mount(mp, path, data, ndp, p)
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("devfs", mp->mnt_stat.f_mntfromname, sizeof("devfs"));
 	(void)devfs_statfs(mp, &mp->mnt_stat, p);
-	devfs_populate(fmp);
 
 	return (0);
 }

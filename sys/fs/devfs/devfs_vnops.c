@@ -43,19 +43,16 @@
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
-#include <sys/stat.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>
-#include <sys/eventhandler.h>
 
-#define DEVFS_INTERN
 #include <fs/devfs/devfs.h>
 
 static int	devfs_access __P((struct vop_access_args *ap));
 static int	devfs_badop __P((void));
 static int	devfs_getattr __P((struct vop_getattr_args *ap));
-static int	devfs_lookup __P((struct vop_lookup_args *ap));
+static int	devfs_lookupx __P((struct vop_lookup_args *ap));
 static int	devfs_print __P((struct vop_print_args *ap));
 static int	devfs_read __P((struct vop_read_args *ap));
 static int	devfs_readdir __P((struct vop_readdir_args *ap));
@@ -66,12 +63,12 @@ static int	devfs_revoke __P((struct vop_revoke_args *ap));
 static int	devfs_setattr __P((struct vop_setattr_args *ap));
 static int	devfs_symlink __P((struct vop_symlink_args *ap));
 
-
 int
 devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, struct proc *p)
 {
 	int error;
 	struct vnode *vp;
+	dev_t dev;
 
 	if (p == NULL)
 		p = curproc; /* XXX */
@@ -83,6 +80,13 @@ loop:
 		*vpp = vp;
 		return (0);
 	}
+	if (de->de_dirent->d_type == DT_CHR) {
+		dev = *devfs_itod(de->de_inode);
+		if (dev == NULL)
+			return (ENOENT);
+	} else {
+		dev = NODEV;
+	}
 	error = getnewvnode(VT_DEVFS, mp, devfs_vnodeop_p, &vp);
 	if (error != 0) {
 		printf("devfs_allocv: failed to allocate new vnode\n");
@@ -91,7 +95,7 @@ loop:
 
 	if (de->de_dirent->d_type == DT_CHR) {
 		vp->v_type = VCHR;
-		vp = addaliasu(vp, devfs_inot[de->de_inode]->si_udev);
+		vp = addaliasu(vp, dev->si_udev);
 		vp->v_op = devfs_specop_p;
 	} else if (de->de_dirent->d_type == DT_DIR) {
 		vp->v_type = VDIR;
@@ -153,6 +157,7 @@ devfs_getattr(ap)
 	vap->va_mode = de->de_mode;
 	vap->va_size = 0;
 	vap->va_blocksize = DEV_BSIZE;
+	vap->va_type = vp->v_type;
 	if (vp->v_type != VCHR)  {
 		vap->va_atime = de->de_atime;
 		vap->va_mtime = de->de_mtime;
@@ -162,22 +167,13 @@ devfs_getattr(ap)
 		vap->va_atime = dev->si_atime;
 		vap->va_mtime = dev->si_mtime;
 		vap->va_ctime = dev->si_ctime;
+		vap->va_rdev = dev->si_udev;
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_rdev = 0;
 	vap->va_bytes = 0;
 	vap->va_nlink = de->de_links;
 	vap->va_fileid = de->de_inode;
-
-	if (de->de_dirent->d_type == DT_DIR) {
-		vap->va_type = VDIR;
-	} else if (de->de_dirent->d_type == DT_LNK) {
-		vap->va_type = VLNK;
-	} else if (de->de_dirent->d_type == DT_CHR) {
-		vap->va_type = VCHR;
-		vap->va_rdev = devfs_inot[de->de_inode]->si_udev;
-	}
 
 #ifdef DEBUG
 	if (error)
@@ -187,7 +183,7 @@ devfs_getattr(ap)
 }
 
 static int
-devfs_lookup(ap)
+devfs_lookupx(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
 		struct vnode ** a_vpp;
@@ -358,6 +354,19 @@ found:
 	return (0);
 }
 
+static int
+devfs_lookup(struct vop_lookup_args *ap)
+{
+	int j;
+	struct devfs_mount *dmp;
+
+	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
+	lockmgr(&dmp->dm_lock, LK_SHARED, 0, curproc);
+	j = devfs_lookupx(ap);
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
+	return (j);
+}
+
 /* ARGSUSED */
 static int
 devfs_print(ap)
@@ -415,6 +424,7 @@ devfs_readdir(ap)
 		return (EINVAL);
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
+	lockmgr(&dmp->dm_lock, LK_SHARED, 0, curproc);
 	devfs_populate(dmp);
 	error = 0;
 	de = ap->a_vp->v_data;
@@ -437,6 +447,7 @@ devfs_readdir(ap)
 		off += dp->d_reclen;
 		dd = TAILQ_NEXT(dd, de_list);
 	}
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	uio->uio_offset = off;
 	return (error);
 }
@@ -486,16 +497,19 @@ devfs_remove(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *dd;
-	struct devfs_dirent *de;
-	struct devfs_mount *dm = VFSTODEVFS(vp->v_mount);
+	struct devfs_dirent *de, **dep;
+	struct devfs_mount *dmp = VFSTODEVFS(vp->v_mount);
 
+	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curproc);
 	dd = ap->a_dvp->v_data;
 	de = vp->v_data;
-	de->de_flags |= DE_ORPHAN;
 	TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-	if (de->de_inode < NDEVINO)
-		dm->dm_dirent[de->de_inode] = DE_DELETED;
+	dep = devfs_itode(dmp, de->de_inode);
+	if (dep != NULL)
+		*dep = DE_DELETED;
+	de->de_flags |= DE_ORPHAN;
 	vdrop(de->de_vnode);
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	return (0);
 }
 
@@ -589,8 +603,10 @@ devfs_symlink(ap)
 	i = strlen(ap->a_target) + 1;
 	MALLOC(de->de_symlink, char *, i, M_DEVFS, M_WAITOK);
 	bcopy(ap->a_target, de->de_symlink, i);
+	lockmgr(&dmp->dm_lock, LK_EXCLUSIVE, 0, curproc);
 	TAILQ_INSERT_TAIL(&dd->de_dlist, de, de_list);
 	devfs_allocv(de, ap->a_dvp->v_mount, ap->a_vpp, 0);
+	lockmgr(&dmp->dm_lock, LK_RELEASE, 0, curproc);
 	return (0);
 }
 
