@@ -32,7 +32,7 @@
 .\"     @(#)chown.8	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd March 31, 1994
+.Dd April 25, 2003
 .Dt CHOWN 8
 .Os
 .Sh NAME
@@ -96,6 +96,11 @@ group ID of the link itself.
 Cause
 .Nm
 to be verbose, showing files as the owner is modified.
+If the
+.Fl v
+flag is specified more than once,
+.Nm
+will print the filename, followed by the old and new numeric user/group ID.
 .El
 .Pp
 The
