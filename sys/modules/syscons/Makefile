@@ -1,5 +1,5 @@
-#	$Id: Makefile,v 1.4 1997/05/21 14:17:59 yokota Exp $
+#	$Id: Makefile,v 1.5 1998/12/27 22:03:40 des Exp $
 
-SUBDIR=	blank daemon fade green snake star warp
+SUBDIR=	blank daemon fade green logo snake star warp
 
 .include <bsd.subdir.mk>
