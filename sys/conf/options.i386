@@ -1,19 +1,19 @@
 # $FreeBSD$
 # Options specific to the i386 platform kernels
 
-DISABLE_PSE		opt_pmap.h
-PMAP_SHPGPERPROC	opt_pmap.h
-DISABLE_PG_G		opt_pmap.h
-PPC_PROBE_CHIPSET	opt_ppc.h
-PPC_DEBUG		opt_ppc.h
-MAXMEM
-PERFMON			opt_perfmon.h
-POWERFAIL_NMI		opt_trap.h
 AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
-I586_PMC_GUPROF		opt_i586_guprof.h
-COMPAT_OLDISA
 BROKEN_KEYBOARD_RESET	opt_reset.h
+COMPAT_OLDISA
+I586_PMC_GUPROF		opt_i586_guprof.h
+MAXMEM
+PERFMON
+DISABLE_PSE		opt_pmap.h
+DISABLE_PG_G		opt_pmap.h
+PMAP_SHPGPERPROC	opt_pmap.h
+PPC_PROBE_CHIPSET	opt_ppc.h
+PPC_DEBUG		opt_ppc.h
+POWERFAIL_NMI		opt_trap.h
 
 # Options for emulators.  These should only be used at config time, so
 # they are handled like options for static filesystems
