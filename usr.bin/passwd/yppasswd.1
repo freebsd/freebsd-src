@@ -1,38 +1,51 @@
 .\"
 .\" Manpage Copyright 1994 Olaf Kirch, <okir@monad.swb.de>
 .\"
-.TH YPPASSWD 1 "18 December 1994" "" ""
-.SH NAME
-yppasswd, ypchfn, ypchsh \- NIS password update clients
-.SH SYNOPSIS
-.B "yppasswd [-l] [-f] [-p] [user]"
-.br
-.B "ypchfn [-l] [-f] [-p] [user]"
-.br
-.B "ypchsh [-l] [-f] [-p] [user]"
-.SH DESCRIPTION
+.Dd 18 December 1994
+.Dt YPPASSWD 1
+.Os FreeBSD 2.x
+.Sh NAME
+.Nm yppasswd, ypchpass, ypchfn, ypchsh
+.Nd modify a user's NIS password data
+.Sh SYNOPSIS
+.Nm yppasswd
+.Op Fl f
+.Op Fl s
+.Op Ar user
+.Nm ypchpass
+.Op Ar user
+.Nm ypchfn
+.Op Ar user
+.Nm ypchsh
+.Op Ar user
+.Sh DESCRIPTION
 When distributing your users' passwords over NIS (a.k.a. YP), the standard
-\fBpasswd\fP, \fBchfn\fP and \fBchsh\fP utilities cannot be used anymore to
-let a user change her password, because they only modify the password file
-on the local host.  They are usually replaced by their YP counterparts,
-\fByppasswd\fP, \fBypchfn\fP and \fBypchsh\fP.
-.P
+.Nm passwd ,
+.Nm chpass ,
+.Nm chfn , and
+.Nm chsh
+utilities cannot be
+used anymore to let a user change her password, because they only modify
+the password file on the local host.  They are usually replaced by their
+YP counterparts, \fByppasswd\fP, \fBypchpass\fP, \fBypchfn\fP and \fBypchsh\fP.
+.Pp
 These commands are in fact the very same program, linked to different names.
 Using the command line switches, you can choose whether to update your
-password (\fB-p\fP), your login shell (\fB-l\fP), or your GECOS field
-information (\fB-f\fP), or a combination of them. \fByppasswd\fP implies
-the \fB-p\fP option, \fBypchfn\fP the \fB-f\fP option, and so on.
-.P
+password, your login shell (\fB-s\fP), or your GECOS field
+information (\fB-f\fP), or a combination of them. \fBchfn\fP and
+\fByppasswd\fP \fB-f\fP are equivalent, as are \fBchsh\fP and
+\fByppasswd\fP \fB-s\fP.
+.Pp
 When invoked without the \fIuser\fP argument, the account information for
 the invoking user will be updated, otherwise that of \fIuser\fP will be
 updated.  This option is only available to the superuser.
-.P
+.Pp
 All tools will first prompt the user for the current NIS password needed
 for authentication with the \fByppasswdd\fP daemon. Subsequently, the
 program prompts for the updated information:
 .\"
 .\"
-.IP "\fByppasswd\fP or \fB-p\fP
+.Pp "\fByppasswd\fP
 Change the user's NIS password. The user is prompted for the new password.
 While typing the password, echoing is turned off, so the password does not
 appear on the screen. An empty password is rejected, as are passwords shorter
@@ -40,10 +53,10 @@ than six characters. The user will then be requested to retype the
 password to make sure it wasn't misspelled the first time.
 .\"
 .\"
-.IP "\fBypchsh\fP or \fB-l\fP
+.Pp "\fBypchsh\fP or \fB-s\fP
 Change the user's login shell. The user is prompted for a new shell,
 offering the old one as default:
-.IP
+.Pp
 .in +2n
 .ft B
 .nf
@@ -51,22 +64,22 @@ Login shell [/bin/bash]: _
 .fi
 .ft
 .in
-.IP
+.Pp
 To accept the default, simply press return. To clear the shell field in
 your \fBpasswd\fP file entry (so that the system's default shell is selected),
 enter the string \fInone\fP.
 .\"
 .\"
-.IP "\fBypchfn\fP or \fB-f\fP
+.Pp "\fBypchfn\fP or \fB-f\fP
 Change the user's full name and related information. Traditionally, some
 applications expect the GECOS field (field 4) of the \fBpasswd\fP file to
 contain the user's real name (as opposed to the login name) plus some
 additional information like the office phone number. This information is
 displayed by \fBfinger(1)\fP and probably some other tools, too.
-.IP
+.Pp
 When setting the full name, \fBypchfn\fP displays the following prompts,
 with the defaults in brackets:
-.IP
+.Pp
 .in +2n
 .ft B
 .nf
@@ -77,52 +90,26 @@ Home Phone []:
 .fi
 .ft
 .in
-.IP
+.Pp
 To accept a default, simply press return. To clear a field, enter the string
 \fInone\fP.
-.SH INSTALLATION
-\fByppasswd\fP and friends are usually installed over the existing, non-NIS
-versions of these programs by renaming the old programs, and linking the new
-ones to the `normal' names. In this way, users can continue to use
-\fBpasswd\fP without having to meditate on the nature of NIS. For instance,
-\fByppasswd\fP could be substituted for \fBpasswd\fP with the following
-sequence of commands:
-.P
-.in +2n
-.ft B
-.nf
-# cd /bin
-# mv passwd passwd.old
-# chmod go-rwx passwd.old
-# ln yppasswd passwd
-.fi
-.ft R 
-.in
-.P
-In this way, the superuser can still use \fBpasswd.old\fP to update the
-local passwords of users not in the NIS \fBpasswd.*\fP maps. Usually, the
-user information for critical accounts such as \fBroot\fP are kept
-in the local \fBpasswd\fP file.
-.SH LICENSE
+.Sh LICENSE
 This program is a heavily beefed-up version of Theo de Raadt's \fByppasswd\fP
 client, which is covered by the BSD license.  Therefore, the BSD license
 applies to this program as well.
-.SH FILES
-\fB/bin/yppasswd\fP
-.br
-\fB/bin/passwd\fP
-.br
-\fB/bin/ypchfn\fP
-.br
-\fB/bin/ypchsh\fP
-.SH SEE ALSO
-.BR finger(1) ,
-.BR passwd(5) ,
-.BR passwd(1) ,
-.BR ypchfn(1) ,
-.BR ypchsh(1) ,
-.BR yppasswdd(8) .
-.SH AUTHOR
+
+.Sh SEE ALSO
+.Xr finger 1 ,
+.Xr passwd 5 ,
+.Xr passwd 1 ,
+.Xr yppasswdd 8 .
+.Sh AUTHOR
 Theo de Raadt <deraadt@fsa.ca> (original client)
 .br
 Olaf Kirch <okir@monad.swb.de> (heavy modifications and manpages)
+.br
+Bill Paul <wpaul@ctr.columbia.edu> (port to FreeBSD and merger with
+.Xr passwd 1
+.Sh NOTES
+All these commands are really only symbolic links to
+.Xr passwd 1
