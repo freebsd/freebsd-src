@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.126 1999/04/27 14:33:23 jkh Exp $
+ * $Id: config.c,v 1.127 1999/04/28 06:39:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -452,17 +452,23 @@ static void
 write_root_xprofile(char *str)
 {
     FILE *fp;
+    int len;
+    char **cp;
+    static char *flist[] = { /* take care of both xdm and startx */
+	"/root/.xinitrc",
+	"/root/.xsession",
+	"/usr/share/skel/dot.xinitrc",
+	"/usr/share/skel/dot.xsession",
+	NULL,
+    };
 
-    /* take care of both xdm and startx */
-    fp = fopen("/root/.xinitrc", "w");
-    if (fp) {
-	fwrite(str, 1, strlen(str), fp);
-	fclose(fp);
-    }
-    fp = fopen("/root/.xsession", "w");
-    if (fp) {
-	fwrite(str, 1, strlen(str), fp);
-	fclose(fp);
+    len = strlen(str);
+    for (cp = flist; *cp; cp++) {
+	fp = fopen(*cp, "w");
+	if (fp) {
+	    fwrite(str, 1, len, fp);
+	    fclose(fp);
+	}
     }
 }
 
