@@ -510,7 +510,7 @@ DMenu MenuXDesktops = {
       { "5 Windowmaker",	"The Windowmaker window manager",
 	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=windowmaker" },
       { "6 fvwm2",		"The fvwm2 window manager",
-	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm" },
+	NULL, dmenuSetVariable, NULL, VAR_DESKSTYLE "=fvwm2" },
       { NULL } },
 };
 
