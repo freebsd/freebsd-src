@@ -40,7 +40,7 @@
 .Nd show network status
 .Sh SYNOPSIS
 .Nm netstat
-.Op Fl Aan
+.Op Fl AaLn
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -148,6 +148,11 @@ options is also present, multicast addresses currently in use are shown
 for each Ethernet interface and for each IP interface address.
 Multicast addresses are shown on separate lines following the interface
 address with which they are associated.
+.It Fl L
+Show the size of the various listen queues. The first count shows the
+number of unaccepted connections.
+The second count shows the amount of unaccepted incomplete connections.
+The third count is the maximum number of queued connections.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
