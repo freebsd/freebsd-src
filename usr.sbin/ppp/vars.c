@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vars.c,v 1.45.2.19 1998/04/03 19:24:06 brian Exp $
+ * $Id: vars.c,v 1.45.2.20 1998/04/03 19:24:22 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -48,12 +48,12 @@
 #include "prompt.h"
 
 char VarVersion[] = "PPP Version 2.0-beta";
-char VarLocalVersion[] = "$Date: 1998/04/03 19:24:06 $";
+char VarLocalVersion[] = "$Date: 1998/04/03 19:24:22 $";
 
 /*
  * Order of conf option is important. See vars.h.
  */
-struct confdesc pppConfs[] = {
+struct confdesc pppConfs[NCONFS] = {
   {"acfcomp", CONF_ENABLE, CONF_ACCEPT},
   {"chap", CONF_DISABLE, CONF_ACCEPT},
   {"deflate", CONF_ENABLE, CONF_ACCEPT},
@@ -80,17 +80,17 @@ struct pppvars pppVars = {
 int
 DisplayCommand(struct cmdargs const *arg)
 {
-  struct confdesc *vp;
+  int f;
 
   prompt_Printf(&prompt, "Current configuration option settings..\n\n");
   prompt_Printf(&prompt, "Name\t\tMy Side\t\tHis Side\n");
   prompt_Printf(&prompt, "----------------------------------------\n");
-  for (vp = pppConfs; vp->name; vp++)
-    prompt_Printf(&prompt, "%-10s\t%s\t\t%s\n", vp->name,
-	          (vp->myside == CONF_ENABLE) ? "enable" :
-                   (vp->myside == CONF_DISABLE ? "disable" : "N/A"),
-	          (vp->hisside == CONF_ACCEPT) ? "accept" :
-                   (vp->hisside == CONF_DENY ? "deny" : "N/A"));
+  for (f = 0; f < NCONFS; f++)
+    prompt_Printf(&prompt, "%-10s\t%s\t\t%s\n", pppConfs[f].name,
+	          (pppConfs[f].myside == CONF_ENABLE) ? "enable" :
+                   (pppConfs[f].myside == CONF_DISABLE ? "disable" : "N/A"),
+	          (pppConfs[f].hisside == CONF_ACCEPT) ? "accept" :
+                   (pppConfs[f].hisside == CONF_DENY ? "deny" : "N/A"));
 
   return 0;
 }
@@ -98,7 +98,7 @@ DisplayCommand(struct cmdargs const *arg)
 static int
 ConfigCommand(struct cmdargs const *arg, int mine, int val)
 {
-  struct confdesc *vp;
+  int f;
   int err;
   int narg = 0;
 
@@ -107,26 +107,26 @@ ConfigCommand(struct cmdargs const *arg, int mine, int val)
 
   err = 0;
   do {
-    for (vp = pppConfs; vp->name; vp++)
-      if (strcasecmp(vp->name, arg->argv[narg]) == 0) {
+    for (f = 0; f < NCONFS; f++)
+      if (strcasecmp(pppConfs[f].name, arg->argv[narg]) == 0) {
 	if (mine) {
-          if (vp->myside == CONF_NONE) {
+          if (pppConfs[f].myside == CONF_NONE) {
             LogPrintf(LogWARN, "Config: %s cannot be enabled or disabled\n",
-                      vp->name);
+                      pppConfs[f].name);
             err++;
           } else
-	    vp->myside = val;
+	    pppConfs[f].myside = val;
 	} else {
-          if (vp->hisside == CONF_NONE) {
+          if (pppConfs[f].hisside == CONF_NONE) {
             LogPrintf(LogWARN, "Config: %s cannot be accepted or denied\n",
-                      vp->name);
+                      pppConfs[f].name);
             err++;
           } else
-	    vp->hisside = val;
+	    pppConfs[f].hisside = val;
         }
 	break;
       }
-    if (!vp->name) {
+    if (f == NCONFS) {
       LogPrintf(LogWARN, "Config: %s: No such key word\n", arg->argv[narg]);
       err++;
     }
