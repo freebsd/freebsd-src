@@ -1588,6 +1588,11 @@ Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 			 *
 			 * If UA has been forced, proceed.
 			 *
+			 * If the drive has no changeline support,
+			 * or if the drive parameters have been lost
+			 * due to previous non-blocking access,
+			 * assume a forced UA condition.
+			 *
 			 * If motor is off, turn it on for a moment
 			 * and select our drive, in order to read the
 			 * UA hardware signal.
@@ -1603,7 +1608,8 @@ Fdopen(dev_t dev, int flags, int mode, struct thread *td)
 			 */
 			unitattn = 0;
 			if ((dflags & FD_NO_CHLINE) != 0 ||
-			    (fd->flags & FD_UA) != 0) {
+			    (fd->flags & FD_UA) != 0 ||
+			    fd->ft == 0) {
 				unitattn = 1;
 				fd->flags &= ~FD_UA;
 			} else if (fdc->fdout & (FDO_MOEN0 | FDO_MOEN1 |
