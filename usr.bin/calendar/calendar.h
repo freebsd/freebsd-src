@@ -33,6 +33,8 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/uio.h>
 
 extern struct passwd *pw;
 extern int doall;
