@@ -1,6 +1,9 @@
-/*-
- * Copyright (c) 1990, 1993
+/*
+ * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * Copyright (c) 2000
+ * 	Daniel Eischen.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -33,19 +32,34 @@
  * $FreeBSD$
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rewinddir.c	8.1 (Berkeley) 6/8/93";
-#endif /* LIBC_SCCS and not lint */
+#ifndef _TELLDIR_H_
+#define	_TELLDIR_H_
 
-#include <sys/types.h>
-#include <dirent.h>
+#include <sys/queue.h>
 
-#include "telldir.h"
+/*
+ * One of these structures is malloced to describe the current directory
+ * position each time telldir is called. It records the current magic
+ * cookie returned by getdirentries and the offset within the buffer
+ * associated with that return value.
+ */
+struct ddloc {
+	LIST_ENTRY(ddloc) loc_lqe; /* entry in list */
+	long	loc_index;	/* key associated with structure */
+	long	loc_seek;	/* magic cookie returned by getdirentries */
+	long	loc_loc;	/* offset of entry in buffer */
+};
 
-void
-rewinddir(dirp)
-	DIR *dirp;
-{
-	_seekdir(dirp, dirp->dd_rewind);
-	dirp->dd_rewind = telldir(dirp);
-}
+/*
+ * One of these structures is malloced for each DIR to record telldir
+ * positions.
+ */
+struct _telldir {
+	LIST_HEAD(, ddloc) td_locq; /* list of locations */
+	long	td_loccnt;	/* index of entry for sequential readdir's */
+};
+
+void _reclaim_telldir __P((DIR *));
+void _seekdir __P((DIR *, long));
+
+#endif
