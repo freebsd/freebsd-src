@@ -189,7 +189,6 @@ g_disk_done(struct bio *bp)
 	bp->bio_completed = bp->bio_length - bp->bio_resid;
 
 	bp2 = bp->bio_parent;
-	dp = bp2->bio_to->geom->softc;
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
@@ -197,7 +196,8 @@ g_disk_done(struct bio *bp)
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
 		bp2->bio_resid = bp2->bio_bcount - bp2->bio_completed;
-		devstat_end_transaction_bio(dp->d_devstat, bp2);
+		if ((dp = bp2->bio_to->geom->softc))
+			devstat_end_transaction_bio(dp->d_devstat, bp2);
 		g_io_deliver(bp2, bp2->bio_error);
 	}
 	mtx_unlock(&g_disk_done_mtx);
