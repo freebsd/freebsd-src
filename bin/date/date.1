@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)date.1	8.3 (Berkeley) 4/28/95
-.\"	$Id: date.1,v 1.13 1997/08/04 03:37:05 brian Exp $
+.\"	$Id: date.1,v 1.14 1997/08/09 22:34:03 brian Exp $
 .\"
 .Dd November 17, 1993
 .Dt DATE 1
@@ -50,7 +50,7 @@
 .Op Cm + Ns Ar format
 .Op Fl v Ar [+|-]val[ymwdHM]
 .Ar ...
-.Op [[[[yy]mm]dd]HH]MM[\&.ss]
+.Op Fl f Ar fmt Ar date | [[[[yy]mm]dd]HH]MM[\&.ss]
 .Sh DESCRIPTION
 .Nm
 displays the current date and time when invoked without arguments.
@@ -69,6 +69,14 @@ to
 .Xr gettimeofday 2
 will return a non-zero
 .Ql tz_dsttime  .
+.It Fl f
+Use
+.Ar fmt
+as the format string to parse the date provided rather than using
+the default
+.Ar [[[[yy]mm]dd]HH]MM[.ss]
+format.  Parsing is done using
+.Xr strptime 3 .
 .It Fl n
 The utility
 .Xr timed 8
@@ -160,9 +168,9 @@ Numeric month.
 A number from 1 to 12.
 .It Ar dd
 Day, a number from 1 to 31.
-.It Ar hh
+.It Ar HH
 Hour, a number from 0 to 23.
-.It Ar mm
+.It Ar MM
 Minutes, a number from 0 to 59.
 .It Ar .ss
 Seconds, a number from 0 to 61 (59 plus a maximum of two leap seconds).
@@ -255,6 +263,7 @@ A record of the user setting the time.
 .Sh SEE ALSO
 .Xr gettimeofday 2 ,
 .Xr strftime 3 ,
+.Xr strptime 3 ,
 .Xr utmp 5 ,
 .Xr timed 8
 .Rs
