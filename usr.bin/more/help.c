@@ -38,12 +38,17 @@ static char sccsid[] = "@(#)help.c	8.1 (Berkeley) 6/6/93";
 
 #include <sys/param.h>
 #include <less.h>
+
 #include "pathnames.h"
+
+extern int top_scroll;
 
 help()
 {
 	char cmd[MAXPATHLEN + 20];
 
-	(void)snprintf(cmd, sizeof(cmd), "-more -e %s", _PATH_HELPFILE);
+	snprintf(cmd, sizeof(cmd), "-more -e%c %s", 
+	    top_scroll ? 'c' : ' ',
+	    _PATH_HELPFILE);
 	lsystem(cmd);
 }
