@@ -164,17 +164,15 @@ static struct cdevsw scd_cdevsw = {
 int
 scd_attach(struct scd_softc *sc)
 {
-	struct scd_data *cd;
 	int unit;
 
-	cd = &sc->data;
 	unit = device_get_unit(sc->dev);
 
 	init_drive(sc);
 
-	cd->flags = SCDINIT;
-	cd->audio_status = CD_AS_AUDIO_INVALID;
-	bioq_init(&cd->head);
+	sc->data.flags = SCDINIT;
+	sc->data.audio_status = CD_AS_AUDIO_INVALID;
+	bioq_init(&sc->data.head);
 
 	sc->scd_dev_t = make_dev(&scd_cdevsw, 8 * unit,
 		UID_ROOT, GID_OPERATOR, 0640, "scd%d", unit);
@@ -188,18 +186,15 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct scd_softc *sc;
 	int rc;
-	struct scd_data *cd;
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
-	cd = &sc->data;
-
 	/* not initialized*/
-	if (!(cd->flags & SCDINIT))
+	if (!(sc->data.flags & SCDINIT))
 		return (ENXIO);
 
 	/* invalidated in the meantime? mark all open part's invalid */
-	if (cd->openflag)
+	if (sc->data.openflag)
 		return (ENXIO);
 
 	XDEBUG(sc, 1, "DEBUG: status = 0x%x\n", SCD_READ(sc, IREG_STATUS));
@@ -208,7 +203,7 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 		print_error(sc, rc);
 		return (EIO);
 	}
-	if (!(cd->flags & SCDTOC)) {
+	if (!(sc->data.flags & SCDTOC)) {
 		int loop_count = 3;
 
 		while (loop_count-- > 0 && (rc = read_toc(sc)) != 0) {
@@ -225,10 +220,10 @@ scdopen(dev_t dev, int flags, int fmt, struct thread *td)
 		}
 	}
 
-	dev->si_bsize_phys = cd->blksize;
+	dev->si_bsize_phys = sc->data.blksize;
 
-	cd->openflag = 1;
-	cd->flags |= SCDVALID;
+	sc->data.openflag = 1;
+	sc->data.flags |= SCDVALID;
 
 	return (0);
 }
@@ -237,23 +232,20 @@ static	int
 scdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	struct scd_softc *sc;
-	struct scd_data *cd;
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
-	cd = &sc->data;
-
-	if (!(cd->flags & SCDINIT) || !cd->openflag)
+	if (!(sc->data.flags & SCDINIT) || !sc->data.openflag)
 		return (ENXIO);
 
-	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
+	if (sc->data.audio_status != CD_AS_PLAY_IN_PROGRESS) {
 		(void)send_cmd(sc, CMD_SPIN_DOWN, 0);
-		cd->flags &= ~SCDSPINNING;
+		sc->data.flags &= ~SCDSPINNING;
 	}
 
 
 	/* close channel */
-	cd->openflag = 0;
+	sc->data.openflag = 0;
 
 	return (0);
 }
@@ -261,12 +253,10 @@ scdclose(dev_t dev, int flags, int fmt, struct thread *td)
 static	void
 scdstrategy(struct bio *bp)
 {
-	struct scd_data *cd;
 	int s;
 	struct scd_softc *sc;
 
 	sc = (struct scd_softc *)bp->bio_dev->si_drv1;
-	cd = &sc->data;
 
 	XDEBUG(sc, 2, "DEBUG: strategy: block=%ld, bcount=%ld\n",
 		(long)bp->bio_blkno, bp->bio_bcount);
@@ -280,7 +270,7 @@ scdstrategy(struct bio *bp)
 	}
 
 	/* if device invalidated (e.g. media change, door open), error */
-	if (!(cd->flags & SCDVALID)) {
+	if (!(sc->data.flags & SCDVALID)) {
 		device_printf(sc->dev, "media changed\n");
 		bp->bio_error = EIO;
 		goto bad;
@@ -296,7 +286,7 @@ scdstrategy(struct bio *bp)
 	if (bp->bio_bcount == 0)
 		goto done;
 
-	if (!(cd->flags & SCDTOC)) {
+	if (!(sc->data.flags & SCDTOC)) {
 		bp->bio_error = EIO;
 		goto bad;
 	}
@@ -306,7 +296,7 @@ scdstrategy(struct bio *bp)
 
 	/* queue it */
 	s = splbio();
-	bioqdisksort(&cd->head, bp);
+	bioqdisksort(&sc->data.head, bp);
 	splx(s);
 
 	/* now check whether we can perform processing */
@@ -324,20 +314,19 @@ done:
 static void
 scd_start(struct scd_softc *sc)
 {
-	struct scd_data *cd = &sc->data;
 	struct bio *bp;
 	int s = splbio();
 
-	if (cd->flags & SCDMBXBSY) {
+	if (sc->data.flags & SCDMBXBSY) {
 		splx(s);
 		return;
 	}
 
-	bp = bioq_first(&cd->head);
+	bp = bioq_first(&sc->data.head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
-		bioq_remove(&cd->head, bp);
-		cd->flags |= SCDMBXBSY;
+		bioq_remove(&sc->data.head, bp);
+		sc->data.flags |= SCDMBXBSY;
 		splx(s);
 	} else {
 		/* nothing to do */
@@ -345,35 +334,33 @@ scd_start(struct scd_softc *sc)
 		return;
 	}
 
-	cd->mbx.retry = 3;
-	cd->mbx.bp = bp;
+	sc->data.mbx.retry = 3;
+	sc->data.mbx.bp = bp;
 	splx(s);
 
-	scd_doread(sc, SCD_S_BEGIN, &(cd->mbx));
+	scd_doread(sc, SCD_S_BEGIN, &(sc->data.mbx));
 	return;
 }
 
 static	int
 scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
-	struct scd_data *cd;
 	struct scd_softc *sc;
 
 	sc = (struct scd_softc *)dev->si_drv1;
-	cd = &sc->data;
 
 	XDEBUG(sc, 1, "ioctl: cmd=0x%lx\n", cmd);
 
-	if (!(cd->flags & SCDVALID))
+	if (!(sc->data.flags & SCDVALID))
 		return (EIO);
 
 	switch (cmd) {
 	case DIOCGMEDIASIZE:
-		*(off_t *)addr = (off_t)cd->disksize * cd->blksize;
+		*(off_t *)addr = (off_t)sc->data.disksize * sc->data.blksize;
 		return (0);
 		break;
 	case DIOCGSECTORSIZE:
-		*(u_int *)addr = cd->blksize;
+		*(u_int *)addr = sc->data.blksize;
 		return (0);
 		break;
 	case CDIOCPLAYTRACKS:
@@ -435,13 +422,12 @@ scdioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 static int
 scd_playtracks(struct scd_softc *sc, struct ioc_play_track *pt)
 {
-	struct scd_data *cd = &sc->data;
 	struct ioc_play_msf msf;
 	int a = pt->start_track;
 	int z = pt->end_track;
 	int rc;
 
-	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
+	if (!(sc->data.flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		if (rc == -ERR_NOT_SPINNING) {
 			if (spin_up(sc) != 0)
 				return (EIO);
@@ -456,14 +442,14 @@ scd_playtracks(struct scd_softc *sc, struct ioc_play_track *pt)
 	XDEBUG(sc, 1, "playtracks from %d:%d to %d:%d\n",
 		a, pt->start_index, z, pt->end_index);
 
-	if (   a < cd->first_track
-	    || a > cd->last_track
+	if (   a < sc->data.first_track
+	    || a > sc->data.last_track
 	    || a > z
-	    || z > cd->last_track)
+	    || z > sc->data.last_track)
 		return (EINVAL);
 
-	bcopy(cd->toc[a].start_msf, &msf.start_m, 3);
-	hsg2msf(msf2hsg(cd->toc[z+1].start_msf)-1, &msf.end_m);
+	bcopy(sc->data.toc[a].start_msf, &msf.start_m, 3);
+	hsg2msf(msf2hsg(sc->data.toc[z+1].start_msf)-1, &msf.end_m);
 
 	return scd_play(sc, &msf);
 }
@@ -488,7 +474,6 @@ scd_playmsf(struct scd_softc *sc, struct ioc_play_msf *msfin)
 static int
 scd_play(struct scd_softc *sc, struct ioc_play_msf *msf)
 {
-	struct scd_data *cd = &sc->data;
 	int i, rc;
 
 	XDEBUG(sc, 1, "playing: %02x:%02x:%02x -> %02x:%02x:%02x\n",
@@ -501,7 +486,7 @@ scd_play(struct scd_softc *sc, struct ioc_play_msf *msf)
 			msf->start_m, msf->start_s, msf->start_f,
 			msf->end_m, msf->end_s, msf->end_f);
 		if (rc == -ERR_NOT_SPINNING) {
-			cd->flags &= ~SCDSPINNING;
+			sc->data.flags &= ~SCDSPINNING;
 			if (spin_up(sc) != 0)
 				return (EIO);
 		} else if (rc < 0) {
@@ -511,28 +496,26 @@ scd_play(struct scd_softc *sc, struct ioc_play_msf *msf)
 			break;
 		}
 	}
-	cd->audio_status = CD_AS_PLAY_IN_PROGRESS;
-	bcopy((char *)msf, (char *)&cd->last_play, sizeof(struct ioc_play_msf));
+	sc->data.audio_status = CD_AS_PLAY_IN_PROGRESS;
+	bcopy((char *)msf, (char *)&sc->data.last_play, sizeof(struct ioc_play_msf));
 	return (0);
 }
 
 static int
 scd_stop(struct scd_softc *sc)
 {
-	struct scd_data *cd = &sc->data;
 
 	(void)send_cmd(sc, CMD_STOP_AUDIO, 0);
-	cd->audio_status = CD_AS_PLAY_COMPLETED;
+	sc->data.audio_status = CD_AS_PLAY_COMPLETED;
 	return (0);
 }
 
 static int
 scd_pause(struct scd_softc *sc)
 {
-	struct scd_data *cd = &sc->data;
 	struct sony_subchannel_position_data subpos;
 
-	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS)
+	if (sc->data.audio_status != CD_AS_PLAY_IN_PROGRESS)
 		return (EINVAL);
 
 	if (read_subcode(sc, &subpos) != 0)
@@ -541,15 +524,15 @@ scd_pause(struct scd_softc *sc)
 	if (send_cmd(sc, CMD_STOP_AUDIO, 0) != 0)
 		return (EIO);
 
-	cd->last_play.start_m = subpos.abs_msf[0];
-	cd->last_play.start_s = subpos.abs_msf[1];
-	cd->last_play.start_f = subpos.abs_msf[2];
-	cd->audio_status = CD_AS_PLAY_PAUSED;
+	sc->data.last_play.start_m = subpos.abs_msf[0];
+	sc->data.last_play.start_s = subpos.abs_msf[1];
+	sc->data.last_play.start_f = subpos.abs_msf[2];
+	sc->data.audio_status = CD_AS_PLAY_PAUSED;
 
 	XDEBUG(sc, 1, "pause @ %02x:%02x:%02x\n",
-		cd->last_play.start_m,
-		cd->last_play.start_s,
-		cd->last_play.start_f);
+		sc->data.last_play.start_m,
+		sc->data.last_play.start_s,
+		sc->data.last_play.start_f);
 
 	return (0);
 }
@@ -566,10 +549,9 @@ scd_resume(struct scd_softc *sc)
 static int
 scd_eject(struct scd_softc *sc)
 {
-	struct scd_data *cd = &sc->data;
 
-	cd->audio_status = CD_AS_AUDIO_INVALID;
-	cd->flags &= ~(SCDSPINNING|SCDTOC);
+	sc->data.audio_status = CD_AS_AUDIO_INVALID;
+	sc->data.flags &= ~(SCDSPINNING|SCDTOC);
 
 	if (send_cmd(sc, CMD_STOP_AUDIO, 0) != 0 ||
 	    send_cmd(sc, CMD_SPIN_DOWN, 0) != 0 ||
@@ -583,7 +565,6 @@ scd_eject(struct scd_softc *sc)
 static int
 scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch)
 {
-	struct scd_data *cd = &sc->data;
 	struct sony_subchannel_position_data q;
 	struct cd_sub_channel_info data;
 
@@ -599,7 +580,7 @@ scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch)
 	if (read_subcode(sc, &q) != 0)
 		return (EIO);
 
-	data.header.audio_status = cd->audio_status;
+	data.header.audio_status = sc->data.audio_status;
 	data.what.position.data_format = CD_MSF_FORMAT;
 	data.what.position.track_number = bcd2bin(q.track_number);
 	data.what.position.reladdr.msf.unused = 0;
@@ -620,14 +601,12 @@ int
 scd_probe(struct scd_softc *sc)
 {
 	struct sony_drive_configuration drive_config;
-	struct scd_data *cd;
 	int rc;
 	static char namebuf[8+16+8+3];
 	char *s = namebuf;
 	int loop_count = 0;
 
-	cd = &sc->data;
-	cd->flags = SCDPROBING;
+	sc->data.flags = SCDPROBING;
 
 	bzero(&drive_config, sizeof(drive_config));
 
@@ -670,12 +649,12 @@ again:
 		s--;
 	*s = 0;
 
-	cd->name = namebuf;
+	sc->data.name = namebuf;
 
 	if (drive_config.config & 0x10)
-		cd->double_speed = 1;
+		sc->data.double_speed = 1;
 	else
-		cd->double_speed = 0;
+		sc->data.double_speed = 0;
 
 	return (0);
 }
@@ -723,7 +702,6 @@ scd_doread(struct scd_softc *sc, int state, struct scd_mbx *mbxin)
 {
 	struct scd_mbx *mbx = (state!=SCD_S_BEGIN) ? sc->ch_mbxsave : mbxin;
 	struct	bio *bp = mbx->bp;
-	struct	scd_data *cd = &sc->data;
 	int	i;
 	int	blknum;
 	caddr_t	addr;
@@ -759,19 +737,19 @@ trystat:
 		process_attention(sc);
 
 		/* reject, if audio active */
-		if (cd->audio_status & CD_AS_PLAY_IN_PROGRESS) {
+		if (sc->data.audio_status & CD_AS_PLAY_IN_PROGRESS) {
 			device_printf(sc->dev, "audio is active\n");
 			goto harderr;
 		}
 
-		mbx->sz = cd->blksize;
+		mbx->sz = sc->data.blksize;
 
 		/* for first block */
 		mbx->nblk = (bp->bio_bcount + (mbx->sz-1)) / mbx->sz;
 		mbx->skip = 0;
 
 nextblock:
-		if (!(cd->flags & SCDVALID))
+		if (!(sc->data.flags & SCDVALID))
 			goto changed;
 
 		blknum 	= (bp->bio_blkno / (mbx->sz/DEV_BSIZE))
@@ -814,7 +792,7 @@ nextblock:
 			goto harderr;
 		case 0x00:
 			(void)SCD_READ(sc, IREG_RESULT);
-			cd->flags |= SCDSPINNING;
+			sc->data.flags |= SCDSPINNING;
 			break;
 		}
 		XDEBUG(sc, 1, "DEBUG: spin up complete\n");
@@ -839,7 +817,7 @@ nextblock:
 writeparam:
 		/* The reason this test isn't done 'till now is to make sure */
 		/* that it is ok to send the SPIN_UP cmd below. */
-		if (!(cd->flags & SCDSPINNING)) {
+		if (!(sc->data.flags & SCDSPINNING)) {
 			XDEBUG(sc, 1, "spinning up drive ...\n");
 			SCD_WRITE(sc, OREG_COMMAND, CMD_SPIN_UP);
 			mbx->count = 300;
@@ -881,7 +859,7 @@ writeparam:
 		}
 		if (!STATUS_BIT(sc, SBIT_DATA_READY)) {
 			process_attention(sc);
-			if (!(cd->flags & SCDVALID))
+			if (!(sc->data.flags & SCDVALID))
 				goto changed;
 			sc->ch_state = SCD_S_WAITREAD;
 			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
@@ -940,7 +918,7 @@ got_param:
 				XDEBUG(sc, 1, "read error: drive not spinning\n");
 				if (mbx->retry-- > 0) {
 					state = SCD_S_BEGIN1;
-					cd->flags &= ~SCDSPINNING;
+					sc->data.flags &= ~SCDSPINNING;
 					goto loop;
 				}
 				goto harderr;
@@ -962,7 +940,7 @@ got_param:
 		bp->bio_resid = 0;
 		biodone(bp);
 
-		cd->flags &= ~SCDMBXBSY;
+		sc->data.flags &= ~SCDMBXBSY;
 		scd_start(sc);
 		return;
 	}
@@ -980,7 +958,7 @@ harderr:
 	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 
-	cd->flags &= ~SCDMBXBSY;
+	sc->data.flags &= ~SCDMBXBSY;
 	scd_start(sc);
 	return;
 
@@ -992,6 +970,7 @@ changed:
 static void
 hsg2msf(int hsg, bcd_t *msf)
 {
+
 	hsg += 150;
 	M_msf(msf) = bin2bcd(hsg / 4500);
 	hsg %= 4500;
@@ -1002,6 +981,7 @@ hsg2msf(int hsg, bcd_t *msf)
 static int
 msf2hsg(bcd_t *msf)
 {
+
 	return (bcd2bin(M_msf(msf)) * 60 +
 		bcd2bin(S_msf(msf))) * 75 +
 		bcd2bin(F_msf(msf)) - 150;
@@ -1117,13 +1097,10 @@ get_tl(struct sony_toc *toc, int size)
 static int
 read_toc(struct scd_softc *sc)
 {
-	struct scd_data *cd;
 	struct sony_toc toc;
 	struct sony_tracklist *tl;
 	int rc, i, j;
 	u_long first, last;
-
-	cd = &sc->data;
 
 	rc = send_cmd(sc, CMD_GET_TOC, 1, 1);
 	if (rc < 0)
@@ -1140,19 +1117,19 @@ read_toc(struct scd_softc *sc)
 	tl = get_tl(&toc, rc);
 	first = msf2hsg(tl->start_msf);
 	last = msf2hsg(toc.lead_out_start_msf);
-	cd->blksize = SCDBLKSIZE;
-	cd->disksize = last*cd->blksize/DEV_BSIZE;
+	sc->data.blksize = SCDBLKSIZE;
+	sc->data.disksize = last*sc->data.blksize/DEV_BSIZE;
 
 	XDEBUG(sc, 1, "firstsector = %ld, lastsector = %ld", first, last);
 
-	cd->first_track = bcd2bin(toc.first_track);
-	cd->last_track = bcd2bin(toc.last_track);
-	if (cd->last_track > (MAX_TRACKS-2))
-		cd->last_track = MAX_TRACKS-2;
-	for (j = 0, i = cd->first_track; i <= cd->last_track; i++, j++) {
-		cd->toc[i].adr = tl[j].adr;
-		cd->toc[i].ctl = tl[j].ctl; /* for xcdplayer */
-		bcopy(tl[j].start_msf, cd->toc[i].start_msf, 3);
+	sc->data.first_track = bcd2bin(toc.first_track);
+	sc->data.last_track = bcd2bin(toc.last_track);
+	if (sc->data.last_track > (MAX_TRACKS-2))
+		sc->data.last_track = MAX_TRACKS-2;
+	for (j = 0, i = sc->data.first_track; i <= sc->data.last_track; i++, j++) {
+		sc->data.toc[i].adr = tl[j].adr;
+		sc->data.toc[i].ctl = tl[j].ctl; /* for xcdplayer */
+		bcopy(tl[j].start_msf, sc->data.toc[i].start_msf, 3);
 #ifdef SCD_DEBUG
 		if (scd_debuglevel > 0) {
 			if ((j % 3) == 0) {
@@ -1160,24 +1137,24 @@ read_toc(struct scd_softc *sc)
 				device_printf(sc->dev, "tracks ");
 			}
 			printf("[%03d: %2d %2d %2d]  ", i,
-				bcd2bin(cd->toc[i].start_msf[0]),
-				bcd2bin(cd->toc[i].start_msf[1]),
-				bcd2bin(cd->toc[i].start_msf[2]));
+				bcd2bin(sc->data.toc[i].start_msf[0]),
+				bcd2bin(sc->data.toc[i].start_msf[1]),
+				bcd2bin(sc->data.toc[i].start_msf[2]));
 		}
 #endif
 	}
-	bcopy(toc.lead_out_start_msf, cd->toc[cd->last_track+1].start_msf, 3);
+	bcopy(toc.lead_out_start_msf, sc->data.toc[sc->data.last_track+1].start_msf, 3);
 #ifdef SCD_DEBUG
 	if (scd_debuglevel > 0) {
-		i = cd->last_track+1;
+		i = sc->data.last_track+1;
 		printf("[END: %2d %2d %2d]\n",
-			bcd2bin(cd->toc[i].start_msf[0]),
-			bcd2bin(cd->toc[i].start_msf[1]),
-			bcd2bin(cd->toc[i].start_msf[2]));
+			bcd2bin(sc->data.toc[i].start_msf[0]),
+			bcd2bin(sc->data.toc[i].start_msf[1]),
+			bcd2bin(sc->data.toc[i].start_msf[2]));
 	}
 #endif
 
-	cd->flags |= SCDTOC;
+	sc->data.flags |= SCDTOC;
 
 	return (0);
 }
@@ -1277,6 +1254,7 @@ send_cmd(struct scd_softc *sc, u_char cmd, u_int nargs, ...)
 static void
 print_error(struct scd_softc *sc, int errcode)
 {
+
 	switch (errcode) {
 	case -ERR_CD_NOT_LOADED:
 		device_printf(sc->dev, "door is open\n");
@@ -1352,16 +1330,15 @@ waitfor_status_bits(struct scd_softc *sc, int bits_set, int bits_clear)
 static int
 scd_toc_header (struct scd_softc *sc, struct ioc_toc_header* th)
 {
-	struct scd_data *cd = &sc->data;
 	int rc;
 
-	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
+	if (!(sc->data.flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		print_error(sc, rc);
 		return (EIO);
 	}
 
-	th->starting_track = cd->first_track;
-	th->ending_track = cd->last_track;
+	th->starting_track = sc->data.first_track;
+	th->ending_track = sc->data.last_track;
 	th->len = 0; /* not used */
 
 	return (0);
@@ -1370,11 +1347,10 @@ scd_toc_header (struct scd_softc *sc, struct ioc_toc_header* th)
 static int
 scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 {
-	struct scd_data *cd = &sc->data;
 	struct cd_toc_entry toc_entry;
 	int rc, i, len = te->data_len;
 
-	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
+	if (!(sc->data.flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		print_error(sc, rc);
 		return (EIO);
 	}
@@ -1382,10 +1358,10 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 	/* find the toc to copy*/
 	i = te->starting_track;
 	if (i == SCD_LASTPLUS1)
-		i = cd->last_track + 1;
+		i = sc->data.last_track + 1;
 
 	/* verify starting track */
-	if (i < cd->first_track || i > cd->last_track+1)
+	if (i < sc->data.first_track || i > sc->data.last_track+1)
 		return (EINVAL);
 
 	/* valid length ? */
@@ -1394,14 +1370,14 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 		return (EINVAL);
 
 	/* copy the toc data */
-	toc_entry.control = cd->toc[i].ctl;
+	toc_entry.control = sc->data.toc[i].ctl;
 	toc_entry.addr_type = te->address_format;
 	toc_entry.track = i;
 	if (te->address_format == CD_MSF_FORMAT) {
 		toc_entry.addr.msf.unused = 0;
-		toc_entry.addr.msf.minute = bcd2bin(cd->toc[i].start_msf[0]);
-		toc_entry.addr.msf.second = bcd2bin(cd->toc[i].start_msf[1]);
-		toc_entry.addr.msf.frame = bcd2bin(cd->toc[i].start_msf[2]);
+		toc_entry.addr.msf.minute = bcd2bin(sc->data.toc[i].start_msf[0]);
+		toc_entry.addr.msf.second = bcd2bin(sc->data.toc[i].start_msf[1]);
+		toc_entry.addr.msf.frame = bcd2bin(sc->data.toc[i].start_msf[2]);
 	}
 
 	/* copy the data back */
@@ -1415,11 +1391,10 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 static int
 scd_toc_entry (struct scd_softc *sc, struct ioc_read_toc_single_entry *te)
 {
-	struct scd_data *cd = &sc->data;
 	struct cd_toc_entry toc_entry;
 	int rc, i;
 
-	if (!(cd->flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
+	if (!(sc->data.flags & SCDTOC) && (rc = read_toc(sc)) != 0) {
 		print_error(sc, rc);
 		return (EIO);
 	}
@@ -1427,21 +1402,21 @@ scd_toc_entry (struct scd_softc *sc, struct ioc_read_toc_single_entry *te)
 	/* find the toc to copy*/
 	i = te->track;
 	if (i == SCD_LASTPLUS1)
-		i = cd->last_track + 1;
+		i = sc->data.last_track + 1;
 
 	/* verify starting track */
-	if (i < cd->first_track || i > cd->last_track+1)
+	if (i < sc->data.first_track || i > sc->data.last_track+1)
 		return (EINVAL);
 
 	/* copy the toc data */
-	toc_entry.control = cd->toc[i].ctl;
+	toc_entry.control = sc->data.toc[i].ctl;
 	toc_entry.addr_type = te->address_format;
 	toc_entry.track = i;
 	if (te->address_format == CD_MSF_FORMAT) {
 		toc_entry.addr.msf.unused = 0;
-		toc_entry.addr.msf.minute = bcd2bin(cd->toc[i].start_msf[0]);
-		toc_entry.addr.msf.second = bcd2bin(cd->toc[i].start_msf[1]);
-		toc_entry.addr.msf.frame = bcd2bin(cd->toc[i].start_msf[2]);
+		toc_entry.addr.msf.minute = bcd2bin(sc->data.toc[i].start_msf[0]);
+		toc_entry.addr.msf.second = bcd2bin(sc->data.toc[i].start_msf[1]);
+		toc_entry.addr.msf.frame = bcd2bin(sc->data.toc[i].start_msf[2]);
 	}
 
 	/* copy the data back */
