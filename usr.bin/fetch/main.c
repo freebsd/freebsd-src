@@ -289,8 +289,6 @@ ftpget()
     off_t size, size0, seekloc;
     char ftp_pw[200];
     time_t t;
-    time_t tout;
-    struct itimerval timer;
     
     if ((cp = getenv("FTP_PASSWORD")) != NULL)
 	strcpy(ftp_pw, cp);
@@ -309,7 +307,7 @@ ftpget()
 	    errx(1, "couldn't open FTP connection to %s: %s",
 		 host, hstrerror(h_errno));
     }
-    
+
     /* Time to set our defaults */
     ftpBinary (ftp);
     ftpPassive (ftp, passive_mode);
@@ -321,7 +319,7 @@ ftpget()
     }
     size = ftpGetSize (ftp, file_to_get);
     modtime = ftpGetModtime (ftp, file_to_get);
-    if (modtime < -1) {
+    if (modtime <= 0) {
 	warnx ("Couldn't get file time for %s - using current time", file_to_get);
 	modtime = (time_t) -1;
     }
@@ -360,26 +358,32 @@ ftpget()
     } else 
 	file = stdout;
     
-    signal (SIGALRM, timeout);
-    if (timeout_ival)
-	tout = timeout_ival;
-    else if ((cp = getenv("FTP_TIMEOUT")) != NULL)
-	tout = atoi(cp);
-    else
-	tout = FTP_TIMEOUT;
+    if (timeout_ival) {
+	char env[80];
+	/* Override any environment variable */
+	snprintf(env, sizeof env - 1, "FTP_TIMEOUT=%d", timeout_ival);
+	putenv(env);
+    }
+    else {
+	char *cp = getenv("FTP_TIMEOUT");
 
-    
-    timer.it_interval.tv_sec = 0;		/* Reload value */
-    timer.it_interval.tv_usec = 0;
-
-    timer.it_value.tv_sec = tout;		/* One-Shot value */
-    timer.it_value.tv_usec = 0;
+	if (!cp || !(timeout_ival = atoi(cp)))
+	    timeout_ival = FTP_TIMEOUT;
+    }
 
     display (size, size0);
     while (1) {
-	setitimer(ITIMER_REAL, &timer, 0);	/* reset timeout */
+	struct sigaction act;
 
+	act.sa_handler = timeout;
+	act.sa_mask = 0;
+	act.sa_flags = 0;
+	sigaction(SIGALRM, &act, NULL);
+	alarm(timeout_ival);
 	n = status = fread (buffer, 1, BUFFER_SIZE, fp);
+	alarm(0);
+	act.sa_handler = SIG_DFL;
+	sigaction(SIGALRM, &act, NULL);
 	if (status <= 0) 
 	    break;
 	display (size, n);
@@ -387,10 +391,6 @@ ftpget()
 	if (status != n)
 	    break;
     }
-    timer.it_value.tv_sec = 0;
-    timer.it_value.tv_usec = 0;
-    setitimer(ITIMER_REAL, &timer, 0);		/* disable timeout */
-
     if (status < 0) 
 	die(0);
     fclose(fp);
