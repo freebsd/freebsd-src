@@ -255,6 +255,54 @@ int ficlExec(FICL_VM *pVM, char *pText)
     return (except);
 }
 
+/**************************************************************************
+                        f i c l E x e c F D
+** reads in text from file fd and passes it to ficlExec()
+ * returns VM_OUTOFTEXT on success or the ficlExec() error code on
+ * failure.
+ */ 
+#define nLINEBUF 256
+int ficlExecFD(FICL_VM *pVM, int fd)
+{
+    char    cp[nLINEBUF];
+    int     i, nLine = 0, rval = VM_OUTOFTEXT;
+    char    ch;
+    CELL    id;
+
+    id = pVM->sourceID;
+    pVM->sourceID.i = fd;
+
+    /* feed each line to ficlExec */
+    while (1) {
+	int status, i;
+
+	i = 0;
+	while ((status = read(fd, &ch, 1)) > 0 && ch != '\n')
+	    cp[i++] = ch;
+        nLine++;
+	if (!i) {
+	    if (status < 1)
+		break;
+	    continue;
+	}
+	cp[i] = '\0';
+        if ((rval = ficlExec(pVM, cp)) >= VM_ERREXIT)
+        {
+            pVM->sourceID = id;
+            vmThrowErr(pVM, "ficlExecFD: Error at line %d", nLine);
+            break; 
+        }
+    }
+    /*
+    ** Pass an empty line with SOURCE-ID == 0 to flush
+    ** any pending REFILLs (as required by FILE wordset)
+    */
+    pVM->sourceID.i = -1;
+    ficlExec(pVM, "");
+
+    pVM->sourceID = id;
+    return rval;
+}
 
 /**************************************************************************
                         f i c l L o o k u p
@@ -382,5 +430,3 @@ void ficlTermSystem(void)
 
     return;
 }
-
-
