@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Name: hwsleep.c - ACPI Hardware Sleep/Wake Interface
- *              $Revision: 5 $
+ *              $Revision: 7 $
  *
  *****************************************************************************/
 
@@ -282,15 +282,14 @@ AcpiEnterSleepState (
 
     DEBUG_PRINT(ACPI_OK, ("Entering S%d\n", SleepState));
 
-    /* the old version was disabling interrupts. let's try it without
-     * and see how that works
-     */
-    /*disable();*/
+    disable();
 
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1A_CONTROL, PM1AControl);
     AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1B_CONTROL, PM1BControl);
+    AcpiHwRegisterWrite(ACPI_MTX_LOCK, PM1_CONTROL, 
+        (1 << AcpiHwGetBitShift (SLP_EN_MASK)));
 
-    /*enable();*/
+    enable();
 
     return_ACPI_STATUS (AE_OK);
 }

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 54 $
+ *              $Revision: 56 $
  *
  ******************************************************************************/
 
@@ -153,6 +153,7 @@ BOOLEAN                 opt_disasm      = FALSE;
 BOOLEAN                 opt_stats       = FALSE;
 BOOLEAN                 opt_parse_jit   = FALSE;
 BOOLEAN                 opt_verbose     = TRUE;
+BOOLEAN                 opt_ini_methods = TRUE;
 
 
 /*
@@ -199,6 +200,7 @@ enum AcpiAmlDebuggerCommands
     CMD_PREFIX,
     CMD_QUIT,
     CMD_REFERENCES,
+    CMD_RESOURCES,
     CMD_RESULTS,
     CMD_SET,
     CMD_STATS,
@@ -251,6 +253,7 @@ COMMAND_INFO                Commands[] =
     {"PREFIX",       0},
     {"QUIT",         0},
     {"REFERENCES",   1},
+    {"RESOURCES",    1},
     {"RESULTS",      0},
     {"SET",          3},
     {"STATS",        0},
@@ -337,6 +340,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Owner <OwnerId> [Depth]             Display loaded namespace by object owner\n");
         AcpiOsPrintf ("Prefix [<NamePath>]                 Set or Get current execution prefix\n");
         AcpiOsPrintf ("References <Addr>                   Find all references to object at addr\n");
+        AcpiOsPrintf ("Resources xxx                       Get and display resources\n");
         AcpiOsPrintf ("Terminate                           Delete namespace and all internal objects\n");
         AcpiOsPrintf ("Thread <Threads><Loops><NamePath>   Spawn threads to execute method(s)\n");
         return;
@@ -763,6 +767,10 @@ AcpiDbCommandDispatch (
 
     case CMD_REFERENCES:
         AcpiDbFindReferences (Args[1]);
+        break;
+
+    case CMD_RESOURCES:
+        AcpiDbDisplayResources (Args[1]);
         break;
 
     case CMD_RESULTS:

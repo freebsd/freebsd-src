@@ -2,7 +2,7 @@
  *
  * Module Name: rslist - AcpiRsByteStreamToList
  *                       AcpiListToByteStream
- *              $Revision: 10 $
+ *              $Revision: 11 $
  *
  ******************************************************************************/
 
@@ -399,8 +399,7 @@ AcpiRsByteStreamToList (
     /*
      * Check the reason for exiting the while loop
      */
-    if (!(ByteStreamBufferLength == BytesParsed) ||
-         (TRUE != EndTagProcessed))
+    if (TRUE != EndTagProcessed)
     {
         return_ACPI_STATUS (AE_AML_ERROR);
     }
