@@ -36,8 +36,10 @@
 
 #include "opt_ddb.h"
 #include "opt_ktr.h"
+#include "opt_alq.h"
 
 #include <sys/param.h>
+#include <sys/alq.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -51,6 +53,7 @@
 #ifdef __sparc64__
 #include <machine/ktr.h>
 #endif
+
 
 #include <ddb/ddb.h>
 
@@ -99,14 +102,79 @@ TUNABLE_INT("debug.ktr.verbose", &ktr_verbose);
 SYSCTL_INT(_debug_ktr, OID_AUTO, verbose, CTLFLAG_RW, &ktr_verbose, 0, "");
 #endif
 
+#ifdef KTR_ALQ
+struct alq *ktr_alq;
+char	ktr_alq_file[MAXPATHLEN] = "/tmp/ktr.out";
+int	ktr_alq_cnt = 0;
+int	ktr_alq_depth = KTR_ENTRIES;
+int	ktr_alq_enabled = 0;
+int	ktr_alq_failed = 0;
+int	ktr_alq_max = 0;
+
+SYSCTL_INT(_debug_ktr, OID_AUTO, alq_max, CTLFLAG_RW, &ktr_alq_max, 0,
+    "Maximum number of entries to write");
+SYSCTL_INT(_debug_ktr, OID_AUTO, alq_cnt, CTLFLAG_RD, &ktr_alq_cnt, 0,
+    "Current number of written entries");
+SYSCTL_INT(_debug_ktr, OID_AUTO, alq_failed, CTLFLAG_RD, &ktr_alq_failed, 0,
+    "Number of times we overran the buffer");
+SYSCTL_INT(_debug_ktr, OID_AUTO, alq_depth, CTLFLAG_RW, &ktr_alq_depth, 0,
+    "Number of items in the write buffer");
+SYSCTL_STRING(_debug_ktr, OID_AUTO, alq_file, CTLFLAG_RW, ktr_alq_file,
+    sizeof(ktr_alq_file), "KTR logging file");
+
+static int
+sysctl_debug_ktr_alq_enable(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+	int enable;
+
+	enable = ktr_alq_enabled;
+
+        error = sysctl_handle_int(oidp, &enable, 0, req);
+        if (error || !req->newptr)
+                return (error);
+
+	if (enable) {
+		if (ktr_alq_enabled)
+			return (0);
+		error = suser(curthread);
+		if (error)
+			return (error);
+		error = alq_open(&ktr_alq, (const char *)ktr_alq_file, 
+		    sizeof(struct ktr_entry), ktr_alq_depth);
+		if (error == 0) {
+			ktr_mask &= ~KTR_ALQ_MASK;
+			ktr_alq_cnt = 0;
+			ktr_alq_failed = 0;
+			ktr_alq_enabled = 1;
+		}
+	} else {
+		if (ktr_alq_enabled == 0)
+			return (0);
+		ktr_alq_enabled = 0;
+		alq_close(ktr_alq);
+		ktr_alq = NULL;
+	}
+
+	return (error);
+}
+SYSCTL_PROC(_debug_ktr, OID_AUTO, alq_enable,
+    CTLTYPE_INT|CTLFLAG_RW, 0, 0, sysctl_debug_ktr_alq_enable,
+    "I", "Enable KTR logging");
+#endif
+
 void
 ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
     u_long arg1, u_long arg2, u_long arg3, u_long arg4, u_long arg5,
     u_long arg6)
 {
 	struct ktr_entry *entry;
+#ifdef KTR_ALQ
+	struct ale *ale = NULL;
+#else
 	int newindex, saveindex;
-#ifdef KTR_VERBOSE
+#endif
+#if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	struct thread *td;
 #endif
 	int cpu;
@@ -118,17 +186,33 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	cpu = KTR_CPU;
 	if (((1 << cpu) & ktr_cpumask) == 0)
 		return;
-#ifdef KTR_VERBOSE
+#if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	td = curthread;
 	if (td->td_inktr)
 		return;
 	td->td_inktr++;
 #endif
+#ifdef KTR_ALQ
+	if (ktr_alq_enabled &&
+	    td->td_critnest == 0 &&
+	    (td->td_kse->ke_flags & KEF_IDLEKSE) == 0) {
+		if (ktr_alq_max && ktr_alq_cnt > ktr_alq_max)
+			goto done;
+		if ((ale = alq_get(ktr_alq, ALQ_NOWAIT)) == NULL) {
+			ktr_alq_failed++;
+			goto done;
+		}
+		ktr_alq_cnt++;
+		entry = (struct ktr_entry *)ale->ae_data;
+	} else
+		goto done;
+#else
 	do {
 		saveindex = ktr_idx;
 		newindex = (saveindex + 1) & (KTR_ENTRIES - 1);
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
+#endif
 	entry->ktr_timestamp = KTR_TIME;
 	entry->ktr_cpu = cpu;
 	entry->ktr_file = file;
@@ -153,7 +237,12 @@ ktr_tracepoint(u_int mask, const char *file, int line, const char *format,
 	entry->ktr_parms[3] = arg4;
 	entry->ktr_parms[4] = arg5;
 	entry->ktr_parms[5] = arg6;
-#ifdef KTR_VERBOSE
+#ifdef KTR_ALQ
+	if (ale)
+		alq_post(ktr_alq, ale);
+done:
+#endif
+#if defined(KTR_VERBOSE) || defined(KTR_ALQ)
 	td->td_inktr--;
 #endif
 }
