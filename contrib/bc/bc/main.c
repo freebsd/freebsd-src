@@ -1,7 +1,7 @@
 /* main.c: The main program for bc.  */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997, 1998 Free Software Foundation, Inc.
+    Copyright (C) 1991-1994, 1997, 1998, 2000 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,10 +15,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -36,22 +38,17 @@ $FreeBSD$
 
 
 /* Variables for processing multiple files. */
-char   first_file;
-extern FILE *yyin;
+static char first_file;
 
 /* Points to the last node in the file name list for easy adding. */
 static file_node *last = NULL;
-
-#ifdef READLINE
-/* Readline support. */
-extern char *rl_readline_name;
-extern FILE *rl_instream;
-#endif
 
 /* long option support */
 static struct option long_options[] =
 {
   {"compile",  0, &compile_only, TRUE},
+  {"help",     0, 0,             'h'},
+  {"interactive", 0, 0,          'i'},
   {"mathlib",  0, &use_math,     TRUE},
   {"quiet",    0, &quiet,        TRUE},
   {"standard", 0, &std_only,     TRUE},
@@ -60,6 +57,20 @@ static struct option long_options[] =
 
   {0, 0, 0, 0}
 };
+
+
+void
+usage (char *progname)
+{
+  printf ("usage: %s [options] [file ...]\n%s%s%s%s%s%s%s", progname,
+          "  -h  --help         print this usage and exit\n",
+	  "  -i  --interactive  force interactive mode\n",
+	  "  -l  --mathlib      use the predefine math routnes\n",
+	  "  -q  --quiet        don't print initial banner\n",
+	  "  -s  --standard     non-standard bc constructs are errors\n",
+	  "  -w  --warn         warn about non-standard bc constructs\n",
+	  "  -v  --version      print version information and exit\n");
+}
 
 
 void
@@ -77,7 +88,7 @@ parse_args (argc, argv)
   /* Parse the command line */
   while (1)
     {
-      optch = getopt_long (argc, argv, "lciqsvw", long_options, &long_index);
+      optch = getopt_long (argc, argv, "chilqswv", long_options, &long_index);
 
       if (optch == EOF)  /* End of arguments. */
 	break;
@@ -88,12 +99,17 @@ parse_args (argc, argv)
 	  compile_only = TRUE;
 	  break;
 
-	case 'l':  /* math lib */
-	  use_math = TRUE;
+	case 'h':  /* help */
+	  usage(argv[0]);
+	  exit (0);
 	  break;
 
 	case 'i':  /* force interactive */
 	  interactive = TRUE;
+	  break;
+
+	case 'l':  /* math lib */
+	  use_math = TRUE;
 	  break;
 
 	case 'q':  /* quiet mode */
@@ -105,13 +121,17 @@ parse_args (argc, argv)
 	  break;
 
 	case 'v':  /* Print the version. */
-	  printf ("%s\n", BC_VERSION);
+	  show_bc_version ();
 	  exit (0);
 	  break;
 
 	case 'w':  /* Non standard features give warnings. */
 	  warn_not_std = TRUE;
 	  break;
+
+	default:
+	  usage(argv[0]);
+	  exit (1);
 	}
     }
 
@@ -215,7 +235,20 @@ main (argc, argv)
   if (!open_new_file ())
     exit (1);
 
-#ifdef READLINE
+#if defined(LIBEDIT)
+  if (interactive) {
+    /* Enable libedit support. */
+    edit = el_init ("bc", stdin, stdout, stderr);
+    hist = history_init();
+    el_set (edit, EL_EDITOR, "emacs");
+    el_set (edit, EL_HIST, history, hist);
+    el_set (edit, EL_PROMPT, null_prompt);
+    el_source (edit, NULL);
+    history (hist, &histev, H_SETSIZE, INT_MAX);
+  }
+#endif
+
+#if defined(READLINE)
   if (interactive) {
     /* Readline support.  Set both application name and input file. */
     rl_readline_name = "bc";
@@ -254,23 +287,9 @@ open_new_file ()
   /* Open the other files. */
   if (use_math && first_file)
     {
-#ifdef BC_MATH_FILE
-      /* Make the first file be the math library. */
-      new_file = fopen (BC_MATH_FILE, "r");
-      use_math = FALSE;
-      if (new_file != NULL)
-	{
-	  new_yy_file (new_file);
-	  return TRUE;
-	}	
-      else
-	{
-	  fprintf (stderr, "Math Library unavailable.\n");
-	  exit (1);
-	}
-#else
       /* Load the code from a precompiled version of the math libarary. */
-      extern char libmath[];
+      extern char *libmath[];
+      char **mstr;
       char tmp;
       /* These MUST be in the order of first mention of each function.
 	 That is why "a" comes before "c" even though "a" is defined after
@@ -281,8 +300,11 @@ open_new_file ()
       tmp = lookup ("a", FUNCT);
       tmp = lookup ("c", FUNCT);
       tmp = lookup ("j", FUNCT);
-      load_code (libmath);
-#endif
+      mstr = libmath;
+      while (*mstr) {
+           load_code (*mstr);
+	   mstr++;
+      }
     }
   
   /* One of the argv values. */

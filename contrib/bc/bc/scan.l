@@ -1,4 +1,5 @@
 %{
+/* $FreeBSD$ */
 /* scan.l: the (f)lex description file for the scanner. */
 
 /*  This file is part of GNU bc.
@@ -16,10 +17,12 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; see the file COPYING.  If not, write to
-    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+      The Free Software Foundation, Inc.
+      59 Temple Place, Suite 330
+      Boston, MA 02111 USA
 
     You may contact the author by:
-       e-mail:  phil@cs.wwu.edu
+       e-mail:  philnelson@acm.org
       us-mail:  Philip A. Nelson
                 Computer Science Department, 9062
                 Western Washington University
@@ -48,6 +51,83 @@
 #undef yywrap
 _PROTOTYPE(int yywrap, (void));
 
+#if defined(LIBEDIT)
+/* Support for the BSD libedit with history for
+   nicer input on the interactive part of input. */
+
+#include <histedit.h>
+
+/* Have input call the following function. */
+#undef  YY_INPUT
+#define YY_INPUT(buf,result,max_size) \
+		bcel_input((char *)buf, &result, max_size)
+
+/* Variables to help interface editline with bc. */
+static const char *bcel_line = (char *)NULL;
+static int   bcel_len = 0;
+
+
+/* Required to get rid of that ugly ? default prompt! */
+char *
+null_prompt (EditLine *el)
+{
+  return "";
+}
+
+
+/* bcel_input puts upto MAX characters into BUF with the number put in
+   BUF placed in *RESULT.  If the yy input file is the same as
+   stdin, use editline.  Otherwise, just read it.
+*/
+
+static void
+bcel_input (buf, result, max)
+	char *buf;
+	int  *result;
+	int   max;
+{
+  if (!edit || yyin != stdin)
+    {
+      while ( (*result = read( fileno(yyin), buf, max )) < 0 )
+        if (errno != EINTR)
+	  {
+	    yyerror( "read() in flex scanner failed" );
+	    exit (1);
+	  }
+      return;
+    }
+
+  /* Do we need a new string? */
+  if (bcel_len == 0)
+    {
+      bcel_line = el_gets(edit, &bcel_len);
+      if (bcel_line == NULL) {
+	/* end of file */
+	*result = 0;
+	bcel_len = 0;
+	return;
+      }
+      if (bcel_len != 0)
+	history (hist, &histev, H_ENTER, bcel_line); 
+      fflush (stdout);
+    }
+
+  if (bcel_len <= max)
+    {
+      strncpy (buf, bcel_line, bcel_len);
+      *result = bcel_len;
+      bcel_len = 0;
+    }
+  else
+    {
+      strncpy (buf, bcel_line, max);
+      *result = max;
+      bcel_line += max;
+      bcel_len -= max;
+    }
+}
+#endif
+
 #ifdef READLINE
 /* Support for the readline and history libraries.  This allows
    nicer input on the interactive part of input. */
@@ -65,9 +145,6 @@ static int   rl_len = 0;
 /* Definitions for readline access. */
 extern FILE *rl_instream;
 _PROTOTYPE(char *readline, (char *));
-
-/* Needed here? */
-extern FILE *yyin;
 
 /* rl_input puts upto MAX characters into BUF with the number put in
    BUF placed in *RESULT.  If the yy input file is the same as
@@ -94,20 +171,20 @@ rl_input (buf, result, max)
   /* Do we need a new string? */
   if (rl_len == 0)
     {
-      if (rl_line)
-	free(rl_line);
-      rl_line = readline ("");
-      if (rl_line == NULL) {
+      if (rl_start)
+	free(rl_start);
+      rl_start = readline ("");
+      if (rl_start == NULL) {
 	/* end of file */
 	*result = 0;
 	rl_len = 0;
 	return;
       }
+      rl_line = rl_start;
       rl_len = strlen (rl_line)+1;
       if (rl_len != 1)
 	add_history (rl_line); 
       rl_line[rl_len-1] = '\n';
-      printf ("\r");
       fflush (stdout);
     }
 
@@ -121,10 +198,14 @@ rl_input (buf, result, max)
     {
       strncpy (buf, rl_line, max);
       *result = max;
+      rl_line += max;
       rl_len -= max;
     }
 }
-#else
+#endif
+
+#if !defined(READLINE) && !defined(LIBEDIT)
+
 /* MINIX returns from read with < 0 if SIGINT is  encountered.
    In flex, we can redefine YY_INPUT to the following.  In lex, this
    does nothing! */
@@ -134,6 +215,7 @@ rl_input (buf, result, max)
 	    if (errno != EINTR) \
 		YY_FATAL_ERROR( "read() in flex scanner failed" );
 #endif
+
 %}
 DIGIT [0-9A-F]
 LETTER [a-z]
@@ -146,7 +228,7 @@ LETTER [a-z]
 		    yyerror ("illegal character: #");
 		}
 <slcomment>[^\n]* { BEGIN(INITIAL); }
-<slcomment>"\n" { line_no++; BEGIN(INITIAL); return(NEWLINE); }
+<slcomment>"\n" { line_no++; BEGIN(INITIAL); return(ENDOFLINE); }
 define return(Define);
 break  return(Break);
 quit   return(Quit);
@@ -165,8 +247,8 @@ read   return(Read);
 halt   return(Halt);
 last   return(Last);
 history {
-#ifdef READLINE
-	  return(History);
+#if defined(READLINE) || defined(LIBEDIT)
+	  return(HistoryVar);
 #else
 	  yylval.s_value = strcopyof(yytext); return(NAME);
 #endif
@@ -206,7 +288,7 @@ limits return(Limits);
 		       }
 ==|\<=|\>=|\!=|"<"|">" { yylval.s_value = strcopyof(yytext); return(REL_OP); }
 \+\+|-- { yylval.c_value = yytext[0]; return(INCR_DECR); }
-"\n" { line_no++; return(NEWLINE); }
+"\n" { line_no++; return(ENDOFLINE); }
 \\\n {  line_no++;  /* ignore a "quoted" newline */ }
 [ \t]+  { /* ignore spaces and tabs */ }
 "/*"  {
@@ -275,7 +357,7 @@ limits return(Limits);
 	    yyerror ("illegal character: ^%c",yytext[0] + '@');
 	  else
 	    if (yytext[0] > '~')
-	      yyerror ("illegal character: \\%3d", (int) yytext[0]);
+	      yyerror ("illegal character: \\%03o", (int) yytext[0]);
 	    else
 	      yyerror ("illegal character: %s",yytext);
 	}
