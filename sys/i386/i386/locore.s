@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.122 1999/05/09 19:01:49 peter Exp $
+ *	$Id: locore.s,v 1.123 1999/06/01 18:19:39 jlemon Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -958,7 +958,7 @@ bdb_prepare_paging:
 	movl	%eax,R(bdb_bpt_ljmp+1)
 	movl	24+2(%esi),%eax
 	movw	%ax,R(bdb_bpt_ljmp+5)
-	movl	$R(_idt),%edi
+	movl	R(_idt),%edi
 	movl	%edi,2(%esp)		/* prepare to load kernel idt */
 	movl	$8*4/4,%ecx
 	cld
