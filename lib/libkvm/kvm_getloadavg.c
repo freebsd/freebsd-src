@@ -32,7 +32,12 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -43,7 +48,6 @@ static char sccsid[] = "@(#)kvm_getloadavg.c	8.1 (Berkeley) 6/4/93";
 #include <vm/vm_param.h>
 
 #include <stdlib.h>
-#include <db.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <nlist.h>

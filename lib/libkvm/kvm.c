@@ -40,7 +40,7 @@
 static char sccsid[] = "@(#)kvm.c	8.2 (Berkeley) 2/13/94";
 #else
 static const char rcsid[] =
-  "$FreeBSD$";
+ "$FreeBSD$";
 #endif
 #endif /* LIBC_SCCS and not lint */
 
@@ -50,6 +50,7 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/linker.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -58,7 +59,6 @@ static const char rcsid[] =
 #include <machine/vmparam.h>
 
 #include <ctype.h>
-#include <db.h>
 #include <fcntl.h>
 #include <kvm.h>
 #include <limits.h>
@@ -70,8 +70,6 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #include "kvm_private.h"
-
-static int kvm_dbopen __P((kvm_t *, const char *));
 
 char *
 kvm_geterr(kd)
@@ -180,7 +178,6 @@ _kvm_open(kd, uf, mf, flag, errout)
 	kd->pmfd = -1;
 	kd->nlfd = -1;
 	kd->vmst = 0;
-	kd->db = 0;
 	kd->procbase = 0;
 	kd->argspc = 0;
 	kd->argv = 0;
@@ -224,19 +221,6 @@ _kvm_open(kd, uf, mf, flag, errout)
 				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
 				goto failed;
 			}
-		}
-		/*
-		 * Open kvm nlist database.  We go ahead and do this
-		 * here so that we don't have to hold on to the kernel
-		 * path name.  Since a kvm application will surely do
-		 * a kvm_nlist(), this probably won't be a wasted effort.
-		 * If the database cannot be opened, open the namelist
-		 * argument so we revert to slow nlist() calls.
-		 */
-		if (kvm_dbopen(kd, uf) < 0 &&
-		    (kd->nlfd = open(uf, O_RDONLY, 0)) < 0) {
-			_kvm_syserr(kd, kd->program, "%s", uf);
-			goto failed;
 		}
 	} else {
 		/*
@@ -314,8 +298,6 @@ kvm_close(kd)
 		error |= close(kd->vmfd);
 	if (kd->nlfd >= 0)
 		error |= close(kd->nlfd);
-	if (kd->db != 0)
-		error |= (kd->db->close)(kd->db);
 	if (kd->vmst)
 		_kvm_freevtop(kd);
 	if (kd->procbase != 0)
@@ -327,72 +309,6 @@ kvm_close(kd)
 	return (0);
 }
 
-/*
- * Set up state necessary to do queries on the kernel namelist
- * data base.  If the data base is out-of-data/incompatible with
- * given executable, set up things so we revert to standard nlist call.
- * Only called for live kernels.  Return 0 on success, -1 on failure.
- */
-static int
-kvm_dbopen(kd, uf)
-	kvm_t *kd;
-	const char *uf;
-{
-	char *cp;
-	DBT rec;
-	int dbversionlen;
-	struct nlist nitem;
-	char dbversion[_POSIX2_LINE_MAX];
-	char kversion[_POSIX2_LINE_MAX];
-	char dbname[MAXPATHLEN];
-
-	if ((cp = rindex(uf, '/')) != 0)
-		uf = cp + 1;
-
-	(void)snprintf(dbname, sizeof(dbname), "%skvm_%s.db", _PATH_VARDB, uf);
-	kd->db = dbopen(dbname, O_RDONLY, 0, DB_HASH, NULL);
-	if (kd->db == 0)
-		return (-1);
-	/*
-	 * read version out of database
-	 */
-	rec.data = VRS_KEY;
-	rec.size = sizeof(VRS_KEY) - 1;
-	if ((kd->db->get)(kd->db, (DBT *)&rec, (DBT *)&rec, 0))
-		goto close;
-	if (rec.data == 0 || rec.size > sizeof(dbversion))
-		goto close;
-
-	bcopy(rec.data, dbversion, rec.size);
-	dbversionlen = rec.size;
-	/*
-	 * Read version string from kernel memory.
-	 * Since we are dealing with a live kernel, we can call kvm_read()
-	 * at this point.
-	 */
-	rec.data = VRS_SYM;
-	rec.size = sizeof(VRS_SYM) - 1;
-	if ((kd->db->get)(kd->db, (DBT *)&rec, (DBT *)&rec, 0))
-		goto close;
-	if (rec.data == 0 || rec.size != sizeof(struct nlist))
-		goto close;
-	bcopy((char *)rec.data, (char *)&nitem, sizeof(nitem));
-	if (kvm_read(kd, (u_long)nitem.n_value, kversion, dbversionlen) !=
-	    dbversionlen)
-		goto close;
-	/*
-	 * If they match, we win - otherwise clear out kd->db so
-	 * we revert to slow nlist().
-	 */
-	if (bcmp(dbversion, kversion, dbversionlen) == 0)
-		return (0);
-close:
-	(void)(kd->db->close)(kd->db);
-	kd->db = 0;
-
-	return (-1);
-}
-
 int
 kvm_nlist(kd, nl)
 	kvm_t *kd;
@@ -400,44 +316,37 @@ kvm_nlist(kd, nl)
 {
 	register struct nlist *p;
 	register int nvalid;
+	struct kld_sym_lookup lookup;
 
 	/*
-	 * If we can't use the data base, revert to the
+	 * If we can't use the kld symbol lookup, revert to the
 	 * slow library call.
 	 */
-	if (kd->db == 0)
+	if (!ISALIVE(kd))
 		return (__fdnlist(kd->nlfd, nl));
 
 	/*
-	 * We can use the kvm data base.  Go through each nlist entry
-	 * and look it up with a db query.
+	 * We can use the kld lookup syscall.  Go through each nlist entry
+	 * and look it up with a kldsym(2) syscall.
 	 */
 	nvalid = 0;
 	for (p = nl; p->n_name && p->n_name[0]; ++p) {
-		register int len;
-		DBT rec;
+		lookup.version = sizeof(lookup);
+		lookup.symname = p->n_name;
+		lookup.symvalue = 0;
+		lookup.symsize = 0;
 
-		if ((len = strlen(p->n_name)) > 4096) {
-			/* sanity */
-			_kvm_err(kd, kd->program, "symbol too large");
-			return (-1);
+		if (lookup.symname[0] == '_')
+			lookup.symname++;
+
+		if (kldsym(0, KLDSYM_LOOKUP, &lookup) != -1) {
+			p->n_type = N_TEXT;
+			p->n_other = 0;
+			p->n_desc = 0;
+			p->n_value = lookup.symvalue;
+			++nvalid;
+			/* lookup.symsize */
 		}
-		rec.data = p->n_name;
-		rec.size = len;
-		if ((kd->db->get)(kd->db, (DBT *)&rec, (DBT *)&rec, 0))
-			continue;
-		if (rec.data == 0 || rec.size != sizeof(struct nlist))
-			continue;
-		++nvalid;
-		/*
-		 * Avoid alignment issues.
-		 */
-		bcopy((char *)&((struct nlist *)rec.data)->n_type,
-		      (char *)&p->n_type,
-		      sizeof(p->n_type));
-		bcopy((char *)&((struct nlist *)rec.data)->n_value,
-		      (char *)&p->n_value,
-		      sizeof(p->n_value));
 	}
 	/*
 	 * Return the number of entries that weren't found.
