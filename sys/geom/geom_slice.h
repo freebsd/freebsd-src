@@ -52,7 +52,6 @@ struct g_slicer {
 	g_slice_start_t	*start;
 };
 
-struct g_slicer * g_slice_init(unsigned nslice, unsigned scsize);
 g_dumpconf_t g_slice_dumpconf;
 struct g_provider * g_slice_addslice(struct g_geom *gp, int index, off_t offset, off_t length, char *fmt, ...);
 struct g_geom * g_slice_new(struct g_class *mp, int slices, struct g_provider *pp, struct g_consumer **cpp, void *extrap, int extra, g_slice_start_t *start);
