@@ -4,7 +4,7 @@ PROG=	ftpd
 MAN8=	ftpd.8
 SRCS=	ftpd.c ftpcmd.c logwtmp.c popen.c skey-stuff.c
 
-CFLAGS+=-DSETPROCTITLE -DSKEY
+CFLAGS+=-DSETPROCTITLE -DSKEY -DSTATS
 
 LDADD=	-lcrypt -lskey -lmd
 DPADD=	${LIBCRYPT} ${LIBSKEY} ${LIBMD}

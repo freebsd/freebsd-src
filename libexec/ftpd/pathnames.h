@@ -37,3 +37,4 @@
 
 #define	_PATH_FTPWELCOME	"/etc/ftpwelcome"
 #define	_PATH_FTPLOGINMESG	"/etc/ftpmotd"
+#define _PATH_FTPDSTATFILE	"/var/log/ftpd"
