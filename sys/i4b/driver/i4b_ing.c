@@ -758,7 +758,7 @@ ng_ing_rcvdata(hook_p hook, item_p item)
        /*
 	* Now queue the data for when it can be sent
 	*/
-
+#ifdef THIS_DOESNT_COMPILE
 	if (meta && meta->priority > 0)
 	{
 		xmitq_p = (&sc->xmitq_hipri);
@@ -767,6 +767,9 @@ ng_ing_rcvdata(hook_p hook, item_p item)
 	{
 		xmitq_p = (&sc->xmitq);
 	}
+#else
+	xmitq_p = (&sc->xmitq);
+#endif
 
 	s = splimp();
 
