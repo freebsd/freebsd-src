@@ -120,7 +120,24 @@ static vop_setextattr_t	ffs_setextattr;
 
 
 /* Global vfs data structures for ufs. */
-struct vop_vector ffs_vnodeops = {
+struct vop_vector ffs_vnodeops1 = {
+	.vop_default =		&ufs_vnodeops,
+	.vop_fsync =		ffs_fsync,
+	.vop_getpages =		ffs_getpages,
+	.vop_lock =		ffs_lock,
+	.vop_read =		ffs_read,
+	.vop_reallocblks =	ffs_reallocblks,
+	.vop_write =		ffs_write,
+};
+
+struct vop_vector ffs_fifoops1 = {
+	.vop_default =		&ufs_fifoops,
+	.vop_fsync =		ffs_fsync,
+	.vop_reallocblks =	ffs_reallocblks, /* XXX: really ??? */
+};
+
+/* Global vfs data structures for ufs. */
+struct vop_vector ffs_vnodeops2 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
 	.vop_getpages =		ffs_getpages,
@@ -136,7 +153,7 @@ struct vop_vector ffs_vnodeops = {
 	.vop_setextattr =	ffs_setextattr,
 };
 
-struct vop_vector ffs_fifoops = {
+struct vop_vector ffs_fifoops2 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
 	.vop_lock =		ffs_lock,
@@ -160,13 +177,11 @@ ffs_fsync(struct vop_fsync_args *ap)
 	int error;
 
 	error = ffs_syncvnode(ap->a_vp, ap->a_waitfor);
-#ifdef SOFTUPDATES
 	if (error)
 		return (error);
 	if (ap->a_waitfor == MNT_WAIT &&
 	    (ap->a_vp->v_mount->mnt_flag & MNT_SOFTDEP))
-		error = softdep_fsync(ap->a_vp);
-#endif
+                error = softdep_fsync(ap->a_vp);
 	return (error);
 }
 
@@ -1263,8 +1278,6 @@ struct vop_openextattr_args {
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnodeops.vop_openextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1293,8 +1306,6 @@ struct vop_closeextattr_args {
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnodeops.vop_closeextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1326,9 +1337,6 @@ vop_deleteextattr {
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
-
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnodeops.vop_deleteextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1417,9 +1425,6 @@ vop_getextattr {
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
 
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnodeops.vop_getextattr(ap));
-
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
 
@@ -1479,9 +1484,6 @@ vop_listextattr {
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
-
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnodeops.vop_listextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
@@ -1552,9 +1554,6 @@ vop_setextattr {
 
 	ip = VTOI(ap->a_vp);
 	fs = ip->i_fs;
-
-	if (fs->fs_magic == FS_UFS1_MAGIC)
-		return (ufs_vnodeops.vop_setextattr(ap));
 
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
