@@ -9,33 +9,30 @@ SRCS=	AsyncIO.c ParseBuffer.c bios.c callback.c cpu.c dos.c cmos.c config.c \
 	mem.c mouse.c net.c port.c setver.c signal.c timer.c trace.c trap.c \
 	tty.c xms.c
 
-.if ${OBJFORMAT} == "aout"
-CLEANFILES=     doscmd.kernel crt0.o doscmd_loader.o redir.com emsdriv.sys
-.else
-CLEANFILES=     redir.com emsdriv.sys
-.endif
-
-BINGRP=	kmem
-EXEGRP=	bin
-# BINMODE=2555
-EXEMODE=444
+CFLAGS+=	-I. -DDISASSEMBLER
+CLEANFILES=	emsdriv.sys redir.com
 
 .if ${OBJFORMAT} == "aout"
-XLIBDIR:= ${X11BASE}/lib/aout
+CLEANFILES+=	doscmd.kernel crt0.o doscmd_loader.o
+XLIBDIR=	${X11BASE}/lib/aout
+LDADD=		-L${DESTDIR}${LIBDIR} -lgcc -lc
+DPADD=		${LIBGCC} ${LIBC}
 .else
-XLIBDIR:= ${X11BASE}/lib
+XLIBDIR=	${X11BASE}/lib
 .endif
 
-.if exists(${X11BASE}/include/X11/X.h) && exists(${XLIBDIR}/libX11.a)
-CFLAGS+= -I. -I${X11BASE}/include -DDISASSEMBLER
-LDADD= -L${XLIBDIR} -lX11
-DPADD= ${XLIBDIR}/libX11.a
+BINGRP=		kmem
+EXEGRP=		bin
+#BINMODE=	2555
+EXEMODE=	444
+
+.if !defined(DESTDIR) && exists(${X11BASE}/include/X11/X.h) && \
+    exists(${XLIBDIR}/libX11.a)
+CFLAGS+=	-I${X11BASE}/include
+LDADD+=		-L${XLIBDIR} -lX11
+DPADD+=		${XLIBDIR}/libX11.a
 .else
-CFLAGS+= -I. -DDISASSEMBLER -DNO_X
-.endif
-.if ${OBJFORMAT} == "aout"
-LDADD+= -L${DESTDIR}${LIBDIR} -lgcc -lc
-DPADD+= ${LIBGCC} ${LIBC}
+CFLAGS+=	-DNO_X
 .endif
 
 beforeinstall:
