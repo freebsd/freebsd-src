@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.7 1996/05/11 19:00:55 joerg Exp $\n";
+	"\n$Id: lpr.c,v 1.8 1996/10/25 18:14:48 imp Exp $\n";
 #endif /* not lint */
 
 /*
@@ -471,7 +471,7 @@ card(c, p2)
 	register int len = 2;
 
 	*p1++ = c;
-	while ((c = *p2++) != '\0' && len <= sizeof(buf)) {
+	while ((c = *p2++) != '\0' && len < sizeof(buf)) {
 		*p1++ = (c == '\n') ? ' ' : c;
 		len++;
 	}
