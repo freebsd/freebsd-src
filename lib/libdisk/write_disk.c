@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: write_disk.c,v 1.24 1998/10/27 21:14:03 msmith Exp $
+ * $Id: write_disk.c,v 1.25 1999/01/08 00:32:19 jkh Exp $
  *
  */
 
@@ -64,7 +64,11 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 	for(c2=c1->part;c2;c2=c2->next) {
 		if (c2->type == unused) continue;
 		if (!strcmp(c2->name,"X")) continue;
+#ifdef __alpha__
+		j = c2->name[strlen(c2->name) - 1] - 'a';
+#else
 		j = c2->name[strlen(new->name) + 2] - 'a';
+#endif
 		if (j < 0 || j >= MAXPARTITIONS || j == RAW_PART) {
 #ifdef DEBUG
 			warn("Weird parititon letter %c",c2->name[strlen(new->name) + 2]);
@@ -180,16 +184,19 @@ Write_Disk(struct disk *d1)
 	for (c1=d1->chunks->part; c1 ; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		if (!strcmp(c1->name,"X")) continue;
+#ifndef __alpha__
 		j = c1->name[4] - '1';
 		j = c1->name[strlen(d1->name) + 1] - '1';
 		if (j < 0 || j > 3)
 			continue;
 		s[j]++;
+#endif
 		if (c1->type == extended)
 			ret += Write_Extended(fd, d1,old,c1);
 		if (c1->type == freebsd)
 			ret += Write_FreeBSD(fd, d1,old,c1);
 
+#ifndef __alpha__
 		Write_Int32(&dp[j].dp_start, c1->offset);
 		Write_Int32(&dp[j].dp_size, c1->size);
 
@@ -237,7 +244,9 @@ Write_Disk(struct disk *d1)
 			dp[j].dp_flag = 0x80;
 		else
 			dp[j].dp_flag = 0;
+#endif
 	}
+#ifndef __alpha__
 	j = 0;
 	for(i=0;i<NDOSPART;i++) {
 		if (!s[i])
@@ -250,7 +259,6 @@ Write_Disk(struct disk *d1)
 			if (dp[i].dp_typ == 0xa5)
 				dp[i].dp_flag = 0x80;
 
-#ifndef __alpha__
 	mbr = read_block(fd,WHERE(0,d1));
 	if (d1->bootmgr)
 		memcpy(mbr,d1->bootmgr,DOSPARTOFF);

@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: tst01.c,v 1.21 1997/02/22 15:06:39 peter Exp $
  *
  */
 
@@ -252,10 +252,12 @@ main(int argc, char **argv)
 			Set_Boot_Mgr(d,mbr);
 			continue;
 		}
+#ifndef __alpha__	/* don't think this compiles on i386 either */
 		if (!strcasecmp(*cmds,"boot")) {
 			Set_Boot_Blocks(d,boot1,boot2);
 			continue;
 		}
+#endif
 		if (!strcasecmp(*cmds,"write")) {
 			printf("Write=%d\n",
 				Write_Disk(d));
