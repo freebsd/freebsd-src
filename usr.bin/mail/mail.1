@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)mail.1	8.2 (Berkeley) 12/30/93
-.\"	$Id: mail.1,v 1.7 1996/08/29 18:05:57 wosch Exp $
+.\"	$Id: mail.1,v 1.8 1996/10/06 01:55:31 jkh Exp $
 .\"
 .Dd December 30, 1993
 .Dt MAIL 1
@@ -482,6 +482,9 @@ ignored fields.
 .Pq Ic m
 Takes as argument login names and distribution group names and sends
 mail to those people.
+.It Ic more
+.Pq Ic \mo
+Takes a list of messages and invokes the pager on that list.
 .It Ic mbox
 Indicate that a list of messages be sent to
 .Ic mbox
