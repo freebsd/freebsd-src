@@ -139,7 +139,7 @@ ndis_setmulti(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!NDIS_INITIALIZED(sc))
 		return;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
@@ -214,7 +214,7 @@ ndis_set_offload(sc)
 
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!NDIS_INITIALIZED(sc))
 		return(EINVAL);
 
 	/* See if there's anything to set. */
@@ -766,7 +766,7 @@ ndis_suspend(dev)
 	ifp = &sc->arpcom.ac_if;
 
 #ifdef notdef
-	if (ifp->if_flags & IFF_UP)
+	if (NDIS_INITIALIZED(sc))
         	ndis_stop(sc);
 #endif
 
@@ -783,7 +783,7 @@ ndis_resume(dev)
 	sc = device_get_softc(dev);
 	ifp = &sc->arpcom.ac_if;
 
-	if (ifp->if_flags & IFF_UP)
+	if (NDIS_INITIALIZED(sc))
         	ndis_init(sc);
 
 	return(0);
@@ -957,7 +957,7 @@ ndis_linksts_done(adapter)
 	ifp = block->nmb_ifp;
 	sc = ifp->if_softc;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!NDIS_INITIALIZED(sc))
 		return;
 
 	switch (block->nmb_getstat) {
@@ -1364,7 +1364,7 @@ ndis_ifmedia_upd(ifp)
 
 	sc = ifp->if_softc;
 
-	if (ifp->if_flags & IFF_UP)
+	if (NDIS_INITIALIZED(sc))
 		ndis_init(sc);
 
 	return(0);
@@ -1385,11 +1385,10 @@ ndis_ifmedia_sts(ifp, ifmr)
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
-
-	if (!(ifp->if_flags & IFF_UP))
-		return;
-
 	sc = ifp->if_softc;
+
+	if (!NDIS_INITIALIZED(sc))
+		return;
 
 	len = sizeof(linkstate);
 	error = ndis_get_info(sc, OID_GEN_MEDIA_CONNECT_STATUS,
@@ -1435,7 +1434,7 @@ ndis_setstate_80211(sc)
 	ic = &sc->ic;
 	ifp = &sc->ic.ic_ac.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!NDIS_INITIALIZED(sc))
 		return;
 
 	/* Set network infrastructure mode. */
@@ -1734,7 +1733,7 @@ ndis_getstate_80211(sc)
 	ic = &sc->ic;
 	ifp = &sc->ic.ic_ac.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP))
+	if (!NDIS_INITIALIZED(sc))
 		return;
 
 	if (sc->ndis_link)
@@ -1926,7 +1925,7 @@ ndis_ioctl(ifp, command, data)
 		break;
 	case SIOCGIFGENERIC:
 	case SIOCSIFGENERIC:
-		if (sc->ndis_80211 && ifp->if_flags & IFF_UP) {
+		if (sc->ndis_80211 && NDIS_INITIALIZED(sc)) {
 			if (command == SIOCGIFGENERIC)
 				error = ndis_wi_ioctl_get(ifp, command, data);
 			else
