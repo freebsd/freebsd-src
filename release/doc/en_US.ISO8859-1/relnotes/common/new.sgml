@@ -118,7 +118,9 @@
     <sect3>
       <title>Boot Loaders</title>
 
-      <para></para>
+      <para arch="i386"><filename>boot2</filename> now supports a
+	<option>-n</option> to disallow boot interruption by
+	keypresses.</para>
 
 <!-- Above this line, order boot loader changes by manpage/variable name-->
 
@@ -183,8 +185,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Disks and Storage</title>
 
-      <para>The &man.ata.4; driver now has support for rebuilding
-	failed drives in a RAID1 configuration, under control of
+      <para>The &man.ata.4; driver was sync-ed with the driver from
+	&os; -CURRENT as of 18 March 2002.</para>
+
+      <para>The &man.ata.4; driver now has support for creating,
+	deleting, querying, and rebuilding ATA RAIDs under control of
 	&man.atacontrol.8;.</para>
     </sect3>
 
@@ -212,7 +217,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386">The via82c686 sound driver now supports the VIA
 	VT8233.</para>
 
-      <para arch="i386">The ich sound driver now support the SiS
+      <para arch="i386">The ich sound driver now supports the SiS
 	7012 chipset.</para>
     </sect3>
 
@@ -307,6 +312,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       compatability with &os; CURRENT, X11R6, and a number of
       other UNIX versions.</para>
 
+    <para>The locale support was sync-ed with the code from &os;
+      -CURRENT.  This change brings support for the
+      <literal>LC_NUMERIC</literal>, <literal>LC_MONETARY</literal>,
+      and <literal>LC_MESSAGES</literal> categories, as well as
+      improvements to &man.strftime.3;, revised locale definitions,
+      and improvement of the localization of many base system
+      programs.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -325,6 +338,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para><application>texinfo</application> has been updated to
 	4.1.</para>
+
+      <para>The timezone database has been updated to the
+	<filename>tzdata2002c</filename> release.</para>
 
     </sect3>
 
