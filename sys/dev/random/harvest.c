@@ -31,11 +31,11 @@
 #include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/kthread.h>
+#include <sys/mutex.h>
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/random.h>
 #include <sys/time.h>
-#include <machine/mutex.h>
 #include <crypto/blowfish/blowfish.h>
 
 #include <dev/random/hash.h>

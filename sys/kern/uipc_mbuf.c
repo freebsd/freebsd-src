@@ -39,6 +39,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/domain.h>
@@ -46,7 +47,6 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
-#include <machine/mutex.h>
 
 static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)

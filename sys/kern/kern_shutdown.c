@@ -55,6 +55,7 @@
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/mount.h>
+#include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
@@ -64,7 +65,6 @@
 #include <machine/pcb.h>
 #include <machine/lock.h>
 #include <machine/md_var.h>
-#include <machine/mutex.h>
 #include <machine/smp.h>		/* smp_active, cpuid */
 
 #include <sys/signalvar.h>

@@ -53,11 +53,10 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sysproto.h>
-
-#include <machine/mutex.h>
 
 /*
  * Low level support for sleep/wakeup paradigm

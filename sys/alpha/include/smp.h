@@ -15,9 +15,9 @@
 
 #ifdef _KERNEL
 
-#include <machine/mutex.h>
-#include <machine/ipl.h>
+#include <sys/ipl.h>
 #include <sys/ktr.h>
+#include <sys/mutex.h>
 
 #ifndef LOCORE
 

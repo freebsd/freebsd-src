@@ -47,6 +47,7 @@
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/tty.h>
@@ -61,8 +62,6 @@
 #include <sys/sem.h>
 #include <sys/aio.h>
 #include <sys/jail.h>
-
-#include <machine/mutex.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
