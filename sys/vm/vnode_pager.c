@@ -433,7 +433,8 @@ vnode_pager_input_smlfs(object, m)
 	vm_page_t m;
 {
 	int i;
-	struct vnode *dp, *vp;
+	struct vnode *vp;
+	struct bufobj *bo;
 	struct buf *bp;
 	struct sf_buf *sf;
 	int fileaddr;
@@ -448,7 +449,7 @@ vnode_pager_input_smlfs(object, m)
 
 	bsize = vp->v_mount->mnt_stat.f_iosize;
 
-	VOP_BMAP(vp, 0, &dp, 0, NULL, NULL);
+	VOP_BMAP(vp, 0, &bo, 0, NULL, NULL);
 
 	sf = sf_buf_alloc(m, 0);
 
@@ -476,7 +477,7 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_wcred = crhold(curthread->td_ucred);
 			bp->b_data = (caddr_t)sf_buf_kva(sf) + i * bsize;
 			bp->b_blkno = fileaddr;
-			pbgetvp(dp, bp);
+			pbgetbo(bo, bp);
 			bp->b_bcount = bsize;
 			bp->b_bufsize = bsize;
 			bp->b_runningbufspace = bp->b_bufsize;
@@ -496,7 +497,7 @@ vnode_pager_input_smlfs(object, m)
 			/*
 			 * free the buffer header back to the swap buffer pool
 			 */
-			pbrelvp(bp);
+			pbrelbo(bp);
 			relpbuf(bp, &vnode_pbuf_freecnt);
 			if (error)
 				break;
@@ -645,7 +646,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	vm_offset_t kva;
 	off_t foff, tfoff, nextoff;
 	int i, j, size, bsize, first, firstaddr;
-	struct vnode *dp;
+	struct bufobj *bo;
 	int runpg;
 	int runend;
 	struct buf *bp;
@@ -656,6 +657,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
 
+	KASSERT(vp->v_type != VCHR && vp->v_type != VBLK,
+	    ("vnode_pager_generic_getpages does not support devices"));
 	if (vp->v_mount == NULL)
 		return VM_PAGER_BAD;
 
@@ -672,7 +675,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	if (VOP_BMAP(vp, 0, &dp, 0, NULL, NULL)) {
+	if (VOP_BMAP(vp, 0, &bo, 0, NULL, NULL)) {
 		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < count; i++)
@@ -803,8 +806,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * round up physical size for real devices.
 	 */
-	if (dp->v_type == VBLK || dp->v_type == VCHR) {
-		int secmask = dp->v_bufobj.bo_bsize - 1;
+	if (1) {
+		int secmask = bo->bo_bsize - 1;
 		KASSERT(secmask < PAGE_SIZE && secmask > 0,
 		    ("vnode_pager_generic_getpages: sector size %d too large",
 		    secmask + 1));
@@ -827,7 +830,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	bp->b_rcred = crhold(curthread->td_ucred);
 	bp->b_wcred = crhold(curthread->td_ucred);
 	bp->b_blkno = firstaddr;
-	pbgetvp(dp, bp);
+	pbgetbo(bo, bp);
 	bp->b_bcount = size;
 	bp->b_bufsize = size;
 	bp->b_runningbufspace = bp->b_bufsize;
@@ -854,7 +857,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * free the buffer header back to the swap buffer pool
 	 */
-	pbrelvp(bp);
+	pbrelbo(bp);
 	relpbuf(bp, &vnode_pbuf_freecnt);
 
 	VM_OBJECT_LOCK(object);
