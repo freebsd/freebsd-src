@@ -80,4 +80,12 @@
 #define	QC_DEF_WHITEBALANCE	150
 #define	QC_DEF_ZOOM		QC_ZOOM_100
 
+/*
+ * QuickCam parallel port handshake constants
+ */
+#define	QC_CTL_HIGHNIB		0x06
+#define	QC_CTL_LOWNIB		0x0e
+#define	QC_CTL_HIGHWORD		0x26
+#define	QC_CTL_LOWWORD		0x2f
+
 #endif	/* _QCAMREG_H */
