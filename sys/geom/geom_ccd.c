@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.4 1996/01/02 23:32:54 asami Exp $ */
+/* $Id: ccd.c,v 1.5 1996/01/30 22:34:53 asami Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -166,8 +166,8 @@ static	void ccdinterleave __P((struct ccd_softc *, int));
 static	void ccdintr __P((struct ccd_softc *, struct buf *));
 static	int ccdinit __P((struct ccddevice *, char **, struct proc *));
 static	int ccdlookup __P((char *, struct proc *p, struct vnode **));
-static	struct ccdbuf *ccdbuffer __P((struct ccd_softc *, struct buf *,
-		daddr_t, caddr_t, long));
+static	void ccdbuffer __P((struct ccdbuf **ret, struct ccd_softc *,
+		struct buf *, daddr_t, caddr_t, long));
 static	void ccdgetdisklabel __P((dev_t));
 static	void ccdmakedisklabel __P((struct ccd_softc *));
 static	int ccdlock __P((struct ccd_softc *));
@@ -701,7 +701,10 @@ ccdstrategy(bp)
 		if (bounds_check_with_label(bp, lp, wlabel) <= 0)
 			goto done;
 
-	bp->b_resid = bp->b_bcount;
+	if (cs->sc_cflags & CCDF_MIRROR && (bp->b_flags & B_READ) == 0)
+		bp->b_resid = bp->b_bcount*2;
+	else
+		bp->b_resid = bp->b_bcount;
 
 	/*
 	 * "Start" the unit.
@@ -720,7 +723,8 @@ ccdstart(cs, bp)
 	register struct buf *bp;
 {
 	register long bcount, rcount;
-	struct ccdbuf *cbp;
+	struct ccdbuf *cbp[4];
+	/* XXX! : 2 reads and 2 writes for RAID 4/5 */
 	caddr_t addr;
 	daddr_t bn;
 	struct partition *pp;
@@ -756,11 +760,17 @@ ccdstart(cs, bp)
 	 */
 	addr = bp->b_data;
 	for (bcount = bp->b_bcount; bcount > 0; bcount -= rcount) {
-		cbp = ccdbuffer(cs, bp, bn, addr, bcount);
-		rcount = cbp->cb_buf.b_bcount;
-		if ((cbp->cb_buf.b_flags & B_READ) == 0)
-			cbp->cb_buf.b_vp->v_numoutput++;
-		VOP_STRATEGY(&cbp->cb_buf);
+		ccdbuffer(cbp, cs, bp, bn, addr, bcount);
+		rcount = cbp[0]->cb_buf.b_bcount;
+		if ((cbp[0]->cb_buf.b_flags & B_READ) == 0)
+			cbp[0]->cb_buf.b_vp->v_numoutput++;
+		VOP_STRATEGY(&cbp[0]->cb_buf);
+		if (cs->sc_cflags & CCDF_MIRROR &&
+		    (cbp[0]->cb_buf.b_flags & B_READ) == 0) {
+			/* mirror, start another write */
+			cbp[1]->cb_buf.b_vp->v_numoutput++;
+			VOP_STRATEGY(&cbp[1]->cb_buf);
+		}
 		bn += btodb(rcount);
 		addr += rcount;
 	}
@@ -769,15 +779,16 @@ ccdstart(cs, bp)
 /*
  * Build a component buffer header.
  */
-static struct ccdbuf *
-ccdbuffer(cs, bp, bn, addr, bcount)
+void
+ccdbuffer(cb, cs, bp, bn, addr, bcount)
+	register struct ccdbuf **cb;
 	register struct ccd_softc *cs;
 	struct buf *bp;
 	daddr_t bn;
 	caddr_t addr;
 	long bcount;
 {
-	register struct ccdcinfo *ci;
+	register struct ccdcinfo *ci, *ci2;
 	register struct ccdbuf *cbp;
 	register daddr_t cbn, cboff;
 
@@ -824,6 +835,8 @@ ccdbuffer(cs, bp, bn, addr, bcount)
 			if (cs->sc_cflags & CCDF_MIRROR) {
 				ccdisk = ii->ii_index[off % (ii->ii_ndisk/2)];
 				cbn = ii->ii_startoff + off / (ii->ii_ndisk/2);
+				/* mirrored data */
+				ci2 = &cs->sc_cinfo[ccdisk + ii->ii_ndisk/2];
 			}
 			else if (cs->sc_cflags & CCDF_PARITY) {
 				ccdisk = ii->ii_index[off % (ii->ii_ndisk-1)];
@@ -871,7 +884,17 @@ ccdbuffer(cs, bp, bn, addr, bcount)
 		       ci->ci_dev, ci-cs->sc_cinfo, cbp, cbp->cb_buf.b_blkno,
 		       cbp->cb_buf.b_data, cbp->cb_buf.b_bcount);
 #endif
-	return (cbp);
+	cb[0] = cbp;
+	if (cs->sc_cflags & CCDF_MIRROR &&
+	    (cbp->cb_buf.b_flags & B_READ) == 0) {
+		/* mirror, start one more write */
+		cbp = getccdbuf();
+		*cbp = *cb[0];
+		cbp->cb_buf.b_dev = ci2->ci_dev;
+		cbp->cb_buf.b_vp = ci2->ci_vp;
+		cbp->cb_comp = ci2 - cs->sc_cinfo;
+		cb[1] = cbp;
+	}
 }
 
 static void
@@ -898,7 +921,10 @@ ccdintr(cs, bp)
 		dk_busy &= ~(1 << cs->sc_dk);
 #endif
 	if (bp->b_flags & B_ERROR)
-		bp->b_resid = bp->b_bcount;
+		if (cs->sc_cflags & CCDF_MIRROR && (bp->b_flags & B_READ) == 0)
+			bp->b_resid = bp->b_bcount*2;
+		else
+			bp->b_resid = bp->b_bcount;
 	biodone(bp);
 }
 
