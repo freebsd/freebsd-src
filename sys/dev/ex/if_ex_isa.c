@@ -186,7 +186,8 @@ ex_isa_identify(driver_t *driver, device_t parent)
 		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EX_IOSIZE);
 		if (bootverbose)
-			printf("ex: Adding board at 0x%03x, irq %d\n", ioport, irq);
+			printf("ex: Adding board at 0x%03lx, irq %d\n",
+			   (unsigned long)ioport, irq);
 	}
 
 	return;
