@@ -96,7 +96,7 @@ static struct vnodeopv_entry_desc ext2_vnodeop_entries[] = {
 	{ &vop_read_desc, (vop_t *)ext2_read },		/* read */
 	{ &vop_write_desc, (vop_t *)ext2_write },	/* write */
 	{ &vop_ioctl_desc, (vop_t *)ufs_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)ufs_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)ufs_poll },		/* poll */
 	{ &vop_mmap_desc, (vop_t *)ufs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ext2_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)ufs_seek },		/* seek */
@@ -135,6 +135,7 @@ vop_t **ext2_specop_p;
 static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
@@ -145,7 +146,7 @@ static struct vnodeopv_entry_desc ext2_specop_entries[] = {
 	{ &vop_read_desc, (vop_t *)ufsspec_read },	/* read */
 	{ &vop_write_desc, (vop_t *)ufsspec_write },	/* write */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ext2_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)spec_seek },		/* seek */
@@ -184,6 +185,7 @@ vop_t **ext2_fifoop_p;
 static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)fifo_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)fifo_create },	/* create */
 	{ &vop_mknod_desc, (vop_t *)fifo_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)fifo_open },		/* open */
@@ -194,7 +196,7 @@ static struct vnodeopv_entry_desc ext2_fifoop_entries[] = {
 	{ &vop_read_desc, (vop_t *)ufsfifo_read },	/* read */
 	{ &vop_write_desc, (vop_t *)ufsfifo_write },	/* write */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)fifo_poll },		/* poll */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ext2_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)fifo_seek },		/* seek */

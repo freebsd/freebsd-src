@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.17 1997/02/22 09:47:33 peter Exp $
+ * $Id: mfs_vnops.c,v 1.18 1997/08/02 14:33:23 bde Exp $
  */
 
 #include <sys/param.h>
@@ -63,7 +63,9 @@ vop_t **mfs_vnodeop_p;
 static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)mfs_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)mfs_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)mfs_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)mfs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)mfs_close },	/* close */
@@ -72,8 +74,9 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)mfs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)mfs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)mfs_write },	/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)mfs_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)mfs_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)mfs_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)mfs_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)mfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
@@ -99,9 +102,12 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)mfs_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)mfs_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)mfs_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)mfs_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)mfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)mfs_update },	/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)mfs_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };

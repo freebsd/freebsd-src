@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.15 (Berkeley) 5/21/95
- * $Id: kernfs_vnops.c,v 1.19 1997/02/22 09:40:19 peter Exp $
+ * $Id: kernfs_vnops.c,v 1.20 1997/09/02 20:06:12 bde Exp $
  */
 
 /*
@@ -715,7 +715,7 @@ kernfs_badop()
 #define kernfs_mknod ((int (*) __P((struct  vop_mknod_args *)))eopnotsupp)
 #define kernfs_close ((int (*) __P((struct  vop_close_args *)))nullop)
 #define kernfs_ioctl ((int (*) __P((struct  vop_ioctl_args *)))eopnotsupp)
-#define kernfs_select ((int (*) __P((struct  vop_select_args *)))eopnotsupp)
+#define kernfs_poll vop_nopoll
 #define kernfs_revoke vop_revoke
 #define kernfs_mmap ((int (*) __P((struct  vop_mmap_args *)))eopnotsupp)
 #define kernfs_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
@@ -750,7 +750,9 @@ vop_t	**kernfs_vnodeop_p;
 static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)kernfs_lookup },		/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)kernfs_create },		/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)kernfs_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)kernfs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)kernfs_close },		/* close */
@@ -759,8 +761,9 @@ static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)kernfs_setattr },		/* setattr */
 	{ &vop_read_desc, (vop_t *)kernfs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)kernfs_write },		/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)kernfs_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)kernfs_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)kernfs_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)kernfs_revoke },		/* revoke */
 	{ &vop_mmap_desc, (vop_t *)kernfs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)kernfs_fsync },		/* fsync */
@@ -786,9 +789,12 @@ static struct vnodeopv_entry_desc kernfs_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)kernfs_advlock },		/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)kernfs_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)kernfs_valloc },		/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)kernfs_vfree },		/* vfree */
 	{ &vop_truncate_desc, (vop_t *)kernfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)kernfs_update },		/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
 	{ &vop_bwrite_desc, (vop_t *)kernfs_bwrite },		/* bwrite */
 	{ NULL, NULL }
 };

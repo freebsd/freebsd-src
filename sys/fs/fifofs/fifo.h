@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fifo.h	8.6 (Berkeley) 5/21/95
- * $Id$
+ * $Id: fifo.h,v 1.13 1997/02/22 09:40:17 peter Exp $
  */
 
 extern vop_t **fifo_vnodeop_p;
@@ -53,7 +53,7 @@ int	fifo_read __P((struct vop_read_args *));
 int	fifo_write __P((struct vop_write_args *));
 #define fifo_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
 int	fifo_ioctl __P((struct vop_ioctl_args *));
-int	fifo_select __P((struct vop_select_args *));
+int	fifo_poll __P((struct vop_poll_args *));
 #define	fifo_revoke vop_revoke
 #define fifo_mmap ((int (*) __P((struct  vop_mmap_args *)))fifo_badop)
 #define fifo_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)

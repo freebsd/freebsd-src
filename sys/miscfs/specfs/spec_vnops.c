@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
- * $Id: spec_vnops.c,v 1.40 1997/05/29 13:29:13 tegge Exp $
+ * $Id: spec_vnops.c,v 1.41 1997/09/02 20:06:12 bde Exp $
  */
 
 #include <sys/param.h>
@@ -66,7 +66,9 @@ vop_t **spec_vnodeop_p;
 static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)spec_lookup },	/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)spec_create },	/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)spec_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)spec_open },		/* open */
 	{ &vop_close_desc, (vop_t *)spec_close },	/* close */
@@ -77,7 +79,7 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_write_desc, (vop_t *)spec_write },	/* write */
 	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
-	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_poll_desc, (vop_t *)spec_poll },		/* poll */
 	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)spec_fsync },	/* fsync */
@@ -103,11 +105,13 @@ static struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)spec_advlock },	/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)spec_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)spec_valloc },	/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)spec_vfree },	/* vfree */
 	{ &vop_truncate_desc, (vop_t *)spec_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)spec_update },	/* update */
-	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ &vop_getpages_desc, (vop_t *)spec_getpages},	/* getpages */
+/* XXX: vop_putpages */
+	{ &vop_bwrite_desc, (vop_t *)vn_bwrite },	/* bwrite */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc spec_vnodeop_opv_desc =
@@ -433,11 +437,10 @@ spec_ioctl(ap)
 
 /* ARGSUSED */
 int
-spec_select(ap)
-	struct vop_select_args /* {
+spec_poll(ap)
+	struct vop_poll_args /* {
 		struct vnode *a_vp;
-		int  a_which;
-		int  a_fflags;
+		int  a_events;
 		struct ucred *a_cred;
 		struct proc *a_p;
 	} */ *ap;
@@ -446,12 +449,12 @@ spec_select(ap)
 
 	switch (ap->a_vp->v_type) {
 
-	default:
-		return (1);		/* XXX */
-
 	case VCHR:
 		dev = ap->a_vp->v_rdev;
-		return (*cdevsw[major(dev)]->d_select)(dev, ap->a_which, ap->a_p);
+		return (*cdevsw[major(dev)]->d_poll)(dev, ap->a_events, ap->a_p);
+	default:
+		return (vop_nopoll(ap));
+
 	}
 }
 /*

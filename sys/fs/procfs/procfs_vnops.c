@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.30 1997/08/02 14:32:20 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.31 1997/08/12 04:34:30 sef Exp $
  */
 
 /*
@@ -940,8 +940,8 @@ atopid(b, len)
 #define procfs_mknod ((int (*) __P((struct vop_mknod_args *))) procfs_badop)
 #define	procfs_read procfs_rw
 #define	procfs_write procfs_rw
-#define procfs_select ((int (*) __P((struct vop_select_args *))) procfs_badop)
 #define procfs_mmap ((int (*) __P((struct vop_mmap_args *))) procfs_badop)
+#define procfs_poll vop_nopoll
 #define procfs_revoke vop_revoke
 #define procfs_fsync ((int (*) __P((struct vop_fsync_args *))) procfs_badop)
 #define procfs_seek ((int (*) __P((struct vop_seek_args *))) procfs_badop)
@@ -970,7 +970,9 @@ vop_t **procfs_vnodeop_p;
 static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)procfs_lookup },		/* lookup */
+/* XXX: vop_cachedlookup */
 	{ &vop_create_desc, (vop_t *)procfs_create },		/* create */
+/* XXX: vop_whiteout */
 	{ &vop_mknod_desc, (vop_t *)procfs_mknod },		/* mknod */
 	{ &vop_open_desc, (vop_t *)procfs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)procfs_close },		/* close */
@@ -979,8 +981,9 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)procfs_setattr },		/* setattr */
 	{ &vop_read_desc, (vop_t *)procfs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)procfs_write },		/* write */
+/* XXX: vop_lease */
 	{ &vop_ioctl_desc, (vop_t *)procfs_ioctl },		/* ioctl */
-	{ &vop_select_desc, (vop_t *)procfs_select },		/* select */
+	{ &vop_poll_desc, (vop_t *)procfs_poll },		/* poll */
 	{ &vop_mmap_desc, (vop_t *)procfs_mmap },		/* mmap */
 	{ &vop_revoke_desc, (vop_t *)procfs_revoke },		/* revoke */
 	{ &vop_fsync_desc, (vop_t *)procfs_fsync },		/* fsync */
@@ -1006,9 +1009,13 @@ static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_advlock_desc, (vop_t *)procfs_advlock },		/* advlock */
 	{ &vop_blkatoff_desc, (vop_t *)procfs_blkatoff },	/* blkatoff */
 	{ &vop_valloc_desc, (vop_t *)procfs_valloc },		/* valloc */
+/* XXX: vop_reallocblks */
 	{ &vop_vfree_desc, (vop_t *)procfs_vfree },		/* vfree */
 	{ &vop_truncate_desc, (vop_t *)procfs_truncate },	/* truncate */
 	{ &vop_update_desc, (vop_t *)procfs_update },		/* update */
+/* XXX: vop_getpages */
+/* XXX: vop_putpages */
+/* XXX: vop_bwrite */
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc procfs_vnodeop_opv_desc =
