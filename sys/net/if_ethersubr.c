@@ -138,7 +138,6 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	struct ether_header *eh;
 	int loop_copy = 0;
 	int hlen;	/* link layer header length */
-	struct arpcom *ac = IFP2AC(ifp);
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -193,7 +192,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
+		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
 			/* Something bad happened */
 			return(0);
 		}
@@ -220,7 +219,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	    if ((aa = at_ifawithnet((struct sockaddr_at *)dst)) == NULL) {
 		    goto bad;
 	    }
-	    if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst))
+	    if (!aarpresolve(IFP2AC(ifp), m, (struct sockaddr_at *)dst, edst))
 		    return (0);
 	    /*
 	     * In the phase 2 case, need to prepend an mbuf for the llc header.
@@ -280,7 +279,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		(void)memcpy(eh->ether_shost, esrc,
 			sizeof(eh->ether_shost));
 	else
-		(void)memcpy(eh->ether_shost, ac->ac_enaddr,
+		(void)memcpy(eh->ether_shost, IFP2AC(ifp)->ac_enaddr,
 			sizeof(eh->ether_shost));
 
 	/*
