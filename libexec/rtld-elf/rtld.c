@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: rtld.c,v 1.12 1998/10/13 03:31:59 jdp Exp $
+ *      $Id: rtld.c,v 1.13 1998/11/27 21:19:52 dfr Exp $
  */
 
 /*
@@ -148,6 +148,7 @@ static func_ptr_type exports[] = {
     (func_ptr_type) &dlerror,
     (func_ptr_type) &dlopen,
     (func_ptr_type) &dlsym,
+    (func_ptr_type) &dladdr,
     NULL
 };
 
@@ -1257,6 +1258,51 @@ dlsym(void *handle, const char *name)
 
     _rtld_error("Undefined symbol \"%s\"", name);
     return NULL;
+}
+
+int
+dladdr(const void *addr, Dl_info *info)
+{
+    const Obj_Entry *obj;
+    const Elf_Sym *def;
+    void *symbol_addr;
+    unsigned long symoffset;
+    
+	obj = obj_from_addr(addr);
+    if (obj == NULL) {
+	    _rtld_error("No shared object contains address");
+        return 0;
+    }
+    info->dli_fname = obj->path;
+    info->dli_fbase = obj->relocbase;
+    info->dli_saddr = (void *)0;
+    info->dli_sname = NULL;
+
+    /*
+     * Walk the symbol list looking for the symbol whosse address is
+     * closest to the address sent in.
+     */
+    for (symoffset = 0; symoffset < obj->nchains; symoffset++) {
+        def = obj->symtab + symoffset;
+        symbol_addr = obj->relocbase + def->st_value;
+        /*
+         *If the symbol is greater than the specified address, or if it
+         * is further away from addr than the current nearest symbol,
+         * then reject it.
+         */
+        if (symbol_addr > addr ||
+            symbol_addr < info->dli_saddr)
+            continue;
+
+        /* Update our idea of the nearest symbol. */
+        info->dli_sname = obj->strtab + def->st_name;
+        info->dli_saddr = symbol_addr;
+
+        /* Exact match? */
+        if (info->dli_saddr == addr)
+            break;
+    }
+    return 1;
 }
 
 static void
