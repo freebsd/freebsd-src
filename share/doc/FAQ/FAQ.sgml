@@ -1,5 +1,5 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.16 1996/12/14 18:12:17 joerg Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.21 1997/01/14 14:36:13 jkh Exp $ -->
 
   <article>
 
@@ -7,7 +7,7 @@
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
 
-<date>$Date: 1996/12/14 18:12:17 $
+<date>$Date: 1997/01/14 14:36:13 $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -166,8 +166,9 @@ Any entries with a &lt;XXX&gt; are under construction.
                      2.2-ALPHA ---> 2.2-BETA ---> 2.2-RELEASE ---> [2.2-stable]
                         |                          (Q1 1997)
                         |
+                     3.0-SNAPs  (Q1 1997)
                         |
-                        .
+                        |
                        \|/
                         +
 
