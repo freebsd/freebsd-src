@@ -549,8 +549,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		/* XXX data is used even in the PT_STEP case. */
-		if (req != PT_STEP && (unsigned)data > _SIG_MAXSIG) {
+		/* Zero means do not send any signal */
+		if (data < 0 || data > _SIG_MAXSIG) {
 			error = EINVAL;
 			goto fail;
 		}

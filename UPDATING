@@ -4,6 +4,17 @@ This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
 
+This is for the 5.1 release branch.  All entries since 5.0 are an
+itemized list of commits to this branch, numbered from the beginning.
+
+The security advisories related to various patches contain information
+on how to build/install a minimal set of binaries and start/stop a
+minimal number of processes, if possible, for that patch.  For those
+updates that don't have an advisory, or to be safe, you can do a full
+build and install as described in the COMMON ITEMS section.
+
+20030810:	p1	FreeBSD-SA-03:09.signal
+	Repair range-checking errors in signal handling.
 
 20030603:
 	FreeBSD 5.1
