@@ -155,21 +155,6 @@ is specified,
 sends that many packets as fast as possible before falling into its normal
 mode of behavior.
 Only the super-user may use this option.
-.It Fl M
-Use
-.Dv ICMP_MASKREQ
-instead of
-.Dv ICMP_ECHO .
-Print the netmask of the remote machine.
-Set the
-.Va net.inet.icmp.maskrepl
-MIB variable to enable
-.Dv ICMP_MASKREPLY .
-.It Fl m Ar ttl
-Set the IP Time To Live for outgoing packets.
-If not specified, the kernel uses the value of the
-.Va net.inet.ip.ttl
-MIB variable.
 .It Fl M Ar mask | time
 Use ICMP_MASKREQ or ICMP_TSTAMP instead of ICMP_ECHO.  For
 .Ar mask
@@ -179,6 +164,11 @@ MIB variable to enable ICMP_MASKREPLY.
 For
 .Ar time
 print the origination, reception and transmition timestamps.
+.It Fl m Ar ttl
+Set the IP Time To Live for outgoing packets.
+If not specified, the kernel uses the value of the
+.Va net.inet.ip.ttl
+MIB variable.
 .It Fl n
 Numeric output only.
 No attempt will be made to lookup symbolic names for host addresses.
