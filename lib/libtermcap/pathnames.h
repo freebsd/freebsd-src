@@ -34,3 +34,4 @@
  */
 
 #define	_PATH_DEF	".termcap /usr/share/misc/termcap"
+#define	_PATH_DEF_SEC	"/usr/share/misc/termcap"
