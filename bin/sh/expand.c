@@ -531,7 +531,7 @@ subevalvar(char *p, char *str, int strloc, int subtype, int startloc,
 			outfmt(&errout, "%s\n", startp);
 			error((char *)NULL);
 		}
-		error("%.*s: parameter %snot set", p - str - 1,
+		error("%.*s: parameter %snot set", (int)(p - str - 1),
 		      str, (varflags & VSNUL) ? "null or "
 					      : nullstr);
 		return 0;
@@ -666,7 +666,8 @@ again: /* jump here after setting a variable with ${var=text} */
 		case VSTRIMRIGHT:
 		case VSTRIMRIGHTMAX:
 		case VSLENGTH:
-			error("%.*s: parameter not set", p - var - 1, var);
+			error("%.*s: parameter not set", (int)(p - var - 1),
+			    var);
 		}
 	}
 	if (set && subtype != VSPLUS) {
