@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.15 1995/10/26 08:56:16 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.16 1995/11/06 07:27:31 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -526,8 +526,7 @@ netHook(char *str)
 	return RET_FAIL;
     devs = deviceFind(str, DEVICE_TYPE_NETWORK);
     if (devs) {
-	if (RunningAsInit)
-	    tcpOpenDialog(devs[0]);
+	tcpOpenDialog(devs[0]);
 	mediaDevice = devs[0];
     }
     return devs ? RET_DONE : RET_FAIL;
@@ -548,7 +547,7 @@ tcpDeviceSelect(void)
 	msgConfirm("No network devices available!");
 	status = FALSE;
     }
-    else if (cnt == 1) {
+    else if (cnt == 1 || !RunningAsInit) {
 	/* If we're running in user mode, assume network already up */
 	if (RunningAsInit)
 	    tcpOpenDialog(devs[0]);
