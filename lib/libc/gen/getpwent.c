@@ -1129,6 +1129,7 @@ __hashpw(key)
 	char *p, *t;
 	static u_int max;
 	static char *buf;
+	int32_t pw_change, pw_expire;
 	DBT data;
 
 	switch ((_pw_db->get)(_pw_db, key, &data, 0)) {
@@ -1154,13 +1155,15 @@ __hashpw(key)
 	EXPAND(_pw_passwd.pw_passwd);
 	SCALAR(_pw_passwd.pw_uid);
 	SCALAR(_pw_passwd.pw_gid);
-	SCALAR(_pw_passwd.pw_change);
+	SCALAR(pw_change);
 	EXPAND(_pw_passwd.pw_class);
 	EXPAND(_pw_passwd.pw_gecos);
 	EXPAND(_pw_passwd.pw_dir);
 	EXPAND(_pw_passwd.pw_shell);
-	SCALAR(_pw_passwd.pw_expire);
+	SCALAR(pw_expire);
 	SCALAR(_pw_passwd.pw_fields);
+	_pw_passwd.pw_change = pw_change;
+	_pw_passwd.pw_expire = pw_expire;
 
 	return NS_SUCCESS;
 }
