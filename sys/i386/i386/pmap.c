@@ -2318,7 +2318,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		unsigned ptepindex;
 
 		if (addr >= UPT_MIN_ADDRESS)
-			panic("pmap_copy: invalid to pmap_copy page tables\n");
+			panic("pmap_copy: invalid to pmap_copy page tables");
 
 		/*
 		 * Don't let optional prefaulting of pages make us go
@@ -2346,8 +2346,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		}
 
 		srcmpte = PHYS_TO_VM_PAGE(srcptepaddr);
-		if (srcmpte->hold_count == 0 || (srcmpte->flags & PG_BUSY))
-			continue;
+		if (srcmpte->hold_count == 0)
+			panic("pmap_copy: source page table page is unused");
 
 		if (pdnxt > end_addr)
 			pdnxt = end_addr;
