@@ -232,7 +232,7 @@ void uma_print_stats(void);
 static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
 
 #ifdef WITNESS
-static int nosleepwithlocks = 1;
+static int nosleepwithlocks = 0;
 SYSCTL_INT(_debug, OID_AUTO, nosleepwithlocks, CTLFLAG_RW, &nosleepwithlocks,
     0, "Convert M_WAITOK to M_NOWAIT to avoid lock-held-across-sleep paths");
 #else
@@ -825,13 +825,16 @@ slab_zalloc(uma_zone_t zone, int wait)
 	slab->us_freecount = keg->uk_ipers;
 	slab->us_firstfree = 0;
 	slab->us_flags = flags;
-	for (i = 0; i < keg->uk_ipers; i++)
-		slab->us_freelist[i].us_item = i+1;
 
 	if (keg->uk_flags & UMA_ZONE_REFCNT) {
 		slabref = (uma_slabrefcnt_t)slab;
-		for (i = 0; i < keg->uk_ipers; i++)
+		for (i = 0; i < keg->uk_ipers; i++) {
 			slabref->us_freelist[i].us_refcnt = 0;
+			slabref->us_freelist[i].us_item = i+1;
+		}
+	} else {
+		for (i = 0; i < keg->uk_ipers; i++)
+			slab->us_freelist[i].us_item = i+1;
 	}
 
 	if (keg->uk_init != NULL) {
@@ -1983,13 +1986,19 @@ static void *
 uma_slab_alloc(uma_zone_t zone, uma_slab_t slab)
 {
 	uma_keg_t keg;
+	uma_slabrefcnt_t slabref;
 	void *item;
 	u_int8_t freei;
 
 	keg = zone->uz_keg;
 
 	freei = slab->us_firstfree;
-	slab->us_firstfree = slab->us_freelist[freei].us_item;
+	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+		slabref = (uma_slabrefcnt_t)slab;
+		slab->us_firstfree = slabref->us_freelist[freei].us_item;
+	} else {
+		slab->us_firstfree = slab->us_freelist[freei].us_item;
+	}
 	item = slab->us_data + (keg->uk_rsize * freei);
 
 	slab->us_freecount--;
@@ -2339,6 +2348,7 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
     enum zfreeskip skip)
 {
 	uma_slab_t slab;
+	uma_slabrefcnt_t slabref;
 	uma_keg_t keg;
 	u_int8_t *mem;
 	u_int8_t freei;
@@ -2382,7 +2392,12 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
 		uma_dbg_free(zone, slab, item);
 #endif
 
-	slab->us_freelist[freei].us_item = slab->us_firstfree;
+	if (keg->uk_flags & UMA_ZONE_REFCNT) {
+		slabref = (uma_slabrefcnt_t)slab;
+		slabref->us_freelist[freei].us_item = slab->us_firstfree;
+	} else {
+		slab->us_freelist[freei].us_item = slab->us_firstfree;
+	}
 	slab->us_firstfree = freei;
 	slab->us_freecount++;
 
@@ -2545,18 +2560,19 @@ uma_prealloc(uma_zone_t zone, int items)
 u_int32_t *
 uma_find_refcnt(uma_zone_t zone, void *item)
 {
-	uma_slabrefcnt_t slab;
+	uma_slabrefcnt_t slabref;
 	uma_keg_t keg;
 	u_int32_t *refcnt;
 	int idx;
 
 	keg = zone->uz_keg;
-	slab = (uma_slabrefcnt_t)vtoslab((vm_offset_t)item & (~UMA_SLAB_MASK));
-	KASSERT(slab != NULL,
+	slabref = (uma_slabrefcnt_t)vtoslab((vm_offset_t)item &
+	    (~UMA_SLAB_MASK));
+	KASSERT(slabref != NULL && slabref->us_keg->uk_flags & UMA_ZONE_REFCNT,
 	    ("uma_find_refcnt(): zone possibly not UMA_ZONE_REFCNT"));
-	idx = ((unsigned long)item - (unsigned long)slab->us_data)
+	idx = ((unsigned long)item - (unsigned long)slabref->us_data)
 	    / keg->uk_rsize;
-	refcnt = &(slab->us_freelist[idx].us_refcnt);
+	refcnt = &slabref->us_freelist[idx].us_refcnt;
 	return refcnt;
 }
 
