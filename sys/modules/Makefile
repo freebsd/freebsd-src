@@ -64,6 +64,7 @@ SUBDIR=	accf_data \
 	mac_mls \
 	mac_none \
 	mac_partition \
+	mac_portacl \
 	mac_seeotheruids \
 	mac_test \
 	mcd \

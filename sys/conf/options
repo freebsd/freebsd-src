@@ -159,6 +159,7 @@ MAC_LOMAC	opt_dontuse.h
 MAC_MLS		opt_dontuse.h
 MAC_NONE	opt_dontuse.h
 MAC_PARTITION	opt_dontuse.h
+MAC_PORTACL	opt_dontuse.h
 MAC_SEEOTHERUIDS	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 
