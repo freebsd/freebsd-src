@@ -95,18 +95,12 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/types.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__bsdi__)
 #include <sys/device.h>
 #endif
-#if defined(__FreeBSD__)
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
 #include <sys/mbuf.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
 
 #include <net/if.h>
 #include <net/if_atm.h>
@@ -136,7 +130,6 @@
 #define	vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif
 #elif defined(__FreeBSD__)
-#include <machine/cpufunc.h>            /* for rdtsc proto for clock.h below */
 #include <machine/clock.h>              /* for DELAY */
 #include <dev/en/midwayreg.h>
 #include <dev/en/midwayvar.h>
