@@ -79,7 +79,7 @@ struct pkthdr {
 	struct	ifnet *rcvif;		/* rcv interface */
 	int	len;			/* total packet length */
 	/* variables for ip and tcp reassembly */
-	caddr_t	header;			/* pointer to packet header */
+	void	*header;		/* pointer to packet header */
 	/* variables for hardware checksum */
 	int	csum_flags;		/* flags regarding checksum */
 	int	csum_data;		/* data field used by csum routines */
