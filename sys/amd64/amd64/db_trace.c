@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.30 1998/07/08 10:53:58 bde Exp $
+ *	$Id: db_trace.c,v 1.31 1998/07/15 11:27:11 bde Exp $
  */
 
 #include <sys/param.h>
@@ -83,7 +83,7 @@ struct i386_frame {
 
 static void db_nextframe __P((struct i386_frame **, db_addr_t *));
 static int db_numargs __P((struct i386_frame *));
-static void db_print_stack_entry __P((char *, int, char **, int *, db_addr_t));
+static void db_print_stack_entry __P((const char *, int, char **, int *, db_addr_t));
 
 /*
  * Figure out how many arguments were passed into the frame at "fp".
@@ -118,7 +118,7 @@ db_numargs(fp)
 
 static void
 db_print_stack_entry(name, narg, argnp, argp, callpc)
-	char *name;
+	const char *name;
 	int narg;
 	char **argnp;
 	int *argp;
@@ -150,7 +150,7 @@ db_nextframe(fp, ip)
 	int frame_type;
 	int eip, esp, ebp;
 	db_expr_t offset;
-	char *sym, *name;
+	const char *sym, *name;
 
 	eip = db_get_value((int) &(*fp)->f_retaddr, 4, FALSE);
 	ebp = db_get_value((int) &(*fp)->f_frame, 4, FALSE);
@@ -257,9 +257,9 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	while (count--) {
 		struct i386_frame *actframe;
 		int		narg;
-		char *	name;
+		const char *	name;
 		db_expr_t	offset;
-		db_sym_t	sym;
+		c_db_sym_t	sym;
 #define MAXNARG	16
 		char	*argnames[MAXNARG], **argnp = NULL;
 

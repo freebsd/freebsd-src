@@ -1,4 +1,4 @@
-/*	$Id: bootp_subr.c,v 1.17 1998/12/04 22:54:54 archie Exp $	*/
+/*	$Id: bootp_subr.c,v 1.18 1998/12/07 21:58:43 archie Exp $	*/
 
 /*
  * Copyright (c) 1995 Gordon Ross, Adam Glass
@@ -282,7 +282,7 @@ bootpc_call(call,reply,procp)
 	sopt.sopt_val = &tv;
 	sopt.sopt_valsize = sizeof tv;
 
-	if (error = sosetopt(so, &sopt))
+	if ((error = sosetopt(so, &sopt)) != 0)
 		goto out;
 
 	/*
@@ -292,7 +292,7 @@ bootpc_call(call,reply,procp)
 	sopt.sopt_val = &on;
 	sopt.sopt_valsize = sizeof on;
 	sopt.sopt_name = SO_BROADCAST;
-	if (error = sosetopt(so, &sopt))
+	if ((error = sosetopt(so, &sopt)) != 0)
 		goto out;
 
 	/*

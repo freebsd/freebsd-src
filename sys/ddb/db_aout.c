@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.22 1998/10/09 23:29:44 peter Exp $
+ *	$Id: db_aout.c,v 1.23 1999/01/27 19:00:49 dillon Exp $
  */
 
 /*
@@ -283,7 +283,7 @@ X_db_line_at_pc(symtab, cursym, filename, linenum, off)
 boolean_t
 X_db_sym_numargs(symtab, cursym, nargp, argnamep)
 	db_symtab_t *	symtab;
-	db_sym_t	cursym;
+	c_db_sym_t	cursym;
 	int		*nargp;
 	char		**argnamep;
 {

@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.27 1998/12/04 22:54:43 archie Exp $
+ *	$Id: db_sym.c,v 1.28 1999/01/27 19:00:49 dillon Exp $
  */
 
 /*
@@ -48,10 +48,10 @@ static int db_nsymtab = 0;
 
 static db_symtab_t	*db_last_symtab; /* where last symbol was found */
 
-static db_sym_t		db_lookup __P(( const char *symstr));
-static char		*db_qualify __P((db_sym_t sym, char *symtabname));
-static boolean_t	db_symbol_is_ambiguous __P((db_sym_t sym));
-static boolean_t	db_line_at_pc __P((db_sym_t, char **, int *, 
+static c_db_sym_t	db_lookup __P(( const char *symstr));
+static char		*db_qualify __P((c_db_sym_t sym, char *symtabname));
+static boolean_t	db_symbol_is_ambiguous __P((c_db_sym_t sym));
+static boolean_t	db_line_at_pc __P((c_db_sym_t, char **, int *, 
 				db_expr_t));
 
 /*
@@ -84,7 +84,7 @@ db_add_symbol_table(start, end, name, ref)
  */
 static char *
 db_qualify(sym, symtabname)
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 	register char	*symtabname;
 {
 	const char	*symname;
@@ -114,10 +114,10 @@ db_value_of_name(name, valuep)
 	const char	*name;
 	db_expr_t	*valuep;
 {
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 
 	sym = db_lookup(name);
-	if (sym == DB_SYM_NULL)
+	if (sym == C_DB_SYM_NULL)
 	    return (FALSE);
 	db_symbol_values(sym, &name, valuep);
 	return (TRUE);
@@ -130,11 +130,11 @@ db_value_of_name(name, valuep)
  * then only the specified symbol table will be searched;
  * otherwise, all symbol tables will be searched.
  */
-static db_sym_t
+static c_db_sym_t
 db_lookup(symstr)
 	const char *symstr;
 {
-	db_sym_t sp;
+	c_db_sym_t sp;
 	register int i;
 	int symtab_start = 0;
 	int symtab_end = db_nsymtab;
@@ -190,7 +190,7 @@ static volatile boolean_t db_qualify_ambiguous_names = FALSE;
  */
 static boolean_t
 db_symbol_is_ambiguous(sym)
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 {
 	const char	*sym_name;
 	register int	i;
@@ -215,7 +215,7 @@ db_symbol_is_ambiguous(sym)
  * Find the closest symbol to val, and return its name
  * and the difference between val and the symbol found.
  */
-db_sym_t
+c_db_sym_t
 db_search_symbol( val, strategy, offp)
 	register db_addr_t	val;
 	db_strategy_t		strategy;
@@ -225,7 +225,7 @@ db_search_symbol( val, strategy, offp)
 	unsigned int	diff;
 	size_t		newdiff;
 	register int	i;
-	db_sym_t	ret = DB_SYM_NULL, sym;
+	c_db_sym_t	ret = C_DB_SYM_NULL, sym;
 
 	newdiff = diff = ~0;
 	db_last_symtab = 0;
@@ -246,7 +246,7 @@ db_search_symbol( val, strategy, offp)
  */
 void
 db_symbol_values(sym, namep, valuep)
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 	const char	**namep;
 	db_expr_t	*valuep;
 {
@@ -294,7 +294,7 @@ db_printsym(off, strategy)
 	const char	*name;
 	db_expr_t	value;
 	int 		linenum;
-	db_sym_t	cursym;
+	c_db_sym_t	cursym;
 
 	cursym = db_search_symbol(off, strategy, &d);
 	db_symbol_values(cursym, &name, &value);
@@ -319,7 +319,7 @@ db_printsym(off, strategy)
 
 static boolean_t
 db_line_at_pc( sym, filename, linenum, pc)
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 	char		**filename;
 	int		*linenum;
 	db_expr_t	pc;
@@ -329,7 +329,7 @@ db_line_at_pc( sym, filename, linenum, pc)
 
 int
 db_sym_numargs(sym, nargp, argnames)
-	db_sym_t	sym;
+	c_db_sym_t	sym;
 	int		*nargp;
 	char		**argnames;
 {
