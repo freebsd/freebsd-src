@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.26 1995/12/15 22:49:36 bde Exp $
+ * $Id: vnode.h,v 1.27 1995/12/17 21:23:44 phk Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -421,9 +421,6 @@ int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    struct ucred *cred, int *aresid, struct proc *p));
 int	vn_stat __P((struct vnode *vp, struct stat *sb, struct proc *p));
 void	vn_vmio_close __P((struct vnode *vp));
-int	vn_vmio_open __P((struct vnode *vp, struct proc *p,
-	    struct ucred *cred));
-int	vn_write __P((struct file *fp, struct uio *uio, struct ucred *cred));
 int 	vn_writechk __P((struct vnode *vp));
 void	vprint __P((char *label, struct vnode *vp));
 void 	vput __P((struct vnode *vp));
