@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.36 1994/10/08 22:19:50 phk Exp $
+ *	$Id: trap.c,v 1.37 1994/10/09 22:02:06 sos Exp $
  */
 
 /*
@@ -664,12 +664,6 @@ syscall(frame)
 
 	error = (*callp->sy_call)(p, args, rval);
 
- 	if (p->p_sysent->sv_errsize)
- 		if (error >= p->p_sysent->sv_errsize)
-  			error = -1;	/* XXX */
-   		else 
-  			error = p->p_sysent->sv_errtbl[error];
-
 	switch (error) {
 
 	case 0:
@@ -692,6 +686,12 @@ syscall(frame)
 
 	default:
 	bad:
+ 		if (p->p_sysent->sv_errsize)
+ 			if (error >= p->p_sysent->sv_errsize)
+  				error = -1;	/* XXX */
+   			else 
+  				error = p->p_sysent->sv_errtbl[error];
+		else
 		frame.tf_eax = error;
 		frame.tf_eflags |= PSL_C;	/* carry bit */
 		break;
