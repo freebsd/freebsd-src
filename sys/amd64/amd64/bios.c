@@ -380,7 +380,7 @@ bios16(struct bios_args *args, char *fmt, ...)
     args->seg.code32.limit = 0xffff;	
 
     ptd = (u_int *)rcr3();
-    if (ptd == IdlePTD) {
+    if (ptd == (u_int *)IdlePTD) {
 	/*
 	 * no page table, so create one and install it.
 	 */
