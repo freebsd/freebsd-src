@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_vx.c,v 1.18 1998/07/13 09:52:53 bde Exp $
+ * $Id: if_vx.c,v 1.19 1999/01/12 02:09:31 eivind Exp $
  *
  */
 
@@ -325,10 +325,10 @@ vxgetlink(sc)
 			>> INTERNAL_CONNECTOR_BITS;
     if (sc->vx_connector & 0x10) {
 	sc->vx_connector &= 0x0f;
-	printf("[*%s*]", conn_tab[sc->vx_connector].name);
+	printf("[*%s*]", conn_tab[(int)sc->vx_connector].name);
 	printf(": disable 'auto select' with DOS util!");
     } else {
-	printf("[*%s*]", conn_tab[sc->vx_connector].name);
+	printf("[*%s*]", conn_tab[(int)sc->vx_connector].name);
     }
 }
 
@@ -388,7 +388,7 @@ vxsetlink(sc)
 	} else {
 	    warning = "utp not present! (link2)";
 	}
-    } else if ((sc->vx_connectors & conn_tab[sc->vx_connector].bit) == 0) {
+    } else if ((sc->vx_connectors & conn_tab[(int)sc->vx_connector].bit) == 0) {
 	warning = "strange connector type in EEPROM.";
 	reason = "forced";
 	i = CONNECTOR_UTP;

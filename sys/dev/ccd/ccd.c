@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.37 1998/09/15 08:15:26 gibbs Exp $ */
+/* $Id: ccd.c,v 1.38 1999/01/22 22:38:28 peter Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -332,8 +332,8 @@ ccdinit(ccd, cpaths, p)
 		 * Copy in the pathname of the component.
 		 */
 		bzero(tmppath, sizeof(tmppath));	/* sanity */
-		if (error = copyinstr(cpaths[ix], tmppath,
-		    MAXPATHLEN, &ci->ci_pathlen)) {
+		if ((error = copyinstr(cpaths[ix], tmppath,
+		    MAXPATHLEN, &ci->ci_pathlen)) != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				printf("ccd%d: can't copy path, error = %d\n",
@@ -352,7 +352,7 @@ ccdinit(ccd, cpaths, p)
 		/*
 		 * XXX: Cache the component's dev_t.
 		 */
-		if (error = VOP_GETATTR(vp, &va, p->p_ucred, p)) {
+		if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)) != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				printf("ccd%d: %s: getattr failed %s = %d\n",
@@ -371,8 +371,8 @@ ccdinit(ccd, cpaths, p)
 		/*
 		 * Get partition information for the component.
 		 */
-		if (error = VOP_IOCTL(vp, DIOCGPART, (caddr_t)&dpart,
-		    FREAD, p->p_ucred, p)) {
+		if ((error = VOP_IOCTL(vp, DIOCGPART, (caddr_t)&dpart,
+		    FREAD, p->p_ucred, p)) != 0) {
 #ifdef DEBUG
 			if (ccddebug & (CCDB_FOLLOW|CCDB_INIT))
 				 printf("ccd%d: %s: ioctl failed, error = %d\n",
@@ -632,7 +632,7 @@ ccdopen(dev, flags, fmt, p)
 		return (ENXIO);
 	cs = &ccd_softc[unit];
 
-	if (error = ccdlock(cs))
+	if ((error = ccdlock(cs)) != 0)
 		return (error);
 
 	lp = &cs->sc_dkdev.dk_label;
@@ -693,7 +693,7 @@ ccdclose(dev, flags, fmt, p)
 		return (ENXIO);
 	cs = &ccd_softc[unit];
 
-	if (error = ccdlock(cs))
+	if ((error = ccdlock(cs)) != 0)
 		return (error);
 
 	part = ccdpart(dev);
@@ -1076,7 +1076,7 @@ ccdioctl(dev, cmd, data, flag, p)
 		if ((flag & FWRITE) == 0)
 			return (EBADF);
 
-		if (error = ccdlock(cs))
+		if ((error = ccdlock(cs)) != 0)
 			return (error);
 
 		/* Fill in some important bits. */
@@ -1131,7 +1131,7 @@ ccdioctl(dev, cmd, data, flag, p)
 			if (ccddebug & CCDB_INIT)
 				printf("ccdioctl: lookedup = %d\n", lookedup);
 #endif
-			if (error = ccdlookup(cpp[i], p, &vpp[i])) {
+			if ((error = ccdlookup(cpp[i], p, &vpp[i])) != 0) {
 				for (j = 0; j < lookedup; ++j)
 					(void)vn_close(vpp[j], FREAD|FWRITE,
 					    p->p_ucred, p);
@@ -1149,7 +1149,7 @@ ccdioctl(dev, cmd, data, flag, p)
 		/*
 		 * Initialize the ccd.  Fills in the softc for us.
 		 */
-		if (error = ccdinit(&ccd, cpp, p)) {
+		if ((error = ccdinit(&ccd, cpp, p)) != 0) {
 			for (j = 0; j < lookedup; ++j)
 				(void)vn_close(vpp[j], FREAD|FWRITE,
 				    p->p_ucred, p);
@@ -1180,7 +1180,7 @@ ccdioctl(dev, cmd, data, flag, p)
 		if ((flag & FWRITE) == 0)
 			return (EBADF);
 
-		if (error = ccdlock(cs))
+		if ((error = ccdlock(cs)) != 0)
 			return (error);
 
 		/*
@@ -1267,7 +1267,7 @@ ccdioctl(dev, cmd, data, flag, p)
 		if ((flag & FWRITE) == 0)
 			return (EBADF);
 
-		if (error = ccdlock(cs))
+		if ((error = ccdlock(cs)) != 0)
 			return (error);
 
 		cs->sc_flags |= CCDF_LABELLING;
@@ -1363,7 +1363,7 @@ ccdlookup(path, p, vpp)
 	int error;
 
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, path, p);
-	if (error = vn_open(&nd, FREAD|FWRITE, 0)) {
+	if ((error = vn_open(&nd, FREAD|FWRITE, 0)) != 0) {
 #ifdef DEBUG
 		if (ccddebug & CCDB_FOLLOW|CCDB_INIT)
 			printf("ccdlookup: vn_open error = %d\n", error);
@@ -1378,7 +1378,7 @@ ccdlookup(path, p, vpp)
 		return (EBUSY);
 	}
 
-	if (error = VOP_GETATTR(vp, &va, p->p_ucred, p)) {
+	if ((error = VOP_GETATTR(vp, &va, p->p_ucred, p)) != 0) {
 #ifdef DEBUG
 		if (ccddebug & CCDB_FOLLOW|CCDB_INIT)
 			printf("ccdlookup: getattr error = %d\n", error);
@@ -1450,8 +1450,8 @@ ccdgetdisklabel(dev)
 	/*
 	 * Call the generic disklabel extraction routine.
 	 */
-	if (errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
-	    &cs->sc_dkdev.dk_label))
+	if ((errstring = readdisklabel(CCDLABELDEV(dev), ccdstrategy,
+	    &cs->sc_dkdev.dk_label)) != NULL)
 		ccdmakedisklabel(cs);
 
 #ifdef DEBUG

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumstate.c,v 2.10 1999/01/17 06:19:23 grog Exp grog $
+ * $Id: vinumstate.c,v 1.7 1999/01/21 00:40:32 grog Exp $
  */
 
 #define REALLYKERNEL
@@ -204,7 +204,7 @@ set_sd_state(int sdno, enum sdstate newstate, enum setstateflags flags)
 	    break;
 
 	default:					    /* other ones, only internal with force */
-	    if (flags & setstate_force == 0)		    /* no force?  What's this? */
+	    if ((flags & setstate_force) == 0)		    /* no force?  What's this? */
 		return 0;				    /* don't do it */
 	}
     }
@@ -396,7 +396,7 @@ update_plex_state(int plexno)
 
 	    for (plexno = 0; plexno < vol->plexes; plexno++)
 		PLEX[vol->plex[plexno]].state = plex_up;
-	} else if (vps & volplex_otherup == 0) {	    /* no other plexes up */
+	} else if ((vps & volplex_otherup) == 0) {	    /* no other plexes up */
 	    int sdno;
 
 	    plex->state = plex_up;			    /* we can call that up */
@@ -406,7 +406,7 @@ update_plex_state(int plexno)
 	    }
 	} else
 	    plex->state = plex_faulty;			    /* no, it's down */
-    } else if (statemap & (sd_upstate | sd_rebornstate) == statemap) /* all up or reborn */
+    } else if ((statemap & (sd_upstate | sd_rebornstate)) == statemap) /* all up or reborn */
 	plex->state = plex_flaky;
     else if (statemap & (sd_upstate | sd_rebornstate))	    /* some up or reborn */
 	plex->state = plex_corrupt;			    /* corrupt */

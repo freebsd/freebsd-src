@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: eni_receive.c,v 1.2 1998/09/17 09:34:58 phk Exp $
+ *	@(#) $Id: eni_receive.c,v 1.3 1998/10/31 20:06:45 phk Exp $
  *
  */
 
@@ -42,7 +42,7 @@
 #include <dev/hea/eni_var.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: eni_receive.c,v 1.2 1998/09/17 09:34:58 phk Exp $");
+__RCSID("@(#) $Id: eni_receive.c,v 1.3 1998/10/31 20:06:45 phk Exp $");
 #endif
 
 static void	eni_recv_stack __P((void *, KBuffer *));
@@ -114,8 +114,8 @@ eni_do_service ( eup )
 		 * VCC into TRASH mode.
 		 */
 		if ( ( vci_hdr & VCI_IN_SERVICE ) == 0 ||
-		    ( vci_hdr & ~VCI_MODE_MASK ==
-			VCI_MODE_TRASH << VCI_MODE_SHIFT ) )
+		    ( (vci_hdr & ~VCI_MODE_MASK) ==
+			(VCI_MODE_TRASH << VCI_MODE_SHIFT) ) )
 			    goto next_vcc;
 
 		/*
