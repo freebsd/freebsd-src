@@ -727,7 +727,7 @@ ess_dmasetup(struct ess_info *sc, int ch, u_int32_t base, u_int16_t cnt, int dir
 		port_wr(sc->vc, 0xf, 0x01, 1); /* mask */
 		port_wr(sc->vc, 0xb, dir == PCMDIR_PLAY? 0x58 : 0x54, 1); /* mode */
 		port_wr(sc->vc, 0x0, base, 4);
-		port_wr(sc->vc, 0x4, cnt, 2);
+		port_wr(sc->vc, 0x4, cnt - 1, 2);
 
 	} else if (ch == 2) {
 		port_wr(sc->io, 0x6, 0x08, 1); /* autoinit */
@@ -893,7 +893,7 @@ ess_attach(device_t dev)
     	if (!sc->duplex)
 		pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
-    	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+    	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/65536, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
