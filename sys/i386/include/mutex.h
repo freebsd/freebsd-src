@@ -105,7 +105,7 @@ extern char STR_SIEN[];
 	: "r" (tid),				/* 3 (input) */		\
 	  "gi" (type),				/* 4 */			\
 	  "g" (mtxp)				/* 5 */			\
-	: "memory"				/* used */ );		\
+	: "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /* Get a spin lock, handle recursion inline (as the less common case) */
@@ -133,7 +133,7 @@ extern char STR_SIEN[];
 	: "r" (tid),				/* 3 (input) */		\
 	  "gi" (type),				/* 4 */			\
 	  "g" (mtxp)				/* 5 */			\
-	: "memory"				/* used */ );		\
+	: "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -159,7 +159,7 @@ extern char STR_SIEN[];
 	: "r" (tid),				/* 2 (input) */		\
 	  "gi" (type),				/* 3 */			\
 	  "g" (mtxp)				/* 4 */			\
-	: "memory"				/* used */ );		\
+	: "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -184,7 +184,7 @@ extern char STR_SIEN[];
 	: "gi" (type),				/* 2 (input) */		\
 	  "g" (mtxp),				/* 3 */			\
 	  "r" (MTX_UNOWNED)			/* 4 */			\
-	: "memory"				/* used */ );		\
+	: "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -218,7 +218,7 @@ extern char STR_SIEN[];
 	: "gi" (type),				/* 3 (input) */		\
 	  "g" (mtxp),				/* 4 */			\
 	  "r" (MTX_UNOWNED)			/* 5 */			\
-	: "memory"				/* used */ );		\
+	: "memory", "ecx", "edx"		/* used */ );		\
 })
 
 /*
@@ -237,18 +237,18 @@ extern char STR_SIEN[];
 "	movl	%2,%1;"							\
 "	jmp	2f;"							\
 "1:	movl	%0,%2;"							\
+"	movl	$ " _V(MTX_UNOWNED) ",%%ecx;"				\
 "	pushl	%3;"							\
 "	" MPLOCKED ""							\
-"	cmpxchgl %4,%0;"				  		\
+"	cmpxchgl %%ecx,%0;"				  		\
 "	popfl;"								\
 "2:"									\
 "# exitlock_spin"							\
 	: "+m" (mtxp->mtx_lock),	/* 0 */				\
 	  "+m" (mtxp->mtx_recurse),	/* 1 */ 			\
 	  "=&a" (_res)			/* 2 */				\
-	: "g"  (mtxp->mtx_saveintr),	/* 3 */				\
-	  "r" (MTX_UNOWNED)		/* 4 */				\
-	: "memory"			/* used */ );			\
+	: "g"  (mtxp->mtx_saveintr)	/* 3 */				\
+	: "memory", "ecx"		/* used */ );			\
 })
 
 #endif	/* I386_CPU */
