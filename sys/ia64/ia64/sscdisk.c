@@ -21,11 +21,12 @@
 #include <sys/devicestat.h>
 #include <sys/disk.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
-#include <sys/sysctl.h>
 #include <sys/linker.h>
-#include <sys/queue.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_page.h>

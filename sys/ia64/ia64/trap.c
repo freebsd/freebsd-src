@@ -318,7 +318,6 @@ trap(int vector, int imm, struct trapframe *framep)
 		vm_prot_t ftype = 0;
 		int rv;
 
-		mtx_lock(&Giant);
 		/*
 		 * If it was caused by fuswintr or suswintr,
 		 * just punt.  Note that we check the faulting
@@ -333,7 +332,6 @@ trap(int vector, int imm, struct trapframe *framep)
 		    p->p_addr->u_pcb.pcb_accessaddr == va) {
 			framep->tf_cr_iip = p->p_addr->u_pcb.pcb_onfault;
 			p->p_addr->u_pcb.pcb_onfault = 0;
-			mtx_unlock(&Giant);
 			goto out;
 		}
 
@@ -435,12 +433,9 @@ trap(int vector, int imm, struct trapframe *framep)
 			} else if (rv == KERN_PROTECTION_FAILURE)
 				rv = KERN_INVALID_ADDRESS;
 		}
-		if (rv == KERN_SUCCESS) {
-			mtx_unlock(&Giant);
+		if (rv == KERN_SUCCESS)
 			goto out;
-		}
 
-		mtx_unlock(&Giant);
 		ucode = va;
 		i = SIGSEGV;
 #ifdef DEBUG
