@@ -90,7 +90,9 @@ static void	syncer_shutdown(void *arg, int howto);
 static int	vtryrecycle(struct vnode *vp);
 static void	vx_lock(struct vnode *vp);
 static void	vx_unlock(struct vnode *vp);
-
+static void	vbusy(struct vnode *vp);
+static void	vdropl(struct vnode *vp);
+static void	vholdl(struct vnode *);
 
 /*
  * Enable Giant pushdown based on whether or not the vm is mpsafe in this
@@ -1984,7 +1986,7 @@ vhold(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
-void
+static void
 vholdl(struct vnode *vp)
 {
 
@@ -2006,9 +2008,8 @@ vdrop(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
-void
-vdropl(vp)
-	struct vnode *vp;
+static void
+vdropl(struct vnode *vp)
 {
 
 	if (vp->v_holdcnt <= 0)
@@ -2358,8 +2359,6 @@ vgonel(struct vnode *vp, struct thread *td)
 	 */
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
-	if (vp->v_pollinfo != NULL)
-		vn_pollgone(vp);
 	vp->v_tag = "none";
 
 	VI_UNLOCK(vp);
@@ -2606,8 +2605,8 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	return (EOPNOTSUPP);
 }
 
-SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP, vfs_sysctl,
-	"Generic filesystem");
+static SYSCTL_NODE(_vfs, VFS_GENERIC, generic, CTLFLAG_RD | CTLFLAG_SKIP,
+	vfs_sysctl, "Generic filesystem");
 
 #if 1 || defined(COMPAT_PRELITE2)
 
@@ -2851,7 +2850,7 @@ vfree(struct vnode *vp)
 /*
  * Opposite of vfree() - mark a vnode as in use.
  */
-void
+static void
 vbusy(struct vnode *vp)
 {
 
@@ -2922,61 +2921,6 @@ vn_pollrecord(vp, td, events)
 	mtx_unlock(&vp->v_pollinfo->vpi_lock);
 	return 0;
 }
-
-/*
- * Note the occurrence of an event.  If the VN_POLLEVENT macro is used,
- * it is possible for us to miss an event due to race conditions, but
- * that condition is expected to be rare, so for the moment it is the
- * preferred interface.
- */
-void
-vn_pollevent(vp, events)
-	struct vnode *vp;
-	short events;
-{
-
-	if (vp->v_pollinfo == NULL)
-		v_addpollinfo(vp);
-	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	if (vp->v_pollinfo->vpi_events & events) {
-		/*
-		 * We clear vpi_events so that we don't
-		 * call selwakeup() twice if two events are
-		 * posted before the polling process(es) is
-		 * awakened.  This also ensures that we take at
-		 * most one selwakeup() if the polling process
-		 * is no longer interested.  However, it does
-		 * mean that only one event can be noticed at
-		 * a time.  (Perhaps we should only clear those
-		 * event bits which we note?) XXX
-		 */
-		vp->v_pollinfo->vpi_events = 0;	/* &= ~events ??? */
-		vp->v_pollinfo->vpi_revents |= events;
-		selwakeuppri(&vp->v_pollinfo->vpi_selinfo, PRIBIO);
-	}
-	mtx_unlock(&vp->v_pollinfo->vpi_lock);
-}
-
-/*
- * Wake up anyone polling on vp because it is being revoked.
- * This depends on dead_poll() returning POLLHUP for correct
- * behavior.
- */
-void
-vn_pollgone(vp)
-	struct vnode *vp;
-{
-
-	mtx_lock(&vp->v_pollinfo->vpi_lock);
-	VN_KNOTE_LOCKED(vp, NOTE_REVOKE);
-	if (vp->v_pollinfo->vpi_events) {
-		vp->v_pollinfo->vpi_events = 0;
-		selwakeuppri(&vp->v_pollinfo->vpi_selinfo, PRIBIO);
-	}
-	mtx_unlock(&vp->v_pollinfo->vpi_lock);
-}
-
-
 
 /*
  * Routine to create and manage a filesystem syncer vnode.

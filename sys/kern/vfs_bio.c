@@ -104,7 +104,7 @@ static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
 static int flushbufqueues(int flushdeps);
 static void buf_daemon(void);
-void bremfreel(struct buf *bp);
+static void bremfreel(struct buf *bp);
 
 int vmiodirenable = TRUE;
 SYSCTL_INT(_vfs, OID_AUTO, vmiodirenable, CTLFLAG_RW, &vmiodirenable, 0,
@@ -674,7 +674,7 @@ bremfreef(struct buf *bp)
  *	Removes a buffer from the free list, must be called with the
  *	bqlock held.
  */
-void
+static void
 bremfreel(struct buf *bp)
 {
 	int s = splbio();
@@ -2054,7 +2054,7 @@ buf_daemon()
  *	free up B_INVAL buffers instead of write them, which NFS is 
  *	particularly sensitive to.
  */
-int flushwithdeps = 0;
+static int flushwithdeps = 0;
 SYSCTL_INT(_vfs, OID_AUTO, flushwithdeps, CTLFLAG_RW, &flushwithdeps,
     0, "Number of buffers flushed with dependecies that require rollbacks");
 
