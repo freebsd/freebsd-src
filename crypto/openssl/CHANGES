@@ -2,6 +2,87 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.7 and 0.9.7a  [19 Feb 2003]
+
+  *) In ssl3_get_record (ssl/s3_pkt.c), minimize information leaked
+     via timing by performing a MAC computation even if incorrrect
+     block cipher padding has been found.  This is a countermeasure
+     against active attacks where the attacker has to distinguish
+     between bad padding and a MAC verification error. (CAN-2003-0078)
+
+     [Bodo Moeller; problem pointed out by Brice Canvel (EPFL),
+     Alain Hiltgen (UBS), Serge Vaudenay (EPFL), and
+     Martin Vuagnoux (EPFL, Ilion)]
+
+  *) Make the no-err option work as intended.  The intention with no-err
+     is not to have the whole error stack handling routines removed from
+     libcrypto, it's only intended to remove all the function name and
+     reason texts, thereby removing some of the footprint that may not
+     be interesting if those errors aren't displayed anyway.
+
+     NOTE: it's still possible for any application or module to have it's
+     own set of error texts inserted.  The routines are there, just not
+     used by default when no-err is given.
+     [Richard Levitte]
+
+  *) Add support for FreeBSD on IA64.
+     [dirk.meyer@dinoex.sub.org via Richard Levitte, resolves #454]
+
+  *) Adjust DES_cbc_cksum() so it returns the same value as the MIT
+     Kerberos function mit_des_cbc_cksum().  Before this change,
+     the value returned by DES_cbc_cksum() was like the one from
+     mit_des_cbc_cksum(), except the bytes were swapped.
+     [Kevin Greaney <Kevin.Greaney@hp.com> and Richard Levitte]
+
+  *) Allow an application to disable the automatic SSL chain building.
+     Before this a rather primitive chain build was always performed in
+     ssl3_output_cert_chain(): an application had no way to send the 
+     correct chain if the automatic operation produced an incorrect result.
+
+     Now the chain builder is disabled if either:
+
+     1. Extra certificates are added via SSL_CTX_add_extra_chain_cert().
+
+     2. The mode flag SSL_MODE_NO_AUTO_CHAIN is set.
+
+     The reasoning behind this is that an application would not want the
+     auto chain building to take place if extra chain certificates are
+     present and it might also want a means of sending no additional
+     certificates (for example the chain has two certificates and the
+     root is omitted).
+     [Steve Henson]
+
+  *) Add the possibility to build without the ENGINE framework.
+     [Steven Reddie <smr@essemer.com.au> via Richard Levitte]
+
+  *) Under Win32 gmtime() can return NULL: check return value in
+     OPENSSL_gmtime(). Add error code for case where gmtime() fails.
+     [Steve Henson]
+
+  *) DSA routines: under certain error conditions uninitialized BN objects
+     could be freed. Solution: make sure initialization is performed early
+     enough. (Reported and fix supplied by Ivan D Nestlerode <nestler@MIT.EDU>,
+     Nils Larsch <nla@trustcenter.de> via PR#459)
+     [Lutz Jaenicke]
+
+  *) Another fix for SSLv2 session ID handling: the session ID was incorrectly
+     checked on reconnect on the client side, therefore session resumption
+     could still fail with a "ssl session id is different" error. This
+     behaviour is masked when SSL_OP_ALL is used due to
+     SSL_OP_MICROSOFT_SESS_ID_BUG being set.
+     Behaviour observed by Crispin Flowerday <crispin@flowerday.cx> as
+     followup to PR #377.
+     [Lutz Jaenicke]
+
+  *) IA-32 assembler support enhancements: unified ELF targets, support
+     for SCO/Caldera platforms, fix for Cygwin shared build.
+     [Andy Polyakov]
+
+  *) Add support for FreeBSD on sparc64.  As a consequence, support for
+     FreeBSD on non-x86 processors is separate from x86 processors on
+     the config script, much like the NetBSD support.
+     [Richard Levitte & Kris Kennaway <kris@obsecurity.org>]
+
  Changes between 0.9.6h and 0.9.7  [31 Dec 2002]
 
   *) Fix session ID handling in SSLv2 client code: the SERVER FINISHED
@@ -177,7 +258,7 @@
 	# is assumed to contain the absolute OpenSSL source directory.
 	mkdir -p objtree/"`uname -s`-`uname -r`-`uname -m`"
 	cd objtree/"`uname -s`-`uname -r`-`uname -m`"
-	(cd $OPENSSL_SOURCE; find . -type f -o -type l) | while read F; do
+	(cd $OPENSSL_SOURCE; find . -type f) | while read F; do
 		mkdir -p `dirname $F`
 		ln -s $OPENSSL_SOURCE/$F $F
 	done
@@ -1677,6 +1758,11 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      be reduced modulo  m.
      [Lenka Fibikova <fibikova@exp-math.uni-essen.de>, Bodo Moeller]
 
+#if 0
+     The following entry accidentily appeared in the CHANGES file
+     distributed with OpenSSL 0.9.7.  The modifications described in
+     it do *not* apply to OpenSSL 0.9.7.
+
   *) Remove a few calls to bn_wexpand() in BN_sqr() (the one in there
      was actually never needed) and in BN_mul().  The removal in BN_mul()
      required a small change in bn_mul_part_recursive() and the addition
@@ -1685,6 +1771,7 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
      bn_sub_words() and bn_add_words() except they take arrays with
      differing sizes.
      [Richard Levitte]
+#endif
 
   *) In 'openssl passwd', verify passwords read from the terminal
      unless the '-salt' option is used (which usually means that
@@ -1815,6 +1902,18 @@ des-cbc           3624.96k     5258.21k     5530.91k     5624.30k     5628.26k
 
   *) Clean old EAY MD5 hack from e_os.h.
      [Richard Levitte]
+
+ Changes between 0.9.6h and 0.9.6i  [19 Feb 2003]
+
+  *) In ssl3_get_record (ssl/s3_pkt.c), minimize information leaked
+     via timing by performing a MAC computation even if incorrrect
+     block cipher padding has been found.  This is a countermeasure
+     against active attacks where the attacker has to distinguish
+     between bad padding and a MAC verification error. (CAN-2003-0078)
+
+     [Bodo Moeller; problem pointed out by Brice Canvel (EPFL),
+     Alain Hiltgen (UBS), Serge Vaudenay (EPFL), and
+     Martin Vuagnoux (EPFL, Ilion)]
 
  Changes between 0.9.6g and 0.9.6h  [5 Dec 2002]
 

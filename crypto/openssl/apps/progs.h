@@ -35,7 +35,9 @@ extern int pkcs8_main(int argc,char *argv[]);
 extern int spkac_main(int argc,char *argv[]);
 extern int smime_main(int argc,char *argv[]);
 extern int rand_main(int argc,char *argv[]);
+#ifndef OPENSSL_NO_ENGINE
 extern int engine_main(int argc,char *argv[]);
+#endif
 extern int ocsp_main(int argc,char *argv[]);
 
 #define FUNC_TYPE_GENERAL	1
@@ -92,7 +94,9 @@ FUNCTION functions[] = {
 #if !defined(OPENSSL_NO_SOCK) && !(defined(OPENSSL_NO_SSL2) && defined(OPENSSL_NO_SSL3))
 	{FUNC_TYPE_GENERAL,"s_client",s_client_main},
 #endif
+#ifndef OPENSSL_NO_SPEED
 	{FUNC_TYPE_GENERAL,"speed",speed_main},
+#endif
 #if !defined(OPENSSL_NO_SOCK) && !(defined(OPENSSL_NO_SSL2) && defined(OPENSSL_NO_SSL3))
 	{FUNC_TYPE_GENERAL,"s_time",s_time_main},
 #endif
@@ -111,7 +115,9 @@ FUNCTION functions[] = {
 	{FUNC_TYPE_GENERAL,"spkac",spkac_main},
 	{FUNC_TYPE_GENERAL,"smime",smime_main},
 	{FUNC_TYPE_GENERAL,"rand",rand_main},
+#ifndef OPENSSL_NO_ENGINE
 	{FUNC_TYPE_GENERAL,"engine",engine_main},
+#endif
 	{FUNC_TYPE_GENERAL,"ocsp",ocsp_main},
 #ifndef OPENSSL_NO_MD2
 	{FUNC_TYPE_MD,"md2",dgst_main},
