@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)gethostname.3	8.1 (Berkeley) 6/4/93
-.\"	$Id: getbootfile.3,v 1.1 1994/09/23 20:21:59 wollman Exp $
+.\"	$Id: getbootfile.3,v 1.2 1996/02/11 22:33:31 mpp Exp $
 .\"
 .Dd September 23, 1994
 .Dt GETBOOTFILE 3
@@ -44,7 +44,7 @@
 .Fn getbootfile void
 .Sh DESCRIPTION
 The
-.Nm getbootfile
+.Fn getbootfile
 function retrieves the full pathname of the file from which the
 current kernel was loaded, and returns a static pointer to the name.
 A read/write interface to this information is available via the
@@ -65,7 +65,6 @@ the kernel at boot time, the static string
 is returned instead of the real boot file.
 .Sh HISTORY
 The
-.Nm
+.Fn getbootfile
 function call appeared in
-.Tn FreeBSD
-2.0.
+.Fx 2.0 .

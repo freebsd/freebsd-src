@@ -52,13 +52,13 @@
 .Fn tcsendbreak "int fd" "int len"
 .Sh DESCRIPTION
 The
-.Nm tcdrain
+.Fn tcdrain
 function waits until all output written to the terminal referenced by
 .Fa fd
 has been transmitted to the terminal.
 .Pp
 The
-.Nm tcflow
+.Fn tcflow
 function suspends transmission of data to or the reception of data from
 the terminal referenced by
 .Fa fd
@@ -89,7 +89,7 @@ section of
 .El
 .Pp
 The
-.Nm tcflush
+.Fn tcflush
 function discards any data written to the terminal referenced by
 .Fa fd
 which has not been transmitted to the terminal, or any data received
@@ -108,7 +108,7 @@ Flush both data received but not read and data written but not transmitted.
 .El
 .Pp
 The
-.Nm tcsendbreak
+.Fn tcsendbreak
 function transmits a continuous stream of zero-valued bits for four-tenths
 of a second to the terminal referenced by
 .Fa fd .
@@ -136,7 +136,7 @@ The file associated with
 is not a terminal.
 .It Bq Er EINTR
 A signal interrupted the
-.Nm tcdrain
+.Fn tcdrain
 function.
 .El
 .Sh SEE ALSO
@@ -144,11 +144,11 @@ function.
 .Xr termios 4
 .Sh STANDARDS
 The
-.Nm tcsendbreak ,
-.Nm tcdrain ,
-.Nm tcflush
+.Fn tcsendbreak ,
+.Fn tcdrain ,
+.Fn tcflush
 and
-.Nm tcflow
+.Fn tcflow
 functions are expected to be compliant with the
 .St -p1003.1-88
 specification.

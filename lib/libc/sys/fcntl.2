@@ -170,7 +170,7 @@ taken as a pointer to a
 .Fa "struct flock"
 (see above).
 The information retrieved overwrites the information passed to
-.Nm fcntl
+.Fn fcntl
 in the
 .Fa flock
 structure.
@@ -193,7 +193,7 @@ or exclusive (or write) locks,
 as well as remove either type of lock
 .Dv (F_UNLCK) .
 If a shared or exclusive lock cannot be set,
-.Nm fcntl
+.Fn fcntl
 returns immediately with
 .Er EACCES .
 .It Dv F_SETLKW
@@ -202,9 +202,9 @@ This command is the same as
 except that if a shared or exclusive lock is blocked by other locks,
 the process waits until the request can be satisfied.
 If a signal that is to be caught is received while
-.Nm fcntl
+.Fn fcntl
 is waiting for a region, the
-.Nm fcntl
+.Fn fcntl
 will be interrupted if the signal handler has not specified the
 .Dv SA_RESTART
 (see
@@ -511,6 +511,6 @@ for the reasons as stated in
 .Xr tcsetpgrp 3
 .Sh HISTORY
 The
-.Nm
+.Fn fcntl
 function call appeared in
 .Bx 4.2 .
