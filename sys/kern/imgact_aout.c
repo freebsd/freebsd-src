@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.37 1998/01/06 05:15:25 dyson Exp $
+ *	$Id: imgact_aout.c,v 1.38 1998/01/11 21:35:30 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@
 
 static int	exec_aout_imgact __P((struct image_params *imgp));
 
-int
+static int
 exec_aout_imgact(imgp)
 	struct image_params *imgp;
 {
