@@ -224,6 +224,10 @@ struct {								\
 		(head)->stqh_last = &(head)->stqh_first;		\
 } while (0)
 
+#define STAILQ_REMOVE_HEAD_UNTIL(head, elm, field) do {			\
+	if (((head)->stqh_first = (elm)->field.stqe_next) == NULL)	\
+		(head)->stqh_last = &(head)->stqh_first;		\
+} while (0)
 
 #define STAILQ_REMOVE(head, elm, type, field) do {			\
 	if ((head)->stqh_first == (elm)) {				\
