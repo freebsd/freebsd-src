@@ -196,8 +196,9 @@ in_pcbbind(inp, nam, p)
 		if (sin->sin_family != AF_INET)
 			return (EAFNOSUPPORT);
 #endif
-		if (prison_ip(p, 0, &sin->sin_addr.s_addr))
-			return(EINVAL);
+		if (sin->sin_addr.s_addr != INADDR_ANY)
+			if (prison_ip(p, 0, &sin->sin_addr.s_addr))
+				return(EINVAL);
 		lport = sin->sin_port;
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			/*
@@ -270,8 +271,9 @@ in_pcbbind(inp, nam, p)
 		ushort first, last;
 		int count;
 
-		if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
-			return (EINVAL);
+		if (inp->inp_laddr.s_addr != INADDR_ANY)
+			if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
+				return (EINVAL);
 		inp->inp_flags |= INP_ANONPORT;
 
 		if (inp->inp_flags & INP_HIGHPORT) {
@@ -341,6 +343,8 @@ in_pcbbind(inp, nam, p)
 		}
 	}
 	inp->inp_lport = lport;
+	if (prison_ip(p, 0, &inp->inp_laddr.s_addr))
+		return(EINVAL);
 	if (in_pcbinshash(inp) != 0) {
 		inp->inp_laddr.s_addr = INADDR_ANY;
 		inp->inp_lport = 0;
@@ -485,9 +489,19 @@ in_pcbconnect(inp, nam, p)
 	struct proc *p;
 {
 	struct sockaddr_in *ifaddr;
-	register struct sockaddr_in *sin = (struct sockaddr_in *)nam;
+	struct sockaddr_in *sin = (struct sockaddr_in *)nam;
+	struct sockaddr_in sa;
 	int error;
 
+	if (inp->inp_laddr.s_addr == INADDR_ANY && p->p_prison != NULL) {
+		bzero(&sa, sizeof (sa));
+		sa.sin_addr.s_addr = htonl(p->p_prison->pr_ip);
+		sa.sin_len=sizeof (sa);
+		sa.sin_family = AF_INET;
+		error = in_pcbbind(inp, (struct sockaddr *)&sa, p);
+		if (error)
+		    return (error);
+	}
 	/*
 	 *   Call inner routine, to assign local interface address.
 	 */
