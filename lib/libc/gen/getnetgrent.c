@@ -268,15 +268,14 @@ endnetgrent()
 }
 
 #ifdef YP
-static int _listmatch(list, group)
+static int _listmatch(list, group, len)
 char *list, *group;
+int len;
 {
 	char *ptr = list;
 
-	while (ptr != NULL) {
-		if (!strncmp(ptr, group, strlen(group)) && 
-			(*(ptr+strlen(group)) == ',' ||
-			*(ptr+strlen(group)) == '\n'))
+	while (ptr != (char *)(list + len)) {
+		if (!strncmp(group, ptr, strlen(group)))
 			return(1);
 		ptr++;
 	}
@@ -342,7 +341,7 @@ innetgr(group, host, user, dom)
 			    &resultlen))
 				free(result);
 			else {
-				if (_listmatch(result, group)) {
+				if (_listmatch(result, group, resultlen)) {
 					free(result);
 					return(1);
 				}
