@@ -232,7 +232,7 @@ int
 vinum_mallocinfo(caddr_t data)
 {
     struct mc *m = (struct mc *) data;
-    unsigned int ent = *(int *) data;			    /* 1st word is index */
+    unsigned int ent = m->seq;				    /* index of entry to return */
 
     if (ent >= malloccount)
 	return ENOENT;
