@@ -34,13 +34,13 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/elf64.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <elf.h>
 
 #define ALPHA_FMAGIC	0x184
 
