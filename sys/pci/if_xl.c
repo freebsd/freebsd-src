@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xl.c,v 1.53 1998/09/08 16:05:04 wpaul Exp $
+ *	$Id: if_xl.c,v 1.11 1998/09/08 23:42:10 wpaul Exp $
  */
 
 /*
@@ -147,7 +147,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_xl.c,v 1.53 1998/09/08 16:05:04 wpaul Exp $";
+	"$Id: if_xl.c,v 1.11 1998/09/08 23:42:10 wpaul Exp $";
 #endif
 
 /*
@@ -766,6 +766,8 @@ static void xl_autoneg_mii(sc, flag, verbose)
 	ifm = &sc->ifmedia;
 	ifp = &sc->arpcom.ac_if;
 
+	ifm->ifm_media = IFM_ETHER | IFM_AUTO;
+
 	/*
 	 * The 100baseT4 PHY on the 3c905-T4 has the 'autoneg supported'
 	 * bit cleared in the status register, but has the 'autoneg enabled'
@@ -784,6 +786,14 @@ static void xl_autoneg_mii(sc, flag, verbose)
 		if (verbose)
 			printf("xl%d: autonegotiation not supported\n",
 							sc->xl_unit);
+		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;	
+		media = xl_phy_readreg(sc, PHY_BMCR);
+		media &= ~PHY_BMCR_SPEEDSEL;
+		media &= ~PHY_BMCR_DUPLEX;
+		xl_phy_writereg(sc, PHY_BMCR, media);
+		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
+				(CSR_READ_1(sc, XL_W3_MAC_CTRL) &
+						~XL_MACCTRL_DUPLEX));
 		return;
 	}
 #endif
@@ -885,7 +895,14 @@ static void xl_autoneg_mii(sc, flag, verbose)
 		xl_phy_writereg(sc, PHY_BMCR, media);
 	} else {
 		if (verbose)
-			printf("no carrier\n");
+			printf("no carrier (forcing half-duplex, 10Mbps)\n");
+		ifm->ifm_media = IFM_ETHER|IFM_10_T|IFM_HDX;
+		media &= ~PHY_BMCR_SPEEDSEL;
+		media &= ~PHY_BMCR_DUPLEX;
+		xl_phy_writereg(sc, PHY_BMCR, media);
+		CSR_WRITE_1(sc, XL_W3_MAC_CTRL,
+				(CSR_READ_1(sc, XL_W3_MAC_CTRL) &
+						~XL_MACCTRL_DUPLEX));
 	}
 
 	xl_init(sc);
@@ -1615,21 +1632,21 @@ xl_attach(config_id, unit)
 		xl_setmode(sc, media);
 		break;
 	case XL_XCVR_AUTO:
-		media = IFM_ETHER|IFM_AUTO;
 #ifdef XL_BACKGROUND_AUTONEG
 		xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 #else
 		xl_autoneg_mii(sc, XL_FLAG_FORCEDELAY, 1);
 #endif
+		media = sc->ifmedia.ifm_media;
 		break;
 	case XL_XCVR_100BTX:
 	case XL_XCVR_MII:
-		media = sc->ifmedia.ifm_media;
 #ifdef XL_BACKGROUND_AUTONEG
 		xl_autoneg_mii(sc, XL_FLAG_SCHEDDELAY, 1);
 #else
 		xl_autoneg_mii(sc, XL_FLAG_FORCEDELAY, 1);
 #endif
+		media = sc->ifmedia.ifm_media;
 		break;
 	case XL_XCVR_100BFX:
 		media = IFM_ETHER|IFM_100_FX;
@@ -2192,28 +2209,16 @@ static void xl_start(ifp)
 	}
 
 	/*
-	 * If the OACTIVE flag is set, make sure the transmitter
-	 * isn't wedged. Call the txeoc handler to make sure the
-	 * transmitter is enabled and then call the txeof handler
-	 * to see if any descriptors can be reclaimed and reload
-	 * the downlist pointer register if necessary. If after
-	 * that the OACTIVE flag is still set, return, otherwise
- 	 * proceed and queue up some more frames.
-	 */
-	if (ifp->if_flags & IFF_OACTIVE) {
-		xl_txeoc(sc);
-		xl_txeof(sc);
-		if (ifp->if_flags & IFF_OACTIVE)
-			return;
-	}
-
-	/*
 	 * Check for an available queue slot. If there are none,
 	 * punt.
 	 */
 	if (sc->xl_cdata.xl_tx_free == NULL) {
-		ifp->if_flags |= IFF_OACTIVE;
-		return;
+		xl_txeoc(sc);
+		xl_txeof(sc);
+		if (sc->xl_cdata.xl_tx_free == NULL) {
+			ifp->if_flags |= IFF_OACTIVE;
+			return;
+		}
 	}
 
 	start_tx = sc->xl_cdata.xl_tx_free;
@@ -2653,6 +2658,12 @@ static void xl_watchdog(ifp)
 		printf("xl%d: no carrier - transceiver cable problem?\n",
 								sc->xl_unit);
 	xl_txeoc(sc);
+	xl_txeof(sc);
+	xl_rxeof(sc);
+	xl_init(sc);
+
+	if (ifp->if_snd.ifq_head != NULL)
+		xl_start(ifp);
 
 	return;
 }
