@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.6 1995/11/03 18:33:46 wollman Exp $
+ * $Id: uipc_socket2.c,v 1.7 1995/12/14 22:51:02 bde Exp $
  */
 
 #include <sys/param.h>
@@ -55,6 +55,10 @@
 
 u_long	sb_max = SB_MAX;		/* XXX should be static */
 SYSCTL_INT(_kern, KERN_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "")
+
+static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
+SYSCTL_INT(_kern, OID_AUTO, sockbuf_waste_factor, CTLFLAG_RW, &sb_efficiency,
+	   0, "");
 
 /*
  * Procedures to manipulate state flags of socket
@@ -396,7 +400,7 @@ sbreserve(sb, cc)
 	if (cc > sb_max * MCLBYTES / (MSIZE + MCLBYTES))
 		return (0);
 	sb->sb_hiwat = cc;
-	sb->sb_mbmax = min(cc * 2, sb_max);
+	sb->sb_mbmax = min(cc * sb_efficiency, sb_max);
 	if (sb->sb_lowat > sb->sb_hiwat)
 		sb->sb_lowat = sb->sb_hiwat;
 	return (1);
