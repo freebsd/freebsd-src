@@ -117,6 +117,8 @@ vn_open_cred(ndp, flagp, cmode, cred, fdidx)
 	exclusive = 0;
 #endif
 
+	GIANT_REQUIRED;
+
 restart:
 	fmode = *flagp;
 	if (fmode & O_CREAT) {
@@ -315,6 +317,8 @@ vn_close(vp, flags, file_cred, td)
 {
 	int error;
 
+	GIANT_REQUIRED;
+
 	if (flags & FWRITE)
 		vp->v_writecount--;
 	error = VOP_CLOSE(vp, flags, file_cred, td);
@@ -386,6 +390,8 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	struct mount *mp;
 	struct ucred *cred;
 	int error;
+
+	GIANT_REQUIRED;
 
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		mp = NULL;
@@ -474,6 +480,8 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	int error = 0;
 	int iaresid;
 
+	GIANT_REQUIRED;
+
 	do {
 		int chunk;
 
@@ -518,7 +526,6 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct vnode *vp;
 	int error, ioflag;
 
-	mtx_lock(&Giant);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
 	vp = fp->f_vnode;
@@ -527,6 +534,7 @@ vn_read(fp, uio, active_cred, flags, td)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
+	mtx_lock(&Giant);
 	VOP_LEASE(vp, td, fp->f_cred, LEASE_READ);
 	/*
 	 * According to McKusick the vn lock is protecting f_offset here.
@@ -568,10 +576,10 @@ vn_write(fp, uio, active_cred, flags, td)
 	struct mount *mp;
 	int error, ioflag;
 
-	mtx_lock(&Giant);
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
 	vp = fp->f_vnode;
+	mtx_lock(&Giant);
 	if (vp->v_type == VREG)
 		bwillwrite();
 	ioflag = IO_UNIT;
@@ -646,6 +654,8 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	register struct vattr *vap;
 	int error;
 	u_short mode;
+
+	GIANT_REQUIRED;
 
 #ifdef MAC
 	error = mac_check_vnode_stat(active_cred, file_cred, vp);
@@ -769,6 +779,8 @@ vn_ioctl(fp, com, data, active_cred, td)
 	struct vattr vattr;
 	int error;
 
+	GIANT_REQUIRED;
+
 	switch (vp->v_type) {
 
 	case VREG:
@@ -845,6 +857,8 @@ vn_poll(fp, events, active_cred, td)
 #ifdef MAC
 	int error;
 #endif
+
+	GIANT_REQUIRED;
 
 	vp = fp->f_vnode;
 #ifdef MAC
@@ -1000,6 +1014,8 @@ vn_write_suspend_wait(vp, mp, flags)
 {
 	int error;
 
+	GIANT_REQUIRED;
+
 	if (vp != NULL) {
 		if ((error = VOP_GETWRITEMOUNT(vp, &mp)) != 0) {
 			if (error != EOPNOTSUPP)
@@ -1054,6 +1070,8 @@ vfs_write_suspend(mp)
 	struct thread *td = curthread;
 	int error;
 
+	GIANT_REQUIRED;
+
 	if (mp->mnt_kern_flag & MNTK_SUSPEND)
 		return (0);
 	mp->mnt_kern_flag |= MNTK_SUSPEND;
@@ -1075,6 +1093,8 @@ vfs_write_resume(mp)
 	struct mount *mp;
 {
 
+	GIANT_REQUIRED;
+
 	if ((mp->mnt_kern_flag & MNTK_SUSPEND) == 0)
 		return;
 	mp->mnt_kern_flag &= ~(MNTK_SUSPEND | MNTK_SUSPENDED);
@@ -1088,6 +1108,8 @@ vfs_write_resume(mp)
 static int
 vn_kqfilter(struct file *fp, struct knote *kn)
 {
+
+	GIANT_REQUIRED;
 
 	return (VOP_KQFILTER(fp->f_vnode, kn));
 }
