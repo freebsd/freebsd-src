@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * From: @(#)extern.h	8.1 (Berkeley) 6/6/93
+ *	@(#)extern.h	8.1 (Berkeley) 6/6/93
  * $FreeBSD$
  */
 
@@ -47,7 +47,7 @@ extern int appendnum;
 extern int lastline;
 extern int aflag, eflag, nflag;
 extern char *fname;
-extern int rflags; /* regex flags to add */
+extern int rflags;	/* regex flags to use */
 
 void	 cfclose __P((struct s_command *, struct s_command *));
 void	 compile __P((void));
