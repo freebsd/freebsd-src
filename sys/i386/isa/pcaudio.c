@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.9 1994/09/29 21:11:29 sos Exp $ 
+ *	$Id: pcaudio.c,v 1.10 1994/10/27 08:03:12 sos Exp $ 
  */
 
 #include "pca.h"
@@ -38,10 +38,14 @@
 #include <sys/file.h>
 #include <sys/proc.h>
 #include <sys/devconf.h>
+
+#include <machine/clock.h>
 #include <machine/pcaudioio.h>
+
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
+
 #include <i386/isa/sound/ulaw.h>
 
 #define BUF_SIZE 	8192
@@ -74,7 +78,7 @@ static char volume_table[256];
 static int pca_sleep = 0;
 static int pca_initialized = 0;
 
-void pcaintr(int regs);
+void pcaintr(struct clockframe *frame);
 int pcaprobe(struct isa_device *dvp);
 int pcaattach(struct isa_device *dvp);
 int pcaclose(dev_t dev, int flag);
@@ -195,13 +199,21 @@ pca_continue()
 }
 
 
-static void 
+static int
 pca_wait(void)
 {
+	int error;
+
 	while (pca_status.in_use[0] || pca_status.in_use[1]) {
 		pca_sleep = 1;
-		tsleep((caddr_t)&pca_sleep, PZERO|PCATCH, "pca_drain", 0);
+		error = tsleep(&pca_sleep, PZERO|PCATCH, "pca_drain", 0);
+		pca_sleep = 0;
+		if (error != 0 && error != ERESTART) {
+			pca_stop();
+			return error;
+		}
         }
+        return 0;
 }
 
 
@@ -291,7 +303,7 @@ pcaclose(dev_t dev, int flag)
 int
 pcawrite(dev_t dev, struct uio *uio, int flag)
 {
-	int count, which;
+	int count, error, which;
 
 	/* only audio device can be written */
 	if (minor(dev) > 0)
@@ -300,7 +312,12 @@ pcawrite(dev_t dev, struct uio *uio, int flag)
 	while ((count = min(BUF_SIZE, uio->uio_resid)) > 0) {
 		if (pca_status.in_use[0] && pca_status.in_use[1]) {
 			pca_sleep = 1;
-			tsleep((caddr_t)&pca_sleep, PZERO|PCATCH, "pca_wait",0);
+			error = tsleep(&pca_sleep, PZERO|PCATCH, "pca_wait", 0);
+			pca_sleep = 0;
+			if (error != 0 && error != ERESTART) {
+				pca_stop();
+				return error;
+			}
 		}
 		which = pca_status.in_use[0] ? 1 : 0;
 		if (count && !pca_status.in_use[which]) {
@@ -378,8 +395,7 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		return 0;
 
 	case AUDIO_DRAIN:
-		pca_wait();
-		return 0;
+		return pca_wait();
 
 	case AUDIO_FLUSH:
 		pca_stop();
@@ -391,7 +407,7 @@ pcaioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
 
 void 
-pcaintr(int regs)
+pcaintr(struct clockframe *frame)
 {
 	if (pca_status.index < pca_status.in_use[pca_status.current]) {
 		disable_intr();
@@ -413,7 +429,7 @@ pcaintr(int regs)
 		pca_status.current ^= 1;
 		pca_status.buffer = pca_status.buf[pca_status.current];
                 if (pca_sleep) {
-			wakeup((caddr_t)&pca_sleep);
+			wakeup(&pca_sleep);
 			pca_sleep = 0;
 		}
 		if (pca_status.wsel.si_pid) {
