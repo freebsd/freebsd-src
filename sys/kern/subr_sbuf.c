@@ -296,7 +296,7 @@ sbuf_cpy(struct sbuf *s, const char *str)
  * Format the given arguments and append the resulting string to an sbuf.
  */
 int
-sbuf_printf(struct sbuf *s, char *fmt, ...)
+sbuf_printf(struct sbuf *s, const char *fmt, ...)
 {
 	va_list ap;
 	int len;
