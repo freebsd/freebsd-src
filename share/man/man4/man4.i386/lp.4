@@ -31,7 +31,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: lp.4,v 1.7 1998/10/22 14:12:55 bde Exp $
+.\"	$Id: lp.4,v 1.8 1999/02/10 02:45:05 des Exp $
 .\"
 .Dd March 4, 1996
 .Os
@@ -43,7 +43,10 @@
 .Nm ifconfig lp0
 .Ar myaddress hisaddress
 .Op Fl link0
+.Pp
+.Cd "controller ppbus0"
 .Cd "device plip0 at ppbus?"
+.Cd "controller ppc0 at isa? port? net irq 7
 .Sh DESCRIPTION
 The
 .Nm
@@ -54,20 +57,18 @@ input: hence there is no requirement for special bidirectional hardware
 and any standard AT-compatible printer port with working interrupts may be used.
 .Pp
 During the boot process, for each
-.Nm ppc
+.Nm plip
 device which is probed and has an interrupt assigned, a corresponding
-.Nm
-network device is created.  Available devices are announced with a message
-such as:
-.Dl lp0: TCP/IP capable interface
+.Nm network
+device is created.
 .Pp
 Configuring an
-.Nm
+.Nm lp
 device with
 .Xr ifconfig 8
 causes the corresponding
-.Nm ppc
-device to be reserved for PLIP until the network interface is configured 'down'.
+.Nm parallel port bus
+to be reserved for PLIP until the network interface is configured 'down'.
 .Pp
 The communication protocol is selected by the
 .Cm link0
