@@ -45,8 +45,8 @@ $OriginCommand = '/usr/sbin/pkg_info -qo';
 $GetPkgNameCommand = 'make -V PKGNAME';
 
 #$IndexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/ports/INDEX";
-$PortsDirectory = '/usr/ports';
-$IndexFile = '/usr/ports/INDEX';
+$PortsDirectory = $ENV{PORTSDIR} || '/usr/ports';
+$IndexFile = "$PortsDirectory/INDEX";
 $ShowCommandsFlag = 0;
 $DebugFlag = 0;
 $VerboseFlag = 0;
