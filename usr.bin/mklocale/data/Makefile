@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.11 1997/11/07 15:27:12 ache Exp $
+# $Id: Makefile,v 1.12 1997/11/07 15:40:02 ache Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -14,12 +14,6 @@ LOCALES=        ja_JP.EUC \
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
-.if exists(${.OBJDIR}/../mklocale)
-MKLOCALE=${.OBJDIR}/../mklocale
-.else
-MKLOCALE=${.CURDIR}/../mklocale
-.endif
-
 LATIN1LINKS = \
 	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
 	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
@@ -30,10 +24,13 @@ LATIN2LINKS = hr_HR pl_PL sl_SI
 .SUFFIXES: .src .out
 
 .src.out:
-	${MKLOCALE} -o ${.TARGET} ${.IMPSRC}
+	mklocale -o ${.TARGET} ${.IMPSRC}
 
+.if !defined(_BUILD_TOOLS)
 all: ${LOCALES:S/$/.out/g}
+.endif
 
+.if !defined(_BUILD_TOOLS)
 afterinstall:
 .for locale in ${LOCALES}
 	${INSTALL} ${COPY} -m 644 -o ${BINOWN} -g ${BINGRP} \
@@ -47,5 +44,6 @@ afterinstall:
 	ln -fs ../lt_LN.ISO_8859-2/LC_CTYPE \
 		${LOCALEDIR}/${link}.ISO_8859-2/LC_CTYPE
 .endfor
+.endif
 
 .include <bsd.prog.mk>
