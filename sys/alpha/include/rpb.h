@@ -79,6 +79,13 @@ struct rpb {
 #define	ST_DEC_ALPHAVME_320	33		/* "Yukon" (VME?) */
 #define	ST_DEC_6600		34		/* "Monet/Goldrush" */
 
+/*
+ * System types for Alpha Processor Inc. machines
+ */
+
+#define API_ST_BASE		200
+#define ST_API_UP1000		201		/* "Nautilus" */
+
 	u_int64_t	rpb_type;		/*  50: */
 
 #define	SV_MPCAP		0x00000001	/* multiprocessor capable */
