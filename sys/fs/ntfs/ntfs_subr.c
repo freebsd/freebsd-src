@@ -2157,7 +2157,7 @@ ntfs_u28(
 		ntfs_iconv->convchr(ntmp->ntm_ic_u2l, (const char **)&p, &ilen,
 				    &outp, &olen);
 		if (olen == 1) {
-			return ((wchar)(outbuf[0]));
+			return ((wchar)(outbuf[0]&0xFF));
 		} else if (olen == 0) {
 			return ((wchar)((outbuf[0]<<8) | (outbuf[1]&0xFF)));
 		}
@@ -2167,7 +2167,7 @@ ntfs_u28(
 	p = ntmp->ntm_u28[(wc>>8)&0xFF];
 	if (p == NULL)
 		return ('_');
-	return (p[wc&0xFF]);
+	return (p[wc&0xFF]&0xFF);
 }
 
 wchar
