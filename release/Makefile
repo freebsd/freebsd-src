@@ -546,6 +546,7 @@ release.9:
 ftp.1:
 	@echo "Setting up FTP distribution area"
 	@mkdir -p ${FD}
+	@ln -s . ${FD}/${BUILDNAME}
 	@cd ${RD} && find floppies -print | cpio -dumpl ${FD}
 	@cd ${RD}/dists && find . -print | cpio -dumpl ${FD}
 	@for i in ${DIST_DOCS}; do \
@@ -718,7 +719,7 @@ doMFSKERN:
 	@echo "options  INTRO_USERCONFIG" >> ${.CURDIR}/../sys/i386/conf/BOOTMFS
 .endif
 .if defined(BIGBOOT)
-	@echo "options \"MFS_ROOT_SIZE=`cat mfsroot.size`\"" >> \
+	@echo "options \"MD_ROOT_SIZE=`cat mfsroot.size`\"" >> \
 	  ${.CURDIR}/../sys/${MACHINE_ARCH}/conf/BOOTMFS
 .endif
 	@cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
