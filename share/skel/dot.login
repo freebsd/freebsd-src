@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: dot.login,v 1.10 1997/02/22 13:56:32 peter Exp $
 #
 # .login - csh login script, read by login shell, 
 #	   after `.cshrc' at login.
@@ -13,9 +13,6 @@ setenv MANPATH "/usr/share/man:/usr/X11R6/man:/usr/local/man"
 #setenv CPU "FREEBSD"
 #set path = ($path /usr/local/interviews/bin/$CPU)
 #setenv MANPATH "${MANPATH}:/usr/local/interviews/man"
-
-# 8-bit locale (germany)
-#setenv LANG de_DE.ISO_8859-1
 
 # A rightous umask
 umask 22

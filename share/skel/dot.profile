@@ -1,4 +1,4 @@
-#	$Id: dot.profile,v 1.12 1997/07/15 09:37:02 charnier Exp $
+#	$Id: dot.profile,v 1.13 1997/08/03 18:37:46 wosch Exp $
 #
 # .profile - Bourne Shell startup script for login shells
 #
@@ -18,8 +18,5 @@ BLOCKSIZE=K;	export BLOCKSIZE
 EDITOR=vi;   	export EDITOR
 PAGER=more;  	export PAGER
 
-# # 8-bit locale (English, USA), to read umlauts in vi(1).
-# LANG=en_US.ISO_8859-1; export LANG
- 
 # set ENV to a file invoked each time sh is started for interactive use.
 ENV=$HOME/.shrc; export ENV
