@@ -72,7 +72,7 @@ main(argc, argv)
 	int ch, fd1, fd2, special;
 	const char *file1, *file2;
 
-	while ((ch = getopt(argc, argv, "-lsxz")) != -1)
+	while ((ch = getopt(argc, argv, "lsxz")) != -1)
 		switch (ch) {
 		case 'l':		/* print all differences */
 			lflag = 1;
@@ -88,14 +88,10 @@ main(argc, argv)
 		case 'z':		/* compare size first */
 			zflag = 1;
 			break;
-		case '-':		/* stdin (must be after options) */
-			--optind;
-			goto endargs;
 		case '?':
 		default:
 			usage();
 		}
-endargs:
 	argv += optind;
 	argc -= optind;
 
