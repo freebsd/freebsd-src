@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.25 1999/08/15 02:30:34 grog Exp $
+ * $Id: vinumconfig.c,v 1.8.2.5 1999/08/24 04:05:34 grog Exp $
  */
 
 #define STATIC static
@@ -1351,12 +1351,6 @@ config_plex(int update)
 	    throw_rude_remark(EINVAL, "Unnamed plex is not associated with a volume");
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
-    }
-    if (plex->organization == plex_raid5) {		    /* RAID-5 plex, */
-	plex->lock = (struct rangelock *)
-	    Malloc(sizeof(struct rangelock) * INITIAL_LOCKS); /* allocate lock table */
-	bzero(plex->lock, sizeof(struct rangelock) * INITIAL_LOCKS); /* zero it */
-	plex->alloclocks = INITIAL_LOCKS;		    /* and note how many there are */
     }
     /* Note the last plex we configured */
     current_plex = plexno;

@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumlock.c,v 1.12 1999/08/14 06:28:21 grog Exp $
+ * $Id: vinumlock.c,v 1.5.2.4 1999/08/24 04:05:41 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -268,9 +268,10 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 	if (foundlocks >= plex->alloclocks) {		    /* searched the lot, */
 	    newlock = plex->alloclocks;
 	    EXPAND(plex->lock, struct rangelock, plex->alloclocks, INITIAL_LOCKS);
+	    pos = &plex->lock[newlock];
 	    while (newlock < plex->alloclocks)
 		plex->lock[newlock++].stripe = 0;
-	}
+	} else
 	pos = lock;					    /* put it at the end */
     }
     pos->stripe = stripe;
