@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include "fsutil.h"
 
 static const char *dev = NULL;
-static int hot = 0;
 static int preen = 0;
 
 static void vmsg(int, const char *, va_list) __printflike(2, 0);
@@ -71,12 +70,6 @@ const char *
 cdevname(void)
 {
 	return dev;
-}
-
-int
-hotroot(void)
-{
-	return hot;
 }
 
 static void
@@ -135,37 +128,6 @@ panic(const char *fmt, ...)
 	vmsg(1, fmt, ap);
 	va_end(ap);
 	exit(8);
-}
-
-const char *
-unrawname(const char *name)
-{
-	static char unrawbuf[32];
-	const char *dp;
-	struct stat stb;
-
-	if ((dp = strrchr(name, '/')) == 0)
-		return (name);
-	if (stat(name, &stb) < 0)
-		return (name);
-	if (!S_ISCHR(stb.st_mode))
-		return (name);
-	if (dp[1] != 'r')
-		return (name);
-	(void)snprintf(unrawbuf, 32, "%.*s/%s", (int)(dp - name), name, dp + 2);
-	return (unrawbuf);
-}
-
-const char *
-rawname(const char *name)
-{
-	static char rawbuf[32];
-	const char *dp;
-
-	if ((dp = strrchr(name, '/')) == 0)
-		return (0);
-	(void)snprintf(rawbuf, 32, "%.*s/r%s", (int)(dp - name), name, dp + 1);
-	return (rawbuf);
 }
 
 const char *
