@@ -1,5 +1,6 @@
 $FreeBSD$
 /* $NetBSD: pcmciadevs,v 1.144 2001/10/27 08:05:21 ichiro Exp $ */
+/* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -47,22 +48,26 @@ vendor SANDISK			0x0045	Sandisk Corporation
 vendor NEWMEDIA			0x0057	New Media Corporation
 vendor INTEL			0x0089	Intel
 vendor IBM			0x00a4	IBM Corporation
-vendor MOTOROLA			0x0109	Motorola Corporation
 vendor 3COM			0x0101	3Com Corporation
 vendor MEGAHERTZ		0x0102	Megahertz Corporation
 vendor SOCKET			0x0104	Socket Communications
 vendor TDK			0x0105	TDK Corporation
 vendor XIRCOM			0x0105	Xircom
 vendor SMC			0x0108	Standard Microsystems Corporation
+vendor MOTOROLA			0x0109	Motorola Corporation
 vendor NI			0x010b	National Instruments
 vendor USROBOTICS		0x0115	US Robotics Corporation
 vendor OLICOM			0x0121	Olicom
+vendor PROXIM			0x0126	Proxim
 vendor MEGAHERTZ2		0x0128	Megahertz Corporation
 vendor ADAPTEC			0x012f	Adaptec Corporation
+vendor QUATECH			0x0137	Quatech
 vendor COMPAQ			0x0138	Compaq
 vendor DLINK_2			0x0143	D-Link
 vendor LINKSYS			0x0149	Linksys Corporation
+vendor NETGEAR			0x0149	Netgear
 vendor SIMPLETECH		0x014d	Simple Technology
+vendor SYMBOL2			0x014d	Symbol
 vendor LUCENT			0x0156	Lucent Technologies
 vendor AIRONET			0x015f	Aironet Wireless Communications
 vendor PSION			0x016c	Psion
@@ -79,8 +84,12 @@ vendor SAMSUNG			0x0250	Samsung
 vendor SYMBOL			0x026c	Symbol
 vendor BUFFALO			0x026f	BUFFALO (Melco Corporation)
 vendor IODATA2			0x028a	I-O DATA
+vendor BREEZECOM		0x0a02	BreezeCOM
+vendor NEWMEDIA2		0x10cd	NewMedia
 vendor LASAT			0x3401	Lasat Communications A/S
 vendor LEXARMEDIA		0x4e01	Lexar Media
+vendor ARCHOS			0x5241	Archos
+vendor DUAL			0x890f	Dual
 vendor COMPEX			0x8a01	Compex Corporation
 vendor MELCO			0x8a01	Melco Corporation
 vendor ZONET			0x8a01	Zonet Technology Inc.
@@ -104,11 +113,11 @@ product 3COM 3CRWE737A		0x0001 3Com AirConnect Wireless LAN
 product 3COM 3CXM056BNW		0x002f 3Com/NoteWorthy 3CXM056-BNW 56K Modem
 product 3COM 3CXEM556		0x0035 3Com/Megahertz 3CXEM556 Ethernet/Modem
 product 3COM 3CXEM556INT	0x003d 3Com/Megahertz 3CXEM556-INT Ethernet/Modem
-product 3COM 3C1		0x0cf1 3Com Megahertz 3C1 10Mbps LAN CF+ Card
 product 3COM 3CCFEM556BI	0x0556 3Com/Megahertz 3CCFEM556BI Ethernet/Modem
 product 3COM 3C562		0x0562 3Com 3c562 33.6 Modem/10Mbps Ethernet
 product 3COM 3C589		0x0589 3Com 3c589 10Mbps Ethernet
 product 3COM 3C574		0x0574 3Com 3c574-TX 10/100Mbps Ethernet
+product 3COM 3C1		0x0cf1 3Com Megahertz 3C1 10Mbps LAN CF+ Card
 product 3COM 3CRWE62092A	0x2092 3Com 3CRWE62092A	Wireless LAN
 
 /* Adaptec Products */
@@ -123,10 +132,16 @@ product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
 /* Allied Telesis K.K. */
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
+/* Archos */
+product	ARCHOS ARC_ATAPI	0x0043 MiniCD
+
 /* Bay Networks */
 product BAY STACK_650		0x0804 BayStack 650 Wireless LAN
 product BAY SURFER_PRO		0x0806 AirSurfer Pro Wireless LAN
 product BAY STACK_660		0x0807 BayStack 660 Wireless LAN
+
+/* BreezeCOM */
+product BREEZECOM BREEZENET	0x0102 BreezeCOM BreezeNET
 
 /* BUFFALO */
 product BUFFALO WLI_PCM_S11	0x0305	BUFFALO AirStation 11Mbps WLAN
@@ -136,6 +151,7 @@ product COMPAQ NC5004		0x0002 Compaq Agency NC5004 Wireless Card
 product COMPAQ2 CPQ_10_100	0x010a Compaq Netelligent 10/100 Ethernet
 
 /* Compex Products */
+product COMPEX AMP_WIRELESS	0x0066 AMP
 product COMPEX LINKPORT_ENET_B	0x0100 Compex Linkport ENET-B Ethernet
 
 /* Contec C-NET(PC) */
@@ -151,6 +167,9 @@ product DIGITAL MOBILE_MEDIA_CDROM 0x0d00 Digital Mobile Media CD-ROM
 
 /* D-Link Products */
 product DLINK_2 DMF560TX	0xc0ab D-Link DMF-650TX
+
+/* Dual */
+product DUAL NE2000		0x0100 Dual NE2000
 
 /* ELSA Products */
 product ELSA MC2_IEEE		0x0001 AirLancer MC-2 IEEE
@@ -213,6 +232,7 @@ product MEGAHERTZ XJEM3336 	0x0006 Megahertz X-JACK Ethernet Modem
 product MEGAHERTZ XJ4288	0x0023 Megahertz XJ4288 Modem
 product MEGAHERTZ XJ4336	0x0027 Megahertz XJ4336 Modem
 product MEGAHERTZ XJ5560	0x0034 Megahertz X-JACK 56kbps Modem
+product MEGAHERTZ2 XJEM1144	0x0101 Megahertz X-JACK
 product MEGAHERTZ2 XJACK	0x0103 Megahertz X-JACK Ethernet
 
 /* Melco Products */
@@ -221,10 +241,19 @@ product MELCO LPC3_TX	 	0xc1ab Melco LPC3-TX
 /* Motorola Products */
 product MOTOROLA POWER144	0x0105 Motorola Power 14.4 Modem
 product MOTOROLA PM100C		0x0302 Motorola Personal Messenger 100C CDPD Modem
+product MOTOROLA MONTANA_336	0x0505 Motorola Montana 33.6
 
 /* New Media Products */
 product NEWMEDIA BASICS		0x0019 New Media BASICS Ethernet
+product NEWMEDIA LANSURFER	0x0021 NewMedia LANSurfer
+product NEWMEDIA LIVEWIRE	0x1004 NewMedia LiveWire Ethernet LAN Adapter
+product NEWMEDIA MULTIMEDIA	0x100b NewMedia Multimedia
 product NEWMEDIA BUSTOASTER	0xc102 New Media BusToaster SCSI Host Adapter
+product NEWMEDIA WAVJAMMER	0xe005 NewMedia .WAVjammer
+product NEWMEDIA2 BUSTOASTER	0x0001 NewMedia BusToaster
+
+/* Netgear */
+product NETGEAR FA410TXC	0x4530 Netgear FA410TXC
 
 /* National Instruments */
 product NI PCMCIA_GPIB	 	0x4882 National Instruments PCMCIA-GPIB
@@ -239,9 +268,17 @@ product OLICOM TR		0x2132 GoCard Token Ring 16/4
 product PANASONIC KXLC002	0x0304 Panasonic 4X CD-ROM Interface Card
 product PANASONIC KXLC003	0x0504 Panasonic 8X CD-ROM Interface Card
 product PANASONIC KXLC005	0x2704 Panasonic 16X CD-ROM Interface Card
+product PANASONIC KME		0x2604 Panasonic CD-R/RW Interface
+
+/* Proxim */
+product PROXIM ROAMABOUT_2400FH	0x1058 Digital RoamAbout 2400FH
+product PROXIM RANGELAN2_7401	0x1158 Proxim RangeLAN2 7401
 
 /* Psion */
 product PSION GOLDCARD		0x0020 Psion Gold Card
+
+/* Quatech */
+product QUATECH DSP_225		0x0008 Quatech Dual Serial Port
 
 /* RATOC System Inc. Products */
 product RATOC REX_R280		0x0001	RATOC REX-R280
@@ -291,8 +328,8 @@ product USROBOTICS WORLDPORT144	0x3330 US Robotics WorldPort 14.4 Modem
 
 /* Xircom Products */
 product XIRCOM CE		0x0108 Xircom CreditCard Ethernet
-product XIRCOM CE2		0x010b Xircom CreditCard Ethernet II
 product XIRCOM CE3		0x010a Xircom CreditCard 10/100 Ethernet
+product XIRCOM CE2		0x010b Xircom CreditCard Ethernet II
 product XIRCOM CNW_801		0x0801 Xircom CreditCard Netwave (Canada)
 product XIRCOM CNW_802		0x0802 Xircom CreditCard Netwave (US)
 product XIRCOM CT2		0x1101 Xircom CreditCard Token Ring II
