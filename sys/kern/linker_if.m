@@ -102,6 +102,6 @@ STATICMETHOD int link_preload {
     const char*		filename;
     linker_file_t*	result;
 };
-STATICMETHOD int link_preload_finish {
+METHOD int link_preload_finish {
     linker_file_t	file;
 };
