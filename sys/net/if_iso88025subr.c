@@ -43,10 +43,12 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipx.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -228,6 +230,12 @@ iso88025_output(ifp, m, dst, rt0)
 	struct rtentry *rt;
 	struct arpcom *ac = (struct arpcom *)ifp;
 
+#ifdef MAC
+	error = mac_check_ifnet_transmit(ifp, m);
+	if (error)
+		senderr(error);
+#endif
+
 	if ((ifp->if_flags & (IFF_UP|IFF_RUNNING)) != (IFF_UP|IFF_RUNNING))
 		senderr(ENETDOWN);
 	getmicrotime(&ifp->if_lastchange);
@@ -408,6 +416,10 @@ iso88025_input(ifp, th, m)
 		m_freem(m);
 		return;
 	}
+
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(ifp, m);
+#endif
 
 	getmicrotime(&ifp->if_lastchange);
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof(*th);
