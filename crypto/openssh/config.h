@@ -1,6 +1,6 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.ac by autoheader.  */
-/* $Id: acconfig.h,v 1.138 2002/06/12 16:57:15 mouring Exp $ */
+/* $Id: acconfig.h,v 1.141 2002/06/25 22:35:16 tim Exp $ */
 /* $FreeBSD$ */
 
 #ifndef _CONFIG_H
@@ -234,9 +234,6 @@
 /* Define if xauth is found in your path */
 #define XAUTH_PATH "/usr/X11R6/bin/xauth"
 
-/* Define if rsh is found in your path */
-#define RSH_PATH "/usr/bin/rsh"
-
 /* Define if you want to allow MD5 passwords */
 /* #undef HAVE_MD5_PASSWORDS */
 
@@ -363,6 +360,12 @@
 
 /* Path that unprivileged child will chroot() to in privep mode */
 /* #undef PRIVSEP_PATH */
+
+/* Define if you have the `mmap' function that supports MAP_ANON|SHARED */
+#define HAVE_MMAP_ANON_SHARED 1
+
+/* Define if sendmsg()/recvmsg() has problems passing file descriptors */
+/* #undef BROKEN_FD_PASSING */
 
 
 /* Define if the `getpgrp' function takes no argument. */
