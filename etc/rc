@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.178 1999/02/10 18:08:16 jkh Exp $
+#	$Id: rc,v 1.179 1999/02/13 05:30:49 jkh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -305,7 +305,7 @@ if [ "X${cron_enable}" != X"NO" ]; then
 fi
 
 if [ "X${lpd_enable}" = X"YES" ]; then
-	echo -n ' printer';		lpd ${lpd_flags}
+	echo -n ' printer';		${lpd_program} ${lpd_flags}
 fi
 
 if [ "X${sendmail_enable}" = X"YES" -a -r /etc/sendmail.cf ]; then
