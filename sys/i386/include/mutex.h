@@ -67,6 +67,8 @@ extern char STR_SIEN[];
  *------------------------------------------------------------------------------
  */
 
+#ifdef _KERN_MUTEX_C_
+
 #define	_V(x)	__STRING(x)
 
 #if 0
@@ -247,6 +249,10 @@ extern char STR_SIEN[];
 })
 
 #endif	/* I386_CPU */
+
+#undef _V
+
+#endif	/* _KERN_MUTEX_C_ */
 
 #endif	/* _KERNEL */
 
