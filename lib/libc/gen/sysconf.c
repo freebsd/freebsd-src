@@ -256,15 +256,15 @@ do_NAME_MAX:
 	case _SC_AIO_LISTIO_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_LISTIO_MAX;
-		goto break;
+		break;
 	case _SC_AIO_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_MAX;
-		goto break;
+		break;
 	case _SC_AIO_PRIO_DELTA_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_AIO_PRIO_DELTA_MAX;
-		goto break;
+		break;
 	case _SC_DELAYTIMER_MAX:
 		mib[0] = CTL_P1003_1B;
 		mib[1] = CTL_P1003_1B_DELAYTIMER_MAX;
