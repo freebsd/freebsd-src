@@ -585,7 +585,7 @@ display(p, list)
 		if (cur->fts_namelen > maxlen)
 			maxlen = cur->fts_namelen;
 		if (f_octal || f_octal_escape) {
-		        int t = len_octal(cur->fts_name, cur->fts_namelen);
+		        u_long t = len_octal(cur->fts_name, cur->fts_namelen);
 			if (t > maxlen) maxlen = t;
 		}
 		if (needstats) {
