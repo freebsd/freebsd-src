@@ -56,7 +56,7 @@ Print command summary
 .It Ic pccardmem
 Allocate memory for pccard driver
 .It Ic power
-Power on/off slots
+Power on/off slots and leaves them disabled
 .It Ic rdattr
 Read attribute memory
 .It Ic rdmap
@@ -154,8 +154,9 @@ Prints help for
 .Pp
 Specifies the host address using PC-CARD controller(PCIC)
 will use to map cards to.
-Because the PCIC needs a contiguous 16KB memory,
-you can only use the following four addresses:
+Because the PCIC needs a contiguous 16KB memory, and most machines
+have other ROMs or devices at other places in the ISA I/O memory
+address range, generally you can only use the following four addresses:
 .Pp
 .Bl -tag -width 0xd0000 -compact
 .It Ar 0xd0000
@@ -185,9 +186,15 @@ Turn off a power supply.
 If a card becomes unstable when it is removed at
 activate state,
 this can force it into inactive state first and remove it safely.
+The slot will remain disabled until you eject the card with the system
+running or reenable the card with another
+.Ic pccardc power
+power command.
+The slot will even remain disabled when you suspend and resume the
+computer.
 .It Li 1
 Turn on a power supply and set it into active state
-(similar to a card insertion).
+(the system treats the card as if it was just inserted).
 .El
 .Pp
 .It
