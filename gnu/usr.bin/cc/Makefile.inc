@@ -58,8 +58,4 @@ LIBCC_DRV=	${.CURDIR}/../cc_drv/libcc_drv.a
 
 LIBCC_INT=	${LIBDESTDIR}/libcc_int.a
 
-.if !defined(OSVERSION)
-OSVERSION!=	sysctl -n kern.osreldate
-.endif
-
 .endif # !GCCDIR
