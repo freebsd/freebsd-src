@@ -109,6 +109,11 @@ wish to hook into the
 .Nm
 system without modifying the user's other
 config files.
+.Pp
+All messages that
+.Nm
+receives are forwarded to the unix domain socket at
+.Pa /var/run/devd.pipe .
 .Sh SEE ALSO
 .Xr devctl 4 ,
 .Xr devd.conf 5

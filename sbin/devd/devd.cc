@@ -30,15 +30,18 @@
 
 // TODO list:
 //	o devd.conf and devd man pages need a lot of help:
-//	  - devd.conf needs to lose the warning about zone files.
+//	  - devd needs to document the unix domain socket
 //	  - devd.conf needs more details on the supported statements.
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/types.h>
+#include <sys/un.h>
 
 #include <ctype.h>
 #include <dirent.h>
@@ -54,11 +57,13 @@ __FBSDID("$FreeBSD$");
 #include <algorithm>
 #include <map>
 #include <string>
+#include <list>
 #include <vector>
 
 #include "devd.h"		/* C compatible definitions */
 #include "devd.hh"		/* C++ class definitions */
 
+#define PIPE "/var/run/devd.pipe"
 #define CF "/etc/devd.conf"
 #define SYSCTL "hw.bus.devctl_disable"
 
@@ -585,6 +590,56 @@ process_event(char *buffer)
 	cfg.pop_var_table();
 }
 
+int
+create_socket(const char *name)
+{
+	int fd, slen;
+	struct sockaddr_un sun;
+
+	if ((fd = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0)
+		err(1, "socket");
+	bzero(&sun, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	strlcpy(sun.sun_path, name, sizeof(sun.sun_path));
+	slen = SUN_LEN(&sun);
+	unlink(name);
+	if (bind(fd, (struct sockaddr *) & sun, slen) < 0)
+		err(1, "bind");
+	listen(fd, 4);
+	fchown(fd, 0, 0);	/* XXX - root.wheel */
+	fchmod(fd, 0660);
+	return (fd);
+}
+
+list<int> clients;
+
+void
+notify_clients(const char *data, int len)
+{
+	list<int> bad;
+	list<int>::const_iterator i;
+
+	for (i = clients.begin(); i != clients.end(); i++) {
+		if (write(*i, data, len) <= 0) {
+			bad.push_back(*i);
+			close(*i);
+		}
+	}
+
+	for (i = bad.begin(); i != bad.end(); i++)
+		clients.erase(find(clients.begin(), clients.end(), *i));
+}
+
+void
+new_client(int fd)
+{
+	int s;
+
+	s = accept(fd, NULL, NULL);
+	if (s != -1)
+		clients.push_back(s);
+}
+
 static void
 event_loop(void)
 {
@@ -592,14 +647,17 @@ event_loop(void)
 	int fd;
 	char buffer[DEVCTL_MAXBUF];
 	int once = 0;
+	int server_fd, max_fd;
 	timeval tv;
 	fd_set fds;
 
 	fd = open(PATH_DEVCTL, O_RDONLY);
 	if (fd == -1)
-		err(1, "Can't open devctl");
+		err(1, "Can't open devctl device %s", PATH_DEVCTL);
 	if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0)
-		err(1, "Can't set close-on-exec flag");
+		err(1, "Can't set close-on-exec flag on devctl");
+	server_fd = create_socket(PIPE);
+	max_fd = max(fd, server_fd) + 1;
 	while (1) {
 		if (romeo_must_die)
 			break;
@@ -619,19 +677,33 @@ event_loop(void)
 				once++;
 			}
 		}
-		rv = read(fd, buffer, sizeof(buffer) - 1);
-		if (rv > 0) {
-			buffer[rv] = '\0';
-			while (buffer[--rv] == '\n')
-				buffer[rv] = '\0';
-			process_event(buffer);
-		} else if (rv < 0) {
-			if (errno != EINTR)
-				break;
-		} else {
-			/* EOF */
-			break;
+		FD_ZERO(&fds);
+		FD_SET(fd, &fds);
+		FD_SET(server_fd, &fds);
+		rv = select(max_fd, &fds, NULL, NULL, NULL);
+		if (rv == -1) {
+			if (errno == EINTR)
+				continue;
+			err(1, "select");
 		}
+		if (FD_ISSET(fd, &fds)) {
+			rv = read(fd, buffer, sizeof(buffer) - 1);
+			if (rv > 0) {
+				notify_clients(buffer, rv);
+				buffer[rv] = '\0';
+				while (buffer[--rv] == '\n')
+					buffer[rv] = '\0';
+				process_event(buffer);
+			} else if (rv < 0) {
+				if (errno != EINTR)
+					break;
+			} else {
+				/* EOF */
+				break;
+			}
+		}
+		if (FD_ISSET(server_fd, &fds))
+			new_client(server_fd);
 	}
 	close(fd);
 }
