@@ -90,6 +90,18 @@ g_waitidle(void)
 }
 
 void
+g_waitidlelock(void)
+{
+
+	g_topology_assert();
+	while (g_pending_events) {
+		g_topology_unlock();
+		tsleep(&g_pending_events, PPAUSE, "g_waitidle", hz/5);
+		g_topology_lock();
+	}
+}
+
+void
 g_orphan_provider(struct g_provider *pp, int error)
 {
 
