@@ -56,6 +56,7 @@
 #include <sys/malloc.h>
 #include <sys/unistd.h>
 #include <sys/resourcevar.h>
+#include <sys/event.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -504,6 +505,8 @@ close(p, uap)
 	if (fd < fdp->fd_freefile)
 		fdp->fd_freefile = fd;
 	*pf = 0;
+	if (fd < fdp->fd_knlistsize)
+		knote_fdclose(p, fd);
 	return (closef(fp, p));
 }
 
@@ -830,9 +833,7 @@ fdinit(p)
 	newfdp->fd_fd.fd_ofiles = newfdp->fd_dfiles;
 	newfdp->fd_fd.fd_ofileflags = newfdp->fd_dfileflags;
 	newfdp->fd_fd.fd_nfiles = NDFILE;
-
-	newfdp->fd_fd.fd_freefile = 0;
-	newfdp->fd_fd.fd_lastfile = 0;
+	newfdp->fd_fd.fd_knlistsize = -1;
 
 	return (&newfdp->fd_fd);
 }
@@ -899,6 +900,21 @@ fdcopy(p)
 	newfdp->fd_nfiles = i;
 	bcopy(fdp->fd_ofiles, newfdp->fd_ofiles, i * sizeof(struct file **));
 	bcopy(fdp->fd_ofileflags, newfdp->fd_ofileflags, i * sizeof(char));
+
+	/*
+	 * kq descriptors cannot be copied.
+	 */
+	if (newfdp->fd_knlistsize != -1) {
+		fpp = newfdp->fd_ofiles;
+		for (i = newfdp->fd_lastfile; i-- >= 0; fpp++)
+			if (*fpp != NULL && (*fpp)->f_type == DTYPE_KQUEUE)
+				*fpp = NULL;
+		newfdp->fd_knlist = NULL;
+		newfdp->fd_knlistsize = -1;
+		newfdp->fd_knhash = NULL;
+		newfdp->fd_knhashmask = 0;
+	}
+
 	fpp = newfdp->fd_ofiles;
 	for (i = newfdp->fd_lastfile; i-- >= 0; fpp++)
 		if (*fpp != NULL)
@@ -933,6 +949,10 @@ fdfree(p)
 	vrele(fdp->fd_rdir);
 	if (fdp->fd_jdir)
 		vrele(fdp->fd_jdir);
+	if (fdp->fd_knlist)
+		FREE(fdp->fd_knlist, M_TEMP);
+	if (fdp->fd_knhash)
+		FREE(fdp->fd_knhash, M_TEMP);
 	FREE(fdp, M_FILEDESC);
 }
 

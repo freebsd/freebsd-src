@@ -513,3 +513,8 @@
 359	STD	BSD	{ int aio_waitcomplete(struct aiocb **aiocbp, struct timespec *timeout); }
 360	STD	BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
 361	STD	BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
+362	STD	BSD	{ int kqueue(void); }
+363	STD	BSD	{ int kevent(int fd, \
+			    int nchanges, struct kevent **changelist, \
+			    int nevents, struct kevent *eventlist, \
+			    struct timespec *timeout); }

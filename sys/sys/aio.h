@@ -22,7 +22,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/signal.h>
-#include <sys/socketvar.h>
 
 /*
  * Returned by aio_cancel:
@@ -168,11 +167,15 @@ struct aiocblist {
 	struct	aioproclist *jobaioproc;/* AIO process descriptor */
         struct	aio_liojob *lio;	/* Optional lio job */
         struct	aiocb *uuaiocb;		/* Pointer in userspace of aiocb */
+	struct	klist klist;		/* list of knotes */
         struct	aiocb uaiocb;		/* Kernel I/O control block */
 };
 
-void	aio_proc_rundown(struct proc *p);
+/* Forward declarations for prototypes below. */
+struct socket;
+struct sockbuf;
 
+void	aio_proc_rundown(struct proc *p);
 void	aio_swake(struct socket *, struct sockbuf *);
 
 #endif

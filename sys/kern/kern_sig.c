@@ -49,6 +49,7 @@
 #include <sys/resourcevar.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
+#include <sys/event.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/systm.h>
@@ -62,7 +63,6 @@
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 
-#include <vm/vm_zone.h>
 
 #include <machine/cpu.h>
 #ifdef SMP
@@ -81,6 +81,13 @@ static int killpg1	__P((struct proc *cp, int sig, int pgid, int all));
 static int sig_ffs	__P((sigset_t *set));
 static int sigprop	__P((int sig));
 static void stop	__P((struct proc *));
+
+static int	filt_sigattach(struct knote *kn);
+static void	filt_sigdetach(struct knote *kn);
+static int	filt_signal(struct knote *kn, long hint);
+
+struct filterops sig_filtops =
+	{ 0, filt_sigattach, filt_sigdetach, filt_signal };
 
 static int	kern_logsigexit = 1;
 SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
@@ -996,6 +1003,8 @@ psignal(p, sig)
 		panic("psignal signal number");
 	}
 
+	KNOTE(&p->p_klist, NOTE_SIGNAL | sig);
+
 	prop = sigprop(sig);
 
 	/*
@@ -1681,4 +1690,45 @@ pgsigio(sigio, sig, checkctty)
 			    (checkctty == 0 || (p->p_flag & P_CONTROLT)))
 				psignal(p, sig);
 	}
+}
+
+static int
+filt_sigattach(struct knote *kn)
+{
+	struct proc *p = curproc;
+
+	kn->kn_ptr.p_proc = p;
+	kn->kn_flags |= EV_CLEAR;		/* automatically set */
+
+	/* XXX lock the proc here while adding to the list? */
+	SLIST_INSERT_HEAD(&p->p_klist, kn, kn_selnext);
+
+	return (0);
+}
+
+static void
+filt_sigdetach(struct knote *kn)
+{
+	struct proc *p = kn->kn_ptr.p_proc;
+
+	SLIST_REMOVE(&p->p_klist, kn, knote, kn_selnext);
+}
+
+/*
+ * signal knotes are shared with proc knotes, so we apply a mask to 
+ * the hint in order to differentiate them from process hints.  This
+ * could be avoided by using a signal-specific knote list, but probably
+ * isn't worth the trouble.
+ */
+static int
+filt_signal(struct knote *kn, long hint)
+{
+
+	if (hint & NOTE_SIGNAL) {
+		hint &= ~NOTE_SIGNAL;
+
+		if (kn->kn_id == hint)
+			kn->kn_data++;
+	}
+	return (kn->kn_data != 0);
 }

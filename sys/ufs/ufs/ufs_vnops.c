@@ -56,10 +56,9 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
-#include <sys/poll.h>
+#include <sys/event.h>
 #include <sys/conf.h>
 
-#include <vm/vm_zone.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -119,6 +118,8 @@ union _qcvt {
 	tmp.val[_QUAD_LOWWORD] = (l); \
 	(q) = tmp.qcvt; \
 }
+#define VN_KNOTE(vp, b) \
+	KNOTE(&vp->v_pollinfo.vpi_selinfo.si_note, (b))
 
 /*
  * A virgin directory (no blushing please).
@@ -185,7 +186,7 @@ ufs_create(ap)
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
+	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
 	return (0);
 }
 
@@ -211,7 +212,7 @@ ufs_mknod(ap)
 	    ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
+	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
 	ip = VTOI(*vpp);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	if (vap->va_rdev != VNOVAL) {
@@ -527,7 +528,7 @@ ufs_setattr(ap)
 			return (EROFS);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, p);
 	}
-	VN_POLLEVENT(vp, POLLATTRIB);
+	VN_KNOTE(vp, NOTE_ATTRIB);
 	return (error);
 }
 
@@ -705,8 +706,8 @@ ufs_remove(ap)
 		goto out;
 	}
 	error = ufs_dirremove(dvp, ip, ap->a_cnp->cn_flags, 0);
-	VN_POLLEVENT(vp, POLLNLINK);
-	VN_POLLEVENT(dvp, POLLWRITE);
+	VN_KNOTE(vp, NOTE_DELETE);
+	VN_KNOTE(dvp, NOTE_WRITE);
 out:
 	return (error);
 }
@@ -772,8 +773,8 @@ out1:
 	if (tdvp != vp)
 		VOP_UNLOCK(vp, 0, p);
 out2:
-	VN_POLLEVENT(vp, POLLNLINK);
-	VN_POLLEVENT(tdvp, POLLWRITE);
+	VN_KNOTE(vp, NOTE_LINK);
+	VN_KNOTE(tdvp, NOTE_WRITE);
 	return (error);
 }
 
@@ -994,7 +995,7 @@ abortit:
 		oldparent = dp->i_number;
 		doingdirectory = 1;
 	}
-	VN_POLLEVENT(fdvp, POLLWRITE);
+	VN_KNOTE(fdvp, NOTE_WRITE);		/* XXX right place? */
 	vrele(fdvp);
 
 	/*
@@ -1100,7 +1101,7 @@ abortit:
 			}
 			goto bad;
 		}
-		VN_POLLEVENT(tdvp, POLLWRITE);
+		VN_KNOTE(tdvp, NOTE_WRITE);
 		vput(tdvp);
 	} else {
 		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
@@ -1157,7 +1158,6 @@ abortit:
 			if (DOINGSOFTDEP(tvp))
 				softdep_change_linkcnt(xp);
 		}
-		VN_POLLEVENT(tdvp, POLLWRITE);
 		if (doingdirectory && !DOINGSOFTDEP(tvp)) {
 			/*
 			 * Truncate inode. The only stuff left in the directory
@@ -1181,8 +1181,9 @@ abortit:
 			    tcnp->cn_cred, tcnp->cn_proc)) != 0)
 				goto bad;
 		}
+		VN_KNOTE(tdvp, NOTE_WRITE);
 		vput(tdvp);
-		VN_POLLEVENT(tvp, POLLNLINK); /* XXX this right? */
+		VN_KNOTE(tvp, NOTE_DELETE);
 		vput(tvp);
 		xp = NULL;
 	}
@@ -1237,6 +1238,7 @@ abortit:
 		error = ufs_dirremove(fdvp, xp, fcnp->cn_flags, 0);
 		xp->i_flag &= ~IN_RENAME;
 	}
+	VN_KNOTE(fvp, NOTE_RENAME);
 	if (dp)
 		vput(fdvp);
 	if (xp)
@@ -1313,10 +1315,10 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
 		ucp = cnp->cn_cred;
-#endif			I
+#endif
 		/*
 		 * If we are hacking owners here, (only do this where told to)
-		 * and we are not giving it TOO root, (would subvert quotas)
+		 * and we are not giving it TO root, (would subvert quotas)
 		 * then go ahead and give it to the other user.
 		 * The new directory also inherits the SUID bit.
 		 * If user's UID and dir UID are the same,
@@ -1425,7 +1427,6 @@ ufs_mkdir(ap)
 		(void)VOP_BWRITE(bp->b_vp, bp);
 		goto bad;
 	}
-	VN_POLLEVENT(dvp, POLLWRITE); /* XXX right place? */
 	/*
 	 * Directory set up, now install its entry in the parent directory.
 	 *
@@ -1446,6 +1447,7 @@ ufs_mkdir(ap)
 	
 bad:
 	if (error == 0) {
+		VN_KNOTE(dvp, NOTE_WRITE);
 		*ap->a_vpp = tvp;
 	} else {
 		dp->i_effnlink--;
@@ -1536,7 +1538,7 @@ ufs_rmdir(ap)
 		}
 		goto out;
 	}
-	VN_POLLEVENT(dvp, POLLWRITE|POLLNLINK);
+	VN_KNOTE(dvp, NOTE_WRITE | NOTE_LINK);
 	cache_purge(dvp);
 	/*
 	 * Truncate inode. The only stuff left in the directory is "." and
@@ -1556,7 +1558,7 @@ ufs_rmdir(ap)
 	}
 	cache_purge(vp);
 out:
-	VN_POLLEVENT(vp, POLLNLINK);
+	VN_KNOTE(vp, NOTE_DELETE);
 	return (error);
 }
 
@@ -1581,7 +1583,7 @@ ufs_symlink(ap)
 	    vpp, ap->a_cnp);
 	if (error)
 		return (error);
-	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
+	VN_KNOTE(ap->a_dvp, NOTE_WRITE);
 	vp = *vpp;
 	len = strlen(ap->a_target);
 	if (len < vp->v_mount->mnt_maxsymlinklen) {
@@ -2085,11 +2087,11 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		struct ucred ucred, *ucp;
 		ucp = cnp->cn_cred;
-#endif			I
+#endif
 		/*
 		 * If we are not the owner of the directory,
 		 * and we are hacking owners here, (only do this where told to)
-		 * and we are not giving it TOO root, (would subvert quotas)
+		 * and we are not giving it TO root, (would subvert quotas)
 		 * then go ahead and give it to the other user.
 		 * Note that this drops off the execute bits for security.
 		 */
@@ -2300,5 +2302,3 @@ ufs_vnoperatespec(ap)
 {
 	return (VOCALL(ufs_specop_p, ap->a_desc->vdesc_offset, ap));
 }
-
-
