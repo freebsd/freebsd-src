@@ -479,20 +479,6 @@ disk_err(struct bio *bp, const char *what, int blkdone, int nl)
 		printf("\n");
 }
 
-#ifdef notquite
-/*
- * Mutex to use when delaying niced I/O bound processes in bioq_disksort().
- */
-static struct mtx dksort_mtx;
-static void
-dksort_init(void)
-{
-
-	mtx_init(&dksort_mtx, "dksort", NULL, MTX_DEF);
-}
-SYSINIT(dksort, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, dksort_init, NULL)
-#endif
-
 /*
  * Seek sort for disks.
  *
@@ -517,21 +503,6 @@ bioq_disksort(bioq, bp)
 	struct bio *bn;
 	struct bio *be;
 
-#ifdef notquite
-	struct thread *td = curthread;
-	
-	if (td && td->td_ksegrp->kg_nice > 0) {
-		TAILQ_FOREACH(bn, &bioq->queue, bio_queue)
-			if (BIOTOBUF(bp)->b_vp != BIOTOBUF(bn)->b_vp)
-				break;
-		if (bn != NULL) {
-			mtx_lock(&dksort_mtx);
-			msleep(&dksort_mtx, &dksort_mtx,
-			    PPAUSE | PCATCH | PDROP, "ioslow",
-			    td->td_ksegrp->kg_nice);
-		}
-	}
-#endif
 	if (!atomic_cmpset_int(&bioq->busy, 0, 1))
 		panic("Recursing in bioq_disksort()");
 	be = TAILQ_LAST(&bioq->queue, bio_queue);
