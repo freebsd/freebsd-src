@@ -60,8 +60,9 @@ Int_Open_Disk(const char *name, u_long size)
 	int i,fd;
 	struct diskslices ds;
 	struct disklabel dl;
-	char device[64];
+	char device[64], *buf;
 	struct disk *d;
+	u_long sector_size;
 #ifdef PC98
 	unsigned char *p;
 #else
@@ -74,7 +75,7 @@ Int_Open_Disk(const char *name, u_long size)
 	strcat(device, name);
 
 	d = (struct disk *)malloc(sizeof *d);
-	if(!d) barfout(1, "malloc failed");
+	if(!d) return NULL;
 	memset(d, 0, sizeof *d);
 
 	fd = open(device, O_RDONLY);
@@ -104,7 +105,7 @@ Int_Open_Disk(const char *name, u_long size)
 	printf("\n");
 #endif
 
-/* XXX --- ds.dss_slice[WHOLE_DISK_SLCIE].ds.size of MO disk is wrong!!! */
+/* XXX --- ds.dss_slice[WHOLE_DISK_SLICE].ds.size of MO disk is wrong!!! */
 #ifdef PC98
 	if (!size)
 		size = dl.d_ncylinders * dl.d_ntracks * dl.d_nsectors;
@@ -113,10 +114,23 @@ Int_Open_Disk(const char *name, u_long size)
 		size = ds.dss_slices[WHOLE_DISK_SLICE].ds_size;
 #endif
 
+	/* determine media sector size */
+	if ((buf = malloc(MAX_SEC_SIZE)) == NULL)
+		return NULL;
+	for (sector_size = MIN_SEC_SIZE; sector_size <= MAX_SEC_SIZE; sector_size *= 2) {
+		if (read(fd, buf, sector_size) == sector_size) {
+			d->sector_size = sector_size;
+			break;
+		}
+	}
+	free (buf);
+	if (sector_size > MAX_SEC_SIZE)
+		return NULL; /* could not determine sector size */
+
 #ifdef PC98
-	p = (unsigned char*)read_block(fd, 1);
+	p = (unsigned char*)read_block(fd, 1, sector_size);
 #else
-	p = read_block(fd, 0);
+	p = read_block(fd, 0, sector_size);
 	dp = (struct dos_partition*)(p + DOSPARTOFF);
 	for (i = 0; i < NDOSPART; i++) {
 		if (Read_Int32(&dp->dp_start) >= size)
@@ -416,7 +430,7 @@ Clone_Disk(struct disk *d)
 	struct disk *d2;
 
 	d2 = (struct disk*) malloc(sizeof *d2);
-	if(!d2) barfout(1, "malloc failed");
+	if(!d2) return NULL;
 	*d2 = *d;
 	d2->name = strdup(d2->name);
 	d2->chunks = Clone_Chunk(d2->chunks);
@@ -490,7 +504,7 @@ Disk_Names()
 	    disklist = (char *)malloc(listsize);
 	    error = sysctlbyname("kern.disks", disklist, &listsize, NULL, 0);
 	    if (error) 
-		    barfout(1, "sysctlbyname(\"kern.disks\") failed");
+		    return NULL;
 	    k = 0;
 	    for (dp = disks; ((*dp = strsep(&disklist, " ")) != NULL) && k < MAX_NO_DISKS; k++, dp++);
 	    return disks;
@@ -531,8 +545,7 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 #endif
 {
 #ifdef PC98
-	/* XXX - assumes sector size of 512 */
-	if (bootipl_size % 512 != 0)
+	if (bootipl_size % d->sector_size != 0)
 		return;
 	if (d->bootipl)
 		free(d->bootipl);
@@ -541,12 +554,11 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootipl_size = bootipl_size;
 		d->bootipl = malloc(bootipl_size);
-		if(!d->bootipl) barfout(1, "malloc failed");
+		if(!d->bootipl) return;
 		memcpy(d->bootipl, bootipl, bootipl_size);
 	}
 
-	/* XXX - assumes sector size of 512 */
-	if (bootmenu_size % 512 != 0)
+	if (bootmenu_size % d->sector_size != 0)
 		return;
 	if (d->bootmenu)
 		free(d->bootmenu);
@@ -555,12 +567,11 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmenu_size = bootmenu_size;
 		d->bootmenu = malloc(bootmenu_size);
-		if(!d->bootmenu) barfout(1, "malloc failed");
+		if(!d->bootmenu) return;
 		memcpy(d->bootmenu, bootmenu, bootmenu_size);
 	}
 #else
-	/* XXX - assumes sector size of 512 */
-	if (s % 512 != 0)
+	if (s % d->sector_size != 0)
 		return;
 	if (d->bootmgr)
 		free(d->bootmgr);
@@ -569,30 +580,31 @@ Set_Boot_Mgr(struct disk *d, const u_char *b, const size_t s)
 	} else {
 		d->bootmgr_size = s;
 		d->bootmgr = malloc(s);
-		if(!d->bootmgr) barfout(1, "malloc failed");
+		if(!d->bootmgr) return;
 		memcpy(d->bootmgr, b, s);
 	}
 #endif
 }
 
-void
+int
 Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 {
 #if defined(__i386__)
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(512);
-	if(!d->boot1) barfout(1, "malloc failed");
+	if(!d->boot1) return -1;
 	memcpy(d->boot1, b1, 512);
 	if (d->boot2) free(d->boot2);
 	d->boot2 = malloc(15 * 512);
-	if(!d->boot2) barfout(1, "malloc failed");
+	if(!d->boot2) return -1;
 	memcpy(d->boot2, b2, 15 * 512);
 #elif defined(__alpha__)
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(15 * 512);
-	if(!d->boot1) barfout(1, "malloc failed");
+	if(!d->boot1) return -1;
 	memcpy(d->boot1, b1, 15 * 512);
 #endif
+	return 0;
 }
 
 const char *

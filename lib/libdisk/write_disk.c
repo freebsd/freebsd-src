@@ -34,6 +34,9 @@
 #else
 #define WHERE(offset,disk) (disk->flags & DISK_ON_TRACK ? offset + 63 : offset)
 #endif
+
+/* XXX: A lot of hardcoded 512s probably should be foo->sector_size;
+        I'm not sure which, so I leave it like it worked before. --schweikh */
 int
 Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 {
@@ -47,7 +50,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif
 
 	for(i = 0; i < BBSIZE/512; i++) {
-		p = read_block(fd, WHERE(i + c1->offset, new));
+		p = read_block(fd, WHERE(i + c1->offset, new), 512);
 		memcpy(buf + 512 * i, p, 512);
 		free(p);
 	}
@@ -140,7 +143,7 @@ Write_FreeBSD(int fd, struct disk *new, struct disk *old, struct chunk *c1)
 #endif /*__alpha__*/
 
 	for(i=0;i<BBSIZE/512;i++) {
-		write_block(fd,WHERE(i + c1->offset, new), buf + 512 * i);
+		write_block(fd,WHERE(i + c1->offset, new), buf + 512 * i, 512);
 	}
 
 	return 0;
@@ -227,9 +230,9 @@ Write_Disk(struct disk *d1)
 
 	memset(s,0,sizeof s);
 #ifdef PC98
-	mbr = read_block(fd, WHERE(1, d1));
+	mbr = read_block(fd, WHERE(1, d1), d1->sector_size);
 #else
-	mbr = read_block(fd, WHERE(0, d1));
+	mbr = read_block(fd, WHERE(0, d1), d1->sector_size);
 #endif
 	dp = (struct dos_partition*)(mbr + DOSPARTOFF);
 	memcpy(work, dp, sizeof work);
@@ -362,9 +365,9 @@ Write_Disk(struct disk *d1)
 
 #ifdef PC98
 	if (d1->bootipl)
-		write_block(fd, WHERE(0, d1), d1->bootipl);
+		write_block(fd, WHERE(0, d1), d1->bootipl, d1->sector_size);
 
-	mbr = read_block(fd, WHERE(1, d1));
+	mbr = read_block(fd, WHERE(1, d1), d1->sector_size);
 	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	/* XXX - for entire FreeBSD(98) */
 	for (c1 = d1->chunks->part; c1; c1 = c1->next)
@@ -372,13 +375,13 @@ Write_Disk(struct disk *d1)
 			 && (c1->offset == 0))
 			PC98_EntireDisk = 1;
 	if (PC98_EntireDisk == 0)
-		write_block(fd, WHERE(1, d1), mbr);
+		write_block(fd, WHERE(1, d1), mbr, d1->sector_size);
 
 	if (d1->bootmenu)
-		for (i = 0; i * 512 < d1->bootmenu_size; i++)
-			write_block(fd, WHERE(2 + i, d1), &d1->bootmenu[i * 512]);
+		for (i = 0; i * d1->sector_size < d1->bootmenu_size; i++)
+			write_block(fd, WHERE(2 + i, d1), &d1->bootmenu[i * d1->sector_size], d1->sector_size);
 #else
-	mbr = read_block(fd, WHERE(0, d1));
+	mbr = read_block(fd, WHERE(0, d1), d1->sector_size);
 	if (d1->bootmgr) {
 		memcpy(mbr, d1->bootmgr, DOSPARTOFF);
 		Cfg_Boot_Mgr(mbr, need_edd);
@@ -386,10 +389,10 @@ Write_Disk(struct disk *d1)
 	memcpy(mbr + DOSPARTOFF, dp, sizeof *dp * NDOSPART);
 	mbr[512-2] = 0x55;
 	mbr[512-1] = 0xaa;
-	write_block(fd, WHERE(0, d1), mbr);
-	if (d1->bootmgr && d1->bootmgr_size > 512)
-	  for(i = 1; i * 512 <= d1->bootmgr_size; i++)
-	    write_block(fd, WHERE(i, d1), &d1->bootmgr[i * 512]);
+	write_block(fd, WHERE(0, d1), mbr, d1->sector_size);
+	if (d1->bootmgr && d1->bootmgr_size > d1->sector_size)
+	  for(i = 1; i * d1->sector_size <= d1->bootmgr_size; i++)
+	    write_block(fd, WHERE(i, d1), &d1->bootmgr[i * d1->sector_size], d1->sector_size);
 #endif
 #endif
 
