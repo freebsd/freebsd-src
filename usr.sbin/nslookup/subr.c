@@ -55,7 +55,7 @@
 
 #ifndef lint
 static char sccsid[] = "@(#)subr.c	5.24 (Berkeley) 3/2/91";
-static char rcsid[] = "$Id: subr.c,v 1.4 1995/08/20 22:32:50 peter Exp $";
+static char rcsid[] = "$Id: subr.c,v 1.5 1995/10/23 12:59:29 peter Exp $";
 #endif /* not lint */
 
 /*
@@ -117,7 +117,7 @@ void
 IntrHandler()
 {
     extern jmp_buf env;
-#if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD)
+#if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD) && !defined(__osf__)
     extern FILE *yyin;		/* scanner input file */
     extern void yyrestart();	/* routine to restart scanner after interrupt */
 #endif
@@ -129,7 +129,7 @@ IntrHandler()
 	filePtr = NULL;
     }
     printf("\n");
-#if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD)
+#if defined(BSD) && BSD >= 199006 && !defined(RISCOS_BSD) && !defined(__osf__)
     yyrestart(yyin);
 #endif
     longjmp(env, 1);
