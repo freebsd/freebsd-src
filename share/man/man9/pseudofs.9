@@ -42,8 +42,8 @@ module offers an abstract API for pseudo-filesystems such as
 and
 .Xr linprocfs 5 .
 It takes care of all the hairy bits like interfacing with the VFS
-system, keeping track of file numbers, and cloning files and
-directories that are process-specific.
+system, enforcing access control, keeping track of file numbers, and
+cloning files and directories that are process-specific.
 The consumer module, i.e. the module that implements the actual guts
 of the filesystem, needs only provide the directory structure
 (represented by a collection of structures declared and initialized by
