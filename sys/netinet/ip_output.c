@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44.2.5 1997/05/17 19:18:15 fenner Exp $
+ *	$Id: ip_output.c,v 1.44.2.6 1997/06/20 23:05:38 julian Exp $
  */
 
 #define _IP_VHL
@@ -634,11 +634,11 @@ ip_ctloutput(op, so, level, optname, mp)
 				switch (optname) {
 
 				case IP_TOS:
-					inp->inp_ip.ip_tos = optval;
+					inp->inp_ip_tos = optval;
 					break;
 
 				case IP_TTL:
-					inp->inp_ip.ip_ttl = optval;
+					inp->inp_ip_ttl = optval;
 					break;
 #define	OPTSET(bit) \
 	if (optval) \
@@ -737,11 +737,11 @@ ip_ctloutput(op, so, level, optname, mp)
 			switch (optname) {
 
 			case IP_TOS:
-				optval = inp->inp_ip.ip_tos;
+				optval = inp->inp_ip_tos;
 				break;
 
 			case IP_TTL:
-				optval = inp->inp_ip.ip_ttl;
+				optval = inp->inp_ip_ttl;
 				break;
 
 #define	OPTBIT(bit)	(inp->inp_flags & bit ? 1 : 0)

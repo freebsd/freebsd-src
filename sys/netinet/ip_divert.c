@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ip_divert.c,v 1.1 1997/05/09 17:46:44 archie Exp $
+ *	$Id: ip_divert.c,v 1.1.2.3 1997/06/20 23:05:32 julian Exp $
  */
 
 #include <sys/param.h>
@@ -293,7 +293,7 @@ div_usrreq(so, req, m, nam, control)
 		    (error = in_pcballoc(so, &divcbinfo)))
 			break;
 		inp = (struct inpcb *)so->so_pcb;
-		inp->inp_ip.ip_p = (int)nam;	/* XXX */
+		inp->inp_ip_p = (int)nam;	/* XXX */
 		inp->inp_flags |= INP_HDRINCL;
 		/* The socket is always "connected" because
 		   we always know "where" to send the packet */

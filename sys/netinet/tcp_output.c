@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.21 1996/06/08 08:19:00 bde Exp $
+ *	$Id: tcp_output.c,v 1.21.2.1 1997/09/16 18:37:01 joerg Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -675,8 +675,8 @@ send:
 	struct rtentry *rt;
 #endif
 	((struct ip *)ti)->ip_len = m->m_pkthdr.len;
-	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip.ip_ttl;	/* XXX */
-	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip.ip_tos;	/* XXX */
+	((struct ip *)ti)->ip_ttl = tp->t_inpcb->inp_ip_ttl;	/* XXX */
+	((struct ip *)ti)->ip_tos = tp->t_inpcb->inp_ip_tos;	/* XXX */
 #if 1
 	/*
 	 * See if we should do MTU discovery.  We do it only if the following
