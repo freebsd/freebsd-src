@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.55 1997/10/16 22:02:27 matt Exp $	*/
-/*	$Id$ */
+/*	$Id: if_de.c,v 1.72 1997/10/18 18:15:02 peter Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2166,7 +2166,7 @@ tulip_identify_znyx_nic(
 	}
     }		    
     if (id == 0) {
-	if ((sc->tulip_enaddr[3] & ~3) == 0xF0 && (sc->tulip_enaddr[5] & 3) == 0) {
+	if ((sc->tulip_enaddr[3] & ~3) == 0xF0 && (sc->tulip_enaddr[5] & 2) == 0) {
 	    sc->tulip_boardid[9] = '4';
 	    sc->tulip_boardsw = &tulip_21040_10baset_only_boardsw;
 	    sc->tulip_features |= TULIP_HAVE_SHAREDINTR|TULIP_HAVE_BASEROM;
