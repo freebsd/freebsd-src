@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.5 1995/03/28 07:54:43 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.4 1995/02/28 00:20:30 pst Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.5  1995/03/28  07:54:43  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.4  1995/02/28  00:20:30  pst
  * Incorporate bde's code-review comments.
  *
@@ -106,7 +111,6 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) == 0)
 	{
-		tp->t_state |= TS_WOPEN;
 		ttychars(tp);
 		if (tp->t_ispeed == 0)
 		{
@@ -127,7 +131,6 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 	while ((flag & O_NONBLOCK) == 0 && (tp->t_cflag & CLOCAL) == 0 &&
 	       (tp->t_state & TS_CARR_ON) == 0)
 	{
-		tp->t_state |= TS_WOPEN;
 		if (error = ttysleep(tp, (caddr_t) & tp->t_rawq, TTIPRI | PCATCH,
 				     ttopen, 0))
 			break;
