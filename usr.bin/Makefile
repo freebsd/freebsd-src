@@ -224,7 +224,8 @@ SUBDIR=	alias \
 	ypmatch \
 	ypwhich
 
-.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} != "amd64" && ${MACHINE_ARCH} != "powerpc" && \
+	${MACHINE_ARCH} != "arm"
 _truss=		truss
 .endif
 
