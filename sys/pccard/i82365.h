@@ -267,11 +267,11 @@
  *
  *	For NEC PC98 machines, irq 3, 5, 6, 9, 10, 11, 12, 13 are allowed.
  *	These correspond to the C-BUS signals INT 0, 1, 2, 3, 41, 42, 5, 6
- *	respectively.  This is with the desktop C-BUS addin card.  I don't
- *	know if this corresponds to laptop usage or not.
+ *	respectively.  This is with the desktop C-BUS addin card.
  *
- *	I'm not sure the proper way to map these interrupts, but it looks
- *	like pc98 is a subset of ibm-at so no actual mapping is required.
+ *	Hiroshi TSUKADA-san writes in FreeBSD98-testers that cbus IRQ
+ *	6 is routed to the IRQ 7 pin of the pcic in pc98 cbus based
+ *	cards.  I do not know how pc98 laptop models are wired.
  */
 #ifdef PC98
 #define	PCIC_INT_MASK_ALLOWED	0x3E68		/* PC98 */
