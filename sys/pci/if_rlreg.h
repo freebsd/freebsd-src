@@ -501,6 +501,16 @@ struct rl_softc {
 #define PEPPERCON_DEVICEID_ROLF			0x8139
 
 /*
+ * Planex Communications, Inc. vendor ID
+ */
+#define PLANEX_VENDORID                      0x14ea
+
+/*
+ * Planex FNW-3800-TX device ID
+ */
+#define PLANEX_DEVICEID_FNW3800TX                 0xab07
+
+/*
  * PCI low memory base and low I/O base register, and
  * other PCI registers.
  */
