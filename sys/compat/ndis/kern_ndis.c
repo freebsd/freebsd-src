@@ -93,6 +93,7 @@ static image_patch_table kernndis_functbl[] = {
 	IMPORT_FUNC(ndis_getdone_func),
 	IMPORT_FUNC(ndis_resetdone_func),
 	IMPORT_FUNC(ndis_sendrsrcavail_func),
+	IMPORT_FUNC(ndis_intrhand),
 
 	{ NULL, NULL, NULL }
 };
@@ -1718,7 +1719,7 @@ NdisAddDevice(drv, pdo)
 	sc->ndis_block = block;
 	sc->ndis_chars = IoGetDriverObjectExtension(drv, (void *)1);
 
-	IoInitializeDpcRequest(fdo, ndis_intrhand);
+	IoInitializeDpcRequest(fdo, kernndis_functbl[6].ipt_wrap);
 
 	/* Finish up BSD-specific setup. */
 
