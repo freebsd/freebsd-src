@@ -1654,7 +1654,7 @@ serve_unchanged (arg)
 	    && strncmp (arg, name, cp - name) == 0)
 	{
 	    timefield = strchr (cp + 1, '/') + 1;
-	    if (*timefield != '=')
+	    if (*timefield == '/')
 	    {
 		cp = timefield + strlen (timefield);
 		cp[1] = '\0';
@@ -1698,7 +1698,7 @@ serve_is_modified (arg)
 	    && strncmp (arg, name, cp - name) == 0)
 	{
 	    timefield = strchr (cp + 1, '/') + 1;
-	    if (!(timefield[0] == 'M' && timefield[1] == '/'))
+	    if (*timefield == '/')
 	    {
 		cp = timefield + strlen (timefield);
 		cp[1] = '\0';
