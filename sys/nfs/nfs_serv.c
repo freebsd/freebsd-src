@@ -3264,7 +3264,7 @@ again:
 	/*
 	 * For some reason FreeBSD's ufs_readdir() chooses to back the
 	 * directory offset up to a block boundary, so it is necessary to
-	 * skip over the records that preceed the requested offset. This
+	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
 	 */
@@ -3538,7 +3538,7 @@ again:
 	/*
 	 * For some reason FreeBSD's ufs_readdir() chooses to back the
 	 * directory offset up to a block boundary, so it is necessary to
-	 * skip over the records that preceed the requested offset. This
+	 * skip over the records that precede the requested offset. This
 	 * requires the assumption that file offset cookies monotonically
 	 * increase.
 	 */
