@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- *	$Id: ip_input.c,v 1.116 1999/03/12 01:15:57 julian Exp $
+ *	$Id: ip_input.c,v 1.117 1999/04/20 13:32:05 peter Exp $
  */
 
 #define	_IP_VHL
@@ -85,23 +85,24 @@ struct socket *ip_rsvpd;
 
 int	ipforwarding = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_FORWARDING, forwarding, CTLFLAG_RW,
-	&ipforwarding, 0, "");
+    &ipforwarding, 0, "Enable IP forwarding between interfaces");
 
 static int	ipsendredirects = 1; /* XXX */
 SYSCTL_INT(_net_inet_ip, IPCTL_SENDREDIRECTS, redirect, CTLFLAG_RW,
-	&ipsendredirects, 0, "");
+    &ipsendredirects, 0, "Enable sending IP redirects");
 
 int	ip_defttl = IPDEFTTL;
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
-	&ip_defttl, 0, "");
+    &ip_defttl, 0, "Maximum TTL on IP packets");
 
 static int	ip_dosourceroute = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,
-	&ip_dosourceroute, 0, "");
+    &ip_dosourceroute, 0, "Enable forwarding source routed IP packets");
 
 static int	ip_acceptsourceroute = 0;
-SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute,
-	CTLFLAG_RW, &ip_acceptsourceroute, 0, "");
+SYSCTL_INT(_net_inet_ip, IPCTL_ACCEPTSOURCEROUTE, accept_sourceroute, 
+    CTLFLAG_RW, &ip_acceptsourceroute, 0, 
+    "Enable accepting source routed IP packets");
 #ifdef DIAGNOSTIC
 static int	ipprintfs = 0;
 #endif
@@ -113,13 +114,13 @@ static int	ipqmaxlen = IFQ_MAXLEN;
 struct	in_ifaddrhead in_ifaddrhead; /* first inet address */
 struct	ifqueue ipintrq;
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen, CTLFLAG_RD,
-	&ipintrq.ifq_maxlen, 0, "");
+    &ipintrq.ifq_maxlen, 0, "Maximum size of the IP input queue");
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
-	&ipintrq.ifq_drops, 0, "");
+    &ipintrq.ifq_drops, 0, "Number of packets dropped from the IP input queue");
 
 struct ipstat ipstat;
 SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RD,
-	&ipstat, ipstat, "");
+    &ipstat, ipstat, "IP statistics (struct ipstat, netinet/ip_var.h)");
 
 /* Packet reassembly stuff */
 #define IPREASS_NHASH_LOG2      6
@@ -134,7 +135,7 @@ static int    maxnipq;
 
 #ifdef IPCTL_DEFMTU
 SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
-	&ip_mtu, 0, "");
+    &ip_mtu, 0, "Default MTU");
 #endif
 
 #ifdef IPSTEALTH

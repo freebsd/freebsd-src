@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.41 1999/04/24 18:25:35 ache Exp $
+ *	$Id: tcp_usrreq.c,v 1.42 1999/04/28 11:37:50 phk Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -679,11 +679,11 @@ tcp_ctloutput(so, sopt)
  * be set by the route).
  */
 u_long	tcp_sendspace = 1024*16;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace,
-	CTLFLAG_RW, &tcp_sendspace , 0, "");
+SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW, 
+    &tcp_sendspace , 0, "Maximum outgoing TCP datagram size");
 u_long	tcp_recvspace = 1024*16;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace,
-	CTLFLAG_RW, &tcp_recvspace , 0, "");
+SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW, 
+    &tcp_recvspace , 0, "Maximum incoming TCP datagram size");
 
 /*
  * Attach TCP protocol to socket, allocating

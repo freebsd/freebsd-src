@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.52 1999/02/04 03:27:43 msmith Exp $
+ *	$Id: tcp_subr.c,v 1.53 1999/04/28 11:37:49 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -70,23 +70,23 @@
 #endif
 
 int 	tcp_mssdflt = TCP_MSS;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt,
-	CTLFLAG_RW, &tcp_mssdflt , 0, "");
+SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLFLAG_RW, 
+    &tcp_mssdflt , 0, "Default TCP Maximum Segment Size");
 
 static int 	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt,
-	CTLFLAG_RW, &tcp_rttdflt , 0, "");
+SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt, CTLFLAG_RW, 
+    &tcp_rttdflt , 0, "Default maximum TCP Round Trip Time");
 
 static int	tcp_do_rfc1323 = 1;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323,
-	CTLFLAG_RW, &tcp_do_rfc1323 , 0, "");
+SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW, 
+    &tcp_do_rfc1323 , 0, "Enable rfc1323 (high performance TCP) extensions");
 
 static int	tcp_do_rfc1644 = 0;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644,
-	CTLFLAG_RW, &tcp_do_rfc1644 , 0, "");
+SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644, CTLFLAG_RW, 
+    &tcp_do_rfc1644 , 0, "Enable rfc1644 (TTCP) extensions");
 
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, &tcbinfo.ipi_count,
-	   0, "Number of active PCBs");
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, 
+    &tcbinfo.ipi_count, 0, "Number of active PCBs");
 
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));

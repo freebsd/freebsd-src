@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
- * $Id: vm_meter.c,v 1.29 1999/01/21 09:41:52 dillon Exp $
+ * $Id: vm_meter.c,v 1.30 1999/02/07 21:48:22 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -120,7 +120,8 @@ SYSCTL_INT(_vm, VM_V_CACHE_MAX, v_cache_max,
 SYSCTL_INT(_vm, VM_V_PAGEOUT_FREE_MIN, v_pageout_free_min,
 	CTLFLAG_RW, &cnt.v_pageout_free_min, 0, "");
 
-SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD, &averunnable, loadavg, "");
+SYSCTL_STRUCT(_vm, VM_LOADAVG, loadavg, CTLFLAG_RD, 
+    &averunnable, loadavg, "Machine loadaverage history");
 
 static int
 vmtotal SYSCTL_HANDLER_ARGS
@@ -221,7 +222,8 @@ vmtotal SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_vm, VM_METER, vmmeter, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", "");
+    0, sizeof(struct vmtotal), vmtotal, "S,vmtotal", 
+    "System virtual memory statistics");
 SYSCTL_NODE(_vm, OID_AUTO, stats, CTLFLAG_RW, 0, "VM meter stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, sys, CTLFLAG_RW, 0, "VM meter sys stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, vm, CTLFLAG_RW, 0, "VM meter vm stats");
@@ -232,10 +234,10 @@ SYSCTL_INT(_vm_stats_sys, OID_AUTO,
 	v_trap, CTLFLAG_RD, &cnt.v_trap, 0, "Traps");
 SYSCTL_INT(_vm_stats_sys, OID_AUTO,
 	v_syscall, CTLFLAG_RD, &cnt.v_syscall, 0, "Syscalls");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO,
-	v_intr, CTLFLAG_RD, &cnt.v_intr, 0, "HW intr");
-SYSCTL_INT(_vm_stats_sys, OID_AUTO,
-	v_soft, CTLFLAG_RD, &cnt.v_soft, 0, "SW intr");
+SYSCTL_INT(_vm_stats_sys, OID_AUTO, v_intr, CTLFLAG_RD,
+    &cnt.v_intr, 0, "Hardware interrupts");
+SYSCTL_INT(_vm_stats_sys, OID_AUTO, v_soft, CTLFLAG_RD, 
+    &cnt.v_soft, 0, "Software interrupts");
 SYSCTL_INT(_vm_stats_vm, OID_AUTO,
 	v_vm_faults, CTLFLAG_RD, &cnt.v_vm_faults, 0, "VM faults");
 SYSCTL_INT(_vm_stats_vm, OID_AUTO,

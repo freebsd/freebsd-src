@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ip_flow.c,v 1.6 1998/12/07 21:58:38 archie Exp $
+ * $Id: ip_flow.c,v 1.7 1999/04/11 02:50:42 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ static int ipflow_inuse;
 
 static int ipflow_active = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_FASTFORWARDING, fastforwarding, CTLFLAG_RW,
-	   &ipflow_active, 0, "");
+    &ipflow_active, 0, "Enable flow-based IP forwarding");
 
 static MALLOC_DEFINE(M_IPFLOW, "ip_flow", "IP flow");
 

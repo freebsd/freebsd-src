@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.115 1999/04/28 11:36:50 phk Exp $
+ * $Id: init_main.c,v 1.116 1999/04/29 22:51:59 dt Exp $
  */
 
 #include "opt_devfs.h"
@@ -96,8 +96,8 @@ struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
 
 struct	timeval boottime;
-SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
-	CTLFLAG_RD, &boottime, timeval, "");
+SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD, 
+    &boottime, timeval, "System boottime");
 
 /*
  * Promiscuous argument pass for start_init()

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_timer.c,v 1.27 1998/04/06 06:52:46 phk Exp $
+ *	$Id: tcp_timer.c,v 1.28 1998/04/24 09:25:35 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -76,8 +76,8 @@ SYSCTL_INT(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl,
 	CTLFLAG_RW, &tcp_keepintvl , 0, "");
 
 static int	always_keepalive = 0;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive,
-	CTLFLAG_RW, &always_keepalive , 0, "");
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW, 
+    &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
 
 static int	tcp_keepcnt = TCPTV_KEEPCNT;
 	/* max idle probes */

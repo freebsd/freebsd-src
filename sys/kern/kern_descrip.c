@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.58 1999/01/08 17:31:08 eivind Exp $
+ * $Id: kern_descrip.c,v 1.59 1999/04/28 10:53:22 dt Exp $
  */
 
 #include "opt_compat.h"
@@ -1259,12 +1259,13 @@ sysctl_kern_file SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	0, 0, sysctl_kern_file, "S,file", "");
+    0, 0, sysctl_kern_file, "S,file", "Entire file table");
 
-SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc,
-	CTLFLAG_RW, &maxfilesperproc, 0, "");
+SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW, 
+    &maxfilesperproc, 0, "Maximum files allowed open per process");
 
-SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, &maxfiles, 0, "");
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, 
+    &maxfiles, 0, "Maximum number of files");
 
 static int fildesc_devsw_installed;
 #ifdef DEVFS
