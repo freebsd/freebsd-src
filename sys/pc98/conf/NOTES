@@ -376,6 +376,10 @@ hint.mse.0.irq="13"
 
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
+# cp:   Cronyx Tau-PCI sync single/dual/four port
+#       V.35/RS-232/RS-530/RS-449/X.21/G.703/E1/E3/T3/STS-1
+#       serial adaptor (requires sppp (default), or NETGRAPH if
+#       NETGRAPH_CRONYX is configured)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
 #       (requires miibus)
@@ -393,6 +397,7 @@ hint.mse.0.irq="13"
 # Order for ISA/EISA devices is important here
 
 device		ar
+device		cp
 device		ed
 #options 	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
