@@ -478,7 +478,7 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
     }
 
     /* now convert Promise config info into our generic form */
-    for (i = 0, r = 0; i < 4; i++) {
+    for (i = 0, r = 0; i < 4 && r < 8; i++) {
 	if ((info.raid[i].flags != PR_F_CONFED) || 
 	    (((info.raid[i].status & (PR_S_DEFINED|PR_S_ONLINE)) != 
 	      (PR_S_DEFINED|PR_S_ONLINE)))) {
@@ -525,8 +525,8 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 	/* find out where this disk is in the defined array */
 	/* first RAID0 / SPAN disks */
 	for (j = 0; j < info.raid[i].raid0_disks; j++) {
-	    if (info.channel == info.raid[i].disk[j].channel &&
-		info.device == info.raid[i].disk[j].device) {
+	    if (adp->controller->channel == info.raid[i].disk[j].channel &&
+		ATA_DEV(adp->unit) == info.raid[i].disk[j].device) {
 		raid->subdisk[raid->num_subdisks] = adp;
 		raid->num_subdisks++;
 		if (raid->num_subdisks > 1 && !(raid->flags & AR_F_SPAN)) {
@@ -538,9 +538,9 @@ ar_promise_conf(struct ad_softc *adp, struct ar_config *raidp)
 
 	/* if any left they are RAID1 disks eventually in a RADI0+1 config */
 	for (; j < info.raid[i].total_disks; j++) {
-	    if (info.channel == info.raid[i].disk[j].channel &&
-		info.device == info.raid[i].disk[j].device) {
-		raid-> mirrordisk[raid->num_mirrordisks] = adp;
+	    if (adp->controller->channel == info.raid[i].disk[j].channel &&
+		ATA_DEV(adp->unit) == info.raid[i].disk[j].device) {
+		raid->mirrordisk[raid->num_mirrordisks] = adp;
 		raid->num_mirrordisks++;
 	    }
 	}
