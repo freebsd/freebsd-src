@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.54 1999/05/27 08:42:15 brian Exp $
+ *	$Id: bundle.c,v 1.55 1999/05/31 23:57:32 brian Exp $
  */
 
 #include <sys/param.h>
@@ -1220,6 +1220,8 @@ bundle_ShowStatus(struct cmdargs const *arg)
                 optval(arg->bundle, OPT_SROUTES));
   prompt_Printf(arg->prompt, " ID check:      %s\n",
                 optval(arg->bundle, OPT_IDCHECK));
+  prompt_Printf(arg->prompt, " Keep-Session:  %s\n",
+                optval(arg->bundle, OPT_KEEPSESSION));
   prompt_Printf(arg->prompt, " Loopback:      %s\n",
                 optval(arg->bundle, OPT_LOOPBACK));
   prompt_Printf(arg->prompt, " PasswdAuth:    %s\n",
@@ -1520,7 +1522,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     /* We must get the ACK before closing the descriptor ! */
     read(s, &ack, 1);
 
-    newsid = tcgetpgrp(link_fd) == getpgrp();
+    newsid = Enabled(dl->bundle, OPT_KEEPSESSION) ||
+             tcgetpgrp(link_fd) == getpgrp();
     close(link_fd);
     if (newsid)
       bundle_setsid(dl->bundle, 1);
