@@ -21,13 +21,13 @@
  * 16 Feb 93	Julian Elischer		ADDED for SCSI system
  * 1.15 is the last verion to support MACH and OSF/1
  */
-/* $Revision: 1.7 $ */
+/* $Revision: 1.8 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *	$Id: st.c,v 1.7 1993/09/05 15:42:22 rgrimes Exp $
+ *	$Id: st.c,v 1.8 1993/09/07 15:58:00 rgrimes Exp $
  */
 
 
@@ -255,6 +255,8 @@ struct	scsi_switch *scsi_switch;
 		printf("st%d: malloc failed in st.c\n",unit);
 		return(0);
 	}
+	bzero(st,sizeof(struct st_data));
+
 	/*******************************************************\
 	* Store information needed to contact our base driver	*
 	\*******************************************************/

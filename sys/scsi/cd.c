@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: cd.c,v 1.7 1993/09/08 21:04:32 rgrimes Exp $
+ *	$Id: cd.c,v 1.8 1993/09/09 07:18:52 rgrimes Exp $
  */
 
 #define SPLCD splbio
@@ -162,6 +162,7 @@ struct	scsi_switch *scsi_switch;
 			return(0);
 		}
 		/* Make sure we have something to copy before we copy it */
+		bzero(cdrealloc,sizeof(cd_driver->cd_data) * next_cd_unit);
 		if(cd_driver->size)
 		{
 			bcopy(cd_driver->cd_data,cdrealloc,
@@ -187,6 +188,7 @@ struct	scsi_switch *scsi_switch;
 		printf("cd%d: malloc failed for cd_data\n",unit);
 		return(0);
 	}
+	bzero(cd,sizeof(struct cd_data));
 	dp  = &(cd->params);
 	/*******************************************************\
 	* Store information needed to contact our base driver	*
