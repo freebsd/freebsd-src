@@ -961,8 +961,8 @@ getnewvnode(tag, mp, vops, vpp)
 		if (vp->v_pollinfo) {
 			mtx_destroy(&vp->v_pollinfo->vpi_lock);
 			uma_zfree(vnodepoll_zone, vp->v_pollinfo);
+			vp->v_pollinfo = NULL;
 		}
-		vp->v_pollinfo = NULL;
 #ifdef MAC
 		mac_destroy_vnode(vp);
 #endif
