@@ -52,8 +52,16 @@ FULLKERNEL=	${KERNEL_KO}
 FULLKERNEL=	${KERNEL_KO}.debug
 ${KERNEL_KO}: ${FULLKERNEL}
 	${OBJCOPY} --strip-debug ${FULLKERNEL} ${KERNEL_KO}
-install.debug reinstall.debug:
+install.debug reinstall.debug: gdbinit
 	cd ${.CURDIR}; ${MAKE} -DINSTALL_DEBUG ${.TARGET:R}
+
+gdbinit:
+	sed < ${S}/../tools/debugscripts/dot.gdbinit > .gdbinit \
+		"s:MODPATH:modules${S}/modules:"
+	cp ${S}/../tools/debugscripts/gdbinit.kernel \
+		${S}/../tools/debugscripts/gdbinit.vinum ${.CURDIR}
+	cp ${S}/../tools/debugscripts/gdbinit.${MACHINE_ARCH} \
+		${.CURDIR}/gdbinit.machine
 .endif
 
 ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
