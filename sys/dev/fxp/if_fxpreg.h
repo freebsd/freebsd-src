@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxpreg.h,v 1.10 1997/09/05 10:23:56 davidg Exp $
+ *	$Id: if_fxpreg.h,v 1.11 1997/09/29 11:27:42 davidg Exp $
  */
 
 #define FXP_VENDORID_INTEL	0x8086
@@ -327,6 +327,7 @@ struct fxp_stats {
 #define FXP_PHY_80C24		6
 #define FXP_PHY_82555		7
 #define FXP_PHY_DP83840A	10
+#define FXP_PHY_82555B		11
 
 /*
  * PHY BMCR Basic Mode Control Register
