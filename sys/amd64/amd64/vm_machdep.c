@@ -470,7 +470,8 @@ cpu_coredump(td, vp, cred)
 
 	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser, 
 			ctob(UAREA_PAGES + KSTACK_PAGES),
-			(off_t)0, UIO_SYSSPACE, IO_UNIT, cred, (int *)NULL, td);
+			(off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
+			(int *)NULL, td);
 
 	free(tempuser, M_TEMP);
 	

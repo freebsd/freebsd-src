@@ -345,10 +345,10 @@ struct uio;
 /*
  * File operations on sockets.
  */
-int	soo_read(struct file *fp, struct uio *uio, struct ucred *cred,
+int	soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
 	    int flags, struct thread *td);
-int	soo_write(struct file *fp, struct uio *uio, struct ucred *cred,
-	    int flags, struct thread *td);
+int	soo_write(struct file *fp, struct uio *uio,
+	    struct ucred *active_cred, int flags, struct thread *td);
 int	soo_close(struct file *fp, struct thread *td);
 int	soo_ioctl(struct file *fp, u_long cmd, void *data,
 	    struct thread *td);

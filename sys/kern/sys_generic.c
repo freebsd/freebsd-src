@@ -192,7 +192,7 @@ dofileread(td, fp, fd, buf, nbyte, offset, flags)
 #endif
 	cnt = nbyte;
 
-	if ((error = fo_read(fp, &auio, fp->f_cred, flags, td))) {
+	if ((error = fo_read(fp, &auio, td->td_ucred, flags, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -282,7 +282,7 @@ readv(td, uap)
 	}
 #endif
 	cnt = auio.uio_resid;
-	if ((error = fo_read(fp, &auio, fp->f_cred, 0, td))) {
+	if ((error = fo_read(fp, &auio, td->td_ucred, 0, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -416,7 +416,7 @@ dofilewrite(td, fp, fd, buf, nbyte, offset, flags)
 	cnt = nbyte;
 	if (fp->f_type == DTYPE_VNODE)
 		bwillwrite();
-	if ((error = fo_write(fp, &auio, fp->f_cred, flags, td))) {
+	if ((error = fo_write(fp, &auio, td->td_ucred, flags, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
@@ -518,7 +518,7 @@ writev(td, uap)
 	cnt = auio.uio_resid;
 	if (fp->f_type == DTYPE_VNODE)
 		bwillwrite();
-	if ((error = fo_write(fp, &auio, fp->f_cred, 0, td))) {
+	if ((error = fo_write(fp, &auio, td->td_ucred, 0, td))) {
 		if (auio.uio_resid != cnt && (error == ERESTART ||
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;

@@ -1464,7 +1464,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	if (hints == NULL)
 		goto bad;
 	error = vn_rdwr(UIO_READ, nd.ni_vp, (caddr_t)hints, vattr.va_size, 0,
-	    UIO_SYSSPACE, IO_NODELOCKED, cred, &reclen, td);
+	    UIO_SYSSPACE, IO_NODELOCKED, cred, NOCRED, &reclen, td);
 	if (error)
 		goto bad;
 	VOP_UNLOCK(nd.ni_vp, 0, td);

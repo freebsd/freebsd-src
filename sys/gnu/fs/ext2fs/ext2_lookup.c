@@ -1011,7 +1011,7 @@ ext2_dirempty(ip, parentino, cred)
 	for (off = 0; off < ip->i_size; off += dp->rec_len) {
 		error = vn_rdwr(UIO_READ, ITOV(ip), (caddr_t)dp, MINDIRSIZ,
 		    off, UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK, cred,
-		    &count, (struct thread *)0);
+		    NOCRED, &count, (struct thread *)0);
 		/*
 		 * Since we read MINDIRSIZ, residual must
 		 * be 0 unless we're at end of file.
@@ -1075,7 +1075,7 @@ ext2_checkpath(source, target, cred)
 		}
 		error = vn_rdwr(UIO_READ, vp, (caddr_t)&dirbuf,
 			sizeof (struct dirtemplate), (off_t)0, UIO_SYSSPACE,
-			IO_NODELOCKED | IO_NOMACCHECK, cred, (int *)0,
+			IO_NODELOCKED | IO_NOMACCHECK, cred, NOCRED, (int *)0,
 			(struct thread *)0);
 		if (error != 0)
 			break;
