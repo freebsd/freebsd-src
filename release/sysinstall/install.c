@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.58 1995/10/27 01:22:55 jkh Exp $
+ * $Id: install.c,v 1.71.2.59 1995/10/27 01:36:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -421,7 +421,7 @@ installCommit(char *str)
     }
 
     /* Write out any changes to /etc/sysconfig */
-    if (i != RET_FAIL && RunningAsInit)
+    if (RunningAsInit)
 	configSysconfig();
 
     variable_set2(SYSTEM_STATE, i == RET_FAIL ? "installed+errors" : "installed");
