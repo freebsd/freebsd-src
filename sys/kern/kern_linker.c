@@ -23,8 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.6 1998/01/01 08:56:24 bde Exp $
+ *	$Id: kern_linker.c,v 1.7 1998/08/12 08:44:21 dfr Exp $
  */
+
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -35,9 +37,15 @@
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <machine/cpu.h>
+#include <machine/bootinfo.h>
 #include <sys/module.h>
 #include <sys/linker.h>
 #include <sys/unistd.h>
+#include <sys/fcntl.h>
+#include <sys/libkern.h>
+#include <sys/namei.h>
+#include <sys/vnode.h>
+#include <sys/sysctl.h>
 
 MALLOC_DEFINE(M_LINKER, "kld", "kernel linker");
 linker_file_t linker_current_file;
@@ -55,7 +63,7 @@ linker_init(void* arg)
     TAILQ_INIT(&files);
 }
 
-SYSINIT(linker, SI_SUB_KMEM, SI_ORDER_SECOND, linker_init, 0);
+SYSINIT(linker, SI_SUB_KLD, SI_ORDER_FIRST, linker_init, 0);
 
 int
 linker_add_class(const char* desc, void* priv,
@@ -82,17 +90,26 @@ linker_file_sysinit(linker_file_t lf)
     struct sysinit** sipp;
     struct sysinit** xipp;
     struct sysinit* save;
-
-    linker_current_file = lf;
+    moduledata_t *moddata;
 
     KLD_DPF(FILE, ("linker_file_sysinit: calling SYSINITs for %s\n",
 		   lf->filename));
 
     sysinits = (struct linker_set*)
 	linker_file_lookup_symbol(lf, "sysinit_set", 0);
+
+    KLD_DPF(FILE, ("linker_file_sysinit: SYSINITs %p\n", sysinits));
     if (!sysinits)
 	return;
 
+    /* HACK ALERT! */
+    for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+	if ((*sipp)->func == module_register_init) {
+	    moddata = (*sipp)->udata;
+	    moddata->_file = lf;
+	}
+    }
+	    
     /*
      * Perform a bubble sort of the system initialization objects by
      * their subsystem (primary key) and order (secondary key).
@@ -182,7 +199,6 @@ linker_load_file(const char* filename, linker_file_t* result)
 	    goto out;
 	}
     }
-
     error = ENOEXEC;		/* format not recognised */
 
 out:
@@ -218,10 +234,17 @@ linker_find_file_by_id(int fileid)
 }
 
 linker_file_t
-linker_make_file(const char* filename, void* priv, struct linker_file_ops* ops)
+linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
 {
     linker_file_t lf = 0;
     int namelen;
+    const char *filename;
+
+    filename = rindex(pathname, '/');
+    if (filename && filename[1])
+	filename++;
+    else
+	filename = pathname;
 
     KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
     lockmgr(&lock, LK_EXCLUSIVE|LK_RETRY, 0, curproc);
@@ -257,7 +280,7 @@ linker_file_unload(linker_file_t file)
     int error = 0;
     int i;
 
-    KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", lf->refs));
+    KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
     lockmgr(&lock, LK_EXCLUSIVE|LK_RETRY, 0, curproc);
     if (file->refs == 1) {
 	KLD_DPF(FILE, ("linker_file_unload: file is unloading, informing modules\n"));
@@ -289,7 +312,7 @@ linker_file_unload(linker_file_t file)
 
     TAILQ_REMOVE(&files, file, link);
     lockmgr(&lock, LK_RELEASE, 0, curproc);
-    
+
     for (i = 0; i < file->ndeps; i++)
 	linker_file_unload(file->deps[i]);
     free(file->deps, M_LINKER);
@@ -337,7 +360,7 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
     size_t common_size = 0;
     int i;
 
-    KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%x, name=%s, deps=%d",
+    KLD_DPF(SYM, ("linker_file_lookup_symbol: file=%x, name=%s, deps=%d\n",
 		  file, name, deps));
 
     if (file->ops->lookup_symbol(file, name, &sym) == 0) {
@@ -348,15 +371,19 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	     * only allocate space if not found there.
 	     */
 	    common_size = symval.size;
-	else
+	else {
+	    KLD_DPF(SYM, ("linker_file_lookup_symbol: symbol.value=%x\n", symval.value));
 	    return symval.value;
+	}
     }
 
     if (deps)
 	for (i = 0; i < file->ndeps; i++) {
 	    address = linker_file_lookup_symbol(file->deps[i], name, 0);
-	    if (address)
+	    if (address) {
+		KLD_DPF(SYM, ("linker_file_lookup_symbol: deps value=%x\n", address));
 		return address;
+	    }
 	}
 
     if (common_size > 0) {
@@ -369,8 +396,10 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 
 	for (cp = STAILQ_FIRST(&file->common); cp;
 	     cp = STAILQ_NEXT(cp, link))
-	    if (!strcmp(cp->name, name))
+	    if (!strcmp(cp->name, name)) {
+		KLD_DPF(SYM, ("linker_file_lookup_symbol: old common value=%x\n", cp->address));
 		return cp->address;
+	    }
 
 	/*
 	 * Round the symbol size up to align.
@@ -380,8 +409,10 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 		    + common_size
 		    + strlen(name) + 1,
 		    M_LINKER, M_WAITOK);
-	if (!cp)
+	if (!cp) {
+	    KLD_DPF(SYM, ("linker_file_lookup_symbol: nomem\n"));
 	    return 0;
+	}
 
 	cp->address = (caddr_t) (cp + 1);
 	cp->name = cp->address + common_size;
@@ -389,11 +420,81 @@ linker_file_lookup_symbol(linker_file_t file, const char* name, int deps)
 	bzero(cp->address, common_size);
 	STAILQ_INSERT_TAIL(&file->common, cp, link);
 
+	KLD_DPF(SYM, ("linker_file_lookup_symbol: new common value=%x\n", cp->address));
 	return cp->address;
     }
 
+    KLD_DPF(SYM, ("linker_file_lookup_symbol: fail\n"));
     return 0;
 }
+
+#ifdef DDB
+/*
+ * DDB Helpers.  DDB has to look across multiple files with their own
+ * symbol tables and string tables.
+ *
+ * Note that we do not obey list locking protocols here.  We really don't
+ * need DDB to hang because somebody's got the lock held.  We'll take the
+ * chance that the files list is inconsistant instead.
+ */
+
+int
+linker_ddb_lookup(char *symstr, linker_sym_t *sym)
+{
+    linker_file_t lf;
+
+    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	if (lf->ops->lookup_symbol(lf, symstr, sym) == 0)
+	    return 0;
+    }
+    return ENOENT;
+}
+
+int
+linker_ddb_search_symbol(caddr_t value, linker_sym_t *sym, long *diffp)
+{
+    linker_file_t lf;
+    u_long off = (u_long)value;
+    u_long diff, bestdiff;
+    linker_sym_t best;
+    linker_sym_t es;
+
+    best = 0;
+    bestdiff = off;
+    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	if (lf->ops->search_symbol(lf, value, &es, &diff) != 0)
+	    continue;
+	if (es != 0 && diff < bestdiff) {
+	    best = es;
+	    bestdiff = diff;
+	}
+	if (bestdiff == 0)
+	    break;
+    }
+    if (best) {
+	*sym = best;
+	*diffp = bestdiff;
+	return 0;
+    } else {
+	*sym = 0;
+	*diffp = off;
+	return ENOENT;
+    }
+}
+
+int
+linker_ddb_symbol_values(linker_sym_t sym, linker_symval_t *symval)
+{
+    linker_file_t lf;
+
+    for (lf = TAILQ_FIRST(&files); lf; lf = TAILQ_NEXT(lf, link)) {
+	if (lf->ops->symbol_values(lf, sym, symval) == 0)
+	    return 0;
+    }
+    return ENOENT;
+}
+
+#endif
 
 /*
  * Syscalls.
@@ -423,7 +524,7 @@ kldload(struct proc* p, struct kldload_args* uap)
 
     lf->userrefs++;
     p->p_retval[0] = lf->id;
-    
+
 out:
     if (filename)
 	free(filename, M_TEMP);
@@ -477,7 +578,7 @@ kldfind(struct proc* p, struct kldfind_args* uap)
 	p->p_retval[0] = lf->id;
     else
 	error = ENOENT;
-    
+
 out:
     if (filename)
 	free(filename, M_TEMP);
@@ -497,7 +598,7 @@ kldnext(struct proc* p, struct kldnext_args* uap)
 	    p->p_retval[0] = 0;
 	return 0;
     }
-	
+
     lf = linker_find_file_by_id(SCARG(uap, fileid));
     if (lf) {
 	if (TAILQ_NEXT(lf, link))
@@ -573,4 +674,148 @@ kldfirstmod(struct proc* p, struct kldfirstmod_args* uap)
 	error = ENOENT;
 
     return error;
+}
+
+/*
+ * Preloaded module support
+ */
+
+static void
+linker_preload(void* arg)
+{
+    caddr_t		modptr;
+    char		*modname;
+    linker_file_t	lf;
+    linker_class_t	lc;
+    int			error;
+    struct linker_set	*sysinits;
+    struct sysinit	**sipp;
+    moduledata_t	*moddata;
+
+
+    modptr = NULL;
+    while ((modptr = preload_search_next_name(modptr)) != NULL) {
+	modname = (char *)preload_search_info(modptr, MODINFO_NAME);
+	if (modname == NULL) {
+	    printf("Preloaded module at 0x%p does not have a name!\n", modptr);
+	    continue;
+	}
+	printf("Preloaded module %s at 0x%p.\n", modname, modptr);
+	lf = linker_find_file_by_name(modname);
+	if (lf) {
+	    lf->userrefs++;
+	    continue;
+	}
+	lf = NULL;
+	for (lc = TAILQ_FIRST(&classes); lc; lc = TAILQ_NEXT(lc, link)) {
+	    error = lc->ops->load_file(modname, &lf);
+	    if (error) {
+		lf = NULL;
+		break;
+	    }
+	}
+	if (lf) {
+	    lf->userrefs++;
+
+	    sysinits = (struct linker_set*)
+		linker_file_lookup_symbol(lf, "sysinit_set", 0);
+	    if (sysinits) {
+		/* HACK ALERT!
+		 * This is to set the sysinit moduledata so that the module
+		 * can attach itself to the correct containing file.
+		 * The sysinit could be run at *any* time.
+		 */
+		for (sipp = (struct sysinit **)sysinits->ls_items; *sipp; sipp++) {
+		    if ((*sipp)->func == module_register_init) {
+			moddata = (*sipp)->udata;
+			moddata->_file = lf;
+		    }
+		}
+		sysinit_add((struct sysinit **)sysinits->ls_items);
+	    }
+
+	    break;
+	}
+    }
+}
+
+SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
+
+/*
+ * Search for a not-loaded module by name.
+ *
+ * Modules may be found in the following locations:
+ *
+ * - preloaded (result is just the module name)
+ * - on disk (result is full path to module)
+ *
+ * If the module name is qualified in any way (contains path, etc.)
+ * the we simply return a copy of it.
+ *
+ * The search path can be manipulated via sysctl.  Note that we use the ';'
+ * character as a separator to be consistent with the bootloader.
+ */
+
+static char linker_path[MAXPATHLEN + 1] = "/;/boot/;/modules/";
+
+SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
+	      sizeof(linker_path), "module load search path");
+
+static char *
+linker_strdup(const char *str)
+{
+    char	*result;
+
+    if ((result = malloc((strlen(str) + 1), M_LINKER, M_WAITOK)) != NULL)
+	strcpy(result, str);
+    return(result);
+}
+
+char *
+linker_search_path(const char *name)
+{
+    struct nameidata	nd;
+    struct proc		*p = curproc;	/* XXX */
+    char		*cp, *ep, *result;
+    int			error;
+    enum vtype		type;
+
+    /* qualified at all? */
+    if (index(name, '/'))
+	return(linker_strdup(name));
+
+    /* traverse the linker path */
+    cp = linker_path;
+    for (;;) {
+
+	/* find the end of this component */
+	for (ep = cp; (*ep != 0) && (*ep != ';'); ep++)
+	    ;
+	result = malloc((strlen(name) + (ep - cp) + 1), M_LINKER, M_WAITOK);
+	if (result == NULL)	/* actually ENOMEM */
+	    return(NULL);
+
+	strncpy(result, cp, ep - cp);
+	strcpy(result + (ep - cp), name);
+
+	/*
+	 * Attempt to open the file, and return the path if we succeed and it's
+	 * a regular file.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, result, p);
+	error = vn_open(&nd, FREAD, 0);
+	if (error == 0) {
+	    type = nd.ni_vp->v_type;
+	    VOP_UNLOCK(nd.ni_vp, 0, p);
+	    vn_close(nd.ni_vp, FREAD, p->p_ucred, p);
+	    if (type == VREG)
+		return(result);
+	}
+	free(result, M_LINKER);
+
+	if (*ep == 0)
+	    break;
+	cp = ep + 1;
+    }
+    return(NULL);
 }
