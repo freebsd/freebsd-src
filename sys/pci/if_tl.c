@@ -1549,26 +1549,6 @@ static int tl_intvec_rxeof(xsc, type)
 				continue;
 		}
 
-		/*
-	 	 * Handle BPF listeners. Let the BPF user see the packet, but
-	 	 * don't pass it up to the ether_input() layer unless it's
-	 	 * a broadcast packet, multicast packet, matches our ethernet
-	 	 * address or the interface is in promiscuous mode. If we don't
-	 	 * want the packet, just forget it. We leave the mbuf in place
-	 	 * since it can be used again later.
-	 	 */
-		if (ifp->if_bpf) {
-			m->m_pkthdr.len = m->m_len = total_len;
-			bpf_mtap(ifp, m);
-			if (ifp->if_flags & IFF_PROMISC &&
-				(bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		 				ETHER_ADDR_LEN) &&
-					(eh->ether_dhost[0] & 1) == 0)) {
-				m_freem(m);
-				continue;
-			}
-		}
-
 		/* Remove header from mbuf and pass it on. */
 		m->m_pkthdr.len = m->m_len =
 				total_len - sizeof(struct ether_header);

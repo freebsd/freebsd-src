@@ -70,7 +70,7 @@ static void el_stop(void *);
 static int el_xmit(struct el_softc *,int);
 static ointhand2_t elintr;
 static __inline void elread(struct el_softc *,caddr_t,int);
-static struct mbuf *elget(caddr_t,int,int,struct ifnet *);
+static struct mbuf *elget(caddr_t,int,struct ifnet *);
 static __inline void el_hardreset(void *);
 
 /* isa_driver structure for autoconf */
@@ -424,32 +424,9 @@ elread(struct el_softc *sc,caddr_t buf,int len)
 	eh = (struct ether_header *)buf;
 
 	/*
-	 * Check if there's a bpf filter listening on this interface.
-	 * If so, hand off the raw packet to bpf.
+	 * Put packet into an mbuf chain
 	 */
-	if(sc->arpcom.ac_if.if_bpf) {
-		bpf_tap(&sc->arpcom.ac_if, buf, 
-			len + sizeof(struct ether_header));
-
-		/*
-		 * Note that the interface cannot be in promiscuous mode if
-		 * there are no bpf listeners.  And if el are in promiscuous
-		 * mode, el have to check if this packet is really ours.
-		 *
-		 * This test does not support multicasts.
-		 */
-		if((sc->arpcom.ac_if.if_flags & IFF_PROMISC)
-		   && bcmp(eh->ether_dhost,sc->arpcom.ac_enaddr,
-			   sizeof(eh->ether_dhost)) != 0
-		   && bcmp(eh->ether_dhost,etherbroadcastaddr,
-			   sizeof(eh->ether_dhost)) != 0)
-			return;
-	}
-
-	/*
-	 * Pull packet off interface.
-	 */
-	m = elget(buf,len,0,&sc->arpcom.ac_if);
+	m = elget(buf,len,&sc->arpcom.ac_if);
 	if(m == 0)
 		return;
 
@@ -557,26 +534,20 @@ elintr(int unit)
  * Pull read data off a interface.
  * Len is length of data, with local net header stripped.
  */
-struct mbuf *
-elget(buf, totlen, off0, ifp)
+static struct mbuf *
+elget(buf, totlen, ifp)
         caddr_t buf;
-        int totlen, off0;
+        int totlen;
         struct ifnet *ifp;
 {
         struct mbuf *top, **mp, *m;
-        int off = off0, len;
-        register caddr_t cp = buf;
+        int len;
+        register caddr_t cp;
         char *epkt;
 
         buf += sizeof(struct ether_header);
         cp = buf;
         epkt = cp + totlen;
-
-
-        if (off) {
-                cp += off + 2 * sizeof(u_short);
-                totlen -= 2 * sizeof(u_short);
-        }
 
         MGETHDR(m, M_DONTWAIT, MT_DATA);
         if (m == 0)

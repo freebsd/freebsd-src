@@ -213,7 +213,7 @@ static int ed_probe_pccard	__P((struct isa_device *, u_char *));
 
 static void	ds_getmcaf	__P((struct ed_softc *, u_long *));
 
-static void	ed_get_packet	__P((struct ed_softc *, char *, /* u_short */ int, int));
+static void	ed_get_packet	__P((struct ed_softc *, char *, /* u_short */ int));
 
 static __inline void	ed_rint	__P((struct ed_softc *));
 static __inline void	ed_xmit	__P((struct ed_softc *));
@@ -3063,7 +3063,7 @@ ed_rint(sc)
 			 * Go get packet.
 			 */
 			ed_get_packet(sc, packet_ptr + sizeof(struct ed_ring),
-				      len - sizeof(struct ed_ring), packet_hdr.rsr & ED_RSR_PHY);
+				      len - sizeof(struct ed_ring));
 			ifp->if_ipackets++;
 		} else {
 			/*
@@ -3475,14 +3475,13 @@ ed_ring_copy(sc, src, dst, amount)
 
 /*
  * Retreive packet from shared memory and send to the next level up via
- *	ether_input(). If there is a BPF listener, give a copy to BPF, too.
+ * ether_input().
  */
 static void
-ed_get_packet(sc, buf, len, multicast)
+ed_get_packet(sc, buf, len)
 	struct ed_softc *sc;
 	char   *buf;
 	u_short len;
-	int     multicast;
 {
 	struct ether_header *eh;
 	struct mbuf *m;
@@ -3520,37 +3519,19 @@ ed_get_packet(sc, buf, len, multicast)
 
 #ifdef BRIDGE
 	/*
-	 * Get link layer header, invoke brige_in, then
-	 * depending on the outcome of the test fetch the rest of the
-	 * packet and either pass up or call bdg_forward.
+	 * Don't read in the entire packet if we know we're going to drop it
 	 */
 	if (do_bridge) {
-		struct ifnet *ifp ;
-		int need_more = 1 ; /* in case not bpf */
+		struct ifnet *bif;
 
-		if (sc->arpcom.ac_if.if_bpf) {
-			need_more = 0 ;
-			ed_ring_copy(sc, buf, (char *)eh, len);
-			bpf_mtap(&sc->arpcom.ac_if, m);
-		} else
-			ed_ring_copy(sc, buf, (char *)eh, 14);
-		ifp = bridge_in(m);
-		if (ifp == BDG_DROP) {
+		ed_ring_copy(sc, buf, (char *)eh, ETHER_HDR_LEN);
+		if ((bif = bridge_in(&sc->arpcom.ac_if, eh)) == BDG_DROP) {
 			m_freem(m);
-			return ;
+			return;
 		}
-		/* else fetch rest of pkt and continue */
-		if (need_more && len > 14)
-			ed_ring_copy(sc, buf+14, (char *)(eh+1), len - 14);
-		if (ifp != BDG_LOCAL )
-			bdg_forward(&m, ifp); /* not local, need forwarding */
-		if (ifp == BDG_LOCAL || ifp == BDG_BCAST || ifp == BDG_MCAST)
-			goto getit ;
-		/* not local and not multicast, just drop it */
-		if (m)
-			m_freem(m);
-		return ;
-	}
+		ed_ring_copy(sc, buf + ETHER_HDR_LEN,
+		    (char *)eh + ETHER_HDR_LEN, len - ETHER_HDR_LEN);
+	} else
 #endif
 	/*
 	 * Get packet, including link layer address, from interface.
@@ -3558,33 +3539,12 @@ ed_get_packet(sc, buf, len, multicast)
 	ed_ring_copy(sc, buf, (char *)eh, len);
 
 	/*
-	 * Check if there's a BPF listener on this interface. If so, hand off
-	 * the raw packet to bpf.
-	 */
-	if (sc->arpcom.ac_if.if_bpf)
-		bpf_mtap(&sc->arpcom.ac_if, m);
-	/*
-	 * If we are in promiscuous mode, we have to check whether
-	 * this packet is really for us.
-	 */
-	if ((sc->arpcom.ac_if.if_flags & IFF_PROMISC) &&
-		bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		      sizeof(eh->ether_dhost)) != 0 && multicast == 0) {
-		m_freem(m);
-		return;
-	}
-
-#ifdef BRIDGE
-getit:
-#endif
-	/*
 	 * Remove link layer address.
 	 */
 	m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
 	m->m_data += sizeof(struct ether_header);
 
 	ether_input(&sc->arpcom.ac_if, eh, m);
-	return;
 }
 
 /*
