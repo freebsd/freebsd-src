@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.12 1997/03/22 06:53:24 bde Exp $
+ * $Id: time.h,v 1.13 1997/05/08 13:48:47 peter Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -48,13 +48,13 @@ struct timeval {
 	long	tv_usec;	/* and microseconds */
 };
 
-/*
- * Structure defined by POSIX.4 to be like a timeval.
- */
+#ifndef _TIMESPEC_DECLARED
+#define _TIMESPEC_DECLARED
 struct timespec {
 	time_t	tv_sec;		/* seconds */
 	long	tv_nsec;	/* and nanoseconds */
 };
+#endif
 
 #define	TIMEVAL_TO_TIMESPEC(tv, ts) {					\
 	(ts)->tv_sec = (tv)->tv_sec;					\
