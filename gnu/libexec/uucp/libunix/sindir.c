@@ -18,7 +18,10 @@ zsysdep_in_dir (zdir, zfile)
   cdir = strlen (zdir);
   cfile = strlen (zfile);
   zret = zbufalc (cdir + cfile + 2);
-  memcpy (zret, zdir, cdir);
+  if (cdir == 1 && *zdir == '/')
+    cdir = 0;
+  else
+    memcpy (zret, zdir, cdir);
   memcpy (zret + cdir + 1, zfile, cfile);
   zret[cdir] = '/';
   zret[cdir + cfile + 1] = '\0';

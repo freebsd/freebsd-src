@@ -1,5 +1,5 @@
 # Makefile for uucico
-# $Id: Makefile,v 1.1 1993/08/05 18:27:08 conklin Exp $
+# $Id: Makefile,v 1.2 1993/08/06 23:38:23 rgrimes Exp $
 
 BINDIR=		$(sbindir)
 BINOWN=		$(owner)
@@ -12,7 +12,7 @@ SRCS=		uucico.c trans.c send.c rec.c xcmd.c prot.c protg.c protf.c \
 LDADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\
-		-DVERSION=\"$(VERSION)\"
+		-DVERSION=\"$(VERSION)\" -DOWNER=\"$(owner)\"
 
 MAN8=		uucico.8
 

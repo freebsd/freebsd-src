@@ -16,7 +16,7 @@ LIBUUCP=	$(.CURDIR)/../libuucp/obj/libuucp.a
 LIBUUCP=	$(.CURDIR)/../libuucp/libuucp.a
 .endif
 
-VERSION=	1.04
+VERSION=        1.05
 owner=		uucp
 group=		wheel
 bindir=		/usr/bin

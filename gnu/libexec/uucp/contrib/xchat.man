@@ -380,6 +380,18 @@ is received from standard input (usually the serial port).
 Case is significant, but high-order bits are not
 checked.
 .TP 2.0i
+.BI "expectstr	" "ns	int"
+Change to state 
+.I ns 
+if the string specified in parameter
+.I int 
+is received from standard input (usually the serial port).
+.I int 
+must be in the range 0 to 7. 
+Case is significant, but high-order bits are not
+checked.
+Useful where a prompt can change in different dial-in lines. 
+.TP 2.0i
 .BI "ifcarr	" ns
 Change to state
 .I ns 
@@ -604,6 +616,8 @@ seconds).
 uucico(8) for Taylor UUCP, and documentation for Taylor UUCP.
 .SH AUTHOR
 Robert B. Denny (denny@alisa.com)
+.SH CONTRIBUTORS
+Daniel Hagerty (hag@eddie.mit.edu)
 .SH HISTORY
 This program is an adaptation of the dial/login script processing 
 code that is a part of DECUS UUCP for VAX/VMS, written by Jamie 

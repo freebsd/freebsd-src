@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -29,6 +29,8 @@
 
 #include "uudefs.h"
 
+#if DEBUG > 1
+
 /* The debugging level.  */
 int iDebug;
 
@@ -63,9 +65,9 @@ idebug_parse (z)
 
   iret = 0;
 
-  for (ztok = strtok (zcopy, ",");
+  for (ztok = strtok (zcopy, ", \t");
        ztok != NULL;
-       ztok = strtok ((char *) NULL, ","))
+       ztok = strtok ((char *) NULL, ", \t"))
     {
       if (strcasecmp (ztok, "all") == 0)
 	{
@@ -90,6 +92,8 @@ idebug_parse (z)
 
   return iret;
 }
+
+#endif /* DEBUG > 1 */
 
 /* A debugging routine used when displaying buffers.  */
 

@@ -1,7 +1,7 @@
 /* policy.h
    Configuration file for policy decisions.  To be edited on site.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 /* This header file contains macro definitions which must be set by
@@ -72,14 +72,19 @@
    figure out what's happening if something goes wrong.  */
 
 #if HAVE_BSD_TTY + HAVE_SYSV_TERMIO + HAVE_POSIX_TERMIOS == 0
+#ifdef __QNX__
+#undef HAVE_POSIX_TERMIOS
+#define HAVE_POSIX_TERMIOS 1
+#else /* ! defined (__QNX__) */
 #if HAVE_CBREAK
 #undef HAVE_BSD_TTY
 #define HAVE_BSD_TTY 1
-#else
+#else /* ! HAVE_CBREAK */
 #undef HAVE_SYSV_TERMIO
 #define HAVE_SYSV_TERMIO 1
-#endif
-#endif
+#endif /* ! HAVE_CBREAK */
+#endif /* ! defined (__QNX__) */
+#endif /* HAVE_BSD_TTY + HAVE_SYSV_TERMIO + HAVE_POSIX_TERMIOS == 0 */
 
 /* On some systems a write to a serial port will block even if the
    file descriptor has been set to not block.  File transfer can be
@@ -155,11 +160,22 @@
 #define HAVE_STRIP_BUG 0
 
 #if HAVE_BSD_TTY
+#ifdef __ultrix__
+#ifndef ultrix
+#define ultrix
+#endif
+#endif
 #ifdef ultrix
 #undef HAVE_STRIP_BUG
 #define HAVE_STRIP_BUG 1
 #endif
 #endif
+
+/* If your system implements full duplex pipes, set
+   HAVE_FULLDUPLEX_PIPES to 1.  Everything should work fine if you
+   leave it set to 0, but setting it to 1 can be slightly more
+   efficient.  */
+#define HAVE_FULLDUPLEX_PIPES 0
 
 /* TIMES_TICK is the fraction of a second which times(2) returns (for
    example, if times returns 100ths of a second TIMES_TICK should be
@@ -187,7 +203,7 @@
    HAVE_SAVED_SETUID to 1, but your system does not have saved set
    user ID, uucp will fail with an error message whenever anybody
    other than the uucp user uses it.  */
-#define HAVE_SAVED_SETUID 1
+#define HAVE_SAVED_SETUID 0
 
 /* On some systems, such as the DG Aviion and, possibly, the RS/6000,
    the setreuid function is broken.  It should be possible to use
@@ -205,6 +221,34 @@
    true on your system.  This does not matter if your system does not
    have the nap function.  */
 #define HAVE_HUNDREDTHS_NAP 0
+
+/* Set MAIL_PROGRAM to a program which can be used to send mail.  It
+   will be used for mail to both local and remote users.  Set
+   MAIL_PROGRAM_TO_BODY to 1 if the recipient should be specified as a
+   To: line in the body of the message; otherwise, the recipient will
+   be provided as an argument to MAIL_PROGRAM.  Set
+   MAIL_PROGRAM_SUBJECT_BODY if the subject should be specified as a
+   Subject: line in the body of the message; otherwise, the subject
+   will be provided using the -s option to MAIL_PROGRAM (if your mail
+   program does not support the -s option, you must set
+   MAIL_PROGRAM_SUBJECT_BODY to 1).  If your system uses sendmail, use
+   the sendmail choice below.  Otherwise, select one of the other
+   choices as appropriate.  */
+#if 1
+#define MAIL_PROGRAM "/usr/sbin/sendmail -t"
+#define MAIL_PROGRAM_TO_BODY 1
+#define MAIL_PROGRAM_SUBJECT_BODY 1
+#endif
+#if 0
+#define MAIL_PROGRAM "/usr/ucb/mail"
+#define MAIL_PROGRAM_TO_BODY 0
+#define MAIL_PROGRAM_SUBJECT_BODY 0
+#endif
+#if 0
+#define MAIL_PROGRAM "/bin/mail"
+#define MAIL_PROGRAM_TO_BODY 0
+#define MAIL_PROGRAM_SUBJECT_BODY 1
+#endif
 
 /* Set PS_PROGRAM to the program to run to get a process status,
    including the arguments to pass it.  This is used by ``uustat -p''.
@@ -228,6 +272,13 @@
 #if 0
 #define PS_PROGRAM "/bin/ps -flp"
 #define HAVE_PS_MULTIPLE 1
+#endif
+#ifdef __QNX__
+/* Use this for QNX, along with HAVE_QNX_LOCKFILES.  */
+#undef PS_PROGRAM
+#undef HAVE_PS_MULTIPLE
+#define PS_PROGRAM "/bin/ps -l -n -p"
+#define HAVE_PS_MULTIPLE 0
 #endif
 
 /* If you use other programs that also lock devices, such as cu or
@@ -269,20 +320,91 @@
    device itself, and zzz is the minor device number of the port
    device.
 
+   Sequent DYNIX/ptx (but perhaps not Dynix 3.x) uses yet another
+   naming convention.  The lock file for /dev/ttyXA/XAAP is named
+   LCK..ttyXAAP.
+
    Coherent use a completely different method of terminal locking.
    See unix/cohtty for details.  For locks other than for terminals,
-   HDB type lock files are used.  */
+   HDB type lock files are used.
+
+   QNX lock files are similar to HDB lock files except that the node
+   ID must be stored in addition to the process ID and for serial
+   devices the node ID must be included in the lock file name.  QNX
+   boxes are generally used in bunches, and all of them behave like
+   one big machine to some extent.  Thus, processes on different
+   machines will be sharing the files in the spool directory.  To
+   detect if a process has died and a lock is thus stale, you need the
+   node ID of the process as well as the process ID.  The process ID
+   is stored as a number written using ASCII digits padded to 10
+   characters, followed by a space, followed by the node ID written
+   using ASCII digits padded to 10 characters, followed by a newline.
+   The format for QNX lock files was made up just for Taylor UUCP.
+   QNX doesn't come with a version of UUCP.  */
 #define HAVE_V2_LOCKFILES 0
 #define HAVE_HDB_LOCKFILES 1
 #define HAVE_SCO_LOCKFILES 0
 #define HAVE_SVR4_LOCKFILES 0
+#define HAVE_SEQUENT_LOCKFILES 0
 #define HAVE_COHERENT_LOCKFILES 0
+#define HAVE_QNX_LOCKFILES 0
+
+/* This tries to pick a default based on preprocessor definitions.
+   Ignore it if you have explicitly set one of the above values.  */
+#if HAVE_V2_LOCKFILES + HAVE_HDB_LOCKFILES + HAVE_SCO_LOCKFILES + HAVE_SVR4_LOCKFILES + HAVE_SEQUENT_LOCKFILES + HAVE_COHERENT_LOCKFILES + HAVE_QNX_LOCKFILES == 0
+#ifdef __QNX__
+#undef HAVE_QNX_LOCKFILES
+#define HAVE_QNX_LOCKFILES 1
+#else /* ! defined (__QNX__) */
+#ifdef __COHERENT__
+#undef HAVE_COHERENT_LOCKFILES
+#define HAVE_COHERENT_LOCKFILES 1
+#else /* ! defined (__COHERENT__) */
+#ifdef _SEQUENT_
+#undef HAVE_SEQUENT_LOCKFILES
+#define HAVE_SEQUENT_LOCKFILES 1
+#else /* ! defined (_SEQUENT) */
+#ifdef sco
+#undef HAVE_SCO_LOCKFILES
+#define HAVE_SCO_LOCKFILES 1
+#else /* ! defined (sco) */
+#ifdef __svr4__
+#undef HAVE_SVR4_LOCKFILES
+#define HAVE_SVR4_LOCKFILES 1
+#else /* ! defined (__svr4__) */
+/* Final default is HDB.  There's no way to tell V2 from HDB.  */
+#undef HAVE_HDB_LOCKFILES
+#define HAVE_HDB_LOCKFILES 1
+#endif /* ! defined (__svr4__) */
+#endif /* ! defined (sco) */
+#endif /* ! defined (_SEQUENT) */
+#endif /* ! defined (__COHERENT__) */
+#endif /* ! defined (__QNX__) */
+#endif /* no LOCKFILES define */
 
 /* If your system supports Internet mail addresses (which look like
    user@host.domain rather than system!user), HAVE_INTERNET_MAIL
-   should be set to 1.  This is checked by uuxqt when sending error
-   (or success, if requested) notifications to the person who
-   submitted the job.  */
+   should be set to 1.  This is checked by uuxqt and uustat when
+   sending notifications to the person who submitted the job.
+
+   If your system does not understand addresses of the form user@host,
+   you must set HAVE_INTERNET_MAIL to 0.
+
+   If your system does not understand addresses of the form host!user,
+   which is unlikely, you must set HAVE_INTERNET_MAIL to 1.
+
+   If your system sends mail addressed to "A!B@C" to host C (i.e., it
+   parses the address as "(A!B)@C"), you must set HAVE_INTERNET_MAIL
+   to 1.
+
+   If your system sends mail addressed to "A!B@C" to host A (i.e., it
+   parses the address as "A!(B@C)"), you must set HAVE_INTERNET_MAIL
+   to 0.
+
+   Note that in general it is best to avoid addresses of the form
+   "A!B@C" because of this ambiguity of precedence.  UUCP will not
+   intentionally generate addresses of this form, but it can occur in
+   certain rather complex cases.  */
 #define HAVE_INTERNET_MAIL 1
 
 /* Adminstrative decisions.  */
@@ -302,6 +424,16 @@
    probably leave it at 2 unless a small reduction in the executable
    file size will be very helpful.  */
 #define DEBUG 2
+
+/* Set HAVE_ENCRYPTED_PASSWORDS to 1 if you want login passwords to be
+   encrypted before comparing them against the values in the file.
+   This only applies when uucico is run with the -l or -e switches and
+   is doing its own login prompting.  Note that the passwords used are
+   from the UUCP password file, not the system /etc/passwd file.  See
+   the documentation for further details.  If you set this, you are
+   responsible for encrypting the passwords in the UUCP password file.
+   The function crypt will be used to do comparisons.  */
+#define HAVE_ENCRYPTED_PASSWORDS 0
 
 /* Set the default grade to use for a uucp command if the -g option is
    not used.  The grades, from highest to lowest, are 0 to 9, A to Z,
@@ -327,8 +459,8 @@
    When looking something up (a system, a port, etc.) the new style
    configuration files will be read first, followed by the V2
    configuration files, followed by the HDB configuration files.  */
-#define HAVE_V2_CONFIG 1
-#define HAVE_HDB_CONFIG 1
+#define HAVE_V2_CONFIG 0
+#define HAVE_HDB_CONFIG 0
 
 /* Exactly one of the following macros must be set to 1.  The exact
    format of the spool directories is explained in unix/spool.c.
@@ -350,6 +482,15 @@
 #define SPOOLDIR_ULTRIX 0
 #define SPOOLDIR_SVR4 0
 #define SPOOLDIR_TAYLOR 1
+
+/* The status file generated by UUCP can use either the traditional
+   HDB upper case comments or new easier to read lower case comments.
+   This affects the display of uustat -m or uustat -q.  Some
+   third-party programs read these status files and expect them to be
+   in a certain format.  The default is to use the traditional
+   comments when using an HDB or SVR4 spool directory, and to use
+   lower case comments otherwise.  */
+#define USE_TRADITIONAL_STATUS (SPOOLDIR_HDB || SPOOLDIR_SVR4)
 
 /* You must select which type of logging you want by setting exactly
    one of the following to 1.  These control output to the log file
@@ -392,6 +533,27 @@
 #define HAVE_V2_LOGGING 0
 #define HAVE_HDB_LOGGING 0
 
+/* If QNX_LOG_NODE_ID is set to 1, log messages will include the QNX
+   node ID just after the process ID.  This is a policy decision
+   because it changes the log file entry format, which can break other
+   programs (e.g., some of the ones in the contrib directory) which
+   expect to read the standard log file format.  */
+#ifdef __QNX__
+#define QNX_LOG_NODE_ID 1
+#else
+#define QNX_LOG_NODE_ID 0
+#endif
+
+/* If LOG_DEVICE_PREFIX is 1, log messages will give the full
+   pathname of a device rather than just the final component.  This is
+   important because on QNX //2/dev/ser2 refers to a different device
+   than //4/dev/ser2.  */
+#ifdef __QNX__
+#define LOG_DEVICE_PREFIX 1
+#else
+#define LOG_DEVICE_PREFIX 0
+#endif
+
 /* If you would like the log, debugging and statistics files to be
    closed after each message, set CLOSE_LOGFILES to 1.  This will
    permit the log files to be easily moved.  If a log file does not
@@ -403,6 +565,7 @@
 /* The name of the default spool directory.  If HAVE_TAYLOR_CONFIG is
    set to 1, this may be overridden by the ``spool'' command in the
    configuration file.  */
+/* #define SPOOLDIR "/usr/spool/uucp" */
 #define SPOOLDIR "/var/spool/uucp"
 
 /* The name of the default public directory.  If HAVE_TAYLOR_CONFIG is
@@ -410,6 +573,7 @@
    configuration file.  Also, a particular system may be given a
    specific public directory by using the ``pubdir'' command in the
    system file.  */
+/* #define PUBDIR "/usr/spool/uucppublic" */
 #define PUBDIR "/var/spool/uucppublic"
 
 /* The default command path.  This is a space separated list of
@@ -464,16 +628,19 @@
 /* The default log file when using HAVE_TAYLOR_LOGGING.  When using
    HAVE_TAYLOR_CONFIG, this may be overridden by the ``logfile''
    command in the configuration file.  */
+/* #define LOGFILE "/usr/spool/uucp/Log" */
 #define LOGFILE "/var/spool/uucp/Log"
 
 /* The default statistics file when using HAVE_TAYLOR_LOGGING.  When
    using HAVE_TAYLOR_CONFIG, this may be overridden by the
    ``statfile'' command in the configuration file.  */
+/* #define STATFILE "/usr/spool/uucp/Stats" */
 #define STATFILE "/var/spool/uucp/Stats"
 
 /* The default debugging file when using HAVE_TAYLOR_LOGGING.  When
    using HAVE_TAYLOR_CONFIG, this may be overridden by the
    ``debugfile'' command in the configuration file.  */
+/* #define DEBUGFILE "/usr/spool/uucp/Debug" */
 #define DEBUGFILE "/var/spool/uucp/Debug"
 
 #endif /* HAVE_TAYLOR_LOGGING */
@@ -483,17 +650,17 @@
 /* The default log file when using HAVE_V2_LOGGING.  When using
    HAVE_TAYLOR_CONFIG, this may be overridden by the ``logfile''
    command in the configuration file.  */
-#define LOGFILE "/var/spool/uucp/LOGFILE"
+#define LOGFILE "/usr/spool/uucp/LOGFILE"
 
 /* The default statistics file when using HAVE_V2_LOGGING.  When using
    HAVE_TAYLOR_CONFIG, this may be overridden by the ``statfile''
    command in the configuration file.  */
-#define STATFILE "/var/spool/uucp/SYSLOG"
+#define STATFILE "/usr/spool/uucp/SYSLOG"
 
 /* The default debugging file when using HAVE_V2_LOGGING.  When using
    HAVE_TAYLOR_CONFIG, this may be overridden by the ``debugfile''
    command in the configuration file.  */
-#define DEBUGFILE "/var/spool/uucp/DEBUG"
+#define DEBUGFILE "/usr/spool/uucp/DEBUG"
 
 #endif /* HAVE_V2_LOGGING */
 
@@ -506,16 +673,16 @@
    be replaced by the system name (if there is no appropriate system,
    "ANY" will be used).  No other '%' character may appear in the
    string.  */
-#define LOGFILE "/var/spool/uucp/.Log/%s/%s"
+#define LOGFILE "/usr/spool/uucp/.Log/%s/%s"
 
 /* The default statistics file when using HAVE_HDB_LOGGING.  When using
    HAVE_TAYLOR_CONFIG, this may be overridden by the ``statfile''
    command in the configuration file.  */
-#define STATFILE "/var/spool/uucp/.Admin/xferstats"
+#define STATFILE "/usr/spool/uucp/.Admin/xferstats"
 
 /* The default debugging file when using HAVE_HDB_LOGGING.  When using
    HAVE_TAYLOR_CONFIG, this may be overridden by the ``debugfile''
    command in the configuration file.  */
-#define DEBUGFILE "/var/spool/uucp/.Admin/audit.local"
+#define DEBUGFILE "/usr/spool/uucp/.Admin/audit.local"
 
 #endif /* HAVE_HDB_LOGGING */

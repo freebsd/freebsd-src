@@ -2,7 +2,7 @@
    Header file for system dependent stuff in the Taylor UUCP package.
    This file is not itself system dependent.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -21,7 +21,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #ifndef SYSTEM_H
@@ -72,6 +72,11 @@ extern size_t cSysdep_max_name_len;
 /* This program needs special access to the spool directories.  That
    means, on Unix, this program is normally installed setuid.  */
 #define INIT_SUID (04)
+
+/* Do not close all open descriptors.  This is not used by the UUCP
+   code, but it is used by other programs which share some of the
+   system dependent libraries.  */
+#define INIT_NOCLOSE (010)
 
 extern void usysdep_initialize P((pointer puuconf, int iflags));
 
@@ -172,9 +177,13 @@ extern const char *zsysdep_port_name P((boolean *pftcp_port));
    desirable on other systems.  This should always return an absolute
    path name, probably in the public directory.  It should return NULL
    on error; otherwise the return value should be allocated using
-   zbufcpy or zbufalc.  */
+   zbufcpy or zbufalc.  If pfbadname is not NULL, then if the function
+   returns NULL *pfbadname should be set to TRUE if the error is just
+   that the file name is badly specified; *pfbadname should be set to
+   FALSE for some sort of internal error.  */
 extern char *zsysdep_local_file P((const char *zname,
-				   const char *zpubdir));
+				   const char *zpubdir,
+				   boolean *pfbadname));
 
 /* Return whether a file name is in a directory, and check for read or
    write access.  This should check whether zfile is within zdir (or
@@ -201,17 +210,16 @@ extern boolean fsysdep_in_directory P((const char *zfile,
    return error.  */
 extern boolean fsysdep_file_exists P((const char *zfile));
 
-/* Start up a program.  The code expects fsysdep_run to return after
-   doing a fork, but at least for now everything will work fine if it
-   does not (on a system which does not support forking).  The three
-   string arguments may be catenated together to form the program to
-   execute; I did it this way to make it easy to call execl(2), and
-   because I never needed more than two arguments.  The program will
-   always be "uucico" or "uuxqt".  The return value will be passed
-   directly to usysdep_exit, and should be TRUE on success, FALSE on
+/* Start up a program.  If the ffork argument is true, this should
+   spawn a new process and return.  If the ffork argument is false,
+   this may either return or not.  The three string arguments may be
+   catenated together to form the program to execute; I did it this
+   way to make it easy to call execl(2), and because I never needed
+   more than two arguments.  The program will always be "uucico" or
+   "uuxqt".  The return value should be TRUE on success, FALSE on
    error.  */
-extern boolean fsysdep_run P((const char *zprogram, const char *zarg1,
-			      const char *zarg2));
+extern boolean fsysdep_run P((boolean ffork, const char *zprogram,
+			      const char *zarg1, const char *zarg2));
 
 /* Send a mail message.  This function will be passed an array of
    strings.  All necessary newlines are already included; the strings
@@ -329,6 +337,12 @@ extern boolean fsysdep_did_work P((pointer pseq));
    the file.  */
 extern const char *zsysdep_save_temp_file P((pointer pseq));
 
+/* Save a file in a location used to hold corrupt files.  This is
+   called if a bad execution file is found by uuxqt.  This should
+   return the new name of the file (allocated by zbufalc), or NULL if
+   the move failed (in which the original file should remain).  */
+extern char *zsysdep_save_corrupt_file P((const char *zfile));
+
 /* Cleanup anything left over by fsysdep_get_work_init and
    fsysdep_get_work.  This may be called even though
    fsysdep_get_work_init has not been.  */
@@ -397,23 +411,27 @@ extern openfile_t esysdep_open_send P((const struct uuconf_system *qsys,
 /* Return a temporary file name to receive into.  This file will be
    opened by esysdep_open_receive.  The qsys argument is the system
    the file is coming from, the zto argument is the name the file will
-   have after it has been fully received, and the ztemp argument, if
-   it is not NULL, is from the command sent by the remote system.  The
-   return value must be freed using ubuffree.  The function should
-   return NULL on error.  */
+   have after it has been fully received, the ztemp argument, if it is
+   not NULL, is from the command sent by the remote system, and the
+   frestart argument is TRUE if the protocol and remote system permit
+   file transfers to be restarted.  The return value must be freed
+   using ubuffree.  The function should return NULL on error.  */
 extern char *zsysdep_receive_temp P((const struct uuconf_system *qsys,
 				     const char *zfile,
-				     const char *ztemp));
+				     const char *ztemp,
+				     boolean frestart));
 
 /* Open a file to receive from another system.  The zreceive argument
    is the return value of zsysdep_receive_temp with the same qsys,
    zfile and ztemp arguments.  If the function can determine that this
    file has already been partially received, it should set *pcrestart
    to the number of bytes that have been received.  If the file has
-   not been partially received, *pcrestart should be set to -1.  The
-   function should return EFILECLOSED on error.  After the file is
-   written, fsysdep_move_file will be called to move the file to its
-   final destination, and to set the correct file mode.  */
+   not been partially received, *pcrestart should be set to -1.
+   pcrestart will be passed in as NULL if file restart is not
+   supported by the protocol or the remote system.  The function
+   should return EFILECLOSED on error.  After the file is written,
+   fsysdep_move_file will be called to move the file to its final
+   destination, and to set the correct file mode.  */
 extern openfile_t esysdep_open_receive P((const struct uuconf_system *qsys,
 					  const char *zto,
 					  const char *ztemp,
@@ -428,8 +446,8 @@ extern openfile_t esysdep_open_receive P((const struct uuconf_system *qsys,
    this should make sure the directory is writeable by the user zuser
    (if zuser is NULL, then it must be writeable by any user); this is
    to avoid a window of vulnerability between fsysdep_in_directory and
-   fsysdep_move_file.  This function should return FALSE on error; the
-   zorig file should be removed even if an error occurs.  */
+   fsysdep_move_file.  This function should return FALSE on error, in
+   which case the zorig file should still exist.  */
 extern boolean fsysdep_move_file P((const char *zorig, const char *zto,
 				    boolean fmkdirs, boolean fpublic,
 				    boolean fcheck, const char *zuser));
@@ -675,7 +693,8 @@ extern boolean fsysdep_move_uuxqt_files P((int cfiles,
    started in rather than in the public directory.  This should return
    NULL on error.  */
 extern char *zsysdep_local_file_cwd P((const char *zname,
-				       const char *zpubdir));
+				       const char *zpubdir,
+				       boolean *pfbadname));
 
 /* Add the working directory to a file name.  The named file is
    actually on a remote system.  If the file already has a directory,
@@ -748,9 +767,11 @@ extern boolean usysdep_walk_tree P((const char *zdir,
 extern char *zsysdep_jobid P((const struct uuconf_system *qsys,
 			      pointer pseq));
 
-/* See whether the current user is permitted to kill jobs submitted by
-   another user.  This should return TRUE if permission is granted,
-   FALSE otherwise.  */
+/* See whether the current user is privileged.  Privileged users are
+   permitted to kill jobs submitted by another user, and they are
+   permitted to use the -u argument to uucico; other uses of this call
+   may be added later.  This should return TRUE if permission is
+   granted, FALSE otherwise.  */
 extern boolean fsysdep_privileged P((void));
 
 /* Kill a job, given the jobid.  This should remove all associated
@@ -777,6 +798,11 @@ extern long ixsysdep_work_time P((const struct uuconf_system *qsys,
    execution files.  There is no way to indicate error.  The return
    value must use the same epoch as ixsysdep_time.  */
 extern long ixsysdep_file_time P((const char *zfile));
+
+/* Touch a file to make it appear as though it was created at the
+   current time.  This is called by uustat on execution files.  On
+   error this should log an error message and return FALSE.  */
+extern boolean fsysdep_touch_file P((const char *zfile));
 
 /* Get the size in bytes of a file.  If this file does not exist, this
    should not give an error message, but should return -1.  If some
@@ -942,7 +968,8 @@ extern boolean fsysdep_uupick_free P((const char *zsystem,
    zsysdep_local_file_cwd except that a file beginning with ~/ is
    placed in the user's home directory rather than in the public
    directory.  */
-extern char *zsysdep_uupick_local_file P((const char *zfile));
+extern char *zsysdep_uupick_local_file P((const char *zfile,
+					  boolean *pfbadname));
 
 /* Remove a directory and all the files in it.  */
 extern boolean fsysdep_rmdir P((const char *zdir));

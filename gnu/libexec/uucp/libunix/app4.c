@@ -21,7 +21,10 @@ zsappend4 (zdir1, zdir2, zdir3, zfile)
   cdir3 = strlen (zdir3);
   cfile = strlen (zfile);
   zret = zbufalc (cdir1 + cdir2 + cdir3 + cfile + 4);
-  memcpy (zret, zdir1, cdir1);
+  if (cdir1 == 1 && *zdir1 == '/')
+    cdir1 = 0;
+  else
+    memcpy (zret, zdir1, cdir1);
   memcpy (zret + cdir1 + 1, zdir2, cdir2);
   memcpy (zret + cdir1 + cdir2 + 2, zdir3, cdir3);
   memcpy (zret + cdir1 + cdir2 + cdir3 + 3, zfile, cfile);

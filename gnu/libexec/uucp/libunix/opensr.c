@@ -1,7 +1,7 @@
 /* opensr.c
    Open files for sending and receiving.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,7 +20,7 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
@@ -131,16 +131,18 @@ esysdep_open_send (qsys, zfile, fcheck, zuser)
 }
 
 /* Get a temporary file name to receive into.  We use the ztemp
-   argument to pick the file name, so that we relocate the file if the
+   argument to pick the file name, so that we restart the file if the
    transmission is aborted.  */
 
 char *
-zsysdep_receive_temp (qsys, zto, ztemp)
+zsysdep_receive_temp (qsys, zto, ztemp, frestart)
      const struct uuconf_system *qsys;
      const char *zto;
      const char *ztemp;
+     boolean frestart;
 {
-  if (ztemp != NULL
+  if (frestart
+      && ztemp != NULL
       && *ztemp == 'D'
       && strcmp (ztemp, "D.0") != 0)
     return zsappend3 (".Temp", qsys->uuconf_zname, ztemp);
@@ -148,6 +150,10 @@ zsysdep_receive_temp (qsys, zto, ztemp)
     return zstemp_file (qsys);
 }  
 
+/* The number of seconds in one week.  We must cast to long for this
+   to be calculated correctly on a machine with 16 bit ints.  */
+#define SECS_PER_WEEK ((long) 7 * (long) 24 * (long) 60 * (long) 60)
+
 /* Open a temporary file to receive into.  This should, perhaps, check
    that we have write permission on the receiving directory, but it
    doesn't.  */
@@ -168,8 +174,10 @@ esysdep_open_receive (qsys, zto, ztemp, zreceive, pcrestart)
      that case, we may have already received some portion of this
      file.  */
   o = -1;
-  *pcrestart = -1;
-  if (ztemp != NULL
+  if (pcrestart != NULL)
+    *pcrestart = -1;
+  if (pcrestart != NULL
+      && ztemp != NULL
       && *ztemp == 'D'
       && strcmp (ztemp, "D.0") != 0)
     {
@@ -185,7 +193,7 @@ esysdep_open_receive (qsys, zto, ztemp, zreceive, pcrestart)
 	     restarted, and they know about this issue, they can touch
 	     it to bring it up to date.  */
 	  if (fstat (o, &s) < 0
-	      || s.st_mtime + 7 * 24 * 60 * 60 < time ((time_t *) NULL))
+	      || s.st_mtime + SECS_PER_WEEK < time ((time_t *) NULL))
 	    {
 	      (void) close (o);
 	      o = -1;

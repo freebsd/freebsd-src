@@ -1,7 +1,7 @@
 /* uux.c
    Prepare to execute a command on a remote system.
 
-   Copyright (C) 1991, 1992 Ian Lance Taylor
+   Copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -20,13 +20,13 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
    The author of the program may be contacted at ian@airs.com or
-   c/o Infinity Development Systems, P.O. Box 520, Waltham, MA 02254.
+   c/o Cygnus Support, Building 200, 1 Kendall Square, Cambridge, MA 02139.
    */
 
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uux_rcsid[] = "$Id: uux.c,v 1.2 1994/04/01 13:11:01 jkh Exp $";
+const char uux_rcsid[] = "$Id: uux.c,v 1.72 1994/03/22 06:33:26 ian Rel $";
 #endif
 
 #include "uudefs.h"
@@ -54,9 +54,6 @@ const char uux_rcsid[] = "$Id: uux.c,v 1.2 1994/04/01 13:11:01 jkh Exp $";
    operators.  */
 #define ZSHELLNONREDIRSEPS ";&*| \t"
 
-/* The program name.  */
-char abProgram[] = "uux";
-
 /* The name of the execute file.  */
 const char *zXxqt_name;
 
@@ -69,9 +66,14 @@ static int cXcmds;
 
 /* A file to close if we're forced to exit.  */
 static FILE *eXclose;
+
+/* A list of file names which will match the file names which appear
+   in the uucico logs.  */
+static char *zXnames;
 
 /* Local functions.  */
 static void uxusage P((void));
+static void uxhelp P((void));
 static void uxadd_xqt_line P((int bchar, const char *z1, const char *z2));
 static void uxadd_send_file P((const char *zfrom, const char *zto,
 			       const char *zoptions, const char *ztemp,
@@ -82,9 +84,29 @@ static void uxadd_send_file P((const char *zfrom, const char *zto,
 static void uxcopy_stdin P((FILE *e));
 static void uxrecord_file P((const char *zfile));
 static void uxabort P((void));
+static void uxadd_name P((const char *));
 
 /* Long getopt options.  */
-static const struct option asXlongopts[] = { { NULL, 0, NULL, 0 } };
+static const struct option asXlongopts[] =
+{
+  { "requestor", required_argument, NULL, 'a' },
+  { "return-stdin", no_argument, NULL, 'b' },
+  { "nocopy", no_argument, NULL, 'c' },
+  { "copy", no_argument, NULL, 'C' },
+  { "grade", required_argument, NULL, 'g' },
+  { "jobid", no_argument, NULL, 'j' },
+  { "link", no_argument, NULL, 'l' },
+  { "notification", required_argument, NULL, 2 },
+  { "stdin", no_argument, NULL, 'p' },
+  { "nouucico", no_argument, NULL, 'r' },
+  { "status", required_argument, NULL, 's' },
+  { "noexpand", no_argument, NULL, 'W' },
+  { "config", required_argument, NULL, 'I' },
+  { "debug", required_argument, NULL, 'x' },
+  { "version", no_argument, NULL, 'v' },
+  { "help", no_argument, NULL, 1 },
+  { NULL, 0, NULL, 0 }
+};
 
 /* The main routine.  */
 
@@ -153,40 +175,31 @@ main (argc, argv)
   struct uuconf_system slocalsys;
   boolean fneedshell;
   char *zfullcmd;
+  char aboptions[10];
   boolean fexit;
 
-  /* We need to be able to read a single - as an option, which getopt
-     won't do.  So that we can still use getopt, we run through the
-     options looking for an option "-"; if we find one we change it to
-     "-p", which is equivalent to "-".  */
-  for (i = 1; i < argc; i++)
-    {
-      if (argv[i][0] != '-')
-	break;
-      if (argv[i][1] == '\0')
-	argv[i] = zbufcpy ("-p");
-      else
-	{
-	  const char *z;
+  zProgram = argv[0];
 
-	  for (z = argv[i] + 1; *z != '\0'; z++)
-	    {
-	      /* If the option takes an argument, and the argument is
-		 not appended, then skip the next argument.  */
-	      if (*z == 'a' || *z == 'g' || *z == 'I'
-		  || *z == 's' || *z == 'x')
-		{
-		  if (z[1] == '\0')
-		    i++;
-		  break;
-		}
-	    }
-	}
+  /* We need to be able to read a single - as an option, which getopt
+     won't do.  We handle this by using getopt to scan the argument
+     list multiple times, replacing any single "-" with "-p".  */
+  opterr = 0;
+  while (1)
+    {
+      while (getopt_long (argc, argv, "+a:bcCg:I:jlnprs:Wvx:z",
+			  asXlongopts, (int *) NULL) != EOF)
+	;
+      if (optind >= argc || strcmp (argv[optind], "-") != 0)
+	break;
+      argv[optind] = zbufcpy ("-p");
+      optind = 0;
     }
+  opterr = 1;
+  optind = 0;
 
   /* The leading + in the getopt string means to stop processing
      options as soon as a non-option argument is seen.  */
-  while ((iopt = getopt_long (argc, argv, "+a:bcCg:I:jlnprs:Wx:z",
+  while ((iopt = getopt_long (argc, argv, "+a:bcCg:I:jlnprs:Wvx:z",
 			      asXlongopts, (int *) NULL)) != EOF)
     {
       switch (iopt)
@@ -270,6 +283,41 @@ main (argc, argv)
 	  /* Report status only on error.  */
 	  ferror_ack = TRUE;
 	  break;
+
+	case 2:
+	  /* --notify={true,false,error}.  */
+	  if (*optarg == 't'
+	      || *optarg == 'T'
+	      || *optarg == 'y'
+	      || *optarg == 'Y'
+	      || *optarg == 'e'
+	      || *optarg == 'E')
+	    {
+	      ferror_ack = TRUE;
+	      fno_ack = FALSE;
+	    }
+	  else if (*optarg == 'f'
+		   || *optarg == 'F'
+		   || *optarg == 'n'
+		   || *optarg == 'N')
+	    {
+	      ferror_ack = FALSE;
+	      fno_ack = TRUE;
+	    }
+	  break;
+
+	case 'v':
+	  /* Print version and exit.  */
+	  printf ("%s: Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+		  zProgram, VERSION);
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
+
+	case 1:
+	  /* --help.  */
+	  uxhelp ();
+	  exit (EXIT_SUCCESS);
+	  /*NOTREACHED*/
 
 	case 0:
 	  /* Long option found and flag set.  */
@@ -444,32 +492,12 @@ main (argc, argv)
       iuuconf = uuconf_system_local (puuconf, &slocalsys);
       if (iuuconf != UUCONF_SUCCESS)
 	ulog_uuconf (LOG_FATAL, puuconf, iuuconf);
+      slocalsys.uuconf_zname = (char *) zlocalname;
     }
 
-  /* Figure out which system the command is to be executed on.  Some
-     mailers apparently pass local!rmail, so we must explicitly check
-     for that.  */
+  /* Figure out which system the command is to be executed on.  */
+  zcmd = zremove_local_sys (&slocalsys, zcmd);
   zexclam = strchr (zcmd, '!');
-  while (zexclam != NULL)
-    {
-      *zexclam = '\0';
-      if (strcmp (zcmd, zlocalname) == 0)
-	;
-      else if (slocalsys.uuconf_pzalias == NULL)
-	break;
-      else
-	{
-	  char **pzal;
-
-	  for (pzal = slocalsys.uuconf_pzalias; *pzal != NULL; pzal++)
-	    if (strcmp (zcmd, *pzal) == 0)
-	      break;
-	  if (*pzal == NULL)
-	    break;
-	}
-      zcmd = zexclam + 1;
-      zexclam = strchr (zcmd, '!');
-    }
   if (zexclam == NULL)
     {
       zsys = zlocalname;
@@ -478,6 +506,7 @@ main (argc, argv)
     }
   else
     {
+      *zexclam = '\0';
       zsys = zcmd;
       zcmd = zexclam + 1;
       fxqtlocal = FALSE;
@@ -587,6 +616,12 @@ main (argc, argv)
       if (zexclam == NULL && ! finput && ! foutput)
 	continue;
 
+      if (zexclam != NULL)
+	{
+	  pzargs[i] = zremove_local_sys (&slocalsys, pzargs[i]);
+	  zexclam = strchr (pzargs[i], '!');
+	}
+
       /* Get the system name and file name for this file.  */
       if (zexclam == NULL)
 	{
@@ -599,22 +634,13 @@ main (argc, argv)
 	{
 	  *zexclam = '\0';
 	  zsystem = pzargs[i];
-	  if (*zsystem != '\0')
-	    flocal = FALSE;
-	  else
-	    {
-	      zsystem = zlocalname;
-	      flocal = TRUE;
-	    }
 	  zfile = zexclam + 1;
+	  flocal = FALSE;
 	  zexclam = strrchr (zfile, '!');
 	  if (zexclam == NULL)
 	    zforw = NULL;
 	  else
 	    {
-	      if (flocal)
-		ulog (LOG_FATAL, "!%s: Can't figure out where to get file",
-		      zfile);
 	      *zexclam = '\0';
 	      zforw = zfile;
 	      zfile = zexclam + 1;
@@ -653,7 +679,8 @@ main (argc, argv)
 
       /* Turn the file into an absolute path.  */
       if (flocal)
-	zfile = zsysdep_local_file_cwd (zfile, sxqtsys.uuconf_zpubdir);
+	zfile = zsysdep_local_file_cwd (zfile, sxqtsys.uuconf_zpubdir,
+					(boolean *) NULL);
       else if (fexpand)
 	zfile = zsysdep_add_cwd (zfile);
       if (zfile == NULL)
@@ -918,6 +945,7 @@ main (argc, argv)
 		 spool directory; normally such requests are rejected.
 		 This privilege is easy to abuse.  */
 	      s.bcmd = 'R';
+	      s.bgrade = bgrade;
 	      s.pseq = NULL;
 	      s.zfrom = zfile;
 	      s.zto = zbufcpy (abtname);
@@ -1113,11 +1141,11 @@ main (argc, argv)
   if (eXxqt_file == NULL && zinput_from != NULL && zforward == NULL)
     {
       struct scmd s;
-      char aboptions[10];
       char *zoptions;
 
       /* Set up an E command.  */
       s.bcmd = 'E';
+      s.bgrade = bgrade;
       s.pseq = NULL;
       s.zuser = zuser;
       s.zfrom = zinput_from;
@@ -1147,6 +1175,8 @@ main (argc, argv)
       pasXcmds = (struct scmd *) xrealloc ((pointer) pasXcmds,
 					   cXcmds * sizeof (struct scmd));
       pasXcmds[cXcmds - 1] = s;
+
+      uxadd_name (zinput_from);
     }
   else
     {
@@ -1225,20 +1255,41 @@ main (argc, argv)
   ulog_system (sxqtsys.uuconf_zname);
   ulog_user (zuser);
 
-  ulog (LOG_NORMAL, "Queuing %s", zfullcmd);
+  if (zXnames == NULL)
+    ulog (LOG_NORMAL, "Queuing %s", zfullcmd);
+  else
+    ulog (LOG_NORMAL, "Queuing %s (%s)", zfullcmd, zXnames);
 
   ulog_close ();
 
-  if (! fuucico)
+  if (! fuucico
+      || (zcall_system == NULL && ! fcall_any))
     fexit = TRUE;
   else
     {
-      if (zcall_system != NULL)
-	fexit = fsysdep_run ("uucico", "-s", zcall_system);
-      else if (fcall_any)
-	fexit = fsysdep_run ("uucico", "-r1", (const char *) NULL);
+      const char *zcicoarg;
+      char *zconfigarg;
+
+      if (zcall_system == NULL)
+	zcicoarg = "-r1";
       else
-	fexit = TRUE;
+	{
+	  char *z;
+
+	  z = zbufalc (sizeof "-Cs" + strlen (zcall_system));
+	  sprintf (z, "-Cs%s", zcall_system);
+	  zcicoarg = z;
+	}
+
+      if (zconfig == NULL)
+	zconfigarg = NULL;
+      else
+	{
+	  zconfigarg = zbufalc (sizeof "-I" + strlen (zconfig));
+	  sprintf (zconfigarg, "-I%s", zconfig);
+	}
+
+      fexit = fsysdep_run (FALSE, "uucico", zcicoarg, zconfigarg);
     }
 
   usysdep_exit (fexit);
@@ -1250,43 +1301,37 @@ main (argc, argv)
 /* Report command usage.  */
 
 static void
+uxhelp ()
+{
+  printf ("Taylor UUCP %s, copyright (C) 1991, 1992, 1993, 1994 Ian Lance Taylor\n",
+	  VERSION);
+  printf ("Usage: %s [options] [-] command\n", zProgram);
+  printf (" -,-p,--stdin: Read standard input for standard input of command\n");
+  printf (" -c,--nocopy: Do not copy local files to spool directory (default)\n");
+  printf (" -C,--copy: Copy local files to spool directory\n");
+  printf (" -l,--link: link local files to spool directory\n");
+  printf (" -g,--grade grade: Set job grade (must be alphabetic)\n");
+  printf (" -n,--notification=no: Do not report completion status\n");
+  printf (" -z,--notification=error: Report completion status only on error\n");
+  printf (" -r,--nouucico: Do not start uucico daemon\n");
+  printf (" -a,--requestor address: Address to mail status report to\n");
+  printf (" -b,--return-stdin: Return standard input with status report\n");
+  printf (" -s,--status file: Report completion status to file\n");
+  printf (" -j,--jobid: Report job id\n");
+  printf (" -x,--debug debug: Set debugging level\n");
+#if HAVE_TAYLOR_CONFIG
+  printf (" -I,--config file: Set configuration file to use\n");
+#endif /* HAVE_TAYLOR_CONFIG */
+  printf (" -v,--version: Print version and exit\n");
+  printf (" --help: Print help and exit\n");
+}
+
+static void
 uxusage ()
 {
   fprintf (stderr,
-	   "Taylor UUCP version %s, copyright (C) 1991, 1992 Ian Lance Taylor\n",
-	   VERSION);
-  fprintf (stderr,
-	   "Usage: uux [options] [-] command\n");
-  fprintf (stderr,
-	   " -,-p: Read standard input for standard input of command\n");
-  fprintf (stderr,
-	   " -c: Do not copy local files to spool directory (default)\n");
-  fprintf (stderr,
-	   " -C: Copy local files to spool directory\n");
-  fprintf (stderr,
-	   " -l: link local files to spool directory\n");
-  fprintf (stderr,
-	   " -g grade: Set job grade (must be alphabetic)\n");
-  fprintf (stderr,
-	   " -n: Do not report completion status\n");
-  fprintf (stderr,
-	   " -z: Report completion status only on error\n");
-  fprintf (stderr,
-	   " -r: Do not start uucico daemon\n");
-  fprintf (stderr,
-	   " -a address: Address to mail status report to\n");
-  fprintf (stderr,
-	   " -b: Return standard input with status report\n");
-  fprintf (stderr,
-	   " -s file: Report completion status to file\n");
-  fprintf (stderr,
-	   " -j: Report job id\n");
-  fprintf (stderr,
-	   " -x debug: Set debugging level\n");
-#if HAVE_TAYLOR_CONFIG
-  fprintf (stderr,
-	   " -I file: Set configuration file to use\n");
-#endif /* HAVE_TAYLOR_CONFIG */
+	   "Usage: %s [options] [-] command\n", zProgram);
+  fprintf (stderr, "Use %s --help for help\n", zProgram);
   exit (EXIT_FAILURE);
 }
 
@@ -1366,6 +1411,7 @@ uxadd_send_file (zfrom, zto, zoptions, ztemp, zforward, qxqtsys, zxqtloc,
 
       /* Send the execution file.  */
       s.bcmd = 'S';
+      s.bgrade = bgrade;
       s.pseq = NULL;
       s.zfrom = zbufcpy (abtname);
       s.zto = zbufcpy (abxname);
@@ -1383,12 +1429,15 @@ uxadd_send_file (zfrom, zto, zoptions, ztemp, zforward, qxqtsys, zxqtloc,
 					   cXcmds * sizeof (struct scmd));
       pasXcmds[cXcmds - 1] = s;
 
+      uxadd_name (abtname);
+
       /* Send the data file to abdname where the execution file will
 	 expect it.  */
       zto = abdname;
     }
 
   s.bcmd = 'S';
+  s.bgrade = bgrade;
   s.pseq = NULL;
   s.zfrom = zbufcpy (zfrom);
   s.zto = zbufcpy (zto);
@@ -1405,6 +1454,8 @@ uxadd_send_file (zfrom, zto, zoptions, ztemp, zforward, qxqtsys, zxqtloc,
   pasXcmds = (struct scmd *) xrealloc ((pointer) pasXcmds,
 				       cXcmds * sizeof (struct scmd));
   pasXcmds[cXcmds - 1] = s;
+
+  uxadd_name (zfrom);
 }
 
 /* Copy stdin to a file.  This is a separate function because it may
@@ -1499,4 +1550,32 @@ uxabort ()
     (void) remove (pXaz[i]);
   ulog_close ();
   usysdep_exit (FALSE);
+}
+
+/* Add a name to the list of file names we are going to log.  We log
+   all the file names which will appear in the uucico log file.  This
+   permits people to associate the file send in the uucico log with
+   the uux entry which created the file.  Normally only one file name
+   will appear.  */
+
+static void
+uxadd_name (z)
+     const char *z;
+{
+  if (zXnames == NULL)
+    zXnames = zbufcpy (z);
+  else
+    {
+      size_t cold, cadd;
+      char *znew;
+
+      cold = strlen (zXnames);
+      cadd = strlen (z);
+      znew = zbufalc (cold + 2 + cadd);
+      memcpy (znew, zXnames, cold);
+      znew[cold] = ' ';
+      memcpy (znew + cold + 1, z, cadd + 1);
+      ubuffree (zXnames);
+      zXnames = znew;
+    }
 }
