@@ -61,16 +61,16 @@
  */
 struct ispsoftc;
 struct ispmdvec {
-	u_int16_t	(*dv_rd_reg) __P((struct ispsoftc *, int));
-	void		(*dv_wr_reg) __P((struct ispsoftc *, int, u_int16_t));
-	int		(*dv_mbxdma) __P((struct ispsoftc *));
-	int		(*dv_dmaset) __P((struct ispsoftc *,
-		XS_T *, ispreq_t *, u_int16_t *, u_int16_t));
+	u_int16_t	(*dv_rd_reg) (struct ispsoftc *, int);
+	void		(*dv_wr_reg) (struct ispsoftc *, int, u_int16_t);
+	int		(*dv_mbxdma) (struct ispsoftc *);
+	int		(*dv_dmaset) (struct ispsoftc *,
+		XS_T *, ispreq_t *, u_int16_t *, u_int16_t);
 	void		(*dv_dmaclr)
-		__P((struct ispsoftc *, XS_T *, u_int16_t));
-	void		(*dv_reset0) __P((struct ispsoftc *));
-	void		(*dv_reset1) __P((struct ispsoftc *));
-	void		(*dv_dregs) __P((struct ispsoftc *, const char *));
+		(struct ispsoftc *, XS_T *, u_int16_t);
+	void		(*dv_reset0) (struct ispsoftc *);
+	void		(*dv_reset1) (struct ispsoftc *);
+	void		(*dv_dregs) (struct ispsoftc *, const char *);
 	const u_int16_t	*dv_ispfw;	/* ptr to f/w */
 	u_int16_t	dv_conf1;
 	u_int16_t	dv_clock;	/* clock frequency */
@@ -230,10 +230,10 @@ typedef struct {
 
 typedef struct {
 	u_int32_t		isp_fwoptions	: 16,
-						: 3,
+						: 2,
 				isp_iid_set	: 1,
 				loop_seen_once	: 1,
-				isp_loopstate	: 3,	/* Current Loop State */
+				isp_loopstate	: 4,	/* Current Loop State */
 				isp_fwstate	: 3,	/* ISP F/W state */
 				isp_gotdparms	: 1,
 				isp_topo	: 3,
@@ -264,7 +264,8 @@ typedef struct {
 	struct lportdb {
 		u_int
 					loopid		: 8,
-							: 2,
+							: 1,
+					force_logout	: 1,
 					was_fabric_dev	: 1,
 					fabric_dev	: 1,
 					loggedin	: 1,
@@ -297,9 +298,9 @@ typedef struct {
 #define	LOOP_SCANNING_FABRIC	3
 #define	LOOP_FSCAN_DONE		4
 #define	LOOP_SCANNING_LOOP	5
-#define	LOOP_LSCAN_DONE		4
-#define	LOOP_SYNCING_PDB	6
-#define	LOOP_READY		7
+#define	LOOP_LSCAN_DONE		6
+#define	LOOP_SYNCING_PDB	7
+#define	LOOP_READY		8
 
 #define	TOPO_NL_PORT		0
 #define	TOPO_FL_PORT		1
@@ -426,7 +427,7 @@ typedef struct ispsoftc {
  * anything. Basically, it sends a single byte of data (the first byte,
  * which you can set as part of the INITIALIZE CONTROL BLOCK command) for
  * INQUIRY, and sends back QUEUE FULL status for any other command.
- * 
+ *
  */
 #define	ISP_ROLE_NONE		0x0
 #define	ISP_ROLE_INITIATOR	0x1
@@ -469,6 +470,7 @@ typedef struct ispsoftc {
 #define	ISP_HA_FC		0xf0
 #define	ISP_HA_FC_2100		0x10
 #define	ISP_HA_FC_2200		0x20
+#define	ISP_HA_FC_2300		0x30
 
 #define	IS_SCSI(isp)	(isp->isp_type & ISP_HA_SCSI)
 #define	IS_1240(isp)	(isp->isp_type == ISP_HA_SCSI_1240)
@@ -481,9 +483,13 @@ typedef struct ispsoftc {
 #define	IS_ULTRA2(isp)	(IS_1080(isp) || IS_1280(isp) || IS_12160(isp))
 #define	IS_ULTRA3(isp)	(IS_12160(isp))
 
-#define	IS_FC(isp)	(isp->isp_type & ISP_HA_FC)
-#define	IS_2100(isp)	(isp->isp_type == ISP_HA_FC_2100)
-#define	IS_2200(isp)	(isp->isp_type == ISP_HA_FC_2200)
+#define	IS_FC(isp)	((isp)->isp_type & ISP_HA_FC)
+#define	IS_2100(isp)	((isp)->isp_type == ISP_HA_FC_2100)
+#define	IS_2200(isp)	((isp)->isp_type == ISP_HA_FC_2200)
+#define	IS_2300(isp)	((isp)->isp_type == ISP_HA_FC_2300)
+
+/* 2300 Support isn't ready yet */
+#define	ISP_DISABLE_2300_SUPPORT	1
 
 /*
  * DMA cookie macros
@@ -499,27 +505,27 @@ typedef struct ispsoftc {
  * Reset Hardware. Totally. Assumes that you'll follow this with
  * a call to isp_init.
  */
-void isp_reset __P((struct ispsoftc *));
+void isp_reset(struct ispsoftc *);
 
 /*
  * Initialize Hardware to known state
  */
-void isp_init __P((struct ispsoftc *));
+void isp_init(struct ispsoftc *);
 
 /*
  * Reset the ISP and call completion for any orphaned commands.
  */
-void isp_reinit __P((struct ispsoftc *));
+void isp_reinit(struct ispsoftc *);
 
 /*
  * Interrupt Service Routine
  */
-int isp_intr __P((void *));
+int isp_intr(void *);
 
 /*
  * Command Entry Point- Platform Dependent layers call into this
  */
-int isp_start __P((XS_T *));
+int isp_start(XS_T *);
 /* these values are what isp_start returns */
 #define	CMD_COMPLETE	101	/* command completed */
 #define	CMD_EAGAIN	102	/* busy- maybe retry later */
@@ -529,7 +535,7 @@ int isp_start __P((XS_T *));
 /*
  * Command Completion Point- Core layers call out from this with completed cmds
  */
-void isp_done __P((XS_T *));
+void isp_done(XS_T *);
 
 /*
  * Platform Dependent to External to Internal Control Function
@@ -579,7 +585,7 @@ typedef enum {
 	ISPCTL_RUN_MBOXCMD,		/* run a mailbox command */
 	ISPCTL_TOGGLE_TMODE		/* toggle target mode */
 } ispctl_t;
-int isp_control __P((struct ispsoftc *, ispctl_t, void *));
+int isp_control(struct ispsoftc *, ispctl_t, void *);
 
 
 /*
@@ -628,6 +634,8 @@ typedef enum {
 	ISPASYNC_BUS_RESET,		/* Bus Was Reset */
 	ISPASYNC_LOOP_DOWN,		/* FC Loop Down */
 	ISPASYNC_LOOP_UP,		/* FC Loop Up */
+	ISPASYNC_LIP,			/* LIP Received */
+	ISPASYNC_LOOP_RESET,		/* Loop Reset Received */
 	ISPASYNC_CHANGE_NOTIFY,		/* FC Change Notification */
 	ISPASYNC_FABRIC_DEV,		/* FC Fabric Device Arrival */
 	ISPASYNC_PROMENADE,		/* FC Objects coming && going */
@@ -635,9 +643,10 @@ typedef enum {
 	ISPASYNC_TARGET_EVENT,		/* target asynchronous event */
 	ISPASYNC_TARGET_ACTION,		/* other target command action */
 	ISPASYNC_CONF_CHANGE,		/* Platform Configuration Change */
-	ISPASYNC_UNHANDLED_RESPONSE	/* Unhandled Response Entry */
+	ISPASYNC_UNHANDLED_RESPONSE,	/* Unhandled Response Entry */
+	ISPASYNC_FW_CRASH		/* Firmware has crashed */
 } ispasync_t;
-int isp_async __P((struct ispsoftc *, ispasync_t, void *));
+int isp_async(struct ispsoftc *, ispasync_t, void *);
 
 #define	ISPASYNC_CHANGE_PDB	((void *) 0)
 #define	ISPASYNC_CHANGE_SNS	((void *) 1)
@@ -647,10 +656,10 @@ int isp_async __P((struct ispsoftc *, ispasync_t, void *));
  * Platform Dependent Error and Debug Printout
  */
 #ifdef	__GNUC__
-void isp_prt __P((struct ispsoftc *, int level, const char *, ...))
+void isp_prt(struct ispsoftc *, int level, const char *, ...)
 	__attribute__((__format__(__printf__,3,4)));
 #else
-void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
+void isp_prt(struct ispsoftc *, int level, const char *, ...);
 #endif
 
 #define	ISP_LOGALL	0x0	/* log always */
@@ -661,7 +670,8 @@ void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
 #define	ISP_LOGDEBUG0	0x10	/* log simple debug messages */
 #define	ISP_LOGDEBUG1	0x20	/* log intermediate debug messages */
 #define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
-#define	ISP_LOGDEBUG3	0x100	/* log high frequency debug messages */
+#define	ISP_LOGDEBUG3	0x80	/* log high frequency debug messages */
+#define	ISP_LOGDEBUG4	0x100	/* log high frequency debug messages */
 #define	ISP_LOGTDEBUG0	0x200	/* log simple debug messages (target mode) */
 #define	ISP_LOGTDEBUG1	0x400	/* log intermediate debug messages (target) */
 #define	ISP_LOGTDEBUG2	0x800	/* log all debug messages (target) */
@@ -780,7 +790,6 @@ void isp_prt __P((struct ispsoftc *, int level, const char *, ...));
  *	ISP_SWIZZLE_SNS_REQ
  *	ISP_UNSWIZZLE_SNS_RSP
  *	ISP_SWIZZLE_NVRAM_WORD
- *
- *
  */
+
 #endif	/* _ISPVAR_H */

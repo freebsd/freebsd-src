@@ -101,7 +101,9 @@ typedef struct {
  * layer maintains a port database, for example).
  *
  * The cd_tagtype field specifies what kind of command tag has been
- * sent with the command. The cd_tagval is the tag's value.
+ * sent with the command. The cd_tagval is the tag's value (low 16
+ * bits). It also contains (in the upper 16 bits) any command handle.
+ *
  *
  * N.B.: when the MD layer sends this command to outside software
  * the outside software likely *MUST* return the same cd_tagval that
@@ -175,7 +177,9 @@ typedef struct {
  * The tag cd_error is to communicate between the MD layer and outer software
  * the current error conditions.
  *
- * The tag cd_reserved pads out the structure to 128 bytes.
+ * The tag cd_reserved pads out the structure to 128 bytes. The first
+ * half of the pad area is reserved to the MD layer, and the second half
+ * may be used by outer layers, for scratch purposes.
  */
 
 #ifndef	_LP64
@@ -206,7 +210,7 @@ typedef struct tmd_cmd {
 	u_int64_t		cd_lun;		/* logical unit */
 	u_int8_t		cd_bus;		/* bus */
 	u_int8_t		cd_tagtype;	/* tag type */
-	u_int16_t		cd_tagval;	/* tag value */
+	u_int32_t		cd_tagval;	/* tag value */
 	u_int8_t		cd_cdb[ATIO_CDBLEN];	/* Command */
 	u_int8_t		cd_lflags;	/* flags lower level sets */
 	u_int8_t		cd_hflags;	/* flags higher level sets */
@@ -219,11 +223,12 @@ typedef struct tmd_cmd {
 	u_int8_t		cd_reserved[_TMD_PAD_LEN];
 } tmd_cmd_t;
 
-#define	CDFL_BUSY	0x01		/* this command is not on a free list */
+#define	CDFL_SNSVALID	0x01		/* sense data (from f/w) valid */
 #define	CDFL_NODISC	0x02		/* disconnects disabled */
 #define	CDFL_SENTSENSE	0x04		/* last action sent sense data */
 #define	CDFL_SENTSTATUS	0x08		/* last action sent status */
 #define	CDFL_ERROR	0x10		/* last action ended in error */
+#define	CDFL_BUSY	0x40		/* this command is not on a free list */
 #define	CDFL_PRIVATE_0	0x80		/* private layer flags */
 
 #define	CDFH_SNSVALID	0x01		/* sense data valid */
@@ -266,7 +271,7 @@ typedef enum {
  *	When the HBA is enabled for receiving commands, one may	show up
  *	without notice. When that happens, the Qlogic target mode driver
  *	gets a tmd_cmd_t, fills it with the info that just arrived, and
- *	calls the outer layer with a QIN_TMD_START code and pointer to
+ *	calls the outer layer with a QOUT_TMD_START code and pointer to
  *	the tmd_cmd_t.
  *
  *	The outer layer decodes the command, fetches data, prepares stuff,
@@ -325,5 +330,5 @@ typedef struct {
 	int	r_inst;
 	int	r_lunwidth;
 	int	r_buswidth;
-	void   (*r_action) __P((int, void *));
+	void   (*r_action)(int, void *);
 } hba_register_t;
