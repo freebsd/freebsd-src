@@ -335,22 +335,19 @@ witness_init(struct lock_object *lock)
 
 	class = lock->lo_class;
 	if (lock->lo_flags & LO_INITIALIZED)
-		panic("%s: lock (%s) %s is already initialized!\n", __func__,
+		panic("%s: lock (%s) %s is already initialized", __func__,
 		    class->lc_name, lock->lo_name);
-
 	if ((lock->lo_flags & LO_RECURSABLE) != 0 &&
 	    (class->lc_flags & LC_RECURSABLE) == 0)
-		panic("%s: lock (%s) %s can not be recursable!\n", __func__,
+		panic("%s: lock (%s) %s can not be recursable", __func__,
 		    class->lc_name, lock->lo_name);
-
 	if ((lock->lo_flags & LO_SLEEPABLE) != 0 &&
 	    (class->lc_flags & LC_SLEEPABLE) == 0)
-		panic("%s: lock (%s) %s can not be sleepable!\n", __func__,
+		panic("%s: lock (%s) %s can not be sleepable", __func__,
 		    class->lc_name, lock->lo_name);
-
 	if ((lock->lo_flags & LO_UPGRADABLE) != 0 &&
 	    (class->lc_flags & LC_UPGRADABLE) == 0)
-		panic("%s: lock (%s) %s can not be upgradable!\n", __func__,
+		panic("%s: lock (%s) %s can not be upgradable", __func__,
 		    class->lc_name, lock->lo_name);
 
 	mtx_lock(&all_mtx);
@@ -375,9 +372,8 @@ witness_destroy(struct lock_object *lock)
 	if (witness_cold)
 		panic("lock (%s) %s destroyed while witness_cold",
 		    lock->lo_class->lc_name, lock->lo_name);
-
 	if ((lock->lo_flags & LO_INITIALIZED) == 0)
-		panic("%s: lock (%s) %s is not initialized!\n", __func__,
+		panic("%s: lock (%s) %s is not initialized", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
 
 	/* XXX: need to verify that no one holds the lock */
@@ -433,7 +429,7 @@ witness_display(void(*prnt)(const char *fmt, ...))
 {
 	struct witness *w;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	witness_levelall();
 
 	/*
@@ -723,10 +719,9 @@ witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
-
 	class = lock->lo_class;
 	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
 		panic("upgrade of non-upgradable lock (%s) %s @ %s:%d",
@@ -758,10 +753,9 @@ witness_downgrade(struct lock_object *lock, int flags, const char *file,
 	struct lock_instance *instance;
 	struct lock_class *class;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
-
 	class = lock->lo_class;
 	if ((lock->lo_flags & LO_UPGRADABLE) == 0)
 		panic("downgrade of non-upgradable lock (%s) %s @ %s:%d",
@@ -894,7 +888,7 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 
 	if (witness_dead || panicstr != NULL)
 		return (0);
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	n = 0;
 	/*
 	 * Preemption bad because we need PCPU_PTR(spinlocks) to not change.
@@ -945,7 +939,6 @@ enroll(const char *description, struct lock_class *lock_class)
 
 	if (!witness_watch || witness_dead || panicstr != NULL)
 		return (NULL);
-
 	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_skipspin)
 		return (NULL);
 	mtx_lock_spin(&w_mtx);
@@ -985,7 +978,6 @@ enroll(const char *description, struct lock_class *lock_class)
 		    lock_class->lc_name);
 	}
 	mtx_unlock_spin(&w_mtx);
-
 	return (w);
 }
 
@@ -1010,13 +1002,11 @@ itismychild(struct witness *parent, struct witness *child)
 	wcl = &parent->w_children;
 	while (*wcl != NULL && (*wcl)->wcl_count == WITNESS_NCHILDREN)
 		wcl = &(*wcl)->wcl_next;
-
 	if (*wcl == NULL) {
 		*wcl = witness_child_get();
 		if (*wcl == NULL)
 			return (1);
 	}
-
 	(*wcl)->wcl_children[(*wcl)->wcl_count++] = child;
 
 	/*
@@ -1063,10 +1053,8 @@ found:
 		(*wcl)->wcl_children[i] =
 		    (*wcl)->wcl_children[(*wcl)->wcl_count];
 	MPASS((*wcl)->wcl_children[i] != NULL);
-
 	if ((*wcl)->wcl_count != 0)
 		return;
-
 	wcl1 = *wcl;
 	*wcl = wcl1->wcl_next;
 	witness_child_free(wcl1);
@@ -1163,7 +1151,6 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 	int i, level;
 
 	level =  parent->w_level;
-
 	prnt("%-2d", level);
 	for (i = 0; i < level; i++)
 		prnt(" ");
@@ -1171,7 +1158,6 @@ witness_displaydescendants(void(*prnt)(const char *fmt, ...),
 	if (parent->w_file != NULL)
 		prnt(" -- last acquired @ %s:%d\n", parent->w_file,
 		    parent->w_line);
-
 	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
 		for (i = 0; i < wcl->wcl_count; i++)
 			    witness_displaydescendants(prnt,
@@ -1349,12 +1335,10 @@ witness_list(struct proc *p)
 #ifdef DDB
 	KASSERT(p == curproc || db_active,
 	    ("%s: p != curproc and we aren't in the debugger", __func__));
-
 	if (!db_active && witness_dead)
 		return (0);
 #else
 	KASSERT(p == curproc, ("%s: p != curproc", __func__));
-
 	if (witness_dead)
 		return (0);
 #endif
@@ -1376,7 +1360,6 @@ witness_list(struct proc *p)
 		nheld += witness_list_locks(PCPU_PTR(spinlocks));
 		critical_exit(savecrit);
 	}
-
 	return (nheld);
 }
 
@@ -1385,10 +1368,9 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 {
 	struct lock_instance *instance;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
-
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("%s: lock (%s) %s is not a sleep lock", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
@@ -1396,7 +1378,6 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	if (instance == NULL)
 		panic("%s: lock (%s) %s not locked", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
-	    
 	*filep = instance->li_file;
 	*linep = instance->li_line;
 }
@@ -1406,10 +1387,9 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 {
 	struct lock_instance *instance;
 
-	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
+	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
-
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) == 0)
 		panic("%s: lock (%s) %s is not a sleep lock", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
@@ -1417,7 +1397,6 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	if (instance == NULL)
 		panic("%s: lock (%s) %s not locked", __func__,
 		    lock->lo_class->lc_name, lock->lo_name);
-
 	lock->lo_witness->w_file = file;
 	lock->lo_witness->w_line = line;
 	instance->li_file = file;
@@ -1432,7 +1411,6 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 
 	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
-
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) != 0)
 		instance = find_instance(curproc->p_sleeplocks, lock);
 	else if ((lock->lo_class->lc_flags & LC_SPINLOCK) != 0)
@@ -1493,7 +1471,6 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 		pid = (addr % 16) + ((addr >> 4) % 16) * 10 +
 		    ((addr >> 8) % 16) * 100 + ((addr >> 12) % 16) * 1000 +
 		    ((addr >> 16) % 16) * 10000;
-
 		/* sx_slock(&allproc_lock); */
 		LIST_FOREACH(p, &allproc, p_list) {
 			if (p->p_pid == pid)
@@ -1506,7 +1483,6 @@ DB_SHOW_COMMAND(locks, db_witness_list)
 		}
 	} else
 		p = curproc;
-		
 	witness_list(p);
 }
 
