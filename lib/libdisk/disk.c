@@ -96,53 +96,64 @@ typedef enum {
 	XML_NAME_END,
 	XML_INDEX,
 	XML_INDEX_END,
-	XML_LENGTH,
-	XML_LENGTH_END,
 	XML_SECLENGTH,
 	XML_SECLENGTH_END,
 	XML_SECOFFSET,
 	XML_SECOFFSET_END,
-	XML_OFFSET,
-	XML_OFFSET_END,
 	XML_TYPE,
 	XML_TYPE_END,
+	XML_MEDIASIZE,
+	XML_MEDIASIZE_END,
+	XML_SECTORSIZE,
+	XML_SECTORSIZE_END,
+	XML_FWHEADS,
+	XML_FWHEADS_END,
+	XML_FWSECTORS,
+	XML_FWSECTORS_END,
 
 	XML_OTHER,
 	XML_OTHER_END
 } XMLToken;
 
+const struct {
+	XMLToken	t;
+	const char*	token;
+	const char*	name;
+} xmltokens[] = {
+	{ XML_MESH,		"mesh",		"XML_MESH" },
+	{ XML_CLASS,		"class",	"XML_CLASS" },
+	{ XML_GEOM,		"geom",		"XML_GEOM" },
+	{ XML_CONFIG,		"config",	"XML_CONFIG" },
+	{ XML_PROVIDER,		"provider",	"XML_PROVIDE" },
+	{ XML_NAME,		"name",		"XML_NAME" },
+	{ XML_INDEX,		"index",	"XML_INDEX" },
+	{ XML_SECLENGTH,	"seclength",	"XML_SECLENGTH" },
+	{ XML_SECOFFSET,	"secoffset",	"XML_SECOFFSET" },
+	{ XML_TYPE,		"type",		"XML_TYPE" },
+	{ XML_FWHEADS,		"fwheads",	"XML_FWHEADS" },
+	{ XML_FWSECTORS,	"fwsectors",	"XML_FWSECTORS" },
+	{ XML_MEDIASIZE,	"mediasize",	"XML_MEDIASIZE" },
+	{ XML_SECTORSIZE,	"sectorsize",	"XML_SECTORSIZE" },
+	/* NB: this must be last */
+	{ XML_OTHER,		NULL,		"XML_OTHER" },
+};
+#define	N(x)	(sizeof (x) / sizeof (x[0]))
+
 #ifdef DEBUG
 static const char*
 xmltokenname(XMLToken t)
 {
-	switch (t) {
-	case XML_MESH:		return "XML_MESH";
-	case XML_MESH_END:	return "XML_MESH_END";
-	case XML_CLASS:		return "XML_CLASS";
-	case XML_CLASS_END:	return "XML_CLASS_END";
-	case XML_GEOM:		return "XML_GEOM";
-	case XML_GEOM_END:	return "XML_GEOM_END";
-	case XML_CONFIG:	return "XML_CONFIG";
-	case XML_CONFIG_END:	return "XML_CONFIG_END";
-	case XML_PROVIDER:	return "XML_PROVIDER";
-	case XML_PROVIDER_END:	return "XML_PROVIDER_END";
-	case XML_NAME:		return "XML_NAME";
-	case XML_NAME_END:	return "XML_NAME_END";
-	case XML_INDEX:		return "XML_INDEX";
-	case XML_INDEX_END:	return "XML_INDEX_END";
-	case XML_LENGTH:	return "XML_LENGTH";
-	case XML_LENGTH_END:	return "XML_LENGTH_END";
-	case XML_SECLENGTH:	return "XML_SECLENGTH";
-	case XML_SECLENGTH_END:	return "XML_SECLENGTH_END";
-	case XML_SECOFFSET:	return "XML_SECOFFSET";
-	case XML_SECOFFSET_END:	return "XML_SECOFFSET_END";
-	case XML_OFFSET:	return "XML_OFFSET";
-	case XML_OFFSET_END:	return "XML_OFFSET_END";
-	case XML_TYPE:		return "XML_TYPE";
-	case XML_TYPE_END:	return "XML_TYPE_END";
+	int i;
 
-	case XML_OTHER:		return "XML_OTHER";
-	case XML_OTHER_END:	return "XML_OTHER_END";
+	for (i = 0; i < N(xmltokens); i++) {
+		if (t == xmltokens[i].t)
+			return xmltokens[i].name;
+		if ((t-1) == xmltokens[i].t) {
+			static char tbuf[80];
+			snprintf(tbuf, sizeof (tbuf), "%s_END",
+				xmltokens[i].name);
+			return tbuf;
+		}
 	}
 	return "???";
 }
@@ -158,6 +169,7 @@ xmltoken(const char *start, const char **next, XMLToken *t)
 {
 	const char *cp = start;
 	const char *token;
+	int i;
 
 again:
 	while (*cp != '<') {
@@ -179,32 +191,10 @@ again:
 	*t = (*token == '/');
 	if (*t)
 		token++;
-	if (strncasecmp(token, "mesh", cp-token) == 0)
-		*t += XML_MESH;
-	else if (strncasecmp(token, "class", cp-token) == 0)
-		*t += XML_CLASS;
-	else if (strncasecmp(token, "geom", cp-token) == 0)
-		*t += XML_GEOM;
-	else if (strncasecmp(token, "config", cp-token) == 0)
-		*t += XML_CONFIG;
-	else if (strncasecmp(token, "provider", cp-token) == 0)
-		*t += XML_PROVIDER;
-	else if (strncasecmp(token, "name", cp-token) == 0)
-		*t += XML_NAME;
-	else if (strncasecmp(token, "index", cp-token) == 0)
-		*t += XML_INDEX;
-	else if (strncasecmp(token, "length", cp-token) == 0)
-		*t += XML_LENGTH;
-	else if (strncasecmp(token, "seclength", cp-token) == 0)
-		*t += XML_SECLENGTH;
-	else if (strncasecmp(token, "secoffset", cp-token) == 0)
-		*t += XML_SECOFFSET;
-	else if (strncasecmp(token, "offset", cp-token) == 0)
-		*t += XML_OFFSET;
-	else if (strncasecmp(token, "type", cp-token) == 0)
-		*t += XML_TYPE;
-	else
-		*t += XML_OTHER;
+	for (i = 0; xmltokens[i].token != NULL; i++)
+		if (strncasecmp(token, xmltokens[i].token, cp-token) == 0)
+			break;
+	*t += xmltokens[i].t;
 	/* now collect the remainder of the string */
 	for (; *cp != '>' && *cp != '\0'; cp++)
 		;
@@ -262,7 +252,7 @@ parsexmlpair(
 	const char *classname,
 	XMLToken terminator,
 	const char *diskname,
-	int (*f)(void *, XMLToken, u_int *, u_long),
+	int (*f)(void *, XMLToken, u_int *, u_int64_t),
 	void *arg
 )
 {
@@ -318,7 +308,12 @@ parsexmlpair(
 			}
 			/* fall thru... */
 		case XML_INDEX:
-			if (terminator != XML_CONFIG_END) {
+		case XML_FWHEADS:
+		case XML_FWSECTORS:
+		case XML_MEDIASIZE:
+		case XML_SECTORSIZE:
+			if (terminator != XML_CONFIG_END &&
+			    terminator != XML_PROVIDER_END) {
 				DPRINTX(("parsexmlpair: %s in unexpected "
 				      "context: terminator %s",
 				      xmltokenname(t),
@@ -326,7 +321,7 @@ parsexmlpair(
 				error = EINVAL;
 				goto done;
 			}
-			error = (*f)(arg, t, &ix, strtoul(*next, NULL, 10));
+			error = (*f)(arg, t, &ix, strtoull(*next, NULL, 10));
 			if (error)
 				goto done;
 			break;
@@ -347,7 +342,7 @@ xmlparse(
 	const char *confxml,
 	const char *classname,
 	const char *diskname,
-	int (*f)(void *, XMLToken, u_int *, u_long),
+	int (*f)(void *, XMLToken, u_int *, u_int64_t),
 	void *arg
 )
 {
@@ -373,7 +368,7 @@ xmlparse(
  * Callback to collect slice-related data.
  */
 static int
-assignToSlice(void *arg, XMLToken t, u_int *slice, u_long v)
+assignToSlice(void *arg, XMLToken t, u_int *slice, u_int64_t v)
 {
 	struct diskslices *ds = (struct diskslices *) arg;
 
@@ -389,13 +384,39 @@ assignToSlice(void *arg, XMLToken t, u_int *slice, u_long v)
 			ds->dss_nslices = (*slice)+1;
 		break;
 	case XML_SECOFFSET:
-		ds->dss_slices[*slice].ds_offset = v;
+		ds->dss_slices[*slice].ds_offset = (u_long) v;
 		break;
 	case XML_SECLENGTH:
-		ds->dss_slices[*slice].ds_size = v;
+		ds->dss_slices[*slice].ds_size = (u_long) v;
 		break;
 	case XML_TYPE:
-		ds->dss_slices[*slice].ds_type = v;
+		ds->dss_slices[*slice].ds_type = (int) v;
+		break;
+	}
+	return 0;
+}
+
+/*
+ * Callback to collect disk-related data.
+ */
+static int
+assignToDisk(void *arg, XMLToken t, u_int *slice, u_int64_t v)
+{
+	struct disklabel *dl = (struct disklabel *) arg;
+
+	switch ((int) t) {
+	case XML_FWHEADS:
+		dl->d_nsectors = (u_int32_t) v;
+	case XML_FWSECTORS:
+		dl->d_ntracks = (u_int32_t) v;
+		break;
+	case XML_MEDIASIZE:
+		/* store this temporarily; it gets moved later */
+		dl->d_secpercyl = v >> 32;
+		dl->d_secperunit = v & 0xffffffff;
+		break;
+	case XML_SECTORSIZE:
+		dl->d_secsize = (u_int32_t) v;
 		break;
 	}
 	return 0;
@@ -405,7 +426,7 @@ assignToSlice(void *arg, XMLToken t, u_int *slice, u_long v)
  * Callback to collect partition-related data.
  */
 static int
-assignToPartition(void *arg, XMLToken t, u_int *part, u_long v)
+assignToPartition(void *arg, XMLToken t, u_int *part, u_int64_t v)
 {
 	struct disklabel *dl = (struct disklabel *) arg;
 
@@ -432,6 +453,7 @@ assignToPartition(void *arg, XMLToken t, u_int *part, u_long v)
 	}
 	return 0;
 }
+#undef N
 #endif /*HAVE_GEOM*/
 
 struct disk *
@@ -441,9 +463,8 @@ Int_Open_Disk(const char *name, u_long size)
 	int fd = -1;
 	struct diskslices ds;
 	struct disklabel dl;
-	char device[64], *buf;
+	char device[64];
 	struct disk *d;
-	u_long sector_size;
 #ifdef PC98
 	unsigned char *p;
 #else
@@ -454,7 +475,11 @@ Int_Open_Disk(const char *name, u_long size)
 #ifdef HAVE_GEOM
 	char *confxml = NULL;
 	size_t xmlsize;
+	u_int64_t mediasize;
 	int error;
+#else
+	u_long sector_size;
+	char *buf;
 #endif /*HAVE_GEOM*/
 
 	strlcpy(device, _PATH_DEV, sizeof(device));
@@ -497,12 +522,38 @@ Int_Open_Disk(const char *name, u_long size)
 		DPRINTX(("Error parsing MBR geometry specification."));
 		goto bad;
 	}
-	/* XXX how do I get this info from the XML? */
-	for (i = BASE_SLICE; i < ds.dss_nslices; i++) {
-		struct diskslice *dsp = &ds.dss_slices[i];
-		if (dsp->ds_offset + dsp->ds_size > ds.dss_slices[WHOLE_DISK_SLICE].ds_size)
-			ds.dss_slices[WHOLE_DISK_SLICE].ds_size = dsp->ds_offset + dsp->ds_size;
+	if (xmlparse(confxml, "DISK", name, assignToDisk, &dl) != 0) {
+		DPRINTX(("Error parsing DISK geometry specification."));
+		goto bad;
 	}
+	if (dl.d_nsectors == 0) {
+		DPRINTX(("No (zero) sector information in DISK geometry"));
+		goto bad;
+	}
+	if (dl.d_ntracks == 0) {
+		DPRINTX(("No (zero) track information in DISK geometry"));
+		goto bad;
+	}
+	if (dl.d_secsize == 0) {
+		DPRINTX(("No (zero) sector size information in DISK geometry"));
+		goto bad;
+	}
+	if (dl.d_secpercyl == 0 && dl.d_secperunit == 0) {
+		DPRINTX(("No (zero) media size information in DISK geometry"));
+		goto bad;
+	}
+	/*
+	 * Now patch up disklabel and diskslice.
+	 */
+	d->sector_size = dl.d_secsize;
+	/* NB: media size was stashed in two parts while parsing */
+	mediasize = (((u_int64_t) dl.d_secpercyl) << 32) + dl.d_secperunit;
+	dl.d_secpercyl = 0;
+	dl.d_secperunit = 0;
+	size = mediasize / d->sector_size;
+	dl.d_ncylinders = size / (dl.d_ntracks * dl.d_nsectors);
+	/* "whole disk" slice maintained for compatibility */
+	ds.dss_slices[WHOLE_DISK_SLICE].ds_size = size;
 #else /* !HAVE_GEOM */
 	if (ioctl(fd, DIOCGDINFO, &dl) < 0) {
 		DPRINT(("DIOCGDINFO(%s) failed", device));
@@ -521,7 +572,6 @@ Int_Open_Disk(const char *name, u_long size)
 				i, ds.dss_slices[i].ds_openmask);
 	printf("\n");
 #endif
-#endif /*SADDLED_WTIH_GEOM*/
 
 /* XXX --- ds.dss_slice[WHOLE_DISK_SLICE].ds.size of MO disk is wrong!!! */
 #ifdef PC98
@@ -548,11 +598,12 @@ Int_Open_Disk(const char *name, u_long size)
 		/* could not determine sector size */
 		goto bad;
 	}
+#endif /*HAVE_GEOM*/
 
 #ifdef PC98
-	p = (unsigned char*)read_block(fd, 1, sector_size);
+	p = (unsigned char*)read_block(fd, 1, d->sector_size);
 #else
-	p = read_block(fd, 0, sector_size);
+	p = read_block(fd, 0, d->sector_size);
 	dp = (struct dos_partition*)(p + DOSPARTOFF);
 	for (i = 0; i < NDOSPART; i++) {
 		if (Read_Int32(&dp->dp_start) >= size)
