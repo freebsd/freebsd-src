@@ -769,7 +769,7 @@ static __inline void
 pmap_pte_release(pt_entry_t *pte)
 {
 
-	if ((pt_entry_t *)((vm_offset_t)pte & PAGE_MASK) == PADDR2)
+	if ((pt_entry_t *)((vm_offset_t)pte & ~PAGE_MASK) == PADDR2)
 		mtx_unlock(&PMAP2mutex);
 }
 
