@@ -37,12 +37,6 @@
  *
  */
 
-#include "card.h"
-#if NCARD > 0
-#include <i386/isa/if_ed.c>	/* PCCARD version */
-#else
-
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -3304,5 +3298,3 @@ ds_getmcaf(sc, mcaf)
 		af[index >> 3] |= 1 << (index & 7);
 	}
 }
-
-#endif	/* NCARD */
