@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.265 1996/12/29 05:26:04 jkh Exp $
+#	$Id: Makefile,v 1.266 1996/12/29 05:28:37 jkh Exp $
 #
 # How to roll a release:
 #
@@ -463,10 +463,13 @@ cdrom.1:
 	for i in ${DISTRIBUTIONS} ; \
 	do \
 		if [ -d ${RD}/trees/$${i} ] ; then \
+			chflags -R noschg ${RD}/trees/$${i} ; \
 			( cd ${RD}/trees/$${i} && \
 			find . -depth -print | cpio -dumpl ${CD}/filesys ) ; \
 		fi \
 	done
+	rm -f ${CD}/filesys/.profile
+	cp ${.CURDIR}/fixit.profile ${CD}/filesys/.profile
 	echo "CD_VERSION = ${BUILDNAME}" > ${CD}/cdrom.inf
 	cp ${.CURDIR}/sysinstall/help/readme.hlp ${CD}/README.TXT
 	cp ${.CURDIR}/sysinstall/help/hardware.hlp ${CD}/HARDWARE.TXT
