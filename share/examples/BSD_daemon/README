@@ -32,6 +32,8 @@ beastie.eps
 	Created from the beastie.fig with
 		fig2dev -L eps beastie.fig beastie.eps
 		patch < eps.patch
+	Before committing this, clean out the comment brought
+	over from the .fig file to avoid Dollar-FreeBSD-Dollar junk
 
 eps.patch
 	Add some comments about tweakables in the .eps file and set
