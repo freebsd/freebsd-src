@@ -49,6 +49,7 @@ static char sccsid[] = "@(#)savecore.c	8.3 (Berkeley) 1/2/94";
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
+#include <vm/pmap.h>
 
 #include <dirent.h>
 #include <errno.h>
