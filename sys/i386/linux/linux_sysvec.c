@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_sysvec.c,v 1.37 1998/10/16 03:55:00 peter Exp $
+ *  $Id: linux_sysvec.c,v 1.38 1998/11/15 15:33:51 bde Exp $
  */
 
 /* XXX we use functions that might not exist. */
@@ -70,7 +70,7 @@ static void     linux_sendsig __P((sig_t catcher, int sig, int mask,
 /*
  * Linux syscalls return negative errno's, we do positive and map them
  */
-static int bsd_to_linux_errno[ELAST] = {
+static int bsd_to_linux_errno[ELAST + 1] = {
   	-0,  -1,  -2,  -3,  -4,  -5,  -6,  -7,  -8,  -9,
  	-10, -35, -12, -13, -14, -15, -16, -17, -18, -19,
  	-20, -21, -22, -23, -24, -25, -26, -27, -28, -29,
@@ -79,7 +79,7 @@ static int bsd_to_linux_errno[ELAST] = {
 	-100,-101,-102,-103,-104,-105,-106,-107,-108,-109,
 	-110,-111, -40, -36,-112,-113, -39, -11, -87,-122,
 	-116, -66,  -6,  -6,  -6,  -6,  -6, -37, -38,  -9,
-  	-6, -43, -42
+  	-6, -6, -43, -42, -75, -6, -84
 };
 
 int bsd_to_linux_signal[NSIG] = {
@@ -395,7 +395,7 @@ struct sysentvec linux_sysvec = {
 	0xff,
 	NSIG,
 	bsd_to_linux_signal,
-	ELAST, 
+	ELAST + 1, 
 	bsd_to_linux_errno,
 	translate_traps,
 	linux_fixup,
@@ -413,7 +413,7 @@ struct sysentvec elf_linux_sysvec = {
         0xff,
         NSIG,
         bsd_to_linux_signal,
-        ELAST,
+        ELAST + 1,
         bsd_to_linux_errno,
         translate_traps,
         elf_linux_fixup,

@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_sysvec.c,v 1.10 1998/11/07 04:34:02 peter Exp $
+ * $Id: ibcs2_sysvec.c,v 1.11 1998/11/15 15:33:51 bde Exp $
  */
 
 #include <sys/param.h>
@@ -49,7 +49,7 @@ struct sysentvec ibcs2_svr3_sysvec = {
         0xFF,
         NSIG,
         bsd_to_ibcs2_sig,
-        ELAST,
+        ELAST + 1,
         bsd_to_ibcs2_errno,
 	0,              /* trap-to-signal translation function */
 	0,		/* fixup */
