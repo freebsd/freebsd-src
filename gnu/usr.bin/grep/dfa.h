@@ -322,9 +322,10 @@ struct dfa
 
 /* Entry points. */
 
-/* dfasyntax() takes two arguments; the first sets the syntax bits described
-   earlier in this file, and the second sets the case-folding flag. */
-extern void dfasyntax PARAMS ((reg_syntax_t, int));
+/* dfasyntax() takes three arguments; the first sets the syntax bits described
+   earlier in this file, the second sets the case-folding flag, and the
+   third specifies the line terminator. */
+extern void dfasyntax PARAMS ((reg_syntax_t, int, int));
 
 /* Compile the given string of the given length into the given struct dfa.
    Final argument is a flag specifying whether to build a searching or an
