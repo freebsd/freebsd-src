@@ -233,7 +233,7 @@ smp_start_secondary(int pal_id, int cpuid)
 	if (bootverbose)
 		printf("smp_start_secondary: starting cpu %d\n", pal_id);
 
-	sz = round_page((UAREA_PAGES + KSTACK_PAGES) * PAGE_SIZE);
+	sz = KSTACK_PAGES * PAGE_SIZE;
 	pcpu = malloc(sz, M_TEMP, M_NOWAIT);
 	if (!pcpu) {
 		printf("smp_start_secondary: can't allocate memory\n");
