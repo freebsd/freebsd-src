@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999 Jonathan Lemon
+ * Copyright (c) 1999,2000 Jonathan Lemon
  * All rights reserved.
  *
  # Derived from the original IDA Compaq RAID driver, which is
@@ -48,6 +48,7 @@
 #include <sys/buf.h>
 #include <sys/bus.h>
 #include <sys/devicestat.h>
+#include <sys/disk.h>
 
 #if NPCI > 0
 #include <machine/bus_memio.h>
@@ -60,12 +61,6 @@
 #include <dev/ida/idareg.h>
 #include <dev/ida/idavar.h>
 
-#define ida_inl(ida, port) \
-	bus_space_read_4((ida)->tag, (ida)->bsh, port)
-
-#define ida_outl(ida, port, val) \
-	bus_space_write_4((ida)->tag, (ida)->bsh, port, val)
-
 /* prototypes */
 static void ida_alloc_qcb(struct ida_softc *ida);
 static void ida_construct_qcb(struct ida_softc *ida);
@@ -76,11 +71,10 @@ static void ida_wait(struct ida_softc *ida, struct ida_qcb *qcb, int delay);
 void
 ida_free(struct ida_softc *ida)
 {
+	int i;
 
-	/*
- 	 * still need to call bus_dmamap_destroy() for each map created
-	 * in ida_alloc_qcb().
-	 */
+	for (i = 0; i < ida->num_qcbs; i++)
+		bus_dmamap_destroy(ida->buffer_dmat, ida->qcbs[i].dmamap);
 
 	if (ida->hwqcb_busaddr)
 		bus_dmamap_unload(ida->hwqcb_dmat, ida->hwqcb_dmamap);
@@ -140,6 +134,23 @@ ida_get_qcb(struct ida_softc *ida)
 	return (qcb);
 }
 
+static __inline bus_addr_t
+idahwqcbvtop(struct ida_softc *ida, struct ida_hardware_qcb *hwqcb)
+{
+	return (ida->hwqcb_busaddr +
+	    ((bus_addr_t)hwqcb - (bus_addr_t)ida->hwqcbs));
+}
+
+static __inline struct ida_qcb *
+idahwqcbptov(struct ida_softc *ida, bus_addr_t hwqcb_addr)
+{
+	struct ida_hardware_qcb *hwqcb;
+
+	hwqcb = (struct ida_hardware_qcb *)
+	    ((bus_addr_t)ida->hwqcbs + (hwqcb_addr - ida->hwqcb_busaddr));
+	return (hwqcb->qcb);
+}
+
 /*
  * XXX
  * since we allocate all QCB space up front during initialization, then
@@ -163,6 +174,7 @@ ida_alloc_qcb(struct ida_softc *ida)
 	qcb->flags = QCB_FREE;
 	qcb->hwqcb = &ida->hwqcbs[ida->num_qcbs];
 	qcb->hwqcb->qcb = qcb;
+	qcb->hwqcb_busaddr = idahwqcbvtop(ida, qcb->hwqcb);
 	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
 	ida->num_qcbs++;
 }
@@ -236,7 +248,7 @@ ida_attach(struct ida_softc *ida)
 	struct ida_controller_info cinfo;
 	int error, i;
 
-	ida_outl(ida, R_INT_MASK, INT_DISABLE);
+	ida->cmd.int_enable(ida, 0);
 
 	error = ida_command(ida, CMD_GET_CTRL_INFO, &cinfo, sizeof(cinfo),
 	    IDA_CONTROLLER, DMA_DATA_IN);
@@ -252,11 +264,36 @@ ida_attach(struct ida_softc *ida)
 	ida->num_drives = cinfo.num_drvs;
 
 	for (i = 0; i < ida->num_drives; i++)
-		device_add_child(ida->dev, "id", i);
+		device_add_child(ida->dev, /*"idad"*/NULL, -1);
 
 	bus_generic_attach(ida->dev);
 
-	ida_outl(ida, R_INT_MASK, INT_ENABLE);
+	ida->cmd.int_enable(ida, 1);
+}
+
+int
+ida_detach(device_t dev)
+{
+	struct ida_softc *ida;
+	int error = 0;
+
+        ida = (struct ida_softc *)device_get_softc(dev);
+
+	/*
+	 * XXX
+	 * before detaching, we must make sure that the system is 
+	 * quiescent; nothing mounted, no pending activity.
+	 */
+
+	/*
+	 * XXX
+	 * now, how are we supposed to maintain a list of our drives?
+	 * iterate over our "child devices"?
+	 */
+
+
+	ida_free(ida);
+	return (error);
 }
 
 static void
@@ -372,23 +409,6 @@ ida_construct_qcb(struct ida_softc *ida)
 	STAILQ_INSERT_TAIL(&ida->qcb_queue, qcb, link.stqe);
 }
 
-static __inline bus_addr_t
-idahwqcbvtop(struct ida_softc *ida, struct ida_hardware_qcb *hwqcb)
-{
-	return (ida->hwqcb_busaddr +
-	    ((bus_addr_t)hwqcb - (bus_addr_t)ida->hwqcbs));
-}
-
-static __inline struct ida_qcb *
-idahwqcbptov(struct ida_softc *ida, bus_addr_t hwqcb_addr)
-{
-	struct ida_hardware_qcb *hwqcb;
-
-	hwqcb = (struct ida_hardware_qcb *)
-	    ((bus_addr_t)ida->hwqcbs + (hwqcb_addr - ida->hwqcb_busaddr));
-	return (hwqcb->qcb);
-}
-
 /*
  * This routine will be called from ida_intr in order to queue up more
  * I/O, meaning that we may be in an interrupt context.  Hence, we should
@@ -400,19 +420,15 @@ ida_start(struct ida_softc *ida)
 	struct ida_qcb *qcb;
 
 	while ((qcb = STAILQ_FIRST(&ida->qcb_queue)) != NULL) {
-		if (ida_inl(ida, R_CMD_FIFO) == 0)
-			break;				/* fifo is full */
+		if (ida->cmd.fifo_full(ida))
+			break;
 		STAILQ_REMOVE_HEAD(&ida->qcb_queue, link.stqe);
 		/*
 		 * XXX
 		 * place the qcb on an active list and set a timeout?
 		 */
 		qcb->state = QCB_ACTIVE;
-		/*
-		 * XXX
-		 * cache the physaddr so we don't keep doing this?
-		 */
-		ida_outl(ida, R_CMD_FIFO, idahwqcbvtop(ida, qcb->hwqcb));
+		ida->cmd.submit(ida, qcb);
 	}
 }
 
@@ -429,7 +445,7 @@ ida_wait(struct ida_softc *ida, struct ida_qcb *qcb, int delay)
 		return;
 	}
 
-	while ((completed = ida_inl(ida, R_DONE_FIFO)) == 0) {
+	while ((completed = ida->cmd.done(ida)) == 0) {
 		if (delay-- == 0)
 			panic("ida_wait: timeout waiting for completion");
 		DELAY(10);
@@ -451,10 +467,10 @@ ida_intr(void *data)
 
 	ida = (struct ida_softc *)data;
 
-	if (ida_inl(ida, R_INT_PENDING) == 0)
+	if (ida->cmd.int_pending(ida) == 0)
 		return;				/* not our interrupt */
 
-	while ((completed = ida_inl(ida, R_DONE_FIFO)) != 0) {
+	while ((completed = ida->cmd.done(ida)) != 0) {
 		qcb = idahwqcbptov(ida, completed & ~3);
 
 		if (qcb == NULL || qcb->state != QCB_ACTIVE) {
