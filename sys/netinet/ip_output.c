@@ -64,9 +64,6 @@
 
 #include "faith.h"
 
-#ifdef vax
-#include <machine/mtpr.h>
-#endif
 #include <machine/in_cksum.h>
 
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
@@ -1393,10 +1390,8 @@ ip_pcbopts(optname, pcbopt, m)
 		return (0);
 	}
 
-#ifndef	vax
 	if (m->m_len % sizeof(int32_t))
 		goto bad;
-#endif
 	/*
 	 * IP first-hop destination address will be stored before
 	 * actual options; move other options back
