@@ -624,15 +624,18 @@ void
 panicifcpuunsupported(void)
 {
 
+#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
+#error This kernel is not configured for one of the supported CPUs
+#endif
+#if defined(I386_CPU) && (defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU))
+#error I386_CPU is mutually exclusive with the other cpu types.
+#endif
 	/*
 	 * Now that we have told the user what they have,
 	 * let them know if that machine type isn't configured.
 	 */
 	switch (cpu_class) {
 	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
-#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU) && !defined(I686_CPU)
-#error This kernel is not configured for one of the supported CPUs
-#endif
 #if !defined(I386_CPU)
 	case CPUCLASS_386:
 #endif

@@ -155,10 +155,10 @@ options 	WITNESS_SKIPSPIN
 #
 # You must specify at least one CPU (the one you intend to run on);
 # deleting the specification for CPUs you don't need to use may make
-# parts of the system run faster.  This is especially true removing
-# I386_CPU.
+# parts of the system run faster.
+# I386_CPU is mutually exclusive with the other CPU types.
 #
-cpu		I386_CPU
+#cpu		I386_CPU		
 cpu		I486_CPU
 cpu		I586_CPU		# aka Pentium(tm)
 cpu		I686_CPU		# aka Pentium Pro(tm)

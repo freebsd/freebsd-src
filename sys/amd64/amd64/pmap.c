@@ -567,14 +567,11 @@ pmap_track_modified(vm_offset_t va)
 static PMAP_INLINE void
 invltlb_1pg(vm_offset_t va)
 {
-#if defined(I386_CPU)
-	if (cpu_class == CPUCLASS_386) {
-		invltlb();
-	} else
+#ifdef I386_CPU
+	invltlb();
+#else
+	invlpg(va);
 #endif
-	{
-		invlpg(va);
-	}
 }
 
 static __inline void
@@ -832,7 +829,10 @@ void
 pmap_new_proc(p)
 	struct proc *p;
 {
-	int i, updateneeded;
+#ifdef I386_CPU
+	int updateneeded;
+#endif
+	int i;
 	vm_object_t upobj;
 	vm_page_t m;
 	struct user *up;
@@ -857,7 +857,9 @@ pmap_new_proc(p)
 
 	ptek = (unsigned *) vtopte((vm_offset_t) up);
 
+#ifdef I386_CPU
 	updateneeded = 0;
+#endif
 	for(i=0;i<UPAGES;i++) {
 		/*
 		 * Get a kernel stack page
@@ -876,11 +878,11 @@ pmap_new_proc(p)
 		 */
 		*(ptek + i) = VM_PAGE_TO_PHYS(m) | PG_RW | PG_V | pgeflag;
 		if (oldpte) {
-			if ((oldpte & PG_G) || (cpu_class > CPUCLASS_386)) {
-				invlpg((vm_offset_t) up + i * PAGE_SIZE);
-			} else {
-				updateneeded = 1;
-			}
+#ifdef I386_CPU
+			updateneeded = 1;
+#else
+			invlpg((vm_offset_t) up + i * PAGE_SIZE);
+#endif
 		}
 
 		vm_page_wakeup(m);
@@ -888,8 +890,10 @@ pmap_new_proc(p)
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
+#ifdef I386_CPU
 	if (updateneeded)
 		invltlb();
+#endif
 }
 
 /*
@@ -917,14 +921,14 @@ pmap_dispose_proc(p)
 
 		oldpte = *(ptek + i);
 		*(ptek + i) = 0;
-		if ((oldpte & PG_G) || (cpu_class > CPUCLASS_386))
-			invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
+#ifndef I386_CPU
+		invlpg((vm_offset_t) p->p_addr + i * PAGE_SIZE);
+#endif
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
 	}
-#if defined(I386_CPU)
-	if (cpu_class <= CPUCLASS_386)
-		invltlb();
+#ifdef I386_CPU
+	invltlb();
 #endif
 }
 
@@ -2775,15 +2779,12 @@ pmap_copy_page(src, dst)
 
 	*(int *) CMAP1 = PG_V | (src & PG_FRAME) | PG_A;
 	*(int *) CMAP2 = PG_V | PG_RW | (dst & PG_FRAME) | PG_A | PG_M;
-#if defined(I386_CPU)
-	if (cpu_class == CPUCLASS_386) {
-		invltlb();
-	} else
+#ifdef I386_CPU
+	invltlb();
+#else
+	invlpg((u_int)CADDR1);
+	invlpg((u_int)CADDR2);
 #endif
-	{
-		invlpg((u_int)CADDR1);
-		invlpg((u_int)CADDR2);
-	}
 
 	bcopy(CADDR1, CADDR2, PAGE_SIZE);
 
