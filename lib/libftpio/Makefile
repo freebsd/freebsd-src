@@ -5,8 +5,8 @@ MAN3=		ftpio.3
 CLEANFILES+=	ftperr.c
 
 beforeinstall:
-	cd ${.CURDIR}; cmp -s ftpio.h ${DESTDIR}/usr/include/ftpio.h || \
-	  ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ftpio.h ${DESTDIR}/usr/include
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/ftpio.h \
+		${DESTDIR}/usr/include
 
 ftperr.c:	ftp.errors
 	@echo '#include <stdio.h>' > ${.TARGET}
