@@ -1,10 +1,12 @@
 :
-# $Id: fixit.profile,v 1.1 1995/03/15 06:14:19 phk Exp $
+# $Id: fixit.profile,v 1.1.6.1 1996/11/09 16:33:53 joerg Exp $
 
 export BLOCKSIZE=K
 export PS1="Fixit# "
 export EDITOR="/mnt2/stand/vi"
 export PAGER="/mnt2/stand/more"
+# the root MFS doesn't have /dev/nrst0, pick a better default for mt(1)
+export TAPE=/mnt2/dev/nrst0
 
 alias ls="ls -F"
 alias ll="ls -l"
@@ -19,6 +21,9 @@ echo '|                                                               |'
 echo '| You might want to symlink /mnt/etc/*pwd.db and /mnt/etc/group |'
 echo '| to /etc after mounting a root filesystem from your disk.      |'
 echo '| tar(1) will not restore all permissions correctly otherwise!  |'
+echo '|                                                               |'
+echo '| Note: you might use the arrow keys to browse through the      |'
+echo '| command history of this shell.                                |'
 echo '+---------------------------------------------------------------+'
 echo
 echo 'Good Luck!'
