@@ -4,7 +4,6 @@
  * definitions for Qlogic ISP SCSI adapters.
  *
  * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
- * NASA/Ames Research Center
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
