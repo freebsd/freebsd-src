@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.3 1996/08/31 15:07:03 asami Exp $
+ *	$Id: npx.c,v 1.4 1996/09/03 10:23:46 asami Exp $
  */
 
 #include "npx.h"
@@ -59,13 +59,12 @@
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 
-#ifdef PC98
-#include <pc98/pc98/icu.h>
-#include <i386/isa/isa_device.h>
-#include <pc98/pc98/pc98.h>
-#else
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
+
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
 #endif
 

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.3 1996/08/30 10:42:58 asami Exp $
+ *	$Id: clock.c,v 1.4 1996/09/03 10:23:24 asami Exp $
  */
 
 /*
@@ -46,7 +46,7 @@
 
 /*
  * modified for PC98
- *	$Id: clock.c,v 1.3 1996/08/30 10:42:58 asami Exp $
+ *	$Id: clock.c,v 1.4 1996/09/03 10:23:24 asami Exp $
  */
 
 /*
@@ -68,14 +68,12 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 
+#include <i386/isa/icu.h>
 #ifdef PC98
-#include <sys/syslog.h>
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/timerreg.h>
 #else
-#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/rtc.h>
@@ -742,13 +740,11 @@ startrtclock()
 #ifndef AUTO_CLOCK
 	if (pc98_machine_type & M_8M) {
 #ifndef	PC98_8M
-		log(LOG_EMERG,
-		    "you must reconfig a kernel with \"PC98_8M\" option.\n");
+		printf("you must reconfig a kernel with \"PC98_8M\" option.\n");
 #endif
 	} else {
 #ifdef	PC98_8M
-		log(LOG_EMERG,
-		    "You must reconfig a kernel without \"PC98_8M\" option.\n");
+		printf("You must reconfig a kernel without \"PC98_8M\" option.\n");
 #endif
 	}
 #else /* AUTO_CLOCK */

@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.20 1996/05/31 01:08:08 peter Exp $
+ *	$Id: vector.s,v 1.1.1.1 1996/06/14 10:04:48 asami Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -10,11 +10,10 @@
  * vector.s,v 1.2 1994/03/14 09:44:21 kakefuda Exp
  */
 
+#include <i386/isa/icu.h>
 #ifdef PC98
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/pc98.h>
 #else
-#include <i386/isa/icu.h>
 #include <i386/isa/isa.h>
 #endif
 

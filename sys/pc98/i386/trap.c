@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)trap.c	7.4 (Berkeley) 5/13/91
- *	$Id: trap.c,v 1.4 1996/09/03 10:23:17 asami Exp $
+ *	$Id: trap.c,v 1.5 1996/09/04 09:52:19 asami Exp $
  */
 
 /*
@@ -75,16 +75,9 @@
 #include <machine/psl.h>
 #include <machine/reg.h>
 #include <machine/trap.h>
-#ifdef PC98
-#include <machine/../isa/isa_device.h>
-
-#include "nec.h"
-#include "epson.h"
-#else
 #include <machine/../isa/isa_device.h>
 
 #include "isa.h"
-#endif
 
 #ifdef POWERFAIL_NMI
 # include <syslog.h>
@@ -282,7 +275,7 @@ trap(frame)
 			i = SIGFPE;
 			break;
 
-#if NNEC > 0 || NEPSON > 0
+#if NISA > 0
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 			goto handle_powerfail;
@@ -297,7 +290,7 @@ trap(frame)
 			if (isa_nmi(code) == 0) return;
 			panic("NMI indicates hardware failure");
 #endif /* POWERFAIL_NMI */
-#endif /* NNEC > 0 */
+#endif /* NISA > 0 */
 
 		case T_OFLOW:		/* integer overflow fault */
 			ucode = FPE_INTOVF_TRAP;
@@ -441,7 +434,7 @@ trap(frame)
 #endif
 			break;
 
-#if NNEC > 0 || NEPSON > 0
+#if NISA > 0
 		case T_NMI:
 #ifdef POWERFAIL_NMI
 #ifndef TIMER_FREQ
@@ -470,7 +463,7 @@ trap(frame)
 			if (isa_nmi(code) == 0) return;
 			/* FALL THROUGH */
 #endif /* POWERFAIL_NMI */
-#endif /* NNEC > 0 */
+#endif /* NISA > 0 */
 		}
 
 		trap_fatal(&frame);

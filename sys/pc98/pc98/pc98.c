@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: pc98.c,v 1.3 1996/08/31 15:07:05 asami Exp $
+ *	$Id: pc98.c,v 1.4 1996/09/03 10:23:47 asami Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
 /*
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
- *	$Id: pc98.c,v 1.3 1994/03/17 23:24:40 kakefuda Exp $
+ *	$Id: pc98.c,v 1.4 1996/09/03 10:23:47 asami Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -70,7 +70,7 @@
 #include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/icu.h>
+#include <i386/isa/icu.h>
 #include <pc98/pc98/ic/i8237.h>
 #else
 #include <i386/isa/isa.h>

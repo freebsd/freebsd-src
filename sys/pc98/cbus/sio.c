@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.3 1996/08/31 15:07:20 asami Exp $
+ *	$Id: sio.c,v 1.4 1996/09/03 10:23:59 asami Exp $
  */
 
 #include "opt_comconsole.h"
@@ -139,7 +139,7 @@
 
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
-#include <pc98/pc98/icu.h>
+#include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 #include <pc98/pc98/sioreg.h>
 #include <pc98/pc98/ic/i8251.h>
