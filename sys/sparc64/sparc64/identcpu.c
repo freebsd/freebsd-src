@@ -78,7 +78,7 @@ cpu_identify(u_long vers, u_int freq, u_int id)
 		printf(
 		    "CPU: unknown; please e-mail the following value together\n"
 		    "     with the exact name of your processor to "
-		    "<freebsd-sparc@FreeBSD.org>.\n"
+		    "<freebsd-sparc64@FreeBSD.org>.\n"
 		    "     version register: <0x%lx>\n", vers);
 		return;
 	}
