@@ -57,7 +57,6 @@
 #ifdef _KERNEL
 int	ptrace_set_pc __P((struct proc *p, unsigned long addr));
 int	ptrace_single_step __P((struct proc *p));
-int	ptrace_write_u __P((struct proc *p, vm_offset_t off, long data));
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
