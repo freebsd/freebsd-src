@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: plist.c,v 1.17.2.1 1997/06/29 10:42:15 jkh Exp $";
+static const char *rcsid = "$Id: plist.c,v 1.17.2.2 1997/06/30 03:15:22 jkh Exp $";
 #endif
 
 /*
@@ -414,13 +414,10 @@ delete_package(Boolean ign_err, Boolean nukedirs, Package *pkg)
 			whinge("Unable to completely remove file '%s'", tmp);
 			fail = FAIL;
 		    }
-		    if (preserve) {
-			if (!name)
-			    whinge("preserve set but no package name supplied!");
-			else {
-			    char tmp2[FILENAME_MAX];
+		    if (preserve && name) {
+			char tmp2[FILENAME_MAX];
 			    
-			    snprintf(tmp2, FILENAME_MAX, "%s.%s", tmp, name);
+			if (make_preserve_name(tmp2, FILENAME_MAX, name, tmp)) {
 			    if (fexists(tmp2)) {
 				if (rename(tmp2, tmp))
 				    whinge("preserve:  Unable to restore %s as %s, errno = %d", tmp2, tmp, errno);
