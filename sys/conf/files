@@ -244,9 +244,13 @@ dev/ar/if_ar.c		optional ar
 dev/ar/if_ar_pci.c	optional ar pci
 dev/asr/asr.c		optional asr pci
 dev/ata/ata-all.c	optional ata
+dev/ata/ata-isa.c	optional ata isa
+dev/ata/ata-card.c	optional ata card
+#dev/ata/ata-card.c	optional ata pccard
+dev/ata/ata-pci.c	optional ata pci
+dev/ata/ata-dma.c	optional ata pci
 dev/ata/ata-disk.c	optional atadisk
 dev/ata/ata-raid.c	optional atadisk
-dev/ata/ata-dma.c	optional ata
 dev/ata/atapi-all.c	optional atapicd
 dev/ata/atapi-all.c	optional atapifd
 dev/ata/atapi-all.c	optional atapist
