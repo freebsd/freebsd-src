@@ -50,6 +50,7 @@
 
 #define	TMPPAT	"/tmp/makeXXXXXXXXXX"
 
+#ifndef USE_KQUEUE
 /*
  * The SEL_ constants determine the maximum amount of time spent in select
  * before coming out to see if a child has finished. SEL_SEC is the number of
@@ -57,6 +58,7 @@
  */
 #define	SEL_SEC		0
 #define	SEL_USEC	100000
+#endif /* !USE_KQUEUE */
 
 
 /*-
