@@ -46,7 +46,8 @@ __RCSID("@(#) $FreeBSD$");
  * Local functions
  */
 static KBuffer *	fore_xmit_segment __P((Fore_unit *, KBuffer *,
-				H_xmit_queue *, u_int *, u_int *));
+				H_xmit_queue *, int *, int *));
+static void		fore_seg_dma_free __P((H_xmit_queue *, KBuffer *, int));
 
 
 /*
@@ -79,7 +80,7 @@ fore_output(cup, cvp, m)
 	H_xmit_queue	*hxp;
 	Xmit_queue	*cqp;
 	Xmit_descr	*xdp;
-	u_int		retry, nsegs, pdulen;
+	int		retry, nsegs, pdulen;
 	int		s;
 
 #ifdef DIAGNOSTIC
@@ -229,8 +230,8 @@ fore_xmit_segment(fup, m, hxp, segp, lenp)
 	Fore_unit	*fup;
 	KBuffer		*m;
 	H_xmit_queue	*hxp;
-	u_int		*segp;
-	u_int		*lenp;
+	int		*segp;
+	int		*lenp;
 {
 	Xmit_descr	*xdp = hxp->hxq_descr;
 	Xmit_seg_descr	*xsp;
@@ -238,7 +239,7 @@ fore_xmit_segment(fup, m, hxp, segp, lenp)
 	KBuffer		*m0, *m1, *mprev;
 	caddr_t		cp, bfr;
 	void		*dma;
-	u_int		pdulen, nsegs, len, align;
+	int		pdulen, nsegs, len, align;
 	int		compressed = 0;
 
 	m0 = m;
@@ -274,6 +275,11 @@ retry:
 		 * Make sure we don't try to use too many segments
 		 */
 		if (nsegs >= XMIT_MAX_SEGS) {
+			/*
+			 * First, free already allocated DMA addresses
+			 */
+			fore_seg_dma_free(hxp, m0, nsegs);
+
 			/*
 			 * Try to compress buffer chain (but only once)
 			 */
@@ -327,7 +333,7 @@ retry:
 			 * Have to move some data from following buffer(s)
 			 * to word-fill this buffer
 			 */
-			u_int	ncopy = MIN(XMIT_SEG_ALIGN - align, KB_LEN(m1));
+			int	ncopy = MIN(XMIT_SEG_ALIGN - align, KB_LEN(m1));
 
 			if (ncopy) {
 				/*
@@ -374,8 +380,8 @@ retry:
 		 */
 		dma = DMA_GET_ADDR(bfr, xsp->xsd_len, XMIT_SEG_ALIGN, 0);
 		if (dma == NULL) {
-
 			fup->fu_stats->st_drv.drv_xm_segdma++;
+			fore_seg_dma_free(hxp, m0, nsegs);
 			KB_FREEALL(m0);
 			return (NULL);
 		}
@@ -400,6 +406,7 @@ retry:
 	 */
 	if (pdulen > XMIT_MAX_PDULEN) {
 		fup->fu_stats->st_drv.drv_xm_maxpdu++;
+		fore_seg_dma_free(hxp, m0, nsegs);
 		KB_FREEALL(m0);
 		return (NULL);
 	}
@@ -411,5 +418,37 @@ retry:
 	*lenp = pdulen;
 
 	return (m0);
+}
+
+
+/*
+ * Free Transmit Segment Queue DMA addresses
+ * 
+ * Arguments:
+ *	hxp	pointer to host transmit queue entry
+ *	m0	pointer to output PDU buffer chain head
+ *	nsegs	number of processed transmit segments
+ *
+ * Returns:
+ *	none
+ *
+ */
+static void
+fore_seg_dma_free(hxp, m0, nsegs)
+	H_xmit_queue	*hxp;
+	KBuffer		*m0;
+	int		nsegs;
+{
+	KBuffer		*m = m0;
+	H_dma		*sdmap = hxp->hxq_dma;
+	caddr_t         cp;
+	int		i;
+
+	for (i = 0; i < nsegs; i++) {
+		KB_DATASTART(m, cp, caddr_t);
+		DMA_FREE_ADDR(cp, *sdmap, KB_LEN(m), 0);
+		m = KB_NEXT(m);
+		sdmap++;
+	}
 }
 

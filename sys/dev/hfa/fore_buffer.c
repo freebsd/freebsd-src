@@ -407,6 +407,7 @@ fore_buf_supply_1s(fup)
 		 * an entry, free up what's been partially built
 		 */
 		if (i != BUF1_SM_ENTSIZE) {
+			caddr_t		cp;
 
 			/*
 			 * Clean up each used descriptor
@@ -420,6 +421,8 @@ fore_buf_supply_1s(fup)
 
 				m = (KBuffer *)
 					((caddr_t)bhp - BUF1_SM_HOFF);
+				KB_DATASTART(m, cp, caddr_t);
+				DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_SM_SIZE, 0);
 				KB_FREEALL(m);
 			}
 			break;
@@ -546,6 +549,7 @@ fore_buf_supply_1l(fup)
 		 * an entry, free up what's been partially built
 		 */
 		if (i != BUF1_LG_ENTSIZE) {
+			caddr_t		cp;
 
 			/*
 			 * Clean up each used descriptor
@@ -558,6 +562,8 @@ fore_buf_supply_1l(fup)
 
 				m = (KBuffer *)
 					((caddr_t)bhp - BUF1_LG_HOFF);
+				KB_DATASTART(m, cp, caddr_t);
+				DMA_FREE_ADDR(cp, bhp->bh_dma, BUF1_LG_SIZE, 0);
 				KB_FREEALL(m);
 			}
 			break;
