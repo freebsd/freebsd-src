@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_LOCK.9,v 1.1 1997/03/03 18:00:25 dfr Exp $
+.\" $Id: VOP_LOCK.9,v 1.2 1997/03/04 06:20:42 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -37,11 +37,12 @@
 .Nm VOP_ISLOCKED
 .Nd serialize access to a vnode
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Ft int
-.Fn VOP_LOCK "struct vnode *vp"
+.Fn VOP_LOCK "struct vnode *vp" "int flags" "struct proc *p"
 .Ft int
-.Fn VOP_UNLOCK "struct vnode *vp"
+.Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct proc *p"
 .Ft int
 .Fn VOP_ISLOCKED "struct vnode *vp"
 .Sh DESCRIPTION
