@@ -246,7 +246,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	    ("unsafe elf_linux_fixup(), should be curproc"));
 	base = (Elf32_Addr *)*stack_base;
 	args = (Elf32_Auxargs *)imgp->auxargs;
-	pos = base + (imgp->argc + imgp->envc + 2);
+	pos = base + (imgp->args->argc + imgp->args->envc + 2);
 
 	if (args->trace)
 		AUXARGS_ENTRY_32(pos, AT_DEBUG, 1);
@@ -269,7 +269,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	imgp->auxargs = NULL;
 
 	base--;
-	suword32(base, (uint32_t)imgp->argc);
+	suword32(base, (uint32_t)imgp->args->argc);
 	*stack_base = (register_t *)base;
 	return 0;
 }
@@ -836,7 +836,7 @@ linux_copyout_strings(struct image_params *imgp)
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
 	sigcodesz = *(imgp->proc->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - sigcodesz - SPARE_USRSPACE -
-		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+		roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * install sigcode
@@ -861,7 +861,7 @@ linux_copyout_strings(struct image_params *imgp)
 		 * the arg and env vector sets,and imgp->auxarg_size is room
 		 * for argument of Runtime loader.
 		 */
-		vectp = (u_int32_t *) (destp - (imgp->argc + imgp->envc + 2 +
+		vectp = (u_int32_t *) (destp - (imgp->args->argc + imgp->args->envc + 2 +
 				       imgp->auxarg_size) * sizeof(u_int32_t));
 
 	} else
@@ -870,20 +870,20 @@ linux_copyout_strings(struct image_params *imgp)
 		 * the arg and env vector sets
 		 */
 		vectp = (u_int32_t *)
-			(destp - (imgp->argc + imgp->envc + 2) * sizeof(u_int32_t));
+			(destp - (imgp->args->argc + imgp->args->envc + 2) * sizeof(u_int32_t));
 
 	/*
 	 * vectp also becomes our initial stack base
 	 */
 	stack_base = vectp;
 
-	stringp = imgp->stringbase;
-	argc = imgp->argc;
-	envc = imgp->envc;
+	stringp = imgp->args->begin_argv;
+	argc = imgp->args->argc;
+	envc = imgp->args->envc;
 	/*
 	 * Copy out strings - arguments and environment.
 	 */
-	copyout(stringp, destp, ARG_MAX - imgp->stringspace);
+	copyout(stringp, destp, ARG_MAX - imgp->args->stringspace);
 
 	/*
 	 * Fill in "ps_strings" struct for ps, w, etc.

@@ -118,7 +118,7 @@ exec_osf1_imgact(struct image_params *imgp)
 	osf_auxargs = malloc(sizeof(Osf_Auxargs), M_TEMP, M_WAITOK | M_ZERO);
 	imgp->auxargs = osf_auxargs;
 	osf_auxargs->executable = osf_auxargs->exec_path;
-	path_not_saved = copyinstr(imgp->fname, osf_auxargs->executable,
+	path_not_saved = copystr(imgp->args->fname, osf_auxargs->executable,
 	    PATH_MAX, &bytes);
 	if (execp->f.f_flags & DYNAMIC_FLAG) {
 		if (path_not_saved) {
@@ -172,11 +172,6 @@ exec_osf1_imgact(struct image_params *imgp)
 	bsize = eap->bsize;
 
 	imgp->entry_addr = eap->entry;
-	/* copy in arguments and/or environment from old process */
-
-	error = exec_extract_strings(imgp);
-	if (error)
-		goto bail;
 
 	/*
 	 * Destroy old process VM and create a new one (with a new stack).

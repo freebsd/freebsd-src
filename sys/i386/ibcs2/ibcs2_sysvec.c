@@ -91,7 +91,7 @@ static int
 ibcs2_fixup(register_t **stack_base, struct image_params *imgp)
 {
 
-	return (suword(--(*stack_base), imgp->argc));
+	return (suword(--(*stack_base), imgp->args->argc));
 }
 
 /*

@@ -42,15 +42,15 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Shell interpreter image activator. An interpreter name beginning
- *	at imgp->stringbase is the minimal successful exit requirement.
+ *	at imgp->args->begin_argv is the minimal successful exit requirement.
  */
 int
 exec_shell_imgact(imgp)
 	struct image_params *imgp;
 {
 	const char *image_header = imgp->image_header;
-	const char *ihp, *line_endp;
-	char *interp;
+	const char *ihp;
+	int error, length, offset;
 
 	/* a shell script? */
 	if (((const short *) image_header)[0] != SHELLMAGIC)
@@ -66,64 +66,110 @@ exec_shell_imgact(imgp)
 	imgp->interpreted = 1;
 
 	/*
-	 * Copy shell name and arguments from image_header into string
-	 *	buffer.
+	 * Figure out the number of bytes that need to be reserved in the
+	 * argument string to copy the contents of the interpreter's command
+	 * line into the argument string.
 	 */
+	ihp = &image_header[2];
+	offset = 0;
+	while (ihp < &image_header[MAXSHELLCMDLEN]) {
+		/* Skip any whitespace */
+		while ((*ihp == ' ') || (*ihp == '\t')) {
+			ihp++;
+			continue;
+		}
+
+		/* End of line? */
+		if ((*ihp == '\n') || (*ihp == '#'))
+			break;
+
+		/* Found a token */
+		while ((*ihp != ' ') && (*ihp != '\t') && (*ihp != '\n') &&
+		    (*ihp != '#')) {
+			offset++;
+			ihp++;
+		}
+		/* Include terminating nulls in the offset */
+		offset++;
+	}
+
+	/* If the script gives a null line as the interpreter, we bail */
+	if (offset == 0)
+		return (ENOEXEC);
+
+	/* Check that we aren't too big */
+	if (offset > MAXSHELLCMDLEN)
+		return (ENAMETOOLONG);
 
 	/*
-	 * Find end of line; return if the line > MAXSHELLCMDLEN long.
+	 * The full path name of the original script file must be tagged
+	 * onto the end, adjust the offset to deal with it.
+	 *
+	 * The original argv[0] is being replaced, set 'length' to the number
+	 * of bytes being removed.  So 'offset' is the number of bytes being
+	 * added and 'length' is the number of bytes being removed.
 	 */
-	for (ihp = &image_header[2]; *ihp != '\n'; ++ihp) {
-		if (ihp >= &image_header[MAXSHELLCMDLEN])
-			return(ENAMETOOLONG);
-	}
-	line_endp = ihp;
+	offset += strlen(imgp->args->fname) + 1;	/* add fname */
+	length = (imgp->args->argc == 0) ? 0 :
+	    strlen(imgp->args->begin_argv) + 1;		/* bytes to delete */
 
-	/* reset for another pass */
+	if (offset - length > imgp->args->stringspace)
+		return (E2BIG);
+
+	bcopy(imgp->args->begin_argv + length, imgp->args->begin_argv + offset,
+	    imgp->args->endp - (imgp->args->begin_argv + length));
+
+	offset -= length;		/* calculate actual adjustment */
+	imgp->args->begin_envv += offset;
+	imgp->args->endp += offset;
+	imgp->args->stringspace -= offset;
+
+	/*
+	 * If there were no arguments then we've added one, otherwise
+	 * decr argc remove old argv[0], incr argc for fname add, net 0
+	 */
+	if (imgp->args->argc == 0)
+		imgp->args->argc = 1;
+
+	/*
+	 * Loop through the interpreter name yet again, copying as
+	 * we go.
+	 */
 	ihp = &image_header[2];
-
-	/* Skip over leading spaces - until the interpreter name */
-	while ((*ihp == ' ') || (*ihp == '\t')) ihp++;
-
-	/* copy the interpreter name */
-	interp = imgp->interpreter_name;
-	while ((ihp < line_endp) && (*ihp != ' ') && (*ihp != '\t'))
-		*interp++ = *ihp++;
-	*interp = '\0';
-
-	/* Disallow a null interpreter filename */
-	if (*imgp->interpreter_name == '\0')
-		return(ENOEXEC);
-
-	/* reset for another pass */
-	ihp = &image_header[2];
-
-	/* copy the interpreter name and arguments */
-	while (ihp < line_endp) {
-		/* Skip over leading spaces */
-		while ((*ihp == ' ') || (*ihp == '\t')) ihp++;
-
-		if (ihp < line_endp) {
-			/*
-			 * Copy to end of token. No need to watch stringspace
-			 *	because this is at the front of the string buffer
-			 *	and the maximum shell command length is tiny.
-			 */
-			while ((ihp < line_endp) && (*ihp != ' ') && (*ihp != '\t')) {
-				*imgp->stringp++ = *ihp++;
-				imgp->stringspace--;
-			}
-
-			*imgp->stringp++ = 0;
-			imgp->stringspace--;
-
-			imgp->argc++;
+	offset = 0;
+	while (ihp < &image_header[MAXSHELLCMDLEN]) {
+		/* Skip whitespace */
+		while ((*ihp == ' ' || *ihp == '\t')) {
+			ihp++;
+			continue;
 		}
+
+		/* End of line? */
+		if ((*ihp == '\n') || (*ihp == '#'))
+			break;
+
+		/* Found a token, copy it */
+		while ((*ihp != ' ') && (*ihp != '\t') &&
+		    (*ihp != '\n') && (*ihp != '#')) {
+			imgp->args->begin_argv[offset++] = *ihp++;
+		}
+		imgp->args->begin_argv[offset++] = '\0';
+		imgp->args->argc++;
 	}
 
-	imgp->argv0 = imgp->fname;
+	/*
+	 * Finally, add the filename onto the end for the interpreter to
+	 * use and copy the interpreter's name to imgp->interpreter_name
+	 * for exec to use.
+	 */
+	error = copystr(imgp->args->fname, imgp->args->buf + offset,
+	    imgp->args->stringspace, &length);
 
-	return(0);
+	if (error == 0)
+		error = copystr(imgp->args->begin_argv, imgp->interpreter_name,
+		    MAXSHELLCMDLEN, &length);
+
+	return (error);
 }
 
 /*
