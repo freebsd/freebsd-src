@@ -82,6 +82,7 @@
 #define	USB_VENDOR_KENSINGTON	0x047d		/* Kensington */
 #define	USB_VENDOR_LUCENT	0x047e		/* Lucent */
 #define	USB_VENDOR_STMICRO	0x0483		/* STMicroelectronics */
+#define	USB_VENDOR_COMPAQ	0x049f		/* Compaq Computers */
 #define	USB_VENDOR_ACERP	0x04a5		/* Acer Peripherals, Inc. */
 #define	USB_VENDOR_CANON	0x04a9		/* Canon, Inc. */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
@@ -114,6 +115,7 @@
 #define	USB_VENDOR_MUSTEK	0x055f		/* Mustek Systems, Inc. */
 #define	USB_VENDOR_TELEX	0x0562		/* Telex Communications, Inc. */
 #define	USB_VENDOR_PERACOM	0x0565		/* Peracom Networks, Inc. */
+#define	USB_VENDOR_ALCOR2	0x0566		/* Alcor Micro, Inc. */
 #define	USB_VENDOR_WACOM	0x056a		/* WACOM Corp. Ltd. */
 #define	USB_VENDOR_ETEK	0x056c		/* e-TEK Labs */
 #define	USB_VENDOR_EIZO	0x056d		/* EIZO */
@@ -150,12 +152,14 @@
 #define	USB_VENDOR_ALARIS	0x0620		/* Alaris, Inc. */
 #define	USB_VENDOR_APEX	0x0624		/* Apex, Inc. */
 #define	USB_VENDOR_AVISION	0x0638		/* Avision, Inc. */
+#define	USB_VENDOR_TEAC	0x0644		/* TEAC */
 #define	USB_VENDOR_LINKSYS	0x066b		/* Linksys, Inc. */
 #define	USB_VENDOR_ACERSA	0x066e		/* Acer Semiconductor America, Inc. */
 #define	USB_VENDOR_AIWA	0x0677		/* Aiwa Co., Ltd. */
 #define	USB_VENDOR_ACARD	0x0678		/* ACARD Technology Corp. */
 #define	USB_VENDOR_PROLIFIC	0x067b		/* Prolific Technology Inc. */
 #define	USB_VENDOR_ADVANCELOGIC	0x0680		/* Avance Logic, Inc. */
+#define	USB_VENDOR_CTX	0x0698		/* Chuntex */
 #define	USB_VENDOR_ASKEY	0x069a		/* Askey Computer Corp. */
 #define	USB_VENDOR_ALCATELT	0x06b9		/* Alcatel Telecom */
 #define	USB_VENDOR_AGFA	0x06bd		/* AGFA-Gevaert NV */
@@ -208,6 +212,7 @@
 #define	USB_VENDOR_AIPTEK	0x08ca		/* AIPTEK International, Inc. */
 #define	USB_VENDOR_SMARTBRIDGES	0x08d1		/* SmartBridges Pte Ltd. */
 #define	USB_VENDOR_BILLIONTON	0x08dd		/* Billionton Systems, Inc. */
+#define	USB_VENDOR_EXTENDED	0x08e9		/* Extended Systems, Inc. */
 #define	USB_VENDOR_AUTHENTEC	0x08ff		/* AuthenTec, Inc. */
 #define	USB_VENDOR_ALATION	0x0910		/* Alation Systems, Inc. */
 #define	USB_VENDOR_BIOMETRIC	0x0929		/* American Biometric Company */
@@ -229,6 +234,7 @@
 #define	USB_VENDOR_ASAHIOPTICAL	0x0a17		/* Asahi Optical Co., Ltd. */
 #define	USB_VENDOR_BOCASYSTEMS	0x0a43		/* Boca Systems, Inc. */
 #define	USB_VENDOR_BROADCOM	0x0a5c		/* Broadcom Corp. */
+#define	USB_VENDOR_GEOCAST	0x0a79		/* Geocast Network Systems */
 #define	USB_VENDOR_MOTOROLA	0x1063		/* Motorola */
 #define	USB_VENDOR_PLX	0x10b5		/* PLX */
 #define	USB_VENDOR_BELKIN2	0x1293		/* Belkin Components (second entry) */
@@ -274,9 +280,13 @@
 /* AKS products */
 #define	USB_PRODUCT_AKS_USBHASP	0x0001		/* USB-HASP 0.06 */
 
-/* ALCOR products */
-#define	USB_PRODUCT_ALCOR_STRONGMAN	0x9213		/* Strong Man Keyboard hub */
-#define	USB_PRODUCT_ALCOR_STRONGMAN_KBD	0x9410		/* Strong Man Keyboard */
+/* Alcor Micro, Inc. products */
+#define	USB_PRODUCT_ALCOR2_KBD_HUB	0x2802		/* Kbd Hub */
+
+#define	USB_PRODUCT_ALCOR_MA_KBD_HUB	0x9213		/* MacAlly Kbd Hub */
+#define	USB_PRODUCT_ALCOR_AU9814	0x9215		/* AU9814 Hub */
+#define	USB_PRODUCT_ALCOR_SM_KBD	0x9410		/* MicroConnectors/StrongMan Keyboard */
+#define	USB_PRODUCT_ALCOR_NEC_KBD_HUB	0x9472		/* NEC Kbd Hub */
 
 /* Altec Lansing products */
 #define	USB_PRODUCT_ALTEC_ADA70	0x0070		/* ADA70 Speakers */
@@ -329,12 +339,18 @@
 /* Chicony products */
 #define	USB_PRODUCT_CHICONY_KB8933	0x0001		/* KB-8933 keyboard */
 
+/* Compaq products */
+#define	USB_PRODUCT_COMPAQ_PJB100	0x504a		/* Personal Jukebox PJB100 */
+
 /* Connectix products */
 #define	USB_PRODUCT_CONNECTIX_QUICKCAM	0x0001		/* QuickCam */
 
 /* Corega products */
 #define	USB_PRODUCT_COREGA_ETHER_USB_T	0x0001		/* Ether USB-T */
 #define	USB_PRODUCT_COREGA_FETHER_USB_TX	0x0004		/* FEther USB-TX */
+
+/* CTX products */
+#define	USB_PRODUCT_CTX_EX1300	0x9999		/* Ex1300 hub */
 
 /* Cypress Semiconductor products */
 #define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
@@ -383,6 +399,12 @@
 /* Epson products */
 #define	USB_PRODUCT_EPSON_PRINTER2	0x0002		/* ISD USB Smart Cable for Mac */
 #define	USB_PRODUCT_EPSON_PRINTER3	0x0003		/* ISD USB Smart Cable */
+
+/* e-TEK Labs products */
+#define	USB_PRODUCT_ETEK_1COM	0x8007		/* Serial port */
+
+/* Extended Systems products */
+#define	USB_PRODUCT_EXTENDED_XTNDACCESS	0x0100		/* XTNDAccess IrDA */
 
 /* Gravis products */
 #define	USB_PRODUCT_GRAVIS_GAMEPADPRO	0x4001		/* GamePad Pro */
@@ -471,14 +493,18 @@
 /* Logitech products */
 #define	USB_PRODUCT_LOGITECH_M2452	0x0203		/* M2452 keyboard */
 #define	USB_PRODUCT_LOGITECH_M4848	0x0301		/* M4848 mouse */
-#define	USB_PRODUCT_LOGITECH_QUICKCAM	0x0801		/* QuickCam */
+#define	USB_PRODUCT_LOGITECH_PAGESCAN	0x040f		/* PageScan */
+#define	USB_PRODUCT_LOGITECH_QUICKCAMWEB	0x0801		/* QuickCam Web */
 #define	USB_PRODUCT_LOGITECH_QUICKCAMPRO	0x0810		/* QuickCam Pro */
+#define	USB_PRODUCT_LOGITECH_QUICKCAMEXP	0x0840		/* QuickCam Express */
+#define	USB_PRODUCT_LOGITECH_QUICKCAM	0x0850		/* QuickCam */
 #define	USB_PRODUCT_LOGITECH_N43	0xc000		/* N43 */
 #define	USB_PRODUCT_LOGITECH_N48	0xc001		/* N48 mouse */
 #define	USB_PRODUCT_LOGITECH_MBA47	0xc002		/* M-BA47 mouse */
 #define	USB_PRODUCT_LOGITECH_WMMOUSE	0xc004		/* WingMan Gaming Mouse */
 #define	USB_PRODUCT_LOGITECH_WMPAD	0xc208		/* WingMan GamePad Extreme */
 #define	USB_PRODUCT_LOGITECH_WMJOY	0xc281		/* WingMan Force joystick */
+#define	USB_PRODUCT_LOGITECH_QUICKCAMPRO2	0xd001		/* QuickCam Pro */
 
 /* Lucent products */
 #define	USB_PRODUCT_LUCENT_EVALKIT	0x1001		/* USS-720 evaluation kit */
@@ -526,6 +552,7 @@
 
 /* OmniVision Technologies, Inc. products */
 #define	USB_PRODUCT_OMNIVISION_OV511	0x0511		/* OV511 Camera */
+#define	USB_PRODUCT_OMNIVISION_OV511PLUS	0xa511		/* OV511+ Camera */
 
 /* Palm Computing, Inc. */
 #define	USB_PRODUCT_PALM_SERIAL	0x0080		/* USB Serial Adaptor */
@@ -599,6 +626,9 @@
 /* Supra products */
 #define	USB_PRODUCT_SUPRA_SUPRAEXPRESS56K	0x07da		/* Supra Express 56K modem */
 
+/* TEAC products */
+#define	USB_PRODUCT_TEAC_FD05PUB	0x0000		/* FD-05PUB floppy */
+
 /* Telex Communications products */
 #define	USB_PRODUCT_TELEX_MIC1	0x0001		/* Enhanced USB Microphone */
 
@@ -612,7 +642,7 @@
 #define	USB_PRODUCT_UNIACCESS_PANACHE	0x0101		/* Panache Surf USB ISDN Adapter */
 
 /* Vision products */
-#define	USB_PRODUCT_VISION_VC6452V002	0x0002		/* VC6452V002 Camera */
+#define	USB_PRODUCT_VISION_VC6452V002	0x0002		/* CPiA Camera */
 
 /* Wacom products */
 #define	USB_PRODUCT_WACOM_CT0405U	0x0000		/* CT-0405-U Tablet */
