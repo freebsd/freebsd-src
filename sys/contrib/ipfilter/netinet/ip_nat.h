@@ -82,7 +82,7 @@ typedef	struct	nat	{
 	struct	hostmap	*nat_hm;
 	struct	nat	*nat_next;
 	struct	nat	*nat_hnext[2];
-	struct	nat	**nat_hstart[2];
+	struct	nat	**nat_phnext[2];
 	void	*nat_ifp;
 	int	nat_dir;
 	char	nat_ifname[IFNAMSIZ];
@@ -142,6 +142,11 @@ typedef	struct	ipnat	{
 #define	NAT_REDIRECT	0x02
 #define	NAT_BIMAP	(NAT_MAP|NAT_REDIRECT)
 #define	NAT_MAPBLK	0x04
+/* 0x100 reserved for FI_W_SPORT */
+/* 0x200 reserved for FI_W_DPORT */
+/* 0x400 reserved for FI_W_SADDR */
+/* 0x800 reserved for FI_W_DADDR */
+/* 0x1000 reserved for FI_W_NEWFR */
 
 #define	MAPBLK_MINPORT	1024	/* don't use reserved ports for src port */
 #define	USABLE_PORTS	(65536 - MAPBLK_MINPORT)
@@ -294,7 +299,8 @@ extern	int	ip_natout __P((ip_t *, fr_info_t *));
 extern	int	ip_natin __P((ip_t *, fr_info_t *));
 extern	void	ip_natunload __P((void)), ip_natexpire __P((void));
 extern	void	nat_log __P((struct nat *, u_int));
-extern	void	fix_incksum __P((u_short *, u_32_t, int));
-extern	void	fix_outcksum __P((u_short *, u_32_t, int));
+extern	void	fix_incksum __P((u_short *, u_32_t));
+extern	void	fix_outcksum __P((u_short *, u_32_t));
+extern	void	fix_datacksum __P((u_short *, u_32_t));
 
 #endif /* __IP_NAT_H__ */
