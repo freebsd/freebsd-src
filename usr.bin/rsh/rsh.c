@@ -366,6 +366,8 @@ reread:		errno = 0;
 		bp = buf;
 
 rewrite:
+		if (rem >= FD_SETSIZE)
+			errx(1, "descriptor too big");
 		FD_ZERO(&rembits);
 		FD_SET(rem, &rembits);
 		nfds = rem + 1;
@@ -403,6 +405,8 @@ done:
 	tvtimeout.tv_usec = 0;
 
 	(void)sigsetmask(omask);
+	if (rfd2 >= FD_SETSIZE || rem >= FD_SETSIZE)
+		errx(1, "descriptor too big");
 	FD_ZERO(&readfrom);
 	FD_SET(rfd2, &readfrom);
 	FD_SET(rem, &readfrom);
