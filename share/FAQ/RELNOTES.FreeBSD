@@ -429,11 +429,74 @@ Should you be dissatisfied for any reason, the CD comes with an
 unconditional return policy.
 
 Note that Walnut Creek CDROM does NOT provide technical support for FreeBSD,
-you need to contact the FreeBSD team for that.  Please see section 4 for
+you need to contact the FreeBSD team for that.  Please see section 5 for
 more information.
 
 
-4. Reporting problems, making suggestions, submitting code.
+4. Preparing for the installation.
+----------------------------------
+
+1. Floppy Installation
+
+If you must install from floppy disks, either due to space contraints
+on your hard disk or just because you enjoy doing things the hard
+way, you must first prepare some floppies for the install.
+
+You will need either 10 1.44MB floppies or 12 1.2MB floppies to
+store just the bindist (binary distribution).  These *must* be
+formatted using MS-DOS, using either the FORMAT command in MS-DOS
+or the File Manager in Microsoft Windows to prepare the floppies
+(though factory preformatted floppies will also well well, provided
+that they haven't been previously used for something else).
+
+After you've formatted the floppy disks, you'll need to copy the
+files onto them.  There are 56 total files for the bindist itself,
+plus three small files (CKSUMS, do_cksum.sh, and extract.sh) for
+the install program to use.  ALL of these files must be copies onto
+the floppies.  Each of the bindist files are named "bindist.??",
+where the "??" is replaced by the letter sequence aa through cd.
+Copy these files onto the floppies, placing the three small install
+files onto the final floppy.  The order in which you copy the files
+to floppy is not important, but it makes labelling the disks easier
+if you go in some sort of alphabetical order.
+
+After you've done this, the floppy disks are ready for the install
+program to use.
+
+Later on, after you get the binary distribution installed and everything
+is going great, the same instructions will apply for the other
+distributions, such as the manpages distribution or the XFree86 distribution.
+The number of floppies required will, of course, change for bigger or
+smaller distributions.
+
+
+2. Hard Disk Installation
+
+To prepare for installation from an MS-DOS partition, you should simply
+copy the files from the distribution into a directory with the same
+name as the distribution.  For example, if you are preparing to
+install the bindist set, then make a directory on your C: drive named
+C:\BINDIST and copy the files there.  This will allow the installation
+program to find the files automatically.
+
+
+3. QIC/SCSI Tape Installation.
+
+Installing from tape is probably the easiest method, short of an
+on-line install using ftp or installing from a CDROM.  The installation
+program expects the files to be simply tar'red onto the tape, so after
+getting all of the files for distribution you're interested in, simply
+tar them onto the tape with something like:
+
+	cd <where the *.?? files are>
+	tar cvf /dev/rwt0 (or /dev/rst0) .
+
+from a directory with just the distribution files in it.  Make sure
+that you remember to put CKSUMS, do_cksum.sh, and extract.sh files
+in this directory as well!
+
+
+5. Reporting problems, making suggestions, submitting code.
 -----------------------------------------------------------
 
 Your suggestions, bug reports and contributions of code are always
@@ -480,7 +543,7 @@ special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
 
 
-5. Acknowledgements
+6. Acknowledgements
 -------------------
 
 FreeBSD represents the cumulative work of many dozens, if not
@@ -545,4 +608,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.18 1994/11/28 19:23:19 ats Exp $
+$Id: RELNOTES.FreeBSD,v 1.19 1994/11/28 21:52:15 ats Exp $
