@@ -144,7 +144,9 @@ ${TGTS}:
 # Set a reasonable default
 .MAIN:	all
 
+.if make(world)
 STARTTIME!= LC_ALL=C date
+.endif
 #
 # world
 #
@@ -251,8 +253,10 @@ universe:
 	@echo "                      (started ${STARTTIME})"
 	@echo "--------------------------------------------------------------"
 
+.if make(buildkernels)
 KERNCONFS!=	cd ${.CURDIR}/sys/${TARGET}/conf && \
 		find [A-Z]*[A-Z] -type f -maxdepth 0 ! -name NOTES
+.endif
 
 buildkernels:
 .for kernel in ${KERNCONFS}
