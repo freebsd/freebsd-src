@@ -195,9 +195,9 @@ uma_dbg_getslab(uma_zone_t zone, void *item)
 	u_int8_t *mem;
 
 	mem = (u_int8_t *)((unsigned long)item & (~UMA_SLAB_MASK));
-	if (zone->uz_flags & UMA_ZFLAG_MALLOC) {
+	if (zone->uz_flags & UMA_ZONE_MALLOC) {
 		slab = vtoslab((vm_offset_t)mem);
-	} else if (zone->uz_flags & UMA_ZFLAG_HASH) {
+	} else if (zone->uz_flags & UMA_ZONE_HASH) {
 		slab = hash_sfind(&zone->uz_hash, mem);
 	} else {
 		mem += zone->uz_pgoff;
