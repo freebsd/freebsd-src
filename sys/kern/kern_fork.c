@@ -134,12 +134,13 @@ rfork(td, uap)
 	struct thread *td;
 	struct rfork_args *uap;
 {
-	int error;
 	struct proc *p2;
+	int error;
 
-	/* Don't allow kernel only flags. */
+	/* Don't allow kernel-only flags. */
 	if ((uap->flags & RFKERNELONLY) != 0)
 		return (EINVAL);
+
 	error = fork1(td, uap->flags, 0, &p2);
 	if (error == 0) {
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
@@ -236,7 +237,7 @@ fork1(td, flags, pages, procp)
 		}
 
 		/*
-		 * Unshare file descriptors (from parent.)
+		 * Unshare file descriptors (from parent).
 		 */
 		if (flags & RFFDG) {
 			FILEDESC_LOCK(p1->p_fd);
@@ -271,7 +272,7 @@ fork1(td, flags, pages, procp)
 		 */
 		PROC_LOCK(p1);
 		if (thread_single(SINGLE_NO_EXIT)) {
-			/* Abort.. someone else is single threading before us */
+			/* Abort. Someone else is single threading before us. */
 			PROC_UNLOCK(p1);
 			mtx_unlock(&Giant);
 			return (ERESTART);
@@ -458,7 +459,7 @@ again:
 	kg2 = FIRST_KSEGRP_IN_PROC(p2);
 	ke2 = FIRST_KSE_IN_KSEGRP(kg2);
 
-	/* Allocate and switch to an alternate kstack if specified */
+	/* Allocate and switch to an alternate kstack if specified. */
 	if (pages != 0)
 		vm_thread_new_altkstack(td2, pages);
 
@@ -532,16 +533,16 @@ again:
 	p2->p_fdtol = fdtol;
 
 	/*
-	 * p_limit is copy-on-write, bump refcnt,
+	 * p_limit is copy-on-write.  Bump its refcount.
 	 */
 	p2->p_limit = lim_hold(p1->p_limit);
 	PROC_UNLOCK(p1);
 	PROC_UNLOCK(p2);
 
 	/*
-	 * Setup linkage for kernel based threading
+	 * Set up linkage for kernel based threading.
 	 */
-	if((flags & RFTHREAD) != 0) {
+	if ((flags & RFTHREAD) != 0) {
 		mtx_lock(&ppeers_lock);
 		p2->p_peers = p1->p_peers;
 		p1->p_peers = p2;
@@ -723,7 +724,7 @@ again:
 	PROC_UNLOCK(p2);
 
 	/*
-	 * If other threads are waiting, let them continue now
+	 * If other threads are waiting, let them continue now.
 	 */
 	if (p1->p_flag & P_SA) {
 		PROC_LOCK(p1);
