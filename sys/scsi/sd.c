@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.125 1998/04/22 10:25:27 julian Exp $
+ *      $Id: sd.c,v 1.126 1998/04/27 11:36:06 des Exp $
  */
 
 #include "opt_bounce.h"
@@ -144,6 +144,7 @@ static sl_h_ioctl_t	sdsioctl;	/* ioctl req downward (to device) */
 static sl_h_open_t	sdsopen;	/* downwards travelling open */
 /*static sl_h_close_t	sdsclose; */	/* downwards travelling close */
 static	void	sds_init (void *arg);
+static sl_h_dump_t	sdsdump;	/* core dump req downward */
 
 static struct slice_handler slicetype = {
 	"scsidisk",
@@ -158,7 +159,8 @@ static struct slice_handler slicetype = {
 	NULL,	/* revoke */
 	NULL,	/* claim */
 	NULL,	/* verify */
-	NULL	/* upconfig */
+	NULL,	/* upconfig */
+	&sdsdump
 };
 #endif
 
@@ -1311,6 +1313,103 @@ sdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
 	sd = private;
 
 	return(sdioctl(makedev(0,sd->mynor), cmd, addr, flag, p));
+}
+
+static int
+sdsdump(void *private, int32_t start, int32_t num)
+{				/* dump core after a system crash */
+	register struct scsi_data *sd;	/* disk unit to do the IO */
+	struct scsi_link *sc_link;
+	int32_t	blkoff, blknum, blkcnt = MAXTRANSFER;
+	char	*addr;
+	struct	scsi_rw_big cmd;
+	struct	scsi_xfer *xs = &sx;
+	errval	retval;
+
+	addr = (char *) 0;	/* starting address */
+
+	sd = private;
+	sc_link = sd->sc_link;
+
+	/* was it ever initialized etc. ? */
+	if (!(sd->flags & SDINIT))
+		return (ENXIO);
+	if ((sc_link->flags & SDEV_MEDIA_LOADED) != SDEV_MEDIA_LOADED)
+		return (ENXIO);
+
+	blknum = start;
+	while (num > 0) {
+		if (is_physical_memory((vm_offset_t)addr))
+		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+		 	       trunc_page(addr), VM_PROT_READ, TRUE);
+		else
+		    pmap_enter(kernel_pmap, (vm_offset_t)CADDR1,
+			       trunc_page(0), VM_PROT_READ, TRUE);
+		/*
+		 *  Fill out the scsi command
+		 */
+		bzero(&cmd, sizeof(cmd));
+		cmd.op_code = WRITE_BIG;
+		cmd.addr_3 = (blknum & 0xff000000) >> 24;
+		cmd.addr_2 = (blknum & 0xff0000) >> 16;
+		cmd.addr_1 = (blknum & 0xff00) >> 8;
+		cmd.addr_0 = blknum & 0xff;
+		cmd.length2 = (blkcnt & 0xff00) >> 8;
+		cmd.length1 = (blkcnt & 0xff);
+		/*
+		 * Fill out the scsi_xfer structure
+		 *    Note: we cannot sleep as we may be an interrupt
+		 * don't use scsi_scsi_cmd() as it may want
+		 * to wait for an xs.
+		 */
+		bzero(xs, sizeof(sx));
+		xs->flags |= SCSI_NOMASK | SCSI_NOSLEEP | INUSE | SCSI_DATA_OUT;
+		xs->sc_link = sc_link;
+		xs->retries = SD_RETRIES;
+		xs->timeout = 10000;	/* 10000 millisecs for a disk ! */
+		xs->cmd = (struct scsi_generic *) &cmd;
+		xs->cmdlen = sizeof(cmd);
+		xs->resid = 0;
+		xs->error = XS_NOERROR;
+		xs->bp = 0;
+		xs->data = (u_char *) CADDR1;	/* XXX use pmap_enter() */
+		xs->datalen = blkcnt * sd->params.secsiz;
+
+		/*
+		 * Pass all this info to the scsi driver.
+		 */
+		retval = (*(sc_link->adapter->scsi_cmd)) (xs);
+		switch (retval) {
+		case SUCCESSFULLY_QUEUED:
+		case HAD_ERROR:
+			return (ENXIO);		/* we said not to sleep! */
+		case COMPLETE:
+			break;
+		default:
+			return (ENXIO);		/* we said not to sleep! */
+		}
+
+		/*
+		 * If we are dumping core, it may take a while.
+		 * So reassure the user and hold off any watchdogs.
+		 */
+		if ((unsigned)addr % (1024 * 1024) == 0) {
+#ifdef	HW_WDOG
+			if (wdog_tickler)
+				(*wdog_tickler)();
+#endif /* HW_WDOG */
+			printf("%ld ", num / 2048);
+		}
+		/* update block count */
+		num -= blkcnt;
+		blknum += blkcnt;
+		(int) addr += blkcnt * sd->params.secsiz;
+
+		/* operator aborting dump? */
+		if (cncheckc() != -1)
+			return (EINTR);
+	}
+	return (0);
 }
 
 #endif

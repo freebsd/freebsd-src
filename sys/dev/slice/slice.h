@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: $
+ *	$Id: slice.h,v 1.1 1998/04/19 23:31:10 julian Exp $
  */
 
 typedef struct slice_handler *sh_p;
@@ -125,6 +125,7 @@ typedef int	sl_h_claim_t(struct slice * slice, struct slice * lower,
 typedef int	sl_h_verify_t(struct slice *slice);
 typedef int	sl_h_upconfig_t(struct slice *slice, int cmd, caddr_t data,
 	     			int fflag, struct proc *p);
+typedef int	sl_h_dump_t(void *private, int32_t blkoff, int32_t blkcnt);
 
 struct slice_handler {
 	char           *name;
@@ -140,6 +141,7 @@ struct slice_handler {
 	sl_h_claim_t   *claim;	/* claim a new slice */
 	sl_h_verify_t  *verify;	/* verify that a slice as it was before */
 	sl_h_upconfig_t *upconf; /* config requests from slice below */
+	sl_h_dump_t    *dump;	/* dump the core */
 };
 
 /*

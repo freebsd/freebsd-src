@@ -23,9 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice_device.c,v 1.3 1998/04/22 19:27:52 julian Exp $
+ *	$Id: slice_device.c,v 1.4 1998/04/24 07:53:55 julian Exp $
  */
 #define DIAGNOSTIC 1
+#include "opt_hw_wdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -39,7 +40,9 @@
 #include <sys/devfsext.h>	/* DEVFS defintitions */
 #include <dev/slice/slice.h>	/* temporary location */
 
-
+#include <vm/vm_param.h>
+#include <machine/md_var.h>
+#include <i386/i386/cons.h>
 
 /* Function prototypes (these should all be static  except for slicenew()) */
 static d_open_t slcdevopen;
@@ -369,8 +372,26 @@ static int
 slcdevdump(dev_t dev)
 {
 	sl_p            slice = minor_to_slice(minor(dev));
+	static int	slcdoingdump = 0;
+	int32_t		num, nblocks, lo;
 RR;
-	if (slice == NULL)
+	if (!slice || !(slice->flags & SLF_OPEN_DEV_WR) ||
+	    !slice->handler_down->dump)
 		return (ENXIO);
-	return (0);
+
+	/* Toss any characters present prior to dump. */
+	while (cncheckc() != -1)
+		;
+
+	if (slcdoingdump)
+		return (EFAULT);
+
+	num = (int32_t)(Maxmem * PAGE_SIZE / slice->limits.blksize);
+	nblocks = (int32_t)(slice->limits.slicesize / slice->limits.blksize);
+	lo = dumplo * DEV_BSIZE / slice->limits.blksize;
+	if (lo < 0 || lo + num > nblocks)
+		return (EINVAL);
+
+	slcdoingdump = 1;
+	return (*slice->handler_down->dump)(slice->private_down, lo, num);
 }

@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.109 1998/04/19 23:31:41 julian Exp $
+ *	$Id: fd.c,v 1.110 1998/04/22 10:25:15 julian Exp $
  *
  */
 
@@ -2196,9 +2196,9 @@ fdsopen(void *private, int flags, int mode, struct proc *p)
 	sd = private;
 
 	if((flags & (FREAD|FWRITE)) != 0) {
-		return(Fdopen(makedev(0,sd->minor), 0 , 0, p));
+		return(Fdopen(makedev(0,sd->minor), flags , mode, p));
 	} else {
-		return(fdclose(makedev(0,sd->minor), 0 , 0, p));
+		return(fdclose(makedev(0,sd->minor), 0 , mode, p));
 	}
 }
 

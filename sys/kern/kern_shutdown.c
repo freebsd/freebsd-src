@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.28 1998/02/16 23:57:44 eivind Exp $
+ * $Id: kern_shutdown.c,v 1.29 1998/03/08 09:56:54 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -55,6 +55,7 @@
 #include <sys/sysctl.h>
 #include <sys/conf.h>
 #include <sys/sysproto.h>
+#include <sys/disklabel.h>
 
 #include <machine/pcb.h>
 #include <machine/clock.h>
@@ -358,16 +359,20 @@ SYSINIT(dump_conf, SI_SUB_DUMP_CONF, SI_ORDER_FIRST, dump_conf, NULL)
 static void
 dumpsys(void)
 {
+	struct partinfo pi;
 
 	if (!dodump)
 		return;
 	if (dumpdev == NODEV)
 		return;
-	if ((minor(dumpdev)&07) != 1)
-		return;
 	if (!(bdevsw[major(dumpdev)]))
 		return;
 	if (!(bdevsw[major(dumpdev)]->d_dump))
+		return;
+	if ((*bdevsw[major(dumpdev)]->d_ioctl)(dumpdev, DIOCGPART,
+		(caddr_t)&pi, 0, NULL))
+		return;
+	if (pi.part->p_fstype != FS_SWAP)
 		return;
 	dumpsize = Maxmem;
 	printf("\ndumping to dev %lx, offset %ld\n", dumpdev, dumplo);
