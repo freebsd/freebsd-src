@@ -27,8 +27,8 @@
  */
 
 /* vfslist.c */
-int checkvfsname __P((const char *, const char **));
-const char **makevfslist __P((char *));
+int checkvfsname(const char *, const char **);
+const char **makevfslist(char *);
 
 /* mount_ufs.c */
-int mount_ufs __P((int, char *const *));
+int mount_ufs(int, char *const *);

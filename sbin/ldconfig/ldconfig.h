@@ -34,8 +34,8 @@
 extern int	insecure;	/* -i flag, needed here for elfhints.c */
 
 __BEGIN_DECLS
-void	list_elf_hints __P((const char *));
-void	update_elf_hints __P((const char *, int, char **, int));
+void	list_elf_hints(const char *);
+void	update_elf_hints(const char *, int, char **, int);
 __END_DECLS
 
 #endif
