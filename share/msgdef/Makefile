@@ -46,6 +46,8 @@ FRENCH=         fr_FR
 FRENCHLINKS=    fr_CA
 GERMAN=         de_DE
 GERMANLINKS=    de_AT
+CZECH=          cs_CZ
+CZECHLINKS=     sk_SK
 
 LOCALEDIR=      ${DESTDIR}/usr/share/locale
 
@@ -84,6 +86,10 @@ afterinstall:
 		${LOCALEDIR}/${link}.ISO8859-1/LC_MESSAGES
 	ln -sf ../${GERMAN}.ISO8859-1/LC_MESSAGES \
 		${LOCALEDIR}/${link}.ISO8859-15/LC_MESSAGES
+.endfor
+.for link in ${CZECHLINKS}
+	ln -sf ../${CZECH}.ISO8859-2/LC_MESSAGES \
+		${LOCALEDIR}/${link}.ISO8859-2/LC_MESSAGES
 .endfor
 .for link in ${ASCIILINKS}
 	ln -sf ../${link}.ISO8859-1/LC_MESSAGES \
