@@ -51,8 +51,6 @@
 #include <dev/smbus/smbconf.h>
 #include "smbus_if.h"
 
-#include "alpm.h"
-
 #define ALPM_DEBUG(x)	if (alpm_debug) (x)
 
 #ifdef DEBUG
