@@ -24,17 +24,34 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: c89.sh,v 1.1.1.1 1997/09/17 20:44:53 joerg Exp $
 #
 # This is the Posix.2 mandated C compiler.  Basically, a hook to the
 # cc(1) command.
 
-if echo "$*" | grep -q -- -traditional
-then
-	echo "c89: non-standard C not supported by the Posix compiler version"\
-		1>&2
+usage()
+{
+	echo "usage: c89 [-c] [-D name[=value]] [...] [-E] [-g] [-I directory ...]
+       [-L directory ...] [-o outfile] [-O] [-s] [-U name ...] operand ..." 1>&2
 	exit 64
+}
+
+while getopts "cD:EgI:L:o:OsU:" opt
+do
+	case $opt in
+	[cDEgILoOsU])
+		;;
+	*)
+		usage
+		;;
+	esac
+done
+
+if [ $(($OPTIND - 1)) = $# ]
+then
+	echo "Missing operand" 1>&2
+	usage
 fi
 
-exec cc -ansi -trigraphs "$@"
+exec cc -ansi -pedantic -trigraphs "$@"
 
