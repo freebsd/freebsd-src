@@ -12,14 +12,18 @@ SRCS+=	acl_delete.c			\
 	acl_support.c			\
 	acl_to_text.c			\
 	acl_valid.c			\
-#	cap_clear.c			\
-#	cap_dup.c			\
-#	cap_free.c			\
-#	cap_get_flag.c			\
-#	cap_get_proc.c			\
-#	cap_init.c			\
-#	cap_set_flag.c			\
-#	cap_set_proc.c
+	cap_clear.c			\
+	cap_dup.c			\
+	cap_free.c			\
+	cap_get_fd.c			\
+	cap_get_file.c			\
+	cap_get_flag.c			\
+	cap_get_proc.c			\
+	cap_init.c			\
+	cap_set_fd.c			\
+	cap_set_file.c			\
+	cap_set_flag.c			\
+	cap_set_proc.c
 
 
 MAN3=	acl.3				\
