@@ -103,7 +103,7 @@ joyattach (struct isa_device *dev)
 }
 
 int
-joyopen (dev_t dev, int flag)
+joyopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
     int unit = UNIT (dev);
     int i = joypart (dev);
@@ -115,7 +115,7 @@ joyopen (dev_t dev, int flag)
     return 0;
 }
 int
-joyclose (dev_t dev, int flag)
+joyclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
     int unit = UNIT (dev);
     int i = joypart (dev);

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.27 1995/07/28 21:40:26 jkh Exp $
+ * $Id: soundcard.c,v 1.28 1995/09/01 19:09:11 jkh Exp $
  */
 
 #include "sound_config.h"
@@ -59,12 +59,12 @@ struct selinfo selinfo[SND_NDEVS >> 4];
 
 int             sndprobe (struct isa_device *dev);
 int             sndattach (struct isa_device *dev);
-int             sndopen (dev_t dev, int flags);
-int             sndclose (dev_t dev, int flags);
-int             sndioctl (dev_t dev, int cmd, caddr_t arg, int mode);
-int             sndread (int dev, struct uio *uio);
-int             sndwrite (int dev, struct uio *uio);
-int             sndselect (int dev, int rw, struct proc *p);
+int             sndopen (dev_t dev, int flags, int fmt, struct proc *p);
+int             sndclose (dev_t dev, int flags, int fmt, struct proc *p);
+int             sndioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p);
+int             sndread (dev_t dev, struct uio *uio, int ioflag);
+int             sndwrite (dev_t dev, struct uio *uio, int ioflag);
+int             sndselect (dev_t dev, int rw, struct proc *p);
 static void	sound_mem_init(void);
 
 struct isa_driver opldriver	= {sndprobe, sndattach, "opl"};
@@ -119,7 +119,7 @@ int x;
  
 
 int
-sndread (int dev, struct uio *buf)
+sndread (dev_t dev, struct uio *buf, int ioflag)
 {
   int             count = buf->uio_resid;
 
@@ -129,7 +129,7 @@ sndread (int dev, struct uio *buf)
 }
 
 int
-sndwrite (int dev, struct uio *buf)
+sndwrite (dev_t dev, struct uio *buf, int ioflag)
 {
   int             count = buf->uio_resid;
 
@@ -139,7 +139,7 @@ sndwrite (int dev, struct uio *buf)
 }
 
 int
-sndopen (dev_t dev, int flags)
+sndopen (dev_t dev, int flags, int fmt, struct proc *p)
 {
   int             retval;
 
@@ -167,7 +167,7 @@ sndopen (dev_t dev, int flags)
 }
 
 int
-sndclose (dev_t dev, int flags)
+sndclose (dev_t dev, int flags, int fmt, struct proc *p)
 {
 
   dev = minor (dev);
@@ -177,7 +177,7 @@ sndclose (dev_t dev, int flags)
 }
 
 int
-sndioctl (dev_t dev, int cmd, caddr_t arg, int mode)
+sndioctl (dev_t dev, int cmd, caddr_t arg, int flags, struct proc *p)
 {
   dev = minor (dev);
 
@@ -185,7 +185,7 @@ sndioctl (dev_t dev, int cmd, caddr_t arg, int mode)
 }
 
 int
-sndselect (int dev, int rw, struct proc *p)
+sndselect (dev_t dev, int rw, struct proc *p)
 {
   dev = minor (dev);
 
