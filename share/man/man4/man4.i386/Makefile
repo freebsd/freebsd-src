@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-MAN=	acpi_toshiba.4 \
+MAN=	acpi_asus.4 \
+	acpi_toshiba.4 \
 	aic.4 \
 	alpm.4 \
 	amdpm.4 \
