@@ -89,6 +89,7 @@ extern	void	(*ng_ether_input_orphan_p)(struct ifnet *ifp, struct mbuf *m);
 extern	int	(*ng_ether_output_p)(struct ifnet *ifp, struct mbuf **mp);
 extern	void	(*ng_ether_attach_p)(struct ifnet *ifp);
 extern	void	(*ng_ether_detach_p)(struct ifnet *ifp);
+extern	void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 
 /* Functional hooks called from if_ethersubr.c */
 static void	ng_ether_input(struct ifnet *ifp, struct mbuf **mp);
@@ -96,6 +97,7 @@ static void	ng_ether_input_orphan(struct ifnet *ifp, struct mbuf *m);
 static int	ng_ether_output(struct ifnet *ifp, struct mbuf **mp);
 static void	ng_ether_attach(struct ifnet *ifp);
 static void	ng_ether_detach(struct ifnet *ifp); 
+static void	ng_ether_link_state(struct ifnet *ifp, int state); 
 
 /* Other functions */
 static int	ng_ether_rcv_lower(node_p node, struct mbuf *m);
@@ -310,6 +312,33 @@ ng_ether_detach(struct ifnet *ifp)
 	IFP2NG_SET(ifp, NULL);
 	priv->ifp = NULL;	/* XXX race if interrupted an output packet */
 	ng_rmnode_self(node);		/* remove all netgraph parts */
+}
+
+/*
+ * Notify graph about link event.
+ * if_link_state_change() has already checked that the state has changed.
+ */
+static void
+ng_ether_link_state(struct ifnet *ifp, int state)
+{
+	const node_p node = IFP2NG(ifp);
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	struct ng_mesg *msg;
+	int cmd, dummy_error = 0;
+
+	if (priv->lower == NULL)
+                return;
+
+	if (state == LINK_STATE_UP)
+		cmd = NGM_LINK_IS_UP;
+	else if (state == LINK_STATE_DOWN)
+		cmd = NGM_LINK_IS_DOWN;
+	else
+		return;
+
+	NG_MKMESSAGE(msg, NGM_FLOW_COOKIE, cmd, 0, M_NOWAIT);
+	if (msg != NULL)
+		NG_SEND_MSG_HOOK(dummy_error, node, msg, priv->lower, 0);
 }
 
 /******************************************************************
@@ -645,6 +674,7 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_output_p = ng_ether_output;
 		ng_ether_input_p = ng_ether_input;
 		ng_ether_input_orphan_p = ng_ether_input_orphan;
+		ng_ether_link_state_p = ng_ether_link_state;
 
 		/* Create nodes for any already-existing Ethernet interfaces */
 		IFNET_RLOCK();
@@ -672,6 +702,7 @@ ng_ether_mod_event(module_t mod, int event, void *data)
 		ng_ether_output_p = NULL;
 		ng_ether_input_p = NULL;
 		ng_ether_input_orphan_p = NULL;
+		ng_ether_link_state_p = NULL;
 		break;
 
 	default:
