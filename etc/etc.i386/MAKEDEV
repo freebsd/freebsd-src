@@ -53,6 +53,7 @@
 # Pointing devices:
 #	mse*	Logitech and ATI Inport bus mouse
 #	psm*	PS/2 mouse
+#	sysmouse Mousesystems mouse emulator for syscons
 #
 # Time devices:
 #	refclock-*  serial ports used by xntpd parse refclocks
@@ -100,7 +101,7 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #
-#	$Id: MAKEDEV,v 1.119 1996/06/07 15:47:15 ache Exp $
+#	$Id: MAKEDEV,v 1.120 1996/07/02 23:11:06 wosch Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -178,7 +179,7 @@ all)
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
 	sh MAKEDEV lpt0 lpt1 lpt2				# cdev, printer
 	sh MAKEDEV pty0 ch0 tw0 bpf0				# cdev
-	sh MAKEDEV perfmon speaker pcaudio psm0 mse0		# cdev
+	sh MAKEDEV perfmon speaker pcaudio psm0	mse0 sysmouse	# cdev
 	sh MAKEDEV vty4						# cdev
 	sh MAKEDEV tun0						# cdev
 	;;
@@ -1059,6 +1060,12 @@ tun?)
 	rm -f tun$unit
 	mknod tun$unit c 52 $unit
 	chown uucp.dialer tun$unit
+	;;
+
+sysmouse)
+	rm -f sysmouse
+	mknod sysmouse c 12 128
+	chmod 644 sysmouse
 	;;
 
 snp?)
