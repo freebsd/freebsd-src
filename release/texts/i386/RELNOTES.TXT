@@ -528,6 +528,8 @@ FreeBSD-SA-01:30). [MERGED]
 
 A remotely-exploitable vulnerability in ntpd(8) has been closed. [MERGED]
 
+A security hole in IPFilter's fragment cache has been closed. [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -840,7 +842,7 @@ sysinstall now uses some more intuitive defaults thanks to some new
 dialog support functions.  [MERGED]
 
 The default root partition in sysinstall is now 100MB on the i386 and
-110MB on the alpha.
+120MB on the alpha.
 
 gcc has been updated to 2.95.3.
 
@@ -1085,6 +1087,8 @@ atacontrol(8) has been added to control various aspects of the ata(4)
 driver.
 
 libcrypt now has support for Blowfish password hashing.
+
+The functions from libposix1e have been integrated into libc.
 
 
 2. Supported Configurations
