@@ -189,7 +189,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	PROC_LOCK(p);
 	KASSERT((p->p_flag & P_INEXEC) == 0,
 	    ("%s(): process already has P_INEXEC flag", __func__));
-	if (p->p_flag & P_THREADED) {
+	if (p->p_flag & P_THREADED || p->p_numthreads > 1) {
 		if (thread_single(SINGLE_EXIT)) {
 			PROC_UNLOCK(p);
 			return (ERESTART);	/* Try again later. */

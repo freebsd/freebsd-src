@@ -265,6 +265,11 @@ fork1(td, flags, pages, procp)
 		return (0);
 	}
 
+	/*
+	 * Note 1:1 allows for forking with one thread coming out on the
+	 * other side with the expectation that the process is about to
+	 * exec.
+	 */
 	if (p1->p_flag & P_THREADED) {
 		/*
 		 * Idle the other threads for a second.
