@@ -57,6 +57,7 @@
 	.globl	HIDENAME(minbrk)
 	.type	HIDENAME(curbrk),@object
 	.type	HIDENAME(minbrk),@object
+	.align	8
 HIDENAME(curbrk):
 	.xword	CNAME(_end)
 HIDENAME(minbrk):
