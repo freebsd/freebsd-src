@@ -64,6 +64,8 @@
 #define	DEFAULT_EXEC_PREFIX	"exec /usr/sbin/ppp -direct "
 #define	HISMACADDR		"HISMACADDR"
 
+static void nglogx(const char *, ...) __printflike(1, 2);
+
 static int ReceivedSignal;
 
 static int
