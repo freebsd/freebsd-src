@@ -71,19 +71,19 @@ static	d_ioctl_t		twe_ioctl_wrapper;
 #define TWE_CDEV_MAJOR  146
 
 static struct cdevsw twe_cdevsw = {
-    twe_open,
-    twe_close,
-    noread,
-    nowrite,
-    twe_ioctl_wrapper,
-    nopoll,
-    nommap,
-    nostrategy,
-    "twe",
-    TWE_CDEV_MAJOR,
-    nodump,
-    nopsize,
-    0
+	/* open */	twe_open,
+	/* close */	twe_close,
+	/* read */	noread,
+	/* write */	nowrite,
+	/* ioctl */	twe_ioctl_wrapper,
+	/* poll */	nopoll,
+	/* mmap */	nommap,
+	/* strategy */	nostrategy,
+	/* name */	"twe",
+	/* maj */	TWE_CDEV_MAJOR,
+	/* dump */	nodump,
+	/* psize */	nopsize,
+	/* flags */	0
 };
 
 /********************************************************************************
