@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.6 1996/02/26 02:34:26 wpaul Exp $";
+static char rcsid[] = "$Id: yp_server.c,v 1.5 1996/03/01 03:28:31 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -110,6 +110,9 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	static ypresp_val  result;
 	DBT key, data;
 
+	result.val.valdat_val = "";
+	result.val.valdat_len = 0;
+	
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
 		return (&result);
@@ -174,7 +177,8 @@ ypproc_match_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 
 		if (rval) {
 			if (debug)
-				yp_error("DNS lookup successful. Result: %s", rval);
+				yp_error("DNS lookup successful. Result: %s",
+									rval);
 			result.val.valdat_len = strlen(rval);
 			result.val.valdat_val = rval;
 			result.stat = YP_TRUE;
@@ -195,6 +199,9 @@ ypproc_first_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	DBT key, data;
 	DB *dbp;
 
+	result.val.valdat_val = result.key.keydat_val = "";
+	result.val.valdat_len = result.key.keydat_len = 0;
+	
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
 		return (&result);
@@ -237,6 +244,9 @@ ypproc_next_2_svc(ypreq_key *argp, struct svc_req *rqstp)
 	DBT key, data;
 	DB *dbp;
 
+	result.val.valdat_val = result.key.keydat_val = "";
+	result.val.valdat_len = result.key.keydat_len = 0;
+	
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
 		return (&result);
@@ -361,14 +371,20 @@ ypproc_xfr_2_svc(ypreq_xfr *argp, struct svc_req *rqstp)
 		if (debug)
 			close(0); close(1); close(2);
 		if (strcmp(yp_dir, _PATH_YP)) {
-			execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
-		      	"-h", argp->map_parms.peer, "-p", yp_dir, "-C", t,
-		      	g, inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
+			execl(ypxfr_command, "ypxfr",
+			"-d", argp->map_parms.domain,
+		      	"-h", argp->map_parms.peer,
+			"-p", yp_dir, "-C", t,
+		      	g, inet_ntoa(rqhost->sin_addr),
+			p, argp->map_parms.map,
 		      	NULL);
 		} else {
-			execl(ypxfr_command, "ypxfr", "-d", argp->map_parms.domain,
-		      	"-h", argp->map_parms.peer, "-C", t, g,
-		      	inet_ntoa(rqhost->sin_addr), p, argp->map_parms.map,
+			execl(ypxfr_command, "ypxfr",
+			"-d", argp->map_parms.domain,
+		      	"-h", argp->map_parms.peer,
+			"-C", t,
+		      	g, inet_ntoa(rqhost->sin_addr),
+			p, argp->map_parms.map,
 		      	NULL);
 		}
 		forked++;
@@ -406,7 +422,7 @@ ypproc_clear_2_svc(void *argp, struct svc_req *rqstp)
 
 	/*
 	 * We don't have to do anything for ypproc_clear. Unlike
-	 * the SunOS ypserv, we don't hold out database descriptors
+	 * the SunOS ypserv, we don't hold our database descriptors
 	 * open forever.
 	 */
 	if (yp_access(NULL, (struct svc_req *)rqstp))
@@ -477,6 +493,8 @@ ypproc_all_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	 * doing is returning an error.
 	 */
 	result.more = TRUE;
+	result.ypresp_all_u.val.key.keydat_len = 0;
+	result.ypresp_all_u.val.key.keydat_val = "";
 
 	if (yp_access(argp->map, (struct svc_req *)rqstp)) {
 		result.ypresp_all_u.val.stat = YP_YPERR;
@@ -569,6 +587,8 @@ ypproc_order_2_svc(ypreq_nokey *argp, struct svc_req *rqstp)
 	static ypresp_order  result;
 	DBT key,data;
 
+	result.ordernum = 0;
+
 	if (yp_access(NULL, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
 		return(&result);
@@ -637,17 +657,20 @@ static struct ypmaplist *yp_maplist_create(domain)
 
 	while ((dirp = readdir(dird)) != NULL) {
 		if (strcmp(dirp->d_name, ".") && strcmp(dirp->d_name, "..")) {
-			snprintf(yp_mapname, sizeof(yp_mapname), "%s/%s",yp_mapdir,dirp->d_name);
-			if (stat(yp_mapname, &statbuf) < 0 || !S_ISREG(statbuf.st_mode))
+			snprintf(yp_mapname, sizeof(yp_mapname), "%s/%s",
+							yp_mapdir,dirp->d_name);
+			if (stat(yp_mapname, &statbuf) < 0 ||
+						!S_ISREG(statbuf.st_mode))
 				continue;
-			if ((cur = (struct ypmaplist *)malloc(sizeof(struct ypmaplist))) < 0) {
-				yp_error("malloc() failed: %s", strerror(errno));
+			if ((cur = (struct ypmaplist *)
+					malloc(sizeof(struct ypmaplist))) < 0) {
+				yp_error("malloc() failed: %s",strerror(errno));
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
 				return(NULL);
 			}
 			if ((cur->map = (char *)strdup(dirp->d_name)) == NULL) {
-				yp_error("strdup() failed: %s", strerror(errno));
+				yp_error("strdup() failed: %s",strerror(errno));
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
 				return(NULL);
@@ -667,6 +690,8 @@ ypresp_maplist *
 ypproc_maplist_2_svc(domainname *argp, struct svc_req *rqstp)
 {
 	static ypresp_maplist  result;
+
+	result.maps = NULL;
 
 	if (yp_access(NULL, (struct svc_req *)rqstp)) {
 		result.stat = YP_YPERR;
@@ -740,6 +765,9 @@ ypoldproc_domain_nonack_1_svc(domainname *argp, struct svc_req *rqstp)
 	return (ypproc_domain_nonack_2_svc(argp, rqstp));
 }
 
+/*
+ * the 'match' procedure sends a response of type YPRESP_VAL
+ */
 ypresponse *
 ypoldproc_match_1_svc(yprequest *argp, struct svc_req *rqstp)
 {
@@ -747,6 +775,8 @@ ypoldproc_match_1_svc(yprequest *argp, struct svc_req *rqstp)
 	ypresp_val *v2_result;
 
 	result.yp_resptype = YPRESP_VAL;
+	result.ypresponse_u.yp_resp_valtype.val.valdat_val = "";
+	result.ypresponse_u.yp_resp_valtype.val.valdat_len = 0;
 
 	if (argp->yp_reqtype != YPREQ_KEY) {
 		result.ypresponse_u.yp_resp_valtype.stat = YP_BADARGS;
@@ -764,6 +794,9 @@ ypoldproc_match_1_svc(yprequest *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
+/*
+ * the 'first' procedure sends a response of type YPRESP_KEY_VAL
+ */
 ypresponse *
 ypoldproc_first_1_svc(yprequest *argp, struct svc_req *rqstp)
 {
@@ -771,6 +804,10 @@ ypoldproc_first_1_svc(yprequest *argp, struct svc_req *rqstp)
 	ypresp_key_val *v2_result;
 
 	result.yp_resptype = YPRESP_KEY_VAL;
+	result.ypresponse_u.yp_resp_key_valtype.val.valdat_val =
+	result.ypresponse_u.yp_resp_key_valtype.key.keydat_val = "";
+	result.ypresponse_u.yp_resp_key_valtype.val.valdat_len =
+	result.ypresponse_u.yp_resp_key_valtype.key.keydat_len = 0;
 
 	if (argp->yp_reqtype != YPREQ_NOKEY) {
 		result.ypresponse_u.yp_resp_key_valtype.stat = YP_BADARGS;
@@ -789,6 +826,9 @@ ypoldproc_first_1_svc(yprequest *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
+/*
+ * the 'next' procedure sends a response of type YPRESP_KEY_VAL
+ */
 ypresponse *
 ypoldproc_next_1_svc(yprequest *argp, struct svc_req *rqstp)
 {
@@ -796,6 +836,10 @@ ypoldproc_next_1_svc(yprequest *argp, struct svc_req *rqstp)
 	ypresp_key_val *v2_result;
 
 	result.yp_resptype = YPRESP_KEY_VAL;
+	result.ypresponse_u.yp_resp_key_valtype.val.valdat_val =
+	result.ypresponse_u.yp_resp_key_valtype.key.keydat_val = "";
+	result.ypresponse_u.yp_resp_key_valtype.val.valdat_len =
+	result.ypresponse_u.yp_resp_key_valtype.key.keydat_len = 0;
 
 	if (argp->yp_reqtype != YPREQ_KEY) {
 		result.ypresponse_u.yp_resp_key_valtype.stat = YP_BADARGS;
@@ -813,6 +857,9 @@ ypoldproc_next_1_svc(yprequest *argp, struct svc_req *rqstp)
 	return (&result);
 }
 
+/*
+ * the 'poll' procedure sends a response of type YPRESP_MAP_PARMS
+ */
 ypresponse *
 ypoldproc_poll_1_svc(yprequest *argp, struct svc_req *rqstp)
 {
