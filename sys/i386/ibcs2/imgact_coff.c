@@ -388,7 +388,7 @@ exec_coff_imgact(imgp)
 
 			libbuf = malloc(MAXPATHLEN + emul_path_len,
 					M_TEMP, M_WAITOK);
-			strcpy(libbuf, ibcs2_emul_path);
+			strlcpy(libbuf, ibcs2_emul_path, MAXPATHLEN);
 
 		    	for (j = off; j < scns[i].s_size + off;) {
 				long stroff, nextoff;
