@@ -193,9 +193,7 @@ TAR_EXTERN int cmd_mode;
 
 
 TAR_EXTERN int f_reblock;	/* -B */
-#if 0
-TAR_EXTERN char f_dironly;	/* -D */
-#endif
+TAR_EXTERN int f_dironly;	/* -n ... PH */
 TAR_EXTERN int f_run_script_at_end;	/* -F */
 TAR_EXTERN int f_gnudump;	/* -G */
 TAR_EXTERN int f_follow_links;	/* -h */

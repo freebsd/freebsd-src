@@ -148,7 +148,7 @@ create_archive ()
 
       while (p = name_from_list ())
 	dump_file (p, -1, 1);
-      /* if(!f_dironly) { */
+      if(!f_dironly) {
       blank_name_list ();
       while (p = name_from_list ())
 	{
@@ -165,7 +165,7 @@ create_archive ()
 		}
 	    }
 	}
-      /* } */
+      }
       free (buf);
     }
   else
@@ -764,10 +764,8 @@ dump_file (p, curdev, toplevel)
 	}
 
       /* Now output all the files in the directory */
-#if 0
       if (f_dironly)
 	return;			/* Unless the cmdline said not to */
-#endif
       /*
 		 * See if we are crossing from one file system to another,
 		 * and avoid doing so if the user only wants to dump one file system.
