@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.16 1995/03/07 19:00:47 davidg Exp $
+ * $Id: vnode.h,v 1.17 1995/03/16 18:16:34 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -237,8 +237,13 @@ extern void	(*lease_check) __P((struct vnode *vp, struct proc *p,
 extern void	(*lease_updatetime) __P((int deltat));
 
 #ifdef NFS
+#ifdef NQNFS
 #define	LEASE_CHECK(vp, p, cred, flag)	lease_check((vp), (p), (cred), (flag))
 #define	LEASE_UPDATETIME(dt)		lease_updatetime(dt)
+#else
+#define LEASE_CHECK(vp, p, cred, flag)
+#define LEASE_UPDATETIME(dt)
+#endif /* NQNFS */
 #else
 #define LEASE_CHECK(vp, p, cred, flag) \
 	do { if(lease_check) lease_check((vp), (p), (cred), (flag)); } while(0)
