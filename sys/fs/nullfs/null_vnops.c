@@ -622,6 +622,8 @@ null_lock(ap)
 		 * towards decomissioning it.
 		 */
 		lvp = NULLVPTOLOWERVP(vp);
+		if (lvp == NULL)
+			return (lockmgr(&vp->v_lock, flags, &vp->v_interlock, p));
 		if (flags & LK_INTERLOCK) {
 			simple_unlock(&vp->v_interlock);
 			flags &= ~LK_INTERLOCK;
@@ -656,6 +658,7 @@ null_unlock(ap)
 	struct vnode *vp = ap->a_vp;
 	int flags = ap->a_flags;
 	struct proc *p = ap->a_p;
+	struct vnode *lvp;
 
 	if (vp->v_vnlock != NULL) {
 		if (flags & LK_THISLAYER)
@@ -664,10 +667,13 @@ null_unlock(ap)
 		return (lockmgr(vp->v_vnlock, flags | LK_RELEASE,
 			&vp->v_interlock, p));
 	}
+	lvp = NULLVPTOLOWERVP(vp);
+	if (lvp == NULL)
+		return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, p));
 	if ((flags & LK_THISLAYER) == 0) {
 		if (flags & LK_INTERLOCK)
 			simple_unlock(&vp->v_interlock);
-		VOP_UNLOCK(NULLVPTOLOWERVP(vp), flags & ~LK_INTERLOCK, p);
+		VOP_UNLOCK(lvp, flags & ~LK_INTERLOCK, p);
 	} else
 		flags &= ~LK_THISLAYER;
 	return (lockmgr(&vp->v_lock, flags | LK_RELEASE, &vp->v_interlock, p));
