@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: util.c,v 1.3 1995/03/19 13:29:16 joerg Exp $
+ *	$Id: util.c,v 1.4 1995/05/30 00:07:07 rgrimes Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.2 (Berkeley) 4/2/94";
+static char const sccsid[] = "@(#)util.c	8.2 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
