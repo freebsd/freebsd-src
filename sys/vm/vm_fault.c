@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.91 1998/11/25 07:40:49 dg Exp $
+ * $Id: vm_fault.c,v 1.92 1999/01/08 17:31:24 eivind Exp $
  */
 
 /*
@@ -527,7 +527,6 @@ readrest:
 			vm_object_pip_add(fs.object, 1);
 		}
 	}
-
 	KASSERT((fs.m->flags & PG_BUSY) != 0,
 	    ("vm_fault: not busy after main loop"));
 

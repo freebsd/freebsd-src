@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.189 1998/12/22 18:57:30 dillon Exp $
+ * $Id: vfs_bio.c,v 1.190 1999/01/08 17:31:14 eivind Exp $
  */
 
 /*
@@ -692,6 +692,7 @@ brelse(struct buf * bp)
 				int poffset = foff & PAGE_MASK;
 				int presid = resid > (PAGE_SIZE - poffset) ?
 					(PAGE_SIZE - poffset) : resid;
+
 				KASSERT(presid >= 0, ("brelse: extra page"));
 				vm_page_set_invalid(m, poffset, presid);
 			}
@@ -998,10 +999,8 @@ trytofreespace:
 		while (needsbuffer & VFS_BIO_NEED_ANY);
 		return (0);
 	}
-
 	KASSERT(!(bp->b_flags & B_BUSY), 
-		("getnewbuf: busy buffer on free list\n"));
-
+	    ("getnewbuf: busy buffer on free list\n"));
 	/*
 	 * We are fairly aggressive about freeing VMIO buffers, but since
 	 * the buffering is intact without buffer headers, there is not
@@ -1453,10 +1452,8 @@ loop:
 				goto loop;
 			}
 		}
-
 		KASSERT(bp->b_offset != NOOFFSET, 
-			("getblk: no buffer offset"));
-
+		    ("getblk: no buffer offset"));
 		/*
 		 * Check that the constituted buffer really deserves for the
 		 * B_CACHE bit to be set.  B_VMIO type buffers might not
@@ -1704,7 +1701,7 @@ allocbuf(struct buf * bp, int size)
 					 */
 					m = bp->b_pages[i];
 					KASSERT(m != bogus_page,
-						("allocbuf: bogus page found"));
+					    ("allocbuf: bogus page found"));
 					vm_page_sleep(m, "biodep", &m->busy);
 
 					bp->b_pages[i] = NULL;
@@ -1738,8 +1735,7 @@ allocbuf(struct buf * bp, int size)
 
 				off = bp->b_offset;
 				KASSERT(bp->b_offset != NOOFFSET,
-					("allocbuf: no buffer offset"));
-
+				    ("allocbuf: no buffer offset"));
 				curbpnpages = bp->b_npages;
 		doretry:
 				bp->b_validoff = orig_validoff;
@@ -1927,7 +1923,7 @@ biodone(register struct buf * bp)
 
 		foff = bp->b_offset;
 		KASSERT(bp->b_offset != NOOFFSET,
-			("biodone: no buffer offset"));
+		    ("biodone: no buffer offset"));
 
 #if !defined(MAX_PERF)
 		if (!obj) {
@@ -2200,8 +2196,7 @@ vfs_busy_pages(struct buf * bp, int clear_modify)
 
 		foff = bp->b_offset;
 		KASSERT(bp->b_offset != NOOFFSET,
-			("vfs_busy_pages: no buffer offset"));
-
+		    ("vfs_busy_pages: no buffer offset"));
 		vfs_setdirty(bp);
 
 retry:
@@ -2249,10 +2244,8 @@ vfs_clean_pages(struct buf * bp)
 	if (bp->b_flags & B_VMIO) {
 		vm_ooffset_t foff;
 		foff = bp->b_offset;
-
 		KASSERT(bp->b_offset != NOOFFSET,
-			("vfs_clean_pages: no buffer offset"));
-
+		    ("vfs_clean_pages: no buffer offset"));
 		for (i = 0; i < bp->b_npages; i++) {
 			vm_page_t m = bp->b_pages[i];
 			vfs_page_set_valid(bp, foff, i, m);

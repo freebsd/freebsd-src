@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.49 1998/11/10 08:46:24 peter Exp $
+ * $Id: kern_malloc.c,v 1.50 1999/01/08 17:31:09 eivind Exp $
  */
 
 #include "opt_vm.h"
@@ -64,7 +64,7 @@ static char *kmembase;
 static char *kmemlimit;
 static int vm_kmem_size;
 
-#if defined(INVARIANTS)
+#ifdef INVARIANTS
 /*
  * This structure provides a set of masks to catch unaligned frees.
  */
@@ -261,7 +261,7 @@ free(addr, type)
 		panic("freeing with unknown type (%s)", type->ks_shortdesc);
 
 	KASSERT(kmembase <= (char *)addr && (char *)addr < kmemlimit,
-		("free: address %p out of range", (void *)addr));
+	    ("free: address %p out of range", (void *)addr));
 	kup = btokup(addr);
 	size = 1 << kup->ku_indx;
 	kbp = &bucket[kup->ku_indx];
@@ -302,11 +302,10 @@ free(addr, type)
 	if (freep->spare0 == WEIRD_ADDR) {
 		fp = (struct freelist *)kbp->kb_next;
 		while (fp) {
-			if (fp->spare0 != WEIRD_ADDR) {
+			if (fp->spare0 != WEIRD_ADDR)
 				panic("free: free item %p modified", fp);
-			} else if (addr == (caddr_t)fp) {
+			else if (addr == (caddr_t)fp)
 				panic("free: multiple freed item %p", addr);
-			}
 			fp = (struct freelist *)fp->next;
 		}
 	}
