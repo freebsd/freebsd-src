@@ -27,10 +27,11 @@ Boston, MA 02111-1307, USA.  */
    the GCC option `-posix', and PIC issues as on all FreeBSD platforms, we must
    deal with the Alpha's FP issues.  */
 
-#undef FBSD_TARGET_CPU_CPP_BUILTINS
+#undef  FBSD_TARGET_CPU_CPP_BUILTINS
 #define FBSD_TARGET_CPU_CPP_BUILTINS()		\
   do						\
     {						\
+      builtin_define ("__LP64__");		\
       if (flag_pic)				\
 	{					\
 	  builtin_define ("__PIC__");		\
