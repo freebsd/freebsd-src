@@ -110,7 +110,7 @@
 
 /* Set HAVE_SIG_ATOMIC_T_IN_SIGNAL_H if the type sig_atomic_t is defined
    in <signal.h> as required by ANSI C.  */
-#define HAVE_SIG_ATOMIC_T_IN_SIGNAL_H 1
+#define HAVE_SIG_ATOMIC_T_IN_SIGNAL_H 0
 
 /* Set HAVE_SIG_ATOMIC_T_IN_TYPES_H if the type sig_atomic_t is defined
    in <sys/types.h>.  This is ignored if HAVE_SIG_ATOMIC_T_IN_SIGNAL_H is
