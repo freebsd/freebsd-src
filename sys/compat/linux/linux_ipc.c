@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ipc.c,v 1.2 1995/11/22 07:43:47 bde Exp $
+ *  $Id: linux_ipc.c,v 1.3 1995/12/15 05:07:20 peter Exp $
  */
 
 #include <sys/param.h>
@@ -143,25 +143,65 @@ linux_semctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 int
 linux_msgsnd(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+    struct msgsnd_args /* {
+	int     msqid;   
+	void    *msgp;   
+	size_t  msgsz;   
+	int     msgflg; 
+    } */ bsd_args;
+
+    bsd_args.msqid = args->arg1;
+    bsd_args.msgp = args->ptr;
+    bsd_args.msgsz = args->arg2;
+    bsd_args.msgflg = args->arg3;
+    return msgsnd(p, &bsd_args, retval);
 }
 
 int
 linux_msgrcv(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+    struct msgrcv_args /* {     
+        int 	msqid;   
+	void	*msgp;   
+	size_t	msgsz;   
+	long	msgtyp; 
+	int	msgflg; 
+    } */ bsd_args; 
+
+    bsd_args.msqid = args->arg1;
+    bsd_args.msgp = args->ptr;
+    bsd_args.msgsz = args->arg2;
+    bsd_args.msgtyp = 0;
+    bsd_args.msgflg = args->arg3;
+    return msgrcv(p, &bsd_args, retval);
 }
 
 int
 linux_msgget(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+    struct msgget_args /* {
+	key_t	key;
+        int 	msgflg;
+    } */ bsd_args;
+
+    bsd_args.key = args->arg1;
+    bsd_args.msgflg = args->arg2;
+    return msgget(p, &bsd_args, retval);
 }
 
 int
 linux_msgctl(struct proc *p, struct linux_ipc_args *args, int *retval)
 {
-    return ENOSYS;
+    struct msgctl_args /* {
+	int     msqid; 
+	int     cmd;
+	struct	msqid_ds *buf;
+    } */ bsd_args;
+
+    bsd_args.msqid = args->arg1;
+    bsd_args.cmd = args->arg2;
+    bsd_args.buf = (struct msqid_ds *)args->ptr;
+    return msgctl(p, &bsd_args, retval);
 }
 
 int
