@@ -85,6 +85,8 @@ struct clockframe {
  * Call frame for PowerPC used during fork.
  */
 struct callframe {
+	register_t	cf_dummy_fp;	/* dummy frame pointer */
+	register_t	cf_lr;		/* space for link register save */
 	register_t	cf_func;
 	register_t	cf_arg0;
 	register_t	cf_arg1;
