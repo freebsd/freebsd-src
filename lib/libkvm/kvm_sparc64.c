@@ -63,7 +63,6 @@ static char sccsid[] = "@(#)kvm_hp300.c	8.1 (Berkeley) 6/4/93";
 #include <vm/vm_param.h>
 
 #include <machine/tte.h>
-#include <machine/tlb.h>
 #include <machine/tsb.h>
 
 #include <limits.h>
@@ -117,41 +116,35 @@ _kvm_initvtop(kvm_t *kd)
 	return (0);
 }
 
-static int
-_kvm_vatop(kvm_t *kd, u_long va, u_long *pa)
+int
+_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
 {
 	struct vmstate *vm;
-	struct stte st;
+	struct tte tte;
 	u_long offset;
-	u_long st_pa;
+	u_long tte_pa;
 	u_long vpn;
 
 	vpn = btop(va);
 	offset = va & PAGE_MASK;
-	st_pa = kd->vmst->vm_tsb + ((vpn & TSB_KERNEL_MASK) << STTE_SHIFT);
+	tte_pa = kd->vmst->vm_tsb + ((vpn & TSB_KERNEL_MASK) << TTE_SHIFT);
 
 	/* XXX This has to be a physical address read, kvm_read is virtual */
-	if (lseek(kd->pmfd, st_pa, 0) == -1) {
+	if (lseek(kd->pmfd, tte_pa, 0) == -1) {
 		_kvm_syserr(kd, kd->program, "_kvm_vatop: lseek");
 		goto invalid;
 	}
-	if (read(kd->pmfd, &st, sizeof(st)) != sizeof(st)) {
+	if (read(kd->pmfd, &tte, sizeof(tte)) != sizeof(tte)) {
 		_kvm_syserr(kd, kd->program, "_kvm_vatop: read");
 		goto invalid;
 	}
-	if (!tte_match(st.st_tte, va))
+	if (!tte_match(tte, va))
 		goto invalid;
 
-	*pa = TD_PA(st.st_tte.tte_data) + offset;
+	*pa = TD_PA(tte.tte_data) + offset;
 	return (PAGE_SIZE - offset);
 
 invalid:
 	_kvm_err(kd, 0, "invalid address (%x)", va);
 	return (0);
-}
-
-int
-_kvm_kvatop(kvm_t *kd, u_long va, u_long *pa)
-{
-	return (_kvm_vatop(kd, va, pa));
 }
