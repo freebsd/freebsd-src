@@ -93,9 +93,11 @@
  * Per-interrupt data.
  */
 u_long	*intr_countp[ICU_LEN];		/* pointers to interrupt counters */
-driver_intr_t *intr_handler[ICU_LEN];	/* first level interrupt handler */
-struct ithd *ithds[ICU_LEN];		/* real interrupt handler */
+driver_intr_t	*intr_handler[ICU_LEN];	/* first level interrupt handler */
+struct	 ithd *ithds[ICU_LEN];		/* real interrupt handler */
 void	*intr_unit[ICU_LEN];
+
+static struct	mtx ithds_table_lock;	/* protect the ithds table */
 
 static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr0), &IDTVEC(fastintr1),
@@ -132,6 +134,10 @@ static inthand_t *slowintr[ICU_LEN] = {
 };
 
 static driver_intr_t isa_strayintr;
+
+static void	ithds_init(void *dummy);
+static void	ithread_enable(int vector);
+static void	ithread_disable(int vector);
 
 #ifdef PC98
 #define NMI_PARITY 0x04
@@ -388,7 +394,7 @@ isa_irq_pending()
  * vmstat(8) and the like.
  */
 static void
-update_intrname(int intr, char *name)
+update_intrname(int intr, const char *name)
 {
 	char buf[32];
 	char *cp;
@@ -536,132 +542,90 @@ icu_unset(intr, handler)
 	return (0);
 }
 
-struct intrhand *
-inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
-	     int pri, int flags)
+static void
+ithds_init(void *dummy)
 {
-	struct ithd *ithd = ithds[irq];	/* descriptor for the IRQ */
-	struct intrhand *head;		/* chain of handlers for IRQ */
-	struct intrhand *idesc;		/* descriptor for this handler */
-	struct proc *p;			/* interrupt thread */
+
+	mtx_init(&ithds_table_lock, "ithread table lock", MTX_SPIN);
+}
+SYSINIT(ithds_init, SI_SUB_INTR, SI_ORDER_SECOND, ithds_init, NULL);
+
+static void
+ithread_enable(int vector)
+{
+
+	INTREN(1 << vector);
+}
+
+static void
+ithread_disable(int vector)
+{
+
+	INTRDIS(1 << vector);
+}
+
+int
+inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
+    enum intr_type flags, void **cookiep)
+{
+	struct ithd *ithd;		/* descriptor for the IRQ */
 	int errcode = 0;
+	int created_ithd = 0;
 
-	if (name == NULL)		/* no name? */
-		panic ("anonymous interrupt");
-	if (ithd == NULL || ithd->it_ih == NULL) {
-		/* first handler for this irq. */
-		if (ithd == NULL) {
-			ithd = malloc(sizeof (struct ithd), M_DEVBUF,
-			    M_WAITOK | M_ZERO);
-			if (ithd == NULL)
-				return (NULL);
-			ithd->irq = irq;
+	/*
+	 * Work around a race where more than one CPU may be registering
+	 * handlers on the same IRQ at the same time.
+	 */
+	mtx_lock_spin(&ithds_table_lock);
+	ithd = ithds[irq];
+	mtx_unlock_spin(&ithds_table_lock);
+	if (ithd == NULL) {
+		errcode = ithread_create(&ithd, irq, 0, ithread_disable,
+		    ithread_enable, "irq%d:", irq);
+		if (errcode)
+			return (errcode);
+		mtx_lock_spin(&ithds_table_lock);
+		if (ithds[irq] == NULL) {
 			ithds[irq] = ithd;
+			created_ithd++;
+			mtx_unlock_spin(&ithds_table_lock);
+		} else {
+			struct ithd *orphan;
+
+			orphan = ithd;
+			ithd = ithds[irq];
+			mtx_unlock_spin(&ithds_table_lock);
+			ithread_destroy(orphan);
 		}
-		/*
-		 * If we have a fast interrupt, we need to set the
-		 * handler address directly.  Do that below.  For a
-		 * slow interrupt, we don't need to know more details,
-		 * so do it here because it's tidier.
-		 */
-		if ((flags & INTR_FAST)	== 0) {
-			/*
-			 * Only create a kernel thread if we don't already
-			 * have one.
-			 */
-			if (ithd->it_proc == NULL) {
-				errcode = kthread_create(ithd_loop, NULL, &p,
-				    RFSTOPPED | RFHIGHPID, "irq%d: %s", irq,
-				    name);
-				if (errcode)
-					panic("inthand_add: Can't create "
-					      "interrupt thread");
-				p->p_intr_nesting_level = 1;
-				p->p_rtprio.type = RTP_PRIO_ITHREAD;
-				p->p_stat = SWAIT; /* we're idle */
-
-				/* Put in linkages. */
-				ithd->it_proc = p;
-				p->p_ithd = ithd;
-			} else
-				snprintf(ithd->it_proc->p_comm, MAXCOMLEN,
-				    "irq%d: %s", irq, name);
-			p->p_rtprio.prio = pri;
-
-			/*
-			 * The interrupt process must be in place, but
-			 * not necessarily schedulable, before we
-			 * initialize the ICU, since it may cause an
-			 * immediate interrupt.
-			 */
-			if (icu_setup(irq, &sched_ithd, arg, flags) != 0)
-				panic("inthand_add: Can't initialize ICU");
-		}
-	} else if ((flags & INTR_EXCL) != 0
-		   || (ithd->it_ih->ih_flags & INTR_EXCL) != 0) {
-		/*
-		 * We can't append the new handler if either
-		 * list ithd or new handler do not allow
-		 * interrupts to be shared.
-		 */
-		if (bootverbose)
-			printf("\tdevice combination %s and %s "
-			       "doesn't support shared irq%d\n",
-			       ithd->it_ih->ih_name, name, irq);
-		return(NULL);
-	} else if (flags & INTR_FAST) {
-		 /* We can only have one fast interrupt by itself. */
-		if (bootverbose)
-			printf("\tCan't add fast interrupt %s"
- 			       " to normal interrupt %s on irq%d",
-			       name, ithd->it_ih->ih_name, irq);
-		return (NULL);
-	} else {			/* update p_comm */
-		p = ithd->it_proc;
-		if (strlen(p->p_comm) + strlen(name) < MAXCOMLEN) {
-			strcat(p->p_comm, " ");
-			strcat(p->p_comm, name);
-		} else if (strlen(p->p_comm) == MAXCOMLEN)
-			p->p_comm[MAXCOMLEN - 1] = '+';
-		else
-			strcat(p->p_comm, "+");
 	}
-	idesc = malloc(sizeof (struct intrhand), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (idesc == NULL)
-		return (NULL);
 
-	idesc->ih_handler = handler;
-	idesc->ih_argument = arg;
-	idesc->ih_flags = flags;
-	idesc->ih_ithd = ithd;
+	errcode = ithread_add_handler(ithd, name, handler, arg,
+	    ithread_priority(flags), flags, cookiep);
+	
+	if ((flags & INTR_FAST) == 0 || errcode)
+		/*
+		 * The interrupt process must be in place, but
+		 * not necessarily schedulable, before we
+		 * initialize the ICU, since it may cause an
+		 * immediate interrupt.
+		 */
+		if (icu_setup(irq, &sched_ithd, arg, flags) != 0)
+			panic("inthand_add: Can't initialize ICU");
 
-	idesc->ih_name = malloc(strlen(name) + 1, M_DEVBUF, M_WAITOK);
-	if (idesc->ih_name == NULL) {
-		free(idesc, M_DEVBUF);
-		return (NULL);
-	}
-	strcpy(idesc->ih_name, name);
-
-	/* Slow interrupts got set up above. */
-	if ((flags & INTR_FAST)
-		&& (icu_setup(irq, idesc->ih_handler, idesc->ih_argument,
-			      idesc->ih_flags) != 0) ) {
-		if (bootverbose)
+	if (errcode)
+		return (errcode);
+	
+	if (flags & INTR_FAST) {
+		errcode = icu_setup(irq, handler, arg, flags);
+		if (errcode && bootverbose)
 			printf("\tinthand_add(irq%d) failed, result=%d\n", 
 			       irq, errcode);
-		free(idesc->ih_name, M_DEVBUF);
-		free(idesc, M_DEVBUF);
-		return NULL;
+		if (errcode)
+			return (errcode);
 	}
-	head = ithd->it_ih;		/* look at chain of handlers */
-	if (head) {
-		while (head->ih_next != NULL)
-			head = head->ih_next; /* find the end */
-		head->ih_next = idesc;	/* hook it in there */
-	} else
-		ithd->it_ih = idesc;	/* put it up front */
-	update_intrname(irq, idesc->ih_name);
-	return (idesc);
+
+	update_intrname(irq, name);
+	return (0);
 }
 
 /*
@@ -673,50 +637,9 @@ inthand_add(const char *name, int irq, driver_intr_t handler, void *arg,
  * structure to the system.  First ensure the handler is not actively
  * in use.
  */
-
 int
-inthand_remove(struct intrhand *idesc)
+inthand_remove(void *cookie)
 {
-	struct ithd *ithd;		/* descriptor for the IRQ */
-	struct intrhand *ih;		/* chain of handlers */
 
-	if (idesc == NULL)
-		return (-1);
-	ithd = idesc->ih_ithd;
-	ih = ithd->it_ih;
-
-	if (ih == idesc)		/* first in the chain */
-		ithd->it_ih = idesc->ih_next; /* unhook it */
-	else {
-		while ((ih != NULL)
-			&& (ih->ih_next != idesc) )
-			ih = ih->ih_next;
-		if (ih->ih_next != idesc)
-			return (-1);
-		ih->ih_next = ih->ih_next->ih_next;
-	}
-	
-	if (ithd->it_ih == NULL) {	/* no handlers left, */
-		icu_unset(ithd->irq, idesc->ih_handler);
-		ithds[ithd->irq] = NULL;
-
-		if ((idesc->ih_flags & INTR_FAST) == 0) {
-			mtx_lock_spin(&sched_lock);
-			if (ithd->it_proc->p_stat == SWAIT) {
-				ithd->it_proc->p_intr_nesting_level = 0;
-				ithd->it_proc->p_stat = SRUN;
-				setrunqueue(ithd->it_proc);
-				/*
-				 * We don't do an ast here because we really
-				 * don't care when it runs next.
-				 *
-				 * XXX: should we lower the threads priority?
-				 */
-			}
-			mtx_unlock_spin(&sched_lock);
-		}
-	}
-	free(idesc->ih_name, M_DEVBUF);
-	free(idesc, M_DEVBUF);
-	return (0);
+	return (ithread_remove_handler(cookie));
 }
