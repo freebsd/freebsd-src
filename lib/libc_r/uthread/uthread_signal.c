@@ -45,7 +45,7 @@ _thread_sys_signal(int s, sig_t a)
 	/* Initialise the signal action structure: */
 	sigemptyset(&sa.sa_mask);
 	sa.sa_handler = a;
-	sa.sa_flags = 0;
+	sa.sa_flags = SA_SIGINFO;
 
 	/* Perform the sigaction syscall: */
 	if (_thread_sys_sigaction(s, &sa, &osa) < 0) {

@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <string.h>
 #include <unistd.h>
@@ -296,7 +297,6 @@ _thread_dump_info(void)
 		/* Close the dump file: */
 		_thread_sys_close(fd);
 	}
-	return;
 }
 
 /* Set the thread name for debug: */

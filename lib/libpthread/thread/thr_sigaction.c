@@ -74,12 +74,13 @@ _sigaction(int sig, const struct sigaction * act, struct sigaction * oact)
 		 */
 		if (act != NULL && sig != _SCHED_SIGNAL && sig != SIGCHLD &&
 		    sig != SIGINFO) {
-			/* Initialise the global signal action structure: */
-			gact.sa_mask = act->sa_mask;
-			gact.sa_flags = 0;
-
-			/* Ensure the scheduling signal is masked: */
-			sigaddset(&gact.sa_mask, _SCHED_SIGNAL);
+			/*
+			 * Ensure the signal handler cannot be interrupted
+			 * by other signals.  Always request the POSIX signal
+			 * handler arguments.
+			 */
+			sigfillset(&gact.sa_mask);
+			gact.sa_flags = SA_SIGINFO;
 
 			/*
 			 * Check if the signal handler is being set to
