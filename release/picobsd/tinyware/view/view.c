@@ -38,7 +38,7 @@
 #include <sys/types.h>
 #include <sys/fbio.h>
 #include <sys/consio.h>
-#include <machine/mouse.h>
+#include <sys/mouse.h>
 #include <vgl.h>
 #include <png.h>
 

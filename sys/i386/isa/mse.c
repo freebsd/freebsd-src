@@ -52,11 +52,11 @@
 #include <sys/poll.h>
 #include <sys/select.h>
 #include <sys/uio.h>
+#include <sys/mouse.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
-#include <machine/mouse.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
 

@@ -63,9 +63,7 @@ static const char rcsid[] =
 #include <setjmp.h>
 #include <termios.h>
 #include <syslog.h>
-
-#include <machine/mouse.h>
-
+#include <sys/mouse.h>
 #include <sys/consio.h>
 #include <sys/types.h>
 #include <sys/time.h>
