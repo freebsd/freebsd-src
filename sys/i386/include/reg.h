@@ -34,21 +34,23 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)reg.h	5.5 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: reg.h,v 1.13 1997/02/22 09:35:07 peter Exp $
  */
 
 #ifndef _MACHINE_REG_H_
 #define	_MACHINE_REG_H_
 
 /*
- * Location of the users' stored
- * registers within appropriate frame of 'trap' and 'syscall', relative to
- * base of stack frame.
- * Normal usage is u.u_ar0[XX] in kernel.
+ * Indices for registers in `struct trapframe' and `struct regs'.
+ *
+ * This interface is deprecated.  In the kernel, it is only used in FPU
+ * emulators to convert from register numbers encoded in instructions to
+ * register values.  Everything else just accesses the relevant struct
+ * members.  In userland, debuggers tend to abuse this interface since
+ * they don't understand that `struct regs' is a struct.  I hope they have
+ * stopped accessing the registers in the trap frame via PT_{READ,WRITE}_U
+ * and we can stop supporting the user area soon.
  */
-
-/* When referenced during a trap/exception, registers are at these offsets */
-
 #define	tES	(0)
 #define	tDS	(1)
 #define	tEDI	(2)
@@ -59,9 +61,7 @@
 #define	tEDX	(7)
 #define	tECX	(8)
 #define	tEAX	(9)
-
 #define	tERR	(11)
-
 #define	tEIP	(12)
 #define	tCS	(13)
 #define	tEFLAGS	(14)
@@ -69,10 +69,7 @@
 #define	tSS	(16)
 
 /*
- * Registers accessible to ptrace(2) syscall for debugger
- * The machine-dependent code for PT_{SET,GET}REGS needs to
- * use whichever order, defined above, is correct, so that it
- * is all invisible to the user.
+ * Register set accessible via /proc/$pid/regs and PT_{SET,GET}REGS.
  */
 struct reg {
 	unsigned int	r_es;
@@ -95,7 +92,7 @@ struct reg {
 };
 
 /*
- * Register set accessible via /proc/$pid/fpreg
+ * Register set accessible via /proc/$pid/fpregs.
  */
 struct fpreg {
 	/*
@@ -110,6 +107,9 @@ struct fpreg {
 };
 
 #ifdef KERNEL
+/*
+ * XXX these interfaces are MI, so they should be declared in a MI place.
+ */
 int	set_regs __P((struct proc *p, struct reg *regs));
 void	setregs __P((struct proc *, u_long, u_long));
 #endif
