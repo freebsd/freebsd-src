@@ -42,6 +42,7 @@ LIB		 = pam
 
 CFLAGS		+= -I${.CURDIR} -I${OPENPAM}/include
 CFLAGS		+= -DLIB_MAJ=${SHLIB_MAJOR}
+NOPROFILE	 = YES
 WARNS		?= 4
 
 SRCS		 =
