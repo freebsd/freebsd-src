@@ -182,7 +182,6 @@ static int	getn __P((const char *));
 static quad_t	getq __P((const char *));
 static int	intcmp __P((const char *, const char *));
 static int	isoperand __P((void));
-int		main __P((int, char **));
 static int	newerf __P((const char *, const char *));
 static int	nexpr __P((enum token));
 static int	oexpr __P((enum token));
@@ -196,8 +195,23 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
-	int	res;
+	int	i, res;
 	char	*p;
+	char	**nargv;
+
+	/*
+	 * XXX copy the whole contents of argv to a newly allocated
+	 * space with two extra cells filled with NULL's - this source
+	 * code totally depends on their presence.
+	 */
+	if ((nargv = (char **)malloc((argc + 2) * sizeof(char *))) == NULL)
+		error("Out of space");
+
+	for (i = 0; i < argc; i++)
+		nargv[i] = argv[i];
+
+	nargv[i] = nargv[i + 1] = NULL;
+	argv = nargv;
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];
@@ -208,10 +222,6 @@ main(argc, argv)
 			error("missing ]");
 		argv[argc] = NULL;
 	}
-
-	/* no expression => false */
-	if (--argc <= 0)
-		return 1;
 
 	/* XXX work around the absence of an eaccess(2) syscall */
 	(void)setgid(getegid());
