@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ethersubr.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ethersubr.c,v 1.12 1995/12/09 20:47:11 phk Exp $
+ * $Id: if_ethersubr.c,v 1.13 1995/12/20 21:53:40 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -484,27 +484,6 @@ ether_input(ifp, eh, m)
 	} else
 		IF_ENQUEUE(inq, m);
 	splx(s);
-}
-
-/*
- * Convert Ethernet address to printable (loggable) representation.
- */
-static char digits[] = "0123456789abcdef";
-char *
-ether_sprintf(ap)
-	register u_char *ap;
-{
-	register i;
-	static char etherbuf[18];
-	register char *cp = etherbuf;
-
-	for (i = 0; i < 6; i++) {
-		*cp++ = digits[*ap >> 4];
-		*cp++ = digits[*ap++ & 0xf];
-		*cp++ = ':';
-	}
-	*--cp = 0;
-	return (etherbuf);
 }
 
 /*
