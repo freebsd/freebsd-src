@@ -1221,7 +1221,7 @@ is rather than recomputing it each time.  This makes
 it faster.  However, if the current directory is
 renamed, the builtin version of pwd will continue to
 print the old name for the directory.
-.It Li "read [ -p prompt ] [ -t timeout ] [ -e ] variable ...
+.It Li "read [ -p prompt ] [ -t timeout ] [ -er ] variable ...
 The prompt is printed if the -p option is specified
 and the standard input is a terminal.  Then a line is
 read from the standard input.  The trailing newline
@@ -1234,6 +1234,14 @@ separated them) are assigned to the last variable.
 If there are more variables than pieces, the remaining
 variables are assigned the null string.
 .Pp
+Backslashes are treated specially, unless the -r option is
+specified.  If a backslash is followed by
+a newline, the backslash and the newline will be
+deleted.  If a backslash is followed by any other
+character, the backslash will be deleted and the following
+character will be treated as though it were
+not in IFS, even if it is.
+.Pp
 If the -t option is specified the timeout elapses
 before any input is supplied, the read command will
 return without assigning any values.  The timeout value
@@ -1241,13 +1249,7 @@ may optionally be followed by one of 's', 'm' or 'h' to
 explicitly specify seconds, minutes or or hours.  If none
 is supplied, 's' is assumed.
 .Pp
-The -e option causes any backslashes in the input to
-be treated specially.  If a backslash is followed by
-a newline, the backslash and the newline will be
-deleted.   If a backslash is followed by any other
-character, the backslash will be deleted and the following
-character will be treated as though it were
-not in IFS, even if it is.
+The -e option exists only for backward compatibility with older scripts.
 .It readonly name ...
 The specified names are marked as read only, so that
 they cannot be subsequently modified or unset.  The shell
