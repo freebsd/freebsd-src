@@ -6,10 +6,6 @@ INTERNALLIB=	yes
 
 SRCS=		genget.c getent.c misc.c encrypt.c auth.c \
 		enc_des.c sra.c pk.c
-.if defined(MAKE_KERBEROS4)
-SRCS+=		kerberos.c
-CFLAGS+=	-DKRB4 -I${KRB4DIR}/lib/krb
-.endif
 SRCS+=		kerberos5.c
 
 #WARNS?=		2

@@ -8,9 +8,6 @@ CFLAGS+=-I${KRB5DIR}/lib/krb5 \
 	-I${KRB5DIR}/include \
 	-I${KRB5OBJDIR} \
 	-I${ASN1OBJDIR}
-.if defined(MAKE_KERBEROS4)
-CFLAGS+=-I${KRB4DIR}/include
-.endif
 SRCS=	\
 	acl.c \
 	add_et_list.c \

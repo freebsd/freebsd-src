@@ -13,18 +13,10 @@ CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
 
 WARNS?=		2
 
-DPADD=
-LDADD=
-
-.if defined(MAKE_KERBEROS4)
-DPADD+=		${LIBKRB} ${LIBCOM_ERR}
-LDADD+=		-lkrb -lcom_err
-.endif
-
-DPADD+=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} \
+DPADD=		${LIBTERMCAP} ${LIBTELNET} ${LIBMP} \
 		${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN} \
 		${LIBCRYPTO} ${LIBCRYPT} ${LIBIPSEC} ${LIBPAM}
-LDADD+=		-ltermcap ${LIBTELNET} -lmp \
+LDADD=		-ltermcap ${LIBTELNET} -lmp \
 		-L${KRB5OBJDIR} -lkrb5 -L${ASN1OBJDIR} -lasn1 -lcom_err \
 		-L${ROKENOBJDIR} -lroken \
 		-lcrypto -lcrypt -lipsec ${MINUSLPAM}
