@@ -33,6 +33,8 @@
 
 #include "assym.s"
 
+	.register %g2,#ignore
+
 	.globl	kernbase
 	.set	kernbase,KERNBASE
 
@@ -48,6 +50,7 @@ ENTRY(_start)
 	wrpr	%g0, 1, %cwp
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
+	wr	%g0, 0, %fprs
 
 	SET(kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %l0, %o0)
 	sub	%o0, SPOFF + CCFSZ, %sp
@@ -60,6 +63,10 @@ ENTRY(_start)
 	! NOTREACHED
 END(_start)
 
+/*
+ * Signal trampoline, copied out to user stack.  Must be 16 byte aligned or
+ * the argv and envp pointers can become misaligned.
+ */
 ENTRY(sigcode)
 	call	%o4
 	 nop
@@ -68,8 +75,7 @@ ENTRY(sigcode)
 	ta	%xcc, 9
 	mov	SYS_exit, %g1
 	ta	%xcc, 9
-1:	b	%xcc, 1b
-	 nop
+	illtrap
 	.align 16
 esigcode:
 END(sigcode)
