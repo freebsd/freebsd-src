@@ -122,9 +122,9 @@ typedef struct {
 	int	minkeypage;	/* minimum keys per page */
 	u_int	psize;		/* page size */
 	int	(*compare)	/* comparison function */
-(const DBT *, const DBT *);
+	    (const DBT *, const DBT *);
 	size_t	(*prefix)	/* prefix function */
-(const DBT *, const DBT *);
+	    (const DBT *, const DBT *);
 	int	lorder;		/* byte order */
 } BTREEINFO;
 
