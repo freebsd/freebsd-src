@@ -33,13 +33,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.71 1998/10/25 17:44:52 phk Exp $
+ * $Id: vfs_cluster.c,v 1.72 1998/11/13 01:01:40 dg Exp $
  */
 
 #include "opt_debug_cluster.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
@@ -53,7 +54,6 @@
 
 #if defined(CLUSTERDEBUG)
 #include <sys/sysctl.h>
-#include <sys/kernel.h>
 static int	rcluster= 0;
 SYSCTL_INT(_debug, OID_AUTO, rcluster, CTLFLAG_RW, &rcluster, 0, "");
 #endif
