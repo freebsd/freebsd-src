@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)head.c	8.2 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id: head.c,v 1.7 1997/07/10 06:46:13 charnier Exp $";
+	"$Id: head.c,v 1.8 1997/07/11 06:13:18 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -157,7 +157,7 @@ head_bytes(fp, cnt)
 		else
 			readlen = sizeof(buf);
 		readlen = fread(buf, sizeof(char), readlen, fp);
-		if (readlen == EOF)
+		if (readlen == 0)
 			break;
 		if (fwrite(buf, sizeof(char), readlen, stdout) != readlen)
 			err(1, "stdout");
