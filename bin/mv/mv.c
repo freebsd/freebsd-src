@@ -78,7 +78,8 @@ void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	int baselen, len, rval;
+	size_t baselen, len;
+	int rval;
 	char *p, *endp;
 	struct stat sb;
 	int ch;
