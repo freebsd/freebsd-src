@@ -655,6 +655,9 @@ wi_init(void *arg)
 		wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_ADHOC);
 		break;
 	case IEEE80211_M_HOSTAP:
+		/* The card can lock up if we don't toggle it first. */
+		wi_cmd(sc, WI_CMD_DISABLE | WI_PORT0, 0, 0, 0);
+		wi_cmd(sc, WI_CMD_ENABLE | WI_PORT0, 0, 0, 0);
 		wi_write_val(sc, WI_RID_PORTTYPE, WI_PORTTYPE_HOSTAP);
 		break;
 	case IEEE80211_M_MONITOR:
