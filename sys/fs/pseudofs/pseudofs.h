@@ -89,6 +89,15 @@ typedef int (*pfs_attr_t)(PFS_ATTR_ARGS);
 struct pfs_bitmap;		/* opaque */
 
 /*
+ * Visibility callback
+ */
+#define PFS_VIS_ARGS \
+	struct thread *td, struct proc *p, struct pfs_node *pn
+#define PFS_VIS_PROTO(name) \
+	int name(PFS_VIS_ARGS);
+typedef int (*pfs_vis_t)(PFS_VIS_ARGS);
+
+/*
  * pfs_info: describes a pseudofs instance
  */
 struct pfs_info {
@@ -114,6 +123,7 @@ struct pfs_node {
 #define pn_func		u1._pn_func
 #define pn_nodes	u1._pn_nodes
 	pfs_attr_t		 pn_attr;
+	pfs_vis_t		 pn_vis;
 	void			*pn_data;
 	int			 pn_flags;
 	/* members below this line aren't initialized */
@@ -121,24 +131,24 @@ struct pfs_node {
 	u_int32_t		 pn_fileno;
 };
 
-#define PFS_NODE(name, type, fill, attr, data, flags) \
-        { (name), (type), { (fill) }, (attr), (data), (flags) }
-#define PFS_DIR(name, nodes, attr, data, flags) \
-        PFS_NODE(name, pfstype_dir, nodes, attr, data, flags)
+#define PFS_NODE(name, type, fill, attr, vis, data, flags) \
+        { (name), (type), { (fill) }, (attr), (vis), (data), (flags) }
+#define PFS_DIR(name, nodes, attr, vis, data, flags) \
+        PFS_NODE(name, pfstype_dir, nodes, attr, vis, data, flags)
 #define PFS_ROOT(nodes) \
-        PFS_NODE("/", pfstype_root, nodes, NULL, NULL, 0)
+        PFS_NODE("/", pfstype_root, nodes, NULL, NULL, NULL, 0)
 #define PFS_THIS \
-	PFS_NODE(".", pfstype_this, NULL, NULL, NULL, 0)
+	PFS_NODE(".", pfstype_this, NULL, NULL, NULL, NULL, 0)
 #define PFS_PARENT \
-	PFS_NODE("..", pfstype_parent, NULL, NULL, NULL, 0)
-#define PFS_FILE(name, func, attr, data, flags) \
-	PFS_NODE(name, pfstype_file, func, attr, data, flags)
-#define PFS_SYMLINK(name, func, attr, data, flags) \
-	PFS_NODE(name, pfstype_symlink, func, attr, data, flags)
-#define PFS_PROCDIR(nodes, attr, data, flags) \
-        PFS_NODE("", pfstype_procdir, nodes, attr, data, flags)
+	PFS_NODE("..", pfstype_parent, NULL, NULL, NULL, NULL, 0)
+#define PFS_FILE(name, func, attr, vis, data, flags) \
+	PFS_NODE(name, pfstype_file, func, attr, vis, data, flags)
+#define PFS_SYMLINK(name, func, attr, vis, data, flags) \
+	PFS_NODE(name, pfstype_symlink, func, attr, vis, data, flags)
+#define PFS_PROCDIR(nodes, attr, vis, data, flags) \
+        PFS_NODE("", pfstype_procdir, nodes, attr, vis, data, flags)
 #define PFS_LASTNODE \
-	PFS_NODE("", pfstype_none, NULL, NULL, NULL, 0)
+	PFS_NODE("", pfstype_none, NULL, NULL, NULL, NULL, 0)
 
 /*
  * VFS interface

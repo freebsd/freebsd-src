@@ -67,6 +67,31 @@
 #endif
 
 /*
+ * Returns non-zero if given file is visible to given process
+ */
+static int
+pfs_visible(struct thread *td, struct pfs_node *pn, pid_t pid)
+{
+	struct proc *proc;
+	int r;
+	
+	PFS_TRACE(("%s (pid: %d, req: %d)",
+	    pn->pn_name, pid, td->td_proc->p_pid));
+	if (pid == NO_PID)
+		PFS_RETURN (1);
+	
+	r = 1;
+	if ((proc = pfind(pid)) == NULL)
+		PFS_RETURN (0);
+	/* XXX should lock td->td_proc? */
+	if (p_cansee(td->td_proc, proc) != 0 ||
+	    (pn->pn_vis != NULL && !(pn->pn_vis)(td, proc, pn)))
+		r = 0;
+	PROC_UNLOCK(proc);
+	PFS_RETURN (r);
+}
+
+/*
  * Verify permissions
  */
 static int
@@ -82,10 +107,10 @@ pfs_access(struct vop_access_args *va)
 	
 	error = VOP_GETATTR(vn, &vattr, va->a_cred, va->a_td);
 	if (error)
-		return (error);
+		PFS_RETURN (error);
 	error = vaccess(vn->v_type, vattr.va_mode, vattr.va_uid,
 	    vattr.va_gid, va->a_mode, va->a_cred, NULL);
-	return (error);
+	PFS_RETURN (error);
 }
 
 /*
@@ -146,7 +171,7 @@ pfs_getattr(struct vop_getattr_args *va)
 		vap->va_uid = proc->p_ucred->cr_ruid;
 		vap->va_gid = proc->p_ucred->cr_rgid;
 		if (pn->pn_attr != NULL)
-			error = (pn->pn_attr)(curthread, proc, pn, vap);
+			error = (pn->pn_attr)(va->a_td, proc, pn, vap);
 		PROC_UNLOCK(proc);
 	} else {
 		vap->va_uid = 0;
@@ -168,7 +193,6 @@ pfs_lookup(struct vop_lookup_args *va)
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pd = pvd->pvd_pn;
 	struct pfs_node *pn, *pdn = NULL;
-	struct proc *proc;
 	pid_t pid = pvd->pvd_pid;
 	char *pname;
 	int error, i, namelen;
@@ -190,12 +214,9 @@ pfs_lookup(struct vop_lookup_args *va)
 	if (cnp->cn_namelen >= PFS_NAMELEN)
 		PFS_RETURN (ENOENT);
 
-	/* check that owner process exists */
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-		        PFS_RETURN (ENOENT);
-		PROC_UNLOCK(proc);
-	}
+	/* check that parent directory is visisble... */
+	if (!pfs_visible(curthread, pd, pvd->pvd_pid))
+		PFS_RETURN (ENOENT);
 	
 	/* self */
 	namelen = cnp->cn_namelen;
@@ -204,7 +225,7 @@ pfs_lookup(struct vop_lookup_args *va)
 		pn = pd;
 		*vpp = vn;
 		VREF(vn);
-		goto got_vnode;
+		PFS_RETURN (0);
 	}
 
 	/* parent */
@@ -223,10 +244,8 @@ pfs_lookup(struct vop_lookup_args *va)
 		 */
 		if (pd->pn_type == pfstype_procdir)
 			pid = NO_PID;
-		error = pfs_vncache_alloc(vn->v_mount, vpp, pd->pn_parent, pid);
-		if (error)
-			PFS_RETURN (error);
-		goto got_vnode;
+		pn = pd->pn_parent;
+		goto got_pnode;
 	}
 
 	/* named node */
@@ -249,12 +268,13 @@ pfs_lookup(struct vop_lookup_args *va)
 		
 	PFS_RETURN (ENOENT);
  got_pnode:
-	if (!pn->pn_parent)
+	if (pn != pd->pn_parent && !pn->pn_parent)
 		pn->pn_parent = pd;
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (ENOENT);
 	error = pfs_vncache_alloc(vn->v_mount, vpp, pn, pid);
 	if (error)
 		PFS_RETURN (error);
- got_vnode:
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(vn, *vpp, cnp);
 	PFS_RETURN (0);
@@ -270,11 +290,22 @@ pfs_open(struct vop_open_args *va)
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pn = pvd->pvd_pn;
 	int mode = va->a_mode;
-	struct proc *proc;
-	int error;
 
 	PFS_TRACE(("%s (mode 0x%x)", pn->pn_name, mode));
 
+	/*
+	 * check if the file is visible to the caller
+	 *
+	 * XXX Not sure if this is necessary, as the VFS system calls
+         * XXX pfs_lookup() and pfs_access() first, and pfs_lookup()
+         * XXX calls pfs_visible().  There's a race condition here, but
+	 * XXX calling pfs_visible() from here doesn't really close it,
+	 * XXX and the only consequence of that race is an EIO further
+	 * XXX down the line.
+	 */
+	if (!pfs_visible(va->a_td, pn, pvd->pvd_pid))
+		PFS_RETURN (ENOENT);
+	
 	/* check if the requested mode is permitted */
 	if (((mode & FREAD) && !(mode & PFS_RD)) ||
 	    ((mode & FWRITE) && !(mode & PFS_WR)))
@@ -284,17 +315,7 @@ pfs_open(struct vop_open_args *va)
 	if ((mode & O_SHLOCK) || (mode & O_EXLOCK))
 		PFS_RETURN (EOPNOTSUPP);
 	
-	error = 0;
-	if (pvd->pvd_pid != NO_PID) {
-		if ((proc = pfind(pvd->pvd_pid)) == NULL)
-		        PFS_RETURN (ENOENT);
-		/* XXX should lock va->a_td->td_proc? */
-		if (p_cansee(va->a_td->td_proc, proc) != 0)
-			error = ENOENT;
-		PROC_UNLOCK(proc);
-	}
-
-	PFS_RETURN (error);
+	PFS_RETURN (0);
 }
 
 /*
@@ -320,6 +341,14 @@ pfs_read(struct vop_read_args *va)
 	if (!(pn->pn_flags & PFS_RD))
 		PFS_RETURN (EBADF);
 
+	/*
+	 * This is necessary because either process' privileges may
+	 * have changed since the open() call.
+	 */
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (EIO);
+	
+	/* XXX duplicates bits of pfs_visible() */
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			PFS_RETURN (EIO);
@@ -365,11 +394,12 @@ pfs_read(struct vop_read_args *va)
  * Iterate through directory entries
  */
 static int
-pfs_iterate(struct pfs_info *pi, struct pfs_node **pn, struct proc **p)
+pfs_iterate(struct thread *td, pid_t pid, struct pfs_node **pn, struct proc **p)
 {
 	if ((*pn)->pn_type == pfstype_none)
 		return (-1);
 
+ again:
 	if ((*pn)->pn_type != pfstype_procdir)
 		++*pn;
 	
@@ -379,12 +409,15 @@ pfs_iterate(struct pfs_info *pi, struct pfs_node **pn, struct proc **p)
 		else
 			*p = LIST_NEXT(*p, p_list);
 		if (*p != NULL)
-			return (0);
+			break;
 		++*pn;
 	}
 	
 	if ((*pn)->pn_type == pfstype_none)
 		return (-1);
+
+	if (!pfs_visible(td, *pn, *p ? (*p)->p_pid : pid))
+		goto again;
 	
 	return (0);
 }
@@ -399,6 +432,7 @@ pfs_readdir(struct vop_readdir_args *va)
 	struct pfs_info *pi = (struct pfs_info *)vn->v_mount->mnt_data;
 	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
 	struct pfs_node *pd = pvd->pvd_pn;
+	pid_t pid = pvd->pvd_pid;
 	struct pfs_node *pn;
 	struct dirent entry;
 	struct uio *uio;
@@ -412,6 +446,10 @@ pfs_readdir(struct vop_readdir_args *va)
 		PFS_RETURN (ENOTDIR);
 	uio = va->a_uio;
 
+	/* check if the directory is visible to the caller */
+	if (!pfs_visible(curthread, pd, pid))
+		PFS_RETURN (ENOENT);
+	
 	/* only allow reading entire entries */
 	offset = uio->uio_offset;
 	resid = uio->uio_resid;
@@ -421,18 +459,18 @@ pfs_readdir(struct vop_readdir_args *va)
 	/* skip unwanted entries */
 	sx_slock(&allproc_lock);
 	for (pn = pd->pn_nodes, p = NULL; offset > 0; offset -= PFS_DELEN)
-		if (pfs_iterate(pi, &pn, &p) == -1)
+		if (pfs_iterate(curthread, pid, &pn, &p) == -1)
 			break;
 	
 	/* fill in entries */
 	entry.d_reclen = PFS_DELEN;
-	while (pfs_iterate(pi, &pn, &p) != -1 && resid > 0) {
+	while (pfs_iterate(curthread, pid, &pn, &p) != -1 && resid > 0) {
 		if (!pn->pn_parent)
 			pn->pn_parent = pd;
 		if (!pn->pn_fileno)
 			pfs_fileno_alloc(pi, pn);
-		if (pvd->pvd_pid != NO_PID)
-			entry.d_fileno = pn->pn_fileno * NO_PID + pvd->pvd_pid;
+		if (pid != NO_PID)
+			entry.d_fileno = pn->pn_fileno * NO_PID + pid;
 		else
 			entry.d_fileno = pn->pn_fileno;
 		/* PFS_DELEN was picked to fit PFS_NAMLEN */
@@ -533,6 +571,12 @@ pfs_readlink(struct vop_readlink_args *va)
 static int
 pfs_reclaim(struct vop_reclaim_args *va)
 {
+	struct vnode *vn = va->a_vp;
+	struct pfs_vdata *pvd = (struct pfs_vdata *)vn->v_data;
+	struct pfs_node *pn = pvd->pvd_pn;
+
+	PFS_TRACE((pn->pn_name));
+	
 	return (pfs_vncache_free(va->a_vp));
 }
 
@@ -576,6 +620,14 @@ pfs_write(struct vop_read_args *va)
 	if (!(pn->pn_flags & PFS_WR))
 		PFS_RETURN (EBADF);
 
+	/*
+	 * This is necessary because either process' privileges may
+	 * have changed since the open() call.
+	 */
+	if (!pfs_visible(curthread, pn, pvd->pvd_pid))
+		PFS_RETURN (EIO);
+
+	/* XXX duplicates bits of pfs_visible() */
 	if (pvd->pvd_pid != NO_PID) {
 		if ((proc = pfind(pvd->pvd_pid)) == NULL)
 			PFS_RETURN (EIO);
@@ -636,7 +688,7 @@ static struct vnodeopv_entry_desc pfs_vnodeop_entries[] = {
 	{ &vop_setattr_desc,		(vop_t *)pfs_setattr	},
 	{ &vop_symlink_desc,		(vop_t *)pfs_badop	},
 	{ &vop_write_desc,		(vop_t *)pfs_write	},
-	/* XXX I've probably forgotten a few that need pfs_erofs */
+	/* XXX I've probably forgotten a few that need pfs_badop */
 	{ NULL,				(vop_t *)NULL		}
 };
 
