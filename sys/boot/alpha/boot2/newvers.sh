@@ -37,7 +37,8 @@
 
 LC_TIME=C; export LC_TIME
 u=${USER-root} h=`hostname` t=`date`
-r=`head -n 6 $1 | tail -n 1 | awk -F: ' { print $1 } '`
+#r=`head -n 6 $1 | tail -n 1 | awk -F: ' { print $1 } '`
+r=`awk -F: ' /^[0-9]\.[0-9]+:/ { print $1; exit }' $1`
 
 echo "char bootprog_name[] = \"FreeBSD/alpha ${2}\";" > vers.c
 echo "char bootprog_rev[] = \"${r}\";" >> vers.c
