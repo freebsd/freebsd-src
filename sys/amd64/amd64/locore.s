@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.15 1994/02/01 04:08:54 davidg Exp $
+ *	$Id: locore.s,v 1.18 1994/06/06 14:12:48 davidg Exp $
  */
 
 /*
@@ -101,8 +101,10 @@ _esym:	.long	0				/* ptr to end of syms */
 
 	.globl	_boothowto,_bootdev,_curpcb
 
-	.globl	_cpu,_cold,_atdevbase
+	.globl	_cpu,_cold,_atdevbase,_cpu_vendor,_cpu_id
 _cpu:	.long	0				/* are we 386, 386sx, or 486 */
+_cpu_id:	.long 0				/* stepping ID */
+_cpu_vendor:	.space 17			/* CPU origin code */
 _cold:	.long	1				/* cold till we are not */
 _atdevbase:	.long	0			/* location of start of iomem in virtual */
 _atdevphys:	.long	0			/* location of device mapping ptes (phys) */
@@ -168,26 +170,67 @@ NON_GPROF_ENTRY(btext)
 	movsb
 #endif
 
-	/* find out our CPU type. */
-        pushfl
-        popl    %eax
-        movl    %eax,%ecx
-        xorl    $0x40000,%eax
-        pushl   %eax
-        popfl
-        pushfl
-        popl    %eax
-        xorl    %ecx,%eax
-        shrl    $18,%eax
-        andl    $1,%eax
-        push    %ecx
-        popfl
+	/* Find out our CPU type. */
 
-        cmpl    $0,%eax
-        jne     1f
-        movl    $CPU_386,_cpu-KERNBASE
+	/* Try to toggle alignment check flag; does not exist on 386. */
+	pushfl
+	popl	%eax
+	movl	%eax,%ecx
+	orl	$PSL_AC,%eax
+	pushl	%eax
+	popfl
+	pushfl
+	popl	%eax
+	xorl	%ecx,%eax
+	andl	$PSL_AC,%eax
+	pushl	%ecx
+	popfl
+
+	testl	%eax,%eax
+	jnz	1f
+	movl	$CPU_386,_cpu-KERNBASE
 	jmp	2f
-1:      movl    $CPU_486,_cpu-KERNBASE
+
+1:	/* Try to toggle identification flag; does not exist on early 486s. */
+	pushfl
+	popl	%eax
+	movl	%eax,%ecx
+	xorl	$PSL_ID,%eax
+	pushl	%eax
+	popfl
+	pushfl
+	popl	%eax
+	xorl	%ecx,%eax
+	andl	$PSL_ID,%eax
+	pushl	%ecx
+	popfl
+
+	testl	%eax,%eax
+	jnz	1f
+	movl	$CPU_486,_cpu-KERNBASE
+	jmp	2f
+
+1:	/* Use the `cpuid' instruction. */
+	xorl	%eax,%eax
+	.byte	0x0f,0xa2		# cpuid 0
+	movl	%ebx,_cpu_vendor-KERNBASE	# store vendor string
+	movl	%edx,_cpu_vendor+4-KERNBASE
+	movl	%ecx,_cpu_vendor+8-KERNBASE
+	movb	$0,_cpu_vendor+12-KERNBASE
+
+	movl	$1,%eax
+	.byte	0x0f,0xa2		# cpuid 1
+	movl	%eax,_cpu_id-KERNBASE		# store cpu_id
+	rorl	$8,%eax			# extract family type
+	andl	$15,%eax
+	cmpl	$5,%eax
+	jae	1f
+
+	/* less than Pentium; must be 486 */
+	movl	$CPU_486,_cpu-KERNBASE
+	jmp	2f
+
+1:	movl	$CPU_586,_cpu-KERNBASE
 2:
 
 	/*

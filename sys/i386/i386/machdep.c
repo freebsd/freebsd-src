@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.46 1994/08/04 06:10:27 davidg Exp $
+ *	$Id: machdep.c,v 1.47 1994/08/06 09:15:14 davidg Exp $
  */
 
 #include "npx.h"
@@ -96,8 +96,8 @@ static void initcpu(void);
 static int test_page(int *, int);
 
 extern int grow(struct proc *,u_int);
-const char machine[] = "PC-Class";
-const char *cpu_model;
+char machine[] = "PC-Class";
+char cpu_model[sizeof("Pentium") + 1];
 
 #ifndef PANIC_REBOOT_WAIT_TIME
 #define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
@@ -351,17 +351,20 @@ struct cpu_nameclass i386_cpus[] = {
 	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
 	{ "i486SX",		CPUCLASS_486 },		/* CPU_486SX */
 	{ "i486DX",		CPUCLASS_486 },		/* CPU_486   */
-	{ "i586",		CPUCLASS_586 },		/* CPU_586   */
+	{ "Pentium",		CPUCLASS_586 },		/* CPU_586   */
 };
 
 static void
 identifycpu()
 {
+	extern u_long cpu_id;
+	extern char cpu_vendor[];
 	printf("CPU: ");
-	if (cpu >= 0 && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
+	if (cpu >= 0 
+	    && cpu < (sizeof i386_cpus/sizeof(struct cpu_nameclass))) {
 		printf("%s", i386_cpus[cpu].cpu_name);
 		cpu_class = i386_cpus[cpu].cpu_class;
-		cpu_model = i386_cpus[cpu].cpu_name;
+		strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
 	} else {
 		printf("unknown cpu type %d\n", cpu);
 		panic("startup: bad cpu id");
@@ -378,12 +381,16 @@ identifycpu()
 		printf("486");
 		break;
 	case CPUCLASS_586:
-		printf("586");
+		printf("Pentium");
 		break;
 	default:
 		printf("unknown");	/* will panic below... */
 	}
 	printf("-class CPU)");
+	if(cpu_id)
+		printf("  Id = 0x%x",cpu_id);
+	if(*cpu_vendor)
+		printf("  Origin = \"%s\"",cpu_vendor);
 	printf("\n");	/* cpu speed would be nice, but how? */
 
 	/*
