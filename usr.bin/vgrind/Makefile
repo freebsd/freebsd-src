@@ -3,6 +3,7 @@
 
 PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c
+NO_WERROR=yes
 SCRIPTS=vgrind.sh
 MAN=	vgrind.1 vgrindefs.5
 
