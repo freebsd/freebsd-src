@@ -1,7 +1,0 @@
-$FreeBSD$
-*/*.dvi
-*/*.html
-*/*.info
-*/*.ps
-*/texinfo.tex
-*/tests
