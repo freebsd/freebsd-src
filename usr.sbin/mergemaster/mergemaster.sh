@@ -105,7 +105,8 @@ diff_loop () {
 
   HANDLE_COMPFILE=v
 
-  while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o "${HANDLE_COMPFILE}" = "NOT V" ]; do
+  while [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" -o \
+    "${HANDLE_COMPFILE}" = "NOT V" ]; do
     if [ -f "${DESTDIR}${COMPFILE#.}" -a -f "${COMPFILE}" ]; then
       if [ "${HANDLE_COMPFILE}" = "v" -o "${HANDLE_COMPFILE}" = "V" ]; then
         (
@@ -143,8 +144,8 @@ diff_loop () {
     echo "  Use 'i' to install the temporary ${COMPFILE}"
     case "${NO_INSTALLED}" in
     '')
-      echo "  Use 'm' to merge the old and new versions"
-      echo "  Use 'v' to view to differences between the old and new versions again"
+      echo "  Use 'm' to merge the temporary and installed versions"
+      echo "  Use 'v' to view the diff results again"
       ;;
     esac
     echo ''
@@ -404,7 +405,8 @@ case "${RERUN}" in
         esac
         ;;
       *)
-        # If this is an auto-run, try a hopefully safe alternative then re-test anyway
+        # If this is an auto-run, try a hopefully safe alternative then
+        # re-test anyway.
         TEMPROOT=/var/tmp/temproot.`date +%m%d.%H.%M.%S`
         ;;
       esac
@@ -448,14 +450,14 @@ case "${RERUN}" in
     make DESTDIR=${TEMPROOT} distrib-dirs &&
     make DESTDIR=${TEMPROOT} -DNO_MAKEDEV distribution;} ||
   { echo '';
-    echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to the";
-    echo "      temproot environment";
+    echo "  *** FATAL ERROR: Cannot 'cd' to ${SOURCEDIR} and install files to";
+    echo "      the temproot environment";
     echo '';
     exit 1;}
 
-  # Doing the inventory and removing files that we don't want to compare only makes
-  # sense if we are not doing a rerun, since we have no way of knowing what happened
-  # to the files during previous incarnations.
+  # Doing the inventory and removing files that we don't want to compare only
+  # makes sense if we are not doing a rerun, since we have no way of knowing
+  # what happened to the files during previous incarnations.
   case "${VERBOSE}" in
   '') ;;
   *)
@@ -477,21 +479,22 @@ case "${RERUN}" in
     ;;
   esac
 
-  # We really don't want to have to deal with these files, since
-  # master.passwd is the real file that should be compared, then
-  # the user should run pwd_mkdb if necessary.
-  #
-  rm ${TEMPROOT}/etc/spwd.db ${TEMPROOT}/etc/passwd ${TEMPROOT}/etc/pwd.db
-
   # Avoid comparing the motd if the user specifies it in .mergemasterrc
   case "${IGNORE_MOTD}" in
   '') ;;
   *) rm ${TEMPROOT}/etc/motd
      ;;
   esac
-
   ;; # End of the "RERUN" test
 esac
+
+# We really don't want to have to deal with these files, since
+# master.passwd is the real file that should be compared, then
+# the user should run pwd_mkdb if necessary.
+#
+[ -f "${TEMPROOT}/etc/spwd.db" ] && rm "${TEMPROOT}/etc/spwd.db"
+[ -f "${TEMPROOT}/etc/passwd" ]  && rm "${TEMPROOT}/etc/passwd"
+[ -f "${TEMPROOT}/etc/pwd.db" ]  && rm "${TEMPROOT}/etc/pwd.db"
 
 # Get ready to start comparing files
 
@@ -501,7 +504,7 @@ esac
 if [ -z "${NEW_UMASK}" -a -z "${AUTO_RUN}" ]; then
   USER_UMASK=`umask`
   case "${USER_UMASK}" in
-  0022) ;;
+  0022|022) ;;
   *)
     echo ''
     echo " *** Your umask is currently set to ${USER_UMASK}.  By default, this script"
@@ -572,11 +575,13 @@ mm_install () {
   esac
 
   if [ -n "${DESTDIR}${INSTALL_DIR}" -a ! -d "${DESTDIR}${INSTALL_DIR}" ]; then
-    DIR_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ oct("$ARGV[1]"))' "${TEMPROOT}/${INSTALL_DIR}" "${CONFIRMED_UMASK}"`
+    DIR_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ \
+      oct("$ARGV[1]"))' "${TEMPROOT}/${INSTALL_DIR}" "${CONFIRMED_UMASK}"`
     install -d -o root -g wheel -m "${DIR_MODE}" "${DESTDIR}${INSTALL_DIR}"
   fi
 
-  FILE_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ oct("$ARGV[1]"))' "${1}" "${CONFIRMED_UMASK}"`
+  FILE_MODE=`perl -e 'printf "%04o\n", (((stat("$ARGV[0]"))[2] & 07777) &~ \
+      oct("$ARGV[1]"))' "${1}" "${CONFIRMED_UMASK}"`
 
   if [ ! -x "${1}" ]; then
     case "${1#.}" in
@@ -587,11 +592,14 @@ mm_install () {
       NEED_CAP_MKDB=yes
       ;;
     /etc/master.passwd)
-      install -m 600 "${1}" "${DESTDIR}${INSTALL_DIR}"
+      install -m 600 "${1}" "${DESTDIR}${INSTALL_DIR}" &&
+        [ -f "${1}" ] && rm "${1}"
       NEED_PWD_MKDB=yes
       DONT_INSTALL=yes
       ;;
     /.cshrc | /.profile)
+    case "${AUTO_INSTALL}" in
+    '')
       case "${LINK_EXPLAINED}" in
       '')
         echo "   *** Historically BSD derived systems have had a"
@@ -611,6 +619,11 @@ mm_install () {
       echo ''
       echo -n "  How should I handle ${COMPFILE}? [Leave it to install later] "
       read HANDLE_LINK
+      ;;
+    *)  # Part of AUTO_INSTALL
+      HANDLE_LINK=l
+      ;;
+    esac
 
       case "${HANDLE_LINK}" in
       [dD]*)
@@ -638,7 +651,8 @@ mm_install () {
 
     case "${DONT_INSTALL}" in
     '')
-      install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
+      install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}" &&
+        [ -f "${1}" ] && rm "${1}"
       ;;
     *)
       unset DONT_INSTALL
@@ -650,7 +664,8 @@ mm_install () {
       NEED_MAKEDEV=yes
       ;;
     esac
-    install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}"
+    install -m "${FILE_MODE}" "${1}" "${DESTDIR}${INSTALL_DIR}" &&
+      [ -f "${1}" ] && rm "${1}"
   fi
   return $?
 }
@@ -675,7 +690,22 @@ for COMPFILE in `find . -type f -size +0`; do
   # diff_loop function knows how to handle it.
   #
   if [ ! -e "${DESTDIR}${COMPFILE#.}" ]; then
-    diff_loop
+    case "${AUTO_RUN}" in
+      '')
+        diff_loop
+        ;;
+      *)
+        case "${AUTO_INSTALL}" in
+        '')
+          # If this is an auto run, make it official
+          echo "   *** ${COMPFILE} will remain for your consideration"
+          ;;
+        *)
+          diff_loop
+          ;;
+        esac
+        ;;
+    esac # Auto run test
     continue
   fi
 
@@ -710,8 +740,9 @@ for COMPFILE in `find . -type f -size +0`; do
       echo " *** Temp ${COMPFILE} and installed are the same, deleting"
       rm "${COMPFILE}"
     else
-      # Ok, the files are different, so show the user where they differ.  Use user's
-      # choice of diff methods; and user's pager if they have one.  Use more if not.
+      # Ok, the files are different, so show the user where they differ.
+      # Use user's choice of diff methods; and user's pager if they have one.
+      # Use more if not.
       # Use unified diffs by default.  Context diffs give me a headache. :)
       #
       case "${AUTO_RUN}" in
@@ -736,11 +767,11 @@ TEST_FOR_FILES=`find ${TEMPROOT} -type f -size +0 2>/dev/null`
 if [ -n "${TEST_FOR_FILES}" ]; then
   echo "*** Files that remain for you to merge by hand:"
   find "${TEMPROOT}" -type f -size +0
+  echo ''
 fi
 
 case "${AUTO_RUN}" in
 '')
-  echo ''
   echo -n "Do you wish to delete what is left of ${TEMPROOT}? [no] "
   read DEL_TEMPROOT
 
@@ -767,15 +798,15 @@ case "${AUTO_INSTALLED_FILES}" in
   '')
     (
       echo ''
-      echo '*** You chose the automatic install option for files that did not exist'
-      echo '    on your system.  The following files were installed for you:'
+      echo '*** You chose the automatic install option for files that did not'
+      echo '    exist on your system.  The following were installed for you:'
       echo "${AUTO_INSTALLED_FILES}"
     ) | ${PAGER}
     ;;
   *)
     echo ''
-    echo '*** You chose the automatic install option for files that did not exist'
-    echo '    on your system.  The following files were installed for you:'
+    echo '*** You chose the automatic install option for files that did not'
+    echo '    exist on your system.  The following were installed for you:'
     echo "${AUTO_INSTALLED_FILES}"
     ;;
   esac
@@ -787,19 +818,26 @@ run_it_now () {
   '')
     unset YES_OR_NO
     echo ''
-    echo -n '    Would you like to run it now? [y or n] '
+    echo -n '    Would you like to run it now? y or n [n] '
     read YES_OR_NO
-
-    echo ''
 
     case "${YES_OR_NO}" in
     y)
-      echo "      Running ${1}"
+      echo "    Running ${1}"
+      echo ''
       eval "${1}"
       ;;
-    *)
-      echo "      Make sure to run ${1} yourself"
+    ''|n)
+      echo ''
+      echo "       *** Cancelled"
+      echo ''
+      echo "    Make sure to run ${1} yourself"
       ;;
+    *)
+      echo ''
+      echo "       *** Sorry, I do not understand your answer (${YES_OR_NO})"
+      echo ''
+      echo "    Make sure to run ${1} yourself"
     esac
     ;;
   *) ;;
@@ -810,9 +848,9 @@ case "${NEED_MAKEDEV}" in
 '') ;;
 *)
   echo ''
-  echo "*** You installed a new /dev/MAKEDEV script, so make sure that you run"
-  echo "    'cd /dev && /bin/sh MAKEDEV all' to rebuild your devices"
-  run_it_now 'cd /dev && /bin/sh MAKEDEV all'
+  echo "*** You installed a new ${DESTDIR}/dev/MAKEDEV script, so make sure that you run"
+  echo "    'cd ${DESTDIR}/dev && /bin/sh MAKEDEV all' to rebuild your devices"
+  run_it_now "cd ${DESTDIR}/dev && /bin/sh MAKEDEV all"
   ;;
 esac
 
@@ -820,9 +858,16 @@ case "${NEED_NEWALIASES}" in
 '') ;;
 *)
   echo ''
-  echo "*** You installed a new aliases file, so make sure that you run"
-  echo "    '/usr/bin/newaliases' to rebuild your aliases database"
-  run_it_now '/usr/bin/newaliases'
+  if [ -n "${DESTDIR}" ]; then
+    echo "*** You installed a new aliases file into ${DESTDIR}/etc/mail, but"
+    echo "    the newaliases command is limited to the directories configured"
+    echo "    in sendmail.cf.  Make sure to create your aliases database by"
+    echo "    hand when your sendmail configuration is done."
+  else
+    echo "*** You installed a new aliases file, so make sure that you run"
+    echo "    '/usr/bin/newaliases' to rebuild your aliases database"
+    run_it_now '/usr/bin/newaliases'
+  fi
   ;;
 esac
 
@@ -831,8 +876,9 @@ case "${NEED_CAP_MKDB}" in
 *)
   echo ''
   echo "*** You installed a login.conf file, so make sure that you run"
-  echo "    '/usr/bin/cap_mkdb /etc/login.conf' to rebuild your login.conf database"
-  run_it_now '/usr/bin/cap_mkdb /etc/login.conf'
+  echo "    '/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf'"
+  echo "     to rebuild your login.conf database"
+  run_it_now "/usr/bin/cap_mkdb ${DESTDIR}/etc/login.conf"
   ;;
 esac
 
@@ -841,8 +887,15 @@ case "${NEED_PWD_MKDB}" in
 *)
   echo ''
   echo "*** You installed a new master.passwd file, so make sure that you run"
-  echo "    '/usr/sbin/pwd_mkdb -p /etc/master.passwd' to rebuild your password files"
-  run_it_now '/usr/sbin/pwd_mkdb -p /etc/master.passwd'
+  if [ -n "${DESTDIR}" ]; then
+    echo "    '/usr/sbin/pwd_mkdb -d ${DESTDIR}/etc -p ${DESTDIR}/etc/master.passwd'"
+    echo "    to rebuild your password files"
+    run_it_now "/usr/sbin/pwd_mkdb -d ${DESTDIR}/etc -p ${DESTDIR}/etc/master.passwd"
+  else
+    echo "    '/usr/sbin/pwd_mkdb -p /etc/master.passwd'"
+    echo "     to rebuild your password files"
+    run_it_now '/usr/sbin/pwd_mkdb -p /etc/master.passwd'
+  fi
   ;;
 esac
 
