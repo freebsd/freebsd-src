@@ -37,8 +37,7 @@ dhclient_common()
 	if [ -n "$_cmdifn" ]; then
 		eval _cooked_list=\"`expr "$dhcp_list" : ".*\($_cmdifn\).*"`\"
 		if [ -z "$_cooked_list" ]; then
-			err "No such network interface: $_cmdifn"
-			return 1
+			err 1 "No such network interface: $_cmdifn"
 		fi
 	fi
 }

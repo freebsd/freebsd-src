@@ -85,7 +85,7 @@ network_common()
 	_verbose=
 
 	if [ -z "$1" ]; then
-		err "network_common(): No function name specified."
+		err 1 "network_common(): No function name specified."
 	else
 		_func="$1"
 	fi
@@ -100,7 +100,7 @@ network_common()
 	if [ -n "$_cmdifn" ]; then
 		eval _cooked_list=\"`expr "$_ifn_list" : ".*\($_cmdifn\).*"`\"
 		if [ -z "$_cooked_list" ]; then
-			err "No such network interface: $_cmdifn"
+			err 1 "No such network interface: $_cmdifn"
 			return 1
 		fi
 	fi
