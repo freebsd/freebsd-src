@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Oct  9 13:17:34 2000]
+ *      last edit-date: [Tue Oct 10 16:12:07 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -48,8 +48,8 @@
  *	version and release number for isdn4bsd package
  *---------------------------------------------------------------------------*/
 #define	VERSION		0		/* version number	*/
-#define	REL		95		/* release number	*/
-#define STEP		04		/* release step		*/
+#define	REL		96		/* release number	*/
+#define STEP		00		/* release step		*/
 
 /*---------------------------------------------------------------------------*
  * date/time format in i4b log messages
