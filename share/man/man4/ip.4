@@ -32,9 +32,9 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd November 30, 1993
+.Dd March 3, 2001
 .Dt IP 4
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm ip
 .Nd Internet Protocol
@@ -100,9 +100,9 @@ may be used to set the type-of-service and time-to-live
 fields in the 
 .Tn IP 
 header for 
-.Dv SOCK_STREAM 
-and 
-.Dv SOCK_DGRAM 
+.Dv SOCK_STREAM , SOCK_DGRAM ,
+and certain types of
+.Dv SOCK_RAW
 sockets.
 For example,
 .Bd -literal
@@ -355,7 +355,7 @@ setsockopt(s, IPPROTO_IP, IP_HDRINCL, &hincl, sizeof(hincl));
 .Ed
 .Pp
 Unlike previous 
-.Tn BSD 
+.Bx 
 releases, the program must set all
 the fields of the IP header, including the following:
 .Bd -literal

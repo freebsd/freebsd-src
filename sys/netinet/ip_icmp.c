@@ -653,7 +653,7 @@ icmp_reflect(m)
 		ia = in_ifaddrhead.tqh_first;
 	t = IA_SIN(ia)->sin_addr;
 	ip->ip_src = t;
-	ip->ip_ttl = MAXTTL;
+	ip->ip_ttl = ip_defttl;
 
 	if (optlen > 0) {
 		register u_char *cp;
