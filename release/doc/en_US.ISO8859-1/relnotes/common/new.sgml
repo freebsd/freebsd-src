@@ -47,7 +47,8 @@
 
   <para>The &release.type; distribution to which these release notes
     apply represents a point along the &release.branch; development
-    branch between &release.prev; and the future &release.next;.  Some
+    branch between &release.prev; and the future &release.next;.
+    Information regarding
     pre-built, binary &release.type; distributions along this branch
     can be found at <ulink url="&release.url;"></ulink>.</para>
 
@@ -491,6 +492,10 @@
     <para>The <option>-f</option> option of &man.tail.1; utility
       now supports more than one file at a time.</para>
 
+    <para>The &man.tcpdrop.8; command, which closes a selected TCP
+      connection, has been added.  It was obtained from
+      OpenBSD.</para>
+  
     <para>&man.whois.1; now supports
       a <option>-k</option> flag
       for querying <hostid role="fqdn">whois.krnic.net</hostid>
@@ -616,7 +621,7 @@ ifconfig_net0="inet 10.0.0.1/16"</programlisting>
       3.3.2.</para>
 
     <para>The supported version of <application>Xorg</application> has
-      been updated from 6.7.0 to 6.8.1.</para>
+      been updated from 6.7.0 to 6.8.2.</para>
 
   </sect2>
 
