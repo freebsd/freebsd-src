@@ -188,6 +188,8 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		tblsz = (entries * entsz + secsz - 1) & ~(secsz - 1);
 		buf = g_read_data(cp, le64toh(hdr->hdr_lba_table) * secsz,
 		    tblsz, &error);
+		if (buf == NULL)
+			break;
 
 		for (i = 0; i < entries; i++) {
 			struct uuid unused = GPT_ENT_TYPE_UNUSED;
