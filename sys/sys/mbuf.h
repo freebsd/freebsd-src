@@ -437,6 +437,8 @@ extern	int nmbclusters;		/* Maximum number of clusters */
 extern	int nmbcnt;			/* Scale kmem_map for counter space */
 extern	int nmbufs;			/* Maximum number of mbufs */
 
+struct	uio;
+
 void		 _mext_free(struct mbuf *);
 void		 m_adj(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
@@ -474,6 +476,8 @@ void		 m_print(const struct mbuf *);
 struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf	*m_pullup(struct mbuf *, int);
 struct	mbuf	*m_split(struct mbuf *, int, int);
+struct	mbuf *
+	m_uiotombuf(struct uio *uio, int how, int len);
 
 /*
  * Packets may have annotations attached by affixing a list
