@@ -13,7 +13,7 @@ afterinstall:
 	-if [ -d ${LOCALEDIR} ]; then true; else mkdir -p ${LOCALEDIR}; fi
 	for locale in ${LOCALES}; do \
 		mkdir -p ${LOCALEDIR}/$$locale || true; \
-		mklocale -o ${LOCALEDIR}/$$locale/LC_CTYPE ${.CURDIR}/$$locale; \
+		mklocale -o ${LOCALEDIR}/$$locale/LC_CTYPE ${.CURDIR}/data/$$locale; \
 		chmod ${BINMODE} ${LOCALEDIR}/$$locale; \
 	done
 	chown -R ${BINOWN}.${BINGRP} ${LOCALEDIR}
