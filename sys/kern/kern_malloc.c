@@ -157,11 +157,9 @@ malloc(size, type, flags)
 	if (size == 0)
 		Debugger("zero size malloc");
 #endif
-#if defined(INVARIANTS)
-	if (flags == M_WAITOK)
+	if (!(flags & M_NOWAIT))
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
-#endif
 	if (size <= KMEM_ZMAX) {
 		if (size & KMEM_ZMASK)
 			size = (size & ~KMEM_ZMASK) + KMEM_ZBASE;
