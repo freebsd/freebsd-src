@@ -5,9 +5,6 @@ TARDIR=	${.CURDIR}/../../../contrib/tar
 
 PROG=	gtar
 
-SYMLINKS=  ${BINDIR}/gtar ${BINDIR}/tar
-MLINKS= gtar.1 tar.1
-
 SUBDIR=	doc
 
 # libtar SRCS
