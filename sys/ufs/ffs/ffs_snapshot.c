@@ -266,7 +266,7 @@ restart:
 	 * touch up the few cylinder groups that changed during
 	 * the suspension period.
 	 */
-	len = howmany(fs->fs_ncg, (NBBY * sizeof(int)));
+	len = howmany(fs->fs_ncg, NBBY);
 	MALLOC(fs->fs_active, int *, len, M_DEVBUF, M_WAITOK);
 	bzero(fs->fs_active, len);
 	for (cg = 0; cg < fs->fs_ncg; cg++) {
@@ -322,7 +322,7 @@ restart:
 		if (error)
 			goto out1;
 		error = cgaccount(cg, vp, nbp, 2);
-		brelse(nbp);
+		bawrite(nbp);
 		if (error)
 			goto out1;
 	}
