@@ -33,17 +33,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cp.c,v 1.9 1996/02/19 05:56:33 pst Exp $
+ *	$Id: cp.c,v 1.10 1996/03/08 06:58:06 wosch Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static char const copyright[] =
 "@(#) Copyright (c) 1988, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
+static char const sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif /* not lint */
 
 /*
@@ -51,7 +51,7 @@ static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
  *
  * The global PATH_T structure "to" always contains the path to the
  * current target file.  Since fts(3) does not change directories,
- * this path can be either absolute or dot-realative.
+ * this path can be either absolute or dot-relative.
  *
  * The basic algorithm is to initialize "to" and use fts(3) to traverse
  * the file hierarchy rooted in the argument list.  A trivial case is the
@@ -105,7 +105,7 @@ main(argc, argv)
 	char *target;
 
 	Hflag = Lflag = Pflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfipr")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPRfipr")) != -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;
@@ -253,7 +253,7 @@ copy(argv, type, fts_options)
 	struct stat to_stat;
 	FTS *ftsp;
 	FTSENT *curr;
-	int base, dne, nlen, rval;
+	int base = 0, dne, nlen, rval;
 	char *p, *target_mid;
 
 	if ((ftsp = fts_open(argv, fts_options, mastercmp)) == NULL)
@@ -339,6 +339,13 @@ copy(argv, type, fts_options)
 				rval = 1;
 				if (S_ISDIR(curr->fts_statp->st_mode))
 					(void)fts_set(ftsp, curr, FTS_SKIP);
+				continue;
+			}
+			if (!S_ISDIR(curr->fts_statp->st_mode) &&
+			    S_ISDIR(to_stat.st_mode)) {
+		warnx("cannot overwrite directory %s with non-directory %s",
+				    to.p_path, curr->fts_path);
+				rval = 1;
 				continue;
 			}
 			dne = 0;

@@ -30,11 +30,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: utils.c,v 1.6 1996/02/18 18:48:26 wosch Exp wosch $
+ *	$Id: utils.c,v 1.9 1996/03/08 06:58:08 wosch Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
+static char const sccsid[] = "@(#)utils.c	8.3 (Berkeley) 4/1/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -121,7 +121,7 @@ copy_file(entp, dne)
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	if (fs->st_size <= 8 * 1048576) {
 		if ((p = mmap(NULL, (size_t)fs->st_size, PROT_READ,
-		    0, from_fd, (off_t)0)) == (char *)-1) {
+		    MAP_SHARED, from_fd, (off_t)0)) == MAP_FAILED) {
 			warn("%s", entp->fts_path);
 			rval = 1;
 		} else {
