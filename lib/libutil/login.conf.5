@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: login.conf.5,v 1.1 1997/01/05 03:24:45 davidn Exp $
 .\"
 .Dd November 22, 1996
 .Dt LOGIN.CONF 5
@@ -27,7 +27,7 @@
 .Nd login class capability database
 .Sh SYNOPSIS
 .Pa /etc/login.conf ,
-.Pa ~/.login.conf
+.Pa ~/.login_conf
 .Sh DESCRIPTION
 login.conf contains various attributes and capabilities of login classes.
 A login class (an optional annotation against each record in the user
@@ -48,7 +48,7 @@ A user with a uid of 0 without a valid login class will use the record
 "root" if it exists, or "default" if not.
 .Pp
 In FreeBSD, users may individually create a file called
-.Pa .login.conf
+.Pa .login_conf
 in their home directory using the same format, consisting of a single
 entry with a recordid of "me".
 If present, this file is used by
