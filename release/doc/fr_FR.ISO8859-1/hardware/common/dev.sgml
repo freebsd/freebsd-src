@@ -4,7 +4,7 @@
 
      $Id: dev.sgml,v 1.3 2002/09/29 21:03:53 eagle Exp $
      $FreeBSD$
-     Original revision: 1.111
+     Original revision: 1.112
 -->
 <!--
 
@@ -1222,7 +1222,7 @@
       </itemizedlist>
     </para>    
 
-    <para arch="i386">Cartes PC-Card (PCMCIA) compatible NE2000
+    <para arch="i386,pc98">Cartes PC-Card (PCMCIA) compatible NE2000
     Ethernet et cartes FastEthernet (gestionnaire &man.ed.4;)
       <itemizedlist>
         <listitem>
