@@ -48,7 +48,7 @@ extern	u_int	cpu_id;
 extern	u_int	cpu_fxsr;
 extern	char	cpu_vendor[];
 extern	u_int	cyrix_did;
-extern	u_char	*elan_mmcr;
+extern	uint16_t *elan_mmcr;
 extern	char	kstack[];
 #ifdef PC98
 extern	int	need_pre_dma_flush;
