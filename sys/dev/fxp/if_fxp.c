@@ -1928,7 +1928,7 @@ fxp_init(void *xsc)
 	cbp->cb_command =	htole16(FXP_CB_COMMAND_CONFIG |
 	    FXP_CB_COMMAND_EL);
 	cbp->link_addr =	0xffffffff;	/* (no) next command */
-	cbp->byte_count =	htole16(sc->flags & FXP_FLAG_EXT_RFA ? 32 : 22);
+	cbp->byte_count =	sc->flags & FXP_FLAG_EXT_RFA ? 32 : 22;
 	cbp->rx_fifo_limit =	8;	/* rx fifo threshold (32 bytes) */
 	cbp->tx_fifo_limit =	0;	/* tx fifo threshold (0 bytes) */
 	cbp->adaptive_ifs =	0;	/* (no) adaptive interframe spacing */
