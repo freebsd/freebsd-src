@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.217 1995/11/29 20:07:49 nate Exp $
+#	$Id: LINT,v 1.218 1995/12/09 16:10:20 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -244,6 +244,8 @@ options		PORTAL			#Portal filesystem
 options		PROCFS			#Process filesystem
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
+# THis DEVFS is experimental but seems to work
+options		DEVFS			#devices filesystem
 
 # Make space in the kernel for a MFS rootfilesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
@@ -439,6 +441,7 @@ options         "MAXCONS=16"
 # The Numeric Processing eXtension is used to either enable the
 # coprocessor or enable math emulation.  If your machine doesn't contain
 # a math co-processor, you must *also* add the option "MATH_EMULATE".
+# THIS IS NOT AN OPTIONAL ENTRY, DO NOT REMOVE IT
 #
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
