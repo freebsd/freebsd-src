@@ -599,20 +599,19 @@ dsp_ioctl(snddev_info *d, int chan, u_long cmd, caddr_t arg)
 		} else
 			ret = EINVAL;
 		break;
-/*
+
     	case SNDCTL_DSP_POST:
 		if (wrch) {
 			wrch->flags &= ~CHN_F_NOTRIGGER;
 			chn_start(wrch, 1);
 		}
 		break;
-*/
+
     	case SNDCTL_DSP_MAPINBUF:
     	case SNDCTL_DSP_MAPOUTBUF:
     	case SNDCTL_DSP_SETSYNCRO:
 		/* undocumented */
 
-    	case SNDCTL_DSP_POST:
     	case SOUND_PCM_WRITE_FILTER:
     	case SOUND_PCM_READ_FILTER:
 		/* dunno what these do, don't sound important */
