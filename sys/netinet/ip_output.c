@@ -90,6 +90,7 @@ static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "internet multicast options");
 #endif /*FAST_IPSEC*/
 
 #include <netinet/ip_fw.h>
+#include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
 
 #define print_ip(x, a, y)	 printf("%s %d.%d.%d.%d%s",\
@@ -130,12 +131,12 @@ extern	struct protosw inetsw[];
  * inserted, so must have a NULL opt pointer.
  */
 int
-ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
+ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro,
 	int flags, struct ip_moptions *imo, struct inpcb *inp)
 {
 	struct ip *ip;
 	struct ifnet *ifp = NULL;	/* keep compiler happy */
-	struct mbuf *m;
+	struct mbuf *m0;
 	int hlen = sizeof (struct ip);
 	int len, off, error = 0;
 	struct sockaddr_in *dst = NULL;	/* keep compiler happy */
@@ -143,6 +144,7 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 	int isbroadcast, sw_csum;
 	struct in_addr pkt_dst;
 	struct route iproute;
+	struct m_tag *dummytag;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 #endif
@@ -157,44 +159,28 @@ ip_output(struct mbuf *m0, struct mbuf *opt, struct route *ro,
 
 	args.eh = NULL;
 	args.rule = NULL;
-	args.next_hop = NULL;
-	args.divert_rule = 0;			/* divert cookie */
-
-	/* Grab info from MT_TAG mbufs prepended to the chain. */
-	for (; m0 && m0->m_type == MT_TAG; m0 = m0->m_next) {
-		switch(m0->_m_tag_id) {
-		default:
-			printf("ip_output: unrecognised MT_TAG tag %d\n",
-			    m0->_m_tag_id);
-			break;
-
-		case PACKET_TAG_DUMMYNET:
-			/*
-			 * the packet was already tagged, so part of the
-			 * processing was already done, and we need to go down.
-			 * Get parameters from the header.
-			 */
-			args.rule = ((struct dn_pkt *)m0)->rule;
-			opt = NULL ;
-			ro = & ( ((struct dn_pkt *)m0)->ro ) ;
-			imo = NULL ;
-			dst = ((struct dn_pkt *)m0)->dn_dst ;
-			ifp = ((struct dn_pkt *)m0)->ifp ;
-			flags = ((struct dn_pkt *)m0)->flags ;
-			break;
-
-		case PACKET_TAG_DIVERT:
-			args.divert_rule = (intptr_t)m0->m_data & 0xffff;
-			break;
-
-		case PACKET_TAG_IPFORWARD:
-			args.next_hop = (struct sockaddr_in *)m0->m_data;
-			break;
-		}
-	}
-	m = m0;
 
 	M_ASSERTPKTHDR(m);
+	
+	args.next_hop = ip_claim_next_hop(m);
+	dummytag = m_tag_find(m, PACKET_TAG_DUMMYNET, NULL);
+	if (dummytag != NULL) {
+		struct dn_pkt_tag *dt = (struct dn_pkt_tag *)(dummytag+1);
+		/*
+		 * Prevent lower layers from finding the tag
+		 * Cleanup and free is done below
+		 */
+		m_tag_unlink(m, dummytag);
+		/*
+		 * the packet was already tagged, so part of the
+		 * processing was already done, and we need to go down.
+		 * Get parameters from the header.
+		 */
+		args.rule = dt->rule;
+		ro = &(dt->ro);
+		dst = dt->dn_dst;
+		ifp = dt->ifp;
+	}
 
 	if (ro == NULL) {
 		ro = &iproute;
@@ -557,7 +543,7 @@ sendit:
 	dst = (struct sockaddr_in *)state.dst;
 	if (error) {
 		/* mbuf is already reclaimed in ipsec4_output. */
-		m0 = NULL;
+		m = NULL;
 		switch (error) {
 		case EHOSTUNREACH:
 		case ENETUNREACH:
@@ -797,11 +783,13 @@ spd_done:
 		}
 #ifdef IPDIVERT
 		if (off != 0 && (off & IP_FW_PORT_DYNT_FLAG) == 0) {
-			struct mbuf *clone = NULL;
+			struct mbuf *clone;
 
 			/* Clone packet if we're doing a 'tee' */
 			if ((off & IP_FW_PORT_TEE_FLAG) != 0)
-				clone = m_dup(m, M_DONTWAIT);
+				clone = divert_clone(m);
+			else
+				clone = NULL;
 
 			/*
 			 * XXX
@@ -818,7 +806,7 @@ spd_done:
 			ip->ip_off = htons(ip->ip_off);
 
 			/* Deliver packet to divert input routine */
-			divert_packet(m, 0, off & 0xffff, args.divert_rule);
+			divert_packet(m, 0);
 
 			/* If 'tee', continue with original packet */
 			if (clone != NULL) {
@@ -896,26 +884,29 @@ spd_done:
 					break;
 			}
 			if (ia) {	/* tell ip_input "dont filter" */
-				struct m_hdr tag;
-
-				tag.mh_type = MT_TAG;
-				tag.mh_flags = PACKET_TAG_IPFORWARD;
-				tag.mh_data = (caddr_t)args.next_hop;
-				tag.mh_next = m;
-				tag.mh_nextpkt = NULL;
+				struct m_tag *mtag = m_tag_get(
+				    PACKET_TAG_IPFORWARD,
+				    sizeof(struct sockaddr_in *), M_NOWAIT);
+				if (mtag == NULL) {
+					error = ENOBUFS;
+					goto bad;
+				}
+				*(struct sockaddr_in **)(mtag+1) =
+				    args.next_hop;
+				m_tag_prepend(m, mtag);
 
 				if (m->m_pkthdr.rcvif == NULL)
 					m->m_pkthdr.rcvif = ifunit("lo0");
 				if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 					m->m_pkthdr.csum_flags |=
 					    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
-					m0->m_pkthdr.csum_data = 0xffff;
+					m->m_pkthdr.csum_data = 0xffff;
 				}
 				m->m_pkthdr.csum_flags |=
 				    CSUM_IP_CHECKED | CSUM_IP_VALID;
 				ip->ip_len = htons(ip->ip_len);
 				ip->ip_off = htons(ip->ip_off);
-				ip_input((struct mbuf *)&tag);
+				ip_input(m);
 				goto done;
 			}
 			/*
@@ -1071,6 +1062,12 @@ done:
 	if (ro == &iproute && ro->ro_rt) {
 		RTFREE(ro->ro_rt);
 		ro->ro_rt = NULL;
+	}
+	if (dummytag) {
+		struct dn_pkt_tag *dt = (struct dn_pkt_tag *)(dummytag+1);
+		if (dt->ro.ro_rt)
+			RTFREE(dt->ro.ro_rt);
+		m_tag_free(dummytag);
 	}
 #ifdef IPSEC
 	if (sp != NULL) {
