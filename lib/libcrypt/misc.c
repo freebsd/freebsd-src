@@ -30,14 +30,15 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-static unsigned char itoa64[] =		/* 0 ... 63 => ascii - 64 */
+#include <sys/types.h>
+
+#include "crypt.h"
+
+static char itoa64[] =		/* 0 ... 63 => ascii - 64 */
 	"./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
 void
-_crypt_to64(s, v, n)
-	char *s;
-	unsigned long v;
-	int n;
+_crypt_to64(char *s, u_long v, int n)
 {
 	while (--n >= 0) {
 		*s++ = itoa64[v&0x3f];
