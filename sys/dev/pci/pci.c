@@ -750,7 +750,11 @@ pci_add_resources(device_t pcib, int b, int s, int f, device_t dev)
 			pci_add_map(pcib, b, s, f, q->arg1, rl);
 	}
 
-	if (cfg->intpin > 0 && cfg->intline != 255) {
+	if (cfg->intpin > 0 && cfg->intline != 255
+#ifdef __i386__
+	    && cfg->intline != 0
+#endif
+	    ) {
 #ifdef __ia64__
 		/*
 		 * Re-route interrupts on ia64 so that we can get the
