@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.85 1998/05/25 10:37:02 brian Exp $
+ * $Id: modem.c,v 1.86 1998/05/28 23:15:38 brian Exp $
  *
  *  TODO:
  */
@@ -431,7 +431,7 @@ modem_lock(struct physical *modem, int tunno)
   snprintf(fn, sizeof fn, "%s%s.if", _PATH_VARRUN, modem->name.base);
   lockfile = ID0fopen(fn, "w");
   if (lockfile != NULL) {
-    fprintf(lockfile, "tun%d\n", tunno);
+    fprintf(lockfile, "%s%d\n", TUN_NAME, tunno);
     fclose(lockfile);
   }
 #ifndef RELEASE_CRUNCH
@@ -750,13 +750,18 @@ modem_Unraw(struct physical *modem)
 static void
 modem_PhysicalClose(struct physical *modem)
 {
+  int newsid;
+
   log_Printf(LogDEBUG, "%s: Physical Close\n", modem->link.name);
+  newsid = tcgetpgrp(modem->fd) == getpgrp();
   close(modem->fd);
   modem->fd = -1;
   timer_Stop(&modem->Timer);
   log_SetTtyCommandMode(modem->dl);
   throughput_stop(&modem->link.throughput);
   throughput_log(&modem->link.throughput, LogPHASE, modem->link.name);
+  if (newsid)
+    bundle_setsid(modem->dl->bundle, 0);
 }
 
 void
@@ -1072,7 +1077,7 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov,
 void
 modem_ChangedPid(struct physical *p, pid_t newpid)
 {
-  if (p->type != PHYS_DIRECT) {
+  if (p->fd >= 0 && p->type != PHYS_DIRECT) {
     int res;
 
     if ((res = ID0uu_lock_txfr(p->name.base, newpid)) != UU_LOCK_OK)

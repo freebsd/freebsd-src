@@ -17,12 +17,12 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.125 1998/05/25 02:22:36 brian Exp $
+ * $Id: main.c,v 1.126 1998/05/27 22:43:31 brian Exp $
  *
  *	TODO:
  */
 
-#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -78,8 +78,6 @@
 #endif
 #endif
 
-static char pid_filename[MAXPATHLEN];
-
 static void DoLoop(struct bundle *);
 static void TerminalStop(int);
 static const char *ex_desc(int);
@@ -99,7 +97,6 @@ void
 AbortProgram(int excode)
 {
   server_Close(SignalBundle);
-  ID0unlink(pid_filename);
   log_Printf(LogPHASE, "PPP Terminated (%s).\n", ex_desc(excode));
   bundle_Close(SignalBundle, NULL, 1);
   bundle_Destroy(SignalBundle);
@@ -239,7 +236,6 @@ ProcessArgs(int argc, char **argv, int *mode)
 int
 main(int argc, char **argv)
 {
-  FILE *lockfile;
   char *name, *label;
   int nfds, mode;
   struct bundle *bundle;
@@ -443,19 +439,6 @@ main(int argc, char **argv)
     prompt_TtyCommandMode(prompt);
     prompt_Required(prompt);
   }
-
-  snprintf(pid_filename, sizeof pid_filename, "%stun%d.pid",
-           _PATH_VARRUN, bundle->unit);
-  lockfile = ID0fopen(pid_filename, "w");
-  if (lockfile != NULL) {
-    fprintf(lockfile, "%d\n", (int) getpid());
-    fclose(lockfile);
-  }
-#ifndef RELEASE_CRUNCH
-  else
-    log_Printf(LogALERT, "Warning: Can't create %s: %s\n",
-              pid_filename, strerror(errno));
-#endif
 
   log_Printf(LogPHASE, "PPP Started (%s mode).\n", mode2Nam(mode));
   DoLoop(bundle);

@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.8 1998/05/25 10:37:00 brian Exp $
+ *	$Id: bundle.c,v 1.9 1998/05/28 23:15:29 brian Exp $
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
@@ -515,7 +515,7 @@ bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
         FD_SET(bundle->dev.fd, r);
         if (*n < bundle->dev.fd + 1)
           *n = bundle->dev.fd + 1;
-        log_Printf(LogTIMER, "tun: fdset(r) %d\n", bundle->dev.fd);
+        log_Printf(LogTIMER, "%s: fdset(r) %d\n", TUN_NAME, bundle->dev.fd);
         result++;
       }
     }
@@ -567,12 +567,12 @@ bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
     /* something to read from tun */
     n = read(bundle->dev.fd, &tun, sizeof tun);
     if (n < 0) {
-      log_Printf(LogERROR, "read from tun: %s\n", strerror(errno));
+      log_Printf(LogERROR, "read from %s: %s\n", TUN_NAME, strerror(errno));
       return;
     }
     n -= sizeof tun - sizeof tun.data;
     if (n <= 0) {
-      log_Printf(LogERROR, "read from tun: Only %d bytes read\n", n);
+      log_Printf(LogERROR, "read from %s: Only %d bytes read\n", TUN_NAME, n);
       return;
     }
     if (!tun_check_header(tun, AF_INET))
@@ -653,6 +653,33 @@ bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
       descriptor_Write(&dl->desc, bundle, fdset);
 }
 
+static void
+bundle_LockTun(struct bundle *bundle)
+{
+  FILE *lockfile;
+  char pidfile[MAXPATHLEN];
+
+  snprintf(pidfile, sizeof pidfile, "%stun%d.pid", _PATH_VARRUN, bundle->unit);
+  lockfile = ID0fopen(pidfile, "w");
+  if (lockfile != NULL) {
+    fprintf(lockfile, "%d\n", (int)getpid());
+    fclose(lockfile);
+  }
+#ifndef RELEASE_CRUNCH
+  else
+    log_Printf(LogERROR, "Warning: Can't create %s: %s\n",
+               pidfile, strerror(errno));
+#endif
+}
+
+static void
+bundle_UnlockTun(struct bundle *bundle)
+{
+  char pidfile[MAXPATHLEN];
+
+  snprintf(pidfile, sizeof pidfile, "%stun%d.pid", _PATH_VARRUN, bundle->unit);
+  ID0unlink(pidfile);
+}
 
 struct bundle *
 bundle_Create(const char *prefix, int type)
@@ -803,6 +830,8 @@ bundle_Create(const char *prefix, int type)
   /* Clean out any leftover crud */
   bundle_CleanInterface(&bundle);
 
+  bundle_LockTun(&bundle);
+
   return &bundle;
 }
 
@@ -854,11 +883,14 @@ bundle_Destroy(struct bundle *bundle)
   mp_Down(&bundle->ncp.mp);
   ipcp_CleanInterface(&bundle->ncp.ipcp);
   bundle_DownInterface(bundle);
-  
+
   /* Again, these are all DATALINK_CLOSED unless we're abending */
   dl = bundle->links;
   while (dl)
     dl = datalink_Destroy(dl);
+
+  close(bundle->dev.fd);
+  bundle_UnlockTun(bundle);
 
   /* In case we never made PHASE_NETWORK */
   bundle_Notify(bundle, EX_ERRDEAD);
@@ -1432,7 +1464,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
-  int niov, link_fd, f, expect;
+  int niov, link_fd, f, expect, newsid;
   pid_t newpid;
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
@@ -1456,23 +1488,12 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     msg.msg_iov = iov;
     msg.msg_iovlen = niov;
 
-    if (tcgetpgrp(link_fd) == getpgrp()) {
-      /*
-       * We can't transfer this tty descriptor.  If we do, then once the
-       * session leader exits, the descriptor becomes unusable by the
-       * other ppp process.  Instead, we'll fork() two `/bin/cat'
-       * processes.....
-       */
-      msg.msg_control = NULL;
-      msg.msg_controllen = 0;
-    } else {
-      cmsg->cmsg_len = sizeof cmsgbuf;
-      cmsg->cmsg_level = SOL_SOCKET;
-      cmsg->cmsg_type = SCM_RIGHTS;
-      *(int *)CMSG_DATA(cmsg) = link_fd;
-      msg.msg_control = cmsgbuf;
-      msg.msg_controllen = sizeof cmsgbuf;
-    }
+    cmsg->cmsg_len = sizeof cmsgbuf;
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    *(int *)CMSG_DATA(cmsg) = link_fd;
+    msg.msg_control = cmsgbuf;
+    msg.msg_controllen = sizeof cmsgbuf;
 
     for (f = expect = 0; f < niov; f++)
       expect += iov[f].iov_len;
@@ -1486,69 +1507,10 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     /* We must get the ACK before closing the descriptor ! */
     read(s, &ack, 1);
 
-    if (tcgetpgrp(link_fd) == getpgrp()) {
-      /* We use `/bin/cat' to keep the tty session id */
-      pid_t pid;
-      int status, len, fd;
-      char name[50], *tname;
-
-      tname = ttyname(link_fd);
-      len = strlen(_PATH_DEV);
-      if (!strncmp(tname, _PATH_DEV, len))
-        tname += len;
-        
-      log_Printf(LogPHASE, "%s: Using twin %s invocations\n", tname, CATPROG);
-
-      switch ((pid = fork())) {
-        case -1:
-          log_Printf(LogERROR, "fork: %s\n", strerror(errno));
-          break;
-        case 0:
-          if (fork())	/* Don't want to belong to the parent any more */
-            exit(0);
-          setsid();
-          log_Printf(LogPHASE, "%d: Continuing without controlling terminal\n",
-                     (int)getpid());
-          break;
-        default:
-          /* Parent does the execs .... */
-          timer_TermService();
-          waitpid(pid, &status, 0);
-
-          fcntl(3, F_SETFD, 1);		/* Set close-on-exec flag */
-          fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) & ~O_NONBLOCK);
-          fcntl(link_fd, F_SETFL, fcntl(link_fd, F_GETFL, 0) & ~O_NONBLOCK);
-          s = fcntl(s, F_DUPFD, 3);
-          link_fd = fcntl(link_fd, F_DUPFD, 3);
-          dup2(open(_PATH_DEVNULL, O_WRONLY|O_APPEND), STDERR_FILENO);
-
-          setuid(geteuid());
-
-          switch (fork()) {
-            case -1:
-              _exit(0);
-              break;
-            case 0:
-              dup2(link_fd, STDIN_FILENO);
-              dup2(s, STDOUT_FILENO);
-              snprintf(name, sizeof name, "%s <- %s", dl->name, tname);
-              break;
-            default:
-              dup2(s, STDIN_FILENO);
-              dup2(link_fd, STDOUT_FILENO);
-              snprintf(name, sizeof name, "%s -> %s", dl->name, tname);
-              break;
-          }
-          signal(SIGPIPE, SIG_DFL);
-          signal(SIGALRM, SIG_DFL);
-          for (fd = getdtablesize(); fd > 2; fd--)
-            close(fd);
-          execl(CATPROG, name, NULL);
-          _exit(0);
-          break;
-      }
-    }
+    newsid = tcgetpgrp(link_fd) == getpgrp();
     close(link_fd);
+    if (newsid)
+      bundle_setsid(dl->bundle, 1);
   }
   close(s);
 
@@ -1604,4 +1566,105 @@ bundle_SetMode(struct bundle *bundle, struct datalink *dl, int mode)
     ipcp_CleanInterface(&bundle->ncp.ipcp);
 
   return 1;
+}
+
+void
+bundle_setsid(struct bundle *bundle, int holdsession)
+{
+  /*
+   * Lose the current session.  This means getting rid of our pid
+   * too so that the tty device will really go away, and any getty
+   * etc will be allowed to restart.
+   */
+  pid_t pid, orig;
+  int fds[2];
+  char done;
+  struct datalink *dl;
+
+  orig = getpid();
+  if (pipe(fds) == -1) {
+    log_Printf(LogERROR, "pipe: %s\n", strerror(errno));
+    return;
+  }
+  switch ((pid = fork())) {
+    case -1:
+      log_Printf(LogERROR, "fork: %s\n", strerror(errno));
+      close(fds[0]);
+      close(fds[1]);
+      return;
+    case 0:
+      close(fds[0]);
+      read(fds[1], &done, 1);		/* uu_locks are mine ! */
+      close(fds[1]);
+      if (pipe(fds) == -1) {
+        log_Printf(LogERROR, "pipe(2): %s\n", strerror(errno));
+        return;
+      }
+      switch ((pid = fork())) {
+        case -1:
+          log_Printf(LogERROR, "fork: %s\n", strerror(errno));
+          close(fds[0]);
+          close(fds[1]);
+          return;
+        case 0:
+          close(fds[0]);
+          bundle_LockTun(bundle);	/* update pid */
+          read(fds[1], &done, 1);	/* uu_locks are mine ! */
+          close(fds[1]);
+          setsid();
+          log_Printf(LogPHASE, "%d -> %d: %s session control\n",
+                     (int)orig, (int)getpid(),
+                     holdsession ? "Passed" : "Dropped");
+          break;
+        default:
+          close(fds[1]);
+          /* Give away all our modem locks (to the final process) */
+          for (dl = bundle->links; dl; dl = dl->next)
+            if (dl->state != DATALINK_CLOSED)
+              modem_ChangedPid(dl->physical, pid);
+          write(fds[0], "!", 1);	/* done */
+          close(fds[0]);
+          exit(0);
+          break;
+      }
+      break;
+    default:
+      close(fds[1]);
+      /* Give away all our modem locks (to the intermediate process) */
+      for (dl = bundle->links; dl; dl = dl->next)
+        if (dl->state != DATALINK_CLOSED)
+          modem_ChangedPid(dl->physical, pid);
+      write(fds[0], "!", 1);	/* done */
+      close(fds[0]);
+      if (holdsession) {
+        int fd, status;
+
+        timer_TermService();
+        signal(SIGPIPE, SIG_DFL);
+        signal(SIGALRM, SIG_DFL);
+        signal(SIGHUP, SIG_DFL);
+        signal(SIGTERM, SIG_DFL);
+        signal(SIGINT, SIG_DFL);
+        signal(SIGQUIT, SIG_DFL);
+        for (fd = getdtablesize(); fd >= 0; fd--)
+          close(fd);
+        setuid(geteuid());
+        /*
+         * Reap the intermediate process.  As we're not exiting but the
+         * intermediate is, we don't want it to become defunct.
+         */
+        waitpid(pid, &status, 0);
+        /*
+         * Hang around for a HUP.  This should happen as soon as the
+         * ppp that we passed our ctty descriptor to closes it.
+         * NOTE: If this process dies, the passed descriptor becomes
+         *       invalid and will give a select() error by setting one
+         *       of the error fds, aborting the other ppp.  We don't
+         *       want that to happen !
+         */
+        pause();
+      }
+      exit(0);
+      break;
+  }
 }
