@@ -1,7 +1,7 @@
 # Makefile for ISC DHCP client.
 # $FreeBSD$
 
-SUBDIR= common dst minires omapip client
+SUBDIR= common dst minires omapip dhcpctl client omshell
 
 
 # Our directory structure confuses crunchgen, so we must explicitly
@@ -42,6 +42,9 @@ OBJS+=	omapip/alloc.o omapip/array.o omapip/auth.o omapip/buffer.o \
 	omapip/inet_addr.o omapip/listener.o omapip/message.o \
 	omapip/mrtrace.o omapip/protocol.o omapip/result.o \
 	omapip/support.o omapip/toisc.o omapip/trace.o
+
+# dhcpctl
+OBJS+=	dhcpctl/dhcpctl.o dhcpctl/callback.o dhcpctl/remote.o
 
 # src/release/Makefile (release.4) tries to invokes this makefile with
 # the target set to the list of all objects defined above.  This
