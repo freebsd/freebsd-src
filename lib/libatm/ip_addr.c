@@ -109,7 +109,7 @@ get_ip_addr(const char *p)
  * given a sockaddr_in with an IP address.
  * 
  * Arguments:
- *	p	pointer to sockaddr_in with an IP address
+ *	addr	pointer to sockaddr_in with an IP address
  *
  * Returns:
  *	char *	pointer to a text-formatted string
