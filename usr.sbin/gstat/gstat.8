@@ -32,7 +32,7 @@
 .Nd print statistics about GEOM disks
 .Sh SYNOPSIS
 .Nm
-.Op Fl cd
+.Op Fl acd
 .Op Fl I Ar interval
 .Sh DESCRIPTION
 The
@@ -43,6 +43,8 @@ devices.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl a
+Only display providers that are at least 0.1% busy.
 .It Fl c
 Enable display of
 .Xr geom 4
