@@ -31,10 +31,17 @@
 
 #ifdef _KERNEL
 
-u_int read_random(void *, u_int);
+int read_random(void *, int);
 
-enum esource { RANDOM_WRITE, RANDOM_KEYBOARD, RANDOM_MOUSE, RANDOM_NET,
-		RANDOM_INTERRUPT, ENTROPYSOURCE };
+enum esource {
+	RANDOM_START = 0,
+	RANDOM_WRITE = 0,
+	RANDOM_KEYBOARD,
+	RANDOM_MOUSE,
+	RANDOM_NET,
+	RANDOM_INTERRUPT,
+	ENTROPYSOURCE
+};
 void random_harvest(void *, u_int, u_int, u_int, enum esource);
 
 /* Allow the sysadmin to select the broad category of
