@@ -625,8 +625,7 @@ lmc_rx_intr(lmc_softc_t * const sc)
 			if (accept) {
 				ms->m_pkthdr.len = total_len;
 				ms->m_pkthdr.rcvif = NULL;
-				ng_send_data(sc->lmc_hook,
-				    ms, NULL, NULL, NULL);
+				ng_queue_data(sc->lmc_hook, ms, NULL);
 			}
 			ms = m0;
 		}
