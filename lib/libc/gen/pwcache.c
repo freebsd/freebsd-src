@@ -79,7 +79,7 @@ user_from_uid(uid, nouser)
 				return (NULL);
 		}
 	}
-	return (cp->found ? cp->name : NULL);
+	return ((nouser && !cp->found) ? NULL : cp->name);
 }
 
 char *
@@ -115,5 +115,5 @@ group_from_gid(gid, nogroup)
 				return (NULL);
 		}
 	}
-	return (cp->found ? cp->name : NULL);
+	return ((nogroup && !cp->found) ? NULL : cp->name);
 }
