@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.246.2.17 1996/12/14 09:46:18 phk Exp $
+#	$Id: Makefile,v 1.246.2.18 1996/12/14 22:50:25 jkh Exp $
 #
 # How to roll a release:
 #
@@ -21,7 +21,8 @@ RELEASETAG=RELENG_2_2
 
 # Things which without too much trouble can be considered variables
 
-EXPORT_DISTS=	games manpages proflibs dict info doc
+COMPAT_DISTS=	compat1x compat20 compat21
+EXPORT_DISTS=	games manpages proflibs dict info doc ${COMPAT_DISTS}
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
 KERNELS?=	GENERIC
