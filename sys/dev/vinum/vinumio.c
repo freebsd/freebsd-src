@@ -90,9 +90,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
      * Create a minor number for each of them.
      */
     unit = 0;
-    while ((dname[0] >= '0')				    /* invalid unit */
-    &&(dname[0] <= '9')) {
-	unit += dname[0] - '0';
+    while ((*dname >= '0')				    /* unit number */
+    &&(*dname <= '9')) {
+	unit = unit * 10 + *dname - '0';
 	dname++;
     }
 
@@ -104,9 +104,9 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 +(dname[2] - 'a')					    /* partition */
 	+((dname[1] - '0' + 1) << 16);			    /* slice */
     } else {						    /* compatibility partition */
-	if ((dname[0] < 'a') || (dname[0] > 'h'))	    /* or invalid partition */
+	if ((*dname < 'a') || (*dname > 'h'))		    /* or invalid partition */
 	    return ENODEV;
-	devminor = (dname[0] - 'a')			    /* partition */
+	devminor = (*dname - 'a')			    /* partition */
 	+(unit << 3);					    /* unit */
     }
 
