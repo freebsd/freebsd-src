@@ -150,6 +150,19 @@ or
 .Ar script.pl
 and produce no warnings.
 .Pp
+Indentation is an 8 character tab.  Second level indents are four spaces.
+.Bd -literal -offset 0i
+ while (cnt < 20) {
+	z = a + really + long + statement + that + needs +
+	    two lines + gets + indented + four + spaces +
+	    on + the + second + and + subsequent + lines.
+ }
+.Ed
+.Pp
+Do not add whitespace at the end of a line, and only use tabs
+followed by spaces to form the indentation.  Do not use more spaces
+than a tab will produce and do not use spaces in front of tabs.
+.Pp
 Opening braces should be at the end of the controlling line.  Else
 and elsif belong on the same line as the closing brace for the
 previous if or elsif block:
@@ -182,10 +195,6 @@ previous if or elsif block:
  }
 .Ed
 .Pp
-Indentation and block style should follow
-.Xr style 9
-where applicable.
-.Pp
 Where possible scripts should use standard modules instead of
 rewriting the code inline.  It may be appropriate in some cases to
 import a CPAN module into the base system to facilitate this.
@@ -202,9 +211,13 @@ instead of
 .Fa if (! ... )
 where it improves readability.
 .Pp
+Where it doesn't conflict with this guide read
+.Xr perlstyle 1
+and adopt Larry Wall's style recommendations.
 
 .Sh SEE ALSO
 .Xr perlsec 1 ,
+.Xr perlstyle 1 ,
 .Xr style 9
 .Sh HISTORY
 This man page is largely based on the
