@@ -14,6 +14,9 @@ minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
 
+20050406:	p14	FreeBSD-SA-05:03.amd64
+	Correctly initialize the I/O permission bitmap on amd64.
+
 20041201:	p13	FreeBSD-SA-04:17.procfs
 	Fix a tainted pointer dereference in procfs(5) and linprocfs(5)
 	which could allow a local attacker to panic a system and/or read
