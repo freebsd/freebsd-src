@@ -30,8 +30,8 @@ struct form {
 	int no_fields;
 	int current_field;
 	struct field *field;
-	int nlines;
-	int ncols;
+	int height;
+	int width;
 	int y;
 	int x;
 	WINDOW *window;
