@@ -182,8 +182,7 @@
 
     &hwlist.nsp;
 
-    <para arch="i386">Adaptec AIC-7110 Parallel to SCSI interfaces (&man.vpo.4; driver)
-    </para>
+    &hwlist.vpo;
 
     &hwlist.ida;
 
@@ -191,9 +190,7 @@
 
     &hwlist.iir;
 
-    <para arch="i386">Promise SuperTrak ATA RAID controllers (&man.pst.4;
-    driver)
-    </para>
+    &hwlist.pst;
 
     &hwlist.hptmv;
 
