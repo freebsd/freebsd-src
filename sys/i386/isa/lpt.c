@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.68 1998/04/15 17:45:34 bde Exp $
+ *	$Id: lpt.c,v 1.69 1998/06/07 17:10:44 dfr Exp $
  */
 
 /*
@@ -987,7 +987,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	break;
 
     default:
-	lprintf("LP:ioctl(0x%x)\n",cmd);
+	lprintf("LP:ioctl(0x%lx)\n", cmd);
 	return EINVAL;
     }
     return 0;

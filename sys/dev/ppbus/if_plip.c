@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  *
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: if_plip.c,v 1.1 1998/08/03 19:14:31 msmith Exp $
+ *	$Id: if_plip.c,v 1.2 1998/08/12 18:02:48 bde Exp $
  */
 
 /*
@@ -394,7 +394,7 @@ lpioctl (struct ifnet *ifp, u_long cmd, caddr_t data)
 	break;
 
     default:
-	lprintf("LP:ioctl(0x%x)\n",cmd);
+	lprintf("LP:ioctl(0x%lx)\n", cmd);
 	return EINVAL;
     }
     return 0;

@@ -387,16 +387,17 @@ void dump_mbuf_hdr(m)
         return;
   }
 
-  printf("Single mbuf at %08x\n", m);
-  printf("m_len = %d, m_data = 0x%x, m_type = %d\n",m->m_len,
-	 m->m_data, m->m_type);
+  printf("Single mbuf at %p\n", (void *)m);
+  printf("m_len = %d, m_data = %p, m_type = %d\n",m->m_len,
+	 (void *)m->m_data, m->m_type);
   printf("m_flags = 0x%x ",m->m_flags);
   if (m->m_flags & M_PKTHDR)
-    printf("m_pkthdr.len = %d, m_pkthdr.rcvif = 0x%x",m->m_pkthdr.len,
-	   m->m_pkthdr.rcvif);
+    printf("m_pkthdr.len = %d, m_pkthdr.rcvif = %p",m->m_pkthdr.len,
+	   (void *)m->m_pkthdr.rcvif);
   if (m->m_flags & M_EXT)
     printf(" (IS CLUSTER MBUF)");
-  printf("\nm_next = 0x%x  m_nextpkt = 0x%x\n",m->m_next, m->m_nextpkt);
+  printf("\nm_next = %p  m_nextpkt = %p\n",(void *)m->m_next,
+	 (void *)m->m_nextpkt);
 }
 
 /*----------------------------------------------------------------------
@@ -505,7 +506,7 @@ void dump_ifp(ifp)
 
   printf("Interface name: %s.\n",ifp->if_name);
   printf("Interface type: %d.  ",ifp->if_type);
-  printf("MTU: %d.\n",ifp->if_mtu);
+  printf("MTU: %lu.\n",ifp->if_mtu);
 }
 
 /*----------------------------------------------------------------------
@@ -519,7 +520,7 @@ void dump_route(ro)
     return;
   }
 
-  printf("ro_rt = 0x%x, ro_dst is:\n",ro->ro_rt);
+  printf("ro_rt = %p, ro_dst is:\n",(void *)ro->ro_rt);
   dump_smart_sockaddr(&ro->ro_dst);
 }
 
@@ -538,10 +539,10 @@ void dump_rtentry(rt)
   dump_smart_sockaddr(rt_key(rt));
   printf("rt_mask is:\n");
   dump_smart_sockaddr(rt_mask(rt));
-  printf("rt_llinfo = 0x%x ",rt->rt_llinfo);
-  printf("rt_rmx.rmx_mtu = %d ",rt->rt_rmx.rmx_mtu);
+  printf("rt_llinfo = %p ",(void *)rt->rt_llinfo);
+  printf("rt_rmx.rmx_mtu = %lu ",rt->rt_rmx.rmx_mtu);
   printf("rt_refcnt = %d ",rt->rt_refcnt);
-  printf("rt_flags = 0x%x\n",rt->rt_flags);
+  printf("rt_flags = 0x%lx\n",rt->rt_flags);
   printf("rt_ifp is:\n");
   dump_ifp(rt->rt_ifp);
   printf("rt_ifa is:\n");
@@ -563,7 +564,8 @@ void dump_inpcb(inp)
   printf("inp_next = 0x%x, inp_prev = 0x%x, inp_head = 0x%x.\n",
 	inp->inp_next, inp->inp_prev, inp->inp_head);
 #endif
-  printf("inp_socket = 0x%x, inp_ppcb\n",inp->inp_socket,inp->inp_ppcb);
+  printf("inp_socket = %p, inp_ppcb = %p\n",
+	 (void *)inp->inp_socket,(void *)inp->inp_ppcb);
   printf("faddr:\n");
   dump_in_addr(&inp->inp_faddr);
   printf("laddr:\n");
@@ -572,8 +574,8 @@ void dump_inpcb(inp)
   dump_route(&inp->inp_route);
   printf("inp_ip:");
   printf("<Coming soon.>\n");
-  printf("inp_options = 0x%x, inp_moptions{6,} = 0x%x,\n",inp->inp_options,
-	 inp->inp_moptions);
+  printf("inp_options = %p, inp_moptions{6,} = %p,\n",
+	 (void *)inp->inp_options, (void *)inp->inp_moptions);
   printf("inp_flags = 0x%x, inp_fport = %d, inp_lport = %d.\n",
 	 (unsigned)inp->inp_flags,inp->inp_fport, inp->inp_lport);
 }

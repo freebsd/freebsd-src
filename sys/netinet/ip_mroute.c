@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.46 1998/04/17 22:36:58 des Exp $
+ * $Id: ip_mroute.c,v 1.47 1998/06/30 10:56:31 phk Exp $
  */
 
 #include "opt_mrouting.h"
@@ -762,11 +762,11 @@ add_vif(vifcp)
     if (numvifs <= vifcp->vifc_vifi) numvifs = vifcp->vifc_vifi + 1;
 
     if (mrtdebug)
-	log(LOG_DEBUG, "add_vif #%d, lcladdr %x, %s %x, thresh %x, rate %d\n",
+	log(LOG_DEBUG, "add_vif #%d, lcladdr %lx, %s %lx, thresh %x, rate %d\n",
 	    vifcp->vifc_vifi, 
-	    ntohl(vifcp->vifc_lcl_addr.s_addr),
+	    (u_long)ntohl(vifcp->vifc_lcl_addr.s_addr),
 	    (vifcp->vifc_flags & VIFF_TUNNEL) ? "rmtaddr" : "mask",
-	    ntohl(vifcp->vifc_rmt_addr.s_addr),
+	    (u_long)ntohl(vifcp->vifc_rmt_addr.s_addr),
 	    vifcp->vifc_threshold,
 	    vifcp->vifc_rate_limit);    
 
@@ -850,9 +850,9 @@ add_mfc(mfccp)
     /* If an entry already exists, just update the fields */
     if (rt) {
 	if (mrtdebug & DEBUG_MFC)
-	    log(LOG_DEBUG,"add_mfc update o %x g %x p %x\n",
-		ntohl(mfccp->mfcc_origin.s_addr),
-		ntohl(mfccp->mfcc_mcastgrp.s_addr),
+	    log(LOG_DEBUG,"add_mfc update o %lx g %lx p %x\n",
+		(u_long)ntohl(mfccp->mfcc_origin.s_addr),
+		(u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		mfccp->mfcc_parent);
 
 	s = splnet();
@@ -876,17 +876,17 @@ add_mfc(mfccp)
 	    (mb_rt->m_act != NULL)) {
   
 	    if (nstl++)
-		log(LOG_ERR, "add_mfc %s o %x g %x p %x dbx %x\n",
+		log(LOG_ERR, "add_mfc %s o %lx g %lx p %x dbx %p\n",
 		    "multiple kernel entries",
-		    ntohl(mfccp->mfcc_origin.s_addr),
-		    ntohl(mfccp->mfcc_mcastgrp.s_addr),
-		    mfccp->mfcc_parent, mb_rt->m_act);
+		    (u_long)ntohl(mfccp->mfcc_origin.s_addr),
+		    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
+		    mfccp->mfcc_parent, (void *)mb_rt->m_act);
 
 	    if (mrtdebug & DEBUG_MFC)
-		log(LOG_DEBUG,"add_mfc o %x g %x p %x dbg %x\n",
-		    ntohl(mfccp->mfcc_origin.s_addr),
-		    ntohl(mfccp->mfcc_mcastgrp.s_addr),
-		    mfccp->mfcc_parent, mb_rt->m_act);
+		log(LOG_DEBUG,"add_mfc o %lx g %lx p %x dbg %p\n",
+		    (u_long)ntohl(mfccp->mfcc_origin.s_addr),
+		    (u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
+		    mfccp->mfcc_parent, (void *)mb_rt->m_act);
 
 	    rt->mfc_origin     = mfccp->mfcc_origin;
 	    rt->mfc_mcastgrp   = mfccp->mfcc_mcastgrp;
@@ -924,9 +924,9 @@ add_mfc(mfccp)
      */
     if (nstl == 0) {
 	if (mrtdebug & DEBUG_MFC)
-	    log(LOG_DEBUG,"add_mfc no upcall h %d o %x g %x p %x\n",
-		hash, ntohl(mfccp->mfcc_origin.s_addr),
-		ntohl(mfccp->mfcc_mcastgrp.s_addr),
+	    log(LOG_DEBUG,"add_mfc no upcall h %lu o %lx g %lx p %x\n",
+		hash, (u_long)ntohl(mfccp->mfcc_origin.s_addr),
+		(u_long)ntohl(mfccp->mfcc_mcastgrp.s_addr),
 		mfccp->mfcc_parent);
 	
 	for (mb_rt = mfctable[hash]; mb_rt; mb_rt = mb_rt->m_next) {
@@ -1029,8 +1029,8 @@ del_mfc(mfccp)
     hash = MFCHASH(origin.s_addr, mcastgrp.s_addr);
 
     if (mrtdebug & DEBUG_MFC)
-	log(LOG_DEBUG,"del_mfc orig %x mcastgrp %x\n",
-	    ntohl(origin.s_addr), ntohl(mcastgrp.s_addr));
+	log(LOG_DEBUG,"del_mfc orig %lx mcastgrp %lx\n",
+	    (u_long)ntohl(origin.s_addr), (u_long)ntohl(mcastgrp.s_addr));
 
     s = splnet();
 
@@ -1108,8 +1108,9 @@ X_ip_mforward(ip, ifp, m, imo)
     struct vif *vifp;
 
     if (mrtdebug & DEBUG_FORWARD)
-	log(LOG_DEBUG, "ip_mforward: src %x, dst %x, ifp %x\n",
-	    ntohl(ip->ip_src.s_addr), ntohl(ip->ip_dst.s_addr), ifp);
+	log(LOG_DEBUG, "ip_mforward: src %lx, dst %lx, ifp %p\n",
+	    (u_long)ntohl(ip->ip_src.s_addr), (u_long)ntohl(ip->ip_dst.s_addr),
+	    (void *)ifp);
 
     if (ip->ip_hl < (IP_HDR_LEN + TUNNEL_LEN) >> 2 ||
 	(ipoptions = (u_char *)(ip + 1))[1] != IPOPT_LSRR ) {
@@ -1123,8 +1124,9 @@ X_ip_mforward(ip, ifp, m, imo)
 	 * Source-route tunnels are no longer supported.
 	 */
 	if ((srctun++ % 1000) == 0)
-	    log(LOG_ERR, "ip_mforward: received source-routed packet from %x\n",
-		ntohl(ip->ip_src.s_addr));
+	    log(LOG_ERR,
+		"ip_mforward: received source-routed packet from %lx\n",
+		(u_long)ntohl(ip->ip_src.s_addr));
 
 	return 1;
     }
@@ -1189,9 +1191,9 @@ X_ip_mforward(ip, ifp, m, imo)
 
 	mrtstat.mrts_no_route++;
 	if (mrtdebug & (DEBUG_FORWARD | DEBUG_MFC))
-	    log(LOG_DEBUG, "ip_mforward: no rte s %x g %x\n",
-		ntohl(ip->ip_src.s_addr),
-		ntohl(ip->ip_dst.s_addr));
+	    log(LOG_DEBUG, "ip_mforward: no rte s %lx g %lx\n",
+		(u_long)ntohl(ip->ip_src.s_addr),
+		(u_long)ntohl(ip->ip_dst.s_addr));
 
 	/*
 	 * Allocate mbufs early so that we don't do extra work if we are
@@ -1349,9 +1351,9 @@ expire_upcalls(void *unused)
 	        mfc->mfc_expire != 0 &&
 		--mfc->mfc_expire == 0) {
 		if (mrtdebug & DEBUG_EXPIRE)
-		    log(LOG_DEBUG, "expire_upcalls: expiring (%x %x)\n",
-			ntohl(mfc->mfc_origin.s_addr),
-			ntohl(mfc->mfc_mcastgrp.s_addr));
+		    log(LOG_DEBUG, "expire_upcalls: expiring (%lx %lx)\n",
+			(u_long)ntohl(mfc->mfc_origin.s_addr),
+			(u_long)ntohl(mfc->mfc_mcastgrp.s_addr));
 		/*
 		 * drop all the packets
 		 * free the mbuf with the pkt, if, timing info
@@ -1421,8 +1423,8 @@ ip_mdq(m, ifp, rt, xmt_vif)
     if ((vifi >= numvifs) || (viftable[vifi].v_ifp != ifp)) {
 	/* came in the wrong interface */
 	if (mrtdebug & DEBUG_FORWARD)
-	    log(LOG_DEBUG, "wrong if: ifp %x vifi %d vififp %x\n",
-		ifp, vifi, viftable[vifi].v_ifp); 
+	    log(LOG_DEBUG, "wrong if: ifp %p vifi %d vififp %p\n",
+		(void *)ifp, vifi, (void *)viftable[vifi].v_ifp); 
 	++mrtstat.mrts_wrong_if;
 	++rt->mfc_wrong_if;
 	/*
@@ -1674,8 +1676,8 @@ ipip_input(m, iphlen)
 	mrtstat.mrts_cant_tunnel++; /*XXX*/
 	m_freem(m);
 	if (mrtdebug)
-          log(LOG_DEBUG, "ip_mforward: no tunnel with %x\n",
-		ntohl(ip->ip_src.s_addr));
+	  log(LOG_DEBUG, "ip_mforward: no tunnel with %lx\n",
+		(u_long)ntohl(ip->ip_src.s_addr));
 	return;
     }
     ifp = vifp->v_ifp;
