@@ -339,7 +339,7 @@ showjob(struct job *jp, int sformat, int lformat)
 		if (ps == jp->ps)
 			fmtstr(s, 64, "[%d] %c ", jobno, c);
 		else
-			fmtstr(s, 64, "     %c ", c);
+			fmtstr(s, 64, "    %c ", c);
 		out1str(s);
 		col = strlen(s);
 		if (lformat) {
