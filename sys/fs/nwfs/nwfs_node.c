@@ -59,7 +59,7 @@
 
 extern vop_t **nwfs_vnodeop_p;
 
-static LIST_HEAD(nwnode_hash_head,nwnode) *nwhashtbl;
+static LIST_HEAD(nwnode_hash_head, struct nwnode) *nwhashtbl;
 static u_long nwnodehash;
 static int nwhashlock = 0;
 

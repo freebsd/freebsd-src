@@ -1187,7 +1187,7 @@ filt_pipedetach(struct knote *kn)
 {
 	struct pipe *rpipe = (struct pipe *)kn->kn_fp->f_data;
 
-	SLIST_REMOVE(&rpipe->pipe_sel.si_note, kn, knote, kn_selnext);
+	SLIST_REMOVE(&rpipe->pipe_sel.si_note, kn, struct knote, kn_selnext);
 }
 
 /*ARGSUSED*/

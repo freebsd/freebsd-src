@@ -59,7 +59,7 @@ struct secpolicyindex {
 
 /* Security Policy Data Base */
 struct secpolicy {
-	LIST_ENTRY(secpolicy) chain;
+	LIST_ENTRY(struct secpolicy) chain;
 
 	int	refcnt;			/* reference count */
 	struct secpolicyindex spidx;	/* selector */

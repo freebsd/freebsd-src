@@ -67,7 +67,7 @@ struct sillyrename {
 #define NFSNUMCOOKIES		31
 
 struct nfsdmap {
-	LIST_ENTRY(nfsdmap)	ndm_list;
+	LIST_ENTRY(struct nfsdmap)	ndm_list;
 	int			ndm_eocookie;
 	nfsuint64		ndm_cookies[NFSNUMCOOKIES];
 };
@@ -86,8 +86,8 @@ struct nfsdmap {
  *     be well aligned and, therefore, tightly packed.
  */
 struct nfsnode {
-	LIST_ENTRY(nfsnode)	n_hash;		/* Hash chain */
-	CIRCLEQ_ENTRY(nfsnode)	n_timer;	/* Nqnfs timer chain */
+	LIST_ENTRY(struct nfsnode)	n_hash;		/* Hash chain */
+	CIRCLEQ_ENTRY(struct nfsnode)	n_timer;	/* Nqnfs timer chain */
 	u_quad_t		n_size;		/* Current size of file */
 	u_quad_t		n_brev;		/* Modify rev when cached */
 	u_quad_t		n_lrev;		/* Modify rev for lease */
@@ -113,7 +113,7 @@ struct nfsnode {
 	} n_un2;
 	union {
 		struct sillyrename *nf_silly;	/* Ptr to silly rename struct */
-		LIST_HEAD(, nfsdmap) nd_cook;	/* cookies */
+		LIST_HEAD(, struct nfsdmap) nd_cook;	/* cookies */
 	} n_un3;
 	short			n_fhsize;	/* size in bytes, of fh */
 	short			n_flag;		/* Flag for locking.. */
@@ -153,7 +153,7 @@ struct nfsnode {
 /*
  * Queue head for nfsiod's
  */
-extern TAILQ_HEAD(nfs_bufq, buf) nfs_bufq;
+extern TAILQ_HEAD(nfs_bufq, struct buf) nfs_bufq;
 extern struct proc *nfs_iodwant[NFS_MAXASYNCDAEMON];
 extern struct nfsmount *nfs_iodmount[NFS_MAXASYNCDAEMON];
 

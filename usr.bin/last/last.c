@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -72,12 +74,12 @@ typedef struct arg {
 } ARG;
 ARG	*arglist;				/* head of linked list */
 
-LIST_HEAD(ttylisthead, ttytab) ttylist;
+LIST_HEAD(ttylisthead, struct ttytab) ttylist;
 
 struct ttytab {
 	time_t	logout;				/* log out time */
 	char	tty[UT_LINESIZE + 1];		/* terminal name */
-	LIST_ENTRY(ttytab) list;
+	LIST_ENTRY(struct ttytab) list;
 };
 
 static long	currentout,			/* current logout value */

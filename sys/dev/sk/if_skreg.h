@@ -1129,7 +1129,7 @@ struct sk_jslot {
 
 struct sk_jpool_entry {
 	int                             slot;
-	SLIST_ENTRY(sk_jpool_entry)	jpool_entries;
+	SLIST_ENTRY(struct sk_jpool_entry)	jpool_entries;
 };
 
 struct sk_chain {
@@ -1209,8 +1209,8 @@ struct sk_if_softc {
 	struct sk_softc		*sk_softc;	/* parent controller */
 	int			sk_tx_bmu;	/* TX BMU register */
 	int			sk_if_flags;
-	SLIST_HEAD(__sk_jfreehead, sk_jpool_entry)	sk_jfree_listhead;
-	SLIST_HEAD(__sk_jinusehead, sk_jpool_entry)	sk_jinuse_listhead;
+	SLIST_HEAD(__sk_jfreehead, struct sk_jpool_entry) sk_jfree_listhead;
+	SLIST_HEAD(__sk_jinusehead, struct sk_jpool_entry) sk_jinuse_listhead;
 };
 
 #define SK_MAXUNIT	256

@@ -49,7 +49,7 @@
 #include <sys/queue.h>
 
 struct hcentry {
-	LIST_ENTRY(hcentry) hc_link;
+	LIST_ENTRY(struct hcentry) hc_link;
 	struct	timeval hc_idlesince;	/* time last ref dropped */
 	struct	sockaddr *hc_host;	/* address of this entry's host */
 	struct	rtentry *hc_rt;		/* route to get there */
@@ -64,7 +64,7 @@ struct hccallback {
 	u_long	(*hccb_bump)(u_long);
 };
 
-LIST_HEAD(hchead, hcentry);
+LIST_HEAD(hchead, struct hcentry);
 
 struct hctable {
 	u_long	hct_nentries;

@@ -117,8 +117,8 @@ struct disk_params {
 struct da_softc {
 	struct	 bio_queue_head bio_queue;
 	struct	 devstat device_stats;
-	SLIST_ENTRY(da_softc) links;
-	LIST_HEAD(, ccb_hdr) pending_ccbs;
+	SLIST_ENTRY(struct da_softc) links;
+	LIST_HEAD(, struct ccb_hdr) pending_ccbs;
 	da_state state;
 	da_flags flags;	
 	da_quirks quirks;
@@ -278,7 +278,7 @@ static struct cdevsw da_cdevsw = {
 
 static struct cdevsw dadisk_cdevsw;
 
-static SLIST_HEAD(,da_softc) softc_list;
+static SLIST_HEAD(, struct da_softc) softc_list;
 static struct extend_array *daperiphs;
 
 static int
@@ -825,7 +825,7 @@ daoninvalidate(struct cam_periph *periph)
 	}
 	splx(s);
 
-	SLIST_REMOVE(&softc_list, softc, da_softc, links);
+	SLIST_REMOVE(&softc_list, softc, struct da_softc, links);
 
 	xpt_print_path(periph->path);
 	printf("lost device\n");

@@ -147,7 +147,7 @@ struct uhci_pipe {
  * The uhci_intr_info free list can be global since they contain
  * no dma specific data.  The other free lists do.
  */
-LIST_HEAD(, uhci_intr_info) uhci_ii_free;
+LIST_HEAD(, struct uhci_intr_info) uhci_ii_free;
 
 Static void		uhci_busreset __P((uhci_softc_t *));
 Static usbd_status	uhci_run __P((uhci_softc_t *, int run));

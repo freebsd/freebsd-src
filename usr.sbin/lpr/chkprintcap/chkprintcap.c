@@ -152,13 +152,13 @@ interpret_error(const struct printer *pp, int error)
  * a single loop.
  */
 struct	dirlist {
-	LIST_ENTRY(dirlist) link;
+	LIST_ENTRY(struct dirlist) link;
 	struct stat stab;
 	char *path;
 	char *printer;
 };
 
-static	LIST_HEAD(, dirlist) dirlist;
+static	LIST_HEAD(, struct dirlist) dirlist;
 
 static int
 lessp(const struct dirlist *a, const struct dirlist *b)

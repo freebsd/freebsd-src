@@ -1427,7 +1427,7 @@ filt_sordetach(struct knote *kn)
 	struct socket *so = (struct socket *)kn->kn_fp->f_data;
 	int s = splnet();
 
-	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, knote, kn_selnext);
+	SLIST_REMOVE(&so->so_rcv.sb_sel.si_note, kn, struct knote, kn_selnext);
 	if (SLIST_EMPTY(&so->so_rcv.sb_sel.si_note))
 		so->so_rcv.sb_flags &= ~SB_KNOTE;
 	splx(s);
@@ -1465,7 +1465,7 @@ filt_sowdetach(struct knote *kn)
 	struct socket *so = (struct socket *)kn->kn_fp->f_data;
 	int s = splnet();
 
-	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, knote, kn_selnext);
+	SLIST_REMOVE(&so->so_snd.sb_sel.si_note, kn, struct knote, kn_selnext);
 	if (SLIST_EMPTY(&so->so_snd.sb_sel.si_note))
 		so->so_snd.sb_flags &= ~SB_KNOTE;
 	splx(s);

@@ -44,7 +44,7 @@
 #include <netncp/ncp_subr.h>
 #include <netncp/ncp_conn.h>
 
-SLIST_HEAD(ncp_handle_head,ncp_handle);
+SLIST_HEAD(ncp_handle_head, struct ncp_handle);
 
 int ncp_burst_enabled = 1;
 
@@ -248,7 +248,7 @@ ncp_conn_free(struct ncp_conn *ncp) {
 		ncp_conn_unlocklist(ncp->procp);
 		return 0;
 	}
-	SLIST_REMOVE(&conn_list, ncp, ncp_conn, nc_next);
+	SLIST_REMOVE(&conn_list, ncp, struct ncp_conn, nc_next);
 	ncp_conn_cnt--;
 	ncp_conn_unlocklist(ncp->procp);
 	if (ncp->li.user) free(ncp->li.user, M_NCPDATA);
@@ -434,7 +434,7 @@ ncp_conn_puthandle(struct ncp_handle *handle, struct proc *p, int force) {
 		refp->nh_ref = 0;
 	}
 	if (refp->nh_ref == 0) {
-		SLIST_REMOVE(&lhlist, refp, ncp_handle, nh_next);
+		SLIST_REMOVE(&lhlist, refp, struct ncp_handle, nh_next);
 		FREE(refp, M_NCPDATA);
 	}
 	lockmgr(&lhlock, LK_RELEASE, 0, p);
@@ -471,7 +471,7 @@ ncp_conn_putprochandles(struct proc *p) {
 		if (hp->nh_proc != p) continue;
 		haveone = 1;
 		hp->nh_conn->ref_cnt -= hp->nh_ref;
-		SLIST_REMOVE(&lhlist, hp, ncp_handle, nh_next);
+		SLIST_REMOVE(&lhlist, hp, struct ncp_handle, nh_next);
 		FREE(hp, M_NCPDATA);
 	}
 	lockmgr(&lhlock, LK_RELEASE, 0, p);

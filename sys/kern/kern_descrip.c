@@ -368,10 +368,10 @@ funsetown(sigio)
 	splx(s);
 	if (sigio->sio_pgid < 0) {
 		SLIST_REMOVE(&sigio->sio_pgrp->pg_sigiolst, sigio,
-			     sigio, sio_pgsigio);
+			     struct sigio, sio_pgsigio);
 	} else /* if ((*sigiop)->sio_pgid > 0) */ {
 		SLIST_REMOVE(&sigio->sio_proc->p_sigiolst, sigio,
-			     sigio, sio_pgsigio);
+			     struct sigio, sio_pgsigio);
 	}
 	crfree(sigio->sio_ucred);
 	FREE(sigio, M_SIGIO);

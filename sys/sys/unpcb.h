@@ -65,17 +65,17 @@
  * back pressure on the sender accordingly.
  */
 typedef	u_quad_t	unp_gen_t;
-LIST_HEAD(unp_head, unpcb);
+LIST_HEAD(unp_head, struct unpcb);
 
 struct	unpcb {
-	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
+	LIST_ENTRY(struct unpcb) unp_link; 	/* glue on list of all PCBs */
 	struct	socket *unp_socket;	/* pointer back to socket */
 	struct	vnode *unp_vnode;	/* if associated with file */
 	struct	vnode *unp_rvnode;	/* root vp for creating process */
 	ino_t	unp_ino;		/* fake inode number */
 	struct	unpcb *unp_conn;	/* control block of connected socket */
 	struct	unp_head unp_refs;	/* referencing socket linked list */
-	LIST_ENTRY(unpcb) unp_reflink;	/* link in unp_refs list */
+	LIST_ENTRY(struct unpcb) unp_reflink;	/* link in unp_refs list */
 	struct	sockaddr_un *unp_addr;	/* bound address of socket */
 	int	unp_cc;			/* copy of rcv.sb_cc */
 	int	unp_mbcnt;		/* copy of rcv.sb_mbcnt */

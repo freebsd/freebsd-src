@@ -42,14 +42,14 @@
 #include "sequencer.h"
 
 typedef struct patch {
-	STAILQ_ENTRY(patch) links;
+	STAILQ_ENTRY(struct patch) links;
 	int		patch_func;
 	u_int		begin;
 	u_int		skip_instr;
 	u_int		skip_patch;
 } patch_t;
 
-STAILQ_HEAD(patch_list, patch) patches;
+STAILQ_HEAD(patch_list, struct patch) patches;
 
 static void usage(void);
 static void back_patch(void);
@@ -70,7 +70,7 @@ FILE *regfile;
 char *listfilename;
 FILE *listfile;
 
-static STAILQ_HEAD(,instruction) seq_program;
+static STAILQ_HEAD(, struct instruction) seq_program;
 struct scope_list scope_stack;
 symlist_t patch_functions;
 

@@ -48,7 +48,7 @@ typedef struct usb_dma_block {
         size_t size;
         size_t align;
 	int fullblock;
-	LIST_ENTRY(usb_dma_block) next;
+	LIST_ENTRY(struct usb_dma_block) next;
 } usb_dma_block_t;
 
 #define DMAADDR(dma, offset) ((dma)->block->segs[0].ds_addr + (dma)->offs + (offset))

@@ -55,7 +55,7 @@ struct in_ifaddr {
 	u_long	ia_subnet;		/* subnet number, including net */
 	u_long	ia_subnetmask;		/* mask of subnet part */
 	struct	in_addr ia_netbroadcast; /* to recognize net broadcasts */
-	TAILQ_ENTRY(in_ifaddr) ia_link;	/* tailq macro glue */
+	TAILQ_ENTRY(struct in_ifaddr) ia_link;	/* tailq macro glue */
 	struct	sockaddr_in ia_addr;	/* reserve space for interface name */
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
@@ -81,7 +81,7 @@ struct	in_aliasreq {
 
 
 #ifdef	_KERNEL
-extern	TAILQ_HEAD(in_ifaddrhead, in_ifaddr) in_ifaddrhead;
+extern	TAILQ_HEAD(in_ifaddrhead, struct in_ifaddr) in_ifaddrhead;
 extern	struct	ifqueue	ipintrq;		/* ip packet input queue */
 extern	struct	in_addr zeroin_addr;
 extern	u_char	inetctlerrmap[];
@@ -147,7 +147,7 @@ struct router_info {
  * compatible with the rest of the world (see IN_FIRST_MULTI et al, below).
  */
 struct in_multi {
-	LIST_ENTRY(in_multi) inm_link;	/* queue macro glue */
+	LIST_ENTRY(struct in_multi) inm_link;	/* queue macro glue */
 	struct	in_addr inm_addr;	/* IP multicast address, convenience */
 	struct	ifnet *inm_ifp;		/* back pointer to ifnet */
 	struct	ifmultiaddr *inm_ifma;	/* back pointer to ifmultiaddr */
@@ -163,7 +163,7 @@ SYSCTL_DECL(_net_inet_ip);
 SYSCTL_DECL(_net_inet_raw);
 #endif
 
-extern LIST_HEAD(in_multihead, in_multi) in_multihead;
+extern LIST_HEAD(in_multihead, struct in_multi) in_multihead;
 
 /*
  * Structure used by macros below to remember position when stepping through

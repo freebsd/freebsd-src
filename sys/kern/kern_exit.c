@@ -82,10 +82,10 @@ static int wait1 __P((struct proc *, struct wait_args *, int));
  */
 struct exitlist {
 	exitlist_fn function;
-	TAILQ_ENTRY(exitlist) next;
+	TAILQ_ENTRY(struct exitlist) next;
 };
 
-TAILQ_HEAD(exit_list_head, exitlist);
+TAILQ_HEAD(exit_list_head, struct exitlist);
 static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
 
 /*
