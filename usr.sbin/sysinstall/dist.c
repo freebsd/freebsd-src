@@ -581,7 +581,7 @@ distExtract(char *parent, Distribution *me)
 {
     int i,j, status, total, intr, unmounted_dev;
     int cpid, zpid, fd2, chunk, numchunks;
-    char *path, *dist, buf[300000];
+    char *path, *dist, *buf = NULL, fname[PATH_MAX];
     const char *tmp;
     FILE *fp;
     WINDOW *w = savescr();
@@ -628,15 +628,15 @@ distExtract(char *parent, Distribution *me)
 	 * info file which tells us how many we need for this distribution.
 	 */
 	numchunks = 0;
-	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
+	snprintf(fname, sizeof fname, "%s/%s.inf", path, dist);
 
     getinfo:
-	fp = DEVICE_GET(mediaDevice, buf, TRUE);
+	fp = DEVICE_GET(mediaDevice, fname, TRUE);
 	intr = check_for_interrupt();
 	if (fp == (FILE *)IO_ERROR || intr || !mediaDevice) {
 	    /* Hard error, can't continue */
 	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
-			  buf, !intr ? "I/O error." : "User interrupt.")) {
+			  fname, !intr ? "I/O error." : "User interrupt.")) {
 		DEVICE_SHUTDOWN(mediaDevice);
 		if (!DEVICE_INIT(mediaDevice)) {
 		    status = FALSE;
@@ -672,21 +672,21 @@ distExtract(char *parent, Distribution *me)
 	}
 	else {
 	    /* Try to get the distribution as a single file */
-	    snprintf(buf, sizeof buf, "%s/%s.%s", path, dist,
+	    snprintf(fname, sizeof fname, "%s/%s.%s", path, dist,
 		USE_GZIP ? "tgz" : "tbz");
 	    /*
 	     * Passing TRUE as 3rd parm to get routine makes this a "probing"
 	     * get, for which errors are not considered too significant.
 	     */
 	getsingle:
-	    fp = DEVICE_GET(mediaDevice, buf, TRUE);
+	    fp = DEVICE_GET(mediaDevice, fname, TRUE);
 	    intr = check_for_interrupt();
 	    if (fp == (FILE *)IO_ERROR || intr || !mediaDevice) {
 		/* Hard error, can't continue */
 		if (intr)	/* result of an interrupt */
-		    msgConfirm("Unable to open %s: User interrupt", buf);
+		    msgConfirm("Unable to open %s: User interrupt", fname);
 		else
-		    msgConfirm("Unable to open %s: I/O error", buf);
+		    msgConfirm("Unable to open %s: I/O error", fname);
 		DEVICE_SHUTDOWN(mediaDevice);
 		if (!DEVICE_INIT(mediaDevice)) {
 		    status = FALSE;
@@ -738,24 +738,24 @@ distExtract(char *parent, Distribution *me)
 	    last_msg = 0;
 
 	getchunk:
-	    snprintf(buf, sizeof buf, "cksum.%c%c",  (chunk / 26) + 'a', (chunk % 26) + 'a');
-	    tmp = property_find(dist_attr, buf);
+	    snprintf(fname, sizeof fname, "cksum.%c%c",  (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    tmp = property_find(dist_attr, fname);
 	    chunksize = 0;
 	    if (tmp) {
 		tmp=index(tmp, ' ');
 		chunksize = strtol(tmp, 0, 0);
 	    }
-	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    snprintf(fname, sizeof fname, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
-		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
-	    fp = DEVICE_GET(mediaDevice, buf, FALSE);
+		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, fname);
+	    fp = DEVICE_GET(mediaDevice, fname, FALSE);
 	    intr = check_for_interrupt();
 	    if (fp <= (FILE *)0 || intr) {
 		if (fp == (FILE *)0)
-		    msgConfirm("Failed to find %s on this media.  Reinitializing media.", buf);
+		    msgConfirm("Failed to find %s on this media.  Reinitializing media.", fname);
 		else
 		    msgConfirm("failed to retreive piece file %s.\n"
-			       "%s: Reinitializing media.", buf, !intr ? "I/O error" : "User interrupt");
+			       "%s: Reinitializing media.", fname, !intr ? "I/O error" : "User interrupt");
 		DEVICE_SHUTDOWN(mediaDevice);
 		if (!DEVICE_INIT(mediaDevice))
 		    goto punt;
@@ -770,6 +770,7 @@ distExtract(char *parent, Distribution *me)
 	    while (1) {
 		int seconds;
 
+		buf = safe_realloc(buf, chunksize);
 		n = fread(buf + realsize, 1, BUFSIZ, fp);
 		if (check_for_interrupt()) {
 		    msgConfirm("Media read error:  User interrupt.");
