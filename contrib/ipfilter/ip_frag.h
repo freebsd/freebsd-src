@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * @(#)ip_frag.h	1.5 3/24/96
- * $Id: ip_frag.h,v 2.0.1.1 1997/01/09 15:14:43 darrenr Exp $
+ * $Id: ip_frag.h,v 2.0.2.4 1997/03/27 13:45:09 darrenr Exp $
  */
 
 #ifndef	__IP_FRAG_H_
@@ -39,9 +39,13 @@ typedef	struct	ipfrstat {
 
 #define	IPFR_CMPSZ	(4 + 4 + 2 + 1 + 1)
 
-extern ipfrstat_t *ipfr_fragstats();
-extern int ipfr_newfrag(), ipfr_knownfrag();
-# ifdef	_KERNEL
-extern void ipfr_unload();
-# endif
+extern ipfrstat_t *ipfr_fragstats __P((void));
+extern int ipfr_newfrag __P((ip_t *, fr_info_t *, int));
+extern int ipfr_knownfrag __P((ip_t *, fr_info_t *));
+extern void ipfr_unload __P((void));
+#if     (BSD >= 199306) || SOLARIS
+extern	void	ipfr_slowtimer __P((void));
+#else
+extern	int	ipfr_slowtimer __P((void));
+#endif
 #endif	/* __IP_FIL_H__ */

@@ -48,8 +48,7 @@ static	char	sccsid[] = "@(#)lsock.c	1.2 1/11/96 (C)1995 Darren Reed";
 #if LINUX < 0103
 #include <net/inet/sock.h>
 #endif
-#include "ip_compat.h"
-#include "tcpip.h"
+#include "ipsend.h"
 
 int	nproc;
 struct	task_struct	*proc;
@@ -108,21 +107,20 @@ struct	task_struct	*getproc()
 		fprintf(stderr, "nlist(%#x) == %d\n", names, n);
 		return NULL;
 	    }
-	if (kmemcpy((char *)&nproc, (void *)names[1].n_value,
-		    sizeof(nproc)) == -1)
+	if (KMCPY(&nproc, names[1].n_value, sizeof(nproc)) == -1)
 	    {
 		fprintf(stderr, "read nproc (%#x)\n", names[1].n_value);
 		return NULL;
 	    }
 	siz = nproc * sizeof(struct task_struct *);
-	if (kmemcpy((char *)&v, (void *)names[0].n_value, sizeof(v)) == -1)
+	if (KMCPY(&v, names[0].n_value, sizeof(v)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) proc\n",
 			names[0].n_value, &v, sizeof(v));
 		return NULL;
 	    }
 	pp = (struct task_struct **)malloc(siz);
-	if (kmemcpy((char *)pp, (void *)v, siz) == -1)
+	if (KMCPY(pp, v, siz) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) proc\n",
 			v, pp, siz);
@@ -131,8 +129,7 @@ struct	task_struct	*getproc()
 	proc = (struct task_struct *)malloc(siz);
 	for (n = 0; n < NR_TASKS; n++)
 	    {
-		if (kmemcpy((char *)(proc + n), (void *)pp[n],
-			    sizeof(*proc)) == -1)
+		if (KMCPY((proc + n), pp[n], sizeof(*proc)) == -1)
 		    {
 			fprintf(stderr, "read(%#x,%#x,%d) proc\n",
 				pp[n], proc + n, sizeof(*proc));
@@ -167,15 +164,14 @@ struct	tcpiphdr *ti;
 
 	fs = p->files;
 	o = (struct file **)calloc(1, sizeof(*o) * (fs->count + 1));
-	if (kmemcpy((char *)o, (void *)fs->fd,
-		    (fs->count + 1) * sizeof(*o)) == -1)
+	if (KMCPY(o, fs->fd, (fs->count + 1) * sizeof(*o)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - fd - failed\n",
 			fs->fd, o, sizeof(*o));
 		return NULL;
 	    }
 	f = (struct file *)calloc(1, sizeof(*f));
-	if (kmemcpy((char *)f, (void *)o[fd], sizeof(*f)) == -1)
+	if (KMCPY(f, o[fd], sizeof(*f)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - o[fd] - failed\n",
 			o[fd], f, sizeof(*f));
@@ -183,7 +179,7 @@ struct	tcpiphdr *ti;
 	    }
 
 	i = (struct inode *)calloc(1, sizeof(*i));
-	if (kmemcpy((char *)i, (void *)f->f_inode, sizeof(*i)) == -1)
+	if (KMCPY(i, f->f_inode, sizeof(*i)) == -1)
 	    {
 		fprintf(stderr, "read(%#x,%#x,%d) - f_inode - failed\n",
 			f->f_inode, i, sizeof(*i));
@@ -247,7 +243,7 @@ int	flags;
 		perror("connect");
 		return -1;
 	    }
-	kmemcpy((char*)&sk, (void *)s, sizeof(sk));
+	KMCPY(&sk, s, sizeof(sk));
 	ti->ti_win = sk.window;
 	ti->ti_seq = sk.sent_seq - 1;
 	ti->ti_ack = sk.rcv_ack_seq;

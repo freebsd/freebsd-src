@@ -7,7 +7,7 @@
  */
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ip_state.c	1.8 6/5/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: ip_state.c,v 2.0.1.3 1997/02/16 06:18:36 darrenr Exp $";
+static	char	rcsid[] = "$Id: ip_state.c,v 2.0.2.6 1997/04/02 12:23:24 darrenr Exp $";
 #endif
 
 #if !defined(_KERNEL) && !defined(KERNEL)
@@ -17,12 +17,19 @@ static	char	rcsid[] = "$Id: ip_state.c,v 2.0.1.3 1997/02/16 06:18:36 darrenr Exp
 #include <sys/errno.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/file.h>
+#if defined(__FreeBSD__) && (__FreeBSD__ >= 3)
+#include <sys/ioccom.h>
+#include <sys/filio.h>
+#include <sys/fcntl.h>
+#else
 #include <sys/ioctl.h>
+#endif
 #include <sys/uio.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#ifdef	_KERNEL
+#ifdef _KERNEL
 # include <sys/systm.h>
 #endif
 #if !defined(__SVR4) && !defined(__svr4__)
@@ -48,14 +55,12 @@ static	char	rcsid[] = "$Id: ip_state.c,v 2.0.1.3 1997/02/16 06:18:36 darrenr Exp
 #include <netinet/udp.h>
 #include <netinet/tcpip.h>
 #include <netinet/ip_icmp.h>
-#include "ip_fil.h"
 #include "ip_compat.h"
+#include "ip_fil.h"
 #include "ip_state.h"
 #ifndef	MIN
 #define	MIN(a,b)	(((a)<(b))?(a):(b))
 #endif
-
-void set_tcp_age();
 
 #define	TCP_CLOSE	(TH_FIN|TH_RST)
 
@@ -169,8 +174,8 @@ u_int pass;
 		 */
 		if ((tcp->th_flags & (TH_SYN|TH_ACK)) == TH_SYN)
 			is->is_ack = 0;	/* Trumpet WinSock 'ism */
-		set_tcp_age(&is->is_age, is->is_state, ip, fin,
-			    tcp->th_sport == is->is_sport);
+		fr_tcp_age(&is->is_age, is->is_state, ip, fin,
+			   tcp->th_sport == is->is_sport);
 		break;
 	    }
 	case IPPROTO_UDP :
@@ -187,7 +192,8 @@ u_int pass;
 		return -1;
 	}
 
-	if (!(is = (ipstate_t *)KMALLOC(sizeof(*is)))) {
+	KMALLOC(is, ipstate_t *, sizeof(*is));
+	if (is == NULL) {
 		ips_stats.iss_nomem++;
 		return -1;
 	}
@@ -197,9 +203,14 @@ u_int pass;
 	is->is_next = ips_table[hv];
 	ips_table[hv] = is;
 	is->is_pass = pass;
+	is->is_pkts = 1;
+	is->is_bytes = ip->ip_len;
 	if (pass & FR_LOGFIRST)
 		is->is_pass &= ~(FR_LOGFIRST|FR_LOG);
 	ips_num++;
+#ifdef	IPFILTER_LOG
+	ipstate_log(is, ISL_NEW);
+#endif
 	MUTEX_EXIT(&ipf_state);
 	return 0;
 }
@@ -210,13 +221,7 @@ u_int pass;
  * change timeout depending on whether new packet is a SYN-ACK returning for a
  * SYN or a RST or FIN which indicate time to close up shop.
  */
-int fr_tcpstate(is, fin, ip, tcp, sport
-#ifndef	_KERNEL
-,isp)
-ipstate_t **isp;
-#else
-)
-#endif
+int fr_tcpstate(is, fin, ip, tcp, sport)
 register ipstate_t *is;
 fr_info_t *fin;
 ip_t *ip;
@@ -278,11 +283,13 @@ u_short sport;
 			is->is_dwin = ntohs(tcp->th_win);
 		}
 		ips_stats.iss_hits++;
+		is->is_pkts++;
+		is->is_bytes += ip->ip_len;
 		/*
 		 * Nearing end of connection, start timeout.
 		 */
-		set_tcp_age(&is->is_age, is->is_state, ip, fin,
-			    tcp->th_sport == is->is_sport);
+		fr_tcp_age(&is->is_age, is->is_state, ip, fin,
+			   tcp->th_sport == is->is_sport);
 		return 1;
 	}
 	return 0;
@@ -301,7 +308,7 @@ fr_info_t *fin;
 	register u_char pr;
 	struct icmp *ic;
 	tcphdr_t *tcp;
-	u_int hv, hlen;
+	u_int hv, hlen, pass;
 
 	if ((ip->ip_off & 0x1fff) || (fin->fin_fi.fi_fl & FI_SHORT))
 		return 0;
@@ -336,6 +343,8 @@ fr_info_t *fin;
 				    is->is_icmp.ics_type != ic->icmp_type)
 					continue;
 				is->is_age = fr_icmptimeout;
+				is->is_pkts++;
+				is->is_bytes += ip->ip_len;
 				ips_stats.iss_hits++;
 				MUTEX_EXIT(&ipf_state);
 				return is->is_pass;
@@ -357,7 +366,6 @@ fr_info_t *fin;
 				if (fr_tcpstate(is, fin, ip, tcp, sport)) {
 #ifdef	_KERNEL
 					MUTEX_EXIT(&ipf_state);
-					return is->is_pass;
 #else
 					int pass = is->is_pass;
 
@@ -366,8 +374,8 @@ fr_info_t *fin;
 						isp = &ips_table[hv];
 						KFREE(is);
 					}
-					return pass;
 #endif
+					return pass;
 				}
 		}
 		MUTEX_EXIT(&ipf_state);
@@ -389,9 +397,12 @@ fr_info_t *fin;
 			    PAIRS(sport, dport, is->is_sport, is->is_dport) &&
 			    IPPAIR(src, dst, is->is_src, is->is_dst)) {
 				ips_stats.iss_hits++;
+				is->is_pkts++;
+				is->is_bytes += ip->ip_len;
 				is->is_age = fr_udptimeout;
+				pass = is->is_pass;
 				MUTEX_EXIT(&ipf_state);
-				return is->is_pass;
+				return pass;
 			}
 		MUTEX_EXIT(&ipf_state);
 		break;
@@ -445,6 +456,9 @@ void fr_timeoutstate()
 					ips_stats.iss_fin++;
 				else
 					ips_stats.iss_expire++;
+#ifdef	IPFILTER_LOG
+				ipstate_log(is, ISL_EXPIRE);
+#endif
 				KFREE(is);
 				ips_num--;
 			} else
@@ -458,8 +472,8 @@ void fr_timeoutstate()
  * Original idea freom Pradeep Krishnan for use primarily with NAT code.
  * (pkrishna@netcom.com)
  */
-void set_tcp_age(age, state, ip, fin, dir)
-int *age;
+void fr_tcp_age(age, state, ip, fin, dir)
+u_long *age;
 u_char *state;
 ip_t *ip;
 fr_info_t *fin;
@@ -540,3 +554,51 @@ int dir;
 		break;
 	}
 }
+
+
+#ifdef	IPFILTER_LOG
+void ipstate_log(is, type)
+struct ipstate *is;
+u_short type;
+{
+	struct	ipslog	ipsl;
+
+	if (iplused[IPL_LOGSTATE] + sizeof(ipsl) > IPLLOGSIZE) {
+		ips_stats.iss_logfail++;
+		return;
+	}
+
+        if (iplh[IPL_LOGSTATE] == iplbuf[IPL_LOGSTATE] + IPLLOGSIZE)
+                iplh[IPL_LOGSTATE] = iplbuf[IPL_LOGSTATE];
+
+# ifdef	sun
+	uniqtime(&ipsl);
+# endif
+# if BSD >= 199306 || defined(__FreeBSD__)
+	microtime((struct timeval *)&ipsl);
+# endif
+	ipsl.isl_pkts = is->is_pkts;
+	ipsl.isl_bytes = is->is_bytes;
+	ipsl.isl_src = is->is_src;
+	ipsl.isl_dst = is->is_dst;
+	ipsl.isl_p = is->is_p;
+	ipsl.isl_flags = is->is_flags;
+	ipsl.isl_type = type;
+	if (ipsl.isl_p == IPPROTO_TCP || ipsl.isl_p == IPPROTO_UDP) {
+		ipsl.isl_sport = is->is_sport;
+		ipsl.isl_dport = is->is_dport;
+	} else if (ipsl.isl_p == IPPROTO_ICMP)
+		ipsl.isl_itype = is->is_icmp.ics_type;
+	else {
+		ipsl.isl_ps.isl_filler[0] = 0;
+		ipsl.isl_ps.isl_filler[1] = 0;
+	}
+
+	if (!fr_copytolog(IPL_LOGSTATE, (char *)&ipsl, sizeof(ipsl))) {
+		iplused[IPL_LOGSTATE] += sizeof(ipsl);
+		ips_stats.iss_logged++;
+	} else
+		ips_stats.iss_logfail++;
+	wakeup(iplbuf[IPL_LOGSTATE]);
+}
+#endif

@@ -28,8 +28,7 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
-#include "ip_compat.h"
-#include "tcpip.h"
+#include "ipsend.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)slinux.c	1.2 8/25/95";
