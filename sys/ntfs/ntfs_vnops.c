@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vnops.c,v 1.10 1999/02/02 03:15:13 semen Exp $
+ *	$Id: ntfs_vnops.c,v 1.2 1999/02/19 12:31:02 semenu Exp $
  *
  */
 
