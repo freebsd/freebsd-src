@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: spans_kxdr.c,v 1.2 1997/05/06 22:17:00 mks Exp $
+ *	@(#) $Id: spans_kxdr.c,v 1.1 1998/09/15 08:23:03 phk Exp $
  *
  */
 
@@ -35,11 +35,11 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: spans_kxdr.c,v 1.2 1997/05/06 22:17:00 mks Exp $";
-#endif
-
 #include <netatm/kern_include.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: spans_kxdr.c,v 1.1 1998/09/15 08:23:03 phk Exp $");
+#endif
 
 /*
  * This file contains code that has been copied and/or modified from

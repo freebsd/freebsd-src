@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: uniarp_timer.c,v 1.8 1998/06/29 22:44:31 mks Exp $
+ *	@(#) $Id: uniarp_timer.c,v 1.1 1998/09/15 08:23:10 phk Exp $
  *
  */
 
@@ -35,16 +35,16 @@
  *
  */
 
-#ifndef lint
-static char *RCSid = "@(#) $Id: uniarp_timer.c,v 1.8 1998/06/29 22:44:31 mks Exp $";
-#endif
-
 #include <netatm/kern_include.h>
 
 #include <netatm/ipatm/ipatm_var.h>
 #include <netatm/ipatm/ipatm_serv.h>
 #include <netatm/uni/unisig_var.h>
 #include <netatm/uni/uniip_var.h>
+
+#ifndef lint
+__RCSID("@(#) $Id: uniarp_timer.c,v 1.1 1998/09/15 08:23:10 phk Exp $");
+#endif
 
 
 /*
