@@ -68,7 +68,7 @@ editgroups(char *name, char **groups)
 	strcpy(grouptmp, groupfile);
 	strcat(grouptmp, ".new");
 
-	if ((infd = open(groupfile, O_RDWR | O_CREAT, 0644)) != -1) {
+	if ((infd = open(groupfile, O_RDWR | O_CREAT | O_EXLOCK, 0644)) != -1) {
 		FILE           *infp;
 
 		if ((infp = fdopen(infd, "r+")) == NULL)
@@ -76,7 +76,7 @@ editgroups(char *name, char **groups)
 		else {
 			int             outfd;
 
-			if ((outfd = open(grouptmp, O_RDWR | O_CREAT | O_TRUNC | O_EXLOCK, 0644)) != -1) {
+			if ((outfd = open(grouptmp, O_RDWR | O_CREAT | O_TRUNC, 0644)) != -1) {
 				FILE           *outfp;
 
 				if ((outfp = fdopen(outfd, "w+")) == NULL)
@@ -207,8 +207,7 @@ editgroups(char *name, char **groups)
 
 							/*
 							 * This is a gross hack, but we may have corrupted the
-							 * original file. Unfortunately, it will lose preservation
-							 * of the inode.
+							 * original file.
 							 */
 							if (fflush(infp) == EOF || ferror(infp))
 								rc = rename(grouptmp, groupfile) == 0;
