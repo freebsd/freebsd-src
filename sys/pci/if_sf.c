@@ -604,8 +604,8 @@ static int sf_probe(dev)
 	while(t->sf_name != NULL) {
 		if ((pci_get_vendor(dev) == t->sf_vid) &&
 		    (pci_get_device(dev) == t->sf_did)) {
-			switch(pci_read_config(dev,
-			    SF_PCI_SUBVEN_ID >> 16, 4) & 0x8FFF) {
+			switch((pci_read_config(dev,
+			    SF_PCI_SUBVEN_ID, 4) >> 16) & 0xFFFF) {
 			case AD_SUBSYSID_62011_REV0:
 			case AD_SUBSYSID_62011_REV1:
 				device_set_desc(dev,
