@@ -106,12 +106,20 @@ int p31b_proc(struct proc *p, pid_t pid, struct proc **pp)
 	return ret;
 }
 
+/* The system calls return ENOSYS if an entry is called that is
+ * not run-time supported.  I am also logging since some programs
+ * start to use this when they shouldn't.  That will be removed if annoying.
+ */
 int
 syscall_not_present(struct proc *p, const char *s, struct nosys_args *uap)
 {
 	log(LOG_ERR, "cmd %s pid %d tried to use non-present %s\n",
 			p->p_comm, p->p_pid, s);
-	return nosys(p, uap);
+
+	/* a " return nosys(p, uap); " here causes a core dump.
+	 */
+
+	return ENOSYS;
 }
 
 #if !defined(_KPOSIX_PRIORITY_SCHEDULING)
