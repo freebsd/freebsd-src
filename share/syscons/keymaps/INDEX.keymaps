@@ -201,11 +201,11 @@ norwegian.iso.kbd:de:Norwegisch ISO-8859-1
 norwegian.iso.kbd:pt:Norueguês ISO-8859-1
 norwegian.iso.kbd:es:Noruego ISO-8859-1
 
-pl_PL.ISO_8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
-pl_PL.ISO_8859-2.kbd:de:Polnisch ISO-8859-2 (für Programmierer)
-pl_PL.ISO_8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
-pl_PL.ISO_8859-2.kbd:pt:Polonês ISO-8859-2 (para programadores)
-pl_PL.ISO_8859-2.kbd:es:Polaco ISO-8859-2 (para programadores)
+pl_PL.ISO8859-2.kbd:en:Polish ISO-8859-2 (programmer's)
+pl_PL.ISO8859-2.kbd:de:Polnisch ISO-8859-2 (für Programmierer)
+pl_PL.ISO8859-2.kbd:pl:Polska ISO-8859-2 (programisty)
+pl_PL.ISO8859-2.kbd:pt:Polonês ISO-8859-2 (para programadores)
+pl_PL.ISO8859-2.kbd:es:Polaco ISO-8859-2 (para programadores)
 
 pt.iso.kbd:en:Portuguese ISO-8859-1
 pt.iso.kbd:de:Portugisisch ISO-8859-1
