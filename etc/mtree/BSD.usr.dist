@@ -322,10 +322,6 @@
             cvs
                 contrib
                 ..
-                examples
-                ..
-                pcl-cvs
-                ..
             ..
             cvsup
             ..
