@@ -118,7 +118,7 @@ comc_putchar(int c)
 
     for (wait = COMC_TXWAIT; wait > 0; wait--)
         if (inb(COMPORT + com_lsr) & LSR_TXRDY) {
-	    outb(COMPORT + com_data, c);
+	    outb(COMPORT + com_data, (u_char)c);
 	    break;
 	}
 }

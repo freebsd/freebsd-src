@@ -63,6 +63,7 @@ struct arch_switch	archsw;		/* MI/MD interface boundary */
 static void		extract_currdev(void);
 static int		isa_inb(int port);
 static void		isa_outb(int port, int value);
+void			exit(int code);
 
 /* from vers.c */
 extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
@@ -70,7 +71,7 @@ extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 /* XXX debugging */
 extern char end[];
 
-void
+int
 main(void)
 {
     int			i;
@@ -140,6 +141,9 @@ main(void)
     archsw.arch_isaoutb = isa_outb;
 
     interact();			/* doesn't return */
+
+    /* if we ever get here, it is an error */
+    return (1);
 }
 
 /*
@@ -151,40 +155,41 @@ main(void)
 static void
 extract_currdev(void)
 {
-    struct i386_devdesc	currdev;
+    struct i386_devdesc	new_currdev;
     int			major, biosdev;
 
     /* Assume we are booting from a BIOS disk by default */
-    currdev.d_dev = &biosdisk;
-    currdev.d_type = currdev.d_dev->dv_type;
+    new_currdev.d_dev = &biosdisk;
+    new_currdev.d_type = new_currdev.d_dev->dv_type;
 
     /* new-style boot loaders such as pxeldr and cdldr */
     if (kargs->bootinfo == NULL) {
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
 	    /* we are booting from a CD with cdldr */
-	    currdev.d_kind.biosdisk.slice = -1;
-	    currdev.d_kind.biosdisk.partition = 0;
+	    new_currdev.d_kind.biosdisk.slice = -1;
+	    new_currdev.d_kind.biosdisk.partition = 0;
 	    biosdev = initial_bootdev;
 	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
 	    /* we are booting from pxeldr */
-	    currdev.d_dev = &pxedisk;
-	    currdev.d_type = currdev.d_dev->dv_type;
-	    currdev.d_kind.netif.unit = 0;
+	    new_currdev.d_dev = &pxedisk;
+	    new_currdev.d_type = new_currdev.d_dev->dv_type;
+	    new_currdev.d_kind.netif.unit = 0;
+	    biosdev = -1;
 	} else {
 	    /* we don't know what our boot device is */
-	    currdev.d_kind.biosdisk.slice = -1;
-	    currdev.d_kind.biosdisk.partition = 0;
+	    new_currdev.d_kind.biosdisk.slice = -1;
+	    new_currdev.d_kind.biosdisk.partition = 0;
 	    biosdev = -1;
 	}
     } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
-	currdev.d_kind.biosdisk.slice = -1;
-	currdev.d_kind.biosdisk.partition = 0;
+	new_currdev.d_kind.biosdisk.slice = -1;
+	new_currdev.d_kind.biosdisk.partition = 0;
 	biosdev = -1;
     } else {
-	currdev.d_kind.biosdisk.slice = (B_ADAPTOR(initial_bootdev) << 4) +
-					 B_CONTROLLER(initial_bootdev) - 1;
-	currdev.d_kind.biosdisk.partition = B_PARTITION(initial_bootdev);
+	new_currdev.d_kind.biosdisk.slice = (B_ADAPTOR(initial_bootdev) << 4) +
+					     B_CONTROLLER(initial_bootdev) - 1;
+	new_currdev.d_kind.biosdisk.partition = B_PARTITION(initial_bootdev);
 	biosdev = initial_bootinfo->bi_bios_dev;
 	major = B_TYPE(initial_bootdev);
 
@@ -211,14 +216,16 @@ extract_currdev(void)
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
      */
-    if ((currdev.d_type == devsw[0]->dv_type) &&
-	((currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1)) {
+    if ((new_currdev.d_type == devsw[0]->dv_type) &&
+	((new_currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
-	currdev.d_kind.biosdisk.unit = 0;
+	new_currdev.d_kind.biosdisk.unit = 0;
     }
-    env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&currdev), i386_setcurrdev, env_nounset);
-    env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&currdev), env_noset, env_nounset);
+    env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
+	       i386_setcurrdev, env_nounset);
+    env_setenv("loaddev", EV_VOLATILE, i386_fmtdev(&new_currdev), env_noset,
+	       env_nounset);
 }
 
 COMMAND_SET(reboot, "reboot", "reboot the system", command_reboot);
