@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pw_user.c,v 1.15 1997/02/22 16:12:30 peter Exp $
  */
 
 #include <unistd.h>
@@ -44,10 +44,10 @@
 #include "bitmap.h"
 #include "pwupd.h"
 
-#if (MAXLOGNAME-1) > UT_NAMESIZE
+#if MAXLOGNAME > UT_NAMESIZE
 #define LOGNAMESIZE UT_NAMESIZE
 #else
-#define LOGNAMESIZE (MAXLOGNAME-1)
+#define LOGNAMESIZE MAXLOGNAME
 #endif
 
 static int      print_user(struct passwd * pwd, int pretty);
