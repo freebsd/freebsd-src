@@ -489,7 +489,7 @@ update:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Updating ${.CURDIR} from cvs repository" ${CVSROOT}
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}; cvs -q update -rRELENG_4 -P -d
+	cd ${.CURDIR}; cvs -q update -rRELENG_4_3 -P -d
 .endif
 
 #
