@@ -700,7 +700,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 * this thead/KSE up to userland.
 		 */
 		CTR3(KTR_PROC, "userret: upcall thread %p (pid %d, %s)",
-		    td, p->p_pid, p->p_comm);
+		    td, td->td_proc->p_pid, td->td_proc->p_comm);
 
 		/*
 		 * Set user context to the UTS.
