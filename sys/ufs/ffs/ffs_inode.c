@@ -80,10 +80,7 @@ ffs_update(vp, waitfor)
 	struct inode *ip;
 	int error;
 
-#ifdef DEBUG_VFS_LOCKS
-	if ((vp->v_iflag & VI_XLOCK) == 0)
-		ASSERT_VOP_LOCKED(vp, "ffs_update");
-#endif
+	ASSERT_VOP_LOCKED(vp, "ffs_update");
 	ufs_itimes(vp);
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
