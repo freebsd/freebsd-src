@@ -206,6 +206,7 @@ alpha_platform_pci_setup_intr(device_t dev, device_t child,
 			      driver_intr_t *intr, void *arg,
 			      void **cookiep)
 {
+#if	NISA > 0
 	/*
 	 * XXX - If we aren't the resource manager for this IRQ, assume that
 	 * it is actually handled by the ISA PIC.
@@ -214,6 +215,7 @@ alpha_platform_pci_setup_intr(device_t dev, device_t child,
 		return isa_setup_intr(dev, child, irq, flags, intr, arg,
 				      cookiep);
 	else
+#endif
 		return bus_generic_setup_intr(dev, child, irq, flags, intr,
 					      arg, cookiep);
 }
@@ -222,6 +224,7 @@ int
 alpha_platform_pci_teardown_intr(device_t dev, device_t child,
 				 struct resource *irq, void *cookie)
 {
+#if	NISA > 0
 	/*
 	 * XXX - If we aren't the resource manager for this IRQ, assume that
 	 * it is actually handled by the ISA PIC.
@@ -229,6 +232,7 @@ alpha_platform_pci_teardown_intr(device_t dev, device_t child,
 	if(irq->r_rm != &irq_rman)
 		return isa_teardown_intr(dev, child, irq, cookie);
 	else
+#endif
 		return bus_generic_teardown_intr(dev, child, irq, cookie);
 }
 
