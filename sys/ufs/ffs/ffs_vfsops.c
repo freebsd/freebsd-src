@@ -495,10 +495,10 @@ ffs_reload(mp, cred, td)
 	}
 
 loop:
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mp) {
-			mtx_unlock(&mntvnode_mtx);
+			MNT_IUNLOCK(mp);
 			goto loop;
 		}
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
@@ -507,7 +507,7 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		/*
 		 * Step 4: invalidate all inactive vnodes.
 		 */
@@ -540,9 +540,9 @@ loop:
 		brelse(bp);
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -1130,7 +1130,7 @@ ffs_sync(mp, waitfor, cred, td)
 		lockreq = LK_EXCLUSIVE;
 	}
 	lockreq |= LK_INTERLOCK;
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 loop:
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -1159,9 +1159,9 @@ loop:
 			VI_UNLOCK(vp);
 			continue;
 		}
-		mtx_unlock(&mntvnode_mtx);
+		MNT_IUNLOCK(mp);
 		if ((error = vget(vp, lockreq, td)) != 0) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				goto loop;
 			continue;
@@ -1170,11 +1170,11 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		vrele(vp);
-		mtx_lock(&mntvnode_mtx);
+		MNT_ILOCK(mp);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
 			goto loop;
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 	/*
 	 * Force stale filesystem control information to be flushed.
 	 */
@@ -1183,7 +1183,7 @@ loop:
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
 		if (allerror == 0 && count) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			goto loop;
 		}
 	}
@@ -1199,7 +1199,7 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(devvp, 0, td);
 		if (allerror == 0 && waitfor == MNT_WAIT) {
-			mtx_lock(&mntvnode_mtx);
+			MNT_ILOCK(mp);
 			goto loop;
 		}
 	} else

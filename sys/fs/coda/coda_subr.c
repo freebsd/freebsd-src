@@ -307,12 +307,12 @@ coda_unmounting(whoIam)
 void
 coda_checkunmounting(mp)
 	struct mount *mp;
-{	
+{
 	register struct vnode *vp, *nvp;
 	struct cnode *cp;
 	int count = 0, bad = 0;
 
-	mtx_lock(&mntvnode_mtx);
+	MNT_ILOCK(mp);
 	for (vp = TAILQ_FIRST(&mp->mnt_nvnodelist); vp; vp = nvp) {
 		nvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		if (vp->v_mount != mp)
@@ -331,7 +331,7 @@ coda_checkunmounting(mp)
 		}
 		VI_UNLOCK(vp);
 	}
-	mtx_unlock(&mntvnode_mtx);
+	MNT_IUNLOCK(mp);
 }
 
 void
