@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1997/04/10 16:33:22 bde Exp $
+# $Id: Makefile,v 1.12 1997/08/17 21:24:06 andreas Exp $
 #
 
 LIB=	gmp
@@ -91,8 +91,6 @@ CLEANDIRS+=	${.OBJDIR}/mpz ${.CURDIR}/mpz \
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${GMPDIR}/gmp.h ${DESTDIR}/usr/include
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${GMPDIR}/mp.h ${DESTDIR}/usr/include
 
 .S.o:
 	${CC} ${SFLAGS} ${CFLAGS:M-[ID]*} ${AINC} -c ${.IMPSRC} -o ${.TARGET}
