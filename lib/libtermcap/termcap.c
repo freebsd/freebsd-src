@@ -45,6 +45,9 @@ static char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
 #include <string.h>
 #include <unistd.h>
 #include <termios.h>
+#include <signal.h>
+#include <errno.h>
+#include <sys/syscall.h>
 #include "termcap.h"
 #include "pathnames.h"
 
@@ -63,6 +66,8 @@ static char sccsid[] = "@(#)termcap.c	8.1 (Berkeley) 6/4/93";
  */
 
 static	char *tbuf;	/* termcap buffer */
+
+static	int use_issetugid = 1;	/* 0 = not present, 1 = try it, 2 = exists */
 
 /*
  * Get an entry for terminal name in buffer bp from the termcap file.
@@ -115,8 +120,42 @@ tgetent(char *bp, const char *name)
 		strncpy(pathbuf, cp, PBUFSIZ);	/* still can be tokenized */
 	pathbuf[PBUFSIZ - 1] = '\0';
 
-	if (issetugid())
-		strcpy(pathbuf, _PATH_DEF_SEC);
+#ifdef SYS_issetugid
+	/*
+	 * This stuff is to try and detect the presence of the issetugid()
+	 * syscall without breaking dynamic linking during compiles.. Sigh.
+	 */
+othersyscall:
+	if (use_issetugid) {
+		struct sigaction sa, osa;
+		int sigsys_installed = 0;
+		int unsafe;
+
+		if (use_issetugid == 1) {
+			bzero(&sa, sizeof(sa));
+			sa.sa_handler = SIG_IGN;
+			if (sigaction(SIGSYS, &sa, &osa) >= 0)
+				sigsys_installed = 1;
+		}
+		errno = 0;
+		unsafe = syscall(SYS_issetugid);
+		if (sigsys_installed == 1) {
+			int oerrno = errno;
+			sigaction(SIGSYS, &osa, NULL);
+			errno = oerrno;
+		}
+		if (errno == ENOSYS || errno == EINVAL) {
+			use_issetugid = 0;
+			goto othersyscall;
+		} else if (sigsys_installed == 1)
+			sigsys_installed = 2;
+		if (unsafe)
+			strcpy(pathbuf, _PATH_DEF_SEC);
+	} else
+#endif	/* SYS_issetugid */
+		/* issetugid() not in kernel or undefined - try second best */	
+		if (getuid() != geteid() || getgid() != getegid())
+			strcpy(pathbuf, _PATH_DEF_SEC);
 
 	*fname++ = pathbuf;	/* tokenize path into vector of names */
 	while (*++p)
