@@ -317,6 +317,8 @@ route_ParseHdr(struct rt_msghdr *rtm, struct sockaddr *sa[RTAX_MAX])
     if (rtm->rtm_addrs & (1 << rtax)) {
       sa[rtax] = (struct sockaddr *)wp;
       wp += ROUNDUP(sa[rtax]->sa_len);
+      if (sa[rtax]->sa_family == 0)
+        sa[rtax] = NULL;	/* ??? */
     } else
       sa[rtax] = NULL;
 }
