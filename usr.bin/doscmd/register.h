@@ -155,14 +155,14 @@ typedef union
 
 #define REGISTERS		regcontext_t *REGS
 
-inline static void
+static __inline void
 PUSH(u_short x, REGISTERS)
 {
     R_SP -= 2;
     *(u_short *)MAKEPTR(R_SS, R_SP) = (x);
 }
 
-inline static u_short
+static __inline u_short
 POP(REGISTERS)
 {
     u_short	x;

@@ -356,13 +356,13 @@ struct reloc_entry {
 ** DOS-related shrapnel
 */
 
-static inline int
+static __inline int
 from_dos_attr(int attr)
 {
     return((attr & READ_ONLY_FILE) ? 0444 : 0666);
 }
 
-static inline int
+static __inline int
 to_dos_attr(int mode)
 {
     int		attr;

@@ -48,9 +48,9 @@ __FBSDID("$FreeBSD$");
 #include "cwd.h"
 
 /* Local functions */
-static inline int	isvalid(unsigned);
-static inline int	isdot(unsigned);
-static inline int	isslash(unsigned);
+static __inline int	isvalid(unsigned);
+static __inline int	isdot(unsigned);
+static __inline int	isslash(unsigned);
 static void		to_dos_fcb(u_char *, u_char *);
 
 #define	D_REDIR         0x0080000	/* XXX - ack */
@@ -404,19 +404,19 @@ u_char cattr[256] = {
     1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
 };
 
-static inline int
+static __inline int
 isvalid(unsigned c)
 {
     return (cattr[c & 0xff] == 1);
 }
 
-static inline int
+static __inline int
 isdot(unsigned c)
 {
     return (cattr[c & 0xff] == 3);
 }
 
-static inline int
+static __inline int
 isslash(unsigned c)
 {
     return (cattr[c & 0xff] == 4);

@@ -97,13 +97,13 @@ struct diskinfo {
 #define	hd_status	(*(u_char *)0x474)
 #define	fd_status	(*(u_char *)0x441)
 
-static inline int
+static __inline int
 disize(struct diskinfo *di)
 {
     return(di->sectors * di->cylinders * di->sides);
 }
 
-static inline int
+static __inline int
 cylsize(struct diskinfo *di)
 {
     return(di->sectors * di->sides);
@@ -335,7 +335,7 @@ init_hdisk(int drive, int cyl, int head, int tracksize, char *file, char *fake_p
     return(drive);
 }
 
-static inline int
+static __inline int
 bps(int size)
 {
     switch (size) {
