@@ -1,4 +1,4 @@
-''' $Id: uux.1,v 1.10 1993/09/11 22:25:50 ian Rel $
+''' $Id: uux.1,v 1.2 1994/05/07 18:14:33 ache Exp $
 .TH uux 1 "Taylor UUCP 1.05"
 .SH NAME
 uux \- Remote command execution over UUCP
@@ -40,7 +40,7 @@ file to a command being executed on a remote system.  If the path is
 not absolute, it will be appended to the current working directory on
 the local system; the result may not be meaningful on the remote
 system.  A pathname may begin with ~/, in which case it is relative to
-the UUCP public directory (usually /usr/spool/uucppublic) on the
+the UUCP public directory (usually /var/spool/uucppublic) on the
 appropriate system.  A pathname may begin with ~name/, in which case
 it is relative to the home directory of the named user on the
 appropriate system.
@@ -227,15 +227,15 @@ The file names may be changed at compilation time or by the
 configuration file, so these are only approximations.
 
 .br
-/usr/lib/uucp/config - Configuration file.
+/etc/uucp/config - Configuration file.
 .br
-/usr/spool/uucp -
+/var/spool/uucp -
 UUCP spool directory.
 .br
-/usr/spool/uucp/Log -
+/var/spool/uucp/Log -
 UUCP log file.
 .br
-/usr/spool/uucppublic -
+/var/spool/uucppublic -
 Default UUCP public directory.
 .SH SEE ALSO
 mail(1), uustat(1), uucp(1), uucico(8), uuxqt(8)
