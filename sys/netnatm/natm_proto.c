@@ -56,6 +56,8 @@ extern	struct domain natmdomain;
 
 static	void natm_init(void);
 
+NET_NEEDS_GIANT("netnatm");
+
 static struct protosw natmsw[] = {
 { SOCK_STREAM,	&natmdomain,	PROTO_NATMAAL5, PR_CONNREQUIRED,
   0,	0,	0,	0,
