@@ -11,6 +11,10 @@
 #include <unistd.h>
 #endif /* SYS_VAX */
 
+#if defined(HAVE_GETBOOTFILE)
+#include <paths.h>
+#endif
+
 #ifdef SYS_LINUX
 #include "sys/timex.h"
 
@@ -427,9 +431,7 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	};
 #endif
 	char *kernels[] = {
-#if __FreeBSD__ > 1
-		(char *)getbootfile(),
-#endif
+		"/kernel",
 		"/vmunix",
 		"/unix",
 		"/mach",
@@ -440,12 +442,18 @@ getoffsets(filex, tick_off, tickadj_off, dosync_off, noprintf_off)
 	};
 	struct stat stbuf;
 
+#ifdef HAVE_GETBOOTFILE
+	*kname = getbootfile();
+	if (stat(*kname, &stbuf) == -1 || nlist(*kname, nl) == -1)
+		*kname = NULL;
+#else
 	for (kname = kernels; *kname != NULL; kname++) {
 		if (stat(*kname, &stbuf) == -1)
 			continue;
 		if (nlist(*kname, nl) >= 0) 
 			break;
 	}
+#endif
 	if (*kname == NULL) {
 		(void) fprintf(stderr,
 		    "%s: nlist fails: can't find/read /vmunix or /unix\n",
