@@ -67,6 +67,7 @@ static linux_ioctl_function_t linux_ioctl_socket;
 static linux_ioctl_function_t linux_ioctl_sound;
 static linux_ioctl_function_t linux_ioctl_termio;
 static linux_ioctl_function_t linux_ioctl_private;
+static linux_ioctl_function_t linux_ioctl_special;
 
 static struct linux_ioctl_handler cdrom_handler =
 { linux_ioctl_cdrom, LINUX_IOCTL_CDROM_MIN, LINUX_IOCTL_CDROM_MAX };
@@ -1726,9 +1727,10 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 	return (ENOIOCTL);
 }
 
-#define IFP_IS_ETH(ifp) ((ifp->if_flags & \
-	(IFF_LOOPBACK|IFF_POINTOPOINT|IFF_BROADCAST)) == \
-	IFF_BROADCAST)
+/*
+ * Criteria for interface name translation
+ */
+#define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
 
 /*
  * Construct the Linux name for an interface
@@ -1920,7 +1922,8 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 {
 	char lifname[LINUX_IFNAMSIZ], ifname[IFNAMSIZ];
 	struct ifnet *ifp;
-	int error;
+	struct file *fp;
+	int error, type;
 
 	KASSERT(LINUX_IFNAMSIZ == IFNAMSIZ,
 	    (__FUNCTION__ "(): LINUX_IFNAMSIZ != IFNAMSIZ"));
@@ -1928,6 +1931,27 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 	ifp = NULL;
 	error = 0;
 	
+	mtx_lock(&Giant);
+	if ((error = fget(td, args->fd, &fp)) != 0) {
+		mtx_unlock(&Giant);
+		return (error);
+	}
+	type = fp->f_type;
+	fdrop(fp, td);
+	mtx_unlock(&Giant);
+
+	if (type != DTYPE_SOCKET) {
+		/* not a socket - probably a tap / vmnet device */
+		switch (args->cmd) {
+		case LINUX_SIOCGIFADDR:
+		case LINUX_SIOCSIFADDR:
+		case LINUX_SIOCGIFFLAGS:
+			return (linux_ioctl_special(td, args));
+		default:
+			return (ENOIOCTL);
+		}
+	}
+
 	switch (args->cmd & 0xffff) {
 		
 	case LINUX_FIOGETOWN:
@@ -1947,6 +1971,7 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 		
 	case LINUX_SIOCGIFFLAGS:
 	case LINUX_SIOCGIFADDR:
+	case LINUX_SIOCSIFADDR:
 	case LINUX_SIOCGIFDSTADDR:
 	case LINUX_SIOCGIFBRDADDR:
 	case LINUX_SIOCGIFNETMASK:
@@ -2028,6 +2053,12 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 
 	case LINUX_SIOCGIFADDR:
 		args->cmd = OSIOCGIFADDR;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+
+	case LINUX_SIOCSIFADDR:
+		/* XXX probably doesn't work, included for completeness */
+		args->cmd = SIOCSIFADDR;
 		error = ioctl(td, (struct ioctl_args *)args);
 		break;
 
@@ -2113,24 +2144,48 @@ linux_ioctl_socket(struct thread *td, struct linux_ioctl_args *args)
 static int
 linux_ioctl_private(struct thread *td, struct linux_ioctl_args *args)
 {
-	struct filedesc *fdp;
 	struct file *fp;
-	int type;
+	int error, type;
 
-	/* XXX is it sufficient to PROC_LOCK td->td_proc? */
 	mtx_lock(&Giant);
-	fdp = td->td_proc->p_fd;
-	if (args->fd >= fdp->fd_nfiles ||
-	    (fp = fdp->fd_ofiles[args->fd]) == NULL) {
+	if ((error = fget(td, args->fd, &fp)) != 0) {
 		mtx_unlock(&Giant);
-		return (EBADF);
-	} else {
-		type = fp->f_type;
+		return (error);
 	}
+	type = fp->f_type;
+	fdrop(fp, td);
 	mtx_unlock(&Giant);
 	if (type == DTYPE_SOCKET)
 		return (linux_ioctl_socket(td, args));
-	return (ioctl(td, (struct ioctl_args *)args));
+	return (ENOIOCTL);
+}
+
+/*
+ * Special ioctl handler
+ */
+static int
+linux_ioctl_special(struct thread *td, struct linux_ioctl_args *args)
+{
+	int error;
+
+	switch (args->cmd) {
+	case LINUX_SIOCGIFADDR:
+		args->cmd = SIOCGIFADDR;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+	case LINUX_SIOCSIFADDR:
+		args->cmd = SIOCSIFADDR;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+	case LINUX_SIOCGIFFLAGS:
+		args->cmd = SIOCGIFFLAGS;
+		error = ioctl(td, (struct ioctl_args *)args);
+		break;
+	default:
+		error = ENOIOCTL;
+	}
+
+	return (error);
 }
 
 /*
