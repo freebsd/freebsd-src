@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.123 1997/08/17 14:04:08 itojun Exp $
+ *      $Id: aic7xxx.c,v 1.124 1997/08/21 21:23:21 gibbs Exp $
  */
 /*
  * TODO:
@@ -1307,8 +1307,10 @@ ahc_handle_seqint(ahc, intstat)
 				 * Ensure we have enough time to actually
 				 * retrieve the sense.
 				 */
-				untimeout(ahc_timeout, (caddr_t)scb);
-				timeout(ahc_timeout, (caddr_t)scb, hz);
+				untimeout(ahc_timeout, (caddr_t)scb,
+					  scb->xs->timeout_ch);
+				scb->xs->timeout_ch = timeout(ahc_timeout,
+							      (caddr_t)scb, hz);
 				break;
 			}
 			/*
@@ -1936,7 +1938,7 @@ ahc_done(ahc, scb)
 		if (scb->flags & SCB_MSGOUT_SDTR)
 			ahc->sdtrpending &= ~mask;
 	}
-	untimeout(ahc_timeout, (caddr_t)scb);
+	untimeout(ahc_timeout, (caddr_t)scb, scb->xs->timeout_ch);
 	ahc_free_scb(ahc, scb);
 	/*
 	 * If we're polling, we rely on the ITS_DONE flag in the xs structure
@@ -2526,7 +2528,8 @@ ahc_scsi_cmd(xs)
 	ahc_run_waiting_queue(ahc);
 
 	if ((flags & SCSI_NOMASK) == 0) {
-		timeout(ahc_timeout, (caddr_t)scb, (xs->timeout * hz) / 1000);
+		scb->xs->timeout_ch = timeout(ahc_timeout, (caddr_t)scb,
+					      (xs->timeout * hz) / 1000);
 		splx(s);
 		return (SUCCESSFULLY_QUEUED);
 	}
@@ -2923,8 +2926,9 @@ ahc_timeout(arg)
 			sc_print_addr(scb->xs->sc_link);
 			printf("SCB 0x%x timedout while recovery in progress\n",
 				scb->hscb->tag);
-			timeout(ahc_timeout, (caddr_t)scb, 
-				(scb->xs->timeout * hz) / 1000);
+			scb->xs->timeout_ch =
+			    timeout(ahc_timeout, (caddr_t)scb,
+				    (scb->xs->timeout * hz) / 1000);
 			unpause_sequencer(ahc, /*unpause_always*/TRUE);
 			splx(s);
 			return;
@@ -3008,7 +3012,8 @@ bus_reset:
 				    SELBUSB : 0)));
 		scb->flags |= SCB_SENTORDEREDTAG|SCB_RECOVERY_SCB;
 		ahc->orderedtag |= mask;
-		timeout(ahc_timeout, (caddr_t)scb, (5 * hz));
+		scb->xs->timeout_ch = timeout(ahc_timeout, (caddr_t)scb,
+					      (5 * hz));
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		printf("Ordered Tag queued\n");
 	} else {
@@ -3058,13 +3063,15 @@ bus_reset:
 			active_scb->flags |= SCB_ABORT|SCB_RECOVERY_SCB;
 			if (active_scb != scb) {
 				untimeout(ahc_timeout, 
-					  (caddr_t)active_scb);
+					  (caddr_t)active_scb,
+					  active_scb->xs->timeout_ch);
 				/* Give scb a new lease on life */
-				timeout(ahc_timeout, (caddr_t)scb, 
-					(scb->xs->timeout * hz) / 1000);
+				scb->xs->timeout_ch = 
+				    timeout(ahc_timeout, (caddr_t)scb, 
+					    (scb->xs->timeout * hz) / 1000);
 			}
-			timeout(ahc_timeout, (caddr_t)active_scb,
-				(2000 * hz) / 1000);
+			active_scb->xs->timeout_ch = 
+			    timeout(ahc_timeout, active_scb, 2 * hz);
 			unpause_sequencer(ahc, /*unpause_always*/TRUE);
 		} else {
 			int	 disconnected;
@@ -3129,8 +3136,9 @@ bus_reset:
 				STAILQ_INSERT_HEAD(&ahc->waiting_scbs, scb,
 						   links);
 				scb->flags |= SCB_WAITINGQ;
-				timeout(ahc_timeout, (caddr_t)scb,
-					(2000 * hz) / 1000);
+				scb->xs->timeout_ch =
+					timeout(ahc_timeout, (caddr_t)scb,
+						(2000 * hz) / 1000);
 				ahc_outb(ahc, SCBPTR, saved_scbptr);
 				/*
 				 * ahc_run_waiting_queue may unpause us
@@ -3628,7 +3636,7 @@ ahc_reset_current_bus(ahc)
 	DELAY(AHC_BUSRESET_DELAY);
 	/* Turn off the bus reset */
 	ahc_outb(ahc, SCSISEQ, scsiseq & ~SCSIRSTO);
- 
+
 	ahc_clear_intstat(ahc);
  
 	/* Re-enable reset interrupts */
@@ -3749,7 +3757,8 @@ ahc_untimeout_done_queue(ahc)
 	for (i = 0; i < ahc->scb_data->numscbs; i++) {
 		scbp = ahc->scb_data->scbarray[i];
 		if (scbp->flags & SCB_QUEUED_FOR_DONE) 
-			untimeout(ahc_timeout, (caddr_t)scbp);
+			untimeout(ahc_timeout, (caddr_t)scbp,
+				  scbp->xs->timeout_ch);
 	}
 }
 

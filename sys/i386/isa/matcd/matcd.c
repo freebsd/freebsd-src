@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.27 1997/05/10 12:13:17 joerg Exp $ */
+/* $Id: matcd.c,v 1.28 1997/07/20 11:14:53 bde Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -895,7 +895,7 @@ void matcdstrategy(struct buf *bp)
 	}
 
 	s=splbio();			/*Make sure we don't get intr'ed*/
-	tqdisksort(&request_head[controller], bp);/*Add new request (bp) to queue (dp
+	bufqdisksort(&request_head[controller], bp);/*Add new request (bp) to queue (dp
 					  and sort the requests in a way that
 					  may not be ideal for CD-ROM media*/
 
@@ -924,7 +924,7 @@ static void matcd_start(int controller)
 	struct partition *p;
 	int part,ldrive;
 
-	bp = TAILQ_FIRST(&request_head[controller]);
+	bp = bufq_first(&request_head[controller]);
 	if (bp == NULL) {	/*Nothing on read queue to do?*/
 		wakeup((caddr_t)&matcd_data->status);	/*Wakeup any blocked*/
 		return;					/* opens, ioctls, etc*/
@@ -948,7 +948,7 @@ static void matcd_start(int controller)
 	get the command to do and issue it
 */
 
-	TAILQ_REMOVE(&request_head[controller], bp, b_act);
+	bufq_remove(&request_head[controller], bp);
 
 	part=matcd_partition(bp->b_dev);
 	p=cd->dlabel.d_partitions + part;
@@ -1352,7 +1352,7 @@ matcd_attach(struct isa_device *dev)
 #endif /*DEBUGPROBE*/
 	printf("matcdc%d Host interface type %d\n",
 		nextcontroller,iftype);
-	TAILQ_INIT(&request_head[nextcontroller]);
+	bufq_init(&request_head[nextcontroller]);
 	for (cdrive=0; cdrive<4; cdrive++) {	/*We're hunting drives...*/
 		zero_cmd(cmd);
 		cmd[0]=NOP;		/*A reasonably harmless command.
