@@ -35,7 +35,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)freopen.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+    "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -45,6 +49,7 @@ static char sccsid[] = "@(#)freopen.c	8.1 (Berkeley) 6/4/93";
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <libc_private.h>
 #include "local.h"
 
 /*
@@ -64,6 +69,8 @@ freopen(file, mode, fp)
 		(void) fclose(fp);
 		return (NULL);
 	}
+
+	FLOCKFILE(fp);
 
 	if (!__sdidinit)
 		__sinit();
@@ -129,6 +136,7 @@ freopen(file, mode, fp)
 	if (f < 0) {			/* did not get it after all */
 		fp->_flags = 0;		/* set it free */
 		errno = sverrno;	/* restore in case _close clobbered */
+		FUNLOCKFILE(fp);
 		return (NULL);
 	}
 
@@ -151,5 +159,6 @@ freopen(file, mode, fp)
 	fp->_write = __swrite;
 	fp->_seek = __sseek;
 	fp->_close = __sclose;
+	FUNLOCKFILE(fp);
 	return (fp);
 }
