@@ -74,14 +74,12 @@ option
 .Fl D Ns Dv NDEBUG ) .
 .Sh EXAMPLES
 The assertion:
-.Bd -literal -offset indent
-assert(1 == 0);
-.Ed
+.Pp
+.Dl "assert(1 == 0);"
 .Pp
 generates a diagnostic message similar to the following:
-.Bd -literal -offset indent
-assertion (1 == 0) failed: function main(), file assertion.c:100
-.Ed
+.Pp
+.Dl "assertion (1 == 0) failed: function main(), file assertion.c:100"
 .Sh SEE ALSO
 .Xr abort 3
 .Sh STANDARDS
