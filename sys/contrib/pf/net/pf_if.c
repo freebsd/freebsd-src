@@ -849,10 +849,13 @@ pfi_maybe_destroy(struct pfi_kif *p)
 	int		 i, j, k, s;
 	struct pfi_kif	*q = p->pfik_parent;
 
+#ifdef __FreeBSD__
+	if ((p->pfik_flags & (PFI_IFLAG_ATTACHED | PFI_IFLAG_GROUP)) ||
+	    ((p->pfik_rules > 0 || p->pfik_states > 0) &&
+	     (p->pfik_flags & PFI_IFLAG_PLACEHOLDER) == 0))
+#else
 	if ((p->pfik_flags & (PFI_IFLAG_ATTACHED | PFI_IFLAG_GROUP)) ||
 	    p->pfik_rules > 0 || p->pfik_states > 0)
-#ifdef __FreeBSD__
-		if (!(p->pfik_flags & PFI_IFLAG_PLACEHOLDER))
 #endif
 		return (0);
 
