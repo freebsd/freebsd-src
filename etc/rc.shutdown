@@ -26,7 +26,7 @@ reboot)
 	;;
 esac
 
-echo -n "Shutting down daemon processes: "
+echo -n "Shutting down daemon processes:"
 
 # Insert shutdown procedures here
 
