@@ -123,7 +123,7 @@ LEAF(longjmp, 2)
 #endif
 	LDGP(pv)
 	stq	a1, (( 0 + 4) * 8)(a0)		/* save return value */
-	PCALL(sigreturn)			/* use sigreturn to return */
+	CALL(sigreturn)				/* use sigreturn to return */
 
 botch:
 	CALL(longjmperror)
