@@ -477,6 +477,18 @@ bpfread(dev, uio, ioflag)
 			ROTATE_BUFFERS(d);
 			break;
 		}
+
+		/*
+		 * No data is available, check to see if the bpf device
+		 * is still pointed at a real interface.  If not, return
+		 * ENXIO so that the userland process knows to rebind
+		 * it before using it again.
+		 */
+		if (d->bd_bif == NULL) {
+			splx(s);
+			return (ENXIO);
+		}
+
 		if (ioflag & IO_NDELAY)
 			error = EWOULDBLOCK;
 		else
@@ -1035,6 +1047,9 @@ bpfpoll(dev, events, p)
 	 */
 	d = dev->si_drv1;
 
+	if (d->bd_bif == NULL)
+		return (ENXIO);
+
 	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (d->bd_hlen != 0 || (d->bd_immediate && d->bd_slen != 0))
@@ -1285,6 +1300,54 @@ bpfattach(ifp, dlt, hdrlen)
 
 	if (bootverbose)
 		printf("bpf: %s%d attached\n", ifp->if_name, ifp->if_unit);
+}
+
+/*
+ * Detach bpf from an interface.  This involves detaching each descriptor
+ * associated with the interface, and leaving bd_bif NULL.  Notify each
+ * descriptor as it's detached so that any sleepers wake up and get
+ * ENXIO.
+ */
+void
+bpfdetach(ifp)
+	struct ifnet *ifp;
+{
+	struct bpf_if	*bp, *bp_prev;
+	struct bpf_d	*d;
+	int	s;
+
+	s = splimp();
+
+	/* Locate BPF interface information */
+	bp_prev = NULL;
+	for (bp = bpf_iflist; bp != NULL; bp = bp->bif_next) {
+		if (ifp == bp->bif_ifp)
+			break;
+		bp_prev = bp;
+	}
+
+	/* Interface wasn't attached */
+	if (bp->bif_ifp == NULL) {
+		splx(s);
+		printf("bpfdetach: %s%d was not attached\n", ifp->if_name,
+		    ifp->if_unit);
+		return;
+	}
+
+	while ((d = bp->bif_dlist) != NULL) {
+		bpf_detachd(d);
+		bpf_wakeup(d);
+	}
+
+	if (bp_prev) {
+		bp_prev->bif_next = bp->bif_next;
+	} else {
+		bpf_iflist = bp->bif_next;
+	}
+
+	free(bp, M_BPF);
+
+	splx(s);
 }
 
 static void bpf_drvinit __P((void *unused));
