@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.115 1995/12/14 09:52:37 phk Exp $
+ *	$Id: conf.c,v 1.116 1995/12/14 22:02:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -73,28 +73,9 @@ int	nchrdev = NUMCDEV;
 dev_t	swapdev = makedev(1, 0);
 
 /*
- * Routine that identifies /dev/mem and /dev/kmem.
- *
- * A minimal stub routine can always return 0.
- */
-int
-iskmemdev(dev)
-	dev_t dev;
-{
-
-	return (major(dev) == 2 && (minor(dev) == 0 || minor(dev) == 1));
-}
-
-int
-iszerodev(dev)
-	dev_t dev;
-{
-	return (major(dev) == 2 && minor(dev) == 12);
-}
-
-/*
  * Routine to determine if a device is a disk.
  *
+ * KLUDGE XXX add flags to cdevsw entries for disks XXX
  * A minimal stub routine can always return 0.
  */
 int
@@ -137,39 +118,6 @@ isdisk(dev, type)
 	/* NOTREACHED */
 }
 
-#ifndef NEW_STUFF_JRE
-
-/*
- * Routine to convert from character to block device number.
- *
- * A minimal stub routine can always return NODEV.
- */
-dev_t
-chrtoblk(dev)
-	dev_t dev;
-{
-	int blkmaj;
-
-	switch (major(dev)) {
-	case 3:		blkmaj = 0;  break; /* wd */
-	case 9:		blkmaj = 2;  break; /* fd */
-	case 10:	blkmaj = 3;  break; /* wt */
-	case 13:	blkmaj = 4;  break; /* sd */
-	case 14:	blkmaj = 5;  break; /* st */
-	case 15:	blkmaj = 6;  break; /* cd */
-	case 29:	blkmaj = 7;  break; /* mcd */
-	case 43:	blkmaj = 15; break; /* vn */
-	case 45:	blkmaj = 16; break; /* scd */
-	case 46:	blkmaj = 17; break; /* matcd */
-	case 69:	blkmaj = 19; break; /* wcd */
-	case 70:	blkmaj = 20; break; /* od */
-	default:
-		return (NODEV);
-	}
-	return (makedev(blkmaj, minor(dev)));
-}
-
-#else	/* NEW_STUFF_JRE *//*===============================================*/
 
 /*
  * Routine to convert from character to block device number.
@@ -181,12 +129,12 @@ chrtoblk(dev_t dev)
 {
 	int blkmaj;
 	struct bdevsw *bd;
+	struct cdevsw *cd;
 
-        bd = cdevsw[major(dev)]->d_bdev;
-	if ( bd ) 
-	  return(makedev(bd->d_maj,minor(dev)));
-	else
-	  return(NODEV);
+	if(cd = cdevsw[major(dev)]) {
+          if ( (bd = cd->d_bdev) )
+	    return(makedev(bd->d_maj,minor(dev)));
+	}
+	return(NODEV);
 }
 
-#endif /* NEW_STUFF_JRE */
