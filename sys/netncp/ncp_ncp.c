@@ -206,7 +206,8 @@ int
 ncp_renegotiate_connparam(struct ncp_conn *conn, int buffsize, u_int8_t in_options)
 {
 	u_int8_t options;
-	int neg_buffsize, error, sl, ckslevel, ilen;
+	int neg_buffsize, error, sl, ckslevel;
+	size_t ilen;
 
 	sl = conn->li.sig_level;
 	if (sl >= 2)
