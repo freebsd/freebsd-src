@@ -1,6 +1,6 @@
 # The FreeBSD Russian Documentation Project
 #
-# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/Makefile,v 1.2 2004/05/20 07:07:45 den Exp $
+# $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/Makefile,v 1.3 2004/05/31 10:22:42 den Exp $
 # $FreeBSD$
 # 
 # Original revision: 1.3
@@ -9,7 +9,7 @@
 RELN_ROOT?= ${.CURDIR}/..
 
 SUBDIR = relnotes
-#SUBDIR+= hardware
+SUBDIR+= hardware
 #SUBDIR+= readme
 #SUBDIR+= errata
 #SUBDIR+= installation
