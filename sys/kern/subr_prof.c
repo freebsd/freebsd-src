@@ -228,6 +228,7 @@ kmstartup(dummy)
 		      :
 		      : "i" (profil)
 		      : "ax", "bx", "cx", "dx", "memory");
+#elif defined(lint)
 #else
 #error
 #endif
@@ -239,6 +240,7 @@ kmstartup(dummy)
 		    __asm("call " __XSTRING(HIDENAME(mexitcount)) "; 1:"
 			  : : : "ax", "bx", "cx", "dx", "memory");
 	__asm("movl $1b,%0" : "=rm" (tmp_addr));
+#elif defined(lint)
 #else
 #error
 #endif
