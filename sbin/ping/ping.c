@@ -811,7 +811,7 @@ pr_pack(buf, cc, from, tv)
 	struct icmp *icp;
 	struct ip *ip;
 	struct in_addr ina;
-	struct timeval *tp;
+	const void *tp;
 	u_char *cp, *dp;
 	double triptime;
 	int dupflag, hlen, i, j, seq;
@@ -839,12 +839,12 @@ pr_pack(buf, cc, from, tv)
 		if (timing) {
 			struct timeval tv1;
 #ifndef icmp_data
-			tp = (struct timeval *)&icp->icmp_ip;
+			tp = &icp->icmp_ip;
 #else
-			tp = (struct timeval *)icp->icmp_data;
+			tp = icp->icmp_data;
 #endif
-			/* Avoid unaligned data (cannot use memcpy) */
-			bcopy(tp, &tv1, sizeof(tv1));
+			/* Copy to avoid alignment problems: */
+			memcpy(&tv1, tp, sizeof(tv1));
 			tvsub(tv, &tv1);
  			triptime = ((double)tv->tv_sec) * 1000.0 +
  			    ((double)tv->tv_usec) / 1000.0;
