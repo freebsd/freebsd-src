@@ -330,7 +330,7 @@ div_usrreq(so, req, m, nam, control)
 		break;
 
 	case PRU_SOCKADDR:
-		in_setsockaddr(inp, nam);
+		in_setsockaddr(so, nam);
 		break;
 
 	case PRU_SENSE:
