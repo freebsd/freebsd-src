@@ -85,7 +85,8 @@ TGTS =	afterdistribute all buildworld checkdpadd clean cleandepend cleandir \
 	installworld lint maninstall mk most obj objlink regress rerelease \
 	tags update
 
-MAKE=	make -m ${.CURDIR}/share/mk -f Makefile.inc1
+PATH=	/sbin:/bin:/usr/sbin:/usr/bin
+MAKE=	PATH=${PATH} make -m ${.CURDIR}/share/mk -f Makefile.inc1
 
 #
 # Handle the user-driven targets, using the source relative mk files.
