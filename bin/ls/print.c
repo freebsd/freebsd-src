@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: print.c,v 1.5 1995/08/07 19:17:35 wollman Exp $
+ *	$Id: print.c,v 1.6 1995/08/08 00:03:04 ache Exp $
  */
 
 #ifndef lint
@@ -108,8 +108,12 @@ printlong(dp)
 		if (f_flags)
 			(void)printf("%-*s ", dp->s_flags, np->flags);
 		if (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))
-			(void)printf("%3d, %3d ",
-			    major(sp->st_rdev), minor(sp->st_rdev));
+			if (minor(sp->st_rdev) > 255)
+				(void)printf("%3d, 0x%08x ",
+				    major(sp->st_rdev), minor(sp->st_rdev));
+			else
+				(void)printf("%3d, %3d ",
+				    major(sp->st_rdev), minor(sp->st_rdev));
 		else if (dp->bcfile)
 			(void)printf("%*s%*qd ",
 			    8 - dp->s_size, "", dp->s_size, sp->st_size);
