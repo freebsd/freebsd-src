@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.1.2.5 1998/01/20 01:44:51 jmb Exp $')
+VERSIONID(`$Id: hub.mc,v 1.9 1998/03/23 20:52:57 jmb Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -187,16 +187,16 @@ R<$*> $+ < @ $+ >	$: <$1> $(fakenames $2 $: OK $)
 R$+.REJECT		$#error $: 521 $1
 R<$*> $*		$: $1
 # mail must NOT be addressed "fakenames"--END
-# mail must come from or go to this mahcine or machines we allow to relay--BEGIN
+# mail must come from or go to this machine or machines we allow to relay--BEGIN
 # R$*			$: $>Parse0 $>3 $1
 # R$+ < @ $* . > $*	$: $1 < @ $2 >
-# R<$+ @ $=w>		$@ OK
-# R<$+ @ $* $=R>		$@ OK
+# R$+ < @ $=w>		$@ OK
+# R$+ < @ $* $=R>	$@ OK
 # R$*			$: $(dequote "" $&{client_name} $)
 # R$=w			$@ OK
-# R$* $=R			$@ OK
+# R$* $=R		$@ OK
 # R$@			$@ OK
 # R$*			$#error $: "550 Relaying Denied"
-# mail must come from or go to this mahcine or machines we allow to relay--BEGIN
+# mail must come from or go to this machine or machines we allow to relay--BEGIN
 R$*			$@ OK
 
