@@ -382,7 +382,6 @@ check_maps(
 					aend = n;
 					continue;
 				}
-				returntosingle = 1;
 				if (astart == aend)
 					(*msg)("ALLOCATED %s %d MARKED FREE\n",
 					    name, astart);
@@ -419,7 +418,6 @@ check_maps(
 					pwarn("%s %sS %d-%ld MARKED USED\n",
 					    "UNALLOCATED", name, ustart,
 					    ustart + size - 1);
-				returntosingle = 1;
 				if (bkgrdflag != 0) {
 					cmd.value = ustart;
 					cmd.size = size;
@@ -462,7 +460,6 @@ check_maps(
 				pwarn("UNALLOCATED %sS %d-%ld MARKED USED\n",
 				    name, ustart, ustart + size - 1);
 		}
-		returntosingle = 1;
 		if (bkgrdflag != 0) {
 			cmd.value = ustart;
 			cmd.size = size;
