@@ -301,8 +301,14 @@ USB_ATTACH(usb)
 		 * the keyboard will not work until after cold boot.
 		 */
 #if defined(__FreeBSD__)
-		if (cold)
-			TAILQ_INSERT_TAIL(&usb_coldexplist, sc, sc_coldexplist);
+		if (cold) {
+			/* Explore high-speed busses before others. */
+			if (speed == USB_SPEED_HIGH)
+				dev->hub->explore(sc->sc_bus->root_hub);
+			else
+				TAILQ_INSERT_TAIL(&usb_coldexplist, sc,
+				    sc_coldexplist);
+		}
 #else
 		if (cold && (sc->sc_dev.dv_cfdata->cf_flags & 1))
 			dev->hub->explore(sc->sc_bus->root_hub);
@@ -952,7 +958,7 @@ usb_child_detached(device_t self, device_t child)
 	sc->sc_port.device = NULL;
 }
 
-/* Explore all USB busses at the end of device configuration. */
+/* Explore USB busses at the end of device configuration. */
 Static void
 usb_cold_explore(void *arg)
 {
