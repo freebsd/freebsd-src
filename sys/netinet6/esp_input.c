@@ -392,6 +392,7 @@ noreplaycheck:
 		s = splimp();
 		if (IF_QFULL(&ipintrq)) {
 			ipsecstat.in_inval++;
+			splx(s);
 			goto bad;
 		}
 		IF_ENQUEUE(&ipintrq, m);
@@ -735,6 +736,7 @@ noreplaycheck:
 		s = splimp();
 		if (IF_QFULL(&ip6intrq)) {
 			ipsec6stat.in_inval++;
+			splx(s);
 			goto bad;
 		}
 		IF_ENQUEUE(&ip6intrq, m);
