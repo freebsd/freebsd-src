@@ -45,6 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumconfig.c,v 1.28 1999/12/29 07:39:16 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -221,7 +222,7 @@ give_plex_to_volume(int volno, int plexno)
 	    "Too many plexes for volume %s",
 	    vol->name);
     else if ((vol->plexes > 0)				    /* we have other plexes */
-        &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
+    &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
 	invalidate_subdisks(&PLEX[plexno], sd_stale);	    /* make the subdisks invalid */
     vol->plex[vol->plexes] = plexno;			    /* this one */
     vol->plexes++;					    /* add another plex */
@@ -316,7 +317,7 @@ give_sd_to_plex(int plexno, int sdno)
  * must already be stored in the sd structure, but the drive
  * doesn't know about the subdisk yet.
  */
-static void
+void
 give_sd_to_drive(int sdno)
 {
     struct sd *sd;					    /* pointer to subdisk */
@@ -410,7 +411,8 @@ give_sd_to_drive(int sdno)
 		    throw_rude_remark(ENOSPC,
 			"No space for subdisk %s on drive %s at offset %lld",
 			sd->name,
-			drive->label.name);
+			drive->label.name,
+			sd->driveoffset);
 		}
 		/*
 		 * We've found the space, and we can allocate it.
@@ -501,7 +503,7 @@ find_drive(const char *name, int create)
 	for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	    drive = &DRIVE[driveno];			    /* point to drive */
 	    if ((drive->label.name[0] != '\0')		    /* it has a name */
-		&&(strcmp(drive->label.name, name) == 0)    /* and it's this one */
+&&(strcmp(drive->label.name, name) == 0)		    /* and it's this one */
 	    &&(drive->state > drive_unallocated))	    /* and it's a real one: found */
 		return driveno;
 	}
@@ -654,7 +656,7 @@ return_drive_space(int driveno, int64_t offset, int length)
 	 * with a higher offset than the subdisk, or both.
 	 */
 	if ((fe > 1)					    /* not the first entry */
-	    &&((fe == drive->freelist_entries)		    /* gone past the end */
+&&((fe == drive->freelist_entries)			    /* gone past the end */
 	||(drive->freelist[fe].offset > offset)))	    /* or past the block were looking for */
 	    fe--;					    /* point to the block before */
 	dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of the entry */
@@ -1095,7 +1097,10 @@ config_subdisk(int update)
 	    &&(vinum_conf.flags & VF_READING_CONFIG))	    /* reading from disk */
 		break;					    /* invalid sd; just ignore it */
 	    if ((size % DEV_BSIZE) != 0)
-		throw_rude_remark(EINVAL, "sd %s, bad plex offset alignment: %lld", sd->name, size);
+		throw_rude_remark(EINVAL,
+		    "sd %s, bad plex offset alignment: %lld",
+		    sd->name,
+		    (long long) size);
 	    else
 		sd->plexoffset = size / DEV_BSIZE;
 	    break;
@@ -1106,7 +1111,10 @@ config_subdisk(int update)
 	    &&(vinum_conf.flags & VF_READING_CONFIG))	    /* reading from disk */
 		break;					    /* invalid sd; just ignore it */
 	    if ((size % DEV_BSIZE) != 0)
-		throw_rude_remark(EINVAL, "sd %s, bad drive offset alignment: %lld", sd->name, size);
+		throw_rude_remark(EINVAL,
+		    "sd %s, bad drive offset alignment: %lld",
+		    sd->name,
+		    (long long) size);
 	    else
 		sd->driveoffset = size / DEV_BSIZE;
 	    break;
@@ -1897,8 +1905,8 @@ update_plex_config(int plexno, int diskconfig)
 	    log(LOG_INFO,
 		"Correcting length of %s: was %lld, is %lld\n",
 		plex->name,
-		plex->length,
-		size);
+		(long long) plex->length,
+		(long long) size);
 	plex->length = size;
     } else {						    /* no subdisks, */
 	plex->length = 0;				    /* no size */
@@ -1973,7 +1981,7 @@ start_config(int force)
     current_drive = -1;					    /* note the last drive we mention, for
 							    * some defaults */
     current_plex = -1;					    /* and the same for the last plex */
-    current_volume = -1;				    /* and the last volme */
+    current_volume = -1;				    /* and the last volume */
     while ((vinum_conf.flags & VF_CONFIGURING) != 0) {
 	vinum_conf.flags |= VF_WILL_CONFIGURE;
 	if ((error = tsleep(&vinum_conf, PRIBIO | PCATCH, "vincfg", 0)) != 0)
