@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.32 1997/08/31 05:59:39 phk Exp $
+ * $Id: malloc.c,v 1.33 1997/12/15 02:12:42 jb Exp $
  *
  */
 
@@ -256,7 +256,7 @@ static char *malloc_func;
 
 /* Macro for mmap */
 #define MMAP(size) \
-	mmap((caddr_t)0, (size), PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, \
+	mmap(0, (size), PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, \
 	    MMAP_FD, 0);
 
 /*
@@ -297,7 +297,7 @@ wrtwarning(char *p)
 /*
  * Allocate a number of pages from the OS
  */
-static caddr_t
+static void *
 map_pages(int pages)
 {
     caddr_t result, tail;
@@ -370,7 +370,7 @@ extend_pgdir(u_long index)
     page_dir = new;
 
     /* Now free the old stuff */
-    munmap((caddr_t)old, oldlen);
+    munmap(old, oldlen);
     return 1;
 }
 
