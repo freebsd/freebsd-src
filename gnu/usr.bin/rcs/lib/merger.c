@@ -1,6 +1,6 @@
-/* merger - three-way file merge internals */
+/* three-way file merge internals */
 
-/* Copyright 1991 by Paul Eggert
+/* Copyright 1991, 1992, 1993, 1994, 1995 Paul Eggert
    Distributed under license by the Free Software Foundation, Inc.
 
 This file is part of RCS.
@@ -16,8 +16,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with RCS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 Report problems and direct all questions to:
 
@@ -27,38 +28,40 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(mergerId, "$Id: merger.c,v 1.3 1991/08/20 23:05:00 eggert Exp $")
+libId(mergerId, "$Id: merger.c,v 1.7 1995/06/16 06:19:24 eggert Exp $")
 
+	static char const *normalize_arg P((char const*,char**));
 	static char const *
 normalize_arg(s, b)
 	char const *s;
 	char **b;
 /*
  * If S looks like an option, prepend ./ to it.  Yield the result.
- * Set *B to the address of any storage that was allocated..
+ * Set *B to the address of any storage that was allocated.
  */
 {
 	char *t;
-	switch (*s) {
-		case '-': case '+':
-			*b = t = testalloc(strlen(s) + 3);
-			VOID sprintf(t, ".%c%s", SLASH, s);
-			return t;
-		default:
-			*b = 0;
-			return s;
+	if (*s == '-') {
+		*b = t = testalloc(strlen(s) + 3);
+		VOID sprintf(t, ".%c%s", SLASH, s);
+		return t;
+	} else {
+		*b = 0;
+		return s;
 	}
 }
 
 	int
-merge(tostdout, label, argv)
+merge(tostdout, edarg, label, argv)
 	int tostdout;
-	char const *const label[2];
+	char const *edarg;
+	char const *const label[3];
 	char const *const argv[3];
 /*
- * Do `merge [-p] -L l0 -L l1 a0 a1 a2',
+ * Do `merge [-p] EDARG -L l0 -L l1 -L l2 a0 a1 a2',
  * where TOSTDOUT specifies whether -p is present,
- * LABEL gives l0 and l1, and ARGV gives a0, a1, and a2.
+ * EDARG gives the editing type (e.g. "-A", or null for the default),
+ * LABEL gives l0, l1 and l2, and ARGV gives a0, a1 and a2.
  * Yield DIFF_SUCCESS or DIFF_FAILURE.
  */
 {
@@ -74,30 +77,35 @@ merge(tostdout, label, argv)
 
 	for (i=3; 0<=--i; )
 		a[i] = normalize_arg(argv[i], &b[i]);
+	
+	if (!edarg)
+		edarg = "-E";
 
 #if DIFF3_BIN
 	t = 0;
 	if (!tostdout)
 		t = maketemp(0);
 	s = run(
-		(char*)0, t,
-		DIFF3, "-am", "-L", label[0], "-L", label[1],
+		-1, t,
+		DIFF3, edarg, "-am",
+		"-L", label[0],
+		"-L", label[1],
+		"-L", label[2],
 		a[0], a[1], a[2], (char*)0
 	);
 	switch (s) {
 		case DIFF_SUCCESS:
 			break;
 		case DIFF_FAILURE:
-			if (!quietflag)
-				warn("overlaps during merge");
+			warn("conflicts during merge");
 			break;
 		default:
 			exiterr();
 	}
 	if (t) {
-		if (!(f = fopen(argv[0], FOPEN_W)))
+		if (!(f = fopenSafer(argv[0], "w")))
 			efaterror(argv[0]);
-		if (!(rt = Iopen(t, FOPEN_R, (struct stat*)0)))
+		if (!(rt = Iopen(t, "r", (struct stat*)0)))
 			efaterror(t);
 		fastcopy(rt, f);
 		Ifclose(rt);
@@ -106,29 +114,30 @@ merge(tostdout, label, argv)
 #else
 	for (i=0; i<2; i++)
 		switch (run(
-			(char*)0, d[i]=maketemp(i),
+			-1, d[i]=maketemp(i),
 			DIFF, a[i], a[2], (char*)0
 		)) {
 			case DIFF_FAILURE: case DIFF_SUCCESS: break;
-			default: exiterr();
+			default: faterror("diff failed");
 		}
 	t = maketemp(2);
 	s = run(
-		(char*)0, t,
-		DIFF3, "-E", d[0], d[1], a[0], a[1], a[2],
-		label[0], label[1], (char*)0
+		-1, t,
+		DIFF3, edarg, d[0], d[1], a[0], a[1], a[2],
+		label[0], label[2], (char*)0
 	);
 	if (s != DIFF_SUCCESS) {
 		s = DIFF_FAILURE;
-		if (!quietflag)
-			warn("overlaps or other problems during merge");
+		warn("overlaps or other problems during merge");
 	}
-	if (!(f = fopen(t, "a")))
+	if (!(f = fopenSafer(t, "a+")))
 		efaterror(t);
 	aputs(tostdout ? "1,$p\n" : "w\n",  f);
-	Ofclose(f);
-	if (run(t, (char*)0, ED, "-", a[0], (char*)0))
+	Orewind(f);
+	aflush(f);
+	if (run(fileno(f), (char*)0, ED, "-", a[0], (char*)0))
 		exiterr();
+	Ofclose(f);
 #endif
 
 	tempunlink();

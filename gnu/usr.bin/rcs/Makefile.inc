@@ -1,3 +1,7 @@
-#	@(#)Makefile.inc	5.1 (Berkeley) 5/11/90
+# Location of librcs
 
-BINDIR?=	/usr/bin
+.if exists(${.CURDIR}/../lib/obj)
+LIBRCS=	${.CURDIR}/../lib/obj/librcs.a
+.else
+LIBRCS=	${.CURDIR}/../lib/librcs.a
+.endif

@@ -1,5 +1,7 @@
-/* Copyright (C) 1982, 1988, 1989 Walter Tichy
-   Copyright 1990, 1991 by Paul Eggert
+/* Identify RCS keyword strings in files.  */
+
+/* Copyright 1982, 1988, 1989 Walter Tichy
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert
    Distributed under license by the Free Software Foundation, Inc.
 
 This file is part of RCS.
@@ -15,8 +17,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with RCS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 Report problems and direct all questions to:
 
@@ -25,10 +28,26 @@ Report problems and direct all questions to:
 */
 
 /*
- *                     RCS identification operation
- */
-
-/* $Log: ident.c,v $
+ * $Log: ident.c,v $
+ * Revision 5.9  1995/06/16 06:19:24  eggert
+ * Update FSF address.
+ *
+ * Revision 5.8  1995/06/01 16:23:43  eggert
+ * (exiterr, reportError): New functions, needed for DOS and OS/2 ports.
+ * (scanfile): Use them.
+ *
+ * Revision 5.7  1994/03/20 04:52:58  eggert
+ * Remove `exiting' from identExit.
+ *
+ * Revision 5.6  1993/11/09 17:40:15  eggert
+ * Add -V.
+ *
+ * Revision 5.5  1993/11/03 17:42:27  eggert
+ * Test for char == EOF, not char < 0.
+ *
+ * Revision 5.4  1992/01/24  18:44:19  eggert
+ * lint -> RCS_lint
+ *
  * Revision 5.3  1991/09/10  22:15:46  eggert
  * Open files with FOPEN_R, not FOPEN_R_WORK,
  * because they might be executables, not working files.
@@ -81,85 +100,123 @@ Report problems and direct all questions to:
 #include  "rcsbase.h"
 
 static int match P((FILE*));
-static void scanfile P((FILE*,char const*,int));
+static int scanfile P((FILE*,char const*,int));
+static void reportError P((char const*));
 
-mainProg(identId, "ident", "$Id: ident.c,v 5.3 1991/09/10 22:15:46 eggert Exp $")
+mainProg(identId, "ident", "$Id: ident.c,v 5.9 1995/06/16 06:19:24 eggert Exp $")
 /*  Ident searches the named files for all occurrences
- *  of the pattern $keyword:...$, where the keywords are
- *  Author, Date, Header, Id, Log, RCSfile, Revision, Source, and State.
+ *  of the pattern $@: text $ where @ is a keyword.
  */
 
 {
    FILE *fp;
-   int quiet;
+   int quiet = 0;
    int status = EXIT_SUCCESS;
+   char const *a;
 
-   if ((quiet  =  argc > 1 && strcmp("-q",argv[1])==0)) {
-        argc--; argv++;
-   }
+   while ((a = *++argv)  &&  *a=='-')
+	while (*++a)
+	    switch (*a) {
+		case 'q':
+		    quiet = 1;
+		    break;
 
-   if (argc<2)
-	scanfile(stdin, (char*)0, quiet);
+		case 'V':
+		    VOID printf("RCS version %s\n", RCS_version_string);
+		    quiet = -1;
+		    break;
 
-   while ( --argc > 0 ) {
-      if (!(fp = fopen(*++argv, FOPEN_R))) {
-	 VOID fprintf(stderr,  "%s error: can't open %s\n", cmdid, *argv);
-	 status = EXIT_FAILURE;
-      } else {
-	 scanfile(fp, *argv, quiet);
-	 if (argc>1) VOID putchar('\n');
-      }
-   }
+		default:
+		    VOID fprintf(stderr,
+			"ident: usage: ident -{qV} [file...]\n"
+		    );
+		    exitmain(EXIT_FAILURE);
+		    break;
+	    }
+
+   if (0 <= quiet)
+       if (!a)
+	    VOID scanfile(stdin, (char*)0, quiet);
+       else
+	    do {
+		if (!(fp = fopen(a, FOPEN_RB))) {
+		    reportError(a);
+		    status = EXIT_FAILURE;
+		} else if (
+		    scanfile(fp, a, quiet) != 0
+		    || (argv[1]  &&  putchar('\n') == EOF)
+		)
+		    break;
+	    } while ((a = *++argv));
+
    if (ferror(stdout) || fclose(stdout)!=0) {
-      VOID fprintf(stderr,  "%s error: write error\n", cmdid);
+      reportError("standard output");
       status = EXIT_FAILURE;
    }
    exitmain(status);
 }
 
-#if lint
-	exiting void identExit() { _exit(EXIT_FAILURE); }
+#if RCS_lint
+#	define exiterr identExit
 #endif
-
+	void
+exiterr()
+{
+	_exit(EXIT_FAILURE);
+}
 
 	static void
+reportError(s)
+	char const *s;
+{
+	int e = errno;
+	VOID fprintf(stderr, "%s error: ", cmdid);
+	errno = e;
+	perror(s);
+}
+
+
+	static int
 scanfile(file, name, quiet)
 	register FILE *file;
 	char const *name;
 	int quiet;
 /* Function: scan an open file with descriptor file for keywords.
- * Return false if there's a read error.
+ * Return -1 if there's a write error; exit immediately on a read error.
  */
 {
    register int c;
 
-   if (name)
+   if (name) {
       VOID printf("%s:\n", name);
-   else
-      name = "input";
+      if (ferror(stdout))
+	 return -1;
+   } else
+      name = "standard input";
    c = 0;
-   for (;;) {
-      if (c < 0) {
-	 if (feof(file))
-	    break;
-	 if (ferror(file))
-	    goto read_error;
-      }
+   while (c != EOF  ||  ! (feof(file)|ferror(file))) {
       if (c == KDELIM) {
 	 if ((c = match(file)))
 	    continue;
+	 if (ferror(stdout))
+	    return -1;
 	 quiet = true;
       }
       c = getc(file);
    }
+   if (ferror(file) || fclose(file) != 0) {
+      reportError(name);
+      /*
+      * The following is equivalent to exit(EXIT_FAILURE), but we invoke
+      * exiterr to keep lint happy.  The DOS and OS/2 ports need exiterr.
+      */
+      VOID fflush(stderr);
+      VOID fflush(stdout);
+      exiterr();
+   }
    if (!quiet)
       VOID fprintf(stderr, "%s warning: no id keywords in %s\n", cmdid, name);
-   if (fclose(file) == 0)
-      return;
-
- read_error:
-   VOID fprintf(stderr, "%s error: %s: read error\n", cmdid, name);
-   exit(EXIT_FAILURE);
+   return 0;
 }
 
 
@@ -174,7 +231,7 @@ match(fp)   /* group substring between two KDELIM's; then do pattern match */
 
    tp = line;
    while ((c = getc(fp)) != VDELIM) {
-      if (c < 0)
+      if (c == EOF  &&  feof(fp) | ferror(fp))
 	 return c;
       switch (ctab[c]) {
 	 case LETTER: case Letter:
@@ -193,7 +250,7 @@ match(fp)   /* group substring between two KDELIM's; then do pattern match */
       return c ? c : '\n';
    *tp++ = c;
    while( (c = getc(fp)) != KDELIM ) {
-      if (c < 0  &&  feof(fp) | ferror(fp))
+      if (c == EOF  &&  feof(fp) | ferror(fp))
 	    return c;
       switch (ctab[c]) {
 	 default:
@@ -209,6 +266,6 @@ match(fp)   /* group substring between two KDELIM's; then do pattern match */
       return c;
    *tp++ = c;     /*append trailing KDELIM*/
    *tp   = '\0';
-   VOID fprintf(stdout, "     %c%s\n", KDELIM, line);
+   VOID printf("     %c%s\n", KDELIM, line);
    return 0;
 }

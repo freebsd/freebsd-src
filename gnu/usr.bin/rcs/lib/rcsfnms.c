@@ -1,15 +1,14 @@
-/*
- *                     RCS file name handling
- */
+/* RCS filename and pathname handling */
+
 /****************************************************************************
  *                     creation and deletion of /tmp temporaries
- *                     pairing of RCS file names and working file names.
+ *		       pairing of RCS pathnames and working pathnames.
  *                     Testprogram: define PAIRTEST
  ****************************************************************************
  */
 
-/* Copyright (C) 1982, 1988, 1989 Walter Tichy
-   Copyright 1990, 1991 by Paul Eggert
+/* Copyright 1982, 1988, 1989 Walter Tichy
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert
    Distributed under license by the Free Software Foundation, Inc.
 
 This file is part of RCS.
@@ -25,8 +24,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with RCS; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+along with RCS; see the file COPYING.
+If not, write to the Free Software Foundation,
+59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 Report problems and direct all questions to:
 
@@ -37,7 +37,45 @@ Report problems and direct all questions to:
 
 
 
-/* $Log: rcsfnms.c,v $
+/*
+ * $Log: rcsfnms.c,v $
+ * Revision 5.16  1995/06/16 06:19:24  eggert
+ * Update FSF address.
+ *
+ * Revision 5.15  1995/06/01 16:23:43  eggert
+ * (basefilename): Renamed from basename to avoid collisions.
+ * (dirlen): Remove (for similar reasons).
+ * (rcsreadopen): Open with FOPEN_RB.
+ * (SLASHSLASH_is_SLASH): Default is 0.
+ * (getcwd): Work around bad_wait_if_SIGCHLD_ignored bug.
+ *
+ * Revision 5.14  1994/03/17 14:05:48  eggert
+ * Strip trailing SLASHes from TMPDIR; some systems need this.  Remove lint.
+ *
+ * Revision 5.13  1993/11/03 17:42:27  eggert
+ * Determine whether a file name is too long indirectly,
+ * by examining inode numbers, instead of trying to use operating system
+ * primitives like pathconf, which are not trustworthy in general.
+ * File names may now hold white space or $.
+ * Do not flatten ../X in pathnames; that may yield wrong answer for symlinks.
+ * Add getabsname hook.  Improve quality of diagnostics.
+ *
+ * Revision 5.12  1992/07/28  16:12:44  eggert
+ * Add .sty.  .pl now implies Perl, not Prolog.  Fix fdlock initialization bug.
+ * Check that $PWD is really ".".  Be consistent about pathnames vs filenames.
+ *
+ * Revision 5.11  1992/02/17  23:02:25  eggert
+ * `a/RCS/b/c' is now an RCS file with an empty extension, not just `a/b/RCS/c'.
+ *
+ * Revision 5.10  1992/01/24  18:44:19  eggert
+ * Fix bug: Expand and Ignored weren't reinitialized.
+ * Avoid `char const c=ch;' compiler bug.
+ * Add support for bad_creat0.
+ *
+ * Revision 5.9  1992/01/06  02:42:34  eggert
+ * Shorten long (>31 chars) name.
+ * while (E) ; -> while (E) continue;
+ *
  * Revision 5.8  1991/09/24  00:28:40  eggert
  * Don't export bindex().
  *
@@ -66,8 +104,8 @@ Report problems and direct all questions to:
  *
  * Revision 5.0  1990/08/22  08:12:50  eggert
  * Ignore signals when manipulating the semaphore file.
- * Modernize list of file name extensions.
- * Permit paths of arbitrary length.  Beware file names beginning with "-".
+ * Modernize list of filename extensions.
+ * Permit paths of arbitrary length.  Beware filenames beginning with "-".
  * Remove compile-time limits; use malloc instead.
  * Permit dates past 1999/12/31.  Make lock and temp files faster and safer.
  * Ansify and Posixate.
@@ -94,10 +132,10 @@ Report problems and direct all questions to:
  * Comment leader '% ' for '*.tex' files added.
  * 
  * Revision 4.3  83/12/15  12:26:48  wft
- * Added check for KDELIM in file names to pairfilenames().
+ * Added check for KDELIM in filenames to pairfilenames().
  * 
  * Revision 4.2  83/12/02  22:47:45  wft
- * Added csh, red, and sl file name suffixes.
+ * Added csh, red, and sl filename suffixes.
  * 
  * Revision 4.1  83/05/11  16:23:39  wft
  * Added initialization of Dbranch to InitAdmin(). Canged pairfilenames():
@@ -106,7 +144,7 @@ Report problems and direct all questions to:
  * 3. added ignoring of directories.
  * 
  * Revision 3.7  83/05/11  15:01:58  wft
- * Added comtable[] which pairs file name suffixes with comment leaders;
+ * Added comtable[] which pairs filename suffixes with comment leaders;
  * updated InitAdmin() accordingly.
  * 
  * Revision 3.6  83/04/05  14:47:36  wft
@@ -121,7 +159,7 @@ Report problems and direct all questions to:
  * removed unused variable.
  *
  * Revision 3.3  82/11/28  20:31:37  wft
- * Changed mktempfile() to store the generated file names.
+ * Changed mktempfile() to store the generated filenames.
  * Changed getfullRCSname() to store the file and pathname, and to
  * delete leading "../" and "./".
  *
@@ -140,72 +178,87 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(fnmsId, "$Id: rcsfnms.c,v 5.8 1991/09/24 00:28:40 eggert Exp $")
+libId(fnmsId, "$Id: rcsfnms.c,v 5.16 1995/06/16 06:19:24 eggert Exp $")
 
-char const *RCSfilename;
-char *workfilename;
+static char const *bindex P((char const*,int));
+static int fin2open P((char const*, size_t, char const*, size_t, char const*, size_t, RILE*(*)P((struct buf*,struct stat*,int)), int));
+static int finopen P((RILE*(*)P((struct buf*,struct stat*,int)), int));
+static int suffix_matches P((char const*,char const*));
+static size_t dir_useful_len P((char const*));
+static size_t suffixlen P((char const*));
+static void InitAdmin P((void));
+
+char const *RCSname;
+char *workname;
+int fdlock;
 FILE *workstdout;
 struct stat RCSstat;
 char const *suffixes;
 
 static char const rcsdir[] = "RCS";
-#define rcsdirlen (sizeof(rcsdir)-1)
+#define rcslen (sizeof(rcsdir)-1)
 
 static struct buf RCSbuf, RCSb;
 static int RCSerrno;
 
 
-/* Temp file names to be unlinked when done, if they are not nil.  */
+/* Temp names to be unlinked when done, if they are not 0.  */
 #define TEMPNAMES 5 /* must be at least DIRTEMPNAMES (see rcsedit.c) */
-static char *volatile tfnames[TEMPNAMES];
+static char *volatile tpnames[TEMPNAMES];
 
 
 struct compair {
 	char const *suffix, *comlead;
 };
 
+/*
+* This table is present only for backwards compatibility.
+* Normally we ignore this table, and use the prefix of the `$Log' line instead.
+*/
 static struct compair const comtable[] = {
-/* comtable pairs each filename suffix with a comment leader. The comment   */
-/* leader is placed before each line generated by the $Log keyword. This    */
-/* table is used to guess the proper comment leader from the working file's */
-/* suffix during initial ci (see InitAdmin()). Comment leaders are needed   */
-/* for languages without multiline comments; for others they are optional.  */
-	"a",   "-- ",   /* Ada         */
-	"ada", "-- ",
-	"asm", ";; ",	/* assembler (MS-DOS) */
-	"bat", ":: ",	/* batch (MS-DOS) */
-        "c",   " * ",   /* C           */
-	"c++", "// ",	/* C++ in all its infinite guises */
-	"cc",  "// ",
-	"cpp", "// ",
-	"cxx", "// ",
-	"cl",  ";;; ",  /* Common Lisp */
-	"cmd", ":: ",	/* command (OS/2) */
-	"cmf", "c ",	/* CM Fortran  */
-	"cs",  " * ",	/* C*          */
-	"el",  "; ",    /* Emacs Lisp  */
-	"f",   "c ",    /* Fortran     */
-	"for", "c ",
-        "h",   " * ",   /* C-header    */
-	"hpp", "// ",	/* C++ header  */
-	"hxx", "// ",
-        "l",   " * ",   /* lex      NOTE: conflict between lex and franzlisp */
-	"lisp",";;; ",	/* Lucid Lisp  */
-	"lsp", ";; ",	/* Microsoft Lisp */
-	"mac", ";; ",	/* macro (DEC-10, MS-DOS, PDP-11, VMS, etc) */
-	"me",  ".\\\" ",/* me-macros   t/nroff*/
-	"ml",  "; ",    /* mocklisp    */
-	"mm",  ".\\\" ",/* mm-macros   t/nroff*/
-	"ms",  ".\\\" ",/* ms-macros   t/nroff*/
-	"p",   " * ",   /* Pascal      */
-	"pas", " * ",
-	"pl",  "% ",	/* Prolog      */
-	"tex", "% ",	/* TeX	       */
-        "y",   " * ",   /* yacc        */
-	nil,   "# "     /* default for unknown suffix; must always be last */
+	{ "a"	, "-- "	},	/* Ada */
+	{ "ada"	, "-- "	},	
+	{ "adb"	, "-- "	},	
+	{ "ads"	, "-- "	},	
+	{ "asm"	, ";; "	},	/* assembler (MS-DOS) */
+	{ "bat"	, ":: "	},	/* batch (MS-DOS) */
+	{ "body", "-- "	},	/* Ada */
+	{ "c"	, " * "	},	/* C */
+	{ "c++"	, "// "	},	/* C++ in all its infinite guises */
+	{ "cc"	, "// "	},	
+	{ "cpp"	, "// "	},	
+	{ "cxx"	, "// "	},	
+	{ "cl"	, ";;; "},	/* Common Lisp */
+	{ "cmd"	, ":: "	},	/* command (OS/2) */
+	{ "cmf"	, "c "	},	/* CM Fortran */
+	{ "cs"	, " * "	},	/* C* */
+	{ "el"	, "; "	},	/* Emacs Lisp */
+	{ "f"	, "c "	},	/* Fortran */
+	{ "for"	, "c "	},	
+	{ "h"	, " * "	},	/* C-header */
+	{ "hpp"	, "// "	},	/* C++ header */
+	{ "hxx"	, "// "	},	
+	{ "l"	, " * "	},	/* lex (NOTE: franzlisp disagrees) */
+	{ "lisp", ";;; "},	/* Lucid Lisp */
+	{ "lsp"	, ";; "	},	/* Microsoft Lisp */
+	{ "m"   , "// " },	/* Objective C */
+	{ "mac"	, ";; "	},	/* macro (DEC-10, MS-DOS, PDP-11, VMS, etc) */
+	{ "me"	, ".\\\" "},	/* troff -me */
+	{ "ml"	, "; "	},	/* mocklisp */
+	{ "mm"	, ".\\\" "},	/* troff -mm */
+	{ "ms"	, ".\\\" "},	/* troff -ms */
+	{ "p"	, " * "	},	/* Pascal */
+	{ "pas"	, " * "	},	
+	{ "ps"	, "% "	},	/* PostScript */
+	{ "spec", "-- "	},	/* Ada */
+	{ "sty"	, "% "	},	/* LaTeX style */
+	{ "tex"	, "% "	},	/* TeX */
+	{ "y"	, " * "	},	/* yacc */
+	{ 0	, "# "	}	/* default for unknown suffix; must be last */
 };
 
 #if has_mktemp
+	static char const *tmp P((void));
 	static char const *
 tmp()
 /* Yield the name of the tmp directory.  */
@@ -224,14 +277,14 @@ tmp()
 	char const *
 maketemp(n)
 	int n;
-/* Create a unique filename using n and the process id and store it
- * into the nth slot in tfnames.
- * Because of storage in tfnames, tempunlink() can unlink the file later.
- * Returns a pointer to the filename created.
+/* Create a unique pathname using n and the process id and store it
+ * into the nth slot in tpnames.
+ * Because of storage in tpnames, tempunlink() can unlink the file later.
+ * Return a pointer to the pathname created.
  */
 {
 	char *p;
-	char const *t = tfnames[n];
+	char const *t = tpnames[n];
 
 	if (t)
 		return t;
@@ -240,25 +293,26 @@ maketemp(n)
 	{
 #	if has_mktemp
 	    char const *tp = tmp();
-	    p = testalloc(strlen(tp) + 10);
-	    VOID sprintf(p, "%s%cT%cXXXXXX", tp, SLASH, '0'+n);
+	    size_t tplen = dir_useful_len(tp);
+	    p = testalloc(tplen + 10);
+	    VOID sprintf(p, "%.*s%cT%cXXXXXX", (int)tplen, tp, SLASH, '0'+n);
 	    if (!mktemp(p) || !*p)
-		faterror("can't make temporary file name `%s%cT%cXXXXXX'",
-			tp, SLASH, '0'+n
+		faterror("can't make temporary pathname `%.*s%cT%cXXXXXX'",
+			(int)tplen, tp, SLASH, '0'+n
 		);
 #	else
-	    static char tfnamebuf[TEMPNAMES][L_tmpnam];
-	    p = tfnamebuf[n];
+	    static char tpnamebuf[TEMPNAMES][L_tmpnam];
+	    p = tpnamebuf[n];
 	    if (!tmpnam(p) || !*p)
 #		ifdef P_tmpdir
-		    faterror("can't make temporary file name `%s...'",P_tmpdir);
+		    faterror("can't make temporary pathname `%s...'",P_tmpdir);
 #		else
-		    faterror("can't make temporary file name");
+		    faterror("can't make temporary pathname");
 #		endif
 #	endif
 	}
 
-	tfnames[n] = p;
+	tpnames[n] = p;
 	return p;
 }
 
@@ -271,28 +325,28 @@ tempunlink()
 	register char *p;
 
 	for (i = TEMPNAMES;  0 <= --i;  )
-	    if ((p = tfnames[i])) {
+	    if ((p = tpnames[i])) {
 		VOID unlink(p);
 		/*
 		 * We would tfree(p) here,
 		 * but this might dump core if we're handing a signal.
 		 * We're about to exit anyway, so we won't bother.
 		 */
-		tfnames[i] = 0;
+		tpnames[i] = 0;
 	    }
 }
 
 
 	static char const *
-bindex(sp,ch)
+bindex(sp, c)
 	register char const *sp;
-	int ch;
+	register int c;
 /* Function: Finds the last occurrence of character c in string sp
  * and returns a pointer to the character just beyond it. If the
  * character doesn't occur in the string, sp is returned.
  */
 {
-	register char const c=ch, *r;
+	register char const *r;
         r = sp;
         while (*sp) {
                 if (*sp++ == c) r=sp;
@@ -333,64 +387,22 @@ InitAdmin()
 	register char const *Suffix;
         register int i;
 
-	Head=nil; Dbranch=nil; AccessList=nil; Symbols=nil; Locks=nil;
+	Head=0; Dbranch=0; AccessList=0; Symbols=0; Locks=0;
         StrictLocks=STRICT_LOCKING;
 
         /* guess the comment leader from the suffix*/
-        Suffix=bindex(workfilename, '.');
-        if (Suffix==workfilename) Suffix= ""; /* empty suffix; will get default*/
+	Suffix = bindex(workname, '.');
+	if (Suffix==workname) Suffix= ""; /* empty suffix; will get default*/
 	for (i=0; !suffix_matches(Suffix,comtable[i].suffix); i++)
-		;
+		continue;
 	Comment.string = comtable[i].comlead;
 	Comment.size = strlen(comtable[i].comlead);
+	Expand = KEYVAL_EXPAND;
+	clear_buf(&Ignored);
 	Lexinit(); /* note: if !finptr, reads nothing; only initializes */
 }
 
 
-/* 'cpp' does not like this line. It seems to be the leading '_' in the */
-/* second occurence of '_POSIX_NO_TRUNC'.  It evaluates correctly with  */
-/* just the first term so lets just do that for now.                    */
-/*#if defined(_POSIX_NO_TRUNC) && _POSIX_NO_TRUNC!=-1*/
-#if defined(_POSIX_NO_TRUNC)
-#	define LONG_NAMES_MAY_BE_SILENTLY_TRUNCATED 0
-#else
-#	define LONG_NAMES_MAY_BE_SILENTLY_TRUNCATED 1
-#endif
-
-#if LONG_NAMES_MAY_BE_SILENTLY_TRUNCATED
-#ifdef NAME_MAX
-#	define filenametoolong(path) (NAME_MAX < strlen(basename(path)))
-#else
-	static int
-filenametoolong(path)
-	char *path;
-/* Yield true if the last file name in PATH is too long. */
-{
-	static unsigned long dot_namemax;
-
-	register size_t namelen;
-	register char *base;
-	register unsigned long namemax;
-
-	base = path + dirlen(path);
-	namelen = strlen(base);
-	if (namelen <= _POSIX_NAME_MAX) /* fast check for shorties */
-		return false;
-	if (base != path) {
-		*--base = 0;
-		namemax = pathconf(path, _PC_NAME_MAX);
-		*base = SLASH;
-	} else {
-		/* Cache the results for the working directory, for speed. */
-		if (!dot_namemax)
-			dot_namemax = pathconf(".", _PC_NAME_MAX);
-		namemax = dot_namemax;
-	}
-	/* If pathconf() yielded -1, namemax is now ULONG_MAX.  */
-	return namemax<namelen;
-}
-#endif
-#endif
 
 	void
 bufalloc(b, size)
@@ -422,7 +434,7 @@ bufrealloc(b, size)
 			bufalloc(b, size);
 		else {
 			while ((b->size <<= 1)  <  size)
-				;
+				continue;
 			b->string = trealloc(char, b->string, b->size);
 		}
 	}
@@ -495,7 +507,7 @@ bufscpy(b, s)
 
 
 	char const *
-basename(p)
+basefilename(p)
 	char const *p;
 /* Yield the address of the base filename of the pathname P.  */
 {
@@ -507,19 +519,11 @@ basename(p)
 	    }
 }
 
-	size_t
-dirlen(p)
-	char const *p;
-/* Yield the length of P's directory, including its trailing SLASH.  */
-{
-	return basename(p) - p;
-}
-
 
 	static size_t
 suffixlen(x)
 	char const *x;
-/* Yield the length of X, an RCS filename suffix.  */
+/* Yield the length of X, an RCS pathname suffix.  */
 {
 	register char const *p;
 
@@ -538,10 +542,10 @@ suffixlen(x)
 	char const *
 rcssuffix(name)
 	char const *name;
-/* Yield the suffix of NAME if it is an RCS filename, 0 otherwise.  */
+/* Yield the suffix of NAME if it is an RCS pathname, 0 otherwise.  */
 {
 	char const *x, *p, *nz;
-	size_t dl, nl, xl;
+	size_t nl, xl;
 
 	nl = strlen(name);
 	nz = name + nl;
@@ -550,30 +554,29 @@ rcssuffix(name)
 	    if ((xl = suffixlen(x))) {
 		if (xl <= nl  &&  memcmp(p = nz-xl, x, xl) == 0)
 		    return p;
-	    } else {
-		dl = dirlen(name);
-		if (
-		    rcsdirlen < dl  &&
-		    !memcmp(p = name+(dl-=rcsdirlen+1), rcsdir, rcsdirlen) &&
-		    (!dl  ||  isSLASH(*--p))
-		)
-		    return nz;
-	    }
+	    } else
+		for (p = name;  p < nz - rcslen;  p++)
+		    if (
+			isSLASH(p[rcslen])
+			&& (p==name || isSLASH(p[-1]))
+			&& memcmp(p, rcsdir, rcslen) == 0
+		    )
+			return nz;
 	    x += xl;
 	} while (*x++);
 	return 0;
 }
 
 	/*ARGSUSED*/ RILE *
-rcsreadopen(RCSname, status, mustread)
-	struct buf *RCSname;
+rcsreadopen(RCSpath, status, mustread)
+	struct buf *RCSpath;
 	struct stat *status;
 	int mustread;
-/* Open RCSNAME for reading and yield its FILE* descriptor.
+/* Open RCSPATH for reading and yield its FILE* descriptor.
  * If successful, set *STATUS to its status.
- * Pass this routine to pairfilenames() for read-only access to the file.  */
+ * Pass this routine to pairnames() for read-only access to the file.  */
 {
-	return Iopen(RCSname->string, FOPEN_R, status);
+	return Iopen(RCSpath->string, FOPEN_RB, status);
 }
 
 	static int
@@ -594,7 +597,7 @@ finopen(rcsopen, mustread)
 	 * We prefer an old name to that of a nonexisting new RCS file,
 	 * unless we tried locking the old name and failed.
 	 */
-	preferold  =  RCSbuf.string[0] && (mustread||frewrite);
+	preferold  =  RCSbuf.string[0] && (mustread||0<=fdlock);
 
 	finptr = (*rcsopen)(&RCSb, &RCSstat, mustread);
 	interesting = finptr || errno!=ENOENT;
@@ -615,7 +618,7 @@ fin2open(d, dlen, base, baselen, x, xlen, rcsopen, mustread)
 /*
  * D is a directory name with length DLEN (including trailing slash).
  * BASE is a filename with length BASELEN.
- * X is an RCS filename suffix with length XLEN.
+ * X is an RCS pathname suffix with length XLEN.
  * Use RCSOPEN to open an RCS file; MUSTREAD is set if the file must be read.
  * Yield true if successful.
  * Try dRCS/basex first; if that fails and x is nonempty, try dbasex.
@@ -626,12 +629,12 @@ fin2open(d, dlen, base, baselen, x, xlen, rcsopen, mustread)
 {
 	register char *p;
 
-	bufalloc(&RCSb, dlen + rcsdirlen + 1 + baselen + xlen + 1);
+	bufalloc(&RCSb, dlen + rcslen + 1 + baselen + xlen + 1);
 
 	/* Try dRCS/basex.  */
 	VOID memcpy(p = RCSb.string, d, dlen);
-	VOID memcpy(p += dlen, rcsdir, rcsdirlen);
-	p += rcsdirlen;
+	VOID memcpy(p += dlen, rcsdir, rcslen);
+	p += rcslen;
 	*p++ = SLASH;
 	VOID memcpy(p, base, baselen);
 	VOID memcpy(p += baselen, x, xlen);
@@ -651,16 +654,17 @@ fin2open(d, dlen, base, baselen, x, xlen, rcsopen, mustread)
 }
 
 	int
-pairfilenames(argc, argv, rcsopen, mustread, quiet)
+pairnames(argc, argv, rcsopen, mustread, quiet)
 	int argc;
 	char **argv;
 	RILE *(*rcsopen)P((struct buf*,struct stat*,int));
 	int mustread, quiet;
-/* Function: Pairs the filenames pointed to by argv; argc indicates
+/*
+ * Pair the pathnames pointed to by argv; argc indicates
  * how many there are.
- * Places a pointer to the RCS filename into RCSfilename,
- * and a pointer to the name of the working file into workfilename.
- * If both the workfilename and the RCS filename are given, and workstdout
+ * Place a pointer to the RCS pathname into RCSname,
+ * and a pointer to the pathname of the working file into workname.
+ * If both are given, and workstdout
  * is set, a warning is printed.
  *
  * If the RCS file exists, places its status into RCSstat.
@@ -677,80 +681,62 @@ pairfilenames(argc, argv, rcsopen, mustread, quiet)
 	static struct buf tempbuf;
 
 	register char *p, *arg, *RCS1;
-	char const *purefname, *pureRCSname, *x;
+	char const *base, *RCSbase, *x;
 	int paired;
 	size_t arglen, dlen, baselen, xlen;
 
-	if (!(arg = *argv)) return 0; /* already paired filename */
+	fdlock = -1;
+
+	if (!(arg = *argv)) return 0; /* already paired pathname */
 	if (*arg == '-') {
-		error("%s option is ignored after file names", arg);
+		error("%s option is ignored after pathnames", arg);
 		return 0;
 	}
 
-	purefname = basename(arg);
-
-	/* Allocate buffer temporary to hold the default paired file name. */
-	p = arg;
-	for (;;) {
-		switch (*p++) {
-		    /* Beware characters that cause havoc with ci -k. */
-		    case KDELIM:
-			error("RCS file name `%s' contains %c", arg, KDELIM);
-			return 0;
-		    case ' ': case '\n': case '\t':
-			error("RCS file name `%s' contains white space", arg);
-			return 0;
-		    default:
-			continue;
-		    case 0:
-			break;
-		}
-		break;
-	}
-
+	base = basefilename(arg);
 	paired = false;
 
         /* first check suffix to see whether it is an RCS file or not */
 	if ((x = rcssuffix(arg)))
 	{
-                /* RCS file name given*/
+		/* RCS pathname given */
 		RCS1 = arg;
-		pureRCSname = purefname;
-		baselen = x - purefname;
+		RCSbase = base;
+		baselen = x - base;
 		if (
 		    1 < argc  &&
-		    !rcssuffix(workfilename = p = argv[1])  &&
+		    !rcssuffix(workname = p = argv[1])  &&
 		    baselen <= (arglen = strlen(p))  &&
-		    ((p+=arglen-baselen) == workfilename  ||  isSLASH(p[-1])) &&
-		    memcmp(purefname, p, baselen) == 0
+		    ((p+=arglen-baselen) == workname  ||  isSLASH(p[-1])) &&
+		    memcmp(base, p, baselen) == 0
 		) {
 			argv[1] = 0;
 			paired = true;
 		} else {
-			bufscpy(&tempbuf, purefname);
-			workfilename = p = tempbuf.string;
+			bufscpy(&tempbuf, base);
+			workname = p = tempbuf.string;
 			p[baselen] = 0;
 		}
         } else {
                 /* working file given; now try to find RCS file */
-		workfilename = arg;
-		baselen = p - purefname - 1;
-                /* derive RCS file name*/
+		workname = arg;
+		baselen = strlen(base);
+		/* Derive RCS pathname.  */
 		if (
 		    1 < argc  &&
 		    (x = rcssuffix(RCS1 = argv[1]))  &&
 		    baselen  <=  x - RCS1  &&
-		    ((pureRCSname=x-baselen)==RCS1 || isSLASH(pureRCSname[-1])) &&
-		    memcmp(purefname, pureRCSname, baselen) == 0
+		    ((RCSbase=x-baselen)==RCS1 || isSLASH(RCSbase[-1])) &&
+		    memcmp(base, RCSbase, baselen) == 0
 		) {
 			argv[1] = 0;
 			paired = true;
 		} else
-			pureRCSname = RCS1 = 0;
+			RCSbase = RCS1 = 0;
         }
-        /* now we have a (tentative) RCS filename in RCS1 and workfilename  */
+	/* Now we have a (tentative) RCS pathname in RCS1 and workname.  */
         /* Second, try to find the right RCS file */
-        if (pureRCSname!=RCS1) {
+	if (RCSbase!=RCS1) {
                 /* a path for RCSfile is given; single RCS file to look for */
 		bufscpy(&RCSbuf, RCS1);
 		finptr = (*rcsopen)(&RCSbuf, &RCSstat, mustread);
@@ -758,16 +744,16 @@ pairfilenames(argc, argv, rcsopen, mustread, quiet)
         } else {
 		bufscpy(&RCSbuf, "");
 		if (RCS1)
-			/* RCS file name was given without path.  */
-			VOID fin2open(arg, (size_t)0, pureRCSname, baselen,
+			/* RCS filename was given without path.  */
+			VOID fin2open(arg, (size_t)0, RCSbase, baselen,
 				x, strlen(x), rcsopen, mustread
 			);
 		else {
-			/* No RCS file name was given.  */
+			/* No RCS pathname was given.  */
 			/* Try each suffix in turn.  */
-			dlen = purefname-arg;
+			dlen = base-arg;
 			x = suffixes;
-			while (! fin2open(arg, dlen, purefname, baselen,
+			while (! fin2open(arg, dlen, base, baselen,
 					x, xlen=suffixlen(x), rcsopen, mustread
 			)) {
 				x += xlen;
@@ -776,7 +762,7 @@ pairfilenames(argc, argv, rcsopen, mustread, quiet)
 			}
 		}
         }
-	RCSfilename = p = RCSbuf.string;
+	RCSname = p = RCSbuf.string;
 	if (finptr) {
 		if (!S_ISREG(RCSstat.st_mode)) {
 			error("%s isn't a regular file -- ignored", p);
@@ -784,7 +770,7 @@ pairfilenames(argc, argv, rcsopen, mustread, quiet)
                 }
                 Lexinit(); getadmin();
 	} else {
-		if (RCSerrno!=ENOENT || mustread || !frewrite) {
+		if (RCSerrno!=ENOENT || mustread || fdlock<0) {
 			if (RCSerrno == EEXIST)
 				error("RCS file %s is in use", p);
 			else if (!quiet || RCSerrno!=ENOENT)
@@ -793,25 +779,9 @@ pairfilenames(argc, argv, rcsopen, mustread, quiet)
 		}
                 InitAdmin();
         };
-#	if LONG_NAMES_MAY_BE_SILENTLY_TRUNCATED
-	    if (filenametoolong(p)) {
-		error("RCS file name %s is too long", p);
-		return 0;
-	    }
-#	    ifndef NAME_MAX
-		/*
-		 * Check workfilename too, even though it cannot be longer,
-		 * because it may reside on a different filesystem.
-		 */
-		if (filenametoolong(workfilename)) {
-		    error("working file name %s is too long", workfilename);
-		    return 0;
-		}
-#	    endif
-#	endif
 
 	if (paired && workstdout)
-                warn("Option -p is set; ignoring output file %s",workfilename);
+		workwarn("Working file ignored due to -p option");
 
 	prevkeys = false;
 	return finptr ? 1 : -1;
@@ -820,81 +790,104 @@ pairfilenames(argc, argv, rcsopen, mustread, quiet)
 
 	char const *
 getfullRCSname()
-/* Function: returns a pointer to the full path name of the RCS file.
- * Gets the working directory's name at most once.
- * Removes leading "../" and "./".
+/*
+ * Return a pointer to the full pathname of the RCS file.
+ * Remove leading `./'.
  */
 {
-	static char const *wdptr;
-	static struct buf rcsbuf, wdbuf;
-	static size_t pathlength;
+	if (ROOTPATH(RCSname)) {
+	    return RCSname;
+	} else {
+	    static struct buf rcsbuf;
+#	    if needs_getabsname
+		bufalloc(&rcsbuf, SIZEABLE_PATH + 1);
+		while (getabsname(RCSname, rcsbuf.string, rcsbuf.size) != 0)
+		    if (errno == ERANGE)
+			bufalloc(&rcsbuf, rcsbuf.size<<1);
+		    else
+			efaterror("getabsname");
+#	    else
+		static char const *wdptr;
+		static struct buf wdbuf;
+		static size_t wdlen;
 
-	register char const *realname;
-	register size_t parentdirlength;
-	register unsigned dotdotcounter;
-	register char *d;
-	register char const *wd;
+		register char const *r;
+		register size_t dlen;
+		register char *d;
+		register char const *wd;
 
-	if (ROOTPATH(RCSfilename)) {
-                return(RCSfilename);
-        } else {
 		if (!(wd = wdptr)) {
 		    /* Get working directory for the first time.  */
-		    if (!(d = cgetenv("PWD"))) {
+		    char *PWD = cgetenv("PWD");
+		    struct stat PWDstat, dotstat;
+		    if (! (
+			(d = PWD) &&
+			ROOTPATH(PWD) &&
+			stat(PWD, &PWDstat) == 0 &&
+			stat(".", &dotstat) == 0 &&
+			same_file(PWDstat, dotstat, 1)
+		    )) {
 			bufalloc(&wdbuf, SIZEABLE_PATH + 1);
-#			if !has_getcwd && has_getwd
-			    d = getwd(wdbuf.string);
+#			if has_getcwd || !has_getwd
+			    while (!(d = getcwd(wdbuf.string, wdbuf.size)))
+				if (errno == ERANGE)
+				    bufalloc(&wdbuf, wdbuf.size<<1);
+				else if ((d = PWD))
+				    break;
+				else
+				    efaterror("getcwd");
 #			else
-			    while (
-				    !(d = getcwd(wdbuf.string, wdbuf.size))
-				&&  errno==ERANGE
-			    )
-				bufalloc(&wdbuf, wdbuf.size<<1);
+			    d = getwd(wdbuf.string);
+			    if (!d  &&  !(d = PWD))
+				efaterror("getwd");
 #			endif
-			if (!d)
-			    efaterror("working directory");
 		    }
-		    parentdirlength = strlen(d);
-		    while (parentdirlength && isSLASH(d[parentdirlength-1])) {
-			d[--parentdirlength] = 0;
-                        /* Check needed because some getwd implementations */
-                        /* generate "/" for the root.                      */
-                    }
+		    wdlen = dir_useful_len(d);
+		    d[wdlen] = 0;
 		    wdptr = wd = d;
-		    pathlength = parentdirlength;
                 }
-                /*the following must be redone since RCSfilename may change*/
-		/* Find how many `../'s to remove from RCSfilename.  */
-                dotdotcounter =0;
-                realname = RCSfilename;
-		while (realname[0]=='.') {
-			if (isSLASH(realname[1])) {
-                            /* drop leading ./ */
-                            realname += 2;
-			} else if (realname[1]=='.' && isSLASH(realname[2])) {
-                            /* drop leading ../ and remember */
-                            dotdotcounter++;
-                            realname += 3;
-			} else
-			    break;
-                }
-		/* Now remove dotdotcounter trailing directories from wd. */
-		parentdirlength = pathlength;
-		while (dotdotcounter && parentdirlength) {
-                    /* move pointer backwards over trailing directory */
-		    if (isSLASH(wd[--parentdirlength])) {
-                        dotdotcounter--;
-                    }
-                }
-		/* build full path name */
-		bufalloc(&rcsbuf, parentdirlength+strlen(realname)+2);
+		/*
+		* Remove leading `./'s from RCSname.
+		* Do not try to handle `../', since removing it may yield
+		* the wrong answer in the presence of symbolic links.
+		*/
+		for (r = RCSname;  r[0]=='.' && isSLASH(r[1]);  r += 2)
+		    /* `.////' is equivalent to `./'.  */
+		    while (isSLASH(r[2]))
+			r++;
+		/* Build full pathname.  */
+		dlen = wdlen;
+		bufalloc(&rcsbuf, dlen + strlen(r) + 2);
 		d = rcsbuf.string;
-		VOID memcpy(d, wd, parentdirlength);
-		d += parentdirlength;
+		VOID memcpy(d, wd, dlen);
+		d += dlen;
 		*d++ = SLASH;
-		VOID strcpy(d, realname);
-		return rcsbuf.string;
+		VOID strcpy(d, r);
+#	    endif
+	    return rcsbuf.string;
         }
+}
+
+	static size_t
+dir_useful_len(d)
+	char const *d;
+/*
+* D names a directory; yield the number of characters of D's useful part.
+* To create a file in D, append a SLASH and a file name to D's useful part.
+* Ignore trailing slashes if possible; not only are they ugly,
+* but some non-Posix systems misbehave unless the slashes are omitted.
+*/
+{
+#	ifndef SLASHSLASH_is_SLASH
+#	define SLASHSLASH_is_SLASH 0
+#	endif
+	size_t dlen = strlen(d);
+	if (!SLASHSLASH_is_SLASH && dlen==2 && isSLASH(d[0]) && isSLASH(d[1]))
+	    --dlen;
+	else
+	    while (dlen && isSLASH(d[dlen-1]))
+		--dlen;
+	return dlen;
 }
 
 #ifndef isSLASH
@@ -927,9 +920,6 @@ getcwd(path, size)
 	register char *p, *lim;
 	int closeerrno, closeerror, e, fd[2], readerror, toolong, wstatus;
 	pid_t child;
-#	if !has_waitpid
-		pid_t w;
-#	endif
 
 	if (!size) {
 		errno = EINVAL;
@@ -937,6 +927,12 @@ getcwd(path, size)
 	}
 	if (pipe(fd) != 0)
 		return 0;
+#	if bad_wait_if_SIGCHLD_ignored
+#		ifndef SIGCHLD
+#		define SIGCHLD SIGCLD
+#		endif
+		VOID signal(SIGCHLD, SIG_DFL);
+#	endif
 	if (!(child = vfork())) {
 		if (
 			close(fd[0]) == 0 &&
@@ -988,12 +984,15 @@ getcwd(path, size)
 			if (waitpid(child, &wstatus, 0) < 0)
 				wstatus = 1;
 #		else
-			do {
-				if ((w = wait(&wstatus)) < 0) {
-					wstatus = 1;
-					break;
-				}
-			} while (w != child);
+			{
+				pid_t w;
+				do {
+					if ((w = wait(&wstatus)) < 0) {
+						wstatus = 1;
+						break;
+					}
+				} while (w != child);
+			}
 #		endif
 	}
 	if (!fp) {
@@ -1026,7 +1025,7 @@ getcwd(path, size)
 
 
 #ifdef PAIRTEST
-/* test program for pairfilenames() and getfullRCSname() */
+/* test program for pairnames() and getfullRCSname() */
 
 char const cmdid[] = "pair";
 
@@ -1052,20 +1051,20 @@ int argc; char *argv[];
         }
 
         do {
-                RCSfilename=workfilename=nil;
-		result = pairfilenames(argc,argv,rcsreadopen,!initflag,quietflag);
+		RCSname = workname = 0;
+		result = pairnames(argc,argv,rcsreadopen,!initflag,quietflag);
                 if (result!=0) {
-		    diagnose("RCS file: %s; working file: %s\nFull RCS file name: %s\n",
-			     RCSfilename,workfilename,getfullRCSname()
+		    diagnose("RCS pathname: %s; working pathname: %s\nFull RCS pathname: %s\n",
+			     RCSname, workname, getfullRCSname()
 		    );
                 }
                 switch (result) {
                         case 0: continue; /* already paired file */
 
                         case 1: if (initflag) {
-                                    error("RCS file %s exists already",RCSfilename);
+				    rcserror("already exists");
                                 } else {
-				    diagnose("RCS file %s exists\n",RCSfilename);
+				    diagnose("RCS file %s exists\n", RCSname);
                                 }
 				Ifclose(finptr);
                                 break;
@@ -1078,7 +1077,7 @@ int argc; char *argv[];
 
 }
 
-	exiting void
+	void
 exiterr()
 {
 	dirtempunlink();

@@ -2,9 +2,10 @@
 .ds Rv \\$3
 .ds Dt \\$4
 ..
-.Id $Id: rlog.1,v 5.3 1991/08/22 06:50:48 eggert Exp $
-.ds g \&\s-1UTC\s0
+.Id $Id: rlog.1,v 5.9 1995/06/16 06:19:24 eggert Exp $
+.ds i \&\s-1ISO\s0
 .ds r \&\s-1RCS\s0
+.ds u \&\s-1UTC\s0
 .if n .ds - \%--
 .if t .ds - \(em
 .TH RLOG 1 \*(Dt GNU
@@ -34,13 +35,17 @@ reverse chronological order for each branch.  For each revision,
 prints revision number, author, date/time, state, number of
 lines added/deleted (with respect to the previous revision),
 locker of the revision (if any), and log message.
-All times are displayed in Coordinated Universal Time (\*g).
+All times are displayed in Coordinated Universal Time (\*u) by default;
+this can be overridden with
+.BR \-z .
 Without options,
 .B rlog
 prints complete information.
 The options below restrict this output.
-.nr n \w'\f3\-V\fP\f2n\fP '+1n-1/1n
-.TP \nn
+.nr n \w'\f3\-V\fP\f2n\fP'+2n-1/1n
+.ds n \nn
+.if \n(.g .if r an-tag-sep .ds n \w'\f3\-V\fP\f2n\fP'u+\n[an-tag-sep]u
+.TP \*n
 .B \-L
 Ignore \*r files that have no locks set.
 This is convenient in combination with
@@ -64,6 +69,9 @@ Print the same as
 .BR \-h ,
 plus the descriptive text.
 .TP
+.B \-N
+Do not print the symbolic names.
+.TP
 .B \-b
 Print information about the revisions on the default branch, normally
 the highest branch on the trunk.
@@ -80,23 +88,28 @@ selects the revisions that were deposited between
 .I d1
 and
 .I d2
-inclusive.
+exclusive.
 A range of the form
 .BI < d
 or
 .IB d >
 selects
-all revisions dated
-.I d
-or earlier.
+all revisions earlier than
+.IR d .
 A range of the form
 .IB d <
 or
 .BI > d
 selects
-all revisions dated
-.I d
-or later.
+all revisions dated later than
+.IR d .
+If
+.B <
+or
+.B >
+is followed by
+.B =
+then the ranges are inclusive, not exclusive.
 A range of the form
 .I d
 selects the single, latest revision dated
@@ -174,6 +187,13 @@ If
 .I logins
 is omitted, the user's login is assumed.
 .TP
+.B \-T
+This option has no effect;
+it is present for compatibility with other \*r commands.
+.TP
+.BI \-V
+Print \*r's version number.
+.TP
 .BI \-V n
 Emulate \*r version
 .I n
@@ -203,6 +223,40 @@ with the union of the revisions selected by
 .B \-b
 and
 .BR \-r .
+.TP
+.BI \-z zone
+specifies the date output format,
+and specifies the default time zone for
+.I date
+in the
+.BI \-d dates
+option.
+The
+.I zone
+should be empty, a numeric \*u offset, or the special string
+.B LT
+for local time.
+The default is an empty
+.IR zone ,
+which uses the traditional \*r format of \*u without any time zone indication
+and with slashes separating the parts of the date;
+otherwise, times are output in \*i 8601 format with time zone indication.
+For example, if local time is January 11, 1990, 8pm Pacific Standard Time,
+eight hours west of \*u,
+then the time is output as follows:
+.RS
+.LP
+.RS
+.nf
+.ta \w'\f3\-z+05:30\fP  'u +\w'\f31990-01-11 09:30:00+05:30\fP  'u
+.ne 4
+\f2option\fP	\f2time output\fP
+\f3\-z\fP	\f31990/01/12 04:00:00\fP	\f2(default)\fP
+\f3\-zLT\fP	\f31990-01-11 20:00:00\-08\fP
+\f3\-z+05:30\fP	\f31990-01-12 09:30:00+05:30\fP
+.ta 4n +4n +4n +4n
+.fi
+.RE
 .SH EXAMPLES
 .LP
 .nf
@@ -229,11 +283,11 @@ The exit status is zero if and only if all operations were successful.
 .SH IDENTIFICATION
 Author: Walter F. Tichy.
 .br
-Revision Number: \*(Rv; Release Date: \*(Dt.
+Manual Page Revision: \*(Rv; Release Date: \*(Dt.
 .br
-Copyright \(co 1982, 1988, 1989 by Walter F. Tichy.
+Copyright \(co 1982, 1988, 1989 Walter F. Tichy.
 .br
-Copyright \(co 1990, 1991 by Paul Eggert.
+Copyright \(co 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert.
 .SH "SEE ALSO"
 ci(1), co(1), ident(1), rcs(1), rcsdiff(1), rcsintro(1), rcsmerge(1),
 rcsfile(5)

@@ -1,7 +1,8 @@
-PROG= ident
-
-SRCS=	ident.c 
-LDADD=	-L${.CURDIR}/../lib/obj -lrcs
+PROG=	ident
+SRCS=	ident.c
 CFLAGS+= -I${.CURDIR}/../lib
+LDADD=  ${LIBRCS}
+DPADD=  ${LIBRCS}
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>
