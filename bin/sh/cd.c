@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cd.c,v 1.14 1997/02/22 13:58:22 peter Exp $
+ *	$Id: cd.c,v 1.15 1997/04/28 03:06:32 steve Exp $
  */
 
 #ifndef lint
@@ -75,8 +75,8 @@ STATIC char *cdcomppath;
 
 int
 cdcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	char *dest;
 	char *path;
@@ -213,8 +213,8 @@ updatepwd(dir)
 
 int
 pwdcmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	if (!getpwd())
 		error("getcwd() failed: %s", strerror(errno));

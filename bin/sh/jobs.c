@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: jobs.c,v 1.12 1997/02/22 13:58:29 peter Exp $
+ *	$Id: jobs.c,v 1.13 1997/04/28 03:06:34 steve Exp $
  */
 
 #ifndef lint
@@ -190,7 +190,7 @@ SHELLPROC {
 #if JOBS
 int
 fgcmd(argc, argv)
-	int argc;
+	int argc __unused;
 	char **argv;
 {
 	struct job *jp;
@@ -255,8 +255,8 @@ restartjob(jp)
 
 int
 jobscmd(argc, argv)
-	int argc;
-	char **argv;
+	int argc __unused;
+	char **argv __unused;
 {
 	showjobs(0);
 	return 0;
@@ -415,7 +415,7 @@ waitcmd(argc, argv)
 
 int
 jobidcmd(argc, argv)
-	int argc;
+	int argc __unused;
 	char **argv;
 {
 	struct job *jp;
@@ -497,7 +497,7 @@ currentjob:
 
 struct job *
 makejob(node, nprocs)
-	union node *node;
+	union node *node __unused;
 	int nprocs;
 {
 	int i;
