@@ -1387,6 +1387,9 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
     daddr_t sz;
     Chunk *AutoHome, *AutoRoot, *AutoSwap;
     Chunk *AutoTmp, *AutoUsr, *AutoVar;
+#ifdef __ia64__
+    Chunk *AutoEfi;
+#endif
     int mib[2];
     unsigned long physmem;
     size_t size;
@@ -1399,6 +1402,25 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
     (void)checkLabels(FALSE);
     AutoHome = AutoRoot = AutoSwap = NULL;
     AutoTmp = AutoUsr = AutoVar = NULL;
+
+#ifdef __ia64__
+    AutoEfi = NULL;
+    if (EfiChunk == NULL) {
+	sz = 100 * ONE_MEG;
+	AutoEfi = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+	    label_chunk_info[here].c, sz, efi, 0, 0);
+	if (AutoEfi == NULL) {
+	    *req = 1;
+	    msg = "Unable to create the EFI system partition. Too big?";
+	    goto done;
+	}
+	AutoEfi->private_data = new_part(PART_EFI, "/efi", TRUE);
+	AutoEfi->private_free = safe_free;
+	AutoEfi->flags |= CHUNK_NEWFS;
+	record_label_chunks(devs, dev);
+    }
+#endif
+
     if (RootChunk == NULL) {
 	sz = requested_part_size(VAR_ROOT_SIZE, ROOT_NOMINAL_SIZE, ROOT_DEFAULT_SIZE, perc);
 
