@@ -97,7 +97,6 @@ __FBSDID("$FreeBSD$");
 #define	ROOTNAME		"root_device"
 #define	VFS_MOUNTARG_SIZE_MAX	(1024 * 64)
 
-static void	checkdirs(struct vnode *olddp, struct vnode *newdp);
 static void	gets(char *cp);
 static int	vfs_domount(struct thread *td, const char *fstype,
 		    char *fspath, int fsflags, void *fsdata, int compat);
@@ -915,7 +914,7 @@ vfs_domount(
 		vfs_event_signal(NULL, VQ_MOUNT, 0);
 		if (VFS_ROOT(mp, &newdp, td))
 			panic("mount: lost mount");
-		checkdirs(vp, newdp);
+		mountcheckdirs(vp, newdp);
 		vput(newdp);
 		VOP_UNLOCK(vp, 0, td);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
@@ -931,54 +930,6 @@ vfs_domount(
 		vput(vp);
 	}
 	return (error);
-}
-
-/*
- * Scan all active processes to see if any of them have a current
- * or root directory of `olddp'. If so, replace them with the new
- * mount point.
- */
-static void
-checkdirs(olddp, newdp)
-	struct vnode *olddp, *newdp;
-{
-	struct filedesc *fdp;
-	struct proc *p;
-	int nrele;
-
-	if (vrefcnt(olddp) == 1)
-		return;
-	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
-		mtx_lock(&fdesc_mtx);
-		fdp = p->p_fd;
-		if (fdp == NULL) {
-			mtx_unlock(&fdesc_mtx);
-			continue;
-		}
-		nrele = 0;
-		FILEDESC_LOCK(fdp);
-		if (fdp->fd_cdir == olddp) {
-			VREF(newdp);
-			fdp->fd_cdir = newdp;
-			nrele++;
-		}
-		if (fdp->fd_rdir == olddp) {
-			VREF(newdp);
-			fdp->fd_rdir = newdp;
-			nrele++;
-		}
-		FILEDESC_UNLOCK(fdp);
-		mtx_unlock(&fdesc_mtx);
-		while (nrele--)
-			vrele(olddp);
-	}
-	sx_sunlock(&allproc_lock);
-	if (rootvnode == olddp) {
-		vrele(rootvnode);
-		VREF(newdp);
-		rootvnode = newdp;
-	}
 }
 
 /*
@@ -1116,7 +1067,7 @@ dounmount(mp, flags, td)
 	 */
 	if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp, td) == 0) {
 		if (mp->mnt_vnodecovered != NULL)
-			checkdirs(fsrootvp, mp->mnt_vnodecovered);
+			mountcheckdirs(fsrootvp, mp->mnt_vnodecovered);
 		if (fsrootvp == rootvnode) {
 			vrele(rootvnode);
 			rootvnode = NULL;
@@ -1133,7 +1084,7 @@ dounmount(mp, flags, td)
 		/* Undo cdir/rdir and rootvnode changes made above. */
 		if ((flags & MNT_FORCE) && VFS_ROOT(mp, &fsrootvp, td) == 0) {
 			if (mp->mnt_vnodecovered != NULL)
-				checkdirs(mp->mnt_vnodecovered, fsrootvp);
+				mountcheckdirs(mp->mnt_vnodecovered, fsrootvp);
 			if (rootvnode == NULL) {
 				rootvnode = fsrootvp;
 				vref(rootvnode);
