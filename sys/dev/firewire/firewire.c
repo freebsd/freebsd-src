@@ -95,6 +95,8 @@ static device_method_t firewire_methods[] = {
 	DEVMETHOD(device_probe,		firewire_match),
 	DEVMETHOD(device_attach,	firewire_attach),
 	DEVMETHOD(device_detach,	firewire_detach),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* Bus interface */

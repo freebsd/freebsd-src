@@ -458,7 +458,9 @@ END_DEBUG
 		if (reg == NULL)
 			break;
 		lun = reg->val & 0xff;
-		printf("lun %d found\n", lun);
+SBP_DEBUG(0)
+		printf("target %d lun %d found\n", target->target_id, lun);
+END_DEBUG
 		if (maxlun < lun)
 			maxlun = lun;
 		crom_next(&cc);
