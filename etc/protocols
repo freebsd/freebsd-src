@@ -1,7 +1,7 @@
 #
 # Internet (IP) protocols
 #
-#	$Id$
+#	$Id: protocols,v 1.2 1993/11/07 00:31:22 wollman Exp $
 #	from: @(#)protocols	5.1 (Berkeley) 4/17/89
 #
 # Updated for FreeBSD based on RFC 1340, Assigned Numbers (July 1992).
@@ -22,6 +22,7 @@ rdp	27	RDP		# "reliable datagram" protocol
 iso-tp4	29	ISO-TP4		# ISO Transport Protocol class 4
 xtp	36	XTP		# Xpress Tranfer Protocol
 idpr-cmtp	39	IDPR-CMTP	# IDPR Control Message Transport
+rsvp	46	RSVP		# Resource ReSerVation Protocol
 vmtp	81	VMTP		# Versatile Message Transport
 ospf	89	OSPFIGP		# Open Shortest Path First IGP
 ipip	94	IPIP		# Yet Another IP encapsulation
