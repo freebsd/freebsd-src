@@ -173,7 +173,7 @@ sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_PHYSMEM, physmem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_physmem, "I", "");
+	0, 0, sysctl_hw_physmem, "IU", "");
 
 static int
 sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
@@ -184,7 +184,7 @@ sysctl_hw_usermem(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_hw, HW_USERMEM, usermem, CTLTYPE_INT|CTLFLAG_RD,
-	0, 0, sysctl_hw_usermem, "I", "");
+	0, 0, sysctl_hw_usermem, "IU", "");
 
 static int
 sysctl_hw_availpages(SYSCTL_HANDLER_ARGS)
@@ -1949,20 +1949,16 @@ init386(first)
 
 	LIST_INIT(&proc0.p_contested);
 
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-#ifdef SMP
 	/*
-	 * Interrupts can happen very early, so initialize imen_mtx here, rather
-	 * than in init_locks().
-	 */
-	mtx_init(&imen_mtx, "imen", MTX_SPIN);
-#endif
-
-	/*
-	 * Giant is used early for at least debugger traps and unexpected traps.
+	 * Initialize mutexes.
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
+	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
+#ifdef SMP
+	mtx_init(&imen_mtx, "imen", MTX_SPIN);
+#endif
 	mtx_lock(&Giant);
 
 	/* make ldt memory segments */
@@ -2021,11 +2017,6 @@ init386(first)
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;
 	lidt(&r_idt);
-
-	/*
-	 * We need this mutex before the console probe.
-	 */
-	mtx_init(&clock_lock, "clk", MTX_SPIN | MTX_RECURSE);
 
 	/*
 	 * Initialize the console before we print anything out.
