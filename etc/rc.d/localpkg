@@ -11,31 +11,120 @@
 . /etc/rc.subr
 
 name="localpkg"
-start_cmd="pkg_start"
-stop_cmd="pkg_stop"
+_arg1="$1"
+
+# script_is_rcd script
+#	Checks that script is an rc.d style script.
+#	Returns 0 if it is, otherwise, it returns 1.
+#
+script_is_rcd()
+{
+	local _s match
+	_s="$1"
+
+	[ -z "$_s" ] && return 1
+	match=`grep -c -m1 '^# PROVIDE:' "$_s" 2> /dev/null`
+	[ "$match" = "1" ] && return 0
+	return 1
+}
+
+# cooked_scriptlist type
+#	Uses values from rc.conf(5) to prepare a list of scripts to
+#	execute. It assumes the global variable script_name_sep and IFS are set
+#	properly. If type is set to the string "rcd" the list will contain only
+#	rc.d style scripts and they will be ordered according to thier 
+#	dependencies. If it is set to "rcOG" then it will contain
+#	only old style ports startup scripts. The list is echoed on stdout.
+#
+cooked_scriptlist()
+{
+	local _type slist fpattern skip
+
+	slist=""
+	_type="$1"
+	case "$_type" in
+	rcd)
+		fpattern="*"
+		;;
+	rcOG)
+		fpattern="*.sh"
+		;;
+	*)
+		return
+		;;
+	esac
+	for dir in ${local_startup}; do
+		if [ -d "${dir}" ]; then
+			for script in ${dir}/${fpattern}; do
+
+				# Weed out scripts that don't belong in the
+				# category that we are preparing.
+				#
+				if [ "$_type" = "rcd" ]; then
+					case "$script" in
+					*.sample|*-dist)
+						continue;;
+					esac
+					script_is_rcd "$script" || continue
+				else
+					script_is_rcd "$script" && continue
+				fi
+				
+				slist="${slist}${script_name_sep}${script}"
+			done
+		fi
+	done
+
+	# If this is an rc.d list put the scripts in the right order.
+	#
+	if [ "$_type" = "rcd" ]; then
+		skip="-s nostart"
+		[ `/sbin/sysctl -n security.jail.jailed` -eq 1 ] && \
+		    skip="$skip -s nojail"
+
+		# Some scripts do not define a FreeBSD keyword, so we can't
+		# specify it in a keep list.
+		slist=`/sbin/rcorder ${skip} ${slist} 2>/dev/null`
+
+		# Substitute the newlines used by rcorder(8) with the
+		# script separator.
+		slist=`echo $slist | /usr/bin/tr "\n" "$script_name_sep"`
+	fi
+
+	echo -n $slist
+}
 
 pkg_start()
 {
-	# For each dir in $local_startup, search for init scripts matching *.sh
-	#
+	local slist
+
 	case ${local_startup} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		echo -n 'Local package initialization:'
 		slist=""
 		if [ -z "${script_name_sep}" ]; then
 			script_name_sep=" "
 		fi
-		for dir in ${local_startup}; do
-			if [ -d "${dir}" ]; then
-				for script in ${dir}/*.sh; do
-					slist="${slist}${script_name_sep}${script}"
-				done
-			fi
-		done
+
+		# Do rc.d style scripts.
+		#
 		script_save_sep="$IFS"
 		IFS="${script_name_sep}"
+		slist=`cooked_scriptlist rcd`
+		debug "localpkg rc.d scripts: $slist"
+		for script in ${slist}; do
+			run_rc_script "$script" "$_arg1"
+		done
+		IFS="${script_save_sep}"
+
+		# Do old-style ports startup scripts.
+		#
+		echo -n 'Local package initialization:'
+		script_save_sep="$IFS"
+		IFS="${script_name_sep}"
+		slist=`cooked_scriptlist rcOG`
+		debug "localpkg rcOG scripts: $slist"
 		for script in ${slist}; do
 			if [ -x "${script}" ]; then
 				(set -T
@@ -53,26 +142,24 @@ pkg_start()
 
 pkg_stop()
 {
-	echo -n 'Shutting down daemon processes:'
+	local slist
 
 	# For each dir in $local_startup, search for init scripts matching *.sh
 	case ${local_startup} in
 	[Nn][Oo] | '')
 		;;
 	*)
-		slist=""
 		if [ -z "${script_name_sep}" ]; then
 			script_name_sep=" "
 		fi
-		for dir in ${local_startup}; do
-			if [ -d "${dir}" ]; then
-				for script in ${dir}/*.sh; do
-					slist="${slist}${script_name_sep}${script}"
-				done
-			fi
-		done
+
+		# Do old-style scripts
+		#
 		script_save_sep="$IFS"
 		IFS="${script_name_sep}"
+		slist=`cooked_scriptlist rcOG`
+		debug "localpkg rcOG scripts: $slist"
+		echo -n 'Shutting down local packages:'
 		for script in `reverse_list ${slist}`; do
 			if [ -x "${script}" ]; then
 				(set -T
@@ -82,9 +169,35 @@ pkg_stop()
 		done
 		IFS="${script_save_sep}"
 		echo '.'
+
+		# Do rc.d style scripts
+		#
+		script_save_sep="$IFS"
+		IFS="${script_name_sep}"
+		slist=`cooked_scriptlist rcd`
+		debug "localpkg rc.d scripts: $slist"
+		for script in `reverse_list ${slist}`; do
+			run_rc_script "$script" $_arg1
+		done
 		;;
 	esac
 }
 
 load_rc_config $name
-run_rc_command "$1"
+
+# We can't use the normal rc.subr(8) start/stop plumbing
+# because we call run_rc_script(), which unsets all the
+# global variables that said plumbing needs.
+#
+case "$1" in
+start|faststart)
+	pkg_start
+	;;
+stop|faststop)
+	pkg_stop
+	;;
+restart|fastrestart)
+	pkg_stop
+	pkg_start
+	;;
+esac
