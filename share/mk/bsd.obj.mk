@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.25 1998/06/04 15:31:55 peter Exp $
+#	$Id: bsd.obj.mk,v 1.26 1998/08/30 20:33:27 jb Exp $
 #
 # The include file <bsd.obj.mk> handles creating the 'obj' directory
 # and cleaning up object files, etc.
@@ -31,10 +31,6 @@
 # NOOBJ		Do not create object directories.  This should not be set
 #		if anything is built.
 #
-# OBJLINK	Create a symbolic link from ${.CURDIR}/obj to
-#		${CANONICALOBJDIR}.  Note: this BREAKS the read-only source
-#		tree rule!
-#
 # +++ targets +++
 #
 #	clean:
@@ -60,7 +56,7 @@ objwarn:
 .if !defined(NOOBJ) && ${.OBJDIR} != ${CANONICALOBJDIR}
 .if ${.OBJDIR} == ${.CURDIR}
 	@${ECHO} "Warning: Object directory not changed from original ${.CURDIR}"
-.elif !defined(MAKEOBJDIR) && !defined(MAKEOBJDIRPREFIX) && !defined(OBJLINK)
+.elif !defined(MAKEOBJDIR) && !defined(MAKEOBJDIRPREFIX)
 	@${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
 		canonical ${CANONICALOBJDIR}"
 .endif
@@ -70,7 +66,6 @@ objwarn:
 .if defined(NOOBJ)
 obj:
 .else
-.if !defined(OBJLINK)
 obj:	_SUBDIR
 	@if ! test -d ${CANONICALOBJDIR}/; then \
 		mkdir -p ${CANONICALOBJDIR}; \
@@ -80,30 +75,7 @@ obj:	_SUBDIR
 		fi; \
 		${ECHO} "${CANONICALOBJDIR} created for ${.CURDIR}"; \
 	fi
-.else
-obj:	_SUBDIR
-	@if ! test -d ${CANONICALOBJDIR}/; then \
-		mkdir -p ${CANONICALOBJDIR}; \
-		if ! test -d ${CANONICALOBJDIR}/; then \
-			${ECHO} "Unable to create ${CANONICALOBJDIR}."; \
-			exit 1; \
-		fi; \
-		rm -f ${.CURDIR}/obj; \
-		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
-		${ECHO} "${.CURDIR} -> ${CANONICALOBJDIR}"; \
-	fi
 .endif
-.endif
-.endif
-
-.if !target(objlink)
-objlink: _SUBDIR
-	@if test -d ${CANONICALOBJDIR}/; then \
-		rm -f ${.CURDIR}/obj; \
-		ln -s ${CANONICALOBJDIR} ${.CURDIR}/obj; \
-	else \
-		echo "No ${CANONICALOBJDIR} to link to - do a make obj."; \
-	fi
 .endif
 
 #
