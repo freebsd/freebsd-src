@@ -1,5 +1,5 @@
 ###
-#	$Id: Makefile,v 1.214 1996/05/02 08:18:28 jkh Exp $
+#	$Id: crunch_fs.mk,v 1.1 1996/05/21 01:12:21 julian Exp $
 #
 # This is included to make a floppy that includes a crunch file
 #
@@ -34,7 +34,7 @@ ZIP?=true
 
 # Things which will get you into trouble if you change them
 TREE=		tree
-LABELDIR=	${TOP}/sys/i386/boot/biosboot/obj
+LABELDIR=	${OBJTOP}/sys/i386/boot/biosboot
 
 clean:	
 	rm -rf tree fs-image fs-image.size step[0-9]
@@ -57,7 +57,7 @@ ${TREE}: ${.CURDIR}/Makefile
 		ln -s /stand $${i} ; \
 	done
 
-step2: ${CRUNCHDIRS} ${.CURDIR}/Makefile
+step2: ${.CURDIR}/${CRUNCHDIRS} ${.CURDIR}/Makefile
 .if defined(CRUNCHDIRS)
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH DIR=${TREE}/stand ZIP=${ZIP}
 .endif
@@ -73,7 +73,7 @@ step3:	step2
 step4: step3
 .if defined(VERBATIM)
 	A=`pwd`;cd ${.CURDIR}/${VERBATIM}; \
-	find . -print |cpio -pdmuv $$A/tree
+	find . \! \(  -name CVS  -and -prune \) -print |cpio -pdmuv $$A/tree
 .endif
 	true || cp ${TOP}/etc/spwd.db tree/etc
 	touch step4

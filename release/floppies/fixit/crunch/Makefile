@@ -1,2 +1,3 @@
+OBJTOP=../../../..
 .include "../../makecrunch.mk"
 
