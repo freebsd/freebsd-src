@@ -1890,6 +1890,7 @@ bge_rxeof(sc)
 		/* Remove header from mbuf and pass it on. */
 		m_adj(m, sizeof(struct ether_header));
 
+#if 0 /* currently broken for some packets, possibly related to TCP options */
 		if (ifp->if_hwassist) {
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 			if ((cur_rx->bge_ip_csum ^ 0xffff) == 0)
@@ -1900,6 +1901,7 @@ bge_rxeof(sc)
 				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
 			}
 		}
+#endif
 
 		/*
 		 * If we received a packet with a vlan tag, pass it
