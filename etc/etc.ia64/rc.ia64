@@ -1,0 +1,17 @@
+#!/bin/sh -
+#
+# $FreeBSD$
+#	Do ia64 specific processing
+#
+
+echo -n 'Initial rc.ia64 initialization:'
+
+# knob for wether or not we should print out unaligned access warnings
+#
+case ${unaligned_print} in
+[Nn][Oo])
+       sysctl -w machdep.unaligned_print=0
+       ;;
+esac
+
+echo '.'
