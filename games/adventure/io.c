@@ -52,7 +52,20 @@ static const char rcsid[] =
 #include <string.h>
 #include <err.h>
 
+static int next (void);
+static int rnum (void);
+static void rdesc (int);
+static void rdflt (void);
+static void rhints (void);
+static void rliq (void);
+static void rlocs (void);
+static void rtrav (void);
+static void rvoc (void);
+#ifdef DEBUG
+static void twrite (int);
+#endif
 
+void
 getin(wrd1,wrd2)                        /* get command from user        */
 char **wrd1,**wrd2;                     /* no prompt, usually           */
 {       char *s;
@@ -98,10 +111,12 @@ char **wrd1,**wrd2;                     /* no prompt, usually           */
 	}
 }
 
+int
 yes(x,y,z)                              /* confirm with rspeak          */
 int x,y,z;
 {       int result;
 	int ch;
+	result = FALSE;
 	for (;;)
 	{       rspeak(x);                     /* tell him what we want*/
 		if ((ch=getchar())=='y')
@@ -120,10 +135,12 @@ int x,y,z;
 	return(result);
 }
 
+int
 yesm(x,y,z)                             /* confirm with mspeak          */
 int x,y,z;
 {       int result;
 	int ch;
+	result = FALSE;
 	for (;;)
 	{       mspeak(x);                     /* tell him what we want*/
 		if ((ch=getchar())=='y')
@@ -151,6 +168,7 @@ int outsw = 0;				/* putting stuff to data file?  */
 const char iotape[] = "Ax3F'\003tt$8h\315qer*h\017nGKrX\207:!l";
 const char *tape = iotape;		/* pointer to encryption tape   */
 
+static int
 next()                                  /* next virtual char, bump adr  */
 {
 	int ch;
@@ -166,6 +184,7 @@ next()                                  /* next virtual char, bump adr  */
 
 char breakch;                           /* tell which char ended rnum   */
 
+void
 rdata()                                 /* "read" data from virtual file*/
 {       int sect;
 	char ch;
@@ -236,6 +255,7 @@ rdata()                                 /* "read" data from virtual file*/
 char nbf[12];
 
 
+static int
 rnum()                                  /* read initial location num    */
 {       char *s;
 	tape = iotape;                  /* restart encryption tape      */
@@ -250,12 +270,12 @@ rnum()                                  /* read initial location num    */
 
 char *seekhere;
 
+static void
 rdesc(sect)                             /* read description-format msgs */
 int sect;
-{       char *s,*t;
+{
 	int locc;
-	char *seekstart, *maystart, *adrstart;
-	char *entry;
+	char *seekstart, *maystart;
 
 	seekhere = inptr;               /* Where are we in virtual file?*/
 	outsw=1;                        /* these msgs go into tmp file  */
@@ -315,18 +335,23 @@ int sect;
 }
 
 
+static void
 rtrav()                                 /* read travel table            */
 {       int locc;
 	struct travlist *t;
 	char *s;
 	char buf[12];
 	int len,m,n,entries;
+	entries = 0;
+	t = NULL;
 	for (oldloc= -1;;)              /* get another line             */
 	{       if ((locc=rnum())!=oldloc && oldloc>=0) /* end of entry */
 		{
 			t->next = 0;    /* terminate the old entry      */
-		/*      printf("%d:%d entries\n",oldloc,entries);       */
-		/*      twrite(oldloc);                                 */
+#if DEBUG
+			printf("%d:%d entries\n",oldloc,entries);
+			twrite(oldloc);
+#endif
 		}
 		if (locc== -1) return;
 		if (locc!=oldloc)        /* getting a new entry         */
@@ -337,7 +362,8 @@ rtrav()                                 /* read travel table            */
 			entries=0;
 			oldloc=locc;
 		}
-		for (s=buf;; *s++)      /* get the newloc number /ASCII */
+		s = buf;
+		for (;; s++)      /* get the newloc number /ASCII */
 			if ((*s=next())==TAB || *s==LF) break;
 		*s=0;
 		len=strlen(buf);      /* quad long number handling    */
@@ -367,6 +393,7 @@ rtrav()                                 /* read travel table            */
 
 #ifdef DEBUG
 
+static void
 twrite(loq)                             /* travel options from this loc */
 int loq;
 {       struct travlist *t;
@@ -387,6 +414,7 @@ int loq;
 
 #endif DEBUG
 
+static void
 rvoc()
 {       char *s;               /* read the vocabulary          */
 	int index;
@@ -403,10 +431,10 @@ rvoc()
 	/*      printf("\"%s\"=%d\n",buf,index);*/
 		vocab(buf,-2,index);
 	}
-/*	prht();	*/
 }
 
 
+static void
 rlocs()                                 /* initial object locations     */
 {	for (;;)
 	{       if ((obj=rnum())<0) break;
@@ -417,6 +445,7 @@ rlocs()                                 /* initial object locations     */
 	}
 }
 
+static void
 rdflt()                                 /* default verb messages        */
 {	for (;;)
 	{       if ((verb=rnum())<0) break;
@@ -424,6 +453,7 @@ rdflt()                                 /* default verb messages        */
 	}
 }
 
+static void
 rliq()                                  /* liquid assets &c: cond bits  */
 {       int bitnum;
 	for (;;)                        /* read new bit list            */
@@ -435,6 +465,7 @@ rliq()                                  /* liquid assets &c: cond bits  */
 	}
 }
 
+static void
 rhints()
 {       int hintnum,i;
 	hntmax=0;
@@ -447,18 +478,21 @@ rhints()
 }
 
 
+void
 rspeak(msg)
 int msg;
 {       if (msg!=0) speak(&rtext[msg]);
 }
 
 
+void
 mspeak(msg)
 int msg;
 {       if (msg!=0) speak(&mtext[msg]);
 }
 
 
+void
 speak(msg)       /* read, decrypt, and print a message (not ptext)      */
 const struct text *msg;/* msg is a pointer to seek address and length of mess */
 {
@@ -483,6 +517,7 @@ const struct text *msg;/* msg is a pointer to seek address and length of mess */
 }
 
 
+void
 pspeak(m,skip) /* read, decrypt an print a ptext message              */
 int m;         /* msg is the number of all the p msgs for this place  */
 int skip;       /* assumes object 1 doesn't have prop 1, obj 2 no prop 2 &c*/

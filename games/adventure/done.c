@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include "hdr.h"
 
+int
 score()                                         /* sort of like 20000   */
 {       int scor,i;
 	mxscor=scor=0;
@@ -85,6 +86,7 @@ score()                                         /* sort of like 20000   */
 	return(scor);
 }
 
+void
 done(entry)     /* entry=1 means goto 13000 */  /* game is over         */
 int entry;      /* entry=2 means goto 20000 */ /* 3=19000 */
 {       int i,sc;
