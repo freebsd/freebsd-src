@@ -22,6 +22,8 @@ ATAPI_STATIC		opt_atapi.h
 
 CMD640			opt_wd.h
 
+MAXMEM
+
 PPC_PROBE_CHIPSET       opt_ppc.h
 PPC_DEBUG               opt_ppc.h
 
