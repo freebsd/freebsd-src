@@ -191,9 +191,23 @@ int linker_ddb_symbol_values(c_linker_sym_t _sym, linker_symval_t *_symval);
 #define MODINFOMD_SSYM		0x0003		/* start of symbols */
 #define MODINFOMD_ESYM		0x0004		/* end of symbols */
 #define MODINFOMD_DYNAMIC	0x0005		/* _DYNAMIC pointer */
+/* These values are MD on these two platforms */
+#if !defined(__sparc64__) && !defined(__powerpc__)
+#define MODINFOMD_ENVP		0x0006		/* envp[] */
+#define MODINFOMD_HOWTO		0x0007		/* boothowto */
+#define MODINFOMD_KERNEND	0x0008		/* kernend */
+#endif
 #define MODINFOMD_NOCOPY	0x8000		/* don't copy this metadata to the kernel */
 
 #define MODINFOMD_DEPLIST	(0x4001 | MODINFOMD_NOCOPY)	/* depends on */
+
+#ifdef _KERNEL
+#define MD_FETCH(mdp, info, type) ({ \
+	type *__p; \
+	__p = (type *)preload_search_info((mdp), MODINFO_METADATA | (info)); \
+	__p ? *__p : 0; \
+})
+#endif
 
 #define	LINKER_HINTS_VERSION	1		/* linker.hints file version */
 

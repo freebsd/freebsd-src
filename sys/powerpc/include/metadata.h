@@ -33,10 +33,4 @@
 #define	MODINFOMD_HOWTO		0x1002
 #define	MODINFOMD_KERNEND	0x1003
 
-#define	MD_FETCH(mdp, info, type) ({ \
-	type *__p; \
-	__p = (type *)preload_search_info((mdp), MODINFO_METADATA | (info)); \
-	__p ? *__p : 0; \
-})
-
 #endif /* !_MACHINE_METADATA_H_ */
