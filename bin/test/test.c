@@ -529,6 +529,11 @@ get_int(v, lp)
 
 	for (; *v && isspace(*v); ++v);
 
+	if(!*v) {
+		*lp = 0;
+		return;
+	}
+
 	if (isdigit(*v) || ((*v == '-' || *v == '+') && isdigit(*(v+1)))) {
 		errno = 0;
 		val = strtol(v, &ep, 10);
