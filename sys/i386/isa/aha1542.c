@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.17 1993/12/19 00:50:25 wollman Exp $
+ *      $Id: aha1542.c,v 1.18 1994/01/09 18:11:21 ats Exp $
  */
 
 /*
@@ -356,7 +356,7 @@ static int ahaunit = 0;
 	(mbx)->cmd = AHA_MBO_START; \
 	outb(AHA_CMD_DATA_PORT, AHA_START_SCSI);
 
-#define AHA_RESET_TIMEOUT	1000	/* time to wait for reset (mSec) */
+#define AHA_RESET_TIMEOUT	10000	/* time to wait for reset (mSec) */
 #ifndef	KERNEL
 main()
 {
