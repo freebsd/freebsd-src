@@ -24,7 +24,7 @@
 ** Ported to FreeBSD and hacked all to pieces
 ** by Bill Paul <wpaul@ctr.columbia.edu>
 **
-**	$Id: server.c,v 1.6 1995/05/30 05:05:35 rgrimes Exp $
+**	$Id: server.c,v 1.12 1995/09/24 17:21:52 wpaul Exp $
 **
 */
 
@@ -349,7 +349,9 @@ int read_database(DB *dbp,
 	    }
 	    if ((dbp->seq)(dbp,&ckey,&dummyval,R_NEXT))
 		ckey.data = NULL;
+#ifdef GNU_YPSERV_ARTIFACT
 		free(dummyval.data);
+#endif
 	}
 	else
 	    ckey = *ikey;
@@ -364,10 +366,11 @@ int read_database(DB *dbp,
     {
 	if ((dbp->get)(dbp,&ckey,dval,0))
 	{
+#ifdef GNU_YPSERV_ARTIFACT
 	    /* Free key, unless it comes from the caller! */
 	    if (ikey == NULL || ckey.data != ikey->data)
 		free(ckey.data);
-
+#endif
 	    if (ikey && ikey->data != NULL)
 	    {
 		return YP_NOKEY;
@@ -383,23 +386,26 @@ int read_database(DB *dbp,
 	{
 	    if (okey)
 		*okey = ckey;
+#ifdef GNU_YPSERV_ARTIFACT
 	    else if (ikey == NULL || ikey->data != ckey.data)
 		free(ckey.data);
-
+#endif
 	    return YP_TRUE;
 	}
 
 	/* Free old value */
+#ifdef GNU_YPSERV_ARTIFACT
 	free(dval->data);
-
+#endif
 	if ((dbp->seq)(dbp,&nkey,&dummyval,R_NEXT))
 		nkey.data = NULL;
+#ifdef GNU_YPSERV_ARTIFACT
 	free(dummyval.data);
 
 	/* Free old key, unless it comes from the caller! */
 	if (ikey == NULL || ckey.data != ikey->data)
 	    free(ckey.data);
-
+#endif
 	if (ckey.data == NULL || nkey.data == NULL)
 	    return YP_NOMORE;
 
@@ -481,7 +487,17 @@ ypresp_val *ypproc_match_2_svc(ypreq_key *key,
     result.val.valdat_len = 0;
     if (result.val.valdat_val)
     {
+#ifdef GNU_YPSERV_ARTIFACT
+	/*
+	 * In general, if you malloc() data in an RPC service
+	 * routine, you have to free() it the next time that
+	 * routine is called since the XDR routines won't free
+	 * it for you. However, in this case, we don't have to
+	 * do that because the DB routines do garbage collection
+	 * for us.
+	 */
 	free(result.val.valdat_val);
+#endif
 	result.val.valdat_val = NULL;
     }
 
@@ -629,14 +645,18 @@ ypresp_key_val *ypproc_first_2_svc(ypreq_nokey *key,
     result.key.keydat_len = 0;
     if (result.key.keydat_val)
     {
+#ifdef GNU_YPSERV_ARTIFACT
 	free(result.key.keydat_val);
+#endif
 	result.key.keydat_val = NULL;
     }
 
     result.val.valdat_len = 0;
     if (result.val.valdat_val)
     {
+#ifdef GNU_YPSERV_ARTIFACT
 	free(result.val.valdat_val);
+#endif
 	result.val.valdat_val = NULL;
     }
 
@@ -732,14 +752,18 @@ ypresp_key_val *ypproc_next_2_svc(ypreq_key *key,
     result.key.keydat_len = 0;
     if (result.key.keydat_val)
     {
+#ifdef GNU_YPSERV_ARTIFACT
 	free(result.key.keydat_val);
+#endif
 	result.key.keydat_val = NULL;
     }
 
     result.val.valdat_len = 0;
     if (result.val.valdat_val)
     {
+#ifdef GNU_YPSERV_ARTIFACT
 	free(result.val.valdat_val);
+#endif
 	result.val.valdat_val = NULL;
     }
 
@@ -1096,7 +1120,9 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
 
     if (result.peer)
     {
+#ifdef GNU_YPSERV_ARTIFACT
 	free(result.peer);
+#endif
 	result.peer = NULL;
     }
 
@@ -1117,9 +1143,6 @@ ypresp_master *ypproc_master_2_svc(ypreq_nokey *nokey,
 	    key.data = "YP_MASTER_NAME";
 
 	    if ((dbp->get)(dbp,&key,&val,0))
-		val.data = NULL;
-
-	    if (val.data == NULL)
 	    {
 		/* No YP_MASTER_NAME record in map? Assume we are Master */
 		static char hostbuf[1025];
@@ -1208,8 +1231,7 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
 	    key.size = sizeof("YP_LAST_MODIFIED")-1;
 	    key.data = "YP_LAST_MODIFIED";
 
-	    (dbp->get)(dbp,&key,&val,0);
-	    if (val.data == NULL)
+	    if ((dbp->get)(dbp,&key,&val,0))
 	    {
 		/* No YP_LAST_MODIFIED record in map? Use DTM timestamp.. */
 		result.ordernum = get_dtm(nokey->domain, nokey->map);
@@ -1217,7 +1239,9 @@ ypresp_order *ypproc_order_2_svc(ypreq_nokey *nokey,
 	    else
 	    {
 		result.ordernum = atoi(val.data);
+#ifdef GNU_YPSERV_ARTIFACT
 		free(val.data);
+#endif
 	    }
 
 	    result.stat = YP_TRUE;
