@@ -795,7 +795,7 @@ udp_output(inp, m, addr, control, td)
 			goto release;
 		}
 		error = in_pcbbind_setup(inp, (struct sockaddr *)&src,
-		    &laddr.s_addr, &lport, td);
+		    &laddr.s_addr, &lport, td->td_ucred);
 		if (error)
 			goto release;
 	}
@@ -809,7 +809,7 @@ udp_output(inp, m, addr, control, td)
 			goto release;
 		}
 		error = in_pcbconnect_setup(inp, addr, &laddr.s_addr, &lport,
-		    &faddr.s_addr, &fport, NULL, td);
+		    &faddr.s_addr, &fport, NULL, td->td_ucred);
 		if (error)
 			goto release;
 
@@ -970,7 +970,7 @@ udp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	}
 	INP_LOCK(inp);
 	s = splnet();
-	error = in_pcbbind(inp, nam, td);
+	error = in_pcbbind(inp, nam, td->td_ucred);
 	splx(s);
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
@@ -1000,7 +1000,7 @@ udp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	sin = (struct sockaddr_in *)nam;
 	if (td && jailed(td->td_ucred))
 		prison_remote_ip(td->td_ucred, 0, &sin->sin_addr.s_addr);
-	error = in_pcbconnect(inp, nam, td);
+	error = in_pcbconnect(inp, nam, td->td_ucred);
 	splx(s);
 	if (error == 0)
 		soisconnected(so);
