@@ -31,6 +31,10 @@
 #include "bus_if.h"
 #include <sys/eventhandler.h>
 #include <sys/sysctl.h>
+#if __FreeBSD_version >= 500000
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#endif
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -84,23 +88,34 @@ struct acpi_device {
 
 };
 
+#if __FreeBSD_version < 500000
+/*
+ * In 4.x, ACPI is protected by splhigh().
+ */
+# define ACPI_LOCK			s = splhigh()
+# define ACPI_UNLOCK			splx(s)
+# define ACPI_ASSERTLOCK
+# define ACPI_MSLEEP(a, b, c, d, e)	tsleep(a, c, d, e)
+# define ACPI_LOCK_DECL			int s
+# define kthread_create(a, b, c, d, e, f)	kthread_create(a, b, c, f)
+# define tc_init(a)			init_timecounter(a)
+#elif 0
 /*
  * The ACPI subsystem lives under a single mutex.  You *must*
  * acquire this mutex before calling any of the acpi_ or Acpi* functions.
- *
- * XXX the ACPI_MSLEEP macro should go away once locking is resolved
  */
 extern struct mtx	acpi_mutex;
-#if 0
 # define ACPI_LOCK			mtx_lock(&acpi_mutex)
 # define ACPI_UNLOCK			mtx_unlock(&acpi_mutex)
 # define ACPI_ASSERTLOCK		mtx_assert(&acpi_mutex, MA_OWNED)
 # define ACPI_MSLEEP(a, b, c, d, e)	msleep(a, b, c, d, e)
+# define ACPI_LOCK_DECL
 #else
 # define ACPI_LOCK
 # define ACPI_UNLOCK
 # define ACPI_ASSERTLOCK
 # define ACPI_MSLEEP(a, b, c, d, e)	tsleep(a, c, d, e)
+# define ACPI_LOCK_DECL
 #endif
 
 /*
