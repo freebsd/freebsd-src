@@ -1,10 +1,13 @@
-.TH SORT 1L \" -*- nroff -*-
+.TH SORT 1L "GNU Text Utilities" "FSF" \" -*- nroff -*-
 .SH NAME
 sort \- sort lines of text files
 .SH SYNOPSIS
 .B sort
 [\-cmus] [\-t separator] [\-o output-file] [\-T tempdir] [\-bdfiMnr]
 [+POS1 [\-POS2]] [\-k POS1[,POS2]] [file...]
+.br
+.B sort
+{\-\-help,\-\-version}
 .SH DESCRIPTION
 This manual page
 documents the GNU version of
@@ -187,6 +190,16 @@ option, the
 .I \-b
 option is taken to apply to both the \fI+pos\fP and the \fI\-pos\fP
 parts of a key specification.  Keys may span multiple fields.
+.PP
+In addition, when GNU
+.B join
+is invoked with exactly one argument, the following options are recognized:
+.TP
+.I "\-\-help"
+Print a usage message on standard output and exit successfully.
+.TP
+.I "\-\-version"
+Print version information on standard output then exit successfully.
 .SH COMPATIBILITY
 .PP
 Historical (BSD and System V) implementations of
