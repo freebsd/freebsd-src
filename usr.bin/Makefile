@@ -47,9 +47,7 @@ SUBDIR=	apply \
 	finger \
 	fmt \
 	fold \
-	fpr \
 	from \
-	fsplit \
 	fstat \
 	ftp \
 	gencat \
