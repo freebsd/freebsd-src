@@ -42,11 +42,13 @@ foreign-language documentation or ports, use the following patterns:
     doc/zh
     doc/zh_*
     ports/chinese
+    ports/french
     ports/german
     ports/hebrew
     ports/japanese
     ports/korean
     ports/russian
+    ports/ukrainian
     ports/vietnamese
 
 Use refuse files with care.  Some parts of the src distribution
