@@ -2133,6 +2133,16 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
 	return (BUS_RELEASE_RESOURCE(dev->parent, dev, type, rid, r));
 }
 
+/*
+ * XXX this is a temporary measure to allow folks to
+ * XXX disable INTR_MPSAFE in network drivers without
+ * XXX recompiling--in case of problems.
+ */
+int	debug_mpsafenet = 1;
+TUNABLE_INT("debug.mpsafenet", &debug_mpsafenet);
+SYSCTL_INT(_debug, OID_AUTO, mpsafenet, CTLFLAG_RW, &debug_mpsafenet, 0,
+    "Enable/disable MPSAFE network support");
+
 int
 bus_setup_intr(device_t dev, struct resource *r, int flags,
     driver_intr_t handler, void *arg, void **cookiep)
@@ -2140,6 +2150,9 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 	int error;
 
 	if (dev->parent != 0) {
+		if ((flags &~ INTR_ENTROPY) == (INTR_TYPE_NET | INTR_MPSAFE) &&
+		    !debug_mpsafenet)
+			flags &= ~INTR_MPSAFE;
 		error = BUS_SETUP_INTR(dev->parent, dev, r, flags,
 		    handler, arg, cookiep);
 		if (error == 0) {
