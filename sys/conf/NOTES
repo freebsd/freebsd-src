@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.86 1994/09/27 20:36:26 phk Exp $
+#	$Id: LINT,v 1.87 1994/09/28 17:00:14 se Exp $
 #
 
 machine		"i386"
@@ -96,7 +96,6 @@ pseudo-device	ether
 #pseudo-device	imp
 options		INET			#Internet communications protocols
 options		ISO
-options		LKM			#Loadable kernel modules
 pseudo-device	loop			#Network loop back device
 options		NS			#Xerox NS communications protocols
 options		NSIP			#XNS over IP
