@@ -38,26 +38,26 @@
 .Nm rwho
 .Nd who is logged in on local machines
 .Sh SYNOPSIS
-.Nm rwho
+.Nm
 .Op Fl a
 .Sh DESCRIPTION
 The
-.Nm rwho
+.Nm
 command produces output similar to
 .Xr who ,
 but for all machines on the local network.
 If no report has been
 received from a machine for 5 minutes then
-.Nm rwho
+.Nm
 assumes the machine is down, and does not report users last known
 to be logged into that machine.
 .Pp
 If a users hasn't typed to the system for a minute or more, then
-.Nm rwho
+.Nm
 reports this idle time.  If a user hasn't typed to the system for
 an hour or more, then
 the user will be omitted from the output of
-.Nm rwho
+.Nm
 unless the
 .Fl a
 flag is given.
@@ -68,10 +68,11 @@ information about other machines
 .El
 .Sh SEE ALSO
 .Xr ruptime 1 ,
+.Xr who 1 ,
 .Xr rwhod 8
 .Sh HISTORY
 The
-.Nm rwho
+.Nm
 command
 appeared in
 .Bx 4.3 .
