@@ -186,7 +186,7 @@ static struct xl_type xl_devs[] = {
 		"3Com 3c905C-TX Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_10_100BT_SERV,
 		"3Com 3c980 Fast Etherlink XL" },
-	{ TC_VENDORID, TC_DEVICEID_TORNATO_10_100BT_SERV,
+	{ TC_VENDORID, TC_DEVICEID_TORNADO_10_100BT_SERV,
 		"3Com 3c980C Fast Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_HURRICANE_SOHO100TX,
 		"3Com 3cSOHO100-TX OfficeConnect" },
