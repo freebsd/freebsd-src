@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci_config.c,v 1.8 1994/10/12 11:06:49 se Exp $
+**  $Id: pci_config.c,v 1.9 1994/10/13 01:12:30 se Exp $
 **
 **  @PCI@ this should be part of "ioconf.c".
 **
@@ -48,6 +48,11 @@ extern struct pci_driver ncr_device;
 extern struct pci_driver dedevice;
 #endif
 
+#include <ahc.h>
+#if NAHC > 0
+extern struct pci_driver ahc_device;
+#endif
+
 extern struct pci_driver chipset_device;
 extern struct pci_driver vga_device;
 extern struct pci_driver ign_device;
@@ -61,6 +66,10 @@ struct pci_device pci_devtab[] = {
 
 #if NDE>0
 	{&dedevice,       "de",       0 },
+#endif
+
+#if NAHC>0
+	{&ahc_device,	  "ahc",      0 },
 #endif
 
 	{&chipset_device, "chip",     0 },
