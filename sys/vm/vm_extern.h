@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
- * $Id: vm_extern.h,v 1.25 1996/05/02 09:34:50 phk Exp $
+ * $Id: vm_extern.h,v 1.26 1996/09/14 11:54:54 bde Exp $
  */
 
 #ifndef _VM_EXTERN_H_
@@ -62,7 +62,6 @@ int swapon __P((struct proc *, void *, int *));
 
 void faultin __P((struct proc *p));
 int grow __P((struct proc *, u_int));
-void iprintf __P((const char *,...));
 int kernacc __P((caddr_t, int, int));
 vm_offset_t kmem_alloc __P((vm_map_t, vm_size_t));
 vm_offset_t kmem_alloc_pageable __P((vm_map_t, vm_size_t));
