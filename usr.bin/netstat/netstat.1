@@ -40,7 +40,7 @@
 .Nd show network status
 .Sh SYNOPSIS
 .Nm netstat
-.Op Fl AaLn
+.Op Fl AaLln
 .Op Fl f Ar address_family
 .Op Fl M Ar core
 .Op Fl N Ar system
@@ -203,6 +203,8 @@ The first count shows the
 number of unaccepted connections.
 The second count shows the amount of unaccepted incomplete connections.
 The third count is the maximum number of queued connections.
+.It Fl l
+Print full IPv6 address.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
