@@ -8,6 +8,8 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <sm/gen.h>
@@ -30,8 +32,6 @@ SM_IDSTR(id, "@(#)$Id: mail.local.c,v 8.239 2002/05/24 20:56:32 gshapiro Exp $")
 # endif /* EX_OK */
 #include <sm/mbdb.h>
 #include <sm/sysexits.h>
-
-/* $FreeBSD$ */
 
 /*
 **  This is not intended to work on System V derived systems
