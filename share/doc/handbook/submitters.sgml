@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.43 1997/04/10 02:15:59 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.44 1997/04/10 05:20:19 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -513,9 +513,9 @@ like to publically thank them here!
 	<item><url url="http://www.asacomputers.com" name="ASA Computers">
 	donated a <bf>Tyan 1662 motherboard</bf>.
 
-	<item><url url="mailto:jack@diamond.xtalwind.net"
-	name="Jack O'Neill"> donated an <bf>NCR/Symbios 53C875 SCSI
-	controller.</bf>
+	<item><url url="mailto:joe@via.net" name="Joe McGuckin"> of
+	<url url="http://www.via.net" name="ViaNet Communications">
+	donated a <bf>Kingston ethernet controller.</bf>
 
 	<item><url url="mailto:ulf@Alameda.net" name="Ulf Zimmermann">
 	of <url url="http://www.Alameda.net" name="Alameda Networks">
