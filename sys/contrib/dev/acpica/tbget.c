@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbget - ACPI Table get* routines
- *              $Revision: 84 $
+ *              $Revision: 87 $
  *
  *****************************************************************************/
 
@@ -222,12 +222,11 @@ AcpiTbGetTableHeader (
         /* Create a logical address for the physical pointer*/
 
         Status = AcpiOsMapMemory (Address->Pointer.Physical, sizeof (ACPI_TABLE_HEADER),
-                                    (void **) &Header);
+                                    (void *) &Header);
         if (ACPI_FAILURE (Status))
         {
             ACPI_REPORT_ERROR (("Could not map memory at %8.8X%8.8X for length %X\n",
-                ACPI_HIDWORD (Address->Pointer.Physical),
-                ACPI_LODWORD (Address->Pointer.Physical),
+                ACPI_FORMAT_UINT64 (Address->Pointer.Physical),
                 sizeof (ACPI_TABLE_HEADER)));
             return_ACPI_STATUS (Status);
         }
@@ -446,13 +445,12 @@ AcpiTbGetThisTable (
          * into our address space.
          */
         Status = AcpiOsMapMemory (Address->Pointer.Physical, (ACPI_SIZE) Header->Length,
-                                    (void **) &FullTable);
+                                    (void *) &FullTable);
         if (ACPI_FAILURE (Status))
         {
             ACPI_REPORT_ERROR (("Could not map memory for table [%4.4s] at %8.8X%8.8X for length %X\n",
                 Header->Signature,
-                ACPI_HIDWORD (Address->Pointer.Physical),
-                ACPI_LODWORD (Address->Pointer.Physical), Header->Length));
+                ACPI_FORMAT_UINT64 (Address->Pointer.Physical), Header->Length));
             return (Status);
         }
 
@@ -496,8 +494,7 @@ AcpiTbGetThisTable (
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
         "Found table [%4.4s] at %8.8X%8.8X, mapped/copied to %p\n",
         FullTable->Signature,
-        ACPI_HIDWORD (Address->Pointer.Physical),
-        ACPI_LODWORD (Address->Pointer.Physical), FullTable));
+        ACPI_FORMAT_UINT64 (Address->Pointer.Physical), FullTable));
 
     return_ACPI_STATUS (Status);
 }
@@ -549,6 +546,7 @@ AcpiTbGetTablePtr (
     {
         /* Get the first */
 
+        *TablePtrLoc = NULL;
         if (AcpiGbl_TableLists[TableType].Next)
         {
             *TablePtrLoc = AcpiGbl_TableLists[TableType].Next->Pointer;
