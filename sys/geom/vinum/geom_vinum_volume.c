@@ -167,6 +167,8 @@ static void
 gv_vol_completed_request(struct gv_volume *v, struct bio *bp)
 {
 	struct bio *pbp;
+	struct g_geom *gp;
+	struct g_consumer *cp, *cp2;
 	struct gv_bioq *bq;
 
 	pbp = bp->bio_parent;
@@ -176,25 +178,44 @@ gv_vol_completed_request(struct gv_volume *v, struct bio *bp)
 
 	switch (pbp->bio_cmd) {
 	case BIO_READ:
-		if (bp->bio_error) {
-			g_destroy_bio(bp);
-			pbp->bio_children--;
-			bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
-			bq->bp = pbp;
-			mtx_lock(&v->bqueue_mtx);
-			TAILQ_INSERT_TAIL(&v->bqueue, bq, queue);
-			mtx_unlock(&v->bqueue_mtx);
-			return;
-		}
-		break;
+		if (bp->bio_error == 0)
+			break;
+
+		if (pbp->bio_cflags & GV_BIO_RETRY)
+			break;
+
+		/* Check if we have another plex left. */
+		cp = bp->bio_from;
+		gp = cp->geom;
+		cp2 = LIST_NEXT(cp, consumer);
+		if (cp2 == NULL)
+			break;
+
+		if (LIST_NEXT(cp2, consumer) == NULL)
+			pbp->bio_cflags |= GV_BIO_RETRY;
+
+		g_destroy_bio(bp);
+		pbp->bio_children--;
+		bq = g_malloc(sizeof(*bq), M_WAITOK | M_ZERO);
+		bq->bp = pbp;
+		mtx_lock(&v->bqueue_mtx);
+		TAILQ_INSERT_TAIL(&v->bqueue, bq, queue);
+		mtx_unlock(&v->bqueue_mtx);
+		return;
+
 	case BIO_WRITE:
 	case BIO_DELETE:
+		/* Remember if this write request succeeded. */
+		if (bp->bio_error == 0)
+			pbp->bio_cflags |= GV_BIO_SUCCEED;
 		break;
 	}
 
 	/* When the original request is finished, we deliver it. */
 	pbp->bio_inbed++;
 	if (pbp->bio_inbed == pbp->bio_children) {
+		if (pbp->bio_cflags & GV_BIO_SUCCEED)
+			pbp->bio_error = 0;
 		pbp->bio_completed = bp->bio_length;
 		g_io_deliver(pbp, pbp->bio_error);
 	}
@@ -219,9 +240,22 @@ gv_vol_normal_request(struct gv_volume *v, struct bio *bp)
 			return;
 		}
 		cbp->bio_done = gv_volume_done;
+		/*
+		 * Try to find a good plex where we can send the request to.
+		 * The plex either has to be up, or it's a degraded RAID5 plex.
+		 */
+		p = NULL;
 		LIST_FOREACH(p, &v->plexes, in_volume) {
-			if (p->state >= GV_PLEX_DEGRADED)
+			if ((p->state > GV_PLEX_DEGRADED) ||
+			    (p->state >= GV_PLEX_DEGRADED &&
+			    p->org == GV_PLEX_RAID5))
 				break;
+		}
+		if (p == NULL) {
+			g_destroy_bio(cbp);
+			bp->bio_children--;
+			g_io_deliver(bp, ENXIO);
+			return;
 		}
 		g_io_request(cbp, p->consumer);
 
