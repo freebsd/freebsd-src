@@ -1107,9 +1107,7 @@ rp_pciattach(pcici_t tag, int unit)
 		return;
 	}
 
-	count = 0;
-	for(i=0;i<unit;i++)
-		count += rp_num_ports[i];
+	count = unit * 32;      /* board times max ports per card SG */
 	for(i=count;i < (count + rp_num_ports[unit]);i++)
 		minor_to_unit[i] = unit;
 
@@ -1223,9 +1221,7 @@ struct	isa_device	*dev;
 		return(0);
 	}
 
-	count = 0;
-	for(i=0;i<unit;i++)
-		count += rp_num_ports[i];
+	count = unit * 32;    /* board # times max ports per card  SG */
 	for(i=count;i < (count + rp_num_ports[unit]);i++)
 		minor_to_unit[i] = unit;
 
@@ -1306,18 +1302,18 @@ rpopen(dev, flag, mode, p)
 	struct	proc	*p;
 {
 	struct	rp_port *rp;
-	int	unit, i, port, mynor, flags;
+	int	unit, i, port, mynor, umynor, flags;  /* SG */
 	struct	tty	*tp;
 	int	oldspl, error;
 	unsigned int	IntMask, ChanStatus;
 
-	mynor = MINOR_MAGIC(dev);
+
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
 	unit = minor_to_unit[mynor];
 	if(IS_CONTROL(dev))
 		return(0);
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 /*	rp->rp_tty = &rp_tty[rp->rp_port];
 */
@@ -1455,19 +1451,18 @@ rpclose(dev, flag, mode, p)
 	int	flag, mode;
 	struct	proc	*p;
 {
-	int	oldspl, unit, mynor, port, status, i;
+	int	oldspl, unit, mynor, umynor, port, status, i; /* SG */
 	struct	rp_port *rp;
 	struct	tty	*tp;
 	CHANNEL_t	*cp;
 
-	mynor = MINOR_MAGIC(dev);
-	unit = 0;
-	unit = minor_to_unit[mynor];
-	port = mynor;
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
+   unit = minor_to_unit[mynor];                /* SG */
+
 	if(IS_CONTROL(dev))
 		return(0);
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	cp = &rp->rp_channel;
 	tp = rp->rp_tty;
@@ -1531,16 +1526,15 @@ rpread(dev, uio, flag)
 {
 	struct	rp_port *rp;
 	struct	tty	*tp;
-	int	unit, i, mynor, port, error = 0;
+	int	unit, i, mynor, umynor, port, error = 0; /* SG */
 
-	mynor = MINOR_MAGIC(dev);
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
+   unit = minor_to_unit[mynor];                /* SG */
+
 	if(IS_CONTROL(dev))
 		return(ENODEV);
-	unit = 0;
-	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	tp = rp->rp_tty;
 	error = (*linesw[tp->t_line].l_read)(tp, uio, flag);
@@ -1556,16 +1550,15 @@ rpwrite(dev, uio, flag)
 {
 	struct	rp_port *rp;
 	struct	tty	*tp;
-	int	unit, i, mynor, port, error = 0;
+	int	unit, i, mynor, port, umynor, error = 0; /* SG */
 
-	mynor = MINOR_MAGIC(dev);
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
+   unit = minor_to_unit[mynor];                /* SG */
+
 	if(IS_CONTROL(dev))
 		return(ENODEV);
-	unit = 0;
-	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	tp = rp->rp_tty;
 	while(rp->rp_disable_writes) {
@@ -1601,7 +1594,7 @@ rpioctl(dev, cmd, data, flag, p)
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
 	struct tty	*tp;
-	int	unit, mynor, port;
+	int	unit, mynor, port, umynor;            /* SG */
 	int	oldspl, cflag, iflag, oflag, lflag;
 	int	i, error = 0;
 	char	status;
@@ -1609,11 +1602,10 @@ rpioctl(dev, cmd, data, flag, p)
 	int	oldcmd;
 	struct	termios term, *t;
 
-	mynor = MINOR_MAGIC(dev);
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
 	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 
 	if(IS_CONTROL(dev)) {
@@ -1813,15 +1805,16 @@ rpparam(tp, t)
 {
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
-	int	unit, i, mynor, port;
+	int	unit, i, mynor, port, umynor;               /* SG */
 	int	oldspl, cflag, iflag, oflag, lflag;
 	int	ospeed, flags;
 
-	mynor = MINOR_MAGIC(tp->t_dev);
+
+   umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(tp->t_dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                          /* SG */
+
 	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	cp = &rp->rp_channel;
 	oldspl = spltty();
@@ -1950,16 +1943,16 @@ rpstart(tp)
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
 	struct	clist	*qp;
-	int	unit, i, mynor, port;
+	int	unit, i, mynor, port, umynor;               /* SG */
 	char	status, ch, flags;
 	int	spl, xmit_fifo_room;
 	int	count, ToRecv;
 
-	mynor = MINOR_MAGIC(tp->t_dev);
+
+   umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(tp->t_dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                          /* SG */
 	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	cp = &rp->rp_channel;
 	flags = rp->rp_channel.TxControl[3];
@@ -2011,16 +2004,15 @@ rpstop(tp, flag)
 	struct rp_port	*rp;
 	CHANNEL_t	*cp;
 	struct	clist	*qp;
-	int	unit, mynor, port;
+	int	unit, mynor, port, umynor;                  /* SG */
 	char	status, ch;
 	int	spl, xmit_fifo_room;
 	int	i, count;
 
-	mynor = MINOR_MAGIC(tp->t_dev);
+   umynor = (((minor(tp->t_dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(tp->t_dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                          /* SG */
 	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	cp = &rp->rp_channel;
 
@@ -2053,15 +2045,15 @@ struct tty *
 rpdevtotty(dev_t dev)
 {
 	struct	rp_port *rp;
-	int	unit, i, port, mynor;
+	int	unit, i, port, mynor, umynor;         /* SG */
 
-	mynor = MINOR_MAGIC(dev);
+   umynor = (((minor(dev) >> 16) -1) * 32);    /* SG */
+	port  = (minor(dev) & 0x1f);                /* SG */
+	mynor = (port + umynor);                    /* SG */
+   unit = minor_to_unit[mynor];                /* SG */
+
 	if(IS_CONTROL(dev))
 		return(NULL);
-	unit = minor_to_unit[mynor];
-	port = mynor;
-	for(i=0;i<unit;i++)
-		port -= rp_num_ports[i];
 	rp = rp_addr(unit) + port;
 	return(rp->rp_tty);
 }
