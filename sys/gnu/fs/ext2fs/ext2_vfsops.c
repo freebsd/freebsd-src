@@ -97,6 +97,8 @@ static struct vfsops ext2fs_vfsops = {
 	ufs_check_export,
 	ext2_vptofh,
 	ext2_init,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(ext2fs_vfsops, ext2fs, 0);

@@ -172,6 +172,8 @@ static struct vfsops procfs_vfsops = {
 	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	vfs_stdinit,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(procfs_vfsops, procfs, VFCF_SYNTHETIC);

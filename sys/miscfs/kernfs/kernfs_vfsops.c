@@ -255,6 +255,8 @@ static struct vfsops kernfs_vfsops = {
 	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	vfs_stdinit,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(kernfs_vfsops, kernfs, VFCF_SYNTHETIC);

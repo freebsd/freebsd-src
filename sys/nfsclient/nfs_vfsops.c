@@ -126,6 +126,7 @@ static struct vfsops nfs_vfsops = {
 	vfs_stdvptofh,		/* shouldn't happen */
 	nfs_init,
 	nfs_uninit,
+	vfs_stdextattrctl,
 };
 VFS_SET(nfs_vfsops, nfs, VFCF_NETWORK);
 

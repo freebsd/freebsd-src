@@ -534,7 +534,9 @@ struct vfsops coda_vfsops = {
     vfs_stdfhtovp,
     vfs_stdcheckexp,
     vfs_stdvptofh,
-    vfs_stdinit
+    vfs_stdinit,
+    vfs_stduninit,
+    vfs_stdextattrctl,
 };
 
 VFS_SET(coda_vfsops, coda, VFCF_NETWORK);

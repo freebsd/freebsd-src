@@ -227,6 +227,8 @@ static struct vfsops fdesc_vfsops = {
 	vfs_stdcheckexp,
 	vfs_stdvptofh,
 	fdesc_init,
+	vfs_stduninit,
+	vfs_stdextattrctl,
 };
 
 VFS_SET(fdesc_vfsops, fdesc, VFCF_SYNTHETIC);
