@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id:$
+# $Id: sgmlfmt.pl,v 1.1.1.1 1995/05/09 23:58:06 jfieber Exp $
 
 # Format an sgml document tagged according to the linuxdoc DTD.
 # by John Fieber <jfieber@freebsd.org> for the FreeBSD documentation
@@ -292,6 +292,11 @@ sub html2html {
 	    s/>/\&gt;/g;
 	    s/<([\/]*)pre\&gt;/<\1pre>/g;
 	}
+
+	# remove extraneous empty paragraphs (it is arguable that this
+ 	# is really a bug with the DTD, but changing it would break
+ 	# almost every document written to this DTD.)
+	s/<p><\/p>//;
 
       tagsw: {
 	  # titles and headings
