@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.49 1998/01/18 15:09:34 kato Exp $
+#	$Id: files.pc98,v 1.50 1998/01/26 09:17:42 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -56,11 +56,11 @@ i386/i386/initcpu.c		standard
 pc98/i386/machdep.c		standard
 i386/i386/math_emulate.c	optional	math_emulate
 i386/i386/mem.c			standard
+pc98/i386/microtime.s		standard
 i386/i386/mp_machdep.c		optional	smp
 i386/i386/mpapic.c		optional	smp
 i386/i386/mpboot.s		optional	smp
 i386/i386/mplock.s		optional	smp
-pc98/i386/microtime.s		standard
 i386/i386/perfmon.c		optional	perfmon	profiling-routine
 i386/i386/perfmon.c		optional	perfmon
 i386/i386/pmap.c		standard
@@ -98,9 +98,9 @@ i386/isa/bs/bsfunc.c		optional	bs	device-driver
 i386/isa/bs/bshw.c		optional	bs	device-driver
 i386/isa/bs/bsif.c		optional	bs	device-driver
 i386/isa/aha1542.c		optional	aha	device-driver
-i386/isa/aic6360.c		optional	aic	device-driver
+i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/alog.c                 optional        alog    device-driver
-i386/isa/b004.c		optional	bqu	device-driver
+i386/isa/b004.c			optional	bqu	device-driver
 i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/bt5xx-445.c		optional	bt	device-driver
 pc98/pc98/clock.c		standard
@@ -114,12 +114,13 @@ i386/isa/elink.c		optional	ep	device-driver
 i386/isa/elink.c		optional	ie	device-driver
 pc98/pc98/fd.c			optional	fd	device-driver
 i386/isa/ft.c			optional	ft	device-driver
-i386/isa/gpib.c		optional	gp	device-driver
+i386/isa/gpib.c			optional	gp	device-driver
 i386/isa/asc.c			optional	asc	device-driver
 i386/isa/gsc.c			optional	gsc	device-driver
 i386/isa/if_ar.c		optional	ar	device-driver
 i386/isa/if_cx.c		optional	cx	device-driver
 pc98/pc98/if_ed.c		optional	ed	device-driver
+i386/isa/if_eg.c		optional	eg	device-driver
 i386/isa/if_el.c		optional	el	device-driver
 i386/isa/if_ep.c		optional	ep	device-driver
 i386/isa/if_ex.c		optional	ex	device-driver
@@ -140,8 +141,8 @@ i386/isa/joy.c			optional        joy     device-driver
 i386/isa/kbdio.c		optional        psm     device-driver
 i386/isa/kbdio.c		optional        sc      device-driver
 i386/isa/kbdio.c		optional        vt      device-driver
-i386/isa/labpc.c		optional	labpc	device-driver
 pc98/pc98/lpt.c			optional	lpt	device-driver
+i386/isa/labpc.c		optional	labpc	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
 pc98/pc98/mse.c			optional	mse	device-driver
 i386/isa/ncr5380.c		optional	nca	device-driver
@@ -257,7 +258,7 @@ i386/linux/linux_file.c		optional	compat_linux
 i386/linux/linux_ioctl.c	optional	compat_linux
 i386/linux/linux_ipc.c		optional	compat_linux
 i386/linux/linux_locore.s	optional	compat_linux		   \
-  	dependency 	"linux_assym.h"
+	dependency 	"linux_assym.h"
 i386/linux/linux_misc.c		optional	compat_linux
 i386/linux/linux_signal.c	optional	compat_linux
 i386/linux/linux_socket.c	optional	compat_linux
