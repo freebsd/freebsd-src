@@ -93,9 +93,9 @@ struct	linger {
 	int	l_linger;		/* linger time */
 };
 
-struct accept_filter_arg {
-	char    af_name[16];
-	char    af_arg[256-16];
+struct	accept_filter_arg {
+	char	af_name[16];
+	char	af_arg[256-16];
 };
 
 /*
