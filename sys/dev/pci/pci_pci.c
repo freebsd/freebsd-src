@@ -92,18 +92,6 @@ devclass_t pcib_devclass;
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
 
 /*
- * sysctl and tunable vars
- */
-static int pci_allow_unsupported_io_range = 0;
-TUNABLE_INT("hw.pci.allow_unsupported_io_range",
-	(int *)&pci_allow_unsupported_io_range);
-SYSCTL_DECL(_hw_pci);
-SYSCTL_INT(_hw_pci, OID_AUTO, allow_unsupported_io_range, CTLFLAG_RDTUN,
-	&pci_allow_unsupported_io_range, 0,
-	"Allows the PCI Bridge to pass through an unsupported memory range "
-	"assigned by the BIOS.");
-
-/*
  * Generic device interface
  */
 static int
@@ -173,7 +161,7 @@ pcib_attach_common(device_t dev)
      * Quirk handling.
      */
     switch (pci_get_devid(dev)) {
-	case 0x12258086:		/* Intel 82454KX/GX (Orion) */
+    case 0x12258086:		/* Intel 82454KX/GX (Orion) */
 	{
 	    uint8_t	supbus;
 
@@ -182,16 +170,42 @@ pcib_attach_common(device_t dev)
 		sc->secbus = supbus + 1;
 		sc->subbus = supbus + 1;
 	    }
+	    break;
 	}
+
+    /*
+     * The i82380FB mobile docking controller is a PCI-PCI bridge,
+     * and it is a subtractive bridge.  However, the ProgIf is wrong
+     * so the normal setting of PCIB_SUBTRACTIVE bit doesn't
+     * happen.  There's also a Toshiba bridge that behaves this
+     * way.
+     */
+    case 0x124b8086:		/* Intel 82380FB Mobile */
+    case 0x060513d7:		/* Toshiba ???? */
+	sc->flags |= PCIB_SUBTRACTIVE;
 	break;
     }
 
+    /*
+     * Intel 815, 845 and other chipsets say they are PCI-PCI bridges,
+     * but have a ProgIF of 0x80.  The 82801 family (AA, AB, BAM/CAM,
+     * BA/CA/DB and E) PCI bridges are HUB-PCI bridges, in Intelese.
+     * This means they act as if they were subtractively decoding
+     * bridges and pass all transactions.  Mark them and real ProgIf 1
+     * parts as subtractive.
+     */
+    if ((pci_get_devid(dev) & 0xff00ffff) == 0x24008086 ||
+      pci_read_config(dev, PCIR_PROGIF, 1) == 1)
+	sc->flags |= PCIB_SUBTRACTIVE;
+	
     if (bootverbose) {
 	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
 	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
 	device_printf(dev, "  I/O decode        0x%x-0x%x\n", sc->iobase, sc->iolimit);
 	device_printf(dev, "  memory decode     0x%x-0x%x\n", sc->membase, sc->memlimit);
 	device_printf(dev, "  prefetched decode 0x%x-0x%x\n", sc->pmembase, sc->pmemlimit);
+	if (sc->flags & PCIB_SUBTRACTIVE)
+	    device_printf(dev, "  Subtractively decoded bridge.\n");
     }
 
     /*
@@ -252,37 +266,12 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 }
 
 /*
- * Is this a decoded ISA I/O port address?  Note, we need to do the mask that
- * we do below because of the ISA alias addresses.  I'm not 100% sure that
- * this is correct.  Maybe the bridge needs to be subtractive decode for
- * this to work?
- */
-static int
-pcib_is_isa_io(u_long start)
-{
-    if ((start & 0xfffUL)  > 0x3ffUL || start == 0)
-	return (0);
-    return (1);
-}
-
-/*
- * Is this a decoded ISA memory address?
- */
-static int
-pcib_is_isa_mem(u_long start)
-{
-    if (start > 0xfffffUL || start == 0)
-	return (0);
-    return (1);
-}
-
-/*
  * Is the prefetch window open (eg, can we allocate memory in it?)
  */
 static int
 pcib_is_prefetch_open(struct pcib_softc *sc)
 {
-    return (sc->pmembase > 0 && sc->pmembase < sc->pmemlimit);
+	return (sc->pmembase > 0 && sc->pmembase < sc->pmemlimit);
 }
 
 /*
@@ -291,7 +280,7 @@ pcib_is_prefetch_open(struct pcib_softc *sc)
 static int
 pcib_is_nonprefetch_open(struct pcib_softc *sc)
 {
-    return (sc->membase > 0 && sc->membase < sc->memlimit);
+	return (sc->membase > 0 && sc->membase < sc->memlimit);
 }
 
 /*
@@ -300,7 +289,7 @@ pcib_is_nonprefetch_open(struct pcib_softc *sc)
 static int
 pcib_is_io_open(struct pcib_softc *sc)
 {
-    return (sc->iobase > 0 && sc->iobase < sc->iolimit);
+	return (sc->iobase > 0 && sc->iobase < sc->iolimit);
 }
 
 /*
@@ -311,144 +300,122 @@ struct resource *
 pcib_alloc_resource(device_t dev, device_t child, int type, int *rid, 
 		    u_long start, u_long end, u_long count, u_int flags)
 {
-    struct pcib_softc	*sc = device_get_softc(dev);
-    int ok;
+	struct pcib_softc	*sc = device_get_softc(dev);
+	int ok;
 
-    /*
-     * If this is a "default" allocation against this rid, we can't work
-     * out where it's coming from (we should actually never see these) so we
-     * just have to punt.
-     */
-    if ((start == 0) && (end == ~0)) {
-	device_printf(dev, "can't decode default resource id %d for %s%d, bypassing\n",
-		      *rid, device_get_name(child), device_get_unit(child));
-    } else {
 	/*
 	 * Fail the allocation for this range if it's not supported.
 	 */
 	switch (type) {
 	case SYS_RES_IOPORT:
-	    ok = 1;
-	    if (!pcib_is_isa_io(start)) {
 		ok = 0;
-		if (pcib_is_io_open(sc))
-		    ok = (start >= sc->iobase && end <= sc->iolimit);
-		if (!pci_allow_unsupported_io_range) {
-		    if (!ok) {
-			if (start < sc->iobase)
-			    start = sc->iobase;
-			if (end > sc->iolimit)
-			    end = sc->iolimit;
-		    }
+		if (!pcib_is_io_open(sc))
+			break;
+		ok = (start >= sc->iobase && end <= sc->iolimit);
+		if ((sc->flags & PCIB_SUBTRACTIVE) == 0) {
+			if (!ok) {
+				if (start < sc->iobase)
+					start = sc->iobase;
+				if (end > sc->iolimit)
+					end = sc->iolimit;
+			}
 		} else {
-		    if (start < sc->iobase)
-			printf("start (%lx) < sc->iobase (%x)\n", start,
-				sc->iobase);
-		    if (end > sc->iolimit)
-			printf("end (%lx) > sc->iolimit (%x)\n",
-				end, sc->iolimit);
-		    if (end < start)
-			printf("end (%lx) < start (%lx)\n", end, start);
+			ok = 1;
+			if (start < sc->iobase && end > sc->iolimit) {
+				start = sc->iobase;
+				end = sc->iolimit;
+			}
+			
 		}
-	    }
-	    if (end < start) {
-		start = 0;
-		end = 0;
-		ok = 0;
-	    }
-	    if (!ok) {
-		device_printf(dev, "device %s%d requested unsupported I/O "
-		  "range 0x%lx-0x%lx (decoding 0x%x-0x%x)\n",
-		  device_get_name(child), device_get_unit(child), start, end,
-		  sc->iobase, sc->iolimit);
-		return (NULL);
-	    }
-	    if (bootverbose)
-		device_printf(sc->dev, "device %s%d requested decoded I/O range 0x%lx-0x%lx\n",
-			      device_get_name(child), device_get_unit(child), start, end);
-	    break;
+		if (end < start) {
+			device_printf(dev, "ioport: end (%lx) < start (%lx)\n", end, start);
+			start = 0;
+			end = 0;
+			ok = 0;
+		}
+		if (!ok) {
+			device_printf(dev, "device %s requested unsupported I/O "
+			    "range 0x%lx-0x%lx (decoding 0x%x-0x%x)\n",
+			    device_get_nameunit(child), start, end,
+			    sc->iobase, sc->iolimit);
+			return (NULL);
+		}
+		if (bootverbose)
+			device_printf(dev, "device %s requested decoded I/O range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
+		break;
 
 	case SYS_RES_MEMORY:
-	    ok = 1;
-	    if (!pcib_is_isa_mem(start)) {
 		ok = 0;
 		if (pcib_is_nonprefetch_open(sc))
-		    ok = ok || (start >= sc->membase && end <= sc->memlimit);
+			ok = ok || (start >= sc->membase && end <= sc->memlimit);
 		if (pcib_is_prefetch_open(sc))
-		    ok = ok || (start >= sc->pmembase && end <= sc->pmemlimit);
-		if (!pci_allow_unsupported_io_range) {
-		    if (!ok) {
-			ok = 1;
-			if (flags & RF_PREFETCHABLE) {
-			    if (pcib_is_prefetch_open(sc)) {
-				if (start < sc->pmembase)
-				    start = sc->pmembase;
-				if (end > sc->pmemlimit)
-				    end = sc->pmemlimit;
-			    } else {
-				ok = 0;
-			    }
-			} else {	/* non-prefetchable */
-			    if (pcib_is_nonprefetch_open(sc)) {
-				if (start < sc->membase)
-				    start = sc->membase;
-				if (end > sc->memlimit)
-				    end = sc->memlimit;
-			    } else {
-				ok = 0;
-			    }
+			ok = ok || (start >= sc->pmembase && end <= sc->pmemlimit);
+		if ((sc->flags & PCIB_SUBTRACTIVE) == 0) {
+			if (!ok) {
+				ok = 1;
+				if (flags & RF_PREFETCHABLE) {
+					if (pcib_is_prefetch_open(sc)) {
+						if (start < sc->pmembase)
+							start = sc->pmembase;
+						if (end > sc->pmemlimit)
+							end = sc->pmemlimit;
+					} else {
+						ok = 0;
+					}
+				} else {	/* non-prefetchable */
+					if (pcib_is_nonprefetch_open(sc)) {
+						if (start < sc->membase)
+							start = sc->membase;
+						if (end > sc->memlimit)
+							end = sc->memlimit;
+					} else {
+						ok = 0;
+					}
+				}
 			}
-		    }
 		} else if (!ok) {
-		    ok = 1;	/* pci_allow_unsupported_ranges -> always ok */
-		    if (pcib_is_nonprefetch_open(sc)) {
-			if (start < sc->membase)
-			    printf("start (%lx) < sc->membase (%x)\n",
-			      start, sc->membase);
-			if (end > sc->memlimit)
-			    printf("end (%lx) > sc->memlimit (%x)\n",
-			      end, sc->memlimit);
-		    }
-		    if (pcib_is_prefetch_open(sc)) {
-			if (start < sc->pmembase)
-			    printf("start (%lx) < sc->pmembase (%x)\n",
-			      start, sc->pmembase);
-			if (end > sc->pmemlimit)
-			    printf("end (%lx) > sc->pmemlimit (%x)\n",
-			      end, sc->memlimit);
-		    }
-		    if (end < start)
-			printf("end (%lx) < start (%lx)\n", end, start);
+			ok = 1;	/* subtractive bridge: always ok */
+			if (pcib_is_nonprefetch_open(sc)) {
+				if (start < sc->membase && end > sc->memlimit) {
+					start = sc->membase;
+					end = sc->memlimit;
+				}
+			}
+			if (pcib_is_prefetch_open(sc)) {
+				if (start < sc->pmembase && end > sc->pmemlimit) {
+					start = sc->pmembase;
+					end = sc->pmemlimit;
+				}
+			}
 		}
-	    }
-	    if (end < start) {
-		start = 0;
-		end = 0;
-		ok = 0;
-	    }
-	    if (!ok && bootverbose)
-		device_printf(dev,
-		  "device %s%d requested unsupported memory range "
-		  "0x%lx-0x%lx (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
-		  device_get_name(child), device_get_unit(child), start,
-		  end, sc->membase, sc->memlimit, sc->pmembase,
-		  sc->pmemlimit);
-	    if (!ok)
-		return (NULL);
-	    if (bootverbose)
-		device_printf(sc->dev, "device %s%d requested decoded memory range 0x%lx-0x%lx\n",
-		  device_get_name(child), device_get_unit(child), start, end);
-	    break;
+		if (end < start) {
+			device_printf(dev, "memory: end (%lx) < start (%lx)\n", end, start);
+			start = 0;
+			end = 0;
+			ok = 0;
+		}
+		if (!ok && bootverbose)
+			device_printf(dev,
+			    "device %s requested unsupported memory range "
+			    "0x%lx-0x%lx (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
+			    device_get_nameunit(child), start, end,
+			    sc->membase, sc->memlimit, sc->pmembase,
+			    sc->pmemlimit);
+		if (!ok)
+			return (NULL);
+		if (bootverbose)
+			device_printf(dev,"device %s requested decoded memory range 0x%lx-0x%lx\n",
+			    device_get_nameunit(child), start, end);
+		break;
 
 	default:
-	    break;
+		break;
 	}
-    }
-
-    /*
-     * Bridge is OK decoding this resource, so pass it up.
-     */
-    return(bus_generic_alloc_resource(dev, child, type, rid, start, end, count, flags));
+	/*
+	 * Bridge is OK decoding this resource, so pass it up.
+	 */
+	return (bus_generic_alloc_resource(dev, child, type, rid, start, end, count, flags));
 }
 
 /*
