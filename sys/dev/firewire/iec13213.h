@@ -94,7 +94,7 @@
 #define CSRKEY_DID	0x20 /* Directory_ID */
 #define CSRKEY_REV	0x21 /* Revision */
 
-#define CSRKEY_FIRM_VER	0x3c /* Firemware version */
+#define CSRKEY_FIRM_VER	0x3c /* Firmware version */
 #define CSRKEY_UNIT_CH	0x3a /* Unit characteristics */
 #define CSRKEY_COM_SPEC	0x38 /* Command set revision */
 #define CSRKEY_COM_SET	0x39 /* Command set */

@@ -828,7 +828,7 @@ void fw_init(struct firewire_comm *fc)
     ((fwb)->end < (addr))?1:0)
 
 /*
- * To lookup binded process from IEEE1394 address.
+ * To lookup bound process from IEEE1394 address.
  */
 struct fw_bind *
 fw_bindlookup(struct firewire_comm *fc, u_int16_t dest_hi, u_int32_t dest_lo)
@@ -898,7 +898,7 @@ fw_bindremove(struct firewire_comm *fc, struct fw_bind *fwb)
 			goto found;
 		}
 
-	printf("%s: no such bind\n", __func__);
+	printf("%s: no such binding\n", __func__);
 	splx(s);
 	return (1);
 found:
@@ -1532,7 +1532,7 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 		if(sfp->mode.rreqq.dest_lo == (0xf0000000 | CSRROMOFF)){
 			rfp->mode.rresq.data = ntohl(rfp->mode.rresq.data);
 			chdr = (struct csrhdr *)(&rfp->mode.rresq.data);
-/* If CSR is minimal confinguration, more investgation is not needed. */
+/* If CSR is minimal confinguration, more investigation is not needed. */
 			if(chdr->info_len == 1){
 				if (firewire_debug)
 					printf("node%d: minimal config\n",
@@ -1702,7 +1702,7 @@ fw_attach_dev(struct firewire_comm *fc)
 }
 
 /*
- * To allocate uniq transaction label.
+ * To allocate unique transaction label.
  */
 static int
 fw_get_tlabel(struct firewire_comm *fc, struct fw_xfer *xfer)
@@ -1797,7 +1797,7 @@ fw_rcv_copy(struct fw_rcv_buf *rb)
 }
 
 /*
- * Generic packet receving process.
+ * Generic packet receiving process.
  */
 void
 fw_rcv(struct fw_rcv_buf *rb)
