@@ -1,0 +1,52 @@
+.Dd Februar 17, 1995
+.Dt WATCH 8
+.Os
+.Sh NAME
+watch - tty snoop watching utility. 
+
+.Sh SYNOPSIS
+
+ watch [-ciot] [<tty name>]
+
+.Sh DESCRIPTION
+ watch utility allows user to see all data coming to the tty,almost
+ the same way as user on this tty.
+ Only root can run watch.
+
+The following options are available:
+
+-c   Reconnect on close. When tty on which watching was made closed,
+     utility will automatically reattach itself to the same tty.
+     By default utility will ask user to enter new tty name if running
+     in interactive mode or exit while non-interactive.
+
+-i   Force interactive mode.Interactive mode is a default if utility
+     started from tty. If output redirected to file, you can still force
+     it into interactive mode by this option.
+
+-o   Reconnect on overflow. The behaviour of utility on overflow is same
+     as for tty close. For more info see snp(4).
+
+-t   Timestamp.Print date and time each time, tty watching started.
+
+ The <tty name> is one of following types:
+  ttyp?,ttyq?,ttyr? - pseudo tty devices.
+  ttyv? - virtual ttys (syscons).
+  tty0?,ttyd? - serial lines.
+ Each name can be preceeded by "/dev/".
+ Also recognized:
+  pty[NUM] - pseudotty's.
+  vty[NUM] - virtual ttys.
+  sio[NUM] - serial lines.
+  
+ While running interactive, all user input discarded except :
+  Ctrl+C - Exit watch.
+  Ctrl+X - Change attached tty.
+  Ctrl+W - Clear screen.
+
+.Sh SEE ALSO
+snp(4),pty(4),sio(4)
+.Sh BUGS
+No terminal emulation involved,all user output comes to the screen as-is.
+.Sh HISTORY
+FreeBSD 2.1,By Ugen J.S.Antsilevich <ugen@NetVision.net.il> 
