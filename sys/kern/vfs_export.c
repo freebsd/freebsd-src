@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.209 1999/07/17 18:43:45 phk Exp $
+ * $Id: vfs_subr.c,v 1.210 1999/07/17 19:38:00 phk Exp $
  */
 
 /*
@@ -2974,4 +2974,16 @@ sync_print(ap)
 		lockmgr_printinfo(vp->v_vnlock);
 	printf("\n");
 	return (0);
+}
+
+/*
+ * extract the dev_t from a VBLK or VCHR
+ */
+dev_t
+vn_todev(vp)
+	struct vnode *vp;
+{
+	if (vp->v_type != VBLK && vp->v_type != VCHR)
+		return (NODEV);
+	return (vp->v_rdev);
 }
