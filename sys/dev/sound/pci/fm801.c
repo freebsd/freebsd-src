@@ -121,26 +121,26 @@ static struct pcmchan_caps fm801ch_caps = {
 struct fm801_info;
 
 struct fm801_chinfo {
-	struct fm801_info 	*parent;
-	struct pcm_channel 		*channel;
-	struct snd_dbuf 		*buffer;
-	u_int32_t 		spd, dir, fmt;	/* speed, direction, format */
+	struct fm801_info	*parent;
+	struct pcm_channel	*channel;
+	struct snd_dbuf		*buffer;
+	u_int32_t		spd, dir, fmt;  /* speed, direction, format */
 	u_int32_t		shift;
 };
 
 struct fm801_info {
-	int 			type;
-	bus_space_tag_t 	st;
-	bus_space_handle_t 	sh;
-	bus_dma_tag_t   	parent_dmat;
+	int			type;
+	bus_space_tag_t		st;
+	bus_space_handle_t	sh;
+	bus_dma_tag_t		parent_dmat;
 
-	device_t 		dev;
-	int 			num;
-	u_int32_t 		unit;
+	device_t		dev;
+	int			num;
+	u_int32_t		unit;
 
-	struct resource 	*reg, *irq;
-	int             	regtype, regid, irqid;
-	void            	*ih;
+	struct resource		*reg, *irq;
+	int			regtype, regid, irqid;
+	void			*ih;
 
 	u_int32_t		play_flip,
 				play_nextblk,
@@ -158,9 +158,9 @@ struct fm801_info {
 				rec_shift,
 				rec_size;
 
-	unsigned int 		bufsz;
+	unsigned int		bufsz;
 
-	struct fm801_chinfo 	pch, rch;
+	struct fm801_chinfo	pch, rch;
 };
 
 /* Bus Read / Write routines */
