@@ -60,19 +60,6 @@ db_regs_t ddb_regs;
 
 static jmp_buf	db_global_jmpbuf;
 
-static __inline u_short
-rss(void)
-{
-	u_short ss;
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
-	__asm __volatile("mov %%ss,%0" : "=r" (ss));
-#else
-#error Function rss() needs to get ported to this compiler.
-	ss = 0; /* XXXX Fix for other compilers. */
-#endif
-	return ss;
-}
-
 /*
  *  kdb_trap - field a TRACE or BPT trap
  */
