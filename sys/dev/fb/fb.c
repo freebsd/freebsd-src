@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "fb.h"
 #include "opt_fb.h"
 
 #include <sys/param.h>
