@@ -2076,6 +2076,7 @@ init386(first)
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(prvspace, pc);
 	PCPU_SET(curthread, &thread0);
+	PCPU_SET(curpcb, thread0.td_pcb);
 
 	/*
 	 * Initialize mutexes.
