@@ -143,7 +143,7 @@ int	unusedmem;		/* amount of memory for OS that we don't use */
 int	unknownmem;		/* amount of memory with an unknown use */
 int	ncpus;			/* number of cpus */
 
-vm_offset_t phys_avail[10];
+vm_offset_t phys_avail[20];
 
 static int
 sysctl_hw_physmem(SYSCTL_HANDLER_ARGS)
