@@ -467,9 +467,11 @@ retry:
 		 * Prepend callback function pointer and token value to buffer.
 		 * We have already guaranteed that the space is available
 		 * in the first buffer.
+		 * Don't count this extra fields in m_pkthdr.len (XXX)
 		 */
-		KB_HEADADJ(mhead, sizeof(atm_intr_func_t) + sizeof(int));
-		KB_DATASTART(mhead, cp, caddr_t);
+		mhead->m_data -= sizeof(atm_intr_func_t) + sizeof(void *);
+		mhead->m_len += sizeof(atm_intr_func_t) + sizeof(void *);
+		cp = mtod(mhead, caddr_t);
 		*((atm_intr_func_t *)cp) = fore_recv_stack;
 		cp += sizeof(atm_intr_func_t);
 		*((void **)cp) = (void *)fvp;
