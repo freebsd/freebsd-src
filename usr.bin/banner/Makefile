@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	banner
-MAN=	banner.6
-
 WARNS?=	2
+MAN=	banner.6
 
 .include <bsd.prog.mk>
