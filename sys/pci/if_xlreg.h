@@ -50,7 +50,7 @@
 #define XL_EE_PCI_PARM	0x08
 #define XL_EE_ROM_ONFO	0x09
 #define XL_EE_OEM_ADR0	0x0A
-#define	XL_EE_OEM_ADR1	0x0B
+#define XL_EE_OEM_ADR1	0x0B
 #define XL_EE_OEM_ADR2	0x0C
 #define XL_EE_SOFTINFO1	0x0D
 #define XL_EE_COMPAT	0x0E
@@ -163,16 +163,16 @@
 #define XL_STAT_ADFAIL		0x0002	/* 1 */
 #define XL_STAT_TX_COMPLETE	0x0004	/* 2 */
 #define XL_STAT_TX_AVAIL	0x0008	/* 3 first generation */
-#define XL_STAT_RX_COMPLETE	0x0010  /* 4 */
+#define XL_STAT_RX_COMPLETE	0x0010	/* 4 */
 #define XL_STAT_RX_EARLY	0x0020	/* 5 */
-#define XL_STAT_INTREQ		0x0040  /* 6 */
-#define XL_STAT_STATSOFLOW	0x0080  /* 7 */
+#define XL_STAT_INTREQ		0x0040	/* 6 */
+#define XL_STAT_STATSOFLOW	0x0080	/* 7 */
 #define XL_STAT_DMADONE		0x0100	/* 8 first generation */
 #define XL_STAT_LINKSTAT	0x0100	/* 8 3c509B */
 #define XL_STAT_DOWN_COMPLETE	0x0200	/* 9 */
 #define XL_STAT_UP_COMPLETE	0x0400	/* 10 */
 #define XL_STAT_DMABUSY		0x0800	/* 11 first generation */
-#define XL_STAT_CMDBUSY		0x1000  /* 12 */
+#define XL_STAT_CMDBUSY		0x1000	/* 12 */
 
 /*
  * Interrupts we normally want enabled.
@@ -218,7 +218,7 @@
 /*
  * TX status codes
  */
-#define XL_TXSTATUS_RECLAIM	0x02 /* 3c905B only */
+#define XL_TXSTATUS_RECLAIM	0x02	/* 3c905B only */
 #define XL_TXSTATUS_OVERFLOW	0x04
 #define XL_TXSTATUS_MAXCOLS	0x08
 #define XL_TXSTATUS_UNDERRUN	0x10
@@ -237,7 +237,7 @@
 #define XL_W2_STATION_ADDR_MID	0x02
 #define XL_W2_STATION_ADDR_LO	0x00
 
-#define XL_RESETOPT_FEATUREMASK	0x0001|0x0002|0x004
+#define XL_RESETOPT_FEATUREMASK	(0x0001 | 0x0002 | 0x004)
 #define XL_RESETOPT_D3RESETDIS	0x0008
 #define XL_RESETOPT_DISADVFD	0x0010
 #define XL_RESETOPT_DISADV100	0x0020
@@ -257,7 +257,7 @@
  * Window 3 (fifo management)
  */
 #define XL_W3_INTERNAL_CFG	0x00
-#define XL_W3_MAXPKTSIZE	0x04    /* 3c905B only */
+#define XL_W3_MAXPKTSIZE	0x04	/* 3c905B only */
 #define XL_W3_RESET_OPT		0x08
 #define XL_W3_FREE_TX		0x0C
 #define XL_W3_FREE_RX		0x0A
@@ -268,11 +268,11 @@
 
 #define XL_ICFG_RAMSIZE_MASK	0x00000007
 #define XL_ICFG_RAMWIDTH	0x00000008
-#define XL_ICFG_ROMSIZE_MASK	(0x00000040|0x00000080)
+#define XL_ICFG_ROMSIZE_MASK	(0x00000040 | 0x00000080)
 #define XL_ICFG_DISABLE_BASSD	0x00000100
 #define XL_ICFG_RAMLOC		0x00000200
-#define XL_ICFG_RAMPART		(0x00010000|0x00020000)
-#define XL_ICFG_XCVRSEL		(0x00100000|0x00200000|0x00400000)
+#define XL_ICFG_RAMPART		(0x00010000 | 0x00020000)
+#define XL_ICFG_XCVRSEL		(0x00100000 | 0x00200000 | 0x00400000)
 #define XL_ICFG_AUTOSEL		0x01000000
 
 #define XL_XCVR_10BT		0x00
@@ -292,9 +292,9 @@
 #define XL_MACCTRL_DEFER_3		0x0010
 #define XL_MACCTRL_DUPLEX		0x0020
 #define XL_MACCTRL_ALLOW_LARGE_PACK	0x0040
-#define XL_MACCTRL_EXTEND_AFTER_COL	0x0080 (3c905B only)
-#define XL_MACCTRL_FLOW_CONTROL_ENB	0x0100 (3c905B only)
-#define XL_MACCTRL_VLT_END		0x0200 (3c905B only)
+#define XL_MACCTRL_EXTEND_AFTER_COL	0x0080	/* 3c905B only */
+#define XL_MACCTRL_FLOW_CONTROL_ENB	0x0100	/* 3c905B only */
+#define XL_MACCTRL_VLT_END		0x0200	/* 3c905B only */
 
 /*
  * The 'reset options' register contains power-on reset values
@@ -352,7 +352,8 @@
 #define XL_MEDIASTAT_AUIDIS	0x8000
 
 #define XL_NETDIAG_TEST_LOWVOLT		0x0001
-#define XL_NETDIAG_ASIC_REVMASK		(0x0002|0x0004|0x0008|0x0010|0x0020)
+#define XL_NETDIAG_ASIC_REVMASK		\
+	(0x0002 | 0x0004 | 0x0008 | 0x0010 | 0x0020)
 #define XL_NETDIAG_UPPER_BYTES_ENABLE	0x0040
 #define XL_NETDIAG_STATS_ENABLED	0x0080
 #define XL_NETDIAG_TX_FATALERR		0x0100
@@ -382,7 +383,7 @@
 #define XL_RXFILTER_ALLMULTI	0x02
 #define XL_RXFILTER_BROADCAST	0x04
 #define XL_RXFILTER_ALLFRAMES	0x08
-#define XL_RXFILTER_MULTIHASH	0x10 /* 3c905B only */
+#define XL_RXFILTER_MULTIHASH	0x10	/* 3c905B only */
 
 /*
  * Window 6 (stats)
@@ -424,8 +425,10 @@
 #define XL_MAXFRAGS		63
 #define XL_RX_LIST_CNT		128
 #define XL_TX_LIST_CNT		256
-#define XL_RX_LIST_SZ		XL_RX_LIST_CNT * sizeof(struct xl_list_onefrag)
-#define XL_TX_LIST_SZ		XL_TX_LIST_CNT * sizeof(struct xl_list)
+#define XL_RX_LIST_SZ		\
+	(XL_RX_LIST_CNT * sizeof(struct xl_list_onefrag))
+#define XL_TX_LIST_SZ		\
+	(XL_TX_LIST_CNT * sizeof(struct xl_list))
 #define XL_MIN_FRAMELEN		60
 #define ETHER_ALIGN		2
 #define XL_INC(x, y)		(x) = (x + 1) % y
@@ -606,8 +609,11 @@ struct xl_softc {
 	struct mtx		xl_mtx;
 };
 
+/*
+ * XXX: The driver still tries to sleep with locks held, so disable
+ *      locking for the time being.
+ */
 #if 0
-/* These are a bit premature.  The driver still tries to sleep with locks. */
 #define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)
 #define XL_UNLOCK(_sc)		mtx_unlock(&(_sc)->xl_mtx)
 #define XL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->xl_mtx, MA_OWNED)
@@ -703,7 +709,6 @@ struct xl_stats {
  * other PCI registers. Note: some are only available on
  * the 3c905B, in particular those that related to power management.
  */
-
 #define XL_PCI_VENDOR_ID	0x00
 #define XL_PCI_DEVICE_ID	0x02
 #define XL_PCI_COMMAND		0x04
