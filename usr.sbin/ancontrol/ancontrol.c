@@ -76,6 +76,7 @@ static void an_setconfig	__P((char *, int, void *));
 static void an_setssid		__P((char *, int, void *));
 static void an_setap		__P((char *, int, void *));
 static void an_setspeed		__P((char *, int, void *));
+static void an_readkeyinfo	__P((char *));
 #ifdef ANCACHE
 static void an_zerocache	__P((char *));
 static void an_readcache	__P((char *));
@@ -121,6 +122,7 @@ int main			__P((int, char **));
 #define ACT_ENABLE_WEP 33
 #define ACT_SET_KEY_TYPE 34
 #define ACT_SET_KEYS 35
+#define ACT_ENABLE_TX_KEY 36
 
 static void an_getval(iface, areq)
 	char			*iface;
@@ -688,8 +690,13 @@ static void an_dumpconfig(iface)
 	printf("\nAuthentication timeout:\t\t\t");
 	an_printwords(&cfg->an_auth_timeout, 1);
 	printf("\nWEP enabled:\t\t\t\t[ ");
-	if (cfg->an_authtype & AN_AUTHTYPE_ENABLE)
-		printf("yes");
+	if (cfg->an_authtype & AN_AUTHTYPE_PRIVACY_IN_USE)
+	{
+		if (cfg->an_authtype & AN_AUTHTYPE_ALLOW_UNENCRYPTED)
+			 printf("mixed cell");
+		else
+			 printf("full");
+	}
 	else
 		printf("no");
 	printf(" ]");
@@ -700,8 +707,6 @@ static void an_dumpconfig(iface)
 		printf("open");
 	if ((cfg->an_authtype & AN_AUTHTYPE_MASK) == AN_AUTHTYPE_SHAREDKEY)
 		printf("shared key");
-	if ((cfg->an_authtype & AN_AUTHTYPE_MASK) == AN_AUTHTYPE_EXCLUDE_UNENCRYPTED)
-		printf("exclude unencrypted");
 	printf(" ]");
 	printf("\nAssociation timeout:\t\t\t");
 	an_printwords(&cfg->an_assoc_timeout, 1);
@@ -787,6 +792,8 @@ static void an_dumpconfig(iface)
 	an_printwords(&cfg->an_arl_delay, 1);
 
 	printf("\n");
+	printf("\n");
+	an_readkeyinfo(iface);
 
 	return;
 }
@@ -807,9 +814,10 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -b val (set beacon period)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 0|1] -d val (set diversity)\n", p);
 	fprintf(stderr, "\t%s -i iface -j val (set netjoin timeout)\n", p);
+	fprintf(stderr, "\t%s -i iface -e 0|1|2|3 (enable transmit key)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 0|1|2|3|4|5|6|7] -k key (set key)\n", p);
-	fprintf(stderr, "\t%s -i iface -K 0|1|2|4 (set auth type 2=shared secret)\n", p);
-	fprintf(stderr, "\t%s -i iface -W 0|1 (enable WEP)\n", p);
+	fprintf(stderr, "\t%s -i iface -K 0|1|2 (no auth/open/shared secret)\n", p);
+	fprintf(stderr, "\t%s -i iface -W 0|1|2 (no WEP/full WEP/mixed cell)\n", p);
 	fprintf(stderr, "\t%s -i iface -l val (set station name)\n", p);
 	fprintf(stderr, "\t%s -i iface -m val (set MAC address)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 1|2|3] -n SSID "
@@ -934,8 +942,23 @@ static void an_setconfig(iface, act, arg)
 		bcopy((char *)addr, (char *)&cfg->an_macaddr, ETHER_ADDR_LEN);
 		break;
 	case ACT_ENABLE_WEP:
-		cfg->an_authtype = (cfg->an_authtype & AN_AUTHTYPE_MASK)
-		        | atoi(arg) * AN_AUTHTYPE_ENABLE;
+		switch (atoi (arg)) {
+		case 0:
+			/* no WEP */
+			cfg->an_authtype &= ~(AN_AUTHTYPE_PRIVACY_IN_USE 
+					| AN_AUTHTYPE_ALLOW_UNENCRYPTED);
+			break;
+		case 1:
+			/* full WEP */
+			cfg->an_authtype |= AN_AUTHTYPE_PRIVACY_IN_USE;
+			cfg->an_authtype &= ~AN_AUTHTYPE_ALLOW_UNENCRYPTED;
+			break;
+		case 2:
+			/* mixed cell */
+			cfg->an_authtype = AN_AUTHTYPE_PRIVACY_IN_USE 
+					| AN_AUTHTYPE_ALLOW_UNENCRYPTED;
+			break;
+		}
 		break;
 	case ACT_SET_KEY_TYPE:
 		cfg->an_authtype = (cfg->an_authtype & ~AN_AUTHTYPE_MASK) 
@@ -1232,6 +1255,75 @@ static void an_setkeys(iface, key, keytype)
 	return;
 }
 
+static void an_readkeyinfo(iface)
+	char			*iface;
+{
+	struct an_req		areq;
+	struct an_ltv_key	*k;
+	int i;
+
+	bzero((char *)&areq, sizeof(areq));
+	k = (struct an_ltv_key *)&areq;
+
+	printf("WEP Key status:\n");
+	areq.an_type = AN_RID_WEP_TEMP;  	/* read first key */
+	for(i=0; i<4; i++){
+		areq.an_len = sizeof(struct an_ltv_key);
+		an_getval(iface, &areq);
+		switch (k->klen){
+		case 0:
+			printf("\tKey %d is unset\n",i);
+			break;
+		case 5:
+			printf("\tKey %d is set  40 bits\n",i);
+			break;
+		case 13:
+			printf("\tKey %d is set 128 bits\n",i);
+			break;
+		default:
+			printf("\tWEP Key %d has an unknown size %d\n",
+			    i, k->klen);
+		}
+
+		areq.an_type = AN_RID_WEP_PERM;	/* read next key */
+	}
+	k->kindex = 0xffff;
+	areq.an_len = sizeof(struct an_ltv_key);
+      	an_getval(iface, &areq);
+	printf("\tThe active transmit key is %d\n", k->mac[0]);
+
+	return;
+}
+
+static void an_enable_tx_key(iface, arg)
+	char			*iface;
+	char			*arg;
+{
+	struct an_req		areq;
+	struct an_ltv_key	*k;
+
+	bzero((char *)&areq, sizeof(areq));
+	k = (struct an_ltv_key *)&areq;
+
+	/* From a Cisco engineer write the transmit key to use in the
+	   first MAC, index is FFFF*/
+	k->kindex=0xffff;
+	k->klen=0;
+
+	k->mac[0]=atoi(arg);
+	k->mac[1]=0;
+	k->mac[2]=0;
+	k->mac[3]=0;
+	k->mac[4]=0;
+	k->mac[5]=0;
+
+	areq.an_len = sizeof(struct an_ltv_key);
+	areq.an_type = AN_RID_WEP_PERM;
+	an_setval(iface, &areq);
+	  
+	return;
+}
+
 int main(argc, argv)
 	int			argc;
 	char			*argv[];
@@ -1257,7 +1349,7 @@ int main(argc, argv)
 	opterr = 1;
 
 	while ((ch = getopt(argc, argv,
-	    "ANISCTht:a:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZ")) != -1) {
+	    "ANISCTht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZ")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
@@ -1404,6 +1496,10 @@ int main(argc, argv)
 			act = ACT_SET_KEYS;
 			key = optarg;
 			break;
+		case 'e':
+			act = ACT_ENABLE_TX_KEY;
+			arg = optarg;
+			break;
 		case 'q':
 			act = ACT_SET_RTS_RETRYLIM;
 			arg = optarg;
@@ -1469,6 +1565,9 @@ int main(argc, argv)
 #endif
 	case ACT_SET_KEYS:
 		an_setkeys(iface, key, modifier);
+		break;
+	case ACT_ENABLE_TX_KEY:
+		an_enable_tx_key(iface, arg);
 		break;
 	default:
 		an_setconfig(iface, act, arg);
