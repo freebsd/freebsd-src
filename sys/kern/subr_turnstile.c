@@ -70,11 +70,6 @@
 #define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
 	: (struct thread *)((m)->mtx_lock & MTX_FLAGMASK))
 
-/* XXXKSE This test will change. */
-#define	thread_running(td)						\
-	(td->td_state == TDS_RUNNING)
-	/* ((td)->td_oncpu != NOCPU) */
-
 /*
  * Lock classes for sleep and spin mutexes.
  */
@@ -561,9 +556,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * CPU, spin instead of blocking.
 		 */
 		owner = (struct thread *)(v & MTX_FLAGMASK);
-		if (m != &Giant && thread_running(owner)) {
+		if (m != &Giant && TD_IS_RUNNING(owner)) {
 			mtx_unlock_spin(&sched_lock);
-			while (mtx_owner(m) == owner && thread_running(owner)) {
+			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
 #ifdef __i386__
 				ia32_pause();
 #endif
