@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.23 1996/03/30 15:15:30 peter Exp $
+ * $Id: kern_sig.c,v 1.24 1996/05/01 02:42:57 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -1203,12 +1203,13 @@ sigexit(p, signum)
 		 * these messages.)
 		 * XXX : Todo, as well as euid, write out ruid too
 		 */
-		log(LOG_INFO, "pid %d (%s), uid %d: exited on signal %d\n",
-			p->p_pid, p->p_comm,
-			p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
-			signum);
 		if (coredump(p) == 0)
 			signum |= WCOREFLAG;
+		log(LOG_INFO, "pid %d (%s), uid %d: exited on signal %d%s\n",
+			p->p_pid, p->p_comm,
+			p->p_cred && p->p_ucred ? p->p_ucred->cr_uid : -1,
+			signum &~ WCOREFLAG,
+			signum & WCOREFLAG ? " (core dumped)" : "");
 	}
 	exit1(p, W_EXITCODE(0, signum));
 	/* NOTREACHED */
