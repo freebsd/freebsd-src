@@ -585,7 +585,7 @@ options 	DEVFS			#devices filesystem
 # do to enable this.  ../../contrib/softupdates/README gives
 # more details on how they actually work.
 #
-options 	SOFTUPDATES
+#options 	SOFTUPDATES
 
 # Make space in the kernel for a MFS root filesystem.  Define to the number
 # of kilobytes to reserve for the filesystem.
