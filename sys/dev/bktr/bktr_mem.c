@@ -1,9 +1,7 @@
-
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 /*
- * This is prt of the Driver for Video Capture Cards (Frame grabbers)
+ * This is part of the Driver for Video Capture Cards (Frame grabbers)
  * and TV Tuner cards using the Brooktree Bt848, Bt848A, Bt849A, Bt878, Bt879
  * chipset.
  * Copyright Roger Hardiman.
@@ -96,7 +94,7 @@ bktr_mem_modevent(module_t mod, int type, void *unused){
 		break;
 	}
 	return 0;
-};
+}
 
 /*************************************************************/
 
@@ -151,7 +149,7 @@ bktr_retrieve_address(int unit, int type) {
 
 	if ((unit < 0) || (unit >= BKTR_MEM_MAX_DEVICES)) {
 		printf("bktr_mem: Unit number %d too large for memory type %d\n",unit,type);
-		return NULL;
+		return 0;
 	}
 	switch (type) {
 		case BKTR_MEM_DMA_PROG:     return memory_list[unit].dma_prog;
@@ -160,7 +158,7 @@ bktr_retrieve_address(int unit, int type) {
 		case BKTR_MEM_VBIBUFFER:    return memory_list[unit].vbibuffer;
 		case BKTR_MEM_BUF:          return memory_list[unit].buf;
 		default:                    printf("bktr_mem: Invalid memory type %d for bktr%d",type,unit);
-		                            return NULL;
+		                            return 0;
 	}
 }
 
