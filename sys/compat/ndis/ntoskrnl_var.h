@@ -516,10 +516,10 @@ __fastcall extern void ntoskrnl_unlock_dpc(REGARGS1(kspin_lock *));
  * routines live in the HAL. We try to imitate this behavior.
  */
 #ifdef __i386__
-#define ntoskrnl_acquire_spinlock(a, b)		\
-	*(b) = FASTCALL(hal_lock, a, 0)
-#define ntoskrnl_release_spinlock(a, b)		\
-	FASTCALL(hal_unlock, a, b)
+#define ntoskrnl_acquire_spinlock(a, b)	*(b) = FASTCALL1(hal_lock, a)
+#define ntoskrnl_release_spinlock(a, b)	FASTCALL2(hal_unlock, a, b)
+#define ntoskrnl_raise_irql(a)		FASTCALL1(hal_raise_irql, a)
+#define ntoskrnl_lower_irql(a)		FASTCALL1(hal_lower_irql, a)
 #endif /* __i386__ */
 __END_DECLS
 

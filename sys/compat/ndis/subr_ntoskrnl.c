@@ -984,9 +984,9 @@ ntoskrnl_push_slist_ex(REGARGS2(slist_header *head,
 	slist_entry		*oldhead;
 	uint8_t			irql;
 
-	irql = FASTCALL2(hal_lock, lock, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(lock, &irql);
 	oldhead = ntoskrnl_pushsl(head, entry);
-	FASTCALL2(hal_unlock, lock, irql);
+	ntoskrnl_release_spinlock(lock, irql);
 
 	return(oldhead);
 }
@@ -997,9 +997,9 @@ ntoskrnl_pop_slist_ex(REGARGS2(slist_header *head, kspin_lock *lock))
 	slist_entry		*first;
 	uint8_t			irql;
 
-	irql = FASTCALL2(hal_lock, lock, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(lock, &irql);
 	first = ntoskrnl_popsl(head);
-	FASTCALL2(hal_unlock, lock, irql);
+	ntoskrnl_release_spinlock(lock, irql);
 
 	return(first);
 }
@@ -1040,9 +1040,9 @@ ntoskrnl_interlock_addstat(REGARGS2(uint64_t *addend, uint32_t inc))
 {
 	uint8_t			irql;
 
-	irql = FASTCALL2(hal_lock, &ntoskrnl_global, DISPATCH_LEVEL);
+	ntoskrnl_acquire_spinlock(&ntoskrnl_global, &irql);
 	*addend += inc;
-	FASTCALL2(hal_unlock, &ntoskrnl_global, irql);
+	ntoskrnl_release_spinlock(&ntoskrnl_global, irql);
 
 	return;
 };
@@ -1686,9 +1686,9 @@ ntoskrnl_run_dpc(arg)
 
 	dpc = arg;
 	dpcfunc = (kdpc_func)dpc->k_deferedfunc;
-	irql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
+	irql = ntoskrnl_raise_irql(DISPATCH_LEVEL);
 	dpcfunc(dpc, dpc->k_deferredctx, dpc->k_sysarg1, dpc->k_sysarg2);
-	FASTCALL1(hal_lower_irql, irql);
+	ntoskrnl_lower_irql(irql);
 
 	return;
 }
