@@ -44,7 +44,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ftpd.c,v 1.44 1997/12/24 19:13:22 imp Exp $";
+	"$Id: ftpd.c,v 1.45 1998/02/24 08:45:57 eivind Exp $";
 #endif /* not lint */
 
 /*
@@ -480,6 +480,13 @@ main(argc, argv, envp)
 	if (setsockopt(0, IPPROTO_IP, IP_TOS, (char *)&tos, sizeof(int)) < 0)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 #endif
+	/*
+	 * Disable Nagle on the control channel so that we don't have to wait
+	 * for peer's ACK before issuing our next reply.
+	 */
+	if (setsockopt(0, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on)) < 0)
+		syslog(LOG_WARNING, "control setsockopt TCP_NODELAY: %m");
+
 	data_source.sin_port = htons(ntohs(ctrl_addr.sin_port) - 1);
 
 	/* set this here so klogin can use it... */
