@@ -46,15 +46,16 @@
 
 [6]	How to boot from a fla device ?
 
-	The FreeBSD kernel recognizes the root device using various
-	hacks.  These hacks doesn't recognize the fla device so some
-	"real" hacks are needed to boot from your fla device.
+	FreeBSD 4.0 and forward find their root device by reading
+	the /etc/fstab, so the DiskOnChip devices will work just
+	like any other device.
 
-	In 4.0 current the easiest way is to configure your kernel with
-	the 
-		options ROOTDEVNAME=\"fla0\"
+	Earlier FreeBSD kernels recognizes the root device using
+	various hacks.  These hacks doesn't recognize the fla device
+	so some "real" hacks are needed to boot from your fla
+	device.
 
-	In older versions, specifying the boot device in the kernel
+	In pre 4.0 versions specifying the boot device in the kernel
 	config file this way is the easiest way to do it:
 
 		config          kernel  root on major 28 minor 65538
