@@ -261,11 +261,6 @@ hme_config(struct hme_softc *sc)
 			goto fail_txdesc;
 	}
 
-	device_printf(sc->sc_dev, "Ethernet address:");
-	for (i = 0; i < 6; i++)
-		printf("%c%02x", i > 0 ? ':' : ' ', sc->sc_arpcom.ac_enaddr[i]);
-	printf("\n");
-
 	/* Initialize ifnet structure. */
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->sc_dev),
