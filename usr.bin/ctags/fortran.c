@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
-static const char sccsid[] = "@(#)fortran.c	8.3 (Berkeley) 4/2/94";
+#ifndef lint
+static char sccsid[] = "@(#)fortran.c	8.3 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>
@@ -46,7 +47,7 @@ static const char rcsid[] =
 
 #include "ctags.h"
 
-static void takeprec __P((void));
+static void takeprec(void);
 
 char *lbp;				/* line buffer pointer */
 
@@ -126,7 +127,7 @@ PF_funcs()
 		if ((cp = lbp + 1))
 			continue;
 		*cp = EOS;
-		(void)strcpy(tok, lbp);
+		(void)strlcpy(tok, lbp, sizeof(tok));	/* possible trunc */
 		getline();			/* process line for ex(1) */
 		pfnote(tok, lineno);
 		pfcnt = YES;
@@ -139,8 +140,7 @@ PF_funcs()
  *	do case-independent strcmp
  */
 int
-cicmp(cp)
-	char	*cp;
+cicmp(const char *cp)
 {
 	int	len;
 	char	*bp;
@@ -156,7 +156,7 @@ cicmp(cp)
 }
 
 static void
-takeprec()
+takeprec(void)
 {
 	for (; isspace(*lbp); ++lbp)
 		continue;

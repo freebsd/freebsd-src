@@ -31,18 +31,17 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
-static const char sccsid[] = "@(#)print.c	8.3 (Berkeley) 4/2/94";
+#ifndef lint
+static char sccsid[] = "@(#)print.c	8.3 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <limits.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #include "ctags.h"
@@ -53,7 +52,7 @@ static const char rcsid[] =
  *	prepare it for printing.
  */
 void
-getline()
+getline(void)
 {
 	long	saveftell;
 	int	c;
@@ -99,8 +98,7 @@ getline()
  *	write out the tags
  */
 void
-put_entries(node)
-	NODE	*node;
+put_entries(NODE *node)
 {
 
 	if (node->left)

@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
-static const char sccsid[] = "@(#)tree.c	8.3 (Berkeley) 4/2/94";
+#ifndef lint
+static char sccsid[] = "@(#)tree.c	8.3 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <limits.h>
@@ -47,17 +48,15 @@ static const char rcsid[] =
 
 #include "ctags.h"
 
-static void	add_node __P((NODE *, NODE *));
-static void	free_tree __P((NODE *));
+static void	add_node(NODE *, NODE *);
+static void	free_tree(NODE *);
 
 /*
  * pfnote --
  *	enter a new node in the tree
  */
 void
-pfnote(name, ln)
-	char	*name;
-	int	ln;
+pfnote(const char *name, int ln)
 {
 	NODE	*np;
 	char	*fp;
@@ -70,14 +69,14 @@ pfnote(name, ln)
 		free_tree(head);
 		/*NOSTRICT*/
 		if (!(head = np = (NODE *)malloc(sizeof(NODE))))
-			err(1, "out of space");
+			errx(1, "out of space");
 	}
 	if (!xflag && !strcmp(name, "main")) {
 		if (!(fp = strrchr(curfile, '/')))
 			fp = curfile;
 		else
 			++fp;
-		(void)sprintf(nbuf, "M%s", fp);
+		(void)snprintf(nbuf, sizeof(nbuf), "M%s", fp);
 		fp = strrchr(nbuf, '.');
 		if (fp && !fp[2])
 			*fp = EOS;
@@ -97,13 +96,11 @@ pfnote(name, ln)
 }
 
 static void
-add_node(node, cur_node)
-	NODE	*node,
-		*cur_node;
+add_node(NODE *node, NODE *cur_node)
 {
 	int	dif;
 
-	dif = strcmp(node->entry, cur_node->entry);
+	dif = strcoll(node->entry, cur_node->entry);
 	if (!dif) {
 		if (node->file == cur_node->file) {
 			if (!wflag)
@@ -127,8 +124,7 @@ add_node(node, cur_node)
 }
 
 static void
-free_tree(node)
-	NODE	*node;
+free_tree(NODE *node)
 {
 	while (node) {
 		if (node->right)

@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
-static const char sccsid[] = "@(#)lisp.c	8.3 (Berkeley) 4/2/94";
+#ifndef lint
+static char sccsid[] = "@(#)lisp.c	8.3 (Berkeley) 4/2/94";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <limits.h>
@@ -51,7 +52,7 @@ static const char rcsid[] =
  * just look for (def or (DEF
  */
 void
-l_entries()
+l_entries(void)
 {
 	int	special;
 	char	*cp;
@@ -100,7 +101,7 @@ l_entries()
 				continue;
 		savedc = *cp;
 		*cp = EOS;
-		(void)strcpy(tok, lbp);
+		(void)strlcpy(tok, lbp, sizeof(tok));	/* possible trunc */
 		*cp = savedc;
 		getline();
 		pfnote(tok, lineno);
