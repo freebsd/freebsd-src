@@ -183,7 +183,7 @@ _lock_acquire(struct lock *lck, struct lockuser *lu, int prio)
 		atomic_store_rel_ptr(&lu->lu_watchreq->lr_watcher, lu);
 		if ((lck->l_wait == NULL) ||
 		    ((lck->l_type & LCK_ADAPTIVE) == 0)) {
-			while (lu->lu_watchreq->lr_locked == 0)
+			while (lu->lu_watchreq->lr_locked != 0)
 				;	/* spin, then yield? */
 		} else {
 			/*
