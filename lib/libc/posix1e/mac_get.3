@@ -47,39 +47,46 @@
 .Ft int
 .Fn mac_get_fd "int fd" "mac_t label"
 .Ft int
+.Fn mac_get_peer "int fd" "mac_t label"
+.Ft int
 .Fn mac_get_pid "pid_t pid" "mac_t label"
 .Ft int
 .Fn mac_get_proc "mac_t label"
 .Sh DESCRIPTION
 The
 .Fn mac_get_file
-and
-.Fn mac_get_fd
-functions fill in
-.Fa label
-(which must first be allocated by
-.Xr mac_prepare 3 )
-with the MAC label associated with the file referenced by
-.Fa path
-or the file descriptor specified by
-.Fa fd ,
-respectively.
-Note that this function will fail on socket descriptors.
-For information on
-getting MAC labels on socket descriptors see
-.Xr getsockopt 2 .
+system call returns the label associated with a file specified by
+pathname.
 .Pp
 The
-.Fn mac_get_proc
-and
+.Fn mac_get_fd
+system call returns the label associated with an object referenced by
+the specified file descriptor.
+Note that in the case of a file system socket, the label returned will
+be the socket label, which may be different from the label of the
+on-disk node acting as a rendezvous for the socket.
+The
+.Fn mac_get_peer
+system call returns the label associated with the remote endpoint of
+a socket; the exact semantics of this call will depend on the protocol
+domain, communications type, and endpoint; typically this label will
+be cached when a connection-oriented protocol instance is first set up,
+and is undefined for datagram protocols.
+.Pp
+The
 .Fn mac_get_pid
-functions fill in
-.Fa label
-(which must first be allocated by
-.Xr mac_prepare 3 )
-with the MAC label associated
-with the requesting process
-or the specified process, respectively.
+and
+.Fn mac_get_proc
+system calls return the process label associated with an arbitrary
+process id, or the current process.
+.Pp
+Label storage for use with these calls must first be allocated and
+prepared using the
+.Xr mac_prepare 3
+functions.
+When an application is done using a label, the memory may be returned
+using
+.Xr mac_free 3 .
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EACCES
@@ -88,6 +95,9 @@ A component of
 is not searchable,
 or MAC read access to the file
 is denied.
+.It Bq Er EINVAL
+The requested label operation is not valid for the object referenced by
+.Fa fd .
 .It Bq Er ENAMETOOLONG
 The pathname pointed to by
 .Fa path
