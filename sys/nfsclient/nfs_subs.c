@@ -898,7 +898,7 @@ nfsm_postop_attr_xx(struct vnode **v, int *f,
 	t1 = nfsm_dissect_xx((void **)tl, NFSX_UNSIGNED, md, dpos);
 	if (t1 != 0)
 		return t1;
-	*f = fxdr_unsigned(int, *tl);
+	*f = fxdr_unsigned(int, **tl);
 	if (f != 0) {
 		t1 = nfs_loadattrcache(&ttvp, md, dpos, (struct vattr *)0, 1);
 		if (t1 != 0) {
