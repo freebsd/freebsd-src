@@ -546,7 +546,9 @@ defrouter_delreq(dr, dofree)
 		  (struct sockaddr *)&mask,
 		  RTF_GATEWAY, &oldrt);
 	if (oldrt) {
+#ifdef ND6_USE_RTSOCK
 		defrouter_msg(RTM_DELETE, oldrt);
+#endif
 		if (oldrt->rt_refcnt <= 0) {
 			/*
 			 * XXX: borrowed from the RTM_DELETE case of
