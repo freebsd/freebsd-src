@@ -1252,26 +1252,27 @@ loop:
 			 * parent a SIGCHLD.  The rest of the cleanup will be
 			 * done when the old parent waits on the child.
 			 */
+			PROCTREE_LOCK(PT_EXCLUSIVE);
 			PROC_LOCK(q);
 			if (q->p_flag & P_TRACED) {
-				PROC_UNLOCK(q);
-				PROCTREE_LOCK(PT_EXCLUSIVE);
 				if (q->p_oppid != q->p_pptr->p_pid) {
+					PROC_UNLOCK(q);
 					t = pfind(q->p_oppid);
-					proc_reparent(q, t ? t : initproc);
- 					PROCTREE_LOCK(PT_RELEASE);
 					PROC_LOCK(q);
-					q->p_oppid = 0;
+					proc_reparent(q, t ? t : initproc);
+ 					q->p_oppid = 0;
 					q->p_flag &= ~(P_TRACED | P_WAITED);
 					PROC_UNLOCK(q);
-					PROCTREE_LOCK(PT_SHARED);
-					wakeup((caddr_t)q->p_pptr);
+					PROC_LOCK(t);
+					psignal(t, SIGCHLD);
+					PROC_UNLOCK(t);
 					PROCTREE_LOCK(PT_RELEASE);
+					wakeup(t);
 					return 0;
 				}
-				PROCTREE_LOCK(PT_RELEASE);
-			} else
-				PROC_UNLOCK(q);
+			}
+			PROC_UNLOCK(q);
+			PROCTREE_LOCK(PT_RELEASE);
 			q->p_xstat = 0;
 			ruadd(&p->p_stats->p_cru, q->p_ru);
 			FREE(q->p_ru, M_ZOMBIE);
