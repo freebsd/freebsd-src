@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.18 1995/02/02 09:08:17 davidg Exp $
+ * $Id: vm_fault.c,v 1.19 1995/02/22 09:15:26 davidg Exp $
  */
 
 /*
@@ -152,7 +152,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 #define	RELEASE_PAGE(m)	{				\
 	PAGE_WAKEUP(m);					\
 	vm_page_lock_queues();				\
-	vm_page_activate(m);				\
+	if ((m->flags & PG_ACTIVE) == 0) vm_page_activate(m);		\
 	vm_page_unlock_queues();			\
 }
 
@@ -164,22 +164,12 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 }
 
 #define	UNLOCK_THINGS	{				\
-	object->paging_in_progress--;			\
-	if ((object->paging_in_progress == 0) && \
-	    (object->flags & OBJ_PIPWNT))	{ \
-		object->flags &= ~OBJ_PIPWNT;	\
-		wakeup((caddr_t)object);		\
-	} \
+	vm_object_pip_wakeup(object); \
 	vm_object_unlock(object);			\
 	if (object != first_object) {			\
 		vm_object_lock(first_object);		\
 		FREE_PAGE(first_m);			\
-		first_object->paging_in_progress--;	\
-		if ((first_object->paging_in_progress == 0) && \
-		    (first_object->flags & OBJ_PIPWNT)) { \
-			first_object->flags &= ~OBJ_PIPWNT; \
-			wakeup((caddr_t)first_object);	\
-		} \
+		vm_object_pip_wakeup(first_object); \
 		vm_object_unlock(first_object);		\
 	}						\
 	UNLOCK_MAP;					\
@@ -287,21 +277,13 @@ RetryFault:;
 				VM_WAIT;
 				goto RetryFault;
 			}
-			/*
-			 * Remove the page from the pageout daemon's reach
-			 * while we play with it.
-			 */
-
-			vm_page_lock_queues();
-			vm_page_unqueue(m);
-			vm_page_unlock_queues();
 
 			/*
-			 * Mark page busy for other threads.
+			 * Mark page busy for other threads, and the pagedaemon.
 			 */
 			m->flags |= PG_BUSY;
-			if (m->object != kernel_object && m->object != kmem_object &&
-			    m->valid && ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
+			if (m->valid && ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+				 m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
 			}
 			break;
@@ -446,12 +428,7 @@ readrest:
 			 * object with zeros.
 			 */
 			if (object != first_object) {
-				object->paging_in_progress--;
-				if (object->paging_in_progress == 0 &&
-				    (object->flags & OBJ_PIPWNT)) {
-					object->flags &= ~OBJ_PIPWNT;
-					wakeup((caddr_t) object);
-				}
+				vm_object_pip_wakeup(object);
 				vm_object_unlock(object);
 
 				object = first_object;
@@ -468,12 +445,7 @@ readrest:
 		} else {
 			vm_object_lock(next_object);
 			if (object != first_object) {
-				object->paging_in_progress--;
-				if (object->paging_in_progress == 0 &&
-				    (object->flags & OBJ_PIPWNT)) {
-					object->flags &= ~OBJ_PIPWNT;
-					wakeup((caddr_t) object);
-				}
+				vm_object_pip_wakeup(object);
 			}
 			vm_object_unlock(object);
 			object = next_object;
@@ -481,9 +453,8 @@ readrest:
 		}
 	}
 
-	if ((m->flags & (PG_ACTIVE | PG_INACTIVE | PG_CACHE) != 0) ||
-	    (m->flags & PG_BUSY) == 0)
-		panic("vm_fault: absent or active or inactive or not busy after main loop");
+	if ((m->flags & PG_BUSY) == 0)
+		panic("vm_fault: not busy after main loop");
 
 	/*
 	 * PAGE HAS BEEN FOUND. [Loop invariant still holds -- the object lock
@@ -542,20 +513,16 @@ readrest:
 
 			vm_page_lock_queues();
 
-			vm_page_activate(m);
-			pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+			if ((m->flags & PG_ACTIVE) == 0)
+				vm_page_activate(m);
+			vm_page_protect(m, VM_PROT_NONE);
 			vm_page_unlock_queues();
 
 			/*
 			 * We no longer need the old page or object.
 			 */
 			PAGE_WAKEUP(m);
-			object->paging_in_progress--;
-			if (object->paging_in_progress == 0 &&
-			    (object->flags & OBJ_PIPWNT)) {
-				object->flags &= ~OBJ_PIPWNT;
-				wakeup((caddr_t) object);
-			}
+			vm_object_pip_wakeup(object);
 			vm_object_unlock(object);
 
 			/*
@@ -576,12 +543,7 @@ readrest:
 			 * But we have to play ugly games with
 			 * paging_in_progress to do that...
 			 */
-			object->paging_in_progress--;
-			if (object->paging_in_progress == 0 &&
-			    (object->flags & OBJ_PIPWNT)) {
-				object->flags &= ~OBJ_PIPWNT;
-				wakeup((caddr_t) object);
-			}
+			vm_object_pip_wakeup(object);
 			vm_object_collapse(object);
 			object->paging_in_progress++;
 		} else {
@@ -589,8 +551,6 @@ readrest:
 			m->flags |= PG_COPYONWRITE;
 		}
 	}
-	if (m->flags & (PG_ACTIVE | PG_INACTIVE | PG_CACHE))
-		panic("vm_fault: active or inactive before copy object handling");
 
 	/*
 	 * If the page is being written, but hasn't been copied to the
@@ -739,12 +699,13 @@ RetryCopy:
 				 */
 				vm_page_lock_queues();
 
-				vm_page_activate(old_m);
+				if ((old_m->flags & PG_ACTIVE) == 0)
+					vm_page_activate(old_m);
 
-				pmap_page_protect(VM_PAGE_TO_PHYS(old_m),
-				    VM_PROT_NONE);
+				vm_page_protect(old_m, VM_PROT_NONE);
 				copy_m->dirty = VM_PAGE_BITS_ALL;
-				vm_page_activate(copy_m);
+				if ((copy_m->flags & PG_ACTIVE) == 0)
+					vm_page_activate(copy_m);
 				vm_page_unlock_queues();
 
 				PAGE_WAKEUP(copy_m);
@@ -760,8 +721,6 @@ RetryCopy:
 			m->flags &= ~PG_COPYONWRITE;
 		}
 	}
-	if (m->flags & (PG_ACTIVE | PG_INACTIVE | PG_CACHE))
-		panic("vm_fault: active or inactive before retrying lookup");
 
 	/*
 	 * We must verify that the maps have not changed since our last
@@ -838,9 +797,6 @@ RetryCopy:
 	 * once in each map for which it is wired.
 	 */
 
-	if (m->flags & (PG_ACTIVE | PG_INACTIVE | PG_CACHE))
-		panic("vm_fault: active or inactive before pmap_enter");
-
 	vm_object_unlock(object);
 
 	/*
@@ -849,6 +805,10 @@ RetryCopy:
 	 * back on the active queue until later so that the page-out daemon
 	 * won't find us (yet).
 	 */
+
+	if (prot & VM_PROT_WRITE)
+		m->flags |= PG_WRITEABLE;
+	m->flags |= PG_MAPPED;
 
 	pmap_enter(map->pmap, vaddr, VM_PAGE_TO_PHYS(m), prot, wired);
 #if 0
@@ -868,7 +828,8 @@ RetryCopy:
 		else
 			vm_page_unwire(m);
 	} else {
-		vm_page_activate(m);
+		if ((m->flags & PG_ACTIVE) == 0)
+			vm_page_activate(m);
 	}
 
 	if (curproc && (curproc->p_flag & P_INMEM) && curproc->p_stats) {
@@ -1066,6 +1027,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		vm_object_unlock(src_object);
 		vm_object_unlock(dst_object);
 
+		dst_m->flags |= PG_WRITEABLE;
+		dst_m->flags |= PG_MAPPED;
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
 
@@ -1174,7 +1137,7 @@ vm_fault_additional_pages(first_object, first_offset, m, rbehind, raheada, marra
 		rahead = ((cnt.v_free_count + cnt.v_cache_count) - 2*cnt.v_free_reserved) / 2;
 		rbehind = rahead;
 		if (!rahead)
-			wakeup((caddr_t) &vm_pages_needed);
+			pagedaemon_wakeup();
 	}
 	/*
 	 * if we don't have any free pages, then just read one page.

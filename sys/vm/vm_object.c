@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.26 1995/02/22 09:15:28 davidg Exp $
+ * $Id: vm_object.c,v 1.27 1995/02/22 10:00:16 davidg Exp $
  */
 
 /*
@@ -306,12 +306,13 @@ vm_object_deallocate(object)
 			vm_object_cache_unlock();
 			return;
 		}
-		/*
-		 * See if this object can persist.  If so, enter it in the
-		 * cache, then deactivate all of its pages.
-		 */
 
-		if (object->flags & OBJ_CANPERSIST) {
+		/*
+		 * See if this object can persist and has some resident
+		 * pages.  If so, enter it in the cache.
+		 */
+		if ((object->flags & OBJ_CANPERSIST) &&
+		    (object->resident_page_count != 0)) {
 
 			TAILQ_INSERT_TAIL(&vm_object_cached_list, object,
 			    cached_list);
@@ -323,6 +324,7 @@ vm_object_deallocate(object)
 			vm_object_cache_trim();
 			return;
 		}
+
 		/*
 		 * Make sure no one can look us up now.
 		 */
@@ -403,8 +405,11 @@ vm_object_terminate(object)
 		vm_page_lock_queues();
 		if (p->flags & PG_CACHE)
 			vm_page_free(p);
-		else
+		else {
+			s = splhigh();
 			vm_page_unqueue(p);
+			splx(s);
+		}
 		vm_page_unlock_queues();
 		p = next;
 	}
@@ -595,7 +600,7 @@ vm_object_pmap_copy(object, start, end)
 	vm_object_lock(object);
 	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
 		if ((start <= p->offset) && (p->offset < end)) {
-			pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_READ);
+			vm_page_protect(p, VM_PROT_READ);
 			p->flags |= PG_COPYONWRITE;
 		}
 	}
@@ -635,15 +640,11 @@ again:
 				goto again;
 			}
 			splx(s);
-			pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
+			vm_page_protect(p, VM_PROT_NONE);
 		}
 	}
 	vm_object_unlock(object);
-	--object->paging_in_progress;
-	if (object->paging_in_progress == 0 && (object->flags & OBJ_PIPWNT)) {
-		object->flags &= ~OBJ_PIPWNT;
-		wakeup((caddr_t) object);
-	}
+	vm_object_pip_wakeup(object);
 }
 
 /*
@@ -1036,10 +1037,6 @@ vm_object_qcollapse(object)
 	register vm_size_t size;
 
 	backing_object = object->shadow;
-	if (!backing_object)
-		return;
-	if ((backing_object->flags & OBJ_INTERNAL) == 0)
-		return;
 	if (backing_object->shadow != NULL &&
 	    backing_object->shadow->copy == backing_object)
 		return;
@@ -1060,7 +1057,7 @@ vm_object_qcollapse(object)
 			p = next;
 			continue;
 		}
-		pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
+		vm_page_protect(p, VM_PROT_NONE);
 		new_offset = (p->offset - backing_offset);
 		if (p->offset < backing_offset ||
 		    new_offset >= size) {
@@ -1139,32 +1136,27 @@ vm_object_collapse(object)
 		if ((backing_object = object->shadow) == NULL)
 			return;
 
-		if ((object->flags & OBJ_DEAD) || (backing_object->flags & OBJ_DEAD))
+		/*
+		 * we check the backing object first, because it is most likely
+		 * !OBJ_INTERNAL.
+		 */
+		if ((backing_object->flags & OBJ_INTERNAL) == 0 ||
+		    (backing_object->flags & OBJ_DEAD) ||
+		    (object->flags & OBJ_INTERNAL) == 0 ||
+		    (object->flags & OBJ_DEAD))
 			return;
 
-		if (object->paging_in_progress != 0) {
-			if (backing_object) {
-				if (vm_object_lock_try(backing_object)) {
-					vm_object_qcollapse(object);
-					vm_object_unlock(backing_object);
-				}
+		if (object->paging_in_progress != 0 ||
+		    backing_object->paging_in_progress != 0) {
+			if (vm_object_lock_try(backing_object)) {
+				vm_object_qcollapse(object);
+				vm_object_unlock(backing_object);
 			}
 			return;
 		}
 
 		vm_object_lock(backing_object);
-		/*
-		 * ... The backing object is not read_only, and no pages in
-		 * the backing object are currently being paged out. The
-		 * backing object is internal.
-		 */
 
-		if ((backing_object->flags & OBJ_INTERNAL) == 0 ||
-		    backing_object->paging_in_progress != 0) {
-			vm_object_qcollapse(object);
-			vm_object_unlock(backing_object);
-			return;
-		}
 		/*
 		 * The backing object can't be a copy-object: the
 		 * shadow_offset for the copy-object must stay as 0.
@@ -1179,16 +1171,7 @@ vm_object_collapse(object)
 			vm_object_unlock(backing_object);
 			return;
 		}
-		/*
-		 * we can deal only with the swap pager
-		 */
-		if ((object->pager &&
-			object->pager->pg_type != PG_SWAP) ||
-		    (backing_object->pager &&
-			backing_object->pager->pg_type != PG_SWAP)) {
-			vm_object_unlock(backing_object);
-			return;
-		}
+
 		/*
 		 * We know that we can either collapse the backing object (if
 		 * the parent is the only reference to it) or (perhaps) remove
@@ -1230,7 +1213,7 @@ vm_object_collapse(object)
 				if (p->offset < backing_offset ||
 				    new_offset >= size) {
 					vm_page_lock_queues();
-					pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
+					vm_page_protect(p, VM_PROT_NONE);
 					PAGE_WAKEUP(p);
 					vm_page_free(p);
 					vm_page_unlock_queues();
@@ -1239,7 +1222,7 @@ vm_object_collapse(object)
 					if (pp != NULL || (object->pager && vm_pager_has_page(object->pager,
 					    object->paging_offset + new_offset))) {
 						vm_page_lock_queues();
-						pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
+						vm_page_protect(p, VM_PROT_NONE);
 						PAGE_WAKEUP(p);
 						vm_page_free(p);
 						vm_page_unlock_queues();
@@ -1265,18 +1248,12 @@ vm_object_collapse(object)
 					 * shadow object.
 					 */
 					bopager = backing_object->pager;
-					vm_object_remove(backing_object->pager);
 					backing_object->pager = NULL;
 					swap_pager_copy(
 					    bopager, backing_object->paging_offset,
 					    object->pager, object->paging_offset,
 					    object->shadow_offset);
-					object->paging_in_progress--;
-					if (object->paging_in_progress == 0 &&
-					    (object->flags & OBJ_PIPWNT)) {
-						object->flags &= ~OBJ_PIPWNT;
-						wakeup((caddr_t) object);
-					}
+					vm_object_pip_wakeup(object);
 				} else {
 					object->paging_in_progress++;
 					/*
@@ -1284,26 +1261,15 @@ vm_object_collapse(object)
 					 */
 					object->pager = backing_object->pager;
 					object->paging_offset = backing_object->paging_offset + backing_offset;
-					vm_object_remove(backing_object->pager);
 					backing_object->pager = NULL;
 					/*
 					 * free unnecessary blocks
 					 */
 					swap_pager_freespace(object->pager, 0, object->paging_offset);
-					object->paging_in_progress--;
-					if (object->paging_in_progress == 0 &&
-					    (object->flags & OBJ_PIPWNT)) {
-						object->flags &= ~OBJ_PIPWNT;
-						wakeup((caddr_t) object);
-					}
+					vm_object_pip_wakeup(object);
 				}
-					
-				backing_object->paging_in_progress--;
-				if (backing_object->paging_in_progress == 0 &&
-				    (backing_object->flags & OBJ_PIPWNT)) {
-					backing_object->flags &= ~OBJ_PIPWNT;
-					wakeup((caddr_t) backing_object);
-				}
+
+				vm_object_pip_wakeup(backing_object);
 			}
 			/*
 			 * Object now shadows whatever backing_object did.
@@ -1469,7 +1435,7 @@ again:
 					goto again;
 				}
 				splx(s);
-				pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
+				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_lock_queues();
 				PAGE_WAKEUP(p);
 				vm_page_free(p);
@@ -1491,7 +1457,7 @@ again:
 					goto again;
 				}
 				splx(s);
-				pmap_page_protect(VM_PAGE_TO_PHYS(p), VM_PROT_NONE);
+				vm_page_protect(p, VM_PROT_NONE);
 				vm_page_lock_queues();
 				PAGE_WAKEUP(p);
 				vm_page_free(p);
@@ -1501,11 +1467,7 @@ again:
 			size -= PAGE_SIZE;
 		}
 	}
-	--object->paging_in_progress;
-	if (object->paging_in_progress == 0 && (object->flags & OBJ_PIPWNT)) {
-		object->flags &= ~OBJ_PIPWNT;
-		wakeup((caddr_t) object);
-	}
+	vm_object_pip_wakeup(object);
 }
 
 /*
