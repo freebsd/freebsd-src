@@ -135,7 +135,8 @@ struct ieee80211_channel {
 struct ieee80211com {
 	struct arpcom		ic_ac;
 	void			(*ic_recv_mgmt)(struct ieee80211com *,
-				    struct mbuf *, int, int, u_int32_t, u_int);
+				    struct mbuf *, struct ieee80211_node *,
+				    int, int, u_int32_t);
 	int			(*ic_send_mgmt)(struct ieee80211com *,
 				    struct ieee80211_node *, int, int);
 	int			(*ic_newstate)(struct ieee80211com *,

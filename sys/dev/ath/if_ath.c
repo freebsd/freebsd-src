@@ -691,7 +691,7 @@ ath_start(struct ifnet *ifp)
 			/*
 			 * Encapsulate the packet in prep for transmission.
 			 */
-			m = ieee80211_encap(ifp, m);
+			m = ieee80211_encap(ifp, m, &ni);
 			if (m == NULL) {
 				DPRINTF(("ath_start: encapsulation failure\n"));
 				sc->sc_stats.ast_tx_encap++;
@@ -701,6 +701,18 @@ ath_start(struct ifnet *ifp)
 			if (ic->ic_flags & IEEE80211_F_WEPON)
 				wh->i_fc[1] |= IEEE80211_FC1_WEP;
 		} else {
+			/*
+			 * Hack!  The referenced node pointer is in the
+			 * rcvif field of the packet header.  This is
+			 * placed there by ieee80211_mgmt_output because
+			 * we need to hold the reference with the frame
+			 * and there's no other way (other than packet
+			 * tags which we consider too expensive to use)
+			 * to pass it along.
+			 */
+			ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+			m->m_pkthdr.rcvif = NULL;
+
 			wh = mtod(m, struct ieee80211_frame *);
 			if ((wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK) ==
 			    IEEE80211_FC0_SUBTYPE_PROBE_RESP) {
@@ -719,26 +731,6 @@ ath_start(struct ifnet *ifp)
 		}
 		if (ic->ic_rawbpf)
 			bpf_mtap(ic->ic_rawbpf, m);
-
-		if (ic->ic_opmode != IEEE80211_M_STA) {
-			ni = ieee80211_find_node(ic, wh->i_addr1);
-			if (ni == NULL) {
-				/*
-				 * When not in station mode the destination
-				 * address should always be in the node table
-				 * unless this is a multicast/broadcast frame.
-				 */
-				if (!IEEE80211_IS_MULTICAST(wh->i_addr1) &&
-				    (wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK) ==
-				    IEEE80211_FC0_TYPE_DATA) {
-					m_freem(m);
-					sc->sc_stats.ast_tx_nonode++;
-					goto bad;
-				}
-				ni = ic->ic_bss;
-			}
-		} else
-			ni = ic->ic_bss;
 
 		/*
 		 * TODO:
@@ -759,6 +751,8 @@ ath_start(struct ifnet *ifp)
 			TAILQ_INSERT_TAIL(&sc->sc_txbuf, bf, bf_list);
 			mtx_unlock(&sc->sc_txbuflock);
 			ifp->if_oerrors++;
+			if (ni && ni != ic->ic_bss)
+				ieee80211_free_node(ic, ni);
 			continue;
 		}
 
@@ -1112,12 +1106,13 @@ ath_beacon_proc(void *arg, int pending)
 	struct ath_hal *ah = sc->sc_ah;
 
 	DPRINTF2(("%s: pending %u\n", __func__, pending));
-	if (ic->ic_opmode == IEEE80211_M_STA || bf == NULL || bf->bf_m == NULL) {
+	if (ic->ic_opmode == IEEE80211_M_STA ||
+	    bf == NULL || bf->bf_m == NULL) {
 		DPRINTF(("%s: ic_flags=%x bf=%p bf_m=%p\n",
 			__func__, ic->ic_flags, bf, bf ? bf->bf_m : NULL));
 		return;
 	}
-	/* update beacon to reflect PS poll state */
+	/* TODO: update beacon to reflect PS poll state */
 	if (!ath_hal_stoptxdma(ah, sc->sc_bhalq)) {
 		DPRINTF(("%s: beacon queue %u did not stop?",
 			__func__, sc->sc_bhalq));
@@ -1371,7 +1366,7 @@ ath_node_alloc(struct ieee80211com *ic)
 {
 	struct ath_node *an =
 		malloc(sizeof(struct ath_node), M_DEVBUF, M_NOWAIT | M_ZERO);
-	return an ? &an->st_node : NULL;
+	return an ? &an->an_node : NULL;
 }
 
 static void
@@ -1461,6 +1456,7 @@ ath_rx_proc(void *arg, int npending)
 	struct ath_desc *ds;
 	struct mbuf *m;
 	struct ieee80211_frame *wh, whbuf;
+	struct ieee80211_node *ni;
 	int len;
 	u_int phyerr;
 	HAL_STATUS status;
@@ -1505,6 +1501,7 @@ ath_rx_proc(void *arg, int npending)
 		len = ds->ds_rxstat.rs_datalen;
 		if (len < sizeof(struct ieee80211_frame)) {
 			DPRINTF(("ath_rx_proc: short packet %d\n", len));
+			sc->sc_stats.ast_rx_tooshort++;
 			goto rx_next;
 		}
 
@@ -1516,7 +1513,7 @@ ath_rx_proc(void *arg, int npending)
 		    IEEE80211_FC0_TYPE_CTL &&
 		    ic->ic_opmode != IEEE80211_M_MONITOR) {
 			/*
-			 * Ignore control frame received in promisc mode.
+			 * Discard control frame when not in monitor mode.
 			 */
 			DPRINTF(("ath_rx_proc: control frame\n"));
 			sc->sc_stats.ast_rx_ctl++;
@@ -1533,6 +1530,7 @@ ath_rx_proc(void *arg, int npending)
 					IEEE80211_RATE_VAL,
 				ds->ds_rxstat.rs_rssi);
 		}
+
 		m_adj(m, -IEEE80211_CRC_LEN);
 		if (wh->i_fc[1] & IEEE80211_FC1_WEP) {
 			/*
@@ -1548,10 +1546,35 @@ ath_rx_proc(void *arg, int npending)
 			 */
 			m_adj(m, -IEEE80211_WEP_CRCLEN);
 		}
-		ieee80211_input(ifp, m,
-			ds->ds_rxstat.rs_rssi,
-			ds->ds_rxstat.rs_tstamp,
-			ds->ds_rxstat.rs_antenna);
+
+		/*
+		 * Locate the node for sender, track state, and
+		 * then pass this node (referenced) up to the 802.11
+		 * layer for its use.  We are required to pass
+		 * something so we fall back to ic_bss when this frame
+		 * is from an unknown sender.
+		 */
+		if (ic->ic_opmode != IEEE80211_M_STA) {
+			ni = ieee80211_find_node(ic, wh->i_addr2);
+			if (ni == NULL)
+				ni = ieee80211_ref_node(ic->ic_bss);
+		} else
+			ni = ieee80211_ref_node(ic->ic_bss);
+		ATH_NODE(ni)->an_rx_antenna = ds->ds_rxstat.rs_antenna;
+		/*
+		 * Send frame up for processing.
+		 */
+		ieee80211_input(ifp, m, ni,
+			ds->ds_rxstat.rs_rssi, ds->ds_rxstat.rs_tstamp);
+		/*
+		 * The frame may have caused the node to be marked for
+		 * reclamation (e.g. in response to a DEAUTH message)
+		 * so use free_node here instead of unref_node.
+		 */
+		if (ni == ic->ic_bss)
+			ieee80211_unref_node(&ni);
+		else
+			ieee80211_free_node(ic, ni);
   rx_next:
 		TAILQ_INSERT_TAIL(&sc->sc_rxbuf, bf, bf_list);
 	} while (ath_rxbuf_init(sc, bf) == 0);
@@ -1681,7 +1704,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	DPRINTF2(("ath_tx_start: m %p len %u\n", m0, pktlen));
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
 	bf->bf_m = m0;
-	bf->bf_node = ni;
+	bf->bf_node = ni;			/* NB: held reference */
 
 	/* setup descriptors */
 	ds = bf->bf_desc;
@@ -1792,7 +1815,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (an->an_tx_antenna)
 		antenna = an->an_tx_antenna;
 	else
-		antenna = ni->ni_rantenna;
+		antenna = an->an_rx_antenna;
 
 	/*
 	 * Formulate first tx descriptor with tx controls.
@@ -1865,7 +1888,8 @@ ath_tx_proc(void *arg, int npending)
 	struct ath_softc *sc = arg;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
-	struct ifnet *ifp = &sc->sc_ic.ic_if;
+	struct ieee80211com *ic = &sc->sc_ic;
+	struct ifnet *ifp = &ic->ic_if;
 	struct ath_desc *ds;
 	struct ieee80211_node *ni;
 	struct ath_node *an;
@@ -1920,6 +1944,15 @@ ath_tx_proc(void *arg, int npending)
 			sc->sc_stats.ast_tx_longretry += lr;
 			if (sr + lr)
 				an->an_tx_retr++;
+			/*
+			 * Reclaim reference to node.
+			 *
+			 * NB: the node may be reclaimed here if, for example
+			 *     this is a DEAUTH message that was sent and the
+			 *     node was timed out due to inactivity.
+			 */
+			if (ni != ic->ic_bss)
+				ieee80211_free_node(ic, ni);
 		}
 		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
@@ -2093,11 +2126,6 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		}
 
 		/*
-		 * Re-enable interrupts.
-		 */
-		ath_hal_intrset(ah, sc->sc_imask);
-
-		/*
 		 * Change channels and update the h/w rate map
 		 * if we're switching; e.g. 11a to 11b/g.
 		 */
@@ -2105,6 +2133,11 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		mode = ieee80211_chan2mode(ic, chan);
 		if (mode != sc->sc_curmode)
 			ath_setcurmode(sc, mode);
+
+		/*
+		 * Re-enable interrupts.
+		 */
+		ath_hal_intrset(ah, sc->sc_imask);
 	}
 	return 0;
 }
