@@ -167,7 +167,6 @@ int ident;			/* process id to identify our packets */
 int uid;			/* cached uid for micro-optimization */
 u_char icmp_type = ICMP_ECHO;
 u_char icmp_type_rsp = ICMP_ECHOREPLY;
-int timeoffset = 0;
 int phdr_len = 0;
 
 /* counters */
@@ -439,31 +438,33 @@ main(argc, argv)
 		usage();
 	target = argv[optind];
 
-	maxpayload = IP_MAXPACKET - sizeof(struct ip) - MINICMPLEN;
-	if (options & F_MASK) {
+	switch (options & (F_MASK|F_TIME)) {
+	case 0: break;
+	case F_MASK:
 		icmp_type = ICMP_MASKREQ;
 		icmp_type_rsp = ICMP_MASKREPLY;
-		timeoffset = MASK_LEN;
-		datalen -= MASK_LEN;
-		phdr_len += MASK_LEN;
+		phdr_len = MASK_LEN;
 		if (!(options & F_QUIET))
 			(void)printf("ICMP_MASKREQ\n");
-	}
-	if (options & F_TIME) {
+		break;
+	case F_TIME:
 		icmp_type = ICMP_TSTAMP;
 		icmp_type_rsp = ICMP_TSTAMPREPLY;
-		timeoffset = TS_LEN;
-		datalen -= TS_LEN;
-		phdr_len += TS_LEN;
+		phdr_len = TS_LEN;
 		if (!(options & F_QUIET))
 			(void)printf("ICMP_TSTAMP\n");
+		break;
+	default:
+		errx(EX_USAGE, "ICMP_TSTAMP and ICMP_MASKREQ are exclusive.");
+		break;
 	}
+	maxpayload = IP_MAXPACKET - sizeof(struct ip) - MINICMPLEN - phdr_len;
 	if (options & F_RROUTE)
 		maxpayload -= MAX_IPOPTLEN;
 	if (datalen > maxpayload)
 		errx(EX_USAGE, "packet size too large: %d > %d", datalen,
 		    maxpayload);
-	datap = &outpack[MINICMPLEN + phdr_len];
+	datap = &outpack[MINICMPLEN + phdr_len + TIMEVAL_LEN];
 	if (options & F_PINGFILLED) {
 		fill((char *)datap, payload);
 	}
@@ -524,16 +525,13 @@ main(argc, argv)
 		errx(EX_USAGE,
 		    "-I, -L, -T flags cannot be used with unicast destination");
 
-	if (datalen - TIMEVAL_LEN >= TIMEVAL_LEN) {	/* can we time transfer */
-		datalen -= TIMEVAL_LEN;
-		phdr_len += TIMEVAL_LEN;
+	if (datalen >= TIMEVAL_LEN)	/* can we time transfer */
 		timing = 1;
-	}
 	packlen = MAXIPLEN + MAXICMPLEN + datalen;
 	packlen = packlen > IP_MAXPACKET ? IP_MAXPACKET : packlen;
 
 	if (!(options & F_PINGFILLED))
-		for (i = phdr_len; i < datalen; ++i)
+		for (i = TIMEVAL_LEN; i < datalen; ++i)
 			*datap++ = i;
 
 	ident = getpid() & 0xFFFF;
@@ -869,11 +867,12 @@ pinger(void)
 			icp->icmp_otime = htonl((now.tv_sec % (24*60*60))
 				* 1000 + now.tv_usec / 1000);
 		if (timing)
-			bcopy((void *)&now, (void *)&outpack[MINICMPLEN + timeoffset],
-				sizeof(struct timeval));
+			bcopy((void *)&now,
+			    (void *)&outpack[MINICMPLEN + phdr_len],
+			    sizeof(struct timeval));
 	}
 
-	cc = MINICMPLEN + datalen + timeoffset;
+	cc = MINICMPLEN + phdr_len + datalen;
 
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
@@ -954,7 +953,7 @@ pr_pack(buf, cc, from, tv)
 #else
 			tp = icp->icmp_data;
 #endif
-			tp+=timeoffset;
+			tp += phdr_len;
 
 			/* Copy to avoid alignment problems: */
 			memcpy(&tv1, tp, sizeof(tv1));
@@ -1565,7 +1564,7 @@ fill(bp, patp)
 	    &pat[13], &pat[14], &pat[15]);
 
 	if (ii > 0)
-		for (kk = 0; kk <= maxpayload - (phdr_len + ii); kk += ii)
+		for (kk = 0; kk <= maxpayload - (TIMEVAL_LEN + ii); kk += ii)
 			for (jj = 0; jj < ii; ++jj)
 				bp[jj + kk] = pat[jj];
 	if (!(options & F_QUIET)) {
