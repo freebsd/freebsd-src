@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.3 1995/03/28 08:41:02 jkh Exp $";
+static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.4 1995/05/30 05:41:55 rgrimes Exp $";
 #endif
 
 /*
@@ -37,6 +37,9 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.3 19
 
 /*
  * $Log: strhash.c,v $
+ * Revision 1.4  1995/05/30  05:41:55  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.3  1995/03/28  08:41:02  jkh
  * Fix a missing _hash() to prevent namespace pollution with the db/hash routines.
  * Grrr.  If the dbhash routines weren't grossly overengineered I wouldn't
@@ -94,6 +97,7 @@ static char *rcsid = "$Header: /home/ncvs/src/lib/libc/stdlib/strhash.c,v 1.3 19
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <strhash.h>
