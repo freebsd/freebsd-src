@@ -36,6 +36,10 @@
 	8/29/95		Fixes suggested by Bruce Evans.
 			meteor_mmap should return -1 on error rather than 0.
 			unit # > NMETEOR should be unit # >= NMETEOR.
+	10/24/95	Turn 50 Hz processing for SECAM and 60 Hz processing
+			off for AUTOMODE.
+	11/11/95	Change UV from always begin signed to ioctl selected
+			to either signed or unsigned.
 */
 
 #include "meteor.h"
@@ -630,7 +634,7 @@ meteor_reset(meteor_reg_t * const sc)
 #define UNIT(x)	((x) & 0x07)
 
 int
-meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
+meteor_open(dev_t dev, int flag)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -664,7 +668,7 @@ meteor_open(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
+meteor_close(dev_t dev, int flag)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -730,7 +734,7 @@ meteor_close(dev_t dev, int flags, int fmt, struct proc *p)
 }
 
 int
-meteor_read(dev_t dev, struct uio *uio, int ioflag)
+meteor_read(dev_t dev, struct uio *uio)
 {
 	meteor_reg_t *mtr;
 	int	unit; 
@@ -768,7 +772,7 @@ meteor_read(dev_t dev, struct uio *uio, int ioflag)
 }
 
 int
-meteor_write(dev_t dev, struct uio *uio, int ioflag)
+meteor_write()
 {
 	return(0);
 }
@@ -891,7 +895,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			SAA7196_WRITE(mtr, 0x0d, 
 				(SAA7196_REG(mtr, 0x0d) & ~0x01) | 0x1);
 			SAA7196_WRITE(mtr, 0x0f, 
-				(SAA7196_REG(mtr, 0x0f) & ~0xe0) | 0xe0);
+				(SAA7196_REG(mtr, 0x0f) & ~0xe0) | 0x20);
 			SAA7196_WRITE(mtr, 0x22, 0x00);
 			SAA7196_WRITE(mtr, 0x24, 
 				(SAA7196_REG(mtr, 0x24) | 0x0c));
@@ -905,7 +909,7 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			SAA7196_WRITE(mtr, 0x0d, 
 				(SAA7196_REG(mtr, 0x0d) & ~0x01));
 			SAA7196_WRITE(mtr, 0x0f, 
-				(SAA7196_REG(mtr, 0x0f) & ~0xc0) | 0xc0);
+				(SAA7196_REG(mtr, 0x0f) & ~0xc0) | 0x80);
 		break;
 		default:
 			return EINVAL;
@@ -1190,6 +1194,10 @@ meteor_ioctl(dev_t dev, int cmd, caddr_t arg, int flag, struct proc *pr)
 			SAA7196_WRITE(mtr, 0x28,
 				((SAA7196_REG(mtr, 0x28) & ~0x03) |
 						((mtr->rows >> 9) & 0x03)));
+					/* set signed/unsigned */
+			SAA7196_WRITE(mtr, 0x30, 
+				(SAA7196_REG(mtr, 0x30) & ~0x10) |
+				((geo->oformat&METEOR_GEO_UNSIGNED)?0:0x10));
 		}
 		break;
 	case METEORGETGEO:
@@ -1227,7 +1235,7 @@ meteor_mmap(dev_t dev, int offset, int nprot)
 	meteor_reg_t *mtr;
 
 	unit = UNIT(minor(dev));
-	if (unit >= NMETEOR)
+	if (unit >= NMETEOR)		/* at this point could this happen? */
 		return(-1);
 
 	mtr = &(meteor[unit]);
