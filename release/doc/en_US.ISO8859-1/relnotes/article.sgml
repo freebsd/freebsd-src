@@ -93,6 +93,12 @@
     and improved, minor bugs were fixed, insecure coding practices
     were audited and corrected, and source code was cleaned up.</para>
 
+  <sect2 id="security">
+    <title>Security Advisories</title>
+
+    <para></para>
+  </sect2>
+
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
@@ -195,12 +201,6 @@
 
       <para></para>
     </sect3>
-  </sect2>
-
-  <sect2 id="security">
-    <title>Security Advisories</title>
-
-    <para></para>
   </sect2>
 
   <sect2 id="userland">
