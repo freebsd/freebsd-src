@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.75 1995/01/13 06:44:23 jkh Exp $
+#	$Id: Makefile,v 1.76 1995/01/13 08:06:55 gibbs Exp $
 #
 
 FLOPPY=		fd0
@@ -157,7 +157,7 @@ release20:
 	( cd ${RELEASEDIR}/filesys; \
 		tar cf - . | \
 		${ZIPNSPLIT} ${RELEASEDIR}/tarballs/bindist/bindist.)
-	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/bindist
+	cp ${.CURDIR}/extract_bin.sh ${RELEASEDIR}/tarballs/bindist/extract.sh
 	( cd ${RELEASEDIR}/tarballs/bindist; ${.CURDIR}/mkchecksums.sh )
 	( cd ${.CURDIR} ;  \
 		${MAKE} floppies )
@@ -173,8 +173,8 @@ bar:
 			DESTDIR=${RELEASEDIR}/filesys \
 			SHARED=copies )
 
-EXTRADISTRIBUTIONS=	secrdist srcdist games manpages proflibs dict infodist
-DISTRIBUTIONS=	bindist ${EXTRADISTRIBUTIONS}
+EXTRADISTRIBUTIONS=	secure src games manpages proflibs dict info
+DISTRIBUTIONS=	bin ${EXTRADISTRIBUTIONS}
 MTREEFILES=	${.CURDIR}/../etc/mtree
 SECRSRC=	src/secure src/eBones
 
@@ -192,36 +192,36 @@ distribute:
 	( cd ${.CURDIR} ;  \
 		${MAKE} kernel DESTDIR=${RELEASEDIR}/filesys )
 	install ${COPY} -m 644 ${.CURDIR}/../sys/compile/GENERIC/kernel \
-		${RELEASEDIR}/bindist/kernel
+		${RELEASEDIR}/bin/kernel
 
 beforetarballs:
 	rm -rf ${RELEASEDIR}/manpages/usr/share/man
-	mv ${RELEASEDIR}/bindist/usr/share/man \
+	mv ${RELEASEDIR}/bin/usr/share/man \
 		${RELEASEDIR}/manpages/usr/share/man
 	rm -rf ${RELEASEDIR}/games/usr/games
-	mv ${RELEASEDIR}/bindist/usr/games \
+	mv ${RELEASEDIR}/bin/usr/games \
 		${RELEASEDIR}/games/usr/games
 	rm -rf ${RELEASEDIR}/games/usr/share/games
-	mv ${RELEASEDIR}/bindist/usr/share/games \
+	mv ${RELEASEDIR}/bin/usr/share/games \
 		${RELEASEDIR}/games/usr/share/games
 	rm -rf ${RELEASEDIR}/dict/usr/share/dict
-	mv ${RELEASEDIR}/bindist/usr/share/dict \
+	mv ${RELEASEDIR}/bin/usr/share/dict \
 		${RELEASEDIR}/dict/usr/share/dict
-	mv ${RELEASEDIR}/bindist/usr/share/misc/airport \
-	   ${RELEASEDIR}/bindist/usr/share/misc/birthtoken \
-	   ${RELEASEDIR}/bindist/usr/share/misc/flowers \
-	   ${RELEASEDIR}/bindist/usr/share/misc/na.phone \
-	   ${RELEASEDIR}/bindist/usr/share/misc/zipcodes \
+	mv ${RELEASEDIR}/bin/usr/share/misc/airport \
+	   ${RELEASEDIR}/bin/usr/share/misc/birthtoken \
+	   ${RELEASEDIR}/bin/usr/share/misc/flowers \
+	   ${RELEASEDIR}/bin/usr/share/misc/na.phone \
+	   ${RELEASEDIR}/bin/usr/share/misc/zipcodes \
 		${RELEASEDIR}/dict/usr/share/misc
-	mv ${RELEASEDIR}/bindist/usr/lib/*_p.a \
+	mv ${RELEASEDIR}/bin/usr/lib/*_p.a \
 		${RELEASEDIR}/proflibs/usr/lib
 	-cd ${RELEASEDIR} ; \
 	find ${EXTRADISTRIBUTIONS} -depth -type d -print | xargs rmdir
-	mkdir -p ${RELEASEDIR}/secrdist/usr
-	cd ${RELEASEDIR}/secrdist/usr ; cvs export -r ${RELEASETAG} ${SECRSRC}
-	mkdir -p ${RELEASEDIR}/srcdist/usr
-	cd ${RELEASEDIR}/srcdist/usr ; cvs export -r ${RELEASETAG} src
-	cd ${RELEASEDIR}/srcdist/usr/src ; rm -rf secure kerberosIV eBones
+	mkdir -p ${RELEASEDIR}/secure/usr
+	cd ${RELEASEDIR}/secure/usr ; cvs export -r ${RELEASETAG} ${SECRSRC}
+	mkdir -p ${RELEASEDIR}/src/usr
+	cd ${RELEASEDIR}/src/usr ; cvs export -r ${RELEASETAG} src
+	cd ${RELEASEDIR}/src/usr/src ; rm -rf secure kerberosIV eBones
 
 tarballs:
 	rm -rf ${RELEASEDIR}/tarballs
@@ -233,7 +233,7 @@ tarballs:
 			tar cf - . | \
 			${ZIPNSPLIT} ${RELEASEDIR}/tarballs/$$i/$${i}.) ; \
 	( cd ${RELEASEDIR}/tarballs/$${i}; sh -e ${.CURDIR}/mkchecksums.sh ) ; \
-	cp ${.CURDIR}/extract.sh ${RELEASEDIR}/tarballs/$${i} ;\
+	cp ${.CURDIR}/extract_$${i}.sh ${RELEASEDIR}/tarballs/$${i}/extract.sh;\
 	echo "$${i} distribution is finished."; \
 	done
 
