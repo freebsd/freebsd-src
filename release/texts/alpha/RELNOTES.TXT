@@ -108,6 +108,10 @@ The boot loader has been updated.  The new default kernel is now
 A filesystem snapshot capability has been added to FFS.  Details can 
 be found in /usr/src/sys/ufs/ffs/README.snapshot.
 
+The ng_mppc(4) and ng_bridge(4) node types have been added to the
+netgraph subsystem.  The ng_ether(4) node is now dynamically loadable.
+Miscellaneous bug fixes and enhancements have also been made. [MERGED]
+
 
 1.2. SECURITY FIXES
 -------------------
