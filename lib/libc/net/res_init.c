@@ -533,6 +533,10 @@ res_setoptions(options, source)
 #endif
 		} else if (!strncmp(cp, "inet6", sizeof("inet6") - 1)) {
 			_res.options |= RES_USE_INET6;
+		} else if (!strncmp(cp, "insecure1", sizeof("insecure1") - 1)) {
+		       _res.options |= RES_INSECURE1;
+		} else if (!strncmp(cp, "insecure2", sizeof("insecure2") - 1)) {
+		       _res.options |= RES_INSECURE2;
 		} else if (!strncmp(cp, "no_tld_query", sizeof("no_tld_query") - 1)) {
 			_res.options |= RES_NOTLDQUERY;
 		} else if (!strncmp(cp, "edns0", sizeof("edns0") - 1)) {

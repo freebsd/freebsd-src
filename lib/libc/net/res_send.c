@@ -635,8 +635,16 @@ read_len:
 			 * however, we don't want to remain connected,
 			 * as we wish to receive answers from the first
 			 * server to respond.
+			 *
+			 * When the option "insecure1" is specified, we'd
+			 * rather expect to see responses from an "unknown"
+			 * address.  In order to let the kernel accept such
+			 * responses, do not connect the socket here.
+			 * XXX: or do we need an explicit option to disable
+			 * connecting?
 			 */
-			if (_res.nscount == 1 || (try == 0 && ns == 0)) {
+			if (!(_res.options & RES_INSECURE1) &&
+			    (_res.nscount == 1 || (try == 0 && ns == 0))) {
 				/*
 				 * Connect only if we are sure we won't
 				 * receive a response from another server.
