@@ -315,7 +315,7 @@ netHook(dialogMenuItem *self)
 {
     Device **devs;
 
-    devs = deviceFind(self->prompt, DEVICE_TYPE_NETWORK);
+    devs = deviceFindDescr(self->prompt, self->title, DEVICE_TYPE_NETWORK);
     if (devs) {
 	if (DITEM_STATUS(tcpOpenDialog(devs[0])) != DITEM_FAILURE)
 	    mediaDevice = devs[0];

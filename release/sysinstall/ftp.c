@@ -103,9 +103,10 @@ try:
     if (dir && *dir != '\0') {
 	if ((i = ftpChdir(OpenConn, dir)) != 0) {
 	    if (i == 550)
-		msgConfirm("No such directory %s, please check your path and try again.", dir);
+		msgConfirm("No such directory ftp://%s/%s\n"
+			   "please check your URL and try again.", hostname, dir);
 	    else
-		msgConfirm("FTP chdir to directory %s returned FTP error status %d\n", dir, i);
+		msgConfirm("FTP chdir to ftp://%s/%s returned error status %d\n", hostname, dir, i);
 	    goto punt;
 	}
     }
