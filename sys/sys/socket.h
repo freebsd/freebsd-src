@@ -39,6 +39,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <sys/_iovec.h>
 #define _NO_NAMESPACE_POLLUTION
 #include <machine/param.h>
 #undef _NO_NAMESPACE_POLLUTION
@@ -369,14 +370,6 @@ struct sockaddr_storage {
  * Maximum queue length specifiable by listen.
  */
 #define	SOMAXCONN	128
-
-#ifndef _STRUCT_IOVEC_DECLARED
-#define	_STRUCT_IOVEC_DECLARED
-struct iovec {
-	void	*iov_base;	/* Base address. */
-	size_t	iov_len;	/* Length. */
-};
-#endif
 
 /*
  * Message header for recvmsg and sendmsg calls.
