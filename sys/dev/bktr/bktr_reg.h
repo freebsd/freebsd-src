@@ -461,7 +461,7 @@ struct bktr_i2c_softc {
  * memory mapped structure method only works on 32 bit processors
  * with the right type of endianness.
  */
-#if defined(__NetBSD__) || ( defined(__FreeBSD__) && (__FreeBSD_version >=300000) )
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 #define INB(bktr,offset)	bus_space_read_1((bktr)->memt,(bktr)->memh,(offset))
 #define INW(bktr,offset)	bus_space_read_2((bktr)->memt,(bktr)->memh,(offset))
 #define INL(bktr,offset)	bus_space_read_4((bktr)->memt,(bktr)->memh,(offset))
@@ -525,11 +525,6 @@ struct bktr_softc {
 #endif
 
 #if defined (__FreeBSD__)
-    #if (__FreeBSD_version < 400000)
-    vm_offset_t     phys_base;	/* 2.x Bt848 register physical address */
-    pcici_t         tag;	/* 2.x PCI tag, for doing PCI commands */
-    #endif
-    #if (__FreeBSD_version >= 400000)
     int             mem_rid;	/* 4.x resource id */
     struct resource *res_mem;	/* 4.x resource descriptor for registers */
     int             irq_rid;	/* 4.x resource id */
@@ -541,15 +536,12 @@ struct bktr_softc {
     struct cdev     *bktrdev_alias;	/* alias /dev/bktr to /dev/bktr0 */
     struct cdev     *tunerdev_alias;	/* alias /dev/tuner to /dev/tuner0 */
     struct cdev     *vbidev_alias;	/* alias /dev/vbi to /dev/vbi0 */
-    #endif
     #if (__FreeBSD_version >= 500000)
     struct mtx      vbimutex;  /* Mutex protecting vbi buffer */
     #endif
-    #if (__FreeBSD_version >= 310000)
     bus_space_tag_t	memt;	/* Bus space register access functions */
     bus_space_handle_t	memh;	/* Bus space register access functions */
     bus_size_t		obmemsz;/* Size of card (bytes) */
-    #endif
 #if defined(BKTR_USE_FREEBSD_SMBUS)
       struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
 #endif
@@ -730,9 +722,7 @@ typedef int ioctl_cmd_t;
 #endif
 
 #if defined(__FreeBSD__)
-#if (__FreeBSD_version >= 300000)
 typedef u_long ioctl_cmd_t;
-#endif
 #endif
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
