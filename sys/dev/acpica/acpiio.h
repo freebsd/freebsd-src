@@ -24,8 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
+
+#ifndef _ACPIIO_H_
+#define _ACPIIO_H_
 
 /*
  * Core ACPI subsystem ioctls
@@ -96,6 +99,7 @@ union acpi_battery_ioctl_arg {
 #define ACPIIO_CMBAT_GET_BIF	 _IOWR('B', 0x10, union acpi_battery_ioctl_arg)
 #define ACPIIO_CMBAT_GET_BST	 _IOWR('B', 0x11, union acpi_battery_ioctl_arg)
 
+/* Get AC adapter status. */
 #define ACPIIO_ACAD_GET_STATUS	  _IOR('A', 1, int)
 
 #ifdef _KERNEL
@@ -103,3 +107,5 @@ typedef int	(*acpi_ioctl_fn)(u_long cmd, caddr_t addr, void *arg);
 extern int	acpi_register_ioctl(u_long cmd, acpi_ioctl_fn fn, void *arg);
 extern void	acpi_deregister_ioctl(u_long cmd, acpi_ioctl_fn fn);
 #endif
+
+#endif /* !_ACPIIO_H_ */

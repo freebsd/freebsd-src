@@ -25,8 +25,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
+
+#ifndef _ACPIVAR_H_
+#define _ACPIVAR_H_
+
+#ifdef _KERNEL
 
 #include "acpi_if.h"
 #include "bus_if.h"
@@ -406,3 +411,6 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* ACPI task kernel thread initialization. */
 int		acpi_task_thread_init(void);
+
+#endif /* _KERNEL */
+#endif /* !_ACPIVAR_H_ */
