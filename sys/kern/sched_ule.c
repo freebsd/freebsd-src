@@ -693,6 +693,8 @@ sched_nice(struct ksegrp *kg, int nice)
 	struct thread *td;
 	struct kseq *kseq;
 
+	PROC_LOCK_ASSERT(kg->kg_proc, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
 	/*
 	 * We need to adjust the nice counts for running KSEs.
 	 */

@@ -378,7 +378,6 @@ resetpriority(struct ksegrp *kg)
 	register unsigned int newpriority;
 	struct thread *td;
 
-	mtx_lock_spin(&sched_lock);
 	if (kg->kg_pri_class == PRI_TIMESHARE) {
 		newpriority = PUSER + kg->kg_estcpu / INVERSE_ESTCPU_WEIGHT +
 		    NICE_WEIGHT * (kg->kg_nice - PRIO_MIN);
@@ -389,7 +388,6 @@ resetpriority(struct ksegrp *kg)
 	FOREACH_THREAD_IN_GROUP(kg, td) {
 		maybe_resched(td);			/* XXXKSE silly */
 	}
-	mtx_unlock_spin(&sched_lock);
 }
 
 /* ARGSUSED */
@@ -514,6 +512,9 @@ sched_fork_thread(struct thread *td, struct thread *child)
 void
 sched_nice(struct ksegrp *kg, int nice)
 {
+
+	PROC_LOCK_ASSERT(kg->kg_proc, MA_OWNED);
+	mtx_assert(&sched_lock, MA_OWNED);
 	kg->kg_nice = nice;
 	resetpriority(kg);
 }
