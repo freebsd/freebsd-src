@@ -21,7 +21,11 @@ geom/geom_bsd.c			standard
 geom/geom_sunlabel.c		standard
 libkern/ffs.c			standard
 kern/syscalls.c			optional	ktr
+sparc64/central/central.c	optional	central
 sparc64/ebus/ebus.c		optional	ebus
+sparc64/fhc/fhc.c		optional	fhc
+sparc64/fhc/fhc_central.c	optional	fhc central
+sparc64/fhc/fhc_nexus.c		optional	fhc
 sparc64/isa/isa.c		optional	isa
 sparc64/isa/ofw_isa.c		optional	ebus
 sparc64/isa/ofw_isa.c		optional	isa
@@ -48,6 +52,7 @@ sparc64/sparc64/elf_machdep.c	standard
 # sparc64/sparc64/interrupt.S	standard
 sparc64/sparc64/eeprom.c	optional	eeprom
 sparc64/sparc64/eeprom_ebus.c	optional	eeprom ebus
+sparc64/sparc64/eeprom_fhc.c	optional	eeprom fhc
 sparc64/sparc64/eeprom_sbus.c	optional	eeprom sbus
 sparc64/sparc64/identcpu.c	standard
 sparc64/sparc64/in_cksum.c	optional	inet
