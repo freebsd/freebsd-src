@@ -42,7 +42,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.104 1995/11/04 13:23:09 bde Exp $
+ *	$Id: conf.c,v 1.105 1995/11/06 00:35:44 bde Exp $
  */
 
 #include <sys/param.h>
@@ -75,8 +75,7 @@ int lkmenodev();
 #define lkmselect	(d_select_t *)lkmenodev
 
 #include "wd.h"
-#if (NWD > 0)
-#else
+#if NWD == 0
 #define	wdopen		nxopen
 #define	wdclose		nxclose
 #define	wdstrategy	nxstrategy
@@ -86,8 +85,7 @@ int lkmenodev();
 #endif
 
 #include "worm.h"
-#if NWORM > 0
-#else
+#if NWORM == 0
 #define	wormopen		nxopen
 #define	wormclose		nxclose
 #define	wormstrategy	nxstrategy
@@ -97,8 +95,7 @@ int lkmenodev();
 #endif
 
 #include "sctarg.h"
-#if NSCTARG > 0
-#else
+#if NSCTARG == 0
 #define	sctargopen		nxopen
 #define	sctargclose		nxclose
 #define	sctargstrategy	nxstrategy
@@ -108,8 +105,7 @@ int lkmenodev();
 #endif
 
 #include "pt.h"
-#if NPT > 0
-#else
+#if NPT == 0
 #define	ptopen		nxopen
 #define	ptclose		nxclose
 #define	ptstrategy	nxstrategy
@@ -119,8 +115,7 @@ int lkmenodev();
 #endif
 
 #include "sd.h"
-#if NSD > 0
-#else
+#if NSD == 0
 #define	sdopen		nxopen
 #define	sdclose		nxclose
 #define	sdstrategy	nxstrategy
@@ -130,94 +125,69 @@ int lkmenodev();
 #endif
 
 #include "st.h"
-#if NST > 0
-/*int	stdump(),stsize();*/
-#define	stdump		nxdump
-#define	stsize		zerosize
-#else
+#if NST == 0
 #define	stopen		nxopen
 #define	stclose		nxclose
 #define	ststrategy	nxstrategy
 #define	stioctl		nxioctl
-#define	stdump		nxdump
-#define	stsize		zerosize
 #endif
 
 #include "od.h"
-#if NOD > 0
-#define	oddump	nxdump
-#else
+#if NOD == 0
 #define	odopen		nxopen
 #define	odclose		nxclose
 #define	odstrategy	nxstrategy
 #define	odioctl		nxioctl
-#define	oddump		nxdump
 #define	odsize		zerosize
 #endif
 
 #include "cd.h"
-#if NCD > 0
-#define	cddump		nxdump
-#else
+#if NCD == 0
 #define	cdopen		nxopen
 #define	cdclose		nxclose
 #define	cdstrategy	nxstrategy
 #define	cdioctl		nxioctl
-#define	cddump		nxdump
 #define	cdsize		zerosize
 #endif
 
 #include "mcd.h"
-#if NMCD > 0
-#define	mcddump		nxdump
-#else
+#if NMCD == 0
 #define	mcdopen		nxopen
 #define	mcdclose	nxclose
 #define	mcdstrategy	nxstrategy
 #define	mcdioctl	nxioctl
-#define	mcddump		nxdump
 #define	mcdsize		zerosize
 #endif
 
 #include "scd.h"
-#if NSCD > 0
-#define	scddump		nxdump
-#else
+#if NSCD == 0
 #define	scdopen		nxopen
 #define	scdclose	nxclose
 #define	scdstrategy	nxstrategy
 #define	scdioctl	nxioctl
-#define	scddump		nxdump
 #define	scdsize		zerosize
 #endif
 
 #include "matcd.h"
-#if NMATCD > 0
-#define		matcddump	nxdump
-#else
+#if NMATCD == 0
 #define	matcdopen	nxopen
 #define	matcdclose	nxclose
 #define	matcdstrategy	nxstrategy
 #define	matcdioctl	nxioctl
-#define	matcddump	nxdump
-#define	matcdsize	(d_psize_t *)0
+#define	matcdsize	zerosize
 #endif
 
 #include "ata.h"
-#if (NATA > 0)
-#define atadump	nxdump
-#else
+#if NATA == 0
 #define	ataopen		nxopen
 #define	ataclose	nxclose
 #define	atastrategy	nxstrategy
 #define	ataioctl	nxioctl
 #define	atasize		zerosize
-#define	atadump		nxdump
 #endif
 
 #include "wcd.h"
-#if NWCD > 0
-#else
+#if NWCD == 0
 #define wcdbopen	nxopen
 #define wcdropen	nxopen
 #define wcdbclose	nxclose
@@ -227,16 +197,14 @@ int lkmenodev();
 #endif
 
 #include "ch.h"
-#if NCH > 0
-#else
+#if NCH == 0
 #define	chopen		nxopen
 #define	chclose		nxclose
 #define	chioctl		nxioctl
 #endif
 
 #include "wt.h"
-#if NWT > 0
-#else
+#if NWT == 0
 #define	wtopen		nxopen
 #define	wtclose		nxclose
 #define	wtstrategy	nxstrategy
@@ -246,21 +214,15 @@ int lkmenodev();
 #endif
 
 #include "fd.h"
-#if NFD > 0
-#define	fddump		nxdump
-#define	fdsize		zerosize
-#else
+#if NFD == 0
 #define	Fdopen		nxopen
 #define	fdclose		nxclose
 #define	fdstrategy	nxstrategy
 #define	fdioctl		nxioctl
-#define	fddump		nxdump
-#define	fdsize		zerosize
 #endif
 
 #include "vn.h"
-#if NVN > 0
-#else
+#if NVN == 0
 #define	vnopen		nxopen
 #define	vnclose		nxclose
 #define	vnstrategy	nxstrategy
@@ -269,10 +231,8 @@ int lkmenodev();
 #define	vnsize		zerosize
 #endif
 
-/* Matrox Meteor capture card */
 #include "meteor.h"
-#if     NMETEOR > 0
-#else 
+#if NMETEOR == 0
 #define meteor_open     nxopen
 #define meteor_close    nxclose 
 #define meteor_read     nxread
@@ -281,31 +241,24 @@ int lkmenodev();
 #define meteor_mmap     nxmmap
 #endif
 
-#define swopen		noopen
-#define swclose		noclose
-#define swioctl		noioc
-#define swdump		nodump
-#define swsize		zerosize
-
-
 struct bdevsw	bdevsw[] =
 {
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
 	  wddump,	wdsize,		0 },
-	{ swopen,	swclose,	swstrategy,	swioctl,	/*1*/
-	  swdump,	swsize,		0 },
+	{ noopen,	noclose,	swstrategy,	noioc,		/*1*/
+	  nodump,	zerosize,	0 },
 	{ Fdopen,	fdclose,	fdstrategy,	fdioctl,	/*2*/
-	  fddump,	fdsize,		0 },
+	  nxdump,	zerosize,	0 },
 	{ wtopen,	wtclose,	wtstrategy,	wtioctl,	/*3*/
 	  wtdump,	wtsize,		B_TAPE },
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
 	  sddump,	sdsize,		0 },
 	{ stopen,	stclose,	ststrategy,	stioctl,	/*5*/
-	  stdump,	stsize,		0 },
+	  nxdump,	zerosize,	0 },
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
-	  cddump,	cdsize,		0 },
+	  nxdump,	cdsize,		0 },
 	{ mcdopen,	mcdclose,	mcdstrategy,	mcdioctl,	/*7*/
-	  mcddump,	mcdsize,	0 },
+	  nxdump,	mcdsize,	0 },
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*8*/
 	  lkmdump,	lkmsize,	NULL },
 	{ lkmopen,	lkmclose,	lkmstrategy,	lkmioctl,	/*9*/
@@ -324,15 +277,15 @@ struct bdevsw	bdevsw[] =
 	{ vnopen,	vnclose,	vnstrategy,	vnioctl,	/*15*/
 	  vndump,	vnsize,		0 },
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
-	  scddump,	scdsize,	0 },
+	  nxdump,	scdsize,	0 },
 	{ matcdopen,	matcdclose,	matcdstrategy,	matcdioctl,	/*17*/
-	  matcddump,	matcdsize,	0 },
+	  nxdump,	matcdsize,	0 },
 	{ ataopen,	ataclose,	atastrategy,	ataioctl,	/*18*/
-	  atadump,	atasize,	0 },
+	  nxdump,	atasize,	0 },
 	{ wcdbopen,	wcdbclose,	wcdstrategy,	wcdioctl,	/*19*/
 	  nxdump,	zerosize,	0 },
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  oddump,	odsize,		0 },
+	  nxdump,	odsize,		0 },
 
 /*
  * If you need a bdev major number for a driver that you intend to donate
@@ -347,12 +300,8 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 /* console */
 #include "machine/cons.h"
 
-/* /dev/mem */
-#define	mmselect	seltrue
-
 #include "pty.h"
-#if NPTY > 0
-#else
+#if NPTY == 0
 #define ptsopen		nxopen
 #define ptsclose	nxclose
 #define ptsread		nxread
@@ -369,8 +318,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 
 
 #include "snp.h"
-#if NSNP > 0
-#else
+#if NSNP == 0
 #define snpopen		nxopen
 #define snpclose	nxclose
 #define snpread		nxread
@@ -379,12 +327,8 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define	snpselect	nxselect
 #endif
 
-
-/* /dev/klog */
-
 #include "bqu.h"
-#if NBQU > 0
-#else
+#if NBQU == 0
 #define bquopen         nxopen
 #define bquclose        nxclose
 #define bquread         nxread
@@ -394,8 +338,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "lpt.h"
-#if NLPT > 0
-#else
+#if NLPT == 0
 #define	lptopen		nxopen
 #define	lptclose	nxclose
 #define	lptwrite	nxwrite
@@ -403,8 +346,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "tw.h"
-#if NTW > 0
-#else
+#if NTW == 0
 #define twopen		nxopen
 #define twclose		nxclose
 #define twread		nxread
@@ -414,8 +356,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "psm.h"
-#if NPSM > 0
-#else
+#if NPSM == 0
 #define psmopen		nxopen
 #define psmclose	nxclose
 #define psmread		nxread
@@ -423,9 +364,8 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define psmioctl	nxioctl
 #endif
 
-#include "snd.h"                 /* General Sound Driver */
-#if     NSND > 0
-#else
+#include "snd.h"
+#if NSND == 0
 #define sndopen         nxopen
 #define sndclose        nxclose
 #define sndioctl       	nxioctl
@@ -434,11 +374,8 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define sndselect       seltrue
 #endif
 
-/* /dev/fd/NNN */
-
 #include "bpfilter.h"
-#if NBPFILTER > 0
-#else
+#if NBPFILTER == 0
 #define	bpfopen		nxopen
 #define	bpfclose	nxclose
 #define	bpfread		nxread
@@ -448,8 +385,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "speaker.h"
-#if NSPEAKER > 0
-#else
+#if NSPEAKER == 0
 #define spkropen	nxopen
 #define spkrclose	nxclose
 #define spkrwrite	nxwrite
@@ -457,8 +393,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "pca.h"
-#if NPCA > 0
-#else
+#if NPCA == 0
 #define pcaopen		nxopen
 #define pcaclose	nxclose
 #define pcawrite	nxwrite
@@ -467,8 +402,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "mse.h"
-#if NMSE > 0
-#else
+#if NMSE == 0
 #define	mseopen		nxopen
 #define	mseclose	nxclose
 #define	mseread		nxread
@@ -476,53 +410,43 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "sio.h"
-#if NSIO > 0
-#define sioreset	nxreset
-#else
+#if NSIO == 0
 #define sioopen		nxopen
 #define sioclose	nxclose
 #define sioread		nxread
 #define siowrite	nxwrite
 #define sioioctl	nxioctl
 #define siostop		nxstop
-#define sioreset	nxreset
 #define	siodevtotty	nxdevtotty
 #endif
 
 #include "su.h"
-#if NSU > 0
-#define	summap		nxmmap
-#else
+#if NSU == 0
 #define	suopen		nxopen
 #define	suclose		nxclose
 #define	suioctl		nxioctl
 #define	suread		nxread
 #define	suwrite		nxwrite
 #define	suselect	nxselect
-#define	summap		nxmmap
 #define	sustrategy	nxstrategy
 #endif
 
 #include "scbus.h"
-#if NSCBUS > 0
-#else
+#if NSCBUS == 0
 #define	ukopen		nxopen
 #define	ukclose		nxclose
 #define	ukioctl		nxioctl
 #endif
 
-
 #include "apm.h"
-#if NAPM > 0
-#else
+#if NAPM == 0
 #define	apmopen		nxopen
 #define	apmclose	nxclose
 #define	apmioctl	nxioctl
 #endif
 
 #include "ctx.h"
-#if NCTX > 0
-#else
+#if NCTX == 0
 #define ctxopen		nxopen
 #define ctxclose	nxclose
 #define ctxread		nxread
@@ -531,22 +455,18 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "ssc.h"
-#if NSSC > 0
-#define	sscmmap		nxmmap
-#else
+#if NSSC == 0
 #define	sscopen		nxopen
 #define	sscclose	nxclose
 #define	sscioctl	nxioctl
 #define	sscread		nxread
 #define	sscwrite	nxwrite
 #define	sscselect	nxselect
-#define	sscmmap		nxmmap
 #define	sscstrategy	nxstrategy
 #endif
 
 #include "cx.h"
-#if NCX > 0
-#else
+#if NCX == 0
 #define cxopen		nxopen
 #define cxclose		nxclose
 #define cxread		nxread
@@ -558,8 +478,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "gp.h"
-#if NGP > 0
-#else
+#if NGP == 0
 #define gpopen  	nxopen
 #define gpclose 	nxclose
 #define gpwrite 	nxwrite
@@ -567,8 +486,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "gsc.h"
-#if NGSC > 0
-#else
+#if NGSC == 0
 #define gscopen		nxopen
 #define gscclose	nxclose
 #define gscread		nxread
@@ -576,8 +494,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "crd.h"
-#if NCRD > 0
-#else
+#if NCRD == 0
 #define crdopen		nxopen
 #define crdclose	nxclose
 #define crdread		nxread
@@ -588,8 +505,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "joy.h"
-#if NJOY > 0
-#else
+#if NJOY == 0
 #define joyopen		nxopen
 #define joyclose	nxclose
 #define joyread		nxread
@@ -597,8 +513,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "asc.h"
-#if NASC > 0
-#else
+#if NASC == 0
 #define ascopen               nxopen
 #define ascclose      nxclose
 #define ascread               nxread
@@ -607,8 +522,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "tun.h"
-#if NTUN > 0
-#else
+#if NTUN == 0
 #define tunopen         nxopen
 #define tunclose        nxclose
 #define tunread         nxread
@@ -618,8 +532,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "spigot.h"
-#if     NSPIGOT > 0
-#else
+#if NSPIGOT == 0
 #define spigot_open     nxopen
 #define spigot_close    nxclose
 #define spigot_ioctl    nxioctl
@@ -629,86 +542,65 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #define spigot_mmap     nommap
 #endif
 
-/* Cyclades serial driver */
 #include "cy.h"
-#if	NCY > 0
-#define cyreset	nxreset
-#define	cymmap	nxmmap
-#define cystrategy nxstrategy
-#else
+#if NCY == 0
 #define	cyopen		nxopen
 #define cyclose		nxclose
 #define cyread		nxread
 #define cywrite		nxwrite
 #define cyioctl		nxioctl
 #define cystop		nxstop
-#define cyreset		nxreset
-#define cymmap		nxmmap
-#define cystrategy	nxstrategy
 #define	cydevtotty	nxdevtotty
 #endif
 
 #include "dgb.h"      
-#if NDGB > 0
-#define	dgbreset	nxreset
-#else
+#if NDGB == 0
 #define dgbopen		nxopen
 #define dgbclose	nxclose
 #define dgbread		nxread
 #define dgbwrite	nxwrite
 #define dgbioctl	nxioctl
 #define dgbstop		nxstop
-#define dgbreset	nxreset
 #define dgbdevtotty	nxdevtotty
 #endif
 
-/* Specialix serial driver */
 #include "si.h"
-#if	NSI > 0
-#define sireset	nxreset
-#else
+#if NSI == 0
 #define	siopen		nxopen
 #define siclose		nxclose
 #define siread		nxread
 #define siwrite		nxwrite
 #define siioctl		nxioctl
 #define sistop		nxstop
-#define sireset		nxreset
 #define	sidevtotty	nxdevtotty
 #endif
 
 #include "ity.h"
-#if NITY > 0
-#define ityreset	nxreset
-#else
+#if NITY == 0
 #define ityopen		nxopen
 #define ityclose	nxclose
 #define ityread		nxread
 #define itywrite	nxwrite
 #define ityioctl	nxioctl
-#define ityreset	nxreset
 #define	itydevtotty	nxdevtotty
 #endif
 
 #include "nic.h"
-#if NNIC > 0
-#else
+#if NNIC == 0
 #define nicopen		nxopen
 #define nicclose	nxclose
 #define nicioctl	nxioctl
 #endif
 
 #include "nnic.h"
-#if NNNIC > 0
-#else
+#if NNNIC == 0
 #define nnicopen        nxopen
 #define nnicclose       nxclose
 #define nnicioctl       nxioctl
 #endif
 
 #include "isdn.h"
-#if NISDN > 0
-#else
+#if NISDN == 0
 #define isdnopen	nxopen
 #define isdnclose	nxclose
 #define isdnread	nxread
@@ -716,8 +608,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "itel.h"
-#if NITEL > 0
-#else
+#if NITEL == 0
 #define itelopen	nxopen
 #define itelclose	nxclose
 #define itelread	nxread
@@ -726,8 +617,7 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "ispy.h"
-#if NISPY > 0
-#else
+#if NISPY == 0
 #define ispyopen        nxopen
 #define ispyclose       nxclose
 #define ispyread        nxread
@@ -736,22 +626,18 @@ int	nblkdev = sizeof (bdevsw) / sizeof (bdevsw[0]);
 #endif
 
 #include "rc.h"
-#if NRC > 0
-#define rcreset        nxreset
-#else
+#if NRC == 0
 #define rcopen         nxopen
 #define rcclose        nxclose
 #define rcread         nxread
 #define rcwrite        nxwrite
 #define rcioctl        nxioctl
 #define rcstop         nxstop
-#define rcreset        nxreset
 #define rcdevtotty     nxdevtotty
 #endif
 
 #include "labpc.h"
-#if NLABPC > 0
-#else
+#if NLABPC == 0
 #define	labpcopen		nxopen
 #define	labpcclose		nxclose
 #define	labpcstrategy	nxstrategy
@@ -769,7 +655,7 @@ struct cdevsw	cdevsw[] =
 	  cttyselect,	nommap,		NULL },
 	{ mmopen,	mmclose,	mmrw,		mmrw,		/*2*/
 	  mmioctl,	nullstop,	nullreset,	nodevtotty,/* memory */
-	  mmselect,	memmmap,	NULL },
+	  seltrue,	memmmap,	NULL },
 	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
 	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
 	  seltrue,	nommap,		wdstrategy },
@@ -817,7 +703,7 @@ struct cdevsw	cdevsw[] =
 	  noselect,	nommap,		nostrat },
 	{ suopen,	suclose,	suread,		suwrite,	/*18*/
 	  suioctl,	nostop,		nullreset,	nodevtotty,/* scsi */
-	  suselect,	summap,		sustrategy },		/* 'generic' */
+	  suselect,	nxmmap,		sustrategy },		/* 'generic' */
 	{ twopen,	twclose,	twread,		twwrite,	/*19*/
 	  noioc,	nullstop,	nullreset,	nodevtotty,/* tw */
 	  twselect,	nommap,		nostrat },
@@ -854,7 +740,7 @@ struct cdevsw	cdevsw[] =
 	  noioc,	nostop,		nullreset,	nodevtotty,/* mse */
 	  mseselect,	nommap,		NULL },
 	{ sioopen,	sioclose,	sioread,	siowrite,	/*28*/
-	  sioioctl,	siostop,	sioreset,	siodevtotty,/* sio */
+	  sioioctl,	siostop,	nxreset,	siodevtotty,/* sio */
 	  ttselect,	nommap,		NULL },
 	{ mcdopen,	mcdclose,	rawread,	nowrite,	/*29*/
 	  mcdioctl,	nostop,		nullreset,	nodevtotty,/* mitsumi cd */
@@ -893,7 +779,7 @@ struct cdevsw	cdevsw[] =
 	  ctxioctl,	nostop,		nullreset,	nodevtotty,/* cortex */
 	  seltrue,	nommap,		NULL },
 	{ nxopen,	nxclose,	nxread,		nxwrite,	/*41*/
-	  nxioctl,	nxstop,		nullreset,	nxdevtotty,/* socksys */
+	  nxioctl,	nxstop,		nullreset,	nxdevtotty,/* was socksys */
 	  seltrue,	nommap,		NULL },
 	{ cxopen,	cxclose,	cxread,		cxwrite,	/*42*/
 	  cxioctl,	cxstop,		nullreset,	cxdevtotty,/* cronyx */
@@ -914,11 +800,11 @@ struct cdevsw	cdevsw[] =
 	  gscioctl,     nostop,         nullreset,      nodevtotty,/* gsc */
 	  seltrue,      nommap,         NULL },
 	{ cyopen,	cyclose,	cyread,		cywrite,	/*48*/
-	  cyioctl,	cystop,		cyreset,	cydevtotty,/*cyclades*/
-	  ttselect,	cymmap,		cystrategy },
+	  cyioctl,	cystop,		nxreset,	cydevtotty,/*cyclades*/
+	  ttselect,	nxmmap,		NULL },
 	{ sscopen,	sscclose,	sscread,	sscwrite,	/*49*/
 	  sscioctl,	nostop,		nullreset,	nodevtotty,/* scsi super */
-	  sscselect,	sscmmap,	sscstrategy },
+	  sscselect,	nxmmap,		sscstrategy },
 	{ crdopen,	crdclose,	crdread,	crdwrite,	/*50*/
 	  crdioctl,	nostop,		nullreset,	nodevtotty,/* pcmcia */
 	  crdselect,	nommap,		NULL },
@@ -938,13 +824,13 @@ struct cdevsw	cdevsw[] =
 	  isdnioctl,	nostop,		nullreset,	nodevtotty,/* isdn */
 	  seltrue,	nommap,		NULL },
 	{ ityopen,	ityclose,	ityread,	itywrite,	/*56*/
-	  ityioctl,	nostop,		ityreset,	itydevtotty,/* ity */
+	  ityioctl,	nostop,		nxreset,	itydevtotty,/* ity */
 	  ttselect,	nommap,		NULL },
 	{ itelopen,	itelclose,	itelread,	itelwrite,	/*57*/
 	  itelioctl,	nostop,		nullreset,	nodevtotty,/* itel */
 	  seltrue,	nommap,		NULL },
 	{ dgbopen,	dgbclose,	dgbread,	dgbwrite,	/*58*/
-	  dgbioctl,	dgbstop,	dgbreset,	dgbdevtotty, /* dgb */
+	  dgbioctl,	dgbstop,	nxreset,	dgbdevtotty, /* dgb */
 	  ttselect,	nommap,		NULL },
 	{ ispyopen,	ispyclose,	ispyread,	nowrite,	/*59*/
 	  ispyioctl,	nostop,		nullreset,	nodevtotty,/* ispy */
@@ -959,7 +845,7 @@ struct cdevsw	cdevsw[] =
 	  wormioctl,	nostop,		nullreset,	nodevtotty,/* worm */
 	  seltrue,	nommap,		wormstrategy },
 	{ rcopen,       rcclose,        rcread,         rcwrite,        /*63*/
-	  rcioctl,      rcstop,         rcreset,        rcdevtotty,/* rc */
+	  rcioctl,      rcstop,         nxreset,        rcdevtotty,/* rc */
 	  ttselect,	nommap,		NULL },
 	{ nxopen,	nxclose,	nxread,		nxwrite,	/*64*/
 	  nxioctl,	nxstop,		nxreset,	nxdevtotty,/* Talisman */
@@ -974,7 +860,7 @@ struct cdevsw	cdevsw[] =
           meteor_ioctl, nostop,         nullreset,      nodevtotty,/* Meteor */
           seltrue, meteor_mmap, NULL },
 	{ siopen,	siclose,	siread,		siwrite,	/*68*/
-	  siioctl,	sistop,		sireset,	sidevtotty,/* slxos */
+	  siioctl,	sistop,		nxreset,	sidevtotty,/* slxos */
 	  ttselect,	nxmmap,		NULL },
 	{ wcdropen,	wcdrclose,	rawread,	nowrite,	/*69*/
 	  wcdioctl,	nostop,		nullreset,	nodevtotty,/* atapi */
