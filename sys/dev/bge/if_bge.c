@@ -934,8 +934,16 @@ bge_init_tx_ring(sc)
 {
 	sc->bge_txcnt = 0;
 	sc->bge_tx_saved_considx = 0;
+
 	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, 0);
+	/* 5700 b2 errata */
+	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, 0);
+
 	CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
+	/* 5700 b2 errata */
+	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+		CSR_WRITE_4(sc, BGE_MBX_TX_NIC_PROD0_LO, 0);
 
 	return(0);
 }
@@ -2344,6 +2352,9 @@ bge_start(ifp)
 
 	/* Transmit */
 	CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
+	/* 5700 b2 errata */
+	if (BGE_ASICREV(sc->bge_asicrev) == BGE_ASICREV_BCM5700)
+		CSR_WRITE_4(sc, BGE_MBX_TX_HOST_PROD0_LO, prodidx);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
