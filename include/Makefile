@@ -1,12 +1,12 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.53 1997/04/25 09:58:24 asami Exp $
+#	$Id: Makefile,v 1.54 1997/05/10 12:50:03 davidn Exp $
 #
 # Doing a make install builds /usr/include
 #
 # The ``rm -rf''s used below are safe because rm doesn't follow symbolic
 # links.
 #
-all depend lint tags:
+depend lint tags:
 
 CLEANFILES= osreldate.h version vers.c
 SUBDIR= rpcsvc
@@ -44,6 +44,24 @@ LSUBDIRS=	isofs/cd9660 ufs/ffs ufs/lfs ufs/mfs ufs/ufs
 # SHARED=	copies
 SHARED?=	symlinks
 
+
+.if exists (${.CURDIR}/../sys/conf/newvers.sh)
+all:	osreldate.h
+
+osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh
+	@${ECHO} creating osreldate.h from newvers.sh
+	. ${.CURDIR}/../sys/conf/newvers.sh;			\
+	echo "$$COPYRIGHT" > osreldate.h;			\
+	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
+	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
+.else
+all:
+	@${ECHO} creating osreldate.h from sysctl info
+	echo \#'undef __FreeBSD_version' > osreldate.h
+	echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
+		>> osreldate.h
+.endif
+
 beforeinstall: ${SHARED}
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -57,19 +75,6 @@ beforeinstall: ${SHARED}
 	cd ${.CURDIR}/rpc; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${RPCFILES} ${DESTDIR}/usr/include/rpc
-	@rm -f osreldate.h
-.if exists (${.CURDIR}/../sys/conf/newvers.sh)
-	@${ECHO} creating osreldate.h from newvers.sh
-	. ${.CURDIR}/../sys/conf/newvers.sh;			\
-	echo "$$COPYRIGHT" > osreldate.h;			\
-	echo \#'undef __FreeBSD_version' >> osreldate.h;	\
-	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
-.else
-	@${ECHO} creating osreldate.h from sysctl info
-	@echo \#'undef __FreeBSD_version' > osreldate.h
-	@echo \#'define __FreeBSD_version '`sysctl -n kern.osreldate` \
-		>> osreldate.h
-.endif
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 osreldate.h \
 		${DESTDIR}/usr/include
 .for i in ${LFILES}
