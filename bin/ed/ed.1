@@ -8,7 +8,7 @@
 .Nm red
 .Nd text editor
 .Sh SYNOPSIS
-.Nm ed
+.Nm
 .Op Fl
 .Op Fl sx
 .Op Fl p Ar string
@@ -35,7 +35,7 @@ Changes are made to this copy and not directly to
 .Ar file
 itself.
 Upon quitting
-.Nm Ns ,
+.Nm ,
 any changes not explicitly saved  with a
 .Em w
 command are lost.
@@ -310,11 +310,11 @@ The following literal expressions can also be used in
 .Em char-class
 to specify sets of characters:
 .Pp
-\ \ [:alnum:]\ \ [:cntrl:]\ \ [:lower:]\ \ [:space:]
-.PD 0
-\ \ [:alpha:]\ \ [:digit:]\ \ [:print:]\ \ [:upper:]
-.PD 0
-\ \ [:blank:]\ \ [:graph:]\ \ [:punct:]\ \ [:xdigit:]
+.Bl -column "[:alnum:]" "[:cntrl:]" "[:lower:]" "[:xdigit:]" -compact
+.It [:alnum:] Ta [:cntrl:] Ta [:lower:] Ta [:space:]
+.It [:alpha:] Ta [:digit:] Ta [:print:] Ta [:upper:]
+.It [:blank:] Ta [:graph:] Ta [:punct:] Ta [:xdigit:]
+.El
 .Pp
 If `-' appears as the first or last
 character of
@@ -328,12 +328,16 @@ Patterns in
 .Em char-class
 of the form:
 .Pp
-\ \ [.\fIcol-elm\fR.] or,
-.PD 0
-\ \ [=\fIcol-elm\fR=]
+.Bl -item -compact -offset 2n
+.It
+.Op \&. Ns Ar col-elm Ns \&.
+or,
+.It
+.Op = Ns Ar col-elm Ns =
+.El
 .Pp
 where
-.Em col-elm
+.Ar col-elm
 is a
 .Em collating element
 are interpreted according to
@@ -601,7 +605,7 @@ Unless a prompt was specified by with command-line option
 the command prompt is by default turned off.
 .It q
 Quit
-.Nm Ns .
+.Nm .
 .It Q
 Quit
 .Nm

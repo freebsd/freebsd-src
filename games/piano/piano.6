@@ -1,3 +1,5 @@
+.\" $FreeBSD$
+.\"
 .Dd Feb 3, 1995
 .Dt "PIANO" 6
 .Os
@@ -5,12 +7,12 @@
 .Nm piano
 .Nd "a piano emulator"
 .Sh SYNOPSIS
-.Nm piano
+.Nm
 .Op Fl vV
 .Op Fl i Ar string
 .Sh DESCRIPTION
 The
-.Nm piano
+.Nm
 plays note by typing
 .Em "QWERTYUIOP[]"
 or
@@ -18,7 +20,7 @@ or
 Type
 .Em ESC
 key to quit
-.Nm piano .
+.Nm .
 .Nm Piano
 uses
 .Em /dev/speaker .
@@ -29,14 +31,14 @@ Available option:
 The
 .Fl v
 option causes
-.Nm piano
+.Nm
 to generate
 .Em "play-string language" .
 .It Fl V
 The
 .Fl V
 option is for 
-.Nm piano
+.Nm
 usage.
 .It Fl i Ar string
 The

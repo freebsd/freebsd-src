@@ -43,7 +43,7 @@
 .Nm pax
 .Nd read and write file archives and copy directory hierarchies
 .Sh SYNOPSIS
-.Nm pax
+.Nm
 .Op Fl cdnv
 .Bk -words
 .Op Fl f Ar archive
@@ -69,7 +69,7 @@
 .Ar ...
 .Ek
 .Op Ar pattern ...
-.Nm pax
+.Nm
 .Fl r
 .Op Fl cdiknuvDYZ
 .Bk -words
@@ -105,7 +105,7 @@
 .Ar ...
 .Ek
 .Op Ar pattern ...
-.Nm pax
+.Nm
 .Fl w
 .Op Fl dituvHLPX
 .Bk -words
@@ -147,7 +147,7 @@
 .Ar ...
 .Ek
 .Op Ar file ...
-.Nm pax
+.Nm
 .Fl r
 .Fl w
 .Op Fl diklntuvDHLPXYZ
@@ -640,7 +640,7 @@ are not selected and will be skipped.
 Reset the access times of any file or directory read or accessed by
 .Nm
 to be the same as they were before being read or accessed by
-.Nm Ns .
+.Nm .
 .It Fl u
 Ignore files that are older (having a less recent file modification time)
 than a pre-existing file or archive member with the same name.
