@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: psdate.c,v 1.4 1997/10/10 06:23:32 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -180,8 +180,7 @@ parse_date(time_t dt, char const * str)
 		++str;
 
 	if (numerics(str)) {
-		val = strtol(str, &p, 0);
-		dt = val ? val : dt;
+		dt = strtol(str, &p, 0);
 	} else if (*str == '+' || *str == '-') {
 		val = strtol(str, &p, 0);
 		switch (*p) {
