@@ -155,7 +155,7 @@ acpi_tz_probe(device_t dev)
     /* No FUNCTION_TRACE - too noisy */
 
     if (acpi_get_type(dev) == ACPI_TYPE_THERMAL && !acpi_disabled("thermal")) {
-	device_set_desc(dev, "thermal zone");
+	device_set_desc(dev, "Thermal Zone");
 	result = -10;
     } else {
 	result = ENXIO;
