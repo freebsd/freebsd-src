@@ -634,7 +634,7 @@ devfs_rule_matchpath(struct devfs_krule *dk, struct devfs_dirent *de)
 	if (dev != NULL)
 		pname = dev->si_name;
 	else if (de->de_dirent->d_type == DT_LNK ||
-		 de->de_dirent->d_type == DT_DIR)
+	    de->de_dirent->d_type == DT_DIR)
 		pname = de->de_dirent->d_name;
 	else
 		return (0);
