@@ -166,7 +166,7 @@ struct fsm_opt_hdr {
   u_char len;
 };
 
-#define MAX_FSM_OPT_LEN 20
+#define MAX_FSM_OPT_LEN 52
 struct fsm_opt {
   struct fsm_opt_hdr hdr;
   u_char data[MAX_FSM_OPT_LEN-2];
