@@ -167,7 +167,7 @@ mac_biba_dominate_element(struct mac_biba_element *a,
 {
 	int bit;
 
-	switch(a->mbe_type) {
+	switch (a->mbe_type) {
 	case MAC_BIBA_TYPE_EQUAL:
 	case MAC_BIBA_TYPE_HIGH:
 		return (1);
