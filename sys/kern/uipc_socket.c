@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.42 1998/07/18 18:48:45 fenner Exp $
+ *	$Id: uipc_socket.c,v 1.43 1998/08/23 03:06:59 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -1083,11 +1083,8 @@ sooptcopyout(sopt, buf, len)
 	 * interface is not idempotent; the entire answer must
 	 * generated ahead of time.
 	 */
-	valsize = len;
-	if (sopt->sopt_valsize < valsize) {
-		valsize = sopt->sopt_valsize;
-		sopt->sopt_valsize = len;
-	}
+	valsize = min(len, sopt->sopt_valsize);
+	sopt->sopt_valsize = len;
 	if (sopt->sopt_val != 0) {
 		if (sopt->sopt_p != 0)
 			error = copyout(buf, sopt->sopt_val, valsize);
