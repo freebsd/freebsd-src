@@ -608,11 +608,12 @@ spec_close(ap)
 	if (td && vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
 		VI_LOCK(vp);
-		if (vcount(vp) == 2 && (vp->v_iflag & VI_XLOCK) == 0)
+		if (vcount(vp) == 2 && (vp->v_iflag & VI_XLOCK) == 0) {
 			td->td_proc->p_session->s_ttyvp = NULL;
+			oldvp = vp;
+		}
 		VI_UNLOCK(vp);
 		SESS_UNLOCK(td->td_proc->p_session);
-		oldvp = vp;
 	}
 	sx_xunlock(&proctree_lock);
 	if (oldvp != NULL)
