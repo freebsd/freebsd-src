@@ -34,18 +34,21 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: df.c,v 1.15 1997/03/13 17:41:37 bde Exp $
  */
 
 #ifndef lint
-static char const copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char const sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
+#if 0
+static char sccsid[] = "@(#)df.c	8.9 (Berkeley) 5/8/95";
+#else
+static const char rcsid[] =
+	"$Id: df.c,v 1.16 1997/03/28 15:24:17 imp Exp $";
+#endif
 #endif /* not lint */
 
 #include <sys/param.h>
