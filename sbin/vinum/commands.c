@@ -138,10 +138,16 @@ vinum_create(int argc, char *argv[], char *arg0[])
 	if (reply->error != 0) {			    /* error in config */
 	    if (!verbose)				    /* print this line anyway */
 		printf("%4d: %s", file_line, commandline);
-	    fprintf(stdout, "** %d %s: %s\n", file_line, reply->msg, strerror(reply->error));
-	    /* XXX at the moment, we reset the config
+	    fprintf(stdout, "** %d %s: %s\n",
+		file_line,
+		reply->msg,
+		strerror(reply->error));
+
+	    /*
+	     * XXX at the moment, we reset the config
 	     * lock on error, so try to get it again.
-	     * If we fail, don't cry again */
+	     * If we fail, don't cry again.
+	     */
 	    if (ioctl(superdev, VINUM_STARTCONFIG, &force)) /* can't get config? */
 		return;
 	}
@@ -291,16 +297,16 @@ void
 vinum_init(int argc, char *argv[], char *arg0[])
 {
     if (argc > 0) {					    /* initialize plexes */
-	int plexindex;
+	int objindex;
 	int objno;
 	enum objecttype type;				    /* type returned */
 
 	if (history)
 	    fflush(history);				    /* don't let all the kids do it. */
-	for (plexindex = 0; plexindex < argc; plexindex++) {
-	    objno = find_object(argv[plexindex], &type);    /* find the object */
+	for (objindex = 0; objindex < argc; objindex++) {
+	    objno = find_object(argv[objindex], &type);	    /* find the object */
 	    if (objno < 0)
-		printf("Can't find %s\n", argv[plexindex]);
+		printf("Can't find %s\n", argv[objindex]);
 	    else {
 		switch (type) {
 		case volume_object:
@@ -308,15 +314,15 @@ vinum_init(int argc, char *argv[], char *arg0[])
 		    break;
 
 		case plex_object:
-		    initplex(objno, argv[plexindex]);
+		    initplex(objno, argv[objindex]);
 		    break;
 
 		case sd_object:
-		    initsd(objno);
+		    initsd(objno, dowait);
 		    break;
 
 		default:
-		    printf("Can't initalize %s: wrong object type\n", argv[plexindex]);
+		    printf("Can't initalize %s: wrong object type\n", argv[objindex]);
 		    break;
 		}
 	    }
@@ -362,12 +368,13 @@ initplex(int plexno, char *name)
 	}
     }
     /*
-     * If we get here, we're either the first-level child
-     * (if we're not waiting) or we're going to wait.
+     * If we get here, we're either the first-level
+     * child (if we're not waiting) or we're going
+     * to wait.
      */
     for (sdno = 0; sdno < plex.subdisks; sdno++) {	    /* initialize each subdisk */
 	get_plex_sd_info(&sd, plexno, sdno);
-	initsd(sd.sdno);
+	initsd(sd.sdno, 0);
     }
     /* Now wait for them to complete */
     while (1) {
@@ -399,7 +406,7 @@ initplex(int plexno, char *name)
 }
 
 void
-initsd(int sdno)
+initsd(int sdno, int dowait)
 {
     pid_t pid;
     struct _ioctl_reply reply;
@@ -557,7 +564,7 @@ vinum_start(int argc, char *argv[], char *arg0[])
 				    else
 					fprintf(stderr,
 					    "Can't start %s: %s (%d)\n",
-					    argv[index],
+					    sd.name,
 					    reply.msg[0] ? reply.msg : strerror(reply.error),
 					    reply.error);
 				}
@@ -1764,6 +1771,93 @@ vinum_readpol(int argc, char *argv[], char *argv0[])
     if (verbose)
 	vinum_lpi(plexno, recurse);
 }
+
+/*
+ * Brute force set state function.  Don't look at
+ * any dependencies, just do it.
+ */
+void
+vinum_setstate(int argc, char *argv[], char *argv0[])
+{
+    int object;
+    struct _ioctl_reply reply;
+    struct vinum_ioctl_msg *message = (struct vinum_ioctl_msg *) &reply;
+    int index;
+    enum objecttype type;
+    int state;
+
+    for (index = 1; index < argc; index++) {
+	object = find_object(argv[index], &type);	    /* look for it */
+	if (type == invalid_object)
+	    fprintf(stderr, "Can't find object: %s\n", argv[index]);
+	else {
+	    int doit = 0;				    /* set to 1 if we pass our tests */
+	    switch (type) {
+	    case drive_object:
+		state = DriveState(argv[0]);		    /* get the state */
+		if (drive.state == state)		    /* already in that state */
+		    fprintf(stderr, "%s is already %s\n", drive.label.name, argv[0]);
+		else
+		    doit = 1;
+		break;
+
+	    case sd_object:
+		state = SdState(argv[0]);		    /* get the state */
+		if (sd.state == state)			    /* already in that state */
+		    fprintf(stderr, "%s is already %s\n", sd.name, argv[0]);
+		else
+		    doit = 1;
+		break;
+
+	    case plex_object:
+		state = PlexState(argv[0]);		    /* get the state */
+		if (plex.state == state)		    /* already in that state */
+		    fprintf(stderr, "%s is already %s\n", plex.name, argv[0]);
+		else
+		    doit = 1;
+		break;
+
+	    case volume_object:
+		state = VolState(argv[0]);		    /* get the state */
+		if (vol.state == state)			    /* already in that state */
+		    fprintf(stderr, "%s is already %s\n", vol.name, argv[0]);
+		else
+		    doit = 1;
+		break;
+
+	    default:
+	    }
+
+	    if (state == -1)
+		fprintf(stderr, "Invalid state for object: %s\n", argv[0]);
+	    else if (doit) {
+		message->index = object;		    /* pass object number */
+		message->type = type;			    /* and type of object */
+		message->state = state;
+		message->force = force;			    /* don't force it, use a larger hammer */
+		ioctl(superdev, VINUM_SETSTATE_FORCE, message);
+		if (reply.error != 0)
+		    fprintf(stderr,
+			"Can't start %s: %s (%d)\n",
+			argv[index],
+			reply.msg[0] ? reply.msg : strerror(reply.error),
+			reply.error);
+		if (Verbose)
+		    vinum_li(object, type);
+	    }
+	}
+    }
+}
+
+void
+vinum_checkparity(int argc, char *argv[], char *argv0[])
+{
+}
+void
+vinum_rebuildparity(int argc, char *argv[], char *argv0[])
+{
+}
+
 /* Local Variables: */
 /* fill-column: 50 */
 /* End: */
