@@ -453,7 +453,7 @@ mediaSetFTPPassive(dialogMenuItem *self)
 int mediaSetHTTP(dialogMenuItem *self)
 {
     int result;
-    char *cp, hbuf[MAXHOSTNAMELEN], *hostname, *var_hostname;
+    char *cp, *idx, hbuf[MAXHOSTNAMELEN], *hostname, *var_hostname;
     int HttpPort;
     int what = DITEM_RESTORE;
 
@@ -474,17 +474,18 @@ int mediaSetHTTP(dialogMenuItem *self)
 	return DITEM_FAILURE;
     SAFE_STRCPY(hbuf, cp);
     hostname = hbuf;
-    if (*hostname == '[' && (cp = index(hostname + 1, ']')) != NULL) {
+    if (*hostname == '[' && (idx = index(hostname + 1, ']')) != NULL &&
+	(*++idx == '\0' || *idx == ':')) {
 	++hostname;
-	*cp = '\0';
+	*(idx - 1) = '\0';
+    } else
+	idx = index(hostname, ':');
+    if (idx == NULL || *idx != ':')
+	HttpPort = 3128;		/* try this as default */
+    else {
+	*(idx++) = '\0';
+	HttpPort = strtol(idx, 0, 0);
     }
-    cp = index(hostname, ':');
-    if (cp != NULL && *cp == ':') {
-	*(cp++) = '\0';
-	HttpPort = strtol(cp, 0, 0);
-    }
-    else
-	HttpPort = 3128;
 
     variable_set2(VAR_HTTP_HOST, hostname, 0);
     variable_set2(VAR_HTTP_PORT, itoa(HttpPort), 0);
@@ -501,7 +502,8 @@ int mediaSetHTTP(dialogMenuItem *self)
     mediaDevice->shutdown = dummyShutdown;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
- 
+   
+
 int
 mediaSetUFS(dialogMenuItem *self)
 {
