@@ -12,7 +12,8 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kpasswd \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
-		-I${.OBJDIR}
+		-I${.OBJDIR} \
+		${LDAPCFLAGS}
 .if defined(MAKE_KERBEROS4)
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
@@ -21,9 +22,9 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 -L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		${_krb4libs} \
 		-L${KADM5SOBJDIR} -lkadm5srv -L${HDBOBJDIR} -lhdb \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lcom_err ${LDAPLDADD}
 DPADD=		${LIBKRB5} ${LIBROKEN} ${_krb4deps} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR} ${LDAPLIBS}
 MAN=		kpasswdd.8
 
 .include <bsd.prog.mk>

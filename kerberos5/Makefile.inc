@@ -17,6 +17,13 @@ CFLAGS+=-DKRB5_KRB4_COMPAT -DKRB4
 
 CFLAGS+=-DINET6
 
+.if defined(WITH_OPENLDAP)
+OPENLDAPBASE?= /usr/local
+LDAPLIBS=-lldap -llber
+LDAPCFLAGS=-I${OPENLDAPBASE}/include -DOPENLDAP=1
+LDAPLDADD=-L${OPENLDAPBASE}/lib ${LDAPLIBS}
+.endif
+
 .if exists(${.OBJDIR}/../../include)
 INCLUDEOBJDIR=	${.OBJDIR}/../../include
 .else

@@ -13,7 +13,8 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kadmin \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
-		-I${.OBJDIR}
+		-I${.OBJDIR} \
+		${LDAPCFLAGS}
 .if defined(MAKE_KERBEROS4)
 SRCS+=		version4.c
 _krb4libs=	-lkrb -lkafs
@@ -26,10 +27,12 @@ LDADD=		\
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		${_krb4libs} \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err \
+		${LDAPLDADD}
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR} \
+		${LDAPLIBS}
 NOMAN=		yes
 
 .include <bsd.prog.mk>

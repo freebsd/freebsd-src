@@ -10,7 +10,8 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kdc \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
-		-I${.OBJDIR}
+		-I${.OBJDIR} \
+		${LDAPCFLAGS}
 .if defined(MAKE_KERBEROS4)
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
@@ -20,9 +21,11 @@ LDADD=		-L${HDBOBJDIR} -lhdb \
 		-L${ROKENOBJDIR} -lroken \
 		-L${VERSOBJDIR} -lvers \
 		${_krb4libs} \
-		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err
+		-L${ASN1OBJDIR} -lasn1 -lcrypto -lmd -lcrypt -lcom_err \
+		${LDAPLDADD}
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
-		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR}
+		${LIBASN1} ${LIBCRYPTO} ${LIBMD} ${LIBCRYPT} ${LIBCOM_ERR} \
+		${LDAPLIBS}
 MAN=		kstash.8
 
 .include <bsd.prog.mk>

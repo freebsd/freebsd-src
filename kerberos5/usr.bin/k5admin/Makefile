@@ -32,7 +32,8 @@ CFLAGS+=	-I${KRB5DIR}/include \
 		-I${KRB5DIR}/kadmin \
 		-I${ASN1OBJDIR} \
 		-I${HDBOBJDIR} \
-		-I${.OBJDIR}
+		-I${.OBJDIR} \
+		${LDAPCFLAGS}
 .if defined(MAKE_KERBEROS4)
 _krb4libs=	-lkrb -lkafs
 _krb4deps=	${LIBKRB} ${LIBKAFS}
@@ -44,11 +45,11 @@ LDADD=		-L${KRB5OBJDIR} -lkrb5 \
 		-L${KADM5COBJDIR} -lkadm5clnt -L${KADM5SOBJDIR} -lkadm5srv \
 		-L${HDBOBJDIR} -lhdb \
 		-L${ASN1OBJDIR} -lasn1 -lcrypto -lcrypt -lmd -lcom_err \
-		-L${SLOBJDIR} -lsl -lreadline
+		-L${SLOBJDIR} -lsl -lreadline ${LDAPLDADD}
 DPADD=		${LIBKRB5} ${LIBKAFS5} ${LIBROKEN} ${_krb4deps} \
 		${LIBKADM5CLNT} ${LIBKADM5SRV} ${LIBHDB} \
 		${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBMD} ${LIBCOM_ERR} \
-		${LIBSL} ${LIBREADLINE}
+		${LIBSL} ${LIBREADLINE} ${LDAPLIBS}
 NOMAN=		yes
 
 .include <bsd.prog.mk>
