@@ -119,12 +119,16 @@ static struct kue_type kue_devs[] = {
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_3COM, USB_PRODUCT_3COM_3C19250,
 	    "KLSI USB ethernet" },
+	{ USB_VENDOR_COREGA, USB_PRODUCT_COREGA_USB_T,
+	    "KLSI USB ethernet" },
 	{ USB_VENDOR_DLINK, USB_PRODUCT_DLINK_DSB650C,
 	    "KLSI USB ethernet" },
 	{ USB_VENDOR_SMC, USB_PRODUCT_SMC_2102USB,
 	    "KLSI USB ethernet" },
 	{ 0, 0, NULL }
 };
+
+static struct usb_qdat kue_qdat;
 
 static int kue_match		__P((device_t));
 static int kue_attach		__P((device_t));
@@ -140,6 +144,7 @@ static void kue_rxeof		__P((usbd_xfer_handle,
 static void kue_txeof		__P((usbd_xfer_handle,
 				    usbd_private_handle, usbd_status));
 static void kue_start		__P((struct ifnet *));
+static void kue_rxstart		__P((struct ifnet *));
 static int kue_ioctl		__P((struct ifnet *, u_long, caddr_t));
 static void kue_init		__P((void *));
 static void kue_stop		__P((struct kue_softc *));
@@ -503,6 +508,9 @@ USB_ATTACH(kue)
 	ifp->if_baudrate = 10000000;
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
+	kue_qdat.ifp = ifp;
+	kue_qdat.if_rxstart = kue_rxstart;
+
 	/*
 	 * Call MI attach routines.
 	 */
@@ -632,6 +640,29 @@ static int kue_tx_list_init(sc)
 	return(0);
 }
 
+static void kue_rxstart(ifp)
+	struct ifnet		*ifp;
+{
+	struct kue_softc	*sc;
+	struct kue_chain	*c;
+
+	sc = ifp->if_softc;
+	c = &sc->kue_cdata.kue_rx_chain[sc->kue_cdata.kue_rx_prod];
+
+	if (kue_newbuf(sc, c, NULL) == ENOBUFS) {
+		ifp->if_ierrors++;
+		return;
+	}
+
+	/* Setup new transfer. */
+	usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
+	    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
+	    USBD_NO_TIMEOUT, kue_rxeof);
+	usbd_transfer(c->kue_xfer);
+
+	return;
+}
+
 /*
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
@@ -643,7 +674,6 @@ static void kue_rxeof(xfer, priv, status)
 {
 	struct kue_softc	*sc;
 	struct kue_chain	*c;
-        struct ether_header	*eh;
         struct mbuf		*m;
         struct ifnet		*ifp;
 	int			total_len = 0;
@@ -668,50 +698,28 @@ static void kue_rxeof(xfer, priv, status)
 
 	usbd_get_xfer_status(xfer, NULL, NULL, &total_len, NULL);
 	m = c->kue_mbuf;
-	if (total_len <= 1)
-		goto done;
+	if (total_len <= 1) {
+		usbd_setup_xfer(c->kue_xfer, sc->kue_ep[KUE_ENDPT_RX],
+		    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
+		    USBD_NO_TIMEOUT, kue_rxeof);
+		usbd_transfer(c->kue_xfer);
+		return;
+	}
 
 	len = *mtod(m, u_int16_t *);
 	m_adj(m, sizeof(u_int16_t));
 
 	/* No errors; receive the packet. */
 	total_len = len;
-	if (kue_newbuf(sc, c, NULL) == ENOBUFS) {
-		ifp->if_ierrors++;
-		goto done;
-	}
 
 	ifp->if_ipackets++;
-	eh = mtod(m, struct ether_header *);
-	m->m_pkthdr.rcvif = ifp;
+	m->m_pkthdr.rcvif = (struct ifnet *)&kue_qdat;
 	m->m_pkthdr.len = m->m_len = total_len;
-
-	/*
-	 * Handle BPF listeners. Let the BPF user see the packet, but
-	 * don't pass it up to the ether_input() layer unless it's
-	 * a broadcast packet, multicast packet, matches our ethernet
-	 * address or the interface is in promiscuous mode.
-	 */
-	if (ifp->if_bpf) {
-		bpf_mtap(ifp, m);
-		if (ifp->if_flags & IFF_PROMISC &&
-		    (bcmp(eh->ether_dhost, sc->arpcom.ac_enaddr,
-		    ETHER_ADDR_LEN) && !(eh->ether_dhost[0] & 1))) {
-			m_freem(m);
-			goto done;
-		}
-	}
 
 	/* Put the packet on the special USB input queue. */
 	usb_ether_input(m);
 
 done:
-
-	/* Setup new transfer. */
-	usbd_setup_xfer(xfer, sc->kue_ep[KUE_ENDPT_RX],
-	    c, mtod(c->kue_mbuf, char *), KUE_BUFSZ, USBD_SHORT_XFER_OK,
-	    USBD_NO_TIMEOUT, kue_rxeof);
-	usbd_transfer(xfer);
 
 	return;
 }

@@ -39,6 +39,11 @@
 #define NETISR_USB	25
 #endif
 
+struct usb_qdat {
+	struct ifnet		*ifp;
+	void (*if_rxstart)	__P((struct ifnet *));
+};
+
 void usb_register_netisr	__P((void));
 void usb_ether_input		__P((struct mbuf *));
 void usb_tx_done		__P((struct ifnet *));
