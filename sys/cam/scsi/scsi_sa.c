@@ -2286,7 +2286,7 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	u_int32_t resid = 0;
 	int32_t	info = 0;
 	int	error_code, sense_key, asc, ascq;
-	int	error, defer_action;
+	int	error, defer_action, no_actual_error = FALSE;
 
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	softc = (struct sa_softc *)periph->softc;
@@ -2396,6 +2396,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			if (defer_action) {
 				error = -1;
 				softc->flags |= SA_FLAG_EOF_PENDING;
+			} else {
+				no_actual_error = TRUE;
 			}
 			/*
 			 * Unconditionally, if we detected a filemark on a read,
@@ -2424,6 +2426,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 					softc->flags |= SA_FLAG_EIO_PENDING;
 				else
 					error = EIO;
+			} else {
+				no_actual_error = TRUE;
 			}
 			/*
 			 * Bump the block number if we hadn't seen a filemark.
@@ -2438,8 +2442,17 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 			}
 		}
 	}
-	if (error == 0)
+	if (error == 0 && !no_actual_error)
 		return (cam_periph_error(ccb, cflgs, sflgs, &softc->saved_ccb));
+	if (no_actual_error) {
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) 
+			cam_release_devq(ccb->ccb_h.path,
+					 /* relsim_flags */0,
+					 /* openings */0,
+					 /* timeout */0,
+					 /* getcount_only */ FALSE);
+		return (0);
+	}
 
 	if (error == -1)
 		return (0);
