@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.h,v 1.14 1999/01/18 05:00:30 grog Exp grog $
+ * $Id: vinumio.h,v 1.15 1999/03/23 03:51:27 grog Exp grog $
  */
 
 #ifdef VINUMDEBUG
@@ -123,11 +123,11 @@ struct vinum_ioctl_msg {
 #define VINUM_MALLOCINFO	_IOWR(L, 80, struct mc)	    /* get specific malloc information [i] */
 #define VINUM_LABEL 		_IOC(IOC_IN | IOC_OUT, L, 81, MAX_IOCTL_REPLY) /* label a volume */
 #define VINUM_INITSD 		_IOW(L, 82, int)	    /* initialize a subdisk */
-#define VINUM_REMOVE 		_IOC(IOC_IN | IOC_OUT, L, 83, MAX_IOCTL_REPLY) /* remove an object */
+#define VINUM_REMOVE 		_IOWR(L, 83, struct vinum_ioctl_msg) /* remove an object */
 /* 84, 85 going begging */
-#define VINUM_RESETSTATS	_IOC(IOC_IN | IOC_OUT, L, 86, MAX_IOCTL_REPLY) /* reset object stats */
-#define VINUM_ATTACH		_IOC(IOC_IN | IOC_OUT, L, 87, MAX_IOCTL_REPLY) /* reset object stats */
-#define VINUM_DETACH		_IOC(IOC_IN | IOC_OUT, L, 88, MAX_IOCTL_REPLY) /* reset object stats */
+#define VINUM_RESETSTATS	_IOWR(L, 86, struct vinum_ioctl_msg) /* reset object stats */
+#define VINUM_ATTACH		_IOWR(L, 87, struct vinum_ioctl_msg) /* attach an object */
+#define VINUM_DETACH		_IOWR(L, 88, struct vinum_ioctl_msg) /* remove an object */
 
 struct vinum_rename_msg {
     int index;
@@ -136,8 +136,8 @@ struct vinum_rename_msg {
     char newname[MAXNAME];				    /* new name to give to object */
 };
 
-#define VINUM_RENAME		_IOC(IOC_IN | IOC_OUT, L, 89, MAX_IOCTL_REPLY) /* reset object stats */
-#define VINUM_REPLACE		_IOC(IOC_IN | IOC_OUT, L, 90, MAX_IOCTL_REPLY) /* reset object stats */
+#define VINUM_RENAME		_IOWR(L, 89, struct vinum_ioctl_msg) /* rename an object */
+#define VINUM_REPLACE		_IOWR(L, 90, struct vinum_ioctl_msg) /* replace an object */
 
 #ifdef VINUMDEBUG
 #define VINUM_RQINFO		_IOWR(L, 91, struct rqinfo) /* get request info [i] from trace buffer */
