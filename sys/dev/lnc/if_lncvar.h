@@ -185,7 +185,7 @@ struct host_ring_entry {
 #define LNCSTATS(X)
 #endif
 
-struct lnc_softc {
+typedef struct lnc_softc {
 	struct arpcom arpcom;	            /* see ../../net/if_arp.h */
 	struct nic_info nic;	            /* NIC specific info */
 	int nrdre;
@@ -207,7 +207,7 @@ struct lnc_softc {
 	int lnc_debug;
 #endif
 	LNCSTATS_STRUCT
-};
+} lnc_softc_t;
 
 #define NDESC(len2) (1 << len2)
 
@@ -223,14 +223,14 @@ struct lnc_softc {
 #define TRANS_NEXT (sc->trans_ring->base + sc->trans_next)
 
 static __inline void
-write_csr(struct lnc_softc *sc, u_short port, u_short val)
+write_csr(lnc_softc_t *sc, u_short port, u_short val)
 {
 	outw(sc->rap, port);
 	outw(sc->rdp, val);
 }
 
 static __inline u_short
-read_csr(struct lnc_softc *sc, u_short port)
+read_csr(lnc_softc_t *sc, u_short port)
 {
 	outw(sc->rap, port);
 	return (inw(sc->rdp));
