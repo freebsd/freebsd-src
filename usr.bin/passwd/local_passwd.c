@@ -82,8 +82,8 @@ getnewpasswd(pw, nis)
 	char buf[_PASSWORD_LEN+1], salt[9];
 	struct timeval tv;
 
-	(void)printf("Changing %s password for %s.\n", pw->pw_name,
-						nis ? "YP" : "local");
+	(void)printf("Changing %s password for %s.\n", nis ? "YP" : "local",
+								pw->pw_name);
 
 	if (uid && pw->pw_passwd[0] &&
 	    strcmp(crypt(getpass("Old password:"), pw->pw_passwd),
