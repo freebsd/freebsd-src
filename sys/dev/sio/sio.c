@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.121 1995/11/29 10:47:54 julian Exp $
+ *	$Id: sio.c,v 1.122 1995/11/29 14:39:57 julian Exp $
  */
 
 #include "sio.h"
@@ -339,9 +339,6 @@ static	struct speedtab comspeedtab[] = {
 	{ -1,		-1 }
 };
 
-/* XXX - configure this list */
-static Port_t likely_com_ports[] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, };
-
 static struct kern_devconf kdc_sio[NSIO] = { {
 	0, 0, 0,		/* filled in by dev_attach */
 	"sio", 0, { MDDT_ISA, 0, "tty" },
@@ -502,13 +499,13 @@ sioprobe(dev)
 	struct isa_device	*dev;
 {
 	static bool_t	already_init;
-	Port_t		*com_ptr;
 	bool_t		failures[10];
 	int		fn;
 	struct isa_device	*idev;
 	Port_t		iobase;
 	u_char		mcr_image;
 	int		result;
+	struct isa_device	*xdev;
 
 	sioregisterdev(dev);
 
@@ -519,11 +516,9 @@ sioprobe(dev)
 		 * from any used port that shares the interrupt vector.
 		 * XXX the gate enable is elsewhere for some multiports.
 		 */
-		for (com_ptr = likely_com_ports;
-		     com_ptr < &likely_com_ports[sizeof likely_com_ports
-						 / sizeof likely_com_ports[0]];
-		     ++com_ptr)
-			outb(*com_ptr + com_mcr, 0);
+		for (xdev = isa_devtab_tty; xdev->id_driver != NULL; xdev++)
+			if (xdev->id_driver == &siodriver && xdev->id_enabled)
+				outb(xdev->id_iobase + com_mcr, 0);
 #if NCRD > 0
 /*
  *	If PC-Card probe required, then register driver with
