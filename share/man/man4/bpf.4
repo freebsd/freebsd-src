@@ -20,6 +20,8 @@
 .\" This document is derived in part from the enet man page (enet.4)
 .\" distributed with 4.3BSD Unix.
 .\"
+.\"	$Id$
+.\"
 .Dd January 16, 1996
 .Dt BPF 4
 .Os BSD 4.4
@@ -309,7 +311,7 @@ field exists to account for
 padding between the header and the link level protocol.
 The purpose here is to guarantee proper alignment of the packet
 data structures, which is required on alignment sensitive 
-architectures and and improves performance on many other architectures.
+architectures and improves performance on many other architectures.
 The packet filter insures that the 
 .Li bpf_hdr
 and the network layer

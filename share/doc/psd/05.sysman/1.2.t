@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.2.t	8.1 (Berkeley) 6/8/93
+.\"	$Id$
 .\"
 .sh "Memory management\(dg
 .NH 3
@@ -233,7 +234,7 @@ value = mset(sem, wait)
 result int value; semaphore *sem; int wait;
 .DE
 \fIMset\fP indivisibly tests and sets the semaphore \fIsem\fP.
-If the the previous value is zero, the process has acquired the lock
+If the previous value is zero, the process has acquired the lock
 and \fImset\fP returns true immediately.
 Otherwise, if the \fIwait\fP flag is zero,
 failure is returned.

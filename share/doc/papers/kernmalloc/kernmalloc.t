@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)kernmalloc.t	5.1 (Berkeley) 4/16/91
+.\"	$Id$
 .\"
 .\" reference a system routine name
 .de RN
@@ -600,7 +601,7 @@ Two of the traditional UNIX
 memory allocators remain in the current system.
 The terminal subsystem uses \fIclist\fP\^s (character lists).
 That part of the system is expected to undergo major revision within
-the the next year or so, and it will probably be changed to use
+the next year or so, and it will probably be changed to use
 \fImbuf\fP\^s as it is merged into the network system.
 The other major allocator that remains is
 .RN getblk ,

@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.9 1996/09/22 15:40:27 wosch Exp $
+     $Id: printing.sgml,v 1.10 1996/10/04 22:54:11 wosch Exp $
 
      The FreeBSD Documentation Project
 
@@ -2301,7 +2301,7 @@ plain text         if     none, -p, or -l
 	      outside of the base FreeBSD installation, they should
 	      probably go under <tt>/usr/local</tt>.  The directory
 	      <tt>/usr/local/libexec</tt> is a popular location, since
-	      they they are specialized programs that only LPD will
+	      they are specialized programs that only LPD will
 	      run; regular users should not ever need to run them.
 
 	      To enable a conversion filter, specify its pathname

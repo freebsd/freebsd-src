@@ -31,13 +31,14 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)1.t	1.2 (Berkeley) 11/8/90
+.\"	$Id$
 .\"
 .ds RH Introduction
 .NH 1
 Introduction
 .PP
 The purpose of this paper is to describe the tools and techniques 
-that are available for improving the performance of the the kernel.
+that are available for improving the performance of the kernel.
 The primary tool used to measure the kernel is the hierarchical
 profiler \fIgprof\fP.
 The profiler enables the user to measure the cost of

@@ -1,3 +1,5 @@
+.\"	$Id$
+.\"
 .TH TP 4P "9 December 1988"
 .ds ]W Wisconsin ARGO 1.0
 .UC 4
@@ -368,7 +370,7 @@ p_use_checksum
 Boolean.
 [ true ]
 .IP
-Boolean indicating the the use of checksums will be negotiated.
+Boolean indicating the use of checksums will be negotiated.
 This parameter applies only to class 4.
 .\" ******************8
 .TP 25

@@ -30,7 +30,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)termcap.src	8.2 (Berkeley) 11/17/93
-#
+#	$Id$
 
 #	Termcap source file
 #	John Kunze, Berkeley
@@ -2517,7 +2517,7 @@ kterm|kterm kanji terminal emulator (X window system):\
 # Due to severe 2621 braindamage, the only way to get the arrow keys to
 # transmit anything at all is to turn on the function key labels
 # (f1-f8) with ks, and even then the poor user has to hold down shift!
-# The default 2621 turns off the labels except when it has to to enable
+# The default 2621 turns off the labels except when it has to enable
 # the function keys.  If your installation prefers labels on all the time,
 # or off all the time (at the "expense" of the function keys) move the
 # 2621-nl or 2621-wl labels to the front using reorder.

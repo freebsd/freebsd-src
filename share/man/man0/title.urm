@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)title.urm	8.7 (Berkeley) 4/20/94
+.\"	$Id$
 .\"
 .af % i
 .EH ''''
@@ -991,7 +992,7 @@ We gratefully acknowledge
 the support of this contract.
 .LP
 We wish to acknowledge the contribution of a number of individuals to
-the the system.
+the system.
 .LP
 We would especially like to thank
 Jim Kulp of IIASA,

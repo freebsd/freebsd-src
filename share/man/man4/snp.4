@@ -1,5 +1,5 @@
 .\"
-.\"  $Id: snp.4,v 1.6 1995/02/28 00:24:47 pst Exp $
+.\"  $Id: snp.4,v 1.7 1996/01/30 13:51:11 mpp Exp $
 .\"  $Source: /home/ncvs/src/share/man/man4/snp.4,v $
 .\"
 .Dd February 24, 1995
@@ -28,7 +28,7 @@ device with a tty to be observed,  open the
 device and then use the SNPSTTY ioctl.
 The argument passed to the IOCTL is the address of a variable of type
 dev_t.
-By setting the value of the variable pointed to to -1, the user may detach
+By setting the value of the variable pointed to -1, the user may detach
 the snp device from a tty.
 .Pp
 The SNPGTTY ioctl returns information about the current tty attached to
