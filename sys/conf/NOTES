@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.522 1998/12/27 23:23:18 msmith Exp $
+#	$Id: LINT,v 1.523 1998/12/30 09:43:36 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -456,8 +456,8 @@ options         "ICMP_BANDLIM"
 # IPFIREWALL as well. See the dummynet(4) manpage for more info.
 # BRIDGE enables bridging between ethernet cards -- see bridge(4).
 # You can use IPFIREWALL and dummynet together with bridging.
-#options	DUMMYNET
-#options	BRIDGE
+options	DUMMYNET
+options	BRIDGE
 
 #
 # ATM (HARP version) options
@@ -1148,9 +1148,10 @@ options		NATM			#native ATM
 
 # pcm: PCM audio through various sound cards.
 #
-# This is the work in progress from Luigi Rizzo.  This has support for
-# CS423x based cards, OPTi931, SB16 PnP, GusPnP.  For more information
-# about this driver, take a look at sys/i386/isa/snd/README.
+# This has support for a large number of new audio cards, based on
+# CS423x, OPTi931, Yamaha OPL-SAx, and also for SB16, GusPnP.
+# For more information about this driver and supported cards,
+# see the  pcm.4 man page  and /sys/i386/isa/snd/CARDS.
 #
 # The flags of the device tells the device a bit more info about the
 # device that normally is obtained through the PnP interface.
@@ -1160,16 +1161,12 @@ options		NATM			#native ATM
 #		    zero if don't know what to put in (and you don't,
 #		    since this is unsupported at the moment...).
 #
-# This driver will use the new PnP code if it's available.
-#
+# This driver will use the PnP code if it's available.
+# See the "controller pnp" option and pnp.4 man page.
+device pcm0 at isa? port ? tty irq 5 drq 1 flags 0x15
+
 # pca: PCM audio through your PC speaker
-
-# Luigi's snd code.
-# You may also wish to enable the pnp controller with this, for pnp
-# sound cards.
 #
-#device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0
-
 # Not controlled by `snd'
 device pca0 at isa? port "IO_TIMER1" tty
 
