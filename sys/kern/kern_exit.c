@@ -685,7 +685,6 @@ loop:
 			 * release while still running in process context.
 			 */
 			vm_waitproc(p);
-			mtx_destroy(&p->p_mtx);
 #ifdef MAC
 			mac_destroy_proc(p);
 #endif

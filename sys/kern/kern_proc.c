@@ -194,6 +194,8 @@ proc_init(void *mem, int size)
 	ke = kse_alloc();
 	kg = ksegrp_alloc();
 	proc_linkup(p, kg, ke, td);
+	bzero(&p->p_mtx, sizeof(struct mtx));
+	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 }
 
 /*
@@ -220,6 +222,7 @@ proc_fini(void *mem, int size)
 	thread_free(td);
 	ksegrp_free(kg);
 	kse_free(ke);
+	mtx_destroy(&p->p_mtx);
 }
 
 /*
