@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.20 1995/01/11 01:53:18 davidg Exp $
+ * $Id: vfs_bio.c,v 1.21 1995/01/15 09:35:58 davidg Exp $
  */
 
 /*
@@ -1159,10 +1159,12 @@ allocbuf(struct buf * bp, int size, int vmio)
 							bufferdestroyed = 1;
 						}
 						s = splbio();
-						if (m) {
+						if (m && (m->flags & PG_BUSY)) {
 							m->flags |= PG_WANTED;
 							tsleep(m, PRIBIO, "pgtblk", 0);
-						}
+						} else
+							if (m->valid == 0)
+								vm_page_free(m);
 						splx(s);
 						if (bufferdestroyed)
 							return 0;
