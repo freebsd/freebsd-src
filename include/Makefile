@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.27 1995/07/13 10:04:11 rgrimes Exp $
+#	$Id: Makefile,v 1.25.4.1 1995/07/13 10:58:49 rgrimes Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -17,7 +17,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	netdb.h nl_types.h nlist.h paths.h pwd.h ranlib.h regex.h regexp.h \
 	resolv.h rune.h runetype.h setjmp.h sgtty.h signal.h \
 	stab.h stddef.h stdio.h stdlib.h string.h strings.h struct.h \
-	sysexits.h tar.h time.h ttyent.h tzfile.h unistd.h utime.h \
+	sysexits.h tar.h time.h ttyent.h unistd.h utime.h \
 	utmp.h vis.h
 .if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
@@ -43,7 +43,7 @@ beforeinstall: ${SHARED}
 	@cd ${.CURDIR}; \
 	for i in ${FILES}; do \
 		cmp -s $$i ${DESTDIR}/usr/include/$$i || \
-		    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
+		    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$i \
 		    ${DESTDIR}/usr/include/$$i; \
 	done
 .if exists (${.CURDIR}/../sys/conf/newvers.sh)
@@ -72,7 +72,7 @@ beforeinstall: ${SHARED}
 		chmod 755 ${DESTDIR}/usr/include/$$i; \
 		(cd ${.CURDIR}/$$i; for j in *.[ih]; do \
 			cmp -s $$j ${DESTDIR}/usr/include/$$i/$$j || \
-			    install -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
+			    ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 $$j \
 			    ${DESTDIR}/usr/include/$$i/$$j; \
 		done); \
 	done
