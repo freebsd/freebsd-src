@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sa.4,v 1.12 1998/10/16 04:06:21 ken Exp $
+.\"	$Id: sa.4,v 1.13 1999/02/05 07:48:26 mjacob Exp $
 .\"
 .Dd October 15, 1998
 .Dt SA 4
@@ -74,6 +74,11 @@ command, reachable through the
 .Sq Cm offline
 command of
 .Xr mt 1 .
+.El
+.Pp
+It should be noted that tape devices are exclusive open devices, except in
+the case where a control mode device is opened. In the latter case, exclusive
+access is only sought when needed (e.g., to set parameters).
 .Sh SUB-MODES
 Bits 0 and 1 of the minor number are interpreted as
 .Sq sub-modes .
