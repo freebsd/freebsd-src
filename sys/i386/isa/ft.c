@@ -1703,6 +1703,7 @@ int ftopen(dev_t dev, int arg2) {
   /* make sure we found a tape when probed */
   if (!(fdc->flags & FDC_HASFTAPE))
 	return(ENODEV);
+  fdc->fdu = ftu;
   fdc->flags |= FDC_TAPE_BUSY; 
   return(set_fdcmode(dev, FDC_TAPE_MODE)); /* try to switch to tape */
 }
