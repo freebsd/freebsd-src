@@ -256,17 +256,10 @@ fd_revoke(p, fd)
 	if ((u_int)fd >= fdp->fd_nfiles || (fp = fdp->fd_ofiles[fd]) == NULL)
 		return EBADF;
 
-	switch (fp->f_type) {
-	case DTYPE_VNODE:
-		vp = (struct vnode *) fp->f_data;
-
-	case DTYPE_SOCKET:
+	if (fp->f_type != DTYPE_VNODE) 
 		return EINVAL;
 
-	default:
-		panic("svr4_fcntl(F_REVOKE)");
-		/*NOTREACHED*/
-	}
+	vp = (struct vnode *) fp->f_data;
 
 	if (vp->v_type != VCHR && vp->v_type != VBLK) {
 		error = EINVAL;
