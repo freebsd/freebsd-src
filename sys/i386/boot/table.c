@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id$
+ *	$Id: table.c,v 1.3 1993/10/16 19:11:40 rgrimes Exp $
  */
 
 /*
@@ -84,6 +84,7 @@ struct seg_desc	Gdt[] = {
 	{0xFFFF, RUN, RUN, 0x9E, 0x40, 0x0},	/* 0x18 : boot code */
 	{0xFFFF, RUN, RUN, 0x92, 0x40, 0x0},	/* 0x20 : boot data */
 	{0xFFFF, RUN, RUN, 0x9E, 0x0, 0x0},	/* 0x28 : boot code, 16 bits */
+#ifdef BDE_DEBUGGER
 	/* More for bdb. */
 	{},					/* BIOS_CS_INDEX = 6 : null */
 	{},					/* BIOS_TMP_INDEX = 7 : null */
@@ -97,8 +98,10 @@ struct seg_desc	Gdt[] = {
 	{0xFFFF, RUN, RUN, 0x9A, 0x0, 0x0},	/* DB_CS16_INDEX = 15 */
 	{0xFFFF, RUN, RUN, 0x92, 0x40, 0x0},	/* DB_DS_INDEX = 16 */
 	{8*18-1, RUN, RUN, 0x92, 0x40, 0x0},	/* GDT_INDEX = 17 */
+#endif /* BDE_DEBUGGER */
 };
 
+#ifdef BDE_DEBUGGER
 struct idt_desc {
 	unsigned short	entry_15_0;
 	unsigned short	selector;
@@ -113,6 +116,7 @@ struct idt_desc	Idt[] = {
 	{},					/* Null (int 2) */
 	{RUN, 0x70, 0, 0xEE, 0},		/* BREAKPOINT_VECTOR = 3 */
 };
+#endif /* BDE_DEBUGGER */
 
 struct pseudo_desc {
 	unsigned short	limit;
@@ -121,5 +125,7 @@ struct pseudo_desc {
 	};
 
 struct pseudo_desc Gdtr = { sizeof Gdt - 1, RUN, RUN };
+#ifdef BDE_DEBUGGER
 struct pseudo_desc Idtr_prot = { sizeof Idt - 1, RUN, RUN };
 struct pseudo_desc Idtr_real = { 0x400 - 1, 0x0, 0x0 };
+#endif
