@@ -1,0 +1,317 @@
+VI_MESSAGE_CATALOG
+D‚passement de longueur de ligneX
+impossible de supprimer la ligne %luX
+impossible d'ajouter … la ligne %luX
+impossible d'ins‚rer devant la ligne %luX
+impossible de stocker la ligne %luX
+impossible d'obtenir la derniŠre ligneX
+Erreur : impossible de r‚cup‚rer la ligne %luX
+Fichier journalX
+Aucune connexion n'‚tant effectu‚e, impossible d'annulerX
+Aucune action … annulerX
+Aucune connexion n'‚tant effectu‚e, impossible d'annulerX
+Aucune connexion n'‚tant effectu‚e, reprise actualis‚e impossibleX
+Aucune action … refaireX
+%s/%d : Erreur d'‚criture de journalX
+L'entr‚e et la sortie Vi standards doivent ˆtre un terminalX
+Marque %s : non d‚finieX
+Marque %s : la ligne a ‚t‚ supprim‚eX
+Marque %s : la position du curseur n'existe plusX
+Erreur : X
+nouveau fichierX
+le nom a chang‚X
+modifi‚X
+non modifi‚X
+DEVERROUILLEX
+lecture seuleX
+ligne %lu de %lu [%ld%%]X
+fichier videX
+ligne %luX
+Ce fichier %s n'est pas un catalogue de messagesX
+Impossible de configurer option %s par d‚fautX
+Utilisation : %sX
+D‚finition : pas d'option %s : 'tout d‚finir' donne toutes les valeurs optionnellesX
+D‚finition : option [no]%s ne prend pas de valeurX
+D‚finition : l'option %s n'est pas bool‚enneX
+D‚finition : option %s : %sX
+D‚finition : option %s : %s : D‚passement de valeurX
+D‚finition : option %s : %s n'est pas un nombre valideX
+D‚finition : l'option %s n'est pas bool‚enneX
+Les colonnes de l'‚cran sont trop petites, inf‚rieures … %dX
+Les colonnes de l'‚cran sont trop grandes, sup‚rieures … %dX
+Les lignes de l'‚cran sont trop courtes, inf‚rieures … %dX
+Les lignes de l'‚cran sont trop longues, sup‚rieures … %dX
+L'option lisp n'est pas impl‚ment‚eX
+Les messages ne sont pas d‚sactiv‚s : %sX
+Les messages ne sont pas activ‚s : %sX
+
+L'option de paragraphe doit ˆtre en groupe de deux caractŠresX
+L'option de section doit ˆtre en groupe de deux caractŠresX
+
+
+
+Le tampon par d‚faut est videX
+Le tampon %s est videX
+Les fichiers dont le nom contient des caractŠres de saut de ligne sont irr‚cup‚rablesX
+Impossible de r‚cup‚rer les modifications si la session ‚choueX
+Copie en cours du fichier pour r‚cup‚ration...X
+La pr‚servation a ‚chou‚ : %sX
+Impossible de r‚cup‚rer les modifications si la session ‚choueX
+La sauvegarde du fichier a ‚chou‚ : %sX
+Copie en cours du fichier pour r‚cup‚ration...X
+Les renseignements sur l'identit‚ %u de l'utilisateur sont introuvablesX
+Impossible de verrouiller le fichier de r‚cup‚rationX
+D‚bordement de tampon du fichier de r‚cup‚rationX
+Fichier de r‚cup‚rationX
+%s : Fichier de r‚cup‚ration malform‚X
+%s : Fichier de r‚cup‚ration malform‚X
+Aucun fichier nomm‚ %s … r‚cup‚rer, que vous puissiez lireX
+Il existe des versions r‚cup‚rables ant‚rieures … ce fichierX
+Vous avez d'autres fichiers … r‚cup‚rerX
+pas d'envoi d'email : %sX
+Fichier vide, rien … rechercherX
+Fin de fichier atteinte sans trouver le motifX
+Pas de motif de recherche pr‚c‚dentX
+Motif introuvableX
+D‚but du fichier atteint sans trouver le motifX
+La recherche est revenue … son point de d‚partX
+Recherche en cours...X
+CaractŠre non-imprimable introuvableX
+Nom de commande inconnuX
+
+%s : Commande non disponible en ex modeX
+Le compte ne peut ˆtre z‚roX
+%s : mauvaise sp‚cification de ligneX
+Erreur de tableau de syntaxe interne (%s: %s)X
+Utilisation : %sX
+%s : tampon temporaire non lib‚r‚X
+D‚calage de drapeau hors de la ligne 1X
+D‚calage de drapeau hors de la fin du fichierX
+@ avec plage, en cours d'ex‚cution quand le fichier/l'‚cran a chang‚X
+Commande Global/v en cours d'ex‚cution quand le fichier/l'‚cran a chang‚X
+La commande ex a ‚chou‚ : commandes en attente abandonn‚esX
+La commande ex a ‚chou‚ : les touches affect‚es sont abandonn‚esX
+La deuxiŠme adresse est plus petite que la premiŠreX
+Aucun nom de marque fourniX
+\\ pas suivi par / ou ?X
+R‚f‚rence … un num‚ro de ligne inf‚rieure … 0X
+La commande %s est inconnueX
+D‚passement de la valeur adresseX
+D‚passement n‚gatif de la valeur adresseX
+Combinaison d'adresse non valideX
+Adresse non valide : il n'y a que des lignes %lu dans le fichierX
+Adresse non valide : le fichier est videX
+La commande %s ne permet pas une adresse de 0X
+Pas d'abr‚viations … afficherX
+Les abr‚viations doivent finir par un caractŠre"motX
+Les abr‚viations ne peuvent pas contenir de tabulations ni d'espacesX
+Les abr‚viations ne peuvent pas contenir un m‚lange de caractŠres mot/non-mot, sauf … la finX
+"%s" n'est pas une abr‚viationX
+La commande Vi a ‚chou‚ : Les touches affect‚es ont ‚t‚ abandonn‚esX
+Plus de fichiers … ‚diterX
+Pas de fichiers pr‚c‚dents … ‚diterX
+Pas de fichiers pr‚c‚dents … rembobinerX
+Pas de liste de fichiers … afficherX
+Pas de commande pr‚c‚dente … remplacer"!"X
+Pas de nom de fichier … substituer … %%X
+Pas de nom de fichier … substituer … #X
+Erreur : execl : %sX
+Erreur E/S : %sX
+Fichier modifi‚ depuis la derniŠre ‚criture complŠte ; ‚crire ou utiliser ! pour outrepasserX
+Impossible de trouver l'emplacement du r‚pertoire d'origineX
+Nouveau r‚pertoire en cours : %sX
+Pas de tampon de coupure … afficherX
+La commande %s ne peut pas ˆtre utilis‚e … l'int‚rieur d'une commande globale ou commande vX
+%s/%s : ‚chec de source : ni vous ni le super-utilisateur n'ˆtes les propri‚taires X
+%s/%s : ‚chec de source : vous n'ˆtes pas le propri‚taireX
+%s/%s : ‚chec de source : peut ˆtre ‚crit par un utilisateur autre que le propri‚taireX
+%s : ‚chec de source : ni vous ni le super-utilisateur n'ˆtes les propri‚tairesX
+%s : ‚chec de source : vous n'ˆtes pas le propri‚taireX
+%s : ‚chec de source : peut ˆtre ‚crit par un utilisateur autre que le propri‚taireX
+Pas de lignes suivantes … joindreX
+Pas d'entr‚es de mappage d'entr‚eX
+Pas d'entr‚es de mappage de commandesX
+Le caractŠre %s ne peut pas ˆtre remapp‚X
+"%s" n'est pas actuellement mapp‚X
+Les noms de marque ne doivent avoir qu'un caractŠreX
+%s existe, non enregistr‚; utiliser ! pour outrepasserX
+Nouveau fichier exrc : %sX
+La ligne de destination est … l'int‚rieur de la plage … d‚placerX
+La commande ouverte n‚cessite que l'option ouverte soit d‚finieX
+La commande ouverte n'est pas encore impl‚ment‚eX
+La pr‚servation de ce fichier est impossibleX
+Fichier pr‚serv‚X
+%s: ‚tendu dans trop de noms de fichiersX
+Vous ne pouvez lire que les fichiers standards et les canaux de transmission nomm‚sX
+%s: Interdiction de lecture non disponibleX
+Lecture en cours...X
+%s: %lu lignes, %lu caractŠresX
+Pas d'‚crans d'arriŠre-plan … afficherX
+La commande script n'est disponible qu'en mode viX
+Pas de commande … ex‚cuterX
+Option de largeur de d‚calage d‚finie sur 0X
+Compter d‚passementX
+Compter d‚passement n‚gatifX
+Expression standard sp‚cifi‚e; drapeau r superfluX
+Vous ne pouvez pas en mode vi, combiner les drapeaux #, l et p avec le drapeau cX
+Aucune correspondance trouv‚eX
+Aucune marque pr‚c‚dente entr‚eX
+Moins de %s entr‚es dans la pile de marques ; utilisez t[ags]X
+Pas de fichier %s vers lequel retourner dans la pile de marques ; utiliser : affichage t[ags]X
+Appuyez sur Entr‚e pour continuer :X
+%s : marque introuvableX
+%s : marque corrompue en %sX
+%s : le num‚ro de ligne de la marque d‚passe la fin du fichierX
+La pile de marques est videX
+%s : motif de recherche introuvableX
+%d fichiers suppl‚mentaires … ‚diterX
+Le tampon %s est vide
+Confirmer les changements ? [n]X
+InterrompuX
+Pas de tampon pr‚c‚dent … ex‚cuterX
+Pas d'expression standard pr‚c‚denteX
+La commande %s n‚cessite qu'un fichier ait d‚j… ‚t‚ lu en m‚moireX
+Utilisation : %sX
+La commande visuelle n‚cessite que l'option ouverte soit d‚finieX
+
+Fichier videX
+Pas de recherche pr‚c‚dente F, f, T ou tX
+%s introuvableX
+Pas de fichier pr‚c‚dent … ‚diterX
+Le curseur n'est pas dans un nombreX
+Le nombre obtenu est trop grandX
+Le nombre obtenu est trop petitX
+Pas de correspondance de caractŠre sur cette ligneX
+CaractŠre correspondant introuvableX
+Pas de caractŠres … remplacerX
+Pas d'autre ‚cran vers lequel basculerX
+CaractŠres aprŠs la chaŒne de recherche, d‚calage de ligne et/ou commande zX
+Pas de motif de recherche pr‚c‚dentX
+La recherche est revenue … son point de d‚partX
+L'abr‚viation a d‚pass‚ la limite de l'expansion : caractŠres abandonn‚sX
+CaractŠre non valide ; guillemet pour saisirX
+D‚j… au d‚but de l'insertionX
+Plus de caractŠres … effacerX
+D‚placement hors de fin de fichierX
+D‚placement hors de fin de ligneX
+Aucun mouvement de curseur n'a ‚t‚ effectu‚X
+D‚j… au d‚but du fichierX
+D‚placement hors du d‚but du fichierX
+D‚j… dans la premiŠre colonneX
+Les tampons doivent ˆtre sp‚cifi‚s avant la commandeX
+D‚j… … la fin du fichierX
+D‚j… … la fin de la ligneX
+%s n'est pas une commande viX
+Utilisation : %sX
+Pas de caractŠres … supprimerX
+La commande Q n‚cessite une interface terminal exX
+Pas de commande … r‚p‚terX
+Le fichier est videX
+Vous ne pouvez pas utiliser %s comme commande de d‚placementX
+D‚j… en mode commandeX
+Le curseur n'est pas dans un motX
+
+Valeur optionnelle de fenˆtre trop grande, maximum est %uX
+AjouterX
+ChangerX
+CommandeX
+Ins‚rerX
+RemplacerX
+D‚placement hors de la fin d'‚cranX
+D‚placement hors du d‚but d'‚cranX
+L'‚cran doit ˆtre sup‚rieur … %d lignes pour se fractionnerX
+Il n'y a pas d'‚cran d'arriŠre-planX
+Il n'y a pas d'‚cran d'arriŠre-plan qui ‚dite un fichier nomm‚ %sX
+Vous ne pouvez pas mettre … l'arriŠre-plan votre seul ‚cran affich‚X
+L'‚cran ne peut ˆtre r‚duit qu'… %d rangsX
+L'‚cran n'est pas auto-r‚ductibleX
+L'‚cran n'est pas auto-extensibleX
+
+Vous ne pouvez pas mettre cet ‚cran en attenteX
+Interrompu : les touches affect‚es ont ‚t‚ abandonn‚esX
+vi : le tampon temporaire n' a pas ‚t‚ lib‚r‚X
+Ce terminal n'a pas de touche %sX
+Vous ne pouvez sp‚cifier qu'un seul tamponX
+Nombre sup‚rieur … %luX
+InterrompuX
+Impossible de cr‚er un fichier temporaireX
+Avertissement : %s n'est pas un fichier standardX
+%s d‚j… verrouill‚, session en lecture seuleX
+%s: supprimerX
+%s: fermerX
+%s: supprimerX
+%s: supprimerX
+Fichier en lecture seule, pas ‚crit, utiliser ! pour outrepasserX
+Fichier en lecture seule, pas ‚critX
+%s existe, pas ‚crit; utiliser ! pour outrepasserX
+%s existe, pas ‚critX
+Fichier partiel, pas ‚crit; utiliser ! pour outrepasserX
+Fichier partiel, pas ‚critX
+%s: fichier modifi‚ plus r‚cemment que cet exemplaire; utiliser ! pour outrepasserX
+%s: fichier modifi‚ plus r‚cemment que cet exemplaireX
+%s: interdiction d'‚criture non disponibleX
+Ecriture en cours...X
+%s: AVERTISSEMENT : FICHIER TRONQUEX
+PremiŠre marque de ce groupe d‚j… atteinteX
+%s: nouveau fichier : %lu lignes, %lu caractŠresX
+%s: %lu lignes, %lu caractŠresX
+%s ‚tendue … trop de noms de fichiersX
+%s: pas un fichier standardX
+%s: ne vous appartient pasX
+%s: accessible par un utilisateur autre que son propri‚taireX
+Fichier modif‚ depuis la derniŠre ‚criture complŠte ; ‚crire ou utiliser ! pour outrepasser X
+Fichier modif‚ depuis la derniŠre ‚criture complŠte ; ‚crire ou utiliser :edit! pour outrepasserX
+Fichier modif‚ depuis la derniŠre ‚criture complŠte ; ‚crire ou utiliser ! pour outrepasserX
+Fichier temporaire ; quitter annulera les modificationsX
+Fichier en lecture seule ; les modifications ne sont pas ‚crites automatiquementX
+Journal red‚marr‚X
+confirmer ? [ynq]X
+Appuyez sur n'importe quelle touche pour continuer : X
+Appuyez sur n'importe quelle touche pour continuer [: pour entrer plus de commandes ex] : X
+Appuyez sur n'importe quelle touche pour continuer [q pour Quitter]: X
+Cette forme de %s n‚cessite l'interface de terminal exX
+Entr‚e de mode entr‚e ex.X
+La commande a ‚chou‚, aucun fichier n'a encore ‚t‚ lu.X
+cont?X
+Ev‚nement impr‚vu de caractŠreX
+Ev‚nement impr‚vu de fin-de-fichierX
+Pas de correspondances pour cette requˆteX
+Ev‚nement impr‚vu d'interruptionX
+Ev‚nement quitter impr‚vuX
+Ev‚nement impr‚vu de rafraŒchissementX
+La derniŠre marque de ce groupe a d‚j… ‚t‚ atteinteX
+La commande %s n‚cessite l'interface de terminal exX
+Cette forme de %s n'est pas reconnue quand l'option d'‚dition prot‚g‚e est activ‚eX
+Ev‚nement impr‚vu de chaŒneX
+Ev‚nement impr‚vu de d‚lai impartiX
+Ev‚nement d'‚criture impr‚vuX
+
+Les expansions du shell ne sont pas reconnues quand l'option d'‚dition prot‚g‚e est activ‚eX
+La commande %s n'est pas reconnue quand l'option d'‚dition prot‚g‚e est activ‚eX
+D‚finition : l'option %s ne peut pas ˆtre d‚sactiv‚eX
+Affichage trop petit.X
+ajout‚X
+chang‚X
+supprim‚X
+jointX
+d‚plac‚X
+d‚cal‚X
+coup‚X
+ligneX
+lignesX
+Vi n'a pas ‚t‚ charg‚ avec un interpr‚tateur TclX
+Ficher modifi‚ depuis le dernier enregistrement.X
+L'expansion du shell a ‚chou‚X
+Pas d'option d'‚dition %s sp‚cifi‚eX
+Vi n'a pas ‚t‚ charg‚ avec un interpr‚tateur PerlX
+Pas de commande ex … ex‚cuterX
+Entrez <CR> pour ex‚cuter une commande, :q pour quitterX
+Utiliser "cscope help" pour obtenir de l'aideX
+Aucune connexion cscope n'est lanc‚eX
+%s : type de recherche inconnu : utiliser un des %sX
+%d : Il n'existe pas de telle session cscopeX
+D‚finition : l'option %s ne peut jamais ˆtre activ‚eX
+D‚finition : l'option %s ne peut jamais ˆtre d‚finie sur 0X
+%s: joints : %lu lignes, %lu caractŠresX
+‚v‚nement impr‚vu de redimensionnementX
+%d fichiers … ‚diterX

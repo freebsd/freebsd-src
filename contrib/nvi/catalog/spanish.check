@@ -1,0 +1,35 @@
+Unused message id's (this is okay):
+001
+047
+050
+051
+052
+081
+176
+229
+288
+=========================
+MISSING ERROR MESSAGES (Please add!):
+=========================
+Extra error messages (just delete them):
+=========================
+MESSAGES WITH THE SAME MESSAGE ID's (FIX!):
+=========================
+Duplicate messages, both id and message (this is okay):
+   2 209 "El archivo est  vac¡o"
+   2 304 "Expansi¢n de shell fracasada"
+=========================
+Duplicate messages, just message (this is okay):
+   2 %s: %lu l¡neas, %lu caracteresX
+   2 %s: archivo de recuperaci¢n defectuosoX
+   2 Copiando archivo para recuperaci¢n...X
+   2 El buffer %s est  vac¡oX
+   2 InterrumpidoX
+   2 Las modificaciones no pueden recuperarse si la sesi¢n fallaX
+   2 No hay patr¢n anterior de b£squedaX
+   2 No se realiza log, no se puede deshacerX
+   2 determinar: opci¢n %s no es booleanoX
+   3 %s: eliminarX
+   3 Archivo modificado desde la £ltima escritura completa; escribir o usar ! para alterarX
+   4 Uso: %sX
+=========================
