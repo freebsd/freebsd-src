@@ -469,6 +469,7 @@ ntp_update_second(struct timecounter *tcp)
 		else if ((*newsec) % 86400 == 0) {
 			(*newsec)--;
 			time_state = TIME_OOP;
+			time_tai++;
 		}
 		break;
 
@@ -489,7 +490,6 @@ ntp_update_second(struct timecounter *tcp)
 		 * Insert second in progress.
 		 */
 		case TIME_OOP:
-			time_tai++;
 			time_state = TIME_WAIT;
 		break;
 
