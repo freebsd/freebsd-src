@@ -927,7 +927,7 @@ struct en_softc *sc;
     printf("     work for you, you'd better switch to a newer motherboard.\n");
   }
 #endif /* 1 */
-    return;
+  return;
 }
 
 
