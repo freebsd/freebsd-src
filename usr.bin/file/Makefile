@@ -24,23 +24,28 @@
 #
 # Hacked and dismembered for bmake (Geoff Rehmet).
 
-MAGICDIR=	/usr/share/misc
+MAGICDIR=	/usr/share/misc/magic
 MAGICMODE=	444
 
-CFLAGS+=	-DMAGIC='"$(MAGICDIR)/magic"' -DBUILTIN_ELF
+SRCDIR=		${.CURDIR}/../../contrib/file
+.PATH:		${SRCDIR}
+
+CFLAGS+=	-DMAGIC='"$(MAGICDIR)"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
+CFLAGS+=	-I${.CURDIR}
 
 PROG=		file
 SRCS=		file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
-		compress.c is_tar.c  readelf.c internat.c print.c
+		compress.c is_tar.c  readelf.c print.c
+#		compress.c is_tar.c  readelf.c internat.c print.c
 
 MAN1=		file.1
 MAN5=		magic.5
 
 CLEANFILES+=	magic
 
-MAGFILES=	$(.CURDIR)/Magdir/Header\
-		$(.CURDIR)/Magdir/Localstuff\
-		$(.CURDIR)/Magdir/[a-z]*
+MAGFILES=	${SRCDIR}/Header\
+		${SRCDIR}/Localstuff\
+		${SRCDIR}/Magdir/[a-z]*
 
 all:	file magic
 
@@ -49,6 +54,6 @@ magic:	$(MAGFILES)
 
 beforeinstall:
 	$(INSTALL) $(COPY) -o $(BINOWN) -g $(BINGRP) -m $(MAGICMODE) \
-	    magic $(DESTDIR)$(MAGICDIR)/magic
+	    magic $(DESTDIR)$(MAGICDIR)
 
 .include <bsd.prog.mk>

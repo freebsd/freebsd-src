@@ -1,5 +1,0 @@
-# 
-# magic.pjl: HP Printer Job Language (PJL)
-# 
-0	string		%-12345X@PJL	HP PJL (printer job language) commands
-0	string		@PJL		HP PJL (printer job language) commands
