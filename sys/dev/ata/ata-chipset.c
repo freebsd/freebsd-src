@@ -1421,6 +1421,10 @@ ata_promise_chipinit(device_t dev)
 	    ATA_OUTL(ctlr->r_res2, 0x06c, 0x000000ff);
 	    ctlr->channels = ((ATA_INL(ctlr->r_res2, 0x48) & 0x02) > 0) + 3;
 	}
+	else if (ctlr->chip->cfg2 & PRCMBO2) {
+	    ATA_OUTL(ctlr->r_res2, 0x060, 0x000000ff);
+	    ctlr->channels = 3;
+	}
 	else
 	    ctlr->channels = 4;
 
@@ -1481,7 +1485,8 @@ ata_promise_mio_allocate(device_t dev, struct ata_channel *ch)
     ch->r_io[ATA_ALTSTAT].offset = offset + 0x0238 + (ch->unit << 7);
     ch->r_io[ATA_IDX_ADDR].res = ctlr->r_res2;
     ch->flags |= ATA_USE_16BIT;
-    if (ctlr->chip->cfg2 & (PRSATA | PRSATA2))
+    if ((ctlr->chip->cfg2 & (PRSATA | PRSATA2)) ||
+	((ctlr->chip->cfg2 & (PRCMBO | PRCMBO2)) && ch->unit < 2))
 	ch->flags |= ATA_NO_SLAVE;
     ata_generic_hw(ch);
     if (ctlr->chip->cfg2 & PRSX4X)
