@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.7 1995/07/04 15:12:53 shun Exp $
+ *	$Id: od.c,v 1.1 1995/10/31 17:25:58 joerg Exp $
  */
 
 /*
@@ -93,7 +93,7 @@ struct scsi_data {
 		u_int32 disksize;	/* total number sectors */
 	} params;
 	struct diskslices *dk_slices;	/* virtual drives */
-	struct buf buf_queue;
+	struct buf_queue_head buf_queue;
 	int dkunit;		/* disk stats unit number */
 };
 
@@ -191,6 +191,8 @@ odattach(struct scsi_link *sc_link)
 
 	if (sc_link->opennings > ODOUTSTANDING)
 		sc_link->opennings = ODOUTSTANDING;
+
+	TAILQ_INIT(&od->buf_queue);
 	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
@@ -381,7 +383,6 @@ od_close(dev, fflag, fmt, p, sc_link)
 void
 od_strategy(struct buf *bp, struct scsi_link *sc_link)
 {
-	struct buf *dp;
 	u_int32 opri;
 	struct scsi_data *od;
 	u_int32 unit;
@@ -412,7 +413,6 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 		goto done;	/* XXX check b_resid */
 
 	opri = SPLOD();
-	dp = &od->buf_queue;
 
 	/*
 	 * Use a bounce buffer if necessary
@@ -425,7 +425,7 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	/*
 	 * Place it in the queue of disk activities for this disk
 	 */
-	disksort(dp, bp);
+	TAILQ_INSERT_TAIL(&od->buf_queue, bp, b_act);
 
 	/*
 	 * Tell the device to get going on the transfer if it's
@@ -479,7 +479,6 @@ odstart(u_int32 unit, u_int32 flags)
 	register struct	scsi_link *sc_link = SCSI_LINK(&od_switch, unit);
 	register struct scsi_data *od = sc_link->sd;
 	struct buf *bp = 0;
-	struct buf *dp;
 	struct scsi_rw_big cmd;
 	u_int32 blkno, nblk;
 
@@ -500,11 +499,11 @@ odstart(u_int32 unit, u_int32 flags)
 		/*
 		 * See if there is a buf with work for us to do..
 		 */
-		dp = &od->buf_queue;
-		if ((bp = dp->b_actf) == NULL) {	/* yes, an assign */
+		bp = od->buf_queue.tqh_first;
+		if (bp == NULL) {	/* yes, an assign */
 			return;
 		}
-		dp->b_actf = bp->b_actf;
+		TAILQ_REMOVE( &od->buf_queue, bp, b_act);
 
 		/*
 		 *  If the device has become invalid, abort all the
