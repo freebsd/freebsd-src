@@ -35,6 +35,8 @@
 
 #ifdef _KERNEL
 
+struct cam_periph *xpt_periph;
+
 extern struct linker_set periphdriver_set;
 
 typedef void (periph_init_t)(void); /*
