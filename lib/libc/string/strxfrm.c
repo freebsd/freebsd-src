@@ -24,11 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strxfrm.c,v 1.3 1995/02/18 01:39:00 ache Exp $
+ * $Id: strxfrm.c,v 1.4 1995/02/18 11:36:33 ache Exp $
  */
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "collate.h"
 
 size_t
@@ -50,14 +51,25 @@ strxfrm(dest, src, len)
 
 	if (__collate_load_error) {
 		size_t slen = strlen(src);
+		u_char *us;
 
-		if (slen < len) {
+		if (slen < len)
 			strcpy(d, src);
-			return slen;
+		else {
+			slen = len - 1;
+			strncpy(d, src, slen);
+			d[slen] = '\0';
 		}
-		strncpy(d, src, len - 1);
-		d[len - 1] = '\0';
-		return len - 1;
+		for (us = d; *us; us++) {
+			if (isupper(*us)) {
+				if (tolower(*us) < *us)
+					*us = tolower(*us) - 1;
+					/* assume it not started from 0 */
+				else
+					*us = tolower(*us);
+			}
+		}
+		return slen;
 	}
 
 	ss = s = __collate_substitute(src);

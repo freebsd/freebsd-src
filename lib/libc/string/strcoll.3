@@ -53,13 +53,10 @@ lexicographically compares the null-terminated strings
 .Fa s1
 and
 .Fa s2
-according to the current locale collation if any, otherwise call
-.Fa strcmp ,
-and returns an integer greater than, equal to, or less than 0,
-according as
-.Fa s1
-is greater than, equal to, or less than
-.Fa s2 .
+according to the current locale collation if any, otherwise some
+approximation procedure is used based on available
+.Xr ctype 3
+information.
 .Sh SEE ALSO
 .Xr setlocale 3 ,
 .Xr strcmp 3 ,
