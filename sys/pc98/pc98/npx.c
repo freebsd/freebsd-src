@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/ipl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -59,7 +60,6 @@
 #endif
 #include <machine/cputypes.h>
 #include <machine/frame.h>
-#include <machine/ipl.h>
 #include <machine/md_var.h>
 #include <machine/pcb.h>
 #include <machine/psl.h>
