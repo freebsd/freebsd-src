@@ -1,48 +1,48 @@
-#
-# Copyright (c) 1998 Robert Nordier
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms are freely
-# permitted provided that the above copyright notice and this
-# paragraph and the following disclaimer are duplicated in all
-# such forms.
-#
-# This software is provided "AS IS" and without any express or
-# implied warranties, including, without limitation, the implied
-# warranties of merchantability and fitness for a particular
-# purpose.
-#
+/*
+ * Copyright (c) 1998 Robert Nordier
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms are freely
+ * permitted provided that the above copyright notice and this
+ * paragraph and the following disclaimer are duplicated in all
+ * such forms.
+ *
+ * This software is provided "AS IS" and without any express or
+ * implied warranties, including, without limitation, the implied
+ * warranties of merchantability and fitness for a particular
+ * purpose.
+ *
+ * $FreeBSD$
+ */
 
-# $FreeBSD$
+/*
+ * Prototype BTX loader program, written in a couple of hours.  The
+ * real thing should probably be more flexible, and in C.
+ */
 
-#
-# Prototype BTX loader program, written in a couple of hours.  The
-# real thing should probably be more flexible, and in C.
-#
-
-#
-# Memory locations.
-#
+/*
+ * Memory locations.
+ */
 		.set MEM_STUB,0x600		# Real mode stub
 		.set MEM_ESP,0x1000		# New stack pointer
 		.set MEM_TBL,0x5000		# BTX page tables
 		.set MEM_ENTRY,0x9010		# BTX entry point
 		.set MEM_DATA,start+0x1000	# Data segment
-#
-# Segment selectors.
-#
+/*
+ * Segment selectors.
+ */
 		.set SEL_SCODE,0x8		# 4GB code
 		.set SEL_SDATA,0x10		# 4GB data
 		.set SEL_RCODE,0x18		# 64K code
 		.set SEL_RDATA,0x20		# 64K data
-#
-# Paging constants.
-#
+/*
+ * Paging constants.
+ */
 		.set PAG_SIZ,0x1000		# Page size
 		.set PAG_ENT,0x4		# Page entry size
-#
-# Screen constants.
-#
+/*
+ * Screen constants.
+ */
 #ifdef PC98
 		.set SCR_MAT,0xe1		# Mode/attribute
 #else
@@ -50,9 +50,9 @@
 #endif
 		.set SCR_COL,0x50		# Columns per row
 		.set SCR_ROW,0x19		# Rows per screen
-#
-# BIOS Data Area locations.
-#
+/*
+ * BIOS Data Area locations.
+ */
 #ifdef PC98
 		.set BDA_MEM,0xa1501		# Free memory
 		.set BDA_POS,0xa153e		# Cursor position
@@ -61,17 +61,17 @@
 		.set BDA_SCR,0x449		# Video mode
 		.set BDA_POS,0x450		# Cursor position
 #endif
-#
-# Required by aout gas inadequacy.
-#
+/*
+ * Required by aout gas inadequacy.
+ */
 		.set SIZ_STUB,0x1a		# Size of stub
-#
-# We expect to be loaded by boot2 at the origin defined in ./Makefile.
-#
+/*
+ * We expect to be loaded by boot2 at the origin defined in ./Makefile.
+ */
 		.globl start
-#
-# BTX program loader for ELF clients.
-#
+/*
+ * BTX program loader for ELF clients.
+ */
 start:		cld				# String ops inc
 #ifdef PC98
 		cli
@@ -112,9 +112,9 @@ gdcwait.2:	inb $0x60,%al
 		call putstr			#  base memory
 #endif
 		lgdt gdtdesc			# Load new GDT
-#
-# Relocate caller's arguments.
-#
+/*
+ * Relocate caller's arguments.
+ */
 #ifdef BTXLDR_VERBOSE
 		movl $m_esp,%esi		# Display
 		movl %esp,%eax			#  caller
@@ -156,9 +156,9 @@ start_null_bi:	movl $0x18,%ecx 		# Allocate space
 		call hexout			#  relocation
 		call putstr			#  message
 #endif
-#
-# Set up BTX kernel.
-#
+/*
+ * Set up BTX kernel.
+ */
 		movl $MEM_ESP,%esp		# Set up new stack
 		movl $MEM_DATA,%ebx		# Data segment
 		movl $m_vers,%esi		# Display BTX
@@ -210,9 +210,9 @@ start_null_bi:	movl $0x18,%ecx 		# Allocate space
 		call hexout			#  base
 		call putstr			#  address
 #endif
-#
-# Set up ELF-format client program.
-#
+/*
+ * Set up ELF-format client program.
+ */
 		cmpl $0x464c457f,(%ebx) 	# ELF magic number?
 		je start.3			# Yes
 		movl $e_fmt,%esi		# Display error
@@ -289,9 +289,9 @@ start.8:	xorw %ax,%ax			# Data
 		ljmp $0,$MEM_ENTRY		# Jump to BTX entry point
 start.9:
 		.code32
-#
-# Output message [ESI] followed by EAX in hex.
-#
+/*
+ * Output message [ESI] followed by EAX in hex.
+ */
 hexout: 	pushl %eax			# Save
 		call putstr			# Display message
 		popl %eax			# Restore
@@ -314,17 +314,17 @@ hexout.2:	decl %esi			# Adjust for inc
 		popl %edi			# Restore
 		popl %esi			#  caller's
 		ret				# To caller
-#
-# Output zero-terminated string [ESI] to the console.
-#
+/*
+ * Output zero-terminated string [ESI] to the console.
+ */
 putstr.0:	call putchr			# Output char
 putstr: 	lodsb				# Load char
 		testb %al,%al			# End of string?
 		jne putstr.0			# No
 		ret				# To caller
-#
-# Output character AL to the console.
-#
+/*
+ * Output character AL to the console.
+ */
 putchr: 	pusha				# Save
 		xorl %ecx,%ecx			# Zero for loops
 		movb $SCR_MAT,%ah		# Mode/attribute
@@ -401,9 +401,9 @@ putchr.4:	movw %dx,(%ebx) 		# Update position
 #endif
 		popa				# Restore
 		ret				# To caller
-#
-# Convert EAX, AX, or AL to hex, saving the result to [EDI].
-#
+/*
+ * Convert EAX, AX, or AL to hex, saving the result to [EDI].
+ */
 hex32:		pushl %eax			# Save
 		shrl $0x10,%eax 		# Do upper
 		call hex16			#  16
@@ -424,9 +424,9 @@ hex8.1: 	andb $0xf,%al			# Get lower 4
 
 		.data
 		.p2align 4
-#
-# Global descriptor table.
-#
+/*
+ * Global descriptor table.
+ */
 gdt:		.word 0x0,0x0,0x0,0x0		# Null entry
 		.word 0xffff,0x0,0x9a00,0xcf	# SEL_SCODE
 		.word 0xffff,0x0,0x9200,0xcf	# SEL_SDATA
@@ -435,9 +435,9 @@ gdt:		.word 0x0,0x0,0x0,0x0		# Null entry
 gdt.1:
 gdtdesc:	.word gdt.1-gdt-1		# Limit
 		.long gdt			# Base
-#
-# Messages.
-#
+/*
+ * Messages.
+ */
 m_logo: 	.asciz " \nBTX loader 1.00  "
 m_vers: 	.asciz "BTX version is \0\n"
 e_fmt:		.asciz "Error: Client format not supported\n"
@@ -465,7 +465,7 @@ m_segs: 	.asciz "text segment: offset="
 		.asciz " memsz=\0\n"
 m_done: 	.asciz "Loading complete\n"
 #endif
-#
-# Uninitialized data area.
-#
+/*
+ * Uninitialized data area.
+ */
 buf:						# Scratch buffer
