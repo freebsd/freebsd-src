@@ -381,7 +381,7 @@ vm_pageout_flush(mc, count, flags)
 	vm_object_pip_add(object, count);
 
 	vm_pager_put_pages(object, mc, count,
-	    (flags | ((object == kernel_object) ? OBJPC_SYNC : 0)),
+	    (flags | ((object == kernel_object) ? VM_PAGER_PUT_SYNC : 0)),
 	    pageout_status);
 
 	for (i = 0; i < count; i++) {
