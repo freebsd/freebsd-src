@@ -34,7 +34,7 @@ divert(-1)
 #
 
 divert(0)
-VERSIONID(`@(#)sco32.m4	8.1 (Berkeley) 11/27/93')
+VERSIONID(`@(#)sco3.2.m4	8.1 (Berkeley) 11/27/93')
 define(`ALIAS_FILE', /usr/lib/mail/aliases)dnl
 define(`QUEUE_DIR', /usr/spool/mqueue)dnl
 define(`STATUS_FILE', /usr/lib/sendmail.st)dnl

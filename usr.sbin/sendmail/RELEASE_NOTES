@@ -1,9 +1,20 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.6.11.1 (Berkeley) 3/8/95
+	     @(#)RELEASE_NOTES	8.6.12.1 (Berkeley) 3/28/95
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.6.12/8.6.12	95/03/28
+	Fix to IDENT code (it was getting the size of the reply buffer
+		too small, so nothing was ever accepted).  Fix from several
+		people, including Allan Johannesen, Shane Castle of the
+		Boulder County Information Services, and Jeff Smith of
+		Warwick University (all arrived within a few hours of
+		each other!).
+	Fix a problem that could cause large jobs to run out of
+		file descriptors on systems that use vfork() rather
+		than fork().
 
 8.6.11/8.6.11	95/03/08
 	The ``possible attack'' message would be logged more often

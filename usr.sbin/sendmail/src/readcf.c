@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)readcf.c	8.23.1.2 (Berkeley) 2/10/95";
+static char sccsid[] = "@(#)readcf.c	8.23.1.3 (Berkeley) 3/5/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -1354,6 +1354,7 @@ setoption(opt, val, safe, sticky, e)
 				syserr("readcf: Op line: %s unrecognized", val);
 			PrivacyFlags |= pv->pv_flag;
 		}
+		sticky = FALSE;
 		break;
 
 	  case 'P':		/* postmaster copy address for returned mail */
