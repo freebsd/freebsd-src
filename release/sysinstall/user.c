@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.3 1996/12/10 02:15:54 joerg Exp $
+ * $Id: user.c,v 1.4 1996/12/14 23:09:10 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -671,9 +671,9 @@ addUser(WINDOW *ds_win)
     pid_t pid;
     /*
      * Maximal list:
-     * pw user add -m -n uname -g grp -u uid -c comment -d homedir -s shell -G grplist
+     * pw user add -m -n uname -g grp -u uid -c comment -d homedir -s shell -G grplist -h 0
      */
-    char *vec[19] =
+    char *vec[21] =
     {
 	"pw", "user", "add", "-m", "-n", /* ... */
     };
