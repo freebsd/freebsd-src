@@ -354,8 +354,10 @@ vector() {
 	fprintf(fp, "\
 #define	BUILD_VECTORS \\\n\
 	BUILD_VECTOR(clk, 0,0,0, _high_imask, _clkintr,1,1,       al);\\\n");
+	fprintf(fp,
+	"BUILD_VECTOR(rtc, 0,8,1, _stat_imask, _rtcintr,2,1_AND_2, ah);\\\n");
 
-	count=1;
+	count=2;
 	for (dp = dtab; dp != 0; dp = dp->d_next) {
 		mp = dp->d_conn;
 		if (mp != 0 && /* mp != (struct device *)-1 &&*/
