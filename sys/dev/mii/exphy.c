@@ -131,7 +131,7 @@ static int exphy_probe(dev)
 	if ((MII_OUI(ma->mii_id1, ma->mii_id2) != 0 ||
 	    MII_MODEL(ma->mii_id2) != 0) &&
 	    (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_BROADCOM ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_BROADCOM_3c905Cphy))
+	    MII_MODEL(ma->mii_id2) != MII_MODEL_BROADCOM_3C905C))
 		return (ENXIO);
 
 	/*
@@ -143,7 +143,7 @@ static int exphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == 0)
 		device_set_desc(dev, "3Com internal media interface");
 	else
-		device_set_desc(dev, MII_STR_BROADCOM_3c905Cphy);
+		device_set_desc(dev, MII_STR_BROADCOM_3C905C);
 
 	return (0);
 }
