@@ -483,6 +483,8 @@ ufs_print(vp)
 			(void)printf(" %7s", name);
 	else
 		(void)printf(" %7qd", ip->i_size);
+	if (flag & IN_LOCKED)
+		printf(" lockholder: %d", ip->i_lockholder);
 	return (0);
 }
 
@@ -719,8 +721,8 @@ kinfo_vnodes(avnodes)
 	int *avnodes;
 {
 	struct mntlist mountlist;
-	struct mount *mp, mount;
-	struct vnode *vp, vnode;
+	struct mount *mp, mount, *mp_next;
+	struct vnode *vp, vnode, *vp_next;
 	char *vbuf, *evbuf, *bp;
 	int num, numvnodes;
 
@@ -733,11 +735,13 @@ kinfo_vnodes(avnodes)
 	bp = vbuf;
 	evbuf = vbuf + (numvnodes + 20) * (VPTRSZ + VNODESZ);
 	KGET(V_MOUNTLIST, mountlist);
-	for (num = 0, mp = mountlist.cqh_first; ; mp = mp->mnt_list.cqe_next) {
+	for (num = 0, mp = mountlist.cqh_first; ; mp = mp_next) {
 		KGET2(mp, &mount, sizeof(mount), "mount entry");
+		mp_next = mount.mnt_list.cqe_next;
 		for (vp = mount.mnt_vnodelist.lh_first;
-		    vp != NULL; vp = vp->v_mntvnodes.le_next) {
+		    vp != NULL; vp = vp_next) {
 			KGET2(vp, &vnode, sizeof(vnode), "vnode");
+			vp_next = vnode.v_mntvnodes.le_next;
 			if ((bp + VPTRSZ + VNODESZ) > evbuf)
 				/* XXX - should realloc */
 				errx(1, "no more room for vnodes");
