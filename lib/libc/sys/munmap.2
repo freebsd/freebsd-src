@@ -50,7 +50,7 @@ and causes further references to addresses within the range
 to generate invalid memory references.
 .Sh RETURN VALUES
 Upon successful completion,
-.Nm munmap
+.Fn munmap
 returns zero.
 Otherwise, a value of -1 is returned and
 .Va errno
@@ -77,4 +77,5 @@ valid address space.
 .Sh HISTORY
 The
 .Fn munmap
-function first appeared in 4.4BSD.
+function first appeared in
+.Bx 4.4 .

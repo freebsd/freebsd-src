@@ -44,7 +44,7 @@
 .Fn mmap "caddr_t addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
 .Sh DESCRIPTION
 The
-.Nm mmap
+.Fn mmap
 function causes the pages starting at
 .Fa addr
 and continuing for at most
@@ -113,7 +113,7 @@ region.
 Do not permit the system to select a different address than the one
 specified.
 If the specified address cannot be used,
-.Nm mmap
+.Fn mmap
 will fail.
 If MAP_FIXED is specified,
 .Fa addr
@@ -147,7 +147,7 @@ the file descriptor argument specifies a file or device to which swapping
 should be done.
 .Sh RETURN VALUES
 Upon successful completion,
-.Nm mmap
+.Fn mmap
 returns a pointer to the mapped region.
 Otherwise, a value of -1 is returned and
 .Va errno
