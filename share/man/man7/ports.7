@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2004
+.Dd December 17, 2004
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -118,9 +118,9 @@ listed in
 and
 .Va PATCH_SITES .
 See
-.Va FETCH_CMD
+.Va FETCH_CMD , MASTER_SITE_OVERRIDE
 and
-.Va MASTER_SITE_OVERRIDE .
+.Va MASTER_SITE_BACKUP .
 .It Cm checksum
 Verify that the fetched distfile's checksum matches the one the port was
 tested against.
@@ -380,6 +380,26 @@ If set, go to the master
 site for all files.
 .It Va MASTER_SITE_OVERRIDE
 Try going to these sites for all files and patches, first.
+.It Va MASTER_SITE_BACKUP
+Try going to these sites for all files and patches, last.
+.It Va MASTER_SITE_INDEX
+Where to get
+.Pa INDEX
+source built on
+.Fx
+cluster (for
+.Cm fetchindex
+target).
+Defaults to
+.Pa http://www.FreeBSD.org/ports/ .
+.It Va FETCHINDEX
+Command to get
+.Pa INDEX
+(for
+.Cm fetchindex
+target).
+Defaults to
+.Dq Nm fetch Fl am .
 .It Va NOCLEANDEPENDS
 If defined, do not let
 .Cm clean
