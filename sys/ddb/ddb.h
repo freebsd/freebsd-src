@@ -27,18 +27,21 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.5 1995/03/16 18:11:01 bde Exp $
+ *	$Id: ddb.h,v 1.6 1995/05/30 07:57:24 rgrimes Exp $
  */
 
 /*
  * Necessary declarations for the `ddb' kernel debugger.
  */
 
-#ifndef __h_ddb_ddb
-#define __h_ddb_ddb 1
+#ifndef _DDB_DDB_H_
+#define	_DDB_DDB_H_
 
 #include <machine/db_machdep.h>		/* type definitions */
 #include <vm/vm.h>
+
+typedef void db_cmdfcn_t __P((db_expr_t addr, boolean_t have_addr,
+			      db_expr_t count, char *modif));
 
 /*
  * Global variables...
@@ -52,62 +55,70 @@ extern int db_radix;
 extern int db_max_width;
 extern int db_tab_stop_width;
 
+struct vm_map;			/* forward declaration */
+
 /*
  * Functions...
  */
-extern void
-db_read_bytes(vm_offset_t addr, register int size, register char *data);
+
+void		cnpollc __P((int));
+void		db_check_interrupt __P((void));
+void		db_clear_watchpoints __P((void));
+db_addr_t	db_disasm __P((db_addr_t loc, boolean_t altfmt));
+				/* instruction disassembler */
+void		db_error __P((char *s));
+int		db_expression __P((db_expr_t *valuep));
+int		db_get_variable __P((db_expr_t *valuep));
+struct vm_map	*db_map_addr __P((vm_offset_t));
+boolean_t	db_map_current __P((struct vm_map *));
+boolean_t	db_map_equal __P((struct vm_map *, struct vm_map *));
+void		db_print_loc_and_inst __P((db_addr_t loc));
+void		db_printf __P((const char *fmt, ...));
+void		db_putchar __P((int c));
+void		db_read_bytes __P((vm_offset_t addr, int size, char *data));
 				/* machine-dependent */
-
-extern void
-db_write_bytes(vm_offset_t addr, register int size, register char *data);
+int		db_readline __P((char *lstart, int lsize));
+void		db_restart_at_pc __P((boolean_t watchpt));
+void		db_set_watchpoints __P((void));
+void		db_single_step __P((db_regs_t *regs));
+void		db_skip_to_eol __P((void));
+boolean_t	db_stop_at_pc __P((boolean_t *is_breakpoint));
+#define		db_strcpy	strcpy
+void		db_trap __P((int type, int code));
+int		db_value_of_name __P((char *name, db_expr_t *valuep));
+void		db_write_bytes __P((vm_offset_t addr, int size, char *data));
 				/* machine-dependent */
+void		kdb_init __P((void));
+void		kdbprintf __P((const char *fmt, ...));
+void		kdbprinttrap __P((int, int));
 
-struct vm_map;			/* forward declaration */
+db_cmdfcn_t	db_breakpoint_cmd;
+db_cmdfcn_t	db_continue_cmd;
+db_cmdfcn_t	db_delete_cmd;
+db_cmdfcn_t	db_deletewatch_cmd;
+db_cmdfcn_t	db_examine_cmd;
+db_cmdfcn_t	db_fncall;
+db_cmdfcn_t	db_listbreak_cmd;
+db_cmdfcn_t	db_listwatch_cmd;
+db_cmdfcn_t	db_panic;
+db_cmdfcn_t	db_print_cmd;
+db_cmdfcn_t	db_ps;
+db_cmdfcn_t	db_search_cmd;
+db_cmdfcn_t	db_set_cmd;
+db_cmdfcn_t	db_show_regs;
+db_cmdfcn_t	db_single_step_cmd;
+db_cmdfcn_t	db_stack_trace_cmd;
+db_cmdfcn_t	db_trace_until_call_cmd;
+db_cmdfcn_t	db_trace_until_matching_cmd;
+db_cmdfcn_t	db_watchpoint_cmd;
+db_cmdfcn_t	db_write_cmd;
 
-extern boolean_t db_map_equal(struct vm_map *, struct vm_map *);
-extern boolean_t db_map_current(struct vm_map *);
-extern struct vm_map *db_map_addr(vm_offset_t);
+#if 0
+db_cmdfcn_t	db_help_cmd;
+db_cmdfcn_t	db_show_all_threads;
+db_cmdfcn_t	db_show_one_thread;
+db_cmdfcn_t	ipc_port_print;
+db_cmdfcn_t	vm_page_print;
+#endif
 
-#define db_strcpy strcpy
-extern int db_expression (db_expr_t *valuep);
-
-typedef void db_cmd_fcn(db_expr_t, int, db_expr_t, char *);
-
-extern db_cmd_fcn db_listbreak_cmd, db_listwatch_cmd, db_show_regs;
-extern db_cmd_fcn db_print_cmd, db_examine_cmd, db_set_cmd, db_search_cmd;
-extern db_cmd_fcn db_write_cmd, db_delete_cmd, db_breakpoint_cmd;
-extern db_cmd_fcn db_deletewatch_cmd, db_watchpoint_cmd;
-extern db_cmd_fcn db_single_step_cmd, db_trace_until_call_cmd;
-extern db_cmd_fcn db_trace_until_matching_cmd, db_continue_cmd;
-extern db_cmd_fcn db_stack_trace_cmd;
-
-extern db_addr_t db_disasm(db_addr_t loc, boolean_t altfmt);
-			/* instruction disassembler */
-
-extern int db_value_of_name (char *name, db_expr_t *valuep);
-extern int db_get_variable (db_expr_t *valuep);
-extern void db_putchar (int c);
-extern void db_error (char *s);
-extern int db_readline (char *lstart, int lsize);
-extern void db_printf (const char *fmt, ...);
-extern void db_check_interrupt(void);
-extern void db_print_loc_and_inst (db_addr_t loc);
-
-extern void db_clear_watchpoints (void);
-extern void db_set_watchpoints (void);
-
-extern void db_restart_at_pc(boolean_t watchpt);
-extern boolean_t db_stop_at_pc(boolean_t *is_breakpoint);
-
-extern void db_skip_to_eol (void);
-extern void db_single_step (db_regs_t *regs);
-
-extern void db_trap (int type, int code);
-
-extern void cnpollc(int);
-
-extern void kdb_init(void);
-extern void kdbprinttrap(int, int);
-
-#endif /* __h_ddb_ddb */
+#endif /* !_DDB_DDB_H_ */

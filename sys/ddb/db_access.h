@@ -23,11 +23,11 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_access.h,v 1.3 1993/11/07 17:39:20 wollman Exp $
+ *	$Id: db_access.h,v 1.4 1995/05/30 07:56:47 rgrimes Exp $
  */
 
 #ifndef _DDB_DB_ACCESS_H_
-#define _DDB_DB_ACCESS_H_ 1
+#define	_DDB_DB_ACCESS_H_
 
 /*
  *	Author: David B. Golub, Carnegie Mellon University
@@ -38,10 +38,8 @@
  */
 #include <machine/db_machdep.h>		/* expression types */
 
-extern db_expr_t db_get_value(/* db_addr_t addr,
-				 int size,
-				 boolean_t is_signed */);
-extern void	 db_put_value(/* db_addr_t addr,
-				 int size,
-				 db_expr_t value */);
-#endif /* _DDB_DB_ACCESS_H_ */
+db_expr_t	db_get_value __P((db_addr_t addr, int size,
+				  boolean_t is_signed));
+void		db_put_value __P((db_addr_t addr, int size, db_expr_t value));
+
+#endif /* !_DDB_DB_ACCESS_H_ */
