@@ -931,14 +931,12 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	if (inp == NULL) {
 		error = ENOENT;
 		goto outunlocked;
-	} else {
-		INP_LOCK(inp);
-		if (inp->inp_socket == NULL) {
-			error = ENOENT;
-			goto out;
-		}
 	}
-
+	INP_LOCK(inp);
+	if (inp->inp_socket == NULL) {
+		error = ENOENT;
+		goto out;
+	}
 	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
 	if (error)
 		goto out;
@@ -994,12 +992,11 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	if (inp == NULL) {
 		error = ENOENT;
 		goto outunlocked;
-	} else {
-		INP_LOCK(inp);
-		if (inp->inp_socket == NULL) {
-			error = ENOENT;
-			goto out;
-		}
+	}
+	INP_LOCK(inp);
+	if (inp->inp_socket == NULL) {
+		error = ENOENT;
+		goto out;
 	}
 	error = cr_canseesocket(req->td->td_ucred, inp->inp_socket);
 	if (error)
