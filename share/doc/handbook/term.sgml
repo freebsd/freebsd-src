@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      hardwired terminals with FreeBSD.  By Sean Kelly, (c) 1996.
 
-     $Id: term.sgml,v 1.3 1996/10/04 22:54:17 wosch Exp $
+     $Id: term.sgml,v 1.4 1996/11/03 14:46:16 max Exp $
 
      The FreeBSD Documentation Project
 
@@ -373,8 +373,8 @@ ttyd5   "/usr/libexec/getty std.19200"
 	  type does not change, so you can put a real terminal type in
 	  this field.
 
-	  Users will usually use the <tt/tset/ program in their
-	  <tt/.login/ or <tt/.profile/ files to check the terminal
+	  Users will usually use the <tt/tset/ program in 
+	  their <tt/.login/ or <tt/.profile/ files to check the terminal
 	  type and prompt for one if necessary.  By setting a terminal
 	  type in the <tt>/etc/ttys</tt> file, users can forego such
 	  prompting.
