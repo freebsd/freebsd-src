@@ -4864,7 +4864,7 @@ softdep_fsync(vp)
 		 * not now, but then the user was not asking to have it
 		 * written, so we are not breaking any promises.
 		 */
-		if (vp->v_iflag & VI_XLOCK)
+		if (vp->v_iflag & VI_DOOMED)
 			break;
 		/*
 		 * We prevent deadlock by always fetching inodes from the
