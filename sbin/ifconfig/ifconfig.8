@@ -377,12 +377,10 @@ To
 change the association to another physical interface, the existing
 association must be cleared first.
 .Pp
-Note: if the
-.Cm link0
-flag is set on the vlan interface, the vlan pseudo
-interface's behavior changes: the
-.Cm link0
-tells the vlan interface that the
+Note: if the hardware tagging capabilitiy
+is set on the vlan interface, the vlan pseudo
+interface's behavior changes: 
+the vlan interface recognizes that the
 parent interface supports insertion and extraction of vlan tags on its
 own (usually in firmware) and that it should pass packets to and from
 the parent unaltered.
