@@ -470,7 +470,7 @@ int labpcprobe(struct isa_device *dev)
 			l->kdc.kdc_description = "National Instrument's LabPC";
 
 		unit++;
-		return 1;
+		return 0x20;
 	}
 	else
 	{
