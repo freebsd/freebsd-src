@@ -32,7 +32,7 @@
 
 
 0	NOPROTO	OSF1	{ int nosys(void); }
-1	NOPROTO	OSF1	{ int exit(int rval); }
+1	NOPROTO	OSF1	{ void exit(int rval); } exit rexit_args void
 2	NOPROTO	OSF1	{ int fork(void); }
 3	NOPROTO	OSF1	{ ssize_t read(int fd, char *buf, ssize_t nbyte); }
 4	NOPROTO	OSF1	{ ssize_t write(int fd, char *buf, ssize_t nbyte); }
@@ -134,10 +134,10 @@
 85	STD	OSF1	{ int osf1_table(long id, long index, void *addr,       \
 			    long nel, u_long lel); }
 86	STD	OSF1	{ int osf1_getitimer(u_int which, struct itimerval *itv); }
-87	NOPROTO	OSF1	{ int ogethostname(char *hostname, \
-			    u_int len); }
-88	NOPROTO	OSF1	{ int osethostname(char *hostname, \
-			    u_int len); }
+87	NOPROTO	OSF1	{ int ogethostname(char *hostname, u_int len); } \
+			    ogethostname gethostname_args int
+88	NOPROTO	OSF1	{ int osethostname(char *hostname, u_int len); } \
+			    osethostname sethostname_args int
 89	NOPROTO	OSF1	{ int getdtablesize(void); }
 90	NOPROTO	OSF1	{ int dup2(u_int from, u_int to); }
 91	STD	OSF1	{ int osf1_fstat(int fd, void *sb); }
@@ -151,7 +151,8 @@
 97	STD	OSF1	{ int osf1_socket(int domain, int type, \
 			    int protocol); }
 98	NOPROTO	OSF1	{ int connect(int s, caddr_t name, int namelen); }
-99	NOPROTO	OSF1	{ int oaccept(int s, caddr_t name, int *anamelen); } 
+99	NOPROTO	OSF1	{ int oaccept(int s, caddr_t name, int *anamelen); } \
+			    oaccept accept_args int
 100	NOPROTO	OSF1	{ int getpriority(int which, int who); }
 101	NOPROTO	OSF1	{ int osend(int s, caddr_t buf, int len, \
 			    int flags); }
@@ -187,9 +188,9 @@
 			    struct timezone *tzp); }
 123	NOPROTO	OSF1	{ int fchown(int fd, int uid, int gid); }
 124	NOPROTO	OSF1	{ int fchmod(int fd, int mode); }
-125	NOPROTO	OSF1	{ int orecvfrom(int s, caddr_t buf, \
-			    size_t len, int flags, caddr_t from, \
-			    int *fromlenaddr); }
+125	NOPROTO	OSF1	{ int orecvfrom(int s, caddr_t buf, size_t len, \
+			    int flags, caddr_t from, int *fromlenaddr); } \
+			    orecvfrom recvfrom_args int
 126	NOPROTO	OSF1	{ int setreuid(int ruid, int euid); }
 127	NOPROTO	OSF1	{ int setregid(int rgid, int egid); }
 128	NOPROTO	OSF1	{ int rename(const char *from, \
@@ -218,7 +219,8 @@
 147	NOPROTO	OSF1	{ int setsid(void); }
 148	UNIMPL	OSF1	quotactl
 149	NOPROTO	OSF1	{ int oquota(void); }
-150	NOPROTO	OSF1	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} 
+150	NOPROTO	OSF1	{ int ogetsockname(int fdec, caddr_t asa, int *alen);} \
+			    ogetsockname getsockname_args int
 151	UNIMPL	OSF1
 152	UNIMPL	OSF1
 153	UNIMPL	OSF1
@@ -387,6 +389,3 @@
 298	UNIMPL	OSF1	
 299	UNIMPL	OSF1	
 300	UNIMPL	OSF1	
-
-
-
