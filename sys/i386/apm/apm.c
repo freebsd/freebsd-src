@@ -2,7 +2,7 @@
  * APM (Advanced Power Management) BIOS Device Driver
  *
  * Copyright (c) 1994 UKAI, Fumitoshi.
- * Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (c) 1994-1995 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  * Copyright (c) 1996 Nate Williams <nate@FreeBSD.org>
  *
  * This software may be used, modified, copied, and distributed, in
@@ -14,14 +14,9 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.48 1996/09/06 23:06:50 phk Exp $
+ *	$Id: apm.c,v 1.49 1996/09/07 17:41:22 nate Exp $
  */
 
-#include "apm.h"
-#if NAPM > 1
-#error only one APM device may be configured
-#endif
- 
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
@@ -29,11 +24,7 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 #include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/ioctl.h>
-#include <sys/file.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
+#include <sys/time.h>
 #include <i386/isa/isa_device.h>
 #include <machine/apm_bios.h>
 #include <machine/segments.h>
@@ -44,7 +35,7 @@
 #include <sys/syslog.h>
 #include <i386/apm/apm_setup.h>
 
-static int apm_display_off __P((void));
+static int apm_display __P((int newstate));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx));
 static void apm_resume __P((void));
 
@@ -140,17 +131,18 @@ apm_int(u_long *eax, u_long *ebx, u_long *ecx)
 
 /* enable/disable power management */
 static int
-apm_enable_disable_pm(struct apm_softc *sc, int enable)
+apm_enable_disable_pm(int enable)
 {
+	struct apm_softc *sc = &apm_softc;
+
 	u_long eax, ebx, ecx;
 
 	eax = (APM_BIOS << 8) | APM_ENABLEDISABLEPM;
 
-	if (sc->intversion >= INTVERSION(1, 1)) {
+	if (sc->intversion >= INTVERSION(1, 1))
 		ebx  = PMDV_ALLDEV;
-	} else {
+	else
 		ebx  = 0xffff;	/* APM version 1.0 only */
-	}
 	ecx  = enable;
 	return apm_int(&eax, &ebx, &ecx);
 }
@@ -163,6 +155,7 @@ apm_driver_version(void)
 
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
+	/* XXX - The APM 1.1 specification is only supported for now */
 	ecx  = 0x0101;
 	if(!apm_int(&eax, &ebx, &ecx))
 		apm_version = eax & 0xffff;
@@ -170,7 +163,7 @@ apm_driver_version(void)
 
 /* engage/disengage power management (APM 1.1 or later) */
 static int
-apm_engage_disengage_pm(struct apm_softc *sc, int engage)
+apm_engage_disengage_pm(int engage)
 {
 	u_long eax, ebx, ecx;
 
@@ -182,7 +175,7 @@ apm_engage_disengage_pm(struct apm_softc *sc, int engage)
 
 /* get PM event */
 static u_int
-apm_getevent(struct apm_softc *sc)
+apm_getevent(void)
 {
 	u_long eax, ebx, ecx;
 
@@ -198,7 +191,7 @@ apm_getevent(struct apm_softc *sc)
 
 /* suspend entire system */
 static int
-apm_suspend_system(struct apm_softc *sc)
+apm_suspend_system(void)
 {
 	u_long eax, ebx, ecx;
 
@@ -218,28 +211,28 @@ apm_suspend_system(struct apm_softc *sc)
 /*
  * Experimental implementation: My laptop machine can't handle this function
  * If your laptop can control the display via APM, please inform me.
- *                            HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ *                            HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  */
 static int
-apm_display_off(void)
+apm_display(int newstate)
 {
 	u_long eax, ebx, ecx;
 
 	eax = (APM_BIOS << 8) | APM_SETPWSTATE;
-	ebx = PMDV_2NDSTORAGE0;
-	ecx = PMST_STANDBY;
+	ebx = PMDV_DISP0;
+	ecx = newstate ? PMST_APMENABLED:PMST_SUSPEND;
 	if (apm_int(&eax, &ebx, &ecx)) {
 		printf("Display off failure: errcode = %ld\n",
 			0xff & (eax >> 8));
 		return 1;
 	}
-
 	return 0;
 }
 
+
 /* APM Battery low handler */
 static void
-apm_battery_low(struct apm_softc *sc)
+apm_battery_low(void)
 {
 	printf("\007\007 * * * BATTERY IS LOW * * * \007\007");
 }
@@ -256,15 +249,12 @@ apm_add_hook(struct apmhook **list, struct apmhook *ah)
 #endif
 
 	s = splhigh();
-	if (ah == NULL) {
+	if (ah == NULL)
 		panic("illegal apm_hook!");
-	}
 	prev = NULL;
-	for (p = *list; p != NULL; prev = p, p = p->ah_next) {
-		if (p->ah_order > ah->ah_order) {
+	for (p = *list; p != NULL; prev = p, p = p->ah_next)
+		if (p->ah_order > ah->ah_order)
 			break;
-		}
-	}
 
 	if (prev == NULL) {
 		ah->ah_next = *list;
@@ -285,19 +275,16 @@ apm_del_hook(struct apmhook **list, struct apmhook *ah)
 
 	s = splhigh();
 	prev = NULL;
-	for (p = *list; p != NULL; prev = p, p = p->ah_next) {
-		if (p == ah) {
+	for (p = *list; p != NULL; prev = p, p = p->ah_next)
+		if (p == ah)
 			goto deleteit;
-		}
-	}
 	panic("Tried to delete unregistered apm_hook.");
 	goto nosuchnode;
 deleteit:
-	if (prev != NULL) {
+	if (prev != NULL)
 		prev->ah_next = p->ah_next;
-	} else {
+	else
 		*list = p->ah_next;
-	}
 nosuchnode:
 	splx(s);
 }
@@ -313,9 +300,8 @@ apm_execute_hook(struct apmhook *list)
 #ifdef APM_DEBUG
 		printf("Execute APM hook \"%s.\"\n", p->ah_name);
 #endif
-		if ((*(p->ah_fun))(p->ah_arg)) {
+		if ((*(p->ah_fun))(p->ah_arg))
 			printf("Warning: APM hook \"%s\" failed", p->ah_name);
-		}
 	}
 }
 
@@ -383,7 +369,7 @@ apm_default_suspend(void *arg)
 	return 0;
 }
 
-static void apm_processevent(struct apm_softc *);
+static void apm_processevent(void);
 
 /*
  * Public interface to the suspend/resume:
@@ -402,8 +388,11 @@ apm_suspend(void)
 
 	if (sc->initialized) {
 		apm_execute_hook(hook[APM_HOOK_SUSPEND]);
-		apm_suspend_system(sc);
-		apm_processevent(sc);
+		if (apm_suspend_system() == 0)
+			apm_processevent();
+		else
+			// Failure, 'resume' the system again
+			apm_execute_hook(hook[APM_HOOK_RESUME]);
 	}
 }
 
@@ -415,16 +404,16 @@ apm_resume(void)
 	if (!sc)
 		return;
 
-	if (sc->initialized) {
+	if (sc->initialized)
 		apm_execute_hook(hook[APM_HOOK_RESUME]);
-	}
 }
 
 
 /* get APM information */
 static int
-apm_get_info(struct apm_softc *sc, apm_info_t aip)
+apm_get_info(apm_info_t aip)
 {
+	struct apm_softc *sc = &apm_softc;
 	u_long eax, ebx, ecx;
 
 	eax = (APM_BIOS << 8) | APM_GETPWSTATUS;
@@ -468,9 +457,8 @@ apm_cpu_idle(void)
 	 * "hlt" operation from swtch() and managed it under
 	 * APM driver.
 	 */
-	if (!sc->active || sc->always_halt_cpu) {
+	if (!sc->active || sc->always_halt_cpu)
 		__asm("hlt");	/* wait for interrupt */
-	}
 }
 
 /* inform APM BIOS that CPU is busy */
@@ -501,20 +489,22 @@ apm_cpu_busy(void)
  */
 
 static void
-apm_timeout(void *arg)
+apm_timeout(void *dummy)
 {
-	struct apm_softc *sc = arg;
+	struct apm_softc *sc = &apm_softc;
 
-	apm_processevent(sc);
-	if (sc->active == 1) {
-		timeout(apm_timeout, (void *)sc, hz - 1 );  /* More than 1 Hz */
-	}
+	apm_processevent();
+	if (sc->active == 1)
+		/* Run slightly more oftan than 1 Hz */
+		timeout(apm_timeout, NULL, hz - 1 );
 }
 
 /* enable APM BIOS */
 static void
-apm_event_enable(struct apm_softc *sc)
+apm_event_enable(void)
 {
+	struct apm_softc *sc = &apm_softc;
+
 #ifdef APM_DEBUG
 	printf("called apm_event_enable()\n");
 #endif
@@ -526,8 +516,10 @@ apm_event_enable(struct apm_softc *sc)
 
 /* disable APM BIOS */
 static void
-apm_event_disable(struct apm_softc *sc)
+apm_event_disable(void)
 {
+	struct apm_softc *sc = &apm_softc;
+
 #ifdef APM_DEBUG
 	printf("called apm_event_disable()\n");
 #endif
@@ -539,40 +531,43 @@ apm_event_disable(struct apm_softc *sc)
 
 /* halt CPU in scheduling loop */
 static void
-apm_halt_cpu(struct apm_softc *sc)
+apm_halt_cpu(void)
 {
-	if (sc->initialized) {
+	struct apm_softc *sc = &apm_softc;
+
+	if (sc->initialized)
 		sc->always_halt_cpu = 1;
-	}
 }
 
 /* don't halt CPU in scheduling loop */
 static void
-apm_not_halt_cpu(struct apm_softc *sc)
+apm_not_halt_cpu(void)
 {
-	if (sc->initialized) {
+	struct apm_softc *sc = &apm_softc;
+
+	if (sc->initialized)
 		sc->always_halt_cpu = 0;
-	}
 }
 
 /* device driver definitions */
 static int apmprobe (struct isa_device *);
 static int apmattach(struct isa_device *);
-struct isa_driver apmdriver = {
-	apmprobe, apmattach, "apm" };
+struct isa_driver apmdriver = { apmprobe, apmattach, "apm" };
 
 /*
  * probe APM (dummy):
  *
  * APM probing routine is placed on locore.s and apm_init.S because
  * this process forces the CPU to turn to real mode or V86 mode.
- * Current version uses real mode, but on future version, we want
+ * Current version uses real mode, but in a future version, we want
  * to use V86 mode in APM initialization.
  */
 
 static int
 apmprobe(struct isa_device *dvp)
 {
+	bzero(&apm_softc, sizeof(apm_softc));
+
 	if ( dvp->id_unit > 0 ) {
 		printf("apm: Only one APM driver supported.\n");
 		return 0;
@@ -591,14 +586,13 @@ apmprobe(struct isa_device *dvp)
 #ifdef APM_BROKEN_STATCLOCK
 	statclock_disable = 1;
 #endif
-
 	return -1;
 }
 
 
 /* Process APM event */
 static void
-apm_processevent(struct apm_softc *sc)
+apm_processevent(void)
 {
 	int apm_event;
 
@@ -609,7 +603,7 @@ apm_processevent(struct apm_softc *sc)
 #  define OPMEV_DEBUGMESSAGE(symbol) case symbol:
 #endif
 	do {
-		apm_event = apm_getevent(sc);
+		apm_event = apm_getevent();
 		switch (apm_event) {
 		    OPMEV_DEBUGMESSAGE(PMEV_STANDBYREQ);
 			apm_suspend();
@@ -633,7 +627,7 @@ apm_processevent(struct apm_softc *sc)
 			apm_resume();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_BATTERYLOW);
-			apm_battery_low(sc);
+			apm_battery_low();
 			apm_suspend();
 			break;
 		    OPMEV_DEBUGMESSAGE(PMEV_POWERSTATECHANGE);
@@ -694,7 +688,7 @@ apmattach(struct isa_device *dvp)
 		sc->cs_limit, sc->ds_limit);
 #endif /* APM_DEBUG */
 
-#ifdef 0
+#if 0
 	/* Workaround for some buggy APM BIOS implementations */
 	sc->cs_limit = 0xffff;
 	sc->ds_limit = 0xffff;
@@ -724,11 +718,10 @@ apmattach(struct isa_device *dvp)
 
 	sc->intversion = INTVERSION(sc->majorversion, sc->minorversion);
 
-	if (sc->intversion >= INTVERSION(1, 1)) {
 #ifdef APM_DEBUG
+	if (sc->intversion >= INTVERSION(1, 1))
 		printf("apm: Engaged control %s\n", is_enabled(!sc->disengaged));
 #endif
-	}
 
 	printf("apm: found APM BIOS version %d.%d\n",
 		sc->majorversion, sc->minorversion);
@@ -740,7 +733,7 @@ apmattach(struct isa_device *dvp)
 
 	/* enable power management */
 	if (sc->disabled) {
-		if (apm_enable_disable_pm(sc, 1)) {
+		if (apm_enable_disable_pm(1)) {
 #ifdef APM_DEBUG
 			printf("apm: *Warning* enable function failed! [%x]\n",
 				apm_errno);
@@ -750,7 +743,7 @@ apmattach(struct isa_device *dvp)
 
 	/* engage power managment (APM 1.1 or later) */
 	if (sc->intversion >= INTVERSION(1, 1) && sc->disengaged) {
-		if (apm_engage_disengage_pm(sc, 1)) {
+		if (apm_engage_disengage_pm(1)) {
 #ifdef APM_DEBUG
 			printf("apm: *Warning* engage function failed err=[%x]",
 				apm_errno);
@@ -774,7 +767,7 @@ apmattach(struct isa_device *dvp)
         apm_hook_establish(APM_HOOK_SUSPEND, &sc->sc_suspend);
         apm_hook_establish(APM_HOOK_RESUME , &sc->sc_resume);
 
-	apm_event_enable(sc);
+	apm_event_enable();
 
 	sc->initialized = 1;
 
@@ -807,6 +800,7 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct apm_softc *sc = &apm_softc;
 	int error = 0;
+	int newstate;
 
 	if (minor(dev) != 0 || !sc->initialized)
 		return (ENXIO);
@@ -815,33 +809,31 @@ apmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 #endif
 	switch (cmd) {
 	case APMIO_SUSPEND:
-		if ( sc->active) {
+		if ( sc->active)
 			apm_suspend();
-		} else {
+		else
 			error = EINVAL;
-		}
 		break;
 	case APMIO_GETINFO:
-		if (apm_get_info(sc, (apm_info_t)addr)) {
+		if (apm_get_info((apm_info_t)addr))
 			error = ENXIO;
-		}
 		break;
 	case APMIO_ENABLE:
-		apm_event_enable(sc);
+		apm_event_enable();
 		break;
 	case APMIO_DISABLE:
-		apm_event_disable(sc);
+		apm_event_disable();
 		break;
 	case APMIO_HALTCPU:
-		apm_halt_cpu(sc);
+		apm_halt_cpu();
 		break;
 	case APMIO_NOTHALTCPU:
-		apm_not_halt_cpu(sc);
+		apm_not_halt_cpu();
 		break;
-	case APMIO_DISPLAYOFF:
-		if (apm_display_off()) {
+	case APMIO_DISPLAY:
+		newstate = *(int *)addr;
+		if (apm_display(newstate))
 			error = ENXIO;
-		}
 		break;
 	default:
 		error = EINVAL;

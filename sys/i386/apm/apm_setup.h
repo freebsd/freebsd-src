@@ -1,7 +1,5 @@
 /*
- * LP (Laptop Package)
- *
- * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@mt.cs.keio.ac.jp>
+ * Copyright (C) 1994 by HOSOKAWA, Tatsumi <hosokawa@jp.FreeBSD.org>
  *
  * This software may be used, modified, copied, distributed, and sold,
  * in both source and binary form provided that the above copyright and
@@ -12,7 +10,7 @@
  *
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm_setup.h,v 1.3 1995/02/17 02:22:22 phk Exp $
+ *	$Id: apm_setup.h,v 1.4 1995/05/30 07:58:08 rgrimes Exp $
  */
 
 extern u_long	apm_version;
