@@ -588,7 +588,10 @@ div_pcblist(SYSCTL_HANDLER_ARGS)
 	n = divcbinfo.ipi_count;
 	INP_INFO_RUNLOCK(&divcbinfo);
 
-	sysctl_wire_old_buffer(req, 2 * sizeof(xig) + n*sizeof(struct xinpcb));
+	error = sysctl_wire_old_buffer(req,
+	    2 * sizeof(xig) + n*sizeof(struct xinpcb));
+	if (error != 0)
+		return (error);
 
 	xig.xig_len = sizeof xig;
 	xig.xig_count = n;

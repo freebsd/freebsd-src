@@ -984,12 +984,26 @@ mlock(td, uap)
 	struct thread *td;
 	struct mlock_args *uap;
 {
-	vm_offset_t addr;
-	vm_size_t size, pageoff;
 	int error;
 
-	addr = (vm_offset_t) uap->addr;
-	size = uap->len;
+	error = suser(td);
+	if (error)
+		return (error);
+	return (kern_mlock(td, (vm_offset_t)uap->addr, (vm_size_t)uap->len));
+}
+
+/*
+ * MPSAFE
+ */
+int
+kern_mlock(td, addr, size)
+	struct thread *td;
+	vm_offset_t addr;
+	vm_size_t size;
+{
+	vm_size_t pageoff;
+	struct proc *proc = td->td_proc;
+	int error;
 
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -1003,21 +1017,15 @@ mlock(td, uap)
 	if (atop(size) + cnt.v_wire_count > vm_page_max_wired)
 		return (EAGAIN);
 
-#if 0
-	PROC_LOCK(td->td_proc);
-	if (size + ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))) >
-	    lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
-		PROC_UNLOCK(td->td_proc);
+	PROC_LOCK(proc);
+	if (size + ptoa(pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))) >
+	    lim_cur(proc, RLIMIT_MEMLOCK)) {
+		PROC_UNLOCK(proc);
 		return (ENOMEM);
 	}
-	PROC_UNLOCK(td->td_proc);
-#else
-	error = suser(td);
-	if (error)
-		return (error);
-#endif
+	PROC_UNLOCK(proc);
 
-	error = vm_map_wire(&td->td_proc->p_vmspace->vm_map, addr,
+	error = vm_map_wire(&proc->p_vmspace->vm_map, addr,
 		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	return (error == KERN_SUCCESS ? 0 : ENOMEM);
 }
@@ -1133,12 +1141,25 @@ munlock(td, uap)
 	struct thread *td;
 	struct munlock_args *uap;
 {
-	vm_offset_t addr;
-	vm_size_t size, pageoff;
 	int error;
 
-	addr = (vm_offset_t) uap->addr;
-	size = uap->len;
+	error = suser(td);
+	if (error)
+		return (error);
+	return (kern_munlock(td, (vm_offset_t)uap->addr, (vm_size_t)uap->len));
+}
+
+/*
+ * MPSAFE
+ */
+int
+kern_munlock(td, addr, size)
+	struct thread *td;
+	vm_offset_t addr;
+	vm_size_t size;
+{
+	vm_size_t pageoff;
+	int error;
 
 	pageoff = (addr & PAGE_MASK);
 	addr -= pageoff;
@@ -1148,10 +1169,6 @@ munlock(td, uap)
 	/* disable wrap around */
 	if (addr + size < addr)
 		return (EINVAL);
-
-	error = suser(td);
-	if (error)
-		return (error);
 
 	error = vm_map_unwire(&td->td_proc->p_vmspace->vm_map, addr,
 		     addr + size, VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);

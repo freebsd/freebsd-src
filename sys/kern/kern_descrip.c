@@ -2327,7 +2327,9 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	 * it is of a similar order of magnitude to the leakage from
 	 * global system statistics such as kern.openfiles.
 	 */
-	sysctl_wire_old_buffer(req, 0);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error != 0)
+		return (error);
 	if (req->oldptr == NULL) {
 		n = 16;		/* A slight overestimate. */
 		sx_slock(&filelist_lock);
