@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.36 1998/04/04 13:25:32 phk Exp $
+ * $Id: sys_generic.c,v 1.37 1998/04/05 10:03:52 ache Exp $
  */
 
 #include "opt_ktrace.h"
@@ -600,7 +600,7 @@ select(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		getmicroruntime(&rtv);
+		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
 	} else
 		atv.tv_sec = 0;
@@ -612,7 +612,7 @@ retry:
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec) {
-		getmicroruntime(&rtv);
+		getmicrouptime(&rtv);
 		if (timevalcmp(&rtv, &atv, >=)) 
 			goto done;
 		ttv = atv;
@@ -730,7 +730,7 @@ poll(p, uap)
 			error = EINVAL;
 			goto done;
 		}
-		getmicroruntime(&rtv);
+		getmicrouptime(&rtv);
 		timevaladd(&atv, &rtv);
 	} else
 		atv.tv_sec = 0;
@@ -742,7 +742,7 @@ retry:
 	if (error || p->p_retval[0])
 		goto done;
 	if (atv.tv_sec) {
-		getmicroruntime(&rtv);
+		getmicrouptime(&rtv);
 		if (timevalcmp(&rtv, &atv, >=))
 			goto done;
 		ttv = atv;

@@ -17,7 +17,7 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.37 1998/04/06 09:30:39 phk Exp $
+ * $Id: if_spppsubr.c,v 1.38 1998/04/06 11:40:17 phk Exp $
  */
 
 #include "opt_inet.h"
@@ -1021,7 +1021,7 @@ sppp_cisco_send(struct sppp *sp, int type, long par1, long par2)
 	struct mbuf *m;
 	struct timeval tv;
 
-	getmicroruntime(&tv);
+	getmicrouptime(&tv);
 	
 	MGETHDR (m, M_DONTWAIT, MT_DATA);
 	if (! m)

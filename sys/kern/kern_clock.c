@@ -39,7 +39,7 @@ static volatile int print_tci = 1;
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.66 1998/04/06 08:26:03 phk Exp $
+ * $Id: kern_clock.c,v 1.67 1998/04/08 09:01:53 phk Exp $
  */
 
 #include <sys/param.h>
@@ -562,7 +562,7 @@ nanotime(struct timespec *tv)
 }
 
 void
-getmicroruntime(struct timeval *tvp)
+getmicrouptime(struct timeval *tvp)
 {
 	struct timecounter *tc;
 
@@ -572,7 +572,7 @@ getmicroruntime(struct timeval *tvp)
 }
 
 void
-getnanoruntime(struct timespec *tsp)
+getnanouptime(struct timespec *tsp)
 {
 	struct timecounter *tc;
 
@@ -582,7 +582,7 @@ getnanoruntime(struct timespec *tsp)
 }
 
 void
-microruntime(struct timeval *tv)
+microuptime(struct timeval *tv)
 {
 	struct timecounter *tc;
 
@@ -598,7 +598,7 @@ microruntime(struct timeval *tv)
 }
 
 void
-nanoruntime(struct timespec *tv)
+nanouptime(struct timespec *tv)
 {
 	u_int count;
 	u_int64_t delta;
@@ -691,7 +691,7 @@ set_timecounter(struct timespec *ts)
 {
 	struct timespec ts2;
 
-	nanoruntime(&ts2);
+	nanouptime(&ts2);
 	boottime.tv_sec = ts->tv_sec - ts2.tv_sec;
 	boottime.tv_usec = (ts->tv_nsec - ts2.tv_nsec) / 1000;
 	if (boottime.tv_usec < 0) {
