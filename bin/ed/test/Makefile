@@ -11,6 +11,8 @@ check: build test
 
 build: mkscripts.sh
 	@if [ -f errs.o ]; then :; else \
+		uudecode < ascii.d.uu ; \
+		uudecode < ascii.r.uu ; \
 		echo "building test scripts for $(ED) ..."; \
 		$(SHELL) mkscripts.sh $(ED); \
 	fi
@@ -20,4 +22,4 @@ test: build ckscripts.sh
 	@$(SHELL) ckscripts.sh $(ED)
 
 clean:
-	rm -f *.ed *.red *.[oz] *~
+	rm -f *.ed *.red *.[oz] *~ ascii.d ascii.r
