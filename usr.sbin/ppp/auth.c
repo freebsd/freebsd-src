@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.40 1999/02/19 10:48:42 brian Exp $
+ * $Id: auth.c,v 1.41 1999/02/20 01:12:45 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -290,7 +290,9 @@ auth_Init(struct authinfo *authp, struct physical *p, auth_func req,
           auth_func success, auth_func failure)
 {
   memset(authp, '\0', sizeof(struct authinfo));
-  authp->cfg.fsmretry = DEF_FSMRETRY;
+  authp->cfg.fsm.timeout = DEF_FSMRETRY;
+  authp->cfg.fsm.maxreq = DEF_FSMAUTHTRIES;
+  authp->cfg.fsm.maxtrm = 0;	/* not used */
   authp->fn.req = req;
   authp->fn.success = success;
   authp->fn.failure = failure;
@@ -303,9 +305,9 @@ auth_StartReq(struct authinfo *authp)
   timer_Stop(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
   authp->authtimer.name = "auth";
-  authp->authtimer.load = authp->cfg.fsmretry * SECTICKS;
+  authp->authtimer.load = authp->cfg.fsm.timeout * SECTICKS;
   authp->authtimer.arg = (void *)authp;
-  authp->retry = 3;
+  authp->retry = authp->cfg.fsm.maxreq;
   authp->id = 1;
   (*authp->fn.req)(authp);
   timer_Start(&authp->authtimer);
