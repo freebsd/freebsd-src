@@ -1,3 +1,9 @@
+Sun Dec 14 07:47:44 1997  Peter Hawkins  (peter@clari.net.au)
+
+	* version.c: Released version 1.11.3.
+
+	* implemented the -n / --norecurse option
+
 Thu Mar 25 13:32:40 1993  Michael I Bushnell  (mib@geech.gnu.ai.mit.edu)
 
 	* version.c: Released version 1.11.2.
