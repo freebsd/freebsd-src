@@ -618,13 +618,6 @@ smb_write(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 	int error = 0, len, tsize, resid;
 	struct uio olduio;
 
-	/*
-	 * review: manage iov more precisely
-	 */
-	if (uio->uio_iovcnt != 1) {
-		SMBERROR("can't handle iovcnt > 1\n");
-		return EIO;
-	}
 	tsize = uio->uio_resid;
 	olduio = *uio;
 	while (tsize > 0) {
@@ -639,6 +632,13 @@ smb_write(struct smb_share *ssp, u_int16_t fid, struct uio *uio,
 		tsize -= resid;
 	}
 	if (error) {
+		/*
+		 * Errors can happen on the copyin, the rpc, etc.  So they
+		 * imply resid is unreliable.  The only safe thing is
+		 * to pretend zero bytes made it.  We needn't restore the
+		 * iovs because callers don't depend on them in error
+		 * paths - uio_resid and uio_offset are what matter.
+		 */
 		*uio = olduio;
 	}
 	return error;
