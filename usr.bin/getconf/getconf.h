@@ -31,7 +31,6 @@
 
 #ifdef STABLE
 typedef long long intmax_t;
-#define	strtoimax(p, ep, radix) (strtoll((p), (ep), (radix)))
 #define	PRIdMAX	"lld"
 #else
 #include <inttypes.h>
