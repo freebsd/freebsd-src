@@ -108,6 +108,7 @@ extern initialize_file_ftype _initialize_mi_cmds;
 extern initialize_file_ftype _initialize_mi_cmd_env;
 extern initialize_file_ftype _initialize_mi_interp;
 extern initialize_file_ftype _initialize_mi_main;
+extern initialize_file_ftype _initialize_thread_db;
 extern initialize_file_ftype _initialize_tui_hooks;
 extern initialize_file_ftype _initialize_tui_interp;
 extern initialize_file_ftype _initialize_tui_layout;
@@ -136,6 +137,7 @@ initialize_all_files (void)
   _initialize_i386fbsd_nat ();
   _initialize_gcore ();
   _initialize_fbsd_proc ();
+  _initialize_thread_db ();
   _initialize_remote ();
   _initialize_dcache ();
   _initialize_sr_support ();
