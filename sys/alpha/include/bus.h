@@ -470,6 +470,7 @@ void busspace_generic_barrier(struct alpha_busspace *space,
 #define	BUS_DMA_NOWAIT		0x01	/* not safe to sleep */
 #define	BUS_DMA_ALLOCNOW	0x02	/* perform resource allocation now */
 #define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
+#define	BUS_DMA_ZERO		0x08	/* allocate zero'ed memory */
 #define	BUS_DMA_ISA		0x10	/* map memory for ISA dma */
 #define	BUS_DMA_BUS2		0x20	/* placeholders for bus functions... */
 #define	BUS_DMA_BUS3		0x40

@@ -900,6 +900,7 @@ memsetw(void *d, int val, size_t size)
 #define	BUS_DMA_NOWAIT		0x001	/* not safe to sleep */
 #define	BUS_DMA_ALLOCNOW	0x002	/* perform resource allocation now */
 #define	BUS_DMA_COHERENT	0x004	/* hint: map memory in a coherent way */
+#define	BUS_DMA_ZERO		0x008	/* allocate zero'ed memory */
 #define	BUS_DMA_BUS1		0x010
 #define	BUS_DMA_BUS2		0x020
 #define	BUS_DMA_BUS3		0x040

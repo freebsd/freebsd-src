@@ -413,24 +413,29 @@ int
 bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 bus_dmamap_t *mapp)
 {
+	int mflags;
+
+	if (flags & BUS_DMA_NOWAIT)
+		mflags = M_NOWAIT;
+	else
+		mflags = M_WAITOK;
+	if (flags & BUS_DMA_ZERO)
+		mflags |= M_ZERO;
+
 	/* If we succeed, no mapping/bouncing will be required */
 	*mapp = &nobounce_dmamap;
 
 	if ((dmat->maxsize <= PAGE_SIZE) && dmat->lowaddr >= ptoa(Maxmem)) {
-		*vaddr = malloc(dmat->maxsize, M_DEVBUF,
-				(flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK);
+		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
 	} else {
 		/*
 		 * XXX Use Contigmalloc until it is merged into this facility
 		 *     and handles multi-seg allocations.  Nobody is doing
 		 *     multi-seg allocations yet though.
 		 */
-		mtx_lock(&Giant);
-		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF,
-		    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK,
+		*vaddr = contigmalloc(dmat->maxsize, M_DEVBUF, mflags,
 		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
 		    dmat->boundary);
-		mtx_unlock(&Giant);
 	}
 	if (*vaddr == NULL)
 		return (ENOMEM);
@@ -894,13 +899,11 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 
 		if (bpage == NULL)
 			break;
-		mtx_lock(&Giant);
 		bpage->vaddr = (vm_offset_t)contigmalloc(PAGE_SIZE, M_DEVBUF,
 							 M_NOWAIT, 0ul,
 							 dmat->lowaddr,
 							 PAGE_SIZE,
 							 dmat->boundary);
-		mtx_unlock(&Giant);
 		if (bpage->vaddr == 0) {
 			free(bpage, M_DEVBUF);
 			break;
