@@ -16,7 +16,7 @@ case "$weekly_status_pkg_enable" in
 	echo ""
 	echo "Check for out of date packages:"
 
-	rc=$(${pkg_version:-pkg_version} -v |
+	rc=$(${pkg_version:-pkg_version} -v ${pkg_version_index} |
 	    sed -n -e 's/^\([^ ]*\)  *<  */  \1 /p' \
 		-e '/^[^ ]*-\([^ ]*\)  *\* *multiple versions.*[ ,]\1[,)].*/d' \
 		-e 's/^\([^ ]*\)  *\* *multiple versions.*\((.*\)/  \1 needs updating \2/p' \
