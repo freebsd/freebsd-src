@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.38 1998/04/04 13:26:12 phk Exp $
+ * $Id: kernel.h,v 1.39 1998/04/15 17:47:30 bde Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -135,47 +135,47 @@ extern long timedelta;
  * fix.  They are currently present to ensure historical behavior.
  */
 enum sysinit_sub_id {
-	SI_SUB_DUMMY		= 0x00000000,	/* not executed; for linker*/
-	SI_SUB_CONSOLE		= 0x08000000,	/* console*/
-	SI_SUB_COPYRIGHT	= 0x08000001,	/* first use of console*/
-	SI_SUB_VM		= 0x10000000,	/* virtual memory system init*/
-	SI_SUB_KMEM		= 0x18000000,	/* kernel memory*/
-	SI_SUB_CPU		= 0x20000000,	/* CPU resource(s)*/
-	SI_SUB_DEVFS		= 0x22000000,	/* get DEVFS ready */
-	SI_SUB_DRIVERS		= 0x23000000,	/* Let Drivers initialize */
-	SI_SUB_CONFIGURE	= 0x24000000,	/* Configure devices */
-	SI_SUB_INTRINSIC	= 0x28000000,	/* proc 0*/
-	SI_SUB_RUN_QUEUE	= 0x30000000,	/* the run queue*/
-	SI_SUB_VM_CONF		= 0x38000000,	/* config VM, set limits*/
-	SI_SUB_VFS		= 0x40000000,	/* virtual file system*/
-	SI_SUB_CLOCKS		= 0x48000000,	/* real time and stat clocks*/
-	SI_SUB_MBUF		= 0x50000000,	/* mbufs*/
-	SI_SUB_CLIST		= 0x58000000,	/* clists*/
-	SI_SUB_SYSV_SHM		= 0x64000000,	/* System V shared memory*/
-	SI_SUB_SYSV_SEM		= 0x68000000,	/* System V semaphores*/
-	SI_SUB_SYSV_MSG		= 0x6C000000,	/* System V message queues*/
-	SI_SUB_P1003_1B		= 0x6E000000,	/* P1003.1B realtime */
-	SI_SUB_PSEUDO		= 0x70000000,	/* pseudo devices*/
-	SI_SUB_PROTO_BEGIN	= 0x80000000,	/* XXX: set splimp (kludge)*/
-	SI_SUB_PROTO_IF		= 0x84000000,	/* interfaces*/
-	SI_SUB_PROTO_DOMAIN	= 0x88000000,	/* domains (address families?)*/
-	SI_SUB_PROTO_END	= 0x8fffffff,	/* XXX: set splx (kludge)*/
-	SI_SUB_KPROF		= 0x90000000,	/* kernel profiling*/
-	SI_SUB_KICK_SCHEDULER	= 0xa0000000,	/* start the timeout events*/
-	SI_SUB_INT_CONFIG_HOOKS	= 0xa8000000,	/* Interrupts enabled config */
-	SI_SUB_ROOT_CONF	= 0xb0000000,	/* Find root devices */
-	SI_SUB_DUMP_CONF	= 0xb2000000,	/* Find dump devices */
-	SI_SUB_MOUNT_ROOT	= 0xb4000000,	/* root mount*/
-	SI_SUB_ROOT_FDTAB	= 0xb8000000,	/* root vnode in fd table...*/
-	SI_SUB_SWAP		= 0xc0000000,	/* swap*/
-	SI_SUB_INTRINSIC_POST	= 0xd0000000,	/* proc 0 cleanup*/
-	SI_SUB_KTHREAD_INIT	= 0xe0000000,	/* init process*/
-	SI_SUB_KTHREAD_PAGE	= 0xe4000000,	/* pageout daemon*/
-	SI_SUB_KTHREAD_VM	= 0xe8000000,	/* vm daemon*/
-	SI_SUB_KTHREAD_UPDATE	= 0xec000000,	/* update daemon*/
-	SI_SUB_KTHREAD_IDLE	= 0xee000000,	/* idle procs*/
-	SI_SUB_SMP		= 0xf0000000,	/* idle procs*/
-	SI_SUB_RUN_SCHEDULER	= 0xffffffff	/* scheduler: no return*/
+	SI_SUB_DUMMY		= 0x0000000,	/* not executed; for linker*/
+	SI_SUB_CONSOLE		= 0x0800000,	/* console*/
+	SI_SUB_COPYRIGHT	= 0x0800001,	/* first use of console*/
+	SI_SUB_VM		= 0x1000000,	/* virtual memory system init*/
+	SI_SUB_KMEM		= 0x1800000,	/* kernel memory*/
+	SI_SUB_CPU		= 0x2000000,	/* CPU resource(s)*/
+	SI_SUB_DEVFS		= 0x2200000,	/* get DEVFS ready */
+	SI_SUB_DRIVERS		= 0x2300000,	/* Let Drivers initialize */
+	SI_SUB_CONFIGURE	= 0x2400000,	/* Configure devices */
+	SI_SUB_INTRINSIC	= 0x2800000,	/* proc 0*/
+	SI_SUB_RUN_QUEUE	= 0x3000000,	/* the run queue*/
+	SI_SUB_VM_CONF		= 0x3800000,	/* config VM, set limits*/
+	SI_SUB_VFS		= 0x4000000,	/* virtual file system*/
+	SI_SUB_CLOCKS		= 0x4800000,	/* real time and stat clocks*/
+	SI_SUB_MBUF		= 0x5000000,	/* mbufs*/
+	SI_SUB_CLIST		= 0x5800000,	/* clists*/
+	SI_SUB_SYSV_SHM		= 0x6400000,	/* System V shared memory*/
+	SI_SUB_SYSV_SEM		= 0x6800000,	/* System V semaphores*/
+	SI_SUB_SYSV_MSG		= 0x6C00000,	/* System V message queues*/
+	SI_SUB_P1003_1B		= 0x6E00000,	/* P1003.1B realtime */
+	SI_SUB_PSEUDO		= 0x7000000,	/* pseudo devices*/
+	SI_SUB_PROTO_BEGIN	= 0x8000000,	/* XXX: set splimp (kludge)*/
+	SI_SUB_PROTO_IF		= 0x8400000,	/* interfaces*/
+	SI_SUB_PROTO_DOMAIN	= 0x8800000,	/* domains (address families?)*/
+	SI_SUB_PROTO_END	= 0x8ffffff,	/* XXX: set splx (kludge)*/
+	SI_SUB_KPROF		= 0x9000000,	/* kernel profiling*/
+	SI_SUB_KICK_SCHEDULER	= 0xa000000,	/* start the timeout events*/
+	SI_SUB_INT_CONFIG_HOOKS	= 0xa800000,	/* Interrupts enabled config */
+	SI_SUB_ROOT_CONF	= 0xb000000,	/* Find root devices */
+	SI_SUB_DUMP_CONF	= 0xb200000,	/* Find dump devices */
+	SI_SUB_MOUNT_ROOT	= 0xb400000,	/* root mount*/
+	SI_SUB_ROOT_FDTAB	= 0xb800000,	/* root vnode in fd table...*/
+	SI_SUB_SWAP		= 0xc000000,	/* swap*/
+	SI_SUB_INTRINSIC_POST	= 0xd000000,	/* proc 0 cleanup*/
+	SI_SUB_KTHREAD_INIT	= 0xe000000,	/* init process*/
+	SI_SUB_KTHREAD_PAGE	= 0xe400000,	/* pageout daemon*/
+	SI_SUB_KTHREAD_VM	= 0xe800000,	/* vm daemon*/
+	SI_SUB_KTHREAD_UPDATE	= 0xec00000,	/* update daemon*/
+	SI_SUB_KTHREAD_IDLE	= 0xee00000,	/* idle procs*/
+	SI_SUB_SMP		= 0xf000000,	/* idle procs*/
+	SI_SUB_RUN_SCHEDULER	= 0xfffffff	/* scheduler: no return*/
 };
 
 
@@ -183,11 +183,11 @@ enum sysinit_sub_id {
  * Some enumerated orders; "ANY" sorts last.
  */
 enum sysinit_elem_order {
-	SI_ORDER_FIRST		= 0x00000000,	/* first*/
-	SI_ORDER_SECOND		= 0x00000001,	/* second*/
-	SI_ORDER_THIRD		= 0x00000002,	/* third*/
-	SI_ORDER_MIDDLE		= 0x10000000,	/* somewhere in the middle */
-	SI_ORDER_ANY		= 0xffffffff	/* last*/
+	SI_ORDER_FIRST		= 0x0000000,	/* first*/
+	SI_ORDER_SECOND		= 0x0000001,	/* second*/
+	SI_ORDER_THIRD		= 0x0000002,	/* third*/
+	SI_ORDER_MIDDLE		= 0x1000000,	/* somewhere in the middle */
+	SI_ORDER_ANY		= 0xfffffff	/* last*/
 };
 
 
