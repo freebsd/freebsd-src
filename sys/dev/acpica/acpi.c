@@ -617,7 +617,7 @@ acpi_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 	break;
 
     default:
-	panic("bad ivar read request (%d)\n", index);
+	panic("bad ivar read request (%d)", index);
 	return(ENOENT);
     }
     return(0);
@@ -646,7 +646,7 @@ acpi_write_ivar(device_t dev, device_t child, int index, uintptr_t value)
 	break;
 
     default:
-	panic("bad ivar write request (%d)\n", index);
+	panic("bad ivar write request (%d)", index);
 	return(ENOENT);
     }
     return(0);
