@@ -14,6 +14,7 @@
  *	dir1		"Soll"
  *	dir2		"Ist"
  *
+ * $FreeBSD$
  */
 
 #include <sys/types.h>
@@ -495,8 +496,6 @@ int
 main(int argc, char **argv)
 {
 	int i;
-	extern char *optarg;
-	extern int optind;
 
 	setbuf(stderr, NULL);
 
