@@ -83,6 +83,12 @@
 
 #define GIFNAME		"gif"
 
+/*
+ * gif_mtx protects the global gif_softc_list, and access to gif_called.
+ * XXX: See comment blow on gif_called.
+ * XXX: Per-softc locking is still required.
+ */
+static struct mtx gif_mtx;
 static MALLOC_DEFINE(M_GIF, "gif", "Generic Tunnel Interface");
 static LIST_HEAD(, gif_softc) gif_softc_list;
 
@@ -153,7 +159,9 @@ gif_clone_create(ifc, unit)
 
 	gifattach0(sc);
 
+	mtx_lock(&gif_mtx);
 	LIST_INSERT_HEAD(&gif_softc_list, sc, gif_list);
+	mtx_unlock(&gif_mtx);
 	return (0);
 }
 
@@ -181,15 +189,13 @@ gifattach0(sc)
 		(*ng_gif_attach_p)(&sc->gif_if);
 }
 
-void
-gif_clone_destroy(ifp)
-	struct ifnet *ifp;
+static void
+gif_destroy(struct gif_softc *sc)
 {
+	struct ifnet *ifp = &sc->gif_if;
 	int err;
-	struct gif_softc *sc = ifp->if_softc;
 
-	gif_delete_tunnel(&sc->gif_if);
-	LIST_REMOVE(sc, gif_list);
+	gif_delete_tunnel(ifp);
 #ifdef INET6
 	if (sc->encap_cookie6 != NULL) {
 		err = encap_detach(sc->encap_cookie6);
@@ -211,15 +217,29 @@ gif_clone_destroy(ifp)
 	free(sc, M_GIF);
 }
 
+void
+gif_clone_destroy(ifp)
+	struct ifnet *ifp;
+{
+	struct gif_softc *sc = ifp->if_softc;
+
+	mtx_lock(&gif_mtx);
+	LIST_REMOVE(sc, gif_list);
+	mtx_unlock(&gif_mtx);
+	gif_destroy(sc);
+}
+
 static int
 gifmodevent(mod, type, data)
 	module_t mod;
 	int type;
 	void *data;
 {
+	struct gif_softc *sc;
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&gif_mtx, "gif_mtx", NULL, MTX_DEF);
 		LIST_INIT(&gif_softc_list);
 		if_clone_attach(&gif_cloner);
 
@@ -231,9 +251,15 @@ gifmodevent(mod, type, data)
 	case MOD_UNLOAD:
 		if_clone_detach(&gif_cloner);
 
-		while (!LIST_EMPTY(&gif_softc_list))
-			gif_clone_destroy(&LIST_FIRST(&gif_softc_list)->gif_if);
-
+		mtx_lock(&gif_mtx);
+		while ((sc = LIST_FIRST(&gif_softc_list)) != NULL) {
+			LIST_REMOVE(sc, gif_list);
+			mtx_unlock(&gif_mtx);
+			gif_destroy(sc);
+			mtx_lock(&gif_mtx);
+		}
+		mtx_unlock(&gif_mtx);
+		mtx_destroy(&gif_mtx);
 #ifdef INET6
 		ip6_gif_hlim = 0;
 #endif
@@ -338,7 +364,9 @@ gif_output(ifp, m, dst, rt)
 	 *      mutual exclusion of the variable CALLED, especially if we
 	 *      use kernel thread.
 	 */
+	mtx_lock(&gif_mtx);
 	if (++gif_called > max_gif_nesting) {
+		mtx_unlock(&gif_mtx);
 		log(LOG_NOTICE,
 		    "gif_output: recursively called too many times(%d)\n",
 		    gif_called);
@@ -346,6 +374,7 @@ gif_output(ifp, m, dst, rt)
 		error = EIO;	/* is there better errno? */
 		goto end;
 	}
+	mtx_unlock(&gif_mtx);
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	if (!(ifp->if_flags & IFF_UP) ||
@@ -385,7 +414,9 @@ gif_output(ifp, m, dst, rt)
 	}
 
   end:
+	mtx_lock(&gif_mtx);
 	gif_called = 0;		/* reset recursion counter */
+	mtx_unlock(&gif_mtx);
 	if (error)
 		ifp->if_oerrors++;
 	return error;
@@ -695,6 +726,13 @@ gif_ioctl(ifp, cmd, data)
 	return error;
 }
 
+/*
+ * XXXRW: There's a general event-ordering issue here: the code to check
+ * if a given tunnel is already present happens before we perform a
+ * potentially blocking setup of the tunnel.  This code needs to be
+ * re-ordered so that the check and replacement can be atomic using
+ * a mutex.
+ */
 int
 gif_set_tunnel(ifp, src, dst)
 	struct ifnet *ifp;
@@ -709,6 +747,7 @@ gif_set_tunnel(ifp, src, dst)
 
 	s = splnet();
 
+	mtx_lock(&gif_mtx);
 	LIST_FOREACH(sc2, &gif_softc_list, gif_list) {
 		if (sc2 == sc)
 			continue;
@@ -728,11 +767,13 @@ gif_set_tunnel(ifp, src, dst)
 		    bcmp(sc2->gif_pdst, dst, dst->sa_len) == 0 &&
 		    bcmp(sc2->gif_psrc, src, src->sa_len) == 0) {
 			error = EADDRNOTAVAIL;
+			mtx_unlock(&gif_mtx);
 			goto bad;
 		}
 
 		/* XXX both end must be valid? (I mean, not 0.0.0.0) */
 	}
+	mtx_unlock(&gif_mtx);
 
 	/* XXX we can detach from both, but be polite just in case */
 	if (sc->gif_psrc)
