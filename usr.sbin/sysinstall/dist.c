@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.133 1999/02/04 03:30:34 jkh Exp $
+ * $Id: dist.c,v 1.134 1999/02/07 12:43:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,6 +199,8 @@ distVerifyFlags(void)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86Dists || XF86ServerDists || XF86FontDists)
 	Dists |= DIST_XF86;
+    if (Dists & DIST_XF86)
+	Dists |= DIST_COMPAT22;
     if (isDebug())
 	msgDebug("Dist Masks: Dists: %0x, DES: %0x, Srcs: %0x\nXServer: %0x, XFonts: %0x, XDists: %0x\n",
 		 Dists, DESDists, SrcDists, XF86ServerDists, XF86FontDists, XF86Dists);
