@@ -162,7 +162,7 @@ DRM(_mem_info)(drm_mem_stats_t *stats, struct sysctl_oid *oidp, void *arg1,
 
 int DRM(mem_info) DRM_SYSCTL_HANDLER_ARGS
 {
-	int ret, i;
+	int ret;
 	drm_mem_stats_t *stats;
 	
 	stats = malloc(sizeof(DRM(mem_stats)), DRM(M_DRM), M_NOWAIT);
