@@ -254,19 +254,19 @@ ncp_initlib(void){
 		if (errno == ENOENT)
 			fprintf(stderr, "Kernel module ncp is not loaded.\n");
 		else
-			fprintf(stderr, "%s: kernel module is old, please recompile it.\n", __FUNCTION__);
+			fprintf(stderr, "%s: kernel module is old, please recompile it.\n", __func__);
 		return error;
 	}
 	if (NCP_VERSION != kv) {
-		fprintf(stderr, "%s: kernel module version(%d) don't match library(%d).\n", __FUNCTION__, kv, NCP_VERSION);
+		fprintf(stderr, "%s: kernel module version(%d) don't match library(%d).\n", __func__, kv, NCP_VERSION);
 		return EINVAL;
 	}
 	if ((error = ncp_nls_setrecode(0)) != 0) {
-		fprintf(stderr, "%s: can't initialise recode\n", __FUNCTION__);
+		fprintf(stderr, "%s: can't initialise recode\n", __func__);
 		return error;
 	}
 	if ((error = ncp_nls_setlocale("")) != 0) {
-		fprintf(stderr, "%s: can't initialise locale\n", __FUNCTION__);
+		fprintf(stderr, "%s: can't initialise locale\n", __func__);
 		return error;
 	}
 	ncp_initialized++;

@@ -68,8 +68,8 @@
 #include <sys/dirent.h>
 #include <string.h>
 
-#define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args)
-#define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __FUNCTION__, __LINE__ , ##args); getchar();}
+#define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args)
+#define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}
 
 #ifndef NULL
 #define	NULL	0

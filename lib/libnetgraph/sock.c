@@ -196,7 +196,7 @@ NgNameNode(int cs, const char *path, const char *fmt, ...)
 	if (NgSendMsg(cs, path,
 	    NGM_GENERIC_COOKIE, NGM_NAME, &ngn, sizeof(ngn)) < 0) {
 		if (_gNgDebugLevel >= 1)
-			NGLOGX("%s: failed", __FUNCTION__);
+			NGLOGX("%s: failed", __func__);
 		return (-1);
 	}
 
