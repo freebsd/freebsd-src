@@ -241,8 +241,8 @@ tunclose(dev, foo, bar, p)
 
 		s = splimp();
 		/* find internet addresses and delete routes */
-		for (ifa = ifp->if_addrhead.tqh_first; ifa;
-		    ifa = ifa->ifa_link.tqe_next)
+		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+		    ifa = TAILQ_NEXT(ifa, ifa_link))
 			if (ifa->ifa_addr->sa_family == AF_INET)
 				rtinit(ifa, (int)RTM_DELETE,
 				    tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
@@ -270,8 +270,8 @@ tuninit(ifp)
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
 
-	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
-	     ifa = ifa->ifa_link.tqe_next) {
+	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa; 
+	     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 		if (ifa->ifa_addr == NULL)
 			error = EFAULT;
 			/* XXX: Should maybe return straight off? */

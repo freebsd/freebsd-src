@@ -150,7 +150,7 @@ pfil_list_remove(list, func)
 {
 	struct packet_filter_hook *pfh;
 
-	for (pfh = list->tqh_first; pfh; pfh = pfh->pfil_link.tqe_next)
+	for (pfh = list->tqh_first; pfh; pfh = TAILQ_NEXT(pfh, pfil_link))
 		if (pfh->pfil_func == func) {
 			TAILQ_REMOVE(list, pfh, pfil_link);
 			free(pfh, M_IFADDR);
@@ -167,9 +167,9 @@ pfil_hook_get(flag, ph)
 	if (ph->ph_init != 0)
 		switch (flag) {
 		case PFIL_IN:
-			return (ph->ph_in.tqh_first);
+			return (TAILQ_FIRST(&ph->ph_in));
 		case PFIL_OUT:
-			return (ph->ph_out.tqh_first);
+			return (TAILQ_FIRST(&ph->ph_out));
 		}
 	return NULL;
 }
