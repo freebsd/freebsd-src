@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.32 1999/08/13 14:44:13 marcel Exp $
+ *	$Id: linux.h,v 1.33 1999/08/14 17:28:46 marcel Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -722,5 +722,10 @@ struct linux_ifreq
 
 #define LINUX_CDROM_LBA                 0x01
 #define LINUX_CDROM_MSF                 0x02
+
+/* Scheduling policies */
+#define LINUX_SCHED_OTHER		0
+#define LINUX_SCHED_FIFO		1
+#define LINUX_SCHED_RR			2
 
 #endif /* !_I386_LINUX_LINUX_H_ */
