@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.206 1997/03/24 11:24:07 bde Exp $
+ *  $Id: syscons.c,v 1.207 1997/03/28 10:11:24 yokota Exp $
  */
 
 #include "sc.h"
@@ -553,6 +553,9 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
     tp->t_dev = dev;
     if (!(tp->t_state & TS_ISOPEN)) {
 	ttychars(tp);
+        /* Use the current setting of the <-- key as default VERASE. */  
+        /* If the Delete key is preferable, an stty is necessary     */
+        tp->t_cc[VERASE] = key_map.key[0x0e].map[0];
 	tp->t_iflag = TTYDEF_IFLAG;
 	tp->t_oflag = TTYDEF_OFLAG;
 	tp->t_cflag = TTYDEF_CFLAG;
