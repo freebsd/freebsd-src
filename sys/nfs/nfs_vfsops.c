@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: nfs_vfsops.c,v 1.2 1994/08/02 07:52:16 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -542,7 +542,7 @@ nfs_unmount(mp, mntflags, p)
 	extern int doforce;
 
 	if (mntflags & MNT_FORCE) {
-		if (!doforce || (mp->mnt_flag & MNT_ROOTFS))
+		if (!doforce)
 			return (EINVAL);
 		flags |= FORCECLOSE;
 	}

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.53 1994/08/18 22:34:40 wollman Exp $
+ *	$Id: machdep.c,v 1.54 1994/08/19 11:45:15 davidg Exp $
  */
 
 #include "npx.h"
@@ -676,7 +676,6 @@ boot(arghowto)
 	register int howto;		/* r11 == how to boot */
 	register int devtype;		/* r10 == major of root dev */
 	extern int cold;
-	int nomsg = 1;
 
 	if (cold) {
 		printf("hit reset please");
@@ -689,20 +688,13 @@ boot(arghowto)
 
 		waittime = 0;
 		(void) splnet();
-		printf("syncing disks... ");
+		printf("\nsyncing disks... ");
 		/*
 		 * Release inodes held by texts before update.
 		 */
 		if (panicstr == 0)
 			vnode_pager_umount(NULL);
 		sync(curproc, NULL, NULL);
-		/*
-		 * Unmount filesystems
-		 */
-#if 0
-		if (panicstr == 0)
-			vfs_unmountall();
-#endif
 
 		for (iter = 0; iter < 20; iter++) {
 			nbusy = 0;
@@ -711,18 +703,24 @@ boot(arghowto)
 					nbusy++;
 			if (nbusy == 0)
 				break;
-			if (nomsg) {
-				printf("updating disks before rebooting... ");
-				nomsg = 0;
-			}
 			printf("%d ", nbusy);
 			DELAY(40000 * iter);
 		}
-		if (nbusy)
+		if (nbusy) {
+			/*
+			 * Failed to sync all blocks. Indicate this and don't
+			 * unmount filesystems (thus forcing an fsck on reboot).
+			 */
 			printf("giving up\n");
-		else
+		} else {
 			printf("done\n");
-		DELAY(10000);			/* wait for printf to finish */
+			/*
+			 * Unmount filesystems
+			 */
+			if (panicstr == 0)
+				vfs_unmountall();
+		}
+		DELAY(100000);			/* wait for console output to finish */
 	}
 	splhigh();
 	devtype = major(rootdev);
