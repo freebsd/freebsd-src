@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.24 1994/05/25 09:13:32 rgrimes Exp $
+ *      $Id: sd.c,v 1.25 1994/08/27 16:14:34 davidg Exp $
  */
 
 #define SPLSD splbio
@@ -60,7 +60,7 @@ int     Debugger();
 #define MAKESDDEV(maj, unit, part)	(makedev(maj,((unit<<3)+part)))
 #define	UNITSHIFT	3
 #define PARTITION(z)	(minor(z) & 0x07)
-#define	RAW_PART	3
+#define RAW_PART        2
 #define UNIT(z)		(  (minor(z) >> UNITSHIFT) )
 
 #define WHOLE_DISK(unit) ( (unit << UNITSHIFT) + RAW_PART )
