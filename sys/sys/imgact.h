@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact.h,v 1.17 1998/03/02 05:47:43 peter Exp $
+ *	$Id: imgact.h,v 1.18 1998/12/30 10:38:59 dfr Exp $
  */
 
 #ifndef _SYS_IMGACT_H_
@@ -54,6 +54,7 @@ struct image_params {
 	void *auxargs;		/* ELF Auxinfo structure pointer */
 	struct vm_page *firstpage;	/* first page that we mapped */
 	char *fname;            /* pointer to filename of executable (user space) */
+	unsigned long ps_strings; /* PS_STRINGS for BSD/OS binaries */
 };
 
 #ifdef KERNEL
