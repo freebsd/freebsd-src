@@ -168,13 +168,6 @@ aac_disk_strategy(struct bio *bp)
 	return;
     }
 
-    /* do-nothing operation? */
-    if (bp->bio_bcount == 0) {
-	bp->bio_resid = bp->bio_bcount;
-	biodone(bp);
-	return;
-    }
-
     /* perform accounting */
     devstat_start_transaction(&sc->ad_stats);
 
