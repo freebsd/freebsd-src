@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:43  rpd
- *	$Id: table.c,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
+ *	$Id: table.c,v 1.2 1996/10/09 21:45:35 asami Exp $
  */
 
 /*
@@ -86,11 +86,11 @@ struct seg_desc	Gdt[] = {
 	{0xFFFF, RUN, RUN, 0x9E, 0x40, 0x0},	/* 0x18 : boot code */
 #ifdef PC98
 	/*
-	 * The limit of boot data should be more than 0x6FFFF to save
-	 * BIOS parameter and EPSON machine ID into 2'nd T-VRAM, because
-	 * base addres is 0x90000.
+	 * The limit of boot data should be more than or equal to 0x9FFFF
+	 * for saving BIOS parameter and EPSON machine ID into 2'nd T-VRAM,
+	 * because base address is normally 0x10000.
 	 */
-	{0xFFFF, RUN, RUN, 0x92, 0x46, 0x0},	/* 0x20 : boot data */
+	{0xFFFF, RUN, RUN, 0x92, 0x4F, 0x0},	/* 0x20 : boot data */
 #else
 	{0xFFFF, RUN, RUN, 0x92, 0x40, 0x0},	/* 0x20 : boot data */
 #endif
