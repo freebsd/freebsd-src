@@ -1,5 +1,5 @@
 /* MD2.H - header file for MD2C.C
- * $Id: md2.h,v 1.5 1997/02/22 15:07:12 peter Exp $
+ * $Id: md2.h,v 1.6 1997/08/25 05:24:24 joerg Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
@@ -35,6 +35,7 @@ typedef struct MD2Context {
 __BEGIN_DECLS
 void   MD2Init(MD2_CTX *);
 void   MD2Update(MD2_CTX *, const unsigned char *, unsigned int);
+void   MD2Pad(MD2_CTX *);
 void   MD2Final(unsigned char [16], MD2_CTX *);
 char * MD2End(MD2_CTX *, char *);
 char * MD2File(const char *, char *);

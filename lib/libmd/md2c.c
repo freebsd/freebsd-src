@@ -1,5 +1,5 @@
 /* MD2C.C - RSA Data Security, Inc., MD2 message-digest algorithm
- * $Id$
+ * $Id: md2c.c,v 1.5 1997/02/22 15:07:15 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All
@@ -131,11 +131,9 @@ unsigned int inputLen;                     /* length of input block */
      inputLen-i);
 }
 
-/* MD2 finalization. Ends an MD2 message-digest operation, writing the
-     message digest and zeroizing the context.
+/* MD2 padding.
  */
-void MD2Final (digest, context)
-unsigned char digest[16];                         /* message digest */
+void MD2Pad (context)
 MD2_CTX *context;                                        /* context */
 {
   unsigned int index, padLen;
@@ -148,6 +146,17 @@ MD2_CTX *context;                                        /* context */
 
   /* Extend with checksum */
   MD2Update (context, context->checksum, 16);
+}
+
+/* MD2 finalization. Ends an MD2 message-digest operation, writing the
+     message digest and zeroizing the context.
+ */
+void MD2Final (digest, context)
+unsigned char digest[16];                         /* message digest */
+MD2_CTX *context;                                        /* context */
+{
+  /* Do padding */
+  MD2Pad (context);
 
   /* Store state in digest */
   memcpy ((POINTER)digest, (POINTER)context->state, 16);
