@@ -1,5 +1,5 @@
 # Makefile for uuconv
-# $Id$
+# $Id: Makefile,v 1.7 1997/02/22 15:28:37 peter Exp $
 
 BINDIR=		$(sbindir)
 
@@ -10,7 +10,5 @@ DPADD+=		$(LIBUNIX) $(LIBUUCONF) $(LIBUUCP)
 CFLAGS+=	-I$(.CURDIR)/../common_sources\
 		-I$(.CURDIR)/../libuuconf\
 		-DVERSION=\"$(VERSION)\"
-
-NOMAN=		noman
 
 .include <bsd.prog.mk>
