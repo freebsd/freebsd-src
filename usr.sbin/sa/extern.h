@@ -60,30 +60,27 @@ struct userinfo {
 
 /* typedefs */
 
-typedef	int (*cmpf_t) __P((const DBT *, const DBT *));
-
-/* external functions in sa.c */
-int	main		__P((int, char **));
+typedef	int (*cmpf_t)(const DBT *, const DBT *);
 
 /* external functions in pdb.c */
-int	pacct_init	__P((void));
-void	pacct_destroy	__P((void));
-int	pacct_add	__P((const struct cmdinfo *));
-int	pacct_update	__P((void));
-void	pacct_print	__P((void));
+int	pacct_init(void);
+void	pacct_destroy(void);
+int	pacct_add(const struct cmdinfo *);
+int	pacct_update(void);
+void	pacct_print(void);
 
 /* external functions in usrdb.c */
-int	usracct_init	__P((void));
-void	usracct_destroy	__P((void));
-int	usracct_add	__P((const struct cmdinfo *));
-int	usracct_update	__P((void));
-void	usracct_print	__P((void));
+int	usracct_init(void);
+void	usracct_destroy(void);
+int	usracct_add(const struct cmdinfo *);
+int	usracct_update(void);
+void	usracct_print(void);
 
 /* variables */
 
 extern int	aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 extern int	Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
-extern int	cutoff;
+extern u_quad_t	cutoff;
 extern cmpf_t	sa_cmp;
 
 /* some #defines to help with db's stupidity */

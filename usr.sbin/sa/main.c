@@ -56,35 +56,36 @@ static const char rcsid[] =
 #include "extern.h"
 #include "pathnames.h"
 
-static int	acct_load	__P((char *, int));
-static u_quad_t	decode_comp_t	__P((comp_t));
-static int	cmp_comm	__P((const char *, const char *));
-static int	cmp_usrsys	__P((const DBT *, const DBT *));
-static int	cmp_avgusrsys	__P((const DBT *, const DBT *));
-static int	cmp_dkio	__P((const DBT *, const DBT *));
-static int	cmp_avgdkio	__P((const DBT *, const DBT *));
-static int	cmp_cpumem	__P((const DBT *, const DBT *));
-static int	cmp_avgcpumem	__P((const DBT *, const DBT *));
-static int	cmp_calls	__P((const DBT *, const DBT *));
-static void	usage		__P((void));
+static int	acct_load(char *, int);
+static u_quad_t	decode_comp_t(comp_t);
+static int	cmp_comm(const char *, const char *);
+static int	cmp_usrsys(const DBT *, const DBT *);
+static int	cmp_avgusrsys(const DBT *, const DBT *);
+static int	cmp_dkio(const DBT *, const DBT *);
+static int	cmp_avgdkio(const DBT *, const DBT *);
+static int	cmp_cpumem(const DBT *, const DBT *);
+static int	cmp_avgcpumem(const DBT *, const DBT *);
+static int	cmp_calls(const DBT *, const DBT *);
+static void	usage(void);
 
 int aflag, bflag, cflag, dflag, Dflag, fflag, iflag, jflag, kflag;
 int Kflag, lflag, mflag, qflag, rflag, sflag, tflag, uflag, vflag;
-int cutoff = 1;
+u_quad_t cutoff = 1;
 
-static char	*dfltargv[] = { _PATH_ACCT };
+static char	*dfltargv[] = { NULL };
 static int	dfltargc = (sizeof dfltargv/sizeof(char *));
 
 /* default to comparing by sum of user + system time */
 cmpf_t   sa_cmp = cmp_usrsys;
 
 int
-main(argc, argv)
-	int argc;
-	char **argv;
+main(int argc, char **argv)
 {
 	char ch;
+	char pathacct[] = _PATH_ACCT;
 	int error = 0;
+
+	dfltargv[0] = pathacct;
 
 	while ((ch = getopt(argc, argv, "abcdDfijkKlmnqrstuv:")) != -1)
 		switch (ch) {
@@ -239,7 +240,7 @@ main(argc, argv)
 			 * but we want every accounting record intact.
 			 */
 			if (ftruncate(fd, 0) == -1) {
-				warn("couldn't truncate %s", argv);
+				warn("couldn't truncate %s", *argv);
 				error = 1;
 			}
 
@@ -266,7 +267,7 @@ main(argc, argv)
 		 * close the opened accounting file
 		 */
 		if (close(fd) == -1) {
-			warn("close %s", argv);
+			warn("close %s", *argv);
 			error = 1;
 		}
 	}
@@ -326,14 +327,14 @@ acct_load(pn, wr)
 		rv = read(fd, &ac, sizeof(struct acct));
 		if (rv == -1)
 			warn("error reading %s", pn);
-		else if (rv > 0 && rv < sizeof(struct acct))
+		else if (rv > 0 && rv < (int)sizeof(struct acct))
 			warnx("short read of accounting data in %s", pn);
 		if (rv != sizeof(struct acct))
 			break;
 
 		/* decode it */
 		ci.ci_calls = 1;
-		for (i = 0; i < sizeof ac.ac_comm && ac.ac_comm[i] != '\0';
+		for (i = 0; i < (int)sizeof ac.ac_comm && ac.ac_comm[i] != '\0';
 		    i++) {
 			char c = ac.ac_comm[i];
 
