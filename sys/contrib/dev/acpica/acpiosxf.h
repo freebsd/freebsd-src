@@ -263,13 +263,13 @@ AcpiOsGetPhysicalAddress (
 ACPI_STATUS
 AcpiOsInstallInterruptHandler (
     UINT32                  InterruptNumber,
-    OSD_HANDLER             ServiceRoutine,
+    ACPI_OSD_HANDLER        ServiceRoutine,
     void                    *Context);
 
 ACPI_STATUS
 AcpiOsRemoveInterruptHandler (
     UINT32                  InterruptNumber,
-    OSD_HANDLER             ServiceRoutine);
+    ACPI_OSD_HANDLER        ServiceRoutine);
 
 
 /*
@@ -283,13 +283,16 @@ AcpiOsGetThreadId (
 ACPI_STATUS
 AcpiOsQueueForExecution (
     UINT32                  Priority,
-    OSD_EXECUTION_CALLBACK  Function,
+    ACPI_OSD_EXEC_CALLBACK  Function,
+    void                    *Context);
+
+void
+AcpiOsWaitEventsComplete (
     void                    *Context);
 
 void
 AcpiOsSleep (
-    UINT32                  Seconds,
-    UINT32                  Milliseconds);
+    ACPI_INTEGER            Milliseconds);
 
 void
 AcpiOsStall (
@@ -332,29 +335,32 @@ AcpiOsWriteMemory (
 
 /*
  * Platform and hardware-independent PCI configuration space access
+ * Note: Can't use "Register" as a parameter, changed to "Reg" --
+ * certain compilers complain.
  */
 
 ACPI_STATUS
 AcpiOsReadPciConfiguration (
     ACPI_PCI_ID             *PciId,
-    UINT32                  Register,
+    UINT32                  Reg,
     void                    *Value,
     UINT32                  Width);
 
 ACPI_STATUS
 AcpiOsWritePciConfiguration (
     ACPI_PCI_ID             *PciId,
-    UINT32                  Register,
+    UINT32                  Reg,
     ACPI_INTEGER            Value,
     UINT32                  Width);
 
 /*
  * Interim function needed for PCI IRQ routing
  */
+
 void
 AcpiOsDerivePciId(
-    ACPI_HANDLE             rhandle,
-    ACPI_HANDLE             chandle,
+    ACPI_HANDLE             Rhandle,
+    ACPI_HANDLE             Chandle,
     ACPI_PCI_ID             **PciId);
 
 /*
@@ -371,7 +377,7 @@ AcpiOsWritable (
     void                    *Pointer,
     ACPI_SIZE               Length);
 
-UINT32
+UINT64
 AcpiOsGetTimer (
     void);
 
