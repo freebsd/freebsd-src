@@ -59,7 +59,7 @@
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 
-static int donice(struct proc *curp, struct proc *chgp, int n);
+static int donice(struct thread *td, struct proc *chgp, int n);
 
 static MALLOC_DEFINE(M_UIDINFO, "uidinfo", "uidinfo structures");
 #define	UIHASH(uid)	(&uihashtbl[(uid) & uihash])
@@ -87,7 +87,6 @@ getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
-	struct proc *curp = td->td_proc;
 	register struct proc *p;
 	register int low = PRIO_MAX + 1;
 	int error = 0;
@@ -102,7 +101,7 @@ getpriority(td, uap)
 			p = pfind(uap->who);
 			if (p == NULL)
 				break;
-			if (p_cansee(curp, p) == 0)
+			if (p_cansee(td->td_proc, p) == 0)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 			PROC_UNLOCK(p);
 		}
@@ -113,7 +112,7 @@ getpriority(td, uap)
 
 		PGRPSESS_SLOCK();
 		if (uap->who == 0) {
-			pg = curp->p_pgrp;
+			pg = td->td_proc->p_pgrp;
 			PGRP_LOCK(pg);
 		} else {
 			pg = pgfind(uap->who);
@@ -125,7 +124,7 @@ getpriority(td, uap)
 		PGRPSESS_SUNLOCK();
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(curp, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
+			if (!p_cansee(td->td_proc, p) && p->p_ksegrp.kg_nice /* XXXKSE */  < low)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
 			PROC_UNLOCK(p);
 		}
@@ -135,13 +134,16 @@ getpriority(td, uap)
 
 	case PRIO_USER:
 		if (uap->who == 0)
-			uap->who = curp->p_ucred->cr_uid;
+			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list)
-			if (!p_cansee(curp, p) &&
+		LIST_FOREACH(p, &allproc, p_list) {
+			PROC_LOCK(p);
+			if (!p_cansee(td->td_proc, p) &&
 			    p->p_ucred->cr_uid == uap->who &&
 			    p->p_ksegrp.kg_nice /* XXXKSE */  < low)
 				low = p->p_ksegrp.kg_nice /* XXXKSE */ ;
+			PROC_UNLOCK(p);
+		}
 		sx_sunlock(&allproc_lock);
 		break;
 
@@ -180,14 +182,16 @@ setpriority(td, uap)
 
 	switch (uap->which) {
 	case PRIO_PROCESS:
-		if (uap->who == 0)
-			error = donice(curp, curp, uap->prio);
-		else {
+		if (uap->who == 0) {
+			PROC_LOCK(curp);
+			error = donice(td, curp, uap->prio);
+			PROC_UNLOCK(curp);
+		} else {
 			p = pfind(uap->who);
 			if (p == 0)
 				break;
-			if (p_cansee(curp, p) == 0)
-				error = donice(curp, p, uap->prio);
+			if (p_cansee(td->td_proc, p) == 0)
+				error = donice(td, p, uap->prio);
 			PROC_UNLOCK(p);
 		}
 		found++;
@@ -210,8 +214,8 @@ setpriority(td, uap)
 		PGRPSESS_SUNLOCK();
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (!p_cansee(curp, p)) {
-				error = donice(curp, p, uap->prio);
+			if (!p_cansee(td->td_proc, p)) {
+				error = donice(td, p, uap->prio);
 				found++;
 			}
 			PROC_UNLOCK(p);
@@ -222,14 +226,16 @@ setpriority(td, uap)
 
 	case PRIO_USER:
 		if (uap->who == 0)
-			uap->who = curp->p_ucred->cr_uid;
+			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
+			PROC_LOCK(p);
 			if (p->p_ucred->cr_uid == uap->who &&
-			    !p_cansee(curp, p)) {
-				error = donice(curp, p, uap->prio);
+			    !p_cansee(td->td_proc, p)) {
+				error = donice(td, p, uap->prio);
 				found++;
 			}
+			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
 		break;
@@ -245,20 +251,21 @@ setpriority(td, uap)
 }
 
 static int
-donice(curp, chgp, n)
-	register struct proc *curp, *chgp;
+donice(td, chgp, n)
+	struct thread *td;
+	register struct proc *chgp;
 	register int n;
 {
 	int	error;
 
-	if ((error = p_cansched(curp, chgp)))
+	PROC_LOCK_ASSERT(chgp, MA_OWNED);
+	if ((error = p_cansched(td->td_proc, chgp)))
 		return (error);
 	if (n > PRIO_MAX)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
-	if (n < chgp->p_ksegrp.kg_nice /* XXXKSE */  &&
-	    suser_cred(curp->p_ucred, 0))
+	if (n < chgp->p_ksegrp.kg_nice /* XXXKSE */  && suser(td))
 		return (EACCES);
 	chgp->p_ksegrp.kg_nice /* XXXKSE */  = n;
 	(void)resetpriority(&chgp->p_ksegrp); /* XXXKSE */
@@ -290,34 +297,32 @@ rtprio(td, uap)
 	struct proc *curp = td->td_proc;
 	register struct proc *p;
 	struct rtprio rtp;
-	int error;
+	int error, cierror = 0;
 
-	mtx_lock(&Giant);
+	/* Perform copyin before acquiring locks if needed. */
+	if (uap->function == RTP_SET)
+		cierror = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
 
 	if (uap->pid == 0) {
 		p = curp;
 		PROC_LOCK(p);
 	} else {
 		p = pfind(uap->pid);
-	}
-
-	if (p == NULL) {
-		error = ESRCH;
-		goto done2;
+		if (p == NULL)
+			return (ESRCH);
 	}
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
-		if ((error = p_cansee(curp, p)))
+		if ((error = p_cansee(td->td_proc, p)))
 			break;
 		mtx_lock_spin(&sched_lock);
 		pri_to_rtp(&p->p_ksegrp /* XXXKSE */ , &rtp);
 		mtx_unlock_spin(&sched_lock);
-		error = copyout(&rtp, uap->rtp, sizeof(struct rtprio));
-		break;
+		PROC_UNLOCK(p);
+		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
 	case RTP_SET:
-		if ((error = p_cansched(curp, p)) ||
-		    (error = copyin(uap->rtp, &rtp, sizeof(struct rtprio))))
+		if ((error = p_cansched(td->td_proc, p)) || (error = cierror))
 			break;
 		/* disallow setting rtprio in most cases if not superuser */
 		if (suser(td) != 0) {
@@ -351,8 +356,6 @@ rtprio(td, uap)
 		break;
 	}
 	PROC_UNLOCK(p);
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
