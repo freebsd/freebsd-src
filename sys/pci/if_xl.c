@@ -1740,7 +1740,7 @@ xl_detach(dev)
 	int			rid, res;
 
 	sc = device_get_softc(dev);
-	KASSERT(mtx_initialized(&sc->xl_mtx), "xl mutex not initialized");
+	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
 	XL_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
