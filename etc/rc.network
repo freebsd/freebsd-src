@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: rc.network,v 1.28 1998/07/08 15:40:53 nectar Exp $
+#	$Id: rc.network,v 1.29 1998/08/14 06:55:17 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -108,7 +108,6 @@ network_pass1() {
     if [ -n "$tcp_extensions" -a "x$tcp_extensions" != "xYES" ] ; then
 	    echo -n ' tcp extensions=NO'
 	    sysctl -w net.inet.tcp.rfc1323=0 >/dev/null 2>&1
-	    sysctl -w net.inet.tcp.rfc1644=0 >/dev/null 2>&1
     fi
 
     if [ "X$gateway_enable" = X"YES" ]; then
