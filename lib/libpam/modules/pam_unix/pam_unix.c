@@ -1,6 +1,13 @@
 /*-
  * Copyright 1998 Juniper Networks, Inc.
  * All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software was developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,6 +17,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -27,15 +37,21 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
 #include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
 #include <rpcsvc/ypclnt.h>
 #include <rpcsvc/yppasswd.h>
 #endif
+
 #include <login_cap.h>
+#include <netdb.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -68,7 +84,12 @@ __FBSDID("$FreeBSD$");
 #define DEFAULT_WARN		(2L * 7L * 86400L)  /* Two weeks */
 #define	MAX_TRIES		3
 
-enum { PAM_OPT_AUTH_AS_SELF=PAM_OPT_STD_MAX, PAM_OPT_NULLOK, PAM_OPT_LOCAL_PASS, PAM_OPT_NIS_PASS };
+enum {
+	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
+	PAM_OPT_NULLOK,
+	PAM_OPT_LOCAL_PASS,
+	PAM_OPT_NIS_PASS
+};
 
 static struct opttab other_options[] = {
 	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
@@ -198,13 +219,15 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
 PAM_EXTERN int
 pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
+	struct addrinfo hints, *res;
 	struct options options;
-	struct passwd *pw;
+	struct passwd *pwd;
 	struct timeval tp;
 	login_cap_t *lc;
 	time_t warntime;
 	int retval;
-	const char *user;
+	const char *rhost, *tty, *user;
+	char rhostip[MAXHOSTNAMELEN];
 	char buf[128];
 
 	pam_std_option(&options, other_options, argc, argv);
@@ -212,53 +235,100 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 	PAM_LOG("Options processed");
 
 	retval = pam_get_item(pamh, PAM_USER, (const void **)&user);
-	if (retval != PAM_SUCCESS || user == NULL)
-		/* some implementations return PAM_SUCCESS here */
-		PAM_RETURN(PAM_USER_UNKNOWN);
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
 
-	pw = getpwnam(user);
-	if (pw == NULL)
-		PAM_RETURN(PAM_USER_UNKNOWN);
+	if (user == NULL || (pwd = getpwnam(user)) == NULL)
+		PAM_RETURN(PAM_SERVICE_ERR);
 
 	PAM_LOG("Got user: %s", user);
 
-	retval = PAM_SUCCESS;
-	lc = login_getpwclass(pw);
+	retval = pam_get_item(pamh, PAM_RHOST, (const void **)&rhost);
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
 
-	if (pw->pw_change || pw->pw_expire)
-		gettimeofday(&tp, NULL);
+	retval = pam_get_item(pamh, PAM_TTY, (const void **)&tty);
+	if (retval != PAM_SUCCESS)
+		PAM_RETURN(retval);
 
-	warntime = login_getcaptime(lc, "warnpassword", DEFAULT_WARN,
-	    DEFAULT_WARN);
+	if (*pwd->pw_passwd == '\0' &&
+	    (flags & PAM_DISALLOW_NULL_AUTHTOK) != 0)
+		return (PAM_NEW_AUTHTOK_REQD);
+	    
+	lc = login_getpwclass(pwd);
+	if (lc == NULL) {
+		PAM_LOG("Unable to get login class for user %s", user);
+		return (PAM_SERVICE_ERR);
+	}
 
 	PAM_LOG("Got login_cap");
 
-	if (pw->pw_change) {
-		if (tp.tv_sec >= pw->pw_change)
-			/* some implementations return PAM_AUTHTOK_EXPIRED */
-			retval = PAM_NEW_AUTHTOK_REQD;
-		else if (pw->pw_change - tp.tv_sec < warntime) {
-			snprintf(buf, sizeof(buf),
-			    "Warning: your password expires on %s",
-			    ctime(&pw->pw_change));
-			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
-		}
-	}
+	if (pwd->pw_change || pwd->pw_expire)
+		gettimeofday(&tp, NULL);
 
-	warntime = login_getcaptime(lc, "warnexpire", DEFAULT_WARN,
-	    DEFAULT_WARN);
-
-	if (pw->pw_expire) {
-		if (tp.tv_sec >= pw->pw_expire)
-			retval = PAM_ACCT_EXPIRED;
-		else if (pw->pw_expire - tp.tv_sec < warntime) {
+	/*
+	 * Check pw_expire before pw_change - no point in letting the
+	 * user change the password on an expired account.
+	 */
+	
+	if (pwd->pw_expire) {
+		warntime = login_getcaptime(lc, "warnexpire",
+		    DEFAULT_WARN, DEFAULT_WARN);
+		if (tp.tv_sec >= pwd->pw_expire) {
+			login_close(lc);
+			PAM_RETURN(PAM_ACCT_EXPIRED);
+		} else if (pwd->pw_expire - tp.tv_sec < warntime &&
+		    (flags & PAM_SILENT) == 0) {
 			snprintf(buf, sizeof(buf),
 			    "Warning: your account expires on %s",
-			    ctime(&pw->pw_expire));
+			    ctime(&pwd->pw_expire));
 			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
 		}
 	}
 
+	retval = PAM_SUCCESS;
+	if (pwd->pw_change) {
+		warntime = login_getcaptime(lc, "warnpassword",
+		    DEFAULT_WARN, DEFAULT_WARN);
+		if (tp.tv_sec >= pwd->pw_change) {
+			retval = PAM_NEW_AUTHTOK_REQD;
+		} else if (pwd->pw_change - tp.tv_sec < warntime &&
+		    (flags & PAM_SILENT) == 0) {
+			snprintf(buf, sizeof(buf),
+			    "Warning: your password expires on %s",
+			    ctime(&pwd->pw_change));
+			pam_prompt(pamh, PAM_ERROR_MSG, buf, NULL);
+		}
+	}
+
+	/*
+	 * From here on, we must leave retval untouched (unless we
+	 * know we're going to fail), because we need to remember
+	 * whether we're supposed to return PAM_SUCCESS or
+	 * PAM_NEW_AUTHTOK_REQD.
+	 */
+
+	if (rhost) {
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		if (getaddrinfo(rhost, NULL, &hints, &res) == 0) {
+			getnameinfo(res->ai_addr, res->ai_addrlen,
+			    rhostip, sizeof(rhostip), NULL, 0,
+			    NI_NUMERICHOST|NI_WITHSCOPEID);
+		}
+		if (res != NULL)
+			freeaddrinfo(res);
+	}
+
+	/*
+	 * Check host / tty / time-of-day restrictions
+	 */
+	
+	if (!auth_hostok(lc, rhost, rhostip) ||
+	    !auth_ttyok(lc, tty) ||
+	    !auth_timeok(lc, time(NULL)))
+		retval = PAM_AUTH_ERR;
+	
 	login_close(lc);
 
 	PAM_RETURN(retval);
