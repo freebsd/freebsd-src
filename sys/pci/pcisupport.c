@@ -1257,6 +1257,14 @@ chip_match(device_t dev)
 	case 0x1978125d:
 		return ("ESS Technology Maestro 2E Audio controller");
 
+	/* Lucent -- Vendor 0x11c1 */
+	case 0x044011c1:
+		return ("LUCENT K56Flex DSVD LTMODEM (winmodem, unsupported)");
+
+	/* CCUBE -- Vendor 0x123f */
+	case 0x8888123f:
+		return ("Cinemaster C 3.0 DVD Decoder");
+
 	/* Toshiba -- vendor 0x1179 */
 	case 0x07011179:
 		return ("Toshiba Fast Infra Red controller");
