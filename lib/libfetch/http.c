@@ -196,8 +196,10 @@ _http_fillbuf(struct httpio *io, size_t len)
 	if (io->chunked == 0) {
 		if (_http_growbuf(io, len) == -1)
 			return (-1);
-		if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1)
+		if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1) {
+			io->error = 1;
 			return (-1);
+		}
 		io->bufpos = 0;
 		return (io->buflen);
 	}
@@ -217,8 +219,10 @@ _http_fillbuf(struct httpio *io, size_t len)
 		len = io->chunksize;
 	if (_http_growbuf(io, len) == -1)
 		return (-1);
-	if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1)
+	if ((io->buflen = _fetch_read(io->conn, io->buf, len)) == -1) {
+		io->error = 1;
 		return (-1);
+	}
 	io->chunksize -= io->buflen;
 
 	if (io->chunksize == 0) {
