@@ -61,10 +61,17 @@
         (define %refentry-xref-link% #t)
 
         <!-- Specify how to generate the man page link HREF -->
-        (define ($create-refentry-xref-link$ refentrytitle manvolnum)
-	  (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
-			 refentrytitle "&" "sektion=" manvolnum
-			 "&" "manpath=FreeBSD+4.5-stable"))
+        (define ($create-refentry-xref-link$ #!optional (n (current-node)))
+          (let* ((r (select-elements (children n) (normalize "refentrytitle")))
+                 (m (select-elements (children n) (normalize "manvolnum")))
+                 (v (attribute-string (normalize "vendor") n))
+                 (u (string-append "http://www.FreeBSD.org/cgi/man.cgi?query="
+                         (data r) "&" "sektion=" (data m))))
+            (case v
+              (("xfree86") (string-append u "&" "manpath=XFree86+4.2.0"))
+              (("netbsd")  (string-append u "&" "manpath=NetBSD+1.5"))
+              (("ports")   (string-append u "&" "manpath=FreeBSD+Ports"))
+              (else        (string-append u "&" "manpath=FreeBSD+4.6-stable")))))
       ]]>
 
       (define (toc-depth nd)
