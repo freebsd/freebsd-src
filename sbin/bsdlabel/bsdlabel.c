@@ -327,6 +327,7 @@ readboot(void)
 {
 	int fd, i;
 	struct stat st;
+	uint64_t *p;
 
 	if (xxboot == NULL)
 		xxboot = "/boot/boot";
@@ -338,6 +339,15 @@ readboot(void)
 		i = read(fd, bootarea + 512, st.st_size);
 		if (i != st.st_size)
 			err(1, "read error %s", xxboot);
+
+		/*
+		 * Set the location and length so SRM can find the
+		 * boot blocks.
+		 */
+		p = (uint64_t *)bootarea;
+		p[60] = (st.st_size + secsize - 1) / secsize;
+		p[61] = 1;
+		p[62] = 0;
 		return;
 	} else if ((!alphacksum) && st.st_size <= BBSIZE) {
 		i = read(fd, bootarea, st.st_size);
