@@ -44,11 +44,15 @@ static const char copyright[] =
 #if 0
 static char sccsid[] = "@(#)fold.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+#include <ctype.h>
 #include <err.h>
+#include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -56,8 +60,12 @@ static const char rcsid[] =
 
 #define	DEFLINEWIDTH	80
 
-void fold __P((int));
-static void usage __P((void));
+void fold(int);
+static int newpos(int, int);
+static void usage(void);
+
+int bflag;			/* Count bytes, not columns */
+int sflag;			/* Split on word boundaries */
 
 int
 main(argc, argv)
@@ -65,12 +73,20 @@ main(argc, argv)
 	char **argv;
 {
 	register int ch;
-	int width;
+	int rval, width;
 	char *p;
 
+	(void) setlocale(LC_CTYPE, "");
+
 	width = -1;
-	while ((ch = getopt(argc, argv, "0123456789w:")) != -1)
+	while ((ch = getopt(argc, argv, "0123456789bsw:")) != -1)
 		switch (ch) {
+		case 'b':
+			bflag = 1;
+			break;
+		case 's':
+			sflag = 1;
+			break;
 		case 'w':
 			if ((width = atoi(optarg)) <= 0) {
 				errx(1, "illegal width value");
@@ -94,70 +110,113 @@ main(argc, argv)
 
 	if (width == -1)
 		width = DEFLINEWIDTH;
+	rval = 0;
 	if (!*argv)
 		fold(width);
 	else for (; *argv; ++argv)
 		if (!freopen(*argv, "r", stdin)) {
-			err(1, "%s", *argv);
+			warn("%s", *argv);
+			rval = 1;
 		} else
 			fold(width);
-	exit(0);
+	exit(rval);
 }
 
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: fold [-w width] [file ...]\n");
+	(void)fprintf(stderr, "usage: fold [-bs] [-w width] [file ...]\n");
 	exit(1);
 }
 
+/*
+ * Fold the contents of standard input to fit within WIDTH columns (or bytes)
+ * and write to standard output.
+ *
+ * If sflag is set, split the line at the last space character on the line.
+ * This flag necessitates storing the line in a buffer until the current
+ * column > width, or a newline or EOF is read.
+ *
+ * The buffer can grow larger than WIDTH due to backspaces and carriage
+ * returns embedded in the input stream.
+ */
 void
 fold(width)
 	register int width;
 {
-	register int ch, col, new;
+	static char *buf;
+	static int buf_max;
+	int ch, col, i, indx, space;
 
-	for (col = 0;;) {
-		switch (ch = getchar()) {
-		case EOF:
-			return;
-		case '\b':
-			new = col ? col - 1 : 0;
-			break;
-		case '\n':
-		case '\r':
-			new = 0;
-			break;
-		case '\t':
-			new = (col + 8) & ~7;
-			break;
-		default:
-			new = col + 1;
-			break;
-		}
-
-		if (new > width) {
+	col = indx = 0;
+	while ((ch = getchar()) != EOF) {
+		if (ch == '\n') {
+			if (indx != 0)
+				fwrite(buf, 1, indx, stdout);
 			putchar('\n');
-			col = 0;
+			col = indx = 0;
+			continue;
 		}
-		putchar(ch);
+		if ((col = newpos(col, ch)) > width) {
+			if (sflag) {
+				i = indx;
+				while (--i >= 0 && !isblank((unsigned char)buf[i]))
+					;
+				space = i;
+			}
+			if (sflag && space != -1) {
+				space++;
+				fwrite(buf, 1, space, stdout);
+				memmove(buf, buf + space, indx - space);
+				indx -= space;
+				col = 0;
+				for (i = 0; i < indx; i++)
+					col = newpos(col, buf[i]);
+			} else {
+				fwrite(buf, 1, indx, stdout);
+				col = indx = 0;
+			}
+			putchar('\n');
+			col = newpos(col, ch);
+		}
+		if (indx + 1 > buf_max) {
+			buf_max += LINE_MAX;
+			if ((buf = realloc(buf, buf_max)) == NULL)
+				err(1, "realloc()");
+		}
+		buf[indx++] = ch;
+	}
 
+	if (indx != 0)
+		fwrite(buf, 1, indx, stdout);
+}
+
+/*
+ * Update the current column position for a character.
+ */
+static int
+newpos(col, ch)
+	int col, ch;
+{
+
+	if (bflag)
+		++col;
+	else
 		switch (ch) {
 		case '\b':
 			if (col > 0)
 				--col;
 			break;
-		case '\n':
 		case '\r':
 			col = 0;
 			break;
 		case '\t':
-			col += 8;
-			col &= ~7;
+			col = (col + 8) & ~7;
 			break;
 		default:
 			++col;
 			break;
 		}
-	}
+
+	return (col);
 }
