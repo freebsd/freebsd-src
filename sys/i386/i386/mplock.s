@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: mplock.s,v 1.19 1997/08/25 10:57:38 peter Exp $
+ * $Id: mplock.s,v 1.20 1997/08/25 21:31:38 bde Exp $
  *
  * Functions for locking between CPUs in a SMP system.
  *
@@ -222,6 +222,26 @@ NON_GPROF_ENTRY(get_mplock)
 
 	popfl				/* restore original EFLAGS */
 	popl	lapic_tpr		/* restore TPR */
+	popl	%edx
+	popl	%ecx
+	popl	%eax
+	ret
+
+/*
+ * Special version of get_mplock that is used during bootstrap when we can't
+ * yet enable interrupts of any sort since the APIC isn't online yet.
+ *
+ * XXX FIXME.. - APIC should be online from the start to simplify IPI's.
+ */
+NON_GPROF_ENTRY(boot_get_mplock)
+	pushl	%eax
+	pushl	%ecx
+	pushl	%edx
+
+	pushl	$_mp_lock
+	call	_MPgetlock
+	add	$4, %esp
+
 	popl	%edx
 	popl	%ecx
 	popl	%eax

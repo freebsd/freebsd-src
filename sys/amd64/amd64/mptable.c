@@ -22,17 +22,20 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.44 1997/08/24 20:33:32 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.45 1997/08/25 21:28:08 bde Exp $
  */
 
 #include "opt_smp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/proc.h>
+#include <sys/sysctl.h>
 
-#include <vm/vm.h>		/* for KERNBASE */
-#include <vm/vm_param.h>	/* for KERNBASE */
-#include <vm/pmap.h>		/* for KERNBASE */
+#include <vm/vm.h>
+#include <vm/vm_param.h>
+#include <vm/pmap.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
 
@@ -230,14 +233,23 @@ int     apic_id_to_logical[NAPICID];
 /* Bitmap of all available CPUs */
 u_int	all_cpus;
 
-/* Boot of AP uses this PTD */
-u_int *bootPTD;
+/* AP uses this PTD during bootstrap */
+pd_entry_t *bootPTD;
 
 /* Hotwire a 0->4MB V==P mapping */
-extern pt_entry_t KPTphys;
+extern pt_entry_t *KPTphys;
 
 /* Virtual address of per-cpu common_tss */
 extern struct i386tss common_tss;
+
+/* IdlePTD per cpu */
+pd_entry_t *IdlePTDS[NCPU];
+
+/* "my" private page table page, for BSP init */
+extern pt_entry_t SMP_prvpt[];
+
+/* Private page pointer to curcpu's PTD, used during BSP init */
+extern pd_entry_t *my_idlePTD;
 
 /*
  * Local data and functions.
@@ -1473,9 +1485,9 @@ start_all_aps(u_int boot_addr)
 	int     x, i;
 	u_char  mpbiosreason;
 	u_long  mpbioswarmvec;
-	pd_entry_t newptd;
-	pt_entry_t newpt;
-	int *newpp;
+	pd_entry_t *newptd;
+	pt_entry_t *newpt;
+	int *newpp, *stack;
 
 	POSTCODE(START_ALL_APS_POST);
 
@@ -1498,57 +1510,71 @@ start_all_aps(u_int boot_addr)
 	/* start each AP */
 	for (x = 1; x <= mp_naps; ++x) {
 
-		/* HACK HACK HACK !!! */
+		/* This is a bit verbose, it will go away soon.  */
 
 		/* alloc new page table directory */
-		newptd = (pd_entry_t)(kmem_alloc(kernel_map, PAGE_SIZE));
+		newptd = (pd_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
+
+		/* Store the virtual PTD address for this CPU */
+		IdlePTDS[x] = newptd;
 
 		/* clone currently active one (ie: IdlePTD) */
 		bcopy(PTD, newptd, PAGE_SIZE);	/* inc prv page pde */
 
 		/* set up 0 -> 4MB P==V mapping for AP boot */
-		newptd[0] = PG_V | PG_RW | ((u_long)KPTphys & PG_FRAME);
+		newptd[0] = (pd_entry_t) (PG_V | PG_RW |
+						((u_long)KPTphys & PG_FRAME));
 
-		/* store PTD for this AP */
-		bootPTD = (pd_entry_t)vtophys(newptd);
+		/* store PTD for this AP's boot sequence */
+		bootPTD = (pd_entry_t *)vtophys(newptd);
 
 		/* alloc new page table page */
-		newpt = (pt_entry_t)(kmem_alloc(kernel_map, PAGE_SIZE));
+		newpt = (pt_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
 
 		/* set the new PTD's private page to point there */
-		newptd[MPPTDI] = PG_V | PG_RW | vtophys(newpt);
+		newptd[MPPTDI] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpt));
 
 		/* install self referential entry */
-		newptd[PTDPTDI] = PG_V | PG_RW | vtophys(newptd);
+		newptd[PTDPTDI] = (pd_entry_t)(PG_V | PG_RW | vtophys(newptd));
 
-		/* get a new private data page */
+		/* allocate a new private data page */
 		newpp = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
 
 		/* wire it into the private page table page */
-		newpt[0] = PG_V | PG_RW | vtophys(newpp);
+		newpt[0] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpp));
 
 		/* wire the ptp into itself for access */
-		newpt[1] = PG_V | PG_RW | vtophys(newpt);
+		newpt[1] = (pt_entry_t)(PG_V | PG_RW | vtophys(newpt));
 
-		/* and the local apic */
+		/* copy in the pointer to the local apic */
 		newpt[2] = SMP_prvpt[2];
 
 		/* and the IO apic mapping[s] */
 		for (i = 16; i < 32; i++)
 			newpt[i] = SMP_prvpt[i];
 
+		/* allocate and set up an idle stack data page */
+		stack = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
+		newpt[3] = (pt_entry_t)(PG_V | PG_RW | vtophys(stack));
+
+		newpt[4] = 0;			/* *prv_CMAP1 */
+		newpt[5] = 0;			/* *prv_CMAP2 */
+		newpt[6] = 0;			/* *prv_CMAP3 */
+
 		/* prime data page for it to use */
-		newpp[0] = x;		/* cpuid */
-		newpp[1] = 0;		/* curproc */
-		newpp[2] = 0;		/* curpcb */
-		newpp[3] = 0;		/* npxproc */
-		newpp[4] = 0;		/* runtime.tv_sec */
-		newpp[5] = 0;		/* runtime.tv_usec */
-		newpp[6] = x << 24;	/* cpu_lockid */
-
-		/* XXX NOTE: ABANDON bootPTD for now!!!! */
-
-		/* END REVOLTING HACKERY */
+		newpp[0] = x;			/* cpuid */
+		newpp[1] = 0;			/* curproc */
+		newpp[2] = 0;			/* curpcb */
+		newpp[3] = 0;			/* npxproc */
+		newpp[4] = 0;			/* runtime.tv_sec */
+		newpp[5] = 0;			/* runtime.tv_usec */
+		newpp[6] = x << 24;		/* cpu_lockid */
+		newpp[7] = 0;			/* other_cpus */
+		newpp[8] = (int)bootPTD;	/* my_idlePTD */
+		newpp[9] = 0;			/* ss_tpr */
+		newpp[10] = (int)&newpt[4];	/* prv_CMAP1 */
+		newpp[11] = (int)&newpt[5];	/* prv_CMAP2 */
+		newpp[12] = (int)&newpt[6];	/* prv_CMAP3 */
 
 		/* setup a vector to our boot code */
 		*((volatile u_short *) WARMBOOT_OFF) = WARMBOOT_TARGET;
@@ -1584,6 +1610,26 @@ start_all_aps(u_int boot_addr)
 	*(u_long *) WARMBOOT_OFF = mpbioswarmvec;
 	outb(CMOS_REG, BIOS_RESET);
 	outb(CMOS_DATA, mpbiosreason);
+
+	/*
+	 * Set up the idle context for the BSP.  Similar to above except
+	 * that some was done by locore, some by pmap.c and some is implicit
+	 * because the BSP is cpu#0 and the page is initially zero, and also
+	 * because we can refer to variables by name on the BSP..
+	 */
+	newptd = (pd_entry_t *)(kmem_alloc(kernel_map, PAGE_SIZE));
+
+	bcopy(PTD, newptd, PAGE_SIZE);	/* inc prv page pde */
+	IdlePTDS[0] = newptd;
+
+	/* Point PTD[] to this page instead of IdlePTD's physical page */
+	newptd[PTDPTDI] = (pd_entry_t)(PG_V | PG_RW | vtophys(newptd));
+
+	my_idlePTD = (pd_entry_t *)vtophys(newptd);
+
+	/* Allocate and setup BSP idle stack */
+	stack = (int *)kmem_alloc(kernel_map, PAGE_SIZE);
+	SMP_prvpt[3] = (pt_entry_t)(PG_V | PG_RW | vtophys(stack));
 
 	pmap_set_opt_bsp();
 
@@ -1800,7 +1846,7 @@ invltlb(void)
  *            from executing at same time.
  */
 int
-stop_cpus( u_int map )
+stop_cpus(u_int map)
 {
 	if (!smp_active)
 		return 0;
@@ -1832,7 +1878,7 @@ stop_cpus( u_int map )
  *   1: ok
  */
 int
-restart_cpus( u_int map )
+restart_cpus(u_int map)
 {
 	if (!smp_active)
 		return 0;
@@ -1843,4 +1889,64 @@ restart_cpus( u_int map )
 		/* spin */ ;
 
 	return 1;
+}
+
+int smp_active = 0;	/* are the APs allowed to run? */
+SYSCTL_INT(_machdep, OID_AUTO, smp_active, CTLFLAG_RW, &smp_active, 0, "");
+
+/* XXX maybe should be hw.ncpu */
+int smp_cpus = 1;	/* how many cpu's running */
+SYSCTL_INT(_machdep, OID_AUTO, smp_cpus, CTLFLAG_RD, &smp_cpus, 0, "");
+
+int invltlb_ok = 0;	/* throttle smp_invltlb() till safe */
+SYSCTL_INT(_machdep, OID_AUTO, invltlb_ok, CTLFLAG_RW, &invltlb_ok, 0, "");
+
+int do_page_zero_idle = 0; /* bzero pages for fun and profit in idleloop */
+SYSCTL_INT(_machdep, OID_AUTO, do_page_zero_idle, CTLFLAG_RW,
+	   &do_page_zero_idle, 0, "");
+
+
+/*
+ * This is called once the rest of the system is up and running and we're
+ * ready to let the AP's out of the pen.
+ */
+void ap_init(void);
+
+void
+ap_init()
+{
+	u_int   temp;
+	u_int	apic_id;
+
+	smp_cpus++;
+
+	/* Build our map of 'other' CPUs. */
+	other_cpus = all_cpus & ~(1 << cpuid);
+
+	printf("SMP: AP CPU #%d Launched!\n", cpuid);
+
+	/* XXX FIXME: i386 specific, and redundant: Setup the FPU. */
+	load_cr0((rcr0() & ~CR0_EM) | CR0_MP | CR0_NE | CR0_TS);
+
+	/* A quick check from sanity claus */
+	apic_id = (apic_id_to_logical[(lapic.id & 0x0f000000) >> 24]);
+	if (cpuid != apic_id) {
+		printf("SMP: cpuid = %d\n", cpuid);
+		printf("SMP: apic_id = %d\n", apic_id);
+		printf("PTD[MPPTDI] = %08x\n", PTD[MPPTDI]);
+		panic("cpuid mismatch! boom!!");
+	}
+
+	/* Init local apic for irq's */
+	apic_initialize();
+
+	/*
+	 * Activate smp_invltlb, although strictly speaking, this isn't
+	 * quite correct yet.  We should have a bitfield for cpus willing
+	 * to accept TLB flush IPI's or something and sync them.
+	 */
+	invltlb_ok = 1;
+	smp_active = 1;		/* historic */
+
+	curproc = NULL;		/* make sure */
 }

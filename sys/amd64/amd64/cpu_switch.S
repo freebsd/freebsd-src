@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.58 1997/08/04 17:31:43 fsmp Exp $
+ *	$Id: swtch.s,v 1.59 1997/08/09 00:02:47 dyson Exp $
  */
 
 #include "npx.h"
@@ -240,17 +240,94 @@ rem3id:	.asciz	"remrq.id"
 /*
  * When no processes are on the runq, cpu_switch() branches to _idle
  * to wait for something to come ready.
- *
- * NOTE: on an SMP system this routine is a startup-only code path.
- * once initialization is over, meaning the idle procs have been
- * created, we should NEVER branch here.
  */
 	ALIGN_TEXT
 _idle:
-#if defined(SMP) && defined(DIAGNOSTIC)
-	cmpl	$0, _smp_active
-	jnz	badsw3
-#endif /* SMP && DIAGNOSTIC */
+#ifdef SMP
+	/* when called, we have the mplock, intr disabled */
+
+	xorl	%ebp,%ebp
+
+	/* use our idleproc's "context" */
+	movl	_my_idlePTD,%ecx
+	movl	%ecx,%cr3
+	movl	$_idlestack_top,%ecx
+	movl	%ecx,%esp
+
+	/* update common_tss.tss_esp0 pointer */
+	movl	$_common_tss, %eax
+	movl	%ecx, TSS_ESP0(%eax)
+
+	sti
+
+	/*
+	 * XXX callers of cpu_switch() do a bogus splclock().  Locking should
+	 * be left to cpu_switch().
+	 */
+	call	_spl0
+
+	cli
+
+	/*
+	 * _REALLY_ free the lock, no matter how deep the prior nesting.
+	 * We will recover the nesting on the way out when we have a new
+	 * proc to load.
+	 *
+	 * XXX: we had damn well better be sure we had it before doing this!
+	 */
+	movl	$FREE_LOCK, %eax
+	movl	%eax, _mp_lock
+
+	/* do NOT have lock, intrs disabled */
+	.globl	idle_loop
+idle_loop:
+
+	movl	%cr3,%eax			/* ouch! */
+	movl	%eax,%cr3
+
+	cmpl	$0,_smp_active
+	jne	1f
+	cmpl	$0,_cpuid
+	je	1f
+	jmp	2f
+
+1:	cmpl	$0,_whichrtqs			/* real-time queue */
+	jne	3f
+	cmpl	$0,_whichqs			/* normal queue */
+	jne	3f
+	cmpl	$0,_whichidqs			/* 'idle' queue */
+	jne	3f
+
+	cmpl	$0,_do_page_zero_idle
+	je	2f
+	/* XXX appears to cause panics */
+	/*
+	 * Inside zero_idle we enable interrupts and grab the mplock
+	 * as needed.  It needs to be careful about entry/exit mutexes.
+	 */
+	call	_vm_page_zero_idle		/* internal locking */
+	testl	%eax, %eax
+	jnz	idle_loop
+2:
+
+	/* enable intrs for a halt */
+	sti
+	call	*_hlt_vector			/* wait for interrupt */
+	cli
+	jmp	idle_loop
+
+3:
+	call	_get_mplock
+	cmpl	$0,_whichrtqs			/* real-time queue */
+	CROSSJUMP(jne, sw1a, je)
+	cmpl	$0,_whichqs			/* normal queue */
+	CROSSJUMP(jne, nortqr, je)
+	cmpl	$0,_whichidqs			/* 'idle' queue */
+	CROSSJUMP(jne, idqr, je)
+	call	_rel_mplock
+	jmp	idle_loop
+
+#else
 	xorl	%ebp,%ebp
 	movl	$HIDENAME(tmpstk),%esp
 	movl	_IdlePTD,%ecx
@@ -302,6 +379,7 @@ idle_loop:
 	sti
 	call	*_hlt_vector			/* wait for interrupt */
 	jmp	idle_loop
+#endif
 
 CROSSJUMPTARGET(_idle)
 
@@ -367,6 +445,17 @@ ENTRY(cpu_switch)
 	/* save is done, now choose a new process or idle */
 sw1:
 	cli
+
+#ifdef SMP
+	/* Stop scheduling if smp_active goes zero and we are not BSP */
+	cmpl	$0,_smp_active
+	jne	1f
+	cmpl	$0,_cpuid
+	je	1f
+	CROSSJUMP(je, _idle, jne)		/* wind down */
+1:
+#endif
+
 sw1a:
 	movl    _whichrtqs,%edi			/* pick next p. from rtqs */
 	testl	%edi,%edi
@@ -594,12 +683,6 @@ sw0_2:	.asciz	"cpu_switch: not SRUN"
 #endif
 
 #if defined(SMP) && defined(DIAGNOSTIC)
-badsw3:
-	pushl	$sw0_3
-	call	_panic
-
-sw0_3:	.asciz	"cpu_switch: went idle with smp_active"
-
 badsw4:
 	pushl	$sw0_4
 	call	_panic

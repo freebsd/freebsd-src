@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: smp.h,v 1.24 1997/08/24 20:17:05 smp Exp smp $
+ * $Id: smp.h,v 1.29 1997/08/24 20:33:24 fsmp Exp $
  *
  */
 
@@ -100,7 +100,6 @@ extern int			cpu_num_to_apic_id[];
 extern int			io_num_to_apic_id[];
 extern int			apic_id_to_logical[];
 extern u_int			all_cpus;
-extern u_int			SMP_prvpt[];
 extern u_char			SMP_ioapic[];
 
 /* functions in mp_machdep.c */
