@@ -36,9 +36,6 @@
 #include <sys/param.h>
 #include <sys/bus.h>
 #include <sys/rtprio.h>			/* change this name XXX */
-#ifndef SMP
-#include <machine/lock.h>
-#endif
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>

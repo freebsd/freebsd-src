@@ -38,7 +38,7 @@
 #include <machine/asmacros.h>
 #include <sys/ipl.h>
 #include <sys/mutex.h>
-#include <machine/lock.h>
+#include <machine/atomic.h>
 #include <machine/psl.h>
 #include <machine/trap.h>
 #ifdef SMP
