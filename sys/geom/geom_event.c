@@ -252,17 +252,20 @@ g_cancel_event(void *ref)
 }
 
 static int
-g_post_event_x(g_event_t *func, void *arg, int flag, struct g_event **epp, va_list ap)
+g_post_event_x(g_event_t *func, void *arg, int flag, int wuflag, struct g_event **epp, va_list ap)
 {
 	struct g_event *ep;
 	void *p;
 	u_int n;
 
-	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d)", func, arg, flag);
+	g_trace(G_T_TOPOLOGY, "g_post_event_x(%p, %p, %d, %d)",
+	    func, arg, flag, wakeup);
+	KASSERT(wuflag == 0 || wuflag == EV_WAKEUP,
+	    ("Wrong wuflag in g_post_event_x(0x%x)", wuflag));
 	ep = g_malloc(sizeof *ep, flag | M_ZERO);
 	if (ep == NULL)
 		return (ENOMEM);
-	ep->flag = flag;
+	ep->flag = wuflag;
 	for (n = 0; n < G_N_EVENTREFS; n++) {
 		p = va_arg(ap, void *);
 		if (p == NULL)
@@ -292,7 +295,7 @@ g_post_event(g_event_t *func, void *arg, int flag, ...)
 	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
 	    ("Wrong flag to g_post_event"));
 	va_start(ap, flag);
-	i = g_post_event_x(func, arg, flag, NULL, ap);
+	i = g_post_event_x(func, arg, flag, 0, NULL, ap);
 	va_end(ap);
 	return (i);
 }
@@ -316,7 +319,7 @@ g_waitfor_event(g_event_t *func, void *arg, int flag, ...)
 	KASSERT(flag == M_WAITOK || flag == M_NOWAIT,
 	    ("Wrong flag to g_post_event"));
 	va_start(ap, flag);
-	error = g_post_event_x(func, arg, flag | EV_WAKEUP, &ep, ap);
+	error = g_post_event_x(func, arg, flag, EV_WAKEUP, &ep, ap);
 	va_end(ap);
 	if (error)
 		return (error);
