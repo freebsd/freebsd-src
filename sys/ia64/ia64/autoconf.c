@@ -104,6 +104,10 @@ void
 cpu_rootconf()
 {
 	int	order = 0;
+#ifdef BOOTP
+	if (!ia64_running_in_simulator())
+		bootpc_init();
+#endif
 #if defined(NFSCLIENT) && defined(NFS_ROOT)
 #if !defined(BOOTP_NFSROOT)
 	if (nfs_diskless_valid)
