@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.111 1997/10/26 20:55:07 phk Exp $
+ * $Id: vfs_subr.c,v 1.112 1997/11/07 08:53:11 phk Exp $
  */
 
 /*
@@ -147,10 +147,10 @@ vfs_busy(mp, flags, interlkp, p)
 {
 	int lkflags;
 
-	if (mp->mnt_flag & MNT_UNMOUNT) {
+	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
 		if (flags & LK_NOWAIT)
 			return (ENOENT);
-		mp->mnt_flag |= MNT_MWAIT;
+		mp->mnt_kern_flag |= MNTK_MWAIT;
 		if (interlkp) {
 			simple_unlock(interlkp);
 		}

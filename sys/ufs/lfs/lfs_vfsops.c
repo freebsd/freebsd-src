@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.25 1997/10/16 08:16:34 julian Exp $
+ * $Id: lfs_vfsops.c,v 1.26 1997/10/16 20:32:37 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -213,7 +213,7 @@ lfs_mount(mp, path, data, ndp, p)
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
 		ump = VFSTOUFS(mp);
-		if (fs->lfs_ronly && (mp->mnt_flag & MNT_WANTRDWR)) {
+		if (fs->lfs_ronly && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
 			/*
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
