@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.1 1995/06/02 18:19:18 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.2 1995/06/02 19:29:13 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -117,7 +117,11 @@ get_a_number(FTP_t ftp, char **q)
 static int
 zap(FTP_t ftp)
 {
-    writes(ftp->fd_ctrl,"QUIT\r\n");
+    int i;
+
+    i = writes(ftp->fd_ctrl,"QUIT\r\n");
+    if (isDebug())
+	msgDebug("Zapping ftp connection on %d returns %d\n", ftp->fd_ctrl, i);
     close(ftp->fd_ctrl); ftp->fd_ctrl = -1;
     close(ftp->fd_xfer); ftp->fd_xfer = -1;
     ftp->state = init;
