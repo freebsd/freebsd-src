@@ -580,9 +580,9 @@ bpfwrite(dev, uio, ioflag)
 	mac_create_mbuf_from_bpfdesc(d, m);
 	BPFD_UNLOCK(d);
 #endif
-	mtx_lock(&Giant);
+	NET_LOCK_GIANT();
 	error = (*ifp->if_output)(ifp, m, &dst, (struct rtentry *)0);
-	mtx_unlock(&Giant);
+	NET_UNLOCK_GIANT();
 	/*
 	 * The driver frees the mbuf.
 	 */
