@@ -118,6 +118,14 @@ static void alpha_sa_mask
 static int alpha_does_function_need_gp
   PROTO((void));
 
+int zap_mask
+  PROTO((HOST_WIDE_INT));
+rtx alpha_emit_set_long_const
+  PROTO((rtx, HOST_WIDE_INT, HOST_WIDE_INT));
+void alpha_expand_unaligned_load
+  PROTO((rtx, rtx, HOST_WIDE_INT, HOST_WIDE_INT, int));
+void alpha_expand_unaligned_store
+  PROTO((rtx, rtx, HOST_WIDE_INT, HOST_WIDE_INT));
 
 /* Get the number of args of a function in one of two ways.  */
 #ifdef OPEN_VMS
