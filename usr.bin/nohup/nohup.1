@@ -40,17 +40,17 @@
 .Os
 .Sh NAME
 .Nm nohup
-.Nd invoke a command immune to hangups
+.Nd invoke a utility immune to hangups
 .Sh SYNOPSIS
 .Nm
 .Op Fl Fl
-.Ar command
+.Ar utility
 .Op Ar arguments
 .Sh DESCRIPTION
 The
 .Nm
 utility invokes
-.Ar command
+.Ar utility
 with its
 .Ar arguments
 and at this time sets the signal
@@ -83,7 +83,7 @@ utility uses the directory named by
 to create the file.
 .It Ev PATH
 Used to locate the requested
-.Ar command
+.Ar utility
 if the name contains no
 .Ql /
 characters.
@@ -95,11 +95,11 @@ utility exits with one of the following values:
 .Bl -tag -width Ds
 .It 126
 The
-.Ar command
+.Ar utility
 was found, but could not be invoked.
 .It 127
 The
-.Ar command
+.Ar utility
 could not be found or an error occurred in
 .Nm .
 .El
@@ -107,7 +107,7 @@ could not be found or an error occurred in
 Otherwise, the exit status of
 .Nm
 will be that of
-.Ar command .
+.Ar utility .
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
