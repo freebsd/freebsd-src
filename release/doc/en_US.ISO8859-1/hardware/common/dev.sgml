@@ -326,9 +326,7 @@
   <sect2 id="ethernet">
     <title>Ethernet Interfaces</title>
 
-    <para arch="i386,pc98,alpha,amd64">Adaptec Duralink PCI Fast Ethernet adapters based on the Adaptec
-    AIC-6915 Fast Ethernet controller chip (&man.sf.4; driver)
-    </para>
+    &hwlist.sf;
 
     <para arch="i386,pc98,amd64">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
     1 and Tigon 2 chipsets (&man.ti.4; driver)</para>
