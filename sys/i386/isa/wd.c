@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.79 1995/05/08 16:48:23 bde Exp $
+ *	$Id: wd.c,v 1.80 1995/05/09 12:26:00 rgrimes Exp $
  */
 
 /* TODO:
@@ -210,13 +210,14 @@ struct disk {
 	u_char	dk_timeout;	/* countdown to next timeout */
 	short	dk_port;	/* i/o port base */
 
-	short	dk_flags;	/* drive characteristics found */
 	u_long	cfg_flags;	/* configured characteristics */
+	short	dk_flags;	/* drive characteristics found */
 #define	DKFL_SINGLE	0x00004	/* sector at a time mode */
 #define	DKFL_ERROR	0x00008	/* processing a disk error */
 #define	DKFL_LABELLING	0x00080	/* readdisklabel() in progress */
 #define	DKFL_32BIT	0x00100	/* use 32-bit i/o mode */
 #define	DKFL_MULTI	0x00200	/* use multi-i/o mode */
+#define	DKFL_BADSCAN	0x00400	/* report all errors */
 	struct wdparams dk_params; /* ESDI/IDE drive/controller parameters */
 	int	dk_dkunit;	/* disk stats unit number */
 	int	dk_multi;	/* multi transfers */
@@ -904,8 +905,10 @@ oops:
 		}
 #endif
 
-		/* error or error correction? */
-		if (du->dk_status & WDCS_ERR) {
+		if (du->dk_flags & DKFL_BADSCAN) {
+			bp->b_error = EIO;
+			bp->b_flags |= B_ERROR;
+		} else if (du->dk_status & WDCS_ERR) {
 			if (++wdtab[unit].b_errcnt < RETRIES) {
 				wdtab[unit].b_active = 0;
 			} else {
@@ -1040,6 +1043,8 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 	/* Finish flushing IRQs left over from wdattach(). */
 	if (wdtab[du->dk_ctrlr].b_active == 2)
 		wdtab[du->dk_ctrlr].b_active = 0;
+
+	du->dk_flags &= ~DKFL_BADSCAN;
 
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
@@ -1571,6 +1576,12 @@ wdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		return (error);
 
 	switch (cmd) {
+	case DIOCSBADSCAN:
+		if (*(int *)addr)
+			du->dk_flags |= DKFL_BADSCAN;
+		else
+			du->dk_flags &= ~DKFL_BADSCAN;
+		return (0);
 #ifdef notyet
 	case DIOCWFORMAT:
 		if (!(flag & FWRITE))

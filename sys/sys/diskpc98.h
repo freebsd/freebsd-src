@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)disklabel.h	8.1 (Berkeley) 6/2/93
- * $Id: disklabel.h,v 1.13 1995/04/30 23:48:27 julian Exp $
+ * $Id: disklabel.h,v 1.14 1995/05/15 22:27:48 davidg Exp $
  */
 
 #ifndef _SYS_DISKLABEL_H_
@@ -381,6 +381,7 @@ extern struct dos_partition dos_partitions[NDOSPART];
 #define DIOCWLABEL	_IOW('d', 109, int)	/* write en/disable label */
 
 #define DIOCSBAD	_IOW('d', 110, struct dkbad)	/* set kernel dkbad */
+#define DIOCSBADSCAN	_IOW('d', 111, int)	/* set badscan mode */
 
 /*
  * XXX encoding of disk minor numbers, should be elsewhere.
