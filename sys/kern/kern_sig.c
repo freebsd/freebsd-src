@@ -1648,11 +1648,14 @@ coredump(p)
 		error = EFAULT;
 		goto out1;
 	}
+
 	VATTR_NULL(&vattr);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	vattr.va_size = 0;
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);
 	VOP_SETATTR(vp, &vattr, cred, p);
 	p->p_acflag |= ACORE;
+	VOP_UNLOCK(vp, 0, p);
 
 	error = p->p_sysent->sv_coredump ?
 	  p->p_sysent->sv_coredump(p, vp, limit) :
