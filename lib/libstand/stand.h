@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: stand.h,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
  * From	$NetBSD: stand.h,v 1.22 1997/06/26 19:17:40 drochner Exp $	
  */
 
@@ -299,7 +299,7 @@ extern int		ischar(void);
 extern void		putchar(int);
 extern int		devopen(struct open_file *, const char *, char **);
 extern int		devclose(struct open_file *f);
-extern __dead void	panic(const char *, ...) __attribute__((noreturn));
+extern void		panic(const char *, ...) __dead2;
 extern struct fs_ops	*file_system[];
 extern struct devsw	*devsw[];
 
