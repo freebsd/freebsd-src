@@ -57,7 +57,7 @@ extern struct mtx	clock_lock;
 	int	_res = MTX_UNOWNED;					\
 									\
 	__asm __volatile (						\
-"	" MPLOCKED ""							\
+"	" __XSTRING(MPLOCKED) ""					\
 "	cmpxchgl %3,%1;"			/* Try */		\
 "	jz	1f;"				/* Got it */		\
 "	andl	$" _V(MTX_FLAGMASK) ",%0;"	/* turn off spec bits */ \
@@ -69,7 +69,7 @@ extern struct mtx	clock_lock;
 "	addl	$8,%%esp;"						\
 "	jmp	1f;"							\
 "2:"									\
-"	" MPLOCKED ""							\
+"	" __XSTRING(MPLOCKED) ""					\
 "	orl $" _V(MTX_RECURSE) ",%1;"					\
 "	incl	%2;"							\
 "1:"									\
@@ -90,7 +90,7 @@ extern struct mtx	clock_lock;
 	__asm __volatile (						\
 "	pushfl;"							\
 "	cli;"								\
-"	" MPLOCKED ""							\
+"	" __XSTRING(MPLOCKED) ""					\
 "	cmpxchgl %3,%1;"			/* Try */		\
 "	jz	2f;"				/* got it */		\
 "	pushl	%4;"							\
@@ -118,7 +118,7 @@ extern struct mtx	clock_lock;
 	int	_res = MTX_UNOWNED;					\
 									\
 	__asm __volatile (						\
-"	" MPLOCKED ""							\
+"	" __XSTRING(MPLOCKED) ""					\
 "	cmpxchgl %2,%1;"			/* Try */		\
 "	jz	1f;"				/* got it */		\
 "	pushl	%3;"							\
@@ -143,7 +143,7 @@ extern struct mtx	clock_lock;
 	int	_tid = (int)(tid);					\
 									\
 	__asm __volatile (						\
-"	" MPLOCKED ""							\
+"	" __XSTRING(MPLOCKED) ""					\
 "	cmpxchgl %4,%0;"			/* try easy rel */	\
 "	jz	1f;"				/* released! */		\
 "	pushl	%2;"							\
@@ -168,7 +168,7 @@ extern struct mtx	clock_lock;
 	int	_tid = (int)(tid);					\
 									\
 	__asm __volatile (						\
-"	" MPLOCKED ""							\
+"	" __XSTRING(MPLOCKED) ""					\
 "	cmpxchgl %5,%0;"			/* try easy rel */	\
 "	jz	1f;"				/* released! */		\
 "	testl	$" _V(MTX_RECURSE) ",%%eax;"	/* recursed? */		\
