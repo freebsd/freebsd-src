@@ -83,7 +83,7 @@ static char	*copynext(char *, char *);
 static int	 fcmp(const void *, const void *);
 static void	 formatf(struct afile *, int);
 static void	 getcmd(char *, char *, char *, int, struct arglist *);
-struct dirent	*glob_readdir(RST_DIR *dirp);
+struct dirent	*glob_readdir(void *);
 static int	 glob_stat(const char *, struct stat *);
 static void	 mkentry(char *, struct direct *, struct afile *);
 static void	 printlist(char *, char *);
@@ -104,9 +104,9 @@ runcmdshell(void)
 	arglist.freeglob = 0;
 	arglist.argcnt = 0;
 	arglist.glob.gl_flags = GLOB_ALTDIRFUNC;
-	arglist.glob.gl_opendir = (void *)rst_opendir;
-	arglist.glob.gl_readdir = (void *)glob_readdir;
-	arglist.glob.gl_closedir = (void *)rst_closedir;
+	arglist.glob.gl_opendir = rst_opendir;
+	arglist.glob.gl_readdir = glob_readdir;
+	arglist.glob.gl_closedir = rst_closedir;
 	arglist.glob.gl_lstat = glob_stat;
 	arglist.glob.gl_stat = glob_stat;
 	canon("/", curdir, sizeof(curdir));
@@ -701,7 +701,7 @@ formatf(struct afile *list, int nentry)
 #undef d_ino
 
 struct dirent *
-glob_readdir(RST_DIR *dirp)
+glob_readdir(void *dirp)
 {
 	struct direct *dp;
 	static struct dirent adirent;
