@@ -90,7 +90,9 @@ struct ndis_softc {
 	struct resource		*ndis_res_altmem;
 	int			ndis_altmem_rid;
 	struct resource		*ndis_res_am;	/* attribute mem (pccard) */
+	int			ndis_am_rid;
 	struct resource		*ndis_res_cm;	/* common mem (pccard) */
+	struct resource_list	ndis_rl;
 	int			ndis_rescnt;
 	struct mtx		ndis_mtx;
 	struct mtx		ndis_intrmtx;

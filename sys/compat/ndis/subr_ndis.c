@@ -130,7 +130,6 @@ static ndis_status ndis_encode_parm(ndis_miniport_block *,
 	struct sysctl_oid *, ndis_parm_type, ndis_config_parm **);
 static ndis_status ndis_decode_parm(ndis_miniport_block *,
 	ndis_config_parm *, char *);
-static int my_strcasecmp(const char *, const char *);
 __stdcall static void ndis_read_cfg(ndis_status *, ndis_config_parm **,
 	ndis_handle, ndis_unicode_string *, ndis_parm_type);
 __stdcall static void ndis_write_cfg(ndis_status *, ndis_handle,
@@ -556,8 +555,8 @@ ndis_encode_parm(block, oid, type, parm)
 	return(NDIS_STATUS_SUCCESS);
 }
 
-static int
-my_strcasecmp(s1, s2)
+int
+ndis_strcasecmp(s1, s2)
         const char              *s1;
         const char              *s2;
 {
@@ -619,7 +618,7 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
 #endif
 		oidp = e->entry;
-		if (my_strcasecmp(oidp->oid_name, keystr) == 0) {
+		if (ndis_strcasecmp(oidp->oid_name, keystr) == 0) {
 			if (strcmp((char *)oidp->oid_arg1, "UNSET") == 0) {
 				free(keystr, M_DEVBUF);
 				*status = NDIS_STATUS_FAILURE;
@@ -719,7 +718,7 @@ ndis_write_cfg(status, cfg, key, parm)
 	TAILQ_FOREACH(e, device_get_sysctl_ctx(sc->ndis_dev), link) {
 #endif
 		oidp = e->entry;
-		if (my_strcasecmp(oidp->oid_name, keystr) == 0) {
+		if (ndis_strcasecmp(oidp->oid_name, keystr) == 0) {
 			/* Found it, set the value. */
 			strcpy((char *)oidp->oid_arg1, val);
 			free(keystr, M_DEVBUF);
@@ -884,6 +883,7 @@ ndis_syslog(ndis_handle adapter, ndis_error_code code,
 	char			*str = NULL, *ustr = NULL;
 	uint16_t		flags;
 	char			msgbuf[ERRMSGLEN];
+
 
 	block = (ndis_miniport_block *)adapter;
 
@@ -1478,6 +1478,9 @@ ndis_map_iospace(vaddr, adapter, paddr, len)
 	else if (sc->ndis_res_altmem != NULL &&
 	     paddr.np_quad == rman_get_start(sc->ndis_res_altmem))
 		*vaddr = (void *)rman_get_virtual(sc->ndis_res_altmem);
+	else if (sc->ndis_res_am != NULL &&
+	     paddr.np_quad == rman_get_start(sc->ndis_res_am))
+		*vaddr = (void *)rman_get_virtual(sc->ndis_res_am);
 	else
 		return(NDIS_STATUS_FAILURE);
 
@@ -2244,7 +2247,7 @@ ndis_read_pccard_amem(handle, offset, buf, len)
 	bt = rman_get_bustag(sc->ndis_res_am);
 
 	for (i = 0; i < len; i++)
-		dest[i] = bus_space_read_1(bt, bh, (offset * 2) + (i * 2));
+		dest[i] = bus_space_read_1(bt, bh, (offset + i) * 2);
 
 	return(i);
 }
@@ -2274,7 +2277,7 @@ ndis_write_pccard_amem(handle, offset, buf, len)
 	bt = rman_get_bustag(sc->ndis_res_am);
 
 	for (i = 0; i < len; i++)
-		bus_space_write_1(bt, bh, (offset * 2) + (i * 2), src[i]);
+		bus_space_write_1(bt, bh, (offset + i) * 2, src[i]);
 
 	return(i);
 }
@@ -2584,7 +2587,7 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 
 	/* Get the file size. */
-	VOP_GETATTR(nd.ni_vp, vap, NOCRED, td);
+	VOP_GETATTR(nd.ni_vp, vap, td->td_ucred, td);
 	VOP_UNLOCK(nd.ni_vp, 0, td);
 	mtx_unlock(&Giant);
 
@@ -2593,6 +2596,7 @@ ndis_open_file(status, filehandle, filelength, filename, highestaddr)
 	*filehandle = fh;
 	*filelength = fh->nf_maplen = vap->va_size & 0xFFFFFFFF;
 	*status = NDIS_STATUS_SUCCESS;
+
 	return;
 }
 

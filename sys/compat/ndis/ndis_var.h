@@ -1500,6 +1500,7 @@ extern int ndis_send_packets(void *, ndis_packet **, int);
 extern int ndis_send_packet(void *, ndis_packet *);
 extern int ndis_convert_res(void *);
 extern int ndis_alloc_amem(void *);
+extern void ndis_free_amem(void *);
 extern void ndis_free_packet(ndis_packet *);
 extern void ndis_free_bufs(ndis_buffer *);
 extern int ndis_reset_nic(void *);
@@ -1520,6 +1521,7 @@ extern int ndis_sched(void (*)(void *), void *, int);
 extern int ndis_unsched(void (*)(void *), void *, int);
 extern int ndis_thsuspend(struct proc *, int);
 extern void ndis_thresume(struct proc *);
+extern int ndis_strcasecmp(const char *, const char *);
 __END_DECLS
 
 #endif /* _NDIS_VAR_H_ */
