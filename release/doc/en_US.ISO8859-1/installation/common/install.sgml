@@ -223,6 +223,9 @@ from {alpha,i386}/INSTALL.TXT.
   a single floppy.  This file should also be used as the
   boot file for those mastering <quote>El Torito</quote> bootable CD images.  See
   the &man.mkisofs.8; command for more information.</para>
+
+  <para arch="amd64">Floppy disk based install is not supported
+  on &os;/&arch;.</para>
   </sect2>
 
   <sect2 id="start-installation">
