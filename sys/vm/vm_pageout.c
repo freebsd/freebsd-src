@@ -286,8 +286,8 @@ more:
 		vm_page_test_dirty(p);
 		if ((p->dirty & p->valid) == 0 ||
 		    p->queue != PQ_INACTIVE ||
-		    p->wire_count != 0 ||
-		    p->hold_count != 0) {
+		    p->wire_count != 0 ||	/* may be held by buf cache */
+		    p->hold_count != 0) {	/* may be undergoing I/O */
 			ib = 0;
 			break;
 		}
@@ -315,8 +315,8 @@ more:
 		vm_page_test_dirty(p);
 		if ((p->dirty & p->valid) == 0 ||
 		    p->queue != PQ_INACTIVE ||
-		    p->wire_count != 0 ||
-		    p->hold_count != 0) {
+		    p->wire_count != 0 ||	/* may be held by buf cache */
+		    p->hold_count != 0) {	/* may be undergoing I/O */
 			break;
 		}
 		mc[page_base + pageout_count] = p;
@@ -695,6 +695,9 @@ rescan0:
 		if (m->flags & PG_MARKER)
 			continue;
 
+		/*
+		 * A held page may be undergoing I/O, so skip it.
+		 */
 		if (m->hold_count) {
 			s = splvm();
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, m, pageq);
@@ -886,7 +889,8 @@ rescan0:
 				}
 
 				/*
-				 * If the page has become held, then skip it
+				 * If the page has become held it might
+				 * be undergoing I/O, so skip it
 				 */
 				if (m->hold_count) {
 					s = splvm();
