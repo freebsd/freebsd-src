@@ -708,11 +708,23 @@ pcib_match(device_t dev)
 	case 0x70071022:
 		return ("AMD-751 PCI-PCI (AGP) bridge");
 
+	/* DEC -- vendor 0x1011 */
+	case 0x00011011:
+		return ("DEC 21050 PCI-PCI bridge");
+	case 0x00211011:
+		return ("DEC 21052 PCI-PCI bridge");
+	case 0x00221011:
+		return ("DEC 21150 PCI-PCI bridge");
+	case 0x00241011:
+		return ("DEC 21152 PCI-PCI bridge");
+	case 0x00251011:
+		return ("DEC 21153 PCI-PCI bridge");
+	case 0x00261011:
+		return ("DEC 21154 PCI-PCI bridge");
+
 	/* Others */
 	case 0x00221014:
 		return ("IBM 82351 PCI-PCI bridge");
-	case 0x00011011:
-		return ("DEC 21050 PCI-PCI bridge");
 	};
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
@@ -862,6 +874,12 @@ isab_match(device_t dev)
 		return ("NEC 002C PCI to PC-98 C-bus bridge");
 	case 0x003b1033:
 		return ("NEC 003B PCI to PC-98 C-bus bridge");
+
+	/* Cypress -- vendor 0x1080 */
+	case 0xc6931080:
+		if (pci_get_class(dev) == PCIC_BRIDGE
+		    && pci_get_subclass(dev) == PCIS_BRIDGE_ISA)
+			return ("Cypress 82C693 PCI-ISA bridge");
 	}
 
 	if (pci_get_class(dev) == PCIC_BRIDGE
