@@ -212,6 +212,9 @@ if (!getopts('cdhl:v') || ($opt_h)) {
 }
 if ($opt_c) {
     $ShowCommandsFlag = $opt_c;
+    $LimitFlag = "<?";	# note that if the user specifies -l, we
+			# deal with this *after* setting a default
+			# for $LimitFlag
 }
 if ($opt_d) {
     $DebugFlag = $opt_d;
@@ -318,7 +321,6 @@ foreach $packageName (sort keys %currentPackages) {
 				 $indexPackages{$packageName}{'fullversion'});
 	    
 	    if ($rc == 0) {
-		next if $ShowCommandsFlag;
 		$versionCode = "=";
 		$Comment = "up-to-date";
 	    }
@@ -327,7 +329,6 @@ foreach $packageName (sort keys %currentPackages) {
 		$Comment = "needs updating (index has $indexVersion)"
 	    }
 	    elsif ($rc > 0) {
-		next if $ShowCommandsFlag;
 		$versionCode = ">";
 		$Comment = "succeeds index (index has $indexVersion)";
 	    }
