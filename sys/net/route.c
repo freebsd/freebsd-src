@@ -47,6 +47,8 @@
 #include <netinet/in.h>
 #include <netinet/ip_mroute.h>
 
+#include <vm/uma.h>
+
 static struct rtstat rtstat;
 struct radix_node_head *rt_tables[AF_MAX+1];
 
@@ -81,9 +83,13 @@ rtable_init(void **table)
 			    dom->dom_rtoffset);
 }
 
+static uma_zone_t rtzone;		/* Routing table UMA zone. */
+
 static void
 route_init(void)
 {
+	rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	rn_init();	/* initialize all zeroes, all ones, mask table */
 	rtable_init((void **)rt_tables);
 }
@@ -292,7 +298,7 @@ rtfree(struct rtentry *rt)
 		 * and the rtentry itself of course
 		 */
 		RT_LOCK_DESTROY(rt);
-		Free(rt);
+		uma_zfree(rtzone, rt);
 		return;
 	}
 done:
@@ -738,7 +744,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		ifa = info->rti_ifa;
 
 	makeroute:
-		R_Zalloc(rt, struct rtentry *, sizeof(*rt));
+		rt = uma_zalloc(rtzone, M_NOWAIT | M_ZERO);
 		if (rt == NULL)
 			senderr(ENOBUFS);
 		RT_LOCK_INIT(rt);
@@ -750,7 +756,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 			RT_LOCK_DESTROY(rt);
-			Free(rt);
+			uma_zfree(rtzone, rt);
 			senderr(error);
 		}
 
@@ -810,7 +816,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 				IFAFREE(rt->rt_ifa);
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
-			Free(rt);
+			uma_zfree(rtzone, rt);
 			senderr(EEXIST);
 		}
 
