@@ -374,7 +374,7 @@ trap(int vector, int imm, struct trapframe *framep)
 			goto dopanic;
 		if (fpswa_interface == NULL) {
 			i = SIGFPE;
-			code = 0;
+			ucode = 0;
 			break;
 		}
 		mtx_lock(&Giant);
@@ -450,7 +450,7 @@ trap(int vector, int imm, struct trapframe *framep)
 			goto dopanic;
 		if (fpswa_interface == NULL) {
 			i = SIGFPE;
-			code = 0;
+			ucode = 0;
 			break;
 		}
 		mtx_lock(&Giant);
