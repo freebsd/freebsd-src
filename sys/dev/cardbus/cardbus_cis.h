@@ -32,7 +32,12 @@
  * Cardbus CIS definitions
  */
 
+struct cis_tupleinfo;
+
 int cardbus_do_cis(device_t dev, device_t child);
+int cardbus_cis_read(device_t dev, device_t child, u_int8_t id,
+		     struct cis_tupleinfo** buff, int* nret);
+void cardbus_cis_free(device_t dev, struct cis_tupleinfo *buff, int* nret);
 
 #define MAXTUPLESIZE		0x400
 
@@ -77,6 +82,8 @@ int cardbus_do_cis(device_t dev, device_t child);
 #define CISTPL_ORG		0x46
 #define CISTPL_CUSTOMSTART	0x80
 #define CISTPL_END		0xFF
+
+#define CISTPL_GENERIC		-1	/* catchall */
 
 /* BAR */
 #define TPL_BAR_REG_ASI_MASK	0x07
