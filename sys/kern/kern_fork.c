@@ -509,6 +509,11 @@ again:
 	PRELE(p1);
 
 	/*
+	 * tell any interested parties about the new process
+	 */
+	KNOTE(&p1->p_klist, NOTE_FORK | p2->p_pid);
+
+	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
 	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
 	 * proc (in case of exit).
