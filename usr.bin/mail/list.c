@@ -669,21 +669,14 @@ matchsender(str, mesg)
 	char *str;
 	int mesg;
 {
-	char *cp, *cp2, *backup;
+	char *cp;
 
-	if (*str == '\0')	/* null string matches nothing instead of everything */
+	/* null string matches nothing instead of everything */
+	if (*str == '\0')
 		return (0);
-	backup = cp2 = nameof(&message[mesg - 1], 0);
-	cp = str;
-	while (*cp2 != '\0') {
-		if (*cp == '\0')
-			return (1);
-		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
-			cp2 = ++backup;
-			cp = str;
-		}
-	}
-	return (*cp == '\0');
+
+	cp = nameof(&message[mesg - 1], 0);
+	return (strcasestr(cp, str) != NULL);
 }
 
 /*
@@ -699,7 +692,7 @@ matchto(str, mesg)
 	int mesg;
 {
 	struct message *mp;
-	char *cp, *cp2, *backup, **to;
+	char *cp, **to;
 
 	str++;
 
@@ -710,21 +703,9 @@ matchto(str, mesg)
 	mp = &message[mesg - 1];
 
 	for (to = to_fields; *to != NULL; to++) {
-		cp = str;
-		cp2 = hfield(*to, mp);
-		if (cp2 != NULL) {
-			backup = cp2;
-			while (*cp2 != '\0') {
-				if (*cp == '\0')
-					return (1);
-				if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
-					cp2 = ++backup;
-					cp = str;
-				}
-			}
-			if (*cp == '\0')
-				return (1);
-		}
+		cp = hfield(*to, mp);
+		if (cp != NULL && strcasestr(cp, str) != NULL)
+			return (1);
 	}
 	return (0);
 }
@@ -749,7 +730,7 @@ matchfield(str, mesg)
 	int mesg;
 {
 	struct message *mp;
-	char *cp, *cp2, *backup;
+	char *cp, *cp2;
 
 	str++;
 	if (*str == '\0')
@@ -770,22 +751,14 @@ matchfield(str, mesg)
 		cp2 = hfield(*str != '\0' ? str : "subject", mp);
 		cp[-1] = ':';
 		str = cp;
-	} else {
-		cp = str;
-		cp2 = hfield("subject", mp);
-	}
-	if (cp2 == NULL)
+		cp = cp2;
+	} else
+		cp = hfield("subject", mp);
+
+	if (cp == NULL)
 		return (0);
-	backup = cp2;
-	while (*cp2 != '\0') {
-		if (*cp == '\0')
-			return (1);
-		if (toupper((unsigned char)*cp++) != toupper((unsigned char)*cp2++)) {
-			cp2 = ++backup;
-			cp = str;
-		}
-	}
-	return (*cp == 0);
+
+	return (strcasestr(cp, str) != NULL);
 }
 
 /*
