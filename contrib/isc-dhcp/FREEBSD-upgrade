@@ -30,7 +30,7 @@ For the import of ISC-dhclient the following files were removed:
 
 Imported by:
 
-	cvs import -ko -m 'Virgin import of ISC-DHCP v2.0' \
+	cvs import -m 'Virgin import of ISC-DHCP v2.0' \
 		src/contrib/isc-dhcp ISC isc_dhcp_2_0
 
 
