@@ -902,8 +902,8 @@ chap_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
             if (p->link.lcp.his_authtype == 0x81) {
               if (strncmp(ans, chap->authresponse, 42)) {
                 datalink_AuthNotOk(p->dl);
-	        log_Printf(LogDEBUG, "CHAP81: AuthenticatorResponse: (%s)"
-                           " != ans: (%s)\n", chap->authresponse, ans);
+	        log_Printf(LogWARN, "CHAP81: AuthenticatorResponse: (%.42s)"
+                           " != ans: (%.42s)\n", chap->authresponse, ans);
                 
               } else {
                 /* Successful login */
