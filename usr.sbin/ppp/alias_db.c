@@ -674,12 +674,13 @@ u_short dst_port, alias_port;
     link = FindLink2(dst_addr, dst_port, alias_port, LINK_UDP);
 
 #ifdef ALLOW_INCOMING
-    if (link == NULL_PTR)
+    if (link == NULL_PTR) {
         link = AddLink(GetAliasAddress(), dst_addr,
                        alias_port, dst_port, alias_port,
                        LINK_UDP);
         if (link != NULL_PTR)
             ((struct link_record *) link)->passthrough = 1;
+    }
 #endif
 
    return(link);
