@@ -388,6 +388,7 @@ ENTRY(tl0_sfsr_trap)
 	stx	%g4, [%g3 + KTR_PARM1]
 	ldx	[%sp + SPOFF + CCFSZ + MF_TAR], %g4
 	stx	%g4, [%g3 + KTR_PARM1]
+9:
 #endif
 	rdpr	%pil, %o2
 	add	%sp, SPOFF + CCFSZ, %o1
@@ -1107,9 +1108,54 @@ ENTRY(intr_enqueue)
 END(intr_enqueue)
 
 	.macro	tl1_immu_miss
-	wrpr	%g0, PSTATE_ALT, %pstate
+	ldxa	[%g0] ASI_IMMU_TAG_TARGET_REG, %g1
+	sllx	%g1, TT_VA_SHIFT - (PAGE_SHIFT - STTE_SHIFT), %g2
+
+	set	TSB_KERNEL_VA_MASK, %g3
+	and	%g2, %g3, %g2
+
+	ldxa	[%g0] ASI_IMMU_TSB_8KB_PTR_REG, %g4
+	sllx	%g4, STTE_SHIFT - TTE_SHIFT, %g4
+	add	%g2, %g4, %g2
+
+	/*
+	 * Load the tte, check that it's valid and that the tags match.
+	 */
+	ldda	[%g2] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+	brgez,pn %g5, 2f
+	 cmp	%g4, %g1
+	bne	%xcc, 2f
+	 andcc	%g5, TD_EXEC, %g0
+	bz	%xcc, 2f
+	 EMPTY
+
+	/*
+	 * Set the refence bit, if its currently clear.
+	 */
+	 andcc	%g5, TD_REF, %g0
+	bnz	%xcc, 1f
+	 or	%g5, TD_REF, %g1
+	stx	%g1, [%g2 + ST_TTE + TTE_DATA]
+
+	/*
+	 * Load the tte data into the TLB and retry the instruction.
+	 */
+1:	stxa	%g5, [%g0] ASI_ITLB_DATA_IN_REG
+	retry
+
+	/*
+	 * Switch to alternate globals.
+	 */
+2:	wrpr	%g0, PSTATE_ALT, %pstate
+
+	wr	%g0, ASI_IMMU, %asi
+	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g1
+
 	tl1_kstack
+	sub	%sp, MF_SIZEOF, %sp
+	stx	%g1, [%sp + SPOFF + CCFSZ + MF_TAR]
 	rdpr	%pil, %o2
+	add	%sp, SPOFF + CCFSZ, %o1
 	b	%xcc, tl1_trap
 	 mov	T_IMMU_MISS | T_KERNEL, %o0
 	.align	128
