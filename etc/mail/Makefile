@@ -157,3 +157,8 @@ stop:
 
 restart:
 	${KILL} -HUP `head -1 ${SENDMAIL_PIDFILE}`
+
+# User defined targets
+.if exists(Makefile.local)
+.include "Makefile.local"
+.endif
