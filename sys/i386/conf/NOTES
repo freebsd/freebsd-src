@@ -676,6 +676,7 @@ options 	NULLFS			#NULL filesystem
 options 	NWFS			#NetWare filesystem
 options 	PORTALFS		#Portal filesystem
 options 	PROCFS			#Process filesystem
+options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	UMAPFS			#UID map filesystem
 options 	UNIONFS			#Union filesystem
 # options 	NODEVFS			#disable devices filesystem
@@ -2644,7 +2645,8 @@ options 	SPX_HACK
 # Enable Linux ABI emulation
 options 	COMPAT_LINUX
 
-# Enable the linux-like proc filesystem support (requires COMPAT_LINUX)
+# Enable the linux-like proc filesystem support (requires COMPAT_LINUX
+# and PSEUDOFS)
 options 	LINPROCFS
 
 # Linux debugging
