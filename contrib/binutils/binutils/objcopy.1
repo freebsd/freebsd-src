@@ -1,6 +1,7 @@
-.\" Copyright (c) 1991, 93, 94, 95, 96, 1997 Free Software Foundation
+.\" Copyright (c) 1991, 93, 94, 95, 96, 97, 98, 99, 2000 Free Software Foundation
 .\" See section COPYING for conditions for redistribution
-.TH objcopy 1 "October 1994" "cygnus support" "GNU Development Tools"
+.\" $FreeBSD$
+.TH objcopy 1 "05 April 2000" "Cygnus Solutions" "GNU Development Tools"
 .de BP
 .sp
 .ti \-.2i
@@ -18,6 +19,7 @@ objcopy \- copy and translate object files
 .RB "[\|" \-F\ \fIbfdname\fR\ |\ \fB\-\-target=\fIbfdname\fR "\|]" 
 .RB "[\|" \-I\ \fIbfdname\fR\ |\ \fB\-\-input\-target=\fIbfdname\fR "\|]" 
 .RB "[\|" \-O\ \fIbfdname\fR\ |\ \fB\-\-output\-target=\fIbfdname\fR "\|]" 
+.RB "[\|" \-j\ \fIsectionname\fR\ |\ \fB\-\-only\-section=\fIsectionname\fR "\|]"
 .RB "[\|" \-R\ \fIsectionname\fR\ |\ \fB\-\-remove\-section=\fIsectionname\fR "\|]"
 .RB "[\|" \-S\fR\ |\ \fB\-\-strip\-all\fR "\|]" 
 .RB "[\|" \-g\fR\ |\ \fB\-\-strip\-debug\fR "\|]" 
@@ -35,15 +37,18 @@ objcopy \- copy and translate object files
 .RB "[\|" \-\-gap\-fill=\fIval\fR "\|]"
 .RB "[\|" \-\-pad\-to=\fIaddress\fR "\|]"
 .RB "[\|" \-\-set\-start=\fIval\fR "\|]"
-.RB "[\|" \-\-adjust\-start=\fIincr\fR "\|]"
-.RB "[\|" \-\-adjust\-vma=\fIincr\fR "\|]"
-.RB "[\|" \-\-adjust\-section\-vma=\fIsection{=,+,-}val\fR "\|]"
-.RB "[\|" \-\-adjust\-warnings\fR "\|]"
-.RB "[\|" \-\-no\-adjust\-warnings\fR "\|]"
-.RB "[\|" \-\-set\-section\-flags=\fIsection=flags\fR "\|]"
-.RB "[\|" \-\-add\-section=\fIsectionname=filename\fR "\|]"
+.RB "[\|" \-\-change\-start=\fIincr\fR "\|]"
+.RB "[\|" \-\-change\-addresses=\fIincr\fR "\|]"
+.RB "[\|" \-\-change\-section\-address\ \fIsection{=,+,-}val\fR "\|]"
+.RB "[\|" \-\-change\-section\-lma\ \fIsection{=,+,-}val\fR "\|]"
+.RB "[\|" \-\-change\-section\-vma\ \fIsection{=,+,-}val\fR "\|]"
+.RB "[\|" \-\-change\-warnings\fR "\|]"
+.RB "[\|" \-\-no\-change\-warnings\fR "\|]"
+.RB "[\|" \-\-set\-section\-flags\ \fIsection=flags\fR "\|]"
+.RB "[\|" \-\-add\-section\ \fIsectionname=filename\fR "\|]"
 .RB "[\|" \-\-change\-leading\-char\fR "\|]"
 .RB "[\|" \-\-remove\-leading\-char\fR "\|]"
+.RB "[\|" \-\-redefine\-sym\ \fIold=new\fR "\|]"
 .RB "[\|" \-\-weaken\fR "\|]"
 .RB "[\|" \-v\ |\ \-\-verbose\fR "\|]" 
 .RB "[\|" \-V\ |\ \-\-version\fR "\|]" 
@@ -121,6 +126,12 @@ Use
 as the object format for both the input and the output file; i.e.
 simply transfer data from source to destination with no translation.
 .TP
+.B \-j \fIsectionname\fR, \fB\-\-only\-section=\fIsectionname
+Copy only the named section from the input file to the output file,
+discarding all other sections.  This option may be given more than
+once.  Note that using this option inappropriately may make the output
+file unusable.
+.TP
 .B \-R \fIsectionname\fR, \fB\-\-remove-section=\fIsectionname
 Remove the named section from the file.  This option may be given more
 than once.  Note that using this option inappropriately may make the
@@ -150,7 +161,7 @@ visible externally.  This option may be given more than once.
 .B \-W \fIsymbolname\fR, \fB\-\-weaken\-symbol=\fIsymbolname
 Make symbol \fIsymbolname\fP weak. This option may be given more than once.
 .TP
-.B \-x\fR, \fB \-\-discard\-all
+.B \-x\fR, \fB\-\-discard\-all
 Do not copy non-global symbols from the source file.
 .TP
 .B \-X\fR, \fB\-\-discard\-locals
@@ -193,42 +204,58 @@ zero).
 Set the start address of the new file to \fIval\fP.  Not all object
 file formats support setting the start address.
 .TP
-.B \fB\-\-adjust\-start=\fIincr
-Adjust the start address by adding \fIincr\fP.  Not all object file
+.B \fB\-\-change\-start=\fIincr\fR, \fB\-\-adjust\-start=\fIincr
+Changes the start address by adding \fIincr\fP.  Not all object file
 formats support setting the start address.
 .TP
-.B \fB\-\-adjust\-vma=\fIincr
-Adjust the address of all sections, as well as the start address, by
+.B \fB\-\-change\-addresses=\fIincr\fR, \fB\-\-adjust\-vma=\fIincr
+Changes the address of all sections, as well as the start address, by
 adding \fIincr\fP.  Some object file formats do not permit section
 addresses to be changed arbitrarily.  Note that this does not relocate
 the sections; if the program expects sections to be loaded at a
 certain address, and this option is used to change the sections such
 that they are loaded at a different address, the program may fail.
 .TP
-.B \fB\-\-adjust\-section\-vma=\fIsection{=,+,-}val
-Set or adjust the address of the named \fIsection\fP.  If \fI=\fP is
+.B \fB\-\-change\-section\-address\ \fIsection{=,+,-}val\fR, \fB\-\-adjust\-section\-vma\ \fIsection{=,+,-}val
+Set or changes the VMA and LMA addresses of the named \fIsection\fP.
+If \fI=\fP is used, the section address is set to \fIval\fP.
+Otherwise, \fIval\fP is added to or subtracted from the section
+address.  See the comments under \fB\-\-change\-addresses\fP, above.  If
+\fIsection\fP does not exist in the input file, a warning will be
+issued, unless \fB\-\-no\-change\-warnings\fP is used.
+.TP
+.B \fB\-\-change\-section\-lma\ \fIsection{=,+,-}val
+Set or change the LMA address of the named \fIsection\fP.  If \fI=\fP is
 used, the section address is set to \fIval\fP.  Otherwise, \fIval\fP
 is added to or subtracted from the section address.  See the comments
-under \fB\-\-adjust\-vma\fP, above.  If \fIsection\fP does not exist
+under \fB\-\-change\-addresses\fP, above.  If \fIsection\fP does not exist
 in the input file, a warning will be issued, unless
-\fB\-\-no\-adjust\-warnings\fP is used.
+\fB\-\-no\-change\-warnings\fP is used.
 .TP
-.B \fB\-\-adjust\-warnings
-If \fB\-\-adjust\-section\-vma\fP is used, and the named section does
+.B \fB\-\-change\-section\-vma\ \fIsection{=,+,-}val
+Set or change the VMA address of the named \fIsection\fP.  If \fI=\fP is
+used, the section address is set to \fIval\fP.  Otherwise, \fIval\fP
+is added to or subtracted from the section address.  See the comments
+under \fB\-\-change\-addresses\fP, above.  If \fIsection\fP does not exist
+in the input file, a warning will be issued, unless
+\fB\-\-no\-change\-warnings\fP is used.
+.TP
+.B \fB\-\-change\-warnings\fR, \fB\-\-adjust\-warnings
+If \fB\-\-change\-section\-XXX\fP is used, and the named section does
 not exist, issue a warning.  This is the default.
 .TP
-.B \fB\-\-no\-adjust\-warnings
-Do not issue a warning if \fB\-\-adjust\-section\-vma\fP is used, even
+.B \fB\-\-no\-change\-warnings\fR, \fB\-\-no\-adjust\-warnings
+Do not issue a warning if \fB\-\-change\-section\-XXX\fP is used, even
 if the named section does not exist.
 .TP
-.B \fB\-\-set\-section\-flags=\fIsection=flags
+.B \fB\-\-set\-section\-flags\ \fIsection=flags
 Set the flags for the named section.  The \fIflags\fP argument is a
 comma separated string of flag names.  The recognized names are
-\fIalloc\fP, \fIload\fP, \fIreadonly\fP, \fIcode\fP, \fIdata\fP, and
-\fIrom\fP.  Not all flags are meaningful for all object file
-formats.
+\fIalloc\fP, \fIcontents\fP, \fIload\fP, \fInoload\fP, \fIreadonly\fP,
+\fIcode\fP, \fIdata\fP, \fIrom\fP, \fIshare\fP, and \fIdebug\fP.  Not
+all flags are meaningful for all object file formats.
 .TP
-.B \fB\-\-add\-section=\fIsectionname=filename
+.B \fB\-\-add\-section\ \fIsectionname=filename
 Add a new section named \fIsectionname\fR while copying the file.  The
 contents of the new section are taken from the file \fIfilename\fR.
 The size of the section will be the size of the file.  This option
@@ -255,6 +282,11 @@ useful if you want to link together objects of different file formats
 with different conventions for symbol names.  This is different from
 \fB\-\-change\-leading\-char\fP because it always changes the symbol name
 when appropriate, regardless of the object file format of the output
+.TP
+.B \-\-redefine\-sym\ \fIold=new
+Change the name of symbol \fIold\fR to \fInew\fR.  This can be useful
+when one is trying link two things together for which you have no
+source, and there are name collisions.
 .TP
 .B \-\-weaken
 Change all global symbols in the file to be weak.
@@ -283,7 +315,7 @@ The GNU Binary Utilities\c
 \&, Roland H. Pesch (June 1993).
 
 .SH COPYING
-Copyright (c) 1993, 94, 95, 96, 1997 Free Software Foundation, Inc.
+Copyright (c) 1993, 94, 95, 96, 97, 98, 1999 Free Software Foundation, Inc.
 .PP
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
