@@ -72,14 +72,24 @@
 #define	INET6_ADDRSTRLEN	46
 #endif
 
-#ifndef	_IN_ADDR_T_DECLARED_
-typedef	__uint32_t	in_addr_t;
-#define	_IN_ADDR_T_DECLARED_
+#ifndef _UINT16_T_DECLARED
+typedef	__uint16_t	uint16_t;
+#define	_UINT16_T_DECLARED
 #endif
 
-#ifndef	_IN_PORT_T_DECLARED_
-typedef	__uint16_t	in_port_t;
-#define	_IN_PORT_T_DECLARED_
+#ifndef _UINT32_T_DECLARED
+typedef	__uint32_t	uint32_t;
+#define	_UINT32_T_DECLARED
+#endif
+
+#ifndef	_IN_ADDR_T_DECLARED
+typedef	uint32_t	in_addr_t;
+#define	_IN_ADDR_T_DECLARED
+#endif
+
+#ifndef	_IN_PORT_T_DECLARED
+typedef	uint16_t	in_port_t;
+#define	_IN_PORT_T_DECLARED
 #endif
 
 #ifndef _POSIX_SOURCE
@@ -105,10 +115,6 @@ struct in_addr {
 #define	_STRUCT_IN_ADDR_DECLARED
 #endif
 
-/*
- * XXX missing typedefs for uint16_t and uint32_t.
- */
-
 /* XXX all new diversions!! argh!! */
 #ifndef _POSIX_SOURCE
 #define	inet_addr	__inet_addr
@@ -130,10 +136,10 @@ struct in_addr {
 __BEGIN_DECLS
 #ifndef _BYTEORDER_PROTOTYPED
 #define	_BYTEORDER_PROTOTYPED
-__uint32_t	 htonl(__uint32_t);
-__uint16_t	 htons(__uint16_t);
-__uint32_t	 ntohl(__uint32_t);
-__uint16_t	 ntohs(__uint16_t);
+uint32_t	 htonl(uint32_t);
+uint16_t	 htons(uint16_t);
+uint32_t	 ntohl(uint32_t);
+uint16_t	 ntohs(uint16_t);
 #endif
 
 in_addr_t	 inet_addr(const char *);
