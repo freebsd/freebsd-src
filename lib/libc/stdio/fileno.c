@@ -45,12 +45,8 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-/*
- * fileno has traditionally been a macro in <stdio.h>.  That is
- * no longer true because it needs to be thread-safe.
- *
- * #undef fileno
- */
+#undef fileno
+
 int
 fileno(FILE *fp)
 {
