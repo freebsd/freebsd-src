@@ -113,7 +113,7 @@
 
 #include <dev/bge/if_bgereg.h>
 
-#define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
+#define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 MODULE_DEPEND(bge, miibus, 1, 1, 1);
 
