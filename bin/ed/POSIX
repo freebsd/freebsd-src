@@ -1,3 +1,5 @@
+$Id$
+
 This version of ed(1) is not strictly POSIX compliant, as described in
 the POSIX 1003.2 document.  The following is a summary of the omissions,
 extensions and possible deviations from POSIX 1003.2.
