@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.45 1996/09/13 06:48:21 bde Exp $
+ **      $Id: userconfig.c,v 1.46 1996/09/15 19:35:23 phk Exp $
  **/
 
 /**
@@ -2154,7 +2154,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.45 1996/09/13 06:48:21 bde Exp $
+ *      $Id: userconfig.c,v 1.46 1996/09/15 19:35:23 phk Exp $
  */
 
 #include "scbus.h"
@@ -2188,7 +2188,7 @@ static void lsscsi(void);
 static int list_scsi(CmdParm *);
 #endif
 
-static void lsdevtab(struct isa_device *);
+static int lsdevtab(struct isa_device *);
 static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
 static void cngets(char *, int);
@@ -2260,9 +2260,13 @@ userconfig(void)
     Cmd *cmd;
 
     printf("\nFreeBSD Kernel Configuration Utility - Version 1.0\n"
-	   " Type \"help\" for help or \"visual\" to go to the visual\n"
+	   " Type \"help\" for help" 
+#ifdef VISUAL_USERCONFIG
+	   " or \"visual\" to go to the visual\n"
 	   " configuration interface (requires MGA/VGA display or\n"
-	   " serial terminal capable of displaying ANSI graphics).\n");
+	   " serial terminal capable of displaying ANSI graphics)"
+#endif
+	   ".\n");
 
 
     while (1) {
@@ -2371,10 +2375,10 @@ static int
 list_devices(CmdParm *parms)
 {
     lineno = 0;
-    lsdevtab(&isa_devtab_bio[0]);
-    lsdevtab(&isa_devtab_tty[0]);
-    lsdevtab(&isa_devtab_net[0]);
-    lsdevtab(&isa_devtab_null[0]);
+    if (lsdevtab(&isa_devtab_bio[0])) return 0;
+    if (lsdevtab(&isa_devtab_tty[0])) return 0;
+    if (lsdevtab(&isa_devtab_net[0])) return 0;
+    if (lsdevtab(&isa_devtab_null[0])) return 0;
     return 0;
 }
 
@@ -2482,13 +2486,15 @@ helpfunc(CmdParm *parms)
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
     printf("reset\t\t\tReset CPU\n");
+#ifdef VISUAL_USERCONFIG
     printf("visual\t\t\tGo to fullscreen mode.\n");
+#endif
     printf("help\t\t\tThis message\n\n");
     printf("Commands may be abbreviated to a unique prefix\n");
     return 0;
 }
 
-static void
+static int
 lsdevtab(struct isa_device *dt)
 {
     for (; dt->id_id != 0; dt++) {
@@ -2499,7 +2505,7 @@ lsdevtab(struct isa_device *dt)
 		printf("<More> ");
 		if (getchar() == 'q') {
 			printf("quit\n");
-			return;
+			return (1);
 		}
 		printf("\n");
 		lineno = 0;
@@ -2535,6 +2541,7 @@ lsdevtab(struct isa_device *dt)
 	printf("%s\n", line);
 	++lineno;
     }
+    return(0);
 }
 
 static struct isa_device *
