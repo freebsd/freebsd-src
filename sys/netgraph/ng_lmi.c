@@ -348,7 +348,7 @@ nglmi_inquire(sc_p sc, int full)
 	*cptr++ = 0x00;		/* call reference */
 	*cptr++ = 0x75;		/* inquiry */
 
-	/* If we are Annex-D, and locking shift to codeset 5. */
+	/* If we are Annex-D, add locking shift to codeset 5. */
 	if (ANNEXD(sc))
 		*cptr++ = 0x95;	/* locking shift */
 	/* Add a request type */
