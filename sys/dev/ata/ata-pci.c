@@ -205,6 +205,9 @@ ata_pci_match(device_t dev)
     case 0x6268105a:
 	return "Promise TX2 ATA100 controller";
 
+    case 0x4d69105a:
+	return "Promise ATA133 controller";
+
     case 0x00041103:
 	switch (pci_get_revid(dev)) {
 	case 0x00:
@@ -444,6 +447,7 @@ ata_pci_intr(struct ata_softc *scp)
 
     case 0x4d68105a:	/* Promise TX2 ATA100 */
     case 0x6268105a:	/* Promise TX2v2 ATA100 */
+    case 0x4d69105a:	/* Promise ATA133 */
 	ATA_OUTB(scp->r_bmio, ATA_BMDEVSPEC_0, 0x0b);
 	if (!(ATA_INB(scp->r_bmio, ATA_BMDEVSPEC_1) & 0x20))
 	    return 1;
