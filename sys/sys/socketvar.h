@@ -97,6 +97,7 @@ struct socket {
 	struct sockbuf {
 		struct	selinfo sb_sel;	/* process selecting read/write */
 		struct	mtx sb_mtx;	/* sockbuf lock */
+		short	sb_state;	/* (c/d) socket state on sockbuf */
 #define	sb_startzero	sb_mb
 		struct	mbuf *sb_mb;	/* (c/d) the mbuf chain */
 		struct	mbuf *sb_mbtail; /* (c/d) the last mbuf in the chain */
@@ -110,7 +111,6 @@ struct socket {
 		int	sb_lowat;	/* (c/d) low water mark */
 		int	sb_timeo;	/* (c/d) timeout for read/write */
 		short	sb_flags;	/* (c/d) flags, see below */
-		short	sb_state;	/* (c/d) socket state on sockbuf */
 	} so_rcv, so_snd;
 /*
  * Constants for sb_flags field of struct sockbuf.
