@@ -142,7 +142,6 @@ __stdcall static void *ntoskrnl_mmaplockedpages(ndis_buffer *, uint8_t);
 __stdcall static void *ntoskrnl_mmaplockedpages_cache(ndis_buffer *,
 	uint8_t, uint32_t, void *, uint32_t, uint32_t);
 __stdcall static void ntoskrnl_munmaplockedpages(void *, ndis_buffer *);
-__stdcall static void ntoskrnl_init_lock(kspin_lock *);
 __stdcall static size_t ntoskrnl_memcmp(const void *, const void *, size_t);
 __stdcall static void ntoskrnl_init_ansi_string(ndis_ansi_string *, char *);
 __stdcall static void ntoskrnl_init_unicode_string(ndis_unicode_string *,
@@ -1137,7 +1136,7 @@ ntoskrnl_munmaplockedpages(vaddr, buf)
  * lock here because there is no complimentary KeFreeSpinLock()
  * function. Instead, we grab a mutex from the mutex pool.
  */
-__stdcall static void
+__stdcall void
 ntoskrnl_init_lock(lock)
 	kspin_lock		*lock;
 {

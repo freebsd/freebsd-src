@@ -776,7 +776,7 @@ __stdcall static void
 ndis_create_lock(lock)
 	ndis_spin_lock		*lock;
 {
-	lock->nsl_spinlock = 0;
+	ntoskrnl_init_lock(&lock->nsl_spinlock);
 	lock->nsl_kirql = 0;
 
 	return;
@@ -795,7 +795,7 @@ ndis_destroy_lock(lock)
 	ndis_spin_lock		*lock;
 {
 #ifdef notdef
-	lock->nsl_spinlock = 0;
+	ntoskrnl_init_lock(&lock->nsl_spinlock);
 	lock->nsl_kirql = 0;
 #endif
 	return;
