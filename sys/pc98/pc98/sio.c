@@ -472,10 +472,10 @@ static	int	com_tiocm_get	__P((struct com_s *com));
 static	int	com_tiocm_get_delta	__P((struct com_s *com));
 static	void	pc98_msrint_start	__P((dev_t dev));
 static	void	com_cflag_and_speed_set	__P((struct com_s *com, int cflag, int speed));
-static	int	pc98_ttspeedtab		__P((struct com_s *com, int speed));
+static	int	pc98_ttspeedtab		__P((struct com_s *com, int speed, u_int *divisor));
 static	int	pc98_get_modem_status	__P((struct com_s *com));
 static	timeout_t	pc98_check_msr;
-static	void	pc98_set_baud_rate	__P((struct com_s *com, int count));
+static	void	pc98_set_baud_rate	__P((struct com_s *com, u_int count));
 static	void	pc98_i8251_reset	__P((struct com_s *com, int mode, int command));
 static	void	pc98_disable_i8251_interrupt	__P((struct com_s *com, int mod));
 static	void	pc98_enable_i8251_interrupt	__P((struct com_s *com, int mod));
@@ -3210,8 +3210,7 @@ comparam(tp, t)
 	cfcr = 0;
 
 	if (IS_8251(com->pc98_if_type)) {
-		divisor = (int) pc98_ttspeedtab(com, t->c_ospeed);
-		if ((int)divisor < 0)
+		if (pc98_ttspeedtab(com, t->c_ospeed, &divisor) != 0)
 			return (EINVAL);
 	} else {
 #endif
@@ -4736,11 +4735,12 @@ pc98_check_sysclock(void)
 static void
 com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 {
-	int	cfcr=0, count;
+	int	cfcr=0;
 	int	previnterrupt;
+	u_int	count;
 
-	count = pc98_ttspeedtab( com, speed );
-	if ( count < 0 ) return;
+	if (pc98_ttspeedtab(com, speed, &count) != 0)
+		return;
 
 	previnterrupt = pc98_check_i8251_interrupt(com);
 	pc98_disable_i8251_interrupt( com, IEN_Tx|IEN_TxEMP|IEN_Rx );
@@ -4788,7 +4788,7 @@ com_cflag_and_speed_set( struct com_s *com, int cflag, int speed)
 }
 
 static int
-pc98_ttspeedtab(struct com_s *com, int speed)
+pc98_ttspeedtab(struct com_s *com, int speed, u_int *divisor)
 {
 	int	if_type, effect_sp, count = -1, mod;
 
@@ -4829,12 +4829,10 @@ pc98_ttspeedtab(struct com_s *com, int speed)
 	case COM_IF_IND_SS_2:
 	case COM_IF_PIO9032B_1:
 	case COM_IF_PIO9032B_2:
-	    if ( speed == 0 ) return 0;
 	    count = ttspeedtab( speed, if_8251_type[if_type].speedtab );
 	    break;
 	case COM_IF_B98_01_1:
 	case COM_IF_B98_01_2:
-	    if ( speed == 0 ) return 0;
 	    count = ttspeedtab( speed, if_8251_type[if_type].speedtab );
 #ifdef B98_01_OLD
 	    if (count == 0 || count == 1) {
@@ -4845,11 +4843,15 @@ pc98_ttspeedtab(struct com_s *com, int speed)
 	    break;
 	}
 
-	return count;
+	if (count < 0)
+		return count;
+
+	*divisor = (u_int) count;
+	return 0;
 }
 
 static void
-pc98_set_baud_rate( struct com_s *com, int count )
+pc98_set_baud_rate( struct com_s *com, u_int count )
 {
 	int	if_type, io, s;
 
@@ -4867,11 +4869,9 @@ pc98_set_baud_rate( struct com_s *com, int count )
 		}
 	    }
 
-	    if ( count < 0 ) {
-		printf( "[ Illegal count : %d ]", count );
+	    if (count == 0)
 		return;
-	    } else if ( count == 0 )
-		return;
+
 	    /* set i8253 */
 	    s = splclock();
 	    if (count != 3)
