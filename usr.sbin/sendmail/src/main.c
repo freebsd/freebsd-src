@@ -790,13 +790,12 @@ main(argc, argv, envp)
 		if (RealUid != 0)
 		{
 #ifdef LOG
-			syslog(LOG_ALERT, "uid %d tried to start daemon mode",
-				RealUid);
+			if (LogLevel > 0)
+				syslog(LOG_ALERT, "uid %d tried to start daemon mode", RealUid);
 #endif
 			usrerr("Permission denied");
 			exit(EX_USAGE);
 		}
-		vendor_daemon_setup(CurEnv);
 
 		/* remove things that don't make sense in daemon mode */
 		FullName = NULL;
