@@ -79,22 +79,7 @@ static driver_t ata_macio_driver = {
 };
 
 DRIVER_MODULE(ata, macio, ata_macio_driver, ata_devclass, 0, 0);
-
-static int
-ata_macio_locknoop(struct ata_channel *ch, int type)
-{
-
-	return (ch->unit);
-}
-
-static void
-ata_macio_setmode(struct ata_device *atadev, int mode)
-{
-#if 0
-	atadev->mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
-#endif
-	atadev->mode = ATA_PIO;
-}
+MODULE_DEPEND(ata, ata, 1, 1, 1);
 
 static int
 ata_macio_probe(device_t dev)
@@ -130,9 +115,6 @@ ata_macio_probe(device_t dev)
 
 	ch->unit = 0;
 	ch->flags |= ATA_USE_16BIT;
-	ch->locking = ata_macio_locknoop;
-	ch->device[MASTER].setmode = ata_macio_setmode;
-	ch->device[SLAVE].setmode = ata_macio_setmode;
 	ata_generic_hw(ch);
 
 	return (ata_probe(dev));
