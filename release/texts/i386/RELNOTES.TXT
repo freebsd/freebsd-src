@@ -174,11 +174,13 @@ port. [MERGED]
 The pcm(4) driver now supports the ESS Solo 1, Maestro-1, Maestro-2,
 and Maestro-2e; Forte Media fm801, ESS Maestro-2e, and VIA
 Technologies VT82C686A sound card/chipsets, and has received some
-other updates. [MERGED] Separate drivers for the
-SoundBlaster 8 and Soundblaster 16 now replace an older, unified
-driver. [MERGED] A driver for the CMedia CMI8338/CMI8738 sound chips
-has been added.  A driver for the CS4281 sound chip has been
-added. [MERGED]
+other updates.  Separate drivers for the SoundBlaster 8 and
+Soundblaster 16 now replace an older, unified driver.  A driver for
+the CMedia CMI8338/CMI8738 sound chips has been added.  A driver for
+the CS4281 sound chip has been added.  A driver for the S3 Sonicvibes
+chipset has been added.  [MERGED]
+
+A driver for the Advance Logic ALS4000 has been added.
 
 A driver for the ESS Maestro-3/Allegro has been added, however due to
 licensing restrictions, it cannot be compiled into the kernel.
@@ -750,6 +752,9 @@ support. [MERGED]
 
 ln(1) now takes an -i option to request user confirmation before
 overwriting an existing file. [MERGED]
+
+ln(1) now takes a -h option to avoid following a target that is a
+link, with a -n option for compatability with other implementations.
 
 Version numbers of installed packages have a new (backward-compatible)
 syntax, which supports the "PORTREVISION" and "PORTEPOCH" variables in
@@ -1656,7 +1661,7 @@ ONboard 4/16 and Brumby.
 
 Specialix SI/XIO/SX ISA, EISA and PCI serial expansion cards/modules.
 
-Advance Asound 100, 110 and Logic ALS120
+Advance Asound 100, 110 and Logic ALS120, ALS4000
 C-Media CMI-8x38
 Crystal Semiconductor CS461x/462x/428x
 Crystal Semiconductor CS4281
@@ -1669,6 +1674,7 @@ Gravis UltraSound MAX/PnP
 MSS/WSS Compatible DSPs
 NeoMagic 256AV/ZX
 OPTi 931/82C931
+S3 Sonicvibes
 SoundBlaster, Soundblaster Pro, Soundblaster AWE-32, Soundblaster AWE-64
 Trident 4DWave DX/NX
 VIA Technologies VT82C686A
