@@ -142,12 +142,13 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/conf.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 #include <sys/select.h>
 #include <sys/poll.h>
+#include <sys/bus.h>
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
 #ifdef HIRESTIME
@@ -155,6 +156,10 @@
 #endif /* HIRESTIME */
 
 #include <i386/isa/isa_device.h>
+
+#ifndef COMPAT_OLDISA
+#error "The tw device requires the old isa compatibility shims"
+#endif
 
 /*
  * Transmission is done by calling write() to send three byte packets of data.
@@ -207,8 +212,12 @@ static int twprobe(struct isa_device *idp);
 static int twattach(struct isa_device *idp);
 
 struct isa_driver twdriver = {
-  twprobe, twattach, "tw"
+	INTR_TYPE_TTY,
+	twprobe,
+	twattach,
+	"tw"
 };
+COMPAT_ISA_DRIVER(tw, twdriver);
 
 static	d_open_t	twopen;
 static	d_close_t	twclose;

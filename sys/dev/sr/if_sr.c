@@ -67,6 +67,7 @@
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
+#include <sys/bus.h>
 
 #include <net/if.h>
 #ifdef NETGRAPH
@@ -88,6 +89,10 @@
 #include <netgraph/netgraph.h>
 #endif /* NETGRAPH */
 /* #define USE_MODEMCK */
+
+#ifndef COMPAT_OLDISA
+#error "The sr device requires the old isa compatibility shims"
+#endif
 
 #ifndef BUGGY
 #define BUGGY		0
@@ -254,7 +259,13 @@ static int sr_irqtable[16] = {
 static int	srprobe(struct isa_device *id);
 static int	srattach_isa(struct isa_device *id);
 
-struct	isa_driver srdriver = {srprobe, srattach_isa, "sr"};
+struct	isa_driver srdriver = {
+	INTR_TYPE_NET,
+	srprobe,
+	srattach_isa,
+	"sr"
+};
+COMPAT_ISA_DRIVER(sr, srdriver);
 
 /*
  * Baud Rate table for Sync Mode.

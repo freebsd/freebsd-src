@@ -56,10 +56,12 @@ error "Can only have 1 spigot configured."
 
 #include	<sys/param.h>
 #include	<sys/systm.h>
+#include	<sys/kernel.h>
 #include	<sys/conf.h>
 #include	<sys/proc.h>
 #include	<sys/signalvar.h>
 #include	<sys/mman.h>
+#include	<sys/bus.h>
 
 #include	<machine/frame.h>
 #include	<machine/md_var.h>
@@ -85,7 +87,13 @@ static struct spigot_softc {
 static int	spigot_probe(struct isa_device *id);
 static int	spigot_attach(struct isa_device *id);
 
-struct isa_driver	spigotdriver = {spigot_probe, spigot_attach, "spigot"};
+struct isa_driver	spigotdriver = {
+	INTR_TYPE_MISC,
+	spigot_probe,
+	spigot_attach,
+	"spigot"
+};
+COMPAT_ISA_DRIVER(spigot, spigotdriver);
 
 static	d_open_t	spigot_open;
 static	d_close_t	spigot_close;

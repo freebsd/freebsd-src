@@ -47,12 +47,13 @@ static const char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #include "mcd.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/bio.h>
 #include <sys/cdio.h>
 #include <sys/disklabel.h>
-#include <sys/kernel.h>
+#include <sys/bus.h>
 
 #include <machine/clock.h>
 
@@ -194,7 +195,13 @@ static  int     mcd_close_tray(int unit);
 
 static	int	mcd_probe(struct isa_device *dev);
 static	int	mcd_attach(struct isa_device *dev);
-struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
+struct	isa_driver	mcddriver = {
+	INTR_TYPE_BIO,
+	mcd_probe,
+	mcd_attach,
+	"mcd"
+};
+COMPAT_ISA_DRIVER(mcd, mcddriver);
 
 static	d_open_t	mcdopen;
 static	d_close_t	mcdclose;

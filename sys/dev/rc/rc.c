@@ -39,13 +39,14 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
+#include <sys/bus.h>
 #include <sys/interrupt.h>
-#include <sys/kernel.h>
 #include <machine/clock.h>
 #include <machine/ipl.h>
 
@@ -81,8 +82,12 @@ static int     rcattach        __P((struct isa_device *));
 
 /* For isa routines */
 struct isa_driver rcdriver = {
-	rcprobe, rcattach, "rc"
+	INTR_TYPE_TTY,
+	rcprobe,
+	rcattach,
+	"rc"
 };
+COMPAT_ISA_DRIVER(rc, rcdriver);
 
 static	d_open_t	rcopen;
 static	d_close_t	rcclose;

@@ -42,12 +42,17 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
+#include <sys/bus.h>
 
 #include <machine/gsc.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/gscreg.h>
+
+#ifndef COMPAT_OLDISA
+#error "The gsc device requires the old isa compatibility shims"
+#endif
 
 /***********************************************************************
  *
@@ -175,7 +180,13 @@ static struct gsc_unit unittab[NGSC];
 static	int gscprobe (struct isa_device *isdp);
 static	int gscattach(struct isa_device *isdp);
 
-struct isa_driver gscdriver = { gscprobe, gscattach, "gsc" };
+struct isa_driver gscdriver = {
+	INTR_TYPE_TTY,
+	gscprobe,
+	gscattach,
+	"gsc"
+};
+COMPAT_ISA_DRIVER(gsc, gscdriver);
 
 static	d_open_t	gscopen;
 static	d_close_t	gscclose;
