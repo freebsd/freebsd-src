@@ -225,7 +225,7 @@ SUBDIR+=boot98cfg
 SUBDIR+=ofwdump
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=keyserv
 .endif
 

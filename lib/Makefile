@@ -94,7 +94,7 @@ _libthr=	libthr
 _libdisk=	libdisk
 .endif
 
-.if exists(${.CURDIR}/../crypto) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _libmp=		libmp
 .endif
 
