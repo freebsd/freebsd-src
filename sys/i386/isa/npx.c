@@ -872,6 +872,15 @@ npxdrop()
 {
 	struct thread *td;
 
+	/*
+	 * Discard pending exceptions in the !cpu_fxsr case so that unmasked
+	 * ones don't cause a panic on the next frstor.
+	 */
+#ifdef CPU_ENABLE_SSE
+	if (!cpu_fxsr)
+#endif
+		fnclex();
+
 	td = PCPU_GET(fpcurthread);
 	PCPU_SET(fpcurthread, NULL);
 	td->td_pcb->pcb_flags &= ~PCB_NPXINITDONE;
