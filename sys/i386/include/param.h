@@ -37,20 +37,36 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_PARAM_H_
-#define	_MACHINE_PARAM_H_
-
 /*
  * Machine dependent constants for Intel 386.
  */
+
+/*
+ * Round p (pointer or byte index) up to a correctly-aligned value
+ * for all data types (int, long, ...).   The result is unsigned int
+ * and must be cast to any desired pointer type.
+ */
+#ifndef _ALIGNBYTES
+#define _ALIGNBYTES	(sizeof(int) - 1)
+#endif
+#ifndef _ALIGN
+#define _ALIGN(p)	(((unsigned)(p) + _ALIGNBYTES) & ~_ALIGNBYTES)
+#endif
+
 #ifndef _MACHINE
 #define	_MACHINE	i386
 #endif
-#ifndef MACHINE
-#define MACHINE		"i386"
-#endif
 #ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	i386
+#endif
+
+#ifndef _NO_NAMESPACE_POLLUTION
+
+#ifndef _MACHINE_PARAM_H_
+#define	_MACHINE_PARAM_H_
+
+#ifndef MACHINE
+#define MACHINE		"i386"
 #endif
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"i386"
@@ -70,13 +86,8 @@
 #define MAXCPU		1
 #endif /* SMP */
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value
- * for all data types (int, long, ...).   The result is unsigned int
- * and must be cast to any desired pointer type.
- */
-#define ALIGNBYTES	(sizeof(int) - 1)
-#define ALIGN(p)	(((unsigned)(p) + ALIGNBYTES) & ~ALIGNBYTES)
+#define ALIGNBYTES	_ALIGNBYTES
+#define ALIGN(p)	_ALIGN(p)
 
 #define PAGE_SHIFT	12		/* LOG2(PAGE_SIZE) */
 #define PAGE_SIZE	(1<<PAGE_SHIFT)	/* bytes/page */
@@ -155,3 +166,4 @@
 #define	pgtok(x)		((x) * (PAGE_SIZE / 1024))
 
 #endif /* !_MACHINE_PARAM_H_ */
+#endif /* !_NO_NAMESPACE_POLLUTION */

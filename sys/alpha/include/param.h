@@ -46,14 +46,42 @@
 /*
  * Machine dependent constants for the Alpha.
  */
+
+/*
+ * Round p (pointer or byte index) up to a correctly-aligned value for all
+ * data types (int, long, ...).   The result is u_long and must be cast to
+ * any desired pointer type.
+ *
+ * ALIGNED_POINTER is a boolean macro that checks whether an address
+ * is valid to fetch data elements of type t from on this architecture.
+ * This does not reflect the optimal alignment, just the possibility
+ * (within reasonable limits). 
+ *
+ */
+#ifndef _ALIGNBYTES
+#define	_ALIGNBYTES		7
+#endif
+#ifndef _ALIGN
+#define	_ALIGN(p)		(((u_long)(p) + _ALIGNBYTES) &~ _ALIGNBYTES)
+#endif
+#ifndef _ALIGNED_POINTER
+#define _ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
+#endif
+
 #ifndef _MACHINE
 #define	_MACHINE	alpha
 #endif
-#ifndef MACHINE
-#define	MACHINE		"alpha"
-#endif
 #ifndef _MACHINE_ARCH
 #define	_MACHINE_ARCH	alpha
+#endif
+
+#ifndef _NO_NAMESPACE_POLLUTION
+
+#ifndef _MACHINE_PARAM_H_
+#define _MACHINE_PARAM_H_
+
+#ifndef MACHINE
+#define	MACHINE		"alpha"
 #endif
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"alpha"
@@ -76,20 +104,9 @@
 #define MAXCPU		1
 #endif
 
-/*
- * Round p (pointer or byte index) up to a correctly-aligned value for all
- * data types (int, long, ...).   The result is u_long and must be cast to
- * any desired pointer type.
- *
- * ALIGNED_POINTER is a boolean macro that checks whether an address
- * is valid to fetch data elements of type t from on this architecture.
- * This does not reflect the optimal alignment, just the possibility
- * (within reasonable limits). 
- *
- */
-#define	ALIGNBYTES		7
-#define	ALIGN(p)		(((u_long)(p) + ALIGNBYTES) &~ ALIGNBYTES)
-#define ALIGNED_POINTER(p,t)	((((u_long)(p)) & (sizeof(t)-1)) == 0)
+#define	ALIGNBYTES		_ALIGNBYTES
+#define	ALIGN(p)		_ALIGN(p)
+#define ALIGNED_POINTER(p,t)	_ALIGNED_POINTER(p,t)
 
 #define	PAGE_SIZE	(1 << ALPHA_PGSHIFT)		/* bytes/page */
 #define PAGE_SHIFT	ALPHA_PGSHIFT
@@ -157,3 +174,6 @@
 #define	alpha_ptob(x)		((unsigned long)(x) << PAGE_SHIFT)
 
 #define pgtok(x)                ((x) * (PAGE_SIZE / 1024)) 
+
+#endif /* !_MACHINE_PARAM_H_ */
+#endif /* !_NO_NAMESPACE_POLLUTION */
