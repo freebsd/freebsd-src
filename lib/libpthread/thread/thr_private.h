@@ -49,7 +49,6 @@
 /*
  * Include files.
  */
-#include <setjmp.h>
 #include <signal.h>
 #include <stdio.h>
 #include <sys/queue.h>
@@ -60,50 +59,6 @@
 #include <spinlock.h>
 #include <ucontext.h>
 #include <pthread_np.h>
-
-/*
- * Define machine dependent macros to get and set the stack pointer
- * from the supported contexts.  Also define a macro to set the return
- * address in a jmp_buf context.
- *
- * XXX - These need to be moved into architecture dependent support files.
- */
-#if	defined(__i386__)
-#define	GET_STACK_JB(jb)	((unsigned long)((jb)[0]._jb[2]))
-#define	GET_STACK_SJB(sjb)	((unsigned long)((sjb)[0]._sjb[2]))
-#define	GET_STACK_UC(ucp)	((unsigned long)((ucp)->uc_mcontext.mc_esp))
-#define	SET_STACK_JB(jb, stk)	(jb)[0]._jb[2] = (int)(stk)
-#define	SET_STACK_SJB(sjb, stk)	(sjb)[0]._sjb[2] = (int)(stk)
-#define	SET_STACK_UC(ucp, stk)	(ucp)->uc_mcontext.mc_esp = (int)(stk)
-#define	FP_SAVE_UC(ucp)		do {			\
-	char	*fdata;					\
-	fdata = (char *) (ucp)->uc_mcontext.mc_fpregs;	\
-	__asm__("fnsave %0": :"m"(*fdata));		\
-} while (0)
-#define	FP_RESTORE_UC(ucp)	do {			\
-	char	*fdata;					\
-	fdata = (char *) (ucp)->uc_mcontext.mc_fpregs;	\
-	__asm__("frstor %0": :"m"(*fdata));		\
-} while (0)
-#define SET_RETURN_ADDR_JB(jb, ra)	(jb)[0]._jb[0] = (int)(ra)
-#elif	defined(__alpha__)
-#include <machine/reg.h>
-#define	GET_STACK_JB(jb)	((unsigned long)((jb)[0]._jb[R_SP + 4]))
-#define	GET_STACK_SJB(sjb)	((unsigned long)((sjb)[0]._sjb[R_SP + 4]))
-#define	GET_STACK_UC(ucp)	((ucp)->uc_mcontext.mc_regs[R_SP])
-#define	SET_STACK_JB(jb, stk)	(jb)[0]._jb[R_SP + 4] = (long)(stk)
-#define	SET_STACK_SJB(sjb, stk)	(sjb)[0]._sjb[R_SP + 4] = (long)(stk)
-#define	SET_STACK_UC(ucp, stk)	(ucp)->uc_mcontext.mc_regs[R_SP] = (unsigned long)(stk)
-#define	FP_SAVE_UC(ucp)
-#define	FP_RESTORE_UC(ucp)
-#define SET_RETURN_ADDR_JB(jb, ra) do {			\
-	(jb)[0]._jb[2] = (long)(ra);			\
-	(jb)[0]._jb[R_RA + 4] = (long)(ra);		\
-	(jb)[0]._jb[R_T12 + 4] = (long)(ra);		\
-} while (0)
-#else
-#error "Don't recognize this architecture!"
-#endif
 
 /*
  * Kernel fatal error handler macro.
@@ -214,17 +169,6 @@
 	}								\
 	PTHREAD_SET_STATE(thrd, newstate);				\
 } while (0)
-#endif
-
-/*
- * Define the signals to be used for scheduling.
- */
-#if defined(_PTHREADS_COMPAT_SCHED)
-#define _ITIMER_SCHED_TIMER	ITIMER_VIRTUAL
-#define _SCHED_SIGNAL		SIGVTALRM
-#else
-#define _ITIMER_SCHED_TIMER	ITIMER_PROF
-#define _SCHED_SIGNAL		SIGPROF
 #endif
 
 /*
@@ -487,20 +431,10 @@ struct pthread_rwlock {
  */
 enum pthread_state {
 	PS_RUNNING,
-	PS_SIGTHREAD,
 	PS_MUTEX_WAIT,
 	PS_COND_WAIT,
-	PS_FDLR_WAIT,
-	PS_FDLW_WAIT,
-	PS_FDR_WAIT,
-	PS_FDW_WAIT,
-	PS_FILE_WAIT,
-	PS_POLL_WAIT,
-	PS_SELECT_WAIT,
 	PS_SLEEP_WAIT,
 	PS_WAIT_WAIT,
-	PS_SIGSUSPEND,
-	PS_SIGWAIT,
 	PS_SPINBLOCK,
 	PS_JOIN,
 	PS_SUSPENDED,
@@ -517,46 +451,9 @@ enum pthread_state {
 #define FD_WRITE            0x2
 #define FD_RDWR             (FD_READ | FD_WRITE)
 
-/*
- * File descriptor table structure.
- */
-struct fd_table_entry {
-	/*
-	 * Lock for accesses to this file descriptor table
-	 * entry. This is passed to _spinlock() to provide atomic
-	 * access to this structure. It does *not* represent the
-	 * state of the lock on the file descriptor.
-	 */
-	spinlock_t		lock;
-	TAILQ_HEAD(, pthread)	r_queue;	/* Read queue.                        */
-	TAILQ_HEAD(, pthread)	w_queue;	/* Write queue.                       */
-	struct pthread		*r_owner;	/* Ptr to thread owning read lock.    */
-	struct pthread		*w_owner;	/* Ptr to thread owning write lock.   */
-	char			*r_fname;	/* Ptr to read lock source file name  */
-	int			r_lineno;	/* Read lock source line number.      */
-	char			*w_fname;	/* Ptr to write lock source file name */
-	int			w_lineno;	/* Write lock source line number.     */
-	int			r_lockcount;	/* Count for FILE read locks.         */
-	int			w_lockcount;	/* Count for FILE write locks.        */
-	int			flags;		/* Flags used in open.                */
-};
-
-struct pthread_poll_data {
-	int	nfds;
-	struct pollfd *fds;
-};
-
 union pthread_wait_data {
 	pthread_mutex_t	mutex;
 	pthread_cond_t	cond;
-	const sigset_t	*sigwait;	/* Waiting on a signal in sigwait */
-	struct {
-		short	fd;		/* Used when thread waiting on fd */
-		short	branch;		/* Line number, for debugging.    */
-		char	*fname;		/* Source file name for debugging.*/
-	} fd;
-	FILE		*fp;
-	struct pthread_poll_data *poll_data;
 	spinlock_t	*spinlock;
 	struct pthread	*thread;
 };
@@ -567,50 +464,10 @@ union pthread_wait_data {
  */
 typedef void	(*thread_continuation_t) (void *);
 
-struct pthread_signal_frame;
-
-struct pthread_state_data {
-	struct pthread_signal_frame *psd_curframe;
-	sigset_t		psd_sigmask;
-	struct timespec		psd_wakeup_time;
-	union pthread_wait_data psd_wait_data;
-	enum pthread_state	psd_state;
-	int			psd_flags;
-	int			psd_interrupted;
-	int			psd_longjmp_val;
-	int			psd_sigmask_seqno;
-	int			psd_signo;
-	int			psd_sig_defer_count;
-	/* XXX - What about thread->timeout and/or thread->error? */
-};
-
 struct join_status {
 	struct pthread	*thread;
 	void		*ret;
 	int		error;
-};
-
-/*
- * The frame that is added to the top of a threads stack when setting up
- * up the thread to run a signal handler.
- */
-struct pthread_signal_frame {
-	/*
-	 * This stores the threads state before the signal.
-	 */
-	struct pthread_state_data saved_state;
-
-	/*
-	 * Threads return context; we use only jmp_buf's for now.
-	 */
-	union {
-		jmp_buf		jb;
-		ucontext_t	uc;
-	} ctx;
-	int			signo;	/* signal, arg 1 to sighandler */
-	int			sig_has_args;	/* use signal args if true */
-	ucontext_t		uc;
-	siginfo_t		siginfo;
 };
 
 struct pthread_specific_elem {
@@ -652,19 +509,11 @@ struct pthread {
 	struct pthread_attr	attr;
 
 	/*
-	 * Threads return context; we use only jmp_buf's for now.
+	 * Machine context, including signal state.
 	 */
-	union {
-		jmp_buf		jb;
-		ucontext_t	uc;
-	} ctx;
+	ucontext_t		ctx;
 
 	/*
-	 * Used for tracking delivery of signal handlers.
-	 */
-	struct pthread_signal_frame	*curframe;
-
- 	/*
 	 * Cancelability flags - the lower 2 bits are used by cancel
 	 * definitions in pthread.h
 	 */
@@ -674,14 +523,6 @@ struct pthread {
 	int	cancelflags;
 
 	thread_continuation_t	continuation;
-
-	/*
-	 * Current signal mask and pending signals.
-	 */
-	sigset_t	sigmask;
-	sigset_t	sigpend;
-	int		sigmask_seqno;
-	int		check_pending;
 
 	/* Thread state: */
 	enum pthread_state	state;
@@ -700,7 +541,7 @@ struct pthread {
 
 	/*
 	 * Time to wake up thread. This is used for sleeping threads and
-	 * for any operation which may time out (such as select).
+	 * for any operation which may time out.
 	 */
 	struct timespec	wakeup_time;
 
@@ -753,30 +594,16 @@ struct pthread {
 	union pthread_wait_data data;
 
 	/*
-	 * Allocated for converting select into poll.
-	 */
-	struct pthread_poll_data poll_data;
-
-	/*
 	 * Set to TRUE if a blocking operation was
 	 * interrupted by a signal:
 	 */
 	int		interrupted;
-
-	/* Signal number when in state PS_SIGWAIT: */
-	int		signo;
 
 	/*
 	 * Set to non-zero when this thread has deferred signals.
 	 * We allow for recursive deferral.
 	 */
 	int		sig_defer_count;
-
-	/*
-	 * Set to TRUE if this thread should yield after undeferring
-	 * signals.
-	 */
-	int		yield_on_sig_undefer;
 
 	/* Miscellaneous flags; only set with signals deferred. */
 	int		flags;
@@ -786,7 +613,7 @@ struct pthread {
 #define PTHREAD_FLAGS_IN_PRIOQ	0x0008	/* in priority queue using pqe link */
 #define PTHREAD_FLAGS_IN_WORKQ	0x0010	/* in work queue using qe link */
 #define PTHREAD_FLAGS_IN_FILEQ	0x0020	/* in file lock queue using qe link */
-#define PTHREAD_FLAGS_IN_FDQ	0x0040	/* in fd lock queue using qe link */
+			     /*	0x0040	   Unused. */
 #define PTHREAD_FLAGS_IN_CONDQ	0x0080	/* in condition queue using sqe link*/
 #define PTHREAD_FLAGS_IN_MUTEXQ	0x0100	/* in mutex queue using sqe link */
 #define	PTHREAD_FLAGS_SUSPENDED	0x0200	/* thread is suspended */
@@ -876,33 +703,7 @@ SCLASS TAILQ_HEAD(, pthread)	_thread_list
 ;
 #endif
 
-/*
- * Array of kernel pipe file descriptors that are used to ensure that
- * no signals are missed in calls to _select.
- */
-SCLASS int		_thread_kern_pipe[2]
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= {
-	-1,
-	-1
-};
-#else
-;
-#endif
-SCLASS int		volatile _queue_signals
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0;
-#else
-;
-#endif
 SCLASS int              _thread_kern_in_sched
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0;
-#else
-;
-#endif
-
-SCLASS int              _sig_in_handler
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = 0;
 #else
@@ -969,42 +770,6 @@ SCLASS struct pthread_cond_attr pthread_condattr_default
 ;
 #endif
 
-/*
- * Standard I/O file descriptors need special flag treatment since
- * setting one to non-blocking does all on *BSD. Sigh. This array
- * is used to store the initial flag settings.
- */
-SCLASS int	_pthread_stdio_flags[3];
-
-/* File table information: */
-SCLASS struct fd_table_entry **_thread_fd_table
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL;
-#else
-;
-#endif
-
-/* Table for polling file descriptors: */
-SCLASS struct pollfd *_thread_pfd_table
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= NULL;
-#else
-;
-#endif
-
-SCLASS const int dtablecount
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 4096/sizeof(struct fd_table_entry);
-#else
-;
-#endif
-SCLASS int    _thread_dtablesize        /* Descriptor table size.           */
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0;
-#else
-;
-#endif
-
 SCLASS int    _clock_res_usec		/* Clock resolution in usec.	*/
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = CLOCK_RES_USEC;
@@ -1021,28 +786,6 @@ SCLASS	pthread_mutex_t _gc_mutex
 SCLASS	pthread_cond_t  _gc_cond
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = NULL
-#endif
-;
-
-/*
- * Array of signal actions for this process.
- */
-SCLASS struct  sigaction _thread_sigact[NSIG];
-
-/*
- * Array of counts of dummy handlers for SIG_DFL signals.  This is used to
- * assure that there is always a dummy signal handler installed while there is a
- * thread sigwait()ing on the corresponding signal.
- */
-SCLASS int	_thread_dfl_count[NSIG];
-
-/*
- * Pending signals and mask for this process:
- */
-SCLASS sigset_t	_process_sigpending;
-SCLASS sigset_t	_process_sigmask
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= { {0, 0, 0, 0} }
 #endif
 ;
 
@@ -1064,28 +807,6 @@ SCLASS	volatile int	_spinblock_count
 #endif
 ;
 
-/* Used to maintain pending and active signals: */
-struct sigstatus {
-	int		pending;	/* Is this a pending signal? */
-	int		blocked;	/*
-					 * A handler is currently active for
-					 * this signal; ignore subsequent
-					 * signals until the handler is done.
-					 */
-	int		signo;		/* arg 1 to signal handler */
-	siginfo_t	siginfo;	/* arg 2 to signal handler */
-	ucontext_t	uc;		/* arg 3 to signal handler */
-};
-
-SCLASS struct sigstatus	_thread_sigq[NSIG];
-
-/* Indicates that the signal queue needs to be checked. */
-SCLASS	volatile int	_sigq_check_reqd
-#ifdef GLOBAL_PTHREAD_PRIVATE
-= 0
-#endif
-;
-
 /* Thread switch hook. */
 SCLASS pthread_switch_routine_t _sched_switch_hook
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -1096,9 +817,9 @@ SCLASS pthread_switch_routine_t _sched_switch_hook
 /*
  * Declare the kernel scheduler jump buffer and stack:
  */
-SCLASS jmp_buf	_thread_kern_sched_jb;
+SCLASS ucontext_t	_thread_kern_sched_ctx;
 
-SCLASS void *	_thread_kern_sched_stack
+SCLASS void *		_thread_kern_sched_stack
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = NULL
 #endif
@@ -1115,16 +836,6 @@ SCLASS int	_thread_kern_new_state
 /* Undefine the storage class specifier: */
 #undef  SCLASS
 
-#ifdef _LOCK_DEBUG
-#define	_FD_LOCK(_fd,_type,_ts)		_thread_fd_lock_debug(_fd, _type, \
-						_ts, __FILE__, __LINE__)
-#define _FD_UNLOCK(_fd,_type)		_thread_fd_unlock_debug(_fd, _type, \
-						__FILE__, __LINE__)
-#else
-#define	_FD_LOCK(_fd,_type,_ts)		_thread_fd_lock(_fd, _type, _ts)
-#define _FD_UNLOCK(_fd,_type)		_thread_fd_unlock(_fd, _type)
-#endif
-
 /*
  * Function prototype definitions.
  */
@@ -1133,7 +844,6 @@ char    *__ttyname_basic(int);
 char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
 void	_cond_wait_backout(pthread_t);
-void	_fd_lock_backout(pthread_t);
 int     _find_thread(pthread_t);
 struct pthread *_get_curthread(void);
 void	_set_curthread(struct pthread *);
@@ -1175,35 +885,18 @@ void	_waitq_clearactive(void);
 #endif
 void    _thread_exit(char *, int, char *);
 void    _thread_exit_cleanup(void);
-int	_thread_fd_getflags(int);
-int     _thread_fd_lock(int, int, struct timespec *);
-int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
-void	_thread_fd_setflags(int, int);
-int     _thread_fd_table_init(int fd);
-void    _thread_fd_unlock(int, int);
-void    _thread_fd_unlock_debug(int, int, char *, int);
-void    _thread_fd_unlock_owned(pthread_t);
 void    *_thread_cleanup(pthread_t);
 void    _thread_cleanupspecific(void);
 void    _thread_dump_info(void);
 void    _thread_init(void);
-void    _thread_kern_sched(ucontext_t *);
+void    _thread_kern_sched(void);
 void 	_thread_kern_scheduler(void);
-void    _thread_kern_sched_frame(struct pthread_signal_frame *psf);
-void    _thread_kern_sched_sig(void);
 void    _thread_kern_sched_state(enum pthread_state, char *fname, int lineno);
 void	_thread_kern_sched_state_unlock(enum pthread_state state,
 	    spinlock_t *lock, char *fname, int lineno);
 void    _thread_kern_set_timeout(const struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
-void    _thread_sig_handler(int, siginfo_t *, ucontext_t *);
-void    _thread_sig_check_pending(struct pthread *pthread);
-void    _thread_sig_handle_pending(void);
-void	_thread_sig_send(struct pthread *pthread, int sig);
-void	_thread_sig_wrapper(void);
-void	_thread_sigframe_restore(struct pthread *thread,
-	    struct pthread_signal_frame *psf);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
 pthread_addr_t _thread_gc(pthread_addr_t);
@@ -1211,13 +904,6 @@ void	_thread_enter_cancellation_point(void);
 void	_thread_leave_cancellation_point(void);
 void	_thread_cancellation_point(void);
 
-/* #include <sys/acl.h> */
-#ifdef _SYS_ACL_H
-int	__sys___acl_aclcheck_fd(int, acl_type_t, struct acl *);
-int	__sys___acl_delete_fd(int, acl_type_t);
-int	__sys___acl_get_fd(int, acl_type_t, struct acl *);
-int	__sys___acl_set_fd(int, acl_type_t, struct acl *);
-#endif
 
 /* #include <sys/aio.h> */
 #ifdef _SYS_AIO_H_
@@ -1324,12 +1010,6 @@ ssize_t	__sys_read(int, void *, size_t);
 ssize_t	__sys_write(int, const void *, size_t);
 #endif
 
-/* #include <setjmp.h> */
-#ifdef _SETJMP_H_
-extern void	__siglongjmp(sigjmp_buf, int) __dead2;
-extern void	__longjmp(jmp_buf, int) __dead2;
-extern void	___longjmp(jmp_buf, int) __dead2;
-#endif
 __END_DECLS
 
 #endif  /* !_THR_PRIVATE_H */

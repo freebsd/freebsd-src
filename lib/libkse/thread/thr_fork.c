@@ -63,44 +63,8 @@ _fork(void)
 	if ((ret = __sys_fork()) != 0) {
 		/* Parent process or error. Nothing to do here. */
 	} else {
-		/* Close the pthread kernel pipe: */
-		__sys_close(_thread_kern_pipe[0]);
-		__sys_close(_thread_kern_pipe[1]);
-
-		/* Reset signals pending for the running thread: */
-		sigemptyset(&curthread->sigpend);
-
-		/*
-		 * Create a pipe that is written to by the signal handler to
-		 * prevent signals being missed in calls to
-		 * __sys_select: 
-		 */
-		if (__sys_pipe(_thread_kern_pipe) != 0) {
-			/* Cannot create pipe, so abort: */
-			PANIC("Cannot create pthread kernel pipe for forked process");
-		}
-		/* Get the flags for the read pipe: */
-		else if ((flags = __sys_fcntl(_thread_kern_pipe[0], F_GETFL, NULL)) == -1) {
-			/* Abort this application: */
-			abort();
-		}
-		/* Make the read pipe non-blocking: */
-		else if (__sys_fcntl(_thread_kern_pipe[0], F_SETFL, flags | O_NONBLOCK) == -1) {
-			/* Abort this application: */
-			abort();
-		}
-		/* Get the flags for the write pipe: */
-		else if ((flags = __sys_fcntl(_thread_kern_pipe[1], F_GETFL, NULL)) == -1) {
-			/* Abort this application: */
-			abort();
-		}
-		/* Make the write pipe non-blocking: */
-		else if (__sys_fcntl(_thread_kern_pipe[1], F_SETFL, flags | O_NONBLOCK) == -1) {
-			/* Abort this application: */
-			abort();
-		}
 		/* Reinitialize the GC mutex: */
-		else if (_mutex_reinit(&_gc_mutex) != 0) {
+		if (_mutex_reinit(&_gc_mutex) != 0) {
 			/* Abort this application: */
 			PANIC("Cannot initialize GC mutex for forked process");
 		}
@@ -180,32 +144,8 @@ _fork(void)
 			/* No spinlocks yet: */
 			_spinblock_count = 0;
 
-			/* Don't queue signals yet: */
-			_queue_signals = 0;
-
 			/* Initialize the scheduling switch hook routine: */
 			_sched_switch_hook = NULL;
-
-			/* Clear out any locks in the file descriptor table: */
-			for (i = 0; i < _thread_dtablesize; i++) {
-				if (_thread_fd_table[i] != NULL) {
-					/* Initialise the file locks: */
-					memset(&_thread_fd_table[i]->lock, 0,
-					    sizeof(_thread_fd_table[i]->lock));
-					_thread_fd_table[i]->r_owner = NULL;
-					_thread_fd_table[i]->w_owner = NULL;
-					_thread_fd_table[i]->r_fname = NULL;
-					_thread_fd_table[i]->w_fname = NULL;
-					_thread_fd_table[i]->r_lineno = 0;;
-					_thread_fd_table[i]->w_lineno = 0;;
-					_thread_fd_table[i]->r_lockcount = 0;;
-					_thread_fd_table[i]->w_lockcount = 0;;
-
-					/* Initialise the read/write queues: */
-					TAILQ_INIT(&_thread_fd_table[i]->r_queue);
-					TAILQ_INIT(&_thread_fd_table[i]->w_queue);
-				}
-			}
 		}
 	}
 
@@ -235,9 +175,6 @@ free_thread_resources(struct pthread *thread)
 
 	if (thread->specific != NULL)
 		free(thread->specific);
-
-	if (thread->poll_data.fds != NULL)
-		free(thread->poll_data.fds);
 
 	free(thread);
 }
