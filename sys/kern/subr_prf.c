@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.54 1999/06/07 18:26:26 archie Exp $
+ * $Id: subr_prf.c,v 1.55 1999/07/09 17:54:39 peter Exp $
  */
 
 #include <sys/param.h>
@@ -60,8 +60,8 @@
 #define TOTTY	0x02
 #define TOLOG	0x04
 
-/* Max number conversion buffer length: a long in base 2, plus NUL byte. */
-#define MAXNBUF	(sizeof(long) * NBBY + 1)
+/* Max number conversion buffer length: a u_quad_t in base 2, plus NUL byte. */
+#define MAXNBUF	(sizeof(quad_t) * NBBY + 1)
 
 struct putchar_arg {
 	int	flags;
@@ -387,7 +387,7 @@ snprintf_func(int ch, void *arg)
 }
 
 /*
- * Put a NUL-terminated ASCII number (base <= 16) in a buffer in reverse
+ * Put a NUL-terminated ASCII number (base <= 36) in a buffer in reverse
  * order; return an optional length and a pointer to the last character
  * written in the buffer (i.e., the first character of the string).
  * The buffer pointed to by `nbuf' must have length >= MAXNBUF.
@@ -409,7 +409,7 @@ ksprintn(nbuf, ul, base, lenp)
 		*lenp = p - nbuf;
 	return (p);
 }
-/* ksprintn, but for a quad_t */
+/* ksprintn, but for a quad_t. */
 static char *
 ksprintqn(nbuf, uq, base, lenp)
 	char *nbuf;
@@ -670,19 +670,19 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 nosign:			sign = 0;
 number:			
 			if (qflag) {
-				if (sign && (quad_t)uq < 0L) {
+				if (sign && (quad_t)uq < 0) {
 					neg = 1;
 					uq = -(quad_t)uq;
 				}
 				p = ksprintqn(nbuf, uq, base, &tmp);
 			} else {
-				if (sign && (long)ul < 0L) {
+				if (sign && (long)ul < 0) {
 					neg = 1;
 					ul = -(long)ul;
 				}
 				p = ksprintn(nbuf, ul, base, &tmp);
 			}
-			if (sharpflag && qflag ? (uq != 0) : (ul != 0)) {
+			if (sharpflag && (qflag ? uq != 0 : ul != 0)) {
 				if (base == 8)
 					tmp++;
 				else if (base == 16)
