@@ -76,77 +76,79 @@ FreeBSD 1.1.5.1   /     |          /           |         \   |
 FreeBSD 2.0 <--'        |                      |           BSD/OS 2.0
    |                     \                     |             |
 FreeBSD 2.0.5             \                    |           BSD/OS 2.0.1
-   |                       \         .--- 4.4BSD Lite2       |
-   |                        \        |       |   |   |       |
-   |                         |   FreeBSD 3.0 |   |   |       |
-   |                         |        NetBSD 1.3 |   |       |
-   |                         |           OpenBSD 2.3 |       |
-   |                         |                BSD/OS 3.0     |
-FreeBSD 2.1                  |                               |
- |   |                    NetBSD 1.1 ------.               BSD/OS 2.1
- | FreeBSD 2.1.5             |              \                |
- |     |                  NetBSD 1.2         \             BSD/OS 3.0
- | FreeBSD 2.1.6             |  \          OpenBSD 2.0       |
- |     |                     |   \             |             |
- | FreeBSD 2.1.6.1           |    \            |             |
- |     |                     |     \           |             |
- | FreeBSD 2.1.7             |      |          |             |
- |     |                     |  NetBSD 1.2.1   |             |
- | FreeBSD 2.1.7.1           |                 |             |
- |                           |                 |             |
- |                           |                 |             |
- *-FreeBSD 2.2               |                 |             |
- |        \                  |                 |             |
- |     FreeBSD 2.2.1         |                 |             |
- |         |                 |                 |             |
- |     FreeBSD 2.2.2         |             OpenBSD 2.1       |
- |         |                 |                 |             |
- |     FreeBSD 2.2.5         |                 |             |
- |         |                 |             OpenBSD 2.2       |
- |         |              NetBSD 1.3           |             |
- |     FreeBSD 2.2.6         |    |            |             |
- |         |                 | NetBSD 1.3.1    |           BSD/OS 3.1
- |         |                 |    |        OpenBSD 2.3       |
- |         |                 | NetBSD 1.3.2    |             |
- |     FreeBSD 2.2.7         |    |            |             |
- |         |                 |    |            |           BSD/OS 4.0
- |         v                 |    |            |             |
- |     FreeBSD 2.2.8         |    |            |             |
- |                           |    |            |             |
- |                           |    |        OpenBSD 2.4       |
-FreeBSD 3.0                  |    v            |             |
- |                           | NetBSD 1.3.3    |             |
- *---FreeBSD 3.1             |                 |             |
- |       |                   |                 |           BSD/OS 4.0.1
- |   FreeBSD 3.2          NetBSD 1.4       OpenBSD 2.5       |
- |       |                   |    |            |             |
- |   FreeBSD 3.3             | NetBSD 1.4.1    |             |
- |       |                   |    |        OpenBSD 2.6       |
- |   FreeBSD 3.4             |    |            |             |
- |           |               |    |            |           BSD/OS 4.1
-FreeBSD 4.0  |               | NetBSD 1.4.2    |             |
- |           |               |    |            |             |
- |           |               |    |            |             |
- |   FreeBSD 3.5             |    |        OpenBSD 2.7       |
- |           |               |    |            |             |
- |   FreeBSD 3.5.1           |    |            |             |
- |                           |    |            |             |
- *---FreeBSD 4.1             |    |            |             |
- |      |                    |    |            |             |
- |   FreeBSD 4.1.1           |    |            |             |
- |      |                    |    v            |             |
- |   FreeBSD 4.2             | NetBSD 1.4.3    |             |
- |      |                    |             OpenBSD 2.8     BSD/OS 4.2
- |      |                 NetBSD 1.5           |             |
- |   FreeBSD 4.3             |    |            |             v
- |      |                    |    v        OpenBSD 2.9
- |      |                    | NetBSD 1.5.1    |
- |      v                    |                 |
- |                           |                 |
-FreeBSD 5.0-current       NetBSD -current  OpenBSD -current
- |                           |                 |
- v                           v                 v
-
+   |                 .-----\------------- 4.4BSD Lite2       |
+   |                 |      \             |  |   |   |       |
+   |                 | .-----|------Rhapsody |   |   |       |
+   |                 | |     |        NetBSD 1.3 |   |       |
+   |                 | |     |           OpenBSD 2.3 |       |
+   |                 | |     |                BSD/OS 3.0     |
+FreeBSD 2.1          | |     |                               |
+ |   |               | |  NetBSD 1.1 ------.               BSD/OS 2.1
+ | FreeBSD 2.1.5     | |     |              \                |
+ |     |             | |  NetBSD 1.2         \             BSD/OS 3.0
+ | FreeBSD 2.1.6     | |     |  \          OpenBSD 2.0       |
+ |     |             | |     |   \             |             |
+ | FreeBSD 2.1.6.1   | |     |    \            |             |
+ |     |             | |     |     \           |             |
+ | FreeBSD 2.1.7     | |     |      |          |             |
+ |     |             | |     |  NetBSD 1.2.1   |             |
+ | FreeBSD 2.1.7.1   | |     |                 |             |
+ |                   | |     |                 |             |
+ |                   | |     |                 |             |
+ *-FreeBSD 2.2       | |     |                 |             |
+ |        \          | |     |                 |             |
+ |     FreeBSD 2.2.1 | |     |                 |             |
+ |         |         | |     |                 |             |
+ |     FreeBSD 2.2.2 | |     |             OpenBSD 2.1       |
+ |         |         | |     |                 |             |
+ |     FreeBSD 2.2.5 | |     |                 |             |
+ |         |         | |     |             OpenBSD 2.2       |
+ |         |         | |  NetBSD 1.3           |             |
+ |     FreeBSD 2.2.6 | |     |    |            |             |
+ |         |         | |     | NetBSD 1.3.1    |           BSD/OS 3.1
+ |         |         | |     |    |        OpenBSD 2.3       |
+ |         |         | |     | NetBSD 1.3.2    |             |
+ |     FreeBSD 2.2.7 | |     |    |            |             |
+ |         |         | |     |    |            |           BSD/OS 4.0
+ |         v         | |     |    |            |             |
+ |     FreeBSD 2.2.8 | |     |    |            |             |
+ |                   | |     |    |        OpenBSD 2.4       |
+FreeBSD 3.0 <--------* |     |    v            |             |
+ |                     |     | NetBSD 1.3.3    |             |
+ *---FreeBSD 3.1       |     |                 |             |
+ |       |             |     |                 |           BSD/OS 4.0.1
+ |   FreeBSD 3.2----*  |  NetBSD 1.4       OpenBSD 2.5       |
+ |       |          |  |  |  |    |            |             |
+ |       |          |  |  |  |    |            |             |
+ |       |          |  |  |  |    |            |             |
+ |   FreeBSD 3.3    |  |  |  | NetBSD 1.4.1    |             |
+ |       |          |  |  |  |    |        OpenBSD 2.6       |
+ |   FreeBSD 3.4    |  |  |  |    |            |             |
+ |           |      |  |  |  |    |            |           BSD/OS 4.1
+FreeBSD 4.0  |      |  |  |  | NetBSD 1.4.2    |             |
+ |           |      |  |  |  |    |            |             |
+ |           |      |  |  |  |    |            |             |
+ |   FreeBSD 3.5    |  |  |  |    |        OpenBSD 2.7       |
+ |           |      |  |  |  |    |            |             |
+ |   FreeBSD 3.5.1  |  |  |  |    |            |             |
+ |                  |  |  |  |    |            |             |
+ *---FreeBSD 4.1    |  |  |  |    |            |             |
+ |      |           |  | (?) |    |            |             |
+ |   FreeBSD 4.1.1  |  |  /  |    |            |             |
+ |      |           |  | /   |    v            |             |
+ |   FreeBSD 4.2   Darwin/   | NetBSD 1.4.3    |             |
+ |      |         Mac OS X   |             OpenBSD 2.8     BSD/OS 4.2
+ |      |           10.0  NetBSD 1.5           |             |
+ |   FreeBSD 4.3      |      |    |            |             v
+ |      |             |      |    v        OpenBSD 2.9
+ |      |             |      | NetBSD 1.5.1    |
+ |      v             |      |                 |
+ |                    |      |                 |
+FreeBSD 5.0-current   |   NetBSD -current  OpenBSD -current
+ |                    |      |                 |
+ v                    |      v                 v
+                   Mac OS X  
+                     10.1
 
 Time
 ----------------
@@ -157,6 +159,7 @@ was the announcement in Usenet or if it was available as tape.
 [44B] McKusick, Marshall Kirk, Keith Bostic, Michael J Karels,
 	and John Quarterman. The Design and Implementation of
 	the 4.4BSD Operating System.
+[APL] Apple website [http://www.apple.com/macosx/]
 [DOC] README, COPYRIGHT on tape.
 [QCU] Salus, Peter H. A quarter century of UNIX.
 [U25] Peter H. Salus. Unix at 25.
@@ -281,6 +284,7 @@ NetBSD 1.2              1996-10-04 [NBD]
 OpenBSD 2.0             1996-10-18 [OBD]
 FreeBSD 2.1.6		1996-11-16 [FBD]
 FreeBSD 2.1.6.1		1996-11-25 [FBD] (sendmail security release)
+Rhapsody		1997-xx-xx
 FreeBSD 2.1.7		1997-02-20 [FBD]
 BSD/OS 3.0		1997-02-xx [BSDI] 4.4 lite2 based
 FreeBSD 2.2.0		1997-03-16 [FBD]
@@ -328,9 +332,11 @@ NetBSD 1.4.3		2000-11-25 [NBD] (patch release)
 BSD/OS 4.2		2000-11-29 [BSDI]
 OpenBSD 2.8		2000-12-01 [OBD]
 NetBSD 1.5              2000-12-06 [NBD]
+Mac OS X 10.0           2001-03-24 [APL]
 FreeBSD 4.3  		2001-04-20 [FBD]
 OpenBSD 2.9  		2001-06-01 [OBD]
 NetBSD 1.5.1		2001-07-11 [NBD] (patch release)
+Mac OS X 10.1		2001-09-xx [APL]
 
 
 Bibliography
