@@ -1,7 +1,7 @@
 /* opie_cfg.h: Various configuration-type pieces of information for OPIE.
 
 %%% portions-copyright-cmetz-96
-Portions of this software are Copyright 1996-1998 by Craig Metz, All Rights
+Portions of this software are Copyright 1996-1999 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.4. Removed NBBY definition.
 	Modified by cmetz for OPIE 2.32. Include <sys/types.h> before
 		<dirent.h> to make *BSD happy.
 	Modified by cmetz for OPIE 2.31. Added 4.4BSD-Lite pathnames.h
@@ -53,8 +54,8 @@ $FreeBSD$
 #ifndef _OPIE_CFG_H
 #define _OPIE_CFG_H 1
 
-#define VERSION "2.32"
-#define DATE    "Thursday, January 1, 1998"
+#define VERSION "2.4"
+#define DATE    "Friday, January 19, 2001"
 
 #ifndef unix
 #define unix 1
@@ -164,10 +165,6 @@ $FreeBSD$
 #ifndef MOTD_FILE
 #define MOTD_FILE         "/etc/motd"
 #endif
-
-#ifndef NBBY
-#define NBBY 8	/* Reasonable for modern systems */
-#endif	/* NBBY */
 
 #ifndef LOGIN_PATH
 #define LOGIN_PATH "/usr/ucb:/bin:/usr/bin"

@@ -1,13 +1,14 @@
 /* hashlen.c: The opiehashlen() library function.
 
 %%% copyright-cmetz-96
-This software is Copyright 1996-1998 by Craig Metz, All Rights Reserved.
-The Inner Net License Version 2 applies to this software.
+This software is Copyright 1996-2001 by Craig Metz, All Rights Reserved.
+The Inner Net License Version 3 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
         History:
 
+	Modified by cmetz for OPIE 2.4. Use struct opie_otpkey, isolate variables.
 	Created by cmetz for OPIE 2.3.
 
 $FreeBSD$
@@ -20,7 +21,8 @@ $FreeBSD$
 #include <md4.h>
 #include <md5.h>
 
-VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND VOIDPTR in AND VOIDPTR out AND int n)
+VOIDRET opiehashlen FUNCTION((algorithm, in, out, n), int algorithm AND
+VOIDPTR in AND struct opie_otpkey *out AND int n)
 {
   UINT4 *results = (UINT4 *)out;
   UINT4 mdx_tmp[4];
