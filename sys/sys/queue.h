@@ -439,12 +439,12 @@ struct {								\
 
 #define	CIRCLEQ_FOREACH(var, head, field)				\
 	for ((var) = CIRCLEQ_FIRST((head));				\
-	    (var) != (void *)(head);					\
+	    (var) != (void *)(head) || ((var) = NULL);			\
 	    (var) = CIRCLEQ_NEXT((var), field))
 
 #define	CIRCLEQ_FOREACH_REVERSE(var, head, field)			\
 	for ((var) = CIRCLEQ_LAST((head));				\
-	    (var) != (void *)(head);					\
+	    (var) != (void *)(head) || ((var) = NULL);			\
 	    (var) = CIRCLEQ_PREV((var), field))
 
 #define	CIRCLEQ_INIT(head) do {						\
