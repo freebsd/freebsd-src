@@ -41,3 +41,4 @@
 #define PCIC_RF_MDF_WS1		(0x08 << 16)
 #define PCIC_RF_MDF_ATTR	(0x10 << 16)
 #define PCIC_RF_MDF_WP		(0x20 << 16)
+extern devclass_t pcic_devclass;
