@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_disksubr.c	8.5 (Berkeley) 1/21/94
- * $Id: ufs_disksubr.c,v 1.37 1998/10/16 10:14:21 jkh Exp $
+ * $Id: ufs_disksubr.c,v 1.38 1998/10/17 07:49:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -371,7 +371,7 @@ diskerr(bp, dname, what, pri, blkdone, lp)
 	daddr_t sn;
 
 	if (pri != LOG_PRINTF) {
-		log(pri, "");
+		log(pri, "%s", "");
 		pr = addlog;
 	} else
 		pr = printf;
