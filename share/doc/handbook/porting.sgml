@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.64 1997/02/22 12:59:02 peter Exp $ -->
+<!-- $Id: porting.sgml,v 1.65 1997/02/22 18:30:03 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -90,7 +90,10 @@ the ports collection.
 	above).
 
 	The value of the BSD macro is 199506 for the 4.4BSD-Lite2 code
-	base.  However, few if any ports should need this.
+	base.  This is stated for informational purposes only.  It should
+	not be used to distinguish between version of FreeBSD based only
+	on 4.4-Lite vs. versions that have merged in changes from 4.4-Lite2.
+	The __FreeBSD__ macro should be used instead.
 
       <p>Use sparingly:
 
