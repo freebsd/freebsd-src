@@ -79,10 +79,10 @@ static void do_cpuid(u_int ax, u_int *p);
 u_int	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
 char machine[] = "i386";
-SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
+SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "Machine class");
 
 static char cpu_model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "");
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, cpu_model, 0, "Machine model");
 
 static struct cpu_nameclass i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
@@ -126,7 +126,7 @@ void
 printcpuinfo(void)
 {
 
-	u_int regs[4], nreg;
+	u_int regs[4], nreg = 0;
 	cpu_class = i386_cpus[cpu].cpu_class;
 	printf("CPU: ");
 	strncpy(cpu_model, i386_cpus[cpu].cpu_name, sizeof cpu_model);
@@ -546,32 +546,32 @@ printcpuinfo(void)
 			 */
 			printf("\n  Features=0x%b", cpu_feature,
 			"\020"
-			"\001FPU"
-			"\002VME"
+			"\001FPU"	/* Integral FPU */
+			"\002VME"	/* Extended VM86 mode support */
 			"\003DE"
-			"\004PSE"
-			"\005TSC"
-			"\006MSR"
-			"\007PAE"
-			"\010MCE"
-			"\011CX8"
-			"\012APIC"
+			"\004PSE"	/* 4MByte page tables */
+			"\005TSC"	/* Timestamp counter */
+			"\006MSR"	/* Machine specific registers */
+			"\007PAE"	/* Physical address extension */
+			"\010MCE"	/* Machine Check support */
+			"\011CX8"	/* CMPEXCH8 instruction */
+			"\012APIC"	/* SMP local APIC */
 			"\013oldMTRR"
 			"\014SEP"
-			"\015MTRR"
-			"\016PGE"
+			"\015MTRR"	/* Memory Type Range Registers */
+			"\016PGE"	/* PG_G (global bit) support */
 			"\017MCA"
-			"\020CMOV"
-			"\021PAT"
-			"\022PSE36"
-			"\023<b18>"
+			"\020CMOV"	/* CMOV instruction */
+			"\021PAT"	/* Page attributes table */
+			"\022PSE36"	/* 36 bit address space support */
+			"\023PN"	/* Processor Serial number */
 			"\024<b19>"
 			"\025<b20>"
 			"\026<b21>"
 			"\027<b22>"
-			"\030MMX"
-			"\031FXSR"
-			"\032<b25>"
+			"\030MMX"	/* MMX instructions */
+			"\031FXSR"	/* FXSAVE/FXRSTOR */
+			"\032XMM"	/* Katmai SIMD/MMX2 instructions */
 			"\033<b26>"
 			"\034<b27>"
 			"\035<b28>"
@@ -953,40 +953,44 @@ print_AMD_info(u_int amd_maxregs)
 static void
 print_AMD_features(u_int *regs)
 {
+	/*
+	 * Values taken from AMD Processor Recognition
+	 * http://www.amd.com/products/cpg/athlon/techdocs/pdf/20734.pdf
+	 */
 	do_cpuid(0x80000001, regs);
 	printf("\n  AMD Features=0x%b", regs[3] &~ cpu_feature,
 		"\020"		/* in hex */
-		"\001FPU"
-		"\002VME"
-		"\003DE"
-		"\004PSE"
-		"\005TSC"
-		"\006MSR"
-		"\007<b6>"
-		"\010MCE"
-		"\011CX8"
-		"\012<b9>"
+		"\001FPU"	/* Integral FPU */
+		"\002VME"	/* Extended VM86 mode support */
+		"\003DE"	/* Debug extensions */
+		"\004PSE"	/* 4MByte page tables */
+		"\005TSC"	/* Timestamp counter */
+		"\006MSR"	/* Machine specific registers */
+		"\007PAE"	/* Physical address extension */
+		"\010MCE"	/* Machine Check support */
+		"\011CX8"	/* CMPEXCH8 instruction */
+		"\012APIC"	/* SMP local APIC */
 		"\013<b10>"
-		"\014SYSCALL"
-		"\015<b12>"
-		"\016PGE"
-		"\017<b14>"
-		"\020ICMOV"
-		"\021FCMOV"
-		"\022<b17>"
+		"\014SYSCALL"	/* SYSENTER/SYSEXIT instructions */
+		"\015MTRR"	/* Memory Type Range Registers */
+		"\016PGE"	/* PG_G (global bit) support */
+		"\017MCA"	/* Machine Check Architecture */
+		"\020ICMOV"	/* CMOV instruction */
+		"\021PAT"	/* Page attributes table */
+		"\022PGE36"	/* 36 bit address space support */
 		"\023<b18>"
 		"\024<b19>"
 		"\025<b20>"
 		"\026<b21>"
-		"\027<b22>"
+		"\027AMIE"	/* AMD MMX Instruction Extensions */
 		"\030MMX"
-		"\031<b24>"
+		"\031FXSAVE"	/* FXSAVE/FXRSTOR */
 		"\032<b25>"
 		"\033<b26>"
 		"\034<b27>"
 		"\035<b28>"
 		"\036<b29>"
-		"\037<b30>"
+		"\037DSP"	/* AMD 3DNow! Instruction Extensions */
 		"\0403DNow!"
 		);
 }
