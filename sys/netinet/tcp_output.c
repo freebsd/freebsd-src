@@ -848,8 +848,12 @@ send:
 	/*
 	 * Trace.
 	 */
-	if (so->so_options & SO_DEBUG)
+	if (so->so_options & SO_DEBUG) {
+		u_short save = ipov->ih_len;
+		ipov->ih_len = htons(m->m_pkthdr.len /* - hdrlen + (th->th_off << 2) */);
 		tcp_trace(TA_OUTPUT, tp->t_state, tp, mtod(m, void *), th, 0);
+		ipov->ih_len = save;
+	}
 #endif
 
 	/*
