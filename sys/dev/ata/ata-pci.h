@@ -257,9 +257,10 @@ struct ata_connect_task {
 #define ATA_SIS962              0x09621039
 #define ATA_SIS963              0x09631039
 #define ATA_SIS964              0x09641039
-#define ATA_SIS965              0x09641039
+#define ATA_SIS965              0x09651039
 #define ATA_SIS180              0x01801039
 #define ATA_SIS181              0x01811039
+#define ATA_SIS182              0x01821039
 
 #define ATA_VIA_ID              0x1106
 #define ATA_VIA82C571           0x05711106
