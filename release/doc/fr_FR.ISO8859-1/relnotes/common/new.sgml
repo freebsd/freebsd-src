@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.286
+     Original revision: 1.287
 -->
 
 <articleinfo>
@@ -401,8 +401,74 @@
      &merged;</para>
 
     <sect3>
-      <title>**Support des cartes mères et des processeurs</title>
- <para></para>
+      <title>Support des cartes mères et des processeurs</title>
+
+      <para>Le support multi-processeur SMP a été largement revu, et 
+      le code de BSD/OS 5.0 a été incorporé. Une des fonctionnalités 
+      importante de SNMPng ((<quote>SMP Next Generation</quote>) est
+      de permettre a plus de processus de fonctionner en mode noyau, tout
+      en ne nécessitant pas de "spin locks" qui réduisent énormément
+      l'utilité des systèmes multi-processeurs. Les "handlers" d'interruptions
+      ont maintenant leur propre contexte, ce qui permet de les bloquer et
+      donc qui permet de réduire le besoin de poser des "locks" sur les 
+      interruptions.</para>
+
+      <para arch="i386">Le support des processeurs 80386 a été retiré
+      du noyau <filename>GENERIC</filename> car ce code réduisait 
+      la performance sur les autres processeurs IA32</para>
+
+      <para arch="i386">L'option noyau<literal>I386_CPU</literal> permettant
+      le support des processeurs 80386 est maintenant exclusive par rapport au 
+      support des autres processeurs IA32; cela devrait sérieusement augmenter
+      la performance sur les 80386 du a l'élimination des vérifications du type
+      de processeur au moment de l'éxécution.</para>
+
+      <para arch="i386">Les noyaux devant tournés sur des 80386 peuvent etre
+      construits en ne rajoutant dans les options CPU du noyau uniquement
+      <literal>I386_CPU</literal>.</para>
+
+      <para arch="alpha">Les serveurs AlphaServer 1200 (<quote>Tincup</quote>) 
+      ont été testés et fonctionnent. Pour l'instant il n'est pas possible
+      de démarrer depuis un CD ou un lecteur de disquette, mais en prenant
+      un disque venant d'un autre server Alpha cela fonctionne.&merged;</para>
+
+      <para arch="alpha">La carte mère API UP1100 est validée .</para>
+
+      <para arch="alpha">Les serveurs API CS20 1U sont validés.</para>
+
+      <para arch="alpha">Le support pour les séries DEC3000 a été retiré de l'image 
+      mfsroot disquette, cela permet d'obtenir une image sur une disquette 1.44 Mbyte. Comme
+      le DEC300 est actuellement uniquement utilisable sans disque, cela ne devrait pas
+      poser de problèmes.</para>
+
+      <para arch="alpha">Le support pour les AlphaServer 2100A (<quote>Lynx</quote>) 
+      a été ajouté.</para>
+
+      <para arch="alpha">Du code dans le noyau a été ajouté pour permettre a de vieilles
+      générations de processeurs Alpha(EV4 et EV5) d'émuler les instructions pour les
+      nouvelles générations de processeurs Alphas. Cela permet d'utiliser certains programmes
+      ,disponibles uniquement en binaire, comme <application>Adobe
+      Acrobat 4</application> sur des processeurs EV4 et EV5.</para>
+
+      <para arch="alpha">Le support SMP sur Alpha est maintenant opérationnel.</para>
+
+      <para arch="i386">La détection des nouveaux processeurs, comme
+      FC-PGA2 Pentium III (Tualatin), Transmeta Crusoe, et Transmeta
+      Crusoe LongRun, a été ajouté. &merged;</para>
+
+      <para arch="alpha">Le support du matériel suivant a été retirer du noyau 
+      d'installation pour permettre d'obtenir une disquette 1.44.Mb:
+      Multia, NoName, PC64, EB64, Aspen Alpine, sa (SCSI tape), amr, support du port 
+      parallel,  vx (3c590, 3c595), pcn (AMD Am79C97x PCI 10/100), 
+      sf (Adaptec AIC-6915), sis (SiS 900/SiS 7016), ste (Sundance ST201 
+      (D-Link DFE-550TX)), wb (Winbond W89C840F).</para>
+
+      <para arch="i386">Le support pour Streaming <acronym>SIMD</acronym>
+      Extensions (<acronym>SSE</acronym>) a été introduit. L'option du noyau 
+      <literal>CPU_ENABLE_SSE</literal> controle l'intégration dans le noyau
+      &merged;</para>
+
+
     </sect3>
 
     <sect3>
