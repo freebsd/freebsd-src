@@ -264,6 +264,11 @@ filt_proc(struct knote *kn, long hint)
 	if (event == NOTE_EXIT) {
 		kn->kn_status |= KN_DETACHED;
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT); 
+		/*
+		 * Return the 16 bits of the wait(2) value.
+		 */
+		if (kn->kn_sfflags & NOTE_EXIT)
+			kn->kn_data = (intptr_t)hint & 0xffff; 
 		return (1);
 	}
 
