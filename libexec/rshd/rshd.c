@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rshd.c,v 1.13 1997/02/22 14:22:23 peter Exp $
+ *	$Id: rshd.c,v 1.14 1997/03/28 15:48:17 imp Exp $
  */
 
 #ifndef lint
@@ -303,8 +303,12 @@ doit(fromp)
 #ifdef	KERBEROS
 		if (!use_kerberos)
 #endif
-			if (port >= IPPORT_RESERVED) {
-				syslog(LOG_ERR, "2nd port not reserved\n");
+			if (port >= IPPORT_RESERVED ||
+			    port < IPPORT_RESERVED/2) {
+				syslog(LOG_NOTICE|LOG_AUTH,
+				    "2nd socket from %s on unreserved port %u",
+				    inet_ntoa(fromp->sin_addr),
+				    port);
 				exit(1);
 			}
 		fromp->sin_port = htons(port);
