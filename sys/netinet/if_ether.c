@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.28 1996/02/20 17:54:17 fenner Exp $
+ * $Id: if_ether.c,v 1.29 1996/03/23 01:32:29 fenner Exp $
  */
 
 /*
@@ -348,7 +348,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	 */
 	if ((rt->rt_expire == 0 || rt->rt_expire > time.tv_sec) &&
 	    sdl->sdl_family == AF_LINK && sdl->sdl_alen != 0) {
-		(void)memcpy(desten, LLADDR(sdl), sdl->sdl_alen);
+		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 		return 1;
 	}
 	/*
