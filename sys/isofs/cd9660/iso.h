@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)iso.h	8.2 (Berkeley) 1/23/94
- * $Id: iso.h,v 1.4 1995/01/16 17:03:29 joerg Exp $
+ * $Id: iso.h,v 1.5 1995/05/30 08:05:06 rgrimes Exp $
  */
 
 #define ISODCL(from, to) (to - from + 1)
@@ -238,56 +238,56 @@ int cd9660_mountroot __P((void));
 
 extern int (**cd9660_vnodeop_p)();
 
-extern inline int
+static inline int
 isonum_711(p)
 	unsigned char *p;
 {
 	return *p;
 }
 
-extern inline int
+static inline int
 isonum_712(p)
 	char *p;
 {
 	return *p;
 }
 
-extern inline int
+static inline int
 isonum_721(p)
 	unsigned char *p;
 {
 	return *p|((char)p[1] << 8);
 }
 
-extern inline int
+static inline int
 isonum_722(p)
 	unsigned char *p;
 {
 	return ((char)*p << 8)|p[1];
 }
 
-extern inline int
+static inline int
 isonum_723(p)
 	unsigned char *p;
 {
 	return isonum_721(p);
 }
 
-extern inline int
+static inline int
 isonum_731(p)
 	unsigned char *p;
 {
 	return *p|(p[1] << 8)|(p[2] << 16)|(p[3] << 24);
 }
 
-extern inline int
+static inline int
 isonum_732(p)
 	unsigned char *p;
 {
 	return (*p << 24)|(p[1] << 16)|(p[2] << 8)|p[3];
 }
 
-extern inline int
+static inline int
 isonum_733(p)
 	unsigned char *p;
 {
