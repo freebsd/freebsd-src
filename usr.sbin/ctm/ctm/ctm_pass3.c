@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.4 1994/09/22 02:49:20 phk Exp $
+ * $Id: ctm_pass3.c,v 1.5 1994/11/26 08:57:42 phk Exp $
  *
  */
 
@@ -158,11 +158,11 @@ Pass3(FILE *fd)
 	    continue;
 	} 
 	if(!strcmp(sp->Key,"FR")) {
-	    if (0 = unlink(name))
+	    if (0 == unlink(name))
 		continue;
 	} 
 	if(!strcmp(sp->Key,"DR")) { 
-	    if (0 = rmdir(name))
+	    if (0 == rmdir(name))
 		continue;
 #ifdef NOTDEF
 	    sprintf(buf,"rm -rf %s",name);
