@@ -570,81 +570,54 @@ trap(int vector, struct trapframe *framep)
 		if (!user)
 			trap_panic(vector, framep);
 
+		critical_enter();
+		thr = PCPU_GET(fpcurthread);
+		if (thr == td) {
+			/*
+			 * Short-circuit handling the trap when this CPU
+			 * already holds the high FP registers for this
+			 * thread.  We really shouldn't get the trap in the
+			 * first place, but since it's only a performance
+			 * issue and not a correctness issue, we emit a
+			 * message for now, enable the high FP registers and
+			 * return.
+			 */
+			printf("XXX: bogusly disabled high FP regs\n");
+			framep->tf_special.psr &= ~IA64_PSR_DFH;
+			critical_exit();
+			goto out;
+		} else if (thr != NULL) {
+			pcb = thr->td_pcb;
+			save_high_fp(&pcb->pcb_high_fp);
+			pcb->pcb_fpcpu = NULL;
+			PCPU_SET(fpcurthread, NULL);
+			thr = NULL;
+		}
+
 		pcb = td->td_pcb;
 		pcpu = pcb->pcb_fpcpu;
 
-#if 0
-		printf("XXX: td %p: highfp on cpu %p\n", td, pcpu);
-#endif
-
-		/*
-		 * The pcpu variable holds the address of the per-CPU
-		 * structure of the CPU currently holding this threads
-		 * high FP registers (or NULL if no CPU holds these
-		 * registers). We have to interrupt that CPU and wait
-		 * for it to have saved the registers.
-		 */
-		if (pcpu != NULL) {
-			thr = pcpu->pc_fpcurthread;
-			KASSERT(thr == td, ("High FP state out of sync"));
-
-			if (pcpu == pcpup) {
-				/*
-				 * Short-circuit handling the trap when this
-				 * CPU already holds the high FP registers for
-				 * this thread. We really shouldn't get the
-				 * trap in the first place, but since it's
-				 * only a performance issue and not a
-				 * correctness issue, we emit a message for
-				 * now, enable the high FP registers and
-				 * return.
-				 */
-				printf("XXX: bogusly disabled high FP regs\n");
-				framep->tf_special.psr &= ~IA64_PSR_DFH;
-				goto out;
-			}
 #ifdef SMP
-			/*
-			 * Interrupt the other CPU so that it saves the high
-			 * FP registers of this thread. Note that this can
-			 * only happen for the SMP case.
-			 */
+		if (pcpu != NULL) {
 			ipi_send(pcpu->pc_lid, IPI_HIGH_FP);
+			critical_exit();
+			while (pcb->pcb_fpcpu != pcpu)
+				DELAY(100);
+			critical_enter();
+			pcpu = pcb->pcb_fpcpu;
+			thr = PCPU_GET(fpcurthread);
+		}
 #endif
-#ifdef DIAGNOSTICS
-		} else {
-			KASSERT(PCPU_GET(fpcurthread) != td,
-			    ("High FP state out of sync"));
-#endif
+
+		if (thr == NULL && pcpu == NULL) {
+			restore_high_fp(&pcb->pcb_high_fp);
+			PCPU_SET(fpcurthread, td);
+			pcb->pcb_fpcpu = pcpup;
+			framep->tf_special.psr &= ~IA64_PSR_MFH;
+			framep->tf_special.psr &= ~IA64_PSR_DFH;
 		}
 
-		thr = PCPU_GET(fpcurthread);
-
-#if 0
-		printf("XXX: cpu %p: highfp belongs to td %p\n", pcpup, thr);
-#endif
-
-		/*
-		 * The thr variable holds the thread that owns the high FP
-		 * registers currently on this CPU. Free this CPU so that
-		 * we can load the current threads high FP registers.
-		 */
-		if (thr != NULL) {
-			KASSERT(thr != td, ("High FP state out of sync"));
-			pcb = thr->td_pcb;
-			KASSERT(pcb->pcb_fpcpu == pcpup,
-			    ("High FP state out of sync"));
-			ia64_highfp_save(thr);
-		}
-
-		/*
-		 * Wait for the other CPU to have saved out high FP
-		 * registers (if applicable).
-		 */
-		while (pcpu && pcpu->pc_fpcurthread == td);
-
-		ia64_highfp_load(td);
-		framep->tf_special.psr &= ~IA64_PSR_DFH;
+		critical_exit();
 		goto out;
 	}
 
