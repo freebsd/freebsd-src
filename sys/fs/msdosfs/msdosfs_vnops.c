@@ -202,20 +202,7 @@ msdosfs_mknod(ap)
 		struct vattr *a_vap;
 	} */ *ap;
 {
-
-	switch (ap->a_vap->va_type) {
-	case VDIR:
-		return (msdosfs_mkdir((struct vop_mkdir_args *)ap));
-		break;
-
-	case VREG:
-		return (msdosfs_create((struct vop_create_args *)ap));
-		break;
-
-	default:
-		return (EINVAL);
-	}
-	/* NOTREACHED */
+    return (EINVAL);
 }
 
 static int
