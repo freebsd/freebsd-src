@@ -213,6 +213,8 @@ afterinstall:
 	       ${LOCALEDIR}/be_BY.UTF-8/LC_NUMERIC
 	ln -sf ../bg_BG.CP1251/LC_NUMERIC \
 	       ${LOCALEDIR}/bg_BG.UTF-8/LC_NUMERIC
+	ln -sf ../en_US.US-ASCII/LC_NUMERIC \
+	       ${LOCALEDIR}/he_IL.UTF-8/LC_NUMERIC
 	ln -sf ../ja_JP.eucJP/LC_NUMERIC \
 	       ${LOCALEDIR}/ja_JP.UTF-8/LC_NUMERIC
 	ln -sf ../kk_KZ.PT154/LC_NUMERIC \
