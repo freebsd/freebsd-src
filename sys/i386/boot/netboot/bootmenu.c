@@ -13,7 +13,10 @@ extern unsigned long netmask;
 
 int cmd_ip(), cmd_server(), cmd_kernel(), cmd_help(), exit();
 int cmd_rootfs(), cmd_swapfs(), cmd_interface(), cmd_hostname();
-int cmd_netmask(), cmd_swapsize();
+int cmd_netmask(), cmd_swapsize(), cmd_swapopts(), cmd_rootopts();
+#ifdef INCLUDE_3COM
+int cmd_aui();
+#endif
 
 #ifdef SMALL_ROM
 struct bootcmds_t {
@@ -25,6 +28,9 @@ struct bootcmds_t {
 	{"bootfile",	cmd_bootfile},
 	{"diskboot",	exit},
 	{"autoboot",	NULL},
+#ifdef INCLUDE_3COM
+        ("trans",       cmd_aui},
+#endif
 	{NULL,		NULL}
 };
 
@@ -45,8 +51,13 @@ struct bootcmds_t {
 	{"rootfs",	cmd_rootfs,	"ip:/fs      set root filesystem"},
 	{"swapfs",	cmd_swapfs,	"ip:/fs      set swap filesystem"},
 	{"swapsize",	cmd_swapsize,	"<nblks>   set swap size"},
+	{"swapopts",	cmd_swapopts,	"<options> swap mount options"},
+	{"rootopts",	cmd_rootopts,	"<options> root mount options"},
 	{"diskboot",	exit,		"          boot from disk"},
 	{"autoboot",	NULL,		"          continue"},
+#ifdef INCLUDE_3COM
+        {"trans",       cmd_aui,        "<on|off>     turn transceiver on|off"},
+#endif
 	{NULL,		NULL,		NULL}
 };
 
@@ -76,6 +87,29 @@ cmd_ip(p)
 			arptable[ARP_CLIENT].ipaddr);
 	} else default_netmask();
 }
+
+#ifdef INCLUDE_3COM
+extern short aui;
+extern eth_reset();
+/**************************************************************************
+CMD_AUI - Turn on-board transceiver on or off
+**************************************************************************/
+cmd_aui(p)
+        char *p;
+{
+        if (*(p+1) == 'f') {
+                aui = 1;
+                eth_reset();
+                return(0);
+        }
+        if (*(p+1) == 'n') {
+                aui = 0;
+                eth_reset();
+                return(0);
+        }
+        printf ("Transceiver is %s\r\n",aui ? "off" : "on");
+}
+#endif
 
 /**************************************************************************
 CMD_SERVER - Set server's IP address
@@ -148,7 +182,7 @@ cmd_rootfs(p)
 }
 
 /**************************************************************************
-CMD_SWAPFS - Set root filesystem name
+CMD_SWAPFS - Set swap filesystem name
 **************************************************************************/
 cmd_swapfs(p)
 	char *p;
@@ -177,7 +211,85 @@ cmd_hostname(p)
 			(char*)&nfsdiskless.my_hostnam) + 3) & ~3;
 	else	printf("Hostname is: %s\r\n",nfsdiskless.my_hostnam);
 }
+/**************************************************************************
+CMD_ROOTOPTS - Set root mount options
+**************************************************************************/
+cmd_rootopts(p)
+        char *p;
+{
+        char *tmp;
 
+        if (*p) {
+                nfsdiskless.root_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
+                if ((tmp = (char *)substr(p,"rsize=")))
+                        nfsdiskless.root_args.rsize=getdec(&tmp);
+                if ((tmp = (char *)substr(p,"wsize=")))
+                        nfsdiskless.root_args.wsize=getdec(&tmp);
+                if ((tmp = (char *)substr(p,"resvport")))
+                        nfsdiskless.root_args.flags |= NFSMNT_RESVPORT;
+                if ((tmp = (char *)substr(p,"intr")))
+                        nfsdiskless.root_args.flags |= NFSMNT_INT;
+                if ((tmp = (char *)substr(p,"soft")))
+                        nfsdiskless.root_args.flags |= NFSMNT_SOFT;
+                if ((tmp = (char *)substr(p, "tcp")))
+                         nfsdiskless.root_args.sotype = SOCK_STREAM;
+        } else {
+                printf("rootfs mount options: rsize=%d,wsize=%d",
+                nfsdiskless.root_args.rsize,
+                nfsdiskless.root_args.wsize);
+                if (nfsdiskless.root_args.flags & NFSMNT_RESVPORT)
+                        printf (",resvport");
+                if (nfsdiskless.root_args.flags & NFSMNT_SOFT)
+                        printf (",soft");
+                if (nfsdiskless.root_args.flags & NFSMNT_INT)
+                        printf (",intr");
+                if (nfsdiskless.root_args.sotype == SOCK_STREAM)
+                        printf (",tcp");
+                else
+                        printf (",udp");
+                printf ("\r\n");
+        }
+}
+
+/**************************************************************************
+CMD_SWAPOPTS - Set swap mount options
+**************************************************************************/
+cmd_swapopts(p)
+        char *p;
+{
+	char *tmp;
+
+	if (*p) {
+                nfsdiskless.swap_args.flags = NFSMNT_RSIZE | NFSMNT_WSIZE;
+		if ((tmp = (char *)substr(p,"rsize=")))
+			nfsdiskless.swap_args.rsize=getdec(&tmp);
+		if ((tmp = (char *)substr(p,"wsize=")))
+			nfsdiskless.swap_args.wsize=getdec(&tmp);
+		if ((tmp = (char *)substr(p,"resvport")))
+			nfsdiskless.swap_args.flags |= NFSMNT_RESVPORT;
+		if ((tmp = (char *)substr(p,"intr")))
+			nfsdiskless.swap_args.flags |= NFSMNT_INT;
+		if ((tmp = (char *)substr(p,"soft")))
+			nfsdiskless.swap_args.flags |= NFSMNT_SOFT;
+		if ((tmp = (char *)substr(p, "tcp")))
+			 nfsdiskless.swap_args.sotype = SOCK_STREAM;
+        } else {
+		printf("swapfs mount options: rsize=%d,wsize=%d",
+		nfsdiskless.swap_args.rsize,
+		nfsdiskless.swap_args.wsize);
+		if (nfsdiskless.swap_args.flags & NFSMNT_RESVPORT)
+			printf (",resrvport");
+		if (nfsdiskless.swap_args.flags & NFSMNT_SOFT)
+			printf (",soft");
+		if (nfsdiskless.swap_args.flags & NFSMNT_INT)
+			printf (",intr");
+		if (nfsdiskless.swap_args.sotype == SOCK_STREAM)
+			printf (",tcp");
+		else
+			printf (",udp");
+		printf ("\r\n");
+        }
+}
 
 /**************************************************************************
 EXECUTE - Decode command
