@@ -67,8 +67,8 @@ main(argc, argv)
 {
 	struct ntfs_args args;
 	struct stat sb;
-	int c, mntflags, set_gid, set_uid, set_mask,error;
-	char *dev, *dir, ndir[MAXPATHLEN+1];
+	int c, mntflags, set_gid, set_uid, set_mask, error;
+	char *dev, *dir, ndir[MAXPATHLEN+1], mntpath[MAXPATHLEN];
 #if __FreeBSD_version >= 300000
 	struct vfsconf vfc;
 #else
@@ -113,15 +113,13 @@ main(argc, argv)
 
 	dev = argv[optind];
 	dir = argv[optind + 1];
-	if (dir[0] != '/') {
-		warnx("\"%s\" is a relative path", dir);
-		if (getcwd(ndir, sizeof(ndir)) == NULL)
-			err(EX_OSERR, "getcwd");
-		strncat(ndir, "/", sizeof(ndir) - strlen(ndir) - 1);
-		strncat(ndir, dir, sizeof(ndir) - strlen(ndir) - 1);
-		dir = ndir;
-		warnx("using \"%s\" instead", dir);
-	}
+
+	/*
+	 * Resolve the mountpoint with realpath(3) and remove unnecessary 
+	 * slashes from the devicename if there are any.
+	 */
+	(void)checkpath(dir, mntpath);
+	(void)rmslashes(dev, dev);
 
 	args.fspec = dev;
 	args.export.ex_root = 65534;	/* unchecked anyway on DOS fs */
@@ -130,8 +128,8 @@ main(argc, argv)
 	else
 		args.export.ex_flags = 0;
 	if (!set_gid || !set_uid || !set_mask) {
-		if (stat(dir, &sb) == -1)
-			err(EX_OSERR, "stat %s", dir);
+		if (stat(mntpath, &sb) == -1)
+			err(EX_OSERR, "stat %s", mntpath);
 
 		if (!set_uid)
 			args.uid = sb.st_uid;
@@ -166,9 +164,9 @@ main(argc, argv)
 		errx(EX_OSERR, "ntfs filesystem is not available");
 
 #if __FreeBSD_version >= 300000
-	if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
+	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
 #else
-	if (mount(vfc->vfc_index, dir, mntflags, &args) < 0)
+	if (mount(vfc->vfc_index, mntpath, mntflags, &args) < 0)
 #endif
 		err(EX_OSERR, "%s", dev);
 

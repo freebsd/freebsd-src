@@ -97,11 +97,9 @@ main(argc, argv)
 	if (argc != 2)
 		usage();
 
-	if (realpath(argv[0], target) == 0)
-		err(EX_OSERR, "%s", target);
-
-	if (realpath(argv[1], source) == 0)
-		err(EX_OSERR, "%s", source);
+	/* resolve target and source with realpath(3) */
+	(void)checkpath(argv[0], target);
+	(void)checkpath(argv[1], source);
 
 	if (subdir(target, source) || subdir(source, target))
 		errx(EX_USAGE, "%s (%s) and %s are not distinct paths",
