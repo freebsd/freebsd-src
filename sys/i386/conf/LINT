@@ -80,7 +80,7 @@ options 	DFLDSIZ="(256*1024*1024)"
 options 	BLKDEV_IOSIZE=8192
 
 # Options for the VM subsystem.
-options		PQ_CACHESIZE=512	# color for 512k/16k cache
+options 	PQ_CACHESIZE=512	# color for 512k/16k cache
 # Deprecated options supported for backwards compatibility.
 #options 	PQ_NOOPT		# No coloring
 #options 	PQ_LARGECACHE		# color for 512k/16k cache
@@ -241,7 +241,7 @@ options 	CPU_BLUELIGHTNING_3X
 options 	CPU_BTB_EN
 options 	CPU_DIRECT_MAPPED_CACHE
 options 	CPU_DISABLE_5X86_LSSER
-options		CPU_ELAN
+options 	CPU_ELAN
 options 	CPU_ENABLE_SSE
 options 	CPU_FASTER_5X86_FPU
 options 	CPU_I486_ON_386
@@ -581,7 +581,7 @@ options 	IPV6FIREWALL_DEFAULT_TO_ACCEPT
 options 	IPDIVERT		#divert sockets
 options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
-options		IPFILTER_DEFAULT_BLOCK	#block all packets by default
+options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	TCPDEBUG
 
@@ -590,7 +590,7 @@ options 	TCPDEBUG
 # option closes a minor information leak which allows remote
 # observers to determine the rate of packet generation on the
 # machine by watching the counter.
-options		RANDOM_IP_ID
+options 	RANDOM_IP_ID
 
 # Statically link in accept filters
 options                ACCEPT_FILTER_DATA
@@ -701,7 +701,7 @@ options 	NULLFS			#NULL filesystem
 options 	NWFS			#NetWare filesystem
 options 	PORTAL			#Portal filesystem
 options 	PROCFS			#Process filesystem
-options		SMBFS			#SMB/CIFS filesystem
+options 	SMBFS			#SMB/CIFS filesystem
 options 	UMAPFS			#UID map filesystem
 options 	UNION			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
@@ -715,7 +715,7 @@ options 	SOFTUPDATES
 
 # Directory hashing improves the speed of operations on very large
 # directories at the expense of some memory.
-options		UFS_DIRHASH
+options 	UFS_DIRHASH
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
@@ -941,7 +941,7 @@ options 	SCSI_PT_DEFAULT_TIMEOUT="60"
 # as having SES capabilities, but this can then clot up attempts to build
 # build a topology with the SES device that's on the box these drives
 # are in....
-options		SES_ENABLE_PASSTHROUGH
+options 	SES_ENABLE_PASSTHROUGH
 
 
 #####################################################################
@@ -1803,10 +1803,10 @@ device		agp
 #
 # The 'ahd' device provides support for the Adaptec 79xx Ultra320
 # SCSI adapters. Options are documented in the ahd(4) manpage:
-options		AHD_DEBUG
-options		AHD_DEBUG_OPTS=0xffffffff
-options		AHD_REG_PRETTY_PRINT
-#options	AHD_TMODE_ENABLE=0xff
+options 	AHD_DEBUG
+options 	AHD_DEBUG_OPTS=0xffffffff
+options 	AHD_REG_PRETTY_PRINT
+#options 	AHD_TMODE_ENABLE=0xff
 #
 # The `amd' device provides support for the AMD 53C974 SCSI host
 # adapter chip as found on devices such as the Tekram DC-390(T).
@@ -2350,7 +2350,7 @@ pseudo-device	"i4bipr"	4
 # enable VJ header compression detection for ipr i/f
 options 	IPR_VJ
 # enable logging of the first n IP packets to isdnd (n=32 here)
-#options	IPR_LOG=32
+#options 	IPR_LOG=32
 #
 # network driver for sync PPP over ISDN - requires sppp
 pseudo-device	"i4bisppp"	4
@@ -2376,7 +2376,7 @@ pseudo-device	"i4bisppp"	4
 # ppc	ISA-bus parallel port interfaces.
 #
 
-options		PPC_PROBE_CHIPSET # Enable chipset specific detection
+options 	PPC_PROBE_CHIPSET # Enable chipset specific detection
 				  # (see flags in ppc(4))
 options 	DEBUG_1284	# IEEE1284 signaling protocol debug
 options 	PERIPH_1284	# Makes your computer act as a IEEE1284
@@ -2386,8 +2386,8 @@ options 	VP0_DEBUG	# ZIP/ZIP+ debug
 options 	LPT_DEBUG	# Printer driver debug
 options 	PPC_DEBUG	# Parallel chipset level debug
 options 	PLIP_DEBUG	# Parallel network IP interface debug
-options		PCFCLOCK_VERBOSE         # Verbose pcfclock driver
-options		PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
+options 	PCFCLOCK_VERBOSE         # Verbose pcfclock driver
+options 	PCFCLOCK_MAX_RETRIES=5   # Maximum read tries (default 10)
 
 device		ppc0	at isa? irq 7
 device		ppbus
@@ -2474,7 +2474,7 @@ options 	NMBCLUSTERS=1024
 # the number of NMBCLUSTERS, depending on other constraints)
 # if this option is not specified.
 #
-options		NMBUFS=4096
+options 	NMBUFS=4096
 
 # Tune the kernel malloc area parameters.  VM_KMEM_SIZE represents the 
 # minimum, in bytes, and is typically (12*1024*1024) (12MB). 
@@ -2493,13 +2493,13 @@ options 	VM_KMEM_SIZE_SCALE="4"
 # translations.  The VM page cache is our primary disk cache and is not
 # effected by the size of the buffer cache.
 #
-options		VM_BCACHE_SIZE_MAX="(100*1024*1024)"
+options 	VM_BCACHE_SIZE_MAX="(100*1024*1024)"
 
 # Tune the swap zone KVA reservation, in bytes.  The default is typically
 # 70 MB, giving the system the ability to manage a maximum of 28GB worth
 # of swapped out data.  
 #
-options		VM_SWZONE_SIZE_MAX="(50*1024*1024)"
+options 	VM_SWZONE_SIZE_MAX="(50*1024*1024)"
 
 #
 # Enable extra debugging code for locks.  This stores the filename and
@@ -2533,8 +2533,8 @@ options 	PANIC_REBOOT_WAIT_TIME=16
 # Caveat:  At this time, `options KTRACE' is required for the svr4 emulator
 # (whether static or dynamic).  
 # 
-options		COMPAT_SVR4	# build emulator statically
-options		DEBUG_SVR4	# enable verbose debugging
+options 	COMPAT_SVR4	# build emulator statically
+options 	DEBUG_SVR4	# enable verbose debugging
 pseudo-device	streams		# STREAMS network driver (required for svr4).
 
 # The 'asr' driver provides support for current DPT/Adaptec SCSI RAID
@@ -2718,5 +2718,5 @@ options 	SLIP_IFF_OPTS
 options 	SPX_HACK
 options 	TIMER_FREQ="((14318182+6)/12)"
 options 	VFS_BIO_DEBUG
-options		XBONEHACK
+options 	XBONEHACK
 

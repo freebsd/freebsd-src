@@ -30,7 +30,7 @@ maxusers	0
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
 # Platforms supported
-options		API_UP1000		# UP1000 (Nautilus)
+options 	API_UP1000		# UP1000 (Nautilus)
 options 	DEC_AXPPCI_33		# UDB, Multia, AXPpci33, NoName
 options 	DEC_EB164		# EB164, PC164, PC164LX, PC164SX
 options 	DEC_EB64PLUS		# EB64+, AlphaPC64, Aspen Alpine, etc
@@ -66,9 +66,9 @@ options 	KTRACE			#ktrace(1) syscall trace support
 options 	SYSVSHM			#SYSV-style shared memory
 options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
-options		P1003_1B		#Posix P1003_1B real-time extentions
+options 	P1003_1B		#Posix P1003_1B real-time extentions
 options 	_KPOSIX_PRIORITY_SCHEDULING
-options		ICMP_BANDLIM		#Rate limit bad replies
+options 	ICMP_BANDLIM		#Rate limit bad replies
 
 # Standard busses
 device		isa
