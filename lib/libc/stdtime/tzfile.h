@@ -1,8 +1,11 @@
-
-
 #ifndef TZFILE_H
 
 #define TZFILE_H
+
+/*
+** This file is in the public domain, so clarified as of
+** June 5, 1996 by Arthur David Olson (arthur_david_olson@nih.gov).
+*/
 
 /*
 ** This header is for use ONLY with the time conversion code.
@@ -18,7 +21,9 @@
 
 #ifndef lint
 #ifndef NOID
-/*static char	tzfilehid[] = "@(#)tzfile.h	7.6";*/
+/*
+static char	tzfilehid[] = "@(#)tzfile.h	7.8";
+*/
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -155,7 +160,7 @@ struct tzhead {
 ** that will probably do.
 */
 
-#define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
+#define isleap(y) (((y) % 4) == 0 && (((y) % 100) != 0 || ((y) % 400) == 0))
 
 #ifndef USG
 
