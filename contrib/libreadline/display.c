@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* display.c -- readline redisplay facility. */
 
 /* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
@@ -71,7 +70,7 @@ static void insert_some_chars PARAMS((char *, int, int));
 static void cr PARAMS((void));
 
 #if defined (HANDLE_MULTIBYTE)
-static int _rl_col_width PARAMS((char *, int, int));
+static int _rl_col_width PARAMS((const char *, int, int));
 static int *_rl_wrapped_line;
 #else
 #  define _rl_col_width(l, s, e)	(((e) <= (s)) ? 0 : (e) - (s))
@@ -1349,9 +1348,9 @@ update_line (old, new, current_line, omax, nmax, inv_botlin)
 	    {
 	      _rl_output_some_chars (nfd + lendiff, temp - lendiff);
 #if 0
-	      _rl_last_c_pos += _rl_col_width (nfd+lendiff, 0, temp-lendiff) - col_lendiff;
-#else
 	      _rl_last_c_pos += _rl_col_width (nfd+lendiff, 0, temp-col_lendiff);
+#else
+	      _rl_last_c_pos += _rl_col_width (nfd+lendiff, 0, temp-lendiff);
 #endif
 	    }
 	}
@@ -1511,8 +1510,15 @@ _rl_move_cursor_relative (new, data)
 #if defined (HANDLE_MULTIBYTE)
   /* If we have multibyte characters, NEW is indexed by the buffer point in
      a multibyte string, but _rl_last_c_pos is the display position.  In
-     this case, NEW's display position is not obvious. */
-  if ((MB_CUR_MAX == 1 || rl_byte_oriented ) && _rl_last_c_pos == new) return;
+     this case, NEW's display position is not obvious and must be
+     calculated. */
+  if (MB_CUR_MAX == 1 || rl_byte_oriented)
+    {
+      if (_rl_last_c_pos == new)
+	return;
+    }
+  else if (_rl_last_c_pos == _rl_col_width (data, 0, new))
+    return;
 #else
   if (_rl_last_c_pos == new) return;
 #endif
@@ -1595,11 +1601,7 @@ _rl_move_cursor_relative (new, data)
 #endif
     {
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-	{
-	  tputs (_rl_term_cr, 1, _rl_output_character_function);
-	  for (i = 0; i < new; i++)
-	    putc (data[i], rl_outstream);
-	}
+	_rl_backspace (_rl_last_c_pos - _rl_col_width (data, 0, new));
       else
 	_rl_backspace (_rl_last_c_pos - new);
     }
@@ -2118,7 +2120,7 @@ _rl_current_display_line ()
    scan from the beginning of the string to take the state into account. */
 static int
 _rl_col_width (str, start, end)
-     char *str;
+     const char *str;
      int start, end;
 {
   wchar_t wc;
@@ -2194,4 +2196,3 @@ _rl_col_width (str, start, end)
   return width;
 }
 #endif /* HANDLE_MULTIBYTE */
-	  

@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* complete.c -- filename completion for readline. */
 
 /* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.

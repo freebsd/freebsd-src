@@ -19,7 +19,6 @@
    is generally kept in a file called COPYING or LICENSE.  If you do not
    have a copy of the license, write to the Free Software Foundation,
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
-/* $FreeBSD$ */
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
