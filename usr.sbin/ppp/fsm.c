@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.2 1995/02/26 12:17:27 amurai Exp $
+ * $Id: fsm.c,v 1.4 1995/09/09 13:23:53 joerg Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -689,7 +689,10 @@ struct mbuf *bp;
 
   lp = (u_long *)MBUF_CTOP(bp);
   magic = ntohl(*lp);
-  if (magic != 0 && magic != LcpInfo.his_magic) {
+/*
+ * Tolerate echo replies with either magic number
+ */
+  if (magic != 0 && magic != LcpInfo.his_magic && magic != LcpInfo.want_magic) {
     logprintf("RecvEchoRep: his magic is wrong! expect: %x got: %x\n",
 	LcpInfo.his_magic, magic);
     /*

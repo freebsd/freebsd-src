@@ -17,10 +17,10 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.3 1995/02/27 10:57:38 amurai Exp $
+ * $Id: auth.c,v 1.5 1995/09/02 17:20:49 amurai Exp $
  *
  *	TODO:
- *		o Imprement check against with registerd IP addresses.
+ *		o Implement check against with registered IP addresses.
  */
 #include "fsm.h"
 #include "lcpproto.h"

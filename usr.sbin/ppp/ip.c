@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.3 1995/03/11 15:18:42 amurai Exp $
+ * $Id: ip.c,v 1.5 1995/09/17 16:14:46 amurai Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -131,6 +131,11 @@ int direction;
     sport = dport = 0;
     for (n = 0; n < MAXFILTERS; n++) {
       if (fp->action) {
+         /* permit fragments on in and out filter */
+         if ((direction == FL_IN || direction == FL_OUT) &&
+             (pip->ip_off & IP_OFFMASK) != 0) {
+              return(A_PERMIT);
+         }
 #ifdef DEBUG
 logprintf("rule = %d\n", n);
 #endif
