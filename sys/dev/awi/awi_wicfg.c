@@ -91,8 +91,8 @@
 #include <dev/awi/awivar.h>
 #endif
 
-static int awi_cfgget __P((struct ifnet *ifp, u_long cmd, caddr_t data));
-static int awi_cfgset __P((struct ifnet *ifp, u_long cmd, caddr_t data));
+static int awi_cfgget(struct ifnet *ifp, u_long cmd, caddr_t data);
+static int awi_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data);
 
 int
 awi_wicfg(ifp, cmd, data)

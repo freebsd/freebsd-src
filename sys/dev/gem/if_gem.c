@@ -60,41 +60,39 @@
 
 #define TRIES	10000
 
-static void	gem_start __P((struct ifnet *));
-static void	gem_stop __P((struct ifnet *, int));
-static int	gem_ioctl __P((struct ifnet *, u_long, caddr_t));
-static void	gem_cddma_callback __P((void *, bus_dma_segment_t *, int, int));
-static void	gem_rxdma_callback __P((void *, bus_dma_segment_t *, int, int));
-static void	gem_txdma_callback __P((void *, bus_dma_segment_t *, int, int));
-static void	gem_tick __P((void *));
-static void	gem_watchdog __P((struct ifnet *));
-static void	gem_init __P((void *));
-static void	gem_init_regs __P((struct gem_softc *sc));
-static int	gem_ringsize __P((int sz));
-static int	gem_meminit __P((struct gem_softc *));
-static int	gem_dmamap_load_mbuf __P((struct gem_softc *, struct mbuf *,
-    bus_dmamap_callback_t *,  struct gem_txjob *, int));
-static void	gem_dmamap_unload_mbuf __P((struct gem_softc *,
-    struct gem_txjob *));
-static void	gem_dmamap_commit_mbuf __P((struct gem_softc *,
-    struct gem_txjob *));
-static void	gem_mifinit __P((struct gem_softc *));
-static int	gem_bitwait __P((struct gem_softc *sc, bus_addr_t r,
-    u_int32_t clr, u_int32_t set));
-static int	gem_reset_rx __P((struct gem_softc *));
-static int	gem_reset_tx __P((struct gem_softc *));
-static int	gem_disable_rx __P((struct gem_softc *));
-static int	gem_disable_tx __P((struct gem_softc *));
-static void	gem_rxdrain __P((struct gem_softc *));
-static int	gem_add_rxbuf __P((struct gem_softc *, int));
-static void	gem_setladrf __P((struct gem_softc *));
+static void	gem_start(struct ifnet *);
+static void	gem_stop(struct ifnet *, int);
+static int	gem_ioctl(struct ifnet *, u_long, caddr_t);
+static void	gem_cddma_callback(void *, bus_dma_segment_t *, int, int);
+static void	gem_rxdma_callback(void *, bus_dma_segment_t *, int, int);
+static void	gem_txdma_callback(void *, bus_dma_segment_t *, int, int);
+static void	gem_tick(void *);
+static void	gem_watchdog(struct ifnet *);
+static void	gem_init(void *);
+static void	gem_init_regs(struct gem_softc *sc);
+static int	gem_ringsize(int sz);
+static int	gem_meminit(struct gem_softc *);
+static int	gem_dmamap_load_mbuf(struct gem_softc *, struct mbuf *,
+    bus_dmamap_callback_t *,  struct gem_txjob *, int);
+static void	gem_dmamap_unload_mbuf(struct gem_softc *, struct gem_txjob *);
+static void	gem_dmamap_commit_mbuf(struct gem_softc *, struct gem_txjob *);
+static void	gem_mifinit(struct gem_softc *);
+static int	gem_bitwait(struct gem_softc *sc, bus_addr_t r,
+    u_int32_t clr, u_int32_t set);
+static int	gem_reset_rx(struct gem_softc *);
+static int	gem_reset_tx(struct gem_softc *);
+static int	gem_disable_rx(struct gem_softc *);
+static int	gem_disable_tx(struct gem_softc *);
+static void	gem_rxdrain(struct gem_softc *);
+static int	gem_add_rxbuf(struct gem_softc *, int);
+static void	gem_setladrf(struct gem_softc *);
 
-struct mbuf	*gem_get __P((struct gem_softc *, int, int));
-static void	gem_eint __P((struct gem_softc *, u_int));
-static void	gem_rint __P((struct gem_softc *));
-static void	gem_tint __P((struct gem_softc *));
+struct mbuf	*gem_get(struct gem_softc *, int, int);
+static void	gem_eint(struct gem_softc *, u_int);
+static void	gem_rint(struct gem_softc *);
+static void	gem_tint(struct gem_softc *);
 #ifdef notyet
-static void	gem_power __P((int, void *));
+static void	gem_power(int, void *);
 #endif
 
 devclass_t gem_devclass;

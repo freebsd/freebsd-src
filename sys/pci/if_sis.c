@@ -113,60 +113,55 @@ static struct sis_type sis_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int sis_probe		__P((device_t));
-static int sis_attach		__P((device_t));
-static int sis_detach		__P((device_t));
+static int sis_probe		(device_t);
+static int sis_attach		(device_t);
+static int sis_detach		(device_t);
 
-static int sis_newbuf		__P((struct sis_softc *,
-					struct sis_desc *,
-					struct mbuf *));
-static int sis_encap		__P((struct sis_softc *,
-					struct mbuf *, u_int32_t *));
-static void sis_rxeof		__P((struct sis_softc *));
-static void sis_rxeoc		__P((struct sis_softc *));
-static void sis_txeof		__P((struct sis_softc *));
-static void sis_intr		__P((void *));
-static void sis_tick		__P((void *));
-static void sis_start		__P((struct ifnet *));
-static int sis_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void sis_init		__P((void *));
-static void sis_stop		__P((struct sis_softc *));
-static void sis_watchdog		__P((struct ifnet *));
-static void sis_shutdown		__P((device_t));
-static int sis_ifmedia_upd	__P((struct ifnet *));
-static void sis_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
+static int sis_newbuf		(struct sis_softc *,
+					struct sis_desc *, struct mbuf *);
+static int sis_encap		(struct sis_softc *,
+					struct mbuf *, u_int32_t *);
+static void sis_rxeof		(struct sis_softc *);
+static void sis_rxeoc		(struct sis_softc *);
+static void sis_txeof		(struct sis_softc *);
+static void sis_intr		(void *);
+static void sis_tick		(void *);
+static void sis_start		(struct ifnet *);
+static int sis_ioctl		(struct ifnet *, u_long, caddr_t);
+static void sis_init		(void *);
+static void sis_stop		(struct sis_softc *);
+static void sis_watchdog		(struct ifnet *);
+static void sis_shutdown		(device_t);
+static int sis_ifmedia_upd	(struct ifnet *);
+static void sis_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static u_int16_t sis_reverse	__P((u_int16_t));
-static void sis_delay		__P((struct sis_softc *));
-static void sis_eeprom_idle	__P((struct sis_softc *));
-static void sis_eeprom_putbyte	__P((struct sis_softc *, int));
-static void sis_eeprom_getword	__P((struct sis_softc *, int, u_int16_t *));
-static void sis_read_eeprom	__P((struct sis_softc *, caddr_t, int,
-							int, int));
+static u_int16_t sis_reverse	(u_int16_t);
+static void sis_delay		(struct sis_softc *);
+static void sis_eeprom_idle	(struct sis_softc *);
+static void sis_eeprom_putbyte	(struct sis_softc *, int);
+static void sis_eeprom_getword	(struct sis_softc *, int, u_int16_t *);
+static void sis_read_eeprom	(struct sis_softc *, caddr_t, int, int, int);
 #ifdef __i386__
-static void sis_read_cmos	__P((struct sis_softc *, device_t, caddr_t,
-							int, int));
-static void sis_read_mac	__P((struct sis_softc *, device_t, caddr_t));
-static device_t sis_find_bridge	__P((device_t));
+static void sis_read_cmos	(struct sis_softc *, device_t, caddr_t,
+							int, int);
+static void sis_read_mac	(struct sis_softc *, device_t, caddr_t);
+static device_t sis_find_bridge	(device_t);
 #endif
 
-static int sis_miibus_readreg	__P((device_t, int, int));
-static int sis_miibus_writereg	__P((device_t, int, int, int));
-static void sis_miibus_statchg	__P((device_t));
+static int sis_miibus_readreg	(device_t, int, int);
+static int sis_miibus_writereg	(device_t, int, int, int);
+static void sis_miibus_statchg	(device_t);
 
-static void sis_setmulti_sis	__P((struct sis_softc *));
-static void sis_setmulti_ns	__P((struct sis_softc *));
-static u_int32_t sis_crc	__P((struct sis_softc *, caddr_t));
-static void sis_reset		__P((struct sis_softc *));
-static int sis_list_rx_init	__P((struct sis_softc *));
-static int sis_list_tx_init	__P((struct sis_softc *));
+static void sis_setmulti_sis	(struct sis_softc *);
+static void sis_setmulti_ns	(struct sis_softc *);
+static u_int32_t sis_crc	(struct sis_softc *, caddr_t);
+static void sis_reset		(struct sis_softc *);
+static int sis_list_rx_init	(struct sis_softc *);
+static int sis_list_tx_init	(struct sis_softc *);
 
-static void sis_dma_map_desc_ptr	__P((void *, bus_dma_segment_t *,
-						int, int));
-static void sis_dma_map_desc_next	__P((void *, bus_dma_segment_t *,
-						int, int));
-static void sis_dma_map_ring		__P((void *, bus_dma_segment_t *,
-						int, int));
+static void sis_dma_map_desc_ptr	(void *, bus_dma_segment_t *, int, int);
+static void sis_dma_map_desc_next	(void *, bus_dma_segment_t *, int, int);
+static void sis_dma_map_ring		(void *, bus_dma_segment_t *, int, int);
 #ifdef SIS_USEIOSPACE
 #define SIS_RES			SYS_RES_IOPORT
 #define SIS_RID			SIS_PCI_LOIO

@@ -96,9 +96,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int lxtphy_probe		__P((device_t));
-static int lxtphy_attach	__P((device_t));
-static int lxtphy_detach	__P((device_t));
+static int lxtphy_probe		(device_t);
+static int lxtphy_attach	(device_t);
+static int lxtphy_detach	(device_t);
 
 static device_method_t lxtphy_methods[] = {
 	/* device interface */
@@ -119,10 +119,10 @@ static driver_t lxtphy_driver = {
 
 DRIVER_MODULE(lxtphy, miibus, lxtphy_driver, lxtphy_devclass, 0, 0);
 
-static int	lxtphy_service __P((struct mii_softc *, struct mii_data *, int));
-static void	lxtphy_status __P((struct mii_softc *));
-static void	lxtphy_set_tp __P((struct mii_softc *));
-static void	lxtphy_set_fx __P((struct mii_softc *));
+static int	lxtphy_service(struct mii_softc *, struct mii_data *, int);
+static void	lxtphy_status(struct mii_softc *);
+static void	lxtphy_set_tp(struct mii_softc *);
+static void	lxtphy_set_fx(struct mii_softc *);
 
 static int lxtphy_probe(dev)
 	device_t		dev;

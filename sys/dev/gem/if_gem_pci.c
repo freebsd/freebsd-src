@@ -75,8 +75,8 @@ struct gem_pci_softc {
 	void			*gsc_ih;
 };
 
-static int	gem_pci_probe __P((device_t));
-static int	gem_pci_attach __P((device_t));
+static int	gem_pci_probe(device_t);
+static int	gem_pci_attach(device_t);
 
 
 static device_method_t gem_pci_methods[] = {

@@ -71,9 +71,9 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static KBuffer *	fore_xmit_segment __P((Fore_unit *, KBuffer *,
-				H_xmit_queue *, int *, int *));
-static void		fore_seg_dma_free __P((H_xmit_queue *, KBuffer *, int));
+static KBuffer *	fore_xmit_segment(Fore_unit *, KBuffer *,
+				H_xmit_queue *, int *, int *);
+static void		fore_seg_dma_free(H_xmit_queue *, KBuffer *, int);
 
 
 /*

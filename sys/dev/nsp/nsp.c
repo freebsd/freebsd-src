@@ -153,35 +153,35 @@ extern struct cfdriver nsp_cd;
  **************************************************************/
 #define	NSP_FIFO_ON	1
 #define	NSP_FIFO_OFF	0
-static void nsp_pio_read __P((struct nsp_softc *, int));
-static void nsp_pio_write __P((struct nsp_softc *, int));
-static int nsp_xfer __P((struct nsp_softc *, u_int8_t *, int, int, int));
-static int nsp_msg __P((struct nsp_softc *, struct targ_info *, u_int));
-static int nsp_reselected __P((struct nsp_softc *));
-static int nsp_disconnected __P((struct nsp_softc *, struct targ_info *));
-static void nsp_pdma_end __P((struct nsp_softc *, struct targ_info *));
-static void nsphw_init __P((struct nsp_softc *));
-static int nsp_target_nexus_establish __P((struct nsp_softc *));
-static int nsp_lun_nexus_establish __P((struct nsp_softc *));
-static int nsp_ccb_nexus_establish __P((struct nsp_softc *));
-static int nsp_world_start __P((struct nsp_softc *, int));
-static int nsphw_start_selection __P((struct nsp_softc *sc, struct slccb *));
-static void nsphw_bus_reset __P((struct nsp_softc *));
-static void nsphw_attention __P((struct nsp_softc *));
-static u_int nsp_fifo_count __P((struct nsp_softc *));
-static u_int nsp_request_count __P((struct nsp_softc *));
-static int nsp_negate_signal __P((struct nsp_softc *, u_int8_t, u_char *));
-static int nsp_expect_signal __P((struct nsp_softc *, u_int8_t, u_int8_t));
-static void nsp_start_timer __P((struct nsp_softc *, int));
-static void nsp_setup_fifo __P((struct nsp_softc *, int, int, int));
-static int nsp_targ_init __P((struct nsp_softc *, struct targ_info *, int));
-static void nsphw_selection_done_and_expect_msgout __P((struct nsp_softc *));
-static void nsp_data_padding __P((struct nsp_softc *, int, u_int));
-static int nsp_timeout __P((struct nsp_softc *));
-static int nsp_read_fifo __P((struct nsp_softc *, int));
-static int nsp_write_fifo __P((struct nsp_softc *, int));
-static int nsp_phase_match __P((struct nsp_softc *, u_int8_t, u_int8_t));
-static int nsp_wait_interrupt __P((struct nsp_softc *));
+static void nsp_pio_read(struct nsp_softc *, int);
+static void nsp_pio_write(struct nsp_softc *, int);
+static int nsp_xfer(struct nsp_softc *, u_int8_t *, int, int, int);
+static int nsp_msg(struct nsp_softc *, struct targ_info *, u_int);
+static int nsp_reselected(struct nsp_softc *);
+static int nsp_disconnected(struct nsp_softc *, struct targ_info *);
+static void nsp_pdma_end(struct nsp_softc *, struct targ_info *);
+static void nsphw_init(struct nsp_softc *);
+static int nsp_target_nexus_establish(struct nsp_softc *);
+static int nsp_lun_nexus_establish(struct nsp_softc *);
+static int nsp_ccb_nexus_establish(struct nsp_softc *);
+static int nsp_world_start(struct nsp_softc *, int);
+static int nsphw_start_selection(struct nsp_softc *sc, struct slccb *);
+static void nsphw_bus_reset(struct nsp_softc *);
+static void nsphw_attention(struct nsp_softc *);
+static u_int nsp_fifo_count(struct nsp_softc *);
+static u_int nsp_request_count(struct nsp_softc *);
+static int nsp_negate_signal(struct nsp_softc *, u_int8_t, u_char *);
+static int nsp_expect_signal(struct nsp_softc *, u_int8_t, u_int8_t);
+static void nsp_start_timer(struct nsp_softc *, int);
+static void nsp_setup_fifo(struct nsp_softc *, int, int, int);
+static int nsp_targ_init(struct nsp_softc *, struct targ_info *, int);
+static void nsphw_selection_done_and_expect_msgout(struct nsp_softc *);
+static void nsp_data_padding(struct nsp_softc *, int, u_int);
+static int nsp_timeout(struct nsp_softc *);
+static int nsp_read_fifo(struct nsp_softc *, int);
+static int nsp_write_fifo(struct nsp_softc *, int);
+static int nsp_phase_match(struct nsp_softc *, u_int8_t, u_int8_t);
+static int nsp_wait_interrupt(struct nsp_softc *);
 
 struct scsi_low_funcs nspfuncs = {
 	SC_LOW_INIT_T nsp_world_start,
@@ -205,8 +205,8 @@ struct scsi_low_funcs nspfuncs = {
 /****************************************************
  * hwfuncs
  ****************************************************/
-static __inline u_int8_t nsp_cr_read_1 __P((bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs));
-static __inline void nsp_cr_write_1 __P((bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs, u_int8_t va));
+static __inline u_int8_t nsp_cr_read_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs);
+static __inline void nsp_cr_write_1(bus_space_tag_t bst, bus_space_handle_t bsh, bus_addr_t ofs, u_int8_t va);
 
 static __inline u_int8_t
 nsp_cr_read_1(bst, bsh, ofs)
@@ -1353,7 +1353,7 @@ nsp_disconnected(sc, ti)
 /**************************************************************
  * SEQUENCER
  **************************************************************/
-static void nsp_error __P((struct nsp_softc *, u_char *, u_int8_t, u_int8_t, u_int8_t));
+static void nsp_error(struct nsp_softc *, u_char *, u_int8_t, u_int8_t, u_int8_t);
 
 static void
 nsp_error(sc, s, isrc, ph, irqphs)

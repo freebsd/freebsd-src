@@ -112,9 +112,9 @@ static struct an_type an_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int an_probe_pci		__P((device_t));
-static int an_attach_pci	__P((device_t));
-static int an_detach_pci	__P((device_t));
+static int an_probe_pci		(device_t);
+static int an_attach_pci	(device_t);
+static int an_detach_pci	(device_t);
 
 static int
 an_probe_pci(device_t dev)

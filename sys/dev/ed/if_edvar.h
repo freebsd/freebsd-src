@@ -50,8 +50,8 @@ struct ed_softc {
 	struct resource* irq_res; /* resource for irq */
 	void*	irq_handle;	/* handle for irq handler */
 	device_t miibus;	/* MII bus for cards with MII. */
-	void	(*mii_writebits)__P((struct ed_softc *, u_int, int));
-	u_int	(*mii_readbits)__P((struct ed_softc *, int));
+	void	(*mii_writebits)(struct ed_softc *, u_int, int);
+	u_int	(*mii_readbits)(struct ed_softc *, int);
 	struct callout_handle tick_ch; /* Callout handle for ed_tick */
 
 	int	nic_offset;	/* NIC (DS8390) I/O bus address offset */
@@ -190,31 +190,31 @@ struct ed_softc {
 		rman_get_bushandle((sc)->port_res), \
 		(sc)->asic_offset + (port), (u_int32_t *)(addr), (count))
 
-void	ed_release_resources	__P((device_t));
-int	ed_alloc_port		__P((device_t, int, int));
-int	ed_alloc_memory		__P((device_t, int, int));
-int	ed_alloc_irq		__P((device_t, int, int));
+void	ed_release_resources	(device_t);
+int	ed_alloc_port		(device_t, int, int);
+int	ed_alloc_memory		(device_t, int, int);
+int	ed_alloc_irq		(device_t, int, int);
 
-int	ed_probe_generic8390	__P((struct ed_softc *));
-int	ed_probe_WD80x3		__P((device_t, int, int));
-int	ed_probe_WD80x3_generic	__P((device_t, int, unsigned short *[]));
-int	ed_probe_3Com		__P((device_t, int, int));
-int	ed_probe_Novell		__P((device_t, int, int));
-int	ed_probe_Novell_generic	__P((device_t, int));
-int	ed_probe_HP_pclanp	__P((device_t, int, int));
+int	ed_probe_generic8390	(struct ed_softc *);
+int	ed_probe_WD80x3		(device_t, int, int);
+int	ed_probe_WD80x3_generic	(device_t, int, unsigned short *[]);
+int	ed_probe_3Com		(device_t, int, int);
+int	ed_probe_Novell		(device_t, int, int);
+int	ed_probe_Novell_generic	(device_t, int);
+int	ed_probe_HP_pclanp	(device_t, int, int);
 
-int	ed_attach		__P((struct ed_softc *, int, int));
-void	ed_stop			__P((struct ed_softc *));
-void	ed_pio_readmem		__P((struct ed_softc *, int, unsigned char *,
-				     unsigned short));
-void	ed_pio_writemem		__P((struct ed_softc *, char *,
-				     unsigned short, unsigned short));
+int	ed_attach		(struct ed_softc *, int, int);
+void	ed_stop			(struct ed_softc *);
+void	ed_pio_readmem		(struct ed_softc *, int, unsigned char *,
+				     unsigned short);
+void	ed_pio_writemem		(struct ed_softc *, char *,
+				     unsigned short, unsigned short);
 #ifndef ED_NO_MIIBUS
-int	ed_miibus_readreg	__P((device_t, int, int));
-void	ed_miibus_writereg	__P((device_t, int, int, int));
-int	ed_ifmedia_upd		__P((struct ifnet *));
-void	ed_ifmedia_sts		__P((struct ifnet *, struct ifmediareq *));
-void	ed_child_detached	__P((device_t, device_t));
+int	ed_miibus_readreg	(device_t, int, int);
+void	ed_miibus_writereg	(device_t, int, int, int);
+int	ed_ifmedia_upd		(struct ifnet *);
+void	ed_ifmedia_sts		(struct ifnet *, struct ifmediareq *);
+void	ed_child_detached	(device_t, device_t);
 #endif
 
 driver_intr_t	edintr;

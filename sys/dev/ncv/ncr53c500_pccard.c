@@ -77,7 +77,7 @@
 static int ncvprobe(DEVPORT_PDEVICE devi);
 static int ncvattach(DEVPORT_PDEVICE devi);
 
-static void	ncv_card_unload __P((DEVPORT_PDEVICE));
+static void	ncv_card_unload(DEVPORT_PDEVICE);
 
 /*
  * Additional code for FreeBSD new-bus PCCard frontend

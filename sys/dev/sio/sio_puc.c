@@ -45,8 +45,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/sio/siovar.h>
 #include <dev/sio/sioreg.h>
 
-static	int	sio_puc_attach __P((device_t dev));
-static	int	sio_puc_probe __P((device_t dev));
+static	int	sio_puc_attach(device_t dev);
+static	int	sio_puc_probe(device_t dev);
 
 static device_method_t sio_puc_methods[] = {
 	/* Device interface */

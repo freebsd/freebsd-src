@@ -145,29 +145,29 @@ extern struct cfdriver stg_cd;
  * DECLARE
  **************************************************************/
 /* static */
-static void stg_pio_read __P((struct stg_softc *, struct targ_info *, u_int));
-static void stg_pio_write __P((struct stg_softc *, struct targ_info *, u_int));
-static int stg_xfer __P((struct stg_softc *, u_int8_t *, int, int, int));
-static int stg_msg __P((struct stg_softc *, struct targ_info *, u_int));
-static int stg_reselected __P((struct stg_softc *));
-static int stg_disconnected __P((struct stg_softc *, struct targ_info *));
-static __inline void stg_pdma_end __P((struct stg_softc *, struct targ_info *));
-static int stghw_select_targ_wait __P((struct stg_softc *, int));
-static int stghw_check __P((struct stg_softc *));
-static void stghw_init __P((struct stg_softc *));
-static int stg_negate_signal __P((struct stg_softc *, u_int8_t, u_char *));
-static int stg_expect_signal __P((struct stg_softc *, u_int8_t, u_int8_t));
-static int stg_world_start __P((struct stg_softc *, int));
-static int stghw_start_selection __P((struct stg_softc *sc, struct slccb *));
-static void stghw_bus_reset __P((struct stg_softc *));
-static void stghw_attention __P((struct stg_softc *));
-static int stg_target_nexus_establish __P((struct stg_softc *));
-static int stg_lun_nexus_establish __P((struct stg_softc *));
-static int stg_ccb_nexus_establish __P((struct stg_softc *));
-static int stg_targ_init __P((struct stg_softc *, struct targ_info *, int));
-static __inline void stghw_bcr_write_1 __P((struct stg_softc *, u_int8_t));
-static int stg_timeout __P((struct stg_softc *));
-static void stg_selection_done_and_expect_msgout __P((struct stg_softc *));
+static void stg_pio_read(struct stg_softc *, struct targ_info *, u_int);
+static void stg_pio_write(struct stg_softc *, struct targ_info *, u_int);
+static int stg_xfer(struct stg_softc *, u_int8_t *, int, int, int);
+static int stg_msg(struct stg_softc *, struct targ_info *, u_int);
+static int stg_reselected(struct stg_softc *);
+static int stg_disconnected(struct stg_softc *, struct targ_info *);
+static __inline void stg_pdma_end(struct stg_softc *, struct targ_info *);
+static int stghw_select_targ_wait(struct stg_softc *, int);
+static int stghw_check(struct stg_softc *);
+static void stghw_init(struct stg_softc *);
+static int stg_negate_signal(struct stg_softc *, u_int8_t, u_char *);
+static int stg_expect_signal(struct stg_softc *, u_int8_t, u_int8_t);
+static int stg_world_start(struct stg_softc *, int);
+static int stghw_start_selection(struct stg_softc *sc, struct slccb *);
+static void stghw_bus_reset(struct stg_softc *);
+static void stghw_attention(struct stg_softc *);
+static int stg_target_nexus_establish(struct stg_softc *);
+static int stg_lun_nexus_establish(struct stg_softc *);
+static int stg_ccb_nexus_establish(struct stg_softc *);
+static int stg_targ_init(struct stg_softc *, struct targ_info *, int);
+static __inline void stghw_bcr_write_1(struct stg_softc *, u_int8_t);
+static int stg_timeout(struct stg_softc *);
+static void stg_selection_done_and_expect_msgout(struct stg_softc *);
 
 struct scsi_low_funcs stgfuncs = {
 	SC_LOW_INIT_T stg_world_start,

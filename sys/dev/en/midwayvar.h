@@ -97,7 +97,7 @@ struct en_softc {
   bus_space_tag_t en_memt;	/* for EN_READ/EN_WRITE */
   bus_space_handle_t en_base;	/* base of en card */
   bus_size_t en_obmemsz;	/* size of en card (bytes) */
-  void (*en_busreset) __P((void *));
+  void (*en_busreset)(void *);
 				/* bus specific reset function */
 
   /* serv list */
@@ -195,6 +195,6 @@ struct en_softc {
  * exported functions
  */
 
-void	en_attach __P((struct en_softc *));
-EN_INTR_TYPE	en_intr __P((void *));
-void	en_reset __P((struct en_softc *));
+void	en_attach(struct en_softc *);
+EN_INTR_TYPE	en_intr(void *);
+void	en_reset(struct en_softc *);

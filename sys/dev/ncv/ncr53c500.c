@@ -129,35 +129,35 @@ extern struct cfdriver ncv_cd;
  * DECLARE
  **************************************************************/
 /* static */
-static void ncv_pio_read __P((struct ncv_softc *, u_int8_t *, u_int));
-static void ncv_pio_write __P((struct ncv_softc *, u_int8_t *, u_int));
-static int ncv_msg __P((struct ncv_softc *, struct targ_info *, u_int));
-static int ncv_reselected __P((struct ncv_softc *));
-static int ncv_disconnected __P((struct ncv_softc *, struct targ_info *));
+static void ncv_pio_read(struct ncv_softc *, u_int8_t *, u_int);
+static void ncv_pio_write(struct ncv_softc *, u_int8_t *, u_int);
+static int ncv_msg(struct ncv_softc *, struct targ_info *, u_int);
+static int ncv_reselected(struct ncv_softc *);
+static int ncv_disconnected(struct ncv_softc *, struct targ_info *);
 
-static __inline void ncvhw_set_count __P((bus_space_tag_t, bus_space_handle_t, int));
-static __inline u_int ncvhw_get_count __P((bus_space_tag_t, bus_space_handle_t));
-static __inline void ncvhw_select_register_0 __P((bus_space_tag_t, bus_space_handle_t, struct ncv_hw *));
-static __inline void ncvhw_select_register_1 __P((bus_space_tag_t, bus_space_handle_t, struct ncv_hw *));
-static __inline void ncvhw_fpush __P((bus_space_tag_t, bus_space_handle_t, u_int8_t *, int));
+static __inline void ncvhw_set_count(bus_space_tag_t, bus_space_handle_t, int);
+static __inline u_int ncvhw_get_count(bus_space_tag_t, bus_space_handle_t);
+static __inline void ncvhw_select_register_0(bus_space_tag_t, bus_space_handle_t, struct ncv_hw *);
+static __inline void ncvhw_select_register_1(bus_space_tag_t, bus_space_handle_t, struct ncv_hw *);
+static __inline void ncvhw_fpush(bus_space_tag_t, bus_space_handle_t, u_int8_t *, int);
 
-static void ncv_pdma_end __P((struct ncv_softc *sc, struct targ_info *));
-static int ncv_world_start __P((struct ncv_softc *, int));
-static void ncvhw_bus_reset __P((struct ncv_softc *));
-static void ncvhw_reset __P((bus_space_tag_t, bus_space_handle_t, struct ncv_hw *));
-static int ncvhw_check __P((bus_space_tag_t, bus_space_handle_t, struct ncv_hw *));
-static void ncvhw_init __P((bus_space_tag_t, bus_space_handle_t, struct ncv_hw *));
-static int ncvhw_start_selection __P((struct ncv_softc *sc, struct slccb *));
-static void ncvhw_attention __P((struct ncv_softc *));
-static int ncv_ccb_nexus_establish __P((struct ncv_softc *));
-static int ncv_lun_nexus_establish __P((struct ncv_softc *));
-static int ncv_target_nexus_establish __P((struct ncv_softc *));
-static int ncv_targ_init __P((struct ncv_softc *, struct targ_info *, int));
-static int ncv_catch_intr __P((struct ncv_softc *));
+static void ncv_pdma_end(struct ncv_softc *sc, struct targ_info *);
+static int ncv_world_start(struct ncv_softc *, int);
+static void ncvhw_bus_reset(struct ncv_softc *);
+static void ncvhw_reset(bus_space_tag_t, bus_space_handle_t, struct ncv_hw *);
+static int ncvhw_check(bus_space_tag_t, bus_space_handle_t, struct ncv_hw *);
+static void ncvhw_init(bus_space_tag_t, bus_space_handle_t, struct ncv_hw *);
+static int ncvhw_start_selection(struct ncv_softc *sc, struct slccb *);
+static void ncvhw_attention(struct ncv_softc *);
+static int ncv_ccb_nexus_establish(struct ncv_softc *);
+static int ncv_lun_nexus_establish(struct ncv_softc *);
+static int ncv_target_nexus_establish(struct ncv_softc *);
+static int ncv_targ_init(struct ncv_softc *, struct targ_info *, int);
+static int ncv_catch_intr(struct ncv_softc *);
 #ifdef	NCV_POWER_CONTROL
-static int ncvhw_power __P((struct ncv_softc *, u_int));
+static int ncvhw_power(struct ncv_softc *, u_int);
 #endif	/* NCV_POWER_CONTROL */
-static __inline void ncv_setup_and_start_pio __P((struct ncv_softc *, u_int));
+static __inline void ncv_setup_and_start_pio(struct ncv_softc *, u_int);
 
 struct scsi_low_funcs ncv_funcs = {
 	SC_LOW_INIT_T ncv_world_start,
@@ -571,7 +571,7 @@ ncv_targ_init(sc, ti, action)
 /**************************************************************
  * General probe attach
  **************************************************************/
-static int ncv_setup_img __P((struct ncv_hw *, u_int, int));
+static int ncv_setup_img(struct ncv_hw *, u_int, int);
 
 static int
 ncv_setup_img(hw, dvcfg, hostid)

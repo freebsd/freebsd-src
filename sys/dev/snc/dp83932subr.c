@@ -72,7 +72,7 @@
 #include <dev/snc/dp83932subr.h>
 
 integrate u_int16_t snc_nec16_select_bank
-	__P((struct snc_softc *, u_int32_t, u_int32_t));
+	(struct snc_softc *, u_int32_t, u_int32_t);
 
 /*
  * Interface exists: make available by filling in network interface

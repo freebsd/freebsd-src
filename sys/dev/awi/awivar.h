@@ -81,10 +81,10 @@ struct awi_bss
 
 struct awi_wep_algo {
 	char		*awa_name;
-	int		(*awa_ctxlen) __P((void));
-	void		(*awa_setkey) __P((void *, u_char *, int));
-	void		(*awa_encrypt) __P((void *, u_char *, u_char *, int));
-	void		(*awa_decrypt) __P((void *, u_char *, u_char *, int));
+	int		(*awa_ctxlen)(void);
+	void		(*awa_setkey)(void *, u_char *, int);
+	void		(*awa_encrypt)(void *, u_char *, u_char *, int);
+	void		(*awa_decrypt)(void *, u_char *, u_char *, int);
 };
 
 struct awi_softc 
@@ -106,8 +106,8 @@ struct awi_softc
 #endif
 	struct am79c930_softc 	sc_chip;
 	struct ifnet		*sc_ifp;
-	int			(*sc_enable) __P((struct awi_softc *));
-	void			(*sc_disable) __P((struct awi_softc *));
+	int			(*sc_enable)(struct awi_softc *);
+	void			(*sc_disable)(struct awi_softc *);
 
 	struct ifmedia		sc_media;
 	enum awi_status		sc_status;
@@ -199,24 +199,24 @@ struct awi_softc
 
 #define	AWI_80211_RATE(rate)	(((rate) & 0x7f) * 5)
 
-int	awi_attach __P((struct awi_softc *));
-int	awi_intr __P((void *));
-void	awi_reset __P((struct awi_softc *));
+int	awi_attach(struct awi_softc *);
+int	awi_intr(void *);
+void	awi_reset(struct awi_softc *);
 #ifdef __NetBSD__
-int	awi_activate __P((struct device *, enum devact));
-int	awi_detach __P((struct awi_softc *));
-void	awi_power __P((struct awi_softc *, int));
+int	awi_activate(struct device *, enum devact);
+int	awi_detach(struct awi_softc *);
+void	awi_power(struct awi_softc *, int);
 #endif
 
-void awi_stop __P((struct awi_softc *sc));
-int awi_init __P((struct awi_softc *sc));
-int awi_init_region __P((struct awi_softc *));
-int awi_wicfg __P((struct ifnet *, u_long, caddr_t));
+void awi_stop(struct awi_softc *sc);
+int awi_init(struct awi_softc *sc);
+int awi_init_region(struct awi_softc *);
+int awi_wicfg(struct ifnet *, u_long, caddr_t);
 
-int awi_wep_setnwkey __P((struct awi_softc *, struct ieee80211_nwkey *));
-int awi_wep_getnwkey __P((struct awi_softc *, struct ieee80211_nwkey *));
-int awi_wep_getalgo __P((struct awi_softc *));
-int awi_wep_setalgo __P((struct awi_softc *, int));
-int awi_wep_setkey __P((struct awi_softc *, int, unsigned char *, int));
-int awi_wep_getkey __P((struct awi_softc *, int, unsigned char *, int *));
-struct mbuf *awi_wep_encrypt __P((struct awi_softc *, struct mbuf *, int));
+int awi_wep_setnwkey(struct awi_softc *, struct ieee80211_nwkey *);
+int awi_wep_getnwkey(struct awi_softc *, struct ieee80211_nwkey *);
+int awi_wep_getalgo(struct awi_softc *);
+int awi_wep_setalgo(struct awi_softc *, int);
+int awi_wep_setkey(struct awi_softc *, int, unsigned char *, int);
+int awi_wep_getkey(struct awi_softc *, int, unsigned char *, int *);
+struct mbuf *awi_wep_encrypt(struct awi_softc *, struct mbuf *, int);

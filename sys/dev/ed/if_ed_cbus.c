@@ -54,25 +54,25 @@
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_ed98.h>
 
-static int ed98_alloc_port	__P((device_t, int));
-static int ed98_alloc_memory	__P((device_t, int));
-static int ed_pio_testmem	__P((struct ed_softc *, int, int, int));
-static int ed_probe_SIC98	__P((device_t, int, int));
-static int ed_probe_CNET98	__P((device_t, int, int));
-static int ed_probe_CNET98EL	__P((device_t, int, int));
-static int ed_probe_NEC77	__P((device_t, int, int));
-static int ed_probe_NW98X	__P((device_t, int, int));
-static int ed_probe_SB98	__P((device_t, int, int));
-static int ed_probe_EZ98	__P((device_t, int, int));
-static int ed98_probe_Novell	__P((device_t, int, int));
-static int ed98_probe_generic8390	__P((struct ed_softc *));
-static void ed_reset_CNET98	__P((struct ed_softc *, int));
-static void ed_winsel_CNET98	__P((struct ed_softc *, u_short));
-static void ed_get_SB98		__P((struct ed_softc *));
+static int ed98_alloc_port	(device_t, int);
+static int ed98_alloc_memory	(device_t, int);
+static int ed_pio_testmem	(struct ed_softc *, int, int, int);
+static int ed_probe_SIC98	(device_t, int, int);
+static int ed_probe_CNET98	(device_t, int, int);
+static int ed_probe_CNET98EL	(device_t, int, int);
+static int ed_probe_NEC77	(device_t, int, int);
+static int ed_probe_NW98X	(device_t, int, int);
+static int ed_probe_SB98	(device_t, int, int);
+static int ed_probe_EZ98	(device_t, int, int);
+static int ed98_probe_Novell	(device_t, int, int);
+static int ed98_probe_generic8390	(struct ed_softc *);
+static void ed_reset_CNET98	(struct ed_softc *, int);
+static void ed_winsel_CNET98	(struct ed_softc *, u_short);
+static void ed_get_SB98		(struct ed_softc *);
 #endif
 
-static int ed_isa_probe		__P((device_t));
-static int ed_isa_attach	__P((device_t));
+static int ed_isa_probe		(device_t);
+static int ed_isa_attach	(device_t);
 
 static struct isa_pnp_id ed_ids[] = {
 #ifdef PC98

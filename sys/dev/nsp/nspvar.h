@@ -100,10 +100,10 @@ struct nsp_targ_info {
 /*****************************************************************
  * Proto
  *****************************************************************/
-int nspprobesubr __P((bus_space_tag_t, bus_space_handle_t, u_int));
-void nspattachsubr __P((struct nsp_softc *));
-int nspprint __P((void *, const char *));
-int nspintr __P((void *));
+int nspprobesubr(bus_space_tag_t, bus_space_handle_t, u_int);
+void nspattachsubr(struct nsp_softc *);
+int nspprint(void *, const char *);
+int nspintr(void *);
 
 #if	defined(i386)
 #define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))

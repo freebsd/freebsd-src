@@ -55,23 +55,23 @@ struct am79c930_softc
 
 struct am79c930_ops 
 {
-	void (*write_1) __P((struct am79c930_softc *, u_int32_t, u_int8_t));
-	void (*write_2) __P((struct am79c930_softc *, u_int32_t, u_int16_t));
-	void (*write_4) __P((struct am79c930_softc *, u_int32_t, u_int32_t));
-	void (*write_bytes) __P((struct am79c930_softc *, u_int32_t, u_int8_t *, size_t));
+	void (*write_1)(struct am79c930_softc *, u_int32_t, u_int8_t);
+	void (*write_2)(struct am79c930_softc *, u_int32_t, u_int16_t);
+	void (*write_4)(struct am79c930_softc *, u_int32_t, u_int32_t);
+	void (*write_bytes)(struct am79c930_softc *, u_int32_t, u_int8_t *, size_t);
 
-	u_int8_t (*read_1) __P((struct am79c930_softc *, u_int32_t));
-	u_int16_t (*read_2) __P((struct am79c930_softc *, u_int32_t));
-	u_int32_t (*read_4) __P((struct am79c930_softc *, u_int32_t));
-	void (*read_bytes) __P((struct am79c930_softc *, u_int32_t, u_int8_t *, size_t));
+	u_int8_t (*read_1)(struct am79c930_softc *, u_int32_t);
+	u_int16_t (*read_2)(struct am79c930_softc *, u_int32_t);
+	u_int32_t (*read_4)(struct am79c930_softc *, u_int32_t);
+	void (*read_bytes)(struct am79c930_softc *, u_int32_t, u_int8_t *, size_t);
 };
 
-void am79c930_chip_init __P((struct am79c930_softc *sc, int));
+void am79c930_chip_init(struct am79c930_softc *sc, int);
 
-void am79c930_gcr_setbits __P((struct am79c930_softc *sc, u_int8_t bits));
-void am79c930_gcr_clearbits __P((struct am79c930_softc *sc, u_int8_t bits));
+void am79c930_gcr_setbits(struct am79c930_softc *sc, u_int8_t bits);
+void am79c930_gcr_clearbits(struct am79c930_softc *sc, u_int8_t bits);
 
-u_int8_t am79c930_gcr_read __P((struct am79c930_softc *sc));
+u_int8_t am79c930_gcr_read(struct am79c930_softc *sc);
 
 #define am79c930_hard_reset(sc) am79c930_gcr_setbits(sc, AM79C930_GCR_CORESET)
 #define am79c930_hard_reset_off(sc) am79c930_gcr_clearbits(sc, AM79C930_GCR_CORESET)

@@ -70,7 +70,7 @@
 #define			TRANS_AUI	0x4000
 #define			TRANS_BNC	0xc000
 
-static const char *ep_match __P((eisa_id_t type));
+static const char *ep_match(eisa_id_t type);
 
 static const char*
 ep_match(eisa_id_t type)

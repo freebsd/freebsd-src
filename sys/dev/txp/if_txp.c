@@ -110,50 +110,50 @@ static struct txp_type txp_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int txp_probe	__P((device_t));
-static int txp_attach	__P((device_t));
-static int txp_detach	__P((device_t));
-static void txp_intr	__P((void *));
-static void txp_tick	__P((void *));
-static int txp_shutdown	__P((device_t));
-static int txp_ioctl	__P((struct ifnet *, u_long, caddr_t));
-static void txp_start	__P((struct ifnet *));
-static void txp_stop	__P((struct txp_softc *));
-static void txp_init	__P((void *));
-static void txp_watchdog	__P((struct ifnet *));
+static int txp_probe	(device_t);
+static int txp_attach	(device_t);
+static int txp_detach	(device_t);
+static void txp_intr	(void *);
+static void txp_tick	(void *);
+static int txp_shutdown	(device_t);
+static int txp_ioctl	(struct ifnet *, u_long, caddr_t);
+static void txp_start	(struct ifnet *);
+static void txp_stop	(struct txp_softc *);
+static void txp_init	(void *);
+static void txp_watchdog	(struct ifnet *);
 
-static void txp_release_resources __P((struct txp_softc *));
-static int txp_chip_init __P((struct txp_softc *));
-static int txp_reset_adapter __P((struct txp_softc *));
-static int txp_download_fw __P((struct txp_softc *));
-static int txp_download_fw_wait __P((struct txp_softc *));
-static int txp_download_fw_section __P((struct txp_softc *,
-    struct txp_fw_section_header *, int));
-static int txp_alloc_rings __P((struct txp_softc *));
-static int txp_rxring_fill __P((struct txp_softc *));
-static void txp_rxring_empty __P((struct txp_softc *));
-static void txp_set_filter __P((struct txp_softc *));
+static void txp_release_resources(struct txp_softc *);
+static int txp_chip_init(struct txp_softc *);
+static int txp_reset_adapter(struct txp_softc *);
+static int txp_download_fw(struct txp_softc *);
+static int txp_download_fw_wait(struct txp_softc *);
+static int txp_download_fw_section (struct txp_softc *,
+    struct txp_fw_section_header *, int);
+static int txp_alloc_rings(struct txp_softc *);
+static int txp_rxring_fill(struct txp_softc *);
+static void txp_rxring_empty(struct txp_softc *);
+static void txp_set_filter(struct txp_softc *);
 
-static int txp_cmd_desc_numfree __P((struct txp_softc *));
-static int txp_command __P((struct txp_softc *, u_int16_t, u_int16_t, u_int32_t,
-    u_int32_t, u_int16_t *, u_int32_t *, u_int32_t *, int));
-static int txp_command2 __P((struct txp_softc *, u_int16_t, u_int16_t,
+static int txp_cmd_desc_numfree(struct txp_softc *);
+static int txp_command (struct txp_softc *, u_int16_t, u_int16_t, u_int32_t,
+    u_int32_t, u_int16_t *, u_int32_t *, u_int32_t *, int);
+static int txp_command2 (struct txp_softc *, u_int16_t, u_int16_t,
     u_int32_t, u_int32_t, struct txp_ext_desc *, u_int8_t,
-    struct txp_rsp_desc **, int));
-static int txp_response __P((struct txp_softc *, u_int32_t, u_int16_t, u_int16_t,
-    struct txp_rsp_desc **));
-static void txp_rsp_fixup __P((struct txp_softc *, struct txp_rsp_desc *,
-    struct txp_rsp_desc *));
-static void txp_capabilities __P((struct txp_softc *));
+    struct txp_rsp_desc **, int);
+static int txp_response (struct txp_softc *, u_int32_t, u_int16_t, u_int16_t,
+    struct txp_rsp_desc **);
+static void txp_rsp_fixup (struct txp_softc *, struct txp_rsp_desc *,
+    struct txp_rsp_desc *);
+static void txp_capabilities(struct txp_softc *);
 
-static void txp_ifmedia_sts __P((struct ifnet *, struct ifmediareq *));
-static int txp_ifmedia_upd __P((struct ifnet *));
+static void txp_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int txp_ifmedia_upd(struct ifnet *);
 #ifdef TXP_DEBUG
-static void txp_show_descriptor __P((void *));
+static void txp_show_descriptor(void *);
 #endif
-static void txp_tx_reclaim __P((struct txp_softc *, struct txp_tx_ring *));
-static void txp_rxbuf_reclaim __P((struct txp_softc *));
-static void txp_rx_reclaim __P((struct txp_softc *, struct txp_rx_ring *));
+static void txp_tx_reclaim(struct txp_softc *, struct txp_tx_ring *);
+static void txp_rxbuf_reclaim(struct txp_softc *);
+static void txp_rx_reclaim(struct txp_softc *, struct txp_rx_ring *);
 
 #ifdef TXP_USEIOSPACE
 #define TXP_RES			SYS_RES_IOPORT

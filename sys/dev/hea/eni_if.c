@@ -61,7 +61,7 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-static void	eni_get_stats __P((Eni_unit *));
+static void	eni_get_stats(Eni_unit *);
 
 /*
  * SUNI statistics counters take one of three forms:

@@ -64,7 +64,7 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
-static void	eni_recv_stack __P((void *, KBuffer *));
+static void	eni_recv_stack(void *, KBuffer *);
 
 #ifdef	DIAGNOSTIC
 extern int	eni_pdu_print;

@@ -48,9 +48,9 @@ struct bshw {
 	u_int hw_flags;
 	u_int hw_sregaddr;
 
-	int ((*hw_dma_init) __P((struct ct_softc *)));
-	void ((*hw_dma_start) __P((struct ct_softc *)));
-	void ((*hw_dma_stop) __P((struct ct_softc *)));
+	int ((*hw_dma_init)(struct ct_softc *));
+	void ((*hw_dma_start)(struct ct_softc *));
+	void ((*hw_dma_stop)(struct ct_softc *));
 };
 
 struct bshw_softc {
@@ -80,17 +80,17 @@ struct bshw_softc {
 
 	/* hardware */
 	struct bshw *sc_hw;
-	void ((*sc_dmasync_before)) __P((struct ct_softc *));
-	void ((*sc_dmasync_after)) __P((struct ct_softc *));
+	void ((*sc_dmasync_before))(struct ct_softc *);
+	void ((*sc_dmasync_after))(struct ct_softc *);
 };
 
-void bshw_synch_setup __P((struct ct_softc *, struct targ_info *));
-void bshw_bus_reset __P((struct ct_softc *));
-int bshw_read_settings __P((struct ct_bus_access_handle *, struct bshw_softc *));
-int bshw_smit_xfer_start __P((struct ct_softc *));
-void bshw_smit_xfer_stop __P((struct ct_softc *));
-int bshw_dma_xfer_start __P((struct ct_softc *));
-void bshw_dma_xfer_stop __P((struct ct_softc *));
+void bshw_synch_setup(struct ct_softc *, struct targ_info *);
+void bshw_bus_reset(struct ct_softc *);
+int bshw_read_settings(struct ct_bus_access_handle *, struct bshw_softc *);
+int bshw_smit_xfer_start(struct ct_softc *);
+void bshw_smit_xfer_stop(struct ct_softc *);
+int bshw_dma_xfer_start(struct ct_softc *);
+void bshw_dma_xfer_stop(struct ct_softc *);
 
 extern struct dvcfg_hwsel bshw_hwsel;
 #endif	/* !_BSHWVAR_H_ */

@@ -66,9 +66,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static int pnaphy_probe		__P((device_t));
-static int pnaphy_attach	__P((device_t));
-static int pnaphy_detach	__P((device_t));
+static int pnaphy_probe		(device_t);
+static int pnaphy_attach	(device_t);
+static int pnaphy_detach	(device_t);
 
 static device_method_t pnaphy_methods[] = {
 	/* device interface */
@@ -89,7 +89,7 @@ static driver_t pnaphy_driver = {
 
 DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, pnaphy_devclass, 0, 0);
 
-static int	pnaphy_service __P((struct mii_softc *, struct mii_data *,int));
+static int	pnaphy_service(struct mii_softc *, struct mii_data *,int);
 
 static int
 pnaphy_probe(dev)

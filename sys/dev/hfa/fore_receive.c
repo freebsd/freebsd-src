@@ -71,7 +71,7 @@ __RCSID("@(#) $FreeBSD$");
 /*
  * Local functions
  */
-static void	fore_recv_stack __P((void *, KBuffer *));
+static void	fore_recv_stack(void *, KBuffer *);
 
 
 /*

@@ -90,10 +90,10 @@ struct ncv_targ_info {
 /*****************************************************************
  * Proto
  *****************************************************************/
-int ncvprobesubr __P((bus_space_tag_t, bus_space_handle_t ioh, u_int, int));
-void ncvattachsubr __P((struct ncv_softc *));
-int ncvprint __P((void *, const char *));
-int ncvintr __P((void *));
+int ncvprobesubr(bus_space_tag_t, bus_space_handle_t ioh, u_int, int);
+void ncvattachsubr(struct ncv_softc *);
+int ncvprint(void *, const char *);
+int ncvintr(void *);
 
 #if	defined(i386)
 #define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))

@@ -100,23 +100,23 @@ static struct connector_entry {
   { 0, "???"}
 };
 
-/* int vxattach __P((struct vx_softc *)); */
-static void vxtxstat __P((struct vx_softc *));
-static int vxstatus __P((struct vx_softc *));
-static void vxinit __P((void *));
-static int vxioctl __P((struct ifnet *, u_long, caddr_t)); 
-static void vxstart __P((struct ifnet *ifp));
-static void vxwatchdog __P((struct ifnet *));
-static void vxreset __P((struct vx_softc *));
-/* void vxstop __P((struct vx_softc *)); */
-static void vxread __P((struct vx_softc *));
-static struct mbuf *vxget __P((struct vx_softc *, u_int));
-static void vxmbuffill __P((void *));
-static void vxmbufempty __P((struct vx_softc *));
-static void vxsetfilter __P((struct vx_softc *));
-static void vxgetlink __P((struct vx_softc *));
-static void vxsetlink __P((struct vx_softc *));
-/* int vxbusyeeprom __P((struct vx_softc *)); */
+/* int vxattach(struct vx_softc *); */
+static void vxtxstat(struct vx_softc *);
+static int vxstatus(struct vx_softc *);
+static void vxinit(void *);
+static int vxioctl(struct ifnet *, u_long, caddr_t); 
+static void vxstart(struct ifnet *ifp);
+static void vxwatchdog(struct ifnet *);
+static void vxreset(struct vx_softc *);
+/* void vxstop(struct vx_softc *); */
+static void vxread(struct vx_softc *);
+static struct mbuf *vxget(struct vx_softc *, u_int);
+static void vxmbuffill(void *);
+static void vxmbufempty(struct vx_softc *);
+static void vxsetfilter(struct vx_softc *);
+static void vxgetlink(struct vx_softc *);
+static void vxsetlink(struct vx_softc *);
+/* int vxbusyeeprom(struct vx_softc *); */
 
 
 int

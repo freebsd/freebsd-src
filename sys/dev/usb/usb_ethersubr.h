@@ -41,11 +41,11 @@
 
 struct usb_qdat {
 	struct ifnet		*ifp;
-	void (*if_rxstart)	__P((struct ifnet *));
+	void (*if_rxstart)	(struct ifnet *);
 };
 
-void usb_register_netisr	__P((void));
-void usb_ether_input		__P((struct mbuf *));
-void usb_tx_done		__P((struct mbuf *));
+void usb_register_netisr	(void);
+void usb_ether_input		(struct mbuf *);
+void usb_tx_done		(struct mbuf *);
 
 #endif

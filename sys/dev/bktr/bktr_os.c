@@ -1290,11 +1290,11 @@ vm_offset_t vm_page_alloc_contig(vm_offset_t, vm_offset_t,
                                  vm_offset_t, vm_offset_t);
 
 #if defined(__OpenBSD__)
-static int      bktr_probe __P((struct device *, void *, void *));
+static int      bktr_probe(struct device *, void *, void *);
 #else
-static int      bktr_probe __P((struct device *, struct cfdata *, void *));
+static int      bktr_probe(struct device *, struct cfdata *, void *);
 #endif
-static void     bktr_attach __P((struct device *, struct device *, void *));
+static void     bktr_attach(struct device *, struct device *, void *);
 
 struct cfattach bktr_ca = {
         sizeof(struct bktr_softc), bktr_probe, bktr_attach

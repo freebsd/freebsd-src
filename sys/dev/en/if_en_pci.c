@@ -67,10 +67,10 @@
  * prototypes
  */
 
-static	int en_pci_probe __P((device_t));
-static	int en_pci_attach __P((device_t));
-static	int en_pci_detach __P((device_t));
-static	int en_pci_shutdown __P((device_t));
+static	int en_pci_probe(device_t);
+static	int en_pci_attach(device_t);
+static	int en_pci_detach(device_t);
+static	int en_pci_shutdown(device_t);
 
 /*
  * local structures
@@ -87,10 +87,10 @@ struct en_pci_softc {
 };
 
 #if !defined(MIDWAY_ENIONLY)
-static  void eni_get_macaddr __P((device_t, struct en_pci_softc *));
+static  void eni_get_macaddr(device_t, struct en_pci_softc *);
 #endif
 #if !defined(MIDWAY_ADPONLY)
-static  void adp_get_macaddr __P((struct en_pci_softc *));
+static  void adp_get_macaddr(struct en_pci_softc *);
 #endif
 
 /*
@@ -136,7 +136,7 @@ static  void adp_get_macaddr __P((struct en_pci_softc *));
 
 #if !defined(MIDWAY_ENIONLY)
 
-static void adp_busreset __P((void *));
+static void adp_busreset(void *);
 
 /*
  * bus specific reset function [ADP only!]

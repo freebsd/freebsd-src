@@ -146,13 +146,13 @@ devclass_t cm_devclass;
  * #define fill(i) get mbuf && copy mbuf to chip(i)
  */
 
-void	cm_init __P((void *));
-void	cm_reset __P((struct cm_softc *));
-void	cm_start __P((struct ifnet *));
-int	cm_ioctl __P((struct ifnet *, unsigned long, caddr_t));
-void	cm_watchdog __P((struct ifnet *));
-void	cm_srint __P((void *vsc));
-static	void cm_tint __P((struct cm_softc *, int));
+void	cm_init(void *);
+void	cm_reset(struct cm_softc *);
+void	cm_start(struct ifnet *);
+int	cm_ioctl(struct ifnet *, unsigned long, caddr_t);
+void	cm_watchdog(struct ifnet *);
+void	cm_srint(void *vsc);
+static	void cm_tint(struct cm_softc *, int);
 void	cm_reconwatch(void *);
 
 int
@@ -336,7 +336,7 @@ cm_attach(sc, unit)
 #ifdef CMSOFTCOPY
 		sc->sc_rxcookie = softintr_establish(IPL_SOFTNET, cm_srint, sc);
 		sc->sc_txcookie = softintr_establish(IPL_SOFTNET,
-			(void (*) __P((void *)))cm_start, ifp);
+			(void (*)(void *))cm_start, ifp);
 #endif
 
 #if __FreeBSD_version < 500000

@@ -130,47 +130,47 @@ static struct sf_type sf_devs[] = {
 	{ 0, 0, NULL }
 };
 
-static int sf_probe		__P((device_t));
-static int sf_attach		__P((device_t));
-static int sf_detach		__P((device_t));
-static void sf_intr		__P((void *));
-static void sf_stats_update	__P((void *));
-static void sf_rxeof		__P((struct sf_softc *));
-static void sf_txeof		__P((struct sf_softc *));
-static int sf_encap		__P((struct sf_softc *,
+static int sf_probe		(device_t);
+static int sf_attach		(device_t);
+static int sf_detach		(device_t);
+static void sf_intr		(void *);
+static void sf_stats_update	(void *);
+static void sf_rxeof		(struct sf_softc *);
+static void sf_txeof		(struct sf_softc *);
+static int sf_encap		(struct sf_softc *,
 					struct sf_tx_bufdesc_type0 *,
-					struct mbuf *));
-static void sf_start		__P((struct ifnet *));
-static int sf_ioctl		__P((struct ifnet *, u_long, caddr_t));
-static void sf_init		__P((void *));
-static void sf_stop		__P((struct sf_softc *));
-static void sf_watchdog		__P((struct ifnet *));
-static void sf_shutdown		__P((device_t));
-static int sf_ifmedia_upd	__P((struct ifnet *));
-static void sf_ifmedia_sts	__P((struct ifnet *, struct ifmediareq *));
-static void sf_reset		__P((struct sf_softc *));
-static int sf_init_rx_ring	__P((struct sf_softc *));
-static void sf_init_tx_ring	__P((struct sf_softc *));
-static int sf_newbuf		__P((struct sf_softc *,
+					struct mbuf *);
+static void sf_start		(struct ifnet *);
+static int sf_ioctl		(struct ifnet *, u_long, caddr_t);
+static void sf_init		(void *);
+static void sf_stop		(struct sf_softc *);
+static void sf_watchdog		(struct ifnet *);
+static void sf_shutdown		(device_t);
+static int sf_ifmedia_upd	(struct ifnet *);
+static void sf_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
+static void sf_reset		(struct sf_softc *);
+static int sf_init_rx_ring	(struct sf_softc *);
+static void sf_init_tx_ring	(struct sf_softc *);
+static int sf_newbuf		(struct sf_softc *,
 					struct sf_rx_bufdesc_type0 *,
-					struct mbuf *));
-static void sf_setmulti		__P((struct sf_softc *));
-static int sf_setperf		__P((struct sf_softc *, int, caddr_t));
-static int sf_sethash		__P((struct sf_softc *, caddr_t, int));
+					struct mbuf *);
+static void sf_setmulti		(struct sf_softc *);
+static int sf_setperf		(struct sf_softc *, int, caddr_t);
+static int sf_sethash		(struct sf_softc *, caddr_t, int);
 #ifdef notdef
-static int sf_setvlan		__P((struct sf_softc *, int, u_int32_t));
+static int sf_setvlan		(struct sf_softc *, int, u_int32_t);
 #endif
 
-static u_int8_t sf_read_eeprom	__P((struct sf_softc *, int));
-static u_int32_t sf_calchash	__P((caddr_t));
+static u_int8_t sf_read_eeprom	(struct sf_softc *, int);
+static u_int32_t sf_calchash	(caddr_t);
 
-static int sf_miibus_readreg	__P((device_t, int, int));
-static int sf_miibus_writereg	__P((device_t, int, int, int));
-static void sf_miibus_statchg	__P((device_t));
+static int sf_miibus_readreg	(device_t, int, int);
+static int sf_miibus_writereg	(device_t, int, int, int);
+static void sf_miibus_statchg	(device_t);
 
-static u_int32_t csr_read_4	__P((struct sf_softc *, int));
-static void csr_write_4		__P((struct sf_softc *, int, u_int32_t));
-static void sf_txthresh_adjust	__P((struct sf_softc *));
+static u_int32_t csr_read_4	(struct sf_softc *, int);
+static void csr_write_4		(struct sf_softc *, int, u_int32_t);
+static void sf_txthresh_adjust	(struct sf_softc *);
 
 #ifdef SF_USEIOSPACE
 #define SF_RES			SYS_RES_IOPORT

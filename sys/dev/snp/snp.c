@@ -109,13 +109,13 @@ static udev_t snpbasedev = NOUDEV;
 
 static LIST_HEAD(, snoop) snp_sclist = LIST_HEAD_INITIALIZER(&snp_sclist);
 
-static struct tty	*snpdevtotty __P((dev_t dev));
-static void		snp_clone __P((void *arg, char *name,
-			    int namelen, dev_t *dev));
-static int		snp_detach __P((struct snoop *snp));
-static int		snp_down __P((struct snoop *snp));
-static int		snp_in __P((struct snoop *snp, char *buf, int n));
-static int		snp_modevent __P((module_t mod, int what, void *arg));
+static struct tty	*snpdevtotty(dev_t dev);
+static void		snp_clone(void *arg, char *name,
+			    int namelen, dev_t *dev);
+static int		snp_detach(struct snoop *snp);
+static int		snp_down(struct snoop *snp);
+static int		snp_in(struct snoop *snp, char *buf, int n);
+static int		snp_modevent(module_t mod, int what, void *arg);
 
 static int
 snplclose(tp, flag)
