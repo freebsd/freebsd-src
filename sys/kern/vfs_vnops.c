@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.24 1996/03/02 03:45:05 dyson Exp $
+ * $Id: vfs_vnops.c,v 1.25 1996/03/09 06:42:15 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -162,12 +162,13 @@ vn_open(ndp, fmode, cmode)
 	if (error)
 		goto bad;
 	/*
-	 * this is here for VMIO support
+	 * Make sure that a VM object is created for VMIO support.
 	 */
 	if (vp->v_type == VREG) {
-		if ((error = vn_vmio_open(vp, p, cred)) != 0)
+		if ((error = vfs_object_create(vp, p, cred, 1)) != 0)
 			goto bad;
 	}
+
 	if (fmode & FWRITE)
 		vp->v_writecount++;
 	return (0);
@@ -211,7 +212,7 @@ vn_close(vp, flags, cred, p)
 	if (flags & FWRITE)
 		vp->v_writecount--;
 	error = VOP_CLOSE(vp, flags, cred, p);
-	vn_vmio_close(vp);
+	vrele(vp);
 	return (error);
 }
 
@@ -461,56 +462,4 @@ vn_closefile(fp, p)
 
 	return (vn_close(((struct vnode *)fp->f_data), fp->f_flag,
 		fp->f_cred, p));
-}
-
-int
-vn_vmio_open(vp, p, cred)
-	struct vnode *vp;
-	struct proc *p;
-	struct ucred *cred;
-{
-	struct vattr vat;
-	int error;
-	/*
-	 * this is here for VMIO support
-	 */
-	if (vp->v_type == VREG || vp->v_type == VBLK) {
-retry:
-		if ((vp->v_flag & VVMIO) == 0) {
-			if ((error = VOP_GETATTR(vp, &vat, cred, p)) != 0)
-				return error;
-			(void) vnode_pager_alloc(vp, OFF_TO_IDX(round_page(vat.va_size)), 0, 0);
-			vp->v_flag |= VVMIO;
-		} else {
-			vm_object_t object;
-			if ((object = vp->v_object) &&
-				(object->flags & OBJ_DEAD)) {
-				VOP_UNLOCK(vp);
-				tsleep(object, PVM, "vodead", 0);
-				VOP_LOCK(vp);
-				goto retry;
-			}
-			if (!object)
-				panic("vn_open: VMIO object missing");
-			vm_object_reference(object);
-		}
-	}
-	return 0;
-}
-
-void
-vn_vmio_close(vp)
-	struct vnode *vp;
-{
-	/*
-	 * this code is here for VMIO support, will eventually
-	 * be in vfs code.
-	 */
-	if (vp->v_flag & VVMIO) {
-		vrele(vp);
-		if (vp->v_object == NULL)
-			panic("vn_close: VMIO object missing");
-		vm_object_deallocate(vp->v_object);
-	} else
-		vrele(vp);
 }

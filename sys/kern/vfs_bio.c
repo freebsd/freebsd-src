@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.94 1996/06/30 05:17:08 davidg Exp $
+ * $Id: vfs_bio.c,v 1.95 1996/08/04 20:13:08 phk Exp $
  */
 
 /*
@@ -113,6 +113,9 @@ static struct bqueues bufqueues[BUFFER_QUEUES];
 extern int vm_swap_size;
 
 #define BUF_MAXUSE 8
+/*
+#define NO_B_MALLOC
+*/
 
 /*
  * Initialize buffer headers and related structures.
@@ -844,7 +847,7 @@ fillbuf:
 	bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
 	bp->b_dirtyoff = bp->b_dirtyend = 0;
 	bp->b_validoff = bp->b_validend = 0;
-	bp->b_usecount = 2;
+	bp->b_usecount = 4;
 	if (bufspace >= maxbufspace + nbyteswritten) {
 		bp->b_flags |= B_INVAL;
 		brelse(bp);
@@ -1120,12 +1123,15 @@ allocbuf(struct buf * bp, int size)
 		 * Just get anonymous memory from the kernel
 		 */
 		mbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
+#if !defined(NO_B_MALLOC)
 		if (bp->b_flags & B_MALLOC)
 			newbsize = mbsize;
 		else
+#endif
 			newbsize = round_page(size);
 
 		if (newbsize < bp->b_bufsize) {
+#if !defined(NO_B_MALLOC)
 			/*
 			 * malloced buffers are not shrunk
 			 */
@@ -1143,11 +1149,13 @@ allocbuf(struct buf * bp, int size)
 				}
 				return 1;
 			}		
+#endif
 			vm_hold_free_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + newbsize,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize);
 		} else if (newbsize > bp->b_bufsize) {
+#if !defined(NO_B_MALLOC)
 			/*
 			 * We only use malloced memory on the first allocation.
 			 * and revert to page-allocated memory when the buffer grows.
@@ -1164,8 +1172,10 @@ allocbuf(struct buf * bp, int size)
 				bufmallocspace += mbsize;
 				return 1;
 			}
+#endif
 			origbuf = NULL;
 			origbufsize = 0;
+#if !defined(NO_B_MALLOC)
 			/*
 			 * If the buffer is growing on it's other-than-first allocation,
 			 * then we revert to the page-allocation scheme.
@@ -1180,14 +1190,17 @@ allocbuf(struct buf * bp, int size)
 				bp->b_flags &= ~B_MALLOC;
 				newbsize = round_page(newbsize);
 			}
+#endif
 			vm_hold_load_pages(
 			    bp,
 			    (vm_offset_t) bp->b_data + bp->b_bufsize,
 			    (vm_offset_t) bp->b_data + newbsize);
+#if !defined(NO_B_MALLOC)
 			if (origbuf) {
 				bcopy(origbuf, bp->b_data, origbufsize);
 				free(origbuf, M_BIOBUF);
 			}
+#endif
 		}
 	} else {
 		vm_page_t m;
@@ -1196,8 +1209,10 @@ allocbuf(struct buf * bp, int size)
 		newbsize = (size + DEV_BSIZE - 1) & ~(DEV_BSIZE - 1);
 		desiredpages = (round_page(newbsize) >> PAGE_SHIFT);
 
+#if !defined(NO_B_MALLOC)
 		if (bp->b_flags & B_MALLOC)
 			panic("allocbuf: VMIO buffer can't be malloced");
+#endif
 
 		if (newbsize < bp->b_bufsize) {
 			if (desiredpages < bp->b_npages) {

@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.61 1996/07/27 03:24:10 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.62 1996/07/30 03:08:21 dyson Exp $
  */
 
 /*
@@ -151,7 +151,7 @@ vnode_pager_alloc(handle, size, prot, offset)
 		/*
 		 * Hold a reference to the vnode and initialize object data.
 		 */
-		VREF(vp);
+		vp->v_usecount++;
 		object->un_pager.vnp.vnp_size = (vm_ooffset_t) size * PAGE_SIZE;
 
 		object->handle = handle;
