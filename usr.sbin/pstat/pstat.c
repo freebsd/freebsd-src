@@ -1073,6 +1073,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: pstat -Tfnstv [system] [-M core] [-N system]\n");
+	    "usage: pstat [-Tfnstv] [-M core] [-N system]\n");
 	exit(1);
 }
