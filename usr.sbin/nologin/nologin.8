@@ -59,3 +59,18 @@ The
 .Nm
 utility appeared in
 .Bx 4.4 .
+.Sh BUGS
+Login mechanisms that allow users to specify the initial environment,
+such as
+.Xr login 1
+and
+.Xr sshd 8 ,
+can be used to bypass
+.Nm .
+To avoid this possibility, you must use a different lockout mechanism
+such as
+.Xr login.conf 5
+or compile a statically-linked
+.Xr sh 1
+as described in
+.Xr make.conf 5 .
