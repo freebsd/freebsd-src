@@ -172,15 +172,10 @@ pst_attach(device_t dev)
     psc->device->si_drv1 = psc;
     psc->device->si_iosize_max = 64 * 1024; /*I2O_SGL_MAX_SEGS * PAGE_SIZE;*/
 
-    bzero(&psc->disk.d_label, sizeof(struct disklabel));
-    psc->disk.d_label.d_secsize = psc->info->block_size;
-    psc->disk.d_label.d_nsectors = 63;
-    psc->disk.d_label.d_ntracks = 255;
-    psc->disk.d_label.d_ncylinders =
-	(psc->info->capacity / psc->info->block_size) / (255 * 63);
-    psc->disk.d_label.d_secpercyl = 255 * 63;
-    psc->disk.d_label.d_secperunit =
-	psc->info->capacity / psc->info->block_size;
+    psc->disk.d_sectorsize = psc->info->block_size;
+    psc->disk.d_mediasize = psc->info->capacity;
+    psc->disk.d_fssectors = 63;
+    psc->disk.d_fsheads = 255;
 
     devstat_add_entry(&psc->stats, "pst", lun, psc->info->block_size,
 		      DEVSTAT_NO_ORDERED_TAGS,

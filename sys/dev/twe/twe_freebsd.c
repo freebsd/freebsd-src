@@ -549,7 +549,6 @@ struct twed_softc
     struct twe_drive	*twed_drive;		/* drive data in parent softc */
     struct disk		twed_disk;		/* generic disk handle */
     struct devstat	twed_stats;		/* accounting */
-    struct disklabel	twed_label;		/* synthetic label */
     int			twed_flags;
 #define TWED_OPEN	(1<<0)			/* drive is open (can't shut down) */
 };
@@ -622,7 +621,6 @@ static int
 twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
 {
     struct twed_softc	*sc = (struct twed_softc *)dev->si_drv1;
-    struct disklabel	*label;
 
     debug_called(4);
 	
@@ -633,16 +631,10 @@ twed_open(dev_t dev, int flags, int fmt, d_thread_t *td)
     if (sc->twed_controller->twe_state & TWE_STATE_SHUTDOWN)
 	return(ENXIO);
 
-    /* build synthetic label */
-    label = &sc->twed_disk.d_label;
-    bzero(label, sizeof(*label));
-    label->d_type = DTYPE_ESDI;
-    label->d_secsize    = TWE_BLOCK_SIZE;
-    label->d_nsectors   = sc->twed_drive->td_sectors;
-    label->d_ntracks    = sc->twed_drive->td_heads;
-    label->d_ncylinders = sc->twed_drive->td_cylinders;
-    label->d_secpercyl  = sc->twed_drive->td_sectors * sc->twed_drive->td_heads;
-    label->d_secperunit = sc->twed_drive->td_size;
+    sc->twed_disk.d_sectorsize = TWE_BLOCK_SIZE;
+    sc->twed_disk.d_mediasize = TWE_BLOCK_SIZE * (off_t)sc->twed_drive->td_size;
+    sc->twed_disk.d_fwsectors = sc->twed_drive->td_sectors;
+    sc->twed_disk.d_fwheads = sc->twed_drive->td_heads;
 
     sc->twed_flags |= TWED_OPEN;
     return (0);

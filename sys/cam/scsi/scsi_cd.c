@@ -54,6 +54,7 @@
 #include <sys/bio.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
+#include <sys/diskslice.h>
 #include <sys/malloc.h>
 #include <sys/cdio.h>
 #include <sys/dvdio.h>
@@ -858,10 +859,8 @@ cdregisterexit:
 static int
 cdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	struct disklabel *label;
 	struct cam_periph *periph;
 	struct cd_softc *softc;
-	struct ccb_getdev cgd;
 	u_int32_t size;
 	int error;
 	int s;
@@ -912,41 +911,12 @@ cdopen(dev_t dev, int flags, int fmt, struct thread *td)
 		error = 0;
 	}
 
-	/*
-	 * Build prototype label for whole disk.
-	 * Should take information about different data tracks from the
-	 * TOC and put it in the partition table.
-	 */
-	label = &softc->disk.d_label;
-	bzero(label, sizeof(*label));
-	label->d_type = DTYPE_SCSI;
-
-	/*
-	 * Grab the inquiry data to get the vendor and product names.
-	 * Put them in the typename and packname for the label.
-	 */
-	xpt_setup_ccb(&cgd.ccb_h, periph->path, /*priority*/ 1);
-	cgd.ccb_h.func_code = XPT_GDEV_TYPE;
-	xpt_action((union ccb *)&cgd);
-
-	strncpy(label->d_typename, cgd.inq_data.vendor,
-		min(SID_VENDOR_SIZE, sizeof(label->d_typename)));
-	strncpy(label->d_packname, cgd.inq_data.product,
-		min(SID_PRODUCT_SIZE, sizeof(label->d_packname)));
-		
-	label->d_secsize = softc->params.blksize;
-	label->d_secperunit = softc->params.disksize;
-	label->d_flags = D_REMOVABLE;
-	/*
-	 * Make partition 'a' cover the whole disk.  This is a temporary
-	 * compatibility hack.  The 'a' partition should not exist, so
-	 * the slice code won't create it.  The slice code will make
-	 * partition (RAW_PART + 'a') cover the whole disk and fill in
-	 * some more defaults.
-	 */
-	label->d_partitions[0].p_size = label->d_secperunit;
-	label->d_partitions[0].p_fstype = FS_OTHER;
-
+	softc->disk.d_sectorsize = softc->params.blksize;
+	softc->disk.d_mediasize = softc->params.blksize * 
+	    (off_t)softc->params.disksize;
+	softc->disk.d_fwsectors = 0;
+	softc->disk.d_fwheads = 0;
+	
 	/*
 	 * We unconditionally (re)set the blocksize each time the
 	 * CD device is opened.  This is because the CD can change,

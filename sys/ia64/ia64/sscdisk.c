@@ -125,7 +125,6 @@ static int
 sscopen(dev_t dev, int flag, int fmt, struct thread *td)
 {
 	struct ssc_s *sc;
-	struct disklabel *dl;
 
 	if (ssc_debug)
 		printf("sscopen(%s %x %x %p)\n",
@@ -133,14 +132,10 @@ sscopen(dev_t dev, int flag, int fmt, struct thread *td)
 
 	sc = dev->si_drv1;
 
-	dl = &sc->disk.d_label;
-	bzero(dl, sizeof(*dl));
-	dl->d_secsize = DEV_BSIZE;
-	dl->d_nsectors = sc->nsect > 63 ? 63 : sc->nsect;
-	dl->d_ntracks = 1;
-	dl->d_secpercyl = dl->d_nsectors * dl->d_ntracks;
-	dl->d_secperunit = sc->nsect;
-	dl->d_ncylinders = dl->d_secperunit / dl->d_secpercyl;
+	sc->disk.d_sectorsize = DEV_BSIZE;
+	sc->disk.d_mediasize = (off_t)sc-nsect * DEV_BSIZE;
+	sc->disk.d_fwsectors = 0;
+	sc->disk.d_fwheads = 0;
 	return (0);
 }
 

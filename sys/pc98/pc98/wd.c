@@ -1229,7 +1229,6 @@ wdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
 	register unsigned int lunit;
 	register struct softc *du;
-	struct disklabel *dl;
 
 	lunit = dkunit(dev);
 	if (lunit >= NWD || dksparebits(dev) != 0)
@@ -1257,14 +1256,10 @@ wdopen(dev_t dev, int flags, int fmt, struct thread *td)
 	du->dk_flags |= DKFL_LABELLING;
 	du->dk_state = WANTOPEN;
 
-	dl = &du->disk.d_label;
-	bzero(dl, sizeof(*dl));
-	dl->d_secsize = du->dk_dd.d_secsize;
-	dl->d_nsectors = du->dk_dd.d_nsectors;
-	dl->d_ntracks = du->dk_dd.d_ntracks;
-	dl->d_ncylinders = du->dk_dd.d_ncylinders;
-	dl->d_secpercyl = du->dk_dd.d_secpercyl;
-	dl->d_secperunit = du->dk_dd.d_secperunit;
+	du->disk.d_sectorsize = du->dk_dd.d_secsize;
+	du->disk.d_mediasize = du->dk_dd.d_secperunit * du->dk_dd.d_secsize;
+	du->disk.d_fwsectors = du->dk_dd.d_nsectors;
+	du->disk.d_fwheads = du->dk_dd.d_ntracks;
 
 	du->dk_flags &= ~DKFL_LABELLING;
 	wdsleep(du->dk_ctrlr, "wdopn2");
