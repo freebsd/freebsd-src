@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.256 1996/05/10 13:26:03 peter Exp $
+#	$Id: LINT,v 1.257 1996/05/13 04:29:14 nate Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -716,7 +716,6 @@ device pca0 at isa? port IO_TIMER1 tty
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
-# crd: PCCARD (PCMCIA) slot controller (see pcic)
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
@@ -724,7 +723,6 @@ device pca0 at isa? port IO_TIMER1 tty
 # gsc: Genius GS-4500 hand scanner.
 # joy: joystick
 # labpc: National Instrument's Lab-PC and Lab-PC+
-# pcic: PCCARD (PCMCIA) slot (see crd)
 # rc: RISCom/8 multiport card
 # tw: TW-523 power line interface for use with X-10 home control products
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
@@ -791,9 +789,6 @@ device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
 device		qcam0	at isa? port "IO_LPT3" tty
 device		apm0	at isa?
 options		APM_BROKEN_STATCLOCK
-controller	crd0
-device		pcic0 at crd?
-device		pcic1 at crd?
 device		gp0	at isa? port 0x2c0 tty
 device		gsc0	at isa? port "IO_GSC1" tty drq 3
 device		joy0	at isa? port "IO_GAME"
@@ -868,8 +863,11 @@ device		meteor0
 #
 # PCCARD/PCMCIA
 #
+# crd: slot controller
+# pcic: slots
 controller	crd0
 controller	pcic0 at crd?
+controller	pcic1 at crd?
 
 #
 # Laptop/Notebook options:
