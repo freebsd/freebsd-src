@@ -909,6 +909,7 @@ _generic_libs+=	lib
 .if !defined(NO_OPENSSL)
 _prebuild_libs+=	secure/lib/libcrypto secure/lib/libssl
 lib/libradius__L: secure/lib/libssl__L
+secure/lib/libssl__L: secure/lib/libcrypto__L
 .if !defined(NO_OPENSSH)
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
