@@ -140,14 +140,14 @@ atapi_attach(void *notused)
 
 #ifdef ATA_ENABLE_ATAPI_DMA
 		if (!(atp->atapi_parm->drqtype == ATAPI_DRQT_INTR)) {
-		    !ata_dmainit(atp->controller, atp->unit,
+		    if (!ata_dmainit(atp->controller, atp->unit,
 				 (apiomode(atp->atapi_parm) < 0) ? 
 				 (atp->atapi_parm->dmaflag ? 4 : 0) : 
 				 apiomode(atp->atapi_parm),
 				 (wdmamode(atp->atapi_parm) < 0) ? 
 				 (atp->atapi_parm->dmaflag ? 2 : 0) : 
 				 wdmamode(atp->atapi_parm),
-				 udmamode(atp->atapi_parm))
+				 udmamode(atp->atapi_parm)))
 		    atp->flags |= ATAPI_F_DMA_ENABLED;
 		}
 		else
