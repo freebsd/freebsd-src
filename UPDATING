@@ -14,12 +14,10 @@ ITEMS:'
 
 20000907:
 	The SMPNG commit has happened.  It should work, but if it
-	doesn't, fallback to the PRE_SMPNG CVS tag.
-
-	Expect problems.  The Linux emulation panics the system on
-	boot, and there are other minor and not so minor irritations.
-	The thin skinned should switch to 4.x-stable for the next few
-	months.
+	doesn't, fallback to the PRE_SMPNG CVS tag.  There are likely
+	to be a variety of minor issues.  Please see 20000905 to make
+	sure you don't have model loading problems which might at
+	first blush appear related to SMP.
 
 20000906:
 	nsswitch has been imported from NetBSD.  Among other things,
