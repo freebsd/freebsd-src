@@ -230,8 +230,8 @@ int main(int argc, unsigned char *argv[])
     init_dialog();
     retval = dialog_menu(title, argv[offset+2], atoi(argv[offset+3]),
                          atoi(argv[offset+4]), atoi(argv[offset+5]),
-			 (argc-offset-6)/2, argv+offset + 6, result);
-
+			 (argc-offset-6)/2, argv+offset + 6, result,
+			 NULL, NULL);
     dialog_update();
     if (retval == 0)
 	fputs(result, stderr);
