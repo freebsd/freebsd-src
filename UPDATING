@@ -62,7 +62,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 
 20021216:
 	A name change in /etc/netconfig has been reverted to stay
-	compatible with with suns TIRPC and also with NetBSD. You need
+	compatible with suns TIRPC and also with NetBSD. You need
 	to run mergemaster after make world. A new libc does still work
 	with an outdated /etc/netconfig for some time, but you'll get
 	a warning. This warning will be removed in 20030301.
