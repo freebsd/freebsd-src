@@ -292,6 +292,33 @@ iso88025_output(ifp, m, dst, rt0)
 			return (0);	/* if not yet resolved */
 		snap_type = ETHERTYPE_IP;
 		break;
+	case AF_ARP:
+	{
+		struct arphdr *ah;
+		ah = mtod(m, struct arphdr *);
+		ah->ar_hrd = htons(ARPHRD_IEEE802);
+
+		loop_copy = -1; /* if this is for us, don't do it */
+
+		switch(ntohs(ah->ar_op)) {
+		case ARPOP_REVREQUEST:
+		case ARPOP_REVREPLY:
+			snap_type = ETHERTYPE_REVARP;
+			break;
+		case ARPOP_REQUEST:
+		case ARPOP_REPLY:
+		default:
+			snap_type = ETHERTYPE_ARP;
+			break;
+		}
+
+		if (m->m_flags & M_BCAST)
+			bcopy(ifp->if_broadcastaddr, edst, ISO88025_ADDR_LEN);
+		else
+			bcopy(ar_tha(ah), edst, ISO88025_ADDR_LEN);
+
+	}
+	break;
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
