@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.24 1995/01/21 06:32:26 ache Exp $
+ * $Id: vfs_bio.c,v 1.25 1995/01/24 10:00:43 davidg Exp $
  */
 
 /*
@@ -888,7 +888,7 @@ allocbuf(struct buf * bp, int size, int vmio)
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					m = bp->b_pages[i];
 					s = splhigh();
-					if ((m->flags & PG_BUSY) || (m->busy != 0)) {
+					while ((m->flags & PG_BUSY) || (m->busy != 0)) {
 						m->flags |= PG_WANTED;
 						tsleep(m, PVM, "biodep", 0);
 					}
@@ -901,8 +901,10 @@ allocbuf(struct buf * bp, int size, int vmio)
 					--m->bmapped;
 					if (m->bmapped == 0) {
 						PAGE_WAKEUP(m);
-						pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
-						vm_page_free(m);
+						if (m->valid == 0) {
+							pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_NONE);
+							vm_page_free(m);
+						}
 					}
 					bp->b_pages[i] = NULL;
 				}
