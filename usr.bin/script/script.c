@@ -67,7 +67,7 @@ FILE	*fscript;
 int	master, slave;
 int	child;
 char	*fname;
-int	qflg;
+int	qflg, ttyflg;
 
 struct	termios tt;
 
@@ -129,10 +129,17 @@ main(argc, argv)
 	if ((fscript = fopen(fname, aflg ? "a" : "w")) == NULL)
 		err(1, "%s", fname);
 
-	(void)tcgetattr(STDIN_FILENO, &tt);
-	(void)ioctl(STDIN_FILENO, TIOCGWINSZ, &win);
-	if (openpty(&master, &slave, NULL, &tt, &win) == -1)
-		err(1, "openpty");
+	if (ttyflg = isatty(STDIN_FILENO)) {
+		if (tcgetattr(STDIN_FILENO, &tt) == -1)
+			err(1, "tcgetattr");
+		if (ioctl(STDIN_FILENO, TIOCGWINSZ, &win) == -1)
+			err(1, "ioctl");
+		if (openpty(&master, &slave, NULL, &tt, &win) == -1)
+			err(1, "openpty");
+	} else {
+		if (openpty(&master, &slave, NULL, NULL, NULL) == -1)
+			err(1, "openpty");
+	}
 
 	if (!qflg) {
 		tvec = time(NULL);
@@ -140,10 +147,12 @@ main(argc, argv)
 		(void)fprintf(fscript, "Script started on %s", ctime(&tvec));
 		fflush(fscript);
 	}
-	rtt = tt;
-	cfmakeraw(&rtt);
-	rtt.c_lflag &= ~ECHO;
-	(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
+	if (ttyflg) {
+		rtt = tt;
+		cfmakeraw(&rtt);
+		rtt.c_lflag &= ~ECHO;
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &rtt);
+	}
 
 	child = fork();
 	if (child < 0) {
@@ -172,8 +181,10 @@ main(argc, argv)
 			break;
 		if (n > 0 && FD_ISSET(STDIN_FILENO, &rfd)) {
 			cc = read(STDIN_FILENO, ibuf, BUFSIZ);
-			if (cc <= 0)
+			if (cc < 0)
 				break;
+			if (cc == 0)
+				(void)write(master, ibuf, 0);
 			if (cc > 0) {
 				(void)write(master, ibuf, cc);
 				if (kflg && tcgetattr(master, &stt) >= 0 &&
@@ -265,7 +276,8 @@ done(eno)
 {
 	time_t tvec;
 
-	(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
+	if (ttyflg)
+		(void)tcsetattr(STDIN_FILENO, TCSAFLUSH, &tt);
 	tvec = time(NULL);
 	if (!qflg) {
 		(void)fprintf(fscript,"\nScript done on %s", ctime(&tvec));
