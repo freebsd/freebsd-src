@@ -1,7 +1,7 @@
 /* global.h:  The global variables for bc.  */
 
 /*  This file is part of bc written for MINIX.
-    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -27,24 +27,41 @@
 *************************************************************************/
 
 
-/* For the current "break level" and if statements. */
+/* The current break level's label. */
 EXTERN int break_label;
+
+/* The current if statement's else label or label after else. */
 EXTERN int if_label;
+
+/* The current for statement label for continuing the loop. */
 EXTERN int continue_label;
 
-/* Label numbers. */
+/* Next available label number. */
 EXTERN int next_label;
 
-/* Used for "code" generation. */
+/* Byte code character storage.  Used in many places for generation of code. */
 EXTERN char genstr[80];
+
+/* Count of characters printed to the output in compile_only mode. */
 EXTERN int out_count;
+
+/* Have we generated any code since the last initialization of the code
+   generator.  */
 EXTERN char did_gen;
 
-/* Interactive and other flags. */
+/* Is this run an interactive execution.  (Is stdin a terminal?) */
 EXTERN char interactive;
+
+/* Just generate the byte code.  -c flag. */
 EXTERN char compile_only;
+
+/* Load the standard math functions.  -l flag. */
 EXTERN char use_math;
+
+/* Give a warning on use of any non-standard feature (non-POSIX).  -w flag. */
 EXTERN char warn_not_std;
+
+/* Accept POSIX bc only!  -s flag. */
 EXTERN char std_only;
 
 /* global variables for the bc machine. All will be dynamic in size.*/

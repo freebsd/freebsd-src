@@ -1,7 +1,7 @@
 /* proto.h: Prototype function definitions for "external" functions. */
 
 /*  This file is part of bc written for MINIX.
-    Copyright (C) 1991, 1992 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -70,7 +70,8 @@ _PROTOTYPE(void assign, (int c_code));
 /* From util.c */
 _PROTOTYPE(char *strcopyof, (char *str));
 _PROTOTYPE(arg_list *nextarg, (arg_list *args, int val));
-_PROTOTYPE(char *arg_str, (arg_list *args, int));
+_PROTOTYPE(char *arg_str, (arg_list *args));
+_PROTOTYPE(char *call_str, (arg_list *args));
 _PROTOTYPE(void free_args, (arg_list *args));
 _PROTOTYPE(void check_params, (arg_list *params, arg_list *autos));
 _PROTOTYPE(void init_gen, (void));
