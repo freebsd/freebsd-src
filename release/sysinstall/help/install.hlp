@@ -167,7 +167,7 @@ mount -t msdos /dev/sd0s5 /dos_d
 Not yet!  We'd like to add support for this someday, but are still
 lacking anyone to actually do the work.  Ongoing work with BSDI's
 RUNDOS utility may bring this much closer to being a reality sometime
-soon.  Send mail to hackers@freebsd.org if you're interested in
+soon.  Send mail to freebsd-hackers@FreeBSD.org if you're interested in
 joining this effort!
 
 There is, however, a neat utility called "pcemu" in the ports
@@ -599,7 +599,7 @@ Should you wish to re-enter this installation later, you will find it
 under /stand/sysinstall on the installed system.
 
 Good luck!  If you really get stuck, you may send mail to our support
-mailing list - questions@FreeBSD.org.  We'll do our best to help you!
+mailing list - freebsd-questions@FreeBSD.org.  We'll do our best to help you!
 
 
 3.1     Repairing an existing FreeBSD installation.

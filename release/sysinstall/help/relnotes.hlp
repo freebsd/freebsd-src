@@ -5,8 +5,8 @@ This is a GAMMA release of FreeBSD 2.2-RELEASE and is aimed primarily
 at release testers.  Some parts of the documentation may not be updated
 yet and should be reported if and when seen.  Naturally, any installation
 failures or crashes should also be reported ASAP by sending mail to
-bugs@freebsd.org or using the send-pr command (those preferring a WEB based
-interface can also see http://www.freebsd.org/send-pr.html).
+freebsd-bugs@FreeBSD.org or using the send-pr command (those preferring a
+WEB based interface can also see http://www.freebsd.org/send-pr.html).
 
 For information about the layout of the 2.2-GAMMA release directory,
 see ABOUT.TXT.  For general information about FreeBSD, see README.TXT.
@@ -361,8 +361,8 @@ You can ftp FreeBSD and any or all of its optional packages from
 For other locations that mirror the FreeBSD software see the file
 MIRROR.SITES.  Please ftp the distribution from the site closest (in
 networking terms) to you.  Additional mirror sites are always welcome!
-Contact admin@freebsd.org for more details if you'd like to become an
-official mirror site.
+Contact freebsd-admin@FreeBSD.org for more details if you'd like to 
+become an official mirror site.
 
 If you do not have access to the Internet and electronic mail is your
 only recourse, then you may still fetch the files by sending mail to
@@ -423,7 +423,7 @@ watch out for.
 If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
-                bugs@FreeBSD.org
+                freebsd-bugs@FreeBSD.org
 
 Note that send-pr itself is a shell script that should be easy to move
 even onto a totally different system.  We much prefer if you could use
@@ -434,7 +434,7 @@ the problem might have already been fixed since.
 
 Otherwise, for any questions or suggestions, please send mail to:
 
-                questions@FreeBSD.org
+                freebsd-questions@FreeBSD.org
 
 
 Additionally, being a volunteer effort, we are always happy to have
@@ -443,7 +443,7 @@ enhancements than we'll ever be able to manage by ourselves!  To
 contact us on technical matters, or with offers of help, please send
 mail to:
 
-                hackers@FreeBSD.org
+                freebsd-hackers@FreeBSD.org
 
 
 Please note that these mailing lists can experience *significant*
@@ -451,7 +451,7 @@ amounts of traffic and if you have slow or expensive mail access and
 are only interested in keeping up with significant FreeBSD events, you
 may find it preferable to subscribe instead to:
 
-                announce@FreeBSD.org
+                freebsd-announce@FreeBSD.org
 
 
 All but the freebsd-bugs groups can be freely joined by anyone wishing
