@@ -2600,8 +2600,6 @@ device		ohci
 # General USB code (mandatory for USB)
 device		usb
 #
-# USB Audio device
-device		uaudio
 # Fm Radio
 device		ufm
 # Generic USB device driver
