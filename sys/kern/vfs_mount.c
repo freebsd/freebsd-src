@@ -1336,7 +1336,7 @@ vfs_mountroot_try(const char *mountfrom)
 			printf("setrootbyname failed\n");
 	}
 
-	error = VFS_OMOUNT(mp, NULL, NULL, curthread);
+	error = VFS_OMOUNT(mp, path, NULL, curthread);
 
 done:
 	if (vfsname != NULL)
