@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.34 1996/07/10 01:34:35 fenner Exp $
+ *	$Id: route.c,v 1.35 1996/08/24 03:11:13 peter Exp $
  */
 
 #include "opt_mrouting.h"
@@ -445,17 +445,6 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if ((flags & RTF_GATEWAY) && !gateway)
 			panic("rtrequest: GATEWAY but no gateway");
 
-		/*
-		 * A host route with the destination equal to the gateway
-		 * will interfere with keeping LLINFO in the routing
-		 * table, so disallow it.
-		 */
-		if (((flags & (RTF_HOST|RTF_GATEWAY|RTF_LLINFO)) ==
-						(RTF_HOST|RTF_GATEWAY)) &&
-		    (dst->sa_len == gateway->sa_len) &&
-		    (bcmp(dst, gateway, dst->sa_len) == 0))
-			senderr(EADDRNOTAVAIL);
-
 		if ((ifa = ifa_ifwithroute(flags, dst, gateway)) == 0)
 			senderr(ENETUNREACH);
 
@@ -465,9 +454,9 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			senderr(ENOBUFS);
 		Bzero(rt, sizeof(*rt));
 		rt->rt_flags = RTF_UP | flags;
-		if (rt_setgate(rt, dst, gateway)) {
+		if (error = rt_setgate(rt, dst, gateway)) {
 			Free(rt);
-			senderr(ENOBUFS);
+			senderr(error);
 		}
 		ndst = rt_key(rt);
 		if (netmask) {
@@ -679,8 +668,9 @@ rt_setgate(rt0, dst, gate)
 		 * The route might already exist if this is an RTM_CHANGE
 		 * or a routing redirect, so try to delete it.
 		 */
-		rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt0),
-			rt0->rt_gateway, rt_mask(rt0), rt0->rt_flags, 0);
+		if (rt_key(rt0))
+			rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt0),
+			    rt0->rt_gateway, rt_mask(rt0), rt0->rt_flags, 0);
 		return EADDRNOTAVAIL;
 	}
 
