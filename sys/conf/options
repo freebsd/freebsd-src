@@ -143,6 +143,11 @@ NFS
 # otherwise a STUB module will be compiled in.
 SOFTUPDATES	opt_ffs.h
 
+# Enabling this option turns on support for Access Control Lists in UFS,
+# which can be used to support high security configurations.  Depends on
+# UFS_EXTATTR.
+UFS_ACL		opt_ufs.h
+
 # Enabling this option turns on support for extended attributes in UFS-based
 # file systems, which can be used to support high security configurations
 # as well as new file system features.
