@@ -1606,6 +1606,8 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "gateway_enable=YES" },
       { " inetd",	"This machine wants to run the inet daemon",
 	dmenuVarCheck,	configInetd, NULL, "inetd_enable=YES" },
+      { " Mail",	"This machine wants to run a Mail Transfer Agent",
+	NULL,		dmenuSubmenu, NULL, &MenuMTA },
       { " NFS client",	"This machine will be an NFS client",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "nfs_client_enable=YES" },
       { " NFS server",	"This machine will be an NFS server",
@@ -1624,8 +1626,6 @@ DMenu MenuNetworking = {
 	dmenuVarCheck,	configRouter, NULL, "router_enable=YES" },
       { " Rwhod",	"This machine wants to run the rwho daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "rwhod_enable=YES" },
-      { " Sendmail",	"This machine wants to run the sendmail daemon",
-	NULL,		dmenuSubmenu, NULL, &MenuSendmail },
       { " Sshd",	"This machine wants to run the ssh daemon",
 	dmenuVarCheck,	dmenuToggleVariable, NULL, "sshd_enable=YES" },
       { " TCP Extensions", "Allow RFC1323 and RFC1644 TCP extensions?",
@@ -1633,25 +1633,30 @@ DMenu MenuNetworking = {
       { NULL } },
 };
 
-DMenu MenuSendmail = {
+DMenu MenuMTA = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Sendmail Invocation Selection",
-    "There are three options for invoking sendmail at startup.\n"
-    "Please select Yes if you want to use sendmail as your mail transfer\n"
-    "agent.  Selecting No disables sendmail's network socket for incoming\n"
-    "email, but still enables sendmail for local and outbound mail.\n"
-    "None disables sendmail completely at startup and disables inbound,\n"
-    "outbound, and local mail.  See /etc/mail/README for more\n"
-    "information.\n",
+    "Mail Transfer Agent Selection",
+    "You can choose which Mail Transfer Agent (MTA) you wish to install and run.\n"
+    "Selecting Sendmail local disables sendmail's network socket for\n"
+    "incoming mail, but still enables sendmail for local and outbound mail.\n"
+    "The Postfix option will install the Postfix MTA from the ports\n"
+    "collection.  The Exim option will install the Exim MTA from the ports\n"
+    "collection.  To return to the previous menu, select Exit.",
     NULL,
     NULL,
     {
-      { " Yes",		"Start sendmail",
-	dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=YES" },
-      { " No",		"Start sendmail, but don't listen from network",
-	dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=NO" },
-      { " None",	"Don't start any sendmail processes",
-	dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=NONE" },
+      { "Sendmail",           "Use sendmail",
+        dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=YES" },
+      { "Sendmail local",    "Use sendmail, but do not listen on the network",
+        dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=NO" },
+      { "Postfix",            "Use the Postfix MTA",
+      NULL, configMTAPostfix, NULL, NULL },
+      { "Exim",               "Use the Exim MTA",
+      NULL, configMTAExim, NULL, NULL },
+      { "None",               "Do not install an MTA",
+        dmenuVarCheck, dmenuSetVariable, NULL, "sendmail_enable=NONE" },
+      { "X Exit",             "Exit this menu (returning to previous)",
+        checkTrue, dmenuExit, NULL, NULL, '<', '<', '<' },
       { NULL } },
 };
 
