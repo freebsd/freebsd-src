@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
+ *
  */
 
 #include <err.h>
@@ -206,29 +208,6 @@ void init_file(char *filename)
 /*???????******/ status_info->ourState++;
   }
 }
-
-/* xdr_stat_chge ----------------------------------------------------------- */
-/*
-   Purpose:	XDR-encode structure of type stat_chge
-   Returns:	TRUE if successful
-   Notes:	This function is missing from librpcsvc, because the
-		sm_inter.x distributed by Sun omits the SM_NOTIFY
-		procedure used between co-operating statd's
-*/
-
-bool_t xdr_stat_chge(XDR *xdrs, stat_chge *objp)
-{
-  if (!xdr_string(xdrs, &objp->mon_name, SM_MAXSTRLEN))
-  {
-    return (FALSE);
-  }
-  if (!xdr_int(xdrs, &objp->state))
-  {
-    return (FALSE);
-  }
-  return (TRUE);
-}
-
 
 /* notify_one_host --------------------------------------------------------- */
 /*
