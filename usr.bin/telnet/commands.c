@@ -107,6 +107,37 @@ static char saveline[256];
 static int margc;
 static char *margv[20];
 
+#if	defined(SKEY)
+#include <sys/wait.h>
+#define PATH_SKEY	"/usr/bin/key"
+    int
+skey_calc(argc, argv)
+	int argc;
+	char **argv;
+{
+	int status;
+
+	if(argc != 3) {
+		printf("%s sequence challenge\n", argv[0]);
+		return;
+	}
+
+	switch(fork()) {
+	case 0:
+		execv(PATH_SKEY, argv);
+		exit (1);
+	case -1:
+		perror("fork");
+		break;
+	default:
+		(void) wait(&status);
+		if (WIFEXITED(status))
+			return (WEXITSTATUS(status));
+		return (0);
+	}
+}
+#endif
+
     static void
 makeargv()
 {
@@ -499,7 +530,7 @@ togdebug()
     }
 #else	/* NOT43 */
     if (debug) {
-	if (net > 0 && SetSockOpt(net, SOL_SOCKET, SO_DEBUG, 0, 0) < 0)
+	if (net > 0 && SetSockOpt(net, SOL_SOCKET, SO_DEBUG, 1) < 0)
 	    perror("setsockopt (SO_DEBUG)");
     } else
 	printf("Cannot turn off socket debugging\n");
@@ -2153,20 +2184,25 @@ tn(argc, argv)
     } else {
 #endif
 	temp = inet_addr(hostp);
-	if (temp != (unsigned long) -1) {
+	if (temp != INADDR_NONE) {
 	    sin.sin_addr.s_addr = temp;
 	    sin.sin_family = AF_INET;
-	    (void) strcpy(_hostname, hostp);
+	    host = gethostbyaddr((char *)&temp, sizeof(temp), AF_INET);
+	    if (host)
+	        (void) strncpy(_hostname, host->h_name, sizeof(_hostname));
+	    else
+		(void) strncpy(_hostname, hostp, sizeof(_hostname));
+	    _hostname[sizeof(_hostname)-1] = '\0';
 	    hostname = _hostname;
 	} else {
 	    host = gethostbyname(hostp);
 	    if (host) {
 		sin.sin_family = host->h_addrtype;
 #if	defined(h_addr)		/* In 4.3, this is a #define */
-		memcpy((caddr_t)&sin.sin_addr,
+		memmove((caddr_t)&sin.sin_addr,
 				host->h_addr_list[0], host->h_length);
 #else	/* defined(h_addr) */
-		memcpy((caddr_t)&sin.sin_addr, host->h_addr, host->h_length);
+		memmove((caddr_t)&sin.sin_addr, host->h_addr, host->h_length);
 #endif	/* defined(h_addr) */
 		strncpy(_hostname, host->h_name, sizeof(_hostname));
 		_hostname[sizeof(_hostname)-1] = '\0';
@@ -2356,6 +2392,9 @@ static Command cmdtab[] = {
 #endif
 	{ "environ",	envhelp,	env_cmd,	0 },
 	{ "?",		helphelp,	help,		0 },
+#if	defined(SKEY)
+	{ "skey",	NULL,		skey_calc,	0 },
+#endif		
 	0
 };
 
@@ -2541,7 +2580,7 @@ cmdrc(m1, m2)
 
     if (rcname == 0) {
 	rcname = getenv("HOME");
-	if (rcname)
+	if (rcname && (strlen(rcname) + 10) < sizeof(rcbuf))
 	    strcpy(rcbuf, rcname);
 	else
 	    rcbuf[0] = '\0';
