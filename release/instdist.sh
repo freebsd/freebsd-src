@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.24 1994/11/21 07:25:27 jkh Exp $
+# $Id: instdist.sh,v 1.25 1994/11/21 11:18:48 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -459,6 +459,8 @@ distribution you wish to load.  This must be in machine:dir
 format (e.g. zooey:/a/FreeBSD/${DISTNAME}).  The remote
 directory *must* be be exported to your machine (or globally)
 for this to work!\n"; then continue; fi
+		nfs_path=$answer
+
 		default_value=""
 		if input \
 "Do you wish to specify any options to NFS?  If you're installing
