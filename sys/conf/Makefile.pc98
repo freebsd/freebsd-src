@@ -31,7 +31,7 @@ KODIR?=		/boot/${KERNEL}
 .if exists(./@/.)
 S=	./@
 .else
-S=	../..
+S=	../../..
 .endif
 .endif
 M=	${MACHINE_ARCH}
