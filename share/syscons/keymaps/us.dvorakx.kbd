@@ -48,7 +48,7 @@
   037   't'    'T'    dc4    dc4    't'    'T'    dc4    dc4     C
   038   'n'    'N'    so     so     'n'    'N'    so     so      C
   039   's'    'S'    dc3    dc3    's'    'S'    dc3    dc3     C
-  040   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
+  040   '-'    '_'    us     us     '-'    '_'    us     us      O
   041   esc    esc    nop    nop    esc    esc    debug  nop     O
   042   lshift lshift lshift lshift lshift lshift lshift lshift  O
   043   '='    '+'    nop    nop    '='    '+'    nop    nop     O
@@ -92,7 +92,7 @@
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
-  084   ns     ns     ns     ns     ns     ns     ns     ns      O
+  084   us     us     us     us     us     us     us     us      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O

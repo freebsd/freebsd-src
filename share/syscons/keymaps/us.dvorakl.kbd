@@ -33,7 +33,7 @@
   027   '='    '+'    nop    nop    '='    '+'    nop    nop     O
   028   cr     cr     nl     nl     cr     cr     nl     nl      O
   029   lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl  lctrl   O
-  030   '-'    '_'    ns     ns     '-'    '_'    ns     ns      O
+  030   '-'    '_'    us     us     '-'    '_'    us     us      O
   031   'k'    'K'    vt     vt     'k'    'K'    vt     vt      C
   032   'c'    'C'    etx    etx    'c'    'C'    etx    etx     C
   033   'd'    'D'    eot    eot    'd'    'D'    eot    eot     C
@@ -87,7 +87,7 @@
   081   fkey59 '3'    '3'    '3'    '3'    '3'    '3'    '3'     N
   082   fkey60 '0'    '0'    '0'    '0'    '0'    '0'    '0'     N
   083   del    '.'    '.'    '.'    '.'    '.'    boot   boot    N
-  084   ns     ns     ns     ns     ns     ns     ns     ns      O
+  084   us     us     us     us     us     us     us     us      O
   085   nop    nop    nop    nop    nop    nop    nop    nop     O
   086   nop    nop    nop    nop    nop    nop    nop    nop     O
   087   fkey11 fkey23 fkey35 fkey47 scr11  scr11  scr11  scr11   O
