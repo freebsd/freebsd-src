@@ -48,8 +48,8 @@ main(int argc, char *argv[])
 		err(1, "jail_attach(): %d", jid);
 	if (chdir("/") == -1)
 		err(1, "chdir(): /");
-	if (execv(argv[2], argv + 2) == -1)
-		err(1, "execv(): %s", argv[2]);
+	if (execvp(argv[2], argv + 2) == -1)
+		err(1, "execvp(): %s", argv[2]);
 	exit(0);
 }
 
