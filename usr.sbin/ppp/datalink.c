@@ -969,8 +969,10 @@ datalink_Up(struct datalink *dl, int runscripts, int packetmode)
     case DATALINK_READY:
       if (!dl->script.packetmode && packetmode) {
         dl->script.packetmode = 1;
-        if (dl->state == DATALINK_READY)
-          datalink_LoginDone(dl);
+        if (dl->state == DATALINK_READY) {
+          dl->script.run = 0;
+          datalink_NewState(dl, DATALINK_CARRIER);
+        }
       }
       break;
   }
