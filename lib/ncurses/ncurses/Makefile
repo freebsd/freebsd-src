@@ -227,7 +227,7 @@ CLEANFILES+=	${GENSRC} ${GENHDR} keys.list make_hash term.h.new \
 	make_keys MKterm.h.awk comp_captab.c curses.head \
 	namehdr nameftr codeftr ${NAMESRC} ${CODESRC}
 
-.if !defined(NOINSTALLLIB)
+.if !defined(NO_INSTALLLIB)
 SYMLINKS+=libncurses.a ${LIBDIR}/libcurses.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtermcap.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtermlib.a
