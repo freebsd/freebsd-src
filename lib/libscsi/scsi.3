@@ -50,15 +50,15 @@
 .Fd #include <sys/scsiio.h>
 .Fd #include <scsi.h>
 .Ft int
-.Fn scsireq_buff_decode "u_char *ptr, size_t len, char *fmt, ..."
+.Fn scsireq_buff_decode "u_char *ptr" "size_t len" "char *fmt" ...
 .Ft struct scsireq *
-.Fn scsireq_build "struct scsireq *s, u_long len, caddr_t buf, u_long flags, char *fmt, ..."
+.Fn scsireq_build "struct scsireq *s" "u_long len" "caddr_t buf" "u_long flags" "char *fmt" ...
 .Ft int
-.Fn scsireq_decode "struct scsireq *, char *fmt, ..."
+.Fn scsireq_decode "struct scsireq *" "char *fmt" ...
 .Ft int
-.Fn scsireq_encode "struct scsireq *, char *fmt, ..."
+.Fn scsireq_encode "struct scsireq *" "char *fmt" ...
 .Ft int
-.Fn scsireq_enter "int fid, struct scsireq *s"
+.Fn scsireq_enter "int fid" "struct scsireq *s"
 .Ft struct scsireq *
 .Fn scsireq_new void
 .Ft struct scsireq *
@@ -66,9 +66,9 @@
 .Ft int
 .Fn SCSIREQ_ERROR "struct scsireq *"
 .Ft int
-.Fn scsi_open "const char *path, int flags"
-.Ft void
-.Fn scsi_debug "FILE *f, int ret, struct scsireq *s"
+.Fn scsi_open "const char *path" "int flags"
+.Ft int
+.Fn scsi_debug "FILE *f" "int ret" "struct scsireq *s"
 .Ft FILE *
 .Fn scsi_debug_output "char *s"
 .Sh DESCRIPTION
