@@ -46,7 +46,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)dd.c	8.5 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: dd.c,v 1.14 1998/05/06 06:51:39 charnier Exp $";
+	"$Id: dd.c,v 1.15 1998/05/13 07:33:47 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -178,8 +178,8 @@ setup()
 	 * table that does both at once.  If just converting case, use the
 	 * built-in tables.
 	 */
-	if (ddflags & (C_LCASE|C_UCASE))
-		if (ddflags & C_ASCII)
+	if (ddflags & (C_LCASE|C_UCASE)) {
+		if (ddflags & C_ASCII) {
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (isupper(ctab[cnt]))
@@ -189,7 +189,7 @@ setup()
 					if (islower(ctab[cnt]))
 						ctab[cnt] = toupper(ctab[cnt]);
 			}
-		else if (ddflags & C_EBCDIC)
+		} else if (ddflags & C_EBCDIC) {
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
 					if (isupper(cnt))
@@ -199,7 +199,7 @@ setup()
 					if (islower(cnt))
 						ctab[cnt] = ctab[toupper(cnt)];
 			}
-		else {
+		} else {
 			ctab = ddflags & C_LCASE ? u2l : l2u;
 			if (ddflags & C_LCASE) {
 				for (cnt = 0; cnt <= 0377; ++cnt)
@@ -215,6 +215,7 @@ setup()
 						ctab[cnt] = cnt;
 			}
 		}
+	}
 	(void)gettimeofday(&tv, (struct timezone *)NULL);
 	st.start = tv.tv_sec + tv.tv_usec * 1e-6; 
 }

@@ -45,7 +45,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)cp.c	8.2 (Berkeley) 4/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: cp.c,v 1.16 1998/05/13 07:25:14 charnier Exp $";
+	"$Id: cp.c,v 1.17 1998/06/09 13:42:51 dt Exp $";
 #endif /* not lint */
 
 /*
@@ -295,7 +295,7 @@ copy(argv, type, fts_options)
 			 * Since the first level MUST be FTS_ROOTLEVEL, base
 			 * is always initialized.
 			 */
-			if (curr->fts_level == FTS_ROOTLEVEL)
+			if (curr->fts_level == FTS_ROOTLEVEL) {
 				if (type != DIR_TO_DNE) {
 					p = strrchr(curr->fts_path, '/');
 					base = (p == NULL) ? 0 :
@@ -306,6 +306,7 @@ copy(argv, type, fts_options)
 						base += 1;
 				} else
 					base = curr->fts_pathlen;
+			}
 
 			p = &curr->fts_path[base];
 			nlen = curr->fts_pathlen - base;

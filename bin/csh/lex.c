@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)lex.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: lex.c,v 1.9 1998/05/06 06:50:52 charnier Exp $";
+	"$Id: lex.c,v 1.10 1998/05/13 07:29:05 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -1328,7 +1328,7 @@ readc(wanteof)
     bool    wanteof;
 {
     int c;
-    static  sincereal;
+    static  int sincereal;
 
     aret = F_SEEK;
     if ((c = peekread) != '\0') {
