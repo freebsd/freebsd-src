@@ -15,6 +15,8 @@ SRCS+=	bsd-misc.c entropy.c
 SRCS+=	version.c
 CFLAGS+=-I${SSHDIR}
 
+NOLINT=	true
+
 .if defined(COMPAT_GETADDRINFO)
 SRCS+=	getaddrinfo.c getnameinfo.c name6.c rcmd.c bindresvport.c
 .endif
