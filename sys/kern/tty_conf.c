@@ -122,8 +122,9 @@ ldisc_register(int discipline, struct linesw *linesw_p)
 	if (discipline == LDISC_LOAD) {
 		int i;
 		for (i = LOADABLE_LDISC; i < MAXLDISC; i++)
-			if (bcmp(linesw + i, &nodisc, sizeof(nodisc)) == 0) {
+			if (linesw[i] == &nodisc) {
 				slot = i;
+				break;
 			}
 	} else if (discipline >= 0 && discipline < MAXLDISC) {
 		slot = discipline;
