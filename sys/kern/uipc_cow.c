@@ -144,9 +144,7 @@ socow_setup(struct mbuf *m0, struct uio *uio)
 	/*
 	 * Allocate an sf buf
 	 */
-	sf = sf_buf_alloc();
-	sf->m = pp;
-	pmap_qenter(sf->kva, &pp, 1);
+	sf = sf_buf_alloc(pp);
 
 	/* 
 	 * attach to mbuf
