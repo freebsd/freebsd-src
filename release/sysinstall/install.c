@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.37 1995/10/18 00:47:05 jkh Exp $
+ * $Id: install.c,v 1.71.2.38 1995/10/18 05:01:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,10 +65,12 @@ static Boolean
 checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
 {
     Device **devs;
+    Boolean status;
     Disk *disk;
     Chunk *c1, *c2, *rootdev, *swapdev, *usrdev;
     int i;
 
+    status = TRUE;
     *rdev = *sdev = *udev = rootdev = swapdev = usrdev = NULL;
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     /* First verify that we have a root device */
@@ -133,23 +135,25 @@ checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev)
     if (!rootdev) {
 	msgConfirm("No root device found - you must label a partition as /\n"
 		   "in the label editor.");
-	return FALSE;
+	status = FALSE;
     }
 
     *sdev = swapdev;
     if (!swapdev) {
 	msgConfirm("No swap devices found - you must create at least one\n"
 		   "swap partition.");
-	return FALSE;
+	status = FALSE;
     }
 
     *udev = usrdev;
-    if (!usrdev)
+    if (!usrdev) {
 	msgConfirm("WARNING:  No /usr filesystem found.  This is not technically\n"
 		   "an error if your root filesystem is big enough (or you later\n"
 		   "intend to mount your /usr filesystem over NFS), but it may otherwise\n"
 		   "cause you trouble if you're not exactly sure what you are doing!");
-    return TRUE;
+	status = FALSE;
+    }
+    return status;
 }
 
 static Boolean
@@ -176,23 +180,23 @@ installInitial(void)
 		 "We can take no responsibility for lost disk contents!"))
 	return FALSE;
 
-    if (diskPartitionWrite(NULL) != RET_SUCCESS) {
-	msgConfirm("installInitial:  Unable to write disk partition information.");
-	return FALSE;
-    }
-
     if (diskLabelCommit(NULL) != RET_SUCCESS) {
 	msgConfirm("Couldn't make filesystems properly.  Aborting.");
 	return FALSE;
     }
 
     if (!copy_self()) {
-	msgConfirm("Couldn't clone the boot floppy onto the root file system.\nAborting.");
+	msgConfirm("Couldn't clone the boot floppy onto the root file system.\n"
+		   "Aborting.");
 	return FALSE;
     }
 
     dialog_clear();
-    chroot("/mnt");
+    if (chroot("/mnt") == -1) {
+	msgConfirm("Unable to chroot to /mnt - this is bad!");
+	return FALSE;
+    }
+
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
     /* stick a helpful shell over on the 4th VTY */
@@ -202,9 +206,9 @@ installInitial(void)
 	    struct termios foo;
 	    extern int login_tty(int);
 
-	    for (i = 0; i < 3; i++)
+	    for (i = 0; i < 64; i++)
 		close(i);
-	    fd = open("/dev/ttyv3", O_RDWR);
+	    DebugFD = fd = open("/dev/ttyv3", O_RDWR);
 	    ioctl(0, TIOCSCTTY, &fd);
 	    dup2(0, 1);
 	    dup2(0, 2);
@@ -252,9 +256,9 @@ installFixit(char *str)
     dialog_update();
     end_dialog();
     DialogActive = FALSE;
-    if (!file_executable("/tmp"))
+    if (!directoryExists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
-    if (!file_executable("/var/tmp/vi.recover"))
+    if (!directoryExists("/var/tmp/vi.recover"))
 	if (Mkdir("/var/tmp/vi.recover", NULL) != RET_SUCCESS)
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
 		       "vi will kvetch and moan about it as a result but should still\n"
@@ -267,16 +271,14 @@ installFixit(char *str)
 	    msgConfirm("Couldn't symlink the /etc/spwd.db file!  I'm not sure I like this..");
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
-    if ((child = fork()) != 0)
-	(void)waitpid(child, &waitstatus, 0);
-    else {
+    if (!(child = fork())) {
 	int i, fd;
 	extern int login_tty(int);
 	struct termios foo;
 
-	for (i = 0; i < 3; i++)
+	for (i = 0; i < 64; i++)
 	    close(i);
-	fd = open("/dev/ttyv0", O_RDWR);
+	DebugFD = fd = open("/dev/ttyv0", O_RDWR);
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
@@ -296,39 +298,15 @@ installFixit(char *str)
 	msgDebug("fixit shell: Failed to execute shell!\n");
 	return -1;
     }
+    else
+	(void)waitpid(child, &waitstatus, 0);
+
     DialogActive = TRUE;
     clear();
     dialog_clear();
     dialog_update();
     unmount("/mnt2", MNT_FORCE);
-    msgConfirm("Please remove the fixit floppy and press return");
-    return RET_SUCCESS;
-}
-
-int
-installUpgrade(char *str)
-{
-    /* Storyboard:
-       1. Verify that user has mounted/newfs flagged all desired directories
-       for upgrading.  Should have selected a / at the very least, with
-       warning for no /usr.  If not, throw into partition/disklabel editors
-       with appropriate popup info in-between.
-
-       2. If BIN distribution selected, backup /etc to some location -
-       prompt user for this location.
-
-       3. Extract distributions.  Warn if BIN distribution not among those
-          selected.
-
-       4. If BIN extracted, do fixups - read in old sysconfig and try to
-       intelligently merge the old values into the new sysconfig (only replace
-       something if set in old and still defaulted or disabled in new).
-
-       Some fixups might be:  copy these files back from old:  passwd files, group file, fstab, exports, hosts,
-       make.conf, host.conf, ???
-
-       Spawn a shell and invite user to look around before exiting.
-       */
+    msgConfirm("Please remove the fixit floppy now.");
     return RET_SUCCESS;
 }
   
@@ -360,7 +338,7 @@ installExpress(char *str)
 	       "oriented configurations.  You can also select a custom software set if none\n"
 	       "of the provided configurations are suitable.");
     while (1) {
-	if (!dmenuOpenSimple(&MenuInstallType))
+	if (!dmenuOpenSimple(&MenuDistributions))
 	    return RET_FAIL;
 
 	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
@@ -431,6 +409,10 @@ installCommit(char *str)
 
     if (i != RET_FAIL && installFinal() == RET_FAIL)
 	i = RET_FAIL;
+
+    /* Write out any changes to /etc/sysconfig */
+    if (RunningAsInit)
+	configSysconfig();
 
     variable_set2(SYSTEM_INSTALLED, i == RET_FAIL ? "errors" : "yes");
     dialog_clear();
@@ -504,54 +486,12 @@ installFixup(void)
 
     /* XXX Do all the last ugly work-arounds here which we'll try and excise someday right?? XXX */
     /* BOGON #1:  XFree86 extracting /usr/X11R6 with root-only perms */
-    if (file_readable("/usr/X11R6"))
+    if (directoryExists("/usr/X11R6"))
 	chmod("/usr/X11R6", 0755);
 
     /* BOGON #2: We leave /etc in a bad state */
     chmod("/etc", 0755);
     return RET_SUCCESS;
-}
-
-/* Do any final optional hackery */
-int
-installFinal(void)
-{
-    int i;
-
-    i = RET_SUCCESS;
-
-    if (variable_get("gated")) {
-	/* Load gated package and maybe even seek to configure or explain it a little */
-    }
-
-    if (variable_get("anon_ftp")) {
-	/* Set up anonymous FTP access on this system */
-    }
-
-    if (variable_get("apache_httpd")) {
-	/* Load and configure the Apache HTTPD web server */
-    }
-
-    if (variable_get("samba")) {
-	/* Load samba package and add to inetd.conf */
-    }
-
-    if (variable_get("pcnfsd")) {
-	/* Load and configure pcnfsd */
-    }
-
-    /* If we're an NFS server, we need an exports file */
-    if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
-	msgConfirm("You have chosen to be an NFS server but have not yet configured\n"
-		   "the /etc/exports file.  You must configure this information before\n"
-		   "other hosts will be able to mount file systems from your machine.\n"
-		   "Press [ENTER] now to invoke the editor on /etc/exports");
-	vsystem("echo '#The following example exports /usr to 3 machines named after ducks.' > /etc/exports");
-	vsystem("echo '#/usr	huey louie dewie' >> /etc/exports");
-	vsystem("echo >> /etc/exports");
-	systemExecute("ee /etc/exports");
-    }
-    return i;
 }
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
@@ -595,9 +535,8 @@ installFilesystems(void)
 	}
     }
     else {
-	msgConfirm("Warning:  You have selected a Read-Only root device and\n"
-		   "and may be unable to find the appropriate device entries\n"
-		   "on it if it is from an older, pre-slice version of FreeBSD.");
+	msgConfirm("Warning:  Root device is selected read-only.  It will be assumed\n"
+		   "that you have the appropriate device entries already in /dev.\n");
 	msgNotify("Checking integrity of existing %s filesystem.", rootdev->name);
 	i = vsystem("fsck -y /dev/r%s", rootdev->name);
 	if (i)
@@ -730,6 +669,8 @@ installPreconfig(char *str)
 		for (j = 0; cattr[j].name[0]; j++)
 		    variable_set2(cattr[j].name, cattr[j].value);
 		i = RET_SUCCESS;
+		msgConfirm("Configuration file %s loaded successfully!\n"
+			   "Some parameters may now have new default values.", cp);
 	    }
 	    close(fd);
 	    safe_free(cattr);

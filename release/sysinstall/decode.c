@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: decode.c,v 1.6.2.2 1995/09/25 00:52:04 jkh Exp $
+ * $Id: decode.c,v 1.6.2.3 1995/10/18 00:11:53 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,9 +62,9 @@ dispatch(DMenuItem *tmp, char *name)
     int val = RET_SUCCESS;
 
     switch (tmp->type) {
-	/* We want to simply display a file */
+	/* We want to simply display a help file */
     case DMENU_DISPLAY_FILE:
-	systemDisplayFile((char *)tmp->ptr);
+	systemDisplayHelp((char *)tmp->ptr);
 	break;
 
 	/* It's a sub-menu; recurse on it */

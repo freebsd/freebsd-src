@@ -86,7 +86,13 @@ Browser Exec:  Which binary to run for the HTML browser.
 
     The full pathname to the main executable in Browser Package
 
-    
-Clear:        Clear All Option Flags
+Config File:  Name of default configuration file for Load command.
 
-    Reset all option flags back to their default values.
+    This version of sysinstall has the ability to pre-initialize its
+    variables by reading a configuration file of `name=value' pairs.
+    This is read off of a standard UFS or DOS diskette which is assumed
+    to be in drive A.
+
+Use Defaults:  Use default calues.
+
+    Reset all options back to their default values.

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.5 1995/10/16 15:14:11 jkh Exp $
+ * $Id: main.c,v 1.13.2.6 1995/10/18 00:12:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,10 +74,6 @@ main(int argc, char **argv)
 	if (getpid() != 1 || !msgYesNo("Are you sure you wish to exit?  System will reboot."))
 	    break;
     }
-
-    /* Write out any changes to /etc/sysconfig */
-    if (RunningAsInit)
-	configSysconfig();
 
     /* Say goodnight, Gracie */
     systemShutdown();

@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.12.2.1 1995/10/04 10:34:01 jkh Exp $
+ * $Id: misc.c,v 1.12.2.2 1995/10/18 00:12:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -45,6 +45,7 @@
 #include <sys/errno.h>
 #include <sys/file.h>
 #include <sys/types.h>
+#include <dirent.h>
 #include <sys/wait.h>
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -99,6 +100,40 @@ string_skipwhite(char *str)
     while (*str && isspace(*str))
 	++str;
     return str;
+}
+
+int
+directoryExists(const char *dirname)
+{
+    DIR *tptr;
+
+    if (!dirname)
+	return 0;
+    if (!strlen(dirname))
+	return 0;
+
+    tptr = opendir(dirname);
+    if (!tptr)
+	return (0);
+
+    closedir(tptr);
+    return (1);
+}
+
+char *
+pathBaseName(const char *path)
+{
+    char *pt;
+    char *ret = (char *)path;
+
+    pt = strrchr(path,(int)'/');
+
+    if (pt != 0)			/* if there is a slash */
+    {
+	ret = ++pt;			/* start the file after it */
+    }
+    
+    return(ret);
 }
 
 /* A free guaranteed to take NULL ptrs */

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.14 1995/10/17 02:56:53 jkh Exp $
+ * $Id: label.c,v 1.32.2.15 1995/10/18 00:12:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -175,12 +175,8 @@ diskLabelCommit(char *str)
     /* The routine will guard against redundant writes, just as this one does */
     else if (diskPartitionWrite(NULL) != RET_SUCCESS)
 	i = RET_FAIL;
-
-    else if (installFilesystems() != RET_SUCCESS) {
-	msgConfirm("Failed to make/mount all filesystems.  Please correct\n"
-		   "whatever went wrong and try again.");
+    else if (installFilesystems() != RET_SUCCESS)
 	i = RET_FAIL;
-    }
     else {
 	msgInfo("All filesystem information written successfully.");
 	variable_set2(DISK_LABELLED, "written");
@@ -577,7 +573,7 @@ diskLabel(char *str)
 
 	case KEY_F(1):
 	case '?':
-	    systemDisplayFile("partition");
+	    systemDisplayHelp("partition");
 	    break;
 
 	case 'A':

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.9 1995/10/17 02:57:03 jkh Exp $
+ * $Id: system.c,v 1.44.2.10 1995/10/18 00:12:42 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -108,9 +108,9 @@ systemExecute(char *command)
     return status;
 }
 
-/* Display a file in a filebox */
+/* Display a help file in a filebox */
 int
-systemDisplayFile(char *file)
+systemDisplayHelp(char *file)
 {
     char *fname = NULL;
     char buf[FILENAME_MAX];
