@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id$
+ *      $Id: 93cx6.h,v 1.7 1997/02/22 09:38:37 peter Exp $
  */
 
 #include <sys/param.h>
@@ -72,9 +72,9 @@ struct seeprom_descriptor {
 	(((sd)->sd_maddr != NULL) ?		\
 		*((sd)->sd_maddr) :		\
 		inb((sd)->sd_iobase))
-#define	SEEPROM_OUTB(sd, value)			\
-	(((sd)->sd_maddr != NULL) ?		\
-		*((sd)->sd_maddr) = (value) :	\
+#define	SEEPROM_OUTB(sd, value)				\
+	(((sd)->sd_maddr != NULL) ?			\
+		(void)(*((sd)->sd_maddr) = (value)) :	\
 		outb((sd)->sd_iobase, (value)))
 
 #elif defined(__NetBSD__)
