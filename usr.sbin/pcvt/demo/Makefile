@@ -20,35 +20,35 @@ CLEANFILES+= 	${DEMOS}
 
 chardemo.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
 
 colors.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
 
 sgr.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
 
 cowscene.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
 
 xmas.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
 
 outerlimit.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
 
 twzone.vt: ${.CURDIR}/$@.gz.uu
 	uudecode ${.CURDIR}/$@.gz.uu
-	gunzip $@.gz
+	gunzip -f $@.gz
 	rm -f $@.gz
