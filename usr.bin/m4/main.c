@@ -200,7 +200,6 @@ main(int argc, char *argv[])
 
 	while ((c = getopt(argc, argv, "gst:d:D:U:o:I:")) != -1)
 		switch(c) {
-
 		case 'D':               /* define something..*/
 			for (p = optarg; *p; p++)
 				if (*p == '=')
@@ -231,6 +230,7 @@ main(int argc, char *argv[])
 			trace_file(optarg);
                         break;
 		case '?':
+		default:
 			usage();
 		}
 
