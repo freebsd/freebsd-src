@@ -38,7 +38,7 @@
 .\"
 .Dd November 24, 2000
 .Dt REALPATH 1
-.Os FreeBSD 5.0
+.Os FreeBSD
 .Sh NAME
 .Nm realpath
 .Nd return resolved physical path
@@ -46,23 +46,25 @@
 .Nm
 .Ar path
 .Sh DESCRIPTION
-.Nm realpath
+.Nm
 uses the
 .Xr realpath 3
-function to resolve all symbolic links, extra 
-.Qo
-/
-.Qc
-characters and references to 
-.Pa /./ 
-and 
+function to resolve all symbolic links, extra
+.Ql /
+characters and references to
+.Pa /./
+and
 .Pa /../
 in
 .Ar path .
-.Pp
 .Sh DIAGNOSTICS
 The
 .Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
-.Xr realpath 3 
+.Xr realpath 3
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.0 .
