@@ -25,19 +25,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 
+SND_DECLARE_FILE("$FreeBSD$");
+
 /* board-specific include files */
 #include <dev/sound/isa/mss.h>
+#include <dev/sound/isa/sb.h>
 #include <dev/sound/chip.h>
 
 #include "mixer_if.h"
 
-#define MSS_BUFFSIZE (4096)
+#define MSS_DEFAULT_BUFSZ (4096)
 #define	abs(x)	(((x) < 0) ? -(x) : (x))
 #define MSS_INDEXED_REGS 0x20
 #define OPL_INDEXED_REGS 0x19
@@ -79,6 +80,7 @@ struct mss_info {
     int indir_rid;
     int password;		/* password for opti9xx cards */
     int passwdreg;		/* password register */
+    unsigned int bufsize;
     struct mss_chinfo pch, rch;
 };
 
@@ -267,12 +269,16 @@ mss_release_resources(struct mss_info *mss, device_t dev)
 				     mss->irq);
 		mss->irq = 0;
     	}
-    	if (mss->drq2 && mss->drq2 != mss->drq1) {
-		bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
-				     mss->drq2);
+    	if (mss->drq2) {
+		if (mss->drq2 != mss->drq1) {
+			isa_dma_release(rman_get_start(mss->drq2));
+			bus_release_resource(dev, SYS_RES_DRQ, mss->drq2_rid,
+				     	mss->drq2);
+		}
 		mss->drq2 = 0;
     	}
      	if (mss->drq1) {
+		isa_dma_release(rman_get_start(mss->drq1));
 		bus_release_resource(dev, SYS_RES_DRQ, mss->drq1_rid,
 				     mss->drq1);
 		mss->drq1 = 0;
@@ -328,12 +334,12 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
 	if (ok) {
 		pdma = rman_get_start(mss->drq1);
 		isa_dma_acquire(pdma);
-		isa_dmainit(pdma, MSS_BUFFSIZE);
+		isa_dmainit(pdma, mss->bufsize);
 		mss->bd_flags &= ~BD_F_DUPLEX;
 		if (mss->drq2) {
 			rdma = rman_get_start(mss->drq2);
 			isa_dma_acquire(rdma);
-			isa_dmainit(rdma, MSS_BUFFSIZE);
+			isa_dmainit(rdma, mss->bufsize);
 			mss->bd_flags |= BD_F_DUPLEX;
 		} else mss->drq2 = mss->drq1;
 	}
@@ -1120,7 +1126,7 @@ msschan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->channel = c;
 	ch->buffer = b;
 	ch->dir = dir;
-	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, MSS_BUFFSIZE) == -1) return NULL;
+	if (sndbuf_alloc(ch->buffer, mss->parent_dmat, mss->bufsize) == -1) return NULL;
 	sndbuf_isadmasetup(ch->buffer, (dir == PCMDIR_PLAY)? mss->drq1 : mss->drq2);
 	return ch;
 }
@@ -1157,6 +1163,8 @@ msschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	struct mss_chinfo *ch = data;
 
 	ch->blksz = blocksize;
+	sndbuf_resize(ch->buffer, 2, ch->blksz);
+
 	return ch->blksz;
 }
 
@@ -1655,9 +1663,10 @@ static int
 mss_doattach(device_t dev, struct mss_info *mss)
 {
     	int pdma, rdma, flags = device_get_flags(dev);
-    	char status[SND_STATUSLEN];
+    	char status[SND_STATUSLEN], status2[SND_STATUSLEN];
 
-	mss->lock = snd_mtxcreate(device_get_nameunit(dev));
+	mss->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	mss->bufsize = pcm_getbuffersize(dev, 4096, MSS_DEFAULT_BUFSZ, 65536);
     	if (!mss_alloc_resources(mss, dev)) goto no;
     	mss_init(mss, dev);
 	pdma = rman_get_start(mss->drq1);
@@ -1708,16 +1717,20 @@ mss_doattach(device_t dev, struct mss_info *mss)
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,
-			/*maxsize*/MSS_BUFFSIZE, /*nsegments*/1,
+			/*maxsize*/mss->bufsize, /*nsegments*/1,
 			/*maxsegz*/0x3ffff,
 			/*flags*/0, &mss->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto no;
     	}
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d",
-    	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), pdma);
-    	if (pdma != rdma) snprintf(status + strlen(status),
-        	SND_STATUSLEN - strlen(status), ":%d", rdma);
+
+    	if (pdma != rdma)
+		snprintf(status2, SND_STATUSLEN, ":%d", rdma);
+	else
+		status2[0] = '\0';
+
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %d%s bufsz %u",
+    	     	rman_get_start(mss->io_base), rman_get_start(mss->irq), pdma, status2, mss->bufsize);
 
     	if (pcm_register(dev, mss, 1, 1)) goto no;
     	pcm_addchan(dev, PCMDIR_REC, &msschan_class, mss);
@@ -1851,12 +1864,46 @@ static device_method_t mss_methods[] = {
 static driver_t mss_driver = {
 	"pcm",
 	mss_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_mss, isa, mss_driver, pcm_devclass, 0, 0);
 MODULE_DEPEND(snd_mss, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
 MODULE_VERSION(snd_mss, 1);
+
+static int
+azt2320_mss_mode(struct mss_info *mss, device_t dev)
+{
+	struct resource *sbport;
+	int		i, ret, rid;
+
+	rid = 0;
+	ret = -1;
+	sbport = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				    0, ~0, 1, RF_ACTIVE);
+	if (sbport) {
+		for (i = 0; i < 1000; i++) {
+			if ((port_rd(sbport, SBDSP_STATUS) & 0x80))
+				DELAY((i > 100) ? 1000 : 10);
+			else {
+				port_wr(sbport, SBDSP_CMD, 0x09);
+				break;
+			}
+		}
+		for (i = 0; i < 1000; i++) {
+			if ((port_rd(sbport, SBDSP_STATUS) & 0x80))
+				DELAY((i > 100) ? 1000 : 10);
+			else {
+				port_wr(sbport, SBDSP_CMD, 0x00);
+				ret = 0;
+				break;
+			}
+		}
+		DELAY(1000);
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, sbport);
+	}
+	return ret;
+}
 
 static struct isa_pnp_id pnpmss_ids[] = {
 	{0x0000630e, "CS423x"},				/* CSC0000 */
@@ -1868,6 +1915,7 @@ static struct isa_pnp_id pnpmss_ids[] = {
 	{0x5092143e, "OPTi925"},			/* OPT9250 XXX guess */
 	{0x0000143e, "OPTi924"},			/* OPT0924 */
 	{0x1022b839, "Neomagic 256AV (non-ac97)"},	/* NMX2210 */
+	{0x01005407, "Aztech 2320"},			/* AZT0001 */
 #if 0
 	{0x0000561e, "GusPnP"},				/* GRV0000 */
 #endif
@@ -1947,6 +1995,15 @@ pnpmss_attach(device_t dev)
 	    mss->io_rid = 1;
 	    break;
 
+	case 0x01005407:			/* AZT0001 */
+	    /* put into MSS mode first (snatched from NetBSD) */
+	    if (azt2320_mss_mode(mss, dev) == -1)
+		    return ENXIO;
+
+	    mss->bd_flags |= BD_F_MSS_OFFSET;
+	    mss->io_rid = 2;
+	    break;
+	    
 #if 0
 	case 0x0000561e:			/* GRV0000 */
 	    mss->bd_flags |= BD_F_MSS_OFFSET;
@@ -2118,7 +2175,7 @@ static device_method_t pnpmss_methods[] = {
 static driver_t pnpmss_driver = {
 	"pcm",
 	pnpmss_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_pnpmss, isa, pnpmss_driver, pcm_devclass, 0, 0);
@@ -2202,7 +2259,7 @@ static device_method_t guspcm_methods[] = {
 static driver_t guspcm_driver = {
 	"pcm",
 	guspcm_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
 DRIVER_MODULE(snd_guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);

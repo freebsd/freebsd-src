@@ -38,8 +38,6 @@
  * rate drifts slightly between recordings (usually 0-3%).  No
  * differences visible in register dumps between times that work and
  * those that don't.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -53,6 +51,8 @@
 
 #include "mixer_if.h"
 
+SND_DECLARE_FILE("$FreeBSD$");
+
 /* Supported chip ID's */
 #define CMI8338A_PCI_ID   0x010013f6
 #define CMI8338B_PCI_ID   0x010113f6
@@ -60,7 +60,7 @@
 #define CMI8738B_PCI_ID   0x011213f6
 
 /* Buffer size max is 64k for permitted DMA boundaries */
-#define CMI_BUFFER_SIZE      16384
+#define CMI_DEFAULT_BUFSZ      16384
 
 /* Interrupts per length of buffer */
 #define CMI_INTR_PER_BUFFER      2
@@ -107,8 +107,10 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void 			*ih;
+	void			*lock;
 
 	int			spdif_enabled;
+	unsigned int		bufsz;
 	struct sc_chinfo 	pch, rch;
 };
 
@@ -338,17 +340,19 @@ cmichan_init(kobj_t obj, void *devinfo,
 	ch->spd        = DSP_DEFAULT_SPEED;
 	ch->buffer     = b;
 	ch->dma_active = 0;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, CMI_BUFFER_SIZE) != 0) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 		DEB(printf("cmichan_init failed\n"));
 		return NULL;
 	}
 
 	ch->dir = dir;
+	snd_mtxlock(sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		cmi_dma_prog(sc, ch, CMPCI_REG_DMA0_BASE);
 	} else {
 		cmi_dma_prog(sc, ch, CMPCI_REG_DMA1_BASE);
 	}
+	snd_mtxunlock(sc->lock);
 
 	return ch;
 }
@@ -357,6 +361,7 @@ static int
 cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 {
 	struct sc_chinfo *ch = data;
+	struct sc_info	*sc = ch->parent;
 	u_int32_t f;
 
 	if (format & AFMT_S16_LE) {
@@ -374,6 +379,7 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 		f |= CMPCI_REG_FORMAT_MONO;
 	}
 
+	snd_mtxlock(sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		cmi_partial_wr4(ch->parent,
 				CMPCI_REG_CHANNEL_FORMAT,
@@ -387,6 +393,7 @@ cmichan_setformat(kobj_t obj, void *data, u_int32_t format)
 				CMPCI_REG_CH1_FORMAT_MASK,
 				f);
 	}
+	snd_mtxunlock(sc->lock);
 	ch->fmt = format;
 
 	return 0;
@@ -396,9 +403,11 @@ static int
 cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 {
 	struct sc_chinfo *ch = data;
+	struct sc_info	*sc = ch->parent;
 	u_int32_t r, rsp;
 
 	r = cmpci_rate_to_regvalue(speed);
+	snd_mtxlock(sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		if (speed < 44100) {
 			/* disable if req before rate change */
@@ -426,6 +435,7 @@ cmichan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 		rsp >>= CMPCI_REG_ADC_FS_SHIFT;
 		rsp &= 	CMPCI_REG_ADC_FS_MASK;
 	}
+	snd_mtxunlock(sc->lock);
 	ch->spd = cmpci_regvalue_to_rate(r);
 
 	DEB(printf("cmichan_setspeed (%s) %d -> %d (%d)\n",
@@ -439,10 +449,11 @@ static int
 cmichan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
+	struct sc_info	 *sc = ch->parent;
 
 	/* user has requested interrupts every blocksize bytes */
-	if (blocksize > CMI_BUFFER_SIZE / CMI_INTR_PER_BUFFER) {
-		blocksize = CMI_BUFFER_SIZE / CMI_INTR_PER_BUFFER;
+	if (blocksize > sc->bufsz / CMI_INTR_PER_BUFFER) {
+		blocksize = sc->bufsz / CMI_INTR_PER_BUFFER;
 	}
 	sndbuf_resize(ch->buffer, CMI_INTR_PER_BUFFER, blocksize);
 
@@ -455,6 +466,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 	struct sc_chinfo	*ch = data;
 	struct sc_info		*sc = ch->parent;
 
+	snd_mtxlock(sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		switch(go) {
 		case PCMTRIG_START:
@@ -474,6 +486,7 @@ cmichan_trigger(kobj_t obj, void *data, int go)
 			break;
 		}
 	}
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -484,11 +497,13 @@ cmichan_getptr(kobj_t obj, void *data)
 	struct sc_info		*sc = ch->parent;
 	u_int32_t physptr, bufptr, sz;
 
+	snd_mtxlock(sc->lock);
 	if (ch->dir == PCMDIR_PLAY) {
 		physptr = cmi_rd(sc, CMPCI_REG_DMA0_BASE, 4);
 	} else {
 		physptr = cmi_rd(sc, CMPCI_REG_DMA1_BASE, 4);
 	}
+	snd_mtxunlock(sc->lock);
 
 	sz = sndbuf_getsize(ch->buffer);
 	bufptr = (physptr - ch->phys_buf + sz - ch->bps) % sz;
@@ -502,9 +517,10 @@ cmi_intr(void *data)
 	struct sc_info *sc = data;
 	u_int32_t intrstat;
 
+	snd_mtxlock(sc->lock);
 	intrstat = cmi_rd(sc, CMPCI_REG_INTR_STATUS, 4);
 	if ((intrstat & CMPCI_REG_ANY_INTR) == 0) {
-		return;
+		goto out;
 	}
 
 	/* Disable interrupts */
@@ -534,6 +550,8 @@ cmi_intr(void *data)
 		cmi_set4(sc, CMPCI_REG_INTR_CTRL, CMPCI_REG_CH1_INTR_ENABLE);
 	}
 
+out:
+	snd_mtxunlock(sc->lock);
 	return;
 }
 
@@ -711,13 +729,11 @@ static int
 cmi_initsys(struct sc_info* sc)
 {
 #ifdef SND_DYNSYSCTL
-	struct snddev_info* d = device_get_softc(sc->dev);
-
-	SYSCTL_ADD_INT(&d->sysctl_tree, 
-		       SYSCTL_CHILDREN(d->sysctl_tree_top),
+	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev), 
+		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
 		       OID_AUTO, "spdif_enabled", CTLFLAG_RW, 
 		       &sc->spdif_enabled, 0, 
-		       "SPDIF output enabled at 44.1 and 48 kHz");
+		       "enable SPDIF output at 44.1 kHz and above");
 #endif /* SND_DYNSYSCTL */
 	return 0;
 }
@@ -826,6 +842,7 @@ cmi_attach(device_t dev)
 		return ENXIO;
 	}
 
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
@@ -846,16 +863,18 @@ cmi_attach(device_t dev)
 	sc->irq   = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 					0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
 	if (!sc->irq ||
-	    snd_setup_intr(dev, sc->irq, 0, cmi_intr, sc, &sc->ih)){
+	    snd_setup_intr(dev, sc->irq, INTR_MPSAFE, cmi_intr, sc, &sc->ih)) {
 		device_printf(dev, "cmi_attach: Unable to map interrupt\n");
 		goto bad;
 	}
+
+	sc->bufsz = pcm_getbuffersize(dev, 4096, CMI_DEFAULT_BUFSZ, 65536);
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/CMI_BUFFER_SIZE, /*nsegments*/1,
+			       /*maxsize*/sc->bufsz, /*nsegments*/1,
 			       /*maxsegz*/0x3ffff, /*flags*/0,
 			       &sc->parent_dmat) != 0) {
 		device_printf(dev, "cmi_attach: Unable to create dma tag\n");
@@ -872,14 +891,14 @@ cmi_attach(device_t dev)
 	if (pcm_register(dev, sc, 1, 1))
 		goto bad;
 
+	cmi_initsys(sc);
+
 	pcm_addchan(dev, PCMDIR_PLAY, &cmichan_class, sc);
 	pcm_addchan(dev, PCMDIR_REC, &cmichan_class, sc);
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld",
 		 rman_get_start(sc->reg), rman_get_start(sc->irq));
 	pcm_setstatus(dev, status);
-
-	cmi_initsys(sc);
 
 	DEB(printf("cmi_attach: succeeded\n"));
 	return 0;
@@ -893,6 +912,8 @@ cmi_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	if (sc->reg)
 		bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
+	if (sc->lock)
+		snd_mtxfree(sc->lock);
 	if (sc)
 		free(sc, M_DEVBUF);
 
@@ -916,6 +937,7 @@ cmi_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	bus_release_resource(dev, SYS_RES_IOPORT, sc->regid, sc->reg);
+	snd_mtxfree(sc->lock);
 	free(sc, M_DEVBUF);
 
 	return 0;
@@ -926,9 +948,11 @@ cmi_suspend(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
+	snd_mtxlock(sc->lock);
 	sc->pch.dma_was_active = cmi_ch0_stop(sc, &sc->pch);
 	sc->rch.dma_was_active = cmi_ch1_stop(sc, &sc->rch);
 	cmi_power(sc, 3);
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -937,14 +961,17 @@ cmi_resume(device_t dev)
 {
 	struct sc_info *sc = pcm_getdevinfo(dev);
 
+	snd_mtxlock(sc->lock);
 	cmi_power(sc, 0);
 	if (cmi_init(sc) != 0) {
 		device_printf(dev, "unable to reinitialize the card\n");
+		snd_mtxunlock(sc->lock);
 		return ENXIO;
 	}
 
 	if (mixer_reinit(dev) == -1) {
 		device_printf(dev, "unable to reinitialize the mixer\n");
+		snd_mtxunlock(sc->lock);
                 return ENXIO;
         }
 
@@ -959,6 +986,7 @@ cmi_resume(device_t dev)
 		cmichan_setformat(NULL, &sc->rch, sc->rch.fmt);
 		cmi_ch1_start(sc, &sc->rch);
 	}
+	snd_mtxunlock(sc->lock);
 	return 0;
 }
 
@@ -974,9 +1002,9 @@ static device_method_t cmi_methods[] = {
 static driver_t cmi_driver = {
 	"pcm",
 	cmi_methods,
-	sizeof(struct snddev_info)
+	PCM_SOFTC_SIZE
 };
 
-DRIVER_MODULE(snd_cmipci, pci, cmi_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_cmipci, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
-MODULE_VERSION(snd_cmipci, 1);
+DRIVER_MODULE(snd_cmi, pci, cmi_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_cmi, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_cmi, 1);

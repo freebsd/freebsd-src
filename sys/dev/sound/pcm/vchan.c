@@ -22,13 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/vchan.h>
 #include "feeder_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 struct vchinfo {
 	u_int32_t spd, fmt, blksz, bps, run;
@@ -41,7 +41,6 @@ static u_int32_t vchan_fmt[] = {
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-
 
 static int
 vchan_mix_s16(int16_t *to, int16_t *tmp, unsigned int count)
@@ -265,7 +264,7 @@ vchan_create(struct pcm_channel *parent)
 	CHN_UNLOCK(parent);
 
 	/* add us to our grandparent's channel list */
-	err = pcm_chn_add(d, child);
+	err = pcm_chn_add(d, child, !first);
 	if (err) {
 		pcm_chn_destroy(child);
 		free(pce, M_DEVBUF);
@@ -290,12 +289,7 @@ vchan_destroy(struct pcm_channel *c)
 	struct pcm_channel *parent = c->parentchannel;
     	struct snddev_info *d = parent->parentsnddev;
 	struct pcmchan_children *pce;
-	int err;
-
-	/* remove us from our grantparent's channel list */
-	err = pcm_chn_remove(d, c);
-	if (err)
-		return err;
+	int err, last;
 
 	CHN_LOCK(parent);
 	if (!(parent->flags & CHN_F_BUSY)) {
@@ -318,8 +312,15 @@ gotch:
 	SLIST_REMOVE(&parent->children, pce, pcmchan_children, link);
 	free(pce, M_DEVBUF);
 
-	if (SLIST_EMPTY(&parent->children))
+	last = SLIST_EMPTY(&parent->children);
+	if (last)
 		parent->flags &= ~CHN_F_BUSY;
+
+	/* remove us from our grantparent's channel list */
+	err = pcm_chn_remove(d, c, !last);
+	if (err)
+		return err;
+
 	CHN_UNLOCK(parent);
 	/* destroy ourselves */
 	err = pcm_chn_destroy(c);
@@ -327,93 +328,18 @@ gotch:
 	return err;
 }
 
-#ifdef SND_DYNSYSCTL
-static int
-sysctl_hw_snd_vchans(SYSCTL_HANDLER_ARGS)
-{
-	struct snddev_info *d;
-    	struct snddev_channel *sce;
-	struct pcm_channel *c;
-	int err, oldcnt, newcnt, cnt;
-
-	d = oidp->oid_arg1;
-
-	snd_mtxlock(d->lock);
-	cnt = 0;
-	SLIST_FOREACH(sce, &d->channels, link) {
-		c = sce->channel;
-		if ((c->direction == PCMDIR_PLAY) && (c->flags & CHN_F_VIRTUAL))
-			cnt++;
-	}
-	oldcnt = cnt;
-	newcnt = cnt;
-
-	err = sysctl_handle_int(oidp, &newcnt, sizeof(newcnt), req);
-	if (err == 0 && req->newptr != NULL) {
-		if (newcnt > cnt) {
-			/* add new vchans - find a parent channel first */
-			SLIST_FOREACH(sce, &d->channels, link) {
-				c = sce->channel;
-				/* not a candidate if not a play channel */
-				if (c->direction != PCMDIR_PLAY)
-					goto addskip;
-				/* not a candidate if a virtual channel */
-				if (c->flags & CHN_F_VIRTUAL)
-					goto addskip;
-				/* not a candidate if it's in use */
-				if ((c->flags & CHN_F_BUSY) && (SLIST_EMPTY(&c->children)))
-					goto addskip;
-				/*
-				 * if we get here we're a nonvirtual play channel, and either
-				 * 1) not busy
-				 * 2) busy with children, not directly open
-				 *
-				 * thus we can add children
-				 */
-				goto addok;
-addskip:
-			}
-			snd_mtxunlock(d->lock);
-			return EBUSY;
-addok:
-			c->flags |= CHN_F_BUSY;
-			while (err == 0 && newcnt > cnt) {
-				err = vchan_create(c);
-				if (err == 0)
-					cnt++;
-			}
-			if (SLIST_EMPTY(&c->children))
-				c->flags &= ~CHN_F_BUSY;
-		} else if (newcnt < cnt) {
-			while (err == 0 && newcnt < cnt) {
-				SLIST_FOREACH(sce, &d->channels, link) {
-					c = sce->channel;
-					if ((c->flags & (CHN_F_BUSY | CHN_F_VIRTUAL)) == CHN_F_VIRTUAL)
-						goto remok;
-				}
-				snd_mtxunlock(d->lock);
-				return EINVAL;
-remok:
-				err = vchan_destroy(c);
-				if (err == 0)
-					cnt--;
-			}
-		}
-	}
-
-	snd_mtxunlock(d->lock);
-	return err;
-}
-#endif
-
 int
-vchan_initsys(struct snddev_info *d)
+vchan_initsys(device_t dev)
 {
 #ifdef SND_DYNSYSCTL
-	SYSCTL_ADD_PROC(&d->sysctl_tree, SYSCTL_CHILDREN(d->sysctl_tree_top),
+	struct snddev_info *d;
+
+    	d = device_get_softc(dev);
+	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
             OID_AUTO, "vchans", CTLTYPE_INT | CTLFLAG_RW, d, sizeof(d),
 	    sysctl_hw_snd_vchans, "I", "")
 #endif
+
 	return 0;
 }
 

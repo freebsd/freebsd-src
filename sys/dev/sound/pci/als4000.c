@@ -22,8 +22,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THEPOSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -44,11 +42,15 @@
 
 #include "mixer_if.h"
 
+SND_DECLARE_FILE("$FreeBSD$");
+
 /* Debugging macro's */
 #undef DEB
 #ifndef DEB
 #define DEB(x)  /* x */
 #endif /* DEB */
+
+#define ALS_DEFAULT_BUFSZ 16384
 
 /* ------------------------------------------------------------------------- */
 /* Structures */
@@ -73,6 +75,8 @@ struct sc_info {
 	struct resource		*reg, *irq;
 	int			regid, irqid;
 	void			*ih;
+
+	unsigned int		bufsz;
 	struct sc_chinfo	pch, rch;
 };
 
@@ -209,7 +213,7 @@ alschan_init(kobj_t obj, void *devinfo,
 	ch->format = AFMT_U8;
 	ch->speed = DSP_DEFAULT_SPEED;
 	ch->buffer = b;
-	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, ALS_BUFFER_SIZE) != 0) {
+	if (sndbuf_alloc(ch->buffer, sc->parent_dmat, sc->bufsz) != 0) {
 		return NULL;
 	}
 	return ch;
@@ -246,9 +250,10 @@ static int
 alschan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct	sc_chinfo *ch = data;
+	struct	sc_info *sc = ch->parent;
 
-	if (blocksize > ALS_BUFFER_SIZE / 2) {
-		blocksize = ALS_BUFFER_SIZE / 2;
+	if (blocksize > sc->bufsz / 2) {
+		blocksize = sc->bufsz / 2;
 	}
 	sndbuf_resize(ch->buffer, 2, blocksize);
 	return blocksize;
@@ -725,18 +730,20 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, als_intr,
+	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_AV, als_intr,
 			   sc, &sc->ih)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto bad;
 	}
+
+	sc->bufsz = pcm_getbuffersize(dev, 4096, ALS_DEFAULT_BUFSZ, 65536);
 
 	if (bus_dma_tag_create(/*parent*/NULL,
 			       /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/ALS_BUFFER_SIZE,
+			       /*maxsize*/sc->bufsz,
 			       /*nsegments*/1, /*maxsegz*/0x3ffff,
 			       /*flags*/0, &sc->parent_dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
@@ -887,9 +894,9 @@ static device_method_t als_methods[] = {
 static driver_t als_driver = {
 	"pcm",
 	als_methods,
-	sizeof(struct snddev_info),
+	PCM_SOFTC_SIZE,
 };
 
-DRIVER_MODULE(snd_als, pci, als_driver, pcm_devclass, 0, 0);
-MODULE_DEPEND(snd_als, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
-MODULE_VERSION(snd_als, 1);
+DRIVER_MODULE(snd_als4000, pci, als_driver, pcm_devclass, 0, 0);
+MODULE_DEPEND(snd_als4000, snd_pcm, PCM_MINVER, PCM_PREFVER, PCM_MAXVER);
+MODULE_VERSION(snd_als4000, 1);

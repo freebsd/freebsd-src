@@ -22,18 +22,19 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
 
+SND_DECLARE_FILE("$FreeBSD$");
+
 #define	MIN(x, y) (((x) < (y))? (x) : (y))
 
 #define SNDBUF_NAMELEN	48
 struct snd_dbuf {
+	device_t dev;
         u_int8_t *buf, *tmpbuf;
         unsigned int bufsize, maxsize;
         volatile int dl; /* transfer size */
@@ -53,12 +54,14 @@ struct snd_dbuf {
 };
 
 struct snd_dbuf *
-sndbuf_create(char *drv, char *desc)
+sndbuf_create(device_t dev, char *drv, char *desc)
 {
 	struct snd_dbuf *b;
 
 	b = malloc(sizeof(*b), M_DEVBUF, M_WAITOK | M_ZERO);
 	snprintf(b->name, SNDBUF_NAMELEN, "%s:%s", drv, desc);
+	b->dev = dev;
+
 	return b;
 }
 
@@ -74,7 +77,7 @@ sndbuf_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	struct snd_dbuf *b = (struct snd_dbuf *)arg;
 
 	if (bootverbose) {
-		printf("pcm: setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
+		device_printf(b->dev, "sndbuf_setmap %lx, %lx; ", (unsigned long)segs->ds_addr,
 		       (unsigned long)segs->ds_len);
 		printf("%p -> %lx\n", b->buf, (unsigned long)vtophys(b->buf));
 	}
@@ -133,6 +136,8 @@ sndbuf_resize(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		blksz = b->blksz;
 	if (blkcnt < 2 || blksz < 16 || (blkcnt * blksz > b->maxsize))
 		return EINVAL;
+	if (blkcnt == b->blkcnt && blksz == b->blksz)
+		return 0;
 	b->blkcnt = blkcnt;
 	b->blksz = blksz;
 	b->bufsize = blkcnt * blksz;
@@ -307,7 +312,7 @@ sndbuf_getbuf(struct snd_dbuf *b)
 void *
 sndbuf_getbufofs(struct snd_dbuf *b, unsigned int ofs)
 {
-	KASSERT((ofs >= 0) && (ofs <= b->bufsize), ("%s: ofs invalid %d", __FUNCTION__, ofs));
+	KASSERT(ofs < b->bufsize, ("%s: ofs invalid %d", __func__, ofs));
 
 	return b->buf + ofs;
 }
@@ -379,7 +384,7 @@ unsigned int
 sndbuf_getready(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return b->rl;
 }
@@ -388,7 +393,7 @@ unsigned int
 sndbuf_getreadyptr(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __FUNCTION__, b->rp));
+	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __func__, b->rp));
 
 	return b->rp;
 }
@@ -397,7 +402,7 @@ unsigned int
 sndbuf_getfree(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return b->bufsize - b->rl;
 }
@@ -406,8 +411,8 @@ unsigned int
 sndbuf_getfreeptr(struct snd_dbuf *b)
 {
 	SNDBUF_LOCKASSERT(b);
-	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __FUNCTION__, b->rp));
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT((b->rp >= 0) && (b->rp <= b->bufsize), ("%s: b->rp invalid %d", __func__, b->rp));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 
 	return (b->rp + b->rl) % b->bufsize;
 }
@@ -451,8 +456,8 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 {
 	int l;
 
-	KASSERT(count <= sndbuf_getfree(b), ("%s: count %d > free %d", __FUNCTION__, count, sndbuf_getfree(b)));
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT(count <= sndbuf_getfree(b), ("%s: count %d > free %d", __func__, count, sndbuf_getfree(b)));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 	b->total += count;
 	if (from != NULL) {
 		while (count > 0) {
@@ -464,7 +469,7 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 		}
 	} else
 		b->rl += count;
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __FUNCTION__, b->rl, count));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __func__, b->rl, count));
 
 	return 0;
 }
@@ -474,8 +479,8 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 {
 	int l;
 
-	KASSERT(count <= sndbuf_getready(b), ("%s: count %d > ready %d", __FUNCTION__, count, sndbuf_getready(b)));
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __FUNCTION__, b->rl));
+	KASSERT(count <= sndbuf_getready(b), ("%s: count %d > ready %d", __func__, count, sndbuf_getready(b)));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 	if (to != NULL) {
 		while (count > 0) {
 			l = MIN(count, sndbuf_getsize(b) - sndbuf_getreadyptr(b));
@@ -489,7 +494,7 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 		b->rl -= count;
 		b->rp = (b->rp + count) % b->bufsize;
 	}
-	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __FUNCTION__, b->rl, count));
+	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d, count %d", __func__, b->rl, count));
 
 	return 0;
 }
@@ -619,7 +624,7 @@ sndbuf_isadma(struct snd_dbuf *b, int go)
 	DEB(printf("buf 0x%p ISA DMA %s, channel %d\n",
 		b,
 		(go == PCMTRIG_START)? "started" : "stopped",
-		b->chan));
+		b->isadmachan));
 }
 
 int

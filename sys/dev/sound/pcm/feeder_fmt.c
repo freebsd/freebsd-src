@@ -22,13 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
 
 #include "feeder_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 MALLOC_DEFINE(M_FMTFEEDER, "fmtfeed", "pcm format feeder");
 
@@ -446,7 +446,7 @@ static int
 feed_sign(struct pcm_feeder *f, struct pcm_channel *c, u_int8_t *b, u_int32_t count, void *source)
 {
 	int i = 0, j = FEEDER_FEED(f->source, c, b, count, source);
-	int ssz = (int)f->data, ofs = ssz - 1;
+	intptr_t ssz = (intptr_t)f->data, ofs = ssz - 1;
 
 	while (i < j) {
 		b[i + ofs] ^= 0x80;
