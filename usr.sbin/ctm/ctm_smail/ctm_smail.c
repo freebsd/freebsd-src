@@ -36,6 +36,7 @@ void apologise(char *delta, off_t ctm_size, long max_ctm_size,
 FILE *open_sendmail(void);
 int close_sendmail(FILE *fp);
 
+
 int
 main(int argc, char **argv)
     {
@@ -236,7 +237,7 @@ write_header(FILE *sfp, char *mail_alias, char *delta, int pce, int npieces)
     else
 	sn++;
 
-    fprintf(sfp, "From: %s-owner\n", mail_alias);
+    fprintf(sfp, "From: owner-%s\n", mail_alias);
     fprintf(sfp, "To: %s\n", mail_alias);
     fprintf(sfp, "Subject: ctm-mail %s %d/%d\n\n", sn, pce, npieces);
 

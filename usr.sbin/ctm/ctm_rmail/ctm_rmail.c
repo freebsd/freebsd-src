@@ -12,7 +12,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>     
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
@@ -47,7 +46,6 @@ int decode_line(char *line, char *out_buf);
  * reflected in the exit status.  In this case, the delta is left in
  * 'deltadir'.
  */
-
 int
 main(int argc, char **argv)
     {
@@ -67,7 +65,7 @@ main(int argc, char **argv)
     if (delta_dir == NULL)
 	usage();
 
-    if (piece_dir == NULL && (base_dir == NULL || argc>1))
+    if (piece_dir == NULL && (base_dir == NULL || argc > 1))
 	usage();
 
     if (log_file != NULL)
@@ -234,7 +232,7 @@ read_piece(char *input_file)
 	    {
 	    char *s;
 
-	    if (sscanf(line, "CTM_MAIL BEGIN %s %d %d %c", 
+	    if (sscanf(line, "CTM_MAIL BEGIN %s %d %d %c",
 		    delta, &pce, &npieces, junk) != 3)
 		continue;
 
