@@ -29,7 +29,7 @@
 #if defined(LIBC_SCCS) && !defined(lint) 
 /*static char *sccsid = "from: @(#)xdr_rec.c 1.21 87/08/11 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)xdr_rec.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: xdr_rec.c,v 1.1 1993/10/27 05:41:12 paul Exp $";
+static char *rcsid = "$Id: xdr_rec.c,v 1.1 1994/08/07 18:39:33 wollman Exp $";
 #endif
 
 /*
@@ -54,8 +54,6 @@ static char *rcsid = "$Id: xdr_rec.c,v 1.1 1993/10/27 05:41:12 paul Exp $";
 #include <rpc/types.h>
 #include <rpc/xdr.h>
 #include <netinet/in.h>
-
-extern long	lseek();
 
 static u_int	fix_buf_size();
 static bool_t	flush_out();

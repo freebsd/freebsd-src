@@ -40,8 +40,8 @@ libkern.${MACHINE}:: ${KMSRCS}
 	cp -p ${.ALLSRC} /sys/libkern/${MACHINE}
 .endif
 
-beforeinstall: tags
-	install -c -o bin -g bin -m 444 tags /var/db/libc.tags
+#beforeinstall: tags
+#	install -c -o bin -g bin -m 444 tags /var/db/libc.tags
 
 tags: ${SRCS}
 	ctags ${.ALLSRC:M*.c}
