@@ -1,4 +1,74 @@
-# $Id: bsd.info.mk,v 1.25 1997/01/12 07:15:24 peter Exp $
+#	$Id$
+#
+# The include file <bsd.info.mk> handles installing GNU (tech)info files.
+# Texinfo is a documentation system that uses a single source
+# file to produce both on-line information and printed output.
+# <bsd.info.mk> includes the files <bsd.dep.mk> and <bsd.obj.mk>.
+#
+#
+# +++ variables +++
+#
+# CLEANFILES	Additional files to remove for the clean and cleandir targets.
+#
+# DESTDIR	Change the tree where the info files gets installed. [not set]
+#
+# DISTRIBUTION	Name of distribution. [info]
+#
+# GZIPCMD	Program to compress info files. Output is to
+#		stdout. [gzip -c]
+#
+# INFO		???
+#
+# INFODIR	Base path for GNU's hypertext system
+#		called Info (see info(1)). [${SHAREDIR}/info]
+#
+# INFODIRFILE	Top level node/index for info files. [dir]
+#
+# INFOGRP	Info group. [${SHAREGRP}]
+#
+# INFOMODE	Info mode. [${NOBINMODE}]
+#
+# INFOOWN	Info owner. [${SHAREOWN}]
+#
+# INFOSECTION	??? [Miscellaneous]
+#
+# INFOTMPL	??? [/usr/share/info/dir-tmpl]
+#
+# INSTALLINFO	??? [install-info]
+#
+# INSTALLINFODIRS	???
+#
+# MAKEINFO	A program for converting GNU Texinfo files into Info
+#		file. [makeinfo]
+#
+# MAKEINFOFLAGS		Options for ${MAKEINFO} command. [--no-split]
+#
+# NOINFO	Do not make or install info files. [not set]
+#
+# NOINFOCOMPRESS	If you do not want info files be
+#			compressed when they are installed. [not set]
+#
+#
+# +++ targets +++
+#
+#	clean:
+#		remove *.info* Errs errs mklog ${CLEANFILES}
+#
+#	depend:
+#		Dummy target, do nothing.
+#
+#	distribute:
+#		This is a variant of install, which will
+#		put the stuff into the right "distribution".
+#
+#	install:
+#		Install the info files.
+#
+#	maninstall:
+#		Dummy target, do nothing.
+#
+#
+# bsd.obj.mk: cleandir and obj
 
 MAKEINFO?=	makeinfo
 MAKEINFOFLAGS+=	--no-split # simplify some things, e.g., compression
