@@ -660,7 +660,7 @@ em_start(struct ifnet *ifp)
 static int
 em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
-	int             mask, error = 0;
+	int             mask, reinit, error = 0;
 	struct ifreq   *ifr = (struct ifreq *) data;
 	struct adapter * adapter = ifp->if_softc;
 
@@ -726,14 +726,20 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCSIFCAP (Set Capabilities)");
+		reinit = 0;
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_POLLING)
 			ifp->if_capenable ^= IFCAP_POLLING;
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
-			if (ifp->if_flags & IFF_RUNNING)
-				em_init(adapter);
+			reinit = 1;
 		}
+		if (mask & IFCAP_VLAN_HWTAGGING) {
+			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			reinit = 1;
+		}
+		if (reinit && (ifp->if_flags & IFF_RUNNING))
+			em_init(adapter);
 		break;
 	default:
 		IOCTL_DEBUGOUT1("ioctl received: UNKNOWN (0x%x)\n", (int)command);
@@ -791,6 +797,8 @@ em_init_locked(struct adapter * adapter)
 {
 	struct ifnet   *ifp;
 
+	ifp = &adapter->interface_data.ac_if;
+
 	INIT_DEBUGOUT("em_init: begin");
 
 	mtx_assert(&adapter->mtx, MA_OWNED);
@@ -808,7 +816,8 @@ em_init_locked(struct adapter * adapter)
 		return;
 	}
 
-	em_enable_vlans(adapter);
+	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
+		em_enable_vlans(adapter);
 
 	/* Prepare transmit descriptors and buffers */
 	if (em_setup_transmit_structures(adapter)) {
@@ -834,7 +843,6 @@ em_init_locked(struct adapter * adapter)
 	/* Don't loose promiscuous settings */
 	em_set_promisc(adapter);
 
-	ifp = &adapter->interface_data.ac_if;
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
