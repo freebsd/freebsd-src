@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.4 1994/10/26 05:40:59 phk Exp $
+ * $Id: exec.c,v 1.5 1994/10/29 10:01:32 phk Exp $
  *
  */
 
@@ -62,6 +62,7 @@ exec(int magic, char *cmd, char *args, ...)
 			close(debug_fd);
 			break;
 		case 2:
+		case 3:
 			close(debug_fd);
 		default:
 			break;
@@ -72,7 +73,8 @@ exec(int magic, char *cmd, char *args, ...)
 	
 	while ((w = wait(&status)) != pid && w != -1)
 		;
-
+	if (w == 20 && magic == 3)	/* special case for bininst */
+		execl("/sbin/init", "/sbin/init", 0);
 	if (w == -1)
 		Fatal("Child process %s terminated abnormally\n", cmd);
 	return(status);
