@@ -40,7 +40,7 @@ static const char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";*/
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.4 1995/10/09 07:21:00 bde Exp $";
+	"$Id: xinstall.c,v 1.5 1996/02/08 06:17:50 pst Exp $";
 #endif /* not lint */
 
 /*-
@@ -79,8 +79,6 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
-struct passwd *pp;
-struct group *gp;
 int debug, docompare, docopy, dopreserve, dostrip;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
@@ -97,6 +95,23 @@ void	install __P((char *, char *, u_long, u_int));
 u_long	string_to_flags __P((char **, u_long *, u_long *));
 void	strip __P((char *));
 void	usage __P((void));
+
+#define ALLOW_NUMERIC_IDS 1
+#ifdef ALLOW_NUMERIC_IDS
+
+uid_t	uid;
+gid_t	gid;
+
+uid_t	resolve_uid __P((char *));
+gid_t	resolve_gid __P((char *));
+u_long	numeric_id __P((char *, char *));
+
+#else
+
+struct passwd *pp;
+struct group *gp;
+
+#endif /* ALLOW_NUMERIC_IDS */
 
 int
 main(argc, argv)
@@ -155,11 +170,20 @@ main(argc, argv)
 	if (argc < 2)
 		usage();
 
+#ifdef ALLOW_NUMERIC_IDS
+
+	uid = resolve_uid(owner);
+	gid = resolve_gid(group);
+
+#else
+
 	/* get group and owner id's */
 	if (owner && !(pp = getpwnam(owner)))
 		errx(EX_NOUSER, "unknown user %s", owner);
 	if (group && !(gp = getgrnam(group)))
 		errx(EX_NOUSER, "unknown group %s", group);
+
+#endif /* ALLOW_NUMERIC_IDS */
 
 	no_target = stat(to_name = argv[argc - 1], &to_sb);
 	if (!no_target && (to_sb.st_mode & S_IFMT) == S_IFDIR) {
@@ -203,6 +227,50 @@ main(argc, argv)
 	install(*argv, to_name, fset, iflags);
 	exit(0);
 }
+
+#ifdef ALLOW_NUMERIC_IDS
+
+uid_t
+resolve_uid(s)
+	char *s;
+{
+	struct passwd *pw;
+
+	return ((pw = getpwnam(s)) == NULL) ?
+		(uid_t) numeric_id(s, "user") : pw->pw_uid;
+}
+
+gid_t
+resolve_gid(s)
+	char *s;
+{
+	struct group *gr;
+
+	return ((gr = getgrnam(s)) == NULL) ?
+		(gid_t) numeric_id(s, "group") : gr->gr_gid;
+}
+
+u_long
+numeric_id(name, type)
+	char *name, *type;
+{
+	u_long val;
+	char *ep;
+
+	/*
+	 * XXX
+	 * We know that uid_t's and gid_t's are unsigned longs.
+	 */
+	errno = 0;
+	val = strtoul(name, &ep, 10);
+	if (errno)
+		err(EX_NOUSER, "%s", name);
+	if (*ep != '\0')
+		errx(EX_NOUSER, "unknown %s %s", type, name);
+	return (val);
+}
+
+#endif /* ALLOW_NUMERIC_IDS */
 
 /*
  * install --
@@ -360,7 +428,11 @@ moveit:
 	 * chown may lose the setuid bits.
 	 */
 	if ((group || owner) &&
+#ifdef ALLOW_NUMERIC_IDS
+	    fchown(to_fd, owner ? uid : -1, group ? gid : -1)) {
+#else
 	    fchown(to_fd, owner ? pp->pw_uid : -1, group ? gp->gr_gid : -1)) {
+#endif
 		serrno = errno;
 		(void)unlink(to_name);
 		errno = serrno;
