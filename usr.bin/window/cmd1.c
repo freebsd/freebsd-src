@@ -115,7 +115,7 @@ int maxrow, maxcol;
 {
 	static int scount;
 	int count;
-	char c;
+	int c;
 	int oldrow = *row, oldcol = *col;
 
 	while ((c = wwgetc()) >= 0) {
