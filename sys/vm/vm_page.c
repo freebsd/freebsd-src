@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.28 1995/04/09 06:03:52 davidg Exp $
+ *	$Id: vm_page.c,v 1.29 1995/04/16 09:59:16 davidg Exp $
  */
 
 /*
@@ -336,10 +336,7 @@ vm_page_startup(starta, enda, vaddr)
 			++cnt.v_free_count;
 			m = PHYS_TO_VM_PAGE(pa);
 			m->flags = PG_FREE;
-			m->dirty = 0;
-			m->object = 0;
 			m->phys_addr = pa;
-			m->hold_count = 0;
 			TAILQ_INSERT_TAIL(&vm_page_queue_free, m, pageq);
 			pa += PAGE_SIZE;
 		}
