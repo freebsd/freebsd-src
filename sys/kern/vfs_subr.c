@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.44 1995/11/29 11:28:00 phk Exp $
+ * $Id: vfs_subr.c,v 1.45 1995/12/02 18:58:56 bde Exp $
  */
 
 /*
@@ -1326,8 +1326,8 @@ again:
 	return (0);
 }
 
-SYSCTL_NODE(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
-	sysctl_vnode, "");
+SYSCTL_PROC(_kern, KERN_VNODE, vnode, CTLTYPE_OPAQUE|CTLFLAG_RD,
+	0, 0, sysctl_vnode, "S,vnode", "");
 
 
 /*
