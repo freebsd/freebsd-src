@@ -732,7 +732,7 @@ geom/geom_disk.c	optional geom
 geom/geom_dump.c	optional geom
 geom/geom_enc.c	optional geom
 geom/geom_event.c	optional geom
-geom/geom_gpt.c	optional geom geom_gpt
+geom/geom_gpt.c	optional geom
 geom/geom_io.c	optional geom
 geom/geom_kern.c	optional geom
 geom/geom_mbr.c	optional geom
