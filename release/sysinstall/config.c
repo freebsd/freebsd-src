@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.75 1997/03/11 09:29:11 jkh Exp $
+ * $Id: config.c,v 1.16.2.76 1997/03/12 02:33:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -409,6 +409,9 @@ configSysconfig(char *config)
 	    for (j = 0; j < cnt; j++) {
 		char iname[255], toadd[512];
 		int k, addit = TRUE;
+
+		if (!strncmp(devp[j]->name, "ppp", 3) || !strncmp(devp[j]->name, "tun", 3))
+		    continue;
 
 		snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
 		if ((cp = variable_get(iname))) {
