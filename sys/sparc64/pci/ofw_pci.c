@@ -166,8 +166,11 @@ ofw_pci_init_intr(device_t dev, phandle_t bus, struct ofw_pci_imap *intrmap,
 				if (nintrmap == -1 ||
 				    OF_getprop(bus, "interrupt-map-mask",
 				    &lintrmapmsk, sizeof(lintrmapmsk)) == -1) {
-					panic("ofw_pci_init_intr: could not get "
-					    "interrupt map properties");
+					printf("ofw_pci_init_intr: could not get "
+					    "interrupt map properties\n");
+					if (nintrmap != -1)
+						free(intrmap, M_OFWPROP);
+					return;
 				}
 				intrmapmsk = &lintrmapmsk;
 				freemap = 1;
