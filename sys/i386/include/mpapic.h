@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mpapic.h,v 1.1 1997/04/26 11:45:38 peter Exp $
+ *	$Id: mpapic.h,v 1.1 1997/05/01 06:57:56 smp Exp smp $
  */
 
 #ifndef _MACHINE_MPAPIC_H_
@@ -48,10 +48,6 @@
 # if !defined(NAPIC)
 # define NAPIC		1
 # endif /* NAPIC */
-
-/* use inline xxxIPI functions */
-#define FAST_IPI_NOT
-#define APICIPI_BANDAID
 
 
 /* these don't really belong in here... */
@@ -189,64 +185,6 @@ apic_eoi(void)
 }
 
 
-#if defined(FAST_IPI)
-
-/*
- * send APIC IPI 'vector' to 'destType' via 'deliveryMode'
- *
- *  destType is 1 of: APIC_DEST_SELF, APIC_DEST_ALLISELF, APIC_DEST_ALLESELF
- *  vector is any valid SYSTEM INT vector
- *  deliveryMode is 1 of: APIC_DELMODE_FIXED, APIC_DELMODE_LOWPRIO
- */
-static __inline int
-apic_ipi(int destType, int vector, int deliveryMode)
-{
-	u_long	icr_lo;
-
-	/* build IRC_LOW */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK) |
-	    destType | deliveryMode | vector;
-
-	/* write APIC ICR */
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
-		/* spin */ ;
-
-	/** FIXME: return result */
-	return 0;
-}
-
-
-/*
- * send an IPI INTerrupt containing 'vector' to CPU 'target'
- *   NOTE: target is a LOGICAL APIC ID
- */
-static __inline int
-selected_proc_ipi(int target, int vector)
-{
-	u_long	icr_lo;
-	u_long	icr_hi;
-
-	/* write the destination field for the target AP */
-	icr_hi = (apic_base[APIC_ICR_HI] & ~APIC_ID_MASK) |
-	    (cpu_num_to_apic_id[target] << 24);
-	apic_base[APIC_ICR_HI] = icr_hi;
-
-	/* write command */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK) |
-	    APIC_DEST_DESTFLD | APIC_DELMODE_FIXED | vector;
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
-		/* spin */ ;
-
-	return 0;	/** FIXME: return result */
-}
-
-
 /*
  * send an IPI INTerrupt containing 'vector' to CPUs in 'targetMap'
  * 'targetMap' is a bitfiled of length 14,
@@ -265,22 +203,8 @@ selected_procs_ipi(int targetMap, int vector)
 static __inline int
 all_procs_ipi(int vector)
 {
-	u_int32_t	icr_lo;
-
-	/* build command */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK) |
-	    APIC_DEST_ALLISELF | APIC_DELMODE_FIXED | vector;
-
-	/* write command */
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
-		/* spin */ ;
-
-	return 0;	/** FIXME: return result */
+	return apic_ipi(APIC_DEST_ALLISELF, vector, APIC_DELMODE_FIXED);
 }
-
 
 /*
  * send an IPI INTerrupt containing 'vector' to all CPUs EXCEPT myself
@@ -288,20 +212,7 @@ all_procs_ipi(int vector)
 static __inline int
 all_but_self_ipi(int vector)
 {
-	u_int32_t	icr_lo;
-
-	/* build command */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK) |
-	    APIC_DEST_ALLESELF | APIC_DELMODE_FIXED | vector;
-
-	/* write command */
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
-		/* spin */ ;
-
-	return 0;	/** FIXME: return result */
+	return apic_ipi(APIC_DEST_ALLESELF, vector, APIC_DELMODE_FIXED);
 }
 
 /*
@@ -310,30 +221,7 @@ all_but_self_ipi(int vector)
 static __inline int
 self_ipi(int vector)
 {
-	u_int32_t	icr_lo;
-
-	/* build command */
-	icr_lo = (apic_base[APIC_ICR_LOW] & APIC_RESV2_MASK) |
-	    APIC_DEST_SELF | APIC_DELMODE_FIXED | vector;
-
-	/* write command */
-	apic_base[APIC_ICR_LOW] = icr_lo;
-
-	/* wait for pending status end */
-	while (apic_base[APIC_ICR_LOW] & APIC_DELSTAT_MASK)
-		/* spin */ ;
-
-	return 0;	/** FIXME: return result */
+	return apic_ipi(APIC_DEST_SELF, vector, APIC_DELMODE_FIXED);
 }
-
-#  else /* !FAST_IPI */
-
-int	apic_ipi		__P((int, int, int));
-int	selected_procs_ipi	__P((int, int));
-int	all_procs_ipi		__P((int));
-int	all_but_self_ipi	__P((int));
-int	self_ipi		__P((int));
-
-#endif /* FAST_IPI */
 
 #endif /* _MACHINE_MPAPIC_H */
