@@ -37,6 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext2_alloc.c	8.8 (Berkeley) 2/21/94
+ * $FreeBSD$
  */
 
 #include "opt_quota.h"
@@ -49,6 +50,7 @@
 #include <sys/mount.h>
 #include <sys/syslog.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufsmount.h>
