@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.19 1996/01/31 14:26:04 mpp Exp $ -->
+<!-- $Id: eresources.sgml,v 1.20 1996/04/13 00:05:30 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -16,8 +16,8 @@
 
     The most important points of contact with the FreeBSD
     user community are outlined below.  If you are aware of other
-    resources not mentioned here, please send them to
-    <tt>doc@freebsd.org</tt> so that they may also be included.
+    resources not mentioned here, please send them to the &a.doc
+    so that they may also be included.
 
       <sect>
         <heading>Mailing lists<label id="eresources:mail"></heading>
@@ -35,7 +35,7 @@ strive to keep the signal to noise ratio of the lists high, especially
 in the technical ones.
 
 Archives are kept for all of the mailing lists and can be searched
-using the the <url url="http://www.freebsd.org/search.html"
+using the the <url url="http://www.FreeBSD.ORG/search.html"
 name="FreeBSD World Wide Web server">.  The keyword searchable archive
 offers an excellent way of finding answers to frequently asked
 questions and should be consulted before posting a question.
@@ -359,6 +359,6 @@ User Groups.
         <heading>World Wide Web servers<label id="eresources:web"></heading>
 
         <p><itemize> 
-            <item><url url="http://www.freebsd.org/"></item>
+            <item><url url="http://www.FreeBSD.ORG/"></item>
           </itemize>
     </sect>

@@ -1,4 +1,4 @@
-<!-- $Id: sup.sgml,v 1.12 1996/02/06 23:41:01 asami Exp $ -->
+<!-- $Id: sup.sgml,v 1.13 1996/02/11 00:16:18 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -56,11 +56,11 @@ like so:
 </verb>
 Thats all there is to it!  Remember that if you're running current,
 which is what you will have if you sup with the standard-supfile, please 
-join the freebsd-current mailing list.  You should also be sure to read 
+join the &a.current mailing list.  You should also be sure to read 
 <ref id="current" name="Staying current with FreeBSD">
 for important information on just what we can and cannot do for you as
 a -current user.    If you are using the stable-supfile, please
-join the freebsd-stable mailing list and read
+join the &a.stable mailing list and read
 <ref id="stable" name="Staying stable with FreeBSD">
 .
 
