@@ -13,7 +13,7 @@
 .\" IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
 .\" WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.\"	$Header: /home/ncvs/src/contrib/traceroute/traceroute.8,v 1.2 1996/10/08 02:44:23 sef Exp $
+.\"	$Header: /home/ncvs/src/contrib/traceroute/traceroute.8,v 1.3 1998/01/09 18:46:53 steve Exp $
 .\"
 .TH TRACEROUTE 8 "27 September 1996"
 .UC 6
@@ -35,24 +35,29 @@ max_ttl
 .br
 .ti +8
 [
+.B \-P
+.I proto
+] [
 .B \-p
 .I port
 ] [
 .B \-q
 .I nqueries
-] [
-.B \-s
-.I src_addr
 ]
 .br
 .ti +8
 [
+.B \-s
+.I src_addr
+] [
 .B \-t
 .I tos
 ] [
 .B \-w
 .I waittime
 ]
+.br
+.ti +8
 .I host
 [
 .I packetlen
@@ -91,8 +96,18 @@ Print hop addresses numerically rather than symbolically and numerically
 (saves a nameserver address-to-name lookup for each gateway found on the
 path).
 .TP
+.B \-P
+Send packets of specified IP protocol. The currently supported protocols
+are: UDP, TCP and GRE. Other protocols may also be specified (either by
+name or by number), though
+.I traceroute
+does not implement any special knowledge of their packet formats. This
+option is useful for determining which router along a path may be
+blocking packets based on IP protocol number. But see BUGS below.
+.TP
 .B \-p
-Set the base UDP port number used in probes (default is 33434).
+Protocol specific. For UDP and TCP, sets
+the base port number used in probes (default is 33434).
 Traceroute hopes that nothing is listening on UDP ports
 .I base
 to
@@ -298,4 +313,13 @@ The current version is available via anonymous ftp:
 .I ftp://ftp.ee.lbl.gov/traceroute.tar.Z
 .RE
 .SH BUGS
+When using protocols other than UDP, functionality is reduced.
+In particular, the last packet will often appear to be lost, because
+even though it reaches the destination host, there's no way to know
+that because no ICMP message is sent back.
+In the TCP case,
+.I traceroute
+should listen for a RST from the destination host (or an intermediate
+router that's filtering packets), but this is not implemented yet.
+.PP
 Please send bug reports to traceroute@ee.lbl.gov.
