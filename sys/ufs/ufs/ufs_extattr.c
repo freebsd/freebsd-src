@@ -51,9 +51,9 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/ufs_extern.h>
 
-#include "opt_ffs.h"
+#include "opt_ufs.h"
 
-#ifdef FFS_EXTATTR
+#ifdef UFS_EXTATTR
 
 #define	MIN(a,b) (((a)<(b))?(a):(b))
 
@@ -214,7 +214,7 @@ unlock:
 	return (error);
 }
 
-#ifdef FFS_EXTATTR_AUTOSTART
+#ifdef UFS_EXTATTR_AUTOSTART
 /*
  * Helper routine: given a locked parent directory and filename, return
  * the locked vnode of the inode associated with the name.  Will not
@@ -298,7 +298,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 	*vp = target_vp;
 	return (0);
 }
-#endif /* !FFS_EXTATTR_AUTOSTART */
+#endif /* !UFS_EXTATTR_AUTOSTART */
 
 /*
  * Enable an EA using the passed file system, backing vnode, attribute name,
@@ -344,7 +344,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 	return (ufs_extattr_enable(ump, namespace, attrname, vp, p));
 }
 
-#ifdef FFS_EXTATTR_AUTOSTART
+#ifdef UFS_EXTATTR_AUTOSTART
 /*
  * Given a locked directory vnode, iterate over the names in the directory
  * and use ufs_extattr_lookup() to retrieve locked vnodes of potential
@@ -531,7 +531,7 @@ return_vput_attr_dvp:
 
 	return (error);
 }
-#endif /* !FFS_EXTATTR_AUTOSTART */
+#endif /* !UFS_EXTATTR_AUTOSTART */
 
 /*
  * Stop extended attribute support on an FS.
@@ -1251,4 +1251,4 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 	ufs_extattr_uepm_unlock(ump, p);
 }
 
-#endif /* !FFS_EXTATTR */
+#endif /* !UFS_EXTATTR */

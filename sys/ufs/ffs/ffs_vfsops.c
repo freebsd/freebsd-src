@@ -34,8 +34,8 @@
  * $FreeBSD$
  */
 
-#include "opt_ffs.h"
 #include "opt_quota.h"
+#include "opt_ufs.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -85,7 +85,7 @@ static struct vfsops ufs_vfsops = {
 	ffs_vptofh,
 	ffs_init,
 	vfs_stduninit,
-#ifdef FFS_EXTATTR
+#ifdef UFS_EXTATTR
 	ufs_extattrctl,
 #else
 	vfs_stdextattrctl,
@@ -659,7 +659,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	ump->um_seqinc = fs->fs_frag;
 	for (i = 0; i < MAXQUOTAS; i++)
 		ump->um_quotas[i] = NULLVP;
-#ifdef FFS_EXTATTR
+#ifdef UFS_EXTATTR
 	ufs_extattr_uepm_init(&ump->um_extattr);
 #endif
 	devvp->v_rdev->si_mountpoint = mp;
@@ -699,8 +699,8 @@ ffs_mountfs(devvp, mp, p, malloctype)
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
-#ifdef FFS_EXTATTR
-#ifdef FFS_EXTATTR_AUTOSTART
+#ifdef UFS_EXTATTR
+#ifdef UFS_EXTATTR_AUTOSTART
 	/*
 	 *
 	 * Auto-starting does the following:
@@ -712,8 +712,8 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	 * available, so would effectively be "atomic".
 	 */
 	(void) ufs_extattr_autostart(mp, p);
-#endif /* !FFS_EXTATTR_AUTOSTART */
-#endif /* !FFS_EXTATTR */
+#endif /* !UFS_EXTATTR_AUTOSTART */
+#endif /* !UFS_EXTATTR */
 	return (0);
 out:
 	devvp->v_rdev->si_mountpoint = NULL;
@@ -777,7 +777,7 @@ ffs_unmount(mp, mntflags, p)
 	if (mntflags & MNT_FORCE) {
 		flags |= FORCECLOSE;
 	}
-#ifdef FFS_EXTATTR
+#ifdef UFS_EXTATTR
 	if ((error = ufs_extattr_stop(mp, p)))
 		if (error != EOPNOTSUPP)
 			printf("ffs_unmount: ufs_extattr_stop returned %d\n",
