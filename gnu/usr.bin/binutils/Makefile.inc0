@@ -1,5 +1,5 @@
 #
-# $Id: Makefile.inc0,v 1.1.1.1 1998/03/01 23:40:48 jdp Exp $
+# $Id: Makefile.inc0,v 1.2 1998/03/12 02:54:39 jdp Exp $
 #
 
 #
@@ -27,7 +27,7 @@ CFLAGS+=	-I- -I.
 CFLAGS+=	-I${.CURDIR}/${MACHINE_ARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbfd
+CFLAGS+=	-I${.CURDIR}/${RELTOP}/libbfd/${MACHINE_ARCH}
 CFLAGS+=	-I${SRCDIR}/include
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
