@@ -82,7 +82,7 @@ _global_globaldata(void)
 	return (val);
 }
 
-#if defined(SMP) || defined(KLD_MODULE) || defined(ACTUALLY_LKM_NOT_KERNEL)
+#if defined(SMP) || defined(KLD_MODULE)
 /*
  * The following set of macros works for UP kernel as well, but for maximum
  * performance we allow the global variables to be accessed directly. On the
