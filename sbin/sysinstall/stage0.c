@@ -28,7 +28,7 @@ static unsigned char *welcome[] = {
     "1. README",
     "Read the `READ ME FIRST' File .",
     "2. Release Notes",
-     "Read the 2.0 release notes (recommended).",
+     "Read the 2.0 Release Notes (recommended).",
     "3. COPYRIGHT",
     "Read FreeBSD Copyright Information.",
     "4. Proceed",
