@@ -273,7 +273,7 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
 		tp = dev->si_drv1;
 	}
 	KASSERT(!(tp->tun_flags & TUN_OPEN), ("Resource & flags out-of-sync"));
-	tp->r_unit = r;
+	tp->tun_unit = r;
 	tp->tun_pid = td->td_proc->p_pid;
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
@@ -297,7 +297,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	tp = dev->si_drv1;
 	ifp = &tp->tun_if;
 
-	KASSERT(tp->r_unit, ("Unit %d not marked open", ifp->if_unit));
+	KASSERT(tp->tun_unit, ("Unit %d not marked open", ifp->if_unit));
 	tp->tun_flags &= ~TUN_OPEN;
 	tp->tun_pid = 0;
 
@@ -329,7 +329,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	selwakeup(&tp->tun_rsel);
 
 	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
-	err = rman_release_resource(tp->r_unit);
+	err = rman_release_resource(tp->tun_unit);
 	KASSERT(err == 0, ("Unit %d failed to release", ifp->if_unit));
 
 	return (0);

@@ -47,10 +47,9 @@ struct tun_softc {
 	struct	ifnet tun_if;		/* the interface */
 	struct  sigio *tun_sigio;	/* information for async I/O */
 	struct	selinfo	tun_rsel;	/* read select */
-	struct	selinfo	tun_wsel;	/* write select (not used) */
 
 	struct	tun_softc *next;	/* Next softc in list */
-	struct	resource *r_unit;	/* resource allocated for this unit */
+	struct	resource *tun_unit;	/* resource allocated for this unit */
 };
 
 #endif /* !_NET_IF_TUNVAR_H_ */
