@@ -89,6 +89,10 @@ int dialog_textbox(unsigned char *title, unsigned char *file, int height, int wi
   buf[bytes_read] = '\0';    /* mark end of valid data */
   page = buf;    /* page is pointer to start of page to be displayed */
 
+  if (width > COLS)
+	width = COLS;
+  if (height > LINES)
+	height = LINES;
   /* center dialog box on screen */
   x = (COLS - width)/2;
   y = (LINES - height)/2;
