@@ -2167,30 +2167,27 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	LIST_FOREACH(z, &uma_zones, uz_link) {
 		if (cnt == 0)	/* list may have changed size */
 			break;
-		for (cpu = 0; cpu < maxcpu; cpu++) {
-			if (CPU_ABSENT(cpu))
-				continue;
-			CPU_LOCK(cpu);
+		if (!(z->uz_flags & UMA_ZFLAG_INTERNAL)) {
+			for (cpu = 0; cpu < maxcpu; cpu++) {
+				if (CPU_ABSENT(cpu))
+					continue;
+				CPU_LOCK(cpu);
+			}
 		}
 		ZONE_LOCK(z);
 		cachefree = 0;
-		for (cpu = 0; cpu < maxcpu; cpu++) {
-			if (CPU_ABSENT(cpu))
-				continue;
-			cache = &z->uz_cpu[cpu];
-			if (cache->uc_allocbucket != NULL)
-				cachefree += cache->uc_allocbucket->ub_ptr + 1;
-			if (cache->uc_freebucket != NULL)
-				cachefree += cache->uc_freebucket->ub_ptr + 1;
-			CPU_UNLOCK(cpu);
+		if (!(z->uz_flags & UMA_ZFLAG_INTERNAL)) {
+			for (cpu = 0; cpu < maxcpu; cpu++) {
+				if (CPU_ABSENT(cpu))
+					continue;
+				cache = &z->uz_cpu[cpu];
+				if (cache->uc_allocbucket != NULL)
+					cachefree += cache->uc_allocbucket->ub_ptr + 1;
+				if (cache->uc_freebucket != NULL)
+					cachefree += cache->uc_freebucket->ub_ptr + 1;
+				CPU_UNLOCK(cpu);
+			}
 		}
-		/*
-		 * The "UMA Zones" zone (master zone) does not have pcpu
-		 * caches allocated for it, so the above computation is entirely
-		 * bogus.  Re-set cachefree to 0 in that case.
-		 */
-		if (z == zones)
-			cachefree = 0;
 		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
 			cachefree += bucket->ub_ptr + 1;
 		}
