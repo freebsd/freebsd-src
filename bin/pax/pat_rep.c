@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pat_rep.c,v 1.3 1995/03/19 13:28:56 joerg Exp $
+ *	$Id: pat_rep.c,v 1.4 1995/05/30 00:06:59 rgrimes Exp $
  */
 
 #ifndef lint
@@ -46,7 +46,6 @@ static char sccsid[] = "@(#)pat_rep.c	8.2 (Berkeley) 4/18/94";
 #include <sys/stat.h>
 #include <sys/param.h>
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
