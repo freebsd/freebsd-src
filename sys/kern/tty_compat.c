@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty_compat.c	8.1 (Berkeley) 6/10/93
- * $Id: tty_compat.c,v 1.16 1995/08/02 12:03:12 ache Exp $
+ * $Id: tty_compat.c,v 1.17 1995/08/02 12:53:14 ache Exp $
  */
 
 /*
@@ -53,6 +53,7 @@
 static int ttcompatgetflags	__P((struct tty	*tp));
 static void ttcompatsetflags	__P((struct tty	*tp, struct termios *t));
 static void ttcompatsetlflags	__P((struct tty	*tp, struct termios *t));
+static int ttcompatspeedtab	__P((int speed, struct speedtab *table));
 
 int ttydebug = 0;
 
@@ -80,11 +81,11 @@ static struct speedtab compatspeeds[] = {
 };
 static int compatspcodes[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200,
-	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200
+	1800, 2400, 4800, 9600, 19200, 38400, 57600, 115200,
 };
 
-static
-int ttcompatspeedtab(speed, table)
+static int
+ttcompatspeedtab(speed, table)
 	int speed;
 	register struct speedtab *table;
 {
@@ -96,7 +97,8 @@ int ttcompatspeedtab(speed, table)
 	return (1); /* 50, min and not hangup */
 }
 
-int ttsetcompat(tp, com, data, term)
+int
+ttsetcompat(tp, com, data, term)
 	register struct tty *tp;
 	int *com;
 	caddr_t data;
@@ -386,6 +388,7 @@ ttcompatsetflags(tp, t)
 		iflag |= ISTRIP;
 		oflag |= OPOST;
 	}
+	/* XXX don't set INPCK if RAW or PASS8? */
 	if ((flags&(EVENP|ODDP)) == EVENP) {
 		iflag |= INPCK;
 		cflag &= ~PARODD;
