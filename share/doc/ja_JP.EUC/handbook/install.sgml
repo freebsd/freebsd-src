@@ -1,6 +1,6 @@
-<!-- $Id: install.sgml,v 1.11 1997/02/22 13:01:12 peter Exp $ -->
+<!-- $Id: install.sgml,v 1.12 1997/02/25 04:56:02 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.51 -->
+<!-- Original revision: 1.53 -->
 
 <!--
 <!DOCTYPE linuxdoc PUBLIC '-//FreeBSD//DTD linuxdoc//EN'>
@@ -38,36 +38,27 @@
 	イーサネットアダプタだとか, サウンドカードだとかの, あなたのマシンが
 	装備している特別なカードのリストを作っておくと便利です. この
 	リストには, 割り込み番号 (IRQ) とか, IO ポートのアドレスとかの, カードに
-	関係する設定も書いておきましょう. 
+	関係する設定も書いておきましょう.<P></P></item>
       <item><url
 	  url="ftp://ftp.freebsd.org/pub/FreeBSD/&rel.current;-RELEASE/floppies/boot.flp"
 	  name="ブートディスクのイメージ"> ファイルをあなたの
 	ハードディスクにダウンロードしてきます. ブラウザのコマンドでは, 
 	<em>display</em> ではなくて <em>save</em> を選ぶことに注意してください. 
 
-	  <bf>注意:</bf> このディスクイメージは, 1.44 メガバイトの
-	3.5 インチフロッピーディスクと, 1.2 メガバイトの 5.25 インチフロッピーディスク
-	のどちらでも使用可能です. 
-	</item>
+	  <bf>注意:</bf> このディスクイメージは, 1.44 メガバイトの 3.5 インチフロッピーディスクのみで使用可能です.<P></P></item>
 
       <item>このイメージファイルからブートディスクを作成します, 
 	<itemize>
 	  <item>MS-DOSを使っている場合:
 	    <url 
-url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/rawrite.exe"
-	      name="rawrite.exe"> をダウンロードして, これを実行します. 
+url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/tools/fdimage.exe"
+	      name="fdimage.exe"> をダウンロードして, これを実行します. 
 <tscreen><verb>
-C:\> rawrite
+E:\> tools\fdimage floppies\boot.flp a:
 </verb></tscreen> 
-このプログラムを実行すると, 書き込むフロッピードライブ
-(A: か B: か) を聞いてきて, その後に書き込むファイルの名前
-(boot.flp) を聞いてきます. 
-
-<p><bf>注:</bf> rawrite.exe に関しては, Windows95 上では DOS モードで
-のみ動作し, Windows NT 上では全く動作しないという報告が多く寄せられて
-います. Windows NT マシンをお使いの場合は, 別のマシンを使ってフロッピー
-イメージを作成してください. また Windows95 をお使いでしたら, まず DOS 
-モードで起動してから作業してください.</p></item>
+このプログラムは, A: ドライブをフォーマットした後 boot.flp の内容を書き込みます
+(ここでは FreeBSD の配布物のトップレベルディレクトリにおり, フロッピーイメージ
+は floppies ディレクトリにあると仮定しています).<P></P></item>
 
 	  <item>UNIX システムを使っている場合:
 <tscreen>
@@ -76,10 +67,9 @@ C:\> rawrite
 を実行します. ここで, <em>disk&lowbar;device</em> はフロッピードライブに
 対応する <tt>/dev</tt>の中のエントリです. FreeBSD では, 
 <tt>/dev/fd0</tt> が A:ドライブに, <tt>/dev/fd1</tt> が B:ドライブに
-対応しています. 
-	  </item>
+対応しています.<P></P></item>
 	</itemize>
-      </item>
+      <P></P></item>
 
       <item>インストールディスクを A:ドライブに入れて, コンピュータを
 立ち上げ直します. そうすると次のようなプロンプトが出てくるはずです. 
@@ -93,8 +83,7 @@ Boot:
 	ここで何もタイプしない場合, 5秒間の待ち時間の後に FreeBSD は
 	自動的にデフォルトの設定で立ち上がります. 立ち上げの際, どんな
 	ハードウェアが装備されているかを検出 (プローブ) します. この結果は
-	スクリーン上に表示されます. 
-      </item>
+	スクリーン上に表示されます.<P></P></item>
 
       <item>立ち上げプロセスが終了したら, FreeBSD インストールメニューが
 	表示されます. 
