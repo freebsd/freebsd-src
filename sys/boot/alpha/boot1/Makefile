@@ -1,44 +1,29 @@
 # $NetBSD: Makefile,v 1.15 1998/03/28 00:21:35 thorpej Exp $
 # $FreeBSD$
 
-.include <../Makefile.inc>
+PROG=	boot1.sym
+INTERNALPROG=
+NOMAN=
+LINKS=	${BINDIR}/boot1 ${BINDIR}/boot
 
-PROG = boot1
-LINKS =	${BINDIR}/${PROG} ${BINDIR}/boot
-
-.PATH:		${.CURDIR}/../libalpha
+.PATH: ${.CURDIR}/../libalpha
 
 SRCS=		start.S boot1.c
-CFLAGS+=	-ffreestanding -mno-fp-regs
 CFLAGS+=	-DSECONDARY_LOAD_ADDRESS=${SECONDARY_LOAD_ADDRESS} -DMINIMAL
 CFLAGS+=	-DBOOT1
-CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}
-CFLAGS+=	-I${LIBSTANDDIR}
-CFLAGS+=	-I${.CURDIR}/..
-NOMAN=1
-STRIP=
-BINDIR?=	/boot
+CFLAGS+=	-I${.CURDIR}/../../common
 
 BOOT_RELOC = ${PRIMARY_LOAD_ADDRESS}
 
-CLEANFILES+= ${PROG}.sym ${PROG}.nosym ${PROG}.list
+CLEANFILES= boot1
 
-all:	${PROG}
+FILES=	boot1
 
-${PROG}.nosym: ${PROG}.sym
-	cp ${PROG}.sym ${PROG}.nosym
-	strip ${PROG}.nosym
+boot1: boot1.sym
+	objcopy -S -O binary boot1.sym ${.TARGET}
 
-${PROG}: ${PROG}.nosym
-	objcopy -O binary ${PROG}.nosym ${PROG}
+LDFLAGS=-Ttext ${BOOT_RELOC} -N -e start
+DPADD=	${LIBALPHA} ${LIBSTAND}
+LDADD=	${LIBALPHA} -lstand
 
 .include <bsd.prog.mk>
-
-start.o:	${.CURDIR}/../libalpha/start.S
-	${CC} -c ${CFLAGS} $<
-
-${PROG}.sym: ${OBJS} ${LIBKERN}
-	${LD} -M -Ttext ${BOOT_RELOC} -N -e start -o ${PROG}.sym ${OBJS} \
-		-L${DESTDIR}${LIBDIR} ${LIBSTAND} ${LIBALPHA} ${LIBSTAND} \
-		> ${.OBJDIR}/${PROG}.list
-	size ${PROG}.sym
