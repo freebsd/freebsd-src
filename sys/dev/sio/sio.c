@@ -694,7 +694,10 @@ sioprobe(dev, xrid, rclk, noprobe)
 	 * it's unlikely to do more than allow the null byte out.
 	 */
 	sio_setreg(com, com_data, 0);
-	DELAY((1 + 2) * 1000000 / (SIO_TEST_SPEED / 10));
+	if (iobase == siocniobase)
+		DELAY((1 + 2) * 1000000 / (comdefaultrate / 10));
+	else
+		DELAY((1 + 2) * 1000000 / (SIO_TEST_SPEED / 10));
 
 	/*
 	 * Turn off loopback mode so that the interrupt gate works again
