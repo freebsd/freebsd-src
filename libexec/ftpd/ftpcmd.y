@@ -947,6 +947,8 @@ pathname
 				 GLOB_BRACE|GLOB_NOCHECK|GLOB_QUOTE|GLOB_TILDE;
 
 				memset(&gl, 0, sizeof(gl));
+				flags |= GLOB_MAXPATH;
+				gl.gl_matchc = MAXGLOBARGS;
 				if (glob($1, flags, NULL, &gl) ||
 				    gl.gl_pathc == 0) {
 					reply(550, "not found");
@@ -1036,6 +1038,8 @@ extern jmp_buf errcatch;
 #define	ZSTR2	6	/* optional STRING after SP */
 #define	SITECMD	7	/* SITE command */
 #define	NSTR	8	/* Number followed by a string */
+
+#define	MAXGLOBARGS	1000
 
 struct tab {
 	char	*name;
