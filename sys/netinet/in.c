@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in.c	8.4 (Berkeley) 1/9/95
- *	$Id: in.c,v 1.21 1996/01/08 20:59:06 guido Exp $
+ *	$Id: in.c,v 1.22 1996/03/11 15:13:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -155,7 +155,7 @@ in_control(so, cmd, data, ifp)
 	register struct ifnet *ifp;
 {
 	register struct ifreq *ifr = (struct ifreq *)data;
-	register struct in_ifaddr *ia = 0;
+	register struct in_ifaddr *ia = 0, *iap;
 	register struct ifaddr *ifa;
 	struct in_ifaddr *oia;
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
@@ -166,11 +166,23 @@ in_control(so, cmd, data, ifp)
 
 	/*
 	 * Find address for this interface, if it exists.
+	 *
+	 * If an alias address was specified, find that one instead of
+	 * the first one on the interface.
 	 */
 	if (ifp)
-		for (ia = in_ifaddr; ia; ia = ia->ia_next)
-			if (ia->ia_ifp == ifp)
-				break;
+		for (iap = in_ifaddr; iap; iap = iap->ia_next)
+			if (iap->ia_ifp == ifp) {
+				if (((struct sockaddr_in *)&ifr->ifr_addr)->sin_addr.s_addr ==
+				    iap->ia_addr.sin_addr.s_addr) {
+					ia = iap;
+					break;
+				} else if (ia == NULL) {
+					ia = iap;
+					if (ifr->ifr_addr.sa_family != AF_INET)
+						break;
+				}
+			}
 
 	switch (cmd) {
 
