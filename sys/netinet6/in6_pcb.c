@@ -491,7 +491,7 @@ in6_pcbconnect(inp, nam, p)
 	 */
 	inp->in6p_flowinfo = sin6->sin6_flowinfo;
 	if ((inp->in6p_flowinfo & IPV6_FLOWLABEL_MASK) == 0 &&
-	    ip6_auto_flowlable != 0)
+	    ip6_auto_flowlabel != 0)
 		inp->in6p_flowinfo |=
 			(htonl(ip6_flow_seq++) & IPV6_FLOWLABEL_MASK);
 
