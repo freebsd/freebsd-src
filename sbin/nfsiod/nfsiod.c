@@ -81,7 +81,7 @@ main(int argc, char *argv[])
 
 	error = getvfsbyname("nfs", &vfc);
 	if (error) {
-		if (kldload("nfs"))
+		if (kldload("nfs") == -1)
 			err(1, "kldload(nfs)");
 		error = getvfsbyname("nfs", &vfc);
 	}
