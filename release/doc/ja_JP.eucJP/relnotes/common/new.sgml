@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.313
+    Original revision: 1.433
 -->
 
 <articleinfo>
@@ -23,8 +23,14 @@
 
   <abstract>
     <para>この &os; &release.current; 用リリースノートには,
+<![ %include.historic; [
       &release.prev; 以降の &os; ベースシステムに対する変更点の概要
       が含まれています.
+]]>
+<![ %no.include.historic; [
+      &release.branch; 開発ブランチの &os; ベースシステムに対する最近の
+      変更点の概要が含まれています.
+]]>
       カーネルとユーザーランド双方の変更点が列挙されているのに加え,
       前のリリース以降に発行されたセキュリティ勧告のうちあてはまる
       ものも含まれています.
@@ -37,8 +43,7 @@
 
   <para>この文書は &arch.print; ハードウェアプラットフォームの
     &os; &release.current; 向けのリリースノートです.
-    &release.prev; 以降に &os; に追加 (もしくは修正) された新しい機能
-    について解説しています.
+    &os; に最近追加、変更、削除された機能について解説しています.
     また, &os; の前のバージョンからのアップグレードについても言及して
     います.</para>
 
@@ -60,9 +65,9 @@
     で見つけることができます.
     この (もしくは他の) &os; の &release.type; 配布物を取得する方法
     は
-    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD ハンドブック</ulink>
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD ハンドブック</ulink>
     の
-    <ulink url="http://www.FreeBSD.org/handbook/mirrors.html">
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/mirrors.html">
       付録 <quote>FreeBSD を取得する</quote></ulink>
     を参照してください.</para>
 
@@ -72,14 +77,29 @@
 <sect1>
   <title>更新情報</title>
 
-  <para>この節では &release.prev; 以降に新たに追加・変更された
+  <para>この節では
+<![ %include.historic; [
+    &release.prev; 以降に新たに追加・変更された
     ユーザに影響する機能について説明します.
+    一般的に, ここに書かれている変更点のうち &merged;
+    という印の付いていないものは &release.branch; に固有のものです.
+]]>
+<![ %no.include.historic; [
+    &release.prev; 以降に新たに追加・変更された
+    ユーザに影響する機能について説明します.
+    これには他のブランチ (&os; &release.prev.historic; 以降) へと
+    最近マージされた機能に加えて, &release.branch; ブランチ
+    に固有の項目も含まれます.
+]]>
+  </para>
+
+  <para>
     多くのリリースノート項目は, 新しいドライバやハードウェアサポート,
     新しいコマンドやオプション, 重要なバグフィックスや寄贈ソフトウェア
     のアップグレードなどについてのものです.
-    &release.prev; 以降に出されたセキュリティ勧告についても掲載してい
-    ます. 一般的に, ここに書かれている変更点のうち &merged;
-    という印の付いていないものは &release.branch; に固有のものです.</para>
+    &release.prev; 以降に出されたセキュリティ勧告のうち, 適用されるもの
+    についても掲載しています. 
+  </para>
 
   <para>&os; に加えられた変更点のうち,
     スペースの都合上ここに書かれていないものも多数存在します.
@@ -90,18 +110,35 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para arch="i386">新しく &man.amdpm.4; ドライバが追加されました.
+    <para arch="i386">Execution of &man.a.out.5; format executables now
+      requires the <literal>COMPAT_AOUT</literal> option in the kernel
+      configuration or the loading of the <filename>aout.ko</filename>
+      kernel module.</para>
+
+    <para>&man.acct.2; has been changed to open the accounting file in
+      append mode, so that &man.accton.8; can be used to enable
+      accounting to an append-only file. &merged;</para>
+
+    <para arch="i386" role="historic">新しく &man.amdpm.4; ドライバが追加されました.
       これは AMD 756 チップセットのシステム監視機能へのアクセスを
       提供します. &merged;</para>
 
-    <para>AGP ハードウェア用ドライバ &man.agp.4; が追加されました.
+    <para role="historic">AGP ハードウェア用ドライバ &man.agp.4; が追加されました.
       &merged;</para>
+
+    <para>A new in-kernel cryptographic framework (see &man.crypto.4;
+      and &man.crypto.9;) has been imported from OpenBSD.  It provides
+      a consistent interface to hardware and software implementations
+      of cryptographic algorithms for use by the kernel and access to
+      cryptographic hardware for user-mode applications.
+      Hardware device drivers are provided to support hifn-based cards
+      (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;).</para>
 
     <para>&man.ddb.4; に新たなコマンド
       <command>show pcpu</command> が追加されました.
       これは各 CPU の情報を表示します.</para>
 
-    <para>&man.ddb.4; に新たなコマンド <command>hwatch</command>
+    <para role="historic">&man.ddb.4; に新たなコマンド <command>hwatch</command>
       <command>dhwatch</command> が導入されました.
       アーキテクチャが対応している必要がありますが,
       これらは (ソフトウェアウォッチポイントを設定する)
@@ -117,6 +154,16 @@
       <literal>NODEVFS</literal>
       カーネルオプションを使うことで無効化できます.</para>
 
+    <para>The &man.devfs.5; <quote>rule</quote> subsystem has been introduced.  DEVFS rules
+      permit the administrator to define certain properties of new device
+      nodes before they become visible to the userland.  Both static (e.g.
+      <filename>/dev/speaker</filename>) and dynamic (e.g.
+      <filename>/dev/bpf*</filename>, some removable devices) nodes are
+      supported.  Each &man.devfs.5; mount may have a different ruleset assigned to
+      it, permitting different policies to be implemented for things like
+      jails.  Rules and rulesets are manipulated with the &man.devfs.8;
+      utility.</para>
+
     <para>digi ドライバの採用にともない, dgm ドライバは削除されました.</para>
 
     <para>PCI Xr ベースのカード, ISA Xem Digiboard カードに対応した
@@ -131,7 +178,10 @@
 
     <para arch="sparc64">EBus ベースのデバイスがサポートされました.</para>
 
-    <para arch="i386">Intel 82801AA (ICH) SMBus
+    <para arch="i386,pc98,powerpc">Initial support has been added for
+      Firewire devices (see &man.firewire.4;).</para>
+
+    <para arch="i386" role="historic">Intel 82801AA (ICH) SMBus
       コントローラおよびその互換品に対応した
       &man.ichsmb.4; ドライバが追加されました. &merged;</para>
 
@@ -145,7 +195,7 @@
       <varname>kern.security.*</varname> から
       <varname>security.*</varname> へと移動しました.</para>
 
-    <para><varname>kern.maxvnodes</varname> は使用する vnode の
+    <para role="historic"><varname>kern.maxvnodes</varname> は使用する vnode の
       数を正しく制限するようになりました.
       これまでは, キャッシュされていないページの vnode のみが
       free でき, これにより多くのメモリを積んだマシンが
@@ -154,7 +204,7 @@
       <literal>vnlru</literal> カーネルスレッドが vnode の解放
       と再利用を行なっています. &merged;</para>
 
-    <para>カーネルメッセージバッファが
+    <para role="historic">カーネルメッセージバッファが
       (アーキテクチャに依存しない)
       sysctl 変数 <varname>kern.msgbuf</varname>
       経由でアクセスできるようになりました.
@@ -162,7 +212,10 @@
       <groupname>kmem</groupname> で SGID
       されている必要はなくなりました. &merged;</para>
 
-    <para>&os; カーネルに &man.kqueue.2;
+    <para>The kernel environment is now dynamic, and can be changed
+      via the new &man.kenv.2; system call.</para>
+
+    <para role="historic">&os; カーネルに &man.kqueue.2;
       イベント通知機能が追加されました.
       これは &man.poll.2;/&man.select.2;
       を置き換えることができる新たなインターフェイスで,
@@ -172,12 +225,12 @@
       ソケット, パイプ, FIFO, ファイルの変更の監視にも対応しています.
       &merged;</para>
       
-    <para arch="i386">新しいカーネルオプション <varname>KVA_SPACE</varname>
+    <para arch="i386,pc98" role="historic">新しいカーネルオプション <varname>KVA_SPACE</varname>
       が追加されました.
       これはカーネル仮想アドレス空間の大きさを再設定するために使われます.
       &merged;</para>
 
-    <para>&man.labpc.4; ドライバは古くなったため削除されました.</para>
+    <para>labpc(4) ドライバは古くなったため削除されました.</para>
 
     <para>ローダとカーネルリンカは,
       KLD のある各ディレクトリに存在する
@@ -187,12 +240,12 @@
       新しく追加されたユーティリティ &man.kldxref.8; は,
       これらのファイルを生成するために使用します.</para>
 
-    <para>Linux エミュレーションは
-      <filename role="package">emulators/linux_base-7</filename>
+    <para role="historic">Linux エミュレーションは
+      <filename role="package">emulators/linux_base</filename>
       (RedHat 7.X emulation)
       で必要とされるカーネル機能に対応しました. &merged;</para>
 
-    <para>Linux エミュレーションは, カーネル設定に
+    <para role="historic">Linux エミュレーションは, カーネル設定に
       <literal>options SYSVSEM</literal> が必要になりました. &merged;</para>
 
     <para>Low-Watermark Mandatory Access Control 用
@@ -203,25 +256,51 @@
       セキュリティ機構です.
       この機能のスポンサーは DARPA と NAI Labs です.</para>
 
-    <para>カーネル設定パラメータ <varname>maxusers</varname>
+    <para>&os; now supports an extensible Mandatory Access Control
+      framework, the TrustedBSD MAC Framework.  It permits loadable
+      kernel modules to link to the kernel at compile-time, boot-time,
+      or run-time, and augment the system security policy.  The
+      framework permits modules to express interest in a variety
+      of events, and also provides common security policy services
+      such as label storage.  A variety of sample policy modules are
+      shipped in this release, including implementations of fixed
+      and floating label Biba integrity models, Multi-Level Security
+      (MLS) with compartments, and a number of augmented UNIX security
+      models including a file system firewall.  This feature will
+      permit easier development and maintenance of local and vendor
+      security extensions.  The extensibility service is enabled
+      by adding <literal>options MAC</literal> to the kernel
+      configuration.
+
+      <note>
+        <para>The MAC framework is considered an experimental
+	  feature in this release, and is not enabled by default</para>
+      </note>
+      </para>
+
+    <para arch="ia64">Machine Check Architecture (MCA) records are now
+      collected at boot time and made available through the
+      <varname>hw.mca.*</varname> sysctl variables.</para>
+
+    <para role="historic">カーネル設定パラメータ <varname>maxusers</varname>
       が起動時に変更可能になりました.  <varname>maxusers</varname>
       に由来する他のカーネル設定パラメータも起動時に反映されます.
       また, <varname>hz</varname> パラメータも同様に変更可能になっています.
       &merged;</para>
 
-    <para>カーネル設定パラメータ <varname>maxusers</varname>
+    <para role="historic">カーネル設定パラメータ <varname>maxusers</varname>
       に <literal>0</literal> を指定すると,
       ブート時に適切な値 (32 から 384 の間で, 搭載メモリ量に依存して)
       を計算するようになりました
       すべての <filename>GENERIC</filename> カーネルではこの値が
       デフォルトとなりました. &merged;</para>
 
-    <para arch="alpha">カーネルオプション <varname>MAXMEM</varname>
+    <para arch="alpha" role="historic">カーネルオプション <varname>MAXMEM</varname>
       と <varname>hw.physmem</varname> 調整可能なローダ変数
       はテスト (やその他の目的) のために, 人工的にマシンのメモリサイズ
       を減らすことに使えるようになりました. &merged;</para>
 
-    <para>カーネルコンフィギュレーションパラメータ
+    <para role="historic">カーネルコンフィギュレーションパラメータ
       <varname>MAXTSIZ</varname>, <varname>DFLDSIZ</varname>,
       <varname>MAXDSIZ</varname>, <varname>DFLSSIZ</varname>,
       <varname>MAXSSIZ</varname>, <varname>SGROWSIZ</varname>
@@ -229,7 +308,12 @@
       (<varname>kern.maxtsiz</varname>,
       <varname>kern.maxdfldsiz</varname> など). &merged;</para>
 
-    <para arch="i386">SMP カーネルを設定するためのカーネルオプションである
+    <para>&man.mutex.9; profiling code has been added, enabled by the
+      <literal>MUTEX_PROFILING</literal> kernel configuration option.
+      It enables the <varname>debug.mutex.prof.*</varname> hierarchy
+      of sysctl variables.</para>
+
+    <para arch="i386,pc98" role="historic">SMP カーネルを設定するためのカーネルオプションである
       <literal>NCPU</literal>, <literal>NAPIC</literal>,
       <literal>NBUS</literal>, <literal>NINTR</literal>
       は削除されました.
@@ -237,40 +321,40 @@
       上記のその他のオプションは動的に変化するものとなっています.
       &merged;</para>
 
-    <para>新しく &man.nmdm.4; ヌルモデム端末ドライバが追加されました.
+    <para role="historic">新しく &man.nmdm.4; ヌルモデム端末ドライバが追加されました.
       &merged;</para>
 
-    <para>&man.open.2; および &man.fcntl.2; に
+    <para role="historic">&man.open.2; および &man.fcntl.2; に
       <literal>O_DIRECT</literal> フラグが追加されました.
       ファイルオープン時にこのフラグを設定すると,
       読み書き時のキャッシュの影響を最小化します.
       &merged;</para>
 
-    <para>&man.orm.4; デバイスが追加されました.
+    <para role="historic">&man.orm.4; デバイスが追加されました.
       これは他のドライバが誤って
       ROM と重なったアドレスを割り当てることのないよう,
       ISA メモリ I/O 空間内のオプション ROM を取得するためのものです.
       &merged;</para>
 
-    <para arch="i386">PECOFF (Win32 実行ファイルフォーマット)
+    <para arch="i386,pc98">PECOFF (Win32 実行ファイルフォーマット)
       に対応しました.</para>
 
-    <para arch="i386">NEC PC-98NOTE 用のパワーマネージメント
+    <para arch="pc98" role="historic">NEC PC-98NOTE 用のパワーマネージメント
       コントローラである pmc ドライバが追加されました. &merged;</para>
 
-    <para>POSIX.1b 共有メモリオブジェクトに対応しました.
+    <para role="historic">POSIX.1b 共有メモリオブジェクトに対応しました.
       実装は通常ファイルを使っていますが, ファイルが
       &man.mmap.2; されている場合は MAP_NOSYNC フラグが自動的に有効化されます.
       &merged;</para>
 
-    <para><literal>PQ_*CACHE</literal> オプションが
+    <para role="historic"><literal>PQ_*CACHE</literal> オプションが
       <literal>PQ_CACHESIZE</literal>
       という一つのオプションに置き換えられました.
       これにはキャッシュサイズをキロバイト単位で指定します.
       後方互換性を保つため, 従来のオプションは現在もサポートされています.
       &merged;</para>
 
-    <para arch="i386">&man.puc.4; (PCI <quote>Universal</quote>
+    <para arch="i386" role="historic">&man.puc.4; (PCI <quote>Universal</quote>
       Communications) ドライバが追加されました.
       このドライバは PCI ベースのシリアルポートを &man.sio.4; ドライバに
       接続します. &merged;</para>
@@ -296,52 +380,89 @@
       が新たに追加されました.  これは動作検証やレグレションテスト時に有用な
       インターフェイスや機能を提供します.</para>
 
+    <para><literal>RLIMIT_VMEM</literal> support has been added.  This
+      feature defines a new resource limit that covers a process's
+      entire virtual memory space, including &man.mmap.2; space.  This
+      limit can be configured in &man.login.conf.5; via the new
+      <varname>vmemoryuse</varname> variable. &merged;</para>
+
     <para arch="sparc64">SBus ベースのデバイスがサポートされました.</para>
 
-    <para>&man.snp.4; デバイスは static ではなくなり,
+    <para arch="sparc64">The se driver, which supports the Siemens
+      SAB82532 serial chip found on many newer Sparc Ultra machines,
+      has been added.</para>
+
+    <para>A bug in the &man.sendfile.2; system call, in which headers
+      counted against the size of the file to be sent, has been
+      fixed. &merged;</para>
+
+    <para role="historic">&man.snp.4; デバイスは static ではなくなり,
       モジュールとしてコンパイルできるようになりました. &merged;</para>
 
-    <para arch="i386">&man.spic.4; ドライバが追加されました.
+    <para arch="i386" role="historic">&man.spic.4; ドライバが追加されました.
       これは Sony 製ラップトップに搭載されているジョグダイアルデバイスへ
-      アクセスを提供するものです.</para>
+      アクセスを提供するものです.
+      &man.moused.8; support for this device has also been
+      added. &merged;</para>
 
     <para>&man.syscons.4; ドライバがキーボード操作によるペーストに対応しました.
       標準では <keycap>Shift</keycap>-<keycap>Insert</keycap>
       に設定されています.</para>
 
-    <para>出荷時の状態で USB デバイスをサポートするため,
+    <para role="historic">出荷時の状態で USB デバイスをサポートするため,
       <filename>GENERIC</filename> カーネルと
       インストールプログラムに USB デバイスのサポートが加えられました.
       現時点で SRM は USB デバイスに対応していないため,
       シリアルコンソールを使っていない場合には
       まだ AT キーボードを使う必要があります. &merged;</para>
 
+    <para>The uaudio driver, for USB audio devices, has been
+      added. &merged;</para>
+
+    <para arch="i386">The ubsa driver has been added to support
+      the Belkin F5U103 (and compatible) USB-to-serial adaptors.</para>
+
     <para arch="i386">USB モデムに対応した umodem ドライバが追加されました.
       このドライバは
       3Com 5605 と Metricom Ricochet GS wireless USB モデムに対応しています.
       &merged;</para>
 
-    <para arch="i386">標準的な USB スキャナに対応した
+    <para arch="i386,pc98" role="historic">標準的な USB スキャナに対応した
       &man.uscanner.4; ドライバが追加されました.
       これは SANE を利用していますので, 対応スキャナは
       <ulink url="http://www.mostang.com/sane/">SANE
         ホームページ</ulink>をご覧ください.
       HP ScanJet 4100C, 5200C, 6300C の動作が確認されています. &merged;</para>
 
+    <para>The &man.ucom.4; device driver has been added, to support USB
+      modems, serial devices, and other programs that need to look
+      like a tty.  The related &man.uplcom.4; and &man.uvscom.4; drivers provide specific
+      support for the Prolific PL-2303 serial adapter and the SUNTAC
+      Slipper U VS-10U, respectively. &merged;</para>
+
     <para>セキュリティを向上させるため、<literal>UCONSOLE</literal>
       カーネル設定オプションが削除されました。</para>
+
+    <para arch="i386,pc98">The UserConfig boot-time kernel configuration
+      feature, usually used to enable, disable, or configure ISA
+      devices, has been removed.  Its functionality has been replaced
+      by the kernel hints file in
+      <filename>/boot/device.hints</filename>.</para>
 
     <para><literal>USER_LDT</literal>
       カーネルオプションが標準設定で有効化されるようになりました.</para>
 
-    <para arch="i386">&man.viapm.4; ドライバが新しく追加されました。
-       これは VIA SMBus 電源管理コントローラに対応しています。</para>
+    <para>The &man.uvisor.4; driver for connecting Handspring Visors via USB
+      has been added. &merged;</para>
+
+    <para arch="i386" role="historic">&man.viapm.4; ドライバが新しく追加されました。
+       これは VIA SMBus 電源管理コントローラに対応しています。 &merged;</para>
 
     <para>VESA S3 リニアフレームバッファドライバが追加されました.</para>
 
     <!-- Above this line, order bootloader changes by keyword-->
 
-    <para>クラッシュダンプに write combining 機能 (訳注:
+    <para role="historic">クラッシュダンプに write combining 機能 (訳注:
       データをひとまとめにしてバス使用効率を向上させる機能)
       が実装されました.
       この機能は SCSI, IDE ディスクの両方で
@@ -349,12 +470,18 @@
       メモリのダンプが終了するまで 1 時間近くかかるような場合に有効です.
       &merged;</para>
 
+    <para>The kernel crashdump infrastructure has been revised, to
+      support new platforms and in general clean up the logic in the
+      code.  One implication of this change is that the on-disk format
+      for kernel dumps has changed, and is now
+      byte-order-agnostic.</para>
+
     <para>極めて大きいスワップ領域 (67 GB 以上)
       でも, システムがパニックしなくなりました.</para>
 
     <para arch="alpha">Linux 互換機能が thread に対応しました.</para>
 
-    <para><maketarget>buildkernel</maketarget> ターゲットは,
+    <para role="historic"><maketarget>buildkernel</maketarget> ターゲットは,
       構築するカーネルのコンフィグレーションファイル名 (複数の場合もあり)
       を <varname>KERNEL</varname> ではなく,
       <varname>KERNCONF</varname> という変数から受け取るようになりました.
@@ -366,7 +493,7 @@
       <maketarget>buildworld</maketarget> を行なう必要があります).
       &merged;</para>
 
-    <para>デッドロックを避けるため,
+    <para role="historic">デッドロックを避けるため,
       スワップ領域不足時のプロセス終了処理は
       古いプロセスから行なわれるようになりました.
       さらにその終了処理では,
@@ -375,9 +502,9 @@
 
     <para>リンカセット (訳注: ELF カーネル構築時に必要な情報の一つ)
       を生成する必要がなくなりました.
-      必要のなくなった &man.gensetdefs.8; は削除されています.</para>
+      必要のなくなった gensetdefs(8) は削除されています.</para>
 
-    <para>ネットワークデバイスのクローニングが新たに実装され,
+    <para role="historic">ネットワークデバイスのクローニングが新たに実装され,
       それを利用するように &man.gif.4; デバイスが変更されました.
       そのためデバイスインスタンスを追加したい場合は
       カーネルコンフィグレーションファイルに利用する数だけ
@@ -395,21 +522,31 @@
       これは <varname>vm.idlezero_enable</varname> sysctl
       変数を使って有効化できます.</para>
 
-    <para arch="i386">カーネルのロードアドレスが
+    <para arch="i386,pc98" role="historic">カーネルのロードアドレスが
       シンボルテーブルに格納されるようになり,
       ハードコードされたさまざまな定数が削除されました.
       これにより, 異なるアドレスでコンパイルされたカーネルに対しても
       &man.ps.1; が正しく動作可能になっています.
       &merged;</para>
 
-    <para>非常に大きいプロセス (あるいは非常に多数のプロセス)
+    <para role="historic">非常に大きいプロセス (あるいは非常に多数のプロセス)
       のコアダンプが発生した場合でも,
       マシンが長時間ロックしなくなりました.
       &merged;</para>
 
-    <para>Kernel-Scheduled Entity プロジェクトは,
-      カーネルスケジューラがマルチスレッドプログラムをより効率的に
-      扱えるような変更を加えました.</para>
+    <para>The &os; kernel scheduler now supports Kernel-Scheduled
+      Entities (KSEs), which provides support for multiple threads of
+      execution per process similar to Scheduler Activations.  At this
+      point, the kernel has most of the changes needed to support
+      threading.  The kernel scheduler can schedule multiple threads per
+      process, but only on a single CPU at a time.  More information
+      can be found in &man.kse.2;.
+
+        <note>
+	  <para>KSE is a work in progress.</para>
+	</note>
+
+    </para>
 
     <para>カーネルは複数の低レベルコンソールデバイスをサポートします.
       異なったコンソールを操作するには, 新しい &man.conscontrol.8;
@@ -418,18 +555,18 @@
     <para arch="alpha">コンソールドライバは TGA ベースのディスプレイ
       アダプタに対応しました.</para>
 
-    <para>インストール CD のカーネルは <filename>mfsroot</filename>
+    <para role="historic">インストール CD のカーネルは <filename>mfsroot</filename>
       イメージから分離しました.
       これにより, CD ブートに対応しているマシンでは, (フロッピー
       用の削られたカーネルではなく) 完全なカーネルをインストール時に
       使うことができるようになります. &merged;</para>
 
-    <para>システムのロードアベレージの計算において,
+    <para role="historic">システムのロードアベレージの計算において,
       定期的に実行されるプロセスと同期してしまうことを
       避けるために, サンプリングのタイミングにいくらかの
       ゆらぎを加えるようになりました. &merged;</para>
 
-    <para>モジュール付きデバッグ用カーネルが構築された場合,
+    <para role="historic">モジュール付きデバッグ用カーネルが構築された場合,
       (例えば <literal>makeoptions DEBUG=-g</literal> を使った場合)
       モジュール自体もデバッグサポートを含んだ状態で構築されるように
       なりました.
@@ -437,7 +574,7 @@
       以前よりも大きなディスク容量が必要とされるようになりました.
       &merged;</para>
 
-    <para>カーネルのダンプデバイスは, 変更可能なローダ変数
+    <para role="historic">カーネルのダンプデバイスは, 変更可能なローダ変数
       <varname>dumpdev</varname> で設定できるようになりました.
       その結果, カーネル初期化の遅い段階 (システムがシングルユーザモードに
       入る前) のパニックからも, クラッシュダンプを取れるようになりました.
@@ -463,7 +600,7 @@
         割り込みのロックアウトを低減するために
         それぞれコンテキストを持つようになりました.</para>
 
-      <para arch="i386"><filename>GENERIC</filename> カーネルから
+      <para arch="i386,pc98"><filename>GENERIC</filename> カーネルから
         80386 プロセッサ対応が削除されました.
         このコードは他の IA32
         プロセッサのパフォーマンスを大きく損なう原因となっているためです.
@@ -478,7 +615,7 @@
         <literal>I386_CPU</literal>
         とだけ書いてあるように変更する必要があります.</para>
 
-      <para arch="alpha">AlphaServer 1200 (<quote>Tincup</quote>)
+      <para arch="alpha" role="historic">AlphaServer 1200 (<quote>Tincup</quote>)
         における動作が確認されました.  現時点では CD
         やフロッピディスクからの起動ができませんが, 他の Alpha
         マシンでインストールしたディスクを移植したものはきちんと動作します.
@@ -490,11 +627,6 @@
       <para arch="alpha">API CS20 1U high server における動作が確認されました.
       </para>
 
-      <para arch="alpha">1.44MB フロッピディスクの容量に合わせられるよう,
-        mfsroot フロッピイメージから DEC3000 シリーズの対応が削除されました.
-        現時点で DEC3000 はディスクレスでのみ利用可能なため,
-        問題はないと思われます.</para>
-
       <para arch="alpha">AlphaServer 2100A (<quote>Lynx</quote>)
 	に対応しました.</para>
 
@@ -505,7 +637,7 @@
 	<application>Adobe Acrobat 4</application>
         のようなバイナリ配布のみのプログラムが利用できるようになります.</para>
 
-      <para arch="alpha">Alpha アーキテクチャの SMP に対応しました.</para>
+      <para arch="alpha" role="historic">Alpha アーキテクチャの SMP に対応しました.</para>
 
       <para arch="i386">FC-PGA2 Pentium III (Tualatin),
 	Transmeta Crusoe, Transmeta Crusoe LongRun
@@ -520,16 +652,16 @@
         sf (Adaptec AIC-6915), sis (SiS 900/SiS 7016), ste (Sundance ST201 
         (D-Link DFE-550TX)), wb (Winbond W89C840F) です.</para>
 
-      <para arch="i386">Streaming <acronym>SIMD</acronym> Extensions
+      <para arch="i386" role="historic">Streaming <acronym>SIMD</acronym> Extensions
         (<acronym>SSE</acronym>) が導入されました.
         SSE 対応をカーネルに組み込むかどうかの制御は
         <literal>CPU_ENABLE_SSE</literal>
 	カーネルオプションで行なうことができます.</para>
 
-      <para arch="i386"><literal>CPU_ATHLON_SSE_HACK</literal>
+      <para arch="i386" role="historic"><literal>CPU_ATHLON_SSE_HACK</literal>
 	カーネルオプションが追加されました.
 	これは最近の Athlon CPU で BIOS が SSE 機能ビットをセットするのを
-	忘れている場合に, セットするようにするものです.</para>
+	忘れている場合に, セットするようにするものです. &merged;</para>
 
       <para arch="sparc64">&os; が UltraSPARC プラットフォームに
 	対応しました.
@@ -539,12 +671,31 @@
 	Ultra 2, Ultra 60, Enterprise 220R, Enterprise 420R
 	でテストされています.</para>
 
+      <para arch="i386" role="historic">On some systems, the BIOS does not activate
+	the I/O ports and memory of PC devices, thus making them
+	unusable.  The <varname>hw.pci.enable_io_modes</varname>
+	sysctl/boot loader variable (which defaults to
+	<literal>1</literal>, for <quote>enabled</quote>)
+	forces &os; to enable these devices so that they can be
+	used.</para>
+
+      <para arch="alpha">Support for TurboChannel Alphas has been
+        removed.</para>
+
+      <para arch="i386">Support for the AMD &Eacute;lan SC520 has been
+	added; this requires the <literal>CPU_ELAN</literal> option in
+	the kernel configuration file. &merged;</para>
+
     </sect3>
 
     <sect3>
       <title>ブートローダの変更</title>
 
-      <para arch="i386">新しい CDROM 用の <filename>cdboot</filename>
+      <para arch="i386" role="historic"><filename>boot2</filename> now supports a
+	<option>-n</option> option to disallow boot interruption by
+	keypresses. &merged;</para>
+
+      <para arch="i386" role="historic">新しい CDROM 用の <filename>cdboot</filename>
 	ブートストラップユーティリティは, El Torito ブータブル CDROM
 	標準に完全には準拠しないいくつかの BIOS 実装に対してもうまく動作します.
 	このブートローダは <quote>エミュレーションではない</quote>
@@ -552,34 +703,36 @@
 	エミュレートされたフロッピーディスクイメージは必要ありません.
 	&merged;</para>
 
-      <para arch="i386">i386 ブートローダが
+      <para arch="i386,pc98" role="historic">i386 ブートローダが
 	<literal>nullconsole</literal> というコンソールタイプに対応しました.
 	これはビデオコンソールもシリアルポートもついていない
 	システム向けのものです.
 	&merged;</para>
 
-      <para arch="i386">&man.loader.8; が
+      <para arch="i386,pc98" role="historic">&man.loader.8; が
 	<application>bzip2</application> で圧縮されたカーネルと
 	モジュールのロードをオプションでサポートしました
 	(デフォルトはオフで, コンパイル時に有効にできます).
 	&merged;</para>
 
-      <para arch="i386">&os; ブートローダが
+      <para arch="i386" role="historic">&os; ブートローダが
 	Intel Wired for Management 2.0 (PXE) に対応しました.
 	API が異なるため古いバージョンの PXE には対応していません.
 	これにより DHCP を使ったネットワーク経由の起動が可能になってい
 	ます. &merged;</para>
 
+       <!-- Above this line, order bootloader changes by keyword-->
+ 
       <para arch="i386">&os; ブートローダに対して,
 	疑似フロッピの第一セクタに変更のできる有効な MS-DOS BPB を想定している
 	IBM BIOS での起動に対応するための修正が行なわれました. &merged;
 	<!-- hrs: need to be revised here --></para>
 
-      <para arch="i386">&os; ブートローダに, プローブの段階で
+      <para arch="i386,pc98" role="historic">&os; ブートローダに, プローブの段階で
 	一行出力する毎にカーネルがちょっと止まるようにする
 	<option>-p</option> フラグが追加されました. &merged;</para>
 
-      <para arch="alpha,i386">&os; ブートローダは 8K より大きなブロック
+      <para arch="alpha,i386" role="historic">&os; ブートローダは 8K より大きなブロック
 	サイズのファイルシステムからもブートできるようになりました.
 	&merged;</para>
 
@@ -592,30 +745,30 @@
     <sect3>
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para>Cisco Aironet カードに対応した
+      <para role="historic">Cisco Aironet カードに対応した
         &man.an.4; ドライバが Wired Equivalent Privacy (WEP)
         暗号化に対応しました.
         これは &man.ancontrol.8; で設定できます. &merged;</para>
 
-      <para>&man.an.4; ドライバが Cisco Aironet 350
+      <para role="historic">&man.an.4; ドライバが Cisco Aironet 350
         シリーズのアダプタに対応しました.
         &merged;</para>
 
-      <para>&man.an.4; ドライバが <quote>監視 (monitor)</quote>
+      <para role="historic">&man.an.4; ドライバが <quote>監視 (monitor)</quote>
         モードに対応しました.  これは
         &man.ancontrol.8; にオプション
         <option>-M</option> を指定することで有効になります.
         &merged;</para>
 
-      <para>&man.an.4; ドライバは Cisco LEAP に対応し,
+      <para role="historic">&man.an.4; ドライバは Cisco LEAP に対応し,
 	<quote>Home</quote> WEP キーも使えるようになりました.
 	Linux Aironet ユーティリティはエミュレーションでサポートされます.
 	&merged;</para>
 
-      <para arch="i386">ARCNET token-based ネットワークへの
+      <para arch="i386,pc98" role="historic">ARCNET token-based ネットワークへの
 	サポートが追加されました. &merged;</para>
 
-      <para arch="i386">
+      <para arch="i386,pc98" role="historic">
         &man.bge.4; ドライバが追加されました.
         これは 3Com 3c996-T,
         SysKonnect SK-9D21, SK-9D41 および
@@ -626,15 +779,15 @@
         ジャンボフレーム, VLAN タグ挿入・削除機能に加え,
         割り込み低減機能に対応しています. &merged;</para>
 
-      <para arch="i386">SMC COM90cx6 ARCNET ネットワークアダプタ
+      <para arch="i386" role="historic">SMC COM90cx6 ARCNET ネットワークアダプタ
 	に対応する cm ドライバが追加されました. &merged;</para>
 
       <para>&man.dc.4; ドライバは, Xircom 3201 と Conexant
 	LANfinity RS7112 チップベースの NIC に対応しました.</para>
 
-      <para>&man.dc.4; ドライバが VLAN に対応しました. &merged;</para>
+      <para role="historic">&man.dc.4; ドライバが VLAN に対応しました. &merged;</para>
 
-      <para>&man.de.4; ドライバは, 21143 において受信ユニットに
+      <para role="historic">&man.de.4; ドライバは, 21143 において受信ユニットに
 	優先度を与えるのではなく, 受信/送信ユニット間で
 	ラウンドロビン調停を行なうようになりました.
 	これにより高負荷時の送出レートが 10&ndash;15% ほど
@@ -642,7 +795,7 @@
 
       <para arch="alpha">&man.ed.4; ドライバに対応しました.</para>
 
-      <para arch="i386">
+      <para arch="i386,pc98" role="historic">
         &man.ed.4; ドライバが対応している
         Linksys Fast Ethernet PCCARD カードを使う場合,
         &man.pccard.conf.5; の設定行に
@@ -651,7 +804,7 @@
         もし付けていないと Linksys のカードは認識されません.
         &merged;</para>
 
-      <para>非常に短いパケットもしくはブリッジを有効化している時に
+      <para role="historic">非常に短いパケットもしくはブリッジを有効化している時に
         パニックを引き起こす可能性があった &man.ed.4; ドライバのバグが
         修正されました.
         &merged;</para>
@@ -666,29 +819,29 @@
       <para arch="i386">&man.el.4;
         ドライバがモジュールとしてロードできるようになりました.</para>
 
-      <para arch="i386">Intel 82542, 82543, 82544 ギガビット
+      <para arch="i386,pc98,ia64" role="historic">Intel 82542, 82543, 82544, 82545EM, 82546EB ギガビット
 	イーサネットコントローラチップベースの NIC に対応する
 	&man.em.4; ドライバが追加されました.
-	ドライバは 82543, 82544 ベースのアダプタにおいて
+	ドライバは VLAN をサポートし, 82543, 82544 ベースのアダプタにおいて
 	送信/受信チェックサム offload とジャンボフレームに
 	対応しています. &merged;</para>
 
-      <para>&man.faith.4; デバイスがロード/アンロード/クローニングに
+      <para role="historic">&man.faith.4; デバイスがロード/アンロード/クローニングに
 	対応しました. &merged;</para>
 
-      <para arch="i386">&man.fe.4; ドライバが富士通 MB86960A/MB86965A
+      <para arch="i386,pc98" role="historic">&man.fe.4; ドライバが富士通 MB86960A/MB86965A
         ベースのイーサネット PC カードに再び対応しました. &merged;</para>
 
-      <para arch="alpha">&man.fpa.4; ドライバが
+      <para arch="alpha" role="historic">&man.fpa.4; ドライバが
         Alpha マシン上の Digital DEFPA FDDI アダプタに対応しました.
 	&merged;</para>
 
-      <para>&man.fxp.4; ドライバはカーネルコンフィグレーションファイルに
+      <para role="historic">&man.fxp.4; ドライバはカーネルコンフィグレーションファイルに
         <literal>device miibus</literal>
 	のエントリを必要とするようになりました.
         &merged;</para>
 
-      <para>&man.fxp.4; ドライバに, いくつかの Intel ICH2/ICH2-M
+      <para role="historic">&man.fxp.4; ドライバに, いくつかの Intel ICH2/ICH2-M
 	チップベースのシステムにおける PCI プロトコル違反への
 	対応策が追加されました.
 	この対応策では, Dynamic Standby Mode を無効にするために
@@ -696,7 +849,7 @@
 	EEPROM の上書き後, 新しい設定が有効となるためには
 	システムを再起動する必要があります. &merged;</para>
 
-      <para>&man.fxp.4; ドライバは Intel のローダブルマイクロコード
+      <para role="historic">&man.fxp.4; ドライバは Intel のローダブルマイクロコード
 	が使えるようになり, NIC がその機能をサポートしている場合には,
 	受信側の割り込み結合とパケット bundling を実装します.
 	この機能は &man.ifconfig.8; の <option>link0</option>
@@ -706,7 +859,7 @@
 	ERI ファストイーサネットアダプタに対応する gem ドライバが
 	追加されました.</para>
 
-      <para>&man.gx.4; ドライバが追加され, Intel 82542 と 82543
+      <para role="historic">&man.gx.4; ドライバが追加され, Intel 82542 と 82543
 	のギガビットイーサネットコントローラチップがサポートされました.
 	ファイバと銅線の両方のカードがサポートされています.
 	VLAN タグ付け/挿入は両方のチップでサポートされ, 82543 では
@@ -717,7 +870,7 @@
 	搭載されている Sun HME ファストイーサネットアダプタ
 	に対応する hme ドライバが追加されました.</para>
 
-      <para>Level 1 LXT1001 NetCellerator
+      <para role="historic">Level 1 LXT1001 NetCellerator
         ギガビットイーサネットコントローラチップに対応する
         &man.lge.4; ドライバが新たに追加されました.
         このドライバは SMC, D-Link, Addtron
@@ -728,7 +881,10 @@
         ハードウェア VLAN フィルタには対応していません.
         &merged;</para>
 
-      <para>National Semiconductor DP83820 および DP83821
+      <para role="historic">The my driver, which supports the Myson Fast Ethernet and
+	Gigabit Ethernet adapters, has been added. &merged;</para>
+
+      <para role="historic">National Semiconductor DP83820 および DP83821
         ギガビットイーサネットコントローラチップをベースとした
         PCI ギガビットイーサネットアダプタに対応する
         &man.nge.4; ドライバが新たに追加されました.
@@ -738,7 +894,7 @@
         また, このドライバは送受信チェックサムのオフロード機能に対応しています.
         &merged;</para>
 
-      <para>&man.pcn.4; ドライバが追加されました.
+      <para role="historic">&man.pcn.4; ドライバが追加されました.
         これは AMD PCnet/FAST アダプタ, PCnet/FAST+ アダプタ,
         PCnet/FAST III アダプタ,
         PCnet/PRO アダプタ, PCnet/Home アダプタ,
@@ -746,25 +902,28 @@
         これらのアダプタはすでに &man.lnc.4; ドライバが対応していますが,
         &man.pcn.4; ドライバは 32-bit モードで動作し,
         受信時のゼロコピーを実現する RX アラインメント機能を利用しています.
-        このドライバはアーキテクチャに依存せず i386 および Alpha
+        このドライバはアーキテクチャに依存せず i386, pc98, Alpha
         プラットフォームで動作可能です.
         ただし非 PCI カードに対応するには &man.lnc.4; が必要になります.
         &merged;</para>
 
-      <para>Webgear Aviator 無線ネットワークカードに対応する
+      <para role="historic">Webgear Aviator 無線ネットワークカードに対応する
         &man.ray.4; ドライバが追加されました.
         &man.ray.4; インターフェイスの動作は
         &man.raycontrol.8; で変更することが可能です.
         &merged;</para>
 
-      <para arch="i386">ISA/PCI の point-to-point 通信インターフェイス
+      <para arch="i386,pc98">The &man.rp.4; driver has been updated to
+        version 3.02 and can now be built as a module. &merged;</para>
+
+      <para arch="i386" role="historic">ISA/PCI の point-to-point 通信インターフェイス
 	である Granch SBNI12 シリーズ用の sbni ドライバが
 	追加されました.
 	これらのデバイスを設定するのに, &os; Ports Collection の
 	<filename role="package">sysutils/sbniconfig</filename>
 	が利用できます. &merged;</para>
 
-      <para>&man.sis.4; ドライバが
+      <para role="historic">&man.sis.4; ドライバが
 	SiS 900, SiS 7016 ファストイーサネットコントローラチップ
 	(例えば SiS 635, 735 マザーボードチップセット上のものなど) と,
         National Semiconductor DP83815 チップセット
@@ -772,7 +931,7 @@
         PCI イーサネットアダプタに対応しました.
         このデバイスは VLAN をサポートしています. &merged;</para>
 
-      <para arch="i386">National Semiconductor
+      <para arch="pc98" role="historic">National Semiconductor
         DP8393X (SONIC) イーサネットコントローラに対応した
         snc ドライバが追加されました.
         現時点でこのドライバは PC-98 アーキテクチャでのみ使われています.
@@ -780,58 +939,73 @@
 
       <para>&man.stf.4; デバイスがクローニングに対応しました.</para>
             
-      <para>&man.tap.4; ドライバが追加されました.
+      <para role="historic">&man.tap.4; ドライバが追加されました.
         これはブリッジ構成で使うための仮想イーサネットドライバです.
 	このデバイスはクローニング可能です. &merged;</para>
 
-      <para>&man.ti.4; ドライバが Alteon AceNIC
+      <para role="historic">&man.ti.4; ドライバが Alteon AceNIC
         1000baseT ギガビットイーサネットカードおよび,
         Netgear GA620T 1000baseT ギガビットカードに対応しました.
         &merged;</para>
 
-      <para>&man.ti.4; ドライバが VLAN タグを正しくマスクするようになりました.
+      <para role="historic">&man.ti.4; ドライバが VLAN タグを正しくマスクするようになりました.
         &merged;</para>
 
-      <para>&man.txp.4; ドライバが追加されました.
+      <para>The &man.tx.4; driver now supports true multicast
+        filtering.</para>
+
+      <para role="historic">&man.txp.4; ドライバが追加されました.
         これは 3Com 3XP Typhoon/Sidewinder (3CR990) チップセットベースの
         ネットワークインターフェイスに対応しています.
         &merged;</para>
 
-      <para>&man.vlan.4; デバイスがロード/アンロード/クローニングに
+      <para role="historic">&man.vlan.4; デバイスがロード/アンロード/クローニングに
 	対応しました. &merged;</para>
 
-      <para>&man.wi.4; ドライバが Prism II, Prism 2.5 ベースの NIC
+      <para role="historic">&man.wi.4; ドライバが Prism II, Prism 2.5 ベースの NIC
 	に対応しました.  104/128 ビット WEP も Prism カードで動くように
 	なりました. &merged;</para>
 
-      <para>&man.xl.4; ドライバが
+      <para role="historic">The &man.wi.4; driver now supports using a &os; host as
+	a wireless access point.  This functionality can be enabled
+	using the <literal>mediaopt hostap</literal> option of
+	&man.ifconfig.8;.  This feature requires a wireless
+	adapter based on the Prism II chipset. &merged;</para>
+
+      <para role="historic">The &man.wi.4; driver now has support for
+	<application>bsd-airtools</application>. &merged;</para>
+
+      <para role="historic">The xe driver can now be built as a
+	module. &merged;</para>
+
+      <para role="historic">&man.xl.4; ドライバが
         ラップトップで使われている 3Com 3C556 および
         3C556B MiniPCI アダプタに対応しました.
         &merged;</para>
 
-      <para>&man.xl.4; ドライバが
+      <para role="historic">&man.xl.4; ドライバが
         (<quote>Cyclone</quote> チップセットおよび,
         新しいチップセットにおいて)
         VLAN タグフレームの受信をサポートしました.
         &merged;</para>
 
-      <para>&man.xl.4; は 3C905B, 3C905C, 3C980C などのように
+      <para role="historic">&man.xl.4; は 3C905B, 3C905C, 3C980C などのように
 	その機能を実装しているカードにおいて,
 	受信側/送信側 TCP/IP のチェックサム offload に対応しました.
 	&merged;</para>
 
-      <para>統計情報が溢れた時の割り込みの扱いに関連して,
+      <para role="historic">統計情報が溢れた時の割り込みの扱いに関連して,
 	パケットレートが中から高の時に遅くなってしまうという
 	&man.xl.4; ドライバのバグが修正されました. &merged;</para>
 
-      <para>インターフェイス毎に用意される
+      <para role="historic">インターフェイス毎に用意される
         <varname>ifnet</varname> 構造体に,
         ネットワークインターフェイスが対応している機能,
         および, そのうち有効化されている機能を格納する部分が追加されました.
         また &man.ifconfig.8; が, その機能の検索に対応しています.
 	&merged;</para>
 
-      <para>インターフェイス毎の <varname>if_inaddr</varname>
+      <para role="historic">インターフェイス毎の <varname>if_inaddr</varname>
 	線形リストをハッシュテーブルで置き換えることにより,
 	IP エイリアスを多数持つホストでの性能が改善されました. &merged;</para>
 
@@ -844,7 +1018,7 @@
 	 <varname>SIOCGIFCONF</varname> ioctl は特殊な
 	 <filename>/dev/network</filename> ノードで動作します.</para>
 
-      <para>いくつかのネットワークドライバは,
+      <para role="historic">いくつかのネットワークドライバは,
 	システムが攻撃や過負荷により耐えられるように, 半ポーリング
 	モードを実装しました.
 	ポーリングを有効にするには, カーネル設定ファイルに
@@ -859,25 +1033,35 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	によりユーザランド側に確保しておく CPU 時間の割合を
 	指定します.
 	ポーリングをサポートしているデバイスは &man.dc.4;,
-	&man.fxp.4;, &man.sis.4; となっています.
+	&man.fxp.4;, &man.rl.4;, &man.sis.4; となっています.
 	詳しくは &man.polling.4; マニュアルページを参照してください.
 	&merged;</para>
 
-      <para arch="i386">不必要なバッファのコピーを無くすことにより,
+      <para arch="i386,pc98" role="historic">不必要なバッファのコピーを無くすことにより,
 	いくつかのネットワークドライバ (特に &man.dc.4; と
 	&man.sis.4;) におけるパケットフォワーディングの性能が向上
 	しました. &merged;</para>
+
+      <para><quote>Zero copy</quote> support has been added to the
+        networking stack.  This feature can eliminate a copy of
+        network data between the kernel and userland, which is one of
+        the more significant bottlenecks in network throughput.
+        The send-side code should work with almost any network
+        adapter, while the receive-side code requires a network
+        adapter with an MTU of at least one memory page size (for
+        example, jumbo frames on Gigabit Ethernet).  For more
+        information, see &man.zero.copy.9;.</para>
     </sect3>
 
     <sect3>
       <title>ネットワークプロトコル</title>
 
-      <para>&man.accept.filter.9; が追加されました.
+      <para role="historic">&man.accept.filter.9; が追加されました.
         これは listen しているソケット上で接続を新たに受け入れ,
         読み込みを行なう際のオーバヘッドを低減するカーネルの機能です.
         &merged;</para>
 
-      <para>&man.arp.8; の <option>-d</option> オプションフラグにある
+      <para role="historic">&man.arp.8; の <option>-d</option> オプションフラグにある
         <literal>proxy</literal> という修飾子が
         <option>-s</option> オプションフラグで使われているものと同じ
         <literal>pub</literal> という修飾子に変更されました.
@@ -887,24 +1071,28 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         これは <quote>proxy 専用</quote>
         の公開エントリを作成するために使います. &merged;</para>
 
-      <para>pthread を使うことにより, &man.select.2;/&man.poll.2;
+      <para role="historic">pthread を使うことにより, &man.select.2;/&man.poll.2;
 	を使った場合の &man.bpf.4; の読み出しタイムアウトの機能が
 	より正しく動作するようになりました. &merged;</para>
 
-      <para>&man.bridge.4; および &man.dummynet.4;
+      <para role="historic">&man.bridge.4; および &man.dummynet.4;
         に細かな改良とバグ修正が加えられ, ローダブルモジュールに
 	なりました. &merged;</para>
 
-      <para>&man.bridge.4; は複数の完全に独立したブリッジクラスタに
+      <para role="historic">&man.bridge.4; は複数の完全に独立したブリッジクラスタに
 	対応し, 動的な追加・削除に関してもより安定しました.
 	VLAN 機能にも完全に対応しています. &merged;</para>
+
+      <para>A &man.gre.4; driver, which can encapsulate IP packets
+        using GRE (RFC 1701) or minimal IP encapsulation for Mobile IP
+        (RFC 2004), has been added.</para>
 
       <para>ICMP ECHO および TSTAMP 応答速度に制限が加えられるようになりました.
         open 状態のポート, open 状態にないポートに対して送信されるパケットに
         よって生成される TCP RST は独立したカウンタを用いて制限されており,
         各々異なる種類の速度制限キューとして分けられています.</para>
 
-      <para>正しいシーケンス番号が送り返されてきた場合に
+      <para role="historic">正しいシーケンス番号が送り返されてきた場合に
         ICMP <literal>UNREACH_FILTER_PROHIB</literal> メッセージが
         <literal>SYN_SENT</literal>
 	状態にある TCP 接続を RST できるようになりました.
@@ -914,16 +1102,32 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>IP マルチキャストが VLAN デバイス上で動作するようになりました.
         また, VLAN コードにあったいくつかのバグも修正されています.</para>
 
-      <para>IPv4 において入ってくる SPD のチェックが無視されてしまう
+      <para role="historic">IPv4 において入ってくる SPD のチェックが無視されてしまう
 	という IPSec 処理中のバグが修正されました. &merged;</para>
 
-      <para>&man.ipfw.4; が TCP セグメント内に
+      <para role="historic">&man.ipfw.4; が TCP セグメント内に
         ECN ビットを含む場合にも正しくフィルタ動作を行なうようになりました.
         &merged;</para>
 
-      <para>&man.ng.ether.4; netgraph ノードは Ethernet タイプの
+      <para>&man.ipfw.4; has been re-implemented (the new version is
+        commonly referred to as <quote>IPFW2</quote>).  It now uses
+        variable-sized representation of rules in the kernel, similar
+        to &man.bpf.4; instructions.  Most of the externally-visible
+        behavior (i.e. through &man.ipfw.8;) should be unchanged.,
+        although &man.ipfw.8; now supports <literal>or</literal>
+        connectives between match fields. &merged;</para>
+
+      <para role="historic">A new ng_eiface netgraph module has been added, which
+	appears as an Ethernet interface but delivers its Ethernet
+	frames to a Netgraph hook. &merged;</para>
+
+      <para>A new &man.ng.device.4; netgraph node type has been added,
+	which creates a device entry in <filename>/dev</filename>, to
+	be used as the entry point to a networking graph.</para>
+
+      <para role="historic">&man.ng.etf.4; netgraph ノードは Ethernet タイプの
 	パケットを, ethertype に応じて異なったフックでフィルタ
-	できるようになりました.</para>
+	できるようになりました. &merged;</para>
 
       <para>&man.gif.4; で動作する netgraph ノード
         &man.ng.gif.4; および &man.ng.gif.demux.4;
@@ -933,30 +1137,37 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         IP パケットに対応する
         netgraph ノード &man.ng.ip.input.4; が新しく追加されました.</para>
 
-      <para>&man.netgraph.4; サブシステムに
+      <para>A new &man.ng.l2tp.4; netgraph node type, which implements
+	the encapsulation layer of the L2TP protocol as described in
+	RFC 2661, has been added. &merged;</para>
+
+      <para role="historic">&man.netgraph.4; サブシステムに
         &man.ng.mppc.4; と &man.ng.bridge.4; のノードタイプが新たに追加され,
         &man.ng.ether.4; ノードが動的にロード可能になりました.
         また, 細かなバグ修正と改良も加えられています.
         &merged;</para>
 
-      <para>複数のリンク上でパケットの多重化を行なう
+      <para role="historic">複数のリンク上でパケットの多重化を行なう
         netgraph ノードタイプ &man.ng.one2many.4; が新たに追加されました.
         &merged;</para>
 
-      <para>sysctl 変数 <varname>net.inet.ip.check_interface</varname>
+      <para>A new ng_split node type has been added for splitting a
+        bidirectional packet flow into two unidirectional flows.</para>
+
+      <para role="historic">sysctl 変数 <varname>net.inet.ip.check_interface</varname>
         が新たに追加されました.  これは標準設定で on になっており,
         パケットの送信先アドレスと一致するアドレスを持ったインターフェイスに
         パケットが到着したかどうか IP レベルでチェックを行ないます.
         &merged;</para>
 
-      <para>sysctl 変数
+      <para role="historic">sysctl 変数
         <varname>net.link.ether.inet.log_arp_wrong_iface</varname>
         が新たに追加されました.  これは ARP
         要求が間違ったインターフェイスに到着した時の
 	ログ記録を抑制するかどうか制御するためのものです.
         &merged;</para>
 
-      <para>IP パケットの ID フィールドを乱数化する
+      <para role="historic">IP パケットの ID フィールドを乱数化する
         <literal>options RANDOM_IP_ID</literal>
         カーネルオプションが追加されました.
         これはリモートの観測者が,
@@ -969,40 +1180,40 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <filename>mfsroot</filename>
         フロッピイメージから削除されました.</para>
 
-      <para>ACK が遅れるという TCP のバグが修正されました.
+      <para role="historic">ACK が遅れるという TCP のバグが修正されました.
         &merged;</para>
 
-      <para>TCP が TCP Fast Recovery アルゴリズムに対する NewReno
+      <para role="historic">TCP が TCP Fast Recovery アルゴリズムに対する NewReno
         の変更に対応しました.  この動作は sysctl 変数
         <varname>net.inet.tcp.newreno</varname> で制御することができます.
         &merged;</para>
 
-      <para>TCP が初期 SYN
+      <para role="historic">TCP が初期 SYN
         セグメントに対してより積極的にタイムアウトするようになりました.
         これにより, 初期の接続試行をより早く中断することが可能になっています.
         &merged;</para>
 
-      <para><literal>TCP_COMPAT_42</literal>
+      <para role="historic"><literal>TCP_COMPAT_42</literal>
         カーネルオプションが削除されました. &merged;</para>
 
-      <para><literal>TCP_RESTRICT_RST</literal>
+      <para role="historic"><literal>TCP_RESTRICT_RST</literal>
 	カーネルオプションが削除されました.
         同様の機能は sysctl 変数
         <varname>net.inet.tcp.blackhole</varname> で実現可能です.
         &merged;</para>
 
-      <para>&man.rc.conf.5; の標準設定において
+      <para role="historic">&man.rc.conf.5; の標準設定において
         TCP の RFC 1323 拡張が有効化されるようになりました.
         &merged;</para>
 
-      <para>接続が確立される際, 三番目の SYN
+      <para role="historic">接続が確立される際, 三番目の SYN
         セグメントが送られるまでに反応がなかった場合は
         RFC 1323 および RFC 1644 の TCP 拡張が無効化されるようになりました.
         この動作は VJ ヘッダ圧縮の実装にバグがある
         (非常に古い) ターミナルサーバに対応するためのものです.
         &merged;</para>
 
-      <para>各接続に対して TCP
+      <para role="historic">各接続に対して TCP
         テンプレート構造体のメモリ割り当てを行なわないように
         TCP 実装が変更されました.
         これは多くの接続を扱う大規模システムにおいて
@@ -1010,7 +1221,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &merged;</para>
 
       <para>sysctl 変数 <varname>net.inet.tcp.sendspace</varname> および
-        <varname>net.inet.tcp.recvspace</varname>
+        <varname role="historic">net.inet.tcp.recvspace</varname>
         で制御されている TCP の標準バッファサイズがそれぞれ
         32K と 64K に増やされました.
 	従来は両方とも 16K のバッファサイズでした.
@@ -1030,15 +1241,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	</note>
       </para>
 
-      <para>TCP が RFC 1948 (Defending Against Sequence
-        Number Attacks) に対応しました.
-        この機能は
-        <varname>net.inet.tcp.strict_rfc1948</varname>,
-        <varname>net.inet.tcp.isn_reseed_interval</varname>
-        sysctl 変数できます.
-        &merged;</para>
+      <para role="historic">TCP now supports RFC 1948 (Defending Against Sequence
+	Number Attacks).  The
+ 	<varname>net.inet.tcp.isn_reseed_interval</varname> sysctl
+	variable controls the reseeding of the secret data used in
+	the RFC 1948 initial sequence number calculations. &merged;</para>
 
-      <para>&os; の TCP 実装は, 顕著な受信 SYN セグメントの
+      <para role="historic">&os; の TCP 実装は, 顕著な受信 SYN セグメントの
 	キャッシュを実装しました.
 	入ってくる SYN セグメントは, TCP three-way handshake
 	が完了するまではキャッシュ内にエントリされ, 完了後に
@@ -1052,23 +1261,38 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	なります.
 	この機能のスポンサーは DARPA と NAI Labs です. &merged;</para>
 
-      <para>TCP 実装において, 送信側が大きさ 0 のウィンドウ
+      <para role="historic">TCP 実装において, 送信側が大きさ 0 のウィンドウ
 	を受け取ったときに接続が固まってしまうというバグが
 	修正されました. &merged;</para>
 
-      <para>TCP 実装が, IP 層のブロードキャストアドレスに向けられたパケットを
+      <para role="historic">TCP 実装が, IP 層のブロードキャストアドレスに向けられたパケットを
 	正しく無視するようになりました. &merged;</para>
 
       <para>TCP, UDP で使われる ephemeral port 範囲が 1024&ndash;5000 から
 	49152&ndash;65535 に変更されました.
 	これにより並列に出ていくことのできる接続/ストリームの数が増加します.
       </para>
+
+    <para>The &man.tcp.4; protocol's retransmission timer can now be
+      manipulated with two sysctl variables,
+      <varname>net.inet.tcp.rexmit_min</varname> and
+      <varname>net.inet.tcp.rexmit_slop</varname>.  The default has
+      been reduced from one second to 200ms (similar to the Linux default)
+      in order to better handle hicups over interactive connections and
+      improve recovery over lossy fast connections such as wireless links.</para>
+
+    <para>The &man.tcp.4; protocol now has the ability to dynamically
+      limit the send-side window to maximize bandwidth and minimize
+      round trip times.  The feature can be enabled via the
+      <varname>net.inet.tcp.inflight_enable</varname>
+      sysctl. &merged;</para>
+
     </sect3>
 
     <sect3>
       <title>ディスク・記憶装置</title>
 
-      <para arch="i386">&man.aac.4; が
+      <para arch="i386" role="historic">&man.aac.4; が
         Adaptec PCI-SCSI RAID コントローラの FSA ファミリに対応しました.
 	このドライバは, アダプタによって発行されるコマンド,
         ディスクデバイスの脱着, クラッシュダンプ機能,
@@ -1076,7 +1300,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	ようになり, Adaptec により検証・認定されました.
         &merged;</para>
 
-      <para>&man.ahc.4; ドライバに対して非常に数多くの更新や
+      <para role="historic">&man.ahc.4; ドライバに対して非常に数多くの更新や
         バグ修正, 改良が加えられました.
         それには <quote>RAID Port</quote> モードでの動作,
         AAA や ARO カードを搭載したシステムでの動作が可能になったこと,
@@ -1086,60 +1310,73 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         いくつかのバグも修正されています.
         &merged;</para>
 
-      <para arch="i386">
+      <para arch="i386">The &man.ahd.4; driver, which supports the Adaptec
+        AIC7901, AIC7901A, and AIC7902 Ultra320 PCI-X SCSI Controller chips, has been
+        added. &merged;</para>
+
+      <para arch="i386" role="historic">
         Adaptec SCSI RAID コントローラファミリ,
         および DPT SmartRAID V, VI ファミリに対応する
         &man.asr.4; ドライバが新たに追加されました.
         &merged;</para>
 
-      <para arch="i386">&man.asr.4; ドライバが
+      <para arch="i386" role="historic">&man.asr.4; ドライバが
         Adaptec 2000S, 2005S Zero-Channel RAID コントローラに対応しました.
         &merged;</para>
 
-      <para>&man.ata.4; ドライバが ATA100 コントローラに対応しました.
+      <para role="historic">&man.ata.4; ドライバが ATA100 コントローラに対応しました.
         さらに ServerWorks ROSB4 ATA33 チップセット,
         CMD 648 ATA66 チップセット,
         CMD 649 ATA100 チップセット,
         Cyrix 5530 にも対応しています.
         &merged;</para>
 
-      <para>設定をより柔軟に行なえるよう,
+      <para role="historic">設定をより柔軟に行なえるよう,
         &man.ata.4;
         ドライバの多くのオプションはカーネルコンフィグレーション時だけでなく,
         ブートローダからも設定を変更できるようになりました.
         &merged;</para>
 
-      <para>&man.ata.4; ドライバがタグキューイング機能に対応しました.
+      <para role="historic">&man.ata.4; ドライバがタグキューイング機能に対応しました.
         これは <varname>hw.ata.tags</varname> で制御可能で,
         ブートローダからも設定できます.
         &merged;</para>
 
-      <para>&man.ata.4; ドライバが
+      <para role="historic">&man.ata.4; ドライバが
         Promise Fasttrak コントローラおよび HighPoint HPT370 コントローラのような
         ATA <quote>疑似</quote> RAID コントローラに対応しました.        
         &merged;</para>
 
-      <para>&man.ata.4; ドライバは Hardware Notes にも載っているように
+      <para role="historic">&man.ata.4; ドライバは Hardware Notes にも載っているように
 	様々な SiS チップセットに対応しました. &merged;</para>
 
-      <para>&man.ata.4; ドライバは &man.atacontrol.8; を使って
-	RAID1 構成の故障したドライブを再構築することができるように
-	なりました. &merged;</para>
+      <para role="historic">The &man.ata.4; driver now has support for creating,
+	deleting, querying, and rebuilding ATA RAIDs under control of
+	&man.atacontrol.8;. &merged;</para>
 
-      <para>ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
+      <para role="historic">ATAPI CD-R ドライブの BurnProof(TM) 機能に対応しました.
         &merged;</para>
 
-      <para>&man.ata.4; ドライバは 48-bit アドレスに対応しました.
+      <para role="historic">&man.ata.4; ドライバは 48-bit アドレスに対応しました.
 	137GB より大きなデバイスに対応したことになります. &merged;</para>
 
-      <para>&man.ata.4; ドライバで, VIA 82C686B サウスブリッジチップ
+      <para role="historic">&man.ata.4; ドライバで, VIA 82C686B サウスブリッジチップ
 	を使ったシステムにおいて, データが壊れる場合があることへの
 	対策が行なわれました. &merged;</para>
 
-<!-- The following note needs to be made more specific or eliminated. -->
-      <para>CAM のエラー回復処理コードが更新されました.</para>
+      <para>The &man.ata.4; driver (along with &man.burncd.8;) now
+        supports writing to media in DVD+RW drives.</para>
 
-      <para>&man.cd.4; ドライバが書き込み操作に対応しました.
+      <para>The &man.ata.4; driver now supports accessing ATA devices
+        as SCSI devices via the CAM layer and drivers (&man.cd.4;,
+        &man.da.4;, &man.st.4;, and &man.pass.4;).  This feature requires
+        <literal>device atapicam</literal> in the kernel
+        configuration.</para>
+
+      <para>The &man.ata.4; driver now has support for the Sil 0680
+        and VIA 8233/8235 controllers. &merged;</para>
+
+      <para role="historic">&man.cd.4; ドライバが書き込み操作に対応しました.
         これにより, DVD-RAM, PD
         といった CD デバイスとして認識されるドライブへ書き込むことが可能です.
         ただしこの変更はランダムアクセス可能な
@@ -1151,7 +1388,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         が対応しています.
         &merged;</para>
 
-      <para arch="i386">SCSI-3 サポート用の共通インターフェイスデバイスである
+      <para arch="i386" role="historic">SCSI-3 サポート用の共通インターフェイスデバイスである
 	ciss ドライバが追加されました.
 	このドライバは Compaq の SmartRAID 5* ファミリ RAID
 	コントローラ (5300, 532, 5i) をサポートしています. &merged;</para>
@@ -1165,14 +1402,14 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         これは、カーネルの上位からのデバイスドライバに対する I/O 要求に、
         さまざまな操作を加えられるように設計された、拡張可能なフレームワークです。</para>
 
-      <para>ida ディスクドライバがクラッシュダンプに対応しました.
+      <para role="historic">ida ディスクドライバがクラッシュダンプに対応しました.
         &merged;</para>
 
-      <para arch="i386">iir ドライバが Intel Integrated RAID コントローラ
+      <para arch="i386" role="historic">iir ドライバが Intel Integrated RAID コントローラ
 	に対応しました.  古い ICP Vortex コントローラにも対応しています.
       </para>
 
-      <para arch="alpha">&man.isp.4; が対応している
+      <para arch="alpha" role="historic">&man.isp.4; が対応している
         SCSI カードに接続されている特定の CDROM
         を認識しないというバグが修正されました.
         &merged;</para>
@@ -1185,8 +1422,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         Qlogic SCSI カードのターゲットモードに対応しました.
         これには Ultra2, Ultra3, デュアルバスカードが含まれます.</para>
 
-      <para>&man.isp.4; ドライバが Qlogic 2300/2312 Optical
+      <para role="historic">&man.isp.4; ドライバが Qlogic 2300/2312 Optical
 	Fibre Channel PCI カードをサポートしました. &merged;</para>
+
+      <para arch="i386,pc98">The &man.matcd.4; driver has been removed
+        due to breakage and licensing issues. &merged;</para>
 
       <para>メモリディスクデバイス &man.md.4; に
         &man.md.4; の機能が統合されました.
@@ -1194,18 +1434,29 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &man.vn.4; は削除されています.
         また, メモリファイルシステム (MFS) も削除されました.</para>
 
-      <para arch="i386">firmware 6.X 以降を搭載した
+      <para arch="i386,alpha,pc98,sparc64">The mpt driver, for
+	supporting the LSI Logic Fusion/MP architecture Fiber Channel
+	controllers, has been added. &merged;</para>
+
+      <para arch="i386" role="historic">firmware 6.X 以降を搭載した
         Mylex PCI to SCSI AccelRAID コントローラおよび
         eXtremeRAID コントローラに対応する
         &man.mly.4; ドライバが新たに追加されました.
         &merged;</para>
 
-      <para arch="i386">NetBSD/pc98 から
+      <para arch="i386,pc98" role="historic">NetBSD/pc98 から
         ncv, nsp, stg ドライバが移植されました.
         これらは NCR 53C50 / Workbit Ninja SCSI-3 / TMC 18C30, 18C50
         ベースの PC-Card/ISA SCSI コントローラに対応しています.
 	これらのドライバはモジュールとして構築, ロードできます.
         &merged;</para>
+
+      <para arch="powerpc">The ofw driver, a basic OpenFirmware disk
+	driver, has been added.</para>
+
+      <para arch="i386">The pst driver, for supporting Promise
+	SuperTrak ATA RAID controllers, has been
+	added. &merged;</para>
 
       <para>&man.sa.4; エラー処理にあったいくつかの問題点が修正されました.
         これには
@@ -1213,14 +1464,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
           に追随せずにまわってしまう</quote>
         という問題も含まれています.</para>
 
-      <para arch="i386">3ware ATA RAID に対応する
+      <para>The <varname>SCSI_DELAY</varname> configuration parameter
+	can now be set at boot time and runtime via the
+	<varname>kern.cam.scsi_delay</varname> tunable/sysctl.</para>
+
+      <para>The trm driver has been added to support SCSI adapters
+        using the Tekram TRM-S1040 SCSI chipset.</para>
+
+      <para arch="i386" role="historic">3ware ATA RAID に対応する
         &man.twe.4; ドライバが追加されました.&merged;</para>
 
-<!-- The following note needs to be made more specific or eliminated. -->
-      <para>&man.vinum.4;
-        ボリュームマネージャにいくつかのバグ修正と改良が加えられました.</para>
-
-      <para>&man.wd.4; 互換デバイスが
+      <para role="historic">&man.wd.4; 互換デバイスが
         &man.ata.4; ドライバから削除されました.
         &merged;</para>
     </sect3>
@@ -1237,7 +1491,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         (詳細は <filename>/usr/src/sys/ufs/ufs/README.extattr</filename>
         参照).</para>
 
-      <para>ライセンスの変更により
+      <para role="historic">ライセンスの変更により
         softupdates がカーネルソースツリーの主要部に統合され,
         <filename>GENERIC</filename> カーネルでの利用が可能になりました.
         &merged;</para>
@@ -1254,17 +1508,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         softupdates 利用時に commit
         されて解放されたファイルとブロック数を記録するようになりました.</para>
 
-      <para>非常に大容量のファイルシステムで
+      <para role="historic">非常に大容量のファイルシステムで
 	スーパブロックが破損する可能性のあった
         FFS におけるバグが修正されました.
         &merged;</para>
 
-      <para>inode ファイルシステム (IFS) が新たに追加されました.
-        詳細は        
-        <filename>/usr/src/sys/ufs/ifs/README</filename>
-        にあります.</para>
-
-      <para>ISO-9660 ファイルシステムに対し, 新たに
+      <para role="historic">ISO-9660 ファイルシステムに対し, 新たに
         ロード可能なキャラクタ変換ルーチンに
 	対応するためのフックが追加されました.
         良く使われる変換ルーチンは
@@ -1273,12 +1522,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para>&man.kernfs.5; は廃止され, 削除されました.</para>
 
-      <para>NFS クライアントにおいて,
+      <para role="historic">NFS クライアントにおいて,
         <literal>O_EXCL|O_CREAT</literal>
         オープン時に不正なアクセスタイムを生成するバグが修正されました.
         &merged;</para>
 
-      <para><varname>nfsnode</varname>
+      <para role="historic"><varname>nfsnode</varname>
         ハッシュテーブルを効率化し, NFS 性能を向上させるために
         (Fowler/Noll/Vo ハッシュアルゴリズムに基づく) 新しい
         NFS ハッシュ関数が実装されました.
@@ -1299,7 +1548,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         <filename>/usr/src/sys/ufs/ufs/README.acls</filename>
         をご覧ください.</para>
 
-      <para>FFS のディレクトリ配置の優先アルゴリズム
+      <para role="historic">FFS のディレクトリ配置の優先アルゴリズム
 	(<literal>dirprefs</literal>) が変更されました.
 	ディレクトリブロックをディスク内で分散させるのではなく,
 	ディレクトリブロックに関連したグループにまとめようと試みます.
@@ -1308,7 +1557,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	この変更は表面的にはなんの影響も与えませんし,
 	新しいディレクトリに対しては自動的に適用されます. &merged;</para>
 
-      <para arch="i386">カーネルが smbfs (CIFS) に対応しました.
+      <para arch="i386,pc98" role="historic">カーネルが smbfs (CIFS) に対応しました.
 	SMB 共有を扱うのにはユーザランドプログラムの
 	&man.smbutil.1; と &man.mount.smbfs.8; が利用できます.
 	&man.mount.smbfs.8; は <literal>LIBMCHAIN</literal> と
@@ -1332,7 +1581,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         &man.linprocfs.5; と &man.procfs.5; は pseudofs
 	を利用するように変更されています.</para>
 
-      <para>巨大なディレクトリ用に,
+      <para role="historic">巨大なディレクトリ用に,
         <literal>dirhash</literal> と呼ばれる単純なハッシュをベース
 	とした検索効率化処理が追加されました.
         <literal>UFS_DIRHASH</literal> カーネルオプション 
@@ -1340,16 +1589,16 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	の設定により, メモリを多少余分に使って巨大なディレクトリの
 	操作速度を向上させることが可能です. &merged;</para>
 
-      <para>VM サブシステムはデフォルトで UFS ディレクトリ用の
+      <para role="historic">VM サブシステムはデフォルトで UFS ディレクトリ用の
 	メモリ要求を担うようになりました
 	(この挙動は <varname>vfs.vmiodirenable</varname> sysctl 変数
 	で制御されます). &merged;</para>
 
-      <para>SCSI CDROM からルートファイルシステムがマウントできない
+      <para role="historic">SCSI CDROM からルートファイルシステムがマウントできない
 	バグが修正されました (ATAPI CDROM は問題ありません)
 	&merged;</para>
 
-      <para>ファイルシステムテストツール
+      <para role="historic">ファイルシステムテストツール
 	<application>fsx</application> を使うことにより発見された
 	いくつかのバグが修正されました.
 	ある状況下で (主に NFS を使っている際に)
@@ -1362,16 +1611,47 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	ようになりました.
 	これらのマウントはネットワークが初期化された後まで遅延
 	されます.</para>
+
+      <para>Read-only support for the Universal Disk Format (UDF) has
+	been added.  This format is used on packet-written CD-RWs and
+	most commercial DVD-Video disks.  The &man.mount.udf.8;
+	command can be used to mount these disks.</para>
+
+      <para>Basic support has been added for the UFS2 filesystem.
+        Among its features:
+
+	<itemizedlist>
+	  <listitem>
+	    <para>The inode has been expanded to 256 bytes to make
+	      space for 64-bit block pointers.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A file-creation time field has been added.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>A native extended attributes implementation has been
+	      added, permitting total attribute size stored on an inode
+	      to be up to twice the filesystem block size.  This storage
+	      is used for Access Control Lists and MAC labels, but may
+	      also be used by other system extensions and user
+	      applications.</para>
+	  </listitem>
+	</itemizedlist>
+
+	</para>
+
     </sect3>
 
      <sect3>
       <title>PCCARD 対応</title>
 
-      <para arch="i386">pccard ドライバおよび &man.pccardc.8;
+      <para arch="i386,pc98" role="historic">pccard ドライバおよび &man.pccardc.8;
         が複数の<quote>カード着脱音</quote>に対応しました.
         &merged;</para>
 
-      <para>比較的新しいマシンの多くで, PCCARD デバイスの割り込みを
+      <para role="historic">比較的新しいマシンの多くで, PCCARD デバイスの割り込みを
         ISA もしくは PCI のいずれかの割り込み経路に設定することが
 	可能になりました.
         &man.pcic.4; ドライバが更新され, 新たにその両方の割り込み経路に対応
@@ -1388,25 +1668,29 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
         その際には <filename>/boot/loader.conf</filename>
         にある次の行を書き換えてください.</para>
       
-      <programlisting>hw.pcic.intr_path="1"
+      <programlisting role="historic">hw.pcic.intr_path="1"
 hw.pcic.irq="0"</programlisting>
 
-      <para>&os; を問題の発生するマシンにインストールする際は,
+      <para role="historic">&os; を問題の発生するマシンにインストールする際は,
         一番最初の起動中, ブートローダに次の行を入力すると良いでしょう.</para>
 
-      <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+      <screen role="historic"><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
 <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
       <para arch="i386">NEWCARD が暫定的に Cardbus に対応しました.
 	このコードは TI113X, TI12XX, TI125X, Ricoh 5C46/5C47, Topic
 	95/97/100, Cirrus Logic PD683X ブリッジに対応しています.
 	16-bit PC Card には, まだ対応していません.</para>
+
+      <para arch="i386">NEWCARD is now the default pccard/cardbus
+        system in the <filename>GENERIC</filename> kernel.</para>
+
     </sect3>
 
     <sect3>
       <title>マルチメディアへの対応状況</title>
 
-      <para arch="i386">&man.pcm.4; ドライバが
+      <para arch="i386" role="historic">&man.pcm.4; ドライバが
         ESS Solo 1, Maestro-1, Maestro-2, Maestro-2e に対応しました.
         また Forte Media fm801, ESS Maestro-2e,
         VIA Technologies VT82C686A サウンドカード/サウンドチップにも対応し,
@@ -1417,19 +1701,27 @@ hw.pcic.irq="0"</programlisting>
         S3 SonicVibes チップセット用ドライバがそれぞれ新たに追加されています.
         &merged;</para>
 
-      <para arch="i386">Avance Logic ALS4000 用ドライバが新たに追加されました.
+      <para arch="i386" role="historic">Avance Logic ALS4000 用ドライバが新たに追加されました.
         &merged;</para>
 
-      <para arch="i386">ESS Maestro-3/Allegro 用ドライバが新たに追加されました.
+      <para arch="i386" role="historic">ESS Maestro-3/Allegro 用ドライバが新たに追加されました.
         ただしライセンス上の問題があるため,
         それを含んだカーネルを構築することはできません.
         &merged;
         このドライバを利用するには, 次の行を
         <filename>/boot/loader.conf</filename> に追加してください.</para>
 
-      <programlisting>snd_maestro3_load="YES"</programlisting>
+      <programlisting role="historic">snd_maestro3_load="YES"</programlisting>
 
-      <para>&man.bktr.4; ドライバがバージョン 2.18 に更新され,
+      <para arch="i386">The VT8233 audio controller now has its own
+        driver to facilitate supporting all known revisions of the
+        hardware.  It is loadable at boot time by adding
+       <literal>device pcm</literal> to the kernel configuration or
+        by adding <literal>snd_via8233="YES"</literal> to
+        <filename>/boot/loader.conf</filename>.  Documentation to
+        support this work was provided by VIA. &merged;</para>
+
+      <para role="historic">&man.bktr.4; ドライバがバージョン 2.18 に更新され,
         非常に多くの新機能が提供されています.
         新しいチューナタイプの追加および
         KLD モジュールとメモリ割り当ての改良が行なわれ,
@@ -1438,10 +1730,10 @@ hw.pcic.irq="0"</programlisting>
         また, 新たに Hauppauge モデル 44xxx WinTV カード
         (音声多重が搭載されていないもの) に対応しています. &merged;</para>
 
-      <para arch="i386">D-Link DSB-R100 USB ラジオに対応する ufm ドライバ
+      <para arch="i386,pc98" role="historic">D-Link DSB-R100 USB ラジオに対応する ufm ドライバ
 	が追加されました. &merged;</para>
 
-      <para>サウンドモジュールを構築している場合
+      <para role="historic">サウンドモジュールを構築している場合
         <command>kldload snd</command>
         とするだけでドライバ等の必要なものすべてをロードすることが
 	できるようになりました. &merged;</para>
@@ -1449,14 +1741,26 @@ hw.pcic.irq="0"</programlisting>
       <para>ハードウェア音量制御機能を持つサウンドカード用の新しい
         API が追加されました.</para>
 
-      <para arch="i386">Intel 443MX, 810, 815, 815E
+      <para arch="i386" role="historic">Intel 443MX, 810, 815, 815E
         統合サウンドデバイス用のドライバが追加されました. &merged;</para>
 
-      <para arch="i386">via82c686 サウンドドライバが
+      <para arch="i386" role="historic">via82c686 サウンドドライバが
 	VIA VT8233 に対応しました. &merged;</para>
 
-      <para arch="i386">ich サウンドドライバが SiS 7012 チップセットに
+      <para arch="i386" role="historic">ich サウンドドライバが SiS 7012 チップセットに
 	対応しました. &merged;</para>
+
+      <para arch="i386">The ich sound driver now provides rudimentary
+	support for ich4 audio support. &merged;</para>
+
+      <para arch="i386">Drivers have been added to support the Direct
+        Rendering Infrastructure, which can used to provide 3D
+        acceleration within <application>XFree86</application>.  Video
+        cards supported include the 3Dlabs Oxygen GMX 2000 (gammadrm),
+        AGP Matrox G200/G400/G450/G550 (mgadrm), 3dfx Voodoo
+        3/4/5/Banshee (tdfxdrm), AGI ATI Rage 128 (r128drm), and AGP
+        ATI Radeon (radeondrm).</para>
+
     </sect3>
 
     <sect3>
@@ -1465,18 +1769,14 @@ hw.pcic.irq="0"</programlisting>
       <para>ブートローダで使用されている
         Forth Inspired Command Language
         (<application>FICL</application>) が
-        バージョン 2.05 に更新されました.</para>
-
-      <para><application>Intel ACPI</application>
-        プロジェクトによる ACPI 対応機能が取り込まれ,
-        ACPI CA 20010816 リリースに更新されました.</para>
+        バージョン 3.02 に更新されました.</para>
 
       <para>自動設定および電源管理の規格で業界標準となっている
         ACPI (Advanced Configuration and Power Interface)
         に新しく対応しました.
         ACPI の機能は <application>Intel ACPI Component
           Architecture</application> プロジェクトから提供されているもので,
-        ACPI CA 20020308 スナップショットに更新されています.
+        ACPI CA 20020815 スナップショットに更新されています.
 	旧来の APM 標準を用いるアプリケーション向けの後方互換性
 	も提供されました.</para>
 
@@ -1484,9 +1784,9 @@ hw.pcic.irq="0"</programlisting>
         <title>IPFilter</title>
 
 	<para><application>IPFilter</application> はバージョン
-	  3.4.25 に更新されました.</para>
+	  3.4.29 に更新されました.</para>
 
-	<para><application>IPFilter</application> が IPv6
+	<para role="historic"><application>IPFilter</application> が IPv6
 	  に対応しました. &merged;</para>
 
       </sect4>
@@ -1495,57 +1795,58 @@ hw.pcic.irq="0"</programlisting>
         <title>isdn4bsd</title>
 
 	<para><application>isdn4bsd</application> が
-          バージョン 1.0.1 に更新されました.
-          この更新により, 
-          &man.i4bisppp.4; (カーネル PPP over ISDN)
-          ドライバを使用している場合は,
-          ネットワークインターフェイスの設定や制御の際に
-          &man.spppcontrol.8; ではなく &man.ispppcontrol.8;
-          を<emphasis>使わなければならなく</emphasis>なっています.</para>
+          バージョン 1.0.2 に更新されました.</para>
 
-	<para>&man.ifpi.4; ドライバは AVM Fritz!Card PCI version 2
+	<para role="historic">The &man.ifpi.4; driver for supporting the AVM
+	  Fritz!Card PCI controller has been added. &merged;</para>
+
+	<para role="historic">&man.ifpi.4; ドライバは AVM Fritz!Card PCI version 2
 	  コントローラに対応しました. &merged;</para>
 
-	<para>Cologne Chip Designs HFC デバイスを
+	<para role="historic">Cologne Chip Designs HFC デバイスを
           <application>isdn4bsd</application> に対応させる
           &man.ihfc.4; ドライバが新たに追加されました.
           &merged;</para>
 
-        <para>NETjet-S / Teles PCI-TJ デバイスを
+        <para role="historic">NETjet-S / Teles PCI-TJ デバイスを
           <application>isdn4bsd</application> に対応させる
           &man.itjc.4; ドライバが新たに追加されました.
           &merged;</para>
 
-        <para>実験的なものですが,
+        <para role="historic">実験的なものですが,
           &man.isic.4; <application>isdn4bsd</application> ドライバが
           Eicon.Diehl DIVA 2.0 および 2.02 ISA PnP ISDN カードに対応しました.
           &merged;</para> 
 
-	<para>&man.isic.4; ドライバは Compaq Microcom 610 ISDN
+	<para role="historic">&man.isic.4; ドライバは Compaq Microcom 610 ISDN
 	  ISA PnP カードに内応しました. &merged;</para>
 
-	<para>&man.i4bcapi.4; および &man.iavc.4; ドライバにより
+	<para role="historic">&man.i4bcapi.4; および &man.iavc.4; ドライバにより
           AVM 製の Active CAPI ベースの ISDN カードに対応しました.
           対応しているカードは
           AVM B1 PCI/AVM B1 ISA Basic Rate カード,
           AVM T1 Primary Rate カードです.
           &merged;</para>
 
-	<para>&man.isdnd.rc.5; ファイルに新たなキーワード
+	<para role="historic">&man.isdnd.rc.5; ファイルに新たなキーワード
           <literal>maxconnecttime</literal> が追加されました.
           これは一つの接続がオープン状態にある時間を制限します.
           &merged;</para>
 
-	<para>&man.isdnphone.8; はキーパッド経由でメッセージを PBX や
+	<para role="historic">&man.isdnphone.8; はキーパッド経由でメッセージを PBX や
 	  exchange office に送るための <option>-k</option> オプションをサポート
 	  しました. &merged;</para>
 	<!-- XXX: kuriyama: exchange office って MS の? -->
+
+	<para><application>isdn4bsd</application> now supports Q.931
+	  subaddressing.</para>
+
       </sect4>
 
       <sect4 id="kame-kernel">
         <title>KAME</title>
 
-        <para>IPv6 スタックが KAME プロジェクトの
+        <para role="historic">IPv6 スタックが KAME プロジェクトの
           2001 年 5 月 28 日づけのスナップショットを
 	  ベースとしたものになりました.
           この節の項目のほとんどは, それが取り込まれたことによるものです.
@@ -1553,35 +1854,35 @@ hw.pcic.irq="0"</programlisting>
           <xref linkend="kame-userland"> に書かれています.
             &merged;</para>
 
-        <para>&man.gif.4; が RFC 1933 ではなく RFC 2893 準拠のものになりました.
+        <para role="historic">&man.gif.4; が RFC 1933 ではなく RFC 2893 準拠のものになりました.
           イングレスフィルタの制御は
           <literal>IFF_LINK2</literal>
           インターフェイスフラグで行なうことが可能です.
           &merged;</para>
 
-	<para><application>IPSec</application> が多少改良され,
+	<para role="historic"><application>IPsec</application> が多少改良され,
           Rijndael, SHA2 アルゴリズムを利用できるようになりました.
-          特許の問題のため IPSec の RC5 対応は削除されています.
+          特許の問題のため IPsec の RC5 対応は削除されています.
           &merged;</para>
 
-	<para>&man.stf.4; が RFC 3056 に準拠し,
+	<para role="historic">&man.stf.4; が RFC 3056 に準拠し,
           イングレスフィルタの制御を
           <literal>IFF_LINK2</literal>
           インターフェイスフラグで行なえるようになりました.
           &merged;</para>
 
-	<para>IPv6 が物理ネットワーク上の不正なアドレス
+	<para role="historic">IPv6 が物理ネットワーク上の不正なアドレス
           (ループバックアドレスなど) を厳密にチェックするようになりました.
           &merged;</para>
 
-	<para><varname>IPV6_V6ONLY</varname>
+	<para role="historic"><varname>IPV6_V6ONLY</varname>
           ソケットオプションに完全対応しました.
           このオプションに関するカーネルの標準動作は
           sysctl 変数 <varname>net.inet6.ip6.v6only</varname>
           によって制御されます.
           &merged;</para>
 
-	<para>RFC 3041 (Privacy Extensions for Stateless Address
+	<para role="historic">RFC 3041 (Privacy Extensions for Stateless Address
           Autoconfiguration) に対応しました.
           これは sysctl 変数
           <varname>net.inet6.ip6.use_tempaddr</varname>
@@ -1594,7 +1895,7 @@ hw.pcic.irq="0"</programlisting>
   <sect2 id="security">
     <title>セキュリティ関連の修正</title>
 
-    <para>&man.sysinstall.8;
+    <para role="historic">&man.sysinstall.8;
       においてインストール時に二種類の
       <quote>セキュリティプロファイル</quote>が選べるようになりました.
       これらのプロファイルは &man.rc.conf.5; に書かれている
@@ -1611,7 +1912,7 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-00:42 参照).
       &merged;</para>
 
-    <para>バッファオーバフローによる不正利用の可能性を低減するため,
+    <para role="historic">バッファオーバフローによる不正利用の可能性を低減するため,
       多くのプログラムにある文字列操作ライブラリの呼び出し部分が修正されました.
       &merged;</para>
 
@@ -1657,16 +1958,16 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-00:76 参照).
       &merged;</para>
 
-    <para>標準設定では &man.ssh.1; バイナリが
+    <para role="historic">標準設定では &man.ssh.1; バイナリが
       root で SUID されなくなりました.
       &merged;</para>
 
-    <para>Kerberos IV 実装に対して, 環境変数問題,
+    <para role="historic">Kerberos IV 実装に対して, 環境変数問題,
       潜在的なバッファオーバフロー問題,
       チケットファイルの上書き問題に関連する修正が行なわれました.
       &merged;</para>
 
-    <para>&man.telnet.1;
+    <para role="historic">&man.telnet.1;
       が環境変数に対して適切なフィルタ処理を行なうようになりました.
       &merged;</para>
 
@@ -1712,15 +2013,15 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-01:24 参照).
       &merged;</para>
 
-    <para>セキュリティ上の危険性を低減するため,
+    <para role="historic">セキュリティ上の危険性を低減するため,
       出力書式指定文字列を使用しているたくさんのプログラムが修正されました.
       &merged;</para>
 
-    <para>一時ファイルを使用するたくさんのプログラムが
+    <para role="historic">一時ファイルを使用するたくさんのプログラムが
       セキュリティを考慮した形に修正されました.
       &merged;</para>
 
-    <para>攻撃者から TCP, UDP の <quote>セション</quote>
+    <para role="historic">攻撃者から TCP, UDP の <quote>セション</quote>
       を切断できる可能性のある ICMP のバグが修正されました.
       &merged;</para>
 
@@ -1777,7 +2078,7 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-01:40 参照).
       &merged;</para>
 
-    <para><application>OpenSSH</application>
+    <para role="historic"><application>OpenSSH</application>
       は競合状態を解消するため, 認証の転送ファイルを
       unlink する前にそのユーザの UID に切り替えるように変更されました.</para>
 
@@ -1806,7 +2107,7 @@ hw.pcic.irq="0"</programlisting>
       (セキュリティ勧告 FreeBSD-SA-01:52 参照)
       &merged;</para>
 
-    <para><filename>inetd.conf</filename> におけるすべてのサービスが
+    <para role="historic"><filename>inetd.conf</filename> におけるすべてのサービスが
       標準の新規インストールで無効化されるようになりました.
       また &man.sysinstall.8; では,
       <filename>inetd.conf</filename> の編集機能に加えて
@@ -1838,7 +2139,7 @@ hw.pcic.irq="0"</programlisting>
       のセキュリティ上の弱点が修正されました
       (セキュリティ勧告 FreeBSD-SA-01:57 参照).
       &merged;</para>
-    
+
     <para>リモートから root 権限を不正に奪うことが可能な
       &man.lpd.8; のセキュリティ上の弱点が修正されました
       (セキュリティ勧告 FreeBSD-SA-01:58 参照).
@@ -1869,7 +2170,7 @@ hw.pcic.irq="0"</programlisting>
       Ports Collection に移され, もはやベースシステムの一部ではなくな
       りました. &merged;</para>
 
-    <para>&man.semop.2;
+    <para role="historic">&man.semop.2;
       システムコールに存在していたバッファオーバフロー問題による
       セキュリティホールが修正されました.&merged;</para>
 
@@ -1914,19 +2215,162 @@ hw.pcic.irq="0"</programlisting>
       は間違って動作するか中断してしまうかも知れません.
       この <application>zlib</application> のバグは修正されました.
       対策と解法はセキュリティ勧告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.asc">FreeBSD-SA-02:18</ulink>
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:18.zlib.v1.2.asc">FreeBSD-SA-02:18</ulink>
       を参照してください. &merged;</para>
+
+    <para>Bugs in the TCP SYN cache (<quote>syncache</quote>) and SYN
+      cookie (<quote>syncookie</quote>) implementations, which could
+      cause legitimate TCP/IP traffic to crash a machine, have been
+      fixed.  For a workaround and patches, see security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.
+      &merged;</para>
+
+    <para>A routing table memory leak, which could allow a remote
+      attacker to exhaust the memory of a target machine, has been
+      fixed.  A workaround and patches can be found in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.
+      &merged;</para>
+
+    <para>A bug with memory-mapped I/O, which could cause a system
+      crash, has been fixed.  For more information about a solution,
+      see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:22.mmap.asc">FreeBSD-SA-02:22</ulink>.
+      &merged;</para>
+
+    <para>A security hole, in which SUID programs could be made to
+      read from or write to inappropriate files through manipulation
+      of their standard I/O file descriptors, has been fixed.
+      Information regarding a solution can be found in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.
+      &merged;</para>
+
+    <para>Some unexpected behavior could be allowed with &man.k5su.8;
+      because it does not require that an invoking user be a member of
+      the <groupname>wheel</groupname> group when attempting to become
+      the superuser (this is the case with &man.su.1;).  To avoid this
+      situation, &man.k5su.8; is now installed non-SUID by default
+      (effectively disabling it).  More information can be found in
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.
+      &merged;</para>
+
+    <para>Multiple vulnerabilities were found in the &man.bzip2.1;
+      utility, which could allow files to be overwritten without
+      warning or allow local users unintended access to files.  These
+      problems have been corrected with a new import of
+      <application>bzip2</application>.  For more information, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.
+      &merged;</para>
+
+    <para>A bug has been fixed in the implementation of the TCP SYN
+      cache (<quote>syncache</quote>), which could allow a remote
+      attacker to deny access to a service when accept filters
+      (see &man.accept.filter.9;) were in use.  This bug has been
+      fixed; for more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.
+      &merged;</para>
+
+    <para>Due to a bug in &man.rc.8;'s use of shell globbing, users
+      may be able to remove the contents of arbitrary files if
+      <filename>/tmp/.X11-unix</filename> does not exist and the
+      system can be made to reboot.  This bug has been corrected (see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).
+      &merged;</para>
+
+    <para>A buffer overflow in the resolver, which could be exploited
+      by a malicious domain name server or an attacker forging DNS
+      messages, has been fixed.  See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      for more details. &merged;</para>
+
+    <para>A buffer overflow in &man.tcpdump.1;, which could be triggered by
+      badly-formed NFS packets, has been fixed.  See security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      for more details. &merged;</para>
+
+    <para>&man.ktrace.1; can no longer trace the operation of formerly
+      privileged processes; this prevents the leakage of sensitive
+      information that the process could have obtained before
+      abandoning its privileges.  For a discussion of this issue, see
+      security advisory
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      for more details. &merged;</para>
+
+    <para>A race condition in &man.pppd.8;, which could be used to
+      change the permissions of an arbitrary file, has been corrected.
+      For more information, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.
+      &merged;</para>
+
+    <para>Multiple buffer overflows in
+      <application>OpenSSL</application> have been corrected, by way
+      of an upgrade to the base system version of
+      <application>OpenSSL</application>.  More details can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.
+      &merged;</para>
+
+    <para>A heap buffer overflow in the XDR decoder has been fixed.
+      For more details, see security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.
+      &merged;</para>
+
+    <para>A bug that could allow local users to read and write
+      arbitrary blocks on an FFS filesystem has been corrected.  More
+      details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.
+      &merged;</para>
+
+    <para>A bug in the NFS server code, which could allow a remote
+      denial of service attack, has been fixed.  Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
+      has more details. &merged;</para>
+
+    <para>A bug that could allow local users to panic a system using
+      the &man.kqueue.2; mechanism has been fixed.  More information
+      is contained in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.
+      &merged;</para>
+
+    <para>Several bounds-checking bugs in system calls, which could
+      result in some system calls returning a large portion of kernel
+      memory, have been fixed.  More information can be found in
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:38.signed-error.asc">FreeBSD-SA-02:38</ulink>.
+      &merged;</para>
+
+    <para>A bug that could allow applications using
+      <filename>libkvm</filename> to leak sensitive file descriptors
+      has been corrected.  (See security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
+      for more details.)
+      &merged;</para>
 
   </sect2>
 
   <sect2 id="userland">
     <title>ユーザランドの変更点</title>
 
-    <para>&man.ancontrol.8; もしくは &man.wicontrol.8;
-      の最初の引数が <literal>-</literal> で始まっていない場合は
-      インターフェイス名と判断するようになりました.</para>
+    <para>Support for &man.a.out.5; format executables in the compiler
+      toolchain has been largely removed.
+        <note>
+	  <para>This is a work in progress.  Eventually, &man.a.out.5;
+	    support will resurface in a series of ports/packages.</para>
+	</note>
+      </para>
 
-    <para>&man.apmd.8; に新しい設定指示子
+    <para role="historic">&man.ancontrol.8; もしくは &man.wicontrol.8;
+      の最初の引数が <literal>-</literal> で始まっていない場合は
+      インターフェイス名と判断するようになりました. &merged;</para>
+
+    <para role="historic">&man.apmd.8; に新しい設定指示子
       <literal>apm_battery</literal> が追加され,
       バッテリレベルのモニタリング機能および,
       バッテリ残量のパーセント量や残り時間を基準とした
@@ -1936,27 +2380,48 @@ hw.pcic.irq="0"</programlisting>
       にあるコメントアウトされた例をご覧ください.
       &merged;</para>
 
-    <para>&man.arp.8; は各 ARP エントリに対して適切な
+    <para role="historic">&man.arp.8; は各 ARP エントリに対して適切な
       インターフェイス名を表示するようになりました. &merged;</para>
 
     <para>&man.arp.8; は FDDI や ATM インターフェイスに対して
       <literal>[fddi]</literal> や <literal>[atm]</literal>
       タグを表示するようになりました.</para>
 
-    <para>&man.ata.4; ドライバの動作を制御するコマンド
+    <para>The &man.asa.1; utility, to interpret FORTRAN
+      carriage-control characters, has been added.</para>
+
+    <para>&man.at.1; now supports the <option>-r</option> command-line
+      option to remove jobs and the <option>-t</option> option to
+      specify times in POSIX time format.</para>
+
+    <para role="historic">&man.ata.4; ドライバの動作を制御するコマンド
       &man.atacontrol.8; が追加されました. &merged;</para>
 
-    <para arch="sparc64">&arch; プラットフォーム上で, システムの &man.awk.1;
-      は <application>BWK awk</application> を指すようになりました.
-      他のプラットフォームでは <application>GNU awk</application> が
-      そのまま使われています.</para>
+    <para>The system &man.awk.1; now refers to
+      <application>BWK awk</application>.</para>
 
-    <para arch="i386">PC-98
+    <para>&man.basename.1; now accept <option>-a</option> and
+      <option>-s</option> flags, which allow it to perform the
+      &man.basename.3; function on multiple files.</para>
+
+    <para>&man.biff.1; now accepts a <option>b</option> argument to
+      enable <quote>bell notification</quote> of new mail (which does
+      not disturb the terminal contents as <command>biff y</command>
+      would). &merged;</para>
+
+    <para>&man.biff.1; now uses the first terminal associated with the
+      standard input, standard output or standard error file
+      descriptor, in that order.  Thus, it is possible to use the
+      redirection facilities of a shell (<command>biff n &lt;
+      /dev/ttyp1</command>) to toggle the notification for other
+      terminals.</para>
+
+    <para arch="pc98" role="historic">PC-98
       ブートマネージャのインストール・設定用ユーティリティである
       &man.boot98cfg.8; が新たに追加されました.
       &merged;</para>
 
-    <para>&man.burncd.8; に, マルチセションモードに対応するためのオプション
+    <para role="historic">&man.burncd.8; に, マルチセションモードに対応するためのオプション
       <option>-m</option> が追加されました
       (デフォルト動作ではシングルセションでディスクをクローズします).
       また, イメージファイルのリストが格納されたファイルを指定するための
@@ -1973,41 +2438,57 @@ hw.pcic.irq="0"</programlisting>
     <para>&man.burncd.8; は VCD や SVCD に書き込めるように
       なりました.</para>
 
-    <para>&man.c89.1; がシェルスクリプトからバイナリ実行ファイルに置き換えられ,
+    <para>&man.bzgrep.1;, &man.bzegrep.1;, and &man.bzfgrep.1;
+      have been added to perform &man.grep.1;-type operations on
+      &man.bzip2.1;-compressed files.</para>
+
+    <para role="historic">&man.c89.1; がシェルスクリプトからバイナリ実行ファイルに置き換えられ,
       いくつかあった小さなバグが修正されました.
       &merged;</para>
 
-    <para arch="i386">機能限定版の &man.camcontrol.8; がインストール
+    <para>&man.calendar.1; now takes a <option>-W</option> option,
+      which operates similar to <option>-A</option> but without
+      special treatment at weekends, and a <option>-F</option>option
+      to change the notion of <quote>Friday</quote>.</para>
+
+    <para arch="i386,pc98" role="historic">機能限定版の &man.camcontrol.8; がインストール
       用フロッピーに入りました.
       これにより, <quote>緊急ホログラフィックシェル</quote> の中から
       ブート後に接続されたデバイスを再スキャンしたり,
       SCSI バスに接続されたデバイスを見たりすることができるように
       なりました. &merged;</para>
 
-    <para>&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.
+    <para role="historic">&man.cat.1; が新しく UNIX ドメインソケットの読み出しに対応しました.
       &merged;</para>
 
-    <para>&man.cdcontrol.1; が <literal>cdid</literal>
+    <para>&man.catman.1; is now a C program, instead of a
+      Perl script.</para>
+
+    <para role="historic">&man.cdcontrol.1; が <literal>cdid</literal>
       コマンドに対応しました.  このコマンドは CDDB
       データベースと同じアルゴリズムを使って CD
       シリアル番号を表示します.
       &merged;</para>
 
-    <para>&man.cdcontrol.1; のデフォルトデバイスが
+    <para role="historic">&man.cdcontrol.1; のデフォルトデバイスが
       <envar>CDROM</envar> という環境変数で設定できるようになりました.
       &merged;</para>
 
-    <para>&man.cdcontrol.1; が新たに,
+    <para role="historic">&man.cdcontrol.1; が新たに,
       音楽 CD 再生時に指定した数だけ前後のトラックへ移動するためのコマンド,
       <literal>next</literal> および <literal>prev</literal>
       に対応しました.
       &merged;</para>
 
+    <para>On ATAPI CDROM drives, &man.cdcontrol.1; now supports a
+      <literal>speed</literal> command to set the maximum speed to be
+      used by the drive. &merged;</para>
+
     <para>&man.chflags.1; が
       <filename>/usr/bin</filename> から
       <filename>/bin</filename> に移動しました.</para>
 
-    <para>&man.chio.1; に,
+    <para role="historic">&man.chio.1; に,
       物理位置ではなくボリュームタグで要素を指定する機能と,
       要素を以前の位置に戻す機能が追加されました.
       &merged;</para>
@@ -2016,7 +2497,11 @@ hw.pcic.irq="0"</programlisting>
       <option>-h</option> が追加されました.
       これはシンボリックリンクの許可属性の変更に対応するものです.</para>
 
-    <para>&man.chown.8; が <option>-R</option> オプションなしで
+    <para>&man.chmod.1; now also, when the mode is modified, prints
+    the old and new modes if the <option>-v</option> option is
+    specified more than once.</para>
+
+    <para role="historic">&man.chown.8; が <option>-R</option> オプションなしで
       実行された場合に,
       コマンドライン引数で指定されたシンボリックリンクを
       正しく辿るようになりました. &merged;</para>
@@ -2028,19 +2513,19 @@ hw.pcic.irq="0"</programlisting>
     <para><filename>&lt;sys/param.h&gt;</filename> を include する場合,
       <literal>CSMG_*</literal> マクロを使う必要がなくなりました.</para>
 
-    <para>&man.col.1; に新しいオプション
+    <para role="historic">&man.col.1; に新しいオプション
       <option>-p</option> が追加されました.
       これは不明なコントロールシーケンスを処理せずに通過させるためのものです.
       &merged;</para>
 
-    <para><filename>compat3x</filename> 配布物が更新され,
+    <para role="historic"><filename>compat3x</filename> 配布物が更新され,
       &os; 3.5.1-RELEASE のライブラリが含まれるようになりました.
       &merged;</para>
 
     <para>&os; 4-STABLE との互換性を提供する
       <filename>compat4x</filename> 配布物が追加されました.</para>
 
-    <para>&man.config.8; で本来エラーとなるべきだったさまざまな警告が,
+    <para role="historic">&man.config.8; で本来エラーとなるべきだったさまざまな警告が,
       適切な終了コードを持った致命的なエラーに置き換えられました.
       これは <literal>make buildkernel</literal>
       において致命的なエラーが無視されてしまうこと,
@@ -2048,69 +2533,85 @@ hw.pcic.irq="0"</programlisting>
       構築してしまうことを防ぐためのものです.
       &merged;</para>
 
-    <para>&man.config.8; に含まれていた数多くの
+    <para role="historic">&man.config.8; に含まれていた数多くの
       バッファオーバフロー問題が修正されました.
       &merged;</para>
 
-    <para>ソースファイルで C++ 風の <literal>//</literal> コメント
+    <para>&man.cp.1; now takes a (nonstandard) <option>-n</option>
+      option to automatically answer <quote>no</quote> when it would
+      ask to overwrite a file. &merged;</para>
+
+    <para>A new &man.csplit.1; utility, which splits files based on
+      context, has been added.</para>
+
+    <para role="historic">ソースファイルで C++ 風の <literal>//</literal> コメント
       が使われている場合でも, &man.ctags.1; が壊れたタグを
       作成しないようになりました. &merged;</para>
+
+    <para>&man.ctags.1; now creates tags for typedefs, structs,
+      unions, and enums by default (implying the <option>-t</option>
+      option).  The new <option>-T</option> reverts to the old
+      behavior.</para>
 
     <para>&man.daemon.3; へのコマンドラインインターフェイスを提供する
       &man.daemon.8; プログラムが新しく追加されました.
       &man.daemon.8; は自身を制御端末から切り離し,
       コマンドラインで指定されたプログラムを実行します.
       これは任意のプログラムをデーモンとして実行させることを可能にします.
+      &merged;
     </para>
 
-    <para>devinfo というデバイスツリーとリソース使用状況を
+    <para>&man.devinfo.8; というデバイスツリーとリソース使用状況を
       表示する簡単なツールが追加されました.</para>
 
-    <para>&man.df.1; に新しいオプション <option>-l</option> が追加されました.
+    <para role="historic">&man.df.1; に新しいオプション <option>-l</option> が追加されました.
       これはローカルにマウントされたファイルシステムの情報のみを表示します.
       &merged;</para>
 
-    <para>&man.disklabel.8; のパーティションサイズとして,
+    <para role="historic">&man.disklabel.8; のパーティションサイズとして,
       従来のセクタ数だけでなくキロバイト, メガバイト,
       ギガバイトという表現が新たに使用できるようになりました.
       &merged;</para>
 
-    <para>&man.dmesg.8; へ,
+    <para>diskpart(8) has been declared obsolete, and has been
+      removed.</para>
+
+    <para role="historic">&man.dmesg.8; へ,
       &man.syslogd.8; の記録および <filename>/dev/console</filename>
       の出力が含まれているメッセージバッファ全体を表示するための
       オプション <option>-a</option> が追加されました.
       &merged;</para>
 
-    <para>&man.du.1; に新しいオプション <option>-I</option> が追加されました.
+    <para role="historic">&man.du.1; に新しいオプション <option>-I</option> が追加されました.
       これは指定されたシェルグロブにマッチするファイル・サブディレクトリを
       無視するためのものです.
       &merged;</para>
 
-    <para>&man.dump.8; が, 下位階層に対して
+    <para role="historic">&man.dump.8; が, 下位階層に対して
       <literal>nodump</literal> フラグの継承を行なうようになりました.
       &merged;</para>
 
-    <para>&man.dump.8; の <option>-T</option> オプションが,
+    <para role="historic">&man.dump.8; の <option>-T</option> オプションが,
       後続するオプションを余計に無効化してしまっていた問題が修正されました.
       &merged;</para>
 
-    <para>&man.dump.8; に新しいオプション <option>-D</option> が追加されました.
+    <para role="historic">&man.dump.8; に新しいオプション <option>-D</option> が追加されました.
       これにより <filename>/etc/dumpdates</filename>
       ファイルパスの変更が可能になります.
       &merged;</para>
 
-    <para>&man.dump.8; は自動的なバックアップを監視する際に便利なように,
+    <para role="historic">&man.dump.8; は自動的なバックアップを監視する際に便利なように,
       進行状況をプロセスタイトルに表示するようになりました. &merged;</para>
 
     <para>&man.dump.8; にダンプサイズの予測を出力し終了するだけの
-      <option>-S</option> オプションが追加されました.</para>
+      <option>-S</option> オプションが追加されました. &merged;</para>
 
-    <para>&man.edquota.8; に新しいオプション <option>-f</option>
+    <para role="historic">&man.edquota.8; に新しいオプション <option>-f</option>
       が追加されました. これは (オプション <option>-p</option>
       で指定される) quota プロトタイプの設定対象を,
       一つのファイルシステムに限定するために使われます. &merged;</para>
 
-    <para><filename>/etc/rc.firewall</filename> と
+    <para role="historic"><filename>/etc/rc.firewall</filename> と
       <filename>/etc/rc.firewall6</filename> は,
       <varname>firewall_type</varname> 変数にルールファイルが設定されている
       場合や, 存在しないファイアウォールタイプを設定した場合に, 独自の
@@ -2121,11 +2622,19 @@ hw.pcic.irq="0"</programlisting>
       &man.rc.firewall.8; マニュアルページに記述されているように
       動作するようになりました. &merged;</para>
 
-    <para>ローカルのカスタマイズや管理を楽にするために,
+    <para role="historic">ローカルのカスタマイズや管理を楽にするために,
       <filename>/etc/security</filename> の機能は &man.periodic.8;
       フレームワークの配下の一連のスクリプトに分割されました.
       これらのスクリプトは <filename>/etc/periodic/security/</filename>
       に置かれています. &merged;</para>
+
+    <para>&man.expr.1; is now compliant with the POSIX Utility Syntax
+      Guidelines.  Some programs depend on the old, historic behavior
+      (the <filename role="package">devel/libtool</filename>
+      port/package was/is a notable example).  In these situations,
+      the <envar>EXPR_COMPAT</envar> environment variable can be
+      defined, which causes &man.expr.1; to behave more like previous
+      versions.</para>
 
     <para>&man.fbtab.5; はターゲットデバイスとして, 特定のデバイスや
       ディレクトリだけではなく, グロブマッチングパターンも受け付ける
@@ -2142,12 +2651,12 @@ hw.pcic.irq="0"</programlisting>
       複雑な手順で &man.dd.1;
       を実行しなくて済むようにする目的で設計されています.</para>
 
-    <para>&man.find.1; に新しいオプション
+    <para role="historic">&man.find.1; に新しいオプション
       <option>-empty</option> が追加されました.
       これはファイルもしくはディレクトリが空の場合に真を返します.
       &merged;</para>
 
-    <para>&man.find.1; に以下の新しいオプションが追加されました.
+    <para role="historic">&man.find.1; に以下の新しいオプションが追加されました.
       <option>-iname</option> および <option>-ipath</option> は
       大文字小文字を区別しないマッチングを行ない,
       <option>-regexp</option> および <option>-iregexp</option>
@@ -2156,7 +2665,7 @@ hw.pcic.irq="0"</programlisting>
       オプションを使うことで拡張正規表現を用いることも可能になっています.
       &merged;</para>
 
-    <para>&man.find.1; にファイルのタイムスタンプを
+    <para role="historic">&man.find.1; にファイルのタイムスタンプを
       比較するための新しいオプション
       <option>-anewer</option>,
       <option>-cnewer</option>, <option>-mnewer</option>,
@@ -2165,20 +2674,36 @@ hw.pcic.irq="0"</programlisting>
       後者のオプションでは, さまざまな時間単位で指定することが可能です.
       &merged;</para>
 
-    <para>&man.finger.1; が,
+    <para role="historic">&man.finger.1; が,
       &man.finger.conf.5; ファイル経由で別名へ
       finger させる機能に対応しました.
       &merged;</para>
 
     <para>&man.finger.1; が <filename>.pubkey</filename>
-      ファイルに対応しました.</para>
+      ファイルに対応しました. &merged;</para>
 
-    <para>&man.fmt.1; が書き直され,
+    <para>&man.finger.1; now supports a <option>-g</option> flag to
+      restrict the printing of GECOS information to the user's full
+      name only. &merged;</para>
+
+    <para>&man.finger.1; now supports the <option>-4</option> and
+      <option>-6</option> flags to specify an address family for
+      remote queries. &merged;</para>
+
+    <para role="historic">&man.fmt.1; が書き直され,
       従来あった数多くのバグが修正されました. &merged;</para>
 
-    <para>書式指定文字列の一貫性をチェックする関数
+    <para role="historic">書式指定文字列の一貫性をチェックする関数
       &man.fmtcheck.3; が新たに追加されました.
       &merged;</para>
+
+    <para>&man.fold.1; now supports a <option>-b</option> flag to
+      break at byte positions and a <option>-s</option> flag to break at
+      word boundaries. &merged;</para>
+
+    <para role="historic">&man.fsdb.8; now supports a <literal>blocks</literal>
+      command to list the blocks allocated by a particular
+      inode. &merged;</para>
 
     <para>&man.fsck.8; が,
       フォアグラウンドチェック (<option>-F</option>)
@@ -2201,7 +2726,7 @@ hw.pcic.irq="0"</programlisting>
       &man.rc.conf.5; の
       <varname>background_fsck</varname> オプションで制御できます.</para>
 
-    <para>&man.fsck.ffs.8; は <literal>SIGINFO</literal>
+    <para role="historic">&man.fsck.ffs.8; は <literal>SIGINFO</literal>
       シグナル (通常, tty から control-T を押下することで発生します)
       を受け取った直後,
       現在のフェイズ番号と対応する進行状況を示す行を出力するようになりました.
@@ -2216,15 +2741,25 @@ hw.pcic.irq="0"</programlisting>
       指定されたファイルシステムをフォアグラウンドで
       チェックする必要があるかどうかを指定します.</para>
 
-    <para>MS-DOS ファイルシステムの一貫性をチェックするユーティリティ
+    <para role="historic">MS-DOS ファイルシステムの一貫性をチェックするユーティリティ
       &man.fsck.msdosfs.8; が新たに追加されました.
       &merged;</para>
 
-    <para>&man.ftpd.8; に新しいオプションが追加されました. 
+    <para role="historic">&man.ftpd.8; に新しいオプションが追加されました. 
       追加されたのは, 読み出し専用にする <option>-r</option> オプション,
       <literal>EPSV</literal> を無効にする <option>-E</option> オプションです.
       情報漏洩を低減するための修正および,
       コンパイル時にポート番号の範囲を設定する機能も加えられています.
+      &merged;</para>
+
+    <para>&man.ftpd.8; now supports the <option>-m</option> option
+      to permit guest users to modify existing files if allowed
+      by filesystem permissions.
+      In particular, this enables guest users to resume uploads.
+      &merged;</para>
+
+    <para>&man.ftpd.8; now supports the <option>-M</option> option
+      to prevent guest users from creating directories.
       &merged;</para>
 
     <para>&man.ftpd.8; に新しいオプション <option>-o</option>
@@ -2235,17 +2770,25 @@ hw.pcic.irq="0"</programlisting>
       これと <option>-A</option> オプション,
       および適切なファイル許可属性を組み合わせることで,
       比較的安全なアップロード用
-      anonymous FTP サーバを構築することが可能です.</para>
+      anonymous FTP サーバを構築することが可能です. &merged;</para>
 
-    <para arch="i386">&man.gdb.1; がハードウェアウォッチポイントに対応しました
+    <para>&man.ftpd.8; now supports the <option>-W</option> option
+      to disable logging FTP sessions to &man.wtmp.5;. &merged;</para>
+
+    <para arch="i386,pc98" role="historic">&man.gdb.1; がハードウェアウォッチポイントに対応しました
       (カーネルデバッグレジスタおよび &os; 4.0 で導入された対応コードを利用).
       &merged;</para>
 
-    <para>新しいライブラリ関数 &man.getprogname.3;,
+    <para role="historic">新しいライブラリ関数 &man.getprogname.3;,
       &man.setprogname.3; が追加されました.
       これらは現在実行されているプログラムのプログラム名を操作するためのもので,
       エラー報告ルーチンで出力に一貫性を持たせるために使用されます.
       &merged;</para>
+
+    <para>gifconfig(8) is obsolete and has been removed.  Its
+      functionality is now handled by the <option>tunnel</option> and
+      <option>deletetunnel</option> commands of
+      &man.ifconfig.8;.</para>
 
     <para>&man.gprof.1; に現在動作しているカーネルから動的にシンボル
       参照を解決するための <option>-K</option> オプションが追加
@@ -2253,53 +2796,72 @@ hw.pcic.irq="0"</programlisting>
       この変更により, KLD モジュールが適切にコンパイルされていれば,
       プロファイルすることができるようになりました.</para>
 
-    <para>成長型 FFS ファイルシステム &man.growfs.8; が新たに追加されました.
+    <para arch="ia64">The gpt tool for manipulating EFI GPT
+      partitions has been added.</para>
+
+    <para role="historic">成長型 FFS ファイルシステム &man.growfs.8; が新たに追加されました.
       また, 既存のファイルシステムのメタ情報をダンプする
       &man.ffsinfo.8; ユーティリティも追加されています.
       &merged;</para>
 
-    <para>&man.groups.1; および &man.whoami.1; シェルスクリプトは
+    <para role="historic">&man.groups.1; および &man.whoami.1; シェルスクリプトは
       &man.id.1; へ完全に統合され, 両方とも廃止されました. &merged;</para>
 
     <para>単にエミュレーションカーネルモジュールをロードするだけの機能を持つ
-      &man.ibcs2.8;, &man.linux.8;, &man.osf1.8;, &man.svr4.8;
+      ibcs2(8),  linux(8), osf1(8);, svr4(8)
       スクリプトが削除されました.  現在のカーネルモジュールシステムは,
       それらを必要に応じて自動的に, 依存関係を満たすようロードします.</para>
 
-    <para>&man.indent.1; に新しい書式オプションがいくつか追加されました.
+    <para role="historic">&man.indent.1; に新しい書式オプションがいくつか追加されました.
       &merged;</para>
 
-    <para>&man.ifconfig.8;
+    <para role="historic">&man.ifconfig.8;
       コマンドに <option>link</option> パラメータが追加され,
       インターフェイスのリンク層アドレスを設定できるようになりました.
       &merged;</para>
 
-    <para>&man.ifconfig.8; コマンドが CIDR の / 記号を用いた記法に対応しました.
+    <para role="historic">&man.ifconfig.8; コマンドが CIDR の / 記号を用いた記法に対応しました.
       &merged;</para>
 
-    <para>&man.ifconfig.8; コマンドが
+    <para role="historic">&man.ifconfig.8; コマンドが
       IEEE 802.11 無線ネットワークデバイスのパラメータ設定に対応しました.
       対応しているのは &man.wi.4; および &man.an.4; デバイスで,
       &man.awi.4; デバイスは一部のみ対応しています.
       &merged;</para>
 
-    <para>&man.ifconfig.8; コマンドはデフォルトで対応メディアのリストを
+    <para role="historic">&man.ifconfig.8; コマンドはデフォルトで対応メディアのリストを
       表示しないように変更されました.
       リストの表示は <option>-m</option> オプションを指定時に行なわれます.
       &merged;</para>
 
-    <para>&man.faithd.8; に対応するための &man.inetd.8; 文法が,
+    <para>&man.ifconfig.8; now has the ability to set promiscuous mode
+      on an interface, via the new <option>promisc</option>
+      flag. &merged;</para>
+
+    <para role="historic">&man.faithd.8; に対応するための &man.inetd.8; 文法が,
       他の BSD と互換性のあるものに変更されました.
       &merged;</para>
 
-    <para>&man.inetd.8; の <literal>ident</literal>
+    <para role="historic">&man.inetd.8; の <literal>ident</literal>
       プロトコル対応が整頓・更新されました.
       &merged;</para>
 
-    <para>&man.inetd.8; が UNIX ドメインソケットに対応しました.
+    <para role="historic">&man.inetd.8; が UNIX ドメインソケットに対応しました.
       &merged;</para>
 
-    <para>&man.install.1; に数多くの新機能が追加されました.
+    <para>By default, &man.inetd.8; is no longer run by &man.rc.8; at
+      boot-time, although &man.sysinstall.8; gives the option of
+      enabling it during binary installations.  &man.inetd.8; can also
+      be enabled by adding the following line to
+      <filename>/etc/rc.conf</filename>:</para>
+
+    <programlisting>inetd_enable="YES"</programlisting>
+
+    <para>&man.inetd.8; now has the capability for limiting the
+      maximum number of simultaneous invocations of each service from
+      a single IP address. &merged;</para>
+
+    <para role="historic">&man.install.1; に数多くの新機能が追加されました.
       それには既存の対象ファイルのバックアップを作成する
       <option>-b</option> および <option>-B</option> オプション,
       <quote>安全な</quote> (アトミックなコピー) 操作を行なう
@@ -2311,78 +2873,103 @@ hw.pcic.irq="0"</programlisting>
       オプションが同時に指定された場合に警告を表示するようになっています.
       &merged;</para>
 
-    <para>&man.ipfstat.8; に &man.top.1; 風の表示を行なう
+    <para role="historic">IP Filter is now supported by the &man.rc.conf.5; boot-time
+       configuration and initialization. &merged;</para>
+
+    <para role="historic">&man.ipfstat.8; に &man.top.1; 風の表示を行なう
       <option>-t</option> オプションが追加されました.
       &merged;</para>
 
-    <para><option>-d</option> オプションを指定されなかった場合は
+    <para role="historic"><option>-d</option> オプションを指定されなかった場合は
       &man.ipfw.8;
       が動的ファイアウォールルールを表示しないように変更されました.
       <option>-e</option>
       オプションでは有効期限の切れた動的ルールが表示されます.</para>
 
-    <para>&man.ipfw.8; に新機能 (<literal>me</literal>) が追加されました.
+    <para role="historic">&man.ipfw.8; に新機能 (<literal>me</literal>) が追加されました.
       これにより IP
       アドレスが動的に変化するインターフェイス上の
       パケットに一致させることができます.
       &merged;</para>
 
-    <para>&man.ipfw.8; に特定のアドレス対におけるセション数を
+    <para role="historic">&man.ipfw.8; に特定のアドレス対におけるセション数を
       制限することができる <literal>limit</literal> タイプの
       ファイアウォールルールが追加されました. &merged;</para>
 
     <para>&man.ipfw.8; フィルタルールは, IPv4 precedence フィールド
       の値にマッチできるようになりました.</para>
 
-    <para>&man.ip6fw.8;
+    <para role="historic">&man.ip6fw.8;
       にファイル読み込み時のプリプロセッサ機能と
       <option>-q</option> (quiet) フラグが新たに追加されました.
       &merged;</para>
 
-    <para>カーネル環境変数をダンプする &man.kenv.1;
+    <para role="historic">&man.ispppcontrol.8; has been deleted, and its functionality
+      has been folded into &man.spppcontrol.8;. &merged;</para>
+
+    <para role="historic">&man.k5su.8; is no longer installed SUID
+      <username>root</username> by default.  Users requiring this
+      feature can either manually change the permissions on the
+      &man.k5su.8; executable or add
+      <literal>ENABLE_SUID_K5SU=yes</literal> to
+      <filename>/etc/make.conf</filename> before a source
+      upgrade. &merged;</para>
+
+    <para>&man.kbdmap.1; and &man.vidfont.1; have been converted from
+      Perl to C.</para>
+
+    <para role="historic">カーネル環境変数をダンプする &man.kenv.1;
       コマンドが新たに追加されました.
       &merged;</para>
 
-    <para>Perl スクリプトだった &man.keyinfo.1; が
+    <para>&man.kenv.1; now has the ability to set or delete kernel
+      environment variables.</para>
+
+    <para role="historic">Perl スクリプトだった &man.keyinfo.1; が
       C プログラムに変更されました. &merged;</para>
 
-    <para>Perl スクリプトだった &man.killall.1; が
+    <para>The kget(8) utility has been removed (it was only
+      useful for UserConfig, which is not present in &os;
+      &release.current;).</para>
+
+    <para role="historic">Perl スクリプトだった &man.killall.1; が
       C プログラムに変更されました. 
       そのため, <option>-m</option> オプションは
-      &man.perl.1; の正規表現文法ではなく,
+      Perl の正規表現文法ではなく,
       &man.regex.3; の正規表現文法に従います.
       &merged;</para>
 
-    <para>非 root ユーザが実行した root で SUID されたプロセスを,
-      その実行した非 root ユーザが &man.killall.1; を使って kill
-      することができるようになりました.  これは
-      Perl 版の &man.killall.1; でもともと可能だった動作です. &merged;</para>
+    <para>&man.killall.1; no longer tries to kill zombie processes
+      unless the <option>-z</option> flag is specified.</para>
 
-    <para>新しいユーティリティ &man.kldconfig.8; が追加されました.
+    <para role="historic">新しいユーティリティ &man.kldconfig.8; が追加されました.
       これにより,
       カーネルモジュールの検索パスの操作を簡単に行なうことができます.
       &merged;</para>
 
-    <para>&man.last.1; に <option>-d</option>
+    <para>ktrdump, a utility to dump the ktr trace buffer from
+      userland, has been added.</para>
+
+    <para role="historic">&man.last.1; に <option>-d</option>
       オプションフラグが追加されました.
       これは, ある特定の日時・時刻にログインしていたユーザの
       <quote>スナップショット</quote> を表示します.</para>
 
-    <para>&man.last.1; に, セッションの開始時間に年を含めるようにする
-      <option>-y</option> フラグが追加されました.</para>
+    <para role="historic">&man.last.1; に, セッションの開始時間に年を含めるようにする
+      <option>-y</option> フラグが追加されました. &merged;</para>
 
-    <para>各ユーザのログイン時間を表示する
+    <para role="historic">各ユーザのログイン時間を表示する
       &man.lastlogin.8; ユーティリティが NetBSD から移植されました.
       &merged;</para>
 
-    <para>セキュリティを向上させるため,
+    <para role="historic">セキュリティを向上させるため,
       &man.ldconfig.8;
       がディレクトリの所有者および許可属性をチェックするようになりました.
       このチェックは <option>-i</option>
       オプションを用いることで抑制できます.
       &merged;</para>
 
-    <para>&man.ldd.1; が実行ファイルだけでなく共有ライブラリにも
+    <para role="historic">&man.ldd.1; が実行ファイルだけでなく共有ライブラリにも
       使えるようになりました. &merged;</para>
 
     <para>&man.ldd.1; に, 各ロードされたオブジェクトが必要とする
@@ -2392,23 +2979,23 @@ hw.pcic.irq="0"</programlisting>
     <para><filename>libc</filename> が標準でスレッドセーフになりました.
       <filename>libc_r</filename> にはスレッド関数のみが含まれています.</para>
 
-    <para>パスワード認証ハッシュライブラリを設定可能にするために
+    <para role="historic">パスワード認証ハッシュライブラリを設定可能にするために
       <filename>libcrypt</filename> と
       <filename>libdescrypt</filename> が統合されました.
       des ハッシュアルゴリズムをコンパイルしない指定を明示的にしていない限り,
       md5 と des の両方のハッシュアルゴリズムが利用可能です.
       &merged;</para>
 
-    <para><filename>libcrypt</filename> が Blowfish
+    <para role="historic"><filename>libcrypt</filename> が Blowfish
       パスワードハッシュに対応しました.
       &merged;</para>
 
-    <para arch="i386"><filename>libdisk</filename> を用いることで,
+    <para arch="i386" role="historic"><filename>libdisk</filename> を用いることで,
       <filename>boot0</filename>
       起動ローダのインストール時設定ができるようになりました.
       &merged;</para>
 
-    <para><filename>libstand</filename> は
+    <para role="historic"><filename>libstand</filename> は
       <application>bzip2</application> で圧縮されたファイルを含む
       ファイルシステムをサポートするようになりました. &merged;</para>
 
@@ -2418,21 +3005,21 @@ hw.pcic.irq="0"</programlisting>
       ので, ファイルを大きくしたり削ったりすることはできません).
     </para>
 
-    <para><filename>libstand</filename> が複数の物理メディアに
+    <para role="historic"><filename>libstand</filename> が複数の物理メディアに
       分割された巨大なカーネルやモジュールを読み込むことが
-      できるようになりました.</para>
+      できるようになりました. &merged;</para>
 
-    <para><filename>libfetch</filename> が passive FTP
+    <para role="historic"><filename>libfetch</filename> が passive FTP
       で用いる TCP ポート番号範囲の既定値が変更されました.
       これは &man.fetch.1; の動作に影響しますが,
       <option>-U</option>
       オプションを使うことで従来と同じ動作をさせることが可能です.
       &merged;</para>
 
-    <para><filename>libfetch</filename>
+    <para role="historic"><filename>libfetch</filename>
       がコールバック認証に対応しました. &merged;</para>
 
-    <para><filename>libfetch</filename> が
+    <para role="historic"><filename>libfetch</filename> が
       <envar>HTTP_USER_AGENT</envar> 環境変数に対応しました.
       &merged;</para>
 
@@ -2442,37 +3029,110 @@ hw.pcic.irq="0"</programlisting>
     <para><filename>libposix1e</filename> の関数が
       <filename>libc</filename> に統合されました.</para>
 
-    <para><filename>libusb</filename> の名前が、NetBSD
+    <para role="historic"><filename>libusb</filename> の名前が、NetBSD
        の命名規則に合わせて <filename>libusbhid</filename> に変更されました。
        &merged;</para>
 
-    <para>&man.ln.1; に,
+    <para role="historic">&man.ln.1; に,
       既存のファイルを上書きする前にユーザに確認を行なうようにする
       <option>-i</option> オプションが追加されました.
       &merged;</para>
 
-    <para>&man.ln.1; に, 処理対象ファイルがリンクだった場合に
+    <para role="historic">&man.ln.1; に, 処理対象ファイルがリンクだった場合に
       それをたどらないようにする <option>-h</option>
       オプションフラグが追加されました.
       また, 他の実装との互換性を高めるため <option>-n</option>
       オプションフラグも同じ目的で使用可能です.
       &merged;</para>
 
-    <para>&man.logger.1; から直接リモートの syslog
+    <para>&man.lock.1; now accepts a <option>-v</option> to disable
+      switching VTYs while the current terminal is locked.  This permits
+      locking the entire console from a single terminal. &merged;</para>
+
+    <para role="historic">&man.logger.1; から直接リモートの syslog
       にメッセージを送信できるようになりました.
       &merged;</para>
 
-    <para>&man.login.1; が
+    <para role="historic">&man.login.1; が
       <application>PAM</application> モジュールで設定された環境変数の
       export に対応しました.&merged;</para>
 
-    <para>&man.lpc.8; に改良が加えられました.
+    <para role="historic">&man.lpc.8; に改良が加えられました.
       <command>lpc clean</command> は多少安全な動作をするように変更され,
       新しく導入された <command>lpc tclean</command> コマンドにより,
       <command>lpc clean</command>
       コマンドで削除されるファイルをチェックすることができます.
       &merged;</para>
 
+    <para role="historic">&man.lpd.8; に新しいオプションが二つ追加されました.
+      <option>-c</option> オプションフラグは
+      すべての接続エラーのログを &man.syslogd.8; に送り,
+      <option>-W</option>
+      オプションフラグは予約済みポート以外からの接続を許可します.
+      &merged;</para>
+
+    <para role="historic">&man.lpd.8; の制御ファイルにおいて, 一部ですが
+      <literal>o</literal> というタイプの印刷ファイルに対応しました.
+      これは <application>MacOS</application> 10.1 で生成された
+      PostScript 形式ファイルの印刷を可能にするためのものです.
+      &merged;</para>
+
+    <para role="historic">&man.lpd.8; now recognizes the <option>-s</option> flag as
+      the preferred synonym for <option>-p</option> (these flags
+      cause &man.lpd.8; not to open a socket for network print
+      jobs). &merged;</para>
+
+    <para role="historic">&man.lpd.8; now implements a new <literal>rc</literal>
+      printcap option.  When specified in a print queue for a remote
+      host, boolean option causes &man.lpd.8; to resend the data file
+      for each copy the user requested via <command>lpr
+      -#<replaceable>n</replaceable></command>. &merged;</para>
+ 
+    <para role="historic">&man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, &man.logger.1;
+      といったベースシステムに含まれるその他のネットワークユーティリティが
+      IPv6 に対応しました.
+      &merged;</para>
+
+    <para role="historic">リモートプリンタのキューに対して
+      <command>lprm -</command> が動作するようになりました.
+      &merged;</para>
+
+    <para role="historic">&man.ls.1; は (対応端末上で)
+      <option>-G</option> オプションを使うことで,
+      リストのカラー表示ができるようになりました.
+      <envar>CLICOLOR</envar> 環境変数を設定することで,
+      デフォルトでカラー表示を行なうことが可能です.
+      &merged;</para>
+
+    <para role="historic">&man.ls.1; now accepts a <option>-h</option> flag, which
+      when combined with the <option>-l</option> flag, causes file
+      sizes to be printed with unit suffixes, such that the number of
+      digits printed is fewer than four. &merged;</para>
+
+    <para>The &man.ls.1; program now supports a <option>-m</option>
+      flag to list files across a page, a <option>-p</option> flag to
+      force printing of a <literal>/</literal> after directories, and
+      a <option>-x</option> flag to sort filenames across a
+      page. &merged;</para>
+
+    <para role="historic">&man.m4.1; now accepts a <option>-s</option> flag to cause
+      it to emit <literal>#line</literal> directives for use by
+      &man.cpp.1;. &merged;</para>
+
+    <para role="historic">&man.mail.1; に新しいオプション <option>-E</option> が追加されました.
+      これは本文が空のメッセージを送信しないようにするためのものです.
+      &merged;</para>
+
+    <para role="historic">&man.make.1; において,
+      <literal>:C///</literal> (正規表現置換),
+      <literal>:L</literal> (小文字変換),
+      <literal>:U</literal> (大文字変換)
+      という変数修飾子が新たに追加されました.
+      これらは OpenBSD/NetBSD にある &man.make.1; プログラムと,
+      &os; の差異を低減させるためのものです.
+      &merged; </para>
+
+<!--
     <para>ユーザランド &man.ppp.8; に対して,
       数多くの更新とバグ修正が加えられました.
       &merged;</para>
@@ -2489,71 +3149,29 @@ hw.pcic.irq="0"</programlisting>
     <para>IP Filter が &man.rc.conf.5;
       による起動時の設定・初期化に対応しました.
       &merged;</para>
+-->
 
-    <para>&man.lpd.8; に新しいオプションが二つ追加されました.
-      <option>-c</option> オプションフラグは
-      すべての接続エラーのログを &man.syslogd.8; に送り,
-      <option>-W</option>
-      オプションフラグは予約済みポート以外からの接続を許可します.
-      &merged;</para>
-
-    <para>&man.lpd.8; の制御ファイルにおいて, 一部ですが
-      <literal>o</literal> というタイプの印刷ファイルに対応しました.
-      これは <application>MacOS</application> 10.1 で生成された
-      PostScript 形式ファイルの印刷を可能にするためのものです.
-      &merged;</para>
-
-    <para>&man.lpr.1;, &man.lpq.1;, &man.lpd.8; に対してそれぞれ,
-      小さな改良が加えられました.
-      &merged;</para>
-
-    <para>&man.lpr.1;, &man.lpd.8;, &man.syslogd.8;, &man.logger.1;
-      といったベースシステムに含まれるその他のネットワークユーティリティが
-      IPv6 に対応しました.
-      &merged;</para>
-
-    <para>リモートプリンタのキューに対して
-      <command>lprm -</command> が動作するようになりました.
-      &merged;</para>
-
-    <para>&man.ls.1; は (対応端末上で)
-      <option>-G</option> オプションを使うことで,
-      リストのカラー表示ができるようになりました.
-      <envar>CLICOLOR</envar> 環境変数を設定することで,
-      デフォルトでカラー表示を行なうことが可能です.
-      &merged;</para>
-
-    <para>&man.mail.1; に新しいオプション <option>-E</option> が追加されました.
-      これは本文が空のメッセージを送信しないようにするためのものです.
-      &merged;</para>
-
-    <para>&man.make.1; において,
-      <literal>:C///</literal> (正規表現置換),
-      <literal>:L</literal> (小文字変換),
-      <literal>:U</literal> (大文字変換)
-      という変数修飾子が新たに追加されました.
-      これらは OpenBSD/NetBSD にある &man.make.1; プログラムと,
-      &os; の差異を低減させるためのものです.
-      &merged; </para>
-
-    <para>不正な空のサフィクスの処理にあった
+    <para role="historic">不正な空のサフィクスの処理にあった
       &man.make.1; のバグおよび,
       カレントディレクトリの許可属性に対する不適切な仮定,
       バッファオーバフローの可能性のある部分が修正されました.
       &merged;</para>
 
-    <para><filename>make.conf</filename> 変数に新しく 
+    <para role="historic"><filename>make.conf</filename> 変数に新しく 
       <varname>CPUTYPE</varname> が追加されました.
       これは <application>OpenSSL</application> のようなコードのコンパイル時に,
       特定プロセッサ用の最適化を行なうようコンパイラを制御するためのものです.
       &merged;</para>
 
-    <para>&os; <filename>Makefile</filename> インフラストラクチャが
+    <para role="historic">&os; <filename>Makefile</filename> インフラストラクチャが
       NetBSD に由来する <varname>WARNS</varname> 指示子に対応しました.
       この指示子は <varname>CFLAGS</varname>
       にコンパイラの警告オプションフラグを追加するかどうかを
       比較的コンパイラの種類に依存しない形で制御することを可能にするものです.
       &merged;</para>
+
+    <para>&man.makewhatis.1; is now a C program, instead of a
+      Perl script.</para>
 
     <para><quote>catpage</quote> (繰り返し表示されるためにあらかじめ
       フォーマットされキャッシュされたマニュアルページ) の生成に
@@ -2567,6 +3185,9 @@ hw.pcic.irq="0"</programlisting>
       実行しているユーザが <username>root</username> の場合には,
       catpage を作成することができます.</para>
 
+    <para arch="ia64">The mca utility, for decoding machine check
+      records, has been added.</para>
+
     <para>新しいコマンド &man.mdmfs.8; が追加されました.
       これは &man.mdconfig.8; コマンド,
       &man.disklabel.8; コマンド,
@@ -2574,67 +3195,96 @@ hw.pcic.irq="0"</programlisting>
       &man.mount.8; コマンドに関連するラッパで,
       廃止された &man.mount.mfs.8; コマンドのオプションが利用できます.</para>
 
-    <para>&man.mergemaster.8; が
+    <para role="historic">&man.mergemaster.8; が
       <filename>/etc/mergemaster.rc</filename>
       ファイルを読み込むようになりました.
       また, 必要に応じて (<command>newaliases</command> などの)
       ユーザが実行すべきコマンドをユーザに知らせるようになっています.
       &merged;</para>
 
-    <para>&man.moused.8; に新しいオプション
+    <para role="historic">&man.mergemaster.8; now supports two new flags.
+      The <option>-p</option> flag enables a
+      <quote>pre-<literal>buildworld</literal></quote> mode to files
+      known to be essential to the success of the
+      <literal>buildworld</literal> and
+      <literal>installworld</literal> system updating steps.  The
+      <option>-C</option> flag, used after a successful
+      &man.mergemaster.8; run, compares options in
+      <filename>/etc/rc.conf</filename> to the default options in
+      <filename>/etc/defaults/rc.conf</filename>. &merged;</para>
+
+    <para>&man.mesg.1; now conforms to SUSv3.  Among other things, it
+      now uses the first terminal associated with the standard input,
+      standard output or standard error file descriptor, in that order.
+      Thus, it is possible to use the redirection facilities of a shell
+      (<command>mesg n &lt; /dev/ttyp1</command>) to control write access
+      for other terminals.</para>
+
+    <para role="historic">mk_cmds(1) and the associated
+      <filename>libss</filename> have been removed; they have been
+      unused for quite some time. &merged;</para>
+
+    <para>&man.mountd.8; and &man.nfsd.8; have moved from
+      <filename>/sbin</filename> to <filename>/usr/sbin</filename>.</para>
+
+    <para role="historic">&man.moused.8; に新しいオプション
       <option>-a</option> が追加されました.
       これはマウスポインタの加速を制御するためのものです.
       &merged;</para>
 
-    <para>侵入検知システム (IDS; intrusion-detection system)
+    <para role="historic">侵入検知システム (IDS; intrusion-detection system)
       への応用を容易にするため,
       &man.mtree.8; において
       プロトタイプの作成・検証時に除外する
       パス名を列挙したファイルが利用できるようになりました.
       &merged;</para>
 
-    <para>&man.natd.8; に &man.ipfw.8; のルールにより遮断された
+    <para>&man.mv.1; now takes a (nonstandard) <option>-n</option> option to 
+      automatically answer <quote>no</quote> when it would ask to
+      overwrite a file. &merged;</para>
+
+    <para role="historic">&man.natd.8; に &man.ipfw.8; のルールにより遮断された
       ために再評価できないパケットを記録する
       <option>-log_ipfw_denied</option> オプションが追加されました.
       &merged;</para>
 
-    <para>&man.netstat.1; の <quote>使用中 (in use)</quote>
+    <para role="historic">&man.netstat.1; の <quote>使用中 (in use)</quote>
       のパーセント表示量が, ネットワーク mbuf
       の使用量を正確に反映するようになりました.
       &merged;</para>
 
-    <para>&man.netstat.1; に,
+    <para role="historic">&man.netstat.1; に,
       表示桁が足りない場合のアドレス表示の切り詰めを抑制する
       <option>-W</option> オプションフラグが追加されました.
       &merged;</para>
 
-    <para>&man.netstat.1; は,
+    <para role="historic">&man.netstat.1; は,
       各インターフェイスの入出力パケットを
       アドレス単位で追跡するようになりました.
       &merged;</para>
 
-    <para>&man.netstat.1; に, 統計情報をリセットする
+    <para role="historic">&man.netstat.1; に, 統計情報をリセットする
       <option>-z</option> オプションフラグが追加されました.
       &merged;</para>
 
-    <para>&man.netstat.1; に, アドレスを数字で,
+    <para role="historic">&man.netstat.1; に, アドレスを数字で,
       ポート番号をシンボルで表示する新しいオプション
       <option>-S</option> が追加されました.
       &merged;</para>
 
-    <para>&man.newfs.8; に write combining 機能 (訳注:
+    <para role="historic">&man.newfs.8; に write combining 機能 (訳注:
       データをひとまとめにしてバス使用効率を向上させる機能)
       が実装されました.
       これにより, 以前と比べて新しいファイルシステムの作成が最大
       7 倍速くなっています.
       &merged;</para>
 
-    <para>&man.newfs.8; に, 新しいファイルシステムの
+    <para role="historic">&man.newfs.8; に, 新しいファイルシステムの
       softupdates 機能を有効化する <option>-U</option>
       オプションフラグが追加されました.
       &merged;</para>
 
-    <para>&man.newfs.8; において,
+    <para role="historic">&man.newfs.8; において,
       1 グループあたりのシリンダ数の既定値が, 現在のファイルシステム
       パラメータで許される最大の値になるようになりました.
       これは <option>-c</option> オプションで上書きできます.
@@ -2642,7 +3292,7 @@ hw.pcic.irq="0"</programlisting>
       この変更により &man.fsck.8; の性能が改善され,
       フラグメンテーションが少なくなります. &merged;</para>
 
-    <para><anchor id="newfs-block-frag-sizes">&man.newfs.8;
+    <para role="historic"><anchor id="newfs-block-frag-sizes">&man.newfs.8;
       により作成される新しいファイルシステムの
       デフォルトのブロックサイズ, フラグメントサイズは,
       8192 バイトと 1024 バイトから 16384 バイトと 2048 バイトに
@@ -2650,15 +3300,35 @@ hw.pcic.irq="0"</programlisting>
       この変更によりいくらか性能が向上し, もう少しディスクスペースを
       消費するようになります. &merged;</para>
 
-    <para>&man.newsyslog.8; は &man.bzip2.1; を使って
-      ログファイルを圧縮できるようになりました. &merged;</para>
+    <para>A number of archaic features of &man.newfs.8; have been
+      removed; these implement tuning features that are essentially
+      useless on modern hard disks.  These features were controlled by
+      the <option>-O</option>, <option>-d</option>,
+      <option>-k</option>, <option>-l</option>, <option>-n</option>,
+      <option>-p</option>, <option>-r</option>, <option>-t</option>,
+      and <option>-x</option> flags.</para>
+
+    <para>&man.newfs.8; now supports a <option>-O</option> flag to
+      select the creation of UFS1 or UFS2 filesystems.</para>
+
+    <para>The &man.newgrp.1; utility to change to a new group has been
+      added.</para>
+
+    <para>&man.newsyslog.8; now compresses log files
+      using &man.bzip2.1; by default.  (The former behavior of using
+      &man.gzip.1; can be specified in
+      <filename>/etc/newsyslog.conf</filename>.)</para>
 
     <para><application>NFS</application> が IPv6 に対応しました.</para>
 
-    <para>&man.ngctl.8; が与えられたフックにデータパケットを送る
+    <para role="historic">&man.ngctl.8; が与えられたフックにデータパケットを送る
       <option>write</option> コマンドに対応しました. &merged;</para>
 
-    <para>行番号を付加するフィルタプログラム &man.nl.1;
+    <para>&man.nice.1; now uses the <option>-n</option> option to
+      specify the <quote>niceness</quote> of the utility being
+      run. &merged;</para>
+
+    <para role="historic">行番号を付加するフィルタプログラム &man.nl.1;
       が新たに追加されました.
       &merged;</para>
 
@@ -2670,6 +3340,13 @@ hw.pcic.irq="0"</programlisting>
       を経由して検索するように &os; を設定することが可能です.
       従来の <filename>hosts.conf</filename> は廃止されました.</para>
 
+    <para>&man.od.1; now supports the <option>-A</option> option to
+      specify the input address base, the <option>-N</option> option to
+      specify the number of bytes to dump, the <option>-j</option>
+      option to specify the number of bytes to skip, the
+      <option>-s</option> option to output signed decimal shorts, and
+      the <option>-t</option> option to specify output type. &merged;</para>
+
     <para><application>PAM</application>
       のアカウント管理, セション管理に対応しました.</para>
 
@@ -2679,46 +3356,104 @@ hw.pcic.irq="0"</programlisting>
       ファイルで行われるようになりました.
       <filename>/etc/pam.d/README</filename> に詳細があります.</para>
 
-    <para>いくつもの新しい <application>PAM</application>
-      モジュールが追加されました.</para>
+    <para>A &man.pam.echo.8; echo service module has been added.</para>
 
-<!-- XXX List new PAM modules -->
+    <para>A &man.pam.exec.8; program execution service module has been
+      added.</para>
 
-    <para>&man.passwd.1; および &man.pw.8; で
+    <para>A &man.pam.ftp.8; module has been added to allow
+      authentication of anonymous FTP users.</para>
+
+    <para>A &man.pam.ftpusers.8; module has been added to perform
+      checks against the &man.ftpusers.5; file.</para>
+
+    <para>A &man.pam.ksu.8; module has been added to do Kerberos 5
+      authentication and <filename>$HOME/.k5login</filename>
+      authorization for &man.su.1;.</para>
+
+    <para>A &man.pam.lastlog.8; module has been added to record
+      sessions in the &man.utmp.5;, &man.wtmp.5;, and &man.lastlog.5;
+      databases.</para>
+
+    <para>A &man.pam.login.access.8; module has been added, to allow
+      checking against <filename>/etc/login.access</filename>.</para>
+
+    <para>The &man.pam.nologin.8; module, which can disallow logins
+      using &man.nologin.5;, has been added.</para>
+
+    <para>The &man.pam.opie.8; and &man.pam.opieaccess.8; modules have
+      been added to control authentication via &man.opie.4;. &merged;</para>
+
+    <para>A &man.pam.passwdqc.8; module has been added, to check the
+      quality of passwords submitted during password changes.</para>
+
+    <para>A &man.pam.rhosts.8; module has been added to support
+      &man.rhosts.5; authentication.</para>
+
+    <para>The &man.pam.rootok.8; module, which can be used to
+      authenticate only the superuser, has been added.</para>
+
+    <para>A &man.pam.securetty.8; module has been added to check the
+      <quote>security</quote> of a TTY, as listed in &man.ttys.5;.</para>
+
+    <para>A &man.pam.self.8; module, which allows self-authentication
+      of a user, has been added.</para>
+
+    <para role="historic">A &man.pam.ssh.8; module has been added to allow the use of
+      SSH passphrases and keypairs for authentication.  This module
+      also handles session management by invoking
+      &man.ssh-agent.1;. &merged;</para>
+
+    <para>A &man.pam.wheel.8; module has been added to permit
+      authentication to members of a group, which defaults to
+      <groupname>wheel</groupname>.</para>
+
+    <para role="historic">&man.passwd.1; および &man.pw.8; で
       パスワードハッシュアルゴリズムを切り替えられるようになりました.
       <filename>/etc/login.conf</filename> にある
       <literal>passwd_format</literal> をご覧ください.
       &merged;</para>
 
-    <para>&man.pax.1; に対して数多くの改良が加えられました.
+    <para role="historic">&man.patch.1; now accepts a <option>-i</option> command-line
+      flag to read a patch from a file, rather than standard
+      input. &merged;</para>
+
+    <para>The &man.pathchk.1; utility, which checks pathnames for
+      validity or portability between POSIX systems, has been
+      added.</para>
+
+    <para role="historic">&man.pax.1; に対して数多くの改良が加えられました.
       その改良には, 
       &man.cpio.1; 機能の追加,
       &man.tar.1; 互換機能の強化,
       &man.gzip.1; および &man.compress.1; 機能を提供する
       <option>-z</option> オプションおよび
       <option>-Z</option> オプションの追加,
-      バグ修正が含まれます.</para>
+      バグ修正が含まれます. &merged;</para>
 
-    <para>&man.pciconf.8; は <option>-l</option> オプションと
+    <para role="historic">&man.pciconf.8; は <option>-l</option> オプションと
       連携して設定されたデバイスの vendor/device 情報を表示する
       <option>-v</option> オプションに対応しました.
       デフォルトの vendor/device データベースは
       <filename>/usr/share/misc/pci_vendors</filename>
       にあります. &merged;</para>
 
-    <para>&man.periodic.8; の動作が
+    <para role="historic">&man.periodic.8; の動作が
       <filename>/etc/defaults/periodic.conf</filename> および
       <filename>/etc/periodic.conf</filename>
       で制御できるようになりました.
       &merged;</para>
 
-    <para>&man.ping.8; に, 送出パケットの TTL を設定する
+    <para role="historic">&man.ping.8; に, 送出パケットの TTL を設定する
       <option>-m</option> オプションが追加されました.
       &merged;</para>
 
-    <para>&man.ping.8; に, パケットが返って来ない場合にビープ音を鳴らす
+    <para role="historic">&man.ping.8; に, パケットが返って来ない場合にビープ音を鳴らす
       <option>-A</option> オプションが追加されました. &merged;
     </para>
+
+    <para role="historic">Userland &man.ppp.8; has received a number of updates and
+      bug fixes. &merged;</para>
 
     <para>&man.ppp.8; に, 新たに
       <literal>tcpmssfixup</literal> オプションが追加されました.
@@ -2726,9 +3461,9 @@ hw.pcic.irq="0"</programlisting>
       最大受信セグメントサイズがインターフェイスの MTU を超えないようにします.
       &merged;</para>
 
-    <para>&man.ppp.8; が IPv6 に対応しました.</para>
+    <para role="historic">&man.ppp.8; が IPv6 に対応しました.</para>
 
-    <para>&man.pppd.8; (カーネル PPP の制御用プログラム)
+    <para role="historic">&man.pppd.8; (カーネル PPP の制御用プログラム)
       のインストール時の許可属性が <literal>4555</literal>
       から <literal>4550</literal> に,
       所有者/グループが
@@ -2737,23 +3472,38 @@ hw.pcic.irq="0"</programlisting>
       &man.pppd.8; を利用している場合は, グループ設定を変更する必要があります.
       &merged;</para>
 
-    <para>&man.ps.1; の <option>-W</option> オプション (指定された
+    <para role="historic">&man.pr.1; now supports the <option>-f</option> and
+      <option>-p</option> flags to pause output going to a
+      terminal. &merged;</para>
+
+    <para>prefix(8) is obsolete and has been removed.  Its
+      functionality is provided by the <option>eui64</option> command
+      to &man.ifconfig.8;.</para>
+
+    <para role="historic">&man.ps.1; の <option>-W</option> オプション (指定された
       スワップデバイスから情報を取得する) がいつからか
       使えなくなっていました.  このオプションは削除されました. &merged;</para>
 
-    <para>&man.pwd.1; に, 与えられたパス名を物理ファイルシステムの
+    <para>The &man.pselect.3; library function (introduced by POSIX.1
+      as a slightly stronger version of &man.select.2;) has been
+      added.</para>
+
+    <para role="historic">&man.pwd.1; に, 与えられたパス名を物理ファイルシステムの
       パス名に正規化する
       &man.realpath.1; プログラムの機能が統合されました.
       &merged;</para>
 
+    <para>&man.pwd.1; now supports the <option>-L</option> flag to
+      print the logical current working directory. &merged;</para>
+
     <para>&man.rand.3; の疑似乱数生成器実装に対して,
       結果の乱雑さをより向上させるための改良が加えられました.</para>
 
-    <para>&man.rc.8; に &man.rc.conf.5;
+    <para role="historic">&man.rc.8; に &man.rc.conf.5;
       環境変数間の依存関係を処理する枠組が追加されました.
       &merged;</para>
 
-    <para>&man.rc.8; は起動時に,
+    <para role="historic">&man.rc.8; は起動時に,
       <filename>/var/run</filename> および
       <filename>/var/spool/lock</filename>
       に含まれるディレクトリでないファイルをすべて削除するようになりました.
@@ -2770,35 +3520,42 @@ hw.pcic.irq="0"</programlisting>
       <filename role="package">net/44bsd-rdist</filename>
       として用意されるようになりました.</para>
 
-    <para>&os; の &man.resolver.3; 実装が EDNS0 に対応しました.
+    <para role="historic">&man.reboot.8; now takes a <option>-k</option> to specify
+      the next kernel to boot. &merged;</para>
+
+    <para>The &man.renice.8; command implements a <option>-n</option>
+      option, which specifies an increment to be applied to the
+      priority of a process. &merged;</para>
+
+    <para role="historic">&os; の &man.resolver.3; 実装が EDNS0 に対応しました.
       これは IPv6 対応の resolver, DNS サーバとの動作に必要となるものです.
       &merged;</para>
 
-    <para>&man.rfork.2; の補助関数として
+    <para role="historic">&man.rfork.2; の補助関数として
       &man.rfork.thread.3; 関数が追加されました.
       この関数を使えば,
       複雑なスタック置換コードを実装する必要はありません.
       &merged;</para>
 
-    <para>&man.rm.1; の <option>-v</option> オプションフラグが,
-      削除されるファイルの完全なパス名を表示するように変更されました.</para>
+    <para role="historic">&man.rm.1; の <option>-v</option> オプションフラグが,
+      削除されるファイルの完全なパス名を表示するように変更されました. &merged;</para>
 
-    <para>&man.route.8; で間接経路が変更された際,
+    <para role="historic">&man.route.8; で間接経路が変更された際,
       ゲートウェイ経路とその変更された経路とが同じサブネットになっている場合に
       より正確な表示が行なわれるようになりました. &merged;</para>
 
-    <para>&man.netstat.1; との互換性を高めるため,
+    <para role="historic">&man.netstat.1; との互換性を高めるため,
       &man.route.8; は 
       <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
       という書式ではなく
       <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
       という書式を使うようになりました. &merged;</para>
 
-    <para>&man.route.8; が, 新たに
+    <para role="historic">&man.route.8; が, 新たに
       <quote>代理専用 (proxy only)</quote>
       の公開済み ARP エントリを作成できるようになりました. &merged;</para>
 
-    <para>&man.route.8; の <option>add</option> コマンドは
+    <para role="historic">&man.route.8; の <option>add</option> コマンドは
       <option>-ifp</option> と <option>-ifa</option> の修飾子
       をサポートするようになりました. &merged;</para>
 
@@ -2814,10 +3571,10 @@ hw.pcic.irq="0"</programlisting>
       このデーモンは
       クライアント側の NFS ロックを提供するためのものです.</para>
 
-    <para>ELF 動的リンカである &man.rtld.1; のパフォーマンスが向上しました.
+    <para role="historic">ELF 動的リンカである &man.rtld.1; のパフォーマンスが向上しました.
       &merged;</para>
 
-    <para>RSA Security 社が <application>RSA</application>
+    <para role="historic">RSA Security 社が <application>RSA</application>
       アルゴリズムに関する特許権を放棄したため,
       <application>OpenSSL</application> に含まれる本来の RSA
       アルゴリズム実装が標準状態で有効化されるようになり,
@@ -2831,22 +3588,25 @@ hw.pcic.irq="0"</programlisting>
       環境変数が定義されていた場合, ロードされる各オブジェクトの
       名前を表示するようになりました.</para>
 
-    <para>&man.savecore.8;
+    <para role="historic">&man.savecore.8;
       にクラッシュダンプ作成後のクリアを抑制する新しいオプション
       <option>-k</option> が追加されました.
       またこれによりクラッシュダンプに 0
       の連続が書かれなくなり, 容量と時間の短縮も実現します.
       &merged;</para>
 
-    <para>2GB 以上の RAM を搭載したマシンでも
+    <para role="historic">2GB 以上の RAM を搭載したマシンでも
       &man.savecore.8; が正常に動作するようになりました.
       &merged;</para>
 
-    <para>&man.sed.1; に, 拡張正規表現に対応する
+    <para role="historic">&man.sed.1; に, 拡張正規表現に対応する
       <option>-E</option> オプションが追加されました.
       &merged;</para>
 
-    <para>&man.send-pr.1; に, 障害報告の <literal>Fix:</literal>
+    <para>&man.sed.1; now takes a <option>-i</option> option to enable
+      in-place editing of files. &merged;</para>
+
+    <para role="historic">&man.send-pr.1; に, 障害報告の <literal>Fix:</literal>
       セクションにファイルを挿入するための
       <option>-a</option> オプションが追加されました.
       &merged;</para>
@@ -2855,12 +3615,12 @@ hw.pcic.irq="0"</programlisting>
       &man.setfacl.1; および
       &man.getfacl.1; が追加されました.</para>
 
-    <para>&man.setproctitle.3; が
+    <para role="historic">&man.setproctitle.3; が
       <filename>libutil</filename> から
       <filename>libc</filename> に移動しました.
       &merged;</para>
 
-    <para>&man.sh.1; は効率をあげるために <command>test</command>
+    <para role="historic">&man.sh.1; は効率をあげるために <command>test</command>
       をビルトインコマンドとして実装しました. &merged;</para>
 
     <para>他のビルトインコマンドと比べてそれほど価値があるとは
@@ -2869,14 +3629,51 @@ hw.pcic.irq="0"</programlisting>
       (もちろんこの機能は &man.printf.1; 外部コマンドとして
       利用可能です).</para>
 
-    <para>&man.sockstat.1; に, 
+    <para>&man.sh.1; now supports a <option>-C</option> option to
+      prevent existing regular files from being overwritten by output
+      redirection, and a <option>-u</option> to give an error if an
+      unset variable is expanded. &merged;</para>
+
+    <para>The &man.sh.1; built-in <command>cd</command> command now
+      supports <option>-L</option> and <option>-P</option> flags to
+      invoke logical or physical modes of operation, respectively.
+      Logical mode is the default, but the default can be changed with
+      the <varname>physical</varname> &man.sh.1; option. &merged;</para>
+
+    <para>The &man.sh.1; built-in <command>jobs</command> command now
+      supports a <option>-s</option> flag to output PIDs only and a
+      <option>-l</option> flag to add PIDs to the output. &merged;</para>
+
+    <para>&man.sh.1; now supports a <command>bind</command> built-in
+      command, which allows the key bindings for the shell's line editor
+      to be changed.</para>
+
+    <para>The &man.sh.1; built-in <command>export</command> and
+      <command>readonly</command> commands now support a
+      <option>-p</option> flag to print their output in
+      <quote>portable</quote> format. &merged;</para>
+
+    <para>&man.sh.1; no longer accepts invalid constructs as
+      <command><replaceable>command</replaceable> &amp; &amp;&amp;
+      <replaceable>command</replaceable></command>, <command>&amp;&amp;
+      <replaceable>command</replaceable></command>, or <command>||
+      <replaceable>command</replaceable></command>. &merged;</para>
+
+    <para role="historic">&man.sockstat.1; に, 
       <option>-c</option> および <option>-l</option>
       オプションフラグが追加されました.  これはそれぞれ,
       接続済みもしくは listen 中のソケットを一覧表示します.
       &merged;</para>
 
-    <para>&man.split.1; が 2GB を超えるファイルの分割に対応しました.
+    <para>&man.spkrtest.8; is now a &man.sh.1; script, rather than a
+      Perl script.</para>
+
+    <para role="historic">&man.split.1; が 2GB を超えるファイルの分割に対応しました.
       &merged;</para>
+
+    <para>&man.split.1; now supports a <option>-a</option> option to
+      specify the number of letters to use for the suffix of split
+      files. &merged;</para>
 
     <para><filename>&lt;sys/select.h&gt;</filename> を
       SUSv2/POSIX 規格に適合させるため,
@@ -2884,10 +3681,10 @@ hw.pcic.irq="0"</programlisting>
       <filename>&lt;sys/selinfo.h&gt;</filename>
       に移動しました.</para>
 
-    <para>&man.strstr.3; の変形である &man.strnstr.3; と
+    <para role="historic">&man.strstr.3; の変形である &man.strnstr.3; と
       &man.strcasestr.3; が実装されました. &merged;</para>
 
-    <para>&man.stty.1; が新たに
+    <para role="historic">&man.stty.1; が新たに
       <literal>erase2</literal> コントロール文字に対応しました.
       これを用いると, たとえば
       <keycap>Delete</keycap> キーおよび
@@ -2895,24 +3692,20 @@ hw.pcic.irq="0"</programlisting>
       erase 文字として利用することが可能になります.
       &merged;</para>
 
-    <para>&os; ベースシステムにおける
-      Perl コードのスタイルガイド &man.style.perl.7;
-      が新たに追加されました. &merged;</para>
-
     <para>&man.su.1; が認証に <application>PAM</application>
       を使うようになりました.</para>
 
-    <para>起動時の &man.syscons.4;
+    <para role="historic">起動時の &man.syscons.4;
       設定は, アーキテクチャに依存しない
       <filename>/etc/rc.syscons</filename>
       で行なうように変更されました.
       &merged;</para>
 
-    <para>&man.sysctl.8; が新たに, 変数名のみを表示するためのオプション
+    <para role="historic">&man.sysctl.8; が新たに, 変数名のみを表示するためのオプション
       <option>-N</option> に対応しました.
       &merged;</para>
     
-    <para>&man.sysctl.8; のオプション
+    <para role="historic">&man.sysctl.8; のオプション
       <option>-A</option> および <option>-X</option>
       はそれぞれ <option>-ao</option>
       および <option>-ax</option> に置き換えられ,
@@ -2921,14 +3714,17 @@ hw.pcic.irq="0"</programlisting>
       オプションは必要性がないため削除されました.
       &merged;</para>
 
-    <para>&man.sysctl.8; は変数名と値を分けるのに
+    <para role="historic">&man.sysctl.8; は変数名と値を分けるのに
       <literal>:</literal> ではなく <literal>=</literal>
       を使うようにする <option>-e</option> オプション
       に対応しました.
       これは出てきた出力をまた &man.sysctl.8; に戻す場合などに
       有用です. &merged;</para>
 
-    <para>&man.sysinstall.8; が, バイナリアップグレードの際に
+    <para>&man.sysctl.8; now accepts a <option>-d</option> flag to print
+      the descriptions of variables.</para>
+
+    <para role="historic">&man.sysinstall.8; が, バイナリアップグレードの際に
       <filename>/etc/mail</filename> をきちんと保存するようになりました.
       &merged;</para>
 
@@ -2937,7 +3733,7 @@ hw.pcic.irq="0"</programlisting>
       &merged;</para>
 
     <para>&man.sysinstall.8; のデフォルトのルートパーティションが,
-      i386 版が 100MB, Alpha 版が 120MB にそれぞれ変更されました.</para>
+      i386 版と pc98 版が 100MB, Alpha 版が 120MB にそれぞれ変更されました.</para>
 
     <para>インストール手順を単純化するため,
       &man.sysinstall.8; が
@@ -2946,10 +3742,10 @@ hw.pcic.irq="0"</programlisting>
       他のユーティリティと同様の方法でインストールされるようになっています.
     </para>
 
-    <para>&man.sysinstall.8; がインストール中に KLD を
+    <para role="historic">&man.sysinstall.8; がインストール中に KLD を
       ロードできるようになりました. &merged;</para>
 
-    <para>インストールメディアから実行された場合,
+    <para role="historic">インストールメディアから実行された場合,
       &man.sysinstall.8; は
       <literal>mfsroot</literal> フロッピーかファイルシステムイメージ
       の <filename>/stand/modules</filename> ディレクトリ
@@ -2959,57 +3755,78 @@ hw.pcic.irq="0"</programlisting>
       &man.sysinstall.8; デバッグスクリーンに追加情報が提供されます.
       &merged;</para>
 
-    <para>&man.sysinstall.8; がルートファイルシステムを除き,
+    <para role="historic">&man.sysinstall.8; がルートファイルシステムを除き,
       作成する全てのファイルシステムにおいて Soft Updates を
       デフォルトで有効にするようになりました. &merged;</para>
 
-    <para>&man.sysinstall.8; において, <quote>auto</quote>
+    <para role="historic">&man.sysinstall.8; において, <quote>auto</quote>
       パーティション分割モードが作成するパーティションの
       大きさが, より妥当なデフォルト値となるようになりました.
       自動可変サイズのパーティションは, 他のパーティション
       が削除されると自動的にその容量を吸収するようになりました.
       &merged;</para>
 
-    <para>&man.syslogd.8; に新たなオプション
+    <para>&man.sysinstall.8; no longer mounts the &man.procfs.5;
+      filesystem by default on new installs.</para>
+
+    <para role="historic">&man.sysinstall.8; now has rudimentary support for
+      retrieving packages from the correct volume of a multiple-volume
+      installation (such as a multi-CD distribution). &merged;</para>
+
+    <para role="historic">&man.syslogd.8; に新たなオプション
       <option>-n</option> が追加されました.
       これは syslog 要求に対する DNS 問い合わせを抑制します.
       &merged;</para>
 
-    <para>&man.syslogd.8; が新たに,
+    <para role="historic">&man.syslogd.8; が新たに,
       ログを <filename>/dev/console</filename> に出力する
       <literal>LOG_CONSOLE</literal> ファシリティ
       (標準設定では無効) に対応しました.
       &merged;</para>
 
-    <para>&man.syslogd.8;
+    <para role="historic">&man.syslogd.8;
       に新しく <option>-b</option> オプションが追加されました.
       これは &man.syslogd.8; を,
       利用可能なすべてのアドレスではなく指定アドレスへ bind
       させるためのものです. &merged;</para>
 
-    <para>&man.syslogd.8; に新しく重複した行を圧縮する機能を無効に
+    <para role="historic">&man.syslogd.8; に新しく重複した行を圧縮する機能を無効に
       する <option>-c</option> フラグが追加されました. &merged;</para>
 
-    <para>&man.tail.1; が 2GB を超えるファイルの処理に対応しました.
+    <para>&man.tabs.1;, a utility to set terminal tab stops, has been
+      added.</para>
+
+    <para role="historic">&man.tail.1; が 2GB を超えるファイルの処理に対応しました.
       &merged;</para>
 
-    <para>&man.tar.1; が <varname>TAR_RSH</varname>
+    <para role="historic">&man.tar.1; が <varname>TAR_RSH</varname>
       環境変数に対応しました.
       これは主に,
       転送手段として &man.ssh.1; を利用できるようにするためのものです.
       &merged;</para>
 
-    <para>&man.telnet.1; が標準で autologin と暗号化に対応しました.
+    <para role="historic">&man.telnet.1; が標準で autologin と暗号化に対応しました.
       また, 暗号化を抑制するオプション <option>-y</option>
-      も追加されています.</para>
+      も追加されています. &merged;</para>
 
-    <para>&man.telnet.1; に新しいオプション
+    <para role="historic">&man.telnet.1; に新しいオプション
       <option>-u</option> が追加されました.
       これは UNIX ドメイン (<literal>AF_UNIX</literal>)
       ソケットへの接続を可能にするものです.
       &merged;</para>
 
-    <para>&man.tftpd.8; に新しいオプション <option>-c</option> および
+    <para>The &man.termcap.5; database now uses the
+      <literal>xterm</literal> terminal type from
+      <application>XFree86</application>.  As a result, &man.xterm.1;
+      now supports color by default and the common workaround of
+      setting <varname>TERM</varname> to <literal>xterm-color</literal>
+      is no longer necessary.  Use of the
+      <literal>xterm-color</literal> terminal type may result in
+      (benign) warnings from applications.</para>
+
+    <para role="historic">&man.tftp.1; and &man.tftpd.8; now support IPv6. &merged;</para>
+
+    <para role="historic">&man.tftpd.8; に新しいオプション <option>-c</option> および
       <option>-C</option> が追加されました.
       これらは接続したクライアントの IP アドレスに応じて
       &man.chroot.2; 先の変更を可能にするものです.
@@ -3030,7 +3847,7 @@ hw.pcic.irq="0"</programlisting>
     <para>Transport Independent RPC
     (<application>TI-RPC</application>) が import されました.</para>
 
-    <para><envar>TMPDIR</envar> を用いて
+    <para role="historic"><envar>TMPDIR</envar> を用いて
       &man.tmpnam.3; における一時ファイルの場所を指定できるようになりました.
       &merged;</para>
 
@@ -3046,12 +3863,19 @@ hw.pcic.irq="0"</programlisting>
       これはコマンドの作用をシンボリックリンクのリンク先ではなく,
       リンクそのものに対して行なうことを指定するものです.</para>
 
-    <para>ファイルを指定した長さに切り詰めたり,
+    <para>&man.tr.1; now has basic support for equivalence classes
+      for locales that support them. &merged;</para>
+
+    <para>&man.tr.1; now supports a <option>-C</option> flag to
+      complement the set of characters specified by the first string
+      argument.</para>
+
+    <para role="historic">ファイルを指定した長さに切り詰めたり,
       拡張したりするための &man.truncate.1;
       ユーティリティが新たに追加されました.
       &merged;</para>
 
-    <para>&os; コンソールがウクライナ語に対応しました.
+    <para role="historic">&os; コンソールがウクライナ語に対応しました.
       &merged;</para>
 
     <para>&man.cu.1; と &man.rmail.8; を除いて,
@@ -3060,31 +3884,46 @@ hw.pcic.irq="0"</programlisting>
       現在は Ports Collection の
       <filename role="package">net/freebsd-uucp</filename> にあります.</para>
 
-    <para>&man.units.1; に対していくつかの更新とバグ修正が加えられました.
+    <para>&man.unexpand.1; now supports a <option>-t</option> to
+      specify tabstops analogous to &man.expand.1;. &merged;</para>
+
+    <para role="historic">&man.units.1; に対していくつかの更新とバグ修正が加えられました.
       &merged;</para>
 
     <para>&man.usbdevs.8; に, 各デバイスに対応するデバイスドライバ
       を表示する <option>-d</option> フラグが追加されました.</para>
 
-    <para>USB Human Interface Devices の操作を行なうための、
+    <para role="historic">USB Human Interface Devices の操作を行なうための、
       &man.usbhidctl.1; ユーティリティが追加されました。
       &merged;</para>
 
-    <para>&man.uudecode.1; に出力ファイルを指定する <option>-o</option>
-      オプションが追加されました.</para>
+    <para role="historic">&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
+      set their output files.  &man.uuencode.1; can now be made to do base64 encoding
+      when given the <option>-m</option> flag, while &man.uudecode.1;
+      can now automatically decode base64 files. &merged;</para>
 
-    <para>&man.vidcontrol.1; に新しいオプション <option>-g</option>
+    <para>The base64 capabilities of &man.uuencode.1; and
+      &man.uudecode.1; can now be automatically enabled by invoking
+      these utilities as &man.b64encode.1; and &man.b64decode.1;
+      respectively.</para>
+
+    <para>The &man.uuidgen.1; utility has been added.  It uses the new
+      &man.uuidgen.2; system call to generate one or more Universally
+      Unique Identifiers compatible with OSF/DCE 1.1 version 1
+      UUIDs.</para>
+
+    <para role="historic">&man.vidcontrol.1; に新しいオプション <option>-g</option>
       が追加されました.  これは
       <literal>VESA_800x600</literal> ラスタテキストモードにおいて,
       テキストサイズを指定するためのものです.
       &merged;</para>
 
-    <para>&man.vidcontrol.1; において,
+    <para role="historic">&man.vidcontrol.1; において,
       フォントロード時のフォントサイズ指定を省略できるようになりました.
       また, エラー処理部分にいくつかの改良も加えられています.
       &merged;</para>
 
-    <para>&man.vidcontrol.1; に &man.syscons.4;
+    <para role="historic">&man.vidcontrol.1; に &man.syscons.4;
       画像バッファのスナップショットをとるための新しいオプション
       <option>-p</option> が追加されました.
       このオプションによるスナップショットは,
@@ -3093,79 +3932,118 @@ hw.pcic.irq="0"</programlisting>
       ユーティリティで操作することができます.
       &merged;</para>
 
-    <para>&man.vidcontrol.1; に,
+    <para role="historic">&man.vidcontrol.1; に,
       指定した tty の履歴バッファをクリアする新しいオプション
       <option>-C</option> が追加されました.
       また <option>-h</option> オプションを使うことで,
       履歴バッファの大きさを設定することが可能です.
       &merged;</para>
 
+    <para>&man.vidcontrol.1; now accepts a <option>-S</option> to
+      allow the user to disable VTY switching. &merged;</para>
+
     <para>&man.vinum.8; のストライプサイズの既定値が
       256KB から 279KB に変更されました.
       これは各ストライプに対してスーパブロックを均等に割り振るためです.</para>
 
-    <para>&man.wall.1; に新しいオプション <option>-g</option> が追加されました.
+    <para role="historic">&man.wall.1; に新しいオプション <option>-g</option> が追加されました.
       これは指定したグループに属するユーザ全員にメッセージを送ります.
       &merged;</para>
 
-    <para>&man.watch.8; に &man.snp.4; デバイスを使うようにする
+    <para role="historic">&man.watch.8; に &man.snp.4; デバイスを使うようにする
       <option>-f</option> オプションが追加されました. &merged;</para>
+
+    <para>&man.wc.1; now supports a <option>-m</option> flag to
+      count characters, rather than bytes.</para>
+
+    <para>&man.whereis.1;, formerly a Perl script, has been
+      rewritten in C.  It now supports a <option>-x</option> flag to
+      suppress the run of &man.locate.1;, and a <option>-q</option>
+      flag suppresses the leading name of the query.</para>
+
+    <para>&man.whereis.1; now supports a <option>-a</option> flag
+      to report all matches instead of only the first of each 
+      requested type.</para>
 
     <para>Perl スクリプトだった &man.which.1; が
       C プログラムに変更されました.</para>
 
-    <para>&man.whois.1; は, IP アドレスの問い合わせを
+    <para>&man.who.1; now has a number of new options:
+      <option>-H</option> shows column headings; <option>-T</option>
+      shows &man.mesg.1; state; <option>-m</option> is an equivalent
+      to <option>am i</option>; <option>-u</option> shows idle time;
+      <option>-q</option> to list names in columns. &merged;</para>
+
+    <para role="historic">&man.whois.1; は, IP アドレスの問い合わせを
       ARIN に送るように変更されました.
       <option>-Q</option> オプションが指定されておらず,
       ARIN への問い合わせが APNIC もしくは RIPE
       参照する場合には, 適切なサーバに再問い合わせが行なわれます.
       &merged;</para>
 
-    <para>&man.whois.1; に, 簡単に特定の whois サーバへ直接問い合わせ
+    <para role="historic">&man.whois.1; に, 簡単に特定の whois サーバへ直接問い合わせ
       を送ることができるようになる <option>-c</option> オプション
       が追加されました. &merged;</para>
 
-    <para>&man.xargs.1; に新しいオプション <option>-J</option>
+    <para>&man.wicontrol.8; now supports a <option>-l</option> to list
+      the stations associated in <literal>hostap</literal> mode and a
+      <option>-L</option> to list available access points.</para>
+
+    <para>&man.xargs.1; に新しいオプション <option>-I</option>
       <replaceable>replstr</replaceable> が追加されました.
       これは標準入力から読み込まれたデータをコマンドライン引数の最後ではなく,
       指定した点に挿入するように制御するためのものです.
-      &merged;</para>
+      (A &os;-specific <option>-J</option> option is
+      similar, but is now deprecated in favor of the more portable
+      <option>-I</option> option.) &merged;
+    </para>
 
-    <para>コンパイラが FSF が提供している
+    <para>&man.xargs.1; now supports a <option>-L</option> option to
+      force its utility argument to be called after some number of
+      lines. &merged;</para>
+
+    <para role="historic">コンパイラが FSF が提供している
       C/C++ ランタイム初期化コードを使用するように変更されました.
       この変更によりFSF が公開しているソースとの親和性だけでなく,
       各種 egcs および gcc の移植版が生成するコードとの互換性が向上しています.
       &merged;</para>
 
-    <para>スレッドライブラリに対して,
+    <para role="historic">スレッドライブラリに対して,
       シグナル操作の変更, バグ修正, パフォーマンスの改良
       (システムコールスレッド切り替えの抑制を含む) が加えられました.
       &man.gdb.1; のスレッド対応も, その変更を反映して更新されています.
       &merged;</para>
 
-    <para>国際化対応のために非常に多くの追加が行なわれました.
+    <para role="historic">国際化対応のために非常に多くの追加が行なわれました.
       &os; は今回, 
       <literal>LC_MONETARY</literal>,
       <literal>LC_NUMERIC</literal>, および
       <literal>LC_MESSAGES</literal>
       の各カテゴリのロケールに完全対応しています.
       また多くのアプリケーションが,
-      この対応を反映するように更新されています.</para>
+      この対応を反映するように更新されています. &merged;</para>
 
-    <para>X11R6 や他の UNIX 系 OS との互換性を高めるため,
+    <para role="historic">X11R6 や他の UNIX 系 OS との互換性を高めるため,
       ロケール名の変更が行なわれました.
       たとえば <literal>en_US.ISO_8859-1</literal> は
       <literal>en_US.ISO8859-1</literal> に変わっています.
       これに対する後方互換性は <filename>/etc/locale.alias</filename>
       に含まれるエントリによって提供されています. &merged;</para>
 
-    <para><filename>/usr/src/share/examples/BSD_daemon/</filename> に
+    <para role="historic"><filename>/usr/src/share/examples/BSD_daemon/</filename> に
       スケーラブルな Beastie 画像が追加されました.
       &merged;</para>
 
-    <para>数多くのマニュアルページに対して,
+    <para role="historic">数多くのマニュアルページに対して,
       内容および組版用マークアップの改訂が行なわれました.
       &merged;</para>
+
+    <para>A number of utilities and libraries were enhanced to improve
+      their conformance with the Single UNIX Specification (SUSv3) and
+      IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).  Specific
+      features added have been listed in the release notes for each
+      utility.  The standards conformance of each utility or library
+      function is generally listed in its manual page.</para>
 
     <sect3>
       <title>寄贈ソフトウェア</title>
@@ -3177,15 +4055,14 @@ hw.pcic.irq="0"</programlisting>
 	( <quote>BWK awk</quote> や <quote>The One True	AWK</quote>
 	として知られています ) の 2002/02/10 版スナップショット
 	がインポートされました.
-	sparc64 アーキテクチャでは <command>awk</command> として,
-	それ以外のプラットフォームでは <command>nawk</command>
+	<command>awk</command>, <command>nawk</command>
 	としてインストールされます.</para>
 
-      <para><application>bc</application>
+      <para role="historic"><application>bc</application>
         がバージョン 1.04 から 1.06 に更新されました.
         &merged;</para>
 
-      <para><application>BIND</application> 配布物に含まれる
+      <para role="historic"><application>BIND</application> 配布物に含まれる
         ISC ライブラリが
         <filename>libisc</filename> として構築されるようになりました.
         &merged;</para>
@@ -3197,32 +4074,36 @@ hw.pcic.irq="0"</programlisting>
         &merged;</para>
 
       <para><application>BIND</application> がバージョン
-        8.3.1-REL に更新されました. &merged;</para>
+        8.3.3 に更新されました. &merged;</para>
 
       <para><application>Binutils</application> が
-	2.12.0 に
+	2002/10/11 の 2.13.1 プレリリーススナップショットに
 	更新されました.</para>
 
-      <para><application>bzip2</application> バージョン 1.0.2 が
+      <para role="historic"><application>bzip2</application> バージョン 1.0.2 が
 	import されました.
         これによりベースシステムに &man.bzip2.1; プログラムおよび,
         <filename>libbz2</filename> ライブラリが導入されました.
 	&merged;</para>
 
-      <para>&man.ee.1; <application>Easy Editor</application>
+      <para role="historic">&man.ee.1; <application>Easy Editor</application>
         がバージョン 1.4.2 に更新されました.
         &merged;</para>
 
-      <para><application>file</application> がバージョン 3.37 に更新されました.
+      <para><application>file</application> がバージョン 3.39 に更新されました.
         </para>
 
-      <para><application>gcc</application> が
-	2.95 開発ブランチの 2002/03/20 版スナップショット
-	(このスナップショットは <application>gcc</application> 2.95.3
-	のリリース以降の修正を含んでいます)
-	に更新されました. &merged;</para>
+      <para><application>gcc</application> has been updated to
+	a pre-release snapshot of <application>gcc</application>
+	3.2.1, from 9 October 2002.
+	<warning>
+	  <para>The C++ ABI from <application>gcc</application>
+	    3.2.<replaceable>X</replaceable> is not compatible with
+	    previous versions.</para>
+	</warning>
+      </para>
 
-      <para>&man.gcc.1; は,
+      <para role="historic">&man.gcc.1; は,
         従来のスレッド対応ライブラリとスレッド非対応ライブラリという分割を
 	廃止し,
         その二つが統合された <filename>libgcc</filename>
@@ -3236,32 +4117,25 @@ hw.pcic.irq="0"</programlisting>
         のデフォルトオプションを指定します.
         &merged;</para>
 
-      <para><application>GNATS</application> がバージョン
+      <para><application>gdb</application> has been updated to version
+	5.2.1.</para>
+
+      <para role="historic"><application>GNATS</application> がバージョン
         3.113 に更新されました.
         &merged;</para>
       
-      <para><application>GNU awk</application> がバージョン
-	3.1.0 に更新されました.
-	sparc64 アーキテクチャでは <command>gawk</command>
-	として, 他のアーキテクチャでは <command>awk</command>
-	としてインストールされます.</para>
-
       <para><application>gperf</application> がバージョン
         2.7.2 に更新されました.</para>
 
       <para><application>groff</application>
 	および関連ユーティリティが更新され,
-        FSF バージョン 1.17.2 になりました.
-        この import により, 従来あった制限を大幅に緩和した
-        &man.mdoc.7; マクロパッケージ
-        (<literal>mdocNG</literal> と呼ばれています)
-        が追加されています.
-        &merged;</para>
+        FSF バージョン 1.18.1 になりました.
+      </para>
 
-      <para><application>Heimdal</application> がバージョン
-        0.3f に更新されました.</para>
+      <para><application>Heimdal Kerberos</application> がバージョン
+        2002/09/16 pre-0.5 スナップショットに更新されました.</para>
 
-      <para>&os; に含まれているバージョンの
+      <para role="historic">&os; に含まれているバージョンの
 	<application>IPFilter</application> には, NAT エントリ
 	とステートフルルール用に作成されたステート情報を
 	ディスクに保存し, リブート後に再生することができる
@@ -3270,10 +4144,10 @@ hw.pcic.irq="0"</programlisting>
 	できます. &merged;</para>
 
       <para><application>ISC DHCP</application> クライアントがバージョン
-        3.0.1RC8 に更新されました.
+        3.0.1RC9 に更新されました.
         &merged;</para>
 
-      <para><application>Kerberos IV</application> がバージョン
+      <para role="historic"><application>Kerberos IV</application> がバージョン
         1.0.5 に更新されました.
         &merged;</para>
 
@@ -3283,8 +4157,17 @@ hw.pcic.irq="0"</programlisting>
         <application>less</application> のバージョン 371 が import されました.
       </para>
 
+      <para>An XML processing library, named
+        <filename>libbsdxml</filename>, has been added for the benefit
+        of XML-using utilities in the base system.  It is based almost
+        entirely on an import of <application>expat</application>
+        1.95.5, but is installed under a different name to avoid
+        conflicts with any versions of
+        <application>expat</application> installed from the Ports
+        Collection.</para>
+
       <para><application>libpcap</application> がバージョン
-        0.6.2 に更新されました.  &merged;</para>
+        0.7.1 に更新されました.  &merged;</para>
 
       <para><application>libreadline</application> がバージョン
         4.2 に更新されました.</para>
@@ -3293,10 +4176,10 @@ hw.pcic.irq="0"</programlisting>
 	更新されました.</para>
 
       <para><application>lint</application> は NetBSD &man.lint.1; の
-	2002/03/03 版スナップショットに更新されました.</para>
+	2002/07/19 版スナップショットに更新されました.</para>
 
       <para>&os; の &man.ftp.1; プログラムが
-	<application>lukemftp</application> (NetBSD からの FTP クライアント)
+	<application>lukemftp</application> 1.6 beta 2 (NetBSD からの FTP クライアント)
 	に置き換えられました.
 	これにより, より自動化された動作や, 標準への準拠, 転送レート制御,
 	カスタマイズ可能なコマンドラインプロンプトなどが
@@ -3304,17 +4187,20 @@ hw.pcic.irq="0"</programlisting>
 	いくつかの環境変数やコマンドライン引数が変更となっています.</para>
       
       <para>NetBSD からの FTP デーモンである
-	<application>lukemftpd</application> がインポートされ,
-	&man.lukemftpd.8; として利用できるようになりました.</para>
+	<application>lukemftpd</application> 1.2 beta 1 がインポートされ,
+	&man.lukemftpd.8; として利用できるようになりました. &merged;</para>
+
+      <para>&man.m4.1; has been imported from OpenBSD, as of 26 April
+	2002. &merged;</para>
 
       <para><application>ncurses</application> がバージョン
-        5.2-20010512 に更新されました.</para>
+        5.2-20020615 に更新されました.</para>
 
-      <para><application>NTP</application> プログラムスイートがバージョン
+      <para role="historic"><application>NTP</application> プログラムスイートがバージョン
         4.1.0 に更新されました. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Centaury</quote> リリース) が
+        (<quote>Citronella</quote> リリース) が
 	<application>Linux-PAM</application> に代わって
 	import されました.</para>
 
@@ -3322,30 +4208,62 @@ hw.pcic.irq="0"</programlisting>
         ワンタイムパスワードスイートがバージョン 2.4 に更新されました.
         &merged;
         これは <application>S/Key</application>
-        の機能を完全に置き換えるものです.</para>
+        の機能を完全に置き換えるものです. &merged;</para>
 
-      <para><application>Perl</application> がバージョン
-        5.6.1 に更新されました.</para>
+      <para><application>Perl</application> has been removed from the
+	&os; base system.  It can still be installed from the &os;
+	Ports Collection or as a binary package; moving it out of the
+	base system will make future upgrades and maintenence easier.
+	To reduce the dependence of the base system on
+	Perl, many utilities have been
+	rewritten as shell scripts or C programs (specific notes are
+	made for each affected utility).
+	<filename>/usr/bin/perl</filename> is now a
+	<quote>wrapper</quote> program, so that programs expecting to
+	find a Perl interpreter there will
+	be able to function correctly.
 
-      <para>&man.routed.8; がバージョン 2.22 に更新されました.
+	  <warning>
+	    <para>The Perl removal and
+	      package integration work is ongoing.</para>
+	  </warning>
+
+      <para><application>GNU ptx</application> has been removed from
+        the base system.  It is not used anywhere in the base system,
+        and has not been recently updated or maintained.  Users
+        requiring its functionality can install this utility as a part
+        of the <filename role="package">textproc/textutils</filename>
+        port.</para>
+
+      <para>The <literal>rc.d</literal> framework from NetBSD has been
+        imported.  It breaks down the system startup functionality
+        into a number of small, <quote>task-oriented</quote> scripts
+        in <filename>/etc/rc.d</filename>, with dynamic-determined
+        ordering of startup scripts performed at boot-time.</para>
+
+      <para role="historic">&man.routed.8; がバージョン 2.22 に更新されました.
         &merged;</para>
 
-      <para arch="i386"><application>smbfs</application> ユーザランド
-	ユーティリティのバージョン 1.4.3 がインポートされました.
+      <para arch="i386,pc98"><application>smbfs</application> ユーザランド
+	ユーティリティのバージョン 1.4.5 がインポートされました.
 	&merged;</para>
 
-      <para>システムのソートプログラムが、
-        <application>GNU sort</application> から
-        <application>NetBSD</application> の
-        (2002 年 3 月 22 日時点の) &man.sort.1; に置き換えられました。</para>
+      <para><application>GNU sort</application> has been updated to
+	the version from <application>GNU textutils
+	2.0.21</application>.</para>
 
+      <para>&man.stat.1; from <application>NetBSD</application>, as of
+	5 June 2002 has, been imported.</para>
+
+      <para><application>GNU tar</application> has been updated to
+	1.13.25. &merged;</para>
 
       <para><application>tcpdump</application> がバージョン
-        3.6.3 に更新されました. &merged;</para>
+        3.7.1 に更新されました. &merged;</para>
 
       <para>&man.csh.1; シェルが &man.tcsh.1; に置き換えられました.
         ただし <command>csh</command> というコマンド名はそのまま使用できます.
-        <application>tcsh</application> はバージョン 6.11 に更新されました.
+        <application>tcsh</application> はバージョン 6.12 に更新されました.
         &merged;</para>
 
       <para><application>tcp_wrappers</application> の寄贈版
@@ -3353,32 +4271,35 @@ hw.pcic.irq="0"</programlisting>
 	標準的な &os; インストールでは (&man.inetd.8; がすでに
 	この機能を統合しているため) これは必ずしも必要というわけでは
 	ありませんが, <application>xinetd</application> のような
-	&man.inetd.8; を置き換えるアプリケーションには有用です.</para>
+	&man.inetd.8; を置き換えるアプリケーションには有用です. &merged;</para>
 
       <para><application>texinfo</application> がバージョン
-        4.1 に更新されました。
+        4.2 に更新されました。
         &merged;</para>
 
       <para><application>top</application> がバージョン 3.5b12
-	に更新されました.</para>
+	に更新されました. &merged;</para>
 
-      <para>&man.traceroute.8; は,
+      <para><application>traceroute</application> has been updated to
+        LBL version 1.4a12.</para>
+
+      <para role="historic">&man.traceroute.8; は,
         デフォルトの最大 TTL 値を
         <varname>net.inet.ip.ttl</varname> sysctl 変数から得るようになりました.
         &merged;</para>
 
-      <para>タイムゾーンデータベースが
-	<filename>tzdata2001d</filename> リリースに更新されました.
+      <para role="historic">タイムゾーンデータベースが
+	<filename>tzdata2002c</filename> リリースに更新されました.
 	&merged;</para>
 
       <sect4>
         <title>CVS</title>
 
         <para><application>cvs</application>
-	  がバージョン 1.11.1p1 に更新されました.
+	  がバージョン 1.11.2 に更新されました.
           &merged;</para>
 
-        <para>&man.cvs.1; が利用する <envar>CVS_RSH</envar> 環境変数の
+        <para role="historic">&man.cvs.1; が利用する <envar>CVS_RSH</envar> 環境変数の
           既定値が <literal>rsh</literal> ではなく
           <literal>ssh</literal> になりました.
           &merged;</para>
@@ -3390,7 +4311,7 @@ hw.pcic.irq="0"</programlisting>
           ファイルを更新するためのものです.
           &merged;</para>
 
-	<para>&man.cvs.1; <literal>diff</literal> に新しいオプション
+	<para role="historic">&man.cvs.1; <literal>diff</literal> に新しいオプション
           <option>-j</option> が追加されました.
           これはブランチタグのリビジョンとの比較を実現します.
           &merged;</para>
@@ -3399,7 +4320,7 @@ hw.pcic.irq="0"</programlisting>
       <sect4>
         <title>CVSup</title>
 
-        <para><application>CVSup</application> は
+        <para role="historic"><application>CVSup</application> は
           &os; Ports Collection で良く使われるユーティリティの一つです.
           以前はこれをインストールする複数の port/package が存在しましたが,
           <filename role="package">net/cvsup-bin</filename> および
@@ -3407,7 +4328,7 @@ hw.pcic.irq="0"</programlisting>
           は廃止され, <filename role="package">net/cvsup</filename>
 	  になりました. &merged;</para>
 
-        <para>&os; Ports Collection の
+        <para role="historic">&os; Ports Collection の
 	  <filename role="package">net/cvsup</filename>
           からインストールできる
           <application>CVSup</application> は 16.1_3 に更新されています. 
@@ -3421,7 +4342,7 @@ hw.pcic.irq="0"</programlisting>
       <sect4 id="kame-userland">
         <title>KAME</title>
 
-        <para>IPv6 スタックが KAME プロジェクトの
+        <para role="historic">IPv6 スタックが KAME プロジェクトの
           2001 年 5 月 28 日づけの
 	  スナップショットをベースとしたものになりました.
           この節の項目のほとんどは, それが取り込まれたことによるものです.
@@ -3429,36 +4350,33 @@ hw.pcic.irq="0"</programlisting>
           <xref linkend="kame-kernel"> にあります.
             &merged;</para>
 
-	<para>&man.faithd.8; がアクセス制御用の設定ファイルに対応しました.
+	<para role="historic">&man.faithd.8; がアクセス制御用の設定ファイルに対応しました.
           &merged;</para>
 
-	<para>&man.ifconfig.8; に &man.gifconfig.8; の機能が統合されました.
+	<para role="historic">&man.ifconfig.8; に gifconfig(8) の機能が統合されました.
           &merged;</para>
 
-	<para>&man.ifconfig.8; に &man.prefix.8; の機能が統合されました. 
-          後方互換性を確保するため, &man.prefix.8;
-          はシェルスクリプトとして残されています.
-          &merged;</para>
+	<para role="historic">&man.ifconfig.8; に &man.prefix.8; の機能が統合されました. &merged;</para>
 
-	<para>&man.ndp.8; に対して, RFC2461
+	<para role="historic">&man.ndp.8; に対して, RFC2461
           (Neighbor Discovery for IP Version 6 (IPv6))
           に書かれているような無効になった NDP
           エントリに対するガベージコレクションが実装されました.
           &merged;</para>
 
-        <para>制限されたライセンス条件を持った
+        <para role="historic">制限されたライセンス条件を持った
           &man.pim6dd.8; および &man.pim6sd.8; が削除されました.
           これらのプログラムは Ports Collection の一部として
           <filename role="package">net/pim6dd</filename>,
           <filename role="package">net/pim6dd</filename> から利用可能です.
           &merged;</para>
 
-	<para>&man.route6d.8; に新しいオプション
+	<para role="historic">&man.route6d.8; に新しいオプション
           <option>-n</option> が追加されました.
           これはカーネルの転送テーブルの更新を抑制するためのものです.
           &merged;</para>
 
-	<para>&man.rtadvd.8; に対する <option>-R</option>
+	<para role="historic">&man.rtadvd.8; に対する <option>-R</option>
 	  (ルータ再ナンバリング)
           オプションは, 現時点では無視されるようになっています.
           &merged;</para>
@@ -3487,7 +4405,7 @@ hw.pcic.irq="0"</programlisting>
 	  &merged;</para>
 
 	<para><application>OpenSSH</application> が 3.1 に更新されました.
-	  変更点は:
+	  &merged; 変更点は:
 	  <itemizedlist>
 	    <listitem>
 	      <para><filename>*2</filename> は廃止されました
@@ -3514,25 +4432,43 @@ hw.pcic.irq="0"</programlisting>
 	    </itemizedlist>
 	  </para>
 
-	<para><application>OpenSSH</application>
-	  は <application>OPIE</application> パスワードで
-	  認証できるようになりました.</para>
+	<para><application>OpenSSH</application> has been updated to
+	  3.4p1. &merged; The main changes are:
+	    <itemizedlist>
+	      <listitem>
+	        <para>A <quote>privilege separation</quote> feature,
+		  which uses unprivileged processes to contain and
+		  restrict the effects of future compromises or
+		  programming errors.</para>
+	      </listitem>
 
-        <para><application>OpenSSH</application> が
-          <application>PAM</application> に対応しました.</para>
+	      <listitem>
+	        <para>Several bugfixes, including closure of a
+		  security hole that could lead to an integer overflow
+		  and undesired privilege escalation.</para>
+	      </listitem>
+	    </itemizedlist>
+	  </para>
+
+	<para role="historic"><application>OpenSSH</application>
+	  は <application>OPIE</application> パスワードで
+	  認証できるようになりました. &merged;</para>
+
+        <para role="historic"><application>OpenSSH</application> が
+          <application>PAM</application> に対応しました. &merged;</para>
           
-	<para><application>OpenSSH</application> にかなり前から存在した
+	<para role="historic"><application>OpenSSH</application> にかなり前から存在した
           転送された X11
           クライアントが終了する時にセションが
-	  切断されてしまうというバグが修正されました.</para>
+	  切断されてしまうというバグが修正されました. &merged;</para>
 
-	<para><application>OpenSSH</application>
+	<para role="historic"><application>OpenSSH</application>
           に
           <application>Kerberos</application> 互換機能が
           追加されました.
           &merged;</para>
 
-	<para><application>OpenSSH</application> に対して,
+	<para role="historic"><application>OpenSSH</application> に対して,
           パスワード長を知るために <quote>echo されない</quote>
 	  文字を空パケットで
           echo されるように指定したり,
@@ -3540,27 +4476,28 @@ hw.pcic.irq="0"</programlisting>
           トラフィック解析への耐性を高めるための変更が行なわれました.
           &merged;</para>
 
-        <para>新規インストール時の標準設定で
+        <para role="historic">新規インストール時の標準設定で
           &man.sshd.8; が有効化されるようになりました.
           &merged;</para>
 
-        <para>&man.sshd.8; サーバは標準設定で
+        <para role="historic">&man.sshd.8; サーバは標準設定で
           <literal>X11Forwarding</literal> が有効化されるようになりました
           (危険性はクライアント側にのみ存在し,
           クライアント側の標準設定は無効になっています).
           &merged;</para>
 
-	<para><filename>/etc/ssh/sshd_config</filename>
+	<para role="historic"><filename>/etc/ssh/sshd_config</filename>
           の
           <literal>ConnectionsPerPeriod</literal> パラメータが
           <literal>MaxStartups</literal> に置き換えられました.
           &merged;</para>
 
-	<para><application>OpenSSH</application> の
+	<para role="historic"><application>OpenSSH</application> の
           &man.sshd.8; に新しい設定項目
           <literal>VersionAddendum</literal> が追加されました.
           これは <application>OpenSSH</application>
           のメインバージョン番号の後ろに続く文字列を変更するためのものです.
+	  &merged;
 	</para>
       </sect4>
 
@@ -3568,9 +4505,9 @@ hw.pcic.irq="0"</programlisting>
         <title>OpenSSL</title>
 
 	<para><application>OpenSSL</application> がバージョン
-          0.9.6c に更新されました.</para>
+          0.9.6g に更新されました.</para>
 
-	<para><application>OpenSSL</application>
+	<para role="historic"><application>OpenSSL</application>
           がマシン依存のアセンブラ最適化に対応しました.
           これは <filename>make.conf</filename> 変数
           <varname>MACHINE_CPU</varname> および <varname>CPUTYPE</varname>
@@ -3582,10 +4519,10 @@ hw.pcic.irq="0"</programlisting>
 	<title>sendmail</title>
 
 	<para><application>sendmail</application> がバージョン
-          8.9.3 からバージョン 8.12.2 に更新されました.
+          8.9.3 からバージョン 8.12.6 に更新されました.
           これには重要な変更点として,
-	  &man.sendmail.8; は set-user-ID root バイナリとして
-	  インストールされなくなったこと (set-group-ID smmsp されます),
+	  &man.sendmail.8; は set-user-ID <username>root</username> バイナリとして
+	  インストールされなくなったこと (set-group-ID <groupname>smmsp</groupname> されます),
           標準のファイル配置の変更
           (<filename>/usr/src/contrib/sendmail/cf/README</filename> 参照),
           &man.newaliases.1; の実行が
@@ -3597,7 +4534,7 @@ hw.pcic.irq="0"</programlisting>
           をご覧ください.
           &merged;</para>
 
-	<para>&man.mail.local.8; が set-user-ID バイナリとしてインストール
+	<para role="historic">&man.mail.local.8; が set-user-ID バイナリとしてインストール
 	  されなくなりました.
           &os; に標準で含まれる <filename>sendmail.cf</filename>
 	  を使用している場合,
@@ -3613,29 +4550,29 @@ hw.pcic.irq="0"</programlisting>
           対応する <filename>.mc</filename> ファイルに次の行を追加して
           <filename>sendmail.cf</filename> ファイルを再生成します.</para>
 
-	<programlisting>MODIFY_MAILER_FLAGS(`LOCAL',`+S')dnl</programlisting>
+	<programlisting role="historic">MODIFY_MAILER_FLAGS(`LOCAL',`+S')dnl</programlisting>
 
-	<para><literal>FEATURE(`local_lmtp')</literal>
+	<para role="historic"><literal>FEATURE(`local_lmtp')</literal>
           には, 上記の機能が含まるようになっています.
           &merged;</para>
 
-	<para>標準の <filename>/etc/mail/sendmail.cf</filename> において,
+	<para role="historic">標準の <filename>/etc/mail/sendmail.cf</filename> において,
           SMTP の <literal>EXPN</literal> および
           <literal>VRFY</literal> コマンドが無効化されました.
           &merged;</para>
 
-	<para>&man.vacation.1; が更新され,
+	<para role="historic">&man.vacation.1; が更新され,
           <application>sendmail</application>
           に含まれるバージョンを使用するようになりました.
           &merged;</para>
 
-	<para><application>sendmail</application>
+	<para role="historic"><application>sendmail</application>
           設定ファイル構築ツールが
           <filename>/usr/share/sendmail/cf/</filename>
           にインストールされるようになりました.
           &merged;</para>
 
-	<para>新しい <filename>make.conf</filename> 変数
+	<para role="historic">新しい <filename>make.conf</filename> 変数
           <varname>SENDMAIL_MC</varname> および
           <varname>SENDMAIL_ADDITIONAL_MC</varname> が追加されました.
           詳細については
@@ -3644,7 +4581,7 @@ hw.pcic.irq="0"</programlisting>
           をご覧ください.
           &merged;</para>
 
-	<para><filename>/etc/mail/Makefile</filename> に対して,
+	<para role="historic"><filename>/etc/mail/Makefile</filename> に対して,
           新しい <filename>make.conf</filename> 変数
           <varname>SENDMAIL_MC</varname> への対応,
           <filename>.mc</filename> ファイルから
@@ -3655,7 +4592,7 @@ hw.pcic.irq="0"</programlisting>
           を停止・起動・再起動する機能の追加が行なわれました.
           &merged;</para>
 
-	<para><filename>/etc/master.passwd</filename> に
+	<para role="historic"><filename>/etc/master.passwd</filename> に
 	  <username>smmsp</username> ユーザと
 	  <username>mailnull</username> ユーザが追加されました.
 	  明示的に <literal>confDEF_USER_ID</literal> を設定していない
@@ -3673,56 +4610,93 @@ hw.pcic.irq="0"</programlisting>
 	  ファイルに以下の設定を加えます:
 	  <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
 	</para>
+
+	<para role="historic">Beginning with the import of
+	  <application>sendmail</application> 8.12.2, multiple
+	  <application>sendmail</application> daemons (some required
+	  to handle outgoing mail) are started by &man.rc.8;, even if
+	  the <varname>sendmail_enable</varname> variable is set to
+	  <literal>NO</literal>.  To completely disable
+	  <application>sendmail</application>,
+	  <varname>sendmail_enable</varname> must be set to
+	  <literal>NONE</literal>.  Alternatively, for systems using a
+	  different MTA, the <varname>mta_start_script</varname> variable can
+	  be used to point to a different startup script (more details
+	  can be found in &man.rc.sendmail.8;). &merged;</para>
+
+	<para>By default, &man.rc.8; no longer enables
+	  <application>sendmail</application> for inbound SMTP
+	  connections.  Note that &man.sysinstall.8; may override this
+	  default for a binary installation, based on what security
+	  profile is selected.  This functionality can also be
+	  manually enabled by adding the following line to
+	  <filename>/etc/rc.conf</filename>:</para>
+
+	<programlisting>sendmail_enable="YES"</programlisting>
+
+	<para>The permissions for <application>sendmail</application>
+	  alias and map databases built via
+	  <filename>/etc/mail/Makefile</filename> now default to mode
+	  0640 to protect against a file locking local denial of service.
+	  It can be changed by setting the new
+	  <varname>SENDMAIL_MAP_PERMS</varname>
+	  <filename>make.conf</filename> option. &merged;</para>
+
+	<para>The permissions for the <application>sendmail</application>
+	  statistics file, <filename>/var/log/sendmail.st</filename>, have
+	  been changed from mode 0644 to mode 0640 to protect against
+	  a file locking local denial of service. &merged;</para>
+
       </sect4>
     </sect3>
 
     <sect3>
-      <title>Ports/Packages Collection</title>
+      <title>Ports/Packages Collection Infrastructure</title>
 
       <para><application>Perl</application> と
         &os; Ports Collection の統合を強化するために
         <application>BSDPAN</application>
         というモジュール集が追加されました.</para>
 
-      <para>&man.pkg.create.1; および &man.pkg.add.1; が,
+      <para role="historic">&man.pkg.create.1; および &man.pkg.add.1; が,
         &man.bzip2.1; を使って圧縮された package に対応しました.
         また, &man.pkg.add.1; が新しい package
         を取得するミラーサイトを PACKAGEROOT
         環境変数から得るようになっています.</para>
 
-      <para>&man.pkg.create.1; における依存関係の記録が,
+      <para role="historic">&man.pkg.create.1; における依存関係の記録が,
         コマンドラインの指定順ではなく依存関係の順番で
 	行なわれるようになりました.
         これにより <command>pkg_add -r</command> の機能性が向上しています.
         &merged;</para>
 
-      <para>&man.pkg.create.1; はローカルにインストールされた
+      <para role="historic">&man.pkg.create.1; はローカルにインストールされた
 	パッケージからパッケージを作成する <option>-b</option>
 	をサポートしました. &merged;</para>
 
-      <para>&man.pkg.delete.1; に複数の package を削除するように指定した際に,
+      <para role="historic">&man.pkg.delete.1; に複数の package を削除するように指定した際に,
         コマンドラインの指定順ではなく依存関係順に
 	削除が行なわれるようになりました.
         &merged;</para>
 
-      <para>&man.pkg.delete.1; が package 名のグロブ指定・
+      <para role="historic">&man.pkg.delete.1; が package 名のグロブ指定・
 	正規表現指定に対応しました.
         また, package すべてを削除する <option>-a</option> オプション,
         &man.rm.1; 風に対話型の確認を行なう <option>-i</option>
         オプションも追加されています.
         &merged;</para>
 
-      <para>&man.pkg.delete.1; に, 再帰的にパッケージを削除する
+      <para role="historic">&man.pkg.delete.1; に, 再帰的にパッケージを削除する
 	<option>-r</option> オプションが追加されました. &merged;</para>
 
-      <para>&man.pkg.info.1; が,
+      <para role="historic">&man.pkg.info.1; が,
 	インストール済み package のグロブ指定に対応しました.
         この機能は <option>-G</option> オプションで無効化できます.
         また, <option>-x</option>
         オプションでシェルグロブではなく正規表現を使うように制御可能です.
         &merged;</para>
 
-      <para>&man.pkg.info.1; に新しいオプション <option>-g</option>
+      <para role="historic">&man.pkg.info.1; に新しいオプション <option>-g</option>
         が追加されました. 
         これはインストール済みの package と記録されているチェックサム
         を (インストール後に変更されていないかどうか) 比較します.
@@ -3730,30 +4704,36 @@ hw.pcic.irq="0"</programlisting>
         <filename>/var/db/pkg</filename> の内容に依存します.
         &merged;</para>
 
-      <para>新しく &man.pkg.sign.1; コマンド,
+      <para role="historic">新しく &man.pkg.sign.1; コマンド,
         &man.pkg.check.1; コマンドが追加されました.
         これらはバイナリ package の電子署名を行なったり,
         署名の検証を行なうためのものです.
         &merged;</para>
 
-      <para>新しいユーティリティ &man.pkg.update.1; が追加されました.
-        これはインストール済み package とその依存物を更新するためのものです.
-        &merged;</para>
+      <para>For some time, &os; 5.0-CURRENT (as well as some 4.X
+	releases) included a pkg_update(1) utility to update installed
+	packages, as well as their dependencies.  This utility has
+	been removed; a superset of its functionality can be found in
+	the <filename role="package">sysutils/portupgrade</filename>
+	port.</para>
 
-      <para>&man.pkg.version.1; のバージョン番号比較ルーチンが,
+      <para role="historic">&man.pkg.version.1; のバージョン番号比較ルーチンが,
         Porters Handbook (日本語訳:「port 作成者のためのハンドブック」)
         に書かれていとおりのものになりました.
         また, アドレス比較テストを行なうための新しいオプション
         <option>-t</option> も追加されています.
         &merged;</para>
 
-      <para>&man.pkg.version.1; に新しいオプション
+      <para role="historic">&man.pkg.version.1; に新しいオプション
         <option>-s</option> が追加されました.
         これは, 操作対象を指定された文字列とマッチする
         ports/packages に制限するためのものです.
         &merged;</para>
 
-      <para>インストール済み package のバージョン番号の文法が
+      <para>&man.pkg.version.1;, formerly a Perl script, has been
+        rewritten in C.</para>
+
+      <para role="historic">インストール済み package のバージョン番号の文法が
         (後方互換性のある) 新しいものに変わりました.
         これは 
         Ports Collection <filename>Makefile</filename> 群にある
@@ -3768,20 +4748,145 @@ hw.pcic.irq="0"</programlisting>
         この新方式のバージョン番号の比較に対応しました.
         &merged;</para>
 
-      <para>パフォーマンスおよびディスク使用効率向上のため,
+      <para role="historic">パフォーマンスおよびディスク使用効率向上のため,
         &os; Ports Collection にある
         <quote>ports スケルトン</quote> の再構成が行なわれました.
         インストール済みの ports や packages には影響ありません.
         &merged;</para>
 
-      <para>すべての packages および ports に新しく
+      <para role="historic">すべての packages および ports に新しく
         <quote>origin</quote> 指示子が追加されました.
         これは package がどのディレクトリで構築されたかを
         &man.pkg.version.1; のようなプログラムから容易に
         調べられるようにするためのものです.
         &merged;</para>
+
+      <para>The Ports Collection infrastructure now uses
+        <application>XFree86</application> 4.2.1 as the default version
+        of the X Window System for the purposes of satisfying
+        dependencies.  To return to using
+        <application>XFree86</application> 3.3.6, add the following line
+        to <filename>/etc/make.conf</filename>: &merged;</para>
+
+      <programlisting>XFREE86_VERSION=3</programlisting>
+
+      <para>The libraries installed by the <filename
+	role="package">emulators/linux_base</filename> port (required
+	for Linux emulation) have been updated; they now correspond to
+	those included with <application>Red Hat Linux</application>
+	7.1. &merged;</para>
+
+      <para>By default, packages generated by the Ports Collection (as
+	well as the packages on the FTP sites) are now compressed
+	using &man.bzip2.1;, rather than &man.gzip.1;.  (Thus, they
+	now have a <filename>.tbz</filename> extension, rather than a
+	<filename>.tgz</filename> extension.)  The package
+	tools have been updated to handle the new format. &merged;</para>
     </sect3>
   </sect2>
+
+  <sect2>
+    <title>Release Engineering and Integration</title>
+
+    <para>The <filename>bin</filename> distribution has been renamed
+      <filename>base</filename>, in order to make creation of combined
+      install/recovery disks easier.</para>
+
+    <para arch="i386">ISO images and CDROMs now use the
+      <filename>cdboot</filename> boot loader by default.  This
+      eliminates the need for an emulated floppy disk image on
+      a bootable CDROM and allows for a full
+      <filename>GENERIC</filename> kernel to be used for CDROM
+      installations, at the expense of compatability with some old
+      BIOSs.</para>
+
+    <para arch="i386,pc98,alpha" role="historic"><application>XFree86</application> 4.2.0
+      is now the default version of the X Window System supported by
+      &man.sysinstall.8;.  It installs
+      <application>XFree86</application> as a set of standard binary
+      packages, so the usual package utilities such as
+      &man.pkg.info.1; can be used to examine/manipulate its
+      components. &merged;</para>
+
+    <para>It is now possible to make releases of &os;
+      5-CURRENT on a &os; 4-STABLE host and vice versa.  Cross-architecture
+      (building a release for a target architecture on a host of a
+      different architecture) releases are also possible.  See
+      &man.release.7; for details. &merged;</para>
+
+    <para>A third <filename>drivers.flp</filename> floppy has been
+      added to floppy releases.  It holds loadable modules
+      containing drivers that do not fit in the kernel on the
+      <filename>kern.flp</filename> disk or in the
+      <filename>mfsroot.flp</filename> image.</para>
+  </sect2>
+
+  <sect2>
+    <title>Documentation</title>
+
+    <para>A number of formerly-encumbered documents from the 4.4 BSD
+      Programmer's Supplementary Documents have been restored to
+      <filename>/usr/share/doc/psd</filename>.  These include:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><emphasis>The UNIX Time-Sharing System</emphasis>
+	  (<filename>01.cacm</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>UNIX Implementation</emphasis>
+	  (<filename>02.implement</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>The UNIX I/O System</emphasis>
+	  (<filename>03.iosys</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>UNIX Programming &mdash; Second Edition</emphasis>
+	  (<filename>04.uprog</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>The C Programming Language &mdash; Reference Manual</emphasis>
+	  (<filename>06.Clang</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>Yacc: Yet Another Compiler-Compiler</emphasis>
+	  (<filename>15.yacc</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>Lex &mdash; A Lexical Analyzer Generator</emphasis>
+	  (<filename>16.lex</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>The M4 Macro Processor</emphasis>
+	  (<filename>17.m4</filename>)</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>Several formerly-encumbered documents from the 4.4 BSD
+      User's Supplementary Documents have been restored to
+      <filename>/usr/share/doc/usd</filename>.  They include:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><emphasis>NROFF/TROFF User's Manual</emphasis>
+	  (<filename>21.troff</filename>)</para>
+      </listitem>
+
+      <listitem>
+        <para><emphasis>A TROFF Tutorial</emphasis>
+	  (<filename>22.trofftut</filename>)</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
 </sect1>
 
 <sect1>
@@ -3813,6 +4918,12 @@ hw.pcic.irq="0"</programlisting>
 	  行う.
 	  この方法はもっとも柔軟性に富んでいますが, 多くのディスク
 	  スペース, 時間, 技術的な専門知識を必要とします.
+	  More information can be found
+	  in the <ulink
+	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"><quote>Using
+	  <command>make world</command></quote></ulink> section of the <ulink
+	  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
+	  Handbook</ulink>.
 	  とても古いバージョンの &os; からのアップグレードは
 	  危険を伴います. このような場合にはバイナリアップグレード
 	  か完全な再インストールを行う方が効果的です.</para>
@@ -3828,9 +4939,9 @@ hw.pcic.irq="0"</programlisting>
 
   <para>そして, &os; の -STABLE もしくは -CURRENT ブランチを追う
     いくつかの方法のうちの一つを使おうと思うのなら,
-    <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD
       ハンドブック</ulink> の
-    <ulink url="http://www.FreeBSD.org/handbook/current-stable.html">
+    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html">
       <quote>-CURRENT と -STABLE</quote></ulink>
     セクションを読んでください.</para>
 
