@@ -98,7 +98,8 @@ arguments is printed, e.g.,
 .Dq Li "last root -t console"
 would list all of
 .Dq Li root Ns 's
-sessions as well as all sessions on the console terminal. If no
+sessions as well as all sessions on the console terminal.
+If no
 users, hostnames or terminals are specified,
 .Nm last
 prints a record of
@@ -128,7 +129,8 @@ login data base
 .Xr ac 8
 .Sh BUGS
 If a login shell should terminate abnormally for some reason, it is likely
-that a logout record won't be written to the wtmp file. In this case,
+that a logout record won't be written to the wtmp file.
+In this case,
 .Nm last
 will indicate the logout time as "shutdown".
 .Sh HISTORY

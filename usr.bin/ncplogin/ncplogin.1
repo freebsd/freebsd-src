@@ -26,15 +26,19 @@
 .Sh DESCRIPTION
 Connections to a NetWare server can be created and used independently from
 .Xr mount_nwfs 8
-command. Connection can be created by any user. Each user can have multiple
+command. Connection can be created by any user.
+Each user can have multiple
 connections, but NetWareServer:NetWareUser pair should be unique.
 .Pp
 The
 .Nm ncplogin
-command used to create permanent connection to a NetWare server. Permanent
-connection will stay connected even if no applications use it. This allows
+command used to create permanent connection to a NetWare server.
+Permanent
+connection will stay connected even if no applications use it.
+This allows
 user to run different ncp* programs without specifying file server and user
-to use. This connection can be destroyed by
+to use.
+This connection can be destroyed by
 .Xr ncplogout 1 
 command.
 .Pp
@@ -52,7 +56,8 @@ syntax.
 The options are:
 .Bl -tag -width indent
 .It Fl S Ar server
-name of NetWare server to connect. This affect only IPX severs for native IP
+name of NetWare server to connect.
+This affect only IPX severs for native IP
 see 
 .Fl A
 option.
@@ -65,8 +70,10 @@ parameter.
 .It Fl C
 don't convert password to uppercase.
 .It Fl D
-Marks connection as primary. Can be used to modify already established 
-connection. Only
+Marks connection as primary.
+Can be used to modify already established 
+connection.
+Only
 .Nm
 program accept that option.
 .It Fl I Ar signature_level
@@ -81,7 +88,8 @@ Value   Meaning
 .Ed
 Please note that only packet headers signing are implemented.
 .It Fl M Ar mode
-Just like files connections can be shared by users. The bits in
+Just like files connections can be shared by users.
+The bits in
 .Ar mode
 argument behaves much like file permissions:
 .Bd -literal -offset indent
@@ -91,50 +99,62 @@ Mask    Meaning
 1	EXECUTE - user allowed to execute requests.
 .Ed
 By default connection created with mode 0700 and only owner can do
-anything with it. If you want to share the connection, for example with group 
-you may specify 0750 value. This means group can do NCP request, but can't
-destroy connection. When user doesn't explicitly specify server to use, ncp*
+anything with it.
+If you want to share the connection, for example with group 
+you may specify 0750 value.
+This means group can do NCP request, but can't
+destroy connection.
+When user doesn't explicitly specify server to use, ncp*
 programs try to find suitable connection in the next order:
 .Pp
-1. Try to find connection owned by user. If there is more than one such 
-connection it try to figure out which is primary. Primary flag controlled
+1. Try to find connection owned by user.
+If there is more than one such 
+connection it try to figure out which is primary.
+Primary flag controlled
 by
 .Fl D
 option.
 .Pp
 2. If previous fail, first shared connection will be used.
 .It Fl N
-don't ask for a password. While loading
+don't ask for a password.
+While loading
 .Nm
 reads ~/.nwfsrc file to get additional configuration parameters and
-password. If no password found for the specified SERVER:USER pair,
+password.
+If no password found for the specified SERVER:USER pair,
 .Nm
 prompts for it.
 .It Fl O
 Just like files, connection has 
 .Ar owner and
 .Ar group
-attributes. Newly created connection takes
+attributes.
+Newly created connection takes
 .Ar owner
 parameter from creator's userid and
 .Ar group
 paramter
 from creator's primary group.
-This can be overrided with this option. Only superuser can override an
+This can be overrided with this option.
+Only superuser can override an
 .Ar owner
 parameter.
 .It Fl P
 Marks connection as permanent.
 .Nm
-always create permanent connection. This option can be used in other ncp*
+always create permanent connection.
+This option can be used in other ncp*
 programs.
 .It Fl R Ar retry_count
-specifies number of retries before drop the connection. The default value is 10.
+specifies number of retries before drop the connection.
+The default value is 10.
 
 Note: after connection marked 'BAD' each request will try to restore it.
 This process restore only NCP connection, but do not reopen any opened files.
 .It Fl W Ar timeout
-This specifies server request timeout in seconds. The default is 5 seconds.
+This specifies server request timeout in seconds.
+The default is 5 seconds.
 .It Ar /server:user
 This syntax provided for the sake of simplicity and mutually exclusive with
 .Fl S
@@ -145,12 +165,14 @@ options.
 .Sh FILES
 .Bl -tag -width /var/log/wtmp -compact
 .It Pa ~/.nwfsrc
-keeps static parameters for connections and other information. See
+keeps static parameters for connections and other information.
+See
 .Pa /usr/share/examples/nwclient/dot.nwfsrc
 for details.
 
 .Sh NOTES
-Low level connection management performed by ncp.ko module. For an IPX
+Low level connection management performed by ncp.ko module.
+For an IPX
 protocol it is also necessary to load IPXrouted program.
 
 .Sh BUGS

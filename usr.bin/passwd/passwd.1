@@ -110,13 +110,15 @@ The super-user is not required to provide a user's current password
 if only the local password is modified.
 .Sh NIS INTERACTION
 .Nm Passwd
-has built-in support for NIS. If a user exists in the NIS password
+has built-in support for NIS.
+If a user exists in the NIS password
 database but does not exist locally,
 .Nm passwd
 automatically switches into 
 .if t ``yppasswd''
 .if n "yppasswd"
-mode. If the specified
+mode.
+If the specified
 user does not exist in either the local password database of the
 NIS password maps,
 .Nm passwd
@@ -129,9 +131,11 @@ daemon requires the original password before
 it will allow any changes to the NIS password maps).
 This restriction applies even to the
 super-user, with one important exception: the password authentication is
-bypassed for the super-user on the NIS master server. This means that
+bypassed for the super-user on the NIS master server.
+This means that
 the super-user on the NIS master server can make unrestricted changes to
-anyone's NIS password. The super-user on NIS client systems and NIS slave
+anyone's NIS password.
+The super-user on NIS client systems and NIS slave
 servers still needs to provide a password before the update will be processed.
 .Pp
 The following additional options are supported for use with NIS:
@@ -151,7 +155,8 @@ flag can be used to force
 into 
 .if t ``local only''
 .if n "local only"
-mode. This flag can be used to change the entry
+mode.
+This flag can be used to change the entry
 for a local user when an NIS user exists with the same login name.
 For example, you will sometimes find entries for system 
 .if t ``placeholder''
@@ -160,28 +165,35 @@ users such as
 .Pa bin
 or
 .Pa daemon
-in both the NIS password maps and the local user database. By
+in both the NIS password maps and the local user database.
+By
 default,
 .Nm passwd
-will try to change the NIS password. The
+will try to change the NIS password.
+The
 .Fl l
 flag can be used to change the local password instead.
 .It Fl d Ar domain
-Specify what domain to use when changing an NIS password. By default,
+Specify what domain to use when changing an NIS password.
+By default,
 .Nm passwd
-assumes that the system default domain should be used. This flag is
+assumes that the system default domain should be used.
+This flag is
 primarily for use by the superuser on the NIS master server: a single
-NIS server can support multiple domains. It is also possible that the
+NIS server can support multiple domains.
+It is also possible that the
 domainname on the NIS master may not be set (it is not necessary for
 an NIS server to also be a client) in which case the
 .Nm passwd
 command needs to be told what domain to operate on.
 .It Fl s Ar host
-Specify the name of an NIS server. This option, in conjunction
+Specify the name of an NIS server.
+This option, in conjunction
 with the
 .Fl d
 option, can be used to change an NIS password on a non-local NIS
-server. When a domain is specified with the
+server.
+When a domain is specified with the
 .Fl d
 option and
 .Nm passwd
@@ -192,14 +204,16 @@ be
 .if n "localhost".
 This can be overidden with the
 .Fl s
-flag. The specified hostname need not be the name of an NIS master: the
+flag.
+The specified hostname need not be the name of an NIS master: the
 name of the NIS master for a given map can be determined by querying any
 NIS server (master or slave) in a domain, so specifying the name of a
 slave server will work equally well.
 .Pp
 .It Fl o
 Do not automatically override the password authentication checks for the
-super-user on the NIS master server; assume 'old' mode instead. This
+super-user on the NIS master server; assume 'old' mode instead.
+This
 flag is of limited practical use but is useful for testing.
 .El
 .Sh FILES
