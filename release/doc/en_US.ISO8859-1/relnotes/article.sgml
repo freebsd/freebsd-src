@@ -148,6 +148,7 @@
 
       <para arch="i386">The &man.safe.4; driver has been added
         to support SafeNet 1141, 1741-based crypto accelerators.
+        &merged;
 
         <note>
           <para>The public key support is not implemented.</para>
@@ -169,6 +170,9 @@
       <para>The new &man.ath.4; and &man.ath.hal.4; drivers provide
 	support for 802.11a/b/g devices based on the AR5210, AR5211,
 	and AR5212 chips.</para>
+
+      <para>&man.bge.4; now supports Broadcom 5705 based Gigabit Ethernet NICs.
+        &merged;</para>
 
       <para>A bug in the &man.bge.4; driver that prevented it from
 	working correctly at 10 Mbps has been fixed.</para>
@@ -323,7 +327,8 @@
       the <filename>/stand</filename> directory installed by
       &man.sysinstall.8;, but it <filename>/rescue</filename> includes
       more functionality and is updated by as part of
-      buildworld/installworld operations.
+      buildworld/installworld operations.  More details can be found in
+      &man.rescue.7;.
 
       <note>
         <para>Due to some cross-build interactions,
