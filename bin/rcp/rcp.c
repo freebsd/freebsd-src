@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rcp.c,v 1.6 1996/02/08 21:06:40 pst Exp $
+ *	$Id: rcp.c,v 1.7 1996/02/11 09:01:32 markm Exp $
  */
 
 #ifndef lint
@@ -433,7 +433,7 @@ syserr:			run_err("%s: %s", name, strerror(errno));
 			 * versions expecting microseconds.
 			 */
 			(void)snprintf(buf, sizeof(buf), "T%ld 0 %ld 0\n",
-			    stb.st_mtimespec.ts_sec, stb.st_atimespec.ts_sec);
+			    stb.st_mtimespec.tv_sec, stb.st_atimespec.tv_sec);
 			(void)write(rem, buf, strlen(buf));
 			if (response() < 0)
 				goto next;
@@ -497,7 +497,7 @@ rsource(name, statp)
 		last++;
 	if (pflag) {
 		(void)snprintf(path, sizeof(path), "T%ld 0 %ld 0\n",
-		    statp->st_mtimespec.ts_sec, statp->st_atimespec.ts_sec);
+		    statp->st_mtimespec.tv_sec, statp->st_atimespec.tv_sec);
 		(void)write(rem, path, strlen(path));
 		if (response() < 0) {
 			closedir(dirp);
