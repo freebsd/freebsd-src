@@ -1,5 +1,5 @@
 # Makefile for libpcap
-# $Id: Makefile,v 1.9 1996/08/19 21:00:45 pst Exp $
+# $Id: Makefile,v 1.10 1996/08/20 05:43:51 pst Exp $
 
 LIB=    pcap
 SRCS=	pcap-bpf.c \
@@ -21,18 +21,18 @@ SHLIB_MINOR=1
 #
 # Magic to grab sources out of src/contrib
 #
-DISTDIR?=${.CURDIR}/../../contrib/libpcap
-CFLAGS+=-I${DISTDIR} -I${DISTDIR}/lbl
-.PATH:	${DISTDIR}
-.PATH:	${DISTDIR}/bpf/net
+PCAP_DISTDIR?=${.CURDIR}/../../contrib/libpcap
+CFLAGS+=-I${PCAP_DISTDIR} -I${PCAP_DISTDIR}/lbl
+.PATH:	${PCAP_DISTDIR}
+.PATH:	${PCAP_DISTDIR}/bpf/net
 
 beforeinstall:
-	-cmp -s ${DISTDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h || \
+	-cmp -s ${PCAP_DISTDIR}/pcap.h ${DESTDIR}/usr/include/pcap.h || \
 	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${DISTDIR}/pcap.h ${DESTDIR}/usr/include; )
-	-cmp -s ${DISTDIR}/pcap-namedb.h ${DESTDIR}/usr/include/pcap-namedb.h || \
+	    ${PCAP_DISTDIR}/pcap.h ${DESTDIR}/usr/include; )
+	-cmp -s ${PCAP_DISTDIR}/pcap-namedb.h ${DESTDIR}/usr/include/pcap-namedb.h || \
 	  ( $(INSTALL) -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    ${DISTDIR}/pcap-namedb.h ${DESTDIR}/usr/include; )
+	    ${PCAP_DISTDIR}/pcap-namedb.h ${DESTDIR}/usr/include; )
 
 
 scanner.o: tokdefs.h

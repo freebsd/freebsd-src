@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.12 1996/08/19 21:55:56 pst Exp $
+#	$Id: Makefile,v 1.13 1996/08/20 05:44:01 pst Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_FCNTL_H=1 -DHAVE_NET_SLIP_H=1 -DTIME_WITH_SYS_TIME=1 \
@@ -20,12 +20,12 @@ CLEANFILES+=	version.c
 DPADD+=	${LIBL} ${LIBPCAP}
 LDADD+=	-ll -lpcap
 
-DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
-CFLAGS+= -I${DISTDIR}/lbl
-.PATH:	${DISTDIR}
+TCPDUMP_DISTDIR?= ${.CURDIR}/../../../contrib/tcpdump
+CFLAGS+= -I${TCPDUMP_DISTDIR}/lbl
+.PATH:	${TCPDUMP_DISTDIR}
 
-version.c: ${DISTDIR}/VERSION
+version.c: ${TCPDUMP_DISTDIR}/VERSION
 	rm -f version.c ; \
-	sed 's/.*/char version[] = "&";/' ${DISTDIR}/VERSION > version.c
+	sed 's/.*/char version[] = "&";/' ${TCPDUMP_DISTDIR}/VERSION > version.c
 
 .include <bsd.prog.mk>
