@@ -140,18 +140,6 @@ static char *funcnames[] = {
 	"Security"
 };
 
-struct cardbus_quirk {
-	uint32_t devid;	/* Vendor/device of the card */
-	int	type;
-#define	CARDBUS_QUIRK_MAP_REG	1 /* PCI map register in weird place */
-	int	arg1;
-	int	arg2;
-};
-
-struct cardbus_quirk cardbus_quirks[] = {
-	{ 0 }
-};
-
 /*
  * Handler functions for various CIS tuples
  */
@@ -988,25 +976,15 @@ static void
 cardbus_pickup_maps(device_t cbdev, device_t child)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	struct cardbus_quirk *q;
 	int reg;
 
 	/*
 	 * Try to pick up any resources that was not specified in CIS.
-	 * Some devices (eg, 3c656) does not list all resources required by
-	 * the driver in its CIS.
-	 * XXX: should we do this or use quirks?
+	 * Maybe this isn't any longer necessary now that we have fixed
+	 * CIS parsing and we should filter things here?  XXX
 	 */
-	for (reg = 0; reg < dinfo->pci.cfg.nummaps; reg++) {
+	for (reg = 0; reg < dinfo->pci.cfg.nummaps; reg++)
 		cardbus_add_map(cbdev, child, PCIR_BAR(reg));
-	}
-
-	for (q = &cardbus_quirks[0]; q->devid; q++) {
-		if (q->devid == ((dinfo->pci.cfg.device << 16) | dinfo->pci.cfg.vendor)
-		    && q->type == CARDBUS_QUIRK_MAP_REG) {
-			cardbus_add_map(cbdev, child, q->arg1);
-		}
-	}
 }
 
 int
