@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.44.2.2 1997/02/02 18:55:34 joerg Exp $
+ *	$Id: ip_output.c,v 1.44.2.3 1997/02/03 23:15:51 joerg Exp $
  */
 
 #define _IP_VHL
@@ -1289,18 +1289,17 @@ ip_mloopback(ifp, m, dst)
 		}
 		/*
 		 * NB:
-		 * We can't simply call ip_input() directly because
-		 * the ip_mforward() depends on the `input interface'
-		 * being set to something unreasonable so that we don't
-		 * attempt to forward the looped-back copy.  
-		 * It's also not clear whether there are any lingering
-		 * reentrancy problems in other areas which might be
-		 * exposed by this code.  For the moment, we'll err
-		 * on the side of safety by continuing to abuse
-		 * loinput().
+		 * It's not clear whether there are any lingering
+		 * reentrancy problems in other areas which might
+		 * be exposed by using ip_input directly (in
+		 * particular, everything which modifies the packet
+		 * in-place).  Yet another option is using the
+		 * protosw directly to deliver the looped back
+		 * packet.  For the moment, we'll err on the side
+		 * of safety by continuing to abuse looutput().
 		 */
 #ifdef notdef
-		copym->m_pkthdr.rcvif = &loif[0];
+		copym->m_pkthdr.rcvif = ifp;
 		ip_input(copym)
 #else
 		(void) looutput(ifp, copym, (struct sockaddr *)dst, NULL);
