@@ -54,6 +54,7 @@ _pthread_attr_init(pthread_attr_t *attr)
 		memcpy(pattr, &_pthread_attr_default,
 		    sizeof(struct pthread_attr));
 		pattr->guardsize_attr = _thr_guard_default;
+		pattr->stacksize_attr = _thr_stack_default;
 
 		/* Return a pointer to the attribute object: */
 		*attr = pattr;
