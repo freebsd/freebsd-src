@@ -325,12 +325,12 @@ iso88025_output(ifp, m, dst, rt0)
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
-		l->llc_un.type_snap.ether_type = htons(snap_type);
+		l->llc_snap.ether_type = htons(snap_type);
 		l->llc_dsap = l->llc_ssap = LLC_SNAP_LSAP;
-		l->llc_un.type_snap.control = LLC_UI;
-		l->llc_un.type_snap.org_code[0] =
-			l->llc_un.type_snap.org_code[1] =
-			l->llc_un.type_snap.org_code[2] = 0;
+		l->llc_snap.control = LLC_UI;
+		l->llc_snap.org_code[0] =
+			l->llc_snap.org_code[1] =
+			l->llc_snap.org_code[2] = 0;
 	}
 
 	/*
@@ -434,12 +434,12 @@ iso88025_input(ifp, th, m)
 		    (l->llc_ssap != LLC_SNAP_LSAP))
 			goto dropanyway;
 
-		if (l->llc_un.type_snap.org_code[0] != 0 ||
-		    l->llc_un.type_snap.org_code[1] != 0 ||
-		    l->llc_un.type_snap.org_code[2] != 0)
+		if (l->llc_snap.org_code[0] != 0 ||
+		    l->llc_snap.org_code[1] != 0 ||
+		    l->llc_snap.org_code[2] != 0)
 			goto dropanyway;
 
-		type = ntohs(l->llc_un.type_snap.ether_type);
+		type = ntohs(l->llc_snap.ether_type);
 		m_adj(m, LLC_SNAPFRAMELEN);
 		switch (type) {
 #ifdef INET
