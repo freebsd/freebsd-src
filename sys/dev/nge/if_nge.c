@@ -964,6 +964,8 @@ nge_detach(dev)
 
 	contigfree(sc->nge_ldata, sizeof(struct nge_list_data), M_DEVBUF);
 
+	NGE_LOCK_DESTROY(sc);
+
 	return(0);
 }
 
