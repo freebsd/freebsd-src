@@ -227,7 +227,6 @@ static struct {
 };
 
 static int ParseFindKeyword(char *);
-static int ParseLinkSrc(void *, void *);
 static int ParseDoOp(void *, void *);
 static int ParseAddDep(void *, void *);
 static void ParseDoSrc(int, char *, Lst *);
@@ -335,20 +334,22 @@ Parse_Error(int type, const char *fmt, ...)
  *	to reflect the additional child.
  *---------------------------------------------------------------------
  */
-static int
-ParseLinkSrc(void *pgnp, void *cgnp)
+static void
+ParseLinkSrc(Lst *parents, GNode *cgn)
 {
-    GNode *pgn = pgnp;
-    GNode *cgn = cgnp;
+	LstNode	*ln;
+	GNode *pgn;
 
-    if (Lst_Member(&pgn->children, cgn) == NULL) {
-	Lst_AtEnd(&pgn->children, cgn);
-	if (specType == Not) {
-	    Lst_AtEnd(&cgn->parents, pgn);
+	LST_FOREACH(ln, parents) {
+		pgn = Lst_Datum(ln);
+		if (Lst_Member(&pgn->children, cgn) == NULL) {
+			Lst_AtEnd(&pgn->children, cgn);
+			if (specType == Not) {
+				Lst_AtEnd(&cgn->parents, pgn);
+			}
+			pgn->unmade += 1;
+		}
 	}
-	pgn->unmade += 1;
-    }
-    return (0);
 }
 
 /*-
@@ -407,7 +408,7 @@ ParseDoOp(void *gnp, void *opp)
 	 * anything with their local variables, but better safe than
 	 * sorry.
 	 */
-	Lst_ForEach(&gn->parents, ParseLinkSrc, cohort);
+	ParseLinkSrc(&gn->parents, cohort);
 	cohort->type = OP_DOUBLEDEP|OP_INVISIBLE;
 	Lst_AtEnd(&gn->cohorts, cohort);
 
@@ -551,7 +552,7 @@ ParseDoSrc(int tOp, char *src, Lst *allsrc)
 	if (tOp) {
 	    gn->type |= tOp;
 	} else {
-	    Lst_ForEach(&targets, ParseLinkSrc, gn);
+	    ParseLinkSrc(&targets, gn);
 	}
 	if ((gn->type & OP_OPMASK) == OP_DOUBLEDEP) {
 	    GNode  	*cohort;
@@ -562,7 +563,7 @@ ParseDoSrc(int tOp, char *src, Lst *allsrc)
 		if (tOp) {
 		    cohort->type |= tOp;
 		} else {
-		    Lst_ForEach(&targets, ParseLinkSrc, cohort);
+		    ParseLinkSrc(&targets, cohort);
 		}
 	    }
 	}
