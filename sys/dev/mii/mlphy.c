@@ -243,7 +243,6 @@ mlphy_service(xsc, mii, cmd)
 			(void) mii_phy_auto(sc);
 			msc->ml_linked = 0;
 			return(0);
-			break;
 		case IFM_10_T:
 			/*
 			 * For 10baseT modes, reset and program the
