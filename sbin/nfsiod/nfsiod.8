@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     From: @(#)nfsiod.8	8.2 (Berkeley) 2/22/94
-.\"	$Id$
+.\"	$Id: nfsiod.8,v 1.5 1997/02/22 14:33:05 peter Exp $
 .\"
 .Dd September 22, 1994
 .Dt NFSIOD 8
@@ -53,7 +53,7 @@ It improves performance but is not required for correct operation.
 Unless otherwise specified, a single server is started.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl n
 Specify how many servers are to be started.
 .El
@@ -62,7 +62,7 @@ A client should run enough daemons to handle its maximum
 level of concurrency, typically four to six.
 .Pp
 If
-.Nm nfsiod
+.Nm
 detects that the running kernel does not include
 .Tn NFS
 support, it will attempt to load a loadable kernel module containing
@@ -74,11 +74,11 @@ by way of
 If this fails, or no
 .Tn NFS
 LKM was available,
-.Nm nfsiod
+.Nm
 exits with an error.
 .Pp
 The
-.Nm nfsiod
+.Nm
 utility exits 0 on success, and >0 if an error occurs.
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
@@ -88,6 +88,6 @@ utility exits 0 on success, and >0 if an error occurs.
 .Xr portmap 8
 .Sh HISTORY
 The
-.Nm nfsiod
+.Nm
 utility first appeared in
 .Bx 4.4 .
