@@ -23,23 +23,24 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_apicdefs.s,v 1.1 1997/06/22 16:03:16 peter Exp $
+ *	$Id: mp_apicdefs.s,v 1.2 1997/10/24 14:27:23 phk Exp $
  */
 
 	.globl	lapic_eoi, lapic_svr, lapic_tpr, lapic_irr1, lapic_ver
+	.globl	lapic_icr_lo,lapic_icr_hi,lapic_isr1
 /*
  * Do not clutter our namespace with these unless we need them
  * outside the scope of locore.s
  */
 #if 0
 	.globl	lapic_id,lapic_ver,lapic_tpr,lapic_apr,lapic_ppr,lapic_eoi
-	.globl	lapic_ldr,lapic_dfr,lapic_svr,lapic_isr,lapic_isr0,lapic_isr1
+	.globl	lapic_ldr,lapic_dfr,lapic_svr,lapic_isr,lapic_isr0
 	.globl	lapic_isr2,lapic_isr3,lapic_isr4,lapic_isr5,lapic_isr6
 	.globl	lapic_isr7,lapic_tmr,lapic_tmr0,lapic_tmr1,lapic_tmr2
 	.globl	lapic_tmr3,lapic_tmr4,lapic_tmr5,lapic_tmr6,lapic_tmr7
 	.globl	lapic_irr,lapic_irr0,lapic_irr1,lapic_irr2,lapic_irr3
 	.globl	lapic_irr4,lapic_irr5,lapic_irr6,lapic_irr7,lapic_esr
-	.globl	lapic_icr_lo,lapic_icr_hi,lapic_lvtt,lapic_pcint,lapic_lvt1
+	.globl	lapic_lvtt,lapic_pcint,lapic_lvt1
 	.globl	lapic_lvt2,lapic_lvt3,lapic_ticr,lapic_tccr,lapic_tdcr
 #endif
 	.set	lapic_id,	_lapic + 0x020
