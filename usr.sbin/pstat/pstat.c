@@ -826,6 +826,10 @@ struct {
 	{ TS_LNCH,	'L'},
 	{ TS_TYPEN,	'P'},
 	{ TS_CNTTB,	'N'},
+#ifdef __FreeBSD__
+	{ TS_SNOOP,     's'},
+	{ TS_CAN_BYPASS_L_RINT, 'l'},
+#endif
 	{ 0,	       '\0'},
 };
 
