@@ -29,6 +29,10 @@
 #ifndef _LDPART_H_
 #define	_LDPART_H_
 
+#define _LDP_LOADED 0
+#define _LDP_ERROR  (-1)
+#define _LDP_CACHE  1
+
 int	__part_load_locale(const char *, int*, char *, const char *,
 		    int, int, const char **);
 

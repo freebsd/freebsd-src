@@ -54,12 +54,15 @@ extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale      *_Read_RuneMagi(FILE *);
 
 int
-setrunelocale(encoding)
-	char *encoding;
+setrunelocale(char *encoding)
 {
 	FILE *fp;
 	char name[PATH_MAX];
 	_RuneLocale *rl;
+	int saverr, ret;
+	static char ctype_encoding[ENCODING_LEN + 1];
+	static _RuneLocale *CachedRuneLocale;
+	static int Cached__mb_cur_max;
 
 	if (!encoding || !*encoding || strlen(encoding) > ENCODING_LEN ||
 	    (encoding[0] == '.' &&
@@ -71,12 +74,25 @@ setrunelocale(encoding)
 	/*
 	 * The "C" and "POSIX" locale are always here.
 	 */
-	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
+	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
 		_CurrentRuneLocale = &_DefaultRuneLocale;
 		__mb_cur_max = 1;
 		return (0);
 	}
 
+	/*
+	 * If the locale name is the same as our cache, use the cache.
+	 */
+	if (CachedRuneLocale != NULL &&
+	    strcmp(encoding, ctype_encoding) == 0) {
+		_CurrentRuneLocale = CachedRuneLocale;
+		__mb_cur_max = Cached__mb_cur_max;
+		return (0);
+	}
+
+	/*
+	 * Slurp the locale file into the cache.
+	 */
 	if (_PathLocale == NULL) {
 		char *p = getenv("PATH_LOCALE");
 
@@ -90,7 +106,7 @@ setrunelocale(encoding)
 				return (ENAMETOOLONG);
 			_PathLocale = strdup(p);
 			if (_PathLocale == NULL)
-				return (errno);
+				return (ENOMEM);
 		} else
 			_PathLocale = _PATH_LOCALE;
 	}
@@ -103,25 +119,38 @@ setrunelocale(encoding)
 	if ((fp = fopen(name, "r")) == NULL)
 		return (errno);
 
-	if ((rl = _Read_RuneMagi(fp)) == 0) {
-		fclose(fp);
-		return (EFTYPE);
+	if ((rl = _Read_RuneMagi(fp)) == NULL) {
+		saverr = errno;
+		(void)fclose(fp);
+		return (saverr);
 	}
-	fclose(fp);
+	(void)fclose(fp);
 
-	if (!rl->encoding[0])
-		return (EFTYPE);
-	else if (!strcmp(rl->encoding, "NONE"))
-		return (_none_init(rl));
-	else if (!strcmp(rl->encoding, "UTF2"))
-		return (_UTF2_init(rl));
-	else if (!strcmp(rl->encoding, "EUC"))
-		return (_EUC_init(rl));
-	else if (!strcmp(rl->encoding, "BIG5"))
-		return (_BIG5_init(rl));
-	else if (!strcmp(rl->encoding, "MSKanji"))
-		return (_MSKanji_init(rl));
+	if (strcmp(rl->encoding, "NONE") == 0)
+		ret = _none_init(rl);
+	else if (strcmp(rl->encoding, "UTF2") == 0)
+		ret = _UTF2_init(rl);
+	else if (strcmp(rl->encoding, "EUC") == 0)
+		ret = _EUC_init(rl);
+	else if (strcmp(rl->encoding, "BIG5") == 0)
+		ret = _BIG5_init(rl);
+	else if (strcmp(rl->encoding, "MSKanji") == 0)
+		ret = _MSKanji_init(rl);
 	else
-		return (EFTYPE);
+		ret = EFTYPE;
+	if (ret == 0) {
+		if (CachedRuneLocale != NULL) {
+			/* See euc.c */
+			if (strcmp(CachedRuneLocale->encoding, "EUC") == 0)
+				free(CachedRuneLocale->variable);
+			free(CachedRuneLocale);
+		}
+		CachedRuneLocale = _CurrentRuneLocale;
+		Cached__mb_cur_max = __mb_cur_max;
+		(void)strcpy(ctype_encoding, encoding);
+	} else
+		free(rl);
+
+	return (ret);
 }
 
