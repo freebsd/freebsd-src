@@ -132,6 +132,8 @@ struct targ_softc {
 	 */
 	struct		buf_queue_head rcv_buf_queue;
 	struct		devstat device_stats;
+	dev_t		targ_dev;
+	dev_t		ctl_dev;
 	struct		selinfo snd_select;
 	struct		selinfo rcv_select;
 	targ_state	state;
@@ -243,9 +245,6 @@ targinit(void)
 		printf("targ: Failed to alloc extend array!\n");
 		return;
 	}
-
-	/* If we were successfull, register our devsw */
-	cdevsw_add(&targ_cdevsw);
 }
 
 static void
@@ -489,6 +488,13 @@ targctor(struct cam_periph *periph, void *arg)
 	strncpy(softc->inq_data->vendor, "FreeBSD ", SID_VENDOR_SIZE);
 	strncpy(softc->inq_data->product, "TM-PT           ", SID_PRODUCT_SIZE);
 	strncpy(softc->inq_data->revision, "0.0 ", SID_REVISION_SIZE);
+	softc->targ_dev = make_dev(&targ_cdevsw, periph->unit_number, UID_ROOT,
+				   GID_OPERATOR, 0600, "%s%d",
+				   periph->periph_name, periph->unit_number);
+	softc->ctl_dev = make_dev(&targ_cdevsw, TARG_CONTROL_UNIT, UID_ROOT,
+				   GID_OPERATOR, 0600, "%s%d.ctl",
+				   periph->periph_name, periph->unit_number);
+
 	softc->init_level++;
 	return (CAM_REQ_CMP);
 }
@@ -511,6 +517,8 @@ targdtor(struct cam_periph *periph)
 		/* FALLTHROUGH */
 	case 2:
 		free(softc->inq_data, M_DEVBUF);
+		destroy_dev(softc->targ_dev);
+		destroy_dev(softc->ctl_dev);
 		/* FALLTHROUGH */
 	case 1:
 		free(softc, M_DEVBUF);
