@@ -12,25 +12,25 @@ FORMAT_EXT=	5
 DESC_EXT=	7
 SYS_OPS_EXT=	8
 
-EXT_SED_CMD =	INDOT_U=`echo "${INDOT}"|tr "[a-z]" "[A-Z]"`; \
+EXT_SED_CMD =   INDOT_U=`echo "${INDOT}"|tr "[:lower:]" "[:upper:]"`; \
 		export INDOT_U; \
-		XFER_INDOT_U=`echo "${XFER_INDOT}"|tr "[a-z]" "[A-Z]"`; \
+		XFER_INDOT_U=`echo "${XFER_INDOT}"|tr "[:lower:]" "[:upper:]"`; \
 		export XFER_INDOT_U; \
-		CMD_EXT_U=`echo "${CMD_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		CMD_EXT_U=`echo "${CMD_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export CMD_EXT_U; \
-		SYS_OPS_EXT_U=`echo "${SYS_OPS_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		SYS_OPS_EXT_U=`echo "${SYS_OPS_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export SYS_OPS_EXT_U; \
-		LIB_NETWORK_EXT_U=`echo "${LIB_NETWORK_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		LIB_NETWORK_EXT_U=`echo "${LIB_NETWORK_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export LIB_NETWORK_EXT_U; \
-		FORMAT_EXT_U=`echo "${FORMAT_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		FORMAT_EXT_U=`echo "${FORMAT_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export FORMAT_EXT_U; \
-		DESC_EXT_U=`echo "${DESC_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		DESC_EXT_U=`echo "${DESC_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export DESC_EXT_U; \
-		SYSCALL_EXT_U=`echo "${SYSCALL_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		SYSCALL_EXT_U=`echo "${SYSCALL_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export SYSCALL_EXT_U; \
-		BSD_SYSCALL_EXT_U=`echo "${BSD_SYSCALL_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		BSD_SYSCALL_EXT_U=`echo "${BSD_SYSCALL_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export BSD_SYSCALL_EXT_U; \
-		LIB_C_EXT_U=`echo "${LIB_C_EXT}"|tr "[a-z]" "[A-Z]"`; \
+		LIB_C_EXT_U=`echo "${LIB_C_EXT}"|tr "[:lower:]" "[:upper:]"`; \
 		export LIB_C_EXT_U; \
 		sed -e "s/@INDOT@/${INDOT}/g" \
 		-e "s/@INDOT_U@/$${INDOT_U}/g" \
