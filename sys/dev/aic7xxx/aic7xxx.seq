@@ -43,7 +43,7 @@
 
 VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.18 1995/07/31 08:21:59 gibbs Exp $"
 
-SCBMASK		= 0x1f
+SCBMASK		= 0xff
 
 SCSISEQ		= 0x00
 ENRSELI		= 0x10
@@ -64,6 +64,7 @@ SELDO		= 0x40
 SELDI		= 0x20
 CLRSINT1	= 0x0c
 SSTAT1		= 0x0c
+PHASEMIS	= 0x10
 SIMODE1		= 0x11
 SCSIBUSL	= 0x12
 SHADDR		= 0x14
@@ -99,18 +100,19 @@ SCSICONF_A	= 0x5a
 SCSICONF_B	= 0x5b
 
 #  The two reserved bytes at SCBARRAY+1[23] are expected to be set to
-#  zero, and the reserved bit in SCBARRAY+0 is used as an internal flag
-#  to indicate whether or not to reload scatter-gather parameters after
-#  a disconnect.  We also use bits 6 & 7 to indicate whether or not to
-#  initiate SDTR or WDTR repectively when starting this command.
+#  zero. Bit 3 in SCBARRAY+0 is used as an internal flag to indicate 
+#  whether or not to DMA an SCB from host ram. This flag prevents the
+#  "re-fetching" of transactions that are requed because the target is
+#  busy with another command. We also use bits 6 & 7 to indicate whether 
+#  or not to initiate SDTR or WDTR repectively when starting this command.
 #
 SCBARRAY+0	= 0xa0
 
 DISCONNECTED	= 0x04
 NEEDDMA		= 0x08
-SG_LOAD		= 0x10
+NEEDSDTR	= 0x10
 TAG_ENB		= 0x20
-NEEDSDTR	= 0x40
+DISCENB		= 0x40
 NEEDWDTR	= 0x80
 
 SCBARRAY+1	= 0xa1
@@ -170,11 +172,11 @@ IMMEDDONE	= 0xb1
 #  scratchspace (actually a value that can be copied directly into
 #  SCSIRATE).  The kernel driver will enable synchronous negotiation
 #  for all targets that have a value other than 0 in the lower four
-#  bits of the target scratch space.  This should work irregardless of
-#  whether the bios has been installed. NEEDWDTR and NEEDSDTR are the top
-#  two bits of the SCB control byte.  The kernel driver will set these
-#  when a WDTR or SDTR message should be sent to the target the SCB's 
-#  command references.
+#  bits of the target scratch space.  This should work regardless of
+#  whether the bios has been installed. NEEDSDTR and NEEDWDTR are the
+#  fouth and sevent bits of the SCB control byte.  The kernel driver 
+#  will set these when a WDTR or SDTR message should be sent to the 
+#  target the SCB's command references.
 #
 #  REJBYTE contains the first byte of a MESSAGE IN message, so the driver 
 #  can report an intelligible error if a message is rejected.
@@ -185,9 +187,9 @@ IMMEDDONE	= 0xb1
 #  no idea what the lun is, and we can't select the right SCB register
 #  bank, so force a kernel panic if the target attempts a data in/out or
 #  command phase instead of corrupting something.  FLAGS also contains
-#  configuration bits so that we can optimize for TWIN and WIDE controllers
-#  as well as the MAX_OFFSET bit which we set when we want to negotiate for
-#  maximum sync offset irregardless of what the per target scratch space says.
+#  configuration bits so that we can optimize for TWIN and WIDE controllers,
+#  the MAX_OFFSET bit which we set when we want to negotiate for maximum sync 
+#  offset irregardless of what the per target scratch space says.
 #
 #  Note that SG_NEXT occupies four bytes.
 #
@@ -215,9 +217,9 @@ SIGSTATE	= 0x4b				# value written to SCSISIGO
 # Linux users should use 0xc (12) for SG_SIZEOF
 SG_SIZEOF	= 0x8 				# sizeof(struct ahc_dma)
 #SG_SIZEOF	= 0xc 				# sizeof(struct scatterlist)
-SCB_SIZEOF	= 0x13				# sizeof SCB to DMA (19 bytes)
+SCB_SIZEOF	= 0x1a				# sizeof SCB to DMA (26 bytes)
 
-SG_NOLOAD	= 0x4c				# load SG pointer/length?
+DMAPARAMS	= 0x4c				# Parameters for DMA
 SG_COUNT	= 0x4d				# working value of SG count
 SG_NEXT		= 0x4e				# working value of SG pointer
 SG_NEXT+0	= 0x4e
@@ -229,6 +231,7 @@ SCBCOUNT	= 0x52				# the actual number of SCBs
 FLAGS		= 0x53				# Device configuration flags
 TWIN_BUS	= 0x01
 WIDE_BUS	= 0x02
+DPHASE		= 0x04
 MAX_OFFSET	= 0x08
 ACTIVE_MSG	= 0x20
 IDENTIFY_SEEN	= 0x40
@@ -242,7 +245,6 @@ ACTIVE_B	= 0x55
 SAVED_TCL	= 0x56				# Temporary storage for the 
 						# target/channel/lun of a
 						# reconnecting target
-
 # After starting the selection hardware, we return to the "poll_for_work"
 # loop so that we can check for reconnecting targets as well as for our
 # selection to complete just in case the reselection wins bus arbitration.
@@ -309,11 +311,10 @@ test    SCBARRAY+0,NEEDDMA      jz test_busy
 # Copy the SCB from the FIFO to  the SCBARRAY
 
 	mvi	DINDEX, SCBARRAY+0
-	call	bcopy_3_dfdat 
-	call	bcopy_4_dfdat
-	call	bcopy_4_dfdat
-	call	bcopy_4_dfdat   
-	call	bcopy_4_dfdat
+	call	bcopy_5_dfdat 
+	call	bcopy_7_dfdat
+	call	bcopy_7_dfdat
+	call	bcopy_7_dfdat   
 
 # See if there is not already an active SCB for this target.  This code
 # locks out on a per target basis instead of target/lun.  Although this
@@ -330,7 +331,7 @@ test_busy:
 	test	SCBARRAY+1,0x88	jz test_a	# Id < 8 && A channel
 
 	test	ACTIVE_B,A	jnz requeue
-	test	SCBARRAY+0,0x20	jnz start_scb
+	test	SCBARRAY+0,TAG_ENB	jnz start_scb
 	or	ACTIVE_B,A	# Mark the current target as busy
 	jmp	start_scb
 
@@ -346,7 +347,7 @@ start_waiting:
 
 test_a:
 	test	ACTIVE_A,A	jnz requeue
-	test	SCBARRAY+0,0x20	jnz start_scb
+	test	SCBARRAY+0,TAG_ENB	jnz start_scb
 	or	ACTIVE_A,A	# Mark the current target as busy
 
 start_scb:
@@ -364,8 +365,7 @@ start_scb:
 start_selection:
 	or	SCSISEQ,0x48			# ENSELO|ENAUTOATNO
 	mov	WAITING_SCBH, SCBPTR
-	clr	SG_NOLOAD
-	and	FLAGS,0x3f	# !RESELECTING
+	and	FLAGS,0x3f	# !RESELECTING 
 
 #  As soon as we get a successful selection, the target should go
 #  into the message out phase since we have ATN asserted.  Prepare
@@ -387,14 +387,14 @@ start_selection:
 	jmp     wait_for_selection
 
 identify:
-	mov	SCBARRAY+1	call disconnect	# disconnect ok?
+	and	A,DISCENB,SCBARRAY+0		# mask off disconnect privledge
 
 	and	SINDEX,0x7,SCBARRAY+1		# lun
-	or	SINDEX,A			# return value from disconnect
+	or	SINDEX,A			# or in disconnect privledge
 	or	SINDEX,0x80	call mk_mesg	# IDENTIFY message
 
 	mov	A,SINDEX
-	test	SCBARRAY+0,0xe0	jz  !message	# WDTR, SDTR or TAG??
+	test	SCBARRAY+0,0xb0	jz  !message	# WDTR, SDTR or TAG??
 	cmp	MSG_START+0,A	jne !message	# did driver beat us?
 
 # Tag Message if Tag enabled in SCB control block.  Use SCBPTR as the tag
@@ -470,78 +470,118 @@ ITloop:
 
 p_dataout:
 	mvi	0		call scsisig	# !CDO|!IOO|!MSGO
-	call	assert
-	call	sg_load
-
-	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+19	call bcopy_4
-
-#	mvi	DINDEX,HCNT	# implicit since HCNT is next to HADDR
-	mvi	SCBARRAY+23	call bcopy_3
-
-	mvi	DINDEX,STCNT
-	mvi	SCBARRAY+23	call bcopy_3
-
-# If we are the last SG block, don't set wideodd.
-	test    SCBARRAY+18,0xff jnz p_dataout_wideodd
-	mvi	0x3d		call dma	# SCSIEN|SDMAEN|HDMAEN|
+	mvi	DMAPARAMS,0x7d			# WIDEODD|SCSIEN|SDMAEN|HDMAEN|
 						#   DIRECTION|FIFORESET
-	jmp	p_dataout_rest
+	jmp	data_phase_init
 
-p_dataout_wideodd:
-	mvi	0xbd		call dma	# WIDEODD|SCSIEN|SDMAEN|HDMAEN|
-						#   DIRECTION|FIFORESET
+# If we re-enter the data phase after going through another phase, the
+# STCNT may have been cleared, so restore it from the residual field.
+data_phase_reinit:
+	mvi	DINDEX, STCNT
+	mvi	SCBARRAY+15	call bcopy_3
+	jmp	data_phase_loop
 
-p_dataout_rest:
-#  After a DMA finishes, save the final transfer pointer and count
-#  back into the SCB, in case a device disconnects in the middle of
-#  a transfer.  Use SHADDR and STCNT instead of HADDR and HCNT, since
-#  it's a reflection of how many bytes were transferred on the SCSI
-#  (as opposed to the host) bus.
-#
-	mvi	DINDEX,SCBARRAY+23
-	mvi	STCNT		call bcopy_3
-
-	mvi	DINDEX,SCBARRAY+19
-	mvi	SHADDR		call bcopy_4
-
-	call	sg_advance
-	mov	SCBARRAY+18,SG_COUNT		# residual S/G count
-
-	jmp	ITloop
-
+# Reads should not use WIDEODD since it may make the last byte for a SG segment
+# go to the next segment.
 p_datain:
 	mvi	0x40		call scsisig	# !CDO|IOO|!MSGO
+	mvi	DMAPARAMS,0x39			# SCSIEN|SDMAEN|HDMAEN|
+						#   !DIRECTION|FIFORESET
+data_phase_init:
 	call	assert
-	call	sg_load
+
+	test	FLAGS, DPHASE	jnz data_phase_reinit
+	call	sg_scb2ram
+	or	FLAGS, DPHASE			# We have seen a data phase
+
+data_phase_loop:
+# If we are the last SG block, don't set wideodd.
+	cmp	SG_COUNT,0x01 jne data_phase_wideodd
+	and	DMAPARAMS, 0xbf		        # Turn off WIDEODD 
+data_phase_wideodd:
+	mov	DMAPARAMS  call dma
+
+# Exit if we had an underrun
+	test	SSTAT0,0x04	jz data_phase_finish	# underrun STCNT != 0
+
+#  Advance the scatter-gather pointers if needed 
+#
+sg_advance:
+	dec	SG_COUNT			# one less segment to go
+
+	test	SG_COUNT, 0xff	jz data_phase_finish #Are we done?
+
+	clr	A				# add sizeof(struct scatter)
+	add	SG_NEXT+0,SG_SIZEOF,SG_NEXT+0
+	adc	SG_NEXT+1,A,SG_NEXT+1
+	adc	SG_NEXT+2,A,SG_NEXT+2
+	adc	SG_NEXT+3,A,SG_NEXT+3
+
+#  Load a struct scatter and set up the data address and length.
+#  If the working value of the SG count is nonzero, then
+#  we need to load a new set of values.
+#
+#  This, like all DMA's, assumes a little-endian host data storage.
+#
+sg_load:
+	clr	HCNT+2
+	clr	HCNT+1
+	mvi	HCNT+0,SG_SIZEOF
 
 	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+19	call bcopy_4
+	mvi	SG_NEXT		call bcopy_4
 
-#	mvi	DINDEX,HCNT	# implicit since HCNT is next to HADDR
-	mvi	SCBARRAY+23	call bcopy_3
+	mvi	DFCNTRL,0xd			# HDMAEN|DIRECTION|FIFORESET
 
+#  Wait for DMA from host memory to data FIFO to complete, then disable
+#  DMA and wait for it to acknowledge that it's off.
+#
+	call	dma_finish
+
+#  Copy data from FIFO into SCB data pointer and data count.  This assumes
+#  that the struct scatterlist has this structure (this and sizeof(struct
+#  scatterlist) == 12 are asserted in aic7xxx.c):
+#
+#	struct scatterlist {
+#		char *address;		/* four bytes, little-endian order */
+#		...			/* four bytes, ignored */
+#		unsigned short length;	/* two bytes, little-endian order */
+#	}
+#
+
+# Not in FreeBSD.  the scatter list entry is only 8 bytes.
+# 
+# struct ahc_dma_seg {
+#       physaddr addr;                  /* four bytes, little-endian order */
+#       long    len;                    /* four bytes, little endian order */   
+# };
+#
+
+	mvi	DINDEX,HADDR
+	call	bcopy_7_dfdat
+
+# For Linux, we must throw away four bytes since there is a 32bit gap
+# in the middle of a struct scatterlist
+#	call	bcopy_4_dfdat
+#	mov	NONE,DFDAT
+#	mov	NONE,DFDAT
+#	mov	NONE,DFDAT
+#	mov	NONE,DFDAT
+#	call	bcopy_3_dfdat		#Only support 24 bit length.
+
+# Load STCNT as well.  It is a mirror of HCNT
 	mvi	DINDEX,STCNT
-	mvi	SCBARRAY+23	call bcopy_3
+	mvi	HCNT	call bcopy_3
+        test    SSTAT1,PHASEMIS  jz data_phase_loop
 
-# If we are the last SG block, don't set wideodd.
-	test	SCBARRAY+18,0xff jnz p_datain_wideodd
-	mvi	0x39		call dma	# SCSIEN|SDMAEN|HDMAEN|
-						#   !DIRECTION|FIFORESET
-	jmp	p_datain_rest
-p_datain_wideodd:
-	mvi	0xb9		call dma	# WIDEODD|SCSIEN|SDMAEN|HDMAEN|
-						#   !DIRECTION|FIFORESET
-p_datain_rest:
-	mvi	DINDEX,SCBARRAY+23
+data_phase_finish:
+#  After a DMA finishes, save the SG and STCNT residuals back into the SCB
+#  We use STCNT instead of HCNT, since it's a reflection of how many bytes 
+#  were transferred on the SCSI (as opposed to the host) bus.
+#
+	mvi	DINDEX,SCBARRAY+15
 	mvi	STCNT		call bcopy_3
-
-	mvi	DINDEX,SCBARRAY+19
-	mvi	SHADDR		call bcopy_4
-
-	call	sg_advance
-	mov	SCBARRAY+18,SG_COUNT		# residual S/G count
-
+	mov	SCBARRAY+18, SG_COUNT
 	jmp	ITloop
 
 #  Command phase.  Set up the DMA registers and let 'er rip - the
@@ -552,11 +592,9 @@ p_command:
 	mvi	0x80		call scsisig	# CDO|!IOO|!MSGO
 	call	assert
 
+# Load HADDR and HCNT.  We can do this in one bcopy since they are neighbors
 	mvi	DINDEX,HADDR
-	mvi	SCBARRAY+7	call bcopy_4
-
-#	mvi	DINDEX,HCNT	# implicit since HCNT is next to HADDR
-	mvi	SCBARRAY+11	call bcopy_3
+	mvi	SCBARRAY+7	call bcopy_7
 
 	mvi	DINDEX,STCNT
 	mvi	SCBARRAY+11	call bcopy_3
@@ -678,9 +716,7 @@ p_mesgin:
 #  before the command complete code tried processing it.
 
 # First check for residuals
-	test	SCBARRAY+15,0xff	jnz resid
-	test	SCBARRAY+16,0xff	jnz resid
-	test	SCBARRAY+17,0xff	jnz resid
+	test	SCBARRAY+18,0xff	jnz resid
 
 check_status:
 	test	SCBARRAY+14,0xff	jz status_ok	# 0 Status?
@@ -690,7 +726,7 @@ check_status:
 
 status_ok:
 #  First, mark this target as free.
-	test	SCBARRAY+0,0x20	jnz complete		# Tagged command
+	test	SCBARRAY+0,TAG_ENB	jnz complete		# Tagged command
 	and	FUNCTION1,0x70,SCBARRAY+1
 	mov	A,FUNCTION1
 	test	SCBARRAY+1,0x88 jz clear_a
@@ -774,7 +810,7 @@ p_mesginSDTR:
 p_mesgin2:
 	cmp	A,4		jne p_mesgin3	# disconnect code?
 
-	or	SCBARRAY+0,0x4			# set "disconnected" bit
+	or	SCBARRAY+0,DISCONNECTED
 	jmp	p_mesgin_done
 
 #  Save data pointers message?  Copy working values into the SCB,
@@ -787,13 +823,15 @@ p_mesgin3:
 	jmp	p_mesgin_done
 
 #  Restore pointers message?  Data pointers are recopied from the
-#  SCB anyway at the start of any DMA operation, so the only thing
-#  to copy is the scatter-gather values.
+#  SCB anytime we enter a data phase for the first time, so all
+#  we need to do is clear the DPHASE flag and let the data phase
+#  code do the rest.
 #
 p_mesgin4:
 	cmp	A,3		jne p_mesgin5	# restore pointers code?
 
-	call	sg_scb2ram
+	and	FLAGS,0xfb			# !DPHASE we'll reload them
+						#   the next time through
 	jmp	p_mesgin_done
 
 #  Identify message?  For a reconnecting target, this tells us the lun
@@ -816,8 +854,6 @@ setup_SCB:
 	and	SCBARRAY+0,0xfb			# clear disconnect bit in SCB
 	or	FLAGS,IDENTIFY_SEEN		# make note of IDENTIFY
 
-	call	sg_scb2ram			# implied restore pointers
-						#   required on reselect
 	jmp	ITloop
 get_tag:
 	mvi	A		call inb_first
@@ -885,30 +921,31 @@ p_busfree:
 	jmp	poll_for_work
 
 #  Instead of a generic bcopy routine that requires an argument, we unroll
-#  the two cases that are actually used, and call them explicitly.  This
-#  not only reduces the overhead of doing a bcopy by 2/3rds, but ends up
-#  saving space in the program since you don't have to put the argument 
-#  into the accumulator before the call.  Both functions expect DINDEX to
-#  contain the destination address and SINDEX to contain the source 
-#  address.
+#  the cases that are actually used, and call them explicitly.  This
+#  not only reduces the overhead of doing a bcopy, but ends up saving space 
+#  in the program since you don't have to put the argument into the accumulator
+#  before the call.  Both functions expect DINDEX to contain the destination 
+#  address and SINDEX to contain the source address.
+bcopy_7:
+	mov	DINDIR,SINDIR
+	mov	DINDIR,SINDIR
+bcopy_5:
+	mov	DINDIR,SINDIR
+bcopy_4:
+	mov	DINDIR,SINDIR
 bcopy_3:
 	mov	DINDIR,SINDIR
 	mov	DINDIR,SINDIR
 	mov	DINDIR,SINDIR	ret
-
-bcopy_4:
-	mov	DINDIR,SINDIR
-	mov	DINDIR,SINDIR
-	mov	DINDIR,SINDIR
-	mov	DINDIR,SINDIR	ret
 	
-bcopy_3_dfdat:
+bcopy_7_dfdat:
 	mov	DINDIR,DFDAT
 	mov	DINDIR,DFDAT
-	mov	DINDIR,DFDAT	ret
-
+bcopy_5_dfdat:
+	mov	DINDIR,DFDAT
 bcopy_4_dfdat:
 	mov	DINDIR,DFDAT
+bcopy_3_dfdat:
 	mov	DINDIR,DFDAT
 	mov	DINDIR,DFDAT
 	mov	DINDIR,DFDAT	ret
@@ -976,7 +1013,6 @@ inb_last1:
 dma:
 	mov	DFCNTRL,SINDEX
 dma1:
-dma2:
 	test	SSTAT0,0x1	jnz dma3	# DMADONE
 	test	SSTAT1,0x10	jz dma1		# PHASEMIS, ie. underrun
 
@@ -992,18 +1028,13 @@ dma3:
 dma4:
 	test	DFSTATUS,0x1	jz dma4		# !FIFOEMP
 
-#  Now shut the DMA enables off, and copy STCNT (ie. the underrun
-#  amount, if any) to the SCB registers; SG_COUNT will get copied to
-#  the SCB's residual S/G count field after sg_advance is called.  Make
-#  sure that the DMA enables are actually off first lest we get an ILLSADDR.
+#  Now shut the DMA enables off and make sure that the DMA enables are 
+#  actually off first lest we get an ILLSADDR.
 #
 dma5:
 	clr	DFCNTRL				# disable DMA
 dma6:
 	test	DFCNTRL,0x38	jnz dma6	# SCSIENACK|SDMAENACK|HDMAENACK
-
-	mvi	DINDEX,SCBARRAY+15
-	mvi	STCNT		call bcopy_3
 
 	ret
 
@@ -1036,10 +1067,9 @@ initialize_for_target:
 
 	mvi	SXFRCTL0,0x8a			# DFON|SPIOEN|CLRCHN
 
-#  Initialize scatter-gather pointers by setting up the working copy
-#  in scratch RAM.
-#
-	call	sg_scb2ram
+#  Make sure that the system knows we have not been through a DATA
+#  phase.
+	and	FLAGS, 0xfb			# !DPHASE
 
 #  Initialize SCSIRATE with the appropriate value for this target.
 #
@@ -1055,29 +1085,6 @@ assert:
 
 	mvi	INTSTAT,NO_IDENT 	ret	# no - cause a kernel panic
 
-#  Find out if disconnection is ok from the information the BIOS has left
-#  us.  The tcl from SCBARRAY+1 should be in SINDEX; A will
-#  contain either 0x40 (disconnection ok) or 0x00 (disconnection not ok)
-#  on exit.
-#
-#  To allow for wide or twin busses, we check the upper bit of the target ID
-#  and the channel ID and look at the appropriate disconnect register. 
-#
-disconnect:
-	and	FUNCTION1,0x70,SINDEX		# strip off extra just in case
-	mov	A,FUNCTION1
-	test	SINDEX, 0x88	jz disconnect_a
-
-	test	DISC_DSB_B,A	jz disconnect1	# bit nonzero if DISabled
-	clr	A		ret
-
-disconnect_a:
-	test	DISC_DSB_A,A	jz disconnect1	# bit nonzero if DISabled
-	clr	A		ret
-
-disconnect1:
-	mvi	A,0x40		ret
-
 #  Locate the SCB matching the target ID/channel/lun in SAVED_TCL and switch 
 #  the SCB to it.  Have the kernel print a warning message if it can't be 
 #  found, and generate an ABORT message to the target.  SINDEX should be
@@ -1087,7 +1094,7 @@ findSCB:
 	mov	A,SAVED_TCL
 	mov	SCBPTR,SINDEX			# switch to new SCB
 	cmp	SCBARRAY+1,A	jne findSCB1	# target ID/channel/lun match?
-	test	SCBARRAY+0,0x4	jz findSCB1	# should be disconnected
+	test	SCBARRAY+0,DISCONNECTED	jz findSCB1 # should be disconnected
 	test	SCBARRAY+0,TAG_ENB jnz get_tag
 	ret
 
@@ -1103,112 +1110,39 @@ findSCB1:
 	call	scsisig
 	ret
 
-#  Make a working copy of the scatter-gather parameters in the SCB.
+#  Make a working copy of the scatter-gather parameters from the SCB.
 #
 sg_scb2ram:
+	mvi	DINDEX,HADDR
+	mvi	SCBARRAY+19	call bcopy_7
+
+	mvi	DINDEX,STCNT
+	mvi	SCBARRAY+23	call bcopy_3
+
 	mov	SG_COUNT,SCBARRAY+2
 
 	mvi	DINDEX,SG_NEXT
 	mvi	SCBARRAY+3	call bcopy_4
+	ret
 
-	mvi	SG_NOLOAD,0x80
-	test	SCBARRAY+0,0x10	jnz return	# don't reload s/g?
-	clr	SG_NOLOAD	 ret
-
-#  Copying RAM values back to SCB, for Save Data Pointers message.
+#  Copying RAM values back to SCB, for Save Data Pointers message, but
+#  only if we've actually been into a data phase to change them.  This
+#  protects against bogus data in scratch ram and the residual counts
+#  since they are only initialized when we go into data_in or data_out.
 #
 sg_ram2scb:
+	test	FLAGS, DPHASE	jz return
 	mov	SCBARRAY+2,SG_COUNT
 
 	mvi	DINDEX,SCBARRAY+3
 	mvi	SG_NEXT		call bcopy_4
+	
+	mvi	DINDEX,SCBARRAY+19
+	mvi	SHADDR	call bcopy_4
 
-	and	SCBARRAY+0,0xef,SCBARRAY+0
-	test	SG_NOLOAD,0x80	jz return	# reload s/g?
-	or	SCBARRAY+0,SG_LOAD	 ret
-
-#  Load a struct scatter if needed and set up the data address and
-#  length.  If the working value of the SG count is nonzero, then
-#  we need to load a new set of values.
-#
-#  This, like the above DMA, assumes a little-endian host data storage.
-#
-sg_load:
-	test	SG_COUNT,0xff	jz return	# SG being used?
-	test	SG_NOLOAD,0x80	jnz return	# don't reload s/g?
-
-	clr	HCNT+2
-	clr	HCNT+1
-	mvi	HCNT+0,SG_SIZEOF
-
-	mvi	DINDEX,HADDR
-	mvi	SG_NEXT		call bcopy_4
-
-	mvi	DFCNTRL,0xd			# HDMAEN|DIRECTION|FIFORESET
-
-#  Wait for DMA from host memory to data FIFO to complete, then disable
-#  DMA and wait for it to acknowledge that it's off.
-#
-
-	call	dma_finish
-
-#  Copy data from FIFO into SCB data pointer and data count.  This assumes
-#  that the struct scatterlist has this structure (this and sizeof(struct
-#  scatterlist) == 12 are asserted in aic7xxx.c):
-#
-#	struct scatterlist {
-#		char *address;		/* four bytes, little-endian order */
-#		...			/* four bytes, ignored */
-#		unsigned short length;	/* two bytes, little-endian order */
-#	}
-#
-
-# Not in FreeBSD.  the scatter list entry is only 8 bytes.
-# 
-# struct ahc_dma_seg {
-#       physaddr addr;                  /* four bytes, little-endian order */
-#       long    len;                    /* four bytes, little endian order */   
-# };
-#
-
-	mvi	DINDEX, SCBARRAY+19
-	call	bcopy_4_dfdat
-
-# For Linux, we must throw away four bytes since there is a 32bit gap
-# in the middle of a struct scatterlist
-#	mov	NONE,DFDAT
-#	mov	NONE,DFDAT
-#	mov	NONE,DFDAT
-#	mov	NONE,DFDAT
-
-	call	bcopy_3_dfdat		#Only support 24 bit length.
+# Use the residual number since STCNT is corrupted by any message transfer
+	mvi	SCBARRAY+15	call bcopy_3
 	ret
-
-#  Advance the scatter-gather pointers only IF NEEDED.  If SG is enabled,
-#  and the SCSI transfer count is zero (note that this should be called
-#  right after a DMA finishes), then move the working copies of the SG
-#  pointer/length along.  If the SCSI transfer count is not zero, then
-#  presumably the target is disconnecting - do not reload the SG values
-#  next time.
-#
-sg_advance:
-	test	SG_COUNT,0xff	jz return	# s/g enabled?
-
-	test	STCNT+0,0xff	jnz sg_advance1	# SCSI transfer count nonzero?
-	test	STCNT+1,0xff	jnz sg_advance1
-	test	STCNT+2,0xff	jnz sg_advance1
-
-	clr	SG_NOLOAD			# reload s/g next time
-	dec	SG_COUNT			# one less segment to go
-
-	clr	A				# add sizeof(struct scatter)
-	add	SG_NEXT+0,SG_SIZEOF,SG_NEXT+0
-	adc	SG_NEXT+1,A,SG_NEXT+1
-	adc	SG_NEXT+2,A,SG_NEXT+2
-	adc	SG_NEXT+3,A,SG_NEXT+3	ret
-
-sg_advance1:
-	mvi	SG_NOLOAD,0x80	ret		# don't reload s/g next time
 
 #  Add the array base SYNCNEG to the target offset (the target address
 #  is in SCSIID), and return the result in SINDEX.  The accumulator
@@ -1231,7 +1165,7 @@ ndx_dtr_2:
 #  reject, you wouldn't be able to tell which message was the culpret.
 #
 mk_dtr:
-	test	SCBARRAY+0,0xc0 jz return	# NEEDWDTR|NEEDSDTR
+	test	SCBARRAY+0,0x90 jz return	# NEEDWDTR|NEEDSDTR
 	test	SCBARRAY+0,NEEDWDTR jnz  mk_wdtr_16bit
 	or	FLAGS, MAX_OFFSET	# Force an offset of 15 or 8 if WIDE
 
