@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# $FreeBSD$
+#
 # usage: makecdfs "cd title" input-tree output-file "copyright string"
 #
 # For example:
@@ -23,5 +25,5 @@ else
 	tree=$1; shift
 	outfile=$1; shift
 	copyright="$*"
-	mkisofs $bootable -a -d -N -D -R -T -V "$title" -P "$copyright" -o $outfile $tree
+	mkisofs $bootable -d -N -D -R -T -V "$title" -P "$copyright" -o $outfile $tree
 fi
