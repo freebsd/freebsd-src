@@ -1,4 +1,4 @@
-/* md5driver.c,v 3.1 1993/07/06 01:05:07 jbj Exp
+/*
  ***********************************************************************
  ** md5driver.c -- sample test routines                               **
  ** RSA Data Security, Inc. MD5 Message-Digest Algorithm              **
@@ -25,7 +25,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
-#ifdef	SYS_BSDI
+#if defined(SYS_BSDI) || defined(SYS_44BSD)
 #include <sys/time.h>
 #endif	/* SYS_BSDI */
 #include "md5.h"
@@ -57,7 +57,7 @@ MD5_CTX *mdContext;
 #define TEST_BLOCKS 10000
 
 /* number of test bytes = TEST_BLOCK_SIZE * TEST_BLOCKS */
-static LONG TEST_BYTES = (LONG)TEST_BLOCK_SIZE * (LONG)TEST_BLOCKS;
+static long TEST_BYTES = (long)TEST_BLOCK_SIZE * (long)TEST_BLOCKS;
 
 /* A time trial routine, to measure the speed of MD5.
    Measures wall time required to digest TEST_BLOCKS * TEST_BLOCK_SIZE
@@ -76,7 +76,7 @@ MDTimeTrial ()
     data[i] = (unsigned char)(i & 0xFF);
 
   /* start timer */
-  printf ("MD5 time trial. Processing %ld characters...\n", TEST_BYTES);
+  printf ("MD5 time trial. Processing %ld characters...\n", (long)TEST_BYTES);
   time (&startTime);
 
   /* digest data in TEST_BLOCK_SIZE byte blocks */
@@ -90,10 +90,10 @@ MDTimeTrial ()
   MDPrint (&mdContext);
   printf (" is digest of test input.\n");
   printf
-    ("Seconds to process test input: %ld\n", (LONG)(endTime-startTime));
+    ("Seconds to process test input: %ld\n", (long)endTime-startTime);
   printf
     ("Characters processed per second: %ld\n",
-     TEST_BYTES/(endTime-startTime));
+     (long)(TEST_BYTES/(endTime-startTime)));
 }
 
 /* Computes the message digest for string inString.
