@@ -186,7 +186,7 @@ g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 	if (pp->acr == 0 && pp->acw == 0 && pp->ace == 0)
 		de++;
 	/* ... and let go of it on last close */
-	if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 && (pp->ace + de) == 1)
+	if ((pp->acr + dr) == 0 && (pp->acw + dw) == 0 && (pp->ace + de) == 0)
 		de--;
 
 	error = ENXIO;
