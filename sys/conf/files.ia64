@@ -42,6 +42,7 @@ ia64/ia64/perfmon.c		optional	perfmon	profiling-routine
 ia64/ia64/perfmon.c		optional	perfmon
 ia64/ia64/pmap.c		standard
 ia64/ia64/procfs_machdep.c	standard
+ia64/ia64/setjmp.s		standard
 ia64/ia64/support.s		standard
 ia64/ia64/ssc.c			standard
 ia64/ia64/sscclock.c		standard
