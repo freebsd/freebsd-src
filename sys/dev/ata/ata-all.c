@@ -312,7 +312,7 @@ ata_pci_match(device_t dev)
     default:
 	if (pci_get_class(dev) == PCIC_STORAGE &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE))
-	    return "Unknown PCI ATA controller (generic mode)";
+	    return "Generic PCI ATA controller";
     }
     return NULL;
 }
@@ -1105,7 +1105,7 @@ ata_intr(void *data)
 #endif
     default:
 	if (scp->flags & ATA_DMA_ACTIVE) {
-	    if (!(dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT)
+	    if (!((dmastat = ata_dmastatus(scp)) & ATA_BMSTAT_INTERRUPT))
 		return;
 	    else
 		outb(scp->bmaddr+ATA_BMSTAT_PORT, dmastat|ATA_BMSTAT_INTERRUPT);
@@ -1513,9 +1513,9 @@ ata_umode(struct ata_params *ap)
 {
     if (ap->atavalid & ATA_FLAG_88) {
 	if (ap->udmamodes & 0x10)
-	    return (ap->cblid ? 4 : 2);
+	    return 4;
 	if (ap->udmamodes & 0x08)
-	    return (ap->cblid ? 3 : 2);
+	    return 3;
 	if (ap->udmamodes & 0x04)
 	    return 2;
 	if (ap->udmamodes & 0x02)

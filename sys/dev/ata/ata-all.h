@@ -326,6 +326,9 @@ int8_t ata_pio2mode(int32_t);
 int ata_pmode(struct ata_params *);
 int ata_wmode(struct ata_params *);
 int ata_umode(struct ata_params *);
+#if NPCI > 0
+int32_t ata_find_dev(device_t, int32_t, int32_t);
+#endif
 
 void ata_dmainit(struct ata_softc *, int32_t, int32_t, int32_t, int32_t);
 int32_t ata_dmasetup(struct ata_softc *, int32_t, int8_t *, int32_t, int32_t);
