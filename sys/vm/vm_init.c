@@ -106,9 +106,11 @@ vm_mem_init(dummy)
 
 	vm_set_page_size();
 	virtual_avail = vm_page_startup(avail_start, avail_end, virtual_avail);
+	
 	/*
 	 * Initialize other VM packages
 	 */
+	vm_zone_init();
 	vm_object_init();
 	vm_map_startup();
 	kmem_init(virtual_avail, virtual_end);
