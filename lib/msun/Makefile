@@ -1,5 +1,5 @@
 #  @(#)Makefile 5.1beta 93/09/24
-#  $Id: Makefile,v 1.10 1996/08/30 02:05:30 peter Exp $
+#  $Id: Makefile,v 1.11 1996/08/30 21:21:52 peter Exp $
 #
 #  ====================================================
 #  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
@@ -53,7 +53,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
 
-CFLAGS+= -D_MULTI_LIBM -D_POSIX_MODE -D_IEEE_LIBM
+CFLAGS+= -D_IEEE_LIBM
 
 LIB=	m
 COMMON_SRCS =	e_acos.c e_acosf.c e_acosh.c e_acoshf.c e_asin.c e_asinf.c \
