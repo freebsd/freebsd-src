@@ -65,15 +65,15 @@ will respect
 .Ev PATH_LOCALE
 environment variable, and use it instead of system default locale
 directory.
-.\" .It Fl m
-.\" Write names of all available charmaps.
+.It Fl m
+Write names of all available charmaps.
 .It Fl k
 Write the name and value of the selected keywords.
 .It Fl c
 Write the category name for the selected keywords.
 .El
 .Sh IMPLEMENTATION DETAILS
-Special keyword
+Special (FreeBSD specific) keyword
 .Ar list
 can be used to retrieve human readable list of available keywrods.
 .Sh DIAGNOSTICS
@@ -84,12 +84,11 @@ utility exits 0 on success, and >0 if an error occurs.
 Since
 .Fx
 does not support
-.Em charpmap Ns No s
+.Em charmap Ns No s
 in their
 .Em POSIX
 meaning
 .Nm
-ignores
-.Fl m
-option
-(support, but do nothing).
+emulates
+.Ar m
+option via CODESETs listing of all available locales.
