@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.48.2.2 1996/01/29 12:36:36 davidg Exp $
+ * $Id: vm_object.c,v 1.48.2.3 1996/03/29 06:30:18 davidg Exp $
  */
 
 /*
@@ -523,7 +523,7 @@ startover:
 			TAILQ_INSERT_TAIL(&object->memq, p, listq);
 			splx(s);
 			if (entireobj)
-				vm_page_protect(p, VM_PROT_READ);
+				vm_page_protect(p, VM_PROT_NONE);
 			if ((p->flags & (PG_BUSY|PG_CACHE)) || p->busy ||
 				p->valid == 0) {
 				continue;
@@ -556,7 +556,7 @@ startover:
 
 		if (entireobj || (p->offset >= tstart && p->offset < tend)) {
 			if (entireobj)
-				vm_page_protect(p, VM_PROT_READ);
+				vm_page_protect(p, VM_PROT_NONE);
 
 			if (p->valid == 0) {
 				goto donext;
