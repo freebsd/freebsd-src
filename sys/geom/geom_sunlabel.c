@@ -52,7 +52,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
-#include <sys/errno.h>
 #include <geom/geom.h>
 #include <geom/geom_slice.h>
 #include <machine/endian.h>
