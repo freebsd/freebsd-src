@@ -49,7 +49,7 @@ struct eventhandler_entry_generic
     void			(* func)(void);
 };
 
-static struct eventhandler_list *_eventhandler_find_list(char *name);
+static struct eventhandler_list *_eventhandler_find_list(const char *name);
 
 /*
  * Initialize the eventhandler mutex and list.
@@ -69,7 +69,7 @@ SYSINIT(eventhandlers, SI_SUB_EVENTHANDLER, SI_ORDER_FIRST, eventhandler_init,
  * if all priorities are identical.
  */
 eventhandler_tag
-eventhandler_register(struct eventhandler_list *list, char *name, 
+eventhandler_register(struct eventhandler_list *list, const char *name, 
 		      void *func, void *arg, int priority)
 {
     struct eventhandler_list		*new_list;
@@ -186,7 +186,7 @@ eventhandler_deregister(struct eventhandler_list *list, eventhandler_tag tag)
  * Internal version for use when eventhandler list is already locked.
  */
 static struct eventhandler_list *
-_eventhandler_find_list(char *name)
+_eventhandler_find_list(const char *name)
 {
     struct eventhandler_list	*list;
 
@@ -202,7 +202,7 @@ _eventhandler_find_list(char *name)
  * Lookup a "slow" list by name.  Returns with the list locked.
  */
 struct eventhandler_list *
-eventhandler_find_list(char *name)
+eventhandler_find_list(const char *name)
 {
     struct eventhandler_list	*list;
 
