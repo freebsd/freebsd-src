@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdos16.h - DOS specific defines, etc.
- *       $Revision: 1 $
+ *       $Revision: 2 $
  *
  *****************************************************************************/
 
@@ -134,10 +134,9 @@
 #define ACPI_INTERNAL_VAR_XFACE     __cdecl
 
 #define ACPI_ASM_MACROS
-#define causeinterrupt(level)
 #define BREAKPOINT3
-#define acpi_disable_irqs()
-#define acpi_enable_irqs()
+#define ACPI_DISABLE_IRQS()
+#define ACPI_ENABLE_IRQS()
 #define halt()
 #define ACPI_ACQUIRE_GLOBAL_LOCK(GLptr, Acq)
 #define ACPI_RELEASE_GLOBAL_LOCK(GLptr, Acq)

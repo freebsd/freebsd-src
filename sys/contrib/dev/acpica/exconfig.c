@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconfig - Namespace reconfiguration (Load/Unload opcodes)
- *              $Revision: 59 $
+ *              $Revision: 60 $
  *
  *****************************************************************************/
 
@@ -443,7 +443,7 @@ AcpiExLoadOp (
          * Read the entire field and thus the entire table.  Buffer is
          * allocated during the read.
          */
-        Status = AcpiExReadDataFromField (ObjDesc, &BufferDesc);
+        Status = AcpiExReadDataFromField (WalkState, ObjDesc, &BufferDesc);
         if (ACPI_FAILURE (Status))
         {
             goto Cleanup;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acdispat.h - dispatcher (parser to interpreter interface)
- *       $Revision: 51 $
+ *       $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -155,6 +155,14 @@ AcpiDsGetBufferFieldArguments (
 ACPI_STATUS
 AcpiDsGetRegionArguments (
     ACPI_OPERAND_OBJECT     *RgnDesc);
+
+ACPI_STATUS
+AcpiDsGetBufferArguments (
+    ACPI_OPERAND_OBJECT     *ObjDesc);
+
+ACPI_STATUS
+AcpiDsGetPackageArguments (
+    ACPI_OPERAND_OBJECT     *ObjDesc);
 
 
 /* dsctrl - Parser/Interpreter interface, control stack routines */
@@ -358,15 +366,23 @@ AcpiDsInitializeObjects (
     ACPI_NAMESPACE_NODE     *StartNode);
 
 ACPI_STATUS
+AcpiDsBuildInternalBufferObj (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  BufferLength,
+    ACPI_OPERAND_OBJECT     **ObjDescPtr);
+
+ACPI_STATUS
 AcpiDsBuildInternalPackageObj (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *op,
+    UINT32                  PackageLength,
     ACPI_OPERAND_OBJECT     **ObjDesc);
 
 ACPI_STATUS
 AcpiDsBuildInternalObject (
     ACPI_WALK_STATE         *WalkState,
-    ACPI_PARSE_OBJECT       *op,
+    ACPI_PARSE_OBJECT       *Op,
     ACPI_OPERAND_OBJECT     **ObjDescPtr);
 
 ACPI_STATUS
@@ -394,6 +410,12 @@ ACPI_STATUS
 AcpiDsEvalRegionOperands (
     ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op);
+
+ACPI_STATUS
+AcpiDsEvalDataObjectOperands (
+    ACPI_WALK_STATE         *WalkState,
+    ACPI_PARSE_OBJECT       *Op,
+    ACPI_OPERAND_OBJECT     *ObjDesc);
 
 ACPI_STATUS
 AcpiDsInitializeRegion (

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 70 $
+ *              $Revision: 72 $
  *
  ******************************************************************************/
 
@@ -156,7 +156,7 @@ AcpiNsCreateNode (
 
     ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_NSNODE].TotalAllocated++);
 
-    Node->Name           = Name;
+    Node->Name.Integer   = Name;
     Node->ReferenceCount = 1;
     ACPI_SET_DESCRIPTOR_TYPE (Node, ACPI_DESC_TYPE_NAMED);
 
@@ -309,7 +309,7 @@ AcpiNsInstallNode (
          * We will fill in the actual type when the
          * real definition is found later.
          */
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "[%4.4s] is a forward reference\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "[%4.4s] is a forward reference\n",
             (char *) &Node->Name));
     }
 
@@ -412,7 +412,7 @@ AcpiNsDeleteChildren (
 
         ACPI_MEM_TRACKING (AcpiGbl_MemoryLists[ACPI_MEM_LIST_NSNODE].TotalFreed++);
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "Object %p, Remaining %X\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS, "Object %p, Remaining %X\n",
             ChildNode, AcpiGbl_CurrentNodeCount));
 
         /*

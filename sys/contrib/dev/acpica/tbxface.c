@@ -2,7 +2,7 @@
  *
  * Module Name: tbxface - Public interfaces to the ACPI subsystem
  *                         ACPI table oriented interfaces
- *              $Revision: 51 $
+ *              $Revision: 52 $
  *
  *****************************************************************************/
 
@@ -143,7 +143,7 @@
 ACPI_STATUS
 AcpiLoadTables (void)
 {
-    ACPI_PHYSICAL_ADDRESS   RsdpPhysicalAddress;
+    ACPI_POINTER            RsdpAddress;
     ACPI_STATUS             Status;
     UINT32                  NumberOfTables = 0;
 
@@ -154,7 +154,7 @@ AcpiLoadTables (void)
     /* Get the RSDP */
 
     Status = AcpiOsGetRootPointer (ACPI_LOGICAL_ADDRESSING,
-                    &RsdpPhysicalAddress);
+                    &RsdpAddress);
     if (ACPI_FAILURE (Status))
     {
         ACPI_REPORT_ERROR (("AcpiLoadTables: Could not get RSDP, %s\n",
@@ -164,7 +164,9 @@ AcpiLoadTables (void)
 
     /* Map and validate the RSDP */
 
-    Status = AcpiTbVerifyRsdp (RsdpPhysicalAddress);
+    AcpiGbl_TableFlags = RsdpAddress.PointerType;
+
+    Status = AcpiTbVerifyRsdp (&RsdpAddress);
     if (ACPI_FAILURE (Status))
     {
         ACPI_REPORT_ERROR (("AcpiLoadTables: RSDP Failed validation: %s\n",
@@ -238,6 +240,7 @@ AcpiLoadTable (
 {
     ACPI_STATUS             Status;
     ACPI_TABLE_DESC         TableInfo;
+    ACPI_POINTER            Address;
 
 
     ACPI_FUNCTION_TRACE ("AcpiLoadTable");
@@ -250,7 +253,10 @@ AcpiLoadTable (
 
     /* Copy the table to a local buffer */
 
-    Status = AcpiTbGetTable (0, TablePtr, &TableInfo);
+    Address.PointerType     = ACPI_LOGICAL_POINTER;
+    Address.Pointer.Logical = TablePtr;
+
+    Status = AcpiTbGetTable (&Address, &TableInfo);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
