@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrequest.c,v 1.21 1999/05/07 08:07:09 grog Exp $
+ * $Id: vinumrequest.c,v 1.22 1999/05/07 10:10:07 phk Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -390,7 +390,7 @@ launch_requests(struct request *rq, int reviveok)
 		    logrq(loginfo_rqe, (union rqinfou) rqe, rq->bp);
 #endif
 		/* fire off the request */
-		(*bdevsw(major(rqe->b.b_dev))->d_strategy) (&rqe->b);
+		(*bdevsw(rqe->b.b_dev)->d_strategy) (&rqe->b);
 	    }
 	    /* XXX Do we need caching?  Think about this more */
 	}
@@ -865,7 +865,7 @@ sdio(struct buf *bp)
 	    sbp->b.b_vp->v_numoutput);
 #endif
     s = splbio();
-    (*bdevsw(major(sbp->b.b_dev))->d_strategy) (&sbp->b);
+    (*bdevsw(sbp->b.b_dev)->d_strategy) (&sbp->b);
     splx(s);
 }
 
