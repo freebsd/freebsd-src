@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btxldr.s,v 1.1 1998/09/12 06:30:26 rnordier Exp $
+#	$Id: btxldr.s,v 1.2 1998/10/06 06:13:36 msmith Exp $
 
 #
 # Prototype BTX loader program, written in a couple of hours.  The
@@ -66,7 +66,7 @@
 start:		cld				# String ops inc
 		movl $m_logo,%esi		# Identify
 		call putstr			#  ourselves
-		movw BDA_MEM,%eax		# Get base memory
+		movzwl BDA_MEM,%eax		# Get base memory
 		shll $0xa,%eax			#  in bytes
 		movl %eax,%ebp			# Base of user stack
 		movl $m_mem,%esi		# Display
