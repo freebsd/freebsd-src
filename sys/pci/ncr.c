@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.127 1998/09/16 22:46:04 gibbs Exp $
+**  $Id: ncr.c,v 1.128 1998/09/17 00:08:23 gibbs Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1288,7 +1288,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.127 1998/09/16 22:46:04 gibbs Exp $\n";
+	"\n$Id: ncr.c,v 1.128 1998/09/17 00:08:23 gibbs Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -4594,8 +4594,9 @@ static void
 ncr_freeze_devq (ncb_p np, struct cam_path *path)
 {
 	nccb_p	cp;
-	int	count;
 	int	i;
+	int	count;
+	int	firstskip;
 	/*
 	**	Starting at the first nccb and following
 	**	the links, complete all jobs that match
@@ -4604,6 +4605,7 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 
 	cp = np->link_nccb;
 	count = 0;
+	firstskip = 0;
 	while (cp) {
 		switch (cp->host_status) {
 
@@ -4614,10 +4616,21 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 			 && (xpt_path_comp(path, cp->ccb->ccb_h.path) >= 0)) {
 
 				/* Mark for removal from the start queue */
-				for (i = 0; i < MAX_START; i++) {
-					if (np->squeue[i] == CCB_PHYS(cp, phys))
-						np->squeue[i] =
+				for (i = 1; i < MAX_START; i++) {
+					int idx;
+
+					idx = np->squeueput - i;
+				
+					if (idx < 0)
+						idx = MAX_START + idx;
+					if (np->squeue[idx]
+					 == CCB_PHYS(cp, phys)) {
+						np->squeue[idx] =
 						    NCB_SCRIPT_PHYS (np, skip);
+						if (i > firstskip)
+							firstskip = i;
+						break;
+					}
 				}
 				cp->host_status=HS_STALL;
 				ncr_complete (np, cp);
@@ -4637,21 +4650,24 @@ ncr_freeze_devq (ncb_p np, struct cam_path *path)
 		/* Compress the start queue */
 		j = 0;
 		bidx = np->squeueput;
-		for (i = (np->squeueput + 1) % MAX_START;;
-		     i = (i + 1) % MAX_START) {
+		i = np->squeueput - firstskip;
+		if (i < 0)
+			i = MAX_START + i;
+		for (;;) {
 
 			bidx = i - j;
 			if (bidx < 0)
 				bidx = MAX_START + bidx;
 			
-			if (np->squeue[i] == NCB_SCRIPT_PHYS (np, skip))
+			if (np->squeue[i] == NCB_SCRIPT_PHYS (np, skip)) {
 				j++;
-			else if (j != 0) {
+			} else if (j != 0) {
 				np->squeue[bidx] = np->squeue[i];
 				if (np->squeue[bidx]
 				 == NCB_SCRIPT_PHYS(np, idle))
 					break;
 			}
+			i = (i + 1) % MAX_START;
 		}
 		np->squeueput = bidx;
 	}
@@ -5631,7 +5647,6 @@ static void ncr_int_ma (ncb_p np, u_char dstat)
 	/*
 	**	locate matching cp
 	*/
-	dsa = INL (nc_dsa);
 	cp = np->link_nccb;
 	while (cp && (CCB_PHYS (cp, phys) != dsa))
 		cp = cp->link_nccb;
