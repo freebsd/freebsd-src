@@ -33,6 +33,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+extern int __creat(const char *, mode_t);
+
 __weak_reference(___creat, creat);
 
 int

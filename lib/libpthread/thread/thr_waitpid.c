@@ -34,6 +34,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+extern int __waitpid(pid_t, int *, int);
+
 __weak_reference(_waitpid, waitpid);
 
 pid_t

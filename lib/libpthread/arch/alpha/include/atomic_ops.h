@@ -45,6 +45,23 @@ atomic_swap_long(long *dst, long val, long *res)
 		"   stq_c   $2, %1\n"	/* attempt the store; $2 clobbered */
 		"   beq     $2, 1b\n"	/* it didn't work, loop */
 		"   stq     $1, %0\n"	/* save value of *dst in *res */
+		"   mb            \n"
+	    : "+m"(*res)
+	    : "m"(*dst), "r"(val)
+	    : "memory", "$1", "$2");	/* clobber t0 and t1 */
+}
+
+static inline void
+atomic_swap_int(int *dst, int val, int *res)
+{
+	/* $1 and $2 are t0 and t1 respectively. */
+	__asm (	"   ldl     $1, %1\n"	/* get cache line before lock */
+		"1: ldl_l   $1, %1\n"	/* load *dst asserting lock */
+		"   mov     %2, $2\n"	/* save value to be swapped */
+		"   stl_c   $2, %1\n"	/* attempt the store; $2 clobbered */
+		"   beq     $2, 1b\n"	/* it didn't work, loop */
+		"   stl     $1, %0\n"	/* save value of *dst in *res */
+		"   mb            \n"
 	    : "+m"(*res)
 	    : "m"(*dst), "r"(val)
 	    : "memory", "$1", "$2");	/* clobber t0 and t1 */

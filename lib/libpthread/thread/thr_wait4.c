@@ -33,9 +33,12 @@
  */
 #include <sys/types.h>
 
+#include "namespace.h"
 #include <errno.h>
 #include <sys/wait.h>
 #include <pthread.h>
+#include "un-namespace.h"
+
 #include "thr_private.h"
 
 __weak_reference(__wait4, wait4);

@@ -33,6 +33,8 @@
 #include <pthread.h>
 #include "thr_private.h"
 
+extern unsigned int __sleep(unsigned int);
+
 __weak_reference(_sleep, sleep);
 
 unsigned int
