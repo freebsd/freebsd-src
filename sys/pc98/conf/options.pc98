@@ -6,17 +6,7 @@ USER_LDT
 MATH_EMULATE		opt_math_emulate.h
 GPL_MATH_EMULATE	opt_math_emulate.h
 PMAP_SHPGPERPROC	opt_pmap.h
-
-IBCS2			opt_dontuse.h
-COMPAT_LINUX		opt_dontuse.h
-
-DEBUG_LINUX		opt_linux.h
-
-COMPAT_SVR4		opt_svr4.h
-DEBUG_SVR4		opt_svr4.h
-
 PPC_DEBUG		opt_ppc.h
-
 SHOW_BUSYBUFS
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
@@ -28,6 +18,15 @@ CONSPEED		opt_comconsole.h
 I586_PMC_GUPROF		opt_i586_guprof.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
+
+# Options for emulators.  These should only be used at config time, so
+# they are handled like options for static file systems
+# (see src/sys/conf/options), except for broken debugging options.
+IBCS2			opt_dontuse.h
+COMPAT_LINUX		opt_dontuse.h
+DEBUG_LINUX		opt_linux.h
+COMPAT_SVR4		opt_dontuse.h
+DEBUG_SVR4		opt_svr4.h
 
 # i386 SMP options
 APIC_IO			opt_global.h
