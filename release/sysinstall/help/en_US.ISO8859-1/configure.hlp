@@ -1,0 +1,11 @@
+This menu lets you configure your system a little after it's
+installed.  In particular, you should probably set the system
+manager's password and the system time zone.
+
+For extra goodies like bash, emacs, pascal, etc. you should almost
+certainly look at the Packages item in this menu.  Note that this is
+currently only really useful if you have a CDROM or an existing
+packages collection somewhere in the file system hierarchy where the
+package management tool can get to it.  Automatic transfer of packages
+over FTP is not yet supported!
+
