@@ -197,7 +197,7 @@ dev/kbd/kbd.c			optional	ukbd
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio card
-dev/sio/sio_pccard.c		optional	sio pccard
+#dev/sio/sio_pccard.c		optional	sio pccard
 dev/sio/sio_pci.c		optional	sio pci
 dev/syscons/schistory.c		count		sc
 dev/syscons/scmouse.c		optional	sc
