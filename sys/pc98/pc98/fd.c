@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.7.2.6 1997/02/11 14:24:47 kato Exp $
+ *	$Id: fd.c,v 1.7.2.7 1997/03/04 06:52:04 kato Exp $
  *
  */
 
@@ -52,6 +52,7 @@
 #undef NFDC
 #endif
 #include "fd.h"
+#include "opt_fdc.h"
 
 #if NFDC > 0
 
@@ -316,6 +317,10 @@ static int fdstate(fdcu_t, fdc_p);
 static int retrier(fdcu_t);
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
 
+static int enable_fifo(fdc_p fdc);
+
+static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
+
 
 #define DEVIDLE		0
 #define FINDWORK	1
@@ -330,7 +335,7 @@ static int fdformat(dev_t, struct fd_formb *, struct proc *);
 #define	MOTORWAIT	10
 #define	IOTIMEDOUT	11
 
-#ifdef	DEBUG
+#ifdef	FDC_DEBUG
 static char const * const fdstates[] =
 {
 "DEVIDLE",
@@ -351,10 +356,10 @@ static char const * const fdstates[] =
 static int volatile fd_debug = 0;
 #define TRACE0(arg) if(fd_debug) printf(arg)
 #define TRACE1(arg1, arg2) if(fd_debug) printf(arg1, arg2)
-#else /* DEBUG */
+#else /* FDC_DEBUG */
 #define TRACE0(arg)
 #define TRACE1(arg1, arg2)
-#endif /* DEBUG */
+#endif /* FDC_DEBUG */
 
 /* autoconfig structure */
 
@@ -436,6 +441,46 @@ fd_cmd(fdcu_t fdcu, int n_out, ...)
 		}
 	}
 
+	return 0;
+}
+
+static int 
+enable_fifo(fdc_p fdc)
+{
+	int i, j;
+
+	if ((fdc->flags & FDC_HAS_FIFO) == 0) {
+		
+		/*
+		 * XXX: 
+		 * Cannot use fd_cmd the normal way here, since
+		 * this might be an invalid command. Thus we send the
+		 * first byte, and check for an early turn of data directon.
+		 */
+		
+		if (out_fdc(fdc->fdcu, I8207X_CONFIGURE) < 0)
+			return fdc_err(fdc->fdcu, "Enable FIFO failed\n");
+		
+		/* If command is invalid, return */
+		j = 100000;
+		while ((i = inb(fdc->baseport + FDSTS) & (NE7_DIO | NE7_RQM))
+		       != NE7_RQM && j-- > 0)
+			if (i == (NE7_DIO | NE7_RQM)) {
+				fdc_reset(fdc);
+				return FD_FAILED;
+			}
+		if (j<0 || 
+		    fd_cmd(fdc->fdcu, 3,
+			   0, (fifo_threshold - 1) & 0xf, 0, 0) < 0) {
+			fdc_reset(fdc);
+			return fdc_err(fdc->fdcu, "Enable FIFO failed\n");
+		}
+		fdc->flags |= FDC_HAS_FIFO;
+		return 0;
+	}
+	if (fd_cmd(fdc->fdcu, 4,
+		   I8207X_CONFIGURE, 0, (fifo_threshold - 1) & 0xf, 0, 0) < 0)
+		return fdc_err(fdc->fdcu, "Re-enable FIFO failed\n");
 	return 0;
 }
 
@@ -782,25 +827,42 @@ fdattach(struct isa_device *dev)
 		if (ic_type == 0 &&
 		    fd_cmd(fdcu, 1, NE7CMD_VERSION, 1, &ic_type) == 0)
 		{
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 			printf("fdc%d: ", fdcu);
+#endif
 			ic_type = (u_char)ic_type;
 			switch( ic_type ) {
 			case 0x80:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("NEC 765\n");
+#endif
 				fdc->fdct = FDC_NE765;
 				break;
 			case 0x81:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("Intel 82077\n");
+#endif
 				fdc->fdct = FDC_I82077;
 				break;
 			case 0x90:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("NEC 72065B\n");
+#endif
 				fdc->fdct = FDC_NE72065;
 				break;
 			default:
+#ifdef FDC_PRINT_BOGUS_CHIPTYPE
 				printf("unknown IC type %02x\n", ic_type);
+#endif
 				fdc->fdct = FDC_UNKNOWN;
 				break;
+			}
+			if (fdc->fdct != FDC_NE765 &&
+			    fdc->fdct != FDC_UNKNOWN && 
+			    enable_fifo(fdc) == 0) {
+				printf("fdc%d: FIFO enabled", fdcu);
+				printf(", %d bytes threshold\n", 
+				       fifo_threshold);
 			}
 		}
 		if ((fd_cmd(fdcu, 2, NE7CMD_SENSED, fdsu, 1, &st3) == 0) &&
@@ -1061,6 +1123,8 @@ set_motor(fdcu_t fdcu, int fdsu, int turnon)
 			     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
 			     0);
 #endif
+		if (fdc_data[fdcu].flags & FDC_HAS_FIFO)
+			(void) enable_fifo(&fdc_data[fdcu]);
 	}
 }
 
@@ -1154,6 +1218,8 @@ fdc_reset(fdc_p fdc)
 		     NE7_SPEC_1(3, 240), NE7_SPEC_2(2, 0),
 		     0);
 #endif
+	if (fdc->flags & FDC_HAS_FIFO)
+		(void) enable_fifo(fdc);
 }
 
 /****************************************************************************/
@@ -1170,13 +1236,13 @@ in_fdc(fdcu_t fdcu)
 			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
 		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
-#ifdef	DEBUG
+#ifdef	FDC_DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	return(i);
-#else
+#else	/* !FDC_DEBUG */
 	return inb(baseport+FDDATA);
-#endif
+#endif	/* FDC_DEBUG */
 }
 
 /*
@@ -1193,17 +1259,17 @@ fd_in(fdcu_t fdcu, int *ptr)
 			return fdc_err(fdcu, "ready for output in input\n");
 	if (j <= 0)
 		return fdc_err(fdcu, bootverbose? "input ready timeout\n": 0);
-#ifdef	DEBUG
+#ifdef	FDC_DEBUG
 	i = inb(baseport+FDDATA);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	*ptr = i;
 	return 0;
-#else
+#else	/* !FDC_DEBUG */
 	i = inb(baseport+FDDATA);
 	if (ptr)
 		*ptr = i;
 	return 0;
-#endif
+#endif	/* FDC_DEBUG */
 }
 
 int
