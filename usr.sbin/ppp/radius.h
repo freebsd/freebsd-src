@@ -52,6 +52,7 @@ struct radius {
   char *repstr;			/* Reply-Message */
   char *errstr;			/* Error-Message */
 #ifndef NOINET6
+  uint8_t *ipv6prefix;		/* FRAMED IPv6 Prefix */
   struct sticky_route *ipv6routes;  /* FRAMED IPv6 Routes */
 #endif
   struct {
