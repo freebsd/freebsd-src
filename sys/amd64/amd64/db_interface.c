@@ -306,7 +306,7 @@ void
 Debugger(msg)
 	const char *msg;
 {
-	static volatile	u_char in_Debugger;
+	static volatile	u_int in_Debugger;
 	int		flags;
 	/*
 	 * XXX
@@ -317,14 +317,13 @@ Debugger(msg)
 	if (cons_unavail && !(boothowto & RB_GDB))
 	    return;
 
-	if (!in_Debugger) {
+	if (atomic_cmpset_int(&in_Debugger, 0, 1)) {
 	    flags = save_intr();
 	    disable_intr();
-	    in_Debugger = 1;
 	    db_printf("Debugger(\"%s\")\n", msg);
 	    breakpoint();
-	    in_Debugger = 0;
             restore_intr(flags);
+	    in_Debugger = 0;
 	}
 }
 
