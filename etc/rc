@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.131 1997/06/25 11:48:47 pst Exp $
+#	$Id: rc,v 1.104.2.20 1997/06/25 12:31:36 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -284,7 +284,7 @@ fi
 
 # for each valid dir in $local_startup, search for init scripts matching *.sh
 if [ "X${local_startup}" != X"NO" ]; then
-	echo -n 'Local package startup:'
+	echo -n 'Local package initialization:'
 	for dir in ${local_startup}; do
 		[ -d ${dir} ] && for script in ${dir}/*.sh; do
 			[ -x ${script} ] && ${script} start
