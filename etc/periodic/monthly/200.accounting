@@ -3,12 +3,25 @@
 # $FreeBSD$
 #
 
-W=/var/log/wtmp
-if [ -f ${W}.0 ] ; then
-	if [ -x /usr/sbin/ac ] ; then
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+case "$monthly_accounting_enable" in
+    [Yy][Ee][Ss])
+	W=/var/log/wtmp
+	if [ -f $W.0 ]
+	then
+	    if [ -x /usr/sbin/ac ]
+	    then
 		echo ""
 		echo "Doing login accounting:"
 
-		ac -p -w ${W}.0 | sort -nr +1
-	fi
-fi
+		ac -p -w $W.0 | sort -nr +1
+	    fi
+	fi;;
+esac

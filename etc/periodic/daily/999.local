@@ -5,9 +5,25 @@
 # Run the old /etc/daily.local script.  This is really for backwards
 # compatibility more than anything else.
 #
-if [ -f /etc/daily.local ]; then
-    echo ""
-    echo "Running daily.local:"
 
-    sh /etc/daily.local
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+for script in $daily_local
+do
+    case "$script" in
+	/*)
+	    if [ -f "$script" ]
+	    then
+		echo ""
+		echo "Running $script:"
+
+		sh $script
+	    fi;;
+    esac
+done

@@ -3,9 +3,21 @@
 # $FreeBSD$
 #
 
-if [ -f /etc/Distfile ]; then
-    echo ""
-    echo "Running rdist with /etc/Distfile:"
-
-    rdist -f /etc/Distfile
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_distfile_enable" in
+    [Yy][Ee][Ss])
+	if [ -f /etc/Distfile ]
+	then
+	    echo ""
+	    echo "Running rdist with /etc/Distfile:"
+
+	    rdist -f /etc/Distfile
+	fi;;
+esac

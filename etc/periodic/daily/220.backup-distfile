@@ -2,14 +2,28 @@
 #
 # $FreeBSD$
 #
-bak=/var/backups
 
-if [ -f /etc/Distfile ]; then
-    echo ""
-    echo "Backing up /etc/Distfile:"
-
-    if cmp -s $bak/Distfile.bak /etc/Distfile; then :; else
-	mv $bak/Distfile.bak $bak/Distfile.bak2
-	cp /etc/Distfile $bak/Distfile.bak
-    fi
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+case "$daily_backup_distfile_enable" in
+    [Yy][Ee][Ss])
+	if [ -f /etc/Distfile ]
+	then
+	    bak=/var/backups
+
+	    echo ""
+	    echo "Backing up /etc/Distfile:"
+
+	    if ! cmp -s $bak/Distfile.bak /etc/Distfile
+	    then
+		mv $bak/Distfile.bak $bak/Distfile.bak2
+		cp /etc/Distfile $bak/Distfile.bak
+	    fi
+	fi;;
+esac

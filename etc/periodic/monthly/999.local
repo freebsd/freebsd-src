@@ -2,9 +2,25 @@
 #
 # $FreeBSD$
 #
-if [ -f /etc/monthly.local ]; then
-    echo ""
-    echo "Running monthly.local:"
 
-    sh /etc/monthly.local
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
 fi
+
+for script in $monthly_local
+do
+    case "$script" in
+	/*)
+	    if [ -f "$script" ]
+	    then
+		echo ""
+		echo "Running $script:"
+
+		sh $script
+	    fi;;
+    esac
+done
