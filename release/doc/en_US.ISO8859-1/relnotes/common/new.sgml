@@ -59,10 +59,6 @@
     hardware watchpoints (as opposed to software watchpoints) if supported
     by the architecture.</para>
 
-    <para>The <literal>tcpmssfixup</literal> &man.ppp.8; option now
-    adjusts the maximum receive segment size of incoming TCP SYN
-    segments as well as outgoing TCP SYN segments.</para>
-
     <para>A &man.nmdm.4; null-modem terminal driver has been added.</para>
 
     <sect3>
@@ -373,7 +369,7 @@
 
     <para>&man.lpd.8; now takes two new options:  <option>-c</option>
     will log all connection errors to &man.syslogd.8;, while
-    <option>-w</option> will allow connections from non-reserved
+    <option>-W</option> will allow connections from non-reserved
     ports.</para>
 
     <para>&man.lpc.8; has been improved; <command>lpc clean</command>
@@ -421,6 +417,19 @@
     directive controls the addition of compiler warning flags to
     <varname>CFLAGS</varname> in a relatively compiler-neutral
     manner.</para>
+
+    <para>A new &man.fsck.msdosfs.8; utility has been added to check
+    the consistency of MS-DOS filesystems.</para>
+
+    <para>The &man.kldconfig.8; utility has been added to make it easier to
+    manipulate the kernel module search path.</para>
+
+    <para>&man.moused.8; now takes a <option>-a</option> to control
+    mouse acceleration.</para>
+
+    <para>The <literal>tcpmssfixup</literal> &man.ppp.8; option now
+    adjusts the maximum receive segment size of incoming TCP SYN
+    segments as well as outgoing TCP SYN segments.</para>
 
     <sect3>
       <title>Contributed Software</title>
