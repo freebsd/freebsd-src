@@ -82,7 +82,7 @@ static int pcic_power __P((struct slot *));
 static void pcic_reset __P((struct slot *));
 static void pcic_disable __P((struct slot *));
 static void pcic_mapirq __P((struct slot *, int));
-static void pcictimeout __P((void));
+static timeout_t pcictimeout;
 
 /*
  *	Per-slot data table.
@@ -98,7 +98,7 @@ static struct pcic_slot
 	struct slot *sp;		/* Back ptr to slot */
 	} pcic_slots[PCIC_MAX_SLOTS];
 static int pcic_irq;
-static unsigned long pcic_imask;
+static unsigned pcic_imask;
 static struct slot_cont cinfo;
 
 static int pcic_memory(struct slot *, int);
@@ -735,7 +735,7 @@ struct pcic_slot *sp = slotp->cdata;
  */
 
 static void
-pcictimeout()
+pcictimeout(void *chan)
 {
 	timeout(pcictimeout,0,hz/2);
 	pcicintr(0);
