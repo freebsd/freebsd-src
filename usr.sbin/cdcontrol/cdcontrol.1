@@ -1,4 +1,4 @@
-.\"	$Id: cdcontrol.1,v 1.16 1998/06/13 19:28:51 steve Exp $
+.\"	$Id: cdcontrol.1,v 1.17 1999/01/31 03:35:17 billf Exp $
 .\"
 .Dd July 3, 1995
 .Dt CDCONTROL 1
@@ -8,10 +8,9 @@
 .Nd compact disc control utility
 .Sh SYNOPSIS
 .Nm cdcontrol
-.Op Fl s
-.Op Fl v
-.Op Fl f Ar devicename
-.Op Ar command args ...
+.Op Fl sv
+.Op Fl f Ar device
+.Op Ar command ...
 .Sh DESCRIPTION
 .Nm Cdcontrol
 is a program to control audio features of a CD drive. The device is a name such
@@ -38,8 +37,8 @@ The following options are available:
 Silent mode - do not print table headers and human readable comments.
 .It Fl v
 Verbose mode - print as much information as possible.
-.It Fl f Ar devicename
-Specify a device name, such as
+.It Fl f Ar device
+Specify a device, such as
 .Pa /dev/cd0c
 or
 .Pa mcd0 .

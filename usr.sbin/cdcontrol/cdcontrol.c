@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cdcontrol.c,v 1.16 1997/09/04 11:52:28 charnier Exp $";
+	"$Id: cdcontrol.c,v 1.17 1998/01/26 00:57:54 jmz Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -149,7 +149,7 @@ void help ()
 
 void usage ()
 {
-	fprintf (stderr, "usage: cdcontrol [-vs] [-f disc] [command args ...]\n");
+	fprintf (stderr, "usage: cdcontrol [-sv] [-f device] [command ...]\n");
 	exit (1);
 }
 
