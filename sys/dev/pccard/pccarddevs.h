@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.21 2001/11/19 05:11:35 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.22 2001/11/19 05:22:28 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.146 2001/11/18 04:25:43 mrg Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.71 2001/10/28 19:21:37 mickey Exp $ */
@@ -108,7 +108,7 @@
 #define	PCMCIA_VENDOR_HAGIWARASYSCOM	0xc012	/* Hagiwara SYS-COM */
 #define	PCMCIA_VENDOR_RATOC	0xc015	/* RATOC System Inc. */
 #define	PCMCIA_VENDOR_EMTAC	0xc250	/* EMTAC Technology Corporation */
-vector LINKSYS2			0x0274	The Linksys Group
+#define	PCMCIA_VENDOR_LINKSYS2	0x0274	/* The Linksys Group */
 #define	PCMCIA_VENDOR_ELSA	0xd601	/* Elsa */
 
 /*
@@ -605,7 +605,6 @@ vector LINKSYS2			0x0274	The Linksys Group
 #define	PCMCIA_CIS_ZONET_ZEN	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_ZONET_ZEN	0x0100
 #define	PCMCIA_STR_ZONET_ZEN	"Zonet Zen 10/10"
-
 
 /*
  * Cards we know only by their cis, sorted by name.
