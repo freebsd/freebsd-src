@@ -81,8 +81,16 @@
 #ifdef INET6
 #include <netinet6/ipsec6.h>
 #endif
-#include <netkey/key.h>
 #endif /*IPSEC*/
+
+#ifdef FAST_IPSEC
+#include <netipsec/ipsec.h>
+#ifdef INET6
+#include <netipsec/ipsec6.h>
+#endif
+#include <netipsec/key.h>
+#define	IPSEC
+#endif /*FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
 #include <vm/uma.h>
