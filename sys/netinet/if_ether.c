@@ -328,16 +328,6 @@ arprequest(ifp, sip, tip, enaddr)
 }
 
 /*
- * Resolve an IP address into an ethernet address.  If success,
- * desten is filled in.  If there is no entry in arptab,
- * set one up and broadcast a request for the IP address.
- * Hold onto this mbuf and resend it once the address
- * is finally resolved.  A return value of 1 indicates
- * that desten has been filled in and the packet should be sent
- * normally; a 0 return indicates that the packet has been
- * taken over here, either now or for later transmission.
- *
- * NEW COMMENT
  * Resolve an IP address into an ethernet address.
  * On input:
  *    ifp is the interface we use
