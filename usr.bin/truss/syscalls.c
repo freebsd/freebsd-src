@@ -103,6 +103,10 @@ struct syscall syscalls[] = {
 	  { { Hex, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
 	{ "getsockname", 1, 3,
 	  { { Hex, 0 }, { Sockaddr | OUT, 1 }, { Ptr | OUT, 2 } } },
+	{ "execve", 1, 3,
+	  { { String | IN, 0 }, { StringArray | IN, 1 }, { StringArray | IN, 2 } } },
+	{ "linux_execve", 1, 3,
+	  { { String | IN, 0 }, { StringArray | IN, 1 }, { StringArray | IN, 2 } } },
 	{ 0, 0, 0, { { 0, 0 }}},
 };
 
@@ -243,6 +247,40 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
       tmp = malloc(strlen(tmp2) + 3);
       sprintf(tmp, "\"%s\"", tmp2);
       free(tmp2);
+    }
+  break;
+  case StringArray:
+    {
+      int num, size, i;
+      char *tmp2;
+      char *string;
+      char *strarray[100];	/* XXX This is ugly. */
+
+      if (get_struct(fd, (void *)args[sc->offset], (void *)&strarray,
+                     sizeof(strarray)) == -1) {
+	err(1, "get_struct %p", (void *)args[sc->offset]);
+      }
+      num = 0;
+      size = 0;
+
+      /* Find out how large of a buffer we'll need. */
+      while (strarray[num] != NULL) {
+	string = get_string(fd, (void*)strarray[num], 0);
+        size += strlen(string);
+	free(string);
+	num++;
+      }
+      size += 4 + (num * 4);
+      tmp = (char *)malloc(size);
+      tmp2 = tmp;
+
+      tmp2 += sprintf(tmp2, " [");
+      for (i = 0; i < num; i++) {
+	string = get_string(fd, (void*)strarray[i], 0);
+        tmp2 += sprintf(tmp2, " \"%s\"%c", string, (i+1 == num) ? ' ' : ',');
+	free(string);
+      }
+      tmp2 += sprintf(tmp2, "]");
     }
   break;
   case Quad:
