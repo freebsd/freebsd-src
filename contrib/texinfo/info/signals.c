@@ -1,9 +1,7 @@
-/* signals.c -- Install and maintain Info signal handlers. */
+/* signals.c -- install and maintain Info signal handlers.
+   $Id: signals.c,v 1.6 1998/12/06 22:00:04 karl Exp $
 
-/* This file is part of GNU Info, a program for reading online documentation
-   stored in Info format.
-
-   Copyright (C) 1993, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 94, 95, 98 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +27,9 @@
 /*              Pretending That We Have POSIX Signals               */
 /*                                                                  */
 /* **************************************************************** */
+
+/* Non-zero when our signal handler has been called to handle SIGWINCH. */
+static int in_sigwinch = 0;
 
 #if !defined (HAVE_SIGPROCMASK) && defined (HAVE_SIGSETMASK)
 /* Perform OPERATION on NEWSET, perhaps leaving information in OLDSET. */
@@ -66,7 +67,7 @@ typedef RETSIGTYPE signal_handler ();
 
 static RETSIGTYPE info_signal_handler ();
 static signal_handler *old_TSTP, *old_TTOU, *old_TTIN;
-static signal_handler *old_WINCH, *old_INT;
+static signal_handler *old_WINCH, *old_INT, *old_USR1;
 
 void
 initialize_info_signal_handler ()
@@ -84,6 +85,11 @@ initialize_info_signal_handler ()
 #if defined (SIGINT)
   old_INT = (signal_handler *) signal (SIGINT, info_signal_handler);
 #endif
+
+#if defined (SIGUSR1)
+  /* Used by DJGPP to simulate SIGTSTP on Ctrl-Z.  */
+  old_USR1 = (signal_handler *) signal (SIGUSR1, info_signal_handler);
+#endif
 }
 
 static void
@@ -95,6 +101,19 @@ redisplay_after_signal ()
   display_update_display (windows);
   display_cursor_at_point (active_window);
   fflush (stdout);
+}
+
+static void
+reset_info_window_sizes ()
+{
+  terminal_goto_xy (0, 0);
+  fflush (stdout);
+  terminal_unprep_terminal ();
+  terminal_get_screen_size ();
+  terminal_prep_terminal ();
+  display_initialize_display (screenwidth, screenheight);
+  window_new_screen_size (screenwidth, screenheight, NULL);
+  redisplay_after_signal ();
 }
 
 static RETSIGTYPE
@@ -145,28 +164,43 @@ info_signal_handler (sig)
       }
       break;
 
-#if defined (SIGWINCH)
+#if defined (SIGWINCH) || defined (SIGUSR1)
+#ifdef SIGWINCH
     case SIGWINCH:
+#endif
+#ifdef SIGUSR1
+    case SIGUSR1:
+#endif
       {
-        /* Turn off terminal IO, tell our parent that the window has changed,
-           then reinitialize the terminal and rebuild our windows. */
-        old_signal_handler = &old_WINCH;
-        terminal_goto_xy (0, 0);
-        fflush (stdout);
-        terminal_unprep_terminal ();
-        signal (sig, *old_signal_handler);
-        UNBLOCK_SIGNAL (sig);
-        kill (getpid (), sig);
+        if (!in_sigwinch) {
+          in_sigwinch++;
+          
+          /* Turn off terminal IO, tell our parent that the window has changed,
+             then reinitialize the terminal and rebuild our windows. */
+#ifdef SIGWINCH
+          if (sig == SIGWINCH)
+            old_signal_handler = &old_WINCH;
+#endif
+#ifdef SIGUSR1
+          if (sig == SIGUSR1)
+            old_signal_handler = &old_USR1;
+#endif
+          terminal_goto_xy (0, 0);
+          fflush (stdout);
+          terminal_unprep_terminal ();
+          signal (sig, *old_signal_handler);
+          UNBLOCK_SIGNAL (sig);
+          kill (getpid (), sig);
 
-        /* After our old signal handler returns... */
-        terminal_get_screen_size ();
-        terminal_prep_terminal ();
-        display_initialize_display (screenwidth, screenheight);
-        window_new_screen_size (screenwidth, screenheight, (VFunction *)NULL);
-        *old_signal_handler = (signal_handler *) signal (sig, info_signal_handler);
-        redisplay_after_signal ();
+          /* After our old signal handler returns... */
+          *old_signal_handler
+            = (signal_handler *) signal (sig, info_signal_handler);
+          terminal_prep_terminal ();
+          reset_info_window_sizes ();
+          in_sigwinch--;
+        }
       }
       break;
-#endif /* SIGWINCH */
+#endif /* SIGWINCH || SIGUSR1 */
     }
 }
