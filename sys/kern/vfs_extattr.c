@@ -1033,9 +1033,11 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 		return (0);
 	}
 	fp->f_vnode = vp;
-	fp->f_data = vp;
+	if (fp->f_data == NULL)
+		fp->f_data = vp;
 	fp->f_flag = flags & FMASK;
-	fp->f_ops = &vnops;
+	if (fp->f_ops == &badfileops)
+		fp->f_ops = &vnops;
 	fp->f_seqcount = 1;
 	fp->f_type = (vp->v_type == VFIFO ? DTYPE_FIFO : DTYPE_VNODE);
 	FILEDESC_UNLOCK(fdp);
