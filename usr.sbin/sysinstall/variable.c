@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.11.2.5 1997/06/11 08:39:27 jkh Exp $
+ * $Id: variable.c,v 1.19 1997/06/11 08:41:10 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -155,3 +155,29 @@ variable_get_value(char *var, char *prompt)
 	cp = NULL;
     return cp;
 }
+
+/* Check if value passed in data (in the form "variable=value") is equal to value of 
+   variable stored in env */
+int
+variable_check(char *data)
+{
+    char *w, *cp, *cp2, *cp3, tmp[256];
+
+    w = data;
+    if (!w)
+	return FALSE;
+    SAFE_STRCPY(tmp, w);
+    if ((cp = index(tmp, '=')) != NULL) {
+        *(cp++) = '\0';
+	if ((cp3 = index(cp, ',')) != NULL)
+	    *cp3 = '\0';
+        cp2 = getenv(tmp);
+
+        if (cp2)
+            return !strcmp(cp, cp2);
+        else
+            return FALSE;
+    }
+    else
+        return (int)getenv(tmp);
+} 
