@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: trap.c,v 1.8 1997/02/22 13:58:46 peter Exp $
  */
 
 #ifndef lint
@@ -212,6 +212,7 @@ setsignal(signo)
 	int action;
 	sig_t sigact = SIG_DFL;
 	char *t;
+	long sig;
 
 	if ((t = trap[signo]) == NULL)
 		action = S_DFL;
@@ -280,7 +281,12 @@ setsignal(signo)
 		case S_IGN:	sigact = SIG_IGN;	break;
 	}
 	*t = action;
-	return (long)signal(signo, sigact);
+	sig = (long)signal(signo, sigact);
+#ifdef BSD
+	if (sig != -1 && action == S_CATCH)
+		sig = siginterrupt(signo, 1);
+#endif
+	return sig;
 }
 
 
@@ -339,8 +345,9 @@ void
 onsig(signo)
 	int signo;
 {
-
+#ifndef BSD
 	signal(signo, onsig);
+#endif
 	if (signo == SIGINT && trap[SIGINT] == NULL) {
 		onint();
 		return;
