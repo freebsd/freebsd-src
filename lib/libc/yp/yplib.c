@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.1 1994/08/07 23:04:55 wollman Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.2 1995/03/21 00:48:55 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -380,6 +380,11 @@ int *outvallen;
 	*outval = NULL;
 	*outvallen = 0;
 
+	/* Sanity check: no null keys allowed! */
+
+	if (inkey == NULL || *inkey == '\0')
+		return YPERR_KEY;
+
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
 		return YPERR_DOMAIN;
@@ -509,6 +514,11 @@ int *outvallen;
 
 	*outkey = *outval = NULL;
 	*outkeylen = *outvallen = 0;
+
+	/* Sanity check: no null keys allowed! */
+
+	if (inkey == NULL || *inkey == '\0')
+		return YPERR_KEY;
 
 again:
 	if( _yp_dobind(indomain, &ysd) != 0)
