@@ -337,8 +337,10 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 		PAM_LOG("Got old password");
 		/* always encrypt first */
 		encrypted = crypt(old_pass, pwd->pw_passwd);
-		if ((old_pass[0] == '\0' && pwd->pw_passwd[0] != '\0') ||
-		    strcmp(encrypted, pwd->pw_passwd) != 0)
+		if (old_pass[0] == '\0' &&
+		    !pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+			return (PAM_PERM_DENIED);
+		if (strcmp(encrypted, pwd->pw_passwd) != 0)
 			return (PAM_PERM_DENIED);
 	}
 	else if (flags & PAM_UPDATE_AUTHTOK) {
@@ -363,6 +365,10 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			PAM_VERBOSE_ERROR("Unable to get new password");
 			return (retval);
 		}
+
+		if (getuid() != 0 && new_pass[0] == '\0' &&
+		    !pam_test_option(&options, PAM_OPT_NULLOK, NULL))
+			return (PAM_PERM_DENIED);
 
 		if ((old_pwd = pw_dup(pwd)) == NULL)
 			return (PAM_BUF_ERR);
