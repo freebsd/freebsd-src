@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.15 1995/12/08 23:22:33 phk Exp $
+ *      $Id: worm.c,v 1.16 1995/12/14 09:54:35 phk Exp $
  */
 
 /* XXX This is PRELIMINARY.
@@ -96,6 +96,11 @@ static struct cdevsw worm_cdevsw =
 	  seltrue,	nommap,		wormstrategy };
 
 
+static int
+wormunit(dev_t dev) {
+	return (minor(dev) & ~(SCSI_FIXED_MASK|SCSI_CONTROL_MASK));
+}
+
 SCSI_DEVICE_ENTRIES(worm)
 
 static struct scsi_device worm_switch =
@@ -113,7 +118,7 @@ static struct scsi_device worm_switch =
 	wormopen,
 	sizeof(struct scsi_data),
 	T_WORM,
-	0,
+	wormunit,
 	0,
 	worm_open,
 	0,
