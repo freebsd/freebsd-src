@@ -834,6 +834,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			printf("Ignoring invalid memory size of '%s'\n", p);
 		else
 			Maxmem = alpha_btop(AllowMem);
+		freeenv(p);
 	}
 
 	while (physmem > Maxmem) {
@@ -1015,6 +1016,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 			boothowto |= RB_VERBOSE;
 			bootverbose = 1;
 		}
+		freeenv(p);
 	}
 
 	/*
@@ -1025,6 +1027,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		   min(sizeof(kernelname), sizeof bootinfo.booted_kernel) - 1);
 	} else if ((p = getenv("kernelname")) != NULL) {
 		strncpy(kernelname, p, sizeof(kernelname) - 1);
+		freeenv(p);
 	}
 
 	/*

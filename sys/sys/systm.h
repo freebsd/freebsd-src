@@ -45,6 +45,7 @@
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #include <sys/callout.h>
+#include <sys/queue.h>
 
 extern int securelevel;		/* system security level (see init(8)) */
 extern int suser_enabled;	/* suser() is permitted to return 0 */
@@ -90,9 +91,13 @@ extern int maxusers;		/* system tune hint */
  */
 extern int envmode;
 extern int hintmode;		/* 0 = off. 1 = config, 2 = fallback */
+extern int dynamic_kenv;
+extern struct sx kenv_lock;
 extern char *kern_envp;
 extern char static_env[];
 extern char static_hints[];	/* by config for now */
+
+extern char **kenvp;
 
 /*
  * General function declarations.
@@ -201,9 +206,13 @@ int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 
 char	*getenv(const char *name);
+void	freeenv(char *env);
 int	getenv_int(const char *name, int *data);
 int	getenv_string(const char *name, char *data, int size);
 int	getenv_quad(const char *name, quad_t *data);
+void	setenv(const char *name, const char *value);
+int	unsetenv(const char *name);
+int	testenv(const char *name);
 
 #ifdef APM_FIXUP_CALLTODO 
 struct timeval;

@@ -28,43 +28,324 @@
 
 /*
  * The unified bootloader passes us a pointer to a preserved copy of
- * bootstrap/kernel environment variables.
- * We make these available using sysctl for both in-kernel and
- * out-of-kernel consumers.
+ * bootstrap/kernel environment variables.  We convert them to a
+ * dynamic array of strings later when the VM subsystem is up.
  *
- * Note that the current sysctl infrastructure doesn't allow 
- * dynamic insertion or traversal through handled spaces.  Grr.
+ * We make these available through the kenv(2) syscall for userland
+ * and through getenv()/freeenv() setenv() unsetenv() testenv() for
+ * the kernel.
  */
 
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
+#include <sys/sx.h>
 #include <sys/systm.h>
-#include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/libkern.h>
+#include <sys/kenv.h>
 
-char	*kern_envp;
+MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
 
-static char	*kernenv_next(char *cp);
+#define KENV_SIZE	512	/* Maximum number of environment strings */
+
+/* pointer to the static environment */
+char		*kern_envp;
+static char	*kernenv_next(char *);
+
+/* dynamic environment variables */
+char		**kenvp;
+struct sx	kenv_lock;
+
+/*
+ * No need to protect this with a mutex
+ * since SYSINITS are single threaded.
+ */
+int	dynamic_kenv = 0;
+
+#define KENV_CHECK	if (!dynamic_kenv) \
+			    panic("%s: called before SI_SUB_KMEM", __func__)
+
+int
+kenv(td, uap)
+	struct thread *td;
+	struct kenv_args /* {
+		syscallarg(int) what;
+		syscallarg(const char *) name;
+		syscallarg(char *) value;
+		syscallarg(int) len;
+	} */ *uap;
+{
+	char *name, *value;
+	size_t len, done;
+	int error, i;
+       
+	KASSERT(dynamic_kenv, ("kenv: dynamic_kenv = 0"));
+
+	error = 0;
+	if (SCARG(uap, what) == KENV_DUMP) {
+		len = 0;
+		/* Return the size if called with a NULL buffer */
+		if (SCARG(uap, value) == NULL) {
+			sx_slock(&kenv_lock);
+			for (i = 0; kenvp[i] != NULL; i++)
+				len += strlen(kenvp[i]) + 1;
+			sx_sunlock(&kenv_lock);
+			td->td_retval[0] = len;
+			return (0);
+		}
+		done = 0;
+		sx_slock(&kenv_lock);
+		for (i = 0; kenvp[i] != NULL && done < SCARG(uap, len); i++) {
+			len = min(strlen(kenvp[i]) + 1, SCARG(uap, len) - done);
+			error = copyout(kenvp[i], SCARG(uap, value) + done,
+			    len);
+			if (error) {
+				sx_sunlock(&kenv_lock);
+				return (error);
+			}
+			done += len;
+		}
+		sx_sunlock(&kenv_lock);
+		return (0);
+	}
+
+	if ((SCARG(uap, what) == KENV_SET) ||
+	    (SCARG(uap, what) == KENV_UNSET)) {
+		error = suser(td);
+		if (error)
+			return (error);
+	}
+
+	name = malloc(KENV_MNAMELEN, M_TEMP, M_WAITOK);
+
+	error = copyinstr(SCARG(uap, name), name, KENV_MNAMELEN, NULL);
+	if (error)
+		goto done;
+
+	switch (SCARG(uap, what)) {
+	case KENV_GET:
+		value = getenv(name);
+		if (value == NULL) {
+			error = ENOENT;
+			goto done;
+		}
+		len = strlen(value) + 1;
+		if (len > SCARG(uap, len))
+			len = SCARG(uap, len);
+		error = copyout(value, SCARG(uap, value), len);
+		freeenv(value);
+		if (error)
+			goto done;
+		td->td_retval[0] = len;
+		break;
+	case KENV_SET:
+		len = SCARG(uap, len);
+		if (len < 1) {
+			error = EINVAL;
+			goto done;
+		}
+		if (len > KENV_MVALLEN)
+			len = KENV_MVALLEN;
+		value = malloc(len, M_TEMP, M_WAITOK);
+		error = copyinstr(SCARG(uap, value), value, len, NULL);
+		if (error) {
+			free(value, M_TEMP);
+			goto done;
+		}
+		setenv(name, value);
+		free(value, M_TEMP);
+		break;
+	case KENV_UNSET:
+		error = unsetenv(name);
+		if (error)
+			error = ENOENT;
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
+done:
+	free(name, M_TEMP);
+	return (error);
+}
+
+/*
+ * Setup the dynamic kernel environment.
+ */
+static void
+init_dynamic_kenv(void *data __unused)
+{
+	char *cp;
+	int len, i;
+
+	kenvp = malloc(KENV_SIZE * sizeof(char *), M_KENV, M_WAITOK | M_ZERO);
+	i = 0;
+	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
+		len = strlen(cp) + 1;
+		kenvp[i] = malloc(len, M_KENV, M_WAITOK);
+		strcpy(kenvp[i++], cp);
+	}
+	kenvp[i] = NULL;
+
+	sx_init(&kenv_lock, "kernel environment");
+	dynamic_kenv = 1;
+}
+SYSINIT(kenv, SI_SUB_KMEM, SI_ORDER_ANY, init_dynamic_kenv, NULL);
+
+void
+freeenv(char *env)
+{
+
+	if (dynamic_kenv)
+		free(env, M_KENV);
+}
+
+/*
+ * Internal functions for string lookup.
+ */
+static char *
+_getenv_dynamic(const char *name, int *idx)
+{
+	char *cp;
+	int len, i;
+
+	sx_assert(&kenv_lock, SX_LOCKED);
+	len = strlen(name);
+	for (cp = kenvp[0], i = 0; cp != NULL; cp = kenvp[++i]) {
+		if ((cp[len] == '=') &&
+		    (strncmp(cp, name, len) == 0)) {
+			if (idx != NULL)
+				*idx = i;
+			return (cp + len + 1);
+		}
+	}
+	return (NULL);
+}
+
+static char *
+_getenv_static(const char *name)
+{
+	char *cp, *ep;
+	int len;
+
+	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
+		for (ep = cp; (*ep != '=') && (*ep != 0); ep++)
+			;
+		len = ep - cp;
+		if (*ep == '=')
+			ep++;
+		if (!strncmp(name, cp, len))
+			return (ep);
+	}
+	return (NULL);
+}
 
 /*
  * Look up an environment variable by name.
+ * Return a pointer to the string if found.
+ * The pointer has to be freed with freeenv()
+ * after use.
  */
 char *
 getenv(const char *name)
 {
-    char	*cp, *ep;
-    int		len;
-    
-    for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
-	for (ep = cp; (*ep != '=') && (*ep != 0); ep++)
-	    ;
-	len = ep - cp;
-	if (*ep == '=')
-	    ep++;
-	if (!strncmp(name, cp, len))
-	    return(ep);
-    }
-    return(NULL);
+	char *ret, *cp;
+	int len;
+
+	if (dynamic_kenv) {
+		sx_slock(&kenv_lock);
+		cp = _getenv_dynamic(name, NULL);
+		if (cp != NULL) {
+			len = strlen(cp) + 1;
+			ret = malloc(len, M_KENV, M_WAITOK);
+			strcpy(ret, cp);
+		} else
+			ret = NULL;
+		sx_sunlock(&kenv_lock);
+	} else
+		ret = _getenv_static(name);
+	return (ret);
+}
+
+/*
+ * Test if an environment variable is defined.
+ */
+int
+testenv(const char *name)
+{
+	char *cp;
+
+	if (dynamic_kenv) {
+		sx_slock(&kenv_lock);
+		cp = _getenv_dynamic(name, NULL);
+		sx_sunlock(&kenv_lock);
+	} else
+		cp = _getenv_static(name);
+	if (cp != NULL)
+		return (1);
+	return (0);
+}
+
+/*
+ * Set an environment variable by name.
+ */
+void
+setenv(const char *name, const char *value)
+{
+	char *buf, *cp;
+	int len, i;
+
+	KENV_CHECK;
+
+	len = strlen(name) + 1 + strlen(value) + 1;
+	buf = malloc(len, M_KENV, M_WAITOK);
+	sprintf(buf, "%s=%s", name, value);
+
+	sx_xlock(&kenv_lock);
+	cp = _getenv_dynamic(name, &i);
+	if (cp != NULL) {
+		free(kenvp[i], M_KENV);
+		kenvp[i] = buf;
+	} else {
+		/* We add the option if it wasn't found */
+		for (i = 0; (cp = kenvp[i]) != NULL; i++)
+			;
+		kenvp[i] = buf;
+		kenvp[i + 1] = NULL;
+	}
+	sx_xunlock(&kenv_lock);
+}
+
+/*
+ * Unset an environment variable string.
+ */
+int
+unsetenv(const char *name)
+{
+	char *cp;
+	int i, j;
+
+	KENV_CHECK;
+
+	sx_xlock(&kenv_lock);
+	cp = _getenv_dynamic(name, &i);
+	if (cp != NULL) {
+		free(kenvp[i], M_KENV);
+		for (j = i + 1; kenvp[j] != NULL; j++)
+			kenvp[i++] = kenvp[j];
+		kenvp[i] = NULL;
+		sx_xunlock(&kenv_lock);
+		return (0);
+	}
+	sx_xunlock(&kenv_lock);
+	return (-1);
 }
 
 /*
@@ -78,6 +359,7 @@ getenv_string(const char *name, char *data, int size)
     tmp = getenv(name);
     if (tmp != NULL) {
 	strncpy(data, tmp, size);
+	freeenv(tmp);
 	data[size - 1] = 0;
 	return (1);
     } else
@@ -106,7 +388,7 @@ getenv_int(const char *name, int *data)
 int
 getenv_quad(const char *name, quad_t *data)
 {
-    const char	*value;
+    char	*value;
     char	*vtp;
     quad_t	iv;
     
@@ -114,48 +396,15 @@ getenv_quad(const char *name, quad_t *data)
 	return(0);
     
     iv = strtoq(value, &vtp, 0);
-    if ((vtp == value) || (*vtp != '\0'))
+    if ((vtp == value) || (*vtp != '\0')) {
+	freeenv(value); 
 	return(0);
+    }
     
+    freeenv(value);
     *data = iv;
     return(1);
 }
-
-/*
- * Export for userland.  See kenv(1) specifically.
- */
-static int
-sysctl_kernenv(SYSCTL_HANDLER_ARGS)
-{
-    int		*name = (int *)arg1;
-    u_int	namelen = arg2;
-    char	*cp;
-    int		i, error;
-
-    if (kern_envp == NULL)
-	return(ENOENT);
-    
-    name++;
-    namelen--;
-    
-    if (namelen != 1)
-	return(EINVAL);
-
-    cp = kern_envp;
-    for (i = 0; i < name[0]; i++) {
-	cp = kernenv_next(cp);
-	if (cp == NULL)
-	    break;
-    }
-    
-    if (cp == NULL)
-	return(ENOENT);
-    
-    error = SYSCTL_OUT(req, cp, strlen(cp) + 1);
-    return (error);
-}
-
-SYSCTL_NODE(_kern, OID_AUTO, environment, CTLFLAG_RD, sysctl_kernenv, "kernel environment space");
 
 /*
  * Find the next entry after the one which (cp) falls within, return a
