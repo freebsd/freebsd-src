@@ -45,6 +45,7 @@
 .Nm archive_write_prepare ,
 .Nm archive_write_header ,
 .Nm archive_write_data ,
+.Nm archive_write_close ,
 .Nm archive_write_finish
 .Nd functions for creating archives
 .Sh SYNOPSIS
@@ -82,6 +83,8 @@
 .Ft int
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
 .Ft int
+.Fn archive_write_close "struct archive *"
+.Ft void
 .Fn archive_write_finish "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for creating streaming
@@ -187,9 +190,12 @@ Build and write a header using the data in the provided
 structure.
 .It Fn archive_write_data
 Write data corresponding to the header just written.
+.It Fn archive_write_close
+Complete the archive and invoke the close callback.
 .It Fn archive_write_finish
-Complete the archive, invoke the close callback, and release
-all resources.
+Invokes
+.Fn archive_write_close
+if it wasn't invoked manually, then release all resources.
 .El
 .Pp
 The callback functions are defined as follows:
@@ -321,7 +327,7 @@ may include
 .Fn archive_write_header ,
 .Fn archive_write_data ,
 or
-.Fn archive_write_finish .
+.Fn archive_write_close .
 In such a case, the
 .Fn archive_errno
 or

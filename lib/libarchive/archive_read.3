@@ -49,6 +49,7 @@
 .Nm archive_read_data_into_fd ,
 .Nm archive_read_extract ,
 .Nm archive_read_extract_set_progress_callback ,
+.Nm archive_read_close
 .Nm archive_read_finish
 .Nd functions for reading tar archives
 .Sh SYNOPSIS
@@ -95,6 +96,8 @@
 .Fn archive_read_extract "struct archive *" "int flags"
 .Ft void
 .Fn archive_read_extract_set_progress_callback "struct archive *" "void (*func)(void *)" "void *user_data"
+.Ft int
+.Fn archive_read_close "struct archive *"
 .Ft void
 .Fn archive_read_finish "struct archive *"
 .Sh DESCRIPTION
@@ -231,9 +234,12 @@ The progress function will be invoked with the pointer provided to this call.
 Generally, the data pointed to should include a reference to the archive
 object and the archive_entry object so that various statistics
 can be retrieved for the progress display.
+.It Fn archive_read_close
+Complete the archive and invoke the close callback.
 .It Fn archive_read_finish
-Complete the archive, invoke the close callback, and release
-all resources.
+Invokes
+.Fn archive_read_close
+if it wasn't invoked maually, then release all resources.
 .El
 .Pp
 Note that the library determines most of the relevant information about
