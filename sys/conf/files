@@ -1449,6 +1449,8 @@ netgraph/ng_lmi.c	optional netgraph_lmi
 netgraph/ng_l2tp.c	optional netgraph_l2tp
 netgraph/ng_mppc.c	optional netgraph_mppc_compression
 netgraph/ng_mppc.c	optional netgraph_mppc_encryption
+netgraph/netflow/ng_netflow.c	optional netgraph_netflow
+netgraph/netflow/netflow.c	optional netgraph_netflow
 crypto/rc4/rc4.c	optional wlan
 crypto/rc4/rc4.c	optional netgraph_mppc_encryption
 crypto/sha1.c		optional netgraph_mppc_encryption
