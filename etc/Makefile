@@ -95,11 +95,14 @@ distribution:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${SSL} ${DESTDIR}/etc/ssl
 .endif
+.if !defined(NO_KERBEROS)
+	cd ${.CURDIR}/root; \
+	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
+		dot.k5login ${DESTDIR}/root/.k5login;
+.endif
 	cd ${.CURDIR}/root; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.cshrc ${DESTDIR}/root/.cshrc; \
-	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
-		dot.k5login ${DESTDIR}/root/.k5login; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 		dot.login ${DESTDIR}/root/.login; \
 	    ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
