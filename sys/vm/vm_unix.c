@@ -65,6 +65,9 @@ struct obreak_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 obreak(p, uap)
@@ -135,6 +138,9 @@ struct ovadvise_args {
 };
 #endif
 
+/*
+ * MPSAFE
+ */
 /* ARGSUSED */
 int
 ovadvise(p, uap)
