@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)sigaction.2	8.2 (Berkeley) 4/3/94
-.\"	$Id: sigaction.2,v 1.17 1998/05/18 03:33:11 jkoshy Exp $
+.\"	$Id: sigaction.2,v 1.18 1998/06/04 21:05:49 steve Exp $
 .\"
 .Dd April 3, 1994
 .Dt SIGACTION 2
@@ -303,6 +303,108 @@ is not allowed to block
 or
 .Dv SIGSTOP .
 Any attempt to do so will be silently ignored.
+.Pp
+The following functions are either reentrant or not interruptible
+by signals and are async-signal safe. Therefore applications may
+invoke them, without restriction, from signal-catching functions: 
+.Pp
+Base Interfaces:
+.Pp
+.Fn _exit ,
+.Fn access ,
+.Fn alarm ,
+.Fn cfgetispeed ,
+.Fn cfgetospeed ,
+.Fn cfsetispeed ,
+.Fn cfsetospeed ,
+.Fn chdir ,
+.Fn chmod ,
+.Fn chown ,
+.Fn close ,
+.Fn creat ,
+.Fn dup ,
+.Fn dup2 ,
+.Fn execle ,
+.Fn execve ,
+.Fn fcntl ,
+.Fn fork ,
+.Fn fpathconf ,
+.Fn fstat ,
+.Fn fsync ,
+.Fn getegid ,
+.Fn geteuid ,
+.Fn getgid ,
+.Fn getgroups ,
+.Fn getpgrp ,
+.Fn getpid ,
+.Fn getppid ,
+.Fn getuid ,
+.Fn kill ,
+.Fn link ,
+.Fn lseek ,
+.Fn mkdir ,
+.Fn mkfifo ,
+.Fn open ,
+.Fn pathconf ,
+.Fn pause ,
+.Fn pipe ,
+.Fn raise ,
+.Fn read ,
+.Fn rename ,
+.Fn rmdir ,
+.Fn setgid ,
+.Fn setpgid ,
+.Fn setsid ,
+.Fn setuid ,
+.Fn sigaction ,
+.Fn sigaddset ,
+.Fn sigdelset ,
+.Fn sigemptyset ,
+.Fn sigfillset  ,
+.Fn sigismember ,
+.Fn signal ,
+.Fn sigpending ,
+.Fn sigprocmask ,
+.Fn sigsuspend ,
+.Fn sleep ,
+.Fn stat ,
+.Fn sysconf ,
+.Fn tcdrain ,
+.Fn tcflow ,
+.Fn tcflush ,
+.Fn tcgetattr ,
+.Fn tcgetpgrp ,
+.Fn tcsendbreak ,
+.Fn tcsetattr ,
+.Fn tcsetpgrp ,
+.Fn time ,
+.Fn times ,
+.Fn umask ,
+.Fn uname ,
+.Fn unlink ,
+.Fn utime ,
+.Fn wait ,
+.Fn waitpid ,
+.Fn write .
+.Pp
+Realtime Interfaces:
+.Pp
+.Fn aio_error ,
+.Fn clock_gettime ,
+.Fn sigpause ,
+.Fn timer_getoverrun ,
+.Fn aio_return ,
+.Fn fdatasync ,
+.Fn sigqueue ,
+.Fn timer_gettime ,
+.Fn aio_suspend ,
+.Fn sem_post ,
+.Fn sigset ,
+.Fn timer_settime .
+.Pp
+All functions not in the above lists are considered to be unsafe
+with respect to signals.  That is to say, the behaviour of such
+functions when called from a signal handler is undefined.
 .Sh RETURN VALUES
 A 0 value indicated that the call succeeded.  A \-1 return value
 indicates an error occurred and
