@@ -23,7 +23,11 @@
 
 struct disk {
 	int			d_flags;
-	struct cdevsw		*d_devsw;
+	d_open_t		*d_open;
+	d_close_t		*d_close;
+	d_ioctl_t		*d_ioctl;
+	d_strategy_t		*d_strategy;
+	d_psize_t		*d_psize;
 	dev_t			d_dev;
 	struct diskslices	*d_slice;
 	struct disklabel	d_label;
