@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.33 1996/04/18 21:34:26 phk Exp $
+ *	$Id: swtch.s,v 1.34 1996/04/25 06:20:08 phk Exp $
  */
 
 #include "apm.h"
@@ -461,7 +461,6 @@ swtch_com:
 2:
 #endif
 
-	movl	$0,%eax
 	sti
 	ret
 
@@ -506,22 +505,19 @@ ENTRY(savectx)
 	pushl	%eax
 	pushl	%eax
 	call	_npxsave
-	popl	%eax
+	addl	$4,%esp
 	popl	%eax
 	popl	%ecx
 
-	pushl	%ecx
 	pushl	$PCB_SAVEFPU_SIZE
 	leal	PCB_SAVEFPU(%ecx),%ecx
 	pushl	%ecx
 	pushl	%eax
 	call	_bcopy
 	addl	$12,%esp
-	popl	%ecx
 #endif	/* NNPX > 0 */
 
 1:
-	xorl	%eax,%eax			/* return 0 */
 	ret
 
 /*
