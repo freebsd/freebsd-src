@@ -170,3 +170,6 @@ FILE *raw_popen(const char *program, char * const *argv, const char *type);
 int raw_pclose(FILE *iop);
 void display_helpfile(void);
 void display_helpline(WINDOW *w, int y, int width);
+void print_arrows(WINDOW *dialog, int scroll, int menu_height, int item_no,
+		  int box_x, int box_y, int tag_x, int cur_x, int cur_y);
+
