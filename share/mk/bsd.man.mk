@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.13 1996/06/22 06:01:56 phk Exp $
+#	$Id: bsd.man.mk,v 1.14 1996/08/11 12:31:57 peter Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -83,7 +83,7 @@ CLEANFILES+=	${MAN${sect}}
 .for target in ${page}
 all-man: ${target}
 ${target}: ${page}
-	${MANFILT} < ${.ALLSRC} > ${.TARGET}
+	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
 .endif
@@ -101,8 +101,8 @@ CLEANFILES+=	${MAN${sect}:T:S/$/${ZEXTENSION}/g}
 .for target in ${page:T:S/$/${ZEXTENSION}/}
 all-man: ${target}
 ${target}: ${page}
-.if defined(MANFILT)
-	${MANFILT} < ${.ALLSRC} | ${MCOMPRESS} > ${.TARGET}
+.if defined(MANFILTER)
+	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS} > ${.TARGET}
 .else
 	${MCOMPRESS} ${.ALLSRC} > ${.TARGET}
 .endif
