@@ -24,18 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strxfrm.c,v 1.5 1995/01/27 12:51:06 alex Exp alex $
+ * $Id: strxfrm.c,v 1.2 1995/02/16 17:01:11 ache Exp $
  */
 
 #include <stdlib.h>
 #include <string.h>
 #include "collate.h"
-
-/*
- * Transform src, storing the result in dest, such that strcmp()
- * on transformed strings returns what strcoll() on the original
- * untransformed strings would return.
- */
 
 size_t
 strxfrm(dest, src, len)
