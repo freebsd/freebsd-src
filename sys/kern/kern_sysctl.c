@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.60 1996/03/11 02:18:22 hsu Exp $
+ * $Id: kern_sysctl.c,v 1.61 1996/04/07 13:03:06 phk Exp $
  */
 
 #include <sys/param.h>
@@ -94,9 +94,14 @@ sysctl_order(void *arg)
 	/* First, find the highest oid we have */
 	j = l->ls_length;
 	oidpp = (struct sysctl_oid **) l->ls_items;
-	for (k = 0; j--; oidpp++) 
+	for (k = 0; j--; oidpp++) {
+		if ((*oidpp)->oid_arg1 == arg) {
+			*oidpp = 0;
+			continue;
+		}
 		if (*oidpp && (*oidpp)->oid_number > k)
 			k = (*oidpp)->oid_number;
+	}
 
 	/* Next, replace all OID_AUTO oids with new numbers */
 	j = l->ls_length;
@@ -112,10 +117,6 @@ sysctl_order(void *arg)
 	for (; j--; oidpp++) {
 		if (!*oidpp)
 			continue;
-		if ((*oidpp)->oid_arg1 == arg) {
-			*oidpp = 0;
-			continue;
-		}
 		if (((*oidpp)->oid_kind & CTLTYPE) == CTLTYPE_NODE)
 			if (!(*oidpp)->oid_handler)
 				sysctl_order((*oidpp)->oid_arg1);
@@ -160,26 +161,19 @@ sysctl_sysctl_debug_dump_node(struct linker_set *l, int i)
 		for (k=0; k<i; k++)
 			printf(" ");
 
-		if ((*oidpp)->oid_number > 100) {
-			printf("Junk! %p  # %d  %s  k %x  a1 %p  a2 %x  h %p\n",
-				*oidpp,
-		 		(*oidpp)->oid_number, (*oidpp)->oid_name,
-		 		(*oidpp)->oid_kind, (*oidpp)->oid_arg1,
-		 		(*oidpp)->oid_arg2, (*oidpp)->oid_handler);
-			continue;
-		}
 		printf("%d %s ", (*oidpp)->oid_number, (*oidpp)->oid_name);
 
 		printf("%c%c",
 			(*oidpp)->oid_kind & CTLFLAG_RD ? 'R':' ',
 			(*oidpp)->oid_kind & CTLFLAG_WR ? 'W':' ');
 
+		if ((*oidpp)->oid_handler)
+			printf(" *Handler");
+
 		switch ((*oidpp)->oid_kind & CTLTYPE) {
 			case CTLTYPE_NODE:
-				if ((*oidpp)->oid_handler) {
-					printf(" Node(proc)\n");
-				} else {
-					printf(" Node\n");
+				printf(" Node\n");
+				if (!(*oidpp)->oid_handler) {
 					sysctl_sysctl_debug_dump_node(
 						(*oidpp)->oid_arg1, i+2);
 				}
@@ -284,8 +278,10 @@ sysctl_sysctl_next_ls (struct linker_set *lsp, int *name, u_int namelen,
 				/* We really should call the handler here...*/
 				return 0;
 			lsp = (struct linker_set*)(*oidpp)->oid_arg1;
-			return (sysctl_sysctl_next_ls (lsp, 0, 0, next+1, 
-				len, level+1, oidp));
+			if (!sysctl_sysctl_next_ls (lsp, 0, 0, next+1, 
+				len, level+1, oidp))
+				return 0;
+			goto next;
 		}
 
 		if ((*oidpp)->oid_number < *name)
@@ -300,9 +296,7 @@ sysctl_sysctl_next_ls (struct linker_set *lsp, int *name, u_int namelen,
 			if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, 
 				next+1, len, level+1, oidp))
 				return (0);
-			namelen = 1;
-			*len = level;
-			continue;
+			goto next;
 		}
 		if (((*oidpp)->oid_kind & CTLTYPE) != CTLTYPE_NODE)
 			continue;
@@ -314,6 +308,7 @@ sysctl_sysctl_next_ls (struct linker_set *lsp, int *name, u_int namelen,
 		if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, next+1, 
 			len, level+1, oidp))
 			return (0);
+	next:
 		namelen = 1;
 		*len = level;
 	}
