@@ -35,9 +35,9 @@
 #if 0
 static char sccsid[] = "@(#)vfslist.c	8.1 (Berkeley) 5/8/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <stdlib.h>
