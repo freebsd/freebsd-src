@@ -116,7 +116,7 @@ initattr(int argc, char *argv[])
 	int	ch, i, error;
 
 	optind = 0;
-	while ((ch = getopt(argc, argv, "p:rw")) != -1)
+	while ((ch = getopt(argc, argv, "p:r:w:")) != -1)
 		switch (ch) {
 		case 'p':
 			fs_path = strdup(optarg);
