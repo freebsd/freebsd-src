@@ -132,6 +132,8 @@ main(int argc, char *argv[])
 	char		*username, *cleanenv, *class, shellbuf[MAXPATHLEN];
 	const char	*p, *user, *shell, *mytty, **nargv;
 
+	struct sigaction sa, sa_int, sa_quit, sa_tstp;
+
 	shell = class = cleanenv = NULL;
 	asme = asthem = fastlogin = statusp = 0;
 	user = "root";
@@ -314,6 +316,12 @@ main(int argc, char *argv[])
 	 * We must fork() before setuid() because we need to call
 	 * pam_setcred(pamh, PAM_DELETE_CRED) as root.
 	 */
+	sa.sa_flags = SA_RESTART;
+	sa.__sigaction_u.__sa_handler = SIG_IGN;
+	sigemptyset(&sa.sa_mask);
+	sigaction(SIGINT, &sa, &sa_int);
+	sigaction(SIGQUIT, &sa, &sa_quit);
+	sigaction(SIGTSTP, &sa, &sa_tstp);
 
 	statusp = 1;
 	child_pid = fork();
@@ -339,6 +347,9 @@ main(int argc, char *argv[])
 		PAM_END();
 		exit(1);
 	case 0:
+		sigaction(SIGINT, &sa_int, NULL);
+		sigaction(SIGQUIT, &sa_quit, NULL);
+		sigaction(SIGTSTP, &sa_tstp, NULL);
 		/*
 		 * Set all user context except for: Environmental variables
 		 * Umask Login records (wtmp, etc) Path
