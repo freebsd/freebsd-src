@@ -83,16 +83,6 @@ static Distribution DistTable[] = {
     DTE_TARBALL("dict",	    &Dists, DICT,     "/"),
     DTE_TARBALL("info",	    &Dists, INFO,     "/"),
     DTE_SUBDIST("src",	    &Dists, SRC,      SrcDistTable),
-#ifdef __i386__
-    DTE_TARBALL("compat1x", &Dists, COMPAT1X, "/"),
-    DTE_TARBALL("compat20", &Dists, COMPAT20, "/"),
-    DTE_TARBALL("compat21", &Dists, COMPAT21, "/"),
-    DTE_TARBALL("compat22", &Dists, COMPAT22, "/"),
-    DTE_TARBALL("compat3x", &Dists, COMPAT3X, "/"),
-#endif
-#if defined(__i386__) || defined(__alpha__)
-    DTE_TARBALL("compat4x", &Dists, COMPAT4X, "/"),
-#endif
     DTE_TARBALL("ports",    &Dists, PORTS,    "/usr"),
     DTE_TARBALL("local",    &Dists, LOCAL,    "/"),
     DTE_SUBDIST("X.Org",    &Dists, XORG,     XOrgDistTable),
