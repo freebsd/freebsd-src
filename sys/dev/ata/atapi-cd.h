@@ -299,7 +299,7 @@ struct write_param {
 #define CDR_WTYPE_RAW		0x03
 
     u_int8_t	test_write	:1;	/* test write enable */
-    u_int8_t	reserved2_5	:1;
+    u_int8_t	link_size_valid	:1;
     u_int8_t	burnproof	:1;	/* BurnProof enable */
     u_int8_t	reserved2_7	:1;
     u_int8_t	track_mode	:4;	/* track mode */
@@ -319,7 +319,7 @@ struct write_param {
 
     u_int8_t	datablock_type	:4;	/* data type code (see cdrio.h) */
     u_int8_t	reserved4_4567	:4;
-    u_int8_t	reserved5;
+    u_int8_t	link_size;
     u_int8_t	reserved6;
     u_int8_t	host_app_code	:6;	/* host application code */
     u_int8_t	reserved7_67	:2;
