@@ -110,42 +110,48 @@ ieee80211_node_detach(struct ifnet *ifp)
  * Initialize the active channel set based on the set
  * of available channels and the current PHY mode.
  */
-void
+static void
 ieee80211_reset_scan(struct ifnet *ifp)
 {
 	struct ieee80211com *ic = (void *)ifp;
 
 	memcpy(ic->ic_chan_scan, ic->ic_chan_active,
 		sizeof(ic->ic_chan_active));
+	/* NB: hack, setup so next_scan starts with the first channel */
+	if (ic->ic_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		ic->ic_bss->ni_chan = &ic->ic_channels[IEEE80211_CHAN_MAX];
 }
 
 /*
  * Begin an active scan.
  */
 void
-ieee80211_begin_scan(struct ifnet *ifp, struct ieee80211_node *ni)
+ieee80211_begin_scan(struct ifnet *ifp)
 {
 	struct ieee80211com *ic = (void *)ifp;
 
+	/*
+	 * In all but hostap mode scanning starts off in
+	 * an active mode before switching to passive.
+	 */
+	if (ic->ic_opmode != IEEE80211_M_HOSTAP)
+		ic->ic_flags |= IEEE80211_F_ASCAN;
 	if (ifp->if_flags & IFF_DEBUG)
 		if_printf(ifp, "begin %s scan\n",
-			ic->ic_opmode != IEEE80211_M_HOSTAP ?
+			(ic->ic_flags & IEEE80211_F_ASCAN) ?
 				"active" : "passive");
-
-	ieee80211_reset_scan(ifp);
 	/*
-	 * Flush any previously seen AP's.  Note that this
-	 * assumes we don't act as both an AP and a station,
-	 * otherwise we'll potentially flush state of stations
-	 * associated with us.
+	 * Clear scan state and flush any previously seen
+	 * AP's.  Note that the latter assumes we don't act
+	 * as both an AP and a station, otherwise we'll
+	 * potentially flush state of stations associated
+	 * with us.
 	 */
+	ieee80211_reset_scan(ifp);
 	ieee80211_free_allnodes(ic);
 
-	clrbit(ic->ic_chan_scan, ieee80211_chan2ieee(ic, ni->ni_chan));
-	if (ic->ic_opmode != IEEE80211_M_HOSTAP) {
-		ic->ic_flags |= IEEE80211_F_ASCAN;
-		IEEE80211_SEND_MGMT(ic, ni, IEEE80211_FC0_SUBTYPE_PROBE_REQ, 0);
-	}
+	/* Scan the next channel. */
+	ieee80211_next_scan(ifp);
 }
 
 /*
@@ -180,7 +186,7 @@ ieee80211_next_scan(struct ifnet *ifp)
 	    ieee80211_chan2ieee(ic, ic->ic_bss->ni_chan),
 	    ieee80211_chan2ieee(ic, chan)));
 	ic->ic_bss->ni_chan = chan;
-	ieee80211_new_state(ifp, IEEE80211_S_SCAN, -1);
+	ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 }
 
 void
@@ -213,7 +219,7 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 		ni->ni_fhdwell = 200;	/* XXX */
 		ni->ni_fhindex = 1;
 	}
-	ieee80211_new_state(ifp, IEEE80211_S_RUN, -1);
+	ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 }
 
 /*
@@ -368,10 +374,10 @@ ieee80211_end_scan(struct ifnet *ifp)
 			goto notfound;
 		}
 		ieee80211_unref_node(&selbs);
-		ieee80211_new_state(ifp, IEEE80211_S_RUN, -1);
+		ieee80211_new_state(ic, IEEE80211_S_RUN, -1);
 	} else {
 		ieee80211_unref_node(&selbs);
-		ieee80211_new_state(ifp, IEEE80211_S_AUTH, -1);
+		ieee80211_new_state(ic, IEEE80211_S_AUTH, -1);
 	}
 }
 

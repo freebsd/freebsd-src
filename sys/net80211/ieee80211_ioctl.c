@@ -659,7 +659,7 @@ ieee80211_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP)
 			break;
 		/* NB: ignore channel list and tx rate parameters */
-		error = ieee80211_new_state(ifp, IEEE80211_S_SCAN, -1);
+		error = ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 		break;
 	case WI_RID_SCAN_APS:
 		if (ic->ic_opmode == IEEE80211_M_HOSTAP)
@@ -703,7 +703,7 @@ ieee80211_cfgset(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (wreq.wi_type == WI_RID_CHANNEL_LIST)
 			error = ENETRESET;
 		else
-			error = ieee80211_new_state(ifp, IEEE80211_S_SCAN, -1);
+			error = ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 		break;
 	default:
 		error = EINVAL;

@@ -39,12 +39,13 @@
  */
 
 enum ieee80211_state {
-	IEEE80211_S_INIT,		/* default state */
-	IEEE80211_S_SCAN,		/* scanning */
-	IEEE80211_S_AUTH,		/* try to authenticate */
-	IEEE80211_S_ASSOC,		/* try to assoc */
-	IEEE80211_S_RUN			/* associated */
+	IEEE80211_S_INIT	= 0,	/* default state */
+	IEEE80211_S_SCAN	= 1,	/* scanning */
+	IEEE80211_S_AUTH	= 2,	/* try to authenticate */
+	IEEE80211_S_ASSOC	= 3,	/* try to assoc */
+	IEEE80211_S_RUN		= 4,	/* associated */
 };
+#define	IEEE80211_S_MAX		(IEEE80211_S_RUN+1)
 
 #define	IEEE80211_SEND_MGMT(_ic,_ni,_type,_arg) \
 	((*(_ic)->ic_send_mgmt)(_ic, _ni, _type, _arg))
@@ -66,9 +67,12 @@ extern	struct mbuf *ieee80211_encap(struct ifnet *, struct mbuf *);
 extern	struct mbuf *ieee80211_decap(struct ifnet *, struct mbuf *);
 extern	u_int8_t *ieee80211_add_rates(u_int8_t *frm,
 		const struct ieee80211_rateset *);
+#define	ieee80211_new_state(_ic, _nstate, _arg) \
+	(((_ic)->ic_newstate)((_ic), (_nstate), (_arg)))
 extern	u_int8_t *ieee80211_add_xrates(u_int8_t *frm,
 		const struct ieee80211_rateset *);
-extern	int ieee80211_new_state(struct ifnet *, enum ieee80211_state, int);
 extern	void ieee80211_print_essid(u_int8_t *, int);
 extern	void ieee80211_dump_pkt(u_int8_t *, int, int, int);
+
+extern	const char *ieee80211_state_name[IEEE80211_S_MAX];
 #endif /* _NET80211_IEEE80211_PROTO_H_ */
