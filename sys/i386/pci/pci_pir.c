@@ -334,7 +334,7 @@ pci_cfgintr_search(struct PIR_entry *pe, int bus, int device, int matchpin, int 
 		(pci_get_intpin(*childp) == matchpin) &&
 		((irq = pci_get_irq(*childp)) != 255)) {
 		printf("pci_cfgintr_search: linked (%x) to configured irq %d at %d:%d:%d\n",
-		       irq, pe->pe_intpin[pin - 1].link,
+		       pe->pe_intpin[pin - 1].link, irq,
 		       pci_get_bus(*childp), pci_get_slot(*childp), pci_get_function(*childp));
 		break;
 	    }
