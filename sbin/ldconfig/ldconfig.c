@@ -356,7 +356,7 @@ int	dewey[], ndewey;
 	shp = (struct shlib_list *)xmalloc(sizeof *shp);
 	shp->name = strdup(name);
 	shp->path = concat(dir, "/", file);
-	bcopy(dewey, shp->dewey, MAXDEWEY);
+	bcopy(dewey, shp->dewey, sizeof(shp->dewey));
 	shp->ndewey = ndewey;
 	shp->next = NULL;
 
