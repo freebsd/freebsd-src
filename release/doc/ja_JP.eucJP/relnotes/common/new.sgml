@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.265
+    Original revision: 1.266
 -->
 
 <articleinfo>
@@ -3278,6 +3278,24 @@ hw.pcic.irq="0"</programlisting>
           <application>sendmail</application>
           を停止・起動・再起動する機能の追加が行なわれました.
           &merged;</para>
+
+	<para><filename>/etc/master.passwd</filename> に
+	  <username>smmsp</username> ユーザと
+	  <username>mailnull</username> ユーザが追加されました.
+	  明示的に <literal>confDEF_USER_ID</literal> を設定していない
+	  場合(デフォルト), 安全性のために
+	  <username>mailnull</username> ユーザを使います.
+	  これ以前は, <username>mailnull</username> ユーザは
+	  存在せず, <username>daemon</username> ユーザが利用されて
+	  いました.
+	  この変更はファイルやプログラム (<port>majordomo</port> など)
+	  にメールを渡す際にパーミッションの問題を引き起こす可能性が
+	  あります. &merged;
+	  以前の挙動に戻すには, システムの
+	  <filename><replaceable>*</replaceable>.mc</filename> 設定
+	  ファイルに以下の設定を加えます:
+	  <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
+	</para>
       </sect4>
     </sect3>
 
