@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 4/2/94
- *	$Id: extern.h,v 1.4 1997/02/22 14:02:46 peter Exp $
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
