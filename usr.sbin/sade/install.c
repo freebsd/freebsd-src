@@ -473,7 +473,7 @@ installExpress(dialogMenuItem *self)
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
 	/* Set default security level */
-	configSecurityModerate(self);
+	configSecurityModerate(NULL);
 
 	/* Give user the option of one last configuration spree */
 	installConfigure();
@@ -645,7 +645,7 @@ installCustomCommit(dialogMenuItem *self)
     i = installCommit(self);
     if (DITEM_STATUS(i) == DITEM_SUCCESS) {
 	/* Set default security level */
-	configSecurityModerate(self);
+	configSecurityModerate(NULL);
 
 	/* Give user the option of one last configuration spree */
 	installConfigure();
