@@ -894,7 +894,7 @@ _ftp_get_proxy(const char *flags)
 	struct url *purl;
 	char *p;
 
-	if (strchr(flags, 'd') != NULL)
+	if (flags != NULL && strchr(flags, 'd') != NULL)
 		return (NULL);
 	if (((p = getenv("FTP_PROXY")) || (p = getenv("ftp_proxy")) ||
 		(p = getenv("HTTP_PROXY")) || (p = getenv("http_proxy"))) &&
