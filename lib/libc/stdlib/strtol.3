@@ -144,9 +144,16 @@ on return, the entire string was valid.)
 .Sh RETURN VALUES
 The
 .Fn strtol
+or
+.Fn strtoll
 function
 returns the result of the conversion,
 unless the value would underflow or overflow.
+If no conversion could be performed, 0 shall be returned and
+.Va errno
+will be
+set to
+.Er EINVAL .
 If an underflow occurs,
 .Fn strtol
 returns
@@ -155,11 +162,6 @@ If an overflow occurs,
 .Fn strtol
 returns
 .Dv LONG_MAX .
-The
-.Fn strtoll
-function
-returns the result of the conversion,
-unless the value would underflow or overflow.
 If an underflow occurs,
 .Fn strtoll
 returns
@@ -174,6 +176,9 @@ is set to
 .Er ERANGE .
 .Sh ERRORS
 .Bl -tag -width Er
+.It Bq Er EINVAL
+The value of base is not supported or
+no conversion could be performed.
 .It Bq Er ERANGE
 The given string was out of range; the value converted has been clamped.
 .El
@@ -198,5 +203,3 @@ The
 .Bx
 .Fn strtoq
 function is deprecated.
-.Sh BUGS
-Ignores the current locale.

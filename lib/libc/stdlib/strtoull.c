@@ -50,7 +50,7 @@ static const char rcsid[] =
 /*
  * Convert a string to an unsigned long long integer.
  *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
 unsigned long long
@@ -59,10 +59,10 @@ strtoull(nptr, endptr, base)
 	char **endptr;
 	register int base;
 {
-	register const char *s = nptr;
+	register const char *s;
 	register unsigned long long acc;
 	register unsigned char c;
-	register unsigned long long qbase, cutoff;
+	register unsigned long long cutoff;
 	register int neg, any, cutlim;
 
 	/*
@@ -88,10 +88,13 @@ strtoull(nptr, endptr, base)
 	}
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
-	qbase = (unsigned)base;
-	cutoff = (unsigned long long)ULLONG_MAX / qbase;
-	cutlim = (unsigned long long)ULLONG_MAX % qbase;
-	for (acc = 0, any = 0;; c = *s++) {
+	any = 0;
+	if (base < 2 || base > 36)
+		goto noconv;
+
+	cutoff = ULLONG_MAX / base;
+	cutlim = ULLONG_MAX % base;
+	for (acc = 0; ; c = *s++) {
 		if (!isascii(c))
 			break;
 		if (isdigit(c))
@@ -106,16 +109,19 @@ strtoull(nptr, endptr, base)
 			any = -1;
 		else {
 			any = 1;
-			acc *= qbase;
+			acc *= base;
 			acc += c;
 		}
 	}
 	if (any < 0) {
 		acc = ULLONG_MAX;
 		errno = ERANGE;
+	} else if (!any) {
+noconv:
+		errno = EINVAL;
 	} else if (neg)
 		acc = -acc;
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
 }
