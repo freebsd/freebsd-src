@@ -93,7 +93,7 @@ struct lsi64854_softc {
 #define DMA_ISACTIVE(sc)		((sc)->sc_active)
 
 #define DMA_ENINTR(sc) do {			\
-	u_int32_t csr = L64854_GCSR(sc);	\
+	uint32_t csr = L64854_GCSR(sc);		\
 	csr |= L64854_INT_EN;			\
 	L64854_SCSR(sc, csr);			\
 } while (0)
@@ -101,7 +101,7 @@ struct lsi64854_softc {
 #define DMA_ISINTR(sc)	(L64854_GCSR(sc) & (D_INT_PEND|D_ERR_PEND))
 
 #define DMA_GO(sc) do {				\
-	u_int32_t csr = L64854_GCSR(sc);	\
+	uint32_t csr = L64854_GCSR(sc);		\
 	csr |= D_EN_DMA;			\
 	L64854_SCSR(sc, csr);			\
 	sc->sc_active = 1;			\

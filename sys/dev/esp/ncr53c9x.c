@@ -99,7 +99,7 @@
  * Based on aic6360 by Jarle Greipsland
  *
  * Acknowledgements: Many of the algorithms used in this driver are
- * inspired by the work of Julian Elischer (julian@tfs.com) and
+ * inspired by the work of Julian Elischer (julian@FreeBSD.org) and
  * Charles Hannum (mycroft@duality.gnu.ai.mit.edu).  Thanks a million!
  */
 
@@ -216,7 +216,7 @@ ncr53c9x_lunsearch(struct ncr53c9x_tinfo *ti, int64_t lun)
 }
 
 /*
- * Attach this instance, and then all the sub-devices
+ * Attach this instance, and then all the sub-devices.
  */
 int
 ncr53c9x_attach(struct ncr53c9x_softc *sc)
@@ -770,7 +770,7 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	}
 
 	/*
-	 * Who am I. This is where we tell the target that we are
+	 * Who am I?  This is where we tell the target that we are
 	 * happy for it to disconnect etc.
 	 */
 
@@ -817,7 +817,7 @@ ncr53c9x_get_ecb(struct ncr53c9x_softc *sc)
 }
 
 /*
- * DRIVER FUNCTIONS CALLABLE FROM HIGHER LEVEL DRIVERS
+ * DRIVER FUNCTIONS CALLABLE FROM HIGHER LEVEL DRIVERS:
  */
 
 /*
@@ -1043,7 +1043,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 }
 
 /*
- * Used when interrupt driven I/O isn't allowed, e.g. during boot.
+ * Used when interrupt driven I/O is not allowed, e.g. during boot.
  */
 static void
 ncr53c9x_poll(struct cam_sim *sim)
@@ -1630,7 +1630,7 @@ ncr53c9x_msgin(struct ncr53c9x_softc *sc)
 
 gotit:
 	NCR_MSGS(("gotmsg(%x) state %d", sc->sc_imess[0], sc->sc_state));
-	/* we got complete message, flush the imess, */
+	/* We got a complete message, flush the imess, */
 	/* XXX nobody uses imlen below */
 	sc->sc_imlen = 0;
 	/*
@@ -1916,8 +1916,8 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 	 * XXX - the NCR_ATN flag is not in sync with the actual ATN
 	 *	 condition on the SCSI bus. The 53c9x chip
 	 *	 automatically turns off ATN before sending the
-	 *	 message byte.  (see also the comment below in the
-	 *	 default case when picking out a message to send)
+	 *	 message byte.  (See also the comment below in the
+	 *	 default case when picking out a message to send.)
 	 */
 	if (sc->sc_flags & NCR_ATN) {
 		if (sc->sc_prevphase != MESSAGE_OUT_PHASE) {
@@ -2420,7 +2420,7 @@ again:
 			}
 			/*
 			 * The C90 only inhibits FIFO writes until reselection
-			 * is complete, instead of waiting until the interrupt
+			 * is complete instead of waiting until the interrupt
 			 * status register has been read.  So, if the reselect
 			 * happens while we were entering command bytes (for
 			 * another target) some of those bytes can appear in
@@ -2949,4 +2949,3 @@ ncr53c9x_watch(void *arg)
 	mtx_unlock(&sc->sc_lock);
 	callout_reset(&sc->sc_watchdog, 60 * hz, ncr53c9x_watch, sc);
 }
-

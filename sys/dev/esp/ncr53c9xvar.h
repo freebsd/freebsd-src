@@ -85,8 +85,8 @@
 #define FREQTOCCF(freq)	(((freq + 4) / 5))
 
 /*
- * NCR 53c9x variants.  Note, these values are used as indexes into
- * a table; don't modify them unless you know what you're doing.
+ * NCR 53c9x variants.  Note these values are used as indexes into
+ * a table; do not modify them unless you know what you are doing.
  */
 #define	NCR_VARIANT_ESP100		0
 #define	NCR_VARIANT_ESP100A		1
@@ -171,9 +171,9 @@ struct ncr53c9x_linfo {
 	int64_t			lun;
 	LIST_ENTRY(ncr53c9x_linfo) link;
 	time_t			last_used;
-	unsigned char		used;	/* # slots in use */
-	unsigned char		avail;	/* where to start scanning */
-	unsigned char		busy;
+	u_char			used;	/* # slots in use */
+	u_char			avail;	/* where to start scanning */
+	u_char			busy;
 	struct ncr53c9x_ecb	*untagged;
 	struct ncr53c9x_ecb	*queued[NCR_TAG_DEPTH];
 };
@@ -361,7 +361,7 @@ struct ncr53c9x_softc {
 };
 
 /* values for sc_state */
-#define NCR_IDLE	1	/* waiting for something to do */
+#define NCR_IDLE	1	/* Waiting for something to do */
 #define NCR_SELECTING	2	/* SCSI command is arbiting  */
 #define NCR_RESELECTED	3	/* Has been reselected */
 #define NCR_IDENTIFIED	4	/* Has gotten IFY but not TAG */
