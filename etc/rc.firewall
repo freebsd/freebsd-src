@@ -30,11 +30,13 @@
 #
 
 # Suck in the configuration variables.
-if [ -r /etc/defaults/rc.conf ]; then
-	. /etc/defaults/rc.conf
-	source_rc_confs
-elif [ -r /etc/rc.conf ]; then
-	. /etc/rc.conf
+if [ -z "${source_rc_confs_defined}" ]; then
+	if [ -r /etc/defaults/rc.conf ]; then
+		. /etc/defaults/rc.conf
+		source_rc_confs
+	elif [ -r /etc/rc.conf ]; then
+		. /etc/rc.conf
+	fi
 fi
 
 ############
