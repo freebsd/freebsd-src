@@ -254,6 +254,7 @@ int sched_rr_get_interval(struct proc *p,
 static void p31binit(void *notused)
 {
 	(void) sched_attach();
+	p31b_setcfg(CTL_P1003_1B_PAGESIZE, PAGE_SIZE);
 }
 
 SYSINIT(p31b, SI_SUB_P1003_1B, SI_ORDER_FIRST, p31binit, NULL);
