@@ -34,7 +34,6 @@
 #include <dev/sound/isa/mss.h>
 #include <dev/sound/chip.h>
 
-#include "gusc.h"
 #if notyet
 #include "midi.h"
 #endif /* notyet */
@@ -328,7 +327,6 @@ mss_alloc_resources(struct mss_info *mss, device_t dev)
     	return ok;
 }
 
-#if NGUSC > 0
 /*
  * XXX This might be better off in the gusc driver.
  */
@@ -384,7 +382,6 @@ gusmax_setup(struct mss_info *mss, device_t dev, struct resource *alt)
 
 	splx(s);
 }
-#endif	/* NGUSC > 0 */
 
 static int
 mss_init(struct mss_info *mss, device_t dev)
@@ -430,10 +427,8 @@ mss_init(struct mss_info *mss, device_t dev)
 			break;
 		}
     		port_wr(alt, 0, 0xC); /* enable int and dma */
-#if NGUSC > 0
 		if (mss->bd_id == MD_GUSMAX)
 			gusmax_setup(mss, dev, alt);
-#endif
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, alt);
 
     		/*
@@ -1522,8 +1517,6 @@ opti931_intr(void *arg)
     	DEB(printf("xxx too many loops\n");)
 }
 
-#if NGUSC > 0
-
 static int
 guspcm_probe(device_t dev)
 {
@@ -1605,7 +1598,6 @@ static driver_t guspcm_driver = {
 };
 
 DRIVER_MODULE(guspcm, gusc, guspcm_driver, pcm_devclass, 0, 0);
-#endif	/* NGUSC > 0 */
 
 static int
 mssmix_init(snd_mixer *m)
