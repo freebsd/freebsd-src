@@ -748,6 +748,10 @@ isa_read_ivar(device_t bus, device_t dev, int index, uintptr_t * result)
 		*result = idev->id_compatid;
 		break;
 
+	case ISA_IVAR_CONFIGATTR:
+		*result = idev->id_config_attr;
+		break;
+
 	default:
 		return ENOENT;
 	}
@@ -790,6 +794,10 @@ isa_write_ivar(device_t bus, device_t dev,
 
 	case ISA_IVAR_COMPATID:
 		idev->id_compatid = value;
+		break;
+
+	case ISA_IVAR_CONFIGATTR:
+		idev->id_config_attr = value;
 		break;
 
 	default:
