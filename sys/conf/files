@@ -167,7 +167,7 @@ msdosfs/msdosfs_vfsops.c	optional msdosfs
 msdosfs/msdosfs_vnops.c		optional msdosfs
 net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
-net/bsd_comp.c		optional ppp
+net/bsd_comp.c		optional ppp_bsdcomp
 net/hostcache.c		standard
 net/if.c		standard
 net/if_atmsubr.c	optional atm
@@ -181,7 +181,7 @@ net/if_ppp.c		optional ppp
 net/if_sl.c		optional sl
 net/if_spppsubr.c	optional sppp
 net/if_tun.c		optional tun
-net/ppp_deflate.c	optional ppp
+net/ppp_deflate.c	optional ppp_deflate
 net/ppp_tty.c		optional ppp
 net/radix.c		standard
 net/raw_cb.c		standard
@@ -190,7 +190,7 @@ net/route.c		standard
 net/rtsock.c		standard
 net/slcompress.c	optional ppp
 net/slcompress.c	optional sl
-net/zlib.c		optional ppp
+net/zlib.c		optional ppp_deflate
 netatalk/aarp.c		optional netatalk
 netatalk/at_control.c	optional netatalk
 netatalk/at_proto.c	optional netatalk
