@@ -1,12 +1,13 @@
 #
 # Bmakefile for GNU info
 #
-# $id$
+# $Id$
 #
 
 PROG= makeinfo
-
+NOMAN=yes
 SRCS+= makeinfo.c getopt1.c getopt.c  
+
 .PATH: ${.CURDIR}/../info
 
 CFLAGS+= -I${.CURDIR}/../info -I${.CURDIR}
