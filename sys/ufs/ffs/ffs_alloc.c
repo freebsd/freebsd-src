@@ -1317,7 +1317,9 @@ ffs_blkfree(ip, bno, size)
 	ufs_daddr_t blkno;
 	int i, error, cg, blk, frags, bbase;
 	u_int8_t *blksfree;
+#ifdef DIAGNOSTIC
 	struct vnode *vp;
+#endif
 
 	fs = ip->i_fs;
 #ifdef DIAGNOSTIC
