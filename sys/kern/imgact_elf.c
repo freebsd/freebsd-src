@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.c,v 1.21 1998/02/09 06:09:21 eivind Exp $
+ *	$Id: imgact_elf.c,v 1.22 1998/03/02 05:47:58 peter Exp $
  */
 
 #include "opt_rlimit.h"
@@ -39,9 +39,7 @@
 #include <sys/imgact_elf.h>
 #include <sys/kernel.h>
 #include <sys/sysent.h>
-#include <sys/fcntl.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>

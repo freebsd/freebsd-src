@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.25 1997/09/02 01:18:09 bde Exp $
+ * $Id: if_eg.c,v 1.26 1998/01/08 23:40:47 eivind Exp $
  *
  * Support for 3Com 3c505 Etherlink+ card.
  */
@@ -38,7 +38,6 @@
  */
 #include "eg.h"
 #include "bpfilter.h"
-#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,15 +51,6 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#endif
-
-#ifdef NS
-#include <netns/ns.h>
-#include <netns/ns_if.h>
-#endif
 
 #if NBPFILTER > 0
 #include <net/bpf.h>

@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.68 1998/03/21 05:17:29 peter Exp $
+ *	$Id: si.c,v 1.69 1998/03/23 16:27:37 peter Exp $
  */
 
 #ifndef lint
@@ -76,7 +76,6 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #include "pci.h"
 #if NPCI > 0
 #include <pci/pcivar.h>
-#include <pci/pcireg.h>
 #endif
 
 #include "eisa.h"

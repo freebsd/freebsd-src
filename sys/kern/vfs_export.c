@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.145 1998/03/19 22:48:16 dyson Exp $
+ * $Id: vfs_subr.c,v 1.146 1998/03/28 12:04:32 bde Exp $
  */
 
 /*
@@ -55,7 +55,6 @@
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/buf.h>
-#include <sys/poll.h>
 #include <sys/domain.h>
 #include <sys/dirent.h>
 #include <sys/vmmeter.h>

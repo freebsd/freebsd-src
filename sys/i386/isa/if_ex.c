@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ex.c,v 1.9 1997/12/15 20:30:45 eivind Exp $
+ *	$Id: if_ex.c,v 1.10 1998/01/08 23:40:52 eivind Exp $
  */
 
 /*
@@ -48,9 +48,7 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_arp.h>
 
 #ifdef INET
 #include <netinet/in.h>

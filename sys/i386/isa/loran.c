@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: loran.c,v 1.1 1998/02/24 22:05:12 phk Exp $
  *
  * This device-driver helps the userland controlprogram for a LORAN-C
  * receiver avoid monopolizing the CPU.
@@ -20,21 +20,12 @@
  *
  */
 
-#include "loran.h"
-#include "opt_devfs.h"
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 #include <sys/kernel.h>
 #include <sys/uio.h>
-#include <sys/syslog.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
 static int	loranprobe (struct isa_device *dvp);
