@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /*
@@ -130,10 +128,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 
 #include <pci/if_rlreg.h>
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+__FBSDID("$FreeBSD$");
 
 /*
  * Various supported device vendors/types and their names.
@@ -431,11 +426,11 @@ rl_mii_send(sc, bits, cnt)
 	MII_CLR(RL_MII_CLK);
 
 	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-                if (bits & i) {
+		if (bits & i) {
 			MII_SET(RL_MII_DATAOUT);
-                } else {
+		} else {
 			MII_CLR(RL_MII_DATAOUT);
-                }
+		}
 		DELAY(1);
 		MII_CLR(RL_MII_CLK);
 		DELAY(1);
@@ -450,7 +445,7 @@ static int
 rl_mii_readreg(sc, frame)
 	struct rl_softc		*sc;
 	struct rl_mii_frame	*frame;
-	
+
 {
 	int			i, ack;
 
@@ -463,11 +458,11 @@ rl_mii_readreg(sc, frame)
 	frame->mii_opcode = RL_MII_READOP;
 	frame->mii_turnaround = 0;
 	frame->mii_data = 0;
-	
+
 	CSR_WRITE_2(sc, RL_MII, 0);
 
 	/*
- 	 * Turn on data xmit.
+	 * Turn on data xmit.
 	 */
 	MII_SET(RL_MII_DIR);
 
@@ -544,7 +539,7 @@ static int
 rl_mii_writereg(sc, frame)
 	struct rl_softc		*sc;
 	struct rl_mii_frame	*frame;
-	
+
 {
 	RL_LOCK(sc);
 
@@ -555,9 +550,9 @@ rl_mii_writereg(sc, frame)
 	frame->mii_stdelim = RL_MII_STARTDELIM;
 	frame->mii_opcode = RL_MII_WRITEOP;
 	frame->mii_turnaround = RL_MII_TURNAROUND;
-	
+
 	/*
- 	 * Turn on data output.
+	 * Turn on data output.
 	 */
 	MII_SET(RL_MII_DIR);
 
@@ -824,7 +819,7 @@ rl_reset(sc)
 	if (i == RL_TIMEOUT)
 		printf("rl%d: reset never completed!\n", sc->rl_unit);
 
-        return;
+	return;
 }
 
 /*
@@ -921,7 +916,7 @@ rl_attach(dev)
 	}
 #endif
 
-	rid = RL_RID; 
+	rid = RL_RID;
 	sc->rl_res = bus_alloc_resource(dev, RL_RES, &rid,
 	    0, ~0, 1, RF_ACTIVE);
 
@@ -1006,13 +1001,13 @@ rl_attach(dev)
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 #define RL_NSEG_NEW 32
-	error = bus_dma_tag_create(NULL,	/* parent */ 
+	error = bus_dma_tag_create(NULL,	/* parent */
 			1, 0,			/* alignment, boundary */
 			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 			BUS_SPACE_MAXADDR,	/* highaddr */
 			NULL, NULL,		/* filter, filterarg */
 			MAXBSIZE, RL_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */ 
+			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
 			BUS_DMA_ALLOCNOW,	/* flags */
 			&sc->rl_parent_tag);
 
@@ -1179,14 +1174,14 @@ rl_list_tx_init(sc)
  *
  * Note: to make the Alpha happy, the frame payload needs to be aligned
  * on a 32-bit boundary. To achieve this, we pass RL_ETHER_ALIGN (2 bytes)
- * as the offset argument to m_devget(). 
+ * as the offset argument to m_devget().
  */
 static void
 rl_rxeof(sc)
 	struct rl_softc		*sc;
 {
-        struct mbuf		*m;
-        struct ifnet		*ifp;
+	struct mbuf		*m;
+	struct ifnet		*ifp;
 	int			total_len = 0;
 	u_int32_t		rxstat;
 	caddr_t			rxbufpos;
@@ -1231,14 +1226,14 @@ rl_rxeof(sc)
 		 */
 		if ((u_int16_t)(rxstat >> 16) == RL_RXSTAT_UNFINISHED)
 			break;
-	
+
 		if (!(rxstat & RL_RXSTAT_RXOK)) {
 			ifp->if_ierrors++;
 			rl_init(sc);
 			return;
 		}
 
-		/* No errors; receive the packet. */	
+		/* No errors; receive the packet. */
 		total_len = rxstat >> 16;
 		rx_bytes += total_len + 4;
 
@@ -1246,7 +1241,7 @@ rl_rxeof(sc)
 		 * XXX The RealTek chip includes the CRC with every
 		 * received frame, and there's no way to turn this
 		 * behavior off (at least, I can't find anything in
-	 	 * the manual that explains how to do it) so we have
+		 * the manual that explains how to do it) so we have
 		 * to trim off the CRC manually.
 		 */
 		total_len -= ETHER_CRC_LEN;
@@ -1527,7 +1522,7 @@ rl_encap(sc, m_head)
 		 * bytes in the pad area, since we don't know what
 		 * this mbuf cluster buffer's previous user might
 		 * have left in it.
-	 	 */
+		 */
 		bzero(mtod(m_head, char *) + m_head->m_pkthdr.len,
 		     RL_MIN_FRAMELEN - m_head->m_pkthdr.len);
 		m_head->m_pkthdr.len +=
@@ -1573,7 +1568,7 @@ rl_start(ifp)
 
 		/*
 		 * Transmit the frame.
-	 	 */
+		 */
 		bus_dmamap_create(sc->rl_tag, 0, &RL_CUR_DMAMAP(sc));
 		bus_dmamap_load(sc->rl_tag, RL_CUR_DMAMAP(sc),
 		    mtod(RL_CUR_TXMBUF(sc), void *),
@@ -1911,9 +1906,9 @@ rl_resume(dev)
 	pci_enable_busmaster(dev);
 	pci_enable_io(dev, RL_RES);
 
-        /* reinitialize interface if necessary */
-        if (ifp->if_flags & IFF_UP)
-                rl_init(sc);
+	/* reinitialize interface if necessary */
+	if (ifp->if_flags & IFF_UP)
+		rl_init(sc);
 
 	sc->suspended = 0;
 
