@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.32 1998/05/08 19:15:44 guido Exp $";
+	"$Id: inetd.c,v 1.33 1998/05/11 12:11:59 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -112,6 +112,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
@@ -206,9 +207,11 @@ struct	servtab {
 #define NORM_TYPE	0
 #define MUX_TYPE	1
 #define MUXPLUS_TYPE	2
+#define TTCP_TYPE	3
 #define ISMUX(sep)	(((sep)->se_type == MUX_TYPE) || \
 			 ((sep)->se_type == MUXPLUS_TYPE))
 #define ISMUXPLUS(sep)	((sep)->se_type == MUXPLUS_TYPE)
+#define ISTTCP(sep)	((sep)->se_type == TTCP_TYPE)
 
 
 void		chargen_dg __P((int, struct servtab *));
@@ -916,6 +919,10 @@ setsockopt(fd, SOL_SOCKET, opt, (char *)&on, sizeof (on))
 		syslog(LOG_ERR, "setsockopt (SO_PRIVSTATE): %m");
 #endif
 #undef turnon
+	if (sep->se_type == TTCP_TYPE)
+		if (setsockopt(sep->se_fd, IPPROTO_TCP, TCP_NOPUSH,
+		    (char *)&on, sizeof (on)) < 0)
+			syslog(LOG_ERR, "setsockopt (TCP_NOPUSH): %m");
 	if (bind(sep->se_fd, (struct sockaddr *)&sep->se_ctrladdr,
 	    sizeof (sep->se_ctrladdr)) < 0) {
 		if (debug)
@@ -1137,7 +1144,14 @@ more:
 		sep->se_socktype = SOCK_RAW;
 	else
 		sep->se_socktype = -1;
-	sep->se_proto = newstr(sskip(&cp));
+
+	arg = sskip(&cp);
+	if (strcmp(arg, "tcp/ttcp") == 0) {
+		sep->se_type = TTCP_TYPE;
+		sep->se_proto = newstr("tcp");
+	} else {
+		sep->se_proto = newstr(arg);
+	}
         if (strncmp(sep->se_proto, "rpc/", 4) == 0) {
                 memmove(sep->se_proto, sep->se_proto + 4,
                     strlen(sep->se_proto) + 1 - 4);
