@@ -2,8 +2,10 @@
  * Public domain stdio wrapper for libz, written by Johan Danielsson.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef lint
+static const char rcsid[] = 
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <zlib.h>
