@@ -38,7 +38,7 @@
 .Nm date
 .Nd display or set date and time
 .Sh SYNOPSIS
-.Nm 
+.Nm
 .Op Fl ju
 .Op Fl r Ar seconds
 .Oo
@@ -58,8 +58,7 @@
 .Sm on
 .Nm
 .Op Fl jnu
-.Fl f
-.Ar input_fmt new_date
+.Fl f Ar input_fmt new_date
 .Op Cm + Ns Ar output_fmt
 .Nm
 .Op Fl d Ar dst
@@ -97,9 +96,9 @@ will return a non-zero for
 .Fa tz_dsttime  .
 .It Fl f
 Use
-.Ar fmt
+.Ar input_fmt
 as the format string to parse the
-.Ar date
+.Ar new_date
 provided rather than using the default
 .Sm off
 .Oo Oo Oo Oo Oo
@@ -316,7 +315,9 @@ sets the date to
 .Pp
 may be used on one machine to print out the date
 suitable for setting on another.
-("+%m%d%H%M%Y.%S" for use on Linux)
+.Qq ( Li "+%m%d%H%M%Y.%S"
+for use on
+.Tn Linux . )
 .Pp
 The command:
 .Pp
