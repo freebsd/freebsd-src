@@ -44,7 +44,6 @@
 #include "opt_ddb.h"
 
 #include <sys/systm.h>
-#include <sys/stdint.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>

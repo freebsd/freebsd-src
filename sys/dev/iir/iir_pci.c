@@ -48,7 +48,6 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h> 
-#include <sys/stdint.h>
 
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>

@@ -55,7 +55,6 @@
 #include <sys/mbuf.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 

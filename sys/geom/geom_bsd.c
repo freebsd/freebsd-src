@@ -55,7 +55,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #endif
-#include <sys/stdint.h>
 #include <sys/md5.h>
 #include <sys/errno.h>
 #include <sys/disklabel.h>

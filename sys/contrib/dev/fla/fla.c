@@ -11,7 +11,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 #include <sys/kernel.h>

@@ -58,7 +58,6 @@
  */
 
 #include <sys/param.h>
-#include <sys/stdint.h>
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>

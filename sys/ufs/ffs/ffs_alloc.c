@@ -56,7 +56,6 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/kernel.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 

@@ -39,7 +39,6 @@
 #include <sys/bus.h>
 #include <sys/bio.h>
 #include <sys/malloc.h>
-#include <sys/stdint.h>
 #include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
