@@ -1066,9 +1066,9 @@ Zone America/Thule	-4:35:08 -	LMT	1916 Jul 28
 # ZONE-DESCR Europe Copenhagen Denmark All points except:
 # ZONE-DESCR Atlantic Faeroe Denmark Faeroe Islands
 
-# ZONE-DESCR America Scoresbysund Denmark Eastern Greenland
-# ZONE-DESCR America Godthab Denmark Western Greenland
-# ZONE-DESCR America Thule Denmark Far Western Greenland (Thule)
+# ZONE-DESCR America Scoresbysund Greenland Eastern Greenland
+# ZONE-DESCR America Godthab Greenland Western Greenland
+# ZONE-DESCR America Thule Greenland Far Western Greenland (Thule)
 
 # Estonia
 # They switched from the Julian to the Gregorian calendar on 1918 Feb 15.
