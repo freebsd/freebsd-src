@@ -129,8 +129,6 @@ match_done:
 	/* set up gateway */
 	inaddr_to_sockaddr("boot.netif.gateway", &nd->mygateway);
 
-	/* XXX set up swap? */
-
 	/* set up root mount */
 	nd->root_args.rsize = 8192;		/* XXX tunable? */
 	nd->root_args.wsize = 8192;
