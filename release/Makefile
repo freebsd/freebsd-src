@@ -913,12 +913,16 @@ iso.1:
 	@if [ -r ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ]; then \
 		echo "Creating ISO images..."; \
 		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-		  fbsd_miniinst ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
+		    fbsd_miniinst \
+		    ${CD}/${BUILDNAME}-${TARGET}-miniinst.iso ${CD_DISC1}; \
 		sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-		  fbsd_livefs ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}; \
+		    fbsd_livefs \
+		    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2}; \
 		if [ "x${CD_EXTRA_BITS}" != "x" ]; then \
-			sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
-			  fbsd_boot ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} ${CD_EXTRA_BITS} \
+			sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+			    ${BOOTABLE} fbsd_boot \
+			    ${CD}/${BUILDNAME}-${TARGET}-disc1.iso ${CD_DISC1} \
+			    ${CD_EXTRA_BITS} \
 			    && false; \
 		fi \
 	else \
