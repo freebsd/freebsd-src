@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.56 1998/07/05 23:10:21 julian Exp $
+ *	$Id: devfs_tree.c,v 1.57 1998/11/26 18:50:23 eivind Exp $
  */
 
 
@@ -1129,7 +1129,7 @@ devfs_add_devswf(void *devsw, int minor, int chrblk, uid_t uid,
 * this function is exported.. see sys/devfsext.h			*
 \***********************************************************************/
 void *
-devfs_link(void *original, char *fmt, ...)
+devfs_makelink(void *original, char *fmt, ...)
 {
 	devnm_p	new_dev;
 	devnm_p	orig = (devnm_p) original;
