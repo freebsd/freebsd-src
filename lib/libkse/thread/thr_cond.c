@@ -200,13 +200,8 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			/* Fast condition variable: */
 		case COND_TYPE_FAST:
 			/* Set the wakeup time: */
-#if	defined(__FreeBSD__)
-			_thread_run->wakeup_time.ts_sec = abstime->ts_sec;
-			_thread_run->wakeup_time.ts_nsec = abstime->ts_nsec;
-#else
 			_thread_run->wakeup_time.tv_sec = abstime->tv_sec;
 			_thread_run->wakeup_time.tv_nsec = abstime->tv_nsec;
-#endif
 
 			/* Reset the timeout flag: */
 			_thread_run->timeout = 0;
