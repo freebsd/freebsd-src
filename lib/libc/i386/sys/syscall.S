@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscall.S,v 1.1 1994/08/05 01:18:55 wollman Exp $
+ *	$Id: syscall.S,v 1.2 1995/01/23 01:30:24 davidg Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id$"
+	.asciz "$Id: syscall.S,v 1.2 1995/01/23 01:30:24 davidg Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -47,10 +47,11 @@ ENTRY(syscall)
 	pop	%ecx	/* rta */
 	pop	%eax	/* syscall number */
 	push	%ecx
-	LCALL(7,0)
+	KERNCALL
 	push	%ecx	/* need to push a word to keep stack frame intact
 			   upon return; the word must be the return address. */
 	jb	1f
 	ret
 1:
-	jmp	cerror
+	PIC_PROLOGUE
+	jmp	PIC_PLT(HIDENAME(cerror))

@@ -33,18 +33,19 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigprocmask.S,v 1.2 1995/01/23 01:30:11 davidg Exp $
+ *	$Id: sigprocmask.S,v 1.3 1996/01/22 00:00:59 julian Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigprocmask.S,v 1.2 1995/01/23 01:30:11 davidg Exp $"
+	.asciz "$Id: sigprocmask.S,v 1.3 1996/01/22 00:00:59 julian Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
 
 err:
-	jmp	cerror
+	PIC_PROLOGUE
+	jmp	PIC_PLT(HIDENAME(cerror))
 
 #ifdef _THREAD_SAFE
 ENTRY(_thread_sys_sigprocmask)
@@ -59,8 +60,8 @@ ENTRY(sigprocmask)
 	jmp	2f
 1:	movl	(%ecx),%ecx		# fetch indirect  ...
 	movl	%ecx,8(%esp)		# to new mask arg
-2:	movl	$ SYS_sigprocmask , %eax
-	LCALL(0x7,0)
+2:	lea	SYS_sigprocmask,%eax
+	KERNCALL
 	jb	err
 	movl	12(%esp),%ecx		# fetch old mask requested
 	cmpl	$0,%ecx			# test if old mask requested

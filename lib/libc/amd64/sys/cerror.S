@@ -33,28 +33,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cerror.S,v 1.3 1995/01/23 01:29:43 davidg Exp $
+ *	$Id: cerror.S,v 1.4 1996/01/22 00:00:57 julian Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: cerror.S,v 1.3 1995/01/23 01:29:43 davidg Exp $"
+	.asciz "$Id: cerror.S,v 1.4 1996/01/22 00:00:57 julian Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
+
+	.globl HIDENAME(cerror)
 
 #ifdef _THREAD_SAFE
 	/*
 	 * Threaded version using __error().
 	 */
-	.globl	___error
-	.type	___error,@function
-cerror:
+	.globl	CNAME(__error)
+	.type	CNAME(__error),@function
+HIDENAME(cerror):
 	pushl	%eax
 #ifdef PIC
-	call	PIC_PLT(___error)
+	/* The caller must execute the PIC prologue before jumping to cerror. */
+	call	PIC_PLT(CNAME(__error))
 #else
-	call	___error
+	call	CNAME(__error)
 #endif
 	popl	%ecx
 	movl	%ecx,(%eax)
@@ -66,15 +69,15 @@ cerror:
 	/*
 	 * Non-threaded version using global errno.
 	 */
-	.globl	_errno
-cerror:
+	.globl	CNAME(errno)
+HIDENAME(cerror):
 #ifdef PIC
-	PIC_PROLOGUE
-	movl	PIC_GOT(_errno),%ecx
+	/* The caller must execute the PIC prologue before jumping to cerror. */
+	movl	PIC_GOT(CNAME(errno)),%ecx
 	movl	%eax,(%ecx)
 	PIC_EPILOGUE
 #else
-	movl	%eax,_errno
+	movl	%eax,CNAME(errno)
 #endif
 	movl	$-1,%eax
 	movl	$-1,%edx
