@@ -596,7 +596,7 @@ show_var(int *oid, int nlen)
 				printf("%s%s", name, sep);
 			return ((*func)(len, p));
 		}
-		/* FALL THROUGH */
+		/* FALLTHROUGH */
 	default:
 		if (!oflag && !xflag)
 			return (1);

@@ -1,6 +1,8 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.do_name.c - version 1.0.3 */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "hack.h"
 #include <stdio.h>
@@ -209,7 +211,7 @@ extern char *shkname();
 			(void) strcpy(buf, shkname(mtmp));
 			break;
 		}
-		/* fall into next case */
+		/* FALLTHROUGH */
 	default:
 		(void) sprintf(buf, "the %s%s",
 			mtmp->minvis ? "invisible " : "",

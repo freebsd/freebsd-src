@@ -1549,7 +1549,7 @@ double	dtemp;				/* for temporary calculations */
 				}
 			    }
 			/* end treasure types 10 - 13 */
-			/* fall through to treasure type 9 if no treasure from above */
+			/* FALLTHROUGH to treasure type 9 if no treasure from above */
 
 			case 9:	/* treasure type 9 */
 			    switch (whichtreasure)
@@ -1563,7 +1563,7 @@ double	dtemp;				/* for temporary calculations */
 					++Player.p_crowns;
 					break;
 					}
-				    /* fall through otherwise */
+				    /* FALLTHROUGH */
 
 				case 2:
 				    addstr("You've been blessed!\n");

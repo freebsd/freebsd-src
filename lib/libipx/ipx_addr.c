@@ -169,7 +169,7 @@ Field(buf, out, len)
 
 	case 'h': case 'H':
 		base16 = 1;
-		/* fall into */
+		/* FALLTHROUGH */
 
 	default:
 		*--bp = 0; /* Ends Loop */

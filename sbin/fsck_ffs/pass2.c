@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static const char sccsid[] = "@(#)pass2.c	8.9 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
@@ -406,7 +407,7 @@ again:
 		case DSTATE:
 			if (inoinfo(idesc->id_number)->ino_state == DFOUND)
 				inoinfo(dirp->d_ino)->ino_state = DFOUND;
-			/* fall through */
+			/* FALLTHROUGH */
 
 		case DFOUND:
 			inp = getinoinfo(dirp->d_ino);
@@ -431,7 +432,7 @@ again:
 			}
 			if (idesc->id_entryno > 2)
 				inp->i_parent = idesc->id_number;
-			/* fall through */
+			/* FALLTHROUGH */
 
 		case FSTATE:
 			if (dirp->d_type != inoinfo(dirp->d_ino)->ino_type) {

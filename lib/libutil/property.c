@@ -85,7 +85,7 @@ properties_read(int fd)
 		ch = buf[0];
 		bp = 1;
 	    }
-	    /* Fall through deliberately since we already have a character and state == LOOK */
+	    /* FALLTHROUGH deliberately since we already have a character and state == LOOK */
 
 	case LOOK:
 	    if (isspace(ch))

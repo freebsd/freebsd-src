@@ -1,6 +1,8 @@
 /* Copyright (c) Stichting Mathematisch Centrum, Amsterdam, 1985. */
 /* hack.objnam.c - version 1.0.2 */
-/* $FreeBSD$ */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include	"hack.h"
 #define Sprintf (void) sprintf
@@ -112,7 +114,7 @@ int pl = (obj->quan != 1);
 			break;
 		}
 		/* fungis ? */
-		/* fall into next case */
+		/* FALLTHROUGH */
 	case WEAPON_SYM:
 		if(obj->otyp == WORM_TOOTH && pl) {
 			pl = 0;
@@ -124,7 +126,7 @@ int pl = (obj->quan != 1);
 			Strcpy(buf, "crysknives");
 			break;
 		}
-		/* fall into next case */
+		/* FALLTHROUGH */
 	case ARMOR_SYM:
 	case CHAIN_SYM:
 	case ROCK_SYM:
@@ -258,7 +260,7 @@ char *bp = xname(obj);
 	case ARMOR_SYM:
 		if(obj->owornmask & W_ARMOR)
 			Strcat(bp, " (being worn)");
-		/* fall into next case */
+		/* FALLTHROUGH */
 	case WEAPON_SYM:
 		if(obj->known) {
 			Strcat(prefix, sitoa(obj->spe));
