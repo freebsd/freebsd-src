@@ -98,6 +98,15 @@ AlphaServer 1200 ("Tincup") has been tested and works OK. Currently it does
 not want to boot from CD or floppy but a transplanted disk that was
 installed on another Alpha works well.
 
+RSA Security has waived all patent rights to the RSA algorithm (two
+weeks before the patent was due to expire).  As a result, the native
+OpenSSL implementation of the RSA algorithm is now activated by
+default, and the rsaref port and librsaUSA are no longer
+required for USA residents.
+
+sshd now enabled by default on new installs.
+
+
 2. Supported Configurations
 ---------------------------
 
