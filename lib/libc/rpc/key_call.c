@@ -28,11 +28,14 @@
  */
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
- *
- * $FreeBSD$
  */
 
 #ident	"@(#)key_call.c	1.25	94/04/24 SMI"
+
+#ifndef lint
+static char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 /*
  * key_call.c, Interface to keyserver
@@ -361,7 +364,17 @@ int	vers;
 		return ((CLIENT *) NULL);
 	}
         tpconf = NULL;
+#if defined(__FreeBSD__)
 	if (uname(&u) == -1)
+#else
+#if defined(i386)
+	if (_nuname(&u) == -1)
+#elif defined(sparc)
+	if (_uname(&u) == -1)
+#else
+#error Unknown architecture!
+#endif
+#endif
 	{
 		endnetconfig(localhandle);
 		return ((CLIENT *) NULL);
