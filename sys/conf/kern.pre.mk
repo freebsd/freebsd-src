@@ -23,7 +23,7 @@ COPTFLAGS?=-O -pipe
 .if !defined(NO_CPU_COPTFLAGS)
 COPTFLAGS+= ${_CPUCFLAGS}
 .endif
-INCLUDES= -nostdinc -I- ${INCLMAGIC} -I. -I$S -I$S/dev
+INCLUDES= -nostdinc -I- ${INCLMAGIC} -I. -I$S
 
 # This hack lets us use the Intel ACPICA code without spamming a new 
 # include path into 100+ source files.
