@@ -1155,9 +1155,10 @@ ata_promise_mio_intr(void *data)
     irq_vector = ATA_INL(ctlr->r_io2, 0x0040);
     for (unit = 0; unit < ctlr->channels; unit++) {
 	if (irq_vector & (1 << unit)) {
-	    if ((ch = ctlr->interrupt[unit].argument))
+	    if ((ch = ctlr->interrupt[unit].argument)) {
 	    	ctlr->interrupt[unit].function(ch);
-	    ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_0, 0x00000001);
+		ATA_IDX_OUTL(ch, ATA_BMDEVSPEC_0, 0x00000001);
+	    }
 	}
     }
 }
