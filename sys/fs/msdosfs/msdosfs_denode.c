@@ -750,9 +750,7 @@ out:
 	printf("msdosfs_inactive(): v_usecount %d, de_Name[0] %x\n", vp->v_usecount,
 	       dep->de_Name[0]);
 #endif
-
 	if (dep->de_Name[0] == SLOT_DELETED)
-		vp->v_flag |= VAGE;
-
+		vrecycle(vp, (struct simplelock *)0, p);
 	return error;
 }
