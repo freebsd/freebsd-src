@@ -49,8 +49,7 @@
 #include <dev/acpica/acpivar.h>
 #include <dev/acpica/acpiio.h>
 
-/* XXX should use our own malloc class */
-MALLOC_DECLARE(M_ACPIDEV);
+MALLOC_DEFINE(M_ACPIBATT, "acpibatt", "ACPI generic battery data");
 
 /*
  * ACPI Battery Abstruction Layer.
@@ -231,7 +230,7 @@ acpi_battery_register(int type, int phys_unit)
 	struct acpi_batteries	*bp;
 
 	error = 0;
-	if ((bp = malloc(sizeof(*bp), M_ACPIDEV, M_NOWAIT)) == NULL) {
+	if ((bp = malloc(sizeof(*bp), M_ACPIBATT, M_NOWAIT)) == NULL) {
 		return(ENOMEM);
 	}
 
@@ -239,7 +238,7 @@ acpi_battery_register(int type, int phys_unit)
 	bp->battdesc.phys_unit = phys_unit;
 	if (acpi_batteries_initted == 0) {
 		if ((error = acpi_battery_init()) != 0) {
-			free(bp, M_ACPIDEV);
+			free(bp, M_ACPIBATT);
 			return(error);
 		}
 	}

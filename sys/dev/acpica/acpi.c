@@ -612,7 +612,7 @@ acpi_probe_children(device_t bus)
     /*
      * Create any static children by calling device identify methods.
      */
-    DEBUG_PRINT(TRACE_OBJECTS, ("device identify routines\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "device identify routines\n"));
     bus_generic_probe(bus);
 
     /*
@@ -624,7 +624,7 @@ acpi_probe_children(device_t bus)
      * present. (This assumes that we don't want to create/remove devices as they
      * appear, which might be smarter.)
      */
-    DEBUG_PRINT(TRACE_OBJECTS, ("namespace scan\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "namespace scan\n"));
     for (i = 0; scopes[i] != NULL; i++)
 	if ((AcpiGetHandle(ACPI_ROOT_OBJECT, scopes[i], &parent)) == AE_OK)
 	    AcpiWalkNamespace(ACPI_TYPE_ANY, parent, 100, acpi_probe_child, bus, NULL);
@@ -632,14 +632,14 @@ acpi_probe_children(device_t bus)
     /*
      * Scan all of the child devices we have created and let them probe/attach.
      */
-    DEBUG_PRINT(TRACE_OBJECTS, ("first bus_generic_attach\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "first bus_generic_attach\n"));
     bus_generic_attach(bus);
 
     /*
      * Some of these children may have attached others as part of their attach
      * process (eg. the root PCI bus driver), so rescan.
      */
-    DEBUG_PRINT(TRACE_OBJECTS, ("second bus_generic_attach\n"));
+    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "second bus_generic_attach\n"));
     bus_generic_attach(bus);
 
     return_VOID;
@@ -675,7 +675,7 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 	     * Create a placeholder device for this node.  Sort the placeholder
 	     * so that the probe/attach passes will run breadth-first.
 	     */
-	    DEBUG_PRINT(TRACE_OBJECTS, ("scanning '%s'\n", acpi_name(handle)))
+	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n", acpi_name(handle)));
 	    child = BUS_ADD_CHILD(bus, level * 10, NULL, -1);
 	    acpi_set_handle(child, handle);
 	    DEBUG_EXEC(device_probe_and_attach(child));
@@ -1110,32 +1110,32 @@ acpi_wakeup(UINT8 state)
 	 * In many BIOSes, _WAK doesn't return a result code.
 	 * We don't need to worry about it too much :-).
 	 */
-	DEBUG_PRINT(ACPI_INFO,
-		    ("acpi_wakeup: _WAK result code is corrupted, "
-		     "but should be OK.\n"));
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			  "acpi_wakeup: _WAK result code is corrupted, "
+			  "but should be OK.\n"));
     } else {
 	/* evaluate status code */
 	switch (Objects[1].Integer.Value) {
 	case 0x00000001:
-	    DEBUG_PRINT(ACPI_ERROR,
-			("acpi_wakeup: Wake was signaled "
-			 "but failed due to lack of power.\n"));
+	    ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			      "acpi_wakeup: Wake was signaled "
+			      "but failed due to lack of power.\n"));
 	    Status = AE_ERROR;
 	    break;
 
 	case 0x00000002:
-	    DEBUG_PRINT(ACPI_ERROR,
-			("acpi_wakeup: Wake was signaled "
-			 "but failed due to thermal condition.\n"));
+	    ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			      "acpi_wakeup: Wake was signaled "
+			      "but failed due to thermal condition.\n"));
 	    Status = AE_ERROR;
 	    break;
 	}
 	/* evaluate PSS code */
 	if (Objects[2].Integer.Value == 0) {
-	    DEBUG_PRINT(ACPI_ERROR,
-			("acpi_wakeup: The targeted S-state "
-			 "was not entered because of too much current "
-			 "being drawn from the power supply.\n"));
+	    ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
+			      "acpi_wakeup: The targeted S-state "
+			      "was not entered because of too much current "
+			      "being drawn from the power supply.\n"));
 	    Status = AE_ERROR;
 	}
     }
@@ -1416,10 +1416,8 @@ acpi_avoid(ACPI_HANDLE handle)
 	len = 0;
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
-	if (!strncmp(cp, np, len)) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("avoiding '%s'\n", np));
+	if (!strncmp(cp, np, len))
 	    return(1);
-	}
 	cp += len;
     }
     return(0);
@@ -1448,10 +1446,8 @@ acpi_disabled(char *subsys)
 	len = 0;
 	while ((cp[len] != 0) && !isspace(cp[len]))
 	    len++;
-	if (!strncmp(cp, subsys, len)) {
-	    DEBUG_PRINT(TRACE_OBJECTS, ("disabled '%s'\n", subsys));
+	if (!strncmp(cp, subsys, len))
 	    return(1);
-	}
 	cp += len;
     }
     return(0);
@@ -1645,57 +1641,59 @@ static struct debugtag	dbg_layer[] = {
     {"ACPI_DISPATCHER",		ACPI_DISPATCHER},
     {"ACPI_EXECUTER",		ACPI_EXECUTER},
     {"ACPI_RESOURCES",		ACPI_RESOURCES},
-    {"ACPI_POWER",		ACPI_POWER},
+    {"ACPI_DEBUGGER",		ACPI_DEBUGGER},
+    {"ACPI_OS_SERVICES",	ACPI_OS_SERVICES},
+
     {"ACPI_BUS",		ACPI_BUS},
+    {"ACPI_SYSTEM",		ACPI_SYSTEM},
     {"ACPI_POWER",		ACPI_POWER},
     {"ACPI_EC", 		ACPI_EC},
-    {"ACPI_PROCESSOR",		ACPI_PROCESSOR},
     {"ACPI_AC_ADAPTER",		ACPI_AC_ADAPTER},
     {"ACPI_BATTERY",		ACPI_BATTERY},
     {"ACPI_BUTTON",		ACPI_BUTTON},
-    {"ACPI_SYSTEM",		ACPI_SYSTEM},
+    {"ACPI_PROCESSOR",		ACPI_PROCESSOR},
     {"ACPI_THERMAL",		ACPI_THERMAL},
-    {"ACPI_DEBUGGER",		ACPI_DEBUGGER},
-    {"ACPI_OS_SERVICES",	ACPI_OS_SERVICES},
+    {"ACPI_FAN",		ACPI_FAN},
+
     {"ACPI_ALL_COMPONENTS",	ACPI_ALL_COMPONENTS},
     {NULL, 0}
 };
 
 static struct debugtag dbg_level[] = {
-    {"ACPI_OK",			ACPI_OK},
-    {"ACPI_INFO",		ACPI_INFO},
-    {"ACPI_WARN",		ACPI_WARN},
-    {"ACPI_ERROR",		ACPI_ERROR},
-    {"ACPI_FATAL",		ACPI_FATAL},
-    {"ACPI_DEBUG_OBJECT",	ACPI_DEBUG_OBJECT},
-    {"ACPI_ALL",		ACPI_ALL},
-    {"TRACE_THREADS",		TRACE_THREADS},
-    {"TRACE_PARSE",		TRACE_PARSE},
-    {"TRACE_DISPATCH",		TRACE_DISPATCH},
-    {"TRACE_LOAD",		TRACE_LOAD},
-    {"TRACE_EXEC",		TRACE_EXEC},
-    {"TRACE_NAMES",		TRACE_NAMES},
-    {"TRACE_OPREGION",		TRACE_OPREGION},
-    {"TRACE_BFIELD",		TRACE_BFIELD},
-    {"TRACE_TRASH",		TRACE_TRASH},
-    {"TRACE_TABLES",		TRACE_TABLES},
-    {"TRACE_FUNCTIONS",		TRACE_FUNCTIONS},
-    {"TRACE_VALUES",		TRACE_VALUES},
-    {"TRACE_OBJECTS",		TRACE_OBJECTS},
-    {"TRACE_ALLOCATIONS",	TRACE_ALLOCATIONS},
-    {"TRACE_RESOURCES",		TRACE_RESOURCES},
-    {"TRACE_IO",		TRACE_IO},
-    {"TRACE_INTERRUPTS",	TRACE_INTERRUPTS},
-    {"TRACE_USER_REQUESTS",	TRACE_USER_REQUESTS},
-    {"TRACE_PACKAGE",		TRACE_PACKAGE},
-    {"TRACE_MUTEX",		TRACE_MUTEX},
-    {"TRACE_INIT",		TRACE_INIT},
-    {"TRACE_ALL",		TRACE_ALL},
-    {"VERBOSE_AML_DISASSEMBLE",	VERBOSE_AML_DISASSEMBLE},
-    {"VERBOSE_INFO",		VERBOSE_INFO},
-    {"VERBOSE_TABLES",		VERBOSE_TABLES},
-    {"VERBOSE_EVENTS",		VERBOSE_EVENTS},
-    {"VERBOSE_ALL",		VERBOSE_ALL},
+    {"ACPI_LV_OK",		ACPI_LV_OK},
+    {"ACPI_LV_INFO",		ACPI_LV_INFO},
+    {"ACPI_LV_WARN",		ACPI_LV_WARN},
+    {"ACPI_LV_ERROR",		ACPI_LV_ERROR},
+    {"ACPI_LV_FATAL",		ACPI_LV_FATAL},
+    {"ACPI_LV_DEBUG_OBJECT",	ACPI_LV_DEBUG_OBJECT},
+    {"ACPI_LV_ALL_EXCEPTIONS",	ACPI_LV_ALL_EXCEPTIONS},
+    {"ACPI_LV_THREADS",		ACPI_LV_THREADS},
+    {"ACPI_LV_PARSE",		ACPI_LV_PARSE},
+    {"ACPI_LV_DISPATCH",	ACPI_LV_DISPATCH},
+    {"ACPI_LV_LOAD",		ACPI_LV_LOAD},
+    {"ACPI_LV_EXEC",		ACPI_LV_EXEC},
+    {"ACPI_LV_NAMES",		ACPI_LV_NAMES},
+    {"ACPI_LV_OPREGION",	ACPI_LV_OPREGION},
+    {"ACPI_LV_BFIELD",		ACPI_LV_BFIELD},
+    {"ACPI_LV_TRASH",		ACPI_LV_TRASH},
+    {"ACPI_LV_TABLES",		ACPI_LV_TABLES},
+    {"ACPI_LV_FUNCTIONS",	ACPI_LV_FUNCTIONS},
+    {"ACPI_LV_VALUES",		ACPI_LV_VALUES},
+    {"ACPI_LV_OBJECTS",		ACPI_LV_OBJECTS},
+    {"ACPI_LV_ALLOCATIONS",	ACPI_LV_ALLOCATIONS},
+    {"ACPI_LV_RESOURCES",	ACPI_LV_RESOURCES},
+    {"ACPI_LV_IO",		ACPI_LV_IO},
+    {"ACPI_LV_INTERRUPTS",	ACPI_LV_INTERRUPTS},
+    {"ACPI_LV_USER_REQUESTS",	ACPI_LV_USER_REQUESTS},
+    {"ACPI_LV_PACKAGE",		ACPI_LV_PACKAGE},
+    {"ACPI_LV_MUTEX",		ACPI_LV_MUTEX},
+    {"ACPI_LV_INIT",		ACPI_LV_INIT},
+    {"ACPI_LV_ALL",		ACPI_LV_ALL},
+    {"ACPI_DB_AML_DISASSEMBLE",	ACPI_DB_AML_DISASSEMBLE},
+    {"ACPI_DB_VERBOSE_INFO",	ACPI_DB_VERBOSE_INFO},
+    {"ACPI_DB_FULL_TABLES",	ACPI_DB_FULL_TABLES},
+    {"ACPI_DB_EVENTS",		ACPI_DB_EVENTS},
+    {"ACPI_DB_VERBOSE",		ACPI_DB_VERBOSE},
     {NULL, 0}
 };    
 

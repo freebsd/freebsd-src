@@ -346,7 +346,7 @@ acpi_tz_monitor(struct acpi_tz_softc *sc)
 	/* XXX disable zone? go to max cooling? */
 	return_VOID;
     }
-    DEBUG_PRINT(TRACE_VALUES, ("got %d.%dC\n", TZ_KELVTOC(temp)));
+    ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
     sc->tz_temperature = temp;
 
     /*
@@ -461,7 +461,7 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 
     switch(obj->Type) {
     case ACPI_TYPE_STRING:
-	DEBUG_PRINT(TRACE_OBJECTS, ("called to turn %s off\n", obj->String.Pointer));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s off\n", obj->String.Pointer));
 
 	/*
 	 * Find the handle for the device and turn it off.
@@ -475,8 +475,8 @@ acpi_tz_switch_cooler_off(ACPI_OBJECT *obj, void *arg)
 	break;
 	
     default:
-	DEBUG_PRINT(TRACE_OBJECTS, ("called to handle unsupported object type %d\n",
-				    obj->Type));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to handle unsupported object type %d\n",
+			  obj->Type));
 	break;
     }
     return_VOID;
@@ -501,7 +501,7 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
 
     switch(obj->Type) {
     case ACPI_TYPE_STRING:
-	DEBUG_PRINT(TRACE_OBJECTS, ("called to turn %s on\n", obj->String.Pointer));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to turn %s on\n", obj->String.Pointer));
 
 	/*
 	 * Find the handle for the device and turn it off.
@@ -521,8 +521,8 @@ acpi_tz_switch_cooler_on(ACPI_OBJECT *obj, void *arg)
 	break;
 	
     default:
-	DEBUG_PRINT(TRACE_OBJECTS, ("called to handle unsupported object type %d\n",
-				    obj->Type));
+	ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "called to handle unsupported object type %d\n",
+			  obj->Type));
 	break;
     }
 	return_VOID;
@@ -542,8 +542,8 @@ acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
     if (acpi_EvaluateInteger(sc->tz_handle, node, data) != AE_OK) {
 	*data = -1;
     } else {
-	DEBUG_PRINT(TRACE_VALUES, ("%s.%s = %d\n", acpi_name(sc->tz_handle),
-				   node, *data));
+	ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "%s.%s = %d\n", acpi_name(sc->tz_handle),
+			  node, *data));
     }
     return_VOID;    
 }
