@@ -602,7 +602,7 @@ mangle(options, argcp, argv)
 			if (*p == '-') {
 				argv[argc++] = p;
 				p = strchr(p, '=');
-				if (p) {
+				if (p != NULL) {
 					*p = '\0';
 					argv[argc++] = p+1;
 				}

@@ -81,7 +81,7 @@ getmntopts(options, m0, flagp, altflagp)
 		 * ignore the assignment as it's handled elsewhere
 		 */
 		p = strchr(opt, '=');
-		if (p)
+		if (p != NULL)
 			 *++p = '\0';
 
 		/* Scan option table. */
