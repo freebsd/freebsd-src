@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_ktrace.c	8.2 (Berkeley) 9/23/93
- * $Id: kern_ktrace.c,v 1.10 1996/01/03 21:42:04 wollman Exp $
+ * $Id: kern_ktrace.c,v 1.11 1996/03/11 06:03:23 hsu Exp $
  */
 
 #include "opt_ktrace.h"
@@ -63,7 +63,7 @@ ktrgetheader(type)
 	struct proc *p = curproc;	/* XXX */
 
 	MALLOC(kth, struct ktr_header *, sizeof (struct ktr_header),
-		M_TEMP, M_WAITOK);
+		M_KTRACE, M_WAITOK);
 	kth->ktr_type = type;
 	microtime(&kth->ktr_time);
 	kth->ktr_pid = p->p_pid;
@@ -84,7 +84,7 @@ ktrsyscall(vp, code, narg, args)
 
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_SYSCALL);
-	MALLOC(ktp, struct ktr_syscall *, len, M_TEMP, M_WAITOK);
+	MALLOC(ktp, struct ktr_syscall *, len, M_KTRACE, M_WAITOK);
 	ktp->ktr_code = code;
 	ktp->ktr_narg = narg;
 	argp = (int *)((char *)ktp + sizeof(struct ktr_syscall));
@@ -93,8 +93,8 @@ ktrsyscall(vp, code, narg, args)
 	kth->ktr_buf = (caddr_t)ktp;
 	kth->ktr_len = len;
 	ktrwrite(vp, kth);
-	FREE(ktp, M_TEMP);
-	FREE(kth, M_TEMP);
+	FREE(ktp, M_KTRACE);
+	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
@@ -117,7 +117,7 @@ ktrsysret(vp, code, error, retval)
 	kth->ktr_len = sizeof(struct ktr_sysret);
 
 	ktrwrite(vp, kth);
-	FREE(kth, M_TEMP);
+	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
@@ -135,7 +135,7 @@ ktrnamei(vp, path)
 	kth->ktr_buf = path;
 
 	ktrwrite(vp, kth);
-	FREE(kth, M_TEMP);
+	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
@@ -158,7 +158,7 @@ ktrgenio(vp, fd, rw, iov, len, error)
 	p->p_traceflag |= KTRFAC_ACTIVE;
 	kth = ktrgetheader(KTR_GENIO);
 	MALLOC(ktp, struct ktr_genio *, sizeof(struct ktr_genio) + len,
-		M_TEMP, M_WAITOK);
+		M_KTRACE, M_WAITOK);
 	ktp->ktr_fd = fd;
 	ktp->ktr_rw = rw;
 	cp = (caddr_t)((char *)ktp + sizeof (struct ktr_genio));
@@ -176,8 +176,8 @@ ktrgenio(vp, fd, rw, iov, len, error)
 
 	ktrwrite(vp, kth);
 done:
-	FREE(kth, M_TEMP);
-	FREE(ktp, M_TEMP);
+	FREE(kth, M_KTRACE);
+	FREE(ktp, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
@@ -202,7 +202,7 @@ ktrpsig(vp, sig, action, mask, code)
 	kth->ktr_len = sizeof (struct ktr_psig);
 
 	ktrwrite(vp, kth);
-	FREE(kth, M_TEMP);
+	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 
@@ -223,7 +223,7 @@ ktrcsw(vp, out, user)
 	kth->ktr_len = sizeof (struct ktr_csw);
 
 	ktrwrite(vp, kth);
-	FREE(kth, M_TEMP);
+	FREE(kth, M_KTRACE);
 	p->p_traceflag &= ~KTRFAC_ACTIVE;
 }
 #endif
