@@ -40,7 +40,7 @@ static char sccsid[] = "@(#)query.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.9 $"
+#ident "$Revision: 1.1.1.2 $"
 
 #include <sys/param.h>
 #include <sys/protosw.h>
@@ -65,17 +65,7 @@ static char rcsid[] = "$NetBSD$";
 #define _HAVE_SIN_LEN
 #endif
 
-#define MD5_DIGEST_LEN 16
-typedef struct {
-	u_int32_t state[4];		/* state (ABCD) */
-	u_int32_t count[2];		/* # of bits, modulo 2^64 (LSB 1st) */
-	unsigned char buffer[64];	/* input buffer */
-} MD5_CTX;
-extern void MD5Init(MD5_CTX*);
-extern void MD5Update(MD5_CTX*, u_char*, u_int);
-extern void MD5Final(u_char[MD5_DIGEST_LEN], MD5_CTX*);
-
-
+#include <md5.h>
 #define	WTIME	15		/* Time to wait for all responses */
 #define	STIME	(250*1000)	/* usec to wait for another response */
 
