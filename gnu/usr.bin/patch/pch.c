@@ -1,6 +1,10 @@
-/* $Header: /home/ncvs/src/gnu/usr.bin/patch/pch.c,v 1.7 1996/04/11 10:13:40 markm Exp $
+/* $Header: /usr/cvs/src/gnu/usr.bin/patch/pch.c,v 1.8 1996/04/12 11:37:32 markm Exp $
  *
  * $Log: pch.c,v $
+ * Revision 1.8  1996/04/12 11:37:32  markm
+ * Attempt to break a $Log$ snafu where a *** /--- (minus space)
+ * was fouling up a comment in the checked-out code.
+ *
  * Revision 1.7  1996/04/11 10:13:40  markm
  * Priorities were broken. If there was an Index: line and *** /--- lines
  * with valid names, the *** /---names were taken first.
@@ -219,7 +223,7 @@ there_is_another_patch()
 	    skip_rest_of_patch = TRUE;
 	    return TRUE;
 	}
-	ask1("File to patch: ");
+	(void) ask1("File to patch: ");
 	if (*buf != '\n') {
 	    if (bestguess)
 		free(bestguess);
@@ -227,9 +231,10 @@ there_is_another_patch()
 	    filearg[0] = fetchname(buf, 0, FALSE);
 	}
 	if (filearg[0] == Nullch) {
-	    ask1("No file found--skip this patch? [n] ");
-	    if (*buf != 'y') {
-		continue;
+	    if (ask1("No file found--skip this patch? [n] ")) {
+	    	if (*buf != 'y') {
+		    continue;
+	    	}
 	    }
 	    if (verbose)
 		say1("Skipping patch...\n");
