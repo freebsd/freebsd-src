@@ -40,7 +40,7 @@
  */
 
 
-#ident "$Id: dpt.h,v 1.1 1998/01/26 06:11:15 julian Exp $"
+#ident "$Id: dpt.h,v 1.2 1998/04/15 17:47:28 bde Exp $"
 
 #ifndef _DPT_H
 #define _DPT_H
@@ -63,10 +63,10 @@ extern u_long dpt_unit;
 
 #define DPT_RELEASE				1
 #define DPT_VERSION				4
-#define DPT_PATCH				2
-#define DPT_MONTH				1
-#define DPT_DAY					20
-#define DPT_YEAR				18	/* 1997 - 1980 */
+#define DPT_PATCH				3
+#define DPT_MONTH				6
+#define DPT_DAY					1
+#define DPT_YEAR				18	/* 1998 - 1980 */
 
 #define DPT_CTL_RELEASE			1
 #define DPT_CTL_VERSION			0
