@@ -34,18 +34,18 @@
 .Nd Adaptec VL/EISA/PCI SCSI host adapter driver
 .Sh SYNOPSIS
 For one or more VL/EISA cards:
-.Cd controller eisa0
-.Cd controller ahc0
+.Cd device eisa0
+.Cd device ahc0
 .Pp
 For one or more PCI cards:
-.Cd controller pci0
-.Cd controller ahc0
+.Cd device pci0
+.Cd device ahc0
 .Pp
 To allow PCI adapters to use memory mapped I/O if enabled:
 .Cd options AHC_ALLOW_MEMIO
 .Pp
 For one or more SCSI busses:
-.Cd controller scbus0 at ahc0
+.Cd device scbus0 at ahc0
 .Sh DESCRIPTION
 This driver provides access to the
 .Tn SCSI
