@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.13 1997/01/15 04:50:14 jkh Exp $
+ * $Id: menus.c,v 1.89.2.14 1997/01/17 08:53:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -334,6 +334,8 @@ whichMouse(dialogMenuItem *self)
 	return FALSE;
     if (readlink("/dev/mouse", buf, sizeof buf) == -1)
 	return FALSE;
+    if (isDebug)
+	msgDebug("The evil link value is `%s'\n", buf);
     if (!strcmp(self->prompt, "COM1"))
 	return !strcmp(buf, "/dev/cuaa0");
     else if (!strcmp(self->prompt, "COM2"))
