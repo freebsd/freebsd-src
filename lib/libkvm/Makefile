@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 LIB=	kvm
-CFLAGS+=-DLIBC_SCCS -I${.CURDIR} -I${.CURDIR}/../../sys
+CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_proc.c
 INCS=	kvm.h

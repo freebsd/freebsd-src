@@ -18,6 +18,6 @@ MLINKS+=devstat.3 buildmatch.3
 MLINKS+=devstat.3 compute_stats.3
 MLINKS+=devstat.3 compute_etime.3
 
-CFLAGS+=-I${.CURDIR} -I${.CURDIR}/../../sys
+CFLAGS+=-I${.CURDIR}
 
 .include <bsd.lib.mk>

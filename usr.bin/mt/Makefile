@@ -2,6 +2,5 @@
 # $FreeBSD$
 
 PROG=	mt
-CFLAGS+=-I${.CURDIR}/../../sys
 
 .include <bsd.prog.mk>
