@@ -172,26 +172,6 @@ g_io_init()
 }
 
 int
-g_io_setattr(const char *attr, struct g_consumer *cp, int len, void *ptr)
-{
-	struct bio *bp;
-	int error;
-
-	g_trace(G_T_BIO, "bio_setattr(%s)", attr);
-	bp = g_new_bio();
-	bp->bio_cmd = BIO_SETATTR;
-	bp->bio_done = NULL;
-	bp->bio_attribute = attr;
-	bp->bio_length = len;
-	bp->bio_data = ptr;
-	g_io_request(bp, cp);
-	error = biowait(bp, "gsetattr");
-	g_destroy_bio(bp);
-	return (error);
-}
-
-
-int
 g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 {
 	struct bio *bp;
@@ -229,7 +209,6 @@ g_io_check(struct bio *bp)
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
-	case BIO_SETATTR:
 		if (cp->acw == 0)
 			return (EPERM);
 		break;

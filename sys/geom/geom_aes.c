@@ -228,7 +228,6 @@ g_aes_start(struct bio *bp)
 		g_io_request(bp2, cp);
 		break;
 	case BIO_GETATTR:
-	case BIO_SETATTR:
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
 			g_io_deliver(bp, ENOMEM);
