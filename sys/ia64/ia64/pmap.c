@@ -713,23 +713,55 @@ pmap_track_modified(vm_offset_t va)
 void
 pmap_new_proc(struct proc *p)
 {
-	struct user *up;
+	vm_page_t ma[UAREA_PAGES];
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	u_int i;
 
 	/*
-	 * Use contigmalloc for user area so that we can use a region
-	 * 7 address for it which makes it impossible to accidentally
-	 * lose when recording a trapframe.
+	 * Allocate object for the upages.
 	 */
-	up = contigmalloc(UAREA_PAGES * PAGE_SIZE, M_PMAP,
-			  M_WAITOK,
-			  0ul,
-			  256*1024*1024 - 1,
-			  PAGE_SIZE,
-			  256*1024*1024);
+	upobj = p->p_upages_obj;
+	if (upobj == NULL) {
+		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
+		p->p_upages_obj = upobj;
+	}
 
-	p->p_md.md_uservirt = up;
-	p->p_uarea = (struct user *)
-		IA64_PHYS_TO_RR7(ia64_tpa((u_int64_t) up));
+	/*
+	 * Get a kernel virtual address for the U area for this process.
+	 */
+	up = (vm_offset_t)p->p_uarea;
+	if (up == 0) {
+		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
+		if (up == 0)
+			panic("pmap_new_proc: upage allocation failed");
+		p->p_uarea = (struct user *)up;
+	}
+
+	for (i = 0; i < UAREA_PAGES; i++) {
+		/*
+		 * Get a uarea page.
+		 */
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		ma[i] = m;
+
+		/*
+		 * Wire the page.
+		 */
+		m->wire_count++;
+		cnt.v_wire_count++;
+
+		vm_page_wakeup(m);
+		vm_page_flag_clear(m, PG_ZERO);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+
+	/*
+	 * Enter the pages into the kernel address space.
+	 */
+	pmap_qenter(up, ma, UAREA_PAGES);
 }
 
 /*
@@ -739,9 +771,32 @@ pmap_new_proc(struct proc *p)
 void
 pmap_dispose_proc(struct proc *p)
 {
-	contigfree(p->p_md.md_uservirt, UAREA_PAGES * PAGE_SIZE, M_PMAP);
-	p->p_md.md_uservirt = 0;
-	p->p_uarea = 0;
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("pmap_dispose_proc: upage already missing?");
+		vm_page_busy(m);
+		vm_page_unwire(m, 0);
+		vm_page_free(m);
+	}
+	pmap_qremove(up, UAREA_PAGES);
+
+	/*
+	 * If the process got swapped out some of its UPAGES might have gotten
+	 * swapped.  Just get rid of the object to clean up the swap use
+	 * proactively.  NOTE! might block waiting for paging I/O to complete.
+	 */
+	if (upobj->type == OBJT_SWAP) {
+		p->p_upages_obj = NULL;
+		vm_object_deallocate(upobj);
+	}
 }
 
 /*
@@ -750,6 +805,21 @@ pmap_dispose_proc(struct proc *p)
 void
 pmap_swapout_proc(struct proc *p)
 {
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_lookup(upobj, i);
+		if (m == NULL)
+			panic("pmap_swapout_proc: upage already missing?");
+		vm_page_dirty(m);
+		vm_page_unwire(m, 0);
+	}
+	pmap_qremove(up, UAREA_PAGES);
 }
 
 /*
@@ -758,6 +828,30 @@ pmap_swapout_proc(struct proc *p)
 void
 pmap_swapin_proc(struct proc *p)
 {
+	vm_page_t ma[UAREA_PAGES];
+	vm_object_t upobj;
+	vm_offset_t up;
+	vm_page_t m;
+	int rv;
+	int i;
+
+	upobj = p->p_upages_obj;
+	up = (vm_offset_t)p->p_uarea;
+	for (i = 0; i < UAREA_PAGES; i++) {
+		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+		if (m->valid != VM_PAGE_BITS_ALL) {
+			rv = vm_pager_get_pages(upobj, &m, 1, 0);
+			if (rv != VM_PAGER_OK)
+				panic("pmap_swapin_proc: cannot get upage");
+			m = vm_page_lookup(upobj, i);
+			m->valid = VM_PAGE_BITS_ALL;
+		}
+		ma[i] = m;
+		vm_page_wire(m);
+		vm_page_wakeup(m);
+		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
+	}
+	pmap_qenter(up, ma, UAREA_PAGES);
 }
 
 /*
