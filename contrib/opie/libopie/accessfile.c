@@ -1,8 +1,8 @@
 /* accessfile.c: Handle trusted network access file and per-user 
         overrides.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -15,6 +15,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Include syslog.h on debug.
 	Modified by cmetz for OPIE 2.3. Send debug info to syslog.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
                 Ifdef around some headers. Remove extra semicolon.
@@ -41,6 +42,10 @@ License Agreement applies to this software.
 #if HAVE_STDLIB_H
 #include <stdlib.h>
 #endif /* HAVE_STDLIB_H */
+
+#ifdef DEBUG
+#include <syslog.h>
+#endif /* DEBUG */
 
 #include "opie.h"
 

@@ -1,7 +1,7 @@
 /* popen.c: A "safe" pipe open routine.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,7 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Merged in some 4.4BSD-Lite fixes.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION declaration et al.
                 Removed useless string. ifdef around some headers.
         Modified at NRL for OPIE 2.1. Optimized for only one pipe at a time.
@@ -24,8 +25,8 @@ License Agreement applies to this software.
 
 */
 /*
- * Copyright (c) 1988 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1988, 1993, 1994
+ *     The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software written by Ken Arnold and
  * published in UNIX Review, Vol. 6, No. 8.
@@ -88,16 +89,18 @@ char **copyblk __P((char **));
 VOIDRET blkfree __P((char **));
 
 /*
- * Special version of popen which avoids call to shell.  This insures noone
+ * Special version of popen which avoids call to shell.  This ensures noone
  * may create a pipe to a hidden program as a side effect of a list or dir
  * command.
  */
 static pid_t child_pid = -1;
 static int pipe_fd;
 
+extern char **environ;
+
 FILE *ftpd_popen FUNCTION((program, type), char *program AND char *type)
 {
-  register char *cp;
+  char *cp;
   FILE *iop;
   int argc, gargc, pdes[2];
   char **pop, *argv[100], *gargv[1000], *vv[2];
@@ -150,6 +153,7 @@ FILE *ftpd_popen FUNCTION((program, type), char *program AND char *type)
       }
       close(pdes[1]);
     }
+    environ = NULL;
     execv(gargv[0], gargv);
     _exit(1);
   }
@@ -195,10 +199,12 @@ int ftpd_pclose FUNCTION((iop), FILE *iop)
   child_pid = -1;
   pipe_fd = -1;
 
-#ifdef WEXITSTATUS
-  /* this is the fully POSIX compliant implementation */
-  return (pid == -1 ? -1 : WEXITSTATUS(status));
-#else
+#if defined(WEXITSTATUS) && defined(WIFEXITED)
+  if ((pid > 0) && WIFEXITED(status))
+    return WEXITSTATUS(status);
+
+  return -1;
+#else /* defined(WEXITSTATUS) && defined(WIFEXITED) */
   return (pid == -1 ? -1 : status.w_status);
-#endif
+#endif /* defined(WEXITSTATUS) && defined(WIFEXITED) */
 }
