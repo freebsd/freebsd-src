@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/kernel.h>
 
+#include <machine/atomic.h>
 #include <machine/clock.h>
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
@@ -578,10 +579,7 @@ ntoskrnl_interlock_inc(/*addend*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (addend));
 
-	mtx_lock(&ntoskrnl_interlock);
-	(*addend)++;
-	mtx_unlock(&ntoskrnl_interlock);
-
+	atomic_add_long((volatile u_long *)addend, 1);
 	return(*addend);
 }
 
@@ -592,10 +590,7 @@ ntoskrnl_interlock_dec(/*addend*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (addend));
 
-	mtx_lock(&ntoskrnl_interlock);
-	(*addend)--;
-	mtx_unlock(&ntoskrnl_interlock);
-
+	atomic_subtract_long((volatile u_long *)addend, 1);
 	return(*addend);
 }
 
