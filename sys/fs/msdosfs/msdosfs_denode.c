@@ -159,7 +159,8 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_diroffset = diroffset;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 
-	error = vfs_hash_insert(nvp, hash, 0, curthread, &xvp, NULL, NULL);
+	error = vfs_hash_insert(nvp, hash, LK_EXCLUSIVE, curthread, &xvp,
+	    NULL, NULL);
 	if (error) {
 		*depp = NULL;
 		return (error);
