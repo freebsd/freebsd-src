@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.68 1996/10/04 14:53:48 jkh Exp $
+ * $Id: disks.c,v 1.69 1996/10/06 11:40:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -245,7 +245,7 @@ diskPartition(Device *dev, Disk *d)
 	    rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			  "so as to remain cooperative with any future possible\n"
 			  "operating systems on the drive(s)?");
-	    if (rv) {
+	    if (rv != 0) {
 		rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
 			       "uncooperative with other potential operating systems on the\n"
 			       "same disk.  It will lead instead to a totally dedicated disk,\n"
@@ -259,6 +259,8 @@ diskPartition(Device *dev, Disk *d)
 			       "less at risk.\n\n"
 			       "Do you insist on dedicating the entire disk this way?");
 	    }
+	    if (rv == -1)
+		rv = 0;
 	    All_FreeBSD(d, rv);
 	    if (rv)
 		d->bios_hd = d->bios_sect = d->bios_cyl = 1;
