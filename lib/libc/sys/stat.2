@@ -150,10 +150,10 @@ is not defined, the time-related fields are defined as:
 The size-related fields of the
 .Vt "struct stat"
 are as follows:
-.Bl -tag -width XXXst_blksize
-.It st_blksize
+.Bl -tag -width ".Va st_blksize"
+.It Va st_blksize
 The optimal I/O block size for the file.
-.It st_blocks
+.It Va st_blocks
 The actual number of blocks allocated for the file in 512-byte units.
 As short symbolic links are stored in the inode, this number may
 be zero.
@@ -215,14 +215,14 @@ or to the value 0 if the test is false.
 .Rv -std
 .Sh COMPATIBILITY
 Previous versions of the system used different types for the
-.Li st_dev ,
-.Li st_uid ,
-.Li st_gid ,
-.Li st_rdev ,
-.Li st_size ,
-.Li st_blksize
+.Va st_dev ,
+.Va st_uid ,
+.Va st_gid ,
+.Va st_rdev ,
+.Va st_size ,
+.Va st_blksize
 and
-.Li st_blocks
+.Va st_blocks
 fields.
 .Sh ERRORS
 The
