@@ -10,7 +10,7 @@ echo -n 'Initial rc.ia64 initialization:'
 #
 case ${unaligned_print} in
 [Nn][Oo])
-       sysctl -w machdep.unaligned_print=0
+       sysctl machdep.unaligned_print=0
        ;;
 esac
 

@@ -19,12 +19,12 @@ securelevel_start()
 	#
 	if [ -n "$securelevel" ]; then
 		echo -n "Setting securelevel: "
-		sysctl -w kern.securelevel=$securelevel
+		sysctl kern.securelevel=$securelevel
 	else
 		securelevel=`sysctl -n kern.securelevel`
 		if [ x"$securelevel" = x0 ]; then
 			echo -n "Setting securelevel: "
-			sysctl -w kern.securelevel=1
+			sysctl kern.securelevel=1
 		fi
  	fi
 }
