@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.3 1997/02/22 14:57:32 peter Exp $
+# $Id: Makefile,v 1.4 1999/04/20 11:34:20 obrien Exp $
 
 SUBDIR=
 
@@ -11,6 +11,9 @@ SUBDIR+=	compat20
 .endif
 .if defined(COMPAT21) || defined(RELEASEDIR)
 SUBDIR+=	compat21
+.endif
+.if defined(COMPAT22) || defined(RELEASEDIR)
+SUBDIR+=	compat22
 .endif
 .if defined(COMPAT3X) || defined(RELEASEDIR)
 SUBDIR+=	compat3x
