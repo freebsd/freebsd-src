@@ -632,7 +632,6 @@ CleanupAliasData(void)
     for (i=0; i<LINK_TABLE_OUT_SIZE; i++)
     {
         link = linkTableOut[i];
-        linkTableOut[i] = NULL;
         while (link != NULL)
         {
             struct alias_link *link_next;
@@ -1848,10 +1847,9 @@ PacketAliasSetAddress(struct in_addr addr)
 {
     if (packetAliasMode & PKT_ALIAS_RESET_ON_ADDR_CHANGE
      && aliasAddress.s_addr != addr.s_addr)
-    {
         CleanupAliasData();
-        aliasAddress = addr;
-    }
+
+    aliasAddress = addr;
 }
 
 
