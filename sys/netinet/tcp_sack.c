@@ -175,8 +175,9 @@ TUNABLE_INT("net.inet.tcp.sack.enable", &tcp_do_sack);
  * prediction mode), and it updates the ordered list of sacks.
  */
 void
-tcp_update_sack_list(tp)
+tcp_update_sack_list(tp, rcv_laststart, rcv_lastend)
 	struct tcpcb *tp;
+	tcp_seq rcv_laststart, rcv_lastend;
 {
 	/*
 	 * First reported block MUST be the most recent one.  Subsequent
@@ -206,10 +207,10 @@ tcp_update_sack_list(tp)
 	tp->rcv_numsacks -= count;
 	if (tp->rcv_numsacks == 0) { /* no sack blocks currently (fast path) */
 		tcp_clean_sackreport(tp);
-		if (SEQ_LT(tp->rcv_nxt, tp->rcv_laststart)) {
+		if (SEQ_LT(tp->rcv_nxt, rcv_laststart)) {
 			/* ==> need first sack block */
-			tp->sackblks[0].start = tp->rcv_laststart;
-			tp->sackblks[0].end = tp->rcv_lastend;
+			tp->sackblks[0].start = rcv_laststart;
+			tp->sackblks[0].end = rcv_lastend;
 			tp->rcv_numsacks = 1;
 		}
 		return;
@@ -217,14 +218,14 @@ tcp_update_sack_list(tp)
 	/* Otherwise, sack blocks are already present. */
 	for (i = 0; i < tp->rcv_numsacks; i++)
 		tp->sackblks[i] = temp[i]; /* first copy back sack list */
-	if (SEQ_GEQ(tp->rcv_nxt, tp->rcv_lastend))
+	if (SEQ_GEQ(tp->rcv_nxt, rcv_lastend))
 		return;     /* sack list remains unchanged */
 	/*
 	 * From here, segment just received should be (part of) the 1st sack.
 	 * Go through list, possibly coalescing sack block entries.
 	 */
-	firstsack.start = tp->rcv_laststart;
-	firstsack.end = tp->rcv_lastend;
+	firstsack.start = rcv_laststart;
+	firstsack.end = rcv_lastend;
 	for (i = 0; i < tp->rcv_numsacks; i++) {
 		sack = tp->sackblks[i];
 		if (SEQ_LT(sack.end, firstsack.start) ||
