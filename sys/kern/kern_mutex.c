@@ -338,10 +338,8 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 
 /*
  * The important part of mtx_trylock{,_flags}()
- * Tries to acquire lock `m.' We do NOT handle recursion here.  If this
- * function is called on a recursed mutex, it will return failure and
- * will not recursively acquire the lock.  You are expected to know what
- * you are doing.
+ * Tries to acquire lock `m.'  If this function is called on a mutex that
+ * is already owned, it will recursively acquire the lock.
  */
 int
 _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
@@ -350,7 +348,12 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 
 	MPASS(curthread != NULL);
 
-	rval = _obtain_lock(m, curthread);
+	if (mtx_owned(m) && (m->mtx_object.lo_flags & LO_RECURSABLE) != 0) {
+		m->mtx_recurse++;
+		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
+		rval = 1;
+	} else
+		rval = _obtain_lock(m, curthread);
 
 	LOCK_LOG_TRY("LOCK", &m->mtx_object, opts, rval, file, line);
 	if (rval)
@@ -380,6 +383,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 #endif
 
 	if (mtx_owned(m)) {
+		KASSERT((m->mtx_object.lo_flags & LO_RECURSABLE) != 0,
+	    ("_mtx_lock_sleep: recursed on non-recursive mutex %s @ %s:%d\n",
+		    m->mtx_object.lo_name, file, line));
 		m->mtx_recurse++;
 		atomic_set_ptr(&m->mtx_lock, MTX_RECURSED);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
