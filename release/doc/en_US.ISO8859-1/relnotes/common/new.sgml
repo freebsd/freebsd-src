@@ -534,6 +534,10 @@
       &man.ray.4; interfaces can be modified by
       &man.raycontrol.8;. &merged;</para>
 
+      <para arch="i386">The sbni driver, for supporting the Granch
+      SBNI12 series of ISA and PCI point-to-point communications
+      interfaces, has been added.</para>
+
       <para>Added support for PCI Ethernet adapters based on the
       National Semiconductor DP83815 chipset, including the NetGear
       FA311-TX and FA312-TX, in the form of the &man.sis.4; driver.</para>
@@ -777,6 +781,11 @@
       writeable devices, not sequential-only writeable devices such as
       CD-R drives, which are supported by &man.cdrecord.1; (a part of 
       <port>sysutils/cdrtools</port> in the Ports Collection. &merged;</para>
+
+      <para>The ciss driver, for devices utilizing the Common
+      Interface for SCSI-3 Support, has been added.  This driver
+      supports the Compaq SmartRAID 5* family of RAID controllers
+      (5300, 532, 5i).</para>
 
       <para>The ida disk driver now has crashdump support. &merged;</para>
 
