@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)dmesg.c	8.1 (Berkeley) 6/5/93";
 #endif
 static const char rcsid[] =
-	"$Id: dmesg.c,v 1.6 1997/02/22 14:32:13 peter Exp $";
+	"$Id: dmesg.c,v 1.7 1997/03/29 03:32:14 imp Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -79,7 +79,7 @@ main(argc, argv)
 	register int ch, newl, skip;
 	register char *p, *ep;
 	struct msgbuf *bufp, cur;
-	char *memf, *nlistf;
+	char *bp, *memf, *nlistf;
 	kvm_t *kd;
 	char buf[5];
 
@@ -116,11 +116,17 @@ main(argc, argv)
 		errx(1, "%s: msgbufp not found", nlistf ? nlistf : "namelist");
 	if (KREAD(nl[X_MSGBUF].n_value, bufp) || KREAD((long)bufp, cur))
 		errx(1, "kvm_read: %s", kvm_geterr(kd));
-	kvm_close(kd);
 	if (cur.msg_magic != MSG_MAGIC)
 		errx(1, "magic number incorrect");
-	if (cur.msg_bufx >= MSG_BSIZE)
+	bp = malloc(cur.msg_size);
+	if (!bp)
+		errx(1, "malloc failed");
+	if (kvm_read(kd, (long)cur.msg_ptr, bp, cur.msg_size) !=
+	    cur.msg_size)
+		errx(1, "kvm_read: %s", kvm_geterr(kd));
+	if (cur.msg_bufx >= cur.msg_size)
 		cur.msg_bufx = 0;
+	kvm_close(kd);
 
 	/*
 	 * The message buffer is circular.  If the buffer has wrapped, the
@@ -129,12 +135,12 @@ main(argc, argv)
 	 * buffer starting at the write pointer and ignore nulls so that
 	 * we effectively start at the oldest data.
 	 */
-	p = cur.msg_bufc + cur.msg_bufx;
-	ep = (cur.msg_bufx == 0 ? cur.msg_bufc + MSG_BSIZE : p);
+	p = bp + cur.msg_bufx;
+	ep = (cur.msg_bufx == 0 ? bp + cur.msg_size : p);
 	newl = skip = 0;
 	do {
-		if (p == cur.msg_bufc + MSG_BSIZE)
-			p = cur.msg_bufc;
+		if (p == bp + cur.msg_size)
+			p = bp;
 		ch = *p;
 		/* Skip "\n<.*>" syslog sequences. */
 		if (skip) {
