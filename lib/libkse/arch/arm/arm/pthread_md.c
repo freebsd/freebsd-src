@@ -39,19 +39,15 @@ __FBSDID("$FreeBSD$");
 
 #include "pthread_md.h"
 
+struct arm_tp *_tp = NULL;
+
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
-	void *addr;
 
-	addr = malloc(sizeof(struct tcb) + 63);
-	if (addr == NULL)
-		tcb = NULL;
-	else {
-		tcb = (struct tcb *)(((uintptr_t)(addr) + 63) & ~63);
+	if ((tcb = malloc(sizeof(struct tcb)))) {
 		bzero(tcb, sizeof(struct tcb));
-		tcb->tcb_addr = addr;
 		tcb->tcb_thread = thread;
 		/* XXX - Allocate tdv/tls */
 	}
@@ -61,11 +57,8 @@ _tcb_ctor(struct pthread *thread, int initial)
 void
 _tcb_dtor(struct tcb *tcb)
 {
-	void *addr;
 
-	addr = tcb->tcb_addr;
-	tcb->tcb_addr = NULL;
-	free(addr);
+	free(tcb);
 }
 
 struct kcb *

@@ -29,6 +29,9 @@
 #ifndef	_ATOMIC_OPS_H_
 #define	_ATOMIC_OPS_H_
 
+#include <machine/atomic.h>
+#include "thr_private.h"
+
 /*
  * Atomic swap:
  *   Atomic (tmp = *dst, *dst = val), then *res = tmp
@@ -38,9 +41,7 @@
 static inline void
 atomic_swap32(intptr_t *dst, intptr_t val, intptr_t *res)
 {
-	__asm __volatile(
-	"swp %2, %2, [%1]; mov %2, %0"
-	 : "=r" (*res) : "r" (dst), "r" (val) : "cc");
+	*res = __swp(val, dst);
 }
 
 #define	atomic_swap_ptr(d, v, r) \
@@ -49,3 +50,19 @@ atomic_swap32(intptr_t *dst, intptr_t val, intptr_t *res)
 #define	atomic_swap_int(d, v, r) \
 	atomic_swap32((intptr_t *)d, (intptr_t)v, (intptr_t *)r)
 #endif
+
+static inline u_int32_t
+atomic_cmpset_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+{
+	kse_critical_t crit = _kse_critical_enter();
+	int ret;
+
+	if (*p == cmpval) {
+		*p = newval;
+		ret = 1;
+	} else
+		ret = 0;
+	_kse_critical_leave(crit);
+	return (ret);
+}
+
