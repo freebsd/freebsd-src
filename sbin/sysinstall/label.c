@@ -568,6 +568,10 @@ DiskLabel()
 	    break;
 
 	case 'm': case 'M':
+	    if (memcmp(lbl, Dlbl[diskno], sizeof *lbl)) {
+		yip = "Please (W)rite changed partition information first";
+		break;
+	    }
 	    j = AskWhichPartition("Mountpoint of which partition ? ");
 	    if (j < 0) {
 		yip = "Invalid partition";
@@ -606,17 +610,13 @@ DiskLabel()
 	    Dlbl[diskno]->d_magic2 = DISKMAGIC;
 	    Dlbl[diskno]->d_checksum = 0;
 	    Dlbl[diskno]->d_checksum = dkcksum(Dlbl[diskno]);
-	    *lbl= *Dlbl[diskno];
-	    flag=1;
-	    if (ioctl(Dfd[diskno], DIOCWLABEL, &flag) < 0)
-		Fatal("Couldn't enable writing of labels");
+	    *lbl = *Dlbl[diskno];
+	    enable_label(Dfd[diskno]);
 	    if (ioctl(Dfd[diskno], DIOCSDINFO, Dlbl[diskno]) == -1)
 		Fatal("Couldn't set label: %s", strerror(errno));
 	    if (ioctl(Dfd[diskno], DIOCWDINFO, Dlbl[diskno]) == -1)
 		Fatal("Couldn't write label: %s", strerror(errno));
-	    flag=0; 
-	    if (ioctl(Dfd[diskno], DIOCWLABEL, &flag) < 0)
-		Fatal("Couldn't disable writing of labels");
+	    disable_label(Dfd[diskno]);
 	    yip = "Label written successfully.";
 	    break;
 
