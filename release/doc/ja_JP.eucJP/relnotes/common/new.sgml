@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.354
+    Original revision: 1.22.2.355
 -->
 
 <articleinfo>
@@ -204,6 +204,10 @@
 
     <para><application>sendmail</application> がバージョン
       8.12.9 に更新されました。</para>
+
+    <para>timezone データベースが
+      <filename>tzdata2002d</filename> から
+      <filename>tzdata2003a</filename> に更新されました。</para>
   </sect2>
     
   <sect2 id="ports">
