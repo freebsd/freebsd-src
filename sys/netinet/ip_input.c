@@ -1797,13 +1797,10 @@ ip_forward(struct mbuf *m, int srcrt, struct sockaddr_in *next_hop)
 		mcopy->m_len = imin((ip->ip_hl << 2) + 8,
 		    (int)ip->ip_len);
 		m_copydata(m, 0, mcopy->m_len, mtod(mcopy, caddr_t));
-#ifdef MAC
 		/*
-		 * XXXMAC: This will eventually become an explicit
-		 * labeling point.
+		 * XXXMAC: Eventually, we may have an explict labeling
+		 * point here.
 		 */
-		mac_create_mbuf_from_mbuf(m, mcopy);
-#endif
 	}
 
 #ifdef IPSTEALTH
