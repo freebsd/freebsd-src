@@ -150,7 +150,7 @@ USB_ATTACH(uhub)
 {
 	USB_ATTACH_START(uhub, sc, uaa);
 	usbd_device_handle dev = uaa->device;
-	char devinfo[1024];
+	char *devinfo;
 	usbd_status err;
 	struct usbd_hub *hub;
 	usb_device_request_t req;
@@ -159,6 +159,10 @@ USB_ATTACH(uhub)
 	usbd_interface_handle iface;
 	usb_endpoint_descriptor_t *ed;
 	
+	devinfo = malloc(1024, M_TEMP, M_NOWAIT);
+	if (devinfo == NULL) {
+		USB_ATTACH_ERROR_RETURN;
+	}
 	DPRINTFN(1,("uhub_attach\n"));
 	sc->sc_hub = dev;
 	usbd_devinfo(dev, 1, devinfo);
@@ -169,12 +173,14 @@ USB_ATTACH(uhub)
 	if (err) {
 		DPRINTF(("%s: configuration failed, error=%s\n",
 			 USBDEVNAME(sc->sc_dev), usbd_errstr(err)));
+		free(devinfo, M_TEMP);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
 	if (dev->depth > USB_HUB_MAX_DEPTH) {
 		printf("%s: hub depth (%d) exceeded, hub ignored\n",
 		       USBDEVNAME(sc->sc_dev), USB_HUB_MAX_DEPTH);
+		free(devinfo, M_TEMP);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -194,6 +200,7 @@ USB_ATTACH(uhub)
 	if (err) {
 		DPRINTF(("%s: getting hub descriptor failed, error=%s\n",
 			 USBDEVNAME(sc->sc_dev), usbd_errstr(err)));
+		free(devinfo, M_TEMP);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -206,8 +213,10 @@ USB_ATTACH(uhub)
 
 	hub = malloc(sizeof(*hub) + (nports-1) * sizeof(struct usbd_port),
 		     M_USBDEV, M_NOWAIT);
-	if (hub == NULL)
+	if (hub == NULL) {
+		free(devinfo, M_TEMP);
 		USB_ATTACH_ERROR_RETURN;
+	}
 	dev->hub = hub;
 	dev->hub->hubsoftc = sc;
 	hub->explore = uhub_explore;
@@ -315,6 +324,7 @@ USB_ATTACH(uhub)
 
  bad:
 	free(hub, M_USBDEV);
+	free(devinfo, M_TEMP);
 	dev->hub = 0;
 	USB_ATTACH_ERROR_RETURN;
 }
