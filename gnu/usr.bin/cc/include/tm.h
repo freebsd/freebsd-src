@@ -27,6 +27,15 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* Get perform_* macros to build libgcc.a.  */
 #include "i386/perform.h"
 
+#define MASK_PROFILER_EPILOGUE	010000000000
+
+#define TARGET_PROFILER_EPILOGUE (target_flags & MASK_PROFILER_EPILOGUE)
+
+#undef	SUBTARGET_SWITCHES
+#define SUBTARGET_SWITCHES						\
+     { "profiler-epilogue",	 MASK_PROFILER_EPILOGUE},		\
+     { "no-profiler-epilogue",	-MASK_PROFILER_EPILOGUE},
+
 #undef CPP_PREDEFINES
 #define CPP_PREDEFINES "-Dunix -Di386 -D__FreeBSD__=2 -Asystem(unix) -Asystem(FreeBSD) -Acpu(i386) -Amachine(i386)"
 
@@ -83,15 +92,16 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
     fprintf (FILE, "\tcall mcount\n");					\
 }
 
-#if 0 /* not ready for this; it should be decided at compile time */
 #define FUNCTION_PROFILER_EPILOGUE(FILE)  \
 {									\
-  if (flag_pic)								\
-    fprintf (FILE, "\tcall *mexitcount@GOT(%%ebx)\n");			\
-  else									\
-    fprintf (FILE, "\tcall mexitcount\n");				\
+  if (TARGET_PROFILER_EPILOGUE)						\
+    {									\
+      if (flag_pic)							\
+	fprintf (FILE, "\tcall *mexitcount@GOT(%%ebx)\n");		\
+      else								\
+	fprintf (FILE, "\tcall mexitcount\n");				\
+    }									\
 }
-#endif
 
 /* Override the default comment-starter of "/".  */
 
