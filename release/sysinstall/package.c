@@ -131,7 +131,6 @@ package_extract(Device *dev, char *name, Boolean depended)
     /* If necessary, initialize the ldconfig hints */
     if (!file_readable("/var/run/ld.so.hints"))
 	vsystem("ldconfig /usr/lib /usr/local/lib /usr/X11R6/lib");
-    vsystem("/sbin/ldconfig -aout /usr/lib/compat/aout /usr/lib/aout /usr/X11R6/lib/aout /usr/local/lib/aout");
 
     /* Be initially optimistic */
     ret = DITEM_SUCCESS;
