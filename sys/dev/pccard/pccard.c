@@ -1193,7 +1193,7 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 	int err;
 
 	if (func->intr_handler != NULL)
-		panic("Only one interrupt handler per function allowed\n");
+		panic("Only one interrupt handler per function allowed");
 	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_intr,
 	    func, cookiep);
 	if (err != 0)
