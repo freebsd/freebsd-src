@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.177 1995/05/25 01:22:08 jkh Exp $
+#	$Id: Makefile,v 1.178 1995/05/25 01:51:44 jkh Exp $
 #
 # How to roll a release:
 #
@@ -336,7 +336,8 @@ release.9:
 		DIR=${RD}/cpiofd/stand ZIP=false
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
 	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/cpiofd/stand
-	cd ${RD}/cpiofd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/cpio.flp
+	cd ${RD}/cpiofd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/cpio.tmp
+	mv ${RD}/floppies/cpio.tmp ${RD}/floppies/cpio.flp
 	touch release.9
 
 # Complete the fixitfd
@@ -425,12 +426,12 @@ doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 	@echo "Release done"
 
 floppies:
-	rm -f release.4 release.8 release.9
+	rm -f release.4 release.8 release.9 release.10
 	cd ${.CURDIR} && ${MAKE} doRELEASE
 
 boot.flp:
 	rm -f release.4 release.8
-	cd ${.CURDIR} && ${MAKE} release.4 release.6 WHICH_CRUNCH=boot
+	cd ${.CURDIR} && ${MAKE} release.4 release.8 WHICH_CRUNCH=boot
 
 cpio.flp:
 	rm -f release.4 release.9
