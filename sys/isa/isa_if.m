@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: pci_if.m,v 1.1 1999/04/16 21:22:52 peter Exp $
+#	$Id: isa_if.m,v 1.1 1999/05/22 15:18:26 dfr Exp $
 #
 
 INTERFACE isa;
@@ -52,4 +52,14 @@ METHOD int get_resource {
 	int		rid;
 	u_long		*startp;
 	u_long		*countp;
+};
+
+#
+# Delete a resource.
+#
+METHOD void delete_resource {
+	device_t	dev;
+	device_t	child;
+	int		type;
+	int		rid;
 };

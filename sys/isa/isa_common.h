@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: isa_common.h,v 1.1 1999/05/22 15:18:25 dfr Exp $
  */
 
 /*
@@ -41,6 +41,10 @@ MALLOC_DECLARE(M_ISADEV);
 struct isa_device {
 	struct resource_list	id_resources;
 	int			id_flags;
+	u_int32_t		id_vendorid; /* pnp vendor id */
+	u_int32_t		id_serial; /* pnp serial */
+	u_int32_t		id_logicalid; /* pnp logical device id */
+	u_int32_t		id_compatid; /* pnp compat device id */
 };
 
 #define DEVTOISA(dev)	((struct isa_device *) device_get_ivars(dev))
