@@ -1240,7 +1240,6 @@ flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
 
 			if (bp->b_vp == vp) {
 				if (bp->b_flags & B_CLUSTEROK) {
-					BUF_UNLOCK(bp);
 					vfs_bio_awrite(bp);
 				} else {
 					bremfree(bp);
