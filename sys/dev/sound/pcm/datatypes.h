@@ -127,6 +127,7 @@ struct _pcm_channel {
 	u_int8_t smegbuf[SMEGBUFSZ];
 	u_int32_t smegcnt;
 	void *devinfo;
+	snd_dbuf buffer2nd;
 };
 
 typedef void (pcm_swap_t)(void *data, int dir);
