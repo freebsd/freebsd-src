@@ -995,9 +995,9 @@
 
       <note>
 	<para>Information regarding specific video cards and
-	  compatibility with <application>XFree86</application> can be
+	  compatibility with <application>Xorg</application> can be
 	  found at <ulink
-	  url="http://www.xfree86.org/"></ulink>.</para>
+	  url="http://www.x.org/"></ulink>.</para>
       </note>
 
       </para>
@@ -1039,8 +1039,8 @@
       <note>
 	<para>&man.moused.8; has more information on using pointing
 	  devices with &os;.  Information on using pointing devices
-	  with <application>XFree86</application> can be found at
-	  <ulink url="http://www.xfree86.org/"></ulink>.</para>
+	  with <application>Xorg</application> can be found at
+	  <ulink url="http://www.x.org/"></ulink>.</para>
       </note>
     </para>
 
