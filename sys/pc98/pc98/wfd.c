@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.7 1998/02/09 06:08:44 eivind Exp $
+ *      $Id: wfd.c,v 1.8 1998/02/13 22:41:00 pst Exp $
  */
 
 /*
@@ -104,8 +104,7 @@ struct cappage {
     unsigned        page_code       :6;     /* Page code - Should be 0x5 */
 #define CAP_PAGE        0x05
     unsigned        reserved1_6     :1;     /* Reserved */
-    unsigned        ps              :1;     /* The device is capable of savi
-ng the page */
+    unsigned        ps              :1;     /* The device is capable of saving the page */
     u_char          page_length;            /* Page Length - Should be 0x1e */
     u_short         transfer_rate;          /* In kilobits per second */
     u_char          heads, sectors;         /* Number of heads, Number of sectors per track */
@@ -337,10 +336,8 @@ int wfdbopen (dev_t dev, int flags, int fmt, struct proc *p)
 
 	/* Check that the device number is legal
 	 * and the ATAPI driver is loaded. */
-	if (lun >= wfdnlun || ! atapi_request_immediate) {
-		printf("ENXIO lun=%d, wfdnlun=%d, im=%d\n", lun, wfdnlun, atapi_request_immediate);
+	if (lun >= wfdnlun || ! atapi_request_immediate)
 		return (ENXIO);
-	}
 	t = wfdtab[lun];
 
 	t->flags &= ~F_MEDIA_CHANGED;
