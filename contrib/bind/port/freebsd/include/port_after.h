@@ -80,7 +80,4 @@ struct sockaddr_in6 {
 #define ISC_FACILITY LOG_DAEMON
 #endif
 
-int isc__gettimeofday(struct timeval *tp, struct timezone *tzp);
-#define gettimeofday isc__gettimeofday
-
 #endif /* ! PORT_AFTER_H */
