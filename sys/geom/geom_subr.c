@@ -57,8 +57,6 @@ struct class_list_head g_classes = LIST_HEAD_INITIALIZER(g_classes);
 static struct g_tailq_head geoms = TAILQ_HEAD_INITIALIZER(geoms);
 char *g_wait_event, *g_wait_up, *g_wait_down, *g_wait_sim;
 
-static int g_valid_obj(void const *ptr);
-
 struct g_hh00 {
 	struct g_class	*mp;
 	int		error;
@@ -125,6 +123,7 @@ g_unload_class(void *arg, int flag)
 	g_topology_assert();
 	hh = arg;
 	mp = hh->mp;
+	G_VALID_CLASS(mp);
 	g_trace(G_T_TOPOLOGY, "g_unload_class(%s)", mp->name);
 
 	/*
@@ -216,7 +215,7 @@ g_new_geomf(struct g_class *mp, const char *fmt, ...)
 	struct sbuf *sb;
 
 	g_topology_assert();
-	KASSERT(g_valid_obj(mp), ("g_new_geom_f() on alien class %p", mp));
+	G_VALID_CLASS(mp);
 	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
 	va_start(ap, fmt);
 	sbuf_vprintf(sb, fmt, ap);
@@ -239,8 +238,9 @@ void
 g_destroy_geom(struct g_geom *gp)
 {
 
-	g_trace(G_T_TOPOLOGY, "g_destroy_geom(%p(%s))", gp, gp->name);
 	g_topology_assert();
+	G_VALID_GEOM(gp);
+	g_trace(G_T_TOPOLOGY, "g_destroy_geom(%p(%s))", gp, gp->name);
 	KASSERT(LIST_EMPTY(&gp->consumer),
 	    ("g_destroy_geom(%s) with consumer(s) [%p]",
 	    gp->name, LIST_FIRST(&gp->consumer)));
@@ -255,7 +255,7 @@ g_destroy_geom(struct g_geom *gp)
 }
 
 /*
- * This function is called (repeatedly) until has withered away.
+ * This function is called (repeatedly) until the has withered away.
  */
 void
 g_wither_geom(struct g_geom *gp, int error)
@@ -264,11 +264,12 @@ g_wither_geom(struct g_geom *gp, int error)
 	struct g_consumer *cp, *cp2;
 	static int once_is_enough;
 
+	g_topology_assert();
+	G_VALID_GEOM(gp);
 	if (once_is_enough)
 		return;
 	once_is_enough = 1;
 	g_trace(G_T_TOPOLOGY, "g_wither_geom(%p(%s))", gp, gp->name);
-	g_topology_assert();
 	if (!(gp->flags & G_GEOM_WITHER)) {
 		gp->flags |= G_GEOM_WITHER;
 		LIST_FOREACH(pp, &gp->provider, provider)
@@ -299,6 +300,7 @@ g_new_consumer(struct g_geom *gp)
 	struct g_consumer *cp;
 
 	g_topology_assert();
+	G_VALID_GEOM(gp);
 	KASSERT(!(gp->flags & G_GEOM_WITHER),
 	    ("g_new_consumer on WITHERing geom(%s) (class %s)",
 	    gp->name, gp->class->name));
@@ -319,8 +321,9 @@ g_destroy_consumer(struct g_consumer *cp)
 {
 	struct g_geom *gp;
 
-	g_trace(G_T_TOPOLOGY, "g_destroy_consumer(%p)", cp);
 	g_topology_assert();
+	G_VALID_CONSUMER(cp);
+	g_trace(G_T_TOPOLOGY, "g_destroy_consumer(%p)", cp);
 	KASSERT (cp->provider == NULL, ("g_destroy_consumer but attached"));
 	KASSERT (cp->acr == 0, ("g_destroy_consumer with acr"));
 	KASSERT (cp->acw == 0, ("g_destroy_consumer with acw"));
@@ -348,6 +351,7 @@ g_new_provider_event(void *arg, int flag)
 	if (g_shutdown)
 		return;
 	pp = arg;
+	G_VALID_PROVIDER(pp);
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp->taste == NULL)
 			continue;
@@ -359,14 +363,6 @@ g_new_provider_event(void *arg, int flag)
 			continue;
 		mp->taste(mp, pp, 0);
 		g_topology_assert();
-		/*
-		 * XXX: Bandaid for 5.2-RELEASE
-		 * XXX: DO NOT REPLICATE THIS CODE!
-		 */
-		if (!g_valid_obj(pp)) {
-			printf("g_provider %p disappeared while tasting\n", pp);
-			return;
-		}
 	}
 }
 
@@ -379,6 +375,7 @@ g_new_providerf(struct g_geom *gp, const char *fmt, ...)
 	va_list ap;
 
 	g_topology_assert();
+	G_VALID_GEOM(gp);
 	KASSERT(gp->start != NULL,
 	    ("new provider on geom(%s) without ->start (class %s)",
 	    gp->name, gp->class->name));
@@ -408,6 +405,7 @@ void
 g_error_provider(struct g_provider *pp, int error)
 {
 
+	/* G_VALID_PROVIDER(pp);  We may not have g_topology */
 	pp->error = error;
 }
 
@@ -435,6 +433,7 @@ g_destroy_provider(struct g_provider *pp)
 	struct g_geom *gp;
 
 	g_topology_assert();
+	G_VALID_PROVIDER(pp);
 	KASSERT(LIST_EMPTY(&pp->consumers),
 	    ("g_destroy_provider but attached"));
 	KASSERT (pp->acr == 0, ("g_destroy_provider with acr"));
@@ -474,6 +473,7 @@ redo_rank(struct g_geom *gp)
 	int n, m;
 
 	g_topology_assert();
+	G_VALID_GEOM(gp);
 
 	/* Invalidate this geoms rank and move it to the tail */
 	gp1 = TAILQ_NEXT(gp, geoms);
@@ -523,6 +523,8 @@ g_attach(struct g_consumer *cp, struct g_provider *pp)
 	int error;
 
 	g_topology_assert();
+	G_VALID_CONSUMER(cp);
+	G_VALID_PROVIDER(pp);
 	KASSERT(cp->provider == NULL, ("attach but attached"));
 	cp->provider = pp;
 	LIST_INSERT_HEAD(&pp->consumers, cp, consumers);
@@ -540,9 +542,9 @@ g_detach(struct g_consumer *cp)
 {
 	struct g_provider *pp;
 
-	g_trace(G_T_TOPOLOGY, "g_detach(%p)", cp);
-	KASSERT(cp != (void*)0xd0d0d0d0, ("ARGH!"));
 	g_topology_assert();
+	G_VALID_CONSUMER(cp);
+	g_trace(G_T_TOPOLOGY, "g_detach(%p)", cp);
 	KASSERT(cp->provider != NULL, ("detach but not attached"));
 	KASSERT(cp->acr == 0, ("detach but nonzero acr"));
 	KASSERT(cp->acw == 0, ("detach but nonzero acw"));
@@ -573,12 +575,14 @@ g_access(struct g_consumer *cp, int dcr, int dcw, int dce)
 	int pr,pw,pe;
 	int error;
 
+	g_topology_assert();
+	G_VALID_CONSUMER(cp);
 	pp = cp->provider;
+	G_VALID_PROVIDER(pp);
 
 	g_trace(G_T_ACCESS, "g_access(%p(%s), %d, %d, %d)",
 	    cp, pp->name, dcr, dcw, dce);
 
-	g_topology_assert();
 	KASSERT(cp->provider != NULL, ("access but not attached"));
 	KASSERT(cp->acr + dcr >= 0, ("access resulting in negative acr"));
 	KASSERT(cp->acw + dcw >= 0, ("access resulting in negative acw"));
@@ -688,10 +692,12 @@ g_handleattr(struct bio *bp, const char *attribute, void *val, int len)
 }
 
 int
-g_std_access(struct g_provider *pp __unused,
+g_std_access(struct g_provider *pp,
 	int dr __unused, int dw __unused, int de __unused)
 {
 
+	g_topology_assert();
+	G_VALID_PROVIDER(pp);
         return (0);
 }
 
@@ -718,8 +724,9 @@ g_std_spoiled(struct g_consumer *cp)
 	struct g_geom *gp;
 	struct g_provider *pp;
 
-	g_trace(G_T_TOPOLOGY, "g_std_spoiled(%p)", cp);
 	g_topology_assert();
+	G_VALID_CONSUMER(cp);
+	g_trace(G_T_TOPOLOGY, "g_std_spoiled(%p)", cp);
 	g_detach(cp);
 	gp = cp->geom;
 	LIST_FOREACH(pp, &gp->provider, provider)
@@ -752,6 +759,7 @@ g_spoil_event(void *arg, int flag)
 	if (flag == EV_CANCEL)
 		return;
 	pp = arg;
+	G_VALID_PROVIDER(pp);
 	for (cp = LIST_FIRST(&pp->consumers); cp != NULL; cp = cp2) {
 		cp2 = LIST_NEXT(cp, consumers);
 		if (!cp->spoiled)
@@ -770,6 +778,8 @@ g_spoil(struct g_provider *pp, struct g_consumer *cp)
 	struct g_consumer *cp2;
 
 	g_topology_assert();
+	G_VALID_PROVIDER(pp);
+	G_VALID_CONSUMER(cp);
 
 	LIST_FOREACH(cp2, &pp->consumers, consumers) {
 		if (cp2 == cp)
@@ -798,11 +808,16 @@ g_getattr__(const char *attr, struct g_consumer *cp, void *var, int len)
 	return (0);
 }
 
+#ifdef DIAGNOSTIC
 /*
- * XXX: Bandaid for 5.2.
- * XXX: DO NOT EVEN THINK ABOUT CALLING THIS FUNCTION!
+ * This function walks (topologically unsafely) the mesh and return a
+ * non-zero integer if it finds the argument pointer is an object.
+ * The return value indicates which type of object it is belived to be.
+ * If topology is not locked, this function is potentially dangerous,
+ * but since it is for debugging purposes and can be useful for instance
+ * from DDB, we do not assert topology lock is held.
  */
-static int
+int
 g_valid_obj(void const *ptr)
 {
 	struct g_class *mp;
@@ -810,50 +825,20 @@ g_valid_obj(void const *ptr)
 	struct g_consumer *cp;
 	struct g_provider *pp;
 
-	g_topology_assert();
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (ptr == mp)
 			return (1);
 		LIST_FOREACH(gp, &mp->geom, geom) {
 			if (ptr == gp)
-				return (1);
+				return (2);
 			LIST_FOREACH(cp, &gp->consumer, consumer)
 				if (ptr == cp)
-					return (1);
+					return (3);
 			LIST_FOREACH(pp, &gp->provider, provider)
 				if (ptr == pp)
-					return (1);
+					return (4);
 		}
 	}
 	return(0);
 }
-
-/*
- * Check if the given pointer is a live object
- */
-
-void
-g_sanity(void const *ptr)
-{
-	struct g_class *mp;
-	struct g_geom *gp;
-	struct g_consumer *cp;
-	struct g_provider *pp;
-
-	if (!(g_debugflags & 0x8))
-		return;
-	LIST_FOREACH(mp, &g_classes, class) {
-		KASSERT(mp != ptr, ("Ptr is live class"));
-		LIST_FOREACH(gp, &mp->geom, geom) {
-			KASSERT(gp != ptr, ("Ptr is live geom"));
-			KASSERT(gp->name != ptr, ("Ptr is live geom's name"));
-			LIST_FOREACH(cp, &gp->consumer, consumer) {
-				KASSERT(cp != ptr, ("Ptr is live consumer"));
-			}
-			LIST_FOREACH(pp, &gp->provider, provider) {
-				KASSERT(pp != ptr, ("Ptr is live provider"));
-			}
-		}
-	}
-}
-
+#endif
