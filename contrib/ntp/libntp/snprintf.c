@@ -1,5 +1,6 @@
 #include <config.h>
 
+#if !HAVE_SNPRINTF
 #include <sys/types.h>
 
 #ifdef __STDC__
@@ -53,3 +54,6 @@ vsnprintf(str, n, fmt, ap)
 	return (vsprintf(str, fmt, ap));
 #endif
 }
+#else
+int snprintf_bs;
+#endif

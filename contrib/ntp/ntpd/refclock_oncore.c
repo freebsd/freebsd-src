@@ -652,7 +652,7 @@ oncore_start(
 		exit(1);
 	}
 
-	if (pps_device) {
+	if (pps_device && pps_device[0]) {
 		if (stat(pps_device, &stat1)) {
 			perror("ONCORE: stat pps_device");
 			return(0);

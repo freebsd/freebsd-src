@@ -1,3 +1,7 @@
+
+  NOTE: The CVS repository for NTP is inactive.  NTP is now maintained
+  using BitKeeper; see README.bk for more info.
+
 To get the NTP distribution via anonymous CVS:
 
     % cvs -d :pserver:anoncvs@www.ntp.org:/cvs/ntp login

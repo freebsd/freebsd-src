@@ -309,11 +309,7 @@ receive(
 #endif
 	if (restrict_mask & RES_IGNORE)
 		return;				/* no anything */
-	if (!(SRCPORT(&rbufp->recv_srcadr) == NTP_PORT ||
-	    SRCPORT(&rbufp->recv_srcadr) >= IPPORT_RESERVED)) {
-		sys_badlength++;
-		return;				/* invalid port */
-	}
+
 	pkt = &rbufp->recv_pkt;
 	if (PKT_VERSION(pkt->li_vn_mode) == NTP_VERSION) {
 		sys_newversionpkt++;		/* new version */
@@ -2506,7 +2502,8 @@ int
 default_get_precision(void)
 {
 	struct timeval tp;
-#if !defined(SYS_WINNT) && !defined(VMS) && !defined(_SEQUENT_)
+#if !defined(SYS_WINNT) && !defined(VMS) && !defined(_SEQUENT_) && \
+    !defined(MPE)
 	struct timezone tzp;
 #elif defined(VMS) || defined(_SEQUENT_)
 	struct timezone {

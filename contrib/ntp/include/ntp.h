@@ -457,7 +457,9 @@ struct peer {
 #define REFCLK_FG		37	/* Forum Graphic GPS */
 #define REFCLK_HOPF_SERIAL	38	/* hopf DCF77/GPS serial line receiver  */
 #define REFCLK_HOPF_PCI		39	/* hopf DCF77/GPS PCI receiver  */
-#define REFCLK_MAX		39	/* Grow as needed... */
+#define REFCLK_JJY		40	/* JJY receiver  */
+#define REFCLK_ZYFER		41	/* Zyfer GPStarplus receiver  */
+#define REFCLK_MAX		41	/* Grow as needed... */
 
 /*
  * We tell reference clocks from real peers by giving the reference

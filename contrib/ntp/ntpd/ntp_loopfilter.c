@@ -32,20 +32,19 @@
  * included to protect against timewarps, timespikes and general mayhem.
  * All units are in s and s/s, unless noted otherwise.
  */
-#define CLOCK_MAX	.128	/* default max offset (s) */
+#define CLOCK_MAX	.128	/* default step offset (s) */
 #define CLOCK_PANIC	1000.	/* default panic offset (s) */
-#define CLOCK_MAXSTAB	2e-6	/* max frequency stability (s/s) */
-#define CLOCK_MAXERR	1e-2	/* max phase jitter (s) */
 #define	CLOCK_PHI	15e-6	/* max frequency error (s/s) */
 #define SHIFT_PLL	4	/* PLL loop gain (shift) */
-#define CLOCK_AVG	4.	/* FLL loop gain */
+#define CLOCK_FLL	8.	/* FLL loop gain */
+#define CLOCK_AVG	4.	/* parameter averaging constant */
 #define CLOCK_MINSEC	256.	/* min FLL update interval (s) */
 #define CLOCK_MINSTEP	900.	/* step-change timeout (s) */
-#define CLOCK_DAY	86400.	/* one day of seconds */
+#define CLOCK_DAY	86400.	/* one day of seconds (s) */
 #define CLOCK_LIMIT	30	/* poll-adjust threshold */
 #define CLOCK_PGATE	4.	/* poll-adjust gate */
-#define CLOCK_ALLAN	1024.	/* min Allan intercept (s) */
-#define CLOCK_ADF	1e11	/* Allan deviation factor */
+#define CLOCK_ALLAN	10	/* min Allan intercept (log2 s) */
+#define PPS_MAXAGE	120	/* kernel pps signal timeout (s) */
 
 /*
  * Clock discipline state machine. This is used to control the
@@ -106,8 +105,6 @@
  * also a signal for the external clock driver to discipline the system
  * clock.
  */
-#define PPS_MAXAGE 120		/* kernel pps signal timeout (s) */
-
 /*
  * Program variables that can be tinkered.
  */
@@ -115,7 +112,18 @@ double	clock_max = CLOCK_MAX;	/* max offset before step (s) */
 double	clock_panic = CLOCK_PANIC; /* max offset before panic (s) */
 double	clock_phi = CLOCK_PHI;	/* dispersion rate (s/s) */
 double	clock_minstep = CLOCK_MINSTEP; /* step timeout (s) */
-double	allan_xpt = CLOCK_ALLAN; /* minimum Allan intercept (s) */
+u_char	allan_xpt = CLOCK_ALLAN; /* minimum Allan intercept (log2 s) */
+
+/*
+ * Hybrid PLL/FLL parameters. These were chosen by experiment using a
+ * MatLab program. The parameters were fudged to match a pure PLL at
+ * poll intervals of 64 s and lower and a pure FLL at poll intervals of
+ * 4096 s and higher. Between these extremes the parameters were chosen
+ * as a geometric series of intervals while holding the overshoot to
+ * less than 5 percent.
+ */
+static double fll[] = {0., 1./64, 1./32, 1./16, 1./8, 1./4, 1.};
+static double pll[] = {1., 1.4,   2.,    2.8,   4.1,  7.,  12.};
 
 /*
  * Program variables
@@ -207,6 +215,7 @@ local_clock(
 	double clock_frequency;	/* clock frequency adjustment (ppm) */
 	double dtemp, etemp;	/* double temps */
 	int retval;		/* return value */
+	int i;
 
 	/*
 	 * If the loop is opened, monitor and record the offsets
@@ -447,7 +456,7 @@ local_clock(
 		 * and ignore it.
 		 */
 		default:
-			allow_panic = TRUE;
+			allow_panic = FALSE;
 			if (fabs(fp_offset - last_offset) >
 			    CLOCK_SGATE * oerror && mu <
 			    ULOGTOD(sys_poll + 1)) {
@@ -466,23 +475,30 @@ local_clock(
 			/*
 			 * Compute the FLL and PLL frequency adjustments
 			 * conditioned on intricate weighting factors.
-			 * For the FLL, the averaging interval is
-			 * clamped to a minimum of 1024 s and the gain
-			 * is decreased from unity for mu above 1024 s
-			 * to zero below 256 s. For the PLL, the
-			 * averaging interval is clamped not to exceed
-			 * the sustem poll interval. No gain factor is
-			 * necessary, since the frequency steering above
-			 * 1024 s is negligible. Particularly for the
+			 * The gain factors depend on the poll interval
+			 * and Allan intercept. For the FLL, the
+			 * averaging interval is clamped to a minimum of
+			 * 1024 s and the gain increased in stages from
+			 * zero for poll intervals below half the Allan
+			 * intercept to unity above twice the Allan
+			 * intercept. For the PLL, the averaging
+			 * interval is clamped not to exceed the poll
+			 * interval. No gain factor is necessary, since
+			 * the frequency steering above the Allan
+			 * intercept is negligible. Particularly for the
 			 * PLL, these measures allow oversampling, but
 			 * not undersampling and insure stability even
 			 * when the rules of fair engagement are broken.
 			 */
-			dtemp = max(mu, allan_xpt);
-			etemp = min(max(0, mu - CLOCK_MINSEC) /
-			    allan_xpt, 1.);
-			flladj = fp_offset * etemp / (dtemp *
-			    CLOCK_AVG);
+			i = sys_poll - allan_xpt + 4;
+			if (i < 0)
+				i = 0;
+			else if (i > 6)
+				i = 6;
+			etemp = fll[i];
+			dtemp = max(mu, ULOGTOD(allan_xpt));
+			flladj = (fp_offset - clock_offset) * etemp /
+			    (dtemp * CLOCK_FLL);
 			dtemp = ULOGTOD(SHIFT_PLL + 2 + sys_poll);
 			etemp = min(mu, ULOGTOD(sys_poll));
 			plladj = fp_offset * etemp / (dtemp * dtemp);
@@ -679,8 +695,8 @@ local_clock(
 	if (debug)
 		printf(
 		    "local_clock: mu %.0f noi %.3f stb %.3f pol %d cnt %d\n",
-		    mu, sys_jitter * 1e6 / mu, clock_stability * 1e6,
-		    sys_poll, tc_counter);
+		    mu, sys_jitter * 1e6, clock_stability * 1e6, sys_poll,
+		    tc_counter);
 #endif /* DEBUG */
 	return (retval);
 }
@@ -695,6 +711,7 @@ adj_host_clock(
 	)
 {
 	double adjustment;
+	int i;
 
 	/*
 	 * Update the dispersion since the last update. In contrast to
@@ -740,7 +757,19 @@ adj_host_clock(
 		    sys_peer->flags & FLAG_PREFER)
 			return;
 	}
-	adjustment = clock_offset / ULOGTOD(SHIFT_PLL + sys_poll);
+
+	/*
+	 * This ugly bit of business is necessary in order to move the
+	 * pole frequency higher in FLL mode. This is necessary for loop
+	 * stability.
+	 */
+	i = sys_poll - allan_xpt + 4;
+	if (i < 0)
+		i = 0;
+	else if (i > 6)
+		i = 6;
+	adjustment = clock_offset / (pll[i] * ULOGTOD(SHIFT_PLL +
+	    sys_poll));
 	clock_offset -= adjustment;
 	adj_systime(adjustment + drift_comp);
 }
@@ -922,7 +951,7 @@ loop_config(
 	case LOOP_ALLAN:		/* minimum Allan intercept */
 		if (freq < CLOCK_ALLAN)
 			freq = CLOCK_ALLAN;
-		allan_xpt = freq;
+		allan_xpt = (u_char)freq;
 		break;
 	
 	case LOOP_HUFFPUFF:		/* huff-n'-puff filter length */

@@ -21,6 +21,11 @@
 #define closesocket close
 #endif /* SYS_WINNT */
 
+#ifdef HAVE_LIBREADLINE
+# include <readline/readline.h>
+# include <readline/history.h>
+#endif /* HAVE_LIBREADLINE */
+
 #ifdef SYS_VXWORKS
 /* vxWorks needs mode flag -casey*/
 #define open(name, flags)   open(name, flags, 0777)
@@ -1259,22 +1264,33 @@ doquery(
 static void
 getcmds(void)
 {
-	char line[MAXLINE];
+#ifdef HAVE_LIBREADLINE
+        char *line;
 
-	for (;;) {
-		if (interactive) {
-#ifdef VMS	/* work around a problem with mixing stdout & stderr */
-			fputs("",stdout);
+        for (;;) {
+                if ((line = readline(interactive?prompt:"")) == NULL) return;
+                if (*line) add_history(line);
+                docmd(line);
+                free(line);
+        }
+#else /* not HAVE_LIBREADLINE */
+        char line[MAXLINE];
+
+        for (;;) {
+                if (interactive) {
+#ifdef VMS      /* work around a problem with mixing stdout & stderr */
+                        fputs("",stdout);
 #endif
-			(void) fputs(prompt, stderr);
-			(void) fflush(stderr);
-		}
+                        (void) fputs(prompt, stderr);
+                        (void) fflush(stderr);
+                }
 
-		if (fgets(line, sizeof line, stdin) == NULL)
-		    return;
+                if (fgets(line, sizeof line, stdin) == NULL)
+                    return;
 
-		docmd(line);
-	}
+                docmd(line);
+        }
+#endif /* not HAVE_LIBREADLINE */
 }
 
 

@@ -26,9 +26,13 @@
 #ifdef HAVE_NETINET_IN_SYSTM_H
 # include <netinet/in_systm.h>
 #else /* Some old linux systems at least have in_system.h instead. */
-# include <netinet/in_system.h>
+# ifdef HAVE_NETINET_IN_SYSTEM_H
+#  include <netinet/in_system.h>
+# endif
 #endif /* HAVE_NETINET_IN_SYSTM_H */
-#include <netinet/ip.h>
+#ifdef HAVE_NETINET_IP_H
+# include <netinet/ip.h>
+#endif
 #ifdef HAVE_SYS_IOCTL_H
 # include <sys/ioctl.h>
 #endif
@@ -36,6 +40,8 @@
 # include <sys/sockio.h>
 #endif
 #include <arpa/inet.h>
+
+extern int listen_to_virtual_ips;
 
 #if _BSDI_VERSION >= 199510
 # include <ifaddrs.h>
@@ -271,9 +277,15 @@ create_sockets(
 		if ((ifap->ifa_flags & IFF_UP) == 0)
 		    continue;
 
+		if (debug)
+			printf("after getifaddrs(), considering %s (%s)\n",
+			       ifap->ifa_name,
+			       inet_ntoa(((struct sockaddr_in *)ifap->ifa_addr)->sin_addr));
+
 		if (ifap->ifa_flags & IFF_LOOPBACK) {
 			sin = (struct sockaddr_in *)ifap->ifa_addr;
-			if (ntohl(sin->sin_addr.s_addr) != 0x7f000001)
+			if (ntohl(sin->sin_addr.s_addr) != 0x7f000001 &&
+			    !listen_to_virtual_ips)
 				continue;
 		}
 		inter_list[i].flags = 0;
@@ -314,10 +326,10 @@ create_sockets(
 		 * one physical interface. -wsr
 		 */
 		for (j=0; j < i; j++)
-		    if (inter_list[j].sin.sin_addr.s_addr &
-			inter_list[j].mask.sin_addr.s_addr ==
-			inter_list[i].sin.sin_addr.s_addr &
-			inter_list[i].mask.sin_addr.s_addr)
+		    if ((inter_list[j].sin.sin_addr.s_addr &
+			 inter_list[j].mask.sin_addr.s_addr) ==
+			(inter_list[i].sin.sin_addr.s_addr &
+			 inter_list[i].mask.sin_addr.s_addr))
 		    {
 			    if (inter_list[j].flags & INT_LOOPBACK)
 				inter_list[j] = inter_list[i];
@@ -391,8 +403,6 @@ create_sockets(
 	for(n = ifc.ifc_len, ifr = ifc.ifc_req; n > 0;
 	    ifr = (struct ifreq *)((char *)ifr + size))
 	{
-		extern int listen_to_virtual_ips;
-
 		size = sizeof(*ifr);
 
 # ifdef HAVE_SA_LEN_IN_STRUCT_SOCKADDR
@@ -465,7 +475,7 @@ create_sockets(
 			(ifreq.ifr_flags & IFF_LOOPBACK)
 #  else /* not IFF_LOCAL_LOOPBACK and not IFF_LOOPBACK */
 			/* test against 127.0.0.1 (yuck!!) */
-			(inter_list[i].sin.sin_addr.s_addr == inet_addr("127.0.0.1"))
+			((*(struct sockaddr_in *)&ifr->ifr_addr).sin_addr.s_addr == inet_addr("127.0.0.1"))
 #  endif /* not IFF_LOCAL_LOOPBACK and not IFF_LOOPBACK */
 			)
 		{
@@ -1231,7 +1241,7 @@ fdbits(
 /*
  * input_handler - receive packets asynchronously
  */
-extern void
+void
 input_handler(
 	l_fp *cts
 	)
@@ -1585,7 +1595,7 @@ findbcastinter(
 	struct sockaddr_in *addr
 	)
 {
-#if defined(SIOCGIFCONF) || defined(SYS_WINNT)
+#if !defined(MPE) && (defined(SIOCGIFCONF) || defined(SYS_WINNT))
 	register int i;
 	register u_int32 xaddr;
 

@@ -5,7 +5,7 @@ AC_CANONICAL_SYSTEM
 AC_DEFINE_UNQUOTED(STR_SYSTEM, "$target")
 AM_CONFIG_HEADER(config.h)
 AC_ARG_PROGRAM
-AM_INIT_AUTOMAKE(ntp, 4.1.0)
+AM_INIT_AUTOMAKE(ntp, 4.1.1a)
 AC_PREREQ(2.49)
 
 ac_cv_var_oncore_ok=no
@@ -26,7 +26,7 @@ case "$target" in
  i386-sequent-sysv4)
     case "$CC" in
      cc)
-	CFLAGS="$CFLAGS -Wc,+Abi-socket"
+	CFLAGS="$CFLAGS -Wc,+abi-socket"
 	;;
     esac
     ;;
@@ -36,6 +36,11 @@ case "$target" in
 	CFLAGS="$CFLAGS -std1"
 	;;
     esac
+    ;;
+ *-*-mpeix*)
+    CPPFLAGS="$CPPFLAGS -DMPE -D_POSIX_SOURCE -D_SOCKET_SOURCE -I/SYSLOG/PUB"
+    LDFLAGS="$LDFLAGS -L/SYSLOG/PUB"
+    LIBS="$LIBS -lcurses"
     ;;
 esac
 
@@ -185,7 +190,9 @@ AC_CHECK_LIB(kvm, main)		dnl We already know about -lelf here...
 AC_CHECK_LIB(ld, nlist)
 AC_CHECK_LIB(mld, nlist)
 AC_CHECK_FUNC(gethostent, , AC_CHECK_LIB(nsl, gethostent, , , -lsocket))
-AC_CHECK_FUNC(openlog, , AC_CHECK_LIB(gen, openlog))
+AC_CHECK_FUNC(openlog, , 
+  AC_CHECK_LIB(gen, openlog, , 
+  AC_CHECK_LIB(syslog, openlog, , , -lsocket)))
 AC_CHECK_LIB(readline, readline)
 
 dnl Digital UNIX V4.0 and Solaris 7 have POSIX.1c functions in -lrt
@@ -208,7 +215,8 @@ AC_HEADER_STDC
 AC_CHECK_HEADERS(bstring.h errno.h fcntl.h ieeefp.h math.h memory.h netdb.h)
 AC_CHECK_HEADERS(poll.h resolv.h sched.h sgtty.h stdlib.h string.h termio.h)
 AC_CHECK_HEADERS(termios.h timepps.h timex.h unistd.h utmp.h utmpx.h)
-AC_CHECK_HEADERS(arpa/nameser.h net/if.h netinet/in_systm.h netinet/in.h)
+AC_CHECK_HEADERS(arpa/nameser.h net/if.h netinet/in_system.h)
+AC_CHECK_HEADERS(netinet/in_systm.h netinet/in.h netinet/ip.h)
 AC_CHECK_HEADERS(netinfo/ni.h, [AC_DEFINE(HAVE_NETINFO)])
 AC_CHECK_HEADERS(sun/audioio.h sys/audioio.h)
 dnl AC_CHECK_HEADERS(sys/chudefs.h)
@@ -225,7 +233,7 @@ case "$target" in
     AC_CHECK_HEADERS(sys/sio.h)
     ;;
 esac
-AC_CHECK_HEADERS(sys/select.h sys/sockio.h sys/stat.h sys/stream.h)
+AC_CHECK_HEADERS(sys/select.h sys/signal.h sys/sockio.h sys/stat.h sys/stream.h)
 AC_CHECK_HEADERS(sys/stropts.h sys/sysctl.h sys/syssgi.h sys/termios.h)
 AC_CHECK_HEADERS(sys/time.h)
 AC_EGREP_CPP(yes,
@@ -233,7 +241,7 @@ AC_EGREP_CPP(yes,
 #ifdef PPS_API_VERS_1
 yes
 #endif
-], AC_CHECK_HEADERS(sys/timepps.h))
+], [AC_CHECK_HEADERS(sys/timepps.h)])
 AC_CHECK_HEADERS(sys/timers.h sys/timex.h sys/tpro.h sys/types.h sys/wait.h)
 AC_HEADER_TIME
 case "$target" in
@@ -564,7 +572,7 @@ case "$target" in
 	# this conditional will need to change.  Maybe use AC_TRY_RUN
 	# instead to try to set the time to itself and check errno.
     ;;
- *) AC_CHECK_FUNCS(clock_settime)
+ *) AC_CHECK_FUNCS(clock_gettime clock_settime)
     ;;
 esac
 AC_CHECK_FUNCS(daemon)
@@ -578,7 +586,12 @@ AC_CHECK_FUNCS(finite, ,
       AC_DEFINE(HAVE_ISFINITE)],
       AC_MSG_RESULT(no))
     LIBS=$_libs])])
-AC_CHECK_FUNCS(getbootfile getclock getdtablesize getrusage gettimeofday)
+AC_CHECK_FUNCS(getbootfile getclock getdtablesize getrusage)
+AC_CHECK_FUNC(gettimeofday, ,[
+case "$target" in
+  *-*-mpeix*) ac_cv_func_gettimeofday=yes
+    ;;
+esac])
 case "$target" in
  *-pc-cygwin*)
     ;;
@@ -636,8 +649,13 @@ case "$target" in
  *) AC_CHECK_FUNCS(sched_setscheduler)
     ;;
 esac
-AC_CHECK_FUNCS(setlinebuf)
-AC_CHECK_FUNCS(setpgid setpriority setsid settimeofday setvbuf sigaction)
+AC_CHECK_FUNCS(setlinebuf setpgid setpriority setsid)
+AC_CHECK_FUNCS(settimeofday, ,[
+case "$target" in
+  *-*-mpeix*) ac_cv_func_settimeofday=yes
+    ;;
+esac])
+AC_CHECK_FUNCS(setvbuf sigaction)
 AC_CHECK_FUNCS(sigvec sigset sigsuspend stime strchr sysconf sysctl)
 AC_REPLACE_FUNCS(snprintf strdup strerror)
 case "$target" in
@@ -794,6 +812,17 @@ esac
 case "$target" in
  *-*-aix4.3.*)
     AC_DEFINE(DECL_HSTRERROR_0)		# Needed for XLC under AIX 4.3.2
+    ;;
+ *-*-mpeix*)
+    AC_DEFINE(DECL_ADJTIME_0)
+    AC_DEFINE(DECL_INET_NTOA_0)
+    AC_DEFINE(DECL_MKTEMP_0)
+    AC_DEFINE(DECL_MRAND48_0)
+    AC_DEFINE(DECL_SELECT_0)
+    AC_DEFINE(DECL_SETITIMER_0)
+    AC_DEFINE(DECL_SRAND48_0)
+    AC_DEFINE(DECL_SYSLOG_0)
+    AC_DEFINE(DECL_TIMEOFDAY_0)
     ;;
  *-*-osf[[45]]*)
     AC_DEFINE(DECL_PLOCK_0)
@@ -952,7 +981,7 @@ esac
 
 AC_CACHE_CHECK(if we need a ctty for F_SETOWN, ac_cv_func_ctty_for_f_setown,
 [case "$target" in
- *-*-bsdi[23]*)
+ *-*-bsdi[[23]]*)
     ans=yes
     ;;
  *-*-freebsd*)
@@ -1247,6 +1276,11 @@ case "$target" in
  mips-sgi-irix*)
     ans=yes
     ;;
+ i?86-*-freebsd[[123]].*)
+    ;;
+ i?86-*-freebsd*)
+    ans=yes
+    ;;
 esac
 ac_cv_var_no_parenb_ignpar=$ans])
 case "$ac_cv_var_no_parenb_ignpar" in
@@ -1528,7 +1562,6 @@ AC_ARG_ENABLE(HOPFSERIAL,		[  --enable-HOPFSERIAL     + hopf serial clock device
   fi
   AC_MSG_RESULT($ntp_ok)
 
-
 AC_MSG_CHECKING(for hopf PCI clock 6039)
 AC_ARG_ENABLE(HOPFPCI,		[  --enable-HOPFPCI        + hopf 6039 PCI board],
       [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
@@ -1766,6 +1799,15 @@ case "$ntp_ok$ntp_canaudio" in
  yesno) AC_MSG_WARN(*** But the expected answer is... no ***) ;;
 esac
 
+AC_MSG_CHECKING(for JJY receiver)
+AC_ARG_ENABLE(JJY,		[  --enable-JJY            + JJY receiver],
+      [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_JJY)
+fi
+AC_MSG_RESULT($ntp_ok)
+
 AC_MSG_CHECKING(Leitch CSD 5300 Master Clock System Driver)
 AC_ARG_ENABLE(LEITCH,		[  --enable-LEITCH         + Leitch CSD 5300 Master Clock System Driver],
     [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
@@ -1982,6 +2024,16 @@ case "$ntp_ok$target" in
  yesvax-dec-bsd) AC_MSG_WARN(*** But the expected answer is... no ***) ;;
 esac
 
+AC_MSG_CHECKING(TrueTime 560 IRIG-B decoder)
+AC_ARG_ENABLE(TT560,
+    AC_HELP_STRING([--enable-TT650], [- TrueTime 560 IRIG-B decoder]),
+    [ntp_ok=$enableval], [ntp_ok=no])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_TT560, , [TrueTime 560 IRIG-B decoder?])
+fi
+AC_MSG_RESULT($ntp_ok)
+
 AC_MSG_CHECKING(Ultralink M320 WWVB receiver)
 AC_ARG_ENABLE(ULINK,		[  --enable-ULINK          + Ultralink WWVB receiver],
     [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
@@ -2023,6 +2075,16 @@ AC_ARG_ENABLE(USNO,		[  --enable-USNO           s USNO modem service],
 if test "$ntp_ok" = "yes"; then
     ntp_refclock=yes
     AC_DEFINE(CLOCK_USNO)
+fi
+AC_MSG_RESULT($ntp_ok)
+
+AC_MSG_CHECKING(for Zyfer receiver)
+AC_ARG_ENABLE(ZYFER,
+    AC_HELP_STRING([--enable-ZYFER], [+ Zyfer GPStarplus receiver]),
+    [ntp_ok=$enableval], [ntp_ok=$ntp_eac])
+if test "$ntp_ok" = "yes"; then
+    ntp_refclock=yes
+    AC_DEFINE(CLOCK_ZYFER, 1, [Zyfer GPStarplus])
 fi
 AC_MSG_RESULT($ntp_ok)
 
@@ -2389,6 +2451,8 @@ case "$ans" in
     esac
     ;;
 esac
+AM_CONDITIONAL(isRSAREF, test x$RSADIR = xrsaref2)
+AM_CONDITIONAL(isRSAEURO, test x$RSADIR = xrsaeuro1)
 AC_SUBST(AUTOKEY)
 case "$ans" in
  no) ;;
@@ -2573,6 +2637,9 @@ case "$target" in
  *-ibm-aix[[34]]*)
     ans=no
     ;;
+ *-*-mpeix*)
+    ans=no
+    ;;
  *-*-ptx*)
     ans=tick
     ;;
@@ -2629,6 +2696,9 @@ case "$target" in
  *-*-aix*)
     ans=tickadj
     ;;
+ *-*-mpeix*)
+    ans=no
+    ;;
  *-*-ptx*)
     ans=tickadj
     ;;
@@ -2681,6 +2751,9 @@ ac_cv_var_nlist_dosynctodr,
  *-*-hpux*)
     ans=no
     ;;
+ *-*-mpeix*)
+    ans=no
+    ;;
  *-*-nextstep*)
     ans=_dosynctodr
     ;;
@@ -2723,6 +2796,9 @@ ac_cv_var_nlist_noprintf,
     ans=noprintf
     ;;
  *-*-hpux*)
+    ans=no
+    ;;
+ *-*-mpeix*)
     ans=no
     ;;
  *-*-ptx*)
@@ -2781,6 +2857,9 @@ AC_CACHE_CHECK(for a default value for 'tick', ac_cv_var_tick,
       *-*-linux*)
 	 ans=txc.tick
 	 ;;
+      *-*-mpeix*)
+	 ans=no
+	 ;;
       *-*-winnt3.5)
 	 ans='(every / 10)'
 	 ;;
@@ -2827,6 +2906,9 @@ AC_CACHE_CHECK(for a default value for 'tickadj', ac_cv_var_tickadj,
       ;;
    *-*-irix*)
       ans=150
+      ;;
+   *-*-mpeix*)
+      ans=no
       ;;
    *-*-sco3.2v5.0*)
       ans=10000L/hz
@@ -2985,6 +3067,9 @@ AC_CACHE_CHECK(if we want UDP wildcard delivery, ac_cv_var_udp_wildcard_delivery
 	 ans=yes
 	 ;;
       *-*-linux*)
+	 ans=yes
+	 ;;
+      *-*-mpeix*)
 	 ans=yes
 	 ;;
       *-*-osf*)
@@ -3170,9 +3255,10 @@ esac
 
 AC_DEFINE_DIR(NTP_KEYSDIR, sysconfdir, [Default location of crypto key info])
 
-# This is necessary so that .o files in LIBOBJS are also built via
-# the ANSI2KNR-filtering rules.
-LIBOBJS=`echo $LIBOBJS|sed 's/\.o /\$U.o /g;s/\.o$/\$U.o/'`
+# HMS: I think we avoid this problem now...
+## This is necessary so that .o files in LIBOBJS are also built via
+## the ANSI2KNR-filtering rules.
+#LIB@&t@OBJS=`echo "$LIB@&t@OBJS" | sed 's,\.[[^.]]* ,$U&,g;s,\.[[^.]]*$,$U&,'`
 
 AC_CONFIG_FILES(Makefile adjtimed/Makefile clockstuff/Makefile \
 ElectricFence/Makefile

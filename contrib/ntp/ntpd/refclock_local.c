@@ -255,4 +255,6 @@ local_poll(
 	refclock_receive(peer);
 	pp->fudgetime1 = 0;
 }
+#else
+int refclock_local_bs;
 #endif /* REFCLOCK */
