@@ -1,3 +1,29 @@
+2001-07-19  David O'Brien  <obrien@FreeBSD.org>
+
+	* emultempl/elf32.em: Do not assuming that contents of the buffer
+	returned from basename function will remain unchanged accross other
+	function calls.
+
+2001-07-19  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* ldlang.c (lang_leave_overlay): If a region is specified assign
+	it to all sections inside the overlay unless they have been
+	assigned to the own, non-default, memory region.
+
+2001-07-14  matthew green  <mrg@eterna.com.au>
+
+	* configure.tgt (i386-*-netbsdelf*): New target.
+	(i386-*-netbsd*): Set targ_extra_emuls to `elf_i386'
+
+2001-06-27  Alan Modra  <amodra@bigpond.net.au>
+
+	* emulparams/hppa64linux.sh: New file.
+	* configure.tgt: hppa*64*-*-linux* uses hppa64linux.sh
+	* Makefile.am (ALL_64_EMULATIONS): Add ehppa64linux.o
+	(ehppa64linux.c): Add rule to make it.
+	Run "make dep-am".
+	* Makefile.in: Regenerate.
+
 2001-06-07  Andreas Jaeger  <aj@suse.de>
 
 	* elf_x86_64.sh (NONPAGED_TEXT_START_ADDR): Increase.
