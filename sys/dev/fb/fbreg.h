@@ -222,9 +222,9 @@ int		vid_configure(int flags);
 #ifdef FB_INSTALL_CDEV
 
 /* virtual frame buffer driver functions */
-int		fb_attach(dev_t dev, video_adapter_t *adp,
+int		fb_attach(int unit, video_adapter_t *adp,
 			  struct cdevsw *cdevsw);
-int		fb_detach(dev_t dev, video_adapter_t *adp,
+int		fb_detach(int unit, video_adapter_t *adp,
 			  struct cdevsw *cdevsw);
 
 /* generic frame buffer cdev driver functions */
