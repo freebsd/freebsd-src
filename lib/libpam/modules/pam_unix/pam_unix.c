@@ -84,6 +84,9 @@ __FBSDID("$FreeBSD$");
 #define DEFAULT_WARN		(2L * 7L * 86400L)  /* Two weeks */
 #define	MAX_TRIES		3
 
+static char password_prompt_def[] = PASSWORD_PROMPT;
+static char password_hash[] = PASSWORD_HASH;
+
 enum {
 	PAM_OPT_AUTH_AS_SELF	= PAM_OPT_STD_MAX,
 	PAM_OPT_NULLOK,
@@ -114,7 +117,7 @@ static int yp_passwd(const char *user, const char *pass);
  * authentication management
  */
 PAM_EXTERN int
-pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_authenticate(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
 {
 	login_cap_t *lc;
 	struct options options;
@@ -140,7 +143,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 	lc = login_getclass(NULL);
 	password_prompt = login_getcapstr(lc, "passwd_prompt",
-	    PASSWORD_PROMPT, PASSWORD_PROMPT);
+	    password_prompt_def, password_prompt_def);
 	login_close(lc);
 	lc = NULL;
 
@@ -166,7 +169,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		}
 		encrypted = crypt(pass, pwd->pw_passwd);
 		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = ":";
+			encrypted = strdup(":");
 
 		PAM_LOG("Encrypted password 1 is: %s", encrypted);
 		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
@@ -202,7 +205,7 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_setcred(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -217,7 +220,7 @@ pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
  * account management
  */
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused, int argc, const char **argv)
 {
 	struct addrinfo hints, *res;
 	struct options options;
@@ -340,7 +343,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
  * logging only
  */
 PAM_EXTERN int
-pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_open_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -352,7 +355,7 @@ pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
 }
 
 PAM_EXTERN int
-pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+pam_sm_close_session(pam_handle_t *pamh __unused, int flags __unused, int argc, const char **argv)
 {
 	struct options options;
 
@@ -414,7 +417,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 		}
 		encrypted = crypt(pass, pwd->pw_passwd);
 		if (pass[0] == '\0' && pwd->pw_passwd[0] != '\0')
-			encrypted = ":";
+			encrypted = strdup(":");
 
 		PAM_LOG("Encrypted password 1 is: %s", encrypted);
 		PAM_LOG("Encrypted password 2 is: %s", pwd->pw_passwd);
@@ -455,7 +458,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 			    NEW_PASSWORD_PROMPT_1, &new_pass);
 
 			if (new_pass == NULL)
-				new_pass = "";
+				new_pass = strdup("");
 
 			if (retval == PAM_SUCCESS) {
 				new_pass_ = NULL;
@@ -463,7 +466,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 				    NEW_PASSWORD_PROMPT_2, &new_pass_);
 
 				if (new_pass_ == NULL)
-					new_pass_ = "";
+					new_pass_ = strdup("");
 
 				if (retval == PAM_SUCCESS) {
 					if (strcmp(new_pass, new_pass_) == 0) {
@@ -485,7 +488,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 #ifdef YP
 		/* If NIS is set in the passwd database, use it */
-		res = use_yp((char *)user, 0, 0);
+		res = use_yp(user, 0, 0);
 		if (res == USER_YP_ONLY) {
 			if (!pam_test_option(&options, PAM_OPT_LOCAL_PASS,
 			    NULL))
@@ -567,20 +570,19 @@ local_passwd(const char *user, const char *pass)
 	pwd->pw_change = 0;
 	lc = login_getclass(NULL);
 	crypt_type = login_getcapstr(lc, "passwd_format",
-		PASSWORD_HASH, PASSWORD_HASH);
+		password_hash, password_hash);
 	if (login_setcryptfmt(lc, crypt_type, NULL) == NULL)
 		syslog(LOG_ERR, "cannot set password cipher");
 	login_close(lc);
 	/* Salt suitable for anything */
-	srandomdev();
 	gettimeofday(&tv, 0);
-	to64(&salt[0], random(), 3);
-	to64(&salt[3], tv.tv_usec, 3);
-	to64(&salt[6], tv.tv_sec, 2);
-	to64(&salt[8], random(), 5);
-	to64(&salt[13], random(), 5);
-	to64(&salt[17], random(), 5);
-	to64(&salt[22], random(), 5);
+	to64(&salt[0], (tv.tv_sec ^ random()) * tv.tv_usec, 3);
+	to64(&salt[3], (getpid() ^ random()) * tv.tv_usec, 2);
+	to64(&salt[5], (getppid() ^ random()) * tv.tv_usec, 3);
+	to64(&salt[8], (getuid() ^ random()) * tv.tv_usec, 5);
+	to64(&salt[13], (getgid() ^ random()) * tv.tv_usec, 5);
+	to64(&salt[17], random() * tv.tv_usec, 5);
+	to64(&salt[22], random() * tv.tv_usec, 5);
 	salt[27] = '\0';
 
 	pwd->pw_passwd = crypt(pass, salt);
@@ -589,7 +591,7 @@ local_passwd(const char *user, const char *pass)
 	tfd = pw_tmp();
 	pw_copy(pfd, tfd, pwd);
 
-	if (!pw_mkdb((char *)user))
+	if (!pw_mkdb(user))
 		pw_error((char *)NULL, 0, 1);
 
 	return PAM_SUCCESS;
@@ -613,7 +615,7 @@ yp_passwd(const char *user, const char *pass)
 	login_cap_t *lc;
 	int    *status;
 	uid_t	uid;
-	char   *master, *sockname = YP_SOCKNAME, salt[32];
+	char   *master, sockname[] = YP_SOCKNAME, salt[32];
 
 	_use_yp = 1;
 
@@ -648,8 +650,8 @@ yp_passwd(const char *user, const char *pass)
 		master_yppasswd.newpw.pw_dir = strdup(pwd->pw_dir);
 		master_yppasswd.newpw.pw_shell = strdup(pwd->pw_shell);
 		master_yppasswd.newpw.pw_class = pwd->pw_class != NULL ?
-					strdup(pwd->pw_class) : "";
-		master_yppasswd.oldpass = "";
+					strdup(pwd->pw_class) : strdup("");
+		master_yppasswd.oldpass = strdup("");
 		master_yppasswd.domain = yp_domain;
 	} else {
 		yppasswd.newpw.pw_passwd = strdup(pwd->pw_passwd);
@@ -659,7 +661,7 @@ yp_passwd(const char *user, const char *pass)
 		yppasswd.newpw.pw_gecos = strdup(pwd->pw_gecos);
 		yppasswd.newpw.pw_dir = strdup(pwd->pw_dir);
 		yppasswd.newpw.pw_shell = strdup(pwd->pw_shell);
-		yppasswd.oldpass = "";
+		yppasswd.oldpass = strdup("");
 	}
 
 	if (login_setcryptfmt(lc, "md5", NULL) == NULL)
