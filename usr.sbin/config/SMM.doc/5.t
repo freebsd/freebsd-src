@@ -109,9 +109,9 @@ Finally, the third will be a generic system,
 to allow us to boot off any of the four disk drives.
 .DS
 .ta 1.5i 2.5i
-config	vmunix	root on hp0
-config	hpvmunix	root on hp0 swap on hp0 and hp2
-config	genvmunix	swap generic
+config	kernel	root on hp0
+config	hpkernel	root on hp0 swap on hp0 and hp2
+config	genkernel	swap generic
 .DE
 .PP
 Finally, the hardware must be specified.  Let us first just try
@@ -206,9 +206,9 @@ the network protocol options do not require corresponding pseudo devices.
 The system images and disks are configured next.
 .DS
 .ta 1.5i 2.5i 4.0i
-config	vmunix	root on hp swap on hp and rk0 and rk1
-config 	upvmunix	root on up
-config 	hkvmunix	root on hk swap on rk0 and rk1
+config	kernel	root on hp swap on hp and rk0 and rk1
+config 	upkernel	root on up
+config 	hkkernel	root on hk swap on rk0 and rk1
 
 controller	mba0	at nexus ?
 controller	uba0	at nexus ?

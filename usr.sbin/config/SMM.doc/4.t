@@ -150,7 +150,7 @@ with a ``config'' line:
 The
 .I sysname
 field is the name given to the loaded system image; almost everyone
-names their standard system image ``vmunix''.  The configuration clauses
+names their standard system image ``kernel''.  The configuration clauses
 are one or more specifications indicating where the root file system
 is located and the number and location of paging devices.
 The device used by the system to process argument lists during
@@ -218,7 +218,7 @@ This is done by substituting
 where the device name would normally be found.  For example,
 .IP
 .nf
-\fBconfig\fP vmunix \fBroot\fP \fBon\fP \fBmajor\fP 99 \fBminor\fP 1
+\fBconfig\fP kernel \fBroot\fP \fBon\fP \fBmajor\fP 99 \fBminor\fP 1
 .fi
 .PP
 Normally, the areas configured for swap space are sized by the system
@@ -229,7 +229,7 @@ device name specified for a swap area should have a ``size''
 specification appended.  For example,
 .IP
 .nf
-\fBconfig\fP vmunix \fBroot\fP \fBon\fP hp0 \fBswap\fP \fBon\fP hp0b \fBsize\fP 1200
+\fBconfig\fP kernel \fBroot\fP \fBon\fP hp0 \fBswap\fP \fBon\fP hp0b \fBsize\fP 1200
 .fi
 .LP
 would force swapping to be done in partition ``b'' of ``hp0'' and

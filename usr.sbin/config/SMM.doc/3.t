@@ -194,17 +194,17 @@ Building the system
 The makefile constructed by
 .I config
 should allow a new system to be rebuilt by simply typing ``make image-name''.
-For example, if you have named your bootable system image ``vmunix'',
-then ``make vmunix''
-will generate a bootable image named ``vmunix''.  Alternate system image names
+For example, if you have named your bootable system image ``kernel'',
+then ``make kernel''
+will generate a bootable image named ``kernel''.  Alternate system image names
 are used when the root file system location and/or swapping configuration
 is done in more than one way.  The makefile which
 .I config
 creates has entry points for each system image defined in
 the configuration file.
-Thus, if you have configured ``vmunix'' to be a system with the root file
-system on an ``hp'' device and ``hkvmunix'' to be a system with the root
-file system on an ``hk'' device, then ``make vmunix hkvmunix'' will generate
+Thus, if you have configured ``kernel'' to be a system with the root file
+system on an ``hp'' device and ``hkkernel'' to be a system with the root
+file system on an ``hk'' device, then ``make kernel hkkernel'' will generate
 binary images for each.
 As the system will generally use the disk from which it is loaded
 as the root filesystem, separate system images are only required
@@ -225,8 +225,8 @@ This is advantageous for programs such as
 which run much faster when the symbols they need are located at
 the front of the symbol table.  
 Remember also that many programs expect
-the currently executing system to be named ``/vmunix''.  If you install
-a new system and name it something other than ``/vmunix'', many programs
+the currently executing system to be named ``/kernel''.  If you install
+a new system and name it something other than ``/kernel'', many programs
 are likely to give strange results.
 .NH 2
 Sharing object modules

@@ -200,24 +200,24 @@ and look at the sample configuration files in the
 directory.
 .PP
 The configured system image
-.Pn vmunix
+.Pn kernel
 should be copied to the root, and then booted to try it out.
 It is best to name it
-.Pn /newvmunix
+.Pn /newkernel
 so as not to destroy the working system until you are sure it does work:
 .DS
-\fB#\fP \fIcp vmunix /newvmunix\fP
+\fB#\fP \fIcp kernel /newkernel\fP
 \fB#\fP \fIsync\fP
 .DE
 It is also a good idea to keep the previous system around under some other
 name.  In particular, we recommend that you save the generic distribution
 version of the system permanently as
-.Pn /genvmunix
+.Pn /genkernel
 for use in emergencies.
 To boot the new version of the system you should follow the
 bootstrap procedures outlined in section 6.1.
 After having booted and tested the new system, it should be installed as
-.Pn /vmunix
+.Pn /kernel
 before going into multiuser operation.
 A systematic scheme for numbering and saving old versions
 of the system may be useful.
