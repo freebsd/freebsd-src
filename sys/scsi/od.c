@@ -28,7 +28,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: od.c,v 1.18 1996/06/16 19:58:24 joerg Exp $
+ *	$Id: od.c,v 1.19 1996/07/23 21:52:22 phk Exp $
  */
 
 /*
@@ -486,9 +486,9 @@ od_strategy(struct buf *bp, struct scsi_link *sc_link)
 	}
 
 	/*
-	 * Odd number of bytes
+	 * Odd number of bytes or negative offset
 	 */
-	if (bp->b_bcount % DEV_BSIZE != 0) {
+	if (bp->b_blkno < 0 || bp->b_bcount % DEV_BSIZE != 0) {
 		bp->b_error = EINVAL;
 		goto bad;
 	}
