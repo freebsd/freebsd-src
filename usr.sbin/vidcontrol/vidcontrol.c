@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.4 1994/05/26 04:13:59 jkh Exp $
+ *	$Id: vidcontrol.c,v 1.1 1994/08/17 09:00:13 sos Exp $
  */
 
 #include <ctype.h>
@@ -293,10 +293,18 @@ video_mode(int argc, char **argv, int *index)
 	int mode;
 
 	if (*index < argc) {
-		if (!strcmp(argv[*index], "80x25"))
-			mode = CONS_80x25TEXT;
-		else if (!strcmp(argv[*index], "80x50"))
-			mode = CONS_80x50TEXT;
+		if (!strcmp(argv[*index], "VGA_40x25"))
+			mode = SW_VGA_C40x25;
+		else if (!strcmp(argv[*index], "VGA_80x25"))
+			mode = SW_VGA_C80x25;
+		else if (!strcmp(argv[*index], "VGA_80x50"))
+			mode = SW_VGA_C80x50;
+		else if (!strcmp(argv[*index], "VGA_320x200"))
+			mode = SW_VGA_CG320;
+		else if (!strcmp(argv[*index], "EGA_80x25"))
+			mode = SW_ENH_C80x25;
+		else if (!strcmp(argv[*index], "EGA_80x43"))
+			mode = SW_ENH_C80x43;
 		else
 			return;
 		if (ioctl(0, mode, NULL) < 0)
@@ -386,7 +394,9 @@ test_frame()
 usage()
 {
 	fprintf(stderr,
-"Usage: vidcontrol mode             (available modes: 80x25, 80x50)\n"
+"Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
+"                                                     VGA_80x50, VGA_320x200,\n"
+"                                                     EGA_80x25, EGA_80x43)\n"
 "                  show             (show available colors)\n"
 "                  fgcol bgcol      (set fore- & background colors)\n"
 "                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
