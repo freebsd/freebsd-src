@@ -47,7 +47,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.3 (Berkeley) 3/19/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.22 1997/08/27 06:31:27 jkh Exp $";
+	"$Id: main.c,v 1.23 1997/09/29 03:53:51 imp Exp $";
 #endif /* not lint */
 
 /*-
@@ -163,6 +163,7 @@ MainParseArgs(argc, argv)
 {
 	extern int optind;
 	extern char *optarg;
+	char *p;
 	int c;
 
 	optind = 1;	/* since we're called more than once */
@@ -185,7 +186,10 @@ rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 			break;
 		case 'V':
 			printVars = TRUE;
-			(void)Lst_AtEnd(variables, (ClientData)optarg);
+			(void)asprintf(&p, "${%s}", optarg);
+			if (!p)
+				Punt("make: cannot allocate memory.");
+			(void)Lst_AtEnd(variables, (ClientData)p);
 			Var_Append(MAKEFLAGS, "-V", VAR_GLOBAL);
 			Var_Append(MAKEFLAGS, optarg, VAR_GLOBAL);
 			break;
@@ -746,12 +750,10 @@ main(argc, argv)
 
 		for (ln = Lst_First(variables); ln != NILLNODE;
 		    ln = Lst_Succ(ln)) {
-			char *value = Var_Value((char *)Lst_Datum(ln),
-					  VAR_GLOBAL, &p1);
+			char *value = Var_Subst(NULL, (char *)Lst_Datum(ln),
+					  VAR_GLOBAL, FALSE);
 
 			printf("%s\n", value ? value : "");
-			if (p1)
-				free(p1);
 		}
 	}
 
