@@ -80,7 +80,6 @@ struct  ext2_group_desc * get_group_desc __P((struct mount * ,
 		unsigned int , struct buf ** ));
 void	ext2_discard_prealloc __P((struct inode *));
 int	ext2_inactive __P((struct vop_inactive_args *));
-int 	ll_w_block __P((struct buf *, int ));
 int	ext2_new_block __P ((struct mount * mp, unsigned long goal,
 			    int * prealloc_count,
 			    int * prealloc_block));
