@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 43 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -128,11 +128,13 @@
  *
  * FUNCTION:    AcpiTbGetTableCount
  *
- * PARAMETERS:
+ * PARAMETERS:  RSDP            - Pointer to the RSDP
+ *              RSDT            - Pointer to the RSDT/XSDT
  *
- * RETURN:
+ * RETURN:      The number of tables pointed to by the RSDT or XSDT.
  *
- * DESCRIPTION: Calculate the number of tables
+ * DESCRIPTION: Calculate the number of tables.  Automatically handles either
+ *              an RSDT or XSDT.
  *
  ******************************************************************************/
 
@@ -173,9 +175,9 @@ AcpiTbGetTableCount (
  *
  * FUNCTION:    AcpiTbConvertToXsdt
  *
- * PARAMETERS:
+ * PARAMETERS:  TableInfo       - Info about the RSDT
  *
- * RETURN:
+ * RETURN:      Status
  *
  * DESCRIPTION: Convert an RSDT to an XSDT (internal common format)
  *
@@ -234,7 +236,6 @@ AcpiTbConvertToXsdt (
     /* Point the table descriptor to the new table */
 
     TableInfo->Pointer      = (ACPI_TABLE_HEADER *) NewTable;
-    TableInfo->BasePointer  = (ACPI_TABLE_HEADER *) NewTable;
     TableInfo->Length       = TableSize;
     TableInfo->Allocation   = ACPI_MEM_ALLOCATED;
 
@@ -419,13 +420,11 @@ AcpiTbConvertFadt2 (
  *
  * RETURN:      Status
  *
- * DESCRIPTION:
- *    Converts a BIOS supplied ACPI 1.0 FADT to an intermediate
- *    ACPI 2.0 FADT. If the BIOS supplied a 2.0 FADT then it is simply
- *    copied to the intermediate FADT.  The ACPI CA software uses this
- *    intermediate FADT. Thus a significant amount of special #ifdef
- *    type codeing is saved. This intermediate FADT will need to be
- *    freed at some point.
+ * DESCRIPTION: Converts a BIOS supplied ACPI 1.0 FADT to a local
+ *              ACPI 2.0 FADT. If the BIOS supplied a 2.0 FADT then it is simply
+ *              copied to the local FADT.  The ACPI CA software uses this
+ *              local FADT. Thus a significant amount of special #ifdef
+ *              type codeing is saved.
  *
  ******************************************************************************/
 
@@ -498,7 +497,6 @@ AcpiTbConvertTableFadt (void)
     /* Install the new table */
 
     TableDesc->Pointer      = (ACPI_TABLE_HEADER *) AcpiGbl_FADT;
-    TableDesc->BasePointer  = AcpiGbl_FADT;
     TableDesc->Allocation   = ACPI_MEM_ALLOCATED;
     TableDesc->Length       = sizeof (FADT_DESCRIPTOR_REV2);
 

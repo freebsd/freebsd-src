@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstorob - AML Interpreter object store support, store to object
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  *****************************************************************************/
 
@@ -241,7 +241,7 @@ AcpiExStoreStringToString (
          * String will fit in existing buffer.
          * Clear old string and copy in the new one 
          */
-        ACPI_MEMSET (TargetDesc->String.Pointer, 0, TargetDesc->String.Length + 1);
+        ACPI_MEMSET (TargetDesc->String.Pointer, 0, (ACPI_SIZE) TargetDesc->String.Length + 1);
         ACPI_MEMCPY (TargetDesc->String.Pointer, Buffer, Length);
     }
     else

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswstate - Dispatcher parse tree walk management routines
- *              $Revision: 68 $
+ *              $Revision: 70 $
  *
  *****************************************************************************/
 
@@ -273,7 +273,7 @@ AcpiDsResultPop (
     ACPI_OPERAND_OBJECT     **Object,
     ACPI_WALK_STATE         *WalkState)
 {
-    UINT32                  Index;
+    NATIVE_UINT             Index;
     ACPI_GENERIC_STATE      *State;
 
 
@@ -308,7 +308,7 @@ AcpiDsResultPop (
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Obj=%p [%s] Index=%X State=%p Num=%X\n",
                 *Object, (*Object) ? AcpiUtGetObjectTypeName (*Object) : "NULL",
-                Index -1, WalkState, State->Results.NumResults));
+                (UINT32) Index -1, WalkState, State->Results.NumResults));
 
             return (AE_OK);
         }
@@ -455,7 +455,7 @@ AcpiDsResultPush (
  *
  * RETURN:      Status
  *
- * DESCRIPTION:
+ * DESCRIPTION: Push an object onto the WalkState result stack.
  *
  ******************************************************************************/
 
@@ -492,7 +492,7 @@ AcpiDsResultStackPush (
  *
  * RETURN:      Status
  *
- * DESCRIPTION:
+ * DESCRIPTION: Pop an object off of the WalkState result stack.
  *
  ******************************************************************************/
 

@@ -2,7 +2,7 @@
  *
  * Module Name: dswexec - Dispatcher method execution callbacks;
  *                        dispatch to interpreter.
- *              $Revision: 95 $
+ *              $Revision: 96 $
  *
  *****************************************************************************/
 
@@ -443,7 +443,6 @@ AcpiDsExecEndOp (
     UINT32                  OpClass;
     ACPI_PARSE_OBJECT       *NextOp;
     ACPI_PARSE_OBJECT       *FirstArg;
-    UINT32                  i;
 
 
     ACPI_FUNCTION_TRACE_PTR ("DsExecEndOp", WalkState);
@@ -526,16 +525,7 @@ AcpiDsExecEndOp (
 
         /* Always delete the argument objects and clear the operand stack */
 
-        for (i = 0; i < WalkState->NumOperands; i++)
-        {
-            /*
-             * Remove a reference to all operands, including both
-             * "Arguments" and "Targets".
-             */
-            AcpiUtRemoveReference (WalkState->Operands[i]);
-            WalkState->Operands[i] = NULL;
-        }
-        WalkState->NumOperands = 0;
+        AcpiDsClearOperands (WalkState);
 
         /*
          * If a result object was returned from above, push it on the
@@ -601,6 +591,9 @@ AcpiDsExecEndOp (
             Status = AcpiDsResolveOperands (WalkState);
             if (ACPI_FAILURE (Status))
             {
+                /* On error, clear all resolved operands */
+
+                AcpiDsClearOperands (WalkState);
                 break;
             }
 

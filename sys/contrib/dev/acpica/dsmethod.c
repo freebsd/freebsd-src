@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 88 $
+ *              $Revision: 89 $
  *
  *****************************************************************************/
 
@@ -320,7 +320,7 @@ AcpiDsBeginMethodExecution (
          * interpreter if we block
          */
         Status = AcpiExSystemWaitSemaphore (ObjDesc->Method.Semaphore,
-                                            WAIT_FOREVER);
+                                            ACPI_WAIT_FOREVER);
     }
 
     /*

@@ -372,7 +372,7 @@ AcpiInstallGpeHandler (
 
 ACPI_STATUS
 AcpiAcquireGlobalLock (
-    UINT32                  Timeout,
+    UINT16                  Timeout,
     UINT32                  *Handle);
 
 ACPI_STATUS

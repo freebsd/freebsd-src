@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsaccess - Top-level functions for accessing ACPI namespace
- *              $Revision: 161 $
+ *              $Revision: 165 $
  *
  ******************************************************************************/
 
@@ -241,7 +241,7 @@ AcpiNsRootInitialize (void)
                 /*
                  * Build an object around the static string
                  */
-                ObjDesc->String.Length = ACPI_STRLEN (InitVal->Val);
+                ObjDesc->String.Length = (UINT32) ACPI_STRLEN (InitVal->Val);
                 ObjDesc->String.Pointer = InitVal->Val;
                 ObjDesc->Common.Flags |= AOPOBJ_STATIC_POINTER;
                 break;
@@ -249,6 +249,7 @@ AcpiNsRootInitialize (void)
 
             case ACPI_TYPE_MUTEX:
 
+                ObjDesc->Mutex.Node = NewNode;
                 ObjDesc->Mutex.SyncLevel =
                             (UINT16) ACPI_STRTOUL (InitVal->Val, NULL, 10);
 
@@ -349,6 +350,7 @@ AcpiNsLookup (
     ACPI_NAMESPACE_NODE     *CurrentNode = NULL;
     ACPI_NAMESPACE_NODE     *ThisNode = NULL;
     UINT32                  NumSegments;
+    UINT32                  NumCarats;
     ACPI_NAME               SimpleName;
     ACPI_OBJECT_TYPE        TypeToCheckFor;
     ACPI_OBJECT_TYPE        ThisSearchType;
@@ -408,29 +410,9 @@ AcpiNsLookup (
         }
     }
 
-    /*
-     * This check is explicitly split to relax the TypeToCheckFor
-     * conditions for BankFieldDefn.  Originally, both BankFieldDefn and
-     * DefFieldDefn caused TypeToCheckFor to be set to ACPI_TYPE_REGION,
-     * but the BankFieldDefn may also check for a Field definition as well
-     * as an OperationRegion.
-     */
-    if (INTERNAL_TYPE_FIELD_DEFN == Type)
-    {
-        /* DefFieldDefn defines fields in a Region */
+    /* Save type   TBD: may be no longer necessary */
 
-        TypeToCheckFor = ACPI_TYPE_REGION;
-    }
-    else if (INTERNAL_TYPE_BANK_FIELD_DEFN == Type)
-    {
-        /* BankFieldDefn defines data fields in a Field Object */
-
-        TypeToCheckFor = ACPI_TYPE_ANY;
-    }
-    else
-    {
-        TypeToCheckFor = Type;
-    }
+    TypeToCheckFor = Type;
 
     /*
      * Begin examination of the actual pathname
@@ -480,14 +462,15 @@ AcpiNsLookup (
             /* Pathname is relative to current scope, start there */
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Searching relative to prefix scope [%p]\n",
-                PrefixNode));
+                "Searching relative to prefix scope [%4.4s] (%p)\n",
+                PrefixNode->Name.Ascii, PrefixNode));
 
             /*
              * Handle multiple Parent Prefixes (carat) by just getting
              * the parent node for each prefix instance.
              */
             ThisNode = PrefixNode;
+            NumCarats = 0;
             while (*Path == (UINT8) AML_PARENT_PREFIX)
             {
                 /* Name is fully qualified, no search rules apply */
@@ -501,6 +484,7 @@ AcpiNsLookup (
 
                 /* Backup to the parent node */
 
+                NumCarats++;
                 ThisNode = AcpiNsGetParentNode (ThisNode);
                 if (!ThisNode)
                 {
@@ -515,7 +499,8 @@ AcpiNsLookup (
             if (SearchParentFlag == ACPI_NS_NO_UPSEARCH)
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                    "Path is absolute with one or more carats\n"));
+                    "Search scope is [%4.4s], path has %d carat(s)\n", 
+                    ThisNode->Name.Ascii, NumCarats));
             }
         }
 
@@ -540,6 +525,7 @@ AcpiNsLookup (
              * have the correct target node and there are no name segments.
              */
             NumSegments  = 0;
+            Type = ThisNode->Type;
 
             ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
                 "Prefix-only Pathname (Zero name segments), Flags=%X\n", Flags));
@@ -651,6 +637,7 @@ AcpiNsLookup (
                     CurrentNode));
             }
 
+            *ReturnNode = ThisNode;
             return_ACPI_STATUS (Status);
         }
 
@@ -661,28 +648,25 @@ AcpiNsLookup (
          *    2) And we are looking for a specific type
          *       (Not checking for TYPE_ANY)
          *    3) Which is not an alias
-         *    4) Which is not a local type (TYPE_DEF_ANY)
-         *    5) Which is not a local type (TYPE_SCOPE)
-         *    6) Which is not a local type (TYPE_INDEX_FIELD_DEFN)
-         *    7) And the type of target object is known (not TYPE_ANY)
-         *    8) And target object does not match what we are looking for
+         *    4) Which is not a local type (TYPE_SCOPE)
+         *    5) And the type of target object is known (not TYPE_ANY)
+         *    6) And target object does not match what we are looking for
          *
          * Then we have a type mismatch.  Just warn and ignore it.
          */
         if ((NumSegments        == 0)                               &&
             (TypeToCheckFor     != ACPI_TYPE_ANY)                   &&
-            (TypeToCheckFor     != INTERNAL_TYPE_ALIAS)             &&
-            (TypeToCheckFor     != INTERNAL_TYPE_DEF_ANY)           &&
-            (TypeToCheckFor     != INTERNAL_TYPE_SCOPE)             &&
-            (TypeToCheckFor     != INTERNAL_TYPE_INDEX_FIELD_DEFN)  &&
+            (TypeToCheckFor     != ACPI_TYPE_LOCAL_ALIAS)           &&
+            (TypeToCheckFor     != ACPI_TYPE_LOCAL_SCOPE)           &&
             (ThisNode->Type     != ACPI_TYPE_ANY)                   &&
             (ThisNode->Type     != TypeToCheckFor))
         {
             /* Complain about a type mismatch */
 
             ACPI_REPORT_WARNING (
-                ("NsLookup: %4.4s, type %X, checking for type %X\n",
-                (char *) &SimpleName, ThisNode->Type, TypeToCheckFor));
+                ("NsLookup: Type mismatch on %4.4s (%s), searching for (%s)\n",
+                (char *) &SimpleName, AcpiUtGetTypeName (ThisNode->Type), 
+                AcpiUtGetTypeName (TypeToCheckFor)));
         }
 
         /*
@@ -710,17 +694,13 @@ AcpiNsLookup (
          * If entry is a type which opens a scope, push the new scope on the
          * scope stack.
          */
-        if (AcpiNsOpensScope (TypeToCheckFor))
+        if (AcpiNsOpensScope (Type))
         {
             Status = AcpiDsScopeStackPush (ThisNode, Type, WalkState);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);
             }
-
-            ACPI_DEBUG_PRINT ((ACPI_DB_NAMES,
-                "Setting current scope to [%4.4s] (%p)\n",
-                ThisNode->Name.Ascii, ThisNode));
         }
     }
 

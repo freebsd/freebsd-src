@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbexec - debugger control method execution
- *              $Revision: 45 $
+ *              $Revision: 46 $
  *
  ******************************************************************************/
 
@@ -500,7 +500,7 @@ AcpiDbCreateExecutionThreads (
     i = NumThreads;
     while (i)   /* Brain damage for OSD implementations that only support wait of 1 unit */
     {
-        Status = AcpiOsWaitSemaphore (ThreadGate, 1, WAIT_FOREVER);
+        Status = AcpiOsWaitSemaphore (ThreadGate, 1, ACPI_WAIT_FOREVER);
         i--;
     }
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 94 $
+ *              $Revision: 97 $
  *
  *****************************************************************************/
 
@@ -148,7 +148,7 @@ AcpiExCreateAlias (
 {
     ACPI_NAMESPACE_NODE     *TargetNode;
     ACPI_NAMESPACE_NODE     *AliasNode;
-    ACPI_STATUS             Status;
+    ACPI_STATUS             Status = AE_OK;
 
 
     ACPI_FUNCTION_TRACE ("ExCreateAlias");
@@ -159,7 +159,7 @@ AcpiExCreateAlias (
     AliasNode =  (ACPI_NAMESPACE_NODE *) WalkState->Operands[0];
     TargetNode = (ACPI_NAMESPACE_NODE *) WalkState->Operands[1];
 
-    if (TargetNode->Type == INTERNAL_TYPE_ALIAS)
+    if (TargetNode->Type == ACPI_TYPE_LOCAL_ALIAS)
     {
         /* 
          * Dereference an existing alias so that we don't create a chain
@@ -190,8 +190,8 @@ AcpiExCreateAlias (
          * NS node, not the object itself.  This is because for these
          * types, the object can change dynamically via a Store.
          */
-        AliasNode->Type = INTERNAL_TYPE_ALIAS;
-        AliasNode->Object = (ACPI_OPERAND_OBJECT *) TargetNode;
+        AliasNode->Type = ACPI_TYPE_LOCAL_ALIAS;
+        AliasNode->Object = ACPI_CAST_PTR (ACPI_OPERAND_OBJECT, TargetNode);
         break;
 
     default:
@@ -212,7 +212,7 @@ AcpiExCreateAlias (
 
     /* Since both operands are Nodes, we don't need to delete them */
 
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -320,9 +320,10 @@ AcpiExCreateMutex (
     /* Init object and attach to NS node */
 
     ObjDesc->Mutex.SyncLevel = (UINT8) WalkState->Operands[1]->Integer.Value;
+    ObjDesc->Mutex.Node = (ACPI_NAMESPACE_NODE *) WalkState->Operands[0];
 
-    Status = AcpiNsAttachObject ((ACPI_NAMESPACE_NODE *) WalkState->Operands[0],
-                                ObjDesc, ACPI_TYPE_MUTEX);
+    Status = AcpiNsAttachObject (ObjDesc->Mutex.Node,
+                ObjDesc, ACPI_TYPE_MUTEX);
 
 
 Cleanup:
