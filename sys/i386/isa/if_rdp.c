@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
+#include <machine/frame.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
