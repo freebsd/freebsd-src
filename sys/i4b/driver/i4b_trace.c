@@ -217,7 +217,7 @@ get_trace_data_from_l1(i4b_trace_hdr_t *hdr, int len, char *buf)
 	if(device_state[unit] & ST_WAITDATA)
 	{
 		device_state[unit] &= ~ST_WAITDATA;
-		wakeup((caddr_t) &trace_queue[unit]);
+		wakeup( &trace_queue[unit]);
 	}
 
 	splx(x);
@@ -320,7 +320,7 @@ i4btrcread(dev_t dev, struct uio * uio, int ioflag)
 	{
 		device_state[unit] |= ST_WAITDATA;
 		
-		if((error = msleep((caddr_t) &trace_queue[unit],
+		if((error = msleep( &trace_queue[unit],
 					&trace_queue[unit].ifq_mtx,
 					TTIPRI | PCATCH,
 					"bitrc", 0 )) != 0)

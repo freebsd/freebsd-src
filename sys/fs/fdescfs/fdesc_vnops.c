@@ -122,7 +122,7 @@ loop:
 	 */
 	if (fdcache_lock & FDL_LOCKED) {
 		fdcache_lock |= FDL_WANT;
-		(void) tsleep((caddr_t) &fdcache_lock, PINOD, "fdalvp", 0);
+		(void) tsleep( &fdcache_lock, PINOD, "fdalvp", 0);
 		goto loop;
 	}
 	fdcache_lock |= FDL_LOCKED;
@@ -151,7 +151,7 @@ out:
 
 	if (fdcache_lock & FDL_WANT) {
 		fdcache_lock &= ~FDL_WANT;
-		wakeup((caddr_t) &fdcache_lock);
+		wakeup( &fdcache_lock);
 	}
 
 	return (error);

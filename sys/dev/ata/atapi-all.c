@@ -202,7 +202,7 @@ atapi_queue_cmd(struct ata_device *atadev, int8_t *ccb, caddr_t data,
 
     /* only sleep when command is in progress */
     if (request->error == EINPROGRESS)
-	tsleep((caddr_t)request, PRIBIO, "atprq", 0);
+	tsleep(request, PRIBIO, "atprq", 0);
     splx(s);
     error = request->error;
     if (error)
@@ -489,7 +489,7 @@ atapi_wait_dsc(struct ata_device *atadev, int timeout)
 	error = atapi_queue_cmd(atadev, ccb, NULL, 0, 0, 0, NULL, NULL);
 	if (error != EBUSY)
 	    break;
-	tsleep((caddr_t)&error, PRIBIO, "atpwt", hz / 2);
+	tsleep(&error, PRIBIO, "atpwt", hz / 2);
 	timeout -= (hz / 2);
     }
     return error;
@@ -577,7 +577,7 @@ atapi_finish(struct atapi_request *request)
 	    free(request, M_ATAPI);
     }
     else 
-	wakeup((caddr_t)request);	
+	wakeup(request);	
 }
 
 static void 
@@ -608,7 +608,7 @@ atapi_timeout(struct atapi_request *request)
     else {
 	/* retries all used up, return error */
 	request->error = EIO;
-	wakeup((caddr_t)request);
+	wakeup(request);
     } 
     ata_reinit(atadev->channel);
 }

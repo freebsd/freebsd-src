@@ -457,7 +457,7 @@ bpfread(dev, uio, ioflag)
 			BPFD_UNLOCK(d);
 			return (EWOULDBLOCK);
 		}
-		error = msleep((caddr_t)d, &d->bd_mtx, PRINET|PCATCH,
+		error = msleep(d, &d->bd_mtx, PRINET|PCATCH,
 		     "bpf", d->bd_rtout);
 		if (error == EINTR || error == ERESTART) {
 			BPFD_UNLOCK(d);
@@ -518,7 +518,7 @@ bpf_wakeup(d)
 		callout_stop(&d->bd_callout);
 		d->bd_state = BPF_IDLE;
 	}
-	wakeup((caddr_t)d);
+	wakeup(d);
 	if (d->bd_async && d->bd_sig && d->bd_sigio)
 		pgsigio(&d->bd_sigio, d->bd_sig, 0);
 

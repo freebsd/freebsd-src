@@ -211,7 +211,7 @@ tunstart(struct ifnet *ifp)
 
 	if (tp->tun_flags & TUN_RWAIT) {
 		tp->tun_flags &= ~TUN_RWAIT;
-		wakeup((caddr_t)tp);
+		wakeup(tp);
 	}
 	if (tp->tun_flags & TUN_ASYNC && tp->tun_sigio)
 		pgsigio(&tp->tun_sigio, SIGIO, 0);
@@ -664,7 +664,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 				return (EWOULDBLOCK);
 			}
 			tp->tun_flags |= TUN_RWAIT;
-			if((error = tsleep((caddr_t)tp, PCATCH | (PZERO + 1),
+			if((error = tsleep(tp, PCATCH | (PZERO + 1),
 					"tunread", 0)) != 0) {
 				splx(s);
 				return (error);

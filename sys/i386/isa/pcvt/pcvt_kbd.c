@@ -1066,7 +1066,7 @@ scroll_reset:
 				if(!(vsp->scroll_lock))
 				{
 					/* someone may be sleeping */
-					wakeup((caddr_t)&(vsp->scroll_lock));
+					wakeup(&(vsp->scroll_lock));
 				}
 			}
 			break;

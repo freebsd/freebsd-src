@@ -436,7 +436,7 @@ spictimeout(void *arg)
 	if (sc->sc_count) {
 		if (sc->sc_sleeping) {
 			sc->sc_sleeping = 0;
-			wakeup((caddr_t) sc);
+			wakeup( sc);
 		}
 		selwakeup(&sc->sc_rsel);
 	}
@@ -491,7 +491,7 @@ spicread(dev_t dev, struct uio *uio, int flag)
 	s = spltty();
 	while (!(sc->sc_count)) {
 		sc->sc_sleeping=1;
-		error = tsleep((caddr_t) sc, PZERO | PCATCH, "jogrea", 0);
+		error = tsleep( sc, PZERO | PCATCH, "jogrea", 0);
 		sc->sc_sleeping=0;
 		if (error) {
 			splx(s);

@@ -261,7 +261,7 @@ struct xsocket {
 	(sb)->sb_flags &= ~SB_LOCK; \
 	if ((sb)->sb_flags & SB_WANT) { \
 		(sb)->sb_flags &= ~SB_WANT; \
-		wakeup((caddr_t)&(sb)->sb_flags); \
+		wakeup(&(sb)->sb_flags); \
 	} \
 }
 

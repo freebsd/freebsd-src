@@ -872,7 +872,7 @@ tcp_notify(inp, error)
 		return inp;
 	}
 #if 0
-	wakeup((caddr_t) &so->so_timeo);
+	wakeup( &so->so_timeo);
 	sorwakeup(so);
 	sowwakeup(so);
 #endif

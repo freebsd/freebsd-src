@@ -1012,7 +1012,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	scp = SC_STAT(SC_DEV(sc, i));
 	if (scp == scp->sc->cur_scp)
 	    return 0;
-	while ((error=tsleep((caddr_t)&scp->smode, PZERO|PCATCH,
+	while ((error=tsleep(&scp->smode, PZERO|PCATCH,
 			     "waitvt", 0)) == ERESTART) ;
 	return error;
 
@@ -2089,7 +2089,7 @@ stop_scrn_saver(sc_softc_t *sc, void (*saver)(sc_softc_t *, int))
     if (sc->delayed_next_scr)
 	sc_switch_scr(sc, sc->delayed_next_scr - 1);
     if (debugger == 0)
-	wakeup((caddr_t)&scrn_blanked);
+	wakeup(&scrn_blanked);
 }
 
 static int
@@ -2103,7 +2103,7 @@ wait_scrn_saver_stop(sc_softc_t *sc)
 	    error = 0;
 	    break;
 	}
-	error = tsleep((caddr_t)&scrn_blanked, PZERO | PCATCH, "scrsav", 0);
+	error = tsleep(&scrn_blanked, PZERO | PCATCH, "scrsav", 0);
 	if ((error != 0) && (error != ERESTART))
 	    break;
     }
@@ -2302,7 +2302,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	 * be invoked at splhigh().
 	 */
 	if (debugger == 0)
-	    wakeup((caddr_t)&sc->new_scp->smode);
+	    wakeup(&sc->new_scp->smode);
 	splx(s);
 	DPRINTF(5, ("switch done (new == old)\n"));
 	return 0;
@@ -2325,7 +2325,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 
     /* wake up processes waiting for this vty */
     if (debugger == 0)
-	wakeup((caddr_t)&sc->cur_scp->smode);
+	wakeup(&sc->cur_scp->smode);
 
     /* wait for the controlling process to acknowledge, if necessary */
     if (signal_vt_acq(sc->cur_scp)) {
@@ -2351,7 +2351,7 @@ do_switch_scr(sc_softc_t *sc, int s)
     exchange_scr(sc);
     s = spltty();
     /* sc->cur_scp == sc->new_scp */
-    wakeup((caddr_t)&sc->cur_scp->smode);
+    wakeup(&sc->cur_scp->smode);
 
     /* wait for the controlling process to acknowledge, if necessary */
     if (!signal_vt_acq(sc->cur_scp)) {

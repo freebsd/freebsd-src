@@ -547,7 +547,7 @@ ulptopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 		}
 
 		/* wait 1/4 second, give up if we get a signal */
-		error = tsleep((caddr_t)sc, LPTPRI | PCATCH, "ulptop", STEP);
+		error = tsleep(sc, LPTPRI | PCATCH, "ulptop", STEP);
 		if (error != EWOULDBLOCK) {
 			sc->sc_state = 0;
 			goto done;

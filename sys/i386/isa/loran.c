@@ -358,7 +358,7 @@ loranread(dev_t dev, struct uio * uio, int ioflag)
 		return(EIO);
 	}
 	if (TAILQ_EMPTY(&minors[idx])) 
-		tsleep ((caddr_t)&minors[idx], (PZERO + 8) |PCATCH, "loranrd", hz*2);
+		tsleep (&minors[idx], (PZERO + 8) |PCATCH, "loranrd", hz*2);
 	if (TAILQ_EMPTY(&minors[idx])) 
 		return(0);
 	this = TAILQ_FIRST(&minors[idx]);
@@ -563,7 +563,7 @@ loranintr(int unit)
 		done->vco = vco_is;
 		done->when = there;
 		TAILQ_INSERT_TAIL(done->home, done, list);
-		wakeup((caddr_t)done->home);
+		wakeup(done->home);
 	}
 
 	ticker = first->scheduled;
