@@ -84,6 +84,7 @@ int	density = 0;	/* density in bytes/0.1" " <- this is for hilit19 */
 int	ntrec = NTREC;	/* # tape blocks in each tape record */
 int	cartridge = 0;	/* Assume non-cartridge tape */
 int	dokerberos = 0;	/* Use Kerberos authentication */
+int	cachesize = 0;	/* block cache size (in bytes) */
 long	dev_bsize = 1;	/* recalculated below */
 long	blocksperfile;	/* output blocks per file */
 char	*host = NULL;	/* remote host (if any) */
@@ -125,9 +126,9 @@ main(argc, argv)
 
 	obsolete(&argc, &argv);
 #ifdef KERBEROS
-#define optstring "0123456789aB:b:cd:f:h:kns:ST:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:kns:ST:uWwD:C:"
 #else
-#define optstring "0123456789aB:b:cd:f:h:ns:ST:uWwD:"
+#define optstring "0123456789aB:b:cd:f:h:ns:ST:uWwD:C:"
 #endif
 	while ((ch = getopt(argc, argv, optstring)) != -1)
 #undef optstring
@@ -168,6 +169,10 @@ main(argc, argv)
 
 		case 'D':
 			dumpdates = optarg;
+			break;
+
+		case 'C':
+			cachesize = numarg("cachesize", 0, 0) * 1024 * 1024;
 			break;
 
 		case 'h':
@@ -516,8 +521,8 @@ usage()
 		"k"
 #endif
 		"nSu] [-B records] [-b blocksize] [-D dumpdates]\n"
-		"            [-d density] [-f file ] [-h level] [-s feet] "
-		"[-T date] filesystem\n"
+		"            [-d density] [-f file ] [-h level] [-s feet]\n"
+		"            [-T date] [-C cachesizeMB] filesystem\n"
 		"       dump [-W | -w]\n");
 	exit(X_STARTUP);
 }
@@ -636,6 +641,7 @@ obsolete(argcp, argvp)
 		case 'd':
 		case 'f':
 		case 'D':
+		case 'C':
 		case 'h':
 		case 's':
 		case 'T':

@@ -17,7 +17,7 @@ PROG=	dump
 LINKS=	${BINDIR}/dump ${BINDIR}/rdump
 CFLAGS+=-DRDUMP
 CFLAGS+=-I${.CURDIR}/../../libexec/rlogind
-SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c
+SRCS=	itime.c main.c optr.c dumprmt.c tape.c traverse.c unctime.c cache.c
 MAN=	dump.8
 MLINKS+=dump.8 rdump.8
 
