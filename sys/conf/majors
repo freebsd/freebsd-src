@@ -25,12 +25,9 @@
 5	pts		pseudo tty "tty" half
 6	ptc		pseudo tty "master" half
 7	log		system log
-8	bqu		B004 transputer board
 9	fd		floppy disk
-10	wt		QIC-02/36 tape
 11	spigot		Video capture?
 12	sc		syscons/pcvt virtual consoles
-13
 14	sa		SCSI "sequential access devices"
 15	cd		SCSI "CDROM type"
 16	lpt		PC parallel printer port
@@ -117,22 +114,18 @@
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
-101	was:dgm		was: Digiboard PC/Xem in <= RELENG_4
-102
 103	streams		SVR4 Streams emulation <newton@atdot.dotat.org>
 104	xpt		CAM Transport Layer Services
 105	iic		I2C bus generic i/o
 106	smb		System Management Bus generic i/o
 107	3dfx		3Dfx driver <cokane>
 108	usb		Universal Serial Bus <n_hibma>
-109
 110	ses		SCSI Environmental Services driver (mjacob@feral.com)
 111	ums		USB Mouse <n_hibma>
 112	kbd		keyboard
 113	ulpt		USB Printer <n_hibma>
 114	ugen		USB Generic device <n_hibma>
 115	dag		University of Waikato DAG network capture boards
-116
 117	acd		ATAPI CDROM
 118	afd		ATAPI floppy
 119	ast		ATAPI tape
@@ -163,17 +156,14 @@
 144	nsmb		SMB/CIFS protocol interface <bp>
 145	dri		DRI Graphics for OpenGL <dfr>
 146	twe		3ware Escalade ATA RAID (controller)
-147
 148	agp		AGP <dfr>
 149	tap		Ethernet tunneling device <myevmenkin@att.com>
 150	aac		Adaptec FSA RAID (controller)
-151
 152	acpi		ACPI bios support (Takanori Watanabe takawata@shidahara1.planet.sci.kobe-u.ac.jp)
 153	ti		Tigon Gigabit Ethernet driver (ken@FreeBSD.ORG)
 154	asr		Adaptec SCSI RAID <msmith@freebsd.org>
 155	phone		Quicknet PhoneJACK and LineJACK cards for VoIP <roger>
 156	uscanner	USB Scanners <n_hibma>
-157
 158	mly		Mylex RAID control device
 159	ata		ATA control device
 160	spic		Sony Programmable I/O Controller (jogdial)
@@ -186,7 +176,6 @@
 167	ufm		USB Fm Radio
 168	sab		Siemens SAB82532 serial chip <jake>
 168	XXX		used by pst in RELENG_4
-169
 170	pst		Promise SuperTrak (uses 168 in RELENG_4)
 171	mide		LSI MegaRAID IDE (control device)
 172	mided		LSI MegaRAID IDE (disk device)
@@ -203,6 +192,5 @@
 183	smapi		SMAPI BIOS interface <mdodd>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
-253	was:MFS		was: used by MFS in <= RELENG_4
 254	internal	Used internally by the kernel
 255	bad_choice	-1 is 255 which has magic meanings internally
