@@ -60,7 +60,6 @@ reg char	*av[]; {
 	reg bool	restore;
 
 	/* revoke */
-	setegid(getgid());
 	setgid(getgid());
 
 	if (strcmp(av[0], "a.out") == 0) {
