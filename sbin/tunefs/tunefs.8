@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)tunefs.8	8.2 (Berkeley) 12/11/93
+.\"     @(#)tunefs.8	8.3 (Berkeley) 5/3/95
 .\"
-.Dd December 11, 1993
+.Dd May 3, 1995
 .Dt TUNEFS 8
 .Os BSD 4.2
 .Sh NAME
@@ -39,6 +39,7 @@
 .Nd tune up an existing file system
 .Sh SYNOPSIS
 .Nm tunefs
+.Op Fl AN
 .Op Fl a Ar maxcontig
 .Op Fl d Ar rotdelay
 .Op Fl e Ar maxbpg
@@ -46,11 +47,33 @@
 .Bk -words
 .Op Fl o Ar optimize_preference
 .Ek
+.Op Fl t Ar trackskew
 .Op Ar special | Ar filesys
 .Sh DESCRIPTION
-.Nm Tunefs
-is designed to change the dynamic parameters of a file system
+The
+.Nm tunefs
+program is designed to change the dynamic parameters of a file system
 which affect the layout policies.
+The
+.Fl N
+flag displays all the settable options
+(after any changes from the tuning options)
+but does not cause any of them to be changed.
+The
+.Fl A
+flag causes the values to be updated in all the alternate
+superblocks instead of just the standard superblock.
+If this option is not used,
+then use of a backup superblock by
+.Xr fsck 8
+will lose anything changed by
+.Nm tunefs .
+The
+.Fl A
+flag is ignored when the
+.Fl N
+flag is specified.
+.Pp
 The parameters which are to be changed are indicated by the flags
 given below:
 .Bl -tag -width Ds
@@ -104,10 +127,15 @@ running out of full sized blocks.
 For values of minfree greater than or equal to 10%,
 fragmentation is unlikely to be problematical, and
 the file system can be optimized for time.
+.It Fl t Ar trackskew
+This specifies the skew in sectors from one track to the next in a cylinder.
+The default value is zero, indicating that each track in a cylinder begins at
+the same rotational position.
 .El
 .Sh SEE ALSO
 .Xr fs 5 ,
 .Xr dumpfs 8 ,
+.Xr fsck 8 ,
 .Xr newfs 8 ,
 .Xr mkfs 8
 .Rs

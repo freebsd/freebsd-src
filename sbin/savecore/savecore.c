@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)savecore.c	8.3 (Berkeley) 1/2/94";
+static char sccsid[] = "@(#)savecore.c	8.5 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -134,7 +134,7 @@ main(argc, argv)
 
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 
-	while ((ch = getopt(argc, argv, "cdfNvz")) != EOF)
+	while ((ch = getopt(argc, argv, "cdfN:vz")) != EOF)
 		switch(ch) {
 		case 'c':
 			clear = 1;
@@ -491,7 +491,7 @@ rawname(s)
 {
 	char *sl, name[MAXPATHLEN];
 
-	if ((sl = rindex(s, '/')) == NULL || sl[1] == '0') {
+	if ((sl = strrchr(s, '/')) == NULL || sl[1] == '0') {
 		syslog(LOG_ERR,
 		    "can't make raw dump device name from %s", s);
 		return (s);
@@ -620,7 +620,7 @@ Create(file, mode)
 {
 	register int fd;
 
-	fd = creat(file, mode);
+	fd = open(file, O_WRONLY | O_CREAT | O_TRUNC, mode);
 	if (fd < 0) {
 		syslog(LOG_ERR, "%s: %m", file);
 		exit(1);

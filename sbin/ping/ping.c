@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
+static char sccsid[] = "@(#)ping.c	8.3 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 /*
@@ -240,7 +240,7 @@ main(argc, argv)
 		usage();
 	target = *argv;
 
-	bzero((char *)&whereto, sizeof(struct sockaddr));
+	memset(&whereto, 0, sizeof(struct sockaddr));
 	to = (struct sockaddr_in *)&whereto;
 	to->sin_family = AF_INET;
 	to->sin_addr.s_addr = inet_addr(target);
@@ -254,7 +254,7 @@ main(argc, argv)
 			exit(1);
 		}
 		to->sin_family = hp->h_addrtype;
-		bcopy(hp->h_addr, (caddr_t)&to->sin_addr, hp->h_length);
+		memmove(&to->sin_addr, hp->h_addr, hp->h_length);
 		(void)strncpy(hnamebuf, hp->h_name, sizeof(hnamebuf) - 1);
 		hostname = hnamebuf;
 	}
@@ -593,7 +593,7 @@ pr_pack(buf, cc, from)
 				continue;
 			if (i == old_rrlen
 			    && cp == (u_char *)buf + sizeof(struct ip) + 2
-			    && !bcmp((char *)cp, old_rr, i)
+			    && !memcmp(cp, old_rr, i)
 			    && !(options & F_FLOOD)) {
 				(void)printf("\t(same route)");
 				i = ((i + 3) / 4) * 4;
@@ -602,7 +602,7 @@ pr_pack(buf, cc, from)
 				break;
 			}
 			old_rrlen = i;
-			bcopy((char *)cp, old_rr, i);
+			memmove(old_rr, cp, i);
 			(void)printf("\nRR: ");
 			for (;;) {
 				l = *++cp;

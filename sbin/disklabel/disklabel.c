@@ -41,7 +41,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
+static char sccsid[] = "@(#)disklabel.c	8.4 (Berkeley) 5/4/95";
 /* from static char sccsid[] = "@(#)disklabel.c	1.2 (Symmetric) 11/28/85"; */
 #endif /* not lint */
 
@@ -53,6 +53,7 @@ static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 1/7/94";
 #include <sys/stat.h>
 #define DKTYPENAMES
 #include <sys/disklabel.h>
+#include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
 #include <unistd.h>
 #include <string.h>
@@ -349,7 +350,7 @@ makelabel(type, name, lp)
 #endif
 #endif
 	/* d_packname is union d_boot[01], so zero */
-	bzero(lp->d_packname, sizeof(lp->d_packname));
+	memset(lp->d_packname, 0, sizeof(lp->d_packname));
 	if (name)
 		(void)strncpy(lp->d_packname, name, sizeof(lp->d_packname));
 }
@@ -524,7 +525,7 @@ makebootarea(boot, dp, f)
 	}
 	lp = (struct disklabel *)
 		(boot + (LABELSECTOR * dp->d_secsize) + LABELOFFSET);
-	bzero((char *)lp, sizeof *lp);
+	memset(lp, 0, sizeof *lp);
 #if NUMBOOT > 0
 	/*
 	 * If we are not installing a boot program but we are installing a
@@ -535,7 +536,7 @@ makebootarea(boot, dp, f)
 		if (rflag) {
 			if (read(f, boot, BBSIZE) < BBSIZE)
 				Perror(specname);
-			bzero((char *)lp, sizeof *lp);
+			memset(lp, 0, sizeof *lp);
 		}
 		return (lp);
 	}
@@ -545,7 +546,7 @@ makebootarea(boot, dp, f)
 	 */
 	if (!xxboot || !bootxx) {
 		dkbasename = np;
-		if ((p = rindex(dkname, '/')) == NULL)
+		if ((p = strrchr(dkname, '/')) == NULL)
 			p = dkname;
 		else
 			p++;
@@ -751,7 +752,7 @@ edit(lp, f)
 				tmpfil);
 			break;
 		}
-		bzero((char *)&label, sizeof(label));
+		memset(&label, 0, sizeof(label));
 		if (getasciilabel(fd, &label)) {
 			*lp = label;
 			if (writelabel(f, bootarea, lp) == 0) {
@@ -856,12 +857,12 @@ getasciilabel(f, lp)
 	lp->d_sbsize = SBSIZE;				/* XXX */
 	while (fgets(line, sizeof(line) - 1, f)) {
 		lineno++;
-		if (cp = index(line,'\n'))
+		if (cp = strchr(line,'\n'))
 			*cp = '\0';
 		cp = skip(line);
 		if (cp == NULL)
 			continue;
-		tp = index(cp, ':');
+		tp = strchr(cp, ':');
 		if (tp == NULL) {
 			fprintf(stderr, "line %d: syntax error\n", lineno);
 			errors++;

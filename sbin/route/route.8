@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)route.8	8.3 (Berkeley) 3/19/94
+.\"     @(#)route.8	8.4 (Berkeley) 6/1/94
 .\"
-.Dd March 19, 1994
+.Dd June 1, 1994
 .Dt ROUTE 8
 .Os BSD 4.4
 .Sh NAME
@@ -276,6 +276,7 @@ and
 RTM_CHANGE.
 As such, only the super-user may modify
 the routing tables.
+.ne 1i
 .Sh DIAGNOSTICS
 .Bl -tag -width Ds
 .It Sy "add [host \&| network ] %s: gateway %s flags %x"
