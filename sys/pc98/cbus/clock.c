@@ -85,7 +85,6 @@
 #include <i386/isa/icu.h>
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
-#include <i386/isa/isa_device.h>
 #ifdef DEV_ISA
 #include <isa/isavar.h>
 #endif
