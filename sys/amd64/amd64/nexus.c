@@ -221,11 +221,6 @@ nexus_attach(device_t dev)
 			panic("nexus_attach isa");
 		device_probe_and_attach(child);
 	}
-
-	child = device_add_child(dev, "pccard", 0, 0);
-	if (child == NULL)
-		panic("nexus_probe pccard");
-	device_probe_and_attach(child);
 	return 0;
 }
 
