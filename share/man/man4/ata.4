@@ -28,7 +28,7 @@
 .\"
 .Dd January 27, 2000
 .Dt ATA 4
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ata ,
 .Nm acd ,
@@ -128,7 +128,9 @@ Ultra DMA 66 (UDMA4), 66 MB/sec
 .Pp
 All unknown chipsets can be supported at the maximum speed of 16 MB/sec.
 .Pp
-The ata driver also allows for changes to the transfer mode of the devices
+The
+.Nm
+driver also allows for changes to the transfer mode of the devices
 at a later time when the system is up and running.
 .Pp
 The driver attempts to set the maximum performance transfer mode on your disk
@@ -173,7 +175,9 @@ ATAPI floppy drive device nodes
 .It Pa /dev/ast*
 ATAPI tape drive device nodes
 .It Pa /sys/i386/conf/GENERIC
-sample generic kernel config file for ata based systems
+sample generic kernel config file for
+.Nm
+based systems
 .El
 .Sh NOTES
 Static numbering
@@ -188,7 +192,9 @@ ad0 and ad2 exist in the absence of ad1.
 The advantage is that the addition of the formerly absent drive
 does not cause the numbers of the other drives to change.
 .Pp
-The ata driver does not support MFM/RLL/ESDI (ST-506) style disks.
+The
+.Nm
+driver does not support MFM/RLL/ESDI (ST-506) style disks.
 .Pp
 Remember that in order to use UDMA4 mode you
 .Em have
@@ -201,9 +207,16 @@ the same ATA channel is not recommended,
 unless they are run at the non-UDMA4 device's lower speed.
 The driver has been designed to handle that kind of setup but lots of
 older devices do not like this.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0 .
 .Sh AUTHORS
 .An -nosplit
-The ata driver was written by
+The
+.Nm
+driver was written by
 .An S\(/oren Schmidt
 .Aq sos@FreeBSD.org .
 .Pp

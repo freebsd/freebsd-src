@@ -24,21 +24,15 @@
 .\"
 .\" $FreeBSD$
 .\"
-.\" Note: The date here should be updated whenever a non-trivial
-.\" change is made to the manual page.
 .Dd January 8, 1999
 .Dt INTPM 4 i386
-.\" Note: Only specify the operating system when the command
-.\" is FreeBSD specific, otherwise use the .Os macro with no
-.\" arguments.
-.Os FreeBSD 3.0
+.Os FreeBSD
 .Sh NAME
 .Nm intpm
 .Nd Intel PIIX4 Power management controller driver.
 .Sh SYNOPSIS
 .Cd device smbus
 .Cd device intpm
-
 .Sh DESCRIPTION
 This driver provides access to 
 .Tn Intel PIIX4 PCI Controller function 3 ,
@@ -48,15 +42,14 @@ function is implemented.
 But it also have bus idle monitoring function.
 It
 will display mapped I/O address for bus monitoring function when attaching.
-
 .Sh SEE ALSO
 .Xr smb 4 ,
 .Xr smbus 4
 .Sh HISTORY
 The
 .Nm
-manual page example first appeared in
-.Fx 3.0 .
+driver first appeared in
+.Fx 3.4 .
 .Sh AUTHORS
 This
 manual page was written by
