@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.187 1998/12/14 21:17:37 dillon Exp $
+ * $Id: vfs_bio.c,v 1.188 1998/12/22 14:43:58 luoqi Exp $
  */
 
 /*
@@ -23,6 +23,8 @@
  * Author:  John S. Dyson
  * Significant help during the development and debugging phases
  * had been provided by David Greenman, also of the FreeBSD core team.
+ *
+ * see man buf(9) for more info.
  */
 
 #define VMIO
@@ -610,11 +612,13 @@ brelse(struct buf * bp)
 	 * but the VM object is kept around.  The B_NOCACHE flag is used to
 	 * invalidate the pages in the VM object.
 	 *
-	 * If the buffer is a partially filled NFS buffer, keep it
-	 * since invalidating it now will lose informatio.  The valid
-	 * flags in the vm_pages have only DEV_BSIZE resolution but
-	 * the b_validoff, b_validend fields have byte resolution.
-	 * This can avoid unnecessary re-reads of the buffer.
+	 * The b_{validoff,validend,dirtyoff,dirtyend} values are relative 
+	 * to b_offset and currently have byte granularity, whereas the
+	 * valid flags in the vm_pages have only DEV_BSIZE resolution.
+	 * The byte resolution fields are used to avoid unnecessary re-reads
+	 * of the buffer but the code really needs to be genericized so
+	 * other filesystem modules can take advantage of these fields.
+	 *
 	 * XXX this seems to cause performance problems.
 	 */
 	if ((bp->b_flags & B_VMIO)
@@ -639,6 +643,22 @@ brelse(struct buf * bp)
 		struct vnode *vp;
 
 		vp = bp->b_vp;
+
+		/*
+		 * Get the base offset and length of the buffer.  Note that 
+		 * for block sizes that are less then PAGE_SIZE, the b_data
+		 * base of the buffer does not represent exactly b_offset and
+		 * neither b_offset nor b_size are necessarily page aligned.
+		 * Instead, the starting position of b_offset is:
+		 *
+		 * 	b_data + (b_offset & PAGE_MASK)
+		 *
+		 * block sizes less then DEV_BSIZE (usually 512) are not 
+		 * supported due to the page granularity bits (m->valid,
+		 * m->dirty, etc...). 
+		 *
+		 * See man buf(9) for more information
+		 */
 
 		resid = bp->b_bufsize;
 		foff = bp->b_offset;
