@@ -278,6 +278,9 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char 
 	va_list ap;
 	int i;
 
+	KASSERT(umajor(makeudev(devsw->d_maj, minor)) == devsw->d_maj,
+	    ("Invalid minor (%d) in make_dev", minor));
+
 	dev = makedev(devsw->d_maj, minor);
 	if (dev->si_flags & SI_NAMED) {
 		printf( "WARNING: Driver mistake: repeat make_dev(\"%s\")\n",
