@@ -14,8 +14,8 @@ File: dir	Node: Top	This is the top of the INFO tree
 
 System utilities:
 
-* AMD (amdref).			AMD Reference Manual.
-* DC (dc).			The GNU desk calculator.
+* AMD: (amdref).		AMD Reference Manual.
+* DC: (dc).			The GNU desk calculator.
 * GAWK: (gawk).			The GNU AWK language interpreter manual.
 * Info: (info).			Manual for this documentation browsing system.
 
@@ -29,23 +29,22 @@ System utilities:
 Documentation tools:
 
 * Makeinfo: (makeinfo). 	GNU Makeinfo guide.
-* PTX (ptx).			GNU permuted index generator.
+* PTX: (ptx).			GNU permuted index generator.
 * Texi: (texi).			GNU TexInfo guide.
 
 
 Programming & development tools:
 
-* GDB annotation (annotate).  	Annotations for the GNU Debugger (GDB).
+* GDB annotation: (annotate).  	Annotations for the GNU Debugger (GDB).
 * AS: (as-all).			The GNU Assembler manual.
-* comerr (com_err).		The Common Error Description library.
+* comerr: (com_err).		The Common Error Description library.
 * CPP: (cpp).			The GNU C pre-processor manual.
 * GCC: (gcc).			The GNU C/C++ compiler manual.
 * GXX Internals: (gxxint).	Guide to the internals of the GNU C++ compiler.
 * GDB: (gdb).			The GNU Debugger (C & C++) manual.
 * GDB Internals: (gdbint).	Guide to the internals of GDB.
-* History (history).		The GNU History library.
-* Readline (readline).		The GNU Readline library
-* Regex (regex).		The GNU regular expression library.
-* Renovate (reno).		The GNU C++ Renovation Project documentation.
-* STABS (stabs).		All about the stab debugging information format.
-
+* History: (history).		The GNU History library.
+* Readline: (readline).		The GNU Readline library
+* Regex: (regex).		The GNU regular expression library.
+* Renovate: (reno).		The GNU C++ Renovation Project documentation.
+* STABS: (stabs).		All about the stab debugging information format.
