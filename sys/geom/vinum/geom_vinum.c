@@ -618,7 +618,7 @@ gv_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 static struct g_class g_vinum_class	= {
 	.name = VINUM_CLASS_NAME,
 	.taste = gv_taste,
-	.destroy_geom = gv_destroy_geom,
+	/*.destroy_geom = gv_destroy_geom,*/
 	.ctlreq = gv_config,
 };
 
