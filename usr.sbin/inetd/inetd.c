@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.16 1996/11/10 21:07:27 julian Exp $";
+	"$Id: inetd.c,v 1.17 1996/11/10 21:12:44 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -126,6 +126,11 @@ static char inetd_c_rcsid[] __attribute__ ((unused)) =
 #include <unistd.h>
 #include <libutil.h>
 #include <sysexits.h>
+
+#ifdef LOGIN_CAP
+#undef AUTH_NONE	/* conflicts with rpc stuff */
+#include <login_cap.h>
+#endif
 
 #include "pathnames.h"
 
@@ -267,6 +272,9 @@ main(argc, argv, envp)
 	char buf[50];
 	struct  sockaddr_in peer;
 	int i;
+#ifdef LOGIN_CAP
+	login_cap_t *lc = NULL;
+#endif
 
 
 #ifdef OLD_SETPROCTITLE
@@ -503,12 +511,28 @@ main(argc, argv, envp)
 						recv(0, buf, sizeof (buf), 0);
 					_exit(EX_NOUSER);
 				}
+#ifdef LOGIN_CAP
+				/*
+				 * Establish the class now, falls back to
+				 * the "default" if unavailable.
+				 */
+				lc = login_getclass(pwd);
+#endif
 				if (setsid() < 0) {
 					syslog(LOG_ERR,
 						"%s: can't setsid(): %m",
 						 sep->se_service);
 					/* _exit(EX_OSERR); not fatal yet */
 				}
+#ifdef LOGIN_CAP
+				if (setusercontext(lc, pwd, pwd->pw_uid,
+				    LOGIN_SETALL) != 0) {
+					syslog(LOG_ERR,
+					 "%s: can't setusercontext(..%s..): %m",
+					 sep->se_service, sep->se_user);
+					_exit(EX_OSERR);
+				}
+#else
 				if (pwd->pw_uid) {
 					if (setlogin(sep->se_user) < 0) {
 						syslog(LOG_ERR,
@@ -531,6 +555,7 @@ main(argc, argv, envp)
 						_exit(EX_OSERR);
 					}
 				}
+#endif
 				execv(sep->se_server, sep->se_argv);
 				if (sep->se_socktype != SOCK_STREAM)
 					recv(0, buf, sizeof (buf), 0);
