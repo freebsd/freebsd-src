@@ -29,9 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)sysctl.8	8.1 (Berkeley) 6/6/93
+.\"	From: @(#)sysctl.8	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
-.Dd "June 6, 1993"
+.Dd September 23, 1994
 .Dt SYSCTL 8
 .Os
 .Sh NAME
@@ -126,6 +127,10 @@ privilege can change the value.
 .It kern.no_trunc	integer	no
 .It kern.vdisable	integer	no
 .It kern.boottime	struct	no
+.It kern.domainname	string	yes
+.It kern.update	integer	yes
+.It kern.osreldate	string	no
+.It kern.bootfile	string	yes
 .It vm.loadavg	struct	no
 .It machdep.console_device	dev_t	no
 .It net.inet.ip.forwarding	integer	yes
@@ -140,6 +145,7 @@ privilege can change the value.
 .It hw.physmem	integer	no
 .It hw.usermem	integer	no
 .It hw.pagesize	integer	no
+.It hw.floatingpoint	integer	no
 .It user.cs_path	string	no
 .It user.bc_base_max	integer	no
 .It user.bc_dim_max	integer	no
