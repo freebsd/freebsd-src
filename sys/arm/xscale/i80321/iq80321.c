@@ -154,10 +154,10 @@ iq80321_attach(device_t dev)
 	 * different.  This is pretty fragile, but it's not clear what
 	 * would work better.
 	 */
-	b0l = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_MAPS+0x0);
-	b0u = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_MAPS+0x4);
-	b1l = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_MAPS+0x8);
-	b1u = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_MAPS+0xc);
+	b0l = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0x0);
+	b0u = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0x4);
+	b1l = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0x8);
+	b1u = bus_space_read_4(sc->sc_st, sc->sc_atu_sh, PCIR_BARS+0xc);
 #define PCI_MAPREG_MEM_ADDR_MASK	0xfffffff0
 	b0l &= PCI_MAPREG_MEM_ADDR_MASK;
 	b0u &= PCI_MAPREG_MEM_ADDR_MASK;
@@ -258,6 +258,7 @@ iq80321_attach(device_t dev)
 	device_add_child(dev, "pcib", busno);
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
+	printf("attach\n");
 
 	return (0);
 }
