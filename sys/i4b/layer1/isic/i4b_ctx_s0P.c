@@ -43,7 +43,7 @@
 #include "isic.h"
 #include "opt_i4b.h"
 
-#if (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P))
+#if (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P) || defined(COMPAQ_M610))
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -109,6 +109,7 @@ isic_attach_Cs0P(device_t dev)
 {
 	u_int32_t iobase1;
 	u_int32_t iobase2;
+	u_int32_t iocfg;
 	int unit = device_get_unit(dev);
 	struct l1_softc *sc = &l1_sc[unit];	
 	bus_space_tag_t t;
@@ -131,25 +132,61 @@ isic_attach_Cs0P(device_t dev)
 		return ENXIO;
 	}
 
+	/*
+	 * Compaq M610 has a cfg io area,
+	 * we need it
+	 */
+
+	if (sc->sc_cardtyp == CARD_TYPEP_COMPAQ_M610)
+	{
+		sc->sc_resources.io_rid[2] = 2;
+	
+		if(!(sc->sc_resources.io_base[2] =
+				bus_alloc_resource(dev, SYS_RES_IOPORT,
+						&sc->sc_resources.io_rid[2],
+						0UL, ~0UL, 1, RF_ACTIVE)))
+		{
+			printf("isic%d: Could not get cfg io area for Compaq Microcom 610\n", unit);
+			isic_detach_common(dev);
+			return ENXIO;
+		}
+
+		iocfg = rman_get_start(sc->sc_resources.io_base[2]);
+
+	        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[2],
+				sc->sc_resources.io_base[2]);
+	}
+
 	/* remember the io base addresses */
 	
-	iobase1 = rman_get_start(sc->sc_resources.io_base[0]);
-	iobase2 = rman_get_start(sc->sc_resources.io_base[1]);
-	
+	if (sc->sc_cardtyp != CARD_TYPEP_COMPAQ_M610)
+	{
+		iobase1 = rman_get_start(sc->sc_resources.io_base[0]);
+		iobase2 = rman_get_start(sc->sc_resources.io_base[1]);
+	}
+	else
+	{
+		iobase1 = rman_get_start(sc->sc_resources.io_base[1]);
+		iobase2 = rman_get_start(sc->sc_resources.io_base[0]);
+	}
+
 	/*
 	 * because overlapping resources are invalid,
-	 * release the first io port resource
+	 * release the first and second io port resource
 	 */
 	
         bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[0],
 			sc->sc_resources.io_base[0]);
 	
+        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[1],
+			sc->sc_resources.io_base[1]);
+
 	/* set and allocate a base io address for the ISAC chip */
 	
 	sc->sc_resources.io_rid[2] = 2;
 	
 	bus_set_resource(dev, SYS_RES_IOPORT, 2, iobase1-0x20, 0x40);
-	
+
 	if(!(sc->sc_resources.io_base[2] =
 		bus_alloc_resource(dev, SYS_RES_IOPORT,
 				   &sc->sc_resources.io_rid[2],
@@ -160,13 +197,6 @@ isic_attach_Cs0P(device_t dev)
 		return ENXIO;
 	}
 
-	/*
-	 * because overlapping resources are invalid,
-	 * release the second io port resource
-	 */
-
-        bus_release_resource(dev, SYS_RES_IOPORT, sc->sc_resources.io_rid[1],
-			sc->sc_resources.io_base[1]);
 
 	/* set and allocate a resource for the HSCX channel A */
 	
@@ -200,7 +230,7 @@ isic_attach_Cs0P(device_t dev)
 	sc->sc_resources.io_rid[4] = 4;
 	
 	bus_set_resource(dev, SYS_RES_IOPORT, 4, iobase2, 0x40);
-					
+
 	if(!(sc->sc_resources.io_base[4] =
 		bus_alloc_resource(dev,SYS_RES_IOPORT,
 				   &sc->sc_resources.io_rid[4],
@@ -210,7 +240,29 @@ isic_attach_Cs0P(device_t dev)
 		isic_detach_common(dev);
 		return ENXIO;
 	}
-	
+
+	/*
+	 * set and allocate a resource for the cfg io
+	 * for compaq m610
+	 */
+
+	if (sc->sc_cardtyp == CARD_TYPEP_COMPAQ_M610)
+	{
+		sc->sc_resources.io_rid[5] = 5;
+
+		bus_set_resource(dev, SYS_RES_IOPORT, 5, iocfg, 0x01);
+
+		if(!(sc->sc_resources.io_base[5] =
+			bus_alloc_resource(dev,SYS_RES_IOPORT,
+					   &sc->sc_resources.io_rid[5],
+					   0ul, ~0ul, 1, RF_ACTIVE)))
+		{
+			printf("isic%d: Could not get cfg io area for Compaq Microcom 610!\n", unit);
+			isic_detach_common(dev);
+			return ENXIO;
+		}
+	}
+
 	/* setup access routines */
 
 	sc->clearirq = NULL;
@@ -221,8 +273,9 @@ isic_attach_Cs0P(device_t dev)
 	sc->writefifo = ctxs0P_write_fifo;
 
 	/* setup card type */
-	
-	sc->sc_cardtyp = CARD_TYPEP_CS0P;
+
+	if (sc->sc_cardtyp != CARD_TYPEP_COMPAQ_M610)
+		sc->sc_cardtyp = CARD_TYPEP_CS0P;
 
 	/* setup IOM bus type */
 	
@@ -233,17 +286,31 @@ isic_attach_Cs0P(device_t dev)
 
 	/* enable the card */
 	
-	t = rman_get_bustag(sc->sc_resources.io_base[2]);
-	h = rman_get_bushandle(sc->sc_resources.io_base[2]);
+	if (sc->sc_cardtyp != CARD_TYPEP_COMPAQ_M610)
+	{
+		t = rman_get_bustag(sc->sc_resources.io_base[2]);
+		h = rman_get_bushandle(sc->sc_resources.io_base[2]);
 	
-	bus_space_write_1(t, h, 0x3c, 0);
-	DELAY(SEC_DELAY / 10);
+		bus_space_write_1(t, h, 0x3c, 0);
+		DELAY(SEC_DELAY / 10);
 
-	bus_space_write_1(t, h, 0x3c, 1);
-	DELAY(SEC_DELAY / 10);
+		bus_space_write_1(t, h, 0x3c, 1);
+		DELAY(SEC_DELAY / 10);
+	}
+	else
+	{
+		t = rman_get_bustag(sc->sc_resources.io_base[5]);
+		h = rman_get_bushandle(sc->sc_resources.io_base[5]);
+
+		bus_space_write_1(t, h, 0xff, 0);
+		DELAY(SEC_DELAY / 10);
+
+		bus_space_write_1(t, h, 0x00, 1);
+		DELAY(SEC_DELAY / 10);
+	}
 
 	return 0;
 }
 
-#endif /* (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P)) */
+#endif /* (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P) || defined(COMPAQ_M610)) */
 
