@@ -9,7 +9,7 @@ INTERNALLIB=	YES
 
 # Files from libiberty.
 SRCS=	choose-temp.c concat.c cp-demangle.c cp-demint.c cplus-dem.c \
-        dyn-string.c fibheap.c getpwd.c getruntime.c hashtab.c \
+	dyn-string.c fibheap.c getpwd.c getruntime.c hashtab.c \
 	hex.c lbasename.c make-temp-file.c md5.c obstack.c partition.c \
 	pexecute.c physmem.c splay-tree.c xexit.c xmalloc.c xmemdup.c \
 	xstrdup.c xstrerror.c xexit.c
