@@ -218,6 +218,20 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 		    sizeof(divsrc.sin_zero));
 	}
 
+	/*
+	 * XXX sbappendaddr must be protected by Giant until
+	 * we have locking at the socket layer.  When entered
+	 * from below we come in w/o Giant and must take it
+	 * here.  Unfortunately we cannot tell whether we're
+	 * entering from above (already holding Giant),
+	 * below (potentially without Giant), or otherwise
+	 * (e.g. from tcp_syncache through a timeout) so we
+	 * have to grab it regardless.  This causes a LOR with
+	 * the tcp lock, at least, and possibly others.  For
+	 * the moment we're ignoring this. Once sockets are
+	 * locked this cruft can be removed.
+	 */
+	mtx_lock(&Giant);
 	/* Put packet on socket queue, if any */
 	sa = NULL;
 	nport = htons((u_int16_t)port);
@@ -239,6 +253,7 @@ divert_packet(struct mbuf *m, int incoming, int port, int rule)
 		INP_UNLOCK(inp);
 	}
 	INP_INFO_RUNLOCK(&divcbinfo);
+	mtx_unlock(&Giant);
 	if (sa == NULL) {
 		m_freem(m);
 		ipstat.ips_noproto++;
@@ -297,9 +312,12 @@ div_output(struct socket *so, struct mbuf *m,
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
-		struct inpcb *const inp = sotoinpcb(so);
 		struct ip *const ip = mtod(m, struct ip *);
+		struct inpcb *inp;
 
+		INP_INFO_WLOCK(&divcbinfo);
+		inp = sotoinpcb(so);
+		INP_LOCK(inp);
 		/*
 		 * Don't allow both user specified and setsockopt options,
 		 * and don't allow packet length sizes that will crash
@@ -307,20 +325,23 @@ div_output(struct socket *so, struct mbuf *m,
 		if (((ip->ip_hl != (sizeof (*ip) >> 2)) && inp->inp_options) ||
 		     ((u_short)ntohs(ip->ip_len) > m->m_pkthdr.len)) {
 			error = EINVAL;
-			goto cantsend;
+			m_freem(m);
+		} else {
+			/* Convert fields to host order for ip_output() */
+			ip->ip_len = ntohs(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
+
+			/* Send packet to output processing */
+			ipstat.ips_rawout++;			/* XXX */
+
+			error = ip_output((struct mbuf *)&divert_tag,
+				    inp->inp_options, &inp->inp_route,
+				    (so->so_options & SO_DONTROUTE) |
+				    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
+				    inp->inp_moptions, NULL);
 		}
-
-		/* Convert fields to host order for ip_output() */
-		ip->ip_len = ntohs(ip->ip_len);
-		ip->ip_off = ntohs(ip->ip_off);
-
-		/* Send packet to output processing */
-		ipstat.ips_rawout++;			/* XXX */
-		error = ip_output((struct mbuf *)&divert_tag,
-			    inp->inp_options, &inp->inp_route,
-			    (so->so_options & SO_DONTROUTE) |
-			    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
-			    inp->inp_moptions, NULL);
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&divcbinfo);
 	} else {
 		if (m->m_pkthdr.rcvif == NULL) {
 			/*
@@ -409,8 +430,19 @@ div_detach(struct socket *so)
 static int
 div_abort(struct socket *so)
 {
+	struct inpcb *inp;
+
+	INP_INFO_WLOCK(&divcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_WUNLOCK(&divcbinfo);
+		return EINVAL;	/* ??? possible? panic instead? */
+	}
+	INP_LOCK(inp);
 	soisdisconnected(so);
-	return div_detach(so);
+	in_pcbdetach(inp);
+	INP_INFO_WUNLOCK(&divcbinfo);
+	return 0;
 }
 
 static int
@@ -455,7 +487,18 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 div_shutdown(struct socket *so)
 {
+	struct inpcb *inp;
+
+	INP_INFO_RLOCK(&divcbinfo);
+	inp = sotoinpcb(so);
+	if (inp == 0) {
+		INP_INFO_RUNLOCK(&divcbinfo);
+		return EINVAL;
+	}
+	INP_LOCK(inp);
+	INP_INFO_RUNLOCK(&divcbinfo);
 	socantsendmore(so);
+	INP_UNLOCK(inp);
 	return 0;
 }
 
@@ -473,6 +516,21 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 	/* Send packet */
 	return div_output(so, m, (struct sockaddr_in *)nam, control);
+}
+
+void
+div_ctlinput(int cmd, struct sockaddr *sa, void *vip)
+{
+        struct in_addr faddr;
+
+	faddr = ((struct sockaddr_in *)sa)->sin_addr;
+	if (sa->sa_family != AF_INET || faddr.s_addr == INADDR_ANY)
+        	return;
+	if (PRC_IS_REDIRECT(cmd)) {
+		/* flush held routes */
+		in_pcbnotifyall(&divcbinfo, faddr,
+			inetctlerrmap[cmd], in_rtchange);
+	}
 }
 
 static int
