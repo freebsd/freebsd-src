@@ -370,12 +370,6 @@ of file, use
 	file filename
 		-- Dru <genesis@istar.ca>
 % 
-Need to find the information that was displayed on your screen at boot 
-time? Try 
-
-	more /var/run/dmesg.boot
-		-- Dru <genesis@istar.ca>
-% 
 Time to change your password? Type "passwd" and follow the prompts. 
 		-- Dru <genesis@istar.ca>
 % 
@@ -405,12 +399,7 @@ Use "lock -p". When you return, use your password as the key to unlock the
 terminal. 
 		-- Dru <genesis@istar.ca>
 % 
-Want to save your login session to a file? Type "script filename" to 
-record your session. When you are finished, hold down the control key and 
-press d. 
-		-- Dru <genesis@istar.ca>
-% 
-Need to find the location of a program? Use "locate -b program_name". 
+Need to find the location of a program? Use "locate program_name". 
 		-- Dru <genesis@istar.ca>
 % 
 Forget how to spell a word or a variation of a word? Use 
@@ -457,7 +446,7 @@ flag is your gateway.
 		-- Dru <genesis@istar.ca>
 % 
 Need to see which daemons are listening for connection requests? Use 
-"sockstat -4". 
+"sockstat -4l" for IPv4, and "sockstat -l" for IPv4 and IPv6. 
 		-- Dru <genesis@istar.ca>
 % 
 Can't remember is you've installed a certain port or not? Try "pkg_info | 
@@ -478,7 +467,7 @@ Need to quickly empty a file? Use "echo > filename".
 % 
 To see all of the directories on your FreeBSD system, type 
 
-	ls -RC / |more
+	ls -R / | more
 		-- Dru <genesis@istar.ca>
 % 
 To see the IP addresses currently set on your active interfaces, type 
@@ -487,5 +476,9 @@ To see the IP addresses currently set on your active interfaces, type
 % 
 To see the MAC addresses of the NICs on your system, type 
 
-	grep address /var/run/dmesg.boot
+	ifconfig -a
 		-- Dru <genesis@istar.ca>
+%
+You can save your kernel startup configuration with kget(8).  The
+Configuration can be edited at boot time with 'boot -c' command in loader.
+See boot(8), loader(8) for details.
