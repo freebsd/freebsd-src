@@ -212,6 +212,7 @@ rxp__match(s, first, j_succ, j_fail, sp_fail)
 	Rxp_t *grp_end;
 	int err;
 
+	grp_end = NULL;
 	if (first) {
 		rp = rxpbuf;
 		sp = s;

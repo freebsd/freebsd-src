@@ -171,7 +171,7 @@ show_index()
 		for (s = next_cat(qp->q_text); s; s = next_cat(s)) {
 			if (!rxp_compile(s))
 				err("%s", rxperr);
-			if (p = rxp_expand())
+			if ((p = rxp_expand()) != '\0')
 				(void)fprintf(pf, "%s ", p);
 		}
 		(void)fprintf(pf, "\n");
@@ -321,12 +321,13 @@ appdstr(s, tp, len)
 	size_t len;
 {
 	char *mp, *sp;
-	int ch;
 	char *m;
 
 	if ((m = malloc(strlen(s) + len + 1)) == NULL)
 		err("%s", strerror(errno));
-	for (mp = m, sp = s; *mp++ = *sp++;);
+	mp = m;
+	sp = s;
+	for (; (*mp++ = *sp++););
 	mp--;
 
 	if (*(mp - 1) == '\\')
@@ -356,7 +357,7 @@ downcase(p)
 {
 	int ch;
 
-	for (; ch = *p; ++p)
+	for (; (ch = *p); ++p)
 		if (isascii(ch) && isupper(ch))
 			*p = tolower(ch);
 }
