@@ -599,6 +599,9 @@ slab_zalloc(uma_zone_t zone, int wait)
 #ifdef UMA_DEBUG
 	printf("slab_zalloc:  Allocating a new slab for %s\n", zone->uz_name);
 #endif
+	if (zone->uz_maxpages &&
+	    zone->uz_pages + zone->uz_ppera > zone->uz_maxpages)
+		return (NULL);
 
 	if (booted || (zone->uz_flags & UMA_ZFLAG_PRIVALLOC)) {
 		ZONE_UNLOCK(zone);
@@ -733,10 +736,6 @@ obj_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	vm_offset_t retkva;
 	vm_page_t p;
 	int pages;
-
-
-	if (zone->uz_pages + zone->uz_ppera > zone->uz_maxpages)
-		return (NULL);
 
 	retkva = NULL;
 	pages = zone->uz_pages;
@@ -1242,12 +1241,6 @@ zalloc_start:
 	 * If isitem is set then we should just return it. The cpu lock
 	 * was unlocked when we couldn't get a bucket.
 	 */
-
-#ifdef INVARIANTS
-	if (wait == M_WAITOK)
-		KASSERT(item != NULL,
-		    ("uma_zalloc: WAITOK set but we're returning NULL"));
-#endif
 	return item;
 }
 
@@ -1674,6 +1667,18 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata, int skip)
 
 	if (!skip && zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
+}
+
+/* See uma.h */
+void
+uma_zone_set_max(uma_zone_t zone, int nitems)
+{
+	ZONE_LOCK(zone);
+	if (zone->uz_ppera > 1)
+		zone->uz_maxpages = nitems / zone->uz_ppera;
+	else
+		zone->uz_maxpages = nitems / zone->uz_ipers;
+	ZONE_UNLOCK(zone);
 }
 
 /* See uma.h */
