@@ -54,6 +54,27 @@
 #include <compat/linux/linux_socket.h>
 #include <compat/linux/linux_util.h>
 
+/*
+ * FreeBSD's socket calls require the sockaddr struct length to agree
+ * with the address family.  Linux does not, so we must force it.
+ */
+static int
+linux_to_bsd_namelen(caddr_t name, int namelen)
+{
+	uint16_t	family;	/* XXX must match Linux sockaddr */
+
+	if (copyin(name, &family, sizeof(family)))
+		return namelen;
+
+	switch (family) {
+		case AF_INET:
+			return sizeof(struct sockaddr_in);
+		case AF_INET6:
+			return sizeof(struct sockaddr_in6);
+	}
+	return namelen;
+}
+
 #ifndef __alpha__
 static int
 linux_to_bsd_domain(int domain)
@@ -373,7 +394,7 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 
 	bsd_args.s = linux_args.s;
 	bsd_args.name = (caddr_t)linux_args.name;
-	bsd_args.namelen = linux_args.namelen;
+	bsd_args.namelen = linux_to_bsd_namelen(bsd_args.name, linux_args.namelen);
 	return (bind(td, &bsd_args));
 }
 
@@ -407,7 +428,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 
 	bsd_args.s = linux_args.s;
 	bsd_args.name = (caddr_t)linux_args.name;
-	bsd_args.namelen = linux_args.namelen;
+	bsd_args.namelen = linux_to_bsd_namelen(bsd_args.name, linux_args.namelen);
 	error = connect(td, &bsd_args);
 	if (error != EISCONN)
 		return (error);
