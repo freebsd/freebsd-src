@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: periodic.sh,v 1.4 1997/08/16 17:08:35 pst Exp $
+# $Id: periodic.sh,v 1.5 1997/08/19 16:49:35 pst Exp $
 #
 # Run nightly periodic scripts
 #
@@ -57,7 +57,7 @@ echo "Subject: $host $run run output"
 
 for dir in $dirlist ; do
     for file in $dir/* ; do
-	if [ -x $file ] ; then
+	if [ -x $file -a ! -d $file ] ; then
 	    $file
 	fi
     done
