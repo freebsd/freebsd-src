@@ -50,6 +50,7 @@
 #include <sys/buf.h>
 #include <sys/unistd.h>
 #include <sys/user.h>
+#include <sys/vmmeter.h>
 
 #include <dev/ofw/openfirm.h>
 
@@ -59,50 +60,65 @@
 #include <machine/cpu.h>
 #include <machine/frame.h>
 #include <machine/md_var.h>
+#include <machine/tstate.h>
 
+/* XXX: it seems that all that is in here should really be MI... */
 void
 cpu_exit(struct proc *p)
 {
-	TODO;
+
+	PROC_LOCK(p);
+	mtx_lock_spin(&sched_lock);
+	while (mtx_owned(&Giant))
+		mtx_unlock_flags(&Giant, MTX_NOSWITCH);
+
+	/*
+	 * We have to wait until after releasing all locks before
+	 * changing p_stat.  If we block on a mutex then we will be
+	 * back at SRUN when we resume and our parent will never
+	 * harvest us.
+	 */
+	p->p_stat = SZOMB;
+
+	wakeup(p->p_pptr);
+	PROC_UNLOCK_NOSWITCH(p);
+
+	cnt.v_swtch++;
+	cpu_throw();
+	panic("cpu_exit");
 }
 
 void
 cpu_fork(struct proc *p1, struct proc *p2, int flags)
 {
 	struct trapframe *tf;
-	struct frame *fp1;
-	struct frame *fp2;
+	struct frame *fp;
 	struct pcb *pcb;
 
 	if ((flags & RFPROC) == 0)
 		return;
 
 	pcb = &p2->p_addr->u_pcb;
+	p1->p_addr->u_pcb.pcb_y = rd(y);
+	p1->p_addr->u_pcb.pcb_fpstate.fp_fprs = rd(fprs);
 	if ((p1->p_frame->tf_tstate & TSTATE_PEF) != 0) {
 		mtx_lock_spin(&sched_lock);
 		savefpctx(&p1->p_addr->u_pcb.pcb_fpstate);
 		mtx_unlock_spin(&sched_lock);
 	}
+	/* Make sure the copied windows are spilled. */
+	__asm __volatile("flushw");
+	/* Copy the pcb (this will copy the windows saved in the pcb, too). */
 	bcopy(&p1->p_addr->u_pcb, pcb, sizeof(*pcb));
 
-	/* The initial window for the process. */
-	fp1 = (struct frame *)((caddr_t)pcb + UPAGES * PAGE_SIZE) - 1;
-	/* The trap frame. */
-	tf = (struct trapframe *)fp1 - 1;
-	bcopy(p1->p_frame, tf, sizeof(*tf) + sizeof(*fp1));
+	tf = (struct trapframe *)((caddr_t)p2->p_addr + UPAGES * PAGE_SIZE) - 1;
+	bcopy(p1->p_frame, tf, sizeof(*tf));
 	p2->p_frame = tf;
-	/* The window cpu_switch will load. */
-	fp2 = (struct frame *)tf - 1;
-	fp2->f_local[0] = (u_long)fork_return;
-	fp2->f_local[1] = (u_long)p2;
-	fp2->f_local[2] = (u_long)tf;
-	/*
-	 * Fake the frame pointer of the window to point to the initial window
-	 * on the stack. The initial window's stack pointer will later be
-	 * restored from the trap frame.
-	 */
-	fp2->f_fp = (u_long)fp1 - SPOFF;
-	pcb->pcb_fp = (u_long)fp2 - SPOFF;
+	fp = (struct frame *)tf - 1;
+	fp->f_local[0] = (u_long)fork_return;
+	fp->f_local[1] = (u_long)p2;
+	fp->f_local[2] = (u_long)tf;
+	pcb->pcb_fp = (u_long)fp - SPOFF;
 	pcb->pcb_pc = (u_long)fork_trampoline - 8;
 }
 
