@@ -80,14 +80,29 @@ static Elf32_Brandinfo freebsd_brand_info = {
 						ELFOSABI_FREEBSD,
 						EM_PPC,
 						"FreeBSD",
-						"",
+						NULL,
 						"/libexec/ld-elf.so.1",
-						&elf32_freebsd_sysvec
+						&elf32_freebsd_sysvec,
+						NULL,
 					  };
 
 SYSINIT(elf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf32_insert_brand_entry,
 	&freebsd_brand_info);
+
+static Elf32_Brandinfo freebsd_brand_oinfo = {
+						ELFOSABI_FREEBSD,
+						EM_PPC,
+						"FreeBSD",
+						NULL,
+						"/usr/libexec/ld-elf.so.1",
+						&elf32_freebsd_sysvec,
+						NULL,
+					  };
+
+SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
+	(sysinit_cfunc_t) elf32_insert_brand_entry,
+	&freebsd_brand_oinfo);
 
 /* Process one elf relocation with addend. */
 static int

@@ -899,7 +899,8 @@ static Elf32_Brandinfo linux_brand = {
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.1",
-					&elf_linux_sysvec
+					&elf_linux_sysvec,
+					NULL,
 				 };
 
 static Elf32_Brandinfo linux_glibc2brand = {
@@ -908,7 +909,8 @@ static Elf32_Brandinfo linux_glibc2brand = {
 					"Linux",
 					"/compat/linux",
 					"/lib/ld-linux.so.2",
-					&elf_linux_sysvec
+					&elf_linux_sysvec,
+					NULL,
 				 };
 
 Elf32_Brandinfo *linux_brandlist[] = {

@@ -708,6 +708,8 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 		goto fail;
 	}
 	sv = brand_info->sysvec;
+	if (interp != NULL && brand_info->interp_newpath != NULL)
+		interp = brand_info->interp_newpath;
 
 	if ((error = exec_extract_strings(imgp)) != 0)
 		goto fail;
@@ -818,21 +820,24 @@ __CONCAT(exec_, __elfN(imgact))(struct image_params *imgp)
 	imgp->entry_addr = entry;
 
 	imgp->proc->p_sysent = sv;
-	if (interp != NULL) {
+	if (interp != NULL && brand_info->emul_path != NULL &&
+	    brand_info->emul_path[0] != '\0') {
 		path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
 		snprintf(path, MAXPATHLEN, "%s%s", brand_info->emul_path,
 		    interp);
-		if ((error = __elfN(load_file)(imgp->proc, path, &addr,
-		    &imgp->entry_addr, sv->sv_pagesize)) != 0) {
-			if ((error = __elfN(load_file)(imgp->proc, interp,
-			    &addr, &imgp->entry_addr, sv->sv_pagesize)) != 0) {
-				uprintf("ELF interpreter %s not found\n",
-				    path);
-				free(path, M_TEMP);
-				goto fail;
-			}
-		}
+		error = __elfN(load_file)(imgp->proc, path, &addr,
+		    &imgp->entry_addr, sv->sv_pagesize);
 		free(path, M_TEMP);
+		if (error == 0)
+			interp = NULL;
+	}
+	if (interp != NULL) {
+		error = __elfN(load_file)(imgp->proc, interp, &addr,
+		    &imgp->entry_addr, sv->sv_pagesize);
+		if (error != 0) {
+			uprintf("ELF interpreter %s not found\n", interp);
+			goto fail;
+		}
 	}
 
 	/*
