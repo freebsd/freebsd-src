@@ -225,7 +225,7 @@ device		awi		# BayStack 660 and others
 device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.
 #device		wl		# Older non 802.11 Wavelan wireless NIC.
 
-# Pseudo devices - the number indicates how many units to allocate.
+# Pseudo devices.
 device		random		# Entropy device
 device		loop		# Network loopback
 device		ether		# Ethernet support
