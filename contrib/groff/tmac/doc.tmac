@@ -6124,14 +6124,30 @@
 .\" NS width register `Rv' set in doc-common
 .\" NS
 .\" NS local variables:
-.\" NS   doc-str-Rv-prefix
-.\" NS   doc-str-Rv-suffix
+.\" NS   doc-str-Rv-std-prefix
+.\" NS   doc-str-Rv-std-suffix
+.\" NS   doc-str-Rv-stds-prefix
+.\" NS   doc-str-Rv-stds-and
+.\" NS   doc-str-Rv-stds-suffix
+.\" NS   doc-str-Rv-std0
 .
-.ds doc-str-Rv-prefix "The
-.ds doc-str-Rv-suffix "function returns the value\~0 if successful;
-.as doc-str-Rv-suffix " otherwise the value\~-1 is returned and
-.as doc-str-Rv-suffix " the global variable \*[doc-Va-font]errno\f[P]
-.as doc-str-Rv-suffix " is set to indicate the error.
+.ds doc-str-Rv-std-prefix "The
+.ds doc-str-Rv-std-suffix "function returns the value\~0 if successful;
+.as doc-str-Rv-std-suffix " otherwise the value\~-1 is returned and
+.as doc-str-Rv-std-suffix " the global variable \*[doc-Va-font]errno\f[P]
+.as doc-str-Rv-std-suffix " is set to indicate the error.
+.
+.ds doc-str-Rv-stds-prefix "The
+.ds doc-str-Rv-stds-and    "and
+.ds doc-str-Rv-stds-suffix "functions return the value\~0 if successful;
+.as doc-str-Rv-stds-suffix " otherwise the value\~-1 is returned and
+.as doc-str-Rv-stds-suffix " the global variable \*[doc-Va-font]errno\f[P]
+.as doc-str-Rv-stds-suffix " is set to indicate the error.
+.
+.ds doc-str-Rv-std0 "Upon successful completion, the value\~0 is returned;
+.as doc-str-Rv-std0 " otherwise the value\~-1 is returned and
+.as doc-str-Rv-std0 " the global variable \*[doc-Va-font]errno\f[P]
+.as doc-str-Rv-std0 " is set to indicate the error.
 .
 .de Rv
 .
@@ -6144,7 +6160,7 @@
 .  \}
 .
 .  if !\n[.$] \{\
-.    tm Usage: .Rv [-std] <function> (#\n[.c])
+.    tm Usage: .Rv [-std] [<function> ...] (#\n[.c])
 .    return
 .  \}
 .
@@ -6153,10 +6169,90 @@
 .    if ((\n[doc-reg-Rv] < 2) : (\n[doc-reg-Rv] > 3)) \
 .      tm Usage: .Rv -std in sections 2 and 3 only (#\n[.c])
 .    br
-.    nop \)\*[doc-str-Rv-prefix]
-.    Fn \$2
-.    nop \)\*[doc-str-Rv-suffix]
+.    shift
+.    ie (\n[.$] > 1) \{\
+.      nop \)\*[doc-str-Rv-stds-prefix]
+.      nr doc-reg-Rv 1
+.      while (\n[doc-reg-Rv] < \n[.$]) \{\
+.        ie (\n[.$] > 2) \
+.          Fn \$\n[doc-reg-Rv] ,
+.        el \
+.          Fn \$\n[doc-reg-Rv]
+.        nr doc-reg-Rv +1
+.      \}
+.      nop \)\*[doc-str-Rv-stds-and]
+.      Fn \$\n[.$]
+.      nop \)\*[doc-str-Rv-stds-suffix]
+.    \}
+.    el \{ .ie (\n[.$] == 1) \{\
+.      nop \)\*[doc-str-Rv-std-prefix]
+.      Fn \$1
+.      nop \)\*[doc-str-Rv-std-suffix]
+.    \}
+.    el \{\
+.      nop \)\*[doc-str-Rv-std0]
+.  \}\}\}
+..
+.
+.
+.\" NS Ex user macro
+.\" NS   exit status
+.\" NS
+.\" NS width register `Ex' set in doc-common
+.\" NS
+.\" NS local variables:
+.\" NS   doc-str-Ex-std-prefix
+.\" NS   doc-str-Ex-std-suffix
+.
+.ds doc-str-Ex-std-prefix "The
+.ds doc-str-Ex-std-suffix "utility exits\~0 on success,
+.as doc-str-Ex-std-suffix " and\~>0 if an error occurs.
+.
+.ds doc-str-Ex-stds-prefix "The
+.als doc-str-Ex-stds-and doc-str-Rv-stds-and
+.ds doc-str-Ex-stds-suffix "utilities exit\~0 on success,
+.as doc-str-Ex-stds-suffix " and\~>0 if an error occurs.
+.
+.de Ex
+.
+.\" XXX: what does this function without `-std'?
+.
+.  if \n[doc-arg-limit] \{\
+.    tm Usage: .Ex not callable by other macros (#\n[.c])
+.    doc-reset-args
+.    return
 .  \}
+.
+.  if !\n[.$] \{\
+.    tm Usage: .Ex [-std] [<utility> ...] (#\n[.c])
+.    return
+.  \}
+.
+.  if "\$1"-std" \{\
+.    nr doc-reg-Ex \*[doc-section]
+.    if !((\n[doc-reg-Ex] == 1) : (\n[doc-reg-Ex] == 6) : (\n[doc-reg-Ex] == 8)) \
+.      tm Usage: .Ex -std in sections 1, 6 and 8 only (#\n[.c])
+.    br
+.    shift
+.    ie (\n[.$] > 1) \{\
+.      nop \)\*[doc-str-Ex-stds-prefix]
+.      nr doc-reg-Ex 1
+.      while (\n[doc-reg-Ex] < \n[.$]) \{\
+.        ie (\n[.$] > 2) \
+.          Nm \$\n[doc-reg-Ex] ,
+.        el \
+.          Nm \$\n[doc-reg-Ex]
+.        nr doc-reg-Ex +1
+.      \}
+.      nop \)\*[doc-str-Ex-stds-and]
+.      Nm \$\n[.$]
+.      nop \)\*[doc-str-Ex-stds-suffix]
+.    \}
+.    el \{\
+.      nop \)\*[doc-str-Ex-std-prefix]
+.      Nm \$1
+.      nop \)\*[doc-str-Ex-std-suffix]
+.  \}\}
 ..
 .
 .
@@ -6223,9 +6319,6 @@
 .als Db doc-defunct-macro
 .
 .als Ds doc-defunct-macro
-.
-.als Ex doc-defunct-macro
-.ds doc-Ex-usage use .D1
 .
 .als Or doc-defunct-macro
 .ds doc-Or-usage use `|'
