@@ -25,7 +25,7 @@ AFLAGS+=--defsym FLAGS=${B1FLAGS} \
 	--defsym SIOFMT=${B2SIOFMT} \
 	--defsym SIOSPD=${BOOT_COMCONSOLE_SPEED}
 
-CFLAGS=	-elf -ffreestanding -Os -fno-builtin \
+CFLAGS=	-Os \
 	-fno-guess-branch-probability -fomit-frame-pointer\
 	-mno-align-long-strings \
 	-mrtd \
