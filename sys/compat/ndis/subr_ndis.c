@@ -209,6 +209,9 @@ __stdcall static ndis_list_entry *ndis_insert_tail(ndis_list_entry *,
 __stdcall static uint8_t ndis_sync_with_intr(ndis_miniport_interrupt *,
 	void *, void *);
 __stdcall static void ndis_time(uint64_t *);
+__stdcall static void ndis_init_string(ndis_unicode_string **, char *);
+__stdcall static void ndis_free_string(ndis_unicode_string *);
+__stdcall static ndis_status ndis_remove_miniport(ndis_handle *);
 __stdcall static void dummy(void);
 
 
@@ -1851,8 +1854,47 @@ ndis_time(tval)
 {
 	struct timespec		ts;
 	nanotime(&ts);
-	*tval = (ts.tv_nsec / 100) + (ts.tv_nsec * 10000000);  
+	*tval = (ts.tv_nsec / 100) + (ts.tv_nsec * 10000000);
+	*tval += 11644473600;
 	return;
+}
+
+__stdcall static void
+ndis_init_string(dst, src)
+	ndis_unicode_string	**dst;
+	char			*src;
+{
+	ndis_unicode_string	*u;
+
+	u = malloc(sizeof(ndis_unicode_string), M_DEVBUF, M_NOWAIT);
+	if (u == NULL)
+		return;
+	u->nus_buf = NULL;
+	if (ndis_ascii_to_unicode(src, &u->nus_buf)) {
+		free(u, M_DEVBUF);
+		return;
+	}
+	u->nus_len = u->nus_maxlen = strlen(src) * 2;
+	return;
+}
+
+__stdcall static void
+ndis_free_string(str)
+	ndis_unicode_string	*str;
+{
+	if (str == NULL)
+		return;
+	if (str->nus_buf != NULL)
+		free(str->nus_buf, M_DEVBUF);
+	free(str, M_DEVBUF);
+	return;
+}
+
+__stdcall static ndis_status
+ndis_remove_miniport(adapter)
+	ndis_handle		*adapter;
+{
+	return(NDIS_STATUS_SUCCESS);
 }
 
 __stdcall static void
@@ -1863,6 +1905,9 @@ dummy()
 }
 
 image_patch_table ndis_functbl[] = {
+	{ "NdisMRemoveMiniport",	(FUNC)ndis_remove_miniport },
+	{ "NdisInitializeString",	(FUNC)ndis_init_string },	
+	{ "NdisFreeString",		(FUNC)ndis_free_string },	
 	{ "NdisGetCurrentSystemTime",	(FUNC)ndis_time },
 	{ "NdisMSynchronizeWithInterrupt", (FUNC)ndis_sync_with_intr },
 	{ "NdisMAllocateSharedMemoryAsync", (FUNC)ndis_alloc_sharedmem_async },
