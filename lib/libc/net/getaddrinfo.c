@@ -105,6 +105,9 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdio.h>
 #include <errno.h>
+
+#include "res_config.h"
+
 #ifdef DEBUG
 #include <syslog.h>
 #endif
@@ -1119,6 +1122,72 @@ ip6_str2scopeid(scope, sin6)
 }
 #endif
 
+#ifdef RESOLVSORT
+struct addr_ptr {
+	struct addrinfo *ai;
+	int aval;
+};
+
+static int
+addr4sort(struct addrinfo *sentinel)
+{
+	struct addrinfo *ai;
+	struct addr_ptr *addrs, addr;
+	struct sockaddr_in *sin;
+	int naddrs, i, j;
+	int needsort = 0;
+
+	if (!sentinel)
+		return -1;
+	naddrs = 0;
+	for (ai = sentinel->ai_next; ai; ai = ai->ai_next)
+		naddrs++;
+	if (naddrs < 2)
+		return 0;		/* We don't need sorting. */
+	if ((addrs = malloc(sizeof(struct addr_ptr) * naddrs)) == NULL)
+		return -1;
+	i = 0;
+	for (ai = sentinel->ai_next; ai; ai = ai->ai_next) {
+		sin = (struct sockaddr_in *)ai->ai_addr;
+		for (j = 0; (unsigned)j < _res.nsort; j++) {
+			if (_res.sort_list[j].addr.s_addr == 
+			    (sin->sin_addr.s_addr & _res.sort_list[j].mask))
+				break;
+		}
+		addrs[i].ai = ai;
+		addrs[i].aval = j;
+		if (needsort == 0 && i > 0 && j < addrs[i - 1].aval)
+			needsort = i;
+		i++;
+	}
+	if (!needsort) {
+		free(addrs);
+		return 0;
+	}
+
+	while (needsort < naddrs) {
+	    for (j = needsort - 1; j >= 0; j--) {
+		if (addrs[j].aval > addrs[j+1].aval) {
+		    addr = addrs[j];
+		    addrs[j] = addrs[j + 1];
+		    addrs[j + 1] = addr;
+		} else
+		    break;
+	    }
+	    needsort++;
+	}
+
+	ai = sentinel;
+	for (i = 0; i < naddrs; ++i) {
+		ai->ai_next = addrs[i].ai;
+		ai = ai->ai_next;
+	}
+	ai->ai_next = NULL;
+	free(addrs);
+	return 0;
+}
+#endif /*RESOLVSORT*/
+
 #ifdef DEBUG
 static const char AskedForGot[] =
 	"gethostby*.getanswer: asked for \"%s\", got \"%s\"";
@@ -1313,6 +1382,19 @@ getanswer(answer, anslen, qname, qtype, pai)
 			haveanswer++;
 	}
 	if (haveanswer) {
+#if defined(RESOLVSORT)
+		/*
+		 * We support only IPv4 address for backward
+		 * compatibility against gethostbyname(3).
+		 */
+		if (_res.nsort && qtype == T_A) {
+			if (addr4sort(&sentinel) < 0) {
+				freeaddrinfo(sentinel.ai_next);
+				h_errno = NO_RECOVERY;
+				return NULL;
+			}
+		}
+#endif /*RESOLVSORT*/
 		if (!canonname)
 			(void)get_canonname(pai, sentinel.ai_next, qname);
 		else
