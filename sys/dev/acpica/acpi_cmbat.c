@@ -362,6 +362,7 @@ acpi_cmbat_probe(device_t dev)
 {
 
 	if ((acpi_get_type(dev) == ACPI_TYPE_DEVICE) &&
+	    !acpi_disabled("cmbat") &&
 	    acpi_MatchHid(dev, "PNP0C0A")) {
 		/*
 		 * Set device description.
