@@ -87,7 +87,7 @@ struct kse {
 	} ke_state;			/* (j) KSE status. */
 	int		ke_cpticks;	/* (j) Ticks of cpu time. */
 	struct runq	*ke_runq;	/* runq the kse is currently on */
-	int		ke_pinned;	/* nested count of pinned to a cpu */
+	int		ke_pinned;	/* (k) nested count, pinned to a cpu */
 };
 
 #define ke_proc		ke_thread->td_proc
@@ -764,7 +764,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
-
 	/* 
 	 * We are volunteering to switch out so we get to nominate
 	 * a successor for the rest of our quantum
@@ -1173,5 +1172,26 @@ sched_pctcpu(struct thread *td)
 
 	return (0);
 }
+
+void
+sched_pin(void)
+{
+	curthread->td_sched->ke_pinned++;
+}
+
+ void
+sched_unpin(void)
+{  
+	curthread->td_sched->ke_pinned--;
+}
+
+#ifdef INVARIANTS
+int
+sched_ispinned(void)
+{
+	return (curthread->td_sched->ke_pinned);
+}
+#endif
+
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"
