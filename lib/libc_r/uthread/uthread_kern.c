@@ -206,12 +206,6 @@ _thread_kern_scheduler(void)
 			PANIC("Unable to restore alternate signal stack");
 	}
 
-	/* Are there pending signals for this thread? */
-	if (curthread->check_pending != 0) {
-		curthread->check_pending = 0;
-		_thread_sig_check_pending(curthread);
-	}
-
 	/*
 	 * Enter a scheduling loop that finds the next thread that is
 	 * ready to run. This loop completes when there are no more threads
@@ -334,6 +328,21 @@ _thread_kern_scheduler(void)
 				/* Insert into the work queue: */
 				PTHREAD_WORKQ_INSERT(curthread);
 				break;
+			}
+
+			/*
+			 * Are there pending signals for this thread?
+			 *
+			 * This check has to be performed after the thread
+			 * has been placed in the queue(s) appropriate for
+			 * its state.  The process of adding pending signals
+			 * can change a threads state, which in turn will
+			 * attempt to add or remove the thread from any
+			 * scheduling queue to which it belongs.
+			 */
+			if (curthread->check_pending != 0) {
+				curthread->check_pending = 0;
+				_thread_sig_check_pending(curthread);
 			}
 		}
 
