@@ -89,17 +89,13 @@ GLOBAL(powersave)
 	.long	0
 
 #define	INTSTK		8192		/* 8K interrupt stack */
-
-/*
- * Dummy interrupt table to keep sysctl happy until
- * it's worked out what to do with naming
- */
+#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
-	.asciz "dummy"
+	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 GLOBAL(eintrnames)
 	.align 4
 GLOBAL(intrcnt)
-	.long 0
+	.space	INTRCNT_COUNT * 4 * 2
 GLOBAL(eintrcnt)
 
 /*

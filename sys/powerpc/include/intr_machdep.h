@@ -38,6 +38,9 @@ struct intr_handler {
 	struct		ithd *ih_ithd;
 	u_int		ih_irq;
 	u_int		ih_flags;
+	u_int 		ih_index;
+	u_long 		*ih_count;
+	u_long 		*ih_straycount;
 };
 
 void	intr_init(void (*)(void), int, void (*)(uintptr_t), void (*)(uintptr_t));
