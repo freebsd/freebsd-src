@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.45 1997/10/10 09:43:57 peter Exp $
+ *	$Id: exception.s,v 1.46 1997/10/27 16:35:34 bde Exp $
  */
 
 #include "npx.h"
@@ -39,9 +39,7 @@
 #include <machine/asmacros.h>
 #include <machine/ipl.h>
 #include <machine/lock.h>
-#ifdef VM86
 #include <machine/psl.h>
-#endif
 #include <machine/trap.h>
 #ifdef SMP
 #include <machine/smptests.h>		/** CPL_AND_CML, REAL_ */
