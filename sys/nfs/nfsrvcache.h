@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsrvcache.h	8.3 (Berkeley) 3/30/95
- * $Id$
+ * $Id: nfsrvcache.h,v 1.8 1997/02/22 09:42:51 peter Exp $
  */
 
 
@@ -56,7 +56,7 @@ struct nfsrvcache {
 		int ru_repstat;			/* Reply status */
 	} rc_un;
 	union nethostaddr rc_haddr;		/* Host address */
-	short	rc_proc;			/* rpc proc number */
+	u_int32_t rc_proc;			/* rpc proc number */
 	u_char	rc_state;		/* Current state of request */
 	u_char	rc_flag;		/* Flag bits */
 };
