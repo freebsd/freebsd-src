@@ -25,6 +25,7 @@ static const char rcsid[] =
 
 #include "lib.h"
 #include <err.h>
+#include <libgen.h>
 #include <sys/signal.h>
 #include <sys/param.h>
 #include <sys/mount.h>
@@ -46,7 +47,7 @@ find_play_pen(char *pen, off_t sz)
     char *cp;
     struct stat sb;
 
-    if (pen[0] && stat(pen, &sb) != FAIL && (min_free(pen) >= sz))
+    if (pen[0] && !fexists(pen) == FAIL && (min_free(dirname(pen)) >= sz))
 	return pen;
     else if ((cp = getenv("PKG_TMPDIR")) != NULL && stat(cp, &sb) != FAIL && (min_free(cp) >= sz))
 	sprintf(pen, "%s/instmp.XXXXXX", cp);
