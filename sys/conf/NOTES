@@ -1349,7 +1349,6 @@ options 	NATM			#native ATM
 #device uart0	at isa? port 0x330 irq 5
 
 # The newpcm driver (use INSTEAD of snd0 and all VOXWARE drivers!).
-# Note that motherboard sound devices may require options PNPBIOS.
 #
 # Supported cards include:
 # Creative SoundBlaster ISA PnP/non-PnP
@@ -2336,7 +2335,6 @@ options 	NMBCLUSTERS=1024
 #options 	OLTR_NO_HAWKEYE_MAC
 #options 	OLTR_NO_TMS_MAC
 options 	PANIC_REBOOT_WAIT_TIME=16
-options 	PNPBIOS
 options 	PSM_DEBUG=1
 options 	SCSI_NCR_DEBUG
 options 	SCSI_NCR_MAX_SYNC=10000
