@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.14 1995/10/26 23:57:18 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.15 1995/11/04 14:43:30 bde Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -35,14 +35,14 @@
 				 * based boards.  The aic7870 have 16 internal
 				 * SCBs, but external SRAM bumps this to 255.
 				 * The aic7770 family have only 4, and the 
-				 * aic7850 have only 3.
+				 * aic7850 has only 3.
 				 */
 
 /* #define AHCDEBUG */
 
 extern int bootverbose;
 typedef unsigned long int physaddr;
-extern int  ahc_unit;
+extern u_long ahc_unit;
 
 struct ahc_dma_seg {
         physaddr addr;
@@ -146,6 +146,7 @@ struct scb {
 };
 
 struct ahc_data {
+	int	unit;
 	ahc_type type;
 	ahc_flag flags;
 	u_long	baseport;
@@ -172,10 +173,50 @@ struct ahc_data {
 	u_char	pause;
 };
 
+/* Different debugging levels used when AHC_DEBUG is defined */
+#define AHC_SHOWMISC	0x0001
+#define AHC_SHOWCMDS	0x0002
+#define AHC_SHOWSCBS	0x0004
+#define AHC_SHOWABORTS	0x0008
+#define AHC_SHOWSENSE	0x0010
+#define AHC_DEBUG 
+
+extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
+
+/*
+ * Since the sequencer can disable pausing in a critical section, we
+ * must loop until it actually stops.
+ * XXX Should add a timeout in here??
+ */
+#define PAUSE_SEQUENCER(ahc)      \
+        outb(HCNTRL + ahc->baseport, ahc->pause);   \
+				\
+        while ((inb(HCNTRL + ahc->baseport) & PAUSE) == 0)             \
+                        ;
+
+#define UNPAUSE_SEQUENCER(ahc)    \
+        outb( HCNTRL + ahc->baseport, ahc->unpause )
+
+/*
+ * Restart the sequencer program from address zero
+ */
+#define RESTART_SEQUENCER(ahc)    \
+                do {                                    \
+                        outb( SEQCTL + ahc->baseport, SEQRESET|FASTMODE );    \
+                } while (inb(SEQADDR0 + ahc->baseport) != 0 &&   \
+			 inb(SEQADDR1 + ahc->baseport != 0));     \
+                                                        \
+                UNPAUSE_SEQUENCER(ahc);
+
+
 extern struct ahc_data *ahcdata[NAHC];
 
-int ahcprobe __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
+void ahc_reset __P((u_long iobase));
+struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
+void ahc_free __P((struct ahc_data *));
+int ahc_init __P((int unit));
 int ahc_attach __P((int unit));
-int ahc_pci_intr __P((void *vunit));
+void ahc_eisa_intr __P((void *arg));
+int ahcintr __P((void *arg));
 
 #endif  /* _AIC7XXX_H_ */
