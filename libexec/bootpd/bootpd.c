@@ -1258,7 +1258,7 @@ dovend_rfc1048(bp, hp, bootsize)
 			byte *p, *ep;
 			byte tag, len;
 			short msgsz = 0;
-			
+
 			p = vp + 4;
 			ep = p + BP_VEND_LEN - 4;
 			while (p < ep) {
