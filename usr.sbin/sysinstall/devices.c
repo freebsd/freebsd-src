@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.9 1995/05/07 22:07:50 jkh Exp $
+ * $Id: devices.c,v 1.10 1995/05/08 01:27:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,7 +48,7 @@
 #define CHUNK_START_ROW		5
 
 /* Get all device information for a given device class */
-Device *
+static Device *
 device_get_all(DeviceType which, int *ndevs)
 {
     char **names;
