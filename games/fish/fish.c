@@ -56,6 +56,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 #define	RANKS		13
@@ -76,6 +77,23 @@ int promode;
 int asked[RANKS], comphand[RANKS], deck[RANKS];
 int userasked[RANKS], userhand[RANKS];
 
+void	chkwinner __P((int player, int *hand));
+int	compmove __P((void));
+int	countbooks __P((int *hand));
+int	countcards __P((int *hand));
+int	drawcard __P((int player, int *hand));
+int	gofish __P((int askedfor, int player, int *hand));
+void	goodmove __P((int player, int move, int *hand, int *opphand));
+void	init __P((void));
+void 	instructions __P((void));
+int	nrandom __P((int n));
+void	printhand __P((int *hand));
+void	printplayer __P((int player));
+int	promove __P((void));
+void	usage __P((void));
+int 	usermove __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -125,8 +143,10 @@ istart:		for (;;) {
 		}
 	}
 	/* NOTREACHED */
+	return(EXIT_FAILURE);
 }
 
+int
 usermove()
 {
 	int n;
@@ -181,6 +201,7 @@ usermove()
 	/* NOTREACHED */
 }
 
+int
 compmove()
 {
 	static int lmove;
@@ -198,6 +219,7 @@ compmove()
 	return(lmove);
 }
 
+int
 promove()
 {
 	int i, max;
@@ -236,6 +258,7 @@ promove()
 	/* NOTREACHED */
 }
 
+int
 drawcard(player, hand)
 	int player;
 	int *hand;
@@ -258,6 +281,7 @@ drawcard(player, hand)
 	return(card);
 }
 
+int
 gofish(askedfor, player, hand)
 	int askedfor, player;
 	int *hand;
@@ -274,6 +298,7 @@ gofish(askedfor, player, hand)
 	return(0);
 }
 
+void
 goodmove(player, move, hand, opphand)
 	int player, move;
 	int *hand, *opphand;
@@ -297,6 +322,7 @@ goodmove(player, move, hand, opphand)
 	(void)printf("get another guess!\n");
 }
 
+void
 chkwinner(player, hand)
 	int player;
 	int *hand;
@@ -326,6 +352,7 @@ chkwinner(player, hand)
 	exit(0);
 }
 
+void
 printplayer(player)
 	int player;
 {
@@ -339,6 +366,7 @@ printplayer(player)
 	}
 }
 
+void
 printhand(hand)
 	int *hand;
 {
@@ -359,6 +387,7 @@ printhand(hand)
 	(void)putchar('\n');
 }
 
+int
 countcards(hand)
 	int *hand;
 {
@@ -369,6 +398,7 @@ countcards(hand)
 	return(count);
 }
 
+int
 countbooks(hand)
 	int *hand;
 {
@@ -385,6 +415,7 @@ countbooks(hand)
 	return(count);
 }
 
+void
 init()
 {
 	int i, rank;
@@ -403,14 +434,15 @@ init()
 	}
 }
 
+int
 nrandom(n)
 	int n;
 {
-	long random();
 
 	return((int)random() % n);
 }
 
+void
 instructions()
 {
 	int input;
@@ -428,6 +460,7 @@ instructions()
 	while ((input = getchar()) != EOF && input != '\n');
 }
 
+void
 usage()
 {
 	(void)fprintf(stderr, "usage: fish [-p]\n");
