@@ -299,8 +299,6 @@ ng_ether_detach(struct ifnet *ifp)
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
-	if (node == NULL)		/* no node (why not?), ignore */
-		return;
 	NG_NODE_REALLY_DIE(node);	/* Force real removal of node */
 	/*
 	 * We can't assume the ifnet is still around when we run shutdown
