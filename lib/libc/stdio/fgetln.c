@@ -50,7 +50,7 @@ static char sccsid[] = "@(#)fgetln.c	8.2 (Berkeley) 1/2/94";
  * so we add 1 here.
 #endif
  */
-__slbexpand(fp, newsize)
+int __slbexpand(fp, newsize)
 	FILE *fp;
 	size_t newsize;
 {

@@ -45,7 +45,7 @@ static char sccsid[] = "@(#)ferror.c	8.1 (Berkeley) 6/4/93";
  */
 #undef ferror
 
-ferror(fp)
+int ferror(fp)
 	FILE *fp;
 {
 	return (__sferror(fp));

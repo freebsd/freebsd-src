@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)flags.c	8.1 (Berkeley) 6/4/93";
  * to be passed to an open() syscall through *optr.
  * Return 0 on error.
  */
-__sflags(mode, optr)
+int __sflags(mode, optr)
 	register char *mode;
 	int *optr;
 {
