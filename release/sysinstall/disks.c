@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.82 1997/03/11 16:27:25 joerg Exp $
+ * $Id: disks.c,v 1.83 1997/04/20 16:46:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -247,27 +247,32 @@ diskPartition(Device *dev, Disk *d)
 	    break;
 
 	case 'A':
-	    rv = msgYesNo("Do you want to do this with a true partition entry\n"
-			  "so as to remain cooperative with any future possible\n"
-			  "operating systems on the drive(s)?");
-	    if (rv != 0) {
-		rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
-			       "uncooperative with other potential operating systems on the\n"
-			       "same disk.  It will lead instead to a totally dedicated disk,\n"
-			       "starting at the very first sector, bypassing all BIOS geometry\n"
-			       "considerations.  This precludes the existance of any boot\n"
-			       "manager or other stuff in sector 0, since the BSD bootstrap\n"
-			       "will live there.\n"
-			       "You will run into serious trouble with ST-506 and ESDI drives\n"
-			       "and possibly some IDE drives (e.g. drives running under the\n"
-			       "control of sort of disk manager).  SCSI drives are considerably\n"
-			       "less at risk.\n\n"
-			       "If, on the other hand, your goal is a dedicated FreeBSD machine\n"
-			       "and nothing else, this option is for you.\n\n"
-			       "Do you insist on dedicating the entire disk this way?");
+	    cp = variable_get(VAR_DEDICATE_DISK);
+	    if (!strcasecmp(cp, "always"))
+		rv = 1;
+	    else {
+		rv = msgYesNo("Do you want to do this with a true partition entry\n"
+			      "so as to remain cooperative with any future possible\n"
+			      "operating systems on the drive(s)?");
+		if (rv != 0 && strcasecmp(cp, "nowarn")) {
+		    rv = !msgYesNo("This is dangerous in that it will make the drive totally\n"
+				   "uncooperative with other potential operating systems on the\n"
+				   "same disk.  It will lead instead to a totally dedicated disk,\n"
+				   "starting at the very first sector, bypassing all BIOS geometry\n"
+				   "considerations.  This precludes the existance of any boot\n"
+				   "manager or other stuff in sector 0, since the BSD bootstrap\n"
+				   "will live there.\n"
+				   "You will run into serious trouble with ST-506 and ESDI drives\n"
+				   "and possibly some IDE drives (e.g. drives running under the\n"
+				   "control of sort of disk manager).  SCSI drives are considerably\n"
+				   "less at risk.\n\n"
+				   "If, on the other hand, your goal is a dedicated FreeBSD machine\n"
+				   "and nothing else, this option is for you.\n\n"
+				   "Do you insist on dedicating the entire disk this way?");
+		}
+		if (rv == -1)
+		    rv = 0;
 	    }
-	    if (rv == -1)
-		rv = 0;
 	    All_FreeBSD(d, rv);
 	    variable_set2(DISK_PARTITIONED, "yes");
 	    record_chunks(d);
