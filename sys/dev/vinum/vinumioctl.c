@@ -632,6 +632,7 @@ attachobject(struct vinum_ioctl_msg *msg)
 	    give_plex_to_volume(msg->otherobject, msg->index); /* and give it to the volume */
 	    update_plex_config(plex->plexno, 0);
 	    save_config();
+	    reply->error = 0;				    /* all went well */
 	}
     }
 }
