@@ -7,7 +7,12 @@ CFLAGS+=-traditional-cpp
 HIDEGAME=hidegame
 CLEANFILES+=setup data.c
 
+build-tools: setup
+
 data.c: glorkz setup
 	./setup ${.CURDIR}/glorkz > data.c
+
+setup: setup.o
+	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 .include <bsd.prog.mk>
