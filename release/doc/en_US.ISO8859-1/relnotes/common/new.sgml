@@ -125,20 +125,13 @@
     <title>Kernel Changes</title>
 
     <para arch="i386">The &man.cp.4; driver has been added for Cronyx Tau-PCI
-      synchronous serial adapters.
-    </para>
+      synchronous serial adapters.</para>
 
     <para arch="alpha">The &man.em.4; driver has been added to the kernel
-      on the installation media.
-    </para>
+      on the installation media.</para>
 
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.</para>
-
-    <para arch="i386">The &man.pbio.4; driver,
-      which supports direct access to
-      the Intel 8255A programmable peripheral interface (PPI)
-      chip running in mode 0 (simple I/O) has been added.</para>
 
     <para>Bugs in <function>vm_object_madvise()</function>,
       <function>vm_object_sync()</function>, and
@@ -154,6 +147,11 @@
 
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
+
+      <para arch="i386">The &man.pbio.4; driver,
+	which supports direct access to
+	the Intel 8255A programmable peripheral interface (PPI)
+	chip running in mode 0 (simple I/O) has been added.</para>
 
       <para arch="alpha">Support for the floppy interface is broken on
         DS10-class systems.  The kernel probes the hardware correctly but
@@ -211,7 +209,17 @@
       <para>The random ephemeral port allocation, which come from OpenBSD
 	has been implemented.  This is enabled by default and can be disabled
 	using the <varname>net.inet.ip.portrange.randomized</varname>
-	sysctl.</para>
+	sysctl.  Note that the randomization can lead to extremely
+	fast port reuse at high connection rates, which is causing
+	problems for some users.  To retain the security advantage
+	of random ports and ensure correct operation, it is disabled
+	during periods of high connection rates.
+	More specifically, when the connection rate exceeds
+	the value of the <varname>net.inet.ip.portrange.randomcps</varname> sysctl
+	(<literal>10</literal> by default), the randomization will be disabled for
+	seconds specified in the
+	<varname>net.inet.ip.portrange.randomtime</varname> sysctl
+	(<literal>45</literal> by default).</para>
 
       <para>&man.ipfw.4; now supports lookup tables.  This feature is
         useful for handling large sparse address sets.</para>
@@ -231,7 +239,8 @@
 	be silently dropped. For connections in all other states,
 	a reset anywhere in the window will cause the connection
 	to be reset.  All other segments will be silently dropped.
-	You can still disable this and use the conventional behavior
+	Note that this breaks the RFC 793 specification and you
+	can still disable this and use the conventional behavior
 	by setting a new sysctl <varname>net.inet.tcp.insecure_rst</varname>
 	to <literal>1</literal>.</para>
     </sect3>
@@ -341,6 +350,11 @@
       (based on Red Hat Linux 7.1)
       to <filename role="package">linux_base-8</filename>
       (based on Red Hat Linux 8.0).</para>
+
+    <para>The supported release of <application>X Window System</application>
+      has been updated to <application>XFree86</application> 4.4.0.
+      Note that Xorg X11R6.8.1 is also available in the FreeBSD Ports Collection
+      (<filename role="package">x11/xorg</filename>).</para>
 
     <para>The <varname>NOSECURE</varname> variable in <filename>make.conf</filename>
       has been removed because it is broken and no longer supported.
