@@ -369,6 +369,15 @@
       from IDE disks. This means you will have to use a SCSI disk as
       the boot device.</para>
 
+      <para>The NoName is somewhat stubborn when it comes to serial
+      consoles. It needs 
+      <screen>&gt;&gt;&gt; <userinput>SET CONSOLE SERIAL</userinput></screen>
+      before it goes for a serial console. Pulling the keyboard from 
+      the machine is not sufficient, like it is on most other Alpha models. 
+      Going back to a graphical console needs
+      <screen>&gt;&gt;&gt; <userinput>SET CONSOLE GRAPHICS</userinput></screen>
+      at the serial console.</para>
+
       <para>Make sure you use true 36 bit SIMMs, and only FPM (Fast
       Page Mode) DRAM. EDO DRAM or SIMMs with fake parity <emphasis>will not
       work</emphasis>. The board uses the 4 extra bits for ECC. 33
