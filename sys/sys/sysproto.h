@@ -788,7 +788,7 @@ struct	modfnext_args {
 	int	modid;	char modid_[PAD_(int)];
 };
 struct	modfind_args {
-	char *	name;	char name_[PAD_(char *)];
+	const char *	name;	char name_[PAD_(const char *)];
 };
 struct	kldload_args {
 	const char *	file;	char file_[PAD_(const char *)];

@@ -435,7 +435,7 @@
 300	STD	BSD	{ int modnext(int modid); }
 301	STD	BSD	{ int modstat(int modid, struct module_stat* stat); }
 302	STD	BSD	{ int modfnext(int modid); }
-303	STD	BSD	{ int modfind(char *name); }
+303	STD	BSD	{ int modfind(const char *name); }
 304	STD	BSD	{ int kldload(const char *file); }
 305	STD	BSD	{ int kldunload(int fileid); }
 306	STD	BSD	{ int kldfind(const char *file); }
