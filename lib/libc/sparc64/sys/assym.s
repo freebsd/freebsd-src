@@ -35,3 +35,5 @@
 #define	UF_STATE	0xb0
 #define	UF_FSR		0xb8
 #define	UF_SIZEOF	0xc0
+
+#define	SF_UC		0x0
