@@ -406,12 +406,6 @@ ntoskrnl_time(tval)
  * synchronization event wakes up just one. Also, a synchronization event
  * is auto-clearing, which means we automatically set the event back to
  * the non-signalled state once the wakeup is done.
- *
- * The problem with KeWaitForSingleObject() is that it can be called
- * either from the main kernel 'process' or from a kthread. When sleeping
- * inside a kernel thread, we need to use kthread_resume(), but that
- * won't work in the kernel context proper. So if kthread_resume() returns
- * EINVAL, we need to use tsleep() instead.
  */
 
 __stdcall uint32_t
@@ -1034,8 +1028,8 @@ ntoskrnl_lock_dpc(/*lock*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	while (atomic_cmpset_int((volatile u_int *)lock, 0, 1) == 0)
-		/* do noting */;
+	while (atomic_cmpset_acq_int((volatile u_int *)lock, 0, 1) == 0)
+		/* do nothing */;
 
 	return;
 }
@@ -1047,7 +1041,7 @@ ntoskrnl_unlock_dpc(/*lock*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (lock));
 
-	atomic_cmpset_int((volatile u_int *)lock, 1, 0);
+	atomic_cmpset_rel_int((volatile u_int *)lock, 1, 0);
 
 	return;
 }

@@ -266,6 +266,7 @@ hal_lock(/*lock*/void)
 
 	oldirql = FASTCALL1(hal_raise_irql, DISPATCH_LEVEL);
 	FASTCALL1(ntoskrnl_lock_dpc, lock);
+
 	return(oldirql);
 }
 
@@ -288,10 +289,6 @@ hal_irql(void)
 {
 	if (AT_DISPATCH_LEVEL(curthread))
 		return(DISPATCH_LEVEL);
-	if (AT_DIRQL_LEVEL(curthread))
-		return(DEVICE_LEVEL);
-	if (AT_HIGH_LEVEL(curthread))
-		return(HIGH_LEVEL);
 	return(PASSIVE_LEVEL);
 }
 
@@ -313,27 +310,13 @@ hal_raise_irql(/*irql*/ void)
 
 	__asm__ __volatile__ ("" : "=c" (irql));
 
-	switch(irql) {
-	case HIGH_LEVEL:
-		oldirql = hal_irql();
-		critical_enter();
-		break;
-	case DEVICE_LEVEL:
-		mtx_lock_spin(&sched_lock);
-		oldirql = curthread->td_priority;
-		sched_prio(curthread, PI_REALTIME);
-		mtx_unlock_spin(&sched_lock);
-		break;
-	case DISPATCH_LEVEL:
-		mtx_lock_spin(&sched_lock);
-		oldirql = curthread->td_priority;
-		sched_prio(curthread, PI_SOFT);
-		mtx_unlock_spin(&sched_lock);
-		break;
-	default:
-		panic("can't raise IRQL to unknown level %d", irql);
-		break;
-	}
+	if (irql < hal_irql())
+		panic("IRQL_NOT_LESS_THAN");
+
+	mtx_lock_spin(&sched_lock);
+	oldirql = curthread->td_priority;
+	sched_prio(curthread, PI_REALTIME);
+	mtx_unlock_spin(&sched_lock);
 
 	return(oldirql);
 }
@@ -342,26 +325,15 @@ __stdcall void
 hal_lower_irql(/*oldirql*/ void)
 {
 	uint8_t			oldirql;
-	uint8_t			irql;
 
 	__asm__ __volatile__ ("" : "=c" (oldirql));
 
-	irql = hal_irql();
+	if (hal_irql() != DISPATCH_LEVEL)
+		panic("IRQL_NOT_GREATER_THAN");
 
-	switch (irql) {
-	case HIGH_LEVEL:
-		critical_exit();
-		break;
-	case DEVICE_LEVEL:
-	case DISPATCH_LEVEL:
-		mtx_lock_spin(&sched_lock);
-		sched_prio(curthread, oldirql);
-		mtx_unlock_spin(&sched_lock);
-		break;
-	default:
-		panic("can't lower IRQL to unknown level %d", irql);
-		break;
-	}
+	mtx_lock_spin(&sched_lock);
+	sched_prio(curthread, oldirql);
+	mtx_unlock_spin(&sched_lock);
 
 	return;
 }
