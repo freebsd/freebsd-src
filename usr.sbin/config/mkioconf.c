@@ -757,7 +757,7 @@ isa_devtab(fp, table, dev_idp)
 		fprintf(fp, "{ %2d, &%3sdriver,", (*dev_idp)++, dp->d_name);
 		if (dp->d_port)
 			fprintf(fp, " %8s,", dp->d_port);
-		else if (dp->d_portn == PORT_AUTO || dp->d_portn == PORT_NONE)
+		else if (dp->d_portn == -1)
 			fprintf(fp, "       %d,", dp->d_portn);
 		else
 			fprintf(fp, "   0x%04x,", dp->d_portn);

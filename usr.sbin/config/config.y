@@ -9,7 +9,6 @@
 %token	ANY
 %token	ARGS
 %token	AT
-%token	AUTO
 %token	BIO
 %token	BUS
 %token	COMMA
@@ -39,7 +38,6 @@
 %token	MINUS
 %token	NET
 %token	NEXUS
-%token	NONE
 %token	ON
 %token	OPTIONS
 %token	MAKEOPTIONS
@@ -617,10 +615,6 @@ Info:
 	      = { cur.d_port = $2; } |
 	PORT NUMBER
 	      = { cur.d_portn = $2; } |
-	PORT AUTO
-	      = { cur.d_portn = PORT_AUTO; } |
-	PORT NONE
-	      = { cur.d_portn = PORT_NONE; } |
 	TTY 
 	      = { cur.d_mask = "tty"; } |
 	BIO 
@@ -907,7 +901,7 @@ init_dev(dp)
 	dp->d_pri = -1;
 	dp->d_slave = dp->d_lun = dp->d_target = dp->d_drive = dp->d_unit = UNKNOWN;
 	dp->d_port = (char *)0;
-	dp->d_portn = PORT_NONE;
+	dp->d_portn = -1;
 	dp->d_irq = -1;
 	dp->d_drq = -1;
 	dp->d_maddr = 0;
