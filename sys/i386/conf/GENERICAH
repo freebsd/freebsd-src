@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx family disks
 #
-#	$Id: GENERICAH,v 1.9 1993/09/21 06:12:19 rgrimes Exp $
+#	$Id: GENERICAH,v 1.10 1993/09/25 15:50:41 jkh Exp $
 #
 
 machine		"i386"
@@ -45,8 +45,7 @@ device		sd3
 device		st0
 device		st1
 
-device		cd0
-device		cd1
+device		cd0	#Only need one of these, the code dynamically grows
 
 device		pc0	at isa? port "IO_KBD" tty irq 1 vector pcrint
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
