@@ -1492,7 +1492,9 @@ unp_gc()
 			 * message buffers. Follow those links and mark them
 			 * as accessible too.
 			 */
+			SOCKBUF_LOCK(&so->so_rcv);
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
+			SOCKBUF_UNLOCK(&so->so_rcv);
 		}
 	} while (unp_defer);
 	sx_sunlock(&filelist_lock);
