@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.39 1997/02/22 09:40:48 peter Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.40 1997/02/26 14:23:16 bde Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -61,11 +61,10 @@
 #include <sys/vnode.h>
 #include <miscfs/specfs/specdev.h> /* XXX */	/* defines v_rdev */
 #include <sys/malloc.h>
-#include <sys/dir.h>		/* defines dirent structure */
+#include <sys/dirent.h>
 #include <sys/signalvar.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 
 #include <msdosfs/bpb.h>
@@ -1529,8 +1528,8 @@ msdosfs_readdir(ap)
 		struct uio *a_uio;
 		struct ucred *a_cred;
 		int *a_eofflag;
-		u_long *a_cookies;
-		int a_ncookies;
+		int *a_ncookies;
+		u_long **a_cookies;
 	} */ *ap;
 {
 	int error = 0;
