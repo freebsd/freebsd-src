@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.27 1999/05/27 07:18:41 dfr Exp $
+ *	$Id: subr_bus.c,v 1.28 1999/05/28 09:25:10 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -268,6 +268,12 @@ devclass_find_internal(const char *classname, int create)
     }
 
     return dc;
+}
+
+devclass_t
+devclass_create(const char *classname)
+{
+    return devclass_find_internal(classname, TRUE);
 }
 
 devclass_t
@@ -1670,7 +1676,7 @@ resource_list_find(struct resource_list *rl,
 }
 
 void
-resource_list_remove(struct resource_list *rl,
+resource_list_delete(struct resource_list *rl,
 		     int type, int rid)
 {
     struct resource_list_entry *rle = resource_list_find(rl, type, rid);
