@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx.c#24 $
+ * $Id: //depot/src/aic7xxx/aic7xxx.c#26 $
  *
  * $FreeBSD$
  */
@@ -4878,6 +4878,9 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 		ahc_swap_with_next_hscb(ahc, scb);
 		scb->hscb->next = next;
 		ahc->qinfifo[qinstart] = scb->hscb->tag;
+
+		/* Tell the card about the new head of the qinfifo. */
+		ahc_outb(ahc, NEXT_QUEUED_SCB, scb->hscb->tag);
 
 		/* Fixup the tail "next" pointer. */
 		qintail = ahc->qinfifonext - 1;
