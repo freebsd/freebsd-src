@@ -397,6 +397,12 @@ fi
 #
 CVS_ID_TAG=FreeBSD
 
+delete_temproot () {
+  rm -rf "${TEMPROOT}"
+  chflags -R 0 "${TEMPROOT}"
+  rm -rf "${TEMPROOT}"
+}
+
 case "${RERUN}" in
 '')
   # Set up the loop to test for the existence of the
@@ -425,8 +431,7 @@ case "${RERUN}" in
           echo ''
           echo "   *** Deleting the old ${TEMPROOT}"
           echo ''
-          chflags -R noschg "${TEMPROOT}"
-          rm -rf "${TEMPROOT}"
+          delete_temproot || exit 1
           unset TEST_TEMP_ROOT
           ;;
         [tT])
@@ -848,7 +853,7 @@ case "${AUTO_RUN}" in
 
   case "${DEL_TEMPROOT}" in
   [yY]*)
-    if chflags -R noschg "${TEMPROOT}" && rm -rf "${TEMPROOT}"; then
+    if delete_temproot; then
       echo " *** ${TEMPROOT} has been deleted"
     else
       echo " *** Unable to delete ${TEMPROOT}"
