@@ -139,7 +139,9 @@ SUBDIR+=aac \
 	vesa
 
 .elif ${MACHINE} == "pc98"
-SUBDIR+=pmc \
+SUBDIR+=canbepm \
+	canbus \
+	pmc \
 	snc
 .endif
 .endif

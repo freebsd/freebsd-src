@@ -228,6 +228,22 @@ i386/isa/bs/bshw.c		optional	bs
 i386/isa/bs/bsif.c		optional	bs
 i386/isa/asc.c			optional	asc
 pc98/pc98/atapi.c		optional	wdc
+pc98/pc98/canbepm.c		optional	canbepm
+pc98/pc98/canbus.c		optional        canbus
+canbus_if.o			optional	canbus			\
+	dependency	"canbus_if.c canbus_if.h"			\
+	compile-with	"${NORMAL_C}"					\
+	no-implicit-rule local
+canbus_if.c			optional	canbus			\
+	dependency	"$S/kern/makeops.pl $S/pc98/pc98/canbus_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -c $S/pc98/pc98/canbus_if.m" \
+	no-obj no-implicit-rule before-depend local			\
+	clean		"canbus_if.c"
+canbus_if.h			optional	canbus			\
+	dependency	"$S/kern/makeops.pl $S/pc98/pc98/canbus_if.m"	\
+	compile-with	"perl5 $S/kern/makeops.pl -h $S/pc98/pc98/canbus_if.m" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"canbus_if.h"
 pc98/pc98/clock.c		standard
 i386/isa/cronyx.c		optional	cx
 i386/isa/ctx.c			optional	ctx

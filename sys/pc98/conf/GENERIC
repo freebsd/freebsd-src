@@ -157,6 +157,8 @@ device		npx0	at nexus? port IO_NPX irq 8
 # Power management support (see LINT for more options)
 #device		apm0	at nexus? disable flags 0x20 # Advanced Power Management
 #device		pmc0	at isa? port 0x8f0
+#device		canbus
+#device		canbepm
 
 # PCCARD (PCMCIA) support
 device		card
