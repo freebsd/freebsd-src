@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <opie.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -72,10 +73,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	int retval, i;
 	const char *(promptstr[]) = { "%s\nPassword: ", "%s\nPassword [echo on]: "};
 	char challenge[OPIE_CHALLENGE_MAX];
-	char prompt[OPIE_CHALLENGE_MAX+22];
-	char resp[OPIE_SECRET_MAX];
 	char *user;
-	const char *response;
+	char *response;
+	int style;
 
 	pam_std_option(&options, other_options, argc, argv);
 
@@ -118,9 +118,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	 */
 	pam_set_item(pamh, PAM_AUTHTOK, NULL);
 
+	style = PAM_PROMPT_ECHO_OFF;
 	for (i = 0; i < 2; i++) {
-		snprintf(prompt, sizeof prompt, promptstr[i], challenge);
-		retval = pam_get_authtok(pamh, PAM_AUTHTOK, &response, prompt);
+		retval = pam_prompt(pamh, style, &response,
+		    promptstr[i], challenge);
 		if (retval != PAM_SUCCESS) {
 			opieunlock();
 			return (retval);
@@ -132,11 +133,10 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 			break;
 
 		/* Second time round, echo the password */
-		pam_set_option(&options, PAM_OPT_ECHO_PASS);
+		style = PAM_PROMPT_ECHO_ON;
 	}
 
-	/* We have to copy the response, because opieverify mucks with it. */
-	strlcpy(resp, response, sizeof (resp));
+	pam_set_item(pamh, PAM_AUTHTOK, response);
 
 	/*
 	 * Opieverify is supposed to return -1 only if an error occurs.
@@ -144,8 +144,9 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	 * it expects.  Thus we can't log an error and can only check for
 	 * success or lack thereof.
 	 */
-	retval = opieverify(&opie, resp) == 0 ? PAM_SUCCESS : PAM_AUTH_ERR;
-	return (retval);
+	retval = opieverify(&opie, response);
+	free(response);
+	return (retval == 0 ? PAM_SUCCESS : PAM_AUTH_ERR);
 }
 
 PAM_EXTERN int
