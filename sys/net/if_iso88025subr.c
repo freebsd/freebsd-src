@@ -246,7 +246,6 @@ iso88025_output(ifp, m, dst, rt0)
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
 	struct rtentry *rt;
-	struct arpcom *ac = IFP2AC(ifp);
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -272,7 +271,7 @@ iso88025_output(ifp, m, dst, rt0)
 	/* Generate a generic 802.5 header for the packet */
 	gen_th.ac = TR_AC;
 	gen_th.fc = TR_LLC_FRAME;
-	(void)memcpy((caddr_t)gen_th.iso88025_shost, (caddr_t)ac->ac_enaddr,
+	(void)memcpy((caddr_t)gen_th.iso88025_shost, IFP2AC(ifp)->ac_enaddr,
 		     ISO88025_ADDR_LEN);
 	if (rif_len) {
 		gen_th.iso88025_shost[0] |= TR_RII;
@@ -321,7 +320,7 @@ iso88025_output(ifp, m, dst, rt0)
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		if (!nd6_storelladdr(&ac->ac_if, rt, m, dst, (u_char *)edst)) {
+		if (!nd6_storelladdr(ifp, rt, m, dst, (u_char *)edst)) {
 			/* Something bad happened */
 			return(0);
 		}

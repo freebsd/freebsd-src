@@ -119,7 +119,6 @@ fddi_output(ifp, m, dst, rt0)
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct rtentry *rt;
 	struct fddi_header *fh;
-	struct arpcom *ac = IFP2AC(ifp);
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m);
@@ -192,7 +191,7 @@ fddi_output(ifp, m, dst, rt0)
 #ifdef NETATALK
 	case AF_APPLETALK: {
 	    struct at_ifaddr *aa;
-            if (!aarpresolve(ac, m, (struct sockaddr_at *)dst, edst))
+            if (!aarpresolve(IFP2AC(ifp), m, (struct sockaddr_at *)dst, edst))
                 return (0);
 	    /*
 	     * ifaddr is the first thing in at_ifaddr
@@ -314,7 +313,7 @@ fddi_output(ifp, m, dst, rt0)
 	if (hdrcmplt)
 		bcopy((caddr_t)esrc, (caddr_t)fh->fddi_shost, FDDI_ADDR_LEN);
 	else
-		bcopy((caddr_t)ac->ac_enaddr, (caddr_t)fh->fddi_shost,
+		bcopy(IFP2AC(ifp)->ac_enaddr, (caddr_t)fh->fddi_shost,
 			FDDI_ADDR_LEN);
 
 	/*
