@@ -19,7 +19,7 @@ build and install as described in the COMMON ITEMS section.
 20020307:	p28	FreeBSD-SA-02:13.openssh
 	OpenSSH off-by-one error.
 
-20020223:	p27
+20020223:	p27	FreeBSD-SA-02:18.zlib
 	zlib inflate error handling.
 
 20020127:	p26
@@ -35,11 +35,11 @@ build and install as described in the COMMON ITEMS section.
 20020123:	p23	FreeBSD-SA-02:07.k5su
 	k5su fixes.
 
-20011221:	p22	FreeBSD-SA-02:02:pw.asc
+20011221:	p22	FreeBSD-SA-02:02:pw
 	A bug was fixed wherein the pw(8) command created a short-lived
 	but world-readable copy of /etc/master.passwd.
 
-20011202:	p21	FreeBSD-SA-01:63:openssh.asc
+20011202:	p21	FreeBSD-SA-01:63:openssh
 	A security hole in OpenSSH involving `UseLogin yes' has been
 	patched.
 
@@ -49,61 +49,61 @@ build and install as described in the COMMON ITEMS section.
 20010911:	p19
 	semop fixes to prevent overflows.
 
-20010910:	p18	FreeBSD-SA-01:62.asc
+20010910:	p18	FreeBSD-SA-01:62.uucp
 	UUCP fixes.
 
-20010904:	p17	FreeBSD-SA-01:59
+20010904:	p17	FreeBSD-SA-01:59.rmuser
 	Minor fix to p16.
 
-20010904:	p16	FreeBSD-SA-01:59
+20010904:	p16	FreeBSD-SA-01:59.rmuser
 	Close race condition when updating /etc/master.passwd in rmuser.
 
-20010830:	p15	FreeBSD-SA-01:58
+20010830:	p15	FreeBSD-SA-01:58.lpd
 	Fix lpd remote root exploitable buffer overflow.
 
-20010822:	p14	FreeBSD-SA-01:57
-	Fix command line argument overflow probelm in sendmail.
+20010822:	p14	FreeBSD-SA-01:57.sendmail
+	Fix command line argument overflow problem in sendmail.
 
 20010821:	p13
 	Close the "IRC DCC" security problem.
 
-20010813:	p12	FreeBSD-SA-01:55
+20010813:	p12	FreeBSD-SA-01:55.procfs
 	procfs permission tightening.
 
 20010810:	p11
 	Check filehandle size when mounting nfs filesystems.
 
-20010805:	p10	FreeBSD-SA-01:52
+20010805:	p10	FreeBSD-SA-01:52.fragment
 	Prevent DoS attack from bogus fragmented packets.
 
-20010723:	p9	FreeBSD-SA-01:49 (part 2)
+20010723:	p9	FreeBSD-SA-01:49.telnetd (part 2)
 	Fix a different overflow with output_data and netflush in
 	telnetd.  Make sure that you have both this update and the
 	previous one.
 
-20010721:	p8	FreeBSD-SA-01:49 (part 1)
+20010721:	p8	FreeBSD-SA-01:49.telnetd (part 1)
 	Fix buffer overflow in telnetd.
 
-20010719:	p7	FreeBSD-SA-01:51
+20010719:	p7	FreeBSD-SA-01:51.openssl
 	Add PRNG security patch from openssl to prevent guessing of
 	internal state.
 
-20010717:	p6	FreeBSD-SA-01:53
+20010717:	p6	FreeBSD-SA-01:53.ipfw
 	Fix ipfw "me" definition.
 
-20010710:	p5	FreeBSD-SA-01:42
+20010710:	p5	FreeBSD-SA-01:42.signal
 	Don't share signal handlers from rfork after exec.
 
-20010708:	p4	FreeBSD-SA-01:48
+20010708:	p4	FreeBSD-SA-01:48.tcpdump
 	Fix possible tcpdump buffer overflow.
 
-20010704:	p3	FreeBSD-SA-01:56
+20010704:	p3	FreeBSD-SA-01:56.tcp_wrappers
 	Unbreak paranoid host checking in tcp_wrappers.
 
-20010601:	p2	FreeBSD-SA-01:40 (part 2)
+20010601:	p2	FreeBSD-SA-01:40.fts (part 2)
 	Fix a second instance of chdir with fts_safe_changedir().
 
-20010530:	p1	FreeBSD-SA-01:40 (part 1)
+20010530:	p1	FreeBSD-SA-01:40.fts (part 1)
 	Fix to stat after chdir .. in fts to make sure we wind up where
 	we think we should.
 
