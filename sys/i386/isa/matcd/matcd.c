@@ -1,3 +1,5 @@
+#include "opt_geom.h"
+#ifndef GEOM
 /*matcd.c--------------------------------------------------------------------
 
 	Matsushita(Panasonic) / Creative CD-ROM Driver	(matcd)
@@ -2701,3 +2703,4 @@ static int matcd_igot(struct ioc_capability * sqp)
 
 /*End of matcd.c*/
 
+#endif /* GEOM */
