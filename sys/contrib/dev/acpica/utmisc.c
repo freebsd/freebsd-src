@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utmisc - common utility procedures
- *              $Revision: 99 $
+ *              $Revision: 100 $
  *
  ******************************************************************************/
 
@@ -636,6 +636,7 @@ AcpiUtStrupr (
     return (SrcString);
 }
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiUtMutexInitialize
@@ -671,10 +672,8 @@ AcpiUtMutexInitialize (
         }
     }
 
-
     Status = AcpiOsCreateLock (&AcpiGbl_GpeLock);
-
-    return_ACPI_STATUS (AE_OK);
+    return_ACPI_STATUS (Status);
 }
 
 

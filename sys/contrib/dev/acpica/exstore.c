@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exstore - AML Interpreter object store support
- *              $Revision: 180 $
+ *              $Revision: 181 $
  *
  *****************************************************************************/
 
@@ -178,7 +178,8 @@ AcpiExStore (
          * Storing an object into a Named node.
          */
         Status = AcpiExStoreObjectToNode (SourceDesc,
-                    (ACPI_NAMESPACE_NODE *) DestDesc, WalkState);
+                    (ACPI_NAMESPACE_NODE *) DestDesc, WalkState,
+                    ACPI_IMPLICIT_CONVERSION);
 
         return_ACPI_STATUS (Status);
     }
@@ -232,7 +233,7 @@ AcpiExStore (
         /* Storing an object into a Name "container" */
 
         Status = AcpiExStoreObjectToNode (SourceDesc, RefDesc->Reference.Object,
-                        WalkState);
+                        WalkState, ACPI_IMPLICIT_CONVERSION);
         break;
 
 
@@ -486,6 +487,7 @@ AcpiExStoreObjectToIndex (
  * PARAMETERS:  SourceDesc              - Value to be stored
  *              Node                    - Named object to receive the value
  *              WalkState               - Current walk state
+ *              ImplicitConversion      - Perform implicit conversion (yes/no)
  *
  * RETURN:      Status
  *
@@ -508,7 +510,8 @@ ACPI_STATUS
 AcpiExStoreObjectToNode (
     ACPI_OPERAND_OBJECT     *SourceDesc,
     ACPI_NAMESPACE_NODE     *Node,
-    ACPI_WALK_STATE         *WalkState)
+    ACPI_WALK_STATE         *WalkState,
+    UINT8                   ImplicitConversion)
 {
     ACPI_STATUS             Status = AE_OK;
     ACPI_OPERAND_OBJECT     *TargetDesc;
@@ -537,6 +540,15 @@ AcpiExStoreObjectToNode (
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
+    }
+
+    /* If no implicit conversion, drop into the default case below */
+
+    if (!ImplicitConversion)
+    {
+        /* Force execution of default (no implicit conversion) */
+
+        TargetType = ACPI_TYPE_ANY;
     }
 
     /*

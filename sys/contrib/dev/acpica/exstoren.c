@@ -3,7 +3,7 @@
  *
  * Module Name: exstoren - AML Interpreter object store support,
  *                        Store to Node (namespace object)
- *              $Revision: 58 $
+ *              $Revision: 59 $
  *
  *****************************************************************************/
 
@@ -217,6 +217,7 @@ AcpiExResolveObject (
 
 
     case ACPI_TYPE_LOCAL_ALIAS:
+    case ACPI_TYPE_LOCAL_METHOD_ALIAS:
 
         /*
          * Aliases are resolved by AcpiExPrepOperands

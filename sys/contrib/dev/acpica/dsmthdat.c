@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dsmthdat - control method arguments and local variables
- *              $Revision: 77 $
+ *              $Revision: 78 $
  *
  ******************************************************************************/
 
@@ -760,11 +760,13 @@ AcpiDsStoreObjectToLocal (
                         NewObjDesc, CurrentObjDesc));
 
                 /*
-                 * Store this object to the Node
-                 * (perform the indirect store)
+                 * Store this object to the Node (perform the indirect store)
+                 * NOTE: No implicit conversion is performed, as per the ACPI
+                 * specification rules on storing to Locals/Args.
                  */
                 Status = AcpiExStoreObjectToNode (NewObjDesc,
-                            CurrentObjDesc->Reference.Object, WalkState);
+                            CurrentObjDesc->Reference.Object, WalkState,
+                            ACPI_NO_IMPLICIT_CONVERSION);
 
                 /* Remove local reference if we copied the object above */
 
