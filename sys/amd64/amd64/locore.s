@@ -44,9 +44,7 @@
  */
 
 #include "opt_bootp.h"
-#include "opt_ddb.h"
 #include "opt_nfsroot.h"
-#include "opt_userconfig.h"
 
 #include <sys/syscall.h>
 #include <sys/reboot.h>
@@ -753,8 +751,7 @@ create_pagetables:
 /* Find end of kernel image (rounded up to a page boundary). */
 	movl	$R(_end),%esi
 
-/* include symbols if loaded and useful */
-#ifdef DDB
+/* Include symbols, if any. */
 	movl	R(_bootinfo+BI_ESYMTAB),%edi
 	testl	%edi,%edi
 	je	over_symalloc
@@ -763,7 +760,6 @@ create_pagetables:
 	addl	%edi,R(_bootinfo+BI_SYMTAB)
 	addl	%edi,R(_bootinfo+BI_ESYMTAB)
 over_symalloc:
-#endif
 
 /* If we are told where the end of the kernel space is, believe it. */
 	movl	R(_bootinfo+BI_KERNEND),%edi
