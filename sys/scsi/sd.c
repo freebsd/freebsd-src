@@ -48,7 +48,7 @@
 #include <machine/md_var.h>
 #include <i386/i386/cons.h>		/* XXX *//* for aborting dump */
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
+#include <pc98/pc98/pc98_machdep.h>
 #endif
 
 static u_int32_t sdstrats, sdqueues;
@@ -787,9 +787,7 @@ sd_get_parms(unit, flags)
 		union disk_pages pages;
 	} scsi_sense;
 	u_int32_t sectors;
-#ifdef PC98
-	unsigned char *tmp;
-#endif
+
 	/*
 	 * First check if we have it all loaded
 	 */
@@ -804,36 +802,7 @@ sd_get_parms(unit, flags)
 	scsi_cmd.page = 4;
 	scsi_cmd.length = 0x20;
 #ifdef PC98
-#define PC98_SYSTEM_PARAMETER(x)        pc98_system_parameter[(x)-0x400]
-	tmp = (unsigned char *)&PC98_SYSTEM_PARAMETER(0x460 + sc_link->target*4);
-	if ((PC98_SYSTEM_PARAMETER(0x482) &
-		((1 << sc_link->target)&0xff)) != 0) {
-		disk_parms->sectors = *tmp;
-		disk_parms->cyls = ((*(tmp+3)<<8)|*(tmp+2))&0xfff;
-		switch (*(tmp + 3) & 0x30) {
-		case 0x00:
-			disk_parms->secsiz = 256;
-			printf("Warning!: not supported.\n");
-			break;
-		case 0x10:
-			disk_parms->secsiz = 512;
-			break;
-		case 0x20:
-			disk_parms->secsiz = 1024;
-			printf("Warning!: not supported.\n");
-			break;
-		default:
-			disk_parms->secsiz = 512;
-			printf("Warning!: not supported. But force to 512\n");
-		}
-		if (*(tmp+3) & 0x40) {
-			disk_parms->cyls += (*(tmp+1)&0xf0)<<8;
-			disk_parms->heads = *(tmp+1)&0x0f;
-		} else {
-			disk_parms->heads = *(tmp+1);
-		}
-		disk_parms->disksize = disk_parms->sectors * disk_parms->heads *
-									disk_parms->cyls;
+	if (sd_bios_parms(disk_parms, sc_link)) {
 	} else
 #endif
 	/*
