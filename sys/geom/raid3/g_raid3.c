@@ -319,9 +319,9 @@ u_int
 g_raid3_ndisks(struct g_raid3_softc *sc, int state)
 {
 	struct g_raid3_disk *disk;
-	u_int n, ndisks = 0;
+	u_int n, ndisks;
 
-	for (n = 0; n < sc->sc_ndisks; n++) {
+	for (n = ndisks = 0; n < sc->sc_ndisks; n++) {
 		disk = &sc->sc_disks[n];
 		if (disk->d_state == G_RAID3_DISK_STATE_NODISK)
 			continue;
@@ -1303,8 +1303,9 @@ g_raid3_register_request(struct bio *pbp)
 	struct g_consumer *cp;
 	struct bio *cbp;
 	off_t offset, length;
-	u_int n, ndisks = 0;
+	u_int n, ndisks;
 
+	ndisks = 0;
 	sc = pbp->bio_to->geom->softc;
 	if ((pbp->bio_cflags & G_RAID3_BIO_CFLAG_REGSYNC) != 0 &&
 	    sc->sc_syncdisk == NULL) {
