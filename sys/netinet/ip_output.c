@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.75 1998/06/21 14:53:32 bde Exp $
+ *	$Id: ip_output.c,v 1.76 1998/07/06 03:20:17 julian Exp $
  */
 
 #define _IP_VHL
@@ -445,7 +445,7 @@ sendit:
 			 * as the packet runs through ip_input() as
 			 * it is done through a ISR.
 			 */
-			for (ia = TAILQ_FIRST(in_ifaddrhead); ia;
+			for (ia = TAILQ_FIRST(&in_ifaddrhead); ia;
 					ia = TAILQ_NEXT(ia, ia_link)) {
 				/*
 				 * If the addr to forward to is one
