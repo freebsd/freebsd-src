@@ -141,7 +141,7 @@ isavga_attach(device_t dev)
 
 #ifdef FB_INSTALL_CDEV
 	/* attach a virtual frame buffer device */
-	error = fb_attach(makedev(0, VGA_MKMINOR(unit)), sc->adp, &isavga_cdevsw);
+	error = fb_attach(VGA_MKMINOR(unit), sc->adp, &isavga_cdevsw);
 	if (error)
 		return error;
 #endif /* FB_INSTALL_CDEV */
