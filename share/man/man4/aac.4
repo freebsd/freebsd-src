@@ -23,7 +23,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 24, 2000
+.Dd February 22, 2001
 .Dt AAC 4
 .Os
 .Sh NAME
@@ -112,7 +112,7 @@ and are also queued for retrieval by a management application.
 The
 .Nm
 driver first appeared in
-.Fx 5.0
+.Fx 4.3
 and is
 .Ud
 .Pp
@@ -132,7 +132,7 @@ possibly causing a resource leak on the controller.
 Unloading and reloading the driver as a kernel loadable module
 without rebooting the system is strongly discouraged.
 .Pp
-Only the Linux-compatible 
+Only a subset of the Linux-compatible 
 .Xr ioctl 2 
 interface is implemented at this time.
 This is not a bug, but native
