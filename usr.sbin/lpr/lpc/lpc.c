@@ -258,7 +258,7 @@ makeargv(void)
 	register int n = 0;
 
 	margc = 0;
-	for (cp = cmdline; *cp && (cp - cmdline) < sizeof(cmdline) &&
+	for (cp = cmdline; *cp && (size_t)(cp - cmdline) < sizeof(cmdline) &&
 	    n < MAX_MARGV; n++) {
 		while (isspace(*cp))
 			cp++;
