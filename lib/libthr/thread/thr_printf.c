@@ -110,7 +110,7 @@ static void
 pchar(int fd, char c)
 {
 
-	write(fd, &c, 1);
+	__sys_write(fd, &c, 1);
 }
 
 /*
@@ -120,6 +120,6 @@ static void
 pstr(int fd, const char *s)
 {
 
-	write(fd, s, strlen(s));
+	__sys_write(fd, s, strlen(s));
 }
 
