@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,11 +38,11 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amq_subr.c,v 5.2.2.1 1992/02/09 15:08:18 jsp beta $
+ * $Id: amq_subr.c,v 1.2 1998/12/27 06:24:46 ezk Exp $
  *
  */
 /*
- * Auxilliary routines for amq tool
+ * Auxiliary routines for amq tool
  */
 
 #ifdef HAVE_CONFIG_H
@@ -139,7 +139,7 @@ amqproc_setopt_1_svc(voidp argp, struct svc_req *rqstp)
   case AMOPT_LOGFILE:
     if (gopt.logfile && opt->as_str
 	&& STREQ(gopt.logfile, opt->as_str)) {
-      if (switch_to_logfile(opt->as_str))
+      if (switch_to_logfile(opt->as_str, orig_umask))
 	rc = EINVAL;
     } else {
       rc = EACCES;
@@ -303,6 +303,7 @@ bool_t
 xdr_amq_mount_tree_node(XDR *xdrs, amq_mount_tree *objp)
 {
   am_node *mp = (am_node *) objp;
+  long mtime;
 
   if (!xdr_amq_string(xdrs, &mp->am_mnt->mf_info)) {
     return (FALSE);
@@ -316,7 +317,8 @@ xdr_amq_mount_tree_node(XDR *xdrs, amq_mount_tree *objp)
   if (!xdr_amq_string(xdrs, &mp->am_mnt->mf_ops->fs_type)) {
     return (FALSE);
   }
-  if (!xdr_long(xdrs, (long *) &mp->am_stats.s_mtime)) {
+  mtime = mp->am_stats.s_mtime;
+  if (!xdr_long(xdrs, &mtime)) {
     return (FALSE);
   }
   if (!xdr_u_short(xdrs, &mp->am_stats.s_uid)) {

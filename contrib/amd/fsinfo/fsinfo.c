@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: fsinfo.c,v 5.2.2.1 1992/02/09 15:09:33 jsp beta $
+ * $Id: fsinfo.c,v 1.2 1998/12/27 06:25:21 ezk Exp $
  *
  */
 
@@ -58,8 +58,8 @@
 char **g_argv;
 char *autodir = "/a";
 char *progname;
-char *username;
 char hostname[MAXHOSTNAMELEN + 1];
+char *username;
 char idvbuf[1024];
 dict *dict_of_hosts;
 dict *dict_of_volnames;
@@ -80,9 +80,12 @@ char *fstab_pref;
 char *mount_pref;
 
 /* dummy variables */
-int orig_umask, foreground, debug_flags;
+#if 0
 pid_t mypid;
 serv_state amd_state;
+int foreground, orig_umask;
+int debug_flags;
+#endif
 
 
 /*
@@ -109,7 +112,7 @@ fsi_get_args(int c, char *v[])
   if (!progname)
     progname = "fsinfo";
 
-  while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) != EOF)
+  while ((ch = getopt(c, v, "a:b:d:e:f:h:m:D:U:I:qv")) != -1)
 
     switch (ch) {
 

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: homedir.c,v 1.16 1993/09/13 15:11:00 ezk Exp $
+ * $Id: homedir.c,v 1.2 1998/12/27 06:25:22 ezk Exp $
  *
  * HLFSD was written at Columbia University Computer Science Department, by
  * Erez Zadok <ezk@cs.columbia.edu> and Alexander Dupuy <dupuy@cs.columbia.edu>
@@ -66,7 +66,7 @@ static struct passwd passwd_ent;
 static uid2home_t *lastchild;
 static uid2home_t *pwtab;
 static void delay(uid2home_t *, int);
-static void table_add(int, char *, char *);
+static void table_add(int, const char *, const char *);
 
 /* GLOBAL FUNCTIONS */
 char *homeof(char *username);
@@ -182,7 +182,7 @@ homedir(int userid)
    * to the parent upon SIGCHLD in interlock().
    *
    */
-  mypid = getpid();		/* for logging routines */
+  am_set_mypid();		/* for logging routines */
   if (seteuid(userid) < 0) {
     plog(XLOG_WARNING, "could not seteuid to %d: %m", userid);
     return linkval;
@@ -619,7 +619,7 @@ plt_reset(void)
  * n: user ID name
  */
 static void
-table_add(int u, char *h, char *n)
+table_add(int u, const char *h, const char *n)
 {
   int i;
 

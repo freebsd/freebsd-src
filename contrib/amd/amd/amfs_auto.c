@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_auto.c,v 1.1 1997-1998/06/30 19:22:30 ezk Exp ezk $
+ * $Id: amfs_auto.c,v 1.1.1.1 1998/11/05 02:04:46 ezk Exp $
  *
  */
 
@@ -477,7 +477,7 @@ try_mount(voidp mvp)
  break
  fi
  if no error on this mount then
- this_error = initialise mount point
+ this_error = initialize mount point
  fi
  if no error on this mount and mount is delayed then
  this_error = -1
@@ -496,7 +496,7 @@ try_mount(voidp mvp)
  this_error = mount in foreground
  fi
  fi
- if an error occured on this mount then
+ if an error occurred on this mount then
  update stats
  save error in mount point
  fi
@@ -657,7 +657,7 @@ amfs_auto_bgmount(struct continuation * cp, int mpe)
     /*
      * Will usually need to play around with the mount nodes
      * file attribute structure.  This must be done here.
-     * Try and get things initialised, even if the fileserver
+     * Try and get things initialized, even if the fileserver
      * is not known to be up.  In the common case this will
      * progress things faster.
      */
@@ -987,7 +987,7 @@ amfs_auto_lookuppn(am_node *mp, char *fname, int *error_return, int op)
   }
 
   /*
-   * If an error occured then return it.
+   * If an error occurred then return it.
    */
   if (error) {
 #ifdef DEBUG
@@ -1511,7 +1511,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
     if (te_next) {
       nfsentry *te_saved = te_next->ne_nextentry;
       te_next->ne_nextentry = NULL; /* terminate "te" chain */
-      te_next = te_saved;	/* save rest of "te" for next interation */
+      te_next = te_saved;	/* save rest of "te" for next iteration */
       dp->dl_eof = FALSE;	/* tell readdir there's more */
     } else {
       dp->dl_eof = TRUE;	/* tell readdir that's it */
@@ -1565,7 +1565,7 @@ amfs_auto_readdir_browsable(am_node *mp, nfscookie cookie, nfsdirlist *dp, nfsen
   if (te_next) {
     nfsentry *te_saved = te_next->ne_nextentry;
     te_next->ne_nextentry = NULL; /* terminate "te" chain */
-    te_next = te_saved;		/* save rest of "te" for next interation */
+    te_next = te_saved;		/* save rest of "te" for next iteration */
     dp->dl_eof = FALSE;		/* tell readdir there's more */
   }
   ep = te;			/* send next chunk of "te" chain */

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: amfs_linxx.c,v 5.2.2.3 1992/05/31 16:13:07 jsp Exp $
+ * $Id: amfs_nfsx.c,v 1.1.1.1 1998/11/05 02:04:47 ezk Exp $
  *
  */
 
@@ -463,7 +463,7 @@ amfs_nfsx_fumount(mntfs *mf)
      * If this node has not been messed with
      * and there has been no error so far
      * then try and unmount.
-     * If an error had occured then zero
+     * If an error had occurred then zero
      * the error code so that the remount
      * only tries to unmount those nodes
      * which had been successfully unmounted.

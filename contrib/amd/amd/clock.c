@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,14 +38,14 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: clock.c,v 5.2.2.1 1992/02/09 15:08:20 jsp beta $
+ * $Id: clock.c,v 1.1.1.1 1998/11/05 02:04:47 ezk Exp $
  *
  */
 
 /*
  * Callouts.
  *
- * Modelled on kernel object of the same name.
+ * Modeled on kernel object of the same name.
  * See usual references.
  *
  * Use of a heap-based mechanism was rejected:

@@ -72,6 +72,9 @@ that nfsd is running.  Normally these are not required.
 executable dump core unexpectedly, then it may be a bug in gcc 2.7.x.
 Upgrade to gcc 2.8.x or use IBM's xlC compiler.
 
+[C] Do not link amd with libnsl.  It is buggy and causes amd to core dump
+in strlen inside strdup inside svc_register().
+
 
 (5) *-linux-gnu (RedHat Linux 5.1)
 

@@ -17,7 +17,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
+ *    must display the following acknowledgment:
  *      This product includes software developed by the University of
  *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
@@ -38,7 +38,7 @@
  *
  *      %W% (Berkeley) %G%
  *
- * $Id: mapc.c,v 5.2.2.2 1992/08/02 10:42:21 jsp Exp $
+ * $Id: mapc.c,v 1.1.1.1 1998/11/05 02:04:48 ezk Exp $
  *
  */
 
@@ -113,7 +113,7 @@ static char wildcard[] = "*";
 typedef struct map_type map_type;
 struct map_type {
   char *name;			/* Name of this map type */
-  init_fn *init;		/* Initialisation */
+  init_fn *init;		/* Initialization */
   reload_fn *reload;		/* Reload or fill */
   isup_fn *isup;		/* Is service up or not? (1=up, 0=down) */
   search_fn *search;		/* Search for new entry */
@@ -578,7 +578,7 @@ mapc_create(char *map, char *opt, const char *type)
   default:
     plog(XLOG_USER, "Ambiguous map cache type \"%s\"; using \"inc\"", opt);
     alloc = MAPC_INC;
-    /* fallthrough... */
+    /* fall-through... */
   case MAPC_NONE:
   case MAPC_INC:
   case MAPC_ROOT:
