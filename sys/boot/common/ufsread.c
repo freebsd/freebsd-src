@@ -37,12 +37,13 @@
 #define FS_TO_VBO(fs, fsb, off) ((off) & VBLKMASK)
 
 /* Buffers that must not span a 64k boundary. */
-static struct dmadat {
+struct dmadat {
 	char blkbuf[VBLKSIZE];				/* filesystem blocks */
 	ufs_daddr_t indbuf[VBLKSIZE / sizeof(ufs_daddr_t)]; /* indir blocks */
 	char sbbuf[SBSIZE];				/* superblock */
 	char secbuf[DEV_BSIZE];				/* for MBR/disklabel */
-} *dmadat;
+};
+static struct dmadat *dmadat;
 
 static ino_t lookup(const char *);
 static ssize_t fsread(ino_t, void *, size_t);
@@ -71,7 +72,7 @@ fsfind(const char *name, ino_t * ino)
 		s += d->d_reclen;
 	}
 	if (n != -1 && ls)
-		putchar('\n');
+		printf("\n");
 	return 0;
 }
 
@@ -86,6 +87,8 @@ lookup(const char *path)
 
 	ino = ROOTINO;
 	dt = DT_DIR;
+	name[0] = '/';
+	name[1] = '\0';
 	for (;;) {
 		if (*path == '/')
 			path++;
@@ -97,6 +100,10 @@ lookup(const char *path)
 		ls = *path == '?' && n == 1 && !*s;
 		memcpy(name, path, n);
 		name[n] = 0;
+		if (dt != DT_DIR) {
+			printf("%s: not a directory.\n", name);
+			return (0);
+		}
 		if ((dt = fsfind(name, &ino)) <= 0)
 			break;
 		path = s;
@@ -180,4 +187,3 @@ fsread(ino_t inode, void *buf, size_t nbyte)
 	}
 	return nbyte;
 }
-
