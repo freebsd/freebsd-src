@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.42 1999/06/19 18:42:51 alc Exp $
+ * $Id: vm_map.h,v 1.43 1999/07/10 18:16:08 alc Exp $
  */
 
 /*
@@ -117,6 +117,26 @@ struct vm_map_entry {
 #define MAP_ENTRY_NEEDS_COPY		0x8
 #define MAP_ENTRY_NOFAULT		0x10
 #define MAP_ENTRY_USER_WIRED		0x20
+
+#define MAP_ENTRY_BEHAV_NORMAL		0x00	/* default behavior */
+#define MAP_ENTRY_BEHAV_SEQUENTIAL	0x40	/* expect sequential access */
+#define MAP_ENTRY_BEHAV_RANDOM		0x80	/* expect random access */
+#define MAP_ENTRY_BEHAV_RESERVED	0xC0	/* future use */
+
+#define MAP_ENTRY_BEHAV_MASK		0xC0
+
+static __inline u_char   
+vm_map_entry_behavior(struct vm_map_entry *entry)
+{                  
+	return entry->eflags & MAP_ENTRY_BEHAV_MASK;
+}
+
+static __inline void
+vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior)
+{              
+	entry->eflags = (entry->eflags & ~MAP_ENTRY_BEHAV_MASK) |
+		(behavior & MAP_ENTRY_BEHAV_MASK);
+}                       
 
 /*
  *	Maps are doubly-linked lists of map entries, kept sorted
