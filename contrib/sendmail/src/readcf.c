@@ -2552,7 +2552,7 @@ setoption(opt, val, safe, sticky, e)
 			break;
 		p = newstr(ep);
 		if (!safe)
-			cleanstrcpy(p, p, MAXNAME);
+			cleanstrcpy(p, p, strlen(p) + 1);
 		macdefine(&CurEnv->e_macro, A_TEMP, mid, p);
 		break;
 

@@ -940,16 +940,18 @@ main(argc, argv, envp)
 				*p++ = '\0';
 				if (*p != '\0')
 				{
-					ep = sm_malloc_x(strlen(p) + 1);
-					cleanstrcpy(ep, p, MAXNAME);
+					i = strlen(p) + 1;
+					ep = sm_malloc_x(i);
+					cleanstrcpy(ep, p, i);
 					macdefine(&BlankEnvelope.e_macro,
 						  A_HEAP, 's', ep);
 				}
 			}
 			if (*optarg != '\0')
 			{
-				ep = sm_malloc_x(strlen(optarg) + 1);
-				cleanstrcpy(ep, optarg, MAXNAME);
+				i = strlen(optarg) + 1;
+				ep = sm_malloc_x(i);
+				cleanstrcpy(ep, optarg, i);
 				macdefine(&BlankEnvelope.e_macro, A_HEAP,
 					  'r', ep);
 			}

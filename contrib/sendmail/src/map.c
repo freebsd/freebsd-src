@@ -383,7 +383,7 @@ map_rewrite(map, s, slen, av)
 			if (c != '%')
 			{
   pushc:
-				if (--len <= 0)
+				if (len-- <= 1)
 				     break;
 				*bp++ = c;
 				continue;
@@ -394,8 +394,9 @@ map_rewrite(map, s, slen, av)
 				goto pushc;
 			if (!(isascii(c) && isdigit(c)))
 			{
+				if (len-- <= 1)
+				     break;
 				*bp++ = '%';
-				--len;
 				goto pushc;
 			}
 			for (avp = av; --c >= '0' && *avp != NULL; avp++)

@@ -176,7 +176,7 @@ udbexpand(a, sendq, aliaslevel, e)
 	keylen = sm_strlcpyn(keybuf, sizeof keybuf, 2, user, ":maildrop");
 
 	/* if name is too long, assume it won't match */
-	if (keylen > sizeof keybuf)
+	if (keylen >= sizeof keybuf)
 		return EX_OK;
 
 	/* build actual database key */

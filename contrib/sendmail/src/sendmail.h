@@ -1052,6 +1052,7 @@ struct rewrite
 #define MATCHZERO	CANONHOST
 
 #define MAXMATCH	9	/* max params per rewrite */
+#define MAX_MAP_ARGS	10	/* max arguments for map */
 
 /* external <==> internal mapping table */
 struct metamac
