@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1987, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vipw.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id: vipw.c,v 1.5 1997/10/27 07:53:22 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -56,7 +60,7 @@ static char sccsid[] = "@(#)vipw.c	8.3 (Berkeley) 4/2/94";
 char *tempname;
 
 void	copyfile __P((int, int));
-void	usage __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -118,7 +122,7 @@ copyfile(from, to)
 		pw_error(_PATH_MASTERPASSWD, 1, 1);
 }
 
-void
+static void
 usage()
 {
 
