@@ -50,7 +50,6 @@ The following command line options are supported:
 .Bl -tag -width indent
 .It Ar mode
 Select a new video mode. The modes currently recognized are:
-.Ar 40x25 ,
 .Ar 80x25 ,
 .Ar 80x30 ,
 .Ar 80x43 ,
@@ -69,7 +68,6 @@ Select a new video mode. The modes currently recognized are:
 .Ar EGA_80x25 ,
 .Ar EGA_80x43 ,
 .Ar VESA_132x25 ,
-.Ar VESA_132x30 ,
 .Ar VESA_132x43 ,
 .Ar VESA_132x50 ,
 .Ar VESA_132x60 .
@@ -84,8 +82,11 @@ See
 below.
 .It Ar foreground Op Ar background
 Change colors when displaying text. Specify the foreground color
-(e.g. ``vidcontrol white''), or both a foreground and background colors
-(e.g. ``vidcontrol yellow blue'').
+(e.g.
+.Dq vidcontrol white ) ,
+or both a foreground and background colors
+(e.g.
+.Dq vidcontrol yellow blue ) .
 Use the
 .Cm show
 command below to see available colors.
@@ -138,8 +139,7 @@ for
 .Cm 8x8 ,
 .Cm 8x14
 or
-.Cm 8x16
-).
+.Cm 8x16 ) .
 The font file can be either uuencoded or in raw binary format.
 You can also use the menu-driven
 .Xr vidfont 1
@@ -220,7 +220,7 @@ in order to configure the video output at boot time.
 Sets the timeout value for the 
 .Fl t
 option.
-.It Ar font8x16, font8x14, font8x8
+.It Ar font8x16 , font8x14 , font8x8
 Specifies font files for the
 .Fl f
 option.
@@ -281,6 +281,7 @@ The above command will load
 .Xr syscons 4 ,
 .Xr vga 4 ,
 .Xr rc.conf 5 ,
+.Xr kldload 8 ,
 .Xr moused 8
 .Sh AUTHORS
 .An Søren Schmidt Aq sos@FreeBSD.org
