@@ -644,9 +644,6 @@ umass_cam_attach(umass_softc_t *sc)
 		return(ENOMEM);
 	}
 
-	/* spec-ed sustainable xfer speed */
-	cam_sim_set_basexfer_speed(sc->sim, 700/*kb/s*/);
-
 	if(xpt_bus_register(sc->sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(sc->sim, 1);
 		return(ENOMEM);
