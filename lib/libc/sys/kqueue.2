@@ -364,6 +364,18 @@ signal delivery processing.
 returns the number of times the signal has occurred since the last call to
 .Fn kevent .
 This filter automatically sets the EV_CLEAR flag internally.
+.It EVFILT_TIMER
+Establishes an arbitrary timer identified by
+.Va ident .
+When adding a timer,
+.Va data
+specifies the timeout period in milliseconds.
+The timer will be periodic unless EV_ONESHOT is specified.
+On return,
+.Va data
+contains the number of times the timeout has expired since the last call to
+.Fn kevent .
+This filter automatically sets the EV_CLEAR flag internally.
 .El
 .Sh RETURN VALUES
 .Fn kqueue
