@@ -7,36 +7,31 @@
 .include "${.CURDIR}/../Makefile.inc"
 .endif
 
-# Variables of possible interest to the user
-
-
 # FORMATS indicates which output formats will be generated.  See
 # the sgmlfmt(1) man page for a list of valid formats.  
-# Specify "null" for FORMATS to build and install nothing.
+# If FORMATS is empty, nothing will be built or installed.
+# Use SGMLOPTS to pass extra flags to sgmlfmt(1).
 
 FORMATS?=	ascii html
+SGMLFLAGS+=	${SGMLOPTS}
 
 VOLUME?=	${.CURDIR:T}
 DOC?=		${.CURDIR:T}
-SGMLFMT?=	sgmlfmt
-LPR?=		lpr
-SGMLFLAGS+=	${SGMLOPTS}
 BINDIR?=	/usr/share/doc
-BINMODE?=	444
 SRCDIR?=	${.CURDIR}
 DISTRIBUTION?=	doc
-
-# Everything else
+SGMLFMT?=	sgmlfmt
+LPR?=		lpr
 
 DOCS=	${FORMATS:S/^/${DOC}./g}
 
 .MAIN:	all
 all:	${DOCS}
 
-# Empty targets for FORMATS= null. 
-${DOC}.null:
-install-null:
-print-null:
+# If FORMATS is empty, do nothing
+.if empty(FORMATS)
+${DOC}. install- print- clean-:
+.endif
 
 .if !target(obj)
 .if defined(NOOBJ)
@@ -124,12 +119,12 @@ print-${_FORMAT}: ${DOC}.${_FORMAT}
 .if !target(install-${_FORMAT})
 .if ${_FORMAT} == "html"
 install-${_FORMAT}: ${DOC}.${_FORMAT}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
 		*.${.TARGET:S/install-//} ${DESTDIR}${BINDIR}/${VOLUME}
 
 .else
 install-${_FORMAT}: ${DOC}.${_FORMAT}
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	${INSTALL} ${COPY} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} \
 		${DOC}.${.TARGET:S/install-//} ${DESTDIR}${BINDIR}/${VOLUME}
 
 .endif
@@ -137,7 +132,7 @@ install-${_FORMAT}: ${DOC}.${_FORMAT}
 
 .if !target(${DOC}.${_FORMAT})
 ${DOC}.${_FORMAT}:	${SRCS}
-	(cd ${SRCDIR}; ${SGMLFMT} -f ${.TARGET:S/${DOC}.//} ${SGMLFLAGS} ${DOC})
+	${SGMLFMT} -f ${.TARGET:S/${DOC}.//} ${SGMLFLAGS} ${.CURDIR}/${DOC}.sgml
 
 .endif
 
