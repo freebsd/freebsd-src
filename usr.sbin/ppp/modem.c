@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.94 1998/06/27 14:18:07 brian Exp $
+ * $Id: modem.c,v 1.95 1998/07/03 17:24:38 brian Exp $
  *
  *  TODO:
  */
@@ -713,7 +713,8 @@ modem_Raw(struct physical *modem, struct bundle *bundle)
   if (modem->type != PHYS_DEDICATED)
     rstio.c_cflag |= HUPCL;
 
-  tcsetattr(modem->fd, TCSADRAIN, &rstio);
+  tcsetattr(modem->fd, TCSANOW, &rstio);
+
   oldflag = fcntl(modem->fd, F_GETFL, 0);
   if (oldflag < 0)
     return (-1);
