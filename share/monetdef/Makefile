@@ -92,5 +92,7 @@ afterinstall:
 .endfor
 	ln -sf ../ja_JP.eucJP/LC_MONETARY \
 		${LOCALEDIR}/ja_JP.SJIS/LC_MONETARY
+	ln -sf ../ko_KR.eucKR/LC_MONETARY \
+		${LOCALEDIR}/ko_KR.CP949/LC_MONETARY
 
 .include <bsd.prog.mk>
