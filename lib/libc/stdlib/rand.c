@@ -98,12 +98,12 @@ rand_r(unsigned int *ctx)
 }
 
 
-static u_long next = 1;
+static u_long next = 892053144; /* after srand(1), NSHUFF counted */
 
 int
 rand()
 {
-	return do_rand(&next);
+	return (do_rand(&next));
 }
 
 void
@@ -114,7 +114,7 @@ u_int seed;
 
 	next = seed;
 	for (i = 0; i < NSHUFF; i++)
-		(void)do_rand(&next);
+		(void)rand();
 }
 
 
