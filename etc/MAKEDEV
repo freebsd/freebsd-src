@@ -1657,13 +1657,13 @@ cx*)
 		unit=0
 		while [ $unit -lt 48 ]
 		do
-			mknod /dev/${i}${unit} c 42 $(($unit + 64))
-			chmod 644 /dev/${i}${unit}
+			mknod ${i}${unit} c 42 $(($unit + 64))
+			chmod 644 ${i}${unit}
 			unit=$(($unit + 1))
 		done
 	else 
-			mknod /dev/${i} c 42 $(($unit + 64))
-			chmod 644 /dev/${i}
+			mknod ${i} c 42 $(($unit + 64))
+			chmod 644 ${i}
 	fi
 	;;
 	
