@@ -764,13 +764,34 @@ arstrategy(struct bio *bp)
 		return;
 	    }
 	    if (bp->bio_cmd == BIO_READ) {
-		if ((buf1->bp.bio_pblkno <
-		     (rdp->disks[buf1->drive].last_lba - AR_PROXIMITY) ||
-		     buf1->bp.bio_pblkno >
-		     (rdp->disks[buf1->drive].last_lba + AR_PROXIMITY) ||
-		     !(rdp->disks[buf1->drive].flags & AR_DF_ONLINE)) &&
-		     (rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE))
+		/* if mirror gone or close to last access on source */
+		if (!(rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE)||
+		    (buf1->bp.bio_pblkno >=
+		     (rdp->disks[buf1->drive].last_lba - AR_PROXIMITY) &&
+		     buf1->bp.bio_pblkno <=
+		     (rdp->disks[buf1->drive].last_lba + AR_PROXIMITY))) {
+		    rdp->flags &= ~AR_F_TOGGLE;
+		} 
+		/* if source gone or close to last access on mirror */
+		else if (!(rdp->disks[buf1->drive].flags & AR_DF_ONLINE) ||
+			 (buf1->bp.bio_pblkno >=
+			  (rdp->disks[buf1->drive + rdp->width].last_lba -
+			   AR_PROXIMITY) &&
+			  buf1->bp.bio_pblkno <=
+			  (rdp->disks[buf1->drive + rdp->width].last_lba +
+			   AR_PROXIMITY))) {
+		    buf1->drive = buf1->drive + rdp->width;
+		    rdp->flags |= AR_F_TOGGLE;
+		}
+		/* not close to any previous access, toggle */
+		else {
+		    if (rdp->flags & AR_F_TOGGLE)
+			rdp->flags &= ~AR_F_TOGGLE;
+		    else {
 			buf1->drive = buf1->drive + rdp->width;
+			rdp->flags |= AR_F_TOGGLE;
+		    }
+		}
 	    }
 	    if (bp->bio_cmd == BIO_WRITE) {
 		if ((rdp->disks[buf1->drive+rdp->width].flags & AR_DF_ONLINE) ||
