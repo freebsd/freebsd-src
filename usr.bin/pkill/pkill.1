@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd March 25, 2004
+.Dd March 20, 2005
 .Dt PKILL 1
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@
 .Op Fl U Ar uid
 .Op Fl d Ar delim
 .Op Fl g Ar pgrp
+.Op Fl j Ar jid
 .Op Fl s Ar sid
 .Op Fl t Ar tty
 .Op Fl u Ar euid
@@ -65,6 +66,7 @@
 .Op Fl P Ar ppid
 .Op Fl U Ar uid
 .Op Fl g Ar pgrp
+.Op Fl j Ar jid
 .Op Fl s Ar sid
 .Op Fl t Ar tty
 .Op Fl u Ar euid
@@ -119,6 +121,11 @@ The value zero is taken to mean the process group ID of the running
 or
 .Nm pkill
 command.
+.It Fl j Ar jid
+Restrict matches to processes inside jails with a jail ID in the comma-separated
+list
+.Ar jid .
+The value zero is taken to mean any jail ID.
 .It Fl l
 Long output.
 Print the process name in addition to the process ID for each matching
