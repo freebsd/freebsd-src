@@ -188,6 +188,7 @@ struct filed {
 	u_int	f_repeatcount;			/* number of "repeated" msgs */
 	int	f_flags;			/* file-specific flags */
 #define FFLAG_SYNC 0x01
+#define FFLAG_NEEDSYNC	0x02
 };
 
 /*
@@ -292,6 +293,7 @@ static int	UniquePriority;	/* Only log specified priority? */
 static int	LogFacPri;	/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
 static int	KeepKernFac;	/* Keep remotely logged kernel facility */
+static int	needdofsync = 0; /* Are any file(s) waiting to be fsynced? */
 
 volatile sig_atomic_t MarkSet, WantDie;
 
@@ -304,6 +306,7 @@ static int	deadq_remove(pid_t);
 static int	decode(const char *, CODE *);
 static void	die(int);
 static void	dodie(int);
+static void	dofsync();
 static void	domark(int);
 static void	fprintlog(struct filed *, int, const char *);
 static int	*socksetup(int, const char *);
@@ -557,9 +560,12 @@ main(int argc, char *argv[])
 				FD_SET(funix[i], fdsr);
 		}
 
-		i = select(fdsrmax+1, fdsr, NULL, NULL, tvp);
+		i = select(fdsrmax+1, fdsr, NULL, NULL,
+		    needdofsync ? &tv : tvp);
 		switch (i) {
 		case 0:
+			dofsync();
+			needdofsync = 0;
 			if (tvp) {
 				tvp = NULL;
 				if (ppid != 1)
@@ -976,6 +982,20 @@ logmsg(int pri, const char *msg, const char *from, int flags)
 }
 
 static void
+dofsync(void)
+{
+	struct filed *f;
+
+	for (f = Files; f; f = f->f_next) {
+		if ((f->f_type == F_FILE) &&
+		    (f->f_flags & FFLAG_NEEDSYNC)) {
+			f->f_flags &= ~FFLAG_NEEDSYNC;
+			(void)fsync(f->f_file);
+		}
+	}
+}
+
+static void
 fprintlog(struct filed *f, int flags, const char *msg)
 {
 	struct iovec iov[7];
@@ -1153,8 +1173,10 @@ fprintlog(struct filed *f, int flags, const char *msg)
 			f->f_type = F_UNUSED;
 			errno = e;
 			logerror(f->f_un.f_fname);
-		} else if ((flags & SYNC_FILE) && (f->f_flags & FFLAG_SYNC))
-			(void)fsync(f->f_file);
+		} else if ((flags & SYNC_FILE) && (f->f_flags & FFLAG_SYNC)) {
+			f->f_flags |= FFLAG_NEEDSYNC;
+			needdofsync = 1;
+		}
 		break;
 
 	case F_PIPE:
