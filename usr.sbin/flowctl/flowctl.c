@@ -43,7 +43,6 @@ static const char rcs_id[] =
 #include <arpa/inet.h>
 
 #include <err.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -78,7 +77,7 @@ char	ng_nodename[NG_PATHLEN + 1];
 int
 main(int argc, char **argv)
 {
-	int flags, c;
+	int c;
 	char sname[NG_NODESIZ];
 	int rcvbuf = SORCVBUF_SIZE;
 	char	*ng_name;
@@ -107,13 +106,6 @@ main(int argc, char **argv)
 
 	if (NgMkSockNode(sname, &cs, NULL) == -1)
 		err(1, "NgMkSockNode");
-
-	/* set control socket nonblocking */
-	if ((flags = fcntl(cs, F_GETFL, 0)) == -1)
-		err(1, "fcntl(F_GETFL)");
-	flags |= O_NONBLOCK;
-	if (fcntl(cs, F_SETFL, flags) == -1)
-		err(1, "fcntl(F_SETFL)");
 
 	/* set receive buffer size */
 	if (setsockopt(cs, SOL_SOCKET, SO_RCVBUF, &rcvbuf, sizeof(int)) == -1)
