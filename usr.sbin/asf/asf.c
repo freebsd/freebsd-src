@@ -40,10 +40,9 @@
 #include <unistd.h>
 
 #define MAXTOKEN 10
-char *token[MAXTOKEN];
-char *modules_path;			/* path relative to kernel
+const char *modules_path;		/* path relative to kernel
 					 * build directory */
-char *outfile;				/* and where to write the output */
+const char *outfile;			/* and where to write the output */
 
 /*
  * Take a blank separated list of tokens and turn it into a list of
@@ -52,7 +51,7 @@ char *outfile;				/* and where to write the output */
  * number of tokens, or -1 on error (typically a missing string
  * delimiter).
  */
-int
+static int
 tokenize(char *cptr, char *token[], int maxtoken)
 {
     char delim;				/* delimiter to search for */
@@ -92,8 +91,8 @@ tokenize(char *cptr, char *token[], int maxtoken)
     return maxtoken;			/* can't get here */
 }
 
-void
-usage(char *myname)
+static void
+usage(const char *myname)
 {
     fprintf(stderr,
 	"Usage:\n"
@@ -115,9 +114,10 @@ main(int argc, char *argv[])
     int tokens;				/* number of tokens on line */
     char basetoken[MAXLINE];
     int i;
-    char *filemode = "w";		/* mode for outfile */
+    const char *filemode = "w";		/* mode for outfile */
     char cwd[MAXPATHLEN];		/* current directory */
-    char *debugname = ".debug";		/* some file names end in this */
+    const char *debugname = ".debug";	/* some file names end in this */
+    char *token[MAXTOKEN];
 
     getcwd(cwd, MAXPATHLEN);		/* find where we are */
     kldstat = stdin;
