@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.37 1995/05/29 01:43:17 jkh Exp $
+ * $Id: menus.c,v 1.38 1995/05/29 11:01:29 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -323,8 +323,8 @@ DMenu MenuInstallType = {
 These select what we consider to be the most reasonable defaults for the\n\
 type of system in question.  If you would prefer to pick and choose\n\
 the list of distributions yourself, simply select \"custom\".",
-    "Press F1 for more information on the various distributions",
-    "dist_types.hlp",
+    NULL,
+    NULL,
     { { "Developer",	"Full sources, binaries and doc but no games [171MB]",
 	DMENU_CALL,	distSetDeveloper, 0, 0		},
       { "X-Developer",	"Same as above, but includes XFree86 [196MB]",
@@ -350,8 +350,8 @@ DMenu MenuDistributions = {
     "Please check off the distributions you wish to install.  Some\n
 of the most generally useful distributions are already checked, and\n\
 selecting OK at this stage will chose them as defaults.",
-    "Press F1 for a more complete description of these distributions.",
-    "distribution_types.hlp",
+    NULL,
+    NULL,
     { { "*bin", "Binary base distribution (required) [36MB]",
 	DMENU_SET_FLAG,	&Dists, DIST_BIN, 0		},
       { "commercial", "Commercial demos and shareware [10MB]",
@@ -384,8 +384,8 @@ DMenu MenuSrcDistributions = {
     "Select the sub-components of src you wish to install.",
     "Please check off those portions of the FreeBSD source tree\n\
 you wish to install.",
-    "Press F1 for a more complete description of distributions.",
-    "distribution_types.hlp",
+    NULL,
+    NULL,
     { { "base", "top-level files in /usr/src [300K]",
 	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_BASE, 0	},
       { "gnu", "/usr/src/gnu (software from the GNU Project) [42MB]]",
@@ -427,7 +427,7 @@ distribution.  We recommend that you select what you need from the basic\n\
 components set and at least one entry from the Server and Font set menus.\n\n\
 When you're finished, select Cancel.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86S.hlp",
+    "XF86.hlp",
     { { "Basic", "Basic component menu (required)",
 	DMENU_SUBMENU, &MenuXF86SelectCore, 0, 0	},
       { "Server", "X server menu", 
@@ -442,8 +442,8 @@ DMenu MenuXF86SelectCore = {
     "XFree86 3.1.1 base distribution types",
     "Please check off the basic XFree86 components you wish to install.\n\
 Those deemed most generally useful are already checked off for you.",
-    NULL,
-    NULL,
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86.hlp",
     { { "*bin", "X client applications and shared libs [4MB].",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0	},
       { "*lib", "Data files needed at runtime [600K]",
@@ -472,8 +472,8 @@ DMenu MenuXF86SelectFonts = {
 install.  At the minimum, you should install the standard\n\
 75 DPI and misc fonts if you're also installing a server\n\
 (these are selected by default).",
-    NULL,
-    NULL,
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86.hlp",
     { { "*fnts", "Standard 75 DPI and miscellaneous fonts [3.6MB]",
 	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_MISC, 0		},
       { "f100", "100 DPI fonts [1.8MB]",
@@ -494,8 +494,8 @@ DMenu MenuXF86SelectServer = {
 If you are unsure as to which server will work for your graphics card,\n\
 it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
 Mono servers are particularly well-suited to most LCD displays).",
-    "xservers.hlp",
-    "Press F1 for more information on the various X server types",
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86.hlp",
     { { "*SVGA", "Standard VGA or Super VGA display [1MB]",
 	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_SVGA, 0	},
       { "VGA16", "Standard 16 color VGA display [1MB]",
@@ -531,7 +531,7 @@ not have the required space on a single drive.  If you wish to boot\n\
 off a drive that's not a `zero drive', or have multiple operating\n\
 systems on your machine, you will have the option to install a boot\n\
 manager later.",
-    "Press F1 for more information on what you see here.",
+    "Press F1 for important information regarding geometry!",
     "drives.hlp",
     { { NULL } },
 };
