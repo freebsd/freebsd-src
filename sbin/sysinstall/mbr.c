@@ -300,7 +300,7 @@ Fdisk()
 	}
 	mvprintw(20, 0, "Commands available:   ");
 	mvprintw(21, 0, "(H)elp   (T)utorial   (D)elete   (E)dit   (R)eread   (W)rite MBR   (Q)uit");
-	mvprintw(22, 0, "(U)se entire disk for FreeBSD   (G)eometry   Write MBR (B)ootcode");
+	mvprintw(22, 0, "(U)se entire disk for FreeBSD   (G)eometry   use (B)oot manager");
 	if (grumble) {
 	    standout();
  	    mvprintw(24, 0, grumble);
@@ -334,7 +334,7 @@ Advanced commands:
 
 (U)se entire disk for FreeBSD   - Assign ALL disk space on current drive
 (G)eometry                      - Edit the default disk geometry settings
-Write MBR (B)ootcode            - Install multi-OS bootmanager.
+Write (B)oot manager            - Install multi-OS bootmanager.
 
 
 Press any key to return to FDISK editor...
@@ -351,7 +351,15 @@ Press any key to return to FDISK editor...
 	    break;
 
 	case 'b': case 'B':
-	    write_bootcode(Dfd[diskno]);
+	    grumble = 0;
+	    for(i=0;i<NDOSPART;i++) {
+		if(dp[i].dp_start == 0 && dp[i].dp_typ== MBR_PTYPE_FreeBSD) {
+		    grumble = "Boot manager not needed."
+		    break;
+		}
+	    }
+	    if (!grumble)	
+		write_bootcode(Dfd[diskno]);
 	    grumble = "Wrote boot manager"; 
 	    break;
 
@@ -470,9 +478,6 @@ Press any key to return to FDISK editor...
 	    break;
 
 	case 'w': case 'W':
-	    strcpy(buf, "N");
-	    i = AskEm(stdscr, "Confirm write> ", buf, 2);
-	    if(*buf != 'y' && *buf != 'Y') break;
 	    write_dospart(Dfd[diskno], dp);
 	    Dlbl[diskno]->d_partitions[OURPART].p_offset = 0;
 	    Dlbl[diskno]->d_partitions[OURPART].p_size = 0;
@@ -482,8 +487,13 @@ Press any key to return to FDISK editor...
 			dp[i].dp_start;
 		    Dlbl[diskno]->d_partitions[OURPART].p_size = 
 			dp[i].dp_size;
+		    goto wok;
 		}
 	    }
+	    grumble = "No FreeBSD slice, cannot write.";
+	    break;
+	   
+	wok:
 	    Dlbl[diskno]->d_ntracks = hd;
 	    Dlbl[diskno]->d_nsectors = sec;
 	    Dlbl[diskno]->d_ncylinders = cyl;
