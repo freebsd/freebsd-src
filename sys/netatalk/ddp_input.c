@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004 Robert N. M. Watson
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
@@ -24,11 +25,13 @@
 #include <netatalk/at_var.h>
 #include <netatalk/ddp.h>
 #include <netatalk/ddp_var.h>
+#include <netatalk/ddp_pcb.h>
 #include <netatalk/at_extern.h>
 
 static volatile int	ddp_forward = 1;
 static volatile int	ddp_firewall = 0;
 static struct ddpstat	ddpstat;
+
 static struct route	forwro;
 
 static void     ddp_input(struct mbuf *, struct ifnet *, struct elaphdr *, int);
@@ -360,17 +363,16 @@ ddp_input(m, ifp, elh, phase)
      * Search for ddp protocol control blocks that match these
      * addresses. 
      */
+    DDP_LIST_SLOCK();
     if ((ddp = ddp_search(&from, &to, aa)) == NULL) {
-	m_freem(m);
-	return;
+	goto out;
     }
 
 #ifdef MAC
     SOCK_LOCK(ddp->ddp_socket);
     if (mac_check_socket_deliver(ddp->ddp_socket, m) != 0) {
 	SOCK_UNLOCK(ddp->ddp_socket);
-	m_freem(m);
-	return;
+	goto out;
     }
     SOCK_UNLOCK(ddp->ddp_socket);
 #endif
@@ -384,13 +386,17 @@ ddp_input(m, ifp, elh, phase)
 	 * If the socket is full (or similar error) dump the packet.
 	 */
 	ddpstat.ddps_nosockspace++;
-	m_freem(m);
-	return;
+	goto out;
     }
     /*
      * And wake up whatever might be waiting for it
      */
     sorwakeup(ddp->ddp_socket);
+    m = NULL;
+out:
+    DDP_LIST_SUNLOCK();
+    if (m != NULL)
+	m_freem(m);
 }
 
 #if 0

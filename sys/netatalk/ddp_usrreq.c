@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004 Robert N. M. Watson
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
@@ -33,17 +34,22 @@ ddp_attach(struct socket *so, int proto, struct thread *td)
 	struct ddpcb	*ddp;
 	int		error = 0;
 	
-
 	ddp = sotoddpcb(so);
-	if (ddp != NULL) {
-	    return (EINVAL);
-	}
+	if (ddp != NULL)
+		return (EINVAL);
 
+	/*
+	 * Allocate socket buffer space first so that it's present
+	 * before first use.
+	 */
+	error = soreserve(so, ddp_sendspace, ddp_recvspace);
+	if (error)
+		return (error);
+
+	DDP_LIST_XLOCK();
 	error = at_pcballoc(so);
-	if (error) {
-	    return (error);
-	}
-	return (soreserve(so, ddp_sendspace, ddp_recvspace));
+	DDP_LIST_XUNLOCK();
+	return (error);
 }
 
 static int
@@ -52,10 +58,13 @@ ddp_detach(struct socket *so)
 	struct ddpcb	*ddp;
 	
 	ddp = sotoddpcb(so);
-	if (ddp == NULL) {
+	if (ddp == NULL)
 	    return (EINVAL);
-	}
+
+	DDP_LIST_XLOCK();
+	DDP_LOCK(ddp);
 	at_pcbdetach(so, ddp);
+	DDP_LIST_XUNLOCK();
 	return (0);
 }
 
@@ -69,7 +78,11 @@ ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (ddp == NULL) {
 	    return (EINVAL);
 	}
+	DDP_LIST_XLOCK();
+	DDP_LOCK(ddp);
 	error = at_pcbsetaddr(ddp, nam, td);
+	DDP_UNLOCK(ddp);
+	DDP_LIST_XUNLOCK();
 	return (error);
 }
     
@@ -84,11 +97,17 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    return (EINVAL);
 	}
 
+	DDP_LIST_XLOCK();
+	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
+	    DDP_UNLOCK(ddp);
+	    DDP_LIST_XUNLOCK();
 	    return (EISCONN);
 	}
 
-	error = at_pcbconnect(ddp, nam, td);
+	error = at_pcbconnect( ddp, nam, td );
+	DDP_UNLOCK(ddp);
+	DDP_LIST_XUNLOCK();
 	if (error == 0)
 	    soisconnected(so);
 	return (error);
@@ -104,12 +123,15 @@ ddp_disconnect(struct socket *so)
 	if (ddp == NULL) {
 	    return (EINVAL);
 	}
+	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_addr.s_node == ATADDR_ANYNODE) {
+	    DDP_UNLOCK(ddp);
 	    return (ENOTCONN);
 	}
 
 	at_pcbdisconnect(ddp);
 	ddp->ddp_fsat.sat_addr.s_node = ATADDR_ANYNODE;
+	DDP_UNLOCK(ddp);
 	soisdisconnected(so);
 	return (0);
 }
@@ -144,23 +166,28 @@ ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
     	}
 
 	if (addr != NULL) {
+		DDP_LIST_XLOCK();
+		DDP_LOCK(ddp);
 		if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
-			return (EISCONN);
+			error = EISCONN;
+			goto out;
 		}
 
 		error = at_pcbconnect(ddp, addr, td);
-		if (error) {
-			return (error);
+		if (error == 0) {
+			error = ddp_output(m, so);
+			at_pcbdisconnect(ddp);
 		}
+out:
+		DDP_UNLOCK(ddp);
+		DDP_LIST_XUNLOCK();
 	} else {
-		if (ddp->ddp_fsat.sat_port == ATADDR_ANYPORT) {
-			return (ENOTCONN);
-		}
-	}
-
-	error = ddp_output(m, so);
-	if (addr != NULL) {
-	    at_pcbdisconnect(ddp);
+		DDP_LOCK(ddp);
+		if (ddp->ddp_fsat.sat_port == ATADDR_ANYPORT)
+			error = ENOTCONN;
+		else
+			error = ddp_output(m, so);
+		DDP_UNLOCK(ddp);
 	}
 	return (error);
 }
@@ -174,20 +201,23 @@ ddp_abort(struct socket *so)
 	if (ddp == NULL) {
 		return (EINVAL);
 	}
+	DDP_LIST_XLOCK();
+	DDP_LOCK(ddp);
 	at_pcbdetach(so, ddp);
+	DDP_LIST_XUNLOCK();
 	return (0);
 }
 
 void 
 ddp_init(void)
 {
-
 	atintrq1.ifq_maxlen = IFQ_MAXLEN;
 	atintrq2.ifq_maxlen = IFQ_MAXLEN;
 	aarpintrq.ifq_maxlen = IFQ_MAXLEN;
 	mtx_init(&atintrq1.ifq_mtx, "at1_inq", NULL, MTX_DEF);
 	mtx_init(&atintrq2.ifq_mtx, "at2_inq", NULL, MTX_DEF);
 	mtx_init(&aarpintrq.ifq_mtx, "aarp_inq", NULL, MTX_DEF);
+	DDP_LIST_LOCK_INIT();
 	netisr_register(NETISR_ATALK1, at1intr, &atintrq1, 0);
 	netisr_register(NETISR_ATALK2, at2intr, &atintrq2, 0);
 	netisr_register(NETISR_AARP, aarpintr, &aarpintrq, 0);
@@ -202,6 +232,7 @@ ddp_clean(void)
     for (ddp = ddpcb_list; ddp != NULL; ddp = ddp->ddp_next) {
 	at_pcbdetach(ddp->ddp_socket, ddp);
     }
+    DDP_LIST_LOCK_DESTROY();
 }
 #endif
 
@@ -220,7 +251,9 @@ at_setsockaddr(struct socket *so, struct sockaddr **nam)
 	if (ddp == NULL) {
 	    return (EINVAL);
 	}
+	DDP_LOCK(ddp);
 	at_sockaddr(ddp, nam);
+	DDP_UNLOCK(ddp);
 	return (0);
 }
 

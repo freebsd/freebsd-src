@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2004 Robert N. M. Watson
  * Copyright (c) 1990,1994 Regents of The University of Michigan.
  * All Rights Reserved.  See COPYRIGHT.
  *
@@ -22,12 +23,18 @@
 #include <netatalk/ddp_pcb.h>
 #include <netatalk/at_extern.h>
 
+struct mtx		 ddp_list_mtx;
 static struct ddpcb	*ddp_ports[ ATPORT_LAST ];
-struct ddpcb	*ddpcb_list = NULL;
+struct ddpcb		*ddpcb_list = NULL;
 
 void
 at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr)
 {
+
+    /*
+     * Prevent modification of ddp during copy of addr.
+     */
+    DDP_LOCK_ASSERT(ddp);
     *addr = sodupsockaddr((struct sockaddr *)&ddp->ddp_lsat, M_NOWAIT);
 }
 
@@ -37,6 +44,12 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
     struct sockaddr_at	lsat, *sat;
     struct at_ifaddr	*aa;
     struct ddpcb	*ddpp;
+
+    /*
+     * We read and write both the ddp passed in, and also ddp_ports.
+     */
+    DDP_LIST_XLOCK_ASSERT();
+    DDP_LOCK_ASSERT(ddp);
 
     if (ddp->ddp_lsat.sat_port != ATADDR_ANYPORT) { /* shouldn't be bound */
 	return (EINVAL);
@@ -134,6 +147,9 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
     struct ifnet	*ifp;
     u_short		hintnet = 0, net;
 
+    DDP_LIST_XLOCK_ASSERT();
+    DDP_LOCK_ASSERT(ddp);
+
     if (sat->sat_family != AF_APPLETALK) {
 	return (EAFNOSUPPORT);
     }
@@ -222,6 +238,9 @@ at_pcbconnect(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 void 
 at_pcbdisconnect(struct ddpcb	*ddp)
 {
+
+    DDP_LOCK_ASSERT(ddp);
+
     ddp->ddp_fsat.sat_addr.s_net = ATADDR_ANYNET;
     ddp->ddp_fsat.sat_addr.s_node = ATADDR_ANYNODE;
     ddp->ddp_fsat.sat_port = ATADDR_ANYPORT;
@@ -232,8 +251,14 @@ at_pcballoc(struct socket *so)
 {
 	struct ddpcb	*ddp;
 
-	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_WAITOK | M_ZERO);
+	DDP_LIST_XLOCK_ASSERT();
+
+	MALLOC(ddp, struct ddpcb *, sizeof *ddp, M_PCB, M_NOWAIT | M_ZERO);
+	DDP_LOCK_INIT(ddp);
 	ddp->ddp_lsat.sat_port = ATADDR_ANYPORT;
+
+	ddp->ddp_socket = so;
+	so->so_pcb = (caddr_t)ddp;
 
 	ddp->ddp_next = ddpcb_list;
 	ddp->ddp_prev = NULL;
@@ -243,15 +268,19 @@ at_pcballoc(struct socket *so)
 		ddpcb_list->ddp_prev = ddp;
 	}
 	ddpcb_list = ddp;
-
-	ddp->ddp_socket = so;
-	so->so_pcb = (caddr_t)ddp;
-	return (0);
+	return(0);
 }
 
 void
 at_pcbdetach(struct socket *so, struct ddpcb *ddp)
 {
+
+    /*
+     * We modify ddp, ddp_ports, and the global list.
+     */
+    DDP_LIST_XLOCK_ASSERT();
+    DDP_LOCK_ASSERT(ddp);
+
     soisdisconnected(so);
     SOCK_LOCK(so);
     so->so_pcb = NULL;
@@ -282,6 +311,8 @@ at_pcbdetach(struct socket *so, struct ddpcb *ddp)
     if (ddp->ddp_next) {
 	ddp->ddp_next->ddp_prev = ddp->ddp_prev;
     }
+    DDP_UNLOCK(ddp);
+    DDP_LOCK_DESTROY(ddp);
     FREE(ddp, M_PCB);
 }
 
@@ -297,6 +328,8 @@ ddp_search(struct sockaddr_at *from, struct sockaddr_at *to,
 {
     struct ddpcb	*ddp;
 
+    DDP_LIST_SLOCK_ASSERT();
+
     /*
      * Check for bad ports.
      */
@@ -309,11 +342,13 @@ ddp_search(struct sockaddr_at *from, struct sockaddr_at *to,
      * the interface?
      */
     for (ddp = ddp_ports[ to->sat_port - 1 ]; ddp; ddp = ddp->ddp_pnext) {
+	DDP_LOCK(ddp);
 	/* XXX should we handle 0.YY? */
 
 	/* XXXX.YY to socket on destination interface */
 	if (to->sat_addr.s_net == ddp->ddp_lsat.sat_addr.s_net &&
 		to->sat_addr.s_node == ddp->ddp_lsat.sat_addr.s_node) {
+	    DDP_UNLOCK(ddp);
 	    break;
 	}
 
@@ -321,6 +356,7 @@ ddp_search(struct sockaddr_at *from, struct sockaddr_at *to,
 	if (to->sat_addr.s_node == ATADDR_BCAST && (to->sat_addr.s_net == 0 ||
 		to->sat_addr.s_net == ddp->ddp_lsat.sat_addr.s_net) &&
 		ddp->ddp_lsat.sat_addr.s_net == AA_SAT(aa)->sat_addr.s_net) {
+	    DDP_UNLOCK(ddp);
 	    break;
 	}
 
@@ -331,8 +367,10 @@ ddp_search(struct sockaddr_at *from, struct sockaddr_at *to,
 		ntohs(aa->aa_firstnet) &&
 		ntohs(ddp->ddp_lsat.sat_addr.s_net) <=
 		ntohs(aa->aa_lastnet)) {
+	    DDP_UNLOCK(ddp);
 	    break;
 	}
+	DDP_UNLOCK(ddp);
     }
     return (ddp);
 }

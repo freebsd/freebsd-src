@@ -13,6 +13,7 @@ struct ddpcb {
     struct socket	*ddp_socket;
     struct ddpcb	*ddp_prev, *ddp_next;
     struct ddpcb	*ddp_pprev, *ddp_pnext;
+    struct mtx		 ddp_mtx;
 };
 
 #define sotoddpcb(so)	((struct ddpcb *)(so)->so_pcb)
@@ -34,5 +35,6 @@ struct ddpstat {
 extern int	ddp_cksum;
 extern struct ddpcb		*ddpcb_list;
 extern struct pr_usrreqs	ddp_usrreqs;
+extern struct mtx		 ddp_list_mtx;
 #endif
 #endif /* _NETATALK_DDP_VAR_H_ */
