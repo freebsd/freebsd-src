@@ -22,7 +22,7 @@
 LANG=de_DE.ISO8859-1
 
 /* 1800-1933 */
-07/11 	Gründung der Rheinbundes, 1806
+07/11	Gründung der Rheinbundes, 1806
 10/14	Doppelschlacht bei Jena und Auerstedt, 1806
 10/16	Völkerschlacht bei Leipzig, 1813
 06/18	Niederlage Napoleons bei Waterloo, 1815
@@ -103,9 +103,9 @@ LANG=de_DE.ISO8859-1
 10/01	Verkündigung der Urteile im Nürnberger Hauptkriegsverbrecherprozeß, 1946
 02/25	Auflösung der Landes Preußen durch den Kontrollrat, 1947
 08/06	Erster Atombombenabwurf auf Hiroshima, 1945
-08/08   Atombombenabwurf auf Nagasaki, 1945
-04/19   Aufstand im Warschauer Ghetto, 1943
-12/07   Japan bombardiert Pearl Harbor, 1941
+08/08	Atombombenabwurf auf Nagasaki, 1945
+04/19	Aufstand im Warschauer Ghetto, 1943
+12/07	Japan bombardiert Pearl Harbor, 1941
 
 /* Deutschland nach dem 2. Weltkrieg */
 04/11	Attentat auf Dutschke, Studentenunruhen, 1968
@@ -160,10 +160,10 @@ LANG=de_DE.ISO8859-1
 01/08	Eröffnung der olympischen Spiele in Berlin, 1936
 01/20	Wannseekonferenz, 1942
 04/30	Selbstmord Hitlers, 1945
-07/29   Mussolini geboren, 1883
+07/29	Mussolini geboren, 1883
 
 /* Sozialismus */
-01/21   Lenin gestorben, 1924
+01/21	Lenin gestorben, 1924
 06	Gründung des Bundes der Kommunisten in London durch Marx+Engels, 1847
 05/23	Gründung des Allgemeinen Deutschen Arbeitervereins in Leipzig
 	unter Führung von Ferdinand Lassalles, 1863
@@ -187,10 +187,10 @@ LANG=de_DE.ISO8859-1
 10/14	Kuba-Krise, 1962
 10/18	Ablösung von Erich Honecker als SED-Generalsekretär, 1989
 11/09	Fall der Berliner Mauer, 1989
-09/09   Mao Tse-Tung gestorben im Alter von 82 Jahren, 1976
-11/10   Sowjetischer  Präsident Leonid Breschnew gestorben, Alter 75, 1982
-03/27   Chruschtschow wird sowjetischer Präsident, 1958
-10/12   Chruschtschow schlägt während einer Rede in der UNO mit den
+09/09	Mao Tse-Tung gestorben im Alter von 82 Jahren, 1976
+11/10	Sowjetischer Präsident Leonid Breschnew gestorben, Alter 75, 1982
+03/27	Chruschtschow wird sowjetischer Präsident, 1958
+10/12	Chruschtschow schlägt während einer Rede in der UNO mit den
 	Schuhen auf den Tisch, 1960
 
 #endif /* _de_DE_ISO8859_1_geschichte_ */
