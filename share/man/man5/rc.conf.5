@@ -1441,6 +1441,17 @@ if
 .Va moused_enable
 is set to
 .Ar YES .
+.It Va allscreens_kbdflags
+.Pq Vt str
+If set,
+.Xr kbdcontrol 1
+is run with these options for each of the virtual terminals
+.Pq Pa /dev/ttyv* .
+For example,
+.Dq Li -h 200
+will set the
+.Xr syscons 4
+scrollback (history) buffer to 200 lines.
 .It Va cron_enable
 .Pq Vt bool
 If set to
