@@ -27,11 +27,11 @@
  *	i4b daemon - main program entry
  *	-------------------------------
  *
- *	$Id: main.c,v 1.49 1999/12/13 21:25:25 hm Exp $ 
+ *	$Id: main.c,v 1.54 2000/10/09 12:53:29 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:47:35 1999]
+ *      last edit-date: [Mon Oct  2 22:57:08 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -89,7 +89,7 @@ usage(void)
 	fprintf(stderr, "                  general = 0x%04x, rates  = 0x%04x, timing   = 0x%04x\n", DL_MSG,   DL_RATES, DL_TIME);
 	fprintf(stderr, "                  state   = 0x%04x, retry  = 0x%04x, dial     = 0x%04x\n", DL_STATE, DL_RCVRY, DL_DIAL);
 	fprintf(stderr, "                  process = 0x%04x, kernio = 0x%04x  ctrlstat = 0x%04x\n", DL_PROC,  DL_DRVR,  DL_CNST);
-	fprintf(stderr, "                  rc-file = 0x%04x\n", DL_RCCF);
+	fprintf(stderr, "                  rc-file = 0x%04x, budget = 0x%04x\n", DL_RCCF, DL_BDGT);
 	fprintf(stderr, "    -dn           no debug output on fullscreen display\n");
 #endif
 	fprintf(stderr, "    -f            fullscreen status display\n");
@@ -126,14 +126,10 @@ main(int argc, char **argv)
 
 	setlocale (LC_ALL, "");
 	
-	while ((i = getopt(argc, argv, "bmc:d:fFlL:Pr:s:t:u:")) != -1)
+	while ((i = getopt(argc, argv, "mc:d:fFlL:Pr:s:t:u:")) != -1)
 	{
 		switch (i)
 		{
-			case 'b':
-				do_bell = 1;
-				break;
-				
 #ifdef I4B_EXTERNAL_MONITOR
 			case 'm':
 				inhibit_monitor = 1;
@@ -365,6 +361,10 @@ main(int argc, char **argv)
 	if(aliasing)
 		init_alias(aliasfile);
 
+	/* init holidays */
+	
+	init_holidays(holidayfile);		
+
 	/* init remote monitoring */
 	
 #ifdef I4B_EXTERNAL_MONITOR
@@ -405,6 +405,8 @@ main(int argc, char **argv)
 	}
 #endif
 
+	starttime = time(NULL);	/* get starttime */
+	
 	srandom(580403);	/* init random number gen */
 	
 	mloop(		/* enter loop of no return .. */

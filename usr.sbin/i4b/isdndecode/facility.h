@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,14 +24,34 @@
  *
  *---------------------------------------------------------------------------
  *
- *	facility.h - Q.932 facility header file
- *	---------------------------------------
+ *	facility.h - facility header file
+ *	---------------------------------
  *
- *	$Id: facility.h,v 1.4 1999/12/13 21:25:25 hm Exp $
+ *	$Id: facility.h,v 1.5 2000/02/21 15:17:17 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:50:06 1999]
+ *      last edit-date: [Mon Feb 21 16:16:04 2000]
+ *
+ *---------------------------------------------------------------------------
+ *
+ *	- Q.932 (03/93) Generic Procedures for the Control of
+ *		ISDN Supplementaty Services
+ *	- Q.950 (03/93) Supplementary Services Protocols, Structure and
+ *		General Principles
+ *	- ETS 300 179 (10/92) Advice Of Charge: charging information during
+ *		the call (AOC-D) supplementary service Service description
+ *	- ETS 300 180 (10/92) Advice Of Charge: charging information at the
+ *		end of call (AOC-E) supplementary service Service description
+ *	- ETS 300 181 (04/93) Advice Of Charge (AOC) supplementary service
+ *		Functional capabilities and information flows
+ *	- ETS 300 182 (04/93) Advice Of Charge (AOC) supplementary service
+ *		Digital Subscriber Signalling System No. one (DSS1) protocol
+ *	- X.208 Specification of Abstract Syntax Notation One (ASN.1)
+ *	- X.209 Specification of Basic Encoding Rules for
+ *		Abstract Syntax Notation One (ASN.1) 
+ *	- "ASN.1 Abstract Syntax Notation One", Walter Gora, DATACOM-Verlag
+ *		1992, 3rd Edition (ISBN 3-89238-062-7) (german !)
  *
  *---------------------------------------------------------------------------*/
 
@@ -148,6 +168,10 @@ enum states {
 	ST_EXP_RR_INV_ID,
 	ST_EXP_RR_OP_VAL,
 	ST_EXP_RR_RESULT,	
+
+	ST_EXP_REJ_INV_ID,
+	ST_EXP_REJ_OP_VAL,
+	ST_EXP_REJ_RESULT,	
 	
 	ST_EXP_NIX	
 };

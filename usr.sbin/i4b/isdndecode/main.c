@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	main.c - isdndecode main program file
  *	-------------------------------------
  *
- *	$Id: main.c,v 1.12 1999/12/13 21:25:25 hm Exp $
+ *	$Id: main.c,v 1.13 2000/02/21 15:17:17 hm Exp $
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:51:07 1999]
+ *      last edit-date: [Mon Feb 21 16:19:30 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -55,7 +55,10 @@ int Bopt = 0;
 int Popt = 0;
 int bpopt = 0;
 int info = 0;
+int xflag = 0;
 
+int enable_trace = TRACE_D_RX | TRACE_D_TX;
+	
 static char outfilename[1024];
 static char BPfilename[1024];
 
@@ -64,6 +67,36 @@ static int switch_driver( int value, int rx, int tx );
 static void usage( void );
 static void exit_hdl( void );
 static void reopenfiles( int );
+
+
+/*---------------------------------------------------------------------------*
+ *	usage intructions
+ *---------------------------------------------------------------------------*/
+void
+usage(void)
+{
+	fprintf(stderr,"\n");
+	fprintf(stderr,"isdndecode - isdn4bsd package ISDN decoder for passive cards (%d.%d.%d)\n", VERSION, REL, STEP);
+	fprintf(stderr,"usage: isdntrace -a -b -d -f <file> -h -i -l -n <val> -o -p <file> -r -u <unit>\n");
+	fprintf(stderr,"                 -x -B -P -R <unit> -T <unit>\n");
+	fprintf(stderr,"       -a        analyzer mode ................................... (default off)\n");
+	fprintf(stderr,"       -b        switch B channel trace on ....................... (default off)\n");
+	fprintf(stderr,"       -d        switch D channel trace off ....................... (default on)\n");
+	fprintf(stderr,"       -f <file> write output to file filename ........... (default %s0)\n", DECODE_FILE_NAME);
+	fprintf(stderr,"       -h        don't print header for each message ............. (default off)\n");
+	fprintf(stderr,"       -i        print I.430 (layer 1) INFO signals .............. (default off)\n");	
+	fprintf(stderr,"       -l        don't decode low layer Q.921 messages ........... (default off)\n");
+	fprintf(stderr,"       -o        don't write output to a file .................... (default off)\n");
+	fprintf(stderr,"       -p <file> specify filename for -B and -P ........ (default %s0)\n", BIN_FILE_NAME);
+	fprintf(stderr,"       -u <unit> specify controller unit number ............... (default unit 0)\n");
+	fprintf(stderr,"       -x        print packets with unknown protocoldiscriminator  (default off)\n");	
+	fprintf(stderr,"       -B        write binary trace data to file filename ........ (default off)\n");
+	fprintf(stderr,"       -P        playback from binary trace data file ............ (default off)\n");
+	fprintf(stderr,"       -R <unit> analyze Rx controller unit number (for -a) ... (default unit %d)\n", RxUDEF);
+	fprintf(stderr,"       -T <unit> analyze Tx controller unit number (for -a) ... (default unit %d)\n", TxUDEF);
+	fprintf(stderr,"\n");
+	exit(1);
+}
 
 /*---------------------------------------------------------------------------*
  *	main
@@ -81,7 +114,6 @@ main(int argc, char *argv[])
 	int c;
 	char *b;
 
-	int enable_trace = TRACE_D_RX | TRACE_D_TX;	
 	char *outfile = DECODE_FILE_NAME;
 	char *binfile = BIN_FILE_NAME;
 	int outfileset = 0;
@@ -92,7 +124,7 @@ main(int argc, char *argv[])
 
 	b = &buf[sizeof(i4b_trace_hdr_t)];
 	
-	while( (c = getopt(argc, argv, "abdf:hiln:op:u:BPR:T:")) != -1)
+	while( (c = getopt(argc, argv, "abdf:hiln:op:u:xBPR:T:")) != -1)
 	{
 		switch(c)
 		{
@@ -116,7 +148,7 @@ main(int argc, char *argv[])
 				outfile = optarg;
 				outfileset = 1;
 				break;
-			
+		        
 			case 'h':
 				header = 0;
 				break;
@@ -134,21 +166,25 @@ main(int argc, char *argv[])
 				binfile = optarg;
 				bpopt = 1;
 				break;
-			
+		        
 			case 'u':
 				unit = atoi(optarg);
 				if(unit < 0 || unit >= MAX_CONTROLLERS)
 					usage();
 				break;
 
+			case 'x':
+				xflag = 1;
+				break;
+
 			case 'B':
 				Bopt = 1;
 				break;
-			
+		        
 			case 'P':
 				Popt = 1;
 				break;
-			
+		        
 			case 'R':
 				Rx = atoi(optarg);
 				if(Rx < 0 || Rx >= MAX_CONTROLLERS)
@@ -173,7 +209,7 @@ main(int argc, char *argv[])
 
 	if(Bopt && Popt)
 		usage();
-		
+	        
 	atexit(exit_hdl);
 
 	if(Bopt)
@@ -182,14 +218,14 @@ main(int argc, char *argv[])
 			sprintf(BPfilename, "%s", binfile);
 		else
 			sprintf(BPfilename, "%s%d", BIN_FILE_NAME, unit);
-			
+		        
 		if((BP = fopen(BPfilename, "r")) != NULL)
 		{
 			char buffer[1024];
 			fclose(BP);
 			sprintf(buffer, "%s%s", BPfilename, DECODE_FILE_NAME_BAK); 
 			rename(BPfilename, buffer);
-		}			
+		}		        
 		if((BP = fopen(BPfilename, "w")) == NULL)
 		{
 			char buffer[80];
@@ -198,7 +234,7 @@ main(int argc, char *argv[])
 			perror(buffer);
 			exit(1);
 		}
-		
+	        
 		if((setvbuf(BP, (char *)NULL, _IONBF, 0)) != 0)
 		{
 			char buffer[80];
@@ -207,7 +243,7 @@ main(int argc, char *argv[])
 			perror(buffer);
 			exit(1);
 		}
-	}		
+	}	        
 
 	if(Popt)
 	{
@@ -215,7 +251,7 @@ main(int argc, char *argv[])
 			sprintf(BPfilename, "%s", binfile);
 		else
 			sprintf(BPfilename, "%s%d", BIN_FILE_NAME, unit);
-  			
+		        
 		if((BP = fopen(BPfilename, "r")) == NULL)
 		{
 			char buffer[80];
@@ -226,27 +262,27 @@ main(int argc, char *argv[])
 		}
 	}
 	else
-	{		
+	{	        
 		sprintf(devicename, "%s%d", I4BTRC_DEVICE, unit);
-	
+        
 		if((f = open(devicename, O_RDWR)) < 0)
 		{
 			char buffer[80];
-	
+        
 			sprintf(buffer, "Error opening trace device [%s]", devicename);
 			perror(buffer);
 			exit(1);
 		}
 	}
-	
+        
 	if(outflag)
 	{
 		if(outfileset == 0)
 			sprintf(outfilename, "%s%d", DECODE_FILE_NAME, unit);
 		else
 			strcpy(outfilename, outfile);
-			
-			
+		        
+		        
 		if((Fout = fopen(outfilename, "r")) != NULL)
 		{
 			char buffer[1024];
@@ -254,7 +290,7 @@ main(int argc, char *argv[])
 			sprintf(buffer, "%s%s", outfilename, DECODE_FILE_NAME_BAK); 
 			rename(outfilename, buffer);
 		}
-			
+		        
 		if((Fout = fopen(outfilename, "w")) == NULL)
 		{
 			char buffer[80];
@@ -263,7 +299,7 @@ main(int argc, char *argv[])
 			perror(buffer);
 			exit(1);
 		}
-		
+	        
 		if((setvbuf(Fout, (char *)NULL, _IONBF, 0)) != 0)
 		{
 			char buffer[80];
@@ -290,12 +326,12 @@ main(int argc, char *argv[])
 		else
 			traceon = 1;
 	}
-		
+	        
 	signal(SIGHUP, SIG_IGN);	/* ignore hangup signal */
-	signal(SIGUSR1, reopenfiles);	/* rotate logfile(s)	*/	
+	signal(SIGUSR1, reopenfiles);	/* rotate logfile(s)	*/      
 
 	time(&tm);
-	
+        
 	if(analyze)
 	{
 		sprintf(headerbuf, "\n==== isdnanalyze controller rx #%d - tx #%d ==== started %s",
@@ -306,9 +342,9 @@ main(int argc, char *argv[])
 		sprintf(headerbuf, "\n=========== isdntrace controller #%d =========== started %s",
 				unit, ctime(&tm));
 	}
-	
+        
 	printf("%s", headerbuf);
-	
+        
 	if(outflag)
 		fprintf(Fout, "%s", headerbuf);
 
@@ -329,10 +365,10 @@ main(int argc, char *argv[])
 				}
 			}
 
-			n -= sizeof(i4b_trace_hdr_t);			
+			n -= sizeof(i4b_trace_hdr_t);		        
 		}
 		else
-		{			
+		{		        
 			if((fread(buf, 1, sizeof(i4b_trace_hdr_t), BP)) != sizeof(i4b_trace_hdr_t))
 			{
 				if(feof(BP))
@@ -351,7 +387,7 @@ main(int argc, char *argv[])
 
 			ithp = (i4b_trace_hdr_t *)buf;
 			l = ithp->length - sizeof(i4b_trace_hdr_t);
-			
+		        
 			if((n = fread(buf+sizeof(i4b_trace_hdr_t), 1, l , BP)) != l)
 			{
 				char buffer[80];
@@ -425,13 +461,13 @@ fmt_hdr(i4b_trace_hdr_t *hdr, int frm_len)
 				frm_len);
 		}
 	}
-	
+        
 	for(i=strlen(hbuf); i <= NCOLS;)
 		hbuf[i++] = '-';
 
 	hbuf[i++] = '\n';
 	hbuf[i] = '\0';
-	
+        
 	return(hbuf);
 }
 
@@ -456,17 +492,29 @@ dumpbuf(int n, unsigned char *buf, i4b_trace_hdr_t *hdr)
 	switch(hdr->type)
 	{
 		case TRC_CH_I:		/* Layer 1 INFO's */
-			layer1(l1buf, buf);
+			if(enable_trace & TRACE_I)
+				layer1(l1buf, buf);
 			break;
-			
+		        
 		case TRC_CH_D:		/* D-channel data */
 			cnt = layer2(l2buf, buf, hdr->dir, print_q921);
-		
+
+			if(print_q921 == 0)
+				l2buf[0] = '\0';
+
 			n -= cnt;
 			buf += cnt;
 		
 			if(n)
+			{
+				if((*buf != 0x08) && (xflag == 0))
+				{
+					l2buf[0] = '\0';
+					l3buf[0] = '\0';
+					break;
+				}
 				layer3(l3buf, n, cnt, buf);
+			}
 			break;
 
 		default:	/* B-channel data */
@@ -743,34 +791,6 @@ sprintline(int layer, char *buffer, int oct_count, int oct_val,
 	{
 		strcpy(buffer, lbuffer);
 	}
-}
-
-/*---------------------------------------------------------------------------*
- *	usage intructions
- *---------------------------------------------------------------------------*/
-void
-usage(void)
-{
-	fprintf(stderr,"\n");
-	fprintf(stderr,"isdndecode - isdn4bsd package ISDN decoder for passive cards (%d.%d.%d)\n", VERSION, REL, STEP);
-	fprintf(stderr,"usage: isdntrace -a -b -d -f <file> -h -i -l -n <val> -o -p <file> -r -u <unit>\n");
-	fprintf(stderr,"                 -B -P -R <unit> -T <unit>\n");
-	fprintf(stderr,"       -a        analyzer mode ................................... (default off)\n");
-	fprintf(stderr,"       -b        switch B channel trace on ....................... (default off)\n");
-	fprintf(stderr,"       -d        switch D channel trace off ....................... (default on)\n");
-	fprintf(stderr,"       -f <file> write output to file filename ............ (default %s0)\n", DECODE_FILE_NAME);
-	fprintf(stderr,"       -h        don't print header for each message ............. (default off)\n");
-	fprintf(stderr,"       -i        print I.430 (layer 1) INFO signals .............. (default off)\n");	
-	fprintf(stderr,"       -l        don't decode low layer Q.921 messages ........... (default off)\n");
-	fprintf(stderr,"       -o        don't write output to a file .................... (default off)\n");
-	fprintf(stderr,"       -p <file> specify filename for -B and -P ........ (default %s0)\n", BIN_FILE_NAME);
-	fprintf(stderr,"       -u <unit> specify controller unit number ............... (default unit 0)\n");
-	fprintf(stderr,"       -B        write binary trace data to file filename ........ (default off)\n");
-	fprintf(stderr,"       -P        playback from binary trace data file ............ (default off)\n");
-	fprintf(stderr,"       -R <unit> analyze Rx controller unit number (for -a) ... (default unit %d)\n", RxUDEF);
-	fprintf(stderr,"       -T <unit> analyze Tx controller unit number (for -a) ... (default unit %d)\n", TxUDEF);
-	fprintf(stderr,"\n");
-	exit(1);
 }
 
 /* EOF */

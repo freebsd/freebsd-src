@@ -27,7 +27,7 @@
  *	FSM for isdnd
  *	-------------
  *
- *	$Id: fsm.c,v 1.18 1999/12/13 21:25:24 hm Exp $ 
+ *	$Id: fsm.c,v 1.19 2000/08/20 08:08:51 hm Exp $ 
  *
  * $FreeBSD$
  *
@@ -212,7 +212,7 @@ F_DFL(cfg_entry_t *cep)
 	{
 		cep->dial_count++;
 	
-		if(cep->dial_count < cep->dialretries)
+		if(cep->dial_count < cep->dialretries || cep->dialretries == -1) /* Added by FST <mailto:fsteevie@dds.nl> for unlimited dialing (sorry, but I needed it) */
 		{
 			/* inside normal retry cycle */
 		
@@ -290,7 +290,7 @@ F_ACBR(cfg_entry_t *cep)
 {	
 	cep->dial_count++;
 
-	if(cep->dial_count < cep->dialretries)
+	if(cep->dial_count < cep->dialretries || cep->dialretries == -1) /* Added by FST <mailto:fsteevie@dds.nl> for unlimited dialing (sorry, but I needed it) */
 	{
 		/* inside normal retry cycle */
 	

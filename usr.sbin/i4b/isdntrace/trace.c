@@ -1,5 +1,5 @@
 /*
- *   Copyright (c) 1996, 1999 Hellmuth Michaelis.  All rights reserved.
+ *   Copyright (c) 1996, 2000 Hellmuth Michaelis.  All rights reserved.
  *
  *   Copyright (c) 1996 Gary Jennejohn.  All rights reserved. 
  *
@@ -35,11 +35,11 @@
  *	trace.c - print traces of D (B) channel activity for isdn4bsd
  *	-------------------------------------------------------------
  *
- *	$Id: trace.c,v 1.15 1999/12/13 21:25:26 hm Exp $ 
+ *	$Id: trace.c,v 1.19 2000/08/28 07:06:42 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:57:48 1999]
+ *      last edit-date: [Mon Aug 28 09:03:46 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -64,9 +64,15 @@ int Popt = 0;
 int bpopt = 0;
 int info = 0;
 int Fopt = 0;
+int xopt = 1;
 
-static char outfilename[1024];
-static char BPfilename[1024];
+int enable_trace = TRACE_D_RX | TRACE_D_TX;
+	
+static char outfilename[MAXPATHLEN];
+static char routfilename[MAXPATHLEN];
+static char BPfilename[MAXPATHLEN];
+static char rBPfilename[MAXPATHLEN];
+
 static struct stat fst;
 
 static void dumpbuf( int n, unsigned char *buf, i4b_trace_hdr_t *hdr, int raw );
@@ -74,6 +80,7 @@ static int switch_driver( int value, int rx, int tx );
 static void usage( void );
 static void exit_hdl( void );
 static void reopenfiles( int );
+void add_datetime(char *filename, char *rfilename);
 
 /*---------------------------------------------------------------------------*
  *	usage instructions
@@ -84,7 +91,7 @@ usage(void)
 	fprintf(stderr,"\n");
 	fprintf(stderr,"isdntrace - i4b package ISDN trace facility for passive cards (%02d.%02d.%d)\n", VERSION, REL, STEP);
 	fprintf(stderr,"usage: isdntrace -a -b -d -f <file> -h -i -l -n <val> -o -p <file> -r -u <unit>\n");
-	fprintf(stderr,"                 -B -F -P -R <unit> -T <unit>\n");
+	fprintf(stderr,"                 -x -B -F -P -R <unit> -T <unit>\n");
 	fprintf(stderr,"       -a        analyzer mode ................................... (default off)\n");
 	fprintf(stderr,"       -b        switch B channel trace on ....................... (default off)\n");
 	fprintf(stderr,"       -d        switch D channel trace off ....................... (default on)\n");
@@ -97,6 +104,7 @@ usage(void)
 	fprintf(stderr,"       -p <file> specify filename for -B and -P ........ (default %s0)\n", BIN_FILE_NAME);
 	fprintf(stderr,"       -r        don't print raw hex/ASCII dump of protocol ...... (default off)\n");
 	fprintf(stderr,"       -u <unit> specify controller unit number ............... (default unit 0)\n");
+	fprintf(stderr,"       -x        show packets with unknown protocol discriminator  (default off)\n");
 	fprintf(stderr,"       -B        write binary trace data to file filename ........ (default off)\n");
 	fprintf(stderr,"       -F        with -P and -p: wait for more data at EOF ....... (default off)\n");
 	fprintf(stderr,"       -P        playback from binary trace data file ............ (default off)\n");
@@ -122,7 +130,6 @@ main(int argc, char *argv[])
 	int c;
 	char *b;
 
-	int enable_trace = TRACE_D_RX | TRACE_D_TX;	
 	char *outfile = TRACE_FILE_NAME;
 	char *binfile = BIN_FILE_NAME;
 	int outfileset = 0;
@@ -135,7 +142,7 @@ main(int argc, char *argv[])
 
 	b = &buf[sizeof(i4b_trace_hdr_t)];
 	
-	while( (c = getopt(argc, argv, "abdf:hiln:op:ru:BFPR:T:")) != -1)
+	while( (c = getopt(argc, argv, "abdf:hiln:op:ru:xBFPR:T:")) != -1)
 	{
 		switch(c)
 		{
@@ -192,6 +199,10 @@ main(int argc, char *argv[])
 					usage();
 				break;
 
+			case 'x':
+				xopt = 0;
+				break;
+
 			case 'B':
 				Bopt = 1;
 				break;
@@ -238,18 +249,13 @@ main(int argc, char *argv[])
 		else
 			sprintf(BPfilename, "%s%d", BIN_FILE_NAME, unit);
 			
-		if((BP = fopen(BPfilename, "r")) != NULL)
-		{
-			char buffer[1024];
-			fclose(BP);
-			sprintf(buffer, "%s%s", BPfilename, TRACE_FILE_NAME_BAK); 
-			rename(BPfilename, buffer);
-		}			
-		if((BP = fopen(BPfilename, "w")) == NULL)
+		add_datetime(BPfilename, rBPfilename);
+
+		if((BP = fopen(rBPfilename, "w")) == NULL)
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error opening file [%s]", BPfilename);
+			sprintf(buffer, "Error opening file [%s]", rBPfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -258,7 +264,7 @@ main(int argc, char *argv[])
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error setting file [%s] to unbuffered", BPfilename);
+			sprintf(buffer, "Error setting file [%s] to unbuffered", rBPfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -271,6 +277,8 @@ main(int argc, char *argv[])
 		else
 			sprintf(BPfilename, "%s%d", BIN_FILE_NAME, unit);
   			
+		strcpy(rBPfilename, BPfilename);
+		
 		if((BP = fopen(BPfilename, "r")) == NULL)
 		{
 			char buffer[80];
@@ -311,20 +319,13 @@ main(int argc, char *argv[])
 		else
 			strcpy(outfilename, outfile);
 			
+		add_datetime(outfilename, routfilename);
 			
-		if((Fout = fopen(outfilename, "r")) != NULL)
-		{
-			char buffer[1024];
-			fclose(Fout);
-			sprintf(buffer, "%s%s", outfilename, TRACE_FILE_NAME_BAK); 
-			rename(outfilename, buffer);
-		}
-			
-		if((Fout = fopen(outfilename, "w")) == NULL)
+		if((Fout = fopen(routfilename, "w")) == NULL)
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error opening file [%s]", outfilename);
+			sprintf(buffer, "Error opening file [%s]", routfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -333,7 +334,7 @@ main(int argc, char *argv[])
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error setting file [%s] to unbuffered", outfile);
+			sprintf(buffer, "Error setting file [%s] to unbuffered", routfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -388,7 +389,7 @@ main(int argc, char *argv[])
 				if((fwrite(buf, 1, n, BP)) != n)
 				{
 					char buffer[80];
-					sprintf(buffer, "Error writing file [%s]", BPfilename);
+					sprintf(buffer, "Error writing file [%s]", rBPfilename);
 					perror(buffer);
 					exit(1);
 				}
@@ -408,7 +409,7 @@ again:
 						if(ferror(BP))
 						{
 							char buffer[80];
-							sprintf(buffer, "Error reading hdr from file [%s]", BPfilename);
+							sprintf(buffer, "Error reading hdr from file [%s]", rBPfilename);
 							perror(buffer);
 							exit(1);
 						}
@@ -416,19 +417,19 @@ again:
 						usleep(250000);
 						clearerr(BP);
 
-						if(stat(BPfilename, &fstnew) != -1)
+						if(stat(rBPfilename, &fstnew) != -1)
 						{
 							if((fst.st_ino != fstnew.st_ino) ||
 							   (fstnew.st_nlink == 0))
 							{
-								if((BP = freopen(BPfilename, "r", BP)) == NULL)
+								if((BP = freopen(rBPfilename, "r", BP)) == NULL)
 								{
 									char buffer[80];
-									sprintf(buffer, "Error reopening file [%s]", BPfilename);
+									sprintf(buffer, "Error reopening file [%s]", rBPfilename);
 									perror(buffer);
 									exit(1);
 								}
-								stat(BPfilename, &fst);
+								stat(rBPfilename, &fst);
 							}
 						}
 						goto again;
@@ -442,7 +443,7 @@ again:
 				else
 				{
 					char buffer[80];
-					sprintf(buffer, "Error reading hdr from file [%s]", BPfilename);
+					sprintf(buffer, "Error reading hdr from file [%s]", rBPfilename);
 					perror(buffer);
 					exit(1);
 				}
@@ -454,7 +455,7 @@ again:
 			if((n = fread(buf+sizeof(i4b_trace_hdr_t), 1, l , BP)) != l)
 			{
 				char buffer[80];
-				sprintf(buffer, "Error reading data from file [%s]", BPfilename);
+				sprintf(buffer, "Error reading data from file [%s]", rBPfilename);
 				perror(buffer);
 				exit(1);
 			}
@@ -482,7 +483,7 @@ fmt_hdr(i4b_trace_hdr_t *hdr, int frm_len)
 
 	if(hdr->type == TRC_CH_I)		/* Layer 1 INFO's */
 	{
-		sprintf(hbuf,"\n-- %s - unit:%d ---------------- time:%2.2d.%2.2d %2.2d:%2.2d:%2.2d.%6u ",
+		sprintf(hbuf,"\n-- %s - unit:%d ---------------- time:%2.2d.%2.2d %2.2d:%2.2d:%2.2d.%06u ",
 			((hdr->dir) ? "NT->TE" : "TE->NT"),
 			hdr->unit,
 			s->tm_mday,
@@ -496,7 +497,7 @@ fmt_hdr(i4b_trace_hdr_t *hdr, int frm_len)
 	{
 		if(hdr->trunc > 0)
 		{
-			sprintf(hbuf,"\n-- %s - unit:%d - frame:%6.6u - time:%2.2d.%2.2d %2.2d:%2.2d:%2.2d.%6u - length:%d (%d) ",
+			sprintf(hbuf,"\n-- %s - unit:%d - frame:%6.6u - time:%2.2d.%2.2d %2.2d:%2.2d:%2.2d.%06u - length:%d (%d) ",
 				((hdr->dir) ? "NT->TE" : "TE->NT"),
 				hdr->unit,
 				hdr->count,
@@ -511,7 +512,7 @@ fmt_hdr(i4b_trace_hdr_t *hdr, int frm_len)
 		}
 		else
 		{
-			sprintf(hbuf,"\n-- %s - unit:%d - frame:%6.6u - time:%2.2d.%2.2d %2.2d:%2.2d:%2.2d.%6u - length:%d ",
+			sprintf(hbuf,"\n-- %s - unit:%d - frame:%6.6u - time:%2.2d.%2.2d %2.2d:%2.2d:%2.2d.%06u - length:%d ",
 				((hdr->dir) ? "NT->TE" : "TE->NT"),
 				hdr->unit,
 				hdr->count,
@@ -555,6 +556,11 @@ dumpbuf(int n, unsigned char *buf, i4b_trace_hdr_t *hdr, int raw)
 	switch(hdr->type)
 	{
 		case TRC_CH_I:		/* Layer 1 INFO's */
+
+			/* on playback, don't display layer 1 if -i ! */
+			if(!(enable_trace & TRACE_I))
+				break;
+				
 			pbuf = &l1buf[0];
 
 			switch(buf[0])
@@ -609,8 +615,20 @@ dumpbuf(int n, unsigned char *buf, i4b_trace_hdr_t *hdr, int raw)
 						decode_1tr6(l3buf, n, cnt, buf, raw);
 						break;
 						
-					default:
+					case 0x08:
 						decode_q931(l3buf, n, cnt, buf, raw);
+						break;
+
+					default:
+						if(xopt)
+						{
+							l2buf[0] = '\0';
+							l3buf[0] = '\0';
+						}
+						else
+						{	
+							decode_unknownl3(l3buf, n, cnt, buf, raw);
+						}
 						break;
 				}
 			}
@@ -750,11 +768,13 @@ reopenfiles(int dummy)
 	{
 		fclose(Fout);
 
-		if((Fout = fopen(outfilename, "a")) == NULL)
+		add_datetime(outfilename, routfilename);
+		
+		if((Fout = fopen(routfilename, "a")) == NULL)
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error re-opening file [%s]", outfilename);
+			sprintf(buffer, "Error re-opening file [%s]", routfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -763,7 +783,7 @@ reopenfiles(int dummy)
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error re-setting file [%s] to unbuffered", outfilename);
+			sprintf(buffer, "Error re-setting file [%s] to unbuffered", routfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -774,11 +794,13 @@ reopenfiles(int dummy)
 		
 		fclose(BP);
 
-		if((BP = fopen(BPfilename, "a")) == NULL)
+		add_datetime(BPfilename, rBPfilename);
+		
+		if((BP = fopen(rBPfilename, "a")) == NULL)
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error re-opening file [%s]", BPfilename);
+			sprintf(buffer, "Error re-opening file [%s]", rBPfilename);
 			perror(buffer);
 			exit(1);
 		}
@@ -787,12 +809,42 @@ reopenfiles(int dummy)
 		{
 			char buffer[80];
 
-			sprintf(buffer, "Error re-setting file [%s] to unbuffered", BPfilename);
+			sprintf(buffer, "Error re-setting file [%s] to unbuffered", rBPfilename);
 			perror(buffer);
 			exit(1);
 		}
 	}
 }
 
+void
+add_datetime(char *filename, char *rfilename)
+{
+	time_t timeb;
+	struct tm *tmp;
+	FILE *fx;
 
-/* EOF */	                                                                                                            	                               
+	time(&timeb);
+	tmp = localtime(&timeb);
+	
+	sprintf(rfilename, "%s-", filename);
+
+	strftime(rfilename+strlen(rfilename), MAXPATHLEN-strlen(rfilename)-1,
+		"%Y%m%d-%H%M%S", tmp);
+		
+	if((fx = fopen(rfilename, "r")) != NULL)
+	{
+		fclose(fx);
+
+		sleep(1);
+
+		time(&timeb);
+		tmp = localtime(&timeb);
+	
+		sprintf(rfilename, "%s-", filename);
+
+		strftime(rfilename+strlen(rfilename), MAXPATHLEN-strlen(rfilename)-1,
+			"%Y%m%d-%H%M%S", tmp);
+	}
+}
+	
+/* EOF */

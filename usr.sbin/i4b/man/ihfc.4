@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+.\" Copyright (c) 2000 Hellmuth Michaelis. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -22,34 +22,55 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: i4btrc.4,v 1.9 1999/12/13 22:11:55 hm Exp $
+.\"	$Id: ihfc.4,v 1.2 2000/07/24 12:22:09 hm Exp $
 .\"
 .\" $FreeBSD$
 .\"
-.\"	last edit-date: [Mon Dec 13 23:14:19 1999]
+.\"	last edit-date: [Tue Apr 25 15:03:14 2000]
 .\"
-.Dd July 30, 1999
-.Dt I4BTRC 4
+.Dd July 20, 2000
+.Dt IHFC 4
 .Os
 .Sh NAME
-.Nm i4btrc
-.Nd isdn4bsd ISDN interface driver for D and B channel tracing
-.Sh FreeBSD SYNOPSIS
-.Cd pseudo-device \&"i4btrc\&" Op count
-.Sh NetBSD SYNOPSIS
-none
+.Nm ihfc
+.Nd isdn4bsd Cologne Chip Designs HFC[-S][-SP] 2B[DS0] driver
+.Sh SYNOPSIS
+.Pp
+All PnP cards (AcerISDN P10, Teles 16.3c PnP):
+.Pp
+.Cd "device ihfc"
+.Pp
+Non-PnP cards (TELEINT ISDN SPEED No.1):
+.Pp
+.Cd "device ihfc0 at isa?"
+.Pp
+NOTE: The driver will automatically probe for io-base and irq.
+.Pp
 .Sh DESCRIPTION
 The
 .Nm
-driver is used to add a header to the data got from the D and/or B channel
-and queues it to be read and further processed by the
-.Xr isdntrace 8
-utility.
+driver provides D-channel layer 1 supports as specified in ITU Recommendation
+I.430 and layer 1 support for the B-channel.
+.Pp
+The driver supports passive ISA ISDN cards based on the HFC[-S][-SP] 2B[DS0]
+chips from Cologne Chip Designs such as the Teles 16.3c and
+the AcerISDN P10.
+.Pp
+.Sh CAVEATS
+The driver is still in a somewhat experimental state.
+.Pp
+.Sh BUGS
+Always at least one left.
+.Sh STANDARDS
+CCITT Recommendation I.430
 .Sh SEE ALSO
-.Xr isdnd 8
-.Xr isdntrace 8
+.Xr i4bq921 4
+.Xr i4bq931 4
 .Sh AUTHOR
 The
 .Nm
-device driver and this manpage were written by 
-.An Hellmuth Michaelis Aq hm@kts.org .
+driver was written by
+.An Hans Petter Selasky Aq hselasky@c2i.net .
+.Pp
+This manpage was written by 
+.An Hellmuth Michaelis Aq hm@freebsd.org .

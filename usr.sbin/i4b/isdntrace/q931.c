@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2000 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,11 @@
  *	q931.c - print Q.931 traces
  *	---------------------------
  *
- *	$Id: q931.c,v 1.6 1999/12/13 21:25:26 hm Exp $ 
+ *	$Id: q931.c,v 1.10 2000/02/14 16:25:22 hm Exp $ 
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Dec 13 21:56:56 1999]
+ *      last edit-date: [Mon Feb 14 14:51:13 2000]
  *
  *---------------------------------------------------------------------------*/
 
@@ -59,7 +59,6 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 	
 	if(raw)
 	{
-
 		for (i = 0; i < n; i += 16)
 		{
 			sprintf((pbuf+strlen(pbuf)),"Dump:%.3d  ", i+off);
@@ -87,17 +86,17 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 	pd = buf[i];
 
 	if(pd >= 0x00 && pd <= 0x07)
-		sprintf((pbuf+strlen(pbuf)), "pd=User-User (0x%02x), ",pd);
+		sprintf((pbuf+strlen(pbuf)), "pd=User-User (0x%02x)\n",pd);
 	else if(pd == 0x08)
 		sprintf((pbuf+strlen(pbuf)), "pd=Q.931/I.451, ");
 	else if(pd >= 0x10 && pd <= 0x3f)
-		sprintf((pbuf+strlen(pbuf)), "pd=Other Layer 3 or X.25 (0x%02x), ",pd);
+		sprintf((pbuf+strlen(pbuf)), "pd=Other Layer 3 or X.25 (0x%02x)\n",pd);
 	else if(pd >= 0x40 && pd <= 0x4f)
-		sprintf((pbuf+strlen(pbuf)), "pd=National Use (0x%02x), ",pd);
+		sprintf((pbuf+strlen(pbuf)), "pd=National Use (0x%02x)\n",pd);
 	else if(pd >= 0x50 && pd <= 0xfe)
-		sprintf((pbuf+strlen(pbuf)), "pd=Other Layer 3 or X.25 (0x%02x), ",pd);
+		sprintf((pbuf+strlen(pbuf)), "pd=Other Layer 3 or X.25 (0x%02x)\n",pd);
 	else
-		sprintf((pbuf+strlen(pbuf)), "pd=Reserved (0x%02x), ",pd);
+		sprintf((pbuf+strlen(pbuf)), "pd=Reserved (0x%02x)\n",pd);
 
 	/* call reference */
 
@@ -119,7 +118,7 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 	}
 
 	i += (len+1);
-
+	
 	/* message type */	
 
 	sprintf((pbuf+strlen(pbuf)), "message=");
@@ -168,7 +167,7 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 			sprintf((pbuf+strlen(pbuf)), "RESUME REJECT: ");
 			break;
 		case 0x24:
-			sprintf((pbuf+strlen(pbuf)), "HOLD (Q.932): ");
+			sprintf((pbuf+strlen(pbuf)), "HOLD: ");
 			break;
 		case 0x25:
 			sprintf((pbuf+strlen(pbuf)), "SUSPEND: ");
@@ -177,7 +176,7 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 			sprintf((pbuf+strlen(pbuf)), "RESUME: ");
 			break;
 		case 0x28:
-			sprintf((pbuf+strlen(pbuf)), "HOLD ACKNOWLEDGE (Q.932): ");
+			sprintf((pbuf+strlen(pbuf)), "HOLD ACKNOWLEDGE: ");
 			break;
 		case 0x2d:
 			sprintf((pbuf+strlen(pbuf)), "SUSPEND ACKNOWLEDGE: ");
@@ -578,7 +577,9 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 						sprintf((pbuf+strlen(pbuf)), "[terminal capabilities: ");
 						break;
 					case 0x27:
-						sprintf((pbuf+strlen(pbuf)), "[notification ind: ");
+						sprintf((pbuf+strlen(pbuf)), "[notification indicator: ");
+						i += p_q931notification(pbuf, &buf[i]);
+						goto next;
 						break;
 					case 0x28:
 						sprintf((pbuf+strlen(pbuf)), "[display: ");
@@ -721,9 +722,13 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 						break;
 					case 0x74:
 						sprintf((pbuf+strlen(pbuf)), "[redirecting number: ");
+						i += p_q931redir(pbuf, &buf[i]);
+						goto next;
 						break;
 					case 0x76:
 						sprintf((pbuf+strlen(pbuf)), "[redirection number: ");
+						i += p_q931redir(pbuf, &buf[i]);
+						goto next;
 						break;
 					case 0x78:
 						sprintf((pbuf+strlen(pbuf)), "[transit network selection: ");
@@ -741,6 +746,8 @@ decode_q931(char *pbuf, int n, int off, unsigned char *buf, int raw)
 						break;
 					case 0x7e:
 						sprintf((pbuf+strlen(pbuf)), "[user-user: ");
+						i += p_q931user_user(pbuf, &buf[i]);
+						goto next;
 						break;
 					case 0x7f:
 						sprintf((pbuf+strlen(pbuf)), "[escape for extension: ");
