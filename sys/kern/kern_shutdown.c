@@ -390,7 +390,8 @@ shutdown_panic(void *junk, int howto)
 		} else { /* zero time specified - reboot NOW */
 			return;
 		}
-		printf("--> Press a key on the console to reboot <--\n");
+		printf("--> Press a key on the console to reboot,\n");
+		printf("--> or switch off the system now.\n");
 		cngetc();
 	}
 }
