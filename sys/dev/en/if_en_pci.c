@@ -50,6 +50,9 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#if defined(__FreeBSD__)
+#include <sys/eventhandler.h>
+#endif
 #include <sys/malloc.h>
 #include <sys/socket.h>
 

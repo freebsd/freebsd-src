@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.10 1999/05/09 17:06:54 peter Exp $
+ * $Id: if_fpa.c,v 1.11 1999/08/21 06:24:34 msmith Exp $
  *
  */
 
@@ -42,6 +42,7 @@
 
 #if defined(__FreeBSD__)
 #include "fpa.h"
+#include <sys/eventhandler.h>
 #include <net/ethernet.h>
 #include <net/if_arp.h>
 #include <pci/pcivar.h>

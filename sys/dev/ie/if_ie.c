@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.65 1999/08/20 14:36:40 mdodd Exp $
+ *	$Id: if_ie.c,v 1.66 1999/08/21 06:24:14 msmith Exp $
  */
 
 /*
@@ -113,6 +113,7 @@ iomem and and with 0xffff.
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/conf.h>
