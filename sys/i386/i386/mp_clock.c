@@ -74,7 +74,6 @@ sysctl_machdep_piix_freq(SYSCTL_HANDLER_ARGS)
 	if (error == 0 && req->newptr != NULL) {
 		piix_freq = freq;
 		piix_timecounter.tc_frequency = piix_freq;
-		tc_update(&piix_timecounter);
 	}
 	return (error);
 }
