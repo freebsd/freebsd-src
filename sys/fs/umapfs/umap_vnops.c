@@ -375,7 +375,7 @@ umap_lock(ap)
  * interlock flag as it applies only to our vnode, not the
  * vnodes below us on the stack.
  */
-int
+static int
 umap_unlock(ap)
 	struct vop_unlock_args /* {
 		struct vnode *a_vp;
