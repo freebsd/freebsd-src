@@ -2397,7 +2397,7 @@ vgapage(int new_screen)
 int
 usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 {
-	struct proc *p = td->td_proc;
+	struct proc *p;
 	int i, j, error, opri;
 	struct vt_mode newmode;
 
@@ -2406,6 +2406,7 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 
 	case VT_SETMODE:
 		newmode = *(struct vt_mode *)data;
+		p = td->td_proc;
 
 		opri = spltty();
 
@@ -2479,6 +2480,8 @@ usl_vt_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct thread *td)
 		return 0;
 
 	case VT_RELDISP:
+		p = td->td_proc;
+
 		if (minor(dev) != current_video_screen)
 			return EPERM;
 		if (vsp->smode.mode != VT_PROCESS)
