@@ -53,15 +53,16 @@ atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
-		"or %0, %0, %2\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"or %0, %3, %0\n\t"		/* calculate new value */
+		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		"eieio\n"			/* drain to memory */
-		: "=&r" (temp)
+		: "=&r" (temp), "+m" (*p)
 		: "r" (p), "r" (v)
-		: "memory");
+		: "cc", "memory");
+#endif
 }
 
 static __inline void
@@ -69,15 +70,16 @@ atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
-		"andc %0, %0, %2\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"andc %0, %0, %3\n\t"		/* calculate new value */
+		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		"eieio\n"			/* drain to memory */
-		: "=&r" (temp)
+		: "=&r" (temp), "+m" (*p)
 		: "r" (p), "r" (v)
-		: "memory");
+		: "cc", "memory");
+#endif
 }
 
 static __inline void
@@ -85,15 +87,16 @@ atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
-		"add %0, %0, %2\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"add %0, %3, %0\n\t"		/* calculate new value */
+		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		"eieio\n"			/* Old McDonald had a farm */
-		: "=&r" (temp)
+		: "=&r" (temp), "+m" (*p)
 		: "r" (p), "r" (v)
-		: "memory");
+		: "cc", "memory");
+#endif
 }
 
 static __inline void
@@ -101,15 +104,16 @@ atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %1\n\t"	/* load old value */
-		"sub %0, %2, %0\n\t"		/* calculate new value */
-		"stwcx. %0, 0, %1\n\t"		/* attempt to store */
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"subf %0, %3, %0\n\t"		/* calculate new value */
+		"stwcx. %0, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		"eieio\n"			/* drain to memory */
-		: "=&r" (temp)
+		: "=&r" (temp), "+m" (*p)
 		: "r" (p), "r" (v)
-		: "memory");
+		: "cc", "memory");
+#endif
 }
 
 static __inline u_int32_t
@@ -117,18 +121,19 @@ atomic_readandclear_32(volatile u_int32_t *addr)
 {
 	u_int32_t result,temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
-		"\teieio\n"			/* memory barrier */
-		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"\tsync\n"			/* drain writes */
+		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
 		"li %1, 0\n\t"			/* load new value */
-		"stwcx. %1, 0, %2\n\t"		/* attempt to store */
+		"stwcx. %1, 0, %3\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		"eieio\n"			/* drain to memory */
-		: "=&r"(result), "=&r"(temp)
-		: "r"(addr)
-		: "memory");
+		: "=&r"(result), "=&r"(temp), "+m" (*addr)
+		: "r" (addr)
+		: "cc", "memory");
+#endif
 
-	return result;
+	return (result);
 }
 
 #if 0
@@ -237,29 +242,29 @@ atomic_readandclear_64(volatile u_int64_t *addr)
 static __inline void							\
 atomic_##NAME##_acq_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
 {									\
-	powerpc_mb();							\
 	atomic_##NAME##_##WIDTH(p, v);					\
+	powerpc_mb();							\
 }									\
 									\
 static __inline void							\
 atomic_##NAME##_rel_##WIDTH(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
 {									\
-	atomic_##NAME##_##WIDTH(p, v);					\
 	powerpc_mb();							\
+	atomic_##NAME##_##WIDTH(p, v);					\
 }									\
 									\
 static __inline void							\
 atomic_##NAME##_acq_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
 {									\
-	powerpc_mb();							\
 	atomic_##NAME##_##WIDTH(p, v);					\
+	powerpc_mb();							\
 }									\
 									\
 static __inline void							\
 atomic_##NAME##_rel_##TYPE(volatile u_int##WIDTH##_t *p, u_int##WIDTH##_t v) \
 {									\
-	atomic_##NAME##_##WIDTH(p, v);					\
 	powerpc_mb();							\
+	atomic_##NAME##_##WIDTH(p, v);					\
 }
 
 ATOMIC_ACQ_REL(set, 8, char)
@@ -293,28 +298,35 @@ ATOMIC_ACQ_REL(subtract, 32, int)
 static __inline u_##TYPE					\
 atomic_load_acq_##WIDTH(volatile u_##TYPE *p)			\
 {								\
+	u_##TYPE v;						\
+								\
+	v = *p;							\
 	powerpc_mb();						\
-	return (*p);						\
+	return (v);						\
 }								\
 								\
 static __inline void						\
 atomic_store_rel_##WIDTH(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	*p = v;							\
 	powerpc_mb();						\
+	*p = v;							\
 }								\
+								\
 static __inline u_##TYPE					\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)			\
 {								\
+	u_##TYPE v;						\
+								\
+	v = *p;							\
 	powerpc_mb();						\
-	return (*p);						\
+	return (v);						\
 }								\
 								\
 static __inline void						\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)	\
 {								\
-	*p = v;							\
 	powerpc_mb();						\
+	*p = v;							\
 }
 
 ATOMIC_STORE_LOAD(char,		8)
@@ -336,24 +348,25 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
 	u_int32_t	ret;
 
+#ifdef __GNUC__
 	__asm __volatile (
-		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
-		"cmplw 0, %1, %0\n\t"		/* compare */
+		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
+		"cmplw %3, %0\n\t"		/* compare */
 		"bne 2f\n\t"			/* exit if not equal */
-		"mr %0, %2\n\t"			/* value to store */
-		"stwcx. %0, 0, %3\n\t"		/* attempt to store */
+		"stwcx. %4, 0, %2\n\t"      	/* attempt to store */
 		"bne- 1b\n\t"			/* spin if failed */
-		"eieio\n"			/* memory barrier */
-		"sync\n"
+		"li %0, 1\n\t"			/* success - retval = 1 */
 		"b 3f\n\t"			/* we've succeeded */
-		"2:\t\n"
-		"xor %0,%0,%0\t\n"		/* failure, so return 0 */
-		"3:\t\n"
-		: "=&r" (ret)
-		: "r" (cmpval), "r" (newval), "r" (p)
-		: "memory");
+		"2:\n\t"
+		"stwcx. %0, 0, %2\n\t"       	/* clear reservation (74xx) */
+		"li %0, 0\n\t"			/* failure - retval = 0 */
+		"3:\n\t"
+		: "=&r" (ret), "+m" (*p)
+		: "r" (p), "r" (cmpval), "r" (newval)
+		: "cc", "memory");
+#endif
 
-	return ret;
+	return (ret);
 }
 
 #if 0
@@ -396,19 +409,18 @@ atomic_cmpset_ptr(volatile void *dst, void *exp, void *src)
 static __inline u_int32_t
 atomic_cmpset_acq_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
 {
-
-	powerpc_mb();
-	return (atomic_cmpset_32(p, cmpval, newval));
-}
-
-static __inline u_int32_t
-atomic_cmpset_rel_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
-{
 	int retval;
 
 	retval = atomic_cmpset_32(p, cmpval, newval);
 	powerpc_mb();
 	return (retval);
+}
+
+static __inline u_int32_t
+atomic_cmpset_rel_32(volatile u_int32_t *p, u_int32_t cmpval, u_int32_t newval)
+{
+	powerpc_mb();
+	return (atomic_cmpset_32(p, cmpval, newval));
 }
 
 #define	atomic_cmpset_acq_int	atomic_cmpset_acq_32
