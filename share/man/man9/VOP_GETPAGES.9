@@ -59,8 +59,8 @@ method does the converse; that is to say, it writes out adjacent dirty
 pages of virtual memory.
 .Pp
 On entry, the vnode lock is held but neither the page queue nor VM object
-locks are held.  Both methods return in the same state on both success and
-error returns.
+locks are held.
+Both methods return in the same state on both success and error returns.
 .Pp
 The arguments are:
 .Bl -tag -width reqpage

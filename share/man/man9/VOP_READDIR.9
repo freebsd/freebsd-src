@@ -58,7 +58,8 @@ directory seek cookies generated for NFS (NULL if not wanted)
 .El
 The directory contents are read into
 .Vt struct dirent
-structures.  If the on-disc data structures differ from this then they
+structures.
+If the on-disc data structures differ from this then they
 should be translated.
 .Sh LOCKS
 The directory should be locked on entry and will still be locked on exit.
@@ -77,7 +78,8 @@ should be set to TRUE if the end of the directory is reached while
 reading.
 The directory seek cookies are returned to the NFS client and may be used
 later to restart a directory read part way through the directory.
-There should be one cookie returned per directory entry.  The value of
+There should be one cookie returned per directory entry.
+The value of
 the cookie should be the offset within the directory where the on-disc
 version of the appropriate directory entry starts.
 Memory for the cookies should be allocated using:
