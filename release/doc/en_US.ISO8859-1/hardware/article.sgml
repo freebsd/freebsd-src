@@ -2839,8 +2839,7 @@
         </listitem>
       </itemizedlist>
     </para>
-    <para arch="pc98">joystick port of SoundBlaster(98) (&man.joy.4
-    driver)</para>
+
   </sect2>
   <sect2>
     <title>Camera and Video Capture Devices</title>
@@ -3318,6 +3317,9 @@
     <para arch="pc98"><quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386">PC-compatible joysticks (&man.joy.4; driver)</para>
+
+    <para arch="pc98">Joystick port of SoundBlaster(98) (&man.joy.4
+    driver)</para>
 
     <para arch="i386,pc98">PHS Data Communication Card/PCCARD
       <itemizedlist>
