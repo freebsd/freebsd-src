@@ -1539,8 +1539,12 @@ ni6_nametodns(name, namelen, old)
 			/* result does not fit into mbuf */
 			if (cp + i + 1 >= ep)
 				goto fail;
-			/* DNS label length restriction, RFC1035 page 8 */
-			if (i >= 64)
+			/*
+			 * DNS label length restriction, RFC1035 page 8.
+			 * "i == 0" case is included here to avoid returning
+			 * 0-length label on "foo..bar".
+			 */
+			if (i <= 0 || i >= 64)
 				goto fail;
 			*cp++ = i;
 			bcopy(p, cp, i);
