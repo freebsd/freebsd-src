@@ -52,7 +52,6 @@ typedef	u_quad_t so_gen_t;
 struct accept_filter;
 
 struct socket {
-	uma_zone_t so_zone;	/* zone we were allocated from */
 	int	so_count;		/* reference count */
 	short	so_type;		/* generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */

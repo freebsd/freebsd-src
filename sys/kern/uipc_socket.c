@@ -129,7 +129,6 @@ soalloc(waitok)
 		/* XXX race condition for reentrant kernel */
 		bzero(so, sizeof *so);
 		so->so_gencnt = ++so_gencnt;
-		so->so_zone = socket_zone;
 		/* sx_init(&so->so_sxlock, "socket sxlock"); */
 		TAILQ_INIT(&so->so_aiojobq);
 		++numopensockets;
@@ -230,7 +229,7 @@ sodealloc(struct socket *so)
 #endif
 	crfree(so->so_cred);
 	/* sx_destroy(&so->so_sxlock); */
-	uma_zfree(so->so_zone, so);
+	uma_zfree(socket_zone, so);
 	--numopensockets;
 }
 
