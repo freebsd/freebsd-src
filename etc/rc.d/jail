@@ -59,38 +59,45 @@ init_variables()
 	debug "$_j ruleset: $jail_ruleset"
 }
 
+# set_sysctl rc_knob mib msg
+#	If the mib sysctl is set according to what rc_knob
+#	specifies, this function does nothing. However if
+#	rc_knob is set differently than mib, then the mib
+#	is set accordingly and msg is displayed followed by
+#	an '=" sign and the word 'YES' or 'NO'.
+#
+set_sysctl()
+{
+	_knob="$1"
+	_mib="$2"
+	_msg="$3"
+
+	_current=`${SYSCTL} -n $_mib 2>/dev/null`
+	if checkyesno $_knob ; then
+		if [ "$_current" -ne 1 ]; then
+			echo -n " ${_msg}=YES"
+			${SYSCTL_W} 1>/dev/null ${_mib}=1
+		fi
+	else
+		if [ "$_current" -ne 0 ]; then
+			echo -n " ${_msg}=NO"
+			${SYSCTL_W} 1>/dev/null ${_mib}=0
+		fi
+	fi
+}
+
 jail_start()
 {
 	echo -n 'Configuring jails:'
-	echo -n ' set_hostname_allowed='
-	if checkyesno jail_set_hostname_allow ; then
-		echo -n 'YES'
-		${SYSCTL_W} 1>/dev/null security.jail.set_hostname_allowed=1
-	else
-		echo -n 'NO'
-		${SYSCTL_W} 1>/dev/null security.jail.set_hostname_allowed=0
-	fi
-
-	echo -n ' unixiproute_only='
-	if checkyesno jail_socket_unixiproute_only ; then
-		echo -n 'YES'
-		${SYSCTL_W} 1>/dev/null security.jail.socket_unixiproute_only=1
-	else
-		echo -n 'NO'
-		${SYSCTL_W} 1>/dev/null security.jail.socket_unixiproute_only=0
-	fi
-
-	echo -n ' sysvipc_allow='
-	if checkyesno jail_sysvipc_allow ; then
-		echo -n 'YES'
-		${SYSCTL_W} 1>/dev/null security.jail.sysvipc_allowed=1
-	else
-		echo -n 'NO'
-		${SYSCTL_W} 1>/dev/null security.jail.sysvipc_allowed=0
-	fi
+	set_sysctl jail_set_hostname_allow security.jail.set_hostname_allowed \
+	    set_hostname_allow
+	set_sysctl jail_socket_unixiproute_only \
+	    security.jail.socket_unixiproute_only unixiproute_only
+	set_sysctl jail_sysvipc_allow security.jail.sysvipc_allowed \
+	    sysvipc_allow
 	echo '.'
 
-	echo -n 'Starting Jails:'
+	echo -n 'Starting jails:'
 	for _jail in ${jail_list}
 	do
 		init_variables $_jail
