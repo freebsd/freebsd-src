@@ -308,6 +308,10 @@ extern void	(*lease_updatetime) __P((int deltat));
 	(((vp)->v_flag & VFREE) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
 
+#define	VI_LOCK(vp)	mtx_lock(&(vp)->v_interlock)
+#define	VI_TRYLOCK(vp)	mtx_trylock(&(vp)->v_interlock)
+#define	VI_UNLOCK(vp)	mtx_unlock(&(vp)->v_interlock)
+
 #endif /* _KERNEL */
 
 
