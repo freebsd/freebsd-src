@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.13.2.6 1998/03/02 19:01:21 guido Exp $";
+	"$Id: cardd.c,v 1.13.2.7 1998/03/02 20:49:31 guido Exp $";
 #endif /* not lint */
 
 #include <fcntl.h>
@@ -300,8 +300,8 @@ card_inserted(struct slot *sp)
 	dumpcis(sp->cis);
 #endif
 	for (cp = cards; cp; cp = cp->next)
-		if (strcmp(cp->manuf, sp->cis->manuf) == 0 &&
-		    strcmp(cp->version, sp->cis->vers) == 0)
+		if (strncmp(cp->manuf, sp->cis->manuf, CIS_MAXSTR) == 0 &&
+		    strncmp(cp->version, sp->cis->vers, CIS_MAXSTR) == 0)
 			break;
 	sp->card = cp;
 #if 0
