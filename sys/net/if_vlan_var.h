@@ -64,9 +64,6 @@ struct	ether_vlan_header {
 #define	EVL_PRIOFTAG(tag) (((tag) >> 13) & 7)
 #define	EVL_ENCAPLEN	4	/* length in octets of encapsulation */
 
-/* These sorts of interfaces got their own identifier from IANA */
-#define	IFT_8021_VLAN	IFT_L2VLAN
-
 /* sysctl(3) tags, for compatibility purposes */
 #define	VLANCTL_PROTO	1
 #define	VLANCTL_MAX	2
