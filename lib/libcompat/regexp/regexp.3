@@ -72,12 +72,12 @@ The
 .Fn regcomp
 function
 compiles a regular expression into a structure of type
-.Xr regexp ,
+.Vt regexp ,
 and returns a pointer to it.
 The space has been allocated using
 .Xr malloc 3
 and may be released by
-.Xr free .
+.Xr free 3 .
 .Pp
 The
 .Fn regexec
@@ -96,7 +96,7 @@ and
 (see below) accordingly.
 .Pp
 The members of a
-.Xr regexp
+.Vt regexp
 structure include at least the following (not necessarily in order):
 .Bd -literal -offset indent
 char *startp[NSUBEXP];
@@ -311,7 +311,7 @@ applying `*' or `+' to a possibly-null operand is an artifact of the
 simplistic implementation.
 .Pp
 Does not support
-.Xr egrep Ns 's
+.Xr egrep 1 Ns 's
 newline-separated branches;
 neither does the V8
 .Xr regexp 3 ,
