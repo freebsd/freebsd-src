@@ -27,6 +27,7 @@
  */
 
 #include "opt_ktrace.h"
+#include "opt_mac.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -35,6 +36,7 @@
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
@@ -909,6 +911,13 @@ exec_check_permissions(imgp)
 	int error;
 
 	td = curthread;			/* XXXKSE */
+
+#ifdef MAC
+	error = mac_check_vnode_exec(td->td_ucred, imgp->vp);
+	if (error)
+		return (error);
+#endif
+	
 	/* Get file attributes */
 	error = VOP_GETATTR(vp, attr, td->td_ucred, td);
 	if (error)
