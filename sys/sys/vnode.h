@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.30 1996/01/30 23:01:34 mpp Exp $
+ * $Id: vnode.h,v 1.31 1996/03/03 18:51:33 peter Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -71,9 +71,9 @@ typedef	int 	vop_t __P((void *));
 
 struct vnode {
 	u_long	v_flag;				/* vnode flags (see below) */
-	short	v_usecount;			/* reference count of users */
-	short	v_writecount;			/* reference count of writers */
-	long	v_holdcnt;			/* page & buffer references */
+	int	v_usecount;			/* reference count of users */
+	int	v_writecount;			/* reference count of writers */
+	int	v_holdcnt;			/* page & buffer references */
 	daddr_t	v_lastr;			/* last read (read-ahead) */
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
