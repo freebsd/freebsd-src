@@ -6,7 +6,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.234 1996/12/08 05:40:38 obrien Exp $
+# $Id: bsd.port.mk,v 1.235 1996/12/09 07:08:16 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -398,8 +398,8 @@ PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
 .if exists(${PKGDIR}/REQ)
 PKG_ARGS+=		-r ${PKGDIR}/REQ
 .endif
-.if exists(${PKGDIR}/DISPLAY)
-PKG_ARGS+=		-D ${PKGDIR}/DISPLAY
+.if exists(${PKGDIR}/MESSAGE)
+PKG_ARGS+=		-D ${PKGDIR}/MESSAGE
 .endif
 .if !defined(NO_MTREE) && defined(MTREE_LOCAL)
 PKG_ARGS+=		-m ${MTREE_LOCAL}
@@ -432,6 +432,7 @@ GREP?=		/usr/bin/grep
 GZCAT?=		/usr/bin/gzcat
 GZIP?=		-9
 GZIP_CMD?=	/usr/bin/gzip -nf ${GZIP}
+GUNZIP_CMD?=	/usr/bin/gunzip -f
 SED?=		/usr/bin/sed
 
 # Used to print all the '===>' style prompts - override this to turn them off.
@@ -552,6 +553,10 @@ _MANPAGES+=	${MANL:S.^.man/${MANLANG}/manl/.}
 
 .if defined(MANN)
 _MANPAGES+=	${MANN:S.^.man/${MANLANG}/mann/.}
+.endif
+
+.if defined(_MANPAGES) && defined(MANCOMPRESSED)
+_MANPAGES:=	${_MANPAGES:S/$/.gz/}
 .endif
 
 .MAIN: all
@@ -972,11 +977,18 @@ _PORT_USE: .USE
 		  X11BASE=${X11BASE} \
 			/bin/sh ${SCRIPTDIR}/${.TARGET:S/^real-/post-/}; \
 	fi
-.if make(real-install) && defined(_MANPAGES) && !defined(NOMANCOMPRESS)
+.if make(real-install) && defined(_MANPAGES)
+.if defined(MANCOMPRESSED) && defined(NOMANCOMPRESS)
+	@${ECHO_MSG} "===>   Uncompressing manual pages for ${PKGNAME}"
+.for manpage in ${_MANPAGES}
+	@${GUNZIP_CMD} ${MANPREFIX}/${manpage}
+.endfor
+.elif !defined(MANCOMPRESSED) && !defined(NOMANCOMPRESS)
 	@${ECHO_MSG} "===>   Compressing manual pages for ${PKGNAME}"
 .for manpage in ${_MANPAGES}
 	@${GZIP_CMD} ${MANPREFIX}/${manpage}
 .endfor
+.endif
 .endif
 .if make(real-install) && !defined(NO_PKG_REGISTER)
 	@cd ${.CURDIR} && ${MAKE} ${.MAKEFLAGS} fake-pkg
