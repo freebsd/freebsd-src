@@ -29,12 +29,12 @@ PCCARD?=NO
 
 .if ${PCCARD} == "YES"
 CARDDEV=card0 card1 card2 card3
-KERNCONF=PCCARD
 .else
 CARDDEV=
-KERNCONF=GENERIC
 .endif
 
+# We now use GENERIC for the pccard kernel.
+KERNCONF=GENERIC
 
 # If you are using a local CVS repository with components stored in 
 # non-standard modules, override these on the make commandline or
