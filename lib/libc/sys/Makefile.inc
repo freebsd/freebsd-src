@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
-#	$Id: Makefile.inc,v 1.57 1998/11/24 08:15:08 jkoshy Exp $
+#	$Id: Makefile.inc,v 1.58 1999/04/04 12:29:31 dfr Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/sys ${.CURDIR}/../libc/sys
@@ -16,7 +16,7 @@
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/sys/Makefile.inc"
 
 # Sources common to both syscall interfaces:
-SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
+SRCS+=	ftruncate.c lseek.c mmap.c truncate.c pread.c pwrite.c
 
 # Build __error() into libc, but not libc_r which has it's own:
 .if ${LIB} == "c"
