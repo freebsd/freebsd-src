@@ -33,11 +33,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ddb.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -497,9 +496,9 @@ zsc_tlsb_intr(void *arg)
 
 		while (zs_get_status(base, 0) & 1) {
 			c = zs_get_data(base, 0);
-#ifdef DDB
+#ifdef KDB
 			if (c == CTRL('\\'))
-				Debugger("manual escape to debugger");
+				kdb_enter("manual escape to debugger");
 #endif
 			if (tp && (tp->t_state & TS_ISOPEN))
 				ttyld_rint(tp, c);
@@ -512,9 +511,9 @@ zsc_tlsb_intr(void *arg)
 
 		while (zs_get_status(base, 1) & 1) {
 			c = zs_get_data(base, 1);
-#ifdef DDB
+#ifdef KDB
 			if (c == CTRL('\\'))
-				Debugger("manual escape to debugger");
+				kdb_enter("manual escape to debugger");
 #endif
 			if (tp && (tp->t_state & TS_ISOPEN))
 				ttyld_rint(tp, c);
