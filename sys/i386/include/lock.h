@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.6 1998/04/06 11:38:17 phk Exp $
+ *	$Id: lock.h,v 1.7 1999/07/12 15:02:51 kris Exp $
  */
 
 
@@ -220,11 +220,17 @@ struct simplelock {
 void	s_lock_init		__P((struct simplelock *));
 void	s_lock			__P((struct simplelock *));
 int	s_lock_try		__P((struct simplelock *));
-void	s_unlock		__P((struct simplelock *));
 void	ss_lock			__P((struct simplelock *));
 void	ss_unlock		__P((struct simplelock *));
 void	s_lock_np		__P((struct simplelock *));
 void	s_unlock_np		__P((struct simplelock *));
+
+/* inline simplelock functions */
+static __inline void
+s_unlock(struct simplelock *lkp)
+{
+	lkp->lock_data = 0;
+}
 
 /* global data in mp_machdep.c */
 extern struct simplelock	imen_lock;
