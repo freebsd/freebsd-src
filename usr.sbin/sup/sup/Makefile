@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	sup
 SRCS=	supcmain.c supcvers.c supcparse.c supcname.c supcmisc.c supcmeat.c

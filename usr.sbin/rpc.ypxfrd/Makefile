@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	rpc.ypxfrd
 SRCS=	ypxfrd_svc.c ypxfrd_server.c yp_error.c \

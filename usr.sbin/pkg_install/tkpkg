@@ -1,7 +1,16 @@
 #!/usr/local/bin/wish -f
-#$FreeBSD$
+#$Id$
 #
 #$Log: tkpkg,v $
+#Revision 1.3  1997/01/14 07:14:23  jkh
+#Make the long-awaited change from $Id$ to $Id$
+#
+#This will make a number of things easier in the future, as well as (finally!)
+#avoiding the Id-smashing problem which has plagued developers for so long.
+#
+#Boy, I'm glad we're not using sup anymore.  This update would have been
+#insane otherwise.
+#
 #Revision 1.2  1994/12/06 00:51:21  jkh
 #Many of John T. Kohl's patches from NetBSD.  Thanks, John!
 #Submitted by:	jkohl

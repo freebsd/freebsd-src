@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $Id$ */
 
 /*
  * Gould UTX/32 definitions for Amd (automounter)

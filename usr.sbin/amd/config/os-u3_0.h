@@ -37,7 +37,7 @@
  *
  *	@(#)os-u3_0.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Ultrix 3.0 definitions for Amd (automounter)
  */

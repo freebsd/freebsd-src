@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 CFLAGS+= -DHAVE_PATHS_H
 

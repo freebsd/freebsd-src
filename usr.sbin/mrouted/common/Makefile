@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 LIB=	mrouted
 NOPROFILE=

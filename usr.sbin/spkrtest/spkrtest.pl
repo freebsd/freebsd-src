@@ -32,7 +32,7 @@
 #
 # NOTE for iso-* (latin1) fonts: use TERM=cons25-iso8859-1
 #
-# $FreeBSD$
+# $Id$
 
 $title = qq{
 reveille   -- Reveille

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 LIB=	sup
 SRCS=	scm.c scmio.c stree.c log.c supmsg.c netcrypt.c atoo.c errmsg.c \

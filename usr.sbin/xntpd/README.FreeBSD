@@ -1,4 +1,4 @@
-	$FreeBSD$
+	$Id$
 
 This version of NTP was converted to the BSD-style Makefile system by
 Garrett Wollman (wollman@FreeBSD.org); it is based on version

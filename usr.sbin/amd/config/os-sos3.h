@@ -37,7 +37,7 @@
  *
  *	@(#)os-sos3.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * SunOS 3.2 definitions for Amd (automounter)
  */

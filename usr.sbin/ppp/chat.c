@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $FreeBSD$
+ * $Id$
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.

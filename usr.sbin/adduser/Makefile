@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 SCRIPTS= adduser.perl rmuser.perl addgroup.tcl rmgroup.sh
 MAN8=	 adduser.8    rmuser.8    addgroup.8   rmgroup.8

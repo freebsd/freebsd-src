@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$Id$
 
 PROG=	tzsetup
 MAN8=	tzsetup.8

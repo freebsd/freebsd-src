@@ -37,7 +37,7 @@
  *
  *	@(#)os-u2_2.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $Id$
  *
  * Ultrix 2.2 definitions for Amd (automounter)
  */

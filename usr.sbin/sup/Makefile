@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 SUBDIR=	lib sup supscan supfilesrv
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $Id$
 
 PROG=	pw
 SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c pw_nis.c \

@@ -16,7 +16,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $Id$
  */
 
 #ifndef __P

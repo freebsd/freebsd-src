@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.8 (Berkeley) 7/28/90
-#	$FreeBSD$
+#	$Id$
 
 PROG=	callbootd
 SRCS=	bootparam_prot_xdr.c bootparam_prot_clnt.c callbootd.c

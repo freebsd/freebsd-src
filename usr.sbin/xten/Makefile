@@ -1,5 +1,5 @@
 #	Makefile for xten (Stark) 10/30/93
-#	$FreeBSD$
+#	$Id$
 
 PROG=	xten
 CFLAGS+= -I${.CURDIR}/../../libexec/xtend
