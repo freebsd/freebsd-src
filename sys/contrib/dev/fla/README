@@ -1,6 +1,6 @@
 README and FAQ for the fla driver.
 
-$Id: README,v 1.3 1999/08/01 14:30:46 phk Exp $
+$Id: README,v 1.1 1999/08/06 15:59:07 phk Exp $
 
 [0]	COPYRIGHT & LICENSE
 
@@ -51,9 +51,10 @@ $Id: README,v 1.3 1999/08/01 14:30:46 phk Exp $
 	the 
 		options ROOTDEVNAME=\"fla0\"
 
-	In older versions you may need the patch in file patch.01.
-	Be aware that with this patch the kernel will probably not
-	boot on normal disks.
+	In older versions, specifying the boot device in the kernel
+	config file this way is the easiest way to do it:
+
+		config          kernel  root on major 28 minor 65538
 
 [7]	How to disklabel a fla device ?
 
