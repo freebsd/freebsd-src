@@ -479,9 +479,7 @@ mci_dump(mci, logit)
 
 	sep = logit ? " " : "\n\t";
 	p = buf;
-	snprintf(p, SPACELEFT(buf, p), "MCI@%lx: ",
-		sizeof(void *) == sizeof(u_long) ?
-		(u_long)(void *)mci : (u_long)(u_int)(void *)mci);
+	snprintf(p, SPACELEFT(buf, p), "MCI@%lx: ", (u_long) mci);
 	p += strlen(p);
 	if (mci == NULL)
 	{
