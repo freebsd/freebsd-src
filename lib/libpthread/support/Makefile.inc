@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-.PATH:	 ${.CURDIR}/support
+.PATH: ${.CURDIR}/support
 
-SOBJS+= thr_libc.So
+SOBJS+=	thr_libc.So
 CLEANFILES+= thr_support.So
 
 thr_libc.So: thr_support.So
