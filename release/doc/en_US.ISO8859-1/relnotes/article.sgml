@@ -221,6 +221,8 @@
 	the ctx driver for CORTEX-I Frame Grabber,
 	the gp driver for National Instruments AT-GPIB and AT-GPIB/TNT boards,
 	the le driver for DEC EtherWORKS II and III ethernet controllers,
+	the rdp driver for RealTek RTL 8002-based pocket ethernet adapters,
+	the spigot driver for the Creative Labs Video Spigot video-acquisition board,
 	the stl and stli drivers for Stallion Technologies multiport serial
 	controllers, and the wt driver for Archive/Wangtek cartridge tapes.
 	They are currently non-functional, and would require a considerable
