@@ -184,7 +184,7 @@ int	__mac_set_proc(struct mac *_mac_p);
  * and various other messes.
  */
 
-#define	MAC_MAX_POLICIES	8
+#define	MAC_MAX_POLICIES	4
 
 struct label {
 	int	l_flags;
