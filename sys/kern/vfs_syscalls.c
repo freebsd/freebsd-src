@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.117 1999/02/16 10:49:49 dfr Exp $
+ * $Id: vfs_syscalls.c,v 1.118 1999/02/25 15:54:06 bde Exp $
  */
 
 /* For 4.3 integer FS ID compatibility */
@@ -2756,6 +2756,17 @@ unionread:
 		if (error)
 			return (error);
 	}
+	if ((SCARG(uap, count) == auio.uio_resid) &&
+	    (vp->v_flag & VROOT) &&
+	    (vp->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = vp;
+		vp = vp->v_mount->mnt_vnodecovered;
+		VREF(vp);
+		fp->f_data = (caddr_t) vp;
+		fp->f_offset = 0;
+		vrele(tvp);
+		goto unionread;
+	}
 	error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),
 	    sizeof(long));
 	p->p_retval[0] = SCARG(uap, count) - auio.uio_resid;
@@ -2821,6 +2832,17 @@ unionread:
 			goto unionread;
 		if (error)
 			return (error);
+	}
+	if ((SCARG(uap, count) == auio.uio_resid) &&
+	    (vp->v_flag & VROOT) &&
+	    (vp->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = vp;
+		vp = vp->v_mount->mnt_vnodecovered;
+		VREF(vp);
+		fp->f_data = (caddr_t) vp;
+		fp->f_offset = 0;
+		vrele(tvp);
+		goto unionread;
 	}
 	if (SCARG(uap, basep) != NULL) {
 		error = copyout((caddr_t)&loff, (caddr_t)SCARG(uap, basep),
