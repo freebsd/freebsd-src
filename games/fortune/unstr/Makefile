@@ -3,7 +3,7 @@
 
 PROG=	unstr
 NO_MAN=
-WARNS?=	3
+WARNS?=	6
 CFLAGS+= -I${.CURDIR}/../strfile
 
 .include <bsd.prog.mk>
