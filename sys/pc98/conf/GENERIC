@@ -101,8 +101,6 @@ device		isp		# Qlogic family
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')
 
 device		aic		# PC-9801-100
-#options 	BS_TARG_SAFEMODE
-#device		bs	1	# WD33C93 SCSI card (55/92 like board)
 device		ct		# host adapter using WD33C93[ABC] chip (C bus)
 
 device		ncv		# NCR 53C500
