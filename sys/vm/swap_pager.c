@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.49 1995/11/14 20:53:20 phk Exp $
+ * $Id: swap_pager.c,v 1.50 1995/11/16 09:51:19 bde Exp $
  */
 
 /*
@@ -248,7 +248,6 @@ swap_pager_alloc(handle, size, prot, offset)
 	vm_offset_t offset;
 {
 	vm_object_t object;
-	int i;
 
 	/*
 	 * If this is a "named" anonymous region, look it up and use the

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: kern_lock.c,v 1.7 1995/07/13 08:48:12 davidg Exp $
+ * $Id: kern_lock.c,v 1.8 1995/11/06 08:44:15 davidg Exp $
  */
 
 /*
@@ -199,8 +199,6 @@ boolean_t
 lock_read_to_write(l)
 	register lock_t l;
 {
-	register int i;
-
 	l->read_count--;
 
 	if (l->proc == curproc) {
