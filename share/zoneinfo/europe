@@ -1,4 +1,4 @@
-# @(#)europe	7.82
+# @(#)europe	7.83
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -33,20 +33,20 @@
 # I invented the abbreviations marked `*' in the following table;
 # the rest are from earlier versions of this file, or from other sources.
 # Corrections are welcome!
-#		std dst
-#		LMT	Local Mean Time
-#	-4:00	AST	Atlantic
-#	-3:00	WGT WGST Western Greenland*
-#	-1:00	EGT EGST Eastern Greenland*
-#	 0:00	GMT BST Greenwich, British Summer
-#	 0:00	GMT IST Greenwich, Irish Summer
-#	 0:00	WET WEST Western Europe
-#	 0:19:32 AMT NST Amsterdam, Netherlands Summer (1835-1937)*
-#	 0:20	NET NEST Netherlands (1937-1940)*
-#	 1:00	CET CEST Central Europe
-#	 1:00:14 SET	 Swedish (1879-1899)*
-#	 2:00	EET EEST Eastern Europe
-#	 3:00	MSK MSD	Moscow
+#                   std dst  2dst
+#                   LMT           Local Mean Time
+#       -4:00       AST ADT       Atlantic
+#       -3:00       WGT WGST      Western Greenland*
+#       -1:00       EGT EGST      Eastern Greenland*
+#        0:00       GMT BST  BDST Greenwich, British Summer
+#        0:00       GMT IST       Greenwich, Irish Summer
+#        0:00       WET WEST WEMT Western Europe
+#        0:19:32.13 AMT NST       Amsterdam, Netherlands Summer (1835-1937)*
+#        0:20       NET NEST      Netherlands (1937-1940)*
+#        1:00       CET CEST CEMT Central Europe
+#        1:00:14    SET           Swedish (1879-1899)*
+#        2:00       EET EEST      Eastern Europe
+#        3:00       MSK MSD       Moscow
 #
 # A reliable and entertaining source about time zones, especially in Britain,
 # Derek Howse, Greenwich time and longitude, Philip Wilson Publishers (1997).
@@ -558,20 +558,30 @@ Zone	Europe/Andorra	0:06:04 -	LMT	1901
 			1:00	EU	CE%sT
 
 # Austria
+
+# From Paul Eggert (2003-02-28): Shanks gives 1918-06-16 and
+# 1945-11-18, but the Austrian Federal Office of Metrology and
+# Surveying (BEV) gives 1918-09-16 and for Vienna gives the "alleged"
+# date of 1945-04-12 with no time.  For the 1980-04-06 transition
+# Shanks gives 02:00, the BEV 00:00.  Go with the BEV, and guess 02:00
+# for 1945-04-12.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Austria	1920	only	-	Apr	 5	2:00s	1:00	S
 Rule	Austria	1920	only	-	Sep	13	2:00s	0	-
-Rule	Austria	1945	only	-	Apr	 2	2:00s	1:00	S
-Rule	Austria	1945	only	-	Nov	18	2:00s	0	-
 Rule	Austria	1946	only	-	Apr	14	2:00s	1:00	S
 Rule	Austria	1946	1948	-	Oct	Sun>=1	2:00s	0	-
 Rule	Austria	1947	only	-	Apr	 6	2:00s	1:00	S
 Rule	Austria	1948	only	-	Apr	18	2:00s	1:00	S
+Rule	Austria	1980	only	-	Apr	 6	0:00	1:00	S
+Rule	Austria	1980	only	-	Sep	28	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Vienna	1:05:20 -	LMT	1893 Apr
-			1:00	C-Eur	CE%sT	1918 Jun 16 3:00
-			1:00	Austria	CE%sT	1940 Apr  1 2:00
-			1:00	C-Eur	CE%sT	1945 Apr  2 2:00
+			1:00	C-Eur	CE%sT	1920
+			1:00	Austria	CE%sT	1940 Apr  1 2:00s
+			1:00	C-Eur	CE%sT	1945 Apr  2 2:00s
+			1:00	1:00	CEST	1945 Apr 12 2:00s
+			1:00	-	CET	1946
 			1:00	Austria	CE%sT	1981
 			1:00	EU	CE%sT
 
@@ -654,7 +664,7 @@ Zone	Europe/Brussels	0:17:30 -	LMT	1880
 			1:00	EU	CE%sT
 
 # Bosnia and Herzegovina
-# see Yugoslavia
+# see Serbia and Montenegro
 
 # Bulgaria
 #
@@ -681,7 +691,7 @@ Zone	Europe/Sofia	1:33:16 -	LMT	1880
 			2:00	EU	EE%sT
 
 # Croatia
-# see Yugosloavia
+# see Serbia and Montenegro
 
 # Czech Republic
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -750,7 +760,7 @@ Zone Atlantic/Faeroe	-0:27:04 -	LMT	1908 Jan 11	# Torshavn
 # introduced.
 
 # From Rives McDow (2001-11-01):
-# 
+#
 # I correspond regularly with the Dansk Polarcenter, and wrote them at
 # the time to clarify the situation in Thule.  Unfortunately, I have
 # not heard back from them regarding my recent letter.  [But I have
@@ -991,25 +1001,29 @@ Zone	Europe/Paris	0:09:21 -	LMT	1891 Mar 15  0:01
 # From Markus Kuhn <Markus.Kuhn@cl.cam.ac.uk> (1998-09-29):
 # The German time zone web site by the Physikalisch-Technische
 # Bundesanstalt contains DST information back to 1916.
-#
-#	<a href="http://www.ptb.de/english/org/4/43/432/lega.htm">
-#	Realisation of Legal Time in Germany
-#	</a>
+# [See tz-link.htm for the URL.]
+
+# From Joerg Schilling (2002-10-23):
+# In 1945, Berlin was switched to Moscow Summer time (GMT+4) by <a
+# href="http://www.dhm.de/lemo/html/biografien/BersarinNikolai/">
+# General [Nikolai] Bersarin</a>.
+
+# From Paul Eggert (2003-03-08):
+# <a href="http://www.parlament-berlin.de/pds-fraktion.nsf/727459127c8b66ee8525662300459099/defc77cb784f180ac1256c2b0030274b/$FILE/bersarint.pdf">
+# says that Bersarin issued an order to use Moscow time on May 20.
+# However, Moscow did not observe daylight saving in 1945, so
+# this was equivalent to CEMT (GMT+3), not GMT+4.
+
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Germany	1945	only	-	Apr	 2	2:00s	1:00	S
-# Shanks says 05-24 2:00 to 09-24 3:00 for DDST; go with the PTB, who quotes
-# the Archiv fuer publizist. Arbeit (Munzinger-Archiv) 652 (Zeitsystem)
-# (1961-11-25), which gives dates only.  Guess 3:00 transition times.
-Rule	Germany	1945	only	-	May	31	3:00	2:00	M # Midsummer
-Rule	Germany	1945	only	-	Sep	23	3:00	1:00	S
+Rule	Germany	1945	only	-	May	24	2:00	2:00	M # Midsummer
+Rule	Germany	1945	only	-	Sep	24	3:00	1:00	S
 Rule	Germany	1945	only	-	Nov	18	2:00s	0	-
 Rule	Germany	1946	only	-	Apr	14	2:00s	1:00	S
 Rule	Germany	1946	only	-	Oct	 7	2:00s	0	-
 Rule	Germany	1947	1949	-	Oct	Sun>=1	2:00s	0	-
 Rule	Germany	1947	only	-	Apr	 6	2:00s	1:00	S
-# The PTB gives 3:00 CET and 3:00 CEST for the midsummer transition times;
-# go with Shanks.
 Rule	Germany	1947	only	-	May	11	2:00s	2:00	M
 Rule	Germany	1947	only	-	Jun	29	3:00	1:00	S
 Rule	Germany	1948	only	-	Apr	18	2:00s	1:00	S
@@ -1341,6 +1355,15 @@ Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
 # Fact File, Lithuanian State Department of Tourism
 # </a> (2000-03-27): Local time is GMT+2 hours ..., no daylight saving.
 
+# From a user via Klaus Marten (2003-02-07):
+# As a candidate for membership of the European Union, Lithuania will
+# observe Summer Time in 2003, changing its clocks at the times laid
+# down in EU Directive 2000/84 of 19.I.01 (i.e. at the same times as its
+# neighbour Latvia). The text of the Lithuanian government Order of
+# 7.XI.02 to this effect can be found at
+# http://www.lrvk.lt/nut/11/n1749.htm
+
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Vilnius	1:41:16	-	LMT	1880
 			1:24:00	-	WMT	1917	    # Warsaw Mean Time
@@ -1355,7 +1378,8 @@ Zone	Europe/Vilnius	1:41:16	-	LMT	1880
 			2:00	C-Eur	EE%sT	1998
 			2:00	-	EET	1998 Mar 29 1:00u
 			1:00	EU	CE%sT	1999 Oct 31 1:00u
-			2:00	-	EET
+			2:00	-	EET	2003 Jan  1
+			2:00	EU	EE%sT
 
 # Luxembourg
 # Whitman disagrees with most of these dates in minor ways; go with Shanks.
@@ -1393,7 +1417,7 @@ Zone Europe/Luxembourg	0:24:36 -	LMT	1904 Jun
 			1:00	EU	CE%sT
 
 # Macedonia
-# see Yugoslavia
+# see Serbia and Montenegro
 
 # Malta
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1979,11 +2003,27 @@ Zone Asia/Anadyr	11:49:56 -	LMT	1924 May  2
 			11:00	Russia	ANA%sT	1992 Jan 19 2:00s
 			12:00	Russia	ANA%sT
 
+# Serbia and Montenegro
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone	Europe/Belgrade	1:22:00	-	LMT	1884
+			1:00	-	CET	1941 Apr 18 23:00
+			1:00	C-Eur	CE%sT	1945 May  8  2:00s
+			1:00	1:00	CEST	1945 Sep 16  2:00s
+# Metod Kozelj <metod.kozelj@rzs-hm.si> reports that the legal date of
+# transition to EU rules was 1982-11-27, for all of Yugoslavia at the time.
+# Shanks doesn't give as much detail, so go with Kozelj.
+			1:00	-	CET	1982 Nov 27
+			1:00	EU	CE%sT
+Link Europe/Belgrade Europe/Ljubljana	# Slovenia
+Link Europe/Belgrade Europe/Sarajevo	# Bosnia and Herzegovina
+Link Europe/Belgrade Europe/Skopje	# Macedonia
+Link Europe/Belgrade Europe/Zagreb	# Croatia
+
 # Slovakia
 Link Europe/Prague Europe/Bratislava
 
 # Slovenia
-# see Yugoslavia
+# see Serbia and Montenegro
 
 # Spain
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -2191,6 +2231,15 @@ Zone	Europe/Istanbul	1:55:52 -	LMT	1880
 Link	Europe/Istanbul	Asia/Istanbul	# Istanbul is in both continents.
 
 # Ukraine
+#
+# From Igor Karpov, who works for the Ukranian Ministry of Justice,
+# via Garrett Wollman (2003-01-27):
+# BTW, I've found the official document on this matter. It's goverment
+# regulations number 509, May 13, 1996. In my poor translation it says:
+# "Time in Ukraine is set to second timezone (Kiev time). Each last Sunday
+# of March at 3am the time is changing to 4am and each last Sunday of
+# October the time at 4am is changing to 3am"
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Most of Ukraine since 1970 has been like Kiev.
 Zone Europe/Kiev	2:02:04 -	LMT	1880
@@ -2248,22 +2297,6 @@ Zone Europe/Simferopol	2:16:24 -	LMT	1880
 			3:00	Russia	MSK/MSD	1997
 			3:00	-	MSK	1997 Mar lastSun 1:00u
 			2:00	EU	EE%sT
-
-# Yugoslavia
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone	Europe/Belgrade	1:22:00	-	LMT	1884
-			1:00	-	CET	1941 Apr 18 23:00
-			1:00	C-Eur	CE%sT	1945 May  8  2:00s
-			1:00	1:00	CEST	1945 Sep 16  2:00s
-# Metod Kozelj <metod.kozelj@rzs-hm.si> reports that the legal date of
-# transition to EU rules was 1982-11-27, for all of Yugoslavia at the time.
-# Shanks doesn't give as much detail, so go with Kozelj.
-			1:00	-	CET	1982 Nov 27
-			1:00	EU	CE%sT
-Link Europe/Belgrade Europe/Ljubljana	# Slovenia
-Link Europe/Belgrade Europe/Sarajevo	# Bosnia and Herzegovina
-Link Europe/Belgrade Europe/Skopje	# Macedonia
-Link Europe/Belgrade Europe/Zagreb	# Croatia
 
 ###############################################################################
 
