@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.117 1998/03/16 10:06:58 phk Exp $
+ *	$Id: clock.c,v 1.118 1998/03/30 09:48:47 phk Exp $
  */
 
 /*
@@ -1014,9 +1014,8 @@ cpu_initclocks()
 	if (apic_8254_trial) {
 		
 		printf("APIC_IO: Testing 8254 interrupt delivery\n");
-		__asm __volatile("sti" : : : "memory");
 		while (read_intr_count(8) < 6)
-			__asm __volatile("sti" : : : "memory");
+			;	/* nothing */
 		if (read_intr_count(apic_8254_intr) < 3) {
 			/* 
 			 * The MP table is broken.
