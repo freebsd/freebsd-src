@@ -157,7 +157,7 @@
  *	we reset it in all the right places
  * _unload - done
  *	recreated most of stop but as card is unplugged don't try and
- *	access it
+ *	access it to turn it off
  * TX bpf - done
  * RX bpf - done
  *	I would much prefer to have the complete 802.11 packet dropped to
@@ -165,18 +165,20 @@
  *	as needed. This way, tcpdump -w can be used to grab the raw data. If
  *	needed the 802.11 aware program can "translate" the .11 to ethernet
  *	for tcpdump -r
+ * use std timeout code for download - done
+ *	was mainly moving a call and removing a load of stuff in
+ *	download_done as it duplicates check_ccs and ccs_done
+ * promisoius - done
  *
- * XXX use std timeout code for download? should only be a move to ccs_done
- *     when checked can remove some of the stuff in download_timo as it
- *     duplicates check_ccs and ccs_done
- * XXX and changing mode etc.
  * XXX add the start_join_net - i needed it anyway - what about the update
+ *	can remove startccs and startcmd as those were used for the timeout
+ * XXX and changing mode etc.
  *
- * promisoius
  * multicast
  * shutdown
  * ifp->if_hdr length
  * antennas and rxlevel
+ * _reset
  *
  * apm
  *
@@ -190,9 +192,6 @@
  * spinning in ray_issue_cmd
  * fix the XXX code in start_join_done
  *
- * command tracking - really needed? if not remove SCP_ stuff
- * 	will simplify ray_issue_cmd away
- *
  * callout handles need rationalising. can probably remove timerh and
  * use ccs_timerh for download and sj_timerh
  *
@@ -204,7 +203,6 @@
  */
 
 #define XXX		0
-#define XXX_DOWNLOAD_STD_TIMEOUT 0
 #define XXX_MCAST	0
 #define XXX_NETBSDTX	0
 #define XXX_PROM	0
@@ -230,7 +228,6 @@
 #define RAY_DEBUG		21
 #endif
 
-#define RAY_DOWNLOAD_TIMEOUT	(hz/2)	/* Timeout for downloading startup parameters */
 #define RAY_CCS_TIMEOUT		(hz/2)	/* Timeout for CCS commands */
 #define	RAY_CHECK_SCHED_TIMEOUT	(hz)	/* Time to wait until command retry, should be > RAY_CCS_TIMEOUT */
 
@@ -461,13 +458,8 @@ static struct ray_softc ray_softc[NRAY];
 
 /* Update sub commands -- issues are serialized priority to LSB */
 #define	SCP_UPD_FIRST		0x0100
-#if XXX_DOWNLOAD_STD_TIMEOUT
 #define	SCP_UPD_STARTUP		0x0100
 #define	SCP_UPD_STARTJOIN	0x0200
-#else
-#define	SCP_UPD_STARTUP		0
-#define	SCP_UPD_STARTJOIN	0
-#endif /* XXX_DOWNLOAD_STD_TIMEOUT */
 #define	SCP_UPD_PROMISC		0x0400
 #define	SCP_UPD_MCAST		0x0800
 #define	SCP_UPD_UPDATEPARAMS	0x1000
@@ -499,8 +491,8 @@ static int	ray_cmd_is_running	__P((struct ray_softc *sc, int cmdf));
 static int	ray_cmd_is_scheduled	__P((struct ray_softc *sc, int cmdf));
 static void	ray_cmd_ran		__P((struct ray_softc *sc, int cmdf));
 static void	ray_cmd_schedule	__P((struct ray_softc *sc, int cmdf));
+static void	ray_download_done	__P((struct ray_softc *sc));
 static void	ray_download_params	__P((struct ray_softc *sc));
-static void	ray_download_timo	__P((void *xsc));
 #if RAY_DEBUG > 50
 static void	ray_dump_mbuf		__P((struct ray_softc *sc, struct mbuf *m, char *s));
 #endif /* RAY_DEBUG > 50 */
@@ -634,9 +626,6 @@ static int ray_nsubcmdtab = sizeof(ray_subcmdtab) / sizeof(*ray_subcmdtab);
 #endif
 #ifndef	RAY_CHECK_SCHED_TIMEOUT
 #define	RAY_CHECK_SCHED_TIMEOUT	(hz)
-#endif
-#ifndef RAY_DOWNLOAD_TIMEOUT
-#define RAY_DOWNLOAD_TIMEOUT	(hz / 2)
 #endif
 #ifndef RAY_RESET_TIMEOUT
 #define RAY_RESET_TIMEOUT	(10 * hz)
@@ -777,7 +766,6 @@ ray_pccard_unload (dev_p)
 #else
     untimeout(ray_check_ccs, sc, sc->ccs_timerh);
     untimeout(ray_check_scheduled, sc, sc->ccs_timerh);
-    untimeout(ray_download_timo, sc, sc->timerh);
     untimeout(ray_reset_timo, sc, sc->timerh);
 #endif /* RAY_USE_CALLOUT_STOP */
 #if RAY_NEED_STARTJOIN_TIMO
@@ -979,17 +967,17 @@ ray_attach (dev_p)
  * ray_init does a bit of house keeping before calling ray_download_params.
  *
  * ray_download_params fills the startup parameter structure out and
- * sends it to the card. The download command simply completes so we
- * use schedule a timeout function call to ray_download_timo instead
- * of spin locking. We pass the ccs in use via sc->sc_startcss.
+ * sends it to the card. The download command simply completes, so we
+ * use the timeout code in ray_check_ccs instead of spin locking. The
+ * passes flow to the standard ccs handler and we eventually end up in
+ * ray_download_done.
  *
- * ray_download_timo checks the ccs for command completion and/or
- * errors. Then it tells the card to start an adhoc network or join a
- * managed network. This should complete via the interrupt mechanism,
- * but the NetBSD driver includes a timeout for some buggy stuff
- * somewhere - I've left the hooks in but don't use them. The interrupt
- * handler passes control to ray_start_join_done - the ccs is handled
- * by the interrupt mechanism.
+ * ray_download_done tells the card to start an adhoc network or join
+ * a managed network. This should complete via the interrupt
+ * mechanism, but the NetBSD driver includes a timeout for some buggy
+ * stuff somewhere - I've left the hooks in but don't use them. The
+ * interrupt handler passes control to ray_start_join_done - the ccs
+ * is handled by the interrupt mechanism.
  *
  * Once ray_start_join_done has checked the ccs and uploaded/updated
  * the network parameters we are ready to process packets. It is then
@@ -1129,8 +1117,14 @@ ray_stop (sc)
     /*
      * Clear out timers and sort out driver state
      */
-    untimeout(ray_download_timo, sc, sc->timerh);
+#if RAY_USE_CALLOUT_STOP
+    callout_stop(sc->ccs_timerh);
+    callout_stop(sc->timerh);
+#else
+    untimeout(ray_check_ccs, sc, sc->ccs_timerh);
+    untimeout(ray_check_scheduled, sc, sc->ccs_timerh);
     untimeout(ray_reset_timo, sc, sc->timerh);
+#endif /* RAY_USE_CALLOUT_STOP */
 #if RAY_NEED_STARTJOIN_TIMO
     untimeout(ray_start_join_timo, sc, sc->sj_timerh);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
@@ -2214,14 +2208,9 @@ ray_ccs_done (sc, ccs)
 
     switch (cmd) {
 	case RAY_CMD_START_PARAMS:
-#if XXX_DOWNLOAD_STD_TIMEOUT
-	    RAY_DPRINTFN(20, "ray%d: ray_ccs_done got START_PARAMS - why?\n",
-	        sc->unit);
-	    ray_cmd_done(sc, SCP_UPD_STARTUP);
-	    ray_download_timo(sc);
-#else
-	    printf("ray%d: ray_ccs_done got START_PARAMS - why?\n", sc->unit);
-#endif /* XXX_DOWNLOAD_STD_TIMEOUT */
+	    RAY_DPRINTFN(20, ("ray%d: ray_ccs_done got START_PARAMS\n",
+		sc->unit));
+	    ray_download_done(sc);
 	    break;
 
 	case RAY_CMD_UPDATE_PARAMS:
@@ -2816,11 +2805,7 @@ ray_download_params (sc)
     RAY_DPRINTFN(5, ("ray%d: Downloading startup parameters\n", sc->unit));
     RAY_MAP_CM(sc);
 
-#if XXX_DOWNLOAD_STD_TIMEOUT
     ray_cmd_cancel(sc, SCP_UPD_STARTUP);
-#else
-    /* XXX cancel timeouts ? */
-#endif /* XXX_DOWNLOAD_STD_TIMEOUT */
 
 #define MIB4(m)		ray_mib_4_default.##m
 #define MIB5(m)		ray_mib_5_default.##m
@@ -2936,79 +2921,48 @@ PUT2(MIB5(mib_cw_min),			  RAY_MIB_CW_MIN_V5);
 	ray_write_region(sc, RAY_HOST_TO_ECF_BASE,
 			 &ray_mib_5_default, sizeof(ray_mib_5_default));
 
-    /*
-     * Get a free command ccs and issue the command - there is nothing
-     * to fill in for a START_PARAMS command. The start parameters
-     * command just gets serviced, so we use a timeout to complete the
-     * sequence.
-     */
-#if XXX_DOWNLOAD_STD_TIMEOUT
     if (!ray_simple_cmd(sc, RAY_CMD_START_PARAMS, SCP_UPD_STARTUP))
 	printf("ray%d: ray_download_params can't issue command\n", sc->unit);
-#else
-/* XXX do we go back to using the std. timeout code? */
-/* XXX use ray_simple_cmd */
-    if (!ray_alloc_ccs(sc, &sc->sc_startccs,
-    	    RAY_CMD_START_PARAMS, SCP_UPD_STARTUP)) {
-    	printf("ray%d: ray_download_params can't get a CCS\n", sc->unit);
-	ray_reset(sc);
-    }
-    if (!ray_issue_cmd(sc, sc->sc_startccs, SCP_UPD_STARTUP)) {
-    	printf("ray%d: ray_download_params can't issue command\n", sc->unit);
-	ray_reset(sc);
-    }
-/* XXX use ray_simple_cmd */
-/* XXX do we go back to using the std. timeout code? */
 
-    sc->timerh = timeout(ray_download_timo, sc, RAY_DOWNLOAD_TIMEOUT);
-#endif /* XXX_DOWNLOAD_STD_TIMEOUT */
-    RAY_DPRINTFN(15, ("ray%d: Download now awaiting timeout\n", sc->unit));
+    RAY_DPRINTFN(15, ("ray%d: Download now awaiting completion\n", sc->unit));
 
     return;
 }
 
 /*
- * Download timeout routine.
+ * Download completion routine.
  *
  * Part of ray_init, download, start_join control flow.
+ *
+ * As START_PARAMS is an update command ray_check_ccs has checked the
+ * ccs status and re-scheduled timeouts if needed.
  */
 static void
-ray_download_timo (xsc)
-    void		*xsc;
+ray_download_done (sc)
+    struct ray_softc	*sc;
 {
-    struct ray_softc	*sc = xsc;
-    size_t		ccs;
-    u_int8_t		status, cmd;
+    size_t ccs;
+    int cmd;
 
-    RAY_DPRINTFN(5, ("ray%d: ray_download_timo\n", sc->unit));
+    RAY_DPRINTFN(5, ("ray%d: ray_download_done\n", sc->unit));
     RAY_MAP_CM(sc);
 
-    status = SRAM_READ_FIELD_1(sc, sc->sc_startccs, ray_cmd, c_status);
-    cmd = SRAM_READ_FIELD_1(sc, sc->sc_startccs, ray_cmd, c_cmd);
-    RAY_DPRINTFN(20, ("ray%d: check rayidx %d ccs 0x%x cmd 0x%x status %d\n",
-    		sc->unit, RAY_CCS_INDEX(sc->sc_startccs), sc->sc_startccs,
-		cmd, status));
-    if ((cmd != RAY_CMD_START_PARAMS) ||
-        ((status != RAY_CCS_STATUS_FREE) && (status != RAY_CCS_STATUS_BUSY))
-    ) {
-    	printf("ray%d: Download ccs odd cmd = 0x%02x, status = 0x%02x\n",
-		sc->unit, cmd, status);
-	ray_init(sc);
-    }
+    ray_cmd_done(sc, SCP_UPD_STARTUP);
 
-    /*
-     * If the card is still busy, re-schedule ourself
-     */
-    if (status == RAY_CCS_STATUS_BUSY) {
-	RAY_DPRINTFN(1, ("ray%d: ray_download_timo still busy, re-schedule\n",
-		sc->unit));
-	sc->timerh = timeout(ray_download_timo, sc, RAY_DOWNLOAD_TIMEOUT);
-	return;
-    }
+#if XXX_NETBSD
+    /* start network */
+    ray_cmd_done(sc, SCP_UPD_STARTUP);
 
-    /* Clear the ccs */
-    (void)ray_free_ccs(sc, sc->sc_startccs);
-    sc->sc_startccs = RAY_CCS_LAST + 1;
+    /* ok to start queueing packets */
+    sc->sc_if.if_flags &= ~IFF_OACTIVE;
+
+    sc->sc_omode = sc->sc_mode;
+    memcpy(sc->sc_cnwid, sc->sc_dnwid, sizeof(sc->sc_cnwid));
+
+    rcmd = ray_start_join_net;
+#endif /* XXX_NETBSD */
+	
+    /* XXX use start_join_net when included? */
 
     /*
      * Grab a ccs and don't bother updating the network parameters.
@@ -3020,24 +2974,20 @@ ray_download_timo (xsc)
 	    cmd = RAY_CMD_JOIN_NET;
 
     if (!ray_alloc_ccs(sc, &ccs, cmd, SCP_UPD_STARTJOIN)) {
-    	printf("ray%d: ray_download_timo can't get a CCS to start/join net\n",
+    	printf("ray%d: ray_download_done can't get a CCS to start/join net\n",
 		sc->unit);
 	ray_reset(sc);
     }
-
-    SRAM_WRITE_FIELD_1(sc, ccs, ray_cmd_net, c_upd_param, 0);
-
     if (!ray_issue_cmd(sc, ccs, SCP_UPD_STARTJOIN)) {
-    	printf("ray%d: ray_download_timo can't issue start/join\n", sc->unit);
+    	printf("ray%d: ray_download_done can't issue start/join\n", sc->unit);
 	ray_reset(sc);
     }
+    RAY_DPRINTFN(15, ("ray%d: Start-join awaiting interrupt\n",
+	    sc->unit));
 
 #if RAY_NEED_STARTJOIN_TIMO
     sc->sj_timerh = timeout(ray_start_join_timo, sc, RAY_SJ_TIMEOUT);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
-
-    RAY_DPRINTFN(15, ("ray%d: Start-join awaiting interrupt/timeout\n",
-	    sc->unit));
 
     return;
 }
@@ -3142,11 +3092,7 @@ ray_start_join_done (sc, ccs, status)
     untimeout(ray_start_join_timo, sc, sc->sj_timerh);
 #endif /* RAY_NEED_STARTJOIN_TIMO */
 
-#if XXX_DOWNLOAD_STD_TIMEOUT
     ray_cmd_done(sc, SCP_UPD_STARTJOIN);
-#else
-    /* XXX cancel timeouts ? */
-#endif /* XXX_DOWNLOAD_STD_TIMEOUT */
 
     /*
      * XXX This switch and the following test are badly done. I
@@ -3211,7 +3157,7 @@ ray_start_join_done (sc, ccs, status)
 	    	sc->unit);
 #if XXX
 	    restart ray_start_join sequence
-	    may need to split download_timo for this
+	    may need to split download_done for this
 #endif
 	}
     }
