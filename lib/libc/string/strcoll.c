@@ -24,11 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: strcoll.c,v 1.3 1995/02/18 01:38:58 ache Exp $
+ * $Id: strcoll.c,v 1.4 1995/04/16 22:43:45 ache Exp $
  */
 
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include "collate.h"
 
 int
@@ -38,8 +39,23 @@ strcoll(s, s2)
 	int len, len2, prim, prim2, sec, sec2, ret, ret2;
 	char *tt, *t, *tt2, *t2;
 
-	if (__collate_load_error)
-		return strcasecmp(s, s2);
+	if (__collate_load_error) {
+		register const u_char
+				*us1 = (const u_char *)s,
+				*us2 = (const u_char *)s2;
+
+		while (tolower(*us1) == tolower(*us2)) {
+			if (*us1 == '\0')
+				return (0);
+			if (isupper(*us1) && islower(*us2))
+				return (-1);
+			else if (islower(*us1) && isupper(*us2))
+				return (1);
+			*us1++;
+			*us2++;
+		}
+		return (tolower(*us1) - tolower(*us2));
+	}
 
 	len = len2 = 1;
 	ret = ret2 = 0;
