@@ -174,7 +174,8 @@ fwe_attach(device_t dev)
 	eaddr[3] = fwe->fd.fc->eui[5];
 	eaddr[4] = fwe->fd.fc->eui[6];
 	eaddr[5] = fwe->fd.fc->eui[7];
-	printf("if_fwe%d: %02x:%02x:%02x:%02x:%02x:%02x\n", unit,
+	printf("if_fwe%d: Fake Ethernet address: "
+		"%02x:%02x:%02x:%02x:%02x:%02x\n", unit,
 		eaddr[0], eaddr[1], eaddr[2], eaddr[3], eaddr[4], eaddr[5]);
 
 	/* fill the rest and attach interface */	
