@@ -29,12 +29,14 @@ SRCS=	file.c apprentice.c fsmagic.c softmagic.c ascmagic.c \
 #	compress.c is_tar.c  readelf.c internat.c print.c
 
 MAGICPATH=	/usr/share/misc
-MAGICMODE=	444
 
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DBUILTIN_ELF -DELFCORE -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR} -I${SRCDIR}
 
 CLEANFILES+=	magic magic.mgc magic.mime.mgc magic.mime.PITA
+
+FILES=		magic magic.mgc ${SRCDIR}/magic.mime magic.mime.mgc
+FILESDIR=	${MAGICPATH}
 
 MAGFILES=	${SRCDIR}/Header\
 		${SRCDIR}/Localstuff\
@@ -62,10 +64,5 @@ build-tools: mkmagic
 mkmagic: apprentice.c print-hacked.c
 	${CC} -DHAVE_CONFIG_H -DCOMPILE_ONLY \
 	    -I${.CURDIR} -I${SRCDIR} -o ${.TARGET} ${.ALLSRC}
-
-beforeinstall:
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${MAGICMODE} \
-	    magic magic.mgc ${SRCDIR}/magic.mime magic.mime.mgc \
-	    ${DESTDIR}${MAGICPATH}
 
 .include <bsd.prog.mk>
