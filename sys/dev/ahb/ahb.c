@@ -28,8 +28,6 @@
  * $FreeBSD$
  */
 
-#include "eisa.h"
-#if NEISA > 0
 #include <stddef.h>	/* For offsetof() */
 
 #include <sys/param.h>
@@ -1360,5 +1358,3 @@ static driver_t ahb_eisa_driver = {
 static devclass_t ahb_devclass;
 
 DRIVER_MODULE(ahb, eisa, ahb_eisa_driver, ahb_devclass, 0, 0);
-
-#endif /* NEISA */
