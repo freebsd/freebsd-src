@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_xpt.c,v 1.42.2.8 1999/05/07 00:43:05 ken Exp $
+ *      $Id: cam_xpt.c,v 1.42.2.9 1999/05/11 02:53:00 mjacob Exp $
  */
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -477,6 +477,16 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		{
 			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "CALIPER",
 			"CP150", "*"
+		},
+		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
+	},
+	{
+		/*
+		 * Would repond to all LUNs if asked for.
+		 */
+		{
+			T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "KENNEDY",
+			"96X2*", "*"
 		},
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
