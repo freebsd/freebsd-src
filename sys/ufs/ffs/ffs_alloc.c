@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.18 (Berkeley) 5/26/95
- * $Id: ffs_alloc.c,v 1.53 1998/09/07 11:50:18 bde Exp $
+ * $Id: ffs_alloc.c,v 1.54 1998/11/13 01:01:44 dg Exp $
  */
 
 #include "opt_quota.h"
@@ -343,7 +343,9 @@ SYSCTL_INT(_vfs_ffs, FFS_ASYNCFREE, doasyncfree, CTLFLAG_RW, &doasyncfree, 0, ""
 static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ffs, FFS_REALLOCBLKS, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
 
-static int prtrealloc = 0;
+#ifdef DEBUG
+static volatile int prtrealloc = 0;
+#endif
 
 int
 ffs_reallocblks(ap)
