@@ -65,7 +65,7 @@
 #include <sys/kernel.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
-#include <sys/buf.h>
+#include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/vnode.h>
@@ -136,7 +136,6 @@ struct vn_softc {
 	vm_object_t	sc_object;	/* backing object if not NULL	*/
 	struct ucred	*sc_cred;	/* credentials 			*/
 	int		 sc_maxactive;	/* max # of active requests 	*/
-	struct buf	 sc_tab;	/* transfer queue 		*/
 	u_long		 sc_options;	/* options 			*/
 	SLIST_ENTRY(vn_softc) sc_list;
 };
@@ -300,8 +299,8 @@ vnstrategy(struct bio *bp)
 
 	IFOPT(vn, VN_LABELS) {
 		if (vn->sc_slices != NULL && dscheck(bp, vn->sc_slices) <= 0) {
-			/* XXX: Normal B_ERROR processing, instead ? */
-			bp->bio_flags |= B_INVAL;
+			bp->bio_error = EINVAL;
+			bp->bio_flags |= BIO_ERROR;
 			biodone(bp);
 			return;
 		}
@@ -316,7 +315,6 @@ vnstrategy(struct bio *bp)
 		if (bp->bio_bcount % vn->sc_secsize != 0 ||
 		    bp->bio_blkno % (vn->sc_secsize / DEV_BSIZE) != 0) {
 			bp->bio_error = EINVAL;
-			/* XXX bp->b_flags |= B_INVAL; */
 			bp->bio_flags |= BIO_ERROR;
 			biodone(bp);
 			return;

@@ -37,6 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ext2_subr.c	8.2 (Berkeley) 9/21/93
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -48,6 +49,7 @@
 #include <sys/ucred.h>
 #include <sys/vnode.h>
 #include <gnu/ext2fs/ext2_extern.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>

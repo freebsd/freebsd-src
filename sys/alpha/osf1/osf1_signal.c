@@ -42,6 +42,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/reboot.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>

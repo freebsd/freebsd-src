@@ -49,6 +49,7 @@
 
 #include <sys/errno.h>
 /*#include <sys/ioctl.h>*/
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 /*#include <sys/user.h>*/

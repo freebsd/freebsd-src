@@ -36,6 +36,7 @@
 #include <sys/systm.h>
 #include <sys/resourcevar.h>	/* defines plimit structure in proc struct */
 #include <sys/kernel.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 #include <sys/mount.h>

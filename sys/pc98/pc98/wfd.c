@@ -38,6 +38,7 @@
 #include <sys/conf.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/devicestat.h>
 #include <sys/disklabel.h>

@@ -55,6 +55,7 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <machine/clock.h>	/* for DELAY */
 #include <machine/resource.h>

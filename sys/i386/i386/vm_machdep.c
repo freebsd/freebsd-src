@@ -51,6 +51,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
