@@ -556,276 +556,123 @@ uses this state to determine the handling of the object.
 .Ss VOLUME STATES
 Volumes may have the following states:
 .sp
-.ne 1i
-.TB "Volume states"
-.TS H
-box,center,tab(#) ;
-lfCWp9 | lw65 .
-State#Meaning
-=
-volume_unallocated#T{
-present but unused.  This will not normally be seen from a user perspective.
-T}
-volume_uninit#T{
-In the process of being created.
-T}
-volume_down#T{
-The volume is inaccessible.
-T}
-volume_up#T{
-The volume is up and functional, but not all plexes may be available.
-T}
-
-.TE
-.TS H
-box,center,tab(#) ;
-lfCWp9 | lw65 .
-State#Meaning
-=
-volume_unallocated#T{
-present but unused.  This will not normally be seen from a user perspective.
-T}
-.if t .sp .4v
-.if n .sp 1
-volume_uninit#T{
-In the process of being created.
-T}
-.if t .sp .4v
-.if n .sp 1
-volume_down#T{
-The volume is inaccessible.
-T}
-.if t .sp .4v
-.if n .sp 1
-volume_up#T{
-The volume is up and functional, but not all plexes may be available.
-T}
-.if t .sp .4v
-.if n .sp 1
-.TE
-.sp 2v
+.Bl -hang -width 14n
+.It volume_down
+The volume is completely inaccessible.
+.It volume_up
+The volume is up and at least partially functional.  Not all plexes may be
+available.
+.El
 .Ss "PLEX STATES"
 Plexes may have the following states:
 .sp
 .ne 1i
-.TB "Plex states"
-.TS H
-box,center,tab(#) ;
-lfCWp9 | lw65 .
-State#Meaning
-=
-plex_unallocated#T{
-An empty entry, not a plex at all.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_checkup#T{
-Temporary state: check subordinate subdisks to decide which state we can take.
-The options are plex_error (no subdisks), plex_corrupted (not all subdisks, and
-we were down), plex_degraded (not all subdisks, and we were up), plex_up (all
-subdisks)
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_checkdown#T{
-Temporary state: check our previous state to decide whether we should go to down
-or error state.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_uninit#T{
-A plex entry which has not been created completely.  Some fields may be empty.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_init#T{
-All fields are correct, and the disk has been
-updated, but there is no data on the disk.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_error#T{
+.Bl -hang -width 14n
+.It faulty
 A plex which has gone completely down because of I/O errors.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_down#T{
-A plex which has been taken down by the
-administrator.
-T}
-.if t .sp .4v
-.if n .sp 1
-#T{
-The remaining states represent plexes which are
-at least partially up.  Keep these separate so that
-they can be checked more easily.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_corrupted#T{
+.It down
+A plex which has been taken down by the administrator.
+.It initializing
+A plex which is being initialized.
+.sp
+The remaining states represent plexes which are at least partially up.
+.It corrupt
 A plex entry which is at least partially up.  Not all subdisks are available,
 and an inconsistency has occurred.  If no other plex is uncorrupted, the volume
 is no longer consistent.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_degraded#T{
-A plex entry which is at least partially up.  Not all subdisks are available,
-but so far no inconsistency has occurred (this will change with the first write
-to the address space occupied by a defective subdisk).  This state includes the
-condition where a subdisk is being copied.
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_flaky#T{
+.It degraded
+A RAID-5 plex entry which is accessible, but one subdisk is down, requiring
+recovery for many I/O requests.
+.It flaky
 A plex which is really up, but which has a reborn subdisk which we don't
-completely trust, and which we don't want to read if we can avoid it
-T}
-.if t .sp .4v
-.if n .sp 1
-plex_up#T{
-A plex entry which is completely up.  All subdisks
-are up.
-T}
-.if t .sp .4v
-.if n .sp 1
-.TE
+completely trust, and which we don't want to read if we can avoid it.
+.It up
+A plex entry which is completely up.  All subdisks are up.
+.El
 .sp 2v
 .Ss "SUBDISK STATES"
 Subdisks can have the following states:
 .sp
 .ne 1i
-.TB "Subdisk states"
-.TS H
-box,center,tab(#) ;
-lfCWp9 | lw65 .
-State#Meaning
-=
-sd_unallocated#T{
-An empty entry, not a subdisk at all.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_uninit#T{
-A subdisk entry which has not been created
-completely.  Some fields may be empty.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_init#T{
-A subdisk entry which has been created completely.
-All fields are correct, but the disk hasn't
-been updated.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_empty#T{
-A subdisk entry which has been created completely.
-All fields are correct, and the disk has been
-updated, but there is no data on the disk.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_obsolete#T{
-A subdisk entry which has been created completely.
-All fields are correct, the disk has been updated,
-and the data was valid, but since then the drive
-has gone down, and as a result updates have been
-missed.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_stale#T{
-A subdisk entry which has been created completely.
-All fields are correct, the disk has been updated,
-and the data was valid, but since then the drive
-has gone down, updates have been lost, and then
-the drive came up again.
-T}
-.if t .sp .4v
-.if n .sp 1
-#T{
-The following states represent valid, inaccessible data
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_crashed#T{
-A subdisk entry which has been created completely.
-All fields are correct, the disk has been updated,
-and the data was valid, but since then the drive
-has gone down.   No attempt has been made to write
-to the subdisk since the crash.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_down#T{
-A subdisk entry which was up, which contained
-valid data, and which was taken down by the
-administrator.  The data is valid.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_reborn#T{
-A subdisk entry which has been created completely.
-All fields are correct, the disk has been updated,
-and the data was valid, but since then the drive
-has gone down and up again.  No updates were lost,
-but it is possible that the subdisk has been
-damaged.  We won't read from this subdisk if we
-have a choice.
-T}
-.if t .sp .4v
-.if n .sp 1
-sd_up#T{
-A subdisk entry which has been created completely.
-All fields are correct, the disk has been updated,
-and the data is valid.
-T}
-.if t .sp .4v
-.if n .sp 1
-.TE
+.Bl -hang -width 14n
+.It empty
+A subdisk entry which has been created completely.  All fields are correct, and
+the disk has been updated, but there is no data on the disk.
+.It initializing
+A subdisk entry which has been created completely and which is currently being
+initialized.
+.sp
+The following states represent invalid data.
+.It obsolete
+A subdisk entry which has been created completely.  All fields are correct, the
+config on disk has been updated, and the data was valid, but since then the
+drive has been taken down, and as a result updates have been missed.
+.It stale
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data was valid, but since then the drive has been
+crashed and updates have been lost.
+.sp
+The following states represent valid, inaccessible data.
+.It crashed
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data was valid, but since then the drive has gone
+down.  No attempt has been made to write to the subdisk since the crash, so the
+data is valid.
+.It down
+A subdisk entry which was up, which contained valid data, and which was taken
+down by the administrator.  The data is valid.
+.It reviving
+The subdisk is currently in the process of being revived.  We can write but not
+read.
+.sp
+The following states represent accessible subdisks with valid data.
+.It reborn
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data was valid, but since then the drive has gone
+down and up again.  No updates were lost, but it is possible that the subdisk
+has been damaged.  We won't read from this subdisk if we have a choice.  If this
+is the only subdisk which covers this address space in the plex, we set its
+state to up under these circumstances, so this status implies that there is
+another subdisk to fulfil the request.
+.It up
+A subdisk entry which has been created completely.  All fields are correct, the
+disk has been updated, and the data is valid.
+.El
 .sp 2v
 .Ss "DRIVE STATES"
 Drives can have the following states:
 .sp
 .ne 1i
-.TB "Drive states"
-.TS H
-box,center,tab(#) ;
-lfCWp9 | lw65 .
-State#Meaning
-=
-drive_unallocated#T{
-Unused entry.
-T}
-.if t .sp .4v
-.if n .sp 1
-drive_uninit#T{
-just mentioned in some other config entry.
-T}
-.if t .sp .4v
-.if n .sp 1
-drive_down#T{
-not accessible
-T}
-.if t .sp .4v
-.if n .sp 1
-drive_coming_up#T{
-in the process of being brought up
-T}
-.if t .sp .4v
-.if n .sp 1
-drive_up#up and running
-.TE
+.Bl -hang -width 14n
+.It down
+The drive is not accessible.
+.It up
+The drive is up and running.
+.El
 .sp 2v
 .Sh BUGS AND OMISSIONS
-Many.  
-.Nm vinum
-is currently in beta test.  Please report any bugs not in the list below to
-.Ar <grog@lemis.com> .
-.sp
-The following functions are known to be deficient or not implemented:
-.Bl -bullet
+.Bl -enum
+.It
+.Nm
+is a new product.  Many bugs can be expected.  The configuration mechanism is
+not yet fully functional.  If you have difficulties, please look at
+http://www.lemis.com/vinum_beta.html and
+http://www.lemis.com/vinum_debugging.html before reporting problems.
+.It
+It is possible to unload the
+.Nm
+module with the
+.Nm kldunload
+command.  This is buggy, and the only reason it is present at all is to make it
+easier for people testing the system: the alternative is a reboot.  It works
+about 80% of the time: expect about one panic every five unloads.
+.It
+It is possible to configure
+.Nm
+statically, but it has never been tested in this form.  Don't even bother to
+report the problem if you have trouble with a static
+.Nm
+pseudo-device, unless you can also repeat it with the kld module.
 .It
 It is necessary to initialize RAID-5 plexes.  Failure to do so will not impede
 normal operation, but it will cause complete corruption if one of the disks
@@ -833,7 +680,7 @@ should fail.  I don't know any good way to enforce this initialization (or the
 even slower alternative of rebuilding the parity blocks).  If anybody has a good
 idea, I'd be grateful for input.
 .It
-Det	ection of differences between the version of the kernel and the kld is not
+Detection of differences between the version of the kernel and the kld is not
 yet implemented.
 .El
 .Sh AUTHOR
@@ -846,4 +693,3 @@ first appeared in FreeBSD 3.0.
 .Xr vinum 8 ,
 .Xr disklabel 5 ,
 .Xr disklabel 8 .
-
