@@ -1,4 +1,4 @@
-/*	$Id$ */
+/*	$Id: msdosfs_vnops.c,v 1.39 1997/02/22 09:40:48 peter Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -238,8 +238,10 @@ msdosfs_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct denode *dep = VTODE(vp);
 
-	if (vp->v_usecount > 1 && !(dep->de_flag & DE_LOCKED))
+	simple_lock(&vp->v_interlock);
+	if (vp->v_usecount > 1)
 		DE_TIMES(dep, &time);
+	simple_unlock(&vp->v_interlock);
 	return 0;
 }
 
@@ -1045,6 +1047,8 @@ msdosfs_rename(ap)
 	u_long cn;
 	daddr_t bn;
 	struct vnode *tvp = ap->a_tvp;
+	struct componentname *fcnp = ap->a_fcnp;
+	struct proc *p = fcnp->cn_proc;
 	struct denode *fddep;	/* from file's parent directory	 */
 	struct denode *fdep;	/* from file or directory	 */
 	struct denode *tddep;	/* to file's parent directory	 */
@@ -1172,17 +1176,17 @@ msdosfs_rename(ap)
 	 */
 	if (newparent == 0) {
 		/* tddep and fddep point to the same denode here */
-		vn_lock(ap->a_fvp, LK_EXCLUSIVE | LK_RETRY, curproc);	/* ap->a_fdvp is already locked */
+		vn_lock(ap->a_fvp, LK_EXCLUSIVE, p);	/* ap->a_fdvp is already locked */
 		error = readep(fddep->de_pmp, fdep->de_dirclust,
 				   fdep->de_diroffset, &bp, &ep);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fvp, 0, p);
 			goto bad;
 		}
 		bcopy(toname, ep->deName, 11);
 		error = bwrite(bp);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fvp, 0, p);
 			goto bad;
 		}
 		bcopy(toname, fdep->de_Name, 11);	/* update denode */
@@ -1204,7 +1208,7 @@ msdosfs_rename(ap)
 		 * will also insure that the directory entry on disk has a
 		 * filesize of zero.
 		 */
-		vn_lock(ap->a_fvp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		vn_lock(ap->a_fvp, LK_EXCLUSIVE, p);
 		bcopy(toname, fdep->de_Name, 11);	/* update denode */
 		if (fdep->de_Attributes & ATTR_DIRECTORY) {
 			dirsize = fdep->de_FileSize;
@@ -1216,22 +1220,22 @@ msdosfs_rename(ap)
 		}
 		if (error) {
 			/* should put back filename */
-			VOP_UNLOCK(ap->a_fvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fvp, 0, p);
 			goto bad;
 		}
-		vn_lock(ap->a_fdvp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		vn_lock(ap->a_fdvp, LK_EXCLUSIVE, p);
 		error = readep(fddep->de_pmp, fddep->de_fndclust,
 				   fddep->de_fndoffset, &bp, &ep);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp, 0, curproc);
-			VOP_UNLOCK(ap->a_fdvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fvp, 0, p);
+			VOP_UNLOCK(ap->a_fdvp, 0, p);
 			goto bad;
 		}
 		ep->deName[0] = SLOT_DELETED;
 		error = bwrite(bp);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp, 0, curproc);
-			VOP_UNLOCK(ap->a_fdvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fvp, 0, p);
+			VOP_UNLOCK(ap->a_fdvp, 0, p);
 			goto bad;
 		}
 		if (!sourceisadirectory) {
@@ -1239,7 +1243,7 @@ msdosfs_rename(ap)
 			fdep->de_diroffset = tddep->de_fndoffset;
 			reinsert(fdep);
 		}
-		VOP_UNLOCK(ap->a_fdvp, 0, curproc);
+		VOP_UNLOCK(ap->a_fdvp, 0, p);
 	}
 	/* fdep is still locked here */
 
@@ -1259,19 +1263,19 @@ msdosfs_rename(ap)
 			      NOCRED, &bp);
 		if (error) {
 			/* should really panic here, fs is corrupt */
-			VOP_UNLOCK(ap->a_fvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fvp, 0, p);
 			goto bad;
 		}
 		dotdotp = (struct direntry *) bp->b_data + 1;
 		putushort(dotdotp->deStartCluster, tddep->de_StartCluster);
 		error = bwrite(bp);
-		VOP_UNLOCK(ap->a_fvp, 0, curproc);
+		VOP_UNLOCK(ap->a_fvp, 0, p);
 		if (error) {
 			/* should really panic here, fs is corrupt */
 			goto bad;
 		}
 	} else
-		VOP_UNLOCK(ap->a_fvp, 0, curproc);
+		VOP_UNLOCK(ap->a_fvp, 0, p);
 bad:	;
 	vrele(DETOV(fdep));
 	vrele(DETOV(fddep));
@@ -1807,49 +1811,38 @@ static int
 msdosfs_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
 	} */ *ap;
 {
-	struct denode *dep = VTODE(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
 
-	while (dep->de_flag & DE_LOCKED) {
-		dep->de_flag |= DE_WANTED;
-		if (dep->de_lockholder == curproc->p_pid)
-			panic("msdosfs_lock: locking against myself");
-		dep->de_lockwaiter = curproc->p_pid;
-		(void) tsleep((caddr_t) dep, PINOD, "msdlck", 0);
-	}
-	dep->de_lockwaiter = 0;
-	dep->de_lockholder = curproc->p_pid;
-	dep->de_flag |= DE_LOCKED;
-	return 0;
+	return (lockmgr(&VTODE(vp)->de_lock, ap->a_flags, &vp->v_interlock,
+		ap->a_p));
 }
 
-static int
+int
 msdosfs_unlock(ap)
 	struct vop_unlock_args /* {
-		struct vnode *vp;
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
 	} */ *ap;
 {
-	struct denode *dep = VTODE(ap->a_vp);
+	struct vnode *vp = ap->a_vp;
 
-	if (!(dep->de_flag & DE_LOCKED))
-		panic("msdosfs_unlock: denode not locked");
-	dep->de_lockholder = 0;
-	dep->de_flag &= ~DE_LOCKED;
-	if (dep->de_flag & DE_WANTED) {
-		dep->de_flag &= ~DE_WANTED;
-		wakeup((caddr_t) dep);
-	}
-	return 0;
+	return (lockmgr(&VTODE(vp)->de_lock, ap->a_flags | LK_RELEASE,
+		&vp->v_interlock, ap->a_p));
 }
 
-static int
+int
 msdosfs_islocked(ap)
 	struct vop_islocked_args /* {
 		struct vnode *a_vp;
 	} */ *ap;
 {
-	return VTODE(ap->a_vp)->de_flag & DE_LOCKED ? 1 : 0;
+
+	return (lockstatus(&VTODE(ap->a_vp)->de_lock));
 }
 
 /*
@@ -1952,15 +1945,9 @@ msdosfs_print(ap)
 	printf(
 	    "tag VT_MSDOSFS, startcluster %d, dircluster %ld, diroffset %ld ",
 	       dep->de_StartCluster, dep->de_dirclust, dep->de_diroffset);
-	printf(" dev %d, %d, %s\n",
-	       major(dep->de_dev), minor(dep->de_dev),
-	       dep->de_flag & DE_LOCKED ? "(LOCKED)" : "");
-	if (dep->de_lockholder) {
-		printf("    owner pid %d", (int)dep->de_lockholder);
-		if (dep->de_lockwaiter)
-			printf(" waiting pid %d", (int)dep->de_lockwaiter);
-		printf("\n");
-	}
+	printf(" dev %d, %d", major(dep->de_dev), minor(dep->de_dev));
+	lockmgr_printinfo(&dep->de_lock);
+	printf("\n");
 	return 0;
 }
 
