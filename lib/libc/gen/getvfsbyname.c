@@ -40,8 +40,6 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/param.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <errno.h>
