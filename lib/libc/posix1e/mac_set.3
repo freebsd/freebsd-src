@@ -85,7 +85,7 @@ and its effective user ID is equal to
 the owner of the file,
 or has appropriate privileges.
 .Sh RETURN VALUES
-.Rv -std mac_set_fd mac_set_file mac_set_proc
+.Rv -std mac_set_fd mac_set_file mac_set_link mac_set_proc
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EACCES
@@ -133,4 +133,6 @@ is not a directory.
 .Xr mac 3 ,
 .Xr mac_free 3 ,
 .Xr mac_get 3 ,
+.Xr mac_is_present_np 3 ,
+.Xr mac_prepare 3 ,
 .Xr mac_text 3
