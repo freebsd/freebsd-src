@@ -116,7 +116,7 @@ amr_pci_probe(device_t dev)
 		(pci_read_config(dev, AMR_CFG_SIG, 2) != AMR_SIGNATURE))
 		continue;
 	    device_set_desc(dev, "AMI MegaRAID");
-	    return(0);
+	    return(-10);	/* allow room to be overridden */
 	}
     }
     return(ENXIO);

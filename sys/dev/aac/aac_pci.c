@@ -115,7 +115,7 @@ aac_pci_probe(device_t dev)
 	    ((m->subdevice == 0) || ((m->subdevice == pci_get_subdevice(dev))))) {
 	    
 	    device_set_desc(dev, m->desc);
-	    return(0);
+	    return(-10);	/* allow room to be overridden */
 	}
     }
     return(ENXIO);
