@@ -136,7 +136,7 @@ le64dec(const void *pp)
 {
 	unsigned char const *p = pp;
 
-	return (((uint64_t)be32dec(p + 4) << 32) | be32dec(p));
+	return (((uint64_t)le32dec(p + 4) << 32) | le32dec(p));
 }
 
 static __inline void
@@ -193,8 +193,8 @@ le64enc(void *pp, uint64_t u)
 {
 	unsigned char *p = pp;
 
-	be32enc(p, u & 0xffffffff);
-	be32enc(p + 4, u >> 32);
+	le32enc(p, u & 0xffffffff);
+	le32enc(p + 4, u >> 32);
 }
 
 #endif	/* _SYS_ENDIAN_H_ */
