@@ -121,7 +121,7 @@ sig_init(el)
 
     el->el_signal = (sig_t *) el_malloc(SIGSIZE);
     for (i = 0; sighdl[i] != -1; i++)
-	el->el_signal[i] = BADSIG;
+	el->el_signal[i] = SIG_ERR;
 
     (void) sigprocmask(SIG_SETMASK, &oset, NULL);
 
@@ -185,7 +185,7 @@ sig_clr(el)
     (void) sigprocmask(SIG_BLOCK, &nset, &oset);
 
     for (i = 0; sighdl[i] != -1; i++)
-	if (el->el_signal[i] != BADSIG)
+	if (el->el_signal[i] != SIG_ERR)
 	    (void) signal(sighdl[i], el->el_signal[i]);
 
     sel = NULL;	/* we are going to die if the handler is called */

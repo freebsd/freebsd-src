@@ -47,6 +47,9 @@ static char sccsid[] = "@(#)parse.c	8.1 (Berkeley) 6/4/93";
  *	echotc
  *	settc
  *	gettc
+ *	history
+ *	settc
+ *	setty
  */
 #include "sys.h"
 #include "el.h"
@@ -98,14 +101,11 @@ el_parse(el, argc, argv)
     int i;
 
     if (argc < 1)
-	return 0;
-
-    for (ptr = argv[0]; *ptr && *ptr != ':'; ptr++)
-	continue;
-
-    if (*ptr == ':') {
-	*ptr = '\0';
-	if (el_match(el->el_prog, ptr))
+	return -1;
+    ptr = strchr(argv[0], ':');
+    if (ptr != NULL) {
+	*ptr++ = '\0';
+	if (! el_match(el->el_prog, argv[0]))
 	    return 0;
     }
     else
@@ -193,7 +193,7 @@ parse__escape(ptr)
 	    break;
 	}
     }
-    else if (*p == '^' && isalpha((unsigned char) *p)) {
+    else if (*p == '^' && isalpha((unsigned char) p[1])) {
 	p++;
 	c = (*p == '?') ? '\177' : (*p & 0237);
     }

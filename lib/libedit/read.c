@@ -86,13 +86,17 @@ read__fixio(fd, e)
 
 #ifdef EWOULDBLOCK
     case EWOULDBLOCK:
-# define TRY_AGAIN
+# ifndef TRY_AGAIN
+#  define TRY_AGAIN
+# endif
 #endif /* EWOULDBLOCK */
 
 #if defined(POSIX) && defined(EAGAIN)
 # if defined(EWOULDBLOCK) && EWOULDBLOCK != EAGAIN
     case EAGAIN:
-#  define TRY_AGAIN
+#  ifndef TRY_AGAIN
+#   define TRY_AGAIN
+#  endif
 # endif /* EWOULDBLOCK && EWOULDBLOCK != EAGAIN */
 #endif /* POSIX && EAGAIN */
 
@@ -378,6 +382,11 @@ el_gets(el, nread)
 	    el->el_state.doingarg = 0;
 	    re_refresh_cursor(el);
 	    break;
+
+	case CC_REDISPLAY:
+	    re_clear_lines(el);
+	    re_clear_display(el);
+	    /* FALLTHROUGH */
 
 	case CC_REFRESH:
 	    el->el_state.argument = 1;
