@@ -62,7 +62,7 @@ distribution:
 	( cd ${.CURDIR}/isdn; ${MAKE} install );\
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local etc.${MACHINE_ARCH}/MAKEDEV ${DESTDIR}/dev )
+	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
 	(cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
