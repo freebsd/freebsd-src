@@ -66,6 +66,11 @@ The O_DIRECT flag has been added to open(2) and fcntl(2).  Specifying
 this flag for open files will attempt to minimize the cache effects of
 reading and writing.
 
+The xl(4) driver now supports reception of VLAN tagged frames (on the
+"Cyclone" and newer chipsets).
+
+The ti(4) driver correctly masks VLAN tags.
+
 
 1.2. SECURITY FIXES
 -------------------

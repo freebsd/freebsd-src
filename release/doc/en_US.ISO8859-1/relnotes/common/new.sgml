@@ -52,6 +52,13 @@
       <para>The &man.an.4; driver has received a few bug fixes;
       promiscuous mode now works, and it can be configured before being
       brought <literal>up</literal>.</para>
+
+      <para>The &man.xl.4; driver now supports reception of VLAN
+      tagged frames (on the <quote>Cyclone</quote> or newer
+      chipsets).</para>
+
+      <para>The &man.ti.4; driver correctly masks VLAN tags.</para>
+
     </sect3>
 
     <sect3>
