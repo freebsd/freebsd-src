@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.89 1996/07/01 06:13:31 jkh Exp $
+#	$Id: Makefile,v 1.90 1996/07/21 00:05:31 jraynard Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -14,6 +14,18 @@
 #	-DNOOBJDIR do not run ``${MAKE} obj''
 #	-DNOPROFILE do not build profiled libraries
 #	-DNOSECURE do not go into secure subdir
+#	-DNOGAMES do not go into games subdir
+
+#
+# The intended user-driven targets are:
+# world       - rebuild *everything*, including glue to help do upgrades.
+# reinstall   - use an existing (eg: NFS mounted) build to do an update.
+# update      - convenient way to update your source tree (eg: sup/cvs)
+# most        - build user commands, no libraries or include files
+# installmost - install user commands, no libraries or include files
+# all         - run through SUBDIR and build everything.  This is an implicit
+#               rule, not particularly useful for everybody.  Use 'world'.
+
 
 # Put initial settings here.
 SUBDIR=
@@ -30,10 +42,7 @@ SUBDIR+= lib
 .if exists(bin)
 SUBDIR+= bin
 .endif
-#.if exists(contrib)
-#SUBDIR+= contrib
-#.endif
-.if exists(games)
+.if exists(games) && !defined(NOGAMES)
 SUBDIR+= games
 .endif
 .if exists(gnu)
@@ -81,7 +90,7 @@ SUBDIR+= local
 SUBDIR+= ports
 .endif
 
-# Handle the -DNOOBJDIR and -DNOCLEANDIR
+# Handle -DNOOBJDIR, -DNOCLEAN and -DNOCLEANDIR
 .if defined(NOOBJDIR)
 OBJDIR=
 .else
@@ -90,9 +99,7 @@ OBJDIR=		obj
 
 .if defined(NOCLEAN)
 CLEANDIR=
-WORLD_CLEANDIST=obj
 .else
-WORLD_CLEANDIST=cleandist
 .if defined(NOCLEANDIR)
 CLEANDIR=	clean
 .else
@@ -100,48 +107,141 @@ CLEANDIR=	cleandir
 .endif
 .endif
 
+#
+# While building tools for bootstrapping, we dont need to waste time on
+# profiled libraries or man pages.  This speeds things up somewhat.
+#
 MK_FLAGS=	-DNOMAN -DNOPROFILE
 
-.if !target(pre-world)
-pre-world:
-	@/usr/bin/true
-.endif
-
-world:	pre-world hierarchy mk $(WORLD_CLEANDIST) bootstrap include-tools includes lib-tools libraries build-tools
+#
+# world
+#
+# Attempt to rebuild and reinstall *everything*, with reasonable chance of
+# success, regardless of how old your existing system is.
+#
+# >> Beware, it overwrites the local build environment! <<
+#
+world:
+.if target(pre-world)
 	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR} The whole thing"
+	@echo " Making 'pre-world' target"
 	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} pre-world
 	@echo
-	cd ${.CURDIR} && ${MAKE} depend all install
-	cd ${.CURDIR}/share/man &&		${MAKE} makedb
-.if target(post-world)
-	cd ${.CURDIR} && ${MAKE} post-world
 .endif
-	@echo "make world completed on `date`"
-
-bootstrap:
-	cd ${.CURDIR}/usr.bin/make && ${MAKE} ${MK_FLAGS} all install
-	cd ${.CURDIR}/usr.bin/xlint && ${MAKE} ${MK_FLAGS} lint1 lint2 xlint
-	cd ${.CURDIR}/usr.bin/xlint/lint1 && ${MAKE} ${MK_FLAGS} install
-	cd ${.CURDIR}/usr.bin/xlint/lint2 && ${MAKE} ${MK_FLAGS} install
-	cd ${.CURDIR}/usr.bin/xlint/xlint && ${MAKE} ${MK_FLAGS} install
-	cd ${.CURDIR}/usr.bin/lex && ${MAKE} ${MK_FLAGS} bootstrap && \
-		${MAKE} ${MK_FLAGS} all install
-
-reinstall:	hierarchy mk includes
-	@echo "--------------------------------------------------------------"
-	@echo " Reinstall ${DESTDIR} The whole thing"
-	@echo "--------------------------------------------------------------"
-	@echo
-	cd ${.CURDIR} && ${MAKE} install
-	cd ${.CURDIR}/share/man &&		${MAKE} makedb
-
-hierarchy:
 	@echo "--------------------------------------------------------------"
 	@echo " Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/etc &&		${MAKE} distrib-dirs
+	cd ${.CURDIR} && ${MAKE} hierarchy
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding /usr/share/mk"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} mk
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Cleaning up the source tree"
+	@echo "--------------------------------------------------------------"
+.if defined(NOCLEAN)
+	@echo "Not cleaning anything! I sure hope you know what you are doing!"
+.else
+.if defined(NOCLEANDIR)
+	cd ${.CURDIR} && ${MAKE} clean
+.else
+	cd ${.CURDIR} && ${MAKE} cleandir
+.endif
+.endif
+	@echo
+.if !defined(NOOBJ)
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding the obj tree"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} obj
+.endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding bootstrap tools"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} bootstrap
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding tools necessary to build the include files"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} include-tools
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding /usr/include"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} includes
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding tools needed to build the libraries"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} lib-tools
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding /usr/lib"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} libraries
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding C compiler, make, symorder, sgmlfmt and zic(8)"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} build-tools
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding.. The whole thing"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} depend && ${MAKE} all install
+	cd ${.CURDIR}/share/man && ${MAKE} makedb
+.if target(post-world)
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Making 'post-world' target"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} post-world
+.endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo "make world completed on `date`"
 
+#
+# reinstall
+#
+# If you have a build server, you can NFS mount the source and obj directories
+# and do a 'make reinstall' on the *client* to install new binaries from the
+# most recent server build.
+#
+reinstall:
+	@echo "--------------------------------------------------------------"
+	@echo " Making hierarchy"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} hierarchy
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding /usr/share/mk"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} mk
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebuilding /usr/include"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR} && ${MAKE} includes
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Reinstalling..  The whole thing"
+	@echo "--------------------------------------------------------------"
+	@echo
+	cd ${.CURDIR} && ${MAKE} install
+	cd ${.CURDIR}/share/man && ${MAKE} makedb
+
+
+#
+# update
+#
+# Update the source tree, by running sup and/or running cvs to update to the
+# latest copy.
+#
 update:
 .if defined(SUP_UPDATE)
 	@echo "--------------------------------------------------------------"
@@ -162,34 +262,12 @@ update:
 	cd ${.CURDIR} &&  cvs -q update -P -d
 .endif
 
-cleandist:
-.if !defined(NOCLEANDIR)
-	@echo "--------------------------------------------------------------"
-	@echo " Cleaning up the source tree, and rebuilding the obj tree"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR} && ${MAKE} cleandir
-	cd ${.CURDIR} && ${MAKE} obj
-.endif
 
-installmost:
-	@echo "--------------------------------------------------------------"
-	@echo " Installing programs only"
-	@echo "--------------------------------------------------------------"
-	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} install
-	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} install
-#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} installmost
-#.endif
-#.if !defined(NOSECURE) && !defined(NOCRYPT)
-#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} installmost
-#.endif
-
+#
+# most
+#
+# Build most of the user binaries on the existing system libs and includes.
+#
 most:
 	@echo "--------------------------------------------------------------"
 	@echo " Building programs only"
@@ -209,24 +287,88 @@ most:
 #	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} most
 #.endif
 
+#
+# installmost
+#
+# Install the binaries built by the 'most' target.  This does not include
+# libraries or include files.
+#
+installmost:
+	@echo "--------------------------------------------------------------"
+	@echo " Installing programs only"
+	@echo "--------------------------------------------------------------"
+	cd ${.CURDIR}/bin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/sbin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/libexec	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/usr.bin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/usr.sbin	&&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/gnu/libexec &&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/gnu/usr.bin &&	${MAKE} ${.MAKEFLAGS} install
+	cd ${.CURDIR}/gnu/usr.sbin &&	${MAKE} ${.MAKEFLAGS} install
+#.if defined(MAKE_EBONES) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/eBones	&&	${MAKE} ${.MAKEFLAGS} installmost
+#.endif
+#.if !defined(NOSECURE) && !defined(NOCRYPT)
+#	cd ${.CURDIR}/secure	&&	${MAKE} ${.MAKEFLAGS} installmost
+#.endif
+
+#
+# ------------------------------------------------------------------------
+#
+# From here onwards are utility targets used by the 'make world' and
+# related targets.  If your 'world' breaks, you may like to try to fix
+# the problem and manually run the following targets to attempt to
+# complete the build.  Beware, this is *not* guaranteed to work, you
+# need to have a pretty good grip on the current state of the system
+# to attempt to manually finish it.  If in doubt, 'make world' again.
+#
+
+#
+# heirarchy - ensure that all the needed directories are present
+#
+hierarchy:
+	cd ${.CURDIR}/etc &&		${MAKE} distrib-dirs
+
+#
+# mk - update the /usr/share/mk makefiles.
+#
 mk:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/share/mk"
-	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}/share/mk &&	${MAKE} install
 
+#
+# bootstrap - [re]build tools needed to run the actual build, this includes
+# tools needed by 'make depend', as some tools are needed to generate source
+# for the dependency information to be gathered from.
+#
+bootstrap:
+	cd ${.CURDIR}/usr.bin/make && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/xinstall && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/lex && ${MAKE} bootstrap && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+
+#
+# include-tools - generally the same as 'bootstrap', except that it's for
+# things that are specifically needed to generate include files.
+#
+# XXX should be merged with bootstrap, it's not worth keeeping them seperate
+#
+include-tools:
+	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+
+#
+# includes - possibly generate and install the include files.
+#
 includes:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/include"
-	@echo "--------------------------------------------------------------"
-	@echo
 .if defined(CLOBBER)
 	rm -rf ${DESTDIR}/usr/include/*
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
 .endif
 	cd ${.CURDIR}/include &&		${MAKE} install
-	cd ${.CURDIR}/gnu/include &&		${MAKE}	install
+	cd ${.CURDIR}/gnu/include &&		${MAKE} install
 	cd ${.CURDIR}/gnu/lib/libreadline &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libg++ &&         ${MAKE} beforeinstall
@@ -241,116 +383,102 @@ includes:
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libftpio &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libmytinfo &&		${MAKE}	beforeinstall
-	cd ${.CURDIR}/lib/libncurses &&		${MAKE}	beforeinstall
+	cd ${.CURDIR}/lib/libmytinfo &&         ${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libncurses &&		${MAKE} beforeinstall
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun &&		${MAKE} beforeinstall
 .endif
 	cd ${.CURDIR}/lib/libpcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/librpcsvc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libskey &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libtcl &&		${MAKE}	beforeinstall
-	cd ${.CURDIR}/lib/libtermcap &&		${MAKE}	beforeinstall
+	cd ${.CURDIR}/lib/libtcl &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libss &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libscsi &&		${MAKE}	beforeinstall
-	cd ${.CURDIR}/lib/libutil &&		${MAKE}	beforeinstall
+	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
 
+#
+# lib-tools - build tools to compile and install the libraries.
+#
 lib-tools:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding tools needed to build the libraries"
-	@echo "--------------------------------------------------------------"
-	@echo
-	cd ${.CURDIR}/usr.bin/xinstall && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/ld && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/ar && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/ranlib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/nm && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/lex/lib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/compile_et && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR} && \
+	cd ${.CURDIR}/gnu/usr.bin/ld && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/ar && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/ranlib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/nm && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/compile_et && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} && \
 		rm -f /usr/sbin/compile_et
-	cd ${.CURDIR}/usr.bin/mk_cmds && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/mk_cmds && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
+#
+# libraries - build and install the libraries
+#
 libraries:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR}/usr/lib"
-	@echo "--------------------------------------------------------------"
-	@echo
 .if exists(lib/libcompat)
-	cd ${.CURDIR}/lib/libcompat && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/lib/libcompat && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libncurses)
-	cd ${.CURDIR}/lib/libncurses && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/lib/libncurses && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib/libtermcap)
-	cd ${.CURDIR}/lib/libtermcap && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(gnu)
-	cd ${.CURDIR}/gnu/lib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-.endif
-.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-	cd ${.CURDIR}/secure/lib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/lib/libtermcap && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(lib)
-	cd ${.CURDIR}/lib/csu/i386 && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/lib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/lib/csu/i386 && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(gnu)
+	cd ${.CURDIR}/gnu/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/cc/libgcc && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(secure) && !defined(NOCRYPT) && !defined(NOSECURE)
+	cd ${.CURDIR}/secure/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+.endif
+.if exists(lib)
+	cd ${.CURDIR}/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.bin/lex/lib)
-	cd ${.CURDIR}/usr.bin/lex/lib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/lex/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/lib && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/eBones/lib && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 .if exists(usr.sbin/pcvt/keycap)
-	cd ${.CURDIR}/usr.sbin/pcvt/keycap && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.sbin/pcvt/keycap && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 .endif
 
-include-tools:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuild tools necessary to build the include files"
-	@echo "--------------------------------------------------------------"
-	@echo
-	cd ${.CURDIR}/usr.bin/xinstall && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/rpcgen && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-
+#
+# build-tools - build and install any other tools needed to complete the
+# compile and install.
+#
 build-tools:
-	@echo "--------------------------------------------------------------"
-	@echo " Rebuilding ${DESTDIR} C compiler, make, symorder, sgmlfmt and zic(8)"
-	@echo "--------------------------------------------------------------"
-	@echo
-	cd ${.CURDIR}/gnu/usr.bin/cc && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/make && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/symorder && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
-	cd ${.CURDIR}/usr.bin/sgmlfmt && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/share/sgml && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR} 
-	cd ${.CURDIR}/usr.sbin/zic && \
-		${MAKE} ${MK_FLAGS} depend all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/gnu/usr.bin/cc && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/symorder && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
+	cd ${.CURDIR}/usr.bin/sgmlfmt && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
+	cd ${.CURDIR}/share/sgml && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR} 
+	cd ${.CURDIR}/usr.sbin/zic && ${MAKE} depend && \
+		${MAKE} ${MK_FLAGS} all install ${CLEANDIR} ${OBJDIR}
 
 .include <bsd.subdir.mk>
