@@ -773,62 +773,53 @@ PCI plug-in USB host controllers:
     Entrega PCI plug-in card (4 ports).
 
 
-Specific devices reported to be working (see for USB ethernet devices supported
-above):
+Specific devices reported to be working (see above for USB ethernet devices
+supported):
 
-ActiveWire I/O Board.
+Floppy drives/Hard disks/CDROMs/Zip drives/etc:
+   Iomega USB Zip 100Mb (primitive support still).
+   Matshita CF-VFDU03 floppy drive.
+   Microtech USB-SCSI-HD 50 USB to SCSI cable.
+   Panasonic floppy drive.
+   Y-E Data floppy drive (720/1.44/2.88Mb).
 
-Agiler Mouse 29UO.
+Hubs:
+   Andromeda hub.
+   MacAlly self powered hub (4 ports).
+   NEC hub.
 
-Andromeda hub.
+Keyboards:
+   Apple iMac keyboard.
+   BTC BTC7935 keyboard with PS/2 mouse port.
+   Cherry G81-3504 keyboard.
+   Logitech M2452 keyboard.
+   MacAlly iKey keyboard.
+   Microsoft keyboard.
 
-Apple iMac mouse.
-Apple iMac keyboard.
+Mice:
+   Agiler Mouse 29UO.
+   Apple iMac Mouse.
+   Belkin Mouse.
+   Chic mouse.
+   Cypress mouse.
+   Genius Niche mouse.
+   Kensington Mouse-in-a-Box.
+   Logitech wheel mouse (3 buttons).
+   Logitech PS/2 / USB mouse (3 buttons).
+   MacAlly mouse (3 buttons).
+   Microsoft IntelliMouse (3 buttons).
+   Trust Ami Mouse (3 buttons).
 
-ATen parallel printer adapter.
+Printer Adapters:
+   ATen parallel printer adapter.
+   Belkin F5U002 parallel printer adapter.
+   Entrega USB-to-parallel printer adapter.
 
-Belkin F5U002 parallel printer adapter.
-Belkin Mouse.
+Scanners:
+   Perfection 636U
 
-BTC BTC7935 keyboard with mouse port.
-
-Cherry G81-3504 keyboard.
-
-Chic mouse.
-
-Cypress mouse.
-
-Entrega USB-to-parallel printer adapter.
-
-Genius Niche mouse.
-
-Iomega USB Zip 100Mb (primitive support still).
-
-Kensington Mouse-in-a-Box.
-
-Logitech M2452 keyboard.
-Logitech wheel mouse (3 buttons).
-Logitech PS/2 / USB mouse (3 buttons).
-
-MacAlly mouse (3 buttons).
-MacAlly self powered hub (4 ports).
-MacAlly iKey keyboard.
-
-Matshita CF-VFDU03 floppy drive.
-
-Microsoft IntelliMouse (3 buttons).
-Microsoft keyboard.
-
-Microtech USB-SCSI-HD 50 USB to SCSI cable.
-
-NEC hub.
-
-Panasonic floppy drive.
-
-Trust Ami Mouse (3 buttons).
-
-Y-E Data floppy drive (720/1.44/2.88Mb).
-
+Miscalleneous:
+   ActiveWire I/O Board.
 
 4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
 ----    -------------------------------------------

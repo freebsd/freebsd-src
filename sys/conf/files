@@ -376,6 +376,7 @@ dev/usb/umass.c		optional umass
 dev/usb/umodem.c	optional umodem
 dev/usb/ums.c		optional ums
 dev/usb/urio.c		optional urio
+dev/usb/uscanner.c	optional uscanner
 dev/usb/usb.c		optional usb
 dev/usb/usb_ethersubr.c	optional usb
 #dev/usb/usb_mem.c	optional usb
