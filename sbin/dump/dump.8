@@ -80,7 +80,8 @@ option below for doing remote backups).
 A dump that is larger than the output medium is broken into
 multiple volumes.
 On most media the size is determined by writing until an
-end-of-media indication is returned.  This can be enforced
+end-of-media indication is returned.
+This can be enforced
 by using the
 .Fl a
 option.
@@ -95,7 +96,7 @@ By default, the same output file name is used for each volume
 after prompting the operator to change media.
 .Pp
 The file system to be dumped is specified by the argument
-.Ar file system
+.Ar filesystem
 as either its device-special file or its mount point
 (if that is in a standard entry in
 .Pa /etc/fstab ) .
@@ -103,7 +104,7 @@ as either its device-special file or its mount point
 The following options are supported by
 .Nm :
 .Bl -tag -width Ds
-.It Fl 0\-9
+.It Fl 0-9
 Dump levels.
 A level 0, full backup,
 guarantees the entire file system is copied
@@ -119,8 +120,9 @@ The default level is 0.
 .It Fl a
 .Dq auto-size .
 Bypass all tape length considerations, and enforce writing
-until an end-of-media indication is returned.  This fits best
-for most modern tape drives.  Use of this option is particularly
+until an end-of-media indication is returned.
+This fits best for most modern tape drives.
+Use of this option is particularly
 recommended when appending to an existing tape, or using a tape
 drive with hardware compression (where you can never be sure about
 the compression ratio).
@@ -168,7 +170,7 @@ like
 (a floppy disk drive),
 an ordinary file,
 or
-.Ql Fl
+.Sq Fl
 (the standard output).
 Multiple file names may be given as a single argument separated by commas.
 Each file will be used for one dump volume in the order listed;
@@ -289,7 +291,9 @@ option is set, all other options are ignored, and
 .Nm
 exits immediately.
 .It Fl w
-Is like W, but prints only those file systems which need to be dumped.
+Is like
+.Fl W ,
+but prints only those file systems which need to be dumped.
 .El
 .Pp
 Directories and regular files which have their
@@ -432,7 +436,8 @@ is written.
 .Pp
 Currently,
 .Xr physio 9
-slices all requests into chunks of 64 KB.  Therefore, it is
+slices all requests into chunks of 64 KB.
+Therefore, it is
 impossible to use a larger output block size, so
 .Nm
 will prevent this from happening.
@@ -462,7 +467,8 @@ for the operator running
 The
 .Nm
 utility cannot do remote backups without being run as root, due to its
-security history.  This will be fixed in a later version of
+security history.
+This will be fixed in a later version of
 .Fx .
 Presently, it works if you set it setuid (like it used to be), but this
 might constitute a security risk.
