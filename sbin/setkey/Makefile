@@ -29,10 +29,17 @@
 PROG=	setkey
 SRCS=	setkey.c parse.y token.l
 CFLAGS+=-g
+CFLAGS+=-I${.CURDIR}/../../lib/libipsec
 DPADD=	${LIBL} ${LIBY}
 LDADD=	-ll -ly
 CLEANFILES+=	y.tab.c y.tab.h key_test.o keytest
 YFLAGS+=-d
+
+# libpfkey.
+# ipsec_strerror.c is for avoiding shlib reference to non-exported function.
+.PATH: ${.CURDIR}/../../lib/libipsec ${.CURDIR}/../../sys/netkey
+SRCS+= pfkey.c pfkey_dump.c key_debug.c ipsec_strerror.c
+CFLAGS+=-I${.CURDIR}/../../lib/libipsec -I${.CURDIR}/../../sys/netkey
 
 SCRIPTS=	scriptdump
 

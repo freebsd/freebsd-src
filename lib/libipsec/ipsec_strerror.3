@@ -1,4 +1,7 @@
 .\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+.\"     $FreeBSD$
+.\"	$KAME: ipsec_strerror.3,v 1.6 2000/05/07 05:25:03 itojun Exp $
+.\"
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,22 +28,19 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: ipsec_strerror.3,v 1.2 1999/09/21 03:49:19 itojun Exp $
-.\"     $FreeBSD$
-.\"
 .Dd May 6, 1998
 .Dt IPSEC_STRERROR 3
 .Os
+.\"
 .Sh NAME
 .Nm ipsec_strerror
 .Nd error code for IPsec policy manipulation library
-.Sh LIBRARY
-.Lb libipsec
+.\"
 .Sh SYNOPSIS
-.Fd #include <sys/types.h>
 .Fd #include <netinet6/ipsec.h>
 .Ft "char *"
-.Fn ipsec_strerror void
+.Fn ipsec_strerror
+.\"
 .Sh DESCRIPTION
 .Pa netinet6/ipsec.h
 declares
@@ -51,16 +51,30 @@ which is used to pass error code from IPsec policy manipulation library
 to user program.
 .Fn ipsec_strerror
 can be used to obtain error message string for the error code.
+.Pp
+The array pointed to is not to be modified by the program.
+Since
+.Fn ipsec_strerror
+uses
+.Xr strerror 3
+as underlying function, calling
+.Xr strerror 3
+after
+.Fn ipsec_strerror
+would make the return value from
+.Fn ipsec_strerror
+invalid, or overwritten.
+.\"
 .Sh RETURN VALUES
 .Fn ipsec_strerror
 always return a pointer to C string.
 The C string must not be overwritten by user programs.
 .\"
-.\" .Sh SEE ALSO
+.Sh SEE ALSO
+.Xr ipsec_set_policy 3
 .\"
 .Sh HISTORY
 The functions first appeared in WIDE/KAME IPv6 protocol stack kit.
-.Pp
-IPv6 and IPsec support based on the KAME Project (http://www.kame.net/) stack
-was initially integrated into
-.Fx 4.0
+.\"
+.\" .Sh BUGS
+.\" (to be written)
