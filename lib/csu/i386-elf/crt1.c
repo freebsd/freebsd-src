@@ -31,6 +31,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include "crtbrand.c"
 
 typedef void (*fptr)(void);
 
