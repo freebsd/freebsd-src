@@ -24,7 +24,7 @@
 # SUCH DAMAGE.
 #
 #
-# httpd-error - check for Web files which does not exists on your host
+# httpd-error - check for Web files which do not exist on your host
 #
 # $FreeBSD$
 
