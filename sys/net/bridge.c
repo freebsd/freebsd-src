@@ -794,10 +794,10 @@ forward:
 	    if (canfree && once ) { /* no need to copy */
 		m = *m0 ;
 		*m0 = NULL ; /* original is gone */
-	    } else /* on a P5-90, m_copypacket takes 540 ticks */
-		m = m_copypacket(*m0, M_DONTWAIT);
+	    } else
+		m = m_dup(*m0, M_DONTWAIT); /* XXX m_copypacket should work */
 	    if (m == NULL) {
-		printf("bdg_forward: sorry, m_copy failed!\n");
+		printf("bdg_forward: sorry, m_dup failed!\n");
 		return ENOBUFS ; /* the original is still there... */
 	    }
 	    /*
