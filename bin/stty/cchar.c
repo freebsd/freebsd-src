@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: cchar.c,v 1.2 1994/09/24 02:58:55 davidg Exp $
  */
 
 #ifndef lint
@@ -106,8 +106,8 @@ csearch(argvp, ip)
 	tmp.name = name;
 	if (!(cp = (struct cchar *)bsearch(&tmp, cchars1,
 	    sizeof(cchars1)/sizeof(struct cchar) - 1, sizeof(struct cchar),
-	    c_cchar)) && !(cp = (struct cchar *)bsearch(&tmp, cchars1,
-	    sizeof(cchars1)/sizeof(struct cchar) - 1, sizeof(struct cchar),
+	    c_cchar)) && !(cp = (struct cchar *)bsearch(&tmp, cchars2,
+	    sizeof(cchars2)/sizeof(struct cchar) - 1, sizeof(struct cchar),
 	    c_cchar)))
 		return (0);
 
@@ -122,11 +122,6 @@ csearch(argvp, ip)
 		ip->t.c_cc[cp->sub] = _POSIX_VDISABLE;
 	else if (cp->sub == VMIN || cp->sub == VTIME) {
 		val = strtol(arg, &ep, 10);
-		if (val == _POSIX_VDISABLE) {
-			warnx("value of %ld would disable the option -- %s",
-			    val, name);
-			usage();
-		}
 		if (val > UCHAR_MAX) {
 			warnx("maximum option value is %d -- %s",
 			    UCHAR_MAX, name);
