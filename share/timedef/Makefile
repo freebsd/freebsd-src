@@ -80,6 +80,7 @@ LOCALES=	am_ET.UTF-8 \
 		sv_SE.UTF-8 \
 		tr_TR.ISO8859-9 \
 		tr_TR.UTF-8 \
+		uk_UA.CP1251 \
 		uk_UA.ISO8859-5 \
 		uk_UA.KOI8-U \
 		uk_UA.UTF-8 \
