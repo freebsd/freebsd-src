@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.16 1994/10/09 01:52:15 phk Exp $
+ * $Id: vm_pageout.c,v 1.17 1994/10/13 21:01:39 davidg Exp $
  */
 
 /*
@@ -213,16 +213,11 @@ vm_pageout_clean(m, sync)
 			pmap_page_protect(VM_PAGE_TO_PHYS(ms[i]), VM_PROT_READ);
 		}
 		object->paging_in_progress += pageout_count;
-		cnt.v_pageouts++; 
-		cnt.v_pgpgout += pageout_count;
 	} else {
 
 		m->flags |= PG_BUSY;
 
 		pmap_page_protect(VM_PAGE_TO_PHYS(m), VM_PROT_READ);
-
-		cnt.v_pageouts++;
-		cnt.v_pgpgout++;
 
 		object->paging_in_progress++;
 
