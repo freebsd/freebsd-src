@@ -79,13 +79,13 @@ static void sf_buf_free(caddr_t addr, void *args);
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp,
-		       caddr_t namelenp);
+		  caddr_t namelenp);
   
 static int accept1(struct thread *td, struct accept_args *uap, int compat);
 static int getsockname1(struct thread *td, struct getsockname_args *uap,
-			     int compat);
+			int compat);
 static int getpeername1(struct thread *td, struct getpeername_args *uap,
-			     int compat);
+			int compat);
 
 /*
  * Expanded sf_freelist head. Really an SLIST_HEAD() in disguise, with the

@@ -82,8 +82,7 @@ static ino_t	unp_ino;		/* prototype for fake inode numbers */
 static int     unp_attach(struct socket *);
 static void    unp_detach(struct unpcb *);
 static int     unp_bind(struct unpcb *,struct sockaddr *, struct thread *);
-static int     unp_connect(struct socket *,struct sockaddr *,
-				struct thread *);
+static int     unp_connect(struct socket *,struct sockaddr *, struct thread *);
 static void    unp_disconnect(struct unpcb *);
 static void    unp_shutdown(struct unpcb *);
 static void    unp_drop(struct unpcb *, int);
