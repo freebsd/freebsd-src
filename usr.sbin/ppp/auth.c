@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.43 1999/03/31 14:21:44 brian Exp $
+ * $Id: auth.c,v 1.44 1999/05/08 11:06:06 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -247,7 +247,7 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   FILE *fp;
   int n;
   char *vector[5];
-  static char buff[LINE_LEN];
+  static char buff[LINE_LEN];	/* vector[] will point here when returned */
 
   fp = OpenSecret(SECRETFILE);
   if (fp == NULL)
@@ -256,7 +256,9 @@ auth_GetSecret(struct bundle *bundle, const char *name, int len,
   while (fgets(buff, sizeof buff, fp)) {
     if (buff[0] == '#')
       continue;
-    buff[strlen(buff) - 1] = 0;
+    n = strlen(buff) - 1;
+    if (buff[n] == '\n')
+      buff[n] = '\0';	/* Trim the '\n' */
     memset(vector, '\0', sizeof vector);
     n = MakeArgs(buff, vector, VECSIZE(vector));
     if (n < 2)
