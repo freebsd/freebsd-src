@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smbus.c,v 1.5 1998/12/10 02:31:08 archie Exp $
+ *	$Id: smbus.c,v 1.6 1998/12/28 19:07:51 nsouch Exp $
  *
  */
 #include <sys/param.h>
@@ -159,3 +159,4 @@ smbus_read_ivar(device_t bus, device_t dev, int index, u_long* result)
 DRIVER_MODULE(smbus, iicsmb, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, bti2c, smbus_driver, smbus_devclass, 0, 0);
 DRIVER_MODULE(smbus, intsmb, smbus_driver, smbus_devclass, 0, 0);
+DRIVER_MODULE(smbus, smbv, smbus_driver, smbus_devclass, 0, 0);

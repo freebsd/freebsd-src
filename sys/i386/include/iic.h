@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iic.h,v 1.1.2.1 1998/07/17 00:54:01 son Exp $
+ *	$Id: iic.h,v 1.1 1998/09/03 21:00:08 nsouch Exp $
  *
  */
 #ifndef __IIC_H
@@ -31,10 +31,17 @@
 
 #include <sys/ioccom.h>
 
-#define I2CSTART	_IO('i', 1)		/* start condition */
-#define I2CSTOP		_IO('i', 2)		/* stop condition */
-#define I2CADDRESS	_IOW('i', 3, long)	/* address bus */
-#define I2CRSTCARD	_IOW('i', 4, long)	/* reset the card */
+struct iiccmd {
+	u_char slave;
+	int count;
+	int last;
+	char *buf;
+};
+
+#define I2CSTART	_IOW('i', 1, struct iiccmd)	/* start condition */
+#define I2CSTOP		_IO('i', 2)			/* stop condition */
+#define I2CRSTCARD	_IOW('i', 3, struct iiccmd)	/* reset the card */
+#define I2CWRITE	_IOW('i', 4, struct iiccmd)	/* send data */
+#define I2CREAD		_IOW('i', 5, struct iiccmd)	/* receive data */
 
 #endif
-
