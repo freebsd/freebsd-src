@@ -68,8 +68,10 @@ struct evcnt clock_intr_evcnt;	/* event counter for clock intrs. */
 #include <ddb/ddb.h>
 #endif
 
+#ifdef SMP
 extern int mp_ipi_vector[];		/* XXX */
 extern int mp_ipi_test;
+#endif
 
 volatile int mc_expected, mc_received;
 
@@ -117,8 +119,10 @@ interrupt(u_int64_t vector, struct trapframe *framep)
 		/* divide hz (1024) by 8 to get stathz (128) */
 		if((++schedclk2 & 0x7) == 0)
 			statclock((struct clockframe *)framep);
+#ifdef SMP
 	} else if (vector == mp_ipi_vector[IPI_TEST]) {
 		mp_ipi_test++;
+#endif
 	} else
 		ia64_dispatch_intr(framep, vector);
 
