@@ -1,7 +1,7 @@
 #! /bin/sh -
 
 #
-#	$Id: stage1,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+#	$Id: stage1,v 1.2 1998/09/07 06:46:25 abial Exp $
 #
 
 set -e
@@ -59,23 +59,26 @@ then
 	exit 10
 fi
 
+# Default setting for other (custom) setups.
+INODES=16000
 # You can save some space on MFS if you don't want so many inodes...
 if [ "${TYPE}" = "dial" ]
 then
-	newfs -i 10240 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+	INODES=10240
 fi
 if [ "${TYPE}" = "router" ]
 then
-	newfs -i 12000 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+	INODES=12000
 fi
 if [ "${TYPE}" = "net" ]
 then
-	newfs -i 16000 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+	INODES=16000
 fi
 if [ "${TYPE}" = "isp" ]
 then
-	newfs -i 15000 -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+	INODES=15000
 fi
+newfs -i $INODES -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
 mount /dev/vn0c /mnt
 if [ "X$?" != "X0" ]
 then

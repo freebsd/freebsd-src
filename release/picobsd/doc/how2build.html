@@ -1,5 +1,5 @@
 <html>
-<! $Id: how2build.html,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $ >
+<! $Id: how2build.html,v 1.2 1998/09/04 19:47:24 abial Exp $ >
 <head>
 <title><center>PicoBSD Development Kit</center></title>
 </head>
@@ -35,7 +35,9 @@
 
 <p>	You can also choose a special type called 'custom'. You'll need to
 	supply the full path to your own custom config tree constructed
-	exactly like one of the standard config directories.</p>
+	exactly like one of the standard config directories. Also, you'll
+	probably want to adjust the number of inodes on MFS - see the
+	<code>stage1</code> script and look for <code>INODES=</code>.</p>
 
 <p>	I also recommend to adjust the ISA devices parameters to
 	match the ones of your hardware - though PicoBSD can save the
