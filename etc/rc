@@ -189,21 +189,13 @@ esac
 
 umount -a >/dev/null 2>&1
 
-remotefs_types='nfs:NFS smbfs:SMB'
-
 # If using diskless, run custom disk mounting function here
 #
 if [ -n "${diskless_mount}" -a -r "${diskless_mount}" ]; then
 	sh ${diskless_mount}
 else
-# otherwise mount everything except remote filesystems.
-	mount_excludes='no'
-	for i in ${remotefs_types}; do
-		fstype=${i%:*}
-		mount_excludes="${mount_excludes}${fstype},"
-	done
-	mount_excludes=${mount_excludes%,}
-	mount -a -t ${mount_excludes}
+# otherwise mount everything except nfs filesystems.
+	mount -a -t nonfs
 fi
 
 case $? in
@@ -308,19 +300,14 @@ case ${ipv6_enable} in
 	;;
 esac
 
-# Mount remote filesystems if present in /etc/fstab
-remotefs_types='nfs:NFS smbfs:SMB'
-for i in ${remotefs_types}; do
-	fstype=${i%:*}
-	fsdecr=${i#*:}
-	case "`mount -d -a -t ${fstype}`" in
-	*mount_${fstype}*)
-		echo -n "Mounting ${fsdecr} file systems:"
-		mount -a -t ${fstype}
-		echo '.'
-		;;
-	esac
-done
+# Mount NFS filesystems if present in /etc/fstab
+case "`mount -d -a -t nfs 2> /dev/null`" in
+*mount_nfs*)
+	echo -n 'Mounting NFS file systems:'
+	mount -a -t nfs
+	echo '.'
+	;;
+esac
 
 # Whack the pty perms back into shape.
 #
