@@ -60,6 +60,7 @@ options 	MSDOSFS			#MSDOS Filesystem
 options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
+options 	COMPAT_43		#Compatible with BSD 4.3 [KEEP THIS!]
 options 	COMPAT_FREEBSD4		#Compatible with FreeBSD4
 options 	SCSI_DELAY=15000	#Delay (in ms) before probing SCSI
 options 	KTRACE			#ktrace(1) syscall trace support
@@ -73,13 +74,8 @@ options 	PFIL_HOOKS		# pfil(9) framework
 options 	DDB			#Enable the kernel debugger
 options 	INVARIANTS		#Enable calls of extra sanity checking
 options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
-<<<<<<< GENERIC
-options 	WITNESS			#Enable checks to detect deadlocks and cycles
-options		WITNESS_SKIPSPIN
-=======
 #options 	WITNESS			#Enable checks to detect deadlocks and cycles
 options         WITNESS_SKIPSPIN        #Don't run witness on spinlocks for speed
->>>>>>> 1.165
 
 # To make an SMP kernel, the next line is needed
 options 	SMP			# Symmetric MultiProcessor Kernel
