@@ -108,9 +108,6 @@ aha_mca_probe (device_t dev)
 	mca_add_drq(dev, drq);
 	mca_add_irq(dev, irq);
 
-	/* We're going to attempt to probe it now, so mark it probed */
-	aha_mark_probed_iop(iobase);
-
 	aha_unit++;
 
 	return (0);

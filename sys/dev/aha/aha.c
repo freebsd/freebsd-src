@@ -182,12 +182,12 @@ u_long aha_unit = 0;
  */
 static struct aha_isa_port aha_isa_ports[] =
 {
-	{ 0x130, 0, 4 },
-	{ 0x134, 0, 5 },
-	{ 0x230, 0, 2 },
-	{ 0x234, 0, 3 },
-	{ 0x330, 0, 0 },
-	{ 0x334, 0, 1 }
+	{ 0x130, 4 },
+	{ 0x134, 5 },
+	{ 0x230, 2 },
+	{ 0x234, 3 },
+	{ 0x330, 0 },
+	{ 0x334, 1 }
 };
 
 /*
@@ -676,43 +676,6 @@ aha_name(struct aha_softc *aha)
 
 	snprintf(name, sizeof(name), "aha%d", aha->unit);
 	return (name);
-}
-
-int
-aha_check_probed_iop(u_int ioport)
-{
-	u_int i;
-
-	for (i=0; i < AHA_NUM_ISAPORTS; i++) {
-		if (aha_isa_ports[i].addr == ioport) {
-			if (aha_isa_ports[i].probed != 0)
-				return (1);
-			else {
-				return (0);
-			}
-		}
-	}
-	return (1);
-}
-
-void
-aha_mark_probed_bio(isa_compat_io_t port)
-{
-	if (port < BIO_DISABLED)
-		aha_mark_probed_iop(aha_board_ports[port]);
-}
-
-void
-aha_mark_probed_iop(u_int ioport)
-{
-	u_int i;
-
-	for (i = 0; i < AHA_NUM_ISAPORTS; i++) {
-		if (ioport == aha_isa_ports[i].addr) {
-			aha_isa_ports[i].probed = 1;
-			break;
-		}
-	}
 }
 
 void
@@ -1997,4 +1960,14 @@ ahatimeout(void *arg)
 	}
 
 	splx(s);
+}
+
+int
+aha_detach(struct aha_softc *aha)
+{
+	xpt_async(AC_LOST_DEVICE, aha->path, NULL);
+	xpt_free_path(aha->path);
+	xpt_bus_deregister(cam_sim_path(aha->sim));
+	cam_sim_free(aha->sim, /*free_devq*/TRUE);
+	return (0);
 }

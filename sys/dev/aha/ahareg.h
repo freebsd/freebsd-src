@@ -216,7 +216,6 @@ typedef struct {
 
 struct aha_isa_port {
 	u_int16_t addr;
-	u_int8_t  probed;
 	u_int8_t  bio;	/* board IO offset */
 };
 
@@ -392,35 +391,34 @@ struct aha_softc {
 	u_int8_t		 fw_minor;
 	char			 model[32];
 	u_int8_t		 boardid;
+	struct resource		*irq;
+	int			 irqrid;
+	struct resource		*port;
+	int			 portrid;
+	struct resource		*drq;
+	int			 drqrid;
+	void			**ih;
 };
 
 extern struct aha_softc *aha_softcs[];	/* XXX Config should handle this */
 extern u_long aha_unit;
 
 #define AHA_TEMP_UNIT 0xFF		/* Unit for probes */
-struct aha_softc*	aha_alloc(int unit, bus_space_tag_t tag,
-				 bus_space_handle_t bsh);
-void			aha_free(struct aha_softc *aha);
-int			aha_probe(struct aha_softc *aha);
-int			aha_fetch_adapter_info(struct aha_softc *aha);
-int			aha_init(struct aha_softc *aha); 
-int			aha_attach(struct aha_softc *aha);
-void			aha_intr(void *arg);
-char *			aha_name(struct aha_softc *aha);
-int			aha_check_probed_iop(u_int ioport);
-void			aha_mark_probed_bio(isa_compat_io_t port);
-void			aha_mark_probed_iop(u_int ioport);
-void			aha_find_probe_range(int ioport,
-					     int *port_index,
-					     int *max_port_index);
-
-int			aha_iop_from_bio(isa_compat_io_t bio_index);
+struct aha_softc*	aha_alloc(int, bus_space_tag_t, bus_space_handle_t);
+int			aha_attach(struct aha_softc *);
+int			aha_cmd(struct aha_softc *, aha_op_t, u_int8_t *,
+			    u_int, u_int8_t *, u_int, u_int);
+int			aha_detach(struct aha_softc *);
+int			aha_fetch_adapter_info(struct aha_softc *);
+void			aha_find_probe_range(int, int *, int *);
+void			aha_free(struct aha_softc *);
+int			aha_init(struct aha_softc *); 
+void			aha_intr(void *);
+int			aha_iop_from_bio(isa_compat_io_t);
+char *			aha_name(struct aha_softc *);
+int			aha_probe(struct aha_softc *);
 
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
-int			aha_cmd(struct aha_softc *aha, aha_op_t opcode,
-			       u_int8_t *params, u_int param_len,
-			       u_int8_t *reply_data, u_int reply_len,
-			       u_int cmd_timeout);
 
 #define aha_inb(aha, port)				\
 	bus_space_read_1((aha)->tag, (aha)->bsh, port)
@@ -428,15 +426,8 @@ int			aha_cmd(struct aha_softc *aha, aha_op_t opcode,
 #define aha_outb(aha, port, value)			\
 	bus_space_write_1((aha)->tag, (aha)->bsh, port, value)
 
-
-#ifndef EXTRA_AHA
-#if NPNP > 0
-#define EXTRA_AHA MAX_PNP_CARDS
-#else
-#define EXTRA_AHA 0
-#endif
-#endif
-
+/* XXX BAD */
+#define EXTRA_AHA 4
 #define NAHATOT (NAHA + EXTRA_AHA)
 
 #define AHA1542_PNP		0x42159004	/* ADP1542 */
