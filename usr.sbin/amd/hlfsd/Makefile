@@ -13,7 +13,7 @@ SRCS=	hlfsd.c homedir.c nfs_prot_svc.c stubs.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/hlfsd
 
-DPADD=	${LIBAMU} ${LIBRPCSVC}
-LDADD=	${LIBAMU} -lrpcsvc
+DPADD=	${LIBAMU}
+LDADD=	${LIBAMU}
 
 .include <bsd.prog.mk>
