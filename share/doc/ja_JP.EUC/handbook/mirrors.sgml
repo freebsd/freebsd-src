@@ -1,6 +1,6 @@
-<!-- $Id: mirrors.sgml,v 1.12 1997/02/28 03:24:54 hanai Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.13 1997/03/12 04:25:20 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.53 -->
+<!-- Original revision: 1.54 -->
 
 <!--
 <!doctype linuxdoc public "-//FreeBSD//DTD linuxdoc//EN">
@@ -565,8 +565,8 @@ secure (DES) ¤È eBones (Kerberos) ¤ò
 
 <sect><heading>CTM ¥µ¥¤¥È<label id="mirrors-ctm"></heading>
 
-<p>CTM/FreeBSD ¤Ï°Ê²¼¤Î¥ß¥é¡¼¥µ¥¤¥È¤«¤é anonymous FTP ¤Ë¤è¤Ã¤Æ
-      Æþ¼ê¤Ç¤­¤Þ¤¹. ¤â¤· CTM ¤ò anonymous FTP ¤Ë¤è¤Ã¤Æ¼ê¤Ë¤¤¤ì¤ë¾ì¹ç¤Ï,
+<p><ref id="ctm" name="CTM">/FreeBSD ¤Ï°Ê²¼¤Î¥ß¥é¡¼¥µ¥¤¥È¤«¤é anonymous FTP
+      ¤Ë¤è¤Ã¤ÆÆþ¼ê¤Ç¤­¤Þ¤¹. ¤â¤· CTM ¤ò anonymous FTP ¤Ë¤è¤Ã¤Æ¼ê¤Ë¤¤¤ì¤ë¾ì¹ç¤Ï,
       ¶á¤¯¤Î¥µ¥¤¥È¤òÍøÍÑ¤¹¤ë¤è¤¦¤Ë¤·¤Æ¤¯¤À¤µ¤¤. 
 
 ²¿¤«ÌäÂê¤¬¤¢¤ë¾ì¹ç¤Ï, &a.phk;¤ËÏ¢Íí¤·¤Æ¤¯¤À¤µ¤¤. 
@@ -622,7 +622,7 @@ FTP search ¤Ï¥Î¥ë¥¦¥§¡¼¤Î Trondheim ¤Ë¤¢¤ë, ¥Õ¥ê¡¼¤ÎÁÇÀ²¤é¤·¤¤ ¥¢¡¼¥«¥¤¥Ö¥µ¡¼¥Ð¤
 
 <sect><heading>CVSup ¥µ¥¤¥È<label id="mirrors-cvsup"></heading>
 
-<p>FreeBSD ¤Î CVSup ¥µ¡¼¥Ð¤Ï°Ê²¼¤Î¥µ¥¤¥È¤Ç²ÔÆ¯¤·¤Æ¤¤¤Þ¤¹:
+<p>FreeBSD ¤Î <ref id="cvsup" name="CVSup"> ¥µ¡¼¥Ð¤Ï°Ê²¼¤Î¥µ¥¤¥È¤Ç²ÔÆ¯¤·¤Æ¤¤¤Þ¤¹:
 
 <descrip>
 
