@@ -48,6 +48,7 @@ SUBDIR=	IPXrouted \
 	mrouted \
 	mtest \
 	mtree \
+	ndp \
 	newsyslog \
 	ngctl \
 	ntp \
@@ -80,10 +81,13 @@ SUBDIR=	IPXrouted \
 	rpc.yppasswdd \
 	rpc.ypupdated \
 	rpc.ypxfrd \
+	rrenumd \
+	rtadvd \
 	rtprio \
 	rtsold \
 	rwhod \
 	sa \
+	setkey \
 	sliplogin \
 	slstat \
 	spray \

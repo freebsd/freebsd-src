@@ -13,16 +13,14 @@
 # A PARTICULAR PURPOSE.
 # $FreeBSD$
 
-PROG=	traceroute6
-
-BINOWN=	root
-BINGRP=	bin
-BINMODE=4555
+PROG=	rtadvd
+SRCS=	rtadvd.c rrenum.c advcap.c if.c config.c timer.c
 
 CFLAGS+=-DINET6 -DIPSEC
-DPADD=	${LIBIPSEC}
-LDADD=	-lipsec
+LDADD+=	-lcompat -lipsec
+DPADD+=	${LIBCOMPAT} ${LIBIPSEC}
 
-MAN8=	traceroute6.8
+MAN5=	rtadvd.conf.5
+MAN8=	rtadvd.8
 
 .include <bsd.prog.mk>

@@ -3,9 +3,11 @@
 
 MAN4=	ahc.4 alpm.4 amd.4 atkbd.4 atkbdc.4 aue.4 blackhole.4 bpf.4 \
 	bridge.4 ccd.4 cd.4 ch.4 da.4 dc.4 ddb.4 de.4 \
-	divert.4 drum.4 dummynet.4 fd.4 fdc.4 fpa.4 fxp.4 \
+	divert.4 drum.4 dummynet.4 faith.4 fd.4 fdc.4 fpa.4 fxp.4 \
+	gif.4 \
 	icmp.4 ifmib.4 iic.4 iicbb.4 iicbus.4 iicsmb.4 \
-	inet.4 intpm.4 intro.4 ip.4 ipfirewall.4 keyboard.4 kld.4 \
+	inet.4 inet6.4 intpm.4 intro.4 ip.4 ipfirewall.4 ipsec.4 \
+	kame.4 keyboard.4 kld.4 \
 	kue.4 lo.4 lp.4 lpbb.4 lpt.4 mem.4 mouse.4 mtio.4 natm.4 ncr.4 \
 	netintro.4 null.4 ohci.4 pass.4 pci.4 pcm.4 pcvt.4 \
 	ppbus.4 ppi.4 ppp.4 psm.4 pt.4 pty.4 rl.4 \

@@ -8,7 +8,8 @@ COPTS+=	-Wall -Wmissing-prototypes
 .if ${MACHINE_ARCH} == "alpha"
 COPTS+= -fno-builtin	# GCC's builtin memcpy doesn't do unaligned copies
 .endif
-DPADD=	${LIBM}
-LDADD=	-lm
+CFLAGS+=-DIPSEC
+DPADD=	${LIBM} ${LIBIPSEC}
+LDADD=	-lm -lipsec
 
 .include <bsd.prog.mk>
