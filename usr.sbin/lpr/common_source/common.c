@@ -111,7 +111,7 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 {
 	register struct dirent *d;
 	register struct jobqueue *q, **queue;
-	size_t arraysz, nitems;
+	size_t arraysz, entrysz, nitems;
 	struct stat stbuf;
 	DIR *dirp;
 	int statres;
@@ -143,10 +143,13 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 		seteuid(uid);
 		if (statres < 0)
 			continue;	/* Doesn't exist */
-		q = (struct jobqueue *)malloc(sizeof(time_t) + strlen(d->d_name)
-		    + 1);
+		entrysz = sizeof(struct jobqueue) - sizeof(q->job_cfname) +
+		    strlen(d->d_name) + 1;
+		q = (struct jobqueue *)malloc(entrysz);
 		if (q == NULL)
 			goto errdone;
+		q->job_matched = 0;
+		q->job_processed = 0;
 		q->job_time = stbuf.st_mtime;
 		strcpy(q->job_cfname, d->d_name);
 		/*
