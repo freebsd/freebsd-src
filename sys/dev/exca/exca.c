@@ -82,6 +82,32 @@
 #define DPRINTF(fmt, args...)
 #endif
 
+#if 0
+static const char *chip_names[] = 
+{
+	"CardBus socket",
+	"Intel i82365SL-A/B or clone",
+	"Intel i82365sl-DF step",
+	"VLSI chip",
+	"Cirrus Logic PD6710",
+	"Cirrus logic PD6722",
+	"Cirrus Logic PD6729",
+	"Vadem 365",
+	"Vadem 465",
+	"Vadem 468",
+	"Vadem 469",
+	"Ricoh RF5C296",
+	"Ricoh RF5C396",
+	"IBM clone",
+	"IBM KING PCMCIA Controller"
+};
+#endif
+
+static exca_getb_fn exca_mem_getb;
+static exca_putb_fn exca_mem_putb;
+static exca_getb_fn exca_io_getb;
+static exca_putb_fn exca_io_putb;
+
 /* memory */
 
 #define	EXCA_MEMINFO(NUM) {						\
@@ -113,6 +139,32 @@ static struct mem_map_index_st {
 };
 #undef	EXCA_MEMINFO
 
+static uint8_t
+exca_mem_getb(struct exca_softc *sc, int reg)
+{
+	return (bus_space_read_1(sc->bst, sc->bsh, sc->offset + reg));
+}
+
+static void
+exca_mem_putb(struct exca_softc *sc, int reg, uint8_t val)
+{
+	return (bus_space_write_1(sc->bst, sc->bsh, sc->offset + reg, val));
+}
+
+static uint8_t
+exca_io_getb(struct exca_softc *sc, int reg)
+{
+	bus_space_write_1(sc->bst, sc->bsh, EXCA_REG_INDEX, reg + sc->offset);
+	return (bus_space_read_1(sc->bst, sc->bsh, EXCA_REG_DATA));
+}
+
+static void
+exca_io_putb(struct exca_softc *sc, int reg, uint8_t val)
+{
+	bus_space_write_1(sc->bst, sc->bsh, EXCA_REG_INDEX, reg + sc->offset);
+	bus_space_write_1(sc->bst, sc->bsh, EXCA_REG_DATA, val);
+}
+
 /*
  * Helper function.  This will map the requested memory slot.  We setup the
  * map before we call this function.  This is used to initially force the
@@ -127,27 +179,27 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 	
 	map = &mem_map_index[win];
 	mem = &sc->mem[win];
-	exca_write(sc, map->sysmem_start_lsb,
+	exca_putb(sc, map->sysmem_start_lsb,
 	    (mem->addr >> EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
-	exca_write(sc, map->sysmem_start_msb,
+	exca_putb(sc, map->sysmem_start_msb,
 	    ((mem->addr >> (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
 	    EXCA_SYSMEM_ADDRX_START_MSB_ADDR_MASK) | 0x80);
 
-	exca_write(sc, map->sysmem_stop_lsb,
+	exca_putb(sc, map->sysmem_stop_lsb,
 	    ((mem->addr + mem->realsize - 1) >>
 	    EXCA_SYSMEM_ADDRX_SHIFT) & 0xff);
-	exca_write(sc, map->sysmem_stop_msb,
+	exca_putb(sc, map->sysmem_stop_msb,
 	    (((mem->addr + mem->realsize - 1) >>
 	    (EXCA_SYSMEM_ADDRX_SHIFT + 8)) &
 	    EXCA_SYSMEM_ADDRX_STOP_MSB_ADDR_MASK) |
 	    EXCA_SYSMEM_ADDRX_STOP_MSB_WAIT2);
 
-	exca_write(sc, map->sysmem_win,
+	exca_putb(sc, map->sysmem_win,
 	    (mem->addr >> EXCA_MEMREG_WIN_SHIFT) & 0xff);
 
-	exca_write(sc, map->cardmem_lsb,
+	exca_putb(sc, map->cardmem_lsb,
 	    (mem->offset >> EXCA_CARDMEM_ADDRX_SHIFT) & 0xff);
-	exca_write(sc, map->cardmem_msb,
+	exca_putb(sc, map->cardmem_msb,
 	    ((mem->offset >> (EXCA_CARDMEM_ADDRX_SHIFT + 8)) &
 	    EXCA_CARDMEM_ADDRX_MSB_ADDR_MASK) |
 	    ((mem->kind == PCCARD_MEM_ATTR) ?
@@ -160,13 +212,13 @@ exca_do_mem_map(struct exca_softc *sc, int win)
 #ifdef EXCA_DEBUG
 	{
 		int r1, r2, r3, r4, r5, r6, r7;
-		r1 = exca_read(sc, map->sysmem_start_msb);
-		r2 = exca_read(sc, map->sysmem_start_lsb);
-		r3 = exca_read(sc, map->sysmem_stop_msb);
-		r4 = exca_read(sc, map->sysmem_stop_lsb);
-		r5 = exca_read(sc, map->cardmem_msb);
-		r6 = exca_read(sc, map->cardmem_lsb);
-		r7 = exca_read(sc, map->sysmem_win);
+		r1 = exca_getb(sc, map->sysmem_start_msb);
+		r2 = exca_getb(sc, map->sysmem_start_lsb);
+		r3 = exca_getb(sc, map->sysmem_stop_msb);
+		r4 = exca_getb(sc, map->sysmem_stop_lsb);
+		r5 = exca_getb(sc, map->cardmem_msb);
+		r6 = exca_getb(sc, map->cardmem_lsb);
+		r7 = exca_getb(sc, map->sysmem_win);
 		printf("exca_do_mem_map window %d: %02x%02x %02x%02x "
 		    "%02x%02x %02x (%08x+%08x.%08x*%08lx)\n",
 		    win, r1, r2, r3, r4, r5, r6, r7,
@@ -385,11 +437,11 @@ exca_do_io_map(struct exca_softc *sc, int win)
 
 	map = &io_map_index[win];
 	io = &sc->io[win];
-	exca_write(sc, map->start_lsb, io->addr & 0xff);
-	exca_write(sc, map->start_msb, (io->addr >> 8) & 0xff);
+	exca_putb(sc, map->start_lsb, io->addr & 0xff);
+	exca_putb(sc, map->start_msb, (io->addr >> 8) & 0xff);
 
-	exca_write(sc, map->stop_lsb, (io->addr + io->size - 1) & 0xff);
-	exca_write(sc, map->stop_msb, ((io->addr + io->size - 1) >> 8) & 0xff);
+	exca_putb(sc, map->stop_lsb, (io->addr + io->size - 1) & 0xff);
+	exca_putb(sc, map->stop_msb, ((io->addr + io->size - 1) >> 8) & 0xff);
 
 	exca_clrb(sc, EXCA_IOCTL, map->ioctlmask);
 	exca_setb(sc, EXCA_IOCTL, map->ioctlbits[io->width]);
@@ -398,10 +450,10 @@ exca_do_io_map(struct exca_softc *sc, int win)
 #ifdef EXCA_DEBUG
 	{
 		int r1, r2, r3, r4;
-		r1 = exca_read(sc, map->start_msb);
-		r2 = exca_read(sc, map->start_lsb);
-		r3 = exca_read(sc, map->stop_msb);
-		r4 = exca_read(sc, map->stop_lsb);
+		r1 = exca_getb(sc, map->start_msb);
+		r2 = exca_getb(sc, map->start_lsb);
+		r3 = exca_getb(sc, map->stop_msb);
+		r4 = exca_getb(sc, map->stop_lsb);
 		DPRINTF("exca_do_io_map window %d: %02x%02x %02x%02x "
 		    "(%08x+%08x)\n", win, r1, r2, r3, r4,
 		    io->addr, io->size);
@@ -498,14 +550,14 @@ exca_wait_ready(struct exca_softc *sc)
 {
 	int i;
 	DEVPRINTF(sc->dev, "exca_wait_ready: status 0x%02x\n",
-	    exca_read(sc, EXCA_IF_STATUS));
+	    exca_getb(sc, EXCA_IF_STATUS));
 	for (i = 0; i < 10000; i++) {
-		if (exca_read(sc, EXCA_IF_STATUS) & EXCA_IF_STATUS_READY)
+		if (exca_getb(sc, EXCA_IF_STATUS) & EXCA_IF_STATUS_READY)
 			return;
 		DELAY(500);
 	}
 	device_printf(sc->dev, "ready never happened, status = %02x\n",
-	    exca_read(sc, EXCA_IF_STATUS));
+	    exca_getb(sc, EXCA_IF_STATUS));
 }
 
 /*
@@ -530,7 +582,7 @@ exca_reset(struct exca_softc *sc, device_t child)
 	/* enable socket i/o */
 	exca_setb(sc, EXCA_PWRCTL, EXCA_PWRCTL_OE);
 
-	exca_write(sc, EXCA_INTR, EXCA_INTR_ENABLE);
+	exca_putb(sc, EXCA_INTR, EXCA_INTR_ENABLE);
 	/* hold reset for 30ms */
 	DELAY(30*1000);
 	/* clear the reset flag */
@@ -541,7 +593,7 @@ exca_reset(struct exca_softc *sc, device_t child)
 	exca_wait_ready(sc);
 
 	/* disable all address windows */
-	exca_write(sc, EXCA_ADDRWIN_ENABLE, 0);
+	exca_putb(sc, EXCA_ADDRWIN_ENABLE, 0);
 
 	CARD_GET_TYPE(child, &cardtype);
 	exca_setb(sc, EXCA_INTR, (cardtype == PCCARD_IFTYPE_IO) ?
@@ -572,6 +624,114 @@ exca_init(struct exca_softc *sc, device_t dev,
 	sc->bsh = bsh;
 	sc->offset = offset;
 	sc->flags = 0;
+	sc->getb = exca_mem_getb;
+	sc->putb = exca_mem_putb;
+}
+
+/*
+ * Is this socket valid?
+ */
+static int
+exca_valid_slot(struct exca_softc *exca)
+{
+	uint8_t c;
+
+	/*
+	 * see if there's a PCMCIA controller here
+	 * Intel PCMCIA controllers use 0x82 and 0x83
+	 * IBM clone chips use 0x88 and 0x89, apparently
+	 */
+	c = exca_getb(exca, EXCA_IDENT);
+	if ((c & EXCA_IDENT_IFTYPE_MASK) != EXCA_IDENT_IFTYPE_MEM_AND_IO)
+		return (0);
+	if ((c & EXCA_IDENT_ZERO) != 0)
+		return (0);
+	switch (c & EXCA_IDENT_REV_MASK) {
+	/*
+	 *	82365 or clones.
+	 */
+	case EXCA_IDENT_REV_I82365SLR0:
+	case EXCA_IDENT_REV_I82365SLR1:
+		exca->chipset = EXCA_I82365;
+		/*
+		 * Check for Vadem chips by unlocking their extra
+		 * registers and looking for valid ID.  Bit 3 in
+		 * the ID register is normally 0, except when
+		 * EXCA_VADEMREV is set.  Other bridges appear
+		 * to ignore this frobbing.
+		 */
+		bus_space_write_1(exca->bst, exca->bsh, EXCA_REG_INDEX,
+		    EXCA_VADEM_COOKIE1);
+		bus_space_write_1(exca->bst, exca->bsh, EXCA_REG_INDEX,
+		    EXCA_VADEM_COOKIE2);
+		exca_setb(exca, EXCA_VADEM_VMISC, EXCA_VADEM_REV);
+		c = exca_getb(exca, EXCA_IDENT);
+		if (c & 0x08) {
+			switch (c & 7) {
+			case 1:
+				exca->chipset = EXCA_VG365;
+				break;
+			case 2:
+				exca->chipset = EXCA_VG465;
+				break;
+			case 3:
+				exca->chipset = EXCA_VG468;
+				break;
+			default:
+				exca->chipset = EXCA_VG469;
+				break;
+			}
+			exca_clrb(exca, EXCA_VADEM_VMISC, EXCA_VADEM_REV);
+			break;
+		}
+		/*
+		 * Check for RICOH RF5C[23]96 PCMCIA Controller
+		 */
+		c = exca_getb(exca, EXCA_RICOH_ID);
+		if (c == EXCA_RID_396) {
+			exca->chipset = EXCA_RF5C396;
+			break;
+		} else if (c == EXCA_RID_296) {
+			exca->chipset = EXCA_RF5C296;
+			break;
+		}
+		/*
+		 *	Check for Cirrus logic chips.
+		 */
+		exca_putb(exca, EXCA_CIRRUS_CHIP_INFO, 0);
+		c = exca_getb(exca, EXCA_CIRRUS_CHIP_INFO);
+		if ((c & EXCA_CIRRUS_CHIP_INFO_CHIP_ID) ==
+		    EXCA_CIRRUS_CHIP_INFO_CHIP_ID) {
+			c = exca_getb(exca, EXCA_CIRRUS_CHIP_INFO);
+			if ((c & EXCA_CIRRUS_CHIP_INFO_CHIP_ID) == 0) {
+				if (c & EXCA_CIRRUS_CHIP_INFO_SLOTS)
+					exca->chipset = EXCA_PD6722;
+				else
+					exca->chipset = EXCA_PD6710;
+				break;
+			}
+		}
+		break;
+
+	case EXCA_IDENT_REV_I82365SLDF:
+		/*
+		 *	Intel i82365sl-DF step or maybe a vlsi 82c146
+		 * we detected the vlsi case earlier, so if the controller
+		 * isn't set, we know it is a i82365sl step D.
+		 */
+		exca->chipset = EXCA_I82365SL_DF;
+		break;
+	case EXCA_IDENT_REV_IBM1:
+	case EXCA_IDENT_REV_IBM2:
+		exca->chipset = EXCA_IBM;
+		break;
+	case EXCA_IDENT_REV_IBM_KING:
+		exca->chipset = EXCA_IBM_KING;
+		break;
+	default:
+		return (0);
+	}
+	return (1);
 }
 
 /*
@@ -579,49 +739,31 @@ exca_init(struct exca_softc *sc, device_t dev,
  * slots too while we're at it.  But maybe that belongs to a separate
  * function.
  *
- * Callers must charantee that there are at least EXCA_NSLOTS (4) in
- * the array that they pass the address of the first element in the
- * "exca" parameter.
+ * The caller must guarantee that at least EXCA_NSLOTS are present in exca.
  */
 int
-exca_probe_slots(device_t dev, struct exca_softc *exca)
+exca_probe_slots(device_t dev, struct exca_softc *exca, bus_space_tag_t iot,
+    bus_space_handle_t ioh)
 {
-	int rid;
-	struct resource *res;
 	int err;
-	bus_space_tag_t iot;
-	bus_space_handle_t ioh;
 	int i;
 
 	err = ENXIO;
-	rid = 0;
-	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, EXCA_IOSIZE,
-	    RF_ACTIVE);
-	if (res == NULL)
-		return (ENXIO);
-	iot = rman_get_bustag(res);
-	ioh = rman_get_bushandle(res);
-	for (i = 0; i < EXCA_NSLOTS; i++) {
+	for (i = 0; i < EXCA_NSLOTS; i++)  {
 		exca_init(&exca[i], dev, iot, ioh, i * EXCA_SOCKET_SIZE);
-		if (exca_is_pcic(&exca[i])) {
+		exca->getb = exca_io_getb;
+		exca->putb = exca_io_putb;
+		if (exca_valid_slot(&exca[i]))
 			err = 0;
-			exca[i].flags |= EXCA_SOCKET_PRESENT;
-		}
 	}
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, res);
 	return (err);
 }
 
-int
-exca_is_pcic(struct exca_softc *sc)
-{
-	/* XXX */
-	return (0);
-}
-
-static int exca_modevent(module_t mod, int cmd, void *arg)
+static int
+exca_modevent(module_t mod, int cmd, void *arg)
 {
 	return 0;
 }
+
 DEV_MODULE(exca, exca_modevent, NULL);
 MODULE_VERSION(exca, 1);
