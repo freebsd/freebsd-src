@@ -566,7 +566,6 @@ getnewvnode(tag, mp, vops, vpp)
 		}
 #endif
 		vp->v_flag = 0;
-		vp->v_lastr = 0;
 		vp->v_lastw = 0;
 		vp->v_lasta = 0;
 		vp->v_cstart = 0;

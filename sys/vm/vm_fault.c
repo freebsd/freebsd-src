@@ -154,6 +154,16 @@ _unlock_things(struct faultstate *fs, int dealloc)
 #define unlock_and_deallocate(fs) _unlock_things(fs, 1)
 
 /*
+ * TRYPAGER - used by vm_fault to calculate whether the pager for the
+ *	      current object *might* contain the page.
+ *
+ *	      default objects are zero-fill, there is no real pager.
+ */
+
+#define TRYPAGER	(fs.object->type != OBJT_DEFAULT && \
+			(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
+
+/*
  *	vm_fault:
  *
  *	Handle a page fault occuring at the given address,
@@ -188,12 +198,12 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 	hardfault = 0;
 
 RetryFault:;
-	fs.map = map;
 
 	/*
 	 * Find the backing store object and offset into it to begin the
 	 * search.
 	 */
+	fs.map = map;
 	if ((result = vm_map_lookup(&fs.map, vaddr,
 		fault_type, &fs.entry, &fs.first_object,
 		&fs.first_pindex, &prot, &wired)) != KERN_SUCCESS) {
@@ -308,21 +318,7 @@ RetryFault:;
 			vm_page_unqueue_nowakeup(fs.m);
 			splx(s);
 
-			/*
-			 * This code is designed to prevent thrashing in a 
-			 * low-memory situation by assuming that pages placed
-			 * in the cache are generally inactive, so if a cached
-			 * page is requested and we are low on memory, we try
-			 * to wait for the low-memory condition to be resolved.
-			 *
-			 * This code cannot handle a major memory starvation
-			 * situation where pages are forced into the cache and
-			 * may cause 'good' programs to stall.  As of 22Jan99
-			 * the problem is still under discussion and not 
-			 * resolved.
-			 */
-			if (((queue - fs.m->pc) == PQ_CACHE) &&
-			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
+			if ((queue - fs.m->pc) == PQ_CACHE && vm_page_count_severe()) {
 				vm_page_activate(fs.m);
 				unlock_and_deallocate(&fs);
 				VM_WAIT;
@@ -346,14 +342,11 @@ RetryFault:;
 		}
 
 		/*
-		 * Page is not resident, If this is the search termination,
-		 * allocate a new page.
+		 * Page is not resident, If this is the search termination
+		 * or the pager might contain the page, allocate a new page.
 		 */
 
-		if (((fs.object->type != OBJT_DEFAULT) &&
-				(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
-		    || (fs.object == fs.first_object)) {
-
+		if (TRYPAGER || fs.object == fs.first_object) {
 			if (fs.pindex >= fs.object->size) {
 				unlock_and_deallocate(&fs);
 				return (KERN_PROTECTION_FAILURE);
@@ -362,9 +355,11 @@ RetryFault:;
 			/*
 			 * Allocate a new page for this object/offset pair.
 			 */
-			fs.m = vm_page_alloc(fs.object, fs.pindex,
-				(fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
-
+			fs.m = NULL;
+			if (!vm_page_count_severe()) {
+				fs.m = vm_page_alloc(fs.object, fs.pindex,
+				    (fs.vp || fs.object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
+			}
 			if (fs.m == NULL) {
 				unlock_and_deallocate(&fs);
 				VM_WAIT;
@@ -374,14 +369,16 @@ RetryFault:;
 
 readrest:
 		/*
-		 * Have page, but it may not be entirely valid ( or valid at
-		 * all ).   If this object is not the default, try to fault-in
-		 * the page as well as activate additional pages when
-		 * appropriate, and page-in additional pages when appropriate.
+		 * We have found a valid page or we have allocated a new page.
+		 * The page thus may not be valid or may not be entirely 
+		 * valid.
+		 *
+		 * Attempt to fault-in the page if there is a chance that the
+		 * pager has it, and potentially fault in additional pages
+		 * at the same time.
 		 */
 
-		if (fs.object->type != OBJT_DEFAULT &&
-			(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired)) {
+		if (TRYPAGER) {
 			int rv;
 			int reqpage;
 			int ahead, behind;
@@ -401,14 +398,17 @@ readrest:
 			}
 
 			if ((fs.first_object->type != OBJT_DEVICE) &&
-			    (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL)) {
+			    (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL ||
+                                (behavior != MAP_ENTRY_BEHAV_RANDOM &&
+                                fs.pindex >= fs.entry->lastr &&
+                                fs.pindex < fs.entry->lastr + VM_FAULT_READ))
+			) {
 				vm_pindex_t firstpindex, tmppindex;
-				if (fs.first_pindex <
-					2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1))
+
+				if (fs.first_pindex < 2 * VM_FAULT_READ)
 					firstpindex = 0;
 				else
-					firstpindex = fs.first_pindex -
-						2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1);
+					firstpindex = fs.first_pindex - 2 * VM_FAULT_READ;
 
 				/*
 				 * note: partially valid pages cannot be 
@@ -458,6 +458,12 @@ readrest:
 			 */
 			faultcount = vm_fault_additional_pages(
 			    fs.m, behind, ahead, marray, &reqpage);
+
+			/*
+			 * update lastr imperfectly (we do not know how much
+			 * getpages will actually read), but good enough.
+			 */
+			fs.entry->lastr = fs.pindex + faultcount - behind;
 
 			/*
 			 * Call the pager to retrieve the data, if any, after
@@ -531,6 +537,7 @@ readrest:
 				 */
 			}
 		}
+
 		/*
 		 * We get here if the object has default pager (or unwiring) 
 		 * or the pager doesn't have the page.
