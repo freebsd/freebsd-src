@@ -6,6 +6,7 @@ CONTRIB=${.CURDIR}/../../../../contrib/bsnmp
 
 MOD=	netgraph
 SRCS=	snmp_netgraph.c
+XSYM=	begemotNg
 MAN=	snmp_netgraph.3
 
 MIBS=	BEGEMOT-NETGRAPH.txt
