@@ -224,7 +224,7 @@ random_poll(dev_t dev, int events, struct thread *td)
 		if (random_systat.seeded)
 			revents = events & (POLLIN | POLLRDNORM);
 		else
-			selrecord(curthread, &random_systat.rsel);
+			selrecord(td, &random_systat.rsel);
 	}
 	return revents;
 }
