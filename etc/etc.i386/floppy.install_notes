@@ -3,9 +3,9 @@
                               Release 1.0
 
 Welcome to FreeBSD!  This document has been put together in an effort
-to make initial installation from floppy of the system as easy as possible.
+to make initial installation of the system from floppy as easy as possible.
 
-1.  To install FreeBSD you will need 3 (4 if you choose to add the optional
+1.  To install FreeBSD you will need 3 (or 4 if you choose to add the optional
     DOS floppy) floppies, as well as the bulk of the distribution on some
     other medium (floppy, tape, CD, etc).  If you've retrieved this release
     from the net, you'll first have to make the floppies yourself using
@@ -36,7 +36,7 @@ to make initial installation from floppy of the system as easy as possible.
     Next, make a second floppy from the disk image:	filesystem-floppy
     You'll need this for the second stage of the boot process.
 
-    Next, make a third floppy from the disk image:	cpio-floppy
+    Finally, make a third floppy from the disk image:	cpio-floppy
     You'll need this for the last stage of the boot process.
 
     If you want to use any of the optional tools in the tools
@@ -55,9 +55,9 @@ to make initial installation from floppy of the system as easy as possible.
 2.  Boot the first floppy.  When it asks you to insert the file system floppy,
     insert the second floppy ``filesystem-floppy.''  Follow the instructions
     that floppy gives you.  If partitions  already exist on the hard disk,
-    then by default, FreeBSD attempts to install at the end of these.
+    then by default FreeBSD attempts to install itself at the end of these.
     Before rebooting, note the type of disk it says to copy the kernel
-    to, ``sd0a'' or ``wd0a'' (``sd0a'' is for SCSI systems, ``wd0a'' is
+    to: ``sd0a'' or ``wd0a'' (``sd0a'' is for SCSI systems, ``wd0a'' is
     for all others.)  When the system halts, go on to the next step.
 
 3.  Boot the first floppy again, but this time when it asks
@@ -76,11 +76,11 @@ to make initial installation from floppy of the system as easy as possible.
 
 5.  After the cpio-floppy has been copied to the disk, remove it from the
     drive.  If there are programs on the dos-floppy that you would like
-    installed, then insert this disk in a floppy drive.  Again, specify 
+    installed, then insert this disk in a floppy drive, again specifying 
     the drive to read from.
 
-6.  After the dos-floppy has been copied to the disk, enter `halt' at
-    the command prompt.
+6.  After the cpio (or optional dos) floppy has been copied to the disk,
+    enter `halt' at the command prompt.
 
 7.  When the system asks you to press the return key to reboot, first
     remove the floppy and then press the return key to boot from the hard
@@ -98,7 +98,7 @@ to make initial installation from floppy of the system as easy as possible.
     will come on your screen after you've pressed the return key.
 
 11. You will get the following errors while extracting the bin
-    distribution, you can safely ignore them.
+    distribution, which you can safely ignore:
 
 	/tmp/tar: Could not create file bin/sh : Text file busy
 	/tmp/tar: Could not create file sbin/init : Text file busy
@@ -133,7 +133,7 @@ to make initial installation from floppy of the system as easy as possible.
     > cd os-bs
     > os-bs
     A menu should now appear on the screen. Use the cursor keys
-    to highlight the install option and hit ENTER.    And follow the
+    to highlight the install option and hit ENTER.  Simply follow the
     instructions from there.
 
     For more information about the ob-bs program, including its
@@ -150,4 +150,4 @@ to make initial installation from floppy of the system as easy as possible.
     freebsd.cdrom.com - please have a look around!  You may also find 
     this a good time to read the release notes in RELNOTES.FreeBSD.
     
-End of $Id: floppy.install_notes,v 1.10 1993/10/01 19:22:40 rgrimes Exp $
+End of $Id: floppy.install_notes,v 1.11 1993/10/16 12:22:45 rgrimes Exp $
