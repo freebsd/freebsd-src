@@ -50,7 +50,7 @@ int _thread_next_offset			= OFF(tle.tqe_next);
 int _thread_uniqueid_offset		= OFF(uniqueid);
 int _thread_state_offset		= OFF(state);
 int _thread_name_offset			= OFF(name);
-int _thread_ctx_offset			= OFF(ctx);
+int _thread_ctx_offset			= OFF(mailbox.tm_context);
 #undef OFF
 
 int _thread_PS_RUNNING_value		= PS_RUNNING;
@@ -122,11 +122,14 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->magic = PTHREAD_MAGIC;
 
 			/* Initialise the machine context: */
-			getcontext(&new_thread->ctx);
-			new_thread->ctx.uc_stack.ss_sp = new_thread->stack;
-			new_thread->ctx.uc_stack.ss_size =
+			getcontext(&new_thread->mailbox.tm_context);
+			new_thread->mailbox.tm_context.uc_stack.ss_sp =
+			    new_thread->stack;
+			new_thread->mailbox.tm_context.uc_stack.ss_size =
 			    pattr->stacksize_attr;
-			makecontext(&new_thread->ctx, _thread_start, 1);
+			makecontext(&new_thread->mailbox.tm_context,
+			    _thread_start, 1);
+			new_thread->mailbox.tm_udata = (void *)new_thread;
 
 			/* Copy the thread attributes: */
 			memcpy(&new_thread->attr, pattr, sizeof(struct pthread_attr));
@@ -229,9 +232,6 @@ void
 _thread_start(void)
 {
 	struct pthread	*curthread = _get_curthread();
-
-	/* We just left the scheduler via swapcontext: */
-	_thread_kern_in_sched = 0;
 
 	/* Run the current thread's start routine with argument: */
 	pthread_exit(curthread->start_routine(curthread->arg));
