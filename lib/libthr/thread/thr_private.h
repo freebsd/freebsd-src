@@ -713,6 +713,8 @@ int	_pthread_mutexattr_settype(pthread_mutexattr_t *, int);
 int	_pthread_once(pthread_once_t *, void (*) (void));
 pthread_t _pthread_self(void);
 int	_pthread_setspecific(pthread_key_t, const void *);
+inline void _spinlock_pthread(pthread_t, spinlock_t *);
+inline void _spinunlock_pthread(pthread_t, spinlock_t *);
 void    _thread_exit(char *, int, char *);
 void    _thread_exit_cleanup(void);
 void    *_thread_cleanup(pthread_t);
