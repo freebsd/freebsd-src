@@ -148,7 +148,7 @@ const char *const sys_errlist[] = {
 	"Attribute not found",			/* 87 - ENOATTR */
 
 /* General */
-	"Programming error",			/* 88 - EDOFUS */
+	"Programming error",			/* 88 - EDOOFUS */
 };
 int errno;
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);

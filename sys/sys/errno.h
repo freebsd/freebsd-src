@@ -169,7 +169,7 @@ __END_DECLS
 #define	EILSEQ		86		/* Illegal byte sequence */
 #define	ENOATTR		87		/* Attribute not found */
 
-#define EDOFUS		88		/* Programming error */
+#define EDOOFUS		88		/* Programming error */
 
 #define	ELAST		88		/* Must be equal largest errno */
 
