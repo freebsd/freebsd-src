@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2004
+.Dd August 17, 2004
 .Dt WCWIDTH 3
 .Os
 .Sh NAME
@@ -65,10 +65,16 @@ int column, w;
 
 column = 0;
 while ((ch = getwchar()) != WEOF) {
+<<<<<<< wcwidth.3
+	if ((w = wcwidth(ch)) > 0)
+		column += w;
+	if (column > 20) {
+=======
 	w = wcwidth(ch);
 	if (w > 0 && column + w >= 20) {
+>>>>>>> 1.4
 		putwchar(L'\en');
-		column = 0;
+		column = w;
 	}
 	putwchar(ch);
 	if (ch == L'\en')
