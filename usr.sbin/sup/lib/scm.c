@@ -69,6 +69,9 @@
  *	since Tahoe version of <netinet/in.h> does not define them.
  *
  * $Log: scm.c,v $
+ * Revision 1.2  1995/12/26  05:02:49  peter
+ * Apply ports/net/sup/patches/patch-aa...
+ *
  * Revision 1.1.1.1  1995/12/26 04:54:47  peter
  * Import the unmodified version of the sup that we are using.
  * The heritage of this version is not clear.  It appears to be NetBSD
@@ -268,6 +271,8 @@ char *server;
 		return (scmerr (errno, stderr, "Can't create socket for connections"));
 	if (setsockopt (sock,SOL_SOCKET,SO_REUSEADDR,(char *)&one,sizeof(int)) < 0)
 		(void) scmerr (errno, stderr, "Can't set SO_REUSEADDR socket option");
+	if (setsockopt (sock,SOL_SOCKET,SO_KEEPALIVE,(char *)&one,sizeof(int)) < 0)
+		(void) scmerr (errno, stderr, "Can't set SO_KEEPALIVE socket option");
 	(void) bzero ((char *)&sin,sizeof(sin));
 	sin.sin_family = AF_INET;
 	sin.sin_port = port;
