@@ -242,9 +242,13 @@ struct mac_policy_ops {
 	void	(*mpo_create_cred)(struct ucred *parent_cred,
 		    struct ucred *child_cred);
 	void	(*mpo_execve_transition)(struct ucred *old, struct ucred *new,
-		    struct vnode *vp, struct label *vnodelabel);
+		    struct vnode *vp, struct label *vnodelabel,
+		    struct label *interpvnodelabel,
+		    struct image_params *imgp);
 	int	(*mpo_execve_will_transition)(struct ucred *old,
-		    struct vnode *vp, struct label *vnodelabel);
+		    struct vnode *vp, struct label *vnodelabel,
+		    struct label *interpvnodelabel,
+		    struct image_params *imgp);
 	void	(*mpo_create_proc0)(struct ucred *cred);
 	void	(*mpo_create_proc1)(struct ucred *cred);
 	void	(*mpo_relabel_cred)(struct ucred *cred,
@@ -338,7 +342,7 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_deleteacl)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, acl_type_t type);
 	int	(*mpo_check_vnode_exec)(struct ucred *cred, struct vnode *vp,
-		    struct label *label);
+		    struct label *label, struct image_params *imgp);
 	int	(*mpo_check_vnode_getacl)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, acl_type_t type);
 	int	(*mpo_check_vnode_getextattr)(struct ucred *cred,

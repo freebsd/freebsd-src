@@ -77,7 +77,7 @@ static MALLOC_DEFINE(M_ATEXEC, "atexec", "atexec callback");
 static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
 static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
 static int kern_execve(struct thread *td, char *fname, char **argv,
-	char **envv);
+	char **envv, struct mac *mac_p);
 
 /*
  * callout list for things to do at exec time
@@ -144,11 +144,12 @@ static const struct execsw **execsw;
  * MPSAFE
  */
 static int
-kern_execve(td, fname, argv, envv)
+kern_execve(td, fname, argv, envv, mac_p)
 	struct thread *td;
 	char *fname;
 	char **argv;
 	char **envv;
+	struct mac *mac_p;
 {
 	struct proc *p = td->td_proc;
 	struct nameidata nd, *ndp;
@@ -168,7 +169,9 @@ kern_execve(td, fname, argv, envv)
 	int credential_changing;
 	int textset;
 #ifdef MAC
-	int will_transition;
+	struct label interplabel;	/* label of the interpreted vnode */
+	struct label execlabel;		/* optional label argument */
+	int will_transition, interplabelvalid = 0;
 #endif
 
 	imgp = &image_params;
@@ -205,6 +208,7 @@ kern_execve(td, fname, argv, envv)
 	imgp->proc = p;
 	imgp->userspace_argv = argv;
 	imgp->userspace_envv = envv;
+	imgp->execlabel = NULL;
 	imgp->attr = &attr;
 	imgp->argc = imgp->envc = 0;
 	imgp->argv0 = NULL;
@@ -218,6 +222,14 @@ kern_execve(td, fname, argv, envv)
 	imgp->firstpage = NULL;
 	imgp->ps_strings = 0;
 	imgp->auxarg_size = 0;
+
+#ifdef MAC
+	error = mac_execve_enter(imgp, mac_p, &execlabel);
+	if (error) {
+		mtx_lock(&Giant);
+		goto exec_fail;
+	}
+#endif
 
 	/*
 	 * Allocate temporary demand zeroed space for argument and
@@ -325,6 +337,11 @@ interpret:
 		imgp->vp->v_vflag &= ~VV_TEXT;
 		/* free name buffer and old vnode */
 		NDFREE(ndp, NDF_ONLY_PNBUF);
+#ifdef MAC
+		mac_init_vnode_label(&interplabel);
+		mac_copy_vnode_label(&ndp->ni_vp->v_label, &interplabel);
+		interplabelvalid = 1;
+#endif
 		vput(ndp->ni_vp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
@@ -432,6 +449,9 @@ interpret:
 	 *
 	 * Don't honor setuid/setgid if the filesystem prohibits it or if
 	 * the process is being traced.
+	 *
+	 * XXXMAC: For the time being, use NOSUID to also prohibit
+	 * transitions on the file system.
 	 */
 	oldcred = p->p_ucred;
 	credential_changing = 0;
@@ -440,7 +460,8 @@ interpret:
 	credential_changing |= (attr.va_mode & VSGID) && oldcred->cr_gid !=
 	    attr.va_gid;
 #ifdef MAC
-	will_transition = mac_execve_will_transition(oldcred, imgp->vp);
+	will_transition = mac_execve_will_transition(oldcred, imgp->vp,
+	    interplabelvalid ? &interplabel : NULL, imgp);
 	credential_changing |= will_transition;
 #endif
 
@@ -486,8 +507,10 @@ interpret:
 		if (attr.va_mode & VSGID)
 			change_egid(newcred, attr.va_gid);
 #ifdef MAC
-		if (will_transition)
-			mac_execve_transition(oldcred, newcred, imgp->vp);
+		if (will_transition) {
+			mac_execve_transition(oldcred, newcred, imgp->vp,
+			    interplabelvalid ? &interplabel : NULL, imgp);
+		}
 #endif
 		/*
 		 * Implement correct POSIX saved-id behavior.
@@ -628,11 +651,21 @@ exec_fail:
 	
 	if (imgp->vmspace_destroyed) {
 		/* sorry, no more process anymore. exit gracefully */
+#ifdef MAC
+		mac_execve_exit(imgp);
+		if (interplabelvalid)
+			mac_destroy_vnode_label(&interplabel);
+#endif
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		error = 0;
 	}
 done2:
+#ifdef MAC
+	mac_execve_exit(imgp);
+	if (interplabelvalid)
+		mac_destroy_vnode_label(&interplabel);
+#endif
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -658,7 +691,38 @@ execve(td, uap)
 	} */ *uap;
 {
 
-	return (kern_execve(td, uap->fname, uap->argv, uap->envv));
+#ifdef MAC
+	return (kern_execve(td, uap->fname, uap->argv, uap->envv, NULL));
+#else
+	return (ENOSYS);
+#endif
+}
+
+#ifndef _SYS_SYSPROTO_H_
+struct __mac_execve_args {
+	char	*fname;
+	char	**argv;
+	char	**envv;
+	struct mac	*mac_p;
+};
+#endif
+
+/*
+ * MPSAFE
+ */
+int
+__mac_execve(td, uap)
+	struct thread *td;
+	struct __mac_execve_args /* {
+		syscallarg(char *) fname;
+		syscallarg(char **) argv;
+		syscallarg(char **) envv;
+		syscallarg(struct mac *) mac_p;
+	} */ *uap;
+{
+
+	return (kern_execve(td, uap->fname, uap->argv, uap->envv,
+	    uap->mac_p));
 }
 
 int
@@ -1022,7 +1086,7 @@ exec_check_permissions(imgp)
 	td = curthread;			/* XXXKSE */
 
 #ifdef MAC
-	error = mac_check_vnode_exec(td->td_ucred, imgp->vp);
+	error = mac_check_vnode_exec(td->td_ucred, imgp->vp, imgp);
 	if (error)
 		return (error);
 #endif

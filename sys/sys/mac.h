@@ -84,6 +84,8 @@ typedef struct mac	*mac_t;
  * Extended non-POSIX.1e interfaces that offer additional services
  * available from the userland and kernel MAC frameworks.
  */
+int		 mac_execve(char *fname, char **argv, char **envv,
+		    mac_t _label);
 int		 mac_free(mac_t _label);
 int		 mac_from_text(mac_t *_label, const char *_text);
 int		 mac_get_fd(int _fd, mac_t _label);
@@ -113,6 +115,7 @@ struct componentname;
 struct devfs_dirent;
 struct ifnet;
 struct ifreq;
+struct image_params;
 struct ipq;
 struct mbuf;
 struct mount;
@@ -129,7 +132,6 @@ struct vnode;
 
 #include <sys/acl.h>			/* XXX acl_type_t */
 
-struct vop_refreshlabel_args;
 struct vop_setlabel_args;
 
 /*
@@ -216,9 +218,14 @@ void	mac_update_ipq(struct mbuf *fragment, struct ipq *ipq);
  * Labeling event operations: processes.
  */
 void	mac_create_cred(struct ucred *cred_parent, struct ucred *cred_child);
+int	mac_execve_enter(struct image_params *imgp, struct mac *mac_p,
+	    struct label *execlabel);
+void	mac_execve_exit(struct image_params *imgp);
 void	mac_execve_transition(struct ucred *old, struct ucred *new,
-	    struct vnode *vp);
-int	mac_execve_will_transition(struct ucred *old, struct vnode *vp);
+	    struct vnode *vp, struct label *interpvnodelabel,
+	    struct image_params *imgp);
+int	mac_execve_will_transition(struct ucred *old, struct vnode *vp,
+	    struct label *interpvnodelabel, struct image_params *imgp);
 void	mac_create_proc0(struct ucred *cred);
 void	mac_create_proc1(struct ucred *cred);
 void	mac_thread_userret(struct thread *td);
@@ -269,7 +276,8 @@ int	mac_check_vnode_delete(struct ucred *cred, struct vnode *dvp,
 	    struct vnode *vp, struct componentname *cnp);
 int	mac_check_vnode_deleteacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
-int	mac_check_vnode_exec(struct ucred *cred, struct vnode *vp);
+int	mac_check_vnode_exec(struct ucred *cred, struct vnode *vp,
+	    struct image_params *imgp);
 int	mac_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
 int	mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
