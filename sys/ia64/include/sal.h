@@ -95,4 +95,34 @@ struct sal_ap_wakeup_descriptor {
 	u_int64_t	sale_vector;
 };
 
+/*
+ * SAL Procedure numbers.
+ */
+
+#define SAL_SET_VECTORS		0x01000000
+#define SAL_GET_STATE_INFO	0x01000001
+#define SAL_GET_STATE_INFO_SIZE	0x01000002
+#define SAL_CLEAR_STATE_INFO	0x01000003
+#define SAL_MC_RENDEZ		0x01000004
+#define SAL_MC_SET_PARAMS	0x01000005
+#define SAL_REGISTER_PHYSICAL_ADDR 0x01000006
+#define SAL_CACHE_FLUSH		0x01000008
+#define SAL_CACHE_INIT		0x01000009
+#define SAL_PCI_CONFIG_READ	0x01000010
+#define SAL_PCI_CONFIG_WRITE	0x01000011
+#define SAL_FREQ_BASE		0x01000012
+#define SAL_UPDATE_PAL		0x01000020
+
+struct ia64_sal_result {
+	int64_t		sal_status;
+	u_int64_t	sal_result[3];
+};
+
+typedef struct ia64_sal_result sal_entry_t
+	(u_int64_t, u_int64_t, u_int64_t, u_int64_t,
+	 u_int64_t, u_int64_t, u_int64_t, u_int64_t);
+
+extern void ia64_sal_init(struct sal_system_table *saltab);
+extern sal_entry_t *ia64_sal_entry;
+
 #endif /* _MACHINE_SAL_H_ */
