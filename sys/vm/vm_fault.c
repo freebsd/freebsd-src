@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.92 1999/01/08 17:31:24 eivind Exp $
+ * $Id: vm_fault.c,v 1.93 1999/01/10 01:58:28 eivind Exp $
  */
 
 /*
@@ -267,27 +267,42 @@ RetryFault:;
 	 * See whether this page is resident
 	 */
 	while (TRUE) {
+		/*
+		 * If the object is dead, we stop here
+		 */
 
 		if (fs.object->flags & OBJ_DEAD) {
 			unlock_and_deallocate(&fs);
 			return (KERN_PROTECTION_FAILURE);
 		}
+
+		/*
+		 * See if page is resident
+		 */
 			
 		fs.m = vm_page_lookup(fs.object, fs.pindex);
 		if (fs.m != NULL) {
 			int queue, s;
 			/*
-			 * If the page is being brought in, wait for it and
-			 * then retry.
+			 * Wait/Retry if the page is busy.  We have to do this
+			 * if the page is busy via either PG_BUSY or
+			 * vm_page_t->busy because the vm_pager may be using
+			 * vm_page_t->busy for pageouts ( and even pageins if
+			 * it is the vnode pager ), and we could end up trying
+			 * to pagein and pageout the same page simultaniously.
+			 *
+			 * We can theoretically allow the busy case on a read
+			 * fault if the page is marked valid, but since such
+			 * pages are typically already pmap'd, putting that
+			 * special case in might be more effort then it is
+			 * worth.  We cannot under any circumstances mess
+			 * around with a vm_page_t->busy page except, perhaps,
+			 * to pmap it.
 			 */
-			if ((fs.m->flags & PG_BUSY) ||
-				(fs.m->busy &&
-				 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
+			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
 				unlock_things(&fs);
 				s = splvm();
-				if ((fs.m->flags & PG_BUSY) ||
-					(fs.m->busy &&
-					 (fs.m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL)) {
+				if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
 					vm_page_flag_set(fs.m, PG_WANTED | PG_REFERENCED);
 					cnt.v_intrans++;
 					tsleep(fs.m, PSWP, "vmpfw", 0);
