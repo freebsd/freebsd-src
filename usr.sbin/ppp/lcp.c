@@ -945,6 +945,7 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, u_char *end, int mode_type,
         }
         break;
       case MODE_NAK:
+        lcp->want_lqrperiod = ntohl(req->period);
         break;
       case MODE_REJ:
         lcp->his_reject |= (1 << opt->hdr.id);
