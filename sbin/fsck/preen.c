@@ -67,7 +67,6 @@ struct disk {
 } *disks;
 
 int	nrun, ndisks;
-char	hotroot;
 
 static void addpart __P((char *name, char *fsname, long auxdata));
 static struct disk *finddisk __P((char *name));
@@ -298,11 +297,6 @@ blockcheck(origname)
 	struct fstab *fsinfo;
 	int retried = 0, len;
 
-	hotroot = 0;
-	if (stat("/", &stslash) < 0) {
-		printf("Can't stat /: %s\n", strerror(errno));
-		return (origname);
-	}
 	newname = origname;
 retry:
 	if (stat(newname, &stblock) < 0) {
@@ -312,8 +306,6 @@ retry:
 	switch(stblock.st_mode & S_IFMT) {
 	case S_IFCHR:
 	case S_IFBLK:
-		if (stslash.st_dev == stblock.st_rdev)
-			hotroot++;
 		return(newname);
 	case S_IFDIR:
 		if (retried)
