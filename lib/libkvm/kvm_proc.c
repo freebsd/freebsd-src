@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
-#include <vm/swap_pager.h>
 
 #include <sys/sysctl.h>
 
