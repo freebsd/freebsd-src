@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)whois.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: whois.c,v 1.2.2.3 1998/02/19 19:10:26 wollman Exp $";
+	"$Id: whois.c,v 1.2.2.4 1998/02/19 21:49:20 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,10 +57,12 @@ static const char rcsid[] =
 #include <unistd.h>
 
 #define	NICHOST		"whois.internic.net"
-#define	DNICHOST	"nic.ddn.mil"
+#define	DNICHOST	"whois.nic.mil"
+#define	GNICHOST	"whois.nic.gov"
 #define	ANICHOST	"whois.arin.net"
 #define	RNICHOST	"whois.ripe.net"
 #define	PNICHOST	"whois.apnic.net"
+#define RUNICHOST       "whois.ripn.net"
 #define	WHOIS_PORT	43
 
 static void usage __P((void));
@@ -83,13 +85,16 @@ main(argc, argv)
 #endif
 
 	host = NICHOST;
-	while ((ch = getopt(argc, argv, "adh:pr")) != -1)
+	while ((ch = getopt(argc, argv, "adgh:prR")) != -1)
 		switch((char)ch) {
 		case 'a':
 			host = ANICHOST;
 			break;
 		case 'd':
 			host = DNICHOST;
+			break;
+		case 'g':
+			host = GNICHOST;
 			break;
 		case 'h':
 			host = optarg;
@@ -99,6 +104,9 @@ main(argc, argv)
 			break;
 		case 'r':
 			host = RNICHOST;
+			break;
+		case 'R':
+			host = RUNICHOST;
 			break;
 		case '?':
 		default:
@@ -151,6 +159,6 @@ main(argc, argv)
 static void
 usage()
 {
-	(void)fprintf(stderr, "usage: whois [-adpr] [-h hostname] name ...\n");
+	fprintf(stderr, "usage: whois [-adgprR] [-h hostname] name ...\n");
 	exit(EX_USAGE);
 }
