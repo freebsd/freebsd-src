@@ -68,22 +68,27 @@ MALLOC_DEFINE(M_LINKER, "linker", "kernel linker");
 
 linker_file_t linker_kernel_file;
 
-static struct lock lock;	/* lock for the file list */
+static struct mtx kld_mtx;	/* kernel linker mutex */
+
 static linker_class_list_t classes;
 static linker_file_list_t linker_files;
 static int next_file_id = 1;
+static int linker_no_more_classes = 0;
 
 #define	LINKER_GET_NEXT_FILE_ID(a) do {					\
 	linker_file_t lftmp;						\
 									\
 retry:									\
+	mtx_lock(&kld_mtx);						\
 	TAILQ_FOREACH(lftmp, &linker_files, link) {			\
 		if (next_file_id == lftmp->id) {			\
 			next_file_id++;					\
+			mtx_unlock(&kld_mtx);				\
 			goto retry;					\
 		}							\
 	}								\
 	(a) = next_file_id;						\
+	mtx_unlock(&kld_mtx);	/* Hold for safe read of id variable */	\
 } while(0)
 
 
@@ -115,17 +120,32 @@ static void
 linker_init(void *arg)
 {
 
-	lockinit(&lock, PVM, "klink", 0, 0);
+	mtx_init(&kld_mtx, "kernel linker", NULL, MTX_DEF);
 	TAILQ_INIT(&classes);
 	TAILQ_INIT(&linker_files);
 }
 
 SYSINIT(linker, SI_SUB_KLD, SI_ORDER_FIRST, linker_init, 0)
 
+static void
+linker_stop_class_add(void *arg)
+{
+
+	linker_no_more_classes = 1;
+}
+
+SYSINIT(linker_class, SI_SUB_KLD, SI_ORDER_ANY, linker_stop_class_add, NULL)
+
 int
 linker_add_class(linker_class_t lc)
 {
 
+	/*
+	 * We disallow any class registration passt SI_ORDER_ANY
+	 * of SI_SUB_KLD.
+	 */
+	if (linker_no_more_classes == 1)
+		return (EPERM);
 	kobj_class_compile((kobj_class_t) lc);
 	TAILQ_INSERT_TAIL(&classes, lc, link);
 	return (0);
@@ -315,6 +335,12 @@ linker_load_file(const char *filename, linker_file_t *result)
 	}
 	lf = NULL;
 	foundfile = 0;
+
+	/*
+	 * We do not need to protect (lock) classes here because there is
+	 * no class registration past startup (SI_SUB_KLD, SI_ORDER_ANY)
+	 * and there is no class deregistration mechanism at this time.
+	 */
 	TAILQ_FOREACH(lc, &classes, link) {
 		KLD_DPF(FILE, ("linker_load_file: trying to load %s\n",
 		    filename));
@@ -374,14 +400,14 @@ linker_find_file_by_name(const char *filename)
 		goto out;
 	sprintf(koname, "%s.ko", filename);
 
-	lockmgr(&lock, LK_SHARED, 0, curthread);
+	mtx_lock(&kld_mtx);
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		if (strcmp(lf->filename, koname) == 0)
 			break;
 		if (strcmp(lf->filename, filename) == 0)
 			break;
 	}
-	lockmgr(&lock, LK_RELEASE, 0, curthread);
+	mtx_unlock(&kld_mtx);
 out:
 	if (koname)
 		free(koname, M_LINKER);
@@ -392,12 +418,12 @@ linker_file_t
 linker_find_file_by_id(int fileid)
 {
 	linker_file_t lf = 0;
-
-	lockmgr(&lock, LK_SHARED, 0, curthread);
+	
+	mtx_lock(&kld_mtx);
 	TAILQ_FOREACH(lf, &linker_files, link)
 		if (lf->id == fileid)
 			break;
-	lockmgr(&lock, LK_RELEASE, 0, curthread);
+	mtx_unlock(&kld_mtx);
 	return (lf);
 }
 
@@ -411,7 +437,6 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	filename = linker_basename(pathname);
 
 	KLD_DPF(FILE, ("linker_make_file: new file, filename=%s\n", filename));
-	lockmgr(&lock, LK_EXCLUSIVE, 0, curthread);
 	lf = (linker_file_t)kobj_create((kobj_class_t)lc, M_LINKER, M_WAITOK);
 	if (lf == NULL)
 		goto out;
@@ -424,9 +449,10 @@ linker_make_file(const char *pathname, linker_class_t lc)
 	lf->deps = NULL;
 	STAILQ_INIT(&lf->common);
 	TAILQ_INIT(&lf->modules);
+	mtx_lock(&kld_mtx);
 	TAILQ_INSERT_TAIL(&linker_files, lf, link);
+	mtx_unlock(&kld_mtx);
 out:
-	lockmgr(&lock, LK_RELEASE, 0, curthread);
 	return (lf);
 }
 
@@ -445,7 +471,6 @@ linker_file_unload(linker_file_t file)
 		return (EPERM);
 
 	KLD_DPF(FILE, ("linker_file_unload: lf->refs=%d\n", file->refs));
-	lockmgr(&lock, LK_EXCLUSIVE, 0, curthread);
 	if (file->refs == 1) {
 		KLD_DPF(FILE, ("linker_file_unload: file is unloading,"
 		    " informing modules\n"));
@@ -464,7 +489,6 @@ linker_file_unload(linker_file_t file)
 			if ((error = module_unload(mod)) != 0) {
 				KLD_DPF(FILE, ("linker_file_unload: module %x"
 				    " vetoes unload\n", mod));
-				lockmgr(&lock, LK_RELEASE, 0, curthread);
 				goto out;
 			} else
 				MOD_XLOCK;
@@ -474,7 +498,6 @@ linker_file_unload(linker_file_t file)
 	}
 	file->refs--;
 	if (file->refs > 0) {
-		lockmgr(&lock, LK_RELEASE, 0, curthread);
 		goto out;
 	}
 	for (ml = TAILQ_FIRST(&found_modules); ml; ml = nextml) {
@@ -491,8 +514,9 @@ linker_file_unload(linker_file_t file)
 		linker_file_sysuninit(file);
 		linker_file_unregister_sysctls(file);
 	}
+	mtx_lock(&kld_mtx);
 	TAILQ_REMOVE(&linker_files, file, link);
-	lockmgr(&lock, LK_RELEASE, 0, curthread);
+	mtx_unlock(&kld_mtx);
 
 	if (file->deps) {
 		for (i = 0; i < file->ndeps; i++)
@@ -828,10 +852,12 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 	mtx_lock(&Giant);
 
 	if (SCARG(uap, fileid) == 0) {
+		mtx_lock(&kld_mtx);
 		if (TAILQ_FIRST(&linker_files))
 			td->td_retval[0] = TAILQ_FIRST(&linker_files)->id;
 		else
 			td->td_retval[0] = 0;
+		mtx_unlock(&kld_mtx);
 		goto out;
 	}
 	lf = linker_find_file_by_id(SCARG(uap, fileid));
@@ -963,6 +989,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 		} else
 			error = ENOENT;
 	} else {
+		mtx_lock(&kld_mtx);
 		TAILQ_FOREACH(lf, &linker_files, link) {
 			if (LINKER_LOOKUP_SYMBOL(lf, symstr, &sym) == 0 &&
 			    LINKER_SYMBOL_VALUES(lf, sym, &symval) == 0) {
@@ -973,6 +1000,7 @@ kldsym(struct thread *td, struct kldsym_args *uap)
 				break;
 			}
 		}
+		mtx_unlock(&kld_mtx);
 		if (lf == NULL)
 			error = ENOENT;
 	}
@@ -1767,12 +1795,16 @@ sysctl_kern_function_list(SYSCTL_HANDLER_ARGS)
 	linker_file_t lf;
 	int error;
 
+	mtx_lock(&kld_mtx);
 	TAILQ_FOREACH(lf, &linker_files, link) {
 		error = LINKER_EACH_FUNCTION_NAME(lf,
 		    sysctl_kern_function_list_iterate, req);
-		if (error)
+		if (error) {
+			mtx_unlock(&kld_mtx);
 			return (error);
+		}
 	}
+	mtx_unlock(&kld_mtx);
 	return (SYSCTL_OUT(req, "", 1));
 }
 
