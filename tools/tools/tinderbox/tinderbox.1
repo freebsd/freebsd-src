@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2003
+.Dd October 10, 2003
 .Dt TINDERBOX 1
 .Os
 .Sh NAME
@@ -78,6 +78,13 @@ As a special case, the value
 .Dq today
 corresponds to midnight UTC the day the run starts.
 The default is to use the top of whichever branch was specified.
+.It Fl h Ar NAME , Fl -hostname Ns = Ns Ar NAME
+The name of the host running the tinderbox.
+This defaults to the name reported by the
+.Fl n
+option of the
+.Xr uname 1
+command, and is only used for cosmetic purposes.
 .It Fl j Ar NUM , Fl -jobs Ns = Ns Ar NUM
 The maximum number of paralell jobs, as specified to
 .Xr make 1
