@@ -13,8 +13,8 @@ SUBDIR=	apply ar banner basename biff cal calendar \
 	env error expand false find finger fmt fold fpr from \
 	fsplit fstat ftp gcore gprof head hexdump id indent \
 	join jot kdump ktrace key keyinfo keyinit lam last \
-	lastcomm leave locate lock logger login logname lorder 
-	m4 mail make mesg mkdep mkfifo mklocale mkstr modstat 
+	lastcomm leave locate lock logger login logname lorder \
+	m4 mail make mesg mkdep mkfifo mklocale mkstr modstat \
 	more msgs mt netstat nfsstat nice \
 	nm nohup pagesize passwd paste pr printenv printf quota \
 	ranlib rdist renice rev rlogin rs rsh ruptime rwho \
