@@ -1801,7 +1801,7 @@ do_zipwork(struct zipwork_entry *zwork)
 	else if (!pidzip) {
 		/* The child process executes the compression command */
 		execl(pgm_path, pgm_path, "-f", zwork->zw_fname, (char *)0);
-		err(1, pgm_path);
+		err(1, "%s", pgm_path);
 	}
 
 	wpid = waitpid(pidzip, &zstatus, 0);
