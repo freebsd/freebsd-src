@@ -221,7 +221,8 @@ static int
 parseDWM(struct ptime_data *ptime, const char *s)
 {
 	int daysmon, Dseen, WMseen;
-	char *t;
+	const char *endval;
+	char *tmp;
 	long l;
 	struct tm tm;
 
@@ -232,6 +233,7 @@ parseDWM(struct ptime_data *ptime, const char *s)
 	WMseen = Dseen = 0;
 	ptime->tmspec = TSPEC_HOUROFDAY;
 	for (;;) {
+		endval = NULL;
 		switch (*s) {
 		case 'D':
 			if (Dseen)
@@ -239,9 +241,10 @@ parseDWM(struct ptime_data *ptime, const char *s)
 			Dseen++;
 			ptime->tmspec |= TSPEC_HOUROFDAY;
 			s++;
-			l = strtol(s, &t, 10);
+			l = strtol(s, &tmp, 10);
 			if (l < 0 || l > 23)
 				return (-1);
+			endval = tmp;
 			tm.tm_hour = l;
 			break;
 
@@ -251,9 +254,10 @@ parseDWM(struct ptime_data *ptime, const char *s)
 			WMseen++;
 			ptime->tmspec |= TSPEC_DAYOFWEEK;
 			s++;
-			l = strtol(s, &t, 10);
+			l = strtol(s, &tmp, 10);
 			if (l < 0 || l > 6)
 				return (-1);
+			endval = tmp;
 			if (l != tm.tm_wday) {
 				int save;
 
@@ -283,15 +287,15 @@ parseDWM(struct ptime_data *ptime, const char *s)
 				/* User wants the last day of the month. */
 				ptime->tmspec |= TSPEC_LDAYOFMONTH;
 				tm.tm_mday = daysmon;
-				s++;
-				t = __DECONST(char *,s);
+				endval = s + 1;
 			} else {
-				l = strtol(s, &t, 10);
+				l = strtol(s, &tmp, 10);
 				if (l < 1 || l > 31)
 					return (-1);
 
 				if (l > daysmon)
 					return (-1);
+				endval = tmp;
 				tm.tm_mday = l;
 			}
 			break;
@@ -301,10 +305,12 @@ parseDWM(struct ptime_data *ptime, const char *s)
 			break;
 		}
 
-		if (*t == '\0' || isspace(*t))
+		if (endval == NULL)
+			return (-1);
+		else if (*endval == '\0' || isspace(*endval))
 			break;
 		else
-			s = t;
+			s = endval;
 	}
 
 	ptime->tm = tm;
