@@ -1,0 +1,13 @@
+$FreeBSD$
+
+GNU Sort
+	originals can be found at:      ftp://alpha.gnu.org/gnu/textutils/
+
+Imported by:
+
+	 cvs import \
+		-m "Virgin import (trimmed) of GNU Sort, textutils 2.0.21" \
+		src/contrib/gnu-sort FSF SORT_v2_0_21
+
+ache@FreeBSD.org
+8 June 2002
