@@ -1,4 +1,4 @@
-/*	$NetBSD: if_devar.h,v 1.21 1997/10/16 22:02:32 matt Exp $	*/
+/*	$NetBSD: if_devar.h,v 1.22 1997/10/20 14:33:01 matt Exp $	*/
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -551,6 +551,7 @@ struct _tulip_softc_t {
 #define	TULIP_HAVE_NOMEDIA	0x00004000	/* did not detect any media */
 #define	TULIP_HAVE_STOREFWD	0x00008000	/* have CMD_STOREFWD */
 #define	TULIP_HAVE_SIA100	0x00010000	/* has LS100 in SIA status */
+#define	TULIP_HAVE_OKSROM	0x00020000	/* SROM CRC is OK */
     u_int32_t tulip_intrmask;	/* our copy of csr_intr */
     u_int32_t tulip_cmdmode;	/* our copy of csr_cmdmode */
     u_int32_t tulip_last_system_error : 3;	/* last system error (only value is TULIP_SYSTEMERROR is also set) */

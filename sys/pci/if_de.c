@@ -1,4 +1,4 @@
-/*	$NetBSD: if_de.c,v 1.55 1997/10/16 22:02:27 matt Exp $	*/
+/*	$NetBSD: if_de.c,v 1.56 1997/10/20 14:32:46 matt Exp $	*/
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -2779,7 +2779,7 @@ tulip_read_macaddr(
 	     * SROM CRC is valid therefore it must be in the
 	     * new format.
 	     */
-	    sc->tulip_features |= TULIP_HAVE_ISVSROM;
+	    sc->tulip_features |= TULIP_HAVE_ISVSROM|TULIP_HAVE_OKSROM;
 	} else if (sc->tulip_rombuf[126] == 0xff && sc->tulip_rombuf[127] == 0xFF) {
 	    /*
 	     * No checksum is present.  See if the SROM id checks out;
@@ -2792,6 +2792,9 @@ tulip_read_macaddr(
 	    }
 	    if (idx == 18 && sc->tulip_rombuf[18] == 1 && sc->tulip_rombuf[19] != 0)
 		sc->tulip_features |= TULIP_HAVE_ISVSROM;
+	} else if (sc->tulip_chipid >= TULIP_21142) {
+	    sc->tulip_features |= TULIP_HAVE_ISVSROM;
+	    sc->tulip_boardsw = &tulip_2114x_isv_boardsw;
 	}
 	if ((sc->tulip_features & TULIP_HAVE_ISVSROM) && tulip_srom_decode(sc)) {
 	    if (sc->tulip_chipid != TULIP_21041)
@@ -4645,12 +4648,14 @@ tulip_attach(
 #if defined(__bsdi__)
 	   "\n"
 #endif
-	   TULIP_PRINTF_FMT ": %s%s pass %d.%d\n",
+	   TULIP_PRINTF_FMT ": %s%s pass %d.%d%s\n",
 	   TULIP_PRINTF_ARGS,
 	   sc->tulip_boardid,
 	   tulip_chipdescs[sc->tulip_chipid],
 	   (sc->tulip_revinfo & 0xF0) >> 4,
-	   sc->tulip_revinfo & 0x0F);
+	   sc->tulip_revinfo & 0x0F,
+	   (sc->tulip_features & (TULIP_HAVE_ISVSROM|TULIP_HAVE_OKSROM))
+		 == TULIP_HAVE_ISVSROM ? " (invalid EESPROM checksum)" : "");
     printf(TULIP_PRINTF_FMT ": address " TULIP_EADDR_FMT "\n",
 	   TULIP_PRINTF_ARGS,
 	   TULIP_EADDR_ARGS(sc->tulip_enaddr));
