@@ -1,0 +1,116 @@
+# $FreeBSD$
+
+BASE=		loader
+PROG=		${BASE}
+NOMAN=
+MAN1=
+NEWVERSWHAT=	"bootstrap loader" OpenFirmware/PowerPC
+BINDIR?=	/boot
+
+NOGCCERROR=	YES
+
+# architecture-specific loader code
+SRCS=		conf.c
+
+CFLAGS+=	-DLOADER_DISK_SUPPORT
+
+.if !defined(NOFORTH)
+# Enable BootForth
+BOOT_FORTH=	yes
+CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl -I${.CURDIR}/../../ficl/powerpc
+.if exists(${.OBJDIR}/../../ficl/libficl.a)
+LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.else
+LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+.endif
+.endif
+
+# Always add MI sources 
+.PATH: ${.CURDIR}/../../common
+.include <${.CURDIR}/../../common/Makefile.inc>
+CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../../.. -I.
+
+CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
+
+CFLAGS+=	-Wall
+LDFLAGS=	-nostdlib -static -Ttext 6c0000
+
+# OpenFirmware standalone support library
+LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a
+CFLAGS+=	-I${.CURDIR}/../../ofw/libofw
+
+# where to get libstand from
+#XXX need a better way to do this
+LIBSTAND=	${.CURDIR}/../../../../lib/libstand/libstand.a
+#.if !exists(${LIBSTAND})
+#LIBSTAND=	${.OBJDIR}/../../../../lib/libstand/libstand.a
+#.if !exists(${LIBSTAND})
+#LIBSTAND=	-lstand
+#.endif
+#.endif
+CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
+
+# OpenFirmware is expecting ELF components
+CFLAGS+=	-elf
+
+# New linker set code
+#CFLAGS+=	-DNEW_LINKER_SET
+
+vers.o:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
+	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
+	${CC} -c vers.c
+
+${BASE}.help: help.common help.ofw
+	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
+	    > ${.TARGET}
+
+beforeinstall:
+.if exists(${DESTDIR}/boot/loader)
+	mv ${DESTDIR}/boot/loader ${DESTDIR}/boot/loader.old
+.endif
+.if exists(${.OBJDIR}/loader.help)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.OBJDIR}/${BASE}.help ${DESTDIR}/boot
+.else
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/${BASE}.help ${DESTDIR}/boot
+.endif
+.if !exists(${DESTDIR}/boot/loader.rc)
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+.endif
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
+
+${PROG}: ${OBJS} ${LIBOFW} ${LIBSTAND} ${LIBFICL} powerpc.o vers.o setdef0.o \
+    setdef1.o
+	${LD} ${LDFLAGS} -o ${.TARGET} setdef0.o powerpc.o ${OBJS} setdef1.o \
+	    vers.o ${LIBFICL} ${LIBOFW} ${LIBSTAND}
+
+setdef0.o: setdefs.h
+
+setdef1.o: setdefs.h
+
+# Cannot use ${OBJS} above this line
+.include <bsd.prog.mk>
+
+# If it's not there, don't consider it a target
+.if exists(${.CURDIR}/../../../ofw/include)
+beforedepend ${OBJS}: machine
+
+machine:
+	ln -sf ${.CURDIR}/../../../ofw/include machine
+
+.endif
+
+CLEANFILES+=	machine setdefs.h setdef0.c setdef1.c setdef0.o setdef1.o \
+		powerpc.o
+
+.ORDER: setdefs.h setdef0.c setdef1.c
+setdefs.h setdef0.c setdef1.c: ${OBJS}
+	@echo Generating linker sets
+	@gensetdefs ${OBJS}
