@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: daemon.c,v 1.1.1.1 1998/07/14 07:30:40 abial Exp $
+ *	$Id: daemon.c,v 1.1.1.1.2.1 1999/02/05 12:21:57 abial Exp $
  */
 
 
@@ -38,7 +38,7 @@ char *logo[]={
 " [32m__  [31m\\~/[37m\n",
 " [32m-->=[41m===[40m[31m\\[37m\n",
 " [32m~~[37m  [31md d[37m\n",
-"   [35mpico[37m\n",
+"   [35mpicoBSD[37m\n",
 NULL};
 
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: dialup.pl,v 1.1.1.1 1998/08/27 17:38:42 abial Exp $
+# $Id: dialup.pl,v 1.2.2.1 1999/05/07 10:02:40 abial Exp $
 set_resolv() {
 	echo "[H[J"
 	echo "[1m                       Domy¶lna Nazwa Domeny[m"
@@ -375,7 +375,7 @@ do
 		echo "Wystartujemy 'ppp' z poni¿szymi opcjami:"
 		echo ""
 		echo "		ppp -background dialup"
-		echo "
+		echo ""
 		echo -n "Czy chcesz je zmienic?? (t/n) "
 		read oo
 		if [ "X${oo}" = "Xt" ]
