@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.12 1994/08/11 00:28:24 wollman Exp $
+ *	$Id: clock.c,v 1.13 1994/08/13 03:49:56 wollman Exp $
  */
 
 /*
@@ -60,6 +60,7 @@
 #define TIMER_DIV(x) ((TIMER_FREQ+(x)/2)/(x))
 
 void hardclock();
+void statclock();
 static 	int beeping;
 int 	timer0_divisor = TIMER_DIV(100);	/* XXX should be hz */
 u_int 	timer0_prescale;
@@ -101,6 +102,44 @@ clkintr(frame)
 #endif
 	hardclock(&frame);
 }
+
+static u_char rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+
+/*
+ * This routine receives statistical clock interrupts from the RTC.
+ * As explained above, these occur at 128 interrupts per second.
+ * When profiling, we receive interrupts at a rate of 1024 Hz.
+ *
+ * This does not actually add as much overhead as it sounds, because
+ * when the statistical clock is active, the hardclock driver no longer
+ * needs to keep (inaccurate) statistics on its own.  This decouples
+ * statistics gathering from scheduling interrupts.
+ *
+ * The RTC chip requires that we read status register C (RTC_INTR)
+ * to acknowledge an interrupt, before it will generate the next one.
+ */
+void
+rtcintr(struct clockframe frame)
+{
+	u_char stat;
+	stat = rtcin(RTC_INTR);
+	if(stat & RTCIR_PERIOD) {
+		statclock(&frame);
+	}
+}
+
+#ifdef DEBUG
+void
+printrtc(void)
+{
+	outb(IO_RTC, RTC_STATUSA);
+	printf("RTC status A = %x", inb(IO_RTC+1));
+	outb(IO_RTC, RTC_STATUSB);
+	printf(", B = %x", inb(IO_RTC+1));
+	outb(IO_RTC, RTC_INTR);
+	printf(", C = %x\n", inb(IO_RTC+1));
+}
+#endif
 
 #if 0
 void
@@ -338,9 +377,9 @@ startrtclock()
 
 	/* initialize brain-dead battery powered clock */
 	outb (IO_RTC, RTC_STATUSA);
-	outb (IO_RTC+1, 0x26);
+	outb (IO_RTC+1, rtc_statusa);
 	outb (IO_RTC, RTC_STATUSB);
-	outb (IO_RTC+1, 2);
+	outb (IO_RTC+1, RTCSB_24HR);
 
 	outb (IO_RTC, RTC_DIAG);
 	if (s = inb (IO_RTC+1))
@@ -460,13 +499,17 @@ test_inittodr(time_t base)
  */
 #define V(s)	__CONCAT(V, s)
 extern void V(clk)();
-
+extern void V(rtc)();
 
 void
 enablertclock() 
 {
 	setidt(ICU_OFFSET+0, &V(clk), SDT_SYS386IGT, SEL_KPL);
 	INTREN(IRQ0);
+	setidt(ICU_OFFSET+8, &V(rtc), SDT_SYS386IGT, SEL_KPL);
+	INTREN(IRQ8);
+	outb(IO_RTC, RTC_STATUSB);
+	outb(IO_RTC+1, RTCSB_PINTR | RTCSB_24HR);
 }
 
 
@@ -482,10 +525,19 @@ spinwait(int millisecs)
 void
 cpu_initclocks()
 {
+	stathz = RTC_NOPROFRATE;
+	profhz = RTC_PROFRATE;
 	enablertclock();
 }
 
 void
 setstatclockrate(int newhz)
 {
+	if(newhz == RTC_PROFRATE) {
+		rtc_statusa = RTCSA_DIVIDER | RTCSA_PROF;
+	} else {
+		rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
+	}
+	outb(IO_RTC, RTC_STATUSA);
+	outb(IO_RTC+1, rtc_statusa);
 }
