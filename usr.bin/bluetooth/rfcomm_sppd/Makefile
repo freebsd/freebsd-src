@@ -2,7 +2,6 @@
 # $FreeBSD$
 
 PROG=		rfcomm_sppd
-MAN=		rfcomm_sppd.1
 SRCS=		rfcomm_sppd.c rfcomm_sdp.c
 WARNS?=		2
 
