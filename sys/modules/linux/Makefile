@@ -17,6 +17,7 @@ SRCS+=  imgact_linux.c
 .endif
 
 # CFLAGS+=	-DDEBUG
+CFLAGS += -I${.CURDIR}/../../${MACHINE_ARCH}/linux
 EXPORT_SYMS=_linux_mod
 CLEANFILES= linux_assym.h linux_genassym.o
 
