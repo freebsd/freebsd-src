@@ -803,7 +803,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       default for both buffer sizes was 16K.  To try to avoid
       increasing congestion, the default value for
       <varname>net.inet.tcp.local_slowstart_flightsize</varname> has
-      been changed from infinity to 4. &merged;</para>
+      been changed from infinity to 4. &merged;
+        <note>
+	  <para>On busy hosts, the new larger buffer sizes may require
+	  manually increasing the
+	  <varname>NMBCLUSTERS</varname> parameter, either in the
+	  kernel configuration file or via the
+	  <varname>kern.ipc.nmbclusters</varname> loader tunable.
+	  <command>netstat -mb</command> can be used to monitor the
+	  state of mbuf clusters.</para>
+	</note>
+      </para>
 
       <para>TCP now supports RFC 1948 (Defending Against Sequence
       Number Attacks).  This functionality is controlled by the 
