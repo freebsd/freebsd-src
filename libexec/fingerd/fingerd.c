@@ -70,7 +70,7 @@ main(argc, argv)
 	register FILE *fp;
 	register int ch;
 	register char *lp;
-	struct sockaddr_in sin;
+	struct sockaddr_storage ss;
 	int p[2], logging, secure, sval;
 #define	ENTRIES	50
 	char **ap, *av[ENTRIES + 1], **comp, line[1024], *prog;
@@ -127,10 +127,11 @@ main(argc, argv)
 		for (end = t; *end; end++)
 			if (*end == '\n' || *end == '\r')
 				*end = ' ';
-		sval = sizeof(sin);
-		if (getpeername(0, (struct sockaddr *)&sin, &sval) < 0)
+		sval = sizeof(ss);
+		if (getpeername(0, (struct sockaddr *)&ss, &sval) < 0)
 			logerr("getpeername: %s", strerror(errno));
-		realhostname(rhost, sizeof rhost - 1, &sin.sin_addr);
+		realhostname_sa(rhost, sizeof rhost - 1,
+				(struct sockaddr *)&ss, sval);
 		rhost[sizeof(rhost) - 1] = '\0';
 		syslog(LOG_NOTICE, "query from %s: `%s'", rhost, t);
 	}
