@@ -45,7 +45,7 @@ miidevs.h			optional miibus				   \
 	compile-with	"${AWK} -f $S/tools/miidevs2h.awk $S/dev/mii/miidevs" \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"miidevs.h"
-pccarddevs.h			optional pccard				   \
+pccarddevs.h			standard				   \
 	dependency	"$S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	compile-with	"${AWK} -f $S/tools/pccarddevs2h.awk $S/dev/pccard/pccarddevs" \
 	no-obj no-implicit-rule before-depend				   \
