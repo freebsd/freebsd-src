@@ -117,6 +117,7 @@ struct tty {
 	struct mtx t_mtx;
 	int	t_refcnt;
 	int	t_hotchar;		/* linedisc preferred hot char */
+	int	t_dtr_wait;		/* Inter-session DTR holddown [hz] */
 
 	/* Driver supplied methods */
 	t_oproc_t *t_oproc;		/* Start output. */
@@ -224,6 +225,9 @@ struct xtty {
 #define	TS_DSR_OFLOW	0x800000	/* For CDSR_OFLOW. */
 #endif
 
+#define TS_DTR_WAIT	0x1000000	/* DTR hold-down between sessions */
+#define TS_GONE		0x2000000	/* Hardware detached */
+
 /* Character type information. */
 #define	ORDINARY	0
 #define	CONTROL		1
@@ -308,7 +312,10 @@ void	 ttyblock(struct tty *tp);
 void	 ttychars(struct tty *tp);
 int	 ttycheckoutq(struct tty *tp, int wait);
 int	 ttyclose(struct tty *tp);
+int	 ttydtrwaitsleep(struct tty *tp);
+void	 ttydtrwaitstart(struct tty *tp);
 void	 ttyflush(struct tty *tp, int rw);
+void	 ttygone(struct tty *tp);
 void	 ttyinfo(struct tty *tp);
 int	 ttyinput(int c, struct tty *tp);
 int	 ttylclose(struct tty *tp, int flag);

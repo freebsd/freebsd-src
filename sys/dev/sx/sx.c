@@ -281,7 +281,6 @@ sxattach(
 		sc->sc_ports[x].sp_chan = x;
 		sc->sc_ports[x].sp_tty = tp++;
 		sc->sc_ports[x].sp_state = 0;	/* internal flag */
-		sc->sc_ports[x].sp_dtr_wait = 3 * hz;
 		sc->sc_ports[x].sp_iin.c_iflag = TTYDEF_IFLAG;
 		sc->sc_ports[x].sp_iin.c_oflag = TTYDEF_OFLAG;
 		sc->sc_ports[x].sp_iin.c_cflag = TTYDEF_CFLAG;
@@ -391,7 +390,7 @@ open_top:
 	 * it to assert.
 	 */
 	while (pp->sp_state & SX_SS_DTR_OFF && SX_DTRPIN(pp)) {
-		error = tsleep(&pp->sp_dtr_wait, TTIPRI|PCATCH, "sxdtr", 0);
+		error = tsleep(&tp->t_dtr_wait, TTIPRI|PCATCH, "sxdtr", 0);
 		if (error != 0)
 			goto out;
 	}
@@ -603,8 +602,8 @@ sxhardclose(
 		 * If we should hold DTR off for a bit and we actually have a
 		 * DTR pin to hold down, schedule sxdtrwakeup().
 		 */
-		if (pp->sp_dtr_wait != 0 && SX_DTRPIN(pp)) {
-			timeout(sxdtrwakeup, pp, pp->sp_dtr_wait);
+		if (tp->t_dtr_wait != 0 && SX_DTRPIN(pp)) {
+			timeout(sxdtrwakeup, pp, tp->t_dtr_wait);
 			pp->sp_state |= SX_SS_DTR_OFF;
 		}
 
@@ -630,7 +629,7 @@ sxdtrwakeup(void *chan)
 	oldspl = spltty();
 	pp = (struct sx_port *)chan;
 	pp->sp_state &= ~SX_SS_DTR_OFF;
-	wakeup(&pp->sp_dtr_wait);
+	wakeup(&pp->sp_tty->t_dtr_wait);
 	splx(oldspl);
 }
 
@@ -883,15 +882,6 @@ sxioctl(
 			*(int *)data = sx_modem(sc, pp, GET, 0);
 			DPRINT((pp, DBG_IOCTL, "sxioctl(%s) got signals 0x%x\n",
 				devtoname(dev), *(int *)data));
-			break;
-		case TIOCMSDTRWAIT:	/* Set "wait on close" delay.         */
-		/* must be root since the wait applies to following logins    */
-			error = suser(p);
-			if (error == 0)
-				pp->sp_dtr_wait = *(int *)data * hz / 100;
-			break;
-		case TIOCMGDTRWAIT:	/* Get "wait on close" delay.         */
-			*(int *)data = pp->sp_dtr_wait * 100 / hz;
 			break;
 		default:
 			error = ENOTTY;
