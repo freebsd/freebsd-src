@@ -615,8 +615,8 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 	sc->arrq.ndesc = 1;
 	sc->arrs.ndesc = 1;
-	sc->atrq.ndesc = 6;	/* equal to maximum of mbuf chains */
-	sc->atrs.ndesc = 6 / 2;
+	sc->atrq.ndesc = 8;	/* equal to maximum of mbuf chains */
+	sc->atrs.ndesc = 2;
 
 	sc->arrq.ndb = NDB;
 	sc->arrs.ndb = NDB / 2;
