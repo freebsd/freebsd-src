@@ -250,7 +250,7 @@ i4b_Speed(struct physical *p)
 
   if (tcgetattr(p->fd, &ios) == -1 ||
       (ret = SpeedToInt(cfgetispeed(&ios))) == 0)
-    ret = 65536;
+    ret = 64000;
 
   return ret;
 }
