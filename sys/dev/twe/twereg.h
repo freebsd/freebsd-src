@@ -124,6 +124,12 @@
 #define TWE_OP_AEN_LISTEN		0x1c
 #define TWE_OP_CMD_PACKET		0x1d
 
+/* command status values */
+#define TWE_STATUS_RESET		0xff	/* controller requests reset */
+#define TWE_STATUS_FATAL		0xc0	/* fatal errors not requiring reset */
+#define TWE_STATUS_WARNING		0x80	/* warnings */
+#define TWE_STAUS_INFO			0x40	/* informative status */
+
 /* misc defines */
 #define TWE_ALIGNMENT			0x200
 #define TWE_MAX_UNITS			16

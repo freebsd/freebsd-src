@@ -1637,32 +1637,42 @@ twe_report_request(struct twe_request *tr)
 {
     struct twe_softc	*sc = tr->tr_sc;
     TWE_Command		*cmd = &tr->tr_command;
-    int			result;
+    int			result = 0;
 
-    switch (cmd->generic.flags) {
-    case TWE_FLAGS_SUCCESS:
-	result = 0;
-	break;
-    case TWE_FLAGS_INFORMATIONAL:
-    case TWE_FLAGS_WARNING:
-	twe_printf(sc, "command completed - %s\n", 
-		   twe_describe_code(twe_table_status, cmd->generic.status));
-	result = 0;
-	break;
-
-    case TWE_FLAGS_FATAL:
-    default:
-	twe_printf(sc, "command failed - %s\n", 
-		   twe_describe_code(twe_table_status, cmd->generic.status));
-	result = 1;
-
+    /*
+     * Check the command status value and handle accordingly.
+     */
+    if (cmd->generic.status == TWE_STATUS_RESET) {
 	/*
-	 * The status code 0xff requests a controller reset
+	 * The status code 0xff requests a controller reset.
 	 */
-	if (cmd->generic.status == 0xff)
-	    twe_reset(sc);
-	break;
+	twe_printf(sc, "command returned with controller rest request\n");
+	twe_reset(sc);
+	result = 1;
+    } else if (cmd->generic.status > TWE_STATUS_FATAL) {
+	/*
+	 * Fatal errors that don't require controller reset.
+	 */
+	twe_printf(sc, "command returned fatal status - %s (flags = 0x%x)\n",
+		   twe_describe_code(twe_table_status, cmd->generic.status),
+		   cmd->generic.flags);
+	result = 1;
+    } else if (cmd->generic.status > TWE_STATUS_WARNING) {
+	/*
+	 * Warning level status.
+	 */
+	twe_printf(sc, "command returned warning status - %s (flags = 0x%x)\n",
+		   twe_describe_code(twe_table_status, cmd->generic.status),
+		   cmd->generic.flags);
+    } else if (cmd->generic.status > 0x40) {
+	/*
+	 * Info level status.
+	 */
+	twe_printf(sc, "command returned info status: %s (flags = 0x%x)\n",
+		   twe_describe_code(twe_table_status, cmd->generic.status),
+		   cmd->generic.flags);
     }
+    
     return(result);
 }
 

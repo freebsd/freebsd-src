@@ -83,8 +83,7 @@ static struct cdevsw twe_cdevsw = {
     TWE_CDEV_MAJOR,
     nodump,
     nopsize,
-    0,
-    -1
+    0
 };
 
 /********************************************************************************
@@ -585,8 +584,7 @@ static struct cdevsw twed_cdevsw = {
     TWED_CDEV_MAJOR,
     twed_dump,
     nopsize,
-    D_DISK,
-    -1
+    D_DISK
 };
 
 static struct cdevsw	tweddisk_cdevsw;
