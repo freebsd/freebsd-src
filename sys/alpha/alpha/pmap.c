@@ -1194,8 +1194,6 @@ _pmap_allocpte(pmap, ptepindex)
 		VM_OBJECT_LOCK(pmap->pm_pteobj);
 	m = vm_page_grab(pmap->pm_pteobj, ptepindex,
 	    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-	if ((m->flags & PG_ZERO) == 0)
-		pmap_zero_page(m);
 
 	KASSERT(m->queue == PQ_NONE,
 		("_pmap_allocpte: %p->queue != PQ_NONE", m));
@@ -1242,7 +1240,6 @@ _pmap_allocpte(pmap, ptepindex)
 
 	vm_page_lock_queues();
 	m->valid = VM_PAGE_BITS_ALL;
-	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
 	if (!is_object_locked)
