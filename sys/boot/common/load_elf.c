@@ -31,6 +31,7 @@
 #include <sys/exec.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
+#include <sys/module.h>
 #include <string.h>
 #include <machine/bootinfo.h>
 #include <machine/elf.h>
@@ -40,7 +41,30 @@
 
 #include "bootstrap.h"
 
-static int	elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, Elf_Ehdr *ehdr, int kernel, caddr_t firstpage, int firstlen);
+#define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
+
+
+typedef struct elf_file {
+    Elf_Phdr 	*ph;
+    Elf_Ehdr	*ehdr;
+    Elf_Sym	*symtab;
+    Elf_Off	*hashtab;
+    Elf_Off	nbuckets;
+    Elf_Off	nchains;
+    Elf_Off*	buckets;
+    Elf_Off*	chains;
+    char	*strtab;
+    size_t	strsz;
+    int		fd;
+    caddr_t	firstpage;
+    int		firstlen;
+    int		kernel;
+    vm_offset_t	off;
+} *elf_file_t;
+
+static int elf_loadimage(struct preloaded_file *mp, elf_file_t ef, vm_offset_t loadaddr);
+static int elf_lookup_symbol(struct preloaded_file *mp, elf_file_t ef, const char* name,	Elf_Sym* sym);
+static int elf_parse_modmetadata(struct preloaded_file *mp, elf_file_t ef);
 
 char	*elf_kerneltype = "elf kernel";
 char	*elf_moduletype = "elf module";
@@ -51,35 +75,36 @@ char	*elf_moduletype = "elf module";
  * will be saved in (result).
  */
 int
-elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
+elf_loadfile(char *filename, vm_offset_t dest, struct preloaded_file **result)
 {
-    struct loaded_module	*mp, *kmp;
-    Elf_Ehdr			*ehdr;
-    int				fd;
-    int				err, kernel;
+    struct preloaded_file	*fp, *kfp;
+    struct elf_file		ef;
+    Elf_Ehdr 			*ehdr;
+    int				err;
     u_int			pad;
     char			*s;
-    caddr_t			firstpage;
-    int				firstlen;
 
-    mp = NULL;
+    fp = NULL;
+    bzero(&ef, sizeof(struct elf_file));
     
     /*
      * Open the image, read and validate the ELF header 
      */
     if (filename == NULL)	/* can't handle nameless */
 	return(EFTYPE);
-    if ((fd = open(filename, O_RDONLY)) == -1)
+    if ((ef.fd = open(filename, O_RDONLY)) == -1)
 	return(errno);
-    firstpage = malloc(PAGE_SIZE);
-    if (firstpage == NULL)
+    ef.firstpage = malloc(PAGE_SIZE);
+    if (ef.firstpage == NULL) {
+	close(ef.fd);
 	return(ENOMEM);
-    firstlen = read(fd, firstpage, PAGE_SIZE);
-    if (firstlen <= sizeof(ehdr)) {
+    }
+    ef.firstlen = read(ef.fd, ef.firstpage, PAGE_SIZE);
+    if (ef.firstlen <= sizeof(Elf_Ehdr)) {
 	err = EFTYPE;		/* could be EIO, but may be small file */
 	goto oerr;
     }
-    ehdr = (Elf_Ehdr *)firstpage;
+    ehdr = ef.ehdr = (Elf_Ehdr *)ef.firstpage;
 
     /* Is it ELF? */
     if (!IS_ELF(*ehdr)) {
@@ -99,21 +124,21 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     /*
      * Check to see what sort of module we are.
      */
-    kmp = mod_findmodule(NULL, NULL);
+    kfp = file_findfile(NULL, NULL);
     if (ehdr->e_type == ET_DYN) {
 	/* Looks like a kld module */
-	if (kmp == NULL) {
-	    printf("elf_loadmodule: can't load module before kernel\n");
+	if (kfp == NULL) {
+	    printf("elf_loadfile: can't load module before kernel\n");
 	    err = EPERM;
 	    goto oerr;
 	}
-	if (strcmp(elf_kerneltype, kmp->m_type)) {
-	    printf("elf_loadmodule: can't load module with kernel type '%s'\n", kmp->m_type);
+	if (strcmp(elf_kerneltype, kfp->f_type)) {
+	    printf("elf_loadfile: can't load module with kernel type '%s'\n", kfp->f_type);
 	    err = EPERM;
 	    goto oerr;
 	}
 	/* Looks OK, got ahead */
-	kernel = 0;
+	ef.kernel = 0;
 
 	/* Page-align the load address */
 	pad = (u_int)dest & PAGE_MASK;
@@ -123,8 +148,8 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	}
     } else if (ehdr->e_type == ET_EXEC) {
 	/* Looks like a kernel */
-	if (kmp != NULL) {
-	    printf("elf_loadmodule: kernel already loaded\n");
+	if (kfp != NULL) {
+	    printf("elf_loadfile: kernel already loaded\n");
 	    err = EPERM;
 	    goto oerr;
 	}
@@ -133,11 +158,11 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
 	 */
 	dest = (vm_offset_t) ehdr->e_entry;
 	if (dest == 0) {
-	    printf("elf_loadmodule: not a kernel (maybe static binary?)\n");
+	    printf("elf_loadfile: not a kernel (maybe static binary?)\n");
 	    err = EPERM;
 	    goto oerr;
 	}
-	kernel = 1;
+	ef.kernel = 1;
 
     } else {
 	err = EFTYPE;
@@ -147,48 +172,48 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
     /* 
      * Ok, we think we should handle this.
      */
-    mp = mod_allocmodule();
-    if (mp == NULL) {
-	    printf("elf_loadmodule: cannot allocate module info\n");
+    fp = file_alloc();
+    if (fp == NULL) {
+	    printf("elf_loadfile: cannot allocate module info\n");
 	    err = EPERM;
 	    goto out;
     }
-    if (kernel)
+    if (ef.kernel)
 	setenv("kernelname", filename, 1);
     s = strrchr(filename, '/');
     if (s)
-	mp->m_name = strdup(s + 1);
+	fp->f_name = strdup(s + 1);
     else
-	mp->m_name = strdup(filename);
-    mp->m_type = strdup(kernel ? elf_kerneltype : elf_moduletype);
+	fp->f_name = strdup(filename);
+    fp->f_type = strdup(ef.kernel ? elf_kerneltype : elf_moduletype);
 
 #ifdef ELF_VERBOSE
-    if (kernel)
+    if (ef.kernel)
 	printf("%s entry at %p\n", filename, (void *) dest);
 #else
     printf("%s ", filename);
 #endif
 
-    mp->m_size = elf_loadimage(mp, fd, dest, ehdr, kernel, firstpage, firstlen);
-    if (mp->m_size == 0 || mp->m_addr == 0)
+    fp->f_size = elf_loadimage(fp, &ef, dest);
+    if (fp->f_size == 0 || fp->f_addr == 0)
 	goto ioerr;
 
     /* save exec header as metadata */
-    mod_addmetadata(mp, MODINFOMD_ELFHDR, sizeof(*ehdr), ehdr);
+    file_addmetadata(fp, MODINFOMD_ELFHDR, sizeof(*ehdr), ehdr);
 
     /* Load OK, return module pointer */
-    *result = (struct loaded_module *)mp;
+    *result = (struct preloaded_file *)fp;
     err = 0;
     goto out;
     
  ioerr:
     err = EIO;
  oerr:
-    mod_discard(mp);
+    file_discard(fp);
  out:
-    if (firstpage)
-	free(firstpage);
-    close(fd);
+    if (ef.firstpage)
+	free(ef.firstpage);
+    close(ef.fd);
     return(err);
 }
 
@@ -197,11 +222,11 @@ elf_loadmodule(char *filename, vm_offset_t dest, struct loaded_module **result)
  * the Elf header, load the image at (off)
  */
 static int
-elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
-	      Elf_Ehdr *ehdr, int kernel, caddr_t firstpage, int firstlen)
+elf_loadimage(struct preloaded_file *fp, elf_file_t ef, vm_offset_t off)
 {
     int 	i, j;
-    Elf_Phdr	*phdr;
+    Elf_Ehdr	*ehdr;
+    Elf_Phdr	*phdr, *php;
     Elf_Shdr	*shdr;
     int		ret;
     vm_offset_t firstaddr;
@@ -213,8 +238,6 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     Elf_Dyn	*dp;
     int		ndp;
     char	*s;
-    char	*strtab;
-    size_t	strsz;
     int		symstrindex;
     int		symtabindex;
     long	size;
@@ -224,19 +247,21 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     shdr = NULL;
     ret = 0;
     firstaddr = lastaddr = 0;
-    if (kernel) {
+    ehdr = ef->ehdr;
+    if (ef->kernel) {
 #ifdef __i386__
 	off = - (off & 0xff000000u);	/* i386 relocates after locore */
 #else
 	off = 0;		/* alpha is direct mapped for kernels */
 #endif
     }
+    ef->off = off;
 
-    if ((ehdr->e_phoff + ehdr->e_phnum * sizeof(*phdr)) > firstlen) {
+    if ((ehdr->e_phoff + ehdr->e_phnum * sizeof(*phdr)) > ef->firstlen) {
 	printf("elf_loadimage: program header not within first page\n");
 	goto out;
     }
-    phdr = (Elf_Phdr *)(firstpage + ehdr->e_phoff);
+    phdr = (Elf_Phdr *)(ef->firstpage + ehdr->e_phoff);
 
     for (i = 0; i < ehdr->e_phnum; i++) {
 	/* We want to load PT_LOAD segments only.. */
@@ -259,17 +284,17 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	}
 #endif
 	fpcopy = 0;
-	if (firstlen > phdr[i].p_offset) {
-	    fpcopy = firstlen - phdr[i].p_offset;
-	    archsw.arch_copyin(firstpage + phdr[i].p_offset,
+	if (ef->firstlen > phdr[i].p_offset) {
+	    fpcopy = ef->firstlen - phdr[i].p_offset;
+	    archsw.arch_copyin(ef->firstpage + phdr[i].p_offset,
 			       phdr[i].p_vaddr + off, fpcopy);
 	}
 	if (phdr[i].p_filesz > fpcopy) {
-	    if (lseek(fd, phdr[i].p_offset + fpcopy, SEEK_SET) == -1) {
+	    if (lseek(ef->fd, phdr[i].p_offset + fpcopy, SEEK_SET) == -1) {
 		printf("\nelf_loadexec: cannot seek\n");
 		goto out;
 	    }
-	    if (archsw.arch_readin(fd, phdr[i].p_vaddr + off + fpcopy,
+	    if (archsw.arch_readin(ef->fd, phdr[i].p_vaddr + off + fpcopy,
 		phdr[i].p_filesz - fpcopy) != phdr[i].p_filesz - fpcopy) {
 		printf("\nelf_loadexec: archsw.readin failed\n");
 		goto out;
@@ -285,6 +310,10 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 
 	    /* no archsw.arch_bzero */
 	    buf = malloc(PAGE_SIZE);
+	    if (buf == NULL) {
+		printf("\nelf_loadimage: malloc() failed\n");
+		goto out;
+	    }
 	    bzero(buf, PAGE_SIZE);
 	    resid = phdr[i].p_memsz - phdr[i].p_filesz;
 	    dest = phdr[i].p_vaddr + off + phdr[i].p_filesz;
@@ -319,11 +348,11 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     shdr = malloc(chunk);
     if (shdr == NULL)
 	goto nosyms;
-    if (lseek(fd, ehdr->e_shoff, SEEK_SET) == -1) {
+    if (lseek(ef->fd, ehdr->e_shoff, SEEK_SET) == -1) {
 	printf("\nelf_loadimage: cannot lseek() to section headers");
 	goto nosyms;
     }
-    if (read(fd, shdr, chunk) != chunk) {
+    if (read(ef->fd, shdr, chunk) != chunk) {
 	printf("\nelf_loadimage: read section headers failed");
 	goto nosyms;
     }
@@ -388,13 +417,13 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
 	printf("0x%lx+0x%lx", (long)sizeof(size), size);
 #endif
 
-	if (lseek(fd, shdr[i].sh_offset, SEEK_SET) == -1) {
+	if (lseek(ef->fd, shdr[i].sh_offset, SEEK_SET) == -1) {
 	    printf("\nelf_loadimage: could not seek for symbols - skipped!");
 	    lastaddr = ssym;
 	    ssym = 0;
 	    goto nosyms;
 	}
-	if (archsw.arch_readin(fd, lastaddr, shdr[i].sh_size) !=
+	if (archsw.arch_readin(ef->fd, lastaddr, shdr[i].sh_size) !=
 	    shdr[i].sh_size) {
 	    printf("\nelf_loadimage: could not read symbols - skipped!");
 	    lastaddr = ssym;
@@ -414,66 +443,81 @@ elf_loadimage(struct loaded_module *mp, int fd, vm_offset_t off,
     printf("]");
 #endif
 
-    mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
-    mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
+    file_addmetadata(fp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
+    file_addmetadata(fp, MODINFOMD_ESYM, sizeof(esym), &esym);
 
 nosyms:
     printf("\n");
 
     ret = lastaddr - firstaddr;
-    mp->m_addr = firstaddr;
+    fp->f_addr = firstaddr;
 
+    php = NULL;
     for (i = 0; i < ehdr->e_phnum; i++) {
 	if (phdr[i].p_type == PT_DYNAMIC) {
-	    dp = (Elf_Dyn *)(phdr[i].p_vaddr);
-	    mod_addmetadata(mp, MODINFOMD_DYNAMIC, sizeof(dp), &dp);
+	    php = phdr + i;
+	    dp = (Elf_Dyn *)(php->p_vaddr);
+	    file_addmetadata(fp, MODINFOMD_DYNAMIC, sizeof(dp), &dp);
 	    dp = NULL;
 	    break;
 	}
     }
 
-    if (kernel)		/* kernel must not depend on anything */
+    if (php == NULL)	/* this is bad, we cannot get to symbols or _DYNAMIC */
 	goto out;
 
-    ndp = 0;
-    for (i = 0; i < ehdr->e_phnum; i++) {
-	if (phdr[i].p_type == PT_DYNAMIC) {
-	    ndp = phdr[i].p_filesz / sizeof(Elf_Dyn);
-	    dp = malloc(phdr[i].p_filesz);
-	    archsw.arch_copyout(phdr[i].p_vaddr + off, dp, phdr[i].p_filesz);
-	}
-    }
-    if (dp == NULL || ndp == 0)
+    ndp = php->p_filesz / sizeof(Elf_Dyn);
+    if (ndp == 0)
 	goto out;
-    strtab = NULL;
-    strsz = 0;
+    dp = malloc(php->p_filesz);
+    if (dp == NULL)
+	goto out;
+    archsw.arch_copyout(php->p_vaddr + off, dp, php->p_filesz);
+
+    ef->strsz = 0;
     for (i = 0; i < ndp; i++) {
 	if (dp[i].d_tag == NULL)
 	    break;
 	switch (dp[i].d_tag) {
+	case DT_HASH:
+	    ef->hashtab = (Elf_Off*)(dp[i].d_un.d_ptr + off);
+	    break;
 	case DT_STRTAB:
-	    strtab = (char *)(dp[i].d_un.d_ptr + off);
+	    ef->strtab = (char *)(dp[i].d_un.d_ptr + off);
 	    break;
 	case DT_STRSZ:
-	    strsz = dp[i].d_un.d_val;
+	    ef->strsz = dp[i].d_un.d_val;
+	    break;
+	case DT_SYMTAB:
+	    ef->symtab = (Elf_Sym*)(dp[i].d_un.d_ptr + off);
 	    break;
 	default:
 	    break;
 	}
     }
-    if (strtab == NULL || strsz == 0)
+    if (ef->hashtab == NULL || ef->symtab == NULL ||
+	ef->strtab == NULL || ef->strsz == 0)
+	goto out;
+    COPYOUT(ef->hashtab, &ef->nbuckets, sizeof(ef->nbuckets));
+    COPYOUT(ef->hashtab + 1, &ef->nchains, sizeof(ef->nchains));
+    ef->buckets = ef->hashtab + 2;
+    ef->chains = ef->buckets + ef->nbuckets;
+    if (elf_parse_modmetadata(fp, ef) == 0)
+	goto out;
+
+    if (ef->kernel)			/* kernel must not depend on anything */
 	goto out;
 
     for (i = 0; i < ndp; i++) {
-	if (dp[i].d_tag == NULL)
+        if (dp[i].d_tag == NULL)
 	    break;
 	if (dp[i].d_tag != DT_NEEDED)
 	    continue;
 	j = dp[i].d_un.d_ptr;
-	if (j < 1 || j > (strsz - 2))
-	    continue;	/* bad symbol name index */
-	s = strdupout((vm_offset_t)&strtab[j]);
-	mod_addmetadata(mp, MODINFOMD_DEPLIST, strlen(s) + 1, s);
+	if (j < 1 || j > ef->strsz - 2)
+	    continue;
+	s = strdupout((vm_offset_t)&ef->strtab[j]);
+	file_addmetadata(fp, MODINFOMD_DEPLIST, strlen(s) + 1, s);
 	free(s);
     }
 
@@ -483,4 +527,132 @@ out:
     if (shdr)
 	free(shdr);
     return ret;
+}
+
+static char invalid_name[] = "bad";
+char *
+fake_modname(char *name) {
+    char *sp, *ep;
+    int len;
+
+    sp = strrchr(name, '/');
+    if (sp)
+	sp++;
+    else
+	sp = name;
+    ep = strrchr(name, '.');
+    if (ep) {
+	    if (ep == name) {
+		sp = invalid_name;
+		ep = invalid_name + sizeof(invalid_name) - 1;
+	    } 
+    } else
+	ep = name + strlen(name);
+    len = ep - sp;
+    ep = malloc(len + 1);
+    if (ep == NULL)
+	return NULL;
+    memcpy(ep, sp, len);
+    ep[len] = '\0';
+    return ep;
+}
+
+int
+elf_parse_modmetadata(struct preloaded_file *fp, elf_file_t ef) {
+    struct mod_metadata md;
+    Elf_Sym sym;
+    void **p, *v;
+    char *s;
+    int entries, modcnt;
+
+    if (elf_lookup_symbol(fp, ef, "modmetadata_set", &sym) != 0)
+	return ENOENT;
+    COPYOUT(sym.st_value + ef->off, &entries, sizeof(entries));
+
+    modcnt = 0;
+    p = (void*)(sym.st_value + ef->off + sizeof(entries));
+    while (entries--) {
+	COPYOUT(p++, &v, sizeof(v));
+	COPYOUT(v + ef->off, &md, sizeof(md));
+	switch(md.md_type) {
+	  case MDT_DEPEND:
+	    if (ef->kernel)		/* kernel must not depend on anything */
+	      break;
+	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
+	    file_addmetadata(fp, MODINFOMD_DEPLIST, strlen(s) + 1, s);
+	    free(s);
+	    break;
+	  case MDT_VERSION:
+	    s = strdupout((vm_offset_t)(md.md_cval + ef->off));
+	    file_addmodule(fp, s, NULL);
+	    printf("  module: %s\n", s);
+	    free(s);
+	    modcnt++;
+	    break;
+	}
+    }
+    if (modcnt == 0) {
+	s = fake_modname(fp->f_name);
+	file_addmodule(fp, s, NULL);
+	free(s);
+    }
+    return 0;
+}
+
+static unsigned long
+elf_hash(const char *name)
+{
+    const unsigned char *p = (const unsigned char *) name;
+    unsigned long h = 0;
+    unsigned long g;
+
+    while (*p != '\0') {
+	h = (h << 4) + *p++;
+	if ((g = h & 0xf0000000) != 0)
+	    h ^= g >> 24;
+	h &= ~g;
+    }
+    return h;
+}
+
+static const char elf_bad_symtable[] = "elf_lookup_symbol: corrupt symbol table\n";
+int
+elf_lookup_symbol(struct preloaded_file *fp, elf_file_t ef, const char* name,
+		  Elf_Sym *symp)
+{
+    unsigned long symnum;
+    Elf_Sym sym;
+    char *strp;
+    unsigned long hash;
+
+    hash = elf_hash(name);
+    COPYOUT(&ef->buckets[hash % ef->nbuckets], &symnum, sizeof(symnum));
+
+    while (symnum != STN_UNDEF) {
+	if (symnum >= ef->nchains) {
+	    printf(elf_bad_symtable);
+	    return ENOENT;
+	}
+
+	COPYOUT(ef->symtab + symnum, &sym, sizeof(sym));
+	if (sym.st_name == 0) {
+	    printf(elf_bad_symtable);
+	    return ENOENT;
+	}
+
+	strp = strdupout((vm_offset_t)(ef->strtab + sym.st_name));
+	if (strcmp(name, strp) == 0) {
+	    free(strp);
+	    if (sym.st_shndx != SHN_UNDEF ||
+		(sym.st_value != 0 &&
+		 ELF_ST_TYPE(sym.st_info) == STT_FUNC)) {
+		*symp = sym;
+		return 0;
+	    }
+	    return ENOENT;
+	}
+	free(strp);
+	COPYOUT(&ef->chains[symnum], &symnum, sizeof(symnum));
+    }
+    return ENOENT;
 }

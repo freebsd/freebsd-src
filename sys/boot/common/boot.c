@@ -50,7 +50,7 @@ COMMAND_SET(boot, "boot", "boot a file or loaded kernel", command_boot);
 static int
 command_boot(int argc, char *argv[])
 {
-    struct loaded_module	*km;
+    struct preloaded_file	*fp;
     char			*cp;
     int				try;
     int				i;
@@ -61,7 +61,7 @@ command_boot(int argc, char *argv[])
     if ((argc > 1) && (argv[1][0] != '-')) {
 	
 	/* XXX maybe we should discard everything and start again? */
-	if (mod_findmodule(NULL, NULL) != NULL) {
+	if (file_findfile(NULL, NULL) != NULL) {
 	    sprintf(command_errbuf, "can't boot '%s', kernel module already loaded", argv[1]);
 	    return(CMD_ERROR);
 	}
@@ -76,7 +76,7 @@ command_boot(int argc, char *argv[])
     /*
      * See if there is a kernel module already loaded
      */
-    if (mod_findmodule(NULL, NULL) == NULL) {
+    if (file_findfile(NULL, NULL) == NULL) {
 	for (try = 0; (cp = getbootfile(try)) != NULL; try++) {
 	    if (mod_load(cp, argc - 1, argv + 1) != 0) {
 		printf("can't load '%s'\n", cp);
@@ -91,7 +91,7 @@ command_boot(int argc, char *argv[])
     /*
      * Loaded anything yet?
      */
-    if ((km = mod_findmodule(NULL, NULL)) == NULL) {
+    if ((fp = file_findfile(NULL, NULL)) == NULL) {
 	command_errmsg = "no bootable kernel";
 	return(CMD_ERROR);
     }
@@ -101,9 +101,9 @@ command_boot(int argc, char *argv[])
      * XXX should we merge arguments?  Hard to DWIM.
      */
     if (argc > 1) {
-	if (km->m_args != NULL)	
-	    free(km->m_args);
-	km->m_args = unargv(argc - 1, argv + 1);
+	if (fp->f_args != NULL)	
+	    free(fp->f_args);
+	fp->f_args = unargv(argc - 1, argv + 1);
     }
 
     /* Hook for platform-specific autoloading of modules */
@@ -116,7 +116,7 @@ command_boot(int argc, char *argv[])
 	    (devsw[i]->dv_cleanup)();
 
     /* Call the exec handler from the loader matching the kernel */
-    module_formats[km->m_loader]->l_exec(km);
+    file_formats[fp->f_loader]->l_exec(fp);
     return(CMD_ERROR);
 }
 

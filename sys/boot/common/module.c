@@ -27,7 +27,7 @@
  */
 
 /*
- * module function dispatcher, support, etc.
+ * file/module function dispatcher, support, etc.
  */
 
 #include <stand.h>
@@ -37,19 +37,21 @@
 
 #include "bootstrap.h"
 
-static int			mod_loadmodule(char *name, int argc, char *argv[], struct loaded_module **mpp);
-static int			file_load_dependancies(struct loaded_module *base_file);
-static char			*mod_searchfile(char *name);
+static int			file_load(char *filename, vm_offset_t dest, struct preloaded_file **result);
+static int			file_loadraw(char *type, char *name);
+static int			file_load_dependancies(struct preloaded_file *base_mod);
+static char *			file_search(char *name);
+struct kernel_module *		file_findmodule(struct preloaded_file *fp, char *modname);
 static char			*mod_searchmodule(char *name);
-static void			mod_append(struct loaded_module *mp);
-static struct module_metadata 	*metadata_next(struct module_metadata *md, int type);
+static void			file_insert_tail(struct preloaded_file *mp);
+struct file_metadata*		metadata_next(struct file_metadata *base_mp, int type);
 
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
 static char		*default_searchpath ="/;/boot;/modules";
 
-struct loaded_module *loaded_modules = NULL;
+struct preloaded_file *preloaded_files = NULL;
 
 /*
  * load an object, either a disk file or code module.
@@ -102,7 +104,7 @@ command_load(int argc, char *argv[])
 	    command_errmsg = "invalid load type";
 	    return(CMD_ERROR);
 	}
-	return(mod_loadobj(typestr, argv[1]));
+	return(file_loadraw(typestr, argv[1]));
     }
     
     /*
@@ -119,12 +121,12 @@ COMMAND_SET(unload, "unload", "unload all modules", command_unload);
 static int
 command_unload(int argc, char *argv[])
 {
-    struct loaded_module	*mp;
+    struct preloaded_file	*fp;
     
-    while (loaded_modules != NULL) {
-	mp = loaded_modules;
-	loaded_modules = loaded_modules->m_next;
-	mod_discard(mp);
+    while (preloaded_files != NULL) {
+	fp = preloaded_files;
+	preloaded_files = preloaded_files->f_next;
+	file_discard(fp);
     }
     loadaddr = 0;
     return(CMD_OK);
@@ -135,8 +137,9 @@ COMMAND_SET(lsmod, "lsmod", "list loaded modules", command_lsmod);
 static int
 command_lsmod(int argc, char *argv[])
 {
-    struct loaded_module	*am;
-    struct module_metadata	*md;
+    struct preloaded_file	*fp;
+    struct kernel_module	*mp;
+    struct file_metadata	*md;
     char			lbuf[80];
     int				ch, verbose;
 
@@ -156,90 +159,115 @@ command_lsmod(int argc, char *argv[])
     }
 
     pager_open();
-    for (am = loaded_modules; (am != NULL); am = am->m_next) {
+    for (fp = preloaded_files; fp; fp = fp->f_next) {
 	sprintf(lbuf, " %p: %s (%s, 0x%lx)\n", 
-		(void *) am->m_addr, am->m_name, am->m_type, (long) am->m_size);
+		(void *) fp->f_addr, fp->f_name, fp->f_type, (long) fp->f_size);
 	pager_output(lbuf);
-	if (am->m_args != NULL) {
+	if (fp->f_args != NULL) {
 	    pager_output("    args: ");
-	    pager_output(am->m_args);
+	    pager_output(fp->f_args);
 	    pager_output("\n");
 	}
-	if (verbose)
+	if (fp->f_modules) {
+	    pager_output("  modules: ");
+	    for (mp = fp->f_modules; mp; mp = mp->m_next) {
+		sprintf(lbuf, "%s ", mp->m_name);
+		pager_output(lbuf);
+	    }
+	    pager_output("\n");
+	}
+	if (verbose) {
 	    /* XXX could add some formatting smarts here to display some better */
-	    for (md = am->m_metadata; md != NULL; md = md->md_next) {
+	    for (md = fp->f_metadata; md != NULL; md = md->md_next) {
 		sprintf(lbuf, "      0x%04x, 0x%lx\n", md->md_type, (long) md->md_size);
 		pager_output(lbuf);
 	    }
+	}
     }
     pager_close();
     return(CMD_OK);
 }
 
 /*
- * We've been asked to load (name) and give it (argc),(argv).
- * Start by trying to load it, and then attempt to load all of its 
- * dependancies.  If we fail at any point, throw them all away and
- * fail the entire load.
- *
- * XXX if a depended-on module requires arguments, it must be loaded
- *     explicitly first.
+ * File level interface, functions file_*
  */
 int
-mod_load(char *name, int argc, char *argv[])
+file_load(char *filename, vm_offset_t dest, struct preloaded_file **result)
 {
-    struct loaded_module	*last_mod, *base_mod, *mp;
-    int				error;
+    struct preloaded_file *fp;
+    int error;
+    int i;
 
-    /* remember previous last module on chain */
-    for (last_mod = loaded_modules; 
-	 (last_mod != NULL) && (last_mod->m_next != NULL);
-	 last_mod = last_mod->m_next)
-	;
-    
-    /* 
-     * Load the first module; note that it's the only one that gets
-     * arguments explicitly.
-     */
-    error = mod_loadmodule(name, argc, argv, &base_mod);
-    if (error)
-	return (error);
-
-    error = file_load_dependancies(base_mod);
-    if (!error)
-	return (0);
-
-    /* Load failed; discard everything */
-    last_mod->m_next = NULL;
-    loadaddr = last_mod->m_addr + last_mod->m_size;
-    while (base_mod != NULL) {
-        mp = base_mod;
-        base_mod = base_mod->m_next;
-        mod_discard(mp);
+    error = EFTYPE;
+    for (i = 0, fp = NULL; file_formats[i] && fp == NULL; i++) {
+	error = (file_formats[i]->l_load)(filename, loadaddr, &fp);
+	if (error == 0) {
+	    fp->f_loader = i;		/* remember the loader */
+	    *result = fp;
+	    break;
+	}
+	if (error == EFTYPE)
+	    continue;		/* Unknown to this handler? */
+	if (error) {
+	    sprintf(command_errbuf, "can't load file '%s': %s",
+		filename, strerror(error));
+	    break;
+	}
     }
     return (error);
 }
 
+static int
+file_load_dependancies(struct preloaded_file *base_file) {
+    struct file_metadata *md;
+    struct preloaded_file *fp;
+    char *dmodname;
+    int error;
+
+    md = file_findmetadata(base_file, MODINFOMD_DEPLIST);
+    if (md == NULL)
+	return (0);
+    error = 0;
+    do {
+	dmodname = (char *)md->md_data;
+	if (file_findmodule(NULL, dmodname) == NULL) {
+	    printf("loading required module '%s'\n", dmodname);
+	    error = mod_load(dmodname, 0, NULL);
+	    if (error)
+		break;
+	}
+	md = metadata_next(md, MODINFOMD_DEPLIST);
+    } while (md);
+    if (!error)
+	return (0);
+    /* Load failed; discard everything */
+    while (base_file != NULL) {
+        fp = base_file;
+        base_file = base_file->f_next;
+        file_discard(fp);
+    }
+    return (error);
+}
 /*
  * We've been asked to load (name) as (type), so just suck it in,
  * no arguments or anything.
  */
 int
-mod_loadobj(char *type, char *name)
+file_loadraw(char *type, char *name)
 {
-    struct loaded_module	*mp;
+    struct preloaded_file	*fp;
     char			*cp;
     int				fd, got;
     vm_offset_t			laddr;
 
     /* We can't load first */
-    if ((mod_findmodule(NULL, NULL)) == NULL) {
+    if ((file_findfile(NULL, NULL)) == NULL) {
 	command_errmsg = "can't load file before kernel";
 	return(CMD_ERROR);
     }
 
     /* locate the file on the load path */
-    cp = mod_searchfile(name);
+    cp = file_search(name);
     if (cp == NULL) {
 	sprintf(command_errbuf, "can't find '%s'", name);
 	return(CMD_ERROR);
@@ -268,166 +296,168 @@ mod_loadobj(char *type, char *name)
     }
     
     /* Looks OK so far; create & populate control structure */
-    mp = malloc(sizeof(struct loaded_module));
-    mp->m_name = name;
-    mp->m_type = strdup(type);
-    mp->m_args = NULL;
-    mp->m_metadata = NULL;
-    mp->m_loader = -1;
-    mp->m_addr = loadaddr;
-    mp->m_size = laddr - loadaddr;
+    fp = file_alloc();
+    fp->f_name = name;
+    fp->f_type = strdup(type);
+    fp->f_args = NULL;
+    fp->f_metadata = NULL;
+    fp->f_loader = -1;
+    fp->f_addr = loadaddr;
+    fp->f_size = laddr - loadaddr;
 
     /* recognise space consumption */
     loadaddr = laddr;
 
-    /* Add to the list of loaded modules */
-    mod_append(mp);
+    /* Add to the list of loaded files */
+    file_insert_tail(fp);
     close(fd);
     return(CMD_OK);
 }
 
 /*
- * Load the module (name), pass it (argc),(argv).
- * Don't do any dependancy checking.
+ * Load the module (name), pass it (argc),(argv), add container file
+ * to the list of loaded files.
+ * If module is already loaded just assign new argc/argv.
  */
-static int
-mod_loadmodule(char *name, int argc, char *argv[], struct loaded_module **mpp)
+int
+mod_load(char *modname, int argc, char *argv[])
 {
-    struct loaded_module	*mp;
-    int				i, err;
-    char			*cp;
+    struct preloaded_file	*fp, *last_file;
+    struct kernel_module	*mp;
+    int				err;
+    char			*filename;
 
-    /* locate the module on the search path */
-    cp = mod_searchmodule(name);
-    if (cp == NULL) {
-	sprintf(command_errbuf, "can't find '%s'", name);
+    /* see if module is already loaded */
+    mp = file_findmodule(NULL, modname);
+    if (mp) {
+#ifdef moduleargs
+	if (mp->m_args)
+	    free(mp->m_args);
+	mp->m_args = unargv(argc, argv);
+#endif
+	sprintf(command_errbuf, "warning: module '%s' already loaded", mp->m_name);
+	return (0);
+    }
+    /* locate file with the module on the search path */
+    filename = mod_searchmodule(modname);
+    if (filename == NULL) {
+	sprintf(command_errbuf, "can't find '%s'", modname);
 	return (ENOENT);
     }
-    name = cp;
+    for (last_file = preloaded_files; 
+	 last_file != NULL && last_file->f_next != NULL;
+	 last_file = last_file->f_next)
+	;
 
-    cp = strrchr(name, '/');
-    if (cp)
-        cp++;
-    else
-        cp = name;
-    /* see if module is already loaded */
-    mp = mod_findmodule(cp, NULL);
-    if (mp) {
-	*mpp = mp;
-	return (EEXIST);
-    }
-
-    err = 0;
-    for (i = 0, mp = NULL; (module_formats[i] != NULL) && (mp == NULL); i++) {
-	if ((err = (module_formats[i]->l_load)(name, loadaddr, &mp)) != 0) {
-
-	    /* Unknown to this handler? */
-	    if (err == EFTYPE)
-		continue;
-		
-	    /* Fatal error */
-	    sprintf(command_errbuf, "can't load module '%s': %s", name, strerror(err));
-	    free(name);
-	    return (err);
-	} else {
-
-	    /* Load was OK, set args */
-	    mp->m_args = unargv(argc, argv);
-
-	    /* where can we put the next one? */
-	    loadaddr = mp->m_addr + mp->m_size;
-	
-	    /* remember the loader */
-	    mp->m_loader = i;
-
-	    /* Add to the list of loaded modules */
-	    mod_append(mp);
-	    *mpp = mp;
-
+    fp = NULL;
+    do {
+	err = file_load(filename, loadaddr, &fp);
+	if (err)
+	    break;
+#ifdef moduleargs
+	mp = file_findmodule(fp, modname);
+	if (mp == NULL) {
+	    sprintf(command_errbuf, "module '%s' not found in the file '%s': %s",
+		modname, filename, strerror(err));
+	    err = ENOENT;
 	    break;
 	}
-    }
+	mp->m_args = unargv(argc, argv);
+#else
+	fp->f_args = unargv(argc, argv);
+#endif
+	loadaddr = fp->f_addr + fp->f_size;
+	file_insert_tail(fp);		/* Add to the list of loaded files */
+	if (file_load_dependancies(fp) != 0) {
+	    err = ENOENT;
+	    last_file->f_next = NULL;
+	    loadaddr = last_file->f_addr + last_file->f_size;
+	    fp = NULL;
+	    break;
+	}
+    } while(0);
     if (err == EFTYPE)
-	sprintf(command_errbuf, "don't know how to load module '%s'", name);
-    free(name);
+	sprintf(command_errbuf, "don't know how to load module '%s'", filename);
+    if (err && fp)
+	file_discard(fp);
+    free(filename);
     return (err);
 }
 
-static int
-file_load_dependancies(struct loaded_module *base_file)
+/*
+ * Find a file matching (name) and (type).
+ * NULL may be passed as a wildcard to either.
+ */
+struct preloaded_file *
+file_findfile(char *name, char *type)
 {
-    struct module_metadata	*md;
-    char 			*dmodname;
-    int				error;
+    struct preloaded_file *fp;
 
-    md = mod_findmetadata(base_file, MODINFOMD_DEPLIST);
-    if (md == NULL)
-	return (0);
-    error = 0;
-    do {
-	dmodname = (char *)md->md_data;
-	if (mod_findmodule(NULL, dmodname) == NULL) {
-	    printf("loading required module '%s'\n", dmodname);
-	    error = mod_load(dmodname, 0, NULL);
-	    if (error && error != EEXIST)
-		break;
-	}
-	md = metadata_next(md, MODINFOMD_DEPLIST);
-    } while (md);
-    return (error);
+    for (fp = preloaded_files; fp != NULL; fp = fp->f_next) {
+	if (((name == NULL) || !strcmp(name, fp->f_name)) &&
+	    ((type == NULL) || !strcmp(type, fp->f_type)))
+	    break;
+    }
+    return (fp);
 }
 
 /*
- * Find a module matching (name) and (type).
- * NULL may be passed as a wildcard to either.
+ * Find a module matching (name) inside of given file.
+ * NULL may be passed as a wildcard.
  */
-struct loaded_module *
-mod_findmodule(char *name, char *type)
+struct kernel_module *
+file_findmodule(struct preloaded_file *fp, char *modname)
 {
-    struct loaded_module	*mp;
-    
-    for (mp = loaded_modules; mp != NULL; mp = mp->m_next) {
-	if (((name == NULL) || !strcmp(name, mp->m_name)) &&
-	    ((type == NULL) || !strcmp(type, mp->m_type)))
-	    break;
-    }
-    return(mp);
-}
+    struct kernel_module *mp;
 
+    if (fp == NULL) {
+	for (fp = preloaded_files; fp; fp = fp->f_next) {
+	    for (mp = fp->f_modules; mp; mp = mp->m_next) {
+    		if (strcmp(modname, mp->m_name) == 0)
+		    return (mp);
+	    }
+	}
+	return (NULL);
+    }
+    for (mp = fp->f_modules; mp; mp = mp->m_next) {
+        if (strcmp(modname, mp->m_name) == 0)
+	    return (mp);
+    }
+    return (NULL);
+}
 /*
  * Make a copy of (size) bytes of data from (p), and associate them as
  * metadata of (type) to the module (mp).
  */
 void
-mod_addmetadata(struct loaded_module *mp, int type, size_t size, void *p)
+file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p)
 {
-    struct module_metadata	*md;
+    struct file_metadata	*md;
 
-    md = malloc(sizeof(struct module_metadata) + size);
+    md = malloc(sizeof(struct file_metadata) + size);
     md->md_size = size;
     md->md_type = type;
     bcopy(p, md->md_data, size);
-    md->md_next = mp->m_metadata;
-    mp->m_metadata = md;
+    md->md_next = fp->f_metadata;
+    fp->f_metadata = md;
 }
 
 /*
- * Find a metadata object of (type) associated with the module
- * (mp)
+ * Find a metadata object of (type) associated with the file (fp)
  */
-struct module_metadata *
-mod_findmetadata(struct loaded_module *mp, int type)
+struct file_metadata *
+file_findmetadata(struct preloaded_file *fp, int type)
 {
-    struct module_metadata	*md;
+    struct file_metadata *md;
 
-    for (md = mp->m_metadata; md != NULL; md = md->md_next)
+    for (md = fp->f_metadata; md != NULL; md = md->md_next)
 	if (md->md_type == type)
 	    break;
     return(md);
 }
 
-struct module_metadata *
-metadata_next(struct module_metadata *md, int type)
+struct file_metadata *
+metadata_next(struct file_metadata *md, int type)
 {
     if (md == NULL)
 	return (NULL);
@@ -448,7 +478,7 @@ metadata_next(struct module_metadata *md, int type)
  * it internally.
  */
 static char *
-mod_searchfile(char *name)
+file_search(char *name)
 {
     char		*result;
     char		*path, *sp;
@@ -490,7 +520,6 @@ mod_searchfile(char *name)
 	if (cp[strlen(cp) - 1] != '/')
 	    strcat(result, "/");
 	strcat(result, name);
-/*	printf("search '%s'\n", result); */
 	if ((stat(result, &sb) == 0) && 
 	    S_ISREG(sb.st_mode))
 	    break;
@@ -513,71 +542,101 @@ mod_searchmodule(char *name)
     tn = malloc(strlen(name) + 3 + 1);
     strcpy(tn, name);
     strcat(tn, ".ko");
-    result = mod_searchfile(tn);
+    result = file_search(tn);
     free(tn);
     /* Look for just (name) (useful for finding kernels) */
     if (result == NULL)
-	result = mod_searchfile(name);
+	result = file_search(name);
 
     return(result);
 }
 
+int
+file_addmodule(struct preloaded_file *fp, char *modname,
+	struct kernel_module **newmp)
+{
+    struct kernel_module *mp;
+
+    mp = file_findmodule(fp, modname);
+    if (mp)
+	return (EEXIST);
+    mp = malloc(sizeof(struct kernel_module));
+    if (mp == NULL)
+	return (ENOMEM);
+    bzero(mp, sizeof(struct kernel_module));
+    mp->m_name = strdup(modname);
+    mp->m_fp = fp;
+    mp->m_next = fp->f_modules;
+    fp->f_modules = mp;
+    if (newmp)
+	*newmp = mp;
+    return (0);
+}
 
 /*
- * Throw a module away
+ * Throw a file away
  */
 void
-mod_discard(struct loaded_module *mp)
+file_discard(struct preloaded_file *fp)
 {
-    struct module_metadata	*md;
-
-    if (mp != NULL) {
-	while (mp->m_metadata != NULL) {
-	    md = mp->m_metadata;
-	    mp->m_metadata = mp->m_metadata->md_next;
-	    free(md);
-	}	
-	if (mp->m_name != NULL)
-	    free(mp->m_name);
-	if (mp->m_type != NULL)
-	    free(mp->m_type);
-	if (mp->m_args != NULL)
-	    free(mp->m_args);
-	free(mp);
+    struct file_metadata	*md, *md1;
+    struct kernel_module	*mp, *mp1;
+    if (fp == NULL)
+	return;
+    md = fp->f_metadata;
+    while (md) {
+	md1 = md;
+	md = md->md_next;
+	free(md1);
     }
+    mp = fp->f_modules;
+    while (mp) {
+	if (mp->m_name)
+	    free(mp->m_name);
+	mp1 = mp;
+	mp = mp->m_next;
+	free(mp1);
+    }	
+    if (fp->f_name != NULL)
+	free(fp->f_name);
+    if (fp->f_type != NULL)
+        free(fp->f_type);
+    if (fp->f_args != NULL)
+        free(fp->f_args);
+    free(fp);
 }
 
 /*
- * Allocate a new module; must be used instead of malloc()
+ * Allocate a new file; must be used instead of malloc()
  * to ensure safe initialisation.
  */
-struct loaded_module *
-mod_allocmodule(void)
+struct preloaded_file *
+file_alloc(void)
 {
-    struct loaded_module	*mp;
+    struct preloaded_file	*fp;
     
-    if ((mp = malloc(sizeof(struct loaded_module))) != NULL) {
-	bzero(mp, sizeof(struct loaded_module));
+    if ((fp = malloc(sizeof(struct preloaded_file))) != NULL) {
+	bzero(fp, sizeof(struct preloaded_file));
     }
-    return(mp);
+    return (fp);
 }
-
 
 /*
  * Add a module to the chain
  */
 static void
-mod_append(struct loaded_module *mp)
+file_insert_tail(struct preloaded_file *fp)
 {
-    struct loaded_module	*cm;
+    struct preloaded_file	*cm;
     
-    /* Append to list of loaded modules */
-    mp->m_next = NULL;
-    if (loaded_modules == NULL) {
-	loaded_modules = mp;
+    /* Append to list of loaded file */
+    fp->f_next = NULL;
+    if (preloaded_files == NULL) {
+	preloaded_files = fp;
     } else {
-	for (cm = loaded_modules; cm->m_next != NULL; cm = cm->m_next)
+	for (cm = preloaded_files; cm->f_next != NULL; cm = cm->f_next)
 	    ;
-	cm->m_next = mp;
+	cm->f_next = fp;
     }
 }
+
