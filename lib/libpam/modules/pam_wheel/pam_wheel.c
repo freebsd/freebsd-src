@@ -54,24 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <security/pam_modules.h>
 #include <security/pam_mod_misc.h>
 
-enum {
-	PAM_OPT_DENY = PAM_OPT_STD_MAX,
-	PAM_OPT_GROUP,
-	PAM_OPT_TRUST,
-	PAM_OPT_AUTH_AS_SELF,
-	PAM_OPT_NOROOT_OK,
-	PAM_OPT_EXEMPT_IF_EMPTY
-};
-
-static struct opttab other_options[] = {
-	{ "deny",		PAM_OPT_DENY },
-	{ "group",		PAM_OPT_GROUP },
-	{ "trust",		PAM_OPT_TRUST },
-	{ "auth_as_self",	PAM_OPT_AUTH_AS_SELF },
-	{ "noroot_ok",		PAM_OPT_NOROOT_OK },
-	{ "exempt_if_empty",	PAM_OPT_EXEMPT_IF_EMPTY },
-	{ NULL, 0 }
-};
 
 /* Is member in list? */
 static int
@@ -85,19 +67,14 @@ in_list(char *const *list, const char *member)
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
-    int argc, const char *argv[])
+    int argc __unused, const char *argv[] __unused)
 {
-	struct options options;
 	struct passwd *pwd;
 	struct group *grp;
 	int retval;
 	uid_t tuid;
 	const char *user, *targetuser;
-	char *use_group;
-
-	pam_std_option(&options, other_options, argc, argv);
-
-	PAM_LOG("Options processed");
+	const char *use_group;
 
 	retval = pam_get_user(pamh, &targetuser, NULL);
 	if (retval != PAM_SUCCESS)
@@ -110,7 +87,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
 
 	PAM_LOG("Got target user: %s   uid: %d", targetuser, tuid);
 
-	if (pam_test_option(&options, PAM_OPT_AUTH_AS_SELF, NULL)) {
+	if (openpam_get_option(pamh, "auth_as_self")) {
 		pwd = getpwnam(getlogin());
 		user = strdup(pwd->pw_name);
 	}
@@ -131,13 +108,13 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
 	PAM_LOG("Not superuser");
 
 	/* If authenticating as something non-superuser, return OK */
-	if (pam_test_option(&options, PAM_OPT_NOROOT_OK, NULL))
+	if (openpam_get_option(pamh, "noroot_ok"))
 		if (tuid != 0)
 			return (PAM_SUCCESS);
 
 	PAM_LOG("Checking group");
 
-	if (!pam_test_option(&options, PAM_OPT_GROUP, &use_group)) {
+	if ((use_group = openpam_get_option(pamh, "group")) == NULL) {
 		if ((grp = getgrnam("wheel")) == NULL)
 			grp = getgrgid(0);
 	}
@@ -145,7 +122,7 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
 		grp = getgrnam(use_group);
 
 	if (grp == NULL || grp->gr_mem == NULL) {
-		if (pam_test_option(&options, PAM_OPT_DENY, NULL))
+		if (openpam_get_option(pamh, "deny"))
 			return (PAM_IGNORE);
 		else {
 			PAM_VERBOSE_ERROR("Permission denied");
@@ -157,22 +134,22 @@ pam_sm_authenticate(pam_handle_t * pamh, int flags __unused,
 
 	/* If the group is empty, see if we exempt empty groups. */
 	if (*(grp->gr_mem) == NULL) {
-		if (pam_test_option(&options, PAM_OPT_EXEMPT_IF_EMPTY, NULL))
+		if (openpam_get_option(pamh, "exempt_if_empty"))
 			return (PAM_IGNORE);
 	}
 
 	if (pwd->pw_gid == grp->gr_gid || in_list(grp->gr_mem, pwd->pw_name)) {
-		if (pam_test_option(&options, PAM_OPT_DENY, NULL)) {
+		if (openpam_get_option(pamh, "deny")) {
 			PAM_VERBOSE_ERROR("Member of group %s; denied",
 			    grp->gr_name);
 			return (PAM_PERM_DENIED);
 		}
-		if (pam_test_option(&options, PAM_OPT_TRUST, NULL))
+		if (openpam_get_option(pamh, "trust"))
 			return (PAM_SUCCESS);
 		return (PAM_IGNORE);
 	}
 
-	if (pam_test_option(&options, PAM_OPT_DENY, NULL))
+	if (openpam_get_option(pamh, "deny"))
 		return (PAM_SUCCESS);
 
 	PAM_VERBOSE_ERROR("Not member of group %s; denied", grp->gr_name);
