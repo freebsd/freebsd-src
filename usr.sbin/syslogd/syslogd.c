@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)syslogd.c	8.3 (Berkeley) 4/4/94";
 #endif
 static const char rcsid[] =
-	"$Id: syslogd.c,v 1.44 1998/12/28 00:39:14 cwt Exp $";
+	"$Id: syslogd.c,v 1.45 1998/12/29 20:36:22 cwt Exp $";
 #endif /* not lint */
 
 /*
@@ -741,7 +741,8 @@ logmsg(pri, msg, from, flags)
 			f->f_prevpri = pri;
 			(void)strncpy(f->f_lasttime, timestamp, 15);
 			(void)strncpy(f->f_prevhost, from,
-					sizeof(f->f_prevhost));
+					sizeof(f->f_prevhost)-1);
+			f->f_prevhost[sizeof(f->f_prevhost)-1] = '\0';
 			if (msglen < MAXSVLINE) {
 				f->f_prevlen = msglen;
 				(void)strcpy(f->f_prevline, msg);
@@ -1466,8 +1467,10 @@ cfline(line, f, prog)
 	switch (*p)
 	{
 	case '@':
-		(void)strcpy(f->f_un.f_forw.f_hname, ++p);
-		hp = gethostbyname(p);
+		(void)strncpy(f->f_un.f_forw.f_hname, ++p,
+			sizeof(f->f_un.f_forw.f_hname)-1);
+		f->f_un.f_forw.f_hname[sizeof(f->f_un.f_forw.f_hname)-1] = '\0';	  
+		hp = gethostbyname(f->f_un.f_forw.f_hname);
 		if (hp == NULL) {
 			extern int h_errno;
 
