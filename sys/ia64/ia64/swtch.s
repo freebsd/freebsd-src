@@ -209,12 +209,35 @@ ENTRY(cpu_switch, 0)
 
 	mov	ar.rsc=3		// turn RSE back on
 
+XENTRY(cpu_throw)
+
+#ifdef SMP
+	add	r17 = PC_CPUID, r13
+	movl	r16 = smp_active
+	;;
+	ld4	r16 = [r16]
+	ld4	r17 = [r17]
+	;;
+	cmp.ne	p1, p0 = 0, r16
+(p1)	br.dptk	1f
+	;;
+	cmp.eq	p1, p0 = 0, r17
+(p1)	br.dptk	1f
+	;;
+	add	r16 = PC_IDLETHREAD, r13
+	;;
+	ld8	ret0 = [r16]
+	br.sptk	2f
+1:
+#endif
 	br.call.sptk.few rp=choosethread
 
+2:
 	add	r14=PC_CURTHREAD,r13 ;;
-	ld8	r15=[r14] ;;
 
 #if 0
+	ld8	r15 = [r14]
+	;;
 	cmp.ne	p6,p0=r15,ret0		// chooseproc() == curthread ?
 (p6)	br.dptk.few 1f
 	;;
