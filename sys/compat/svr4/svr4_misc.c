@@ -1337,13 +1337,13 @@ loop:
 			 * Finally finished with old proc entry.
 			 * Unlink it from its process group and free it.
 			 */
+			sx_xlock(&proctree_lock);
 			leavepgrp(q);
 
 			sx_xlock(&allproc_lock);
 			LIST_REMOVE(q, p_list); /* off zombproc */
 			sx_xunlock(&allproc_lock);
 
-			sx_xlock(&proctree_lock);
 			LIST_REMOVE(q, p_sibling);
 			sx_xunlock(&proctree_lock);
 
