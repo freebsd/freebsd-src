@@ -29,7 +29,7 @@ SUBDIR=	atrun \
 	tftpd \
 	ypxfr
 
-.if ${MACHINE_ARCH} != amd64 && !defined(NOPIC)
+.if !defined(NOPIC)
 SUBDIR+=rtld-elf
 .endif
 
