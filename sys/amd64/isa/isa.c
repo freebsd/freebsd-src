@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: isa.c,v 1.126 1999/05/14 11:22:28 dfr Exp $
+ *	$Id: isa.c,v 1.127 1999/05/22 15:18:12 dfr Exp $
  */
 
 /*
@@ -90,8 +90,8 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	/*
 	 * Consider adding a resource definition. We allow rid 0-1 for
-	 * irq, drq and memory and rid 0-7 for ports which is sufficient for
-	 * isapnp.
+	 * irq and drq, 0-3 for memory and 0-7 for ports which is
+	 * sufficient for isapnp.
 	 */
 	int passthrough = (device_get_parent(child) != bus);
 	int isdefault = (start == 0UL && end == ~0UL);
@@ -104,7 +104,11 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		if (!rle) {
 			if (*rid < 0)
 				return 0;
-			if (type != SYS_RES_IOPORT && *rid > 1)
+			if (type == SYS_RES_IRQ && *rid > 1)
+				return 0;
+			if (type == SYS_RES_DRQ && *rid > 1)
+				return 0;
+			if (type != SYS_RES_MEMORY && *rid > 3)
 				return 0;
 			if (type == SYS_RES_IOPORT && *rid > 7)
 				return 0;
