@@ -27,6 +27,8 @@
  * Only minor changes done to interface with the timecounters over in
  * sys/kern/kern_clock.c.   Some of the comments below may be (even more)
  * confusing and/or plain wrong in that context.
+ *
+ * $FreeBSD$
  */
 
 #include "opt_ntp.h"
@@ -145,8 +147,6 @@ static long time_tick;			/* nanoseconds per tick (ns) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
 
-int ntp_mult;
-int ntp_div;
 #ifdef PPS_SYNC
 /*
  * The following variables are used when a pulse-per-second (PPS) signal
@@ -155,28 +155,23 @@ int ntp_div;
  * controlled by the PPS signal.
  */
 #define PPS_FAVG	2		/* min freq avg interval (s) (shift) */
-#define PPS_FAVGMAX	8		/* max freq avg interval (s) (shift) */
+#define PPS_FAVGDEF	7		/* default freq avg int (s) (shift) */
+#define PPS_FAVGMAX	15		/* max freq avg interval (s) (shift) */
 #define PPS_PAVG	4		/* phase avg interval (s) (shift) */
 #define PPS_VALID	120		/* PPS signal watchdog max (s) */
-#define MAXTIME		500000		/* max PPS error (jitter) (ns) */
-#define MAXWANDER	500000		/* max PPS wander (ns/s/s) */
+#define PPS_MAXWANDER	100000		/* max PPS wander (ns/s) */
+#define PPS_POPCORN	2		/* popcorn spike threshold (shift) */
 
-struct ppstime {
-	long sec;			/* PPS seconds */
-	long nsec;			/* PPS nanoseconds */
-};
-static struct ppstime pps_tf[3];	/* phase median filter */
-static struct ppstime pps_filt;		/* phase offset */
+static struct timespec pps_tf[3];	/* phase median filter */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
-static long pps_offacc;			/* offset accumulator */
 static long pps_fcount;			/* frequency accumulator */
-static long pps_jitter;			/* scaled time dispersion (ns) */
-static long pps_stabil;			/* scaled frequency dispersion (ns/s) */
+static long pps_jitter;			/* nominal jitter (ns) */
+static long pps_stabil;			/* nominal stability (scaled ns/s) */
 static long pps_lastsec;		/* time at last calibration (s) */
 static int pps_valid;			/* signal watchdog counter */
 static int pps_shift = PPS_FAVG;	/* interval duration (s) (shift) */
+static int pps_shiftmax = PPS_FAVGDEF;	/* max interval duration (s) (shift) */
 static int pps_intcnt;			/* wander counter */
-static int pps_offcnt;			/* offset accumulator counter */
 
 /*
  * PPS signal quality monitors
@@ -248,9 +243,9 @@ SYSCTL_NODE(_kern, OID_AUTO, ntp_pll, CTLFLAG_RW, 0, "");
 SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
 
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, mult, CTLFLAG_RW, &ntp_mult, 0, "");
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, div, CTLFLAG_RW, &ntp_div, 0, "");
-
+#ifdef PPS_SYNC
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
+#endif
 /*
  * ntp_adjtime() - NTP daemon application interface
  *
@@ -315,6 +310,16 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 		else
 			time_constant = ntv.constant;
 	}
+#ifdef PPS_SYNC
+	if (modes & MOD_PPSMAX) {
+		if (ntv.shift < PPS_FAVG)
+			pps_shiftmax = PPS_FAVG;
+		else if (ntv.shift > PPS_FAVGMAX)
+			pps_shiftmax = PPS_FAVGMAX;
+		else
+			pps_shiftmax = ntv.shift;
+	}
+#endif /* PPS_SYNC */
 	if (modes & MOD_NANO)
 		time_status |= STA_NANO;
 	if (modes & MOD_MICRO)
@@ -350,7 +355,6 @@ ntp_adjtime(struct proc *p, struct ntp_adjtime_args *uap)
 #ifdef PPS_SYNC
 	ntv.shift = pps_shift;
 	ntv.ppsfreq = L_GINT((pps_freq / 1000LL) << 16);
-	ntv.jitter = pps_jitter;
 	if (time_status & STA_NANO)
 		ntv.jitter = pps_jitter;
 	else
@@ -399,6 +403,13 @@ ntp_update_second(struct timecounter *tcp)
 	l_fp ftemp, time_adj;		/* 32/64-bit temporaries */
 
 	newsec = &tcp->tc_offset_sec;
+	/*
+	 * On rollover of the second both the nanosecond and microsecond
+	 * clocks are updated and the state machine cranked as
+	 * necessary. The phase adjustment to be used for the next
+	 * second is calculated and the maximum error is increased by
+	 * the tolerance.
+	 */
 	time_maxerror += MAXFREQ / 1000;
 
 	/*
@@ -462,25 +473,22 @@ ntp_update_second(struct timecounter *tcp)
 	}
 
 	/*
-	 * Compute the total time adjustment for the next
-	 * second in ns. The offset is reduced by a factor
-	 * depending on FLL or PLL mode and whether the PPS
-	 * signal is operating. Note that the value is in effect
-	 * scaled by the clock frequency, since the adjustment
-	 * is added at each tick interrupt.
+	 * Compute the total time adjustment for the next second
+	 * in ns. The offset is reduced by a factor depending on
+	 * whether the PPS signal is operating. Note that the
+	 * value is in effect scaled by the clock frequency,
+	 * since the adjustment is added at each tick interrupt.
 	 */
 	ftemp = time_offset;
 #ifdef PPS_SYNC
 	if (time_status & STA_PPSTIME && time_status &
 	    STA_PPSSIGNAL)
 		L_RSHIFT(ftemp, PPS_FAVG);
-	else if (time_status & STA_MODE)
-#else
-	if (time_status & STA_MODE)
-#endif /* PPS_SYNC */
-		L_RSHIFT(ftemp, SHIFT_FLL);
 	else
 		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
+#else
+		L_RSHIFT(ftemp, SHIFT_PLL + time_constant);
+#endif /* PPS_SYNC */
 	time_adj = ftemp;
 	L_SUB(time_offset, ftemp);
 	L_ADD(time_adj, time_freq);
@@ -523,8 +531,9 @@ ntp_init()
 	L_CLR(time_offset);
 	L_CLR(time_freq);
 #ifdef PPS_SYNC
-	pps_filt.sec = pps_filt.nsec = 0;
-	pps_tf[0] = pps_tf[1] = pps_tf[2] = pps_filt; 
+	pps_tf[0].tv_sec = pps_tf[0].tv_nsec = 0;
+	pps_tf[1].tv_sec = pps_tf[1].tv_nsec = 0;
+	pps_tf[2].tv_sec = pps_tf[2].tv_nsec = 0;
 	pps_fcount = 0;
 	L_CLR(pps_freq);
 #endif /* PPS_SYNC */	   
@@ -566,6 +575,8 @@ hardupdate(offset)
 	 * discipline the time, the PPS offset is used; otherwise, the
 	 * argument offset is used.
 	 */
+	if (!(time_status & STA_PLL))
+		return;
 	ltemp = offset;
 	if (ltemp > MAXPHASE)
 		ltemp = MAXPHASE;
@@ -587,18 +598,16 @@ hardupdate(offset)
 	if (time_status & STA_FREQHOLD || time_reftime == 0)
 		time_reftime = time_second;
 	mtemp = time_second - time_reftime;
-	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)
-	    ) {
+	L_LINT(ftemp, ltemp);
+	L_RSHIFT(ftemp, (SHIFT_PLL + 2 + time_constant) << 1);
+	L_MPY(ftemp, mtemp);
+	L_ADD(time_freq, ftemp);
+	time_status &= ~STA_MODE;
+	if (mtemp >= MINSEC && (time_status & STA_FLL || mtemp > MAXSEC)) {
 		L_LINT(ftemp, (ltemp << 4) / mtemp);
 		L_RSHIFT(ftemp, SHIFT_FLL + 4);
 		L_ADD(time_freq, ftemp);
 		time_status |= STA_MODE;
-	} else {
-		L_LINT(ftemp, ltemp);
-		L_RSHIFT(ftemp, (SHIFT_PLL + 2 + time_constant) << 1);
-		L_MPY(ftemp, mtemp);
-		L_ADD(time_freq, ftemp);
-		time_status &= ~STA_MODE;
 	}
 	time_reftime = time_second;
 	if (L_GINT(time_freq) > MAXFREQ)
@@ -652,14 +661,14 @@ hardpps(tsp, nsec)
 		u_nsec -= NANOSECOND;
 		u_sec++;
 	}
-	v_nsec = u_nsec - pps_tf[0].nsec;
-	if (u_sec == pps_tf[0].sec && v_nsec < -MAXFREQ) {
+	v_nsec = u_nsec - pps_tf[0].tv_nsec;
+	if (u_sec == pps_tf[0].tv_sec && v_nsec < -MAXFREQ) {
 		return;
 	}
 	pps_tf[2] = pps_tf[1];
 	pps_tf[1] = pps_tf[0];
-	pps_tf[0].sec = u_sec;
-	pps_tf[0].nsec = u_nsec;
+	pps_tf[0].tv_sec = u_sec;
+	pps_tf[0].tv_nsec = u_nsec;
 
 	/*
 	 * Compute the difference between the current and previous
@@ -675,7 +684,7 @@ hardpps(tsp, nsec)
 	else if (u_nsec < -(NANOSECOND >> 1))
 		u_nsec += NANOSECOND;
 	pps_fcount += u_nsec;
-	if (v_nsec > MAXFREQ) {
+	if (v_nsec > MAXFREQ || v_nsec < -MAXFREQ) {
 		return;
 	}
 	time_status &= ~STA_PPSJITTER;
@@ -686,65 +695,48 @@ hardpps(tsp, nsec)
 	 * difference between the other two samples becomes the time
 	 * dispersion (jitter) estimate.
 	 */
-	if (pps_tf[0].nsec > pps_tf[1].nsec) {
-		if (pps_tf[1].nsec > pps_tf[2].nsec) {
-			pps_filt = pps_tf[1];	/* 0 1 2 */
-			u_nsec = pps_tf[0].nsec - pps_tf[2].nsec;
-		} else if (pps_tf[2].nsec > pps_tf[0].nsec) {
-			pps_filt = pps_tf[0];	/* 2 0 1 */
-			u_nsec = pps_tf[2].nsec - pps_tf[1].nsec;
+	if (pps_tf[0].tv_nsec > pps_tf[1].tv_nsec) {
+		if (pps_tf[1].tv_nsec > pps_tf[2].tv_nsec) {
+			v_nsec = pps_tf[1].tv_nsec;	/* 0 1 2 */
+			u_nsec = pps_tf[0].tv_nsec - pps_tf[2].tv_nsec;
+		} else if (pps_tf[2].tv_nsec > pps_tf[0].tv_nsec) {
+			v_nsec = pps_tf[0].tv_nsec;	/* 2 0 1 */
+			u_nsec = pps_tf[2].tv_nsec - pps_tf[1].tv_nsec;
 		} else {
-			pps_filt = pps_tf[2];	/* 0 2 1 */
-			u_nsec = pps_tf[0].nsec - pps_tf[1].nsec;
+			v_nsec = pps_tf[2].tv_nsec;	/* 0 2 1 */
+			u_nsec = pps_tf[0].tv_nsec - pps_tf[1].tv_nsec;
 		}
 	} else {
-		if (pps_tf[1].nsec < pps_tf[2].nsec) {
-			pps_filt = pps_tf[1];	/* 2 1 0 */
-			u_nsec = pps_tf[2].nsec - pps_tf[0].nsec;
-		} else  if (pps_tf[2].nsec < pps_tf[0].nsec) {
-			pps_filt = pps_tf[0];	/* 1 0 2 */
-			u_nsec = pps_tf[1].nsec - pps_tf[2].nsec;
+		if (pps_tf[1].tv_nsec < pps_tf[2].tv_nsec) {
+			v_nsec = pps_tf[1].tv_nsec;	/* 2 1 0 */
+			u_nsec = pps_tf[2].tv_nsec - pps_tf[0].tv_nsec;
+		} else  if (pps_tf[2].tv_nsec < pps_tf[0].tv_nsec) {
+			v_nsec = pps_tf[0].tv_nsec;	/* 1 0 2 */
+			u_nsec = pps_tf[1].tv_nsec - pps_tf[2].tv_nsec;
 		} else {
-			pps_filt = pps_tf[2];	/* 1 2 0 */
-			u_nsec = pps_tf[1].nsec - pps_tf[0].nsec;
+			v_nsec = pps_tf[2].tv_nsec;	/* 1 2 0 */
+			u_nsec = pps_tf[1].tv_nsec - pps_tf[0].tv_nsec;
 		}
 	}
 
 	/*
 	 * Nominal jitter is due to PPS signal noise and  interrupt
-	 * latency. If it exceeds the jitter limit, the sample is
-	 * discarded. otherwise, if so enabled, the time offset is
-	 * updated. The offsets are accumulated over the phase averaging
-	 * interval to improve accuracy. The jitter is averaged only for
-	 * performance monitoring. We can tolerate a modest loss of data
-	 * here without degrading time accuracy.
+	 * latency. If it exceeds the popcorn threshold,
+	 * the sample is discarded. otherwise, if so enabled, the time
+	 * offset is updated. We can tolerate a modest loss of data here
+	 * without degrading time accuracy.
 	 */
-	if (u_nsec > MAXTIME) {
+	if (u_nsec > (pps_jitter << PPS_POPCORN)) {
 		time_status |= STA_PPSJITTER;
 		pps_jitcnt++;
 	} else if (time_status & STA_PPSTIME) {
-		pps_offacc -= pps_filt.nsec;
-		pps_offcnt++;
-	}
-	if (pps_offcnt >= (1 << PPS_PAVG)) {
-		if (time_status & STA_PPSTIME) {
-			L_LINT(time_offset, pps_offacc);
-			L_RSHIFT(time_offset, PPS_PAVG);
-		}
-		pps_offacc = 0;
-		pps_offcnt = 0;
+		L_LINT(ftemp, v_nsec);
+		L_SUB(ftemp, time_offset);
+		L_RSHIFT(ftemp, pps_shift);
+		L_SUB(time_offset, ftemp);
 	}
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
-	u_sec = pps_tf[0].sec - pps_lastsec;
-	if (ntp_div && ntp_mult) {
-		L_LINT(ftemp, (pps_filt.nsec));
-		L_RSHIFT(ftemp, ntp_div);
-		L_MPY(ftemp, ntp_mult);
-		L_ADD(pps_freq, ftemp);
-		if (time_status & STA_PPSFREQ)
-			time_freq = pps_freq;
-		return;
-	}
+	u_sec = pps_tf[0].tv_sec - pps_lastsec;
 	if (u_sec < (1 << pps_shift))
 		return;
 
@@ -760,7 +752,7 @@ hardpps(tsp, nsec)
 	 */
 	pps_calcnt++;
 	v_nsec = -pps_fcount;
-	pps_lastsec = pps_tf[0].sec;
+	pps_lastsec = pps_tf[0].tv_sec;
 	pps_fcount = 0;
 	u_nsec = MAXFREQ << pps_shift;
 	if (v_nsec > u_nsec || v_nsec < -u_nsec || u_sec != (1 <<
@@ -771,27 +763,27 @@ hardpps(tsp, nsec)
 	}
 
 	/*
-	 * If the actual calibration interval is not equal to the
-	 * expected length, the data are discarded. If the wander is
-	 * less than the wander threshold for four consecutive
-	 * intervals, the interval is doubled; if it is greater than the
-	 * threshold for four consecutive intervals, the interval is
-	 * halved. The scaled frequency offset is converted to frequency
-	 * offset. The stability metric is calculated as the average of
-	 * recent frequency changes, but is used only for performance
+	 * Here the raw frequency offset and wander (stability) is
+	 * calculated. If the wander is less than the wander threshold
+	 * for four consecutive averaging intervals, the interval is
+	 * doubled; if it is greater than the threshold for four
+	 * consecutive intervals, the interval is halved. The scaled
+	 * frequency offset is converted to frequency offset. The
+	 * stability metric is calculated as the average of recent
+	 * frequency changes, but is used only for performance
 	 * monitoring.
 	 */
 	L_LINT(ftemp, v_nsec);
 	L_RSHIFT(ftemp, pps_shift);
 	L_SUB(ftemp, pps_freq);
 	u_nsec = L_GINT(ftemp);
-	if (u_nsec > MAXWANDER) {
-		L_LINT(ftemp, MAXWANDER);
+	if (u_nsec > PPS_MAXWANDER) {
+		L_LINT(ftemp, PPS_MAXWANDER);
 		pps_intcnt--;
 		time_status |= STA_PPSWANDER;
 		pps_stbcnt++;
-	} else if (u_nsec < -MAXWANDER) {
-		L_LINT(ftemp, -MAXWANDER);
+	} else if (u_nsec < -PPS_MAXWANDER) {
+		L_LINT(ftemp, -PPS_MAXWANDER);
 		pps_intcnt--;
 		time_status |= STA_PPSWANDER;
 		pps_stbcnt++;
@@ -800,7 +792,7 @@ hardpps(tsp, nsec)
 	}
 	if (pps_intcnt >= 4) {
 		pps_intcnt = 4;
-		if (pps_shift < PPS_FAVGMAX) {
+		if (pps_shift < pps_shiftmax) {
 			pps_shift++;
 			pps_intcnt = 0;
 		}
@@ -816,10 +808,10 @@ hardpps(tsp, nsec)
 	pps_stabil += (u_nsec * SCALE_PPM - pps_stabil) >> PPS_FAVG;
 
 	/*
-	 * The frequency offset is averaged into the PPS frequency. If
-	 * enabled, the system clock frequency is updated as well.
+	 * The PPS frequency is recalculated and clamped to the maximum
+	 * MAXFREQ. If enabled, the system clock frequency is updated as
+	 * well.
 	 */
-	L_RSHIFT(ftemp, PPS_FAVG);
 	L_ADD(pps_freq, ftemp);
 	u_nsec = L_GINT(pps_freq);
 	if (u_nsec > MAXFREQ)

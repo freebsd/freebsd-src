@@ -17,6 +17,8 @@
  **********************************************************************/
 
 /*
+ * $FreeBSD$
+ *
  * Modification history timex.h
  *
  * 17 Nov 98	David L. Mills
@@ -109,7 +111,7 @@
 #define MAXSEC		2048	/* max PLL update interval (s) */
 #define NANOSECOND	1000000000L /* nanoseconds in one second */
 #define SCALE_PPM	(65536 / 1000) /* crude ns/s to scaled PPM */
-#define MAXTC		10	/* max time constant in PLL mode */
+#define MAXTC		10	/* max time constant */
 
 /*
  * The following defines and structures define the user interface for
@@ -123,8 +125,7 @@
 #define MOD_ESTERROR	0x0008	/* set estimated time error */
 #define MOD_STATUS	0x0010	/* set clock status bits */
 #define MOD_TIMECONST	0x0020	/* set PLL time constant */
-#define	MOD_PLL		0x0400	/* select default PLL mode */
-#define	MOD_FLL		0x0800	/* select default FLL mode */
+#define MOD_PPSMAX	0x0040	/* set PPS maximum averaging time */
 #define	MOD_MICRO	0x1000	/* select microsecond resolution */
 #define	MOD_NANO	0x2000	/* select nanosecond resolution */
 #define MOD_CLKB	0x4000	/* select clock B */
