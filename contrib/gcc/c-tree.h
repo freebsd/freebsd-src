@@ -1,5 +1,5 @@
 /* Definitions for C parsing and type checking.
-   Copyright (C) 1987, 1993, 1994, 1995, 1997 Free Software Foundation, Inc.
+   Copyright (C) 1987, 93, 94, 95, 97, 98, 1999 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -17,6 +17,8 @@ You should have received a copy of the GNU General Public License
 along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
+
+/* $FreeBSD$ */
 
 #ifndef _C_TREE_H
 #define _C_TREE_H
@@ -79,6 +81,22 @@ extern int pedantic;
 /* In a RECORD_TYPE or UNION_TYPE or ENUMERAL_TYPE
    nonzero if the definition of the type has already started.  */
 #define C_TYPE_BEING_DEFINED(type) TYPE_LANG_FLAG_0 (type)
+
+/* C types are partitioned into three subsets: object, function, and
+   incomplete types.  */
+#define C_TYPE_OBJECT_P(type) \
+  (TREE_CODE (type) != FUNCTION_TYPE && TYPE_SIZE (type))
+
+#define C_TYPE_FUNCTION_P(type) \
+  (TREE_CODE (type) == FUNCTION_TYPE)
+
+#define C_TYPE_INCOMPLETE_P(type) \
+  (TREE_CODE (type) != FUNCTION_TYPE && TYPE_SIZE (type) == 0)
+
+/* For convenience we define a single macro to identify the class of
+   object or incomplete types.  */
+#define C_TYPE_OBJECT_OR_INCOMPLETE_P(type) \
+  (!C_TYPE_FUNCTION_P (type))
 
 /* In a RECORD_TYPE, a sorted array of the fields of the type.  */
 struct lang_type
@@ -154,7 +172,7 @@ extern int maybe_objc_comptypes                 PROTO((tree, tree, int));
 extern tree maybe_building_objc_message_expr    PROTO((void));
 extern tree maybe_objc_method_name		PROTO((tree));
 extern int recognize_objc_keyword		PROTO((void));
-extern tree build_objc_string			PROTO((int, char *));
+extern tree build_objc_string			PROTO((int, const char *));
 
 /* in c-aux-info.c */
 extern void gen_aux_info_record                 PROTO((tree, int, int, int));
@@ -165,6 +183,7 @@ extern void decl_attributes                     PROTO((tree, tree, tree));
 extern void init_function_format_info		PROTO((void));
 extern void check_function_format		PROTO((tree, tree, tree));
 extern int c_get_alias_set                      PROTO((tree));
+extern void c_apply_type_quals_to_decl          PROTO((int, tree));
 /* Print an error message for invalid operands to arith operation CODE.
    NOP_EXPR is used as a special case (see truthvalue_conversion).  */
 extern void binary_op_error                     PROTO((enum tree_code));
@@ -213,7 +232,9 @@ extern tree double_ftype_double;
 extern tree double_ftype_double_double;
 extern tree double_type_node;
 extern tree float_type_node;
+#if HOST_BITS_PER_WIDE_INT >= 64
 extern tree intTI_type_node;
+#endif
 extern tree intDI_type_node;
 extern tree intHI_type_node;
 extern tree intQI_type_node;
@@ -243,7 +264,9 @@ extern tree signed_wchar_type_node;
 extern tree string_ftype_ptr_ptr;
 extern tree string_type_node;
 extern tree unsigned_char_type_node;
+#if HOST_BITS_PER_WIDE_INT >= 64
 extern tree unsigned_intTI_type_node;
+#endif
 extern tree unsigned_intDI_type_node;
 extern tree unsigned_intHI_type_node;
 extern tree unsigned_intQI_type_node;
@@ -261,9 +284,13 @@ extern tree boolean_false_node;
 
 extern tree build_enumerator                    PROTO((tree, tree));
 /* Declare a predefined function.  Return the declaration.  */
-extern tree builtin_function                    PROTO((char *, tree, enum built_in_function function_, char *));
+extern tree builtin_function                    PROTO((const char *, tree, enum built_in_function function_, const char *));
 /* Add qualifiers to a type, in the fashion for C.  */
-extern tree c_build_type_variant                PROTO((tree, int, int));
+extern tree c_build_qualified_type              PROTO((tree, int));
+#define c_build_type_variant(TYPE, CONST_P, VOLATILE_P)		  \
+  c_build_qualified_type (TYPE, 				  \
+			  ((CONST_P) ? TYPE_QUAL_CONST : 0) |	  \
+			  ((VOLATILE_P) ? TYPE_QUAL_VOLATILE : 0))
 extern int  c_decode_option                     PROTO((int, char **));
 extern void c_mark_varargs                      PROTO((void));
 extern tree check_identifier                    PROTO((tree, tree));
@@ -282,7 +309,7 @@ extern tree get_parm_info                       PROTO((int));
 extern tree getdecls                            PROTO((void));
 extern tree gettags                             PROTO((void));
 extern int  global_bindings_p                   PROTO((void));
-extern tree grokfield                           PROTO((char *, int, tree, tree, tree));
+extern tree grokfield                           PROTO((const char *, int, tree, tree, tree));
 extern tree groktypename                        PROTO((tree));
 extern tree groktypename_in_parm_context        PROTO((tree));
 extern tree implicitly_declare                  PROTO((tree));
@@ -340,7 +367,7 @@ extern tree c_alignof				PROTO((tree));
 extern tree c_alignof_expr			PROTO((tree));
 extern tree default_conversion                  PROTO((tree));
 extern tree build_component_ref                 PROTO((tree, tree));
-extern tree build_indirect_ref                  PROTO((tree, char *));
+extern tree build_indirect_ref                  PROTO((tree, const char *));
 extern tree build_array_ref                     PROTO((tree, tree));
 extern tree build_function_call                 PROTO((tree, tree));
 extern tree parser_build_binary_op              PROTO((enum tree_code,
@@ -350,8 +377,8 @@ extern tree build_binary_op                     PROTO((enum tree_code,
 extern tree build_unary_op                      PROTO((enum tree_code,
 						       tree, int));
 extern int lvalue_p				PROTO((tree));
-extern int lvalue_or_else			PROTO((tree, char *));
-extern void readonly_warning			PROTO((tree, char *));
+extern int lvalue_or_else			PROTO((tree, const char *));
+extern void readonly_warning			PROTO((tree, const char *));
 extern int mark_addressable			PROTO((tree));
 extern tree build_conditional_expr              PROTO((tree, tree, tree));
 extern tree build_compound_expr                 PROTO((tree));
@@ -360,10 +387,8 @@ extern tree build_modify_expr                   PROTO((tree, enum tree_code,
 						       tree));
 extern tree initializer_constant_valid_p	PROTO((tree, tree));
 extern void store_init_value                    PROTO((tree, tree));
-extern void error_init				PROTO((char *, char *,
-						       char *));
-extern void pedwarn_init			PROTO((char *, char *,
-						       char *));
+extern void error_init				PROTO((const char *));
+extern void pedwarn_init			PROTO((const char *));
 extern void start_init				PROTO((tree, tree, int));
 extern void finish_init				PROTO((void));
 extern void really_start_incremental_init	PROTO((tree));
@@ -418,10 +443,6 @@ extern int flag_no_asm;
 
 extern int flag_hosted;
 
-/* Nonzero means ignore `#ident' directives.  */
-
-extern int flag_no_ident;
-
 /* Nonzero means warn about implicit declarations.  */
 
 extern int warn_implicit;
@@ -430,7 +451,7 @@ extern int warn_implicit;
    to get extra warnings from them.  These warnings will be too numerous
    to be useful, except in thoroughly ANSIfied programs.  */
 
-extern int warn_write_strings;
+extern int flag_const_strings;
 
 /* Nonzero means warn about sizeof (function) or addition/subtraction
    of function pointers.  */
@@ -465,6 +486,10 @@ extern int warn_cast_qual;
 
 extern int warn_bad_function_cast;
 
+/* Warn about functions which might be candidates for attribute noreturn. */
+
+extern int warn_missing_noreturn;
+
 /* Warn about traditional constructs whose meanings changed in ANSI C.  */
 
 extern int warn_traditional;
@@ -489,6 +514,10 @@ extern int warn_main;
 
 extern int flag_traditional;
 
+/* Nonzero means use the ISO C9x dialect of C.  */
+
+extern int flag_isoc9x;
+
 /* Nonzero means to allow single precision math even if we're generally
    being traditional. */
 extern int flag_allow_single_precision;
@@ -508,6 +537,10 @@ extern int warn_sign_compare;
 /* Warn about multicharacter constants.  */
 
 extern int warn_multichar;
+
+/* Warn about long long.  */
+
+extern int warn_long_long;
 
 /* Nonzero means we are reading code that came from a system header file.  */
 
