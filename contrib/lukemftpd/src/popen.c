@@ -1,4 +1,4 @@
-/*	$NetBSD: popen.c,v 1.27 2001/12/01 10:25:30 lukem Exp $	*/
+/*	$NetBSD: popen.c,v 1.26 2001/04/25 01:46:26 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1999-2001 The NetBSD Foundation, Inc.
@@ -73,7 +73,33 @@
  *
  */
 
-#include "lukemftpd.h"
+#include <sys/cdefs.h>
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)popen.c	8.3 (Berkeley) 4/6/94";
+#else
+__RCSID("$NetBSD: popen.c,v 1.26 2001/04/25 01:46:26 lukem Exp $");
+#endif
+#endif /* not lint */
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/wait.h>
+
+#include <errno.h>
+#include <glob.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stringlist.h>
+#include <syslog.h>
+#include <unistd.h>
+
+#ifdef KERBEROS5
+#include <krb5/krb5.h>
+#endif
 
 #include "extern.h"
 
@@ -146,11 +172,7 @@ ftpd_popen(char *argv[], const char *ptype, int stderrfd)
 	isls = (strcmp(sl->sl_str[0], INTERNAL_LS) == 0);
 #endif
 
-#if HAVE_VFORK
 	pid = isls ? fork() : vfork();
-#else
-	pid = fork();
-#endif
 	switch (pid) {
 	case -1:			/* error */
 		(void)close(pdes[0]);
@@ -177,10 +199,7 @@ ftpd_popen(char *argv[], const char *ptype, int stderrfd)
 		}
 #ifndef NO_INTERNAL_LS
 		if (isls) {	/* use internal ls */
-#if HAVE_OPTRESET
-			optreset = 1;
-#endif
-			optind = optopt = 1;
+			optreset = optind = optopt = 1;
 			closelog();
 			exit(ls_main(sl->sl_cur - 1, sl->sl_str));
 		}

@@ -1,4 +1,4 @@
-/*	$NetBSD: ftpd.c,v 1.138 2002/02/11 11:45:07 lukem Exp $	*/
+/*	$NetBSD: ftpd.c,v 1.147 2002/11/29 14:40:00 lukem Exp $	*/
 
 /*
  * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
@@ -98,20 +98,69 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+#ifndef lint
+__COPYRIGHT(
+"@(#) Copyright (c) 1985, 1988, 1990, 1992, 1993, 1994\n\
+	The Regents of the University of California.  All rights reserved.\n");
+#endif /* not lint */
+
+#ifndef lint
+#if 0
+static char sccsid[] = "@(#)ftpd.c	8.5 (Berkeley) 4/28/95";
+#else
+__RCSID("$NetBSD: ftpd.c,v 1.147 2002/11/29 14:40:00 lukem Exp $");
+#endif
+#endif /* not lint */
+
 /*
  * FTP server.
  */
+#include <sys/param.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
+#include <sys/resource.h>
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
 
 #define	FTP_NAMES
-
-#include "lukemftpd.h"
-
-#if HAVE_GETSPNAM
-#include <shadow.h>
-#endif
-
+#include <arpa/ftp.h>
+#include <arpa/inet.h>
 #include <arpa/telnet.h>
 
+#include <ctype.h>
+#include <dirent.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <fnmatch.h>
+#include <glob.h>
+#include <grp.h>
+#include <limits.h>
+#include <netdb.h>
+#include <pwd.h>
+#include <setjmp.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <syslog.h>
+#include <time.h>
+#include <tzfile.h>
+#include <unistd.h>
+#include <util.h>
+#ifdef SUPPORT_UTMP
+#include <utmp.h>
+#endif
+#ifdef SUPPORT_UTMPX
+#include <utmpx.h>
+#endif
 #ifdef SKEY
 #include <skey.h>
 #endif
@@ -140,7 +189,12 @@ int	mapped;			/* IPv4 connection on AF_INET6 socket */
 off_t	file_size;
 off_t	byte_count;
 static char ttyline[20];
+#ifdef SUPPORT_UTMP
 static struct utmp utmp;	/* for utmp */
+#endif
+#ifdef SUPPORT_UTMPX
+static struct utmpx utmpx;	/* for utmpx */
+#endif
 
 static const char *anondir = NULL;
 static const char *confdir = _DEFAULT_CONFDIR;
@@ -166,6 +220,13 @@ int epsvall = 0;
 int	swaitmax = SWAITMAX;
 int	swaitint = SWAITINT;
 
+enum send_status {
+	SS_SUCCESS,
+	SS_NO_TRANSFER,			/* no transfer made yet */
+	SS_FILE_ERROR,			/* file read error */
+	SS_DATA_ERROR			/* data send error */
+};
+
 static int	 bind_pasv_addr(void);
 static int	 checkuser(const char *, const char *, int, int, char **);
 static int	 checkaccess(const char *);
@@ -173,12 +234,21 @@ static int	 checkpassword(const struct passwd *, const char *);
 static void	 end_login(void);
 static FILE	*getdatasock(const char *);
 static char	*gunique(const char *);
+static void	 login_utmp(const char *, const char *, const char *);
 static void	 logremotehost(struct sockinet *);
 static void	 lostconn(int);
 static void	 myoob(int);
 static int	 receive_data(FILE *, FILE *);
-static int	 send_data(FILE *, FILE *, off_t, int);
+static int	 send_data(FILE *, FILE *, const struct stat *, int);
 static struct passwd *sgetpwnam(const char *);
+static int	 write_data(int, char *, size_t, off_t *, struct timeval *,
+		     int);
+static enum send_status
+		 send_data_with_read(int, int, const struct stat *, int);
+static enum send_status
+		 send_data_with_mmap(int, int, const struct stat *, int);
+static void	 logrusage(const struct rusage *, const struct rusage *);
+static void	 logout_utmp(void);
 
 int	main(int, char *[]);
 
@@ -191,8 +261,6 @@ int	k5login(struct passwd *, char *, char *, char *);
 void	k5destroy(void);
 #endif
 
-char * __progname;
-
 int
 main(int argc, char *argv[])
 {
@@ -201,12 +269,7 @@ main(int argc, char *argv[])
 	krb5_error_code	kerror;
 #endif
 	char		*p;
-
-	__progname  = strrchr(argv[0], '/');
-	if (__progname == NULL)
-		__progname = argv[0];
-	else
-		__progname++;
+	long		l;
 
 	connections = 1;
 	debug = 0;
@@ -232,7 +295,7 @@ main(int argc, char *argv[])
 	 * LOG_NDELAY sets up the logging connection immediately,
 	 * necessary for anonymous ftp's that chroot and can't do it later.
 	 */
-	openlog("ftpd", LOG_PID | LOG_NDELAY, FTPD_LOGTYPE);
+	openlog("ftpd", LOG_PID | LOG_NDELAY, LOG_FTP);
 
 	while ((ch = getopt(argc, argv, "a:c:C:de:h:HlP:qQrst:T:uUvV:wWX"))
 	    != -1) {
@@ -274,13 +337,17 @@ main(int argc, char *argv[])
 			break;
 
 		case 'P':
-			dataport = (int)strtol(optarg, &p, 10);
-			if (*p != '\0' || dataport < IPPORT_RESERVED ||
-			    dataport > IPPORT_ANONMAX) {
+			errno = 0;
+			p = NULL;
+			l = strtol(optarg, &p, 10);
+			if (errno || *optarg == '\0' || *p != '\0' ||
+			    l < IPPORT_RESERVED ||
+			    l > IPPORT_ANONMAX) {
 				syslog(LOG_WARNING, "Invalid dataport %s",
 				    optarg);
 				dataport = 0;
 			}
+			dataport = (int)l;
 			break;
 
 		case 'q':
@@ -529,7 +596,7 @@ sgetpwnam(const char *name)
 static int	login_attempts;	/* number of failed login attempts */
 static int	askpasswd;	/* had USER command, ask for PASSwd */
 static int	permitted;	/* USER permitted */
-static char	curname[10];	/* current USER name */
+static char	curname[LOGIN_NAME_MAX];	/* current USER name */
 
 /*
  * USER command.
@@ -733,7 +800,7 @@ checkuser(const char *fname, const char *name, int def, int nofile,
 	line = 0;
 	for (;
 	    (buf = fparseln(fd, &len, &line, NULL, FPARSELN_UNESCCOMM |
-	    		FPARSELN_UNESCCONT | FPARSELN_UNESCESC)) != NULL;
+			    FPARSELN_UNESCCONT | FPARSELN_UNESCESC)) != NULL;
 	    free(buf), buf = NULL) {
 		word = perm = class = NULL;
 		p = buf;
@@ -850,6 +917,69 @@ checkaccess(const char *name)
 	return (checkuser(_PATH_FTPUSERS, name, 1, 0, NULL));
 }
 
+static void
+login_utmp(const char *line, const char *name, const char *host)
+{
+#if defined(SUPPORT_UTMPX) || defined(SUPPORT_UTMP)
+	struct timeval tv;
+	(void)gettimeofday(&tv, NULL);
+#endif
+#ifdef SUPPORT_UTMPX
+	if (doutmp) {
+		(void)memset(&utmpx, 0, sizeof(utmpx));
+		utmpx.ut_tv = tv;
+		utmpx.ut_pid = getpid();
+		utmpx.ut_id[0] = 'f';
+		utmpx.ut_id[1] = 't';
+		utmpx.ut_id[2] = 'p';
+		utmpx.ut_id[3] = '*';
+		utmpx.ut_type = USER_PROCESS;
+		(void)strncpy(utmpx.ut_name, name, sizeof(utmpx.ut_name));
+		(void)strncpy(utmpx.ut_line, line, sizeof(utmpx.ut_line));
+		(void)strncpy(utmpx.ut_host, host, sizeof(utmpx.ut_host));
+		loginx(&utmpx);
+	}
+	if (dowtmp)
+		logwtmpx(line, name, host, 0, USER_PROCESS);
+#endif
+#ifdef SUPPORT_UTMP
+	if (doutmp) {
+		(void)memset(&utmp, 0, sizeof(utmp));
+		(void)time(&utmp.ut_time);
+		(void)strncpy(utmp.ut_name, name, sizeof(utmp.ut_name));
+		(void)strncpy(utmp.ut_line, line, sizeof(utmp.ut_line));
+		(void)strncpy(utmp.ut_host, host, sizeof(utmp.ut_host));
+		login(&utmp);
+	}
+	if (dowtmp)
+		logwtmp(line, name, host);
+#endif
+}
+
+static void
+logout_utmp(void)
+{
+	int okwtmp = dowtmp;
+	if (logged_in) {
+		if (doutmp) {
+#ifdef SUPPORT_UTMPX
+			okwtmp = logoutx(ttyline, 0, DEAD_PROCESS) & dowtmp;
+#endif
+#ifdef SUPPORT_UTMP
+			okwtmp = logout(ttyline) & dowtmp;
+#endif
+		}
+		if (okwtmp) {
+#ifdef SUPPORT_UTMPX
+			logwtmpx(ttyline, "", "", 0, DEAD_PROCESS);
+#endif
+#ifdef SUPPORT_UTMP
+			logwtmp(ttyline, "", "");
+#endif
+		}
+	}
+}
+
 /*
  * Terminate login as previous user (if any), resetting state;
  * used when USER command is given or login fails.
@@ -857,16 +987,7 @@ checkaccess(const char *name)
 static void
 end_login(void)
 {
-
-	if (logged_in) {
-#ifdef NO_UTMP
-		if (dowtmp)
-			logwtmp(ttyline, "", "");
-		if (doutmp)
-			logout(utmp.ut_line);
-#endif /* NO_UTMP */
-	}
-			/* reset login state */
+	logout_utmp();
 	show_chdir_messages(-1);		/* flush chdir cache */
 	if (pw != NULL && pw->pw_passwd != NULL)
 		memset(pw->pw_passwd, 0, strlen(pw->pw_passwd));
@@ -885,8 +1006,6 @@ pass(const char *passwd)
 {
 	int		 rval;
 	char		 root[MAXPATHLEN];
-	char		*p;
-	int		 len;
 
 	if (logged_in || askpasswd == 0) {
 		reply(503, "Login with USER first.");
@@ -976,21 +1095,8 @@ pass(const char *passwd)
 			/* cache groups for cmds.c::matchgroup() */
 	gidcount = getgroups(sizeof(gidlist), gidlist);
 
-			/* open wtmp before chroot */
-#ifdef NO_UTMP
-	if (dowtmp)
-		logwtmp(ttyline, pw->pw_name, remotehost);
-
-			/* open utmp before chroot */
-	if (doutmp) {
-		memset((void *)&utmp, 0, sizeof(utmp));
-		(void)time(&utmp.ut_time);
-		(void)strncpy(utmp.ut_name, pw->pw_name, sizeof(utmp.ut_name));
-		(void)strncpy(utmp.ut_host, remotehost, sizeof(utmp.ut_host));
-		(void)strncpy(utmp.ut_line, ttyline, sizeof(utmp.ut_line));
-		login(&utmp);
-	}
-#endif /* NO_UTMP */
+	/* open utmp/wtmp before chroot */
+	login_utmp(ttyline, pw->pw_name, remotehost);
 
 	logged_in = 1;
 
@@ -1002,11 +1108,13 @@ pass(const char *passwd)
 			(void)display_file(conffilename(curclass.limitfile),
 			    530);
 		reply(530,
-		    "User %s access denied, connection limit of %d reached.",
-		    pw->pw_name, curclass.limit);
+		    "User %s access denied, connection limit of " LLF
+		    " reached.",
+		    pw->pw_name, (LLT)curclass.limit);
 		syslog(LOG_NOTICE,
-    "Maximum connection limit of %d for class %s reached, login refused for %s",
-		    curclass.limit, curclass.classname, pw->pw_name);
+		    "Maximum connection limit of " LLF
+		    " for class %s reached, login refused for %s",
+		    (LLT)curclass.limit, curclass.classname, pw->pw_name);
 		goto bad;
 	}
 
@@ -1099,9 +1207,7 @@ pass(const char *passwd)
 		}
 		break;
 	}
-#if HAVE_SETLOGIN
 	setlogin(pw->pw_name);
-#endif
 	if (dropprivs ||
 	    (curclass.type != CLASS_REAL && 
 	    ntohs(ctrl_addr.su_port) > IPPORT_RESERVED + 1)) {
@@ -1120,15 +1226,7 @@ pass(const char *passwd)
 			goto bad;
 		}
 	}
-	len = sizeof("HOME=") + strlen(homedir) + 1;;
-	p = malloc(len);
-	if (p == NULL) {
-		reply(550, "Local resource failure: malloc");
-		goto bad;
-	}
-	snprintf(p, len, "HOME=%s", homedir);
-	putenv(p);
-	free(p);
+	setenv("HOME", homedir, 1);
 
 	if (curclass.type == CLASS_GUEST && passwd[0] == '-')
 		quietmessages = 1;
@@ -1186,19 +1284,20 @@ retrieve(char *argv[], const char *name)
 	FILE *fin, *dout;
 	struct stat st;
 	int (*closefunc)(FILE *) = NULL;
-	int log, sendrv, closerv, stderrfd, isconversion, isdata, isls;
+	int dolog, sendrv, closerv, stderrfd, isconversion, isdata, isls;
 	struct timeval start, finish, td, *tdp;
+	struct rusage rusage_before, rusage_after;
 	const char *dispname;
 	char *error;
 
 	sendrv = closerv = stderrfd = -1;
-	isconversion = isdata = isls = log = 0;
+	isconversion = isdata = isls = dolog = 0;
 	tdp = NULL;
 	dispname = name;
 	fin = dout = NULL;
 	error = NULL;
 	if (argv == NULL) {		/* if not running a command ... */
-		log = 1;
+		dolog = 1;
 		isdata = 1;
 		fin = fopen(name, "r");
 		closefunc = fclose;
@@ -1231,7 +1330,7 @@ retrieve(char *argv[], const char *name)
 	if (fin == NULL) {
 		if (errno != 0) {
 			perror_reply(550, dispname);
-			if (log)
+			if (dolog)
 				logxfer("get", -1, name, NULL, NULL,
 				    strerror(errno));
 		}
@@ -1268,15 +1367,20 @@ retrieve(char *argv[], const char *name)
 	if (dout == NULL)
 		goto done;
 
+	(void)getrusage(RUSAGE_SELF, &rusage_before);
 	(void)gettimeofday(&start, NULL);
-	sendrv = send_data(fin, dout, st.st_blksize, isdata);
+	sendrv = send_data(fin, dout, &st, isdata);
 	(void)gettimeofday(&finish, NULL);
+	(void)getrusage(RUSAGE_SELF, &rusage_after);
 	closedataconn(dout);		/* close now to affect timing stats */
 	timersub(&finish, &start, &td);
 	tdp = &td;
  done:
-	if (log)
+	if (dolog) {
 		logxfer("get", byte_count, name, NULL, tdp, error);
+		if (tdp != NULL)
+			logrusage(&rusage_before, &rusage_after);
+	}
 	closerv = (*closefunc)(fin);
 	if (sendrv == 0) {
 		FILE *errf;
@@ -1567,21 +1671,173 @@ closedataconn(FILE *fd)
 	pdata = -1;
 }
 
+int
+write_data(int fd, char *buf, size_t size, off_t *bufrem,
+    struct timeval *then, int isdata)
+{
+	struct timeval now, td;
+	ssize_t c;
+
+	while (size > 0) {
+		c = size;
+		if (curclass.writesize) {
+			if (curclass.writesize < c)
+				c = curclass.writesize;
+		}
+		if (curclass.rateget) {
+			if (*bufrem < c)
+				c = *bufrem;
+		}
+		(void) alarm(curclass.timeout);
+		c = write(fd, buf, c);
+		if (c <= 0)
+			return (1);
+		buf += c;
+		size -= c;
+		byte_count += c;
+		if (isdata) {
+			total_data_out += c;
+			total_data += c;
+		}
+		total_bytes_out += c;
+		total_bytes += c;
+		if (curclass.rateget) {
+			*bufrem -= c;
+			if (*bufrem == 0) {
+				(void)gettimeofday(&now, NULL);
+				timersub(&now, then, &td);
+				if (td.tv_sec == 0) {
+					usleep(1000000 - td.tv_usec);
+					(void)gettimeofday(then, NULL);
+				} else
+					*then = now;
+				*bufrem = curclass.rateget;
+			}
+		}
+	}
+	return (0);
+}
+
+static enum send_status
+send_data_with_read(int filefd, int netfd, const struct stat *st, int isdata)
+{
+	struct timeval then;
+	off_t bufrem;
+	size_t readsize;
+	char *buf;
+	int c, error;
+
+	if (curclass.readsize)
+		readsize = curclass.readsize;
+	else
+		readsize = (size_t)st->st_blksize;
+	if ((buf = malloc(readsize)) == NULL) {
+		perror_reply(451, "Local resource failure: malloc");
+		return (SS_NO_TRANSFER);
+	}
+
+	if (curclass.rateget) {
+		bufrem = curclass.rateget;
+		(void)gettimeofday(&then, NULL);
+	}
+	while (1) {
+		(void) alarm(curclass.timeout);
+		c = read(filefd, buf, readsize);
+		if (c == 0)
+			error = SS_SUCCESS;
+		else if (c < 0)
+			error = SS_FILE_ERROR;
+		else if (write_data(netfd, buf, c, &bufrem, &then, isdata))
+			error = SS_DATA_ERROR;
+		else
+			continue;
+
+		free(buf);
+		return (error);
+	}
+}
+
+static enum send_status
+send_data_with_mmap(int filefd, int netfd, const struct stat *st, int isdata)
+{
+	struct timeval then;
+	off_t bufrem, filesize, off, origoff;
+	size_t mapsize, winsize;
+	int error, sendbufsize, sendlowat;
+	void *win;
+
+	if (curclass.sendbufsize) {
+		sendbufsize = curclass.sendbufsize;
+		if (setsockopt(netfd, SOL_SOCKET, SO_SNDBUF,
+		    &sendbufsize, sizeof(int)) == -1)
+			syslog(LOG_WARNING, "setsockopt(SO_SNDBUF, %d): %m",
+			    sendbufsize);
+	}
+
+	if (curclass.sendlowat) {
+		sendlowat = curclass.sendlowat;
+		if (setsockopt(netfd, SOL_SOCKET, SO_SNDLOWAT,
+		    &sendlowat, sizeof(int)) == -1)
+			syslog(LOG_WARNING, "setsockopt(SO_SNDLOWAT, %d): %m",
+			    sendlowat);
+	}
+
+	winsize = curclass.mmapsize;
+	filesize = st->st_size;
+	if (debug)
+		syslog(LOG_INFO, "mmapsize = %ld, writesize = %ld",
+		    (long)winsize, (long)curclass.writesize);
+	if (winsize == 0)
+		goto try_read;
+
+	off = lseek(filefd, (off_t)0, SEEK_CUR);
+	if (off == -1)
+		goto try_read;
+
+	origoff = off;
+	if (curclass.rateget) {
+		bufrem = curclass.rateget;
+		(void)gettimeofday(&then, NULL);
+	}
+	while (1) {
+		mapsize = MIN(filesize - off, winsize);
+		if (mapsize == 0)
+			break;
+		win = mmap(NULL, mapsize, PROT_READ,
+		    MAP_FILE|MAP_SHARED, filefd, off);
+		if (win == MAP_FAILED) {
+			if (off == origoff)
+				goto try_read;
+			return (SS_FILE_ERROR);
+		}
+		(void) madvise(win, mapsize, MADV_SEQUENTIAL);
+		error = write_data(netfd, win, mapsize, &bufrem, &then,
+		    isdata);
+		(void) madvise(win, mapsize, MADV_DONTNEED);
+		munmap(win, mapsize);
+		if (error)
+			return (SS_DATA_ERROR);
+		off += mapsize;
+	}
+	return (SS_SUCCESS);
+
+ try_read:
+	return (send_data_with_read(filefd, netfd, st, isdata));
+}
+
 /*
  * Tranfer the contents of "instr" to "outstr" peer using the appropriate
- * encapsulation of the data subject * to Mode, Structure, and Type.
+ * encapsulation of the data subject to Mode, Structure, and Type.
  *
  * NB: Form isn't handled.
  */
 static int
-send_data(FILE *instr, FILE *outstr, off_t blksize, int isdata)
+send_data(FILE *instr, FILE *outstr, const struct stat *st, int isdata)
 {
 	int	 c, filefd, netfd, rval;
-	char	*buf;
 
 	transflag = 1;
 	rval = -1;
-	buf = NULL;
 	if (setjmp(urgcatch))
 		goto cleanup_send_data;
 
@@ -1624,66 +1880,22 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, int isdata)
 
 	case TYPE_I:
 	case TYPE_L:
-		if ((buf = malloc((size_t)blksize)) == NULL) {
-			perror_reply(451, "Local resource failure: malloc");
-			goto cleanup_send_data;
-		}
 		filefd = fileno(instr);
 		netfd = fileno(outstr);
-		(void) alarm(curclass.timeout);
-		if (curclass.rateget) {
-			while (1) {
-				int d;
-				struct timeval then, now, td;
-				off_t bufrem;
-				char *bufp;
+		switch (send_data_with_mmap(filefd, netfd, st, isdata)) {
 
-				(void)gettimeofday(&then, NULL);
-				errno = c = d = 0;
-				bufrem = curclass.rateget;
-				while (bufrem > 0) {
-					if ((c = read(filefd, buf,
-					    MIN(blksize, bufrem))) <= 0)
-						goto senddone;
-					(void) alarm(curclass.timeout);
-					bufrem -= c;
-					byte_count += c;
-					if (isdata) {
-						total_data_out += c;
-						total_data += c;
-					}
-					total_bytes_out += c;
-					total_bytes += c;
-					for (bufp = buf; c > 0;
-					    c -= d, bufp += d)
-						if ((d =
-						    write(netfd, bufp, c)) <= 0)
-							break;
-					if (d < 0)
-						goto data_err;
-				}
-				(void)gettimeofday(&now, NULL);
-				timersub(&now, &then, &td);
-				if (td.tv_sec == 0)
-					usleep(1000000 - td.tv_usec);
-			}
-		} else {
-			while ((c = read(filefd, buf, (size_t)blksize)) > 0) {
-				if (write(netfd, buf, c) != c)
-					goto data_err;
-				(void) alarm(curclass.timeout);
-				byte_count += c;
-				if (isdata) {
-					total_data_out += c;
-					total_data += c;
-				}
-				total_bytes_out += c;
-				total_bytes += c;
-			}
-		}
- senddone:
-		if (c < 0)
+		case SS_SUCCESS:
+			break;
+
+		case SS_NO_TRANSFER:
+			goto cleanup_send_data;
+
+		case SS_FILE_ERROR:
 			goto file_err;
+
+		case SS_DATA_ERROR:
+			goto data_err;
+		}
 		rval = 0;
 		goto cleanup_send_data;
 
@@ -1705,8 +1917,6 @@ send_data(FILE *instr, FILE *outstr, off_t blksize, int isdata)
  cleanup_send_data:
 	(void) alarm(0);
 	transflag = 0;
-	if (buf)
-		free(buf);
 	if (isdata) {
 		total_files_out++;
 		total_files++;
@@ -1888,7 +2098,7 @@ statcmd(void)
 {
 	struct sockinet *su = NULL;
 	static char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
-  	u_char *a, *p;
+	u_char *a, *p;
 	int ispassive, af;
 	off_t otbi, otbo, otb;
 
@@ -1929,7 +2139,7 @@ statcmd(void)
 	    strunames[stru], modenames[mode]);
 	ispassive = 0;
 	if (data != -1) {
-  		reply(0, "Data connection open");
+		reply(0, "Data connection open");
 		su = NULL;
 	} else if (pdata != -1) {
 		reply(0, "in Passive mode");
@@ -2053,13 +2263,14 @@ statcmd(void)
 			reply(0, "Display file: %s", curclass.display);
 		if (! EMPTYSTR(curclass.notify))
 			reply(0, "Notify fileglob: %s", curclass.notify);
-		reply(0, "Idle timeout: %d, maximum timeout: %d",
-		    curclass.timeout, curclass.maxtimeout);
+		reply(0, "Idle timeout: " LLF ", maximum timeout: " LLF,
+		    (LLT)curclass.timeout, (LLT)curclass.maxtimeout);
 		reply(0, "Current connections: %d", connections);
 		if (curclass.limit == -1)
 			reply(0, "Maximum connections: unlimited");
 		else
-			reply(0, "Maximum connections: %d", curclass.limit);
+			reply(0, "Maximum connections: " LLF,
+			    (LLT)curclass.limit);
 		if (curclass.limitfile)
 			reply(0, "Connection limit exceeded message file: %s",
 			    conffilename(curclass.limitfile));
@@ -2096,8 +2307,8 @@ statcmd(void)
 				reply(0, "PASV advertise address: %s", bp);
 		}
 		if (curclass.portmin && curclass.portmax)
-			reply(0, "PASV port range: %d - %d",
-			    curclass.portmin, curclass.portmax);
+			reply(0, "PASV port range: " LLF " - " LLF,
+			    (LLT)curclass.portmin, (LLT)curclass.portmax);
 		if (curclass.rateget)
 			reply(0, "Rate get limit: " LLF " bytes/sec",
 			    (LLT)curclass.rateget);
@@ -2108,6 +2319,28 @@ statcmd(void)
 			    (LLT)curclass.rateput);
 		else
 			reply(0, "Rate put limit: disabled");
+		if (curclass.mmapsize)
+			reply(0, "Mmap size: " LLF, (LLT)curclass.mmapsize);
+		else
+			reply(0, "Mmap size: disabled");
+		if (curclass.readsize)
+			reply(0, "Read size: " LLF, (LLT)curclass.readsize);
+		else
+			reply(0, "Read size: default");
+		if (curclass.writesize)
+			reply(0, "Write size: " LLF, (LLT)curclass.writesize);
+		else
+			reply(0, "Write size: default");
+		if (curclass.sendbufsize)
+			reply(0, "Send buffer size: " LLF,
+			    (LLT)curclass.sendbufsize);
+		else
+			reply(0, "Send buffer size: default");
+		if (curclass.sendlowat)
+			reply(0, "Send low water mark: " LLF,
+			    (LLT)curclass.sendlowat);
+		else
+			reply(0, "Send low water mark: default");
 		reply(0, "Umask: %.04o", curclass.umask);
 		for (cp = curclass.conversions; cp != NULL; cp=cp->next) {
 			if (cp->suffix == NULL || cp->types == NULL ||
@@ -2195,14 +2428,8 @@ dologout(int status)
 	* back to the main program loop.
 	*/
 	transflag = 0;
-
+	logout_utmp();
 	if (logged_in) {
-#ifdef NO_UTMP
-		if (dowtmp)
-			logwtmp(ttyline, "", "");
-		if (doutmp)
-			logout(utmp.ut_line);
-#endif /* NO_UTMP */
 #ifdef KERBEROS
 		if (!notickets && krbtkfile_env)
 			unlink(krbtkfile_env);
@@ -2535,13 +2762,15 @@ extended_port(const char *arg)
 	}
 
 			/* some more sanity checks */
+	errno = 0;
 	p = NULL;
 	(void)strtoul(result[2], &p, 10);
-	if (!*result[2] || *p)
+	if (errno || !*result[2] || *p)
 		goto parsefail;
+	errno = 0;
 	p = NULL;
 	proto = strtoul(result[0], &p, 10);
-	if (!*result[0] || *p)
+	if (errno || !*result[0] || *p)
 		goto protounsupp;
 	 
 	memset(&hints, 0, sizeof(hints));
@@ -2830,12 +3059,12 @@ conffilename(const char *s)
  *	if elapsed != NULL, append "in xxx.yyy seconds"
  *	if error != NULL, append ": " + error
  *
- * 	if doxferlog != 0, bytes != -1, and command is "get", "put",
+ *	if doxferlog != 0, bytes != -1, and command is "get", "put",
  *	or "append", syslog a wu-ftpd style xferlog entry
  */
 void
 logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
-	const struct timeval *elapsed, const char *error)
+    const struct timeval *elapsed, const char *error)
 {
 	char		 buf[MAXPATHLEN * 2 + 100], realfile[MAXPATHLEN];
 	const char	*r1, *r2;
@@ -2922,6 +3151,31 @@ logxfer(const char *command, off_t bytes, const char *file1, const char *file2,
 }
 
 /*
+ * Log the resource usage.
+ *
+ * XXX: more resource usage to logging?
+ */
+void
+logrusage(const struct rusage *rusage_before,
+    const struct rusage *rusage_after)
+{
+	struct timeval usrtime, systime;
+
+	if (logging <= 1)
+		return;
+
+	timersub(&rusage_after->ru_utime, &rusage_before->ru_utime, &usrtime);
+	timersub(&rusage_after->ru_stime, &rusage_before->ru_stime, &systime);
+	syslog(LOG_INFO, "%ld.%.03du %ld.%.03ds %ld+%ldio %ldpf+%ldw",
+	    usrtime.tv_sec, (int)(usrtime.tv_usec / 1000),
+	    systime.tv_sec, (int)(systime.tv_usec / 1000),
+	    rusage_after->ru_inblock - rusage_before->ru_inblock,
+	    rusage_after->ru_oublock - rusage_before->ru_oublock,
+	    rusage_after->ru_majflt - rusage_before->ru_majflt,
+	    rusage_after->ru_nswap - rusage_before->ru_nswap);
+}
+
+/*
  * Determine if `password' is valid for user given in `pw'.
  * Returns 2 if password expired, 1 if otherwise failed, 0 if ok
  */
@@ -2930,24 +3184,13 @@ checkpassword(const struct passwd *pwent, const char *password)
 {
 	char	*orig, *new;
 	time_t	 expire;
-#if HAVE_GETSPNAM
-	struct spwd *spw;
-#endif
 
 	expire = 0;
 	if (pwent == NULL)
 		return 1;
 
-#if HAVE_GETSPNAM
-	if ((spw = getspnam(pwent->pw_name)) == NULL)
-		return 1;
-	orig = spw->sp_pwdp;
-#else
 	orig = pwent->pw_passwd;	/* save existing password */
-#if HAVE_PW_EXPIRE
 	expire = pwent->pw_expire;
-#endif
-#endif /* HAVE_GETSPNAM */
 
 	if (orig[0] == '\0')		/* don't allow empty passwords */
 		return 1;
