@@ -245,6 +245,7 @@ initdevtable()
 
 		if (sscanf(linebuf, "%s\t%d\n", buf, &maj) == 2) {
 			*dp = (struct devdescription *)malloc(sizeof (**dp));
+			memset(*dp, 0, sizeof(**dp));
 			(*dp)->dev_name = ns(buf);
 			(*dp)->dev_major = maj;
 			dp = &(*dp)->dev_next;
