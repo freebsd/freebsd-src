@@ -188,9 +188,14 @@ MainParseArgs(int argc, char **argv)
 	int c;
 
 	optind = 1;	/* since we're called more than once */
-#define OPTFLAGS "BC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
+#define OPTFLAGS "ABC:D:E:I:PSV:Xd:ef:ij:km:nqrstv"
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
+
+		case 'A':
+			arch_fatal = FALSE;
+			MFLAGS_append("-A", NULL);
+			break;
 		case 'C':
 			if (chdir(optarg) == -1)
 				err(1, "chdir %s", optarg);
@@ -718,10 +723,9 @@ main(int argc, char **argv)
 		compatMake = TRUE;
 
 	/*
-	 * Initialize archive, target and suffix modules in preparation for
+	 * Initialize target and suffix modules in preparation for
 	 * parsing the makefile(s)
 	 */
-	Arch_Init();
 	Targ_Init();
 	Suff_Init();
 
