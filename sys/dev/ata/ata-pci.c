@@ -145,7 +145,6 @@ ata_pci_attach(device_t dev)
     ctlr->allocate = ata_pci_allocate;
     ctlr->dmainit = ata_pci_dmainit;
     ctlr->locking = ata_pci_locknoop;
-    ctlr->chipinit(dev);
 
 #ifdef __sparc64__
     if (!(cmd & PCIM_CMD_BUSMASTEREN)) {
@@ -165,6 +164,8 @@ ata_pci_attach(device_t dev)
     }
     else
 	device_printf(dev, "Busmastering DMA not supported\n");
+
+    ctlr->chipinit(dev);
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++)
