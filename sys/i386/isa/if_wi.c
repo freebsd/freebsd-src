@@ -73,7 +73,6 @@
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 #include <sys/ucred.h>
 #include <sys/socket.h>
 #include <sys/module.h>

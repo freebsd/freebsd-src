@@ -394,8 +394,6 @@ MALLOC_DECLARE(M_ZOMBIE);
 MALLOC_DECLARE(M_PARGS);
 #endif
 
-/* flags for suser_xxx() */
-#define PRISON_ROOT	1
 
 /* Handy macro to determine of p1 can mangle p2 */
 
@@ -501,9 +499,6 @@ void	schedclock __P((struct proc *));
 void	setrunnable __P((struct proc *));
 void	setrunqueue __P((struct proc *));
 void	sleepinit __P((void));
-int	suser __P((const struct proc *));
-int	suser_xxx __P((const struct ucred *cred, const struct proc *proc,
-    int flag));
 void	remrunqueue __P((struct proc *));
 void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;

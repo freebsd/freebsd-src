@@ -27,7 +27,6 @@
 #include <sys/kernel.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
-#include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/socket.h>
 #include <net/if.h>

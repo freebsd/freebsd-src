@@ -37,7 +37,6 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/poll.h>
-#include <sys/proc.h>
 #include <sys/select.h>
 #include <sys/random.h>
 #include <sys/vnode.h>

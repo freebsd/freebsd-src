@@ -42,7 +42,6 @@
 #include <sys/conf.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/dirent.h>

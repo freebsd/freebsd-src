@@ -199,7 +199,6 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/proc.h>
 #include <sys/bus.h>
 
 #include <sys/sysctl.h>

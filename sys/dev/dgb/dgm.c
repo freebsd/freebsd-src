@@ -49,7 +49,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/tty.h>
-#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
 #include <sys/fcntl.h>
