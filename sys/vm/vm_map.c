@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.22 1995/05/30 08:16:07 rgrimes Exp $
+ * $Id: vm_map.c,v 1.23 1995/07/13 08:48:26 davidg Exp $
  */
 
 /*
@@ -2231,11 +2231,14 @@ vm_map_simplify(map, start)
  *	vm_map_print:	[ debug ]
  */
 void
-vm_map_print(map, full)
-	register vm_map_t map;
+vm_map_print(imap, full, dummy3, dummy4)
+	/* db_expr_t */ int imap;
 	boolean_t full;
+	/* db_expr_t */ int dummy3;
+	char *dummy4;
 {
 	register vm_map_entry_t entry;
+	register vm_map_t map = (vm_map_t)imap;	/* XXX */
 
 	iprintf("%s map 0x%x: pmap=0x%x,ref=%d,nentries=%d,version=%d\n",
 	    (map->is_main_map ? "Task" : "Share"),
@@ -2270,7 +2273,8 @@ vm_map_print(map, full)
 			    (entry->prev->object.share_map !=
 				entry->object.share_map)) {
 				indent += 2;
-				vm_map_print(entry->object.share_map, full);
+				vm_map_print((int)entry->object.share_map,
+					     full, 0, (char *)0);
 				indent -= 2;
 			}
 		} else {
@@ -2287,7 +2291,8 @@ vm_map_print(map, full)
 			    (entry->prev->object.vm_object !=
 				entry->object.vm_object)) {
 				indent += 2;
-				vm_object_print(entry->object.vm_object, full);
+				vm_object_print((int)entry->object.vm_object,
+						full, 0, (char *)0);
 				indent -= 2;
 			}
 		}
