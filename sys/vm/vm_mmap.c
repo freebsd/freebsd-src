@@ -38,7 +38,7 @@
  * from: Utah $Hdr: vm_mmap.c 1.6 91/10/21$
  *
  *	@(#)vm_mmap.c	8.4 (Berkeley) 1/12/94
- * $Id: vm_mmap.c,v 1.86 1999/01/06 23:05:42 julian Exp $
+ * $Id: vm_mmap.c,v 1.87 1999/01/21 08:29:11 dillon Exp $
  */
 
 /*
@@ -178,15 +178,18 @@ mmap(p, uap)
 	    ((flags & MAP_ANON) && uap->fd != -1))
 		return (EINVAL);
 
-#ifdef VM_STACK
 	if (flags & MAP_STACK) {
+#ifdef VM_STACK
 		if ((uap->fd != -1) ||
 		    ((prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE)))
 			return (EINVAL);
 		flags |= MAP_ANON;
 		pos = 0;
-	}
+#else
+		return (EINVAL);
 #endif
+	}
+
 	/*
 	 * Align the file position to a page boundary,
 	 * and save its page offset component.
