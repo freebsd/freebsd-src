@@ -47,13 +47,7 @@
 void
 _spinunlock(spinlock_t *lck)
 {
-	_spinunlock_pthread(curthread, lck);
-}
-
-inline void
-_spinunlock_pthread(pthread_t pthread, spinlock_t *lck)
-{
-	if (umtx_unlock((struct umtx *)lck, pthread->thr_id))
+	if (umtx_unlock((struct umtx *)lck, curthread->thr_id))
 		abort();
 }
 
@@ -66,7 +60,8 @@ _spinunlock_pthread(pthread_t pthread, spinlock_t *lck)
 void
 _spinlock(spinlock_t *lck)
 {
-	_spinlock_pthread(curthread, lck);
+	if (umtx_lock((struct umtx *)lck, curthread->thr_id))
+		abort();
 }
 
 int
@@ -77,13 +72,6 @@ _spintrylock(spinlock_t *lck)
 	if (error != 0 && error != EBUSY)
 		abort();
 	return (error);
-}
-
-inline void
-_spinlock_pthread(pthread_t pthread, spinlock_t *lck)
-{
-	if (umtx_lock((struct umtx *)lck, pthread->thr_id))
-		abort();
 }
 
 /*
