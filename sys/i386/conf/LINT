@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.262 1996/06/10 00:50:34 alex Exp $
+#	$Id: LINT,v 1.263 1996/06/10 08:15:29 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -68,6 +68,16 @@ options		GPL_MATH_EMULATE	#Support for x87 emulation via
 # and choose functionality over speed (on the widest variety of systems).
 options		FAILSAFE
 
+
+# When this is set, copyin/copyout will use an unrolled loop using
+# floating point registers.  It makes copyin/copyout run 30-100%
+# faster on Pentiums and makes no difference or slower on non-Pentium
+# (including P6) systems.
+#
+# However, even when this is set, there is a run-time check for CPU
+# type so the routine will never be invoked for a wrong architecture.
+# It will become the default after some testing period.
+options		"I586_FAST_BCOPY"
 
 #
 # This directive defines a number of things:
