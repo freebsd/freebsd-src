@@ -180,11 +180,13 @@ edit_disklabel(int disk)
 		}
 
 		disp_fields(window, label_field, sizeof(label_field)/sizeof(struct field));
-		key = edit_line(window, label_field[cur_field].y,
-										label_field[cur_field].x,
-										label_field[cur_field].field,
-										label_field[cur_field].width,
-										label_field[cur_field].maxlen);
+		key = line_edit(window, label_field[cur_field].y,
+					label_field[cur_field].x,
+					label_field[cur_field].width,
+					label_field[cur_field].maxlen,
+					item_selected_attr,
+					1,
+					label_field[cur_field].field);
 		next = change_field(label_field[cur_field], key);
 		if (next == -1)
 			beep();
