@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: malloc.c,v 1.22 1997/03/18 07:54:24 phk Exp $
+ * $Id: malloc.c,v 1.23 1997/05/30 20:39:32 phk Exp $
  *
  */
 
@@ -72,14 +72,14 @@
 
 #ifdef _THREAD_SAFE
 #include <pthread.h>
-static pthread_mutex_t malloc_lock;
+#include "pthread_private.h"
+static struct pthread_mutex	_malloc_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t malloc_lock = &_malloc_lock;
 #define THREAD_LOCK()		pthread_mutex_lock(&malloc_lock)
 #define THREAD_UNLOCK()		pthread_mutex_unlock(&malloc_lock)
-#define THREAD_LOCK_INIT()	pthread_mutex_init(&malloc_lock, 0);
 #else
 #define THREAD_LOCK()
 #define THREAD_UNLOCK()
-#define THREAD_LOCK_INIT()
 #endif
 
 /*
@@ -453,8 +453,6 @@ malloc_init ()
 {
     char *p, b[64];
     int i, j;
-
-    THREAD_LOCK_INIT();
 
     INIT_MMAP();
 
