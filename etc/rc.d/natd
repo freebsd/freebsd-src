@@ -12,7 +12,20 @@
 name="natd"
 rcvar=`set_rcvar`
 command="/sbin/${name}"
+start_precmd="natd_precmd"
 start_cmd="natd_start"
+
+natd_precmd()
+{
+	if ! ${SYSCTL} net.inet.divert > /dev/null 2>&1; then
+		if ! kldload ipdivert; then
+			warn unable to load IPDIVERT module.
+			return 1
+		fi
+	fi
+
+	return 0
+}
 
 natd_start()
 {
