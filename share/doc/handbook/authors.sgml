@@ -39,6 +39,14 @@ and double quotes.
   <tt><htmlurl url='mailto:awebster@pubnix.net' 
   name='&lt;awebster@pubnix.net&gt;'></tt>">
 
+<!ENTITY a.tegge "Tor Egge 
+  <tt><htmlurl url='mailto:tegge@FreeBSD.ORG' 
+  name='&lt;tegge@FreeBSD.ORG&gt;'></tt>">
+
+<!ENTITY a.darrenr "Darren Reed 
+  <tt><htmlurl url='mailto:darrenr@FreeBSD.ORG' 
+  name='&lt;darrenr@FreeBSD.ORG&gt;'></tt>">
+
 <!ENTITY a.bde  "Bruce Evans      
   <tt><htmlurl url='mailto:bde@FreeBSD.ORG'
   name='&lt;bde@FreeBSD.ORG&gt;'></tt>">
