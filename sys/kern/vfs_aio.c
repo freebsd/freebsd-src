@@ -773,10 +773,7 @@ aio_daemon(void *uproc)
 	mycp = td->td_proc;
 	myvm = mycp->p_vmspace;
 
-	if (mycp->p_textvp) {
-		vrele(mycp->p_textvp);
-		mycp->p_textvp = NULL;
-	}
+	KASSERT(mycp->p_textvp == NULL, ("kthread has a textvp"));
 
 	/*
 	 * Allocate and ready the aio control info.  There is one aiop structure
@@ -814,9 +811,6 @@ aio_daemon(void *uproc)
 	enterpgrp(mycp, mycp->p_pid, newpgrp, newsess);
 	sx_xunlock(&proctree_lock);
 	mtx_lock(&Giant);
-
-	/* Mark special process type. */
-	mycp->p_flag |= P_SYSTEM;
 
 	/*
 	 * Wakeup parent process.  (Parent sleeps to keep from blasting away
