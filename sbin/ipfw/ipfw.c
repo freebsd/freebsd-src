@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.5 1997/06/23 22:34:24 julian Exp $
+ * $Id: ipfw.c,v 1.34.2.6 1997/07/25 03:15:04 brian Exp $
  *
  */
 
@@ -384,7 +384,7 @@ show_ipfw(struct ip_fw *chain)
 
 		printf(" icmptype");
 
-		for (type_index = 0; type_index < 256; ++type_index)
+		for (type_index = 0; type_index < IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8; ++type_index)
 			if (chain->fw_icmptypes[type_index / (sizeof(unsigned) * 8)] & 
 				(1U << (type_index % (sizeof(unsigned) * 8)))) {
 				printf("%c%d", first == 1 ? ' ' : ',', type_index);
@@ -697,8 +697,8 @@ fill_icmptypes(types, vp, fw_flg)
 		if ( *c != ',' && *c != '\0' )
 			show_usage("invalid ICMP type");
 
-		if (icmptype > 255)
-			show_usage("ICMP types are between 0 and 255 inclusive");
+		if (icmptype >= IP_FW_ICMPTYPES_DIM * sizeof(unsigned) * 8)
+			show_usage("ICMP type out of range");
 
 		types[icmptype / (sizeof(unsigned) * 8)] |= 
 			1 << (icmptype % (sizeof(unsigned) * 8));
