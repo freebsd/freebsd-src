@@ -37,7 +37,7 @@
  *
  *      @(#)bpf_filter.c	8.1 (Berkeley) 6/10/93
  *
- * $Id: bpf_filter.c,v 1.10 1998/10/31 10:45:03 dfr Exp $
+ * $Id: bpf_filter.c,v 1.11 1998/12/07 03:26:34 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -67,6 +67,9 @@
 
 #ifdef KERNEL
 #include <sys/mbuf.h>
+#endif
+#include <net/bpf.h>
+#ifdef KERNEL
 #define MINDEX(m, k) \
 { \
 	register int len = m->m_len; \
@@ -80,15 +83,16 @@
 	} \
 }
 
-static int	m_xhalf __P((struct mbuf *m, int k, int *err));
-static int	m_xword __P((struct mbuf *m, int k, int *err));
+static u_int16_t	m_xhalf __P((struct mbuf *m, bpf_u_int32 k, int *err));
+static u_int32_t	m_xword __P((struct mbuf *m, bpf_u_int32 k, int *err));
 
-static int
+static u_int32_t
 m_xword(m, k, err)
 	register struct mbuf *m;
-	register int k, *err;
+	register bpf_u_int32 k;
+	register int *err;
 {
-	register int len;
+	register size_t len;
 	register u_char *cp, *np;
 	register struct mbuf *m0;
 
@@ -113,27 +117,38 @@ m_xword(m, k, err)
 	switch (len - k) {
 
 	case 1:
-		return (cp[0] << 24) | (np[0] << 16) | (np[1] << 8) | np[2];
+		return
+		    ((u_int32_t)cp[0] << 24) |
+		    ((u_int32_t)np[0] << 16) |
+		    ((u_int32_t)np[1] << 8)  |
+		    (u_int32_t)np[2];
 
 	case 2:
-		return (cp[0] << 24) | (cp[1] << 16) | (np[0] << 8) |
-			np[1];
+		return
+		    ((u_int32_t)cp[0] << 24) |
+		    ((u_int32_t)cp[1] << 16) |
+		    ((u_int32_t)np[0] << 8) |
+		    (u_int32_t)np[1];
 
 	default:
-		return (cp[0] << 24) | (cp[1] << 16) | (cp[2] << 8) |
-			np[0];
+		return
+		    ((u_int32_t)cp[0] << 24) |
+		    ((u_int32_t)cp[1] << 16) |
+		    ((u_int32_t)cp[2] << 8) |
+		    (u_int32_t)np[0];
 	}
     bad:
 	*err = 1;
 	return 0;
 }
 
-static int
+static u_int16_t
 m_xhalf(m, k, err)
 	register struct mbuf *m;
-	register int k, *err;
+	register bpf_u_int32 k;
+	register int *err;
 {
-	register int len;
+	register size_t len;
 	register u_char *cp;
 	register struct mbuf *m0;
 
@@ -161,7 +176,6 @@ m_xhalf(m, k, err)
 }
 #endif
 
-#include <net/bpf.h>
 /*
  * Execute the filter program starting at pc on the packet p
  * wirelen is the length of the original packet
@@ -175,7 +189,7 @@ bpf_filter(pc, p, wirelen, buflen)
 	register u_int buflen;
 {
 	register u_int32_t A = 0, X = 0;
-	register int k;
+	register bpf_u_int32 k;
 	int32_t mem[BPF_MEMWORDS];
 
 	if (pc == 0)
@@ -203,7 +217,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_W|BPF_ABS:
 			k = pc->k;
-			if (k + sizeof(int32_t) > buflen) {
+			if (k > buflen || sizeof(int32_t) > buflen - k) {
 #ifdef KERNEL
 				int merr;
 
@@ -227,7 +241,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_H|BPF_ABS:
 			k = pc->k;
-			if (k + sizeof(int16_t) > buflen) {
+			if (k > buflen || sizeof(int16_t) > buflen - k) {
 #ifdef KERNEL
 				int merr;
 
@@ -271,7 +285,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_W|BPF_IND:
 			k = X + pc->k;
-			if (k + sizeof(int32_t) > buflen) {
+			if (pc->k > buflen || X > buflen - pc->k || sizeof(int32_t) > buflen - k) {
 #ifdef KERNEL
 				int merr;
 
@@ -295,7 +309,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_H|BPF_IND:
 			k = X + pc->k;
-			if (k + sizeof(int16_t) > buflen) {
+			if (X > buflen || pc->k > buflen - X || sizeof(int16_t) > buflen - k) {
 #ifdef KERNEL
 				int merr;
 
@@ -314,7 +328,7 @@ bpf_filter(pc, p, wirelen, buflen)
 
 		case BPF_LD|BPF_B|BPF_IND:
 			k = X + pc->k;
-			if (k >= buflen) {
+			if (pc->k >= buflen || X >= buflen - k) {
 #ifdef KERNEL
 				register struct mbuf *m;
 
@@ -520,10 +534,10 @@ bpf_validate(f, len)
 			register int from = i + 1;
 
 			if (BPF_OP(p->code) == BPF_JA) {
-				if (from + p->k >= len)
+				if (from >= len || p->k >= len - from)
 					return 0;
 			}
-			else if (from + p->jt >= len || from + p->jf >= len)
+			else if (from >= len || p->jt >= len - from || p->jf >= len - from)
 				return 0;
 		}
 		/*
@@ -532,7 +546,7 @@ bpf_validate(f, len)
 		if ((BPF_CLASS(p->code) == BPF_ST ||
 		     (BPF_CLASS(p->code) == BPF_LD &&
 		      (p->code & 0xe0) == BPF_MEM)) &&
-		    (p->k >= BPF_MEMWORDS))
+		    p->k >= BPF_MEMWORDS)
 			return 0;
 		/*
 		 * Check for constant division by 0.
