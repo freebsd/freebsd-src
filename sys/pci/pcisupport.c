@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.21 1995/09/14 13:13:33 se Exp $
+**  $Id: pcisupport.c,v 1.22 1995/09/14 17:26:24 se Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -128,20 +128,20 @@ chipset_probe (pcici_t tag, pcidi_t type)
 
 #define M_EQ 0  /* mask and return true if equal */
 #define M_NE 1  /* mask and return true if not equal */
-#define TRUE 2  /* don't read config, always true */
+#define M_TR 2  /* don't read config, always true */
 
 static const struct condmsg conf82425ex[] =
 {
-    { 0x00, 0x00, 0x00, TRUE, "\tClock " },
+    { 0x00, 0x00, 0x00, M_TR, "\tClock " },
     { 0x50, 0x06, 0x00, M_EQ, "25" },
     { 0x50, 0x06, 0x02, M_EQ, "33" },
     { 0x50, 0x04, 0x04, M_EQ, "??", },
-    { 0x00, 0x00, 0x00, TRUE, "MHz, L1 Cache " },
+    { 0x00, 0x00, 0x00, M_TR, "MHz, L1 Cache " },
     { 0x50, 0x01, 0x00, M_EQ, "Disabled\n" },
     { 0x50, 0x09, 0x01, M_EQ, "Write-through\n" },
     { 0x50, 0x09, 0x09, M_EQ, "Write-back\n" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\tL2 Cache " },
+    { 0x00, 0x00, 0x00, M_TR, "\tL2 Cache " },
     { 0x52, 0x07, 0x00, M_EQ, "Disabled" },
     { 0x52, 0x0f, 0x01, M_EQ, "64KB Write-through" },
     { 0x52, 0x0f, 0x02, M_EQ, "128KB Write-through" },
@@ -162,27 +162,27 @@ static const struct condmsg conf82425ex[] =
     { 0x53, 0x18, 0x10, M_EQ, "/?-?-?-?\n" },
     { 0x53, 0x18, 0x18, M_EQ, "/2-1-1-1\n" },
 
-    { 0x56, 0x00, 0x00, TRUE, "\tDRAM: " },
+    { 0x56, 0x00, 0x00, M_TR, "\tDRAM: " },
     { 0x56, 0x02, 0x02, M_EQ, "Fast Code Read, " },
     { 0x56, 0x04, 0x04, M_EQ, "Fast Data Read, " },
     { 0x56, 0x08, 0x08, M_EQ, "Fast Write, " },
     { 0x57, 0x20, 0x20, M_EQ, "Pipelined CAS" },
     { 0x57, 0x2e, 0x00, M_NE, "\n\t" },
-    { 0x57, 0x00, 0x00, TRUE, "Timing: RAS: " },
+    { 0x57, 0x00, 0x00, M_TR, "Timing: RAS: " },
     { 0x57, 0x07, 0x00, M_EQ, "4" },
     { 0x57, 0x07, 0x01, M_EQ, "3" },
     { 0x57, 0x07, 0x02, M_EQ, "2" },
     { 0x57, 0x07, 0x04, M_EQ, "1.5" },
     { 0x57, 0x07, 0x05, M_EQ, "1" },
-    { 0x57, 0x00, 0x00, TRUE, " Clocks, CAS Read: " },
+    { 0x57, 0x00, 0x00, M_TR, " Clocks, CAS Read: " },
     { 0x57, 0x18, 0x00, M_EQ, "3/1", },
     { 0x57, 0x18, 0x00, M_EQ, "2/1", },
     { 0x57, 0x18, 0x00, M_EQ, "1.5/0.5", },
     { 0x57, 0x18, 0x00, M_EQ, "1/1", },
-    { 0x57, 0x00, 0x00, TRUE, ", CAS Write: " },
+    { 0x57, 0x00, 0x00, M_TR, ", CAS Write: " },
     { 0x57, 0x20, 0x00, M_EQ, "2/1", },
     { 0x57, 0x20, 0x20, M_EQ, "1/1", },
-    { 0x57, 0x00, 0x00, TRUE, "\n" },
+    { 0x57, 0x00, 0x00, M_TR, "\n" },
 
     { 0x40, 0x01, 0x01, M_EQ, "\tCPU-to-PCI Byte Merging\n" },
     { 0x40, 0x02, 0x02, M_EQ, "\tCPU-to-PCI Bursting\n" },
@@ -201,16 +201,16 @@ static const struct condmsg conf82425ex[] =
 
 static const struct condmsg conf82424zx[] =
 {
-    { 0x00, 0x00, 0x00, TRUE, "\tCPU: " },
+    { 0x00, 0x00, 0x00, M_TR, "\tCPU: " },
     { 0x50, 0xe0, 0x00, M_EQ, "486DX" },
     { 0x50, 0xe0, 0x20, M_EQ, "486SX" },
     { 0x50, 0xe0, 0x40, M_EQ, "486DX2 or 486DX4" },
     { 0x50, 0xe0, 0x80, M_EQ, "Overdrive (writeback)" },
 
-    { 0x00, 0x00, 0x00, TRUE, ", bus=" },
+    { 0x00, 0x00, 0x00, M_TR, ", bus=" },
     { 0x50, 0x03, 0x00, M_EQ, "25MHz" },
     { 0x50, 0x03, 0x01, M_EQ, "33MHz" },
-    { 0x53, 0x01, 0x01, TRUE, ", CPU->Memory posting "},
+    { 0x53, 0x01, 0x01, M_TR, ", CPU->Memory posting "},
     { 0x53, 0x01, 0x00, M_EQ, "OFF" },
     { 0x53, 0x01, 0x01, M_EQ, "ON" },
 
@@ -219,7 +219,7 @@ static const struct condmsg conf82424zx[] =
     { 0x56, 0x10, 0x00, M_NE, " NO DRAM parity!" },
     { 0x55, 0x04, 0x04, M_EQ, "\n\tWarning: refresh OFF! " },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n\tCache: " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCache: " },
     { 0x52, 0x01, 0x00, M_EQ, "None" },
     { 0x52, 0xc1, 0x01, M_EQ, "64KB" },
     { 0x52, 0xc1, 0x41, M_EQ, "128KB" },
@@ -232,7 +232,7 @@ static const struct condmsg conf82424zx[] =
     { 0x52, 0x05, 0x01, M_EQ, "3-1-1-1" },
     { 0x52, 0x05, 0x05, M_EQ, "2-1-1-1" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n\tDRAM:" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tDRAM:" },
     { 0x55, 0x43, 0x00, M_NE, " page mode" },
     { 0x55, 0x02, 0x02, M_EQ, " code fetch" },
     { 0x55, 0x43, 0x43, M_EQ, "," },
@@ -243,21 +243,21 @@ static const struct condmsg conf82424zx[] =
     { 0x55, 0x01, 0x01, M_EQ, " write" },
     { 0x55, 0x43, 0x00, M_NE, "," },
 
-    { 0x00, 0x00, 0x00, TRUE, " memory clocks=" },
+    { 0x00, 0x00, 0x00, M_TR, " memory clocks=" },
     { 0x55, 0x20, 0x00, M_EQ, "X-2-2-2" },
     { 0x55, 0x20, 0x20, M_EQ, "X-1-2-1" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n\tCPU->PCI: posting " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCPU->PCI: posting " },
     { 0x53, 0x02, 0x00, M_NE, "ON" },
     { 0x53, 0x02, 0x00, M_EQ, "OFF" },
-    { 0x00, 0x00, 0x00, TRUE, ", burst mode " },
+    { 0x00, 0x00, 0x00, M_TR, ", burst mode " },
     { 0x54, 0x02, 0x00, M_NE, "ON" },
     { 0x54, 0x02, 0x00, M_EQ, "OFF" },
-    { 0x00, 0x00, 0x00, TRUE, "\n\tPCI->Memory: posting " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tPCI->Memory: posting " },
     { 0x54, 0x01, 0x00, M_NE, "ON" },
     { 0x54, 0x01, 0x00, M_EQ, "OFF" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n" },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
 
 /* end marker */
     { 0 }
@@ -265,7 +265,7 @@ static const struct condmsg conf82424zx[] =
 
 static const struct condmsg conf82434lx[] =
 {
-    { 0x00, 0x00, 0x00, TRUE, "\tCPU: " },
+    { 0x00, 0x00, 0x00, M_TR, "\tCPU: " },
     { 0x50, 0xe3, 0x82, M_EQ, "Pentium, 60MHz" },
     { 0x50, 0xe3, 0x83, M_EQ, "Pentium, 66MHz" },
     { 0x50, 0xe3, 0xa2, M_EQ, "Pentium, 90MHz" },
@@ -273,7 +273,7 @@ static const struct condmsg conf82434lx[] =
     { 0x50, 0xc2, 0x82, M_NE, "(unknown)" },
     { 0x50, 0x04, 0x00, M_EQ, " (primary cache OFF)" },
 
-    { 0x53, 0x01, 0x01, TRUE, ", CPU->Memory posting "},
+    { 0x53, 0x01, 0x01, M_TR, ", CPU->Memory posting "},
     { 0x53, 0x01, 0x01, M_NE, "OFF" },
     { 0x53, 0x01, 0x01, M_EQ, "ON" },
 
@@ -283,7 +283,7 @@ static const struct condmsg conf82434lx[] =
     { 0x57, 0x20, 0x00, M_NE, "\n\tWarning: DRAM parity mask!" },
     { 0x57, 0x01, 0x00, M_EQ, "\n\tWarning: refresh OFF! " },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n\tCache: " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCache: " },
     { 0x52, 0x01, 0x00, M_EQ, "None" },
     { 0x52, 0x81, 0x01, M_EQ, "" },
     { 0x52, 0xc1, 0x81, M_EQ, "256KB" },
@@ -300,10 +300,10 @@ static const struct condmsg conf82434lx[] =
     { 0x52, 0x09, 0x09, M_EQ, " byte-control" },
     { 0x52, 0x05, 0x05, M_EQ, " powersaver" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n\tDRAM:" },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tDRAM:" },
     { 0x57, 0x10, 0x00, M_EQ, " page mode" },
 
-    { 0x00, 0x00, 0x00, TRUE, " memory clocks=" },
+    { 0x00, 0x00, 0x00, M_TR, " memory clocks=" },
     { 0x57, 0xc0, 0x00, M_EQ, "X-4-4-4 (70ns)" },
     { 0x57, 0xc0, 0x40, M_EQ, "X-4-4-4/X-3-3-3 (60ns)" },
     { 0x57, 0xc0, 0x80, M_EQ, "???" },
@@ -311,16 +311,16 @@ static const struct condmsg conf82434lx[] =
     { 0x58, 0x02, 0x02, M_EQ, ", RAS-wait" },
     { 0x58, 0x01, 0x01, M_EQ, ", CAS-wait" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n\tCPU->PCI: posting " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tCPU->PCI: posting " },
     { 0x53, 0x02, 0x02, M_EQ, "ON" },
     { 0x53, 0x02, 0x00, M_EQ, "OFF" },
-    { 0x00, 0x00, 0x00, TRUE, ", burst mode " },
+    { 0x00, 0x00, 0x00, M_TR, ", burst mode " },
     { 0x54, 0x02, 0x00, M_NE, "ON" },
     { 0x54, 0x02, 0x00, M_EQ, "OFF" },
-    { 0x54, 0x04, 0x00, TRUE, ", PCI clocks=" },
+    { 0x54, 0x04, 0x00, M_TR, ", PCI clocks=" },
     { 0x54, 0x04, 0x00, M_EQ, "2-2-2-2" },
     { 0x54, 0x04, 0x00, M_NE, "2-1-1-1" },
-    { 0x00, 0x00, 0x00, TRUE, "\n\tPCI->Memory: posting " },
+    { 0x00, 0x00, 0x00, M_TR, "\n\tPCI->Memory: posting " },
     { 0x54, 0x01, 0x00, M_NE, "ON" },
     { 0x54, 0x01, 0x00, M_EQ, "OFF" },
 
@@ -329,7 +329,7 @@ static const struct condmsg conf82434lx[] =
     { 0x57, 0x03, 0x01, M_EQ, " RAS#Only" },
     { 0x57, 0x05, 0x05, M_EQ, " BurstOf4" },
 
-    { 0x00, 0x00, 0x00, TRUE, "\n" },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
 
 /* end marker */
     { 0 }
@@ -337,7 +337,7 @@ static const struct condmsg conf82434lx[] =
 
 static const struct condmsg conf82378[] =
 {
-    { 0x00, 0x00, 0x00, TRUE, "\tBus Modes:" },
+    { 0x00, 0x00, 0x00, M_TR, "\tBus Modes:" },
     { 0x41, 0x04, 0x04, M_EQ, " Bus Park," },
     { 0x41, 0x02, 0x02, M_EQ, " Bus Lock," },
     { 0x41, 0x02, 0x00, M_EQ, " Resource Lock," },
@@ -363,7 +363,7 @@ static const struct condmsg conf82378[] =
     { 0x4f, 0x30, 0x00, M_EQ, "\n\tParallel Port: LPT1 (3BCh-3BFh)" },
     { 0x4f, 0x30, 0x04, M_EQ, "\n\tParallel Port: LPT2 (378h-37Fh)" },
     { 0x4f, 0x30, 0x20, M_EQ, "\n\tParallel Port: LPT3 (278h-27Fh)" },
-    { 0x00, 0x00, 0x00, TRUE, "\n" },
+    { 0x00, 0x00, 0x00, M_TR, "\n" },
 
 /* end marker */
     { 0 }
@@ -383,7 +383,7 @@ writeconfig (pcici_t config_id, const struct condmsg *tbl)
 {
     while (tbl->text) {
 	int cond = 0;
-	if (tbl->flags == TRUE) {
+	if (tbl->flags == M_TR) {
 	    cond = 1;
 	} else {
 	    unsigned char v = (unsigned char) confread(config_id, tbl->port);
