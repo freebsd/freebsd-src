@@ -25,12 +25,12 @@ ioctl_includes=`
 		egrep -v '^(netns)/' |
 		xargs egrep -l \
 '^#[ 	]*define[ 	]+[A-Za-z_][A-Za-z0-9_]*[ 	]+_IO[^a-z0-9_]' |
-		sed -e 's/^/#include </' -e s'/$/>/'
+		awk '{printf("#include <%s>\\\\n", $1)}'
 `
 
-echo "$ioctl_includes" |
+awk -v x="$ioctl_includes" 'BEGIN {print x}' |
 	gcc -E -I$1 -dM - |
-	awk -v ioctl_includes="`echo $ioctl_includes`" -v use_switch="$use_switch" '
+	awk -v ioctl_includes="$ioctl_includes" -v use_switch="$use_switch" '
 BEGIN {
 	print "/* XXX obnoxious prerequisites. */"
 	print "#define COMPAT_43"
