@@ -36,6 +36,7 @@ UNIX Papers
 
 .IP
 .tl '\fBBerkeley Pascal''px\fP'
+.if !r.U .nr .U 0
 .if \n(.U \{\
 .br
 .>> <a href="px.html">px.html</a>
