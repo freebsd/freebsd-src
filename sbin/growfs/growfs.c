@@ -1244,7 +1244,8 @@ updcsloc(time_t utime, int fsi, int fso, int Nflag)
 	if(bp == NULL) {
 		errx(1, "malloc failed");
 	}
-	memset((char *)bp, 0, sizeof(struct gfs_bpp));
+	memset((char *)bp, 0, ((dupper-odupper)/sblock.fs_frag+2)*
+	    sizeof(struct gfs_bpp));
 
 	/*
 	 * Lock all new frags needed for the cylinder group summary. This  is
