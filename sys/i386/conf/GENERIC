@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.45.2.1 1995/06/01 04:57:15 rgrimes Exp $
+#	$Id: GENERIC,v 1.45.2.2 1995/06/05 17:15:42 davidg Exp $
 #
 
 machine		"i386"
@@ -108,7 +108,8 @@ pseudo-device	loop
 pseudo-device	ether
 pseudo-device	log
 pseudo-device	sl	1
-pseudo-device	ppp	1
+# ijppp uses tun instead of ppp device
+#pseudo-device	ppp	1
+pseudo-device	tun	1
 pseudo-device	pty	16
 pseudo-device	gzip		# Exec gzipped a.out's
-pseudo-device	tun	1
