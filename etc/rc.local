@@ -23,9 +23,9 @@ if [ X"${kerberos_server}" = X"YES" ]; then
 	fi
 fi
 
-# Start  if we're an NIS server.
+# Start ypserv if we're an NIS server.
 if [ X"${nis_serverflags}" != X"NO" ]; then
-        echo -n ' ypserv'; ypserv $nis_yppasswddflags
+        echo -n ' ypserv'; ypserv $nis_serverflags
 fi
 
 # Run yppasswdd only on the NIS master server
@@ -33,9 +33,9 @@ if [ X"${yppasswddflags}" != X"NO" ]; then
         echo -n ' yppasswdd'; yppasswdd $yppasswddflags
 fi
 
-# Run ypbind if we're an NIS client
-if [ X"${nis_client}" = X"YES" ]; then
-        echo -n ' ypbind'; ypbind
+# Start ypbind if we're an NIS client
+if [ X"${nis_clientflags}" != X"NO" ]; then
+        echo -n ' ypbind'; ypbind $nis_clientflags
 fi
 
 # For loading fonts/keyboard example look in /usr/share/examples/syscons
