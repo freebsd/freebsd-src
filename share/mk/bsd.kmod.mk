@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.34 1997/04/30 20:56:37 bde Exp $
+#	$Id: bsd.kmod.mk,v 1.35 1997/04/30 21:54:01 fsmp Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 # <bsd.kmod.mk> includes the file named "../Makefile.inc" if it exists,
@@ -97,7 +97,7 @@ MODUNLOAD?=	/sbin/modunload
 # A temporary fix to survive SMP changes.   
 #
 CFLAGS+=	-I.
-CLEANFILES=	${SMPHDRS}
+CLEANFILES+=	${SMPHDRS}
 SMPHDRS=	opt_smp.h
 
 beforedepend: ${SMPHDRS}
