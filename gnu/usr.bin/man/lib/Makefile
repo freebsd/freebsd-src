@@ -9,7 +9,7 @@ libman.a::	${.CURDIR}/config.h
 install:
 	@echo -n
 
-${.CURDIR}/config.h:	${.CURDIR}/config.h_dist ../Makefile.inc
+depend ${.CURDIR}/config.h:	${.CURDIR}/config.h_dist ../Makefile.inc
 	sed -e 's,%apropos%,${apropos},' -e 's,%whatis%,${whatis},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%nroff%,${nroff},' -e 's,%tbl%,${tbl},' \
