@@ -3885,7 +3885,6 @@ prep_headers (abfd)
   Elf_Internal_Ehdr *i_ehdrp;	/* Elf file header, internal form */
   Elf_Internal_Phdr *i_phdrp = 0; /* Program header table, internal form */
   Elf_Internal_Shdr **i_shdrp;	/* Section header table, internal form */
-  int count;
   struct elf_strtab_hash *shstrtab;
   struct elf_backend_data *bed = get_elf_backend_data (abfd);
 
@@ -3909,19 +3908,12 @@ prep_headers (abfd)
   i_ehdrp->e_ident[EI_VERSION] = bed->s->ev_current;
 
   i_ehdrp->e_ident[EI_OSABI] = ELFOSABI_FREEBSD;
-  i_ehdrp->e_ident[EI_ABIVERSION] = 0;
-
-  for (count = EI_PAD; count < EI_NIDENT; count++)
-    i_ehdrp->e_ident[count] = 0;
-
-
 #ifdef WANT_OLD_BRANDELF_METHOD
 #define _OLD_EI_BRAND_OFFSET 8
 #define _OLD_BRANDING	"FreeBSD"
   strncpy((char *) &i_ehdrp->e_ident[_OLD_EI_BRAND_OFFSET], _OLD_BRANDING,
 	  EI_NIDENT-_OLD_EI_BRAND_OFFSET);
 #endif
-
 
   if ((abfd->flags & DYNAMIC) != 0)
     i_ehdrp->e_type = ET_DYN;
