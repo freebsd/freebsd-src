@@ -527,12 +527,12 @@
 			    const struct kevent *changelist, int nchanges, \
 			    struct kevent *eventlist, int nevents, \
 			    const struct timespec *timeout); }
-364	STD	BSD	{ int __cap_get_proc(struct cap *cap_p); }
-365	STD	BSD	{ int __cap_set_proc(struct cap *cap_p); }
-366	STD	BSD	{ int __cap_get_fd(int fd, struct cap *cap_p); }
-367	STD	BSD	{ int __cap_get_file(const char *path_p, struct cap *cap_p); }
-368	STD	BSD	{ int __cap_set_fd(int fd, struct cap *cap_p); }
-369	STD	BSD	{ int __cap_set_file(const char *path_p, struct cap *cap_p); }
+364	UNIMPL	BSD	__cap_get_proc
+365	UNIMPL	BSD	__cap_set_proc
+366	UNIMPL	BSD	__cap_get_fd
+367	UNIMPL	BSD	__cap_get_file
+368	UNIMPL	BSD	__cap_set_fd
+369	UNIMPL	BSD	__cap_set_file
 370	NODEF	NOHIDE	lkmressys lkmressys nosys_args int
 371	STD	BSD	{ int extattr_set_fd(int fd, int attrnamespace, \
 			    const char *attrname, void *data, \
