@@ -447,15 +447,14 @@ again:
 		nextvp = TAILQ_NEXT(vp, v_nmntvnodes);
 		
 		mtx_unlock(&mntvnode_mtx);
-		mtx_lock(&vp->v_interlock);
-		if (vp->v_type == VNON || vp->v_writecount == 0) {
-			mtx_unlock(&vp->v_interlock);
-			mtx_lock(&mntvnode_mtx);
-			continue;
-		}
-		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
+		if (vget(vp, LK_EXCLUSIVE, td)) {
 			mtx_lock(&mntvnode_mtx);
 			goto again;
+		}
+		if (vp->v_type == VNON || vp->v_writecount == 0) {
+			vput(vp);
+			mtx_lock(&mntvnode_mtx);
+			continue;
 		}
 		error = getinoquota(VTOI(vp));
 		vput(vp);
