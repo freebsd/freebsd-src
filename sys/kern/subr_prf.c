@@ -426,10 +426,7 @@ snprintf_func(int ch, void *arg)
  * The buffer pointed to by `nbuf' must have length >= MAXNBUF.
  */
 static char *
-ksprintn(nbuf, num, base, lenp)
-	char *nbuf;
-	uintmax_t num;
-	int base, *lenp;
+ksprintn(char *nbuf, uintmax_t num, int base, int *lenp)
 {
 	char *p;
 
