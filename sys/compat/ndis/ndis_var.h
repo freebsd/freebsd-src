@@ -830,6 +830,17 @@ enum ndis_interrupt_mode {
 
 typedef enum ndis_interrupt_mode ndis_interrupt_mode;
 
+struct ndis_work_item;
+
+typedef void (*ndis_proc)(struct ndis_work_item *, void *);
+
+struct ndis_work_item {
+	void			*nwi_ctx;
+	ndis_proc		nwi_func;
+	uint8_t			nwi_wraprsvd[sizeof(void *) * 8];
+};
+
+typedef struct ndis_work_item ndis_work_item;
 
 struct ndis_buffer {
 	struct ndis_buffer	*nb_next;
