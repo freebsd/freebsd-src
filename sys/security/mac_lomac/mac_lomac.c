@@ -2716,4 +2716,5 @@ static struct mac_policy_ops mac_lomac_ops =
 };
 
 MAC_POLICY_SET(&mac_lomac_ops, mac_lomac, "TrustedBSD MAC/LOMAC",
-    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS, &mac_lomac_slot);
+    MPC_LOADTIME_FLAG_NOTLATE | MPC_LOADTIME_FLAG_LABELMBUFS,
+    &mac_lomac_slot);
