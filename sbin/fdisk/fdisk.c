@@ -32,6 +32,7 @@ static const char rcsid[] =
 #include <sys/disk.h>
 #include <sys/disklabel.h>
 #include <sys/diskmbr.h>
+#include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
@@ -79,7 +80,7 @@ struct mboot {
 	unsigned char padding[2]; /* force the longs to be long aligned */
   	unsigned char *bootinst;  /* boot code */
   	off_t bootinst_size;
-	struct	dos_partition parts[4];
+	struct	dos_partition parts[NDOSPART];
 };
 
 static struct mboot mboot;
@@ -87,7 +88,6 @@ static int fd, fdw;
 
 
 #define ACTIVE 0x80
-#define BOOT_MAGIC 0xAA55
 
 static uint dos_cyls;
 static uint dos_heads;
@@ -501,7 +501,7 @@ init_boot(void)
 	if ((mboot.bootinst = malloc(mboot.bootinst_size)) == NULL)
 		errx(1, "unable to allocate boot block buffer");
 	memset(mboot.bootinst, 0, mboot.bootinst_size);
-	*(uint16_t *)(void *)&mboot.bootinst[MBRSIGOFF] = BOOT_MAGIC;
+	le16enc(&mboot.bootinst[DOSMAGICOFFSET], DOSMAGIC);
 #endif
 }
 
@@ -809,6 +809,8 @@ get_params()
 static int
 read_s0()
 {
+	int i;
+
 	mboot.bootinst_size = secsize;
 	if (mboot.bootinst != NULL)
 		free(mboot.bootinst);
@@ -821,31 +823,31 @@ read_s0()
 		warnx("can't read fdisk partition table");
 		return -1;
 	}
-	if (*(uint16_t *)(void *)&mboot.bootinst[MBRSIGOFF] != BOOT_MAGIC) {
+	if (le16dec(&mboot.bootinst[DOSMAGICOFFSET]) != DOSMAGIC) {
 		warnx("invalid fdisk partition table found");
 		/* So should we initialize things */
 		return -1;
 	}
-	memcpy(mboot.parts, &mboot.bootinst[DOSPARTOFF], sizeof(mboot.parts));
+	for (i = 0; i < NDOSPART; i++)
+		dos_partition_dec(
+		    &mboot.bootinst[DOSPARTOFF + i * DOSPARTSIZE],
+		    &mboot.parts[i]);
 	return 0;
 }
 
 static int
 write_s0()
 {
-	int	sector;
+	int	sector, i;
 
 	if (iotest) {
 		print_s0(-1);
 		return 0;
 	}
-	memcpy(&mboot.bootinst[DOSPARTOFF], mboot.parts, sizeof(mboot.parts));
-	/*
-	 * write enable label sector before write (if necessary),
-	 * disable after writing.
-	 * needed if the disklabel protected area also protects
-	 * sector 0. (e.g. empty disk)
-	 */
+	for(i = 0; i < NDOSPART; i++)
+		dos_partition_enc(&mboot.bootinst[DOSPARTOFF + i * DOSPARTSIZE],
+		    &mboot.parts[i]);
+	le16enc(&mboot.bootinst[DOSMAGICOFFSET], DOSMAGIC);
 	for(sector = 0; sector < mboot.bootinst_size / secsize; sector++) 
 		if (write_disk(sector,
 			       &mboot.bootinst[sector * secsize]) == -1) {
