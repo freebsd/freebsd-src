@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2003
+.Dd July 10, 2004
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -477,6 +477,11 @@ settings are not observed for new
 connection slow starts, but they are still used for slow starts
 that occur when the connection has been idle and starts sending
 again.
+.It Va sack.enable
+Enable support for RFC 2018, TCP Selective Acknowledgment option,
+which allows the receiver to inform the sender about all successfully
+arrived segments, allowing the sender to retransmit the missing segments
+only.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
