@@ -74,6 +74,7 @@ MAN=	aac.4 \
 	lp.4 \
 	lpbb.4 \
 	lpt.4 \
+	maestro3.4 \
 	md.4 \
 	mem.4 \
 	mlx.4 \
