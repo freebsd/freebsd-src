@@ -477,7 +477,7 @@ eni_pci_attach ( pcici_t config_id, int unit )
 	/*
 	 * Copy MAC address to PIF and config structures
 	 */
-	KM_COPY ( (caddr_t)&eup->eu_seeprom[SEPROM_MAC_OFF],
+	bcopy ( (caddr_t)&eup->eu_seeprom[SEPROM_MAC_OFF],
 	    (caddr_t)&eup->eu_pif.pif_macaddr, sizeof(struct mac_addr) );
 	eup->eu_config.ac_macaddr = eup->eu_pif.pif_macaddr;
 
