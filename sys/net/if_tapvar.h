@@ -54,6 +54,8 @@ struct tap_softc {
 #define TAP_READY       (TAP_OPEN|TAP_INITED)
 #define	TAP_VMNET	(1 << 4)
 
+	u_int8_t 	ether_addr[ETHER_ADDR_LEN]; /* ether addr of the remote side */
+
 	pid_t		 tap_pid;		/* PID of process to open    */
 	struct sigio	*tap_sigio;		/* information for async I/O */
 	struct selinfo	 tap_rsel;		/* read select               */

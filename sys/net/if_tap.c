@@ -284,6 +284,8 @@ tapopen(dev, flag, mode, p)
 	if (tp->tap_flags & TAP_OPEN)
 		return (EBUSY);
 
+	bcopy(tp->arpcom.ac_enaddr, tp->ether_addr, sizeof(tp->ether_addr));
+
 	tp->tap_pid = p->p_pid;
 	tp->tap_flags |= TAP_OPEN;
 	taprefcnt ++;
@@ -610,15 +612,13 @@ tapioctl(dev, cmd, data, flag, p)
 			splx(s);
 		} break;
 
-		case OSIOCGIFADDR:	/* get MAC address */
+		case OSIOCGIFADDR:	/* get MAC address of the remote side */
 		case SIOCGIFADDR:
-			bcopy(tp->arpcom.ac_enaddr, data, ETHER_ADDR_LEN);
+			bcopy(tp->ether_addr, data, sizeof(tp->ether_addr));
 		break;
 
-		case SIOCSIFADDR:	/* set MAC address */
-			s = splimp();
-			bcopy(data, tp->arpcom.ac_enaddr, ETHER_ADDR_LEN);
-			splx(s);
+		case SIOCSIFADDR:	/* set MAC address of the remote side */
+			bcopy(data, tp->ether_addr, sizeof(tp->ether_addr));
 		break;
 
 		default:
