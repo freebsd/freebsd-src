@@ -83,7 +83,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 	if (name[0] <= 0 || name[0] > if_index)
 		return ENOENT;
 
-	ifp = ifnet_addrs[name[0] - 1]->ifa_ifp;
+	ifp = ifaddr_byindex(name[0])->ifa_ifp;
 
 	switch(name[1]) {
 	default:

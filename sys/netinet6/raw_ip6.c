@@ -375,7 +375,7 @@ rip6_output(m, va_alist)
 		 */
 		if (optp && (pi = optp->ip6po_pktinfo) && pi->ipi6_ifindex) {
 			ip6->ip6_dst.s6_addr16[1] = htons(pi->ipi6_ifindex);
-			oifp = ifindex2ifnet[pi->ipi6_ifindex];
+			oifp = ifnet_byindex(pi->ipi6_ifindex);
 		} else if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst) &&
 			 in6p->in6p_moptions &&
 			 in6p->in6p_moptions->im6o_multicast_ifp) {
@@ -410,7 +410,7 @@ rip6_output(m, va_alist)
 		}
 		ip6->ip6_src = *in6a;
 		if (in6p->in6p_route.ro_rt)
-			oifp = ifindex2ifnet[in6p->in6p_route.ro_rt->rt_ifp->if_index];
+			oifp = ifnet_byindex(in6p->in6p_route.ro_rt->rt_ifp->if_index);
 	}
 	ip6->ip6_flow = (ip6->ip6_flow & ~IPV6_FLOWINFO_MASK) |
 		(in6p->in6p_flowinfo & IPV6_FLOWINFO_MASK);

@@ -1515,7 +1515,7 @@ ip_multicast_if(a, ifindexp)
 		ifindex = ntohl(a->s_addr) & 0xffffff;
 		if (ifindex < 0 || if_index < ifindex)
 			return NULL;
-		ifp = ifindex2ifnet[ifindex];
+		ifp = ifnet_byindex(ifindex);
 		if (ifindexp)
 			*ifindexp = ifindex;
 	} else {

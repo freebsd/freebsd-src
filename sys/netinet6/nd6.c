@@ -183,7 +183,7 @@ nd6_ifattach(ifp)
 	if (ND.basereachable)
 		return;
 
-	ND.linkmtu = ifindex2ifnet[ifp->if_index]->if_mtu;
+	ND.linkmtu = ifnet_byindex(ifp->if_index)->if_mtu;
 	ND.chlim = IPV6_DEFHLIM;
 	ND.basereachable = REACHABLE_TIME;
 	ND.reachable = ND_COMPUTE_RTIME(ND.basereachable);
