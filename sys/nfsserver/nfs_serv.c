@@ -954,7 +954,7 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		nfsm_adj(mb, len - tlen, tlen - cnt);
 	if (v3) {
 		*tl++ = txdr_unsigned(cnt);
-		if (len < reqlen)
+		if (cnt < reqlen)
 			*tl++ = nfsrv_nfs_true;
 		else
 			*tl++ = nfsrv_nfs_false;
