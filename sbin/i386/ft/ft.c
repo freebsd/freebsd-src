@@ -427,7 +427,7 @@ do_write(void)
 	/* ftfilt vol*xx yyyyyyyyyy note56789012345678  */
 	/* 01234567890123456789012345678901234567890123 */
 
-	sprintf(tmpstr, "ftfilt vol%s%02d %010d %s",
+	sprintf(tmpstr, "ftfilt vol%s%02d %010ld %s",
 		(tvlast) ? "*" : " ", tvno, tvsize, tvnote);
 	strncpy(hptr->qh_tname, tmpstr, 44);
 	UL_VAL(hptr->qh_chgdate,0) = qnow;
