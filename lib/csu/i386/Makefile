@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.28 1997/02/22 14:57:41 peter Exp $
+#	$Id: Makefile,v 1.29 1997/04/01 13:53:16 bde Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
@@ -45,6 +45,8 @@ sgcrt0.o: scrt0.o
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dlfcn.h \
 		${DESTDIR}/usr/include
+
+realinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 ${OBJS} \
 		${DESTDIR}/usr/lib
 
