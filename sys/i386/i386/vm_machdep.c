@@ -345,13 +345,17 @@ vmapbuf(bp)
 {
 	register caddr_t addr, v, kva;
 	vm_offset_t pa;
+	int pidx;
+	struct vm_page *m;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
-	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data);
-	    addr < bp->b_data + bp->b_bufsize;
-	    addr += PAGE_SIZE, v += PAGE_SIZE) {
+	for (v = bp->b_saveaddr,
+		     addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data),
+		     pidx = 0;
+	     addr < bp->b_data + bp->b_bufsize;
+	     addr += PAGE_SIZE, v += PAGE_SIZE, pidx++) {
 		/*
 		 * Do the vm_fault if needed; do the copy-on-write thing
 		 * when reading stuff off device into memory.
@@ -361,11 +365,16 @@ vmapbuf(bp)
 		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		if (pa == 0)
 			panic("vmapbuf: page not present");
-		vm_page_hold(PHYS_TO_VM_PAGE(pa));
-		pmap_kenter((vm_offset_t) v, pa);
+		m = PHYS_TO_VM_PAGE(pa);
+		vm_page_hold(m);
+		bp->b_pages[pidx] = m;
 	}
-
+	if (pidx > btoc(MAXPHYS))
+		panic("vmapbuf: mapped more than MAXPHYS");
+	pmap_qenter((vm_offset_t)bp->b_saveaddr, bp->b_pages, pidx);
+	
 	kva = bp->b_saveaddr;
+	bp->b_npages = pidx;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
 }
@@ -378,19 +387,19 @@ void
 vunmapbuf(bp)
 	register struct buf *bp;
 {
-	register caddr_t addr;
-	vm_offset_t pa;
+	int pidx;
+	int npages;
+	vm_page_t *m;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
-	for (addr = (caddr_t)trunc_page((vm_offset_t)bp->b_data);
-	    addr < bp->b_data + bp->b_bufsize;
-	    addr += PAGE_SIZE) {
-		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
-		pmap_kremove((vm_offset_t) addr);
-		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
-	}
+	npages = bp->b_npages;
+	pmap_qremove(trunc_page((vm_offset_t)bp->b_data),
+		     npages);
+	m = bp->b_pages;
+	for (pidx = 0; pidx < npages; pidx++)
+		vm_page_unhold(*m++);
 
 	bp->b_data = bp->b_saveaddr;
 }
