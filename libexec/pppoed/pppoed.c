@@ -63,6 +63,8 @@
 
 #define DEFAULT_EXEC_PREFIX "exec /usr/sbin/ppp -direct "
 
+static int ReceivedSignal;
+
 static int
 usage(const char *prog)
 {
@@ -71,24 +73,11 @@ usage(const char *prog)
   return EX_USAGE;
 }
 
-const char *pidfile;
-
 static void
-Fairwell(int sig)
+Farewell(int sig)
 {
-  char buf[] = "Received signal XX, exiting";
-
-  /* No stdio in a signal handler */
-  buf[16] = '0' + ((sig / 10) % 10);
-  buf[17] = '0' + (sig % 10);
-
-  syslog(LOG_INFO, "%s", buf);
-
-  if (pidfile)
-    remove(pidfile);
-
-  signal(sig, SIG_DFL);
-  raise(sig);
+  ReceivedSignal = sig;
+  signal(sig, SIG_DFL);		/* If something makes us block... */
 }
 
 static int
@@ -418,7 +407,7 @@ Spawn(const char *prog, const char *acname, const char *exec,
 }
 
 #ifndef NOKLDLOAD
-int
+static int
 LoadModules(void)
 {
   const char *module[] = { "netgraph", "ng_socket", "ng_ether", "ng_pppoe" };
@@ -434,7 +423,7 @@ LoadModules(void)
 }
 #endif
 
-void
+static void
 nglog(const char *fmt, ...)
 {
   char nfmt[256];
@@ -446,7 +435,7 @@ nglog(const char *fmt, ...)
   va_end(ap);
 }
 
-void
+static void
 nglogx(const char *fmt, ...)
 {
   va_list ap;
@@ -464,6 +453,7 @@ main(int argc, char **argv)
   const char *prog, *provider, *acname;
   struct ngm_connect ngc;
   int ch, cs, ds, ret, optF, optd, optn, sz, f;
+  const char *pidfile;
 
   prog = strrchr(argv[0], '/');
   prog = prog ? prog + 1 : argv[0];
@@ -584,12 +574,12 @@ main(int argc, char **argv)
   if (!optF && optn)
     NgSetErrLog(nglog, nglogx);
 
-  signal(SIGHUP, Fairwell);
-  signal(SIGINT, Fairwell);
-  signal(SIGQUIT, Fairwell);
-  signal(SIGTERM, Fairwell);
+  signal(SIGHUP, Farewell);
+  signal(SIGINT, Farewell);
+  signal(SIGQUIT, Farewell);
+  signal(SIGTERM, Farewell);
 
-  while (1) {
+  while (!ReceivedSignal) {
     if (*provider)
       syslog(LOG_INFO, "Listening as provider %s", provider);
     else
@@ -618,6 +608,20 @@ main(int argc, char **argv)
       break;
     }
     Spawn(prog, acname, exec, ngc, cs, ds, response, sz, optd);
+  }
+
+  if (pidfile)
+    remove(pidfile);
+
+  if (ReceivedSignal) {
+    syslog(LOG_INFO, "Received signal %d, exiting", ReceivedSignal);
+
+    signal(ReceivedSignal, SIG_DFL);
+    raise(ReceivedSignal);
+
+    /* NOTREACHED */
+
+    ret = -ReceivedSignal;
   }
 
   return ret;
