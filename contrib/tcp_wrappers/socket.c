@@ -13,6 +13,8 @@
   * Diagnostics are reported through syslog(3).
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
+  *
+  * $FreeBSD$
   */
 
 #ifndef lint
@@ -29,6 +31,12 @@ static char sccsid[] = "@(#) socket.c 1.15 97/03/21 19:27:24";
 #include <stdio.h>
 #include <syslog.h>
 #include <string.h>
+
+#ifdef INET6
+#ifndef USE_GETIPNODEBY
+#include <resolv.h>
+#endif
+#endif
 
 extern char *inet_ntoa();
 
@@ -74,8 +82,13 @@ char   *name;
 void    sock_host(request)
 struct request_info *request;
 {
+#ifdef INET6
+    static struct sockaddr_storage client;
+    static struct sockaddr_storage server;
+#else
     static struct sockaddr_in client;
     static struct sockaddr_in server;
+#endif
     int     len;
     char    buf[BUFSIZ];
     int     fd = request->fd;
@@ -104,7 +117,11 @@ struct request_info *request;
 	memset(buf, 0 sizeof(buf));
 #endif
     }
+#ifdef INET6
+    request->client->sin = (struct sockaddr *)&client;
+#else
     request->client->sin = &client;
+#endif
 
     /*
      * Determine the server binding. This is used for client username
@@ -117,7 +134,11 @@ struct request_info *request;
 	tcpd_warn("getsockname: %m");
 	return;
     }
+#ifdef INET6
+    request->server->sin = (struct sockaddr *)&server;
+#else
     request->server->sin = &server;
+#endif
 }
 
 /* sock_hostaddr - map endpoint address to printable form */
@@ -125,10 +146,33 @@ struct request_info *request;
 void    sock_hostaddr(host)
 struct host_info *host;
 {
+#ifdef INET6
+    struct sockaddr *sin = host->sin;
+    char *ap;
+    int alen;
+
+    if (!sin)
+	return;
+    switch (sin->sa_family) {
+    case AF_INET:
+	ap = (char *)&((struct sockaddr_in *)sin)->sin_addr;
+	alen = sizeof(struct in_addr);
+	break;
+    case AF_INET6:
+	ap = (char *)&((struct sockaddr_in6 *)sin)->sin6_addr;
+	alen = sizeof(struct in6_addr);
+	break;
+    default:
+	return;
+    }
+    host->addr[0] = '\0';
+    inet_ntop(sin->sa_family, ap, host->addr, sizeof(host->addr));
+#else
     struct sockaddr_in *sin = host->sin;
 
     if (sin != 0)
 	STRN_CPY(host->addr, inet_ntoa(sin->sin_addr), sizeof(host->addr));
+#endif
 }
 
 /* sock_hostname - map endpoint address to host name */
@@ -136,8 +180,21 @@ struct host_info *host;
 void    sock_hostname(host)
 struct host_info *host;
 {
+#ifdef INET6
+    struct sockaddr *sin = host->sin;
+    char addr[128];
+#ifdef USE_GETIPNODEBY
+    int h_error;
+#else
+    u_long res_options;
+#endif
+    struct hostent *hp = NULL;
+    char *ap;
+    int alen;
+#else
     struct sockaddr_in *sin = host->sin;
     struct hostent *hp;
+#endif
     int     i;
 
     /*
@@ -147,11 +204,42 @@ struct host_info *host;
      * have to special-case 0.0.0.0, in order to avoid false alerts from the
      * host name/address checking code below.
      */
+#ifdef INET6
+    if (sin != NULL) {
+	switch (sin->sa_family) {
+	case AF_INET:
+	    if (((struct sockaddr_in *)sin)->sin_addr.s_addr == 0) {
+		strcpy(host->name, paranoid);	/* name is bad, clobber it */
+		return;
+	    }
+	    ap = (char *) &((struct sockaddr_in *)sin)->sin_addr;
+	    alen = sizeof(struct in_addr);
+	    break;
+	case AF_INET6:
+	    ap = (char *) &((struct sockaddr_in6 *)sin)->sin6_addr;
+	    alen = sizeof(struct in6_addr);
+	    break;
+	defalut:
+	    strcpy(host->name, paranoid);	/* name is bad, clobber it */
+	    return;
+	}
+#ifdef USE_GETIPNODEBY
+	hp = getipnodebyaddr(ap, alen, sin->sa_family, &h_error);
+#else
+	hp = gethostbyaddr(ap, alen, sin->sa_family);
+#endif
+    }
+    if (hp) {
+#else
     if (sin != 0 && sin->sin_addr.s_addr != 0
 	&& (hp = gethostbyaddr((char *) &(sin->sin_addr),
 			       sizeof(sin->sin_addr), AF_INET)) != 0) {
+#endif
 
 	STRN_CPY(host->name, hp->h_name, sizeof(host->name));
+#if defined(INET6) && defined(USE_GETIPNODEBY)
+	freehostent(hp);
+#endif
 
 	/*
 	 * Verify that the address is a member of the address list returned
@@ -166,15 +254,53 @@ struct host_info *host;
 	 * we're in big trouble anyway.
 	 */
 
+#ifdef INET6
+#ifdef USE_GETIPNODEBY
+	hp = getipnodebyname(host->name, sin->sa_family,
+			     AI_V4MAPPED | AI_ADDRCONFIG | AI_ALL, &h_error);
+#else
+	if ((_res.options & RES_INIT) == 0) {
+	    if (res_init() < 0) {
+		inet_ntop(sin->sa_family, ap, addr, sizeof(addr));
+		tcpd_warn("can't verify hostname: res_init() for %s failed",
+			  addr);
+		strcpy(host->name, paranoid);	/* name is bad, clobber it */
+		return;
+	    }
+	}
+	res_options = _res.options;
+	if (sin->sa_family == AF_INET6)
+	    _res.options |= RES_USE_INET6;
+	else
+	    _res.options &= ~RES_USE_INET6;
+	hp = gethostbyname2(host->name,
+			    (sin->sa_family == AF_INET6 &&
+			     IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)sin)->sin6_addr)) ?
+				AF_INET : sin->sa_family);
+	_res.options = res_options;
+#endif
+	if (!hp) {
+#else
 	if ((hp = gethostbyname(host->name)) == 0) {
+#endif
 
 	    /*
 	     * Unable to verify that the host name matches the address. This
 	     * may be a transient problem or a botched name server setup.
 	     */
 
+#ifdef INET6
+#ifdef USE_GETIPNODEBY
+	    tcpd_warn("can't verify hostname: getipnodebyname(%s, %s) failed",
+#else
+	    tcpd_warn("can't verify hostname: gethostbyname2(%s, %s) failed",
+#endif
+		      host->name,
+		      (sin->sa_family == AF_INET) ? "AF_INET" : "AF_INET6");
+#else
 	    tcpd_warn("can't verify hostname: gethostbyname(%s) failed",
 		      host->name);
+#endif
 
 	} else if (STR_NE(host->name, hp->h_name)
 		   && STR_NE(host->name, "localhost")) {
@@ -198,10 +324,19 @@ struct host_info *host;
 	     */
 
 	    for (i = 0; hp->h_addr_list[i]; i++) {
+#ifdef INET6
+		if (memcmp(hp->h_addr_list[i], ap, alen) == 0) {
+#ifdef USE_GETIPNODEBY
+		    freehostent(hp);
+#endif
+		    return;			/* name is good, keep it */
+		}
+#else
 		if (memcmp(hp->h_addr_list[i],
 			   (char *) &sin->sin_addr,
 			   sizeof(sin->sin_addr)) == 0)
 		    return;			/* name is good, keep it */
+#endif
 	    }
 
 	    /*
@@ -210,10 +345,20 @@ struct host_info *host;
 	     * server.
 	     */
 
+#ifdef INET6
+	    inet_ntop(sin->sa_family, ap, addr, sizeof(addr));
+	    tcpd_warn("host name/address mismatch: %s != %.*s",
+		      addr, STRING_LENGTH, hp->h_name);
+#else
 	    tcpd_warn("host name/address mismatch: %s != %.*s",
 		      inet_ntoa(sin->sin_addr), STRING_LENGTH, hp->h_name);
+#endif
 	}
 	strcpy(host->name, paranoid);		/* name is bad, clobber it */
+#if defined(INET6) && defined(USE_GETIPNODEBY)
+	if (hp)
+	    freehostent(hp);
+#endif
     }
 }
 
@@ -223,7 +368,11 @@ static void sock_sink(fd)
 int     fd;
 {
     char    buf[BUFSIZ];
+#ifdef INET6
+    struct sockaddr_storage sin;
+#else
     struct sockaddr_in sin;
+#endif
     int     size = sizeof(sin);
 
     /*

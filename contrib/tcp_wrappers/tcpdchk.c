@@ -24,6 +24,9 @@ static char sccsid[] = "@(#) tcpdchk.c 1.8 97/02/12 02:13:25";
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#ifdef INET6
+#include <sys/socket.h>
+#endif
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -403,6 +406,26 @@ char   *pat;
     }
 }
 
+#ifdef INET6
+static int is_inet6_addr(pat)
+    char *pat;
+{
+    struct in6_addr addr;
+    int len, ret;
+    char ch;
+
+    if (*pat != '[')
+	return (0);
+    len = strlen(pat);
+    if ((ch = pat[len - 1]) != ']')
+	return (0);
+    pat[len - 1] = '\0';
+    ret = inet_pton(AF_INET6, pat + 1, &addr);
+    pat[len - 1] = ch;
+    return (ret == 1);
+}
+#endif
+
 /* check_host - criticize host pattern */
 
 static int check_host(pat)
@@ -449,14 +472,27 @@ char   *pat;
 	    tcpd_warn("open %s: %m", pat);
 	}
     } else if (mask = split_at(pat, '/')) {	/* network/netmask */
+#ifdef INET6
+	int mask_len;
+
+	if ((dot_quad_addr(pat) == INADDR_NONE
+	    || dot_quad_addr(mask) == INADDR_NONE)
+	    && (!is_inet6_addr(pat)
+		|| ((mask_len = atoi(mask)) < 0 || mask_len > 128)))
+#else
 	if (dot_quad_addr(pat) == INADDR_NONE
 	    || dot_quad_addr(mask) == INADDR_NONE)
+#endif
 	    tcpd_warn("%s/%s: bad net/mask pattern", pat, mask);
     } else if (STR_EQ(pat, "FAIL")) {		/* obsolete */
 	tcpd_warn("FAIL is no longer recognized");
 	tcpd_warn("(use EXCEPT or DENY instead)");
     } else if (reserved_name(pat)) {		/* other reserved */
 	 /* void */ ;
+#ifdef INET6
+    } else if (is_inet6_addr(pat)) { /* IPv6 address */
+	addr_count = 1;
+#endif
     } else if (NOT_INADDR(pat)) {		/* internet name */
 	if (pat[strlen(pat) - 1] == '.') {
 	    tcpd_warn("%s: domain or host name ends in dot", pat);

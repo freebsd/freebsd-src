@@ -90,6 +90,13 @@ bitwise AND of the address and the `mask\'. For example, the net/mask
 pattern `131.155.72.0/255.255.254.0\' matches every address in the
 range `131.155.72.0\' through `131.155.73.255\'.
 .IP \(bu
+An expression of the form `[n:n:n:n:n:n:n:n]/m\' is interpreted as a
+`[net]/prefixlen\' pair. A IPv6 host address is matched if
+`prefixlen\' bits of `net\' is equal to the `prefixlen\' bits of the
+address. For example, the [net]/prefixlen pattern
+`[3ffe:505:2:1::]/64\' matches every address in the range
+`3ffe:505:2:1::\' through `3ffe:505:2:1:ffff:ffff:ffff:ffff\'.
+.IP \(bu
 A string that begins with a `/\' character is treated as a file
 name. A host name or address is matched if it matches any host name
 or address pattern listed in the named file. The file format is
