@@ -500,7 +500,7 @@ checkuser(name)
 				*p = '\0';
 				if (line[0] == '#')
 					continue;
-				if (strcmp(p, name) == 0) {
+				if (strcmp(line, name) == 0) {
 					found = 1;
 					break;
 				}
