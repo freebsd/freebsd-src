@@ -58,6 +58,9 @@ chroot_autoupdate()
 		umount ${named_chrootdir}/dev 2>/dev/null
 		mount_devfs devfs ${named_chrootdir}/dev
 	fi
+	devfs -m ${named_chrootdir}/dev rule apply hide
+	devfs -m ${named_chrootdir}/dev rule apply path null unhide
+	devfs -m ${named_chrootdir}/dev rule apply path random unhide
 
 	# Copy local timezone information if it is not up to date.
 	#
