@@ -91,9 +91,9 @@ TUNABLE_INT_DECL("hw.ata.tags", 0, ata_tags);
 SYSCTL_DECL(_hw_ata);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RD, &ata_dma, 0,
 	   "ATA disk DMA mode control");
-SYSCTL_INT(_hw_ata, OID_AUTO, ata_wc, CTLFLAG_RD, &ata_wc, 0,
+SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RD, &ata_wc, 0,
 	   "ATA disk write caching");
-SYSCTL_INT(_hw_ata, OID_AUTO, ata_tags, CTLFLAG_RD, &ata_tags, 0,
+SYSCTL_INT(_hw_ata, OID_AUTO, tags, CTLFLAG_RD, &ata_tags, 0,
 	   "ATA disk tagged queuing support");
 
 /* defines */
@@ -214,6 +214,7 @@ ad_detach(struct ad_softc *adp, int flush)
 	printf("WARNING! detaching RAID subdisk, danger ahead\n");
 
     ata_printf(adp->controller, adp->unit, "removed from configuration\n");
+    ad_invalidatequeue(adp, NULL);
     TAILQ_FOREACH(request, &adp->controller->ata_queue, chain) {
 	if (request->device != adp)
 	    continue;
@@ -233,7 +234,7 @@ ad_detach(struct ad_softc *adp, int flush)
     devstat_remove_entry(&adp->stats);
     if (flush) {
 	if (ata_command(adp->controller, adp->unit, ATA_C_FLUSHCACHE,
-			0, 0, 0, 0, 0, ATA_WAIT_INTR))
+			0, 0, 0, 0, 0, ATA_WAIT_READY))
     	    ata_printf(adp->controller, adp->unit,
 		       "flushing cache on detach failed\n");
     }
