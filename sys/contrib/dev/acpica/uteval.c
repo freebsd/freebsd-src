@@ -171,7 +171,7 @@ AcpiUtOsiImplementation (
     for (i = 0; i < ACPI_NUM_OSI_STRINGS; i++)
     {
         if (!ACPI_STRCMP (StringDesc->String.Pointer, 
-                            (char *) AcpiGbl_ValidOsiStrings[i]))
+                            (char *) (uintptr_t) AcpiGbl_ValidOsiStrings[i]))
         {
             /* This string is supported */
 
@@ -759,7 +759,7 @@ AcpiUtExecute_Sxds (
     {
         Highest[i] = 0xFF;
         Status = AcpiUtEvaluateObject (DeviceNode,
-                    (char *) AcpiGbl_HighestDstateNames[i],
+                    (char *) (uintptr_t) AcpiGbl_HighestDstateNames[i],
                     ACPI_BTYPE_INTEGER, &ObjDesc);
         if (ACPI_FAILURE (Status))
         {
@@ -767,7 +767,7 @@ AcpiUtExecute_Sxds (
             {
                 ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                     "%s on Device %4.4s, %s\n",
-                    (char *) AcpiGbl_HighestDstateNames[i],
+                    (char *) (uintptr_t)AcpiGbl_HighestDstateNames[i],
                     AcpiUtGetNodeName (DeviceNode),
                     AcpiFormatException (Status)));
 

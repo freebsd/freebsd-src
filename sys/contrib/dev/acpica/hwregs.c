@@ -233,7 +233,7 @@ AcpiGetSleepTypeData (
     /*
      * Evaluate the namespace object containing the values for this state
      */
-    Status = AcpiNsEvaluateByName ((char *) AcpiGbl_SleepStateNames[SleepState],
+    Status = AcpiNsEvaluateByName ((char *) (uintptr_t) AcpiGbl_SleepStateNames[SleepState],
                     NULL, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {
