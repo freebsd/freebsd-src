@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.187 1995/07/16 08:55:04 bde Exp $
+#	$Id: LINT,v 1.188 1995/07/16 10:31:08 joerg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -280,11 +280,15 @@ options		QUOTA			#enable disk quotas
 
 # The syntax for wiring down devices is:
 
-# disk sd0 at scbus0 target 0 unit 0
-# disk sd1 at scbus0 target 1
-# disk sd2 at scbus0 target 3
-# tape st1 at scbus0 target 6
-# device cd0 at scbus?
+# controller	scbus0 at ahc0		# Single bus device
+# controller	scbus1 at ahc1 bus 0	# Single bus device
+# controller	scbus3 at ahc2 bus 0	# Twin bus device
+# controller	scbus2 at ahc2 bus 1	# Twin bus device
+# disk 		sd0 at scbus0 target 0 unit 0
+# disk		sd1 at scbus3 target 1
+# disk		sd2 at scbus2 target 3
+# tape		st1 at scbus1 target 6
+# device	cd0 at scbus?
 
 # "units" (SCSI logical unit number) that are not specified are
 # treated as if specified as LUN 0.
