@@ -81,6 +81,7 @@ struct mtx sched_lock;
 
 struct globaldata __globaldata;
 char user0[UPAGES * PAGE_SIZE];
+struct user *proc0paddr;
 
 vm_offset_t clean_sva;
 vm_offset_t clean_eva;
@@ -271,6 +272,8 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 		panic("sparc64_init: no loader metadata");
 	preload_metadata = (caddr_t)bi->bi_metadata;
 
+	init_param();
+
 #ifdef DDB
 	kdb_init();
 #endif
@@ -296,6 +299,7 @@ sparc64_init(struct bootinfo *bi, ofw_vec_t *vec)
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
 	LIST_INIT(&proc0.p_contested);
+	proc0paddr = (struct user *)user0;
 	proc0.p_addr = (struct user *)user0;
 	tf = (struct trapframe *)(user0 + UPAGES * PAGE_SIZE - sizeof(*tf));
 	proc0.p_frame = tf;
