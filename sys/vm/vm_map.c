@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.152 1999/02/24 21:26:25 dillon Exp $
+ * $Id: vm_map.c,v 1.153 1999/03/02 05:43:17 alc Exp $
  */
 
 /*
@@ -659,18 +659,18 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 	vm_offset_t    end;
 	int      grow_amount;
 	int      rv;
-	int      is_procstack = 0;
-
-	vm_map_lock(map);
+	int      is_procstack;
+Retry:
+	vm_map_lock_read(map);
 
 	/* If addr is already in the entry range, no need to grow.*/
 	if (vm_map_lookup_entry(map, addr, &prev_entry)) {
-		vm_map_unlock(map);
+		vm_map_unlock_read(map);
 		return (KERN_SUCCESS);
 	}
 
 	if ((stack_entry = prev_entry->next) == &map->header) {
-		vm_map_unlock(map);
+		vm_map_unlock_read(map);
 		return (KERN_SUCCESS);
 	} 
 	if (prev_entry == &map->header) 
@@ -688,14 +688,14 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 	if (stack_entry->avail_ssize < 1 ||
 	    addr >= stack_entry->start ||
 	    addr <  stack_entry->start - stack_entry->avail_ssize) {
-		vm_map_unlock(map);
+		vm_map_unlock_read(map);
 		return (KERN_SUCCESS);
 	} 
 	
 	/* Find the minimum grow amount */
 	grow_amount = roundup (stack_entry->start - addr, PAGE_SIZE);
 	if (grow_amount > stack_entry->avail_ssize) {
-		vm_map_unlock(map);
+		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
 
@@ -709,20 +709,23 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 	 * might have intended by limiting the stack size.
 	 */
 	if (grow_amount > stack_entry->start - end) {
+		if (vm_map_lock_upgrade(map))
+			goto Retry;
+
 		stack_entry->avail_ssize = stack_entry->start - end;
+
 		vm_map_unlock(map);
 		return (KERN_NO_SPACE);
 	}
 
-	if (addr >= (vm_offset_t)vm->vm_maxsaddr)
-		is_procstack = 1;
+	is_procstack = addr >= (vm_offset_t)vm->vm_maxsaddr;
 
 	/* If this is the main process stack, see if we're over the 
 	 * stack limit.
 	 */
 	if (is_procstack && (vm->vm_ssize + grow_amount >
 			     p->p_rlimit[RLIMIT_STACK].rlim_cur)) {
-		vm_map_unlock(map);
+		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
 
@@ -736,6 +739,9 @@ vm_map_growstack (struct proc *p, vm_offset_t addr)
 		grow_amount = p->p_rlimit[RLIMIT_STACK].rlim_cur -
 		              vm->vm_ssize;
 	}
+
+	if (vm_map_lock_upgrade(map))
+		goto Retry;
 
 	/* Get the preliminary new entry start value */
 	addr = stack_entry->start - grow_amount;
