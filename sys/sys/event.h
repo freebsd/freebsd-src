@@ -121,7 +121,7 @@ struct knote {
 	struct 			kevent kn_kevent;
 	int			kn_status;
 	int			kn_sfflags;	/* saved filter flags */
-	u_long			kn_sdata;	/* saved data field */
+	intptr_t		kn_sdata;	/* saved data field */
 	union {
 		struct		file *p_fp;	/* file data pointer */
 		struct		proc *p_proc;	/* proc pointer */
