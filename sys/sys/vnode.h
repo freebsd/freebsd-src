@@ -675,7 +675,6 @@ int	vop_einval(struct vop_generic_args *ap);
 int	vop_enotty(struct vop_generic_args *ap);
 int	vop_null(struct vop_generic_args *ap);
 int	vop_panic(struct vop_generic_args *ap);
-int	vop_stddestroyvobject(struct vop_destroyvobject_args *ap);
 
 void	vfree(struct vnode *);
 void	vput(struct vnode *vp);
