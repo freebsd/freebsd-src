@@ -404,7 +404,9 @@ disk_destroy(struct disk *dp)
 
 	g_cancel_event(dp);
 	dp->d_destroyed = 1;
-	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL);
+	if (dp->d_devstat != NULL)
+		devstat_remove_entry(dp->d_devstat);
+	g_post_event(g_disk_destroy, dp, M_WAITOK, NULL, NULL);
 }
 
 static void
