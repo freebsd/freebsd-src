@@ -35,7 +35,11 @@
  */
 
 #ifndef lint
+/*
 static char sccsid[] = "@(#)option.c	8.2 (Berkeley) 4/16/94";
+*/
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -57,8 +61,8 @@ static OPTION const options[] = {
 	{ "(",		N_OPENPAREN,	c_openparen,	O_ZERO },
 	{ ")",		N_CLOSEPAREN,	c_closeparen,	O_ZERO },
 	{ "-a",		N_AND,		NULL,		O_NONE },
-	{ "-and",	N_AND,		NULL,		O_NONE },
 	{ "-amin",	N_AMIN,	        c_amin,	        O_ARGV },
+	{ "-and",	N_AND,		NULL,		O_NONE },
 	{ "-atime",	N_ATIME,	c_atime,	O_ARGV },
 	{ "-cmin",	N_CMIN,	        c_cmin,	        O_ARGV },
 	{ "-ctime",	N_CTIME,	c_ctime,	O_ARGV },
