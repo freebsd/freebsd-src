@@ -1,5 +1,4 @@
 /*
- *
  * ===================================
  * HARP  |  Host ATM Research Platform
  * ===================================
@@ -22,9 +21,6 @@
  *
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
- *
- *	@(#) $FreeBSD$
- *
  */
 
 /*
@@ -33,8 +29,10 @@
  *
  * External interfaces to SPANS manager.  Includes support for
  * running as a loadable kernel module.
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifndef ATM_SPANS_MODULE
 #include "opt_atm.h"
@@ -68,10 +66,6 @@
 
 #include "spans_xdr.h"
 #include <netatm/spans/spans_var.h>
-
-#ifndef lint
-__RCSID("@(#) $FreeBSD$");
-#endif
 
 /*
  * Global variables
