@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.24.2.1 1999/02/25 18:36:32 wollman Exp $
+ *	$Id: http.c,v 1.24.2.2 1999/05/18 19:57:29 jmg Exp $
  */
 
 #include <sys/types.h>
@@ -661,7 +661,7 @@ got100reply:
 			unsetup_sigalrm();
 			return EX_OSERR;
 		}
-		fs->fs_status = "retrieving from HTTP/0.9 server";
+		fs->fs_status = "retrieving file from HTTP/0.9 server";
 		display(fs, -1, 0);
 
 		do {
