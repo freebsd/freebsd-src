@@ -260,6 +260,74 @@ struct scsi_mode_block_descr
 	u_int8_t block_len[3];
 };
 
+struct scsi_log_sense
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+#define	SLS_SP				0x01
+#define	SLS_PPC				0x02
+	u_int8_t page;
+#define	SLS_PAGE_CODE 			0x3F
+#define	SLS_ALL_PAGES_PAGE		0x00
+#define	SLS_OVERRUN_PAGE		0x01
+#define	SLS_ERROR_WRITE_PAGE		0x02
+#define	SLS_ERROR_READ_PAGE		0x03
+#define	SLS_ERROR_READREVERSE_PAGE	0x04
+#define	SLS_ERROR_VERIFY_PAGE		0x05
+#define	SLS_ERROR_NONMEDIUM_PAGE	0x06
+#define	SLS_ERROR_LASTN_PAGE		0x07
+#define	SLS_PAGE_CTRL_MASK		0xC0
+#define	SLS_PAGE_CTRL_THRESHOLD		0x00
+#define	SLS_PAGE_CTRL_CUMULATIVE	0x40
+#define	SLS_PAGE_CTRL_THRESH_DEFAULT	0x80
+#define	SLS_PAGE_CTRL_CUMUL_DEFAULT	0xC0
+	u_int8_t reserved[2];
+	u_int8_t paramptr[2];
+	u_int8_t length[2];
+	u_int8_t control;
+};
+
+struct scsi_log_select
+{
+	u_int8_t opcode;
+	u_int8_t byte2;
+/*	SLS_SP				0x01 */
+#define	SLS_PCR				0x02
+	u_int8_t page;
+/*	SLS_PAGE_CTRL_MASK		0xC0 */
+/*	SLS_PAGE_CTRL_THRESHOLD		0x00 */
+/*	SLS_PAGE_CTRL_CUMULATIVE	0x40 */
+/*	SLS_PAGE_CTRL_THRESH_DEFAULT	0x80 */
+/*	SLS_PAGE_CTRL_CUMUL_DEFAULT	0xC0 */
+	u_int8_t reserved[4];
+	u_int8_t length[2];
+	u_int8_t control;
+};
+
+struct scsi_log_header
+{
+	u_int8_t page;
+	u_int8_t reserved;
+	u_int8_t datalen[2];
+};
+
+struct scsi_log_param_header {
+	u_int8_t param_code[2];
+	u_int8_t param_control;
+#define	SLP_LP				0x01
+#define	SLP_LBIN			0x02
+#define	SLP_TMC_MASK			0x0C
+#define	SLP_TMC_ALWAYS			0x00
+#define	SLP_TMC_EQUAL			0x04
+#define	SLP_TMC_NOTEQUAL		0x08
+#define	SLP_TMC_GREATER			0x0C
+#define	SLP_ETC				0x10
+#define	SLP_TSD				0x20
+#define	SLP_DS				0x40
+#define	SLP_DU				0x80
+	u_int8_t param_len;
+};
+
 struct scsi_control_page {
 	u_int8_t page_code;
 	u_int8_t page_length;
@@ -433,6 +501,8 @@ struct scsi_start_stop_unit
 #define	WRITE_BUFFER            0x3b
 #define	READ_BUFFER             0x3c
 #define	CHANGE_DEFINITION	0x40
+#define	LOG_SELECT		0x4c
+#define	LOG_SENSE		0x4d
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
 #define MOVE_MEDIUM     	0xa5
@@ -856,6 +926,22 @@ void		scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 				 int save_pages, u_int8_t *param_buf,
 				 u_int32_t param_len, u_int8_t sense_len,
 				 u_int32_t timeout);
+
+void		scsi_log_sense(struct ccb_scsiio *csio, u_int32_t retries,
+			       void (*cbfcnp)(struct cam_periph *, union ccb *),
+			       u_int8_t tag_action, u_int8_t page_code,
+			       u_int8_t page, int save_pages, int ppc,
+			       u_int32_t paramptr, u_int8_t *param_buf,
+			       u_int32_t param_len, u_int8_t sense_len,
+			       u_int32_t timeout);
+
+void		scsi_log_select(struct ccb_scsiio *csio, u_int32_t retries,
+				void (*cbfcnp)(struct cam_periph *,
+				union ccb *), u_int8_t tag_action,
+				u_int8_t page_code, int save_pages,
+				int pc_reset, u_int8_t *param_buf,
+				u_int32_t param_len, u_int8_t sense_len,
+				u_int32_t timeout);
 
 void		scsi_read_capacity(struct ccb_scsiio *csio, u_int32_t retries,
 				   void (*cbfcnp)(struct cam_periph *, 

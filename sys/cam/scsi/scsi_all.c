@@ -2508,6 +2508,73 @@ scsi_mode_select(struct ccb_scsiio *csio, u_int32_t retries,
 		      timeout);
 }
 
+void
+scsi_log_sense(struct ccb_scsiio *csio, u_int32_t retries,
+	       void (*cbfcnp)(struct cam_periph *, union ccb *),
+	       u_int8_t tag_action, u_int8_t page_code, u_int8_t page,
+	       int save_pages, int ppc, u_int32_t paramptr,
+	       u_int8_t *param_buf, u_int32_t param_len, u_int8_t sense_len,
+	       u_int32_t timeout)
+{
+	struct scsi_log_sense *scsi_cmd;
+	u_int8_t cdb_len;
+
+	scsi_cmd = (struct scsi_log_sense *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = LOG_SENSE;
+	scsi_cmd->page = page_code | page;
+	if (save_pages != 0)
+		scsi_cmd->byte2 |= SLS_SP;
+	if (ppc != 0)
+		scsi_cmd->byte2 |= SLS_PPC;
+	scsi_ulto2b(paramptr, scsi_cmd->paramptr);
+	scsi_ulto2b(param_len, scsi_cmd->length);
+	cdb_len = sizeof(*scsi_cmd);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      /*data_ptr*/param_buf,
+		      /*dxfer_len*/param_len,
+		      sense_len,
+		      cdb_len,
+		      timeout);
+}
+
+void
+scsi_log_select(struct ccb_scsiio *csio, u_int32_t retries,
+		void (*cbfcnp)(struct cam_periph *, union ccb *),
+		u_int8_t tag_action, u_int8_t page_code, int save_pages,
+		int pc_reset, u_int8_t *param_buf, u_int32_t param_len,
+		u_int8_t sense_len, u_int32_t timeout)
+{
+	struct scsi_log_select *scsi_cmd;
+	u_int8_t cdb_len;
+
+	scsi_cmd = (struct scsi_log_select *)&csio->cdb_io.cdb_bytes;
+	bzero(scsi_cmd, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = LOG_SELECT;
+	scsi_cmd->page = page_code & SLS_PAGE_CODE;
+	if (save_pages != 0)
+		scsi_cmd->byte2 |= SLS_SP;
+	if (pc_reset != 0)
+		scsi_cmd->byte2 |= SLS_PCR;
+	scsi_ulto2b(param_len, scsi_cmd->length);
+	cdb_len = sizeof(*scsi_cmd);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_OUT,
+		      tag_action,
+		      /*data_ptr*/param_buf,
+		      /*dxfer_len*/param_len,
+		      sense_len,
+		      cdb_len,
+		      timeout);
+}
 
 /* XXX allow specification of address and PMI bit and LBA */
 void
