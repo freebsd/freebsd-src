@@ -10,6 +10,9 @@ MLINKS=	ssh.1 slogin.1
 SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 	sshconnect.c sshconnect1.c sshconnect2.c
 
+DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
+LDADD=	-lssh -lutil -lz
+
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DKRB5 -DHEIMDAL
 DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
@@ -20,8 +23,8 @@ LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
 CFLAGS+= -DXAUTH_PATH=\"${X11BASE}/bin/xauth\"
 .endif
 
-DPADD+=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBUTIL} ${LIBZ}
-LDADD+=	-lssh -lcrypt -lcrypto -lutil -lz
+DPADD+=	${LIBCRYPT} ${LIBCRYPTO}
+LDADD+=	-lcrypt -lcrypto
 
 .include <bsd.prog.mk>
 
