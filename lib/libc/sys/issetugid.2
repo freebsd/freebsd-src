@@ -47,7 +47,9 @@
 The
 .Fn issetugid
 function returns 1 if the process environment or memory address space
-is considered ``tainted'', and returns 0 otherwise.
+is considered
+.Dq tainted ,
+and returns 0 otherwise.
 .Pp
 A process is tainted if it was created as a result of an
 .Xr execve 2
@@ -61,13 +63,16 @@ that was obtained from the user, in particular the results from
 .Xr getenv 3
 should be viewed with suspicion if it is used to control operation.
 .Pp
-A ``tainted'' status is inherited by child processes as a result of the
+A
+.Dq tainted
+status is inherited by child processes as a result of the
 .Xr fork 2
 system call (or other library code that calls fork, such as
 .Xr popen 3 ) .
 .Pp
 It is assumed that a program that clears all privileges as it prepares
-to execute another will also reset the environment, hence the ``tainted''
+to execute another will also reset the environment, hence the
+.Dq tainted
 status will not be passed on.  This is important for programs such as
 .Xr su 1
 which begin setuid but need to be able to create an untainted process.

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)chflags.2	8.3 (Berkeley) 5/2/95
+.\"	$FreeBSD$
 .\"
 .Dd May 2, 1995
 .Dt CHFLAGS 2
@@ -80,16 +81,14 @@ The file may not be renamed or deleted.
 .El
 .Pp
 The
-.Dq UF_IMMUTABLE
-,
+.Dq UF_IMMUTABLE ,
 .Dq UF_APPEND
 and
 .Dq UF_NOUNLINK
 flags may be set or unset by either the owner of a file or the super-user.
 .Pp
 The
-.Dq SF_IMMUTABLE
-,
+.Dq SF_IMMUTABLE ,
 .Dq SF_APPEND
 and
 .Dq SF_NOUNLINK

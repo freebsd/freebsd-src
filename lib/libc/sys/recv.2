@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
+.\"	$FreeBSD$
 .\"
 .Dd February 21, 1994
 .Dt RECV 2
@@ -120,6 +121,7 @@ one or more of the values:
 .It Dv MSG_PEEK Ta peek at incoming message
 .It Dv MSG_WAITALL Ta wait for full request or error
 .El
+.Pp
 The
 .Dv MSG_OOB
 flag requests receipt of out-of-band data
@@ -182,6 +184,7 @@ struct cmsghdr {
 /* followed by
 	u_char	cmsg_data[]; */
 };
+.Pp
 .Ed
 As an example, one could use this to learn of changes in the data-stream
 in XNS/SPP, or in ISO, to obtain user-connection-request data by requesting

@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)getlogin.2	8.1 (Berkeley) 6/9/93
+.\"	$FreeBSD$
 .\"
 .Dd June 9, 1993
 .Dt GETLOGIN 2
@@ -57,7 +58,7 @@ and is inherited by all processes descended from the login shell.
 (This is true even if some of those processes assume another user ID,
 for example when
 .Xr su 1
-is used.)
+is used).
 .Pp
 .Fn Setlogin
 sets the login name of the user associated with the current session to
