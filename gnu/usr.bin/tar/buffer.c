@@ -57,7 +57,7 @@ time_t time ();
 #include "tar.h"
 #include "port.h"
 #include "rmt.h"
-#include "regex.h"
+#include "gnuregex.h"
 
 /* Either stdout or stderr:  The thing we write messages (standard msgs, not
    errors) to.  Stdout unless we're writing a pipe, in which case stderr */
