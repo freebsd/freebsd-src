@@ -5571,9 +5571,9 @@ clear_remove(td)
 				continue;
 			mp = pagedep->pd_mnt;
 			ino = pagedep->pd_ino;
-			FREE_LOCK(&lk);
 			if (vn_start_write(NULL, &mp, V_NOWAIT) != 0)
 				continue;
+			FREE_LOCK(&lk);
 			if ((error = VFS_VGET(mp, ino, LK_EXCLUSIVE, &vp))) {
 				softdep_error("clear_remove: vget", error);
 				vn_finished_write(mp);
