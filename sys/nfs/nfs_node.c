@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_node.c	8.6 (Berkeley) 5/22/95
- * $Id: nfs_node.c,v 1.28 1998/09/29 23:15:25 mckusick Exp $
+ * $Id: nfs_node.c,v 1.29 1999/06/05 05:26:36 peter Exp $
  */
 
 
@@ -167,6 +167,10 @@ loop:
 		    bcmp((caddr_t)fhp, (caddr_t)np2->n_fhp, fhsize))
 			continue;
 		vrele(vp);
+		if (nfs_node_hash_lock < 0)
+			wakeup(&nfs_node_hash_lock);
+		nfs_node_hash_lock = 0;
+		zfree(nfsnode_zone, np);
 		goto retry;
 	}
 	LIST_INSERT_HEAD(nhpp, np, n_hash);
