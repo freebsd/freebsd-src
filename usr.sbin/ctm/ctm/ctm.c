@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.5 1994/10/24 20:09:20 phk Exp $
+ * $Id: ctm.c,v 1.6 1994/11/26 08:57:40 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
  * collection of files.
@@ -84,7 +84,7 @@ main(int argc, char **argv)
     if(!argc)
 	stat |= Proc("-");
 
-    while(argc-- && stat != Exit_Done) {
+    while(argc-- && stat == Exit_Done) {
 	stat |= Proc(*argv++);
     }
 
