@@ -110,9 +110,10 @@ printlong(dp)
 		if (f_flags)
 			(void)printf("%-*s ", dp->s_flags, np->flags);
 		if (S_ISCHR(sp->st_mode) || S_ISBLK(sp->st_mode))
-			if (minor(sp->st_rdev) > 255)
+			if (minor(sp->st_rdev) > 255 || minor(sp->st_rdev) < 0)
 				(void)printf("%3d, 0x%08x ",
-				    major(sp->st_rdev), minor(sp->st_rdev));
+				    major(sp->st_rdev),
+				    (u_int)minor(sp->st_rdev));
 			else
 				(void)printf("%3d, %3d ",
 				    major(sp->st_rdev), minor(sp->st_rdev));
