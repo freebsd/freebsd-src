@@ -149,6 +149,12 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 	if (pm == kernel_pmap) {
 		TSB_STATS_INC(tsb_nenter_k);
 		tp = tsb_kvtotte(va);
+		if ((m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) == 0) {
+			pv_insert(pm, m, tp);
+			data |= TD_PV;
+		}
+		if (pmap_cache_enter(m, va) != 0)
+			data |= TD_CV;
 		tp->tte_vpn = TV_VPN(va);
 		tp->tte_data = data;
 		return (tp);
@@ -189,10 +195,17 @@ tsb_tte_enter(pmap_t pm, vm_page_t m, vm_offset_t va, u_long data)
 			if ((tp->tte_data & TD_REF) != 0)
 				vm_page_flag_set(om, PG_REFERENCED);
 			pmap_cache_remove(om, ova);
-			pv_remove(pm, om, ova);
+			pv_remove(pm, om, tp);
 		}
 		tlb_tte_demap(tp, pm);
 	}
+
+	if ((m->flags & (PG_UNMANAGED | PG_FICTITIOUS)) == 0) {
+		pv_insert(pm, m, tp);
+		data |= TD_PV;
+	}
+	if (pmap_cache_enter(m, va) != 0)
+		data |= TD_CV;
 
 	tp->tte_vpn = TV_VPN(va);
 	tp->tte_data = data;
