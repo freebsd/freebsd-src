@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.5 1997/03/05 18:57:16 fenner Exp $
+ *	$Id: http.c,v 1.6 1997/03/06 20:01:32 jmg Exp $
  */
 
 #include <sys/types.h>
@@ -483,7 +483,7 @@ http_retrieve(struct fetch_state *fs)
 	n = 0;
 	msg.msg_control = 0;
 	msg.msg_controllen = 0;
-	msg.msg_flags = MSG_EOF;
+	msg.msg_flags = fs->fs_linux_bug ? 0 : MSG_EOF;
 
 #define addstr(Iov, N, Str) \
 	do { \
@@ -575,7 +575,7 @@ retry:
 	fs->fs_status = "sending request message";
 	setup_sigalrm();
 	alarm(timo);
-	if (sendmsg(s, &msg, MSG_EOF) < 0) {
+	if (sendmsg(s, &msg, fs->fs_linux_bug ? 0 : MSG_EOF) < 0) {
 		warn("sendmsg: %s", https->http_hostname);
 		fclose(remote);
 		return EX_OSERR;
