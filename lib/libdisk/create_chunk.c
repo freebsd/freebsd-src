@@ -194,14 +194,14 @@ Fixup_Names(struct disk *d)
 }
 
 int
-Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type,
+Create_Chunk(struct disk *d, daddr_t offset, daddr_t size, chunk_e type,
 	     int subtype, u_long flags, const char *sname)
 {
 	int i;
 
 #ifndef __ia64__
 	if (!(flags & CHUNK_FORCE_ALL)) {
-		u_long l;
+		daddr_t l;
 #ifdef PC98
 		/* Never use the first cylinder */
 		if (!offset) {
@@ -217,7 +217,7 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type,
 #endif /* PC98 */
 		
 		/* Always end on cylinder boundary */
-		l = (offset+size) % (d->bios_sect * d->bios_hd);
+		l = (offset + size) % (d->bios_sect * d->bios_hd);
 		size -= l;
 	}
 #endif
@@ -228,12 +228,12 @@ Create_Chunk(struct disk *d, u_long offset, u_long size, chunk_e type,
 }
 
 struct chunk *
-Create_Chunk_DWIM(struct disk *d, struct chunk *parent, u_long size,
+Create_Chunk_DWIM(struct disk *d, struct chunk *parent, daddr_t size,
 		  chunk_e type, int subtype, u_long flags)
 {
 	int i;
 	struct chunk *c1;
-	long offset;
+	daddr_t offset;
 	
 	if (!parent)
 		parent = d->chunks;

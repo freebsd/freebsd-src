@@ -10,11 +10,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <sys/types.h>
 #include <err.h>
 #include "libdisk.h"
 
@@ -44,7 +45,7 @@ Chunk_Inside(const struct chunk *c1, const struct chunk *c2)
 }
 
 static struct chunk *
-Find_Mother_Chunk(struct chunk *chunks, u_long offset, u_long end,
+Find_Mother_Chunk(struct chunk *chunks, daddr_t offset, daddr_t end,
 		  chunk_e type)
 {
 	struct chunk *c1, *c2, ct;
@@ -121,7 +122,7 @@ Clone_Chunk(const struct chunk *c1)
 }
 
 int
-Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
+Insert_Chunk(struct chunk *c2, daddr_t offset, daddr_t size, const char *name,
 	chunk_e type, int subtype, u_long flags, const char *sname)
 {
 	struct chunk *ct,*cs;
@@ -204,11 +205,11 @@ Insert_Chunk(struct chunk *c2, u_long offset, u_long size, const char *name,
 }
 
 int
-Add_Chunk(struct disk *d, long offset, u_long size, const char *name,
+Add_Chunk(struct disk *d, daddr_t offset, daddr_t size, const char *name,
 	  chunk_e type, int subtype, u_long flags, const char *sname)
 {
 	struct chunk *c1, *c2, ct;
-	u_long end = offset + size - 1;
+	daddr_t end = offset + size - 1;
 	ct.offset = offset;
 	ct.end = end;
 	ct.size = size;
@@ -379,7 +380,7 @@ ShowChunkFlags(struct chunk *c)
 }
 
 static void
-Print_Chunk(struct chunk *c1,int offset)
+Print_Chunk(struct chunk *c1, int offset)
 {
 	int i;
 
@@ -395,9 +396,10 @@ Print_Chunk(struct chunk *c1,int offset)
 #ifndef __ia64__
 	printf("%p ", c1);
 #endif
-	printf("%8ld %8lu %8lu %-8s %-16s %-8s 0x%02x %s", c1->offset,
-	    c1->size, c1->end, c1->name, c1->sname, chunk_name(c1->type),
-	    c1->subtype, ShowChunkFlags(c1));
+	printf("%8jd %8jd %8jd %-8s %-16s %-8s 0x%02x %s",
+	    (intmax_t)c1->offset, (intmax_t)c1->size, (intmax_t)c1->end,
+	    c1->name, c1->sname, chunk_name(c1->type), c1->subtype,
+	    ShowChunkFlags(c1));
 	putchar('\n');
 	Print_Chunk(c1->part, offset + 2);
 	Print_Chunk(c1->next, offset);
@@ -407,21 +409,21 @@ void
 Debug_Chunk(struct chunk *c1)
 {
 
-	Print_Chunk(c1,2);
+	Print_Chunk(c1, 2);
 }
 
 int
 Delete_Chunk(struct disk *d, struct chunk *c)
 {
 
-    return(Delete_Chunk2(d, c, 0));
+	return (Delete_Chunk2(d, c, 0));
 }
 
 int
 Delete_Chunk2(struct disk *d, struct chunk *c, int rflags)
 {
 	struct chunk *c1, *c2, *c3;
-	u_long offset = c->offset;
+	daddr_t offset = c->offset;
 
 	switch (c->type) {
 	case whole:
