@@ -75,9 +75,9 @@ contrib/dev/acpica/dbdisply.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbexec.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbfileio.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbhistry.c	 optional acpi acpi_debug
-contrib/dev/acpica/dbinput.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dbinput.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbstats.c	 optional acpi acpi_debug
-contrib/dev/acpica/dbutils.c	 optional acpi acpi_debug nowerror
+contrib/dev/acpica/dbutils.c	 optional acpi acpi_debug
 contrib/dev/acpica/dbxface.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmbuffer.c	 optional acpi acpi_debug
 contrib/dev/acpica/dmnames.c	 optional acpi acpi_debug
@@ -101,7 +101,7 @@ contrib/dev/acpica/dswscope.c	 optional acpi
 contrib/dev/acpica/dswstate.c	 optional acpi
 contrib/dev/acpica/evevent.c	 optional acpi
 contrib/dev/acpica/evgpe.c	 optional acpi
-contrib/dev/acpica/evgpeblk.c	 optional acpi nowerror
+contrib/dev/acpica/evgpeblk.c	 optional acpi
 contrib/dev/acpica/evmisc.c	 optional acpi
 contrib/dev/acpica/evregion.c	 optional acpi
 contrib/dev/acpica/evrgnini.c	 optional acpi
