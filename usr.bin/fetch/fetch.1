@@ -1,4 +1,4 @@
-.\" $Id: fetch.1,v 1.20 1998/03/23 07:43:02 charnier Exp $
+.\" $Id: fetch.1,v 1.21 1998/05/09 07:33:09 fenner Exp $
 .Dd July 2, 1996
 .Dt FETCH 1
 .Os FreeBSD 2.2
@@ -100,9 +100,9 @@ under any circumstances, even if the transfer failed or was incomplete.
 .It Fl r
 Restart a previously interrupted transfer.
 .It Fl t
-Ensure that the use of T/TCP is not attempted for connections.  This is
-used to workaround bugs in some remote OS stacks that give improper
-replies to T/TCP connections.
+Work around a different set of buggy
+.Tn TCP
+implementations.
 .It Fl T Ar seconds
 Set timeout value to
 .Ar seconds.
@@ -198,7 +198,7 @@ realm is specified as
 .Sq Li \&* ,
 then it will match all realms not specified otherwise.
 .Pp
-For the
+The
 .Li basic
 authentication scheme uses two additional optional parameters; the
 first is a user name, and the second is the password associated with
@@ -328,6 +328,27 @@ authentication mode is implemented for
 .Tn HTTP .
 This should be replaced by digest authentication.
 .Pp
+Some 
+.Tn TCP
+implementations (other than
+.Fx ) 
+fail to correctly implement cases where the
+.Dv SYN
+and/or
+.Dv FIN
+control flags are specified in packets which also contain data.
 The
+.Sq Fl t
+flag works around the latter deficiency and the
+.Sq Fl b
+flag works around the former.  Since these are errors of the server's
+.Tn TCP
+stack, the best we can do is provide these workarounds.  Given a correct
+server, an optimal 
+.Tn HTTP
+transfer without
+.Fl t
+and
 .Fl b
-flag should not be necessary.
+involves a minimum of two round trips (for small replies), one less than
+other implementations.

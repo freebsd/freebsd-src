@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: http.c,v 1.16 1997/11/22 01:00:42 fenner Exp $
+ *	$Id: http.c,v 1.17 1998/02/20 05:11:40 jb Exp $
  */
 
 #include <sys/types.h>
@@ -594,11 +594,14 @@ retry:
 	setup_sigalrm();
 	alarm(timo);
 
-	/* some hosts do not properly handle T/TCP connections.  If
-	 * sendmsg() is used to establish the connection, the OS may
-	 * choose to try to use one which could cause the transfer
-	 * to fail.  Doing a connect() first ensures that the OS
-	 * does not attempt T/TCP.
+	/*
+	 * Some hosts do not correctly handle data in SYN segments.
+	 * If no connect(2) is done, the TCP stack will send our
+	 * initial request as such a segment.  fs_use_connect works
+	 * around these broken server TCPs by avoiding this case.
+	 * It is not the default because we want to exercise this
+	 * code path, and in any case the majority of hosts handle
+	 * our default correctly.
 	 */
 	if (fs->fs_use_connect && (connect(s, (struct sockaddr *)&sin, 
                                    sizeof(struct sockaddr_in)) < 0)) {
