@@ -423,9 +423,10 @@ The value of
 .Em flags
 in the substitute function is zero or more of the following:
 .Bl -tag -width "XXXXXX" -offset indent
-.It "0 ... 9"
-Make the substitution only for the N'th occurrence of the regular
-expression in the pattern space.
+.It Em N
+Make the substitution only for the
+.Em N Ns 'th
+occurrence of the regular expression in the pattern space.
 .It g
 Make the substitution for all non-overlapping matches of the
 regular expression, not just the first one.
