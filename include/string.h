@@ -83,6 +83,8 @@ void	*memccpy __P((void *, const void *, int, size_t));
 char	*rindex __P((const char *, int));
 int	 strcasecmp __P((const char *, const char *));
 char	*strdup __P((const char *));
+size_t	 strlcat __P((char *, const char *, size_t));
+size_t   strlcpy __P((char *, const char *, size_t));
 void	 strmode __P((int, char *));
 int	 strncasecmp __P((const char *, const char *, size_t));
 char	*strsep __P((char **, const char *));
