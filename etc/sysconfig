@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.25 1995/09/19 10:19:44 jkh Exp $
+#	$Id: sysconfig,v 1.26 1995/09/29 20:10:40 wollman Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -194,3 +194,6 @@ accounting=NO
 
 # Set to YES if you want ibcs2 (SCO) emulation loaded at startup
 ibcs2=NO
+
+# Set to YES if you want Linux (a.out) emulation loaded at startup
+linux=NO
