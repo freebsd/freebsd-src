@@ -164,6 +164,10 @@ through approximately 800 seconds.)  This is the default, and will not
 be explicitly displayed in
 .Ql list
 mode.
+.It Ar lcp-timeout Ns \&= Ns Em timeout-value
+Allows to change the value of the LCP restart timer.  Values are
+specified in milliseconds.  The value must be between 10 and 20000 ms,
+defaulting to 3000 ms.
 .It Ar enable-vj
 Enable negotiation of Van Jacobsen header compression.  (Enabled by default.)
 .It Ar disable-vj
@@ -175,6 +179,7 @@ Disable negotiation of Van Jacobsen header compression.
 bppp0:	phase=dead
 	myauthproto=chap myauthname="uriah"
 	hisauthproto=chap hisauthname="ifb-gw" norechallenge
+	lcp-timeout=3000
 	enable-vj
 .Ed
 .Pp
