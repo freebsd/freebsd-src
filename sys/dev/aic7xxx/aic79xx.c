@@ -37,7 +37,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#155 $
+ * $Id: //depot/aic7xxx/aic7xxx/aic79xx.c#156 $
  *
  * $FreeBSD$
  */
@@ -4227,7 +4227,7 @@ ahd_handle_msg_reject(struct ahd_softc *ahd, struct ahd_devinfo *devinfo)
 		 * but rejected our response, we already cleared the
 		 * sync rate before sending our WDTR.
 		 */
-		if (tinfo->goal.period != tinfo->curr.offset) {
+		if (tinfo->goal.offset != tinfo->curr.offset) {
 
 			/* Start the sync negotiation */
 			ahd->msgout_index = 0;
