@@ -167,11 +167,28 @@ malloc(size, type, flags)
 #endif
 	register struct malloc_type *ksp = type;
 
+/* #ifdef INVARIANTS */
+	/*
+	 * To make sure that WAITOK or NOWAIT is set, but not more than
+	 * one, and check against the API botches that are common.
+	 */
+	indx = flags & (M_WAITOK | M_NOWAIT | M_DONTWAIT | M_TRYWAIT);
+	if (indx != M_NOWAIT && indx != M_WAITOK) {
+		static	struct timeval lasterr;
+		static	int curerr, once;
+		if (once == 0 && ppsratecheck(&lasterr, &curerr, 1)) {
+			printf("Bad malloc flags: %x\n", indx);
+			backtrace();
+			flags |= M_WAITOK;
+			once++;
+		}
+	}
+/* #endif */
 #if 0
 	if (size == 0)
 		Debugger("zero size malloc");
 #endif
-	if (!(flags & M_NOWAIT))
+	if (flags & M_WAITOK)
 		KASSERT(curthread->td_intr_nesting_level == 0,
 		   ("malloc(M_WAITOK) in interrupt context"));
 	if (size <= KMEM_ZMAX) {

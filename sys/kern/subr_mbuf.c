@@ -614,6 +614,21 @@ mb_alloc(struct mb_lstmngr *mb_list, int how, short type, short persist,
 	struct mb_bucket *bucket;
 	void *m;
 
+/* #ifdef INVARIANTS */
+	int flags;
+	
+	flags = how & (M_WAITOK | M_NOWAIT | M_DONTWAIT | M_TRYWAIT);
+	if (flags != M_DONTWAIT && flags != M_TRYWAIT) {
+		static	struct timeval lasterr;
+		static	int curerr;
+		if (ppsratecheck(&lasterr, &curerr, 1)) {
+			printf("Bad mbuf alloc flags: %x\n", flags);
+			backtrace();
+			how = M_TRYWAIT;
+		}
+	}
+/* #endif */
+
 	m = NULL;
 	if ((persist & MBP_PERSISTENT) != 0) {
 		/*
