@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_descrip.c	8.6 (Berkeley) 4/19/94
- * $Id: kern_descrip.c,v 1.53 1998/06/10 10:27:43 dfr Exp $
+ * $Id: kern_descrip.c,v 1.54 1998/07/15 06:10:16 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -1189,15 +1189,15 @@ static void 	fildesc_drvinit(void *unused)
 		devfs_token_stdin =
 			devfs_add_devswf(&fildesc_cdevsw, 0, DV_CHR,
 					 UID_ROOT, GID_WHEEL, 0666,
-					 "stdin", fd);
+					 "stdin");
 		devfs_token_stdout =
 			devfs_add_devswf(&fildesc_cdevsw, 1, DV_CHR,
 					 UID_ROOT, GID_WHEEL, 0666,
-					 "stdout", fd);
+					 "stdout");
 		devfs_token_stderr =
 			devfs_add_devswf(&fildesc_cdevsw, 2, DV_CHR,
 					 UID_ROOT, GID_WHEEL, 0666,
-					 "stderr", fd);
+					 "stderr");
 #endif
     	}
 }

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_lockf.c	8.3 (Berkeley) 1/6/94
- * $Id: kern_lockf.c,v 1.17 1997/12/05 19:55:38 bde Exp $
+ * $Id: kern_lockf.c,v 1.18 1998/01/31 07:23:11 eivind Exp $
  */
 
 #include "opt_debug_lockf.h"
@@ -737,21 +737,22 @@ lf_print(tag, lock)
 	register struct lockf *lock;
 {
 
-	printf("%s: lock 0x%lx for ", tag, lock);
+	printf("%s: lock %p for ", tag, (void *)lock);
 	if (lock->lf_flags & F_POSIX)
-		printf("proc %d", ((struct proc *)(lock->lf_id))->p_pid);
+		printf("proc %ld", (long)((struct proc *)lock->lf_id)->p_pid);
 	else
-		printf("id 0x%x", lock->lf_id);
-	printf(" in ino %d on dev <%d, %d>, %s, start %d, end %d",
-		lock->lf_inode->i_number,
-		major(lock->lf_inode->i_dev),
-		minor(lock->lf_inode->i_dev),
-		lock->lf_type == F_RDLCK ? "shared" :
-		lock->lf_type == F_WRLCK ? "exclusive" :
-		lock->lf_type == F_UNLCK ? "unlock" :
-		"unknown", lock->lf_start, lock->lf_end);
+		printf("id %p", (void *)lock->lf_id);
+	/* XXX no %qd in kernel.  Truncate. */
+	printf(" in ino %lu on dev <%d, %d>, %s, start %ld, end %ld",
+	    (u_long)lock->lf_inode->i_number,
+	    major(lock->lf_inode->i_dev),
+	    minor(lock->lf_inode->i_dev),
+	    lock->lf_type == F_RDLCK ? "shared" :
+	    lock->lf_type == F_WRLCK ? "exclusive" :
+	    lock->lf_type == F_UNLCK ? "unlock" :
+	    "unknown", (long)lock->lf_start, (long)lock->lf_end);
 	if (lock->lf_blkhd.tqh_first)
-		printf(" block 0x%x\n", lock->lf_blkhd.tqh_first);
+		printf(" block %p\n", (void *)lock->lf_blkhd.tqh_first);
 	else
 		printf("\n");
 }
@@ -763,34 +764,38 @@ lf_printlist(tag, lock)
 {
 	register struct lockf *lf, *blk;
 
-	printf("%s: Lock list for ino %d on dev <%d, %d>:\n",
-		tag, lock->lf_inode->i_number,
-		major(lock->lf_inode->i_dev),
-		minor(lock->lf_inode->i_dev));
+	printf("%s: Lock list for ino %lu on dev <%d, %d>:\n",
+	    tag, (u_long)lock->lf_inode->i_number,
+	    major(lock->lf_inode->i_dev),
+	    minor(lock->lf_inode->i_dev));
 	for (lf = lock->lf_inode->i_lockf; lf; lf = lf->lf_next) {
-		printf("\tlock 0x%lx for ", lf);
+		printf("\tlock %p for ",(void *)lf);
 		if (lf->lf_flags & F_POSIX)
-			printf("proc %d", ((struct proc *)(lf->lf_id))->p_pid);
+			printf("proc %ld",
+			    (long)((struct proc *)lf->lf_id)->p_pid);
 		else
-			printf("id 0x%x", lf->lf_id);
-		printf(", %s, start %d, end %d",
-			lf->lf_type == F_RDLCK ? "shared" :
-			lf->lf_type == F_WRLCK ? "exclusive" :
-			lf->lf_type == F_UNLCK ? "unlock" :
-			"unknown", lf->lf_start, lf->lf_end);
+			printf("id %p", (void *)lf->lf_id);
+		/* XXX no %qd in kernel.  Truncate. */
+		printf(", %s, start %ld, end %ld",
+		    lf->lf_type == F_RDLCK ? "shared" :
+		    lf->lf_type == F_WRLCK ? "exclusive" :
+		    lf->lf_type == F_UNLCK ? "unlock" :
+		    "unknown", (long)lf->lf_start, (long)lf->lf_end);
 		for (blk = lf->lf_blkhd.tqh_first; blk;
 		     blk = blk->lf_block.tqe_next) {
-			printf("\n\t\tlock request 0x%lx for ", blk);
+			printf("\n\t\tlock request %p for ", (void *)blk);
 			if (blk->lf_flags & F_POSIX)
-				printf("proc %d",
-				    ((struct proc *)(blk->lf_id))->p_pid);
+				printf("proc %ld",
+				    (long)((struct proc *)blk->lf_id)->p_pid);
 			else
-				printf("id 0x%x", blk->lf_id);
-			printf(", %s, start %d, end %d",
-				blk->lf_type == F_RDLCK ? "shared" :
-				blk->lf_type == F_WRLCK ? "exclusive" :
-				blk->lf_type == F_UNLCK ? "unlock" :
-				"unknown", blk->lf_start, blk->lf_end);
+				printf("id %p", (void *)blk->lf_id);
+			/* XXX no %qd in kernel.  Truncate. */
+			printf(", %s, start %ld, end %ld",
+			    blk->lf_type == F_RDLCK ? "shared" :
+			    blk->lf_type == F_WRLCK ? "exclusive" :
+			    blk->lf_type == F_UNLCK ? "unlock" :
+			    "unknown", (long)blk->lf_start,
+			    (long)blk->lf_end);
 			if (blk->lf_blkhd.tqh_first)
 				panic("lf_printlist: bad list");
 		}
