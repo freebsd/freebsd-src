@@ -60,7 +60,9 @@ functions are provided for traversing
 file hierarchies.
 A simple overview is that the
 .Fn fts_open
-function returns a ``handle'' on a file hierarchy, which is then supplied to
+function returns a
+.Dq handle
+on a file hierarchy, which is then supplied to
 the other
 .Nm fts
 functions.
@@ -76,7 +78,9 @@ In general, directories are visited two distinguishable times; in pre-order
 (before any of their descendants are visited) and in post-order (after all
 of their descendants have been visited).
 Files are visited once.
-It is possible to walk the hierarchy ``logically'' (ignoring symbolic links)
+It is possible to walk the hierarchy
+.Dq logically
+(ignoring symbolic links)
 or physically (visiting symbolic links), order the walk of the hierarchy or
 prune and/or re-visit portions of the hierarchy.
 .Pp
@@ -93,7 +97,9 @@ Normally, an
 .Fa FTSENT
 structure is returned for every file in the file
 hierarchy.
-In this manual page, ``file'' and
+In this manual page,
+.Dq file
+and
 .Dq Fa FTSENT No structure
 are generally
 interchangeable.
