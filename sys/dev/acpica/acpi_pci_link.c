@@ -45,6 +45,7 @@ ACPI_MODULE_NAME("PCI_LINK")
 
 TAILQ_HEAD(acpi_pci_link_entries, acpi_pci_link_entry);
 static struct acpi_pci_link_entries acpi_pci_link_entries;
+ACPI_SERIAL_DECL(pci_link, "ACPI PCI link");
 
 TAILQ_HEAD(acpi_prt_entries, acpi_prt_entry);
 static struct acpi_prt_entries acpi_prt_entries;
@@ -334,6 +335,7 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	struct acpi_pci_link_entry *link;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	ACPI_SERIAL_ASSERT(pci_link);
 
 	entry->pci_link = NULL;
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
@@ -460,6 +462,7 @@ acpi_pci_link_add_prt(device_t pcidev, ACPI_PCI_ROUTING_TABLE *prt, int busno)
 	struct acpi_prt_entry	*entry;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	ACPI_SERIAL_ASSERT(pci_link);
 
 	if (prt == NULL) {
 		device_printf(pcidev, "NULL PRT entry\n");
@@ -570,7 +573,7 @@ acpi_pci_link_set_irq(struct acpi_pci_link_entry *link, UINT8 irq)
 	ACPI_RESOURCE		resbuf;
 	ACPI_BUFFER		crsbuf;
 
-	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+	ACPI_SERIAL_ASSERT(pci_link);
 
 	/* Make sure the new IRQ is valid before routing. */
 	if (!acpi_pci_link_is_valid_irq(link, irq)) {
@@ -672,6 +675,7 @@ acpi_pci_link_bootdisabled_dump(void)
 	int			irq;
 	struct acpi_pci_link_entry *link;
 
+	ACPI_SERIAL_ASSERT(pci_link);
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
 		/* boot-disabled link only. */
 		if (link->current_irq != 0)
@@ -759,6 +763,7 @@ acpi_pci_link_update_irq_penalty(device_t dev, int busno)
 	struct acpi_prt_entry	*entry;
 	struct acpi_pci_link_entry *link;
 
+	ACPI_SERIAL_ASSERT(pci_link);
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		if (entry->busno != busno)
 			continue;
@@ -805,6 +810,8 @@ acpi_pci_link_set_bootdisabled_priority(void)
 	int			irq;
 	struct acpi_pci_link_entry *link, *link_pri;
 	TAILQ_HEAD(, acpi_pci_link_entry) sorted_list;
+
+	ACPI_SERIAL_ASSERT(pci_link);
 
 	/* reset priority for all links. */
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links)
@@ -865,6 +872,8 @@ acpi_pci_link_fixup_bootdisabled_link(void)
 	int			irq1, irq2;
 	struct acpi_pci_link_entry *link;
 
+	ACPI_SERIAL_ASSERT(pci_link);
+
 	TAILQ_FOREACH(link, &acpi_pci_link_entries, links) {
 		/* Ignore links that have been routed already. */
 		if (link->flags & ACPI_LINK_ROUTED)
@@ -902,6 +911,7 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 	ACPI_PCI_ROUTING_TABLE	*prt;
 	u_int8_t		*prtp;
 	ACPI_STATUS		error;
+	int			ret;
 	static int		first_time = 1;
 
 	ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
@@ -909,6 +919,8 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 	if (acpi_disabled("pci_link"))
 		return (0);
 
+	ret = -1;
+	ACPI_SERIAL_BEGIN(pci_link);
 	if (first_time) {
 		TAILQ_INIT(&acpi_prt_entries);
 		TAILQ_INIT(&acpi_pci_link_entries);
@@ -917,11 +929,11 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 	}
 
 	if (prtbuf == NULL)
-		return (-1);
+		goto out;
 
 	prtp = prtbuf->Pointer;
 	if (prtp == NULL)		/* didn't get routing table */
-		return (-1);
+		goto out;
 
 	/* scan the PCI Routing Table */
 	for (;;) {
@@ -984,8 +996,11 @@ acpi_pci_link_config(device_t dev, ACPI_BUFFER *prtbuf, int busno)
 		if (irq == 0)
 			entry->pci_link->current_irq = 0;
 	}
+	ret = 0;
 
-	return (0);
+out:
+	ACPI_SERIAL_END(pci_link);
+	return (ret);
 }
 
 int
@@ -1001,6 +1016,7 @@ acpi_pci_link_resume(device_t dev)
 		return (0);
 
 	/* Walk through all PRT entries for this PCI bridge. */
+	ACPI_SERIAL_BEGIN(pci_link);
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		if (entry->pcidev == dev || entry->pci_link == NULL)
 			continue;
@@ -1020,6 +1036,7 @@ acpi_pci_link_resume(device_t dev)
 			    AcpiFormatException(error)));
 		}
 	}
+	ACPI_SERIAL_END(pci_link);
 
 	return (0);
 }
@@ -1039,14 +1056,16 @@ acpi_pci_find_prt(device_t pcibdev, device_t dev, int pin)
 	struct acpi_prt_entry *entry;
 	ACPI_PCI_ROUTING_TABLE *prt;
 
+	ACPI_SERIAL_BEGIN(pci_link);
 	TAILQ_FOREACH(entry, &acpi_prt_entries, links) {
 		prt = &entry->prt;
 		if (entry->busno == pci_get_bus(dev) &&
 		    (prt->Address & 0xffff0000) >> 16 == pci_get_slot(dev) &&
 		    prt->Pin == pin)
-			return (entry);
+			break;
 	}
-	return (NULL);
+	ACPI_SERIAL_END(pci_link);
+	return (entry);
 }
 
 /*
@@ -1065,6 +1084,7 @@ acpi_pci_link_route(device_t dev, struct acpi_prt_entry *prt)
 	busno = pci_get_bus(dev);
 	link = prt->pci_link;
 	irq = PCI_INVALID_IRQ;
+	ACPI_SERIAL_BEGIN(pci_link);
 	if (link == NULL || link->number_of_interrupts == 0)
 		goto out;
 
@@ -1117,5 +1137,6 @@ acpi_pci_link_route(device_t dev, struct acpi_prt_entry *prt)
 	acpi_config_intr(dev, &crsres);
 
 out:
+	ACPI_SERIAL_END(pci_link);
 	return (irq);
 }
