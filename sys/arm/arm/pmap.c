@@ -3488,7 +3488,7 @@ pmap_kextract(vm_offset_t va)
  *		Extract the physical page address associated
  *		with the given map/virtual_address pair.
  */
-vm_offset_t 
+vm_paddr_t
 pmap_extract(pmap_t pm, vm_offset_t va)
 {
 	struct l2_dtable *l2;
