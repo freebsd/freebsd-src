@@ -1665,6 +1665,14 @@ _Unwind_GetCFA (struct _Unwind_Context *context)
   return (_Unwind_Ptr) context->psp;
 }
 
+/* Get the value of the Backing Store Pointer as saved in CONTEXT.  */
+
+_Unwind_Word
+_Unwind_GetBSP (struct _Unwind_Context *context)
+{
+  return (_Unwind_Ptr) context->bsp;
+}
+
 
 static _Unwind_Reason_Code
 uw_frame_state_for (struct _Unwind_Context *context, _Unwind_FrameState *fs)
@@ -1786,6 +1794,11 @@ uw_update_reg_address (struct _Unwind_Context *context,
 	addr = ia64_rse_skip_regs ((unsigned long *) context->bsp, rval - 32);
       else if (rval >= 2)
 	addr = context->ireg[rval - 2].loc;
+      else if (rval == 0)
+	{
+	  static const unsigned long dummy;
+	  addr = (void *) &dummy;
+	}
       else
 	abort ();
       break;
@@ -1836,6 +1849,11 @@ uw_update_reg_address (struct _Unwind_Context *context,
 	  {
 	    context->ireg[regno - UNW_REG_R2].nat
 	      = context->ireg[rval - 2].nat;
+	  }
+	else if (rval == 0)
+	  {
+	    context->ireg[regno - UNW_REG_R2].nat.type = UNW_NAT_NONE;
+	    context->ireg[regno - UNW_REG_R2].nat.off = 0;
 	  }
 	else
 	  abort ();
