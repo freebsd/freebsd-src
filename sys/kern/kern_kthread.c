@@ -79,7 +79,7 @@ kthread_create(void (*func)(void *), void *arg,
 	struct thread *td;
 	struct proc *p2;
 
-	if (!proc0.p_stats /* || proc0.p_stats->p_start.tv_sec == 0 */)
+	if (!proc0.p_stats)
 		panic("kthread_create called too soon");
 
 	error = fork1(&thread0, RFMEM | RFFDG | RFPROC | RFSTOPPED | flags,
