@@ -1,11 +1,11 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.4 2002/03/11 23:12:37 ue Exp $
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.5 2003/01/13 20:30:48 ue Exp $
   $Id: intro.sgml,v 1.5 2002/03/10 15:37:15 ue Exp $
-  basiert auf: 1.3
+  basiert auf: 1.5
 -->
 
-<sect1>
+<sect1 id="intro">
   <title>Einf&uuml;hrung</title>
 
   <para>Dieses Dokument enth&auml;lt die Liste der unterst&uuml;tzen

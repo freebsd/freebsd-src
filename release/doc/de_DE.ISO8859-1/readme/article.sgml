@@ -1,8 +1,8 @@
 <!--
   The FreeBSD German Documentation Project
   The FreeBSD Documentation Project
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.14 2003/01/09 12:18:26 ue Exp $
-  basiert auf: 1.20
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/readme/article.sgml,v 1.15 2003/01/13 20:30:51 ue Exp $
+  basiert auf: 1.22
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -57,7 +57,7 @@
       Informationsquellen.</para>
   </abstract>
 
-  <sect1>
+  <sect1 id="intro">
     <title>Einf&uuml;hrung</title>
 
     <para>Diese Ausgabe von &os; ist eine &release.type;-Version von
@@ -148,7 +148,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="obtain">
     <title>Bezugsquellen f&uuml;r &os;</title>
 
     <para>&os; kann auf vielen verschiedenen Wegen bezogen werden.
@@ -299,7 +299,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="seealso">
     <title>Weiterf&uuml;hrende Dokumente</title>
 
     <para>Es gibt viele verschiedene Quellen f&uuml;r Informationen
@@ -468,7 +468,7 @@
     </sect2>
   </sect1>
 
-  <sect1>
+  <sect1 id="acknowledgements">
     <title>Danksagung</title>
 
     <para>&os; ist das Ergebnis der Arbeit vieler hundert, wenn nicht
