@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_inode.c	8.13 (Berkeley) 4/21/95
- * $Id: ffs_inode.c,v 1.41 1998/04/30 05:28:53 dyson Exp $
+ * $Id: ffs_inode.c,v 1.42 1998/05/04 17:43:48 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -246,10 +246,11 @@ ffs_truncate(vp, length, flags, cred, p)
 	}
 	/*
 	 * Shorten the size of the file. If the file is not being
-	 * truncated to a block boundry, the contents of the
+	 * truncated to a block boundary, the contents of the
 	 * partial block following the end of the file must be
-	 * zero'ed in case it ever become accessable again because
-	 * of subsequent file growth.
+	 * zero'ed in case it ever becomes accessible again because
+	 * of subsequent file growth. Directories however are not
+	 * zero'ed as they should grow back initialized to empty.
 	 */
 	offset = blkoff(fs, length);
 	if (offset == 0) {
@@ -265,7 +266,10 @@ ffs_truncate(vp, length, flags, cred, p)
 		}
 		oip->i_size = length;
 		size = blksize(fs, oip, lbn);
-		bzero((char *)bp->b_data + offset, (u_int)(size - offset));
+		if (ovp->v_type != VDIR)
+			bzero((char *)bp->b_data + offset,
+			    (u_int)(size - offset));
+		/* Kirk's code has reallocbuf(bp, size, 1) here */
 		allocbuf(bp, size);
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
