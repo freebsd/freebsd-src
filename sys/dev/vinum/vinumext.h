@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.4 1998/12/28 04:56:24 peter Exp $
+ * $Id: vinumext.h,v 1.18 1999/01/15 02:41:16 grog Exp grog $
  */
 
 /* vinumext.h: external definitions */
@@ -58,9 +58,9 @@ struct proc;
 #ifdef KERNEL
 int give_sd_to_plex(int plexno, int sdno);
 int give_plex_to_volume(int volno, int plexno);
-int check_drive(char *);
-enum drive_label_info read_drive_label(struct drive *drive);
-int parse_config(char *, struct keywordset *);
+struct drive *check_drive(char *);
+enum drive_label_info read_drive_label(struct drive *, int);
+int parse_config(char *, struct keywordset *, int);
 int parse_user_config(char *cptr, struct keywordset *keyset);
 u_int64_t sizespec(char *spec);
 int volume_index(struct volume *volume);
@@ -81,17 +81,18 @@ int find_plex(const char *name, int create);
 void free_plex(int plexno);
 int get_empty_volume(void);
 int find_volume(const char *name, int create);
-void config_subdisk(void);
-void config_plex(void);
-void config_volume(void);
-void config_drive(void);
+void config_subdisk(int);
+void config_plex(int);
+void config_volume(int);
+void config_drive(int);
 void updateconfig(int);
 void update_sd_config(int sdno, int kernelstate);
 void update_plex_config(int plexno, int kernelstate);
 void update_volume_config(int volno, int kernelstate);
 void update_config(void);
 void drive_io_done(struct buf *);
-int save_config(void);
+void save_config(void);
+void daemon_save_config(void);
 void write_config(char *, int);
 int start_config(void);
 void finish_config(int);
@@ -102,16 +103,17 @@ void remove_plex_entry(int plexno, int force, int recurse);
 void remove_volume_entry(int volno, int force, int recurse);
 
 void checkernel(char *);
-int open_drive(struct drive *, struct proc *);
+int open_drive(struct drive *, struct proc *, int);
 void close_drive(struct drive *drive);
-int driveio(struct drive *, void *, size_t, off_t, int);
+int driveio(struct drive *, char *, size_t, off_t, int);
 /* #define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
    #define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE) */
 int set_drive_parms(struct drive *drive);
-int init_drive(struct drive *);
+int init_drive(struct drive *, int);
 /* void throw_rude_remark (int, struct _ioctl_reply *, char *, ...); XXX */
 void throw_rude_remark(int, char *,...);
 
+/* XXX die die */
 int read_drive(struct drive *drive, void *buf, size_t length, off_t offset);
 int write_drive(struct drive *drive, void *buf, size_t length, off_t offset);
 void format_config(char *config, int len);
@@ -119,6 +121,8 @@ void checkkernel(char *op);
 void free_drive(struct drive *drive);
 void down_drive(struct drive *drive);
 void remove_drive(int driveno);
+
+void vinum_scandisk(char *drivename[], int drives);
 
 /* I/O */
 d_open_t vinumopen;
@@ -132,6 +136,7 @@ d_write_t vinumwrite;
 
 int vinumstart(struct buf *bp, int reviveok);
 int launch_requests(struct request *rq, int reviveok);
+void sdio(struct buf *bp);
 
 /* XXX Do we need this? */
 int vinumpart(dev_t);
@@ -145,19 +150,25 @@ int vinum_rqinfo(caddr_t data);
 
 void expand_table(void **, int, int);
 
-void add_defective_region(struct plex *plex, off_t offset, size_t length);
-void add_unmapped_region(struct plex *plex, off_t offset, size_t length);
-void rebuild_plex_unmappedlist(struct plex *plex);
 struct request;
 struct rqgroup *allocrqg(struct request *rq, int elements);
 void deallocrqg(struct rqgroup *rqg);
 
+/* Device number decoding */
+int Volno(dev_t x);
+int Plexno(dev_t x);
+int Sdno(dev_t x);
+
 /* State transitions */
-int set_drive_state(int driveno, enum drivestate state, int force);
+int set_drive_state(int driveno, enum drivestate state, enum setstateflags flags);
 int set_sd_state(int sdno, enum sdstate state, enum setstateflags flags);
 enum requeststatus checksdstate(struct sd *sd, struct request *rq, daddr_t diskaddr, daddr_t diskend);
 int set_plex_state(int plexno, enum plexstate state, enum setstateflags flags);
 int set_volume_state(int volumeno, enum volumestate state, enum setstateflags flags);
+void update_sd_state(int sdno);
+void update_plex_state(int plexno);
+void update_volume_state(int volno);
+void invalidate_subdisks(struct plex *, enum sdstate);
 void get_volume_label(struct volume *vol, struct disklabel *lp);
 int write_volume_label(int);
 void start_object(struct vinum_ioctl_msg *);
@@ -168,10 +179,11 @@ int vinum_writedisklabel(struct volume *, struct disklabel *);
 int initsd(int);
 
 int restart_plex(int plexno);
-int revive_block(int plexno);
+int revive_read(struct sd *sd);
+int revive_block(int sdno);
 
 /* Auxiliary functions */
-enum sdstates sdstatemap(struct plex *plex, int *sddowncount);
+enum sdstates sdstatemap(struct plex *plex);
 enum volplexstate vpstate(struct plex *plex);
 #endif
 
@@ -194,6 +206,8 @@ int tokenize(char *, char *[]);
 void resetstats(struct vinum_ioctl_msg *msg);
 
 /* Locking */
+int lockdrive(struct drive *drive);
+void unlockdrive(struct drive *drive);
 int lockvol(struct volume *vol);
 void unlockvol(struct volume *vol);
 int lockplex(struct plex *plex);
@@ -202,3 +216,11 @@ int lockrange(struct plex *plex, off_t first, off_t last);
 void unlockrange(struct plex *plex, off_t first, off_t last);
 int lock_config(void);
 void unlock_config(void);
+
+/* Dæmon */
+
+void vinum_daemon(void);
+int vinum_finddaemon(void);
+int vinum_setdaemonopts(int);
+extern struct daemonq *daemonq;				    /* daemon's work queue */
+extern struct daemonq *dqend;				    /* and the end of the queue */
