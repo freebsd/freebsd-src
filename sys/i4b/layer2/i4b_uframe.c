@@ -26,12 +26,12 @@
  *
  *	i4b_uframe.c - routines for handling U-frames
  *	-----------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 17:54:08 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

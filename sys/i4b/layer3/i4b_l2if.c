@@ -26,12 +26,12 @@
  *
  *	i4b_l2if.c - Layer 3 interface to Layer 2
  *	-------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sun Aug 11 12:48:41 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

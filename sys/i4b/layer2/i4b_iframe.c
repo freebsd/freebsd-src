@@ -26,12 +26,12 @@
  *
  *	i4b_iframe.c - i frame handling routines
  *	------------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 16:07:21 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

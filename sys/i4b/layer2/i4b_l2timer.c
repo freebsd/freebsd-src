@@ -26,12 +26,12 @@
  *
  *	i4b_l2timer.c - layer 2 timer handling
  *	--------------------------------------
- *
- * $FreeBSD$
- *
  *      last edit-date: [Sat Mar  9 17:48:58 2002]
  *
  *---------------------------------------------------------------------------*/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
