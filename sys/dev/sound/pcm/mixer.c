@@ -64,6 +64,7 @@ static u_int16_t snd_mixerdefaults[SOUND_MIXER_NRDEVICES] = {
 	[SOUND_MIXER_VIDEO]	= 75,
 	[SOUND_MIXER_RECLEV]	= 0,
 	[SOUND_MIXER_OGAIN]	= 50,
+	[SOUND_MIXER_MONITOR]	= 75,
 };
 
 static char* snd_mixernames[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
