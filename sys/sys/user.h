@@ -88,7 +88,8 @@ struct kinfo_proc {
 #define	EPROC_CTTY	0x01	/* controlling tty vnode active */
 #define	EPROC_SLEADER	0x02	/* session leader */
 		char	e_login[roundup(MAXLOGNAME, sizeof(long))];	/* setlogin() name */
-		long	e_spare[2];
+		pid_t	e_sid;			/* session id */
+		long	e_spare[1];
 	} kp_eproc;
 };
 void fill_eproc __P((struct proc *, struct eproc *));

@@ -389,6 +389,8 @@ fill_eproc(p, ep)
 				ep->e_flag |= EPROC_SLEADER;
 		}
 	}
+	if (ep->e_sess != NULL)
+		ep->e_sid = ep->e_sess->s_sid;
 	if ((p->p_flag & P_CONTROLT) &&
 	    (ep->e_sess != NULL) &&
 	    ((tp = ep->e_sess->s_ttyp) != NULL)) {
