@@ -644,9 +644,7 @@ restart:
 #endif /* DEV_ISA */
 		}
 
-		mtx_lock(&Giant);
 		trap_fatal(&frame, eva);
-		mtx_unlock(&Giant);
 		goto out;
 	}
 
@@ -889,9 +887,7 @@ nogo:
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
 			return (0);
 		}
-		mtx_lock(&Giant);
 		trap_fatal(frame, eva);
-		mtx_unlock(&Giant);
 		return (-1);
 	}
 
