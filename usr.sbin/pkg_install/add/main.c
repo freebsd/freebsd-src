@@ -155,8 +155,7 @@ main(int argc, char **argv)
 		if (!((ptr = strrchr(remotepkg, '.')) && ptr[1] == 't' && 
 			(ptr[2] == 'b' || ptr[2] == 'g') && ptr[3] == 'z' &&
 			!ptr[4]))
-		    /* XXX: need to handle .tgz also */
-		    if (strlcat(remotepkg, ".tbz", sizeof(temppackageroot))
+		    if (strlcat(remotepkg, ".tgz", sizeof(temppackageroot))
 			>= sizeof(temppackageroot))
 			errx(1, "package name too long");
     	    }

@@ -271,7 +271,7 @@ pkg_do(char *pkg)
 
 		    ext = strrchr(pkg_fullname, '.');
 		    if (ext == NULL)
-			ext = ".tbz";
+			ext = ".tgz";
 		    snprintf(path, FILENAME_MAX, "%s/%s%s", getenv("_TOP"), p->name, ext);
 		    if (fexists(path))
 			cp = path;
