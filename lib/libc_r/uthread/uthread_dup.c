@@ -41,7 +41,7 @@ dup(int fd)
 	int             ret;
 
 	/* Lock the file descriptor: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Perform the 'dup' syscall: */
 		if ((ret = _thread_sys_dup(fd)) < 0) {
 		}
@@ -61,7 +61,7 @@ dup(int fd)
 		}
 
 		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	/* Return the completion status: */
 	return (ret);

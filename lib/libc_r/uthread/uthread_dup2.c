@@ -41,9 +41,9 @@ dup2(int fd, int newfd)
 	int             ret;
 
 	/* Lock the file descriptor: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Lock the file descriptor: */
-		if ((ret = _thread_fd_lock(newfd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+		if ((ret = _FD_LOCK(newfd, FD_RDWR, NULL)) == 0) {
 			/* Perform the 'dup2' syscall: */
 			if ((ret = _thread_sys_dup2(fd, newfd)) < 0) {
 			}
@@ -63,10 +63,10 @@ dup2(int fd, int newfd)
 			}
 
 			/* Unlock the file descriptor: */
-			_thread_fd_unlock(newfd, FD_RDWR);
+			_FD_UNLOCK(newfd, FD_RDWR);
 		}
 		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 	/* Return the completion status: */
 	return (ret);

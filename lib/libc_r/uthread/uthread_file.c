@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_file.c,v 1.2 1998/04/11 07:47:20 jb Exp $
+ * $Id: uthread_file.c,v 1.3 1998/04/29 09:58:47 jb Exp $
  *
  * POSIX stdio FILE locking functions. These assume that the locking
  * is only required at FILE structure level, not at file descriptor
@@ -98,7 +98,7 @@ struct static_file_lock {
 static	int	init_done	= 0;
 
 /* Lock for accesses to the hash table: */
-static	long	hash_lock	= 0;
+static	spinlock_t	hash_lock	= _SPINLOCK_INITIALIZER;
 
 /*
  * Find a lock structure for a FILE, return NULL if the file is
@@ -189,7 +189,7 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
 		/* Lock the hash table: */
-		_spinlock(&hash_lock);
+		_SPINLOCK(&hash_lock);
 
 		/* Check if the static array has not been initialised: */
 		if (!init_done) {
@@ -209,7 +209,7 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			p = do_lock(idx, fp);
 
 			/* Unlock the hash table: */
-			_atomic_unlock(&hash_lock);
+			_SPINUNLOCK(&hash_lock);
 
 		/*
 		 * The file is already locked, so check if the
@@ -225,7 +225,7 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			p->count++;
 
 			/* Unlock the hash table: */
-			_atomic_unlock(&hash_lock);
+			_SPINUNLOCK(&hash_lock);
 		} else {
 			/*
 			 * The file is locked for another thread.
@@ -235,7 +235,7 @@ _flockfile_debug(FILE * fp, char *fname, int lineno)
 			TAILQ_INSERT_TAIL(&p->l_head,_thread_run,qe);
 
 			/* Unlock the hash table: */
-			_atomic_unlock(&hash_lock);
+			_SPINUNLOCK(&hash_lock);
 
 			/* Wait on the FILE lock: */
 			_thread_kern_sched_state(PS_FILE_WAIT, fname, lineno);
@@ -262,7 +262,7 @@ _ftrylockfile(FILE * fp)
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
 		/* Lock the hash table: */
-		_spinlock(&hash_lock);
+		_SPINLOCK(&hash_lock);
 
 		/* Get a pointer to any existing lock for the file: */
 		if ((p = find_lock(idx, fp)) == NULL) {
@@ -298,7 +298,7 @@ _ftrylockfile(FILE * fp)
 			ret = 0;
 
 		/* Unlock the hash table: */
-		_atomic_unlock(&hash_lock);
+		_SPINUNLOCK(&hash_lock);
 
 	}
 	return (ret);
@@ -314,7 +314,7 @@ _funlockfile(FILE * fp)
 	/* Check if this is a real file: */
 	if (fp->_file >= 0) {
 		/* Lock the hash table: */
-		_spinlock(&hash_lock);
+		_SPINLOCK(&hash_lock);
 
 		/*
 		 * Get a pointer to the lock for the file and check that
@@ -358,7 +358,7 @@ _funlockfile(FILE * fp)
 		}
 
 		/* Unlock the hash table: */
-		_atomic_unlock(&hash_lock);
+		_SPINUNLOCK(&hash_lock);
 	}
 	return;
 }

@@ -45,7 +45,7 @@ ioctl(int fd, unsigned long request,...)
 	va_list         ap;
 
 	/* Lock the file descriptor: */
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
 		/* Initialise the variable argument list: */
 		va_start(ap, request);
 
@@ -69,7 +69,7 @@ ioctl(int fd, unsigned long request,...)
 		va_end(ap);
 
 		/* Unlock the file descriptor: */
-		_thread_fd_unlock(fd, FD_RDWR);
+		_FD_UNLOCK(fd, FD_RDWR);
 	}
 
 	/* Return the completion status: */

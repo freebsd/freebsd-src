@@ -41,9 +41,9 @@ getsockname(int s, struct sockaddr * name, int *namelen)
 {
 	int             ret;
 
-	if ((ret = _thread_fd_lock(s, FD_READ, NULL, __FILE__, __LINE__)) == 0) {
+	if ((ret = _FD_LOCK(s, FD_READ, NULL)) == 0) {
 		ret = _thread_sys_getsockname(s, name, namelen);
-		_thread_fd_unlock(s, FD_READ);
+		_FD_UNLOCK(s, FD_READ);
 	}
 	return ret;
 }
