@@ -4039,6 +4039,7 @@ emit_prefetch_instructions (loop)
 	      int bytes_ahead = PREFETCH_BLOCK * (ahead + y);
 	      rtx before_insn = info[i].giv->insn;
 	      rtx prev_insn = PREV_INSN (info[i].giv->insn);
+	      rtx seq;
 
 	      /* We can save some effort by offsetting the address on
 		 architectures with offsettable memory references.  */
@@ -4053,14 +4054,17 @@ emit_prefetch_instructions (loop)
 		  loc = reg;
 		}
 
+	      start_sequence ();
 	      /* Make sure the address operand is valid for prefetch.  */
 	      if (! (*insn_data[(int)CODE_FOR_prefetch].operand[0].predicate)
 		    (loc,
 		     insn_data[(int)CODE_FOR_prefetch].operand[0].mode))
 		loc = force_reg (Pmode, loc);
-	      emit_insn_before (gen_prefetch (loc, GEN_INT (info[i].write),
-		                              GEN_INT (3)),
-				before_insn);
+	      emit_insn (gen_prefetch (loc, GEN_INT (info[i].write),
+		                       GEN_INT (3)));
+	      seq = gen_sequence ();
+	      end_sequence ();
+	      emit_insn_before (seq, before_insn);
 
 	      /* Check all insns emitted and record the new GIV
 		 information.  */
@@ -5847,7 +5851,7 @@ check_final_value (loop, v)
 #endif
 
   if ((final_value = final_giv_value (loop, v))
-      && (v->always_computable || last_use_this_basic_block (v->dest_reg, v->insn)))
+      && (v->always_executed || last_use_this_basic_block (v->dest_reg, v->insn)))
     {
       int biv_increment_seen = 0, before_giv_insn = 0;
       rtx p = v->insn;
