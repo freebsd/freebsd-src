@@ -56,6 +56,8 @@
 #define HISTORY_WORD_DELIMITERS		" \t\n;&()|<>"
 #define HISTORY_QUOTE_CHARACTERS	"\"'`"
 
+typedef int _hist_search_func_t __P((const char *, int));
+
 static char error_pointer;
 
 static char *subst_lhs;
@@ -91,9 +93,12 @@ char *history_no_expand_chars = " \t\n\r=";
    The default is 0. */
 int history_quotes_inhibit_expansion = 0;
 
+/* Used to split words by history_tokenize_internal. */
+char *history_word_delimiters = HISTORY_WORD_DELIMITERS;
+
 /* If set, this points to a function that is called to verify that a
    particular history expansion should be performed. */
-Function *history_inhibit_expansion_function;
+rl_linebuf_func_t *history_inhibit_expansion_function;
 
 /* **************************************************************** */
 /*								    */
@@ -122,7 +127,7 @@ static char *search_match;
    line = get_history_event ("!echo:p", &index, 0);  */
 char *
 get_history_event (string, caller_index, delimiting_quote)
-     char *string;
+     const char *string;
      int *caller_index;
      int delimiting_quote;
 {
@@ -130,7 +135,7 @@ get_history_event (string, caller_index, delimiting_quote)
   register char c;
   HIST_ENTRY *entry;
   int which, sign, local_index, substring_okay;
-  Function *search_func;
+  _hist_search_func_t *search_func;
   char *temp;
 
   /* The event can be specified in a number of ways.
@@ -340,7 +345,8 @@ hist_error(s, start, current, errtype)
       char *s;
       int start, current, errtype;
 {
-  char *temp, *emsg;
+  char *temp;
+  const char *emsg;
   int ll, elen;
 
   ll = current - start;
@@ -622,7 +628,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 	case '&':
 	case 's':
 	  {
-	    char *new_event, *t;
+	    char *new_event;
 	    int delimiter, failed, si, l_temp;
 
 	    if (c == 's')
@@ -741,7 +747,7 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
       char *x;
 
       if (want_quotes == 'q')
-	x = single_quote (temp);
+	x = sh_single_quote (temp);
       else if (want_quotes == 'x')
 	x = quote_breaks (temp);
       else
@@ -816,6 +822,9 @@ history_expand (hstring, output)
   /* Used when adding the string. */
   char *temp;
 
+  if (output == 0)
+    return 0;
+
   /* Setting the history expansion character to 0 inhibits all
      history expansion. */
   if (history_expansion_char == 0)
@@ -865,7 +874,7 @@ history_expand (hstring, output)
 	     history expansion performed on it.
 	     Skip the rest of the line and break out of the loop. */
 	  if (history_comment_char && string[i] == history_comment_char &&
-	      (i == 0 || member (string[i - 1], HISTORY_WORD_DELIMITERS)))
+	      (i == 0 || member (string[i - 1], history_word_delimiters)))
 	    {
 	      while (string[i])
 		i++;
@@ -963,7 +972,7 @@ history_expand (hstring, output)
 	  }
 
 	case -2:		/* history_comment_char */
-	  if (i == 0 || member (string[i - 1], HISTORY_WORD_DELIMITERS))
+	  if (i == 0 || member (string[i - 1], history_word_delimiters))
 	    {
 	      temp = xmalloc (l - i + 1);
 	      strcpy (temp, string + i);
@@ -1151,7 +1160,7 @@ get_history_word_specifier (spec, from, caller_index)
 char *
 history_arg_extract (first, last, string)
      int first, last;
-     char *string;
+     const char *string;
 {
   register int i, len;
   char *result;
@@ -1217,12 +1226,17 @@ history_arg_extract (first, last, string)
    *INDP. */
 static char **
 history_tokenize_internal (string, wind, indp)
-     char *string;
+     const char *string;
      int wind, *indp;
 {
   char **result;
   register int i, start, result_index, size;
   int len, delimiter;
+
+  /* If we're searching for a string that's not part of a word (e.g., " "),
+     make sure we set *INDP to a reasonable value. */
+  if (indp && wind != -1)
+    *indp = -1;
 
   /* Get a token, and stuff it into RESULT.  The tokens are split
      exactly where the shell would split them. */
@@ -1298,7 +1312,7 @@ history_tokenize_internal (string, wind, indp)
 	      continue;
 	    }
 
-	  if (!delimiter && (member (string[i], HISTORY_WORD_DELIMITERS)))
+	  if (!delimiter && (member (string[i], history_word_delimiters)))
 	    break;
 
 	  if (!delimiter && member (string[i], HISTORY_QUOTE_CHARACTERS))
@@ -1328,7 +1342,7 @@ history_tokenize_internal (string, wind, indp)
    parsed out of STRING. */
 char **
 history_tokenize (string)
-     char *string;
+     const char *string;
 {
   return (history_tokenize_internal (string, -1, (int *)NULL));
 }
@@ -1345,7 +1359,7 @@ history_find_word (line, ind)
   int i, wind;
 
   words = history_tokenize_internal (line, ind, &wind);
-  if (wind == -1)
+  if (wind == -1 || words == 0)
     return ((char *)NULL);
   s = words[wind];
   for (i = 0; i < wind; i++)

@@ -1,3 +1,156 @@
+This document details the changes between this version, readline-4.2,
+and the previous version, readline-4.1.
+
+1.  Changes to Readline
+
+a.  When setting the terminal attributes on systems using `struct termio',
+    readline waits for output to drain before changing the attributes.
+
+b.  A fix was made to the history word tokenization code to avoid attempts to
+    dereference a null pointer.
+
+c.  Readline now defaults rl_terminal_name to $TERM if the calling application
+    has left it unset, and tries to initialize with the resultant value.
+
+d.  Instead of calling (*rl_getc_function)() directly to get input in certain
+    places, readline now calls rl_read_key() consistently.
+
+e.  Fixed a bug in the completion code that allowed a backslash to quote a
+    single quote inside a single-quoted string.
+
+f.  rl_prompt is no longer assigned directly from the argument to readline(),
+    but uses memory allocated by readline.  This allows constant strings to
+    be passed to readline without problems arising when the prompt processing
+    code wants to modify the string.
+
+g.  Fixed a bug that caused non-interactive history searches to return the
+    wrong line when performing multiple searches backward for the same string.
+
+h.  Many variables, function arguments, and function return values are now
+    declared `const' where appropriate, to improve behavior when linking with
+    C++ code.
+
+i.  The control character detection code now works better on systems where
+    `char' is unsigned by default.
+
+j.  The vi-mode numeric argument is now capped at 999999, just like emacs mode.
+
+k.  The Function, CPFunction, CPPFunction, and VFunction typedefs have been
+    replaced with a set of specific prototyped typedefs, though they are
+    still in the readline header files for backwards compatibility.
+
+m.  Nearly all of the (undocumented) internal global variables in the library
+    now have an _rl_ prefix -- there were a number that did not, like
+    screenheight, screenwidth, alphabetic, etc.
+
+n.  The ding() convenience function has been renamed to rl_ding(), though the
+    old function is still defined for backwards compatibility.
+
+o.  The completion convenience functions filename_completion_function,
+    username_completion_function, and completion_matches now have an rl_
+    prefix, though the old names are still defined for backwards compatibility.
+
+p.  The functions shared by readline and bash (linkage is satisfied from bash
+    when compiling with bash, and internally otherwise) now have an sh_ prefix.
+
+q.  Changed the shared library creation procedure on Linux and BSD/OS 4.x so
+    that the `soname' contains only the major version number rather than the
+    major and minor numbers.
+
+r.  Fixed a redisplay bug that occurred when the prompt spanned more than one
+    physical line and contained invisible characters.
+
+s.  Added a missing `includedir' variable to the Makefile.
+
+t.  When installing the shared libraries, make sure symbolic links are relative.
+
+u.  Added configure test so that it can set `${MAKE}' appropriately.
+
+v.  Fixed a bug in rl_forward that could cause the point to be set to before
+    the beginning of the line in vi mode.
+
+w.  Fixed a bug in the callback read-char interface to make it work when a
+    readline function pushes some input onto the input stream with
+    rl_execute_next (like the incremental search functions).
+
+x.  Fixed a file descriptor leak in the history file manipulation code that
+    was tripped when attempting to truncate a non-regular file (like
+    /dev/null).
+
+y.  Changes to make all of the exported readline functions declared in
+    readline.h have an rl_ prefix (rltty_set_default_bindings is now
+    rl_tty_set_default_bindings, crlf is now rl_crlf, etc.)
+
+z.  The formatted documentation included in the base readline distribution
+    is no longer removed on a `make distclean'.
+
+aa. Some changes were made to avoid gcc warnings with -Wall.
+
+bb. rl_get_keymap_by_name now finds keymaps case-insensitively, so
+    `set keymap EMACS' works.
+
+cc. The history file writing and truncation functions now return a useful
+    status on error.
+
+dd. Fixed a bug that could cause applications to dereference a NULL pointer
+    if a NULL second argument was passed to history_expand().
+
+ee. If a hook function assigned to rl_event_hook sets rl_done to a non-zero
+    value, rl_read_key() now immediately returns '\n' (which is assumed to   
+    be bound to accept-line).
+
+2.  New Features in Readline
+
+a.  The blink timeout for paren matching is now settable by applications,
+    via the rl_set_paren_blink_timeout() function.
+
+b.  _rl_executing_macro has been renamed to rl_executing_macro, which means
+    it's now part of the public interface.
+
+c.  Readline has a new variable, rl_readline_state, which is a bitmap that
+    encapsulates the current state of the library; intended for use by
+    callbacks and hook functions.
+
+d.  rlfe has a new -l option to log input and output (-a appends to logfile),
+    a new -n option to set the readline application name, and -v and -h
+    options for version and help information.
+
+e.  rlfe can now perform filename completion for the inferior process if the
+    OS has a /proc/<PID>/cwd that can be read with readlink(2) to get the
+    inferior's current working directory.
+
+f.  A new file, rltypedefs.h, contains the new typedefs for function pointers
+    and is installed by `make install'.
+
+g.  New application-callable function rl_set_prompt(const char *prompt):
+    expands its prompt string argument and sets rl_prompt to the result.
+
+h.  New application-callable function rl_set_screen_size(int rows, int cols):
+    public method for applications to set readline's idea of the screen
+    dimensions.
+
+i.  The history example program (examples/histexamp.c) is now built as one
+    of the examples.
+
+j.  The documentation has been updated to cover nearly all of the public
+    functions and variables declared in readline.h.
+
+k.  New function, rl_get_screen_size (int *rows, int *columns), returns
+    readline's idea of the screen dimensions.
+
+l.  The timeout in rl_gather_tyi (readline keyboard input polling function)
+    is now settable via a function (rl_set_keyboard_input_timeout()).
+
+m.  Renamed the max_input_history variable to history_max_entries; the old
+    variable is maintained for backwards compatibility.
+
+n.  The list of characters that separate words for the history tokenizer is
+    now settable with a variable:  history_word_delimiters.  The default
+    value is as before.
+
+o.  There is a new history.3 manual page documenting the history library.
+
+-------------------------------------------------------------------------------
 This document details the changes between this version, readline-4.1,
 and the previous version, readline-4.0.
 

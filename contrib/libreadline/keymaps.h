@@ -30,17 +30,11 @@ extern "C" {
 #if defined (READLINE_LIBRARY)
 #  include "rlstdc.h"
 #  include "chardefs.h"
+#  include "rltypedefs.h"
 #else
 #  include <readline/rlstdc.h>
 #  include <readline/chardefs.h>
-#endif
-
-#if !defined (_FUNCTION_DEF)
-#  define _FUNCTION_DEF
-typedef int Function ();
-typedef void VFunction ();
-typedef char *CPFunction ();
-typedef char **CPPFunction ();
+#  include <readline/rltypedefs.h>
 #endif
 
 /* A keymap contains one entry for each key in the ASCII set.
@@ -50,7 +44,7 @@ typedef char **CPPFunction ();
    TYPE says which kind of thing FUNCTION is. */
 typedef struct _keymap_entry {
   char type;
-  Function *function;
+  rl_command_func_t *function;
 } KEYMAP_ENTRY;
 
 /* This must be large enough to hold bindings for all of the characters
@@ -59,7 +53,7 @@ typedef struct _keymap_entry {
 #define KEYMAP_SIZE 256
 
 /* I wanted to make the above structure contain a union of:
-   union { Function *function; struct _keymap_entry *keymap; } value;
+   union { rl_command_func_t *function; struct _keymap_entry *keymap; } value;
    but this made it impossible for me to create a static array.
    Maybe I need C lessons. */
 
@@ -93,7 +87,7 @@ extern void rl_discard_keymap __P((Keymap));
 
 /* Return the keymap corresponding to a given name.  Names look like
    `emacs' or `emacs-meta' or `vi-insert'.  */
-extern Keymap rl_get_keymap_by_name __P((char *));
+extern Keymap rl_get_keymap_by_name __P((const char *));
 
 /* Return the current keymap. */
 extern Keymap rl_get_keymap __P((void));

@@ -38,9 +38,9 @@ For information on using the @sc{gnu} History Library in other programs,
 see the @sc{gnu} Readline Library Manual.
 @end ifset
 @ifclear BashFeatures
-This chapter describes how to use the GNU History Library interactively,
+This chapter describes how to use the @sc{gnu} History Library interactively,
 from a user's standpoint.  It should be considered a user's guide.  For
-information on using the GNU History Library in your own programs,
+information on using the @sc{gnu} History Library in your own programs,
 @pxref{Programming with GNU History}.
 @end ifclear
 
@@ -65,36 +65,36 @@ information on using the GNU History Library in your own programs,
 @cindex command history
 @cindex history list
 
-When the @samp{-o history} option to the @code{set} builtin
+When the @option{-o history} option to the @code{set} builtin
 is enabled (@pxref{The Set Builtin}),
-the shell provides access to the @var{command history},
+the shell provides access to the @dfn{command history},
 the list of commands previously typed.
-The value of the @code{HISTSIZE} shell variable is used as the
+The value of the @env{HISTSIZE} shell variable is used as the
 number of commands to save in a history list.
-The text of the last @code{$HISTSIZE}
+The text of the last @env{$HISTSIZE}
 commands (default 500) is saved.
 The shell stores each command in the history list prior to
 parameter and variable expansion
 but after history expansion is performed, subject to the
 values of the shell variables
-@code{HISTIGNORE} and @code{HISTCONTROL}.
+@env{HISTIGNORE} and @env{HISTCONTROL}.
 
 When the shell starts up, the history is initialized from the
-file named by the @code{HISTFILE} variable (default @file{~/.bash_history}).
-The file named by the value of @code{HISTFILE} is truncated, if
+file named by the @env{HISTFILE} variable (default @file{~/.bash_history}).
+The file named by the value of @env{HISTFILE} is truncated, if
 necessary, to contain no more than the number of lines specified by
-the value of the @code{HISTFILESIZE} variable.
+the value of the @env{HISTFILESIZE} variable.
 When an interactive shell exits, the last
-@code{$HISTSIZE} lines are copied from the history list to the file
-named by @code{$HISTFILE}.
+@env{$HISTSIZE} lines are copied from the history list to the file
+named by @env{$HISTFILE}.
 If the @code{histappend} shell option is set (@pxref{Bash Builtins}),
 the lines are appended to the history file,
 otherwise the history file is overwritten.
-If @code{HISTFILE}
+If @env{HISTFILE}
 is unset, or if the history file is unwritable, the history is
 not saved.  After saving the history, the history file is truncated
-to contain no more than @code{$HISTFILESIZE}
-lines.  If @code{HISTFILESIZE} is not set, no truncation is performed.
+to contain no more than @env{$HISTFILESIZE}
+lines.  If @env{HISTFILESIZE} is not set, no truncation is performed.
 
 The builtin command @code{fc} may be used to list or edit and re-execute
 a portion of the history list.
@@ -105,7 +105,7 @@ are available in each editing mode that provide access to the
 history list (@pxref{Commands For History}).
 
 The shell allows control over which commands are saved on the history
-list.  The @code{HISTCONTROL} and @code{HISTIGNORE}
+list.  The @env{HISTCONTROL} and @env{HISTIGNORE}
 variables may be set to cause the shell to save only a subset of the
 commands entered.
 The @code{cmdhist}
@@ -141,15 +141,15 @@ command beginning with that string) or as a number (an index into the
 history list, where a negative number is used as an offset from the
 current command number).  If @var{last} is not specified it is set to
 @var{first}.  If @var{first} is not specified it is set to the previous
-command for editing and @minus{}16 for listing.  If the @samp{-l} flag is
-given, the commands are listed on standard output.  The @samp{-n} flag
-suppresses the command numbers when listing.  The @samp{-r} flag
+command for editing and @minus{}16 for listing.  If the @option{-l} flag is
+given, the commands are listed on standard output.  The @option{-n} flag
+suppresses the command numbers when listing.  The @option{-r} flag
 reverses the order of the listing.  Otherwise, the editor given by
 @var{ename} is invoked on a file containing those commands.  If
 @var{ename} is not given, the value of the following variable expansion
 is used: @code{$@{FCEDIT:-$@{EDITOR:-vi@}@}}.  This says to use the
-value of the @code{FCEDIT} variable if set, or the value of the
-@code{EDITOR} variable if that is set, or @code{vi} if neither is set.
+value of the @env{FCEDIT} variable if set, or the value of the
+@env{EDITOR} variable if that is set, or @code{vi} if neither is set.
 When editing is complete, the edited commands are echoed and executed.
 
 In the second form, @var{command} is re-executed after each instance
@@ -170,7 +170,7 @@ history -ps @var{arg}
 @end example
 
 With no options, display the history list with line numbers.
-Lines prefixed with with a @samp{*} have been modified.
+Lines prefixed with a @samp{*} have been modified.
 An argument of @var{n} lists only the last @var{n} lines.
 Options, if supplied, have the following meanings:
 
@@ -211,10 +211,10 @@ the history list as a single entry.
 
 @end table
 
-When any of the @samp{-w}, @samp{-r}, @samp{-a}, or @samp{-n} options is
+When any of the @option{-w}, @option{-r}, @option{-a}, or @option{-n} options is
 used, if @var{filename}
 is given, then it is used as the history file.  If not, then
-the value of the @code{HISTFILE} variable is used.
+the value of the @env{HISTFILE} variable is used.
 
 @end table
 @end ifset
@@ -260,9 +260,9 @@ editing buffer for further modification.
 If Readline is being used, and the @code{histreedit}
 shell option is enabled, a failed history expansion will be
 reloaded into the Readline editing buffer for correction.
-The @samp{-p} option to the @code{history} builtin command
+The @option{-p} option to the @code{history} builtin command
 may be used to see what a history expansion will do before using it.
-The @samp{-s} option to the @code{history} builtin may be used to
+The @option{-s} option to the @code{history} builtin may be used to
 add commands to the end of the history list without actually executing
 them, so that they are available for subsequent recall.
 This is most useful in conjunction with Readline.

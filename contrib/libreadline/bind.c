@@ -68,9 +68,9 @@ extern char *strchr (), *strrchr ();
 /* Variables exported by this file. */
 Keymap rl_binding_keymap;
 
-static int _rl_read_init_file __P((char *, int));
+static int _rl_read_init_file __P((const char *, int));
 static int glean_key_from_name __P((char *));
-static int substring_member_of_array __P((char *, char **));
+static int substring_member_of_array __P((char *, const char **));
 
 static int currently_reading_init_file;
 
@@ -83,13 +83,13 @@ static int _rl_prefer_visible_bell = 1;
 /*								    */
 /* **************************************************************** */
 
-/* rl_add_defun (char *name, Function *function, int key)
+/* rl_add_defun (char *name, rl_command_func_t *function, int key)
    Add NAME to the list of named functions.  Make FUNCTION be the function
    that gets called.  If KEY is not -1, then bind it. */
 int
 rl_add_defun (name, function, key)
-     char *name;
-     Function *function;
+     const char *name;
+     rl_command_func_t *function;
      int key;
 {
   if (key != -1)
@@ -102,7 +102,7 @@ rl_add_defun (name, function, key)
 int
 rl_bind_key (key, function)
      int key;
-     Function *function;
+     rl_command_func_t *function;
 {
   if (key < 0)
     return (key);
@@ -133,7 +133,7 @@ rl_bind_key (key, function)
 int
 rl_bind_key_in_map (key, function, map)
      int key;
-     Function *function;
+     rl_command_func_t *function;
      Keymap map;
 {
   int result;
@@ -152,7 +152,7 @@ int
 rl_unbind_key (key)
      int key;
 {
-  return (rl_bind_key (key, (Function *)NULL));
+  return (rl_bind_key (key, (rl_command_func_t *)NULL));
 }
 
 /* Make KEY do nothing in MAP.
@@ -162,13 +162,13 @@ rl_unbind_key_in_map (key, map)
      int key;
      Keymap map;
 {
-  return (rl_bind_key_in_map (key, (Function *)NULL, map));
+  return (rl_bind_key_in_map (key, (rl_command_func_t *)NULL, map));
 }
 
 /* Unbind all keys bound to FUNCTION in MAP. */
 int
 rl_unbind_function_in_map (func, map)
-     Function *func;
+     rl_command_func_t *func;
      Keymap map;
 {
   register int i, rval;
@@ -177,7 +177,7 @@ rl_unbind_function_in_map (func, map)
     {
       if (map[i].type == ISFUNC && map[i].function == func)
 	{
-	  map[i].function = (Function *)NULL;
+	  map[i].function = (rl_command_func_t *)NULL;
 	  rval = 1;
 	}
     }
@@ -186,10 +186,10 @@ rl_unbind_function_in_map (func, map)
 
 int
 rl_unbind_command_in_map (command, map)
-     char *command;
+     const char *command;
      Keymap map;
 {
-  Function *func;
+  rl_command_func_t *func;
 
   func = rl_named_function (command);
   if (func == 0)
@@ -202,8 +202,8 @@ rl_unbind_command_in_map (command, map)
    place to do bindings is in MAP. */
 int
 rl_set_key (keyseq, function, map)
-     char *keyseq;
-     Function *function;
+     const char *keyseq;
+     rl_command_func_t *function;
      Keymap map;
 {
   return (rl_generic_bind (ISFUNC, keyseq, (char *)function, map));
@@ -214,7 +214,7 @@ rl_set_key (keyseq, function, map)
    necessary.  The initial place to do bindings is in MAP. */
 int
 rl_macro_bind (keyseq, macro, map)
-     char *keyseq, *macro;
+     const char *keyseq, *macro;
      Keymap map;
 {
   char *macro_keys;
@@ -239,7 +239,8 @@ rl_macro_bind (keyseq, macro, map)
 int
 rl_generic_bind (type, keyseq, data, map)
      int type;
-     char *keyseq, *data;
+     const char *keyseq;
+     char *data;
      Keymap map;
 {
   char *keys;
@@ -309,7 +310,8 @@ rl_generic_bind (type, keyseq, data, map)
    non-zero if there was an error parsing SEQ. */
 int
 rl_translate_keyseq (seq, array, len)
-     char *seq, *array;
+     const char *seq;
+     char *array;
      int *len;
 {
   register int i, c, l, temp;
@@ -513,9 +515,9 @@ _rl_untranslate_macro_value (seq)
 /* Return a pointer to the function that STRING represents.
    If STRING doesn't have a matching function, then a NULL pointer
    is returned. */
-Function *
+rl_command_func_t *
 rl_named_function (string)
-     char *string;
+     const char *string;
 {
   register int i;
 
@@ -524,7 +526,7 @@ rl_named_function (string)
   for (i = 0; funmap[i]; i++)
     if (_rl_stricmp (funmap[i]->name, string) == 0)
       return (funmap[i]->function);
-  return ((Function *)NULL);
+  return ((rl_command_func_t *)NULL);
 }
 
 /* Return the function (or macro) definition which would be invoked via
@@ -532,9 +534,9 @@ rl_named_function (string)
    used.  TYPE, if non-NULL, is a pointer to an int which will receive the
    type of the object pointed to.  One of ISFUNC (function), ISKMAP (keymap),
    or ISMACR (macro). */
-Function *
+rl_command_func_t *
 rl_function_of_keyseq (keyseq, map, type)
-     char *keyseq;
+     const char *keyseq;
      Keymap map;
      int *type;
 {
@@ -585,14 +587,14 @@ rl_function_of_keyseq (keyseq, map, type)
 	  return (map[ic].function);
 	}
     }
-  return ((Function *) NULL);
+  return ((rl_command_func_t *) NULL);
 }
 
 /* The last key bindings file read. */
 static char *last_readline_init_file = (char *)NULL;
 
 /* The file we're currently reading key bindings from. */
-static char *current_readline_init_file;
+static const char *current_readline_init_file;
 static int current_readline_init_include_level;
 static int current_readline_init_lineno;
 
@@ -659,7 +661,7 @@ rl_re_read_init_file (count, ignore)
      int count, ignore;
 {
   int r;
-  r = rl_read_init_file ((char *)NULL);
+  r = rl_read_init_file ((const char *)NULL);
   rl_set_keymap_from_edit_mode ();
   return r;
 }
@@ -673,14 +675,14 @@ rl_re_read_init_file (count, ignore)
    otherwise errno is returned. */
 int
 rl_read_init_file (filename)
-     char *filename;
+     const char *filename;
 {
   /* Default the filename. */
   if (filename == 0)
     {
       filename = last_readline_init_file;
       if (filename == 0)
-        filename = get_env_value ("INPUTRC");
+        filename = sh_get_env_value ("INPUTRC");
       if (filename == 0)
 	filename = DEFAULT_INPUTRC;
     }
@@ -698,7 +700,7 @@ rl_read_init_file (filename)
 
 static int
 _rl_read_init_file (filename, include_level)
-     char *filename;
+     const char *filename;
      int include_level;
 {
   register int i;
@@ -733,7 +735,7 @@ _rl_read_init_file (filename, include_level)
       /* Find the end of this line. */
       for (i = 0; line + i != end && line[i] != '\n'; i++);
 
-#if defined (__CYGWIN32__)
+#if defined (__CYGWIN__)
       /* ``Be liberal in what you accept.'' */
       if (line[i] == '\n' && line[i-1] == '\r')
 	line[i - 1] = '\0';
@@ -780,10 +782,21 @@ _rl_init_file_error (msg)
 /*								    */
 /* **************************************************************** */
 
+typedef int _rl_parser_func_t __P((char *));
+
+/* Things that mean `Control'. */
+const char *_rl_possible_control_prefixes[] = {
+  "Control-", "C-", "CTRL-", (const char *)NULL
+};
+
+const char *_rl_possible_meta_prefixes[] = {
+  "Meta", "M-", (const char *)NULL
+};
+
 /* Conditionals. */
 
 /* Calling programs set this to have their argv[0]. */
-char *rl_readline_name = "other";
+const char *rl_readline_name = "other";
 
 /* Stack of previous values of parsing_conditionalized_out. */
 static unsigned char *if_stack = (unsigned char *)NULL;
@@ -905,7 +918,8 @@ static int
 parser_include (args)
      char *args;
 {
-  char *old_init_file, *e;
+  const char *old_init_file;
+  char *e;
   int old_line_number, old_include_level, r;
 
   if (_rl_parsing_conditionalized_out)
@@ -918,7 +932,7 @@ parser_include (args)
   e = strchr (args, '\n');
   if (e)
     *e = '\0';
-  r = _rl_read_init_file (args, old_include_level + 1);
+  r = _rl_read_init_file ((const char *)args, old_include_level + 1);
 
   current_readline_init_file = old_init_file;
   current_readline_init_lineno = old_line_number;
@@ -929,14 +943,14 @@ parser_include (args)
   
 /* Associate textual names with actual functions. */
 static struct {
-  char *name;
-  Function *function;
+  const char *name;
+  _rl_parser_func_t *function;
 } parser_directives [] = {
   { "if", parser_if },
   { "endif", parser_endif },
   { "else", parser_else },
   { "include", parser_include },
-  { (char *)0x0, (Function *)0x0 }
+  { (char *)0x0, (_rl_parser_func_t *)0x0 }
 };
 
 /* Handle a parser directive.  STATEMENT is the line of the directive
@@ -1180,10 +1194,10 @@ rl_parse_and_bind (string)
   key = glean_key_from_name (kname);
 
   /* Add in control and meta bits. */
-  if (substring_member_of_array (string, possible_control_prefixes))
+  if (substring_member_of_array (string, _rl_possible_control_prefixes))
     key = CTRL (_rl_to_upper (key));
 
-  if (substring_member_of_array (string, possible_meta_prefixes))
+  if (substring_member_of_array (string, _rl_possible_meta_prefixes))
     key = META (key);
 
   /* Temporary.  Handle old-style keyname with macro-binding. */
@@ -1221,7 +1235,7 @@ rl_parse_and_bind (string)
 #define V_SPECIAL	0x1
 
 static struct {
-  char *name;
+  const char *name;
   int *value;
   int flags;
 } boolean_varlist [] = {
@@ -1265,7 +1279,7 @@ static void
 hack_special_boolean_var (i)
      int i;
 {
-  char *name;
+  const char *name;
 
   name = boolean_varlist[i].name;
 
@@ -1280,6 +1294,8 @@ hack_special_boolean_var (i)
     }
 }
 
+typedef int _rl_sv_func_t __P((const char *));
+
 /* These *must* correspond to the array indices for the appropriate
    string variable.  (Though they're not used right now.) */
 #define V_BELLSTYLE	0
@@ -1292,17 +1308,17 @@ hack_special_boolean_var (i)
 #define V_INT		2
 
 /* Forward declarations */
-static int sv_bell_style __P((char *));
-static int sv_combegin __P((char *));
-static int sv_compquery __P((char *));
-static int sv_editmode __P((char *));
-static int sv_isrchterm __P((char *));
-static int sv_keymap __P((char *));
+static int sv_bell_style __P((const char *));
+static int sv_combegin __P((const char *));
+static int sv_compquery __P((const char *));
+static int sv_editmode __P((const char *));
+static int sv_isrchterm __P((const char *));
+static int sv_keymap __P((const char *));
 
 static struct {
-  char *name;
+  const char *name;
   int flags;
-  Function *set_func;
+  _rl_sv_func_t *set_func;
 } string_varlist[] = {
   { "bell-style",	V_STRING,	sv_bell_style },
   { "comment-begin",	V_STRING,	sv_combegin },
@@ -1339,7 +1355,7 @@ bool_to_int (value)
 
 int
 rl_variable_bind (name, value)
-     char *name, *value;
+     const char *name, *value;
 {
   register int i;
   int	v;
@@ -1367,7 +1383,7 @@ rl_variable_bind (name, value)
 
 static int
 sv_editmode (value)
-     char *value;
+     const char *value;
 {
   if (_rl_strnicmp (value, "vi", 2) == 0)
     {
@@ -1388,7 +1404,7 @@ sv_editmode (value)
 
 static int
 sv_combegin (value)
-     char *value;
+     const char *value;
 {
   if (value && *value)
     {
@@ -1401,7 +1417,7 @@ sv_combegin (value)
 
 static int
 sv_compquery (value)
-     char *value;
+     const char *value;
 {
   int nval = 100;
 
@@ -1417,7 +1433,7 @@ sv_compquery (value)
 
 static int
 sv_keymap (value)
-     char *value;
+     const char *value;
 {
   Keymap kmap;
 
@@ -1434,7 +1450,7 @@ sv_keymap (value)
 
 static int
 sv_bell_style (value)
-     char *value;
+     const char *value;
 {
   if (value == 0 || *value == '\0')
     _SET_BELL (AUDIBLE_BELL);
@@ -1451,7 +1467,7 @@ sv_bell_style (value)
 
 static int
 sv_isrchterm (value)
-     char *value;
+     const char *value;
 {
   int beg, end, delim;
   char *v;
@@ -1489,7 +1505,7 @@ sv_isrchterm (value)
    For example, `Space' returns ' '. */
 
 typedef struct {
-  char *name;
+  const char *name;
   int value;
 } assoc_list;
 
@@ -1523,7 +1539,7 @@ glean_key_from_name (name)
 
 /* Auxiliary functions to manage keymaps. */
 static struct {
-  char *name;
+  const char *name;
   Keymap map;
 } keymap_names[] = {
   { "emacs", emacs_standard_keymap },
@@ -1541,12 +1557,12 @@ static struct {
 
 Keymap
 rl_get_keymap_by_name (name)
-     char *name;
+     const char *name;
 {
   register int i;
 
   for (i = 0; keymap_names[i].name; i++)
-    if (strcmp (name, keymap_names[i].name) == 0)
+    if (_rl_stricmp (name, keymap_names[i].name) == 0)
       return (keymap_names[i].map);
   return ((Keymap) NULL);
 }
@@ -1558,7 +1574,7 @@ rl_get_keymap_name (map)
   register int i;
   for (i = 0; keymap_names[i].name; i++)
     if (map == keymap_names[i].map)
-      return (keymap_names[i].name);
+      return ((char *)keymap_names[i].name);
   return ((char *)NULL);
 }
   
@@ -1616,7 +1632,7 @@ void
 rl_list_funmap_names ()
 {
   register int i;
-  char **funmap_names;
+  const char **funmap_names;
 
   funmap_names = rl_funmap_names ();
 
@@ -1706,7 +1722,7 @@ _rl_get_keyname (key)
    sequences that are used to invoke FUNCTION in MAP. */
 char **
 rl_invoking_keyseqs_in_map (function, map)
-     Function *function;
+     rl_command_func_t *function;
      Keymap map;
 {
   register int key;
@@ -1806,7 +1822,7 @@ rl_invoking_keyseqs_in_map (function, map)
    sequences that can be used to invoke FUNCTION using the current keymap. */
 char **
 rl_invoking_keyseqs (function)
-     Function *function;
+     rl_command_func_t *function;
 {
   return (rl_invoking_keyseqs_in_map (function, _rl_keymap));
 }
@@ -1819,8 +1835,8 @@ rl_function_dumper (print_readably)
      int print_readably;
 {
   register int i;
-  char **names;
-  char *name;
+  const char **names;
+  const char *name;
 
   names = rl_funmap_names ();
 
@@ -1828,7 +1844,7 @@ rl_function_dumper (print_readably)
 
   for (i = 0; name = names[i]; i++)
     {
-      Function *function;
+      rl_command_func_t *function;
       char **invokers;
 
       function = rl_named_function (name);
@@ -1985,7 +2001,7 @@ rl_variable_dumper (print_readably)
      int print_readably;
 {
   int i;
-  char *kname;
+  const char *kname;
 
   for (i = 0; boolean_varlist[i].name; i++)
     {
@@ -2073,10 +2089,10 @@ rl_dump_variables (count, key)
 /* Bind key sequence KEYSEQ to DEFAULT_FUNC if KEYSEQ is unbound. */
 void
 _rl_bind_if_unbound (keyseq, default_func)
-     char *keyseq;
-     Function *default_func;
+     const char *keyseq;
+     rl_command_func_t *default_func;
 {
-  Function *func;
+  rl_command_func_t *func;
 
   if (keyseq)
     {
@@ -2089,7 +2105,8 @@ _rl_bind_if_unbound (keyseq, default_func)
 /* Return non-zero if any members of ARRAY are a substring in STRING. */
 static int
 substring_member_of_array (string, array)
-     char *string, **array;
+     char *string;
+     const char **array;
 {
   while (*array)
     {
