@@ -2114,9 +2114,9 @@ vm_map_sync(
 	}
 
 	if (invalidate) {
-		mtx_lock(&Giant);
+		VM_LOCK_GIANT();
 		pmap_remove(map->pmap, start, end);
-		mtx_unlock(&Giant);
+		VM_UNLOCK_GIANT();
 	}
 	/*
 	 * Make a second pass, cleaning/uncaching pages from the indicated
@@ -2282,10 +2282,10 @@ vm_map_delete(vm_map_t map, vm_offset_t start, vm_offset_t end)
 		}
 
 		if (!map->system_map)
-			mtx_lock(&Giant);
+			VM_LOCK_GIANT();
 		pmap_remove(map->pmap, entry->start, entry->end);
 		if (!map->system_map)
-			mtx_unlock(&Giant);
+			VM_UNLOCK_GIANT();
 
 		/*
 		 * Delete the entry (which may delete the object) only after
