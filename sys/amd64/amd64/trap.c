@@ -751,10 +751,14 @@ syscall(frame)
 
 	case ERESTART:
 		/*
-		 * Reconstruct pc, assuming lcall $X,y is 7 bytes,
-		 * int 0x80 is 2 bytes. We saved this in tf_err.
+		 * Reconstruct pc, we know that 'syscall' is 2 bytes.
+		 * We have to do a full context restore so that %r10
+		 * (which was holding the value of %rcx) is restored for
+		 * the next iteration.
 		 */
 		frame.tf_rip -= frame.tf_err;
+		frame.tf_r10 = frame.tf_rcx;
+		td->td_pcb->pcb_flags |= PCB_FULLCTX;
 		break;
 
 	case EJUSTRETURN:
