@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: inetd.h,v 1.1 1999/07/22 14:11:26 sheldonh Exp $
  */
 
 #include <sys/time.h>
@@ -100,7 +100,7 @@ void		endconfig __P((void));
 struct servtab *enter __P((struct servtab *));
 void		freeconfig __P((struct servtab *));
 struct servtab *getconfigent __P((void));
-void		iderror __P((int, int, FILE *, int));
+void		iderror __P((int, int, int, int));
 void		ident_stream __P((int, struct servtab *));
 void		machtime_dg __P((int, struct servtab *));
 void		machtime_stream __P((int, struct servtab *));
