@@ -214,9 +214,9 @@ files.
 .It
 build a kernel whose config file (e.g.\&
 .Pa /sys/i386/conf/DISKLESS )
-has at least the following options:
+has at least the following options and devices:
 .Bd -literal -offset indent
-options MFS
+device md
 options BOOTP
 options BOOTP_NFSROOT
 options BOOTP_COMPAT
@@ -234,7 +234,7 @@ This manpage is probably incomplete.
 .Pp
 .Fx
 sometimes requires to write onto
-the root partition, so the startup scripts mount MFS
+the root partition, so the startup scripts create and mount md-backed
 filesystems on some locations (e.g.\&
 .Pa /etc
 and
