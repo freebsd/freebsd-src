@@ -33,7 +33,7 @@
  *
  *	@(#)ipxip.h
  *
- * $Id: ipx_ip.h,v 1.3 1995/11/04 09:03:03 julian Exp $
+ * $Id: ipx_ip.h,v 1.4 1995/11/24 12:25:07 bde Exp $
  */
 
 #ifndef _NETIPX_IPXIP_H_
@@ -47,7 +47,7 @@ struct ifnet_en {
 	struct ifnet_en *ifen_next;
 };
 
-#define LOMTU	(1024+512);
+#define LOMTU	(1024+512)	/* XXX this is TINY_LOMTU */
 
 #ifdef KERNEL
 
@@ -56,7 +56,7 @@ extern struct ifnet_en *ipxip_list;
 
 struct ifnet_en *
 	ipxipattach __P((void));
-void	ipxip_ctlinput __P((int cmd, struct sockaddr *sa));
+void	ipxip_ctlinput __P((int cmd, struct sockaddr *sa, void *arg));
 int	ipxip_free __P((struct ifnet *ifp));
 void	ipxip_input __P((struct mbuf *m, struct ifnet *ifp));
 int	ipxipioctl __P((struct ifnet *ifp, int cmd, caddr_t data));
