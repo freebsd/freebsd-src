@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.52 1999/06/19 18:43:33 green Exp $
+ *	$Id: udp_usrreq.c,v 1.53 1999/07/11 18:32:46 green Exp $
  */
 
 #include <sys/param.h>
@@ -77,6 +77,10 @@ SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 static int log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW, 
     &log_in_vain, 0, "Log all incoming UDP packets");
+
+static int blackhole = 0;
+SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
+	&blackhole, 0, "Do not send port unreachables for refused connects");
 
 static struct	inpcbhead udb;		/* from udp_var.h */
 struct inpcbinfo udbinfo;
@@ -302,7 +306,8 @@ udp_input(m, iphlen)
 		if (badport_bandlim(0) < 0)
 			goto bad;
 #endif
-		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
+		if(!blackhole)
+			icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
 
