@@ -73,8 +73,6 @@
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
-#include "ppp.h"
-
 #include "opt_inet.h"
 #include "opt_ipx.h"
 #include "opt_mac.h"
@@ -132,10 +130,13 @@
 #include <net/ppp_comp.h>
 #endif
 
-static struct ppp_softc ppp_softc[NPPP];
+#define PPPNAME		"ppp"
+static MALLOC_DEFINE(M_PPP, PPPNAME, "PPP interface");
+static LIST_HEAD(, ppp_softc) ppp_softc_list;
 
 /* XXX layering violation */
 extern void	pppasyncattach(void *);
+extern void	pppasyncdetach(void);
 
 static int	pppsioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
 static void	pppintr(void);
@@ -145,6 +146,11 @@ static void	ppp_ccp(struct ppp_softc *, struct mbuf *m, int rcvd);
 static void	ppp_ccp_closed(struct ppp_softc *);
 static void	ppp_inproc(struct ppp_softc *, struct mbuf *);
 static void	pppdumpm(struct mbuf *m0);
+static int	ppp_clone_create(struct if_clone *, int);
+static void	ppp_clone_destroy(struct ifnet *);
+
+static struct if_clone ppp_cloner = IF_CLONE_INITIALIZER(PPPNAME,
+    ppp_clone_create, ppp_clone_destroy, 0, IF_MAXUNIT);
 
 /*
  * Some useful mbuf macros not in mbuf.h.
@@ -188,18 +194,15 @@ static struct compressor *ppp_compressors[8] = {
 };
 #endif /* PPP_COMPRESS */
 
-/*
- * Called from boot code to establish ppp interfaces.
- */
-static void
-pppattach(void)
+static int
+ppp_clone_create(struct if_clone *ifc, int unit)
 {
-    register struct ppp_softc *sc;
-    register int i = 0;
+	struct ppp_softc	*sc;
 
-    for (sc = ppp_softc; i < NPPP; sc++) {
-	sc->sc_if.if_name = "ppp";
-	sc->sc_if.if_unit = i++;
+	sc = malloc(sizeof(struct ppp_softc), M_PPP, M_WAITOK | M_ZERO);
+	sc->sc_if.if_softc = sc;
+	sc->sc_if.if_name = PPPNAME;
+	sc->sc_if.if_unit = unit;
 	sc->sc_if.if_mtu = PPP_MTU;
 	sc->sc_if.if_flags = IFF_POINTOPOINT | IFF_MULTICAST;
 	sc->sc_if.if_type = IFT_PPP;
@@ -210,18 +213,29 @@ pppattach(void)
 	sc->sc_inq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_fastq.ifq_maxlen = IFQ_MAXLEN;
 	sc->sc_rawq.ifq_maxlen = IFQ_MAXLEN;
-        mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", NULL, MTX_DEF);
-        mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", NULL, MTX_DEF);
-        mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", NULL, MTX_DEF);
+	mtx_init(&sc->sc_inq.ifq_mtx, "ppp_inq", NULL, MTX_DEF);
+	mtx_init(&sc->sc_fastq.ifq_mtx, "ppp_fastq", NULL, MTX_DEF);
+	mtx_init(&sc->sc_rawq.ifq_mtx, "ppp_rawq", NULL, MTX_DEF);
 	if_attach(&sc->sc_if);
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
-    }
-    register_netisr(NETISR_PPP, pppintr);
-    /*
-     * XXX layering violation - if_ppp can work over any lower level
-     * transport that cares to attach to it.
-     */
-    pppasyncattach(NULL);
+	LIST_INSERT_HEAD(&ppp_softc_list, sc, sc_list);
+
+	return 1;
+}
+
+static void
+ppp_clone_destroy(struct ifnet *ifp)
+{
+	struct ppp_softc	*sc;
+
+	sc = ifp->if_softc;
+
+	LIST_REMOVE(sc, sc_list);
+	bpfdetach(ifp);
+	if_detach(ifp);
+	mtx_destroy(&sc->sc_rawq.ifq_mtx);
+	mtx_destroy(&sc->sc_fastq.ifq_mtx);
+	mtx_destroy(&sc->sc_inq.ifq_mtx);
 }
 
 static int
@@ -229,10 +243,27 @@ ppp_modevent(module_t mod, int type, void *data)
 { 
 	switch (type) { 
 	case MOD_LOAD: 
-		pppattach();
+		if_clone_attach(&ppp_cloner);
+
+		register_netisr(NETISR_PPP, pppintr);
+		/*
+		 * XXX layering violation - if_ppp can work over any lower
+		 * level transport that cares to attach to it.
+		 */
+		pppasyncattach(NULL);
 		break; 
 	case MOD_UNLOAD: 
-		printf("if_ppp module unload - not possible for this module type\n"); 
+		/* XXX: layering violation */
+		pppasyncdetach();
+
+		unregister_netisr(NETISR_PPP);
+
+		if_clone_detach(&ppp_cloner);
+
+		while (!LIST_EMPTY(&ppp_softc_list))
+			ppp_clone_destroy(
+			    &LIST_FIRST(&ppp_softc_list)->sc_if);
+
 		return EINVAL; 
 	} 
 	return 0; 
@@ -253,18 +284,32 @@ struct ppp_softc *
 pppalloc(pid)
     pid_t pid;
 {
-    int nppp, i;
+    int i;
+    char tmpname[IFNAMSIZ];
+    struct ifnet *ifp;
     struct ppp_softc *sc;
 
-    for (nppp = 0, sc = ppp_softc; nppp < NPPP; nppp++, sc++)
+    LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	if (sc->sc_xfer == pid) {
 	    sc->sc_xfer = 0;
 	    return sc;
 	}
-    for (nppp = 0, sc = ppp_softc; nppp < NPPP; nppp++, sc++)
+    }
+    LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	if (sc->sc_devp == NULL)
 	    break;
-    if (nppp >= NPPP)
+    }
+    /* Try to clone an interface if we don't have a free one */
+    if (sc == NULL) {
+	strcpy(tmpname, PPPNAME);
+	if (if_clone_create(tmpname, sizeof(tmpname)) != 0)
+	    return NULL;
+	ifp = ifunit(tmpname);
+	if (ifp == NULL)
+	    return NULL;
+	sc = ifp->if_softc;
+    }
+    if (sc == NULL || sc->sc_devp != NULL)
 	return NULL;
 
     sc->sc_flags = 0;
@@ -576,7 +621,7 @@ pppsioctl(ifp, cmd, data)
     caddr_t data;
 {
     struct thread *td = curthread;	/* XXX */
-    register struct ppp_softc *sc = &ppp_softc[ifp->if_unit];
+    register struct ppp_softc *sc = ifp->if_softc;
     register struct ifaddr *ifa = (struct ifaddr *)data;
     register struct ifreq *ifr = (struct ifreq *)data;
     struct ppp_stats *psp;
@@ -706,7 +751,7 @@ pppoutput(ifp, m0, dst, rtp)
     struct sockaddr *dst;
     struct rtentry *rtp;
 {
-    register struct ppp_softc *sc = &ppp_softc[ifp->if_unit];
+    register struct ppp_softc *sc = ifp->if_softc;
     int protocol, address, control;
     u_char *cp;
     int s, error;
@@ -1093,11 +1138,10 @@ static void
 pppintr()
 {
     struct ppp_softc *sc;
-    int i, s;
+    int s;
     struct mbuf *m;
 
-    sc = ppp_softc;
-    for (i = 0; i < NPPP; ++i, ++sc) {
+    LIST_FOREACH(sc, &ppp_softc_list, sc_list) {
 	s = splimp();
 	if (!(sc->sc_flags & SC_TBUSY)
 	    && (sc->sc_if.if_snd.ifq_head || sc->sc_fastq.ifq_head)) {

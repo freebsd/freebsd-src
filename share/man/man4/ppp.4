@@ -41,7 +41,7 @@
 .Nm ppp
 .Nd point to point protocol network interface
 .Sh SYNOPSIS
-.Cd "device ppp" Op Ar count
+.Cd "device ppp"
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,6 +53,17 @@ interface can use various types of compression and has many features over
 the
 .Xr sl 4
 protocol.
+.Pp
+Each
+.Nm
+interface is created at runtime using interface cloning.
+This is most easily done with the
+.Xr ifconfig 8
+.Cm create
+command or using the
+.Va cloned_interfaces
+variable in
+.Xr rc.conf 5 .
 .Sh DIAGNOSTICS
 .Bl -diag
 .It ppp%d: af%d not supported.
