@@ -55,7 +55,8 @@ struct part_type
    ,{0x75, "PCIX"} \
    ,{0x80, "Minix 1.1 ... 1.4a"} \
    ,{0x81, "Minix 1.4b ... 1.5.10"} \
-   ,{0x82, "Linux"} \
+   ,{0x82, "Linux swap"} \
+   ,{0x83, "Linux filesystem"} \
    ,{0x93, "Amoeba filesystem"} \
    ,{0x94, "Amoeba bad block table"} \
    ,{0xA5, "FreeBSD/NetBSD/386BSD"} \
