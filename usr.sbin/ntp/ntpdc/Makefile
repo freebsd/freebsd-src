@@ -1,19 +1,15 @@
-#
 # $FreeBSD$
-#
 
-.PATH:	${.CURDIR}/../../../contrib/ntp/ntpdc
+.PATH: ${.CURDIR}/../../../contrib/ntp/ntpdc
 
-PROG= ntpdc
-
+PROG=	ntpdc
+NOMAN=	yes
 SRCS= 	ntpdc.c ntpdc_ops.c version.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 
-NOMAN= yes
-
-DPADD=	${LIBNTP}
-LDADD=	${LIBNTP}
+DPADD=	${LIBNTP} ${LIBREADLINE} ${LIBTERMCAP}
+LDADD=	${LIBNTP} -lreadline -ltermcap
 
 CLEANFILES+= .version version.c
 

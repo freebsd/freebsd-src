@@ -16,79 +16,26 @@
 .Nm
 is used to query the
 .Xr ntpd 8
-daemon about its current state and to request changes in that state.
-The program may be run either in interactive mode or controlled using
-command line arguments.
-Extensive state and statistics information is
-available through the
+daemon about its
+current state and to request changes in that state.
+The program may
+be run either in interactive mode or controlled using command line
+arguments.
+Extensive state and statistics information is available
+through the
 .Nm
 interface.
-In addition, nearly all the configuration options which can
-be specified at start up using
-.Xr ntpd 8 Ns 's
-configuration file may also be specified at run time using
+In addition, nearly all the
+configuration options which can be specified at startup using
+ntpd's configuration file may also be specified at run time using
 .Nm .
 .Pp
-If one or more request options is included on the command line when
-.Nm
-is executed, each of the requests will be sent to the NTP servers
-running on each of the hosts given as command line arguments, or on
-.Dq localhost
-by default.
-If no request options are given,
-.Nm
-will attempt to read commands from the standard input and execute these
-on the NTP server running on the first host given on the command line,
-again defaulting to
-.Dq localhost
-when no other host is specified.
-.Nm
-will prompt for commands if the standard input is a terminal device.
-.Pp
-.Nm
-uses NTP mode 7 packets to communicate with the NTP server,
-and hence can be used to query any compatible server on the network
-which permits it.
-Note that since NTP is a UDP protocol
-this communication will be
-somewhat unreliable, especially over large distances in terms of network
-topology.
-.Nm
-makes no attempt to retransmit requests, and will time requests out if
-the remote host is not heard from within a suitable timeout time.
-.Pp
-The operation of
-.Nm
-is specific to the particular implementation of the
-.Xr ntpd 8
-daemon and can be expected to work only with this
-and maybe some previous versions of the daemon.
-Requests from a remote
-.Nm
-program which affect the state of the local server
-must be authenticated,
-which requires both the remote program
-and local server
-share a common key and key identifier.
-.Pp
-Specifying a command line option other than
-.Fl i
-or
-.Fl n
-will cause the specified query (queries)
-to be sent to the indicated host(s) immediately.
-Otherwise,
-.Nm
-will attempt to read interactive format commands from the standard
-input.
 The following options are available:
 .Bl -tag -width indent
 .It Fl c Ar command
-The
-.Ar command
-argument is interpreted as an interactive format command
-and is added to the list of commands to be executed on the specified
-host(s).
+The following argument is interpreted as an interactive format
+command and is added to the list of commands to be executed on the
+specified host(s).
 Multiple
 .Fl c
 options may be given.
@@ -96,590 +43,660 @@ options may be given.
 Force
 .Nm
 to operate in interactive mode.
-Prompts will be written to the standard
-output and commands read from the standard input.
+Prompts
+will be written to the standard output and commands read from the
+standard input.
 .It Fl l
 Obtain a list of peers which are known to the server(s).
-This switch is equivalent to
-.Dq Li -c listpeers .
+This
+switch is equivalent to
+.Ql -c listpeers .
 .It Fl n
-Output all host addresses in dotted-quad numeric format rather than
-converting to the canonical host names.
+Output all host addresses in dotted-quad numeric format rather
+than converting to the canonical host names.
 .It Fl p
-Print a list of the peers known to the server as well as a summary of
-their state.
+Print a list of the peers known to the server as well as a
+summary of their state.
 This is equivalent to
-.Dq Li -c peers .
+.Ql -c peers .
 .It Fl s
-Print a list of the peers known to the server as well as a summary of
-their state, but in a slightly different format than the
+Print a list of the peers known to the server as well as a
+summary of their state, but in a slightly different format than the
 .Fl p
 switch.
 This is equivalent to
-.Dq Li -c dmpeers .
+.Ql -c dmpeers .
 .El
-.Ss Interactive Commands
-Interactive format commands consist of a keyword followed by zero to
-four arguments.
-Only enough characters of the full keyword to uniquely
-identify the command need be typed.
-The output of a command is normally
-sent to the standard output, but optionally the output of individual
-commands may be sent to a file by appending a
-.Qq > ,
-followed by a
-file name, to the command line.
 .Pp
-A number of interactive format commands are executed entirely within the
+If one or more request options are included on the command line
+when
 .Nm
-program itself and do not result in
-NTP mode 7 requests being sent to a server.
-These are described following:
+is executed, each of the requests will be sent
+to the NTP servers running on each of the hosts given as command
+line arguments, or on localhost by default.
+If no request options
+are given,
+.Nm
+will attempt to read commands from the
+standard input and execute these on the NTP server running on the
+first host given on the command line, again defaulting to localhost
+when no other host is specified.
+.Nm
+will prompt for
+commands if the standard input is a terminal device.
+.Pp
+.Nm
+uses NTP mode 7 packets to communicate with the
+NTP server, and hence can be used to query any compatable server on
+the network which permits it.
+Note that since NTP is a UDP protocol
+this communication will be somewhat unreliable, especially over
+large distances in terms of network topology.
+.Nm
+makes
+no attempt to retransmit requests, and will time requests out if
+the remote host is not heard from within a suitable timeout
+time.
+.Pp
+The operation of
+.Nm
+are specific to the particular
+implementation of the
+.Xr ntpd 8
+daemon and can be expected to
+work only with this and maybe some previous versions of the daemon.
+Requests from a remote
+.Nm
+program which affect the
+state of the local server must be authenticated, which requires
+both the remote program and local server share a common key and key
+identifier.
+Specifying a command line option other than
+.Fl i
+or
+.Fl n
+will cause the specified query (queries) to be sent to
+the indicated host(s) immediately.
+Otherwise,
+.Nm
+will
+attempt to read interactive format commands from the standard
+input.
+.Ss "Interactive Commands"
+Interactive format commands consist of a keyword followed by zero
+to four arguments.
+Only enough characters of the full keyword to
+uniquely identify the command need be typed.
+The output of a
+command is normally sent to the standard output, but optionally the
+output of individual commands may be sent to a file by appending a
+.Ql \&; ,
+followed by a file name, to the command line.
+.Pp
+A number of interactive format commands are executed entirely
+within the
+.Nm
+program itself and do not result in NTP
+mode 7 requests being sent to a server.
+These are described
+following.
 .Bl -tag -width indent
-.It Ic ?\& Op Ar command_keyword
-.It Ic help Op Ar command_keyword
+.It Ic \&? Ar command_keyword
+.It Ic help Ar command_keyword
 A
-.Ic ?\&
-by itself will print a list of all the command keywords
-known to this incarnation of
+.Ic \&?
+will print a list of all the command
+keywords known to this incarnation of
 .Nm .
 A
-.Ic ?\&
-followed by a command keyword will print function and
-usage information about the command.
+.Ic \&?
+followed by a command keyword will print function and usage
+information about the command.
 This command is probably a better
 source of information about
-.Nm
-than this manual page.
+.Xr ntpq 8
+than this manual
+page.
 .It Ic delay Ar milliseconds
-Specify a time interval to be added to timestamps included in requests
-which require authentication.
-This is used to enable (unreliable) server
-reconfiguration over long delay network paths or between machines whose
-clocks are unsynchronized.
-Actually the server does not now require
-timestamps in authenticated requests,
+Specify a time interval to be added to timestamps included in
+requests which require authentication.
+This is used to enable
+(unreliable) server reconfiguration over long delay network paths
+or between machines whose clocks are unsynchronized.
+Actually the
+server does not now require timestamps in authenticated requests,
 so this command may be obsolete.
 .It Ic host Ar hostname
 Set the host to which future queries will be sent.
-The
-.Ar hostname
-supplied
-may be either a host name or a numeric
-address.
-.It Ic hostnames Ar yes | Ar no
+Hostname may
+be either a host name or a numeric address.
+.It Ic hostnames Op Cm yes | Cm no
 If
-.Ar yes
-is specified, host names are printed in information
-displays.
+.Cm yes
+is specified, host names are printed in
+information displays.
 If
-.Ar no
-is given, numeric addresses are printed
-instead.
+.Cm no
+is specified, numeric
+addresses are printed instead.
 The default is
-.Ar yes
-unless modified using the command line
+.Cm yes ,
+unless
+modified using the command line
 .Fl n
 switch.
 .It Ic keyid Ar keyid
-This command allows the specification of a key number to be used to
-authenticate configuration requests.
-This must correspond to a key
-number the server has been configured to use for this purpose.
+This command allows the specification of a key number to be
+used to authenticate configuration requests.
+This must correspond
+to a key number the server has been configured to use for this
+purpose.
 .It Ic quit
 Exit
 .Nm .
 .It Ic passwd
-This command prompts you to type in a password (which will not be
-echoed) which will be used to authenticate configuration requests.
-The
-password must correspond to the key configured for use by the NTP server
-for this purpose if such requests are to be successful.
+This command prompts you to type in a password (which will not
+be echoed) which will be used to authenticate configuration
+requests.
+The password must correspond to the key configured for
+use by the NTP server for this purpose if such requests are to be
+successful.
 .It Ic timeout Ar milliseconds
 Specify a timeout period for responses to server queries.
-The default
-is about 5000 milliseconds.
+The
+default is about 8000 milliseconds.
 Note that since
 .Nm
-retries each query once after a timeout, the total waiting time for a
-timeout will be twice the timeout value set.
+retries each query once after a timeout, the total waiting time for
+a timeout will be twice the timeout value set.
 .El
-.Ss Control Message Commands
-Query commands result in
-NTP mode 7 packets containing requests for
+.Ss "Control Message Commands"
+Query commands result in NTP mode 7 packets containing requests for
 information being sent to the server.
-These are
-.Qq read-only
-commands in that they make no modification of the server configuration
+These are read-only commands
+in that they make no modification of the server configuration
 state.
 .Bl -tag -width indent
 .It Ic listpeers
-Obtain and print a brief list of the peers for which the server is
-maintaining state.
-These should include all configured peer associations
-as well as those peers whose stratum is such that they are considered by
-the server to be possible future synchronization candidates.
+Obtains and prints a brief list of the peers for which the
+server is maintaining state.
+These should include all configured
+peer associations as well as those peers whose stratum is such that
+they are considered by the server to be possible future
+synchonization candidates.
 .It Ic peers
-Obtain a list of peers for which the server is maintaining state, along
-with a summary of that state.
-Summary information includes the address
-of the remote peer, the local interface address (0.0.0.0 if a local
-address has yet to be determined), the stratum of the remote peer (a
-stratum of 16 indicates the remote peer is unsynchronized), the polling
-interval, in seconds, the reachability register, in octal, and the
-current estimated delay, offset and dispersion of the peer, all in
-seconds.
-In addition, the character in the left margin indicates the
-mode this peer entry is operating in.
+Obtains a list of peers for which the server is maintaining
+state, along with a summary of that state.
+Summary information
+includes the address of the remote peer, the local interface
+address (0.0.0.0 if a local address has yet to be determined), the
+stratum of the remote peer (a stratum of 16 indicates the remote
+peer is unsynchronized), the polling interval, in seconds, the
+reachability register, in octal, and the current estimated delay,
+offset and dispersion of the peer, all in seconds.
+.Pp
+The character in the left margin indicates the mode this peer
+entry is operating in.
 A
-.Qq +
-denotes symmetric
-active, a
-.Qq -
+.Ql \&+
+denotes symmetric active, a
+.Ql \&-
 indicates symmetric passive, a
-.Qq =
-means
-the remote server is being polled in client mode, a
-.Qq ^
+.Ql \&=
+means the
+remote server is being polled in client mode, a
+.Ql \&^
 indicates that the server is broadcasting to this address, a
-.Qq ~
+.Ql \&~
 denotes that the remote peer is sending broadcasts and a
-.Qq *
-marks the peer the server is currently synchronizing to.
+.Ql \&*
+marks the peer the server is currently synchonizing
+to.
 .Pp
 The contents of the host field may be one of four forms.
-It may be a
-host name, an IP address, a reference clock implementation name with its
-parameter or
-.Dq Li REFCLK(<implementation number>, <parameter>) .
-On hostnames no
-only IP addresses will be displayed.
+It may
+be a host name, an IP address, a reference clock implementation
+name with its parameter or
+.Fn REFCLK "implementation_number" "parameter" .
+On
+.Ic hostnames
+.Cm no
+only IP-addresses
+will be displayed.
 .It Ic dmpeers
 A slightly different peer summary list.
-Identical to the output of the
-.Em peers
-command except for the character in the leftmost column.
-Characters only
-appear beside peers which were included in the final stage of the clock
-selection algorithm.
+Identical to the output
+of the
+.Ic peers
+command, except for the character in the
+leftmost column.
+Characters only appear beside peers which were
+included in the final stage of the clock selection algorithm.
 A
-.Qq \&.
-indicates that this peer was cast off
-in the falseticker detection, while a
-.Qq +
-indicates that the
-peer made it through.
+.Ql \&.   
+indicates that this peer was cast off in the falseticker
+detection, while a
+.Ql \&+   
+indicates that the peer made it
+through.
 A
-.Qq *
-denotes the peer the server is
-currently synchronizing with.
-.It Xo Ic showpeer
-.Ar peer_address
-.Op Ar ...
-.Xc
-Show a detailed display of the current peer variables for one or more
-peers.
-Most of these values are described in the
-NTP Version 2 specification.
-.It Xo Ic pstats
-.Ar peer_address
-.Op Ar ...
-.Xc
-Show per-peer statistic counters associated with the specified peer(s).
-.It Xo Ic clockinfo
-.Ar clock_peer_address
-.Op Ar ...
-.Xc
+.Ql \&*   
+denotes the peer the server is currently
+synchronizing with.
+.It Ic showpeer Ar peer_address ...
+Shows a detailed display of the current peer variables for one
+or more peers.
+Most of these values are described in the NTP
+Version 2 specification.
+.It Ic pstats Ar peer_address ...
+Show per-peer statistic counters associated with the specified
+peer(s).
+.It Ic clockinfo Ar clock_peer_address ...
 Obtain and print information concerning a peer clock.
-The values
-obtained provide information on the setting of fudge factors and other
-clock performance information.
+The
+values obtained provide information on the setting of fudge factors
+and other clock performance information.
 .It Ic kerninfo
 Obtain and print kernel phase-lock loop operating parameters.
-This information is available
-only if the kernel has been specially modified
-for a precision timekeeping function.
-.It Ic loopinfo Op Ar oneline | Ar multiline
+This information is available only if the kernel has been specially
+modified for a precision timekeeping function.
+.It Ic loopinfo Op Cm oneline | Cm multiline
 Print the values of selected loop filter variables.
-The loop filter is
-the part of
-NTP which deals with adjusting the local system clock.
+The loop
+filter is the part of NTP which deals with adjusting the local
+system clock.
 The
-.Qq offset
-is the last offset given to the loop filter by the
-packet processing code.
+.Sq offset
+is the last offset given to the
+loop filter by the packet processing code.
 The
-.Qq frequency
-is the frequency error
-of the local clock in parts-per-million (ppm).
+.Sq frequency
+is the frequency error of the local clock in parts-per-million
+(ppm).
 The
-.Qq time_const
-controls the
-.Qq stiffness
-of the phase-lock loop and thus the speed at
-which it can adapt to oscillator drift.
+.Sq time_const
+controls the stiffness of the
+phase-lock loop and thus the speed at which it can adapt to
+oscillator drift.
 The
-.Qq watchdog timer
-value is the number of seconds which have elapsed since the last sample
-offset was given to the loop filter.
+.Sq watchdog timer
+value is the number
+of seconds which have elapsed since the last sample offset was
+given to the loop filter.
 The
-.Ar oneline
+.Cm oneline
 and
-.Ar multiline
-options specify the format in which this information
-is to be printed, with
-.Ar multiline
-as the default.
+.Cm multiline
+options specify the format in which this
+information is to be printed, with
+.Cm multiline
+as the
+default.
 .It Ic sysinfo
-Print a variety of system state variables, i.e. state related to the
-local server.
-All except the last four lines are described in the
-NTP Version 3 specification, RFC 1305.
+Print a variety of system state variables, i.e., state related
+to the local server.
+All except the last four lines are described
+in the NTP Version 3 specification, RFC-1305.
+.Pp
 The
-.Qq system flags
-show various system flags, some of which can be set and cleared by the
+.Sq system flags
+show various system flags, some of
+which can be set and cleared by the
 .Ic enable
 and
 .Ic disable
-configuration commands,
-respectively.
-These are the auth, bclient, monitor, pll, pps and stats flags,
-as described below under the
-.Ic enable
-command in the
-.Sx Runtime Configuration Requests
-section.
-There are two additional flags which are read only,
-the kernel_pll and kernel_pps.
-These flags indicate the synchronization status
-when the precision time kernel modifications are in use.
-The kernel_pll indicates
-that the local clock is being disciplined by the kernel,
-while the kernel_pps indicates
-the kernel discipline is provided by the PPS signal.
+configuration commands, respectively.
+These are
+the
+.Cm auth  ,
+.Cm bclient ,
+.Cm monitor ,
+.Cm pll ,
+.Cm pps
+and
+.Cm stats
+flags.
+See the
+.Xr ntpd 8
+documentation for the meaning of these flags.
+There
+are two additional flags which are read only, the
+.Cm kernel_pll
+and
+.Cm kernel_pps .
+These flags indicate
+the synchronization status when the precision time kernel
+modifications are in use.
+The
+.Sq kernel_pll
+indicates that
+the local clock is being disciplined by the kernel, while the
+.Sq kernel_pps
+indicates the kernel discipline is provided by the PPS
+signal.
 .Pp
 The
-.Qq stability
-is the residual frequency error
-remaining after the system frequency correction is applied and is
-intended for maintenance and debugging.
-In most architectures, this
-value will initially decrease from as high as 500 ppm to a nominal value
-in the range .01 to 0.1 ppm.
+.Sq stability
+is the residual frequency error remaining
+afterthe system frequency correction is applied and is intended for
+maintenance and debugging.
+In most architectures, this value will
+initially decrease from as high as 500 ppm to a nominal value in
+the range .01 to 0.1 ppm.
 If it remains high for some time after
-starting the daemon, something may be wrong with the local clock, or the
-value of the kernel variable
-.Qq tick
-may be incorrect.
+starting the daemon, something may be wrong with the local clock,
+or the value of the kernel variable
+.Va kern.clockrate.tick
+may be
+incorrect.
 .Pp
 The
-.Qq broadcastdelay
-shows the default broadcast delay, as set by
-the
-.Qq broadcastdelay
-configuration option, while the
-.Qq authdelay
-shows the default authentication delay, as set by
-the
-.Qq authdelay
-configuration option.
+.Ic broadcastdelay
+shows the default broadcast delay,
+as set by the
+.Ic broadcastdelay
+configuration command.
+.Pp
+The
+.Sq authdelay
+shows the default authentication delay,
+as set by the
+.Ic authdelay
+configuration command.
 .It Ic sysstats
-Print statistics counters maintained in the protocol module.
+Print statistics counters maintained in the protocol
+module.
 .It Ic memstats
 Print statistics counters related to memory allocation
 code.
 .It Ic iostats
-Print statistics counters maintained in the input-output module.
+Print statistics counters maintained in the input-output
+module.
 .It Ic timerstats
-Print statistics counters maintained in the timer/event queue support
-code.
+Print statistics counters maintained in the timer/event queue
+support code.
 .It Ic reslist
 Obtain and print the server's restriction list.
-This list is (usually)
-printed in sorted order and may help to understand how the restrictions
-are applied.
+This list is
+(usually) printed in sorted order and may help to understand how
+the restrictions are applied.
 .It Ic monlist Op Ar version
-Obtain and print traffic counts collected and maintained by the monitor
-facility.
-The version number should not normally need to be specified.
-.It Xo Ic clkbug
-.Ar clock_peer_address
-.Op Ar ...
-.Xc
+Obtain and print traffic counts collected and maintained by the
+monitor facility.
+The version number should not normally need to be
+specified.
+.It Ic clkbug clock_peer_address ...
 Obtain debugging information for a reference clock driver.
-This information is provided only by some clock drivers and is mostly
+This
+information is provided only by some clock drivers and is mostly
 undecodable without a copy of the driver source in hand.
 .El
-.Ss Runtime Configuration Requests
-All requests which cause state changes in the server are authenticated
-by the server using a configured
-NTP key (the facility can also be
-disabled by the server by not configuring a key).
-The key number and the
-corresponding key must also be made known to
+.Ss "Runtime Configuration Requests"
+All requests which cause state changes in the server are
+authenticated by the server using a configured NTP key (the
+facility can also be disabled by the server by not configuring a
+key).
+The key number and the corresponding key must also be made
+known to
 .Nm .
 This can be done using the
 .Ic keyid
 and
 .Ic passwd
-commands, the latter of which will prompt at the terminal for a password
-to use as the encryption key.
-You will also be prompted automatically
-for both the key number and password the first time a command which
-would result in an authenticated request to the server is given.
-Authentication not only provides verification that the requester has
-permission to make such changes, but also gives an extra degree of
-protection again transmission errors.
+commands, the latter of which will prompt at the terminal for a
+password to use as the encryption key.
+You will also be prompted
+automatically for both the key number and password the first time a
+command which would result in an authenticated request to the
+server is given.
+Authentication not only provides verification that
+the requester has permission to make such changes, but also gives
+an extra degree of protection again transmission errors.
 .Pp
-Authenticated requests always include a timestamp in the packet data,
-which is included in the computation of the authentication code.
-This timestamp is compared by the server to its receive time stamp.
-If they differ by more than a small amount the request is rejected.
+Authenticated requests always include a timestamp in the packet
+data, which is included in the computation of the authentication
+code.
+This timestamp is compared by the server to its receive time
+stamp.
+If they differ by more than a small amount the request is
+rejected.
 This is done for two reasons.
-First, it makes simple replay attacks on the server, by
-someone who might be able to overhear traffic on your LAN, much more
-difficult.
-Second, it makes it more difficult to request configuration
-changes to your server from topologically remote hosts.
-While the
-reconfiguration facility will work well with a server on the local host,
-and may work adequately between time-synchronized hosts on the same
-LAN, it will work very poorly for more distant hosts.
-As such, if
-reasonable passwords are chosen, care is taken in the distribution and
+First, it makes simple
+replay attacks on the server, by someone who might be able to
+overhear traffic on your LAN, much more difficult.
+Second, it makes
+it more difficult to request configuration changes to your server
+from topologically remote hosts.
+While the reconfiguration facility
+will work well with a server on the local host, and may work
+adequately between time-synchronized hosts on the same LAN, it will
+work very poorly for more distant hosts.
+As such, if reasonable
+passwords are chosen, care is taken in the distribution and
 protection of keys and appropriate source address restrictions are
 applied, the run time reconfiguration facility should provide an
 adequate level of security.
 .Pp
 The following commands all make authenticated requests.
 .Bl -tag -width indent
-.It Xo Ic addpeer
-.Ar peer_address
+.It Xo Ic addpeer Ar peer_address
 .Op Ar keyid
 .Op Ar version
-.Op Ar prefer
+.Op Cm prefer
 .Xc
-Add a configured peer association at the given address and operating in
-symmetric active mode.
-Note that an existing association with the same
-peer may be deleted when this command is executed, or may simply be
-converted to conform to the new configuration, as appropriate.
-If the
-optional
+Add a configured peer association at the given address and
+operating in symmetric active mode.
+Note that an existing
+association with the same peer may be deleted when this command is
+executed, or may simply be converted to conform to the new
+configuration, as appropriate.
+If the optional
 .Ar keyid
-is a nonzero integer, all outgoing packets to
-the remote server will have an authentication field attached encrypted
-with this key.
-If the value is 0 (or not given) no authentication will
-be done.
+is a
+nonzero integer, all outgoing packets to the remote server will
+have an authentication field attached encrypted with this key.
+If
+the value is 0 (or not given) no authentication will be done.
 The
 .Ar version
 can be 1, 2 or 3 and defaults to 3.
 The
-.Ar prefer
-keyword indicates a preferred peer (and thus will be
-used primarily for clock synchronisation if possible).
-The preferred
-peer also determines the validity of the PPS signal - if the preferred
-peer is suitable for synchronisation so is the PPS signal.
-.It Xo Ic addserver
-.Ar peer_address
+.Cm prefer
+keyword indicates a preferred peer (and thus will
+be used primarily for clock synchronisation if possible).
+The
+preferred peer also determines the validity of the PPS signal - if
+the preferred peer is suitable for synchronisation so is the PPS
+signal.
+.It Xo Ic addserver Ar peer_address
 .Op Ar keyid
 .Op Ar version
-.Op Ar prefer
+.Op Cm prefer
 .Xc
-Identical to the
-.Ic addpeer
-command, except that the operating mode is client.
-.It Xo Ic broadcast
-.Ar peer_address
+Identical to the addpeer command, except that the operating
+mode is client.
+.It Xo Ic broadcast Ar peer_address
 .Op Ar keyid
 .Op Ar version
+.Op Cm prefer
 .Xc
-Identical to the
-.Ic addpeer
-command, except that the operating mode is broadcast.
-In this case a valid key identifier and key are required.
+Identical to the addpeer command, except that the operating
+mode is broadcast.
+In this case a valid key identifier and key are
+required.
 The
 .Ar peer_address
-parameter can be the broadcast address of the local network or a
-multicast group address assigned to
-NTP.
-If a multicast address, a
-multicast-capable kernel is required.
-.It Xo Ic unconfig
-.Ar peer_address
-.Op Ar ...
-.Xc
-This command causes the configured bit to be removed from the specified
-peer(s).
-In many cases this will cause the peer association to be deleted.
-When appropriate, however, the association may persist in an
-unconfigured mode if the remote peer is willing to continue on in this
-fashion.
-.It Xo Ic fudge
-.Ar peer_address
-.Op Ar time1
-.Op Ar time2
+parameter can be the broadcast
+address of the local network or a multicast group address assigned
+to NTP.
+If a multicast address, a multicast-capable kernel is
+required.
+.It Ic unconfig Ar peer_address ...
+This command causes the configured bit to be removed from the
+specified peer(s).
+In many cases this will cause the peer
+association to be deleted.
+When appropriate, however, the
+association may persist in an unconfigured mode if the remote peer
+is willing to continue on in this fashion.
+.It Xo Ic fudge Ar peer_address
+.Op Cm time1
+.Op Cm time2
 .Op Ar stratum
 .Op Ar refid
 .Xc
-This command provides a way to set certain data for a reference clock.
+This command provides a way to set certain data for a reference
+clock.
 See the source listing for further information.
-.It Xo Ic enable
-.Ar flag
-.Op Ar ...
-.Xc
-.It Xo Ic disable
-.Ar flag
-.Op Ar ...
-.Xc
+.It enable Ar flag ...
+.It disable Ar flag ...
 These commands operate in the same way as the
-.Qq enable
+.Ic enable
 and
-.Qq disable
+.Ic disable
 configuration file commands of
-.Xr ntpd 8 .
+.Xr ntpd 8  .
 Following is a description of the flags.
-Note that only the auth, bclient, monitor, pll, pps and stats flags
-can be set by
+Note that only the
+.Cm auth  ,
+.Cm bclient ,
+.Cm monitor ,
+.Cm pll ,
+.Cm pps
+and
+.Cm stats
+flags can be set by
 .Nm ;
-the pll_kernel and pps_kernel flags are read-only.
+the
+.Cm pll_kernel
+and
+.Cm pps_kernel
+flags are
+read-only.
 .Bl -tag -width indent
-.It auth
-Enables the server to synchronize
-with unconfigured peers only if the peer has been correctly
-authenticated using a trusted key and key identifier.
+.It Cm auth
+Enables the server to synchronize with unconfigured peers only
+if the peer has been correctly authenticated using a trusted key
+and key identifier.
 The default for this flag is enable.
-.It bclient
-Enables the server
-to listen for a message from a broadcast or multicast server,
-as in the
-.Qq mutlicastclient
-configuration option with default address.
+.It Cm bclient
+Enables the server to listen for a message from a broadcast or
+multicast server, as in the
+.Ic multicastclient
+command with
+default address.
 The default for this flag is disable.
-.It monitor
-Enables the monitoring facility for the
-.Ic monlist
-command.
-The default for this flag is enable.
-.It pll
-Enables the server to adjust its local clock by means of NTP.
-If disabled,
-the local clock free-runs at its intrinsic time and frequency offset.
-This flag is useful
-in case the local clock is controlled
-by some other device or protocol
-and NTP is used only to provide synchronization to other clients.
-In this case, the local clock driver is used.
+.It Cm monitor
+Enables the monitoring facility.
 See the
-.Qo
-Reference Clock Drivers
-.Qc
+.Ic monlist
+command for further information.
+The
+default for this flag is enable.
+.It Cm pll
+Enables the server to adjust its local clock by means of NTP.
+If disabled, the local clock free-runs at its intrinsic time and
+frequency offset.
+This flag is useful in case the local clock is
+controlled by some other device or protocol and NTP is used only to
+provide synchronization to other clients.
+In this case, the local
+clock driver is used.
+See the
+.Qq "Reference Clock Drivers"
 page
 (available as part of the HTML documentation
 provided in
 .Pa /usr/share/doc/ntp )
-for further information.
-The default for this flag is enable.
-.It pps
-Enables the pulse-per-second (PPS) signal
-when frequency and time is disciplined
-by the precision time kernel modifications.
-See the
-.Qo
-A Kernel Model for Precision Timekeeping
-.Qc
-page
-for further information.
-The default for this flag is disable.
-.It stats
+page for further information.
+The default for
+this flag is enable.
+.It Cm pps
+Enables the pulse-per-second (PPS) signal when frequency and
+time is disciplined by the precision time kernel modifications.
+See
+the
+.Qq "A Kernel Model for Precision Timekeeping"
+page for further information.
+The default for this flag is
+disable.
+.It Cm stats
 Enables the statistics facility.
 See the
-.Qq Monitoring Support
-section of the
+.Sx Monitoring Options
+section
+of the
 .Xr ntp.conf 5
-page
-for further information.
+page for further information.
 The default for this flag is enable.
-.It pll_kernel
+.It Cm pll_kernel
 When the precision time kernel modifications are installed,
-this indicates the kernel controls the clock discipline;
-otherwise, the daemon controls the clock discipline.
-.It pps_kernel
-When the precision time kernel modifications are installed
-and a pulse-per-second (PPS) signal is available,
-this indicates the PPS signal controls the clock discipline;
-otherwise, the daemon or kernel controls the clock discipline,
-as indicated by the pll_kernel flag.
+this indicates the kernel controls the clock discipline; otherwise,
+the daemon controls the clock discipline.
+.It Cm pps_kernel
+When the precision time kernel modifications are installed and
+a pulse-per-second (PPS) signal is available, this indicates the
+PPS signal controls the clock discipline; otherwise, the daemon or
+kernel controls the clock discipline, as indicated by the
+.Cm pll_kernel
+flag.
 .El
-.It Xo Ic restrict
-.Ar address
-.Ar mask
-.Ar flag
-.Op Ar flag
+.It Xo Ic restrict Ar address Ar mask
+.Ar flag ...
 .Xc
-This command operates in the same was as the
-.Qq restrict
-configuration option of
-.Xr ntpd 8 .
-.It Xo Ic unrestrict
-.Ar address
-.Ar mask
-.Ar flag
-.Op Ar flag
+This command operates in the same way as the
+.Ic restrict
+configuration file commands of
+.Xr ntpd 8  .
+.It Xo Ic unrestrict Ar address Ar mask
+.Ar flag ...
 .Xc
 Unrestrict the matching entry from the restrict list.
-.It Xo Ic delrestrict
-.Ar address
-.Ar mask
-.Op Ar ntpport
+.It Xo Ic delrestrict Ar address Ar mask
+.Op Cm ntpport
 .Xc
 Delete the matching entry from the restrict list.
 .It Ic readkeys
-Cause the current set of authentication keys to be purged and a new set
-to be obtained by rereading the keys file (which must have been
-specified in the
+Causes the current set of authentication keys to be purged and
+a new set to be obtained by rereading the keys file (which must
+have been specified in the
 .Xr ntpd 8
 configuration file).
-This allows encryption keys to be changed without
-restarting the server.
-.It Xo Ic trustkey
-.Ar keyid
-.Op Ar ...
-.Xc
-.It Xo Ic untrustkey
-.Ar keyid
-.Op Ar ...
-.Xc
+This
+allows encryption keys to be changed without restarting the
+server.
+.It Ic trustedkey Ar keyid ...
+.It Ic untrustedkey Ar keyid ...
 These commands operate in the same way as the
-.Qq trustedkey
+.Ic trustedkey
 and
-.Qq untrustkey
-configuration options of
-.Xr ntpd 8 .
+.Ic untrustedkey
+configuration file
+commands of
+.Xr ntpd 8  .
 .It Ic authinfo
-Returns information concerning the authentication module, including
-known keys and counts of encryptions and decryptions which have been
-done.
+Returns information concerning the authentication module,
+including known keys and counts of encryptions and decryptions
+which have been done.
 .It Ic traps
 Display the traps set in the server.
-See the source listing for further information.
-.It Xo Ic addtrap
-.Ar address
+See the source listing for
+further information.
+.It Xo Ic addtrap Ar address
 .Op Ar port
 .Op Ar interface
 .Xc
 Set a trap for asynchronous messages.
-See the source listing for further information.
-.It Xo Ic clrtrap
-.Ar address
+See the source listing
+for further information.
+.It Xo Ic clrtrap Ar address
 .Op Ar port
 .Op Ar interface
 .Xc
 Clear a trap for asynchronous messages.
-See the source listing for further information.
-.It reset Ar counter Op Ar ...
+See the source listing
+for further information.
+.It Ic reset
 Clear the statistics counters in various modules of the server.
 See the source listing for further information.
 .El
@@ -691,16 +708,13 @@ See the source listing for further information.
 .%T Network Time Protocol (Version 3)
 .%O RFC1305
 .Re
-.Sh HISTORY
-Written by
-.An Dennis Ferguson
-at the University of Toronto.
 .Sh BUGS
 .Nm
 is a crude hack.
-Much of the information it shows is deadly boring
-and could only be loved by its implementer.
-The program was designed so that new (and temporary) features
-were easy to hack in,
-at great expense to the program's ease of use.
-Despite this, the program is occasionally useful.
+Much of the information it shows is
+deadly boring and could only be loved by its implementer.
+The
+program was designed so that new (and temporary) features were easy
+to hack in, at great expense to the program's ease of use.
+Despite
+this, the program is occasionally useful.

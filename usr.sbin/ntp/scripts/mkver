@@ -1,15 +1,24 @@
 #!/bin/sh
+#
 # $FreeBSD$
+#
 PROG=${1-UNKNOWN}
 
 ConfStr="$PROG"
 
+ConfStr="$ConfStr 4.1.0"
+
 case "" in
- '') ;;
- *)  ConfStr="$ConfStr RSAREF" ;;
+ '')
+    case "1" in
+     '') ;;
+     *) ConfStr="${ConfStr}-a" ;;
+    esac
+    ;;
+ *)  ConfStr="${ConfStr}-r" ;;
 esac
 
-ConfStr="$ConfStr 4.0.99b `LC_ALL=C date`"
+ConfStr="$ConfStr `LC_ALL=C date`"
 
 if [ ! -f .version ]; then
   echo 0 > .version

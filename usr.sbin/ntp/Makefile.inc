@@ -1,5 +1,5 @@
-#	$FreeBSD$
-#
+# $FreeBSD$
+
 MAINTAINER=	roberto
 
 DEFS_LOCAL= -DPARSE -DHAVE_CONFIG_H

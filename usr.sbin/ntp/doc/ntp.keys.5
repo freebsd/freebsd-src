@@ -36,7 +36,7 @@ The key file uses the same comment conventions
 as the configuration file.
 Key entries use a fixed format of the form
 .Pp
-.Dl keyno type key
+.D1 Ar keyno type key
 .Pp
 where
 .Ar keyno
@@ -53,51 +53,41 @@ may be given in one of three different formats,
 controlled by the
 .Ar type
 character.
-The three key types, and corresponding formats,
+The four key types, and corresponding formats,
 are listed following.
-.Bl -tag -width indent
-.It S
-The
-.Ar key
-is a 64-bit hexadecimal number in the format
+.Bl -tag -width X
+.It Li S
+The key is a 64-bit hexadecimal number in the format
 specified in the DES specification;
 that is, the high order seven bits of each octet are used
 to form the 56-bit key
 while the low order bit of each octet is given a value
 such that odd parity is maintained for the octet.
 Leading zeroes must be specified
-(i.e. the key must be exactly 16 hex digits long)
+(i.e., the key must be exactly 16 hex digits long)
 and odd parity must be maintained.
-Hence a zero
-.Ar key ,
-in standard format, would be given as
-.Li 0101010101010101 .
-.It N
-The
-.Ar key
-is a 64-bit hexadecimal number in the format
+Hence a zero key, in standard format, would be given as
+.Ql 0101010101010101 .
+.It Li N
+The key is a 64-bit hexadecimal number in the format
 specified in the NTP standard.
 This is the same as the DES format,
 except the bits in each octet have been rotated one bit right
 so that the parity bit is now the high order bit of the octet.
 Leading zeroes must be specified and odd parity must be maintained.
-A zero
-.Ar key
-in NTP format would be specified as
-.Li 8080808080808080 .
-.It A
-The
-.Ar key
-is a 1-to-8 character ASCII string.
+A zero key in NTP format would be specified as
+.Ql 8080808080808080 .
+.It Li A
+The key is a 1-to-8 character ASCII string.
 A key is formed from this by using the low order 7 bits
 of each ASCII character in the string,
 with zeroes added on the right
 when necessary to form a full width 56-bit key,
-in the same way that encryption keys are formed from Unix passwords.
-.It M
-The
-.Ar key
-is a 1-to-8 character ASCII string,
+in the same way that encryption keys are formed from
+.Ux
+passwords.
+.It Li M
+The key is a 1-to-8 character ASCII string,
 using the MD5 authentication scheme.
 Note that both the keys and the authentication schemes (DES or MD5)
 must be identical between a set of peers sharing the same key number.
@@ -120,10 +110,6 @@ the default name of the configuration file
 .Xr ntpd 8 ,
 .Xr ntpdate 8 ,
 .Xr ntpdc 8
-.Sh HISTORY
-Written by
-.An David Mills
-at the University of Delaware.
 .Sh BUGS
 .Xr ntpd 8
 has gotten rather fat.
