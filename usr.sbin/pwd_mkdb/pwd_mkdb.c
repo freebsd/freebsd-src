@@ -179,7 +179,7 @@ main(argc, argv)
 	data.data = (u_char *)buf;
 	key.data = (u_char *)tbuf;
 	for (cnt = 1; scan(fp, &pwd); ++cnt) {
-		if(pwd.pw_name[0] == '+')
+		if(pwd.pw_name[0] == '+' pwd.pw_name[0] == '-')
 			yp_enabled = 1;
 #define	COMPACT(e)	t = e; while (*p++ = *t++);
 		/* Create insecure data. */
@@ -225,8 +225,7 @@ main(argc, argv)
 			error("put");
 
 		/* Store insecure special plus and special minus */
-		if ((pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
-			&& pwd.pw_name[1]) {
+		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
 			tbuf[0] = (pwd.pw_name[0] == '+') ?
 				_PW_KEYPLUSBYNUM : _PW_KEYMINUSBYNUM;
 			memmove(tbuf + 1, (pwd.pw_name[0] == '+') ?
@@ -335,8 +334,7 @@ main(argc, argv)
 			error("put");
 
 		/* Store secure special plus and special minus */
-		if ((pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-')
-			&& pwd.pw_name[1]) {
+		if (pwd.pw_name[0] == '+' || pwd.pw_name[0] == '-') {
 			tbuf[0] = (pwd.pw_name[0] == '+') ?
 				_PW_KEYPLUSBYNUM : _PW_KEYMINUSBYNUM;
 			memmove(tbuf + 1, (pwd.pw_name[0] == '+') ?
