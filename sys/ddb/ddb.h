@@ -43,18 +43,18 @@ typedef void db_cmdfcn_t __P((db_expr_t addr, boolean_t have_addr,
 			      db_expr_t count, char *modif));
 
 #define DB_COMMAND(cmd_name, func_name) \
-	DB_SET(cmd_name, func_name, db_cmd_set)
+	DB_SET(cmd_name, func_name, db_cmd_set, 0, NULL)
 #define DB_SHOW_COMMAND(cmd_name, func_name) \
-	DB_SET(cmd_name, func_name, db_show_cmd_set)
+	DB_SET(cmd_name, func_name, db_show_cmd_set, 0, NULL)
 
-#define DB_SET(cmd_name, func_name, set)			\
+#define DB_SET(cmd_name, func_name, set, flag, more)		\
 static db_cmdfcn_t	func_name;				\
 								\
 static const struct command __CONCAT(func_name,_cmd) = {	\
 	__STRING(cmd_name),					\
 	func_name,						\
-	0,							\
-	0,							\
+	flag,							\
+	more							\
 };								\
 TEXT_SET(set, __CONCAT(func_name,_cmd));			\
 								\
