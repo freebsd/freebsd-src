@@ -432,6 +432,17 @@ rue_miibus_writereg(device_ptr_t dev, int phy, int reg, int data)
 Static void
 rue_miibus_statchg(device_ptr_t dev)
 {
+	/*
+	 * When the code below is enabled the card starts doing weird
+	 * things after link going from UP to DOWN and back UP.
+	 *
+	 * Looks like some of register writes below messes up PHY
+	 * interface.
+	 *
+	 * No visible regressions were found after commenting this code
+	 * out, so that disable it for good.
+	 */
+#if 0
 	struct rue_softc	*sc = USBGETSOFTC(dev);
 	struct mii_data		*mii = GET_MII(sc);
 	int			bmcr;
@@ -453,6 +464,7 @@ rue_miibus_statchg(device_ptr_t dev)
 	rue_csr_write_2(sc, RUE_BMCR, bmcr);
 
 	RUE_SETBIT(sc, RUE_CR, (RUE_CR_RE | RUE_CR_TE));
+#endif
 }
 
 /*
