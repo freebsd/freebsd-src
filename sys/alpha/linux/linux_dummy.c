@@ -94,7 +94,6 @@ DUMMY(query_module);
 DUMMY(nfsservctl);
 DUMMY(getresgid);
 DUMMY(prctl);
-DUMMY(rt_sigreturn);
 DUMMY(rt_sigpending);
 DUMMY(rt_sigtimedwait);
 DUMMY(rt_sigqueueinfo);

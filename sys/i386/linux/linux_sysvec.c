@@ -38,6 +38,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
@@ -192,6 +193,139 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 }
 
 extern int _ucodesel, _udatasel;
+extern unsigned long _linux_sznonrtsigcode;
+
+static void
+linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
+{
+	register struct proc *p = curproc;
+	register struct trapframe *regs;
+	struct linux_rt_sigframe *fp, frame;
+	struct sigacts *psp = p->p_sigacts;
+	int oonstack;
+
+	regs = p->p_md.md_regs;
+	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): linux_rt_sendsig(%p, %d, %p, %lu)\n",
+	    (long)p->p_pid, catcher, sig, (void*)mask, code);
+#endif
+	/*
+	 * Allocate space for the signal handler context.
+	 */
+	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
+		    p->p_sigstk.ss_size - sizeof(struct linux_rt_sigframe));
+		p->p_sigstk.ss_flags |= SS_ONSTACK;
+	} else {
+		fp = (struct linux_rt_sigframe *)regs->tf_esp - 1;
+	}
+
+	/*
+	 * grow() will return FALSE if the fp will not fit inside the stack
+	 *	and the stack can not be grown. useracc will return FALSE
+	 *	if access is denied.
+	 */
+	if ((grow_stack (p, (int)fp) == FALSE) ||
+	    !useracc((caddr_t)fp, sizeof (struct linux_rt_sigframe), 
+	    VM_PROT_WRITE)) {
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		SIGACTION(p, SIGILL) = SIG_DFL;
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
+#ifdef DEBUG
+		printf("Linux-emul(%ld): linux_rt_sendsig -- bad stack %p, SS_ONSTACK: 0x%x ",
+	    (long)p->p_pid, fp, p->p_sigstk.ss_flags & SS_ONSTACK);
+#endif
+		psignal(p, SIGILL);
+		return;
+	}
+
+	/*
+	 * Build the argument list for the signal handler.
+	 */
+	if (p->p_sysent->sv_sigtbl)
+		if (sig <= p->p_sysent->sv_sigsize)
+			sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+
+	frame.sf_handler = catcher;
+	frame.sf_sig = sig;
+
+	frame.sf_siginfo = &fp->sf_si;
+	frame.sf_ucontext = &fp->sf_sc;
+	/* Fill siginfo structure. */
+	frame.sf_si.lsi_signo = sig;
+	frame.sf_si.lsi_code = code;
+	frame.sf_si.lsi_addr = (void *)regs->tf_err;
+	/*
+	 * Build the signal context to be used by sigreturn.
+	 */
+	frame.sf_sc.uc_mcontext.sc_mask   = mask->__bits[0];
+	frame.sf_sc.uc_mcontext.sc_gs     = rgs();
+	frame.sf_sc.uc_mcontext.sc_fs     = regs->tf_fs;
+	frame.sf_sc.uc_mcontext.sc_es     = regs->tf_es;
+	frame.sf_sc.uc_mcontext.sc_ds     = regs->tf_ds;
+	frame.sf_sc.uc_mcontext.sc_edi    = regs->tf_edi;
+	frame.sf_sc.uc_mcontext.sc_esi    = regs->tf_esi;
+	frame.sf_sc.uc_mcontext.sc_ebp    = regs->tf_ebp;
+	frame.sf_sc.uc_mcontext.sc_ebx    = regs->tf_ebx;
+	frame.sf_sc.uc_mcontext.sc_edx    = regs->tf_edx;
+	frame.sf_sc.uc_mcontext.sc_ecx    = regs->tf_ecx;
+	frame.sf_sc.uc_mcontext.sc_eax    = regs->tf_eax;
+	frame.sf_sc.uc_mcontext.sc_eip    = regs->tf_eip;
+	frame.sf_sc.uc_mcontext.sc_cs     = regs->tf_cs;
+	frame.sf_sc.uc_mcontext.sc_eflags = regs->tf_eflags;
+	frame.sf_sc.uc_mcontext.sc_esp_at_signal = regs->tf_esp;
+	frame.sf_sc.uc_mcontext.sc_ss     = regs->tf_ss;
+	frame.sf_sc.uc_mcontext.sc_err    = regs->tf_err;
+	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
+
+	/*
+	 * Build the remainder of the ucontext struct to be used by sigreturn.
+	 */
+	frame.sf_sc.uc_flags = 0;		/* XXX ??? */
+	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
+	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
+	frame.sf_sc.uc_stack.ss_flags = 
+	    bsd_to_linux_sigaltstack(p->p_sigstk.ss_flags);
+	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
+#ifdef DEBUG
+	printf("Linux-emul(%ld): rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
+	    (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,  p->p_sigstk.ss_sp, 
+	    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
+#endif
+	bsd_to_linux_sigset(&p->p_sigmask, &frame.sf_sc.uc_sigmask);
+
+	if (copyout(&frame, fp, sizeof(frame)) != 0) {
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		sigexit(p, SIGILL);
+		/* NOTREACHED */
+	}
+
+	/*
+	 * Build context to run handler in.
+	 */
+	regs->tf_esp = (int)fp;
+	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) + 
+	    _linux_sznonrtsigcode;
+	regs->tf_eflags &= ~PSL_VM;
+	regs->tf_cs = _ucodesel;
+	regs->tf_ds = _udatasel;
+	regs->tf_es = _udatasel;
+	regs->tf_fs = _udatasel;
+	load_gs(_udatasel);
+	regs->tf_ss = _udatasel;
+}
+
 
 /*
  * Send an interrupt to process.
@@ -220,6 +354,13 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
 	    (long)p->p_pid, catcher, sig, (void*)mask, code);
 #endif
+
+	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+		/* Signal handler installed with SA_SIGINFO. */
+		linux_rt_sendsig(catcher, sig, mask, code);
+		return;
+	}
+
 	/*
 	 * Allocate space for the signal handler context.
 	 */
@@ -394,6 +535,122 @@ linux_sigreturn(p, args)
 	regs->tf_eflags = eflags;
 	regs->tf_esp    = context.sc_esp_at_signal;
 	regs->tf_ss     = context.sc_ss;
+
+	return (EJUSTRETURN);
+}
+
+/*
+ * System call to cleanup state after a signal
+ * has been taken.  Reset signal mask and
+ * stack state from context left by rt_sendsig (above).
+ * Return to previous pc and psl as specified by
+ * context left by sendsig. Check carefully to
+ * make sure that the user has not modified the
+ * psl to gain improper privileges or to cause
+ * a machine fault.
+ */
+int
+linux_rt_sigreturn(p, args)
+	struct proc *p;
+	struct linux_rt_sigreturn_args *args;
+{
+	struct sigaltstack_args sasargs;
+	struct linux_ucontext 	 uc;
+	struct linux_sigcontext *context;
+	linux_stack_t *lss;
+	stack_t *ss;
+	register struct trapframe *regs;
+	int eflags;
+	caddr_t sg = stackgap_init();
+
+	regs = p->p_md.md_regs;
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): linux_rt_sigreturn(%p)\n",
+	    (long)p->p_pid, (void *)args->ucp);
+#endif
+	/*
+	 * The trampoline code hands us the u_context.
+	 * It is unsafe to keep track of it ourselves, in the event that a
+	 * program jumps out of a signal handler.
+	 */
+	if (copyin((caddr_t)args->ucp, &uc, sizeof(uc)) != 0)
+		return (EFAULT);
+
+	context = &uc.uc_mcontext;
+
+	/*
+	 * Check for security violations.
+	 */
+#define	EFLAGS_SECURE(ef, oef)	((((ef) ^ (oef)) & ~PSL_USERCHANGE) == 0)
+	eflags = context->sc_eflags;
+	/*
+	 * XXX do allow users to change the privileged flag PSL_RF.  The
+	 * cpu sets PSL_RF in tf_eflags for faults.  Debuggers should
+	 * sometimes set it there too.  tf_eflags is kept in the signal
+	 * context during signal handling and there is no other place
+	 * to remember it, so the PSL_RF bit may be corrupted by the
+	 * signal handler without us knowing.  Corruption of the PSL_RF
+	 * bit at worst causes one more or one less debugger trap, so
+	 * allowing it is fairly harmless.
+	 */
+	if (!EFLAGS_SECURE(eflags & ~PSL_RF, regs->tf_eflags & ~PSL_RF)) {
+    		return(EINVAL);
+	}
+
+	/*
+	 * Don't allow users to load a valid privileged %cs.  Let the
+	 * hardware check for invalid selectors, excess privilege in
+	 * other selectors, invalid %eip's and invalid %esp's.
+	 */
+#define	CS_SECURE(cs)	(ISPL(cs) == SEL_UPL)
+	if (!CS_SECURE(context->sc_cs)) {
+		trapsignal(p, SIGBUS, T_PROTFLT);
+		return(EINVAL);
+	}
+
+	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+	SIGSETOLD(p->p_sigmask, context->sc_mask);
+	SIG_CANTMASK(p->p_sigmask);
+
+	/*
+	 * Restore signal context->
+	 */
+	/* %gs was restored by the trampoline. */
+	regs->tf_fs     = context->sc_fs;
+	regs->tf_es     = context->sc_es;
+	regs->tf_ds     = context->sc_ds;
+	regs->tf_edi    = context->sc_edi;
+	regs->tf_esi    = context->sc_esi;
+	regs->tf_ebp    = context->sc_ebp;
+	regs->tf_ebx    = context->sc_ebx;
+	regs->tf_edx    = context->sc_edx;
+	regs->tf_ecx    = context->sc_ecx;
+	regs->tf_eax    = context->sc_eax;
+	regs->tf_eip    = context->sc_eip;
+	regs->tf_cs     = context->sc_cs;
+	regs->tf_eflags = eflags;
+	regs->tf_esp    = context->sc_esp_at_signal;
+	regs->tf_ss     = context->sc_ss;
+
+
+	/*
+	 * call sigaltstack & ignore results..
+	 */
+	ss = stackgap_alloc(&sg, sizeof(stack_t));
+	lss = &uc.uc_stack;
+	ss->ss_sp = lss->ss_sp;
+	ss->ss_size = (lss->ss_size >= LINUX_MINSIGSTKSZ &&
+	    lss->ss_size < MINSIGSTKSZ) ? MINSIGSTKSZ : lss->ss_size;
+	ss->ss_flags = linux_to_bsd_sigaltstack(lss->ss_flags);
+
+#ifdef DEBUG
+	printf("Linux-emul(%ld): rt_sigret  flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
+	    (long)p->p_pid, ss->ss_flags, ss->ss_sp, ss->ss_size, context->sc_mask);
+#endif
+	sasargs.ss = ss;
+	sasargs.oss = NULL;
+	(void) sigaltstack(p, &sasargs);
 
 	return (EJUSTRETURN);
 }

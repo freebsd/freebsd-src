@@ -31,6 +31,8 @@
 #ifndef _I386_LINUX_LINUX_H_
 #define	_I386_LINUX_LINUX_H_
 
+#include <sys/signal.h> /* for sigval union */
+
 #include <i386/linux/linux_syscall.h>
 
 #ifdef MALLOC_DECLARE
@@ -221,6 +223,73 @@ struct linux_sigcontext {
 	int	sc_cr2;
 };
 
+struct linux_ucontext {
+	unsigned long     	uc_flags;
+	void  			*uc_link;
+	linux_stack_t		uc_stack;
+	struct linux_sigcontext uc_mcontext;
+        linux_sigset_t		uc_sigmask;   
+};
+
+
+#define LINUX_SI_MAX_SIZE     128
+#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(int)) - 3)
+
+typedef struct siginfo {
+	int lsi_signo;
+	int lsi_errno;
+	int lsi_code;
+
+	union {
+		int _pad[LINUX_SI_PAD_SIZE];
+		struct {
+			linux_pid_t _pid;
+			linux_uid_t _uid;
+		} _kill;
+
+		struct {
+			unsigned int _timer1;
+			unsigned int _timer2;
+		} _timer;
+		
+		struct {
+			linux_pid_t _pid;             /* sender's pid */
+			linux_uid_t _uid;             /* sender's uid */
+			union sigval _sigval;
+		} _rt;
+
+		struct {
+			linux_pid_t _pid;             /* which child */
+			linux_uid_t _uid;             /* sender's uid */
+			int _status;            /* exit code */
+			linux_clock_t _utime;
+			linux_clock_t _stime;
+		} _sigchld;
+
+		struct {
+			void *_addr; /* faulting insn/memory ref. */
+		} _sigfault;
+
+		struct {
+			int _band;      /* POLL_IN, POLL_OUT, POLL_MSG */
+			int _fd;
+		} _sigpoll;
+	} _sifields;
+} linux_siginfo_t;
+
+#define lsi_pid          _sifields._kill._pid
+#define lsi_uid          _sifields._kill._uid
+#define lsi_status       _sifields._sigchld._status
+#define lsi_utime        _sifields._sigchld._utime
+#define lsi_stime        _sifields._sigchld._stime
+#define lsi_value        _sifields._rt._sigval
+#define lsi_int          _sifields._rt._sigval.sival_int
+#define lsi_ptr          _sifields._rt._sigval.sival_ptr
+#define lsi_addr         _sifields._sigfault._addr
+#define lsi_band         _sifields._sigpoll._band
+#define lsi_fd           _sifields._sigpoll._fd
+
+
 /*
  * We make the stack look like Linux expects it when calling a signal
  * handler, but use the BSD way of calling the handler and sigreturn().
@@ -233,10 +302,21 @@ struct linux_sigframe {
 	linux_handler_t sf_handler;
 };
 
+struct linux_rt_sigframe {
+	int			sf_sig;
+	linux_siginfo_t 	*sf_siginfo;;
+	struct linux_ucontext	*sf_ucontext;	
+	linux_siginfo_t sf_si;
+	struct linux_ucontext 	sf_sc;          
+	linux_handler_t 	sf_handler;
+};
+
+
 extern int bsd_to_linux_signal[];
 extern int linux_to_bsd_signal[];
 extern struct sysentvec linux_sysvec;
 extern struct sysentvec elf_linux_sysvec;
+void bsd_to_linux_sigset(sigset_t *bss, linux_sigset_t *lss);
 
 /*
  * Pluggable ioctl handlers
