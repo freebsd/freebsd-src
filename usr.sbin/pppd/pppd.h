@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pppd.h,v 1.10 1997/10/10 06:02:57 peter Exp $
+ * $Id: pppd.h,v 1.11 1997/10/10 09:28:38 peter Exp $
  */
 
 /*
@@ -68,6 +68,8 @@ extern int	redirect_stderr;/* Connector's stderr should go to file */
 extern char	peer_authname[];/* Authenticated name of peer */
 extern int	privileged;	/* We were run by real-uid root */
 extern int	need_holdoff;	/* Need holdoff period after link terminates */
+extern char	**script_env;	/* Environment variables for scripts */
+extern int	detached;	/* Have detached from controlling tty */
 
 /*
  * Variables set by command-line options.
@@ -176,6 +178,7 @@ extern struct protent *protocols[];
  */
 
 /* Procedures exported from main.c. */
+void detach __P((void));	/* Detach from controlling tty */
 void die __P((int));		/* Cleanup and exit */
 void quit __P((void));		/* like die(1) */
 void novm __P((char *));	/* Say we ran out of memory, and die */
@@ -195,6 +198,8 @@ void print_string __P((char *, int,  void (*) (void *, char *, ...),
 		void *));	/* Format a string for output */
 int fmtmsg __P((char *, int, char *, ...));		/* sprintf++ */
 int vfmtmsg __P((char *, int, char *, va_list));	/* vsprintf++ */
+void script_setenv __P((char *, char *));	/* set script env var */
+void script_unsetenv __P((char *));		/* unset script env var */
 
 /* Procedures exported from auth.c */
 void link_required __P((int));	  /* we are starting to use the link */
@@ -294,6 +299,7 @@ void unlock __P((void));	/* Delete previously-created lock file */
 int  daemon __P((int, int));	/* Detach us from terminal session */
 void logwtmp __P((const char *, const char *, const char *));
 				/* Write entry to wtmp file */
+int  get_host_seed __P((void));	/* Get host-dependent random number seed */
 #ifdef PPP_FILTER
 int  set_filters __P((struct bpf_program *pass, struct bpf_program *active));
 				/* Set filter programs in kernel */

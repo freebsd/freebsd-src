@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: magic.c,v 1.6 1997/08/19 17:52:42 peter Exp $";
 #endif
 
 #include <stdio.h>
@@ -46,7 +46,7 @@ magic_init()
     struct timeval t;
 
     gettimeofday(&t, NULL);
-    seed = gethostid() ^ t.tv_sec ^ t.tv_usec ^ getpid();
+    seed = get_host_seed() ^ t.tv_sec ^ t.tv_usec ^ getpid();
     srand48(seed);
 }
 
