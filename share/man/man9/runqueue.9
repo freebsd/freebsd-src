@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 3, 2000
+.Dd November 3, 2000
 .Dt RUNQUEUE 9
 .Os
 .Sh NAME
@@ -35,10 +35,10 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/proc.h>
-.Vt extern	struct rq itqueues[];
-.Vt extern	struct rq rtqueues[];
-.Vt extern	struct rq queues[];
-.Vt extern	struct rq idqueues[];
+.Vt "extern	struct rq itqueues[]" ;
+.Vt "extern	struct rq rtqueues[]" ;
+.Vt "extern	struct rq queues[]" ;
+.Vt "extern	struct rq idqueues[]" ;
 .Ft struct proc *
 .Fn chooseproc "void"
 .Ft u_int32_t
@@ -89,7 +89,7 @@ In that case the second CPU will simply travel through the idle loop one
 additional time before noticing that there is a runnable process.
 This works because idle CPUs are not halted in SMP systems.
 If idle CPUs are halted in SMP systems, then this race condition might have
-more serious repurcussions in the losing case, and
+more serious repercussions in the losing case, and
 .Fn procrunnable
 may have to require that the
 .Va sched_lock
@@ -112,7 +112,7 @@ mutex held.
 adds the process
 .Fa p
 to the tail of the appropriate queue in the proper priority queue.
-The process must be runnable, i.e.
+The process must be runnable, i.e.\&
 .Va p_stat
 must be set to
 .Dv SRUN .
