@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# $Id: sgmlfmt.pl,v 1.13 1996/09/29 17:34:05 jfieber Exp $
+# $Id: sgmlfmt.pl,v 1.14 1996/09/29 18:27:12 jfieber Exp $
 
 #  Copyright (C) 1996
 #       John R. Fieber.  All rights reserved.
@@ -49,6 +49,30 @@ $doctype = "<!DOCTYPE html PUBLIC \"-//W3C//DTD HTML 3.2//EN\">";
 $dtdbase = "/usr/share/sgml/FreeBSD";
 $dtd = "$dtdbase/linuxdoc.dtd";
 $decl = "$dtdbase/linuxdoc.dcl";
+
+#
+# Things to clean up if we exit abnormally
+#
+
+@cleanfiles = ();
+
+#
+# Interrupt handler, remove scratch files.
+#
+
+sub sighandler {
+    local($sig) = @_;
+    unlink @cleanfiles;
+    exit(1);
+}
+
+$SIG{'HUP'} = 'sighandler';
+$SIG{'INT'} = 'sighandler';
+$SIG{'QUIT'} = 'sighandler';
+
+#
+# Display a usage message.
+#
 
 sub usage {
     print "Usage:\n";
@@ -105,6 +129,7 @@ sub sgmlparse {
 #
 
 sub gen_roff {
+    @cleanfiles = (@cleanfiles, "${fileroot}.roff");
     open (outfile, ">$fileroot.roff");
     &sgmlparse(infile, "roff");
     while (<infile>) {
@@ -120,6 +145,8 @@ sub gen_roff {
 
 sub do_groff {
     local($driver, $postproc) = @_;
+    @cleanfiles = (@cleanfiles, "${fileroot}.trf", "${fileroot}.tmp", 
+    	"${fileroot}.qrf", "${fileroot}.${driver}");
     open (outfile, ">$fileroot.trf");
     &sgmlparse(infile, "roff");
     while (<infile>) {
@@ -144,6 +171,7 @@ sub do_groff {
 #
 
 sub gen_latex {
+    @cleanfiles = (@cleanfiles, "${fileroot}.latex");
     open(outfile, ">$fileroot.latex");
     &sgmlparse(infile, "latex");
     while (<infile>) {
@@ -205,6 +233,8 @@ sub gen_html {
     local($i, $sl);
     $tmpfile = "/tmp/sgmlf.$$";
 
+    @cleanfiles = (@cleanfiles, "$tmpfile", "${fileroot}.html", 
+    	"${fileroot}_toc.html", "${fileroot}.ln");
     open(bar, ">$tmpfile");
 #    print STDERR "(Pass 1...";
     &sgmlparse(foo, "html");
@@ -237,6 +267,7 @@ sub gen_html {
 	    if ($sl <= $maxlevel) {
 		$filecount++;
 		$st_ol[$sc] = $sl;
+    	    	@cleanfiles = (@cleanfiles, "${fileroot}${filecount}.html");
 	    }
 	    else {
 		$st_ol[$sc] = $maxlevel;
