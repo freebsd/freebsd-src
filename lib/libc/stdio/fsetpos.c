@@ -39,9 +39,10 @@
 static char sccsid[] = "@(#)fsetpos.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id$";
+		"$Id: fsetpos.c,v 1.5 1997/02/22 15:02:06 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
+#include <sys/types.h>
 #include <stdio.h>
 
 /*
@@ -52,5 +53,5 @@ fsetpos(iop, pos)
 	FILE *iop;
 	const fpos_t *pos;
 {
-	return (fseek(iop, (long)*pos, SEEK_SET));
+	return (fseeko(iop, (off_t)*pos, SEEK_SET));
 }
