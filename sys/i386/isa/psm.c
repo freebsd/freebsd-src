@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: psm.c,v 1.44 1997/11/07 08:52:41 phk Exp $
+ * $Id: psm.c,v 1.45 1997/11/18 12:21:32 bde Exp $
  */
 
 /*
@@ -765,6 +765,10 @@ psmprobe(struct isa_device *dvp)
     if (verbose >= 2)
 	log(LOG_DEBUG, "psm%d: SET_DEFAULTS return code:%04x\n",
 	    unit, i);
+#ifdef PSM_MSCKLUDGE
+    set_mouse_resolution(sc->kbdc, PSMD_RES_HIGH);
+#endif
+
 #if 0
     set_mouse_scaling(sc->kbdc); 	/* 1:1 scaling */
     set_mouse_mode(sc->kbdc);		/* stream mode */
