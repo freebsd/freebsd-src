@@ -118,6 +118,12 @@ struct digi_p {
 	tcflag_t c_iflag;		/* hold true IXON/IXOFF/IXANY */
 	int lcc, lostcc, lbuf;
 	u_char send_ring;
+
+	unsigned laltpin : 1;		/* Alternate pin settings locked */
+	unsigned ialtpin : 1;		/* Initial alternate pin settings */
+
+	int cd;				/* Depends on the altpin setting */
+	int dsr;
 };
 
 /*
