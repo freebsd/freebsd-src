@@ -79,6 +79,11 @@ Support is not yet available in SSH2 mode.
 camcontrol(8) now includes a built in 'format' function to low-level
 format SCSI disks.
 
+Support for USB devices was added to the GENERIC kernel and to the
+installation programs to support USB devices out of the box.  Note that
+SRM does not support USB devices at the moment, so you must still use
+an AT keyboard if you are not using a serial console.
+
 2. Supported Configurations
 ---------------------------
 
