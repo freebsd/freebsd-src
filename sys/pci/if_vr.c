@@ -798,7 +798,9 @@ vr_detach(device_t dev)
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
 		vr_stop(sc);
+		VR_UNLOCK(sc);		/* XXX: Avoid recursive acquire. */
 		ether_ifdetach(ifp);
+		VR_LOCK(sc);
 	}
 	if (sc->vr_miibus)
 		device_delete_child(dev, sc->vr_miibus);
@@ -1231,8 +1233,15 @@ vr_intr(void *arg)
 
 	VR_LOCK(sc);
 
-	if (sc->suspended)
+	if (sc->suspended) {
+		/*
+		 * Forcibly disable interrupts.
+		 * XXX: Mobile VIA based platforms may need
+		 * interrupt re-enable on resume.
+		 */
+		CSR_WRITE_2(sc, VR_IMR, 0x0000);
 		goto done_locked;
+	}
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_flags & IFF_POLLING)
@@ -1690,9 +1699,6 @@ vr_stop(struct vr_softc *sc)
 static void
 vr_shutdown(device_t dev)
 {
-	struct vr_softc		*sc = device_get_softc(dev);
 
-	VR_LOCK(sc);
-	vr_stop(sc);
-	VR_UNLOCK(sc);
+	vr_detach(dev);
 }
