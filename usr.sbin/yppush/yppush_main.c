@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppush_main.c,v 1.3 1996/04/03 03:24:03 wpaul Exp $
+ *	$Id: yppush_main.c,v 1.4 1996/04/29 05:24:26 wpaul Exp $
  */
 
 #include <stdio.h>
@@ -53,7 +53,7 @@ struct dom_binding {};
 #include "yppush_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: yppush_main.c,v 1.3 1996/04/03 03:24:03 wpaul Exp $";
+static const char rcsid[] = "$Id: yppush_main.c,v 1.4 1996/04/29 05:24:26 wpaul Exp $";
 #endif
 
 char *progname = "yppush";
@@ -628,7 +628,8 @@ main(argc,argv)
 #endif
 	}
 
-	yppush_master = strdup(data.data);
+	yppush_master = malloc(data.size + 1);
+	strncpy(yppush_master, data.data, data.size);
 	yppush_master[data.size] = '\0';
 
 	/* Install some handy handlers. */
