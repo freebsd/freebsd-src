@@ -182,7 +182,7 @@ The
 field of each line specifies the action to be taken when the
 .Em selector
 field selects a message.
-There are four forms:
+There are five forms:
 .Bl -bullet
 .It
 A pathname (beginning with a leading slash).
@@ -199,6 +199,39 @@ if they are logged in.
 .It
 An asterisk.
 Selected messages are written to all logged-in users.
+.It
+A vertical bar (``|''), followed by a command to pipe the selected
+messages to.  The command is passed to a
+.Pa /bin/sh
+for evaluation, so usual shell metacharacters or input/output
+redirection can occur.  (Note however that redirecting
+.Xr stdio 3
+buffered output from the invoked command can cause additional delays,
+or even lost output data in case a logging subprocess exited with a
+signal.)  The command itself runs with
+.Em stdout
+and
+.Em stderr
+redirected to
+.Pa /dev/null .
+Upon receipt of a
+.Dv SIGHUP ,
+.Nm syslogd 
+will close the pipe to the process.  If the process didn't exit
+voluntarily, it will be send a
+.Dv SIGTERM
+signal after a grace period of up to 40 seconds.
+.Pp
+The command will only be started once data arrive that should be piped
+to it.  If it exited later, it will be restarted as necessary.
+.Pp
+Unless the command is a full pipeline, it's probably useful to
+start the command with
+.Em exec
+so that the invoking shell process does not wait for the command to
+cmoplete.  Warning: the process is started under the UID invoking
+.Xr syslogd 8 ,
+normally superuser.
 .El
 .Pp
 Blank lines and lines whose first non-blank character is a hash (``#'')
@@ -234,6 +267,9 @@ mail.*							/var/log/maillog
 # Save mail and news errors of level err and higher in a
 # special file.
 uucp,news.crit						/var/log/spoolerr
+
+# Pipe all authentication messages to a filter.
+auth.*					|exec /usr/local/sbin/authfilter
 
 # Save ftpd transactions along with mail and news
 !ftpd
