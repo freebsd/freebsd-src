@@ -20,6 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
+/* ADD_FILES changes made by Ross Biro biro@yggdrasil.com 2/23/95 */
+
 #include "mkisofs.h"
 
 #include <assert.h>
@@ -54,7 +56,7 @@
 
 struct directory * root = NULL;
 
-static char version_string[] = "mkisofs v1.03";
+static char version_string[] = "mkisofs v1.04";
 
 FILE * discimage;
 unsigned int next_extent = 0;
@@ -90,6 +92,7 @@ int omit_version_number = 0;     /* May violate iso9660, but noone uses vers*/
 int RR_relocation_depth = 6;     /* Violates iso9660, but most systems work */
 int full_iso9660_filenames = 0;  /* Used with Amiga.  Disc will not work with
 				  DOS */
+int allow_leading_dots = 0;	 /* DOS cannot read names with leading dots */
 
 struct rcopts{
   char * tag;
@@ -185,7 +188,7 @@ void usage(){
 	fprintf(stderr,"Usage:\n");
 	fprintf(stderr,
 "mkisofs [-o outfile] [-R] [-V volid] [-v] [-a] \
-[-T]\n [-l] [-d] [-V] [-D] [-p preparer] \
+[-T]\n [-l] [-d] [-V] [-D] [-L] [-p preparer] \
 [-P publisher] [ -A app_id ] [-z] \
 [-x path -x path ...] path\n");
 	exit(1);
@@ -280,9 +283,15 @@ int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sres
       if(current_length < 30) *result++ = (islower(*pnt) ? toupper(*pnt) : *pnt);
     } else { /* Dos style filenames */
       if(*pnt == '.') {
-	if (seen_dot) {ignore++; continue;}
-	if(result) *result++ = '.';
-	seen_dot++;
+        if (!chars_before_dot && !allow_leading_dots) {
+	  /* DOS can't read files with dot first */
+          chars_before_dot++;
+          if (result) *result++ = '_'; /* Substitute underscore */
+        } else {
+          if (seen_dot) {ignore++; continue;}
+	  if(result) *result++ = '.';
+	  seen_dot++;
+        }
       } else if (seen_dot) {
 	if(chars_after_dot < 3) {
 	  chars_after_dot++;
@@ -367,6 +376,154 @@ int FDECL3(iso9660_file_length,const char*, name, struct directory_entry *, sres
   return chars_before_dot + chars_after_dot + seen_dot + extra;
 }
 
+#ifdef ADD_FILES
+
+struct file_adds *root_file_adds = NULL;
+
+void
+FDECL2(add_one_file, char *, addpath, char *, path )
+{
+  char *cp;
+  char *name;
+  struct file_adds *f;
+  struct file_adds *tmp;
+
+  f = root_file_adds;
+  tmp = NULL;
+
+  name = rindex (addpath, PATH_SEPARATOR);
+  if (name == NULL) {
+    name = addpath;
+  } else {
+    name++;
+  }
+
+  cp = strtok (addpath, SPATH_SEPARATOR);
+
+  while (cp != NULL && strcmp (name, cp)) {
+     if (f == NULL) {
+        root_file_adds = e_malloc (sizeof *root_file_adds);
+        f=root_file_adds;
+        f->name = NULL;
+        f->child = NULL;
+        f->next = NULL;
+        f->add_count = 0;
+        f->adds = NULL;
+	f->used = 0;
+     }
+    if (f->child) {
+      for (tmp = f->child; tmp->next != NULL; tmp =tmp->next) {
+         if (strcmp (tmp->name, cp) == 0) {
+           f = tmp;
+           goto next;
+         }
+      }
+      if (strcmp (tmp->name, cp) == 0) {
+          f=tmp;
+          goto next;
+      }
+      /* add a new node. */
+      tmp->next = e_malloc (sizeof (*tmp->next));
+      f=tmp->next;
+      f->name = strdup (cp);
+      f->child = NULL;
+      f->next = NULL;
+      f->add_count = 0;
+      f->adds = NULL;
+      f->used = 0;
+    } else {
+      /* no children. */
+      f->child = e_malloc (sizeof (*f->child));
+      f = f->child;
+      f->name = strdup (cp);
+      f->child = NULL;
+      f->next = NULL;
+      f->add_count = 0;
+      f->adds = NULL;
+      f->used = 0;
+
+    }
+   next:
+     cp = strtok (NULL, SPATH_SEPARATOR);
+   }
+  /* Now f if non-null points to where we should add things */
+  if (f == NULL) {
+     root_file_adds = e_malloc (sizeof *root_file_adds);
+     f=root_file_adds;
+     f->name = NULL;
+     f->child = NULL;
+     f->next = NULL;
+     f->add_count = 0;
+     f->adds = NULL;
+   }
+
+  /* Now f really points to where we should add this name. */
+  f->add_count++;
+  f->adds = realloc (f->adds, sizeof (*f->adds)*f->add_count);
+  f->adds[f->add_count-1].path = strdup (path);
+  f->adds[f->add_count-1].name = strdup (name);
+}
+
+void
+FDECL3(add_file_list, int, argc, char **,argv, int, ind)
+{
+  char *ptr;
+  char *dup_arg;
+
+  while (ind < argc) {
+     dup_arg = strdup (argv[ind]);
+     ptr = index (dup_arg,'=');
+     if (ptr == NULL) {
+        free (dup_arg);
+        return;
+     }
+     *ptr = 0;
+     ptr++;
+     add_one_file (dup_arg, ptr);
+     free (dup_arg);
+     ind++;
+  }
+}
+void
+FDECL1(add_file, char *, filename)
+{
+  char buff[1024];
+  FILE *f;
+  char *ptr;
+  char *p2;
+  int count=0;
+
+  if (strcmp (filename, "-") == 0) {
+    f = stdin;
+  } else {
+    f = fopen (filename, "r");
+    if (f == NULL) {
+      perror ("fopen");
+      exit (1);
+    }
+  }
+  while (fgets (buff, 1024, f)) {
+    count++;
+    ptr = buff;
+    while (isspace (*ptr)) ptr++;
+    if (*ptr==0) continue;
+    if (*ptr=='#') continue;
+
+    if (ptr[strlen(ptr)-1]== '\n') ptr[strlen(ptr)-1]=0;
+    p2 = index (ptr, '=');
+    if (p2 == NULL) {
+      fprintf (stderr, "Error in line %d: %s\n", count, buff);
+      exit (1);
+    }
+    *p2 = 0;
+    p2++;
+    add_one_file (ptr, p2);
+  }
+  if (f != stdin) fclose (f);
+}
+
+#endif
+
 int FDECL2(main, int, argc, char **, argv){
   char * outfile;
   struct directory_entry de;
@@ -374,6 +531,9 @@ int FDECL2(main, int, argc, char **, argv){
   struct stat statbuf;
   char * scan_tree;
   int c;
+#ifdef ADD_FILES
+  char *add_file_file = NULL;
+#endif
 
   if (argc < 2)
     usage();
@@ -382,7 +542,7 @@ int FDECL2(main, int, argc, char **, argv){
   read_rcfile(argv[0]);
 
   outfile = NULL;
-  while ((c = getopt(argc, argv, "o:V:RfvaTp:P:x:dDlNzA:")) != EOF)
+  while ((c = getopt(argc, argv, "i:o:V:RfvaTp:P:x:dDlLNzA:")) != EOF)
     switch (c)
       {
       case 'p':
@@ -415,6 +575,9 @@ int FDECL2(main, int, argc, char **, argv){
       case 'l':
 	full_iso9660_filenames++;
 	break;
+      case 'L':
+        allow_leading_dots++;
+        break;
       case 'N':
 	omit_version_number++;
 	break;
@@ -450,6 +613,11 @@ int FDECL2(main, int, argc, char **, argv){
       case 'x':
         exclude(optarg);
 	break;
+      case 'i':
+#ifdef ADD_FILES
+	add_file_file = optarg;
+	break;
+#endif
       default:
 	usage();
 	exit(1);
@@ -478,6 +646,13 @@ int FDECL2(main, int, argc, char **, argv){
 
   scan_tree = argv[optind];
 
+#ifdef ADD_FILES
+  if (add_file_file) {
+    add_file(add_file_file);
+  }
+  add_file_list (argc, argv, optind+1);
+#endif
+
   if(!scan_tree){
 	  usage();
 	  exit(1);
@@ -499,7 +674,7 @@ int FDECL2(main, int, argc, char **, argv){
 #else
 	extension_record = generate_rr_extension_record("IEEE_P1282",
 				       "THE IEEE P1282 PROTOCOL PROVIDES SUPPORT FOR POSIX FILE SYSTEM SEMANTICS",
-				       "PLEASE CONTACT THE IEEE STANDARDS DEPARTMENT,PISCATAWAY, NJ, USA FOR THE P1282 SPECIFICATION.", &extension_record_size);
+				       "PLEASE CONTACT THE IEEE STANDARDS DEPARTMENT, PISCATAWAY, NJ, USA FOR THE P1282 SPECIFICATION.", &extension_record_size);
 #endif
   };
 
