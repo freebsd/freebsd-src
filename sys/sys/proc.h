@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.66 1999/01/07 21:23:45 julian Exp $
+ * $Id: proc.h,v 1.66.2.1 1999/01/27 20:51:42 julian Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -327,8 +327,10 @@ extern u_long pgrphash;
 
 extern struct proc *curproc;		/* Current running proc. */
 extern struct proc proc0;		/* Process slot for swapper. */
+extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
+extern int switchticks;			/* `ticks' at last context switch. */
 extern struct timeval switchtime;	/* Uptime at last context switch */
 
 LIST_HEAD(proclist, proc);
