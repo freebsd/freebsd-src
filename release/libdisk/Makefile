@@ -1,10 +1,16 @@
-.PATH:	/usr/src/sbin/disklabel
-OBJS=	tst01.o blocks.o disklabel.o dkcksum.o chunk.o disk.o change.o \
-	create_chunk.o rules.o write_disk.o data.o
-CFLAGS+= -Wall -g
+LIB=	disk
+SRCS=	blocks.c disklabel.c dkcksum.c chunk.c disk.c change.c \
+	create_chunk.c rules.c write_disk.c data.c
 
-all:	tst01
+CFLAGS+= 	-Wall -g
+CLEANFILES+=	tmp.c tst01 tst01.o
+VPATH=		${.CURDIR}/../../sbin/disklabel
+NOPROFILE=	yes
+NOSHARED=	yes
 
+.include <bsd.lib.mk>
+
+# Custom weird and funky targets that we'll leave here.
 test:	tst01
 	cp tst01 /0
 	./tst01 wd1
@@ -19,17 +25,12 @@ fd:	tst01
 	-umount /mnt
 
 BOOTS=/usr/mdec
-data.o:
+data.c:
 	file2c 'const unsigned char boot1[] = {' '};' \
                 < ${BOOTS}/boot1 > tmp.c
 	file2c 'const unsigned char boot2[] = {' '};' \
                 < ${BOOTS}/boot2 >> tmp.c
-	cc ${CFLAGS} -o data.o -c tmp.c
-	rm -f tmp.c
+	mv tmp.c data.c
 
-tst01:	${OBJS}
-	#cc ${CFLAGS} -DREADLINE -static -o tst01 ${OBJS} -lreadline -ltermcap 
-	cc ${CFLAGS} -static -o tst01 ${OBJS}
-
-clean:
-	rm -f *.o *.core tst01 tmp.c
+tst01: tst01.o
+	cc ${CFLAGS} -static tst01.o -o tst01 -L${.CURDIR} -ldisk
