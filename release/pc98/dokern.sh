@@ -16,7 +16,7 @@ sed	-e '/pty/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSVMSG/d' \
 	-e '/maxusers/d' \
-	-e 's/GENERIC/BOOTMFS/g'
+	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 
 echo "options  NETGRAPH"
 echo "options  NETGRAPH_PPPOE"
@@ -36,7 +36,7 @@ sed	-e '/pty/d' \
 	-e '/KTRACE/d' \
 	-e '/SYSV/d' \
 	-e '/maxusers/d' \
-	-e 's/GENERIC/BOOTMFS/g'
+	-e 's/ident.*GENERIC/ident		BOOTMFS/g'
 fi
 
 # reset maxusers to something lower
