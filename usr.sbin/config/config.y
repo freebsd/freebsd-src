@@ -103,7 +103,6 @@ char	errbuf[80];
 int	maxusers;
 
 int	seen_scbus;
-int	warned_controller;
 
 #define ns(s)	strdup(s)
 
@@ -307,23 +306,21 @@ Dev:
 	;
 
 Device_spec:
-	DEVICE Dev_name Dev_info
+	DEVICE Dev_spec
 	      = { cur.d_type = DEVICE; } |
-	DISK Dev_name Dev_info
+	DISK Dev_spec
 	      = {
 		warnx("line %d: Obsolete keyword 'disk' found - use 'device'", yyline);
 		cur.d_type = DEVICE;
 		} |
-	TAPE Dev_name Dev_info
+	TAPE Dev_spec
 	      = {
 		warnx("line %d: Obsolete keyword 'tape' found - use 'device'", yyline);
 		cur.d_type = DEVICE;
 		} |
-	CONTROLLER Dev_name Dev_info
+	CONTROLLER Dev_spec
 	      = {
-		if (warned_controller < 3)
-		    warnx("line %d: Obsolete keyword 'controller' found - use 'device'", yyline);
-		warned_controller++;
+		warnx("line %d: Obsolete keyword 'controller' found - use 'device'", yyline);
 	        cur.d_type = DEVICE;
 	        } |
 	PSEUDO_DEVICE Init_dev Dev
@@ -338,8 +335,15 @@ Device_spec:
 		cur.d_count = $4;
 		} ;
 
-Dev_name:
-	Init_dev Dev NUMBER
+Dev_spec:
+	Init_dev Dev
+	      = {
+		cur.d_name = $2;
+		cur.d_unit = UNKNOWN;
+		if (eq($2, "scbus"))
+			seen_scbus = 1;
+		} |
+	Init_dev Dev NUMBER Dev_info
 	      = {
 		cur.d_name = $2;
 		cur.d_unit = $3;
@@ -377,7 +381,7 @@ Info_list:
 		;
 
 Info:
-	BUS NUMBER	/* controller scbus1 at ahc0 bus 1 - twin channel */
+	BUS NUMBER	/* device scbus1 at ahc0 bus 1 - twin channel */
 	      = { cur.d_bus = $2; } |
 	TARGET NUMBER
 	      = { cur.d_target = $2; } |
