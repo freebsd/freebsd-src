@@ -1,4 +1,4 @@
-#	$Id: bsd.obj.mk,v 1.8 1996/09/05 17:53:13 bde Exp $
+#	$Id: bsd.obj.mk,v 1.9 1996/09/18 06:09:17 swallace Exp $
 #
 # The include file <bsd.obj.mk> handles creating 'obj' directory
 # and cleaning up object files, log files etc.
@@ -42,12 +42,14 @@ CANONICALOBJDIR:=/usr/obj${.CURDIR}
 # Warn of unorthodox object directory
 #
 objwarn:
+.if !defined(NOOBJ)
 .if ${.OBJDIR} == ${.CURDIR}
-	${ECHO}	"Warning: Object directory not changed from original ${.CURDIR}"
+	@${ECHO} "Warning: Object directory not changed from original ${.CURDIR}"
 .elif !defined(MAKEOBJDIRPREFIX) && ${.OBJDIR} != ${CANONICALOBJDIR}
 .if !defined(MAKEOBJDIR)
-	${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
+	@${ECHO} "Warning: Using ${.OBJDIR} as object directory instead of\
 		canonical ${CANONICALOBJDIR}"
+.endif
 .endif
 .endif
 
