@@ -363,7 +363,7 @@ network_pass1() {
 
 	case ${ip_portrange_last} in
 	[Nn][Oo] | '')
-	    ;;
+		;;
 	*)
 		echo -n ' ip_portrange_last=$ip_portrange_last'
 		sysctl -w net.inet.ip.portrange.last=$ip_portrange_last >/dev/null
