@@ -1,5 +1,5 @@
 
-#ifdef _NETINET_IF_ETHER_H_
+#ifdef _NET_IF_ARP_H_
 extern timeout_t	aarpprobe;
 extern int	aarpresolve	__P((struct arpcom *,
 					struct mbuf *,

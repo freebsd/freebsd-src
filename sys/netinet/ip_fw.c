@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.71 1998/01/05 00:57:15 alex Exp $
+ *	$Id: ip_fw.c,v 1.72 1998/01/08 03:03:53 alex Exp $
  */
 
 /*
@@ -22,6 +22,10 @@
 #ifndef IPFIREWALL_MODULE
 #include "opt_ipfw.h"
 #include "opt_ipdivert.h"
+#include "opt_inet.h"
+#ifndef INET
+#error IPFIREWALL requires INET.
+#endif /* INET */
 #endif
 
 #include <sys/param.h>

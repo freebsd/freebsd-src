@@ -89,6 +89,7 @@
 
 #ifdef __FreeBSD__
 #include "en.h"
+#include "opt_inet.h"
 #endif
 
 #if NEN > 0 || !defined(__FreeBSD__)

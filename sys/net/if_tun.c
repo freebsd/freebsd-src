@@ -17,6 +17,8 @@
 #include "tun.h"
 #if NTUN > 0
 
+#include "opt_inet.h"
+
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
@@ -233,7 +235,8 @@ tuninit(unit)
 	microtime(&ifp->if_lastchange);
 
 	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
-	     ifa = ifa->ifa_link.tqe_next)
+	     ifa = ifa->ifa_link.tqe_next) {
+#ifdef INET
 		if (ifa->ifa_addr->sa_family == AF_INET) {
 		    struct sockaddr_in *si;
 
@@ -245,7 +248,8 @@ tuninit(unit)
 		    if (si && si->sin_addr.s_addr)
 			    tp->tun_flags |= TUN_DSTADDR;
 		}
-
+#endif
+	}
 	return 0;
 }
 
@@ -574,6 +578,7 @@ tunwrite(dev, uio, flag)
 	}
 #endif
 
+#ifdef INET
 	s = splimp();
 	if (IF_QFULL (&ipintrq)) {
 		IF_DROP(&ipintrq);
@@ -587,6 +592,7 @@ tunwrite(dev, uio, flag)
 	ifp->if_ibytes += tlen;
 	ifp->if_ipackets++;
 	schednetisr(NETISR_IP);
+#endif
 	return error;
 }
 

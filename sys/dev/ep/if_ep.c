@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.68 1997/11/27 12:59:46 kato Exp $
+ *  $Id: if_ep.c,v 1.69 1997/12/15 20:30:43 eivind Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -60,6 +60,7 @@
 #if NEP > 0
 
 #include "bpfilter.h"
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -77,6 +78,11 @@
 #endif
 
 #include <net/if.h>
+
+#if defined(__FreeBSD__)
+#include <net/ethernet.h>
+#include <net/if_arp.h>
+#endif
 
 #ifdef INET
 #include <netinet/in.h>

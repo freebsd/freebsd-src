@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_loop.c	8.1 (Berkeley) 6/10/93
- * $Id: if_loop.c,v 1.27 1997/08/02 14:32:37 bde Exp $
+ * $Id: if_loop.c,v 1.28 1997/12/15 20:31:02 eivind Exp $
  */
 
 /*
@@ -40,6 +40,7 @@
 #include "loop.h"
 #if NLOOP > 0
 
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>

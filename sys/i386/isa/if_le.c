@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.41 1997/08/25 22:28:57 bde Exp $
+ * $Id: if_le.c,v 1.42 1997/12/15 20:30:51 eivind Exp $
  */
 
 /*
@@ -37,6 +37,7 @@
 
 #include "le.h"
 #if NLE > 0
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -47,7 +48,9 @@
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 
+#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_arp.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 

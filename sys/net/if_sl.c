@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.62 1997/12/06 13:24:31 bde Exp $
+ * $Id: if_sl.c,v 1.64 1997/12/19 19:39:01 ache Exp $
  */
 
 /*
@@ -69,6 +69,7 @@
 #if NSL > 0
 
 #include "bpfilter.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -95,7 +96,7 @@
 #include <netinet/in_var.h>
 #include <netinet/ip.h>
 #else
-Huh? Slip without inet?
+#error "Huh? Slip without inet?"
 #endif
 
 #include <net/slcompress.h>

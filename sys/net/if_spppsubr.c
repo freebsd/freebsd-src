@@ -17,9 +17,10 @@
  *
  * From: Version 2.4, Thu Apr 30 17:17:21 MSD 1997
  *
- * $Id: if_spppsubr.c,v 1.29 1997/12/15 20:31:08 eivind Exp $
+ * $Id: if_spppsubr.c,v 1.30 1998/01/01 21:27:18 gj Exp $
  */
 
+#include "opt_inet.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -45,6 +46,8 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/if_ether.h>
+#else
+#error Huh? sppp without INET?
 #endif
 
 #ifdef IPX
