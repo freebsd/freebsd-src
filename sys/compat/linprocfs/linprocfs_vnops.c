@@ -865,7 +865,7 @@ linprocfs_readdir(ap)
 				break;
 
 			case 5:
-				dp->d_fileno = PROCFS_FILENO(0, Puptime);
+				dp->d_fileno = PROCFS_FILENO(0, Pstat);
 				dp->d_namlen = 4;
 				bcopy("stat", dp->d_name, 5);
 				dp->d_type = DT_REG;
