@@ -464,7 +464,7 @@ _ftp_transfer(int cd, char *oper, char *file,
 
     /* passive mode */
     if (!pasv)
-	pasv = ((s = getenv("FTP_PASSIVE_MODE")) == NULL ||
+	pasv = ((s = getenv("FTP_PASSIVE_MODE")) != NULL &&
 		strncasecmp(s, "no", 2) != 0);
 
     /* find our own address, bind, and listen */
