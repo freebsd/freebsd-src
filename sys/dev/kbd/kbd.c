@@ -139,7 +139,6 @@ kbd_init_struct(keyboard_t *kbd, char *name, int type, int unit, int config,
 	kbd->kb_fkeytab_size = 0;
 	kbd->kb_delay1 = KB_DELAY1;	/* these values are advisory only */
 	kbd->kb_delay2 = KB_DELAY2;
-	kbd->kb_prev_key = 0;
 	kbd->kb_count = 0L;
 }
 
@@ -1027,7 +1026,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 			/* special keys */
 			switch (action) {
 			case LSHA:
-				if (kbd->kb_prev_key == keycode) {
+				if (state & SHIFTAON) {
 					set_lockkey_state(kbd, state, ALK);
 					state &= ~ALKDOWN;
 				}
@@ -1037,7 +1036,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				state &= ~SHIFTS1;
 				break;
 			case RSHA:
-				if (kbd->kb_prev_key == keycode) {
+				if (state & SHIFTAON) {
 					set_lockkey_state(kbd, state, ALK);
 					state &= ~ALKDOWN;
 				}
@@ -1047,7 +1046,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				state &= ~SHIFTS2;
 				break;
 			case LCTRA:
-				if (kbd->kb_prev_key == keycode) {
+				if (state & SHIFTAON) {
 					set_lockkey_state(kbd, state, ALK);
 					state &= ~ALKDOWN;
 				}
@@ -1057,7 +1056,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				state &= ~CTLS1;
 				break;
 			case RCTRA:
-				if (kbd->kb_prev_key == keycode) {
+				if (state & SHIFTAON) {
 					set_lockkey_state(kbd, state, ALK);
 					state &= ~ALKDOWN;
 				}
@@ -1067,7 +1066,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				state &= ~CTLS2;
 				break;
 			case LALTA:
-				if (kbd->kb_prev_key == keycode) {
+				if (state & SHIFTAON) {
 					set_lockkey_state(kbd, state, ALK);
 					state &= ~ALKDOWN;
 				}
@@ -1077,7 +1076,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				state &= ~ALTS1;
 				break;
 			case RALTA:
-				if (kbd->kb_prev_key == keycode) {
+				if (state & SHIFTAON) {
 					set_lockkey_state(kbd, state, ALK);
 					state &= ~ALKDOWN;
 				}
@@ -1112,12 +1111,14 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				state &= ~ALKDOWN;
 				break;
 			}
-			*shiftstate = state;
+			*shiftstate = state & ~SHIFTAON;
 			return (SPCLKEY | RELKEY | action);
 		}
 		/* release events of regular keys are not reported */
+		*shiftstate &= ~SHIFTAON;
 		return NOKEY;
 	} else {	/* make: key pressed */
+		state &= ~SHIFTAON;
 		if (key->spcl & (0x80 >> i)) {
 			/* special keys */
 			switch (action) {
@@ -1151,36 +1152,42 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				action |= BKEY;
 				break;
 			case LSHA:
+				state |= SHIFTAON;
 				action = LSH;
 				/* FALL THROUGH */
 			case LSH:
 				state |= SHIFTS1;
 				break;
 			case RSHA:
+				state |= SHIFTAON;
 				action = RSH;
 				/* FALL THROUGH */
 			case RSH:
 				state |= SHIFTS2;
 				break;
 			case LCTRA:
+				state |= SHIFTAON;
 				action = LCTR;
 				/* FALL THROUGH */
 			case LCTR:
 				state |= CTLS1;
 				break;
 			case RCTRA:
+				state |= SHIFTAON;
 				action = RCTR;
 				/* FALL THROUGH */
 			case RCTR:
 				state |= CTLS2;
 				break;
 			case LALTA:
+				state |= SHIFTAON;
 				action = LALT;
 				/* FALL THROUGH */
 			case LALT:
 				state |= ALTS1;
 				break;
 			case RALTA:
+				state |= SHIFTAON;
 				action = RALT;
 				/* FALL THROUGH */
 			case RALT:
@@ -1194,6 +1201,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				break;
 			default:
 				/* is this an accent (dead) key? */
+				*shiftstate = state;
 				if (action >= F_ACC && action <= L_ACC) {
 					action = save_accent_key(kbd, action,
 								 accents);
@@ -1217,12 +1225,13 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 				if (action >= F_FN && action <= L_FN)
 					action |= FKEY;
 				/* XXX: return fkey string for the FKEY? */
-				break;
+				return (SPCLKEY | action);
 			}
 			*shiftstate = state;
 			return (SPCLKEY | action);
 		} else {
 			/* regular keys */
+			*shiftstate = state;
 			if (*accents > 0) {
 				/* make an accented char */
 				action = make_accent_char(kbd, action, accents);

@@ -88,7 +88,6 @@ struct keyboard {
 	int		kb_delay2;
 #define KB_DELAY1	500
 #define KB_DELAY2	100
-	int		kb_prev_key;	/* keycode previously seen */
 	unsigned long	kb_count;	/* # of processed key strokes */
 };
 
@@ -232,6 +231,7 @@ int			kbd_detach(keyboard_t *kbd);
 #define SLKDOWN		(1 << 27)
 #define CLKDOWN		(1 << 28)
 #define ALKDOWN		(1 << 29)
+#define SHIFTAON	(1 << 30)
 /* lock key state (defined in machine/console.h) */
 /*
 #define CLKED		LED_CAP
