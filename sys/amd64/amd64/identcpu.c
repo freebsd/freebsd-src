@@ -598,7 +598,7 @@ printcpuinfo(void)
 			"\034SS"	/* Self snoop */
 			"\035<b28>"
 			"\036ACC"	/* Auto Clock Correction (TCC/ACPI) */
-			"\037<b30>"
+			"\037IA64"	/* CPU can execute IA64 instructions */
 			"\040<b31>"
 			);
 		}
