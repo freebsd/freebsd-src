@@ -120,7 +120,7 @@ smb_ntencrypt(const u_char *apwd, u_char *C8, u_char *RN)
 	int len;
 
 	len = strlen(apwd);
-	unipwd = malloc(len * sizeof(u_int16_t), M_SMBTEMP, M_WAITOK);
+	unipwd = malloc((len + 1) * sizeof(u_int16_t), M_SMBTEMP, M_WAITOK);
 	/*
 	 * S21 = concat(MD4(U(apwd)), zeros(5));
 	 */
