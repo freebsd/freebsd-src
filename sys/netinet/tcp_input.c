@@ -2835,18 +2835,23 @@ tcp_newreno(tp, th)
 {
 	if (SEQ_LT(th->th_ack, tp->snd_recover)) {
 		tcp_seq onxt = tp->snd_nxt;
-		tcp_seq ouna = tp->snd_una;  /* Haven't updated snd_una yet*/
 		u_long  ocwnd = tp->snd_cwnd;
 
 		callout_stop(tp->tt_rexmt);
 		tp->t_rtttime = 0;
 		tp->snd_nxt = th->th_ack;
 		tp->snd_cwnd = tp->t_maxseg;
-		tp->snd_una = th->th_ack;
+		/*
+		 * Set snd_cwnd to one segment beyond acknowledged offset
+		 * (tp->snd_una has not yet been updated when this function 
+		 *  is called)
+		 */
+		tp->snd_cwnd = tp->t_maxseg + (th->th_ack - tp->snd_una);
+                (void) tcp_output(tp);
+
 		(void) tcp_output(tp);
 
 		tp->snd_cwnd = ocwnd;
-		tp->snd_una = ouna;
 		if (SEQ_GT(onxt, tp->snd_nxt))
 			tp->snd_nxt = onxt;
 		/*
