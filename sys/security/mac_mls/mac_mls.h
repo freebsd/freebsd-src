@@ -72,7 +72,7 @@
 /*
  * MLS compartments bit set size (in bits).
  */
-#define	MAC_MLS_MAX_COMPARTMMENTS	256
+#define	MAC_MLS_MAX_COMPARTMENTS	256
 
 struct mac_mls_element {
 	u_short	mme_type;
