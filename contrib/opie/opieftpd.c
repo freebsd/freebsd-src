@@ -1,7 +1,7 @@
 /* opieftpd.c: Main program for an FTP daemon.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -14,6 +14,8 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Merged in some 4.4BSD-Lite changes.
+		Merged in a security fix to BSD-derived ftpds.
 	Modified by cmetz for OPIE 2.3. Fixed the filename at the top.
 		Moved LS_COMMAND here.
 	Modified by cmetz for OPIE 2.2. Use FUNCTION definition et al.
@@ -228,6 +230,7 @@ char *getline __P((char *, int, FILE *));
 VOIDRET upper __P((char *));
 
 static VOIDRET lostconn __P((int));
+static VOIDRET myoob __P((int));
 static FILE *getdatasock __P((char *));
 static FILE *dataconn __P((char *, off_t, char *));
 static int checkuser __P((char *));
@@ -237,7 +240,7 @@ static int receive_data __P((FILE *, FILE *));
 static char *gunique __P((char *));
 static char *sgetsave __P((char *));
 
-int logwtmp __P((char *, char *, char *));
+int opielogwtmp __P((char *, char *, char *));
 
 int fclose __P((FILE *));
 
@@ -298,6 +301,20 @@ VOIDRET lreply FUNCTION((n, fmt, p0, p1, p2, p3, p4, p5), int n AND char *fmt AN
   }
 }
 #endif /* HAVE_ANSISTDARG */
+
+VOIDRET enable_signalling FUNCTION_NOARGS
+{
+	signal(SIGPIPE, lostconn);
+	if ((int)signal(SIGURG, myoob) < 0)
+		syslog(LOG_ERR, "signal: %m");
+}
+
+VOIDRET disable_signalling FUNCTION_NOARGS
+{
+	signal(SIGPIPE, SIG_IGN);
+	if ((int)signal(SIGURG, SIG_IGN) < 0)
+		syslog(LOG_ERR, "signal: %m");
+}
 
 static VOIDRET lostconn FUNCTION((input), int input)
 {
@@ -404,9 +421,8 @@ int user FUNCTION((name), char *name)
       if ((pw = sgetpwnam("ftp")) != NULL) {
 	guest = 1;
 	askpasswd = 1;
-	reply(331, "Guest login ok, send ident as password.");
-	syslog(LOG_INFO, "Anonymous FTP connection made from host %s.",
-	       remotehost);
+	reply(331, "Guest login ok, send your e-mail address as your password.");
+	syslog(LOG_INFO, "Anonymous FTP connection made from host %s.", remotehost);
         return 0;
       }
 #endif	/* DOANONYMOUS */
@@ -417,8 +433,7 @@ int user FUNCTION((name), char *name)
       if (!strcmp(cp, shell))
 	break;
     endusershell();
-    if (cp == NULL || checkuser(name) || 
-      ((pw->pw_passwd[0] == '*') || (pw->pw_passwd[0] == '#'))) {
+    if (cp == NULL || checkuser(name) || ((pw->pw_passwd[0] == '*') || (pw->pw_passwd[0] == '#'))) {
 #if DEBUG
       if (!cp)
         syslog(LOG_DEBUG, "Couldn't find %s in the list of valid shells.", pw->pw_shell);
@@ -472,8 +487,10 @@ static int checkuser FUNCTION((name), char *name)
 	*p = '\0';
 	if (line[0] == '#')
 	  continue;
-	if (strcmp(line, name) == 0)
+	if (!strcmp(line, name)) {
+          fclose(fd);
 	  return (1);
+        }
       }
     fclose(fd);
   }
@@ -486,15 +503,17 @@ static int checkuser FUNCTION((name), char *name)
  */
 static VOIDRET end_login FUNCTION_NOARGS
 {
+  disable_signalling();
   if (seteuid((uid_t) 0))
     syslog(LOG_ERR, "Can't set euid");
   if (logged_in)
-    logwtmp(ttyline, "", "");
+    opielogwtmp(ttyline, "", "");
   pw = NULL;
   logged_in = 0;
 #if DOANONYMOUS
   guest = 0;
 #endif	/* DOANONYMOUS */
+  enable_signalling();
 }
 
 VOIDRET pass FUNCTION((passwd), char *passwd)
@@ -525,15 +544,24 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
       return;
     }
 #if DOANONYMOUS
-  }
+  } else
+    if ((passwd[0] <= ' ') ||  checkuser(passwd)) {
+      reply(530, "No identity, no service.");
+      syslog(LOG_DEBUG, "Bogus address: %s", passwd);
+      exit(0);
+    }
 #endif	/* DOANONYMOUS */
   login_attempts = 0;	/* this time successful */
-  setegid((gid_t) pw->pw_gid);
+  if (setegid((gid_t) pw->pw_gid) < 0) {
+    reply(550, "Can't set gid.");
+    syslog(LOG_DEBUG, "gid = %d, errno = %s(%d)", pw->pw_gid, strerror(errno), errno);
+    return;
+  }
   initgroups(pw->pw_name, pw->pw_gid);
 
   /* open wtmp before chroot */
   sprintf(ttyline, "ftp%d", getpid());
-  logwtmp(ttyline, pw->pw_name, remotehost);
+  opielogwtmp(ttyline, pw->pw_name, remotehost);
   logged_in = 1;
 
 #if DOANONYMOUS
@@ -577,6 +605,25 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
     goto bad;
   }
 #endif /* _AIX */
+ /*
+  * Display a login message, if it exists.
+  * N.B. reply(230,) must follow the message.
+  */
+  {
+  FILE *fd;
+
+  if ((fd = fopen(_PATH_FTPLOGINMESG, "r")) != NULL) {
+    char *cp, line[128];
+
+    while (fgets(line, sizeof(line), fd) != NULL) {
+      if ((cp = strchr(line, '\n')) != NULL)
+        *cp = '\0';
+      lreply(230, "%s", line);
+    }
+    (void) fflush(stdout);
+    (void) fclose(fd);
+  }
+  }
 #if DOANONYMOUS
   if (guest) {
     reply(230, "Guest login ok, access restrictions apply.");
@@ -597,8 +644,7 @@ VOIDRET pass FUNCTION((passwd), char *passwd)
     sprintf(proctitle, "%s: %s", remotehost, pw->pw_name);
     setproctitle(proctitle);
 #endif	/* DOTITLE */
-    syslog(LOG_NOTICE, "FTP login from %s with user name %s",
-      remotehost, pw->pw_name);
+    syslog(LOG_INFO, "FTP login from %s with user name %s", remotehost, pw->pw_name);
   }
   home = pw->pw_dir;	/* home dir for globbing */
   umask(defumask);
@@ -740,6 +786,7 @@ static FILE *getdatasock FUNCTION((mode), char *mode)
 
   if (data >= 0)
     return (fdopen(data, mode));
+  disable_signalling();
   if (seteuid((uid_t) 0))
     syslog(LOG_ERR, "Can't set euid");
   s = socket(AF_INET, SOCK_STREAM, 0);
@@ -761,6 +808,7 @@ static FILE *getdatasock FUNCTION((mode), char *mode)
   }
   if (seteuid((uid_t) pw->pw_uid))
     syslog(LOG_ERR, "Can't set euid");
+  enable_signalling();
 #ifdef IP_TOS
   on = IPTOS_THROUGHPUT;
   if (setsockopt(s, IPPROTO_IP, IP_TOS, (char *) &on, sizeof(int)) < 0)
@@ -768,9 +816,16 @@ static FILE *getdatasock FUNCTION((mode), char *mode)
 #endif
   return (fdopen(s, mode));
 bad:
+  {
+  int t = errno;
+
   if (seteuid((uid_t) pw->pw_uid))
     syslog(LOG_ERR, "Can't set euid");
+  enable_signalling();
   close(s);
+
+  errno = t;
+  }
   return (NULL);
 }
 
@@ -1217,10 +1272,11 @@ static VOIDRET dolog FUNCTION((sin), struct sockaddr_in *sin)
  */
 VOIDRET dologout FUNCTION((status), int status)
 {
+  disable_signalling();
   if (logged_in) {
     if (seteuid((uid_t) 0))
       syslog(LOG_ERR, "Can't set euid");
-    logwtmp(ttyline, "", "");
+    opielogwtmp(ttyline, "", "");
   }
   /* beware of flushing buffers after a SIGPIPE */
   _exit(status);
@@ -1308,7 +1364,7 @@ pasv_error:
  */
 static char *gunique FUNCTION((local), char *local)
 {
-  static char new[MAXPATHLEN];
+  static char new[MAXPATHLEN+1];
   struct stat st;
   char *cp = strrchr(local, '/');
   int count = 0;
@@ -1417,7 +1473,7 @@ VOIDRET send_file_list FUNCTION((whichfiles), char *whichfiles)
       continue;
 
     while ((dir = readdir(dirp)) != NULL) {
-      char nbuf[MAXPATHLEN];
+      char nbuf[MAXPATHLEN+1];
 
       if (dir->d_name[0] == '.' && (strlen(dir->d_name) == 1))
 	continue;
@@ -1496,7 +1552,7 @@ VOIDRET setproctitle FUNCTION((fmt, a, b, c), char *fmt AND int a AND int b AND 
 }
 #endif	/* DOTITLE */
 
-void catchexit FUNCTION_NOARGS
+VOIDRET catchexit FUNCTION_NOARGS
 {
   closelog();
 }
@@ -1595,10 +1651,8 @@ nextopt:
     argc--, argv++;
   }
   freopen(_PATH_DEVNULL, "w", stderr);
-  signal(SIGPIPE, lostconn);
   signal(SIGCHLD, SIG_IGN);
-  if ((int) signal(SIGURG, myoob) < 0)
-    syslog(LOG_ERR, "signal: %m");
+  enable_signalling();
 
   /* Try to handle urgent data inline */
 #ifdef SO_OOBINLINE
@@ -1620,20 +1674,35 @@ nextopt:
   tmpline[0] = '\0';
   af_pwok = opieaccessfile(remotehost);
 
-#if 0
   {
-  struct utsname utsname;
+  FILE *fd;
+  char line[128];
 
-  if (uname(&utsname) < 0) {
-    syslog(LOG_ERR, "uname() failed: %s", strerror(errno));
-    exit(1);
+  /* If logins are disabled, print out the message. */
+  if ((fd = fopen(_PATH_NOLOGIN,"r")) != NULL) {
+    while (fgets(line, sizeof(line), fd) != NULL) {
+      if ((cp = strchr(line, '\n')) != NULL)
+        *cp = '\0';
+      lreply(530, "%s", line);
+    }
+    (void) fflush(stdout);
+    (void) fclose(fd);
+    reply(530, "System not available.");
+    exit(0);
   }
+  if ((fd = fopen(_PATH_FTPWELCOME, "r")) != NULL) {
+    while (fgets(line, sizeof(line), fd) != NULL) {
+      if ((cp = strchr(line, '\n')) != NULL)
+        *cp = '\0';
+      lreply(220, "%s", line);
+    }
+    (void) fflush(stdout);
+    (void) fclose(fd);
+    /* reply(220,) must follow */
+  }
+  };
 
-  reply(220, "%s FTP server ready.", utsname.nodename);
-  }
-#else /* 0 */
   reply(220, "FTP server ready.");
-#endif /* 0 */
 
   setjmp(errcatch);
   for (;;)

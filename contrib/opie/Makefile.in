@@ -1,8 +1,8 @@
 ##
 # Makefile.source and Makefile: Directions for building and installing OPIE.
 #
-# %%% portions-copyright-cmetz
-# Portions of this software are Copyright 1996 by Craig Metz, All Rights
+# %%% portions-copyright-cmetz-96
+# Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 # Reserved. The Inner Net License Version 2 applies to these portions of
 # the software.
 # You should have received a copy of the license with this software. If
@@ -15,6 +15,7 @@
 #
 #	History:
 #
+#	Modified by cmetz for OPIE 2.31. Moved logwtmp.o into libopie.
 #	Modified by cmetz for OPIE 2.3. Removed manual config -- it's
 #		Autoconf or bust. Replaced user configuration options
 #		with options.h. Eliminated unused variables. Pass down
@@ -83,8 +84,7 @@ GROUP=bin
 #
 #  Some sites might want to put this elsewhere. If you want to use an old
 # S/Key database, you should create a link from /etc/skeykeys to /etc/opiekeys.
-STD_KEY_FILE=/etc/opiekeys
-EXT_KEY_FILE=/etc/opiekeys.ext
+KEY_FILE=/etc/opiekeys
 
 # Are we debugging?
 #
@@ -114,6 +114,7 @@ LOCALMAN=@LOCALMAN@
 SU=@SU@
 ALT_SU=@ALT_SU@
 LOGIN=@LOGIN@
+LOCK_DIR=@LOCK_DIR@
 
 BACKUP=opie.old
 
@@ -184,15 +185,15 @@ server-install: server
 	@chgrp $(GROUP) $(FTPD)
 	@echo "Changing file permissions of ftpd"
 	@chmod 0100 $(FTPD)
-	@echo "Making sure OPIE database files exist"
-	@touch $(STD_KEY_FILE) $(EXT_KEY_FILE)
-	@echo "Changing permissions of OPIE database files"
-	@chmod 0644 $(STD_KEY_FILE)
-	@chmod 0600 $(EXT_KEY_FILE)
-	@echo "Changing ownership of OPIE database files"
-	@$(CHOWN) $(OWNER) $(STD_KEY_FILE) $(EXT_KEY_FILE)
-	@chgrp $(GROUP) $(STD_KEY_FILE) $(EXT_KEY_FILE)
-	@-if test ! -z "$(ACCESS_FILE)"; then echo "Creating OPIE access file (don't say we didn't warn you)"; FILE=`echo $(ACCESS_FILE) | sed 's:^-DACCESS_FILE="\(.*\)":\1:'`; touch $$FILE; $(CHOWN) 0 $$FILE; chgrp 0 $$FILE; chmod 0444 $$FILE; fi;
+	@echo "Making sure OPIE database file exists"
+	@touch $(KEY_FILE)
+	@echo "Changing permissions of OPIE database file"
+	@chmod 0644 $(KEY_FILE)
+	@echo "Changing ownership of OPIE database file"
+	@$(CHOWN) $(OWNER) $(KEY_FILE)
+	@chgrp $(GROUP) $(KEY_FILE)
+	@-if test ! -z "$(LOCK_DIR)"; then echo "Creating OPIE lock directory"; mkdir $(LOCK_DIR); $(CHOWN) 0 $(LOCK_DIR); chgrp 0 $(LOCK_DIR); chmod 0700 $(LOCK_DIR); fi;
+	@-if test ! -z "$(ACCESS_FILE)"; then echo "Creating OPIE access file (don't say we didn't warn you)"; touch $(ACCESS_FILE); $(CHOWN) 0 $(ACCESS_FILE); chgrp 0 $(ACCESS_FILE); chmod 0444 $(ACCESS_FILE); fi;
 	@echo "Installing manual pages"
 	@if test ! -d $(LOCALMAN); then $(MKDIR) $(LOCALMAN); chmod 755 $(LOCALMAN); fi
 	@for i in 1 4 5 8; do for j in *.$$i; do if test ! -d $(LOCALMAN)/man$$i; then $(MKDIR) $(LOCALMAN)/man$$i; chmod 755 $(LOCALMAN)/man$$i; fi; cp $$j $(LOCALMAN)/man$$i/$$j; $(CHOWN) $(OWNER) $(LOCALMAN)/man$$i/$$j; chgrp $(GROUP) $(LOCALMAN)/man$$i/$$j; chmod 644 $(LOCALMAN)/man$$i/$$j; done; done
@@ -222,7 +223,7 @@ opietest-passed:	opietest
 	-./opietest && touch opietest-passed
 
 libopie/libopie.a: libopie/*.c *.h
-	(cd libopie ; $(MAKE) libopie.a CFL='$(CFLAGS) -DSTD_KEY_FILE=\"$(STD_KEY_FILE)\" -DEXT_KEY_FILE=\"$(EXT_KEY_FILE)\"')
+	(cd libopie ; $(MAKE) libopie.a CFL='$(CFLAGS) -DKEY_FILE=\"$(KEY_FILE)\"')
 
 libmissing/libmissing.a: libmissing/*.c
 	(cd libmissing ; $(MAKE) libmissing.a CFL='$(CFLAGS)')
@@ -249,8 +250,8 @@ opiegen:	opiegen.o $(LDEPS)
 opieserv:	opieserv.o $(LDEPS)
 		$(CC) $(CFLAGS) opieserv.o $(LFLAGS) -o opieserv
 
-opieftpd:	opieftpd.o glob.o logwtmp.o popen.o y.tab.o $(LDEPS)
-		$(CC) $(CFLAGS) opieftpd.o glob.o logwtmp.o popen.o y.tab.o $(LFLAGS) -o opieftpd
+opieftpd:	opieftpd.o glob.o popen.o y.tab.o $(LDEPS)
+		$(CC) $(CFLAGS) opieftpd.o glob.o popen.o y.tab.o $(LFLAGS) -o opieftpd
 
 opielogin:	opielogin.o permsfile.o $(LDEPS)
 		$(CC) $(CFLAGS) opielogin.o permsfile.o $(LFLAGS) -o opielogin

@@ -1,8 +1,8 @@
 /* md5c.c: "RSA Data Security, Inc. MD5 Message-Digest Algorithm"
    "derived from the RSA Data Security, Inc. MD5 Message-Digest Algorithm"
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If

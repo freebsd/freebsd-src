@@ -1,19 +1,23 @@
 /* readrec.c: The __opiereadrec() library function.
 
-%%% copyright-cmetz
-This software is Copyright 1996 by Craig Metz, All Rights Reserved.
+%%% copyright-cmetz-96
+This software is Copyright 1996-1997 by Craig Metz, All Rights Reserved.
 The Inner Net License Version 2 applies to this software.
 You should have received a copy of the license with this software. If
 you didn't get a copy, you may request one from <license@inner.net>.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Removed active attack protection
+		support. Fixed a debug message typo. Keep going after bogus
+                records. Set read flag.
 	Created by cmetz for OPIE 2.3.
 */
 #include "opie_cfg.h"
 
 #include <stdio.h>
 #include <sys/types.h>
+#include <errno.h>
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif /* HAVE_UNISTD_H */
@@ -66,61 +70,29 @@ static int parserec FUNCTION((opie), struct opie *opie)
   return 0;
 }
 
-static int parseextrec FUNCTION((opie), struct opie *opie)
-{
-  char *c;
-
-  if (!(c = strchr(opie->opie_extbuf, ' ')))
-    return -1;
-
-  *(c++) = 0;
-  while(*c == ' ') c++;
-
-  if (!(c = strchr(opie->opie_reinitkey = c, ' ')))
-    return -1;
-
-  *(c++) = 0;
-
-  return 0;
-}
-
 int __opiereadrec FUNCTION((opie), struct opie *opie)
 {
-  FILE *f = NULL, *f2 = NULL;
+  FILE *f = NULL;
   int rval = -1;
 
-  if (!(f = __opieopen(STD_KEY_FILE, 0, 0644))) {
+  if (!(f = __opieopen(KEY_FILE, 0, 0644))) {
 #if DEBUG
-    syslog(LOG_DEBUG, "__opiereadrec: __opieopen(STD_KEY_FILE..) failed!");
+    syslog(LOG_DEBUG, "__opiereadrec: __opieopen(KEY_FILE..) failed!");
 #endif /* DEBUG */
     goto ret;
-  }
-
-  if (!(f2 = __opieopen(EXT_KEY_FILE, 0, 0600))) {
-#if DEBUG
-    syslog(LOG_DEBUG, "__opiereadrec: __opieopen(EXT_KEY_FILE..) failed!");
-#endif /* DEBUG */
   }
 
   {
   int i;
 
-  if ((i = open(STD_KEY_FILE, O_RDWR)) < 0) {
+  if ((i = open(KEY_FILE, O_RDWR)) < 0) {
     opie->opie_flags &= ~__OPIE_FLAGS_RW;
 #if DEBUG
-    syslog(LOG_DEBUG, "__opiereadrec: open(STD_KEY_FILE, O_RDWR) failed: %s", strerror(errno));
+    syslog(LOG_DEBUG, "__opiereadrec: open(KEY_FILE, O_RDWR) failed: %s", strerror(errno));
 #endif /* DEBUG */
   } else {
     close(i);
-    if ((i = open(EXT_KEY_FILE, O_RDWR)) < 0) {
-      opie->opie_flags &= ~__OPIE_FLAGS_RW;
-#if DEBUG
-      syslog(LOG_DEBUG, "__opiereadrec: open(STD_KEY_FILE, O_RDWR) failed: %s", strerror(errno));
-#endif /* DEBUG */
-    } else {
-      close(i);
-      opie->opie_flags |= __OPIE_FLAGS_RW;
-    }
+    opie->opie_flags |= __OPIE_FLAGS_RW;
   }
   }
 
@@ -134,31 +106,14 @@ int __opiereadrec FUNCTION((opie), struct opie *opie)
     if (parserec(opie))
       goto ret;
 
-    if (opie->opie_extbuf[0]) {
-      if (!f2) {
-#if DEBUG
-	syslog(LOG_DEBUG, "__opiereadrec: can't read ext file, but could before?");
-#endif /* DEBUG */
-	goto ret;
-      }
-
-      if (fseek(f2, opie->opie_extrecstart, SEEK_SET))
-	goto ret;
-      
-      if (fgets(opie->opie_extbuf, sizeof(opie->opie_extbuf), f2))
-	goto ret;
-	
-      if (parseextrec(opie))
-	goto ret;
-    }
-
+    opie->opie_flags |= __OPIE_FLAGS_READ;
     rval = 0;
     goto ret;
   }
 
   if (!opie->opie_principal)
     return -1;
-    
+
   {
     char *c, principal[OPIE_PRINCIPAL_MAX];
     int i;
@@ -180,30 +135,8 @@ int __opiereadrec FUNCTION((opie), struct opie *opie)
       }
 
       if (parserec(opie))
-	goto ret;
+	continue;
     } while (strcmp(principal, opie->opie_principal));
-
-    if (!f2) {
-      opie->opie_extbuf[0] = rval = 0;
-      goto ret;
-    }
-
-    do {
-      if ((opie->opie_extrecstart = ftell(f2)) < 0)
-	goto ret;
-      
-      if (!fgets(opie->opie_extbuf, sizeof(opie->opie_extbuf), f2)) {
-	if (feof(f2)) {
-	  opie->opie_reinitkey = NULL;
-	  rval = 0;
-	} else
-	  rval = 1;
-	goto ret;
-      }
-      
-      if (parseextrec(opie))
-	goto ret;
-    } while (strcmp(principal, opie->opie_extbuf));
 
     rval = 0;
   }
@@ -211,8 +144,5 @@ int __opiereadrec FUNCTION((opie), struct opie *opie)
 ret:
   if (f)
     fclose(f);
-  if (f2)
-    fclose(f2);
   return rval;
 }
-

@@ -4,8 +4,8 @@
  as command line arguments, prompts for the user's secret pass phrase,
  and outputs a response.
 
-%%% portions-copyright-cmetz
-Portions of this software are Copyright 1996 by Craig Metz, All Rights
+%%% portions-copyright-cmetz-96
+Portions of this software are Copyright 1996-1997 by Craig Metz, All Rights
 Reserved. The Inner Net License Version 2 applies to these portions of
 the software.
 You should have received a copy of the license with this software. If
@@ -18,6 +18,9 @@ License Agreement applies to this software.
 
 	History:
 
+	Modified by cmetz for OPIE 2.31. Renamed "init" and RESPONSE_INIT
+	        to "init-hex" and RESPONSE_INIT_HEX. Removed active attack
+		protection support.
 	Modified by cmetz for OPIE 2.3. OPIE_PASS_MAX changed to
 		OPIE_SECRET_MAX. Added extended responses, which created
 		lots of changes. Eliminated extra variable. Added -x and
@@ -68,7 +71,7 @@ static VOIDRET usage FUNCTION((s), char *s)
 #define RESPONSE_STANDARD  0
 #define RESPONSE_WORD      1
 #define RESPONSE_HEX       2
-#define RESPONSE_INIT      3
+#define RESPONSE_INIT_HEX  3
 #define RESPONSE_INIT_WORD 4
 #define RESPONSE_UNKNOWN   5
 
@@ -80,7 +83,7 @@ struct _rtrans {
 static struct _rtrans rtrans[] = {
   { RESPONSE_WORD, "word" },
   { RESPONSE_HEX, "hex" },
-  { RESPONSE_INIT, "init" },
+  { RESPONSE_INIT_HEX, "init-hex" },
   { RESPONSE_INIT_WORD, "init-word" },
   { RESPONSE_STANDARD, "" },
   { RESPONSE_STANDARD, "standard" },
@@ -130,7 +133,6 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
   int count = 1;
   char secret[OPIE_SECRET_MAX + 1], newsecret[OPIE_SECRET_MAX + 1];
   char key[8], newkey[8];
-  char cko[8], ckn[8], ckxor[8], cv[8];
   char *seed, newseed[OPIE_SEED_MAX + 1];
   char response[OPIE_RESPONSE_MAX + 1];
   char *slash;
@@ -246,7 +248,7 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
       exit(1);
   }
 
-  if ((type == RESPONSE_INIT) || (type == RESPONSE_INIT_WORD)) {
+  if ((type == RESPONSE_INIT_HEX) || (type == RESPONSE_INIT_WORD)) {
 #if RETYPE
     getsecret(secret, "old ", 1);
 #else /* RETYPE */
@@ -268,19 +270,6 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 
     for (i = 0; i < 499; i++)
       opiehash(newkey, algorithm);
-
-    if (opiekeycrunch(algorithm | 0x10, cko, seed, secret)) {
-      fprintf(stderr, "%s: key crunch failed (2)\n", argv[0]);
-      goto error;
-    }
-
-    if (opiekeycrunch(algorithm | 0x10, ckn, newseed, newsecret)) {
-      fprintf(stderr, "%s: key crunch failed (3)\n", argv[0]);
-      goto error;
-    }
-
-    for (i = 0; i < 8; i++)
-      ckxor[i] = cko[i] ^ ckn[i];
   } else
 #if RETYPE
     getsecret(secret, "", 1);
@@ -320,43 +309,21 @@ int main FUNCTION((argc, argv), int argc AND char *argv[])
 	strcpy(response, "hex:");
 	strcat(response, opiebtoh(buf, key));
 	break;
-      case RESPONSE_INIT:
+      case RESPONSE_INIT_HEX:
       case RESPONSE_INIT_WORD:
-	if (type == RESPONSE_INIT) {
+	if (type == RESPONSE_INIT_HEX) {
 	  strcpy(response, "init:");
 	  strcat(response, opiebtoh(buf, key));
 	  sprintf(buf, ":%s 499 %s:", algids[algorithm], newseed);
 	  strcat(response, buf);
 	  strcat(response, opiebtoh(buf, newkey));
-	  strcat(response, ":");
-	  strcat(response, opiebtoh(buf, ckxor));
-	  strcat(response, ":");
 	} else {
 	  strcpy(response, "init-word:");
 	  strcat(response, opiebtoe(buf, key));
 	  sprintf(buf, ":%s 499 %s:", algids[algorithm], newseed);
 	  strcat(response, buf);
 	  strcat(response, opiebtoe(buf, newkey));
-	  strcat(response, ":");
-	  strcat(response, opiebtoe(buf, ckxor));
-	  strcat(response, ":");
 	}
-	
-	c = buf;
-	memcpy(c, cko, sizeof(cko)); c += sizeof(cko);
-	memcpy(c, key, sizeof(key)); c += sizeof(key);
-#ifdef HAVE_ANSISPRINTF
-	c += sprintf(c, "%s 499 %s", algids[algorithm], newseed);
-#else /* HAVE_ANSISPRINTF */
-	sprintf(c, "%s 499 %s", algids[algorithm], newseed);
-	while(*c) c++;
-#endif /* HAVE_ANSISPRINTF */
-	memcpy(c, newkey, sizeof(newkey)); c += sizeof(newkey);
-	memcpy(c, ckxor, sizeof(ckxor)); c += sizeof(ckxor);
-	memcpy(c, cko, sizeof(cko)); c += sizeof(cko);
-	opiehashlen(algorithm, buf, cv, (unsigned int)c - (unsigned int)buf);
-
-	strcat(response, (type == RESPONSE_INIT) ? opiebtoh(buf, cv) : opiebtoe(buf, cv));
 	break;
       }
       puts(response);
