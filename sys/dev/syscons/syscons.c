@@ -1014,6 +1014,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	};
 	mouse_info_t *mouse = (mouse_info_t*)data;
 	mouse_info_t buf;
+	int f;
 
 	/* FIXME: */
 	if (!ISMOUSEAVAIL(scp->adp->va_flags))
@@ -1109,6 +1110,19 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    /* this should maybe only be settable from /dev/consolectl SOS */
 	    /* send out mouse event on /dev/sysmouse */
 
+	    s = spltty();
+	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0) {
+		cur_console->mouse_xpos += mouse->u.data.x;
+		cur_console->mouse_ypos += mouse->u.data.y;
+		set_mouse_pos(cur_console);
+	    }
+	    f = 0;
+	    if (mouse->operation == MOUSE_ACTION) {
+		f = cur_console->mouse_buttons ^ mouse->u.data.buttons;
+		cur_console->mouse_buttons = mouse->u.data.buttons;
+	    }
+	    splx(s);
+
 	    mouse_status.dx += mouse->u.data.x;
 	    mouse_status.dy += mouse->u.data.y;
 	    mouse_status.dz += mouse->u.data.z;
@@ -1152,7 +1166,6 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    }
 
 	    if (cur_console->mouse_signal) {
-		cur_console->mouse_buttons = mouse->u.data.buttons;
     		/* has controlling process died? */
 		if (cur_console->mouse_proc && 
 		    (cur_console->mouse_proc != pfind(cur_console->mouse_pid))){
@@ -1163,11 +1176,9 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		else
 		    psignal(cur_console->mouse_proc, cur_console->mouse_signal);
 	    }
-	    else if (mouse->operation == MOUSE_ACTION && cut_buffer != NULL) {
+	    else if ((mouse->operation == MOUSE_ACTION) && f) {
 		/* process button presses */
-		if ((cur_console->mouse_buttons ^ mouse->u.data.buttons) && 
-		    ISTEXTSC(cur_console)) {
-		    cur_console->mouse_buttons = mouse->u.data.buttons;
+		if (cut_buffer && ISTEXTSC(cur_console)) {
 		    if (cur_console->mouse_buttons & MOUSE_BUTTON1DOWN)
 			mouse_cut_start(cur_console);
 		    else
@@ -1176,12 +1187,6 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			cur_console->mouse_buttons & MOUSE_BUTTON3DOWN)
 			mouse_paste(cur_console);
 		}
-	    }
-
-	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0) {
-		cur_console->mouse_xpos += mouse->u.data.x;
-		cur_console->mouse_ypos += mouse->u.data.y;
-		set_mouse_pos(cur_console);
 	    }
 
 	    break;
