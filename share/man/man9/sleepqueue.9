@@ -75,7 +75,7 @@
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
 .Ft int
-.Fn sleepq_timedwait "void *wchan" "int signal_caught"
+.Fn sleepq_timedwait "void *wchan"
 .Ft int
 .Fn sleepq_timedwait_sig "void *wchan" "int signal_caught"
 .Ft void
@@ -152,15 +152,26 @@ parameter should be a short description of
 .Fa wchan .
 The
 .Fa flags
-parameter currently only specifies the type of sleep queue being slept on.
-A value of
-0
-indicates a sleep queue used by
-.Xr msleep 9
-and a value of
-.Dv SLEEPQ_CONDVAR
-indicates a sleep queue used by
-.Xr condvar 9 .
+parameter is a bitmask consisting of the type of sleep queue being slept on
+and zero or more optional flags.
+There are currently two types of sleep queues:
+.Bl -tag -width SLEEPQ_CONDVAR
+.It Dv SLEEPQ_CONDVAR
+A sleep queue used to implement condition variables.
+.It Dv SLEEPQ_MSLEEP
+A sleep queue used to implement
+.Xr msleep 9 ,
+.Xr wakeup 9
+and
+.Xr wakeup_one 9 .
+.El
+.Pp
+There is currently only one optional flag:
+.Bl -tag -width SLEEPQ_INTERRUPTIBLE
+.It Dv SLEEPQ_INTERRUPTIBLE
+The current thread is entering an interruptible sleep.
+.El
+.Pp
 A timeout on the sleep may be specified by calling
 .Fn sleepq_set_timeout
 after
@@ -201,7 +212,9 @@ The
 argument to all of the wait functions is the wait channel being slept on.
 The
 .Fa signal_caught
-parameter to the timed wait functions specifies if a previous call to
+parameter to
+.Fn sleepq_timedwait_sig
+specifies if a previous call to
 .Fn sleepq_catch_signals
 found a pending signal.
 .Pp
@@ -243,7 +256,7 @@ The
 argument specifics which wait channel to awaken.
 The
 .Fa flags
-argument should match the
+argument must match the sleep queue type contained in the
 .Fa flags
 argument passed to
 .Fn sleepq_add
