@@ -219,7 +219,7 @@ svr4_fil_ioctl(fp, td, retval, fd, cmd, data)
 #ifdef SVR4_DEBUG
 		if (cmd == FIOASYNC) DPRINTF(("FIOASYNC\n"));
 #endif
-		error = fo_ioctl(fp, cmd, (caddr_t) &num, td);
+		error = fo_ioctl(fp, cmd, (caddr_t) &num, td->td_ucred, td);
 
 		if (error)
 			return error;

@@ -105,7 +105,7 @@ static int pipe_kqfilter(struct file *fp, struct knote *kn);
 static int pipe_stat(struct file *fp, struct stat *sb,
 		struct ucred *active_cred, struct thread *td);
 static int pipe_ioctl(struct file *fp, u_long cmd, void *data,
-		struct thread *td);
+		struct ucred *active_cred, struct thread *td);
 
 static struct fileops pipeops = {
 	pipe_read, pipe_write, pipe_ioctl, pipe_poll, pipe_kqfilter,
@@ -1155,10 +1155,11 @@ pipe_write(fp, uio, active_cred, flags, td)
  * we implement a very minimal set of ioctls for compatibility with sockets.
  */
 int
-pipe_ioctl(fp, cmd, data, td)
+pipe_ioctl(fp, cmd, data, active_cred, td)
 	struct file *fp;
 	u_long cmd;
 	void *data;
+	struct ucred *active_cred;
 	struct thread *td;
 {
 	struct pipe *mpipe = (struct pipe *)fp->f_data;
@@ -1166,7 +1167,7 @@ pipe_ioctl(fp, cmd, data, td)
 	int error;
 
 	/* XXXMAC: Pipe should be locked for this check. */
-	error = mac_check_pipe_ioctl(td->td_ucred, mpipe, cmd, data);
+	error = mac_check_pipe_ioctl(active_cred, mpipe, cmd, data);
 	if (error)
 		return (error);
 #endif
