@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.18 1994/11/21 04:35:23 jkh Exp $
+# $Id: instdist.sh,v 1.19 1994/11/21 04:47:28 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -33,7 +33,7 @@ media_set_defaults()
 	media_device=""
 	media_distribution=""
 	distrib_subdir=""
-	clear="--clear"
+	clear=""
 	ipaddr=""
 	hostname=""
 	ether_intr=""
@@ -196,10 +196,12 @@ media_install_set()
 	case $media_type in
 	cdrom|nfs|ufs|doshd)
 		message "Extracting ${media_distribution} using ${media_type}."
-		cd ${media_device}/${media_distribution}
-		media_extract_dist
-		cd /
-		umount ${MNT}
+		if ! cd ${media_device}/${media_distribution}; then
+			error "Unable to cd to ${media_device}/${media_distribution} directory."
+		else
+			media_extract_dist
+			cd /
+		fi
 		return
 	;;
 
@@ -225,6 +227,7 @@ media_install_set()
 		while [ "$copying" = "yes" ]; do
 			if dialog --title "Insert distribution diskette" \
 			  $clear --yesno "Please enter the next diskette and press OK to continue or Cancel if finished" -1 -1; then
+				umount ${MNT} > /dev/null 2>&1
 				if ! mount_msdos ${media_device} ${MNT}; then
 					error "Unable to mount floppy!  Please correct."
 				else
@@ -403,6 +406,7 @@ system?  FreeBSD supports the following types:\n" -1 -1 2 \
 				media_device=/dev/mcd0a
 			;;
 		esac
+		umount ${MNT} > /dev/null 2>&1
 		if ! mount_cd9660 $media_device ${MNT} > /dev/ttyv1 2>&1; then
 			error "Unable to mount $media_device on ${MNT}"
 			media_device=""
@@ -422,11 +426,11 @@ For the "A" floppy drive, it's /dev/fd0, for the "B" floppy
 drive it's /dev/fd1\n"; then
 			media_device=$answer
 			if echo $media_device | grep -q -v 'fd://'; then
+				umount ${MNT} > /dev/null 2>&1
 				if ! mount_msdos $media_device ${MNT} > /dev/ttyv1 2>&1; then
 					error "Unable to mount $media_device"
 					media_device=""
 				else
-					message "$media_device mounted successfully"
 					media_type=doshd
 					media_device=${MNT}
 					media_get_possible_subdir
@@ -468,6 +472,7 @@ Options, if any, should be separated by commas."; then
 		fi
 		media_type=nfs
 		nfs_path=$answer
+		umount ${MNT} > /dev/null 2>&1
 		if ! mount_nfs $nfs_options $nfs_path ${MNT} > /dev/ttyv1 2>&1; then
 			error "Unable to mount $nfs_path"
 		else

@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: netinst.sh,v 1.7 1994/11/18 19:09:33 jkh Exp $
+# $Id: netinst.sh,v 1.8 1994/11/21 04:35:26 jkh Exp $
 
 if [ "$_NETINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -48,6 +48,7 @@ network_setup_ether()
 
 network_setup_slip()
 {
+	csave=$clear
 	clear=""
 	default_value=""
 	if ! network_dialog "What is the IP number for the remote host?"; then return 1; fi
@@ -61,7 +62,7 @@ network_setup_slip()
 	default_value=$serial_speed
 	if ! network_dialog "What speed is the serial interface?"; then return 1; fi
 	serial_speed=$answer
-	clear="--clear"
+	clear="$csave"
 
 	if dialog $clear --title "Dial" --yesno "Do you need to dial the phone or otherwise talk to the modem?" -1 -1; then
 		mkdir -p /var/log
@@ -88,7 +89,6 @@ network_setup()
 {
 	done=0
 	while [ "$interface" = "" ]; do
-		clear="--clear"
 		dialog $clear --title "Set up network interface" \
 		--menu "Please select the type of network connection you have:\n" \
 		-1 -1 3 \
@@ -116,9 +116,8 @@ network_setup()
 		esac	
 		if [ "$interface" = "" ]; then	continue; fi
 
-		clear=""
 		default_value=""
-		if ! network_dialog "What is the fully qualified name of this host?"; then clear="--clear"; return 1; fi
+		if ! network_dialog "What is the fully qualified name of this host?"; then return 1; fi
 		hostname=$answer
 		echo $hostname > /etc/myname
 		hostname $hostname
@@ -129,7 +128,7 @@ network_setup()
 		fi
 
 		default_value=""
-		if ! network_dialog "What is the IP address of this host?"; then clear="--clear"; return 1; fi
+		if ! network_dialog "What is the IP address of this host?"; then  return 1; fi
 		ipaddr=$answer
 
         	echo "$ipaddr    $hostname `echo $hostname | sed -e 's/\.$domain//'`" >> /etc/hosts
