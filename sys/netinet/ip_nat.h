@@ -227,6 +227,7 @@ typedef	struct	natstat	{
 #define	IPN_ROUNDR	0x100
 #define	IPN_NOTSRC	0x080000
 #define	IPN_NOTDST	0x100000
+#define	IPN_FRAG	0x200000
 
 
 typedef	struct	natlog {
