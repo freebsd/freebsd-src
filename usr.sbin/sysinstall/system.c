@@ -85,6 +85,18 @@ handle_intr(int sig)
     restorescr(save);
 }
 
+/*
+ * Harvest children if we are init.
+ */
+static void
+reap_children(int sig)
+{
+    int errbak = errno;
+    while ( waitpid(-1, NULL, WNOHANG) > 0 )
+	;
+    errno = errbak;
+}
+
 /* Expand a file into a convenient location, nuking it each time */
 static char *
 expand(char *fname)
@@ -166,6 +178,7 @@ systemInitialize(int argc, char **argv)
 	i = 0;
 	sysctlbyname("machdep.unaligned_print", NULL, 0, &i, sizeof(i));
 #endif
+	signal(SIGCHLD, reap_children);
     }
     else {
 	char hname[256];
