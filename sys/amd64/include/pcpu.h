@@ -60,7 +60,7 @@ struct globaldata {
 	int		gd_switchticks;
 	struct segment_descriptor gd_common_tssd;
 	struct segment_descriptor *gd_tss_gdt;
-	int		gd_currentldt;		/* only used for USER_LDT */
+	int		gd_currentldt;
 	u_int		gd_cpuid;
 	u_int		gd_other_cpus;
 	SLIST_ENTRY(globaldata) gd_allcpu;

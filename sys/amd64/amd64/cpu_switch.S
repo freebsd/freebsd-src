@@ -37,7 +37,6 @@
  */
 
 #include "opt_npx.h"
-#include "opt_user_ldt.h"
 
 #include <machine/asmacros.h>
 #include <machine/ipl.h>
@@ -241,7 +240,6 @@ sw1b:
 	/* XXX FIXME: we should be restoring the local APIC TPR */
 #endif /* SMP */
 
-#ifdef	USER_LDT
 	cmpl	$0, PCB_USERLDT(%edx)
 	jnz	1f
 	movl	__default_ldt,%eax
@@ -254,7 +252,6 @@ sw1b:
 	call	_set_user_ldt
 	popl	%edx
 2:
-#endif
 
 	/* This must be done after loading the user LDT. */
 	.globl	cpu_switch_load_gs

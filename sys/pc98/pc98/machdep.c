@@ -49,7 +49,6 @@
 #include "opt_msgbuf.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
-#include "opt_user_ldt.h"
 #include "opt_userconfig.h"
 
 #include <sys/param.h>
@@ -1061,10 +1060,8 @@ setregs(p, entry, stack, ps_strings)
 	struct trapframe *regs = p->p_md.md_regs;
 	struct pcb *pcb = &p->p_addr->u_pcb;
 
-#ifdef USER_LDT
-	/* was i386_user_cleanup() in NetBSD */
-	user_ldt_free(pcb);
-#endif
+	if (pcb->pcb_ldt)
+		user_ldt_free(pcb);
   
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_eip = entry;
@@ -2248,9 +2245,7 @@ init386(first)
 
 	_default_ldt = GSEL(GLDT_SEL, SEL_KPL);
 	lldt(_default_ldt);
-#ifdef USER_LDT
 	PCPU_SET(currentldt, _default_ldt);
-#endif
 
 	/* exceptions */
 	for (x = 0; x < NIDT; x++)

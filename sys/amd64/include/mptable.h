@@ -26,7 +26,6 @@
  */
 
 #include "opt_cpu.h"
-#include "opt_user_ldt.h"
 
 #ifdef SMP
 #include <machine/smptests.h>
@@ -521,9 +520,7 @@ init_secondary(void)
 	lidt(&r_idt);
 
 	lldt(_default_ldt);
-#ifdef USER_LDT
 	PCPU_SET(currentldt, _default_ldt);
-#endif
 
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	gdt[myid * NGDT + GPROC0_SEL].sd.sd_type = SDT_SYS386TSS;
