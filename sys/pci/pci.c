@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.40 1996/01/19 19:01:19 se Exp $
+**  $Id: pci.c,v 1.41 1996/01/23 21:47:16 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -374,13 +374,15 @@ pci_bus_config (void)
 	};
 #endif
 	for (device=0; device<pci_maxdevice; device ++) {
-		char *name = NULL;
-		struct pci_device **dvpp;
+	    char *name = NULL;
+	    struct pci_device **dvpp;
+	    int func, maxfunc = 0;
 
-		if ((pcicb->pcicb_seen >> device) & 1)
-			continue;
+	    if ((pcicb->pcicb_seen >> device) & 1)
+	    	continue;
 
-		tag  = pcibus->pb_tag  (pcicb->pcicb_bus, device, 0);
+	    for (func=0; func <= maxfunc; func++) {
+		tag  = pcibus->pb_tag  (pcicb->pcicb_bus, device, func);
 		type = pcibus->pb_read (tag, PCI_ID_REG);
 
 		if ((!type) || (type==0xfffffffful)) continue;
@@ -400,6 +402,9 @@ pci_bus_config (void)
 		/*
 		**	check for mirrored devices.
 		*/
+		if (func != 0) {
+			goto real_device;
+		}
 		if (device & 0x10) {
 			mtag=pcibus->pb_tag (pcicb->pcicb_bus,
 				(u_char)(device & ~0x10), 0);
@@ -424,6 +429,11 @@ pci_bus_config (void)
 		continue;
 
 	real_device:
+
+		if (func == 0 && (pcibus->pb_read (tag, PCI_HEADER_MISC) 
+						& PCI_HEADER_MULTIFUNCTION)) {
+			maxfunc = 7;
+		}
 
 		if (dvp==NULL) {
 #ifndef PCI_QUIET
@@ -551,6 +561,7 @@ pci_bus_config (void)
 
 		pdcp -> pdc_pi.pi_bus    = pcicb->pcicb_bus;
 		pdcp -> pdc_pi.pi_device = device;
+		pdcp -> pdc_pi.pi_func   = func;
 
 		pdcp -> pdc_kdc.kdc_name = dvp->pd_name;
 		pdcp -> pdc_kdc.kdc_unit = unit;
@@ -751,6 +762,7 @@ pci_bus_config (void)
 
 			break;
 		}
+	    }
 	}
 
 #ifndef PCI_QUIET
@@ -1099,7 +1111,7 @@ pci_externalize (struct kern_devconf *kdcp, struct sysctl_req *req)
 	pcici_t tag;
 	int	i;
 
-	tag = pcibus->pb_tag (pip->pi_bus, pip->pi_device, 0);
+	tag = pcibus->pb_tag (pip->pi_bus, pip->pi_device, pip->pi_func);
 
 	buffer.peb_pci_info	= *pip;
 
