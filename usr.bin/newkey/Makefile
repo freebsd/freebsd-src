@@ -8,6 +8,6 @@ MAN= newkey.8
 #CFLAGS+= -DYP
 
 DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBGMP}
-LDADD=	-lrpcsvc -lmp -lgmp
+LDADD=	-lrpcsvc -lmp -lcrypto
 
 .include <bsd.prog.mk>

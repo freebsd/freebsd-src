@@ -652,13 +652,11 @@ hierarchy:
 includes:
 	cd ${.CURDIR}/include;			${MAKE} -B all install
 	cd ${.CURDIR}/gnu/include;		${MAKE} install
-	cd ${.CURDIR}/gnu/lib/libmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libobjc;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libreadline/readline;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libregex;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libstdc++;	${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/lib/libdialog;	${MAKE} beforeinstall
-	cd ${.CURDIR}/gnu/lib/libgmp;		${MAKE} beforeinstall
 	cd ${.CURDIR}/gnu/usr.bin/cc/cc1plus;	${MAKE} beforeinstall
 .if exists(${.CURDIR}/secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 .if exists(${.CURDIR}/secure/lib/libcrypto)
@@ -705,6 +703,7 @@ includes:
 	cd ${.CURDIR}/lib/libftpio;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libkvm;		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libmd;		${MAKE} beforeinstall
+	cd ${.CURDIR}/lib/libmp;		${MAKE} beforeinstall
 .if !defined(WANT_CSRG_LIBM)
 	cd ${.CURDIR}/lib/msun;			${MAKE} beforeinstall
 .endif
