@@ -99,57 +99,58 @@ extern linker_file_t	linker_kernel_file;
 /*
  * Add a new file class to the linker.
  */
-int linker_add_class(linker_class_t cls);
+int linker_add_class(linker_class_t _cls);
 
 /*
  * Load a file, trying each file class until one succeeds.
  */
-int linker_load_file(const char* filename, linker_file_t* result);
+int linker_load_file(const char* _filename, linker_file_t* _result);
 
 /*
  * Find a currently loaded file given its filename.
  */
-linker_file_t linker_find_file_by_name(const char* filename);
+linker_file_t linker_find_file_by_name(const char* _filename);
 
 /*
  * Find a currently loaded file given its file id.
  */
-linker_file_t linker_find_file_by_id(int fileid);
+linker_file_t linker_find_file_by_id(int _fileid);
 
 /*
  * Called from a class handler when a file is laoded.
  */
-linker_file_t linker_make_file(const char* filename, linker_class_t cls);
+linker_file_t linker_make_file(const char* _filename, linker_class_t _cls);
 
 /*
  * Unload a file, freeing up memory.
  */
-int linker_file_unload(linker_file_t file);
+int linker_file_unload(linker_file_t _file);
 
 /*
  * Add a dependancy to a file.
  */
-int linker_file_add_dependancy(linker_file_t file, linker_file_t dep);
+int linker_file_add_dependancy(linker_file_t _file, linker_file_t _dep);
 
 /*
  * Lookup a symbol in a file.  If deps is TRUE, look in dependancies
  * if not found in file.
  */
-caddr_t linker_file_lookup_symbol(linker_file_t file, const char* name, 
-				  int deps);
+caddr_t linker_file_lookup_symbol(linker_file_t _file, const char* _name, 
+				  int _deps);
 
 /*
  * This routine is responsible for finding dependencies of userland
  * initiated kldload(2)'s of files.
  */
-int linker_load_dependancies(linker_file_t lf);
+int linker_load_dependancies(linker_file_t _lf);
 
 /*
  * DDB Helpers, tuned specifically for ddb/db_kld.c
  */
-int linker_ddb_lookup(const char *symstr, c_linker_sym_t *sym);
-int linker_ddb_search_symbol(caddr_t value, c_linker_sym_t *sym, long *diffp);
-int linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval);
+int linker_ddb_lookup(const char *_symstr, c_linker_sym_t *_sym);
+int linker_ddb_search_symbol(caddr_t _value, c_linker_sym_t *_sym,
+			     long *_diffp);
+int linker_ddb_symbol_values(c_linker_sym_t _sym, linker_symval_t *_symval);
 
 
 #endif	/* _KERNEL */
@@ -181,12 +182,12 @@ int linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval);
  * Module lookup
  */
 extern caddr_t		preload_metadata;
-extern caddr_t		preload_search_by_name(const char *name);
-extern caddr_t		preload_search_by_type(const char *type);
-extern caddr_t		preload_search_next_name(caddr_t base);
-extern caddr_t		preload_search_info(caddr_t mod, int inf);
-extern void		preload_delete_name(const char *name);
-extern void		preload_bootstrap_relocate(vm_offset_t offset);
+extern caddr_t		preload_search_by_name(const char *_name);
+extern caddr_t		preload_search_by_type(const char *_type);
+extern caddr_t		preload_search_next_name(caddr_t _base);
+extern caddr_t		preload_search_info(caddr_t _mod, int _inf);
+extern void		preload_delete_name(const char *_name);
+extern void		preload_bootstrap_relocate(vm_offset_t _offset);
 
 #ifdef DDB
 extern void		r_debug_state(void);
@@ -210,7 +211,8 @@ extern int kld_debug;
 #endif
 
 /* Support functions */
-int	elf_reloc(linker_file_t lf, const void *rel, int type, const char *sym);
+int	elf_reloc(linker_file_t _lf, const void *_rel, int _type,
+		  const char *_sym);
 /* values for type */
 #define ELF_RELOC_REL	1
 #define ELF_RELOC_RELA	2
@@ -239,12 +241,12 @@ struct kld_sym_lookup {
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-int	kldload(const char* file);
-int	kldunload(int fileid);
-int	kldfind(const char* file);
-int	kldnext(int fileid);
-int	kldstat(int fileid, struct kld_file_stat* stat);
-int	kldfirstmod(int fileid);
+int	kldload(const char* _file);
+int	kldunload(int _fileid);
+int	kldfind(const char* _file);
+int	kldnext(int _fileid);
+int	kldstat(int _fileid, struct kld_file_stat* _stat);
+int	kldfirstmod(int _fileid);
 int	kldsym(int _fileid, int _cmd, void *_data);
 __END_DECLS
 
