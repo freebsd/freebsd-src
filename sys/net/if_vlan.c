@@ -55,7 +55,6 @@
  */
 
 #include "vlan.h"
-#if NVLAN > 0
 #include "opt_inet.h"
 
 #include <sys/param.h>
@@ -553,5 +552,3 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	}
 	return error;
 }
-
-#endif /* NVLAN > 0 */

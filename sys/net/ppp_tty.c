@@ -72,9 +72,6 @@
 
 /* $FreeBSD$ */
 
-#include "ppp.h"
-#if NPPP > 0
-
 #include "opt_ppp.h"		/* XXX for ppp_defs.h */
 
 #define VJC			/* XXX for ppp_defs.h */
@@ -1124,5 +1121,3 @@ ppplogchar(sc, c)
 	sc->sc_rawin_count = 0;
     }
 }
-
-#endif	/* NPPP > 0 */
