@@ -89,7 +89,7 @@
  * in the interrupt handlers.
  */
 struct am7990_softc {
-	struct	device sc_dev;		/* base device glue */
+	device_t sc_dev;		/* base device glue */
 	struct	arpcom sc_ethercom;	/* Ethernet common part */
 	struct	ifmedia sc_media;	/* our supported media */
 

@@ -50,7 +50,6 @@
 #include <sys/mbuf.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
-#include <sys/device.h>
 
 #include <net/if.h>
 #include <net/netisr.h>
