@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.41 1994/11/26 19:25:14 ache Exp $
+#	$Id: rc,v 1.42 1994/12/05 19:46:35 ache Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -104,7 +104,7 @@ syslogd
 
 # $timedflags is imported from /etc/netstart;
 # if $timedflags == NO, timed isn't run.
-if [ X${timedflags} != X"NO" ]; then
+if [ X"${timedflags}" != X"NO" ]; then
 	echo -n ', time daemon'; timed $timedflags
 fi
 echo '.'
