@@ -5,7 +5,7 @@
 #
 
 # PROVIDE: sysctl
-# REQUIRE: root ipfilter ipsec
+# REQUIRE: root
 # BEFORE:  DAEMON
 # KEYWORD: FreeBSD NetBSD
 

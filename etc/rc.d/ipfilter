@@ -5,7 +5,8 @@
 #
 
 # PROVIDE: ipfilter
-# REQUIRE: root beforenetlkm mountcritlocal tty
+# REQUIRE: root beforenetlkm mountcritlocal tty ipmon
+# BEFORE:  netif
 # KEYWORD: FreeBSD NetBSD
 
 . /etc/rc.subr
@@ -43,8 +44,7 @@ FreeBSD)
 		if kldload ipl; then
 			echo 'IP-filter module loaded.'
 		else
-			warn 'IP-filter module failed to load.'
-			return 1
+			err 1 'IP-filter module failed to load.'
 		fi
 	fi
 
