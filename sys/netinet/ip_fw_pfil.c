@@ -100,6 +100,7 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 		m_tag_delete(*m0, dn_tag);
 	}
 
+again:
 	args.m = *m0;
 	ipfw = ipfw_chk(&args);
 	*m0 = args.m;
@@ -127,7 +128,7 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 			*m0 = NULL;
 			return 0;	/* packet consumed */
 		} else
-			goto pass;	/* continue with packet */
+			goto again;	/* continue with packet */
 	}
 
 #ifdef IPFIREWALL_FORWARD
@@ -182,6 +183,7 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 		m_tag_delete(*m0, dn_tag);
 	}
 
+again:
 	args.m = *m0;
 	args.oif = ifp;
 	ipfw = ipfw_chk(&args);
@@ -209,7 +211,7 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 			*m0 = NULL;
 			return 0;	/* packet consumed */
 		} else
-			goto pass;	/* continue with packet */
+			goto again;	/* continue with packet */
         }
 
 #ifdef IPFIREWALL_FORWARD
@@ -243,14 +245,12 @@ static int
 ipfw_divert(struct mbuf **m, int incoming, int tee)
 {
 	/*
-	 * ipfw_chk() has already tagged the packet with the divert
-	 * tag.  For tee we need to remove the tag.
+	 * ipfw_chk() has already tagged the packet with the divert tag.
 	 * If tee is set, copy packet and return original.
 	 * If not tee, consume packet and send it to divert socket.
 	 */
 #ifdef IPDIVERT
 	struct mbuf *clone, *reass;
-	struct m_tag *mtag;
 	struct ip *ip;
 	int hlen;
 
@@ -307,12 +307,12 @@ ipfw_divert(struct mbuf **m, int incoming, int tee)
 		divert_packet(clone, incoming);
 
 teeout:
-	if (tee) {
-		mtag = m_tag_find(*m, PACKET_TAG_DIVERT, NULL);
-		if (mtag != NULL)
-			m_tag_delete(*m, mtag);
-		return 0;	/* continue with original packet. */
-	}
+	/*
+	 * For tee we leave the divert tag attached to original packet.
+	 * It will then continue rule evaluation after the tee rule.
+	 */
+	if (tee)
+		return 0;
 
 	/* Packet diverted and consumed */
 	return 1;
