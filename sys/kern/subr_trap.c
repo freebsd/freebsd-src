@@ -254,7 +254,7 @@ ast(struct trapframe *framep)
 		}
 		mtx_unlock(&p->p_sigacts->ps_mtx);
 		PROC_UNLOCK(p);
-		if (p->p_flag & P_SA && sigs) {
+		if ((td->td_flags & TDF_SA) && sigs) {
 			struct kse_upcall *ku = td->td_upcall;
 			if ((void *)TRAPF_PC(framep) != ku->ku_func) {
 				mtx_lock_spin(&sched_lock);
