@@ -93,6 +93,7 @@
 #define VAR_DEBUG			"debug"
 #define VAR_DESKSTYLE			"_deskStyle"
 #define VAR_DISK			"disk"
+#define VAR_DISKINTERACTIVE		"diskInteractive"
 #define VAR_DISTS			"dists"
 #define VAR_DIST_MAIN			"distMain"
 #define VAR_DIST_CRYPTO			"distCRYPTO"
