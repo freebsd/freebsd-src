@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.18 1994/09/09 13:35:58 rgrimes Exp $
+#	$Id: BSD.usr.dist,v 1.19 1994/09/09 20:10:28 csgr Exp $
 #
 
 .	type=dir uname=root gname=wheel mode=0755
@@ -65,6 +65,17 @@ share	type=dir uname=bin gname=bin mode=0755
 	..
 
 	dict		type=dir uname=bin gname=bin mode=0755
+	..
+
+	examples	type=dir uname=bin gname=bin mode=0755
+		etc	type=dir uname=bin gname=bin mode=0755
+		..
+		FreeBSD_version	type=dir uname=bin gname=bin mode=0755
+		..
+		lkm	type=dir uname=bin gname=bin mode=0755
+		..
+		sunrpc	type=dir uname=bin gname=bin mode=0755
+		..
 	..
 
 	/set type=file uname=games gname=bin mode=0755
