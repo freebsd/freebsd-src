@@ -2,5 +2,6 @@
 # $FreeBSD$
 
 PROG=	ypcat
+NO_WERROR=yes
 
 .include <bsd.prog.mk>
