@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: chunk.c,v 1.14 1995/05/30 08:28:08 rgrimes Exp $
+ * $Id: chunk.c,v 1.14.2.1 1995/06/03 08:40:24 jkh Exp $
  *
  */
 
@@ -366,6 +366,7 @@ Delete_Chunk(struct disk *d, struct chunk *c)
 	return 0;
 }
 
+#if 0
 int
 Collapse_Chunk(struct disk *d, struct chunk *c1)
 {
@@ -429,3 +430,4 @@ Collapse_Chunk(struct disk *d, struct chunk *c1)
 
 	return 0;
 }
+#endif

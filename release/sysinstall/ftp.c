@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.5 1995/06/03 08:51:28 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.6 1995/06/05 01:56:53 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -63,7 +63,7 @@ writes(int fd, char *s)
     return 0;
 }
 
-static char*
+static __inline char*
 get_a_line(FTP_t ftp)
 {
     static char buf[BUFSIZ];
