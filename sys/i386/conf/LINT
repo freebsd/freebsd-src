@@ -1977,6 +1977,9 @@ options 	ELSA_QS1ISA
 options 	"SIEMENS_ISURF2"
 #device		isic
 #
+# Asuscom ISDNlink 128K ISAC - broken
+#options 	ASUSCOM_IPAC
+#
 # PCI bus Cards:
 # --------------
 #
@@ -2156,9 +2159,6 @@ options 	DEBUG_LOCKS
 options		COMPAT_SVR4	# build emulator statically
 options		DEBUG_SVR4	# enable verbose debugging
 pseudo-device	streams		# STREAMS network driver (required for svr4).
-
-# Undocumented options covering presently broken code
-#options 	ASUSCOM_IPAC
 
 # The 'dpt' driver provides support for DPT controllers (http://www.dpt.com/).
 # These have hardware RAID-{0,1,5} support, and do multi-initiator I/O.
