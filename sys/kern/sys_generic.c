@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.35 1998/04/02 07:22:17 phk Exp $
+ * $Id: sys_generic.c,v 1.36 1998/04/04 13:25:32 phk Exp $
  */
 
 #include "opt_ktrace.h"
@@ -602,10 +602,8 @@ select(p, uap)
 		}
 		getmicroruntime(&rtv);
 		timevaladd(&atv, &rtv);
-	} else {
+	} else
 		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
 	timo = 0;
 retry:
 	ncoll = nselcoll;
@@ -734,10 +732,8 @@ poll(p, uap)
 		}
 		getmicroruntime(&rtv);
 		timevaladd(&atv, &rtv);
-	} else {
+	} else
 		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-	}
 	timo = 0;
 retry:
 	ncoll = nselcoll;
