@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2000, 2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: log.c,v 1.27 2002/02/04 10:48:33 joda Exp $");
+RCSID("$Id: log.c,v 1.30 2002/08/20 09:49:09 joda Exp $");
 
 struct facility {
     int min;
@@ -57,7 +57,7 @@ log_realloc(krb5_log_facility *f)
 }
 
 struct s2i {
-    char *s;
+    const char *s;
     int val;
 };
 
@@ -157,7 +157,7 @@ krb5_addlog_func(krb5_context context,
 }
 
 
-struct syslog_data{
+struct _heimdal_syslog_data{
     int priority;
 };
 
@@ -167,7 +167,7 @@ log_syslog(const char *time,
 	   void *data)
      
 {
-    struct syslog_data *s = data;
+    struct _heimdal_syslog_data *s = data;
     syslog(s->priority, "%s", msg);
 }
 
@@ -183,7 +183,7 @@ open_syslog(krb5_context context,
 	    krb5_log_facility *facility, int min, int max,
 	    const char *sev, const char *fac)
 {
-    struct syslog_data *sd = malloc(sizeof(*sd));
+    struct _heimdal_syslog_data *sd = malloc(sizeof(*sd));
     int i;
 
     if(sd == NULL) {
@@ -204,8 +204,8 @@ open_syslog(krb5_context context,
 }
 
 struct file_data{
-    char *filename;
-    char *mode;
+    const char *filename;
+    const char *mode;
     FILE *fd;
     int keep_open;
 };
@@ -236,7 +236,7 @@ close_file(void *data)
 
 static krb5_error_code
 open_file(krb5_context context, krb5_log_facility *fac, int min, int max,
-	  char *filename, char *mode, FILE *f, int keep_open)
+	  const char *filename, const char *mode, FILE *f, int keep_open)
 {
     struct file_data *fd = malloc(sizeof(*fd));
     if(fd == NULL) {
@@ -315,15 +315,18 @@ krb5_addlog_dest(krb5_context context, krb5_log_facility *f, const char *orig)
 	ret = open_file(context, f, min, max, fn, "a", file, keep_open);
     }else if(strncmp(p, "DEVICE=", 6) == 0){
 	ret = open_file(context, f, min, max, strdup(p + 7), "w", NULL, 0);
-    }else if(strncmp(p, "SYSLOG", 6) == 0){
-	char *severity;
-	char *facility;
-	severity = strchr(p, ':');
-	if(severity == NULL)
-	    severity = "ERR";
-	facility = strchr(severity, ':');
-	if(facility == NULL)
-	    facility = "AUTH";
+    }else if(strncmp(p, "SYSLOG", 6) == 0 && (p[6] == '\0' || p[6] == ':')){
+	char severity[128] = "";
+	char facility[128] = "";
+	p += 6;
+	if(*p != '\0')
+	    p++;
+	if(strsep_copy(&p, ":", severity, sizeof(severity)) != -1)
+	    strsep_copy(&p, ":", facility, sizeof(facility));
+	if(*severity == '\0')
+	    strlcpy(severity, "ERR", sizeof(severity));
+ 	if(*facility == '\0')
+	    strlcpy(facility, "AUTH", sizeof(facility));
 	ret = open_syslog(context, f, min, max, severity, facility);
     }else{
 	krb5_set_error_string (context, "unknown log type: %s", p);

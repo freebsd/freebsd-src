@@ -1,5 +1,4 @@
-
-KXD(8)                   UNIX System Manager's Manual                   KXD(8)
+KXD(8)                  FreeBSD System Manager's Manual                 KXD(8)
 
 NNAAMMEE
      kkxxdd - securely forward X conections
@@ -15,8 +14,8 @@ DDEESSCCRRIIPPTTIIOONN
      --tt      TCP.  Normally kkxxdd will only listen for X connections on a UNIX
              socket, but some machines (for example, Cray) have X libraries
              that are not able to use UNIX sockets and thus you need to use
-             TCP to talk to the pseudo-xserver created by kkxxdd.. This option de-
-             creases the security significantly and should only be used when
+             TCP to talk to the pseudo-xserver created by kkxxdd.. This option
+             decreases the security significantly and should only be used when
              it is necessary and you have considered the consequences of doing
              so.
 
@@ -24,7 +23,7 @@ DDEESSCCRRIIPPTTIIOONN
              and listen to the socket yourself.  Handy for testing and debug-
              ging.
 
-     --pp      Port.  Listen on the port _p_o_r_t. Only usable with --ii.
+     --pp      Port.  Listen on the port _p_o_r_t.  Only usable with --ii.
 
 EEXXAAMMPPLLEESS
      Put the following in _/_e_t_c_/_i_n_e_t_d_._c_o_n_f:
@@ -32,6 +31,6 @@ EEXXAAMMPPLLEESS
      kx      stream  tcp     nowait  root    /usr/athena/libexec/kxd kxd
 
 SSEEEE AALLSSOO
-     kx(1),  rxtelnet(1),  rxterm(1)
+     kx(1), rxtelnet(1), rxterm(1)
 
- KTH-KRB                      September 27, 1996                             1
+KTH-KRB                       September 27, 1996                       KTH-KRB

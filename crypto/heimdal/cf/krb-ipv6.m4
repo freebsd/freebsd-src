@@ -1,20 +1,19 @@
-dnl $Id: krb-ipv6.m4,v 1.12 2001/08/19 16:27:02 joda Exp $
+dnl $Id: krb-ipv6.m4,v 1.13 2002/04/30 16:48:13 joda Exp $
 dnl
 dnl test for IPv6
 dnl
 AC_DEFUN(AC_KRB_IPV6, [
 AC_ARG_WITH(ipv6,
-[  --without-ipv6	do not enable IPv6 support],[
+	AC_HELP_STRING([--without-ipv6],[do not enable IPv6 support]),[
 if test "$withval" = "no"; then
 	ac_cv_lib_ipv6=no
 fi])
 save_CFLAGS="${CFLAGS}"
-AC_CACHE_VAL(ac_cv_lib_ipv6,
+AC_CACHE_CHECK([for IPv6 stack type], v6type,
 [dnl check for different v6 implementations (by itojun)
 v6type=unknown
 v6lib=none
 
-AC_MSG_CHECKING([ipv6 stack type])
 for i in v6d toshiba kame inria zeta linux; do
 	case $i in
 	v6d)
@@ -78,7 +77,6 @@ yes
 		break
 	fi
 done
-AC_MSG_RESULT($v6type)
 
 if test "$v6lib" != "none"; then
 	for dir in $v6libdir /usr/local/v6/lib /usr/local/lib; do
@@ -88,6 +86,9 @@ if test "$v6lib" != "none"; then
 		fi
 	done
 fi
+])
+
+AC_CACHE_CHECK([for IPv6], ac_cv_lib_ipv6, [
 AC_TRY_LINK([
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -115,8 +116,6 @@ AC_TRY_LINK([
 ],
 ac_cv_lib_ipv6=yes,
 ac_cv_lib_ipv6=no)])
-AC_MSG_CHECKING(for IPv6)
-AC_MSG_RESULT($ac_cv_lib_ipv6)
 if test "$ac_cv_lib_ipv6" = yes; then
   AC_DEFINE(HAVE_IPV6, 1, [Define if you have IPv6.])
 else

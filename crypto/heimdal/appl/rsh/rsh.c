@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,18 +32,22 @@
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c,v 1.63 2001/09/03 05:54:13 assar Exp $");
+RCSID("$Id: rsh.c,v 1.65 2002/02/18 20:02:06 joda Exp $");
 
 enum auth_method auth_method;
+#if defined(KRB4) || defined(KRB5)
 int do_encrypt       = -1;
-int do_forward       = -1;
-int do_forwardable   = -1;
+#endif
+#ifdef KRB5
 int do_unique_tkfile = 0;
 char *unique_tkfile  = NULL;
 char tkfile[MAXPATHLEN];
+int do_forward       = -1;
+int do_forwardable   = -1;
 krb5_context context;
 krb5_keyblock *keyblock;
 krb5_crypto crypto;
+#endif
 #ifdef KRB4
 des_key_schedule schedule;
 des_cblock iv;
@@ -53,7 +57,9 @@ int sock_debug	     = 0;
 #ifdef KRB4
 static int use_v4 = -1;
 #endif
+#ifdef KRB5
 static int use_v5 = -1;
+#endif
 static int use_only_broken = 0;
 static int use_broken = 1;
 static char *port_str;
@@ -180,6 +186,7 @@ send_krb4_auth(int s,
 }
 #endif /* KRB4 */
 
+#ifdef KRB5
 /*
  * Send forward information on `s' for host `hostname', them being
  * forwardable themselves if `forwardable'
@@ -368,6 +375,8 @@ send_krb5_auth(int s,
     krb5_auth_con_free (context, auth_context);
     return 0;
 }
+
+#endif /* KRB5 */
 
 static int
 send_broken_auth(int s,
@@ -593,38 +602,19 @@ static int
 doit_broken (int argc,
 	     char **argv,
 	     int optind,
-	     const char *host,
+	     struct addrinfo *ai,
 	     const char *remote_user,
 	     const char *local_user,
-	     int port,
 	     int priv_socket1,
 	     int priv_socket2,
 	     const char *cmd,
 	     size_t cmd_len)
 {
-    struct addrinfo *ai, *a;
-    struct addrinfo hints;
-    int error;
-    char portstr[NI_MAXSERV];
+    struct addrinfo *a;
 
-    memset (&hints, 0, sizeof(hints));
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_family   = AF_INET;
-
-    snprintf (portstr, sizeof(portstr), "%u", ntohs(port));
-
-    error = getaddrinfo (host, portstr, &hints, &ai);
-    if (error) {
-	warnx ("%s: %s", host, gai_strerror(error));
-	return 1;
-    }
-    
     if (connect (priv_socket1, ai->ai_addr, ai->ai_addrlen) < 0) {
-	if (ai->ai_next == NULL) {
-	    freeaddrinfo (ai);
+	if (ai->ai_next == NULL)
 	    return 1;
-	}
 
 	close(priv_socket1);
 	close(priv_socket2);
@@ -658,8 +648,6 @@ doit_broken (int argc,
 	    } else {
 		int status;
 
-		freeaddrinfo (ai);
-
 		while(waitpid(pid, &status, 0) < 0)
 		    ;
 		if(WIFEXITED(status) && WEXITSTATUS(status) == 0)
@@ -670,8 +658,6 @@ doit_broken (int argc,
     } else {
 	int ret;
 
-	freeaddrinfo (ai);
-
 	ret = proto (priv_socket1, priv_socket2,
 		     argv[optind],
 		     local_user, remote_user,
@@ -681,11 +667,12 @@ doit_broken (int argc,
     }
 }
 
+#if defined(KRB4) || defined(KRB5)
 static int
 doit (const char *hostname,
+      struct addrinfo *ai,
       const char *remote_user,
       const char *local_user,
-      int port,
       const char *cmd,
       size_t cmd_len,
       int do_errsock,
@@ -695,25 +682,11 @@ doit (const char *hostname,
 		       const char *local_user, size_t cmd_len,
 		       const char *cmd))
 {
-    struct addrinfo *ai, *a;
-    struct addrinfo hints;
     int error;
-    char portstr[NI_MAXSERV];
+    struct addrinfo *a;
     int socketfailed = 1;
     int ret;
 
-    memset (&hints, 0, sizeof(hints));
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-
-    snprintf (portstr, sizeof(portstr), "%u", ntohs(port));
-
-    error = getaddrinfo (hostname, portstr, &hints, &ai);
-    if (error) {
-	errx (1, "%s: %s", hostname, gai_strerror(error));
-	return -1;
-    }
-    
     for (a = ai; a != NULL; a = a->ai_next) {
 	int s;
 	int errsock;
@@ -762,7 +735,6 @@ doit (const char *hostname,
 	} else
 	    errsock = -1;
     
-	freeaddrinfo (ai);
 	ret = proto (s, errsock,
 		     hostname,
 		     local_user, remote_user,
@@ -772,32 +744,38 @@ doit (const char *hostname,
     }
     if(socketfailed)
 	warnx ("failed to contact %s", hostname);
-    freeaddrinfo (ai);
     return -1;
 }
+#endif /* KRB4 || KRB5 */
 
 struct getargs args[] = {
 #ifdef KRB4
     { "krb4",	'4', arg_flag,		&use_v4,	"Use Kerberos V4" },
 #endif
+#ifdef KRB5
     { "krb5",	'5', arg_flag,		&use_v5,	"Use Kerberos V5" },
-    { "broken", 'K', arg_flag,		&use_only_broken, "Use only priv port" },
-    { NULL,	'd', arg_flag,		&sock_debug, "Enable socket debugging" },
-    { "input",	'n', arg_negative_flag,	&input,		"Close stdin" },
-    { "encrypt", 'x', arg_flag,		&do_encrypt,	"Encrypt connection" },
-    { NULL, 	'z', arg_negative_flag,      &do_encrypt,
-      "Don't encrypt connection", NULL },
-    { "forward", 'f', arg_flag,		&do_forward,	"Forward credentials"},
+    { "forward", 'f', arg_flag,		&do_forward,	"Forward credentials (krb5)"},
     { NULL, 'G', arg_negative_flag,&do_forward,	"Don't forward credentials" },
     { "forwardable", 'F', arg_flag,	&do_forwardable,
       "Forward forwardable credentials" },
+#endif
+#if defined(KRB4) || defined(KRB5)
+    { "broken", 'K', arg_flag,		&use_only_broken, "Use only priv port" },
+    { "encrypt", 'x', arg_flag,		&do_encrypt,	"Encrypt connection" },
+    { NULL, 	'z', arg_negative_flag,      &do_encrypt,
+      "Don't encrypt connection", NULL },
+#endif
+#ifdef KRB5
     { "unique", 'u', arg_flag,	&do_unique_tkfile,
-      "Use unique remote tkfile" },
+      "Use unique remote tkfile (krb5)" },
     { "tkfile", 'U', arg_string,  &unique_tkfile,
-      "Use that remote tkfile" },
+      "Use that remote tkfile (krb5)" },
+#endif
+    { NULL,	'd', arg_flag,		&sock_debug, "Enable socket debugging" },
+    { "input",	'n', arg_negative_flag,	&input,		"Close stdin" },
     { "port",	'p', arg_string,	&port_str,	"Use this port",
-      "number-or-service" },
-    { "user",	'l', arg_string,	&user,		"Run as this user" },
+      "port" },
+    { "user",	'l', arg_string,	&user,		"Run as this user", "login" },
     { "stderr", 'e', arg_negative_flag, &do_errsock,	"Don't open stderr"},
     { "version", 0,  arg_flag,		&do_version,	NULL },
     { "help",	 0,  arg_flag,		&do_help,	NULL }
@@ -809,7 +787,7 @@ usage (int ret)
     arg_printusage (args,
 		    sizeof(args) / sizeof(args[0]),
 		    NULL,
-		    "host [command]");
+		    "[login@]host [command]");
     exit (ret);
 }
 
@@ -822,8 +800,9 @@ main(int argc, char **argv)
 {
     int priv_port1, priv_port2;
     int priv_socket1, priv_socket2;
-    int port = 0;
     int optind = 0;
+    int error;
+    struct addrinfo hints, *ai;
     int ret = 1;
     char *cmd;
     char *tmp;
@@ -831,7 +810,9 @@ main(int argc, char **argv)
     const char *local_user;
     char *host = NULL;
     int host_index = -1;
+#ifdef KRB5
     int status;
+#endif
     uid_t uid;
 
     priv_port1 = priv_port2 = IPPORT_RESERVED-1;
@@ -848,10 +829,6 @@ main(int argc, char **argv)
 	optind = 1;
     }
     
-    status = krb5_init_context (&context);
-    if (status)
-        errx(1, "krb5_init_context failed: %d", status);
-      
     if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
 		&optind))
 	usage (1);
@@ -864,6 +841,15 @@ main(int argc, char **argv)
 	return 0;
     }
 	
+#ifdef KRB5
+    status = krb5_init_context (&context);
+    if (status) {
+	if(use_v5 == 1)
+	    errx(1, "krb5_init_context failed: %d", status);
+	else
+	    use_v5 = 0;
+    }
+      
     if (do_forwardable == -1)
 	do_forwardable = krb5_config_get_bool (context, NULL,
 					       "libdefaults",
@@ -878,18 +864,23 @@ main(int argc, char **argv)
     else if (do_forward == 0)
 	do_forwardable = 0;
 
+    if (do_forwardable)
+	do_forward = 1;
+#endif
+#if defined(KRB4) || defined(KRB5)
     if (do_encrypt == -1) {
 	/* we want to tell the -x flag from the default encryption
            option */
+#ifdef KRB5
+	/* the normal default for krb4 should be to disable encryption */
 	if(!krb5_config_get_bool (context, NULL,
 				  "libdefaults",
 				  "encrypt",
 				  NULL))
+#endif
 	    do_encrypt = 0;
     }
-
-    if (do_forwardable)
-	do_forward = 1;
+#endif
 
 #if defined(KRB4) && defined(KRB5)
     if(use_v4 == -1 && use_v5 == 1)
@@ -902,7 +893,9 @@ main(int argc, char **argv)
 #ifdef KRB4
 	use_v4 = 0;
 #endif
+#ifdef KRB5
 	use_v5 = 0;
+#endif
     }
 
     if(priv_socket1 < 0) {
@@ -911,10 +904,14 @@ main(int argc, char **argv)
 	use_broken = 0;
     }
 
+#if defined(KRB4) || defined(KRB5)
     if (do_encrypt == 1 && use_only_broken)
 	errx (1, "encryption not supported with old style authentication");
+#endif
 
 
+
+#ifdef KRB5
     if (do_unique_tkfile && unique_tkfile != NULL)
 	errx (1, "Only one of -u and -U allowed.");
 
@@ -928,6 +925,7 @@ main(int argc, char **argv)
 	do_unique_tkfile = 1;
 	snprintf (tkfile, sizeof(tkfile), "-U %s ", unique_tkfile);
     }
+#endif
 
     if (host == NULL) {
 	if (argc - optind < 1)
@@ -950,21 +948,6 @@ main(int argc, char **argv)
 	err (1, "execvp rlogin");
     }
 
-    if (port_str) {
-	struct servent *s = roken_getservbyname (port_str, "tcp");
-
-	if (s)
-	    port = s->s_port;
-	else {
-	    char *ptr;
-
-	    port = strtol (port_str, &ptr, 10);
-	    if (port == 0 && ptr == port_str)
-		errx (1, "Bad port `%s'", port_str);
-	    port = htons(port);
-	}
-    }
-
     local_user = get_default_username ();
     if (local_user == NULL)
 	errx (1, "who are you?");
@@ -978,50 +961,79 @@ main(int argc, char **argv)
      * Try all different authentication methods
      */
 
+#ifdef KRB5
     if (ret && use_v5) {
-	int tmp_port;
+	memset (&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
-	if (port)
-	    tmp_port = port;
-	else
-	    tmp_port = krb5_getportbyname (context, "kshell", "tcp", 544);
+	if(port_str == NULL) {
+	    error = getaddrinfo(host, "kshell", &hints, &ai);
+	    if(error == EAI_NONAME)
+		error = getaddrinfo(host, "544", &hints, &ai);
+	} else
+	    error = getaddrinfo(host, port_str, &hints, &ai);
+
+	if(error)
+	    errx (1, "getaddrinfo: %s", gai_strerror(error));
 
 	auth_method = AUTH_KRB5;
-	ret = doit (host, user, local_user, tmp_port, cmd, cmd_len,
+	ret = doit (host, ai, user, local_user, cmd, cmd_len,
 		    do_errsock,
 		    send_krb5_auth);
+	freeaddrinfo(ai);
     }
+#endif
 #ifdef KRB4
     if (ret && use_v4) {
-	int tmp_port;
+	memset (&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
-	if (port)
-	    tmp_port = port;
-	else if (do_encrypt)
-	    tmp_port = krb5_getportbyname (context, "ekshell", "tcp", 545);
-	else
-	    tmp_port = krb5_getportbyname (context, "kshell", "tcp", 544);
+	if(port_str == NULL) {
+	    if(do_encrypt) {
+		error = getaddrinfo(host, "ekshell", &hints, &ai);
+		if(error == EAI_NONAME)
+		    error = getaddrinfo(host, "545", &hints, &ai);
+	    } else {
+		error = getaddrinfo(host, "kshell", &hints, &ai);
+		if(error == EAI_NONAME)
+		    error = getaddrinfo(host, "544", &hints, &ai);
+	    }
+	} else
+	    error = getaddrinfo(host, port_str, &hints, &ai);
 
+	if(error)
+	    errx (1, "getaddrinfo: %s", gai_strerror(error));
 	auth_method = AUTH_KRB4;
-	ret = doit (host, user, local_user, tmp_port, cmd, cmd_len,
+	ret = doit (host, ai, user, local_user, cmd, cmd_len,
 		    do_errsock,
 		    send_krb4_auth);
+	freeaddrinfo(ai);
     }
 #endif
     if (ret && use_broken) {
-	int tmp_port;
+	memset (&hints, 0, sizeof(hints));
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_protocol = IPPROTO_TCP;
 
-	if(port)
-	    tmp_port = port;
-	else
-	    tmp_port = krb5_getportbyname(context, "shell", "tcp", 514);
+	if(port_str == NULL) {
+	    error = getaddrinfo(host, "shell", &hints, &ai);
+	    if(error == EAI_NONAME)
+		error = getaddrinfo(host, "514", &hints, &ai);
+	} else
+	    error = getaddrinfo(host, port_str, &hints, &ai);
+
+	if(error)
+	    errx (1, "getaddrinfo: %s", gai_strerror(error));
+
 	auth_method = AUTH_BROKEN;
-	ret = doit_broken (argc, argv, host_index, host,
+	ret = doit_broken (argc, argv, host_index, ai,
 			   user, local_user,
-			   tmp_port,
 			   priv_socket1,
 			   do_errsock ? priv_socket2 : -1,
 			   cmd, cmd_len);
+	freeaddrinfo(ai);
     }
     return ret;
 }

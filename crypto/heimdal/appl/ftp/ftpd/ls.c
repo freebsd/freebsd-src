@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 #ifndef TEST
 #include "ftpd_locl.h"
 
-RCSID("$Id: ls.c,v 1.23 2001/09/14 11:32:52 joda Exp $");
+RCSID("$Id: ls.c,v 1.25 2002/08/22 08:31:03 joda Exp $");
 
 #else
 #include <stdio.h>
@@ -122,6 +122,10 @@ free_fileinfo(struct fileinfo *f)
 
 #ifndef S_ISTXT
 #define S_ISTXT S_ISVTX
+#endif
+
+#if !defined(_S_IFMT) && defined(S_IFMT)
+#define _S_IFMT S_IFMT
 #endif
 
 #ifndef S_ISSOCK
@@ -349,8 +353,7 @@ compare_size(struct fileinfo *a, struct fileinfo *b)
     return b->st.st_size - a->st.st_size;
 }
 
-static void
-list_dir(FILE *out, const char *directory, int flags);
+static int list_dir(FILE*, const char*, int);
 
 static int
 log10(int num)
@@ -464,7 +467,7 @@ lstat_file (const char *file, struct stat *sb)
 #define IS_DOT_DOTDOT(X) ((X)[0] == '.' && ((X)[1] == '\0' || \
 				((X)[1] == '.' && (X)[2] == '\0')))
 
-static void
+static int
 list_files(FILE *out, const char **files, int n_files, int flags)
 {
     struct fileinfo *fi;
@@ -472,14 +475,18 @@ list_files(FILE *out, const char **files, int n_files, int flags)
     int *dirs = NULL;
     size_t total_blocks = 0;
     int n_print = 0;
+    int ret = 0;
+
+    if(n_files == 0)
+	return 0;
 
     if(n_files > 1)
 	flags |= LS_SHOW_DIRNAME;
 
     fi = calloc(n_files, sizeof(*fi));
     if (fi == NULL) {
-	sec_fprintf2(out, "ouf of memory\r\n");
-	return;
+	syslog(LOG_ERR, "out of memory");
+	return -1;
     }
     for(i = 0; i < n_files; i++) {
 	if(lstat_file(files[i], &fi[i].st) < 0) {
@@ -492,8 +499,8 @@ list_files(FILE *out, const char **files, int n_files, int flags)
 		if(dirs == NULL)
 		    dirs = calloc(n_files, sizeof(*dirs));
 		if(dirs == NULL) {
-		    sec_fprintf2(out, "%s: %s\r\n", 
-				 files[i], strerror(errno));
+		    syslog(LOG_ERR, "%s: %m", files[i]);
+		    ret = -1;
 		    goto out;
 		}
 		dirs[i] = 1;
@@ -686,6 +693,7 @@ list_files(FILE *out, const char **files, int n_files, int flags)
     free(fi);
     if(dirs != NULL)
 	free(dirs);
+    return ret;
 }
 
 static void
@@ -714,7 +722,7 @@ hide_file(const char *filename, int flags)
     return 0;
 }
 
-static void
+static int
 list_dir(FILE *out, const char *directory, int flags)
 {
     DIR *d = opendir(directory);
@@ -723,8 +731,8 @@ list_dir(FILE *out, const char *directory, int flags)
     int n_files = 0;
 
     if(d == NULL) {
-	sec_fprintf2(out, "%s: %s\r\n", directory, strerror(errno));
-	return;
+	syslog(LOG_ERR, "%s: %m", directory);
+	return -1;
     }
     while((ent = readdir(d)) != NULL) {
 	void *tmp;
@@ -733,23 +741,23 @@ list_dir(FILE *out, const char *directory, int flags)
 	    continue;
 	tmp = realloc(files, (n_files + 1) * sizeof(*files));
 	if (tmp == NULL) {
-	    sec_fprintf2(out, "%s: out of memory\r\n", directory);
+	    syslog(LOG_ERR, "%s: out of memory", directory);
 	    free_files (files, n_files);
 	    closedir (d);
-	    return;
+	    return -1;
 	}
 	files = tmp;
 	asprintf(&files[n_files], "%s/%s", directory, ent->d_name);
 	if (files[n_files] == NULL) {
-	    sec_fprintf2(out, "%s: out of memory\r\n", directory);
+	    syslog(LOG_ERR, "%s: out of memory", directory);
 	    free_files (files, n_files);
 	    closedir (d);
-	    return;
+	    return -1;
 	}
 	++n_files;
     }
     closedir(d);
-    list_files(out, (const char**)files, n_files, flags | LS_DIR_FLAG);
+    return list_files(out, (const char**)files, n_files, flags | LS_DIR_FLAG);
 }
 
 static int
@@ -828,10 +836,11 @@ parse_flags(const char *options)
     return flags;
 }
 
-void
+int
 builtin_ls(FILE *out, const char *file)
 {
     int flags;
+    int ret;
 
     if(*file == '-') {
 	flags = parse_flags(file);
@@ -839,6 +848,7 @@ builtin_ls(FILE *out, const char *file)
     } else
 	flags = parse_flags("");
 
-    list_files(out, &file, 1, flags);
+    ret = list_files(out, &file, 1, flags);
     sec_fflush(out);
+    return ret;
 }

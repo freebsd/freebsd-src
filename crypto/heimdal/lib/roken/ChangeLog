@@ -1,3 +1,78 @@
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.c (dns_srv_order): do alignment tricks with the random()
+	state (from NetBSD)
+
+2002-08-27  Assar Westerlund  <assar@kth.se>
+
+	* resolve.c (parse_reply): verify the lengths (both external and
+	internal) are consistent and not too long
+	(dns_lookup_int): be conservative in the length sent in to to
+	parse_reply
+
+2002-08-26  Assar Westerlund  <assar@kth.se>
+
+	* roken.h.in: add prototypes for str, unvis functions
+	* resolve.h: add fallback definition for T_AAAA
+
+2002-08-22  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.h.in: we may need a prototype for strndup
+
+2002-08-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.h.in: typedef ssize_t here
+
+	* getarg.c: don't put Ns before comma
+
+	* resolve.c: _res might not be available
+
+	* localtime_r.c: include stdio.h and roken.h
+
+	* strftime.c: only use altzone if we have it
+
+	* roken-common.h: AI_NUMERICHOST needs special handling
+
+	* strlcat.c: add some consistency checks
+
+	* strlcpy.c: make the logic simpler, and handle dst_sz == 0
+
+2002-08-19  Johan Danielsson  <joda@pdc.kth.se>
+
+	* resolve.h: prefix these functions to avoid conflicts with other
+	packages
+
+2002-08-14  Johan Danielsson  <joda@pdc.kth.se>
+
+	* strsep_copy.c: don't write to buf if len == 0
+
+2002-05-31  Assar Westerlund  <assar@pdc.kth.se>
+
+	* Makefile.am: *_LDADD: add LDADD, so that libroken is used
+
+2002-05-17  Johan Danielsson  <joda@pdc.kth.se>
+
+	* xdbm.h: remove old dbm part
+
+2002-04-30  Johan Danielsson  <joda@pdc.kth.se>
+
+	* ndbm_wrap.{c,h}: ndbm wrapper for newer db libraries
+
+2002-04-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* roken.h.in: move mini_inetd protos to after addrinfo definition
+
+	* snprintf.c (append_number): make rep const
+
+	* getarg.h: rename optind and optarg to avoid some gcc warnings
+
+	* getarg.c: rename optind and optarg to avoid some gcc warnings
+
+2002-02-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* mini_inetd.c: mini_inetd_addrinfo that takes an addrinfo instead
+	of a port number
+
 2001-11-30  Assar Westerlund  <assar@sics.se>
 
 	* getifaddrs.c: support SIOCGLIFCONF and SIOCGLIFFLAGS which are

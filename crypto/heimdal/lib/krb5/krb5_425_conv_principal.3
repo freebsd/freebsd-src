@@ -1,5 +1,5 @@
-.\" Copyright (c) 1997 Kungliga Tekniska Högskolan
-.\" $Id: krb5_425_conv_principal.3,v 1.5 2001/05/02 08:59:23 assar Exp $
+.\" Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+.\" $Id: krb5_425_conv_principal.3,v 1.8 2002/08/28 15:30:46 joda Exp $
 .Dd April 11, 1999
 .Dt KRB5_425_CONV_PRINCIPAL 3
 .Os HEIMDAL
@@ -8,6 +8,8 @@
 .Nm krb5_425_conv_principal_ext ,
 .Nm krb5_524_conv_principal
 .Nd converts to and from version 4 principals
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
 .Sh SYNOPSIS
 .Fd #include <krb5.h>
 .Ft krb5_error_code
@@ -26,8 +28,8 @@ realm. In some cases also the first component/name will differ between
 version 4 and version 5.  Furthermore the second component of a host
 principal will be the fully qualified domain name of the host in
 question, while the instance of a version 4 principal will only
-contain the first component.  Because of these problems the conversion
-between principals will have to be site customized.
+contain the first part (short hostname).  Because of these problems
+the conversion between principals will have to be site customized.
 .Pp
 .Fn krb5_425_conv_principal_ext
 will try to convert a version 4 principal, given by
@@ -42,11 +44,11 @@ is non-NULL, it will be called for each candidate principal.
 .Fa func
 should return true if the principal was
 .Dq good .
-To accomplish this, 
-.Fn krb5_425_conv_principal_ext 
+To accomplish this,
+.Fn krb5_425_conv_principal_ext
 will look up the name in
 .Pa krb5.conf .
-It first looks in the 
+It first looks in the
 .Li v4_name_convert/host
 subsection, which should contain a list of version 4 names whose
 instance should be treated as a hostname. This list can be specified
@@ -57,7 +59,7 @@ section), or in the
 section.  If the name is found the resulting name of the principal
 will be the value of this binding. The instance is then first looked
 up in
-.Li v4_instance_convert 
+.Li v4_instance_convert
 for the specified realm. If found the resulting value will be used as
 instance (this can be used for special cases), no further attempts
 will be made to find a conversion if this fails (with
@@ -74,7 +76,7 @@ specific realm.
 .Pp
 On the other hand, if the name is not found in a
 .Li host
-section, it is looked up in a 
+section, it is looked up in a
 .Li v4_name_convert/plain
 binding. If found here the name will be converted, but the instance
 will be untouched.
@@ -85,8 +87,10 @@ v4_name_convert = {
 	host = {
 		ftp = ftp
 		hprop = hprop
+		imap = imap
 		pop = pop
 		rcmd = host
+		smtp = smtp
 	}
 }
 .Ed
@@ -97,9 +101,9 @@ config file, so you can override these defaults.
 .Fn krb5_425_conv_principal
 will call
 .Fn krb5_425_conv_principal_ext
-with 
+with
 .Dv NULL
-as 
+as
 .Fa func ,
 and the value of
 .Li v4_instance_resolve
@@ -109,24 +113,24 @@ section) as
 .Fa resolve .
 .Pp
 .Fn krb5_524_conv_principal
-basically does the opposite of 
+basically does the opposite of
 .Fn krb5_425_conv_principal ,
 it just doesn't have to look up any names, but will instead truncate
 instances found to belong to a host principal. The
-.Fa name , 
-.Fa instance , 
-and 
+.Fa name ,
+.Fa instance ,
+and
 .Fa realm
 should be at least 40 characters long.
 .Sh EXAMPLES
 Since this is confusing an example is in place.
 .Pp
-Assume that we have the 
-.Dq foo.com , 
-and 
-.Dq bar.com  
-domains that have shared a single version 4 realm, FOO.COM. The version 4 
-.Pa krb.realms 
+Assume that we have the
+.Dq foo.com ,
+and
+.Dq bar.com
+domains that have shared a single version 4 realm, FOO.COM. The version 4
+.Pa krb.realms
 file looked like:
 .Bd -literal -offset indent
 foo.com		FOO.COM
@@ -165,19 +169,19 @@ ftp.other	\(-> ftp/other.foo.com
 other.a-host	\(-> other/a-host
 .Ed
 .Pp
-The first three are what you expect. If you remove the 
+The first three are what you expect. If you remove the
 .Dq v4_domains ,
 the fourth entry will result in an error (since the host
 .Dq other
-can't be found). Even if 
-.Dq a-host 
+can't be found). Even if
+.Dq a-host
 is a valid host name, the last entry will not be converted, since the
 .Dq other
 name is not known to represent a host-type principal.
 If you turn off
 .Dq v4_instance_resolve
 the second example will result in
-.Dq ftp/b-host.foo.com 
+.Dq ftp/b-host.foo.com
 (because of the default domain). And all of this is of course only
 valid if you have working name resolving.
 .Sh SEE ALSO

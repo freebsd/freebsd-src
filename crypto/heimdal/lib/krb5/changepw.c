@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,7 +33,7 @@
 
 #include <krb5_locl.h>
 
-RCSID("$Id: changepw.c,v 1.34 2001/09/27 01:29:12 assar Exp $");
+RCSID("$Id: changepw.c,v 1.35 2002/06/06 13:33:13 joda Exp $");
 
 static krb5_error_code
 send_request (krb5_context context,
@@ -271,7 +271,7 @@ krb5_change_password (krb5_context	context,
     if (ret)
 	goto out;
 
-    while (krb5_krbhst_next(context, handle, &hi) == 0) {
+    while (!done && (ret = krb5_krbhst_next(context, handle, &hi)) == 0) {
 	struct addrinfo *ai, *a;
 
 	ret = krb5_krbhst_get_addrinfo(context, hi, &ai);

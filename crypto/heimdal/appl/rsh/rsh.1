@@ -1,4 +1,4 @@
-.\"	$Id: rsh.1,v 1.1 2001/07/31 08:13:41 joda Exp $
+.\"	$Id: rsh.1,v 1.3 2002/08/20 17:07:08 joda Exp $
 .\"
 .Dd July 31, 2001
 .Dt RSH 1
@@ -10,17 +10,17 @@ remote shell
 .Sh SYNOPSIS
 .Nm
 .Op Fl 45FGKdefnuxz
-.Op Fl U Pa string 
+.Op Fl U Pa string
 .Op Fl p Ar port
 .Op Fl l Ar username
 .Ar host [command]
 .Sh DESCRIPTION
 .Nm
-authenticates to the 
-.Xr rshd 8 
+authenticates to the
+.Xr rshd 8
 daemon on the remote
 .Ar host ,
-and then executes the specified 
+and then executes the specified
 .Ar command .
 .Pp
 .Nm
@@ -30,51 +30,51 @@ output and error of the remote command to its own.
 Valid options are:
 .Bl -tag -width Ds
 .It Xo
-.Fl 4 Ns ,
+.Fl 4 ,
 .Fl -krb4
 .Xc
-The 
-.Fl 4 
+The
+.Fl 4
 option requests Kerberos 4 authentication. Normally all supported
 authentication mechanisms will be tried, but in some cases more
 explicit control is desired.
 .It Xo
-.Fl 5 Ns ,
+.Fl 5 ,
 .Fl -krb5
 .Xc
-The 
+The
 .Fl 5
-option requests Kerberos 5 authentication. This is analogous to the 
+option requests Kerberos 5 authentication. This is analogous to the
 .Fl 4
 option.
 .It Xo
-.Fl K Ns ,
+.Fl K ,
 .Fl -broken
 .Xc
-The 
+The
 .Fl K
 option turns off all Kerberos authentication. The long name implies
 that this is more or less totally unsecure. The security in this mode
 relies on reserved ports, which is not very secure.
 .It Xo
-.Fl n Ns ,
+.Fl n ,
 .Fl -no-input
 .Xc
-The 
+The
 .Fl n
-option directs the input from the 
+option directs the input from the
 .Pa /dev/null
 device (see the
 .Sx BUGS
 section of this manual page).
 .It Xo
-.Fl e Ns ,
+.Fl e ,
 .Fl -no-stderr
 .Xc
 Don't use a separate socket for the stderr stream. This can be
 necessary if rsh-ing through a NAT bridge.
 .It Xo
-.Fl x Ns ,
+.Fl x ,
 .Fl -encrypt
 .Xc
 The
@@ -89,46 +89,46 @@ section for limitations).
 The opposite of
 .Fl x .
 This is the default, but encryption can be enabled when using
-Kerberos 5, by setting the 
+Kerberos 5, by setting the
 .Li libdefaults/encrypt
 option in
 .Xr krb5.conf 5 .
 .It Xo
-.Fl f Ns ,
+.Fl f ,
 .Fl -forward
 .Xc
-Forward Kerberos 5 credentials to the remote host. Also controlled by 
+Forward Kerberos 5 credentials to the remote host. Also controlled by
 .Li libdefaults/forward
-in 
+in
 .Xr krb5.conf 5 .
 .It Xo
 .Fl G
 .Xc
-The opposite of 
+The opposite of
 .Fl f .
 .It Xo
-.Fl F Ns ,
+.Fl F ,
 .Fl -forwardable
 .Xc
-Make the forwarded credentials re-forwardable. Also controlled by 
+Make the forwarded credentials re-forwardable. Also controlled by
 .Li libdefaults/forwardable
-in 
+in
 .Xr krb5.conf 5 .
 .It Xo
-.Fl u Ns ,
+.Fl u ,
 .Fl -unique
 .Xc
 Make sure the remote credentials cache is unique, that is, don't reuse
 any existing cache. Mutually exclusive to
 .Fl U .
 .It Xo
-.Fl U Pa string Ns ,
+.Fl U Pa string ,
 .Fl -tkfile= Ns Pa string
 .Xc
 Name of the remote credentials cache. Mutually exclusive to
 .Fl u .
 .It Xo
-.Fl p Ar number-or-service Ns ,
+.Fl p Ar number-or-service ,
 .Fl -port= Ns Ar number-or-service
 .Xc
 Connect to this port instead of the default (which is 514 when using
@@ -137,7 +137,7 @@ Kerberos 4, and 545 for encrytpted Kerberos 4; subject of course to
 the contents of
 .Pa /etc/services ) .
 .It Xo
-.Fl l Ar string Ns ,
+.Fl l Ar string ,
 .Fl -user= Ns Ar string
 .Xc
 By default the remote username is the same as the local. The
@@ -147,8 +147,8 @@ option or the
 format allow the remote name to be specified.
 .El
 .\".Pp
-.\"Without a 
-.\".Ar command 
+.\"Without a
+.\".Ar command
 .\".Nm
 .\"will just exec
 .\".Xr rlogin 1
@@ -200,13 +200,13 @@ was written as part of the Heimdal Kerberos 5 implementation.
 .Sh BUGS
 Some shells (notably
 .Xr csh 1 )
-will cause 
-.Nm 
-to block if run in the background, unless the standard input is directed away from the terminal. This is what the 
+will cause
+.Nm
+to block if run in the background, unless the standard input is directed away from the terminal. This is what the
 .Fl n
 option is for.
 .Pp
-The 
+The
 .Fl x
 options enables encryption for the session, but for both Kerberos 4
 and 5 the actual command is sent unencrypted, so you should not send

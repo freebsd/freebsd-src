@@ -1,4 +1,4 @@
-# $Id: Makefile.am,v 1.31 2000/07/02 16:08:29 assar Exp $
+# $Id: Makefile.am,v 1.32 2002/05/24 15:36:21 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -7,7 +7,7 @@ SUBDIRS = kadm5
 noinst_PROGRAMS = bits
 CHECK_LOCAL =
 
-INCLUDES = -DHOST=\"$(CANONICAL_HOST)\"
+INCLUDES += -DHOST=\"$(CANONICAL_HOST)\"
 
 include_HEADERS = krb5-types.h
 

@@ -38,7 +38,7 @@
 #endif
 #include "getarg.h"
 
-RCSID("$Id: ftpd.c,v 1.160 2001/09/13 09:17:14 joda Exp $");
+RCSID("$Id: ftpd.c,v 1.161 2002/02/28 15:50:14 joda Exp $");
 
 static char version[] = "Version 6.00";
 
@@ -312,6 +312,11 @@ main(int argc, char **argv)
 		defumask = val;
 	}
     }
+    sp = getservbyname("ftp", "tcp");
+    if(sp)
+	port = sp->s_port;
+    else
+	port = htons(21);
     if(port_string) {
 	sp = getservbyname(port_string, "tcp");
 	if(sp)
@@ -321,12 +326,6 @@ main(int argc, char **argv)
 		port = htons(atoi(port_string));
 	    else
 		warnx("bad value for -p");
-    } else {
-	sp = getservbyname("ftp", "tcp");
-	if(sp)
-	    port = sp->s_port;
-	else
-	    port = htons(21);
     }
 		    
     if (maxtimeout < ftpd_timeout)
@@ -2165,8 +2164,10 @@ list_file(char *file)
 	if (dout == NULL)
 	    return;
 	set_buffer_size(fileno(dout), 0);
-	builtin_ls(dout, file);
-	reply(226, "Transfer complete.");
+	if(builtin_ls(dout, file) == 0)
+	    reply(226, "Transfer complete.");
+	else
+	    reply(451, "Requested action aborted. Local error in processing.");
 	fclose(dout);
 	data = -1;
 	pdata = -1;

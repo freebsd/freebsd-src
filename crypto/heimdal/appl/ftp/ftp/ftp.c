@@ -32,7 +32,7 @@
  */
 
 #include "ftp_locl.h"
-RCSID ("$Id: ftp.c,v 1.70 2001/09/07 20:28:10 nectar Exp $");
+RCSID ("$Id: ftp.c,v 1.73 2002/08/28 16:10:39 joda Exp $");
 
 struct sockaddr_storage hisctladdr_ss;
 struct sockaddr *hisctladdr = (struct sockaddr *)&hisctladdr_ss;
@@ -277,16 +277,17 @@ command (char *fmt,...)
 	return (0);
     }
     oldintr = signal(SIGINT, cmdabort);
-    va_start(ap, fmt);
     if(debug){
 	printf("---> ");
 	if (strncmp("PASS ", fmt, 5) == 0)
 	    printf("PASS XXXX");
-	else 
+	else {
+	    va_start(ap, fmt);
 	    vfprintf(stdout, fmt, ap);
-	va_end(ap);
-	va_start(ap, fmt);
+	    va_end(ap);
+	}
     }
+    va_start(ap, fmt);
     sec_vfprintf(cout, fmt, ap);
     va_end(ap);
     if(debug){
@@ -312,7 +313,9 @@ getreply (int expecteof)
     char *lead_string;
     int c;
     struct sigaction sa, osa;
-    char buf[1024];
+    char buf[8192];
+    int reply_code;
+    int long_warn = 0;
 
     sigemptyset (&sa.sa_mask);
     sa.sa_flags = 0;
@@ -321,6 +324,7 @@ getreply (int expecteof)
 
     p = buf;
 
+    reply_code = 0;
     while (1) {
 	c = getc (cin);
 	switch (c) {
@@ -350,14 +354,17 @@ getreply (int expecteof)
 	    if(isdigit(buf[0])){
 		sscanf(buf, "%d", &code);
 		if(code == 631){
+		    code = 0;
 		    sec_read_msg(buf, prot_safe);
 		    sscanf(buf, "%d", &code);
 		    lead_string = "S:";
 		} else if(code == 632){
+		    code = 0;
 		    sec_read_msg(buf, prot_private);
 		    sscanf(buf, "%d", &code);
 		    lead_string = "P:";
 		}else if(code == 633){
+		    code = 0;
 		    sec_read_msg(buf, prot_confidential);
 		    sscanf(buf, "%d", &code);
 		    lead_string = "C:";
@@ -365,10 +372,12 @@ getreply (int expecteof)
 		    lead_string = "!!";
 		else
 		    lead_string = "";
+		if(code != 0 && reply_code == 0)
+		    reply_code = code;
 		if (verbose > 0 || (verbose > -1 && code > 499))
 		    fprintf (stdout, "%s%s\n", lead_string, buf);
-		if (buf[3] == ' ') {
-		    strcpy (reply_string, buf);
+		if (code == reply_code && buf[3] == ' ') {
+		    strlcpy (reply_string, buf, sizeof(reply_string));
 		    if (code >= 200)
 			cpend = 0;
 		    sigaction (SIGINT, &osa, NULL);
@@ -381,17 +390,12 @@ getreply (int expecteof)
 			osa.sa_handler (SIGINT);
 #endif
 		    if (code == 227 || code == 229) {
-			char *p, *q;
+			char *p;
 
-			pasv[0] = 0;
 			p = strchr (reply_string, '(');
 			if (p) {
 			    p++;
-			    q = strchr(p, ')');
-			    if(q){
-				memcpy (pasv, p, q - p);
-				pasv[q - p] = 0;
-			    }
+			    strlcpy(pasv, p, sizeof(pasv));
 			}
 		    }
 		    return code / 100;
@@ -404,9 +408,15 @@ getreply (int expecteof)
 		}
 	    }
 	    p = buf;
+	    long_warn = 0;
 	    continue;
 	default:
-	    *p++ = c;
+	    if(p < buf + sizeof(buf) - 1)
+		*p++ = c; 
+	    else if(long_warn == 0) {
+		fprintf(stderr, "WARNING: incredibly long line received\n");
+		long_warn = 1;
+	    }
 	}
     }
 

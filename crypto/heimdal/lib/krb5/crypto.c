@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: crypto.c,v 1.60 2002/01/06 23:12:51 assar Exp $");
+RCSID("$Id: crypto.c,v 1.64 2002/04/29 16:31:54 joda Exp $");
 
 #undef CRYPTO_DEBUG
 #ifdef CRYPTO_DEBUG
@@ -139,7 +139,7 @@ static struct key_data *_new_derived_key(krb5_crypto crypto, unsigned usage);
  ************************************************************/
 
 static void
-DES_random_key(krb5_context context,
+krb5_DES_random_key(krb5_context context,
 	       krb5_keyblock *key)
 {
     des_cblock *k = key->keyvalue.data;
@@ -150,7 +150,7 @@ DES_random_key(krb5_context context,
 }
 
 static void
-DES_schedule(krb5_context context,
+krb5_DES_schedule(krb5_context context,
 	     struct key_data *key)
 {
     des_set_key(key->key->keyvalue.data, key->schedule->data);
@@ -188,7 +188,7 @@ DES_string_to_key_int(unsigned char *data, size_t length, des_cblock *key)
 }
 
 static krb5_error_code
-DES_string_to_key(krb5_context context,
+krb5_DES_string_to_key(krb5_context context,
 		  krb5_enctype enctype,
 		  krb5_data password,
 		  krb5_salt salt,
@@ -225,7 +225,7 @@ DES_string_to_key(krb5_context context,
  * Short passwords, i.e 8 characters or less.
  */
 static void
-DES_AFS3_CMU_string_to_key (krb5_data pw,
+krb5_DES_AFS3_CMU_string_to_key (krb5_data pw,
 			    krb5_data cell,
 			    des_cblock *key)
 {
@@ -254,7 +254,7 @@ DES_AFS3_CMU_string_to_key (krb5_data pw,
  * Long passwords, i.e 9 characters or more.
  */
 static void
-DES_AFS3_Transarc_string_to_key (krb5_data pw,
+krb5_DES_AFS3_Transarc_string_to_key (krb5_data pw,
 				 krb5_data cell,
 				 des_cblock *key)
 {
@@ -301,9 +301,9 @@ DES_AFS3_string_to_key(krb5_context context,
 {
     des_cblock tmp;
     if(password.length > 8)
-	DES_AFS3_Transarc_string_to_key(password, salt.saltvalue, &tmp);
+	krb5_DES_AFS3_Transarc_string_to_key(password, salt.saltvalue, &tmp);
     else
-	DES_AFS3_CMU_string_to_key(password, salt.saltvalue, &tmp);
+	krb5_DES_AFS3_CMU_string_to_key(password, salt.saltvalue, &tmp);
     key->keytype = enctype;
     krb5_data_copy(&key->keyvalue, tmp, sizeof(tmp));
     memset(&key, 0, sizeof(key));
@@ -385,7 +385,7 @@ DES3_string_to_key(krb5_context context,
 	    memcpy(keys + i, tmp + i * 8, sizeof(keys[i]));
 	    des_set_odd_parity(keys + i);
 	    if(des_is_weak_key(keys + i))
-		xor(keys + i, (unsigned char*)"\0\0\0\0\0\0\0\xf0");
+		xor(keys + i, (const unsigned char*)"\0\0\0\0\0\0\0\xf0");
 	    des_set_key(keys + i, s[i]);
 	}
 	memset(&ivec, 0, sizeof(ivec));
@@ -398,7 +398,7 @@ DES3_string_to_key(krb5_context context,
 	    memcpy(keys + i, tmp + i * 8, sizeof(keys[i]));
 	    des_set_odd_parity(keys + i);
 	    if(des_is_weak_key(keys + i))
-		xor(keys + i, (unsigned char*)"\0\0\0\0\0\0\0\xf0");
+		xor(keys + i, (const unsigned char*)"\0\0\0\0\0\0\0\xf0");
 	}
 	memset(tmp, 0, sizeof(tmp));
     }
@@ -508,8 +508,8 @@ struct key_type keytype_des = {
     56,
     sizeof(des_cblock),
     sizeof(des_key_schedule),
-    DES_random_key,
-    DES_schedule,
+    krb5_DES_random_key,
+    krb5_DES_schedule,
     des_salt
 };
 
@@ -571,7 +571,7 @@ struct salt_type des_salt[] = {
     {
 	KRB5_PW_SALT,
 	"pw-salt",
-	DES_string_to_key
+	krb5_DES_string_to_key
     },
     {
 	KRB5_AFS3_SALT,
@@ -1867,29 +1867,35 @@ ARCFOUR_subdecrypt(krb5_context context,
  * draft-brezak-win2k-krb-rc4-hmac-03.txt
  */
 
-static int
-usage2arcfour (int usage)
+static krb5_error_code
+usage2arcfour (krb5_context context, int *usage)
 {
-    switch (usage) {
+    switch (*usage) {
     case KRB5_KU_PA_ENC_TIMESTAMP :
-	return 1;
+	*usage = 1;
+	return 0;
     case KRB5_KU_TICKET :
-	return 8;
+	*usage = 8;
     case KRB5_KU_AS_REP_ENC_PART :
-	return 8;
+	*usage = 8;
+	return 0;
     case KRB5_KU_TGS_REQ_AUTH_DAT_SESSION :
     case KRB5_KU_TGS_REQ_AUTH_DAT_SUBKEY :
     case KRB5_KU_TGS_REQ_AUTH_CKSUM :
     case KRB5_KU_TGS_REQ_AUTH :
-	return 7;
+	*usage = 7;
+	return 0;
     case KRB5_KU_TGS_REP_ENC_PART_SESSION :
     case KRB5_KU_TGS_REP_ENC_PART_SUB_KEY :
-	return 8;
+	*usage = 8;
+	return 0;
     case KRB5_KU_AP_REQ_AUTH_CKSUM :
     case KRB5_KU_AP_REQ_AUTH :
     case KRB5_KU_AP_REQ_ENC_PART :
-	return 11;
+	*usage = 11;
+	return 0;
     case KRB5_KU_KRB_PRIV :
+	*usage = 0;
 	return 0;
     case KRB5_KU_KRB_CRED :
     case KRB5_KU_KRB_SAFE_CKSUM :
@@ -1903,7 +1909,8 @@ usage2arcfour (int usage)
     case KRB5_KU_USAGE_SIGN :
     case KRB5_KU_USAGE_SEQ :
     default :
-	abort ();
+	krb5_set_error_string(context, "unknown arcfour usage type %d", *usage);
+	return KRB5_PROG_ETYPE_NOSUPP;
     }
 }
 
@@ -1916,7 +1923,9 @@ ARCFOUR_encrypt(krb5_context context,
 		int usage,
 		void *ivec)
 {
-    usage = usage2arcfour (usage);
+    krb5_error_code ret;
+    if((ret = usage2arcfour (context, &usage)) != 0)
+	return ret;
 
     if (encrypt)
 	return ARCFOUR_subencrypt (context, key, data, len, usage, ivec);
@@ -3000,6 +3009,11 @@ krb5_crypto_init(krb5_context context,
 	krb5_set_error_string (context, "encryption type %d not supported",
 			       etype);
 	return KRB5_PROG_ETYPE_NOSUPP;
+    }
+    if((*crypto)->et->keytype->size != key->keyvalue.length) {
+	free(*crypto);
+	krb5_set_error_string (context, "encryption key has bad length");
+	return KRB5_BAD_KEYSIZE;
     }
     ret = krb5_copy_keyblock(context, key, &(*crypto)->key.key);
     if(ret) {

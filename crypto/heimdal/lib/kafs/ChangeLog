@@ -1,3 +1,20 @@
+2002-08-28  Johan Danielsson  <joda@pdc.kth.se>
+
+	* kafs.3: move around sections (from NetBSD)
+
+2002-05-31  Assar Westerlund  <assar@pdc.kth.se>
+
+	* common.c: remove the trial of afs@REALM for cell != realm, it
+	tries to use the wrong key for foreign cells
+
+2002-05-20  Johan Danielsson  <joda@pdc.kth.se>
+
+	* Makefile.am: version number
+
+2002-04-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* common.c (find_cells): make file parameter const
+
 2001-11-01  Assar Westerlund  <assar@sics.se>
 
 	* add strsep, and bump version to 3:3:3

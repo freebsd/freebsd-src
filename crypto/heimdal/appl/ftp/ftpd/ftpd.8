@@ -44,7 +44,7 @@
 .Op Fl a Ar authmode
 .Op Fl dilvU
 .Op Fl g Ar umask
-.Op Fl p Ar port 
+.Op Fl p Ar port
 .Op Fl T Ar maxtimeout
 .Op Fl t Ar timeout
 .Op Fl u Ar default umask
@@ -89,7 +89,7 @@ The following combination modes exists for backwards compatibility:
 Same as
 .Ar plain,ftp .
 .It Ar safe
-Same as 
+Same as
 .Ar ftp .
 .It Ar user
 Ignored.
@@ -103,7 +103,7 @@ Anonymous users will get a umask of
 Open a socket and wait for a connection. This is mainly used for
 debugging when ftpd isn't started by inetd.
 .It Fl l
-Each successful and failed 
+Each successful and failed
 .Xr ftp 1
 session is logged using syslog with a facility of LOG_FTP.
 If this option is specified twice, the retrieve (get), store (put), append,
@@ -112,7 +112,7 @@ their filename arguments are also logged.
 .It Fl p
 Use
 .Ar port
-(a service name or number) instead of the default 
+(a service name or number) instead of the default
 .Ar ftp/tcp .
 .It Fl T
 A client may also request a different timeout period;
@@ -131,15 +131,15 @@ Set the initial umask to something else than the default 027.
 .It Fl U
 In previous versions of
 .Nm ftpd ,
-when a passive mode client requested a data connection to the server, the 
-server would use data ports in the range 1024..4999.  Now, by default, 
+when a passive mode client requested a data connection to the server, the
+server would use data ports in the range 1024..4999.  Now, by default,
 if the system supports the IP_PORTRANGE socket option, the server will
 use data ports in the range 49152..65535.  Specifying this option will
-revert to the old behavior.  
+revert to the old behavior.
 .It Fl v
 Verbose mode.
 .It Xo
-.Fl B Ns ,
+.Fl B ,
 .Fl -builtin-ls
 .Xc
 use built-in ls to list files
@@ -159,7 +159,7 @@ If the file
 .Pa /etc/ftpwelcome
 exists,
 .Nm
-prints it before issuing the 
+prints it before issuing the
 .Dq ready
 message.
 If the file
@@ -231,13 +231,13 @@ by the
 SITE request.
 .Pp
 .Bl -column Request -offset indent
-.It UMASK Ta change umask, (e.g. 
+.It UMASK Ta change umask, (e.g.
 .Ic "SITE UMASK 002" )
-.It IDLE Ta set idle-timer, (e.g. 
+.It IDLE Ta set idle-timer, (e.g.
 .Ic "SITE IDLE 60" )
-.It CHMOD Ta change mode of a file (e.g. 
+.It CHMOD Ta change mode of a file (e.g.
 .Ic "SITE CHMOD 755 filename" )
-.It FIND Ta quickly find a specific file with GNU 
+.It FIND Ta quickly find a specific file with GNU
 .Xr locate 1 .
 .It HELP Ta give help information.
 .El
@@ -273,7 +273,7 @@ This allows users to utilize the metacharacters
 .Dq Li \&*?[]{}~ .
 .Pp
 .Nm Ftpd
-authenticates users according to these rules. 
+authenticates users according to these rules.
 .Pp
 .Bl -enum -offset indent
 .It
@@ -295,7 +295,7 @@ for more information on OTP authentication.
 The login name must not appear in the file
 .Pa /etc/ftpusers .
 .It
-The user must have a standard shell returned by 
+The user must have a standard shell returned by
 .Xr getusershell 3 .
 .It
 If the user name appears in the file
@@ -307,7 +307,7 @@ as for an
 or
 .Dq ftp
 account (see next item).  However, the user must still supply a password.
-This feature is intended as a compromise between a fully anonymous account 
+This feature is intended as a compromise between a fully anonymous account
 and a fully privileged account.  The account should also be set up as for an
 anonymous account.
 .It
@@ -324,10 +324,10 @@ to log in by specifying any password (by convention an email address for
 the user should be used as the password).
 .El
 .Pp
-In the last case, 
+In the last case,
 .Nm ftpd
 takes special measures to restrict the client's access privileges.
-The server performs a 
+The server performs a
 .Xr chroot 2
 to the home directory of the
 .Dq ftp
@@ -348,14 +348,14 @@ file). No files should be owned or writable by
 as specified below).
 .Bl -tag -width "~ftp/pub" -offset indent
 .It Pa ~ftp
-The 
+The
 .Dq ftp
 homedirectory should be owned by root.
 .It Pa ~ftp/bin
-The directory for external programs (such as 
+The directory for external programs (such as
 .Xr ls 1 ) .
 These programs must either be statically linked, or you must setup an
-environment for dynamic linking when running chrooted.  
+environment for dynamic linking when running chrooted.
 These programs will be used if present:
 .Bl -tag -width "locate" -offset indent
 .It ls
@@ -376,30 +376,30 @@ Enables retrieval of whole directories as files ending in
 .Pa .tar .
 Can also be combined with compression. You must use GNU Tar (or some
 other that supports the
-.Fl z 
+.Fl z
 and
 .Fl Z
 flags).
 .It locate
-Will enable ``fast find'' with the 
+Will enable ``fast find'' with the
 .Ic SITE FIND
-command. You must also create a 
+command. You must also create a
 .Pa locatedb
-file in 
+file in
 .Pa ~ftp/etc .
 .El
 .It Pa ~ftp/etc
 If you put copies of the
 .Xr passwd 5
-and 
+and
 .Xr group 5
 files here, ls will be able to produce owner names rather than
-numbers. Remember to remove any passwords from these files.  
+numbers. Remember to remove any passwords from these files.
 .Pp
 The file
 .Pa motd ,
 if present, will be printed after a successful login.
-.It Pa ~ftp/dev 
+.It Pa ~ftp/dev
 Put a copy of
 .Xr /dev/null 7
 here.
@@ -409,12 +409,12 @@ Traditional place to put whatever you want to make public.
 .Pp
 If you want guests to be able to upload files, create a
 .Pa ~ftp/incoming
-directory owned by 
+directory owned by
 .Dq root ,
 and group
 .Dq ftp
-with mode 730 (make sure 
-.Dq ftp 
+with mode 730 (make sure
+.Dq ftp
 is member of group
 .Dq ftp ) .
 The following restrictions apply to anonymous users:
@@ -427,25 +427,25 @@ with the
 .Fl g
 option.
 .It
-These command are not accessible: 
-.Ic DELE , RMD , RNTO , RNFR , 
+These command are not accessible:
+.Ic DELE , RMD , RNTO , RNFR ,
 .Ic SITE UMASK ,
 and
 .Ic SITE CHMOD .
 .It
 Filenames must start with an alpha-numeric character, and consist of
-alpha-numeric characters or any of the following: 
-.Li \&+  
+alpha-numeric characters or any of the following:
+.Li \&+
 (plus),
-.Li \&-  
+.Li \&-
 (minus),
-.Li \&=  
+.Li \&=
 (equal),
-.Li \&_  
+.Li \&_
 (underscore),
-.Li \&.  
+.Li \&.
 (period), and
-.Li \&,  
+.Li \&,
 (comma).
 .El
 .Sh FILES

@@ -1,18 +1,12 @@
-dnl $Id: broken.m4,v 1.4 2000/07/15 18:06:36 joda Exp $
+dnl $Id: broken.m4,v 1.6 2002/05/19 19:36:52 joda Exp $
 dnl
 dnl
 dnl Same as AC _REPLACE_FUNCS, just define HAVE_func if found in normal
 dnl libraries 
 
-AC_DEFUN(AC_BROKEN,
-[for ac_func in $1
-do
-AC_CHECK_FUNC($ac_func, [
-ac_tr_func=HAVE_[]upcase($ac_func)
-AC_DEFINE_UNQUOTED($ac_tr_func)],[LIBOBJS[]="$LIBOBJS ${ac_func}.o"])
-if false; then
-	AC_CHECK_FUNCS($1)
-fi
-done
-AC_SUBST(LIBOBJS)dnl
-])
+AC_DEFUN([AC_BROKEN],
+[AC_FOREACH([rk_func], [$1],
+	[AC_CHECK_FUNC(rk_func,
+		[AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_[]rk_func), 1, 
+			[Define if you have the function `]rk_func['.])],
+		[rk_LIBOBJ(rk_func)])])])

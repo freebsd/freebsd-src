@@ -727,7 +727,7 @@ main(argc, argv)
 
 #ifdef DEBUG
   close(2);
-  open("/tmp/k5dce.debug",O_WRONLY|O_CREAT|O_APPEND);
+  open("/tmp/k5dce.debug",O_WRONLY|O_CREAT|O_APPEND, 0600);
 #endif
 
   if (myuid = getuid()) {

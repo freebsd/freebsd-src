@@ -1,6 +1,6 @@
 /* -*- C -*- */
 /*
- * Copyright (c) 1995 - 2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995 - 2002 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  * 
@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: roken.h.in,v 1.162 2001/10/21 23:24:33 assar Exp $ */
+/* $Id: roken.h.in,v 1.169 2002/08/26 21:43:38 assar Exp $ */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -140,6 +140,10 @@ struct sockaddr_dl;
 #endif
 #endif
 
+#ifndef HAVE_SSIZE_T
+typedef int ssize_t;
+#endif
+
 #include <roken-common.h>
 
 ROKEN_CPP_START
@@ -199,7 +203,7 @@ int vasnprintf (char **ret, size_t max_sz, const char *format, va_list ap)
 char * strdup(const char *old);
 #endif
 
-#ifndef HAVE_STRNDUP
+#if !defined(HAVE_STRNDUP) || defined(NEED_STRNDUP_PROTO)
 char * strndup(const char *old, size_t sz);
 #endif
 
@@ -395,8 +399,6 @@ int flock(int fd, int operation);
 time_t tm2time (struct tm tm, int local);
 
 int unix_verify_user(char *user, char *password);
-
-void mini_inetd (int port);
 
 int roken_concat (char *s, size_t len, ...);
 
@@ -631,12 +633,50 @@ void setprogname(const char *argv0);
 const char *getprogname(void);
 #endif
 
+void mini_inetd_addrinfo (struct addrinfo*);
+void mini_inetd (int port);
+
 void set_progname(char *argv0);
 const char *get_progname(void);
 
 #ifndef HAVE_LOCALTIME_R
 struct tm *
 localtime_r(const time_t *timer, struct tm *result);
+#endif
+
+#if !defined(HAVE_STRSVIS) || defined(NEED_STRSVIS_PROTO)
+int
+strsvis(char *dst, const char *src, int flag, const char *extra);
+#endif
+
+#if !defined(HAVE_STRUNVIS) || defined(NEED_STRUNVIS_PROTO)
+int
+strunvis(char *dst, const char *src);
+#endif
+
+#if !defined(HAVE_STRVIS) || defined(NEED_STRVIS_PROTO)
+int
+strvis(char *dst, const char *src, int flag);
+#endif
+
+#if !defined(HAVE_STRVISX) || defined(NEED_STRVISX_PROTO)
+int
+strvisx(char *dst, const char *src, size_t len, int flag);
+#endif
+
+#if !defined(HAVE_SVIS) || defined(NEED_SVIS_PROTO)
+char *
+svis(char *dst, int c, int flag, int nextc, const char *extra);
+#endif
+
+#if !defined(HAVE_UNVIS) || defined(NEED_UNVIS_PROTO)
+int
+unvis(char *cp, int c, int *astate, int flag);
+#endif
+
+#if !defined(HAVE_VIS) || defined(NEED_VIS_PROTO)
+char *
+vis(char *dst, int c, int flag, int nextc);
 #endif
 
 ROKEN_CPP_END
