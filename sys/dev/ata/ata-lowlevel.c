@@ -480,7 +480,7 @@ ata_interrupt(void *data)
 static void
 ata_reset(struct ata_channel *ch)
 {
-    u_int8_t lsb, msb, ostat0, ostat1;
+    u_int8_t err, lsb, msb, ostat0, ostat1;
     u_int8_t stat0 = 0, stat1 = 0;
     int mask = 0, timeout;
 
@@ -496,6 +496,7 @@ ata_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(10);	
     ostat1 = ATA_IDX_INB(ch, ATA_STATUS);
+
     /* in some setups we dont want to test for a slave */
     if (!(ch->flags & ATA_NO_SLAVE)) {
 	if ((ostat1 & 0xf8) != 0xf8 && ostat1 != 0xa5) {
@@ -511,7 +512,7 @@ ata_reset(struct ata_channel *ch)
 	return;
 
     if (bootverbose)
-	ata_printf(ch, -1, "pre reset mask=%02x ostat0=%02x ostat2=%02x\n",
+	ata_printf(ch, -1, "reset tp1 mask=%02x ostat0=%02x ostat1=%02x\n",
 		   mask, ostat0, ostat1);
 
     /* reset channel */
@@ -527,36 +528,40 @@ ata_reset(struct ata_channel *ch)
 	if (stat0 & ATA_S_BUSY) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	    DELAY(10);
-    	    ATA_IDX_INB(ch, ATA_ERROR);
+    	    err = ATA_IDX_INB(ch, ATA_ERROR);
+	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
 	    stat0 = ATA_IDX_INB(ch, ATA_STATUS);
-	    if (!(stat0 & ATA_S_BUSY)) {
-		/* check for ATAPI signature while its still there */
-		lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-		msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-		if (bootverbose)
-		    ata_printf(ch, ATA_MASTER, "ATAPI %02x %02x\n", lsb, msb);
-		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
+	    if (bootverbose)
+		ata_printf(ch, ATA_MASTER,
+			   "stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
+			   stat0, err, lsb, msb);
+	    if (!(stat0 & ATA_S_BUSY) && err == ATA_E_ILI) {
+		if (stat0 & ATA_S_READY) {
+		    ch->devices |= ATA_ATA_MASTER;
+		}
+		else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 		    ch->devices |= ATA_ATAPI_MASTER;
-		    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
-		    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 		}
 	    }
 	}
 	if (stat1 & ATA_S_BUSY) {
 	    ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	    DELAY(10);
-    	    ATA_IDX_INB(ch, ATA_ERROR);
+    	    err = ATA_IDX_INB(ch, ATA_ERROR);
+	    lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+	    msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
 	    stat1 = ATA_IDX_INB(ch, ATA_STATUS);
-	    if (!(stat1 & ATA_S_BUSY)) {
-		/* check for ATAPI signature while its still there */
-		lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-		msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-		if (bootverbose)
-		    ata_printf(ch, ATA_SLAVE, "ATAPI %02x %02x\n", lsb, msb);
-		if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
+	    if (bootverbose)
+		ata_printf(ch, ATA_SLAVE,
+			   "stat=0x%02x err=0x%02x lsb=0x%02x msb=0x%02x\n",
+			   stat0, err, lsb, msb);
+	    if (!(stat1 & ATA_S_BUSY) && err == ATA_E_ILI) {
+		if (stat1 & ATA_S_READY) {
+		    ch->devices |= ATA_ATA_SLAVE;
+		}
+		else if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 		    ch->devices |= ATA_ATAPI_SLAVE;
-		    ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0x00);
-		    ATA_IDX_OUTB(ch, ATA_CYL_MSB, 0x00);
 		}
 	    }
 	}
@@ -567,51 +572,55 @@ ata_reset(struct ata_channel *ch)
 	    if (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20))
 		break;
 	if (mask == 0x03)      /* wait for both master & slave */
-	    if ((!(stat0 & ATA_S_BUSY) && !(stat1 & ATA_S_BUSY)) ||
-		(stat0 == 0xff && stat1 == 0xff && timeout > 20))
-
+	    if ((!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 20)) &&
+	        (!(stat1 & ATA_S_BUSY) || (stat1 == 0xff && timeout > 20)))
 		break;
 	DELAY(100000);
     }	
-    DELAY(10);
-    ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_4BIT);
 
     if (stat0 & ATA_S_BUSY)
 	mask &= ~0x01;
     if (stat1 & ATA_S_BUSY)
 	mask &= ~0x02;
+
     if (bootverbose)
-	ata_printf(ch, -1, "after reset mask=%02x stat0=%02x stat1=%02x\n", 
-		   mask, stat0, stat1);
+	ata_printf(ch, -1,
+		   "reset tp2 mask=%02x stat0=%02x stat1=%02x devices=0x%b\n",
+		   mask, stat0, stat1, ch->devices,
+		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
     if (!mask)
 	return;
 
-    if (mask & 0x01 && ostat0 != 0x00 && !(ch->devices & ATA_ATAPI_MASTER)) {
+    if (mask & 0x01 && ostat0 != 0x00 &&
+        !(ch->devices & (ATA_ATA_MASTER | ATA_ATAPI_MASTER))) {
 	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
 	DELAY(10);
 	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
 	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
-	lsb = ATA_IDX_INB(ch, ATA_ERROR);
-	msb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+	err = ATA_IDX_INB(ch, ATA_ERROR);
+	lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 	if (bootverbose)
-	    ata_printf(ch, ATA_MASTER, "ATA %02x %02x\n", lsb, msb);
-	if (lsb != 0x58 && msb == 0xa5)
+	    ata_printf(ch, ATA_MASTER, "ATA err=0x%02x lsb=0x%02x\n", err, lsb);
+	if (err != 0x58 && lsb == 0xa5)
 	    ch->devices |= ATA_ATA_MASTER;
     }
-    if (mask & 0x02 && ostat1 != 0x00 && !(ch->devices & ATA_ATAPI_SLAVE)) {
+    if (mask & 0x02 && ostat1 != 0x00 &&
+	!(ch->devices & (ATA_ATA_SLAVE | ATA_ATAPI_SLAVE))) {
 	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
 	DELAY(10);
 	ATA_IDX_OUTB(ch, ATA_ERROR, 0x58);
 	ATA_IDX_OUTB(ch, ATA_CYL_LSB, 0xa5);
-	lsb = ATA_IDX_INB(ch, ATA_ERROR);
-	msb = ATA_IDX_INB(ch, ATA_CYL_LSB);
+	err = ATA_IDX_INB(ch, ATA_ERROR);
+	lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
 	if (bootverbose)
-	    ata_printf(ch, ATA_SLAVE, "ATA %02x %02x\n", lsb, msb);
-	if (lsb != 0x58 && msb == 0xa5)
+	    ata_printf(ch, ATA_SLAVE, "ATA err=0x%02x lsb=0x%02x\n", err, lsb);
+	if (err != 0x58 && lsb == 0xa5)
 	    ch->devices |= ATA_ATA_SLAVE;
     }
+
     if (bootverbose)
-	ata_printf(ch, -1, "devices=%02x\n", ch->devices);
+	ata_printf(ch, -1, "reset tp3 devices=0x%b\n", ch->devices,
+		   "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
 }
 
 static int
@@ -681,6 +690,9 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	ata_prtdev(atadev, "timeout sending command=%02x\n", command);
 	return -1;
     }
+
+    /* enable interrupt */
+    ATA_IDX_OUTB(atadev->channel, ATA_ALTSTAT, ATA_A_4BIT);
 
     /* only use 48bit addressing if needed (avoid bugs and overhead) */
     if ((lba > 268435455 || count > 256) && atadev->param && 
