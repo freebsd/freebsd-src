@@ -131,10 +131,6 @@ measure(maxmsec, wmsec, hname, addr, print)
 
 	FD_ZERO(&ready);
 
-#ifdef sgi
-	sginap(1);			/* start at a clock tick */
-#endif /* sgi */
-
 	(void)gettimeofday(&tdone, 0);
 	mstotvround(&tout, maxmsec);
 	timevaladd(&tdone, &tout);		/* when we give up */
@@ -304,13 +300,11 @@ mstotvround(res, x)
 	struct timeval *res;
 	long x;
 {
-#ifndef sgi
 	if (x < 0)
 		x = -((-x + 3)/5);
 	else
 		x = (x+3)/5;
 	x *= 5;
-#endif /* sgi */
 	res->tv_sec = x/1000;
 	res->tv_usec = (x-res->tv_sec*1000)*1000;
 	if (res->tv_usec < 0) {

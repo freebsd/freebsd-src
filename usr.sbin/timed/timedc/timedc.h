@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)timedc.h	8.1 (Berkeley) 6/6/93
+ *
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
 #include <sys/time.h>
-#ifdef sgi
-#include <sys/uio.h>
-#endif
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>

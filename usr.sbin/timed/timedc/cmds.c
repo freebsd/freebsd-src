@@ -54,13 +54,8 @@ static const char rcsid[] =
 #define TSPTYPES
 #include <protocols/timed.h>
 
-#ifdef sgi
-#include <bstring.h>
-#include <sys/clock.h>
-#else
 #define	SECHR	(60*60)
 #define	SECDAY	(24*SECHR)
-#endif /* sgi */
 
 # define DATE_PROTO "udp"
 # define DATE_PORT "time"
