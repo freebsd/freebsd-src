@@ -114,7 +114,8 @@ READ(ap)
 			error = bread(vp, lbn, size, NOCRED, &bp);
 		else if (doclusterread)
 			error = cluster_read(vp,
-			    ip->i_size, lbn, size, NOCRED, &bp);
+			    ip->i_size, lbn, size, NOCRED,
+				uio->uio_resid, (ap->a_ioflag >> 16), &bp);
 		else if (lbn - 1 == vp->v_lastr) {
 			int nextsize = BLKSIZE(fs, ip, nextlbn);
 			error = breadn(vp, lbn,
