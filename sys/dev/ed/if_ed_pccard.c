@@ -116,7 +116,7 @@ ed_pccard_detach(device_t dev)
 	return (0);
 }
 
-const struct pccard_product sn_pccard_products[] = {
+static const struct pccard_product ed_pccard_products[] = {
 	{ PCCARD_STR_KINGSTON_KNE2,		PCCARD_VENDOR_KINGSTON,
 	  PCCARD_PRODUCT_KINGSTON_KNE2,		0, NULL, NULL },
 	{ NULL }
@@ -127,8 +127,8 @@ ed_pccard_match(device_t dev)
 {
 	const struct pccard_product *pp;
 
-	if ((pp = pccard_product_lookup(dev, sn_pccard_products,
-	    sizeof(sn_pccard_products[0]), NULL)) != NULL) {
+	if ((pp = pccard_product_lookup(dev, ed_pccard_products,
+	    sizeof(ed_pccard_products[0]), NULL)) != NULL) {
 		device_set_desc(dev, pp->pp_name);
 		return 0;
 	}
