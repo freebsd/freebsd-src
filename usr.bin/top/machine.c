@@ -19,7 +19,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.15 1998/09/11 14:38:12 dt Exp $
+ * $Id: machine.c,v 1.16 1998/11/25 09:45:28 dfr Exp $
  */
 
 
@@ -87,37 +87,32 @@ struct handle
 
 /* definitions for indices in the nlist array */
 
-
 static struct nlist nlst[] = {
 #define X_CCPU		0
-    { "_ccpu" },		/* 0 */
+    { "_ccpu" },
 #define X_CP_TIME	1
-    { "_cp_time" },		/* 1 */
-#define X_HZ		2
-    { "_hz" },		        /* 2 */
-#define X_STATHZ	3
-    { "_stathz" },		/* 3 */
-#define X_AVENRUN	4
-    { "_averunnable" },		/* 4 */
+    { "_cp_time" },
+#define X_AVENRUN	2
+    { "_averunnable" },
 
 /* Swap */
-#define VM_SWAPLIST	5
+#define VM_SWAPLIST	3
 	{ "_swaplist" },/* list of free swap areas */
-#define VM_SWDEVT	6
+#define VM_SWDEVT	4
 	{ "_swdevt" },	/* list of swap devices and sizes */
-#define VM_NSWAP	7
+#define VM_NSWAP	5
 	{ "_nswap" },	/* size of largest swap device */
-#define VM_NSWDEV	8
+#define VM_NSWDEV	6
 	{ "_nswdev" },	/* number of swap devices */
-#define VM_DMMAX	9
+#define VM_DMMAX	7
 	{ "_dmmax" },	/* maximum size of a swap block */
-#define X_BUFSPACE	10
+#define X_BUFSPACE	8
 	{ "_bufspace" },	/* K in buffer cache */
-#define X_CNT           11
+#define X_CNT           9
     { "_cnt" },		        /* struct vmmeter cnt */
 
 /* Last pid */
-#define X_LASTPID	12
+#define X_LASTPID	10
     { "_nextpid" },		
     { 0 }
 };
@@ -158,7 +153,6 @@ static double logcpu;
 
 /* these are retrieved from the kernel in _init */
 
-static          long hz;
 static load_avg  ccpu;
 
 /* these are offsets obtained via nlist and used in the get_ functions */
@@ -277,13 +271,6 @@ struct statics *statics;
     if (i > 0 && check_nlist(nlst) > 0)
     {
 	return(-1);
-    }
-
-    /* get the symbol values out of kmem */
-    (void) getkval(nlst[X_STATHZ].n_value, (int *)(&hz), sizeof(hz), "!");
-    if (!hz) {
-	(void) getkval(nlst[X_HZ].n_value, (int *)(&hz), sizeof(hz),
-		       nlst[X_HZ].n_name);
     }
 
     (void) getkval(nlst[X_CCPU].n_value,   (int *)(&ccpu),	sizeof(ccpu),
