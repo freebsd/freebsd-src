@@ -1,89 +1,21 @@
 ================================================================
                          RELEASE NOTES
-                 FreeBSD 2.2.7-RELEASE VERSION
+                 FreeBSD 2.2.7-STABLE VERSION
 ================================================================
 
-1. What's new since 2.2.6
+1. What's new since 2.2.7
 -------------------------
 
 Kernel features:
 ----------------
-o DPT SCSI RAID controller updated (including support for EISA cards)
-  and is now enabled by default.
-
-o MSDOS FAT32 (Win95 long filename) support.
-
-o Various bugs in the SCSI changer code fixed.
-
-o New support for Crystal Semiconductor CS8920 based ethernet cards.
-
-o Dead LFS code removed.
-
-o New updated Specialix SI/XIO/SX driver.
-
-o dmesg (history buffer) now user-sizeable.  See MSGBUF_SIZE
-  option in /sys/i386/conf/LINT.
-
-o Various bugfixes for the Adaptec aic7870/aic7880 chipsets.
-
-o Identify Pentium II processors properly at startup now.
-
-o pcm audio driver updated to support Avance Logic ALS100 card and
-  basically improve audio support all around.
-
-o Various fixes to NFS credential checking.
-
-o Many updates for the NEC PC98 platform.
+o Add support for >8G IDE drives.
 
 
 Userland features:
 ------------------
-o inetd(8) now allows rate-limiting for services.
-
-o ppp(8) utility significantly updated.  See man page for details.
-
-o Many (MANY!) man pages and other docs updated and cleaned up.
-
-o libc_r (part of POSIX pthread support) is now part of the system by
-  default and incorporates numerous bug fixes.
-
-o ls(1) has grown a number of new flags - man ls for details.
-
-o cvs(1) updated to version 1.9.26
-
-o Various parts of /etc updated with selected features from 3.0.
-
-o as(1) now understands fildll/fistpll opcodes.
-
-o Various improvements to the installation procedure.
-
-o Various minor curses(3) positioning errors fixed.
-
-o Several bugs in dump(8) and restore(8) fixed.
-
-o Various enhancements made to the login class mechanism and
-  default limits raised for workstation users.
-
-o ftpd disables Nagle on the control channel for better response.
-
 
 Security issues:
 ----------------
-o XFree86 updated to 3.3.2.3 - an important security release containing
-  changes from The Open Group which close several possible root-exploits
-  from local users.
-
-o Crypto repository updated from 3.0 branch.
-
-o popper and imap upgraded in ports collection to close some nasty security
-  holes (see Bugtrax).
-
-o Various buffer overflows in utilities like rcp(1) and more(1) (just to
-  name a few) have been closed.
-
-o Bounds-checking added to numerous "attackable" locations in BIND and
-  much of BIND significantly updated.
-
 
 2. Supported Configurations
 ---------------------------
@@ -187,12 +119,6 @@ AMD PCnet/PCI (79c970 & 53c974 or 79c974)
 SMC Elite 16 WD8013 ethernet interface, and most other WD8003E,
 WD8003EBT, WD8003W, WD8013W, WD8003S, WD8003SBT and WD8013EBT
 based clones.  SMC Elite Ultra.  SMC Etherpower II.
-
-Texas Instruments ThunderLAN PCI NICs, including the following:
-Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
-Compaq Netelligent 10/100 TX Embedded UTP, 10 T PCI UTP/Coax, 10/100 TX UTP
-Compaq NetFlex 3P, 3P Integrated, 3P w/ BNC
-Olicom OC-2135/2138, OC-2325, OC-2326 10/100 TX UTP
 
 DEC EtherWORKS III NICs (DE203, DE204, and DE205)
 DEC EtherWORKS II NICs (DE200, DE201, DE202, and DE422)
