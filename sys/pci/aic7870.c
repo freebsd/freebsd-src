@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.53 1997/06/27 19:39:34 gibbs Exp $
+ *	$Id: aic7870.c,v 1.54 1997/11/18 14:14:34 bde Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -693,6 +693,12 @@ load_seeprom(ahc, sxfrctl1)
 	sd.sd_ioh = ahc->sc_ioh;
 	sd.sd_offset = SEECTL;
 #endif
+	/*
+	 * For some multi-channel devices, the c46 is simply too
+	 * small to work.  For the other controller types, we can
+	 * get our information from either SEEPROM type.  Set the
+	 * type to start our probe with accordingly.
+	 */
 	if ((ahc->type & AHC_398) == AHC_398)
 		sd.sd_chip = C56_66;
 	else
@@ -704,30 +710,44 @@ load_seeprom(ahc, sxfrctl1)
 	sd.sd_DO = SEEDO;
 	sd.sd_DI = SEEDI;
 
-	if (bootverbose) 
-		printf("%s: Reading SEEPROM...", ahc_name(ahc));
 	have_seeprom = acquire_seeprom(&sd);
 	if (have_seeprom) {
-		have_seeprom = read_seeprom(&sd,
-					    (u_int16_t *)&sc,
-					    ahc->flags & (AHC_CHNLB|AHC_CHNLC),
-					    sizeof(sc)/2);
-		release_seeprom(&sd);
-		if (have_seeprom) {
-			/* Check checksum */
-			int i;
-			int maxaddr = (sizeof(sc)/2) - 1;
+		if (bootverbose) 
+			printf("%s: Reading SEEPROM...", ahc_name(ahc));
 
-			for (i = 0; i < maxaddr; i++)
-				checksum = checksum + scarray[i];
-			if (checksum != sc.checksum) {
-				if(bootverbose)
-					printf ("checksum error");
-				have_seeprom = 0;
-			} else if (bootverbose)
-				printf("done.\n");
-		}
+		for (;;) {
+			u_int start_addr;
+
+			start_addr = ahc->flags & (AHC_CHNLB|AHC_CHNLC);
+
+			have_seeprom = read_seeprom(&sd, (u_int16_t *)&sc,
+						    start_addr, sizeof(sc)/2);
+
+			if (have_seeprom) {
+				/* Check checksum */
+				int i;
+				int maxaddr = (sizeof(sc)/2) - 1;
+				u_int16_t *scarray = (u_int16_t *)&sc;
+
+				for (i = 0; i < maxaddr; i++)
+					checksum = checksum + scarray[i];
+				if (checksum == 0 || checksum != sc.checksum) {
+					if (bootverbose && sd.sd_chip == C56_66)
+						printf ("checksum error\n");
+					have_seeprom = 0;
+				} else {
+					if (bootverbose)
+						printf("done.\n");
+					break;
+				}
+			}
+
+			if (sd.sd_chip == C56_66)
+				break;
+			sd.sd_chip = C56_66;
+  		}
 	}
+	release_seeprom(&sd);
 	if (!have_seeprom) {
 		if (bootverbose)
 			printf("\n%s: No SEEPROM available\n", ahc_name(ahc));
