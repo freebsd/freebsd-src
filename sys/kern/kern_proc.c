@@ -1019,10 +1019,17 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	if (req->newptr && curproc != p)
 		return (EPERM);
 
-	if (req->oldptr && p->p_args != NULL)
-		error = SYSCTL_OUT(req, p->p_args->ar_args, p->p_args->ar_length);
-	if (req->newptr == NULL)
+	PROC_LOCK(p);
+	pa = p->p_args;
+	pargs_hold(pa);
+	PROC_UNLOCK(p);
+	if (req->oldptr && pa != NULL) {
+		error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
+	}
+	if (req->newptr == NULL) {
+		pargs_drop(pa);
 		return (error);
+	}
 
 	PROC_LOCK(p);
 	pa = p->p_args;
