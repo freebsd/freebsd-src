@@ -43,9 +43,6 @@
  * This currently handles IPPROTO_GRE, IPPROTO_MOBILE
  */
 
-#include <sys/cdefs.h>
-__RCSID("@(#) $FreeBSD$");
-
 #include "opt_inet.h"
 #include "opt_ns.h"
 #include "opt_atalk.h"
