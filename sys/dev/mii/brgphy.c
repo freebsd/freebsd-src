@@ -85,9 +85,8 @@ static driver_t brgphy_driver = {
 
 DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
 
-int	brgphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	brgphy_status __P((struct mii_softc *));
-
+static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
+static void	brgphy_status(struct mii_softc *);
 static int	brgphy_mii_phy_auto __P((struct mii_softc *, int));
 extern void	mii_phy_auto_timeout __P((void *));
 
@@ -192,7 +191,8 @@ static int brgphy_detach(dev)
 
 	return(0);
 }
-int
+
+static int
 brgphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -299,24 +299,16 @@ setit:
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
 		/*
-		 * Only retry autonegotiation every 5 seconds.
+		 * Only used for autonegotiation.
 		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
-		
-		sc->mii_ticks = 0;
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
@@ -327,9 +319,16 @@ setit:
 		if (reg & BRGPHY_AUXSTS_LINK)
 			break;
 
+		/*
+		 * Only retry autonegotiation every 5 seconds.
+		 */
+		if (++sc->mii_ticks != 5)
+			return (0);
+		
+		sc->mii_ticks = 0;
 		mii_phy_reset(sc);
 		if (brgphy_mii_phy_auto(sc, 0) == EJUSTRETURN)
-			return(0);
+			return (0);
 		break;
 	}
 
@@ -337,14 +336,11 @@ setit:
 	brgphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 brgphy_status(sc)
 	struct mii_softc *sc;
 {

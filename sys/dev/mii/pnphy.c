@@ -103,8 +103,8 @@ static driver_t pnphy_driver = {
 
 DRIVER_MODULE(pnphy, miibus, pnphy_driver, pnphy_devclass, 0, 0);
 
-int	pnphy_service __P((struct mii_softc *, struct mii_data *, int));
-void	pnphy_status __P((struct mii_softc *));
+static int	pnphy_service __P((struct mii_softc *, struct mii_data *, int));
+static void	pnphy_status __P((struct mii_softc *));
 
 static int pnphy_probe(dev)
 	device_t		dev;
@@ -184,7 +184,7 @@ static int pnphy_detach(dev)
 	return(0);
 }
 
-int
+static int
 pnphy_service(sc, mii, cmd)
 	struct mii_softc *sc;
 	struct mii_data *mii;
@@ -257,32 +257,23 @@ pnphy_service(sc, mii, cmd)
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
-		return(0);
+		break;
 	}
 
 	/* Update the media status. */
 	pnphy_status(sc);
 
 	/* Callback if something changed. */
-	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
-		MIIBUS_STATCHG(sc->mii_dev);
-		sc->mii_active = mii->mii_media_active;
-	}
+	mii_phy_update(sc, cmd);
 	return (0);
 }
 
-void
+static void
 pnphy_status(sc)
 	struct mii_softc *sc;
 {
