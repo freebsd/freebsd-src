@@ -53,8 +53,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/bpf.h>
 
-#include <vm/vm.h>              /* for vtophys */
-#include <vm/pmap.h>            /* for vtophys */
 #include <machine/bus_memio.h>
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
@@ -104,6 +102,7 @@ static __stdcall void ndis_rxeof	(ndis_handle,
 	ndis_packet **, uint32_t);
 static __stdcall void ndis_linksts	(ndis_handle,
 	ndis_status, void *, uint32_t);
+static __stdcall void ndis_linksts_done	(ndis_handle);
 
 static void ndis_intr		(void *);
 static void ndis_tick		(void *);
@@ -572,7 +571,7 @@ ndis_attach(dev)
 
 	/* Override the status handler so we can detect link changes. */
 	sc->ndis_block.nmb_status_func = ndis_linksts;
-
+	sc->ndis_block.nmb_statusdone_func = ndis_linksts_done;
 fail:
 	if (error)
 		ndis_detach(dev);
@@ -761,6 +760,18 @@ ndis_linksts(adapter, status, sbuf, slen)
 	uint32_t		slen;
 {
 	ndis_miniport_block	*block;
+
+	block = adapter;
+	block->nmb_getstat = status;
+
+	return;
+}
+
+__stdcall static void
+ndis_linksts_done(adapter)
+	ndis_handle		adapter;
+{
+	ndis_miniport_block	*block;
 	struct ndis_softc	*sc;
 	struct ifnet		*ifp;
 
@@ -771,7 +782,7 @@ ndis_linksts(adapter, status, sbuf, slen)
 	if (!(ifp->if_flags & IFF_UP))
 		return;
 
-	switch (status) {
+	switch (block->nmb_getstat) {
 	case NDIS_STATUS_MEDIA_CONNECT:
 		sc->ndis_link = 1;
 		printf("ndis%d: link up\n", sc->ndis_unit);
@@ -1131,7 +1142,8 @@ ndis_setstate_80211(sc)
 {
 	struct ieee80211com	*ic;
 	ndis_80211_ssid		ssid;
-	int			rval, len;
+	ndis_80211_wep		wep;
+	int			i, rval = 0, len;
 	uint32_t		arg;
 	struct ifnet		*ifp;
 
@@ -1141,9 +1153,7 @@ ndis_setstate_80211(sc)
 	if (!(ifp->if_flags & IFF_UP))
 		return;
 
-	/* Always set authmode to open for now. */
-
-	arg = NDIS_80211_AUTHMODE_OPEN;
+	arg = NDIS_80211_AUTHMODE_AUTO;
 	len = sizeof(arg);
 	rval = ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE, &arg, &len);
 
@@ -1163,6 +1173,50 @@ ndis_setstate_80211(sc)
 	if (rval)
 		printf ("ndis%d: set infra failed: %d\n", sc->ndis_unit, rval);
 
+	/* Set WEP */
+
+	if (ic->ic_flags & IEEE80211_F_WEPON) {
+		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+			if (ic->ic_nw_keys[i].wk_len) {
+				bzero((char *)&wep, sizeof(wep));
+				wep.nw_keylen = ic->ic_nw_keys[i].wk_len;
+#ifdef notdef
+				/* 5 and 13 are the only valid key lengths */
+				if (ic->ic_nw_keys[i].wk_len < 5)
+					wep.nw_keylen = 5;
+				else if (ic->ic_nw_keys[i].wk_len > 5 &&
+				     ic->ic_nw_keys[i].wk_len < 13)
+					wep.nw_keylen = 13;
+#endif
+				wep.nw_keyidx = i;
+				wep.nw_length = (sizeof(uint32_t) * 3)
+				    + wep.nw_keylen;
+				if (i == ic->ic_wep_txkey)
+					wep.nw_keyidx |= NDIS_80211_WEPKEY_TX;
+				bcopy(ic->ic_nw_keys[i].wk_key,
+				    wep.nw_keydata, wep.nw_length);
+				len = sizeof(wep);
+				rval = ndis_set_info(sc,
+				    OID_802_11_ADD_WEP, &wep, &len);
+				if (rval)
+					printf("ndis%d: set wepkey "
+					    "failed: %d\n", sc->ndis_unit,
+					    rval);
+			}
+		}
+		arg = NDIS_80211_WEPSTAT_ENABLED;
+		len = sizeof(arg);
+		rval = ndis_set_info(sc, OID_802_11_WEP_STATUS, &arg, &len);
+		if (rval)
+			printf("ndis%d: enable WEP failed: %d\n",
+			    sc->ndis_unit, rval);
+	} else {
+		arg = NDIS_80211_WEPSTAT_DISABLED;
+		len = sizeof(arg);
+		ndis_set_info(sc, OID_802_11_WEP_STATUS, &arg, &len);
+	}
+
+
 	/* Set SSID. */
 
 	len = sizeof(ssid);
@@ -1176,7 +1230,6 @@ ndis_setstate_80211(sc)
 
 	if (rval)
 		printf ("ndis%d: set ssid failed: %d\n", sc->ndis_unit, rval);
-
 
 	return;
 }

@@ -671,7 +671,13 @@ ndis_send_packets(arg, packets, cnt)
 
 	for (i = 0; i < cnt; i++) {
 		p = packets[i];
-		if (p->np_oob.npo_status == NDIS_STATUS_PENDING)
+		/*
+		 * Either the driver already handed the packet to
+		 * ndis_txeof() due to a failure, or it wants to keep
+		 * it and release it asynchronously later. Skip to the
+		 * next one.
+		 */
+		if (p == NULL || p->np_oob.npo_status == NDIS_STATUS_PENDING)
 			continue;
 		idx = p->np_txidx;
 		m = p->np_m0;
