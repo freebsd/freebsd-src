@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_ether.c	8.1 (Berkeley) 6/10/93
- * $Id: if_ether.c,v 1.40 1997/05/14 16:39:52 tegge Exp $
+ * $Id: if_ether.c,v 1.41 1997/10/28 15:58:40 bde Exp $
  */
 
 /*
@@ -386,7 +386,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
  * then the protocol-specific routine is called.
  */
 static void
-arpintr(void)
+arpintr()
 {
 	register struct mbuf *m;
 	register struct arphdr *ar;
