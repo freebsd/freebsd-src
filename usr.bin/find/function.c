@@ -49,6 +49,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <sys/mount.h>
 
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
 #include <fnmatch.h>
@@ -384,6 +385,48 @@ c_exec(argvp, isok)
 	return (new);
 }
  
+/*
+ * -empty functions --
+ *
+ *	True if the file or directory is empty
+ */
+int
+f_empty(plan, entry)
+	PLAN *plan;
+	FTSENT *entry;
+{
+	if (S_ISREG(entry->fts_statp->st_mode) && entry->fts_statp->st_size == 0)
+		return (1);
+	if (S_ISDIR(entry->fts_statp->st_mode)) {
+		struct dirent *dp;
+		int empty;
+		DIR *dir;
+
+		empty = 1;
+		dir = opendir(entry->fts_accpath);
+		if (dir == NULL)
+			err(1, "%s", entry->fts_accpath);
+		for (dp = readdir(dir); dp; dp = readdir(dir))
+			if (dp->d_name[0] != '.' ||
+			    (dp->d_name[1] != '\0' &&
+			     (dp->d_name[1] != '.' || dp->d_name[2] != '\0'))) {
+				empty = 0;
+				break;
+			}
+		closedir(dir);
+		return (empty);
+	}
+	return (0);
+}
+
+PLAN *
+c_empty()
+{
+	ftsoptions &= ~FTS_NOSTAT;
+
+	return (palloc(N_EMPTY, f_empty));
+}
+
 /*
  * -execdir utility [arg ... ] ; functions --
  *

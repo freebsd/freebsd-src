@@ -68,6 +68,7 @@ static OPTION const options[] = {
 	{ "-ctime",	N_CTIME,	c_ctime,	O_ARGV },
 	{ "-delete",	N_DELETE,	c_delete,	O_ZERO },
 	{ "-depth",	N_DEPTH,	c_depth,	O_ZERO },
+	{ "-empty",	N_EMPTY,	c_empty,	O_ZERO },
 	{ "-exec",	N_EXEC,		c_exec,		O_ARGVP },
 	{ "-execdir",	N_EXECDIR,	c_execdir,	O_ARGVP },
 	{ "-flags",	N_FLAGS,	c_flags,	O_ARGV },
