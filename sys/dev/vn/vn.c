@@ -334,8 +334,7 @@ vnstrategy(struct buf *bp)
 		 * If the request crosses EOF, truncate the request.
 		 */
 		if (pbn + sz > vn->sc_size) {
-			bp->b_bcount -= (pbn + sz - vn->sc_size) * 
-			    vn->sc_secsize;
+			bp->b_bcount = (vn->sc_size - pbn) * vn->sc_secsize;
 			bp->b_resid = bp->b_bcount;
 		}
 		bp->b_pblkno = pbn;
