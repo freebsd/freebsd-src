@@ -64,8 +64,6 @@ struct	resource {
 #define	RF_WANTED	0x0010	/* somebody is waiting for this resource */
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
 
-#define RF_PCCARD_ATTR	0x10000 /* PCCARD attribute memory */
-
 enum	rman_type { RMAN_UNINIT = 0, RMAN_GAUGE, RMAN_ARRAY };
 
 struct	rman {
