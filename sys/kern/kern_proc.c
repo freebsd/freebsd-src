@@ -1024,8 +1024,8 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
+	struct pargs *newpa, *pa;
 	struct proc *p;
-	struct pargs *pa, *newpa;
 	int error = 0;
 
 	if (namelen != 1) 
@@ -1048,23 +1048,20 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	pa = p->p_args;
 	pargs_hold(pa);
 	PROC_UNLOCK(p);
-	if (req->oldptr && pa != NULL) {
+	if (req->oldptr != NULL && pa != NULL)
 		error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
-	}
 	pargs_drop(pa);
-	if (req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
 
 	if (req->newlen + sizeof(struct pargs) > ps_arg_cache_limit)
-		return (error);
-
+		return (ENOMEM);
 	newpa = pargs_alloc(req->newlen);
 	error = SYSCTL_IN(req, newpa->ar_args, req->newlen);
-	if (error) {
+	if (error != 0) {
 		pargs_free(newpa);
 		return (error);
 	}
-
 	PROC_LOCK(p);
 	pa = p->p_args;
 	p->p_args = newpa;
