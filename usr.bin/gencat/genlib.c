@@ -243,6 +243,10 @@ char quote;
 		*tptr++ = '\f';
 		++cptr;
 		break;
+	      case '"':
+		*tptr++ = '"';
+		++cptr;
+		break;
 	      case '\\':
 		*tptr++ = '\\';
 		++cptr;
