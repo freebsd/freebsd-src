@@ -1,0 +1,25 @@
+
+			  Installing OpenPAM
+			  ==================
+
+1. REQUIREMENTS
+
+  This release of OpenPAM is targeted at FreeBSD-CURRENT, and has not
+  been tested on other platforms.  It should, however, build with
+  little or no trouble other BSDs such as BSDI, Darwin, NetBSD or
+  OpenBSD, and should not prove much of a challenge to port to other
+  platforms, except for the static linking support.
+
+2. CONFIGURATION
+
+  No configuration is necessary or possible at this time.
+
+3. COMPILATION
+
+  Change into the top-level OpenPAM directory and run 'make'.
+
+4. INSTALLATION
+ 
+  Change into the top-level OpenPAM directory and run 'make install'.
+
+$Id$
