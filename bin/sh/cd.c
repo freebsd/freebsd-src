@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <limits.h>
 
 /*
  * The cd and pwd commands.
@@ -316,12 +317,10 @@ updatepwd(char *dir)
 	return (0);
 }
 
-#define MAXPWD 256
-
 int
 pwdcmd(int argc, char **argv)
 {
-	char buf[MAXPWD];
+	char buf[PATH_MAX];
 	int ch, phys;
 
 	optreset = 1; optind = 1; /* initialize getopt */
@@ -365,7 +364,7 @@ pwdcmd(int argc, char **argv)
 char *
 getpwd(void)
 {
-	char buf[MAXPWD];
+	char buf[PATH_MAX];
 
 	if (curdir)
 		return curdir;
