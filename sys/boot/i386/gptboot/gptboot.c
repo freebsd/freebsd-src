@@ -111,7 +111,7 @@ static struct dsk {
 } dsk;
 static char cmd[512];
 static char kname[1024];
-static uint32_t opts = 0;
+static uint32_t opts;
 static struct bootinfo bootinfo;
 static uint8_t ioctrl = IO_KEYBOARD;
 
