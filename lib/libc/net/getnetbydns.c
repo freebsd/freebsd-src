@@ -263,7 +263,13 @@ _dns_getnetbyaddr(void *rval, void *cb_data, va_list ap)
 	if (anslen < 0) {
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
-			printf("res_query failed\n");
+			printf("res_search failed\n");
+#endif
+		return NS_UNAVAIL;
+	} else if (anslen > sizeof(buf)) {
+#ifdef DEBUG
+		if (_res.options & RES_DEBUG)
+			printf("res_search static buffer too small");
 #endif
 		return NS_UNAVAIL;
 	}
@@ -303,7 +309,13 @@ _dns_getnetbyname(void *rval, void *cb_data, va_list ap)
 	if (anslen < 0) {
 #ifdef DEBUG
 		if (_res.options & RES_DEBUG)
-			printf("res_query failed\n");
+			printf("res_search failed\n");
+#endif
+		return NS_UNAVAIL;
+	} else if (anslen > sizeof(buf)) {
+#ifdef DEBUG
+		if (_res.options & RES_DEBUG)
+			printf("res_search static buffer too small");
 #endif
 		return NS_UNAVAIL;
 	}
