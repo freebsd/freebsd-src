@@ -174,8 +174,11 @@ g_gate_access(struct g_provider *pp, int dr, int dw, int de)
 	sc = pp->geom->softc;
 	if (sc == NULL || (sc->sc_flags & G_GATE_FLAG_DESTROY) != 0)
 		return (ENXIO);
+	/* XXX: Hack to allow read-only mounts. */
+#if 0
 	if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0 && dw > 0)
 		return (EPERM);
+#endif
 	if ((sc->sc_flags & G_GATE_FLAG_WRITEONLY) != 0 && dr > 0)
 		return (EPERM);
 	return (0);
@@ -195,8 +198,14 @@ g_gate_start(struct bio *bp)
 	G_GATE_LOGREQ(2, bp, "Request received.");
 	switch (bp->bio_cmd) {
 	case BIO_READ:
+		break;
 	case BIO_DELETE:
 	case BIO_WRITE:
+		/* XXX: Hack to allow read-only mounts. */
+		if ((sc->sc_flags & G_GATE_FLAG_READONLY) != 0) {
+			g_io_deliver(bp, EPERM);
+			return;
+		}
 		break;
 	case BIO_GETATTR:
 	default:
