@@ -696,12 +696,6 @@ nodisks:
     configRC_conf();
     sync();
 
-    if (directory_exists("/usr/X11R6")) {
-	dialog_clear_norefresh();
-	if (!msgYesNo("Would you like to configure your X server at this time?"))
-	    (void)configXSetup(self);
-    }
-
     dialog_clear_norefresh();
     if (!msgYesNo("The FreeBSD package collection is a collection of thousands of ready-to-run\n"
 		  "applications, from text editors to games to WEB servers and more.  Would you\n"
