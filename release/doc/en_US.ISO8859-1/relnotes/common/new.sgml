@@ -415,6 +415,10 @@
       maximum number of simultaneous invocations of each service from
       a single IP address.</para>
 
+    <para>&man.lock.1; now accepts a <option>-v</option> to disable
+      switching VTYs while the current terminal is locked.  This permits
+      locking the entire console from a single terminal.</para>
+
     <para>The &man.ls.1; program now supports a <option>-m</option>
       flag to list files across a page, a <option>-p</option> flag to
       force printing of a <literal>/</literal> after directories, and
@@ -496,6 +500,9 @@
 
     <para>&man.unexpand.1; now supports a <option>-t</option> to
       specify tabstabs analogous to &man.expand.1;.</para>
+
+    <para>&man.vidcontrol.1; now accepts a <option>-S</option> to
+      allow the user to disable VTY switching.</para>
 
     <para>&man.who.1; now has a number of new options:
       <option>-H</option> shows column headings; <option>-T</option>
