@@ -13,9 +13,16 @@
  * Sep., 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  */
 
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <machine/apm_bios.h>
@@ -31,7 +38,6 @@ static void
 parse_option(void)
 {
 	int	i, option;
-	char	*optarg;
 	enum {OPT_NONE, OPT_ENABLE, OPT_DISABLE, OPT_HALTCPU, OPT_NOTHALTCPU} mode;
 
 	for (i = 1; i < main_argc; i++) {
@@ -56,15 +62,12 @@ parse_option(void)
 				option = 0;
 				break;
 			default:
-				fprintf(stderr, "%s: Unknown option '%s.'\n", main_argv[0], main_argv[i]);
-				exit(1);
+				errx(1, "unknown option '%s'", main_argv[i]);
 			}
 		}
 		if (option) {
-			if (i == main_argc - 1) {
-				fprintf(stderr, "%s: Option '%s' needs arguments.\n", main_argv[0], main_argv[i]);
-				exit(1);
-			}
+			if (i == main_argc - 1)
+				errx(1, "option '%s' needs arguments", main_argv[i]);
 			optarg = main_argv[++i];
 		}
 
@@ -81,6 +84,8 @@ parse_option(void)
 		case OPT_NOTHALTCPU:
 			nothaltcpu = 1;
 			break;
+		case OPT_NONE:
+			break;
 		}
 	}
 }
@@ -88,50 +93,40 @@ parse_option(void)
 static void
 enable_apm(int dh)
 {
-	if (ioctl(dh, APMIO_ENABLE, NULL) == -1) {
-		fprintf(stderr, "%s: Can't ioctl APMIO_ENABLE.\n", main_argv[0]);
-		exit(1);
-	}
+	if (ioctl(dh, APMIO_ENABLE, NULL) == -1)
+		errx(1, "can't ioctl APMIO_ENABLE");
 }
 
 static void
 disable_apm(int dh)
 {
-	if (ioctl(dh, APMIO_DISABLE, NULL) == -1) {
-		fprintf(stderr, "%s: Can't ioctl APMIO_DISABLE.\n", main_argv[0]);
-		exit(1);
-	}
+	if (ioctl(dh, APMIO_DISABLE, NULL) == -1)
+		errx(1, "can't ioctl APMIO_DISABLE");
 }
 
 static void
 haltcpu_apm(int dh)
 {
-	if (ioctl(dh, APMIO_HALTCPU, NULL) == -1) {
-		fprintf(stderr, "%s: Can't ioctl APMIO_HALTCPU.\n", main_argv[0]);
-		exit(1);
-	}
+	if (ioctl(dh, APMIO_HALTCPU, NULL) == -1)
+		errx(1, "can't ioctl APMIO_HALTCPU");
 }
 
 static void
 nothaltcpu_apm(int dh)
 {
-	if (ioctl(dh, APMIO_NOTHALTCPU, NULL) == -1) {
-		fprintf(stderr, "%s: Can't ioctl APMIO_NOTHALTCPU.\n", main_argv[0]);
-		exit(1);
-	}
+	if (ioctl(dh, APMIO_NOTHALTCPU, NULL) == -1)
+		errx(1, "can't ioctl APMIO_NOTHALTCPU");
 }
+
 int
 main(int argc, char *argv[])
 {
-	int		i, dh;
-	FILE		*fp;
+	int	dh;
 
 	main_argc = argc;
 	main_argv = argv;
-	if ((dh = open(APMDEV, O_RDWR)) == -1) {
-		fprintf(stderr, "%s: Can't open '%s'\n", argv[0], APMDEV);
-		exit(1);
-	}
+	if ((dh = open(APMDEV, O_RDWR)) == -1)
+		errx(1, "can't open '%s'", APMDEV);
 	parse_option();
 
 	/* disable operation is executed first */
