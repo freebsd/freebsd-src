@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: exec.c,v 1.6 1994/11/08 14:04:16 jkh Exp $
+ * $Id: exec.c,v 1.7 1994/11/08 18:44:13 jkh Exp $
  *
  */
 
@@ -65,6 +65,11 @@ exec(int magic, char *cmd, char *args, ...)
 		case 2:
 		case 3:
 			close(debug_fd);
+			break;
+		case 4:
+			close(0) ; open("/stand/sysinstall",O_RDONLY);
+			close(1) ; open("/mnt/stand/sysinstall",
+				O_WRONLY|O_CREAT|O_TRUNC,0755);
 		default:
 			break;
 		}
