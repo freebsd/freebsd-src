@@ -15,7 +15,7 @@ MAN=	CONDSPLASSERT.9 DECLARE_MODULE.9 DELAY.9 DEV_MODULE.9 KASSERT.9 MD5.9 \
 	accf_data.9 accf_http.9 at_exit.9 at_fork.9 atomic.9 \
 	bios.9 boot.9 buf.9 \
 	cd.9 condvar.9 copy.9 critical_enter.9 \
-	devfs_add_devswf.9 devfs_link.9 devfs_remove_dev.9 devstat.9 \
+	devstat.9 \
 	devtoname.9 \
 	fetch.9 \
 	get_cyclecounter.9 \
@@ -96,7 +96,6 @@ MLINKS+=condvar.9 cv_waitq_empty.9
 MLINKS+=condvar.9 cv_wmesg.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
 MLINKS+=critical_enter.9 critical_exit.9
-MLINKS+=devfs_link.9 devfs_makelink.9
 MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9 
 MLINKS+=devstat.9 devstat_remove_entry.9 devstat.9 devstat_start_transaction.9
 MLINKS+=devstat.9 devstat_end_transaction.9
