@@ -271,7 +271,7 @@ load_code (code)
 		  addbyte ( (char) func);
 		else
 		  {
-		    addbyte ((func >> 8) & 0xff | 0x80);
+		    addbyte (((func >> 8) & 0xff) | 0x80);
 		    addbyte (func & 0xff);
 		  }
 		if (*str == ',') str++;
@@ -304,7 +304,7 @@ load_code (code)
 		  addbyte (vaf_name);
 		else
 		  {
-		    addbyte ((vaf_name >> 8) & 0xff | 0x80);
+		    addbyte (((vaf_name >> 8) & 0xff) | 0x80);
 		    addbyte (vaf_name & 0xff);
 		  }
 		break;

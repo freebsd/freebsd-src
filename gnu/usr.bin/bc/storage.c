@@ -230,7 +230,7 @@ int
 fpop()
 {
   fstack_rec *temp;
-  int retval;
+  int retval = 0;
 
   if (fn_stack != NULL)
     {
@@ -451,7 +451,7 @@ store_var (var_name)
      int var_name;
 {
   bc_var *var_ptr;
-  long temp;
+  long temp = 0;
   char toobig;
 
   if (var_name > 2)
