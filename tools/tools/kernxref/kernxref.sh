@@ -7,14 +7,25 @@
 # this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 # ----------------------------------------------------------------------------
 #
-# $Id: kernxref.sh,v 1.9 1998/11/27 10:18:56 bde Exp $
+# $Id: kernxref.sh,v 1.10 1998/12/06 21:39:07 archie Exp $
 #
 # This shellscript will make a cross reference of the symbols of the LINT 
 # kernel.
 
-cd /sys/compile/LINT
-nm -aout -gon `echo *.o /lkm/*.o | tr ' ' '\012' | egrep -v '(aicasm|genassym)'` |
-    tr : ' ' | awk '
+COMPILEDIR=/sys/compile
+KERNELNAME=LINT
+
+cd ${COMPILEDIR}/${KERNELNAME}
+if file vers.o | grep -q ELF; then
+	OBJFORMAT=elf;
+else
+	OBJFORMAT=aout;
+fi
+
+OBJFORMAT=${OBJFORMAT} nm -gon `echo *.o /lkm/*.o	\
+	| tr ' ' '\012'					\
+	| egrep -v '(aicasm|genassym)'`			\
+	| tr : ' ' | awk '
 NF > 1	{
 	if (length($2) == 8) {
 		$2 = $3
