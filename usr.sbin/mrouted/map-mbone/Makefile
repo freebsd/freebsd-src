@@ -1,18 +1,18 @@
-#	$Id$
+#	$Id: Makefile,v 1.5 1997/02/22 16:07:26 peter Exp $
 
 PROG=	map-mbone
 
 S=	${.CURDIR}/..
 .PATH:	$S
 CFLAGS+=	-I$S
-LDADD+=	-lmrouted
 .if exists(${.OBJDIR}/../common)
-LDDESTDIR+=	-L${.OBJDIR}/../common
-DPADD+= 	${.OBJDIR}/../common/libmrouted.a
+LDADD+=	-L${.OBJDIR}/../common
+DPADD+=	${.OBJDIR}/../common/libmrouted.a
 .else
-LDDESTDIR+=	-L$S/common
-DPADD+=		$S/common/libmrouted.a
+LDADD+=	-L$S/common
+DPADD+=	$S/common/libmrouted.a
 .endif
+LDADD+=	-lmrouted
 
 SRCS=	mapper.c
 MAN8=	${.CURDIR}/../map-mbone.8
