@@ -323,7 +323,8 @@ command(void)
 	case TIF:
 		n1 = (union node *)stalloc(sizeof (struct nif));
 		n1->type = NIF;
-		n1->nif.test = list(0);
+		if ((n1->nif.test = list(0)) == NULL)
+			synexpect(-1);
 		if (readtoken() != TTHEN)
 			synexpect(TTHEN);
 		n1->nif.ifpart = list(0);
@@ -332,7 +333,8 @@ command(void)
 			n2->nif.elsepart = (union node *)stalloc(sizeof (struct nif));
 			n2 = n2->nif.elsepart;
 			n2->type = NIF;
-			n2->nif.test = list(0);
+			if ((n2->nif.test = list(0)) == NULL)
+				synexpect(-1);
 			if (readtoken() != TTHEN)
 				synexpect(TTHEN);
 			n2->nif.ifpart = list(0);
@@ -352,7 +354,8 @@ command(void)
 		int got;
 		n1 = (union node *)stalloc(sizeof (struct nbinary));
 		n1->type = (lasttoken == TWHILE)? NWHILE : NUNTIL;
-		n1->nbinary.ch1 = list(0);
+		if ((n1->nbinary.ch1 = list(0)) == NULL)
+			synexpect(-1);
 		if ((got=readtoken()) != TDO) {
 TRACE(("expecting DO got %s %s\n", tokname[got], got == TWORD ? wordtext : ""));
 			synexpect(TDO);
