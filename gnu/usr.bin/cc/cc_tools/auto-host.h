@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 
+#include <sys/param.h>
+
 /* auto-host.h.  Generated automatically by configure.  */
 /* config.in.  Generated automatically from configure.in by autoheader 2.13.  */
 
@@ -97,7 +99,7 @@
 /* #undef HAVE___ARGZ_STRINGIFY */
 
 /* Define if you have the atoll function.  */
-#ifndef BOOTSTRAPPING
+#if __FreeBSD_version >= 500027
 /* FreeBSD didn't always have atoll(3). */
 #define HAVE_ATOLL 1
 #endif

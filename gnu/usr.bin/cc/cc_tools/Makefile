@@ -19,10 +19,6 @@ CFLAGS+=	-I.
 
 CFLAGS+=	-static -DGENERATOR_FILE
 
-.if defined(BOOTSTRAPPING)
-CFLAGS+=	-DBOOTSTRAPPING
-.endif
-
 #-----------------------------------------------------------------------
 # insn-* gunk
 
