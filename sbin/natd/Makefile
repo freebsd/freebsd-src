@@ -1,3 +1,4 @@
+MAINTAINER	= ru@FreeBSD.org
 PROG		= natd
 SRCS		= natd.c icmp.c
 CFLAGS	       += -Wall
