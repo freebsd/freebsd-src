@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.h,v 1.16.2.8 1998/02/24 03:36:47 brian Exp $
+ * $Id: fsm.h,v 1.16.2.9 1998/02/27 01:22:24 brian Exp $
  *
  *	TODO:
  */
@@ -47,6 +47,12 @@
 
 struct fsm;
 
+struct fsm_decode {
+  u_char ack[100], *ackend;
+  u_char nak[100], *nakend;
+  u_char rej[100], *rejend;
+};
+
 struct fsm_callbacks {
   void (*LayerUp) (struct fsm *);            /* Layer is now up (tlu) */
   void (*LayerDown) (struct fsm *);          /* About to come down (tld) */
@@ -56,7 +62,7 @@ struct fsm_callbacks {
   void (*SendConfigReq) (struct fsm *);      /* Send REQ please */
   void (*SendTerminateReq) (struct fsm *);   /* Term REQ just sent */
   void (*SendTerminateAck) (struct fsm *);   /* Send Term ACK please */
-  void (*DecodeConfig) (struct fsm *, u_char *, int, int);
+  void (*DecodeConfig) (struct fsm *, u_char *, int, int, struct fsm_decode *);
                                              /* Deal with incoming data */
   void (*RecvResetReq) (struct fsm *fp);         /* Reset output */
   void (*RecvResetAck) (struct fsm *fp, u_char); /* Reset input */
@@ -132,14 +138,6 @@ struct fsmconfig {
   u_char type;
   u_char length;
 };
-
-extern u_char AckBuff[200];
-extern u_char NakBuff[200];
-extern u_char RejBuff[100];
-extern u_char ReqBuff[200];
-extern u_char *ackp;
-extern u_char *nakp;
-extern u_char *rejp;
 
 extern char const *StateNames[];
 

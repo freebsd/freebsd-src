@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.19 1998/03/13 00:44:39 brian Exp $
+ * $Id: ccp.c,v 1.30.2.20 1998/03/13 21:07:28 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -59,7 +59,8 @@
 static void CcpSendConfigReq(struct fsm *);
 static void CcpSendTerminateReq(struct fsm *);
 static void CcpSendTerminateAck(struct fsm *);
-static void CcpDecodeConfig(struct fsm *, u_char *, int, int);
+static void CcpDecodeConfig(struct fsm *, u_char *, int, int,
+                            struct fsm_decode *);
 static void CcpLayerStart(struct fsm *);
 static void CcpLayerFinish(struct fsm *);
 static void CcpLayerUp(struct fsm *);
@@ -176,11 +177,11 @@ CcpSendConfigReq(struct fsm *fp)
 {
   /* Send config REQ please */
   struct ccp *ccp = fsm2ccp(fp);
-  u_char *cp;
+  u_char *cp, buff[100];
   int f;
 
   LogPrintf(LogCCP, "CcpSendConfigReq\n");
-  cp = ReqBuff;
+  cp = buff;
   ccp->my_proto = -1;
   ccp->out_algorithm = -1;
   for (f = 0; f < NALGORITHMS; f++)
@@ -188,12 +189,16 @@ CcpSendConfigReq(struct fsm *fp)
       struct lcp_opt o;
 
       (*algorithm[f]->o.Get)(&o);
+      if (cp + o.len > buff + sizeof buff) {
+        LogPrintf(LogERROR, "CCP REQ buffer overrun !\n");
+        break;
+      }
       cp += LcpPutConf(LogCCP, cp, &o, cftypes[o.id],
                        (*algorithm[f]->Disp)(&o));
       ccp->my_proto = o.id;
       ccp->out_algorithm = f;
     }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
+  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
 }
 
 void
@@ -295,16 +300,13 @@ CcpLayerUp(struct fsm *fp)
 }
 
 static void
-CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
+CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+                struct fsm_decode *dec)
 {
   /* Deal with incoming data */
   struct ccp *ccp = fsm2ccp(fp);
   int type, length;
   int f;
-
-  ackp = AckBuff;
-  nakp = NakBuff;
-  rejp = RejBuff;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -322,8 +324,8 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
       /* Don't understand that :-( */
       if (mode_type == MODE_REQ) {
         ccp->my_reject |= (1 << type);
-        memcpy(rejp, cp, length);
-        rejp += length;
+        memcpy(dec->rejend, cp, length);
+        dec->rejend += length;
       }
     } else {
       struct lcp_opt o;
@@ -334,23 +336,23 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 	  memcpy(&o, cp, length);
           switch ((*algorithm[f]->i.Set)(&o)) {
           case MODE_REJ:
-	    memcpy(rejp, &o, o.len);
-	    rejp += o.len;
+	    memcpy(dec->rejend, &o, o.len);
+	    dec->rejend += o.len;
             break;
           case MODE_NAK:
-	    memcpy(nakp, &o, o.len);
-	    nakp += o.len;
+	    memcpy(dec->nakend, &o, o.len);
+	    dec->nakend += o.len;
             break;
           case MODE_ACK:
-	    memcpy(ackp, cp, length);
-	    ackp += length;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
 	    ccp->his_proto = type;
             ccp->in_algorithm = f;		/* This one'll do ! */
             break;
           }
 	} else {
-	  memcpy(rejp, cp, length);
-	  rejp += length;
+	  memcpy(dec->rejend, cp, length);
+	  dec->rejend += length;
 	}
 	break;
       case MODE_NAK:
@@ -373,8 +375,8 @@ CcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
     cp += length;
   }
 
-  if (rejp != RejBuff) {
-    ackp = AckBuff;	/* let's not send both ! */
+  if (mode_type != MODE_NOP && dec->rejend != dec->rej) {
+    dec->ackend = dec->ack;	/* let's not send both ! */
     if (!ccp->in_init) {
       ccp->his_proto = -1;
       ccp->in_algorithm = -1;

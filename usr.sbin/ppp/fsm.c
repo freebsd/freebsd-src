@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: fsm.c,v 1.27.2.18 1998/03/13 00:44:43 brian Exp $
+ * $Id: fsm.c,v 1.27.2.19 1998/03/13 21:07:32 brian Exp $
  *
  *  TODO:
  *		o Refer loglevel for log output
@@ -57,14 +57,6 @@
 #include "chap.h"
 #include "pap.h"
 #include "datalink.h"
-
-u_char AckBuff[200];
-u_char NakBuff[200];
-u_char RejBuff[100];
-u_char ReqBuff[200];
-u_char *ackp = NULL;
-u_char *nakp = NULL;
-u_char *rejp = NULL;
 
 static void FsmSendConfigReq(struct fsm *);
 static void FsmSendTerminateReq(struct fsm *);
@@ -312,7 +304,9 @@ FsmSendConfigAck(struct fsm *fp, struct fsmheader *lhp,
 		 u_char *option, int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigAck(%s)\n", StateNames[fp->state]);
-  (*fp->fn->DecodeConfig)(fp, option, count, MODE_NOP);
+  (*fp->fn->DecodeConfig)(fp, option, count, MODE_NOP, NULL);
+  if (count < sizeof(struct fsmconfig))
+    LogPrintf(fp->LogLevel, "  [EMPTY]\n");
   FsmOutput(fp, CODE_CONFIGACK, lhp->id, option, count);
 }
 
@@ -321,7 +315,9 @@ FsmSendConfigRej(struct fsm *fp, struct fsmheader *lhp,
 		 u_char *option, int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigRej(%s)\n", StateNames[fp->state]);
-  (*fp->fn->DecodeConfig)(fp, option, count, MODE_NOP);
+  (*fp->fn->DecodeConfig)(fp, option, count, MODE_NOP, NULL);
+  if (count < sizeof(struct fsmconfig))
+    LogPrintf(fp->LogLevel, "  [EMPTY]\n");
   FsmOutput(fp, CODE_CONFIGREJ, lhp->id, option, count);
 }
 
@@ -330,7 +326,9 @@ FsmSendConfigNak(struct fsm *fp, struct fsmheader *lhp,
 		 u_char *option, int count)
 {
   LogPrintf(fp->LogLevel, "SendConfigNak(%s)\n", StateNames[fp->state]);
-  (*fp->fn->DecodeConfig)(fp, option, count, MODE_NOP);
+  (*fp->fn->DecodeConfig)(fp, option, count, MODE_NOP, NULL);
+  if (count < sizeof(struct fsmconfig))
+    LogPrintf(fp->LogLevel, "  [EMPTY]\n");
   FsmOutput(fp, CODE_CONFIGNAK, lhp->id, option, count);
 }
 
@@ -398,6 +396,7 @@ static void
 FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCR */
 {
+  struct fsm_decode dec;
   int plen, flen;
   int ackaction = 0;
 
@@ -431,9 +430,12 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
-  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_REQ);
+  dec.ackend = dec.ack;
+  dec.nakend = dec.nak;
+  dec.rejend = dec.rej;
+  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_REQ, &dec);
 
-  if (nakp == NakBuff && rejp == RejBuff)
+  if (dec.nakend == dec.nak && dec.rejend == dec.rej)
     ackaction = 1;
 
   switch (fp->state) {
@@ -448,12 +450,12 @@ FsmRecvConfigReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     break;
   }
 
-  if (rejp != RejBuff)
-    FsmSendConfigRej(fp, lhp, RejBuff, rejp - RejBuff);
-  if (nakp != NakBuff)
-    FsmSendConfigNak(fp, lhp, NakBuff, nakp - NakBuff);
+  if (dec.rejend != dec.rej)
+    FsmSendConfigRej(fp, lhp, dec.rej, dec.rejend - dec.rej);
+  if (dec.nakend != dec.nak)
+    FsmSendConfigNak(fp, lhp, dec.nak, dec.nakend - dec.nak);
   if (ackaction)
-    FsmSendConfigAck(fp, lhp, AckBuff, ackp - AckBuff);
+    FsmSendConfigAck(fp, lhp, dec.ack, dec.ackend - dec.ack);
 
   switch (fp->state) {
   case ST_OPENED:
@@ -522,6 +524,7 @@ static void
 FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCN */
 {
+  struct fsm_decode dec;
   int plen, flen;
 
   plen = plength(bp);
@@ -551,7 +554,10 @@ FsmRecvConfigNak(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
-  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_NAK);
+  dec.ackend = dec.ack;
+  dec.nakend = dec.nak;
+  dec.rejend = dec.rej;
+  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_NAK, &dec);
 
   switch (fp->state) {
   case ST_REQSENT:
@@ -639,6 +645,7 @@ static void
 FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
 /* RCJ */
 {
+  struct fsm_decode dec;
   int plen, flen;
 
   plen = plength(bp);
@@ -669,7 +676,10 @@ FsmRecvConfigRej(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     return;
   }
 
-  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_REJ);
+  dec.ackend = dec.ack;
+  dec.nakend = dec.nak;
+  dec.rejend = dec.rej;
+  (*fp->fn->DecodeConfig)(fp, MBUF_CTOP(bp), flen, MODE_REJ, &dec);
 
   switch (fp->state) {
   case ST_REQSENT:

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50.2.20 1998/03/13 00:44:05 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.21 1998/03/13 21:07:36 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -87,7 +87,8 @@ static void IpcpInitRestartCounter(struct fsm *);
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSendTerminateReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *);
-static void IpcpDecodeConfig(struct fsm *, u_char *, int, int);
+static void IpcpDecodeConfig(struct fsm *, u_char *, int, int,
+                             struct fsm_decode *);
 
 static struct fsm_callbacks ipcp_Callbacks = {
   IpcpLayerUp,
@@ -223,6 +224,7 @@ ipcp_Init(struct ipcp *ipcp, struct bundle *bundle, struct link *l,
       ipcp->cfg.peer_range.width = 32;
     }
   }
+  ipcp->cfg.netmask.s_addr = INADDR_ANY;
   memset(&ipcp->cfg.peer_range, '\0', sizeof ipcp->cfg.peer_range);
   iplist_setsrc(&ipcp->cfg.peer_list, "");
   ipcp->cfg.HaveTriggerAddress = 0;
@@ -288,9 +290,8 @@ ipcp_Setup(struct ipcp *ipcp)
 }
 
 static int
-ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
-                  struct in_addr myaddr, struct in_addr hisaddr,
-                  struct in_addr netmask, int silent)
+ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
+                  struct in_addr hisaddr, int silent)
 {
   struct sockaddr_in *sock_in;
   int s;
@@ -298,11 +299,11 @@ ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
   struct ifaliasreq ifra;
 
   /* If given addresses are alreay set, then ignore this request */
-  if (ipcp->my_ifip.s_addr == myaddr.s_addr &&
-      ipcp->peer_ifip.s_addr == hisaddr.s_addr)
+  if (bundle->ncp.ipcp.my_ifip.s_addr == myaddr.s_addr &&
+      bundle->ncp.ipcp.peer_ifip.s_addr == hisaddr.s_addr)
     return 0;
 
-  IpcpCleanInterface(&ipcp->fsm);
+  IpcpCleanInterface(&bundle->ncp.ipcp.fsm);
 
   s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
@@ -335,8 +336,9 @@ ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
     mask = IN_CLASSC_NET;
 
   /* if subnet mask is given, use it instead of class mask */
-  if (netmask.s_addr != INADDR_ANY && (ntohl(netmask.s_addr) & mask) == mask)
-    mask = ntohl(netmask.s_addr);
+  if (bundle->ncp.ipcp.cfg.netmask.s_addr != INADDR_ANY &&
+      (ntohl(bundle->ncp.ipcp.cfg.netmask.s_addr) & mask) == mask)
+    mask = ntohl(bundle->ncp.ipcp.cfg.netmask.s_addr);
 
   sock_in = (struct sockaddr_in *)&ifra.ifra_mask;
   sock_in->sin_family = AF_INET;
@@ -351,19 +353,18 @@ ipcp_SetIPaddress(struct bundle *bundle, struct ipcp *ipcp,
     return (-1);
   }
 
-  ipcp->peer_ifip.s_addr = hisaddr.s_addr;
-  ipcp->my_ifip.s_addr = myaddr.s_addr;
+  bundle->ncp.ipcp.peer_ifip.s_addr = hisaddr.s_addr;
+  bundle->ncp.ipcp.my_ifip.s_addr = myaddr.s_addr;
 
   if (Enabled(ConfProxy))
-    sifproxyarp(bundle, ipcp->peer_ifip, s);
+    sifproxyarp(bundle, bundle->ncp.ipcp.peer_ifip, s);
 
   close(s);
   return (0);
 }
 
 static struct in_addr
-ChooseHisAddr(struct bundle *bundle, struct ipcp *ipcp,
-              const struct in_addr gw)
+ChooseHisAddr(struct bundle *bundle, const struct in_addr gw)
 {
   struct in_addr try;
   int f;
@@ -372,7 +373,7 @@ ChooseHisAddr(struct bundle *bundle, struct ipcp *ipcp,
     try = iplist_next(&bundle->ncp.ipcp.cfg.peer_list);
     LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
               f, inet_ntoa(try));
-    if (ipcp_SetIPaddress(bundle, ipcp, gw, try, ifnetmask, 1) == 0) {
+    if (ipcp_SetIPaddress(bundle, gw, try, 1) == 0) {
       LogPrintf(LogIPCP, "ChooseHisAddr: Selected IP address %s\n",
                 inet_ntoa(try));
       break;
@@ -401,11 +402,12 @@ IpcpSendConfigReq(struct fsm *fp)
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct ipcp *ipcp = fsm2ipcp(fp);
-  u_char *cp;
+  u_char *cp, buff[12];
   struct lcp_opt o;
 
-  cp = ReqBuff;
   LogPrintf(LogIPCP, "IpcpSendConfigReq\n");
+  cp = buff;
+
   if ((p && !Physical_IsSync(p)) || !REJECTED(ipcp, TY_IPADDR)) {
     o.id = TY_IPADDR;
     o.len = 6;
@@ -428,7 +430,7 @@ IpcpSendConfigReq(struct fsm *fp)
     }
     cp += LcpPutConf(LogIPCP, cp, &o, cftypes[o.id], args);
   }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
+  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
 }
 
 static void
@@ -542,8 +544,8 @@ IpcpLayerUp(struct fsm *fp)
   if (ipcp->peer_compproto >> 16 == PROTO_VJCOMP)
     VjInit((ipcp->peer_compproto >> 8) & 255);
 
-  if (ipcp_SetIPaddress(fp->bundle, ipcp, ipcp->my_ip,
-                        ipcp->peer_ip, ifnetmask, 0) < 0) {
+  if (ipcp_SetIPaddress(fp->bundle, ipcp->my_ip,
+                        ipcp->peer_ip, 0) < 0) {
     LogPrintf(LogERROR, "IpcpLayerUp: unable to set ip address\n");
     return;
   }
@@ -585,7 +587,8 @@ AcceptableAddr(struct in_range *prange, struct in_addr ipaddr)
 }
 
 static void
-IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
+IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type,
+                 struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_IPCP */
   struct ipcp *ipcp = fsm2ipcp(fp);
@@ -593,12 +596,7 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
   u_long *lp, compproto;
   struct compreq *pcomp;
   struct in_addr ipaddr, dstipaddr, dnsstuff, ms_info_req;
-  char tbuff[100];
-  char tbuff2[100];
-
-  ackp = AckBuff;
-  nakp = NakBuff;
-  rejp = RejBuff;
+  char tbuff[100], tbuff2[100];
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -621,19 +619,19 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
         if (iplist_isvalid(&ipcp->cfg.peer_list)) {
           if (ipaddr.s_addr == INADDR_ANY ||
               iplist_ip2pos(&ipcp->cfg.peer_list, ipaddr) < 0 ||
-              ipcp_SetIPaddress(fp->bundle, ipcp, ipcp->cfg.my_range.ipaddr,
-                                ipaddr, ifnetmask, 1)) {
+              ipcp_SetIPaddress(fp->bundle, ipcp->cfg.my_range.ipaddr,
+                                ipaddr, 1)) {
             LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
                       inet_ntoa(ipaddr));
             ipcp->peer_ip = ChooseHisAddr
-              (fp->bundle, ipcp, ipcp->cfg.my_range.ipaddr);
+              (fp->bundle, ipcp->cfg.my_range.ipaddr);
             if (ipcp->peer_ip.s_addr == INADDR_ANY) {
-	      memcpy(rejp, cp, length);
-	      rejp += length;
+	      memcpy(dec->rejend, cp, length);
+	      dec->rejend += length;
             } else {
-	      memcpy(nakp, cp, 2);
-	      memcpy(nakp+2, &ipcp->peer_ip.s_addr, length - 2);
-	      nakp += length;
+	      memcpy(dec->nakend, cp, 2);
+	      memcpy(dec->nakend+2, &ipcp->peer_ip.s_addr, length - 2);
+	      dec->nakend += length;
             }
 	    break;
           }
@@ -642,14 +640,14 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 	   * If destination address is not acceptable, insist to use what we
 	   * want to use.
 	   */
-	  memcpy(nakp, cp, 2);
-	  memcpy(nakp+2, &ipcp->peer_ip.s_addr, length - 2);
-	  nakp += length;
+	  memcpy(dec->nakend, cp, 2);
+	  memcpy(dec->nakend+2, &ipcp->peer_ip.s_addr, length - 2);
+	  dec->nakend += length;
 	  break;
 	}
 	ipcp->peer_ip = ipaddr;
-	memcpy(ackp, cp, length);
-	ackp += length;
+	memcpy(dec->ackend, cp, length);
+	dec->ackend += length;
 	break;
       case MODE_NAK:
 	if (AcceptableAddr(&ipcp->cfg.my_range, ipaddr)) {
@@ -676,8 +674,8 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
       switch (mode_type) {
       case MODE_REQ:
 	if (!Acceptable(ConfVjcomp)) {
-	  memcpy(rejp, cp, length);
-	  rejp += length;
+	  memcpy(dec->rejend, cp, length);
+	  dec->rejend += length;
 	} else {
 	  pcomp = (struct compreq *) (cp + 2);
 	  switch (length) {
@@ -686,13 +684,13 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 	      LogPrintf(LogWARN, "Peer is speaking RFC1172 compression protocol !\n");
 	      ipcp->heis1172 = 1;
 	      ipcp->peer_compproto = compproto;
-	      memcpy(ackp, cp, length);
-	      ackp += length;
+	      memcpy(dec->ackend, cp, length);
+	      dec->ackend += length;
 	    } else {
-	      memcpy(nakp, cp, 2);
+	      memcpy(dec->nakend, cp, 2);
 	      pcomp->proto = htons(PROTO_VJCOMP);
-	      memcpy(nakp+2, &pcomp, 2);
-	      nakp += length;
+	      memcpy(dec->nakend+2, &pcomp, 2);
+	      dec->nakend += length;
 	    }
 	    break;
 	  case 6:		/* RFC1332 */
@@ -701,20 +699,20 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
                 && pcomp->slots >= MIN_VJ_STATES) {
 	      ipcp->peer_compproto = compproto;
 	      ipcp->heis1172 = 0;
-	      memcpy(ackp, cp, length);
-	      ackp += length;
+	      memcpy(dec->ackend, cp, length);
+	      dec->ackend += length;
 	    } else {
-	      memcpy(nakp, cp, 2);
+	      memcpy(dec->nakend, cp, 2);
 	      pcomp->proto = htons(PROTO_VJCOMP);
 	      pcomp->slots = DEF_VJ_STATES;
 	      pcomp->compcid = 0;
-	      memcpy(nakp+2, &pcomp, sizeof pcomp);
-	      nakp += length;
+	      memcpy(dec->nakend+2, &pcomp, sizeof pcomp);
+	      dec->nakend += length;
 	    }
 	    break;
 	  default:
-	    memcpy(rejp, cp, length);
-	    rejp += length;
+	    memcpy(dec->rejend, cp, length);
+	    dec->rejend += length;
 	    break;
 	  }
 	}
@@ -741,8 +739,8 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
       case MODE_REQ:
 	ipcp->peer_ip = ipaddr;
 	ipcp->my_ip = dstipaddr;
-	memcpy(ackp, cp, length);
-	ackp += length;
+	memcpy(dec->ackend, cp, length);
+	dec->ackend += length;
 	break;
       case MODE_NAK:
         snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s", tbuff,
@@ -764,15 +762,15 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 #ifndef NOMSEXT
     case TY_PRIMARY_DNS:	/* MS PPP DNS negotiation hack */
     case TY_SECONDARY_DNS:
-      if (!Enabled(ConfMSExt)) {
-	LogPrintf(LogIPCP, "MS NS req - rejected - msext disabled\n");
-	ipcp->my_reject |= (1 << type);
-	memcpy(rejp, cp, length);
-	rejp += length;
-	break;
-      }
       switch (mode_type) {
       case MODE_REQ:
+        if (!Enabled(ConfMSExt)) {
+	  LogPrintf(LogIPCP, "MS NS req - rejected - msext disabled\n");
+	  ipcp->my_reject |= (1 << type);
+	  memcpy(dec->rejend, cp, length);
+	  dec->rejend += length;
+	  break;
+        }
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
 	ms_info_req.s_addr = ipcp->cfg.ns_entries
@@ -783,13 +781,13 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 	   * So the client has got the DNS stuff wrong (first request) so
 	   * we'll tell 'em how it is
 	   */
-	  memcpy(nakp, cp, 2);	/* copy first two (type/length) */
+	  memcpy(dec->nakend, cp, 2);	/* copy first two (type/length) */
 	  LogPrintf(LogIPCP, "MS NS req %d:%s->%s - nak\n",
 		    type,
 		    inet_ntoa(dnsstuff),
 		    inet_ntoa(ms_info_req));
-	  memcpy(nakp+2, &ms_info_req, length);
-	  nakp += length;
+	  memcpy(dec->nakend+2, &ms_info_req, length);
+	  dec->nakend += length;
 	  break;
 	}
 
@@ -800,8 +798,8 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 	LogPrintf(LogIPCP, "MS NS req %d:%s ok - ack\n",
 		  type,
 		  inet_ntoa(ms_info_req));
-	memcpy(ackp, cp, length);
-	ackp += length;
+	memcpy(dec->ackend, cp, length);
+	dec->ackend += length;
 	break;
       case MODE_NAK:		/* what does this mean?? */
 	LogPrintf(LogIPCP, "MS NS req %d - NAK??\n", type);
@@ -814,34 +812,34 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 
     case TY_PRIMARY_NBNS:	/* MS PPP NetBIOS nameserver hack */
     case TY_SECONDARY_NBNS:
-      if (!Enabled(ConfMSExt)) {
-	LogPrintf(LogIPCP, "MS NBNS req - rejected - msext disabled\n");
-	ipcp->my_reject |= (1 << type);
-	memcpy(rejp, cp, length);
-	rejp += length;
-	break;
-      }
       switch (mode_type) {
       case MODE_REQ:
+        if (!Enabled(ConfMSExt)) {
+	  LogPrintf(LogIPCP, "MS NBNS req - rejected - msext disabled\n");
+	  ipcp->my_reject |= (1 << type);
+	  memcpy(dec->rejend, cp, length);
+	  dec->rejend += length;
+	  break;
+        }
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
 	ms_info_req.s_addr = ipcp->cfg.nbns_entries
           [(type - TY_PRIMARY_NBNS) ? 1 : 0].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
-	  memcpy(nakp, cp, 2);
-	  memcpy(nakp+2, &ms_info_req.s_addr, length);
+	  memcpy(dec->nakend, cp, 2);
+	  memcpy(dec->nakend+2, &ms_info_req.s_addr, length);
 	  LogPrintf(LogIPCP, "MS NBNS req %d:%s->%s - nak\n",
 		    type,
 		    inet_ntoa(dnsstuff),
 		    inet_ntoa(ms_info_req));
-	  nakp += length;
+	  dec->nakend += length;
 	  break;
 	}
 	LogPrintf(LogIPCP, "MS NBNS req %d:%s ok - ack\n",
 		  type,
 		  inet_ntoa(ms_info_req));
-	memcpy(ackp, cp, length);
-	ackp += length;
+	memcpy(dec->ackend, cp, length);
+	dec->ackend += length;
 	break;
       case MODE_NAK:
 	LogPrintf(LogIPCP, "MS NBNS req %d - NAK??\n", type);
@@ -855,9 +853,11 @@ IpcpDecodeConfig(struct fsm *fp, u_char * cp, int plen, int mode_type)
 #endif
 
     default:
-      ipcp->my_reject |= (1 << type);
-      memcpy(rejp, cp, length);
-      rejp += length;
+      if (mode_type != MODE_NOP) {
+        ipcp->my_reject |= (1 << type);
+        memcpy(dec->rejend, cp, length);
+        dec->rejend += length;
+      }
       break;
     }
     plen -= length;
@@ -884,7 +884,7 @@ UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
     iplist_setsrc(&ipcp->cfg.peer_list, hisaddr);
     if (iplist_isvalid(&ipcp->cfg.peer_list)) {
       iplist_setrandpos(&ipcp->cfg.peer_list);
-      ipcp->peer_ip = ChooseHisAddr(bundle, ipcp, ipcp->my_ip);
+      ipcp->peer_ip = ChooseHisAddr(bundle, ipcp->my_ip);
       if (ipcp->peer_ip.s_addr == INADDR_ANY) {
         LogPrintf(LogWARN, "%s: None available !\n",
                   ipcp->cfg.peer_list.src);
@@ -902,10 +902,8 @@ UseHisaddr(struct bundle *bundle, const char *hisaddr, int setaddr)
                        &ipcp->cfg.peer_range.width) != 0) {
     ipcp->peer_ip.s_addr = ipcp->cfg.peer_range.ipaddr.s_addr;
 
-    if (setaddr && ipcp_SetIPaddress(bundle, ipcp,
-                                     ipcp->cfg.my_range.ipaddr,
-                                     ipcp->cfg.peer_range.ipaddr,
-                                     ifnetmask, 0) < 0) {
+    if (setaddr && ipcp_SetIPaddress(bundle, ipcp->cfg.my_range.ipaddr,
+                                     ipcp->cfg.peer_range.ipaddr, 0) < 0) {
       ipcp->cfg.my_range.ipaddr.s_addr = INADDR_ANY;
       ipcp->cfg.peer_range.ipaddr.s_addr = INADDR_ANY;
       return 0;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: chat.c,v 1.44.2.14 1998/03/09 19:25:33 brian Exp $
+ *	$Id: chat.c,v 1.44.2.15 1998/03/13 00:43:55 brian Exp $
  */
 
 #include <sys/param.h>
@@ -65,7 +65,6 @@
 #define BUFLEFT(c) (sizeof (c)->buf - ((c)->bufend - (c)->buf))
 #define	issep(c)	((c) == '\t' || (c) == ' ')
 
-struct chat chat;
 static void ExecStr(struct physical *, char *, char *, int);
 static char *ExpandString(struct chat *, const char *, char *, int, int);
 

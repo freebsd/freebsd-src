@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.36 1998/03/13 21:07:01 brian Exp $
+ * $Id: command.c,v 1.131.2.37 1998/03/13 21:07:29 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -82,7 +82,6 @@
 #include "chap.h"
 #include "datalink.h"
 
-struct in_addr ifnetmask;
 static const char *HIDDEN = "********";
 
 static int ShowCommand(struct cmdargs const *);
@@ -1192,7 +1191,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
     return -1;
 
   ipcp->cfg.HaveTriggerAddress = 0;
-  ifnetmask.s_addr = 0;
+  ipcp->cfg.netmask.s_addr = INADDR_ANY;
   iplist_reset(&ipcp->cfg.peer_list);
 
   if (arg->argc > 0) {
@@ -1202,7 +1201,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
     if (arg->argc > 1) {
       hisaddr = arg->argv[1];
       if (arg->argc > 2) {
-	ifnetmask = GetIpAddr(arg->argv[2]);
+        ipcp->cfg.netmask = GetIpAddr(arg->argv[2]);
 	if (arg->argc > 3) {
 	  ipcp->cfg.TriggerAddress = GetIpAddr(arg->argv[3]);
 	  ipcp->cfg.HaveTriggerAddress = 1;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.26 1998/03/13 00:44:08 brian Exp $
+ * $Id: lcp.c,v 1.55.2.27 1998/03/13 21:07:06 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -88,7 +88,8 @@ static void LcpInitRestartCounter(struct fsm *);
 static void LcpSendConfigReq(struct fsm *);
 static void LcpSendTerminateReq(struct fsm *);
 static void LcpSendTerminateAck(struct fsm *);
-static void LcpDecodeConfig(struct fsm *, u_char *, int, int);
+static void LcpDecodeConfig(struct fsm *, u_char *, int, int,
+                            struct fsm_decode *);
 
 static struct fsm_callbacks lcp_Callbacks = {
   LcpLayerUp,
@@ -303,7 +304,7 @@ LcpSendConfigReq(struct fsm *fp)
   /* Send config REQ please */
   struct physical *p = link2physical(fp->link);
   struct lcp *lcp = fsm2lcp(fp);
-  u_char *cp;
+  u_char *cp, buff[100];
   struct lcp_opt o;
 
   if (!p) {
@@ -312,7 +313,7 @@ LcpSendConfigReq(struct fsm *fp)
   }
 
   LogPrintf(LogLCP, "LcpSendConfigReq\n");
-  cp = ReqBuff;
+  cp = buff;
   if (!Physical_IsSync(p)) {
     if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
       PUTN(TY_ACFCOMP);
@@ -347,7 +348,7 @@ LcpSendConfigReq(struct fsm *fp)
       PUTMD5CHAP();			/* Use MD5 */
     break;
   }
-  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, ReqBuff, cp - ReqBuff);
+  FsmOutput(fp, CODE_CONFIGREQ, fp->reqid++, buff, cp - buff);
 }
 
 void
@@ -418,7 +419,8 @@ LcpLayerDown(struct fsm *fp)
 }
 
 static void
-LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
+LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type,
+                struct fsm_decode *dec)
 {
   /* Deal with incoming PROTO_LCP */
   struct lcp *lcp = fsm2lcp(fp);
@@ -427,10 +429,6 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
   u_short mtu, mru, *sp, proto;
   struct lqrreq *req;
   char request[20], desc[22];
-
-  ackp = AckBuff;
-  nakp = NakBuff;
-  rejp = RejBuff;
 
   while (plen >= sizeof(struct fsmconfig)) {
     type = *cp;
@@ -454,16 +452,16 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
           mtu = MAX_MTU;
 	if (mru > mtu) {
 	  *sp = htons(mtu);
-	  memcpy(nakp, cp, 4);
-	  nakp += 4;
+	  memcpy(dec->nakend, cp, 4);
+	  dec->nakend += 4;
 	} else if (mru < MIN_MRU) {
 	  *sp = htons(MIN_MRU);
-	  memcpy(nakp, cp, 4);
-	  nakp += 4;
+	  memcpy(dec->nakend, cp, 4);
+	  dec->nakend += 4;
 	} else {
 	  lcp->his_mru = mru;
-	  memcpy(ackp, cp, 4);
-	  ackp += 4;
+	  memcpy(dec->ackend, cp, 4);
+	  dec->ackend += 4;
 	}
 	break;
       case MODE_NAK:
@@ -484,8 +482,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
       switch (mode_type) {
       case MODE_REQ:
 	lcp->his_accmap = accmap;
-	memcpy(ackp, cp, 6);
-	ackp += 6;
+	memcpy(dec->ackend, cp, 6);
+	dec->ackend += 6;
 	break;
       case MODE_NAK:
 	lcp->want_accmap = accmap;
@@ -521,19 +519,19 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 	  }
 	  if (Acceptable(ConfPap)) {
 	    lcp->his_auth = proto;
-	    memcpy(ackp, cp, length);
-	    ackp += length;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
 	  } else if (Acceptable(ConfChap)) {
-	    *nakp++ = *cp;
-	    *nakp++ = 5;
-	    *nakp++ = (unsigned char) (PROTO_CHAP >> 8);
-	    *nakp++ = (unsigned char) PROTO_CHAP;
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 5;
+	    *dec->nakend++ = (unsigned char) (PROTO_CHAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_CHAP;
 #ifdef HAVE_DES
             if (VarMSChap)
-              *nakp++ = 0x80;
+              *dec->nakend++ = 0x80;
             else
 #endif
-	      *nakp++ = 5;
+	      *dec->nakend++ = 5;
 	  } else
 	    goto reqreject;
 	  break;
@@ -550,16 +548,16 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 #endif
 	  {
 	    lcp->his_auth = proto;
-	    memcpy(ackp, cp, length);
-	    ackp += length;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
 #ifdef HAVE_DES
             VarMSChap = cp[4] == 0x80;
 #endif
 	  } else if (Acceptable(ConfPap)) {
-	    *nakp++ = *cp;
-	    *nakp++ = 4;
-	    *nakp++ = (unsigned char) (PROTO_PAP >> 8);
-	    *nakp++ = (unsigned char) PROTO_PAP;
+	    *dec->nakend++ = *cp;
+	    *dec->nakend++ = 4;
+	    *dec->nakend++ = (unsigned char) (PROTO_PAP >> 8);
+	    *dec->nakend++ = (unsigned char) PROTO_PAP;
 	  } else
 	    goto reqreject;
 	  break;
@@ -567,8 +565,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 	default:
           LogPrintf(LogLCP, "%s 0x%04x - not recognised, NAK\n",
                     request, proto);
-	  memcpy(nakp, cp, length);
-	  nakp += length;
+	  memcpy(dec->nakend, cp, length);
+	  dec->nakend += length;
 	  break;
 	}
 	break;
@@ -615,8 +613,8 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 	  if (lcp->his_lqrperiod < 500)
 	    lcp->his_lqrperiod = 500;
 	  req->period = htonl(lcp->his_lqrperiod);
-	  memcpy(ackp, cp, length);
-	  ackp += length;
+	  memcpy(dec->ackend, cp, length);
+	  dec->ackend += length;
 	}
 	break;
       case MODE_NAK:
@@ -640,14 +638,14 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 	    LogPrintf(LogLCP, "Magic is same (%08lx) - %d times\n",
                       (u_long)magic, ++lcp->LcpFailedMagic);
 	    lcp->want_magic = GenerateMagic();
-	    memcpy(nakp, cp, 6);
-	    nakp += 6;
+	    memcpy(dec->nakend, cp, 6);
+	    dec->nakend += 6;
             ualarm(TICKUNIT * (4 + 4 * lcp->LcpFailedMagic), 0);
             sigpause(0);
 	  } else {
 	    lcp->his_magic = magic;
-	    memcpy(ackp, cp, length);
-	    ackp += length;
+	    memcpy(dec->ackend, cp, length);
+	    dec->ackend += length;
             lcp->LcpFailedMagic = 0;
 	  }
 	} else {
@@ -674,18 +672,18 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
       case MODE_REQ:
 	if (Acceptable(ConfProtocomp)) {
 	  lcp->his_protocomp = 1;
-	  memcpy(ackp, cp, 2);
-	  ackp += 2;
+	  memcpy(dec->ackend, cp, 2);
+	  dec->ackend += 2;
 	} else {
 #ifdef OLDMST
 	  /*
 	   * MorningStar before v1.3 needs NAK
 	   */
-	  memcpy(nakp, cp, 2);
-	  nakp += 2;
+	  memcpy(dec->nakend, cp, 2);
+	  dec->nakend += 2;
 #else
-	  memcpy(rejp, cp, 2);
-	  rejp += 2;
+	  memcpy(dec->rejend, cp, 2);
+	  dec->rejend += 2;
 	  lcp->my_reject |= (1 << type);
 #endif
 	}
@@ -704,18 +702,18 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
       case MODE_REQ:
 	if (Acceptable(ConfAcfcomp)) {
 	  lcp->his_acfcomp = 1;
-	  memcpy(ackp, cp, 2);
-	  ackp += 2;
+	  memcpy(dec->ackend, cp, 2);
+	  dec->ackend += 2;
 	} else {
 #ifdef OLDMST
 	  /*
 	   * MorningStar before v1.3 needs NAK
 	   */
-	  memcpy(nakp, cp, 2);
-	  nakp += 2;
+	  memcpy(dec->nakend, cp, 2);
+	  dec->nakend += 2;
 #else
-	  memcpy(rejp, cp, 2);
-	  rejp += 2;
+	  memcpy(dec->rejend, cp, 2);
+	  dec->rejend += 2;
 	  lcp->my_reject |= (1 << type);
 #endif
 	}
@@ -751,13 +749,13 @@ LcpDecodeConfig(struct fsm *fp, u_char *cp, int plen, int mode_type)
 
       if (mode_type == MODE_REQ) {
 reqreject:
-        if (length > sizeof RejBuff - (rejp - RejBuff)) {
-          length = sizeof RejBuff - (rejp - RejBuff);
+        if (length > sizeof dec->rej - (dec->rejend - dec->rej)) {
+          length = sizeof dec->rej - (dec->rejend - dec->rej);
           LogPrintf(LogLCP, "Can't REJ length %d - trunating to %d\n",
 		    cp[1], length);
         }
-	memcpy(rejp, cp, length);
-	rejp += length;
+	memcpy(dec->rejend, cp, length);
+	dec->rejend += length;
 	lcp->my_reject |= (1 << type);
         if (length != cp[1])
           return;

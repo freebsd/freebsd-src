@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18.2.14 1998/02/27 01:22:27 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.15 1998/03/13 21:07:37 brian Exp $
  *
  *	TODO:
  */
@@ -47,6 +47,7 @@ struct ipcp {
     int VJInitComp : 1;			/* Slot compression */
 
     struct in_range  my_range;		/* MYADDR spec */
+    struct in_addr   netmask;		/* netmask (unused by most OSs) */
     struct in_range  peer_range;	/* HISADDR spec */
     struct iplist    peer_list;		/* Ranges of HISADDR values */
 
