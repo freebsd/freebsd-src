@@ -33,7 +33,7 @@
  *
  *	@(#)ipx_proto.c
  *
- * $Id: ipx_proto.c,v 1.2 1995/10/31 23:36:36 julian Exp $
+ * $Id: ipx_proto.c,v 1.3 1995/11/04 09:03:18 julian Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/domain.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/sysctl.h>
 
 #include <net/radix.h>
 
@@ -100,3 +101,10 @@ struct domain ipxdomain =
       rn_inithead, 16, sizeof(struct sockaddr_ipx)};
 
 DOMAIN_SET(ipx);
+SYSCTL_NODE(_net,	PF_IPX,		ipx,	CTLFLAG_RW, 0,
+	"IPX/SPX");
+
+SYSCTL_NODE(_net_ipx,	IPXPROTO_RAW,	ipx,	CTLFLAG_RW, 0, "IPX");
+SYSCTL_NODE(_net_ipx,	IPXPROTO_SPX,	spx,	CTLFLAG_RW, 0, "SPX");
+SYSCTL_NODE(_net_ipx,	IPXPROTO_ERROR,	error,	CTLFLAG_RW, 0,
+	    "Error Protocol");
