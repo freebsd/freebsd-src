@@ -566,7 +566,7 @@ _http_base64(const char *src)
 	int t, r;
 
 	l = strlen(src);
-	if ((str = malloc(((l + 2) / 3) * 4)) == NULL)
+	if ((str = malloc(((l + 2) / 3) * 4 + 1)) == NULL)
 		return (NULL);
 	dst = str;
 	r = 0;
