@@ -40,8 +40,8 @@
  * $FreeBSD$
  */
 
-#ifndef _NETGRAPH_MPPC_H_
-#define _NETGRAPH_MPPC_H_
+#ifndef _NETGRAPH_NG_MPPC_H_
+#define _NETGRAPH_NG_MPPC_H_
 
 /* Node type name and magic cookie */
 #define NG_MPPC_NODE_TYPE	"mppc"
@@ -80,5 +80,5 @@ enum {
 	NGM_MPPC_RESETREQ,			/* sent either way! */
 };
 
-#endif /* _NETGRAPH_MPPC_H_ */
+#endif /* _NETGRAPH_NG_MPPC_H_ */
 

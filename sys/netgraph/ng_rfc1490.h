@@ -40,8 +40,8 @@
  * $Whistle: ng_rfc1490.h,v 1.7 1999/01/20 00:54:15 archie Exp $
  */
 
-#ifndef _NETGRAPH_RFC1490_H_
-#define _NETGRAPH_RFC1490_H_
+#ifndef _NETGRAPH_NG_RFC1490_H_
+#define _NETGRAPH_NG_RFC1490_H_
 
 /* Node type name */
 #define NG_RFC1490_NODE_TYPE		"rfc1490"
@@ -52,4 +52,4 @@
 #define NG_RFC1490_HOOK_INET		"inet"
 #define NG_RFC1490_HOOK_PPP		"ppp"
 
-#endif /* _NETGRAPH_RFC1490_H_ */
+#endif /* _NETGRAPH_NG_RFC1490_H_ */

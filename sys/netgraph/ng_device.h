@@ -28,8 +28,8 @@
  *
  */
 
-#ifndef _NETGRAPH_DEVICE_H_
-#define _NETGRAPH_DEVICE_H_
+#ifndef _NETGRAPH_NG_DEVICE_H_
+#define _NETGRAPH_NG_DEVICE_H_
 
 /* Node type name and magic cookie */
 #define NG_DEVICE_NODE_TYPE	"device"
@@ -41,4 +41,4 @@ struct ngd_param_s {
 };
 
 
-#endif /* _NETGRAPH_DEVICE_H_ */
+#endif /* _NETGRAPH_NG_DEVICE_H_ */

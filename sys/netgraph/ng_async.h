@@ -40,8 +40,8 @@
  * $Whistle: ng_async.h,v 1.5 1999/01/25 01:17:14 archie Exp $
  */
 
-#ifndef _NETGRAPH_ASYNC_H_
-#define _NETGRAPH_ASYNC_H_
+#ifndef _NETGRAPH_NG_ASYNC_H_
+#define _NETGRAPH_NG_ASYNC_H_
 
 /* Type name and cookie */
 #define NG_ASYNC_NODE_TYPE	"async"
@@ -106,4 +106,4 @@ enum {
 	NGM_ASYNC_CMD_GET_CONFIG,	/* returns struct ng_async_cfg */
 };
 
-#endif /* _NETGRAPH_ASYNC_H_ */
+#endif /* _NETGRAPH_NG_ASYNC_H_ */

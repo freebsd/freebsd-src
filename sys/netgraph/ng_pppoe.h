@@ -40,8 +40,8 @@
  * $Whistle: ng_pppoe.h,v 1.7 1999/10/16 10:16:43 julian Exp $
  */
 
-#ifndef _NETGRAPH_PPPOE_H_
-#define _NETGRAPH_PPPOE_H_
+#ifndef _NETGRAPH_NG_PPPOE_H_
+#define _NETGRAPH_NG_PPPOE_H_
 
 /********************************************************************
  * Netgraph hook constants etc.
@@ -248,5 +248,5 @@ struct datatag {
 #define TAGS_HUNIQ 3
 /* for PADT */
 
-#endif /* _NETGRAPH_PPPOE_H_ */
+#endif /* _NETGRAPH_NG_PPPOE_H_ */
 
