@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.30 1999/04/22 19:35:16 obrien Exp $
+# $Id: Makefile,v 1.31 1999/04/22 20:12:21 obrien Exp $
 #
 
 #
@@ -159,6 +159,7 @@ tm.h:
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/perform.h"' >> ${.TARGET}
 .endif
+	echo '#include <freebsd-native.h>' >> ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.
