@@ -359,7 +359,7 @@ ip_fastforward(struct mbuf *m)
 	if (inet_pfil_hook.ph_busy_count == -1)
 		goto passin;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN) ||
+	if (pfil_run_hooks(&inet_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL) ||
 	    m == NULL)
 		return 1;
 
@@ -437,7 +437,7 @@ passin:
 	if (inet_pfil_hook.ph_busy_count == -1)
 		goto passout;
 
-	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT) || m == NULL) {
+	if (pfil_run_hooks(&inet_pfil_hook, &m, ifp, PFIL_OUT, NULL) || m == NULL) {
 		goto consumed;
 	}
 

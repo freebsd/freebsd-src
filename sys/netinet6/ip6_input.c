@@ -424,7 +424,7 @@ ip6_input(m)
 	if (inet6_pfil_hook.ph_busy_count == -1)
 		goto passin;
 
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
+	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN, NULL))
 		return;
 	if (m == NULL)			/* consumed by filter */
 		return;
