@@ -15,7 +15,7 @@ The ``Extra options to ifconfig'' is kind of special (read: a hack :-).
 You can use it for specifying the foreign side of a PLIP or SLIP line
 (simply type the foreign address in) as well as selecting a given
 "link" on an ethernet card that has more than one (e.g. AUI, 10BT,
-10B2, etc).  The following links are recognised:
+10B2, etc).  The following links are recognized:
 
         link0 - AUI * highest precedence
         link1 - BNC
