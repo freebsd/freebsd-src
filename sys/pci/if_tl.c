@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.4 1998/05/22 15:32:22 wpaul Exp $
+ *	$Id: if_tl.c,v 1.5 1998/05/24 00:56:49 wpaul Exp $
  */
 
 /*
@@ -240,7 +240,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.4 1998/05/22 15:32:22 wpaul Exp $";
+	"$Id: if_tl.c,v 1.5 1998/05/24 00:56:49 wpaul Exp $";
 #endif
 
 /*
@@ -1978,6 +1978,16 @@ static void tl_intr(xilist)
 	 * doesn't actually belong to us.
 	 */
 	if (ilist->tl_active_phy == TL_PHYS_IDLE) {
+		/*
+		 * Exception: if this is an invalid interrupt,
+		 * just re-enable interrupts and ignore it. Probably
+		 * what's happened is that we got an interrupt meant
+		 * for another PCI device that's sharing our IRQ.
+		 */
+		if (ints == TL_INTR_INVALID) {
+			csr->tl_host_cmd |= type;
+			return;
+		}
 		printf("tlc%d: interrupt type %x with all phys idle\n",
 			ilist->tlc_unit, ints);
 		return;
