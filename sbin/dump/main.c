@@ -587,8 +587,8 @@ usage(void)
 {
 	fprintf(stderr,
 		"usage: dump [-0123456789acLnSu] [-B records] [-b blocksize] [-C cachesize]\n"
-		"            [-D dumpdates] [-d density] [-h level] [-s feet] [-T date]\n"
-		"            [-f file | -P pipecommand] filesystem\n"
+		"            [-D dumpdates] [-d density] [-f file | -P pipecommand] [-h level]\n"
+		"            [-s feet] [-T date] filesystem\n"
 		"       dump -W | -w\n");
 	exit(X_STARTUP);
 }

@@ -670,15 +670,15 @@ usage(void)
 		name = "mdmfs";
 	if (!compat)
 		fprintf(stderr,
-"usage: %s [-DLlMNSUX] [-a maxcontig [-b block-size] [-c cylinders]\n"
+"usage: %s [-DLlMNSUX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
 "\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
 "\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
-"\t[-o mount-options] [-p permissions] [-s size] [-w user:group]\n"
-"\tmd-device mount-point\n", name);
+"\t[-o mount-options] [-p permissions] [-s size] [-v version]\n"
+"\t[-w user:group] md-device mount-point\n", name);
 	fprintf(stderr,
 "usage: %s -C [-lNU] [-a maxcontig] [-b block-size] [-c cylinders]\n"
 "\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
 "\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
-"\t[-o mount-options] [-s size] md-device mount-point\n", name);
+"\t[-o mount-options] [-s size] [-v version] md-device mount-point\n", name);
 	exit(1);
 }

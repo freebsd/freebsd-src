@@ -2702,21 +2702,26 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: ping6 [-dfH"
+#if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
+	    "A"
+#endif
+	    "usage: ping6 [-"
+	    "d"
+#if defined(IPSEC) && !defined(IPSEC_POLICY_IPSEC)
+	    "E"
+#endif
+	    "fH"
 #ifdef IPV6_USE_MIN_MTU
 	    "m"
 #endif
-	    "nNqtvwW"
-#ifdef IPSEC
-#ifdef IPSEC_POLICY_IPSEC
-	    "] [-P policy"
-#else
-	    "AE"
+	    "nNqtvwW] "
+	    "[-a addrtype] [-b bufsiz] [-c count] [-g gateway]\n"
+	    "             [-h hoplimit] [-I interface] [-i wait] [-l preload]"
+#if defined(IPSEC) && defined(IPSEC_POLICY_IPSEC)
+	    " [-P policy]"
 #endif
-#endif
-	    "] [-a [aAclsg]] [-b sockbufsiz] [-c count] \n"
-            "\t[-I interface] [-i wait] [-l preload] [-p pattern] "
-	    "[-S sourceaddr]\n"
-            "\t[-s packetsize] [-h hoplimit] [hops...] [-g gateway] host\n");
+	    "\n"
+	    "             [-p pattern] [-S sourceaddr] [-s packetsize] "
+	    "[hops ...] host\n");
 	exit(1);
 }

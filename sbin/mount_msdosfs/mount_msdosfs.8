@@ -38,20 +38,16 @@
 .Nd mount an MS-DOS file system
 .Sh SYNOPSIS
 .Nm
+.Op Fl 9ls
+.Op Fl D Ar DOS_codepage
+.Op Fl g Ar gid
+.Op Fl L Ar locale
+.Op Fl M Ar mask
+.Op Fl m Ar mask
 .Op Fl o Ar options
 .Op Fl u Ar uid
-.Op Fl g Ar gid
-.Op Fl m Ar mask
-.Op Fl M Ar mask
-.Op Fl s
-.Op Fl l
-.Op Fl 9
-.\".Op Fl G
-.Op Fl L Ar locale
-.Op Fl D Ar dos-codepage
 .Op Fl W Ar table
-.Pa special
-.Pa node
+.Ar special node
 .Sh DESCRIPTION
 The
 .Nm
@@ -166,7 +162,7 @@ This forces
 Specify locale name used for file name conversions
 for DOS and Win'95 names.
 By default ISO 8859-1 assumed as local character set.
-.It Fl D Ar dos-codepage
+.It Fl D Ar DOS_codepage
 Specify the MS-DOS code page (aka IBM/OEM code page) name used for
 file name conversions for DOS names.
 .It Fl W Ar table

@@ -260,7 +260,7 @@ main(argc, argv)
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
 	while ((c = getopt(argc, argv,
-	    "23a:bcdD:g:I:iLl:No:PR:r:sTt:w:x:U")) != -1)
+	    "23a:bcdD:g:I:iLlNo:PR:r:sTt:w:x:U")) != -1)
 		switch (c) {
 		case '2':
 			mountmode = V2;
@@ -918,9 +918,9 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: mount_nfs [-23KNPTUbcdilqs] [-D deadthresh] [-I readdirsize]",
-"                 [-R retrycnt] [-a maxreadahead]",
-"                 [-g maxgroups] [-m realm] [-o options] [-r readsize]",
-"                 [-t timeout] [-w writesize] [-x retrans] rhost:path node");
+"usage: mount_nfs [-23bcdiLlNPsTU] [-a maxreadahead] [-D deadthresh]",
+"                 [-g maxgroups] [-I readdirsize] [-o options] [-R retrycnt]",
+"                 [-r readsize] [-t timeout] [-w writesize] [-x retrans]",
+"                 rhost:path node");
 	exit(1);
 }

@@ -532,7 +532,7 @@ usage(void)
 {
         (void) fprintf(stderr,
             "usage: %s [-BFpfny] [-b block] [-c level] [-m mode] "
-                        "file system ...\n",
+                        "filesystem ...\n",
             getprogname());
         exit(1);
 }

@@ -41,7 +41,7 @@ void
 usage()
 {
 	fprintf(stderr,
-"usage: mdconfig -a -t type [-n] [-o [no]option] ... [ -f file]\n"
+"usage: mdconfig -a -t type [-n] [-o [no]option] ... [-f file]\n"
 "                [-s size] [-S sectorsize] [-u unit]\n"
 "                [-x sectors/track] [-y heads/cyl]\n"
 "       mdconfig -d -u unit\n"

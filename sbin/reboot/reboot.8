@@ -39,16 +39,16 @@
 .Nd stopping and restarting the system
 .Sh SYNOPSIS
 .Nm halt
-.Op Fl lnqp
+.Op Fl lnpq
 .Op Fl k Ar kernel
 .Nm
-.Op Fl dlnqp
+.Op Fl dlnpq
 .Op Fl k Ar kernel
 .Nm fasthalt
-.Op Fl lnqp
+.Op Fl lnpq
 .Op Fl k Ar kernel
 .Nm fastboot
-.Op Fl dlnqp
+.Op Fl dlnpq
 .Op Fl k Ar kernel
 .Sh DESCRIPTION
 The
@@ -98,12 +98,6 @@ and log this themselves.
 .It Fl n
 The file system cache is not flushed.
 This option should probably not be used.
-.It Fl q
-The system is halted or restarted quickly and ungracefully, and only
-the flushing of the file system cache is performed (if the
-.Fl n
-option is not specified).
-This option should probably not be used.
 .It Fl p
 The system will turn off the power if it can.
 If the power down action fails, the system
@@ -112,6 +106,12 @@ will halt or reboot normally, depending on whether
 or
 .Nm
 was called.
+.It Fl q
+The system is halted or restarted quickly and ungracefully, and only
+the flushing of the file system cache is performed (if the
+.Fl n
+option is not specified).
+This option should probably not be used.
 .El
 .Pp
 The

@@ -255,9 +255,9 @@ usage()
 #ifdef TRANSITION_PERIOD_HACK
 	fprintf(stderr, "%s\n%s\n",
 	"usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask]",
-	"                  [-C charset] [-W u2wtable] bdev dir");
+	"                  [-C charset] [-W u2wtable] special node");
 #else
-	fprintf(stderr, "usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask] [-C charset] bdev dir\n");
+	fprintf(stderr, "usage: mount_ntfs [-a] [-i] [-u user] [-g group] [-m mask] [-C charset] special node\n");
 #endif
 	exit(EX_USAGE);
 }
