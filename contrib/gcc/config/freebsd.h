@@ -1,4 +1,4 @@
-/* $Id: freebsd.h,v 1.15 1999/07/02 19:26:45 obrien Exp $ */
+/* $Id: freebsd.h,v 1.16 1999/08/15 21:59:46 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -41,11 +41,17 @@ Boston, MA 02111-1307, USA.  */
    || (CHAR) == 'z' /* ignored by ld */ \
    || (CHAR) == 'R')
 
+#undef SWITCH_TAKES_ARG
+#define SWITCH_TAKES_ARG(CHAR) (FBSD_SWITCH_TAKES_ARG(CHAR))
+
 #define FBSD_WORD_SWITCH_TAKES_ARG(STR)					\
   (DEFAULT_WORD_SWITCH_TAKES_ARG (STR)					\
    || !strcmp (STR, "rpath") || !strcmp (STR, "rpath-link")		\
    || !strcmp (STR, "soname") || !strcmp (STR, "defsym") 		\
    || !strcmp (STR, "assert") || !strcmp (STR, "dynamic-linker"))
+
+#undef WORD_SWITCH_TAKES_ARG
+#define WORD_SWITCH_TAKES_ARG(STR) (FBSD_WORD_SWITCH_TAKES_ARG(STR))
 
 /* Place spaces around this string.  We depend on string splicing to produce
    the final CPP_PREDEFINES value.  */
