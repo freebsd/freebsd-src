@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: setlocale.c,v 1.20 1997/02/22 14:59:56 peter Exp $
  */
 
 #ifdef LIBC_RCS
 static const char rcsid[] =
-	"$Id$";
+	"$Id: setlocale.c,v 1.20 1997/02/22 14:59:56 peter Exp $";
 #endif
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -222,8 +222,19 @@ loadlocale(category)
 	char *new = new_categories[category];
 	char *old = current_categories[category];
 
-	if (!_PathLocale)
-		_PathLocale = _PATH_LOCALE;
+	if (_PathLocale == NULL) {
+		char *p = getenv("PATH_LOCALE");
+
+		if (p != NULL && !issetugid()) {
+			if (strlen(p) + 1/*"/"*/ + ENCODING_LEN +
+			    1/*"/"*/ + CATEGORY_LEN >= PATH_MAX)
+				return (NULL);
+			_PathLocale = strdup(p);
+			if (_PathLocale == NULL)
+				return (NULL);
+		} else
+			_PathLocale = _PATH_LOCALE;
+	}
 
 	if (strcmp(new, old) == 0)
 		return (old);
