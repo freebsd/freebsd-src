@@ -44,6 +44,7 @@ __RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 
+#include <err.h>
 #include <errno.h>
 #include <limits.h>
 #include <locale.h>
@@ -263,10 +264,8 @@ main(argc, argv)
 	case 0:
 		break;
 	case 1:
-		if (freopen(argv[0], "r", stdin) == NULL) {
-			perror(argv[0]);
-			exit(EXIT_FAILURE);
-		}
+		if (freopen(argv[0], "r", stdin) == NULL)
+			err(EXIT_FAILURE, "%s", argv[0]);
 		break;
 	default:
 		usage();
@@ -278,17 +277,13 @@ main(argc, argv)
 		val = LINE_MAX;
 	/* Allocate sufficient buffer space (including the terminating NUL). */
 	buffersize = (size_t)val + 1;
-	if ((buffer = malloc(buffersize)) == NULL) {
-		perror("cannot allocate input line buffer");
-		exit(EXIT_FAILURE);
-	}
+	if ((buffer = malloc(buffersize)) == NULL)
+		err(EXIT_FAILURE, "cannot allocate input line buffer");
 
 	/* Allocate a buffer suitable for preformatting line number. */
 	intbuffersize = max(INT_STRLEN_MAXIMUM, width) + 1;	/* NUL */
-	if ((intbuffer = malloc(intbuffersize)) == NULL) {
-		perror("cannot allocate preformatting buffer");
-		exit(EXIT_FAILURE);
-	}
+	if ((intbuffer = malloc(intbuffersize)) == NULL)
+		err(EXIT_FAILURE, "cannot allocate preformatting buffer");
 
 	/* Do the work. */
 	filter();
@@ -367,18 +362,14 @@ filter()
 		}
 		(void)printf("%s%s", sep, buffer);
 
-		if (ferror(stdout)) {
-			perror("output error");
-			exit(EXIT_FAILURE);
-		}
+		if (ferror(stdout))
+			err(EXIT_FAILURE, "output error");
 nextline:
 		;
 	}
 
-	if (ferror(stdin)) {
-		perror("input error");
-		exit(EXIT_FAILURE);
-	}
+	if (ferror(stdin))
+		err(EXIT_FAILURE, "input error");
 }
 
 /*
