@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 .\" THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wi.4,v 1.1 1999/05/05 07:36:59 wpaul Exp $
+.\"	$Id$
 .\"
 .Dd April 21, 1999
 .Dt WI 4 i386
@@ -45,9 +45,11 @@ The
 driver provides support for WaveLAN/IEEE PCCARD adapters (also known
 as WaveLAN II cards). Note that while Lucent sells both ISA and PCMCIA
 WaveLAN/IEEE devices, the ISA product is actually a PCMCIA card in an
-ISA to PCMCIA bridge adapter. The
+ISA to PCMCIA bridge adapter. Consequently, the
 .Nm
-driver supports both the ISA and PCMCIA devices.
+driver is required for both the ISA and PCMCIA NICs. Both the original
+2Mbps WaveLAN/IEEE cards and the newer 6Mbps WaveLAN/IEEE Turbo
+adapters are supported.
 .Pp
 The core of the WaveLAN/IEEE is the Lucent Hermes controller. All
 host/device interaction is via programmed I/O with the Hermes. The
@@ -57,6 +59,7 @@ and ad-hoc operation modes. The
 driver encapsulates all IP and ARP traffic as 802.11 frames, however
 it can receive either 802.11 or 802.3 frames. Transmit speed is
 selectable between 1Mbps fixed, 2Mbps fixed or 2Mbps with auto fallback.
+For WaveLAN/IEEE Turbo adapters, speeds up to 6Mbps are available.
 .Pp
 By default, the
 .Nm

@@ -98,10 +98,28 @@ flag will cause
 .Nm
 to print out the statistics counters instead of the card settings.
 .It Fl i Ar iface Fl t Ar tx rate
-Set the transmit rate of the specified interface. The permitted values
-for the transmit rate are 1, 2 and 3, where 1 is fixed 1Mbps, 2 is
-fixed 2Mbps and 3 is 2Mbps with automatic fallback to 1Mbps. The default
-driver setting is 3.
+Set the transmit rate of the specified interface. The legal values
+for the transmit rate vary depending on whether the interface is a
+standard WaveLAN/IEEE or a WaveLAN/IEEE Turbo adapter. The standard
+NICs support a maximum transmit rate of 2Mbps while the turbo NICs
+support a maximum speed of 6Mbps. The following table shows the
+legal transmit rate settings and the corresponding transmit speeds:
+.Bd -filled -offset indent
+.Bl -column "TX rate " "NIC speed "
+.Em "TX rate	NIC speed"
+1	Fixed Low (1Mbps)
+2	Fixed Standard (2Mbps)
+3	Auto Rate Select (High)
+4	Fixed Medium (4Mbps)
+5	Fixed High (6Mbps)
+6	Auto Rate Select (Standard)
+7	Auto Rate Select (Medium)
+.El
+.Ed
+.Pp
+The standard NICs support only settings 1 through 3. Turbo NICs support
+all the above listed speed settings.
+The default driver setting is 3 (auto rate select).
 .It Fl i Ar iface Fl n Ar network name
 Set the name of the service set (IBSS) that this station wishes to
 join. The
@@ -122,7 +140,7 @@ Sets the
 for the specified interface. The
 .Ar station name
 is used for diagnostic purposes. The Lucent WaveMANAGER sofware can
-poll the names of remove hosts.
+poll the names of remote hosts.
 .It Fl i Ar iface Fl c Ar 0|1
 Allow the station to create a service set (IBSS). Permitted values
 are 0 (don't create IBSS) and 1 (enable creation of IBSS). The default
@@ -215,7 +233,7 @@ is only implemented in Lucent WavePOINT firmware version 2.03 or
 later, and in WaveLAN PCMCIA adapter firmware 2.00 or later. Older
 revisions will silently ignore the power management setting. Legal
 values for this parameter are 0 (off) and 1 (on).
-.It Fl i Ar iface Fl S Ar max sleep interval
+.It Fl i Ar iface Fl S Ar max_sleep_interval
 Specify the sleep interval to use when power management is enabled.
 The
 .Are max sleep interval

@@ -706,7 +706,11 @@ Genius and Mustek hand scanners.
 
 Floppy tape drives (some rather old models only, driver rather stale)
 
-Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA network adapters and
-workalikes (NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout)
+Lucent Technologies WaveLAN/IEEE 802.11 PCMCIA and ISA standard speed
+(2Mbps) and turbo speed (6Mbps) wireless network adapters and workalikes
+(NCR WaveLAN/IEEE 802.11, Cabletron RoamAbout 802.11 DS). Note: the
+ISA versions of these adapters are actually PCMCIA cards combined with
+an ISA to PCMCIA bridge card, so both kinds of devices work with
+the same driver.
 
 FreeBSD currently does NOT support IBM's microchannel (MCA) bus.
