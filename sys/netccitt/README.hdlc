@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) University of British Columbia, 1984
+ *                                                                          
+ * @(#)README.hdlc	8.1 (Berkeley) 6/10/93
+ *
+ *  X.25 HDLC DATA LINK LEVEL:                                           
+ *
+ *                                                                            
+ *  This module implements the Link  Level of the Open Systems Interconnect
+ *  Model.  The implementation  is based  on the ISO  High-Level  Data Link 
+ *  Control (HDLC).  These procedures  subscribe to the  principles  of the 
+ *  ISO-Class of Procedures for  point-to-point. These procedures implement
+ *  two-way  asynchronous balanced mode (LAPB) as recommented by the CCITT.
+ *
+ *  The HDLC protocol layer interface consists of the following procedures:
+ *    Hd_init       (pr_init) 
+ *    Hd_ouput      (pr_output)
+ *    Hd_input      (pr_input)
+ *    Hd_timer      (pr_slowtimo)                       
+ *             
+ *  Note: Supervisory commands RR, RNR and REJ are  not transmitted by this
+ *        station.
+ *     
+ *        This station never enters a busy (RNR) condition.
+ *		
+ *	  The "Generate_rr" variable can  be set to FALSE.  This means that
+ *	  we NEVER  send an RR.  This works just fine if  the network level
+ *	  is X.25 packet protocol -- which it is.
+ *
+ *        Currently, this is only a DTE implementation.
+ *
+ *  Think about:
+ *        If the remote is busy, no iframes are sent. The remote sends a RR
+ *	  to clear this condition. However, this RR may be damaged, causing
+ *	  a possible deadlock. A solution is to poll with iframe (P(S)==P(R)
+ *	  of RNR) indefinitly.
+ *
+ *
+ *  Date:             February 1984
+ *
+ *  Author:           Gerald W. Neufeld
+ *                     
+ *  Installation:     Department of Computer Science
+ *                    University of British Columbia
+ *                    Vancouver, BC, CANADA.
+ *
+ *  History:
+ *  
+ *                                                                      
+ */
