@@ -142,7 +142,7 @@ void	module_setspecific(module_t, modspecific_t *);
 extern int mod_debug;
 #define	MOD_DEBUG_REFS	1
 
-#define	MOD_DPF(cat, args) do {						\	
+#define	MOD_DPF(cat, args) do {						\
 	if (mod_debug & MOD_DEBUG_##cat)				\
 		printf(args);						\
 } while (0)
