@@ -309,24 +309,16 @@ retry:
 		printf("Can't stat %s: %s\n", newname, strerror(errno));
 		return (origname);
 	}
-	if ((stblock.st_mode & S_IFMT) == S_IFBLK ||
-	    (stblock.st_mode & S_IFMT) == S_IFCHR) {
+	switch(stblock.st_mode & S_IFMT) {
+	case S_IFCHR:
+	case S_IFBLK:
 		if (stslash.st_dev == stblock.st_rdev)
 			hotroot++;
-		raw = newname;
-		if (stat(raw, &stchar) < 0) {
-			printf("Can't stat %s: %s\n", raw, strerror(errno));
-			return (origname);
-		}
-		if ((stchar.st_mode & S_IFMT) == S_IFCHR) {
-			if (stslash.st_dev == stchar.st_rdev)
-				hotroot++;
-			return (raw);
-		} else {
-			printf("%s is not a character device\n", raw);
-			return (origname);
-		}
-	} else if ((stblock.st_mode & S_IFMT) == S_IFDIR && !retried) {
+		return(newname);
+	case S_IFDIR:
+		if (retried)
+			break;
+		
 		len = strlen(origname) - 1;
 		if (len > 0 && origname[len] == '/')
 			/* remove trailing slash */
