@@ -211,7 +211,6 @@ spigot_ioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
 int			error;
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[UNIT(dev)];
-struct	trapframe	*fp;
 struct	spigot_info	*info;
 
 	if(!data) return(EINVAL);
@@ -228,12 +227,10 @@ struct	spigot_info	*info;
 		if (securelevel > 0)
 			return EPERM;
 #endif
-		fp=(struct trapframe *)p->p_md.md_regs;
-		fp->tf_eflags |= PSL_IOPL;
+		p->p_md.md_regs->tf_eflags |= PSL_IOPL;
 		break;
 	case	SPIGOT_IOPL_OFF: /* deny access to the IO PAGE */
-		fp=(struct trapframe *)p->p_md.md_regs;
-		fp->tf_eflags &= ~PSL_IOPL;
+		p->p_md.md_regs->tf_eflags &= ~PSL_IOPL;
 		break;
 	case	SPIGOT_GET_INFO:
 		info = (struct spigot_info *)data;
