@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.360 1997/08/28 15:00:05 jlemon Exp $
+#	$Id: LINT,v 1.361 1997/09/04 18:49:51 sos Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -641,6 +641,7 @@ options		MAXCONS=16		# number of virtual consoles
 options		SLOW_VGA		# do byte-wide i/o's to TS and GDC regs
 options		"STD8X16FONT"		# Compile font in
 makeoptions	"STD8X16FONT"="cp850"
+options		SC_HISTORY_SIZE=200	# number of history buffer lines
 
 #
 # `flags' for sc0:
