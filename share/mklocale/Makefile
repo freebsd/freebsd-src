@@ -28,7 +28,7 @@ LATIN1LINKS=	af_ZA da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ en_US \
 		es_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE \
 		nl_NL no_NO pt_PT sv_SE
 LATIN15LINKS=	${LATIN1LINKS} et_EE
-LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL sl_SI sk_SK
+LATIN2LINKS=	cs_CZ hr_HR hu_HU pl_PL sl_SI ro_RO sk_SK
 LATIN4LINKS=	lt_LT
 LATIN5LINKS=	uk_UA
 
