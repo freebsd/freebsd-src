@@ -1011,6 +1011,10 @@ int		ahc_probe_scbs(struct ahc_softc *);
 void		ahc_run_untagged_queues(struct ahc_softc *ahc);
 void		ahc_run_untagged_queue(struct ahc_softc *ahc,
 				       struct scb_tailq *queue);
+void		ahc_qinfifo_requeue(struct ahc_softc *ahc,
+				    struct scb *prev_scb,
+				    struct scb *scb);
+int		ahc_qinfifo_count(struct ahc_softc *ahc);
 
 /****************************** Initialization ********************************/
 void			 ahc_init_probe_config(struct ahc_probe_config *);

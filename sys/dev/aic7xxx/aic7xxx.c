@@ -134,9 +134,6 @@ static struct tmode_tstate*
 					 u_int scsi_id, char channel);
 static void		ahc_free_tstate(struct ahc_softc *ahc,
 					u_int scsi_id, char channel, int force);
-static void		ahc_qinfifo_requeue(struct ahc_softc *ahc,
-					    struct scb *prev_scb,
-					    struct scb *scb);
 static struct ahc_syncrate*
 			ahc_devlimited_syncrate(struct ahc_softc *ahc,
 						u_int *period,
@@ -973,11 +970,11 @@ ahc_handle_scsiint(struct ahc_softc *ahc, u_int intstat)
 					tag = scb->hscb->tag;
 				else
 					tag = SCB_LIST_NULL;
+				ahc_print_path(ahc, scb);
 				ahc_abort_scbs(ahc, target, channel,
 					       SCB_GET_LUN(scb), tag,
 					       ROLE_INITIATOR,
 					       CAM_UNEXP_BUSFREE);
-				ahc_print_path(ahc, scb);
 			} else {
 				/*
 				 * We had not fully identified this connection,
@@ -1643,9 +1640,8 @@ ahc_update_pending_syncrates(struct ahc_softc *ahc)
 	 * Traverse the pending SCB list and ensure that all of the
 	 * SCBs there have the proper settings.
 	 */
-	pending_scb = LIST_FIRST(&ahc->pending_scbs);
 	pending_scb_count = 0;
-	while (pending_scb != NULL) {
+	LIST_FOREACH(pending_scb, &ahc->pending_scbs, pending_links) {
 		struct ahc_devinfo devinfo;
 		struct hardware_scb *pending_hscb;
 		struct ahc_initiator_tinfo *tinfo;
@@ -1662,7 +1658,6 @@ ahc_update_pending_syncrates(struct ahc_softc *ahc)
 		pending_hscb->scsirate = tinfo->scsirate;
 		pending_hscb->scsioffset = tinfo->current.offset;
 		pending_scb_count++;
-		pending_scb = LIST_NEXT(pending_scb, pending_links);
 	}
 
 	if (pending_scb_count == 0)
@@ -1671,34 +1666,24 @@ ahc_update_pending_syncrates(struct ahc_softc *ahc)
 	saved_scbptr = ahc_inb(ahc, SCBPTR);
 	/* Ensure that the hscbs down on the card match the new information */
 	for (i = 0; i < ahc->scb_data->maxhscbs; i++) {
-		u_int scb_tag;
+		struct	hardware_scb *pending_hscb;
+		u_int	control;
+		u_int	scb_tag;
 
 		ahc_outb(ahc, SCBPTR, i);
 		scb_tag = ahc_inb(ahc, SCB_TAG);
-		if (scb_tag != SCB_LIST_NULL) {
-			struct	ahc_devinfo devinfo;
-			struct	scb *pending_scb;
-			struct	hardware_scb *pending_hscb;
-			struct	ahc_initiator_tinfo *tinfo;
-			struct	tmode_tstate *tstate;
-			u_int	control;
+		pending_scb = ahc_lookup_scb(ahc, scb_tag);
+		if (pending_scb == NULL)
+			continue;
 
-			pending_scb = ahc_lookup_scb(ahc, scb_tag);
-			if (pending_scb->flags == SCB_FREE)
-				continue;
-			pending_hscb = pending_scb->hscb;
-			ahc_scb_devinfo(ahc, &devinfo, pending_scb);
-			tinfo = ahc_fetch_transinfo(ahc, devinfo.channel,
-						    devinfo.our_scsiid,
-						    devinfo.target, &tstate);
-			control = ahc_inb(ahc, SCB_CONTROL);
-			control &= ~ULTRAENB;
-			if ((tstate->ultraenb & devinfo.target_mask) != 0)
-				control |= ULTRAENB;
-			ahc_outb(ahc, SCB_CONTROL, control);
-			ahc_outb(ahc, SCB_SCSIRATE, tinfo->scsirate);
-			ahc_outb(ahc, SCB_SCSIOFFSET, tinfo->current.offset);
-		}
+		pending_hscb = pending_scb->hscb;
+		control = ahc_inb(ahc, SCB_CONTROL);
+		control &= ~ULTRAENB;
+		if ((pending_hscb->control & ULTRAENB) != 0)
+			control |= ULTRAENB;
+		ahc_outb(ahc, SCB_CONTROL, control);
+		ahc_outb(ahc, SCB_SCSIRATE, pending_hscb->scsirate);
+		ahc_outb(ahc, SCB_SCSIOFFSET, pending_hscb->scsioffset);
 	}
 	ahc_outb(ahc, SCBPTR, saved_scbptr);
 }
@@ -4186,7 +4171,7 @@ ahc_freeze_devq(struct ahc_softc *ahc, struct scb *scb)
 	ahc_platform_freeze_devq(ahc, scb);
 }
 
-static void
+void
 ahc_qinfifo_requeue(struct ahc_softc *ahc, struct scb *prev_scb,
 		    struct scb *scb)
 {
@@ -4196,6 +4181,19 @@ ahc_qinfifo_requeue(struct ahc_softc *ahc, struct scb *prev_scb,
 		prev_scb->hscb->next = scb->hscb->tag;
 	ahc->qinfifo[ahc->qinfifonext++] = scb->hscb->tag;
 	scb->hscb->next = ahc->next_queued_scb->hscb->tag;
+}
+
+int
+ahc_qinfifo_count(struct ahc_softc *ahc)
+{
+	u_int8_t qinpos;
+
+	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
+		qinpos = ahc_inb(ahc, SNSCB_QOFF);
+		ahc_outb(ahc, SNSCB_QOFF, qinpos);
+	} else
+		qinpos = ahc_inb(ahc, QINPOS);
+	return (ahc->qinfifonext - qinpos);
 }
 
 int
@@ -4213,9 +4211,11 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 	int	found;
 	int	maxtarget;
 	int	i;
+	int	have_qregs;
 
 	qintail = ahc->qinfifonext;
-	if ((ahc->features & AHC_QUEUE_REGS) != 0) {
+	have_qregs = (ahc->features & AHC_QUEUE_REGS) != 0;
+	if (have_qregs) {
 		qinstart = ahc_inb(ahc, SNSCB_QOFF);
 		ahc_outb(ahc, SNSCB_QOFF, qinstart);
 	} else
@@ -4291,9 +4291,12 @@ ahc_search_qinfifo(struct ahc_softc *ahc, int target, char channel,
 				 * back as well.
 				 */
 				if (qinpos == (qinstart - 1)) {
-					ahc_outb(ahc, SNSCB_QOFF, qinpos);
-				} else {
-					ahc_outb(ahc, QINPOS, qinpos);
+					if (have_qregs) {
+						ahc_outb(ahc, SNSCB_QOFF,
+							 qinpos);
+					} else {
+						ahc_outb(ahc, QINPOS, qinpos);
+					}
 				}
 				break;
 			}
