@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)gethostnamadr.c	8.1 (Berkeley) 6/4/93";
 static char fromrcsid[] = "From: Id: gethnamaddr.c,v 8.20 1996/09/28 06:51:07 vixie Exp";
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: gethostbydns.c,v 1.20 1997/02/22 15:00:06 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -716,5 +716,5 @@ void
 _endhostdnsent()
 {
 	_res.options &= ~(RES_STAYOPEN | RES_USEVC);
-	_res_close();
+	res_close();
 }
