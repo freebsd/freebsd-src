@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: su.c,v 1.29 1998/10/09 20:14:48 markm Exp $";
+	"$Id: su.c,v 1.30 1999/07/01 17:59:17 billf Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -269,12 +269,12 @@ main(argc, argv)
 			if (pwd->pw_uid == 0 && (gr = getgrgid((gid_t)0)) &&
 			    gr->gr_mem && *(gr->gr_mem))
 				for (g = gr->gr_mem;; ++g) {
-					if (!*g)
+					if (!*g) {
 						if (gid == 0)
 							break;
-						else {
+						else
 							errx(1, "you are not in the correct group to su %s.", user);
-						}
+					}
 					if (strcmp(username, *g) == 0) {
 #ifdef WHEELSU
 						iswheelsu = 1;
