@@ -659,13 +659,10 @@ thread_sanity_check(struct thread *td)
 	kg = td->td_ksegrp;
 	ke = td->td_kse;
 
-	if (kg != &p->p_ksegrp) {
-		panic ("wrong ksegrp");
-	}
 
 	if (ke) {
-		if (ke != &p->p_kse) {
-			panic("wrong kse");
+		if (p != ke->ke_proc) {
+			panic("wrong proc");
 		}
 		if (ke->ke_thread != td) {
 			panic("wrong thread");

@@ -54,27 +54,21 @@
 #include <machine/frame.h>
 
 /*
- * Thread related storage.
+ * KSEGRP related storage.
  */
+static uma_zone_t ksegrp_zone;
+static uma_zone_t kse_zone;
 static uma_zone_t thread_zone;
-static int allocated_threads;
-static int active_threads;
-static int cached_threads;
 
+/* DEBUG ONLY */
 SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
-
-SYSCTL_INT(_kern_threads, OID_AUTO, active, CTLFLAG_RD,
-	&active_threads, 0, "Number of active threads in system.");
-
-SYSCTL_INT(_kern_threads, OID_AUTO, cached, CTLFLAG_RD,
-	&cached_threads, 0, "Number of threads in thread cache.");
-
-SYSCTL_INT(_kern_threads, OID_AUTO, allocated, CTLFLAG_RD,
-	&allocated_threads, 0, "Number of threads in zone.");
-
 static int oiks_debug = 1;	/* 0 disable, 1 printf, 2 enter debugger */
 SYSCTL_INT(_kern_threads, OID_AUTO, oiks, CTLFLAG_RW,
 	&oiks_debug, 0, "OIKS thread debug");
+
+static int max_threads_per_proc = 4;
+SYSCTL_INT(_kern_threads, OID_AUTO, max_per_proc, CTLFLAG_RW,
+	&max_threads_per_proc, 0, "Limit on threads per proc");
 
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
@@ -97,8 +91,6 @@ thread_ctor(void *mem, int size, void *arg)
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_flags |= TDF_UNBOUND;
-	cached_threads--;	/* XXXSMP */
-	active_threads++;	/* XXXSMP */
 }
 
 /*
@@ -134,10 +126,6 @@ thread_dtor(void *mem, int size, void *arg)
 		/* NOTREACHED */
 	}
 #endif
-
-	/* Update counters. */
-	active_threads--;	/* XXXSMP */
-	cached_threads++;	/* XXXSMP */
 }
 
 /*
@@ -156,8 +144,6 @@ thread_init(void *mem, int size)
 	pmap_new_thread(td);
 	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
-	cached_threads++;	/* XXXSMP */
-	allocated_threads++;	/* XXXSMP */
 }
 
 /*
@@ -173,8 +159,6 @@ thread_fini(void *mem, int size)
 
 	td = (struct thread *)mem;
 	pmap_dispose_thread(td);
-	cached_threads--;	/* XXXSMP */
-	allocated_threads--;	/* XXXSMP */
 }
 
 /*
@@ -186,6 +170,12 @@ threadinit(void)
 
 	thread_zone = uma_zcreate("THREAD", sizeof (struct thread),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
+	    UMA_ALIGN_CACHE, 0);
+	ksegrp_zone = uma_zcreate("KSEGRP", sizeof (struct ksegrp),
+	    NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_CACHE, 0);
+	kse_zone = uma_zcreate("KSE", sizeof (struct kse),
+	    NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_CACHE, 0);
 }
 
@@ -226,6 +216,24 @@ thread_reap(void)
 }
 
 /*
+ * Allocate a ksegrp.
+ */
+struct ksegrp *
+ksegrp_alloc(void)
+{
+	return (uma_zalloc(ksegrp_zone, M_WAITOK));
+}
+
+/*
+ * Allocate a kse.
+ */
+struct kse *
+kse_alloc(void)
+{
+	return (uma_zalloc(kse_zone, M_WAITOK));
+}
+
+/*
  * Allocate a thread.
  */
 struct thread *
@@ -233,6 +241,24 @@ thread_alloc(void)
 {
 	thread_reap(); /* check if any zombies to get */
 	return (uma_zalloc(thread_zone, M_WAITOK));
+}
+
+/*
+ * Deallocate a ksegrp.
+ */
+void
+ksegrp_free(struct ksegrp *td)
+{
+	uma_zfree(ksegrp_zone, td);
+}
+
+/*
+ * Deallocate a kse.
+ */
+void
+kse_free(struct kse *td)
+{
+	uma_zfree(kse_zone, td);
 }
 
 /*
@@ -387,7 +413,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
 	p->p_numthreads++;
 	kg->kg_numthreads++;
-	if (oiks_debug && p->p_numthreads > 4) {
+	if (oiks_debug && p->p_numthreads > max_threads_per_proc) {
 		printf("OIKS %d\n", p->p_numthreads);
 		if (oiks_debug > 1)
 			Debugger("OIKS");

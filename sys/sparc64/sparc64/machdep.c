@@ -297,7 +297,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	/*
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
-	proc_linkup(&proc0, &proc0.p_ksegrp, &proc0.p_kse, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &kse0, &thread0);
 	proc0.p_md.md_sigtramp = NULL;
 	proc0.p_md.md_utrap = NULL;
 	proc0.p_uarea = (struct user *)uarea0;

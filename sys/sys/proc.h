@@ -507,8 +507,8 @@ struct proc {
 	struct vm_object *p_upages_obj; /* (a) Upages object. */
 	struct procsig	*p_procsig;	/* (c) Signal actions, state (CPU). */
 
-	struct ksegrp	p_ksegrp;
-	struct kse	p_kse;
+	/*struct ksegrp	p_ksegrp;
+	struct kse	p_kse; */
 
 	/*
 	 * The following don't make too much sense..
@@ -800,6 +800,8 @@ extern struct sx proctree_lock;
 extern struct mtx pargs_ref_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0 */
+extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0 */
+extern struct kse kse0;			/* Primary kse in proc0 */
 extern int hogticks;			/* Limit on kernel cpu hogs. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
@@ -890,6 +892,10 @@ void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 void	cpu_wait(struct proc *);
 
 /* New in KSE. */
+struct	ksegrp *ksegrp_alloc(void);
+void	ksegrp_free(struct ksegrp *td);
+struct	kse *kse_alloc(void);
+void	kse_free(struct kse *td);
 struct	thread *thread_alloc(void);
 void	thread_free(struct thread *td);
 int	cpu_export_context(struct thread *td);
