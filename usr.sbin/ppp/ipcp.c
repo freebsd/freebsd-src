@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.53 1998/05/29 18:32:11 brian Exp $
+ * $Id: ipcp.c,v 1.54 1998/06/12 17:45:10 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -676,13 +676,13 @@ IpcpLayerDown(struct fsm *fp)
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
-  if (system_Select(fp->bundle, s, LINKDOWNFILE, NULL) < 0) {
+  if (system_Select(fp->bundle, s, LINKDOWNFILE, NULL, NULL) < 0) {
     if (bundle_GetLabel(fp->bundle)) {
        if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
-                        LINKDOWNFILE, NULL) < 0)
-       system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
+                        LINKDOWNFILE, NULL, NULL) < 0)
+       system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
     } else
-      system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL);
+      system_Select(fp->bundle, "MYADDR", LINKDOWNFILE, NULL, NULL);
   }
 
   if (!(ipcp->fsm.bundle->phys_type.all & PHYS_AUTO))
@@ -726,14 +726,14 @@ IpcpLayerUp(struct fsm *fp)
    * XXX this stuff should really live in the FSM.  Our config should
    * associate executable sections in files with events.
    */
-  if (system_Select(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE, NULL)
-      < 0) {
+  if (system_Select(fp->bundle, inet_ntoa(ipcp->my_ifip), LINKUPFILE,
+                    NULL, NULL) < 0) {
     if (bundle_GetLabel(fp->bundle)) {
       if (system_Select(fp->bundle, bundle_GetLabel(fp->bundle),
-                       LINKUPFILE, NULL) < 0)
-        system_Select(fp->bundle, "MYADDR", LINKUPFILE, NULL);
+                       LINKUPFILE, NULL, NULL) < 0)
+        system_Select(fp->bundle, "MYADDR", LINKUPFILE, NULL, NULL);
     } else
-      system_Select(fp->bundle, "MYADDR", LINKUPFILE, NULL);
+      system_Select(fp->bundle, "MYADDR", LINKUPFILE, NULL, NULL);
   }
 
   throughput_start(&ipcp->throughput, "IPCP throughput",

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.130 1998/06/06 20:50:57 brian Exp $
+ * $Id: main.c,v 1.131 1998/06/15 19:05:22 brian Exp $
  *
  *	TODO:
  */
@@ -324,7 +324,7 @@ main(int argc, char **argv)
   }
   SignalBundle = bundle;
 
-  if (system_Select(bundle, "default", CONFFILE, prompt) < 0)
+  if (system_Select(bundle, "default", CONFFILE, prompt, NULL) < 0)
     prompt_Printf(prompt, "Warning: No default entry found in config file.\n");
 
   sig_signal(SIGHUP, CloseSession);
@@ -347,7 +347,7 @@ main(int argc, char **argv)
      * commands.
      */
     bundle_SetLabel(bundle, label);
-    if (system_Select(bundle, label, CONFFILE, prompt) < 0) {
+    if (system_Select(bundle, label, CONFFILE, prompt, NULL) < 0) {
       prompt_Printf(prompt, "Destination system (%s) not found.\n", label);
       AbortProgram(EX_START);
     }
