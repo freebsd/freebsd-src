@@ -331,6 +331,8 @@ setrunqueue(struct thread *td, int flags)
 	CTR3(KTR_RUNQ, "setrunqueue: td:%p kg:%p pid:%d",
 	    td, td->td_ksegrp, td->td_proc->p_pid);
 	mtx_assert(&sched_lock, MA_OWNED);
+	KASSERT((td->td_inhibitors == 0),
+			("setrunqueue: trying to run inhibitted thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("setrunqueue: bad thread state"));
 	TD_SET_RUNQ(td);
@@ -504,6 +506,8 @@ maybe_preempt(struct thread *td)
 	ctd = curthread;
 	KASSERT ((ctd->td_kse != NULL && ctd->td_kse->ke_thread == ctd),
 	  ("thread has no (or wrong) sched-private part."));
+	KASSERT((td->td_inhibitors == 0),
+			("maybe_preempt: trying to run inhibitted thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
 	if (pri >= cpri || cold /* || dumping */ || TD_IS_INHIBITED(ctd) ||
