@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.43 1998/05/29 08:51:34 phk Exp $
+$Id: majors.i386,v 1.44 1998/08/04 21:44:09 brian Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -41,6 +41,7 @@ blkdev	name		comments
 25	vinum		RAID fs
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
+28	fla		M-Systems DiskOnChip(r)
 
 chrdev	name		comments
 0	cn		console
@@ -145,3 +146,4 @@ chrdev	name		comments
 99	ct		Cronyx/Tau serial adaptor
 100	xrpu		Xilinx Reprogrammable Processing Unit
 101	dgm		Digiboard PC/Xem
+102	fla		M-Systems DiskOnChip(r)
