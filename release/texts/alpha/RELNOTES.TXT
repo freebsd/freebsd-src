@@ -64,6 +64,9 @@ installed on another Alpha works well.
 The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit 
 Ethernet and Netgear GA620T 1000baseT Gigabit Ethernet cards.
 
+The ng_bridge(4) node type has been added to the netgraph subsystem.
+Miscellaneous bug fixes and enhancements have also been made.
+
 
 1.2. SECURITY FIXES
 -------------------
