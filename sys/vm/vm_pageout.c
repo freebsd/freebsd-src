@@ -448,7 +448,7 @@ vm_pageout_object_deactivate_pages(map, object, desired, map_remove_only)
 	int remove_mode;
 	int s;
 
-	if (object->type == OBJT_DEVICE)
+	if (object->type == OBJT_DEVICE || object->type == OBJT_PHYS)
 		return;
 
 	while (object) {
