@@ -165,7 +165,7 @@ ddp_input( m, ifp, elh, phase )
 	/*
 	 * There was no 'elh' passed on. This could still be
 	 * either phase1 or phase2.
-	 * We have a long header, but we may be running on a pahse 1 net.
+	 * We have a long header, but we may be running on a phase 1 net.
 	 * Extract out all the info regarding this packet's src & dst.
 	 */
 	ddpstat.ddps_long++;
@@ -197,7 +197,7 @@ ddp_input( m, ifp, elh, phase )
 	     * The TO address doesn't specify a net,
 	     * So by definition it's for this net.
 	     * Try find ifaddr info with the right phase, 
-	     * the right interface, and either to our node, a bradcast,
+	     * the right interface, and either to our node, a broadcast,
 	     * or looped back (though that SHOULD be covered in the other
 	     * cases).
 	     *
@@ -241,8 +241,8 @@ ddp_input( m, ifp, elh, phase )
 		 */
 		if ((( ntohs( to.sat_addr.s_net ) < ntohs( aa->aa_firstnet ))
 		    || (ntohs( to.sat_addr.s_net ) > ntohs( aa->aa_lastnet )))
-		 && (( ntohs( to.sat_addr.s_net ) < ntohs( 0xff00 ))
-		    || (ntohs( to.sat_addr.s_net ) > ntohs( 0xfffe )))) {
+		 && (( ntohs( to.sat_addr.s_net ) < 0xff00)
+		    || (ntohs( to.sat_addr.s_net ) > 0xfffe ))) {
 		    continue;
 		}
 
@@ -278,8 +278,8 @@ ddp_input( m, ifp, elh, phase )
     /*
      * If it aint for a net on any of our interfaces,
      * or it IS for a net on a different interface than it came in on,
-     * (and it is not looped back) then consider if we shoulf forward it.
-     * As we a re not really a router this is a bit cheaky, but it may be
+     * (and it is not looped back) then consider if we should forward it.
+     * As we are not really a router this is a bit cheeky, but it may be
      * useful some day.
      */
     if ( (aa == NULL)
