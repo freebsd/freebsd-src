@@ -231,7 +231,7 @@ acpi_get_type(device_t dev)
     return(t);
 }
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 extern void		acpi_EnterDebugger(void);
 #endif
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 94 $
+ *       $Revision: 109 $
  *
  *****************************************************************************/
 
@@ -125,7 +125,7 @@
  *****************************************************************************/
 
 /*
- * ACPI_DEBUG           - This switch enables all the debug facilities of the
+ * ACPI_DEBUG_OUTPUT    - This switch enables all the debug facilities of the
  *                        ACPI subsystem.  This includes the DEBUG_PRINT output
  *                        statements.  When disabled, all DEBUG_PRINT
  *                        statements are compiled out.
@@ -145,7 +145,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION                 0x20020725
+#define ACPI_CA_VERSION                 0x20020815
 
 /* Version of ACPI supported */
 

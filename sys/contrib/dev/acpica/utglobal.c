@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 153 $
+ *              $Revision: 168 $
  *
  *****************************************************************************/
 
@@ -125,7 +125,6 @@
         ACPI_MODULE_NAME    ("utglobal")
 
 
-
 /******************************************************************************
  *
  * FUNCTION:    AcpiFormatException
@@ -225,7 +224,7 @@ Unknown:
 
 /* Debug switch - level and trace mask */
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
 UINT32                      AcpiDbgLevel = DEBUG_DEFAULT;
 #else
 UINT32                      AcpiDbgLevel = NORMAL_DEFAULT;
@@ -285,6 +284,10 @@ const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
     {"_REV",    ACPI_TYPE_INTEGER,          "2"},
     {"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX,            "0"},
+
+#if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
+    {"_OSI",    ACPI_TYPE_METHOD,           "1"},
+#endif
     {NULL,      ACPI_TYPE_ANY,              NULL}              /* Table terminator */
 };
 
@@ -622,7 +625,7 @@ AcpiUtGetObjectTypeName (
 }
 
 
-#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
+#if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
 /*
  * Strings and procedures used for debug only
@@ -873,7 +876,7 @@ AcpiUtInitGlobals (
     AcpiGbl_RootNodeStruct.Flags        = ANOBJ_END_OF_PEER_LIST;
 
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
     AcpiGbl_LowestStackPointer          = ACPI_SIZE_MAX;
 #endif
 

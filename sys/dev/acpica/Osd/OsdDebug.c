@@ -100,7 +100,7 @@ AcpiOsSignal (
     return(AE_OK);
 }
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 void
 acpi_EnterDebugger(void)
 {

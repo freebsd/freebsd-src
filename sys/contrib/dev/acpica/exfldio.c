@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfldio - Aml Field I/O
- *              $Revision: 82 $
+ *              $Revision: 88 $
  *
  *****************************************************************************/
 
@@ -160,7 +160,7 @@ AcpiExSetupRegion (
     if (ACPI_GET_OBJECT_TYPE (RgnDesc) != ACPI_TYPE_REGION)
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Needed Region, found type %X (%s)\n",
-            ACPI_GET_OBJECT_TYPE (RgnDesc), 
+            ACPI_GET_OBJECT_TYPE (RgnDesc),
             AcpiUtGetObjectTypeName (RgnDesc)));
 
         return_ACPI_STATUS (AE_AML_OPERAND_TYPE);
