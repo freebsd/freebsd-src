@@ -256,6 +256,8 @@ opencal()
 			(void)close(pdes[1]);
 		}
 		(void)close(pdes[0]);
+		(void)setuid(geteuid());
+		(void)setgid(getegid());
 		execl(_PATH_CPP, "cpp", "-P", "-I.", _PATH_INCLUDE, NULL);
 		(void)fprintf(stderr,
 		    "calendar: execl: %s: %s.\n", _PATH_CPP, strerror(errno));
@@ -305,6 +307,8 @@ closecal(fp)
 			(void)close(pdes[0]);
 		}
 		(void)close(pdes[1]);
+		(void)setuid(geteuid());
+		(void)setegid(getegid());
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
 		    "\"Reminder Service\"", "-f", "root", NULL);
 		(void)fprintf(stderr,
