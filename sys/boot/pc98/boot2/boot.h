@@ -87,7 +87,7 @@ int strcmp(const char *s1, const char *s2);
 #ifdef CDBOOT
 int strcasecmp(const char *s1, const char *s2);
 #endif /* !CDBOOT */
-void bcopy(const void *from, void *to, size_t len);
+void memcpy(const void *from, void *to, size_t len);
 void twiddle(void);
 #ifdef PC98
 void machine_check(void);
