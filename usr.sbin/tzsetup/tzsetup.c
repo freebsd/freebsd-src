@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tzsetup.c,v 1.2 1996/11/19 23:21:52 joerg Exp $
+ *	$Id: tzsetup.c,v 1.2.2.1 1997/02/01 18:36:27 jhay Exp $
  */
 
 /*
@@ -643,8 +643,16 @@ main(int argc, char **argv)
 	make_menus();
 
 	init_dialog();
+	if (!dialog_yesno("Select local or UTC (Greenwich Mean Time) clock",
+			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
+			  "please choose NO here!", 7, 72))
+		system("rm -f /etc/wall_cmos_clock");
+	else
+		system("touch /etc/wall_cmos_clock");
+	dialog_clear_norefresh();
 	dialog_menu("Time Zone Selector", "Select a region", -1, -1, 
 		    NCONTINENTS, -NCONTINENTS, continents, 0, NULL, NULL);
+	dialog_clear();
 	end_dialog();
 	return 0;
 }

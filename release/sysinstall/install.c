@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.29 1997/02/15 15:41:41 jkh Exp $
+ * $Id: install.c,v 1.134.2.30 1997/02/16 23:36:45 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -549,7 +549,7 @@ installNovice(dialogMenuItem *self)
 	WINDOW *w = savescr();
 
 	dialog_clear();
-	systemExecute("rm -f /etc/localtime /etc/wall_cmos_clock; tzsetup");
+	systemExecute("tzsetup");
 	restorescr(w);
     }
 
