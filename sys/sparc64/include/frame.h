@@ -33,25 +33,29 @@
 #define	SPOFF		2047
 #define	BIAS		SPOFF		/* XXX - open/netbsd compat */
 
+/*
+ * NOTE: keep this structure in sync with struct reg and struct mcontext.
+ */
 struct trapframe {
-	u_long	tf_global[8];
-	u_long	tf_out[8];
-	u_long	tf_fsr;
-	u_long	tf_sfar;
-	u_long	tf_tar;
-	u_long	tf_tnpc;
-	u_long	tf_tpc;
-	u_long	tf_tstate;
-	u_int	tf_sfsr;
-	u_int	tf_type;
-	u_int	tf_y;
-	u_char	tf_fprs;
-	u_char	tf_pil;
-	u_char	tf_wstate;
-	u_char	tf_pad[1];
+	uint64_t tf_global[8];
+	uint64_t tf_out[8];
+	uint64_t tf_fprs;
+	uint64_t tf_fsr;
+	uint64_t tf_gsr;
+	uint64_t tf_level;
+	uint64_t tf_pil;
+	uint64_t tf_sfar;
+	uint64_t tf_sfsr;
+	uint64_t tf_tar;
+	uint64_t tf_tnpc;
+	uint64_t tf_tpc;
+	uint64_t tf_tstate;
+	uint64_t tf_type;
+	uint64_t tf_y;
+	uint64_t tf_wstate;
+	uint64_t tf_pad[2];
 };
-#define	tf_level	tf_sfsr
-#define	tf_sp		tf_out[6]
+#define	tf_sp	tf_out[6]
  
 #define	TF_DONE(tf) do { \
 	tf->tf_tpc = tf->tf_tnpc; \
@@ -74,7 +78,7 @@ struct frame {
 #define	v9next_frame(fp)	((struct frame *)(fp->fr_fp + BIAS))
 
 /*
- * Frame used for pcb_wscratch.
+ * Frame used for pcb_rw.
  */
 struct rwindow {
 	u_long	rw_local[8];
