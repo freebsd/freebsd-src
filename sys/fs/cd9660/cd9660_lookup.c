@@ -38,7 +38,7 @@
  *	from: @(#)ufs_lookup.c	7.33 (Berkeley) 5/19/91
  *
  *	@(#)cd9660_lookup.c	8.2 (Berkeley) 1/23/94
- * $Id: cd9660_lookup.c,v 1.16 1997/08/02 14:31:18 bde Exp $
+ * $Id: cd9660_lookup.c,v 1.17 1997/08/26 07:32:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -71,9 +71,6 @@
  *
  * Overall outline of ufs_lookup:
  *
- *	check accessibility of directory
- *	look for name in cache, if found, then if at end of path
- *	  and deleting or creating, drop it, else return name
  *	search for name in directory, to found or notfound
  * notfound:
  *	if creating, return locked directory, leaving info on available slots
@@ -133,17 +130,6 @@ cd9660_lookup(ap)
 	lockparent = flags & LOCKPARENT;
 	wantparent = flags & (LOCKPARENT|WANTPARENT);
 
-	/*
-	 * Check accessiblity of directory.
-	 */
-	if (vdp->v_type != VDIR)
-		return (ENOTDIR);
-	if (error = VOP_ACCESS(vdp, VEXEC, cred, cnp->cn_proc))
-		return (error);
-	if ((flags & ISLASTCN) && (vdp->v_mount->mnt_flag & MNT_RDONLY) &&
-	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
-		return (EROFS);
-	
 	/*
 	 * We now have a segment name to search for, and a directory to search.
 	 */
