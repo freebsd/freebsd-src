@@ -62,4 +62,4 @@ LEAF(eb164_intr_disable,1)
 	ldiq	a0, 0x35
 	call_pal PAL_cserve
 	RET
-	END(eb164_intr_enable)
+	END(eb164_intr_disable)
