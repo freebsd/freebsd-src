@@ -267,6 +267,11 @@ Element supports passing media (exporting) to an outside human operator.
 .It INENAB
 Element supports receiving media (importing) from an outside human operator.
 .El
+.Sh FILES
+.Bl -tag -width /dev/ch0 -compact
+.It Pa /dev/ch0
+default changer device
+.El
 .Sh EXAMPLES
 .Bl -tag -width indent
 .It Li chio move slot 3 drive 0
@@ -278,11 +283,6 @@ Remove the tape from drive 0 (first drive) and return it to its original
 location in the rack.
 .It Li chio setpicker 2
 Configure the changer to use picker 2 (third picker) for operations.
-.El
-.Sh FILES
-.Bl -tag -width /dev/ch0 -compact
-.It Pa /dev/ch0
-default changer device
 .El
 .Sh SEE ALSO
 .Xr mt 1 ,

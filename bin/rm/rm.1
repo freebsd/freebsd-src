@@ -163,22 +163,6 @@ path reference.
 For example:
 .Dl rm /home/user/-filename
 .Dl rm ./-filename
-.Sh SEE ALSO
-.Xr chflags 1 ,
-.Xr rmdir 1 ,
-.Xr undelete 2 ,
-.Xr unlink 2 ,
-.Xr fts 3 ,
-.Xr getopt 3 ,
-.Xr symlink 7
-.Sh BUGS
-The
-.Fl P
-option assumes that the underlying file system is a fixed-block file
-system.
-UFS is a fixed-block file system, LFS is not.
-In addition, only regular files are overwritten, other types of files
-are not.
 .Sh COMPATIBILITY
 The
 .Nm
@@ -194,6 +178,14 @@ Also, historical
 .Bx
 implementations prompted on the standard output,
 not the standard error output.
+.Sh SEE ALSO
+.Xr chflags 1 ,
+.Xr rmdir 1 ,
+.Xr undelete 2 ,
+.Xr unlink 2 ,
+.Xr fts 3 ,
+.Xr getopt 3 ,
+.Xr symlink 7
 .Sh STANDARDS
 The
 .Nm
@@ -209,3 +201,11 @@ A
 .Nm
 command appeared in
 .At v1 .
+.Sh BUGS
+The
+.Fl P
+option assumes that the underlying file system is a fixed-block file
+system.
+UFS is a fixed-block file system, LFS is not.
+In addition, only regular files are overwritten, other types of files
+are not.
