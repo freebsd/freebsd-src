@@ -43,8 +43,8 @@ static char sccsid[] = "@(#)swap.c	8.2 (Berkeley) 2/21/94";
 #include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/ioctl.h>
-#include <sys/map.h>
 #include <sys/stat.h>
+#include <sys/rlist.h>
 
 #include <kvm.h>
 #include <nlist.h>
@@ -118,6 +118,7 @@ initswap()
 	char msgbuf[BUFSIZ];
 	static int once = 0;
 
+#if 0
 	if (once)
 		return (1);
 	if (kvm_nlist(kd, syms)) {
@@ -145,6 +146,9 @@ initswap()
 	KGET1(VM_SWDEVT, sw, nswdev * sizeof(*sw), "swdevt");
 	once = 1;
 	return (1);
+#else
+	return (0);
+#endif
 }
 
 void
@@ -152,6 +156,7 @@ fetchswap()
 {
 	int s, e, i;
 
+#if 0
 	s = nswapmap * sizeof(*mp);
 	if (kvm_read(kd, (long)kswapmap, mp, s) != s)
 		error("cannot read swapmap: %s", kvm_geterr(kd));
@@ -194,6 +199,7 @@ fetchswap()
 			s = bound;
 		}
 	}
+#endif
 }
 
 void
