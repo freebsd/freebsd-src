@@ -1188,6 +1188,7 @@ nfs_timer(void *arg)
 		}
 	}
 	splx(s);
+	callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 }
 
 /*

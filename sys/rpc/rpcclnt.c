@@ -1478,6 +1478,8 @@ rpcclnt_timer(arg)
 
 #ifdef __OpenBSD__
 	timeout_add(rpcclnt_timer, to, rpcclnt_ticks);
+#else
+	callout_reset(&rpcclnt_callout, rpcclnt_ticks, rpcclnt_timer, NULL);
 #endif
 }
 
