@@ -46,6 +46,7 @@ struct cmd {
 
 struct card_config {
 	struct card_config *next;
+	unsigned char index_type;
 	unsigned char index;
 	struct driver *driver;
 	int     irq;
@@ -172,3 +173,11 @@ void		 readfile(char *);
 #define	BIT2MEM(x) (((x)*MEMUNIT)+MEMSTART)
 
 #define MAXINCLUDES	10
+
+/*
+ * Config index types
+ */
+#define NORMAL_INDEX	0
+#define DEFAULT_INDEX	1
+#define AUTO_INDEX	2
+

@@ -60,9 +60,21 @@ dump_config_file(void)
 	for (cp = cards; cp; cp = cp->next) {
 		printf("Card manuf %s, vers %s\n", cp->manuf, cp->version);
 		printf("Configuration entries:\n");
-		for (confp = cp->config; confp; confp = confp->next)
-			printf("\tIndex code = 0x%x, driver name = %s\n",
-			    confp->index, confp->driver->name);
+		for (confp = cp->config; confp; confp = confp->next) {
+			printf("\tIndex code = ");
+			switch (confp->index_type) {
+			case DEFAULT_INDEX:
+				printf("default");
+				break;
+			case AUTO_INDEX:
+				printf("auto");
+				break;
+			default:
+				printf("0x%x", confp->index);
+				break;
+			}
+			printf(", driver name = %s\n", confp->driver->name);
+		}
 		if (cp->insert) {
 			printf("Insert commands are:\n");
 			pr_cmd(cp->insert);
@@ -392,6 +404,30 @@ assign_driver(struct card *cp)
 }
 
 /*
+ *	Auto select config index
+ */
+static struct cis_config *
+assign_card_index(struct cis * cis)
+{
+	struct cis_config *cp;
+	struct cis_ioblk *cio;
+	int i;
+
+	for (cp = cis->conf; cp; cp = cp->next) {
+		if (!cp->iospace || !cp->io)
+			continue;
+		for (cio = cp->io; cio; cio = cio->next) {
+			for (i = cio->addr; i < cio->addr + cio->size - 1; i++)
+				if (!bit_test(io_avail, i))
+					goto next;
+		}
+		return cp;	/* found */
+	next:
+	}
+	return cis->def_config;
+}
+
+/*
  *	assign_io - Allocate resources to slot matching the
  *	configuration index selected.
  */
@@ -403,9 +439,21 @@ assign_io(struct slot *sp)
 
 	cis = sp->cis;
 	defconf = cis->def_config;
-	for (cisconf = cis->conf; cisconf; cisconf = cisconf->next)
-		if (cisconf->id == sp->config->index)
-			break;
+	switch (sp->config->index_type) {
+	case DEFAULT_INDEX:	/* default */
+		cisconf = defconf;
+		sp->config->index = cisconf->id;
+		break;
+	case AUTO_INDEX:	/* auto */
+		cisconf = assign_card_index(cis);
+		sp->config->index = cisconf->id;
+		break;
+	default:		/* normal, use index value */
+		for (cisconf = cis->conf; cisconf; cisconf = cisconf->next)
+			if (cisconf->id == sp->config->index)
+				break;
+	}
+
 	if (cisconf == 0) {
 		logmsg("Config id %d not present in this card",
 		    sp->config->index);
