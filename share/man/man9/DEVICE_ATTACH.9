@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd January 6, 2005
 .Dt DEVICE_ATTACH 9
 .Os
 .Sh NAME
@@ -40,11 +40,16 @@
 .Ft int
 .Fn DEVICE_ATTACH "device_t dev"
 .Sh DESCRIPTION
-Attach a device to the system.
-The probe method will have been called and will have indicated that
+Attach a device to the system after the
+.Fn DEVICE_PROBE
+method has been called and has indicated that
 the device exists.
-This routine should initialise the hardware and allocate other
-system resources (such as devfs entries).
+The
+.Fn DEVICE_ATTACH
+method should initialize the hardware and allocate other
+system resources (such as
+.Xr devfs 5
+entries).
 .Pp
 Devices which implement busses should use this method to probe for
 the existence of devices attached to the bus and add them as
@@ -55,6 +60,7 @@ the child devices will be automatically probed and attached.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an appropriate error is returned.
 .Sh SEE ALSO
+.Xr devfs 5 ,
 .Xr device 9 ,
 .Xr DEVICE_DETACH 9 ,
 .Xr DEVICE_IDENTIFY 9 ,
@@ -62,4 +68,4 @@ Zero is returned on success, otherwise an appropriate error is returned.
 .Xr DEVICE_SHUTDOWN 9
 .Sh AUTHORS
 This man page was written by
-.An Doug Rabson .
+.An Doug Rabson Aq dfr@FreeBSD.org .
