@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.13 1994/12/28 02:39:29 jkh Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.14 1994/12/29 16:42:10 jkh Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -253,6 +253,7 @@ Adaptec              AH-154x Series <ISA>
                      AH-174x Series <EISA>
                      AH-152x Series <ISA>
 		     AH-2742/2842 Series <ISA/EISA>
+		     AH-2820/2822/2825 Series <VLB>
 Buslogic             BT-445 Series <VLB> (but see section 1.5)
                      BT-545 Series <ISA>
                      BT-742 Series <EISA>
