@@ -1,4 +1,4 @@
-.\"	$Id: getvfsent.3,v 1.10 1998/03/19 07:33:31 charnier Exp $
+.\"	$Id: getvfsent.3,v 1.11 1998/03/23 13:02:37 bde Exp $
 .\"	Written by Garrett A. Wollman, September 1994.
 .\"	This manual page is in the public domain.
 .\"
@@ -136,26 +136,24 @@ Here is an example, taken from the source to
 .Bd -literal -offset indent
 
 struct ovfsconf *vfc;
+int error;
 
 /* setup code here */
 
-vfc = getvfsbyname("cd9660");
-if(!vfc && vfsisloadable("cd9660")) {
+error = getvfsbyname("cd9660", &vfc);
+if(error && vfsisloadable("cd9660")) {
 	if(vfsload("cd9660"))
-		err(1, "vfsload(cd9660)");
+		err(EX_OSERR, "vfsload(cd9660)");
 	endvfsent();	/* flush cache */
-	vfc = getvfsbyname("cd9660");
+	error = getvfsbyname("cd9660", &vfc);
 }
+if (error)
+	errx(1, "cd9660 filesystem is not available");
 
-mount(vfc ? vfc->vfc_index : MOUNT_CD9660, /* more arguments */
+if (mount(vfc.vfc_name, dir, mntflags, &args) < 0)
+	err(1, NULL);
 
 .Ed
-The odd conditional in the call to
-.Xr mount 2
-is present for compatibility with old, non-LKM cognizant kernels, and
-will be removed (along with all vestiges of
-.Dv MOUNT_* )
-in a future release.
 .Sh RETURN VALUES
 The
 .Fn getvfsbyname ,
