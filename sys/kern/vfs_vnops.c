@@ -773,6 +773,12 @@ vn_ioctl(fp, com, data, active_cred, td)
 			return (0);
 		}
 		error = VOP_IOCTL(vp, com, data, fp->f_flag, active_cred, td);
+		if (error == ENOIOCTL) {
+#ifdef DIAGNOSTIC
+			Debugger("ENOIOCTL leaked through");
+#endif
+			error = ENOTTY;
+		}
 		if (error == 0 && com == TIOCSCTTY) {
 
 			/* Do nothing if reassigning same control tty */
