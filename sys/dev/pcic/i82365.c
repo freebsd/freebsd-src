@@ -1299,7 +1299,7 @@ pcic_enable_socket(device_t dev, device_t child)
 int
 pcic_disable_socket(device_t dev, device_t child)
 {
-	struct pcic_handle *h = NULL;	/* XXXIMPXXX */
+	struct pcic_handle *h = pcic_get_handle(dev, child);
 	DPRINTF(("pcic_chip_socket_disable\n"));
 
 	/* power down the socket */
