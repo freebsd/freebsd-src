@@ -235,8 +235,7 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (u_int32_t)(uintptr_t)&sfp->sf_si;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
@@ -252,7 +251,6 @@ freebsd4_ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
-	PROC_UNLOCK(p);
 
 	/*
 	 * Copy the sigframe out to the user's stack.
@@ -354,8 +352,7 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/* Build the argument list for the signal handler. */
 	sf.sf_signum = sig;
 	sf.sf_ucontext = (register_t)&sfp->sf_uc;
-	PROC_LOCK(p);
-	if (SIGISMEMBER(p->p_sigacts->ps_siginfo, sig)) {
+	if (SIGISMEMBER(psp->ps_siginfo, sig)) {
 		/* Signal handler installed with SA_SIGINFO. */
 		sf.sf_siginfo = (u_int32_t)(uintptr_t)&sfp->sf_si;
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
@@ -371,7 +368,6 @@ ia32_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sf.sf_ah = (u_int32_t)(uintptr_t)catcher;
 	}
 	mtx_unlock(&psp->ps_mtx);
-	PROC_UNLOCK(p);
 
 	/*
 	 * Copy the sigframe out to the user's stack.
