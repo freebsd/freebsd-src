@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.16 1997/05/28 16:26:05 wpaul Exp $
+#	$Id: Makefile,v 1.17 1997/08/21 09:29:49 jmg Exp $
 
 .SUFFIXES: .x
 
@@ -20,17 +20,14 @@ CLEANFILES+= ${HDRS}
 all: ${HDRS}
 
 beforeinstall: installhdrs
+
+installhdrs:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HFILES:S;^;${.CURDIR}/;} \
 		${XFILES:S;^;${.CURDIR}/;} \
-		${DESTDIR}/usr/include/rpcsvc
-
-installhdrs:
-	cd ${.OBJDIR}; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${HDRS} \
 		${DESTDIR}/usr/include/rpcsvc
-	
+
 .x.h:
 	${RPCCOM} -h ${.IMPSRC} -o ${.TARGET}
 
