@@ -47,6 +47,11 @@
  **********************************************************************
  * HISTORY
  * $Log: run.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:47  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.1.1.1  1993/08/21  00:46:33  jkh
  * Current sup with compression support.
  *
@@ -95,6 +100,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <varargs.h>
+#define MAXARGS 100
 
 static int dorun();
 
@@ -123,10 +129,14 @@ va_dcl
 {
 	int val;
 	va_list ap;
-
+	char *args[MAXARGS];
+	int argno=0;
+	
 	va_start(ap);
-	val = runvp (name,ap);
+        while (argno < MAXARGS 
+	       && (args[argno++] = va_arg(ap, char *)) != (char *)0);
 	va_end(ap);
+	val = runvp (name,args);
 	return (val);
 }
 

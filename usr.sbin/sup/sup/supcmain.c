@@ -174,6 +174,11 @@
  *	across the network to save BandWidth
  *
  * $Log: supcmain.c,v $
+ * Revision 1.1.1.1  1995/12/26 04:54:46  peter
+ * Import the unmodified version of the sup that we are using.
+ * The heritage of this version is not clear.  It appears to be NetBSD
+ * derived from some time ago.
+ *
  * Revision 1.2  1994/08/11  02:46:22  rich
  * Added extensions written by David Dawes.  From the man page:
  *
@@ -418,7 +423,11 @@ char **argv;
 			int fd;
 			loginfo ("SUP Restarting %s with new supfile %s",
 				progname,supfname);
+#ifdef __hpux
+			for (fd = 256; fd > 3; fd--)
+#else
 			for (fd = getdtablesize (); fd > 3; fd--)
+#endif
 				(void) close (fd);
 			execv (progname,argv);
 			logquit (1,"Restart failed");
@@ -550,6 +559,14 @@ int *oflagsp,*aflagsp;
 			break;
 		case 'm':
 			oflags |= CFMAIL;
+			break;
+		case 'i':
+			oflags |= CFUNLINKBUSY;
+			aflags &= ~CFUNLINKBUSY;
+			break;
+		case 'I':
+			oflags &= ~CFUNLINKBUSY;
+			aflags |= CFUNLINKBUSY;
 			break;
 		case 'o':
 			oflags |= CFOLD;
