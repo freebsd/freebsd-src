@@ -177,7 +177,7 @@ netinet/igmp.c		optional inet
 netinet/in.c		optional inet
 netinet/in_pcb.c	optional inet
 netinet/in_proto.c	optional inet
-netinet/in_rmx.c	optional in_rmx
+netinet/in_rmx.c	optional inet
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet
 netinet/ip_mroute.c	optional inet
