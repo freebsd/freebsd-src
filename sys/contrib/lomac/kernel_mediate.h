@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_mediate.h,v 1.5 2001/09/26 21:18:00 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #ifndef _KERNEL_MEDIATE_H_

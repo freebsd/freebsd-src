@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kernel_monitor.h,v 1.5 2001/09/26 23:00:44 tfraser Exp $
+ * $FreeBSD$
  */
 
 #ifndef _LOMAC_MONITOR_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: lomacfs.h,v 1.20 2001/10/17 15:34:29 bfeldman Exp $
+ * $FreeBSD$
  */
 
 #ifndef LOMACFS_H
