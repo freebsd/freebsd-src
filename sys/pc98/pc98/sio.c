@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.92 1999/05/09 05:00:54 kato Exp $
+ *	$Id: sio.c,v 1.93 1999/05/09 13:00:48 phk Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -39,7 +39,7 @@
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
-/* #include "opt_sio.h" */
+#include "opt_sio.h"
 #include "sio.h"
 /* #include "pnp.h" */
 #define NPNP 0
@@ -429,8 +429,7 @@ struct com_s {
 };
 
 #ifdef COM_ESP
-static	int	espattach	__P((struct isa_device *isdp, struct com_s *com,
-				     Port_t esp_port));
+static	int	espattach	__P((struct com_s *com, Port_t esp_port));
 #endif
 static	int	sioattach	__P((device_t dev));
 
@@ -945,7 +944,6 @@ siounload(struct pccard_devinfo *devi)
 		ttwakeup(com->tp);
 		ttwwakeup(com->tp);
 	} else {
-		com_addr(com->unit) = NULL;
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		free(com, M_DEVBUF);
@@ -1429,8 +1427,7 @@ sioprobe(dev)
 
 #ifdef COM_ESP
 static int
-espattach(isdp, com, esp_port)
-	struct isa_device	*isdp;
+espattach(com, esp_port)
 	struct com_s		*com;
 	Port_t			esp_port;
 {
@@ -1517,9 +1514,6 @@ sioattach(dev)
 	Port_t		*espp;
 #endif
 	Port_t		iobase;
-#if 0
-	int		s;
-#endif
 	int		unit;
 	void		*ih;
 	struct resource *res;
@@ -1531,9 +1525,6 @@ sioattach(dev)
 	u_long		obufsize;
 #endif
 
-#if 0
-	isdp->id_ri_flags |= RI_FAST;
-#endif
 	iobase = isa_get_port(dev);
 #ifdef PC98
 	if (((flags >> 24) & 0xff) == COM_IF_RSA98III)
@@ -1718,7 +1709,7 @@ sioattach(dev)
 		if (com->pc98_if_type == COM_IF_ESP98)
 #endif
 		for (espp = likely_esp_ports; *espp != 0; espp++)
-			if (espattach(dev, com, *espp)) {
+			if (espattach(com, *espp)) {
 				com->tx_fifo_size = 1024;
 				break;
 			}
@@ -1823,12 +1814,6 @@ determined_type: ;
 	if ( COM_IIR_TXRDYBUG(flags) )
 		printf(" with a bogus IIR_TXRDY register");
 	printf("\n");
-
-#if 0
-	s = spltty();
-	com_addr(unit) = com;
-	splx(s);
-#endif
 
 	if (!sio_registered) {
 		register_swi(SWI_TTY, siopoll);
@@ -2143,9 +2128,6 @@ sioclose(dev, flag, mode, p)
 	if (com->gone) {
 		printf("sio%d: gone\n", com->unit);
 		s = spltty();
-#if 0
-		com_addr(com->unit) = NULL;
-#endif
 		if (com->ibuf != NULL)
 			free(com->ibuf, M_DEVBUF);
 		bzero(tp, sizeof *tp);
@@ -2265,17 +2247,15 @@ sioread(dev, uio, flag)
 	int		flag;
 {
 	int		mynor;
-	int		unit;
-	struct tty	*tp;
+	struct com_s	*com;
 
 	mynor = minor(dev);
 	if (mynor & CONTROL_MASK)
 		return (ENODEV);
-	unit = MINOR_TO_UNIT(mynor);
-	if (com_addr(unit)->gone)
+	com = com_addr(MINOR_TO_UNIT(mynor));
+	if (com->gone)
 		return (ENODEV);
-	tp = com_addr(unit)->tp;
-	return ((*linesw[tp->t_line].l_read)(tp, uio, flag));
+	return ((*linesw[com->tp->t_line].l_read)(com->tp, uio, flag));
 }
 
 static int
@@ -2285,7 +2265,7 @@ siowrite(dev, uio, flag)
 	int		flag;
 {
 	int		mynor;
-	struct tty	*tp;
+	struct com_s	*com;
 	int		unit;
 
 	mynor = minor(dev);
@@ -2293,9 +2273,9 @@ siowrite(dev, uio, flag)
 		return (ENODEV);
 
 	unit = MINOR_TO_UNIT(mynor);
-	if (com_addr(unit)->gone)
+	com = com_addr(unit);
+	if (com->gone)
 		return (ENODEV);
-	tp = com_addr(unit)->tp;
 	/*
 	 * (XXX) We disallow virtual consoles if the physical console is
 	 * a serial port.  This is in case there is a display attached that
@@ -2304,7 +2284,7 @@ siowrite(dev, uio, flag)
 	 */
 	if (constty != NULL && unit == comconsole)
 		constty = NULL;
-	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
+	return ((*linesw[com->tp->t_line].l_write)(com->tp, uio, flag));
 }
 
 static void
@@ -2464,6 +2444,8 @@ siointr(arg)
 	COM_UNLOCK();
 #else /* COM_MULTIPORT */
 	bool_t		possibly_more_intrs;
+	int		unit;
+	struct com_s	*com;
 #ifdef PC98
 	u_char		rsa_buf_status;
 #endif
@@ -3929,25 +3911,18 @@ static void siocnopen	__P((struct siocnstate *sp, Port_t iobase, int speed));
 static void siocntxwait	__P((Port_t iobase));
 
 #ifdef __i386__
-/*
- * XXX: sciocnget() and sciocnputc() are not declared static, as they are
- * referred to from i386/i386/i386-gdbstub.c.
- */
 static cn_probe_t siocnprobe;
 static cn_init_t siocninit;
 static cn_checkc_t siocncheckc;
-       cn_getc_t siocngetc;
-       cn_putc_t siocnputc;
+static cn_getc_t siocngetc;
+static cn_putc_t siocnputc;
 
 CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
 
-/*
- * Routines to support GDB on an sio port.
- */
-dev_t	   gdbdev;
-cn_getc_t *gdb_getc;
-cn_putc_t *gdb_putc;
-
+/* To get the GDB related variables */
+#if DDB > 0
+#include <ddb/ddb.h>
+#endif
 #endif
 
 static void
@@ -4150,20 +4125,23 @@ siocnprobe(cp)
 				siogdbiobase = iobase;
 				siogdbunit = unit;
 #ifdef	__i386__
+#if DDB > 0
 				gdbdev = makedev(CDEV_MAJOR, unit);
 				gdb_getc = siocngetc;
 				gdb_putc = siocnputc;
+#endif
 #endif
 			}
 		}
 	}
 #ifdef	__i386__
+#if DDB > 0
 	/*
 	 * XXX Ugly Compatability.
 	 * If no gdb port has been specified, set it to be the console
 	 * as some configuration files don't specify the gdb port.
 	 */
-	if (gdbdev == -1 && (boothowto & RB_GDB)) {
+	if (gdbdev == NODEV && (boothowto & RB_GDB)) {
 		printf("Warning: no GDB port specified. Defaulting to sio%d.\n",
 			siocnunit);
 		printf("Set flag 0x80 on desired GDB port in your\n");
@@ -4174,6 +4152,7 @@ siocnprobe(cp)
 		gdb_getc = siocngetc;
 		gdb_putc = siocnputc;
 	}
+#endif
 #endif
 }
 
