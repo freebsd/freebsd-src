@@ -120,18 +120,15 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		    pci_write_config(parent, 0x48,
 				     (pci_read_config(parent, 0x48, 4) &
 				     ~mask48) | new48, 4);
-	    	    pci_write_config(parent, 0x54, word54 & ~(0x1000<<devno),2);
+	    	    pci_write_config(parent, 0x54, word54 | (0x1000<<devno), 2);
 		    scp->mode[ATA_DEV(device)] = ATA_UDMA5;
 		    return;
 		}
 	    }
 	}
-	if (udmamode >= 4) {
-	    int16_t word54;
-
-	    word54 = pci_read_config(parent, 0x54, 2);
-	    pci_write_config(parent, 0x54, word54 & ~(0x1000 << devno), 2);
-	}
+	/* make sure eventual ATA100 mode from the BIOS is disabled */
+	pci_write_config(parent, 0x54, 
+			 pci_read_config(parent, 0x54, 2) & ~(0x1000<<devno),2);
 	/* FALLTHROUGH */
 
     case 0x24118086:    /* Intel ICH */
@@ -160,12 +157,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		}
 	    }
 	}           
-	if (udmamode >= 2) {
-	    int16_t word54;
-
-	    word54 = pci_read_config(parent, 0x54, 2);
-	    pci_write_config(parent, 0x54, word54 & ~(1 << devno), 2);
-	}
+	/* make sure eventual ATA66 mode from the BIOS is disabled */
+	pci_write_config(parent, 0x54, 
+			 pci_read_config(parent, 0x54, 2) & ~(1 << devno), 2);
 	/* FALLTHROUGH */
 
     case 0x71118086:	/* Intel PIIX4 */
@@ -192,6 +186,9 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 		return;
 	    }
 	}
+	/* make sure eventual ATA33 mode from the BIOS is disabled */
+	pci_write_config(parent, 0x48, 
+			 pci_read_config(parent, 0x48, 4) & ~(1 << devno), 4);
 	/* FALLTHROUGH */
 
     case 0x70108086:	/* Intel PIIX3 */
