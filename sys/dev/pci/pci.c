@@ -1000,6 +1000,7 @@ pci_add_child(device_t bus, struct pci_devinfo *dinfo)
 	pcib = device_get_parent(bus);
 	dinfo->cfg.dev = device_add_child(bus, NULL, -1);
 	device_set_ivars(dinfo->cfg.dev, dinfo);
+	resource_list_init(&dinfo->resources);
 	pci_cfg_save(dinfo->cfg.dev, dinfo, 0);
 	pci_cfg_restore(dinfo->cfg.dev, dinfo);
 	pci_add_resources(pcib, bus, dinfo->cfg.dev);
@@ -1153,7 +1154,6 @@ pci_driver_added(device_t dev, driver_t *driver)
 			continue;
 		dinfo = device_get_ivars(child);
 		pci_print_verbose(dinfo);
-/*XXX???*/	/* resource_list_init(&dinfo->cfg.resources); */
 		if (bootverbose)
 			printf("pci%d:%d:%d: reprobing on driver added\n",
 			    dinfo->cfg.bus, dinfo->cfg.slot, dinfo->cfg.func);
