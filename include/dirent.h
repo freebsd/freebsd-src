@@ -94,6 +94,7 @@ void seekdir __P((DIR *, long));
 int scandir __P((const char *, struct dirent ***,
     int (*)(struct dirent *), int (*)(const void *, const void *)));
 int alphasort __P((const void *, const void *));
+int getdents __P((int, char *, int));
 int getdirentries __P((int, char *, int, long *));
 int readdir_r __P((DIR *, struct dirent *, struct dirent **));
 #endif /* not POSIX */
