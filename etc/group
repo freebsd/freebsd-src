@@ -14,6 +14,6 @@ guest:*:31:root
 uucp:*:66:
 xten:*:67:xten
 dialer:*:68:
-ppp:*:69:
+network:*:69:
 nogroup:*:65533:
 nobody:*:65534:
