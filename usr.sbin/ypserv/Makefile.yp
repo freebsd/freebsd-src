@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id$
+# $Id: Makefile.yp,v 1.2 1997/11/10 19:47:14 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -70,7 +70,11 @@ TMP = `$(RCAT) $(NFILE)`
 # support multiple domains, something like /src/dir/$DOMAIN
 # would work well.
 YPSRCDIR = /etc
+.if !defined(YP_DIR)
 YPDIR = /var/yp
+.else
+YPDIR = $(YP_DIR)
+.endif
 YPMAPDIR = $(YPDIR)/$(DOMAIN)
 
 # These are the files from which the NIS databases are built. You may edit
@@ -115,22 +119,61 @@ PUBLICKEY = $(YPSRCDIR)/publickey
 NETID     = $(YPSRCDIR)/netid
 AMDHOST   = $(YPSRCDIR)/amd.host
 
+# List of maps that are always built.
+# If you want to omit some of them, feel free to comment
+# them out from this list.
+TARGETS= servers hosts networks protocols rpc services group
+#TARGETS+= aliases
+
+# Sanity checks: filter out targets we can't build
+# Note that we don't build the ethers or boorparams maps by default
+# since /etc/ethers and /etc/bootparams are not likely to be present
+# on all systems.
+.if exists($(ETHERS))
+TARGETS+= ethers
+.else
+ETHERS= /dev/null
+.endif
+
+.if exists($(BOOTPARAMS))
+TARGETS+= bootparams
+.else
+BOOTPARAMS= /dev/null
+.endif
+
+.if exists($(NETGROUP))
+TARGETS+= netgrp
+.else
+NETGROUP= /dev/null
+.endif
+
+.if exists($(MASTER))
+TARGETS+= passwd master.passwd netid
+.else
+MASTER= /dev/null
+TARGETS+= nopass
+.endif
+
+.if exists($(PUBLICKEY))
+TARGETS+= publickey
+.else
+PUBLICKEY= /dev/null
+.endif
+
+.if exists($(AMDHOST))
+TARGETS+= amd.host
+.else
+AMDHOST= /dev/null
+.endif
+
 target: 
 	@$(RM) $(NFILE)
 	@if [ ! -d $(DOMAIN) ]; then mkdir $(DOMAIN); fi; \
 	cd $(DOMAIN) ; echo "NIS Map update started on `date` for domain $(DOMAIN)" ; \
 	make -f ../Makefile all; echo "NIS Map update completed."
+	@$(RM) $(NFILE)
 
-# If you don't want some of these maps built, feel free to comment
-# them out from this list.
-# Note that we don't build the ethers or boorparams maps by default
-# since /etc/ethers and /etc/bootparams are not likely to be present
-# on all systems.
-#
-
-all:  servers master.passwd passwd hosts group networks protocols rpc \
-      services netid
-      # aliases publickey netgrp ethers bootparam amd.host
+all: $(TARGETS)
 
 ethers:	   ethers.byname ethers.byaddr
 bootparam: bootparams
@@ -163,6 +206,22 @@ pushpw:
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) passwd.byname ; fi
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) passwd.byuid ; fi
 
+pushmap:
+	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $(PUSHMAP) ; fi
+
+nopass:
+	@echo ""
+	@echo "                ********WARNING********"
+	@echo "  Couldn't find the master.passwd source file. This file"
+	@echo "  is needed to generate the master.passwd and passwd maps."
+	@echo "  The default location is /var/yp/master.passwd. You should"
+	@echo "  edit /var/yp/Makefile and set the MASTER variable to point"
+	@echo "  to the source file you wish to use for building the passwd"
+	@echo "  maps, or else invoke make(1) in the following manner:"
+	@echo "
+	@echo "        make MASTER_PASSWD=/path/to/master.passwd"
+	@echo ""
+
 mail.aliases: $(ALIASES)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
@@ -189,6 +248,9 @@ ypservers: $(YPSERVERS)
 
 ethers.byname: $(ETHERS)
 	@echo "Updating $@..."
+.if ${ETHERS} == "/dev/null"
+	@echo "Ethers source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(ETHERS) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
@@ -198,10 +260,13 @@ ethers.byname: $(ETHERS)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
-
+.endif
 
 ethers.byaddr: $(ETHERS)
 	@echo "Updating $@..."
+.if ${ETHERS} == "/dev/null"
+	@echo "Ethers source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(ETHERS) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
@@ -211,10 +276,14 @@ ethers.byaddr: $(ETHERS)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
 
 
 bootparams: $(BOOTPARAMS)
 	@echo "Updating $@..."
+.if ${BOOTPARAMS} == "/dev/null"
+	@echo "Bootparams source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(BOOTPARAMS) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
@@ -224,10 +293,14 @@ bootparams: $(BOOTPARAMS)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
 
 
 netgroup: $(NETGROUP) netgroup.byhost netgroup.byuser
 	@echo "Updating $@..."
+.if ${NETGROUP} == "/dev/null"
+	@echo "Netgroup source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETGROUP) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
@@ -238,10 +311,14 @@ netgroup: $(NETGROUP) netgroup.byhost netgroup.byuser
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
 	@$(MAKE) -f ../Makefile netid
+.endif
 
 
 netgroup.byhost: $(NETGROUP)
 	@echo "Updating $@..."
+.if ${NETGROUP} == "/dev/null"
+	@echo "Netgroup source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETGROUP) | $(REVNETGROUP) -h -f $(NETGROUP) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
@@ -251,10 +328,14 @@ netgroup.byhost: $(NETGROUP)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
 
 
 netgroup.byuser: $(NETGROUP)
 	@echo "Updating $@..."
+.if ${NETGROUP} == "/dev/null"
+	@echo "Netgroup source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(NETGROUP) | $(REVNETGROUP) -u -f $(NETGROUP) | \
 	$(AWK) '{ if ($$1 != "" && $$1 != "#" && $$1 != "+") \
@@ -264,6 +345,7 @@ netgroup.byuser: $(NETGROUP)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
 
 
 hosts.byname: $(HOSTS)
@@ -394,6 +476,9 @@ services.byname: $(SERVICES)
 
 publickey.byname: $(PUBLICKEY)
 	@echo "Updating $@..."
+.if ${PUBLICKEY} == "/dev/null"
+	@echo "Publickey source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(PUBLICKEY) | \
 	$(AWK) '$$1 !~ "#" { print $$1"\t"$$2 }' $^ \
@@ -402,6 +487,7 @@ publickey.byname: $(PUBLICKEY)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
 
 
 $(PASSWD): $(MASTER)
@@ -480,6 +566,9 @@ netid.byname: $(GROUP) $(PASSWD)
 
 master.passwd.byname: $(MASTER)
 	@echo "Updating $@..."
+.if ${MASTER} == "/dev/null"
+	@echo "Master.passwd source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(MASTER) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$1"\t"$$0 }' $^ \
@@ -488,10 +577,14 @@ master.passwd.byname: $(MASTER)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
 
 
 master.passwd.byuid: $(MASTER)
 	@echo "Updating $@..."
+.if ${MASTER} == "/dev/null"
+	@echo "Master.passwd source file not found -- skipping"
+.else
 	@echo $@.$$$$ > $(NFILE)
 	$(CAT) $(MASTER) | \
 	$(AWK) -F: '{ if ($$1 != "+") print $$3"\t"$$0 }' $^ \
@@ -500,6 +593,8 @@ master.passwd.byuid: $(MASTER)
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
 	@if [ ! $(NOPUSH) ]; then echo "Pushed $@ map." ; fi
+.endif
+
 
 amd.host: $(AMDHOST)
 	@echo "Updating $@..."
