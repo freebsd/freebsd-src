@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_send.c,v 1.4.4.1 1995/08/30 04:06:59 davidg Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.4.4.3 1996/06/05 02:48:39 jkh Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 	/* change this to "0"
@@ -549,6 +549,11 @@ res_send(buf, buflen, ans, anssiz)
 			if ((long) timeout.tv_sec <= 0)
 				timeout.tv_sec = 1;
 			timeout.tv_usec = 0;
+			if (s+1 > FD_SETSIZE) {
+				Perror(stderr, "res_send: too many files");
+				res_close();
+				goto next_ns;
+			}
     wait:
 			FD_ZERO(&dsmask);
 			FD_SET(s, &dsmask);
