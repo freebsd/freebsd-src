@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_syscalls.c	8.4 (Berkeley) 2/21/94
- * $Id: uipc_syscalls.c,v 1.45 1998/11/15 16:55:09 dg Exp $
+ * $Id: uipc_syscalls.c,v 1.46 1998/11/18 09:00:47 dg Exp $
  */
 
 #include "opt_compat.h"
@@ -260,6 +260,8 @@ accept1(p, uap, compat)
 
 	so->so_state &= ~SS_COMP;
 	so->so_head = NULL;
+	if (head->so_sigio != NULL)
+		fsetown(fgetown(head->so_sigio), &so->so_sigio);
 
 	fp->f_type = DTYPE_SOCKET;
 	fp->f_flag = fflag;
