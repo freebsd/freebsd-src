@@ -47,3 +47,11 @@ __cputchar(ch)
 #endif
 	(void)putchar(ch);
 }
+
+int
+_putchar(ch)
+	int ch;
+{
+	__cputchar(ch);
+	return 0;
+}
