@@ -48,6 +48,7 @@ struct prison {
  */
 extern int	jail_set_hostname_allowed;
 extern int	jail_socket_unixiproute_only;
+extern int	jail_sysvipc_allowed;
 
 #endif /* !_KERNEL */
 #endif /* !_SYS_JAIL_H_ */

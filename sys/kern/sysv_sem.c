@@ -19,6 +19,7 @@
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/jail.h>
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 
@@ -204,6 +205,9 @@ semsys(p, uap)
 		int	a5;
 	} */ *uap;
 {
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	if (uap->which >= sizeof(semcalls)/sizeof(semcalls[0]))
 		return (EINVAL);
@@ -411,6 +415,9 @@ __semctl(p, uap)
 	printf("call to semctl(%d, %d, %d, 0x%x)\n", semid, semnum, cmd, arg);
 #endif
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	semid = IPCID_TO_IX(semid);
 	if (semid < 0 || semid >= seminfo.semmsl)
 		return(EINVAL);
@@ -571,6 +578,9 @@ semget(p, uap)
 	printf("semget(0x%x, %d, 0%o)\n", key, nsems, semflg);
 #endif
 
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
+
 	if (key != IPC_PRIVATE) {
 		for (semid = 0; semid < seminfo.semmni; semid++) {
 			if ((sema[semid].sem_perm.mode & SEM_ALLOC) &&
@@ -688,6 +698,9 @@ semop(p, uap)
 #ifdef SEM_DEBUG
 	printf("call to semop(%d, 0x%x, %d)\n", semid, sops, nsops);
 #endif
+
+	if (!jail_sysvipc_allowed && p->p_prison != NULL)
+		return (ENOSYS);
 
 	semid = IPCID_TO_IX(semid);	/* Convert back to zero origin */
 
