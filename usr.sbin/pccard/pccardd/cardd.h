@@ -23,13 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: cardd.h,v 1.5.2.1 1997/10/26 04:13:45 nate Exp $
+ * $Id: cardd.h,v 1.5.2.2 1997/11/25 19:41:37 nate Exp $
  *
  *	Common include file for PCMCIA daemon
  */
 #include <bitstring.h>
 
-#include <pccard/card.h>
+#include <pccard/cardinfo.h>
 #include <pccard/cis.h>
 
 #include "readcis.h"
@@ -111,8 +111,6 @@ struct slot {
 	int     irq;			/* Irq value */
 };
 
-EXTERN struct slot *slots, *current_slot;
-
 EXTERN struct allocblk *pool_ioblks;		/* I/O blocks in the pool */
 EXTERN struct allocblk *pool_mem;		/* Memory in the pool */
 EXTERN int     pool_irq[16];			/* IRQ allocations */
@@ -121,22 +119,25 @@ EXTERN struct card *cards;
 EXTERN bitstr_t *mem_avail;
 EXTERN bitstr_t *io_avail;
 
-EXTERN int     verbose;
+/* cardd.c functions */
+void		 dump_config_file(void);
+struct slot	*readslots(void);
+void		 slot_change(struct slot *);
 
 /* util.c functions */
-unsigned long alloc_memory(int);
-int     bit_fns(bitstr_t *, int, int);
-void    die(char *);
-void    execute(struct cmd *);
-void    logmsg(const char *, ...);
-void	log_setup(void);
-void    logerr(char *);
-char   *newstr();
-void    reset_slot(struct slot *);
-void   *xmalloc(int);
+unsigned long	 alloc_memory(int);
+int		 bit_fns(bitstr_t *, int, int);
+void		 die(char *);
+void		 execute(struct cmd *, struct slot *);
+void		 logmsg(const char *, ...);
+void		 log_setup(void);
+void		 logerr(char *);
+char		*newstr();
+void		 reset_slot(struct slot *);
+void		*xmalloc(int);
 
 /* file.c */
-void    readfile(char *);
+void		 readfile(char *);
 
 #define	IOPORTS	0x400
 #define	MEMUNIT	0x1000

@@ -26,98 +26,24 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: cardd.c,v 1.13.2.7 1998/03/02 20:49:31 guido Exp $";
+	"$Id: cardd.c,v 1.13.2.8 1998/03/09 12:22:56 jkh Exp $";
 #endif /* not lint */
 
-#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/time.h>
-#define EXTERN
 #include "cardd.h"
 
-char   *config_file = "/etc/pccard.conf";
-
 static struct card_config *assign_driver(struct card *);
-static int     assign_io(struct slot *);
-static int     setup_slot(struct slot *);
-static void    card_inserted(struct slot *);
-static void    card_removed(struct slot *);
-static void    dump_config_file(void);
-static void    pr_cmd(struct cmd *);
-static void    read_ether(struct slot *);
-static void    readslots(void);
-static void    slot_change(struct slot *);
-
-/*
- *	mainline code for cardd
- */
-int
-main(int argc, char *argv[])
-{
-	struct slot *sp;
-	int     count, debug = 0;
-	int     verbose = 0;
-
-	while ((count = getopt(argc, argv, ":dvf:")) != -1) {
-		switch (count) {
-		case 'd':
-			setbuf(stdout, 0);
-			setbuf(stderr, 0);
-			debug = 1;
-			break;
-		case 'v':
-			verbose = 1;
-			break;
-		case 'f':
-			config_file = optarg;
-			break;
-		case ':':
-			die("no config file argument");
-			break;
-		case '?':
-			die("illegal option");
-			break;
-		}
-	}
-#ifdef	DEBUG
-	debug = 1;
-#endif
-	io_avail = bit_alloc(IOPORTS);	/* Only supports ISA ports */
-
-	/* Mem allocation done in MEMUNIT units. */
-	mem_avail = bit_alloc(MEMBLKS);
-	readfile(config_file);
-	if (verbose)
-		dump_config_file();
-	log_setup();
-	if (!debug)
-		if (daemon(0, 0))
-			die("fork failed");
-	readslots();
-	if (slots == 0)
-		die("no PC-CARD slots");
-	logmsg("pccardd started", NULL);
-	for (;;) {
-		fd_set  mask;
-		FD_ZERO(&mask);
-		for (sp = slots; sp; sp = sp->next)
-			FD_SET(sp->fd, &mask);
-		count = select(32, 0, 0, &mask, 0);
-		if (count == -1) {
-			logerr("select");
-			continue;
-		}
-		if (count)
-			for (sp = slots; sp; sp = sp->next)
-				if (FD_ISSET(sp->fd, &mask))
-					slot_change(sp);
-	}
-}
+static int		 assign_io(struct slot *);
+static int		 setup_slot(struct slot *);
+static void		 card_inserted(struct slot *);
+static void		 card_removed(struct slot *);
+static void		 pr_cmd(struct cmd *);
+static void		 read_ether(struct slot *);
 
 /*
  *	Dump configuration file data.
@@ -158,13 +84,14 @@ pr_cmd(struct cmd *cp)
  *	readslots - read all the PCMCIA slots, and build
  *	a list of the slots.
  */
-void
+struct slot *
 readslots(void)
 {
 	char    name[128];
 	int     i, fd;
-	struct slot *sp;
+	struct slot *slots, *sp;
 
+	slots = NULL;
 	for (i = 0; i < MAXSLOT; i++) {
 		sprintf(name, CARD_DEVICE, i);
 		fd = open(name, 2);
@@ -200,6 +127,7 @@ readslots(void)
 		slots = sp;
 		slot_change(sp);
 	}
+	return (slots);
 }
 
 /*
@@ -211,7 +139,6 @@ slot_change(struct slot *sp)
 {
 	struct slotstate state;
 
-	current_slot = sp;
 	if (ioctl(sp->fd, PIOCGSTATE, &state)) {
 		logerr("ioctl (PIOCGSTATE)");
 		return;
@@ -266,7 +193,7 @@ card_removed(struct slot *sp)
 		sp->config->driver->inuse = 0;
 	}
 	if ((cp = sp->card) != 0)
-		execute(cp->remove);
+		execute(cp->remove, sp);
 	sp->cis = 0;
 	sp->config = 0;
 	/* release io */
@@ -314,11 +241,8 @@ card_inserted(struct slot *sp)
 	}
 	if (cp->ether)
 		read_ether(sp);
-	sp->config = assign_driver(cp);
-	if (sp->config == 0) {
-		execute(cp->insert);
+	if ((sp->config = assign_driver(cp)) == NULL) 
 		return;
-	}
 	if (assign_io(sp)) {
 		logmsg("Resource allocation failure for %s", sp->cis->manuf);
 		return;
@@ -330,7 +254,7 @@ card_inserted(struct slot *sp)
 	 * windows, and then attach the driver.
 	 */
 	if (setup_slot(sp))
-		execute(cp->insert);
+		execute(cp->insert, sp);
 #if 0
 	else
 		reset_slot(sp);
@@ -390,7 +314,7 @@ assign_driver(struct card *cp)
 			break;
 	if (conf == 0) {
 		logmsg("No free configuration for card %s", cp->manuf);
-		return (0);
+		return (NULL);
 	}
 	/*
 	 * Now we have a free driver and a matching configuration.
@@ -402,7 +326,7 @@ assign_driver(struct card *cp)
 	/* If none available, then we can't use this card. */
 	if (drvp->inuse) {
 		logmsg("Driver already being used for %s", cp->manuf);
-		return (0);
+		return (NULL);
 	}
 	/* Allocate a free IRQ if none has been specified */
 	if (conf->irq == 0) {
@@ -415,35 +339,9 @@ assign_driver(struct card *cp)
 			}
 		if (conf->irq == 0) {
 			logmsg("Failed to allocate IRQ for %s\n", cp->manuf);
-			return (0);
+			return (NULL);
 		}
 	}
-#if 0
-	/* Allocate I/O and memory resources. */
-	for (ap = drvp->io; ap; ap = ap->next) {
-		if (ap->addr == 0 && ap->size) {
-			int     i = bit_fns(io_avail, IOPORTS, ap->size);
-
-			if (i < 0) {
-				logmsg("Failed to allocate I/O ports for %s\n",
-				    cp->manuf);
-				return (0);
-			}
-			ap->addr = i;
-			bit_nclear(io_avail, i, i + ap->size - 1);
-		}
-	}
-	for (ap = drvp->mem; ap; ap = ap->next) {
-		if (ap->addr == 0 && ap->size) {
-			ap->addr = alloc_memory(ap->size);
-			if (ap->addr == 0) {
-				logmsg("Failed to allocate memory for %s\n",
-				    cp->manuf);
-				return (0);
-			}
-		}
-	}
-#endif	/* 0 */
 	drvp->card = cp;
 	drvp->config = conf;
 	drvp->inuse = 1;
