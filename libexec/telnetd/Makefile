@@ -1,14 +1,17 @@
-#	@(#)Makefile	8.2 (Berkeley) 12/15/93
 # $FreeBSD$
 
-PROG=	telnetd
-CFLAGS+=-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS
-#CFLAGS+=-DKLUDGELINEMODE
-CFLAGS+=-DOLD_ENVIRON -DENV_HACK
-CFLAGS+=-I${.CURDIR}/../../lib
-CFLAGS+=-DINET6
-SRCS=	global.c slc.c state.c sys_term.c telnetd.c \
-	termstat.c utility.c
+# Do not define -DKLUDGELINEMODE, as it does not interact well with many
+# telnet implementations.
+
+PROG=		telnetd
+MAN=		telnetd.8
+
+CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
+		-DENV_HACK \
+		-I${.CURDIR}/../../lib -DINET6
+
+SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
+		termstat.c utility.c
 
 .if exists(${.OBJDIR}/../../lib/libtelnet)
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
@@ -16,8 +19,7 @@ LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 .endif
 
-DPADD=	${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
-LDADD=	-lutil -ltermcap ${LIBTELNET}
-MAN=	telnetd.8
+DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
+LDADD=		-lutil -ltermcap ${LIBTELNET}
 
 .include <bsd.prog.mk>

@@ -46,9 +46,7 @@ extern int	uselinemode;	/* what linemode to use (on/off) */
 extern int	editmode;	/* edit modes in use */
 extern int	useeditmode;	/* edit modes to use */
 extern int	alwayslinemode;	/* command line option */
-# ifdef	KLUDGELINEMODE
 extern int	lmodetype;	/* Client support for linemode */
-# endif	/* KLUDGELINEMODE */
 #endif	/* LINEMODE */
 extern int	flowmode;	/* current flow control state */
 extern int	restartany;	/* restart output on any character state */
@@ -60,9 +58,6 @@ extern int	bftpd;		/* behave as bftp daemon */
 #endif /* BFTPDAEMON */
 #if	defined(SecurID)
 extern int	require_SecurID;
-#endif
-#if	defined(AUTHENTICATION)
-extern int	auth_level;
 #endif
 
 extern slcfun	slctab[NSLC + 1];	/* slc mapping table */
@@ -143,11 +138,7 @@ extern void
 	set_termbuf P((void)),
 	start_login P((char *, int, char *)),
 	start_slc P((int)),
-#if	defined(AUTHENTICATION)
-	start_slave P((char *)),
-#else
 	start_slave P((char *, int, char *)),
-#endif
 	suboption P((void)),
 	telrcv P((void)),
 	ttloop P((void)),
@@ -231,7 +222,11 @@ extern int	needtermstat;
 #   ifdef ultrix
 #    define DEFAULT_IM	"\r\n\r\nULTRIX (%h) (%t)\r\n\r\r\n\r"
 #   else
-#    define DEFAULT_IM	"\r\n\r\nFreeBSD (%h) (%t)\r\n\r\r\n\r"
+#    ifdef __FreeBSD__
+#     define DEFAULT_IM  "\r\n\r\nFreeBSD (%h) (%t)\r\n\r\r\n\r"
+#    else
+#    define DEFAULT_IM	"\r\n\r\n4.4 BSD UNIX (%h) (%t)\r\n\r\r\n\r"
+#    endif
 #   endif
 #  endif
 # endif
