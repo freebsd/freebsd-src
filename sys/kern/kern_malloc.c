@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.17 1995/12/14 08:31:28 phk Exp $
+ * $Id: kern_malloc.c,v 1.18 1996/01/29 09:58:34 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -395,9 +395,13 @@ kmeminit(dummy)
 			bucket[indx].kb_elmpercl = CLBYTES / (1 << indx);
 		bucket[indx].kb_highwat = 5 * bucket[indx].kb_elmpercl;
 	}
+	/*
+	 * Limit maximum memory for each type to 60% of malloc area size or
+	 * 60% of physical memory, whichever is smaller.
+	 */
 	for (indx = 0; indx < M_LAST; indx++) {
-		kmemstats[indx].ks_limit = (npg * PAGE_SIZE -
-			nmbclusters * MCLBYTES) * 6 / 10;
+		kmemstats[indx].ks_limit = min(cnt.v_page_count * PAGE_SIZE,
+			(npg * PAGE_SIZE - nmbclusters * MCLBYTES)) * 6 / 10;
 	}
 #endif
 }
