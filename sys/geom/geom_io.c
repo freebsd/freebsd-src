@@ -209,6 +209,12 @@ g_io_check(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
+		/* Noisily reject zero size sectors */
+		if (pp->sectorsize == 0) {
+			printf("GEOM provider %s has zero sectorsize\n",
+			    pp->name);
+			return (EDOOFUS);
+		}
 		/* Reject I/O not on sector boundary */
 		if (bp->bio_offset % pp->sectorsize)
 			return (EINVAL);
