@@ -710,6 +710,8 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 		memset(sun, 0, sizeof *sun);
 		sun->sun_family = AF_LOCAL;
 		strncpy(sun->sun_path, addrstr, sizeof(sun->sun_path) - 1);
+		ret->len = ret->maxlen = sun->sun_len = SUN_LEN(sun);
+		ret->buf = sun;
 		break;
 	default:
 		break;
