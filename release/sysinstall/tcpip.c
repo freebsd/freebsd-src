@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.19 1997/06/18 05:12:01 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.20 1997/09/08 11:16:13 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -211,8 +211,14 @@ tcpOpenDialog(Device *devp)
 
     save = savescr();
     /* If non-interactive, jump straight over the dialog crap and into config section */
-    if (variable_get(VAR_NONINTERACTIVE) && hostname[0])
-	goto netconfig;
+    if (variable_get(VAR_NONINTERACTIVE) && !variable_get("netInteractive")) {
+	if (!hostname[0])
+	    msgConfirm("WARNING: hostname variable not set and is a non-optional\n"
+		       "parameter.  Please add this to your installation script\n"
+		       "or set the netInteractive variable (see sysinstall man page)");
+	else
+	    goto netconfig;
+    }
 
     /* Now do all the screen I/O */
     dialog_clear_norefresh();

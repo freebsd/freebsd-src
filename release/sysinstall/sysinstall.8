@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: sysinstall.8,v 1.1.2.3 1997/09/08 11:16:12 jkh Exp $
+.\"	$Id: sysinstall.8,v 1.1.2.4 1997/09/10 10:16:26 jkh Exp $
 .\"
 .Dd August 9, 1997
 .Dt SYSINSTALL 8
@@ -640,7 +640,7 @@ Select an FTP site as the installation media.
 \fBVariables:\fR
 .Bl -tag -width indent
 .It hostname
-The name of the host being installed (optional).
+The name of the host being installed (non-optional).
 .It domainname
 The domain name of the host being installed (optional).
 .It defaultrouter
@@ -651,6 +651,9 @@ Which host interface to use (
 or
 .Ar ep0 ,
 for example.  Non-optional).
+.It netInteractive
+If set, bring up the interactive network setup form even
+if all relevant configuration variables are already set (optional).
 .It ipaddr
 The IP address for the selected host interface (non-optional).
 .It netmask
@@ -689,7 +692,7 @@ interested in.
 \fBVariables:\fR
 .Bl -tag -width indent
 .It hostname
-The name of the host being installed (optional).
+The name of the host being installed (non-optional).
 .It domainname
 The domain name of the host being installed (optional).
 .It defaultrouter
@@ -700,6 +703,9 @@ Which host interface to use (
 or
 .Ar ep0 ,
 for example.  Non-optional).
+.It netInteractive
+If set, bring up the interactive network setup form even
+if all relevant configuration variables are already set (optional).
 .It ipaddr
 The IP address for the selected host interface (non-optional).
 .It netmask
