@@ -416,7 +416,7 @@ ip6_stats(u_long off __unused, const char *name, int af1 __unused)
 	    "\t%llu packet%s whose headers are not continuous\n");
 	p(ip6s_nogif, "\t%llu tunneling packet%s that can't find gif\n");
 	p(ip6s_toomanyhdr,
-	    "\t%llu packet%s discarded due to too may headers\n");
+	    "\t%llu packet%s discarded because of too many headers\n");
 
 	/* for debugging source address selection */
 #define PRINT_SCOPESTAT(s,i) do {\
@@ -538,7 +538,7 @@ ip6_ifstats(char *ifname)
 	p(ifs6_out_fragcreat, "\t%llu output datagram%s succeeded on fragment\n");
 	p(ifs6_reass_reqd, "\t%llu incoming datagram%s fragmented\n");
 	p(ifs6_reass_ok, "\t%llu datagram%s reassembled\n");
-	p(ifs6_reass_fail, "\t%llu datagram%s failed on reassembling\n");
+	p(ifs6_reass_fail, "\t%llu datagram%s failed on reassembly\n");
 	p(ifs6_in_mcast, "\t%llu multicast datagram%s received\n");
 	p(ifs6_out_mcast, "\t%llu multicast datagram%s sent\n");
 
@@ -834,11 +834,11 @@ icmp6_stats(u_long off __unused, const char *name, int af1 __unused)
     printf(m, (unsigned long long)icmp6stat.f, plural(icmp6stat.f))
 #define p_5(f, m) printf(m, (unsigned long long)icmp6stat.f)
 
-	p(icp6s_error, "\t%llu call%s to icmp_error\n");
+	p(icp6s_error, "\t%llu call%s to icmp6_error\n");
 	p(icp6s_canterror,
-	    "\t%llu error%s not generated because old message was icmp error or so\n");
+	    "\t%llu error%s not generated in response to an icmp6 message\n");
 	p(icp6s_toofreq,
-	  "\t%llu error%s not generated because rate limitation\n");
+	  "\t%llu error%s not generated because of rate limitation\n");
 #define NELEM (int)(sizeof(icmp6stat.icp6s_outhist)/sizeof(icmp6stat.icp6s_outhist[0]))
 	for (first = 1, i = 0; i < NELEM; i++)
 		if (icmp6stat.icp6s_outhist[i] != 0) {
@@ -903,6 +903,8 @@ icmp6_ifstats(char *ifname)
 	int s;
 #define	p(f, m) if (ifr.ifr_ifru.ifru_icmp6stat.f || sflag <= 1) \
     printf(m, (unsigned long long)ifr.ifr_ifru.ifru_icmp6stat.f, plural(ifr.ifr_ifru.ifru_icmp6stat.f))
+#define	p2(f, m) if (ifr.ifr_ifru.ifru_icmp6stat.f || sflag <= 1) \
+    printf(m, (unsigned long long)ifr.ifr_ifru.ifru_icmp6stat.f, pluralies(ifr.ifr_ifru.ifru_icmp6stat.f))
 
 	if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
 		perror("Warning: socket(AF_INET6)");
@@ -925,13 +927,13 @@ icmp6_ifstats(char *ifname)
 	p(ifs6_in_paramprob, "\t%llu input parameter problem error%s\n");
 	p(ifs6_in_pkttoobig, "\t%llu input packet too big error%s\n");
 	p(ifs6_in_echo, "\t%llu input echo request%s\n");
-	p(ifs6_in_echoreply, "\t%llu input echo reply%s\n");
+	p2(ifs6_in_echoreply, "\t%llu input echo repl%s\n");
 	p(ifs6_in_routersolicit, "\t%llu input router solicitation%s\n");
 	p(ifs6_in_routeradvert, "\t%llu input router advertisement%s\n");
 	p(ifs6_in_neighborsolicit, "\t%llu input neighbor solicitation%s\n");
 	p(ifs6_in_neighboradvert, "\t%llu input neighbor advertisement%s\n");
 	p(ifs6_in_redirect, "\t%llu input redirect%s\n");
-	p(ifs6_in_mldquery, "\t%llu input MLD query%s\n");
+	p2(ifs6_in_mldquery, "\t%llu input MLD quer%s\n");
 	p(ifs6_in_mldreport, "\t%llu input MLD report%s\n");
 	p(ifs6_in_mlddone, "\t%llu input MLD done%s\n");
 
@@ -943,13 +945,13 @@ icmp6_ifstats(char *ifname)
 	p(ifs6_out_paramprob, "\t%llu output parameter problem error%s\n");
 	p(ifs6_out_pkttoobig, "\t%llu output packet too big error%s\n");
 	p(ifs6_out_echo, "\t%llu output echo request%s\n");
-	p(ifs6_out_echoreply, "\t%llu output echo reply%s\n");
+	p2(ifs6_out_echoreply, "\t%llu output echo repl%s\n");
 	p(ifs6_out_routersolicit, "\t%llu output router solicitation%s\n");
 	p(ifs6_out_routeradvert, "\t%llu output router advertisement%s\n");
 	p(ifs6_out_neighborsolicit, "\t%llu output neighbor solicitation%s\n");
 	p(ifs6_out_neighboradvert, "\t%llu output neighbor advertisement%s\n");
 	p(ifs6_out_redirect, "\t%llu output redirect%s\n");
-	p(ifs6_out_mldquery, "\t%llu output MLD query%s\n");
+	p2(ifs6_out_mldquery, "\t%llu output MLD quer%s\n");
 	p(ifs6_out_mldreport, "\t%llu output MLD report%s\n");
 	p(ifs6_out_mlddone, "\t%llu output MLD done%s\n");
 

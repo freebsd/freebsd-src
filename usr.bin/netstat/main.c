@@ -703,6 +703,12 @@ plurales(int n)
 	return (n != 1 ? "es" : "");
 }
 
+const char *
+pluralies(int n)
+{
+	return (n != 1 ? "ies" : "y");
+}
+
 /*
  * Find the protox for the given "well-known" name.
  */
