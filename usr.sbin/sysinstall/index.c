@@ -524,9 +524,9 @@ index_extract(Device *dev, PkgNodePtr plist)
 		    msgDebug("Media type is FTP, trying for: %s\n", target);
 		if (vsystem("/usr/sbin/pkg_add %s%s", isDebug() ? "-v " : "", target)) {
 		    if (optionIsSet(OPT_NO_CONFIRM))
-			msgNotify("Error extracting package %s..", target);
+			msgNotify("Unable to get package %s from %s..", tmp->name, cp);
 		    else
-			msgConfirm("Error extracting package %s..", target);
+			msgConfirm("Unable to get package %s from %s..", tmp->name, cp);
 		}
 	    }
 	    else {
