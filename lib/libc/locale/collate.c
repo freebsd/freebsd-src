@@ -35,8 +35,8 @@
 #include <unistd.h>
 #include <sysexits.h>
 #include "collate.h"
+#include "setlocale.h"
 
-char *_PathLocale;
 int __collate_load_error = 1;
 char __collate_version[STR_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
