@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.30.2.5 1999/08/14 10:17:39 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.30.2.6 1999/08/14 10:39:51 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -485,25 +485,6 @@ linux_to_bsd_termio(struct linux_termio *linux_termio,
 }
 
 static void
-linux_tiocgserial(struct file *fp, struct linux_serial_struct *lss)
-{
-  if (!fp || !lss)
-    return;
-
-  lss->type = LINUX_PORT_16550A;
-  lss->flags = 0;
-  lss->close_delay = 0;
-}
-
-static void
-linux_tiocsserial(struct file *fp, struct linux_serial_struct *lss)
-{
-  if (!fp || !lss)
-    return;
-}
-
-
-static void
 bsd_to_linux_msf_lba(u_char address_format,
     union msf_lba *bp, union linux_cdrom_addr *lp)
 {
@@ -789,7 +770,7 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 
     case LINUX_TIOCGETD:
 	bsd_line = TTYDISC;
-	if (error =(*func)(fp, TIOCSETD, (caddr_t)&bsd_line, p))
+	if (error =(*func)(fp, TIOCGETD, (caddr_t)&bsd_line, p))
 	    return error;
 	switch (bsd_line) {
 	case TTYDISC:
@@ -1016,13 +997,27 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
 	args->cmd = SOUND_MIXER_READ_DEVMASK;
 	return ioctl(p, (struct ioctl_args *)args);
 
-    case LINUX_TIOCGSERIAL:
-        linux_tiocgserial(fp, (struct linux_serial_struct *)args->arg);
-        return 0;
+    case LINUX_TIOCGSERIAL: {
+        struct linux_serial_struct lss;
 
-    case LINUX_TIOCSSERIAL:
-        linux_tiocsserial(fp, (struct linux_serial_struct *)args->arg);
-	return 0;
+        lss.type = LINUX_PORT_16550A;
+        lss.flags = 0;
+        lss.close_delay = 0;
+        return copyout((caddr_t)&lss, (caddr_t)args->arg, sizeof(lss));
+    }
+
+    case LINUX_TIOCSSERIAL: {
+        struct linux_serial_struct lss;
+
+        error = copyin((caddr_t)args->arg, (caddr_t)&lss, sizeof(lss));
+        if (error)
+            return error;
+        /*
+         * XXX - It really helps to have an implementation that does nothing.
+         *       NOT!
+         */
+        return 0;
+    }
 
     case LINUX_TCFLSH:
       args->cmd = TIOCFLUSH;
