@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumparser.c,v 1.15 1999/03/02 02:22:39 grog Exp grog $
+ * $Id: vinumparser.c,v 1.16 1999/06/29 09:04:28 grog Exp grog $
  */
 
 /*
@@ -155,6 +155,8 @@ struct _keywords keywords[] =
     keypair(setdaemon),
     keypair(getdaemon),
     keypair(max),
+    keypair(replace),
+    keypair(readpol),
     keypair(resetstats)
 };
 struct keywordset keyword_set = KEYWORDSET(keywords);
