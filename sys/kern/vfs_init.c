@@ -47,7 +47,6 @@
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/malloc.h>
-#include <vm/vm_zone.h>
 
 
 MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");

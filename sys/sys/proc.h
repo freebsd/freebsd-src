@@ -57,7 +57,7 @@
 #endif
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 /*
  * One structure allocated per session.
@@ -702,7 +702,7 @@ extern struct proclist zombproc;	/* List of zombie processes. */
 extern struct proc *initproc, *pageproc; /* Process slots for init, pager. */
 extern struct proc *updateproc;		/* Process slot for syncer (sic). */
 
-extern vm_zone_t proc_zone;
+extern uma_zone_t proc_zone;
 
 extern int lastpid;
 

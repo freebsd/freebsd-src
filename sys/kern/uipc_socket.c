@@ -59,7 +59,7 @@
 #include <sys/uio.h>
 #include <sys/jail.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <machine/limits.h>
 
@@ -80,7 +80,7 @@ static struct filterops soread_filtops =
 static struct filterops sowrite_filtops =
 	{ 1, NULL, filt_sowdetach, filt_sowrite };
 
-vm_zone_t socket_zone;
+uma_zone_t socket_zone;
 so_gen_t	so_gencnt;	/* generation count for sockets */
 
 MALLOC_DEFINE(M_SONAME, "soname", "socket name");
@@ -119,7 +119,7 @@ soalloc(waitok)
 {
 	struct socket *so;
 
-	so = zalloc(socket_zone);
+	so = uma_zalloc(socket_zone, waitok);
 	if (so) {
 		/* XXX race condition for reentrant kernel */
 		bzero(so, sizeof *so);
@@ -225,7 +225,7 @@ sodealloc(struct socket *so)
 #endif
 	crfree(so->so_cred);
 	/* sx_destroy(&so->so_sxlock); */
-	zfree(so->so_zone, so);
+	uma_zfree(so->so_zone, so);
 	--numopensockets;
 }
 

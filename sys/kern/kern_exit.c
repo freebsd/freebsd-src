@@ -70,7 +70,7 @@
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 #include <sys/user.h>
 
 /* Required to be non-static for SysVR4 emulator */
@@ -654,7 +654,7 @@ loop:
 			 */
 			vm_waitproc(p);
 			mtx_destroy(&p->p_mtx);
-			zfree(proc_zone, p);
+			uma_zfree(proc_zone, p);
 			nprocs--;
 			error = 0;
 			goto done2;

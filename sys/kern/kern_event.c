@@ -49,7 +49,7 @@
 #include <sys/sysproto.h>
 #include <sys/uio.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 MALLOC_DEFINE(M_KQUEUE, "kqueue", "memory for kqueue system");
 
@@ -107,7 +107,7 @@ static struct filterops proc_filtops =
 static struct filterops timer_filtops =
 	{ 0, filt_timerattach, filt_timerdetach, filt_timer };
 
-static vm_zone_t	knote_zone;
+static uma_zone_t	knote_zone;
 static int 		kq_ncallouts = 0;
 static int 		kq_calloutmax = (4 * 1024);
 SYSCTL_INT(_kern, OID_AUTO, kq_calloutmax, CTLFLAG_RW,
@@ -1063,18 +1063,20 @@ knote_dequeue(struct knote *kn)
 static void
 knote_init(void)
 {
-	knote_zone = zinit("KNOTE", sizeof(struct knote), 0, 0, 1);
+	knote_zone = uma_zcreate("KNOTE", sizeof(struct knote), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
+
 }
 SYSINIT(knote, SI_SUB_PSEUDO, SI_ORDER_ANY, knote_init, NULL)
 
 static struct knote *
 knote_alloc(void)
 {
-	return ((struct knote *)zalloc(knote_zone));
+	return ((struct knote *)uma_zalloc(knote_zone, M_WAITOK));
 }
 
 static void
 knote_free(struct knote *kn)
 {
-	zfree(knote_zone, kn);
+	uma_zfree(knote_zone, kn);
 }

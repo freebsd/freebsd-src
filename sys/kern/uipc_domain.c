@@ -42,7 +42,7 @@
 #include <sys/kernel.h>
 #include <sys/socketvar.h>
 #include <sys/systm.h>
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 /*
  * System initialization
@@ -122,18 +122,11 @@ domaininit(void *dummy)
 {
 	/*
 	 * Before we do any setup, make sure to initialize the
-	 * zone allocator we get struct sockets from.  The obvious
-	 * maximum number of sockets is `maxfiles', but it is possible
-	 * to have a socket without an open file (e.g., a connection waiting
-	 * to be accept(2)ed).  Rather than think up and define a
-	 * better value, we just use nmbclusters, since that's what people
-	 * are told to increase first when the network runs out of memory.
-	 * Perhaps we should have two pools, one of unlimited size
-	 * for use during socreate(), and one ZONE_INTERRUPT pool for
-	 * use in sonewconn().
+	 * zone allocator we get struct sockets from.
 	 */
-	socket_zone = zinit("socket", sizeof(struct socket), maxsockets,
-			    ZONE_INTERRUPT, 0);
+
+	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 
 	if (max_linkhdr < 16)		/* XXX */
 		max_linkhdr = 16;

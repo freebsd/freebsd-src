@@ -72,8 +72,8 @@
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>
-#include <vm/vm_zone.h>
 #include <vm/vm_page.h>
+#include <vm/uma.h>
 
 static int change_dir(struct nameidata *ndp, struct thread *td);
 static void checkdirs(struct vnode *olddp, struct vnode *newdp);
@@ -1538,7 +1538,7 @@ symlink(td, uap)
 	int error;
 	struct nameidata nd;
 
-	path = zalloc(namei_zone);
+	path = uma_zalloc(namei_zone, M_WAITOK);
 	if ((error = copyinstr(SCARG(uap, path), path, MAXPATHLEN, NULL)) != 0)
 		goto out;
 restart:
@@ -1574,7 +1574,7 @@ restart:
 	ASSERT_VOP_UNLOCKED(nd.ni_dvp, "symlink");
 	ASSERT_VOP_UNLOCKED(nd.ni_vp, "symlink");
 out:
-	zfree(namei_zone, path);
+	uma_zfree(namei_zone, path);
 	return (error);
 }
 
