@@ -129,33 +129,13 @@
 	((KVA_PAGES * PAGE_SIZE_4M) << (PAGE_SHIFT - TTE_SHIFT))
 
 /*
- * Lowest kernel virtual address, where the kernel is loaded.
- *
- * If we are using less than 4 super pages for the kernel tsb, the address
- * space is less than 4 gigabytes, so put it at the end of the first 4
- * gigbytes.  This allows the kernel and the firmware mappings to be mapped
- * with a single contiguous tsb.  Otherwise start at 0, we'll cover them
- * anyway.
- *
- * ie:
- * kva_pages = 1
- *	vm_max_kernel_address	0xffffe000
- *	openfirmware		0xf0000000
- *	kernbase		0xc0000000
- * kva_pages = 8
- *	vm_max_kernel_address	0x1ffffe000
- *	openfirmware		0xf0000000
- *	kernbase		0x0
- *
- * There are at least 4 pages of dynamic linker junk before kernel text begins,
- * so starting at zero is fairly safe (if the firmware will let us).
+ * Lowest kernel virtual address, where the kernel is loaded.  This is also
+ * arbitrary.  We pick a resonably low address, which allows all of kernel
+ * text, data and bss to be below the 4 gigabyte mark, yet still high enough
+ * to cover the prom addresses with 1 tsb page.  This also happens to be the
+ * same as for x86 with default KVA_PAGES...
  */
-#if KVA_PAGES < 4
-#define	VM_MIN_KERNEL_ADDRESS	((1UL << 32) - KVA_RANGE)
-#else
-#define	VM_MIN_KERNEL_ADDRESS	(0)
-#endif
-
+#define	VM_MIN_KERNEL_ADDRESS	(0xc0000000)
 #define	VM_MAX_KERNEL_ADDRESS	(VM_MIN_KERNEL_ADDRESS + KVA_RANGE - PAGE_SIZE)
 #define	KERNBASE		(VM_MIN_KERNEL_ADDRESS)
 
