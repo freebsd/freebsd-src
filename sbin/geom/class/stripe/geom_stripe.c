@@ -127,10 +127,11 @@ stripe_label(struct gctl_req *req)
 {
 	struct g_stripe_metadata md;
 	intmax_t *stripesizep;
+	off_t compsize, msize;
 	u_char sector[512];
+	unsigned i, ssize;
 	const char *name;
 	char param[16];
-	unsigned i;
 	int *hardcode, *nargs, error;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
@@ -151,9 +152,21 @@ stripe_label(struct gctl_req *req)
 	/*
 	 * Clear last sector first to spoil all components if device exists.
 	 */
+	compsize = 0;
 	for (i = 1; i < (unsigned)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
+
+		msize = g_get_mediasize(name);
+		ssize = g_get_sectorsize(name);
+		if (msize == 0 || ssize == 0) {
+			gctl_error(req, "Can't get informations about %s: %s.",
+			    name, strerror(errno));
+			return;
+		}
+		msize -= ssize;
+		if (compsize == 0 || (compsize > 0 && msize < compsize))
+			compsize = msize;
 
 		error = g_metadata_clear(name, NULL);
 		if (error != 0) {
@@ -186,6 +199,13 @@ stripe_label(struct gctl_req *req)
 	for (i = 1; i < (unsigned)*nargs; i++) {
 		snprintf(param, sizeof(param), "arg%u", i);
 		name = gctl_get_asciiparam(req, param);
+
+		msize = g_get_mediasize(name) - g_get_sectorsize(name);
+		if (compsize < msize) {
+			fprintf(stderr,
+			    "warning: %s: only %jd bytes from %jd bytes used.\n",
+			    name, (intmax_t)compsize, (intmax_t)msize);
+		}
 
 		md.md_no = i - 1;
 		if (!*hardcode)
