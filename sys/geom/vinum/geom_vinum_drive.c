@@ -512,6 +512,7 @@ gv_drive_destroy_geom(struct gctl_req *req, struct g_class *mp,
 
 static struct g_class g_vinum_drive_class = {
 	.name = VINUMDRIVE_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = gv_drive_taste,
 	.destroy_geom = gv_drive_destroy_geom
 };

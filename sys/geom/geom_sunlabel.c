@@ -273,6 +273,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 
 static struct g_class g_sunlabel_class = {
 	.name = SUNLABEL_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_sunlabel_taste,
 	.ctlreq = g_sunlabel_config,
 	.dumpconf = g_sunlabel_dumpconf,

@@ -272,6 +272,7 @@ g_bde_ctlreq(struct gctl_req *req, struct g_class *mp, char const *verb)
 
 static struct g_class g_bde_class	= {
 	.name = BDE_CLASS_NAME,
+	.version = G_VERSION,
 	.destroy_geom = g_bde_destroy_geom,
 	.ctlreq = g_bde_ctlreq,
 	.start = g_bde_start,

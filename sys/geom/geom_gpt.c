@@ -229,6 +229,7 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 
 static struct g_class g_gpt_class = {
 	.name = "GPT",
+	.version = G_VERSION,
 	.taste = g_gpt_taste,
 	.dumpconf = g_gpt_dumpconf,
 };

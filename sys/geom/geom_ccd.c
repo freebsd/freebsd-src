@@ -858,6 +858,7 @@ g_ccd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 
 static struct g_class g_ccd_class = {
 	.name = "CCD",
+	.version = G_VERSION,
 	.ctlreq = g_ccd_config,
 	.destroy_geom = g_ccd_destroy_geom,
 	.start = g_ccd_start,

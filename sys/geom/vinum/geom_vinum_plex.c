@@ -479,6 +479,7 @@ gv_plex_destroy_geom(struct gctl_req *req, struct g_class *mp,
 
 static struct g_class g_vinum_plex_class = {
 	.name = VINUMPLEX_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = gv_plex_taste,
 	.destroy_geom = gv_plex_destroy_geom,
 };

@@ -460,6 +460,7 @@ g_fox_destroy_geom(struct gctl_req *req, struct g_class *mp, struct g_geom *gp)
 
 static struct g_class g_fox_class	= {
 	.name = FOX_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_fox_taste,
 	.destroy_geom = g_fox_destroy_geom,
 	.start = g_fox_start,

@@ -2355,8 +2355,12 @@ vmspace_swap_count(struct vmspace *vmspace)
  *
  */
 
+static g_orphan_t swapgeom_orphan;
+
 static struct g_class g_swap_class = {
 	.name = "SWAP",
+	.version = G_VERSION,
+	.orphan = swapgeom_orphan,
 };
 
 DECLARE_GEOM_CLASS(g_swap_class, g_class);
@@ -2473,10 +2477,8 @@ swapongeom_ev(void *arg, int flags)
 		}
 	}
 	mtx_unlock(&sw_dev_mtx);
-	if (gp == NULL) {
+	if (gp == NULL)
 		gp = g_new_geomf(&g_swap_class, "swap", NULL);
-		gp->orphan = swapgeom_orphan;
-	}
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	/*

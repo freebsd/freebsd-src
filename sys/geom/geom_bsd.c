@@ -662,6 +662,7 @@ g_bsd_config(struct gctl_req *req, struct g_class *mp, char const *verb)
 /* Finally, register with GEOM infrastructure. */
 static struct g_class g_bsd_class = {
 	.name = BSD_CLASS_NAME,
+	.version = G_VERSION,
 	.taste = g_bsd_taste,
 	.ctlreq = g_bsd_config,
 	.dumpconf = g_bsd_dumpconf,

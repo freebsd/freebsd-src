@@ -60,6 +60,7 @@ static int g_gate_destroy_geom(struct gctl_req *, struct g_class *,
     struct g_geom *);
 struct g_class g_gate_class = {
 	.name = G_GATE_CLASS_NAME,
+	.version = G_VERSION,
 	.destroy_geom = g_gate_destroy_geom
 };
 
