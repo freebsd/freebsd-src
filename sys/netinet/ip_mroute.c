@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.23 1995/10/06 19:30:43 wollman Exp $
+ * $Id: ip_mroute.c,v 1.16.4.2 1995/10/09 06:22:13 davidg Exp $
  */
 
 
@@ -1084,7 +1084,7 @@ X_ip_mforward(ip, ifp, m, imo)
     struct mbuf *m;
     struct ip_moptions *imo;
 {
-    register struct mfc *rt = 0; /* XXX uninit warning */
+    register struct mfc *rt;
     register u_char *ipoptions;
     static struct sockproto	k_igmpproto 	= { AF_INET, IPPROTO_IGMP };
     static struct sockaddr_in 	k_igmpsrc	= { sizeof k_igmpsrc, AF_INET };
@@ -1126,7 +1126,7 @@ X_ip_mforward(ip, ifp, m, imo)
 		(vifp->v_flags & VIFF_TUNNEL) ? "tunnel on " : "",
 		vifp->v_ifp->if_name, vifp->v_ifp->if_unit);
 	}
-	return (ip_mdq(m, ifp, rt, vifi));
+	return (ip_mdq(m, ifp, NULL, vifi));
     }
     if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	printf("Warning: IPPROTO_RSVP from %x to %x without vif option\n",
@@ -1167,6 +1167,7 @@ X_ip_mforward(ip, ifp, m, imo)
 	register struct mbuf *rte_m;
 	register u_long hash;
 	register int npkts;
+	int hlen = ip->ip_hl << 2;
 #ifdef UPCALL_TIMING
 	struct timeval tp;
 
@@ -1181,7 +1182,8 @@ X_ip_mforward(ip, ifp, m, imo)
 
 	/*
 	 * Allocate mbufs early so that we don't do extra work if we are
-	 * just going to fail anyway.
+	 * just going to fail anyway.  Make sure to pullup the header so
+	 * that other people can't step on it.
 	 */
 	MGET(mb_ntry, M_DONTWAIT, MT_DATA);
 	if (mb_ntry == NULL) {
@@ -1189,6 +1191,8 @@ X_ip_mforward(ip, ifp, m, imo)
 	    return ENOBUFS;
 	}
 	mb0 = m_copy(m, 0, M_COPYALL);
+	if (mb0 && (M_HASCL(mb0) || mb0->m_len < hlen))
+	    mb0 = m_pullup(mb0, hlen);
 	if (mb0 == NULL) {
 	    m_free(mb_ntry);
 	    splx(s);
@@ -1206,7 +1210,6 @@ X_ip_mforward(ip, ifp, m, imo)
 	}
 
 	if (mb_rt == NULL) {
-	    int hlen = ip->ip_hl << 2;
 	    int i;
 	    struct igmpmsg *im;
 
@@ -1220,8 +1223,6 @@ X_ip_mforward(ip, ifp, m, imo)
 	    }
 	    /* Make a copy of the header to send to the user level process */
 	    mm = m_copy(m, 0, hlen);
-	    if (mm && (M_HASCL(mm) || mm->m_len < hlen))
-		mm = m_pullup(mm, hlen);
 	    if (mm == NULL) {
 		m_free(mb_ntry);
 		m_freem(mb0);
