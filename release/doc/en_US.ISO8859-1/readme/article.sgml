@@ -50,12 +50,14 @@
       <title>About &os;</title>
 
       <para>&os; is an operating system based on 4.4 BSD Lite for
-	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC
-	hardware (&i386;), NEC PC-9801/9821 series PCs and compatibles
-	(pc98), DEC/Compaq/HP Alpha computers (alpha), 
-	and &ultrasparc; machines (&sparc64;).  Versions
-	for the IA64 (ia64), &powerpc; (&powerpc;), and AMD
-	<quote>Hammer</quote> (amd64) architectures are currently under
+	DEC/Compaq/HP Alpha/AXP computers (alpha),
+	AMD64 and Intel EM64T based PC hardware (amd64),
+	Intel, AMD, Cyrix or NexGen <quote>x86</quote> based PC hardware (i386),
+	Intel Itanium Processor based computers (ia64),
+	NEC PC-9801/9821 series PCs and compatibles (pc98),
+	and &ultrasparc; machines (sparc64).  Versions
+	for the &powerpc; (powerpc), and &mips; (mips)
+	architectures are currently under
 	development as well.  &os; works with a wide variety of
 	peripherals and configurations and can be used for everything
 	from software development to games to Internet Service
