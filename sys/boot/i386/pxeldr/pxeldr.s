@@ -55,7 +55,7 @@
 #
 # Boot howto bits
 #
-		.set RBX_SERIAL,0xc		# serial console
+		.set RB_SERIAL,0x1000		# serial console
 #
 # Segment selectors.
 #
@@ -116,7 +116,7 @@ ifdef(`PROBE_KEYBOARD',`
 # set the RBX_SERIAL bit in the howto byte.
 		testb $KEYBOARD_BIT, MEM_BIOS_KEYBOARD # keyboard present?
 		jnz keyb			# yes, so skip
-		orb $RBX_SERIAL, (%bx)		# enable serial console
+		orl $RB_SERIAL, (%bx)		# enable serial console
 keyb:
 ')
 #
