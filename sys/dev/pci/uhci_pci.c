@@ -1,4 +1,4 @@
-/*	FreeBSD $Id: uhci_pci.c,v 1.7 1999/01/06 19:55:49 n_hibma Exp $ */
+/*	FreeBSD $Id: uhci_pci.c,v 1.8 1999/01/07 23:01:11 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -35,6 +35,16 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/* Universal Host Controller Interface
+ *
+ * UHCI spec: http://www.intel.com/
+ */
+
+/* The low level controller code for UHCI has been split into
+ * PCI probes and UHCI specific code. This was done to facilitate the
+ * sharing of code between *BSD's
  */
 
 #include <sys/param.h>
@@ -128,6 +138,7 @@ uhci_pci_probe(pcici_t config_id, pcidi_t device_id)
 static void
 uhci_pci_attach(pcici_t config_id, int unit)
 {
+	int legsup;
 	int id;
 	char *typestr;
 	usbd_status r;
@@ -179,6 +190,18 @@ uhci_pci_attach(pcici_t config_id, int unit)
 	else
 		sprintf(sc->sc_vendor, "(0x%04x)", PCI_VENDOR(id));
 
+	/* verify that the PRIQDEN bit is set in the LEGSUP register */
+
+	legsup = pci_conf_read(config_id, PCI_LEGSUP);
+	if ( !(legsup & PCI_LEGSUP_USBPIRQDEN) ) {
+#if ! (defined(USBVERBOSE) || defined(USB_DEBUG))
+		if (bootverbose)
+#endif
+			printf("uhci%d: PIRQD enable not set\n", unit);
+		legsup |= PCI_LEGSUP_USBPIRQDEN;
+		pci_conf_write(config_id, PCI_LEGSUP, legsup);
+	}
+	
 	/* We add a child to the root bus. After PCI configuration
 	 * has completed the root bus will start to probe and
 	 * attach all the devices attached to it, including our new
