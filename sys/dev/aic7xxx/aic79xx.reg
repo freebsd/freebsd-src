@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#39 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#45 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -56,10 +56,22 @@ VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#39 $"
 #define M_DST_SHIFT	4
 
 #define MK_MODE(src, dst) ((src) | ((dst) << M_DST_SHIFT))
-#define SET_MODE(src, dst)					\
-	SET_SRC_MODE	src;					\
-	SET_DST_MODE	dst;					\
-	mvi	MK_MODE(src, dst) call set_mode_work_around
+#define SET_MODE(src, dst)						\
+	SET_SRC_MODE	src;						\
+	SET_DST_MODE	dst;						\
+	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {			\
+		mvi	MK_MODE(src, dst) call set_mode_work_around;	\
+	} else {							\
+		mvi	MODE_PTR, MK_MODE(src, dst);			\
+	}
+
+#define TOGGLE_DFF_MODE							\
+	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {			\
+		call	toggle_dff_mode_work_around;			\
+	} else {							\
+		xor	MODE_PTR, MK_MODE(M_DFF1, M_DFF1);		\
+	}
+	
 
 /*
  * Mode Pointer
@@ -1807,7 +1819,7 @@ register SSTAT1 {
  * Writing a 1 to a bit clears the associated SCSI Interrupt in SSTAT1.
  */
 register CLRSINT1 {
-	address			0x04c
+	address			0x04C
 	access_mode	WO
 	modes		M_DFF0, M_DFF1, M_SCSI
 	field	CLRSELTIMEO	0x80
@@ -3347,7 +3359,7 @@ scratch_ram {
 	REG1 {
 		size		2
 	}
-	REG2 {
+	REG_ISR {
 		size		2
 	}
 	SG_STATE {
@@ -3464,8 +3476,8 @@ scratch_ram {
 	SEQ_FLAGS {
 		size		1
 		field	NOT_IDENTIFIED		0x80
-		field	TARGET_CMD_IS_TAGGED	0x40
 		field	NO_CDB_SENT		0x40
+		field	TARGET_CMD_IS_TAGGED	0x40
 		field	DPHASE			0x20
 		/* Target flags */
 		field	TARG_CMD_PENDING	0x10
@@ -3493,6 +3505,7 @@ scratch_ram {
 		field	CDI		0x80
 		field	IOI		0x40
 		field	MSGI		0x20
+		field	P_BUSFREE	0x01
 		enum	PHASE_MASK  CDO|IOO|MSGO {
 			P_DATAOUT	0x0,
 			P_DATAIN	IOO,
@@ -3501,8 +3514,7 @@ scratch_ram {
 			P_COMMAND	CDO,
 			P_MESGOUT	CDO|MSGO,
 			P_STATUS	CDO|IOO,
-			P_MESGIN	CDO|IOO|MSGO,
-			P_BUSFREE	0x01
+			P_MESGIN	CDO|IOO|MSGO
 		}
 	}
 	/*
@@ -3586,10 +3598,14 @@ scratch_ram {
 
 	SEQ_FLAGS2 {
 		size		1
-		field	SCB_DMA			  0x01
 		field	TARGET_MSG_PENDING	  0x02
 		field	SELECTOUT_QFROZEN	  0x04
 	}
+
+	ALLOCFIFO_SCBPTR {
+		size		2
+	}
+
 	/*
 	 * Target-mode CDB type to CDB length table used
 	 * in non-packetized operation.
@@ -3636,15 +3652,15 @@ scb {
 		size	4
 		alias	SCB_NEXT_COMPLETE
 	}
+	SCB_TAG {
+		size	2
+	}
 	SCB_CDB_LEN {
 		size	1
 		field	SCB_CDB_LEN_PTR	0x80	/* CDB in host memory */
 	}
 	SCB_TASK_MANAGEMENT {
 		size	1
-	}
-	SCB_TAG {
-		size	2
 	}
 	SCB_NEXT {
 		alias	SCB_NEXT_SCB_BUSADDR

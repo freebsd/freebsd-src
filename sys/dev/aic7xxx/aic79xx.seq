@@ -40,7 +40,7 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#51 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#60 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
 PREFIX = "ahd_"
 
@@ -48,7 +48,7 @@ PREFIX = "ahd_"
 #include "scsi_message.h"
 
 idle_loop:
-	SET_MODE(M_SCSI, M_SCSI);
+	SET_MODE(M_SCSI, M_SCSI)
 	test	SCSISEQ0, ENSELO|ENARBO jnz idle_loop_checkbus;
 	test	SEQ_FLAGS2, SELECTOUT_QFROZEN jnz idle_loop_checkbus;
 	cmp	WAITING_TID_HEAD[1], SCB_LIST_NULL je idle_loop_checkbus;
@@ -94,14 +94,9 @@ good_status_IU_done:
 	 * 2) Configured and draining to the host, no pending CLRCHN.
 	 * 3) Pending cfg4data, fifo not empty.
 	 *
-	 * For case 1, we assume that our DMA post of the completed command
-	 * will occur after the FIFO finishes draining due to the higher
-	 * priority of data FIFO transfers relative to command channel
-	 * transfers.
-	 *
-	 * Case 2 can be detected by noticing that a longjmp is active for the
-	 * FIFO and LONGJMP_SCB matches our SCB.  In this case, we allow
-	 * the routine servicing the FIFO to complete the SCB.
+	 * Cases 1 and 2 can be detected by noticing that a longjmp is
+	 * active for the FIFO and LONGJMP_SCB matches our SCB.  In this
+	 * case, we allow the routine servicing the FIFO to complete the SCB.
 	 * 
 	 * Case 3 implies either a pending or yet to occur save data
 	 * pointers for this same context in the other FIFO.  So, if
@@ -123,21 +118,21 @@ BEGIN_CRITICAL;
 good_status_check_fifos:
 	clc;
 	bmov	ARG_1, SCBPTR, 2;
-	SET_MODE(M_DFF0, M_DFF0);
+	SET_MODE(M_DFF0, M_DFF0)
 	call	check_fifo;
 	jc	idle_loop_service_fifos;
-	SET_MODE(M_DFF1, M_DFF1);
+	SET_MODE(M_DFF1, M_DFF1)
 	call	check_fifo;
 	jc	idle_loop_service_fifos;
-	SET_MODE(M_SCSI, M_SCSI);
+	SET_MODE(M_SCSI, M_SCSI)
 	call	queue_scb_completion;
 END_CRITICAL;
 idle_loop_service_fifos:
-	SET_MODE(M_DFF0, M_DFF0);
+	SET_MODE(M_DFF0, M_DFF0)
 	test	LONGJMP_ADDR[1], INVALID_ADDR jnz idle_loop_next_fifo;
 	call	longjmp;
 idle_loop_next_fifo:
-	SET_MODE(M_DFF1, M_DFF1);
+	SET_MODE(M_DFF1, M_DFF1)
 	test	LONGJMP_ADDR[1], INVALID_ADDR jnz idle_loop_last_fifo_done;
 	call	longjmp;
 idle_loop_last_fifo_done:
@@ -145,10 +140,12 @@ idle_loop_last_fifo_done:
 	jmp	idle_loop;
 
 idle_loop_cchan:
-	SET_MODE(M_CCHAN, M_CCHAN);
+	SET_MODE(M_CCHAN, M_CCHAN)
+BEGIN_CRITICAL;
 	test	CCSCBCTL, CCARREN|CCSCBEN jz scbdma_idle;
 	test	CCSCBCTL, CCSCBDIR jnz fetch_new_scb_inprog;
 	test	CCSCBCTL, CCSCBDONE jz return;
+END_CRITICAL;
 	/* FALLTHROUGH */
 scbdma_tohost_done:
 	test	CCSCBCTL, CCARREN jz fill_qoutfifo_dmadone;
@@ -168,6 +165,7 @@ fill_qoutfifo_dmadone:
 	bmov	QOUTFIFO_NEXT_ADDR, SHARED_DATA_ADDR, 4;
 	xor	QOUTFIFO_ENTRY_VALID_TAG, QOUTFIFO_ENTRY_VALID_TOGGLE ret;
 
+BEGIN_CRITICAL;
 fetch_new_scb_inprog:
 	test	CCSCBCTL, ARRDONE jz return;
 fetch_new_scb_done:
@@ -207,6 +205,7 @@ first_new_scb:
 	bmov	WAITING_TID_TAIL, REG0, 2;
 	/* Increment our position in the QINFIFO. */
 	mov	NONE, SNSCB_QOFF ret;
+END_CRITICAL;
 
 scbdma_idle:
 	/*
@@ -278,8 +277,7 @@ SET_SRC_MODE	M_CCHAN;
 SET_DST_MODE	M_CCHAN;
 dma_scb:
 	mvi	SCBHCNT, SCB_TRANSFER_SIZE;
-	mov	CCSCBCTL, SINDEX;
-	or	SEQ_FLAGS2, SCB_DMA ret;
+	mov	CCSCBCTL, SINDEX ret;
 
 BEGIN_CRITICAL;
 setjmp_setscb:
@@ -299,10 +297,17 @@ END_CRITICAL;
  * fail to store the new mode value for restoration on
  * an iret.
  */
+if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {
 set_mode_work_around:
 	mvi	SEQINTCTL, INTVEC1DSL;
 	mov	MODE_PTR, SINDEX;
 	clr	SEQINTCTL ret;
+
+toggle_dff_mode_work_around:
+	mvi	SEQINTCTL, INTVEC1DSL;
+	xor	MODE_PTR, MK_MODE(M_DFF1, M_DFF1);
+	clr	SEQINTCTL ret;
+}
 
 SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
@@ -361,21 +366,20 @@ allocate_fifo_loop:
 	/*
 	 * Do whatever work is required to free a FIFO.
 	 */
-	SET_MODE(M_DFF0, M_DFF0);
+	SET_MODE(M_DFF0, M_DFF0)
 	test	LONGJMP_ADDR[1], INVALID_ADDR jnz . + 2;
 	call	longjmp;
-	SET_MODE(M_DFF1, M_DFF1);
+	SET_MODE(M_DFF1, M_DFF1)
 	test	LONGJMP_ADDR[1], INVALID_ADDR jnz . + 2;
 	call	longjmp;
-	SET_MODE(M_SCSI, M_SCSI);
+	SET_MODE(M_SCSI, M_SCSI)
 allocate_fifo:
 	and	A, FIFO0FREE|FIFO1FREE, DFFSTAT;
 	cmp	A, FIFO0FREE|FIFO1FREE jne allocate_fifo_loop;
 take_fifo:
-	bmov	ARG_1, SCBPTR, 2;
 	or	DFFSTAT, CURRFIFO;
-	SET_MODE(M_DFF1, M_DFF1);
-	bmov	SCBPTR, ARG_1, 2 ret;
+	SET_MODE(M_DFF1, M_DFF1)
+	bmov	SCBPTR, ALLOCFIFO_SCBPTR, 2 ret;
 
 /*
  * We have been reselected as an initiator
@@ -384,6 +388,17 @@ take_fifo:
 SET_SRC_MODE	M_SCSI;
 SET_DST_MODE	M_SCSI;
 select_in:
+	if ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0) {
+		/*
+		 * This exposes a window whereby a
+		 * busfree just after a selection will
+		 * be missed, but there is not other safe
+		 * way to enable busfree detection if
+		 * the busfreerev function is broken.
+		 */
+		mvi	CLRSINT1,CLRBUSFREE;
+		or	SIMODE1, ENBUSFREE;
+	}
 	or	SXFRCTL0, SPIOEN;
 	and	SAVED_SCSIID, SELID_MASK, SELID;
 	and	A, OID, IOWNID;
@@ -493,7 +508,6 @@ select_out_list_done:
 	 */
 	test	SCB_CONTROL, MK_MESSAGE jnz select_out_inc_tid_q;
 	shr	DINDEX, 3, SCB_SCSIID;
-/* XXX When we switch to SCB_SELOID, put +1 in addition below. */
 	or	DINDEX, 1;	/* Want only the second byte */
 	mvi	DINDEX[1], ((WAITING_SCB_TAILS) >> 8);
 	mvi	DINDIR, SCB_LIST_NULL;
@@ -529,6 +543,17 @@ select_out_no_message:
 select_out_non_packetized:
 	/* Non packetized request. */
 	and     SCSISEQ0, ~ENSELO;
+	if ((ahd->bugs & AHD_BUSFREEREV_BUG) != 0) {
+		/*
+		 * This exposes a window whereby a
+		 * busfree just after a selection will
+		 * be missed, but there is not other safe
+		 * way to enable busfree detection if
+		 * the busfreerev function is broken.
+		 */
+		mvi	CLRSINT1,CLRBUSFREE;
+		or	SIMODE1, ENBUSFREE;
+	}
 	mov	SAVED_SCSIID, SCB_SCSIID;
 	mov	SAVED_LUN, SCB_LUN;
 	or	SXFRCTL0, SPIOEN;
@@ -576,6 +601,7 @@ SET_DST_MODE	M_DFF1;
 	 */
 	mvi	DFFSXFRCTL, RSTCHN|CLRSHCNT;
 p_command_allocate_fifo:
+	bmov	ALLOCFIFO_SCBPTR, SCBPTR, 2;
 	call	allocate_fifo;
 	add	NONE, -17, SCB_CDB_LEN;
 	jnc	p_command_embedded;
@@ -744,13 +770,10 @@ mesgin_done:
 	mov	NONE,SCSIDAT;		/*dummy read from latch to ACK*/
 	jmp	ITloop;
 
-#define INDEX_DISC_LIST_SCB(scsiid, lun)				\
+#define INDEX_DISC_LIST(scsiid, lun)					\
 	and	A, 0xC0, scsiid;					\
 	or	SCBPTR, A, lun;						\
-	clr	SCBPTR[1]
-	
-#define INDEX_DISC_LIST(scsiid, lun)					\
-	INDEX_DISC_LIST_SCB(scsiid, lun);				\
+	clr	SCBPTR[1];						\
 	and	SINDEX, 0x30, scsiid;					\
 	shr	SINDEX, 3;	/* Multiply by 2 */			\
 	add	SINDEX, (SCB_DISCONNECTED_LISTS & 0xFF);		\
@@ -819,7 +842,8 @@ setup_SCB:
 setup_SCB_disconnected:
 	and	SCB_CONTROL,~DISCONNECTED;
 	clr	SEQ_FLAGS;	/* make note of IDENTIFY */
-	test	SCB_SGPTR, SG_LIST_NULL jnz . + 2;
+	test	SCB_SGPTR, SG_LIST_NULL jnz . + 3;
+	bmov	ALLOCFIFO_SCBPTR, SCBPTR, 2;
 	call	allocate_fifo;
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
@@ -910,7 +934,7 @@ freeze_queue:
 	mov	A, ACCUM_SAVE ret;
 
 queue_arg1_scb_completion:
-	SET_MODE(M_SCSI, M_SCSI);
+	SET_MODE(M_SCSI, M_SCSI)
 	bmov	SCBPTR, ARG_1, 2;
 queue_scb_completion:
 	test	SCB_SCSI_STATUS,0xff	jnz bad_status;
@@ -962,8 +986,15 @@ queue_disc_scb:
 	/* FALLTHROUGH */
 await_busfree:
 	and	SIMODE1, ~ENBUSFREE;
+	if ((ahd->bugs & AHD_BUSFREEREV_BUG) == 0) {
+		/*
+		 * In the BUSFREEREV_BUG case, the
+		 * busfree status was cleared at the
+		 * beginning of the connection.
+		 */
+		mvi	CLRSINT1,CLRBUSFREE;
+	}
 	mov	NONE, SCSIDAT;		/* Ack the last byte */
-	call	clear_target_state;
 	test	MODE_PTR, ~(MK_MODE(M_DFF1, M_DFF1))
 		jnz await_busfree_not_m_dff;
 SET_SRC_MODE	M_DFF1;
@@ -971,6 +1002,7 @@ SET_DST_MODE	M_DFF1;
 await_busfree_clrchn:
 	mvi	DFFSXFRCTL, CLRCHN;
 await_busfree_not_m_dff:
+	call	clear_target_state;
 	test	SSTAT1,REQINIT|BUSFREE	jz .;
 	test	SSTAT1, BUSFREE jnz idle_loop;
 	mvi	SEQINTCODE, MISSED_BUSFREE;
@@ -1080,20 +1112,19 @@ disable_ccsgen:
 disable_ccsgen_fetch_done:
 	clr	SG_STATE ret;
 
-toggle_dff_mode:
-	mvi	SEQINTCTL, INTVEC1DSL;
-	xor	MODE_PTR, MK_MODE(M_DFF1, M_DFF1);
-	clr	SEQINTCTL ret;
-
 data_group_idle_loop:
 	mov	SAVED_MODE, MODE_PTR;
 	test	SG_STATE, LOADING_NEEDED jz . + 2;
 	call	service_fifo;
-	call	toggle_dff_mode;
+	TOGGLE_DFF_MODE
 	test	SG_STATE, LOADING_NEEDED jz . + 2;
 	call	service_fifo;
 	call	idle_loop_cchan;
-	mov	SAVED_MODE jmp set_mode_work_around;
+	if ((ahd->bugs & AHD_SET_MODE_BUG) != 0) {
+		mov	SAVED_MODE jmp set_mode_work_around;
+	} else {
+		mov	MODE_PTR, SAVED_MODE ret;
+	}
 
 service_fifo:
 	/*
@@ -1120,8 +1151,16 @@ service_fifo:
 	 * set the prefetch amount to a reasonable level if the
 	 * cacheline size is unknown.
 	 */
-	mvi	SGHCNT, SG_PREFETCH_CNT;
 	and	SGHADDR[0], SG_PREFETCH_ALIGN_MASK, SCB_RESIDUAL_SGPTR;
+	mvi	SGHCNT, SG_PREFETCH_CNT;
+	if ((ahd->bugs & AHD_REG_SLOW_SETTLE_BUG) != 0) {
+		/*
+		 * Need two instruction between "touches" of SGHADDR.
+		 * Note the setting of SGHCNT counts as one of
+		 * these two instructions.
+		 */
+		nop;
+	}
 	bmov	SGHADDR[1], SCB_RESIDUAL_SGPTR[1], 3;
 	mvi	CCSGCTL, CCSGEN|SG_CACHE_AVAIL|CCSGRESET;
 	or	SG_STATE, FETCH_INPROG ret;
@@ -1190,12 +1229,12 @@ sg_advance:
 load_first_seg:
 	bmov	HADDR, SCB_DATAPTR, 11;
 	and	DATA_COUNT_ODD, 0x1, SCB_DATACNT[0];
-	and	REG0, ~SG_FULL_RESID, SCB_SGPTR[0];
+	and	REG_ISR, ~SG_FULL_RESID, SCB_SGPTR[0];
 	test	SCB_DATACNT[3], SG_LAST_SEG jz . + 2;
-	or	REG0, LAST_SEG;
+	or	REG_ISR, LAST_SEG;
 	test	DATA_COUNT_ODD, 0x1 jz . + 2;
-	or	REG0, ODD_SEG;
-	mov	SG_CACHE_PRE, REG0;
+	or	REG_ISR, ODD_SEG;
+	mov	SG_CACHE_PRE, REG_ISR;
 	mvi	DFCNTRL, (PRELOADEN|SCSIEN|HDMAEN);
 	/*
 	 * Since we've are entering a data phase, we will
@@ -1225,6 +1264,7 @@ p_data_allowed:
 	 */
 	test	SCB_RESIDUAL_SGPTR[0], SG_LIST_NULL jnz p_data_bitbucket;
 	mvi	SEQINTCODE, PDATA_REINIT;
+	jmp	data_group_dma_loop;
 
 p_data_bitbucket:
 	/*
@@ -1239,12 +1279,13 @@ p_data_bitbucket:
 	 * doesn't discard data already in the FIFO.
 	 */
 	mvi	DFFSXFRCTL, RSTCHN|CLRSHCNT;
-	SET_MODE(M_SCSI, M_SCSI);
+	SET_MODE(M_SCSI, M_SCSI)
 bitbucket_not_m_dff:
 	or	SXFRCTL1,BITBUCKET;
-	test	SCSIPHASE, DATA_PHASE_MASK jnz .;
+	/* Wait for non-data phase. */
+	test	SCSIPHASE, ~DATA_PHASE_MASK jz .;
 	and	SXFRCTL1, ~BITBUCKET;
-	SET_MODE(M_DFF1, M_DFF1);
+	SET_MODE(M_DFF1, M_DFF1)
 	mvi	SEQINTCODE, DATA_OVERRUN;
 	jmp	ITloop;
 
@@ -1327,7 +1368,7 @@ data_phase_done:
 		test	DFCNTRL, DIRECTION jz target_ITloop;
 		test	SSTAT1, REQINIT	jnz .;
 		test	DATA_COUNT_ODD, 0x1 jz target_ITloop;
-		SET_MODE(M_SCSI, M_SCSI);
+		SET_MODE(M_SCSI, M_SCSI)
 		test	NEGCONOPTS, WIDEXFER jz target_ITloop;
 		 */
 		/*
@@ -1463,7 +1504,7 @@ cfg4istat_setup_handler:
 /*
  * See if the target has gone on in this context creating an
  * overrun condition.  For the write case, the hardware cannot
- * ack bytes until data is provided.  So, if the target begins
+ * ack bytes until data are provided.  So, if the target begins
  * another  packet without changing contexts, implying we are
  * not sitting on a packet boundary, we are in an overrun
  * situation.  For the read case, the hardware will continue to
@@ -1503,8 +1544,46 @@ pkt_last_seg:
 	test	SCSIPHASE, ~DATA_PHASE_MASK jz . + 2;
 	test	SCSISIGO, ATNO jnz . + 2;
 	test	SSTAT2, NONPACKREQ jz return;
-	test	MDFFSTAT, SHVALID jnz pkt_saveptrs;
-	jmp	return;
+	test	MDFFSTAT, SHVALID jz return;
+	/* FALLTHROUGH */
+
+/*
+ * Either a SAVEPTRS interrupt condition is pending for this FIFO
+ * or we have a pending nonpackreq for this FIFO.  We differentiate
+ * between the two by capturing the state of the SAVEPTRS interrupt
+ * prior to clearing this status and executing the common code for
+ * these two cases.
+ */
+pkt_saveptrs:
+BEGIN_CRITICAL;
+	if ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0) {
+		or	DFCNTRL, FIFOFLUSH;
+	}
+	mov	REG0, SEQINTSRC;
+	call	calc_residual;
+	call	save_pointers;
+	mvi	CLRSEQINTSRC, CLRSAVEPTRS;
+	call	disable_ccsgen;
+	or	SEQIMODE, ENSAVEPTRS;
+	test	DFCNTRL, DIRECTION jnz pkt_saveptrs_check_status;
+	test	DFSTATUS, FIFOEMP jnz pkt_saveptrs_check_status;
+	/*
+	 * Keep a handler around for this FIFO until it drains
+	 * to the host to guarantee that we don't complete the
+	 * command to the host before the data arrives.
+	 */
+pkt_saveptrs_wait_fifoemp:
+	call	setjmp;
+	test	DFSTATUS, FIFOEMP jz return;
+pkt_saveptrs_check_status:
+	or	LONGJMP_ADDR[1], INVALID_ADDR;
+	test	REG0, SAVEPTRS jz unexpected_nonpkt_phase;
+	test	SCB_CONTROL, STATUS_RCVD jz pkt_saveptrs_clrchn;
+	jmp	last_pkt_complete;
+pkt_saveptrs_clrchn:
+	mvi	DFFSXFRCTL, CLRCHN ret;
+END_CRITICAL;
+
 last_pkt_done:
 BEGIN_CRITICAL;
 	if ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0) {
@@ -1514,10 +1593,11 @@ BEGIN_CRITICAL;
 	check_overrun;
 	or	SCB_SGPTR, SG_LIST_NULL;
 	/*
-	 * I think it is safe to skip the FIFO check.
-	 * in this case as LAST_SEG_DONE implies
-	 * the other FIFO, if ever active for this transfer,
-	 * has completed.
+	 * It is safe to skip the other FIFO check since
+	 * we defer CLRCHN on SAVEPTRS until all data in
+	 * the FIFO are seen by the host and a CFG4DATA
+	 * in this FIFO for the same context is held off
+	 * by hardware.
 	 */
 last_pkt_queue_scb:
 	or	LONGJMP_ADDR[1], INVALID_ADDR;
@@ -1530,7 +1610,7 @@ last_pkt_complete:
 	mvi	DFFSXFRCTL, CLRCHN;
 check_other_fifo:
 	clc;
-	call	toggle_dff_mode;
+	TOGGLE_DFF_MODE
 	call	check_fifo;
 	jnc	queue_arg1_scb_completion;
 return:
@@ -1550,32 +1630,6 @@ BEGIN_CRITICAL;
 	or	LONGJMP_ADDR[1], INVALID_ADDR;
 	or	SCB_SGPTR, SG_LIST_NULL;
 	test	SCB_CONTROL, STATUS_RCVD jnz last_pkt_complete;
-	mvi	DFFSXFRCTL, CLRCHN ret;
-END_CRITICAL;
-
-/*
- * Either a SAVEPTRS interrupt condition is pending for this FIFO
- * or we have a pending nonpackreq for this FIFO.  We differentiate
- * between the two by capturing the state of the SAVEPTRS interrupt
- * prior to clearing and handling the common code of these two cases.
- */
-pkt_saveptrs:
-BEGIN_CRITICAL;
-	if ((ahd->bugs & AHD_AUTOFLUSH_BUG) != 0) {
-		or	DFCNTRL, FIFOFLUSH;
-	}
-	mov	REG0, SEQINTSRC;
-	mvi	CLRSEQINTSRC, CLRSAVEPTRS;
-	call	calc_residual;
-	call	save_pointers;
-	call	disable_ccsgen;
-	or	SEQIMODE, ENSAVEPTRS;
-	or	LONGJMP_ADDR[1], INVALID_ADDR;
-pkt_saveptrs_check_status:
-	test	REG0, SAVEPTRS jz unexpected_nonpkt_phase;
-	test	SCB_CONTROL, STATUS_RCVD jz pkt_saveptrs_clrchn;
-	jmp	last_pkt_complete;
-pkt_saveptrs_clrchn:
 	mvi	DFFSXFRCTL, CLRCHN ret;
 END_CRITICAL;
 
@@ -1657,7 +1711,7 @@ pkt_handle_overrun:
 	mvi	SEQINTCODE, CFG4OVERRUN;
 	call	freeze_queue;
 	if ((ahd->bugs & AHD_PKT_BITBUCKET_BUG) == 0) {
-		SET_MODE(M_SCSI, M_SCSI);
+		SET_MODE(M_SCSI, M_SCSI)
 		or	SXFRCTL1,BITBUCKET;
 SET_SRC_MODE	M_DFF1;
 SET_DST_MODE	M_DFF1;
