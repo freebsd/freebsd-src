@@ -223,9 +223,9 @@ acpi_tz_attach(device_t dev)
     sc->tz_sysctl_tree = SYSCTL_ADD_NODE(&sc->tz_sysctl_ctx,
 					 SYSCTL_CHILDREN(acpi_tz_sysctl_tree),
 					 OID_AUTO, oidname, CTLFLAG_RD, 0, "");
-    SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		   OID_AUTO, "temperature", CTLFLAG_RD,
-		   &sc->tz_temperature, 0, "current thermal zone temperature");
+    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		      OID_AUTO, "temperature", CTLFLAG_RD, &sc->tz_temperature,
+		      sizeof(sc->tz_temperature), "IK", "current thermal zone temperature");
     SYSCTL_ADD_PROC(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		    OID_AUTO, "active", CTLTYPE_INT | CTLFLAG_RW,
 		    sc, 0, acpi_tz_active_sysctl, "I", "");
@@ -236,15 +236,15 @@ acpi_tz_attach(device_t dev)
     SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		   OID_AUTO, "_PSV", CTLFLAG_RD,
 		   &sc->tz_zone.psv, 0, "");
-    SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		   OID_AUTO, "_HOT", CTLFLAG_RD,
-		   &sc->tz_zone.hot, 0, "");
-    SYSCTL_ADD_INT(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
-		   OID_AUTO, "_CRT", CTLFLAG_RD,
-		   &sc->tz_zone.crt, 0, "");
+    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		      OID_AUTO, "_HOT", CTLFLAG_RD, &sc->tz_zone.hot,
+		      sizeof(sc->tz_zone.hot), "IK", "");
+    SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
+		      OID_AUTO, "_CRT", CTLFLAG_RD, &sc->tz_zone.crt,
+		      sizeof(sc->tz_zone.crt), "IK", "");
     SYSCTL_ADD_OPAQUE(&sc->tz_sysctl_ctx, SYSCTL_CHILDREN(sc->tz_sysctl_tree),
 		      OID_AUTO, "_ACx", CTLFLAG_RD, &sc->tz_zone.ac,
-		      sizeof(sc->tz_zone.ac), "I", "");
+		      sizeof(sc->tz_zone.ac), "IK", "");
 
     /*
      * Create our thread; we only need one, it will service all of the
