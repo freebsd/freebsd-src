@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.6 1994/08/28 15:37:39 bde Exp $
+#	$Id: bsd.lib.mk,v 1.7 1994/09/16 14:30:20 jkh Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -119,12 +119,10 @@ BINMODE?=	555
 	@${LD} -X -r ${.TARGET}
 	@mv a.out ${.TARGET}
 
-.if !defined(INTERNALLIB)
-.if !defined(NOPROFILE)
+.if !defined(NOPROFILE) && !defined(INTERNALLIB)
 _LIBS=lib${LIB}.a lib${LIB}_p.a
 .else
 _LIBS=lib${LIB}.a
-.endif
 .endif
 
 .if !defined(NOPIC)
