@@ -51,14 +51,14 @@ __FBSDID("$FreeBSD$");
 #define	LABELSECTOR	1
 #endif
 
-static int keep, slice;
+static int slice;
 
 static void
 usage_migrate(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-ks] device\n", getprogname());
+	    "usage: %s [-s] device\n", getprogname());
 	exit(1);
 }
 
@@ -299,30 +299,28 @@ migrate(int fd)
 	gpt_write(fd, lbt);
 	gpt_write(fd, tpg);
 
-	if (!keep) {
-		map = map_find(MAP_TYPE_MBR);
-		mbr = map->map_data;
-		/*
-		 * Turn the MBR into a Protective MBR.
-		 */
-		bzero(mbr->mbr_part, sizeof(mbr->mbr_part));
-		mbr->mbr_part[0].part_shd = 0xff;
-		mbr->mbr_part[0].part_ssect = 0xff;
-		mbr->mbr_part[0].part_scyl = 0xff;
-		mbr->mbr_part[0].part_typ = 0xee;
-		mbr->mbr_part[0].part_ehd = 0xff;
-		mbr->mbr_part[0].part_esect = 0xff;
-		mbr->mbr_part[0].part_ecyl = 0xff;
-		mbr->mbr_part[0].part_start_lo = htole16(1);
-		if (mediasz > 0xffffffff) {
-			mbr->mbr_part[0].part_size_lo = htole16(0xffff);
-			mbr->mbr_part[0].part_size_hi = htole16(0xffff);
-		} else {
-			mbr->mbr_part[0].part_size_lo = htole16(mediasz);
-			mbr->mbr_part[0].part_size_hi = htole16(mediasz >> 16);
-		}
-		gpt_write(fd, map);
+	map = map_find(MAP_TYPE_MBR);
+	mbr = map->map_data;
+	/*
+	 * Turn the MBR into a Protective MBR.
+	 */
+	bzero(mbr->mbr_part, sizeof(mbr->mbr_part));
+	mbr->mbr_part[0].part_shd = 0xff;
+	mbr->mbr_part[0].part_ssect = 0xff;
+	mbr->mbr_part[0].part_scyl = 0xff;
+	mbr->mbr_part[0].part_typ = 0xee;
+	mbr->mbr_part[0].part_ehd = 0xff;
+	mbr->mbr_part[0].part_esect = 0xff;
+	mbr->mbr_part[0].part_ecyl = 0xff;
+	mbr->mbr_part[0].part_start_lo = htole16(1);
+	if (mediasz > 0xffffffff) {
+		mbr->mbr_part[0].part_size_lo = htole16(0xffff);
+		mbr->mbr_part[0].part_size_hi = htole16(0xffff);
+	} else {
+		mbr->mbr_part[0].part_size_lo = htole16(mediasz);
+		mbr->mbr_part[0].part_size_hi = htole16(mediasz >> 16);
 	}
+	gpt_write(fd, map);
 }
 
 int
@@ -331,11 +329,8 @@ cmd_migrate(int argc, char *argv[])
 	int ch, fd;
 
 	/* Get the migrate options */
-	while ((ch = getopt(argc, argv, "ks")) != -1) {
+	while ((ch = getopt(argc, argv, "s")) != -1) {
 		switch(ch) {
-		case 'k':
-			keep = 1;
-			break;
 		case 's':
 			slice = 1;
 			break;
