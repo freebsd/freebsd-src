@@ -9,6 +9,11 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20010725:
+	The ed driver has been updated.  It now allows mii attachments,
+	which means that you must include the miibus in your kernel if
+	you use the ed driver.
+
 20010724:
 	The gif(4) interface has been converted to use cloning
 	rather then allocating a static number of devices a compile
