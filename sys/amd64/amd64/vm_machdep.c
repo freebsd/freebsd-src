@@ -550,67 +550,6 @@ grow_stack(p, sp)
 	return (1);
 }
 
-SYSCTL_DECL(_vm_stats_misc);
-
-static int cnt_prezero;
-
-SYSCTL_INT(_vm_stats_misc, OID_AUTO,
-	cnt_prezero, CTLFLAG_RD, &cnt_prezero, 0, "");
-
-/*
- * Implement the pre-zeroed page mechanism.
- * This routine is called from the idle loop.
- */
-
-#define ZIDLE_LO(v)	((v) * 2 / 3)
-#define ZIDLE_HI(v)	((v) * 4 / 5)
-
-int
-vm_page_zero_idle()
-{
-	static int free_rover;
-	static int zero_state;
-	vm_page_t m;
-
-	/*
-	 * Attempt to maintain approximately 1/2 of our free pages in a
-	 * PG_ZERO'd state.   Add some hysteresis to (attempt to) avoid
-	 * generally zeroing a page when the system is near steady-state.
-	 * Otherwise we might get 'flutter' during disk I/O / IPC or 
-	 * fast sleeps.  We also do not want to be continuously zeroing
-	 * pages because doing so may flush our L1 and L2 caches too much.
-	 */
-
-	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
-		return(0);
-	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
-		return(0);
-
-	if (mtx_trylock(&Giant)) {
-		zero_state = 0;
-		m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
-		if (m != NULL && (m->flags & PG_ZERO) == 0) {
-			vm_page_queues[m->queue].lcnt--;
-			TAILQ_REMOVE(&vm_page_queues[m->queue].pl, m, pageq);
-			m->queue = PQ_NONE;
-			pmap_zero_page(VM_PAGE_TO_PHYS(m));
-			vm_page_flag_set(m, PG_ZERO);
-			m->queue = PQ_FREE + m->pc;
-			vm_page_queues[m->queue].lcnt++;
-			TAILQ_INSERT_TAIL(&vm_page_queues[m->queue].pl, m,
-			    pageq);
-			++vm_page_zero_count;
-			++cnt_prezero;
-			if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
-				zero_state = 1;
-		}
-		free_rover = (free_rover + PQ_PRIME2) & PQ_L2_MASK;
-		mtx_unlock(&Giant);
-		return (1);
-	}
-	return(0);
-}
-
 /*
  * Software interrupt handler for queued VM system processing.
  */   
