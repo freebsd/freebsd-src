@@ -216,8 +216,6 @@ scdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		}
 	}
 
-	dev->si_bsize_phys = sc->data.blksize;
-
 	sc->data.openflag = 1;
 	sc->data.flags |= SCDVALID;
 
@@ -306,10 +304,9 @@ scd_start(struct scd_softc *sc)
 		return;
 	}
 
-	bp = bioq_first(&sc->data.head);
+	bp = bioq_takefirst(&sc->data.head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
-		bioq_remove(&sc->data.head, bp);
 		sc->data.flags |= SCDMBXBSY;
 		splx(s);
 	} else {
