@@ -65,9 +65,7 @@
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
-#include <sys/socket.h>
 #include <sys/fcntl.h>
-#include <sys/file.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
 #include <sys/syslog.h>

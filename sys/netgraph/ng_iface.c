@@ -61,15 +61,12 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/conf.h>
 #include <sys/errno.h>
 #include <sys/sockio.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 
-#include <net/route.h>
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 
@@ -83,15 +80,12 @@
 #ifdef INET
 #include <netinet/in_systm.h>
 #include <netinet/in_var.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
 #include <netinet/in_var.h>
 #endif
 
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
-#include <netatalk/at_extern.h>
 #endif
 
 #ifdef IPX
