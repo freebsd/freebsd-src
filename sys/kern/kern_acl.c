@@ -51,8 +51,8 @@ static int	vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
 static int	vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
-static int	vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
-	    struct acl *aclp);
+static int	vacl_aclcheck(struct proc *p, struct vnode *vp,
+	    acl_type_t type, struct acl *aclp);
 
 /*
  * Implement a version of vaccess() that understands POSIX.1e ACL semantics.
@@ -60,8 +60,8 @@ static int	vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
  * vaccess() eventually.
  */
 int
-vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
-    struct ucred *cred, int *privused)
+vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
+    struct acl *acl, mode_t acc_mode, struct ucred *cred, int *privused)
 {
 	struct acl_entry *acl_other, *acl_mask;
 	mode_t dac_granted;
@@ -123,7 +123,7 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 	for (i = 0; i < acl->acl_cnt; i++) {
 		switch (acl->acl_entry[i].ae_tag) {
 		case ACL_USER_OBJ:
-			if (acl->acl_entry[i].ae_id != cred->cr_uid)
+			if (file_uid != cred->cr_uid)
 				break;
 			dac_granted = 0;
 			dac_granted |= VADMIN;
@@ -209,13 +209,13 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 			dac_granted &= acl_mask_granted;
 			if ((acc_mode & dac_granted) == acc_mode)
 				return (0);
-			if ((acc_mode & (dac_granted | cap_granted)) ==
-			    acc_mode) {
-				if (privused != NULL)
-					*privused = 1;
-				return (0);
-			}
-			goto error;
+			if ((acc_mode & (dac_granted | cap_granted)) !=
+			    acc_mode)
+				goto error;
+
+			if (privused != NULL)
+				*privused = 1;
+			return (0);
 		}
 	}
 
@@ -229,22 +229,41 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 	for (i = 0; i < acl->acl_cnt; i++) {
 		switch (acl->acl_entry[i].ae_tag) {
 		case ACL_GROUP_OBJ:
+			if (file_gid != cred->cr_groups[0])
+				break;
+			dac_granted = 0;
+			if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
+				dac_granted |= VEXEC;
+			if (acl->acl_entry[i].ae_perm & ACL_READ)
+				dac_granted |= VREAD;
+			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
+				dac_granted |= VWRITE;
+			dac_granted  &= acl_mask_granted;
+
+			if ((acc_mode & dac_granted) == acc_mode)
+				return (0);
+
+			group_matched = 1;
+			break;
+
 		case ACL_GROUP:
-			if (groupmember(acl->acl_entry[i].ae_id, cred)) {
-				dac_granted = 0;
-				if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
-					dac_granted |= VEXEC;
-				if (acl->acl_entry[i].ae_perm & ACL_READ)
-					dac_granted |= VREAD;
-				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
-					dac_granted |= VWRITE;
-				dac_granted  &= acl_mask_granted;
+			if (!groupmember(acl->acl_entry[i].ae_id, cred))
+				break;
+			dac_granted = 0;
+			if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
+				dac_granted |= VEXEC;
+			if (acl->acl_entry[i].ae_perm & ACL_READ)
+				dac_granted |= VREAD;
+			if (acl->acl_entry[i].ae_perm & ACL_WRITE)
+				dac_granted |= VWRITE;
+			dac_granted  &= acl_mask_granted;
 
-				if ((acc_mode & dac_granted) == acc_mode)
-					return (0);
+			if ((acc_mode & dac_granted) == acc_mode)
+				return (0);
 
-				group_matched = 1;
-			}
+			group_matched = 1;
+			break;
+
 		default:
 		}
 	}
@@ -257,27 +276,46 @@ vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
 		for (i = 0; i < acl->acl_cnt; i++) {
 			switch (acl->acl_entry[i].ae_tag) {
 			case ACL_GROUP_OBJ:
-			case ACL_GROUP:
-				if (groupmember(acl->acl_entry[i].ae_id,
-				    cred)) {
-					dac_granted = 0;
-					if (acl->acl_entry[i].ae_perm &
-					    ACL_EXECUTE)
+				if (file_gid != cred->cr_groups[0])
+					break;
+				dac_granted = 0;
+				if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
 					dac_granted |= VEXEC;
-					if (acl->acl_entry[i].ae_perm &
-					    ACL_READ)
-						dac_granted |= VREAD;
-					if (acl->acl_entry[i].ae_perm &
-					    ACL_WRITE)
-						dac_granted |= VWRITE;
-					dac_granted &= acl_mask_granted;
-					if ((acc_mode & (dac_granted |
-					    cap_granted)) == acc_mode) {
-						if (privused != NULL)
-							*privused = 1;
-						return (0);
-					}
-				}
+				if (acl->acl_entry[i].ae_perm & ACL_READ)
+					dac_granted |= VREAD;
+				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
+					dac_granted |= VWRITE;
+				dac_granted &= acl_mask_granted;
+
+				if ((acc_mode & (dac_granted | cap_granted)) !=
+				    acc_mode)
+					break;
+
+				if (privused != NULL)
+					*privused = 1;
+				return (0);
+
+			case ACL_GROUP:
+				if (!groupmember(acl->acl_entry[i].ae_id,
+				    cred))
+					break;
+				dac_granted = 0;
+				if (acl->acl_entry[i].ae_perm & ACL_EXECUTE)
+				dac_granted |= VEXEC;
+				if (acl->acl_entry[i].ae_perm & ACL_READ)
+					dac_granted |= VREAD;
+				if (acl->acl_entry[i].ae_perm & ACL_WRITE)
+					dac_granted |= VWRITE;
+				dac_granted &= acl_mask_granted;
+
+				if ((acc_mode & (dac_granted | cap_granted)) !=
+				    acc_mode)
+					break;
+
+				if (privused != NULL)
+					*privused = 1;
+				return (0);
+
 			default:
 			}
 		}
@@ -454,21 +492,37 @@ acl_posix1e_check(struct acl *acl)
 		 */
 		switch(acl->acl_entry[i].ae_tag) {
 		case ACL_USER_OBJ:
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID; /* XXX */
+			if (acl->acl_entry[i].ae_id != ACL_UNDEFINED_ID)
+				return (EINVAL);
 			num_acl_user_obj++;
 			break;
 		case ACL_GROUP_OBJ:
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID; /* XXX */
+			if (acl->acl_entry[i].ae_id != ACL_UNDEFINED_ID)
+				return (EINVAL);
 			num_acl_group_obj++;
 			break;
 		case ACL_USER:
+			if (acl->acl_entry[i].ae_id == ACL_UNDEFINED_ID)
+				return (EINVAL);
 			num_acl_user++;
 			break;
 		case ACL_GROUP:
+			if (acl->acl_entry[i].ae_id == ACL_UNDEFINED_ID)
+				return (EINVAL);
 			num_acl_group++;
 			break;
 		case ACL_OTHER:
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID; /* XXX */
+			if (acl->acl_entry[i].ae_id != ACL_UNDEFINED_ID)
+				return (EINVAL);
 			num_acl_other++;
 			break;
 		case ACL_MASK:
+			acl->acl_entry[i].ae_id = ACL_UNDEFINED_ID; /* XXX */
+			if (acl->acl_entry[i].ae_id != ACL_UNDEFINED_ID)
+				return (EINVAL);
 			num_acl_mask++;
 			break;
 		default:
