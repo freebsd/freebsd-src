@@ -1,0 +1,124 @@
+Original notes on how this might be implememented.. may not reflect
+the final code very much.
+======================================================[JRE]
+
+the slices are 'kinda' stackable..
+With alternating layers of handler(driver)/slice/handler/slice/handler/slice
+The "Slice" is a common structure shared between three pieces of code.
+1/ the lower handler
+2/ the upper handler
+3/ the generic slice code, which implements the device nodes etc.
+Each of these 3 items share a knowledge of the internal struture and
+contents of the slice structure. they also know each other's published 
+interfaces.
+
+Each layer is much like the previous..
+Each layer has similar characteristics..
+The slices are created bottom up..
+i.e. the device probes, and creates a static 'slice' that is 
+assiciated with the device.. The static slice
+can't be altered, unless the media is changed..
+
+A translation method, which might be NULL, in which case
+it is a simple case of offset addition.
+Possibly the offset might be already added..
+possibly this might be achieved by specifying a default method set.
+
+Each disk slice has a structure associated with it..
+When a slice is 'loaded' there must be some way of deciding if it has 
+a subslice structure.  if it does, then that structure must 
+be loaded to create mode slices..
+this is recursive.
+
+The structuring must be such that it can recognise an attempt to change 
+higer level structuring..
+This suggests a recursive 'open' count.. for open subslices.
+
+The idea would be to pass the following operations through methods.
+
+ translation to (possibly more than one) io operation
+ open count passing..
+ interpretation of subslicing and other slicing operations.
+ possibly there might be permissions inherritance.
+ open a slice... 
+ create a slice.. methods are supplied by the disk driver..
+
+ upward methods:
+  force close
+
+  identify slice type.. slice type modules each asked 
+  to identify..
+
+to do IO
+
+1/ find apropriate slice (hash)
+LIST_HEAD(slice_bucket, slice) hash_table[UNIT_HASH_SIZE - 1];
+
+in the init,
+for ( i = 0; i < UNIT_HASH_SIZE; i++) {
+	LIST_INIT(hash_table + i)
+}
+
+struct slice *minor_to_slice(unsigned int minor)
+{
+	int hash = minor % UNIT_HASH_SIZE;
+	struct slice *slice;
+
+	slice = (hash_table + hash)->lh_first;
+	while (slice) {
+		if (slice->minor == minor) {
+			return (slice);
+		}
+		slice = slice->hashlist.le_next
+	}
+	return (NULL);
+}
+2/
+	if IO method,
+	  do IO method..
+	  return
+	check bounds
+	adjust offset
+	follow slice-parent link and loop to top
+IO methods are supplied by drivers
+drivers including concatination drivers etc.
+
+concatination must be seen as a slice type
+
+once all parts of a concatinated slice are created, then
+the new 'concatinated slice' appears in the devfs.
+a concatinated slice has a 'label' that identifies it's volume
+and  it's part (e.g. part 3 out of 5)
+'slice's in ram are either Primary or slave slices in a concatinated slice..
+
+
+to set up a slice call slice_add() which:
+1/ If (slice type not known)
+	Identify the type (call all type probe routines in turn)
+2/ call the succeeding type attach routine
+3/ the attach routine calls slice_add() for each sub slice
+The probe and attach may merge.
+
+
+the type of a slice must be detirmined taking into account the type of the 
+parent slice.. It is conceivable that the parent slice
+might TELL the slice_add() routine what to make the slice..
+Possibly the parent set's a CONTEXT which might  be helpful
+in identifying a slice
+
+
+disk:
+set up Method struct:
+IO points to disk strategy
+set size to whole disk
+set offset to 0
+set context to RAW
+call slice_add
+
+
+slice_add()
+called when we know about a slice..possibly we should fill out a slice
+struct before calling it.
+The slice struct is all that is needed to be able to do IO
+to the slice. slice_add, will then link the slice into
+the system as needed.

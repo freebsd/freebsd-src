@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.34 1998/03/01 22:46:00 msmith Exp $
+ * $Id: cd9660_vfsops.c,v 1.35 1998/03/08 09:56:41 julian Exp $
  */
 
 #include <sys/param.h>
@@ -143,6 +143,9 @@ iso_get_ssector(dev, p)
 
 	return ntohl(t.entry.addr.lba);
 }
+#ifdef	SLICE
+extern struct vnode *root_device_vnode;
+#endif
 
 static int
 iso_mountroot(mp, p)
@@ -152,10 +155,18 @@ iso_mountroot(mp, p)
 	struct iso_args args;
 	int error;
 
+#ifdef	SLICE
+	rootvp = root_device_vnode;
+	if (rootvp == NULL) {                                           
+		printf("cd9660_mountroot: rootvp not set");
+		return (EINVAL);
+	}
+#else
 	if ((error = bdevvp(rootdev, &rootvp))) {
 		printf("iso_mountroot: can't find rootvp");
 		return (error);
 	}
+#endif
 	args.flags = ISOFSMNT_ROOT;
 	args.ssector = iso_get_ssector(rootdev, p);
 	if (bootverbose)

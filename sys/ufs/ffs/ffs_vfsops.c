@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.77 1998/03/27 14:20:57 peter Exp $
+ * $Id: ffs_vfsops.c,v 1.78 1998/03/30 09:56:00 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -128,6 +128,9 @@ VFS_SET(ufs_vfsops, ufs, MOUNT_UFS, 0);
  *		system call will fail with EFAULT in copyinstr in
  *		namei() if it is a genuine NULL from the user.
  */
+#ifdef SLICE
+extern struct vnode *root_device_vnode;
+#endif
 static int
 ffs_mount( mp, path, data, ndp, p)
         struct mount		*mp;	/* mount struct pointer*/
@@ -156,6 +159,13 @@ ffs_mount( mp, path, data, ndp, p)
 		 ***
 		 */
 	
+#ifdef SLICE
+		rootvp = root_device_vnode;
+		if (rootvp == NULL) {
+			printf("ffs_mountroot: rootvp not set");
+			return (EINVAL);
+		}
+#else  /* !SLICE */
 		if ((err = bdevvp(rootdev, &rootvp))) {
 			printf("ffs_mountroot: can't find rootvp");
 			return (err);
@@ -165,6 +175,7 @@ ffs_mount( mp, path, data, ndp, p)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
 		if (bdevsw[major(rootdev)]->d_flags & D_NOCLUSTERW)
 			mp->mnt_flag |= MNT_NOCLUSTERW;
+#endif /* !SLICE */
 		if( ( err = ffs_mountfs(rootvp, mp, p, M_FFSNODE)) != 0) {
 			/* fs specific cleanup (if any)*/
 			goto error_1;
@@ -307,12 +318,18 @@ ffs_mount( mp, path, data, ndp, p)
 		/*
 		 ********************
 		 * UPDATE
+		 * If it's not the same vnode, or at least the same device
+		 * then it's not correct.
 		 ********************
 		 */
 
-		if (devvp != ump->um_devvp)
-			err = EINVAL;	/* needs translation */
-		else
+		if (devvp != ump->um_devvp) {
+			if ( devvp->v_rdev == ump->um_devvp->v_rdev) {
+				vrele(devvp);
+			} else {
+				err = EINVAL;	/* needs translation */
+			}
+		} else
 			vrele(devvp);
 		/*
 		 * Update device name only on success

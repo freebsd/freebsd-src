@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.54 1998/02/09 06:07:59 eivind Exp $
+ *	$Id: vn.c,v 1.55 1998/02/20 13:27:36 bde Exp $
  */
 
 /*
@@ -84,17 +84,19 @@
 #include <sys/diskslice.h>
 #include <sys/stat.h>
 #include <sys/conf.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-#endif /*DEVFS*/
+#ifdef SLICE
+#include <sys/device.h>
+#include <dev/slice/slice.h>
+#endif	/* SLICE */
 
 #include <miscfs/specfs/specdev.h>
 
 #include <sys/vnioctl.h>
 
+static	d_ioctl_t	vnioctl;
+#ifndef	SLICE
 static	d_open_t	vnopen;
 static	d_close_t	vnclose;
-static	d_ioctl_t	vnioctl;
 static	d_dump_t	vndump;
 static	d_psize_t	vnsize;
 static	d_strategy_t	vnstrategy;
@@ -105,6 +107,30 @@ static struct cdevsw vn_cdevsw;
 static struct bdevsw vn_bdevsw = 
 	{ vnopen, vnclose, vnstrategy,                      vnioctl,	/*15*/
 	  vndump, vnsize,  D_DISK | D_NOCLUSTERRW, "vn",    &vn_cdevsw, -1 };
+
+#else /* SLICE */
+
+static sl_h_IO_req_t	nvsIOreq;	/* IO req downward (to device) */
+static sl_h_ioctl_t	nvsioctl;	/* ioctl req downward (to device) */
+static sl_h_open_t	nvsopen;	/* downwards travelling open */
+static sl_h_close_t	nvsclose;	/* downwards travelling close */
+
+static struct slice_handler slicetype = {
+	"vn",
+	0,
+	NULL,
+	0,
+	NULL,	/* constructor */
+	&nvsIOreq,
+	&nvsioctl,
+	&nvsopen,
+	&nvsclose,
+	NULL,	/* revoke */
+	NULL,	/* claim */
+	NULL,	/* verify */
+	NULL	/* upconfig */
+};
+#endif
 
 #define	vnunit(dev)	dkunit(dev)
 
@@ -117,16 +143,19 @@ static struct bdevsw vn_bdevsw =
 struct vn_softc {
 	int		 sc_flags;	/* flags */
 	size_t		 sc_size;	/* size of vn */
-#if defined(DEVFS) && defined(notyet)
-	void		*sc_bdev;	/* devfs token for whole disk */
-	void		*sc_cdev;	/* devfs token for raw whole disk */
-#endif
+#ifdef SLICE
+	struct slice	*slice;
+	struct slicelimits limit;
+	int		 mynor;
+	int		 unit;
+#else
+	struct diskslices *sc_slices;
+#endif	/* SLICE */
 	struct vnode	*sc_vp;		/* vnode */
 	struct ucred	*sc_cred;	/* credentials */
 	int		 sc_maxactive;	/* max # of active requests */
 	struct buf	 sc_tab;	/* transfer queue */
 	u_long		 sc_options;	/* options */
-	struct diskslices *sc_slices;
 };
 
 /* sc_flags */
@@ -142,6 +171,7 @@ static int	vnsetcred (struct vn_softc *vn, struct ucred *cred);
 static void	vnshutdown (int, void *);
 static void	vnclear (struct vn_softc *vn);
 
+#ifndef	SLICE
 static	int
 vnclose(dev_t dev, int flags, int mode, struct proc *p)
 {
@@ -393,6 +423,170 @@ vnstrategy(struct buf *bp)
 	}
 }
 
+#else /* SLICE */
+static void 
+nvsIOreq(void *private ,struct buf *bp)
+{
+	struct vn_softc *vn = private;
+	u_int32_t unit = vn->unit;
+	register daddr_t bn;
+	int error;
+	int isvplocked = 0;
+	long sz;
+	struct uio auio;
+	struct iovec aiov;
+
+	IFOPT(vn, VN_DEBUG)
+		printf("vnstrategy(%p): unit %d\n", bp, unit);
+
+	if ((vn->sc_flags & VNF_INITED) == 0) {
+		bp->b_error = ENXIO;
+		bp->b_flags |= B_ERROR;
+		biodone(bp);
+		return;
+	}
+	bn = bp->b_pblkno;
+	bp->b_resid = bp->b_bcount;/* XXX best place to set this? */
+	sz = howmany(bp->b_bcount, DEV_BSIZE);
+
+	if( (bp->b_flags & B_PAGING) == 0) {
+		aiov.iov_base = bp->b_data;
+		aiov.iov_len = bp->b_bcount;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = dbtob(bn);
+		auio.uio_segflg = UIO_SYSSPACE;
+		if( bp->b_flags & B_READ)
+			auio.uio_rw = UIO_READ;
+		else
+			auio.uio_rw = UIO_WRITE;
+		auio.uio_resid = bp->b_bcount;
+		auio.uio_procp = curproc;
+		if (!VOP_ISLOCKED(vn->sc_vp)) {
+			isvplocked = 1;
+			vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+		}
+		if( bp->b_flags & B_READ)
+			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
+		else
+			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
+		if (isvplocked) {
+			VOP_UNLOCK(vn->sc_vp, 0, curproc);
+			isvplocked = 0;
+		}
+		bp->b_resid = auio.uio_resid;
+
+		if( error )
+			bp->b_flags |= B_ERROR;
+		biodone(bp);
+	} else {
+		long bsize, resid;
+		off_t byten;
+		int flags;
+		caddr_t addr;
+		struct buf *nbp;
+
+		nbp = getvnbuf();
+		byten = dbtob(bn);
+		/* This is probably the only time this is RIGHT */
+		bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
+		addr = bp->b_data;
+		flags = bp->b_flags | B_CALL;
+		for (resid = bp->b_resid; resid; ) {
+			struct vnode *vp;
+			daddr_t nbn;
+			int off, s, nra;
+
+			nra = 0;
+			if (!VOP_ISLOCKED(vn->sc_vp)) {
+				isvplocked = 1;
+				vn_lock(vn->sc_vp, LK_EXCLUSIVE | LK_RETRY, curproc);
+			}
+			error = VOP_BMAP(vn->sc_vp, (daddr_t)(byten / bsize),
+					 &vp, &nbn, &nra, NULL);
+			if (isvplocked) {
+				VOP_UNLOCK(vn->sc_vp, 0, curproc);
+				isvplocked = 0;
+			}
+			if (error == 0 && nbn == -1)
+				error = EIO;
+
+			IFOPT(vn, VN_DONTCLUSTER)
+				nra = 0;
+
+			off = byten % bsize;
+			if (off)
+				sz = bsize - off;
+			else
+				sz = (1 + nra) * bsize;
+			if (resid < sz)
+				sz = resid;
+
+			if (error) {
+				bp->b_resid -= (resid - sz);
+				bp->b_flags |= B_ERROR;
+				biodone(bp);
+				putvnbuf(nbp);
+				return;
+			}
+
+			IFOPT(vn,VN_IO)
+				printf(
+			/* XXX no %qx in kernel.  Synthesize it. */
+			"vnstrategy: vp %p/%p bn 0x%lx%08lx/0x%lx sz 0x%x\n",
+				       vn->sc_vp, vp, (long)(byten >> 32),
+				       (u_long)byten, nbn, sz);
+
+			nbp->b_flags = flags;
+			nbp->b_bcount = sz;
+			nbp->b_bufsize = sz;
+			nbp->b_error = 0;
+			if (vp->v_type == VBLK || vp->v_type == VCHR)
+				nbp->b_dev = vp->v_rdev;
+			else
+				nbp->b_dev = NODEV;
+			nbp->b_data = addr;
+			nbp->b_blkno = nbn + btodb(off);
+			nbp->b_proc = bp->b_proc;
+			nbp->b_iodone = vniodone;
+			nbp->b_vp = vp;
+			nbp->b_rcred = vn->sc_cred;	/* XXX crdup? */
+			nbp->b_wcred = vn->sc_cred;	/* XXX crdup? */
+			nbp->b_dirtyoff = bp->b_dirtyoff;
+			nbp->b_dirtyend = bp->b_dirtyend;
+			nbp->b_validoff = bp->b_validoff;
+			nbp->b_validend = bp->b_validend;
+
+			if ((nbp->b_flags & B_READ) == 0)
+				nbp->b_vp->v_numoutput++;
+
+			VOP_STRATEGY(nbp);
+
+			s = splbio();
+			while ((nbp->b_flags & B_DONE) == 0) {
+				nbp->b_flags |= B_WANTED;
+				tsleep(nbp, PRIBIO, "vnwait", 0);
+			}
+			splx(s);
+
+			if( nbp->b_flags & B_ERROR) {
+				bp->b_flags |= B_ERROR;
+				bp->b_resid -= (resid - sz);
+				biodone(bp);
+				putvnbuf(nbp);
+				return;
+			}
+
+			byten += sz;
+			addr += sz;
+			resid -= sz;
+		}
+		biodone(bp);
+		putvnbuf(nbp);
+	}
+}
+#endif	/* SLICE */
+
 void
 vniodone( struct buf *bp) {
 	bp->b_flags |= B_DONE;
@@ -409,6 +603,9 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	struct nameidata nd;
 	int error;
 	u_long *f;
+#ifdef	SLICE
+	sh_p	tp;
+#endif
 
 
 	IFOPT(vn,VN_FOLLOW)
@@ -424,6 +621,7 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case VNIOCUCLEAR:
 		goto vn_specific;
 	}
+#ifndef SLICE
 
 	IFOPT(vn,VN_LABELS) {
 		if (vn->sc_slices != NULL) {
@@ -438,6 +636,7 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return (ENOTTY);
 	}
 
+#endif
     vn_specific:
 
 	error = suser(p->p_ucred, &p->p_acflag);
@@ -477,6 +676,28 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		}
 		vio->vn_size = dbtob(vn->sc_size);
 		vn->sc_flags |= VNF_INITED;
+#ifdef	SLICE
+/*
+ * XXX The filesystem blocksize will say 1024
+ * for a 8K filesystem. don't know yet how to deal with this,
+ * so lie for now.. say 512.
+ */
+#if 0
+		vn->limit.blksize = vn->sc_vp->v_mount->mnt_stat.f_bsize;
+#else
+		vn->limit.blksize = DEV_BSIZE;
+#endif
+		vn->slice->limits.blksize = vn->limit.blksize;
+		vn->limit.slicesize = vattr.va_size;
+		vn->slice->limits.slicesize = vattr.va_size;
+		/* 
+		 * We have a media to read/write.
+		 * Try identify it.
+		 */
+		if ((tp = slice_probeall(vn->slice)) != NULL) {
+			(*tp->constructor)(vn->slice);
+		}
+#else
 		IFOPT(vn, VN_LABELS) {
 			/*
 			 * Reopen so that `ds' knows which devices are open.
@@ -489,6 +710,7 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			if (error)
 				vnclear(vn);
 		}
+#endif
 		IFOPT(vn, VN_FOLLOW)
 			printf("vnioctl: SET vp %p size %x\n",
 			       vn->sc_vp, vn->sc_size);
@@ -588,6 +810,14 @@ vnclear(struct vn_softc *vn)
 
 	IFOPT(vn, VN_FOLLOW)
 		printf("vnclear(%p): vp=%p\n", vn, vp);
+#ifdef	SLICE
+	if (vn->slice->handler_up) {
+		(*(vn->slice->handler_up->revoke)) (vn->slice->private_up);
+	}
+#else	/* SLICE */
+	if (vn->sc_slices != NULL)
+		dsgone(&vn->sc_slices);
+#endif
 	vn->sc_flags &= ~VNF_INITED;
 	if (vp == (struct vnode *)0)
 		panic("vnclear: null vp");
@@ -596,10 +826,9 @@ vnclear(struct vn_softc *vn)
 	vn->sc_vp = (struct vnode *)0;
 	vn->sc_cred = (struct ucred *)0;
 	vn->sc_size = 0;
-	if (vn->sc_slices != NULL)
-		dsgone(&vn->sc_slices);
 }
 
+#ifndef	SLICE
 static	int
 vnsize(dev_t dev)
 {
@@ -617,44 +846,94 @@ vndump(dev_t dev)
 	return (ENODEV);
 }
 
-static int vn_devsw_installed;
+static vn_devsw_installed = 0;
+#endif	/* !SLICE */
 
 static void 
 vn_drvinit(void *unused)
 {
-#ifdef DEVFS
-	int mynor;
-	int unit;
-	struct vn_softc *vn;
-#endif
-
+#ifndef SLICE
 	if( ! vn_devsw_installed ) {
 		if (at_shutdown(&vnshutdown, NULL, SHUTDOWN_POST_SYNC)) {
 			printf("vn: could not install shutdown hook\n");
 			return;
 		}
 		bdevsw_add_generic(BDEV_MAJOR, CDEV_MAJOR, &vn_bdevsw);
-#ifdef DEVFS
-		for (unit = 0; unit < NVN; unit++) {
-			vn = vn_softc[unit];
-			mynor = dkmakeminor(unit, WHOLE_DISK_SLICE, RAW_PART);
-			/*
-			 * XXX not saving tokens yet.  The vn devices don't
-			 * exist until after they have been opened :-).
-			 */
-			devfs_add_devswf(&vn_bdevsw, mynor, DV_BLK,
-					 UID_ROOT, GID_OPERATOR, 0640,
-					 "vn%d", unit);
-			devfs_add_devswf(&vn_cdevsw, mynor, DV_CHR,
-					 UID_ROOT, GID_OPERATOR, 0640,
-					 "rvn%d", unit);
-		}
-#endif
 		vn_devsw_installed = 1;
 	}
+#else /* SLICE */
+	int mynor;
+	int unit;
+	struct vn_softc *vn;
+	char namebuf[64];
+	if (at_shutdown(&vnshutdown, NULL, SHUTDOWN_POST_SYNC)) {
+		printf("vn: could not install shutdown hook\n");
+		return;
+	}
+	for (unit = 0; unit < NVN; unit++) {
+		vn = malloc(sizeof *vn, M_DEVBUF, M_NOWAIT);
+		if (!vn)
+			return;
+		bzero(vn, sizeof *vn);
+		vn_softc[unit] = vn;
+		vn->unit = unit;
+		sprintf(namebuf,"vn%d",vn->unit);
+			vn->mynor = dkmakeminor(unit, WHOLE_DISK_SLICE,
+				RAW_PART);
+		vn->limit.blksize = DEV_BSIZE;
+		vn->limit.slicesize = ((u_int64_t)vn->sc_size * DEV_BSIZE);
+		sl_make_slice(&slicetype,
+				vn,
+				&vn->limit,
+ 				&vn->slice,
+				NULL,
+				namebuf);
+		/* Allow full probing */
+		vn->slice->probeinfo.typespecific = NULL;
+		vn->slice->probeinfo.type = NULL;
+	}
+#define CDEV_MAJOR 20 /* not really needed */
+#endif	/* SLICE */
 }
 
 SYSINIT(vndev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,vn_drvinit,NULL)
 
+#ifdef SLICE
 
+static int
+nvsopen(void *private, int flags, int mode, struct proc *p)
+{
+	struct vn_softc *vn;
+
+	vn = private;
+
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnopen(0x%lx, 0x%x, 0x%x, %p)\n", 
+			makedev(0,vn->mynor) , flags, mode, p);
+	return (0);
+}
+
+static void
+nvsclose(void *private, int flags, int mode, struct proc *p)
+{
+	struct vn_softc *vn;
+
+	vn = private;
+	IFOPT(vn, VN_FOLLOW)
+		printf("vnclose(0x%lx, 0x%x, 0x%x, %p)\n", 
+			makedev(0,vn->mynor) , flags, mode, p);
+	return;
+}
+
+static int
+nvsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+{
+	struct vn_softc *vn;
+
+	vn = private;
+
+	return(vnioctl(makedev(0,vn->mynor), cmd, addr, flag, p));
+}
+
+#endif
 #endif

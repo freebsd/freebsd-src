@@ -23,14 +23,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $Id: devfsdefs.h,v 1.12 1997/10/11 18:31:29 phk Exp $
+ * $Id: devfsdefs.h,v 1.13 1998/01/02 07:31:07 julian Exp $
  */
 #ifdef DEVFS_DEBUG
 #define DBPRINT(A) printf(A)
 #else
 #define DBPRINT(A)
 #endif
-
 
 /* first a couple of defines for compatibility with inodes */
 

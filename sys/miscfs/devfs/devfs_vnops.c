@@ -1,3 +1,4 @@
+
 /*
  * Copyright 1997,1998 Julian Elischer.  All rights reserved.
  * julian@freebsd.org
@@ -23,8 +24,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.52 1998/03/10 09:12:19 julian Exp $
+ *	$Id: devfs_vnops.c,v 1.53 1998/03/26 20:52:12 phk Exp $
  */
+
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -482,33 +484,23 @@ DBPRINT(("getattr\n"));
 	vap->va_fileid = (long)file_node;
 	vap->va_size = file_node->len; /* now a u_quad_t */
 	vap->va_blocksize = 512;
-	if(file_node->ctime.tv_sec)
+	/*
+	 * XXX If the node times are in  Jan 1, 1970, then
+	 * update them to the boot time.
+	 * When we made the node, the date/time was not yet known.
+	 */
+	if(file_node->ctime.tv_sec < (24 * 3600))
 	{
-		vap->va_ctime = file_node->ctime;
+		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->ctime));
+		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->mtime));
+		TIMEVAL_TO_TIMESPEC(&boottime,&(file_node->atime));
 	}
-	else
-	{
-		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_ctime));
-	}
-	if(file_node->mtime.tv_sec)
-	{
-		vap->va_mtime = file_node->mtime;
-	}
-	else
-	{
-		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_mtime));
-	}
-	if(file_node->atime.tv_sec)
-	{
-		vap->va_atime = file_node->atime;
-	}
-	else
-	{
-		TIMEVAL_TO_TIMESPEC(&boottime,&(vap->va_atime));
-	}
+	vap->va_ctime = file_node->ctime;
+	vap->va_mtime = file_node->mtime;
+	vap->va_atime = file_node->atime;
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_bytes = file_node->len;	/* u_quad_t */
+	vap->va_bytes = file_node->len;		/* u_quad_t */
 	vap->va_filerev = 0; /* XXX */		/* u_quad_t */
 	vap->va_vaflags = 0; /* XXX */
 	return 0;

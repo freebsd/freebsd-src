@@ -1,4 +1,4 @@
-/*#define SPLIT_DEVS 1*/
+
 /*
  * Copyright 1997,1998 Julian Elischer.  All rights reserved.
  * julian@freebsd.org
@@ -24,8 +24,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.50 1998/03/26 20:52:05 phk Exp $
+ *	$Id: devfs_tree.c,v 1.51 1998/04/17 22:36:53 des Exp $
  */
+
+
+#define SPLIT_DEVS 1
+/*#define SPLIT_DEVS 1*/
 
 #include "opt_devfs.h"
 
@@ -33,6 +37,7 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
+#include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -894,44 +899,6 @@ DBPRINT(("	vntodn "));
 	return(0);
 }
 
-#ifdef DEVFS_ROOT
-static dn_p
-findbdev(dev_t dev, dn_p dir)
-{
-	devnm_p newfp;
-	dn_p dnp;
-
-	for(newfp = dir->by.Dir.dirlist;newfp;newfp=newfp->next) {
-		dnp = newfp->dnp;
-		if (dnp->type == DEV_BDEV && dnp->by.Bdev.dev == dev) {
-			return (dnp);
-		} 
-		if (dnp->type == DEV_DIR) {
-			if (dnp = findbdev(dev, dnp))
-				return dnp;
-		}
-	}
-	return (0);
-}
-
-/* 
- * Create a vnode for a block device.
- * Used for mounting the root file system.
- */
-int
-bdevvp(dev_t dev, struct vnode **vpp)
-{
-	dn_p	dnp = 0;
-
-	if (dev == NODEV)
-		return(0);
-	dnp=  findbdev(dev, dev_root->dnp);
-	if (!dnp)
-		return (ENOENT);
-	return (devfs_dntovn(dnp, vpp));
-}
-#endif /* DEVFS_ROOT */
-
 /***************************************************************\
 * given a dev_node, find the appropriate vnode if one is already*
 * associated, or get a new one an associate it with the dev_node*
@@ -1207,3 +1174,116 @@ devfs_link(void *original, char *fmt, ...)
 	return new_dev;
 }
 
+/*
+ * internal kernel call to open a device. Return either 0 or an open vnode.
+ */
+struct vnode *
+devfs_open_device(char *path, int type)
+{
+	register char *lastslash;
+	char *nextpart;
+	devnm_p	nm_p;
+	dn_p dirnode;
+	struct vnode *vn;
+
+	/*
+	 * If the caller didn't supply a full path, ignore and be
+	 * noisy about it.
+	 */
+	if (*path != '/') {
+		printf (__FUNCTION__ ": caller supplied bad path\n");
+		return (NULL);
+	}
+
+	/*
+	 * find the last '/'. Unfortunatly rindex() while being in
+	 * libkern source, is not being compiled.. do it by hand.
+	 * lastslash = strrchr(path,(int)'c');
+	 * There will be at LEAST one '/'.
+	 */
+	{
+		register char *p = path; /* don't destroy path */
+
+		for (lastslash = NULL;*p; ++p) {
+			if (*p == '/')
+				lastslash = p;
+		}
+	}
+	dirnode = dev_root->dnp;
+	if(lastslash != path) {
+		/* find the directory we need */
+		*lastslash = '\0';
+		if (dev_finddir(path, dirnode, NULL, &dirnode) != 0) {
+			*lastslash = '/';
+			return (NULL);
+		}
+		/* ok we found the directory, put the slash back */
+		*lastslash = '/';
+	}
+	nextpart = ++lastslash;
+	if (*nextpart == '\0')
+		return (NULL);
+	/*
+ 	 * Now only return true if it exists and is the right type.
+	 */
+	if ((nm_p = dev_findname(dirnode, nextpart)) == NULL) {
+		return (NULL);
+	}
+	switch(type) {
+	case DV_BLK:
+		if( nm_p->dnp->type != DEV_BDEV)
+			return (NULL);
+		break;
+	case DV_CHR:
+		if( nm_p->dnp->type != DEV_CDEV)
+			return (NULL);
+		break;
+	}
+
+	if ( devfs_dntovn(nm_p->dnp, &vn))
+		return (NULL);
+
+#if 0
+	if ( VOP_OPEN(vn, FREAD, proc0.p_cred->pc_ucred, &proc0)) {
+	 	vput(vn);
+		return (NULL);
+	}
+#endif
+	return (vn);	
+}
+
+/*
+ * internal kernel call to close a devfs device.
+ * It should have been openned by th ecall above.
+ * try not mix it with user-openned vnodes.
+ * Frees the vnode.
+ */
+void
+devfs_close_device(struct vnode *vn)
+{
+#if 0
+	VOP_CLOSE(vn, 0, proc0.p_cred->pc_ucred, &proc0) ;
+#endif
+	vput(vn);
+}
+
+/*
+ * Little utility routine for compatibilty.
+ * Returns the dev_t that a devfs vnode represents.
+ * should go away after dev_t go away :).
+ */
+dev_t 
+devfs_vntodev(struct vnode *vn)
+{
+	register dn_p  dnp; 
+	dnp = (dn_p)vn->v_data;
+	switch (dnp->type) {
+	case	DEV_BDEV:
+		return (dnp->by.Bdev.dev);
+		break;
+	case	DEV_CDEV:
+		return (dnp->by.Cdev.dev);
+		break;
+	}
+	panic ("bad devfs DEVICE vnode");
+}

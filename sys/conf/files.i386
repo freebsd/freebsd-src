@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.195 1998/03/23 16:44:22 peter Exp $
+#	$Id: files.i386,v 1.196 1998/04/06 15:49:35 peter Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -36,6 +36,7 @@ i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
 i386/eisa/if_fea.c		optional	fea	device-driver
 i386/i386/autoconf.c		standard	device-driver
+i386/i386/mountroot.c		optional	slice
 i386/i386/bios.c		standard
 i386/i386/bioscall.s		standard
 i386/i386/busdma_machdep.c	standard

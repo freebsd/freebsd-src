@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.107 1998/01/24 02:54:18 eivind Exp $
+ *	$Id: fd.c,v 1.108 1998/04/17 22:36:31 des Exp $
  *
  */
 
@@ -82,9 +82,13 @@
 #include <sys/ftape.h>
 #include <i386/isa/ftreg.h>
 #endif
-#ifdef DEVFS
+#ifdef	DEVFS
 #include <sys/devfsext.h>
-#endif
+#ifdef	SLICE
+#include <sys/device.h>
+#include <dev/slice/slice.h>
+#endif	/* SLICE */
+#endif	/* DEVFS */
 
 /* misuse a flag to identify format operation */
 #define B_FORMAT B_XXX
@@ -180,8 +184,21 @@ static struct fd_data {
 	struct	callout_handle toffhandle;
 	struct	callout_handle tohandle;
 #ifdef DEVFS
+#ifdef SLICE
+	int	unit;		/* as in fd0 */
+	void	*bdevs[MAXPARTITIONS];
+	void	*cdevs[MAXPARTITIONS];
+	struct subdev{
+		struct slice		*slice;
+		int			 minor;
+		struct fd_data		*drive;
+		struct slicelimits	 limit;
+	}subdevs[16];
+	struct intr_config_hook ich;
+#else	/* SLICE */
 	void	*bdevs[1 + NUMDENS + MAXPARTITIONS];
 	void	*cdevs[1 + NUMDENS + MAXPARTITIONS];
+#endif	/* SLICE */
 #endif
 } fd_data[NFD];
 
@@ -227,7 +244,9 @@ static timeout_t fd_timeout;
 static timeout_t fd_pseudointr;
 static int fdstate(fdcu_t, fdc_p);
 static int retrier(fdcu_t);
+#ifndef SLICE
 static int fdformat(dev_t, struct fd_formb *, struct proc *);
+#endif
 
 static int enable_fifo(fdc_p fdc);
 
@@ -284,6 +303,7 @@ static	d_close_t	fdclose;
 static	d_ioctl_t	fdioctl;
 static	d_strategy_t	fdstrategy;
 
+/* even if SLICE defined, these are needed for the ft support. */
 #define CDEV_MAJOR 9
 #define BDEV_MAJOR 2
 static struct cdevsw fd_cdevsw;
@@ -293,6 +313,30 @@ static struct bdevsw fd_bdevsw =
 
 
 static struct isa_device *fdcdevs[NFDC];
+
+#ifdef	SLICE
+static sl_h_IO_req_t	fdsIOreq;	/* IO req downward (to device) */
+static sl_h_ioctl_t	fdsioctl;	/* ioctl req downward (to device) */
+static sl_h_open_t	fdsopen;	/* downwards travelling open */
+static sl_h_close_t	fdsclose;	/* downwards travelling close */
+static void	fdsinit(void *);
+
+static struct slice_handler slicetype = {
+	"floppy",
+	0,
+	NULL,
+	0,
+	NULL,	/* constructor */
+	&fdsIOreq,
+	&fdsioctl,
+	&fdsopen,
+	&fdsclose,
+	NULL,	/* revoke */
+	NULL,	/* claim */
+	NULL,	/* verify */
+	NULL	/* upconfig */
+};
+#endif	/* SLICE */
 
 static int
 fdc_err(fdcu_t fdcu, const char *s)
@@ -529,8 +573,12 @@ fdattach(struct isa_device *dev)
 	struct isa_device *fdup;
 	int ic_type = 0;
 #ifdef DEVFS
+#ifdef	SLICE
+	char namebuf[64];
+#else
 	int	mynor;
 	int	typemynor;
+#endif	/* SLICE */
 	int	typesize;
 #endif
 
@@ -682,6 +730,9 @@ fdattach(struct isa_device *dev)
 			continue;
 
 		fd->track = FD_NO_TRACK;
+#ifdef	SLICE
+		fd->unit = fdu;
+#endif
 		fd->fdc = fdc;
 		fd->fdsu = fdsu;
 		fd->options = 0;
@@ -721,6 +772,30 @@ fdattach(struct isa_device *dev)
 			continue;
 		}
 #ifdef DEVFS
+#ifdef SLICE
+		sprintf(namebuf,"fd%d",fdu);
+		fd->subdevs[0].minor = 0;
+		fd->subdevs[0].drive = fd;
+		fd->subdevs[0].limit.blksize =
+			128 << (fd_types[fd->type - 1].secsize);
+		fd->subdevs[0].limit.slicesize =
+			fd_types[fd->type - 1].size
+				* fd->subdevs[0].limit.blksize;
+		fd->ft = fd_types + (fd->type - 1); /* default value */
+		sl_make_slice(&slicetype,
+			&fd->subdevs[0],
+			&fd->subdevs[0].limit,
+		 	&fd->subdevs[0].slice,
+			NULL,
+			namebuf);
+		/* Allow full probing */
+		fd->subdevs[0].slice->probeinfo.typespecific = NULL;
+		fd->subdevs[0].slice->probeinfo.type = NULL;
+
+		fd->ich.ich_func = fdsinit;
+		fd->ich.ich_arg = &fd->subdevs[0];
+		config_intrhook_establish(&fd->ich);
+#else	/* SLICE */
 		mynor = fdu << 6;
 		fd->bdevs[0] = devfs_add_devswf(&fd_bdevsw, mynor, DV_BLK,
 						UID_ROOT, GID_OPERATOR, 0640,
@@ -728,6 +803,7 @@ fdattach(struct isa_device *dev)
 		fd->cdevs[0] = devfs_add_devswf(&fd_cdevsw, mynor, DV_CHR,
 						UID_ROOT, GID_OPERATOR, 0640,
 						"rfd%d", fdu);
+#endif	/* SLICE */
 		for (i = 1; i < 1 + NUMDENS; i++) {
 			/*
 			 * XXX this and the lookup in Fdopen() should be
@@ -755,7 +831,6 @@ fdattach(struct isa_device *dev)
 					continue;
 				break;
 			}
-			typemynor = mynor | i;
 			typesize = fd_types[i - 1].size / 2;
 			/*
 			 * XXX all these conversions give bloated code and
@@ -765,6 +840,27 @@ fdattach(struct isa_device *dev)
 				typesize = 1480;
 			if (typesize == 1722)
 				typesize = 1720;
+#ifdef SLICE
+			sprintf(namebuf,"fd%d.%d",fdu,typesize);
+			fd->subdevs[i].minor = i;
+			fd->subdevs[i].drive = fd;
+			fd->subdevs[i].limit.blksize =
+				128 << (fd_types[i - 1].secsize);
+			fd->subdevs[i].limit.slicesize =
+				fd_types[i - 1].size
+					* fd->subdevs[i].limit.blksize;
+			sl_make_slice(&slicetype,
+				&fd->subdevs[i],
+				&fd->subdevs[i].limit,
+			 	&fd->subdevs[i].slice,
+				NULL,
+				namebuf);
+			/* Allow full probing */
+			fd->subdevs[i].slice->probeinfo.typespecific = NULL;
+			fd->subdevs[i].slice->probeinfo.type = NO_SUBPART;
+		}
+#else	/* SLICE */
+			typemynor = mynor | i;
 			fd->bdevs[i] =
 				devfs_add_devswf(&fd_bdevsw, typemynor, DV_BLK,
 						 UID_ROOT, GID_OPERATOR, 0640,
@@ -774,14 +870,15 @@ fdattach(struct isa_device *dev)
 						 UID_ROOT, GID_OPERATOR, 0640,
 						 "rfd%d.%d", fdu, typesize);
 		}
+
 		for (i = 0; i < MAXPARTITIONS; i++) {
-			fd->bdevs[1 + NUMDENS + i] =
-				devfs_link(fd->bdevs[0],
+			fd->bdevs[1 + NUMDENS + i] = devfs_link(fd->bdevs[0],
 					   "fd%d%c", fdu, 'a' + i);
 			fd->cdevs[1 + NUMDENS + i] =
 				devfs_link(fd->cdevs[0],
 					   "rfd%d%c", fdu, 'a' + i);
 		}
+#endif /* SLICE */
 #endif /* DEVFS */
 #ifdef notyet
 		if (dk_ndrive < DK_NDRIVE) {
@@ -799,6 +896,22 @@ fdattach(struct isa_device *dev)
 
 	return (1);
 }
+
+
+#ifdef	SLICE
+
+static void
+fdsinit(void *arg)
+{
+	struct subdev *sd = arg;
+	sh_p	tp;
+
+	if ((tp = slice_probeall(sd->slice)) != NULL) {
+		(*tp->constructor)(sd->slice);
+	}
+	config_intrhook_disestablish(&sd->drive->ich);
+}
+#endif	/* SLICE */
 
 /****************************************************************************/
 /*                            motor control stuff                           */
@@ -1022,6 +1135,10 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 	if (type == 0)
 		type = fd_data[fdu].type;
 	else {
+		/*
+		 * For each type of basic drive, make sure we are trying
+		 * to open a type it can do,
+		 */
 		if (type != fd_data[fdu].type) {
 			switch (fd_data[fdu].type) {
 			case FD_360:
@@ -1182,6 +1299,49 @@ bad:
 	biodone(bp);
 }
 
+#ifdef	SLICE
+/****************************************************************************/
+/*                               fdsIOreq                                   */
+/****************************************************************************/
+static void 
+fdsIOreq(void *private ,struct buf *bp)
+{
+	unsigned nblocks, blknum, cando;
+ 	int	s;
+ 	fdcu_t	fdcu;
+ 	fdu_t	fdu;
+ 	fdc_p	fdc;
+ 	fd_p	fd;
+	size_t	fdblk;
+	struct subdev *sd;
+
+	sd = private;
+	fd = sd->drive;
+ 	fdu = fd->unit;
+	fdc = fd->fdc;
+	fdcu = fdc->fdcu;
+
+	/* check for controller already busy with tape */
+	if (fdc->flags & FDC_TAPE_BUSY) {
+		bp->b_error = EBUSY;
+		bp->b_flags |= B_ERROR;
+		goto bad;
+	}
+	bp->b_driver1 = sd; /* squirrel away which device.. */
+	bp->b_resid = 0;
+	s = splbio();
+	bufqdisksort(&fdc->head, bp);
+	untimeout(fd_turnoff, (caddr_t)fdu, fd->toffhandle); /* a good idea */
+	fdstart(fdcu);
+	splx(s);
+	return;
+
+bad:
+	biodone(bp);
+	return;
+}
+#endif	/* SLICE */
+
 /***************************************************************\
 *				fdstart				*
 * We have just queued something.. if the controller is not busy	*
@@ -1292,6 +1452,7 @@ fdintr(fdcu_t fdcu)
 static int
 fdstate(fdcu_t fdcu, fdc_p fdc)
 {
+	struct subdev *sd;
 	int read, format, head, sec = 0, sectrac, st0, cyl, st3;
 	unsigned blknum = 0, b_cylinder = 0;
 	fdu_t fdu = fdc->fdu;
@@ -1317,8 +1478,14 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 		TRACE1("[fdc%d IDLE]", fdcu);
  		return(0);
 	}
+#ifdef	SLICE
+	sd = bp->b_driver1;
+	fd = sd->drive;
+ 	fdu = fd->unit;
+#else
 	fdu = FDUNIT(minor(bp->b_dev));
 	fd = fd_data + fdu;
+#endif
 	fdblk = 128 << fd->ft->secsize;
 	if (fdc->fd && (fd != fdc->fd))
 	{
@@ -1332,7 +1499,7 @@ fdstate(fdcu_t fdcu, fdc_p fdc)
 			- (char *)finfo;
 	}
 	if (fdc->state == DOSEEK || fdc->state == SEEKCOMPLETE) {
-		blknum = (unsigned) bp->b_blkno * DEV_BSIZE/fdblk +
+		blknum = (unsigned) bp->b_pblkno * DEV_BSIZE/fdblk +
 			fd->skip/fdblk;
 		b_cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
 	}
@@ -1704,13 +1871,26 @@ static int
 retrier(fdcu)
 	fdcu_t fdcu;
 {
+	struct subdev *sd;
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
+#ifdef	SLICE
+	struct fd_data *fd;
+	int fdu;
+#endif
 
 	bp = bufq_first(&fdc->head);
 
+#ifdef	SLICE
+	sd = bp->b_driver1;
+	fd = sd->drive;
+ 	fdu = fd->unit; 
+	if(fd->options & FDOPT_NORETRY)
+		goto fail;
+#else
 	if(fd_data[FDUNIT(minor(bp->b_dev))].options & FDOPT_NORETRY)
 		goto fail;
+#endif
 	switch(fdc->retry)
 	{
 	case 0: case 1: case 2:
@@ -1727,14 +1907,19 @@ retrier(fdcu)
 	default:
 	fail:
 		{
+#ifdef SLICE
+			printf("fd%d: hard error, block %d ", fdu, 
+				fd->skip / DEV_BSIZE);
+#else
 			dev_t sav_b_dev = bp->b_dev;
 			/* Trick diskerr */
 			bp->b_dev = makedev(major(bp->b_dev),
-					    (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
+				    (FDUNIT(minor(bp->b_dev))<<3)|RAW_PART);
 			diskerr(bp, "fd", "hard error", LOG_PRINTF,
 				fdc->fd->skip / DEV_BSIZE,
 				(struct disklabel *)NULL);
 			bp->b_dev = sav_b_dev;
+#endif /* !SLICE */
 			if (fdc->flags & FDC_STAT_VALID)
 			{
 				printf(
@@ -1764,11 +1949,16 @@ retrier(fdcu)
 	return(1);
 }
 
+#ifdef	SLICE
+static int
+fdformat( struct subdev *sd, struct fd_formb *finfo, struct proc *p)
+#else	/* !SLICE */
 static int
 fdformat(dev, finfo, p)
 	dev_t dev;
 	struct fd_formb *finfo;
 	struct proc *p;
+#endif	/* !SLICE */
 {
  	fdu_t	fdu;
  	fd_p	fd;
@@ -1777,8 +1967,13 @@ fdformat(dev, finfo, p)
 	int rv = 0, s;
 	size_t fdblk;
 
- 	fdu = FDUNIT(minor(dev));
-	fd = &fd_data[fdu];
+#ifdef	SLICE
+ 	fd	= sd->drive;
+ 	fdu	= fd->unit;
+#else
+ 	fdu	= FDUNIT(minor(dev));
+	fd	= &fd_data[fdu];
+#endif
 	fdblk = 128 << fd->ft->secsize;
 
 	/* set up a buffer header for fdstrategy() */
@@ -1792,7 +1987,6 @@ fdformat(dev, finfo, p)
 	bzero((void *)bp, sizeof(struct buf));
 	bp->b_flags = B_BUSY | B_PHYS | B_FORMAT;
 	bp->b_proc = p;
-	bp->b_dev = dev;
 
 	/*
 	 * calculate a fake blkno, so fdstrategy() would initiate a
@@ -1805,7 +1999,13 @@ fdformat(dev, finfo, p)
 	bp->b_data = (caddr_t)finfo;
 
 	/* now do the format */
+#ifdef SLICE
+	bp->b_driver1 = sd;
+	fdsIOreq(sd, bp);
+#else	/* !SLICE */
+	bp->b_dev = dev;
 	fdstrategy(bp);
+#endif	/* !SLICE */
 
 	/* ...and wait for it to complete */
 	s = splbio();
@@ -1836,7 +2036,7 @@ fdformat(dev, finfo, p)
  * TODO: don't allocate buffer on stack.
  */
 
-int
+static int
 fdioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
 	int cmd;
@@ -1861,10 +2061,33 @@ fdioctl(dev, cmd, addr, flag, p)
 		return ftioctl(dev, cmd, addr, flag, p);
 #endif
 
+#ifdef	SLICE
+	/*
+	 * if SLICE is defined then only ft accesses come here
+	 * so break the rest off to another function for SLICE access.
+	 */
+	return (ENOTTY);
+}
+
+/*
+ * Slice ioctls come here
+ */
+static int
+fdsioctl( void *private, int cmd, caddr_t addr, int flag, struct proc *p)
+{
+	struct	subdev *sd = private;
+ 	fd_p	fd	= sd->drive;
+ 	fdu_t	fdu	= fd->unit;
+	fdc_p	fdc	= fd->fdc;
+	fdcu_t	fdcu	= fdc->fdcu;
+	size_t	fdblk;
+	int	error	= 0;
+#endif	/* SLICE */
 	fdblk = 128 << fd->ft->secsize;
 
 	switch (cmd)
 	{
+#ifndef	SLICE
 	case DIOCGDINFO:
 		bzero(buffer, sizeof (buffer));
 		dl = (struct disklabel *)buffer;
@@ -1908,7 +2131,7 @@ fdioctl(dev, cmd, addr, flag, p)
 		error = writedisklabel(dev, fdstrategy,
 				       (struct disklabel *)buffer);
 		break;
-
+#endif	/* !SLICE */
 	case FD_FORM:
 		if((flag & FWRITE) == 0)
 			error = EBADF;	/* must be opened for writing */
@@ -1916,26 +2139,30 @@ fdioctl(dev, cmd, addr, flag, p)
 			FD_FORMAT_VERSION)
 			error = EINVAL;	/* wrong version of formatting prog */
 		else
+#ifdef	SLICE
+			error = fdformat(sd, (struct fd_formb *)addr, p);
+#else
 			error = fdformat(dev, (struct fd_formb *)addr, p);
+#endif
 		break;
 
 	case FD_GTYPE:                  /* get drive type */
-		*(struct fd_type *)addr = *fd_data[FDUNIT(minor(dev))].ft;
+		*(struct fd_type *)addr = *fd->ft;
 		break;
 
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
 		if(suser(p->p_ucred, &p->p_acflag) != 0)
 			return EPERM;
-		*fd_data[FDUNIT(minor(dev))].ft = *(struct fd_type *)addr;
+		*fd->ft = *(struct fd_type *)addr;
 		break;
 
 	case FD_GOPTS:			/* get drive options */
-		*(int *)addr = fd_data[FDUNIT(minor(dev))].options;
+		*(int *)addr = fd->options;
 		break;
 
 	case FD_SOPTS:			/* set drive options */
-		fd_data[FDUNIT(minor(dev))].options = *(int *)addr;
+		fd->options = *(int *)addr;
 		break;
 
 	default:
@@ -1959,7 +2186,32 @@ static void 	fd_drvinit(void *notused )
 
 SYSINIT(fddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,fd_drvinit,NULL)
 
+
+#ifdef	SLICE
+static int
+fdsopen(void *private, int flags, int mode, struct proc *p)
+{
+	struct subdev *sd;
+
+	sd = private;
+
+	return(Fdopen(makedev(0,sd->minor), 0 , 0, p));
+}
+
+static void
+fdsclose(void *private, int flags, int mode, struct proc *p)
+{
+	struct subdev *sd;
+
+	sd = private;
+
+	fdclose(makedev(0,sd->minor), 0 , 0, p);
+	return ;
+}
+
+#endif	/* SLICE */
 #endif
+
 /*
  * Hello emacs, these are the
  * Local Variables:
