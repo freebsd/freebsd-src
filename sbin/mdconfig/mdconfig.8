@@ -158,8 +158,7 @@ To create and mount a 128MByte swap backed filesystem on
 .Bd -literal -offset indent
 mdconfig -a -t swap -s 128M -u 10
 disklabel -r -w md10 auto
-newfs /dev/md10c
-tunefs -n enable /dev/md10c
+newfs -U /dev/md10c
 mount /dev/md10c /tmp
 chmod 1777 /tmp
 .Ed
