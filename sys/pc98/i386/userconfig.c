@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.71 1999/04/10 04:44:33 kato Exp $
+ **      $Id: userconfig.c,v 1.72 1999/04/18 14:42:16 kato Exp $
  **/
 
 /**
@@ -133,7 +133,9 @@
 #include <i386/isa/pnp.h>
 #endif
 
+#if NPCI > 0
 #include <pci/pcivar.h>
+#endif
 
 static MALLOC_DEFINE(M_DEVL, "isa_devlist", "isa_device lists in userconfig()");
 
@@ -2531,7 +2533,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.71 1999/04/10 04:44:33 kato Exp $
+ *      $Id: userconfig.c,v 1.72 1999/04/18 14:42:16 kato Exp $
  */
 
 #include "scbus.h"
