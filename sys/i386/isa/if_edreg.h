@@ -1,9 +1,13 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 2.1 1993/11/22 10:52:33 davidg Exp davidg $
+ * $Id: if_edreg.h,v 2.2 1993/11/29 16:33:39 davidg Exp davidg $
  *
  * Modification history
+ *
+ * Revision 2.2  1993/11/29  16:33:39  davidg
+ * From Thomas Sandford <t.d.g.sandford@comp.brad.ac.uk>
+ * Add support for the 8013W board type
  *
  * Revision 2.1  1993/11/22  10:52:33  davidg
  * patch to add support for SMC8216 (Elite-Ultra) boards
@@ -674,6 +678,7 @@ struct ed_ring	{
 #define ED_TYPE_WD8003S		0x02
 #define ED_TYPE_WD8003E		0x03
 #define ED_TYPE_WD8013EBT	0x05
+#define ED_TYPE_WD8013W		0x26
 #define ED_TYPE_WD8013EP	0x27
 #define ED_TYPE_WD8013WC	0x28
 #define ED_TYPE_WD8013EBP	0x2c
