@@ -50,7 +50,7 @@ prompt_term(char **termp, char **termcapp)
 	    fflush(stdout);
 	    fgets(str, 80, stdin);
 	    i = str[0] - '0';
-	    if (i > 0 && i < 5) {
+	    if (i > 0 && i < 6) {
 		*termp = (char *)lookup[i - 1].term;
 		*termcapp = (char *)lookup[i - 1].termcap;
 		break;
