@@ -261,7 +261,7 @@ ttyclose(struct tty *tp)
 	funsetown(&tp->t_sigio);
 	s = spltty();
 	if (constty == tp)
-		constty = NULL;
+		constty_clear();
 
 	ttyflush(tp, FREAD | FWRITE);
 	clist_free_cblocks(&tp->t_canq);
@@ -871,9 +871,9 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 			if (error)
 				return (error);
 
-			constty = tp;
+			constty_set(tp);
 		} else if (tp == constty)
-			constty = NULL;
+			constty_clear();
 		break;
 	case TIOCDRAIN:			/* wait till output drained */
 		error = ttywait(tp);
