@@ -1536,7 +1536,7 @@ cvt(double value, int ndigits, int flags, char *sign, int *decpt,
 		/* print trailing zeros */
 		bp = digits + ndigits;
 		if (ch == 'f') {
-			if (*digits == '0' && value)
+			if ((*digits == '0' || *digits == '\0') && value)
 				*decpt = -ndigits + 1;
 			bp += *decpt;
 		}
