@@ -3,7 +3,7 @@
  *
  * (C) 1991 Linus Torvalds
  *
- *	$Id$
+ *	$Id: math_emu.h,v 1.5 1997/02/22 09:32:27 peter Exp $
  */
 #ifndef _LINUX_MATH_EMU_H
 #define _LINUX_MATH_EMU_H
@@ -12,14 +12,14 @@
 (((volatile void (*)(struct info *,unsigned int)) __math_abort)((x),(y)))*/
 
 /*
- * Gcc forces this stupid alignment problem: I want to use only two longs
+ * Gcc forces this stupid alignment problem: I want to use only two int32_t's
  * for the temporary real 64-bit mantissa, but then gcc aligns out the
  * structure to 12 bytes which breaks things in math_emulate.c. Shit. I
  * want some kind of "no-alignt" pragma or something.
  */
 
 typedef struct {
-	long a,b;
+	int32_t a,b;
 	short exponent;
 } temp_real;
 
@@ -32,13 +32,13 @@ typedef struct {
 ((*(long long *) (b) = *(long long *) (a)),((b)->exponent = (a)->exponent))
 
 typedef struct {
-	long a,b;
+	int32_t a,b;
 } long_real;
 
-typedef long short_real;
+typedef int32_t short_real;
 
 typedef struct {
-	long a,b;
+	int32_t a,b;
 	short sign;
 } temp_int;
 
@@ -59,14 +59,14 @@ struct swd {
 	int b:1;
 };
 struct i387_struct {
-	long	cwd;
-	long	swd;
-	long	twd;
-	long	fip;
-	long	fcs;
-	long	foo;
-	long	fos;
-	long	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
+	int32_t	cwd;
+	int32_t	swd;
+	int32_t	twd;
+	int32_t	fip;
+	int32_t	fcs;
+	int32_t	foo;
+	int32_t	fos;
+	int32_t	st_space[20];	/* 8*10 bytes for each FP-reg = 80 bytes */
 };
 
 #define I387 (*(struct i387_struct *)&(((struct pcb *)curproc->p_addr)->pcb_savefpu))
