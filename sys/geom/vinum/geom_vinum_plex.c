@@ -342,11 +342,12 @@ static struct g_geom *
 gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct g_geom *gp;
-	struct g_consumer *cp;
+	struct g_consumer *cp, *cp2;
 	struct g_provider *pp2;
 	struct gv_plex *p;
 	struct gv_sd *s;
 	struct gv_softc *sc;
+	int error;
 
 	g_trace(G_T_TOPOLOGY, "gv_plex_taste(%s, %s)", mp->name, pp->name);
 	g_topology_assert();
@@ -382,9 +383,27 @@ gv_plex_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	/* Yes, there is already a geom, so we just add the consumer. */
 	if (gp != NULL) {
+		cp2 = LIST_FIRST(&gp->consumer);
 		/* Need to attach a new consumer to this subdisk. */
 		cp = g_new_consumer(gp);
-		g_attach(cp, pp);
+		error = g_attach(cp, pp);
+		if (error) {
+			printf("geom_vinum: couldn't attach consumer to %s\n",
+			    pp->name);
+			g_destroy_consumer(cp);
+			return (NULL);
+		}
+		/* Adjust the access counts of the new consumer. */
+		if ((cp2 != NULL) && (cp2->acr || cp2->acw || cp2->ace)) {
+			error = g_access(cp, cp2->acr, cp2->acw, cp2->ace);
+			if (error) {
+				printf("geom_vinum: couldn't set access counts"
+				    " for consumer on %s\n", pp->name);
+				g_detach(cp);
+				g_destroy_consumer(cp);
+				return (NULL);
+			}
+		}
 		s->consumer = cp;
 
 		/* Adjust the size of the providers this plex has. */
