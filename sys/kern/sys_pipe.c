@@ -258,10 +258,12 @@ pipe(td, uap)
 		FILEDESC_LOCK(fdp);
 		if (fdp->fd_ofiles[td->td_retval[0]] == rf) {
 			fdp->fd_ofiles[td->td_retval[0]] = NULL;
+			fdunused(fdp, td->td_retval[0]);
 			FILEDESC_UNLOCK(fdp);
 			fdrop(rf, td);
-		} else
+		} else {
 			FILEDESC_UNLOCK(fdp);
+		}
 		fdrop(rf, td);
 		/* rpipe has been closed by fdrop(). */
 		pipeclose(wpipe);
