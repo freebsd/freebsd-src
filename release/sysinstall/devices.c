@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35.2.2 1995/06/01 21:37:11 jkh Exp $
+ * $Id: devices.c,v 1.35.2.3 1995/06/02 00:03:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -352,8 +352,7 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
     for (i = 0; devs[i]; i++) {
 	tmp->items[i].title = devs[i]->name;
 	for (j = 0; device_names[j].name; j++) {
-	    if (!strncmp(devs[i]->name, device_names[j].name,
-			 strlen(device_names[j].name))) {
+	    if (!strncmp(devs[i]->name, device_names[j].name, strlen(device_names[j].name))) {
 		tmp->items[i].prompt = device_names[j].description;
 		break;
 	    }
@@ -363,6 +362,7 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)())
 	tmp->items[i].type = DMENU_CALL;
 	tmp->items[i].ptr = hook;
 	tmp->items[i].disabled = FALSE;
+	tmp->items[i].check = NULL;
     }
     tmp->items[i].type = DMENU_NOP;
     tmp->items[i].title = NULL;

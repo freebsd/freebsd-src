@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.4 1995/06/01 05:41:50 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.5 1995/06/01 22:32:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -85,7 +85,14 @@
 #define DISK_LABELLED		"_diskLabelled"
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
-#define NO_CONFIRMATION		"noConfirmation"
+
+#define OPT_NO_CONFIRM		0x1
+#define OPT_NFS_SECURE		0x2
+#define OPT_DEBUG		0x4
+#define OPT_FTP_PASSIVE		0x8
+#define OPT_FTP_RESELECT	0x10
+#define OPT_SLOW_ETHER		0x20
+
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"
@@ -111,6 +118,7 @@ typedef enum {
     DMENU_SYSTEM_COMMAND_BOX,		/* Same as above, but in prgbox	*/
     DMENU_SET_VARIABLE,			/* Set an environment/system var */
     DMENU_SET_FLAG,			/* Set flag in an unsigned int	*/
+    DMENU_SET_VALUE,			/* Set unsigned int to value	*/
     DMENU_CALL,				/* Call back a C function	*/
     DMENU_CANCEL,			/* Cancel out of this menu	*/
     DMENU_NOP,				/* Do nothing special for item	*/
@@ -123,6 +131,7 @@ typedef struct _dmenuItem {
     void *ptr;				/* Generic data ptr		*/
     u_long parm;			/* Parameter for above		*/
     Boolean disabled;			/* Are we temporarily disabled?	*/
+    char * (*check)(struct _dmenuItem *); /* Our state                  */
 } DMenuItem;
 
 typedef struct _dmenu {
@@ -226,6 +235,8 @@ extern unsigned int	SrcDists;		/* Which src distributions we want		*/
 extern unsigned int	XF86Dists;		/* Which XFree86 dists we want			*/
 extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
+extern unsigned int	OptFlags;		/* Global options */
+extern int		BootMgr;		/* Which boot manager to use 			*/
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
@@ -233,7 +244,6 @@ extern DMenu		MenuConfigure;		/* Final configuration menu			*/
 extern DMenu		MenuDocumentation;	/* Documentation menu				*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
-extern DMenu		MenuOptionsFTP;		/* FTP options menu				*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
@@ -318,6 +328,8 @@ extern void	distExtractAll(void);
 /* dmenu.c */
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
 extern Boolean	dmenuOpenSimple(DMenu *menu);
+extern char     *dmenuFlagCheck(DMenuItem *item);
+extern char     *dmenuRadioCheck(DMenuItem *item);
 
 /* dos.c */
 extern Boolean	mediaInitDOS(Device *dev);

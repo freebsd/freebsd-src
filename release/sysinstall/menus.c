@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.9 1995/06/01 09:52:01 jkh Exp $
+ * $Id: menus.c,v 1.41.2.10 1995/06/01 21:04:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -106,10 +106,6 @@ answers in the FAQ.",
 
 /*
  * The language selection menu.
- *
- * Note:  The RADIO menus use a slightly different syntax.  If an item
- * name starts with `*', it is considered to be "ON" by default,
- * otherwise off.
  */
 DMenu MenuOptionsLanguage = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
@@ -195,7 +191,7 @@ choice.  Also note that not all sites carry every possible distribution!\n\
 Distributions other than the basic user set are only guaranteed to be\n\
 available from the Primary site.\n\n\
 If the first site selected doesn't respond, try one of the alternates.\n\
-You may also wish to investigate the Ftp options menu in case of trouble.\n\
+You may also wish to investigate the options menu in case of trouble.\n\
 To specify a URL not in this list, chose \"other\".",
     "Select a site that's close!",
     "install.hlp",
@@ -355,38 +351,51 @@ the list of distributions yourself, simply select \"custom\".",
       { NULL } },
 };
 
+static char *
+srcFlagCheck(DMenuItem *item)
+{
+    return (Dists & DIST_SRC) ? "YES" : "NO";
+}
+
+static char *
+x11FlagCheck(DMenuItem *item)
+{
+    return (Dists & DIST_XF86) ? "YES" : "NO";
+}
+
 DMenu MenuDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  Some\n
 of the most generally useful distributions are already checked, and\n\
-selecting OK at this stage will chose them as defaults.",
+selecting OK at this stage will chose them as defaults.\n\
+WARNING:  Do not export the DES distribution out of the U.S.!",
     NULL,
     NULL,
-    { { "*bin", "Binary base distribution (required) [36MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_BIN, 0		},
+    { { "bin", "Binary base distribution (required) [36MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_BIN, 0, dmenuFlagCheck	},
       { "commercial", "Commercial demos and shareware [10MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_COMMERCIAL, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_COMMERCIAL, 0, dmenuFlagCheck	},
       { "compat1x", "FreeBSD 1.x binary compatability package [2MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_COMPAT1X, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_COMPAT1X, 0, dmenuFlagCheck	},
       { "compat20", "FreeBSD 2.0 binary compatability package [2MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_COMPAT20, 0, dmenuFlagCheck	},
       { "DES", "DES encryption code and sources [.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_DES, 0		},
+	DMENU_SET_FLAG,	&Dists, DIST_DES, 0, dmenuFlagCheck		},
       { "dict", "Spelling checker dictionary files [4.2MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0		},
+	DMENU_SET_FLAG,	&Dists, DIST_DICT, 0, dmenuFlagCheck		},
       { "games", "Games and other amusements (non-commercial) [6.4MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_GAMES, 0		},
+	DMENU_SET_FLAG,	&Dists, DIST_GAMES, 0, dmenuFlagCheck		},
       { "info", "GNU info files [4.1MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_INFO, 0		},
-      { "*man", "System manual pages - strongly recommended [3.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_MANPAGES, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_INFO, 0, dmenuFlagCheck		},
+      { "man", "System manual pages - strongly recommended [3.3MB]",
+	DMENU_SET_FLAG,	&Dists, DIST_MANPAGES, 0, dmenuFlagCheck	},
       { "proflibs", "Profiled versions of the libraries [3.3MB]",
-	DMENU_SET_FLAG,	&Dists, DIST_PROFLIBS, 0	},
+	DMENU_SET_FLAG,	&Dists, DIST_PROFLIBS, 0, dmenuFlagCheck	},
       { "src", "Sources for everything but DES [120MB]",
-	DMENU_CALL,	distSetSrc, 0			},
+	DMENU_CALL,	distSetSrc, 0, 0, srcFlagCheck			},
       { "XFree86", "The XFree86 3.1.1L distribution [?]",
-	DMENU_SUBMENU,	&MenuXF86Select, 0		},
+	DMENU_SUBMENU,	&MenuXF86Select, 0, 0, x11FlagCheck		},
       { NULL } },
 };
 
@@ -398,35 +407,45 @@ you wish to install.",
     NULL,
     NULL,
     { { "base", "top-level files in /usr/src [300K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_BASE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_BASE, 0, dmenuFlagCheck	},
       { "gnu", "/usr/src/gnu (software from the GNU Project) [42MB]]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GNU, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GNU, 0, dmenuFlagCheck	},
       { "etc", "/usr/src/etc (miscellaneous system files) [460K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_ETC, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_ETC, 0, dmenuFlagCheck	},
       { "games", "/usr/src/games (diversions) [7.8MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GAMES, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_GAMES, 0, dmenuFlagCheck	},
       { "include", "/usr/src/include (header files) [467K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_INCLUDE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_INCLUDE, 0, dmenuFlagCheck	},
       { "lib", "/usr/src/lib (system libraries) [9.2MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIB, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIB, 0, dmenuFlagCheck	},
       { "libexec", "/usr/src/libexec (system programs) [1.2MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIBEXEC, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LIBEXEC, 0, dmenuFlagCheck	},
       { "lkm", "/usr/src/lkm (Loadable Kernel Modules) [193K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LKM, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_LKM, 0, dmenuFlagCheck	},
       { "release", "/usr/src/release (release-generation tools) [533K]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_RELEASE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_RELEASE, 0, dmenuFlagCheck	},
       { "sbin", "/usr/src/sbin (system binaries) [1.3MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SBIN, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SBIN, 0, dmenuFlagCheck	},
       { "share", "/usr/src/share (documents and shared files) [10MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SHARE, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SHARE, 0, dmenuFlagCheck	},
       { "sys", "/usr/src/sys (FreeBSD kernel) [13MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SYS, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_SYS, 0, dmenuFlagCheck	},
       { "ubin", "/usr/src/usr.bin (user binaries) [13MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_UBIN, 0, dmenuFlagCheck	},
       { "usbin", "/usr/src/usr.sbin (aux system binaries) [14MB]",
-	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0	},
+	DMENU_SET_FLAG,	&SrcDists, DIST_SRC_USBIN, 0, dmenuFlagCheck	},
       { NULL } },
 };
+
+static int
+clearx11(char *str)
+{
+    XF86Dists = 0;
+    XF86ServerDists = 0;
+    XF86FontDists = 0;
+    Dists &= ~DIST_XF86;
+    return 1;
+}
 
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
@@ -442,6 +461,8 @@ components set and at least one entry from the Server and Font set menus.",
 	DMENU_SUBMENU, &MenuXF86SelectServer, 0, 0	},
       { "Fonts", "Font set menu",					/* F */
 	DMENU_SUBMENU, &MenuXF86SelectFonts, 0, 0	},
+      { "Clear", "Reset XFree86 distribution list",
+	DMENU_CALL, clearx11, 0, 0, 0			},
       { "Exit", "Exit this menu (returning to previous)",		/* E */
 	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
@@ -450,30 +471,29 @@ components set and at least one entry from the Server and Font set menus.",
 DMenu MenuXF86SelectCore = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "XFree86 3.1.1 base distribution types",
-    "Please check off the basic XFree86 components you wish to install.\n\
-Those deemed most generally useful are already checked off for you.",
+    "Please check off the basic XFree86 components you wish to install.",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "*bin", "X client applications and shared libs [4MB].",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0	},
-      { "*lib", "Data files needed at runtime [600K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LIB, 0	},
+    { { "bin", "X client applications and shared libs [4MB].",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0, dmenuFlagCheck	},
+      { "lib", "Data files needed at runtime [600K]",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LIB, 0, dmenuFlagCheck	},
       { "xicf", "Customizable xinit runtime configuration file [100K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XINIT, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XINIT, 0, dmenuFlagCheck	},
       { "xdcf", "Customizable xdm runtime configuration file [100K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XDMCF, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_XDMCF, 0, dmenuFlagCheck	},
       { "doc", "READMEs and XFree86 specific man pages [500K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_DOC, 0	},
-      { "*man", "Man pages (except XFree86 specific ones) [1.2MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_MAN, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_DOC, 0, dmenuFlagCheck	},
+      { "man", "Man pages (except XFree86 specific ones) [1.2MB]",
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_MAN, 0, dmenuFlagCheck	},
       { "prog", "Programmer's header and library files [4MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PROG, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PROG, 0, dmenuFlagCheck	},
       { "link", "X Server reconfiguration kit [7.8MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_LINK, 0, dmenuFlagCheck	},
       { "pex", "PEX fonts and libs needed by PEX apps [500K]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_PEX, 0, dmenuFlagCheck	},
       { "sources", "XFree86 3.1.1u1 source + contrib distribution [200MB]",
-	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_SRC, 0	},
+	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_SRC, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
@@ -486,16 +506,16 @@ install.  At the minimum, you should install the standard\n\
 (these are selected by default).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "*fnts", "Standard 75 DPI and miscellaneous fonts [3.6MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_MISC, 0		},
+    { { "fnts", "Standard 75 DPI and miscellaneous fonts [3.6MB]",
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_MISC, 0, dmenuFlagCheck		},
       { "f100", "100 DPI fonts [1.8MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_100, 0		},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_100, 0, dmenuFlagCheck		},
       { "fscl", "Speedo and Type scalable fonts [1.6MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SCALE, 0	},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SCALE, 0, dmenuFlagCheck	},
       { "non", "Japanese, Chinese and other non-english fonts [3.3MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_NON, 0		},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_NON, 0, dmenuFlagCheck		},
       { "server", "Font server [0.3MB]",
-	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SERVER, 0	},
+	DMENU_SET_FLAG,	&XF86FontDists, DIST_XF86_FONTS_SERVER, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
@@ -508,28 +528,28 @@ it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
 Mono servers are particularly well-suited to most LCD displays).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86.hlp",
-    { { "*SVGA", "Standard VGA or Super VGA display [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_SVGA, 0	},
+    { { "SVGA", "Standard VGA or Super VGA display [1MB]",
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_SVGA, 0, dmenuFlagCheck	},
       { "VGA16", "Standard 16 color VGA display [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_VGA16, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_VGA16, 0, dmenuFlagCheck	},
       { "Mono", "Standard Monochrome display [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MONO, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MONO, 0, dmenuFlagCheck	},
       { "8514", "8-bit (256 color) IBM 8514 or compatible card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_8514, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_8514, 0, dmenuFlagCheck	},
       { "AGX", "8-bit AGX card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_AGX, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_AGX, 0, dmenuFlagCheck	},
       { "Mch3", "8 and 16-bit (65K color) for ATI Mach32 card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH32, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH32, 0, dmenuFlagCheck	},
       { "Mch8", "8-bit ATI Mach8 card [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH8, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_MACH8, 0, dmenuFlagCheck	},
       { "P9K", "8, 16, and 24-bit color for Weitek P9000 based boards [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_P9000, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_P9000, 0, dmenuFlagCheck	},
       { "S3", "8, 16 and 24-bit color for S3 based boards [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_S3, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_S3, 0, dmenuFlagCheck	},
       { "W32", "8-bit Color for ET4000/W32, /W32i and /W32p cards [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_W32, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_W32, 0, dmenuFlagCheck	},
       { "nest", "A nested server for testing purposes [1MB]",
-	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_NEST, 0	},
+	DMENU_SET_FLAG,	&XF86ServerDists, DIST_XF86_SERVER_NEST, 0, dmenuFlagCheck	},
       { NULL } },
 };
 
@@ -549,52 +569,41 @@ and press [SPACE].",
     { { NULL } },
 };
 
+/* Local work func for MenuOptions */
+static int
+clearFlags(char *str)
+{
+    OptFlags = 0;
+    return 1;  /* Gross, but forces menu rebuild */
+}
+
 /* The installation options menu */
 DMenu MenuOptions = {
-    DMENU_NORMAL_TYPE,
+    DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Choose Installation Options",
     "The following options control how this utility will deal\n\
 with various possible error conditions and how verbose it will\n\
 be at various stages.",
-    NULL,
-    NULL,
-    { { "Ftp Options", "Ftp options menu",
-	DMENU_SUBMENU,		&MenuOptionsFTP, 0, 0		},
-      { "NFS Secure", "NFS server talks only on a secure port",
-	DMENU_SET_VARIABLE,	"nfsServerSecure=yes", 0, 0	},
+    "Press F1 for more help on these options",
+    "options.hlp",
+    { { "NFS Secure", "NFS server talks only on a secure port",
+	DMENU_SET_FLAG,		&OptFlags, OPT_NFS_SECURE, 0, dmenuFlagCheck	},
       { "NFS Slow", "User is using a slow PC or ethernet card",
-	DMENU_SET_VARIABLE,	"nfsSlowPC=yes", 0, 0		},
-      { "Extra Debugging", "Toggle the extra debugging flag",
-	DMENU_SET_VARIABLE,	"debug=yes", 0, 0		},
-      { "No Debugging", "Turn the extra debugging flag off",
-	DMENU_SET_VARIABLE,	"debug=no", 0, 0		},
-      { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
-	DMENU_SET_VARIABLE,	"noConfirmation=Yes", 0, 0	},
-      { "Exit", "Exit this menu (returning to previous)",
-	DMENU_CANCEL, NULL, 0, 0 },
-      { NULL } },
-};
-
-DMenu MenuOptionsFTP = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
-    "Choose FTP Options",
-    "Please indicate how you would like FTP to deal with potential error\n\
-conditions, the default behavior being to Abort on transfer errors.\n\
-If you are behind an IP firewall, you will also probably wish to\n\
-select passive mode transfers (it's generally OK to set this in any\n\
-case as almost all servers support it, firewalled or not).",
-    NULL,
-    NULL,
-    { { "FTP Retry", "On transfer failure, retry same host",
-	DMENU_SET_VARIABLE,	"ftpRetryType=loop", 0, 0	},
+	DMENU_SET_FLAG,		&OptFlags, OPT_SLOW_ETHER, 0, dmenuFlagCheck		},
       { "FTP Reselect", "On transfer failure, ask for another host",
-	DMENU_SET_VARIABLE,	"ftpRetryType=reselect", 0, 0	},
-      { "FTP Abort", "On transfer failure, abort installation",
-	DMENU_SET_VARIABLE,	"ftpRetryType=abort", 0, 0	},
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_RESELECT, 0, dmenuFlagCheck	},
       { "FTP passive", "Use \"passive mode\" for firewalled FTP",
-	DMENU_SET_VARIABLE,	"ftpPassive=yes", 0, 0		},
+	DMENU_SET_FLAG,		&OptFlags, OPT_FTP_PASSIVE, 0, dmenuFlagCheck	},
+      { "Extra Debugging", "Toggle the extra debugging flag",
+	DMENU_SET_FLAG,		&OptFlags, OPT_DEBUG, 0, dmenuFlagCheck	},
+      { "Yes To All", "Assume \"Yes\" answers to all non-critical dialogs",
+	DMENU_SET_FLAG,	&OptFlags, OPT_NO_CONFIRM, 0, dmenuFlagCheck	},
       { "FTP userpass", "Specify username and password instead of anonymous",
 	DMENU_CALL, mediaSetFtpUserPass, 0, 0			},
+      { "Clear", "Clear All Option Flags",
+	DMENU_CALL,		clearFlags, 0, 0 },
+      { "Exit", "Exit this menu (returning to previous)",
+	DMENU_CANCEL, NULL, 0, 0 },
       { NULL } },
 };
 
@@ -641,12 +650,12 @@ one, select \"standard\".  If you would prefer your Master Boot\n\
 Record to remain untouched, then select \"none\".",
     "Press F1 to read the installation guide",
     "install.hlp",
-    { { "*BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
-	DMENU_SET_VARIABLE,	"bootManager=bteasy", 0, 0	},
+    { { "BootMgr", "Install the FreeBSD Boot Manager (\"Booteasy\")", /* B */
+	DMENU_SET_VALUE,	&BootMgr, 0, 0, dmenuRadioCheck	},
       { "Standard", "Use a standard MBR (no boot manager)",	/* S */
-	DMENU_SET_VARIABLE,	"bootManager=mbr", 0, 0		},
+	DMENU_SET_VALUE,	&BootMgr, 1, 0, dmenuRadioCheck		},
       { "None", "Leave the Master Boot Record untouched",	/* N */
-	DMENU_SET_VARIABLE,	"bootManager=none", 0, 0	},
+	DMENU_SET_VARIABLE,	&BootMgr, 2, 0, dmenuRadioCheck	},
       { NULL } },
 };
 

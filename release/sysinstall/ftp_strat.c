@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.2 1995/06/01 21:03:57 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.3 1995/06/02 01:07:24 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -61,17 +61,14 @@ static FTP_t ftp;
 int
 mediaSetFtpUserPass(char *str)
 {
-    char *user;
-    char *pass;
+    char *user, *pass;
 
     dialog_clear();
-    user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as");
-    pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!");
-    dialog_clear();
-    if (user)
+    if ((user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as")) != NULL)
 	variable_set2(FTP_USER, user);
-    if (pass)
+    if ((pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!")) != NULL)
 	variable_set2(FTP_PASS, pass);
+    dialog_clear();
     return 0;
 }
 
@@ -139,7 +136,7 @@ mediaInitFTP(Device *dev)
 	return FALSE;
     }
 
-    if (getenv("ftpPassive"))
+    if (OptFlags & OPT_FTP_PASSIVE)
 	FtpPassive(ftp, 1);
     FtpBinary(ftp, 1);
     if (dir && *dir != '\0') {

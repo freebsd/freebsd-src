@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.5 1995/06/01 09:59:41 jkh Exp $
+ * $Id: dist.c,v 1.35.2.6 1995/06/02 02:01:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -205,8 +205,7 @@ distSetEverything(char *str)
 int
 distSetSrc(char *str)
 {
-    if (!dmenuOpenSimple(&MenuSrcDistributions))
-	return 0;
+    dmenuOpenSimple(&MenuSrcDistributions);
     if (SrcDists)
 	Dists |= DIST_SRC;
     return 0;
@@ -215,8 +214,7 @@ distSetSrc(char *str)
 static int
 distSetXF86(void)
 {
-    if (!dmenuOpenSimple(&MenuXF86Select))
-	return 0;
+    dmenuOpenSimple(&MenuXF86Select);
     if (XF86ServerDists)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86FontDists)
@@ -365,7 +363,7 @@ retry:
 
     done:
 	if (!status) {
-	    if (getenv(NO_CONFIRMATION))
+	    if (OptFlags & OPT_NO_CONFIRM)
 		status = TRUE;
 	    else
 		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);

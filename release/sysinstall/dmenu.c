@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.4 1995/06/02 00:41:11 jkh Exp $
+ * $Id: dmenu.c,v 1.11.2.5 1995/06/02 02:01:05 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -56,6 +56,33 @@ dmenuOpenSimple(DMenu *menu)
     return dmenuOpen(menu, &choice, &scroll, &curr, &max);
 }
 
+/* Work functions for the state hook */
+char *
+dmenuFlagCheck(DMenuItem *item)
+{
+    if (*((unsigned int *)item->ptr) & item->parm)
+	return "ON";
+    return "OFF";
+}
+
+char *
+dmenuRadioCheck(DMenuItem *item)
+{
+    if (*((unsigned int *)item->ptr) == item->parm)
+	return "ON";
+    return "OFF";
+}
+
+static char *
+checkHookVal(DMenuItem *item)
+{
+    char *(*funcp)(DMenuItem *);
+
+    if (!(funcp = item->check))
+	return "NO";
+    return (*funcp)(item);
+}
+
 /* Traverse over an internal menu */
 Boolean
 dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
@@ -68,21 +95,9 @@ dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max)
     /* First, construct the menu */
     for (tmp = menu->items; tmp->title; tmp++) {
 	if (!tmp->disabled) {
-	    char *addme = NULL;
-	    char *title = tmp->title;
-	    char *prompt = tmp->prompt;
-
-	    if (menu->options & (DMENU_RADIO_TYPE | DMENU_MULTIPLE_TYPE)) {
-		if (*title == '*') {
-		    addme = "ON";
-		    ++title;
-		}
-		else
-		    addme = "OFF";
-	    }
-	    nitems = item_add_pair(nitems, title, prompt, curr, max);
-	    if (addme)
-		nitems = item_add(nitems, addme, curr, max);
+	    nitems = item_add_pair(nitems, tmp->title, tmp->prompt, curr, max);
+	    if (menu->options & (DMENU_RADIO_TYPE | DMENU_MULTIPLE_TYPE))
+		nitems = item_add(nitems, checkHookVal(tmp), curr, max);
 	    ++n;
 	}
     }
