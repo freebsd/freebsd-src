@@ -130,6 +130,9 @@ in6_pcbbind(inp, nam, cred)
 	u_short	lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
 
+	INP_INFO_WLOCK_ASSERT(pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	if (!in6_ifaddr) /* XXX broken! */
 		return (EADDRNOTAVAIL);
 	if (inp->inp_lport || !IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_laddr))
@@ -304,6 +307,9 @@ in6_pcbladdr(inp, nam, plocal_addr6)
 	if (sin6->sin6_port == 0)
 		return (EADDRNOTAVAIL);
 
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	/* KAME hack: embed scopeid */
 	if (in6_embedscope(&sin6->sin6_addr, sin6, inp, &ifp) != 0)
 		return EINVAL;
@@ -356,6 +362,9 @@ in6_pcbconnect(inp, nam, cred)
 	register struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)nam;
 	int error;
 
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	/*
 	 * Call inner routine, to assign local interface address.
 	 * in6_pcbladdr() may automatically fill in sin6_scope_id.
@@ -402,6 +411,10 @@ void
 in6_pcbdisconnect(inp)
 	struct inpcb *inp;
 {
+
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
+
 	bzero((caddr_t)&inp->in6p_faddr, sizeof(inp->in6p_faddr));
 	inp->inp_fport = 0;
 	/* clear flowinfo - draft-itojun-ipv6-flowlabel-api-00 */
@@ -420,6 +433,9 @@ in6_pcbdetach(inp)
 {
 	struct socket *so = inp->inp_socket;
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
+
+	INP_INFO_WLOCK_ASSERT(inp->inp_pcbinfo);
+	INP_LOCK_ASSERT(inp);
 
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	if (inp->in6p_sp != NULL)
