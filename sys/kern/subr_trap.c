@@ -634,7 +634,7 @@ trap_pfault(frame, usermode, eva)
 	struct proc *p = curproc;
 
 	if (frame->tf_err & PGEX_W)
-		ftype = VM_PROT_READ | VM_PROT_WRITE;
+		ftype = VM_PROT_WRITE;
 	else
 		ftype = VM_PROT_READ;
 
@@ -772,7 +772,7 @@ trap_pfault(frame, usermode, eva)
 	}
 
 	if (frame->tf_err & PGEX_W)
-		ftype = VM_PROT_READ | VM_PROT_WRITE;
+		ftype = VM_PROT_WRITE;
 	else
 		ftype = VM_PROT_READ;
 
@@ -993,7 +993,7 @@ int trapwrite(addr)
 	/*
 	 * fault the data page
 	 */
-	rv = vm_fault(&vm->vm_map, va, VM_PROT_READ|VM_PROT_WRITE, VM_FAULT_DIRTY);
+	rv = vm_fault(&vm->vm_map, va, VM_PROT_WRITE, VM_FAULT_DIRTY);
 
 	--p->p_lock;
 
