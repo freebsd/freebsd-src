@@ -35,20 +35,18 @@
 static char sccsid[] = "@(#)get_names.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#include <unistd.h>
+#include <string.h>
 #include <sys/param.h>
-#include <sys/socket.h>
-#include <protocols/talkd.h>
 #include <pwd.h>
 #include "talk.h"
 
-char	*getlogin();
-char	*ttyname();
-char	*rindex();
 extern	CTL_MSG msg;
 
 /*
  * Determine the local and remote user, tty, and machines
  */
+void
 get_names(argc, argv)
 	int argc;
 	char *argv[];

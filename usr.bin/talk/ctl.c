@@ -64,6 +64,7 @@ int	invitation_waiting = 0;
 
 CTL_MSG msg;
 
+void
 open_sockt()
 {
 	int length;
@@ -81,6 +82,7 @@ open_sockt()
 }
 
 /* open the ctl socket */
+void
 open_ctl()
 {
 	int length;
@@ -100,13 +102,14 @@ open_ctl()
 }
 
 /* print_addr is a debug print routine */
+void
 print_addr(addr)
 	struct sockaddr_in addr;
 {
 	int i;
 
-	printf("addr = %x, port = %o, family = %o zero = ",
-		addr.sin_addr, addr.sin_port, addr.sin_family);
+	printf("addr = %lx, port = %o, family = %o zero = ",
+		addr.sin_addr.s_addr, addr.sin_port, addr.sin_family);
 	for (i = 0; i<8;i++)
 	printf("%o ", (int)addr.sin_zero[i]);
 	putchar('\n');

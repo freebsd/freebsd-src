@@ -59,9 +59,9 @@ static char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
  * invitations.
  */
 int	local_id, remote_id;
-void	re_invite();
 jmp_buf invitebuf;
 
+void
 invite_remote()
 {
 	int nfd, read_mask, template, new_sockt;
@@ -117,8 +117,10 @@ invite_remote()
 /*
  * Routine called on interupt to re-invite the callee
  */
+/* ARGSUSED */
 void
-re_invite()
+re_invite(signo)
+	int signo;
 {
 
 	message("Ringing your party again");
@@ -147,6 +149,7 @@ static	char *answers[] = {
 /*
  * Transmit the invitation and process the response
  */
+void
 announce_invite()
 {
 	CTL_RESPONSE response;
@@ -167,6 +170,7 @@ announce_invite()
 /*
  * Tell the daemon to remove your invitation
  */
+void
 send_delete()
 {
 

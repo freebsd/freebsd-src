@@ -50,12 +50,15 @@ static char sccsid[] = "@(#)msgs.c	8.1 (Berkeley) 6/6/93";
 char	*current_state;
 int	current_line = 0;
 
+/* ARGSUSED */
 void
-disp_msg()
+disp_msg(signo)
+	int signo;
 {
 	message(current_state);
 }
 
+void
 start_msgs()
 {
 	struct itimerval itimer;
@@ -67,6 +70,7 @@ start_msgs()
 	setitimer(ITIMER_REAL, &itimer, (struct itimerval *)0);
 }
 
+void
 end_msgs()
 {
 	struct itimerval itimer;
