@@ -813,7 +813,8 @@ domem()
 	}
 	(void)printf("\nMemory Totals:  In Use    Free                Requests\n");
 	(void)printf("              %7ldK %6ldK    %20llu\n",
-	     (totuse + 1023) / 1024, (totfree + 1023) / 1024, totreq);
+	     (totuse + 1023) / 1024,
+	     (totfree + 1023) / 1024, (unsigned long long)totreq);
 }
 
 void
