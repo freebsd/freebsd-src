@@ -70,6 +70,13 @@ FILE __sF[3] = {
 };
 struct glue __sglue = { &uglue, 3, __sF };
 
+/*
+ * Forwards compatability hack.
+ */
+FILE *__stdinp = &__sF[0];
+FILE *__stdoutp = &__sF[1];
+FILE *__stderrp = &__sF[2];
+
 static struct glue *	moreglue __P((int));
 
 static struct glue *
