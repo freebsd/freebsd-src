@@ -21,9 +21,12 @@
  *
  * Modem chat module - send/expect style functions for getty
  * For semi-intelligent modem handling.
- *
- *	$Id: chat.c,v 1.3 1997/02/22 14:21:36 peter Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/stat.h>
@@ -31,11 +34,8 @@
 #include <sys/resource.h>
 #include <sys/ttydefaults.h>
 #include <sys/utsname.h>
-#include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <time.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <libutil.h>
 #include <locale.h>
@@ -44,8 +44,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#include <termios.h>
 #include <time.h>
+#include <termios.h>
 #include <unistd.h>
 #include <sys/socket.h>
 
@@ -169,8 +169,6 @@ read_chat(chatstr)
 				/* Read escapes */
 				for (q = r = (unsigned char *)p; *r; ++q)
 				{
-					int val;
-
 					if (*q == '\\')
 					{
 						/* handle special escapes */
@@ -480,7 +478,6 @@ getty_chat(scrstr, timeout, debug)
                         int i = r = 0;
 			int off = 0;
                         sig_t old_alarm;
-                        struct termios tneed;
 
                         /*
 			 * We need to be in raw mode for all this
