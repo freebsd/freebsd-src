@@ -1,24 +1,24 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id$
+#	$Id: Makefile,v 1.2 1995/01/11 04:29:38 wollman Exp $
 
 SUBDIR=	psd smm usd papers
 
 all-ps:
-	@echo ====\> Making PostScript documents
+	@${ECHO} ====\> Making PostScript documents
 	@${MAKE} ${MAKEFLAGS} PRINTER=ps ${SUBDIR}
 
 all-ascii:
-	@echo ====\> Making ASCII documents
+	@${ECHO} ====\> Making ASCII documents
 	@${MAKE} ${MAKEFLAGS} PRINTER=ascii ${SUBDIR}
 
 all:	all-ps all-ascii
 	
 install-ps:
-	@echo ====\> Installing PostScript documents
+	@${ECHO} ====\> Installing PostScript documents
 	@${MAKE} ${MAKEFLAGS} PRINTER=ps realinstall
 
 install-ascii:
-	@echo ====\> Installing ASCII documents
+	@${ECHO} ====\> Installing ASCII documents
 	@${MAKE} ${MAKEFLAGS} PRINTER=ascii realinstall
 
 install:	install-ps install-ascii
