@@ -78,11 +78,9 @@ const struct lc_time_T	_C_time_locale = {
 
 	/*
 	** c_fmt (ctime-compatible)
-	** Note that
-	**	"%a %b %d %H:%M:%S %Y"
-	** is used by Solaris 2.3.
+	** Not used, just compatibility placeholder.
 	*/
-	"%a %Ef %X %Y",
+	NULL,
 
 	/* am */
 	"AM",
