@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.20 1998/06/07 17:09:36 dfr Exp $
+ *	$Id: db_aout.c,v 1.21 1998/06/28 00:55:02 dfr Exp $
  */
 
 /*
@@ -34,6 +34,8 @@
  * Symbol table routines for a.out format files.
  */
 
+#if !defined(__ELF__) && !defined(__alpha__)
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -41,8 +43,6 @@
 
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
-
-#ifndef	DB_NO_AOUT
 
 #define _AOUT_INCLUDE_
 #include <nlist.h>
@@ -399,5 +399,4 @@ read_symtab_from_file(fp, symtab_name)
 
 }
 #endif
-
-#endif	/* DB_NO_AOUT */
+#endif
