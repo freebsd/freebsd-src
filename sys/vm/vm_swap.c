@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.18 1995/05/18 05:09:54 davidg Exp $
+ * $Id: vm_swap.c,v 1.19 1995/05/19 03:27:08 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -95,8 +95,7 @@ swstrategy(bp)
 		biodone(bp);
 		return;
 	}
-	if ((bp->b_dev = sp->sw_dev) == NODEV)
-		panic("swstrategy");
+	bp->b_dev = sp->sw_dev;
 	if (sp->sw_vp == NULL) {
 		bp->b_error = ENODEV;
 		bp->b_flags |= B_ERROR;
