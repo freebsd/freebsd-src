@@ -106,7 +106,7 @@ FILES+= screen.4th frames.4th beastie.4th
 FILESDIR_loader.conf=	/boot/defaults
 
 .if !exists(${DESTDIR}/boot/loader.rc)
-FILES+=	loader.rc
+FILES+=	${.CURDIR}/loader.rc
 .endif
 
 .include <${.CURDIR}/../Makefile.inc>
