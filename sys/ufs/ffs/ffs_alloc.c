@@ -841,7 +841,7 @@ ffs_valloc(pvp, mode, cred, vpp)
 		ipref = ffs_dirpref(pip);
 	else
 		ipref = pip->i_number;
-	if ((unsigned)ipref >= fs->fs_ncg * fs->fs_ipg)
+	if (ipref >= fs->fs_ncg * fs->fs_ipg)
 		ipref = 0;
 	cg = ino_to_cg(fs, ipref);
 	/*
@@ -1648,7 +1648,7 @@ gotit:
  * check if a block is free
  */
 static int
-ffs_isfreeblock(struct fs *fs, unsigned char *cp, ufs1_daddr_t h)
+ffs_isfreeblock(struct fs *fs, u_char *cp, ufs1_daddr_t h)
 {
 
 	switch ((int)fs->fs_frag) {
@@ -1896,8 +1896,8 @@ ffs_freefile(fs, devvp, ino, mode)
 		cgbno = fsbtodb(fs, cgtod(fs, cg));
 	}
 	if ((u_int)ino >= fs->fs_ipg * fs->fs_ncg)
-		panic("ffs_vfree: range: dev = %s, ino = %d, fs = %s",
-		    devtoname(dev), ino, fs->fs_fsmnt);
+		panic("ffs_freefile: range: dev = %s, ino = %lu, fs = %s",
+		    devtoname(dev), (u_long)ino, fs->fs_fsmnt);
 	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
 		brelse(bp);
 		return (error);
@@ -1915,7 +1915,7 @@ ffs_freefile(fs, devvp, ino, mode)
 		printf("dev = %s, ino = %lu, fs = %s\n", devtoname(dev),
 		    (u_long)ino + cg * fs->fs_ipg, fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
-			panic("ffs_vfree: freeing free inode");
+			panic("ffs_freefile: freeing free inode");
 	}
 	clrbit(inosused, ino);
 	if (ino < cgp->cg_irotor)
