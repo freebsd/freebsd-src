@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.97 1997/11/09 23:40:21 brian Exp $
+ * $Id: command.c,v 1.98 1997/11/11 22:58:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -290,8 +290,7 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
 	  LogPrintf(LogERROR, "%d: daemon: %s\n", p, strerror(errno));
 	  exit(1);
 	}
-      }
-      if (VarTerm)
+      } else if (VarTerm)
         fprintf(VarTerm, "ppp: Pausing until %s finishes\n", argv[0]);
       (void) execvp(argv[0], argv);
     } else {
