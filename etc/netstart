@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.35 1995/08/25 07:18:04 davidg Exp $
+#	$Id: netstart,v 1.36 1995/12/28 01:24:03 jkh Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -56,7 +56,7 @@ done
 
 if [ "x$gateway" != "xNO" ]; then
 	echo 'configuring host as a gateway.'
-	sysctl -w net.inet.ip.forwarding=1 >& /dev/null
+	sysctl -w net.inet.ip.forwarding=1 >/dev/null 2>&1
 fi
 
 if [ "x$routedflags" != "xNO" ] ; then
