@@ -28,7 +28,7 @@
  *
  *	from: @(#)auth_unix.h 1.8 88/02/08 SMI
  *	from: @(#)auth_unix.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: auth_unix.h,v 1.4 1996/01/30 23:31:42 mpp Exp $
+ * $FreeBSD$
  */
 
 /*

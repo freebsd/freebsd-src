@@ -55,7 +55,7 @@
 /*
  *      @(#)netdb.h	8.1 (Berkeley) 6/2/93
  *      From: Id: netdb.h,v 8.9 1996/11/19 08:39:29 vixie Exp $
- *	$Id: netdb.h,v 1.10 1997/08/16 23:32:42 steve Exp $
+ * $FreeBSD$
  */
 
 #ifndef _NETDB_H_

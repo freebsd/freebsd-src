@@ -47,7 +47,8 @@
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)rstat.x 1.2 87/09/18 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)rstat.x	2.2 88/08/01 4.0 RPCSRC";*/
-%static const char rcsid[] = "$Id: rstat.x,v 1.4 1997/05/28 04:38:20 wpaul Exp $";
+%static const char rcsid[] =
+%  "$FreeBSD$";
 %#endif /* not lint */
 
 #endif /* def RPC_HDR */

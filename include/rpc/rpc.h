@@ -28,7 +28,7 @@
  *
  *	from: @(#)rpc.h 1.9 88/02/08 SMI
  *	from: @(#)rpc.h	2.4 89/07/11 4.0 RPCSRC
- *	$Id: rpc.h,v 1.6 1996/12/30 13:59:39 peter Exp $
+ * $FreeBSD$
  */
 
 /*
