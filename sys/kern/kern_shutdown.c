@@ -307,7 +307,7 @@ boot(int howto)
 					/*
 					 * Allow interrupt threads to run
 					 */
-     					mi_switch(SW_VOL);
+     					mi_switch(SW_VOL, NULL);
      					mtx_unlock_spin(&sched_lock);
      					DELAY(1000);
    				}

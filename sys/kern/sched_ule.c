@@ -788,7 +788,7 @@ kseq_choose(struct kseq *kseq)
 		ke = runq_choose(kseq->ksq_curr);
 		if (ke == NULL) {
 			/*
-			 * We already swaped once and didn't get anywhere.
+			 * We already swapped once and didn't get anywhere.
 			 */
 			if (swap)
 				break;
@@ -1128,9 +1128,8 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
-sched_switch(struct thread *td)
+sched_switch(struct thread *td, struct thread *newtd)
 {
-	struct thread *newtd;
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -1147,7 +1146,9 @@ sched_switch(struct thread *td)
 	 * to the new cpu.  This is the case in sched_bind().
 	 */
 	if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
-		if (TD_IS_RUNNING(td)) {
+		if (td == PCPU_GET(idlethread))
+			TD_SET_CAN_RUN(td);
+		else if (TD_IS_RUNNING(td)) {
 			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
 			setrunqueue(td);
 		} else {
@@ -1163,7 +1164,10 @@ sched_switch(struct thread *td)
 				kse_reassign(ke);
 		}
 	}
-	newtd = choosethread();
+	if (newtd == NULL)
+		newtd = choosethread();
+	else
+		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
 	if (td != newtd)
 		cpu_switch(td, newtd);
 	sched_lock.mtx_lock = (uintptr_t)td;

@@ -242,7 +242,7 @@ ast(struct trapframe *framep)
 #endif
 		mtx_lock_spin(&sched_lock);
 		sched_prio(td, kg->kg_user_pri);
-		mi_switch(SW_INVOL);
+		mi_switch(SW_INVOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE
 		if (KTRPOINT(td, KTR_CSW))

@@ -559,7 +559,7 @@ turnstile_wait(struct turnstile *ts, struct lock_object *lock,
 		CTR4(KTR_LOCK, "%s: td %p blocked on [%p] %s", __func__, td,
 		    lock, lock->lo_name);
 
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL, NULL);
 
 	if (LOCK_LOG_TEST(lock, 0))
 		CTR4(KTR_LOCK, "%s: td %p free from blocked on [%p] %s",

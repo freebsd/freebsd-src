@@ -695,7 +695,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			    "_mtx_unlock_sleep: %p switching out lock=%p", m,
 			    (void *)m->mtx_lock);
 
-		mi_switch(SW_INVOL);
+		mi_switch(SW_INVOL, NULL);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
 			CTR2(KTR_LOCK, "_mtx_unlock_sleep: %p resuming lock=%p",
 			    m, (void *)m->mtx_lock);
