@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: scsi.c,v 1.4 1995/04/28 19:24:39 dufault Exp $
+ *	$Id: scsi.c,v 1.5 1995/05/01 12:35:05 dufault Exp $
  */
 
 #include <stdio.h>
@@ -194,7 +194,7 @@ int iget(void *hook, char *name)
 	arg = strtol(h->argv[h->got], 0, 0);
 	h->got++;
 
-	if (verbose && name)
+	if (verbose && name && *name)
 		printf("%s: %d\n", name, arg);
 
 	return arg;
