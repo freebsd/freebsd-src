@@ -90,6 +90,16 @@ pw_copy(ffd, tfd, pw)
 				goto err;
 			continue;
 		}
+		/*
+		 * Just copy comments and blank lines
+		 */
+		p = buf + strspn(buf, " \t\n");
+		if (*p == '\0' || *p == '#') {
+		        (void)fprintf(to, "%s", buf);
+			if (ferror(to))
+				goto err;
+			continue;
+		}
 		if (!(p = strchr(buf, ':'))) {
 			yp_error("%s: corrupted entry", passfile);
 			pw_error(NULL, 0, 1);
