@@ -12,7 +12,7 @@ SRCS=	fmt.c keyword.c nlist.c print.c ps.c
 CFLAGS+=-I${.CURDIR}/../../sys -DLAZY_PS
 DPADD=	${LIBM} ${LIBKVM}
 LDADD=	-lm -lkvm
-BINGRP=	kmem
-BINMODE=2555
+#BINGRP=	kmem
+#BINMODE=2555
 
 .include <bsd.prog.mk>
