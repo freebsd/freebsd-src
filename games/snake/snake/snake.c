@@ -888,7 +888,7 @@ int num;
 logit(msg)
 char *msg;
 {
-	long t;
+	time_t t;
 
 	if (logfile != NULL) {
 		time(&t);
