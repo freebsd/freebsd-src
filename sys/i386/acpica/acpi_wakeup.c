@@ -160,14 +160,14 @@ acpi_printcpu(void)
 }
 
 #define WAKECODE_FIXUP(offset, type, val) do	{		\
-	void	**addr;						\
-	addr = (void **)(sc->acpi_wakeaddr + offset);		\
-	(type *)*addr = val;					\
+	type	*addr;						\
+	addr = (type *)(sc->acpi_wakeaddr + offset);		\
+	*addr = val;						\
 } while (0)
 
 #define WAKECODE_BCOPY(offset, type, val) do	{		\
-	void	**addr;						\
-	addr = (void **)(sc->acpi_wakeaddr + offset);		\
+	void	*addr;						\
+	addr = (void *)(sc->acpi_wakeaddr + offset);		\
 	bcopy(&(val), addr, sizeof(type));			\
 } while (0)
 
@@ -233,7 +233,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(previous_ldt, uint16_t, r_ldt);
 		WAKECODE_BCOPY(previous_idt, struct region_descriptor, r_idt);
 
-		WAKECODE_FIXUP(where_to_recover, void, acpi_restorecpu);
+		WAKECODE_FIXUP(where_to_recover, void *, acpi_restorecpu);
 
 		WAKECODE_FIXUP(previous_ds,  uint16_t, r_ds);
 		WAKECODE_FIXUP(previous_es,  uint16_t, r_es);
