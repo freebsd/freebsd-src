@@ -35,7 +35,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include "ng_bluetooth.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
 
 /*
  * Bluetooth stack sysctl globals

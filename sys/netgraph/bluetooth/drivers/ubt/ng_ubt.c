@@ -52,10 +52,10 @@
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
-#include <ng_bluetooth.h>
-#include <ng_hci.h>
-#include "ng_ubt.h"
-#include "ng_ubt_var.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/include/ng_ubt.h>
+#include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
 
 /*
  * USB methods

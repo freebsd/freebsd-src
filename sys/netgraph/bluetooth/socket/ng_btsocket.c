@@ -44,13 +44,13 @@
 #include <sys/taskqueue.h>
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
-#include "ng_bluetooth.h"
-#include "ng_hci.h"
-#include "ng_l2cap.h"
-#include "ng_btsocket.h"
-#include "ng_btsocket_hci_raw.h"
-#include "ng_btsocket_l2cap.h"
-#include "ng_btsocket_rfcomm.h"
+#include <netgraph/bluetooth/include/ng_bluetooth.h>
+#include <netgraph/bluetooth/include/ng_hci.h>
+#include <netgraph/bluetooth/include/ng_l2cap.h>
+#include <netgraph/bluetooth/include/ng_btsocket.h>
+#include <netgraph/bluetooth/include/ng_btsocket_hci_raw.h>
+#include <netgraph/bluetooth/include/ng_btsocket_l2cap.h>
+#include <netgraph/bluetooth/include/ng_btsocket_rfcomm.h>
 
 static int			ng_btsocket_modevent (module_t, int, void *);
 extern struct domain		ng_btsocket_domain;
