@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.172 1996/09/30 23:00:45 sos Exp $
+ *  $Id: syscons.c,v 1.173 1996/09/30 23:10:35 sos Exp $
  */
 
 #include "sc.h"
@@ -202,7 +202,9 @@ static void remove_cutmarking(scr_stat *scp);
 static void save_palette(void);
 static void do_bell(scr_stat *scp, int pitch, int duration);
 static void blink_screen(scr_stat *scp);
+#ifdef SC_SPLASH_SCREEN
 static void toggle_splash_screen(scr_stat *scp);
+#endif
 
 struct  isa_driver scdriver = {
     scprobe, scattach, "sc", 1
@@ -2725,7 +2727,9 @@ next_code:
 	    switch (action) {
 	    /* LOCKING KEYS */
 	    case NLK:
+#ifdef SC_SPLASH_SCREEN
 		toggle_splash_screen(cur_console); /* SOS XXX */
+#endif
 		if (!nlkcnt) {
 		    nlkcnt++;
 		    if (cur_console->status & NLKED)
