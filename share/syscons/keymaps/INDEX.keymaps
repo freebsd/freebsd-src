@@ -291,6 +291,8 @@ swissgerman.cp850.kbd:fr:Suisse-Allemand Code Page 850
 swissgerman.cp850.kbd:pt:Suiço-Alemão Codepage 850
 swissgerman.cp850.kbd:es:Germanosuizo Codepage 850
 
+tr.iso9.q.kbd:en:Turkish ISO-8859-9
+
 uk.iso.kbd:en:United Kingdom ISO-8859-1
 uk.iso.kbd:de:Vereinigtes Königreich ISO-8859-1
 uk.iso.kbd:fr:Royaume Uni ISO-8859-1

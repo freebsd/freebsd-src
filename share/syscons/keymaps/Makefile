@@ -31,6 +31,7 @@ KEYMAPS+= spanish.iso.kbd spanish.iso.acc.kbd spanish.iso15.acc.kbd
 KEYMAPS+= swedish.iso.kbd swedish.cp850.kbd
 KEYMAPS+= swissfrench.iso.kbd swissfrench.iso.acc.kbd swissfrench.cp850.kbd
 KEYMAPS+= swissgerman.iso.kbd swissgerman.iso.acc.kbd swissgerman.cp850.kbd
+KEYMAPS+= tr.iso9.q.kbd
 KEYMAPS+= ua.koi8-u.kbd
 KEYMAPS+= uk.iso.kbd uk.iso-ctrl.kbd uk.cp850.kbd uk.cp850-ctrl.kbd
 KEYMAPS+= us.iso.kbd us.dvorak.kbd us.dvorakx.kbd us.emacs.kbd us.pc-ctrl.kbd
