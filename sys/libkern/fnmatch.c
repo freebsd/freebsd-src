@@ -187,8 +187,12 @@ rangematch(pattern, test, flags)
 			if (flags & FNM_CASEFOLD)
 				c2 = tolower((unsigned char)c2);
 
-			if (   __collate_range_cmp(c, test) <= 0
-			    && __collate_range_cmp(test, c2) <= 0
+			if (   (   __collate_load_error
+				&& c <= test && test <= c2
+			       )
+			    || (   __collate_range_cmp(c, test) <= 0
+				&& __collate_range_cmp(test, c2) <= 0
+			       )
 			   )
 				ok = 1;
 		} else if (c == test)
