@@ -949,6 +949,9 @@ geom/bde/g_bde.c		optional geom_bde
 geom/bde/g_bde_crypt.c		optional geom_bde
 geom/bde/g_bde_lock.c		optional geom_bde
 geom/bde/g_bde_work.c		optional geom_bde
+crypto/rijndael/rijndael-alg-fst.c	optional geom_bde
+crypto/rijndael/rijndael-api-fst.c	optional geom_bde
+crypto/sha2/sha2.c		optional geom_bde
 geom/geom_aes.c		optional geom_aes
 geom/geom_apple.c	optional geom_apple
 geom/geom_bsd.c		optional geom_bsd
@@ -974,8 +977,6 @@ geom/geom_subr.c	standard
 geom/geom_sunlabel.c	optional geom_sunlabel
 geom/geom_sunlabel_enc.c	optional geom_sunlabel
 geom/geom_vol_ffs.c	optional geom_vol
-crypto/rijndael/rijndael-alg-fst.c	optional geom
-crypto/rijndael/rijndael-api-fst.c	optional geom
 gnu/ext2fs/ext2_alloc.c		optional ext2fs \
 	warning "kernel contains GPL contaminated ext2fs filesystem"
 gnu/ext2fs/ext2_balloc.c	optional ext2fs
