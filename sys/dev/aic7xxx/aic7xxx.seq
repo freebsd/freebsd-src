@@ -37,7 +37,7 @@
  *OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  *SUCH DAMAGE.
  *
- *	$Id: aic7xxx.seq,v 1.16.4.26 1997/04/18 16:50:52 gibbs Exp $
+ *	$Id: aic7xxx.seq,v 1.16.4.27 1997/04/24 16:53:17 gibbs Exp $
  *
  *-M************************************************************************/
 
@@ -646,6 +646,15 @@ status_ok:
 
 complete:
 	/* Post the SCB and issue an interrupt */
+.if ( SCB_PAGING )
+	/*
+	 * Spin loop until there is space
+	 * in the QOUTFIFO.
+	 */
+	mov	A, FIFODEPTH;
+	cmp	CMDOUTCNT, A	je .;
+	inc	CMDOUTCNT;
+.endif
 	mov	QOUTFIFO,SCB_TAG;
 	mvi	INTSTAT,CMDCMPLT;
 	test	SCB_CONTROL, ABORT_SCB jz dma_next_scb;

@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.1.4.1 1997/04/19 01:24:58 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.1.4.2 1997/04/24 16:53:13 gibbs Exp $
  */
 
 /*
@@ -1070,6 +1070,21 @@ scratch_ram {
 		size		4
 	}
 	CUR_SCBID {
+		size		1
+	}
+	/*
+	 * Running count of commands placed in
+	 * the QOUTFIFO.  This is cleared by the
+	 * kernel driver every FIFODEPTH commands.
+	 */
+	CMDOUTCNT {
+		size		1
+	}
+	/*
+	 * Maximum number of entries allowed in
+	 * the QOUT/INFIFO.
+	 */
+	FIFODEPTH {
 		size		1
 	}
 	ARG_1 {

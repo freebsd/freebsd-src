@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.10.2.13 1997/02/18 04:27:08 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.14 1997/02/25 03:54:31 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -248,15 +248,18 @@ struct ahc_softc {
 #endif
 	volatile u_int8_t *maddr;
 	struct	scb_data *scb_data;
-	struct	ahc_busreset_args	busreset_args;
-	struct	ahc_busreset_args	busreset_args_b;
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
 	STAILQ_HEAD(, scb) waiting_scbs;/*
 					 * SCBs waiting ready to go but
 					 * waiting for space in the QINFIFO.
 					 */
+	STAILQ_HEAD(, scb) cmplete_scbs;/*
+					 * SCBs out of the QOUTFIFO, waiting
+					 * to be ahc_done'd.
+					 */
 	u_int8_t	activescbs;
+	u_int8_t	cmdoutcnt;
 	u_int16_t	needsdtr_orig;	/* Targets we initiate sync neg with */
 	u_int16_t	needwdtr_orig;	/* Targets we initiate wide neg with */
 	u_int16_t	needsdtr;	/* Current list of negotiated targets */
@@ -288,9 +291,6 @@ struct ahc_softc {
 	u_int8_t	unpause;
 	u_int8_t	pause;
 	u_int8_t	in_timeout;
-	u_int8_t	in_reset;
-#define	CHANNEL_A_RESET		0x01
-#define	CHANNEL_B_RESET		0x02
 };
 
 struct full_ahc_softc {
