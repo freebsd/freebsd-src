@@ -39,7 +39,7 @@
 .In sys/param.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_ACCESS "struct vnode *vp" "int mode" "struct ucred *cred" "struct proc *p"
+.Fn VOP_ACCESS "struct vnode *vp" "int mode" "struct ucred *cred" "struct thread *td" 
 .Sh DESCRIPTION
 This entry point checks the access permissions of the file against the
 given credentials.
@@ -52,8 +52,8 @@ the vnode of the file to check
 the type of access required
 .It Ar cred
 the user credentials to check
-.It Ar p
-the process which is checking
+.It Ar td
+the thread which is checking
 .El
 .Pp
 The
@@ -71,7 +71,7 @@ otherwise an appropriate error code is returned.
 .Sh PSEUDOCODE
 .Bd -literal
 int
-vop_access(struct vnode *vp, int mode, struct ucred *cred, struct proc *p)
+vop_access(struct vnode *vp, int mode, struct ucred *cred, struct thread *td)
 {
     int error;
 
