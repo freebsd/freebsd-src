@@ -11,6 +11,7 @@ SRCS=	c-parse.c \
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED=yes
+
 DPADD+=	${LIBCC_INT} 
 LDADD+=	${LIBCC_INT}
 
