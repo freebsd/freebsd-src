@@ -960,7 +960,7 @@ modlist_lookup(const char *name, int ver)
 }
 
 static modlist_t
-modlist_newmodule(char *modname, int version, linker_file_t container)
+modlist_newmodule(const char *modname, int version, linker_file_t container)
 {
     modlist_t mod;
 
@@ -979,7 +979,7 @@ modlist_newmodule(char *modname, int version, linker_file_t container)
  * This routine is cheap and nasty but will work for data pointers.
  */
 static void *
-linker_reloc_ptr(linker_file_t lf, void *offset)
+linker_reloc_ptr(linker_file_t lf, const void *offset)
 {
 	return lf->address + (uintptr_t)offset;
 }
@@ -989,7 +989,7 @@ linker_reloc_ptr(linker_file_t lf, void *offset)
  */
 static void
 linker_mdt_version(linker_file_t lf, struct mod_metadata *mp,
-	char **modname, int *version)
+	const char **modname, int *version)
 {
     struct mod_version *mvp;
 
@@ -1006,7 +1006,7 @@ linker_mdt_version(linker_file_t lf, struct mod_metadata *mp,
  */
 static void
 linker_mdt_depend(linker_file_t lf, struct mod_metadata *mp,
-	char **modname, struct mod_depend **verinfo)
+	const char **modname, struct mod_depend **verinfo)
 {
 
     if (modname)
@@ -1020,7 +1020,7 @@ linker_addmodules(linker_file_t lf, struct mod_metadata **start,
 	struct mod_metadata **stop, int preload)
 {
     struct mod_metadata	*mp, **mdp;
-    char *modname;
+    const char *modname;
     int ver;
 
     for (mdp = start; mdp < stop; mdp++) {
@@ -1048,7 +1048,7 @@ static void
 linker_preload(void* arg)
 {
     caddr_t		modptr;
-    char		*modname, *nmodname;
+    const char		*modname, *nmodname;
     char		*modtype;
     linker_file_t	lf;
     linker_class_t	lc;
@@ -1380,7 +1380,7 @@ linker_load_dependancies(linker_file_t lf)
     struct mod_metadata **start, **stop, **mdp, **nmdp;
     struct mod_metadata *mp, *nmp;
     modlist_t mod;
-    char *modname, *nmodname;
+    const char *modname, *nmodname;
     int ver, error = 0, count;
 
     /*
