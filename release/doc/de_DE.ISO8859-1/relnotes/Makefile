@@ -1,10 +1,11 @@
 # $FreeBSD$
-# $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/Makefile,v 1.3 2002/07/08 18:41:45 ue Exp $
-# basiert auf: 1.4
+# $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/Makefile,v 1.4 2002/11/09 20:58:39 ue Exp $
+# basiert auf: 1.5
 
 RELN_ROOT?= ${.CURDIR}/../..
 
 SUBDIR = alpha
+SUBDIR+= ia64
 SUBDIR+= i386
 SUBDIR+= pc98
 SUBDIR+= sparc64

@@ -1,8 +1,8 @@
 <!--
 
 $FreeBSD$
-$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.10 2002/10/12 12:49:31 mheinen Exp $
-basiert auf: 1.14
+$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/installation/common/install.sgml,v 1.12 2002/11/09 20:15:30 ue Exp $
+basiert auf: 1.15
 
 install.sgml
 
@@ -80,7 +80,7 @@ from {alpha,i386}/INSTALL.TXT.
   <sect2>
     <title>Hardware-Anforderungen</title>
 
-    <para arch="i386">Wenn Sie &os; auf einem &arch.print; System
+    <para arch="i386,pc98">Wenn Sie &os; auf einem &arch.print; System
       benutzen wollen, mu&szlig; das System mindestens &uuml;ber einen
       386 Prozessor (es tut uns ja leid, aber die 286 CPU wird nicht
       unterst&uuml;tzt) und mindestens 5 MByte RAM f&uuml;r die
@@ -133,12 +133,23 @@ from {alpha,i386}/INSTALL.TXT.
       und Sie &os; von CD installieren, ist dieser Schritt nicht
       notwendig.</para>
 
-    <para>F&uuml;r eine Standard-Installation von CDROM oder &uuml;ber
-      ein Netzwerk m&uuml;ssen Sie nur zwei Dateien aus dem
-      Verzeichnis <filename>floppies/</filename> auf Disketten
-      &uuml;bertragen, dabei handelt es sich um die Disketten-Images
-      <filename>kern.flp</filename> und
+    <para arch="i386,alpha">F&uuml;r eine Standard-Installation von
+      CDROM oder &uuml;ber ein Netzwerk m&uuml;ssen Sie nur zwei
+      Dateien aus dem Verzeichnis <filename>floppies/</filename> auf
+      Disketten &uuml;bertragen, dabei handelt es sich um die
+      Disketten-Images <filename>kern.flp</filename> und
       <filename>mfsroot.flp</filename>, die f&uuml;r 1.44 MByte
+      Diskettenlaufwerke gedacht sind.</para>
+
+    <para arch="pc98">F&uuml;r eine Standard-Installation von CDROM
+      oder &uuml;ber ein Netzwerk m&uuml;ssen Sie nur zwei Dateien aus
+      dem Verzeichnis <filename>floppies/</filename> auf Disketten
+      &uuml;bertragen, dabei handelt es sich entweder um die
+      Disketten-Images <filename>kern.flp</filename> und
+      <filename>mfsroot.flp</filename>, die f&uuml;r 1.44 MByte
+      Diskettenlaufwerke gedacht sind; oder um die Disketten-Images
+      <filename>kern-small.flp</filename> und
+      <filename>mfsroot-small.flp</filename>, die f&uuml;r 1.2 MByte
       Diskettenlaufwerke gedacht sind.</para>
 
     <para>Wenn Sie diese Images &uuml;ber das Internet beziehen
@@ -153,14 +164,28 @@ from {alpha,i386}/INSTALL.TXT.
       Sites</ulink> des Handbuchs oder auf dem Server <ulink
       url="http://www.freebsdmirrors.org/"></ulink>.</para>
 
-    <para>Sie ben&ouml;tigen zwei leere, formatierte Disketten und
-      &uuml;bertragen Sie das Image <filename>kern.flp</filename> auf
-      die erste und das Image <filename>mfsroot.flp</filename> auf die
-      zweite Diskette.  Diese Images sind <emphasis>keine</emphasis>
-      DOS Dateien.  Sie k&ouml;nnen Sie nicht ganz normal auf eine
-      DOS- oder UFS-Diskette kopieren, sondern m&uuml;ssen ein
-      spezielles Programm verwenden.  Wenn Sie DOS benutzen, brauchen
-      Sie das Programm <filename>fdimage.exe</filename>, das Sie im
+    <para arch="i386,alpha">Sie ben&ouml;tigen zwei leere, formatierte
+      Disketten und &uuml;bertragen Sie das Image
+      <filename>kern.flp</filename> auf die erste und das Image
+      <filename>mfsroot.flp</filename> auf die zweite Diskette.  Diese
+      Images sind <emphasis>keine</emphasis> DOS Dateien.  Sie
+      k&ouml;nnen Sie nicht ganz normal auf eine DOS- oder
+      UFS-Diskette kopieren, sondern m&uuml;ssen ein spezielles
+      Programm verwenden.  Wenn Sie DOS benutzen, brauchen Sie das
+      Programm <filename>fdimage.exe</filename>, das Sie im
+      Verzeichnis <filename>tools</filename> der CDROM bzw. auf dem
+      &os; FTP Server finden.  Wenn Sie UNIX benutzen, brauchen Sie
+      &man.dd.1;.</para>
+
+    <para arch="i386,alpha">Sie ben&ouml;tigen zwei leere, formatierte
+      Disketten und &uuml;bertragen Sie das Image
+      <filename>kern.flp</filename> auf die erste und das Image
+      <filename>mfsroot.flp</filename> auf die zweite Diskette.  Diese
+      Images sind <emphasis>keine</emphasis> DOS Dateien.  Sie
+      k&ouml;nnen Sie nicht ganz normal auf eine DOS- oder
+      UFS-Diskette kopieren, sondern m&uuml;ssen ein spezielles
+      Programm verwenden.  Wenn Sie DOS benutzen, brauchen Sie das
+      Programm <filename>rawwrite.exe</filename>, das Sie im
       Verzeichnis <filename>tools</filename> der CDROM bzw. auf dem
       &os; FTP Server finden.  Wenn Sie UNIX benutzen, brauchen Sie
       &man.dd.1;.</para>
@@ -169,9 +194,17 @@ from {alpha,i386}/INSTALL.TXT.
       &uuml;bertragen wollen und DOS benutzen, m&uuml;ssen Sie den
       folgenden Befehl verwenden:</para>
 
-    <screen><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+    <screen arch="i386,alpha"><prompt>C></prompt> <userinput>fdimage kern.flp a:</userinput></screen>
+    <screen arch="pc98"><prompt>C></prompt> <userinput>rawrite kern.flp a:</userinput></screen>
 
-    <para>Dazu m&uuml;ssen Sie <filename>fdimage.exe</filename> und
+    <para arch="i386,alpha">Dazu m&uuml;ssen Sie
+      <filename>fdimage.exe</filename> und
+      <filename>kern.flp</filename> in ein Verzeichnis kopiert haben.
+      Logischerweise m&uuml;ssen Sie die Prozedur f&uuml;r
+      <filename>mfsroot.flp</filename> wiederholen.</para>
+
+    <para arch="pc98">Dazu m&uuml;ssen Sie
+      <filename>rawrite.exe</filename> und
       <filename>kern.flp</filename> in ein Verzeichnis kopiert haben.
       Logischerweise m&uuml;ssen Sie die Prozedur f&uuml;r
       <filename>mfsroot.flp</filename> wiederholen.</para>
@@ -179,11 +212,13 @@ from {alpha,i386}/INSTALL.TXT.
     <para>Wenn Sie die Bootdisketten auf einem UNIX System erzeugen
     wollen, sollte:</para>
 
-    <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
+    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0</userinput></screen>
+    <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0.1440</userinput></screen>
 
     <para>oder</para>
 
-    <screen>&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
+    <screen arch="i386,alpha">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/floppy</userinput></screen>
+    <screen arch="pc98">&prompt.root; <userinput>dd if=floppies/kern.flp of=/dev/rfd0.1200</userinput></screen>
 
     <para>funktionieren; dies h&auml;ngt allerdings vom jeweiligen
       System und der UNIX-Variante ab (die Namen f&uuml;r die
@@ -236,6 +271,26 @@ from {alpha,i386}/INSTALL.TXT.
       </itemizedlist>
     </para>
 
+    <para arch="pc98">Die einfachste Variante ist die Installation von
+      CD.  Wenn Sie die &os;-CD und ein unterst&uuml;tztes CDROM
+      Laufwerk besitzen, k&ouml;nnen Sie die Installation wie folgt
+      beginnen:
+      <itemizedlist>
+	<listitem>
+	  <para>Verwenden Sie einen Satz &os;  Bootdisketten, die
+	    notwendigen Zutaten finden Sie im bei jeder &os;
+	    Distribution im Verzeichnis
+	    <filename>floppies/</filename>.  Wenn Sie eine DOS-Shell
+	    benutzen, k&ouml;nnen Sie das Script
+	    <filename>makeflp.bat</filename> verwenden.  Weitere
+	    Informationen zu diesem Thema finden Sie im Kapitel <xref
+	    linkend="floppies">.  Danach m&uuml;ssen Sie nur noch von
+	    der ersten Diskette booten, um die &os;-Installation zu
+	    starten.</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
     <para arch="i386">Wenn Ihr Rechner kein CDROM Laufwerk hat (oder
       nicht von nicht von CD booten kann), k&ouml;nnen Sie &os;
       auch direkt &uuml;ber das Internet installieren, wenn Sie PPP,
@@ -248,6 +303,20 @@ from {alpha,i386}/INSTALL.TXT.
       legen Sie die Diskette mit <filename>mfsroot.flp</filename> ein,
       sobald Sie dazu aufgefordert werden.  Weitere Informationen zu
       dieser Art der Installation finden Sie in <xref
+      linkend="ftpnfs">.</para>
+
+    <para arch="pc98">Wenn Ihr Rechner kein CDROM Laufwerk hat,
+      k&ouml;nnen Sie &os;  auch direkt &uuml;ber das Internet
+      installieren, wenn Sie PPP, SLIP oder eine feste Verbindung
+      haben.  In diesem Fall m&uuml;ssen Sie ebenfalls die beiden &os;
+      Bootdisketten aus den Dateien
+      <filename>floppies/kern.flp</filename> und
+      <filename>floppies/mfsroot.flp</filename> erzeugen, wie in <xref
+      linkend="floppies"> beschrieben.  Booten Sie Ihren Rechner von
+      der Diskette mit <filename>kern.flp</filename>;  und legen Sie
+      die Diskette mit <filename>mfsroot.flp</filename> ein, sobald
+      Sie dazu aufgefordert werden.  Weitere Informationen zu dieser
+      Art der Installation finden Sie in <xref
       linkend="ftpnfs">.</para>
 
     <para arch="alpha">Die einfachste Variante ist die Installation
@@ -503,31 +572,50 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
         folgen Sie danach den Anweisungen.</para>
     </sect3>
 
-    <sect3 arch="i386">
+    <sect3 arch="i386,pc98">
       <title>Installation von einer DOS-Partition</title>
 
-      <para>Um die Installation von einer DOS-Partition vorzubereiten,
-        brauchen Sie nur die Dateien der Distribution in ein
-        Verzeichnis mit dem Namen <filename>FREEBSD</filename>
-        kopieren.  Dieses Verzeichnis mu&szlig; in der obersten Ebene
-        der prim&auml;ren DOS-Partition (<devicename>C:</devicename>)
-        liegen.  Wenn Sie zum Beispiel die Dateien f&uuml;r eine
-        minimale Installation auf eine DOS-Partition kopieren wollen,
-        sollten Sie wie folgt vorgehen:</para>
+      <para arch="i386">Um die Installation von einer DOS-Partition
+	vorzubereiten, brauchen Sie nur die Dateien der Distribution
+	in ein Verzeichnis mit dem Namen <filename>FREEBSD</filename>
+	kopieren.  Dieses Verzeichnis mu&szlig; in der obersten Ebene
+	der prim&auml;ren DOS-Partition (<devicename>C:</devicename>)
+	liegen.  Wenn Sie zum Beispiel die Dateien f&uuml;r eine
+	minimale Installation auf eine DOS-Partition kopieren wollen,
+	sollten Sie wie folgt vorgehen:</para>
 
-      <screen><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
+      <para arch="pc98">Um die Installation von einer DOS-Partition
+	vorzubereiten, brauchen Sie nur die Dateien der Distribution
+	in ein Verzeichnis mit dem Namen <filename>FREEBSD</filename>
+	kopieren.  Dieses Verzeichnis mu&szlig; in der obersten Ebene
+	der prim&auml;ren DOS-Partition (<devicename>A:</devicename>)
+	liegen.  Wenn Sie zum Beispiel die Dateien f&uuml;r eine
+	minimale Installation auf eine DOS-Partition kopieren wollen,
+	sollten Sie wie folgt vorgehen:</para>
+
+      <screen arch="i386"><prompt>C:\></prompt> <userinput>MD C:\FREEBSD</userinput>
 <prompt>C:\></prompt> <userinput>XCOPY /S E:\BIN C:\FREEBSD\BIN</userinput></screen>
+
+      <screen arch="pc98"><prompt>C:\></prompt> <userinput>MD A:\FREEBSD</userinput>
+<prompt>A:\></prompt> <userinput>XCOPY /S E:\BIN A:\FREEBSD\BIN</userinput></screen>
 
       <para>Wobei <devicename>E:</devicename> f&uuml;r den
         Laufwerksbuchstaben f&uuml;r das CDROM mit der &os;-CD
         steht.</para>
 
-      <para>Wenn Sie mehr als eine Distribution von einer
-        DOS-Partition installieren wollen, kopieren Sie jede in ein
-        eigenes Unterverzeichnis des Ordners
-        <filename>C:\FREEBSD</filename> - die Distribution
-        <filename>BIN</filename> ist nur die
-        Minimalanforderung.</para>
+      <para arch="i386">Wenn Sie mehr als eine Distribution von einer
+	DOS-Partition installieren wollen, kopieren Sie jede in ein
+	eigenes Unterverzeichnis des Ordners
+	<filename>C:\FREEBSD</filename> - die Distribution
+	<filename>BIN</filename> ist nur die
+	Minimalanforderung.</para>
+
+      <para arch="pc98">Wenn Sie mehr als eine Distribution von einer
+	DOS-Partition installieren wollen, kopieren Sie jede in ein
+	eigenes Unterverzeichnis des Ordners
+	<filename>A:\FREEBSD</filename> - die Distribution
+	<filename>BIN</filename> ist nur die
+	Minimalanforderung.</para>
 
       <para>Wenn Sie Daten in die DOS-Partition kopiert haben,
         k&ouml;nnen Sie ganz normal von der Bootdiskette booten und im
@@ -789,7 +877,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
       </sect4>
     </sect3>
 
-    <sect3>
+    <sect3 arch="i386,alpha">
       <title>Hinweise zur seriellen Konsole</title>
 
       <para>Wenn Sie bei der Installation von &os; nur die serielle
