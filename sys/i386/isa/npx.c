@@ -1037,13 +1037,13 @@ static driver_t npx_driver = {
 
 static devclass_t npx_devclass;
 
-#ifdef DEV_ISA
 /*
  * We prefer to attach to the root nexus so that the usual case (exception 16)
  * doesn't describe the processor as being `on isa'.
  */
 DRIVER_MODULE(npx, nexus, npx_driver, npx_devclass, 0, 0);
 
+#ifdef DEV_ISA
 /*
  * This sucks up the legacy ISA support assignments from PNPBIOS/ACPI.
  */
