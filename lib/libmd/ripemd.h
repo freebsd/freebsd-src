@@ -1,3 +1,4 @@
+/* crypto/ripemd/ripemd.h */
 /* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
@@ -53,44 +54,36 @@
  * derivative of this code cannot be changed.  i.e. this code cannot simply be
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
- *
- *	$Id: sha.h,v 1.1 1999/02/26 04:24:56 wollman Exp $
  */
 
-#ifndef _SHA_H_
-#define _SHA_H_		1
+#ifndef HEADER_RIPEMD_H
+#define HEADER_RIPEMD_H
 
 #include <sys/cdefs.h>
 #include <sys/types.h>		/* XXX switch to machine/ansi.h and __ types */
 
-#define	SHA_CBLOCK	64
-#define	SHA_LBLOCK	16
-#define	SHA_BLOCK	16
-#define	SHA_LAST_BLOCK  56
-#define	SHA_LENGTH_BLOCK 8
-#define	SHA_DIGEST_LENGTH 20
+#define RIPEMD160_CBLOCK	64
+#define RIPEMD160_LBLOCK	16
+#define RIPEMD160_BLOCK		16
+#define RIPEMD160_LAST_BLOCK	56
+#define RIPEMD160_LENGTH_BLOCK	8
+#define RIPEMD160_DIGEST_LENGTH	20
 
-typedef struct SHAstate_st {
-	u_int32_t h0, h1, h2, h3, h4;
-	u_int32_t Nl, Nh;
-	u_int32_t data[SHA_LBLOCK];
+typedef struct RIPEMD160state_st {
+	u_int32_t A,B,C,D,E;
+	u_int32_t Nl,Nh;
+	u_int32_t data[RIPEMD160_LBLOCK];
 	int num;
-} SHA_CTX;
-#define	SHA1_CTX	SHA_CTX
+} RIPEMD160_CTX;
 
 __BEGIN_DECLS
-void	SHA_Init(SHA_CTX *c);
-void	SHA_Update(SHA_CTX *c, const unsigned char *data, size_t len);
-void	SHA_Final(unsigned char *md, SHA_CTX *c);
-char   *SHA_End(SHA_CTX *, char *);
-char   *SHA_File(const char *, char *);
-char   *SHA_Data(const unsigned char *, unsigned int, char *);
-void	SHA1_Init(SHA_CTX *c);
-void	SHA1_Update(SHA_CTX *c, const unsigned char *data, size_t len);
-void	SHA1_Final(unsigned char *md, SHA_CTX *c);
-char   *SHA1_End(SHA_CTX *, char *);
-char   *SHA1_File(const char *, char *);
-char   *SHA1_Data(const unsigned char *, unsigned int, char *);
+void	RIPEMD160_Init(RIPEMD160_CTX *c);
+void	RIPEMD160_Update(RIPEMD160_CTX *c, const unsigned char *data,
+			 size_t len);
+void	RIPEMD160_Final(unsigned char *md, RIPEMD160_CTX *c);
+char   *RIPEMD160_End(RIPEMD160_CTX *, char *);
+char   *RIPEMD160_File(const char *, char *);
+char   *RIPEMD160_Data(const unsigned char *, unsigned int, char *);
 __END_DECLS
 
-#endif /* !_SHA_H_ */
+#endif

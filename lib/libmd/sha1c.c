@@ -143,7 +143,7 @@ void
 SHA1_Update(c, data, len)
 	SHA_CTX *c;
 	const unsigned char *data;
-	unsigned long len;
+	size_t len;
 {
 	register u_int32_t *p;
 	int ew,ec,sw,sc;
