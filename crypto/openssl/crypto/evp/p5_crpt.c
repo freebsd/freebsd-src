@@ -58,50 +58,50 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "cryptlib.h"
 #include <openssl/x509.h>
 #include <openssl/evp.h>
-#include "cryptlib.h"
 
 /* PKCS#5 v1.5 compatible PBE functions: see PKCS#5 v2.0 for more info.
  */
 
 void PKCS5_PBE_add(void)
 {
-#ifndef NO_DES
-#  ifndef NO_MD5
+#ifndef OPENSSL_NO_DES
+#  ifndef OPENSSL_NO_MD5
 EVP_PBE_alg_add(NID_pbeWithMD5AndDES_CBC, EVP_des_cbc(), EVP_md5(),
 							 PKCS5_PBE_keyivgen);
 #  endif
-#  ifndef NO_MD2
+#  ifndef OPENSSL_NO_MD2
 EVP_PBE_alg_add(NID_pbeWithMD2AndDES_CBC, EVP_des_cbc(), EVP_md2(),
 							 PKCS5_PBE_keyivgen);
 #  endif
-#  ifndef NO_SHA
+#  ifndef OPENSSL_NO_SHA
 EVP_PBE_alg_add(NID_pbeWithSHA1AndDES_CBC, EVP_des_cbc(), EVP_sha1(),
 							 PKCS5_PBE_keyivgen);
 #  endif
 #endif
-#ifndef NO_RC2
-#  ifndef NO_MD5
+#ifndef OPENSSL_NO_RC2
+#  ifndef OPENSSL_NO_MD5
 EVP_PBE_alg_add(NID_pbeWithMD5AndRC2_CBC, EVP_rc2_64_cbc(), EVP_md5(),
 							 PKCS5_PBE_keyivgen);
 #  endif
-#  ifndef NO_MD2
+#  ifndef OPENSSL_NO_MD2
 EVP_PBE_alg_add(NID_pbeWithMD2AndRC2_CBC, EVP_rc2_64_cbc(), EVP_md2(),
 							 PKCS5_PBE_keyivgen);
 #  endif
-#  ifndef NO_SHA
+#  ifndef OPENSSL_NO_SHA
 EVP_PBE_alg_add(NID_pbeWithSHA1AndRC2_CBC, EVP_rc2_64_cbc(), EVP_sha1(),
 							 PKCS5_PBE_keyivgen);
 #  endif
 #endif
-#ifndef NO_HMAC
+#ifndef OPENSSL_NO_HMAC
 EVP_PBE_alg_add(NID_pbes2, NULL, NULL, PKCS5_v2_PBE_keyivgen);
 #endif
 }
 
 int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
-			 ASN1_TYPE *param, EVP_CIPHER *cipher, EVP_MD *md,
+			 ASN1_TYPE *param, const EVP_CIPHER *cipher, const EVP_MD *md,
 			 int en_de)
 {
 	EVP_MD_CTX ctx;
@@ -128,22 +128,26 @@ int PKCS5_PBE_keyivgen(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
 	if(!pass) passlen = 0;
 	else if(passlen == -1) passlen = strlen(pass);
 
-	EVP_DigestInit (&ctx, md);
-	EVP_DigestUpdate (&ctx, pass, passlen);
-	EVP_DigestUpdate (&ctx, salt, saltlen);
+	EVP_MD_CTX_init(&ctx);
+	EVP_DigestInit_ex(&ctx, md, NULL);
+	EVP_DigestUpdate(&ctx, pass, passlen);
+	EVP_DigestUpdate(&ctx, salt, saltlen);
 	PBEPARAM_free(pbe);
-	EVP_DigestFinal (&ctx, md_tmp, NULL);
+	EVP_DigestFinal_ex(&ctx, md_tmp, NULL);
 	for (i = 1; i < iter; i++) {
-		EVP_DigestInit(&ctx, md);
+		EVP_DigestInit_ex(&ctx, md, NULL);
 		EVP_DigestUpdate(&ctx, md_tmp, EVP_MD_size(md));
-		EVP_DigestFinal (&ctx, md_tmp, NULL);
+		EVP_DigestFinal_ex (&ctx, md_tmp, NULL);
 	}
-	memcpy (key, md_tmp, EVP_CIPHER_key_length(cipher));
-	memcpy (iv, md_tmp + (16 - EVP_CIPHER_iv_length(cipher)),
+	EVP_MD_CTX_cleanup(&ctx);
+	OPENSSL_assert(EVP_CIPHER_key_length(cipher) <= sizeof md_tmp);
+	memcpy(key, md_tmp, EVP_CIPHER_key_length(cipher));
+	OPENSSL_assert(EVP_CIPHER_iv_length(cipher) <= 16);
+	memcpy(iv, md_tmp + (16 - EVP_CIPHER_iv_length(cipher)),
 						 EVP_CIPHER_iv_length(cipher));
-	EVP_CipherInit(cctx, cipher, key, iv, en_de);
-	memset(md_tmp, 0, EVP_MAX_MD_SIZE);
-	memset(key, 0, EVP_MAX_KEY_LENGTH);
-	memset(iv, 0, EVP_MAX_IV_LENGTH);
+	EVP_CipherInit_ex(cctx, cipher, NULL, key, iv, en_de);
+	OPENSSL_cleanse(md_tmp, EVP_MAX_MD_SIZE);
+	OPENSSL_cleanse(key, EVP_MAX_KEY_LENGTH);
+	OPENSSL_cleanse(iv, EVP_MAX_IV_LENGTH);
 	return 1;
 }

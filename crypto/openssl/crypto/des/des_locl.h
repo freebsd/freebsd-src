@@ -59,19 +59,19 @@
 #ifndef HEADER_DES_LOCL_H
 #define HEADER_DES_LOCL_H
 
-#if defined(WIN32) || defined(WIN16)
-#ifndef MSDOS
-#define MSDOS
+#include <openssl/e_os2.h>
+
+#if defined(OPENSSL_SYS_WIN32) || defined(OPENSSL_SYS_WIN16)
+#ifndef OPENSSL_SYS_MSDOS
+#define OPENSSL_SYS_MSDOS
 #endif
 #endif
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <openssl/opensslconf.h>
-
-#ifndef MSDOS
-#if !defined(VMS) || defined(__DECC)
+#ifndef OPENSSL_SYS_MSDOS
+#if !defined(OPENSSL_SYS_VMS) || defined(__DECC)
 #ifdef OPENSSL_UNISTD
 # include OPENSSL_UNISTD
 #else
@@ -82,15 +82,20 @@
 #endif
 #include <openssl/des.h>
 
-#ifdef MSDOS		/* Visual C++ 2.1 (Windows NT/95) */
+#ifdef OPENSSL_SYS_MSDOS		/* Visual C++ 2.1 (Windows NT/95) */
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
 #include <io.h>
 #endif
 
-#if defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS)
+#if defined(__STDC__) || defined(OPENSSL_SYS_VMS) || defined(M_XENIX) || defined(OPENSSL_SYS_MSDOS)
 #include <string.h>
+#endif
+
+#ifdef OPENSSL_BUILD_SHLIBCRYPTO
+# undef OPENSSL_EXTERN
+# define OPENSSL_EXTERN OPENSSL_EXPORT
 #endif
 
 #define ITERATIONS 16
@@ -155,9 +160,20 @@
 				} \
 			}
 
-#if defined(WIN32) && defined(_MSC_VER)
+#if defined(OPENSSL_SYS_WIN32) && defined(_MSC_VER)
 #define	ROTATE(a,n)	(_lrotr(a,n))
-#else
+#elif defined(__GNUC__) && __GNUC__>=2 && !defined(__STRICT_ANSI__) && !defined(NO_ASM) && !defined(NO_INLINE_ASM)
+# if defined(__i386) || defined(__i386__) || defined(__x86_64) || defined(__x86_64__)
+#  define ROTATE(a,n)	({ register unsigned int ret;	\
+				asm ("rorl %1,%0"	\
+					: "=r"(ret)	\
+					: "I"(n),"0"(a)	\
+					: "cc");	\
+			   ret;				\
+			})
+# endif
+#endif
+#ifndef ROTATE
 #define	ROTATE(a,n)	(((a)>>(n))+((a)<<(32-(n))))
 #endif
 
@@ -278,24 +294,24 @@
 	u1=(int)u&0x3f; \
 	u2&=0x3f; \
 	u>>=16L; \
-	LL^=des_SPtrans[0][u1]; \
-	LL^=des_SPtrans[2][u2]; \
+	LL^=DES_SPtrans[0][u1]; \
+	LL^=DES_SPtrans[2][u2]; \
 	u3=(int)u>>8L; \
 	u1=(int)u&0x3f; \
 	u3&=0x3f; \
-	LL^=des_SPtrans[4][u1]; \
-	LL^=des_SPtrans[6][u3]; \
+	LL^=DES_SPtrans[4][u1]; \
+	LL^=DES_SPtrans[6][u3]; \
 	u2=(int)t>>8L; \
 	u1=(int)t&0x3f; \
 	u2&=0x3f; \
 	t>>=16L; \
-	LL^=des_SPtrans[1][u1]; \
-	LL^=des_SPtrans[3][u2]; \
+	LL^=DES_SPtrans[1][u1]; \
+	LL^=DES_SPtrans[3][u2]; \
 	u3=(int)t>>8L; \
 	u1=(int)t&0x3f; \
 	u3&=0x3f; \
-	LL^=des_SPtrans[5][u1]; \
-	LL^=des_SPtrans[7][u3]; }
+	LL^=DES_SPtrans[5][u1]; \
+	LL^=DES_SPtrans[7][u3]; }
 #endif
 #ifdef DES_RISC2
 #define D_ENCRYPT(LL,R,S) {\
@@ -306,25 +322,25 @@
 	u2=(int)u>>8L; \
 	u1=(int)u&0x3f; \
 	u2&=0x3f; \
-	LL^=des_SPtrans[0][u1]; \
-	LL^=des_SPtrans[2][u2]; \
+	LL^=DES_SPtrans[0][u1]; \
+	LL^=DES_SPtrans[2][u2]; \
 	s1=(int)u>>16L; \
 	s2=(int)u>>24L; \
 	s1&=0x3f; \
 	s2&=0x3f; \
-	LL^=des_SPtrans[4][s1]; \
-	LL^=des_SPtrans[6][s2]; \
+	LL^=DES_SPtrans[4][s1]; \
+	LL^=DES_SPtrans[6][s2]; \
 	u2=(int)t>>8L; \
 	u1=(int)t&0x3f; \
 	u2&=0x3f; \
-	LL^=des_SPtrans[1][u1]; \
-	LL^=des_SPtrans[3][u2]; \
+	LL^=DES_SPtrans[1][u1]; \
+	LL^=DES_SPtrans[3][u2]; \
 	s1=(int)t>>16; \
 	s2=(int)t>>24L; \
 	s1&=0x3f; \
 	s2&=0x3f; \
-	LL^=des_SPtrans[5][s1]; \
-	LL^=des_SPtrans[7][s2]; }
+	LL^=DES_SPtrans[5][s1]; \
+	LL^=DES_SPtrans[7][s2]; }
 #endif
 
 #else
@@ -333,14 +349,14 @@
 	LOAD_DATA_tmp(R,S,u,t,E0,E1); \
 	t=ROTATE(t,4); \
 	LL^=\
-		des_SPtrans[0][(u>> 2L)&0x3f]^ \
-		des_SPtrans[2][(u>>10L)&0x3f]^ \
-		des_SPtrans[4][(u>>18L)&0x3f]^ \
-		des_SPtrans[6][(u>>26L)&0x3f]^ \
-		des_SPtrans[1][(t>> 2L)&0x3f]^ \
-		des_SPtrans[3][(t>>10L)&0x3f]^ \
-		des_SPtrans[5][(t>>18L)&0x3f]^ \
-		des_SPtrans[7][(t>>26L)&0x3f]; }
+		DES_SPtrans[0][(u>> 2L)&0x3f]^ \
+		DES_SPtrans[2][(u>>10L)&0x3f]^ \
+		DES_SPtrans[4][(u>>18L)&0x3f]^ \
+		DES_SPtrans[6][(u>>26L)&0x3f]^ \
+		DES_SPtrans[1][(t>> 2L)&0x3f]^ \
+		DES_SPtrans[3][(t>>10L)&0x3f]^ \
+		DES_SPtrans[5][(t>>18L)&0x3f]^ \
+		DES_SPtrans[7][(t>>26L)&0x3f]; }
 #endif
 #endif
 
@@ -405,8 +421,8 @@
 	PERM_OP(l,r,tt, 4,0x0f0f0f0fL); \
 	}
 
-OPENSSL_EXTERN const DES_LONG des_SPtrans[8][64];
+OPENSSL_EXTERN const DES_LONG DES_SPtrans[8][64];
 
-void fcrypt_body(DES_LONG *out,des_key_schedule ks,
-	DES_LONG Eswap0, DES_LONG Eswap1);
+void fcrypt_body(DES_LONG *out,DES_key_schedule *ks,
+		 DES_LONG Eswap0, DES_LONG Eswap1);
 #endif

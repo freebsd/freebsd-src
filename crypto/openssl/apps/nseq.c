@@ -58,9 +58,9 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "apps.h"
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#include "apps.h"
 
 #undef PROG
 #define PROG nseq_main
@@ -102,7 +102,7 @@ int MAIN(int argc, char **argv)
 		BIO_printf (bio_err, "-in file  input file\n");
 		BIO_printf (bio_err, "-out file output file\n");
 		BIO_printf (bio_err, "-toseq    output NS Sequence file\n");
-		EXIT(1);
+		OPENSSL_EXIT(1);
 	}
 
 	if (infile) {
@@ -121,7 +121,7 @@ int MAIN(int argc, char **argv)
 		}
 	} else {
 		out = BIO_new_fp(stdout, BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 		out = BIO_push(tmpbio, out);
@@ -162,6 +162,6 @@ end:
 	BIO_free_all(out);
 	NETSCAPE_CERT_SEQUENCE_free(seq);
 
-	EXIT(ret);
+	OPENSSL_EXIT(ret);
 }
 

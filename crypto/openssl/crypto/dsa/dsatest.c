@@ -61,15 +61,19 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+#include "../e_os.h"
+
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
-#ifdef WINDOWS
+#include <openssl/engine.h>
+#ifdef OPENSSL_SYS_WINDOWS
 #include "../bio/bss_file.c"
 #endif
 
-#ifdef NO_DSA
+#ifdef OPENSSL_NO_DSA
 int main(int argc, char *argv[])
 {
     printf("No DSA support\n");
@@ -78,7 +82,7 @@ int main(int argc, char *argv[])
 #else
 #include <openssl/dsa.h>
 
-#ifdef WIN16
+#ifdef OPENSSL_SYS_WIN16
 #define MS_CALLBACK     _far _loadds
 #else
 #define MS_CALLBACK
@@ -136,13 +140,15 @@ int main(int argc, char **argv)
 	unsigned char sig[256];
 	unsigned int siglen;
 
-	ERR_load_crypto_strings();
-	RAND_seed(rnd_seed, sizeof rnd_seed);
-
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 
+	CRYPTO_malloc_debug_init();
+	CRYPTO_dbg_set_options(V_CRYPTO_MDEBUG_ALL);
 	CRYPTO_mem_ctrl(CRYPTO_MEM_CHECK_ON);
+
+	ERR_load_crypto_strings();
+	RAND_seed(rnd_seed, sizeof rnd_seed);
 
 	BIO_printf(bio_err,"test generation of DSA parameters\n");
 
@@ -200,15 +206,23 @@ end:
 	if (!ret)
 		ERR_print_errors(bio_err);
 	if (dsa != NULL) DSA_free(dsa);
+	CRYPTO_cleanup_all_ex_data();
 	ERR_remove_state(0);
+	ERR_free_strings();
 	CRYPTO_mem_leaks(bio_err);
 	if (bio_err != NULL)
 		{
 		BIO_free(bio_err);
 		bio_err = NULL;
 		}
-	exit(!ret);
+	EXIT(!ret);
 	return(0);
+	}
+
+static int cb_exit(int ec)
+	{
+	EXIT(ec);
+	return(0);		/* To keep some compilers quiet */
 	}
 
 static void MS_CALLBACK dsa_cb(int p, int n, void *arg)
@@ -226,7 +240,7 @@ static void MS_CALLBACK dsa_cb(int p, int n, void *arg)
 	if (!ok && (p == 0) && (num > 1))
 		{
 		BIO_printf((BIO *)arg,"error in dsatest\n");
-		exit(1);
+		cb_exit(1);
 		}
 	}
 #endif

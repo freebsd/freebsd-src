@@ -1,9 +1,9 @@
 /* v3_purp.c */
 /* Written by Dr Stephen N Henson (shenson@bigfoot.com) for the OpenSSL
- * project 1999.
+ * project 2001.
  */
 /* ====================================================================
- * Copyright (c) 1999 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2001 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,7 +61,6 @@
 #include <openssl/x509v3.h>
 #include <openssl/x509_vfy.h>
 
-
 static void x509v3_cache_extensions(X509 *x);
 
 static int ca_check(const X509 *x);
@@ -74,6 +73,7 @@ static int check_purpose_smime_sign(const X509_PURPOSE *xp, const X509 *x, int c
 static int check_purpose_smime_encrypt(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int check_purpose_crl_sign(const X509_PURPOSE *xp, const X509 *x, int ca);
 static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca);
+static int ocsp_helper(const X509_PURPOSE *xp, const X509 *x, int ca);
 
 static int xp_cmp(const X509_PURPOSE * const *a,
 		const X509_PURPOSE * const *b);
@@ -87,6 +87,7 @@ static X509_PURPOSE xstandard[] = {
 	{X509_PURPOSE_SMIME_ENCRYPT, X509_TRUST_EMAIL, 0, check_purpose_smime_encrypt, "S/MIME encryption", "smimeencrypt", NULL},
 	{X509_PURPOSE_CRL_SIGN, X509_TRUST_COMPAT, 0, check_purpose_crl_sign, "CRL signing", "crlsign", NULL},
 	{X509_PURPOSE_ANY, X509_TRUST_DEFAULT, 0, no_check, "Any Purpose", "any", NULL},
+	{X509_PURPOSE_OCSP_HELPER, X509_TRUST_COMPAT, 0, ocsp_helper, "OCSP helper", "ocsphelper", NULL},
 };
 
 #define X509_PURPOSE_COUNT (sizeof(xstandard)/sizeof(X509_PURPOSE))
@@ -120,6 +121,16 @@ int X509_check_purpose(X509 *x, int id, int ca)
 	return pt->check_purpose(pt, x, ca);
 }
 
+int X509_PURPOSE_set(int *p, int purpose)
+{
+	if(X509_PURPOSE_get_by_id(purpose) == -1) {
+		X509V3err(X509V3_F_X509_PURPOSE_SET, X509V3_R_INVALID_PURPOSE);
+		return 0;
+	}
+	*p = purpose;
+	return 1;
+}
+
 int X509_PURPOSE_get_count(void)
 {
 	if(!xptable) return X509_PURPOSE_COUNT;
@@ -143,7 +154,6 @@ int X509_PURPOSE_get_by_sname(char *sname)
 	}
 	return -1;
 }
-
 
 int X509_PURPOSE_get_by_id(int purpose)
 {
@@ -256,16 +266,55 @@ int X509_PURPOSE_get_trust(X509_PURPOSE *xp)
 	return xp->trust;
 }
 
+static int nid_cmp(int *a, int *b)
+	{
+	return *a - *b;
+	}
+
+int X509_supported_extension(X509_EXTENSION *ex)
+	{
+	/* This table is a list of the NIDs of supported extensions:
+	 * that is those which are used by the verify process. If
+	 * an extension is critical and doesn't appear in this list
+	 * then the verify process will normally reject the certificate.
+	 * The list must be kept in numerical order because it will be
+	 * searched using bsearch.
+	 */
+
+	static int supported_nids[] = {
+		NID_netscape_cert_type, /* 71 */
+        	NID_key_usage,		/* 83 */
+		NID_subject_alt_name,	/* 85 */
+		NID_basic_constraints,	/* 87 */
+        	NID_ext_key_usage	/* 126 */
+	};
+
+	int ex_nid;
+
+	ex_nid = OBJ_obj2nid(X509_EXTENSION_get_object(ex));
+
+	if (ex_nid == NID_undef) 
+		return 0;
+
+	if (OBJ_bsearch((char *)&ex_nid, (char *)supported_nids,
+		sizeof(supported_nids)/sizeof(int), sizeof(int),
+		(int (*)(const void *, const void *))nid_cmp))
+		return 1;
+	return 0;
+	}
+ 
+
 static void x509v3_cache_extensions(X509 *x)
 {
 	BASIC_CONSTRAINTS *bs;
 	ASN1_BIT_STRING *usage;
 	ASN1_BIT_STRING *ns;
-	STACK_OF(ASN1_OBJECT) *extusage;
+	EXTENDED_KEY_USAGE *extusage;
+	X509_EXTENSION *ex;
 	
 	int i;
 	if(x->ex_flags & EXFLAG_SET) return;
-#ifndef NO_SHA
+#ifndef OPENSSL_NO_SHA
 	X509_digest(x, EVP_sha1(), x->sha1_hash, NULL);
 #endif
 	/* Does subject name match issuer ? */
@@ -320,6 +369,15 @@ static void x509v3_cache_extensions(X509 *x)
 				case NID_ms_sgc:
 				case NID_ns_sgc:
 				x->ex_xkusage |= XKU_SGC;
+				break;
+
+				case NID_OCSP_sign:
+				x->ex_xkusage |= XKU_OCSP_SIGN;
+				break;
+
+				case NID_time_stamp:
+				x->ex_xkusage |= XKU_TIMESTAMP;
+				break;
 			}
 		}
 		sk_ASN1_OBJECT_pop_free(extusage, ASN1_OBJECT_free);
@@ -333,6 +391,17 @@ static void x509v3_cache_extensions(X509 *x)
 	}
 	x->skid =X509_get_ext_d2i(x, NID_subject_key_identifier, NULL, NULL);
 	x->akid =X509_get_ext_d2i(x, NID_authority_key_identifier, NULL, NULL);
+	for (i = 0; i < X509_get_ext_count(x); i++)
+		{
+		ex = X509_get_ext(x, i);
+		if (!X509_EXTENSION_get_critical(ex))
+			continue;
+		if (!X509_supported_extension(ex))
+			{
+			x->ex_flags |= EXFLAG_CRITICAL;
+			break;
+			}
+		}
 	x->ex_flags |= EXFLAG_SET;
 }
 
@@ -472,6 +541,27 @@ static int check_purpose_crl_sign(const X509_PURPOSE *xp, const X509 *x, int ca)
 	return 1;
 }
 
+/* OCSP helper: this is *not* a full OCSP check. It just checks that
+ * each CA is valid. Additional checks must be made on the chain.
+ */
+
+static int ocsp_helper(const X509_PURPOSE *xp, const X509 *x, int ca)
+{
+	/* Must be a valid CA */
+	if(ca) {
+		int ca_ret;
+		ca_ret = ca_check(x);
+		if(ca_ret != 2) return ca_ret;
+		if(x->ex_flags & EXFLAG_NSCERT) {
+			if(x->ex_nscert & NS_ANY_CA) return ca_ret;
+			return 0;
+		}
+		return 0;
+	}
+	/* leaf certificate is checked in OCSP_verify() */
+	return 1;
+}
+
 static int no_check(const X509_PURPOSE *xp, const X509 *x, int ca)
 {
 	return 1;
@@ -513,7 +603,7 @@ int X509_check_issued(X509 *issuer, X509 *subject)
 			 * There may be more than one but we only take any
 			 * notice of the first.
 			 */
-			STACK_OF(GENERAL_NAME) *gens;
+			GENERAL_NAMES *gens;
 			GENERAL_NAME *gen;
 			X509_NAME *nm = NULL;
 			int i;

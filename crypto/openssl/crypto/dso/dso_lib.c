@@ -108,7 +108,7 @@ DSO *DSO_new_method(DSO_METHOD *meth)
 		}
 	memset(ret, 0, sizeof(DSO));
 	ret->meth_data = sk_new_null();
-	if((ret->meth_data = sk_new_null()) == NULL)
+	if(ret->meth_data == NULL)
 		{
 		/* sk_new doesn't generate any errors so we do */
 		DSOerr(DSO_F_DSO_NEW_METHOD,ERR_R_MALLOC_FAILURE);
@@ -164,6 +164,10 @@ int DSO_free(DSO *dso)
 		}
 	
 	sk_free(dso->meth_data);
+	if(dso->filename != NULL)
+		OPENSSL_free(dso->filename);
+	if(dso->loaded_filename != NULL)
+		OPENSSL_free(dso->loaded_filename);
  
 	OPENSSL_free(dso);
 	return(1);
@@ -175,11 +179,11 @@ int DSO_flags(DSO *dso)
 	}
 
 
-int DSO_up(DSO *dso)
+int DSO_up_ref(DSO *dso)
 	{
 	if (dso == NULL)
 		{
-		DSOerr(DSO_F_DSO_UP,ERR_R_PASSED_NULL_PARAMETER);
+		DSOerr(DSO_F_DSO_UP_REF,ERR_R_PASSED_NULL_PARAMETER);
 		return(0);
 		}
 
@@ -192,48 +196,60 @@ DSO *DSO_load(DSO *dso, const char *filename, DSO_METHOD *meth, int flags)
 	DSO *ret;
 	int allocated = 0;
 
-	if(filename == NULL)
-		{
-		DSOerr(DSO_F_DSO_LOAD,ERR_R_PASSED_NULL_PARAMETER);
-		return(NULL);
-		}
 	if(dso == NULL)
 		{
 		ret = DSO_new_method(meth);
 		if(ret == NULL)
 			{
 			DSOerr(DSO_F_DSO_LOAD,ERR_R_MALLOC_FAILURE);
-			return(NULL);
+			goto err;
 			}
 		allocated = 1;
+		/* Pass the provided flags to the new DSO object */
+		if(DSO_ctrl(ret, DSO_CTRL_SET_FLAGS, flags, NULL) < 0)
+			{
+			DSOerr(DSO_F_DSO_LOAD,DSO_R_CTRL_FAILED);
+			goto err;
+			}
 		}
 	else
 		ret = dso;
-	/* Bleurgh ... have to check for negative return values for
-	 * errors. <grimace> */
-	if(DSO_ctrl(ret, DSO_CTRL_SET_FLAGS, flags, NULL) < 0)
+	/* Don't load if we're currently already loaded */
+	if(ret->filename != NULL)
 		{
-		DSOerr(DSO_F_DSO_LOAD,DSO_R_CTRL_FAILED);
-		if(allocated)
-			DSO_free(ret);
-		return(NULL);
+		DSOerr(DSO_F_DSO_LOAD,DSO_R_DSO_ALREADY_LOADED);
+		goto err;
+		}
+	/* filename can only be NULL if we were passed a dso that already has
+	 * one set. */
+	if(filename != NULL)
+		if(!DSO_set_filename(ret, filename))
+			{
+			DSOerr(DSO_F_DSO_LOAD,DSO_R_SET_FILENAME_FAILED);
+			goto err;
+			}
+	filename = ret->filename;
+	if(filename == NULL)
+		{
+		DSOerr(DSO_F_DSO_LOAD,DSO_R_NO_FILENAME);
+		goto err;
 		}
 	if(ret->meth->dso_load == NULL)
 		{
 		DSOerr(DSO_F_DSO_LOAD,DSO_R_UNSUPPORTED);
-		if(allocated)
-			DSO_free(ret);
-		return(NULL);
+		goto err;
 		}
-	if(!ret->meth->dso_load(ret, filename))
+	if(!ret->meth->dso_load(ret))
 		{
 		DSOerr(DSO_F_DSO_LOAD,DSO_R_LOAD_FAILED);
-		if(allocated)
-			DSO_free(ret);
-		return(NULL);
+		goto err;
 		}
 	/* Load succeeded */
 	return(ret);
+err:
+	if(allocated)
+		DSO_free(ret);
+	return(NULL);
 	}
 
 void *DSO_bind_var(DSO *dso, const char *symname)
@@ -297,10 +313,127 @@ long DSO_ctrl(DSO *dso, int cmd, long larg, void *parg)
 		DSOerr(DSO_F_DSO_CTRL,ERR_R_PASSED_NULL_PARAMETER);
 		return(-1);
 		}
+	/* We should intercept certain generic commands and only pass control
+	 * to the method-specific ctrl() function if it's something we don't
+	 * handle. */
+	switch(cmd)
+		{
+	case DSO_CTRL_GET_FLAGS:
+		return dso->flags;
+	case DSO_CTRL_SET_FLAGS:
+		dso->flags = (int)larg;
+		return(0);
+	case DSO_CTRL_OR_FLAGS:
+		dso->flags |= (int)larg;
+		return(0);
+	default:
+		break;
+		}
 	if((dso->meth == NULL) || (dso->meth->dso_ctrl == NULL))
 		{
 		DSOerr(DSO_F_DSO_CTRL,DSO_R_UNSUPPORTED);
 		return(-1);
 		}
 	return(dso->meth->dso_ctrl(dso,cmd,larg,parg));
+	}
+
+int DSO_set_name_converter(DSO *dso, DSO_NAME_CONVERTER_FUNC cb,
+			DSO_NAME_CONVERTER_FUNC *oldcb)
+	{
+	if(dso == NULL)
+		{
+		DSOerr(DSO_F_DSO_SET_NAME_CONVERTER,
+				ERR_R_PASSED_NULL_PARAMETER);
+		return(0);
+		}
+	if(oldcb)
+		*oldcb = dso->name_converter;
+	dso->name_converter = cb;
+	return(1);
+	}
+
+const char *DSO_get_filename(DSO *dso)
+	{
+	if(dso == NULL)
+		{
+		DSOerr(DSO_F_DSO_GET_FILENAME,ERR_R_PASSED_NULL_PARAMETER);
+		return(NULL);
+		}
+	return(dso->filename);
+	}
+
+int DSO_set_filename(DSO *dso, const char *filename)
+	{
+	char *copied;
+
+	if((dso == NULL) || (filename == NULL))
+		{
+		DSOerr(DSO_F_DSO_SET_FILENAME,ERR_R_PASSED_NULL_PARAMETER);
+		return(0);
+		}
+	if(dso->loaded_filename)
+		{
+		DSOerr(DSO_F_DSO_SET_FILENAME,DSO_R_DSO_ALREADY_LOADED);
+		return(0);
+		}
+	/* We'll duplicate filename */
+	copied = OPENSSL_malloc(strlen(filename) + 1);
+	if(copied == NULL)
+		{
+		DSOerr(DSO_F_DSO_SET_FILENAME,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	strcpy(copied, filename);
+	if(dso->filename)
+		OPENSSL_free(dso->filename);
+	dso->filename = copied;
+	return(1);
+	}
+
+char *DSO_convert_filename(DSO *dso, const char *filename)
+	{
+	char *result = NULL;
+
+	if(dso == NULL)
+		{
+		DSOerr(DSO_F_DSO_CONVERT_FILENAME,ERR_R_PASSED_NULL_PARAMETER);
+		return(NULL);
+		}
+	if(filename == NULL)
+		filename = dso->filename;
+	if(filename == NULL)
+		{
+		DSOerr(DSO_F_DSO_CONVERT_FILENAME,DSO_R_NO_FILENAME);
+		return(NULL);
+		}
+	if((dso->flags & DSO_FLAG_NO_NAME_TRANSLATION) == 0)
+		{
+		if(dso->name_converter != NULL)
+			result = dso->name_converter(dso, filename);
+		else if(dso->meth->dso_name_converter != NULL)
+			result = dso->meth->dso_name_converter(dso, filename);
+		}
+	if(result == NULL)
+		{
+		result = OPENSSL_malloc(strlen(filename) + 1);
+		if(result == NULL)
+			{
+			DSOerr(DSO_F_DSO_CONVERT_FILENAME,
+					ERR_R_MALLOC_FAILURE);
+			return(NULL);
+			}
+		strcpy(result, filename);
+		}
+	return(result);
+	}
+
+const char *DSO_get_loaded_filename(DSO *dso)
+	{
+	if(dso == NULL)
+		{
+		DSOerr(DSO_F_DSO_GET_LOADED_FILENAME,
+				ERR_R_PASSED_NULL_PARAMETER);
+		return(NULL);
+		}
+	return(dso->loaded_filename);
 	}

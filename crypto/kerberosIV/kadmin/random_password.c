@@ -30,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
+/* $FreeBSD$ */
 
 #include "kadm_locl.h"
 
@@ -57,7 +58,7 @@ random_password(char *pw, size_t len, u_int32_t *low, u_int32_t *high)
 {
     des_cblock newkey;
 #ifdef OTP_STYLE
-    des_new_random_key(&newkey);
+    des_random_key(&newkey);
     otp_print_stddict (newkey, pw, len);
     strlwr(pw);
 #else
@@ -87,7 +88,7 @@ static int
 RND(des_cblock *key, int *left)
 {
     if(*left == 0){
-	des_new_random_key(key);
+	des_random_key(*key);
 	*left = 8;
     }
     (*left)--;

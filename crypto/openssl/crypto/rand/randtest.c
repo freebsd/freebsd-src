@@ -60,6 +60,8 @@
 #include <stdlib.h>
 #include <openssl/rand.h>
 
+#include "../e_os.h"
+
 /* some FIPS 140-1 random number test */
 /* some simple tests */
 
@@ -73,7 +75,13 @@ int main()
 	/*double d; */
 	long d;
 
-	RAND_pseudo_bytes(buf,2500);
+	i = RAND_pseudo_bytes(buf,2500);
+	if (i < 0)
+		{
+		printf ("init failed, the rand method is not properly installed\n");
+		err++;
+		goto err;
+		}
 
 	n1=0;
 	for (i=0; i<16; i++) n2[i]=0;
@@ -201,7 +209,8 @@ int main()
 		err++;
 		}
 	printf("test 4 done\n");
+ err:
 	err=((err)?1:0);
-	exit(err);
+	EXIT(err);
 	return(err);
 	}

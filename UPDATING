@@ -8,6 +8,10 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20030214:
+	OpenSSL 0.97 has been imported, and the libcrypto/libssl
+	library versions have been bumped.
+
 20030213:
 	sendmail 8.12.7 has been imported.  It has one important
 	change for IPv6 users.  The default submit.mc now uses

@@ -112,7 +112,7 @@
 #ifndef HEADER_SSL3_H 
 #define HEADER_SSL3_H 
 
-#ifndef NO_COMP
+#ifndef OPENSSL_NO_COMP
 #include <openssl/comp.h>
 #endif
 #include <openssl/buffer.h>
@@ -156,7 +156,29 @@ extern "C" {
 
 #define SSL3_CK_FZA_DMS_NULL_SHA		0x0300001C
 #define SSL3_CK_FZA_DMS_FZA_SHA			0x0300001D
+#if 0 /* Because it clashes with KRB5, is never used any more, and is safe
+	 to remove according to David Hopwood <david.hopwood@zetnet.co.uk>
+	 of the ietf-tls list */
 #define SSL3_CK_FZA_DMS_RC4_SHA			0x0300001E
+#endif
+
+/*    VRS Additional Kerberos5 entries
+ */
+#define SSL3_CK_KRB5_DES_64_CBC_SHA		0x0300001E
+#define SSL3_CK_KRB5_DES_192_CBC3_SHA		0x0300001F
+#define SSL3_CK_KRB5_RC4_128_SHA		0x03000020
+#define SSL3_CK_KRB5_IDEA_128_CBC_SHA	       	0x03000021
+#define SSL3_CK_KRB5_DES_64_CBC_MD5       	0x03000022
+#define SSL3_CK_KRB5_DES_192_CBC3_MD5       	0x03000023
+#define SSL3_CK_KRB5_RC4_128_MD5	       	0x03000024
+#define SSL3_CK_KRB5_IDEA_128_CBC_MD5 		0x03000025
+
+#define SSL3_CK_KRB5_DES_40_CBC_SHA 		0x03000026
+#define SSL3_CK_KRB5_RC2_40_CBC_SHA 		0x03000027
+#define SSL3_CK_KRB5_RC4_40_SHA	 		0x03000028
+#define SSL3_CK_KRB5_DES_40_CBC_MD5 		0x03000029
+#define SSL3_CK_KRB5_RC2_40_CBC_MD5 		0x0300002A
+#define SSL3_CK_KRB5_RC4_40_MD5	 		0x0300002B
 
 #define SSL3_TXT_RSA_NULL_MD5			"NULL-MD5"
 #define SSL3_TXT_RSA_NULL_SHA			"NULL-SHA"
@@ -193,6 +215,22 @@ extern "C" {
 #define SSL3_TXT_FZA_DMS_FZA_SHA		"FZA-FZA-CBC-SHA"
 #define SSL3_TXT_FZA_DMS_RC4_SHA		"FZA-RC4-SHA"
 
+#define SSL3_TXT_KRB5_DES_64_CBC_SHA		"KRB5-DES-CBC-SHA"
+#define SSL3_TXT_KRB5_DES_192_CBC3_SHA		"KRB5-DES-CBC3-SHA"
+#define SSL3_TXT_KRB5_RC4_128_SHA		"KRB5-RC4-SHA"
+#define SSL3_TXT_KRB5_IDEA_128_CBC_SHA	       	"KRB5-IDEA-CBC-SHA"
+#define SSL3_TXT_KRB5_DES_64_CBC_MD5       	"KRB5-DES-CBC-MD5"
+#define SSL3_TXT_KRB5_DES_192_CBC3_MD5       	"KRB5-DES-CBC3-MD5"
+#define SSL3_TXT_KRB5_RC4_128_MD5		"KRB5-RC4-MD5"
+#define SSL3_TXT_KRB5_IDEA_128_CBC_MD5 		"KRB5-IDEA-CBC-MD5"
+
+#define SSL3_TXT_KRB5_DES_40_CBC_SHA 		"EXP-KRB5-DES-CBC-SHA"
+#define SSL3_TXT_KRB5_RC2_40_CBC_SHA 		"EXP-KRB5-RC2-CBC-SHA"
+#define SSL3_TXT_KRB5_RC4_40_SHA	 	"EXP-KRB5-RC4-SHA"
+#define SSL3_TXT_KRB5_DES_40_CBC_MD5 		"EXP-KRB5-DES-CBC-MD5"
+#define SSL3_TXT_KRB5_RC2_40_CBC_MD5 		"EXP-KRB5-RC2-CBC-MD5"
+#define SSL3_TXT_KRB5_RC4_40_MD5	 	"EXP-KRB5-RC4-MD5"
+
 #define SSL3_SSL_SESSION_ID_LENGTH		32
 #define SSL3_MAX_SSL_SESSION_ID_LENGTH		32
 
@@ -202,7 +240,8 @@ extern "C" {
 #define SSL3_RT_HEADER_LENGTH			5
 
 /* Due to MS stuffing up, this can change.... */
-#if defined(WIN16) || (defined(MSDOS) && !defined(WIN32))
+#if defined(OPENSSL_SYS_WIN16) || \
+	(defined(OPENSSL_SYS_MSDOS) && !defined(OPENSSL_SYS_WIN32))
 #define SSL3_RT_MAX_EXTRA			(14000)
 #else
 #define SSL3_RT_MAX_EXTRA			(16384)
@@ -256,9 +295,7 @@ typedef struct ssl3_buffer_st
 	{
 	unsigned char *buf;     /* at least SSL3_RT_MAX_PACKET_SIZE bytes,
 	                         * see ssl3_setup_buffers() */
-#if 0 /* put directly into SSL3_STATE for best possible binary compatibility within 0.9.6 series */
 	size_t len;             /* buffer size */
-#endif
 	int offset;             /* where to 'copy from' */
 	int left;               /* how many bytes left */
 	} SSL3_BUFFER;
@@ -289,6 +326,10 @@ typedef struct ssl3_state_st
 
 	unsigned char server_random[SSL3_RANDOM_SIZE];
 	unsigned char client_random[SSL3_RANDOM_SIZE];
+
+	/* flags for countermeasure against known-IV weakness */
+	int need_empty_fragments;
+	int empty_fragment_done;
 
 	SSL3_BUFFER rbuf;	/* read IO goes into here */
 	SSL3_BUFFER wbuf;	/* write IO goes into here */
@@ -348,7 +389,7 @@ typedef struct ssl3_state_st
 
 		/* used to hold the new cipher we are going to use */
 		SSL_CIPHER *new_cipher;
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 		DH *dh;
 #endif
 		/* used when SSL_ST_FLUSH_DATA is entered */
@@ -369,20 +410,13 @@ typedef struct ssl3_state_st
 
 		const EVP_CIPHER *new_sym_enc;
 		const EVP_MD *new_hash;
-#ifndef NO_COMP
+#ifndef OPENSSL_NO_COMP
 		const SSL_COMP *new_compression;
 #else
 		char *new_compression;
 #endif
 		int cert_request;
 		} tmp;
-
-	/* flags for countermeasure against known-IV weakness */
-	int need_empty_fragments;
-	int empty_fragment_done;
-
-	size_t rbuf_len;	/* substitute for rbuf.len */
-	size_t wbuf_len;	/* substitute for wbuf.len */
 
 	} SSL3_STATE;
 

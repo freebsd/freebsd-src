@@ -59,16 +59,18 @@
 #ifndef HEADER_PKCS7_H
 #define HEADER_PKCS7_H
 
+#include <openssl/asn1.h>
 #include <openssl/bio.h>
-#include <openssl/x509.h>
+#include <openssl/e_os2.h>
 
 #include <openssl/symhacks.h>
+#include <openssl/ossl_typ.h>
 
 #ifdef  __cplusplus
 extern "C" {
 #endif
 
-#ifdef WIN32
+#ifdef OPENSSL_SYS_WIN32
 /* Under Win32 thes are defined in wincrypt.h */
 #undef PKCS7_ISSUER_AND_SERIAL
 #undef PKCS7_SIGNER_INFO
@@ -225,6 +227,7 @@ DECLARE_PKCS12_STACK_OF(PKCS7)
 #define PKCS7_get_attributes(si)	((si)->unauth_attr)
 
 #define PKCS7_type_is_signed(a) (OBJ_obj2nid((a)->type) == NID_pkcs7_signed)
+#define PKCS7_type_is_encrypted(a) (OBJ_obj2nid((a)->type) == NID_pkcs7_encrypted)
 #define PKCS7_type_is_enveloped(a) (OBJ_obj2nid((a)->type) == NID_pkcs7_enveloped)
 #define PKCS7_type_is_signedAndEnveloped(a) \
 		(OBJ_obj2nid((a)->type) == NID_pkcs7_signedAndEnveloped)
@@ -234,6 +237,8 @@ DECLARE_PKCS12_STACK_OF(PKCS7)
 		PKCS7_ctrl(p,PKCS7_OP_SET_DETACHED_SIGNATURE,v,NULL)
 #define PKCS7_get_detached(p) \
 		PKCS7_ctrl(p,PKCS7_OP_GET_DETACHED_SIGNATURE,0,NULL)
+
+#define PKCS7_is_detached(p7) (PKCS7_type_is_signed(p7) && PKCS7_get_detached(p7))
 
 #ifdef SSLEAY_MACROS
 #ifndef PKCS7_ISSUER_AND_SERIAL_digest
@@ -268,19 +273,12 @@ DECLARE_PKCS12_STACK_OF(PKCS7)
 #define SMIME_BINARY	PKCS7_BINARY
 #define SMIME_NOATTR	PKCS7_NOATTR
 
-PKCS7_ISSUER_AND_SERIAL *PKCS7_ISSUER_AND_SERIAL_new(void );
-void			PKCS7_ISSUER_AND_SERIAL_free(
-				PKCS7_ISSUER_AND_SERIAL *a);
-int 			i2d_PKCS7_ISSUER_AND_SERIAL(
-				PKCS7_ISSUER_AND_SERIAL *a,unsigned char **pp);
-PKCS7_ISSUER_AND_SERIAL *d2i_PKCS7_ISSUER_AND_SERIAL(
-				PKCS7_ISSUER_AND_SERIAL **a,
-				unsigned char **pp, long length);
+DECLARE_ASN1_FUNCTIONS(PKCS7_ISSUER_AND_SERIAL)
 
 #ifndef SSLEAY_MACROS
 int PKCS7_ISSUER_AND_SERIAL_digest(PKCS7_ISSUER_AND_SERIAL *data,const EVP_MD *type,
 	unsigned char *md,unsigned int *len);
-#ifndef NO_FP_API
+#ifndef OPENSSL_NO_FP_API
 PKCS7 *d2i_PKCS7_fp(FILE *fp,PKCS7 **p7);
 int i2d_PKCS7_fp(FILE *fp,PKCS7 *p7);
 #endif
@@ -289,69 +287,18 @@ PKCS7 *d2i_PKCS7_bio(BIO *bp,PKCS7 **p7);
 int i2d_PKCS7_bio(BIO *bp,PKCS7 *p7);
 #endif
 
-PKCS7_SIGNER_INFO	*PKCS7_SIGNER_INFO_new(void);
-void			PKCS7_SIGNER_INFO_free(PKCS7_SIGNER_INFO *a);
-int 			i2d_PKCS7_SIGNER_INFO(PKCS7_SIGNER_INFO *a,
-				unsigned char **pp);
-PKCS7_SIGNER_INFO	*d2i_PKCS7_SIGNER_INFO(PKCS7_SIGNER_INFO **a,
-				unsigned char **pp,long length);
+DECLARE_ASN1_FUNCTIONS(PKCS7_SIGNER_INFO)
+DECLARE_ASN1_FUNCTIONS(PKCS7_RECIP_INFO)
+DECLARE_ASN1_FUNCTIONS(PKCS7_SIGNED)
+DECLARE_ASN1_FUNCTIONS(PKCS7_ENC_CONTENT)
+DECLARE_ASN1_FUNCTIONS(PKCS7_ENVELOPE)
+DECLARE_ASN1_FUNCTIONS(PKCS7_SIGN_ENVELOPE)
+DECLARE_ASN1_FUNCTIONS(PKCS7_DIGEST)
+DECLARE_ASN1_FUNCTIONS(PKCS7_ENCRYPT)
+DECLARE_ASN1_FUNCTIONS(PKCS7)
 
-PKCS7_RECIP_INFO	*PKCS7_RECIP_INFO_new(void);
-void			PKCS7_RECIP_INFO_free(PKCS7_RECIP_INFO *a);
-int 			i2d_PKCS7_RECIP_INFO(PKCS7_RECIP_INFO *a,
-				unsigned char **pp);
-PKCS7_RECIP_INFO	*d2i_PKCS7_RECIP_INFO(PKCS7_RECIP_INFO **a,
-				unsigned char **pp,long length);
-
-PKCS7_SIGNED		*PKCS7_SIGNED_new(void);
-void			PKCS7_SIGNED_free(PKCS7_SIGNED *a);
-int 			i2d_PKCS7_SIGNED(PKCS7_SIGNED *a,
-				unsigned char **pp);
-PKCS7_SIGNED		*d2i_PKCS7_SIGNED(PKCS7_SIGNED **a,
-				unsigned char **pp,long length);
-
-PKCS7_ENC_CONTENT	*PKCS7_ENC_CONTENT_new(void);
-void			PKCS7_ENC_CONTENT_free(PKCS7_ENC_CONTENT *a);
-int 			i2d_PKCS7_ENC_CONTENT(PKCS7_ENC_CONTENT *a,
-				unsigned char **pp);
-PKCS7_ENC_CONTENT	*d2i_PKCS7_ENC_CONTENT(PKCS7_ENC_CONTENT **a,
-				unsigned char **pp,long length);
-
-PKCS7_ENVELOPE		*PKCS7_ENVELOPE_new(void);
-void			PKCS7_ENVELOPE_free(PKCS7_ENVELOPE *a);
-int 			i2d_PKCS7_ENVELOPE(PKCS7_ENVELOPE *a,
-				unsigned char **pp);
-PKCS7_ENVELOPE		*d2i_PKCS7_ENVELOPE(PKCS7_ENVELOPE **a,
-				unsigned char **pp,long length);
-
-PKCS7_SIGN_ENVELOPE	*PKCS7_SIGN_ENVELOPE_new(void);
-void			PKCS7_SIGN_ENVELOPE_free(PKCS7_SIGN_ENVELOPE *a);
-int 			i2d_PKCS7_SIGN_ENVELOPE(PKCS7_SIGN_ENVELOPE *a,
-				unsigned char **pp);
-PKCS7_SIGN_ENVELOPE	*d2i_PKCS7_SIGN_ENVELOPE(PKCS7_SIGN_ENVELOPE **a,
-				unsigned char **pp,long length);
-
-PKCS7_DIGEST		*PKCS7_DIGEST_new(void);
-void			PKCS7_DIGEST_free(PKCS7_DIGEST *a);
-int 			i2d_PKCS7_DIGEST(PKCS7_DIGEST *a,
-				unsigned char **pp);
-PKCS7_DIGEST		*d2i_PKCS7_DIGEST(PKCS7_DIGEST **a,
-				unsigned char **pp,long length);
-
-PKCS7_ENCRYPT		*PKCS7_ENCRYPT_new(void);
-void			PKCS7_ENCRYPT_free(PKCS7_ENCRYPT *a);
-int 			i2d_PKCS7_ENCRYPT(PKCS7_ENCRYPT *a,
-				unsigned char **pp);
-PKCS7_ENCRYPT		*d2i_PKCS7_ENCRYPT(PKCS7_ENCRYPT **a,
-				unsigned char **pp,long length);
-
-PKCS7			*PKCS7_new(void);
-void			PKCS7_free(PKCS7 *a);
-void			PKCS7_content_free(PKCS7 *a);
-int 			i2d_PKCS7(PKCS7 *a,
-				unsigned char **pp);
-PKCS7			*d2i_PKCS7(PKCS7 **a,
-				unsigned char **pp,long length);
+DECLARE_ASN1_ITEM(PKCS7_ATTR_SIGN)
+DECLARE_ASN1_ITEM(PKCS7_ATTR_VERIFY)
 
 
 long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg);
@@ -359,7 +306,7 @@ long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg);
 int PKCS7_set_type(PKCS7 *p7, int type);
 int PKCS7_set_content(PKCS7 *p7, PKCS7 *p7_data);
 int PKCS7_SIGNER_INFO_set(PKCS7_SIGNER_INFO *p7i, X509 *x509, EVP_PKEY *pkey,
-	EVP_MD *dgst);
+	const EVP_MD *dgst);
 int PKCS7_add_signer(PKCS7 *p7, PKCS7_SIGNER_INFO *p7i);
 int PKCS7_add_certificate(PKCS7 *p7, X509 *x509);
 int PKCS7_add_crl(PKCS7 *p7, X509_CRL *x509);
@@ -375,7 +322,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert);
 
 
 PKCS7_SIGNER_INFO *PKCS7_add_signature(PKCS7 *p7, X509 *x509,
-	EVP_PKEY *pkey, EVP_MD *dgst);
+	EVP_PKEY *pkey, const EVP_MD *dgst);
 X509 *PKCS7_cert_from_signer_info(PKCS7 *p7, PKCS7_SIGNER_INFO *si);
 STACK_OF(PKCS7_SIGNER_INFO) *PKCS7_get_signer_info(PKCS7 *p7);
 
@@ -402,7 +349,7 @@ PKCS7 *PKCS7_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
 int PKCS7_verify(PKCS7 *p7, STACK_OF(X509) *certs, X509_STORE *store,
 					BIO *indata, BIO *out, int flags);
 STACK_OF(X509) *PKCS7_get0_signers(PKCS7 *p7, STACK_OF(X509) *certs, int flags);
-PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, EVP_CIPHER *cipher,
+PKCS7 *PKCS7_encrypt(STACK_OF(X509) *certs, BIO *in, const EVP_CIPHER *cipher,
 								int flags);
 int PKCS7_decrypt(PKCS7 *p7, EVP_PKEY *pkey, X509 *cert, BIO *data, int flags);
 
@@ -461,7 +408,6 @@ void ERR_load_PKCS7_strings(void);
 #define PKCS7_R_DIGEST_FAILURE				 101
 #define PKCS7_R_ERROR_ADDING_RECIPIENT			 120
 #define PKCS7_R_ERROR_SETTING_CIPHER			 121
-#define PKCS7_R_INTERNAL_ERROR				 102
 #define PKCS7_R_INVALID_MIME_TYPE			 131
 #define PKCS7_R_INVALID_NULL_POINTER			 143
 #define PKCS7_R_MIME_NO_CONTENT_TYPE			 132

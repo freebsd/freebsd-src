@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_DSA
+#ifndef OPENSSL_NO_DSA
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -90,6 +90,7 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+	ENGINE *e = NULL;
 	DSA *dsa=NULL;
 	int i,badops=0,text=0;
 	BIO *in=NULL,*out=NULL;
@@ -97,12 +98,16 @@ int MAIN(int argc, char **argv)
 	char *infile,*outfile,*prog,*inrand=NULL;
 	int numbits= -1,num,genkey=0;
 	int need_rand=0;
+	char *engine=NULL;
 
 	apps_startup();
 
 	if (bio_err == NULL)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
+
+	if (!load_config(bio_err, NULL))
+		goto end;
 
 	infile=NULL;
 	outfile=NULL;
@@ -133,6 +138,11 @@ int MAIN(int argc, char **argv)
 			{
 			if (--argc < 1) goto bad;
 			outfile= *(++argv);
+			}
+		else if(strcmp(*argv, "-engine") == 0)
+			{
+			if (--argc < 1) goto bad;
+			engine = *(++argv);
 			}
 		else if (strcmp(*argv,"-text") == 0)
 			text=1;
@@ -179,7 +189,9 @@ bad:
 		BIO_printf(bio_err," -text         print as text\n");
 		BIO_printf(bio_err," -C            Output C code\n");
 		BIO_printf(bio_err," -noout        no output\n");
+		BIO_printf(bio_err," -genkey       generate a DSA key\n");
 		BIO_printf(bio_err," -rand         files to use for random number input\n");
+		BIO_printf(bio_err," -engine e     use engine e, possibly a hardware device.\n");
 		BIO_printf(bio_err," number        number of bits to use for generating private key\n");
 		goto end;
 		}
@@ -207,7 +219,7 @@ bad:
 	if (outfile == NULL)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 		out = BIO_push(tmpbio, out);
@@ -222,6 +234,8 @@ bad:
 			goto end;
 			}
 		}
+
+        e = setup_engine(bio_err, engine, 0);
 
 	if (need_rand)
 		{
@@ -357,7 +371,8 @@ end:
 	if (in != NULL) BIO_free(in);
 	if (out != NULL) BIO_free_all(out);
 	if (dsa != NULL) DSA_free(dsa);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 
 static void MS_CALLBACK dsa_cb(int p, int n, void *arg)

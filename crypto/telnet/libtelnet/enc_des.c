@@ -54,7 +54,6 @@ static const char sccsid[] = "@(#)enc_des.c	8.3 (Berkeley) 5/30/95";
 #include "misc-proto.h"
 
 extern int encrypt_debug_mode;
-void des_set_random_generator_seed(des_cblock *); /* XXX */
 
 #define	CFB	0
 #define	OFB	1
@@ -75,7 +74,6 @@ struct fb {
 	int need_start;
 	int state[2];
 	int keyid[2];
-	int once;
 	struct stinfo {
 		Block		str_output;
 		Block		str_feed;
@@ -211,7 +209,7 @@ fb64_start(struct fb *fbp, int dir, int server __unused)
 		/*
 		 * Create a random feed and send it over.
 		 */
-		des_new_random_key((Block *)fbp->temp_feed);
+		des_random_key((Block *)fbp->temp_feed);
 		des_ecb_encrypt((Block *)fbp->temp_feed, (Block *)fbp->temp_feed,
 				fbp->krbdes_sched, 1);
 		p = fbp->fb_feed + 3;
@@ -397,10 +395,6 @@ fb64_session(Session_Key *key, int server, struct fb *fbp)
 	fb64_stream_key(fbp->krbdes_key, &fbp->streams[DIR_ENCRYPT-1]);
 	fb64_stream_key(fbp->krbdes_key, &fbp->streams[DIR_DECRYPT-1]);
 
-	if (fbp->once == 0) {
-		des_set_random_generator_seed((Block *)fbp->krbdes_key);
-		fbp->once = 1;
-	}
 	des_key_sched((Block *)fbp->krbdes_key, fbp->krbdes_sched);
 	/*
 	 * Now look to see if krbdes_start() was was waiting for

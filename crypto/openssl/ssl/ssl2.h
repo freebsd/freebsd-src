@@ -133,7 +133,7 @@ extern "C" {
 
 /* Upper/Lower Bounds */
 #define SSL2_MAX_MASTER_KEY_LENGTH_IN_BITS	256
-#ifdef MPE
+#ifdef OPENSSL_SYS_MPE
 #define SSL2_MAX_RECORD_LENGTH_2_BYTE_HEADER	29998u
 #else
 #define SSL2_MAX_RECORD_LENGTH_2_BYTE_HEADER	32767u  /* 2^15-1 */
@@ -189,7 +189,6 @@ typedef struct ssl2_state_st
 	unsigned char *ract_data;
 	unsigned char *wact_data;
 	unsigned char *mac_data;
-	unsigned char *pad_data_UNUSED; /* only for binary compatibility with 0.9.6b */
 
 	unsigned char *read_key;
 	unsigned char *write_key;

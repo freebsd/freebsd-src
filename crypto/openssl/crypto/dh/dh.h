@@ -59,15 +59,16 @@
 #ifndef HEADER_DH_H
 #define HEADER_DH_H
 
-#ifdef NO_DH
+#ifdef OPENSSL_NO_DH
 #error DH is disabled.
 #endif
 
-#ifndef NO_BIO
+#ifndef OPENSSL_NO_BIO
 #include <openssl/bio.h>
 #endif
 #include <openssl/bn.h>
 #include <openssl/crypto.h>
+#include <openssl/ossl_typ.h>
 	
 #define DH_FLAG_CACHE_MONT_P	0x01
 
@@ -81,9 +82,9 @@ typedef struct dh_method {
 	const char *name;
 	/* Methods here */
 	int (*generate_key)(DH *dh);
-	int (*compute_key)(unsigned char *key,BIGNUM *pub_key,DH *dh);
-	int (*bn_mod_exp)(DH *dh, BIGNUM *r, BIGNUM *a, const BIGNUM *p,
-				const BIGNUM *m, BN_CTX *ctx,
+	int (*compute_key)(unsigned char *key,const BIGNUM *pub_key,DH *dh);
+	int (*bn_mod_exp)(const DH *dh, BIGNUM *r, const BIGNUM *a,
+				const BIGNUM *p, const BIGNUM *m, BN_CTX *ctx,
 				BN_MONT_CTX *m_ctx); /* Can be null */
 
 	int (*init)(DH *dh);
@@ -100,7 +101,7 @@ struct dh_st
 	int version;
 	BIGNUM *p;
 	BIGNUM *g;
-	int length; /* optional */
+	long length; /* optional */
 	BIGNUM *pub_key;	/* g^x */
 	BIGNUM *priv_key;	/* x */
 
@@ -115,7 +116,8 @@ struct dh_st
 
 	int references;
 	CRYPTO_EX_DATA ex_data;
-	DH_METHOD *meth;
+	const DH_METHOD *meth;
+	ENGINE *engine;
 	};
 
 #define DH_GENERATOR_2		2
@@ -148,34 +150,35 @@ struct dh_st
 		(unsigned char *)(x))
 #endif
 
-DH_METHOD *DH_OpenSSL(void);
+const DH_METHOD *DH_OpenSSL(void);
 
-void DH_set_default_method(DH_METHOD *meth);
-DH_METHOD *DH_get_default_method(void);
-DH_METHOD *DH_set_method(DH *dh, DH_METHOD *meth);
-DH *DH_new_method(DH_METHOD *meth);
+void DH_set_default_method(const DH_METHOD *meth);
+const DH_METHOD *DH_get_default_method(void);
+int DH_set_method(DH *dh, const DH_METHOD *meth);
+DH *DH_new_method(ENGINE *engine);
 
 DH *	DH_new(void);
 void	DH_free(DH *dh);
-int	DH_size(DH *dh);
+int	DH_up_ref(DH *dh);
+int	DH_size(const DH *dh);
 int DH_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
 int DH_set_ex_data(DH *d, int idx, void *arg);
 void *DH_get_ex_data(DH *d, int idx);
 DH *	DH_generate_parameters(int prime_len,int generator,
 		void (*callback)(int,int,void *),void *cb_arg);
-int	DH_check(DH *dh,int *codes);
+int	DH_check(const DH *dh,int *codes);
 int	DH_generate_key(DH *dh);
-int	DH_compute_key(unsigned char *key,BIGNUM *pub_key,DH *dh);
-DH *	d2i_DHparams(DH **a,unsigned char **pp, long length);
-int	i2d_DHparams(DH *a,unsigned char **pp);
-#ifndef NO_FP_API
-int	DHparams_print_fp(FILE *fp, DH *x);
+int	DH_compute_key(unsigned char *key,const BIGNUM *pub_key,DH *dh);
+DH *	d2i_DHparams(DH **a,const unsigned char **pp, long length);
+int	i2d_DHparams(const DH *a,unsigned char **pp);
+#ifndef OPENSSL_NO_FP_API
+int	DHparams_print_fp(FILE *fp, const DH *x);
 #endif
-#ifndef NO_BIO
-int	DHparams_print(BIO *bp, DH *x);
+#ifndef OPENSSL_NO_BIO
+int	DHparams_print(BIO *bp, const DH *x);
 #else
-int	DHparams_print(char *bp, DH *x);
+int	DHparams_print(char *bp, const DH *x);
 #endif
 
 /* BEGIN ERROR CODES */
@@ -192,7 +195,7 @@ void ERR_load_DH_strings(void);
 #define DH_F_DH_COMPUTE_KEY				 102
 #define DH_F_DH_GENERATE_KEY				 103
 #define DH_F_DH_GENERATE_PARAMETERS			 104
-#define DH_F_DH_NEW					 105
+#define DH_F_DH_NEW_METHOD				 105
 
 /* Reason codes. */
 #define DH_R_BAD_GENERATOR				 101

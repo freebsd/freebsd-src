@@ -63,7 +63,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef NO_RC5
+#include "../e_os.h"
+
+#ifdef OPENSSL_NO_RC5
 int main(int argc, char *argv[])
 {
     printf("No RC5 support\n");
@@ -318,7 +320,7 @@ int main(int argc, char *argv[])
 		}
 	if (err == 0) printf("cbc RC5 ok\n");
 
-	exit(err);
+	EXIT(err);
 	return(err);
 	}
 

@@ -82,10 +82,11 @@ static int def_init_default(CONF *conf);
 static int def_init_WIN32(CONF *conf);
 static int def_destroy(CONF *conf);
 static int def_destroy_data(CONF *conf);
-static int def_load(CONF *conf, BIO *bp, long *eline);
-static int def_dump(CONF *conf, BIO *bp);
-static int def_is_number(CONF *conf, char c);
-static int def_to_int(CONF *conf, char c);
+static int def_load(CONF *conf, const char *name, long *eline);
+static int def_load_bio(CONF *conf, BIO *bp, long *eline);
+static int def_dump(const CONF *conf, BIO *bp);
+static int def_is_number(const CONF *conf, char c);
+static int def_to_int(const CONF *conf, char c);
 
 const char *CONF_def_version="CONF_def" OPENSSL_VERSION_PTEXT;
 
@@ -95,10 +96,11 @@ static CONF_METHOD default_method = {
 	def_init_default,
 	def_destroy,
 	def_destroy_data,
-	def_load,
+	def_load_bio,
 	def_dump,
 	def_is_number,
-	def_to_int
+	def_to_int,
+	def_load
 	};
 
 static CONF_METHOD WIN32_method = {
@@ -107,10 +109,11 @@ static CONF_METHOD WIN32_method = {
 	def_init_WIN32,
 	def_destroy,
 	def_destroy_data,
-	def_load,
+	def_load_bio,
 	def_dump,
 	def_is_number,
-	def_to_int
+	def_to_int,
+	def_load
 	};
 
 CONF_METHOD *NCONF_default()
@@ -178,9 +181,35 @@ static int def_destroy_data(CONF *conf)
 	return 1;
 	}
 
-static int def_load(CONF *conf, BIO *in, long *line)
+static int def_load(CONF *conf, const char *name, long *line)
 	{
-#define BUFSIZE	512
+	int ret;
+	BIO *in=NULL;
+
+#ifdef OPENSSL_SYS_VMS
+	in=BIO_new_file(name, "r");
+#else
+	in=BIO_new_file(name, "rb");
+#endif
+	if (in == NULL)
+		{
+		if (ERR_GET_REASON(ERR_peek_last_error()) == BIO_R_NO_SUCH_FILE)
+			CONFerr(CONF_F_CONF_LOAD,CONF_R_NO_SUCH_FILE);
+		else
+			CONFerr(CONF_F_CONF_LOAD,ERR_R_SYS_LIB);
+		return 0;
+		}
+
+	ret = def_load_bio(conf, in, line);
+	BIO_free(in);
+
+	return ret;
+	}
+
+static int def_load_bio(CONF *conf, BIO *in, long *line)
+	{
+/* The macro BUFSIZE conflicts with a system macro in VxWorks */
+#define CONFBUFSIZE	512
 	int bufnum=0,i,ii;
 	BUF_MEM *buff=NULL;
 	char *s,*p,*end;
@@ -224,20 +253,21 @@ static int def_load(CONF *conf, BIO *in, long *line)
 	section_sk=(STACK_OF(CONF_VALUE) *)sv->value;
 
 	bufnum=0;
+	again=0;
 	for (;;)
 		{
-		again=0;
-		if (!BUF_MEM_grow(buff,bufnum+BUFSIZE))
+		if (!BUF_MEM_grow(buff,bufnum+CONFBUFSIZE))
 			{
 			CONFerr(CONF_F_CONF_LOAD_BIO,ERR_R_BUF_LIB);
 			goto err;
 			}
 		p= &(buff->data[bufnum]);
 		*p='\0';
-		BIO_gets(in, p, BUFSIZE-1);
-		p[BUFSIZE-1]='\0';
+		BIO_gets(in, p, CONFBUFSIZE-1);
+		p[CONFBUFSIZE-1]='\0';
 		ii=i=strlen(p);
-		if (i == 0) break;
+		if (i == 0 && !again) break;
+		again=0;
 		while (i > 0)
 			{
 			if ((p[i-1] != '\r') && (p[i-1] != '\n'))
@@ -247,7 +277,7 @@ static int def_load(CONF *conf, BIO *in, long *line)
 			}
 		/* we removed some trailing stuff so there is a new
 		 * line on the end. */
-		if (i == ii)
+		if (ii && i == ii)
 			again=1; /* long line */
 		else
 			{
@@ -419,7 +449,11 @@ err:
 	if (line != NULL) *line=eline;
 	sprintf(btmp,"%ld",eline);
 	ERR_add_error_data(2,"line ",btmp);
-	if ((h != conf->data) && (conf->data != NULL)) CONF_free(conf->data);
+	if ((h != conf->data) && (conf->data != NULL))
+		{
+		CONF_free(conf->data);
+		conf->data=NULL;
+		}
 	if (v != NULL)
 		{
 		if (v->name != NULL) OPENSSL_free(v->name);
@@ -595,7 +629,7 @@ static int str_copy(CONF *conf, char *section, char **pto, char *from)
 				CONFerr(CONF_F_STR_COPY,CONF_R_VARIABLE_HAS_NO_VALUE);
 				goto err;
 				}
-			BUF_MEM_grow(buf,(strlen(p)+len-(e-from)));
+			BUF_MEM_grow_clean(buf,(strlen(p)+len-(e-from)));
 			while (*p)
 				buf->data[to++]= *(p++);
 			from=e;
@@ -686,18 +720,20 @@ static void dump_value(CONF_VALUE *a, BIO *out)
 		BIO_printf(out, "[[%s]]\n", a->section);
 	}
 
-static int def_dump(CONF *conf, BIO *out)
+static IMPLEMENT_LHASH_DOALL_ARG_FN(dump_value, CONF_VALUE *, BIO *)
+
+static int def_dump(const CONF *conf, BIO *out)
 	{
-	lh_doall_arg(conf->data, (void (*)())dump_value, out);
+	lh_doall_arg(conf->data, LHASH_DOALL_ARG_FN(dump_value), out);
 	return 1;
 	}
 
-static int def_is_number(CONF *conf, char c)
+static int def_is_number(const CONF *conf, char c)
 	{
 	return IS_NUMBER(conf,c);
 	}
 
-static int def_to_int(CONF *conf, char c)
+static int def_to_int(const CONF *conf, char c)
 	{
 	return c - '0';
 	}

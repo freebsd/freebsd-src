@@ -75,6 +75,11 @@ or "built on: date not available" otherwise.
 The "Configure" target of the library build in the form "platform: ..."
 if available or "platform: information not available" otherwise.
 
+=item SSLEAY_DIR
+
+The "OPENSSLDIR" setting of the library build in the form "OPENSSLDIR: "...""
+if available or "OPENSSLDIR: N/A" otherwise.
+
 =back
 
 For an unknown B<t>, the text "not available" is returned.
@@ -91,5 +96,6 @@ L<crypto(3)|crypto(3)>
 
 SSLeay() and SSLEAY_VERSION_NUMBER are available in all versions of SSLeay and OpenSSL.
 OPENSSL_VERSION_NUMBER is available in all versions of OpenSSL.
+B<SSLEAY_DIR> was added in OpenSSL 0.9.7.
 
 =cut
