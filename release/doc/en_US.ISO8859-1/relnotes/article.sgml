@@ -117,7 +117,7 @@
       of cryptographic algorithms for use by the kernel and access to
       cryptographic hardware for user-mode applications.
       Hardware device drivers are provided to support hifn-based cards
-      (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;).</para>
+      (&man.hifn.4;) and Broadcom-based cards (&man.ubsec.4;). &merged;</para>
 
     <para>A new &man.ddb.4; command <command>show pcpu</command> lists
       some of the per-CPU data.</para>
@@ -399,8 +399,8 @@
 
     <para>The &man.ucom.4; device driver has been added, to support USB
       modems, serial devices, and other programs that need to look
-      like a tty.  The related &man.uplcom.4; and &man.uvscom.4; drivers provide specific
-      support for the Prolific PL-2303 serial adapter and the SUNTAC
+      like a tty.  The related &man.uftdi.4;, &man.uplcom.4;, &man.uvscom.4; drivers provide specific
+      support for FTDI serial adapters, the Prolific PL-2303 serial adapter and the SUNTAC
       Slipper U VS-10U, respectively. &merged;</para>
 
     <para>To increase security, the <literal>UCONSOLE</literal> kernel
@@ -1615,12 +1615,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <screen role="historic"><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
 <prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
-      <para arch="i386">Preliminary Cardbus support under NEWCARD has
-	been added.  This code supports the TI113X, TI12XX, TI125X,
-	Ricoh 5C46/5C47, Topic 95/97/100 and Cirrus Logic PD683X
-	bridges.  16-bit PC Card support is not yet functional.</para>
+      <para arch="i386">Preliminary CardBus support with NEWCARD has
+	been added.  This code supports both 32-bit and 16-bit cards.
+	All CardBus bridges are supported, as well as the TI-1030
+	PCMCIA-PCI bridge.  Other PCMCIA-PCI bridges and ISA bridges
+	aren't supported yet.</para>
 
-      <para arch="i386">NEWCARD is now the default pccard/cardbus
+      <para arch="i386">NEWCARD is now the default PCCARD/CardBus
         system in the <filename>GENERIC</filename> kernel.</para>
 
     </sect3>
@@ -1708,7 +1709,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	(ACPI), a multi-vendor standard for configuration and power
 	management, has been added.  This functionality has been
 	provided by the <application>Intel ACPI Component
-	Architecture</application> project, as of the ACPI CA 20020815
+	Architecture</application> project, as of the ACPI CA 20021118
 	snapshot.  Some backward compatability for applications using
 	the older APM standard has been provided.</para>
 
@@ -2228,13 +2229,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>Support for &man.a.out.5; format executables in the compiler
-      toolchain has been largely removed.
-        <note>
-	  <para>This is a work in progress.  Eventually, &man.a.out.5;
-	    support will resurface in a series of ports/packages.</para>
-	</note>
-      </para>
+    <para>Support for creating &man.a.out.5; format executables with
+      the base system compiler toolchain has been removed.</para>
 
     <para role="historic">If the first argument to &man.ancontrol.8; or
       &man.wicontrol.8; doesn't start with a <literal>-</literal>, it
@@ -3945,15 +3941,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	Perl, many utilities have been
 	rewritten as shell scripts or C programs (specific notes are
 	made for each affected utility).
-	<filename>/usr/bin/perl</filename> is now a
-	<quote>wrapper</quote> program, so that programs expecting to
-	find a Perl interpreter there will
-	be able to function correctly.
 
-	  <warning>
+	  <note>
 	    <para>The Perl removal and
 	      package integration work is ongoing.</para>
-	  </warning>
+	  </note>
 
 	</para>
 
