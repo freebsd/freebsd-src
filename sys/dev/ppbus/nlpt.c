@@ -47,7 +47,7 @@
  *
  *	from: unknown origin, 386BSD 0.1
  *	From Id: lpt.c,v 1.55.2.1 1996/11/12 09:08:38 phk Exp
- *	$Id: nlpt.c,v 1.1 1997/08/14 13:57:40 msmith Exp $
+ *	$Id: nlpt.c,v 1.2 1997/08/16 14:05:31 msmith Exp $
  */
 
 /*
@@ -79,9 +79,6 @@
 #include <machine/stdarg.h>
 #include <machine/clock.h>
 #include <machine/lpt.h>
-
-#include <i386/isa/isa.h>
-#include <i386/isa/isa_device.h>
 
 #include <sys/kernel.h>
 #endif /*KERNEL */
@@ -249,7 +246,7 @@ nlpt_detect(struct lpt_data *lpt)
 	u_char		mask;
 	int		i, error;
 
-	status = IO_LPTSIZE;
+	status = 1;				/* assume success */
 
 	if ((error = lpt_request_ppbus(lpt, PPB_DONTWAIT))) {
 		printf("nlpt: cannot alloc ppbus (%d)!\n", error);
