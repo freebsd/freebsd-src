@@ -1,6 +1,6 @@
 /*      $NetBSD: if_atm.c,v 1.6 1996/10/13 02:03:01 christos Exp $       */
 
-/*
+/*-
  *
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
  * All rights reserved.

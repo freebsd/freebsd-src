@@ -1,6 +1,7 @@
 /*
  *  ncp.h
- *
+ */
+/*-
  *  Copyright (C) 1995 by Volker Lendecke
  *  New version derived from original ncp.h, 1998 Boris Popov
  *

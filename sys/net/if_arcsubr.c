@@ -1,7 +1,7 @@
 /*	$NetBSD: if_arcsubr.c,v 1.36 2001/06/14 05:44:23 itojun Exp $	*/
 /*	$FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 1994, 1995 Ignatios Souvatzis
  * Copyright (c) 1982, 1989, 1993
  *	The Regents of the University of California.  All rights reserved.

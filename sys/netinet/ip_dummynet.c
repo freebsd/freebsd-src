@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1998-2002 Luigi Rizzo, Universita` di Pisa
  * Portions Copyright (c) 2000 Akamba Corp.
  * All rights reserved

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2003 Harti Brandt.
  * Copyright (c) 2003 Vincent Jardin.
  * 	All rights reserved.

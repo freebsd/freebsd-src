@@ -1,6 +1,6 @@
 /*	$FreeBSD$ */
 
-/*
+/*-
  * Copyright (c) 2003 Bruce M. Simpson <bms@spc.org>
  *
  * Redistribution and use in source and binary forms, with or without
