@@ -31,7 +31,7 @@ SUBMITTER=unknown
 GNATS_ROOT=
 
 # The default mail address for PR submissions. 
-GNATS_ADDR=FreeBSD-gnats-submit@freefall.cdrom.com
+GNATS_ADDR=FreeBSD-gnats-submit@freebsd.org
 
 # Where the gnats category tree lives.
 DATADIR=@DATADIR@
