@@ -39,7 +39,9 @@
 .Cd device viapm
 .Sh DESCRIPTION
 This driver provides access to the
-.Tn VIA chipset Power Management Unit family.They are
+.Tn "VIA chipset Power Management Unit"
+family.
+They are
 VT82C586B, VT82C596A, VT82C596B, VT82C686A and VT8233.
 .Pp
 The embedded controller of the VIA chipset may give you access
@@ -52,11 +54,11 @@ See
 for writing user code to fetch voltages, temperature and so on from the
 monitoring chip of your mainboard.
 .Sh SEE ALSO
-.Xr smb 4 ,
-.Xr smbus 4 ,
+.Xr iicbb 4 ,
 .Xr iicbus 4 ,
 .Xr iicsmb 4 ,
-.Xr iicbb 4
+.Xr smb 4 ,
+.Xr smbus 4
 .Sh HISTORY
 The
 .Nm
@@ -65,6 +67,6 @@ manual page first appeared in
 .Sh AUTHORS
 This
 manual page was written by
-.An Nicolas Souchu Aq nsouch@FreeBSD.org
+.An Nicolas Souchu Aq nsouch@FreeBSD.org .
 .Sh BUGS
 Only polling mode is supported.
