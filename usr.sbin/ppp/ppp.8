@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.52 1997/08/19 11:18:34 danny Exp $
+.\" $Id: ppp.8,v 1.53 1997/08/19 11:27:00 danny Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -758,7 +758,7 @@ ui-gate:
  set device ui-gate:ppp-in
  set dial
  set timeout 30 5 4 
- set log Phase Chat Connect Carrier hdlc LCP tun
+ set log Phase Chat Connect Carrier hdlc LCP IPCP CCP tun
  set ifaddr 10.0.4.2 10.0.4.1
  add 10.0.4.2 255.255.255.255 127.0.0.1
  add 10.0.2.0 255.255.255.0 10.0.4.2
@@ -1214,7 +1214,7 @@ add 0 0 HISADDR
 .Ed
 
 HISADDR is a macro meaning the "other side"s IP number, and is
-available once an IP number has been agreed (using LCP).
+available once an IP number has been agreed (using IPCP).
 Now, once a connection is established,
 .Nm
 will delete all non-direct interface routes, and add a default route
@@ -1260,12 +1260,14 @@ is able to generate the following log info via
 .Bl -column SMMMMMM -offset indent
 .It Li Async	Dump async level packet in hex
 .It Li Carrier	Log Chat lines with 'CARRIER'
+.It Li CCP	Generate a CPP packet trace
 .It Li Chat	Generate Chat script trace log
 .It Li Command	Log commands executed
 .It Li Connect	Generate complete Chat log
 .It Li Debug	Log (very verbose) debug information
 .It Li HDLC	Dump HDLC packet in hex
-.It Li LCP	Generate LCP/IPCP packet trace
+.It Li IPCP	Generate an IPCP packet trace
+.It Li LCP	Generate an LCP packet trace
 .It Li Link	Log address assignments and link up/down events
 .It Li LQM	Generate LQR report
 .It Li Phase	Phase transition log output
@@ -1666,8 +1668,8 @@ receive the increased packet size.
 .It set openmode active|passive
 By default, openmode is always active.  That is,
 .Nm
-will always initiate LCP negotiation.  If you want to wait for the
-peer to initiate LCP negotiation, you may use the value
+will always initiate LCP/IPCP/CCP negotiation.  If you want to wait for the
+peer to initiate negotiations, you may use the value
 .Dq passive .
 
 .It set parity odd|even|none|mark
@@ -1717,17 +1719,18 @@ is taken before starting at the first number again.  A value of
 .Dq random
 may be used here too.
 
-.It set stopped seconds
+.It set stopped [LCPseconds [IPCPseconds [CCPseconds]]]
 If this option is set,
 .Nm
-will time out after being in the stopped state for the given number of
+will time out after the given FSM (Finite State Machine) has been in
+the stopped state for the given number of
 .Dq seconds .
 This option may be useful if you see ppp failing to respond in the
 stopped state.  Use
-.Dq set log +lcp
+.Dq set log +lcp +ipcp +ccp
 to make
 .Nm
-log state transitions.
+log all state transitions.
 .Pp
 The default value is zero, where ppp doesn't time out in the stopped
 state.
@@ -1844,7 +1847,7 @@ Show the current reconnect values.
 Show the current redial values.
 
 .It show stopped
-Show the current stopped timeout.
+Show the current stopped timeouts.
 
 .It show route
 Show the current routing tables.
