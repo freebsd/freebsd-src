@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	gpt
-SRCS=	destroy.c gpt.c map.c migrate.c recover.c show.c
+SRCS=	create.c destroy.c gpt.c map.c migrate.c recover.c show.c
 WARNS=	4
 NOMAN=	not yet
 
