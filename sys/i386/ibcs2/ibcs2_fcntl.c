@@ -174,20 +174,20 @@ ibcs2_open(td, uap)
 	struct ibcs2_open_args *uap;
 {
 	struct proc *p = td->td_proc;
-	int noctty = uap->flags & IBCS2_O_NOCTTY;
+	int noctty = SCARG(uap, flags) & IBCS2_O_NOCTTY;
 	int ret;
 	caddr_t sg = stackgap_init();
 
-	uap->flags = cvt_o_flags(uap->flags);
-	if (uap->flags & O_CREAT)
-		CHECKALTCREAT(td, &sg, uap->path);
+	SCARG(uap, flags) = cvt_o_flags(SCARG(uap, flags));
+	if (SCARG(uap, flags) & O_CREAT)
+		CHECKALTCREAT(td, &sg, SCARG(uap, path));
 	else
-		CHECKALTEXIST(td, &sg, uap->path);
+		CHECKALTEXIST(td, &sg, SCARG(uap, path));
 	ret = open(td, (struct open_args *)uap);
 
 #ifdef SPX_HACK
 	if (ret == ENXIO) {
-		if (!strcmp(uap->path, "/compat/ibcs2/dev/spx"))
+		if (!strcmp(SCARG(uap, path), "/compat/ibcs2/dev/spx"))
 			ret = spx_open(td, uap);
 	} else
 #endif /* SPX_HACK */
@@ -219,10 +219,10 @@ ibcs2_creat(td, uap)
 	struct open_args cup;   
 	caddr_t sg = stackgap_init();
 
-	CHECKALTCREAT(td, &sg, uap->path);
-	cup.path = uap->path;
-	cup.mode = uap->mode;
-	cup.flags = O_WRONLY | O_CREAT | O_TRUNC;
+	CHECKALTCREAT(td, &sg, SCARG(uap, path));
+	SCARG(&cup, path) = SCARG(uap, path);
+	SCARG(&cup, mode) = SCARG(uap, mode);
+	SCARG(&cup, flags) = O_WRONLY | O_CREAT | O_TRUNC;
 	return open(td, &cup);
 }       
 
@@ -234,9 +234,9 @@ ibcs2_access(td, uap)
         struct access_args cup;
         caddr_t sg = stackgap_init();
 
-        CHECKALTEXIST(td, &sg, uap->path);
-        cup.path = uap->path;
-        cup.flags = uap->flags;
+        CHECKALTEXIST(td, &sg, SCARG(uap, path));
+        SCARG(&cup, path) = SCARG(uap, path);
+        SCARG(&cup, flags) = SCARG(uap, flags);
         return access(td, &cup);
 }
 
@@ -250,55 +250,55 @@ ibcs2_fcntl(td, uap)
 	struct flock *flp;
 	struct ibcs2_flock ifl;
 	
-	switch(uap->cmd) {
+	switch(SCARG(uap, cmd)) {
 	case IBCS2_F_DUPFD:
-		fa.fd = uap->fd;
-		fa.cmd = F_DUPFD;
-		fa.arg = (/* XXX */ int)uap->arg;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_DUPFD;
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		return fcntl(td, &fa);
 	case IBCS2_F_GETFD:
-		fa.fd = uap->fd;
-		fa.cmd = F_GETFD;
-		fa.arg = (/* XXX */ int)uap->arg;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_GETFD;
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		return fcntl(td, &fa);
 	case IBCS2_F_SETFD:
-		fa.fd = uap->fd;
-		fa.cmd = F_SETFD;
-		fa.arg = (/* XXX */ int)uap->arg;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_SETFD;
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		return fcntl(td, &fa);
 	case IBCS2_F_GETFL:
-		fa.fd = uap->fd;
-		fa.cmd = F_GETFL;
-		fa.arg = (/* XXX */ int)uap->arg;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_GETFL;
+		SCARG(&fa, arg) = (/* XXX */ int)SCARG(uap, arg);
 		error = fcntl(td, &fa);
 		if (error)
 			return error;
 		td->td_retval[0] = oflags2ioflags(td->td_retval[0]);
 		return error;
 	case IBCS2_F_SETFL:
-		fa.fd = uap->fd;
-		fa.cmd = F_SETFL;
-		fa.arg = (/* XXX */ int)
-				  ioflags2oflags((int)uap->arg);
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_SETFL;
+		SCARG(&fa, arg) = (/* XXX */ int)
+				  ioflags2oflags((int)SCARG(uap, arg));
 		return fcntl(td, &fa);
 
 	case IBCS2_F_GETLK:
 	    {
 		caddr_t sg = stackgap_init();
 		flp = stackgap_alloc(&sg, sizeof(*flp));
-		error = copyin((caddr_t)uap->arg, (caddr_t)&ifl,
+		error = copyin((caddr_t)SCARG(uap, arg), (caddr_t)&ifl,
 			       ibcs2_flock_len);
 		if (error)
 			return error;
 		cvt_iflock2flock(&ifl, flp);
-		fa.fd = uap->fd;
-		fa.cmd = F_GETLK;
-		fa.arg = (/* XXX */ int)flp;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_GETLK;
+		SCARG(&fa, arg) = (/* XXX */ int)flp;
 		error = fcntl(td, &fa);
 		if (error)
 			return error;
 		cvt_flock2iflock(flp, &ifl);
-		return copyout((caddr_t)&ifl, (caddr_t)uap->arg,
+		return copyout((caddr_t)&ifl, (caddr_t)SCARG(uap, arg),
 			       ibcs2_flock_len);
 	    }
 
@@ -306,14 +306,14 @@ ibcs2_fcntl(td, uap)
 	    {
 		caddr_t sg = stackgap_init();
 		flp = stackgap_alloc(&sg, sizeof(*flp));
-		error = copyin((caddr_t)uap->arg, (caddr_t)&ifl,
+		error = copyin((caddr_t)SCARG(uap, arg), (caddr_t)&ifl,
 			       ibcs2_flock_len);
 		if (error)
 			return error;
 		cvt_iflock2flock(&ifl, flp);
-		fa.fd = uap->fd;
-		fa.cmd = F_SETLK;
-		fa.arg = (/* XXX */ int)flp;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_SETLK;
+		SCARG(&fa, arg) = (/* XXX */ int)flp;
 
 		return fcntl(td, &fa);
 	    }
@@ -322,14 +322,14 @@ ibcs2_fcntl(td, uap)
 	    {
 		caddr_t sg = stackgap_init();
 		flp = stackgap_alloc(&sg, sizeof(*flp));
-		error = copyin((caddr_t)uap->arg, (caddr_t)&ifl,
+		error = copyin((caddr_t)SCARG(uap, arg), (caddr_t)&ifl,
 			       ibcs2_flock_len);
 		if (error)
 			return error;
 		cvt_iflock2flock(&ifl, flp);
-		fa.fd = uap->fd;
-		fa.cmd = F_SETLKW;
-		fa.arg = (/* XXX */ int)flp;
+		SCARG(&fa, fd) = SCARG(uap, fd);
+		SCARG(&fa, cmd) = F_SETLKW;
+		SCARG(&fa, arg) = (/* XXX */ int)flp;
 		return fcntl(td, &fa);
 	    }
 	}

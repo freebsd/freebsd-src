@@ -52,6 +52,10 @@
 #include <sys/sysent.h>
 #include <sys/proc.h>
 
+#ifndef SCARG
+#define SCARG(p, x)  (p)->x
+#endif
+
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
 

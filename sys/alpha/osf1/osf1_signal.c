@@ -224,8 +224,8 @@ osf1_sigaction(td, uap)
 	struct sigaction_args sa;
 
 	sg = stackgap_init();
-	nosa = uap->nsa;
-	oosa = uap->osa;
+	nosa = SCARG(uap, nsa);
+	oosa = SCARG(uap, osa);
 	if (osf1_sigdbg && uap->sigtramp)
 		uprintf("osf1_sigaction: trampoline handler at %p\n",
 		    uap->sigtramp);
@@ -244,9 +244,9 @@ osf1_sigaction(td, uap)
 	} else
 		nbsa = NULL;
 
-	sa.sig = uap->signum;
-	sa.act = nbsa;
-	sa.oact = obsa;
+	SCARG(&sa, sig) = SCARG(uap, signum);
+	SCARG(&sa, act) = nbsa;
+	SCARG(&sa, oact) = obsa;
 
 	if ((error = sigaction(td, &sa)) != 0)
 		return error;
@@ -274,8 +274,8 @@ osf1_sigaltstack(td, uap)
 	struct sigaltstack_args sa;
 
 	sg = stackgap_init();
-	noss = uap->nss;
-	ooss = uap->oss;
+	noss = SCARG(uap, nss);
+	ooss = SCARG(uap, oss);
 
 	if (ooss != NULL)
 		obss = stackgap_alloc(&sg, sizeof(struct sigaltstack));
@@ -292,8 +292,8 @@ osf1_sigaltstack(td, uap)
 	} else
 		nbss = NULL;
 
-	sa.ss = nbss;
-	sa.oss = obss;
+	SCARG(&sa, ss) = nbss;
+	SCARG(&sa, oss) = obss;
 
 	if ((error = sigaltstack(td, &sa)) != 0)
 		return error;
@@ -321,22 +321,22 @@ osf1_signal(td, uap)
 	p = td->td_proc;
 	sg = stackgap_init();
 
-	signum = OSF1_SIGNO(uap->signum);
+	signum = OSF1_SIGNO(SCARG(uap, signum));
 	if (signum <= 0 || signum > OSF1_NSIG) {
-		if (OSF1_SIGCALL(uap->signum) == OSF1_SIGNAL_MASK ||
-		    OSF1_SIGCALL(uap->signum) == OSF1_SIGDEFER_MASK)
+		if (OSF1_SIGCALL(SCARG(uap, signum)) == OSF1_SIGNAL_MASK ||
+		    OSF1_SIGCALL(SCARG(uap, signum)) == OSF1_SIGDEFER_MASK)
 			td->td_retval[0] = -1;
 		return EINVAL;
 	}
 
-	switch (OSF1_SIGCALL(uap->signum)) {
+	switch (OSF1_SIGCALL(SCARG(uap, signum))) {
 	case OSF1_SIGDEFER_MASK:
 		/*
 		 * sigset is identical to signal() except
 		 * that SIG_HOLD is allowed as
 		 * an action.
 		 */
-		if ((u_long)uap->handler ==  OSF1_SIG_HOLD) {
+		if ((u_long)SCARG(uap, handler) ==  OSF1_SIG_HOLD) {
 			sigset_t mask;
 			sigset_t *bmask;
 			struct sigprocmask_args sa;
@@ -344,9 +344,9 @@ osf1_signal(td, uap)
 			bmask = stackgap_alloc(&sg, sizeof(sigset_t));
 			SIGEMPTYSET(mask);
 			SIGADDSET(mask, signum);
-			sa.how = SIG_BLOCK;
-			sa.set = bmask;
-			sa.oset = NULL;
+			SCARG(&sa, how) = SIG_BLOCK;
+			SCARG(&sa, set) = bmask;
+			SCARG(&sa, oset) = NULL;
 			if ((error = copyout(&mask, bmask, sizeof(mask))) != 0)
 				return (error);
 			return sigprocmask(td, &sa);
@@ -360,11 +360,11 @@ osf1_signal(td, uap)
 
 			nbsa = stackgap_alloc(&sg, sizeof(struct sigaction));
 			obsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			sa_args.sig = signum;
-			sa_args.act = nbsa;
-			sa_args.oact = obsa;
+			SCARG(&sa_args, sig) = signum;
+			SCARG(&sa_args, act) = nbsa;
+			SCARG(&sa_args, oact) = obsa;
 
-			sa.sa_handler = uap->handler;
+			sa.sa_handler = SCARG(uap, handler);
 			SIGEMPTYSET(sa.sa_mask);
 			sa.sa_flags = 0;
 #if 0
@@ -394,9 +394,9 @@ osf1_signal(td, uap)
 			bset = stackgap_alloc(&sg, sizeof(sigset_t));
 			SIGEMPTYSET(set);
 			SIGADDSET(set, signum);
-			sa.how = SIG_BLOCK;
-			sa.set = bset;
-			sa.oset = NULL;
+			SCARG(&sa, how) = SIG_BLOCK;
+			SCARG(&sa, set) = bset;
+			SCARG(&sa, oset) = NULL;
 			if ((error = copyout(&set, bset, sizeof(set))) != 0)
 				return (error);
 			return sigprocmask(td, &sa);
@@ -411,9 +411,9 @@ osf1_signal(td, uap)
 			bset = stackgap_alloc(&sg, sizeof(sigset_t));
 			SIGEMPTYSET(set);
 			SIGADDSET(set, signum);
-			sa.how = SIG_UNBLOCK;
-			sa.set = bset;
-			sa.oset = NULL;
+			SCARG(&sa, how) = SIG_UNBLOCK;
+			SCARG(&sa, set) = bset;
+			SCARG(&sa, oset) = NULL;
 			if ((error = copyout(&set, bset, sizeof(set))) != 0)
 				return (error);
 			return sigprocmask(td, &sa);
@@ -426,9 +426,9 @@ osf1_signal(td, uap)
 			struct sigaction *bsa, sa;
 
 			bsa = stackgap_alloc(&sg, sizeof(struct sigaction));
-			sa_args.sig = signum;
-			sa_args.act = bsa;
-			sa_args.oact = NULL;
+			SCARG(&sa_args, sig) = signum;
+			SCARG(&sa_args, act) = bsa;
+			SCARG(&sa_args, oact) = NULL;
 
 			sa.sa_handler = SIG_IGN;
 			SIGEMPTYSET(sa.sa_mask);
@@ -453,7 +453,7 @@ osf1_signal(td, uap)
 			set = p->p_sigmask;
 			PROC_UNLOCK(p);
 			SIGDELSET(set, signum);
-			sa.sigmask = bmask;
+			SCARG(&sa, sigmask) = bmask;
 			if ((error = copyout(&set, bmask, sizeof(set))) != 0)
 				return (error);
 			return sigsuspend(td, &sa);
@@ -487,7 +487,7 @@ osf1_sigprocmask(td, uap)
 
 	PROC_LOCK(p);
 
-	switch (uap->how) {
+	switch (SCARG(uap, how)) {
 	case OSF1_SIG_BLOCK:
 		SIGSETOR(p->p_sigmask, bss);
 		SIG_CANTMASK(p->p_sigmask);
@@ -532,7 +532,7 @@ osf1_sigpending(td, uap)
 	PROC_UNLOCK(p);
 	bsd_to_osf1_sigset(&bss, &oss);
 
-	return copyout(&oss, uap->mask, sizeof(oss));
+	return copyout(&oss, SCARG(uap, mask), sizeof(oss));
 }
 
 int
@@ -552,9 +552,9 @@ osf1_sigsuspend(td, uap)
 	sg = stackgap_init();
 
 	bmask = stackgap_alloc(&sg, sizeof(sigset_t));
-	oss = uap->ss;
+	oss = SCARG(uap, ss);
 	osf1_to_bsd_sigset(&oss, &bss);
-	sa.sigmask = bmask;
+	SCARG(&sa, sigmask) = bmask;
 	if ((error = copyout(&bss, bmask, sizeof(bss))) != 0)
 		return (error);
 	return sigsuspend(td, &sa);
@@ -570,8 +570,8 @@ osf1_kill(td, uap)
 {
 	struct kill_args ka;
 
-	ka.pid = uap->pid;
-	ka.signum = uap->signum;
+	SCARG(&ka, pid) = SCARG(uap, pid);
+	SCARG(&ka, signum) = SCARG(uap, signum);
 	return kill(td, &ka);
 }
 

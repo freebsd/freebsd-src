@@ -133,7 +133,7 @@ svr4_sys_getrlimit(td, uap)
 	register struct thread *td;
 	struct svr4_sys_getrlimit_args *uap;
 {
-	int rl = svr4_to_native_rl(uap->which);
+	int rl = svr4_to_native_rl(SCARG(uap, which));
 	struct rlimit blim;
 	struct svr4_rlimit slim;
 
@@ -171,7 +171,7 @@ svr4_sys_getrlimit(td, uap)
 	else
 		slim.rlim_cur = SVR4_RLIM_SAVED_CUR;
 
-	return copyout(&slim, uap->rlp, sizeof(*uap->rlp));
+	return copyout(&slim, SCARG(uap, rlp), sizeof(*SCARG(uap, rlp)));
 }
 
 
@@ -180,7 +180,7 @@ svr4_sys_setrlimit(td, uap)
 	register struct thread *td;
 	struct svr4_sys_setrlimit_args *uap;
 {
-	int rl = svr4_to_native_rl(uap->which);
+	int rl = svr4_to_native_rl(SCARG(uap, which));
 	struct rlimit blim, *limp;
 	struct svr4_rlimit slim;
 	int error;
@@ -192,7 +192,7 @@ svr4_sys_setrlimit(td, uap)
 	mtx_assert(&Giant, MA_OWNED);
 	limp = &td->td_proc->p_rlimit[rl];
 
-	if ((error = copyin(uap->rlp, &slim, sizeof(slim))) != 0)
+	if ((error = copyin(SCARG(uap, rlp), &slim, sizeof(slim))) != 0)
 		return error;
 
 	/*
@@ -231,7 +231,7 @@ svr4_sys_getrlimit64(td, uap)
 	register struct thread *td;
 	struct svr4_sys_getrlimit64_args *uap;
 {
-	int rl = svr4_to_native_rl(uap->which);
+	int rl = svr4_to_native_rl(SCARG(uap, which));
 	struct rlimit blim;
 	struct svr4_rlimit64 slim;
 
@@ -269,7 +269,7 @@ svr4_sys_getrlimit64(td, uap)
 	else
 		slim.rlim_cur = SVR4_RLIM64_SAVED_CUR;
 
-	return copyout(&slim, uap->rlp, sizeof(*uap->rlp));
+	return copyout(&slim, SCARG(uap, rlp), sizeof(*SCARG(uap, rlp)));
 }
 
 
@@ -278,7 +278,7 @@ svr4_sys_setrlimit64(td, uap)
 	register struct thread *td;
 	struct svr4_sys_setrlimit64_args *uap;
 {
-	int rl = svr4_to_native_rl(uap->which);
+	int rl = svr4_to_native_rl(SCARG(uap, which));
 	struct rlimit blim, *limp;
 	struct svr4_rlimit64 slim;
 	int error;
@@ -290,7 +290,7 @@ svr4_sys_setrlimit64(td, uap)
 	mtx_assert(&Giant, MA_OWNED);
 	limp = &td->td_proc->p_rlimit[rl];
 
-	if ((error = copyin(uap->rlp, &slim, sizeof(slim))) != 0)
+	if ((error = copyin(SCARG(uap, rlp), &slim, sizeof(slim))) != 0)
 		return error;
 
 	/*

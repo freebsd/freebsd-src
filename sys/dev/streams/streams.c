@@ -315,9 +315,9 @@ svr4_ptm_alloc(td)
 	register_t fd = -1;
 	int error;
 
-	oa.path = path;
-	oa.flags = O_RDWR;
-	oa.mode = 0;
+	SCARG(&oa, path) = path;
+	SCARG(&oa, flags) = O_RDWR;
+	SCARG(&oa, mode) = 0;
 
 	while (fd == -1) {
 		ptyname[8] = ttyletters[l];

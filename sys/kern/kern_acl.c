@@ -689,11 +689,11 @@ __acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_get_acl(td, nd.ni_vp, uap->type, 
-			    uap->aclp);
+		error = vacl_get_acl(td, nd.ni_vp, SCARG(uap, type), 
+			    SCARG(uap, aclp));
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);
@@ -712,11 +712,11 @@ __acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_set_acl(td, nd.ni_vp, uap->type,
-			    uap->aclp);
+		error = vacl_set_acl(td, nd.ni_vp, SCARG(uap, type),
+			    SCARG(uap, aclp));
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);
@@ -735,10 +735,10 @@ __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, SCARG(uap, filedes), &fp);
 	if (error == 0) {
 		error = vacl_get_acl(td, (struct vnode *)fp->f_data,
-			    uap->type, uap->aclp);
+			    SCARG(uap, type), SCARG(uap, aclp));
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -757,10 +757,10 @@ __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, SCARG(uap, filedes), &fp);
 	if (error == 0) {
 		error = vacl_set_acl(td, (struct vnode *)fp->f_data,
-			    uap->type, uap->aclp);
+			    SCARG(uap, type), SCARG(uap, aclp));
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -779,10 +779,10 @@ __acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_delete(td, nd.ni_vp, uap->type);
+		error = vacl_delete(td, nd.ni_vp, SCARG(uap, type));
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);
@@ -801,10 +801,10 @@ __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, SCARG(uap, filedes), &fp);
 	if (error == 0) {
 		error = vacl_delete(td, (struct vnode *)fp->f_data, 
-			    uap->type);
+			    SCARG(uap, type));
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);
@@ -823,11 +823,11 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 	int	error;
 
 	mtx_lock(&Giant);
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, uap->path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, SCARG(uap, path), td);
 	error = namei(&nd);
 	if (error == 0) {
-		error = vacl_aclcheck(td, nd.ni_vp, uap->type,
-			    uap->aclp);
+		error = vacl_aclcheck(td, nd.ni_vp, SCARG(uap, type),
+			    SCARG(uap, aclp));
 		NDFREE(&nd, 0);
 	}
 	mtx_unlock(&Giant);
@@ -846,10 +846,10 @@ __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)
 	int error;
 
 	mtx_lock(&Giant);
-	error = getvnode(td->td_proc->p_fd, uap->filedes, &fp);
+	error = getvnode(td->td_proc->p_fd, SCARG(uap, filedes), &fp);
 	if (error == 0) {
 		error = vacl_aclcheck(td, (struct vnode *)fp->f_data,
-			    uap->type, uap->aclp);
+			    SCARG(uap, type), SCARG(uap, aclp));
 		fdrop(fp, td);
 	}
 	mtx_unlock(&Giant);

@@ -535,7 +535,7 @@ svr4_sys_sysarch(td, v)
 			struct svr4_ssd ssd;
 			union descriptor bsd;
 
-			if ((error = copyin(uap->a1, &ssd,
+			if ((error = copyin(SCARG(uap, a1), &ssd,
 					    sizeof(ssd))) != 0) {
 				printf("Cannot copy arg1\n");
 				return error;
@@ -580,8 +580,8 @@ svr4_sys_sysarch(td, v)
 				return error;
 			}
 
-			ua.op = I386_SET_LDT;
-			ua.parms = (char *) sap;
+			SCARG(&ua, op) = I386_SET_LDT;
+			SCARG(&ua, parms) = (char *) sap;
 
 			if ((error = copyout(&bsd, sa.desc, sizeof(bsd))) != 0) {
 				printf("Cannot copyout desc\n");
