@@ -1,5 +1,5 @@
 # Top level makefile fragment for GNU C++.
-#   Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+#   Copyright (C) 1994, 1995, 1997 Free Software Foundation, Inc.
 
 #This file is part of GNU CC.
 
@@ -35,7 +35,7 @@
 # - making any compiler driver (eg: g++)
 # - the compiler proper (eg: cc1plus)
 # - define the names for selecting the language in LANGUAGES.
-
+#
 # Extra flags to pass to recursive makes.
 CXX_FLAGS_TO_PASS = \
 	"CXX_FOR_BUILD=$(CXX_FOR_BUILD)" \
@@ -45,39 +45,69 @@ CXX_FLAGS_TO_PASS = \
 # Actual names to use when installing a native compiler.
 CXX_INSTALL_NAME = `t='$(program_transform_name)'; echo c++ | sed $$t`
 GXX_INSTALL_NAME = `t='$(program_transform_name)'; echo g++ | sed $$t`
+DEMANGLER_INSTALL_NAME = `t='$(program_transform_name)'; echo c++filt | sed $$t`
 
 # Actual names to use when installing a cross-compiler.
 CXX_CROSS_NAME = `t='$(program_transform_cross_name)'; echo c++ | sed $$t`
 GXX_CROSS_NAME = `t='$(program_transform_cross_name)'; echo g++ | sed $$t`
+DEMANGLER_CROSS_NAME = `t='$(program_transform_cross_name)'; echo c++filt | sed $$t`
 
 # The name to use for the demangler program.
-DEMANGLER_PROG = c++filt
-
+DEMANGLER_PROG = c++filt$(exeext)
+
+# Extra headers to install.
+CXX_EXTRA_HEADERS = $(srcdir)/cp/inc/typeinfo $(srcdir)/cp/inc/exception \
+	$(srcdir)/cp/inc/new $(srcdir)/cp/inc/new.h
+
+# Extra code to include in libgcc2.
+CXX_LIB2FUNCS = tinfo.o tinfo2.o new.o opnew.o opnewnt.o opvnew.o opvnewnt.o \
+	opdel.o opdelnt.o opvdel.o opvdelnt.o exception.o
+CXX_LIB2SRCS = $(srcdir)/cp/new.cc $(srcdir)/cp/new1.cc $(srcdir)/cp/new2.cc \
+	$(srcdir)/cp/exception.cc $(srcdir)/cp/tinfo.cc \
+	$(srcdir)/cp/tinfo2.cc $(srcdir)/cp/tinfo.h
+#
 # Define the names for selecting c++ in LANGUAGES.
 # Note that it would be nice to move the dependency on g++
 # into the C++ rule, but that needs a little bit of work
 # to do the right thing within all.cross.
-C++ c++: cc1plus
+C++ c++: cc1plus$(exeext)
 
 # Tell GNU make to ignore these if they exist.
 .PHONY: C++ c++
 
+g++.c: $(srcdir)/gcc.c
+	-rm -f $@
+	$(LN_S) $(srcdir)/gcc.c $@
+
+g++spec.o: $(srcdir)/cp/g++spec.c
+	$(CC) -c $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) $(srcdir)/cp/g++spec.c
+
+# N.B.: This is a copy of the gcc.o rule, with -DLANG_SPECIFIC_DRIVER added.
+# It'd be nice if we could find an easier way to do this---rather than have
+# to track changes to the toplevel gcc Makefile as well.
+# We depend on g++.c last, to make it obvious where it came from.
+g++.o: $(CONFIG_H) multilib.h config.status $(lang_specs_files) g++.c \
+       system.h
+	$(CC) $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
+	$(DRIVER_DEFINES) \
+	-DLANG_SPECIFIC_DRIVER \
+  -c g++.c
+
 # Create the compiler driver for g++.
-g++: $(srcdir)/cp/g++.c $(CONFIG_H) $(LIBDEPS)
-	$(CC) $(ALL_CFLAGS) $(INCLUDES) $(LDFLAGS) -o $@ $(srcdir)/cp/g++.c $(LIBS)
+g++$(exeext): g++.o g++spec.o version.o choose-temp.o pexecute.o prefix.o mkstemp.o $(LIBDEPS) $(EXTRA_GCC_OBJS)
+	$(CC) $(ALL_CFLAGS) $(LDFLAGS) -o $@ g++.o g++spec.o prefix.o \
+	  version.o choose-temp.o pexecute.o mkstemp.o $(EXTRA_GCC_OBJS) $(LIBS)
 
 # Create a version of the g++ driver which calls the cross-compiler.
-g++-cross: $(srcdir)/cp/g++.c version.o $(LIBDEPS)
-	$(CC) $(ALL_CFLAGS) $(INCLUDES) $(LDFLAGS) -o $@ \
-	   -DGCC_NAME=\"$(GCC_CROSS_NAME)\" $(srcdir)/cp/g++.c version.o $(LIBS)
+g++-cross$(exeext): g++$(exeext)
+	-rm -f g++-cross$(exeext)
+	cp g++$(exeext) g++-cross$(exeext)
 
 cxxmain.o: cplus-dem.c demangle.h
 	rm -f cxxmain.c
-	ln -s $(srcdir)/cplus-dem.c cxxmain.c > /dev/null 2>&1 \
-	 || cp $(srcdir)/cplus-dem.c cxxmain.c
+	$(LN_S) $(srcdir)/cplus-dem.c cxxmain.c
 	$(CC) -c -DMAIN $(ALL_CFLAGS) $(ALL_CPPFLAGS) $(INCLUDES) \
 	  -DVERSION=\"$(version)\" cxxmain.c
-	rm -f cxxmain.c
 
 $(DEMANGLER_PROG): cxxmain.o underscore.o getopt.o getopt1.o $(LIBDEPS)
 	$(CC) $(ALL_CFLAGS) $(LDFLAGS) $(LIBS) -o $@ \
@@ -86,26 +116,95 @@ $(DEMANGLER_PROG): cxxmain.o underscore.o getopt.o getopt1.o $(LIBDEPS)
 CXX_SRCS = $(srcdir)/cp/call.c $(srcdir)/cp/decl2.c \
  $(srcdir)/cp/except.c $(srcdir)/cp/input.c $(srcdir)/cp/pt.c \
  $(srcdir)/cp/spew.c $(srcdir)/cp/xref.c $(srcdir)/cp/class.c \
- $(srcdir)/cp/edsel.c $(srcdir)/cp/expr.c $(srcdir)/cp/lex.c \
+ $(srcdir)/cp/expr.c $(srcdir)/cp/lex.c \
  $(srcdir)/cp/ptree.c $(srcdir)/cp/tree.c $(srcdir)/cp/cvt.c \
- $(srcdir)/cp/errfn.c $(srcdir)/cp/gc.c $(srcdir)/cp/method.c \
+ $(srcdir)/cp/errfn.c $(srcdir)/cp/rtti.c $(srcdir)/cp/method.c \
  $(srcdir)/cp/search.c $(srcdir)/cp/typeck.c $(srcdir)/cp/decl.c \
- $(srcdir)/cp/error.c $(srcdir)/cp/init.c $(srcdir)/cp/parse.y \
- $(srcdir)/cp/sig.c $(srcdir)/cp/typeck2.c $(srcdir)/cp/repo.c
+ $(srcdir)/cp/error.c $(srcdir)/cp/friend.c $(srcdir)/cp/init.c \
+ $(srcdir)/cp/parse.y $(srcdir)/cp/sig.c $(srcdir)/cp/typeck2.c \
+ $(srcdir)/cp/repo.c $(srcdir)/cp/semantics.c
 
-cc1plus: $(P) $(CXX_SRCS) $(LIBDEPS) stamp-objlist c-common.o c-pragma.o
-	cd cp; $(MAKE) $(FLAGS_TO_PASS) $(CXX_FLAGS_TO_PASS) ../cc1plus
-
+cc1plus$(exeext): $(P) $(CXX_SRCS) $(LIBDEPS) stamp-objlist c-common.o c-pragma.o \
+	$(srcdir)/cp/cp-tree.h $(srcdir)/cp/cp-tree.def
+	cd cp; $(MAKE) $(FLAGS_TO_PASS) $(CXX_FLAGS_TO_PASS) ../cc1plus$(exeext)
+#
 # Build hooks:
 
-c++.all.build: g++ $(DEMANGLER_PROG)
-c++.all.cross: g++-cross $(DEMANGLER_PROG)
-c++.start.encap: g++
+c++.all.build: g++$(exeext)
+c++.all.cross: g++-cross$(exeext) $(DEMANGLER_PROG)
+c++.start.encap: g++$(exeext)
 c++.rest.encap: $(DEMANGLER_PROG)
 
 c++.info:
 c++.dvi:
-
+
+# C++ language-support library pieces for libgcc.
+tinfo.o: cc1plus$(exeext) $(srcdir)/cp/tinfo.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/tinfo.cc
+tinfo2.o: cc1plus$(exeext) $(srcdir)/cp/tinfo2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/tinfo2.cc
+exception.o: cc1plus$(exeext) $(srcdir)/cp/exception.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c -fexceptions $(srcdir)/cp/exception.cc
+new.o: cc1plus$(exeext) $(srcdir)/cp/new.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new.cc
+opnew.o: cc1plus$(exeext) $(srcdir)/cp/new1.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new1.cc -DL_op_new -o opnew.o
+opnewnt.o: cc1plus$(exeext) $(srcdir)/cp/new1.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new1.cc -DL_op_newnt -o opnewnt.o
+opvnew.o: cc1plus$(exeext) $(srcdir)/cp/new2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new2.cc -DL_op_vnew -o opvnew.o
+opvnewnt.o: cc1plus$(exeext) $(srcdir)/cp/new2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new2.cc -DL_op_vnewnt -o opvnewnt.o
+opdel.o: cc1plus$(exeext) $(srcdir)/cp/new2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new2.cc -DL_op_delete -o opdel.o
+opdelnt.o: cc1plus$(exeext) $(srcdir)/cp/new2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new2.cc -DL_op_delnt -o opdelnt.o
+opvdel.o: cc1plus$(exeext) $(srcdir)/cp/new2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new2.cc -DL_op_vdel -o opvdel.o
+opvdelnt.o: cc1plus$(exeext) $(srcdir)/cp/new2.cc
+	$(GCC_FOR_TARGET) $(LIBGCC2_CFLAGS) $(INCLUDES) \
+	  -c $(srcdir)/cp/new2.cc -DL_op_vdelnt -o opvdelnt.o
+
+# We want to update cplib2.txt if any of the source files change...
+cplib2.txt: $(CXX_LIB2SRCS) $(CXX_EXTRA_HEADERS) cplib2.ready
+	case " $(LANGUAGES) " in \
+	*" "[cC]"++ "*) \
+	  echo $(CXX_LIB2FUNCS) > cplib2.new;; \
+	*) \
+	  echo "" > cplib2.new;; \
+	esac
+	mv -f cplib2.new cplib2.txt 
+
+# Or if it would be different.
+cplib2.ready: $(GCC_PASSES) $(LANGUAGES) $(LIBGCC2_DEPS) stmp-int-hdrs
+	@if [ -r cplib2.txt ]; then \
+	  case " $(LANGUAGES) " in \
+	  *" "[cC]"++ "*) \
+	    echo $(CXX_LIB2FUNCS) > cplib2.new;; \
+	  *) \
+	    echo "" > cplib2.new;; \
+	  esac; \
+	  if cmp -s cplib2.new cplib2.txt; then true; else \
+	    touch cplib2.ready; \
+	  fi; \
+	  rm -f cplib2.new; \
+	else true ; \
+	fi
+	@if [ -f cplib2.ready ]; then true; else \
+	  touch cplib2.ready; \
+	fi
+#
 # Install hooks:
 # cc1plus is installed elsewhere as part of $(COMPILERS).
 
@@ -121,17 +220,24 @@ c++.install-common:
 	    $(INSTALL_PROGRAM) g++-cross$(exeext) $(bindir)/$(GXX_CROSS_NAME)$(exeext); \
 	    chmod a+x $(bindir)/$(GXX_CROSS_NAME)$(exeext); \
 	    rm -f $(bindir)/$(CXX_CROSS_NAME)$(exeext); \
-	    ln $(bindir)/$(GXX_CROSS_NAME)$(exeext) $(bindir)/$(CXX_CROSS_NAME)$(exeext) \
-	      > /dev/null 2>&1 \
-	      || cp $(bindir)/$(GXX_CROSS_NAME)$(exeext) $(bindir)/$(CXX_CROSS_NAME)$(exeext) ; \
+	    $(LN) $(bindir)/$(GXX_CROSS_NAME)$(exeext) $(bindir)/$(CXX_CROSS_NAME)$(exeext); \
 	  else \
 	    rm -f $(bindir)/$(GXX_INSTALL_NAME)$(exeext); \
 	    $(INSTALL_PROGRAM) g++$(exeext) $(bindir)/$(GXX_INSTALL_NAME)$(exeext); \
 	    chmod a+x $(bindir)/$(GXX_INSTALL_NAME)$(exeext); \
 	    rm -f $(bindir)/$(CXX_INSTALL_NAME)$(exeext); \
-	    ln $(bindir)/$(GXX_INSTALL_NAME)$(exeext) $(bindir)/$(CXX_INSTALL_NAME)$(exeext) \
-	      > /dev/null 2>&1 \
-	      || cp $(bindir)/$(GXX_INSTALL_NAME)$(exeext) $(bindir)/$(CXX_INSTALL_NAME)$(exeext) ; \
+	    $(LN) $(bindir)/$(GXX_INSTALL_NAME)$(exeext) $(bindir)/$(CXX_INSTALL_NAME)$(exeext); \
+	  fi ; \
+	  if [ x$(DEMANGLER_PROG) != x ] && [ -x "$(DEMANGLER_PROG)" ]; then \
+	    if [ -f g++-cross$(exeext) ] ; then \
+	      rm -f $(bindir)/$(DEMANGLER_CROSS_NAME)$(exeext); \
+	      $(INSTALL_PROGRAM) $(DEMANGLER_PROG) $(bindir)/$(DEMANGLER_CROSS_NAME)$(exeext); \
+	      chmod a+x $(bindir)/$(DEMANGLER_CROSS_NAME)$(exeext); \
+	    else \
+	      rm -f $(bindir)/$(DEMANGLER_INSTALL_NAME)$(exeext); \
+	      $(INSTALL_PROGRAM) $(DEMANGLER_PROG) $(bindir)/$(DEMANGLER_INSTALL_NAME)$(exeext); \
+	      chmod a+x $(bindir)/$(DEMANGLER_INSTALL_NAME)$(exeext); \
+	    fi ; \
 	  fi ; \
 	fi
 
@@ -155,9 +261,11 @@ c++.uninstall:
 	-rm -rf $(bindir)/$(CXX_CROSS_NAME)$(exeext)
 	-rm -rf $(bindir)/$(GXX_INSTALL_NAME)$(exeext)
 	-rm -rf $(bindir)/$(GXX_CROSS_NAME)$(exeext)
+	-rm -rf $(bindir)/$(DEMANGLER_INSTALL_NAME)$(exeext)
+	-rm -rf $(bindir)/$(DEMANGLER_CROSS_NAME)$(exeext)
 	-rm -rf $(mandir)/$(GXX_INSTALL_NAME)$(manext)
 	-rm -rf $(mandir)/$(GXX_CROSS_NAME)$(manext)
-
+#
 # Clean hooks:
 # A lot of the ancillary files are deleted by the main makefile.
 # We just have to delete files specific to us.
@@ -165,33 +273,41 @@ c++.uninstall:
 c++.mostlyclean:
 	-rm -f cp/*$(objext) $(DEMANGLER_PROG)
 c++.clean:
+	-rm -f cplib2.txt cplib2.ready
 c++.distclean:
 	-rm -f cp/config.status cp/Makefile
 	-rm -f cp/parse.output
+	-rm -f g++.c
 c++.extraclean:
 c++.maintainer-clean:
 	-rm -f cp/parse.c cp/parse.h
-
+#
 # Stage hooks:
 # The main makefile has already created stage?/cp.
 
-c++.stage1:
+c++.stage1: stage1-start
 	-mv cp/*$(objext) stage1/cp
-c++.stage2:
+c++.stage2: stage2-start
 	-mv cp/*$(objext) stage2/cp
-c++.stage3:
+c++.stage3: stage3-start
 	-mv cp/*$(objext) stage3/cp
-c++.stage4:
+c++.stage4: stage4-start
 	-mv cp/*$(objext) stage4/cp
-
+#
 # Maintenance hooks:
 
 # This target creates the files that can be rebuilt, but go in the
 # distribution anyway.  It then copies the files to the distdir directory.
 c++.distdir:
 	mkdir tmp/cp
+	mkdir tmp/cp/inc
 	cd cp ; $(MAKE) $(FLAGS_TO_PASS) $(CXX_FLAGS_TO_PASS) parse.c hash.h
 	cd cp; \
 	for file in *[0-9a-zA-Z+]; do \
-	  ln $$file ../tmp/cp >/dev/null 2>&1 || cp $$file ../tmp/cp; \
+	  $(LN) $$file ../tmp/cp; \
+	done
+	cd cp/inc; \
+	for file in *[0-9a-zA-Z+]; do \
+	  ln $$file ../../tmp/cp/inc >/dev/null 2>&1 \
+	   || cp $$file ../../tmp/cp/inc; \
 	done

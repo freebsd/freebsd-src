@@ -2,7 +2,7 @@
    for getting g++ file-scope static objects constructed.  This file
    will get included either by libgcc2.c (for systems that don't support
    a .init section) or by crtstuff.c (for those that do).
-   Copyright (C) 1991, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1991, 1995, 1996, 1998 Free Software Foundation, Inc.
    Contributed by Ron Guilmette (rfg@segfault.us.com)
 
 This file is part of GNU CC.
@@ -30,16 +30,20 @@ Boston, MA 02111-1307, USA.  */
 	Note that this file should only be compiled with GCC.
 */
 
+#ifdef NEED_ATEXIT
+#ifndef HAVE_ATEXIT
+#define HAVE_ATEXIT	1	/* Take it from libgcc2.c */
+#endif
+#endif
+
 #ifdef HAVE_ATEXIT
-#ifdef WINNT
+#if defined (WINNT) || defined (NEED_ATEXIT)
 extern int atexit (void (*) (void));
-#else
-extern void atexit (void (*) (void));
 #endif
 #define ON_EXIT(FUNC,ARG) atexit ((FUNC))
 #else
 #ifdef sun
-extern void on_exit (void*, void*);
+extern int on_exit (void *, void *);	/* The man page says it returns int. */
 #define ON_EXIT(FUNC,ARG) on_exit ((FUNC), (ARG))
 #endif
 #endif
@@ -56,7 +60,7 @@ extern func_ptr __DTOR_LIST__[];
 
 /* Declare the routine which need to get invoked at program exit time.  */
 
-extern void __do_global_dtors ();
+extern void __do_global_dtors (void);
 
 /* Define a macro with the code which needs to be executed at program
    start-up time.  This macro is used in two places in crtstuff.c (for
@@ -79,7 +83,7 @@ extern void __do_global_dtors ();
 do {									\
   unsigned long nptrs = (unsigned long) __CTOR_LIST__[0];		\
   unsigned i;								\
-  if (nptrs == -1)							\
+  if (nptrs == (unsigned long)-1)				        \
     for (nptrs = 0; __CTOR_LIST__[nptrs + 1] != 0; nptrs++);		\
   for (i = nptrs; i >= 1; i--)						\
     __CTOR_LIST__[i] ();						\

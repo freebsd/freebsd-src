@@ -1,5 +1,5 @@
 /* Subroutines used by or related to instruction recognition.
-   Copyright (C) 1987, 88, 91, 92, 93, 1994 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1988, 91-97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -20,8 +20,8 @@ Boston, MA 02111-1307, USA.  */
 
 
 #include "config.h"
+#include "system.h"
 #include "rtl.h"
-#include <stdio.h>
 #include "insn-config.h"
 #include "insn-attr.h"
 #include "insn-flags.h"
@@ -43,8 +43,9 @@ Boston, MA 02111-1307, USA.  */
 /* Import from final.c: */
 extern rtx alter_subreg ();
 
-int strict_memory_address_p ();
-int memory_address_p ();
+static void validate_replace_rtx_1 PROTO((rtx *, rtx, rtx, rtx));
+static rtx *find_single_use_1 PROTO((rtx, rtx *));
+static rtx *find_constant_term_loc PROTO((rtx *));
 
 /* Nonzero means allow operands to be volatile.
    This should be 0 if you are generating rtl, such as if you are calling
@@ -260,8 +261,8 @@ apply_change_group ()
 		 {
 		   int j;
 
-		   newpat = gen_rtx (PARALLEL, VOIDmode, 
-				     gen_rtvec (XVECLEN (pat, 0) - 1));
+		   newpat = gen_rtx_PARALLEL (VOIDmode, 
+					      gen_rtvec (XVECLEN (pat, 0) - 1));
 		   for (j = 0; j < XVECLEN (newpat, 0); j++)
 		     XVECEXP (newpat, 0, j) = XVECEXP (pat, 0, j);
 		 }
@@ -365,24 +366,38 @@ validate_replace_rtx_1 (loc, from, to, object)
       if (prev_changes != num_changes && CONSTANT_P (XEXP (x, 0)))
 	{
 	  validate_change (object, loc,
-			   gen_rtx (GET_RTX_CLASS (code) == 'c' ? code
-				    : swap_condition (code),
-				    GET_MODE (x), XEXP (x, 1), XEXP (x, 0)),
+			   gen_rtx_fmt_ee (GET_RTX_CLASS (code) == 'c' ? code
+					   : swap_condition (code),
+					   GET_MODE (x), XEXP (x, 1),
+					   XEXP (x, 0)),
 			   1);
 	  x = *loc;
 	  code = GET_CODE (x);
 	}
     }
 
+  /* Note that if CODE's RTX_CLASS is "c" or "<" we will have already
+     done the substitution, otherwise we won't.  */
+
   switch (code)
     {
     case PLUS:
-      /* If we have have a PLUS whose second operand is now a CONST_INT, use
+      /* If we have a PLUS whose second operand is now a CONST_INT, use
 	 plus_constant to try to simplify it.  */
       if (GET_CODE (XEXP (x, 1)) == CONST_INT && XEXP (x, 1) == to)
-	validate_change (object, loc, 
-			 plus_constant (XEXP (x, 0), INTVAL (XEXP (x, 1))), 1);
+	validate_change (object, loc, plus_constant (XEXP (x, 0), INTVAL (to)),
+			 1);
       return;
+
+    case MINUS:
+      if (GET_CODE (to) == CONST_INT && XEXP (x, 1) == from)
+	{
+	  validate_change (object, loc,
+			   plus_constant (XEXP (x, 0), - INTVAL (to)),
+			   1);
+	  return;
+	}
+      break;
       
     case ZERO_EXTEND:
     case SIGN_EXTEND:
@@ -400,7 +415,7 @@ validate_replace_rtx_1 (loc, from, to, object)
 	  rtx new = simplify_unary_operation (code, GET_MODE (x), to,
 					      GET_MODE (from));
 	  if (new == 0)
-	    new = gen_rtx (CLOBBER, GET_MODE (x), const0_rtx);
+	    new = gen_rtx_CLOBBER (GET_MODE (x), const0_rtx);
 
 	  validate_change (object, loc, new, 1);
 	  return;
@@ -429,7 +444,7 @@ validate_replace_rtx_1 (loc, from, to, object)
 			    GET_MODE_SIZE (GET_MODE (SUBREG_REG (x))))
 		       - MIN (UNITS_PER_WORD, GET_MODE_SIZE (mode)));
 
-	  new = gen_rtx (MEM, mode, plus_constant (XEXP (to, 0), offset));
+	  new = gen_rtx_MEM (mode, plus_constant (XEXP (to, 0), offset));
 	  MEM_VOLATILE_P (new) = MEM_VOLATILE_P (to);
 	  RTX_UNCHANGING_P (new) = RTX_UNCHANGING_P (to);
 	  MEM_IN_STRUCT_P (new) = MEM_IN_STRUCT_P (to);
@@ -453,7 +468,6 @@ validate_replace_rtx_1 (loc, from, to, object)
 	{
 	  enum machine_mode wanted_mode = VOIDmode;
 	  enum machine_mode is_mode = GET_MODE (to);
-	  int width = INTVAL (XEXP (x, 1));
 	  int pos = INTVAL (XEXP (x, 2));
 
 #ifdef HAVE_extzv
@@ -480,8 +494,8 @@ validate_replace_rtx_1 (loc, from, to, object)
 
 	      pos %= GET_MODE_BITSIZE (wanted_mode);
 
-	      newmem = gen_rtx (MEM, wanted_mode,
-				plus_constant (XEXP (to, 0), offset));
+	      newmem = gen_rtx_MEM (wanted_mode,
+				    plus_constant (XEXP (to, 0), offset));
 	      RTX_UNCHANGING_P (newmem) = RTX_UNCHANGING_P (to);
 	      MEM_VOLATILE_P (newmem) = MEM_VOLATILE_P (to);
 	      MEM_IN_STRUCT_P (newmem) = MEM_IN_STRUCT_P (to);
@@ -492,16 +506,24 @@ validate_replace_rtx_1 (loc, from, to, object)
 	}
 
       break;
+      
+    default:
+      break;
     }
       
-  fmt = GET_RTX_FORMAT (code);
-  for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
+  /* For commutative or comparison operations we've already performed
+     replacements.  Don't try to perform them again.  */
+  if (GET_RTX_CLASS (code) != '<' && GET_RTX_CLASS (code) != 'c')
     {
-      if (fmt[i] == 'e')
-	validate_replace_rtx_1 (&XEXP (x, i), from, to, object);
-      else if (fmt[i] == 'E')
-	for (j = XVECLEN (x, i) - 1; j >= 0; j--)
-	  validate_replace_rtx_1 (&XVECEXP (x, i, j), from, to, object);
+      fmt = GET_RTX_FORMAT (code);
+      for (i = GET_RTX_LENGTH (code) - 1; i >= 0; i--)
+        {
+          if (fmt[i] == 'e')
+            validate_replace_rtx_1 (&XEXP (x, i), from, to, object);
+          else if (fmt[i] == 'E')
+            for (j = XVECLEN (x, i) - 1; j >= 0; j--)
+              validate_replace_rtx_1 (&XVECEXP (x, i, j), from, to, object);
+        }
     }
 }
 
@@ -513,6 +535,25 @@ validate_replace_rtx (from, to, insn)
      rtx from, to, insn;
 {
   validate_replace_rtx_1 (&PATTERN (insn), from, to, insn);
+  return apply_change_group ();
+}
+
+/* Try replacing every occurrence of FROM in INSN with TO, avoiding
+   SET_DESTs.  After all changes have been made, validate by seeing if
+   INSN is still valid.  */
+
+int
+validate_replace_src (from, to, insn)
+     rtx from, to, insn;
+{
+  if ((GET_CODE (insn) != INSN && GET_CODE (insn) != JUMP_INSN)
+      || GET_CODE (PATTERN (insn)) != SET)
+    abort ();
+
+  validate_replace_rtx_1 (&SET_SRC (PATTERN (insn)), from, to, insn);
+  if (GET_CODE (SET_DEST (PATTERN (insn))) == MEM)
+    validate_replace_rtx_1 (&XEXP (SET_DEST (PATTERN (insn)), 0),
+			    from, to, insn);
   return apply_change_group ();
 }
 
@@ -614,6 +655,9 @@ find_single_use_1 (dest, loc)
     case MEM:
     case SUBREG:
       return find_single_use_1 (dest, &XEXP (x, 0));
+      
+    default:
+      break;
     }
 
   /* If it wasn't one of the common cases above, check each expression and
@@ -806,10 +850,18 @@ general_operand (op, mode)
       register rtx y = XEXP (op, 0);
       if (! volatile_ok && MEM_VOLATILE_P (op))
 	return 0;
+      if (GET_CODE (y) == ADDRESSOF)
+	return 1;
       /* Use the mem's mode, since it will be reloaded thus.  */
       mode = GET_MODE (op);
       GO_IF_LEGITIMATE_ADDRESS (mode, y, win);
     }
+
+  /* Pretend this is an operand for now; we'll run force_operand
+     on its replacement in fixup_var_refs_1.  */
+  if (code == ADDRESSOF)
+    return 1;
+
   return 0;
 
  win:
@@ -871,7 +923,9 @@ register_operand (op, mode)
 	  && TEST_HARD_REG_BIT (reg_class_contents[(int) CLASS_CANNOT_CHANGE_SIZE],
 				REGNO (SUBREG_REG (op)))
 	  && (GET_MODE_SIZE (mode)
-	      != GET_MODE_SIZE (GET_MODE (SUBREG_REG (op)))))
+	      != GET_MODE_SIZE (GET_MODE (SUBREG_REG (op))))
+	  && GET_MODE_CLASS (GET_MODE (SUBREG_REG (op))) != MODE_COMPLEX_INT
+	  && GET_MODE_CLASS (GET_MODE (SUBREG_REG (op))) != MODE_COMPLEX_FLOAT)
 	return 0;
 #endif
 
@@ -1043,6 +1097,9 @@ memory_address_p (mode, addr)
      enum machine_mode mode;
      register rtx addr;
 {
+  if (GET_CODE (addr) == ADDRESSOF)
+    return 1;
+  
   GO_IF_LEGITIMATE_ADDRESS (mode, addr, win);
   return 0;
 
@@ -1545,7 +1602,7 @@ adj_offsettable_operand (op, offset)
 
       if (CONSTANT_ADDRESS_P (y))
 	{
-	  new = gen_rtx (MEM, GET_MODE (op), plus_constant_for_output (y, offset));
+	  new = gen_rtx_MEM (GET_MODE (op), plus_constant_for_output (y, offset));
 	  RTX_UNCHANGING_P (new) = RTX_UNCHANGING_P (op);
 	  return new;
 	}
@@ -1565,7 +1622,7 @@ adj_offsettable_operand (op, offset)
 	    }
 	}
 
-      new = gen_rtx (MEM, GET_MODE (op), plus_constant_for_output (y, offset));
+      new = gen_rtx_MEM (GET_MODE (op), plus_constant_for_output (y, offset));
       RTX_UNCHANGING_P (new) = RTX_UNCHANGING_P (op);
       return new;
     }
@@ -1649,6 +1706,11 @@ constrain_operands (insn_code_num, strict)
 	  int val;
 
 	  earlyclobber[opno] = 0;
+
+	  /* A unary operator may be accepted by the predicate, but it
+	     is irrelevant for matching constraints.  */
+	  if (GET_RTX_CLASS (GET_CODE (op)) == '1')
+	    op = XEXP (op, 0);
 
 	  if (GET_CODE (op) == SUBREG)
 	    {
@@ -1765,8 +1827,9 @@ constrain_operands (insn_code_num, strict)
 		break;
 
 	      case 'X':
-		/* This is used for a MATCH_SCRATCH in the cases when we
-		   don't actually need anything.  So anything goes any time. */
+		/* This is used for a MATCH_SCRATCH in the cases when
+		   we don't actually need anything.  So anything goes
+		   any time.  */
 		win = 1;
 		break;
 
@@ -1862,7 +1925,12 @@ constrain_operands (insn_code_num, strict)
 
 	      case 'V':
 		if (GET_CODE (op) == MEM
-		    && ! offsettable_memref_p (op))
+		    && ((strict > 0 && ! offsettable_memref_p (op))
+			|| (strict < 0
+			    && !(CONSTANT_P (op) || GET_CODE (op) == MEM))
+			|| (reload_in_progress
+			    && !(GET_CODE (op) == REG
+				 && REGNO (op) >= FIRST_PSEUDO_REGISTER))))
 		  win = 1;
 		break;
 
@@ -1916,11 +1984,11 @@ constrain_operands (insn_code_num, strict)
 		  if ((GET_CODE (recog_operand[opno]) == MEM
 		       || op_types[opno] != OP_OUT)
 		      && opno != eopno
-		      /* Ignore things like match_operator operands. */
-		      && *constraints[opno] != 0
+		      /* Ignore things like match_operator operands.  */
+		      && *insn_operand_constraint[insn_code_num][opno] != 0
 		      && ! (matching_operands[opno] == eopno
-			    && rtx_equal_p (recog_operand[opno],
-					    recog_operand[eopno]))
+			    && operands_match_p (recog_operand[opno],
+						 recog_operand[eopno]))
 		      && ! safe_from_earlyclobber (recog_operand[opno],
 						   recog_operand[eopno]))
 		    lose = 1;
@@ -1949,7 +2017,7 @@ constrain_operands (insn_code_num, strict)
 }
 
 /* Return 1 iff OPERAND (assumed to be a REG rtx)
-   is a hard reg in class CLASS when its regno is offsetted by OFFSET
+   is a hard reg in class CLASS when its regno is offset by OFFSET
    and changed to mode MODE.
    If REG occupies multiple hard regs, all of them must be in CLASS.  */
 

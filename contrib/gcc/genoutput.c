@@ -1,5 +1,5 @@
 /* Generate code from to output assembler insns as recognized from rtl.
-   Copyright (C) 1987, 1988, 1992, 1994, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 88, 92, 94, 95, 97, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -90,8 +90,13 @@ insn_template[24] to be "clrd %0", and insn_n_operands[24] to be 1.
 It would not make an case in output_insn_hairy because the template
 given in the entry is a constant (it does not start with `*').  */
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -107,16 +112,16 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free ();
-extern rtx read_rtx ();
-
-char *xmalloc ();
-static void fatal ();
-void fancy_abort ();
-static void error ();
+char *xmalloc PROTO((unsigned));
+static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
+void fancy_abort PROTO((void));
+static void error PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
 static void mybcopy ();
 static void mybzero ();
-static int n_occurrences ();
+static int n_occurrences PROTO((int, char *));
+
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+char **insn_name_ptr = 0;
 
 /* insns in the machine description are assigned sequential code numbers
    that are used by insn-recog.c (produced by genrecog) to communicate
@@ -172,14 +177,26 @@ int have_constraints;
 
 static int have_error;
 
+static void output_prologue PROTO((void));
+static void output_epilogue PROTO((void));
+static void scan_operands PROTO((rtx, int, int));
+static void process_template PROTO((struct data *, char *));
+static void validate_insn_alternatives PROTO((struct data *));
+static void gen_insn PROTO((rtx));
+static void gen_peephole PROTO((rtx));
+static void gen_expand PROTO((rtx));
+static void gen_split PROTO((rtx));
+static int n_occurrences PROTO((int, char *));
+
 static void
 output_prologue ()
 {
-
   printf ("/* Generated automatically by the program `genoutput'\n\
 from the machine description file `md'.  */\n\n");
 
   printf ("#include \"config.h\"\n");
+  printf ("#include \"system.h\"\n");
+  printf ("#include \"flags.h\"\n");
   printf ("#include \"rtl.h\"\n");
   printf ("#include \"regs.h\"\n");
   printf ("#include \"hard-reg-set.h\"\n");
@@ -191,7 +208,6 @@ from the machine description file `md'.  */\n\n");
   printf ("#include \"insn-codes.h\"\n\n");
   printf ("#include \"recog.h\"\n\n");
 
-  printf ("#include <stdio.h>\n");
   printf ("#include \"output.h\"\n");
 }
 
@@ -235,7 +251,7 @@ output_epilogue ()
     int offset = 0;
     int next;
     char * last_name = 0;
-    char * next_name;
+    char * next_name = 0;
     register struct data *n;
 
     for (n = insn_data, next = 1; n; n = n->next, next++)
@@ -514,6 +530,9 @@ scan_operands (part, this_address_p, this_strict_low)
     case STRICT_LOW_PART:
       scan_operands (XEXP (part, 0), 0, 1);
       return;
+      
+    default:
+      break;
     }
 
   format_ptr = GET_RTX_FORMAT (GET_CODE (part));
@@ -522,6 +541,7 @@ scan_operands (part, this_address_p, this_strict_low)
     switch (*format_ptr++)
       {
       case 'e':
+      case 'u':
 	scan_operands (XEXP (part, i), 0, 0);
 	break;
       case 'E':
@@ -560,8 +580,8 @@ process_template (d, template)
 
   printf ("\nstatic char *\n");
   printf ("output_%d (operands, insn)\n", d->code_number);
-  printf ("     rtx *operands;\n");
-  printf ("     rtx insn;\n");
+  printf ("     rtx *operands ATTRIBUTE_UNUSED;\n");
+  printf ("     rtx insn ATTRIBUTE_UNUSED;\n");
   printf ("{\n");
 
   /* If the assembler code template starts with a @ it is a newline-separated
@@ -581,7 +601,10 @@ process_template (d, template)
 
 	  printf ("    \"");
 	  while (*cp != '\n' && *cp != '\0')
-	    putchar (*cp++);
+	    {
+	      putchar (*cp);
+	      cp++;
+	    }
 
 	  printf ("\",\n");
 	  i++;
@@ -601,7 +624,11 @@ process_template (d, template)
 	  VAX-11 "C" on VMS.  It is the equivalent of:
 		printf ("%s\n", &template[1])); */
       cp = &template[1];
-      while (*cp) putchar (*cp++);
+      while (*cp)
+	{
+	  putchar (*cp);
+	  cp++;
+	}
       putchar ('\n');
     }
 
@@ -900,11 +927,22 @@ mybcopy (b1, b2, length)
 }
 
 static void
-fatal (s, a1, a2, a3, a4)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genoutput: ");
-  fprintf (stderr, s, a1, a2, a3, a4);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   exit (FATAL_EXIT_CODE);
 }
@@ -919,11 +957,22 @@ fancy_abort ()
 }
 
 static void
-error (s, a1, a2)
-     char *s;
+error VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genoutput: ");
-  fprintf (stderr, s, a1, a2);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
 
   have_error = 1;

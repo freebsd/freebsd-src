@@ -1,7 +1,7 @@
 /* Operating system specific defines to be used when targeting GCC for some
    generic System V Release 4 system.
-   Copyright (C) 1991, 1994, 1995 Free Software Foundation, Inc.
-   Contributed by Ron Guilmette (rfg@segfault.us.com).
+   Copyright (C) 1991, 94-97, 1998 Free Software Foundation, Inc.
+   Contributed by Ron Guilmette (rfg@monkeys.com).
 
 This file is part of GNU CC.
 
@@ -53,16 +53,9 @@ Boston, MA 02111-1307, USA.
    thing as a -T option for svr4.  */
 
 #define SWITCH_TAKES_ARG(CHAR) \
-  (   (CHAR) == 'D' \
-   || (CHAR) == 'U' \
-   || (CHAR) == 'o' \
-   || (CHAR) == 'e' \
-   || (CHAR) == 'u' \
-   || (CHAR) == 'I' \
-   || (CHAR) == 'm' \
-   || (CHAR) == 'L' \
-   || (CHAR) == 'A' \
+  (DEFAULT_SWITCH_TAKES_ARG (CHAR) \
    || (CHAR) == 'h' \
+   || (CHAR) == 'x' \
    || (CHAR) == 'z')
 
 /* This defines which multi-letter switches take arguments.  On svr4,
@@ -82,7 +75,7 @@ Boston, MA 02111-1307, USA.
 /* Provide an ASM_SPEC appropriate for svr4.  Here we try to support as
    many of the specialized svr4 assembler options as seems reasonable,
    given that there are certain options which we can't (or shouldn't)
-   support directly due to the fact that they conflict with other options 
+   support directly due to the fact that they conflict with other options
    for other svr4 tools (e.g. ld) or with other options for GCC itself.
    For example, we don't support the -o (output file) or -R (remove
    input file) options because GCC already handles these things.  We
@@ -97,7 +90,7 @@ Boston, MA 02111-1307, USA.
 
 #undef ASM_SPEC
 #define ASM_SPEC \
-  "%{V} %{v:%{!V:-V}} %{Qy:} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Yd,*} %{Wa,*:%*}"
+  "%{v:-V} %{Qy:} %{!Qn:-Qy} %{n} %{T} %{Ym,*} %{Yd,*} %{Wa,*:%*}"
 
 /* svr4 assemblers need the `-' (indicating input from stdin) to come after
    the -o option (and its argument) for some reason.  If we try to put it
@@ -108,31 +101,29 @@ Boston, MA 02111-1307, USA.
    messages.  */
 
 #undef ASM_FINAL_SPEC
-#define ASM_FINAL_SPEC "%{pipe:-}"
+#define ASM_FINAL_SPEC "%|"
 
 /* Under svr4, the normal location of the `ld' and `as' programs is the
    /usr/ccs/bin directory.  */
 
+#ifndef CROSS_COMPILE
 #undef MD_EXEC_PREFIX
 #define MD_EXEC_PREFIX "/usr/ccs/bin/"
+#endif
 
 /* Under svr4, the normal location of the various *crt*.o files is the
    /usr/ccs/lib directory.  */
 
+#ifndef CROSS_COMPILE
 #undef MD_STARTFILE_PREFIX
 #define MD_STARTFILE_PREFIX "/usr/ccs/lib/"
+#endif
 
 /* Provide a LIB_SPEC appropriate for svr4.  Here we tack on the default
    standard C library (unless we are building a shared library).  */
 
 #undef	LIB_SPEC
 #define LIB_SPEC "%{!shared:%{!symbolic:-lc}}"
-
-/* Provide a LIBGCC_SPEC appropriate for svr4.  We also want to exclude
-   libgcc when -symbolic.  */
-
-#undef  LIBGCC_SPEC
-#define LIBGCC_SPEC "%{!shared:%{!symbolic:-lgcc}}"
 
 /* Provide an ENDFILE_SPEC appropriate for svr4.  Here we tack on our own
    magical crtend.o file (see crtstuff.c) which provides part of the
@@ -141,7 +132,7 @@ Boston, MA 02111-1307, USA.
    which is either `gcrtn.o' or `crtn.o'.  */
 
 #undef  ENDFILE_SPEC
-#define ENDFILE_SPEC "crtend.o%s %{pg:gcrtn.o}%{!pg:crtn.o%s}"
+#define ENDFILE_SPEC "crtend.o%s %{pg:gcrtn.o%s}%{!pg:crtn.o%s}"
 
 /* Provide a LINK_SPEC appropriate for svr4.  Here we provide support
    for the special GCC options -static, -shared, and -symbolic which
@@ -150,7 +141,7 @@ Boston, MA 02111-1307, USA.
    support here for as many of the other svr4 linker options as seems
    reasonable, given that some of them conflict with options for other
    svr4 tools (e.g. the assembler).  In particular, we do support the
-   -h*, -z*, -V, -b, -t, -Qy, -Qn, and -YP* options here, and the -e*,
+   -z*, -V, -b, -t, -Qy, -Qn, and -YP* options here, and the -e*,
    -l*, -o*, -r, -s, -u*, and -L* options are directly supported
    by gcc.c itself.  We don't directly support the -m (generate load
    map) option because that conflicts with the -m (run m4) option of
@@ -167,16 +158,27 @@ Boston, MA 02111-1307, USA.
    not being done.  */
 
 #undef	LINK_SPEC
-#define LINK_SPEC "%{h*} %{V} %{v:%{!V:-V}} \
+#ifdef CROSS_COMPILE
+#define LINK_SPEC "%{h*} %{v:-V} \
 		   %{b} %{Wl,*:%*} \
 		   %{static:-dn -Bstatic} \
-		   %{shared:-G -dy -z text %{!h*:%{o*:-h %*}}} \
-		   %{symbolic:-Bsymbolic -G -dy -z text %{!h*:%{o*:-h %*}}} \
+		   %{shared:-G -dy -z text} \
+		   %{symbolic:-Bsymbolic -G -dy -z text} \
+		   %{G:-G} \
+		   %{YP,*} \
+		   %{Qy:} %{!Qn:-Qy}"
+#else
+#define LINK_SPEC "%{h*} %{v:-V} \
+		   %{b} %{Wl,*:%*} \
+		   %{static:-dn -Bstatic} \
+		   %{shared:-G -dy -z text} \
+		   %{symbolic:-Bsymbolic -G -dy -z text} \
 		   %{G:-G} \
 		   %{YP,*} \
 		   %{!YP,*:%{p:-Y P,/usr/ccs/lib/libp:/usr/lib/libp:/usr/ccs/lib:/usr/lib} \
 		    %{!p:-Y P,/usr/ccs/lib:/usr/lib}} \
 		   %{Qy:} %{!Qn:-Qy}"
+#endif
 
 /* Gcc automatically adds in one of the files /usr/ccs/lib/values-Xc.o,
    /usr/ccs/lib/values-Xa.o, or /usr/ccs/lib/values-Xt.o for each final
@@ -243,6 +245,10 @@ do {				 				\
 
 #define DWARF_DEBUGGING_INFO
 
+/* All ELF targets can support DWARF-2.  */
+
+#define DWARF2_DEBUGGING_INFO
+
 /* The numbers used to denote specific machine registers in the System V
    Release 4 DWARF debugging information are quite likely to be totally
    different from the numbers used in BSD stabs debugging information
@@ -258,6 +264,10 @@ do {				 				\
    in general, although it will only work when using gas.  */
 
 #define DBX_DEBUGGING_INFO
+
+/* When generating stabs debugging, use N_BINCL entries.  */
+
+#define DBX_USE_BINCL
 
 /* Use DWARF debugging info by default.  */
 
@@ -320,8 +330,13 @@ while (0)
    embedded stabs.  */
 
 #define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
-  fprintf (FILE,							\
-	   "\t.text\n\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", N_SO)
+do									\
+  {									\
+    text_section ();							\
+    fprintf (FILE,							\
+	   "\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", N_SO);		\
+  }									\
+while (0)
 
 /* Define the actual types of some ANSI-mandated types.  (These
    definitions should work for most SVR4 systems).  */
@@ -368,14 +383,13 @@ while (0)
 #define ASM_OUTPUT_SKIP(FILE,SIZE) \
   fprintf (FILE, "\t%s\t%u\n", SKIP_ASM_OP, (SIZE))
 
-/* This is how to output a reference to a user-level label named NAME.
-   `assemble_name' uses this.
+/* The prefix to add to user-visible assembler symbols.
 
    For System V Release 4 the convention is *not* to prepend a leading
    underscore onto user-level symbol names.  */
 
-#undef ASM_OUTPUT_LABELREF
-#define ASM_OUTPUT_LABELREF(FILE,NAME) fprintf (FILE, "%s", NAME)
+#undef USER_LABEL_PREFIX
+#define USER_LABEL_PREFIX ""
 
 /* This is how to output an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.
@@ -400,7 +414,7 @@ do {									\
 #undef ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL, PREFIX, NUM)			\
 do {									\
-  sprintf (LABEL, "*.%s%d", PREFIX, NUM);				\
+  sprintf (LABEL, "*.%s%d", PREFIX, (unsigned) (NUM));			\
 } while (0)
 
 /* Output the label which precedes a jumptable.  Note that for all svr4
@@ -462,6 +476,13 @@ do {									\
   fprintf ((FILE), "\n");						\
   ASM_OUTPUT_ALIGNED_COMMON (FILE, NAME, SIZE, ALIGN);			\
 } while (0)
+
+/* Biggest alignment supported by the object file format of this
+   machine.  Use this macro to limit the alignment which can be
+   specified using the `__attribute__ ((aligned (N)))' construct.  If
+   not defined, the default value is `BIGGEST_ALIGNMENT'.  */
+
+#define MAX_OFILE_ALIGNMENT (32768*8)
 
 /* This is the pseudo-op used to generate a 32-bit word of data with a
    specific value in some section.  This is the same for all known svr4
@@ -573,15 +594,81 @@ dtors_section ()							\
 }
 
 /* Switch into a generic section.
-   This is currently only used to support section attributes.
-
+ 
    We make the section read-only and executable for a function decl,
-   read-only for a const data decl, and writable for a non-const data decl.  */
-#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME) \
-  fprintf (FILE, ".section\t%s,\"%s\",@progbits\n", NAME, \
-	   (DECL) && TREE_CODE (DECL) == FUNCTION_DECL ? "ax" : \
-	   (DECL) && TREE_READONLY (DECL) ? "a" : "aw")
+   read-only for a const data decl, and writable for a non-const data decl.
+ 
+   If the section has already been defined, we must not
+   emit the attributes here. The SVR4 assembler does not
+   recognize section redefinitions.
+   If DECL is NULL, no attributes are emitted.  */
 
+#define ASM_OUTPUT_SECTION_NAME(FILE, DECL, NAME, RELOC)		\
+do {									\
+  static struct section_info						\
+    {									\
+      struct section_info *next;				        \
+      char *name;						        \
+      enum sect_enum {SECT_RW, SECT_RO, SECT_EXEC} type;		\
+    } *sections;							\
+  struct section_info *s;						\
+  char *mode;								\
+  enum sect_enum type;							\
+									\
+  for (s = sections; s; s = s->next)					\
+    if (!strcmp (NAME, s->name))					\
+      break;								\
+									\
+  if (DECL && TREE_CODE (DECL) == FUNCTION_DECL)			\
+    type = SECT_EXEC, mode = "ax";					\
+  else if (DECL && DECL_READONLY_SECTION (DECL, RELOC))			\
+    type = SECT_RO, mode = "a";						\
+  else									\
+    type = SECT_RW, mode = "aw";					\
+									\
+  if (s == 0)								\
+    {									\
+      s = (struct section_info *) xmalloc (sizeof (struct section_info));  \
+      s->name = xmalloc ((strlen (NAME) + 1) * sizeof (*NAME));		\
+      strcpy (s->name, NAME);						\
+      s->type = type;							\
+      s->next = sections;						\
+      sections = s;							\
+      fprintf (FILE, ".section\t%s,\"%s\",@progbits\n", NAME, mode);	\
+    }									\
+  else									\
+    {									\
+      if (DECL && s->type != type)					\
+	error_with_decl (DECL, "%s causes a section type conflict");	\
+									\
+      fprintf (FILE, ".section\t%s\n", NAME);				\
+    }									\
+} while (0)
+
+#define MAKE_DECL_ONE_ONLY(DECL) (DECL_WEAK (DECL) = 1)
+#define UNIQUE_SECTION_P(DECL) (DECL_ONE_ONLY (DECL))
+#define UNIQUE_SECTION(DECL,RELOC)				\
+do {								\
+  int len;							\
+  char *name, *string, *prefix;					\
+								\
+  name = IDENTIFIER_POINTER (DECL_ASSEMBLER_NAME (DECL));	\
+								\
+  if (! DECL_ONE_ONLY (DECL))					\
+    prefix = ".";						\
+  else if (TREE_CODE (DECL) == FUNCTION_DECL)			\
+    prefix = ".gnu.linkonce.t.";				\
+  else if (DECL_READONLY_SECTION (DECL, RELOC))			\
+    prefix = ".gnu.linkonce.r.";				\
+  else								\
+    prefix = ".gnu.linkonce.d.";				\
+								\
+  len = strlen (name) + strlen (prefix);			\
+  string = alloca (len + 1);					\
+  sprintf (string, "%s%s", prefix, name);			\
+								\
+  DECL_SECTION_NAME (DECL) = build_string (len, string);	\
+} while (0)
 
 /* A C statement (sans semicolon) to output an element in the table of
    global constructors.  */
@@ -610,7 +697,9 @@ dtors_section ()							\
 
 #define SELECT_SECTION(DECL,RELOC)					\
 {									\
-  if (TREE_CODE (DECL) == STRING_CST)					\
+  if (flag_pic && RELOC)						\
+    data_section ();							\
+  else if (TREE_CODE (DECL) == STRING_CST)				\
     {									\
       if (! flag_writable_strings)					\
 	const_section ();						\
@@ -619,11 +708,7 @@ dtors_section ()							\
     }									\
   else if (TREE_CODE (DECL) == VAR_DECL)				\
     {									\
-      if ((flag_pic && RELOC)						\
-	  || !TREE_READONLY (DECL) || TREE_SIDE_EFFECTS (DECL)		\
-	  || !DECL_INITIAL (DECL)					\
-	  || (DECL_INITIAL (DECL) != error_mark_node			\
-	      && !TREE_CONSTANT (DECL_INITIAL (DECL))))			\
+      if (! DECL_READONLY_SECTION (DECL, RELOC))			\
 	data_section ();						\
       else								\
 	const_section ();						\
@@ -707,7 +792,10 @@ dtors_section ()							\
 	size_directive_output = 1;					\
 	fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);				\
 	assemble_name (FILE, NAME);					\
-	fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL)));	\
+	putc (',', FILE);						\
+	fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,				\
+		 int_size_in_bytes (TREE_TYPE (DECL)));			\
+	fputc ('\n', FILE);						\
       }									\
     ASM_OUTPUT_LABEL(FILE, NAME);					\
   } while (0)
@@ -729,7 +817,10 @@ do {									 \
 	 size_directive_output = 1;					 \
 	 fprintf (FILE, "\t%s\t ", SIZE_ASM_OP);			 \
 	 assemble_name (FILE, name);					 \
-	 fprintf (FILE, ",%d\n",  int_size_in_bytes (TREE_TYPE (DECL))); \
+	 putc (',', FILE);						 \
+	 fprintf (FILE, HOST_WIDE_INT_PRINT_DEC,			 \
+		  int_size_in_bytes (TREE_TYPE (DECL))); 		 \
+	fputc ('\n', FILE);						 \
        }								 \
    } while (0)
 
@@ -807,7 +898,7 @@ do {									 \
       register unsigned char *_limited_str = (unsigned char *) (STR);	\
       register unsigned ch;						\
       fprintf ((FILE), "\t%s\t\"", STRING_ASM_OP);			\
-      for (; ch = *_limited_str; _limited_str++)			\
+      for (; (ch = *_limited_str); _limited_str++)			\
         {								\
 	  register int escape;						\
 	  switch (escape = ESCAPES[ch])					\

@@ -1,5 +1,5 @@
 /* GNU Objective C Runtime class related functions
-   Copyright (C) 1993, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1995, 1996 Free Software Foundation, Inc.
    Contributed by Kresten Krab Thorup
 
 This file is part of GNU CC.
@@ -31,9 +31,9 @@ id __objc_object_alloc(Class);
 id __objc_object_dispose(id);
 id __objc_object_copy(id);
 
-id (*_objc_object_alloc)(Class)   = __objc_object_alloc;
-id (*_objc_object_dispose)(id)    = __objc_object_dispose;
-id (*_objc_object_copy)(id)       = __objc_object_copy;
+id (*_objc_object_alloc)(Class)   = __objc_object_alloc;   /* !T:SINGLE */ 
+id (*_objc_object_dispose)(id)    = __objc_object_dispose; /* !T:SINGLE */
+id (*_objc_object_copy)(id)       = __objc_object_copy;    /* !T:SINGLE */
 
 id
 class_create_instance(Class class)
@@ -66,19 +66,19 @@ object_dispose(id object)
       if (_objc_object_dispose)
         (*_objc_object_dispose)(object);
       else
-        free(object);
+        objc_free(object);
     }
   return nil;
 }
 
 id __objc_object_alloc(Class class)
 {
-  return (id)__objc_xmalloc(class->instance_size);
+  return (id)objc_malloc(class->instance_size);
 }
 
 id __objc_object_dispose(id object) 
 {
-  free(object);
+  objc_free(object);
   return 0;
 }
 

@@ -45,7 +45,9 @@ Boston, MA 02111-1307, USA.  */
    count is in %cl.  Some assemblers require %cl as an argument;
    some don't.  This macro controls what to do: by default, don't
    print %cl.  */
-#define AS3_SHIFT_DOUBLE(a,b,c,d) AS2 (a,c,d)
+#define SHIFT_DOUBLE_OMITS_COUNT 1
+#define AS3_SHIFT_DOUBLE(a,b,c,d) \
+	(SHIFT_DOUBLE_OMITS_COUNT ? AS2 (a,c,d) : AS3 (a,b,c,d))
 
 /* Output the size-letter for an opcode.
    CODE is the letter used in an operand spec (L, B, W, S or Q).
@@ -99,7 +101,6 @@ Boston, MA 02111-1307, USA.  */
 /* String containing the assembler's comment-starter.  */
 
 #define ASM_COMMENT_START "/"
-#define COMMENT_BEGIN "/"
 
 /* Output to assembler file text saying following lines
    may contain character constants, extra white space, comments, etc.  */
@@ -146,3 +147,45 @@ Boston, MA 02111-1307, USA.  */
 #define FUNCTION_VALUE_REGNO_P(N) \
   ((N) == 0 || ((N)== FIRST_FLOAT_REG && TARGET_FLOAT_RETURNS_IN_80387))
 
+/* Output code to add DELTA to the first argument, and then jump to FUNCTION.
+   Used for C++ multiple inheritance.  */
+#define ASM_OUTPUT_MI_THUNK(FILE, THUNK_FNDECL, DELTA, FUNCTION)	      \
+do {									      \
+  tree parm;								      \
+									      \
+  if (i386_regparm > 0)							      \
+    parm = TYPE_ARG_TYPES (TREE_TYPE (function));			      \
+  else									      \
+    parm = NULL_TREE;							      \
+  for (; parm; parm = TREE_CHAIN (parm))				      \
+    if (TREE_VALUE (parm) == void_type_node)				      \
+      break;								      \
+  fprintf (FILE, "\taddl $%d,%s\n", DELTA,				      \
+	   parm ? "%eax"						      \
+	   : aggregate_value_p (TREE_TYPE (TREE_TYPE (FUNCTION))) ? "8(%esp)" \
+	   : "4(%esp)");						      \
+									      \
+  if (flag_pic)								      \
+    {									      \
+      rtx xops[2];							      \
+      xops[0] = pic_offset_table_rtx;					      \
+      xops[1] = (rtx) gen_label_rtx ();					      \
+									      \
+      if (i386_regparm > 2)						      \
+	abort ();							      \
+      output_asm_insn ("push%L0 %0", xops);				      \
+      output_asm_insn (AS1 (call,%P1), xops);				      \
+      ASM_OUTPUT_INTERNAL_LABEL (FILE, "L", CODE_LABEL_NUMBER (xops[1]));     \
+      output_asm_insn (AS1 (pop%L0,%0), xops);				      \
+      output_asm_insn ("addl $_GLOBAL_OFFSET_TABLE_+[.-%P1],%0", xops);	      \
+      fprintf (FILE, "\tmovl ");					      \
+      assemble_name (FILE, XSTR (XEXP (DECL_RTL (FUNCTION), 0), 0));	      \
+      fprintf (FILE, "@GOT(%%ebx),%%ecx\n\tpopl %%ebx\n\tjmp *%%ecx\n");      \
+    }									      \
+  else									      \
+    {									      \
+      fprintf (FILE, "\tjmp ");						      \
+      assemble_name (FILE, XSTR (XEXP (DECL_RTL (FUNCTION), 0), 0));	      \
+      fprintf (FILE, "\n");						      \
+    }									      \
+} while (0)

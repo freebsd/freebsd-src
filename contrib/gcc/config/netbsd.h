@@ -13,11 +13,11 @@
 #define GCC_INCLUDE_DIR "/usr/include"
 
 #undef INCLUDE_DEFAULTS
-#define INCLUDE_DEFAULTS		\
-  {					\
-    { GPLUSPLUS_INCLUDE_DIR, 1, 1 },	\
-    { GCC_INCLUDE_DIR, 0, 0 },		\
-    { 0, 0, 0 }				\
+#define INCLUDE_DEFAULTS			\
+  {						\
+    { GPLUSPLUS_INCLUDE_DIR, "G++", 1, 1 },	\
+    { GCC_INCLUDE_DIR, "GCC", 0, 0 },		\
+    { 0, 0, 0, 0 }				\
   }
 
 /* Under NetBSD, the normal location of the compiler back ends is the
@@ -58,8 +58,13 @@
 
 #undef LINK_SPEC
 #define LINK_SPEC \
-  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{static:-Bstatic} %{assert*}"
+  "%{!nostdlib:%{!r*:%{!e*:-e start}}} -dc -dp %{R*} %{static:-Bstatic} %{assert*}"
 
+/* This defines which switch letters take arguments. */
+#undef SWITCH_TAKES_ARG
+#define SWITCH_TAKES_ARG(CHAR) \
+  (DEFAULT_SWITCH_TAKES_ARG(CHAR) \
+   || (CHAR) == 'R')
 
 /* We have atexit(3).  */
 
@@ -68,28 +73,36 @@
 /* Implicit library calls should use memcpy, not bcopy, etc.  */
 
 #define TARGET_MEM_FUNCTIONS
+
+/* Handle #pragma weak and #pragma pack.  */
+
+#define HANDLE_SYSV_PRAGMA
 
 /*
  * Some imports from svr4.h in support of shared libraries.
  * Currently, we need the DECLARE_OBJECT_SIZE stuff.
  */
 
-/* Define the strings used for the special svr4 .type and .size directives.
-   These strings generally do not vary from one system running svr4 to
-   another, but if a given system (e.g. m88k running svr) needs to use
-   different pseudo-op names for these, they may be overridden in the
-   file which includes this one.  */
+/* Define the strings used for the .type, .size, and .set directives.
+   These strings generally do not vary from one system running netbsd
+   to another, but if a given system needs to use different pseudo-op
+   names for these, they may be overridden in the file which includes
+   this one.  */
 
 #undef TYPE_ASM_OP
 #undef SIZE_ASM_OP
+#undef SET_ASM_OP
 #define TYPE_ASM_OP	".type"
 #define SIZE_ASM_OP	".size"
+#define SET_ASM_OP	".set"
 
 /* This is how we tell the assembler that a symbol is weak.  */
 
 #undef ASM_WEAKEN_LABEL
 #define ASM_WEAKEN_LABEL(FILE,NAME) \
-  do { fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
+  do { fputs ("\t.globl\t", FILE); assemble_name (FILE, NAME); \
+       fputc ('\n', FILE); \
+       fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
        fputc ('\n', FILE); } while (0)
 
 /* The following macro defines the format used to output the second

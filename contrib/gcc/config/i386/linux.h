@@ -1,5 +1,5 @@
-/* Definitions for Intel 386 running Linux with ELF format
-   Copyright (C) 1994, 1995 Free Software Foundation, Inc.
+/* Definitions for Intel 386 running Linux-based GNU systems with ELF format.
+   Copyright (C) 1994, 1995, 1996, 1997, 1998 Free Software Foundation, Inc.
    Contributed by Eric Youngdale.
    Modified for stabs-in-ELF by H.J. Lu.
 
@@ -37,16 +37,19 @@ Boston, MA 02111-1307, USA.  */
 #undef DEFAULT_PCC_STRUCT_RETURN
 #define DEFAULT_PCC_STRUCT_RETURN 1
 
+#undef ASM_COMMENT_START
+#define ASM_COMMENT_START "#"
+
 /* This is how to output an element of a case-vector that is relative.
    This is only used for PIC code.  See comments by the `casesi' insn in
    i386.md for an explanation of the expression this outputs. */
 #undef ASM_OUTPUT_ADDR_DIFF_ELT
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, VALUE, REL) \
+#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
   fprintf (FILE, "\t.long _GLOBAL_OFFSET_TABLE_+[.-%s%d]\n", LPREFIX, VALUE)
 
 /* Indicate that jump tables go in the text section.  This is
    necessary when compiling PIC code.  */
-#define JUMP_TABLES_IN_TEXT_SECTION
+#define JUMP_TABLES_IN_TEXT_SECTION (flag_pic)
 
 /* Copy this from the svr4 specifications... */
 /* Define the register numbers to be used in Dwarf debugging information.
@@ -147,44 +150,19 @@ Boston, MA 02111-1307, USA.  */
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE BITS_PER_WORD
     
+/* The egcs-1.1 branch is the last time we will have -Di386.  -D__i386__ is the thing to use.  */
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__ELF__ -Dunix -Di386 -Dlinux -Asystem(unix) -Asystem(posix) -Acpu(i386) -Amachine(i386)"
+#define CPP_PREDEFINES "-D__ELF__ -Dunix -Di386 -D__i386__ -Dlinux -Asystem(posix)"
 
 #undef CPP_SPEC
 #ifdef USE_GNULIBC_1
-#if TARGET_CPU_DEFAULT == 2
-#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{!m386:-D__i486__} %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE}"
 #else
-#define CPP_SPEC "%{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{m486:-D__i486__} %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 #endif
-#else /* not USE_GNULIBC_1 */
-#define CPP_SPEC "%(cpp_cpu) %[cpp_cpu] %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
-#endif /* not USE_GNULIBC_1 */
 
-#undef LIBGCC_SPEC
-#define LIBGCC_SPEC "-lgcc"
-
-#undef	LIB_SPEC
-#ifdef USE_GNULIBC_1
-#if 1
-/* We no longer link with libc_p.a or libg.a by default. If you
- * want to profile or debug the Linux C library, please add
- * -lc_p or -ggdb to LDFLAGS at the link time, respectively.
- */
-#define LIB_SPEC \
-  "%{!shared: %{mieee-fp:-lieee} %{p:-lgmon} %{pg:-lgmon} \
-     %{!ggdb:-lc} %{ggdb:-lg}}"
-#else
-#define LIB_SPEC \
-  "%{!shared: \
-     %{mieee-fp:-lieee} %{p:-lgmon -lc_p} %{pg:-lgmon -lc_p} \
-       %{!p:%{!pg:%{!g*:-lc} %{g*:-lg}}}}"
-#endif
-#else
-#define LIB_SPEC \
-  "%{!shared: %{mieee-fp:-lieee} %{pthread:-lpthread} \
-	%{profile:-lc_p} %{!profile: -lc}}"
-#endif /* not USE_GNULIBC_1 */
+#undef CC1_SPEC
+#define CC1_SPEC "%(cc1_cpu) %{profile:-p}"
 
 /* Provide a LINK_SPEC appropriate for Linux.  Here we provide support
    for the special GCC options -static and -shared, which allow us to
@@ -221,7 +199,7 @@ Boston, MA 02111-1307, USA.  */
 	%{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.1}} \
 	%{static:-static}}}"
 #endif
-#else /* not USE_GNULIBC_1 */
+#else
 #define LINK_SPEC "-m elf_i386 %{shared:-shared} \
   %{!shared: \
     %{!ibcs: \
@@ -229,7 +207,28 @@ Boston, MA 02111-1307, USA.  */
 	%{rdynamic:-export-dynamic} \
 	%{!dynamic-linker:-dynamic-linker /lib/ld-linux.so.2}} \
 	%{static:-static}}}"
-#endif /* not USE_GNULIBC_1 */
+#endif
 
 /* Get perform_* macros to build libgcc.a.  */
 #include "i386/perform.h"
+
+/* A C statement (sans semicolon) to output to the stdio stream
+   FILE the assembler definition of uninitialized global DECL named
+   NAME whose size is SIZE bytes and alignment is ALIGN bytes.
+   Try to use asm_output_aligned_bss to implement this macro.  */
+
+#define ASM_OUTPUT_ALIGNED_BSS(FILE, DECL, NAME, SIZE, ALIGN) \
+  asm_output_aligned_bss (FILE, DECL, NAME, SIZE, ALIGN)
+
+/* A C statement to output to the stdio stream FILE an assembler
+   command to advance the location counter to a multiple of 1<<LOG
+   bytes if it is within MAX_SKIP bytes.
+
+   This is used to align code labels according to Intel recommendations.  */
+
+#ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
+#define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE,LOG,MAX_SKIP) \
+  if ((LOG)!=0) \
+    if ((MAX_SKIP)==0) fprintf ((FILE), "\t.p2align %d\n", (LOG)); \
+    else fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP))
+#endif

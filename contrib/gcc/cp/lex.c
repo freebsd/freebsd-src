@@ -1,5 +1,5 @@
 /* Separate lexical analyzer for GNU C++.
-   Copyright (C) 1987, 89, 92, 93, 94, 1995 Free Software Foundation, Inc.
+   Copyright (C) 1987, 89, 92-97, 1998 Free Software Foundation, Inc.
    Hacked by Michael Tiemann (tiemann@cygnus.com)
 
 This file is part of GNU CC.
@@ -25,64 +25,100 @@ Boston, MA 02111-1307, USA.  */
 /* Cause the `yydebug' variable to be defined.  */
 #define YYDEBUG 1
 
-#include <sys/types.h>
-#include <stdio.h>
-#include <errno.h>
-#include <setjmp.h>
 #include "config.h"
+#include "system.h"
+#include <setjmp.h>
 #include "input.h"
 #include "tree.h"
 #include "lex.h"
-#include "parse.h"
 #include "cp-tree.h"
+#include "parse.h"
 #include "flags.h"
 #include "obstack.h"
 #include "c-pragma.h"
+#include "toplev.h"
+#include "output.h"
+
+/* MULTIBYTE_CHARS support only works for native compilers.
+   ??? Ideally what we want is to model widechar support after
+   the current floating point support.  */
+#ifdef CROSS_COMPILE
+#undef MULTIBYTE_CHARS
+#endif
 
 #ifdef MULTIBYTE_CHARS
-#include <stdlib.h>
 #include <locale.h>
 #endif
-
-#ifndef errno
-extern int errno;		/* needed for VAX.  */
-#endif
-extern jmp_buf toplevel;
 
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern struct obstack *expression_obstack, permanent_obstack;
+#ifndef DIR_SEPARATOR
+#define DIR_SEPARATOR '/'
+#endif
+
+extern struct obstack permanent_obstack;
 extern struct obstack *current_obstack, *saveable_obstack;
 
-extern double atof ();
+extern void yyprint PROTO((FILE *, int, YYSTYPE));
+extern void compiler_error PROTO((char *, HOST_WIDE_INT,
+				  HOST_WIDE_INT));
 
-extern char *get_directive_line ();	/* In c-common.c */
+static tree get_time_identifier PROTO((char *));
+static int check_newline PROTO((void));
+static int skip_white_space PROTO((int));
+static void finish_defarg PROTO((void));
+static int my_get_run_time PROTO((void));
+static int get_last_nonwhite_on_line PROTO((void));
+static int interface_strcmp PROTO((char *));
+static int readescape PROTO((int *));
+static char *extend_token_buffer PROTO((char *));
+static void consume_string PROTO((struct obstack *, int));
+static void set_typedecl_interface_info PROTO((tree, tree));
+static void feed_defarg PROTO((tree, tree));
+static int set_vardecl_interface_info PROTO((tree, tree));
+static void store_pending_inline PROTO((tree, struct pending_inline *));
+static void reinit_parse_for_expr PROTO((struct obstack *));
+static int *init_cpp_parse PROTO((void));
+static int handle_cp_pragma PROTO((char *));
+#ifdef HANDLE_SYSV_PRAGMA
+static int handle_sysv_pragma PROTO((int));
+#endif
+#ifdef GATHER_STATISTICS
+#ifdef REDUCE_LENGTH
+static int reduce_cmp PROTO((int *, int *));
+static int token_cmp PROTO((int *, int *));
+#endif
+#endif
 
 /* Given a file name X, return the nondirectory portion.
    Keep in mind that X can be computed more than once.  */
-#ifndef FILE_NAME_NONDIRECTORY
-#define FILE_NAME_NONDIRECTORY(X)		\
- (rindex (X, '/') != 0 ? rindex (X, '/') + 1 : X)
-#endif
-
-extern char *index ();
-extern char *rindex ();
-
-void extract_interface_info ();
-void yyerror ();
+char *
+file_name_nondirectory (x)
+     char *x;
+{
+  char *tmp = (char *) rindex (x, '/');
+  if (DIR_SEPARATOR != '/' && ! tmp)
+    tmp = (char *) rindex (x, DIR_SEPARATOR);
+  if (tmp)
+    return (char *) (tmp + 1);
+  else
+    return x;
+}
 
 /* This obstack is needed to hold text.  It is not safe to use
    TOKEN_BUFFER because `check_newline' calls `yylex'.  */
 struct obstack inline_text_obstack;
-static char *inline_text_firstobj;
+char *inline_text_firstobj;
 
-/* This obstack is used to hold information about methods to be
-   synthesized.  It should go away when synthesized methods are handled
-   properly (i.e. only when needed).  */
-struct obstack synth_obstack;
-static char *synth_firstobj;
-
+#if USE_CPPLIB
+#include "cpplib.h"
+extern cpp_reader  parse_in;
+extern cpp_options parse_options;
+extern unsigned char *yy_cur, *yy_lim;
+#else
+FILE *finput;
+#endif
 int end_of_file;
 
 /* Pending language change.
@@ -101,7 +137,7 @@ extern struct obstack token_obstack;
 #else
 extern void put_back (/* int */);
 extern int input_redirected ();
-extern void feed_input (/* char *, int, struct obstack * */);
+extern void feed_input (/* char *, int */);
 #endif
 
 /* Holds translations from TREE_CODEs to operator name strings,
@@ -132,52 +168,43 @@ tree ridpointers[(int) RID_MAX];
 
 /* We may keep statistics about how long which files took to compile.  */
 static int header_time, body_time;
-static tree get_time_identifier ();
 static tree filename_times;
 static tree this_filename_time;
 
-/* For implementing #pragma unit.  */
-tree current_unit_name;
-tree current_unit_language;
-
 /* Array for holding counts of the numbers of tokens seen.  */
 extern int *token_count;
-
-/* Textual definition used for default functions.  */
-static void default_copy_constructor_body ();
-static void default_assign_ref_body ();
 
 /* Return something to represent absolute declarators containing a *.
    TARGET is the absolute declarator that the * contains.
-   TYPE_QUALS is a list of modifiers such as const or volatile
+   CV_QUALIFIERS is a list of modifiers such as const or volatile
    to apply to the pointer type, represented as identifiers.
 
    We return an INDIRECT_REF whose "contents" are TARGET
    and whose type is the modifier list.  */
 
 tree
-make_pointer_declarator (type_quals, target)
-     tree type_quals, target;
+make_pointer_declarator (cv_qualifiers, target)
+     tree cv_qualifiers, target;
 {
   if (target && TREE_CODE (target) == IDENTIFIER_NODE
       && ANON_AGGRNAME_P (target))
     error ("type name expected before `*'");
   target = build_parse_node (INDIRECT_REF, target);
-  TREE_TYPE (target) = type_quals;
+  TREE_TYPE (target) = cv_qualifiers;
   return target;
 }
 
 /* Return something to represent absolute declarators containing a &.
    TARGET is the absolute declarator that the & contains.
-   TYPE_QUALS is a list of modifiers such as const or volatile
+   CV_QUALIFIERS is a list of modifiers such as const or volatile
    to apply to the reference type, represented as identifiers.
 
    We return an ADDR_EXPR whose "contents" are TARGET
    and whose type is the modifier list.  */
    
 tree
-make_reference_declarator (type_quals, target)
-     tree type_quals, target;
+make_reference_declarator (cv_qualifiers, target)
+     tree cv_qualifiers, target;
 {
   if (target)
     {
@@ -195,8 +222,25 @@ make_reference_declarator (type_quals, target)
 	  error ("type name expected before `&'");
     }
   target = build_parse_node (ADDR_EXPR, target);
-  TREE_TYPE (target) = type_quals;
+  TREE_TYPE (target) = cv_qualifiers;
   return target;
+}
+
+tree
+make_call_declarator (target, parms, cv_qualifiers, exception_specification)
+     tree target, parms, cv_qualifiers, exception_specification;
+{
+  target = build_parse_node (CALL_EXPR, target, parms, cv_qualifiers);
+  TREE_TYPE (target) = exception_specification;
+  return target;
+}
+
+void
+set_quals_and_spec (call_declarator, cv_qualifiers, exception_specification)
+     tree call_declarator, cv_qualifiers, exception_specification;
+{
+  TREE_OPERAND (call_declarator, 2) = cv_qualifiers;
+  TREE_TYPE (call_declarator) = exception_specification;
 }
 
 /* Build names and nodes for overloaded operators.  */
@@ -252,9 +296,6 @@ int interface_unknown;		/* whether or not we know this class
 
 /* lexical analyzer */
 
-/* File used for outputting assembler code.  */
-extern FILE *asm_out_file;
-
 #ifndef WCHAR_TYPE_SIZE
 #ifdef INT_TYPE_SIZE
 #define WCHAR_TYPE_SIZE INT_TYPE_SIZE
@@ -272,12 +313,9 @@ char *token_buffer;		/* Pointer to token buffer.
 
 #include "hash.h"
 
-int check_newline ();
 
 /* Nonzero tells yylex to ignore \ in string constants.  */
 static int ignore_escape_flag = 0;
-
-static int skip_white_space ();
 
 static tree
 get_time_identifier (name)
@@ -296,7 +334,7 @@ get_time_identifier (name)
       end_temporary_allocation ();
       IDENTIFIER_LOCAL_VALUE (time_identifier) = build_int_2 (0, 0);
       IDENTIFIER_CLASS_VALUE (time_identifier) = build_int_2 (0, 1);
-      IDENTIFIER_GLOBAL_VALUE (time_identifier) = filename_times;
+      SET_IDENTIFIER_GLOBAL_VALUE (time_identifier, filename_times);
       filename_times = time_identifier;
       pop_obstacks ();
     }
@@ -319,13 +357,13 @@ my_get_run_time ()
 
 /* Table indexed by tree code giving a string containing a character
    classifying the tree code.  Possibilities are
-   t, d, s, c, r, <, 1 and 2.  See cp/tree.def for details.  */
+   t, d, s, c, r, <, 1 and 2.  See cp/cp-tree.def for details.  */
 
 #define DEFTREECODE(SYM, NAME, TYPE, LENGTH) TYPE,
 
-char *cplus_tree_code_type[] = {
-  "x",
-#include "tree.def"
+char cplus_tree_code_type[] = {
+  'x',
+#include "cp-tree.def"
 };
 #undef DEFTREECODE
 
@@ -337,7 +375,7 @@ char *cplus_tree_code_type[] = {
 
 int cplus_tree_code_length[] = {
   0,
-#include "tree.def"
+#include "cp-tree.def"
 };
 #undef DEFTREECODE
 
@@ -347,22 +385,28 @@ int cplus_tree_code_length[] = {
 
 char *cplus_tree_code_name[] = {
   "@@dummy",
-#include "tree.def"
+#include "cp-tree.def"
 };
 #undef DEFTREECODE
 
 /* toplev.c needs to call these.  */
 
 void
+lang_init_options ()
+{
+  /* Default exceptions on.  */
+  flag_exceptions = 1;
+}
+
+void
 lang_init ()
 {
+#if ! USE_CPPLIB
   /* the beginning of the file is a new line; check for # */
   /* With luck, we discover the real source file's name from that
      and put it in input_filename.  */
   put_back (check_newline ());
-
-  if (flag_cadillac)
-    cadillac_start ();
+#endif
   if (flag_gnu_xref) GNU_xref_begin (input_filename);
   init_repo (input_filename);
 }
@@ -394,22 +438,65 @@ init_filename_times ()
 
 /* Change by Bryan Boreham, Kewill, Thu Jul 27 09:46:05 1989.
    Stuck this hack in to get the files open correctly; this is called
-   in place of init_lex if we are an unexec'd binary.    */
+   in place of init_parse if we are an unexec'd binary.    */
+
+#if 0
 void
 reinit_lang_specific ()
 {
   init_filename_times ();
   reinit_search_statistics ();
 }
+#endif
 
-void
-init_lex ()
+static int *
+init_cpp_parse ()
 {
-  extern char *(*decl_printable_name) ();
+#ifdef GATHER_STATISTICS
+#ifdef REDUCE_LENGTH
+  reduce_count = (int *)malloc (sizeof (int) * (REDUCE_LENGTH + 1));
+  bzero (reduce_count, sizeof (int) * (REDUCE_LENGTH + 1));
+  reduce_count += 1;
+  token_count = (int *)malloc (sizeof (int) * (TOKEN_LENGTH + 1));
+  bzero (token_count, sizeof (int) * (TOKEN_LENGTH + 1));
+  token_count += 1;
+#endif
+#endif
+  return token_count;
+}
+
+char *
+init_parse (filename)
+     char *filename;
+{
   extern int flag_no_gnu_keywords;
   extern int flag_operator_names;
 
   int i;
+
+#if USE_CPPLIB
+  yy_cur = "\n";
+  yy_lim = yy_cur + 1;
+
+  parse_in.show_column = 1;
+  if (! cpp_start_read (&parse_in, filename))
+    abort ();
+#else
+  /* Open input file.  */
+  if (filename == 0 || !strcmp (filename, "-"))
+    {
+      finput = stdin;
+      filename = "stdin";
+    }
+  else
+    finput = fopen (filename, "r");
+  if (finput == 0)
+    pfatal_with_name (filename);
+
+#ifdef IO_BUFFER_SIZE
+  setvbuf (finput, (char *) xmalloc (IO_BUFFER_SIZE), _IOFBF, IO_BUFFER_SIZE);
+#endif
+#endif /* !USE_CPPLIB */
 
   /* Initialize the lookahead machinery.  */
   init_spew ();
@@ -420,18 +507,9 @@ init_lex ()
 
   init_cplus_expand ();
 
-  tree_code_type
-    = (char **) realloc (tree_code_type,
-			 sizeof (char *) * LAST_CPLUS_TREE_CODE);
-  tree_code_length
-    = (int *) realloc (tree_code_length,
-		       sizeof (int) * LAST_CPLUS_TREE_CODE);
-  tree_code_name
-    = (char **) realloc (tree_code_name,
-			 sizeof (char *) * LAST_CPLUS_TREE_CODE);
-  bcopy ((char *)cplus_tree_code_type,
-	 (char *)(tree_code_type + (int) LAST_AND_UNUSED_TREE_CODE),
-	 (LAST_CPLUS_TREE_CODE - (int)LAST_AND_UNUSED_TREE_CODE) * sizeof (char *));
+  bcopy (cplus_tree_code_type,
+	 tree_code_type + (int) LAST_AND_UNUSED_TREE_CODE,
+	 (int)LAST_CPLUS_TREE_CODE - (int)LAST_AND_UNUSED_TREE_CODE);
   bcopy ((char *)cplus_tree_code_length,
 	 (char *)(tree_code_length + (int) LAST_AND_UNUSED_TREE_CODE),
 	 (LAST_CPLUS_TREE_CODE - (int)LAST_AND_UNUSED_TREE_CODE) * sizeof (int));
@@ -568,15 +646,13 @@ init_lex ()
   IDENTIFIER_OPNAME_P (ansi_opname[(int) MAX_EXPR]) = 1;
   ansi_opname[(int) COND_EXPR] = get_identifier ("__cn");
   IDENTIFIER_OPNAME_P (ansi_opname[(int) COND_EXPR]) = 1;
-  ansi_opname[(int) METHOD_CALL_EXPR] = get_identifier ("__wr");
-  IDENTIFIER_OPNAME_P (ansi_opname[(int) METHOD_CALL_EXPR]) = 1;
+  ansi_opname[(int) SIZEOF_EXPR] = get_identifier ("__sz");
+  IDENTIFIER_OPNAME_P (ansi_opname[(int) SIZEOF_EXPR]) = 1;
 
   init_method ();
   init_error ();
   gcc_obstack_init (&inline_text_obstack);
   inline_text_firstobj = (char *) obstack_alloc (&inline_text_obstack, 0);
-  gcc_obstack_init (&synth_obstack);
-  synth_firstobj = (char *) obstack_alloc (&synth_obstack, 0);
 
   /* Start it at 0, because check_newline is called at the very beginning
      and will increment it to 1.  */
@@ -641,8 +717,11 @@ init_lex ()
   ridpointers[(int) RID_REGISTER] = get_identifier ("register");
   SET_IDENTIFIER_AS_LIST (ridpointers[(int) RID_REGISTER],
 			  build_tree_list (NULL_TREE, ridpointers[(int) RID_REGISTER]));
+  ridpointers[(int) RID_COMPLEX] = get_identifier ("__complex");
+  SET_IDENTIFIER_AS_LIST (ridpointers[(int) RID_COMPLEX],
+			  build_tree_list (NULL_TREE, ridpointers[(int) RID_COMPLEX]));
 
-  /* C++ extensions. These are probably not correctly named. */
+  /* C++ extensions. These are probably not correctly named.  */
   ridpointers[(int) RID_WCHAR] = get_identifier ("__wchar_t");
   SET_IDENTIFIER_AS_LIST (ridpointers[(int) RID_WCHAR],
 			  build_tree_list (NULL_TREE, ridpointers[(int) RID_WCHAR]));
@@ -684,7 +763,7 @@ init_lex ()
   ridpointers[(int) RID_TEMPLATE] = get_identifier ("template");
   SET_IDENTIFIER_AS_LIST (ridpointers[(int) RID_TEMPLATE],
 			  build_tree_list (NULL_TREE, ridpointers[(int) RID_TEMPLATE]));
-  /* This is for ANSI C++. */
+  /* This is for ANSI C++.  */
   ridpointers[(int) RID_MUTABLE] = get_identifier ("mutable");
   SET_IDENTIFIER_AS_LIST (ridpointers[(int) RID_MUTABLE],
 			  build_tree_list (NULL_TREE, ridpointers[(int) RID_MUTABLE]));
@@ -694,17 +773,19 @@ init_lex ()
   TREE_TYPE (signature_type_node) = signature_type_node;
   ridpointers[(int) RID_SIGNATURE] = signature_type_node;
 
+  null_node = build_int_2 (0, 0);
+  ridpointers[RID_NULL] = null_node;
+
   opname_tab[(int) COMPONENT_REF] = "->";
   opname_tab[(int) MEMBER_REF] = "->*";
-  opname_tab[(int) METHOD_CALL_EXPR] = "->()";
-  opname_tab[(int) INDIRECT_REF] = "(unary *)";
+  opname_tab[(int) INDIRECT_REF] = "*";
   opname_tab[(int) ARRAY_REF] = "[]";
   opname_tab[(int) MODIFY_EXPR] = "=";
   opname_tab[(int) NEW_EXPR] = "new";
   opname_tab[(int) DELETE_EXPR] = "delete";
   opname_tab[(int) VEC_NEW_EXPR] = "new []";
   opname_tab[(int) VEC_DELETE_EXPR] = "delete []";
-  opname_tab[(int) COND_EXPR] = "... ? ... : ...";
+  opname_tab[(int) COND_EXPR] = "?:";
   opname_tab[(int) CALL_EXPR] = "()";
   opname_tab[(int) PLUS_EXPR] = "+";
   opname_tab[(int) MINUS_EXPR] = "-";
@@ -741,9 +822,9 @@ init_lex ()
   opname_tab[(int) EQ_EXPR] = "==";
   opname_tab[(int) NE_EXPR] = "!=";
   opname_tab[(int) IN_EXPR] = "in";
-  opname_tab[(int) RANGE_EXPR] = "..";
-  opname_tab[(int) CONVERT_EXPR] = "(unary +)";
-  opname_tab[(int) ADDR_EXPR] = "(unary &)";
+  opname_tab[(int) RANGE_EXPR] = "...";
+  opname_tab[(int) CONVERT_EXPR] = "+";
+  opname_tab[(int) ADDR_EXPR] = "&";
   opname_tab[(int) PREDECREMENT_EXPR] = "--";
   opname_tab[(int) PREINCREMENT_EXPR] = "++";
   opname_tab[(int) POSTDECREMENT_EXPR] = "--";
@@ -785,7 +866,7 @@ init_lex ()
 
 #if 0
   /* let's parse things, and if they use it, then give them an error.  */
-  if (!flag_handle_exceptions)
+  if (!flag_exceptions)
     {
       UNSET_RESERVED_WORD ("throw");
       UNSET_RESERVED_WORD ("try");
@@ -793,11 +874,12 @@ init_lex ()
     }
 #endif
 
-  if (! (flag_gc || flag_rtti) || flag_no_gnu_keywords)
+  if (!flag_rtti || flag_no_gnu_keywords)
     {
       UNSET_RESERVED_WORD ("classof");
       UNSET_RESERVED_WORD ("headof");
     }
+
   if (! flag_handle_signatures || flag_no_gnu_keywords)
     {
       /* Easiest way to not recognize signature
@@ -822,11 +904,21 @@ init_lex ()
       UNSET_RESERVED_WORD ("xor");
       UNSET_RESERVED_WORD ("xor_eq");
     }
-  if (! flag_traditional)
-    UNSET_RESERVED_WORD ("overload");
 
-  token_count = init_parse ();
+  token_count = init_cpp_parse ();
   interface_unknown = 1;
+
+  return filename;
+}
+
+void
+finish_parse ()
+{
+#if USE_CPPLIB
+  cpp_finish (&parse_in);
+#else
+  fclose (finput);
+#endif
 }
 
 void
@@ -855,10 +947,14 @@ yyprint (file, yychar, yylval)
     case IDENTIFIER_DEFN:
     case TYPENAME_DEFN:
     case PTYPENAME_DEFN:
-    case TYPENAME_ELLIPSIS:
     case SCSPEC:
     case PRE_PARSED_CLASS_DECL:
       t = yylval.ttype;
+      if (TREE_CODE (t) == TYPE_DECL || TREE_CODE (t) == TEMPLATE_DECL)
+	{
+	  fprintf (file, " `%s'", IDENTIFIER_POINTER (DECL_NAME (t)));
+	  break;
+	}
       my_friendly_assert (TREE_CODE (t) == IDENTIFIER_NODE, 224);
       if (IDENTIFIER_POINTER (t))
 	  fprintf (file, " `%s'", IDENTIFIER_POINTER (t));
@@ -880,27 +976,19 @@ yyprint (file, yychar, yylval)
     }
 }
 
+#if defined(GATHER_STATISTICS) && defined(REDUCE_LENGTH)
 static int *reduce_count;
+#endif
+
 int *token_count;
 
+#if 0
 #define REDUCE_LENGTH (sizeof (yyr2) / sizeof (yyr2[0]))
 #define TOKEN_LENGTH (256 + sizeof (yytname) / sizeof (yytname[0]))
-
-int *
-init_parse ()
-{
-#ifdef GATHER_STATISTICS
-  reduce_count = (int *)malloc (sizeof (int) * (REDUCE_LENGTH + 1));
-  bzero (reduce_count, sizeof (int) * (REDUCE_LENGTH + 1));
-  reduce_count += 1;
-  token_count = (int *)malloc (sizeof (int) * (TOKEN_LENGTH + 1));
-  bzero (token_count, sizeof (int) * (TOKEN_LENGTH + 1));
-  token_count += 1;
 #endif
-  return token_count;
-}
 
 #ifdef GATHER_STATISTICS
+#ifdef REDUCE_LENGTH
 void
 yyhook (yyn)
      int yyn;
@@ -922,11 +1010,13 @@ token_cmp (p, q)
   return token_count[*q] - token_count[*p];
 }
 #endif
+#endif
 
 void
 print_parse_statistics ()
 {
 #ifdef GATHER_STATISTICS
+#ifdef REDUCE_LENGTH
 #if YYDEBUG != 0
   int i;
   int maxlen = REDUCE_LENGTH;
@@ -944,13 +1034,13 @@ print_parse_statistics ()
   qsort (sorted, TOKEN_LENGTH, sizeof (int), token_cmp);
   for (i = 0; i < TOKEN_LENGTH; i++)
     {
-      int index = sorted[i];
-      if (token_count[index] == 0)
+      int idx = sorted[i];
+      if (token_count[idx] == 0)
 	break;
-      if (token_count[index] < token_count[-1])
+      if (token_count[idx] < token_count[-1])
 	break;
       fprintf (stderr, "token %d, `%s', count = %d\n",
-	       index, yytname[YYTRANSLATE (index)], token_count[index]);
+	       idx, yytname[YYTRANSLATE (idx)], token_count[idx]);
     }
   fprintf (stderr, "\n");
   for (i = 0; i < REDUCE_LENGTH; i++)
@@ -958,15 +1048,16 @@ print_parse_statistics ()
   qsort (sorted, REDUCE_LENGTH, sizeof (int), reduce_cmp);
   for (i = 0; i < REDUCE_LENGTH; i++)
     {
-      int index = sorted[i];
-      if (reduce_count[index] == 0)
+      int idx = sorted[i];
+      if (reduce_count[idx] == 0)
 	break;
-      if (reduce_count[index] < reduce_count[-1])
+      if (reduce_count[idx] < reduce_count[-1])
 	break;
       fprintf (stderr, "rule %d, line %d, count = %d\n",
-	       index, yyrline[index], reduce_count[index]);
+	       idx, yyrline[idx], reduce_count[idx]);
     }
   fprintf (stderr, "\n");
+#endif
 #endif
 #endif
 }
@@ -974,6 +1065,7 @@ print_parse_statistics ()
 /* Sets the value of the 'yydebug' variable to VALUE.
    This is a function so we don't have to have YYDEBUG defined
    in order to build the compiler.  */
+
 void
 set_yydebug (value)
      int value;
@@ -1016,6 +1108,7 @@ static struct impl_files *impl_file_chain;
 
 /* Helper function to load global variables with interface
    information.  */
+
 void
 extract_interface_info ()
 {
@@ -1032,12 +1125,12 @@ extract_interface_info ()
     fileinfo = get_time_identifier (input_filename);
   fileinfo = IDENTIFIER_CLASS_VALUE (fileinfo);
   interface_only = TREE_INT_CST_LOW (fileinfo);
-  if (!processing_template_defn || flag_external_templates)
-    interface_unknown = TREE_INT_CST_HIGH (fileinfo);
+  interface_unknown = TREE_INT_CST_HIGH (fileinfo);
 }
 
 /* Return nonzero if S is not considered part of an
    INTERFACE/IMPLEMENTATION pair.  Otherwise, return 0.  */
+
 static int
 interface_strcmp (s)
      char *s;
@@ -1076,7 +1169,7 @@ interface_strcmp (s)
   return 1;
 }
 
-void
+static void
 set_typedecl_interface_info (prev, vars)
      tree prev, vars;
 {
@@ -1085,10 +1178,10 @@ set_typedecl_interface_info (prev, vars)
   tree type = TREE_TYPE (vars);
 
   CLASSTYPE_INTERFACE_ONLY (type) = TREE_INT_CST_LOW (fileinfo)
-    = interface_strcmp (FILE_NAME_NONDIRECTORY (DECL_SOURCE_FILE (vars)));
+    = interface_strcmp (file_name_nondirectory (DECL_SOURCE_FILE (vars)));
 }
 
-void
+static int
 set_vardecl_interface_info (prev, vars)
      tree prev, vars;
 {
@@ -1097,22 +1190,26 @@ set_vardecl_interface_info (prev, vars)
   if (CLASSTYPE_INTERFACE_KNOWN (type))
     {
       if (CLASSTYPE_INTERFACE_ONLY (type))
-	set_typedecl_interface_info (prev, TYPE_NAME (type));
+	set_typedecl_interface_info (prev, TYPE_MAIN_DECL (type));
       else
 	CLASSTYPE_VTABLE_NEEDS_WRITING (type) = 1;
       DECL_EXTERNAL (vars) = CLASSTYPE_INTERFACE_ONLY (type);
       TREE_PUBLIC (vars) = 1;
+      return 1;
     }
+  return 0;
 }
 
 /* Called from the top level: if there are any pending inlines to
    do, set up to process them now.  This function sets up the first function
    to be parsed; after it has been, the rule for fndef in parse.y will
    call process_next_inline to start working on the next one.  */
+
 void
 do_pending_inlines ()
 {
   struct pending_inline *t;
+  tree context;
 
   /* Oops, we're still dealing with the last batch.  */
   if (yychar == PRE_PARSED_FUNCTION_DECL)
@@ -1121,7 +1218,7 @@ do_pending_inlines ()
   /* Reverse the pending inline functions, since
      they were cons'd instead of appended.  */
   {
-    struct pending_inline *prev = 0, *tail, *bottom = 0;
+    struct pending_inline *prev = 0, *tail;
     t = pending_inlines;
     pending_inlines = 0;
 
@@ -1132,33 +1229,6 @@ do_pending_inlines ()
 	t->deja_vu = 1;
 	prev = t;
       }
-
-    /* This kludge should go away when synthesized methods are handled
-       properly, i.e. only when needed.  */
-    for (t = prev; t; t = t->next)
-      {
-	if (t->lineno <= 0)
-	  {
-	    tree f = t->fndecl;
-	    DECL_PENDING_INLINE_INFO (f) = 0;
-	    interface_unknown = t->interface == 1;
-	    interface_only = t->interface == 0;
-	    synthesize_method (f);
-	    if (tail)
-	      tail->next = t->next;
-	    else
-	      prev = t->next;
-	    if (! bottom)
-	      bottom = t;
-	  }
-	else
-	  tail = t;
-      }
-    if (bottom)
-      {
-	obstack_free (&synth_obstack, bottom);
-	extract_interface_info ();
-      }
     t = prev;
   }
 
@@ -1166,13 +1236,13 @@ do_pending_inlines ()
     return;
 	    
   /* Now start processing the first inline function.  */
-  my_friendly_assert ((t->parm_vec == NULL_TREE) == (t->bindings == NULL_TREE),
-		      226);
-  if (t->parm_vec)
-    push_template_decls (t->parm_vec, t->bindings, 0);
+  context = hack_decl_function_context (t->fndecl);
+  if (context)
+    push_cp_function_context (context);
+  maybe_begin_member_template_processing (t->fndecl);
   if (t->len > 0)
     {
-      feed_input (t->buf, t->len, t->can_free ? &inline_text_obstack : 0);
+      feed_input (t->buf, t->len);
       lineno = t->lineno;
 #if 0
       if (input_filename != t->filename)
@@ -1191,68 +1261,51 @@ do_pending_inlines ()
   /* Pass back a handle on the rest of the inline functions, so that they
      can be processed later.  */
   yylval.ttype = build_tree_list ((tree) t, t->fndecl);
-#if 0
-  if (flag_default_inline && t->fndecl
-      /* If we're working from a template, don't change
-	 the `inline' state.  */
-      && t->parm_vec == NULL_TREE)
-    DECL_INLINE (t->fndecl) = 1;
-#endif
   DECL_PENDING_INLINE_INFO (t->fndecl) = 0;
 }
 
-extern struct pending_input *to_be_restored;
 static int nextchar = -1;
 
 /* Called from the fndecl rule in the parser when the function just parsed
    was declared using a PRE_PARSED_FUNCTION_DECL (i.e. came from
    do_pending_inlines).  */
+
 void
 process_next_inline (t)
      tree t;
 {
+  tree context;
   struct pending_inline *i = (struct pending_inline *) TREE_PURPOSE (t);
-  my_friendly_assert ((i->parm_vec == NULL_TREE) == (i->bindings == NULL_TREE),
-		      227);
-  if (i->parm_vec)
-    pop_template_decls (i->parm_vec, i->bindings, 0);
+  context = hack_decl_function_context (i->fndecl);  
+  maybe_end_member_template_processing (i->fndecl);
+  if (context)
+    pop_cp_function_context (context);
   i = i->next;
   if (yychar == YYEMPTY)
     yychar = yylex ();
   if (yychar != END_OF_SAVED_INPUT)
     {
       error ("parse error at end of saved function text");
+
       /* restore_pending_input will abort unless yychar is either
-       * END_OF_SAVED_INPUT or YYEMPTY; since we already know we're
-       * hosed, feed back YYEMPTY.
-       *  We also need to discard nextchar, since that may have gotten
-       * set as well.
-       */
+         END_OF_SAVED_INPUT or YYEMPTY; since we already know we're
+         hosed, feed back YYEMPTY.  We also need to discard nextchar,
+         since that may have gotten set as well.  */
       nextchar = -1;
     }
   yychar = YYEMPTY;
-  if (to_be_restored == 0)
-    my_friendly_abort (123);
-  restore_pending_input (to_be_restored);
-  to_be_restored = 0;
+  end_input ();
   if (i && i->fndecl != NULL_TREE)
     {
-      my_friendly_assert ((i->parm_vec == NULL_TREE) == (i->bindings == NULL_TREE),
-			  228);
-      if (i->parm_vec)
-	push_template_decls (i->parm_vec, i->bindings, 0);
-      feed_input (i->buf, i->len, i->can_free ? &inline_text_obstack : 0);
+      context = hack_decl_function_context (i->fndecl);
+      if (context)
+	push_cp_function_context (context);
+      maybe_begin_member_template_processing (i->fndecl);
+      feed_input (i->buf, i->len);
       lineno = i->lineno;
       input_filename = i->filename;
       yychar = PRE_PARSED_FUNCTION_DECL;
       yylval.ttype = build_tree_list ((tree) i, i->fndecl);
-#if 0
-      if (flag_default_inline
-	  /* If we're working from a template, don't change
-	     the `inline' state.  */
-	  && i->parm_vec == NULL_TREE)
-	DECL_INLINE (i->fndecl) = 1;
-#endif
       DECL_PENDING_INLINE_INFO (i->fndecl) = 0;
     }
   if (i)
@@ -1367,25 +1420,10 @@ restore_pending_input (p)
   free (p);
 }
 
-/* Return next non-whitespace input character, which may come
-   from `finput', or from `nextchar'.  */
-static int
-yynextch ()
-{
-  int c;
-
-  if (nextchar >= 0)
-    {
-      c = nextchar;
-      nextchar = -1;
-    }
-  else c = getch ();
-  return skip_white_space (c);
-}
-
 /* Unget character CH from the input stream.
    If RESCAN is non-zero, then we want to `see' this
    character as the next input token.  */
+
 void
 yyungetc (ch, rescan)
      int ch;
@@ -1407,105 +1445,29 @@ yyungetc (ch, rescan)
     }
 }
 
+void
+clear_inline_text_obstack ()
+{
+  obstack_free (&inline_text_obstack, inline_text_firstobj);
+}
+
 /* This function stores away the text for an inline function that should
    be processed later.  It decides how much later, and may need to move
    the info between obstacks; therefore, the caller should not refer to
-   the T parameter after calling this function.
-
-   This function also stores the list of template-parameter bindings that
-   will be needed for expanding the template, if any.  */
+   the T parameter after calling this function.  */
 
 static void
 store_pending_inline (decl, t)
      tree decl;
      struct pending_inline *t;
 {
-  extern int processing_template_defn;
-  int delay_to_eof = 0;
-  struct pending_inline **inlines;
-
   t->fndecl = decl;
-  /* Default: compile right away, and no extra bindings are needed.  */
-  t->parm_vec = t->bindings = 0;
-  if (processing_template_defn)
-    {
-      tree type = current_class_type;
-      /* Assumption: In this (possibly) nested class sequence, only
-	 one name will have template parms.  */
-      while (type && TREE_CODE_CLASS (TREE_CODE (type)) == 't')
-	{
-	  tree decl = TYPE_NAME (type);
-	  tree tmpl = IDENTIFIER_TEMPLATE (DECL_NAME (decl));
-	  if (tmpl)
-	    {
-	      t->parm_vec = DECL_TEMPLATE_INFO (TREE_PURPOSE (tmpl))->parm_vec;
-	      t->bindings = TREE_VALUE (tmpl);
-	    }
-	  type = DECL_CONTEXT (decl);
-	}
-      if (TREE_CODE (TREE_TYPE (decl)) == METHOD_TYPE
-	  || TREE_CODE (TREE_TYPE (decl)) == FUNCTION_TYPE)
-	{
-	  if (TREE_CODE (TREE_TYPE (decl)) == METHOD_TYPE)
-	    my_friendly_assert (TYPE_MAX_VALUE (TREE_TYPE (decl)) == current_class_type,
-				233);
-
-	  /* Inline functions can be compiled immediately.  Other functions
-	     will be output separately, so if we're in interface-only mode,
-	     punt them now, or output them now if we're doing implementations
-	     and we know no overrides will exist.  Otherwise, we delay until
-	     end-of-file, to see if the definition is really required.  */
-	  if (DECL_THIS_INLINE (decl))
-	    /* delay_to_eof == 0 */;
-	  else if (current_class_type && !interface_unknown)
-	    {
-	      if (interface_only)
-		{
-#if 0
-		  print_node_brief (stderr, "\ndiscarding text for ", decl, 0);
-#endif
-		  if (t->can_free)
-		    obstack_free (&inline_text_obstack, t->buf);
-		  DECL_PENDING_INLINE_INFO (decl) = 0;
-		  return;
-		}
-	    }
-	  /* Don't delay the processing of virtual functions.  */
-	  else if (DECL_VINDEX (decl) == NULL_TREE)
-	    delay_to_eof = 1;
-	}
-      else
-	my_friendly_abort (58);
-    }
-
-  if (delay_to_eof)
-    {
-      extern struct pending_inline *pending_template_expansions;
-
-      if (t->can_free)
-	{
-	  char *free_to = t->buf;
-	  t->buf = (char *) obstack_copy (&permanent_obstack, t->buf,
-					  t->len + 1);
-	  t = (struct pending_inline *) obstack_copy (&permanent_obstack, 
-						      (char *)t, sizeof (*t));
-	  obstack_free (&inline_text_obstack, free_to);
-	}
-      inlines = &pending_template_expansions;
-      t->can_free = 0;
-    }
-  else
-    {
-      inlines = &pending_inlines;
-      DECL_PENDING_INLINE_INFO (decl) = t;
-    }
+  DECL_PENDING_INLINE_INFO (decl) = t;
 
   /* Because we use obstacks, we must process these in precise order.  */
-  t->next = *inlines;
-  *inlines = t;
+  t->next = pending_inlines;
+  pending_inlines = t;
 }
-
-void reinit_parse_for_block ();
 
 void
 reinit_parse_for_method (yychar, decl)
@@ -1516,7 +1478,7 @@ reinit_parse_for_method (yychar, decl)
   int starting_lineno = lineno;
   char *starting_filename = input_filename;
 
-  reinit_parse_for_block (yychar, &inline_text_obstack, 0);
+  reinit_parse_for_block (yychar, &inline_text_obstack);
 
   len = obstack_object_size (&inline_text_obstack);
   current_base_init_list = NULL_TREE;
@@ -1543,26 +1505,23 @@ reinit_parse_for_method (yychar, decl)
       t->token_value = 0;
       t->buf = buf;
       t->len = len;
-      t->can_free = 1;
       t->deja_vu = 0;
+#if 0
       if (interface_unknown && processing_template_defn && flag_external_templates && ! DECL_IN_SYSTEM_HEADER (decl))
 	warn_if_unknown_interface (decl);
+#endif
       t->interface = (interface_unknown ? 1 : (interface_only ? 0 : 2));
       store_pending_inline (decl, t);
     }
 }
 
-/* Consume a block -- actually, a method or template definition beginning
-   with `:' or `{' -- and save it away on the specified obstack.
+/* Consume a block -- actually, a method beginning
+   with `:' or `{' -- and save it away on the specified obstack.  */
 
-   Argument IS_TEMPLATE indicates which set of error messages should be
-   output if something goes wrong.  This should really be cleaned up somehow,
-   without loss of clarity.  */
 void
-reinit_parse_for_block (pyychar, obstackp, is_template)
+reinit_parse_for_block (pyychar, obstackp)
      int pyychar;
      struct obstack *obstackp;
-     int is_template;
 {
   register int c = 0;
   int blev = 1;
@@ -1582,13 +1541,13 @@ reinit_parse_for_block (pyychar, obstackp, is_template)
       look_for_lbrac = 1;
       blev = 0;
     }
-  else if (pyychar == RETURN && !is_template)
+  else if (pyychar == RETURN)
     {
       obstack_grow (obstackp, "return", 6);
       look_for_lbrac = 1;
       blev = 0;
     }
-  else if (pyychar == TRY && !is_template)
+  else if (pyychar == TRY)
     {
       obstack_grow (obstackp, "try", 3);
       look_for_lbrac = 1;
@@ -1596,9 +1555,7 @@ reinit_parse_for_block (pyychar, obstackp, is_template)
     }
   else
     {
-      yyerror (is_template
-	       ? "parse error in template specification"
-	       : "parse error in method specification");
+      yyerror ("parse error in method specification");
       obstack_1grow (obstackp, '{');
     }
 
@@ -1695,9 +1652,7 @@ reinit_parse_for_block (pyychar, obstackp, is_template)
 	    {
 	      if (look_for_lbrac)
 		{
-		  error (is_template
-			 ? "template body missing"
-			 : "function body for constructor missing");
+		  error ("function body for constructor missing");
 		  obstack_1grow (obstackp, '{');
 		  obstack_1grow (obstackp, '}');
 		  len += 2;
@@ -1726,6 +1681,262 @@ reinit_parse_for_block (pyychar, obstackp, is_template)
   obstack_1grow (obstackp, '\0');
 }
 
+/* Consume a no-commas expression -- actually, a default argument -- and
+   save it away on the specified obstack.  */
+
+static void
+reinit_parse_for_expr (obstackp)
+     struct obstack *obstackp;
+{
+  register int c = 0;
+  int starting_lineno = lineno;
+  char *starting_filename = input_filename;
+  int len;
+  int plev = 0;
+
+  if (nextchar != EOF)
+    {
+      c = nextchar;
+      nextchar = EOF;
+    }
+  else
+    c = getch ();
+  
+  while (c != EOF)
+    {
+      int this_lineno = lineno;
+
+      c = skip_white_space (c);
+
+      /* Don't lose our cool if there are lots of comments.  */
+      if (lineno == this_lineno + 1)
+	obstack_1grow (obstackp, '\n');
+      else if (lineno == this_lineno)
+	;
+      else if (lineno - this_lineno < 10)
+	{
+	  int i;
+	  for (i = lineno - this_lineno; i > 0; --i)
+	    obstack_1grow (obstackp, '\n');
+	}
+      else
+	{
+	  char buf[16];
+	  sprintf (buf, "\n# %d \"", lineno);
+	  len = strlen (buf);
+	  obstack_grow (obstackp, buf, len);
+
+	  len = strlen (input_filename);
+	  obstack_grow (obstackp, input_filename, len);
+	  obstack_1grow (obstackp, '\"');
+	  obstack_1grow (obstackp, '\n');
+	}
+
+      while (c > ' ')		/* ASCII dependent...  */
+	{
+	  if (plev <= 0 && (c == ')' || c == ','))
+	    {
+	      put_back (c);
+	      goto done;
+	    }
+	  obstack_1grow (obstackp, c);
+	  if (c == '(' || c == '[')
+	    ++plev;
+	  else if (c == ']' || c == ')')
+	    --plev;
+	  else if (c == '\\')
+	    {
+	      /* Don't act on the next character...e.g, doing an escaped
+		 double-quote.  */
+	      c = getch ();
+	      if (c == EOF)
+		{
+		  error_with_file_and_line (starting_filename,
+					    starting_lineno,
+					    "end of file read inside definition");
+		  goto done;
+		}
+	      obstack_1grow (obstackp, c);
+	    }
+	  else if (c == '\"')
+	    consume_string (obstackp, c);
+	  else if (c == '\'')
+	    consume_string (obstackp, c);
+	  c = getch ();
+	}
+
+      if (c == EOF)
+	{
+	  error_with_file_and_line (starting_filename,
+				    starting_lineno,
+				    "end of file read inside definition");
+	  goto done;
+	}
+      else if (c != '\n')
+	{
+	  obstack_1grow (obstackp, c);
+	  c = getch ();
+	}
+    }
+ done:
+  obstack_1grow (obstackp, '\0');
+}
+
+int do_snarf_defarg;
+
+/* Decide whether the default argument we are about to see should be
+   gobbled up as text for later parsing.  */
+
+void
+maybe_snarf_defarg ()
+{
+  if (current_class_type && TYPE_BEING_DEFINED (current_class_type))
+    do_snarf_defarg = 1;
+}
+
+/* When we see a default argument in a method declaration, we snarf it as
+   text using snarf_defarg.  When we get up to namespace scope, we then go
+   through and parse all of them using do_pending_defargs.  Since yacc
+   parsers are not reentrant, we retain defargs state in these two
+   variables so that subsequent calls to do_pending_defargs can resume
+   where the previous call left off.  */
+
+tree defarg_fns;
+tree defarg_parm;
+
+tree
+snarf_defarg ()
+{
+  int len;
+  char *buf;
+  tree arg;
+
+  reinit_parse_for_expr (&inline_text_obstack);
+  len = obstack_object_size (&inline_text_obstack);
+  buf = obstack_finish (&inline_text_obstack);
+
+  push_obstacks (&inline_text_obstack, &inline_text_obstack);
+  arg = make_node (DEFAULT_ARG);
+  DEFARG_LENGTH (arg) = len - 1;
+  DEFARG_POINTER (arg) = buf;
+  pop_obstacks ();
+
+  return arg;
+}
+
+/* Called from grokfndecl to note a function decl with unparsed default
+   arguments for later processing.  Also called from grokdeclarator
+   for function types with unparsed defargs; the call from grokfndecl
+   will always come second, so we can overwrite the entry from the type.  */
+
+void
+add_defarg_fn (decl)
+     tree decl;
+{
+  if (TREE_CODE (decl) == FUNCTION_DECL)
+    TREE_VALUE (defarg_fns) = decl;
+  else
+    {
+      push_obstacks (&inline_text_obstack, &inline_text_obstack);
+      defarg_fns = tree_cons (current_class_type, decl, defarg_fns);  
+      pop_obstacks ();
+    }
+}
+
+/* Helper for do_pending_defargs.  Starts the parsing of a default arg.  */
+
+static void
+feed_defarg (f, p)
+     tree f, p;
+{
+  tree d = TREE_PURPOSE (p);
+  feed_input (DEFARG_POINTER (d), DEFARG_LENGTH (d));
+  if (TREE_CODE (f) == FUNCTION_DECL)
+    {
+      lineno = DECL_SOURCE_LINE (f);
+      input_filename = DECL_SOURCE_FILE (f);
+    }
+  yychar = DEFARG_MARKER;
+  yylval.ttype = p;
+}
+
+/* Helper for do_pending_defargs.  Ends the parsing of a default arg.  */
+
+static void
+finish_defarg ()
+{
+  if (yychar == YYEMPTY)
+    yychar = yylex ();
+  if (yychar != END_OF_SAVED_INPUT)
+    {
+      error ("parse error at end of saved function text");
+
+      /* restore_pending_input will abort unless yychar is either
+         END_OF_SAVED_INPUT or YYEMPTY; since we already know we're
+         hosed, feed back YYEMPTY.  We also need to discard nextchar,
+         since that may have gotten set as well.  */
+      nextchar = -1;
+    }
+  yychar = YYEMPTY;
+  end_input ();
+}  
+
+/* Main function for deferred parsing of default arguments.  Called from
+   the parser.  */
+
+void
+do_pending_defargs ()
+{
+  if (defarg_parm)
+    finish_defarg ();
+
+  for (; defarg_fns; defarg_fns = TREE_CHAIN (defarg_fns))
+    {
+      tree defarg_fn = TREE_VALUE (defarg_fns);
+      if (defarg_parm == NULL_TREE)
+	{
+	  push_nested_class (TREE_PURPOSE (defarg_fns), 1);
+	  pushlevel (0);
+	  if (TREE_CODE (defarg_fn) == FUNCTION_DECL)
+	    maybe_begin_member_template_processing (defarg_fn);
+
+	  if (TREE_CODE (defarg_fn) == FUNCTION_DECL)
+	    {
+#if 0
+	      tree p;
+	      for (p = DECL_ARGUMENTS (defarg_fn); p; p = TREE_CHAIN (p))
+		pushdecl (copy_node (p));
+#endif
+	      defarg_parm = TYPE_ARG_TYPES (TREE_TYPE (defarg_fn));
+	    }
+	  else
+	    defarg_parm = TYPE_ARG_TYPES (defarg_fn);
+	}
+      else
+	defarg_parm = TREE_CHAIN (defarg_parm);
+
+      for (; defarg_parm; defarg_parm = TREE_CHAIN (defarg_parm))
+	if (TREE_PURPOSE (defarg_parm)
+	    && TREE_CODE (TREE_PURPOSE (defarg_parm)) == DEFAULT_ARG)
+	  {
+	    feed_defarg (defarg_fn, defarg_parm);
+
+	    /* Return to the parser, which will process this defarg
+	       and call us again.  */
+	    return;
+	  }
+
+      if (TREE_CODE (defarg_fn) == FUNCTION_DECL)
+	{
+	  maybe_end_member_template_processing (defarg_fn);
+	  check_default_args (defarg_fn);
+	}
+
+      poplevel (0, 0, 0);
+      pop_nested_class (1);
+    }
+}
+
 /* Build a default function named NAME for type TYPE.
    KIND says what to build.
 
@@ -1743,13 +1954,10 @@ cons_up_default_function (type, full_name, kind)
      int kind;
 {
   extern tree void_list_node;
-  char *func_buf = NULL;
-  int func_len = 0;
   tree declspecs = NULL_TREE;
-  tree fn, args;
+  tree fn, args = NULL_TREE;
   tree argtype;
   int retref = 0;
-  int complex = 0;
   tree name = constructor_name (full_name);
 
   switch (kind)
@@ -1766,7 +1974,6 @@ cons_up_default_function (type, full_name, kind)
     case 2:
       /* Default constructor.  */
       args = void_list_node;
-      complex = TYPE_NEEDS_CONSTRUCTING (type);
       break;
 
     case 3:
@@ -1780,15 +1987,15 @@ cons_up_default_function (type, full_name, kind)
 			build_tree_list (hash_tree_chain (argtype, NULL_TREE),
 					 get_identifier ("_ctor_arg")),
 			void_list_node);
-      complex = TYPE_HAS_COMPLEX_INIT_REF (type);
       break;
 
     case 5:
-      type = build_type_variant (type, 1, 0);
-      /* Fall through...  */
     case 6:
       retref = 1;
-      declspecs = build_decl_list (NULL_TREE, full_name);
+      declspecs = build_decl_list (NULL_TREE, type);
+
+      if (kind == 5)
+	type = build_type_variant (type, 1, 0);
 
       name = ansi_opname [(int) MODIFY_EXPR];
 
@@ -1797,7 +2004,6 @@ cons_up_default_function (type, full_name, kind)
 			build_tree_list (hash_tree_chain (argtype, NULL_TREE),
 					 get_identifier ("_ctor_arg")),
 			void_list_node);
-      complex = TYPE_HAS_COMPLEX_ASSIGN_REF (type);
       break;
 
     default:
@@ -1810,23 +2016,28 @@ cons_up_default_function (type, full_name, kind)
   TREE_PARMLIST (args) = 1;
 
   {
-    tree declarator = build_parse_node (CALL_EXPR, name, args, NULL_TREE);
+    tree declarator = make_call_declarator (name, args, NULL_TREE, NULL_TREE);
     if (retref)
       declarator = build_parse_node (ADDR_EXPR, declarator);
-    
-    fn = grokfield (declarator, declspecs, NULL_TREE, NULL_TREE,
-		    NULL_TREE, NULL_TREE);
+
+    fn = grokfield (declarator, declspecs, NULL_TREE, NULL_TREE, NULL_TREE);
   }
   
   if (fn == void_type_node)
     return fn;
 
+  if (kind > 2)
+    SET_DECL_ARTIFICIAL (TREE_CHAIN (DECL_ARGUMENTS (fn)));
+
+#if 0
   if (processing_template_defn)
     {
       SET_DECL_IMPLICIT_INSTANTIATION (fn);
       repo_template_used (fn);
     }
+#endif
 
+#if 0
   if (CLASSTYPE_INTERFACE_KNOWN (type))
     {
       DECL_INTERFACE_KNOWN (fn) = 1;
@@ -1834,29 +2045,10 @@ cons_up_default_function (type, full_name, kind)
 				     && flag_implement_inlines);
     }
   else
+#endif
     DECL_NOT_REALLY_EXTERN (fn) = 1;
 
-#if 0
-  /* When on-the-fly synthesis works properly, remove the second and third
-     conditions here.  */
-  if (flag_keep_inline_functions
-#if 0
-      || ! flag_no_inline
-      || complex
-#endif
-      || ! DECL_EXTERNAL (fn))
-    {
-      struct pending_inline *t;
-      t = (struct pending_inline *)
-	obstack_alloc (&synth_obstack, sizeof (struct pending_inline));
-      t->lineno = -kind;
-      t->can_free = 0;
-      t->interface = (interface_unknown ? 1 : (interface_only ? 0 : 2));
-      store_pending_inline (fn, t);
-    }
-  else
-#endif
-    mark_inline_for_output (fn);
+  mark_inline_for_output (fn);
 
 #ifdef DEBUG_DEFAULT_FUNCTIONS
   { char *fn_type = NULL;
@@ -1888,6 +2080,7 @@ cons_up_default_function (type, full_name, kind)
 /* Heuristic to tell whether the user is missing a semicolon
    after a struct or enum declaration.  Emit an error message
    if we know the user has blown it.  */
+
 void
 check_for_missing_semicolon (type)
      tree type;
@@ -1898,7 +2091,9 @@ check_for_missing_semicolon (type)
   if ((yychar > 255
        && yychar != SCSPEC
        && yychar != IDENTIFIER
-       && yychar != TYPENAME)
+       && yychar != TYPENAME
+       && yychar != CV_QUALIFIER
+       && yychar != SELFNAME)
       || end_of_file)
     {
       if (ANON_AGGRNAME_P (TYPE_IDENTIFIER (type)))
@@ -2020,7 +2215,9 @@ get_last_nonwhite_on_line ()
 
 int linemode;
 
-int
+static int handle_cp_pragma PROTO((char *));
+
+static int
 check_newline ()
 {
   register int c;
@@ -2064,254 +2261,35 @@ check_newline ()
 	      && getch () == 'm'
 	      && getch () == 'a')
 	    {
-	      /* Read first nonwhite char after the `#pragma'.  */
-
-	      do
-		c = getch ();
-	      while (c == ' ' || c == '\t');
-
-	      if (c == 'v'
-		  && getch () == 't'
-		  && getch () == 'a'
-		  && getch () == 'b'
-		  && getch () == 'l'
-		  && getch () == 'e'
-		  && ((c = getch ()) == ' ' || c == '\t'))
+	      token = real_yylex ();
+	      if (token == IDENTIFIER
+		  && TREE_CODE (yylval.ttype) == IDENTIFIER_NODE)
 		{
-		  extern tree pending_vtables;
-
-		  /* More follows: it must be a string constant (class name).  */
-		  token = real_yylex ();
-		  if (token != STRING || TREE_CODE (yylval.ttype) != STRING_CST)
-		    {
-		      error ("invalid #pragma vtable");
-		      goto skipline;
-		    }
-		  if (write_virtuals != 2)
-		    {
-		      warning ("use `+e2' option to enable #pragma vtable");
-		      goto skipline;
-		    }
-		  pending_vtables = perm_tree_cons (NULL_TREE, get_identifier (TREE_STRING_POINTER (yylval.ttype)), pending_vtables);
-		  if (nextchar < 0)
-		    nextchar = getch ();
-		  c = nextchar;
-		  if (c != EOF)
-		    warning ("trailing characters ignored");
+		  /* If this is 1, we handled it; if it's -1, it was one we
+		     wanted but had something wrong with it.  Only if it's
+		     0 was it not handled.  */
+		  if (handle_cp_pragma (IDENTIFIER_POINTER (yylval.ttype)))
+		    goto skipline;
 		}
-	      else if (c == 'u'
-		       && getch () == 'n'
-		       && getch () == 'i'
-		       && getch () == 't'
-		       && ((c = getch ()) == ' ' || c == '\t'))
-		{
-		  /* More follows: it must be a string constant (unit name).  */
-		  token = real_yylex ();
-		  if (token != STRING || TREE_CODE (yylval.ttype) != STRING_CST)
-		    {
-		      error ("invalid #pragma unit");
-		      goto skipline;
-		    }
-		  current_unit_name = get_identifier (TREE_STRING_POINTER (yylval.ttype));
-		  current_unit_language = current_lang_name;
-		  if (nextchar < 0)
-		    nextchar = getch ();
-		  c = nextchar;
-		  if (c != EOF)
-		    warning ("trailing characters ignored");
-		}
-	      else if (c == 'i')
-		{
-		  tree fileinfo = IDENTIFIER_CLASS_VALUE (get_time_identifier (input_filename));
-		  c = getch ();
+	      else if (token == END_OF_LINE)
+		goto skipline;
 
-		  if (c == 'n'
-		      && getch () == 't'
-		      && getch () == 'e'
-		      && getch () == 'r'
-		      && getch () == 'f'
-		      && getch () == 'a'
-		      && getch () == 'c'
-		      && getch () == 'e'
-		      && ((c = getch ()) == ' ' || c == '\t' || c == EOF))
-		    {
-		      int warned_already = 0;
-		      char *main_filename = input_filename;
-
-		      main_filename = FILE_NAME_NONDIRECTORY (main_filename);
-		      while (c == ' ' || c == '\t')
-			c = getch ();
-		      if (c != EOF)
-			{
-			  put_back (c);
-			  token = real_yylex ();
-			  if (token != STRING
-			      || TREE_CODE (yylval.ttype) != STRING_CST)
-			    {
-			      error ("invalid `#pragma interface'");
-			      goto skipline;
-			    }
-			  main_filename = TREE_STRING_POINTER (yylval.ttype);
-			  c = getch();
-			  put_back (c);
-			}
-
-		      while (c == ' ' || c == '\t')
-			c = getch ();
-
-		      while (c != EOF)
-			{
-			  if (!warned_already && extra_warnings
-			      && c != ' ' && c != '\t')
-			    {
-			      warning ("garbage after `#pragma interface' ignored");
-			      warned_already = 1;
-			    }
-			  c = getch ();
-			}
-
-		      write_virtuals = 3;
-
-		      if (impl_file_chain == 0)
-			{
-			  /* If this is zero at this point, then we are
-			     auto-implementing.  */
-			  if (main_input_filename == 0)
-			    main_input_filename = input_filename;
-
-#ifdef AUTO_IMPLEMENT
-			  filename = FILE_NAME_NONDIRECTORY (main_input_filename);
-			  fi = get_time_identifier (filename);
-			  fi = IDENTIFIER_CLASS_VALUE (fi);
-			  TREE_INT_CST_LOW (fi) = 0;
-			  TREE_INT_CST_HIGH (fi) = 1;
-			  /* Get default.  */
-			  impl_file_chain = (struct impl_files *)permalloc (sizeof (struct impl_files));
-			  impl_file_chain->filename = filename;
-			  impl_file_chain->next = 0;
-#endif
-			}
-
-		      interface_only = interface_strcmp (main_filename);
-		      interface_unknown = 0;
-		      TREE_INT_CST_LOW (fileinfo) = interface_only;
-		      TREE_INT_CST_HIGH (fileinfo) = interface_unknown;
-		    }
-		  else if (c == 'm'
-			   && getch () == 'p'
-			   && getch () == 'l'
-			   && getch () == 'e'
-			   && getch () == 'm'
-			   && getch () == 'e'
-			   && getch () == 'n'
-			   && getch () == 't'
-			   && getch () == 'a'
-			   && getch () == 't'
-			   && getch () == 'i'
-			   && getch () == 'o'
-			   && getch () == 'n'
-			   && ((c = getch ()) == ' ' || c == '\t' || c == EOF))
-		    {
-		      int warned_already = 0;
-		      char *main_filename = main_input_filename ? main_input_filename : input_filename;
-
-		      main_filename = FILE_NAME_NONDIRECTORY (main_filename);
-		      while (c == ' ' || c == '\t')
-			c = getch ();
-		      if (c != EOF)
-			{
-			  put_back (c);
-			  token = real_yylex ();
-			  if (token != STRING
-			      || TREE_CODE (yylval.ttype) != STRING_CST)
-			    {
-			      error ("invalid `#pragma implementation'");
-			      goto skipline;
-			    }
-			  main_filename = TREE_STRING_POINTER (yylval.ttype);
-			  c = getch();
-			  put_back (c);
-			}
-
-		      while (c == ' ' || c == '\t')
-			c = getch ();
-
-		      while (c != EOF)
-			{
-			  if (!warned_already && extra_warnings
-			      && c != ' ' && c != '\t')
-			    {
-			      warning ("garbage after `#pragma implementation' ignored");
-			      warned_already = 1;
-			    }
-			  c = getch ();
-			}
-
-		      if (write_virtuals == 3)
-			{
-			  struct impl_files *ifiles = impl_file_chain;
-			  while (ifiles)
-			    {
-			      if (! strcmp (ifiles->filename, main_filename))
-				break;
-			      ifiles = ifiles->next;
-			    }
-			  if (ifiles == 0)
-			    {
-			      ifiles = (struct impl_files*) permalloc (sizeof (struct impl_files));
-			      ifiles->filename = main_filename;
-			      ifiles->next = impl_file_chain;
-			      impl_file_chain = ifiles;
-			    }
-			}
-		      else if ((main_input_filename != 0
-				&& ! strcmp (main_input_filename, input_filename))
-			       || ! strcmp (input_filename, main_filename))
-			{
-			  write_virtuals = 3;
-			  if (impl_file_chain == 0)
-			    {
-			      impl_file_chain = (struct impl_files*) permalloc (sizeof (struct impl_files));
-			      impl_file_chain->filename = main_filename;
-			      impl_file_chain->next = 0;
-			    }
-			}
-		      else
-			error ("`#pragma implementation' can only appear at top-level");
-		      interface_only = 0;
-#if 1
-		      /* We make this non-zero so that we infer decl linkage
-			 in the impl file only for variables first declared
-			 in the interface file.  */
-		      interface_unknown = 1;
-#else
-		      /* We make this zero so that templates in the impl
-                         file will be emitted properly. */
-		      interface_unknown = 0;
-#endif
-		      TREE_INT_CST_LOW (fileinfo) = interface_only;
-		      TREE_INT_CST_HIGH (fileinfo) = interface_unknown;
-		    }
-		}
 #ifdef HANDLE_SYSV_PRAGMA
-	      else
-		{
-		  put_back (c);
-		  handle_sysv_pragma ();
-		}
+	      if (handle_sysv_pragma (token))
+		goto skipline;
 #else
 #ifdef HANDLE_PRAGMA
-	      /* FIXME: This will break if we're doing any of the C++ input
-                 tricks.  */
-	      else
-		{
-		  ungetc (c, finput);
-		  HANDLE_PRAGMA (finput);
-		}
+#if USE_CPPLIB
+              /* TODO: ??? */
+              goto skipline;
+#else
+  	      if (HANDLE_PRAGMA (finput, yylval.ttype))
+  		goto skipline;
+#endif /* !USE_CPPLIB */
 #endif
 #endif
-	      goto skipline;
 	    }
+	  goto skipline;
 	}
       else if (c == 'd')
 	{
@@ -2322,11 +2300,7 @@ check_newline ()
 	      && getch () == 'e'
 	      && ((c = getch ()) == ' ' || c == '\t'))
 	    {
-#ifdef DWARF_DEBUGGING_INFO
-	      if ((debug_info_level == DINFO_LEVEL_VERBOSE)
-		  && (write_symbols == DWARF_DEBUG))
-	        dwarfout_define (lineno, get_directive_line (finput));
-#endif /* DWARF_DEBUGGING_INFO */
+	      debug_define (lineno, GET_DIRECTIVE_LINE ());
 	      goto skipline;
 	    }
 	}
@@ -2338,11 +2312,7 @@ check_newline ()
 	      && getch () == 'f'
 	      && ((c = getch ()) == ' ' || c == '\t'))
 	    {
-#ifdef DWARF_DEBUGGING_INFO
-	      if ((debug_info_level == DINFO_LEVEL_VERBOSE)
-		  && (write_symbols == DWARF_DEBUG))
-	        dwarfout_undef (lineno, get_directive_line (finput));
-#endif /* DWARF_DEBUGGING_INFO */
+	      debug_undef (lineno, GET_DIRECTIVE_LINE ());
 	      goto skipline;
 	    }
 	}
@@ -2362,23 +2332,14 @@ check_newline ()
 	      && getch () == 't'
 	      && ((c = getch ()) == ' ' || c == '\t'))
 	    {
-#ifdef ASM_OUTPUT_IDENT
-              extern FILE *asm_out_file;
-#endif
 	      /* #ident.  The pedantic warning is now in cccp.c.  */
 
 	      /* Here we have just seen `#ident '.
 		 A string constant should follow.  */
 
-	      while (c == ' ' || c == '\t')
-		c = getch ();
-
-	      /* If no argument, ignore the line.  */
-	      if (c == EOF)
-		goto skipline;
-
-	      put_back (c);
 	      token = real_yylex ();
+	      if (token == END_OF_LINE)
+		goto skipline;
 	      if (token != STRING
 		  || TREE_CODE (yylval.ttype) != STRING_CST)
 		{
@@ -2483,9 +2444,6 @@ linenum:
 	  body_time = this_time;
 	}
 
-      if (flag_cadillac)
-	cadillac_note_source ();
-
       input_filename
 	= (char *) permalloc (TREE_STRING_LENGTH (yylval.ttype) + 1);
       strcpy (input_filename, TREE_STRING_POINTER (yylval.ttype));
@@ -2500,7 +2458,7 @@ linenum:
 	    {
 	      while (ifiles->next)
 		ifiles = ifiles->next;
-	      ifiles->filename = FILE_NAME_NONDIRECTORY (input_filename);
+	      ifiles->filename = file_name_nondirectory (input_filename);
 	    }
 
 	  main_input_filename = input_filename;
@@ -2590,13 +2548,7 @@ linenum:
 	      p->name = input_filename;
 	      input_file_stack = p;
 	      input_file_stack_tick++;
-#ifdef DWARF_DEBUGGING_INFO
-	      if (debug_info_level == DINFO_LEVEL_VERBOSE
-		  && write_symbols == DWARF_DEBUG)
-		dwarfout_start_new_source_file (input_filename);
-#endif /* DWARF_DEBUGGING_INFO */
-	      if (flag_cadillac)
-		cadillac_push_source ();
+	      debug_start_source_file (input_filename);
 	      in_system_header = entering_system_header;
 	      if (c_header_level)
 		++c_header_level;
@@ -2619,29 +2571,19 @@ linenum:
 			warning ("badly nested C headers from preprocessor");
 		      --pending_lang_change;
 		    }
-		  if (flag_cadillac)
-		    cadillac_pop_source ();
 		  in_system_header = entering_system_header;
 
 		  p = input_file_stack;
 		  input_file_stack = p->next;
 		  free (p);
 		  input_file_stack_tick++;
-#ifdef DWARF_DEBUGGING_INFO
-		  if (debug_info_level == DINFO_LEVEL_VERBOSE
-		      && write_symbols == DWARF_DEBUG)
-		    dwarfout_resume_previous_source_file (input_file_stack->line);
-#endif /* DWARF_DEBUGGING_INFO */
+		  debug_end_source_file (input_file_stack->line);
 		}
 	      else
 		error ("#-lines for entering and leaving files don't match");
 	    }
 	  else
-	    {
-	      in_system_header = entering_system_header;
-	      if (flag_cadillac)
-		cadillac_switch_source (-1);
-	    }
+	    in_system_header = entering_system_header;
 	}
 
       /* If NEXTCHAR is not end of line, we don't care what it is.  */
@@ -2655,6 +2597,7 @@ linenum:
  skipline:
   linemode = 0;
   end_of_file = 0;
+  nextchar = -1;
   while ((c = getch ()) != EOF && c != '\n');
   return c;
 }
@@ -2668,13 +2611,6 @@ do_pending_lang_change ()
     pop_lang_context ();
 }
 
-#if 0
-#define isalnum(char) (char >= 'a' ? char <= 'z' : char >= '0' ? char <= '9' || (char >= 'A' && char <= 'Z') : 0)
-#define isdigit(char) (char >= '0' && char <= '9')
-#else
-#include <ctype.h>
-#endif
-
 #define ENDFILE -1  /* token that represents end-of-file */
 
 /* Read an escape sequence, returning its equivalent as a character,
@@ -2687,25 +2623,19 @@ readescape (ignore_ptr)
   register int c = getch ();
   register int code;
   register unsigned count;
-  unsigned firstdig;
+  unsigned firstdig = 0;
   int nonnull;
 
   switch (c)
     {
     case 'x':
-      if (warn_traditional)
-	warning ("the meaning of `\\x' varies with -traditional");
-
-      if (flag_traditional)
-	return c;
-
       code = 0;
       count = 0;
       nonnull = 0;
       while (1)
 	{
 	  c = getch ();
-	  if (! isxdigit (c))
+	  if (! ISXDIGIT (c))
 	    {
 	      put_back (c);
 	      break;
@@ -2773,11 +2703,6 @@ readescape (ignore_ptr)
       return TARGET_BS;
 
     case 'a':
-      if (warn_traditional)
-	warning ("the meaning of `\\a' varies with -traditional");
-
-      if (flag_traditional)
-	return c;
       return TARGET_BELL;
 
     case 'v':
@@ -2812,46 +2737,47 @@ readescape (ignore_ptr)
 /* Value is 1 (or 2) if we should try to make the next identifier look like
    a typename (when it may be a local variable or a class variable).
    Value is 0 if we treat this name in a default fashion.  */
-int looking_for_typename = 0;
-
-#if 0
-/* NO LONGER USED: Value is -1 if we must not see a type name.  */
-void
-dont_see_typename ()
-{
-  looking_for_typename = -1;
-  if (yychar == TYPENAME || yychar == PTYPENAME)
-    {
-      yychar = IDENTIFIER;
-      lastiddecl = 0;
-    }
-}
-#endif
+int looking_for_typename;
 
 #ifdef __GNUC__
-extern __inline int identifier_type ();
 __inline
 #endif
 int
 identifier_type (decl)
      tree decl;
 {
-  if (TREE_CODE (decl) == TEMPLATE_DECL
-      && DECL_TEMPLATE_IS_CLASS (decl))
-    return PTYPENAME;
+  if (TREE_CODE (decl) == TEMPLATE_DECL)
+    {
+      if (TREE_CODE (DECL_RESULT (decl)) == TYPE_DECL)
+	return PTYPENAME;
+      else if (looking_for_template) 
+	return PFUNCNAME;
+    }
+  if (looking_for_template && really_overloaded_fn (decl))
+    {
+      tree t;
+      for (t = decl; t != NULL_TREE; t = OVL_CHAIN (t))
+	if (DECL_FUNCTION_TEMPLATE_P (OVL_FUNCTION (t))) 
+	  return PFUNCNAME;
+    }
   if (TREE_CODE (decl) == NAMESPACE_DECL)
     return NSNAME;
   if (TREE_CODE (decl) != TYPE_DECL)
     return IDENTIFIER;
+  if (((got_scope && TREE_TYPE (decl) == got_scope)
+       || TREE_TYPE (decl) == current_class_type)
+      && DECL_ARTIFICIAL (decl))
+    return SELFNAME;
   return TYPENAME;
 }
 
 void
 see_typename ()
 {
-  looking_for_typename = 1;
+  /* Only types expected, not even namespaces. */
+  looking_for_typename = 2;
   if (yychar < 0)
-    if ((yychar = yylex()) < 0) yychar = 0;
+    if ((yychar = yylex ()) < 0) yychar = 0;
   looking_for_typename = 0;
   if (yychar == IDENTIFIER)
     {
@@ -2866,20 +2792,44 @@ see_typename ()
     }
 }
 
-tree
-do_identifier (token)
-     register tree token;
-{
-  register tree id = lastiddecl;
+/* Return true if d is in a global scope. */
 
-  if (yychar == YYEMPTY)
-    yychar = yylex ();
+static int
+is_global (d)
+  tree d;
+{
+  while (1)
+    switch (TREE_CODE (d))
+      {
+      case OVERLOAD: d = OVL_FUNCTION (d); continue;
+      case TREE_LIST: d = TREE_VALUE (d); continue;
+      default:
+        my_friendly_assert (TREE_CODE_CLASS (TREE_CODE (d)) == 'd', 980629);
+        d = CP_DECL_CONTEXT (d);
+        return TREE_CODE (d) == NAMESPACE_DECL;
+      }
+}
+
+tree
+do_identifier (token, parsing, args)
+     register tree token;
+     int parsing;
+     tree args;
+{
+  register tree id;
+  int lexing = (parsing == 1);
+  int in_call = (parsing == 2);
+
+  if (! lexing || IDENTIFIER_OPNAME_P (token))
+    id = lookup_name (token, 0);
+  else
+    id = lastiddecl;
+
   /* Scope class declarations before global
      declarations.  */
-  if (id == IDENTIFIER_GLOBAL_VALUE (token)
+  if ((!id || is_global (id))
       && current_class_type != 0
-      && TYPE_SIZE (current_class_type) == 0
-      && TREE_CODE (current_class_type) != UNINSTANTIATED_P_TYPE)
+      && TYPE_SIZE (current_class_type) == 0)
     {
       /* Could be from one of the base classes.  */
       tree field = lookup_field (current_class_type, token, 1, 0);
@@ -2890,7 +2840,8 @@ do_identifier (token)
 	   But we still want to return this value.  */
 	id = lookup_field (current_class_type, token, 0, 0);
       else if (TREE_CODE (field) == VAR_DECL
-	       || TREE_CODE (field) == CONST_DECL)
+	       || TREE_CODE (field) == CONST_DECL
+	       || TREE_CODE (field) == TEMPLATE_DECL)
 	id = field;
       else if (TREE_CODE (field) != FIELD_DECL)
 	my_friendly_abort (61);
@@ -2903,11 +2854,25 @@ do_identifier (token)
 	}
     }
 
+  /* Do Koenig lookup if appropriate (inside templates we build lookup
+     expressions instead).  */
+  if (args && !current_template_parms && (!id || is_global (id)))
+    {
+      /* If we have arguments and we only found global names,
+         do Koenig lookup. */
+      id = lookup_arg_dependent (token, id, args);
+    }
+
   /* Remember that this name has been used in the class definition, as per
      [class.scope0] */
-  if (id && current_class_type
+  if (id && current_class_type && parsing
       && TYPE_BEING_DEFINED (current_class_type)
-      && ! IDENTIFIER_CLASS_VALUE (token))
+      && ! IDENTIFIER_CLASS_VALUE (token)
+      /* Avoid breaking if we get called for a default argument that
+	 refers to an overloaded method.  Eventually this will not be
+	 necessary, since default arguments shouldn't be parsed until
+	 after the class is complete.  (jason 3/12/97) */
+      && TREE_CODE (id) != OVERLOAD)
     pushdecl_class_level (id);
     
   if (!id || id == error_mark_node)
@@ -2920,7 +2885,16 @@ do_identifier (token)
 	  if (id && id != error_mark_node && TREE_TYPE (id) == error_mark_node)
 	    return id;
 	}
-      if (yychar == '(' || yychar == LEFT_RIGHT)
+
+      if (current_template_parms)
+	return build_min_nt (LOOKUP_EXPR, token, NULL_TREE);
+      else if (IDENTIFIER_OPNAME_P (token))
+	{
+	  if (token != ansi_opname[ERROR_MARK])
+	    cp_error ("`%D' not defined", token);
+	  id = error_mark_node;
+	}
+      else if (in_call)
 	{
 	  id = implicitly_declare (token);
 	}
@@ -2931,7 +2905,7 @@ do_identifier (token)
 	}
       else
 	{
-	  if (IDENTIFIER_GLOBAL_VALUE (token) != error_mark_node
+	  if (IDENTIFIER_NAMESPACE_VALUE (token) != error_mark_node
 	      || IDENTIFIER_ERROR_LOCUS (token) != current_function_decl)
 	    {
 	      static int undeclared_variable_notice;
@@ -2947,7 +2921,7 @@ do_identifier (token)
 	    }
 	  id = error_mark_node;
 	  /* Prevent repeated error messages.  */
-	  IDENTIFIER_GLOBAL_VALUE (token) = error_mark_node;
+	  SET_IDENTIFIER_NAMESPACE_VALUE (token, error_mark_node);
 	  SET_IDENTIFIER_ERROR_LOCUS (token, current_function_decl);
 	}
     }
@@ -2955,6 +2929,11 @@ do_identifier (token)
   if (TREE_CODE (id) == VAR_DECL && DECL_DEAD_FOR_LOCAL (id))
     {
       tree shadowed = DECL_SHADOWED_FOR_VAR (id);
+      while (shadowed != NULL_TREE && TREE_CODE (shadowed) == VAR_DECL
+	     && DECL_DEAD_FOR_LOCAL (shadowed))
+	shadowed = DECL_SHADOWED_FOR_VAR (shadowed);
+      if (!shadowed)
+	shadowed = IDENTIFIER_NAMESPACE_VALUE (DECL_NAME (id));
       if (shadowed)
 	{
 	  if (!DECL_ERROR_REPORTED (id))
@@ -2992,17 +2971,106 @@ do_identifier (token)
       if (IDENTIFIER_CLASS_VALUE (token) == id)
 	{
 	  /* Check access.  */
-	  enum access_type access
-	    = compute_access (TYPE_BINFO (current_class_type), id);
-	  if (access == access_private)
+	  tree access = compute_access (TYPE_BINFO (current_class_type), id);
+	  if (access == access_private_node)
 	    cp_error ("enum `%D' is private", id);
 	  /* protected is OK, since it's an enum of `this'.  */
 	}
-      id = DECL_INITIAL (id);
+      if (! processing_template_decl
+	  || (DECL_INITIAL (id)
+	      && TREE_CODE (DECL_INITIAL (id)) == TEMPLATE_PARM_INDEX))
+	id = DECL_INITIAL (id);
     }
   else
-    id = hack_identifier (id, token, yychar);
+    id = hack_identifier (id, token);
+
+  if (current_template_parms)
+    {
+      if (is_overloaded_fn (id))
+	{
+	  tree t = build_min (LOOKUP_EXPR, unknown_type_node,
+			      token, get_first_fn (id));
+	  if (id != IDENTIFIER_NAMESPACE_VALUE (token))
+	    TREE_OPERAND (t, 1) = error_mark_node;
+	  id = t;
+	}
+      else if (! TREE_PERMANENT (id) || TREE_CODE (id) == PARM_DECL
+	       || TREE_CODE (id) == USING_DECL)
+	id = build_min (LOOKUP_EXPR, TREE_TYPE (id), token, error_mark_node);
+      /* else just use the decl */
+    }
+      
   return id;
+}
+
+tree
+do_scoped_id (token, parsing)
+     tree token;
+     int parsing;
+{
+  tree id;
+  /* during parsing, this is ::name. Otherwise, it is black magic. */
+  if (parsing)
+    {
+      struct tree_binding _b;
+      id = binding_init (&_b);
+      if (!qualified_lookup_using_namespace (token, global_namespace, id, 0))
+	id = NULL_TREE;
+      else
+	id = BINDING_VALUE (id);
+    } 
+  else
+    id = IDENTIFIER_GLOBAL_VALUE (token);
+  if (parsing && yychar == YYEMPTY)
+    yychar = yylex ();
+  if (! id)
+    {
+      if (processing_template_decl)
+	{
+	  id = build_min_nt (LOOKUP_EXPR, token, NULL_TREE);
+	  LOOKUP_EXPR_GLOBAL (id) = 1;
+	  return id;
+	}
+      if (parsing && (yychar == '(' || yychar == LEFT_RIGHT))
+	id = implicitly_declare (token);
+      else
+	{
+	  if (IDENTIFIER_NAMESPACE_VALUE (token) != error_mark_node)
+	    error ("undeclared variable `%s' (first use here)",
+		   IDENTIFIER_POINTER (token));
+	  id = error_mark_node;
+	  /* Prevent repeated error messages.  */
+	  SET_IDENTIFIER_NAMESPACE_VALUE (token, error_mark_node);
+	}
+    }
+  else
+    {
+      if (TREE_CODE (id) == ADDR_EXPR)
+	mark_used (TREE_OPERAND (id, 0));
+      else if (TREE_CODE (id) != OVERLOAD)
+	mark_used (id);
+    }
+  if (TREE_CODE (id) == CONST_DECL && ! processing_template_decl)
+    {
+      /* XXX CHS - should we set TREE_USED of the constant? */
+      id = DECL_INITIAL (id);
+      /* This is to prevent an enum whose value is 0
+	 from being considered a null pointer constant.  */
+      id = build1 (NOP_EXPR, TREE_TYPE (id), id);
+      TREE_CONSTANT (id) = 1;
+    }
+
+  if (processing_template_decl)
+    {
+      if (is_overloaded_fn (id))
+	{
+	  id = build_min (LOOKUP_EXPR, unknown_type_node,
+			  token, get_first_fn (id));
+	  LOOKUP_EXPR_GLOBAL (id) = 1;
+	}
+      /* else just use the decl */
+    }
+  return convert_from_reference (id);
 }
 
 tree
@@ -3021,34 +3089,16 @@ identifier_typedecl_value (node)
   }
   do (IDENTIFIER_LOCAL_VALUE (node));
   do (IDENTIFIER_CLASS_VALUE (node));
-  do (IDENTIFIER_GLOBAL_VALUE (node));
+  do (IDENTIFIER_NAMESPACE_VALUE (node));
 #undef do
   /* Will this one ever happen?  */
-  if (TYPE_NAME (type))
-    return TYPE_NAME (type);
+  if (TYPE_MAIN_DECL (type))
+    return TYPE_MAIN_DECL (type);
 
   /* We used to do an internal error of 62 here, but instead we will
      handle the return of a null appropriately in the callers.  */
   return NULL_TREE;
 }
-
-struct try_type
-{
-  tree *node_var;
-  char unsigned_flag;
-  char long_flag;
-  char long_long_flag;
-};
-
-struct try_type type_sequence[] = 
-{
-  { &integer_type_node, 0, 0, 0},
-  { &unsigned_type_node, 1, 0, 0},
-  { &long_integer_type_node, 0, 1, 0},
-  { &long_unsigned_type_node, 1, 1, 0},
-  { &long_long_integer_type_node, 0, 1, 1},
-  { &long_long_unsigned_type_node, 1, 1, 1}
-};
 
 int
 real_yylex ()
@@ -3103,21 +3153,17 @@ real_yylex ()
 	value = END_OF_SAVED_INPUT;
       else if (linemode)
 	value = END_OF_LINE;
-      else if (do_pending_expansions ())
-	/* this will set yychar for us */
-	return yychar;
       else
 	value = ENDFILE;
       break;
 
     case '$':
-      if (dollars_in_ident)
-	{
-	  dollar_seen = 1;
-	  goto letter;
-	}
-      value = '$';
-      goto done;
+      if (! dollars_in_ident)
+	error ("`$' in identifier");
+      else if (pedantic)
+	pedwarn ("`$' in identifier");
+      dollar_seen = 1;
+      goto letter;
 
     case 'L':
       /* Capital L may start a wide-string or wide-character constant.  */
@@ -3166,15 +3212,21 @@ real_yylex ()
 	    /* Make this run fast.  We know that we are reading straight
 	       from FINPUT in this case (since identifiers cannot straddle
 	       input sources.  */
-	    while (isalnum (c) || (c == '_') || c == '$')
+	    while (ISALNUM (c) || (c == '_') || c == '$')
 	      {
-		if (c == '$' && ! dollars_in_ident)
-		  break;
+		if (c == '$')
+		  {
+		    if (! dollars_in_ident)
+		      error ("`$' in identifier");
+		    else if (pedantic)
+		      pedwarn ("`$' in identifier");
+		  }
+
 		if (p >= token_buffer + maxtoken)
 		  p = extend_token_buffer (p);
 
 		*p++ = c;
-		c = getc (finput);
+		c = getch ();
 	      }
 
 	    if (linemode && c == '\n')
@@ -3190,10 +3242,16 @@ real_yylex ()
 	    *p++ = c;
 	    c = getch ();
 
-	    while (isalnum (c) || (c == '_') || c == '$')
+	    while (ISALNUM (c) || (c == '_') || c == '$')
 	      {
-		if (c == '$' && ! dollars_in_ident)
-		  break;
+		if (c == '$')
+		  {
+		    if (! dollars_in_ident)
+		      error ("`$' in identifier");
+		    else if (pedantic)
+		      pedwarn ("`$' in identifier");
+		  }
+
 		if (p >= token_buffer + maxtoken)
 		  p = extend_token_buffer (p);
 
@@ -3213,7 +3271,7 @@ real_yylex ()
 	{
 	  register struct resword *ptr;
 
-	  if (ptr = is_reserved_word (token_buffer, p - token_buffer))
+	  if ((ptr = is_reserved_word (token_buffer, p - token_buffer)))
 	    {
 	      if (ptr->rid)
 		{
@@ -3226,7 +3284,7 @@ real_yylex ()
 		      && TREE_CODE (IDENTIFIER_GLOBAL_VALUE (old_ttype)) == TYPE_DECL)
 		    looking_for_typename = 0;
 		  else if (ptr->token == AGGR || ptr->token == ENUM)
-		    looking_for_typename = 1;
+		    looking_for_typename = 2;
 
 		  /* Check if this is a language-type declaration.
 		     Just glimpse the next non-white character.  */
@@ -3253,13 +3311,13 @@ real_yylex ()
 		      switch (ptr->rid)
 			{
 			case RID_PUBLIC:
-			  yylval.itype = access_public;
+			  yylval.ttype = access_public_node;
 			  break;
 			case RID_PRIVATE:
-			  yylval.itype = access_private;
+			  yylval.ttype = access_private_node;
 			  break;
 			case RID_PROTECTED:
-			  yylval.itype = access_protected;
+			  yylval.ttype = access_protected_node;
 			  break;
 			default:
 			  my_friendly_abort (63);
@@ -3313,14 +3371,6 @@ real_yylex ()
 		  token_buffer[0] = '^';
 		  token_buffer[1] = 0;
 		}
-	      else if (ptr->token == NAMESPACE)
-		{
-		  static int warned;
-		  if (! warned)
-		    warning ("namespaces are mostly broken in this version of g++");
-
-		  warned = 1;
-		}
 
 	      value = (int) ptr->token;
 	    }
@@ -3328,18 +3378,6 @@ real_yylex ()
 
 	/* If we did not find a keyword, look for an identifier
 	   (or a typename).  */
-
-	if (strcmp ("catch", token_buffer) == 0
-	    || strcmp ("throw", token_buffer) == 0
-	    || strcmp ("try", token_buffer) == 0)
-	  {
-	    static int did_warn = 0;
-	    if (! did_warn  && ! flag_handle_exceptions)
-	      {
-		pedwarn ("`catch', `throw', and `try' are all C++ reserved words");
-		did_warn = 1;
-	      }
-	  }
 
 	if (value == IDENTIFIER || value == TYPESPEC)
 	  GNU_xref_ref (current_function_decl, token_buffer);
@@ -3365,30 +3403,6 @@ real_yylex ()
 #endif
 
 	    yylval.ttype = tmp;
-
-	    /* A user-invisible read-only initialized variable
-	       should be replaced by its value.  We only handle strings
-	       since that's the only case used in C (and C++).  */
-	    /* Note we go right after the local value for the identifier
-	       (e.g., __FUNCTION__ or __PRETTY_FUNCTION__).  We used to
-	       call lookup_name, but that could result in an error about
-	       ambiguities.  */
-	    tmp = IDENTIFIER_LOCAL_VALUE (yylval.ttype);
-	    if (tmp != NULL_TREE
-		&& TREE_CODE (tmp) == VAR_DECL
-		&& DECL_IGNORED_P (tmp)
-		&& TREE_READONLY (tmp)
-		&& DECL_INITIAL (tmp) != NULL_TREE
-		&& TREE_CODE (DECL_INITIAL (tmp)) == STRING_CST)
-	      {
-		tree stringval = DECL_INITIAL (tmp);
-	      
-		/* Copy the string value so that we won't clobber anything
-		   if we put something in the TREE_CHAIN of this one.  */
-		yylval.ttype = build_string (TREE_STRING_LENGTH (stringval),
-					     TREE_STRING_POINTER (stringval));
-		value = STRING;
-	      }
 	  }
 	if (value == NEW && ! global_bindings_p ())
 	  {
@@ -3421,7 +3435,7 @@ real_yylex ()
 	      }
 	    error ("parse error at `..'");
 	  }
-	if (isdigit (c1))
+	if (ISDIGIT (c1))
 	  {
 	    put_back (c1);
 	    goto resume_numerical_scan;
@@ -3435,7 +3449,7 @@ real_yylex ()
 	/* Optimize for most frequent case.  */
       {
 	register int c1 = getch ();
-	if (! isalnum (c1) && c1 != '.')
+	if (! ISALNUM (c1) && c1 != '.')
 	  {
 	    /* Terminate string.  */
 	    token_buffer[0] = c;
@@ -3450,7 +3464,7 @@ real_yylex ()
 	  }
 	put_back (c1);
       }
-      /* fall through... */
+      /* fall through...  */
 			  case '2':  case '3':  case '4':
     case '5':  case '6':  case '7':  case '8':  case '9':
     resume_numerical_scan:
@@ -3473,11 +3487,11 @@ real_yylex ()
 	enum anon1 { NOT_FLOAT, AFTER_POINT, TOO_MANY_POINTS} floatflag
 	  = NOT_FLOAT;
 
-	p = token_buffer;
-	*p++ = c;
-
 	for (count = 0; count < TOTAL_PARTS; count++)
 	  parts[count] = 0;
+
+	p = token_buffer;
+	*p++ = c;
 
 	if (c == '0')
 	  {
@@ -3500,18 +3514,25 @@ real_yylex ()
 	/* Read all the digits-and-decimal-points.  */
 
 	while (c == '.'
-	       || (isalnum (c) && (c != 'l') && (c != 'L')
+	       || (ISALNUM (c) && (c != 'l') && (c != 'L')
 		   && (c != 'u') && (c != 'U')
+		   && c != 'i' && c != 'I' && c != 'j' && c != 'J'
 		   && (floatflag == NOT_FLOAT || ((c != 'f') && (c != 'F')))))
 	  {
 	    if (c == '.')
 	      {
 		if (base == 16)
 		  error ("floating constant may not be in radix 16");
-		if (floatflag == AFTER_POINT)
+		if (floatflag == TOO_MANY_POINTS)
+		  /* We have already emitted an error.  Don't need another.  */
+		  ;
+		else if (floatflag == AFTER_POINT)
 		  {
 		    error ("malformed floating constant");
 		    floatflag = TOO_MANY_POINTS;
+		    /* Avoid another error from atof by forcing all characters
+		       from here on to be ignored.  */
+		    p[-1] = '\0';
 		  }
 		else
 		  floatflag = AFTER_POINT;
@@ -3522,7 +3543,7 @@ real_yylex ()
 		   only when it is followed by a digit.
 		   Otherwise, unread the following non-digit
 		   and use the '.' as a structural token.  */
-		if (p == token_buffer + 2 && !isdigit (c))
+		if (p == token_buffer + 2 && !ISDIGIT (c))
 		  {
 		    if (c == '.')
 		      {
@@ -3547,7 +3568,7 @@ real_yylex ()
 		/* It is not a decimal point.
 		   It should be a digit (perhaps a hex digit).  */
 
-		if (isdigit (c))
+		if (ISDIGIT (c))
 		  {
 		    c = c - '0';
 		  }
@@ -3611,9 +3632,8 @@ real_yylex ()
 	if (floatflag != NOT_FLOAT)
 	  {
 	    tree type = double_type_node;
-	    char f_seen = 0;
-	    char l_seen = 0;
-	    int garbage_chars = 0;
+	    int exceeds_double = 0;
+	    int imag = 0;
 	    REAL_VALUE_TYPE value;
 	    jmp_buf handler;
 
@@ -3630,9 +3650,9 @@ real_yylex ()
 		    *p++ = c;
 		    c = getch ();
 		  }
-		if (! isdigit (c))
+		if (! ISDIGIT (c))
 		  error ("floating constant exponent has no digits");
-	        while (isdigit (c))
+	        while (ISDIGIT (c))
 		  {
 		    if (p >= token_buffer + maxtoken - 3)
 		      p = extend_token_buffer (p);
@@ -3652,76 +3672,117 @@ real_yylex ()
 	      }
 	    else
 	      {
+		int fflag = 0, lflag = 0;
+		/* Copy token_buffer now, while it has just the number
+		   and not the suffixes; once we add `f' or `i',
+		   REAL_VALUE_ATOF may not work any more.  */
+		char *copy = (char *) alloca (p - token_buffer + 1);
+		bcopy (token_buffer, copy, p - token_buffer + 1);
+
 		set_float_handler (handler);
-		/*  The second argument, machine_mode, of REAL_VALUE_ATOF
-		    tells the desired precision of the binary result of
-		    decimal-to-binary conversion. */
 
-		/* Read the suffixes to choose a data type.  */
-		switch (c)
+		while (1)
 		  {
-		  case 'f': case 'F':
-		    type = float_type_node;
-		    value = REAL_VALUE_ATOF (token_buffer, TYPE_MODE (type));
-		    garbage_chars = -1;
-		    break;
+		    int lose = 0;
 
-		  case 'l': case 'L':
-		    type = long_double_type_node;
-		    value = REAL_VALUE_ATOF (token_buffer, TYPE_MODE (type));
-		    garbage_chars = -1;
-		    break;
+		    /* Read the suffixes to choose a data type.  */
+		    switch (c)
+		      {
+		      case 'f': case 'F':
+			if (fflag)
+			  error ("more than one `f' in numeric constant");
+			fflag = 1;
+			break;
 
-		  default:
-		    value = REAL_VALUE_ATOF (token_buffer, TYPE_MODE (type));
+		      case 'l': case 'L':
+			if (lflag)
+			  error ("more than one `l' in numeric constant");
+			lflag = 1;
+			break;
+
+		      case 'i': case 'I':
+			if (imag)
+			  error ("more than one `i' or `j' in numeric constant");
+			else if (pedantic)
+			  pedwarn ("ANSI C++ forbids imaginary numeric constants");
+			imag = 1;
+			break;
+
+		      default:
+			lose = 1;
+		      }
+
+		    if (lose)
+		      break;
+
+		    if (p >= token_buffer + maxtoken - 3)
+		      p = extend_token_buffer (p);
+		    *p++ = c;
+		    *p = 0;
+		    c = getch ();
 		  }
+
+		/* The second argument, machine_mode, of REAL_VALUE_ATOF
+		   tells the desired precision of the binary result
+		   of decimal-to-binary conversion.  */
+
+		if (fflag)
+		  {
+		    if (lflag)
+		      error ("both `f' and `l' in floating constant");
+
+		    type = float_type_node;
+		    value = REAL_VALUE_ATOF (copy, TYPE_MODE (type));
+		    /* A diagnostic is required here by some ANSI C testsuites.
+		       This is not pedwarn, become some people don't want
+		       an error for this.  */
+		    if (REAL_VALUE_ISINF (value) && pedantic)
+		      warning ("floating point number exceeds range of `float'");
+		  }
+		else if (lflag)
+		  {
+		    type = long_double_type_node;
+		    value = REAL_VALUE_ATOF (copy, TYPE_MODE (type));
+		    if (REAL_VALUE_ISINF (value) && pedantic)
+		      warning ("floating point number exceeds range of `long double'");
+		  }
+		else
+		  {
+		    value = REAL_VALUE_ATOF (copy, TYPE_MODE (type));
+		    if (REAL_VALUE_ISINF (value) && pedantic)
+		      warning ("floating point number exceeds range of `double'");
+		  }
+
 		set_float_handler (NULL_PTR);
 	      }
-	    if (pedantic
-		&& (REAL_VALUE_ISINF (value)
 #ifdef ERANGE
-		    || (TARGET_FLOAT_FORMAT != IEEE_FLOAT_FORMAT
-			&& errno == ERANGE
-			/* ERANGE is also reported for underflow, so test the
-			   value to distinguish overflow from that.  */
-			&& (REAL_VALUES_LESS (dconst1, value)
-			    || REAL_VALUES_LESS (value, dconstm1)))
+	    if (errno == ERANGE && pedantic)
+	      {
+  		/* ERANGE is also reported for underflow,
+  		   so test the value to distinguish overflow from that.  */
+		if (REAL_VALUES_LESS (dconst1, value)
+		    || REAL_VALUES_LESS (value, dconstm1))
+		  {
+		    pedwarn ("floating point number exceeds range of `%s'",
+			     IDENTIFIER_POINTER (TYPE_IDENTIFIER (type)));
+		    exceeds_double = 1;
+		  }
+	      }
 #endif
-		    ))
-	      {
-		pedwarn ("floating point number exceeds range of `%s'",
-			 IDENTIFIER_POINTER (DECL_NAME (TYPE_NAME (type))));
-	      }
-	    /* Note: garbage_chars is -1 if first char is *not* garbage.  */
-	    while (isalnum (c))
-	      {
-		if (c == 'f' || c == 'F')
-		  {
-		    if (f_seen)
-		      error ("two `f's in floating constant");
-		    f_seen = 1;
-		  }
-		if (c == 'l' || c == 'L')
-		  {
-		    if (l_seen)
-		      error ("two `l's in floating constant");
-		    l_seen = 1;
-		  }
-		if (p >= token_buffer + maxtoken - 3)
-		  p = extend_token_buffer (p);
-		*p++ = c;
-		c = getch ();
-		garbage_chars++;
-	      }
 
-	    if (garbage_chars > 0)
-	      error ("garbage at end of number");
+	    /* If the result is not a number, assume it must have been
+	       due to some error message above, so silently convert
+	       it to a zero.  */
+	    if (REAL_VALUE_ISNAN (value))
+	      value = dconst0;
 
 	    /* Create a node with determined type and value.  */
-	    yylval.ttype = build_real (type, value);
-
-	    put_back (c);
-	    *p = 0;
+	    if (imag)
+	      yylval.ttype = build_complex (NULL_TREE,
+					    cp_convert (type, integer_zero_node),
+					    build_real (type, value));
+	    else
+	      yylval.ttype = build_real (type, value);
 	  }
 	else
 	  {
@@ -3730,6 +3791,7 @@ real_yylex ()
 	    int spec_unsigned = 0;
 	    int spec_long = 0;
 	    int spec_long_long = 0;
+	    int spec_imag = 0;
 	    int bytes, warn;
 
 	    while (1)
@@ -3752,28 +3814,21 @@ real_yylex ()
 		      }
 		    spec_long = 1;
 		  }
-		else
+		else if (c == 'i' || c == 'j' || c == 'I' || c == 'J')
 		  {
-		    if (isalnum (c))
-		      {
-			error ("garbage at end of number");
-			while (isalnum (c))
-			  {
-			    if (p >= token_buffer + maxtoken - 3)
-			      p = extend_token_buffer (p);
-			    *p++ = c;
-			    c = getch ();
-			  }
-		      }
-		    break;
+		    if (spec_imag)
+		      error ("more than one `i' or `j' in numeric constant");
+		    else if (pedantic)
+		      pedwarn ("ANSI C++ forbids imaginary numeric constants");
+		    spec_imag = 1;
 		  }
+		else
+		  break;
 		if (p >= token_buffer + maxtoken - 3)
 		  p = extend_token_buffer (p);
 		*p++ = c;
 		c = getch ();
 	      }
-
-	    put_back (c);
 
 	    /* If the constant is not long long and it won't fit in an
 	       unsigned long, or if the constant is long long and won't fit
@@ -3813,144 +3868,51 @@ real_yylex ()
 	    yylval.ttype = build_int_2 (low, high);
 	    TREE_TYPE (yylval.ttype) = long_long_unsigned_type_node;
 
-#if 0
-	    /* Find the first allowable type that the value fits in.  */
-	    type = 0;
-	    for (i = 0; i < sizeof (type_sequence) / sizeof (type_sequence[0]);
-		 i++)
-	      if (!(spec_long && !type_sequence[i].long_flag)
-		  && !(spec_long_long && !type_sequence[i].long_long_flag)
-		  && !(spec_unsigned && !type_sequence[i].unsigned_flag)
-		  /* A hex or octal constant traditionally is unsigned.  */
-		  && !(base != 10 && flag_traditional
-		       && !type_sequence[i].unsigned_flag)
-		  /* A decimal constant can't be unsigned int
-		     unless explicitly specified.  */
-		  && !(base == 10 && !spec_unsigned
-		       && *type_sequence[i].node_var == unsigned_type_node))
-		if (int_fits_type_p (yylval.ttype, *type_sequence[i].node_var))
-		  {
-		    type = *type_sequence[i].node_var;
-		    break;
-		  }
-	    if (flag_traditional && type == long_unsigned_type_node
-		&& !spec_unsigned)
-	      type = long_integer_type_node;
-	      
-	    if (type == 0)
-	      {
-		type = long_long_integer_type_node;
-		warning ("integer constant out of range");
-	      }
-
-	    /* Warn about some cases where the type of a given constant
-	       changes from traditional C to ANSI C.  */
-	    if (warn_traditional)
-	      {
-		tree other_type = 0;
-
-		/* This computation is the same as the previous one
-		   except that flag_traditional is used backwards.  */
-		for (i = 0; i < sizeof (type_sequence) / sizeof (type_sequence[0]);
-		     i++)
-		  if (!(spec_long && !type_sequence[i].long_flag)
-		      && !(spec_long_long && !type_sequence[i].long_long_flag)
-		      && !(spec_unsigned && !type_sequence[i].unsigned_flag)
-		      /* A hex or octal constant traditionally is unsigned.  */
-		      && !(base != 10 && !flag_traditional
-			   && !type_sequence[i].unsigned_flag)
-		      /* A decimal constant can't be unsigned int
-			 unless explicitly specified.  */
-		      && !(base == 10 && !spec_unsigned
-			   && *type_sequence[i].node_var == unsigned_type_node))
-		    if (int_fits_type_p (yylval.ttype, *type_sequence[i].node_var))
-		      {
-			other_type = *type_sequence[i].node_var;
-			break;
-		      }
-		if (!flag_traditional && type == long_unsigned_type_node
-		    && !spec_unsigned)
-		  type = long_integer_type_node;
-	      
-		if (other_type != 0 && other_type != type)
-		  {
-		    if (flag_traditional)
-		      warning ("type of integer constant would be different without -traditional");
-		    else
-		      warning ("type of integer constant would be different with -traditional");
-		  }
-	      }
-
-#else /* 1 */
+	    /* Calculate the ANSI type.  */
 	    if (!spec_long && !spec_unsigned
-		&& !(flag_traditional && base != 10)
 		&& int_fits_type_p (yylval.ttype, integer_type_node))
-	      {
-#if 0
-		if (warn_traditional && base != 10)
-		  warning ("small nondecimal constant becomes signed in ANSI C++");
-#endif
-		type = integer_type_node;
-	      }
+	      type = integer_type_node;
 	    else if (!spec_long && (base != 10 || spec_unsigned)
 		     && int_fits_type_p (yylval.ttype, unsigned_type_node))
-	      {
-		/* Nondecimal constants try unsigned even in traditional C.  */
-		type = unsigned_type_node;
-	      }
-
+	      /* Nondecimal constants try unsigned even in traditional C.  */
+	      type = unsigned_type_node;
 	    else if (!spec_unsigned && !spec_long_long
 		     && int_fits_type_p (yylval.ttype, long_integer_type_node))
 	      type = long_integer_type_node;
-
-	    else if (! spec_long_long
-		     && int_fits_type_p (yylval.ttype,
-					 long_unsigned_type_node))
-	      {
-#if 0
-		if (warn_traditional && !spec_unsigned)
-		  warning ("large integer constant becomes unsigned in ANSI C++");
-#endif
-		if (flag_traditional && !spec_unsigned)
-		  type = long_integer_type_node;
-		else
-		  type = long_unsigned_type_node;
-	      }
-
+	    else if (! spec_long_long)
+	      type = long_unsigned_type_node;
 	    else if (! spec_unsigned
 		     /* Verify value does not overflow into sign bit.  */
 		     && TREE_INT_CST_HIGH (yylval.ttype) >= 0
 		     && int_fits_type_p (yylval.ttype,
 					 long_long_integer_type_node))
 	      type = long_long_integer_type_node;
-
-	    else if (int_fits_type_p (yylval.ttype,
-				      long_long_unsigned_type_node))
-	      {
-#if 0
-		if (warn_traditional && !spec_unsigned)
-		  warning ("large nondecimal constant is unsigned in ANSI C++");
-#endif
-
-		if (flag_traditional && !spec_unsigned)
-		  type = long_long_integer_type_node;
-		else
-		  type = long_long_unsigned_type_node;
-	      }
-
 	    else
+	      type = long_long_unsigned_type_node;
+
+	    if (!int_fits_type_p (yylval.ttype, type) && !warn)
+	      pedwarn ("integer constant out of range");
+
+	    if (base == 10 && ! spec_unsigned && TREE_UNSIGNED (type))
+	      warning ("decimal integer constant is so large that it is unsigned");
+
+	    if (spec_imag)
 	      {
-		type = long_long_integer_type_node;
-		warning ("integer constant out of range");
-
-		if (base == 10 && ! spec_unsigned && TREE_UNSIGNED (type))
-		  warning ("decimal integer constant is so large that it is unsigned");
+		if (TYPE_PRECISION (type)
+		    <= TYPE_PRECISION (integer_type_node))
+		  yylval.ttype
+		    = build_complex (NULL_TREE, integer_zero_node,
+				     cp_convert (integer_type_node,
+						 yylval.ttype));
+		else
+		  error ("complex integer constant is too wide for `__complex int'");
 	      }
-#endif
-
-	    TREE_TYPE (yylval.ttype) = type;
-	    *p = 0;
+	    else
+	      TREE_TYPE (yylval.ttype) = type;
 	  }
+
+	put_back (c);
+	*p = 0;
 
 	value = CONSTANT; break;
       }
@@ -3994,7 +3956,7 @@ real_yylex ()
 		    && (unsigned) c >= (1 << width))
 		  warning ("escape sequence out of range for character");
 #ifdef MAP_CHARACTER
-		if (isprint (c))
+		if (ISPRINT (c))
 		  c = MAP_CHARACTER (c);
 #endif
 	      }
@@ -4037,7 +3999,7 @@ real_yylex ()
 	    num_chars = max_chars;
 	    error ("character constant too long");
 	  }
-	else if (num_chars != 1 && ! flag_traditional)
+	else if (num_chars != 1 && warn_multichar)
 	  warning ("multi-character character constant");
 
 	/* If char type is signed, sign-extend the constant.  */
@@ -4125,7 +4087,7 @@ real_yylex ()
 	  skipnewline:
 	    c = getch ();
 	    if (c == EOF) {
-		error("Unterminated string");
+		error ("Unterminated string");
 		break;
 	    }
 	  }
@@ -4151,27 +4113,29 @@ real_yylex ()
 	    bzero (widep + (len * WCHAR_BYTES), WCHAR_BYTES);
 #else
 	    {
-	      union { long l; char c[sizeof (long)]; } u;
-	      int big_endian;
 	      char *wp, *cp;
 
-	      /* Determine whether host is little or big endian.  */
-	      u.l = 1;
-	      big_endian = u.c[sizeof (long) - 1];
-	      wp = widep + (big_endian ? WCHAR_BYTES - 1 : 0);
-
+	      wp = widep + (BYTES_BIG_ENDIAN ? WCHAR_BYTES - 1 : 0);
 	      bzero (widep, (p - token_buffer) * WCHAR_BYTES);
 	      for (cp = token_buffer + 1; cp < p; cp++)
 		*wp = *cp, wp += WCHAR_BYTES;
 	      len = p - token_buffer - 1;
 	    }
 #endif
+	    if (processing_template_decl)
+	      push_obstacks (&permanent_obstack, &permanent_obstack);
 	    yylval.ttype = build_string ((len + 1) * WCHAR_BYTES, widep);
+	    if (processing_template_decl)
+	      pop_obstacks ();
 	    TREE_TYPE (yylval.ttype) = wchar_array_type_node;
 	  }
 	else
 	  {
+	    if (processing_template_decl)
+	      push_obstacks (&permanent_obstack, &permanent_obstack);
 	    yylval.ttype = build_string (p - token_buffer, token_buffer + 1);
+	    if (processing_template_decl)
+	      pop_obstacks ();
 	    TREE_TYPE (yylval.ttype) = char_array_type_node;
 	  }
 
@@ -4373,21 +4337,49 @@ real_yylex ()
 done:
 /*  yylloc.last_line = lineno; */
 #ifdef GATHER_STATISTICS
+#ifdef REDUCE_LENGTH
   token_count[value] += 1;
+#endif
 #endif
 
   return value;
 }
 
+int
+is_rid (t)
+     tree t;
+{
+  return !!is_reserved_word (IDENTIFIER_POINTER (t), IDENTIFIER_LENGTH (t));
+}
+
+#ifdef GATHER_STATISTICS
+/* The original for tree_node_kind is in the toplevel tree.c; changes there
+   need to be brought into here, unless this were actually put into a header
+   instead.  */
+/* Statistics-gathering stuff.  */
 typedef enum
 {
-  d_kind, t_kind, s_kind, r_kind, e_kind, c_kind,
-  id_kind, op_id_kind, perm_list_kind, temp_list_kind,
-  vec_kind, x_kind, lang_decl, lang_type, all_kinds
+  d_kind,
+  t_kind,
+  b_kind,
+  s_kind,
+  r_kind,
+  e_kind,
+  c_kind,
+  id_kind,
+  op_id_kind,
+  perm_list_kind,
+  temp_list_kind,
+  vec_kind,
+  x_kind,
+  lang_decl,
+  lang_type,
+  all_kinds
 } tree_node_kind;
+
 extern int tree_node_counts[];
 extern int tree_node_sizes[];
-extern char *tree_node_kind_names[];
+#endif
 
 /* Place to save freed lang_decls which were allocated on the
    permanent_obstack.  @@ Not currently used.  */
@@ -4428,24 +4420,11 @@ build_lang_decl (code, name, type)
 	  == TREE_PERMANENT  (t), 234);
   DECL_MAIN_VARIANT (t) = t;
   if (current_lang_name == lang_name_cplusplus)
-    {
-      DECL_LANGUAGE (t) = lang_cplusplus;
-#if 0
-#ifndef NO_AUTO_OVERLOAD
-      if (code == FUNCTION_DECL && name != 0
-	  && ! (IDENTIFIER_LENGTH (name) == 4
-		&& IDENTIFIER_POINTER (name)[0] == 'm'
-		&& strcmp (IDENTIFIER_POINTER (name), "main") == 0)
-	  && ! (IDENTIFIER_LENGTH (name) > 10
-		&& IDENTIFIER_POINTER (name)[0] == '_'
-		&& IDENTIFIER_POINTER (name)[1] == '_'
-		&& strncmp (IDENTIFIER_POINTER (name)+2, "builtin_", 8) == 0))
-	TREE_OVERLOADED (name) = 1;
-#endif
-#endif
-    }
+    DECL_LANGUAGE (t) = lang_cplusplus;
   else if (current_lang_name == lang_name_c)
     DECL_LANGUAGE (t) = lang_c;
+  else if (current_lang_name == lang_name_java)
+    DECL_LANGUAGE (t) = lang_java;
   else my_friendly_abort (64);
 
 #if 0 /* not yet, should get fixed properly later */
@@ -4459,7 +4438,7 @@ build_lang_decl (code, name, type)
 #endif
 #ifdef GATHER_STATISTICS
   tree_node_counts[(int)lang_decl] += 1;
-  tree_node_sizes[(int)lang_decl] += sizeof(struct lang_decl);
+  tree_node_sizes[(int)lang_decl] += sizeof (struct lang_decl);
 #endif
 
   return t;
@@ -4506,6 +4485,9 @@ copy_lang_decl (node)
   int size;
   int *pi;
 
+  if (! DECL_LANG_SPECIFIC (node))
+    return;
+
   if (TREE_CODE (node) == FIELD_DECL)
     size = sizeof (struct lang_decl_flags);
   else
@@ -4538,10 +4520,9 @@ make_lang_type (code)
     pi[--i] = 0;
 
   TYPE_LANG_SPECIFIC (t) = (struct lang_type *) pi;
-  CLASSTYPE_AS_LIST (t) = build_tree_list (NULL_TREE, t);
+  CLASSTYPE_AS_LIST (t) = build_expr_list (NULL_TREE, t);
   SET_CLASSTYPE_INTERFACE_UNKNOWN_X (t, interface_unknown);
   CLASSTYPE_INTERFACE_ONLY (t) = interface_only;
-  CLASSTYPE_VBASE_SIZE (t) = integer_zero_node;
   TYPE_BINFO (t) = make_binfo (integer_zero_node, t, NULL_TREE, NULL_TREE,
 			       NULL_TREE);
   CLASSTYPE_BINFO_AS_LIST (t) = build_tree_list (NULL_TREE, TYPE_BINFO (t));
@@ -4553,37 +4534,10 @@ make_lang_type (code)
 
 #ifdef GATHER_STATISTICS
   tree_node_counts[(int)lang_type] += 1;
-  tree_node_sizes[(int)lang_type] += sizeof(struct lang_type);
+  tree_node_sizes[(int)lang_type] += sizeof (struct lang_type);
 #endif
 
   return t;
-}
-
-void
-copy_decl_lang_specific (decl)
-     tree decl;
-{
-  extern struct obstack *current_obstack, *saveable_obstack;
-  register int *old = (int *)DECL_LANG_SPECIFIC (decl);
-  struct obstack *obstack = current_obstack;
-  register int i = sizeof (struct lang_decl) / sizeof (int);
-  register int *pi;
-
-  if (! TREE_PERMANENT (decl))
-    obstack = saveable_obstack;
-  else
-    my_friendly_assert (obstack == &permanent_obstack, 237);
-
-  pi = (int *) obstack_alloc (obstack, sizeof (struct lang_decl));
-  while (i-- > 0)
-    pi[i] = old[i];
-
-  DECL_LANG_SPECIFIC (decl) = (struct lang_decl *) pi;
-
-#ifdef GATHER_STATISTICS
-  tree_node_counts[(int)lang_decl] += 1;
-  tree_node_sizes[(int)lang_decl] += sizeof(struct lang_decl);
-#endif
 }
 
 void
@@ -4604,7 +4558,7 @@ dump_time_statistics ()
   for (decl = filename_times; decl; decl = next)
     {
       next = IDENTIFIER_GLOBAL_VALUE (decl);
-      IDENTIFIER_GLOBAL_VALUE (decl) = prev;
+      SET_IDENTIFIER_GLOBAL_VALUE (decl, prev);
       prev = decl;
     }
 
@@ -4621,32 +4575,6 @@ compiler_error (s, v, v2)
   char buf[1024];
   sprintf (buf, s, v, v2);
   error_with_file_and_line (input_filename, lineno, "%s (compiler error)", buf);
-}
-
-void
-compiler_error_with_decl (decl, s)
-     tree decl;
-     char *s;
-{
-  char *name;
-  count_error (0);
-
-  report_error_function (0);
-
-  if (TREE_CODE (decl) == PARM_DECL)
-    fprintf (stderr, "%s:%d: ",
-	     DECL_SOURCE_FILE (DECL_CONTEXT (decl)),
-	     DECL_SOURCE_LINE (DECL_CONTEXT (decl)));
-  else
-    fprintf (stderr, "%s:%d: ",
-	     DECL_SOURCE_FILE (decl), DECL_SOURCE_LINE (decl));
-
-  name = lang_printable_name (decl);
-  if (name)
-    fprintf (stderr, s, name);
-  else
-    fprintf (stderr, s, "((anonymous))");
-  fprintf (stderr, " (compiler error)\n");
 }
 
 void
@@ -4679,6 +4607,182 @@ yyerror (string)
   error (buf, token_buffer);
 }
 
+static int
+handle_cp_pragma (pname)
+     char *pname;
+{
+  register int token;
+
+  if (! strcmp (pname, "vtable"))
+    {
+      extern tree pending_vtables;
+
+      /* More follows: it must be a string constant (class name).  */
+      token = real_yylex ();
+      if (token != STRING || TREE_CODE (yylval.ttype) != STRING_CST)
+	{
+	  error ("invalid #pragma vtable");
+	  return -1;
+	}
+
+      if (write_virtuals != 2)
+	{
+	  warning ("use `+e2' option to enable #pragma vtable");
+	  return -1;
+	}
+      pending_vtables
+	= perm_tree_cons (NULL_TREE,
+			  get_identifier (TREE_STRING_POINTER (yylval.ttype)),
+			  pending_vtables);
+      token = real_yylex ();
+      if (token != END_OF_LINE)
+	warning ("trailing characters ignored");
+      return 1;
+    }
+  else if (! strcmp (pname, "unit"))
+    {
+      /* More follows: it must be a string constant (unit name).  */
+      token = real_yylex ();
+      if (token != STRING || TREE_CODE (yylval.ttype) != STRING_CST)
+	{
+	  error ("invalid #pragma unit");
+	  return -1;
+	}
+      token = real_yylex ();
+      if (token != END_OF_LINE)
+	warning ("trailing characters ignored");
+      return 1;
+    }
+  else if (! strcmp (pname, "interface"))
+    {
+      tree fileinfo = IDENTIFIER_CLASS_VALUE (get_time_identifier (input_filename));
+      char *main_filename = input_filename;
+
+      main_filename = file_name_nondirectory (main_filename);
+
+      token = real_yylex ();
+      
+      if (token != END_OF_LINE)
+	{
+	  if (token != STRING
+	      || TREE_CODE (yylval.ttype) != STRING_CST)
+	    {
+	      error ("invalid `#pragma interface'");
+	      return -1;
+	    }
+	  main_filename = TREE_STRING_POINTER (yylval.ttype);
+	  token = real_yylex ();
+	}
+
+      if (token != END_OF_LINE)
+	warning ("garbage after `#pragma interface' ignored");
+
+#ifndef NO_LINKAGE_HEURISTICS
+      write_virtuals = 3;
+
+      if (impl_file_chain == 0)
+	{
+	  /* If this is zero at this point, then we are
+	     auto-implementing.  */
+	  if (main_input_filename == 0)
+	    main_input_filename = input_filename;
+
+#ifdef AUTO_IMPLEMENT
+	  filename = file_name_nondirectory (main_input_filename);
+	  fi = get_time_identifier (filename);
+	  fi = IDENTIFIER_CLASS_VALUE (fi);
+	  TREE_INT_CST_LOW (fi) = 0;
+	  TREE_INT_CST_HIGH (fi) = 1;
+	  /* Get default.  */
+	  impl_file_chain = (struct impl_files *)permalloc (sizeof (struct impl_files));
+	  impl_file_chain->filename = filename;
+	  impl_file_chain->next = 0;
+#endif
+	}
+
+      interface_only = interface_strcmp (main_filename);
+      interface_unknown = 0;
+      TREE_INT_CST_LOW (fileinfo) = interface_only;
+      TREE_INT_CST_HIGH (fileinfo) = interface_unknown;
+#endif /* NO_LINKAGE_HEURISTICS */
+
+      return 1;
+    }
+  else if (! strcmp (pname, "implementation"))
+    {
+      tree fileinfo = IDENTIFIER_CLASS_VALUE (get_time_identifier (input_filename));
+      char *main_filename = main_input_filename ? main_input_filename : input_filename;
+
+      main_filename = file_name_nondirectory (main_filename);
+      token = real_yylex ();
+      if (token != END_OF_LINE)
+	{
+	  if (token != STRING
+	      || TREE_CODE (yylval.ttype) != STRING_CST)
+	    {
+	      error ("invalid `#pragma implementation'");
+	      return -1;
+	    }
+	  main_filename = TREE_STRING_POINTER (yylval.ttype);
+	  token = real_yylex ();
+	}
+
+      if (token != END_OF_LINE)
+	warning ("garbage after `#pragma implementation' ignored");
+
+#ifndef NO_LINKAGE_HEURISTICS
+      if (write_virtuals == 3)
+	{
+	  struct impl_files *ifiles = impl_file_chain;
+	  while (ifiles)
+	    {
+	      if (! strcmp (ifiles->filename, main_filename))
+		break;
+	      ifiles = ifiles->next;
+	    }
+	  if (ifiles == 0)
+	    {
+	      ifiles = (struct impl_files*) permalloc (sizeof (struct impl_files));
+	      ifiles->filename = main_filename;
+	      ifiles->next = impl_file_chain;
+	      impl_file_chain = ifiles;
+	    }
+	}
+      else if ((main_input_filename != 0
+		&& ! strcmp (main_input_filename, input_filename))
+	       || ! strcmp (input_filename, main_filename))
+	{
+	  write_virtuals = 3;
+	  if (impl_file_chain == 0)
+	    {
+	      impl_file_chain = (struct impl_files*) permalloc (sizeof (struct impl_files));
+	      impl_file_chain->filename = main_filename;
+	      impl_file_chain->next = 0;
+	    }
+	}
+      else
+	error ("`#pragma implementation' can only appear at top-level");
+      interface_only = 0;
+#if 1
+      /* We make this non-zero so that we infer decl linkage
+	 in the impl file only for variables first declared
+	 in the interface file.  */
+      interface_unknown = 1;
+#else
+      /* We make this zero so that templates in the impl
+	 file will be emitted properly.  */
+      interface_unknown = 0;
+#endif
+      TREE_INT_CST_LOW (fileinfo) = interface_only;
+      TREE_INT_CST_HIGH (fileinfo) = interface_unknown;
+#endif /* NO_LINKAGE_HEURISTICS */
+
+      return 1;
+    }
+
+  return 0;
+}
+
 #ifdef HANDLE_SYSV_PRAGMA
 
 /* Handle a #pragma directive.  INPUT is the current input stream,
@@ -4688,11 +4792,13 @@ yyerror (string)
 /* This function has to be in this file, in order to get at
    the token types.  */
 
-handle_sysv_pragma ()
+static int
+handle_sysv_pragma (token)
+     register int token;
 {
   for (;;)
     {
-      switch (yylex ())
+      switch (token)
 	{
 	case IDENTIFIER:
 	case TYPENAME:
@@ -4717,14 +4823,11 @@ handle_sysv_pragma ()
 	  handle_pragma_token (")", NULL_TREE);
 	  break;
 	case END_OF_LINE:
-	  handle_pragma_token (NULL_PTR, NULL_TREE);
-	  return;
 	default:
 	  handle_pragma_token (NULL_PTR, NULL_TREE);
-	  while (yylex () != END_OF_LINE)
-	    /* continue */;
-	  return;
+	  return 1;
 	}
+      token = real_yylex ();
     }
 }
 #endif /* HANDLE_SYSV_PRAGMA */

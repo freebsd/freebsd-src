@@ -1,7 +1,6 @@
 /* Generate from machine description:
-
    - some #define configuration flags.
-   Copyright (C) 1987, 1991 Free Software Foundation, Inc.
+   Copyright (C) 1987, 1991, 1997, 1998 Free Software Foundation, Inc.
 
 This file is part of GNU CC.
 
@@ -21,8 +20,13 @@ the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
 
-#include <stdio.h>
 #include "hconfig.h"
+#ifdef __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include "system.h"
 #include "rtl.h"
 #include "obstack.h"
 
@@ -32,8 +36,8 @@ struct obstack *rtl_obstack = &obstack;
 #define obstack_chunk_alloc xmalloc
 #define obstack_chunk_free free
 
-extern void free ();
-extern rtx read_rtx ();
+/* Define this so we can link with print-rtl.o to get debug_rtx function.  */
+char **insn_name_ptr = 0;
 
 /* flags to determine output of machine description dependent #define's.  */
 static int max_recog_operands;  /* Largest operand number seen.  */
@@ -50,9 +54,15 @@ static int max_insns_per_split = 1;
 static int clobbers_seen_this_insn;
 static int dup_operands_seen_this_insn;
 
-char *xmalloc ();
-static void fatal ();
-void fancy_abort ();
+char *xmalloc PROTO((unsigned));
+static void fatal PVPROTO ((char *, ...)) ATTRIBUTE_PRINTF_1;
+void fancy_abort PROTO((void));
+
+static void walk_insn_part PROTO((rtx, int, int));
+static void gen_insn PROTO((rtx));
+static void gen_expand PROTO((rtx));
+static void gen_split PROTO((rtx));
+static void gen_peephole PROTO((rtx));
 
 /* RECOG_P will be non-zero if this pattern was seen in a context where it will
    be used to recognize, rather than just generate an insn. 
@@ -142,6 +152,9 @@ walk_insn_part (part, recog_p, non_pc_set_src)
     case REG: case CONST_INT: case SYMBOL_REF:
     case PC:
       return;
+
+    default:
+      break;
     }
 
   format_ptr = GET_RTX_FORMAT (GET_CODE (part));
@@ -260,11 +273,22 @@ xrealloc (ptr, size)
 }
 
 static void
-fatal (s, a1, a2)
-     char *s;
+fatal VPROTO ((char *format, ...))
 {
+#ifndef __STDC__
+  char *format;
+#endif
+  va_list ap;
+
+  VA_START (ap, format);
+
+#ifndef __STDC__
+  format = va_arg (ap, char *);
+#endif
+
   fprintf (stderr, "genconfig: ");
-  fprintf (stderr, s, a1, a2);
+  vfprintf (stderr, format, ap);
+  va_end (ap);
   fprintf (stderr, "\n");
   exit (FATAL_EXIT_CODE);
 }
