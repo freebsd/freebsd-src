@@ -13,7 +13,7 @@ Programming:
 - Write a test program that calls stat() to search for EGD/PRNGd socket
   rather than use the (non-portable) "test -S". 
 
-- Replacement for setproctitle() - HP-UX support only currently
+- More platforms for for setproctitle() emulation (testing needed)
 
 - Handle changing passwords for the non-PAM expired password case
 
@@ -101,6 +101,7 @@ Clean up configure/makefiles:
   (vinschen@redhat.com)
 
 - Replace the whole u_intXX_t evilness in acconfig.h with something better???
+ - Do it in configure.ac
 
 - Consider splitting the u_intXX_t test for sys/bitype.h  into seperate test
   to allow people to (right/wrongfully) link against Bind directly.
@@ -133,4 +134,4 @@ PrivSep Issues:
 - Cygwin
   + Privsep for Pre-auth only (no fd passing)
 
-$Id: TODO,v 1.51 2002/09/05 06:32:03 djm Exp $
+$Id: TODO,v 1.53 2003/01/12 23:00:34 djm Exp $

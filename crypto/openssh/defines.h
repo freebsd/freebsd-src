@@ -1,7 +1,7 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.96 2002/09/26 00:38:48 tim Exp $ */
+/* $Id: defines.h,v 1.97 2003/01/24 00:50:32 djm Exp $ */
 
 
 /* Constants */
@@ -368,6 +368,20 @@ struct winsize {
 	 (result)->tv_usec += 1000000;				\
       }								\
    } while (0)
+#endif
+
+#ifndef TIMEVAL_TO_TIMESPEC
+#define	TIMEVAL_TO_TIMESPEC(tv, ts) {					\
+	(ts)->tv_sec = (tv)->tv_sec;					\
+	(ts)->tv_nsec = (tv)->tv_usec * 1000;				\
+}
+#endif
+
+#ifndef TIMESPEC_TO_TIMEVAL
+#define	TIMESPEC_TO_TIMEVAL(tv, ts) {					\
+	(tv)->tv_sec = (ts)->tv_sec;					\
+	(tv)->tv_usec = (ts)->tv_nsec / 1000;				\
+}
 #endif
 
 #ifndef __P

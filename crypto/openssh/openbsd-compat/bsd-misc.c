@@ -23,15 +23,20 @@
  */
 
 #include "includes.h"
+#include "xmalloc.h"
 
-RCSID("$Id: bsd-misc.c,v 1.10 2002/07/08 21:09:41 mouring Exp $");
+RCSID("$Id: bsd-misc.c,v 1.12 2003/03/18 18:21:41 tim Exp $");
 
+/*
+ * NB. duplicate __progname in case it is an alias for argv[0]
+ * Otherwise it may get clobbered by setproctitle()
+ */
 char *get_progname(char *argv0)
 {
 #ifdef HAVE___PROGNAME
 	extern char *__progname;
 
-	return __progname;
+	return xstrdup(__progname);
 #else
 	char *p;
 
@@ -42,7 +47,8 @@ char *get_progname(char *argv0)
 		p = argv0;
 	else
 		p++;
-	return p;
+
+	return xstrdup(p);
 #endif
 }
 
@@ -128,4 +134,35 @@ setgroups(size_t size, const gid_t *list)
 	return 0;
 }
 #endif 
+
+#if !defined(HAVE_NANOSLEEP) && !defined(HAVE_NSLEEP)
+int nanosleep(const struct timespec *req, struct timespec *rem)
+{
+	int rc, saverrno;
+	extern int errno;
+	struct timeval tstart, tstop, tremain, time2wait;
+
+	TIMESPEC_TO_TIMEVAL(&time2wait, req)
+	(void) gettimeofday(&tstart, NULL);
+	rc = select(0, NULL, NULL, NULL, &time2wait);
+	if (rc == -1) {
+		saverrno = errno;
+		(void) gettimeofday (&tstop, NULL);
+		errno = saverrno;
+		tremain.tv_sec = time2wait.tv_sec - 
+			(tstop.tv_sec - tstart.tv_sec);
+		tremain.tv_usec = time2wait.tv_usec - 
+			(tstop.tv_usec - tstart.tv_usec);
+		tremain.tv_sec += tremain.tv_usec / 1000000L;
+		tremain.tv_usec %= 1000000L;
+	} else {
+		tremain.tv_sec = 0;
+		tremain.tv_usec = 0;
+	}
+	TIMEVAL_TO_TIMESPEC(&tremain, rem)
+
+	return(rc);
+}
+
+#endif
 

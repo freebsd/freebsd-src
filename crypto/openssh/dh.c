@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: dh.c,v 1.22 2002/06/27 08:49:44 markus Exp $");
+RCSID("$OpenBSD: dh.c,v 1.23 2002/11/21 22:22:50 markus Exp $");
 
 #include "xmalloc.h"
 
@@ -182,7 +182,7 @@ dh_pub_is_valid(DH *dh, BIGNUM *dh_pub)
 	for (i = 0; i <= n; i++)
 		if (BN_is_bit_set(dh_pub, i))
 			bits_set++;
-	debug("bits set: %d/%d", bits_set, BN_num_bits(dh->p));
+	debug2("bits set: %d/%d", bits_set, BN_num_bits(dh->p));
 
 	/* if g==2 and bits_set==1 then computing log_g(dh_pub) is trivial */
 	if (bits_set > 1 && (BN_cmp(dh_pub, dh->p) == -1))
@@ -214,7 +214,7 @@ dh_gen_key(DH *dh, int need)
 		for (i = 0; i <= BN_num_bits(dh->priv_key); i++)
 			if (BN_is_bit_set(dh->priv_key, i))
 				bits_set++;
-		debug("dh_gen_key: priv key bits set: %d/%d",
+		debug2("dh_gen_key: priv key bits set: %d/%d",
 		    bits_set, BN_num_bits(dh->priv_key));
 		if (tries++ > 10)
 			fatal("dh_gen_key: too many bad keys: giving up");

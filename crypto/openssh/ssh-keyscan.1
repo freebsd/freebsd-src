@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keyscan.1,v 1.14 2002/02/13 08:33:47 mpech Exp $
+.\"	$OpenBSD: ssh-keyscan.1,v 1.15 2003/03/28 10:11:43 jmc Exp $
 .\"
 .\" Copyright 1995, 1996 by David Mazieres <dm@lcs.mit.edu>.
 .\"
@@ -14,6 +14,7 @@
 .Nd gather ssh public keys
 .Sh SYNOPSIS
 .Nm ssh-keyscan
+.Bk -words
 .Op Fl v46
 .Op Fl p Ar port
 .Op Fl T Ar timeout
@@ -21,10 +22,12 @@
 .Op Fl f Ar file
 .Op Ar host | addrlist namelist
 .Op Ar ...
+.Ek
 .Sh DESCRIPTION
 .Nm
 is a utility for gathering the public ssh host keys of a number of
-hosts.  It was designed to aid in building and verifying
+hosts.
+It was designed to aid in building and verifying
 .Pa ssh_known_hosts
 files.
 .Nm
@@ -33,9 +36,11 @@ scripts.
 .Pp
 .Nm
 uses non-blocking socket I/O to contact as many hosts as possible in
-parallel, so it is very efficient.  The keys from a domain of 1,000
+parallel, so it is very efficient.
+The keys from a domain of 1,000
 hosts can be collected in tens of seconds, even when some of those
-hosts are down or do not run ssh.  For scanning, one does not need
+hosts are down or do not run ssh.
+For scanning, one does not need
 login access to the machines that are being scanned, nor does the
 scanning process involve any encryption.
 .Pp
@@ -44,12 +49,13 @@ The options are as follows:
 .It Fl p Ar port
 Port to connect to on the remote host.
 .It Fl T Ar timeout
-Set the timeout for connection attempts.  If
+Set the timeout for connection attempts.
+If
 .Pa timeout
 seconds have elapsed since a connection was initiated to a host or since the
 last time anything was read from that host, then the connection is
-closed and the host in question considered unavailable.  Default is 5
-seconds.
+closed and the host in question considered unavailable.
+Default is 5 seconds.
 .It Fl t Ar type
 Specifies the type of the key to fetch from the scanned hosts.
 The possible values are

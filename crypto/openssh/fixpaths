@@ -1,43 +1,22 @@
-#!/usr/bin/perl -w
+#!/bin/sh
 #
 # fixpaths  - substitute makefile variables into text files
+# Usage: fixpaths -Dsomething=somethingelse ...
 
-
-$usage = "Usage: $0 [-Dstring=replacement] [[infile] ...]\n";
-
-if (!defined(@ARGV)) { die ("$usage"); }
-
-# read in the command line and get some definitions
-while ($_=$ARGV[0], /^-/) {
-  if (/^-D/) {
-    # definition
-    shift(@ARGV);
-    if ( /-D(.*)=(.*)/ ) {
-      $def{"$1"}=$2;
-    } else {
-      die ("$usage$0: error in command line arguments.\n");
-    }
-  } else {
-    @cmd = split(//, $ARGV[0]); $opt = $cmd[1];
-    die ("$usage$0: unknown option '-$opt'\n");
-  }
-} # while parsing arguments
-
-if (!defined(%def)) {
-  die ("$0: nothing to do - no substitutions listed!\n");
+die() {
+	echo $*
+	exit -1
 }
 
-for $f (@ARGV) {
+test -n "`echo $1|grep -- -D`" || \
+	die $0: nothing to do - no substitutions listed!
 
-  $f =~ /(.*\/)*(.*)$/;
+test -n "`echo $1|grep -- '-D[^=]\+=[^ ]\+'`" || \
+	die $0: error in command line arguments.
 
-  open(IN, "<$f")          || die ("$0: input file $f missing!\n");
-  while (<IN>) {
-    for $s (keys(%def)) {
-      s#$s#$def{$s}#;
-    } # for $s
-    print;
-  } # while <IN>
-} # for $f
+test -n "`echo $*|grep -- ' [^-]'`" || \
+	die Usage: $0 '[-Dstring=replacement] [[infile] ...]'
 
-exit 0;
+sed `echo $*|sed -e 's/-D\([^=]\+\)=\([^ ]*\)/-e s=\1=\2=g/g'`
+
+exit 0

@@ -36,7 +36,7 @@
 
 #include "includes.h"
 
-#ifndef HAVE_MKDTEMP
+#if !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP)
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] = "$OpenBSD: mktemp.c,v 1.16 2002/05/27 18:20:45 millert Exp $";
@@ -181,4 +181,4 @@ _gettemp(path, doopen, domkdir, slen)
 	/*NOTREACHED*/
 }
 
-#endif /* !HAVE_MKDTEMP */
+#endif /* !defined(HAVE_MKDTEMP) || defined(HAVE_STRICT_MKSTEMP) */

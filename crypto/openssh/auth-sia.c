@@ -45,27 +45,25 @@ extern ServerOptions options;
 extern int saved_argc;
 extern char **saved_argv;
 
-extern int errno;
-
 int
 auth_sia_password(Authctxt *authctxt, char *pass)
 {
 	int ret;
 	SIAENTITY *ent = NULL;
 	const char *host;
-	char *user = authctxt->user;
 
 	host = get_canonical_hostname(options.verify_reverse_mapping);
 
-	if (!user || !pass || pass[0] == '\0')
+	if (!authctxt->user || !pass || pass[0] == '\0')
 		return(0);
 
-	if (sia_ses_init(&ent, saved_argc, saved_argv, host, user, NULL, 0,
-	    NULL) != SIASUCCESS)
+	if (sia_ses_init(&ent, saved_argc, saved_argv, host, authctxt->user,
+	    NULL, 0, NULL) != SIASUCCESS)
 		return(0);
 
 	if ((ret = sia_ses_authent(NULL, pass, ent)) != SIASUCCESS) {
-		error("Couldn't authenticate %s from %s", user, host);
+		error("Couldn't authenticate %s from %s", authctxt->user,
+		    host);
 		if (ret & SIASTOP)
 			sia_ses_release(&ent);
 		return(0);
@@ -77,48 +75,35 @@ auth_sia_password(Authctxt *authctxt, char *pass)
 }
 
 void
-session_setup_sia(char *user, char *tty)
+session_setup_sia(struct passwd *pw, char *tty)
 {
-	struct passwd *pw;
 	SIAENTITY *ent = NULL;
 	const char *host;
 
-	host = get_canonical_hostname (options.verify_reverse_mapping);
+	host = get_canonical_hostname(options.verify_reverse_mapping);
 
-	if (sia_ses_init(&ent, saved_argc, saved_argv, host, user, tty, 0,
-	    NULL) != SIASUCCESS) {
+	if (sia_ses_init(&ent, saved_argc, saved_argv, host, pw->pw_name, tty,
+	    0, NULL) != SIASUCCESS)
 		fatal("sia_ses_init failed");
-	}
 
-	if ((pw = getpwnam(user)) == NULL) {
-		sia_ses_release(&ent);
-		fatal("getpwnam: no user: %s", user);
-	}
 	if (sia_make_entity_pwd(pw, ent) != SIASUCCESS) {
 		sia_ses_release(&ent);
 		fatal("sia_make_entity_pwd failed");
 	}
 
 	ent->authtype = SIA_A_NONE;
-	if (sia_ses_estab(sia_collect_trm, ent) != SIASUCCESS) {
-		fatal("Couldn't establish session for %s from %s", user,
+	if (sia_ses_estab(sia_collect_trm, ent) != SIASUCCESS)
+		fatal("Couldn't establish session for %s from %s",
+		    pw->pw_name, host);
+
+	if (sia_ses_launch(sia_collect_trm, ent) != SIASUCCESS)
+		fatal("Couldn't launch session for %s from %s", pw->pw_name,
 		    host);
-	}
-
-	if (setpriority(PRIO_PROCESS, 0, 0) == -1) {
-		sia_ses_release(&ent);
-		fatal("setpriority: %s", strerror (errno));
-	}
-
-	if (sia_ses_launch(sia_collect_trm, ent) != SIASUCCESS) {
-		fatal("Couldn't launch session for %s from %s", user, host);
-	}
 	
 	sia_ses_release(&ent);
 
-	if (setreuid(geteuid(), geteuid()) < 0) {
+	if (setreuid(geteuid(), geteuid()) < 0)
 		fatal("setreuid: %s", strerror(errno));
-	}
 }
 
 #endif /* HAVE_OSF_SIA */
