@@ -1226,6 +1226,7 @@ daregister(struct cam_periph *periph, void *arg)
 	int s;
 	struct da_softc *softc;
 	struct ccb_setasync csa;
+	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
 	caddr_t match;
 
@@ -1274,6 +1275,16 @@ daregister(struct cam_periph *periph, void *arg)
 	else
 		softc->quirks = DA_Q_NONE;
 
+	/* Check if the SIM does not want 6 byte commands */
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
+		softc->quirks |= DA_Q_NO_6_BYTE;
+
+	/*
+	 * RBC devices don't have to support READ(6), only READ(10).
+	 */
 	if (softc->quirks & DA_Q_NO_6_BYTE || SID_TYPE(&cgd->inq_data) == T_RBC)
 		softc->minimum_cmd_size = 10;
 	else

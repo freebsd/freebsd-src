@@ -239,7 +239,7 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->version_num = 1;
 	cpi->hba_inquiry = 0;
 	cpi->target_sprt = 0;
-	cpi->hba_misc = 0;
+	cpi->hba_misc = PIM_NO_6_BYTE;
 	cpi->hba_eng_cnt = 0;
 	bzero(cpi->vuhba_flags, sizeof(cpi->vuhba_flags));
 	cpi->max_target = 1;
