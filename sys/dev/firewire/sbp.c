@@ -108,7 +108,7 @@ static char *orb_fun_name[] = {
 
 static int debug = 0;
 static int auto_login = 1;
-static int max_speed = 2;
+static int max_speed = -1;
 static int sbp_cold = 1;
 static int ex_login = 1;
 static int login_delay = 1000;	/* msec */
@@ -1879,6 +1879,10 @@ END_DEBUG
 	bzero(sbp, sizeof(struct sbp_softc));
 	sbp->fd.dev = dev;
 	sbp->fd.fc = device_get_ivars(dev);
+
+	if (max_speed < 0)
+		max_speed = sbp->fd.fc->speed;
+
 	error = bus_dma_tag_create(/*parent*/sbp->fd.fc->dmat,
 				/* XXX shoud be 4 for sane backend? */
 				/*alignment*/1,
