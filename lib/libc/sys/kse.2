@@ -127,7 +127,7 @@ The KSE becomes
 .Sy unassigned ,
 and the associated thread is suspended, when the KSE has an associated
 .Sy mailbox ,
-(see below) the thread has an associated 
+(see below) the thread has an associated
 .Sy thread mailbox ,
 (also see below) and any of the following occurs:
 .Bl -bullet
@@ -424,7 +424,7 @@ points to a linked list of user threads that have completed their work
 in the kernel since the last upcall.
 The user thread scheduler should put these threads back into its
 own runnable queue.
-Each thread in a KSE group that completes a kernel operation 
+Each thread in a KSE group that completes a kernel operation
 (synchronous or asynchronous) that results in an upcall is guaranteed to be
 linked into exactly one KSE's
 .Va km_completed
