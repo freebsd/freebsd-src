@@ -162,9 +162,13 @@ static void an_cache_store	__P((struct an_softc *, struct ether_header *,
 					struct mbuf *, unsigned short));
 #endif
 
+static void an_dump_record	__P((struct an_softc *,struct an_ltv_gen *,
+				    char *));
+
 static int an_media_change	__P((struct ifnet *));
 static void an_media_status	__P((struct ifnet *, struct ifmediareq *));
 
+static int	an_dump = 0;
 /* 
  * We probe for an Aironet 4500/4800 card by attempting to
  * read the default SSID list. On reset, the first entry in
@@ -181,7 +185,7 @@ int an_probe(dev)
 	bzero((char *)&ssid, sizeof(ssid));
 
 	error = an_alloc_port(dev, 0, AN_IOSIZ);
-	if (error)
+	if (error != 0)
 		return (0);
 
 	/* can't do autoprobing */
@@ -393,12 +397,12 @@ int an_attach(sc, unit, flags)
 	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2,
 	    IFM_IEEE80211_ADHOC, 0), 0);
 	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS2, 0, 0), 0);
-	if(sc->an_caps.an_rates[2] == AN_RATE_5_5MBPS) {
+	if (sc->an_caps.an_rates[2] == AN_RATE_5_5MBPS) {
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5,
 		    IFM_IEEE80211_ADHOC, 0), 0);
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS5, 0, 0), 0);
 	}
-	if(sc->an_caps.an_rates[3] == AN_RATE_11MBPS) {
+	if (sc->an_caps.an_rates[3] == AN_RATE_11MBPS) {
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11,
 		    IFM_IEEE80211_ADHOC, 0), 0);
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS11, 0, 0), 0);
@@ -490,7 +494,7 @@ static void an_rxeof(sc)
 	error = an_read_data(sc, id, 0x44, (caddr_t)&(eh->ether_type), 
 			     rx_frame_802_3.an_rx_802_3_payload_len);
 
-	if (error) {
+	if (error != 0) {
 		m_freem(m);
 		ifp->if_ierrors++;
 		return;
@@ -511,7 +515,7 @@ static void an_txeof(sc, status)
 	int			status;
 {
 	struct ifnet		*ifp;
-	int			id;
+	int			id, i;
 
 	/* TX DONE enable lan monitor DJA
 	   an_enable_sniff();
@@ -529,12 +533,13 @@ static void an_txeof(sc, status)
 	} else
 		ifp->if_opackets++;
 
-	if (id != sc->an_rdata.an_tx_ring[sc->an_rdata.an_tx_cons])
-		printf("an%d: id mismatch: expected %x, got %x\n",
-		    sc->an_unit,
-		    sc->an_rdata.an_tx_ring[sc->an_rdata.an_tx_cons], id);
+	for (i = 0; i < AN_TX_RING_CNT; i++) {
+		if (id == sc->an_rdata.an_tx_ring[i]) {
+			sc->an_rdata.an_tx_ring[i] = 0;
+			break;
+		}
+	}
 
-	sc->an_rdata.an_tx_ring[sc->an_rdata.an_tx_cons] = 0;
 	AN_INC(sc->an_rdata.an_tx_cons, AN_TX_RING_CNT);
 
 	return;
@@ -720,9 +725,10 @@ static int an_read_record(sc, ltv)
 	struct an_ltv_gen	*ltv;
 {
 	u_int16_t		*ptr;
+	u_int8_t		*ptr2;
 	int			i, len;
 
-	if (ltv->an_len == 0 || ltv->an_type == 0)
+	if (ltv->an_len < 4 || ltv->an_type == 0)
 		return(EINVAL);
 
 	/* Tell the NIC to enter record read mode. */
@@ -741,20 +747,29 @@ static int an_read_record(sc, ltv)
 	 * Read the length and record type and make sure they
 	 * match what we expect (this verifies that we have enough
 	 * room to hold all of the returned data).
+	 * Length includes type but not length.
 	 */
 	len = CSR_READ_2(sc, AN_DATA1);
 	if (len > (ltv->an_len - 2)) {
 		printf("an%d: record length mismatch -- expected %d, "
-		    "got %d\n", sc->an_unit, (ltv->an_len - 2), len);
-		len = (ltv->an_len - 2);
+		    "got %d for Rid %x\n", sc->an_unit,
+		    ltv->an_len - 2, len, ltv->an_type);
+		len = ltv->an_len - 2;
+	} else {
+		ltv->an_len = len + 2;
 	}
 
-	ltv->an_len = len;
-
 	/* Now read the data. */
+	len -= 2;	/* skip the type */
 	ptr = &ltv->an_val;
-	for (i = 0; i < (ltv->an_len - 2) >> 1; i++)
-		ptr[i] = CSR_READ_2(sc, AN_DATA1);
+	for (i = len; i > 1; i -= 2)
+		*ptr++ = CSR_READ_2(sc, AN_DATA1);
+	if (i) {
+		ptr2 = (u_int8_t *)ptr;
+		*ptr2 = CSR_READ_1(sc, AN_DATA1);
+	}
+	if (an_dump)
+		an_dump_record(sc, ltv, "Read");
 
 	return(0);
 }
@@ -767,24 +782,81 @@ static int an_write_record(sc, ltv)
 	struct an_ltv_gen	*ltv;
 {
 	u_int16_t		*ptr;
-	int			i;
+	u_int8_t		*ptr2;
+	int			i, len;
+
+	if (an_dump)
+		an_dump_record(sc, ltv, "Write");
 
 	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_READ, ltv->an_type))
 		return(EIO);
-
+		
 	if (an_seek(sc, ltv->an_type, 0, AN_BAP1))
 		return(EIO);
 
-	CSR_WRITE_2(sc, AN_DATA1, ltv->an_len-2);
+	/*
+	 * Length includes type but not length.
+	 */
+	len = ltv->an_len - 2;
+	CSR_WRITE_2(sc, AN_DATA1, len);
 	
+	len -= 2;	/* skip the type */
 	ptr = &ltv->an_val;
-	for (i = 0; i < (ltv->an_len - 4) >> 1; i++)
-		CSR_WRITE_2(sc, AN_DATA1, ptr[i]);
+	for (i = len; i > 1; i -= 2)
+		CSR_WRITE_2(sc, AN_DATA1, *ptr++);
+	if (i) {
+		ptr2 = (u_int8_t *)ptr;
+		CSR_WRITE_1(sc, AN_DATA0, *ptr2);
+	}
 
 	if (an_cmd(sc, AN_CMD_ACCESS|AN_ACCESS_WRITE, ltv->an_type))
 		return(EIO);
 
 	return(0);
+}
+
+static void an_dump_record(sc, ltv, string)
+	struct an_softc		*sc;
+	struct an_ltv_gen	*ltv;
+	char			*string;
+{
+	u_int8_t		*ptr2;
+	int			len;
+	int			i;
+	int			count = 0;
+	char			buf[17], temp;
+
+	len = ltv->an_len - 4;
+	printf("an%d: RID %4x, Length %4d, Mode %s\n", 
+		sc->an_unit, ltv->an_type, ltv->an_len - 4, string);
+
+	if (an_dump == 1 || (an_dump == ltv->an_type)) {
+		printf("an%d:\t", sc->an_unit);
+		bzero(buf,sizeof(buf));
+
+		ptr2 = (u_int8_t *)&ltv->an_val;
+		for (i = len; i > 0; i--) {
+			printf("%02x ", *ptr2);
+
+			temp = *ptr2++;
+			if (temp >= ' ' && temp <= '~')
+				buf[count] = temp;
+			else if (temp >= 'A' && temp <= 'Z')
+				buf[count] = temp;
+			else
+				buf[count] = '.';
+			if (++count == 16) {
+				count = 0;
+				printf("%s\n",buf);
+				printf("an%d:\t", sc->an_unit);
+				bzero(buf,sizeof(buf));
+			}
+		}
+		for (; count != 16; count++) {
+			printf("   ");
+		}
+		printf(" %s\n",buf);
+	}
 }
 
 static int an_seek(sc, id, off, chan)
@@ -838,12 +910,11 @@ static int an_read_data(sc, id, off, buf, len)
 	}
 
 	ptr = (u_int16_t *)buf;
-	for (i = 0; i < len / 2; i++)
-		ptr[i] = CSR_READ_2(sc, AN_DATA1);
-	i*=2;
-	if (i<len){
-	        ptr2 = (u_int8_t *)buf;
-	        ptr2[i] = CSR_READ_1(sc, AN_DATA1);
+	for (i = len; i > 1; i -= 2)
+		*ptr++ = CSR_READ_2(sc, AN_DATA1);
+	if (i) {
+		ptr2 = (u_int8_t *)ptr;
+		*ptr2 = CSR_READ_1(sc, AN_DATA1);
 	}
 
 	return(0);
@@ -865,12 +936,11 @@ static int an_write_data(sc, id, off, buf, len)
 	}
 
 	ptr = (u_int16_t *)buf;
-	for (i = 0; i < (len / 2); i++)
-		CSR_WRITE_2(sc, AN_DATA0, ptr[i]);
-	i*=2;
-	if (i<len){
-	        ptr2 = (u_int8_t *)buf;
-	        CSR_WRITE_1(sc, AN_DATA0, ptr2[i]);
+	for (i = len; i > 1; i -= 2)
+		CSR_WRITE_2(sc, AN_DATA0, *ptr++);
+	if (i) {
+	        ptr2 = (u_int8_t *)ptr;
+	        CSR_WRITE_1(sc, AN_DATA0, *ptr2);
 	}
 
 	return(0);
@@ -1076,7 +1146,7 @@ static int an_ioctl(ifp, command, data)
 		break;
 	case SIOCGAIRONET:
 		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
-		if (error)
+		if (error != 0)
 			break;
 #ifdef ANCACHE
 		if (areq.an_type == AN_RID_ZERO_CACHE) {
@@ -1104,7 +1174,7 @@ static int an_ioctl(ifp, command, data)
 		if ((error = suser(p)))
 			goto out;
 		error = copyin(ifr->ifr_data, &areq, sizeof(areq));
-		if (error)
+		if (error != 0)
 			break;
 		an_setdef(sc, &areq);
 		break;
@@ -1112,7 +1182,7 @@ static int an_ioctl(ifp, command, data)
 		areq.an_len = sizeof(areq);
 		switch(ireq->i_type) {
 		case IEEE80211_IOC_SSID:
-			if(ireq->i_val == -1) {
+			if (ireq->i_val == -1) {
 				areq.an_type = AN_RID_STATUS;
 				if (an_read_record(sc,
 				    (struct an_ltv_gen *)&areq)) {
@@ -1121,20 +1191,20 @@ static int an_ioctl(ifp, command, data)
 				}
 				len = status->an_ssidlen;
 				tmpptr = status->an_ssid;
-			} else if(ireq->i_val >= 0) {
+			} else if (ireq->i_val >= 0) {
 				areq.an_type = AN_RID_SSIDLIST;
 				if (an_read_record(sc,
 				    (struct an_ltv_gen *)&areq)) {
 					error = EINVAL;
 					break;
 				}
-				if(ireq->i_val == 0) {
+				if (ireq->i_val == 0) {
 					len = ssids->an_ssid1_len;
 					tmpptr = ssids->an_ssid1;
-				} else if(ireq->i_val == 1) {
+				} else if (ireq->i_val == 1) {
 					len = ssids->an_ssid2_len;
 					tmpptr = ssids->an_ssid3;
-				} else if(ireq->i_val == 1) {
+				} else if (ireq->i_val == 1) {
 					len = ssids->an_ssid3_len;
 					tmpptr = ssids->an_ssid3;
 				} else {
@@ -1145,7 +1215,7 @@ static int an_ioctl(ifp, command, data)
 				error = EINVAL;
 				break;
 			}
-			if(len > IEEE80211_NWID_LEN) {
+			if (len > IEEE80211_NWID_LEN) {
 				error = EINVAL;
 				break;
 			}
@@ -1165,8 +1235,8 @@ static int an_ioctl(ifp, command, data)
 				error = EINVAL;
 				break;
 			}
-			if(config->an_authtype & AN_AUTHTYPE_PRIVACY_IN_USE) {
-				if(config->an_authtype &
+			if (config->an_authtype & AN_AUTHTYPE_PRIVACY_IN_USE) {
+				if (config->an_authtype &
 				    AN_AUTHTYPE_ALLOW_UNENCRYPTED)
 					ireq->i_val = IEEE80211_WEP_MIXED;
 				else
@@ -1183,27 +1253,27 @@ static int an_ioctl(ifp, command, data)
 			 * ancontrol so it will have to do until we get
 			 * access to actual Cisco code.
 			 */
-			if(ireq->i_val < 0 || ireq->i_val > 7) {
+			if (ireq->i_val < 0 || ireq->i_val > 7) {
 				error = EINVAL;
 				break;
 			}
 			len = 0;
-			if(ireq->i_val < 4) {
+			if (ireq->i_val < 4) {
 				areq.an_type = AN_RID_WEP_TEMP;
-				for(i=0; i<4; i++) {
-					areq.an_len = sizeof(areq);
+				for (i = 0; i < 5; i++) {
 					if (an_read_record(sc,
 					    (struct an_ltv_gen *)&areq)) {
 						error = EINVAL;
 						break;
 					}
-					len = key->klen;
-					if(i == ireq->i_val)
+					if (key->kindex == 0xffff)
 						break;
+					if (key->kindex == ireq->i_val)
+						len = key->klen;
 					/* Required to get next entry */
 					areq.an_type = AN_RID_WEP_PERM;
 				}
-				if(error)
+				if (error != 0)
 					break;
 			}
 			/* We aren't allowed to read the value of the
@@ -1219,6 +1289,25 @@ static int an_ioctl(ifp, command, data)
 			ireq->i_val = 8;
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
+			/*
+			 * For some strange reason, you have to read all
+			 * keys before you can read the txkey.
+			 */
+			areq.an_type = AN_RID_WEP_TEMP;
+			for (i = 0; i < 5; i++) {
+				if (an_read_record(sc,
+				    (struct an_ltv_gen *)&areq)) {
+					error = EINVAL;
+					break;
+				}
+				if (key->kindex == 0xffff)
+					break;
+				/* Required to get next entry */
+				areq.an_type = AN_RID_WEP_PERM;
+			}
+			if (error != 0)
+				break;
+
 			areq.an_type = AN_RID_WEP_PERM;
 			key->kindex = 0xffff;
 			if (an_read_record(sc,
@@ -1277,13 +1366,13 @@ static int an_ioctl(ifp, command, data)
 				error = EINVAL;
 				break;
 			}
-			if(config->an_psave_mode == AN_PSAVE_NONE) {
+			if (config->an_psave_mode == AN_PSAVE_NONE) {
 				ireq->i_val = IEEE80211_POWERSAVE_OFF;
-			} else if(config->an_psave_mode == AN_PSAVE_CAM) {
+			} else if (config->an_psave_mode == AN_PSAVE_CAM) {
 				ireq->i_val = IEEE80211_POWERSAVE_CAM;
-			} else if(config->an_psave_mode == AN_PSAVE_PSP) {
+			} else if (config->an_psave_mode == AN_PSAVE_PSP) {
 				ireq->i_val = IEEE80211_POWERSAVE_PSP;
-			} else if(config->an_psave_mode == AN_PSAVE_PSP_CAM) {
+			} else if (config->an_psave_mode == AN_PSAVE_PSP_CAM) {
 				ireq->i_val = IEEE80211_POWERSAVE_PSP_CAM;
 			} else
 				error = EINVAL;
@@ -1326,7 +1415,7 @@ static int an_ioctl(ifp, command, data)
 				error = EINVAL;
 				break;
 			}
-			if(ireq->i_len > IEEE80211_NWID_LEN) {
+			if (ireq->i_len > IEEE80211_NWID_LEN) {
 				error = EINVAL;
 				break;
 			}
@@ -1381,13 +1470,13 @@ static int an_ioctl(ifp, command, data)
 				break;
 			}
 			error = copyin(ireq->i_data, tmpstr, 13);
-			if(error)
+			if (error != 0)
 				break;
 			bzero(&areq, sizeof(struct an_ltv_key));
 			areq.an_len = sizeof(struct an_ltv_key);
 			key->mac[0] = 1;	/* The others are 0. */
 			key->kindex = ireq->i_val % 4;
-			if(ireq->i_val < 4)
+			if (ireq->i_val < 4)
 				areq.an_type = AN_RID_WEP_TEMP;
 			else
 				areq.an_type = AN_RID_WEP_PERM;
@@ -1395,7 +1484,7 @@ static int an_ioctl(ifp, command, data)
 			bcopy(tmpstr, key->key, key->klen);
 			break;
 		case IEEE80211_IOC_WEPTXKEY:
-			if(ireq->i_val < 0 || ireq->i_val > 3) {
+			if (ireq->i_val < 0 || ireq->i_val > 3) {
 				error = EINVAL;
 				break;
 			}
@@ -1424,7 +1513,7 @@ static int an_ioctl(ifp, command, data)
 			}
 			break;
 		case IEEE80211_IOC_STATIONNAME:
-			if(ireq->i_len > 16) {
+			if (ireq->i_len > 16) {
 				error = EINVAL;
 				break;
 			}
@@ -1478,7 +1567,7 @@ static int an_ioctl(ifp, command, data)
 out:
 	AN_UNLOCK(sc);
 
-	return(error);
+	return(error != 0);
 }
 
 static int an_init_tx_ring(sc)
@@ -1647,7 +1736,7 @@ static void an_start(ifp)
                     tx_frame_802_3.an_tx_802_3_payload_len,
                     (caddr_t)&sc->an_txbuf);
 
-		txcontrol=AN_TXCTL_8023;
+		txcontrol = AN_TXCTL_8023;
 		/* write the txcontrol only */
 		an_write_data(sc, id, 0x08, (caddr_t)&txcontrol,
 			      sizeof(txcontrol));
@@ -1827,7 +1916,7 @@ void an_cache_store (sc, eh, m, rx_quality)
 	int i;
 	static int cache_slot = 0; 	/* use this cache entry */
 	static int wrapindex = 0;       /* next "free" cache entry */
-	int saanp=0;
+	int saanp = 0;
 
 	/* filters:
 	 * 1. ip only
@@ -1868,7 +1957,7 @@ void an_cache_store (sc, eh, m, rx_quality)
 	 * . MAC address is 6 bytes,
 	 * . var w_nextitem holds total number of entries already cached
 	 */
-	for(i = 0; i < sc->an_nextitem; i++) {
+	for (i = 0; i < sc->an_nextitem; i++) {
 		if (! bcmp(eh->ether_shost , sc->an_sigcache[i].macsrc,  6 )) {
 			/* Match!,
 			 * so we already have this entry,
@@ -1988,7 +2077,7 @@ static void an_media_status(ifp, imr)
 		imr->ifm_status = IFM_AVALID|IFM_ACTIVE;
 	}
 
-	if(sc->an_tx_rate == 0) {
+	if (sc->an_tx_rate == 0) {
 		imr->ifm_active = IFM_IEEE80211|IFM_AUTO;
 		if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
 			imr->ifm_active |= IFM_IEEE80211_ADHOC;
