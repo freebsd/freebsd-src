@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.10 1999/04/06 12:51:43 peter Exp $
+# $Id: Makefile,v 1.1 1999/05/08 17:53:43 obrien Exp $
 
 DISTRIBUTION=	compat22
 
@@ -16,12 +16,14 @@ CLEANFILES+=	${LIBS}
 
 all:	${LIBS}
 
-.for lib in ${LIBS}
+.for lib in ${LIBS} ld.so
 ${lib}:	${lib}.gz.uu
 	uudecode -p ${.CURDIR}/${lib}.gz.uu | gunzip > ${lib}
 .endfor
 
 beforeinstall:
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} ld.so \
+		${DESTDIR}/usr/libexec
 	${INSTALL} ${COPY} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} ${LIBS} \
 		${DESTDIR}${LIBCOMPATDIR}/aout
 	@${ECHO} "libcrypt.so.2.0 -> libscrypt.so.2.0" ; \
