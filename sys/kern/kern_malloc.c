@@ -46,6 +46,7 @@
 #include <sys/vmmeter.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -134,6 +135,16 @@ static int sysctl_kern_mprof(SYSCTL_HANDLER_ARGS);
 
 static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
 
+/* time_uptime of last malloc(9) failure */
+static time_t t_malloc_fail;
+
+int
+malloc_last_fail(void)
+{
+
+	return (time_uptime - t_malloc_fail);
+}
+
 /*
  *	malloc:
  *
@@ -191,6 +202,11 @@ out:
 		ksp->ks_maxused = ksp->ks_memuse;
 
 	mtx_unlock(&ksp->ks_mtx);
+	if (!(flags & M_NOWAIT))
+		KASSERT(va != NULL, ("malloc(M_WAITOK) returned NULL"));
+	if (va == NULL) {
+		t_malloc_fail = time_uptime;
+	}
 	return ((void *) va);
 }
 
