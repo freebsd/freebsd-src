@@ -327,6 +327,12 @@
       and IDE disks, where large memory dumps could take up to an hour
       to complete. &merged;</para>
 
+    <para>The kernel crashdump infrastructure has been revised, to
+      support new platforms and in general clean up the logic in the
+      code.  One implication of this change is that the on-disk format
+      for kernel dumps has changed, and is now
+      byte-order-agnostic.</para>
+
     <para>Extremely large swap areas (&gt;67 GB) no longer panic the
       system.</para>
 
@@ -1800,10 +1806,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.atacontrol.8; has been added to control various aspects
       of the &man.ata.4; driver. &merged;</para>
 
-    <para arch="sparc64">The system &man.awk.1; refers to
-      <application>BWK awk</application> on the &arch; platform.  It
-      remains <application>GNU awk</application> on other
-      platforms.</para>
+    <para>The system &man.awk.1; now refers to
+      <application>BWK awk</application>.  <application>GNU
+      awk</application> is now available as &man.gawk.1;.</para>
 
     <para arch="i386">&man.boot98cfg.8;, a PC-98 boot manager
       installation and configuration utility, has been
@@ -1845,6 +1850,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>prev</literal> commands to skip forwards or backwards a
       specified number of tracks while playing an audio
       CD. &merged;</para>
+
+    <para>On ATAPI CDROM drives, &man.cdcontrol.1; now supports a
+      <literal>speed</literal> command to set the maximum speed to be
+      used by the drive.</para>
 
     <para>&man.chflags.1; has moved from <filename>/usr/bin</filename>
       to <filename>/bin</filename>.</para>
@@ -2015,6 +2024,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.fold.1; now supports a <option>-b</option> flag to
       break at byte positions and a <option>-s</option> to break at
       word boundaries.</para>
+
+    <para>&man.fsdb.8; now supports a <literal>blocks</literal>
+      command to list the blocks allocated by a particular
+      inode. &merged;</para>
 
     <para>&man.fsck.8; wrappers have been imported; this feature
       provides infrastructure for &man.fsck.8; to work on different
@@ -2896,8 +2909,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>The &man.usbhidctl.1; utility has been added to manipulate
       USB Human Interface Devices. &merged;</para>
 
-    <para>&man.uudecode.1; now accepts a <option>-o</option> option to
-      set its output file.</para>
+    <para>&man.uuencode.1; and &man.uudecode.1; now accept a <option>-o</option> option to
+      set their output files.  They can also do base64 encoding and
+      decoding when given the <option>-m</option> flag. &merged;</para>
 
     <para>&man.vidcontrol.1; now accepts a <option>-g</option>
       parameter to select custom text geometry in the
@@ -2931,6 +2945,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>&man.which.1; is now a C program, rather than a Perl
       script.</para>
 
+    <para>&man.who.1; now has a number of new options:
+      <option>-H</option> shows column headings; <option>-T</option>
+      shows &man.mesg.1; state; <option>-m</option> is an equivalent
+      to <option>am i</option>; <option>-u</option> shows idle time;
+      <option>-q</option> to list names in columns.</para>
+
     <para>&man.whois.1; now directs queries for IP addresses to ARIN.
       If a query to ARIN references APNIC or RIPE, the appropriate
       server will also be queried, provided that the
@@ -2940,11 +2960,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       specify a country code to help direct queries towards a
       particular whois server. &merged;</para>
 
-    <para>&man.xargs.1; now supports a <option>-J</option>
+    <para>&man.xargs.1; now supports a <option>-I</option>
       <replaceable>replstr</replaceable> option that allows the user
       to tell &man.xargs.1; to insert the data read from standard
-      input at a specific point in the command line arguments rather
-      than at the end. &merged;</para>
+      input at specific points in the command line arguments rather
+      than at the end.  (A &os;-specific <option>-J</option> option is
+      similar, but is now deprecated in favor of the more portable
+      <option>-I</option> option.)</para>
+
+    <para>&man.xargs.1; now supports a <option>-L</option> option to
+      force its utility argument to be called after some number of
+      lines.</para>
 
     <para>The compiler chain now uses the FSF-supplied C/C++ runtime
       initialization code.  This change brings about better
@@ -2979,6 +3005,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       improved, both in terms of their formatting markup and in their
       content. &merged;</para>
 
+    <para>A number of utilities and libraries were enhanced to improve
+      their conformance with the Single UNIX Specification (SUSv3) and
+      IEEE Std 1003.1-2001 (<quote>POSIX.1</quote>).  Specific
+      features added have been listed in the release notes for each
+      utility.  The standards conformance of each utility or library
+      function is generally listed in its manual page.</para>
+
     <sect3>
       <title>Contributed Software</title>
 
@@ -2988,8 +3021,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>A 10 February 2002 snapshot of <application>awk</application> from Bell Labs (variously
 	known as <quote>BWK awk</quote> or <quote>The One True
 	AWK</quote>) has been imported.  It is available as
-	<command>awk</command> on the sparc64 architecture, and
-	<command>nawk</command> on other architectures.</para>
+	<command>awk</command> or
+	<command>nawk</command>.</para>
 
       <para><application>bc</application> has been updated from 1.04 to
 	1.06. &merged;</para>
@@ -3038,9 +3071,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	3.113. &merged;</para>
      
       <para><application>GNU awk</application> has been updated to
-	3.1.0.  It is available as <command>gawk</command> on the
-	sparc64 architecture, and as <command>awk</command> on other
-	architectures.</para>
+	3.1.0.  It is now available as <command>gawk</command>.</para>
 
       <para><application>gperf</application> has been updated to
 	2.7.2.</para>
