@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.124 1998/05/23 22:24:43 brian Exp $
+ * $Id: main.c,v 1.125 1998/05/25 02:22:36 brian Exp $
  *
  *	TODO:
  */
@@ -80,7 +80,7 @@
 
 static char pid_filename[MAXPATHLEN];
 
-static void DoLoop(struct bundle *, struct prompt *);
+static void DoLoop(struct bundle *);
 static void TerminalStop(int);
 static const char *ex_desc(int);
 
@@ -458,14 +458,14 @@ main(int argc, char **argv)
 #endif
 
   log_Printf(LogPHASE, "PPP Started (%s mode).\n", mode2Nam(mode));
-  DoLoop(bundle, prompt);
+  DoLoop(bundle);
   AbortProgram(EX_NORMAL);
 
   return EX_NORMAL;
 }
 
 static void
-DoLoop(struct bundle *bundle, struct prompt *prompt)
+DoLoop(struct bundle *bundle)
 {
   fd_set rfds, wfds, efds;
   int i, nfds;
