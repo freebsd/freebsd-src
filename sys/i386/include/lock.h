@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: lock.h,v 1.2 1997/08/30 07:51:10 smp Exp smp $
+ *	$Id: lock.h,v 1.3 1997/08/31 03:03:48 smp Exp smp $
  */
 
 
@@ -152,16 +152,14 @@
  *  sys/i386/isa/ipl_funcs.c:	DO_SETBITS, softclockpending(), GENSPL,
  *				spl0(), splx(), splq()
  */
-
-/* Bottom half */
-#define CPL_LOCK() 	s_lock(&cpl_lock)
+#define CPL_LOCK() 	s_lock(&cpl_lock)	/* Bottom end */
 #define CPL_UNLOCK() 	s_unlock(&cpl_lock)
-
-/* INT safe version for top half of kernel */
-#define SCPL_LOCK() 	ss_lock(&cpl_lock)
+#define SCPL_LOCK() 	ss_lock(&cpl_lock)	/* INT safe: top end */
 #define SCPL_UNLOCK() 	ss_unlock(&cpl_lock)
 
-/* lock regions protected in UP kernel via cli/sti */
+/*
+ * Locks regions protected in UP kernel via cli/sti.
+ */
 #if defined(SIMPLE_MPINTRLOCK)
 #define MPINTR_LOCK() 	s_lock(&mpintr_lock)
 #define MPINTR_UNLOCK() s_unlock(&mpintr_lock)
@@ -204,10 +202,11 @@ extern struct simplelock	imen_lock;
 extern struct simplelock	cpl_lock;
 extern struct simplelock	fast_intr_lock;
 extern struct simplelock	intr_lock;
+extern struct simplelock	clock_lock;
+extern struct simplelock	com_lock;
 
 #ifdef SIMPLE_MPINTRLOCK
 extern struct simplelock	mpintr_lock;
-extern struct simplelock	clock_lock;
 #endif/* SIMPLE_MPINTRLOCK */
 
 #if !defined(SIMPLELOCK_DEBUG) && NCPUS > 1
