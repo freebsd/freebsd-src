@@ -52,6 +52,7 @@
 #include <sys/uio.h>
 #include <sys/linker.h>
 #include <sys/random.h>
+#include <sys/cons.h>
 #include <net/netisr.h>
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
@@ -383,12 +384,9 @@ ia64_init()
 	 */
 
 	/*
-	 * Initalize the (temporary) bootstrap console interface, so
-	 * we can use printf until the VM system starts being setup.
-	 * The real console is initialized before then.
-	 * TODO: I guess we start with a serial console here.
+	 * Initialize the console before we print anything out.
 	 */
-	ssccnattach();
+	cninit();
 
 	/* OUTPUT NOW ALLOWED */
 
