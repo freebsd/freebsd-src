@@ -120,7 +120,7 @@ datalink_HangupDone(struct datalink *dl)
     return;
   }
 
-  chat_Destroy(&dl->chat);
+  chat_Finish(&dl->chat);
   physical_Close(dl->physical);
   dl->phone.chosen = "N/A";
 
@@ -203,7 +203,7 @@ datalink_ChoosePhoneNumber(struct datalink *dl)
 static void
 datalink_LoginDone(struct datalink *dl)
 {
-  chat_Destroy(&dl->chat);
+  chat_Finish(&dl->chat);
 
   if (!dl->script.packetmode) { 
     dl->dial.tries = -1;
@@ -214,7 +214,7 @@ datalink_LoginDone(struct datalink *dl)
     log_Printf(LogWARN, "datalink_LoginDone: Not connected.\n");
     if (dl->script.run) { 
       datalink_NewState(dl, DATALINK_LOGOUT);
-      chat_Init(&dl->chat, dl->physical, dl->cfg.script.logout, NULL);
+      chat_Setup(&dl->chat, dl->cfg.script.logout, NULL);
     } else {
       physical_StopDeviceTimer(dl->physical);
       if (dl->physical->type == PHYS_DEDICATED)
@@ -272,9 +272,8 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
                            dl->physical->name.full);
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_DIAL);
-            chat_Init(&dl->chat, dl->physical, dl->cfg.script.dial,
-                      *dl->cfg.script.dial ?
-                      datalink_ChoosePhoneNumber(dl) : "");
+            chat_Setup(&dl->chat, dl->cfg.script.dial, *dl->cfg.script.dial ?
+                       datalink_ChoosePhoneNumber(dl) : "");
             if (!(dl->physical->type & (PHYS_DDIAL|PHYS_DEDICATED)) &&
                 dl->cfg.dial.max)
               log_Printf(LogCHAT, "%s: Dial attempt %u of %d\n",
@@ -322,7 +321,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
         case CARRIER_OK:
           if (dl->script.run) {
             datalink_NewState(dl, DATALINK_LOGIN);
-            chat_Init(&dl->chat, dl->physical, dl->cfg.script.login, NULL);
+            chat_Setup(&dl->chat, dl->cfg.script.login, NULL);
           } else
             datalink_LoginDone(dl);
           return datalink_UpdateSet(d, r, w, e, n);
@@ -331,7 +330,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
           physical_Offline(dl->physical);	/* Is this required ? */
           if (dl->script.run) { 
             datalink_NewState(dl, DATALINK_HANGUP);
-            chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, NULL);
+            chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
             return datalink_UpdateSet(d, r, w, e, n);
           } else {
             datalink_HangupDone(dl);
@@ -357,7 +356,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGOUT:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);
-              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, NULL);
+              chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
             case DATALINK_LOGIN:
               dl->phone.alt = NULL;
@@ -377,7 +376,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
             case DATALINK_LOGIN:
               datalink_NewState(dl, DATALINK_HANGUP);
               physical_Offline(dl->physical);
-              chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, NULL);
+              chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
               return datalink_UpdateSet(d, r, w, e, n);
           }
           break;
@@ -511,10 +510,10 @@ datalink_ComeDown(struct datalink *dl, int how)
     if (dl->script.run && dl->state != DATALINK_OPENING) {
       if (dl->state == DATALINK_LOGOUT) {
         datalink_NewState(dl, DATALINK_HANGUP);
-        chat_Init(&dl->chat, dl->physical, dl->cfg.script.hangup, NULL);
+        chat_Setup(&dl->chat, dl->cfg.script.hangup, NULL);
       } else {
         datalink_NewState(dl, DATALINK_LOGOUT);
-        chat_Init(&dl->chat, dl->physical, dl->cfg.script.logout, NULL);
+        chat_Setup(&dl->chat, dl->cfg.script.logout, NULL);
       }
     } else
       datalink_HangupDone(dl);
@@ -824,7 +823,7 @@ datalink_Create(const char *name, struct bundle *bundle, int type)
   cbcp_Init(&dl->cbcp, dl->physical);
 
   memset(&dl->chat, '\0', sizeof dl->chat);	/* Force buf{start,end} reset */
-  chat_Init(&dl->chat, dl->physical, NULL, NULL);
+  chat_Init(&dl->chat, dl->physical);
 
   log_Printf(LogPHASE, "%s: Created in %s state\n",
              dl->name, datalink_State(dl));
@@ -888,7 +887,7 @@ datalink_Clone(struct datalink *odl, const char *name)
   cbcp_Init(&dl->cbcp, dl->physical);
 
   memset(&dl->chat, '\0', sizeof dl->chat);	/* Force buf{start,end} reset */
-  chat_Init(&dl->chat, dl->physical, NULL, NULL);
+  chat_Init(&dl->chat, dl->physical);
 
   log_Printf(LogPHASE, "%s: Cloned in %s state\n",
              dl->name, datalink_State(dl));
@@ -908,11 +907,12 @@ datalink_Destroy(struct datalink *dl)
       case DATALINK_HANGUP:
       case DATALINK_DIAL:
       case DATALINK_LOGIN:
-        chat_Destroy(&dl->chat);	/* Gotta blat the timers ! */
+        chat_Finish(&dl->chat);		/* Gotta blat the timers ! */
         break;
     }
   }
 
+  chat_Destroy(&dl->chat);
   timer_Stop(&dl->dial.timer);
   result = dl->next;
   physical_Destroy(dl->physical);
@@ -1326,7 +1326,7 @@ iov2datalink(struct bundle *bundle, struct iovec *iov, int *niov, int maxiov,
     cbcp_Init(&dl->cbcp, dl->physical);
 
     memset(&dl->chat, '\0', sizeof dl->chat);	/* Force buf{start,end} reset */
-    chat_Init(&dl->chat, dl->physical, NULL, NULL);
+    chat_Init(&dl->chat, dl->physical);
 
     log_Printf(LogPHASE, "%s: Transferred in %s state\n",
               dl->name, datalink_State(dl));

@@ -76,6 +76,7 @@ struct chat {
   ((d)->type == CHAT_DESCRIPTOR ? (struct chat *)(d) : NULL)
 #define	VECSIZE(v)	(sizeof(v) / sizeof(v[0]))
 
-extern void chat_Init(struct chat *, struct physical *, const char *,
-                      const char *);
+extern void chat_Init(struct chat *, struct physical *);
+extern void chat_Setup(struct chat *, const char *, const char *);
+extern void chat_Finish(struct chat *);
 extern void chat_Destroy(struct chat *);
