@@ -96,6 +96,11 @@ struct passwd {
 #define _PWF_SHELL	_PWF(8)
 #define _PWF_EXPIRE	_PWF(9)
 
+#define _PWF_SOURCE	0x3000
+#define _PWF_FILES	0x1000
+#define _PWF_NIS	0x2000
+#define _PWF_HESIOD	0x3000
+
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
