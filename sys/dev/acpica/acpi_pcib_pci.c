@@ -64,6 +64,7 @@ struct acpi_pcib_lookup_info {
 	
 static int		acpi_pcib_pci_probe(device_t bus);
 static int		acpi_pcib_pci_attach(device_t bus);
+static int		acpi_pcib_pci_resume(device_t bus);
 static int		acpi_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result);
 static int		acpi_pcib_pci_route_interrupt(device_t pcib,
     device_t dev, int pin);
@@ -74,7 +75,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
     DEVMETHOD(device_attach,		acpi_pcib_pci_attach),
     DEVMETHOD(device_shutdown,		bus_generic_shutdown),
     DEVMETHOD(device_suspend,		bus_generic_suspend),
-    DEVMETHOD(device_resume,		bus_generic_resume),
+    DEVMETHOD(device_resume,		acpi_pcib_pci_resume),
 
     /* Bus interface */
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
@@ -129,6 +130,14 @@ acpi_pcib_pci_attach(device_t dev)
     sc = device_get_softc(dev);
     sc->ap_handle = acpi_get_handle(dev);
     return (acpi_pcib_attach(dev, &sc->ap_prt, sc->ap_pcibsc.secbus));
+}
+
+static int
+acpi_pcib_pci_resume(device_t dev)
+{
+    struct acpi_pcib_softc *sc = device_get_softc(dev);
+
+    return (acpi_pcib_resume(dev, &sc->ap_prt, sc->ap_pcibsc.secbus));
 }
 
 static int

@@ -39,6 +39,7 @@ SRCS+=	acpi.c acpi_acad.c acpi_battery.c acpi_button.c acpi_cmbat.c acpi_cpu.c
 SRCS+=	acpi_ec.c acpi_lid.c acpi_pci.c acpi_pcib.c acpi_pcib_acpi.c
 SRCS+=	acpi_pcib_pci.c acpi_powerres.c acpi_resource.c acpi_thermal.c
 SRCS+=	acpi_timer.c acpica_support.c
+SRCS+=	acpi_pci_link.c 
 SRCS+=  OsdDebug.c 
 SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
