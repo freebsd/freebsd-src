@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.9 1996/10/09 21:46:25 asami Exp $
+ * $Id: if_fe.c,v 1.10 1996/10/30 22:39:56 asami Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -749,7 +749,6 @@ fe_probe_re1000 ( DEVICE * isa_dev, struct fe_softc * sc )
 	outb(sc->ioaddr[FE_RE1000_IRQCONF], c);
 
 	sc->typestr = "RE1000";
-	sc->sc_description = "Ethernet adapter: RE1000";
 
 	/*
 	 * Program the 86965 as follows:
@@ -893,7 +892,6 @@ fe_probe_re1000p ( DEVICE * isa_dev, struct fe_softc * sc )
 	bcopy( eeprom + FE_ATI_EEP_ADDR, sc->sc_enaddr, ETHER_ADDR_LEN );
 
 	sc->typestr = "RE1000Plus/ME1500";
-	sc->sc_description = "Ethernet adapter: RE1000Plus/ME1500";
 
 	/*
 	 * Read IRQ configuration.
