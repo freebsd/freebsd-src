@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.38 1995/11/26 13:44:48 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.39 1995/12/05 00:55:45 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -312,7 +312,3 @@
 	<item>Wolfgang Stanglmeier &lt;wolf@dentaro.GUN.de&gt;
 	<item>Yuval Yarom &lt;yval@cs.huji.ac.il&gt;
 	</itemize>
-
-      Last, but not least, the release engineer would like to
-      thank: His Wife, for chocolate chip cookies, and some other
-      things.  The DGB project @ TFS, for patience and tolerance.
