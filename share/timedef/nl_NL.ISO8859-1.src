@@ -34,13 +34,14 @@ november
 december
 #
 # Short weekday names
-zo
-ma
-di
-wo
-do
-vr
-za
+# (padded with a space to conform with other languages)
+zo 
+ma 
+di 
+wo 
+do 
+vr 
+za 
 #
 # Long weekday names
 #
@@ -91,11 +92,10 @@ oktober
 november
 december
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-%I:%M:%S %p
-# EOF
+%e %B

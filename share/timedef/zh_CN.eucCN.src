@@ -59,7 +59,7 @@
 #
 # x_fmt
 #
-%Y/%m/%d
+%y/%m/%d
 #
 # c_fmt
 #
@@ -92,11 +92,10 @@
 十一月
 十二月
 #
-# md_order
+# Ef_fmt
 #
-md
+%b/%e
 #
-# ampm_fmt
+# EF_fmt
 #
-%I:%M:%S %p
-# EOF
+%B%e日

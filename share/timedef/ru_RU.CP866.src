@@ -35,13 +35,13 @@
 #
 # Short weekdays names
 #
-вс
-пн
-вт
-ср
-чт
-пт
-сб
+вс 
+пн 
+вт 
+ср 
+чт 
+пт 
+сб 
 #
 # Long weekdays names
 #
@@ -59,23 +59,23 @@
 #
 # x_fmt
 #
-%d.%m.%Y
+%d.%m.%y
 #
 # c_fmt
 #
-%A, %e %B %Y г. %X
+%a %e %b %X %Y
 #
 # am
-#
-
+# (two spaces)
+  
 #
 # pm
 #
-
+пп
 #
 # date_fmt
 #
-%A, %e %B %Y г. %X (%Z)
+%a %e %b %Y %X %Z
 #
 # Long month names in alternative form
 #
@@ -92,11 +92,10 @@
 ноябрь
 декабрь
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-
-# EOF
+%e %B

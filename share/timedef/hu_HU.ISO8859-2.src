@@ -33,6 +33,7 @@ November
 December
 #
 # Short weekday names
+# (padded with spaces to comform with other languages)
 #
 Vas
 Hét
@@ -91,11 +92,10 @@ Október
 November
 December
 #
-# md_order
+# Ef_fmt
 #
-md
+%b %e
 #
-# ampm_fmt
+# EF_fmt
 #
-%I:%M:%S %p
-# EOF
+%B %e

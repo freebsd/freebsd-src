@@ -33,14 +33,14 @@ Marraskuu
 Joulukuu
 #
 # Short weekday names
-#
-Su
-Ma
-Ti
-Ke
-To
-Pe
-La
+# (padded with a space to conform with other languages)
+Su 
+Ma 
+Ti 
+Ke 
+To 
+Pe 
+La 
 #
 # Long weekday names
 #
@@ -58,7 +58,7 @@ Lauantai
 #
 # x_fmt
 #
-%d.%m.%Y
+%d.%m.%y
 #
 # c_fmt
 #
@@ -91,11 +91,10 @@ Lokakuu
 Marraskuu
 Joulukuu
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-%I:%M:%S %p
-# EOF
+%e %B

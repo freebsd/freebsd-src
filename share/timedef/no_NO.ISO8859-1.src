@@ -34,7 +34,7 @@ november
 desember
 #
 # Short weekdays names
-#
+# (padded with a space to conform with other languages)
 søn
 man
 tir
@@ -59,7 +59,7 @@ lørdag
 #
 # x_fmt
 #
-%d.%m.%Y
+%d.%m.%y
 #
 # c_fmt
 #
@@ -92,11 +92,10 @@ oktober
 november
 desember
 #
-# md_order
+# Ef_fmt
 #
-dm
+%e %b
 #
-# ampm_fmt
+# EF_fmt
 #
-%I:%M:%S %p
-# EOF
+%e %B
