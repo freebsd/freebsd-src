@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.5.2.1 1995/06/04 05:13:38 jkh Exp $
+ * $Id: tape.c,v 1.5.2.2 1995/06/04 07:13:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,9 +62,9 @@ mediaInitTape(Device *dev)
 	    return FALSE;
     msgConfirm("Insert tape into %s and press return", dev->description);
     if (!strcmp(dev->name, "ft0"))
-	i = vsystem("ft | tar xvf -");
+	i = vsystem("ft | cpio -iduVm -H tar");
     else
-	i = vsystem("tar xvf %s", dev->devname);
+	i = vsystem("cpio -iduVm -H tar < %s", dev->devname);
     if (!i) {
 	tapeInitted = TRUE;
 	return TRUE;
@@ -80,7 +80,10 @@ mediaGetTape(Device *dev, char *file)
     char buf[PATH_MAX];
 
     sprintf(buf, "%s/%s", (char *)dev->private, file);
-    return open(buf, O_RDONLY);
+    if (file_readable(buf))
+    	return open(buf, O_RDONLY);
+    sprintf(buf, "%s/dists/%s", (char *)dev->private, file);
+    return (buf, O_RDONLY);
 }
 
 void
