@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.32 1994/10/04 06:39:27 rgrimes Exp $
+ *      $Id: sd.c,v 1.33 1994/10/04 06:45:57 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -135,12 +135,12 @@ sdattach(sc_link)
 	 * Check we have the resources for another drive
 	 */
 	if (unit >= NSD) {
-		printf("Too many scsi disks..(%d > %d) reconfigure kernel\n",
+		printf("Too many scsi disks..(%ld > %d) reconfigure kernel\n",
 			(unit + 1), NSD);
 		return 0;
 	}
 	if (sd_data[unit]) {
-		printf("sd%d: unit already has storage allocated!\n", unit);
+		printf("sd%ld: unit already has storage allocated!\n", unit);
 		return 0;
 	}
 	sd = sd_data[unit] = malloc(sizeof(struct sd_data), M_DEVBUF, M_NOWAIT);
@@ -175,7 +175,7 @@ sdattach(sc_link)
 	 * request must specify this.
 	 */
 	sd_get_parms(unit, SCSI_NOSLEEP | SCSI_NOMASK);
-	printf("sd%d: %dMB (%d total sec), %d cyl, %d head, %d sec, bytes/sec %d\n",
+	printf("sd%ld: %ldMB (%ld total sec), %d cyl, %d head, %d sec, bytes/sec %d\n",
 	    unit,
 	    dp->disksize / ((1024L * 1024L) / dp->secsiz),
 	    dp->disksize,
@@ -267,7 +267,7 @@ sdopen(dev)
 	 */
 	sd_get_parms(unit, 0);	/* sets SDEV_MEDIA_LOADED */
 	if (sd->params.secsiz != SECSIZE) {	/* XXX One day... */
-		printf("sd%d: Can't deal with %d bytes logical blocks\n",
+		printf("sd%ld: Can't deal with %d bytes logical blocks\n",
 		    unit, sd->params.secsiz);
 		Debugger("sd");
 		errcode = ENXIO;
@@ -431,7 +431,8 @@ sdstrategy(bp)
 	cldisksort(dp, bp, 64*1024);
 */
 if ((bp->b_blkno < 0) || (bp->b_bcount > 3000000) /* || (bp->b_flags & B_WRITE) */) {
-	printf("blkno=%d bcount=%d flags=0x%x\n", bp->b_blkno, bp->b_bcount, bp->b_flags);
+	printf("blkno=%lu bcount=%ld flags=0x%lx\n",
+		(u_long)bp->b_blkno, bp->b_bcount, bp->b_flags);
 	Debugger("");
 }
 	disksort(dp, bp);
@@ -560,7 +561,7 @@ sdstart(unit)
 			sdqueues++;
 		} else {
 bad:
-			printf("sd%d: oops not queued", unit);
+			printf("sd%ld: oops not queued", unit);
 			bp->b_error = EIO;
 			bp->b_flags |= B_ERROR;
 			biodone(bp);
@@ -727,7 +728,7 @@ sdgetdisklabel(unsigned char unit)
 	/*
 	 * Call the generic disklabel extraction routine
 	 */
-	if (errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAW_PART),
+	errstring = readdisklabel(makedev(0, (unit << UNITSHIFT) + RAW_PART),
 	    sdstrategy,
 	    &sd->disklabel
 #ifdef NetBSD
@@ -735,7 +736,8 @@ sdgetdisklabel(unsigned char unit)
 #else
 	    ,sd->dosparts, 0
 #endif
-	    )) {
+	    ); 
+	if (errstring) {
 		printf("sd%d: %s\n", unit, errstring);
 		return ENXIO;
 	}
@@ -1055,7 +1057,7 @@ sddump(dev_t dev)
 		}
 
 		if ((unsigned) addr % (1024 * 1024) == 0)
-			printf("%d ", num / 2048);
+			printf("%ld ", num / 2048);
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;

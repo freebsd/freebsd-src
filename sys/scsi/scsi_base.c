@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.12 1994/08/31 06:17:44 davidg Exp $
+ *      $Id: scsi_base.c,v 1.13 1994/10/02 17:48:51 phk Exp $
  */
 
 #define SPLSD splbio
@@ -701,7 +701,7 @@ scsi_interpret_sense(xs)
 	case 0x71:		/* delayed error */
 		sc_print_addr(sc_link);
 		key = sense->ext.extended.flags & SSD_KEY;
-		printf(" DELAYED ERROR, key = 0x%x\n", key);
+		printf(" DELAYED ERROR, key = 0x%lx\n", (u_long)key);
 	case 0x70:
 		if (sense->error_code & SSD_ERRCODE_VALID) {
 			info = ntohl(*((long *) sense->ext.extended.info));
@@ -721,11 +721,11 @@ scsi_interpret_sense(xs)
 				case 0x7:	/* DATA PROTECT */
 					break;
 				case 0x8:	/* BLANK CHECK */
-					printf(", requested size: %d (decimal)",
+					printf(", requested size: %ld (decimal)",
 					    info);
 					break;
 				default:
-					printf(", info = %d (decimal)", info);
+					printf(", info = %ld (decimal)", info);
 				}
 			}
 			printf("\n");
