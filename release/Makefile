@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.193.2.61 1996/11/03 06:02:33 jkh Exp $
+#	$Id: Makefile,v 1.193.2.62 1996/11/03 06:22:58 jkh Exp $
 #
 # How to roll a release:
 #
@@ -41,8 +41,9 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
 # Upper size for the mfs in the boot.flp kernel.
 # These are adjusted down to the minimum needed by doFS.sh.
-BOOTMFSSIZE=		1200
+BOOTMFSSIZE=		1250
 MFSINODE=		42000
+FIXITINODE=		28000
 
 # Things which will get you into trouble if you change them
 DISTRIBUTIONS=		bin ${EXTRA_DISTS}
@@ -190,11 +191,15 @@ release.3:
 
 # Make and install the three crunched binaries which live on the floppies.
 # You are not supposed to like this :-)
+#
+# NB: the "RELEASE_BUILD_FIXIT" magic prevents vi from including the
+# Tcl and Perl APIs.  See also /usr/src/usr.bin/vi/Makefile.
 release.4:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
 	cd ${.CURDIR}/sysinstall && make depend all
 	rm -rf ${RD}/crunch
 	mkdir -p ${RD}/crunch
+	export RELEASE_BUILD_FIXIT=noway ; \
 	for j in ${WHICH_CRUNCH} ; do \
 		rm -rf $${j}_crunch && \
 		mkdir $${j}_crunch && \
@@ -203,7 +208,7 @@ release.4:
 		${MAKE} -f $${j}_crunch.mk all NOCRYPT=yes \
 		    "CFLAGS=${CFLAGS} -DCRUNCHED_BINARY") && \
 		mv $${j}_crunch/$${j}_crunch ${RD}/crunch/$${j} && \
-		true || rm -rf $${j}_crunch ; \
+		true || { rm -rf $${j}_crunch ; false ; } ; \
 	done
 	touch release.4
 
@@ -402,14 +407,16 @@ release.9:
 	cd ${RD}/fixitfd && \
 		mkdir dev stand bin sbin etc mnt mnt1 mnt2 mnt3 mnt4 tmp
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
-		DIR=${RD}/fixitfd/stand ZIP=true
+		DIR=${RD}/fixitfd/stand ZIP=false
 	( cd ${RD}/fixitfd/dev && \
 		cp ${RD}/trees/bin/dev/MAKEDEV . && \
 		sh MAKEDEV all )
-	cp ${RD}/trees/bin/etc/spwd.db ${RD}/fixitfd/etc
+	cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
+		${RD}/trees/bin/etc/protocols ${RD}/fixitfd/etc
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
+	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FDSIZE} ${RD}/fixitfd \
-		10000 ${FDLABEL}
+		${FIXITINODE} ${FDLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 	touch release.9
 
@@ -466,8 +473,8 @@ doTARBALL:
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
-		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
-		${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf && \
+		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > \
+		   ${RD}/dists/${TD}/$$tn.inf && \
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
 		fi && \
