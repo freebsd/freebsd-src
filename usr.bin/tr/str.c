@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)str.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)str.c	8.2 (Berkeley) 4/28/95";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -43,6 +43,7 @@ static char sccsid[] = "@(#)str.c	8.1 (Berkeley) 6/6/93";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "extern.h"
 
@@ -143,19 +144,6 @@ bracket(s)
 	/* NOTREACHED */
 }
 
-int isalnum __P((int)),
-    isalpha __P((int)),
-    isblank __P((int)),
-    isspace __P((int)),
-    iscntrl __P((int)),
-    isdigit __P((int)),
-    isgraph __P((int)),
-    islower __P((int)),
-    isprint __P((int)),
-    ispunct __P((int)),
-    isupper __P((int)),
-    isxdigit __P((int));
-
 typedef struct {
 	char *name;
 	int (*func) __P((int));
@@ -163,17 +151,29 @@ typedef struct {
 } CLASS;
 
 static CLASS classes[] = {
+#undef isalnum
 	{ "alnum",  isalnum,  },
+#undef isalpha
 	{ "alpha",  isalpha,  },
+#undef isblank
 	{ "blank",  isblank,  },
+#undef iscntrl
 	{ "cntrl",  iscntrl,  },
+#undef isdigit
 	{ "digit",  isdigit,  },
+#undef isgraph
 	{ "graph",  isgraph,  },
+#undef islower
 	{ "lower",  islower,  },
+#undef isprint
 	{ "print",  isprint,  },
+#undef ispunct
 	{ "punct",  ispunct,  },
+#undef isspace
 	{ "space",  isspace,  },
+#undef isupper
 	{ "upper",  isupper,  },
+#undef isxdigit
 	{ "xdigit", isxdigit, },
 };
 
@@ -241,8 +241,8 @@ genrange(s)
 	char *savestart;
 
 	savestart = s->str;
-	stopval = *++s->str == '\\' ? backslash(s) : *s->str;
-	if (stopval < s->lastch) {
+	stopval = *++s->str == '\\' ? backslash(s) : *s->str++;
+	if (stopval < (u_char)s->lastch) {
 		s->str = savestart;
 		return (0);
 	}
@@ -290,9 +290,6 @@ genseq(s)
 
 	s->state = s->cnt ? SEQUENCE : INFINITE;
 }
-
-/* Use the #defines isXXX() here, DON'T use them above. */
-#include <ctype.h>
 
 /*
  * Translate \??? into a character.  Up to 3 octal digits, if no digits either
