@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.22 1997/04/30 09:51:37 dfr Exp $
+ * $Id: nfs_syscalls.c,v 1.23 1997/05/10 16:59:36 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -424,6 +424,7 @@ nfssvc_addsock(fp, mynam, p)
 		slp = (struct nfssvc_sock *)
 			malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
 		bzero((caddr_t)slp, sizeof (struct nfssvc_sock));
+		STAILQ_INIT(&slp->ns_rec);
 		TAILQ_INIT(&slp->ns_uidlruhead);
 		TAILQ_INSERT_TAIL(&nfssvc_sockhead, slp, ns_chain);
 	}
@@ -843,6 +844,7 @@ nfsrv_zapsock(slp)
 	struct socket *so;
 	struct file *fp;
 	struct mbuf *m;
+	struct nfsrv_rec *rec;
 	int s;
 
 	slp->ns_flag &= ~SLP_ALLFLAGS;
@@ -856,7 +858,13 @@ nfsrv_zapsock(slp)
 		if (slp->ns_nam)
 			MFREE(slp->ns_nam, m);
 		m_freem(slp->ns_raw);
-		m_freem(slp->ns_rec);
+		while (rec = STAILQ_FIRST(&slp->ns_rec)) {
+			STAILQ_REMOVE_HEAD(&slp->ns_rec, nr_link);
+			if (rec->nr_address)
+				m_freem(rec->nr_address);
+			m_freem(rec->nr_packet);
+			free(rec, M_NFSRVDESC);
+		}
 		for (nuidp = slp->ns_uidlruhead.tqh_first; nuidp != 0;
 		    nuidp = nnuidp) {
 			nnuidp = nuidp->nu_lru.tqe_next;
@@ -1135,12 +1143,14 @@ nfsrv_init(terminating)
 	nfs_udpsock = (struct nfssvc_sock *)
 	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
 	bzero((caddr_t)nfs_udpsock, sizeof (struct nfssvc_sock));
+	STAILQ_INIT(&nfs_udpsock->ns_rec);
 	TAILQ_INIT(&nfs_udpsock->ns_uidlruhead);
 	TAILQ_INSERT_HEAD(&nfssvc_sockhead, nfs_udpsock, ns_chain);
 
 	nfs_cltpsock = (struct nfssvc_sock *)
 	    malloc(sizeof (struct nfssvc_sock), M_NFSSVC, M_WAITOK);
 	bzero((caddr_t)nfs_cltpsock, sizeof (struct nfssvc_sock));
+	STAILQ_INIT(&nfs_cltpsock->ns_rec);
 	TAILQ_INIT(&nfs_cltpsock->ns_uidlruhead);
 	TAILQ_INSERT_TAIL(&nfssvc_sockhead, nfs_cltpsock, ns_chain);
 }
