@@ -550,7 +550,7 @@ db_fncall(dummy1, dummy2, dummy3, dummy4)
 
 /* Enter GDB remote protocol debugger on the next trap. */
 
-dev_t	   gdbdev = NODEV;
+void	  *gdb_arg = NULL;
 cn_getc_t *gdb_getc;
 cn_putc_t *gdb_putc;
 
@@ -562,7 +562,7 @@ db_gdb (dummy1, dummy2, dummy3, dummy4)
 	char *		dummy4;
 {
 
-	if (gdbdev == NODEV) {
+	if (gdb_arg == NULL) {
 		db_printf("No gdb port enabled. Set flag 0x80 on desired port\n");
 		db_printf("in your configuration file (currently sio only).\n");
 		return;
