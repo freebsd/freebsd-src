@@ -2028,6 +2028,7 @@ hint.pca.0.port="0x040"
 # spic: Sony Programmable I/O controller (VAIO notebooks)
 # stl: Stallion EasyIO and EasyConnection 8/32 (cd1400 based)
 # stli: Stallion EasyConnection 8/64, ONboard, Brumby (intelligent)
+# nmdm: nullmodem terminal driver (see nmdm(4))
 
 # Notes on APM
 #  The flags takes the following meaning for apm0:
@@ -2220,6 +2221,8 @@ hint.loran.0.at="isa"
 hint.loran.0.irq="5"
 # HOT1 Xilinx 6200 card (http://www.vcc.com/)
 device		xrpu
+# nullmodem terminal driver
+device		nmdm
 
 #
 # The `meteor' device is a PCI video capture board. It can also have the
