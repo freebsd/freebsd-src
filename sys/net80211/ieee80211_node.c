@@ -413,14 +413,16 @@ ieee80211_end_scan(struct ifnet *ifp)
 static struct ieee80211_node *
 ieee80211_node_alloc(struct ieee80211com *ic)
 {
-	return malloc(sizeof(struct ieee80211_node), M_80211_NODE,
-		M_NOWAIT | M_ZERO);
+	struct ieee80211_node *ni;
+	MALLOC(ni, struct ieee80211_node *, sizeof(struct ieee80211_node),
+		M_80211_NODE, M_NOWAIT | M_ZERO);
+	return ni;
 }
 
 static void
 ieee80211_node_free(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
-	free(ni, M_80211_NODE);
+	FREE(ni, M_80211_NODE);
 }
 
 static void
