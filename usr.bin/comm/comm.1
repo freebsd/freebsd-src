@@ -32,7 +32,8 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)comm.1	8.1 (Berkeley) 6/6/93
+.\"     From: @(#)comm.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Os
@@ -41,12 +42,12 @@
 .Nm comm
 .Nd select or reject lines common to two files
 .Sh SYNOPSIS
-.Nm
-.Op Fl 123
+.Nm comm
+.Op Fl 123i
 .Ar file1 file2
 .Sh DESCRIPTION
 The
-.Nm
+.Nm comm
 utility reads
 .Ar file1
 and
@@ -69,6 +70,8 @@ Suppress printing of column 1.
 Suppress printing of column 2.
 .It Fl 3
 Suppress printing of column 3.
+.It Fl i
+Case insensitive comparison of lines.
 .El
 .Pp
 Each column will have a number of tab characters prepended to it
@@ -90,6 +93,6 @@ exits 0 on success, >0 if an error occurred.
 .Xr uniq 1
 .Sh STANDARDS
 The
-.Nm
+.Nm comm
 utility conforms to
 .St -p1003.2-92 .
