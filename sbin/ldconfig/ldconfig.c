@@ -26,34 +26,29 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- *	$Id: ldconfig.c,v 1.21 1998/05/26 20:12:50 sos Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/file.h>
-#include <sys/time.h>
 #include <sys/mman.h>
-#include <sys/resource.h>
-#include <dirent.h>
-#include <errno.h>
-#include <err.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <ar.h>
-#include <ranlib.h>
 #include <a.out.h>
-#include <stab.h>
+#include <ctype.h>
+#include <dirent.h>
+#include <err.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <link.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include <machine/param.h>
-
-#include <link.h>
 #include "shlib.h"
 #include "support.h"
 
@@ -89,9 +84,11 @@ static char			*dir_list;
 
 static void	enter __P((char *, char *, char *, int *, int));
 static int	dodir __P((char *, int));
+int		dofile __P((char *, int));
 static int	buildhints __P((void));
 static int	readhints __P((void));
 static void	listhints __P((void));
+static void	usage __P((void));
 
 int
 main(argc, argv)
@@ -101,7 +98,7 @@ char	*argv[];
 	int		i, c;
 	int		rval = 0;
 
-	while ((c = getopt(argc, argv, "Rf:mrsv")) != EOF) {
+	while ((c = getopt(argc, argv, "Rf:mrsv")) != -1) {
 		switch (c) {
 		case 'R':
 			rescan = 1;
@@ -122,8 +119,7 @@ char	*argv[];
 			verbose = 1;
 			break;
 		default:
-			errx(1, "Usage: %s [-Rmrsv] [-f hints_file] "
-				"[dir | file ...]", argv[0]);
+			usage();
 			break;
 		}
 	}
@@ -183,6 +179,14 @@ char	*argv[];
 	return rval;
 }
 
+static void
+usage()
+{
+	fprintf(stderr,
+	"usage: ldconfig [-Rmrsv] [-f hints_file] [dir | file ...]\n");
+	exit(1);
+}
+	
 int
 dofile(fname, silent)
 char	*fname;
@@ -210,7 +214,7 @@ int	silent;
 
 		if (*cp != '\n') {
 			*cp = '\0';
-			warnx("%s: Trailing characters ignored", sp);
+			warnx("%s: trailing characters ignored", sp);
 		}
 
 		*cp = '\0';
@@ -403,7 +407,7 @@ buildhints()
 					break;
 			}
 			if (i == hdr.hh_nbucket) {
-				warnx("Bummer!");
+				warnx("bummer!");
 				return -1;
 			}
 			while (bp->hi_next != -1)
@@ -507,13 +511,13 @@ readhints()
 
 	hdr = (struct hints_header *)addr;
 	if (HH_BADMAG(*hdr)) {
-		warnx("%s: Bad magic: %lo", hints_file, hdr->hh_magic);
+		warnx("%s: bad magic: %lo", hints_file, hdr->hh_magic);
 		return -1;
 	}
 
 	if (hdr->hh_version != LD_HINTS_VERSION_1 &&
 	    hdr->hh_version != LD_HINTS_VERSION_2) {
-		warnx("Unsupported version: %ld", hdr->hh_version);
+		warnx("unsupported version: %ld", hdr->hh_version);
 		return -1;
 	}
 
@@ -545,11 +549,11 @@ readhints()
 
 		/* Sanity check */
 		if (bp->hi_namex >= hdr->hh_strtab_sz) {
-			warnx("Bad name index: %#x", bp->hi_namex);
+			warnx("bad name index: %#x", bp->hi_namex);
 			return -1;
 		}
 		if (bp->hi_pathx >= hdr->hh_strtab_sz) {
-			warnx("Bad path index: %#x", bp->hi_pathx);
+			warnx("bad path index: %#x", bp->hi_pathx);
 			return -1;
 		}
 
