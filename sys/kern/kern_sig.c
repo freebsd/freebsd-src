@@ -1875,10 +1875,8 @@ do_tdsignal(struct thread *td, int sig, sigtarget_t target)
 		mtx_unlock_spin(&sched_lock);
 		goto out;
 		/*
-		 * XXXKSE  What about threads that are waiting on mutexes?
-		 * Shouldn't they abort too?
-		 * No, hopefully mutexes are short lived.. They'll
-		 * eventually hit thread_suspend_check().
+		 * Mutexes are short lived. Threads waiting on them will
+		 * hit thread_suspend_check() soon.
 		 */
 	}  else if (p->p_state == PRS_NORMAL) {
 		if ((p->p_flag & P_TRACED) || (action != SIG_DFL) ||
