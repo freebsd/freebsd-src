@@ -36,12 +36,16 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)misc.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
-#include <errno.h>
+#include <err.h>
 #include <regex.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,7 +64,7 @@ xmalloc(size)
 	void *p;
 
 	if ((p = malloc(size)) == NULL)
-		err(FATAL, "%s", strerror(errno));
+		err(1, "malloc");
 	return (p);
 }
 
@@ -76,7 +80,7 @@ xrealloc(p, size)
 		return (xmalloc(size));
 
 	if ((p = realloc(p, size)) == NULL)
-		err(FATAL, "%s", strerror(errno));
+		err(1, "realloc");
 	return (p);
 }
 
@@ -99,43 +103,4 @@ strregerror(errcode, preg)
 	oe = xmalloc(s);
 	(void)regerror(errcode, preg, oe, s);
 	return (oe);
-}
-
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-/*
- * Error reporting function
- */
-void
-#if __STDC__
-err(int severity, const char *fmt, ...)
-#else
-err(severity, fmt, va_alist)
-	int severity;
-	char *fmt;
-        va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)fprintf(stderr, "sed: ");
-	switch (severity) {
-	case WARNING:
-	case COMPILE:
-		(void)fprintf(stderr, "%lu: %s: ", linenum, fname);
-	}
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	if (severity == WARNING)
-		return;
-	exit(1);
-	/* NOTREACHED */
 }
