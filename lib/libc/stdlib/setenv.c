@@ -32,7 +32,10 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
+#if 0
 static char sccsid[] = "@(#)setenv.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stddef.h>
@@ -73,16 +76,18 @@ setenv(name, value, rewrite)
 
 		for (p = environ, cnt = 0; *p; ++p, ++cnt);
 		if (alloced) {			/* just increase size */
-			environ = (char **)reallocf((char *)environ,
+			p = (char **)realloc((char *)environ,
 			    (size_t)(sizeof(char *) * (cnt + 2)));
-			if (!environ)
+			if (!p)
 				return (-1);
+			environ = p;
 		}
 		else {				/* get new space */
-			alloced = 1;		/* copy old entries into it */
+						/* copy old entries into it */
 			p = malloc((size_t)(sizeof(char *) * (cnt + 2)));
 			if (!p)
 				return (-1);
+			alloced = 1;
 			bcopy(environ, p, cnt * sizeof(char *));
 			environ = p;
 		}
