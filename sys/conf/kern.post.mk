@@ -27,6 +27,20 @@ modules-${target}:
 .endif
 .endfor
 
+# Handle out of tree ports 
+.if defined(PORTS_MODULES)
+.if defined(SYSDIR)
+PORTSMODULESENV=SYSDIR=${SYSDIR}
+.endif
+.for target in all install clean
+${target}: ports-${target}
+ports-${target}:
+.for __i in ${PORTS_MODULES}
+	cd /usr/ports/${__i}; ${PORTSMODULESENV} ${MAKE} ${target}
+.endfor
+.endfor
+.endif
+
 .ORDER: kernel-install modules-install
 
 kernel-all: ${KERNEL_KO}
