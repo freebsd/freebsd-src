@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.121 1995/07/22 01:30:05 bde Exp $
+ *  $Id: syscons.c,v 1.122 1995/07/31 21:01:13 bde Exp $
  */
 
 #include "sc.h"
@@ -545,7 +545,7 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		scp->history_size *= scp->xsize;
 		scp->history_head = scp->history_pos = scp->history =
 		    (u_short *)malloc(scp->history_size*sizeof(u_short),
-				      M_DEVBUF, M_NOWAIT);
+				      M_DEVBUF, M_WAITOK);
 		bzero(scp->history_head, scp->history_size*sizeof(u_short));
 	    }
 	    return 0;
@@ -704,7 +704,7 @@ set_mouse_pos:
 	scp->status &= ~UNKNOWN_MODE;   /* text mode */
 	free(scp->scr_buf, M_DEVBUF);
 	scp->scr_buf = (u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-					 M_DEVBUF, M_NOWAIT);
+					 M_DEVBUF, M_WAITOK);
 	if (scp == cur_console)
 	    set_mode(scp);
 	clear_screen(scp);
@@ -2022,14 +2022,14 @@ static scr_stat
 {
     scr_stat *scp;
 
-    scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_NOWAIT);
+    scp = (scr_stat *)malloc(sizeof(scr_stat), M_DEVBUF, M_WAITOK);
     init_scp(scp);
     scp->scr_buf = scp->cursor_pos = scp->scr_buf = scp->mouse_pos =
 	(u_short *)malloc(scp->xsize*scp->ysize*sizeof(u_short),
-			  M_DEVBUF, M_NOWAIT);
+			  M_DEVBUF, M_WAITOK);
     scp->history_head = scp->history_pos = scp->history =
 	(u_short *)malloc(scp->history_size*sizeof(u_short),
-			  M_DEVBUF, M_NOWAIT);
+			  M_DEVBUF, M_WAITOK);
     bzero(scp->history_head, scp->history_size*sizeof(u_short));
     if (crtc_vga && video_mode_ptr)
 	set_mode(scp);
