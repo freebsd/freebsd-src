@@ -90,7 +90,7 @@ kdb_trap(int type, int code, struct i386_saved_state *regs)
 	 * our breakpoints by disarming our breakpoints and fixing up
 	 * %eip.
 	 */
-	if (cn_unavailable() != 0 && ddb_mode) {
+	if (cnunavailable() != 0 && ddb_mode) {
 	    if (type == T_TRCTRAP) {
 		regs->tf_eflags &= ~PSL_T;
 		return (1);
@@ -320,7 +320,7 @@ Debugger(const char *msg)
 	 * OK if the call is for the debugger hotkey but not if the call
 	 * is a weak form of panicing.
 	 */
-	if (cn_unavailable() != 0 && !(boothowto & RB_GDB))
+	if (cnunavailable() != 0 && !(boothowto & RB_GDB))
 	    return;
 
 	if (atomic_cmpset_acq_int(&in_Debugger, 0, 1)) {
