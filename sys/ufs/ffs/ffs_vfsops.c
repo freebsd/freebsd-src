@@ -171,7 +171,6 @@ ffs_mount(mp, path, data, ndp, td)
 
 		if ((error = ffs_mountfs(rootvp, mp, td)) != 0)
 			return (error);
-		(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 		return (0);
 	}
 
@@ -370,10 +369,6 @@ ffs_mount(mp, path, data, ndp, td)
 	 */
 	copyinstr(args.fspec, mp->mnt_stat.f_mntfromname, MNAMELEN - 1, &size);
 	bzero( mp->mnt_stat.f_mntfromname + size, MNAMELEN - size);
-	/*
-	 * Initialize filesystem stat information in mount struct.
-	 */
-	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 	return (0);
 }
 
@@ -791,6 +786,10 @@ ffs_mountfs(devvp, mp, td)
 		fs->fs_clean = 0;
 		(void) ffs_sbupdate(ump, MNT_WAIT);
 	}
+	/*
+	 * Initialize filesystem stat information in mount struct.
+	 */
+	(void)VFS_STATFS(mp, &mp->mnt_stat, td);
 #ifdef UFS_EXTATTR
 #ifdef UFS_EXTATTR_AUTOSTART
 	/*
