@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_sym.c,v 1.9 1995/05/30 07:57:10 rgrimes Exp $
+ *	$Id: db_sym.c,v 1.10 1995/11/24 14:13:41 bde Exp $
  */
 
 /*
@@ -43,14 +43,16 @@
 #define	MAXNOSYMTABS	3	/* mach, ux, emulator */
 #endif
 
-db_symtab_t	db_symtabs[MAXNOSYMTABS] = {{0,},};
-int db_nsymtab = 0;
+static db_symtab_t	db_symtabs[MAXNOSYMTABS] = {{0,},};
+static int db_nsymtab = 0;
 
 db_symtab_t	*db_last_symtab;
 
-extern db_sym_t		db_lookup __P(( char *symstr));
+static db_sym_t		db_lookup __P(( char *symstr));
 static char		*db_qualify __P((db_sym_t sym, char *symtabname));
-extern boolean_t	db_symbol_is_ambiguous __P((db_sym_t sym));
+static boolean_t	db_symbol_is_ambiguous __P((db_sym_t sym));
+static boolean_t	db_line_at_pc __P((db_sym_t, char **, int *, 
+				db_expr_t));
 
 /*
  * Add symbol table, with given name, to list of symbol tables.
@@ -130,7 +132,7 @@ db_value_of_name(name, valuep)
  * then only the specified symbol table will be searched;
  * otherwise, all symbol tables will be searched.
  */
-db_sym_t
+static db_sym_t
 db_lookup(symstr)
 	char *symstr;
 {
@@ -179,9 +181,9 @@ db_lookup(symstr)
  * Does this symbol name appear in more than one symbol table?
  * Used by db_symbol_values to decide whether to qualify a symbol.
  */
-boolean_t db_qualify_ambiguous_names = FALSE;
+static boolean_t db_qualify_ambiguous_names = FALSE;
 
-boolean_t
+static boolean_t
 db_symbol_is_ambiguous(sym)
 	db_sym_t	sym;
 {
@@ -304,7 +306,7 @@ db_printsym(off, strategy)
 	}
 }
 
-boolean_t
+static boolean_t
 db_line_at_pc( sym, filename, linenum, pc)
 	db_sym_t	sym;
 	char		**filename;

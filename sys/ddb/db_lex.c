@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.c,v 1.6 1995/05/30 07:57:00 rgrimes Exp $
+ *	$Id: db_lex.c,v 1.7 1995/11/24 14:13:37 bde Exp $
  */
 
 /*
@@ -42,6 +42,9 @@ char	db_line[120];
 char *	db_lp, *db_endlp;
 
 static int	db_lex __P((void));
+static void 	db_flush_line __P((void));
+static int 	db_read_char __P((void));
+static void 	db_unread_char __P((int));
 
 int
 db_read_line()
@@ -56,16 +59,16 @@ db_read_line()
 	return (i);
 }
 
-void
+static void
 db_flush_line()
 {
 	db_lp = db_line;
 	db_endlp = db_line;
 }
 
-int	db_look_char = 0;
+static int	db_look_char = 0;
 
-int
+static int
 db_read_char()
 {
 	int	c;
@@ -81,14 +84,14 @@ db_read_char()
 	return (c);
 }
 
-void
+static void
 db_unread_char(c)
 	int c;
 {
 	db_look_char = c;
 }
 
-int	db_look_token = 0;
+static int	db_look_token = 0;
 
 void
 db_unread_token(t)

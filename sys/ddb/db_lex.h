@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_lex.h,v 1.5 1995/05/30 07:57:01 rgrimes Exp $
+ *	$Id: db_lex.h,v 1.6 1995/11/24 13:52:59 bde Exp $
  */
 
 #ifndef _DDB_DB_LEX_H_
@@ -37,11 +37,8 @@
  * Lexical analyzer.
  */
 void	db_flush_lex __P((void));
-void	db_flush_line __P((void));
-int	db_read_char __P((void));
 int	db_read_line __P((void));
 int	db_read_token __P((void));
-void	db_unread_char __P((int c));
 void	db_unread_token __P((int t));
 
 extern int	db_tok_number;

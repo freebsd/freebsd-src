@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_aout.c,v 1.11 1995/05/30 07:56:49 rgrimes Exp $
+ *	$Id: db_aout.c,v 1.12 1995/11/24 14:13:30 bde Exp $
  */
 
 /*
@@ -62,6 +62,7 @@
  *		-> strings
  */
 
+static void	X_db_sym_init __P((int *symtab, char *esymtab, char *name));
 /*
  * Find pointers to the start and end of the symbol entries,
  * given a pointer to the start of the symbol table.
@@ -70,7 +71,7 @@
 	(sp = (struct nlist *)((symtab) + 1), \
 	 ep = (struct nlist *)((char *)sp + *(symtab)))
 
-void
+static void
 X_db_sym_init(symtab, esymtab, name)
 	int *	symtab;		/* pointer to start of symbol table */
 	char *	esymtab;	/* pointer to end of string table,

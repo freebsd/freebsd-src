@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_output.c,v 1.11 1995/05/30 07:57:02 rgrimes Exp $
+ *	$Id: db_output.c,v 1.12 1995/11/24 14:13:38 bde Exp $
  */
 
 /*
@@ -54,8 +54,8 @@
  *	don't print trailing spaces.  This avoids most
  *	of the wraparounds.
  */
-int	db_output_position = 0;		/* output column */
-int	db_last_non_space = 0;		/* last non-space character */
+static int	db_output_position = 0;		/* output column */
+static int	db_last_non_space = 0;		/* last non-space character */
 int	db_tab_stop_width = 8;		/* how wide are tab stops? */
 #define	NEXT_TAB(i) \
 	((((i) + db_tab_stop_width) / db_tab_stop_width) * db_tab_stop_width)
@@ -150,18 +150,6 @@ db_print_position()
  */
 void
 db_printf(const char *fmt, ...)
-{
-	va_list	listp;
-	va_start(listp, fmt);
-	db_printf_guts (fmt, listp);
-	va_end(listp);
-}
-
-/* alternate name */
-
-/*VARARGS1*/
-void
-kdbprintf(const char *fmt, ...)
 {
 	va_list	listp;
 	va_start(listp, fmt);

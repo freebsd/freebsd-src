@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ddb.h,v 1.6 1995/05/30 07:57:24 rgrimes Exp $
+ *	$Id: ddb.h,v 1.7 1995/11/24 13:53:05 bde Exp $
  */
 
 /*
@@ -80,7 +80,6 @@ void		db_read_bytes __P((vm_offset_t addr, int size, char *data));
 int		db_readline __P((char *lstart, int lsize));
 void		db_restart_at_pc __P((boolean_t watchpt));
 void		db_set_watchpoints __P((void));
-void		db_single_step __P((db_regs_t *regs));
 void		db_skip_to_eol __P((void));
 boolean_t	db_stop_at_pc __P((boolean_t *is_breakpoint));
 #define		db_strcpy	strcpy
@@ -97,10 +96,8 @@ db_cmdfcn_t	db_continue_cmd;
 db_cmdfcn_t	db_delete_cmd;
 db_cmdfcn_t	db_deletewatch_cmd;
 db_cmdfcn_t	db_examine_cmd;
-db_cmdfcn_t	db_fncall;
 db_cmdfcn_t	db_listbreak_cmd;
 db_cmdfcn_t	db_listwatch_cmd;
-db_cmdfcn_t	db_panic;
 db_cmdfcn_t	db_print_cmd;
 db_cmdfcn_t	db_ps;
 db_cmdfcn_t	db_search_cmd;

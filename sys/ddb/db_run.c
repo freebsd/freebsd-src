@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_run.c,v 1.5 1995/05/30 07:57:08 rgrimes Exp $
+ *	$Id: db_run.c,v 1.6 1995/11/24 14:13:40 bde Exp $
  */
 
 /*
@@ -65,6 +65,10 @@ extern void	db_set_single_step __P((db_regs_t *regs);
 #endif
 #ifndef db_clear_single_step
 extern void	db_clear_single_step __P((db_regs_t *regs));
+#endif
+
+#ifdef notused
+static void	db_single_step __P((db_regs_t *regs));
 #endif
 
 boolean_t
@@ -209,7 +213,8 @@ db_restart_at_pc(watchpt)
 	}
 }
 
-void
+#ifdef notused
+static void
 db_single_step(regs)
 	db_regs_t *regs;
 {
@@ -218,6 +223,7 @@ db_single_step(regs)
 	    db_set_single_step(regs);
 	}
 }
+#endif
 
 #ifdef	SOFTWARE_SSTEP
 /*
