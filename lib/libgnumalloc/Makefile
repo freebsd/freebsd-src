@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.12 1997/02/22 15:06:55 peter Exp $
 
 LIB=		gnumalloc
 INTERNALLIB=	yes		# Do not build or install ${LIB}*.a
@@ -6,6 +6,10 @@ SHLIB_MAJOR=	2
 SHLIB_MINOR=	0
 
 SRCS=	cfree.c
+
+.if ${OBJFORMAT} != aout
+NOPIC=		true
+.endif
 
 #
 # Before complaining about this, please *double-check* that you have
@@ -17,8 +21,11 @@ SRCS=	cfree.c
 #
 beforeinstall:
 	rm -f ${DESTDIR}${LIBDIR}/lib${LIB}.a \
-	  ${DESTDIR}${LIBDIR}/lib${LIB}_p.a \
-	  ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
+	 ${DESTDIR}${LIBDIR}/lib${LIB}_p.a \
+	 ${DESTDIR}${ORIG_SHLIBDIR}/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
+	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so.${SHLIB_MAJOR} \
+	 ${DESTDIR}/usr/lib/compat/lib${LIB}.so \
 
 .include <bsd.lib.mk>
 
@@ -27,4 +34,4 @@ ORIG_SHLIBDIR:=	${SHLIBDIR}
 
 # The ldconfig line in/etc/rc doesn't depend on ${LIBDIR} or ${SHLIBDIR},
 # so neither does this.
-SHLIBDIR=	/usr/lib/compat
+SHLIBDIR=	/usr/lib/compat/aout
