@@ -25,6 +25,8 @@
 #	all	makes all known devices, standard number of units (or close)
 #	std	standard devices
 #	local	configuration specific devices
+#	mach-4	mach4&lites+devices for Mach's XFree86 distribution
+#	(see http://www.cs.hut.fi/lites.html for more info on LITES)
 #
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
@@ -83,7 +85,7 @@
 #	isdn*	ISDN devices
 #   labpc*  National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.86 1995/04/28 07:39:21 bde Exp $
+#	$Id: MAKEDEV,v 1.87 1995/04/28 07:53:43 bde Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -183,6 +185,13 @@ std)
 	chmod 666 fd/*
 	;;
 
+mach-4)
+	mknod iopl c 22 0
+	mknod kbd c 23 0
+	mknod mouse c 24 0
+	mknod time c 25 0
+	mknod timezone c 26 0
+	;;
 
 # Create device files for new Archive/Wangtek QIC-02 tape driver (vak)
 wt*)
