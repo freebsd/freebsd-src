@@ -299,7 +299,6 @@ document rqinfo
 Show the Vinum request log buffer like 'vinum info -V'
 end
 define meminfo
-y
 printf "Block\t\tTime\t\tSequence\t  size\t  address\t  line\t\tfile\n"
 set $i = 0
 while $i < malloccount
@@ -311,7 +310,6 @@ document meminfo
 Equivalent of 'vinum info -v' command
 end
 define finfo
-y
 printf "Block\t\tTime\t\tSequence\t  size\t  address\t  line\t\tfile\n"
 set $i = lastfree
 set $j = 0

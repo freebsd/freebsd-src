@@ -231,7 +231,6 @@ end
 # pcb <pid>
 # show contents of pcb, currently only i386.
 define pcb
-y
     set $nproc = nprocs
     set $aproc = allproc.lh_first
     set $proc = allproc.lh_first
@@ -276,7 +275,6 @@ end
 # backtrace for process <pid>.  Uses btr (machine dependent) to perform the backtrace.
 # may produce nonsense.
 define btp
-y
     set $nproc = nprocs
     set $aproc = allproc.lh_first
     set $proc = allproc.lh_first
