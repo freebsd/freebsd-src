@@ -1,3 +1,4 @@
+/* -*- Mode: c; tab-width: 8; indent-tabs-mode: 1; c-basic-offset: 8; -*- */
 /*
  * Copyright (c) 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -30,8 +31,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.34 2001/12/09 05:10:03 guy Exp $ (LBL)
+ *
  * $FreeBSD$
- * @(#) $Header: /tcpdump/master/libpcap/pcap.h,v 1.31 2000/10/28 00:01:31 guy Exp $ (LBL)
  */
 
 #ifndef lib_pcap_h
@@ -64,6 +66,8 @@ typedef	u_int bpf_u_int32;
 
 typedef struct pcap pcap_t;
 typedef struct pcap_dumper pcap_dumper_t;
+typedef struct pcap_if pcap_if_t;
+typedef struct pcap_addr pcap_addr_t;
 
 /*
  * The first record in the file contains saved values for some
@@ -129,6 +133,30 @@ struct pcap_stat {
 	u_int ps_ifdrop;	/* drops by interface XXX not yet supported */
 };
 
+/*
+ * Item in a list of interfaces.
+ */
+struct pcap_if {
+	struct pcap_if *next;
+	char *name;		/* name to hand to "pcap_open_live()" */
+	char *description;	/* textual description of interface, or NULL */
+	struct pcap_addr *addresses;
+	u_int flags;		/* PCAP_IF_ interface flags */
+};
+
+#define PCAP_IF_LOOPBACK	0x00000001	/* interface is loopback */
+
+/*
+ * Representation of an interface address.
+ */
+struct pcap_addr {
+	struct pcap_addr *next;
+	struct sockaddr *addr;		/* address */
+	struct sockaddr *netmask;	/* netmask for that address */
+	struct sockaddr *broadaddr;	/* broadcast address for that address */
+	struct sockaddr *dstaddr;	/* P2P destination address for that address */
+};
+
 typedef void (*pcap_handler)(u_char *, const struct pcap_pkthdr *,
 			     const u_char *);
 
@@ -144,6 +172,8 @@ const u_char*
 	pcap_next(pcap_t *, struct pcap_pkthdr *);
 int	pcap_stats(pcap_t *, struct pcap_stat *);
 int	pcap_setfilter(pcap_t *, struct bpf_program *);
+int	pcap_getnonblock(pcap_t *, char *);
+int	pcap_setnonblock(pcap_t *, int, char *);
 void	pcap_perror(pcap_t *, char *);
 char	*pcap_strerror(int);
 char	*pcap_geterr(pcap_t *);
@@ -165,6 +195,9 @@ int	pcap_fileno(pcap_t *);
 pcap_dumper_t *pcap_dump_open(pcap_t *, const char *);
 void	pcap_dump_close(pcap_dumper_t *);
 void	pcap_dump(u_char *, const struct pcap_pkthdr *, const u_char *);
+
+int	pcap_findalldevs(pcap_if_t **, char *);
+void	pcap_freealldevs(pcap_if_t *);
 
 /* XXX this guy lives in the bpf tree */
 u_int	bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
