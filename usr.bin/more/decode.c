@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)decode.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+        "$Id: decode.c,v 1.3 1999/06/01 20:02:32 hoek Exp $";
+#endif /* not lint */
+
 /*
  * Routines to decode user commands.
  *
@@ -52,10 +57,12 @@ static char sccsid[] = "@(#)decode.c	8.1 (Berkeley) 6/6/93";
  * The default commands are described by cmdtable.
  */
 
-#include <sys/param.h>
 #include <sys/file.h>
+#include <sys/param.h>
+
 #include <stdio.h>
-#include <less.h>
+
+#include "less.h"
 
 /*
  * Command table is ordered roughly according to expected
@@ -63,7 +70,16 @@ static char sccsid[] = "@(#)decode.c	8.1 (Berkeley) 6/6/93";
  */
 #define	CONTROL(c)		((c)&037)
 
+/*
+ * Ideally the home and end keys would reset the horiz_scroll, too,
+ * but this whole thing needs to be made dynamic along with some type
+ * of macro commands.
+ */
 static char cmdtable[] = {
+	'\e','[','B',0,			A_F_LINE,
+	'\e','[','A',0,			A_B_LINE,
+	'\e','[','C',0,			A_R_COL,
+	'\e','[','D',0,			A_L_COL,
 	'\r',0,				A_F_LINE,
 	'\n',0,				A_F_LINE,
 	'j',0,				A_F_LINE,
@@ -75,15 +91,19 @@ static char cmdtable[] = {
 	' ',0,				A_F_SCREEN,
 	'f',0,				A_F_SCREEN,
 	CONTROL('F'),0,			A_F_SCREEN,
+	'\e','[','G',0,			A_F_SCREEN,
 	'b',0,				A_B_SCREEN,
 	CONTROL('B'),0,			A_B_SCREEN,
+	'\e','[','I',0,			A_B_SCREEN,
 	'R',0,				A_FREPAINT,
 	'r',0,				A_REPAINT,
 	CONTROL('L'),0,			A_REPAINT,
 	'g',0,				A_GOLINE,
+	'\e','[','H',0,			A_HOME,
 	'p',0,				A_PERCENT,
 	'%',0,				A_PERCENT,
 	'G',0,				A_GOEND,
+	'\e','[','F',0,			A_GOEND,
 	'0',0,				A_DIGIT,
 	'1',0,				A_DIGIT,
 	'2',0,				A_DIGIT,
@@ -113,6 +133,8 @@ static char cmdtable[] = {
 	'q',0,				A_QUIT,
 	':','q',0,			A_QUIT,
 	':','t',0,			A_TAGFILE,
+	'T',0,				A_PREVTAG,
+	't',0,				A_NEXTTAG,
 	':', 'a', 0,			A_FILE_LIST,
 	'Z','Z',0,			A_QUIT,
 };
