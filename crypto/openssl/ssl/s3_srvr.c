@@ -121,9 +121,10 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
+#ifndef OPENSSL_NO_KRB5
 #include <openssl/krb5_asn.h>
+#endif
 #include <openssl/md5.h>
-#include "cryptlib.h"
 
 static SSL_METHOD *ssl3_get_server_method(int ver);
 static int ssl3_get_client_hello(SSL *s);
@@ -1587,11 +1588,27 @@ static int ssl3_get_client_key_exchange(SSL *s)
 
 		n2s(p,i);
 		enc_ticket.length = i;
+
+		if (n < enc_ticket.length + 6)
+			{
+			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
+				SSL_R_DATA_LENGTH_TOO_LONG);
+			goto err;
+			}
+
 		enc_ticket.data = (char *)p;
 		p+=enc_ticket.length;
 
 		n2s(p,i);
 		authenticator.length = i;
+
+		if (n < enc_ticket.length + authenticator.length + 6)
+			{
+			SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE,
+				SSL_R_DATA_LENGTH_TOO_LONG);
+			goto err;
+			}
+
 		authenticator.data = (char *)p;
 		p+=authenticator.length;
 
