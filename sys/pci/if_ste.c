@@ -622,6 +622,52 @@ ste_setmulti(sc)
 	return;
 }
 
+#ifdef DEVICE_POLLING
+static poll_handler_t ste_poll;
+
+static void
+ste_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+{
+	struct ste_softc *sc = ifp->if_softc;
+
+	STE_LOCK(sc);
+	if (cmd == POLL_DEREGISTER) { /* final call, enable interrupts */
+		CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
+		goto done;
+	}
+
+	sc->rxcycles = count;
+	ste_rxeof(sc);
+	ste_txeof(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		ste_start(ifp);
+
+	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
+		u_int16_t status;
+
+		status = CSR_READ_2(sc, STE_ISR_ACK);
+
+		if (status & STE_ISR_TX_DONE)
+			ste_txeoc(sc);
+
+		if (status & STE_ISR_STATS_OFLOW) {
+			untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+			ste_stats_update(sc);
+		}
+
+		if (status & STE_ISR_LINKEVENT)
+			mii_pollstat(device_get_softc(sc->ste_miibus));
+
+		if (status & STE_ISR_HOSTERR) {
+			ste_reset(sc);
+			ste_init(sc);
+		}
+	}
+done:
+	STE_UNLOCK(sc);
+}
+#endif /* DEVICE_POLLING */
+
 static void
 ste_intr(xsc)
 	void			*xsc;
@@ -633,6 +679,16 @@ ste_intr(xsc)
 	sc = xsc;
 	STE_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
+
+#ifdef DEVICE_POLLING
+	if (ifp->if_flags & IFF_POLLING)
+		goto done;
+	if (ether_poll_register(ste_poll, ifp)) { /* ok, disable interrupts */
+		CSR_WRITE_2(sc, STE_IMR, 0);
+		ste_poll(ifp, 0, 1);
+		goto done;
+	}
+#endif /* DEVICE_POLLING */
 
 	/* See if this is really our interrupt. */
 	if (!(CSR_READ_2(sc, STE_ISR) & STE_ISR_INTLATCH)) {
@@ -676,6 +732,9 @@ ste_intr(xsc)
 	if (ifp->if_snd.ifq_head != NULL)
 		ste_start(ifp);
 
+#ifdef DEVICE_POLLING
+done:
+#endif /* DEVICE_POLLING */
 	STE_UNLOCK(sc);
 
 	return;
@@ -701,6 +760,13 @@ ste_rxeof(sc)
 
 	while((rxstat = sc->ste_cdata.ste_rx_head->ste_ptr->ste_status)
 	      & STE_RXSTAT_DMADONE) {
+#ifdef DEVICE_POLLING
+		if (ifp->if_flags & IFF_POLLING) {
+			if (sc->rxcycles <= 0)
+				break;
+			sc->rxcycles--;
+		}
+#endif /* DEVICE_POLLING */
 		if ((STE_RX_LIST_CNT - count) < 3) {
 			break;
 		}
@@ -1305,8 +1371,14 @@ ste_init(xsc)
 	/* Enable stats counters. */
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_STATS_ENABLE);
 
-	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_ISR, 0xFFFF);
+#ifdef DEVICE_POLLING
+	/* Disable interrupts if we are polling. */
+	if (ifp->if_flags & IFF_POLLING)
+		CSR_WRITE_2(sc, STE_IMR, 0);
+	else   
+#endif /* DEVICE_POLLING */
+	/* Enable interrupts. */
 	CSR_WRITE_2(sc, STE_IMR, STE_INTRS);
 
 	/* Accept VLAN length packets */
@@ -1334,6 +1406,10 @@ ste_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	untimeout(ste_stats_update, sc, sc->ste_stat_ch);
+	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
+#ifdef DEVICE_POLLING
+	ether_poll_deregister(ifp);
+#endif /* DEVICE_POLLING */
 
 	CSR_WRITE_2(sc, STE_IMR, 0);
 	STE_SETBIT2(sc, STE_MACCTL1, STE_MACCTL1_TX_DISABLE);
@@ -1365,8 +1441,6 @@ ste_stop(sc)
 	}
 
 	bzero(sc->ste_ldata, sizeof(struct ste_list_data));
-
-	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 	STE_UNLOCK(sc);
 
 	return;

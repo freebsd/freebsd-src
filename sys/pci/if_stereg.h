@@ -526,6 +526,9 @@ struct ste_softc {
 	struct callout_handle	ste_stat_ch;
 	struct mtx		ste_mtx;
 	u_int8_t		ste_one_phy;
+#ifdef DEVICE_POLLING
+	int			rxcycles;
+#endif
 };
 
 #define	STE_LOCK(_sc)		mtx_lock(&(_sc)->ste_mtx)
