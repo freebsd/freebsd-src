@@ -40,10 +40,6 @@
 #include <sys/ctype.h>
 #include <machine/stdarg.h>
 
-#ifdef NODEVFS
-static struct cdevsw 	*cdevsw[NUMCDEVSW];
-
-#endif
 static MALLOC_DEFINE(M_DEVT, "dev_t", "dev_t storage");
 
 /*
@@ -86,11 +82,7 @@ devsw(dev_t dev)
 #endif
 	if (dev->si_devsw)
 		return (dev->si_devsw);
-#ifndef NODEVFS
 	return (NULL);
-#else
-        return(cdevsw[major(dev)]);
-#endif
 }
 
 /*
@@ -100,20 +92,6 @@ devsw(dev_t dev)
 int
 cdevsw_add(struct cdevsw *newentry)
 {
-#ifdef NODEVFS
-	if (newentry->d_maj < 0 || newentry->d_maj >= NUMCDEVSW) {
-		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
-		    newentry->d_name, newentry->d_maj);
-		return (EINVAL);
-	}
-
-	if (cdevsw[newentry->d_maj]) {
-		printf("WARNING: \"%s\" is usurping \"%s\"'s cdevsw[]\n",
-		    newentry->d_name, cdevsw[newentry->d_maj]->d_name);
-	}
-
-	cdevsw[newentry->d_maj] = newentry;
-#endif
 
 	return (0);
 }
@@ -125,15 +103,6 @@ cdevsw_add(struct cdevsw *newentry)
 int
 cdevsw_remove(struct cdevsw *oldentry)
 {
-#ifdef NODEVFS
-	if (oldentry->d_maj < 0 || oldentry->d_maj >= NUMCDEVSW) {
-		printf("%s: ERROR: driver has bogus cdevsw->d_maj = %d\n",
-		    oldentry->d_name, oldentry->d_maj);
-		return EINVAL;
-	}
-
-	cdevsw[oldentry->d_maj] = NULL;
-#endif
 
 	return 0;
 }
