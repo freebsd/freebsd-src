@@ -1127,7 +1127,7 @@ pcic_pci_print_config(device_t dev)
 	
 	device_printf(dev, "PCI Configuration space:");
 	for (i = 0; i < 256; i += 4) {
-		if (i % 4 == 0)
+		if (i % 16 == 0)
 			printf("\n  0x%02x: ", i);
 		printf("0x%08x ", pci_read_config(dev, i, 4));
 	}
