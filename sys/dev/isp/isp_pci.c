@@ -241,16 +241,6 @@ static struct ispmdvec mdvec_2300 = {
 	((PCI_PRODUCT_QLOGIC_ISP2312 << 16) | PCI_VENDOR_QLOGIC)
 
 /*
- * I/O Mapping Stuff
- */
-#if	_MACHINE_ARCH == SPARC64
-/* An IOMMU means that we only will ever need one descriptor. */
-#define	ISP_NSEG	2
-#else
-#define	ISP_NSEG	((MAXPHYS/PAGE_SIZE) + 1)
-#endif
-
-/*
  * Odd case for some AMI raid cards... We need to *not* attach to this.
  */
 #define	AMI_RAID_SUBVENDOR_ID	0x101e
@@ -1031,7 +1021,10 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 }
 
-#define ISP_NSEGS ((BUS_SPACE_MAXSIZE / PAGE_SIZE) + 1)  
+/*
+ * Should be BUS_SPACE_MAXSIZE, but MAXPHYS is larger than BUS_SPACE_MAXSIZE
+ */
+#define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
 
 static int
 isp_pci_mbxdma(struct ispsoftc *isp)
