@@ -887,7 +887,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 			_http_cmd(conn, "User-Agent: %s", p);
 		else
 			_http_cmd(conn, "User-Agent: %s " _LIBFETCH_VER, getprogname());
-		if (url->offset)
+		if (url->offset > 0)
 			_http_cmd(conn, "Range: bytes=%lld-", (long long)url->offset);
 		_http_cmd(conn, "Connection: close");
 		_http_cmd(conn, "");
@@ -1059,7 +1059,7 @@ _http_request(struct url *URL, const char *op, struct url_stat *us,
 	}
 
 	/* too far? */
-	if (offset > URL->offset) {
+	if (URL->offset > 0 && offset > URL->offset) {
 		_http_seterr(HTTP_PROTOCOL_ERROR);
 		goto ouch;
 	}
