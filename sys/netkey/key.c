@@ -584,11 +584,13 @@ key_gettunnel(osrc, odst, isrc, idst)
 				return NULL;
 			ip4_def_policy.refcnt++;
 			return &ip4_def_policy;
+#ifdef INET6
 		case PF_INET6:
 			if (ip6_def_policy.policy == IPSEC_POLICY_DISCARD)
 				return NULL;
 			ip6_def_policy.refcnt++;
 			return &ip6_def_policy;
+#endif
 		default:
 			printf("invalid protocol family %d\n.",
 			       isrc->sa_family);
