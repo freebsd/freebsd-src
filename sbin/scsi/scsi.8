@@ -39,10 +39,10 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.2 1995/04/17 14:51:54 dufault Exp $
+.\"	$Id: scsi.8,v 1.3 1995/04/28 19:24:38 dufault Exp $
 .\"
 .Dd October 11, 1993
-.Dt SCSI 1
+.Dt SCSI 8
 .Os BSD 4
 .Sh NAME
 .Nm scsi
@@ -55,9 +55,9 @@ scsi -f device [-v] -z seconds                   # To freeze bus
 scsi -f device -m page [-P pc]                   # To read mode pages
 scsi -f device -p [-b bus] [-l lun]              # To probe all devices
 scsi -f device -r [-b bus] [-t targ] [-l lun]    # To reprobe a device
-scsi -f device [-v] -c cmd_fmt [arg0 ... argn] \\ # To send a command...
+scsi -f device [-v] [-s seconds] -c cmd_fmt [arg0 ... argn] # A command...
                -o count out_fmt [arg0 ... argn]  #   EITHER (for data out)
-               -i count in_fmt                   #   OR (for data in)
+               -i count in_fmt                   #   OR     (for data in)
 .Pp
 "out_fmt" can be "-" to read output data from stdin;
 "in_fmt" can be "-" to write input data to stdout;
@@ -147,6 +147,9 @@ using the format arguments.
 .Fr -v
 turns on more verbose information.
 .Pp
+.Fr -s
+sets the command timeout in seconds.  The default is two seconds.
+.Pp
 .Fr "-c cmd_fmt"
 specifies the command as described in
 .Xr scsi 3 "."
@@ -165,7 +168,6 @@ can be specified as a hyphen ("-") to indicate that the
 .Fr count
 bytes of data should be read from the standard input.
 .Pp
-.Fr "-o count out_fmt arg0 ... argn"
 .Fr "-i count in_fmt"
 indicates that this is a data in command (i.e., data will be read from
 the device into the system) with
