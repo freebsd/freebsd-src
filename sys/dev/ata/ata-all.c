@@ -397,8 +397,10 @@ ata_pci_attach(device_t dev)
 	sc->bmio = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
 				      0, ~0, 1, RF_ACTIVE);
 	if (!sc->bmio)
-	    device_printf(dev, "Busmastering DMA not supported\n");
+	    device_printf(dev, "Busmastering DMA not configured\n");
     }
+    else
+	device_printf(dev, "Busmastering DMA not supported\n");
 
     /* do extra chipset specific setups */
     switch (type) {
@@ -470,6 +472,12 @@ ata_pci_attach(device_t dev)
 			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
 	}
 	break;
+
+    case 0x10001042:   /* RZ 100? known bad, no DMA */
+    case 0x10011042:
+    case 0x06401095:   /* CMD 640 known bad, no DMA */
+	sc->bmio = 0x0;
+	device_printf(dev, "Busmastering DMA disabled\n");
     }
 
     /*
@@ -553,7 +561,7 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		    return &sc->bmio_2;
 		}
 	    }
-	    break;
+	    return 0;
 
 	default:
 	    return 0;
@@ -758,6 +766,15 @@ DRIVER_MODULE(ata, atapci, ata_pcisub_driver, ata_devclass, 0, 0);
 #endif
 
 static int
+ata_testregs(struct ata_softc *scp)
+{
+    outb(scp->ioaddr + ATA_ERROR, 0x58);
+    outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
+    return (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
+	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) ? 1 : 0;
+}
+
+static int
 ata_probe(device_t dev)
 {
     struct ata_softc *scp = device_get_softc(dev);
@@ -818,24 +835,14 @@ ata_probe(device_t dev)
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(1);
     status0 = inb(scp->ioaddr + ATA_STATUS);
-    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5) {
-	outb(scp->ioaddr + ATA_ERROR, 0x58);
-	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-	    if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-		inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5)  
+    if ((status0 & 0xf8) != 0xf8 && status0 != 0xa5 && ata_testregs(scp))
 	mask |= 0x01;
-    }
 
     outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
     DELAY(1);	
     status1 = inb(scp->ioaddr + ATA_STATUS);
-    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5) {
-	outb(scp->ioaddr + ATA_ERROR, 0x58);
-	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-	    if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-		inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5)  
+    if ((status1 & 0xf8) != 0xf8 && status1 != 0xa5 && ata_testregs(scp))
 	mask |= 0x02;
-    }
 
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
@@ -1106,7 +1113,7 @@ ata_intr(void *data)
 	      (scp->channel ? 0x08 : 0x04)))
 	    return;
 	goto out;
-         
+
     case 0x4d33105a:	/* Promise Ultra/Fasttrak 33 */
     case 0x4d38105a:	/* Promise Ultra/Fasttrak 66 */
     case 0x4d30105a:	/* Promise Ultra/Fasttrak 100 */
@@ -1267,7 +1274,9 @@ ata_reset(struct ata_softc *scp, int *mask)
 		/* check for ATAPI signature while its still there */
 		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
 		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
-		scp->devices |= ATA_ATAPI_MASTER;
+		    scp->devices |= ATA_ATAPI_MASTER;
+		else if (status0 != 0x00 && ata_testregs(scp))
+	    	    scp->devices |= ATA_ATA_MASTER;
 	    }
 	}
 	if (status1 & ATA_S_BUSY) {
@@ -1278,8 +1287,10 @@ ata_reset(struct ata_softc *scp, int *mask)
 		/* check for ATAPI signature while its still there */
 		if (inb(scp->ioaddr + ATA_CYL_LSB) == ATAPI_MAGIC_LSB &&
 		    inb(scp->ioaddr + ATA_CYL_MSB) == ATAPI_MAGIC_MSB)
-		scp->devices |= ATA_ATAPI_SLAVE;
- 	    }
+		    scp->devices |= ATA_ATAPI_SLAVE;
+		else if (status1 != 0x00 && ata_testregs(scp))
+	    	    scp->devices |= ATA_ATA_SLAVE;
+	    }
 	}
 	if (*mask == 0x01)      /* wait for master only */
 	    if (!(status0 & ATA_S_BUSY)) 
@@ -1301,34 +1312,8 @@ ata_reset(struct ata_softc *scp, int *mask)
     if (bootverbose)
 	ata_printf(scp, -1, "mask=%02x status0=%02x status1=%02x\n", 
 		   *mask, status0, status1);
-    if (!mask) {
+    if (!mask)
 	scp->devices = 0;
-	return;
-    }
-    /* 
-     * OK, we have at least one device on the chain, checks for ATAPI 
-     * already done, if none check if its a good old ATA device.
-     */ 
-    if (status0 != 0x00 && !(scp->devices & ATA_ATAPI_MASTER)) {
-	outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_MASTER));
-	DELAY(1);
-	outb(scp->ioaddr + ATA_ERROR, 0x58);
-	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-	if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) {
-	    scp->devices |= ATA_ATA_MASTER;
-	}
-    }
-    if (status1 != 0x00 && !(scp->devices & ATA_ATAPI_SLAVE)) {
-	outb(scp->ioaddr + ATA_DRIVE, (ATA_D_IBM | ATA_SLAVE));
-	DELAY(1);
-	outb(scp->ioaddr + ATA_ERROR, 0x58);
-	outb(scp->ioaddr + ATA_CYL_LSB, 0xa5);
-	if (inb(scp->ioaddr + ATA_ERROR) != 0x58 &&
-	    inb(scp->ioaddr + ATA_CYL_LSB) == 0xa5) {
-	    scp->devices |= ATA_ATA_SLAVE;
-	}
-    }
 }
 
 int
