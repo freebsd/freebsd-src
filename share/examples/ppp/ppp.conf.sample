@@ -175,7 +175,7 @@ examples:
 #
     enable dns
 #
-# If you don't want to tell them what's in your /etc/resolf.conf file
+# If you don't want to tell them what's in your /etc/resolv.conf file
 # with `enable dns', override the values:
 #
     set dns 10.0.0.1 10.0.0.2
@@ -218,8 +218,14 @@ dodgy:
     set filter alive 1 deny udp dst eq 520         # routed
     set filter alive 2 deny udp src eq 513         # rwhod
     set filter alive 3 deny udp src eq 525         # timed
-    set filter alive 4 deny 0/0 MYADDR icmp        # Ping to us from outside
-    set filter alive 5 permit 0/0 0/0
+    set filter alive 4 deny udp src eq 137         # NetBIOS name service
+    set filter alive 5 deny udp src eq 138         # NetBIOS datagram service
+    set filter alive 6 deny udp src eq 139         # NetBIOS session service
+    set filter alive 7 deny udp dst eq 137         # NetBIOS name service
+    set filter alive 8 deny udp dst eq 138         # NetBIOS datagram service
+    set filter alive 9 deny udp dst eq 139         # NetBIOS session service
+    set filter alive 10 deny 0/0 MYADDR icmp       # Ping to us from outside
+    set filter alive 11 permit 0/0 0/0
 #
 # And in auto mode, we don't want certain packets to cause a dialup
 #
@@ -566,6 +572,7 @@ mloop:
  load loop
  set mode interactive
  set mrru 1500
+ set mru 1504			# Room for the MP header
  clone 1 2 3
  link deflink remove
  # dial
@@ -577,6 +584,7 @@ mloop-in:
  set log tun phase
  allow mode direct
  set mrru 1500
+ set mru 1504			# Room for the MP header
 
 # User supplied authentication:
 #  It's possible to run ppp in the background while specifying a
@@ -603,7 +611,9 @@ loginprompt:
             code: \"!/usr/share/examples/ppp/login-auth -display keep:0.0 \
                     AUTHNAME\" MTU \\c ."
 
-# ppp supports ppp over ethernet (PPPoE)
+# ppp supports ppp over ethernet (PPPoE).  Beware, many PPP servers cache
+# the MAC address that connects to them, making it impossible to switch
+# your PPPoE connection between machines.
 #
 # The client should be something like:
 #
@@ -622,10 +632,14 @@ pppoe:
 #
 #   /usr/libexec/pppoed -p pppoe-in fxp0
 #
+# See rc.conf(5)
+#
 pppoe-in:
- allow mode direct
- set mru 1492
- set mtu 1492
- set speed sync
- enable lqr
- set ifaddr 10.0.0.1 10.0.0.2
+ allow mode direct				# Only for use on server-side
+ set mru 1492					# Max allowed by the PPPoE spec
+ set mtu 1492					# Max allowed by the PPPoE spec
+ set speed sync					# PPPoE is always synchronous
+ enable lqr proxy				# Enable LQR and proxy-arp
+ enable chap pap passwdauth			# Force client authentication
+ set ifaddr 10.0.0.1 10.0.0.100-10.0.0.199	# Hand out up to 100 IP numbers
+ accept dns					# Allow DNS negotiation

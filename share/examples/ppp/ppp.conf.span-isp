@@ -143,6 +143,7 @@ vpn:
   set enddisc LABEL
   set speed sync
   set mrru 1500
+  set mru 1504			# Room for the MP header
   nat enable yes
   set authname vpnname
   set authkey vpnkey
@@ -187,6 +188,7 @@ vpn-in:
   set enddisc label
   set speed sync
   set mrru 1500
+  set mru 1504			# Room for the MP header
   enable chap
   disable lqr
   set ifaddr REAL-LOCAL-IP REAL-ASSIGNED-IP
