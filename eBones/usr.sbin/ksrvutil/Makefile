@@ -1,11 +1,10 @@
-#	$Id: Makefile,v 1.2 1995/09/07 20:53:52 mark Exp $
+#	$Id: Makefile,v 1.4 1995/09/13 17:24:34 markm Exp $
 
 PROG=	ksrvutil
 SRCS=	ksrvutil.c
-CFLAGS+=	-I${.CURDIR}/../../include -I${.CURDIR}/../../lib/libkadm -Wall
+CFLAGS+=	-I${.CURDIR}/../../lib/libkadm
 DPADD=	${LIBKRB} ${LIBDES}
 LDADD+=	-lkadm -lkrb -ldes -lcom_err
 MAN8=	ksrvutil.8
-BINDIR=	/usr/sbin
 
 .include <bsd.prog.mk>

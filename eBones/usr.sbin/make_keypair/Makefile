@@ -3,10 +3,8 @@
 
 PROG=	make_keypair
 MAN8=	make_keypair.8
-CFLAGS+=-DKERBEROS -I${.CURDIR}/../../include \
-	-I${.CURDIR}/../../usr.bin/register -Wall
+CFLAGS+=-DKERBEROS -I${.CURDIR}/../../usr.bin/register
 DPADD=	${LIBKDB} ${LIBKRB} ${LIBDES}
 LDADD=	-lkdb -lkrb -ldes
-BINDIR=	/usr/sbin
 
 .include <bsd.prog.mk>
