@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.62 1996/09/10 23:30:48 bde Exp $
+ *      $Id: aha1542.c,v 1.63 1996/10/08 21:08:14 bde Exp $
  */
 
 /*
@@ -580,6 +580,7 @@ ahaprobe(dev)
 	}
 	bzero(aha, sizeof(struct aha_data));
 	ahadata[unit] = aha;
+	aha->unit = unit;
 	aha->aha_base = dev->id_iobase;
 
 	/*
