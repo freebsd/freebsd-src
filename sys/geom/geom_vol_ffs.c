@@ -76,6 +76,10 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	g_trace(G_T_TOPOLOGY, "vol_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
 
+	/* 
+	 * XXX This is a really weak way to make sure we don't recurse.
+	 * Probably ought to use BIO_GETATTR to check for this.
+	 */
 	if (flags == G_TF_NORMAL &&
 	    !strcmp(pp->geom->class->name, VOL_FFS_CLASS_NAME))
 		return (NULL);
@@ -118,6 +122,9 @@ g_vol_ffs_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			g_free(fs);
 			continue;
 		}
+		/* XXX We need to check for namespace conflicts. */
+		/* XXX How do you handle a mirror set? */
+		/* XXX We don't validate the volume name. */
 		g_topology_lock();
 		/* Alright, we have a label and a volume name, reconfig. */
 		g_slice_config(gp, 0, G_SLICE_CONFIG_SET, (off_t) 0,
