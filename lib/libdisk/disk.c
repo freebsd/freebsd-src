@@ -642,6 +642,8 @@ slice_type_name( int type, int subtype )
 					case 182:	return "OpenBSD";		/* dedicated */
 					case 183:	return "bsd/os";
 					case 184:	return "bsd/os swap";
+					case 238:	return "EFI GPT";
+					case 239:	return "EFI Sys. Part.";
 					default:	return "unknown";
 				}
 #endif
