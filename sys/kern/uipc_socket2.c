@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.32 1998/04/04 13:25:40 phk Exp $
+ *	$Id: uipc_socket2.c,v 1.33 1998/04/24 04:15:18 dg Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/domain.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
@@ -202,10 +203,9 @@ sonewconn(head, connstatus)
 
 	if (head->so_qlen > 3 * head->so_qlimit / 2)
 		return ((struct socket *)0);
-	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_DONTWAIT);
+	so = soalloc(0);
 	if (so == NULL)
 		return ((struct socket *)0);
-	bzero((caddr_t)so, sizeof(*so));
 	so->so_head = head;
 	so->so_type = head->so_type;
 	so->so_options = head->so_options &~ SO_ACCEPTCONN;
@@ -218,7 +218,7 @@ sonewconn(head, connstatus)
 	(void) soreserve(so, head->so_snd.sb_hiwat, head->so_rcv.sb_hiwat);
 
 	if ((*so->so_proto->pr_usrreqs->pru_attach)(so, 0, NULL)) {
-		(void) free((caddr_t)so, M_SOCKET);
+		sodealloc(so);
 		return ((struct socket *)0);
 	}
 
@@ -890,6 +890,56 @@ dup_sockaddr(sa, canwait)
 }
 
 /*
+ * Create an external-format (``xsocket'') structure using the information
+ * in the kernel-format socket structure pointed to by so.  This is done
+ * to reduce the spew of irrelevant information over this interface,
+ * to isolate user code from changes in the kernel structure, and
+ * potentially to provide information-hiding if we decide that
+ * some of this information should be hidden from users.
+ */
+void
+sotoxsocket(struct socket *so, struct xsocket *xso)
+{
+	xso->xso_len = sizeof *xso;
+	xso->xso_so = so;
+	xso->so_type = so->so_type;
+	xso->so_options = so->so_options;
+	xso->so_linger = so->so_linger;
+	xso->so_state = so->so_state;
+	xso->so_pcb = so->so_pcb;
+	xso->xso_protocol = so->so_proto->pr_protocol;
+	xso->xso_family = so->so_proto->pr_domain->dom_family;
+	xso->so_qlen = so->so_qlen;
+	xso->so_incqlen = so->so_incqlen;
+	xso->so_qlimit = so->so_qlimit;
+	xso->so_timeo = so->so_timeo;
+	xso->so_error = so->so_error;
+	xso->so_pgid = so->so_pgid;
+	xso->so_oobmark = so->so_oobmark;
+	sbtoxsockbuf(&so->so_snd, &xso->so_snd);
+	sbtoxsockbuf(&so->so_rcv, &xso->so_rcv);
+	xso->so_uid = so->so_uid;
+}
+
+/*
+ * This does the same for sockbufs.  Note that the xsockbuf structure,
+ * since it is always embedded in a socket, does not include a self
+ * pointer nor a length.  We make this entry point public in case
+ * some other mechanism needs it.
+ */
+void
+sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
+{
+	xsb->sb_cc = sb->sb_cc;
+	xsb->sb_hiwat = sb->sb_hiwat;
+	xsb->sb_mbcnt = sb->sb_mbcnt;
+	xsb->sb_mbmax = sb->sb_mbmax;
+	xsb->sb_lowat = sb->sb_lowat;
+	xsb->sb_flags = sb->sb_flags;
+	xsb->sb_timeo = sb->sb_timeo;
+}
+
+/*
  * Here is the definition of some of the basic objects in the kern.ipc
  * branch of the MIB.
  */
@@ -900,6 +950,7 @@ static int dummy;
 SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 
 SYSCTL_INT(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLFLAG_RW, &sb_max, 0, "");
+SYSCTL_INT(_kern_ipc, OID_AUTO, maxsockets, CTLFLAG_RD, &maxsockets, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
 	   &sb_efficiency, 0, "");
 SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD, &nmbclusters, 0, "");

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.43 1998/03/24 18:06:28 wollman Exp $
+ *	$Id: tcp_subr.c,v 1.44 1998/03/28 10:18:24 bde Exp $
  */
 
 #include "opt_compat.h"
@@ -85,6 +85,9 @@ static int	tcp_do_rfc1644 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1644, rfc1644,
 	CTLFLAG_RW, &tcp_do_rfc1644 , 0, "");
 
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD, &tcbinfo.ipi_count,
+	   0, "Number of active PCBs");
+
 static void	tcp_cleartaocache __P((void));
 static void	tcp_notify __P((struct inpcb *, int));
 
@@ -130,22 +133,7 @@ tcp_init()
 	tcbinfo.hashbase = hashinit(TCBHASHSIZE, M_PCB, &tcbinfo.hashmask);
 	tcbinfo.porthashbase = hashinit(TCBHASHSIZE, M_PCB,
 					&tcbinfo.porthashmask);
-	/* For the moment, we just worry about putting inpcbs here. */
-	/*
-	 * Rationale for a maximum of `nmbclusters':
-	 * 	1) It's a convenient value, sized by config, based on
-	 *	   parameters already known to be tweakable as needed
-	 *	   for network-intensive systems.
-	 *	2) Under the Old World Order, when pcbs were stored in
-	 *	   mbufs, it was of course impossible to have more
-	 *	   pcbs than mbufs.
-	 *	3) The zone allocator doesn't allocate physical memory
-	 *	   for this many pcbs; it just sizes the virtual
-	 *	   address space appropriately.  Thus, even for very large
-	 *	   values of nmbclusters, we don't actually take up much
-	 *	   memory unless required.
-	 */
-	tcbinfo.ipi_zone = zinit("tcpcb", sizeof(struct inp_tp), nmbclusters,
+	tcbinfo.ipi_zone = zinit("tcpcb", sizeof(struct inp_tp), maxsockets,
 				 ZONE_INTERRUPT, 0);
 	if (max_protohdr < sizeof(struct tcpiphdr))
 		max_protohdr = sizeof(struct tcpiphdr);
@@ -421,14 +409,10 @@ tcp_close(tp)
 		 * way to calculate the pipesize, it will have to do.
 		 */
 		i = tp->snd_ssthresh;
-#if 1
 		if (rt->rt_rmx.rmx_sendpipe != 0)
 			dosavessthresh = (i < rt->rt_rmx.rmx_sendpipe / 2);
 		else
 			dosavessthresh = (i < so->so_snd.sb_hiwat / 2);
-#else
-		dosavessthresh = (i < rt->rt_rmx.rmx_sendpipe / 2);
-#endif
 		if (((rt->rt_rmx.rmx_locks & RTV_SSTHRESH) == 0 &&
 		     i != 0 && rt->rt_rmx.rmx_ssthresh != 0)
 		    || dosavessthresh) {
@@ -505,6 +489,93 @@ tcp_notify(inp, error)
 	sowwakeup(so);
 }
 
+static int
+tcp_pcblist SYSCTL_HANDLER_ARGS
+{
+	int error, i, n, s;
+	struct inpcb *inp, **inp_list;
+	inp_gen_t gencnt;
+	struct xinpgen xig;
+
+	/*
+	 * The process of preparing the TCB list is too time-consuming and
+	 * resource-intensive to repeat twice on every request.
+	 */
+	if (req->oldptr == 0) {
+		n = tcbinfo.ipi_count;
+		req->oldidx = 2 * (sizeof xig)
+			+ (n + n/8) * sizeof(struct xtcpcb);
+		return 0;
+	}
+
+	if (req->newptr != 0)
+		return EPERM;
+
+	/*
+	 * OK, now we're committed to doing something.
+	 */
+	s = splnet();
+	gencnt = tcbinfo.ipi_gencnt;
+	n = tcbinfo.ipi_count;
+	splx(s);
+
+	xig.xig_len = sizeof xig;
+	xig.xig_count = n;
+	xig.xig_gen = gencnt;
+	xig.xig_sogen = so_gencnt;
+	error = SYSCTL_OUT(req, &xig, sizeof xig);
+	if (error)
+		return error;
+
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
+	if (inp_list == 0)
+		return ENOMEM;
+	
+	s = splnet();
+	for (inp = tcbinfo.listhead->lh_first, i = 0; inp && i < n;
+	     inp = inp->inp_list.le_next) {
+		if (inp->inp_gencnt <= gencnt)
+			inp_list[i++] = inp;
+	}
+	splx(s);
+	n = i;
+
+	error = 0;
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		if (inp->inp_gencnt <= gencnt) {
+			struct xtcpcb xt;
+			xt.xt_len = sizeof xt;
+			/* XXX should avoid extra copy */
+			bcopy(inp, &xt.xt_inp, sizeof *inp);
+			bcopy(inp->inp_ppcb, &xt.xt_tp, sizeof xt.xt_tp);
+			if (inp->inp_socket)
+				sotoxsocket(inp->inp_socket, &xt.xt_socket);
+			error = SYSCTL_OUT(req, &xt, sizeof xt);
+		}
+	}
+	if (!error) {
+		/*
+		 * Give the user an updated idea of our state.
+		 * If the generation differs from what we told
+		 * her before, she knows that something happened
+		 * while we were processing this request, and it
+		 * might be necessary to retry.
+		 */
+		s = splnet();
+		xig.xig_gen = tcbinfo.ipi_gencnt;
+		xig.xig_sogen = so_gencnt;
+		xig.xig_count = tcbinfo.ipi_count;
+		splx(s);
+		error = SYSCTL_OUT(req, &xig, sizeof xig);
+	}
+	free(inp_list, M_TEMP);
+	return error;
+}
+
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
+	    tcp_pcblist, "S,xtcpcb", "List of active TCP connections");
+
 void
 tcp_ctlinput(cmd, sa, vip)
 	int cmd;
@@ -517,10 +588,8 @@ tcp_ctlinput(cmd, sa, vip)
 
 	if (cmd == PRC_QUENCH)
 		notify = tcp_quench;
-#if 1
 	else if (cmd == PRC_MSGSIZE)
 		notify = tcp_mtudisc;
-#endif
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd > PRC_NCMDS || inetctlerrmap[cmd] == 0))
 		return;
@@ -548,7 +617,6 @@ tcp_quench(inp, errno)
 		tp->snd_cwnd = tp->t_maxseg;
 }
 
-#if 1
 /*
  * When `need fragmentation' ICMP is received, update our idea of the MSS
  * based on the new value in the route.  Also nudge TCP to send something,
@@ -623,7 +691,6 @@ tcp_mtudisc(inp, errno)
 		tcp_output(tp);
 	}
 }
-#endif
 
 /*
  * Look-up the routing entry to the peer of this inpcb.  If no route

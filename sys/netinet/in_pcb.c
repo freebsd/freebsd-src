@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.42 1998/03/28 10:33:13 bde Exp $
+ *	$Id: in_pcb.c,v 1.43 1998/04/19 17:22:30 phk Exp $
  */
 
 #include <sys/param.h>
@@ -875,6 +875,7 @@ static void
 in_pcbremlists(inp)
 	struct inpcb *inp;
 {
+	inp->inp_gencnt = ++inp->inp_pcbinfo->ipi_gencnt;
 	if (inp->inp_lport) {
 		struct inpcbport *phd = inp->inp_phd;
 

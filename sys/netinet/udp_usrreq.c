@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_usrreq.c	8.6 (Berkeley) 5/23/95
- *	$Id: udp_usrreq.c,v 1.45 1998/03/24 18:06:34 wollman Exp $
+ *	$Id: udp_usrreq.c,v 1.46 1998/03/28 10:18:26 bde Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ udp_init()
 	udbinfo.hashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashmask);
 	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB,
 					&udbinfo.porthashmask);
-	udbinfo.ipi_zone = zinit("udpcb", sizeof(struct inpcb), nmbclusters,
+	udbinfo.ipi_zone = zinit("udpcb", sizeof(struct inpcb), maxsockets,
 				 ZONE_INTERRUPT, 0);
 }
 
@@ -361,6 +361,92 @@ udp_ctlinput(cmd, sa, vip)
 	} else
 		in_pcbnotify(&udb, sa, 0, zeroin_addr, 0, cmd, udp_notify);
 }
+
+static int
+udp_pcblist SYSCTL_HANDLER_ARGS
+{
+	int error, i, n, s;
+	struct inpcb *inp, **inp_list;
+	inp_gen_t gencnt;
+	struct xinpgen xig;
+
+	/*
+	 * The process of preparing the TCB list is too time-consuming and
+	 * resource-intensive to repeat twice on every request.
+	 */
+	if (req->oldptr == 0) {
+		n = udbinfo.ipi_count;
+		req->oldidx = 2 * (sizeof xig)
+			+ (n + n/8) * sizeof(struct xinpcb);
+		return 0;
+	}
+
+	if (req->newptr != 0)
+		return EPERM;
+
+	/*
+	 * OK, now we're committed to doing something.
+	 */
+	s = splnet();
+	gencnt = udbinfo.ipi_gencnt;
+	n = udbinfo.ipi_count;
+	splx(s);
+
+	xig.xig_len = sizeof xig;
+	xig.xig_count = n;
+	xig.xig_gen = gencnt;
+	xig.xig_sogen = so_gencnt;
+	error = SYSCTL_OUT(req, &xig, sizeof xig);
+	if (error)
+		return error;
+
+	inp_list = malloc(n * sizeof *inp_list, M_TEMP, M_WAITOK);
+	if (inp_list == 0)
+		return ENOMEM;
+	
+	s = splnet();
+	for (inp = udbinfo.listhead->lh_first, i = 0; inp && i < n;
+	     inp = inp->inp_list.le_next) {
+		if (inp->inp_gencnt <= gencnt)
+			inp_list[i++] = inp;
+	}
+	splx(s);
+	n = i;
+
+	error = 0;
+	for (i = 0; i < n; i++) {
+		inp = inp_list[i];
+		if (inp->inp_gencnt <= gencnt) {
+			struct xinpcb xi;
+			xi.xi_len = sizeof xi;
+			/* XXX should avoid extra copy */
+			bcopy(inp, &xi.xi_inp, sizeof *inp);
+			if (inp->inp_socket)
+				sotoxsocket(inp->inp_socket, &xi.xi_socket);
+			error = SYSCTL_OUT(req, &xi, sizeof xi);
+		}
+	}
+	if (!error) {
+		/*
+		 * Give the user an updated idea of our state.
+		 * If the generation differs from what we told
+		 * her before, she knows that something happened
+		 * while we were processing this request, and it
+		 * might be necessary to retry.
+		 */
+		s = splnet();
+		xig.xig_gen = udbinfo.ipi_gencnt;
+		xig.xig_sogen = so_gencnt;
+		xig.xig_count = udbinfo.ipi_count;
+		splx(s);
+		error = SYSCTL_OUT(req, &xig, sizeof xig);
+	}
+	free(inp_list, M_TEMP);
+	return error;
+}
+
+SYSCTL_PROC(_net_inet_udp, UDPCTL_PCBLIST, pcblist, CTLFLAG_RD, 0, 0,
+	    udp_pcblist, "S,xinpcb", "List of active UDP sockets");
 
 static int
 udp_output(inp, m, addr, control, p)

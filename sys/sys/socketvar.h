@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.24 1998/02/01 20:08:38 bde Exp $
+ *	$Id: socketvar.h,v 1.25 1998/03/01 19:39:29 guido Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -46,7 +46,10 @@
  * handle on protocol and pointer to protocol
  * private data and error information.
  */
+typedef	u_quad_t so_gen_t;
+
 struct socket {
+	struct	vm_zone *so_zone;	/* zone we were allocated from */
 	short	so_type;		/* generic type, see socket.h */
 	short	so_options;		/* from socket call, see socket.h */
 	short	so_linger;		/* time to linger while closing */
@@ -99,10 +102,10 @@ struct socket {
 #define	SB_NOTIFY	(SB_WAIT|SB_SEL|SB_ASYNC)
 #define	SB_NOINTR	0x40		/* operations not interruptible */
 
-	caddr_t	so_tpcb;		/* Wisc. protocol control block XXX */
 	void	(*so_upcall) __P((struct socket *so, caddr_t arg, int waitf));
 	caddr_t	so_upcallarg;		/* Arg for above */
 	uid_t	so_uid;			/* who opened the socket */
+	so_gen_t so_gencnt;		/* generation count */
 };
 
 /*
@@ -124,6 +127,37 @@ struct socket {
 #define	SS_INCOMP		0x0800	/* unaccepted, incomplete connection */
 #define	SS_COMP			0x1000	/* unaccepted, complete connection */
 
+/*
+ * Externalized form of struct socket used by the sysctl(3) interface.
+ */
+struct	xsocket {
+	size_t	xso_len;	/* length of this structure */
+	struct	socket *xso_so;	/* makes a convenient handle sometimes */
+	short	so_type;
+	short	so_options;
+	short	so_linger;
+	short	so_state;
+	caddr_t	so_pcb;		/* another convenient handle */
+	int	xso_protocol;
+	int	xso_family;
+	short	so_qlen;
+	short	so_incqlen;
+	short	so_qlimit;
+	short	so_timeo;
+	u_short	so_error;
+	pid_t	so_pgid;
+	u_long	so_oobmark;
+	struct	xsockbuf {
+		u_long	sb_cc;
+		u_long	sb_hiwat;
+		u_long	sb_mbcnt;
+		u_long	sb_mbmax;
+		long	sb_lowat;
+		short	sb_flags;
+		short	sb_timeo;
+	} so_rcv, so_snd;
+	uid_t	so_uid;		/* XXX */
+};
 
 /*
  * Macros for sockets and socket buffering.
@@ -202,11 +236,13 @@ struct socket {
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PCB);
-MALLOC_DECLARE(M_SOCKET);
 MALLOC_DECLARE(M_SONAME);
 #endif
 
+extern int	maxsockets;
 extern u_long	sb_max;
+extern struct	vm_zone *socket_zone;
+extern so_gen_t so_gencnt;
 
 struct file;
 struct filedesc;
@@ -248,10 +284,12 @@ void	sbflush __P((struct sockbuf *sb));
 void	sbinsertoob __P((struct sockbuf *sb, struct mbuf *m0));
 void	sbrelease __P((struct sockbuf *sb));
 int	sbreserve __P((struct sockbuf *sb, u_long cc));
+void	sbtoxsockbuf __P((struct sockbuf *sb, struct xsockbuf *xsb));
 int	sbwait __P((struct sockbuf *sb));
 int	sb_lock __P((struct sockbuf *sb));
 int	soabort __P((struct socket *so));
 int	soaccept __P((struct socket *so, struct sockaddr **nam));
+struct	socket *soalloc __P((int waitok));
 int	sobind __P((struct socket *so, struct sockaddr *nam, struct proc *p));
 void	socantrcvmore __P((struct socket *so));
 void	socantsendmore __P((struct socket *so));
@@ -260,6 +298,7 @@ int	soconnect __P((struct socket *so, struct sockaddr *nam, struct proc *p));
 int	soconnect2 __P((struct socket *so1, struct socket *so2));
 int	socreate __P((int dom, struct socket **aso, int type, int proto,
 	    struct proc *p));
+void	sodealloc __P((struct socket *so));
 int	sodisconnect __P((struct socket *so));
 void	sofree __P((struct socket *so));
 int	sogetopt __P((struct socket *so, int level, int optname,
@@ -287,6 +326,7 @@ int	sosend __P((struct socket *so, struct sockaddr *addr, struct uio *uio,
 int	sosetopt __P((struct socket *so, int level, int optname,
 	    struct mbuf *m0, struct proc *p));
 int	soshutdown __P((struct socket *so, int how));
+void	sotoxsocket __P((struct socket *so, struct xsocket *xso));
 void	sowakeup __P((struct socket *so, struct sockbuf *sb));
 
 #endif /* KERNEL */

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)udp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: udp_var.h,v 1.13 1997/08/16 19:15:42 wollman Exp $
+ * $Id: udp_var.h,v 1.14 1997/09/07 05:26:51 bde Exp $
  */
 
 #ifndef _NETINET_UDP_VAR_H_
@@ -89,7 +89,8 @@ struct	udpstat {
 #define UDPCTL_STATS		2	/* statistics (read-only) */
 #define	UDPCTL_MAXDGRAM		3	/* max datagram size */
 #define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
-#define UDPCTL_MAXID		5
+#define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
+#define UDPCTL_MAXID		6
 
 #define UDPCTL_NAMES { \
 	{ 0, 0 }, \
@@ -97,6 +98,7 @@ struct	udpstat {
 	{ "stats", CTLTYPE_STRUCT }, \
 	{ "maxdgram", CTLTYPE_INT }, \
 	{ "recvspace", CTLTYPE_INT }, \
+	{ "pcblist", CTLTYPE_STRUCT }, \
 }
 
 #ifdef KERNEL
