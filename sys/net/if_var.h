@@ -264,11 +264,12 @@ struct ifaddr {
  * address, not a count of pointers to this structure.
  */
 struct ifmultiaddr {
-	LIST_ENTRY(ifmultiaddr) ifma_link;
-	struct	sockaddr *ifma_addr;
-	struct	sockaddr *ifma_lladdr;
-	struct	ifnet *ifma_ifp;
-	u_int	ifma_refcount;
+	LIST_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
+	struct	sockaddr *ifma_addr; 	/* address this membership is for */
+	struct	sockaddr *ifma_lladdr;	/* link-layer translation, if any */
+	struct	ifnet *ifma_ifp;	/* back-pointer to interface */
+	u_int	ifma_refcount;		/* reference count */
+	void	*ifma_protospec;	/* protocol-specific state, if any */
 };
 
 #ifdef KERNEL
@@ -290,7 +291,8 @@ int	ether_output __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 int	ether_ioctl __P((struct ifnet *, int, caddr_t));
 
-int	if_addmulti __P((struct ifnet *, struct sockaddr *));
+int	if_addmulti __P((struct ifnet *, struct sockaddr *, 
+			 struct ifmultiaddr **));
 int	if_allmulti __P((struct ifnet *, int));
 void	if_attach __P((struct ifnet *));
 int	if_delmulti __P((struct ifnet *, struct sockaddr *));
@@ -318,6 +320,9 @@ struct	ifaddr *ifa_ifwithroute __P((int, struct sockaddr *,
 					struct sockaddr *));
 struct	ifaddr *ifaof_ifpforaddr __P((struct sockaddr *, struct ifnet *));
 void	ifafree __P((struct ifaddr *));
+
+struct	ifmultiaddr *ifmaof_ifpforaddr __P((struct sockaddr *, 
+					    struct ifnet *));
 
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
