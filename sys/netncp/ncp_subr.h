@@ -45,6 +45,7 @@
 #define nwfs_printf	NCP_PRINT
 /* Maybe this should panic, but I dont like that */
 #define NCPFATAL	NCP_PRINT
+#define NCPERROR	NCP_PRINT
 
 /* socket debugging */
 #ifdef NCP_SOCKET_DEBUG
@@ -109,25 +110,15 @@ struct proc;
 struct ucred;
 
 int  ncp_init(void);
-void ncp_done(void);
+int  ncp_done(void);
 int  ncp_chkintr(struct ncp_conn *conn, struct proc *p);
 char*ncp_str_dup(char *s);
+int  ncp_sysctlbyname(char *name, void *old, size_t *oldlenp,
+	void *new, size_t newlen, size_t *retval);
 
 /* ncp_crypt.c */
 void nw_keyhash(const u_char *key, const u_char *buf, int buflen, u_char *target);
 void nw_encrypt(const u_char *fra, const u_char *buf, u_char *target);
 void ncp_sign(const u_int32_t *state, const char *x, u_int32_t *ostate);
-
-/* ncp calls */
-int ncp_get_bindery_object_id(struct ncp_conn *conn, 
-		u_int16_t object_type, char *object_name, 
-		struct ncp_bindery_object *target,
-		struct proc *p,struct ucred *cred);
-int  ncp_login_object(struct ncp_conn *conn, unsigned char *username, 
-		int login_type, unsigned char *password,
-		struct proc *p,struct ucred *cred);
-int  ncp_read(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred);
-int  ncp_write(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred);
-
 
 #endif /* _NCP_SUBR_H_ */

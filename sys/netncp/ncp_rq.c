@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,10 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/errno.h>
+#include <sys/kernel.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/poll.h>
 #include <sys/uio.h>
 
 #include <netncp/ncp.h>
@@ -44,523 +47,424 @@
 #include <netncp/ncp_rq.h>
 #include <netncp/ncp_subr.h>
 #include <netncp/ncp_ncp.h>
+#include <netncp/ncp_sock.h>
 #include <netncp/ncp_nls.h>
 
-int
-ncp_rq_head(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,struct proc *p,
-    struct ucred *cred)
-{
-	struct mbuf *m;
-	struct ncp_rqhdr *rq;
-	struct ncp_bursthdr *brq;
-	caddr_t pstart;
+static MALLOC_DEFINE(M_NCPRQ, "NCPRQ", "NCP request");
 
-	bzero(rqp, sizeof(*rqp));
-	rqp->p = p;
-	rqp->cred = cred;
-	m = m_gethdr(M_TRYWAIT, MT_DATA);
-	if (m == NULL) 
-		return ENOBUFS;		/* if M_TRYWAIT ? */
-	m->m_pkthdr.rcvif = NULL;
-	rqp->rq = rqp->mrq = m;
-	rqp->rp = NULL;
-	switch(ptype) {
-	    case NCP_PACKET_BURST:
-		MH_ALIGN(m, sizeof(*brq) + 24);
-		m->m_len = sizeof(*brq);
-		brq = mtod(m, struct ncp_bursthdr *);
-		brq->bh_type = ptype;
-		brq->bh_streamtype = 0x2;
-		pstart = (caddr_t)brq;
-		break;
-	    default:
-		MH_ALIGN(m, sizeof(*rq) + 2);	/* possible len field in some functions */
-		m->m_len = sizeof(*rq);
-		rq = mtod(m, struct ncp_rqhdr *);
-		rq->type = ptype;
-		rq->seq = 0;	/* filled later */
-		rq->fn = fn;
-		pstart = (caddr_t)rq;
-		break;
+static int ncp_sign_packet(struct ncp_conn *conn, struct ncp_rq *rqp, int *size);
+
+int
+ncp_rq_alloc_any(u_int32_t ptype, u_int8_t fn, struct ncp_conn *ncp,
+	struct proc *p, struct ucred *cred,
+	struct ncp_rq **rqpp)
+{
+	struct ncp_rq *rqp;
+	int error;
+
+	MALLOC(rqp, struct ncp_rq *, sizeof(*rqp), M_NCPRQ, M_WAITOK);
+	error = ncp_rq_init_any(rqp, ptype, fn, ncp, p, cred);
+	rqp->nr_flags |= NCPR_ALLOCED;
+	if (error) {
+		ncp_rq_done(rqp);
+		return error;
 	}
-	rqp->bpos = pstart + m->m_len;
+	*rqpp = rqp;
 	return 0;
 }
 
 int
-ncp_rq_done(struct ncp_rq *rqp) {
-	m_freem(rqp->rq);
-	rqp->rq=NULL;
-	if (rqp->rp) m_freem(rqp->rp);
-	rqp->rp=NULL;
-	return (0);
+ncp_rq_alloc(u_int8_t fn, struct ncp_conn *ncp,
+	struct proc *p, struct ucred *cred, struct ncp_rq **rqpp)
+{
+	return ncp_rq_alloc_any(NCP_REQUEST, fn, ncp, p, cred, rqpp);
+}
+
+int
+ncp_rq_alloc_subfn(u_int8_t fn, u_int8_t subfn, struct ncp_conn *ncp,
+	struct proc *p,	struct ucred *cred, struct ncp_rq **rqpp)
+{
+	struct ncp_rq *rqp;
+	int error;
+
+	error = ncp_rq_alloc_any(NCP_REQUEST, fn, ncp, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_reserve(&rqp->rq, 2);
+	mb_put_uint8(&rqp->rq, subfn);
+	*rqpp = rqp;
+	return 0;
+}
+
+int
+ncp_rq_init_any(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,
+	struct ncp_conn *ncp,
+	struct proc *p,	struct ucred *cred)
+{
+	struct ncp_rqhdr *rq;
+	struct ncp_bursthdr *brq;
+	struct mbchain *mbp;
+	int error;
+
+	bzero(rqp, sizeof(*rqp));
+	error = ncp_conn_access(ncp, cred, NCPM_EXECUTE);
+	if (error)
+		return error;
+	rqp->nr_p = p;
+	rqp->nr_cred = cred;
+	rqp->nr_conn = ncp;
+	mbp = &rqp->rq;
+	if (mb_init(mbp) != 0)
+		return ENOBUFS;
+	switch(ptype) {
+	    case NCP_PACKET_BURST:
+		brq = (struct ncp_bursthdr*)mb_reserve(mbp, sizeof(*brq));
+		brq->bh_type = ptype;
+		brq->bh_streamtype = 0x2;
+		break;
+	    default:
+		rq = (struct ncp_rqhdr*)mb_reserve(mbp, sizeof(*rq));
+		rq->type = ptype;
+		rq->seq = 0;	/* filled later */
+		rq->fn = fn;
+		break;
+	}
+	rqp->nr_minrplen = -1;
+	return 0;
+}
+
+void
+ncp_rq_done(struct ncp_rq *rqp)
+{
+	mb_done(&rqp->rq);
+	md_done(&rqp->rp);
+	if (rqp->nr_flags & NCPR_ALLOCED)
+		free(rqp, M_NCPRQ);
+	return;
 }
 
 /*
  * Routines to fill the request
  */
-static caddr_t ncp_mchecksize(struct ncp_rq *rqp, int size);
-#define	NCP_RQADD(t)	((t*)(ncp_mchecksize(rqp,sizeof(t))))
 
-caddr_t
-ncp_mchecksize(struct ncp_rq *rqp, int size) {
-	caddr_t bpos1;
-
-	if (size>MLEN)
-		panic("ncp_mchecksize\n");
-	if (M_TRAILINGSPACE(rqp->mrq)<(size)) {
-		struct mbuf *m;
-		m = m_get(M_TRYWAIT, MT_DATA);
-		m->m_len = 0;
-		rqp->bpos = mtod(m, caddr_t);
-		rqp->mrq->m_next = m;
-		rqp->mrq = m;
-	}
-	rqp->mrq->m_len += size;
-	bpos1 = rqp->bpos;
-	rqp->bpos += size;
-	return bpos1;
-}
-
-void
-ncp_rq_byte(struct ncp_rq *rqp,u_int8_t x) {
-	*NCP_RQADD(u_int8_t)=x;
-}
-
-void
-ncp_rq_word_hl(struct ncp_rq *rqp, u_int16_t x) {
-	setwbe(NCP_RQADD(u_int16_t), 0, x);
-}
-
-void
-ncp_rq_word_lh(struct ncp_rq *rqp, u_int16_t x) {
-	setwle(NCP_RQADD(u_int16_t), 0, x);
-}
-
-void
-ncp_rq_dword_lh(struct ncp_rq *rqp, u_int32_t x) {
-	setdle(NCP_RQADD(u_int32_t), 0, x);
-}
-
-void
-ncp_rq_pathstring(struct ncp_rq *rqp, int size, char *name, struct ncp_nlstables *nt) {
-	struct mbuf *m;
-	int cplen;
-
-	ncp_rq_byte(rqp, size);
-	m = rqp->mrq;
-	cplen = min(size, M_TRAILINGSPACE(m));
-	if (cplen) {
-		ncp_pathcopy(name, rqp->bpos, cplen, nt);
-		size -= cplen;
-		name += cplen;
-		m->m_len += cplen;
-	}
-	if (size) {
-		m = m_getm(m, size, MT_DATA, M_TRYWAIT);
-		while (size > 0){
-			m = m->m_next;
-			cplen = min(size, M_TRAILINGSPACE(m));
-			ncp_pathcopy(name, mtod(m, caddr_t) + m->m_len, cplen, nt);
-			size -= cplen;
-			name += cplen;
-			m->m_len += cplen;
-		}
-	}
-	rqp->bpos = mtod(m,caddr_t) + m->m_len;
-	rqp->mrq = m;
-	return;
-}
-
-int
-ncp_rq_putanymem(struct ncp_rq *rqp, caddr_t source, int size, int type) {
-	struct mbuf *m;
-	int cplen, error;
-
-	m = rqp->mrq;
-	cplen = min(size, M_TRAILINGSPACE(m));
-	if (cplen) {
-		if (type==1) {
-			error = copyin(source, rqp->bpos, cplen);
-			if (error) return error;
-		} else
-			bcopy(source, rqp->bpos, cplen);
-		size -= cplen;
-		source += cplen;
-		m->m_len += cplen;
-	}
-	if (size) {
-		m = m_getm(m, size, MT_DATA, M_TRYWAIT);
-		while (size > 0){
-			m = m->m_next;
-			cplen = min(size, M_TRAILINGSPACE(m));
-			if (type==1) {
-				error = copyin(source, mtod(m, caddr_t) + m->m_len, cplen);
-				if (error) return error;
-			} else
-				bcopy(source, mtod(m, caddr_t) + m->m_len, cplen);
-			size -= cplen;
-			source += cplen;
-			m->m_len += cplen;
-		}
-	}
-	rqp->bpos = mtod(m,caddr_t) + m->m_len;
-	rqp->mrq = m;
+static int
+ncp_rq_pathstrhelp(struct mbchain *mbp, c_caddr_t src, caddr_t dst, int len)
+{
+	ncp_pathcopy(src, dst, len, mbp->mb_udata);
 	return 0;
 }
 
 int
-ncp_rq_mbuf(struct ncp_rq *rqp, struct mbuf *m, int size) {
+ncp_rq_pathstring(struct ncp_rq *rqp, int size, const char *name,
+	struct ncp_nlstables *nt)
+{
+	struct mbchain *mbp = &rqp->rq;
 
-	rqp->mrq->m_next = m;
-	m->m_next = NULL;
-	if (size != M_COPYALL) m->m_len = size;
-	rqp->bpos = mtod(m,caddr_t) + m->m_len;
-	rqp->mrq = m;
-	return 0;
+	mb_put_uint8(mbp, size);
+	mbp->mb_copy = ncp_rq_pathstrhelp;
+	mbp->mb_udata = nt;
+	return mb_put_mem(mbp, (c_caddr_t)name, size, MB_MCUSTOM);
 }
 
-void 
-ncp_rq_pstring(struct ncp_rq *rqp, char *s) {
-	int len = strlen(s);
-	if (len > 255) {
-		nwfs_printf("string too long: %s\n", s);
-		len = 255;
-	}
-	ncp_rq_byte(rqp, len);
-	ncp_rq_mem(rqp, s, len);
-	return;
+int 
+ncp_rq_pstring(struct ncp_rq *rqp, const char *s)
+{
+	u_int len = strlen(s);
+	int error;
+
+	if (len > 255)
+		return EINVAL;
+	error = mb_put_uint8(&rqp->rq, len);
+	if (error)
+		return error;
+	return mb_put_mem(&rqp->rq, s, len, MB_MSYSTEM);
 }
 
-void 
+int 
 ncp_rq_dbase_path(struct ncp_rq *rqp, u_int8_t vol_num, u_int32_t dir_base,
                     int namelen, u_char *path, struct ncp_nlstables *nt)
 {
+	struct mbchain *mbp = &rqp->rq;
 	int complen;
 
-	ncp_rq_byte(rqp, vol_num);
-	ncp_rq_dword(rqp, dir_base);
-	ncp_rq_byte(rqp, 1);	/* with dirbase */
+	mb_put_uint8(mbp, vol_num);
+	mb_put_mem(mbp, (c_caddr_t)&dir_base, sizeof(dir_base), MB_MSYSTEM);
+	mb_put_uint8(mbp, 1);	/* with dirbase */
 	if (path != NULL && path[0]) {
 		if (namelen < 0) {
 			namelen = *path++;
-			ncp_rq_byte(rqp, namelen);
+			mb_put_uint8(mbp, namelen);
 			for(; namelen; namelen--) {
 				complen = *path++;
-				ncp_rq_byte(rqp, complen);
-				ncp_rq_mem(rqp, path, complen);
+				mb_put_uint8(mbp, complen);
+				mb_put_mem(mbp, path, complen, MB_MSYSTEM);
 				path += complen;
 			}
 		} else {
-			ncp_rq_byte(rqp, 1);	/* 1 component */
+			mb_put_uint8(mbp, 1);	/* 1 component */
 			ncp_rq_pathstring(rqp, namelen, path, nt);
 		}
 	} else {
-		ncp_rq_byte(rqp, 0);
-		ncp_rq_byte(rqp, 0);
+		mb_put_uint8(mbp, 0);
+		mb_put_uint8(mbp, 0);
 	}
-}
-/*
- * fetch reply routines
- */
-#define ncp_mspaceleft	(mtod(rqp->mrp,caddr_t)+rqp->mrp->m_len-rqp->bpos)
-
-u_int8_t
-ncp_rp_byte(struct ncp_rq *rqp) {
-	if (rqp->mrp == NULL) return 0;
-	if (ncp_mspaceleft < 1) {
-		rqp->mrp = rqp->mrp->m_next;
-		if (rqp->mrp == NULL) return 0;
-		rqp->bpos = mtod(rqp->mrp, caddr_t);
-	}
-	rqp->bpos += 1;
-	return rqp->bpos[-1];
-}
-
-u_int16_t
-ncp_rp_word_lh(struct ncp_rq *rqp) {
-	caddr_t prev = rqp->bpos;
-	u_int16_t t;
-
-	if (rqp->mrp == NULL) return 0;
-	if (ncp_mspaceleft >= 2) {
-		rqp->bpos += 2;
-		return getwle(prev,0);
-	}
-	t = *((u_int8_t*)(rqp->bpos));
-	rqp->mrp = rqp->mrp->m_next;
-	if (rqp->mrp == NULL) return 0;
-	((u_int8_t *)&t)[1] = *((u_int8_t*)(rqp->bpos = mtod(rqp->mrp, caddr_t)));
-	rqp->bpos += 2;
-	return t;
-}
-
-u_int16_t
-ncp_rp_word_hl(struct ncp_rq *rqp) {
-	return (ntohs(ncp_rp_word_lh(rqp)));
-}
-
-u_int32_t
-ncp_rp_dword_hl(struct ncp_rq *rqp) {
-	int togo, rest;
-	caddr_t prev = rqp->bpos;
-	u_int32_t t;
-
-	if (rqp->mrp == NULL) return 0;
-	rest = ncp_mspaceleft;
-	if (rest >= 4) {
-		rqp->bpos += 4;
-		return getdbe(prev,0);
-	}
-	togo = 0;
-	while (rest--) {
-		((u_int8_t *)&t)[togo++] = *((u_int8_t*)(prev++));
-	}
-	rqp->mrp = rqp->mrp->m_next;
-	if (rqp->mrp == NULL) return 0;
-	prev = mtod(rqp->mrp, caddr_t);
-	rqp->bpos = prev + 4 - togo;	/* XXX possible low than togo bytes in next mbuf */
-	while (togo < 4) {
-		((u_int8_t *)&t)[togo++] = *((u_int8_t*)(prev++));
-	}
-	return getdbe(&t,0);
-}
-
-u_int32_t
-ncp_rp_dword_lh(struct ncp_rq *rqp) {
-	int rest, togo;
-	caddr_t prev = rqp->bpos;
-	u_int32_t t;
-
-	if (rqp->mrp == NULL) return 0;
-	rest = ncp_mspaceleft;
-	if (rest >= 4) {
-		rqp->bpos += 4;
-		return getdle(prev,0);
-	}
-	togo = 0;
-	while (rest--) {
-		((u_int8_t *)&t)[togo++] = *((u_int8_t*)(prev++));
-	}
-	rqp->mrp = rqp->mrp->m_next;
-	if (rqp->mrp == NULL) return 0;
-	prev = mtod(rqp->mrp, caddr_t);
-	rqp->bpos = prev + 4 - togo;	/* XXX possible low than togo bytes in next mbuf */
-	while (togo < 4) {
-		((u_int8_t *)&t)[togo++] = *((u_int8_t*)(prev++));
-	}
-	return getdle(&t,0);
-}
-void
-ncp_rp_mem(struct ncp_rq *rqp,caddr_t target, int size) {
-	register struct mbuf *m=rqp->mrp;
-	register unsigned count;
-	
-	while (size > 0) {
-		if (m==0) {	/* should be panic */
-			printf("ncp_rp_mem: incomplete copy\n");
-			return;
-		}
-		count = mtod(m,caddr_t)+m->m_len-rqp->bpos;
-		if (count == 0) {
-			m=m->m_next;
-			rqp->bpos=mtod(m,caddr_t);
-			continue;
-		}
-		count = min(count,size);
-		bcopy(rqp->bpos, target, count);
-		size -= count;
-		target += count;
-		rqp->bpos += count;
-	}
-	rqp->mrp=m;
-	return;
-}
-
-int
-ncp_rp_usermem(struct ncp_rq *rqp,caddr_t target, int size) {
-	register struct mbuf *m=rqp->mrp;
-	register unsigned count;
-	int error;
-	
-	while (size>0) {
-		if (m==0) {	/* should be panic */
-			printf("ncp_rp_mem: incomplete copy\n");
-			return EFAULT;
-		}
-		count = mtod(m,caddr_t)+m->m_len-rqp->bpos;
-		if (count == 0) {
-			m=m->m_next;
-			rqp->bpos=mtod(m,caddr_t);
-			continue;
-		}
-		count = min(count,size);
-		error=copyout(rqp->bpos, target, count);
-		if (error) return error;
-		size -= count;
-		target += count;
-		rqp->bpos += count;
-	}
-	rqp->mrp=m;
 	return 0;
 }
 
-struct mbuf*
-ncp_rp_mbuf(struct ncp_rq *rqp, int size) {
-	register struct mbuf *m=rqp->mrp, *rm;
-	register unsigned count;
-	
-	rm = m_copym(m, rqp->bpos - mtod(m,caddr_t), size, M_TRYWAIT);
-	while (size > 0) {
-		if (m == 0) {
-			printf("ncp_rp_mbuf: can't advance\n");
-			return rm;
-		}
-		count = mtod(m,caddr_t)+ m->m_len - rqp->bpos;
-		if (count == 0) {
-			m = m->m_next;
-			rqp->bpos = mtod(m, caddr_t);
-			continue;
-		}
-		count = min(count, size);
-		size -= count;
-		rqp->bpos += count;
-	}
-	rqp->mrp=m;
-	return rm;
-}
-
-int
-nwfs_mbuftouio(mrep, uiop, siz, dpos)
-	struct mbuf **mrep;
-	register struct uio *uiop;
-	int siz;
-	caddr_t *dpos;
-{
-	register char *mbufcp, *uiocp;
-	register int xfer, left, len;
-	register struct mbuf *mp;
-	long uiosiz;
-	int error = 0;
-
-	mp = *mrep;
-	if (!mp) return 0;
-	mbufcp = *dpos;
-	len = mtod(mp, caddr_t)+mp->m_len-mbufcp;
-	while (siz > 0) {
-		if (uiop->uio_iovcnt <= 0 || uiop->uio_iov == NULL)
-			return (EFBIG);
-		left = uiop->uio_iov->iov_len;
-		uiocp = uiop->uio_iov->iov_base;
-		if (left > siz)
-			left = siz;
-		uiosiz = left;
-		while (left > 0) {
-			while (len == 0) {
-				mp = mp->m_next;
-				if (mp == NULL)
-					return (EBADRPC);
-				mbufcp = mtod(mp, caddr_t);
-				len = mp->m_len;
-			}
-			xfer = (left > len) ? len : left;
-#ifdef notdef
-			/* Not Yet.. */
-			if (uiop->uio_iov->iov_op != NULL)
-				(*(uiop->uio_iov->iov_op))
-				(mbufcp, uiocp, xfer);
-			else
-#endif
-			if (uiop->uio_segflg == UIO_SYSSPACE)
-				bcopy(mbufcp, uiocp, xfer);
-			else
-				copyout(mbufcp, uiocp, xfer);
-			left -= xfer;
-			len -= xfer;
-			mbufcp += xfer;
-			uiocp += xfer;
-			uiop->uio_offset += xfer;
-			uiop->uio_resid -= xfer;
-		}
-		if (uiop->uio_iov->iov_len <= siz) {
-			uiop->uio_iovcnt--;
-			uiop->uio_iov++;
-		} else {
-			uiop->uio_iov->iov_base += uiosiz;
-			uiop->uio_iov->iov_len -= uiosiz;
-		}
-		siz -= uiosiz;
-	}
-	*dpos = mbufcp;
-	*mrep = mp;
-	return (error);
-}
-/*
- * copies a uio scatter/gather list to an mbuf chain.
- * NOTE: can ony handle iovcnt == 1
+/* 
+ * Make a signature for the current packet and add it at the end of the
+ * packet.
  */
-int
-nwfs_uiotombuf(uiop, mq, siz, bpos)
-	register struct uio *uiop;
-	struct mbuf **mq;
-	int siz;
-	caddr_t *bpos;
+static int
+ncp_sign_packet(struct ncp_conn *conn, struct ncp_rq *rqp, int *size)
 {
-	register char *uiocp;
-	register struct mbuf *mp, *mp2;
-	register int xfer, left, mlen;
-	int uiosiz, clflg;
+	u_char data[64];
+	int error;
 
-#ifdef DIAGNOSTIC
-	if (uiop->uio_iovcnt != 1)
-		panic("nfsm_uiotombuf: iovcnt != 1");
-#endif
+	bzero(data, sizeof(data));
+	bcopy(conn->sign_root, data, 8);
+	setdle(data, 8, *size);
+	m_copydata(rqp->rq.mb_top, sizeof(struct ncp_rqhdr) - 1,
+		min((*size) - sizeof(struct ncp_rqhdr)+1, 52), data + 12);
+	ncp_sign(conn->sign_state, data, conn->sign_state);
+	error = mb_put_mem(&rqp->rq, (caddr_t)conn->sign_state, 8, MB_MSYSTEM);
+	if (error)
+		return error;
+	(*size) += 8;
+	return 0;
+}
 
-	if (siz > MLEN)		/* or should it >= MCLBYTES ?? */
-		clflg = 1;
-	else
-		clflg = 0;
-	mp = mp2 = *mq;
-	while (siz > 0) {
-		left = uiop->uio_iov->iov_len;
-		uiocp = uiop->uio_iov->iov_base;
-		if (left > siz)
-			left = siz;
-		uiosiz = left;
-		while (left > 0) {
-			mlen = M_TRAILINGSPACE(mp);
-			if (mlen == 0) {
-				MGET(mp, M_TRYWAIT, MT_DATA);
-				if (clflg)
-					MCLGET(mp, M_TRYWAIT);
-				mp->m_len = 0;
-				mp2->m_next = mp;
-				mp2 = mp;
-				mlen = M_TRAILINGSPACE(mp);
-			}
-			xfer = (left > mlen) ? mlen : left;
-#ifdef notdef
-			/* Not Yet.. */
-			if (uiop->uio_iov->iov_op != NULL)
-				(*(uiop->uio_iov->iov_op))
-				(uiocp, mtod(mp, caddr_t)+mp->m_len, xfer);
-			else
-#endif
-			if (uiop->uio_segflg == UIO_SYSSPACE)
-				bcopy(uiocp, mtod(mp, caddr_t)+mp->m_len, xfer);
-			else
-				copyin(uiocp, mtod(mp, caddr_t)+mp->m_len, xfer);
-			mp->m_len += xfer;
-			left -= xfer;
-			uiocp += xfer;
-			uiop->uio_offset += xfer;
-			uiop->uio_resid -= xfer;
-		}
-		uiop->uio_iov->iov_base += uiosiz;
-		uiop->uio_iov->iov_len -= uiosiz;
-		siz -= uiosiz;
+/*
+ * Low level send rpc, here we do not attempt to restore any connection,
+ * Connection expected to be locked
+ */
+int 
+ncp_request_int(struct ncp_rq *rqp)
+{
+	struct ncp_conn *conn = rqp->nr_conn;
+	struct proc *p = conn->procp;
+	struct socket *so = conn->ncp_so;
+	struct ncp_rqhdr *rq;
+	struct ncp_rphdr *rp=NULL;
+	struct timeval tv;
+	struct mbuf *m, *mreply = NULL;
+	struct mbchain *mbp;
+	int error, len, dosend, plen = 0, gotpacket;
+
+	if (conn->flags & NCPFL_INVALID)
+		return ENOTCONN;
+	if (so == NULL) {
+		printf("%s: ncp_so is NULL !\n",__FUNCTION__);
+		conn->flags |= NCPFL_INVALID;
+		return ENOTCONN;
 	}
-	*bpos = mtod(mp, caddr_t)+mp->m_len;
-	*mq = mp;
-	return (0);
+	if (p == NULL)
+		p = curproc;	/* XXX maybe procpage ? */
+	/*
+	 * Flush out replies on previous reqs
+	 */
+	while (ncp_poll(so, POLLIN) != 0) {
+		if (ncp_sock_recv(so, &m, &len) != 0)
+			break;
+		m_freem(m);
+	}
+	mbp = &rqp->rq;
+	len = mb_fixhdr(mbp);
+	rq = mtod(mbp->mb_top, struct ncp_rqhdr *);
+	rq->seq = conn->seq;
+	m = rqp->rq.mb_top;
+
+	switch (rq->fn) {
+	    case 0x15: case 0x16: case 0x17: case 0x23:
+		*(u_int16_t*)(rq + 1) = htons(len - 2 - sizeof(*rq));
+		break;
+	}
+	if (conn->flags & NCPFL_SIGNACTIVE) {
+		error = ncp_sign_packet(conn, rqp, &len);
+		if (error)
+			return error;
+		mbp->mb_top->m_pkthdr.len = len;
+	}
+	rq->conn_low = conn->connid & 0xff;
+	/* rq->task = p->p_pgrp->pg_id & 0xff; */ /*p->p_pid*/
+	/* XXX: this is temporary fix till I find a better solution */
+	rq->task = rq->conn_low;
+	rq->conn_high = conn->connid >> 8;
+	rqp->rexmit = conn->li.retry_count;
+	error = 0;
+	for(dosend = 1;;) {
+		if (rqp->rexmit-- == 0) {
+			error = ETIMEDOUT;
+			break;
+		}
+		error = 0;
+		if (dosend) {
+			NCPSDEBUG("send:%04x f=%02x c=%d l=%d s=%d t=%d\n",rq->type, rq->fn, (rq->conn_high << 8) + rq->conn_low,
+				mbp->mb_top->m_pkthdr.len, rq->seq, rq->task
+			);
+			error = ncp_sock_send(so, mbp->mb_top, rqp);
+			if (error)
+				break;
+		}
+		tv.tv_sec = conn->li.timeout;
+		tv.tv_usec = 0;
+		error = ncp_sock_rselect(so, p, &tv, POLLIN);
+		if (error == EWOULDBLOCK )	/* timeout expired */
+			continue;
+		error = ncp_chkintr(conn, p);
+		if (error)
+			break;
+		/*
+		 * At this point it is possible to get more than one
+		 * reply from server. In general, last reply should be for
+		 * current request, but not always. So, we loop through
+		 * all replies to find the right answer and flush others.
+		 */
+		gotpacket = 0;	/* nothing good found */
+		dosend = 1;	/* resend rq if error */
+		for (;;) {
+			error = 0;
+			if (ncp_poll(so, POLLIN) == 0)
+				break;
+/*			if (so->so_rcv.sb_cc == 0) {
+				break;
+			}*/
+			error = ncp_sock_recv(so, &m, &len);
+			if (error)
+				break; 		/* must be more checks !!! */
+			if (m->m_len < sizeof(*rp)) {
+				m = m_pullup(m, sizeof(*rp));
+				if (m == NULL) {
+					printf("%s: reply too short\n",__FUNCTION__);
+					continue;
+				}
+			}
+			rp = mtod(m, struct ncp_rphdr*);
+			if (len == sizeof(*rp) && rp->type == NCP_POSITIVE_ACK) {
+				NCPSDEBUG("got positive acknowledge\n");
+				m_freem(m);
+				rqp->rexmit = conn->li.retry_count;
+				dosend = 0;	/* server just busy and will reply ASAP */
+				continue;
+			}
+			NCPSDEBUG("recv:%04x c=%d l=%d s=%d t=%d cc=%02x cs=%02x\n",rp->type,
+			    (rp->conn_high << 8) + rp->conn_low, len, rp->seq, rp->task,
+			     rp->completion_code, rp->connection_state);
+			NCPDDEBUG(m);
+			if ( (rp->type == NCP_REPLY) && 
+			    ((rq->type == NCP_ALLOC_SLOT) || 
+			    ((rp->conn_low == rq->conn_low) &&
+			     (rp->conn_high == rq->conn_high)
+			    ))) {
+				if (rq->seq > rp->seq || (rq->seq == 0 && rp->seq == 0xff)) {
+					dosend = 1;
+				}
+				if (rp->seq == rq->seq) {
+					if (gotpacket) {
+						m_freem(m);
+					} else {
+						gotpacket = 1;
+						mreply = m;
+						plen = len;
+					}
+					continue;	/* look up other for other packets */
+				}
+			}
+			m_freem(m);
+			NCPSDEBUG("reply mismatch\n");
+		} /* for receive */
+		if (error || gotpacket)
+			break;
+		/* try to resend, or just wait */
+	}
+	conn->seq++;
+	if (error) {
+		NCPSDEBUG("error=%d\n", error);
+		/*
+		 * Any error except interruped call means that we have
+		 * to reconnect. So, eliminate future timeouts by invalidating
+		 * connection now.
+		 */
+		if (error != EINTR)
+			conn->flags |= NCPFL_INVALID;
+		return (error);
+	}
+	if (conn->flags & NCPFL_SIGNACTIVE) {
+		/* XXX: check reply signature */
+		m_adj(mreply, -8);
+		plen -= 8;
+	}
+	rp = mtod(mreply, struct ncp_rphdr*);
+	md_initm(&rqp->rp, mreply);
+	rqp->nr_rpsize = plen - sizeof(*rp);
+	rqp->nr_cc = error = rp->completion_code;
+	if (error)
+		error |= 0x8900;	/* server error */
+	rqp->nr_cs = rp->connection_state;
+	if (rqp->nr_cs & (NCP_CS_BAD_CONN | NCP_CS_SERVER_DOWN)) {
+		NCPSDEBUG("server drop us\n");
+		conn->flags |= NCPFL_INVALID;
+		error = ECONNRESET;
+	}
+	md_get_mem(&rqp->rp, NULL, sizeof(*rp), MB_MSYSTEM);
+	return error;
+}
+
+/*
+ * Here we will try to restore any loggedin & dropped connection,
+ * connection should be locked on entry
+ */
+static __inline int
+ncp_restore_login(struct ncp_conn *conn)
+{
+	int error;
+
+	printf("ncprq: Restoring connection, flags = %x\n", conn->flags);
+	conn->flags &= ~(NCPFL_LOGGED | NCPFL_ATTACHED);
+	conn->flags |= NCPFL_RESTORING;
+	error = ncp_conn_reconnect(conn);
+	if (!error && (conn->flags & NCPFL_WASLOGGED))
+		error = ncp_login_object(conn, conn->li.user, conn->li.objtype, conn->li.password,conn->procp,conn->ucred);
+	if (error)
+		conn->flags |= NCPFL_INVALID;
+	conn->flags &= ~NCPFL_RESTORING;
+	return error;
+}
+
+int
+ncp_request(struct ncp_rq *rqp)
+{
+	struct ncp_conn *ncp = rqp->nr_conn;
+	int error, rcnt;
+
+	error = ncp_conn_lock(ncp, rqp->nr_p, rqp->nr_cred, NCPM_EXECUTE);
+	if (error)
+		goto out;
+	rcnt = NCP_RESTORE_COUNT;
+	for(;;) {
+		if ((ncp->flags & NCPFL_INVALID) == 0) {
+			error = ncp_request_int(rqp);
+			if ((ncp->flags & NCPFL_INVALID) == 0)
+				break;
+		}
+		if (rcnt-- == 0) {
+			error = ECONNRESET;
+			break;
+		}
+		/*
+		 * Do not attempt to restore connection recursively
+		 */
+		if (ncp->flags & NCPFL_RESTORING) {
+			error = ENOTCONN;
+			break;
+		}
+		error = ncp_restore_login(ncp);
+		if (error)
+			continue;
+	}
+	ncp_conn_unlock(ncp, rqp->nr_p);
+out:
+	if (error && (rqp->nr_flags & NCPR_DONTFREEONERR) == 0)
+		ncp_rq_done(rqp);
+	return error;
 }

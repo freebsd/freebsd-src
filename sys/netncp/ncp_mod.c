@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,6 +58,7 @@ SYSCTL_INT(_net_ncp, OID_AUTO, sysent, CTLFLAG_RD, &ncp_sysent, 0, "");
 SYSCTL_INT(_net_ncp, OID_AUTO, version, CTLFLAG_RD, &ncp_version, 0, "");
 
 MODULE_VERSION(ncp, 1);
+MODULE_DEPEND(ncp, libmchain, 1, 1, 1);
 
 static int
 ncp_conn_frag_rq(struct ncp_conn *conn, struct proc *p, struct ncp_conn_frag *nfp);
@@ -71,7 +72,8 @@ struct sncp_connect_args {
 };
 
 static int 
-__P(sncp_connect(struct proc *p, struct sncp_connect_args *uap)){
+sncp_connect(struct proc *p, struct sncp_connect_args *uap)
+{
 	int connHandle = 0, error;
 	struct ncp_conn *conn;
 	struct ncp_handle *handle;
@@ -82,7 +84,12 @@ __P(sncp_connect(struct proc *p, struct sncp_connect_args *uap)){
 	li.password = li.user = NULL;
 	error = ncp_conn_getattached(&li, p, p->p_ucred, NCPM_WRITE | NCPM_EXECUTE, &conn);
 	if (error) {
-		error = ncp_connect(&li, p, p->p_ucred, &conn);
+		error = ncp_conn_alloc(&li, p, p->p_ucred, &conn);
+		if (error)
+			goto bad;
+		error = ncp_conn_reconnect(conn);
+		if (error)
+			ncp_conn_free(conn);
 	}
 	if (!error) {
 		error = ncp_conn_gethandle(conn, p, &handle);
@@ -104,35 +111,41 @@ static int ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 	struct ncp_conn *conn, struct ncp_handle *handle);
 
 static int
-__P(sncp_request(struct proc *p, struct sncp_request_args *uap)){
-	int error = 0, rqsize;
+sncp_request(struct proc *p, struct sncp_request_args *uap)
+{
+	struct ncp_rq *rqp;
 	struct ncp_conn *conn;
 	struct ncp_handle *handle;
-	DECLARE_RQ;
+	int error = 0, rqsize;
 
 	error = ncp_conn_findhandle(uap->connHandle,p,&handle);
-	if (error) return error;
+	if (error)
+		return error;
 	conn = handle->nh_conn;
 	if (uap->fn == NCP_CONN)
 		return ncp_conn_handler(p, uap, conn, handle);
 	error = copyin(&uap->ncpbuf->rqsize, &rqsize, sizeof(int));
-	if (error) return(error);
-	error = ncp_conn_lock(conn,p,p->p_ucred,NCPM_EXECUTE);
-	if (error) return(error);
-	ncp_rq_head(rqp,NCP_REQUEST,uap->fn,p,p->p_ucred);
-	if (rqsize)
-		error = ncp_rq_usermem(rqp,(caddr_t)uap->ncpbuf->packet, rqsize);
-	if (!error) {
-		error = ncp_request(conn, rqp);
-		if (error == 0 && rqp->rpsize)
-			ncp_rp_usermem(rqp, (caddr_t)uap->ncpbuf->packet, 
-				rqp->rpsize);
-		copyout(&rqp->cs, &uap->ncpbuf->cs, sizeof(rqp->cs));
-		copyout(&rqp->cc, &uap->ncpbuf->cc, sizeof(rqp->cc));
-		copyout(&rqp->rpsize, &uap->ncpbuf->rpsize, sizeof(rqp->rpsize));
+	if (error)
+		return(error);
+	error = ncp_rq_alloc(uap->fn, conn, p, p->p_ucred, &rqp);
+	if (error)
+		return error;
+	if (rqsize) {
+		error = mb_put_mem(&rqp->rq, (caddr_t)uap->ncpbuf->packet,
+		    rqsize, MB_MUSER);
+		if (error)
+			goto bad;
 	}
+	rqp->nr_flags |= NCPR_DONTFREEONERR;
+	error = ncp_request(rqp);
+	if (error == 0 && rqp->nr_rpsize)
+		error = md_get_mem(&rqp->rp, (caddr_t)uap->ncpbuf->packet, 
+				rqp->nr_rpsize, MB_MUSER);
+	copyout(&rqp->nr_cs, &uap->ncpbuf->cs, sizeof(rqp->nr_cs));
+	copyout(&rqp->nr_cc, &uap->ncpbuf->cc, sizeof(rqp->nr_cc));
+	copyout(&rqp->nr_rpsize, &uap->ncpbuf->rpsize, sizeof(rqp->nr_rpsize));
+bad:
 	ncp_rq_done(rqp);
-	ncp_conn_unlock(conn,p);
 	return error;
 }
 
@@ -170,14 +183,11 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 		auio.uio_segflg = UIO_USERSPACE;
 		auio.uio_rw = (subfn == NCP_CONN_READ) ? UIO_READ : UIO_WRITE;
 		auio.uio_procp = p;
-		error = ncp_conn_lock(conn,p,cred,NCPM_EXECUTE);
-		if (error) return(error);
 		if (subfn == NCP_CONN_READ)
 			error = ncp_read(conn, &rwrq.nrw_fh, &auio, cred);
 		else
 			error = ncp_write(conn, &rwrq.nrw_fh, &auio, cred);
 		rwrq.nrw_cnt -= auio.uio_resid;
-		ncp_conn_unlock(conn,p);
 		p->p_retval[0] = rwrq.nrw_cnt;
 		break;
 	    } /* case int_read/write */
@@ -284,7 +294,7 @@ ncp_conn_handler(struct proc *p, struct sncp_request_args *uap,
 		error = ncp_conn_lock(conn, p, cred, NCPM_EXECUTE);
 		if (error) break;
 		ncp_conn_puthandle(hp, p, 0);
-		error = ncp_disconnect(conn);
+		error = ncp_conn_free(conn);
 		if (error)
 			ncp_conn_unlock(conn, p);
 		break;
@@ -301,7 +311,8 @@ struct sncp_conn_scan_args {
 };
 
 static int 
-__P(sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)){
+sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)
+{
 	int connHandle = 0, error;
 	struct ncp_conn_args li, *lip;
 	struct ncp_conn *conn;
@@ -350,32 +361,45 @@ __P(sncp_conn_scan(struct proc *p, struct sncp_conn_scan_args *uap)){
 }
 
 int
-ncp_conn_frag_rq(struct ncp_conn *conn, struct proc *p, struct ncp_conn_frag *nfp){
-	int error = 0, i, rpsize;
-	u_int32_t fsize;
+ncp_conn_frag_rq(struct ncp_conn *conn, struct proc *p, struct ncp_conn_frag *nfp)
+{
 	NW_FRAGMENT *fp;
-	DECLARE_RQ;
+	struct ncp_rq *rqp;
+	u_int32_t fsize;
+	int error, i, rpsize;
 
-	ncp_rq_head(rqp,NCP_REQUEST,nfp->fn,p,p->p_ucred);
-	if (nfp->rqfcnt) {
-		for(fp = nfp->rqf, i = 0; i < nfp->rqfcnt; i++, fp++) {
-			checkbad(ncp_rq_usermem(rqp,(caddr_t)fp->fragAddress, fp->fragSize));
-		}
+	error = ncp_rq_alloc(nfp->fn, conn, p, p->p_ucred, &rqp);
+	if (error)
+		return error;
+	for(fp = nfp->rqf, i = 0; i < nfp->rqfcnt; i++, fp++) {
+		error = mb_put_mem(&rqp->rq, (caddr_t)fp->fragAddress, fp->fragSize, MB_MUSER);
+		if (error)
+			goto bad;
 	}
-	checkbad(ncp_request(conn, rqp));
-	rpsize = rqp->rpsize;
+	rqp->nr_flags |= NCPR_DONTFREEONERR;
+	error = ncp_request(rqp);
+	if (error)
+		goto bad;
+	rpsize = rqp->nr_rpsize;
 	if (rpsize && nfp->rpfcnt) {
 		for(fp = nfp->rpf, i = 0; i < nfp->rpfcnt; i++, fp++) {
-			checkbad(copyin(&fp->fragSize, &fsize, sizeof (fsize)));
+			error = copyin(&fp->fragSize, &fsize, sizeof (fsize));
+			if (error)
+				break;
 			fsize = min(fsize, rpsize);
-			checkbad(ncp_rp_usermem(rqp,(caddr_t)fp->fragAddress, fsize));
+			error = md_get_mem(&rqp->rp, (caddr_t)fp->fragAddress, fsize, MB_MUSER);
+			if (error)
+				break;
 			rpsize -= fsize;
-			checkbad(copyout(&fsize, &fp->fragSize, sizeof (fsize)));
+			error = copyout(&fsize, &fp->fragSize, sizeof (fsize));
+			if (error)
+				break;
 		}
 	}
-	nfp->cs = rqp->cs;
-	nfp->cc = rqp->cc;
-	NCP_RQ_EXIT;
+	nfp->cs = rqp->nr_cs;
+	nfp->cc = rqp->nr_cc;
+bad:
+	ncp_rq_done(rqp);
 	return error;
 }
 
@@ -454,8 +478,13 @@ ncp_load(void) {
 }
 
 static int
-ncp_unload(void) {
-	ncp_done();
+ncp_unload(void)
+{
+	int error;
+
+	error = ncp_done();
+	if (error)
+		return error;
 	bcopy(&oldent, &sysent[ncp_sysent], sizeof(struct sysent) * SC_SIZE);
 	printf( "ncp_unload: unloaded\n");
 	return 0;
