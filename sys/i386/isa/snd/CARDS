@@ -1,37 +1,97 @@
-In this file I will try to build a database of cards supported by this
-driver. I also include the command to use for manual configuration of
-the card in case your BIOS is not PnP-aware. Of course it is your
-responsibility to pick up free prot ranges and irq and drq channels.
+In this file I will try to build a database of cards supported by
+this driver. I also include the command to use for manual configuration
+of the card in case your BIOS is not PnP-aware. Of course it is
+your responsibility to pick up free port ranges and irq and drq
+channels.
 
 For PnP cards, I also include the vendor_id and serial numbers of
-cards I have encountered. Underscores in the PnP id mean that there is
-a large variety of values in those positions.
+cards I have encountered. Underscores in the PnP id mean that
+(I believe) there is a large variety of values in those positions,
+and the code in the audio driver generally masks those bits.
 
 Finally, where available, I have put the URL where you can find the
 data sheets of the chip.
 
+To my knowledge, there are the following families of audio cards:
 
-CS4236B: PnP id 0x35__630e
-CS4236: PnP id 0x36__630e
-CS4237: PnP id 0x37__630e
+* WSS (also called MSS) and clones:
+   these are true full duplex cards, have a very nice architecture and
+   are well documented. Chipsets implementing these functionalities
+   are made from Crystal, Analog Devices, Yamaha, OPTI.
 
+* SB16 and clones:
+   these cards have a higly asymmetric architecture, and are not very
+   well suited to full duplex operation. Made by Creative, Realtek.
+   There is no documentation on the newer codecs (Vibra16X and ALS100+),
+   so they are not fully working.
+
+* ESS
+   ESS builds cards that implement a superset of SB16. They are
+   often capable of full duplex, but my driver does not support them
+   other than in full duplex emulation. My fault, since documentation
+   on these cards _is_ available.
+
+* PCI cards.
+   There are a quite few PCI audio cards around based on a number of
+   different chipsets. Some of them are documented (e.g. S3 Sonic
+   Vibes, Ensoniq ES1370), some are not (e.g. Yamaha YMF724),
+   work is in progress to support such cards. See the notes below.
+   Note that CreativeLabs has recently (fall'97) acquired Ensoniq
+   and the audio division of OPTI, both of which had a PCI audio
+   chipset. I don't know if there are other manufacturers of PCI
+   audio cards.
+
+Finally, some people wrote patches for the following chips:
+
+	AD1816
+	MAD16
+	ESS
+--------------------------
+CHIPSET:
+    CS4235: PnP id 0x25__630e
+    CS4236: PnP id 0x36__630e 0x35__630e
+    CS4237: PnP id 0x37__630e
+
+MANUFACTURER:
+    A/Open (or AcerOpen) AW32, AW35, AW37
+    Also, integrated on the motherboard on some machines.
+	
+DATA SHEETS:
 	http://www.crystal.com/ 	4237full.pdf
 
+PNP CONFIG:
     pnp 1 0 os enable port0 0x534 port2 0x220 irq0 5 drq0 1 drq1 3
 
-    work like a charm. All modes, including full duplex, supported in
+COMMENTS:
+    Work like a charm. All modes, including full duplex, supported in
     MSS mode.
 
-    NOTE: cards based on the 4237, and possibly the 4236 as well,
-        connect the CD to AUX2. When used in MODE1/2 (as this driver
-	does) there is no route in the input mixer from AUX2 to the
-	ADC. So, to record directly from the CD, the only way is
-	to set the input to SOUND_MASK_IMIX.
+    Cards based on the 4237, and possibly the 4236 as well, connect
+    the CD to AUX2. When used in MODE1/2 (as this driver does)
+    there is no route in the input mixer from AUX2 to the ADC. So,
+    to record directly from the CD, the only way is to set the
+    input to SOUND_MASK_IMIX.
 
-CS4232: PnP id 0x3242630e
+    Some machines with the cs4235 in non-pnp mode map the codec at 0x530
+    instead of 0x534. For those machines you need an unusual config line
 
+	device pcm0 at isa ? port 0x52C ...
+
+
+--------------------------
+CHIPSET:
+    CS4232: PnP id 0x3242630e
+
+MANUFACTURER:
+    ???
+
+DATA SHEETS:
+	http://www.crystal.com/
+
+PNP CONFIG:
     pnp 1 0 os enable port0 0x534 port2 0x220 irq0 5 drq0 1 drq1 3
 
+COMMENTS:
     This chip is reported as broken in the OSS documentation. As a
     matter of fact, on my Intel Zappa motherboard, I have problems in
     make it use the secondary DMA channel. I have it working in
@@ -42,9 +102,11 @@ CS4232: PnP id 0x3242630e
 --------------------------
 CHIPSET:
     OPTi931: PnP id 0x3109143e
+    OPTi933: PnP id 0x3109143e (yes, it's the same)
 
 MANUFACTURER:
     ExpertColor MED931 (europe)
+    Shuttle HOT-247 (uses the 933, $15 retail in the US)
 
 DATA SHEETS:
     http://www.opti.com/  opti931_21.pdf
@@ -90,6 +152,7 @@ MANUFACTURER:
 
 DATA SHEETS:
     http://www.creative.com sbhwpg.pdf or SBHWPG.EXE
+    ftp://www.creaf.com/pub/creative/devinfo/ctsbhwpg.exe
 
 PNP CONFIG:
     pnp 1 0 os enable port0 0x220 irq0 5 drq0 1 drq1 5
@@ -140,7 +203,7 @@ DOCUMENTATION:
     but not very useful or detailed.
 
 COMMENTS:
-    These card should be recognized as SB16 clones. Some of them
+    These card should be recognised as SB16 clones. Some of them
     emulate the Vibra16X, so the comments above apply.
 
 
@@ -156,6 +219,8 @@ MANUFACTURER:
 
 DATA SHEETS:
     http://www.yamaha.com ? YM711.pdf
+    ftp://ftp.yamahayst.com/pub/Fax_Back_Doc/Sound
+    http://www.imail.net.tw/qtronix/qumax_product_yamaha.htm
 
     This is a huge file containing a few pages scanned and converted
     to pdf. Not very detailed. Luckily, this chipset appears to do a
@@ -246,11 +311,27 @@ CHIPSET:
 
 -------------------------
 CHIPSET:
-    various PCI cards from Ensoniq, OPTI, CreativeLabs.
+    es1370 (ensoniq)
+    es1371 (ensoniq)
+    used on SB64 PCI, Shuttle HOT-255, and maybe others
 
-    This code _cannot_ work on these cards as it is now, since I
-    don't think they can use the ISA DMA controller. As there are
-    no data sheets available for these PCI cards, none of them is
-    supported at the moment.
+    A driver for this is in the works.
+    see http://www.ensoniq.com/multimedia/semi_html/index.htm
+    for documentation. See also http://alsa.jcu.cz/alsa/ for a Linux
+    driver.
+
+-------------------------
+CHIPSET:
+    YMF724
+    used on various Yamaha (WaveForce) and other cards.
+
+    NOT SUPPORTED.
+
+    There is no public docs on this card, the closest thing being
+    http://www.imail.net.tw/qtronix/driver/qumax/yamaha/ds1e1110.pdf
+    http://www.imail.net.tw/qtronix/qumax_product_yamaha.htm
+    which however does not document how the card works in non-legacy
+    mode and how to make it talk to the AC97 codec.
+
 
 --------------------------------------------------------------------
