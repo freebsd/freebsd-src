@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER= ken@FreeBSD.org
-
 PROG=	camcontrol
 SRCS=	camcontrol.c util.c
 .if !defined(RELEASE_CRUNCH)

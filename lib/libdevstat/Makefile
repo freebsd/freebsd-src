@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=ken@FreeBSD.ORG
-
 LIB=	devstat
 # Bump DEVSTAT_USER_API_VER in devstat.h every time this is incremented.
 SHLIB_MAJOR= 4
