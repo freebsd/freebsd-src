@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.60.2.1 1997/07/01 05:55:45 pst Exp $
+ *	$Id: boot.c,v 1.60.2.2 1998/02/01 05:28:36 yokota Exp $
  */
 
 
@@ -265,7 +265,6 @@ loadprog(void)
  * nonexistent memory.  A full symbol table is unlikely to fit on 4MB
  * machines.
  */
-	pbzero((void *)addr,head.a_bss);
 	addr += head.a_bss;
 
 	/* Pad to a page boundary. */
