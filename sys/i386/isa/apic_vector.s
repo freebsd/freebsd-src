@@ -455,8 +455,7 @@ _Xcpuast:
 
 	movl	_cpl, %eax
 	pushl	%eax
-	movl	$1, _astpending		/* XXX */
-	lock
+	orl	$AST_PENDING, _astpending	/* XXX */
 	incb	_intr_nesting_level
 	sti
 	
@@ -468,7 +467,7 @@ _Xcpuast:
 	lock	
 	btrl	%eax, CNAME(resched_cpus)
 	jnc	2f
-	orl	$AST_RESCHED,_astpending
+	orl	$AST_PENDING+AST_RESCHED,_astpending
 	lock
 	incl	CNAME(want_resched_cnt)
 2:		
@@ -512,7 +511,6 @@ _Xforward_irq:
 	
 	movl	_cpl, %eax
 	pushl	%eax
-	lock
 	incb	_intr_nesting_level
 	sti
 	

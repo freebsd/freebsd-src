@@ -141,7 +141,7 @@ ENTRY(vm86_bioscall)
 	pushl	_cpl			/* cpl to restore */
 #endif
 	subl	$4,%esp			/* dummy unit */
-	MPLOCKED incb _intr_nesting_level
+	incb	_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
 
