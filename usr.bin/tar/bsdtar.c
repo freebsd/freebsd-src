@@ -32,9 +32,6 @@ __FBSDID("$FreeBSD$");
 #include <archive.h>
 #include <archive_entry.h>
 #include <dirent.h>
-#ifdef DMALLOC
-#include <dmalloc.h>
-#endif
 #include <errno.h>
 #include <fcntl.h>
 #include <fnmatch.h>
