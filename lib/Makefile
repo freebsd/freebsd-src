@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile,v 1.72 1998/08/20 08:24:07 msmith Exp $
+#	$Id: Makefile,v 1.73 1998/08/22 14:31:39 gpalmer Exp $
 
 # To satisfy shared library or ELF linkage when only the libraries being
 # built are visible:
@@ -19,8 +19,8 @@ SUBDIR=	libcom_err ${_libcrypt} ${_libm} libmytinfo libtermcap \
 	libpcap libresolv librpcsvc ${_libscsi} libskey libss libstand \
 	${_libtcl} ${_libtelnet} libutil ${_libvgl} libxpg4 liby libz
 
-.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${BINFORMAT})
-_csu=csu/${MACHINE_ARCH}-${BINFORMAT}
+.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${OBJFORMAT})
+_csu=csu/${MACHINE_ARCH}-${OBJFORMAT}
 .elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
 _csu=csu/${MACHINE_ARCH}
 .endif
