@@ -688,10 +688,10 @@ static bus_type_name bus_type_table[] =
 	{CBUS, "CBUS"},
 	{CBUSII, "CBUSII"},
 	{EISA, "EISA"},
-	{UNKNOWN_BUSTYPE, "---"},
+	{MCA, "MCA"},
 	{UNKNOWN_BUSTYPE, "---"},
 	{ISA, "ISA"},
-	{UNKNOWN_BUSTYPE, "---"},
+	{MCA, "MCA"},
 	{UNKNOWN_BUSTYPE, "---"},
 	{UNKNOWN_BUSTYPE, "---"},
 	{UNKNOWN_BUSTYPE, "---"},
@@ -712,10 +712,10 @@ static int default_data[7][5] =
 	{1, 0, ISA, 255, 255},
 	{1, 0, EISA, 255, 255},
 	{1, 0, EISA, 255, 255},
-	{0, 255, 255, 255, 255},/* MCA not supported */
+	{1, 0, MCA, 255, 255},
 	{2, 0, ISA, 1, PCI},
 	{2, 0, EISA, 1, PCI},
-	{0, 255, 255, 255, 255}	/* MCA not supported */
+	{2, 0, MCA, 1, PCI}
 };
 
 
@@ -1679,8 +1679,10 @@ default_mp_table(int type)
 	case 1:
 	case 2:
 	case 3:
+	case 4:
 	case 5:
 	case 6:
+	case 7:
 		bus_data[0].bus_id = default_data[type - 1][1];
 		bus_data[0].bus_type = default_data[type - 1][2];
 		bus_data[1].bus_id = default_data[type - 1][3];
