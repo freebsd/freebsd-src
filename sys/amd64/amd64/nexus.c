@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: nexus.c,v 1.9 1999/05/10 17:56:20 dfr Exp $
+ *	$Id: nexus.c,v 1.10 1999/05/18 20:48:41 peter Exp $
  */
 
 /*
@@ -224,6 +224,9 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 {
 	struct	resource *rv;
 	struct	rman *rm;
+	int needactivate = flags & RF_ACTIVE;
+
+	flags &= ~RF_ACTIVE;
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -276,6 +279,14 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		rman_set_bustag(rv, I386_BUS_SPACE_IO);
 		rman_set_bushandle(rv, rv->r_start);
 	}
+
+	if (needactivate) {
+		if (bus_activate_resource(child, type, *rid, rv)) {
+			rman_release_resource(rv);
+			return 0;
+		}
+	}
+	
 	return rv;
 }
 
@@ -297,6 +308,11 @@ static int
 nexus_release_resource(device_t bus, device_t child, int type, int rid,
 		       struct resource *r)
 {
+	if (r->r_flags & RF_ACTIVE) {
+		int error = bus_deactivate_resource(child, type, rid, r);
+		if (error)
+			return error;
+	}
 	return (rman_release_resource(r));
 }
 
