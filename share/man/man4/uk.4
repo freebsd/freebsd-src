@@ -1,4 +1,4 @@
-.\"	$Id: uk.4,v 1.11 1997/02/22 13:24:52 peter Exp $
+.\"	$Id: uk.4,v 1.6.2.3 1997/02/28 03:26:41 mpp Exp $
 .\" Copyright (c) 1996
 .\"	Julian Elischer <julian@freebsd.org>.  All rights reserved.
 .\"
@@ -39,13 +39,17 @@ driver provides support for a
 process to address devices on the scsi bus for which there is no configured
 driver. 
 .Pp
-In FreeBSD releases prior to 2.1, the first unknown device
+Prior to
+.Fx 2.1 ,
+the first unknown device
 found will be attached as
 .Em uk0
 and the next, 
 .Em uk1
 etc.
-Beginning in 2.1 it is possible to specify what uk unit a device should
+Beginning in
+.Fx 2.1
+it is possible to specify what uk unit a device should
 come on line as; refer to
 .Xr scsi 4
 for details on kernel configuration.
