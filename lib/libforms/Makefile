@@ -2,7 +2,7 @@ LIB = forms
 
 SRCS = forms.c
 
-CFLAGS = -I. -I${.CURDIR} -Wall
+CFLAGS += -I. -I${.CURDIR} -Wall
 
 beforeinstall:
 	@(cd ${.CURDIR}; cmp -s forms.h ${DESTDIR}/usr/include/forms.h || \
