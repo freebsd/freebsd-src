@@ -874,7 +874,7 @@ isipv6addr(const char *addr)
 		freeaddrinfo(res);
 	}
 	if (debug)
-		printf("isipv6addr: got %d for %sn", rv, addr);
+		printf("isipv6addr: got %d for %s\n", rv, addr);
 #endif
 	return (rv == 1) ? 1 : 0;
 }
