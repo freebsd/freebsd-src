@@ -680,6 +680,7 @@ static struct isa_pnp_id sio_ids[] = {
 	{0x0050c31e, NULL},	/* GVC5000 - some GVC modem */
 	{0x3800f91e, NULL},	/* GWY0038 - Telepath with v.90 */
 	{0x9062f91e, NULL},	/* GWY6290 - Telepath with x2 Technology */
+	{0x21002534, NULL},	/* MAE0021 - Jetstream Int V.90 56k Voice Series 2*/
 	{0x0000f435, NULL},	/* MOT0000 - Motorola ModemSURFR 33.6 Intern */
 	{0x5015f435, NULL},	/* MOT1550 - Motorola ModemSURFR 56K Modem */
 	{0xf015f435, NULL},	/* MOT15F0 - Motorola VoiceSURFR 56K Modem */
