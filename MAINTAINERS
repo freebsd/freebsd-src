@@ -73,10 +73,7 @@ share/mk	ru	Recommends pre-commit review.
 ipfw		ipfw	Pre-commit review preferred. send to ipfw@freebsd.org
 xten		imp	Looking after it, don't remove, don't break it.
 drm		anholt	Just keep me informed of changes, try not to break it.
-xargs		jmallett	Willing to handle problems, appreciate heads-up
-				but just try not to break it.
 regression	jmallett	Will help write new tests, etc.
-libufs		jmallett	Willing to handle problems, appreciate heads-up
-				but just try not to break it.
+libufs		jmallett	Willing to handle problems, help with work.
 fdc(4)		joerg	Just keep me informed of changes, try not to break it.
 sppp(4)		joerg	Just keep me informed of changes, try not to break it.
