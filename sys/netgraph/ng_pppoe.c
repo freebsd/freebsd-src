@@ -788,7 +788,7 @@ AAA
 			 * for now just allow ONE service to be advertised.
 			 * If you do it twice you just overwrite.
 			 */
-			if (sp->state |= PPPOE_PRIMED) {
+			if (sp->state != PPPOE_PRIMED) {
 				printf("pppoe: Session not primed\n");
 				LEAVE(EISCONN);
 			}
