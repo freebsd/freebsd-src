@@ -544,7 +544,7 @@ dump_file (p, curdev, toplevel)
 	}
       if (save_linkflag == LF_SPARSE)
 	{
-	  if (finish_sparse_file (f, &sizeleft, hstat.st_size, p))
+	  if (finish_sparse_file (f, &sizeleft, (long) hstat.st_size, p))
 	    goto padit;
 	}
       else
@@ -574,7 +574,7 @@ dump_file (p, curdev, toplevel)
 	    if (count < 0)
 	      {
 		msg_perror ("read error at byte %ld, reading\
- %d bytes, in file %s", hstat.st_size - sizeleft, bufsize, p);
+ %d bytes, in file %s", (long) hstat.st_size - sizeleft, bufsize, p);
 		goto padit;
 	      }
 	    sizeleft -= count;
