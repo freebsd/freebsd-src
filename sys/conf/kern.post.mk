@@ -77,8 +77,8 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD_TAIL}
 
 .if !exists(${.OBJDIR}/.depend)
-${SYSTEM_OBJS}: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND:M*.h} \
-    ${MFILES:T:S/.m$/.h/}
+${SYSTEM_OBJS}: assym.s pccarddevs.h usbdevs.h miidevs.h vnode_if.h \
+    ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 .endif
 
 LNFILES=	${CFILES:T:S/.c$/.ln/}
@@ -136,9 +136,9 @@ GEN_M_CFILES=	${MFILES:T:S/.m$/.c/}
 
 # The argument list can be very long, so use make -V and xargs to
 # pass it to mkdep.
-_kernel-depend: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND} \
-	    ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} ${GEN_M_CFILES} \
-	    ${SFILES} ${MFILES:T:S/.m$/.h/}
+_kernel-depend: assym.s miidevs.h pccarddevs.h usbdevs.h vnode_if.h \
+	    ${BEFORE_DEPEND} ${CFILES} ${SYSTEM_CFILES} ${GEN_CFILES} \
+	    ${GEN_M_CFILES} ${SFILES} ${MFILES:T:S/.m$/.h/}
 	if [ -f .olddep ]; then mv .olddep .depend; fi
 	rm -f .newdep
 	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES -V GEN_M_CFILES | \
