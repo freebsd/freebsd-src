@@ -335,7 +335,7 @@ ptrace(curp, uap)
 	case PT_CONTINUE:
 	case PT_DETACH:
 		/* Zero means do not send any signal */
-		if (data < 0 || data > _SIG_MAXSIG)
+		if (uap->data < 0 || uap->data > _SIG_MAXSIG)
 			return EINVAL;
 
 		PHOLD(p);
