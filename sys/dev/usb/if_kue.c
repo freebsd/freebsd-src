@@ -526,8 +526,10 @@ Static int kue_detach(dev)
 
 	sc->kue_gone = 1;
 
-	if (ifp != NULL)
+	if (ifp != NULL) {
+		bpfdetach(ifp);
 		if_detach(ifp);
+	}
 
 	if (sc->kue_ep[KUE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->kue_ep[KUE_ENDPT_TX]);
