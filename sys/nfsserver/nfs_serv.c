@@ -2677,7 +2677,7 @@ out2:
 			VOP_UNLOCK(dirp, 0, td);
 		}
 	}
-	mtx_lock(&Giant);	/* VFS */
+	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 ereply:
 	nfsm_reply(NFSX_POSTOPATTR(v3) + NFSX_WCCDATA(v3));
