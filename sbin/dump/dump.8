@@ -31,7 +31,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)dump.8	8.3 (Berkeley) 5/1/95
-.\"	$Id: dump.8,v 1.20 1998/05/10 16:35:31 steve Exp $
+.\"	$Id: dump.8,v 1.21 1998/06/15 06:58:09 charnier Exp $
 .\"
 .Dd May 1, 1995
 .Dt DUMP 8
@@ -137,7 +137,7 @@ Write the backup to
 .Ar file
 may be a special device file
 like
-.Pa /dev/rst0
+.Pa /dev/rsa0
 (a tape drive),
 .Pa /dev/rfd1
 (a floppy disk drive),
@@ -300,7 +300,7 @@ to minimize the number of tapes follows:
 .It
 Always start with a level 0 backup, for example:
 .Bd -literal -offset indent
-/sbin/dump -0u -f /dev/nrst0 /usr/src
+/sbin/dump -0u -f /dev/nrsa0 /usr/src
 .Ed
 .Pp
 This should be done at set intervals, say once a month or once every two months,
@@ -332,7 +332,7 @@ will be used to determine the pathname of the remote
 program.
 .Sh FILES
 .Bl -tag -width /etc/dumpdates -compact
-.It Pa /dev/rst0
+.It Pa /dev/rsa0
 default tape unit to dump to
 .It Pa /etc/dumpdates
 dump date records

@@ -40,4 +40,4 @@
 
 #include <paths.h>
 
-#define	_PATH_DEFTAPE	"/dev/rst0"
+#define	_PATH_DEFTAPE	"/dev/rsa0"
