@@ -31,12 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.15 1995/10/13 16:01:59 wollman Exp $
+ *	$Id: rtsock.c,v 1.16 1995/10/26 20:30:26 julian Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -48,13 +49,15 @@
 #include <net/route.h>
 #include <net/raw_cb.h>
 
-struct	sockaddr route_dst = { 2, PF_ROUTE, };
-struct	sockaddr route_src = { 2, PF_ROUTE, };
-struct	sockproto route_proto = { PF_ROUTE, };
+static struct	sockaddr route_dst = { 2, PF_ROUTE, };
+static struct	sockaddr route_src = { 2, PF_ROUTE, };
+static struct	sockproto route_proto = { PF_ROUTE, };
 
 struct walkarg {
-	int	w_op, w_arg, w_given, w_needed, w_tmemsize;
-	caddr_t	w_where, w_tmem;
+	int	w_tmemsize;
+	int	w_op, w_arg;
+	caddr_t	w_tmem;
+	struct sysctl_req *w_req;
 };
 
 static struct mbuf *
@@ -62,10 +65,12 @@ static struct mbuf *
 static int	rt_msg2 __P((int,
 		    struct rt_addrinfo *, caddr_t, struct walkarg *));
 static void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
-extern int	sysctl_dumpentry __P((struct radix_node *rn, void *vw));
-extern int	sysctl_iflist __P((int af, struct walkarg *w));
-extern int	sysctl_rtable __P((int *name, u_int namelen, void* where,
-				   size_t *given, void *new, size_t newlen));
+static int	sysctl_dumpentry __P((struct radix_node *rn, void *vw));
+static int	sysctl_iflist __P((int af, struct walkarg *w));
+static int	 route_output __P((struct mbuf *, struct socket *));
+static int	 route_usrreq __P((struct socket *,
+	    int, struct mbuf *, struct mbuf *, struct mbuf *));
+static void	 rt_setmetrics __P((u_long, struct rt_metrics *, struct rt_metrics *));
 
 /* Sleazy use of local variables throughout file, warning!!!! */
 #define dst	info.rti_info[RTAX_DST]
@@ -77,7 +82,7 @@ extern int	sysctl_rtable __P((int *name, u_int namelen, void* where,
 #define brdaddr	info.rti_info[RTAX_BRD]
 
 /*ARGSUSED*/
-int
+static int
 route_usrreq(so, req, m, nam, control)
 	register struct socket *so;
 	int req;
@@ -133,7 +138,7 @@ route_usrreq(so, req, m, nam, control)
 }
 
 /*ARGSUSED*/
-int
+static int
 route_output(m, so)
 	register struct mbuf *m;
 	struct socket *so;
@@ -351,7 +356,7 @@ flush:
 	return (error);
 }
 
-void
+static void
 rt_setmetrics(which, in, out)
 	u_long which;
 	register struct rt_metrics *in, *out;
@@ -487,8 +492,7 @@ again:
 	if (cp == 0 && w != NULL && !second_time) {
 		register struct walkarg *rw = w;
 
-		rw->w_needed += len;
-		if (rw->w_needed <= 0 && rw->w_where) {
+		if (rw->w_req) {
 			if (rw->w_tmemsize < len) {
 				if (rw->w_tmem)
 					free(rw->w_tmem, M_RTABLE);
@@ -501,8 +505,7 @@ again:
 				cp = rw->w_tmem;
 				second_time = 1;
 				goto again;
-			} else
-				rw->w_where = 0;
+			}
 		}
 	}
 	if (cp) {
@@ -633,6 +636,7 @@ rt_newaddrmsg(cmd, ifa, error, rt)
 	}
 }
 
+
 /*
  * This is used in dumping the kernel table via sysctl().
  */
@@ -654,7 +658,7 @@ sysctl_dumpentry(rn, vw)
 	netmask = rt_mask(rt);
 	genmask = rt->rt_genmask;
 	size = rt_msg2(RTM_GET, &info, 0, w);
-	if (w->w_where && w->w_tmem) {
+	if (w->w_req && w->w_tmem) {
 		register struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;
 
 		rtm->rtm_flags = rt->rt_flags;
@@ -663,11 +667,8 @@ sysctl_dumpentry(rn, vw)
 		rtm->rtm_index = rt->rt_ifp->if_index;
 		rtm->rtm_errno = rtm->rtm_pid = rtm->rtm_seq = 0;
 		rtm->rtm_addrs = info.rti_addrs;
-		error = copyout((caddr_t)rtm, w->w_where, size);
-		if (error)
-			w->w_where = NULL;
-		else
-			w->w_where += size;
+		error = SYSCTL_OUT(w->w_req, (caddr_t)rtm, size);
+		return (error);
 	}
 	return (error);
 }
@@ -690,7 +691,7 @@ sysctl_iflist(af, w)
 		ifpaddr = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, (caddr_t)0, w);
 		ifpaddr = 0;
-		if (w->w_where && w->w_tmem) {
+		if (w->w_req && w->w_tmem) {
 			register struct if_msghdr *ifm;
 
 			ifm = (struct if_msghdr *)w->w_tmem;
@@ -698,10 +699,9 @@ sysctl_iflist(af, w)
 			ifm->ifm_flags = (u_short)ifp->if_flags;
 			ifm->ifm_data = ifp->if_data;
 			ifm->ifm_addrs = info.rti_addrs;
-			error = copyout((caddr_t)ifm, w->w_where, len);
+			error = SYSCTL_OUT(w->w_req,(caddr_t)ifm, len);
 			if (error)
 				return (error);
-			w->w_where += len;
 		}
 		while ((ifa = ifa->ifa_next) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
@@ -710,7 +710,7 @@ sysctl_iflist(af, w)
 			netmask = ifa->ifa_netmask;
 			brdaddr = ifa->ifa_dstaddr;
 			len = rt_msg2(RTM_NEWADDR, &info, 0, w);
-			if (w->w_where && w->w_tmem) {
+			if (w->w_req && w->w_tmem) {
 				register struct ifa_msghdr *ifam;
 
 				ifam = (struct ifa_msghdr *)w->w_tmem;
@@ -718,10 +718,9 @@ sysctl_iflist(af, w)
 				ifam->ifam_flags = ifa->ifa_flags;
 				ifam->ifam_metric = ifa->ifa_metric;
 				ifam->ifam_addrs = info.rti_addrs;
-				error = copyout(w->w_tmem, w->w_where, len);
+				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error)
 					return (error);
-				w->w_where += len;
 			}
 		}
 		ifaaddr = netmask = brdaddr = 0;
@@ -729,31 +728,27 @@ sysctl_iflist(af, w)
 	return (0);
 }
 
-int
-sysctl_rtable(name, namelen, where, given, new, newlen)
-	int	*name;
-	u_int	namelen;
-	void	*where;
-	size_t	*given;
-	void	*new;
-	size_t	newlen;
+static int
+sysctl_rtsock SYSCTL_HANDLER_ARGS
 {
+	int	*name = (int *)arg1;
+	u_int	namelen = arg2;
 	register struct radix_node_head *rnh;
 	int	i, s, error = EINVAL;
 	u_char  af;
 	struct	walkarg w;
 
-	if (new)
+	name ++;
+	namelen--;
+	if (req->newptr)
 		return (EPERM);
 	if (namelen != 3)
 		return (EINVAL);
 	af = name[0];
 	Bzero(&w, sizeof(w));
-	w.w_where = where;
-	w.w_given = *given;
-	w.w_needed = 0 - w.w_given;
 	w.w_op = name[1];
 	w.w_arg = name[2];
+	w.w_req = req;
 
 	s = splnet();
 	switch (w.w_op) {
@@ -773,33 +768,26 @@ sysctl_rtable(name, namelen, where, given, new, newlen)
 	splx(s);
 	if (w.w_tmem)
 		free(w.w_tmem, M_RTABLE);
-	w.w_needed += w.w_given;
-	if (where) {
-		*given = w.w_where - (caddr_t)where;
-		if (*given < w.w_needed)
-			return (ENOMEM);
-	} else {
-		*given = (11 * w.w_needed) / 10;
-	}
 	return (error);
 }
+
+SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock,"");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.
  */
 
-extern	struct domain routedomain;		/* or at least forward */
+extern struct domain routedomain;		/* or at least forward */
 
-struct protosw routesw[] = {
+static struct protosw routesw[] = {
 { SOCK_RAW,	&routedomain,	0,		PR_ATOMIC|PR_ADDR,
   raw_input,	route_output,	raw_ctlinput,	0,
   route_usrreq,
-  raw_init,	0,		0,		0,
-  sysctl_rtable,
+  raw_init
 }
 };
 
-struct domain routedomain =
+static struct domain routedomain =
     { PF_ROUTE, "route", route_init, 0, 0,
       routesw, &routesw[sizeof(routesw)/sizeof(routesw[0])] };
 
