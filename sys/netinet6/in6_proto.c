@@ -99,7 +99,6 @@
 #include <netinet6/udp6_var.h>
 #include <netinet6/pim6_var.h>
 #include <netinet6/nd6.h>
-#include <netinet6/in6_prefix.h>
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
