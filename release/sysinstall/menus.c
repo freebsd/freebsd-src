@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.2 1995/05/31 09:05:42 jkh Exp $
+ * $Id: menus.c,v 1.41.2.3 1995/05/31 10:17:40 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -211,12 +211,18 @@ To specify a URL not in this list, chose \"other\".",
 	DMENU_SET_VARIABLE,	"ftp=ftp://nic.funet.fi/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "France", "ftp.ibp.fr",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ibp.fr/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
-      { "Germany", "ftp.uni-duisburg.de",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-ALPHA", 0,		},
+      { "Germany", "ftp.fb9dv.uni-duisburg.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.fb9dv.uni-duisburg.de/pub/unix/FreeBSD/2.0.5-ALPHA", 0, 0	},
+      { "Germany #2", "gil.physik.rwth-aachen.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://gil.physik.rwth-aachen.de/pub/FreeBSD/2.0.5-ALPHA", 0, 0		},
+      { "Germany #3", "ftp.uni-paderborn.de",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.uni-paderborn.de/freebsd/2.0.5-ALPHA", 0, 0			},
+      { "Hong Kong", "ftp.hk.super.net",
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.hk.super.net/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Israel", "orgchem.weizmann.ac.il",
 	DMENU_SET_VARIABLE,	"ftp=ftp://orgchem.weizmann.ac.il/pub/FreeBSD-2.0.5-ALPHA", 0, 0		},
       { "Japan", "ftp.sra.co.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/distribution/2.0.5-ALPHA", 0, 0		},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.sra.co.jp/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Japan #2", "ftp.mei.co.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.mei.co.jp/free/PC-UNIX/FreeBSD/2.0.5-ALPHA", 0, 0		},
       { "Japan #3", "ftp.waseda.ac.jp",
@@ -225,10 +231,12 @@ To specify a URL not in this list, chose \"other\".",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.pu-toyama.ac.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Japan #5", "ftpsv1.u-aizu.ac.jp",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftpsv1.u-aizu.ac.jp/pub/os/FreeBSD/2.0.5-ALPHA", 0, 0		},
-      { "Japan #6", "tutserver.tutcc.tut.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://tutserver.tutcc.tut.ac.jp/FreeBSD/FreeBSD-2.0.5-ALPHA", 0, 0		},
+      { "Japan #6", "ftp.tut.ac.jp",
+	DMENU_SET_VARIABLE,	"ftp://ftp.tut.ac.jp/FreeBSD/2.0.5-ALPHA", 0, 0					},
       { "Japan #7", "ftp.ee.uec.ac.jp",
-	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/FreeBSD.other/FreeBSD-2.0.5-ALPHA", 0, 0	},
+	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.ee.uec.ac.jp/pub/os/mirror/ftp.freebsd.org/2.0.5-ALPHA", 0, 0	},
+      { "Japan #8", "ftp.tokyonet.ad.jp",
+	DMENU_SET_VARIABLE,	"ftp://ftp.tokyonet.ad.jp/pub/FreeBSD/2.0.5-ALPHA", 0, 0			},
       { "Korea", "ftp.cau.ac.kr",
 	DMENU_SET_VARIABLE,	"ftp=ftp://ftp.cau.ac.kr/pub/FreeBSD/2.0.5-ALPHA", 0, 0				},
       { "Netherlands", "ftp.nl.net",
