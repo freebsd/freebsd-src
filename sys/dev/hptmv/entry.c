@@ -2035,11 +2035,13 @@ hpt_attach(device_t dev)
 	if ((hpt_vsim = cam_sim_alloc(hpt_action, hpt_poll,__str(PROC_DIR_NAME),
 	    pAdapter, device_get_unit(pAdapter->hpt_dev), /*untagged*/1,
 	    /*tagged*/8,  devq)) == NULL) {
+		free(ccb, M_DEVBUF);
 		cam_simq_free(devq);
 		return ENOMEM;
 	}
 
 	if(xpt_bus_register(hpt_vsim, 0) != CAM_SUCCESS) {
+		free(ccb, M_DEVBUF);
 		cam_sim_free(hpt_vsim, /*free devq*/ TRUE);
 		hpt_vsim = NULL;
 		return ENXIO;
@@ -2048,6 +2050,7 @@ hpt_attach(device_t dev)
 	if(xpt_create_path(&pAdapter->path, /*periph */ NULL,
 	    cam_sim_path(hpt_vsim), CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD)
 	    != CAM_REQ_CMP) {
+		free(ccb, M_DEVBUF);
 		xpt_bus_deregister(cam_sim_path(hpt_vsim));
 		cam_sim_free(hpt_vsim, /*free_devq*/TRUE);
 		hpt_vsim = NULL;
