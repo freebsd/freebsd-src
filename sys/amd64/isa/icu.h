@@ -48,7 +48,6 @@
 #ifndef	LOCORE
 
 /*
-#define MP_SAFE
  * Note:
  *	Most of the SMP equivilants of the icu macros are coded
  *	elsewhere in an MP-safe fashion.
