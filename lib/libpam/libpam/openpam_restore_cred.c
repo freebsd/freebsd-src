@@ -43,7 +43,7 @@
 
 #include <security/pam_appl.h>
 
-#include "openpam_impl.h"
+#include <security/pam_mod_misc.h>
 
 /*
  * OpenPAM extension

@@ -43,7 +43,16 @@
 
 #include <security/pam_appl.h>
 
-#include "openpam_impl.h"
+#include <security/pam_mod_misc.h>
+
+static void
+openpam_free_data(pam_handle_t *pamh, void *data, int status)
+{
+	/* silence compiler warnings */
+	pamh = pamh;
+	status = status;
+	free(data);
+}
 
 /*
  * OpenPAM extension
