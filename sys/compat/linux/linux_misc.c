@@ -629,7 +629,12 @@ struct linux_times_argv {
     long    tms_cstime;
 };
 
+#ifdef __alpha__
+#define CLK_TCK 1024	/* Linux uses 1024 on alpha */
+#else
 #define CLK_TCK 100	/* Linux uses 100 */
+#endif
+
 #define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
 
 int
