@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id: isa_device.h,v 1.8 1994/08/22 15:58:40 bde Exp $
+ *	$Id: isa_device.h,v 1.9 1994/09/02 22:13:34 ats Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
@@ -61,7 +61,7 @@ typedef void inthand2_t __P((int unit));
 struct isa_device {
 	int	id_id;		/* device id */
 	struct	isa_driver *id_driver;
-	u_short	id_iobase;	/* base i/o address */
+	int	id_iobase;	/* base i/o address */
 	u_short	id_irq;		/* interrupt request */
 	short	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
