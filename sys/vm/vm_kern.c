@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id$
+ * $Id: vm_kern.c,v 1.33 1997/02/22 09:48:21 peter Exp $
  */
 
 /*
@@ -92,7 +92,6 @@
 vm_map_t kernel_map=0;
 vm_map_t kmem_map=0;
 vm_map_t exec_map=0;
-vm_map_t exech_map=0;
 vm_map_t clean_map=0;
 vm_map_t u_map=0;
 vm_map_t buffer_map=0;

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.232 1997/03/25 23:43:01 mpp Exp $
+ *	$Id: machdep.c,v 1.233 1997/03/28 12:37:44 joerg Exp $
  */
 
 #include "npx.h"
@@ -338,8 +338,6 @@ again:
 				(nswbuf*MAXPHYS) + pager_map_size, TRUE);
 	exec_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(16*ARG_MAX), TRUE);
-	exech_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
-				(16*PAGE_SIZE), TRUE);
 	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(maxproc*UPAGES*PAGE_SIZE), FALSE);
 
