@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1980, 1991, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)pstat.c	8.9 (Berkeley) 2/16/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -160,7 +164,7 @@ char	*nlistf	= NULL;
 char	*memf	= NULL;
 kvm_t	*kd;
 
-char	*usage;
+char	*usagestr;
 
 #define	SVAR(var) __STRING(var)	/* to force expansion */
 #define	KGET(idx, var)							\
@@ -193,6 +197,7 @@ void	ttyprt __P((struct tty *, int));
 void	ttytype __P((struct tty *, char *, int, int, int));
 void	ufs_header __P((void));
 int	ufs_print __P((struct vnode *));
+static void usage __P((void));
 void	vnode_header __P((void));
 void	vnode_print __P((struct vnode *, struct vnode *));
 void	vnodemode __P((void));
@@ -202,8 +207,6 @@ main(argc, argv)
 	int argc;
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
 	int ch, i, quit, ret;
 	int fileflag, swapflag, ttyflag, vnodeflag;
 	char buf[_POSIX2_LINE_MAX],*opts;
@@ -219,10 +222,10 @@ main(argc, argv)
 	if (!strcmp(opts,"swapinfo")) {
 		swapflag = 1;
 		opts = "kM:N:";
-		usage = "usage: swapinfo [-k] [-M core] [-N system]\n";
+		usagestr = "swapinfo [-k] [-M core] [-N system]";
 	} else {
 		opts = "TM:N:fiknstv";
-		usage = "usage: pstat [-Tfknstv] [-M core] [-N system]\n";
+		usagestr = "pstat [-Tfknstv] [-M core] [-N system]";
 	}
 
 	while ((ch = getopt(argc, argv, opts)) !=  -1)
@@ -256,8 +259,7 @@ main(argc, argv)
 			vnodeflag = 1;
 			break;
 		default:
-			(void)fprintf(stderr, usage);
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -277,15 +279,13 @@ main(argc, argv)
 		for (i = quit = 0; i <= NLMANDATORY; i++)
 			if (!nl[i].n_value) {
 				quit = 1;
-				warnx("undefined symbol: %s\n", nl[i].n_name);
+				warnx("undefined symbol: %s", nl[i].n_name);
 			}
 		if (quit)
 			exit(1);
 	}
-	if (!(fileflag | vnodeflag | ttyflag | swapflag | totalflag)) {
-		(void)fprintf(stderr, usage);
-		exit(1);
-	}
+	if (!(fileflag | vnodeflag | ttyflag | swapflag | totalflag))
+		usage();
 	if (fileflag || totalflag)
 		filemode();
 	if (vnodeflag || totalflag)
@@ -295,6 +295,13 @@ main(argc, argv)
 	if (swapflag || totalflag)
 		swapmode();
 	exit (0);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: %s\n", usagestr);
+	exit (1);
 }
 
 struct e_vnode {
@@ -557,7 +564,7 @@ getmnt(maddr)
 		if (maddr == mt->maddr)
 			return (&mt->mount);
 	if ((mt = malloc(sizeof(struct mtab))) == NULL)
-		err(1, NULL);
+		errx(1, "malloc");
 	KGETRET(maddr, &mt->mount, sizeof(struct mount), "mount table");
 	mt->maddr = maddr;
 	mt->next = mhead;
@@ -595,7 +602,7 @@ mount_print(mp)
 		break;
 	}
 	(void)printf("%s %s on %s", type, ST.f_mntfromname, ST.f_mntonname);
-	if (flags = mp->mnt_flag) {
+	if ((flags = mp->mnt_flag)) {
 		char *comma = "(";
 
 		putchar(' ');
@@ -703,7 +710,7 @@ loadvnodes(avnodes)
 	if (sysctl(mib, 2, NULL, &copysize, NULL, 0) == -1)
 		err(1, "sysctl: KERN_VNODE");
 	if ((vnodebase = malloc(copysize)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc");
 	if (sysctl(mib, 2, vnodebase, &copysize, NULL, 0) == -1)
 		err(1, "sysctl: KERN_VNODE");
 	if (copysize % sizeof(struct e_vnode))
@@ -731,7 +738,7 @@ kinfo_vnodes(avnodes)
 
 	KGET(V_NUMV, numvnodes);
 	if ((vbuf = malloc((numvnodes + 20) * (VPTRSZ + VNODESZ))) == NULL)
-		err(1, NULL);
+		errx(1, "malloc");
 	bp = vbuf;
 	evbuf = vbuf + (numvnodes + 20) * (VPTRSZ + VNODESZ);
 	KGET(V_MOUNTLIST, mountlist);
@@ -767,7 +774,7 @@ ttymode()
 	struct tty *tty;
 
 	if ((tty = malloc(ttyspace * sizeof(*tty))) == NULL)
-		err(1, NULL);
+		errx(1, "malloc");
 #ifndef hp300
 	if (nl[SCONS].n_type != 0) {
 		(void)printf("1 console\n");
@@ -843,7 +850,7 @@ ttytype(tty, name, type, number, indir)
 	if (ntty > ttyspace) {
 		ttyspace = ntty;
 		if ((tty = realloc(tty, ttyspace * sizeof(*tty))) == 0)
-			err(1, NULL);
+			errx(1, "realloc");
 	}
 	if (indir) {
 		KGET(type, ttyaddr);
@@ -1034,7 +1041,7 @@ getfiles(abuf, alen)
 	 * Add emulation of KINFO_FILE here.
 	 */
 	if (memf != NULL)
-		errx(1, "files on dead kernel, not implemented\n");
+		errx(1, "files on dead kernel, not implemented");
 
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_FILE;
@@ -1043,7 +1050,7 @@ getfiles(abuf, alen)
 		return (-1);
 	}
 	if ((buf = malloc(len)) == NULL)
-		err(1, NULL);
+		errx(1, "malloc");
 	if (sysctl(mib, 2, buf, &len, NULL, 0) == -1) {
 		warn("sysctl: KERN_FILE");
 		return (-1);
@@ -1076,7 +1083,7 @@ swapmode()
 	KGET1(VM_SWAPLIST, &swaplist, sizeof swaplist, "swaplist");
 	if ((sw = malloc(nswdev * sizeof(*sw))) == NULL ||
 	    (perdev = malloc(nswdev * sizeof(*perdev))) == NULL)
-		err(1, "malloc");
+		errx(1, "malloc");
 	KGET1(VM_SWDEVT, &ptr, sizeof ptr, "swdevt");
 	KGET2(ptr, sw, nswdev * sizeof(*sw), "*swdevt");
 
