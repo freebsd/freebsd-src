@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_conf.c	8.8 (Berkeley) 3/31/94
- * $Id: vfs_conf.c,v 1.2 1994/08/02 07:43:19 davidg Exp $
+ * $Id: vfs_conf.c,v 1.3 1994/08/20 16:03:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -138,6 +138,13 @@ extern	struct vfsops cd9660_vfsops;
 #define CD9660_VFSOPS	NULL
 #endif
 
+#ifdef MSDOSFS
+extern	struct vfsops msdosfs_vfsops;
+#define MSDOSFS_VFSOPS	&msdosfs_vfsops
+#else
+#define MSDOSFS_VFSOPS	NULL
+#endif
+
 #ifdef UNION
 extern	struct vfsops union_vfsops;
 #define	UNION_VFSOPS	&union_vfsops
@@ -150,7 +157,7 @@ struct vfsops *vfssw[] = {
 	UFS_VFSOPS,		/* 1 = MOUNT_UFS */
 	NFS_VFSOPS,		/* 2 = MOUNT_NFS */
 	MFS_VFSOPS,		/* 3 = MOUNT_MFS */
-	NULL,			/* 4 = MOUNT_PC */
+	MSDOSFS_VFSOPS,		/* 4 = MOUNT_MSDOS */
 	LFS_VFSOPS,		/* 5 = MOUNT_LFS */
 	NULL,			/* 6 = MOUNT_LOFS */
 	FDESC_VFSOPS,		/* 7 = MOUNT_FDESC */
@@ -195,6 +202,7 @@ extern struct vnodeopv_desc procfs_vnodeop_opv_desc;
 extern struct vnodeopv_desc cd9660_vnodeop_opv_desc;
 extern struct vnodeopv_desc cd9660_specop_opv_desc;
 extern struct vnodeopv_desc cd9660_fifoop_opv_desc;
+extern struct vnodeopv_desc msdosfs_vnodeop_opv_desc;
 extern struct vnodeopv_desc union_vnodeop_opv_desc;
 
 struct vnodeopv_desc *vfs_opv_descs[] = {
@@ -249,6 +257,9 @@ struct vnodeopv_desc *vfs_opv_descs[] = {
 #ifdef FIFO
 	&cd9660_fifoop_opv_desc,
 #endif
+#endif
+#ifdef MSDOSFS
+	&msdosfs_vnodeop_opv_desc,
 #endif
 #ifdef UNION
 	&union_vnodeop_opv_desc,
