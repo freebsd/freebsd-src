@@ -155,15 +155,6 @@ Note: since the slew rate is limited to 0.5 ms/s,
 each second of adjustment requires an amortization interval of 2000 s.
 Thus, an adjustment of many seconds can take hours or days to amortize.
 .El
-.Sh FILES
-.Bl -tag -width /etc/ntp.drift -compact
-.It Pa /etc/ntp.conf
-the default name of the configuration file
-.It Pa /etc/ntp.drift
-the default name of the drift file
-.It Pa /etc/ntp.keys
-the default name of the key file
-.El
 .Ss Variables
 Most variables used by the NTP protocol
 can be examined with
@@ -202,6 +193,15 @@ Leap information from the synchronizations source is ignored
 (thus
 .Dv LEAP_NOWARNING
 is passed on).
+.El
+.Sh FILES
+.Bl -tag -width /etc/ntp.drift -compact
+.It Pa /etc/ntp.conf
+the default name of the configuration file
+.It Pa /etc/ntp.drift
+the default name of the drift file
+.It Pa /etc/ntp.keys
+the default name of the key file
 .El
 .Sh SEE ALSO
 .Xr ntp.conf 5 ,
