@@ -38,6 +38,7 @@
 #define	_SYS_FILE_H_
 
 #ifndef _KERNEL
+#include <sys/types.h> /* XXX */
 #include <sys/fcntl.h>
 #include <sys/unistd.h>
 #else
