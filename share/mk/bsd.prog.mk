@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.81 1999/01/22 12:41:27 jdp Exp $
+#	$Id: bsd.prog.mk,v 1.82 1999/03/23 03:06:25 bde Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -75,9 +75,7 @@ _EXTRADEPEND:
 	echo ${PROG}: `${CC} -Wl,-f ${CFLAGS} ${LDFLAGS} ${LDDESTDIR} \
 	    ${LDADD:S/^/-Wl,/}` >> ${DEPENDFILE}
 .else
-.if defined(DPADD) && !empty(DPADD)
-	echo ${PROG}: ${DPADD} >> ${DEPENDFILE}
-.endif
+	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .endif
 .endif
 
