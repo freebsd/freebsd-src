@@ -520,10 +520,10 @@ agg_init(struct agg_info* ess)
 static void
 aggch_start_dac(struct agg_chinfo *ch)
 {
-	u_int wpwa = APU_USE_SYSMEM | (ch->offset >> 9);
+	bus_addr_t wpwa = APU_USE_SYSMEM | (ch->offset >> 9);
 	u_int size = ch->parent->bufsz >> 1;
 	u_int speed = ch->speed;
-	u_int offset = ch->offset >> 1;
+	bus_addr_t offset = ch->offset >> 1;
 	u_int cp = 0;
 	u_int16_t apuch = ch->num << 1;
 	u_int dv;
@@ -663,7 +663,7 @@ aggch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 	ch->offset = physaddr - ess->baseaddr;
 	if (physaddr < ess->baseaddr || ch->offset > WPWA_MAXADDR) {
 		device_printf(ess->dev,
-		    "offset %#x exceeds limit. ", ch->offset);
+		    "offset %#llx exceeds limit. ", (long long)ch->offset);
 		dma_free(ess, sndbuf_getbuf(b));
 		return NULL;
 	}
@@ -673,9 +673,9 @@ aggch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 	if (dir == PCMDIR_PLAY) {
 		ess->playchns++;
 		if (bootverbose)
-			device_printf(ess->dev, "pch[%d].offset = %#x\n", ch->num, ch->offset);
+			device_printf(ess->dev, "pch[%d].offset = %#llx\n", ch->num, (long long)ch->offset);
 	} else if (bootverbose)
-		device_printf(ess->dev, "rch.offset = %#x\n", ch->offset);
+		device_printf(ess->dev, "rch.offset = %#llx\n", (long long)ch->offset);
 
 	return ch;
 }
