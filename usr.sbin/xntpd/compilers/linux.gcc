@@ -1,2 +1,2 @@
 COMPILER= gcc -DUSE_PROTOTYPES -Wall
-COPTS= -O6 -finline-functions -fomit-frame-pointer
+COPTS= -O2 -finline-functions -fomit-frame-pointer

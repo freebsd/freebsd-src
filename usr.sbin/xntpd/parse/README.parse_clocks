@@ -1,0 +1,263 @@
+The parse driver currently supports several clocks with different
+query mechanisms. In order for you to find a sample that might be
+similar to a clock you might want to integrate into parse i'll sum
+up the major features of the clocks (this information is distributed
+in the parse/clk_*.c and xntpd/refclock_parse.c files).
+
+---
+	Meinberg: 127.127.8. 0- 3 (PZF535TCXO)
+		  127.127.8. 4- 7 (PZF535OCXO)
+		  127.127.8. 8-11 (DCFUA31)
+		  127.127.8.28-31 (GPS166)
+	Meinberg: start=<STX>, end=<ETX>, sync on start
+                  pattern="\2D:  .  .  ;T: ;U:  .  .  ;    \3"
+		  pattern="\2  .  .  ;  ;   :  :  ;        \3"
+		  pattern="\2  .  .  ;  ;   :  :  ;    :  ;        ;   .         .       "
+
+	Meinberg is a german manufacturer of time code receivers. Those clocks
+	have a pretty common output format in the stock version. In order to
+	support NTP Meinberg was so kind to produce some special versions of
+	the firmware for the use with NTP. So, if you are going to use a
+	Meinberg clock please ask whether there is a special Uni Erlangen
+	version.
+
+	General characteristics:
+	Meinberg clocks primarily output pulse per second and a describing
+	ASCII string. This string can be produced in two modes. either upon
+	the reception of a question mark or every second. NTP uses the latter
+	mechanism. The DCF77 variants have a pretty good relationship between
+	RS232 time code and the PPS signal while the GPS receiver has no fixed
+	timeing between the datagram and the pulse (you need to use PPS with
+	GPS!) on DCF77 you might get away without the PPS signal.
+
+	The preferred tty setting for Meinberg is:
+		CFLAG		(B9600|CS7|PARENB|CREAD|HUPCL)
+		IFLAG		(IGNBRK|IGNPAR|ISTRIP)
+		OFLAG		0
+		LFLAG		0
+
+	The clock is run at datagram once per second.
+	Stock dataformat is:
+
+       <STX>D:<dd>.<mm>.<yy>;T:<w>;U:<hh>:<mm>:<ss>;<S><F><D><A><ETX>
+   pos:  0  00 00 0 00 0 11 111 1 111 12 2 22 2 22 2 2  2  3  3   3
+         1  23 45 6 78 9 01 234 5 678 90 1 23 4 56 7 8  9  0  1   2
+
+    <STX>           = '\002' ASCII start of text
+    <ETX>           = '\003' ASCII end of text
+    <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
+    <w>             = day of week (sunday= 0)
+    <hh>,<mm>,<ss>  = hour, minute, second
+    <S>             = '#' if never synced since powerup else ' ' for DCF U/A 31
+                      '#' if not PZF sychronisation available else ' ' for PZF 535
+    <F>             = '*' if time comes from internal quartz else ' '
+    <D>             = 'S' if daylight saving time is active else ' '
+    <A>             = '!' during the hour preceeding an daylight saving time
+                          start/end change
+
+    For the university of Erlangen a special format was implemented to support
+    LEAP announcement and anouncement of alternate antenna.
+
+    Version for UNI-ERLANGEN Software is: PZFUERL V4.6 (Meinberg)
+
+    The use of this software release (or higher) is *ABSOLUTELY*
+    recommended (ask for PZFUERL version as some minor HW fixes have
+    been introduced) due to the LEAP second support and UTC indication.
+    The standard timecode does not indicate when the timecode is in
+    UTC (by front panel configuration) thus we have no chance to find
+    the correct utc offset. For the standard format do not ever use
+    UTC display as this is not detectable in the time code !!!
+
+        <STX><dd>.<mm>.<yy>; <w>; <hh>:<mm>:<ss>; <U><S><F><D><A><L><R><ETX>
+    pos:  0   00 0 00 0 00 11 1 11 11 1 11 2 22 22 2  2  2  2  2  3  3   3
+          1   23 4 56 7 89 01 2 34 56 7 89 0 12 34 5  6  7  8  9  0  1   2
+    <STX>           = '\002' ASCII start of text
+    <ETX>           = '\003' ASCII end of text
+    <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
+    <w>             = day of week (sunday= 0)
+    <hh>,<mm>,<ss>  = hour, minute, second
+    <U>             = 'U' UTC time display
+    <S>             = '#' if never synced since powerup else ' ' for DCF U/A 31
+                      '#' if not PZF sychronisation available else ' ' for PZF 535
+    <F>             = '*' if time comes from internal quartz else ' '
+    <D>             = 'S' if daylight saving time is active else ' '
+    <A>             = '!' during the hour preceeding an daylight saving time
+                          start/end change
+    <L>             = 'A' LEAP second announcement
+    <R>             = 'R' alternate antenna
+
+    Meinberg GPS166 receiver
+
+    You must get the Uni-Erlangen firmware for the GPS receiver support
+    to work to full satisfaction !
+
+        <STX><dd>.<mm>.<yy>; <w>; <hh>:<mm>:<ss>; <+/-><00:00>; <U><S><F><D><A><L><R><L>; <position...><ETX>
+ *
+           000000000111111111122222222223333333333444444444455555555556666666
+           123456789012345678901234567890123456789012345678901234567890123456
+        \x0209.07.93; 5; 08:48:26; +00:00;        ; 49.5736N  11.0280E  373m\x03
+ *
+    
+    <STX>           = '\002' ASCII start of text
+    <ETX>           = '\003' ASCII end of text
+    <dd>,<mm>,<yy>  = day, month, year(2 digits!!)
+    <w>             = day of week (sunday= 0)
+    <hh>,<mm>,<ss>  = hour, minute, second
+    <+/->,<00:00>   = offset to UTC
+    <S>             = '#' if never synced since powerup else ' ' for DCF U/A 31
+                      '#' if not PZF sychronisation available else ' ' for PZF 535
+    <U>             = 'U' UTC time display
+    <F>             = '*' if time comes from internal quartz else ' '
+    <D>             = 'S' if daylight saving time is active else ' '
+    <A>             = '!' during the hour preceeding an daylight saving time
+                          start/end change
+    <L>             = 'A' LEAP second announcement
+    <R>             = 'R' alternate antenna (reminiscent of PZF535) usually ' '
+    <L>		   = 'L' on 23:59:60
+
+
+    For the Meinberg parse look into clock_meinberg.c
+
+---
+    RAWDCF: 127.127.8.20-23 (Conrad receiver module - delay 210ms)
+	    127.127.8.24-27 (FAU receiver - delay 258ms)
+    RAWDCF: end=TIMEOUT>1.5s, sync each char (any char),generate psuedo time
+            codes, fixed format
+
+    direct DCF77 code input
+    In Europe it is relatively easy/cheap the receive the german time code
+    transmitter DCF77. The simplest version to process its signal is to
+    feed the 100/200ms pulse of the demodulated AM signal via a level
+    converter to an RS232 port at 50Baud. parse/clk_rawdcf.c holds all
+    necessary decoding logic for the time code which is transmitted each
+    minute for one minute. A bit of the time code is sent once a second.
+
+	The preferred tty setting is:
+		CFLAG           (B50|CS8|CREAD|CLOCAL)
+		IFLAG		0
+		OFLAG		0
+ 		LFLAG		0
+
+	DCF77 raw time code
+
+	From "Zur Zeit", Physikalisch-Technische Bundesanstalt (PTB), Braunschweig
+	und Berlin, Maerz 1989
+
+	Timecode transmission:
+	AM:
+	time marks are send every second except for the second before the
+	next minute mark
+	time marks consist of a reduction of transmitter power to 25%
+	of the nominal level
+	the falling edge is the time indication (on time)
+	time marks of a 100ms duration constitute a logical 0
+	time marks of a 200ms duration constitute a logical 1
+	FM:
+	see the spec. (basically a (non-)inverted psuedo random phase shift)
+
+	Encoding:
+	Second	Contents
+	0  - 10	AM: free, FM: 0
+	11 - 14	free
+	15		R     - alternate antenna
+	16		A1    - expect zone change (1 hour before)
+	17 - 18	Z1,Z2 - time zone
+		 0  0 illegal
+		 0  1 MEZ  (MET)
+		 1  0 MESZ (MED, MET DST)
+		 1  1 illegal
+	19		A2    - expect leap insertion/deletion (1 hour before)
+	20		S     - start of time code (1)
+	21 - 24	M1    - BCD (lsb first) Minutes
+	25 - 27	M10   - BCD (lsb first) 10 Minutes
+	28		P1    - Minute Parity (even)
+	29 - 32	H1    - BCD (lsb first) Hours
+	33 - 34      H10   - BCD (lsb first) 10 Hours
+	35		P2    - Hour Parity (even)
+	36 - 39	D1    - BCD (lsb first) Days
+	40 - 41	D10   - BCD (lsb first) 10 Days
+	42 - 44	DW    - BCD (lsb first) day of week (1: Monday -> 7: Sunday)
+	45 - 49	MO    - BCD (lsb first) Month
+	50           MO0   - 10 Months
+	51 - 53	Y1    - BCD (lsb first) Years
+	54 - 57	Y10   - BCD (lsb first) 10 Years
+	58 		P3    - Date Parity (even)
+	59		      - usually missing (minute indication), except for leap insertion
+
+---
+	Schmid clock: 127.127.8.16-19
+	Schmid clock: needs poll, binary input, end='\xFC', sync start
+
+	The Schmid clock is a DCF77 receiver that sends a binary
+	time code at the reception of a flag byte. The contents
+	if the flag byte determined the time code format. The
+	binary time code is delimited by the byte 0xFC.
+
+	TTY setup is:
+		CFLAG		(B1200|CS8|CREAD|CLOCAL)
+		IFLAG		0
+		OFLAG		0
+ 		LFLAG		0
+
+	The command to Schmid's DCF77 clock is a single byte; each bit
+	allows the user to select some part of the time string, as follows (the
+	output for the lsb is sent first).
+	
+	Bit 0:	time in MEZ, 4 bytes *binary, not BCD*; hh.mm.ss.tenths
+	Bit 1:	date 3 bytes *binary, not BCD: dd.mm.yy
+	Bit 2:	week day, 1 byte (unused here)
+	Bit 3:	time zone, 1 byte, 0=MET, 1=MEST. (unused here)
+	Bit 4:	clock status, 1 byte,	0=time invalid,
+					1=time from crystal backup,
+					3=time from DCF77
+	Bit 5:	transmitter status, 1 byte,
+					bit 0: backup antenna
+					bit 1: time zone change within 1h
+					bit 3,2: TZ 01=MEST, 10=MET
+					bit 4: leap second will be
+						added within one hour
+					bits 5-7: Zero
+	Bit 6:	time in backup mode, units of 5 minutes (unused here)
+
+
+---
+	Trimble SV6: 127.127.8.32-35
+	Trimble SV6: needs poll, ascii timecode, start='>', end='<',
+                     query='>QTM<', eol='<'
+
+        Trimble SV6 is a GPS receiver with PPS output. It needs to be polled.
+	It also need a special tty mode setup (EOL='<').
+
+	TTY setup is:
+		CFLAG            (B4800|CS8|CREAD)
+		IFLAG            (BRKINT|IGNPAR|ISTRIP|ICRNL|IXON)
+		OFLAG            (OPOST|ONLCR)
+		LFLAG            (ICANON|ECHOK)
+
+	Special flags are:
+		PARSE_F_PPSPPS	    - use CIOGETEV for PPS time stamping
+		PARSE_F_PPSONSECOND - the time code is not related to
+				      the PPS pulse (so use the time code
+				      only for the second epoch)
+
+	Timecode
+	0000000000111111111122222222223333333	/ char
+	0123456789012345678901234567890123456	\ posn
+	>RTMhhmmssdddDDMMYYYYoodnnvrrrrr;*xx<	Actual
+	----33445566600112222BB7__-_____--99-	Parse
+	>RTM                      1     ;*  <",	Check
+
+---
+	ELV DCF7000: 127.127.8.12-15 
+	ELV DCF7000: end='\r', pattern="  -  -  -  -  -  -  -  \r"
+
+	The ELV DCF7000 is a cheap DCF77 receiver sending each second
+	a time code (though not very precise!) delimited by '`r'
+
+	Timecode
+	  YY-MM-DD-HH-MM-SS-FF\r
+
+		FF&0x1	- DST
+		FF&0x2	- DST switch warning
+		FF&0x4  - unsynchronised
+

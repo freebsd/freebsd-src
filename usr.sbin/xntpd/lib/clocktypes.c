@@ -11,7 +11,7 @@
 struct clktype clktypes[] = {
 	{ REFCLK_NONE,		"unspecified type (0)",            "UNKNOWN" },
 	{ REFCLK_LOCALCLOCK,	"local clock synchronization (1)", "LOCAL" },
-	{ REFCLK_WWV_HEATH,	"Heathkit WWV clock (2)",          "WWV_HEATH" },
+	{ REFCLK_GPS_TRAK,	"TRAK 8810 GPS Receiver (2)",      "GPS_TRAK" },
 	{ REFCLK_WWV_PST,	"Precision Standard Time WWV clock (3)", "WWV_PST" },
 	{ REFCLK_WWVB_SPECTRACOM, "Spectracom WWVB clock (4)",     "WWVB_SPEC" },
 	{ REFCLK_GOES_TRUETIME,	"True Time GPS/GOES clock (5)",    "GPS_GOES_TRUE" },

@@ -1,0 +1,29 @@
+#!/bin/sh -
+CMD="$1"
+shift;
+
+. refclocks/setup
+
+case "$CMD" in
+  info)
+	echo "	TRAK		- TRAK 8810 GPS station clock"
+	;;
+  check)
+	if check "$RCONFIG" '$0 ~ /TRAK/'; then
+	  echo "TRAK		- TRAK 8810 GPS station clock"
+	fi
+	;;
+  config)
+	if check "$REFCONF" '$0 ~ /TRAK/' ||
+	   ( [ ! "$REFCONF" ] && query "Include TRAK 8810 GPS station clock (TRAK)" n); then
+          if check "$PPSFEATURES" '$0 ~ /CD/' &&
+	     [ "$PPSOK" -eq 1 ] &&
+	     (check "$REFCONF" '$0 ~ /TRAKPPS/' ||
+	     ( [ ! "$REFCONF" ] && query "	Use TRAK for PPS" n)); then
+		echo "-DTRAKPPS" >> $RCONFIG
+          else
+	    echo "-DTRAK" >> $RCONFIG
+          fi
+	fi
+	;;
+esac

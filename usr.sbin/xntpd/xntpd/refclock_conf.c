@@ -20,6 +20,12 @@ extern	struct refclock		refclock_local;
 #define	refclock_local	refclock_none
 #endif
 
+#if defined(TRAK) || defined(TRAKCLK) || defined(TRAKPPS)
+extern	struct refclock		refclock_trak;
+#else
+#define	refclock_trak	refclock_none
+#endif
+
 #if defined(PST) || defined(PSTCLK) || defined(PSTPPS)
 extern	struct refclock		refclock_pst;
 #else
@@ -107,7 +113,7 @@ extern	struct refclock		refclock_gpstm;
 struct refclock *refclock_conf[] = {
 	&refclock_none,		/* 0 REFCLK_NONE */
 	&refclock_local,	/* 1 REFCLK_LOCAL */
-	&refclock_none,		/* 2 REFCLK_WWV_HEATH */
+	&refclock_trak,		/* 2 REFCLK_GPS_TRAK */
 	&refclock_pst,		/* 3 REFCLK_WWV_PST */
 	&refclock_wwvb, 	/* 4 REFCLK_WWVB_SPECTRACOM */
 	&refclock_goes,		/* 5 REFCLK_GOES_TRUETIME */

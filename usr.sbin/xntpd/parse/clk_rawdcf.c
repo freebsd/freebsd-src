@@ -1,8 +1,8 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_RAWDCF)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.9 1994/01/25 19:05:12 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_rawdcf.c,v 3.13 1994/03/10 19:00:43 kardel Exp
  *  
- * clk_rawdcf.c,v 3.9 1994/01/25 19:05:12 kardel Exp
+ * clk_rawdcf.c,v 3.13 1994/03/10 19:00:43 kardel Exp
  *
  * Raw DCF77 pulse clock support
  *
@@ -245,6 +245,7 @@ static unsigned LONG convert_rawdcf(buffer, size, dcfparam, clock)
       parseprintf(DD_RAWDCF,("parse: convert_rawdcf: parity check passed\n"));
 
       clock->flags  = PARSEB_S_ANTENNA|PARSEB_S_LEAP;
+      clock->utctime= 0;
       clock->usecond= 0;
       clock->second = 0;
       clock->minute = ext_bf(buffer, DCF_M10, dcfparam->zerobits);
@@ -278,7 +279,7 @@ static unsigned LONG convert_rawdcf(buffer, size, dcfparam, clock)
 	clock->flags |= PARSEB_ANNOUNCE;
 
       if (ext_bf(buffer, DCF_A2, dcfparam->zerobits))
-	clock->flags |= PARSEB_LEAP;
+	clock->flags |= PARSEB_LEAPADD; /* default: DCF77 data format deficiency */
 
       if (ext_bf(buffer, DCF_R, dcfparam->zerobits))
 	clock->flags |= PARSEB_ALTERNATE;
@@ -529,6 +530,15 @@ static unsigned LONG snt_rawdcf(parseio, ptime)
  * History:
  *
  * clk_rawdcf.c,v
+ * Revision 3.13  1994/03/10  19:00:43  kardel
+ * clear utctime field to avoid confusion on synthesize time stamps
+ *
+ * Revision 3.12  1994/02/20  13:04:39  kardel
+ * parse add/delete second support
+ *
+ * Revision 3.11  1994/02/02  17:45:23  kardel
+ * rcs ids fixed
+ *
  * Revision 3.9  1994/01/25  19:05:12  kardel
  * 94/01/23 reconcilation
  *

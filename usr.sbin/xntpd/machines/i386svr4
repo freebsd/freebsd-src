@@ -1,7 +1,7 @@
 SHELL=       /bin/sh
 RANLIB=      ls # ar does the work of ranlib under System V
 DEFS_LOCAL=  -DREFCLOCK
-DEFS=        -DSYS_SVR4 -DSTREAMS_TLI
+DEFS=        -DSYS_SVR4 -DSTREAMS_TLI -DHAVE_TERMIOS
 AUTHDEFS=    -DDES -DMD5
 CLOCKDEFS=   -DLOCAL_CLOCK
 DAEMONLIBS=  

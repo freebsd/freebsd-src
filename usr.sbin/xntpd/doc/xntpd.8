@@ -20,13 +20,13 @@
 '''
 '''     Set up \*(-- to give an unbreakable dash;
 '''     string Tr holds user defined translation string.
-'''     Bell System Logo is used as a dummy character.
+'''     Greek uppercase omega is used as a dummy character.
 '''
-.tr \(bs-|\(bv\*(Tr
+.tr \(*W-|\(bv\*(Tr
 .ie n \{\
-.ds -- \(bs-
-.if (\n(.H=4u)&(1m=24u) .ds -- \(bs\h'-12u'\(bs\h'-12u'-\" diablo 10 pitch
-.if (\n(.H=4u)&(1m=20u) .ds -- \(bs\h'-12u'\(bs\h'-8u'-\" diablo 12 pitch
+.ds -- \(*W-
+.if (\n(.H=4u)&(1m=24u) .ds -- \(*W\h'-12u'\(*W\h'-12u'-\" diablo 10 pitch
+.if (\n(.H=4u)&(1m=20u) .ds -- \(*W\h'-12u'\(*W\h'-8u'-\" diablo 12 pitch
 .ds L" ""
 .ds R" ""
 .ds L' '
@@ -374,7 +374,8 @@ facility will be disabled.
 Certain changes can be made to the
 .I xntpd
 server via mode 6 control messages, in particular the setting of
-leap second indications in a server with a radio clock.  The
+leap second indications in a server with a radio clock.
+The
 .B controlkey
 statement specifies an encription key number to be used for authenticating
 such messages.  Omitting this statement will cause control messages
@@ -446,6 +447,22 @@ useful as future synchronization partners.
 .Ip notrust 10
 Treat these hosts normally in other respects, but never use them as
 synchronization sources.
+.Ip limited 10
+These hosts are subject to limitation of number of clients from the
+same net. Net in this context refers to the IP notion of net (class A,
+class B, class C, etc.). Only the first \*(L"client_limit\*(R" hosts
+that have shown up at the server and that have been active during the
+last \*(L"client_limit_period\*(R" seconds are accepted. Requests from
+other clients from the same net are rejected. Only time request
+packets are taken into account. \*(L"Private\*(R", \*(L"control\*(R",
+and \*(L"broadcast\*(R" packets are not subject to client limitation
+and therefore are not contributing to client count. History of clients
+is kept using the monitoring capability of
+.IR xntpd .
+Thus, monitoring is active as long as there is a restriction entry
+with the \*(L"limited\*(R" flag. The default value for
+\*(L"client_limit\*(R" is 3. The default value for
+\*(L"client_limit_period\*(R" is 3600 seconds.
 .Ip ntpport 10
 This is actually a match algorithm modifier, rather than a restriction
 flag.  Its presence causes the restriction entry to be matched only if
@@ -468,6 +485,21 @@ as well.  While this facility may be otherwise useful for keeping unwanted or
 broken remote time servers from affecting your own, it should not be
 considered an alternative to the standard NTP authentication facility.  Source
 address based restrictions are easily circumvented by a determined cracker.
+.PP
+.B clientlimit
+.I limit
+.PP
+Sets \*(L"client_limit\*(R" to \*(L"limit\*(R", allows configuration
+of client limitation policy. This variable defines the number of
+clients from the same network that are allowed to use the server.
+.PP
+.B clientperiod
+.I period
+.PP
+Sets \*(L"client_limit_period\*(R", allows configuration of client
+limitation policy. This variable specifies the number
+of seconds after which a client is considered inactive and thus no
+longer is counted for client limit restriction.
 .PP
 .B trap
 .I host_address
@@ -1370,6 +1402,31 @@ If flag2 is set, then leaphold is set.
 If flag3 is set, then the sample information is dumped.
 If flag4 is set, then the input data is smoothed, and all data
 points are used.
+.PP
+.SH VARIABLES
+Most variables used by the NTP protocol can be examined with the xntpdc
+(mode 7 messages) and the ntpq (mode 6 messages). Currently very few variables
+can be modified via mode 6 messages. These variables are either created with the
+.I setvar
+directive or the leap warning variables. The leap warning bits that can be
+set in the 
+.B leapwarning
+variable (up to one month ahead). Both, the
+.B leapwarning and in the 
+.B leapindication
+variable, have a slightly different encoding than the usual
+.B leap
+bits interpretation:
+.P
+.Ip 00 8
+The daemon passes the leap bits of its synchronisation source (usual mode of
+operation).
+.Ip 01/10 8
+A leap second is added/deleted (operator forced leap second).
+.Ip 11 8
+Leap information from the sychronisation source is ignored (thus LEAP_NOWARNING
+is passed on).
+.PP
 .SH FILES
 .Ip /etc/ntp.conf 20
 the default name of the configuration file

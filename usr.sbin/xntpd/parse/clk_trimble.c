@@ -1,6 +1,6 @@
 #if defined(REFCLOCK) && (defined(PARSE) || defined(PARSEPPS)) && defined(CLOCK_TRIMSV6)
 /*
- * /src/NTP/REPOSITORY/v3/parse/clk_trimble.c,v 3.7 1994/01/25 19:05:17 kardel Exp
+ * /src/NTP/REPOSITORY/v3/parse/clk_trimble.c,v 3.9 1994/02/02 17:45:27 kardel Exp
  *
  * Trimble SV6 clock support
  */
@@ -106,6 +106,9 @@ cvt_trimsv6(buffer, size, format, clock)
  * History:
  *
  * clk_trimble.c,v
+ * Revision 3.9  1994/02/02  17:45:27  kardel
+ * rcs ids fixed
+ *
  * Revision 3.7  1994/01/25  19:05:17  kardel
  * 94/01/23 reconcilation
  *
