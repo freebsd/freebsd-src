@@ -3221,7 +3221,7 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 				}
 
 				vm_page_protect(m_in, VM_PROT_NONE);
-				pmap_copy_page(VM_PAGE_TO_PHYS(m_in), VM_PAGE_TO_PHYS(m_out));
+				pmap_copy_page(m_in, m_out);
 				m_out->valid = m_in->valid;
 				vm_page_dirty(m_out);
 				vm_page_activate(m_out);
