@@ -36,6 +36,9 @@
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
  */
 
+#ifndef	_MACHINE_LIMITS_H_
+#define	_MACHINE_LIMITS_H_
+
 #define	CHAR_BIT	8		/* number of bits in a char */
 #define	MB_LEN_MAX	6		/* Allow 31 bit UTF2 */
 
@@ -100,3 +103,5 @@
 #define	FLT_MAX		3.40282347E+38F
 #define	FLT_MIN		1.17549435E-38F
 #endif
+
+#endif /* !_MACHINE_LIMITS_H_ */
