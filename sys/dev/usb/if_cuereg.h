@@ -182,5 +182,5 @@ struct cue_softc {
 	struct mtx		cue_mtx;
 };
 
-#define	CUE_LOCK(_sc)		mtx_enter(&(_sc)->cue_mtx, MTX_DEF)
-#define	CUE_UNLOCK(_sc)		mtx_exit(&(_sc)->cue_mtx, MTX_DEF)
+#define	CUE_LOCK(_sc)		mtx_lock(&(_sc)->cue_mtx)
+#define	CUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->cue_mtx)

@@ -256,24 +256,24 @@ nwfs_close(ap)
 
 	if (vp->v_type == VDIR) return 0;	/* nothing to do now */
 	error = 0;
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (np->opened == 0) {
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		return 0;
 	}
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	error = nwfs_vinvalbuf(vp, V_SAVE, ap->a_cred, ap->a_p, 1);
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (np->opened == 0) {
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		return 0;
 	}
 	if (--np->opened == 0) {
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		error = ncp_close_file(NWFSTOCONN(VTONWFS(vp)), &np->n_fh, 
 		   ap->a_p, ap->a_cred);
 	} else
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 	np->n_atime = 0;
 	return (error);
 }

@@ -196,9 +196,9 @@ ntfs_mountroot()
 		return (error);
 	}
 
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 	(void)ntfs_statfs(mp, &mp->mnt_stat, p);
 	vfs_unbusy(mp);
 	return (0);

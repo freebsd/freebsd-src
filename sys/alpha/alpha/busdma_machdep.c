@@ -614,11 +614,11 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 			break;
 		}
 		bpage->busaddr = pmap_kextract(bpage->vaddr);
-		mtx_enter(&bounce_lock, MTX_DEF);
+		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bounce_page_list, bpage, links);
 		total_bpages++;
 		free_bpages++;
-		mtx_exit(&bounce_lock, MTX_DEF);
+		mtx_unlock(&bounce_lock);
 		count++;
 		numpages--;
 	}
@@ -653,7 +653,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		panic("add_bounce_page: map doesn't need any pages");
 	map->pagesreserved--;
 
-	mtx_enter(&bounce_lock, MTX_DEF);
+	mtx_lock(&bounce_lock);
 	bpage = STAILQ_FIRST(&bounce_page_list);
 	if (bpage == NULL)
 		panic("add_bounce_page: free page list is empty");
@@ -661,7 +661,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	STAILQ_REMOVE_HEAD(&bounce_page_list, links);
 	reserved_bpages--;
 	active_bpages++;
-	mtx_exit(&bounce_lock, MTX_DEF);
+	mtx_unlock(&bounce_lock);
 
 	bpage->datavaddr = vaddr;
 	bpage->datacount = size;
@@ -677,7 +677,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 	bpage->datavaddr = 0;
 	bpage->datacount = 0;
 
-	mtx_enter(&bounce_lock, MTX_DEF);
+	mtx_lock(&bounce_lock);
 	STAILQ_INSERT_HEAD(&bounce_page_list, bpage, links);
 	free_bpages++;
 	active_bpages--;
@@ -690,7 +690,7 @@ free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage)
 			sched_swi(vm_ih, SWI_NOSWITCH);
 		}
 	}
-	mtx_exit(&bounce_lock, MTX_DEF);
+	mtx_unlock(&bounce_lock);
 }
 
 void
@@ -698,13 +698,13 @@ busdma_swi(void)
 {
 	struct bus_dmamap *map;
 
-	mtx_enter(&bounce_lock, MTX_DEF);
+	mtx_lock(&bounce_lock);
 	while ((map = STAILQ_FIRST(&bounce_map_callbacklist)) != NULL) {
 		STAILQ_REMOVE_HEAD(&bounce_map_callbacklist, links);
-		mtx_exit(&bounce_lock, MTX_DEF);
+		mtx_unlock(&bounce_lock);
 		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
 				map->callback, map->callback_arg, /*flags*/0);
-		mtx_enter(&bounce_lock, MTX_DEF);
+		mtx_lock(&bounce_lock);
 	}
-	mtx_exit(&bounce_lock, MTX_DEF);
+	mtx_unlock(&bounce_lock);
 }

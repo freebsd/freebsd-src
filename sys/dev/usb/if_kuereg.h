@@ -173,5 +173,5 @@ struct kue_softc {
 	struct mtx		kue_mtx;
 };
 
-#define	KUE_LOCK(_sc)		mtx_enter(&(_sc)->kue_mtx, MTX_DEF)
-#define	KUE_UNLOCK(_sc)		mtx_exit(&(_sc)->kue_mtx, MTX_DEF)
+#define	KUE_LOCK(_sc)		mtx_lock(&(_sc)->kue_mtx)
+#define	KUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->kue_mtx)

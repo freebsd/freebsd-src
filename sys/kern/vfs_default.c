@@ -449,7 +449,7 @@ vop_nolock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK)
-		mtx_exit(&ap->a_vp->v_interlock, MTX_DEF);
+		mtx_unlock(&ap->a_vp->v_interlock);
 	return (0);
 #endif
 }
@@ -471,7 +471,7 @@ vop_nounlock(ap)
 	 * the interlock here.
 	 */
 	if (ap->a_flags & LK_INTERLOCK)
-		mtx_exit(&ap->a_vp->v_interlock, MTX_DEF);
+		mtx_unlock(&ap->a_vp->v_interlock);
 	return (0);
 }
 

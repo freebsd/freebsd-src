@@ -256,10 +256,10 @@ boot(int howto)
  			if (curproc != NULL) {
 				DROP_GIANT_NOSWITCH();
    				for (subiter = 0; subiter < 50 * iter; subiter++) {
-     					mtx_enter(&sched_lock, MTX_SPIN);
+     					mtx_lock_spin(&sched_lock);
      					setrunqueue(curproc);
      					mi_switch(); /* Allow interrupt threads to run */
-     					mtx_exit(&sched_lock, MTX_SPIN);
+     					mtx_unlock_spin(&sched_lock);
      					DELAY(1000);
    				}
 				PICKUP_GIANT();
@@ -540,7 +540,7 @@ panic(const char *fmt, ...)
 
 #ifdef SMP
 	/* Only 1 CPU can panic at a time */
-	mtx_enter(&panic_mtx, MTX_DEF);
+	mtx_lock(&panic_mtx);
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;

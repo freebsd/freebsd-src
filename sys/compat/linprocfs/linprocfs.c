@@ -454,12 +454,12 @@ linprocfs_doprocstatus(curp, p, pfs, uio)
 
 	sbuf_new(&sb, NULL, 1024, 0);
 	
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_stat > sizeof state_str / sizeof *state_str)
 		state = state_str[0];
 	else
 		state = state_str[(int)p->p_stat];
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	PROCTREE_LOCK(PT_SHARED);
 	ppid = p->p_pptr ? p->p_pptr->p_pid : 0;

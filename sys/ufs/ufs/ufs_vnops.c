@@ -284,10 +284,10 @@ ufs_close(ap)
 {
 	register struct vnode *vp = ap->a_vp;
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	return (0);
 }
 
@@ -1863,10 +1863,10 @@ ufsspec_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	return (VOCALL(spec_vnodeop_p, VOFFSET(vop_close), ap));
 }
 
@@ -1937,10 +1937,10 @@ ufsfifo_close(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (vp->v_usecount > 1)
 		ufs_itimes(vp);
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	return (VOCALL(fifo_vnodeop_p, VOFFSET(vop_close), ap));
 }
 

@@ -110,8 +110,8 @@ DRIVER_MODULE(if_el, isa, el_driver, el_devclass, 0, 0);
 #define CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->el_btag, sc->el_bhandle, reg)
 
-#define EL_LOCK(_sc)		mtx_enter(&(_sc)->el_mtx, MTX_DEF)
-#define EL_UNLOCK(_sc)		mtx_exit(&(_sc)->el_mtx, MTX_DEF)
+#define EL_LOCK(_sc)		mtx_lock(&(_sc)->el_mtx)
+#define EL_UNLOCK(_sc)		mtx_unlock(&(_sc)->el_mtx)
 
 /* Probe routine.  See if the card is there and at the right place. */
 static int

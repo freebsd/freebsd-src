@@ -380,11 +380,11 @@ again:
 	 * The p_stats and p_sigacts substructs are set in vm_fork.
 	 */
 	p2->p_flag = 0;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p2->p_sflag = PS_INMEM;
 	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	MALLOC(p2->p_cred, struct pcred *, sizeof(struct pcred),
 	    M_SUBPROC, M_WAITOK);
 	bcopy(p1->p_cred, p2->p_cred, sizeof(*p2->p_cred));
@@ -554,10 +554,10 @@ again:
 	p2->p_acflag = AFORK;
 	if ((flags & RFSTOPPED) == 0) {
 		splhigh();
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		p2->p_stat = SRUN;
 		setrunqueue(p2);
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		spl0();
 	}
 
@@ -649,7 +649,7 @@ fork_exit(callout, arg, frame)
 {
 	struct proc *p;
 
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	/*
 	 * XXX: We really shouldn't have to do this.
 	 */
@@ -674,7 +674,7 @@ fork_exit(callout, arg, frame)
 	 */
 	p = CURPROC;
 	if (p->p_flag & P_KTHREAD) {
-		mtx_enter(&Giant, MTX_DEF);
+		mtx_lock(&Giant);
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
 		    p->p_comm, p->p_pid);
 		kthread_exit(0);
@@ -698,11 +698,11 @@ fork_return(p, frame)
 #ifdef KTRACE
 	if (KTRPOINT(p, KTR_SYSRET)) {
 		if (!mtx_owned(&Giant))
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 		ktrsysret(p->p_tracep, SYS_fork, 0, 0);
 	}
 #endif
 	if (mtx_owned(&Giant))
-		mtx_exit(&Giant, MTX_DEF);
+		mtx_unlock(&Giant);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }

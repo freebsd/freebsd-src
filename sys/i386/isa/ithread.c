@@ -114,7 +114,7 @@ sched_ithd(void *cookie)
 	 * is higher priority than their current thread, it gets run now.
 	 */
 	ir->it_need = 1;
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (ir->it_proc->p_stat == SWAIT) { /* not on run queue */
 		CTR1(KTR_INTR, "sched_ithd: setrunqueue %d",
 			ir->it_proc->p_pid);
@@ -134,7 +134,7 @@ sched_ithd(void *cookie)
 		        ir->it_proc->p_stat );
 		need_resched();
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -163,7 +163,7 @@ ithd_loop(void *dummy)
 			     me->it_proc->p_pid, me->it_proc->p_comm);
 			curproc->p_ithd = NULL;
 			free(me, M_DEVBUF);
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			kthread_exit(0);
 		}
 
@@ -188,10 +188,10 @@ ithd_loop(void *dummy)
 				    ih->ih_flags);
 
 				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_enter(&Giant, MTX_DEF);
+					mtx_lock(&Giant);
 				ih->ih_handler(ih->ih_argument);
 				if ((ih->ih_flags & INTR_MPSAFE) == 0)
-					mtx_exit(&Giant, MTX_DEF);
+					mtx_unlock(&Giant);
 			}
 		}
 
@@ -201,7 +201,7 @@ ithd_loop(void *dummy)
 		 * set again, so we have to check it again.
 		 */
 		mtx_assert(&Giant, MA_NOTOWNED);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (!me->it_need) {
 
 			INTREN (1 << me->irq); /* reset the mask bit */
@@ -217,6 +217,6 @@ ithd_loop(void *dummy)
 			CTR1(KTR_INTR, "ithd_loop pid %d: resumed",
 				me->it_proc->p_pid);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 }

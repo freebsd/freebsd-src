@@ -393,7 +393,7 @@ ffs_reload(mp, cred, p)
 	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, p->p_ucred);
-		mtx_enter(&devvp->v_interlock, MTX_DEF);
+		mtx_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
 
@@ -454,10 +454,10 @@ ffs_reload(mp, cred, p)
 	}
 
 loop:
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		if (vp->v_mount != mp) {
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
 			goto loop;
 		}
 		nvp = LIST_NEXT(vp, v_mntvnodes);
@@ -469,8 +469,8 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		mtx_enter(&vp->v_interlock, MTX_DEF);
-		mtx_exit(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
+		mtx_unlock(&mntvnode_mtx);
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p)) {
 			goto loop;
 		}
@@ -492,9 +492,9 @@ loop:
 		ip->i_effnlink = ip->i_nlink;
 		brelse(bp);
 		vput(vp);
-		mtx_enter(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&mntvnode_mtx);
 	}
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 	return (0);
 }
 
@@ -551,7 +551,7 @@ ffs_mountfs(devvp, mp, p, malloctype)
 	if (devvp->v_tag != VT_MFS && vn_isdisk(devvp, NULL)) {
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
 		vfs_object_create(devvp, p, cred);
-		mtx_enter(&devvp->v_interlock, MTX_DEF);
+		mtx_lock(&devvp->v_interlock);
 		VOP_UNLOCK(devvp, LK_INTERLOCK, p);
 	}
 
@@ -937,7 +937,7 @@ ffs_sync(mp, waitfor, cred, p)
 		wait = 1;
 		lockreq = LK_EXCLUSIVE | LK_INTERLOCK;
 	}
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp != NULL; vp = nvp) {
 		/*
@@ -946,19 +946,19 @@ loop:
 		 */
 		if (vp->v_mount != mp)
 			goto loop;
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		nvp = LIST_NEXT(vp, v_mntvnodes);
 		ip = VTOI(vp);
 		if (vp->v_type == VNON || ((ip->i_flag &
 		     (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		     TAILQ_EMPTY(&vp->v_dirtyblkhd))) {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			continue;
 		}
 		if (vp->v_type != VCHR) {
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
 			if ((error = vget(vp, lockreq, p)) != 0) {
-				mtx_enter(&mntvnode_mtx, MTX_DEF);
+				mtx_lock(&mntvnode_mtx);
 				if (error == ENOENT)
 					goto loop;
 				continue;
@@ -967,15 +967,15 @@ loop:
 				allerror = error;
 			VOP_UNLOCK(vp, 0, p);
 			vrele(vp);
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 		} else {
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
+			mtx_unlock(&vp->v_interlock);
 			UFS_UPDATE(vp, wait);
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 		}
 	}
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 	/*
 	 * Force stale file system control information to be flushed.
 	 */
@@ -984,7 +984,7 @@ loop:
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
 		if (count) {
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 			goto loop;
 		}
 	}
@@ -1055,17 +1055,17 @@ restart:
 	 * case getnewvnode() or MALLOC() blocks, otherwise a duplicate
 	 * may occur!
 	 */
-	mtx_enter(&ffs_inode_hash_mtx, MTX_DEF);
+	mtx_lock(&ffs_inode_hash_mtx);
 	if (ffs_inode_hash_lock) {
 		while (ffs_inode_hash_lock) {
 			ffs_inode_hash_lock = -1;
 			msleep(&ffs_inode_hash_lock, &ffs_inode_hash_mtx, PVM, "ffsvgt", 0);
 		}
-		mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
+		mtx_unlock(&ffs_inode_hash_mtx);
 		goto restart;
 	}
 	ffs_inode_hash_lock = 1;
-	mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
+	mtx_unlock(&ffs_inode_hash_mtx);
 
 	/*
 	 * If this MALLOC() is performed after the getnewvnode()
@@ -1085,10 +1085,10 @@ restart:
 		 * otherwise the processes waken up immediately hit
 		 * themselves into the mutex.
 		 */
-		mtx_enter(&ffs_inode_hash_mtx, MTX_DEF);
+		mtx_lock(&ffs_inode_hash_mtx);
 		want_wakeup = ffs_inode_hash_lock < 0;
 		ffs_inode_hash_lock = 0;
-		mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
+		mtx_unlock(&ffs_inode_hash_mtx);
 		if (want_wakeup)
 			wakeup(&ffs_inode_hash_lock);
 		*vpp = NULL;
@@ -1126,10 +1126,10 @@ restart:
 	 * otherwise the processes waken up immediately hit
 	 * themselves into the mutex.
 	 */
-	mtx_enter(&ffs_inode_hash_mtx, MTX_DEF);
+	mtx_lock(&ffs_inode_hash_mtx);
 	want_wakeup = ffs_inode_hash_lock < 0;
 	ffs_inode_hash_lock = 0;
-	mtx_exit(&ffs_inode_hash_mtx, MTX_DEF);
+	mtx_unlock(&ffs_inode_hash_mtx);
 	if (want_wakeup)
 		wakeup(&ffs_inode_hash_lock);
 

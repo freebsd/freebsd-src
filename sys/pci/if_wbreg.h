@@ -381,8 +381,8 @@ struct wb_softc {
 	struct mtx		wb_mtx;
 };
 
-#define	WB_LOCK(_sc)		mtx_enter(&(_sc)->wb_mtx, MTX_DEF)
-#define	WB_UNLOCK(_sc)		mtx_exit(&(_sc)->wb_mtx, MTX_DEF)
+#define	WB_LOCK(_sc)		mtx_lock(&(_sc)->wb_mtx)
+#define	WB_UNLOCK(_sc)		mtx_unlock(&(_sc)->wb_mtx)
 
 /*
  * register space access macros

@@ -291,15 +291,15 @@ _vm_map_lock_upgrade(vm_map_t map, struct proc *p) {
 
 #define vm_map_set_recursive(map) \
 	do { \
-		mtx_enter((map)->lock.lk_interlock, MTX_DEF); \
+		mtx_lock((map)->lock.lk_interlock); \
 		(map)->lock.lk_flags |= LK_CANRECURSE; \
-		mtx_exit((map)->lock.lk_interlock, MTX_DEF); \
+		mtx_unlock((map)->lock.lk_interlock); \
 	} while(0)
 #define vm_map_clear_recursive(map) \
 	do { \
-		mtx_enter((map)->lock.lk_interlock, MTX_DEF); \
+		mtx_lock((map)->lock.lk_interlock); \
 		(map)->lock.lk_flags &= ~LK_CANRECURSE; \
-		mtx_exit((map)->lock.lk_interlock, MTX_DEF); \
+		mtx_unlock((map)->lock.lk_interlock); \
 	} while(0)
 
 /*

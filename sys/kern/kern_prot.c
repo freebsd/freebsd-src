@@ -1155,9 +1155,9 @@ crhold(cr)
 	struct ucred *cr;
 {
 
-	mtx_enter(&cr->cr_mtx, MTX_DEF);
+	mtx_lock(&cr->cr_mtx);
 	cr->cr_ref++;
-	mtx_exit(&(cr)->cr_mtx, MTX_DEF);
+	mtx_unlock(&(cr)->cr_mtx);
 }
 
 
@@ -1170,7 +1170,7 @@ crfree(cr)
 	struct ucred *cr;
 {
 
-	mtx_enter(&cr->cr_mtx, MTX_DEF);
+	mtx_lock(&cr->cr_mtx);
 	if (--cr->cr_ref == 0) {
 		mtx_destroy(&cr->cr_mtx);
 		/*
@@ -1182,7 +1182,7 @@ crfree(cr)
 			uifree(cr->cr_uidinfo);
 		FREE((caddr_t)cr, M_CRED);
 	} else {
-		mtx_exit(&cr->cr_mtx, MTX_DEF);
+		mtx_unlock(&cr->cr_mtx);
 	}
 }
 
@@ -1195,12 +1195,12 @@ crcopy(cr)
 {
 	struct ucred *newcr;
 
-	mtx_enter(&cr->cr_mtx, MTX_DEF);
+	mtx_lock(&cr->cr_mtx);
 	if (cr->cr_ref == 1) {
-		mtx_exit(&cr->cr_mtx, MTX_DEF);
+		mtx_unlock(&cr->cr_mtx);
 		return (cr);
 	}
-	mtx_exit(&cr->cr_mtx, MTX_DEF);
+	mtx_unlock(&cr->cr_mtx);
 	newcr = crdup(cr);
 	crfree(cr);
 	return (newcr);

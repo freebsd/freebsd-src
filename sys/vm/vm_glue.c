@@ -313,18 +313,18 @@ faultin(p)
 {
 
 	mtx_assert(&p->p_mtx, MA_OWNED);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if ((p->p_sflag & PS_INMEM) == 0) {
 
 		++p->p_lock;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 
 		mtx_assert(&Giant, MA_OWNED);
 		pmap_swapin_proc(p);
 
 		PROC_LOCK(p);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SRUN) {
 			setrunqueue(p);
 		}
@@ -334,7 +334,7 @@ faultin(p)
 		/* undo the effect of setting SLOCK above */
 		--p->p_lock;
 	}
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*
@@ -366,7 +366,7 @@ loop:
 	ppri = INT_MIN;
 	ALLPROC_LOCK(AP_SHARED);
 	LIST_FOREACH(p, &allproc, p_list) {
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_stat == SRUN &&
 			(p->p_sflag & (PS_INMEM | PS_SWAPPING)) == 0) {
 
@@ -385,7 +385,7 @@ loop:
 				ppri = pri;
 			}
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 	}
 	ALLPROC_LOCK(AP_RELEASE);
 
@@ -396,9 +396,9 @@ loop:
 		tsleep(&proc0, PVM, "sched", 0);
 		goto loop;
 	}
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPINREQ;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	/*
 	 * We would like to bring someone in. (only if there is space).
@@ -406,9 +406,9 @@ loop:
 	PROC_LOCK(p);
 	faultin(p);
 	PROC_UNLOCK(p);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_swtime = 0;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	goto loop;
 }
 
@@ -461,15 +461,15 @@ retry:
 		}
 		vm = p->p_vmspace;
 		PROC_UNLOCK(p);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if ((p->p_sflag & (PS_INMEM|PS_SWAPPING)) != PS_INMEM) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			continue;
 		}
 
 		switch (p->p_stat) {
 		default:
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			continue;
 
 		case SSLEEP:
@@ -478,7 +478,7 @@ retry:
 			 * do not swapout a realtime process
 			 */
 			if (RTP_PRIO_IS_REALTIME(p->p_rtprio.type)) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
 
@@ -489,7 +489,7 @@ retry:
 			 */
 			if (((p->p_priority & 0x7f) < PSOCK) ||
 				(p->p_slptime < swap_idle_threshold1)) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
 
@@ -501,10 +501,10 @@ retry:
 			if (((action & VM_SWAP_NORMAL) == 0) &&
 				(((action & VM_SWAP_IDLE) == 0) ||
 				  (p->p_slptime < swap_idle_threshold2))) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				continue;
 			}
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 
 			++vm->vm_refcnt;
 			/*
@@ -522,17 +522,17 @@ retry:
 			 * If the process has been asleep for awhile and had
 			 * most of its pages taken away already, swap it out.
 			 */
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if ((action & VM_SWAP_NORMAL) ||
 				((action & VM_SWAP_IDLE) &&
 				 (p->p_slptime > swap_idle_threshold2))) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				swapout(p);
 				vmspace_free(vm);
 				didswap++;
 				goto retry;
 			} else
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 		}
 	}
 	ALLPROC_LOCK(AP_RELEASE);
@@ -559,19 +559,19 @@ swapout(p)
 	p->p_vmspace->vm_swrss = vmspace_resident_count(p->p_vmspace);
 
 	(void) splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_INMEM;
 	p->p_sflag |= PS_SWAPPING;
 	if (p->p_stat == SRUN)
 		remrunqueue(p);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	(void) spl0();
 
 	pmap_swapout_proc(p);
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_sflag &= ~PS_SWAPPING;
 	p->p_swtime = 0;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 #endif /* !NO_SWAPPING */

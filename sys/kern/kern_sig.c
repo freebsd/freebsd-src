@@ -186,9 +186,9 @@ CURSIG(struct proc *p)
 	SIGSETNAND(tmpset, p->p_sigmask);
 	if (SIGISEMPTY(tmpset) && (p->p_flag & P_TRACED) == 0)
 		return (0);
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	r = issignal(p);
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 	return (r);
 }
 
@@ -1087,11 +1087,11 @@ psignal(p, sig)
 			action = SIG_DFL;
 	}
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_nice > NZERO && action == SIG_DFL && (prop & SA_KILL) &&
 	    (p->p_flag & P_TRACED) == 0)
 		p->p_nice = NZERO;
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 
 	if (prop & SA_CONT)
 		SIG_STOPSIGMASK(p->p_siglist);
@@ -1116,9 +1116,9 @@ psignal(p, sig)
 	 * Defer further processing for signals which are held,
 	 * except that stopped processes must be continued by SIGCONT.
 	 */
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (action == SIG_HOLD && (!(prop & SA_CONT) || p->p_stat != SSTOP)) {
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		return;
 	}
@@ -1132,7 +1132,7 @@ psignal(p, sig)
 		 * trap() or syscall().
 		 */
 		if ((p->p_sflag & PS_SINTR) == 0) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
 		/*
@@ -1142,7 +1142,7 @@ psignal(p, sig)
 		 */
 		if (p->p_flag & P_TRACED)
 			goto run;
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		/*
 		 * If SIGCONT is default (or ignored) and process is
 		 * asleep, we are finished; the process should not
@@ -1182,7 +1182,7 @@ psignal(p, sig)
 		/* NOTREACHED */
 
 	case SSTOP:
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		/*
 		 * If traced process is already stopped,
 		 * then no further action is necessary.
@@ -1211,11 +1211,11 @@ psignal(p, sig)
 				SIGDELSET(p->p_siglist, sig);
 			if (action == SIG_CATCH)
 				goto runfast;
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (p->p_wchan == NULL)
 				goto run;
 			p->p_stat = SSLEEP;
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			goto out;
 		}
 
@@ -1234,14 +1234,14 @@ psignal(p, sig)
 		 * runnable and can look at the signal.  But don't make
 		 * the process runnable, leave it stopped.
 		 */
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (p->p_wchan && p->p_sflag & PS_SINTR) {
 			if (p->p_sflag & PS_CVWAITQ)
 				cv_waitq_remove(p);
 			else
 				unsleep(p);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		goto out;
 
 	default:
@@ -1251,17 +1251,17 @@ psignal(p, sig)
 		 * It will either never be noticed, or noticed very soon.
 		 */
 		if (p == curproc) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			signotify(p);
 		}
 #ifdef SMP
 		else if (p->p_stat == SRUN) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			forward_signal(p);
 		}
 #endif
 		else
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		goto out;
 	}
 	/*NOTREACHED*/
@@ -1270,14 +1270,14 @@ runfast:
 	/*
 	 * Raise priority to at least PUSER.
 	 */
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_priority > PUSER)
 		p->p_priority = PUSER;
 run:
 	/* If we jump here, sched_lock has to be owned. */
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
 	setrunnable(p);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 out:
 	/* If we jump here, sched_lock should not be owned. */
 	mtx_assert(&sched_lock, MA_NOTOWNED);
@@ -1336,10 +1336,10 @@ issignal(p)
 			do {
 				stop(p);
 				PROCTREE_LOCK(PT_RELEASE);
-				mtx_enter(&sched_lock, MTX_SPIN);
+				mtx_lock_spin(&sched_lock);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
 				PROCTREE_LOCK(PT_SHARED);
 			} while (!trace_req(p)
@@ -1413,10 +1413,10 @@ issignal(p)
 				if ((p->p_pptr->p_procsig->ps_flag & PS_NOCLDSTOP) == 0)
 					psignal(p->p_pptr, SIGCHLD);
 				PROCTREE_LOCK(PT_RELEASE);
-				mtx_enter(&sched_lock, MTX_SPIN);
+				mtx_lock_spin(&sched_lock);
 				DROP_GIANT_NOSWITCH();
 				mi_switch();
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
 				break;
 			} else if (prop & SA_IGNORE) {
@@ -1464,11 +1464,11 @@ stop(p)
 {
 
 	PROCTREE_ASSERT(PT_SHARED);
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	p->p_stat = SSTOP;
 	p->p_flag &= ~P_WAITED;
 	wakeup((caddr_t)p->p_pptr);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 }
 
 /*

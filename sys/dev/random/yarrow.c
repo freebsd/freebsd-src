@@ -96,10 +96,10 @@ random_kthread(void *arg /* NOTUSED */)
 	struct source *source;
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("OWNERSHIP Giant == %d sched_lock == %d\n",
 		mtx_owned(&Giant), mtx_owned(&sched_lock));
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	for (pl = 0; pl < 2; pl++)
@@ -114,11 +114,11 @@ random_kthread(void *arg /* NOTUSED */)
 
 		else {
 #ifdef DEBUG1
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			printf("HARVEST src=%d bits=%d/%d pool=%d count=%lld\n",
 				event->source, event->bits, event->frac,
 				event->pool, event->somecounter);
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 #endif
 
 			/* Suck the harvested entropy out of the queue and hash
@@ -160,9 +160,9 @@ random_kthread(void *arg /* NOTUSED */)
 		/* Is the thread scheduled for a shutdown? */
 		if (random_kthread_control != 0) {
 #ifdef DEBUG
-			mtx_enter(&Giant, MTX_DEF);
+			mtx_lock(&Giant);
 			printf("Random kthread setting terminate\n");
-			mtx_exit(&Giant, MTX_DEF);
+			mtx_unlock(&Giant);
 #endif
 			random_set_wakeup_exit(&random_kthread_control);
 			/* NOTREACHED */
@@ -179,9 +179,9 @@ random_init(void)
 	int error;
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random initialise\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	/* This can be turned off by the very paranoid
@@ -213,9 +213,9 @@ random_init(void)
 	random_init_harvester(random_harvest_internal, read_random_real);
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random initialise finish\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	return 0;
@@ -225,31 +225,31 @@ void
 random_deinit(void)
 {
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random deinitialise\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	/* Deregister the randomness harvesting routine */
 	random_deinit_harvester();
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random deinitialise waiting for thread to terminate\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	/* Command the hash/reseed thread to end and wait for it to finish */
-	mtx_enter(&harvestring.lockout_mtx, MTX_DEF);
+	mtx_lock(&harvestring.lockout_mtx);
 	random_kthread_control = -1;
 	msleep((void *)&random_kthread_control, &harvestring.lockout_mtx, PUSER,
 		"rndend", 0);
-	mtx_exit(&harvestring.lockout_mtx, MTX_DEF);
+	mtx_unlock(&harvestring.lockout_mtx);
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random deinitialise removing mutexes\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	/* Remove the mutexes */
@@ -257,9 +257,9 @@ random_deinit(void)
 	mtx_destroy(&harvestring.lockout_mtx);
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random deinitialise finish\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 }
 
@@ -276,13 +276,13 @@ reseed(int fastslow)
 	int i, j;
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Reseed type %d\n", fastslow);
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	/* The reseed task must not be jumped on */
-	mtx_enter(&random_reseed_mtx, MTX_DEF);
+	mtx_lock(&random_reseed_mtx);
 
 	/* 1. Hash the accumulated entropy into v[0] */
 
@@ -353,12 +353,12 @@ reseed(int fastslow)
 	/* XXX Not done here yet */
 
 	/* Release the reseed mutex */
-	mtx_exit(&random_reseed_mtx, MTX_DEF);
+	mtx_unlock(&random_reseed_mtx);
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Reseed finish\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	if (!random_state.seeded) {
@@ -379,7 +379,7 @@ read_random_real(void *buf, u_int count)
 	u_int retval;
 
 	/* The reseed task must not be jumped on */
-	mtx_enter(&random_reseed_mtx, MTX_DEF);
+	mtx_lock(&random_reseed_mtx);
 
 	if (gate) {
 		generator_gate();
@@ -423,7 +423,7 @@ read_random_real(void *buf, u_int count)
 			cur -= retval;
 		}
 	}
-	mtx_exit(&random_reseed_mtx, MTX_DEF);
+	mtx_unlock(&random_reseed_mtx);
 	return retval;
 }
 
@@ -462,9 +462,9 @@ generator_gate(void)
 	u_char temp[KEYSIZE];
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Generator gate\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 
 	for (i = 0; i < KEYSIZE; i += sizeof(random_state.counter)) {
@@ -477,9 +477,9 @@ generator_gate(void)
 	memset((void *)temp, 0, KEYSIZE);
 
 #ifdef DEBUG
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Generator gate finish\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 }
 
@@ -495,16 +495,16 @@ random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 	int newhead, tail;
 
 #ifdef DEBUG1
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	printf("Random harvest\n");
-	mtx_exit(&Giant, MTX_DEF);
+	mtx_unlock(&Giant);
 #endif
 	if (origin < ENTROPYSOURCE) {
 
 		/* Add the harvested data to the ring buffer, but
 		 * do not block.
 		 */
-		if (mtx_try_enter(&harvestring.lockout_mtx, MTX_DEF)) {
+		if (mtx_trylock(&harvestring.lockout_mtx)) {
 
 			tail = atomic_load_acq_int(&harvestring.tail);
 			newhead = (harvestring.head + 1) % HARVEST_RING_SIZE;
@@ -533,7 +533,7 @@ random_harvest_internal(u_int64_t somecounter, void *entropy, u_int count,
 				wakeup(&harvestring.head);
 
 			}
-			mtx_exit(&harvestring.lockout_mtx, MTX_DEF);
+			mtx_unlock(&harvestring.lockout_mtx);
 
 		}
 

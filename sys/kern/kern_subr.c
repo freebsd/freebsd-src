@@ -377,13 +377,13 @@ uio_yield()
 
 	p = curproc;
 	s = splhigh();
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	DROP_GIANT_NOSWITCH();
 	p->p_priority = p->p_usrpri;
 	setrunqueue(p);
 	p->p_stats->p_ru.ru_nivcsw++;
 	mi_switch();
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 	splx(s);
 }

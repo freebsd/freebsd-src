@@ -123,7 +123,7 @@ void
 random_set_wakeup_exit(void *control)
 {
 	wakeup(control);
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 	kthread_exit(0);
 	/* NOTREACHED */
 }

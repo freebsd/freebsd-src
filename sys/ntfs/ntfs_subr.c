@@ -360,7 +360,7 @@ ntfs_ntget(ip)
 	dprintf(("ntfs_ntget: get ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
-	mtx_enter(&ip->i_interlock, MTX_DEF);
+	mtx_lock(&ip->i_interlock);
 	ip->i_usecount++;
 	LOCKMGR(&ip->i_lock, LK_EXCLUSIVE | LK_INTERLOCK, &ip->i_interlock);
 
@@ -438,7 +438,7 @@ ntfs_ntput(ip)
 	dprintf(("ntfs_ntput: rele ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
-	mtx_enter(&ip->i_interlock, MTX_DEF);
+	mtx_lock(&ip->i_interlock);
 	ip->i_usecount--;
 
 #ifdef DIAGNOSTIC
@@ -462,7 +462,7 @@ ntfs_ntput(ip)
 			LIST_REMOVE(vap,va_list);
 			ntfs_freentvattr(vap);
 		}
-		mtx_exit(&ip->i_interlock, MTX_DEF);
+		mtx_unlock(&ip->i_interlock);
 		mtx_destroy(&ip->i_interlock);
 		lockdestroy(&ip->i_lock);
 
@@ -479,9 +479,9 @@ void
 ntfs_ntref(ip)
 	struct ntnode *ip;
 {
-	mtx_enter(&ip->i_interlock, MTX_DEF);
+	mtx_lock(&ip->i_interlock);
 	ip->i_usecount++;
-	mtx_exit(&ip->i_interlock, MTX_DEF);
+	mtx_unlock(&ip->i_interlock);
 
 	dprintf(("ntfs_ntref: ino %d, usecount: %d\n",
 		ip->i_number, ip->i_usecount));
@@ -498,13 +498,13 @@ ntfs_ntrele(ip)
 	dprintf(("ntfs_ntrele: rele ntnode %d: %p, usecount: %d\n",
 		ip->i_number, ip, ip->i_usecount));
 
-	mtx_enter(&ip->i_interlock, MTX_DEF);
+	mtx_lock(&ip->i_interlock);
 	ip->i_usecount--;
 
 	if (ip->i_usecount < 0)
 		panic("ntfs_ntrele: ino: %d usecount: %d \n",
 		      ip->i_number,ip->i_usecount);
-	mtx_exit(&ip->i_interlock, MTX_DEF);
+	mtx_unlock(&ip->i_interlock);
 }
 
 /*

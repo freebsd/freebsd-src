@@ -390,15 +390,15 @@ vfs_getvfs(fsid)
 {
 	register struct mount *mp;
 
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 		if (mp->mnt_stat.f_fsid.val[0] == fsid->val[0] &&
 		    mp->mnt_stat.f_fsid.val[1] == fsid->val[1]) {
-			mtx_exit(&mountlist_mtx, MTX_DEF);
+			mtx_unlock(&mountlist_mtx);
 			return (mp);
 	    }
 	}
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 	return ((struct mount *) 0);
 }
 
@@ -422,7 +422,7 @@ vfs_getnewfsid(mp)
 	fsid_t tfsid;
 	int mtype;
 
-	mtx_enter(&mntid_mtx, MTX_DEF);
+	mtx_lock(&mntid_mtx);
 	mtype = mp->mnt_vfc->vfc_typenum;
 	tfsid.val[1] = mtype;
 	mtype = (mtype & 0xFF) << 24;
@@ -435,7 +435,7 @@ vfs_getnewfsid(mp)
 	}
 	mp->mnt_stat.f_fsid.val[0] = tfsid.val[0];
 	mp->mnt_stat.f_fsid.val[1] = tfsid.val[1];
-	mtx_exit(&mntid_mtx, MTX_DEF);
+	mtx_unlock(&mntid_mtx);
 }
 
 /*
@@ -538,7 +538,7 @@ getnewvnode(tag, mp, vops, vpp)
 	 */
 
 	s = splbio();
-	mtx_enter(&vnode_free_list_mtx, MTX_DEF);
+	mtx_lock(&vnode_free_list_mtx);
 
 	if (wantfreevnodes && freevnodes < wantfreevnodes) {
 		vp = NULL;
@@ -560,7 +560,7 @@ getnewvnode(tag, mp, vops, vpp)
 		if (LIST_FIRST(&vp->v_cache_src) != NULL ||
 		    (VOP_GETVOBJECT(vp, &object) == 0 &&
 		     (object->resident_page_count || object->ref_count)) ||
-		    !mtx_try_enter(&vp->v_interlock, MTX_DEF)) {
+		    !mtx_trylock(&vp->v_interlock)) {
 			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 			vp = NULL;
 			continue;
@@ -570,7 +570,7 @@ getnewvnode(tag, mp, vops, vpp)
 		 */
 		if (vn_start_write(vp, &vnmp, V_NOWAIT) == 0)
 			break;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 		vp = NULL;
 	}
@@ -578,13 +578,13 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_flag |= VDOOMED;
 		vp->v_flag &= ~VFREE;
 		freevnodes--;
-		mtx_exit(&vnode_free_list_mtx, MTX_DEF);
+		mtx_unlock(&vnode_free_list_mtx);
 		cache_purge(vp);
 		vp->v_lease = NULL;
 		if (vp->v_type != VBAD) {
 			vgonel(vp, p);
 		} else {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 		}
 		vn_finished_write(vnmp);
 
@@ -609,7 +609,7 @@ getnewvnode(tag, mp, vops, vpp)
 		vp->v_clen = 0;
 		vp->v_socket = 0;
 	} else {
-		mtx_exit(&vnode_free_list_mtx, MTX_DEF);
+		mtx_unlock(&vnode_free_list_mtx);
 		vp = (struct vnode *) zalloc(vnode_zone);
 		bzero((char *) vp, sizeof *vp);
 		mtx_init(&vp->v_interlock, "vnode interlock", MTX_DEF);
@@ -646,7 +646,7 @@ insmntque(vp, mp)
 	register struct mount *mp;
 {
 
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 	/*
 	 * Delete from old mount point vnode list, if on one.
 	 */
@@ -656,11 +656,11 @@ insmntque(vp, mp)
 	 * Insert into list of vnodes for the new mount point, if available.
 	 */
 	if ((vp->v_mount = mp) == NULL) {
-		mtx_exit(&mntvnode_mtx, MTX_DEF);
+		mtx_unlock(&mntvnode_mtx);
 		return;
 	}
 	LIST_INSERT_HEAD(&mp->mnt_vnodelist, vp, v_mntvnodes);
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 }
 
 /*
@@ -785,12 +785,12 @@ vinvalbuf(vp, flags, cred, p, slpflag, slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (VOP_GETVOBJECT(vp, &object) == 0) {
 		vm_object_page_remove(object, 0, 0,
 			(flags & V_SAVE) ? TRUE : FALSE);
 	}
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 
 	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) || !TAILQ_EMPTY(&vp->v_cleanblkhd))
 		panic("vinvalbuf: flush failed");
@@ -1010,7 +1010,7 @@ sched_sync(void)
 	int s;
 	struct proc *p = updateproc;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
 	    SHUTDOWN_PRI_LAST);   
@@ -1104,10 +1104,10 @@ int
 speedup_syncer()
 {
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (updateproc->p_wchan == &lbolt)
 		setrunnable(updateproc);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	if (rushjob < syncdelay / 2) {
 		rushjob += 1;
 		stat_rush_requests += 1;
@@ -1407,9 +1407,9 @@ addalias(nvp, dev)
 
 	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
 	nvp->v_rdev = dev;
-	mtx_enter(&spechash_mtx, MTX_DEF);
+	mtx_lock(&spechash_mtx);
 	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
-	mtx_exit(&spechash_mtx, MTX_DEF);
+	mtx_unlock(&spechash_mtx);
 }
 
 /*
@@ -1435,7 +1435,7 @@ vget(vp, flags, p)
 	 * the VXLOCK flag is set.
 	 */
 	if ((flags & LK_INTERLOCK) == 0)
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 	if (vp->v_flag & VXLOCK) {
 		if (vp->v_vxproc == curproc) {
 			printf("VXLOCK interlock avoided\n");
@@ -1461,15 +1461,15 @@ vget(vp, flags, p)
 			 * before sleeping so that multiple processes do
 			 * not try to recycle it.
 			 */
-			mtx_enter(&vp->v_interlock, MTX_DEF);
+			mtx_lock(&vp->v_interlock);
 			vp->v_usecount--;
 			if (VSHOULDFREE(vp))
 				vfree(vp);
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 		}
 		return (error);
 	}
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	return (0);
 }
 
@@ -1479,9 +1479,9 @@ vget(vp, flags, p)
 void
 vref(struct vnode *vp)
 {
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	vp->v_usecount++;
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 }
 
 /*
@@ -1496,14 +1496,14 @@ vrele(vp)
 
 	KASSERT(vp != NULL, ("vrele: null vp"));
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 
 	KASSERT(vp->v_writecount < vp->v_usecount, ("vrele: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
 
 		vp->v_usecount--;
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 
 		return;
 	}
@@ -1525,7 +1525,7 @@ vrele(vp)
 	} else {
 #ifdef DIAGNOSTIC
 		vprint("vrele: negative ref count", vp);
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 #endif
 		panic("vrele: negative ref cnt");
 	}
@@ -1543,7 +1543,7 @@ vput(vp)
 	struct proc *p = curproc;	/* XXX */
 
 	KASSERT(vp != NULL, ("vput: null vp"));
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	KASSERT(vp->v_writecount < vp->v_usecount, ("vput: missed vn_close"));
 
 	if (vp->v_usecount > 1) {
@@ -1564,7 +1564,7 @@ vput(vp)
 	 * call VOP_INACTIVE with the node locked.  So, in the case of
 	 * vrele, we explicitly lock the vnode before calling VOP_INACTIVE.
 	 */
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		VOP_INACTIVE(vp, p);
 
 	} else {
@@ -1633,7 +1633,7 @@ vflush(mp, skipvp, flags)
 	struct vnode *vp, *nvp;
 	int busy = 0;
 
-	mtx_enter(&mntvnode_mtx, MTX_DEF);
+	mtx_lock(&mntvnode_mtx);
 loop:
 	for (vp = LIST_FIRST(&mp->mnt_vnodelist); vp; vp = nvp) {
 		/*
@@ -1649,12 +1649,12 @@ loop:
 		if (vp == skipvp)
 			continue;
 
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		/*
 		 * Skip over a vnodes marked VSYSTEM.
 		 */
 		if ((flags & SKIPSYSTEM) && (vp->v_flag & VSYSTEM)) {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			continue;
 		}
 		/*
@@ -1663,7 +1663,7 @@ loop:
 		 */
 		if ((flags & WRITECLOSE) &&
 		    (vp->v_writecount == 0 || vp->v_type != VREG)) {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 			continue;
 		}
 
@@ -1672,9 +1672,9 @@ loop:
 		 * vnode data structures and we are done.
 		 */
 		if (vp->v_usecount == 0) {
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
 			vgonel(vp, p);
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 
@@ -1684,7 +1684,7 @@ loop:
 		 * all other files, just kill them.
 		 */
 		if (flags & FORCECLOSE) {
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
 			if (vp->v_type != VCHR) {
 				vgonel(vp, p);
 			} else {
@@ -1692,17 +1692,17 @@ loop:
 				vp->v_op = spec_vnodeop_p;
 				insmntque(vp, (struct mount *) 0);
 			}
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 			continue;
 		}
 #ifdef DIAGNOSTIC
 		if (busyprt)
 			vprint("vflush: busy vnode", vp);
 #endif
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 		busy++;
 	}
-	mtx_exit(&mntvnode_mtx, MTX_DEF);
+	mtx_unlock(&mntvnode_mtx);
 	if (busy)
 		return (EBUSY);
 	return (0);
@@ -1784,7 +1784,7 @@ vclean(vp, flags, p)
 		 * Inline copy of vrele() since VOP_INACTIVE
 		 * has already been called.
 		 */
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		if (--vp->v_usecount <= 0) {
 #ifdef DIAGNOSTIC
 			if (vp->v_usecount < 0 || vp->v_writecount != 0) {
@@ -1794,7 +1794,7 @@ vclean(vp, flags, p)
 #endif
 			vfree(vp);
 		}
-		mtx_exit(&vp->v_interlock, MTX_DEF);
+		mtx_unlock(&vp->v_interlock);
 	}
 
 	cache_purge(vp);
@@ -1847,9 +1847,9 @@ vop_revoke(ap)
 	}
 	dev = vp->v_rdev;
 	for (;;) {
-		mtx_enter(&spechash_mtx, MTX_DEF);
+		mtx_lock(&spechash_mtx);
 		vq = SLIST_FIRST(&dev->si_hlist);
-		mtx_exit(&spechash_mtx, MTX_DEF);
+		mtx_unlock(&spechash_mtx);
 		if (!vq)
 			break;
 		vgone(vq);
@@ -1868,15 +1868,15 @@ vrecycle(vp, inter_lkp, p)
 	struct proc *p;
 {
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	if (vp->v_usecount == 0) {
 		if (inter_lkp) {
-			mtx_exit(inter_lkp, MTX_DEF);
+			mtx_unlock(inter_lkp);
 		}
 		vgonel(vp, p);
 		return (1);
 	}
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 	return (0);
 }
 
@@ -1890,7 +1890,7 @@ vgone(vp)
 {
 	struct proc *p = curproc;	/* XXX */
 
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 	vgonel(vp, p);
 }
 
@@ -1919,7 +1919,7 @@ vgonel(vp, p)
 	 * Clean out the filesystem specific data.
 	 */
 	vclean(vp, DOCLOSE, p);
-	mtx_enter(&vp->v_interlock, MTX_DEF);
+	mtx_lock(&vp->v_interlock);
 
 	/*
 	 * Delete from old mount point vnode list, if on one.
@@ -1931,10 +1931,10 @@ vgonel(vp, p)
 	 * if it is on one.
 	 */
 	if (vp->v_type == VCHR && vp->v_rdev != NULL && vp->v_rdev != NODEV) {
-		mtx_enter(&spechash_mtx, MTX_DEF);
+		mtx_lock(&spechash_mtx);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		freedev(vp->v_rdev);
-		mtx_exit(&spechash_mtx, MTX_DEF);
+		mtx_unlock(&spechash_mtx);
 		vp->v_rdev = NULL;
 	}
 
@@ -1950,19 +1950,19 @@ vgonel(vp, p)
 	 */
 	if (vp->v_usecount == 0 && !(vp->v_flag & VDOOMED)) {
 		s = splbio();
-		mtx_enter(&vnode_free_list_mtx, MTX_DEF);
+		mtx_lock(&vnode_free_list_mtx);
 		if (vp->v_flag & VFREE)
 			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		else
 			freevnodes++;
 		vp->v_flag |= VFREE;
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-		mtx_exit(&vnode_free_list_mtx, MTX_DEF);
+		mtx_unlock(&vnode_free_list_mtx);
 		splx(s);
 	}
 
 	vp->v_type = VBAD;
-	mtx_exit(&vp->v_interlock, MTX_DEF);
+	mtx_unlock(&vp->v_interlock);
 }
 
 /*
@@ -1976,15 +1976,15 @@ vfinddev(dev, type, vpp)
 {
 	struct vnode *vp;
 
-	mtx_enter(&spechash_mtx, MTX_DEF);
+	mtx_lock(&spechash_mtx);
 	SLIST_FOREACH(vp, &dev->si_hlist, v_specnext) {
 		if (type == vp->v_type) {
 			*vpp = vp;
-			mtx_exit(&spechash_mtx, MTX_DEF);
+			mtx_unlock(&spechash_mtx);
 			return (1);
 		}
 	}
-	mtx_exit(&spechash_mtx, MTX_DEF);
+	mtx_unlock(&spechash_mtx);
 	return (0);
 }
 
@@ -1999,10 +1999,10 @@ vcount(vp)
 	int count;
 
 	count = 0;
-	mtx_enter(&spechash_mtx, MTX_DEF);
+	mtx_lock(&spechash_mtx);
 	SLIST_FOREACH(vq, &vp->v_rdev->si_hlist, v_specnext)
 		count += vq->v_usecount;
-	mtx_exit(&spechash_mtx, MTX_DEF);
+	mtx_unlock(&spechash_mtx);
 	return (count);
 }
 
@@ -2083,7 +2083,7 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 	struct vnode *vp;
 
 	printf("Locked vnodes\n");
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
@@ -2093,11 +2093,11 @@ DB_SHOW_COMMAND(lockedvnodes, lockedvnodes)
 			if (VOP_ISLOCKED(vp, NULL))
 				vprint((char *)0, vp);
 		}
-		mtx_enter(&mountlist_mtx, MTX_DEF);
+		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 }
 #endif
 
@@ -2202,14 +2202,14 @@ sysctl_vnode(SYSCTL_HANDLER_ARGS)
 		return (SYSCTL_OUT(req, 0,
 			(numvnodes + KINFO_VNODESLOP) * (VPTRSZ + VNODESZ)));
 
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_mtx, p)) {
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
 again:
-		mtx_enter(&mntvnode_mtx, MTX_DEF);
+		mtx_lock(&mntvnode_mtx);
 		for (vp = LIST_FIRST(&mp->mnt_vnodelist);
 		     vp != NULL;
 		     vp = nvp) {
@@ -2219,22 +2219,22 @@ again:
 			 * recycled onto the same filesystem.
 			 */
 			if (vp->v_mount != mp) {
-				mtx_exit(&mntvnode_mtx, MTX_DEF);
+				mtx_unlock(&mntvnode_mtx);
 				goto again;
 			}
 			nvp = LIST_NEXT(vp, v_mntvnodes);
-			mtx_exit(&mntvnode_mtx, MTX_DEF);
+			mtx_unlock(&mntvnode_mtx);
 			if ((error = SYSCTL_OUT(req, &vp, VPTRSZ)) ||
 			    (error = SYSCTL_OUT(req, vp, VNODESZ)))
 				return (error);
-			mtx_enter(&mntvnode_mtx, MTX_DEF);
+			mtx_lock(&mntvnode_mtx);
 		}
-		mtx_exit(&mntvnode_mtx, MTX_DEF);
-		mtx_enter(&mountlist_mtx, MTX_DEF);
+		mtx_unlock(&mntvnode_mtx);
+		mtx_lock(&mountlist_mtx);
 		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
-	mtx_exit(&mountlist_mtx, MTX_DEF);
+	mtx_unlock(&mountlist_mtx);
 
 	return (0);
 }
@@ -2592,7 +2592,7 @@ loop:
 				continue;
 		}
 
-		mtx_enter(&vp->v_interlock, MTX_DEF);
+		mtx_lock(&vp->v_interlock);
 		if (VOP_GETVOBJECT(vp, &obj) == 0 &&
 		    (obj->flags & OBJ_MIGHTBEDIRTY)) {
 			if (!vget(vp,
@@ -2604,7 +2604,7 @@ loop:
 				vput(vp);
 			}
 		} else {
-			mtx_exit(&vp->v_interlock, MTX_DEF);
+			mtx_unlock(&vp->v_interlock);
 		}
 	}
 	if (anyio && (--tries > 0))
@@ -2638,7 +2638,7 @@ vfree(vp)
 	int s;
 
 	s = splbio();
-	mtx_enter(&vnode_free_list_mtx, MTX_DEF);
+	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((vp->v_flag & VFREE) == 0, ("vnode already free"));
 	if (vp->v_flag & VAGE) {
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
@@ -2646,7 +2646,7 @@ vfree(vp)
 		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
 	freevnodes++;
-	mtx_exit(&vnode_free_list_mtx, MTX_DEF);
+	mtx_unlock(&vnode_free_list_mtx);
 	vp->v_flag &= ~VAGE;
 	vp->v_flag |= VFREE;
 	splx(s);
@@ -2662,11 +2662,11 @@ vbusy(vp)
 	int s;
 
 	s = splbio();
-	mtx_enter(&vnode_free_list_mtx, MTX_DEF);
+	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((vp->v_flag & VFREE) != 0, ("vnode not free"));
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 	freevnodes--;
-	mtx_exit(&vnode_free_list_mtx, MTX_DEF);
+	mtx_unlock(&vnode_free_list_mtx);
 	vp->v_flag &= ~(VFREE|VAGE);
 	splx(s);
 }
@@ -2685,7 +2685,7 @@ vn_pollrecord(vp, p, events)
 	struct proc *p;
 	short events;
 {
-	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
 	if (vp->v_pollinfo.vpi_revents & events) {
 		/*
 		 * This leaves events we are not interested
@@ -2697,12 +2697,12 @@ vn_pollrecord(vp, p, events)
 		events &= vp->v_pollinfo.vpi_revents;
 		vp->v_pollinfo.vpi_revents &= ~events;
 
-		mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+		mtx_unlock(&vp->v_pollinfo.vpi_lock);
 		return events;
 	}
 	vp->v_pollinfo.vpi_events |= events;
 	selrecord(p, &vp->v_pollinfo.vpi_selinfo);
-	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 	return 0;
 }
 
@@ -2717,7 +2717,7 @@ vn_pollevent(vp, events)
 	struct vnode *vp;
 	short events;
 {
-	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
 	if (vp->v_pollinfo.vpi_events & events) {
 		/*
 		 * We clear vpi_events so that we don't
@@ -2734,7 +2734,7 @@ vn_pollevent(vp, events)
 		vp->v_pollinfo.vpi_revents |= events;
 		selwakeup(&vp->v_pollinfo.vpi_selinfo);
 	}
-	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 }
 
 /*
@@ -2746,12 +2746,12 @@ void
 vn_pollgone(vp)
 	struct vnode *vp;
 {
-	mtx_enter(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_lock(&vp->v_pollinfo.vpi_lock);
 	if (vp->v_pollinfo.vpi_events) {
 		vp->v_pollinfo.vpi_events = 0;
 		selwakeup(&vp->v_pollinfo.vpi_selinfo);
 	}
-	mtx_exit(&vp->v_pollinfo.vpi_lock, MTX_DEF);
+	mtx_unlock(&vp->v_pollinfo.vpi_lock);
 }
 
 
@@ -2856,9 +2856,9 @@ sync_fsync(ap)
 	 * Walk the list of vnodes pushing all that are dirty and
 	 * not already on the sync list.
 	 */
-	mtx_enter(&mountlist_mtx, MTX_DEF);
+	mtx_lock(&mountlist_mtx);
 	if (vfs_busy(mp, LK_EXCLUSIVE | LK_NOWAIT, &mountlist_mtx, p) != 0) {
-		mtx_exit(&mountlist_mtx, MTX_DEF);
+		mtx_unlock(&mountlist_mtx);
 		return (0);
 	}
 	if (vn_start_write(NULL, &mp, V_NOWAIT) != 0) {

@@ -1800,7 +1800,7 @@ buf_daemon()
 {
 	int s;
 
-	mtx_enter(&Giant, MTX_DEF);
+	mtx_lock(&Giant);
 
 	/*
 	 * This process needs to be suspended prior to shutdown sync.

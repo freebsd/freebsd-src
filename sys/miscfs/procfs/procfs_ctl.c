@@ -167,13 +167,13 @@ procfs_control(curp, p, op)
 
 	default:
 		PROCTREE_LOCK(PT_SHARED);
-		mtx_enter(&sched_lock, MTX_SPIN);
+		mtx_lock_spin(&sched_lock);
 		if (!TRACE_WAIT_P(curp, p)) {
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			PROCTREE_LOCK(PT_RELEASE);
 			return (EBUSY);
 		}
-		mtx_exit(&sched_lock, MTX_SPIN);
+		mtx_unlock_spin(&sched_lock);
 		PROCTREE_LOCK(PT_RELEASE);
 	}
 
@@ -252,31 +252,31 @@ procfs_control(curp, p, op)
 		error = 0;
 		if (p->p_flag & P_TRACED) {
 			PROCTREE_LOCK(PT_SHARED);
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			while (error == 0 &&
 					(p->p_stat != SSTOP) &&
 					(p->p_flag & P_TRACED) &&
 					(p->p_pptr == curp)) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				PROCTREE_LOCK(PT_RELEASE);
 				error = tsleep((caddr_t) p,
 						PWAIT|PCATCH, "procfsx", 0);
 				PROCTREE_LOCK(PT_SHARED);
-				mtx_enter(&sched_lock, MTX_SPIN);
+				mtx_lock_spin(&sched_lock);
 			}
 			if (error == 0 && !TRACE_WAIT_P(curp, p))
 				error = EBUSY;
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 			PROCTREE_LOCK(PT_RELEASE);
 		} else {
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			while (error == 0 && p->p_stat != SSTOP) {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				error = tsleep((caddr_t) p,
 						PWAIT|PCATCH, "procfs", 0);
-				mtx_enter(&sched_lock, MTX_SPIN);
+				mtx_lock_spin(&sched_lock);
 			}
-			mtx_exit(&sched_lock, MTX_SPIN);
+			mtx_unlock_spin(&sched_lock);
 		}
 		return (error);
 
@@ -284,10 +284,10 @@ procfs_control(curp, p, op)
 		panic("procfs_control");
 	}
 
-	mtx_enter(&sched_lock, MTX_SPIN);
+	mtx_lock_spin(&sched_lock);
 	if (p->p_stat == SSTOP)
 		setrunnable(p);
-	mtx_exit(&sched_lock, MTX_SPIN);
+	mtx_unlock_spin(&sched_lock);
 	return (0);
 }
 
@@ -329,17 +329,17 @@ procfs_doctl(curp, p, pfs, uio)
 		nm = vfs_findname(signames, msg, xlen);
 		if (nm) {
 			PROCTREE_LOCK(PT_SHARED);
-			mtx_enter(&sched_lock, MTX_SPIN);
+			mtx_lock_spin(&sched_lock);
 			if (TRACE_WAIT_P(curp, p)) {
 				p->p_xstat = nm->nm_val;
 #ifdef FIX_SSTEP
 				FIX_SSTEP(p);
 #endif
 				setrunnable(p);
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				PROCTREE_LOCK(PT_RELEASE);
 			} else {
-				mtx_exit(&sched_lock, MTX_SPIN);
+				mtx_unlock_spin(&sched_lock);
 				PROCTREE_LOCK(PT_RELEASE);
 				psignal(p, nm->nm_val);
 			}
