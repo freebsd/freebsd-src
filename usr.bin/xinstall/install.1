@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	From: @(#)install.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: install.1,v 1.3 1996/01/30 13:52:33 mpp Exp $
+.\"	$Id: install.1,v 1.4 1996/03/11 03:31:51 mpp Exp $
 .\"
 .Dd October 9, 1995
 .Dt INSTALL 1
@@ -97,7 +97,7 @@ Specify the target's file flags.
 .Xr chflags 1
 for a list of possible flags and their meanings.)
 .It Fl g
-Specify a group.
+Specify a group. A numeric GID is allowed.
 .It Fl m
 Specify an alternate mode.
 The default mode is set to rwxr-xr-x (0755).
@@ -105,7 +105,7 @@ The specified mode may be either an octal or symbolic value; see
 .Xr chmod  1
 for a description of possible mode values.
 .It Fl o
-Specify an owner.
+Specify an owner. A numeric UID is allowed.
 .It Fl p
 Preserve the modification time.
 Copy the file, as if the
