@@ -271,7 +271,7 @@ uhci_pci_attach(device_t self)
 		sprintf(sc->sc_vendor, "(0x%04x)", pci_get_vendor(self));
 	}
 
-	switch (pci_read_config(self, PCI_USBREV, 4) & PCI_USBREV_MASK) {
+	switch (pci_read_config(self, PCI_USBREV, 1) & PCI_USBREV_MASK) {
 	case PCI_USBREV_PRE_1_0:
 		sc->sc_bus.usbrev = USBREV_PRE_1_0;
 		break;
@@ -298,11 +298,11 @@ uhci_pci_attach(device_t self)
 	 * to the ports of the root hub?
 	 */
 #ifdef USB_DEBUG
-	if (pci_read_config(self, PCI_LEGSUP, 4) != PCI_LEGSUP_USBPIRQDEN)
-		device_printf(self, "LegSup = 0x%08x\n",
-		    pci_read_config(self, PCI_LEGSUP, 4));
+	if (pci_read_config(self, PCI_LEGSUP, 2) != PCI_LEGSUP_USBPIRQDEN)
+		device_printf(self, "LegSup = 0x%04x\n",
+		    pci_read_config(self, PCI_LEGSUP, 2));
 #endif
-	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 4);
+	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
 	err = uhci_init(sc);
 	if (!err)
