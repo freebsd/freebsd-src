@@ -82,14 +82,14 @@ __FBSDID("$FreeBSD$");
 #include <machine/ofw_machdep.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
-#include <sparc64/sbus/sbusvar.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/scsi/scsi_all.h>
 
-#include <dev/esp/lsi64854reg.h>
-#include <dev/esp/lsi64854var.h>
+#include <sparc64/sbus/lsi64854reg.h>
+#include <sparc64/sbus/lsi64854var.h>
+#include <sparc64/sbus/sbusvar.h>
 
 #include <dev/esp/ncr53c9xreg.h>
 #include <dev/esp/ncr53c9xvar.h>
