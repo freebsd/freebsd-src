@@ -25,6 +25,7 @@
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/eventhandler.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
@@ -253,7 +254,7 @@ static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(void);
 static int	aio_aqueue(struct thread *td, struct aiocb *job, int type);
 static void	aio_physwakeup(struct buf *bp);
-static void	aio_proc_rundown(struct proc *p);
+static void	aio_proc_rundown(void *arg, struct proc *p);
 static int	aio_fphysio(struct aiocblist *aiocbe);
 static int	aio_qphysio(struct proc *p, struct aiocblist *iocb);
 static void	aio_daemon(void *uproc);
@@ -277,6 +278,8 @@ static uma_zone_t kaio_zone, aiop_zone, aiocb_zone, aiol_zone, aiolio_zone;
 /* kqueue filters for aio */
 static struct filterops aio_filtops =
 	{ 0, filt_aioattach, filt_aiodetach, filt_aio };
+
+static eventhandler_tag exit_tag, exec_tag;
 
 /*
  * Main operations function for use as a kernel module.
@@ -330,8 +333,10 @@ aio_onceonly(void)
 
 	/* XXX: should probably just use so->callback */
 	aio_swake = &aio_swake_cb;
-	at_exit(aio_proc_rundown);
-	at_exec(aio_proc_rundown);
+	exit_tag = EVENTHANDLER_REGISTER(process_exit, aio_proc_rundown, NULL,
+	    EVENTHANDLER_PRI_ANY);
+	exec_tag = EVENTHANDLER_REGISTER(process_exec, aio_proc_rundown, NULL,
+	    EVENTHANDLER_PRI_ANY);
 	kqueue_add_filteropts(EVFILT_AIO, &aio_filtops);
 	TAILQ_INIT(&aio_freeproc);
 	TAILQ_INIT(&aio_activeproc);
@@ -373,8 +378,8 @@ aio_unload(void)
 
 	async_io_version = 0;
 	aio_swake = NULL;
-	rm_at_exit(aio_proc_rundown);
-	rm_at_exec(aio_proc_rundown);
+	EVENTHANDLER_DEREGISTER(process_exit, exit_tag);
+	EVENTHANDLER_DEREGISTER(process_exec, exec_tag);
 	kqueue_del_filteropts(EVFILT_AIO);
 	p31b_setcfg(CTL_P1003_1B_AIO_LISTIO_MAX, -1);
 	p31b_setcfg(CTL_P1003_1B_AIO_MAX, -1);
@@ -525,7 +530,7 @@ aio_free_entry(struct aiocblist *aiocbe)
  * Rundown the jobs for a given process.  
  */
 static void
-aio_proc_rundown(struct proc *p)
+aio_proc_rundown(void *arg, struct proc *p)
 {
 	int s;
 	struct kaioinfo *ki;

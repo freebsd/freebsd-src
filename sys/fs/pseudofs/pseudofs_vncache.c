@@ -31,6 +31,7 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -45,7 +46,8 @@ static MALLOC_DEFINE(M_PFSVNCACHE, "pfs_vncache", "pseudofs vnode cache");
 
 static struct mtx pfs_vncache_mutex;
 static struct pfs_vdata *pfs_vncache;
-static void pfs_exit(struct proc *p);
+static eventhandler_tag pfs_exit_tag;
+static void pfs_exit(void *arg, struct proc *p);
 
 SYSCTL_NODE(_vfs_pfs, OID_AUTO, vncache, CTLFLAG_RW, 0,
     "pseudofs vnode cache");
@@ -80,8 +82,8 @@ pfs_vncache_load(void)
 {
 	mtx_init(&pfs_vncache_mutex, "pseudofs_vncache", NULL,
 	    MTX_DEF | MTX_RECURSE);
-	/* XXX at_exit() can fail with ENOMEN */
-	at_exit(pfs_exit);
+	pfs_exit_tag = EVENTHANDLER_REGISTER(process_exit, pfs_exit, NULL,
+	    EVENTHANDLER_PRI_ANY);
 }
 
 /*
@@ -90,7 +92,7 @@ pfs_vncache_load(void)
 void
 pfs_vncache_unload(void)
 {
-	rm_at_exit(pfs_exit);
+	EVENTHANDLER_DEREGISTER(process_exit, pfs_exit_tag);
 	if (pfs_vncache_entries != 0)
 		printf("pfs_vncache_unload(): %d entries remaining\n",
 		    pfs_vncache_entries);
@@ -218,7 +220,7 @@ pfs_vncache_free(struct vnode *vp)
  * Free all vnodes associated with a defunct process
  */
 static void
-pfs_exit(struct proc *p)
+pfs_exit(void *arg, struct proc *p)
 {
 	struct pfs_vdata *pvd, *prev;
 

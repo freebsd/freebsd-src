@@ -13,6 +13,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
@@ -35,7 +36,7 @@ static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 static void seminit(void);
 static int sysvsem_modload(struct module *, int, void *);
 static int semunload(void);
-static void semexit_myhook(struct proc *p);
+static void semexit_myhook(void *arg, struct proc *p);
 static int sysctl_sema(SYSCTL_HANDLER_ARGS);
 static int semvalid(int semid, struct semid_ds *semaptr);
 
@@ -66,6 +67,7 @@ static struct mtx *sema_mtx;	/* semaphore id pool mutexes*/
 static struct sem *sem;		/* semaphore pool */
 SLIST_HEAD(, sem_undo) semu_list;	/* list of active undo structures */
 static int	*semu;		/* undo structure pool */
+static eventhandler_tag semexit_tag;
 
 #define SEMUNDO_MTX		sem_mtx
 #define SEMUNDO_LOCK()		mtx_lock(&SEMUNDO_MTX);
@@ -203,8 +205,9 @@ seminit(void)
 		suptr->un_proc = NULL;
 	}
 	SLIST_INIT(&semu_list);
-	at_exit(semexit_myhook);
 	mtx_init(&sem_mtx, "sem", NULL, MTX_DEF);
+	semexit_tag = EVENTHANDLER_REGISTER(process_exit, semexit_myhook, NULL,
+	    EVENTHANDLER_PRI_ANY);
 }
 
 static int
@@ -215,10 +218,10 @@ semunload(void)
 	if (semtot != 0)
 		return (EBUSY);
 
+	EVENTHANDLER_DEREGISTER(process_exit, semexit_tag);
 	free(sem, M_SEM);
 	free(sema, M_SEM);
 	free(semu, M_SEM);
-	rm_at_exit(semexit_myhook);
 	for (i = 0; i < seminfo.semmni; i++)
 		mtx_destroy(&sema_mtx[i]);
 	mtx_destroy(&sem_mtx);
@@ -1139,7 +1142,8 @@ done2:
  * semaphores.
  */
 static void
-semexit_myhook(p)
+semexit_myhook(arg, p)
+	void *arg;
 	struct proc *p;
 {
 	struct sem_undo *suptr;
