@@ -2500,6 +2500,9 @@ device		pps
 device		lpbb
 device		pcfclock
 
+# Parallel (8255 PPI) basic I/O (mode 0) port (e.g. Advantech PCL-724)
+device pbio0 at isa? port 0x360
+
 # Kernel BOOTP support
 
 options 	BOOTP		# Use BOOTP to obtain IP address/hostname

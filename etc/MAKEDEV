@@ -140,6 +140,7 @@
 #	speaker	pc speaker
 #	tw*	xten power controller
 #	snd*	various sound cards
+#	pbio*	8255 PPI (e.g. Advantech PCL-724)
 #	pcaudio	PCM audio driver
 #	socksys	iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
@@ -1928,6 +1929,14 @@ cfs*)
 nsmb*)
 	unit=`expr $i : 'nsmb\(.*\)'`
 	mknod nsmb$unit c 144 $unit
+	;;
+
+pbio*)
+	unit=`expr $i : 'pbio\(.*\)'`
+	mknod pbio${unit}a c 188 $(($unit * 4 + 0)) root:operator
+	mknod pbio${unit}b c 188 $(($unit * 4 + 1)) root:operator
+	mknod pbio${unit}ch c 188 $(($unit * 4 + 2)) root:operator
+	mknod pbio${unit}cl c 188 $(($unit * 4 + 3)) root:operator
 	;;
 
 local)
