@@ -114,7 +114,7 @@ static u_int8_t dma_auto_mode = 0;
 
 /* high byte of address is stored in this port for i-th dma channel */
 #ifdef PC98
-static int dmapageport[8] = { 0x27, 0x21, 0x23, 0x25 };
+static int dmapageport[4] = { 0x27, 0x21, 0x23, 0x25 };
 #else
 static int dmapageport[8] = { 0x87, 0x83, 0x81, 0x82, 0x8f, 0x8b, 0x89, 0x8a };
 #endif
