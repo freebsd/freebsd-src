@@ -469,3 +469,4 @@ static driver_t digi_isa_drv = {
 	digi_isa_methods,
 	sizeof(struct digi_softc),
 };
+DRIVER_MODULE(digi, isa, digi_isa_drv, digi_devclass, 0, 0);
