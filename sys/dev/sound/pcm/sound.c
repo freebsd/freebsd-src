@@ -93,6 +93,7 @@ minor = (channel << 8) + (unit << 4) + dev
 #define PCMCHAN(x) ((PCMMINOR(x) & 0x0000ff00) >> 8)
 #define PCMUNIT(x) ((PCMMINOR(x) & 0x000000f0) >> 4)
 #define PCMDEV(x)   (PCMMINOR(x) & 0x0000000f)
+#define PCMMKMINOR(u, d) (((u) & 0x0f) << 4 | ((d) & 0x0f))
 
 static devclass_t pcm_devclass;
 
@@ -146,7 +147,17 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
     	if (!pcm_devclass) {
     		pcm_devclass = device_get_devclass(dev);
-		cdevsw_add(&snd_cdevsw);
+		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_CTL),
+			 UID_ROOT, GID_WHEEL, 0666, "mixer%d", unit);
+		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP),
+			 UID_ROOT, GID_WHEEL, 0666, "dsp%d", unit);
+		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_AUDIO),
+			 UID_ROOT, GID_WHEEL, 0666, "audio%d", unit);
+		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_DSP16),
+			 UID_ROOT, GID_WHEEL, 0666, "dspW%d", unit);
+		make_dev(&snd_cdevsw, PCMMKMINOR(unit, SND_DEV_STATUS),
+			 UID_ROOT, GID_WHEEL, 0444, "sndstat");
+		/* XXX SND_DEV_NORESET? */
     	}
 	d->devinfo = devinfo;
 	d->chancount = d->playcount = d->reccount = 0;
