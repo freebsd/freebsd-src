@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: rlogind.c,v 1.12.2.2 1997/03/24 06:03:11 imp Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -67,13 +69,14 @@ static char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <errno.h>
+#include <libutil.h>
 #include <pwd.h>
 #include <syslog.h>
-#include <errno.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "pathnames.h"
 
 #ifndef TIOCPKT_WINDOW
@@ -191,6 +194,7 @@ main(argc, argv)
 		syslog(LOG_WARNING, "setsockopt (IP_TOS): %m");
 
 	doit(0, &from);
+	return(0);
 }
 
 int	child;
