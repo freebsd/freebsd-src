@@ -37,6 +37,7 @@
 #include <err.h>
 
 static int iselftype(const char *);
+static void printelftypes(void);
 static void usage __P((void));
 
 int
@@ -45,12 +46,16 @@ main(int argc, char **argv)
 
 	const char *type = "FreeBSD";
 	int retval = 0;
-	int ch, change = 0, verbose = 0, force = 0;
+	int ch, change = 0, verbose = 0, force = 0, listed = 0;
 
-	while ((ch = getopt(argc, argv, "ft:v")) != -1)
+	while ((ch = getopt(argc, argv, "flt:v")) != -1)
 		switch (ch) {
 		case 'f':
 			force = 1;
+			break;
+		case 'l':
+			printelftypes();
+			listed = 1;
 			break;
 		case 'v':
 			verbose = 1;
@@ -64,11 +69,20 @@ main(int argc, char **argv)
 	}
 	argc -= optind;
 	argv += optind;
-	if (!argc)
-		errx(1, "no file(s) specified");
+	if (!argc) {
+		if (listed)
+			exit(0);
+		else {
+			warnx("no file(s) specified");
+			usage();
+		}
+	}
 
-	if (!force && !iselftype(type))
-		errx(1, "invalid ELF type '%s'", type);
+	if (!force && !iselftype(type)) {
+		warnx("invalid ELF type '%s'", type);
+		printelftypes();
+		usage();
+	}
 
 	while (argc) {
 		int fd;
@@ -98,9 +112,11 @@ main(int argc, char **argv)
 				fprintf(stdout,
 					"File '%s' is of brand '%s'.\n",
 					argv[0], string);
-				if (!force && !iselftype(string))
+				if (!force && !iselftype(string)) {
 					warnx("Brand '%s' is unknown",
 					      string);
+					printelftypes();
+				}
 			}
 			else
 				fprintf(stdout, "File '%s' has no branding.\n",
@@ -126,14 +142,16 @@ fail:
 static void
 usage()
 {
-	fprintf(stderr, "usage: brandelf [-f] [-v] [-t string] file ...\n");
+	fprintf(stderr, "usage: brandelf [-f] [-v] [-l] [-t string] file ...\n");
 	exit(1);
 }
 
+/* XXX - any more types? */
+static const char *elftypes[] = { "FreeBSD", "Linux", "SVR4" };
+
 static int
-iselftype(const char *elftype) {
-	/* XXX - any more types? */
-	const char *elftypes[] = { "FreeBSD", "Linux", "SVR4" };
+iselftype(const char *elftype)
+{
 	int elfwalk;
 
 	for (elfwalk = 0;
@@ -142,4 +160,17 @@ iselftype(const char *elftype) {
 		if (strcmp(elftype, elftypes[elfwalk]) == 0)
 			return 1;
 	return 0;
+}
+
+static void
+printelftypes()
+{
+	int elfwalk;
+
+	fprintf(stderr, "known ELF types are: ");
+	for (elfwalk = 0;
+	     elfwalk < sizeof(elftypes)/sizeof(elftypes[0]);
+	     elfwalk++)
+		fprintf(stderr, "%s ", elftypes[elfwalk]);
+	fprintf(stderr, "\n");
 }

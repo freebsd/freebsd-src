@@ -36,6 +36,7 @@
 .Sh SYNOPSIS
 .Nm brandelf
 .Op Fl f
+.Op Fl l
 .Op Fl v
 .Op Fl t Ar string
 .Ar file ...
@@ -48,6 +49,8 @@ The options are as follows:
 .It Fl f
 forces branding even if the brand requested is unknown, and disables
 warnings for unknown brands.
+.It Fl l
+lists all known ELF types on the standard error channel.
 .It Fl v
 turns on verbose reporting
 .It Fl t Ar string
@@ -78,7 +81,7 @@ command:
 .Sh DIAGNOSTICS
 Exit status is 0 on success, and 1 if the command
 fails if a file doesn't exist, is too short, fails to brand properly,
-or the brand requested is not 'Linux' or 'FreeBSD' and the
+or the brand requested is not one of the known types and the
 .Fl f
 option is not set.
 .Sh HISTORY
