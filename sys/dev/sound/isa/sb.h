@@ -123,8 +123,10 @@
  */
 #define	BD_F_HISPEED	0x0001	/* doing high speed ... */
 
+#if 0
 #define	BD_F_JAZZ16	0x0002	/* jazz16 detected */
 #define	BD_F_JAZZ16_2	0x0004	/* jazz16 type 2 */
+#endif
 
 #define	BD_F_DUP_MIDI	0x0008	/* duplex midi */
 
@@ -135,16 +137,19 @@
 
 #define	BD_F_SB16	0x0100	/* this is a SB16 */
 #define	BD_F_SB16X	0x0200	/* this is a vibra16X or clone */
+#if 0
 #define	BD_F_MIDIBUSY	0x0400	/* midi busy */
+#endif
 #define	BD_F_ESS	0x0800	/* this is an ESS chip */
 /*
  * on some SB16 cards, at times I swap DMA channels. Remember this
  * so that they can be restored later.
  */
+#if 0
 #define	BD_F_SWAPPED	0x1000	/* have swapped DMA channels */
+#endif
 #define BD_F_DMARUN	0x2000
 #define BD_F_DMARUN2	0x4000
-#define BD_F_DUPLEX	0x8000
 
 /*
  * Mixer registers of SB Pro

@@ -241,12 +241,13 @@ bad:		return s? 0 : ENXIO;
 static int
 sbc_attach(device_t dev)
 {
+	char *err = NULL;
 	struct sbc_softc *scp;
 	struct sndcard_func *func;
 	device_t child;
 	u_int32_t logical_id = isa_get_logicalid(dev);
     	int flags = device_get_flags(dev);
-	int f = 0, dh = -1, dl = -1;
+	int f, dh, dl, x, irq;
 
     	if (!logical_id && (flags & DV_F_DUAL_DMA)) {
         	bus_set_resource(dev, SYS_RES_DRQ, 1,
@@ -256,11 +257,15 @@ sbc_attach(device_t dev)
 	scp = device_get_softc(dev);
 	bzero(scp, sizeof(*scp));
 	scp->dev = dev;
+	err = "alloc_resource";
 	if (alloc_resource(scp)) goto bad;
 
+	err = "sb_reset_dsp";
 	if (sb_reset_dsp(scp->io[0])) goto bad;
+	err = "sb_identify_board";
 	scp->bd_ver = sb_identify_board(scp->io[0]) & 0x00000fff;
 	if (scp->bd_ver == 0) goto bad;
+	f = 0;
 	switch ((scp->bd_ver & 0x0f00) >> 8) {
     	case 1: /* old sound blaster has nothing... */
 		break;
@@ -279,33 +284,34 @@ sbc_attach(device_t dev)
 
     	case 4:
     		f |= BD_F_SB16 | BD_F_MIX_CT1745;
-		if (scp->drq[0]) dl = rman_get_start(scp->drq[0]);
+		if (scp->drq[0]) dl = rman_get_start(scp->drq[0]); else dl = -1;
 		if (scp->drq[1]) dh = rman_get_start(scp->drq[1]); else dh = dl;
-		if (dh != dl) f |= BD_F_DUPLEX;
-		if (dh < dl) {
-			struct resource *r;
-			r = scp->drq[0];
-			scp->drq[0] = scp->drq[1];
-			scp->drq[1] = r;
-			dl = rman_get_start(scp->drq[0]);
-			dh = rman_get_start(scp->drq[1]);
-		}
 		if (!logical_id) {
-			/* soft irq/dma configuration */
-			int x = -1, irq = rman_get_start(scp->irq);
-			if      (irq == 5) x = 2;
-			else if (irq == 7) x = 4;
-			else if (irq == 9) x = 1;
-			else if (irq == 10) x = 8;
-			if (x == -1) device_printf(dev,
-					   	"bad irq %d (5/7/9/10 valid)\n",
-					   	irq);
-			else sb_setmixer(scp->io[0], IRQ_NR, x);
-			sb_setmixer(scp->io[0], DMA_NR, (1 << dh) | (1 << dl));
-			device_printf(dev, "setting non-pnp card to irq %d, drq %d", irq, dl);
-			if (dl != dh) printf(", %d", dh);
-			printf("\n");
+			if (dh < dl) {
+				struct resource *r;
+				r = scp->drq[0];
+				scp->drq[0] = scp->drq[1];
+				scp->drq[1] = r;
+				dl = rman_get_start(scp->drq[0]);
+				dh = rman_get_start(scp->drq[1]);
+			}
 		}
+		/* soft irq/dma configuration */
+		x = -1;
+		irq = rman_get_start(scp->irq);
+		if      (irq == 5) x = 2;
+		else if (irq == 7) x = 4;
+		else if (irq == 9) x = 1;
+		else if (irq == 10) x = 8;
+		if (x == -1) {
+			err = "bad irq (5/7/9/10 valid)";
+			goto bad;
+		}
+		else sb_setmixer(scp->io[0], IRQ_NR, x);
+		sb_setmixer(scp->io[0], DMA_NR, (1 << dh) | (1 << dl));
+		device_printf(dev, "setting card to irq %d, drq %d", irq, dl);
+		if (dl != dh) printf(", %d", dh);
+		printf("\n");
 		break;
     	}
 
@@ -348,7 +354,8 @@ sbc_attach(device_t dev)
 
 	return (0);
 
-bad:	release_resource(scp);
+bad:	if (err) device_printf(dev, "%s\n", err);
+	release_resource(scp);
 	return (ENXIO);
 }
 
