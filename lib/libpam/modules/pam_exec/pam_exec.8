@@ -1,6 +1,6 @@
 .\" Copyright (c) 2001 Mark R V Murray
 .\" All rights reserved.
-.\" Copyright (c) 2001 Networks Associates Technology, Inc.
+.\" Copyright (c) 2001,2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" Portions of this software were developed for the FreeBSD Project by
@@ -50,6 +50,9 @@
 The exec service module for PAM executes the program designated by its
 first argument, with its remaining arguments as command-line
 arguments.
+The child's environment is set to the current PAM environment list,
+as returned by
+.Xr pam_getenvlist 3 .
 .Sh SEE ALSO
 .Xr pam.conf 5 ,
 .Xr pam 8
