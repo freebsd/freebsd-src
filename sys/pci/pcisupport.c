@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.13.4.3 1996/06/26 04:36:53 davidg Exp $
+**  $Id: pcisupport.c,v 1.13.4.4 1996/09/06 09:17:05 rgrimes Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -631,16 +631,14 @@ chipset_attach (pcici_t config_id, int unit)
 		writeconfig (config_id, conf82371fb);
 		break;
 	case 0x12308086:
-		printf("\tI/O Base Address: %#lx\n",
+		writeconfig (config_id, conf82371fb2);
+		break;
 #if 0
 	case 0x00011011: /* DEC 21050 */
 	case 0x00221014: /* IBM xxx */
 		writeconfig (config_id, conf_pci2pci);
 		break;
 #endif
-		       (u_long)pci_conf_read(config_id, 0x20) & 0xfff0);
-		writeconfig (config_id, conf82371fb2);
-		break;
 	};
 #endif /* PCI_QUIET */
 }
