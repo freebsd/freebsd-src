@@ -32,7 +32,7 @@
   error: DYN_ALLOC not yet supported in match.s
 #endif
 
-#if defined(i386) || defined(_I386)
+#if defined(i386) || defined(_I386) || defined(__i386__)
 
 /* This version is for 386 Unix or OS/2 in 32 bit mode.
  * Warning: it uses the AT&T syntax: mov source,dest
