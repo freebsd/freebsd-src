@@ -85,16 +85,17 @@ struct  savefpu {
  *	64-bit precision
  *	all exceptions masked.
  *
- * We modify the affine mode bit and precision bits in this to give:
+ * FreeBSD/i386 uses 53 bit precision for things like fadd/fsub/fsqrt etc
+ * because of the difference between memory and fpu register stack arguments.
+ * If its using an intermediate fpu register, it has 80/64 bits to work
+ * with.  If it uses memory, it has 64/53 bits to work with.  However,
+ * gcc is aware of this and goes to a fair bit of trouble to make the
+ * best use of it.
  *
- *	affine mode for 287's (if they work at all) (1 in bitfield 1<<12)
- *	53-bit precision (2 in bitfield 3<<8)
- *
- * 64-bit precision often gives bad results with high level languages
- * because it makes the results of calculations depend on whether
- * intermediate values are stored in memory or in FPU registers.
+ * This is mostly academic for AMD64, because the ABI prefers the use
+ * SSE2 based math.  For FreeBSD/amd64, we go with the default settings.
  */
-#define	__INITIAL_NPXCW__	0x127F
+#define	__INITIAL_NPXCW__	0x037F
 #define	__INITIAL_MXCSR__	0x1F80
 #define	__INITIAL_MXCSR_MASK__	0xFFBF
 
