@@ -48,7 +48,7 @@
 					/*   c */
 					/*   d */
 #define MBOX_CHECK_FIRMWARE		0x000e
-					/*   f */
+#define	MBOX_READ_RAM_WORD_EXTENDED	0x000f
 #define MBOX_INIT_REQ_QUEUE		0x0010
 #define MBOX_INIT_RES_QUEUE		0x0011
 #define MBOX_EXECUTE_IOCB		0x0012

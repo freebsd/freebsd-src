@@ -101,3 +101,9 @@ typedef struct {
 
 #define	ISP_GET_STATS	_IOR(ISP_IOC, 6, isp_stats_t)
 #define	ISP_CLR_STATS	_IO(ISP_IOC, 7)
+
+/*
+ * Get F/W crash dump
+ */
+#define	ISP_GET_FW_CRASH_DUMP	_IOR(ISP_IOC, 10, void *)
+#define	ISP_FORCE_CRASH_DUMP	_IO(ISP_IOC, 11)
