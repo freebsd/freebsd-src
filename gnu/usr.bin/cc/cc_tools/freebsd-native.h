@@ -42,7 +42,9 @@
 
 /* For the native system compiler, we actually build libgcc in a profiled
    version.  So we should use it with -pg.  */
-#define LIBGCC_SPEC "%{!pg: -lgcc} %{pg: -lgcc_p}"
+#define LIBGCC_SPEC		"%{!pg: -lgcc} %{pg: -lgcc_p}"
+#define LIBSTDCXX_PROFILE	"-lstdc++_p"
+#define MATH_LIBRARY_PROFILE	"-lm_p"
 
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
