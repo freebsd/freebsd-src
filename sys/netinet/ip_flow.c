@@ -33,33 +33,25 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ip_flow.c,v 1.3 1998/05/19 15:53:47 pb Exp $
+ * $Id: ip_flow.c,v 1.4 1998/05/19 17:47:11 jdp Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/errno.h>
-#include <sys/time.h>
 #include <sys/kernel.h>
-#include <sys/proc.h>
 
-#include <vm/vm.h>
 #include <sys/sysctl.h>
 
 #include <net/if.h>
-#include <net/if_dl.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
-#include <netinet/in_pcb.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_flow.h>

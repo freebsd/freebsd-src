@@ -46,7 +46,6 @@
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
-#include <sys/kernel.h>
 #include <sys/syslog.h>
 
 #include <ufs/ufs/quota.h>

@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.13 1998/06/07 17:10:37 dfr Exp $
+ * $Id: if_sr.c,v 1.14 1998/06/17 13:54:56 bde Exp $
  */
 
 /*
@@ -80,8 +80,6 @@
 #include <i386/isa/if_srregs.h>
 #include <i386/isa/ic/hd64570.h>
 #include <i386/isa/isa_device.h>
-
-#include "ioconf.h"
 
 /* #define USE_MODEMCK */
 
