@@ -499,12 +499,6 @@
       force creation of a GPT even when there is an MBR record on a
       disk. &merged;</para>
 
-    <para>The &man.newfs.8; utility now supports a <option>-n</option>
-      flag to suppress the creation of a <filename>.snap</filename>
-      directory on new file systems.  This feature is intended for use
-      on memory or vnode file systems that will not require snapshot
-      support. &merged;</para>
-
     <para>The &man.ifconfig.8; utility has been restructured.  It is
       now more modular and flexible with respect to supporting
       interface-specific functionality.  The 802.11 support has been
@@ -537,6 +531,12 @@
       &man.floorl.3;, &man.ilogbl.3;, &man.fma.3; and variants,
       &man.lrint.3; and variants, and &man.lround.3; and
       variants. &merged;</para>
+
+    <para>The &man.newfs.8; utility now supports a <option>-n</option>
+      flag to suppress the creation of a <filename>.snap</filename>
+      directory on new file systems.  This feature is intended for use
+      on memory or vnode file systems that will not require snapshot
+      support. &merged;</para>
 
     <para>The <literal>NO_NIS</literal> compile-time knob for userland
       has been added.  As its name implies, enabling this
