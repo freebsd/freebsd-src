@@ -691,8 +691,6 @@ with the single exception that a backslash is used to prevent the expansion
 of a dollar sign
 .Pq Ql \&$ ,
 not a preceding dollar sign as is usual.
-.It Cm T
-Replaces each word in the variable with its last component.
 .It Ar old_string=new_string
 This is the
 .At V
@@ -713,6 +711,8 @@ is the substring of
 .Ar old_string
 to be replaced in
 .Ar new_string
+.It Cm T
+Replaces each word in the variable with its last component.
 .It Cm U
 Converts variable to upper-case letters.
 .El
