@@ -2,7 +2,6 @@
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  * $FreeBSD$
- *
  */
 #if SOLARIS && defined(_KERNEL)
 extern	kmutex_t	ipf_rw;
@@ -20,15 +19,21 @@ extern	kmutex_t	ipf_rw;
 #define	IPF_MAXPORTLEN	30
 #define	IPF_MIN227LEN	39
 #define	IPF_MAX227LEN	51
+#define	IPF_FTPBUFSZ	96	/* This *MUST* be >= 53! */
 
 
-int ippr_ftp_init __P((void));
-int ippr_ftp_out __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
+int ippr_ftp_client __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
+int ippr_ftp_complete __P((char *, size_t));
 int ippr_ftp_in __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
-int ippr_ftp_portmsg __P((fr_info_t *, ip_t *, nat_t *));
-int ippr_ftp_pasvmsg __P((fr_info_t *, ip_t *, nat_t *));
-
-u_short ipf_ftp_atoi __P((char **));
+int ippr_ftp_init __P((void));
+int ippr_ftp_new __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
+int ippr_ftp_out __P((fr_info_t *, ip_t *, ap_session_t *, nat_t *));
+int ippr_ftp_pasv __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *, int));
+int ippr_ftp_port __P((fr_info_t *, ip_t *, nat_t *, ftpside_t *, int));
+int ippr_ftp_process __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
+int ippr_ftp_server __P((fr_info_t *, ip_t *, nat_t *, ftpinfo_t *, int));
+int ippr_ftp_valid __P((char *, size_t));
+u_short ippr_ftp_atoi __P((char **));
 
 static	frentry_t	natfr;
 int	ippr_ftp_pasvonly = 0;
@@ -47,48 +52,47 @@ int ippr_ftp_init()
 }
 
 
-/*
- * ipf_ftp_atoi - implement a version of atoi which processes numbers in
- * pairs separated by commas (which are expected to be in the range 0 - 255),
- * returning a 16 bit number combining either side of the , as the MSB and
- * LSB.
- */
-u_short ipf_ftp_atoi(ptr)
-char **ptr;
+int ippr_ftp_new(fin, ip, aps, nat)
+fr_info_t *fin;
+ip_t *ip;
+ap_session_t *aps;
+nat_t *nat;
 {
-	register char *s = *ptr, c;
-	register u_char i = 0, j = 0;
+	ftpinfo_t *ftp;
+	ftpside_t *f;
 
-	while ((c = *s++) && isdigit(c)) {
-		i *= 10;
-		i += c - '0';
-	}
-	if (c != ',') {
-		*ptr = NULL;
-		return 0;
-	}
-	while ((c = *s++) && isdigit(c)) {
-		j *= 10;
-		j += c - '0';
-	}
-	*ptr = s;
-	return (i << 8) | j;
+	KMALLOC(ftp, ftpinfo_t *);
+	if (ftp == NULL)
+		return -1;
+	aps->aps_data = ftp;
+	aps->aps_psiz = sizeof(ftpinfo_t);
+
+	bzero((char *)ftp, sizeof(*ftp));
+	f = &ftp->ftp_side[0];
+	f->ftps_rptr = f->ftps_buf;
+	f->ftps_wptr = f->ftps_buf;
+	f = &ftp->ftp_side[1];
+	f->ftps_rptr = f->ftps_buf;
+	f->ftps_wptr = f->ftps_buf;
+	return 0;
 }
 
 
-int ippr_ftp_portmsg(fin, ip, nat)
+int ippr_ftp_port(fin, ip, nat, f, dlen)
 fr_info_t *fin;
 ip_t *ip;
 nat_t *nat;
+ftpside_t *f;
+int dlen;
 {
-	char portbuf[IPF_MAXPORTLEN + 1], newbuf[IPF_MAXPORTLEN + 1], *s;
 	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
-	size_t nlen = 0, dlen, olen;
+	char newbuf[IPF_FTPBUFSZ], *s;
 	u_short a5, a6, sp, dp;
 	u_int a1, a2, a3, a4;
 	struct in_addr swip;
-	int off, inc = 0;
+	size_t nlen, olen;
 	fr_info_t fi;
+	int inc, off;
 	nat_t *ipn;
 	mb_t *m;
 #if	SOLARIS
@@ -105,17 +109,16 @@ nat_t *nat;
 	/*
 	 * Skip the PORT command + space
 	 */
-	s = portbuf + 5;
+	s = f->ftps_rptr + 5;
 	/*
 	 * Pick out the address components, two at a time.
 	 */
-	a1 = ipf_ftp_atoi(&s);
+	a1 = ippr_ftp_atoi(&s);
 	if (!s)
 		return 0;
-	a2 = ipf_ftp_atoi(&s);
+	a2 = ippr_ftp_atoi(&s);
 	if (!s)
 		return 0;
-
 	/*
 	 * check that IP address in the PORT/PASV reply is the same as the
 	 * sender of the command - prevents using PORT for port scanning.
@@ -125,7 +128,7 @@ nat_t *nat;
 	if (a1 != ntohl(nat->nat_inip.s_addr))
 		return 0;
 
-	a5 = ipf_ftp_atoi(&s);
+	a5 = ippr_ftp_atoi(&s);
 	if (!s)
 		return 0;
 	if (*s == ')')
@@ -150,13 +153,18 @@ nat_t *nat;
 	a3 = (a1 >> 8) & 0xff;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
-	olen = s - portbuf;
+	olen = s - f->ftps_rptr;
+	/* DO NOT change this to sprintf! */
 	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "PORT", a1, a2, a3, a4, a5, a6);
 
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
+	if ((inc + ip->ip_len) > 65535)
+		return 0;
+
 #if SOLARIS
+	m = fin->fin_qfm;
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
 	if ((inc > 0) && (m1->b_datap->db_lim - m1->b_wptr < inc)) {
@@ -182,6 +190,7 @@ nat_t *nat;
 	}
 	copyin_mblk(m, off, nlen, newbuf);
 #else
+	m = *((mb_t **)fin->fin_mp);
 	if (inc < 0)
 		m_adj(m, inc);
 	/* the mbuf chain will be extended if necessary by m_copyback() */
@@ -215,6 +224,12 @@ nat_t *nat;
 	 */
 	sp = htons(a5 << 8 | a6);
 	/*
+	 * Don't allow the PORT command to specify a port < 1024 due to
+	 * security crap.
+	 */
+	if (ntohs(sp) < 1024)
+		return 0;
+	/*
 	 * The server may not make the connection back from port 20, but
 	 * it is the most likely so use it here to check for a conflicting
 	 * mapping.
@@ -223,10 +238,15 @@ nat_t *nat;
 	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
 			    ip->ip_dst, (dp << 16) | sp);
 	if (ipn == NULL) {
+		int slen;
+
+		slen = ip->ip_len;
+		ip->ip_len = fin->fin_hlen + sizeof(*tcp2);
 		bcopy((char *)fin, (char *)&fi, sizeof(fi));
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = sp;
+		tcp2->th_off = 5;
 		tcp2->th_dport = 0; /* XXX - don't specify remote port */
 		fi.fin_data[0] = ntohs(sp);
 		fi.fin_data[1] = 0;
@@ -239,17 +259,19 @@ nat_t *nat;
 			ipn->nat_age = fr_defnatage;
 			(void) fr_addstate(ip, &fi, FI_W_DPORT);
 		}
+		ip->ip_len = slen;
 		ip->ip_src = swip;
 	}
 	return inc;
 }
 
 
-int ippr_ftp_out(fin, ip, aps, nat)
+int ippr_ftp_client(fin, ip, nat, ftp, dlen)
 fr_info_t *fin;
-ip_t *ip;
-ap_session_t *aps;
 nat_t *nat;
+ftpinfo_t *ftp;
+ip_t *ip;
+int dlen;
 {
 	char *rptr, *wptr, cmd[6], c;
 	ftpside_t *f;
@@ -289,42 +311,28 @@ nat_t *nat;
 }
 
 
-int ippr_ftp_pasvmsg(fin, ip, nat)
+int ippr_ftp_pasv(fin, ip, nat, f, dlen)
 fr_info_t *fin;
 ip_t *ip;
 nat_t *nat;
+ftpside_t *f;
+int dlen;
 {
-	char portbuf[IPF_MAX227LEN + 1], newbuf[IPF_MAX227LEN + 1], *s;
-	int off, olen, dlen, nlen = 0, inc = 0;
-	tcphdr_t tcph, *tcp2 = &tcph;
+	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	struct in_addr swip, swip2;
-	u_short a5, a6, dp, sp;
+	u_short a5, a6, sp, dp;
 	u_int a1, a2, a3, a4;
-	tcphdr_t *tcp;
 	fr_info_t fi;
 	nat_t *ipn;
 	int inc;
 	char *s;
 
-	dlen = msgdsize(m) - off;
-	if (dlen > 0)
-		copyout_mblk(m, off, MIN(sizeof(portbuf), dlen), portbuf);
-#else
-	dlen = mbufchainlen(m) - off;
-	if (dlen > 0)
-		m_copydata(m, off, MIN(sizeof(portbuf), dlen), portbuf);
-#endif
-	if (dlen == 0)
+	/*
+	 * Check for PASV reply message.
+	 */
+	if (dlen < IPF_MIN227LEN)
 		return 0;
-	portbuf[sizeof(portbuf) - 1] = '\0';
-	*newbuf = '\0';
-
-	if (!strncmp(portbuf, "227 ", 4)) {
-		if (dlen < IPF_MIN227LEN)
-			return 0;
-		else if (strncmp(portbuf, "227 Entering Passive Mode", 25))
-			return 0;
-	} else
+	else if (strncmp(f->ftps_rptr, "227 Entering Passive Mode", 25))
 		return 0;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
@@ -332,16 +340,16 @@ nat_t *nat;
 	/*
 	 * Skip the PORT command + space
 	 */
-	s = portbuf + 25;
+	s = f->ftps_rptr + 25;
 	while (*s && !isdigit(*s))
 		s++;
 	/*
 	 * Pick out the address components, two at a time.
 	 */
-	a1 = ipf_ftp_atoi(&s);
+	a1 = ippr_ftp_atoi(&s);
 	if (!s)
 		return 0;
-	a2 = ipf_ftp_atoi(&s);
+	a2 = ippr_ftp_atoi(&s);
 	if (!s)
 		return 0;
 
@@ -354,7 +362,7 @@ nat_t *nat;
 	if (a1 != ntohl(nat->nat_oip.s_addr))
 		return 0;
 
-	a5 = ipf_ftp_atoi(&s);
+	a5 = ippr_ftp_atoi(&s);
 	if (!s)
 		return 0;
 
@@ -379,13 +387,18 @@ nat_t *nat;
 	a3 = (a1 >> 8) & 0xff;
 	a4 = a1 & 0xff;
 	a1 >>= 24;
-	olen = s - portbuf;
+	inc = 0;
+#if 0
+	olen = s - f->ftps_rptr;
 	(void) sprintf(newbuf, "%s %u,%u,%u,%u,%u,%u\r\n",
 		       "227 Entering Passive Mode", a1, a2, a3, a4, a5, a6);
-
 	nlen = strlen(newbuf);
 	inc = nlen - olen;
+	if ((inc + ip->ip_len) > 65535)
+		return 0;
+
 #if SOLARIS
+	m = fin->fin_qfm;
 	for (m1 = m; m1->b_cont; m1 = m1->b_cont)
 		;
 	if ((inc > 0) && (m1->b_datap->db_lim - m1->b_wptr < inc)) {
@@ -442,10 +455,15 @@ nat_t *nat;
 	ipn = nat_outlookup(fin->fin_ifp, IPN_TCP, nat->nat_p, nat->nat_inip,
 			    ip->ip_dst, (dp << 16) | sp);
 	if (ipn == NULL) {
+		int slen;
+
+		slen = ip->ip_len;
+		ip->ip_len = fin->fin_hlen + sizeof(*tcp2);
 		bcopy((char *)fin, (char *)&fi, sizeof(fi));
 		bzero((char *)tcp2, sizeof(*tcp2));
 		tcp2->th_win = htons(8192);
 		tcp2->th_sport = 0;		/* XXX - fake it for nat_new */
+		tcp2->th_off = 5;
 		fi.fin_data[0] = a5 << 8 | a6;
 		tcp2->th_dport = htons(fi.fin_data[0]);
 		fi.fin_data[1] = 0;
@@ -460,6 +478,7 @@ nat_t *nat;
 			ipn->nat_age = fr_defnatage;
 			(void) fr_addstate(ip, &fi, FI_W_SPORT);
 		}
+		ip->ip_len = slen;
 		ip->ip_src = swip;
 		ip->ip_dst = swip2;
 	}
@@ -708,6 +727,39 @@ ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
+	ftpinfo_t *ftp;
 
-	return ippr_ftp_pasvmsg(fin, ip, nat);
+	ftp = aps->aps_data;
+	if (ftp == NULL)
+		return 0;
+	return ippr_ftp_process(fin, ip, nat, ftp, 1);
+}
+
+
+/*
+ * ippr_ftp_atoi - implement a version of atoi which processes numbers in
+ * pairs separated by commas (which are expected to be in the range 0 - 255),
+ * returning a 16 bit number combining either side of the , as the MSB and
+ * LSB.
+ */
+u_short ippr_ftp_atoi(ptr)
+char **ptr;
+{
+	register char *s = *ptr, c;
+	register u_char i = 0, j = 0;
+
+	while ((c = *s++) && isdigit(c)) {
+		i *= 10;
+		i += c - '0';
+	}
+	if (c != ',') {
+		*ptr = NULL;
+		return 0;
+	}
+	while ((c = *s++) && isdigit(c)) {
+		j *= 10;
+		j += c - '0';
+	}
+	*ptr = s;
+	return (i << 8) | j;
 }

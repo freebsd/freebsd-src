@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -108,6 +109,7 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 
 	switch (type) {
 	case MOD_LOAD :
+
 		error = iplattach();
 		if (error)
 			break;
@@ -162,7 +164,6 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 		destroy_dev(ipf_devs[IPL_LOGNAT]);
 		destroy_dev(ipf_devs[IPL_LOGSTATE]);
 		destroy_dev(ipf_devs[IPL_LOGAUTH]);
-		cdevsw_remove(&ipl_cdevsw);
 		error = ipldetach();
 		break;
 	default:
@@ -173,7 +174,7 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 }
 
 static moduledata_t ipfiltermod = {
-	"ipfilter",
+	IPL_VERSION,
 	ipfilter_modevent,
         0
 };
