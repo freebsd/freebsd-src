@@ -77,7 +77,6 @@ static struct cdevsw agp_cdevsw = {
 	.d_mmap =	agp_mmap,
 	.d_name =	"agp",
 	.d_maj =	CDEV_MAJOR,
-	.d_flags =	D_TTY,
 };
 
 static devclass_t agp_devclass;
