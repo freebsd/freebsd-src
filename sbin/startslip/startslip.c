@@ -227,7 +227,9 @@ main(argc, argv)
 	} else
 restart:
 	if (logged_in) {
-		sprintf(buf, "%s %s down &", downscript ? downscript : "/sbin/ifconfig" , unitname);
+		sprintf(buf, "LINE=%d %s %s down &",
+		diali ? (dialc - 1) % diali : 0,
+		downscript ? downscript : "/sbin/ifconfig" , unitname);
 		(void) system(buf);
 	}
 	if (terminate)
@@ -445,7 +447,9 @@ restart:
 		(void) dup2(0, 2);
 	}
 
-	sprintf(buf, "%s %s up &", upscript ? upscript : "/sbin/ifconfig" , unitname);
+	sprintf(buf, "LINE=%d %s %s up &",
+		diali ? (dialc - 1) % diali : 0,
+		upscript ? upscript : "/sbin/ifconfig" , unitname);
 	(void) system(buf);
 
 	printd(", ready\n");
