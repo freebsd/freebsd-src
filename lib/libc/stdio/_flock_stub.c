@@ -68,6 +68,16 @@ struct	__file_lock {
 };
 
 /*
+ * We need to retain binary compatibility for a while.  So pretend
+ * that _lock is part of FILE * even though it is dereferenced off
+ * _extra now.  When we stop encoding the size of FILE into binaries
+ * this can be changed in stdio.h.  This will reduce the amount of
+ * code that has to change in the future (just remove this comment
+ * and #define).
+ */
+#define _lock _extra->_mtlock
+
+/*
  * Allocate and initialize a file lock.
  */
 static int

@@ -164,7 +164,7 @@ __ungetc(int c, FILE *fp)
 	 * Initially, we will use the `reserve' buffer.
 	 */
 	fp->_ur = fp->_r;
-	fp->_up = fp->_p;
+	fp->_extra->_up = fp->_p;
 	fp->_ub._base = fp->_ubuf;
 	fp->_ub._size = sizeof(fp->_ubuf);
 	fp->_ubuf[sizeof(fp->_ubuf) - 1] = c;

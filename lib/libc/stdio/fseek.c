@@ -204,7 +204,7 @@ _fseeko(fp, offset, whence)
 	 */
 	if (HASUB(fp)) {
 		curoff += fp->_r;	/* kill off ungetc */
-		n = fp->_up - fp->_bf._base;
+		n = fp->_extra->_up - fp->_bf._base;
 		curoff -= n;
 		n += fp->_ur;
 	} else {
