@@ -39,9 +39,9 @@ integer
 .Sh SYNOPSIS
 .In wchar.h
 .Ft long
-.Fn wcstol "const wchar_t * restrict nptr" "wchar_t * restrict endptr" "int base"
+.Fn wcstol "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
 .Ft "unsigned long"
-.Fn wcstoul "const wchar_t * restrict nptr" "wchar_t * restrict endptr" "int base"
+.Fn wcstoul "const wchar_t * restrict nptr" "wchar_t ** restrict endptr" "int base"
 .Sh DESCRIPTION
 The
 .Fn wcstol
