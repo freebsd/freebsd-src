@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dispatch.c,v 1.5.2.7 1997/05/22 04:10:06 jkh Exp $
+ * $Id: dispatch.c,v 1.5.2.8 1997/06/06 13:01:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,6 +144,8 @@ dispatchCommand(char *str)
 
     /* If it's got a `=' sign in there, assume it's a variable setting */
     if (index(str, '=')) {
+	if (isDebug())
+	    msgDebug("dispatch: setting variable `%s'\n", str);
 	variable_set(str);
 	i = DITEM_SUCCESS;
     }
@@ -151,6 +153,8 @@ dispatchCommand(char *str)
 	/* A command might be a pathname if it's encoded in argv[0], which we also support */
 	if ((cp = rindex(str, '/')) != NULL)
 	    str = cp + 1;
+	if (isDebug())
+	    msgDebug("dispatch: calling resword `%s'\n", str);
 	if (!call_possible_resword(str, NULL, &i)) {
 	    msgNotify("Warning: No such command ``%s''", str);
 	    i = DITEM_FAILURE;
