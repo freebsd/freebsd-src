@@ -225,9 +225,11 @@ soo_stat(fp, ub, active_cred, td)
 	struct thread *td;
 {
 	struct socket *so = fp->f_data;
+	int error;
 
 	bzero((caddr_t)ub, sizeof (*ub));
 	ub->st_mode = S_IFSOCK;
+	NET_LOCK_GIANT();
 	/*
 	 * If SBS_CANTRCVMORE is set, but there's still data left in the
 	 * receive buffer, the socket is still readable.
@@ -244,7 +246,9 @@ soo_stat(fp, ub, active_cred, td)
 	ub->st_size = so->so_rcv.sb_cc - so->so_rcv.sb_ctl;
 	ub->st_uid = so->so_cred->cr_uid;
 	ub->st_gid = so->so_cred->cr_gid;
-	return ((*so->so_proto->pr_usrreqs->pru_sense)(so, ub));
+	error = (*so->so_proto->pr_usrreqs->pru_sense)(so, ub);
+	NET_UNLOCK_GIANT();
+	return (error);
 }
 
 /*
