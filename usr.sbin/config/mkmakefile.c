@@ -181,6 +181,8 @@ makefile()
 		fprintf(ofp, "PROF=-pg\n");
 		fprintf(ofp, "PROFLEVEL=%d\n", profiling);
 	}
+	if (*srcdir != '\0')
+		fprintf(ofp,"S=%s\n", srcdir);
 	while (fgets(line, BUFSIZ, ifp) != 0) {
 		if (*line != '%') {
 			fprintf(ofp, "%s", line);

@@ -66,7 +66,7 @@ struct kt {
 	{ "iomem",	IOMEM },
 	{ "iosiz",	IOSIZ },
 	{ "irq",	IRQ },
-	{ "machine",	MACHINE },
+	{ "machine",	ARCH }, /* MACHINE is defined in /sys/param.h */
 	{ "makeoptions", MAKEOPTIONS },
 	{ "maxusers",	MAXUSERS },
 	{ "nexus",	NEXUS },
