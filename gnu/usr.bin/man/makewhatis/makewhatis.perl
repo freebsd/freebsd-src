@@ -344,7 +344,7 @@ sub manual {
 		chop;
 		s/^\.IX\s.*//;            # delete perlpod garbage
 		s/^\.[A-Z]+[ ]+[0-9]+$//; # delete commands
-		s/^\.[A-Za-z]+[ \t]*//;	  # delete commands
+		s/^\.[A-Za-z]*[ \t]*//;	  # delete commands
 		s/^\.\\".*$//;            #" delete comments
 		s/^[ \t]+//;
 		if ($_) {
@@ -361,6 +361,7 @@ sub manual {
 		last if /^\.Sh/;
 		chop;
 		s/^\.\\".*$//;            #" delete comments
+		next if /^\.[ \t]*$/;	  # skip empty calls
 		if (/^\.Nm/) {
 		    s/^\.Nm[ \t]*//;
 		    s/ ,/,/g;
@@ -370,9 +371,15 @@ sub manual {
 		} else {
 		    $list .= '- ' if (!$flag && !/^- /);
 		    $flag++;
-		    s/^\.[A-Z][a-z][ \t]*//;
-		    s/[ \t]+$//;
-		    $list .= $_;
+		    if (/^\.Xr/) {
+			split;
+			$list .= @_[1];
+			$list .= "(@_[2])" if @_[2];
+		    } else {
+			s/^\.([A-Z][a-z])?[ \t]*//;
+			s/[ \t]+$//;
+			$list .= $_;
+		    }
 		    $list .= ' ';
 		}
 	    }
