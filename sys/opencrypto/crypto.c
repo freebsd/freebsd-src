@@ -835,16 +835,19 @@ void
 crypto_freereq(struct cryptop *crp)
 {
 	struct cryptodesc *crd;
+	int s;
 
 	if (crp == NULL)
 		return;
 
+	/* NB: see below for an explanation */
+	s = splcrypto();
 	while ((crd = crp->crp_desc) != NULL) {
 		crp->crp_desc = crd->crd_next;
 		zfree(cryptodesc_zone, crd);
 	}
-
 	zfree(cryptop_zone, crp);
+	splx(s);
 }
 
 /*
@@ -855,7 +858,17 @@ crypto_getreq(int num)
 {
 	struct cryptodesc *crd;
 	struct cryptop *crp;
+	int s;
 
+	/*
+	 * Must interlock access to the zone. Calls may come in
+	 * at raised ipl from network protocols, but in general
+	 * we cannot be certain where we'll be called from.  We
+	 * could use zalloci/zfreei which is safe to be called
+	 * from anywhere or use splhigh, but for now splcrypto
+	 * is safe as it blocks crypto drivers and network threads.
+	 */
+	s = splcrypto();
 	crp = zalloc(cryptop_zone);
 	if (crp != NULL) {
 		bzero(crp, sizeof (*crp));
@@ -863,6 +876,7 @@ crypto_getreq(int num)
 			crd = zalloc(cryptodesc_zone);
 			if (crd == NULL) {
 				crypto_freereq(crp);
+				splx(s);
 				return NULL;
 			}
 
@@ -871,6 +885,7 @@ crypto_getreq(int num)
 			crp->crp_desc = crd;
 		}
 	}
+	splx(s);
 	return crp;
 }
 
