@@ -477,12 +477,14 @@ ndis_convert_res(arg)
 	if (brl != NULL) {
 		SLIST_FOREACH(brle, brl, link) {
 			switch (brle->type) {
+#ifdef notdef
 			case SYS_RES_IOPORT:
 				prd->cprd_type = CmResourceTypePort;
 				prd->u.cprd_port.cprd_start.np_quad =
 				    brle->start;
 				prd->u.cprd_port.cprd_len = brle->count;
 				break;
+#endif
 			case SYS_RES_MEMORY:
 				prd->cprd_type = CmResourceTypeMemory;
 				prd->u.cprd_port.cprd_start.np_quad =
@@ -1084,6 +1086,8 @@ ndis_unload_driver(arg)
 	return(0);
 }
 
+#define NDIS_LOADED		0x42534F44
+
 int
 ndis_load_driver(img, arg)
 	vm_offset_t		img;
@@ -1102,22 +1106,34 @@ ndis_load_driver(img, arg)
 
 	sc = arg;
 
-	/* Perform text relocation */
-	if (pe_relocate(img))
-		return(ENOEXEC);
+	/*
+	 * Only perform the relocation/linking phase once
+	 * since the binary image may be shared among multiple
+	 * device instances.
+	 */
 
-        /* Dynamically link the NDIS.SYS routines -- required. */
-	if (pe_patch_imports(img, "NDIS", ndis_functbl))
-		return(ENOEXEC);
-
-	/* Dynamically link the HAL.dll routines -- also required. */
-	if (pe_patch_imports(img, "HAL", hal_functbl))
-		return(ENOEXEC);
-
-	/* Dynamically link ntoskrnl.exe -- optional. */
-	if (pe_get_import_descriptor(img, &imp_desc, "ntoskrnl") == 0) {
-		if (pe_patch_imports(img, "ntoskrnl", ntoskrnl_functbl))
+	ptr = (uint32_t *)(img + 8);
+	if (*ptr != NDIS_LOADED) {
+		/* Perform text relocation */
+		if (pe_relocate(img))
 			return(ENOEXEC);
+
+		/* Dynamically link the NDIS.SYS routines -- required. */
+		if (pe_patch_imports(img, "NDIS", ndis_functbl))
+			return(ENOEXEC);
+
+		/* Dynamically link the HAL.dll routines -- also required. */
+		if (pe_patch_imports(img, "HAL", hal_functbl))
+			return(ENOEXEC);
+
+		/* Dynamically link ntoskrnl.exe -- optional. */
+		if (pe_get_import_descriptor(img,
+		    &imp_desc, "ntoskrnl") == 0) {
+			if (pe_patch_imports(img,
+			    "ntoskrnl", ntoskrnl_functbl))
+				return(ENOEXEC);
+		}
+		*ptr = NDIS_LOADED;
 	}
 
         /* Locate the driver entry point */
