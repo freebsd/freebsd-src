@@ -3,7 +3,7 @@
  * I'm afraid.
  */
 /*
- * $Id: setup.c,v 1.1 1997/12/06 05:23:05 sef Exp $
+ * $Id: setup.c,v 1.2 1997/12/06 08:01:00 sef Exp $
  */
 
 #include <stdio.h>
@@ -39,16 +39,16 @@ setup_and_wait(char *command[]) {
 
   pid = vfork();
   if (pid == -1) {
-    err(1, "vfork failed\n");
+    err(1, "vfork failed");
   }
   if (pid == 0) {	/* Child */
     int mask = S_EXEC | S_EXIT;
     fd = open("/proc/curproc/mem", O_WRONLY);
     if (fd == -1)
-      err(2, "cannot open /proc/curproc/mem: %s\n", strerror(errno));
+      err(2, "cannot open /proc/curproc/mem");
     fcntl(fd, F_SETFD, 1);
     if (ioctl(fd, PIOCBIS, &mask) == -1)
-      err(3, "PIOCBIS: %s\n", strerror(errno));
+      err(3, "PIOCBIS");
     execvp(command[0], command);
     mask = ~0;
     ioctl(fd, PIOCBIC, &mask);
@@ -66,9 +66,9 @@ setup_and_wait(char *command[]) {
 
   sprintf(buf, "/proc/%d/mem", pid);
   if ((fd = open(buf, O_RDWR)) == -1)
-    err(5, "cannot open %s:  %s\n", buf, strerror(errno));
+    err(5, "cannot open %s", buf);
   if (ioctl(fd, PIOCWAIT, &pfs) == -1)
-    err(6, "PIOCWAIT: %s\n", strerror(errno));
+    err(6, "PIOCWAIT");
   if (pfs.why == S_EXIT) {
     int zero = 0;
     fprintf(stderr, "process exited before exec'ing\n");
