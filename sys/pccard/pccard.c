@@ -581,9 +581,6 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	int s, err;
 	int	pwval;
 
-	/* beep is disabled until the 1st call of crdioctl() */
-	pccard_beep_select(BEEP_ON);
-
 	if (slt == 0 && cmd != PIOCRWMEM)
 		return(ENXIO);
 	switch(cmd) {
