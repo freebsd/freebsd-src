@@ -412,7 +412,7 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 }
 
 #ifndef	_SYS_SYSPROTO_H_
-struct	sigreturn_args {
+struct sigreturn_args {
 	ucontext_t *ucp;
 };
 #endif
