@@ -1098,7 +1098,7 @@
     supports the <varname>WARNS</varname> directive from NetBSD.  This
     directive controls the addition of compiler warning flags to
     <varname>CFLAGS</varname> in a relatively compiler-neutral
-    manner.</para>
+    manner. &merged;</para>
 
     <para>&man.fsck.8; wrappers have been imported; this feature
     provides infrastructure for &man.fsck.8; to work on different
@@ -1724,10 +1724,10 @@
 
       <para>&man.gcc.1; now supports the environment variable
       <varname>GCC_OPTIONS</varname>, which can hold a set of default
-      options for <application>GCC</application>.</para>
+      options for <application>GCC</application>. &merged;</para>
 
       <para><application>GNATS</application> has been updated to
-      3.113.</para>
+      3.113. &merged;</para>
       
       <para><application>gperf</application> has been updated to 2.7.2.</para>
 
