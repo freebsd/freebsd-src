@@ -904,18 +904,22 @@ DMenu MenuSrcDistributions = {
 DMenu MenuXF86Config = {
     DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Please select the XFree86 configuration tool you want to use.",
-    "The first tool, xf86cfg, is fully graphical\n"
-    "The second tool, xf86config, is\n"
+    "The first option, xf86cfg, is fully graphical.\n"
+    "The second option provides a menu-based interface similar to\n"
+    "what you are currently using. "
+    "The third option, xf86config, is\n"
     "a more simplistic shell-script based tool and less friendly to\n"
-    "new users, but it may work in situations where the fancier one\n"
-    "does not.",
+    "new users, but it may work in situations where the other options\n"
+    "do not.",
     NULL,
     NULL,
     { { "X Exit", "Exit this menu (returning to previous)",
 	NULL, dmenuExit },
       { "2 xf86cfg",	"Fully graphical XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86cfg" },
-      { "3 xf86config",	"Shell-script based XFree86 configuration tool.",
+      { "3 xf86cfg -textmode",	"ncurses-based XFree86 configuration tool.",
+	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86cfg -textmode" },
+      { "4 xf86config",	"Shell-script based XFree86 configuration tool.",
 	NULL, dmenuSetVariable, NULL, VAR_XF86_CONFIG "=xf86config" },
       { "D XDesktop",	"X already set up, just do desktop configuration.",
 	NULL, dmenuSubmenu, NULL, &MenuXDesktops },
