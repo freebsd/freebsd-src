@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.110 1998/06/25 22:33:31 brian Exp $
+.\" $Id: ppp.8,v 1.111 1998/06/27 23:48:52 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -2374,17 +2374,14 @@ command is used
 .Pq note the trailing Dq \&! ,
 .Nm
 will not complain if the route does not already exist.
-.It dial|call Op Ar label
-If
+.It dial[!]|call[!] Op Ar label
+When used with no argument, this command is the same as the
+.Dq open
+command.  When
 .Ar label
-is specified, a connection is established using the
-.Dq dial
-and
-.Dq login
-scripts for the given
-.Ar label .
-Otherwise, the current settings are used to establish
-the connection, and all closed links are brought up.
+is specified, a
+.Dq load
+will be done first.
 .It down Op Ar lcp|ccp
 Bring the relevant layer down ungracefully, as if the underlying layer
 had become unavailable.  It's not considered polite to use this command on
@@ -2431,20 +2428,22 @@ file.  If
 is not given, the
 .Ar default
 label is used.
-.It open Op lcp|ccp|ipcp
+.It open[!] Op lcp|ccp|ipcp
 This is the opposite of the
 .Dq close
 command.  Using
 .Dq open
 with no arguments is the same as using
 .Dq dial
-with no arguments, where all closed links are brought up.
+with no arguments, where all closed links are brought up (some auto
+links may not come up based on the
+.Dq set autoload
+command) using the current configuration.
 .Pp
 If the
 .Dq lcp
-option is used, the link will also be brought up.  If however the LCP
-layer is already open, it will be renegotiated.  This allows various
-LCP options to be changed, after which
+while the LCP layer is already open, LCP will be renegotiated.  This
+allows various LCP options to be changed, after which
 .Dq open lcp
 can be used to put them into effect.  After renegotiating LCP,
 any agreed authentication will also take place.
@@ -2456,10 +2455,14 @@ if it is already open, it will be renegotiated.
 .Pp
 If the
 .Dq ipcp
-argument is used, the link will be brought up as with the 
-.Dq lcp
-argument.  If IPCP is already open, it will be renegotiated
-and the network interface will be reconfigured.
+argument is used, the link will be brought up as normal, but if
+IPCP is already open, it will be renegotiated and the network
+interface will be reconfigured.
+.Pp
+If
+.Dq open!
+is used, any currently running redial timers are ignored and the open
+happens immediately.
 .Pp
 It is probably not good practice to re-open the PPP state machines
 like this as it's possible that the peer will not behave correctly.
@@ -3056,7 +3059,7 @@ will result in a variable pause, somewhere between 0 and 30 seconds.
 .Nm Ppp
 can be instructed to attempt to redial
 .Ar attempts
-times.  If more than one number is specified (see
+times.  If more than one phone number is specified (see
 .Dq set phone
 above), a pause of
 .Ar nseconds
@@ -3064,7 +3067,22 @@ is taken before dialing each number.  A pause of
 .Ar seconds
 is taken before starting at the first number again.  A value of
 .Ar random
-may be used here too.
+may be used here in place of
+.Ar seconds
+and
+.Ar nseconds ,
+causing a random delay of between 0 and 30 seconds.
+.Pp
+Note, this delay will be effective, even after
+.Ar attempts
+has been exceeded, so an immediate manual dial may appear to have
+done nothing.  If an immediate dial is required, a
+.Dq \&!
+should immediately follow the
+.Dq open
+keyword.  See the
+.Dq open
+description above for further details.
 .It set server|socket Ar TcpPort|LocalName|none password Op Ar mask
 This command tells
 .Nm
