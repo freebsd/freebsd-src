@@ -265,6 +265,9 @@ void	sysinit_add(struct sysinit **set, struct sysinit **set_end);
  * Infrastructure for tunable 'constants'.  Value may be specified at compile
  * time or kernel load time.  Rules relating tunables together can be placed
  * in a SYSINIT function at SI_SUB_TUNABLES with SI_ORDER_LAST.
+ *
+ * WARNING: developers should never use the reserved suffixes specified in
+ * loader.conf(5) for any tunables or conflicts will result.
  */
 
 extern void tunable_int_init(void *);
