@@ -228,7 +228,7 @@ vm_map_zdtor(void *mem, int size, void *arg)
 	    map, map->nentries));
 	KASSERT(map->size == 0,
 	    ("map %p size == %lu on free.",
-	    map, map->size));
+	    map, (unsigned long)map->size));
 	KASSERT(map->infork == 0,
 	    ("map %p infork == %d on free.",
 	    map, map->infork));
