@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smptests.h,v 1.16 1997/07/26 01:47:26 fsmp Exp $
+ *	$Id: smptests.h,v 1.19 1997/07/30 22:44:20 smp Exp smp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_
@@ -61,8 +61,8 @@
  * 100.51s real  132.67s user   50.91s system	# time make -j20
  *
  * Note: currently broken for INTerrupting ISA cards, including onboard IDE.
-#define PEND_INTS
  */
+#define PEND_INTS
 
 
 /*
@@ -96,15 +96,6 @@
  * we start to "push down" the lock.
  */
 #define GIANT_LOCK
-
-
-/*
- * use 'lowest priority' for sending IRQs to CPUs
- *
- * i386/i386/mplock.s, i386/i386/mpapic.c, kern/init_main.c
- *
- */
-#define TEST_LOPRIO
 
 
 /*
