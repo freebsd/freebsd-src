@@ -3,7 +3,7 @@
  * PCI specific probe and attach routines for Qlogic ISP SCSI adapters.
  * FreeBSD Version.
  *
- * Copyright (c) 1997, 1998, 1999, 2000 by Matthew Jacob
+ * Copyright (c) 1997, 1998, 1999, 2000, 2001 by Matthew Jacob
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -53,7 +53,7 @@ static int isp_pci_mbxdma __P((struct ispsoftc *));
 static int isp_pci_dmasetup __P((struct ispsoftc *, XS_T *,
 	ispreq_t *, u_int16_t *, u_int16_t));
 static void
-isp_pci_dmateardown __P((struct ispsoftc *, XS_T *, u_int32_t));
+isp_pci_dmateardown __P((struct ispsoftc *, XS_T *, u_int16_t));
 
 static void isp_pci_reset1 __P((struct ispsoftc *));
 static void isp_pci_dumpregs __P((struct ispsoftc *, const char *));
@@ -301,6 +301,7 @@ isp_pci_attach(device_t dev)
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp = NULL;
 	struct ispmdvec *mdvp;
+	quad_t wwn;
 	bus_size_t lim;
 
 	/*
@@ -449,9 +450,13 @@ isp_pci_attach(device_t dev)
 	isp->isp_mdvec = mdvp;
 	isp->isp_type = basetype;
 	isp->isp_revision = pci_get_revid(dev);
-	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
-	isp->isp_osinfo.unit = unit;
+#ifdef	ISP_TARGET_MODE
+	isp->isp_role = ISP_ROLE_BOTH;
+#else
 	isp->isp_role = ISP_DEFAULT_ROLES;
+#endif
+	isp->isp_dev = dev;
+
 
 	/*
 	 * Try and find firmware for this device.
@@ -547,33 +552,31 @@ isp_pci_attach(device_t dev)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_NPORT;
 	}
-	/*
-	 * Look for overriding WWN. This is a Node WWN so it binds to
-	 * all FC instances. A Port WWN will be constructed from it
-	 * as appropriate.
-	 */
-	if (!getenv_quad("isp_wwn", (quad_t *) &isp->isp_osinfo.default_wwn)) {
-		int i;
-		u_int64_t seed = (u_int64_t) (intptr_t) isp;
 
-		seed <<= 16;
-		seed &= ((1LL << 48) - 1LL);
-		/*
-		 * This isn't very random, but it's the best we can do for
-		 * the real edge case of cards that don't have WWNs. If
-		 * you recompile a new vers.c, you'll get a different WWN.
-		 */
-		for (i = 0; version[i] != 0; i++) {
-			seed += version[i];
-		}
-		/*
-		 * Make sure the top nibble has something vaguely sensible
-		 * (NAA == Locally Administered)
-		 */
-		isp->isp_osinfo.default_wwn |= (3LL << 60) | seed;
-	} else {
+	/*
+	 * Because the resource_*_value functions can neither return
+	 * 64 bit integer values, nor can they be directly coerced
+	 * to interpret the right hand side of the assignment as
+	 * you want them to interpret it, we have to force WWN
+	 * hint replacement to specify WWN strings with a leading
+	 * 'w' (e..g w50000000aaaa0001). Sigh.
+	 */
+	if (getenv_quad("isp_portwwn", &wwn)) {
+		isp->isp_osinfo.default_port_wwn = wwn;
 		isp->isp_confopts |= ISP_CFG_OWNWWN;
 	}
+	if (isp->isp_osinfo.default_port_wwn == 0) {
+		isp->isp_osinfo.default_port_wwn = 0x400000007F000009ull;
+	}
+
+	if (getenv_quad("isp_nodewwn", &wwn)) {
+		isp->isp_osinfo.default_node_wwn = wwn;
+		isp->isp_confopts |= ISP_CFG_OWNWWN;
+	}
+	if (isp->isp_osinfo.default_node_wwn == 0) {
+		isp->isp_osinfo.default_node_wwn = 0x400000007F000009ull;
+	}
+
 	isp_debug = 0;
 	(void) getenv_int("isp_debug", &isp_debug);
 	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, (void (*)(void *))isp_intr,
@@ -979,7 +982,8 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bus_dmamap_t *dp;
 	u_int8_t scsi_status;
 	ct_entry_t *cto;
-	u_int32_t handle, totxfr, sflags;
+	u_int16_t handle;
+	u_int32_t totxfr, sflags;
 	int nctios, send_status;
 	int32_t resid;
 
@@ -1000,9 +1004,10 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_header.rqs_seqno = 1;
 		ISP_TDQE(mp->isp, "tdma_mk[no data]", *mp->iptrp, cto);
 		isp_prt(mp->isp, ISP_LOGTDEBUG1,
-		    "CTIO lun %d->iid%d flgs 0x%x sts 0x%x ssts 0x%x res %d",
-		    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags,
-		    cto->ct_status, cto->ct_scsi_status, cto->ct_resid);
+		    "CTIO[%x] lun%d->iid%d flgs 0x%x sts 0x%x ssts 0x%x res %d",
+		    cto->ct_fwhandle, csio->ccb_h.target_lun, cto->ct_iid,
+		    cto->ct_flags, cto->ct_status, cto->ct_scsi_status,
+		    cto->ct_resid);
 		ISP_SWIZ_CTIO(mp->isp, cto, cto);
 		return;
 	}
@@ -1013,11 +1018,11 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	/*
-	 * Save handle, and potentially any SCSI status, which we'll reinsert
-	 * on the last CTIO we're going to send.
+	 * Save syshandle, and potentially any SCSI status, which we'll
+	 * reinsert on the last CTIO we're going to send.
 	 */
-	handle = cto->ct_reserved;
-	cto->ct_reserved = 0;
+	handle = cto->ct_syshandle;
+	cto->ct_syshandle = 0;
 	cto->ct_header.rqs_seqno = 0;
 	send_status = (cto->ct_flags & CT_SENDSTATUS) != 0;
 
@@ -1108,7 +1113,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * and do whatever else we need to do to finish the
 			 * rest of the command.
 			 */
-			cto->ct_reserved = handle;
+			cto->ct_syshandle = handle;
 			cto->ct_header.rqs_seqno = 1;
 
 			if (send_status) {
@@ -1118,15 +1123,15 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 			if (send_status) {
 				isp_prt(mp->isp, ISP_LOGTDEBUG1,
-				    "CTIO lun%d for ID %d ct_flags 0x%x scsi "
-				    "status %x resid %d",
-				    csio->ccb_h.target_lun,
+				    "CTIO[%x] lun%d for ID %d ct_flags 0x%x "
+				    "scsi status %x resid %d",
+				    cto->ct_fwhandle, csio->ccb_h.target_lun,
 				    cto->ct_iid, cto->ct_flags,
 				    cto->ct_scsi_status, cto->ct_resid);
 			} else {
 				isp_prt(mp->isp, ISP_LOGTDEBUG1,
-				    "CTIO lun%d for ID%d ct_flags 0x%x",
-				    csio->ccb_h.target_lun,
+				    "CTIO[%x] lun%d for ID%d ct_flags 0x%x",
+				    cto->ct_fwhandle, csio->ccb_h.target_lun,
 				    cto->ct_iid, cto->ct_flags);
 			}
 			ISP_TDQE(mp->isp, "last tdma_mk", *mp->iptrp, cto);
@@ -1135,14 +1140,15 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			ct_entry_t     *octo = cto;
 
 			/*
-			 * Make sure handle fields are clean
+			 * Make sure syshandle fields are clean
 			 */
-			cto->ct_reserved = 0;
+			cto->ct_syshandle = 0;
 			cto->ct_header.rqs_seqno = 0;
 
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
-			    "CTIO lun%d for ID%d ct_flags 0x%x",
-			    csio->ccb_h.target_lun, cto->ct_iid, cto->ct_flags);
+			    "CTIO[%x] lun%d for ID%d ct_flags 0x%x",
+			    cto->ct_fwhandle, csio->ccb_h.target_lun,
+			    cto->ct_iid, cto->ct_flags);
 			ISP_TDQE(mp->isp, "tdma_mk", *mp->iptrp, cto);
 
 			/*
@@ -1153,7 +1159,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			*mp->iptrp = 
 			    ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 			if (*mp->iptrp == mp->optr) {
-				isp_prt(mp->isp, ISP_LOGWARN,
+				isp_prt(mp->isp, ISP_LOGTDEBUG0,
 				    "Queue Overflow in tdma_mk");
 				mp->error = MUSHERR_NOQENTRIES;
 				return;
@@ -1163,6 +1169,7 @@ tdma_mk(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 */
 			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO;
 			cto->ct_header.rqs_entry_count = 1;
+			cto->ct_fwhandle = octo->ct_fwhandle;
 			cto->ct_header.rqs_flags = 0;
 			cto->ct_lun = octo->ct_lun;
 			cto->ct_iid = octo->ct_iid;
@@ -1195,8 +1202,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct isp_pcisoftc *pci;
 	bus_dmamap_t *dp;
 	ct2_entry_t *cto;
-	u_int16_t scsi_status, send_status, send_sense;
-	u_int32_t handle, totxfr, datalen;
+	u_int16_t scsi_status, send_status, send_sense, handle;
+	u_int32_t totxfr, datalen;
 	u_int8_t sense[QLTM_SENSELEN];
 	int nctios;
 
@@ -1219,7 +1226,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		}
 	 	cto->ct_header.rqs_entry_count = 1;
 		cto->ct_header.rqs_seqno = 1;
-		/* ct_reserved contains the handle set by caller */
+		/* ct_syshandle contains the handle set by caller */
 		/*
 		 * We preserve ct_lun, ct_iid, ct_rxid. We set the data
 		 * flags to NO DATA and clear relative offset flags.
@@ -1234,7 +1241,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		cto->ct_reloff = 0;
 		ISP_TDQE(mp->isp, "dma2_tgt_fc[no data]", *mp->iptrp, cto);
 		isp_prt(mp->isp, ISP_LOGTDEBUG1,
-		    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x sts 0x%x ssts "
+		    "CTIO2[%x] lun %d->iid%d flgs 0x%x sts 0x%x ssts "
 		    "0x%x res %d", cto->ct_rxid, csio->ccb_h.target_lun,
 		    cto->ct_iid, cto->ct_flags, cto->ct_status,
 		    cto->rsp.m1.ct_scsi_status, cto->ct_resid);
@@ -1267,8 +1274,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	 * of order).
 	 */
 
-	handle = cto->ct_reserved;
-	cto->ct_reserved = 0;
+	handle = cto->ct_syshandle;
+	cto->ct_syshandle = 0;
 
 	if ((send_status = (cto->ct_flags & CT2_SENDSTATUS)) != 0) {
 		cto->ct_flags &= ~CT2_SENDSTATUS;
@@ -1370,7 +1377,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			 * of the command.
 			 */
 
-			cto->ct_reserved = handle;
+			cto->ct_syshandle = handle;
 			cto->ct_header.rqs_seqno = 1;
 
 			if (send_status) {
@@ -1402,7 +1409,7 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			}
 			ISP_TDQE(mp->isp, "last dma2_tgt_fc", *mp->iptrp, cto);
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
-			    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x sts 0x%x"
+			    "CTIO2[%x] lun %d->iid%d flgs 0x%x sts 0x%x"
 			    " ssts 0x%x res %d", cto->ct_rxid,
 			    csio->ccb_h.target_lun, (int) cto->ct_iid,
 			    cto->ct_flags, cto->ct_status,
@@ -1414,12 +1421,12 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			/*
 			 * Make sure handle fields are clean
 			 */
-			cto->ct_reserved = 0;
+			cto->ct_syshandle = 0;
 			cto->ct_header.rqs_seqno = 0;
 
 			ISP_TDQE(mp->isp, "dma2_tgt_fc", *mp->iptrp, cto);
 			isp_prt(mp->isp, ISP_LOGTDEBUG1,
-			    "CTIO2 RX_ID 0x%x lun %d->iid%d flgs 0x%x",
+			    "CTIO2[%x] lun %d->iid%d flgs 0x%x",
 			    cto->ct_rxid, csio->ccb_h.target_lun,
 			    (int) cto->ct_iid, cto->ct_flags);
 			/*
@@ -1442,7 +1449,8 @@ tdma_mkfc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 			cto->ct_header.rqs_entry_count = 1;
 			cto->ct_header.rqs_flags = 0;
-			/* ct_header.rqs_seqno && ct_reserved done later */
+			/* ct_header.rqs_seqno && ct_syshandle done later */
+			cto->ct_fwhandle = octo->ct_fwhandle;
 			cto->ct_lun = octo->ct_lun;
 			cto->ct_iid = octo->ct_iid;
 			cto->ct_rxid = octo->ct_rxid;
@@ -1552,13 +1560,15 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 #if	0
 		if (IS_FC(mp->isp)) {
 			ispreqt2_t *rq2 = (ispreqt2_t *)rq;
-			printf("%s: seg0[%d] cnt 0x%x paddr 0x%08x\n",
-			    mp->isp->isp_name, rq->req_seg_count,
+			device_printf(mp->isp->isp_dev,
+			    "seg0[%d] cnt 0x%x paddr 0x%08x\n",
+			    rq->req_seg_count,
 			    rq2->req_dataseg[rq2->req_seg_count].ds_count,
 			    rq2->req_dataseg[rq2->req_seg_count].ds_base);
 		} else {
-			printf("%s: seg0[%d] cnt 0x%x paddr 0x%08x\n",
-			    mp->isp->isp_name, rq->req_seg_count,
+			device_printf(mp->isp->isp_dev,
+			    "seg0[%d] cnt 0x%x paddr 0x%08x\n",
+			    rq->req_seg_count,
 			    rq->req_dataseg[rq->req_seg_count].ds_count,
 			    rq->req_dataseg[rq->req_seg_count].ds_base);
 		}
@@ -1572,10 +1582,8 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 		*mp->iptrp = ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 		if (*mp->iptrp == mp->optr) {
-#if	0
-			printf("%s: Request Queue Overflow++\n",
-			    mp->isp->isp_name);
-#endif
+			isp_prt(mp->isp,
+			    ISP_LOGDEBUG0, "Request Queue Overflow++");
 			mp->error = MUSHERR_NOQENTRIES;
 			return;
 		}
@@ -1591,8 +1599,9 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			crq->req_dataseg[seglim].ds_count =
 			    dm_segs->ds_len;
 #if	0
-			printf("%s: seg%d[%d] cnt 0x%x paddr 0x%08x\n",
-			    mp->isp->isp_name, rq->req_header.rqs_entry_count-1,
+			device_printf(mp->isp->isp_dev,
+			    "seg%d[%d] cnt 0x%x paddr 0x%08x\n",
+			    rq->req_header.rqs_entry_count-1,
 			    seglim, crq->req_dataseg[seglim].ds_count,
 			    crq->req_dataseg[seglim].ds_base);
 #endif
@@ -1675,8 +1684,8 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 				    "deferred dma allocation not supported");
 			} else if (error && mp->error == 0) {
 #ifdef	DIAGNOSTIC
-				printf("%s: error %d in dma mapping code\n",
-				    isp->isp_name, error);
+				isp_prt(isp, ISP_LOGERR,
+				    "error %d in dma mapping code", error);
 #endif
 				mp->error = error;
 			}
@@ -1736,7 +1745,7 @@ exit:
 }
 
 static void
-isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int32_t handle)
+isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	bus_dmamap_t *dp = &pci->dmaps[isp_handle_index(handle)];
@@ -1763,7 +1772,9 @@ isp_pci_dumpregs(struct ispsoftc *isp, const char *msg)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	if (msg)
-		printf("%s: %s\n", isp->isp_name, msg);
+		printf("%s: %s\n", device_get_nameunit(isp->isp_dev), msg);
+	else
+		printf("%s:\n", device_get_nameunit(isp->isp_dev));
 	if (IS_SCSI(isp))
 		printf("    biu_conf1=%x", ISP_READ(isp, BIU_CONF1));
 	else
