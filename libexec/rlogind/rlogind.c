@@ -558,10 +558,10 @@ fatal(f, msg, syserr)
 	if (!confirmed)
 		*bp++ = '\01';		/* error indicator */
 	if (syserr)
-		len = sprintf(bp, "rlogind: %s: %s.\r\n",
+		len = snprintf(bp, sizeof(buf), "rlogind: %s: %s.\r\n",
 		    msg, strerror(errno));
 	else
-		len = sprintf(bp, "rlogind: %s.\r\n", msg);
+		len = snprintf(bp, sizeof(buf), "rlogind: %s.\r\n", msg);
 	(void) write(f, buf, bp + len - buf);
 	exit(1);
 }
