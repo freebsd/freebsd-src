@@ -114,11 +114,7 @@ struct cfattach __CONCAT(dname,_ca) = { \
 }
 
 #define USB_MATCH(dname) \
-int \
-__CONCAT(dname,_match)(parent, match, aux) \
-	struct device *parent; \
-	struct cfdata *match; \
-	void *aux;
+int __CONCAT(dname,_match)(struct device *parent, struct cfdata *match, void *aux)
 
 #define USB_MATCH_START(dname, uaa) \
 	struct usb_attach_arg *uaa = aux
@@ -126,11 +122,7 @@ __CONCAT(dname,_match)(parent, match, aux) \
 #define USB_MATCH_SETUP		/* nop */
 
 #define USB_ATTACH(dname) \
-void \
-__CONCAT(dname,_attach)(parent, self, aux) \
-	struct device *parent; \
-	struct device *self; \
-	void *aux;
+void __CONCAT(dname,_attach)(struct device *parent, struct device *self, void *aux)
 
 #define USB_ATTACH_START(dname, sc, uaa) \
 	struct __CONCAT(dname,_softc) *sc = \
@@ -144,10 +136,7 @@ __CONCAT(dname,_attach)(parent, self, aux) \
 #define USB_ATTACH_SETUP printf("\n")
 
 #define USB_DETACH(dname) \
-int \
-__CONCAT(dname,_detach)(self, flags) \
-	struct device *self; \
-	int flags;
+int __CONCAT(dname,_detach)(struct device *self, int flags)
 
 #define USB_DETACH_START(dname, sc) \
 	struct __CONCAT(dname,_softc) *sc = \
@@ -157,7 +146,7 @@ __CONCAT(dname,_detach)(self, flags) \
 	if (unit >= __CONCAT(dname,_cd).cd_ndevs) \
 		return (ENXIO); \
 	sc = __CONCAT(dname,_cd).cd_devs[unit]; \
-	if (!sc) \
+	if (sc == NULL) \
 		return (ENXIO)
 
 #define USB_GET_SC(dname, unit, sc) \
@@ -284,7 +273,7 @@ __CONCAT(dname,_detach)(self, flags) \
 	if (unit >= __CONCAT(dname,_cd).cd_ndevs) \
 		return (ENXIO); \
 	sc = __CONCAT(dname,_cd).cd_devs[unit]; \
-	if (!sc) \
+	if (sc == NULL) \
 		return (ENXIO)
 
 #define USB_GET_SC(dname, unit, sc) \
@@ -414,7 +403,7 @@ __CONCAT(dname,_detach)(device_t self)
 
 #define USB_GET_SC_OPEN(dname, unit, sc) \
 	sc = devclass_get_softc(__CONCAT(dname,_devclass), unit); \
-	if (!sc) \
+	if (sc == NULL) \
 		return (ENXIO)
 
 #define USB_GET_SC(dname, unit, sc) \
