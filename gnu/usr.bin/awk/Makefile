@@ -1,6 +1,6 @@
 # Makefile copyright James Raynard (jraynard@freebsd.org) 1997
 #
-# $Id: Makefile,v 1.8 1997/10/15 14:01:31 ache Exp $
+# $Id: Makefile,v 1.9 1997/10/26 12:20:45 ache Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -8,7 +8,7 @@
 
 PROG=	awk
 SRCS=	array.c awktab.c builtin.c eval.c field.c gawkmisc.c io.c main.c \
-	missing.c msg.c node.c re.c version.c dfa.c getopt.c getopt1.c
+	msg.c node.c re.c version.c dfa.c getopt.c getopt1.c
 MAN1=	doc/awk.1
 
 YACC = bison -y
