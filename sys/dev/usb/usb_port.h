@@ -422,6 +422,7 @@ typedef struct callout usb_callout_t;
 #define config_detach(dev, flag) \
 	do { \
 		free(device_get_ivars(dev), M_USB); \
+		device_detach(dev); \
 		device_delete_child(device_get_parent(dev), dev); \
 	} while (0);
 
