@@ -62,9 +62,25 @@ case ${entropy_file} in
 	rm -f ${entropy_file}
 	oumask=`umask`
 	umask 077
-	touch ${entropy_file} && \
-		dd if=/dev/random of=${entropy_file} \
+	if touch ${entropy_file} ; then
+		entropy_file_confirmed="${entropy_file}"
+	else
+		# Try this as a reasonable alternative for read-only
+		# roots, diskless workstations, etc.
+		rm -f /var/db/entropy
+		if touch /var/db/entropy ; then
+			entropy_file_confirmed=/var/db/entropy
+		fi
+	fi
+	case ${entropy_file_confirmed} in
+	'')
+		echo "ERROR: entropy file write failed"
+		;;
+	*)
+		dd if=/dev/random of=${entropy_file_confirmed} \
 		   bs=4096 count=1 2> /dev/null
+		;;
+	esac
 	umask ${oumask}
 	;;
 esac
