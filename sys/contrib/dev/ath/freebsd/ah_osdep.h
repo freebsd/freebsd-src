@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting, Atheros
+ * Copyright (c) 2002-2004 Sam Leffler, Errno Consulting, Atheros
  * Communications, Inc.  All rights reserved.
  *
  * Redistribution and use in source and binary forms are permitted
@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: ah_osdep.h,v 1.10 2003/11/01 01:21:31 sam Exp $
+ * $Id: ah_osdep.h,v 1.16 2004/09/16 23:23:02 sam Exp $
  */
 #ifndef _ATH_AH_OSDEP_H_
 #define _ATH_AH_OSDEP_H_
@@ -58,10 +58,12 @@ extern	void ath_hal_delay(int);
 #define	OS_DELAY(_n)	ath_hal_delay(_n)
 
 #define	OS_INLINE	__inline
-#define	OS_MEMZERO(_a, _size)		bzero((_a), (_size))
-#define	OS_MEMCPY(_dst, _src, _size)	bcopy((_src), (_dst), (_size))
-#define	OS_MACEQU(_a, _b) \
-	(bcmp((_a), (_b), IEEE80211_ADDR_LEN) == 0)
+#define	OS_MEMZERO(_a, _n)	ath_hal_memzero((_a), (_n))
+extern void ath_hal_memzero(void *, size_t);
+#define	OS_MEMCPY(_d, _s, _n)	ath_hal_memcpy(_d,_s,_n)
+extern void *ath_hal_memcpy(void *, const void *, size_t);
+
+#define	abs(_a)		__builtin_abs(_a)
 
 struct ath_hal;
 extern	u_int32_t ath_hal_getuptime(struct ath_hal *);
