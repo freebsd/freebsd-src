@@ -1103,7 +1103,7 @@ mlx_periodic_eventlog_poll(struct mlx_softc *sc)
     if ((mc = mlx_alloccmd(sc)) == NULL)
 	goto out;
     /* allocate the response structure */
-    if ((result = malloc(sizeof(struct mlx_eventlog_entry), M_DEVBUF, M_NOWAIT)) == NULL)
+    if ((result = malloc(/*sizeof(struct mlx_eventlog_entry)*/1024, M_DEVBUF, M_NOWAIT)) == NULL)
 	goto out;
     /* get a command slot */
     if (mlx_getslot(mc))
@@ -1111,7 +1111,7 @@ mlx_periodic_eventlog_poll(struct mlx_softc *sc)
 
     /* map the command so the controller can see it */
     mc->mc_data = result;
-    mc->mc_length = sizeof(struct mlx_eventlog_entry);
+    mc->mc_length = /*sizeof(struct mlx_eventlog_entry)*/1024;
     mlx_mapcmd(mc);
 
     /* build the command to get one entry */
@@ -1125,14 +1125,14 @@ mlx_periodic_eventlog_poll(struct mlx_softc *sc)
     
     error = 0;			/* success */
  out:
-    if (mc != NULL)
-	mlx_releasecmd(mc);
-    if ((error != 0) && (result != NULL)) {
-	free(result, M_DEVBUF);
-    }
-    /* abort this event */
-    if (error != 0)
+    if (error != 0) {
+	if (mc != NULL)
+	    mlx_releasecmd(mc);
+	if (result != NULL)
+	    free(result, M_DEVBUF);
+	/* abort this event */
 	MLX_PERIODIC_UNBUSY(sc);
+    }
 }
 
 /********************************************************************************
@@ -1404,6 +1404,7 @@ mlx_enquire(struct mlx_softc *sc, int command, size_t bufsize, void (* complete)
     /* we got a command, but nobody else will free it */
     if ((complete == NULL) && (mc != NULL))
 	mlx_releasecmd(mc);
+    /* we got an error, and we allocated a result */
     if ((error != 0) && (result != NULL)) {
 	free(result, M_DEVBUF);
 	result = NULL;
