@@ -208,7 +208,7 @@ special file, and the device associated with this special file
 does not exist.
 .It Bq Er EINTR
 The
-.Nm
+.Fn open
 operation was interrupted by a signal.
 .It Bq Er EOPNOTSUPP
 .Dv O_SHLOCK
@@ -273,5 +273,6 @@ An attempt was made to open a socket (not currently implemented).
 .Xr umask 2
 .Sh HISTORY
 An
-.Nm
-function call appeared in Version 6 AT&T UNIX.
+.Fn open
+function call appeared in
+.At v6 .

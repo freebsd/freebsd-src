@@ -199,7 +199,7 @@ socket into the kernel for servicing by the
 daemons.
 .Sh RETURN VALUES
 Normally
-.Nm nfssvc
+.Fn nfssvc
 does not return unless the server
 is terminated by a signal when a value of 0 is returned.
 Otherwise, -1 is returned and the global variable
@@ -220,11 +220,12 @@ The caller is not the super-user.
 .Xr nfsiod 8
 .Sh HISTORY
 The
-.Nm nfssvc
-function first appeared in 4.4BSD.
+.Fn nfssvc
+function first appeared in
+.Bx 4.4 .
 .Sh BUGS
 The
-.Nm nfssvc
+.Fn nfssvc
 system call is designed specifically for the
 .Tn NFS
 support daemons and as such is specific to their requirements.
@@ -234,5 +235,5 @@ support, since
 is not really an error.
 Several fields of the argument structures are assumed to be valid and
 sometimes to be unchanged from a previous call, such that
-.Nm nfssvc
+.Fn nfssvc
 must be used with extreme care.

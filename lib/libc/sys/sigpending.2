@@ -46,7 +46,7 @@
 .Fn sigpending "sigset_t *set"
 .Sh DESCRIPTION
 The
-.Nm sigpending
+.Fn sigpending
 function returns a mask of the signals pending for delivery
 to the calling process in the location indicated by
 .Fa set .
@@ -60,13 +60,13 @@ indicates an error occurred and
 is set to indicated the reason.
 .Sh ERRORS
 The
-.Nm sigpending
+.Fn sigpending
 function does not currently detect any errors.
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr sigprocmask 2
 .Sh STANDARDS
 The
-.Nm sigpending
+.Fn sigpending
 function is defined by
 .St -p1003.1-88 .

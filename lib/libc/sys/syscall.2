@@ -54,7 +54,7 @@ with the specified arguments.
 Symbolic constants for system calls can be found in the header file
 .Ao Pa sys/syscall.h Ac .
 The
-.Nm __syscall
+.Fn __syscall
 form should be used when one or more of the parameters is a
 64-bit argument to ensure that argument alignment is correct.
 This system call is useful for testing new system calls that
@@ -71,6 +71,6 @@ such as
 .Xr pipe 2 .
 .Sh HISTORY
 The
-.Nm syscall
+.Fn syscall
 function call appeared in
 .Bx 4.0 .

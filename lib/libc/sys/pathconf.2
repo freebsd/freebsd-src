@@ -55,12 +55,12 @@ value of a configurable system limit or option variable associated
 with a pathname or file descriptor.
 .Pp
 For
-.Nm pathconf ,
+.Fn pathconf ,
 the
 .Fa path
 argument is the name of a file or directory.
 For
-.Nm fpathconf ,
+.Fn fpathconf ,
 the
 .Fa fd
 argument is an open file descriptor.
@@ -98,9 +98,9 @@ Returns the terminal character disabling value.
 .El
 .Sh RETURN VALUES
 If the call to
-.Nm pathconf
+.Fn pathconf
 or
-.Nm fpathconf
+.Fn fpathconf
 is not successful, \-1 is returned and
 .Va errno
 is set appropriately.
@@ -111,9 +111,9 @@ is not modified.
 Otherwise, the current variable value is returned.
 .Sh ERRORS
 If any of the following conditions occur, the
-.Nm pathconf
+.Fn pathconf
 and
-.Nm fpathconf
+.Fn fpathconf
 functions shall return -1 and set
 .Va errno
 to the corresponding value.
@@ -157,7 +157,8 @@ An I/O error occurred while reading from or writing to the file system.
 .Xr sysctl 3
 .Sh HISTORY
 The
-.Nm pathconf
+.Fn pathconf
 and
-.Nm fpathconf
-functions first appeared in 4.4BSD.
+.Fn fpathconf
+functions first appeared in
+.Bx 4.4 .
