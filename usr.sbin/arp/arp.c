@@ -72,6 +72,7 @@ static const char rcsid[] =
 
 #include <arpa/inet.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <netdb.h>
@@ -218,7 +219,7 @@ file(char *name)
 {
 	FILE *fp;
 	int i, retval;
-	char line[100], arg[5][50], *args[5];
+	char line[100], arg[5][50], *args[5], *p;
 
 	if ((fp = fopen(name, "r")) == NULL)
 		errx(1, "cannot open %s", name);
@@ -229,7 +230,12 @@ file(char *name)
 	args[4] = &arg[4][0];
 	retval = 0;
 	while(fgets(line, 100, fp) != NULL) {
-		i = sscanf(line, "%49s %49s %49s %49s %49s", arg[0], arg[1],
+		if ((p = strchr(line, '#')) != NULL)
+			*p = '\0';
+		for (p = line; isblank(*p); p++);
+		if (*p == '\0')
+			continue;
+		i = sscanf(p, "%49s %49s %49s %49s %49s", arg[0], arg[1],
 		    arg[2], arg[3], arg[4]);
 		if (i < 2) {
 			warnx("bad line: %s", line);
