@@ -19,7 +19,6 @@ SRCS+= \
 	thr_find_thread.c \
 	thr_gc.c \
 	thr_getprio.c \
-	thr_getschedparam.c \
 	thr_info.c \
 	thr_init.c \
 	thr_join.c \
