@@ -56,9 +56,6 @@ extern int	diagnostic;	/* telnet diagnostic capabilities */
 #ifdef BFTPDAEMON
 extern int	bftpd;		/* behave as bftp daemon */
 #endif /* BFTPDAEMON */
-#if	defined(SecurID)
-extern int	require_SecurID;
-#endif
 
 extern slcfun	slctab[NSLC + 1];	/* slc mapping table */
 
@@ -90,12 +87,12 @@ extern int	SYNCHing;		/* we are in TELNET SYNCH mode */
 
 extern void
 	_termstat P((void)),
-	add_slc P((int, int, int)),
+	add_slc P((char, char, cc_t)),
 	check_slc P((void)),
-	change_slc P((int, int, int)),
+	change_slc P((char, char, cc_t)),
 	cleanup P((int)),
 	clientstat P((int, int, int)),
-	copy_termbuf P((char *, int)),
+	copy_termbuf P((char *, size_t)),
 	deferslc P((void)),
 	defer_terminit P((void)),
 	do_opt_slc P((unsigned char *, int)),
@@ -103,8 +100,8 @@ extern void
 	dooption P((int)),
 	dontoption P((int)),
 	edithost P((char *, char *)),
-	fatal P((int, char *)),
-	fatalperror P((int, char *)),
+	fatal P((int, const char *)),
+	fatalperror P((int, const char *)),
 	get_slc_defaults P((void)),
 	init_env P((void)),
 	init_termbuf P((void)),
@@ -114,10 +111,11 @@ extern void
 	netclear P((void)),
 	netflush P((void)),
 #ifdef DIAGNOSTICS
-	printoption P((char *, int)),
-	printdata P((char *, char *, int)),
-	printsub P((int, unsigned char *, int)),
+	printoption P((const char *, int)),
+	printdata P((const char *, char *, int)),
+	printsub P((char, unsigned char *, int)),
 #endif
+	process_slc P((unsigned char, unsigned char, cc_t)),
 	ptyflush P((void)),
 	putchr P((int)),
 	putf P((char *, char *)),
@@ -179,6 +177,7 @@ extern void
 
 int	output_data __P((const char *, ...)) __printflike(1, 2);
 void	output_datalen __P((const char *, int));
+void	startslave __P((char *, int, char *));
 
 
 
