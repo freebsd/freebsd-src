@@ -7,10 +7,10 @@ NOMAN=
 all: $(DEMOS) $(PROG)
 
 install: ${DEMOS}
-	@echo "to look at the demos, execute:"
-	@echo "        \"cat <filename>.vt\""
-	@echo "if it is an animation an it runs too fast, try out:"
-	@echo "        \"playvt -f <filename>.vt -d<some-delay-val>\""
+	@${ECHO} "to look at the demos, execute:"
+	@${ECHO} "        \"cat <filename>.vt\""
+	@${ECHO} "if it is an animation an it runs too fast, try out:"
+	@${ECHO} "        \"playvt -f <filename>.vt -d<some-delay-val>\""
 
 .include <bsd.prog.mk>
 
