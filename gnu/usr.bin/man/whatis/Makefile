@@ -1,12 +1,14 @@
 .if exists(${.CURDIR}/obj)
-MANP=  ${.CURDIR}/obj/whatis.1
+MAN1=  ${.CURDIR}/obj/whatis.1
 TARG=  ${.CURDIR}/obj/whatis
 .else
-MANP=  ${.CURDIR}/whatis.1
+MAN1=  ${.CURDIR}/whatis.1
 TARG=  ${.CURDIR}/whatis
 .endif
 
-all:	${TARG} ${MANP}
+MANDEPEND=	${MAN1}
+
+all:	${TARG} ${MAN1}
 
 depend rcsfreeze tags all:
 	@echo -n
@@ -15,23 +17,24 @@ cleandir: clean
 	cd ${.CURDIR}; rm -rf obj;
 
 clean:
-	@rm -f ${TARG} ${MANP}
+	@rm -f ${TARG} ${MAN1}
 
 ${TARG}: ${.CURDIR}/whatis.sh
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' \
 		${.CURDIR}/whatis.sh > ${TARG}
 
-${MANP}: ${.CURDIR}/whatis.man
+${MAN1}: ${.CURDIR}/whatis.man
 	sed -e 's,%libdir%,${libdir},' -e 's,%bindir%,${bindir},' \
 	    -e 's,%pager%,${pager},' -e 's,%troff%,${troff},' \
 	    -e 's,%manpath_config_file%,${manpath_config_file},' \
-	${.CURDIR}/whatis.man > ${MANP}
+	${.CURDIR}/whatis.man > ${MAN1}
 
 install: ${TARG} maninstall
 	install -c -o bin -g bin -m 555 ${TARG} ${DESTDIR}/usr/bin
 
-maninstall: ${MANP}
-	install -c -o bin -g bin -m 444 ${MANP} ${DESTDIR}/usr/share/man/man1
 
 .include "../Makefile.inc"
+.if make(maninstall) || make(install)
+.include <bsd.man.mk>
+.endif
