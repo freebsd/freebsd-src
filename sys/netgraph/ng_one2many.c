@@ -53,17 +53,11 @@
 #include <sys/malloc.h>
 #include <sys/ctype.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/sockio.h>
 #include <sys/errno.h>
-
-#include <net/if.h>
-#include <net/if_media.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
 #include <netgraph/ng_parse.h>
-#include <netgraph/ng_ether.h>
 #include <netgraph/ng_one2many.h>
 
 /* Per-link private data */
@@ -80,7 +74,6 @@ struct ng_one2many_private {
 	u_int16_t			nextMany;	/* next round-robin */
 	u_int16_t			numActiveMany;	/* # active "many" */
 	u_int16_t			activeMany[NG_ONE2MANY_MAX_LINKS];
-	struct callout_handle		callout;
 };
 typedef struct ng_one2many_private *priv_p;
 
@@ -93,8 +86,6 @@ static ng_rcvdata_t	ng_one2many_rcvdata;
 static ng_disconnect_t	ng_one2many_disconnect;
 
 /* Other functions */
-static void		ng_one2many_scan(node_p node, hook_p hook __unused,
-			    void *arg1 __unused, int arg2 __unused);
 static void		ng_one2many_update_many(priv_p priv);
 
 /* Store each hook's link number in the private field */
@@ -204,14 +195,8 @@ ng_one2many_constructor(node_p node)
 		return (ENOMEM);
 	priv->conf.xmitAlg = NG_ONE2MANY_XMIT_ROUNDROBIN;
 	priv->conf.failAlg = NG_ONE2MANY_FAIL_MANUAL;
-	priv->conf.interval = 5;
 
 	NG_NODE_SET_PRIVATE(node, priv);
-
-	if (priv->conf.failAlg == NG_ONE2MANY_FAIL_IFACE_LINK) {
-		priv->callout = ng_timeout(node, NULL, priv->conf.interval * hz,
-		    ng_one2many_scan, NULL, 0);
-	}
 
 	/* Done */
 	return (0);
@@ -301,7 +286,6 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			}
 			switch (conf->failAlg) {
 			case NG_ONE2MANY_FAIL_MANUAL:
-			case NG_ONE2MANY_FAIL_IFACE_LINK:
 				break;
 			default:
 				error = EINVAL;
@@ -317,13 +301,6 @@ ng_one2many_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			/* Copy config and reset */
 			bcopy(conf, &priv->conf, sizeof(*conf));
 			ng_one2many_update_many(priv);
-
-			ng_untimeout(priv->callout, node);
-			if (priv->conf.failAlg == NG_ONE2MANY_FAIL_IFACE_LINK) {
-				priv->callout = ng_timeout(node, NULL,
-				    priv->conf.interval * hz, ng_one2many_scan,
-				    NULL, 0);
-			}
 			break;
 		    }
 		case NGM_ONE2MANY_GET_CONFIG:
@@ -499,8 +476,6 @@ ng_one2many_shutdown(node_p node)
 
 	KASSERT(priv->numActiveMany == 0,
 	    ("%s: numActiveMany=%d", __func__, priv->numActiveMany));
-	if (priv->conf.failAlg == NG_ONE2MANY_FAIL_IFACE_LINK)
-		ng_untimeout(priv->callout, node);
 	FREE(priv, M_NETGRAPH);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(node);
@@ -542,63 +517,6 @@ ng_one2many_disconnect(hook_p hook)
 		    	OTHER FUNCTIONS
 ******************************************************************/
 
-#if 0
-/*
- * Get interface name.
- */
-static const char *
-ng_one2many_ifname(struct ng_one2many_link *link)
-{
-	node_p node;
-
-	node = link->hook->hk_peer->hk_node;
-	if (strcmp(node->nd_type->name, "ether") != 0)
-		return ("unknown");
-	return (node->nd_name);
-}
-#endif
-
-/*
- * Check if interface related to given node is active.
- */
-static int
-ng_one2many_active(struct ng_one2many_link *link)
-{
-	struct ng_ether_private *ethpriv;
-	struct ifmediareq ifmr;
-	struct ifnet *ifp;
-	node_p node;
-	int error;
-
-	node = link->hook->hk_peer->hk_node;
-	if (strcmp(node->nd_type->name, "ether") != 0)
-		return (0);
-	ethpriv = NG_NODE_PRIVATE(node);
-	ifp = ethpriv->ifp;
-	bzero(&ifmr, sizeof(ifmr));
-	error = ifp->if_ioctl(ifp, SIOCGIFMEDIA, (char *)&ifmr);
-	if (error != 0)
-		return (0);
-	if ((ifmr.ifm_status & IFM_ACTIVE) == 0)
-		return (0);
-	return (1);
-}
-
-/*
- * Check every priv->conf.interval seconds for active links.
- */
-static void
-ng_one2many_scan(node_p node, hook_p hook __unused, void *arg1 __unused,
-    int arg2 __unused)
-{
-	const priv_p priv = NG_NODE_PRIVATE(node);
-
-	ng_one2many_update_many(priv);
-
-	priv->callout = ng_timeout(node, NULL, priv->conf.interval * hz,
-	    ng_one2many_scan, NULL, 0);
-}
-
 /*
  * Update internal state after the addition or removal of a "many" link
  */
@@ -614,13 +532,6 @@ ng_one2many_update_many(priv_p priv)
 		case NG_ONE2MANY_FAIL_MANUAL:
 			if (priv->many[linkNum].hook != NULL
 			    && priv->conf.enabledLinks[linkNum]) {
-				priv->activeMany[priv->numActiveMany] = linkNum;
-				priv->numActiveMany++;
-			}
-			break;
-		case NG_ONE2MANY_FAIL_IFACE_LINK:
-			if (priv->many[linkNum].hook != NULL &&
-			    ng_one2many_active(&priv->many[linkNum])) {
 				priv->activeMany[priv->numActiveMany] = linkNum;
 				priv->numActiveMany++;
 			}
