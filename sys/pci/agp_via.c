@@ -28,9 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_bus.h"
-#ifndef PC98
-#include "opt_agp.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -78,30 +75,61 @@ agp_via_match(device_t dev)
 		return NULL;
 
 	switch (pci_get_devid(dev)) {
+	case 0x01981106:
+		return ("VIA 8763 (P4X600) host to PCI bridge");
+	case 0x02591106:
+		return ("VIA PM800/PN800/PM880/PN880 host to PCI bridge");
+	case 0x02691106:
+		return ("VIA KT880 host to PCI bridge");
+	case 0x02961106:
+		return ("VIA 3296 (P4M800) host to PCI bridge");
 	case 0x03051106:
-		return ("VIA 82C8363 (Apollo KT133A) host to PCI bridge");
+		return ("VIA 82C8363 (Apollo KT133x/KM133) host to PCI bridge");
+	case 0x03911106:
+		return ("VIA 8371 (Apollo KX133) host to PCI bridge");
 	case 0x05011106:
 		return ("VIA 8501 (Apollo MVP4) host to PCI bridge");
 	case 0x05971106:
 		return ("VIA 82C597 (Apollo VP3) host to PCI bridge");
 	case 0x05981106:
 		return ("VIA 82C598 (Apollo MVP3) host to PCI bridge");
+	case 0x06011106:
+		return ("VIA 8601 (Apollo ProMedia/PLE133Ta) host to PCI bridge");
 	case 0x06051106:
 		return ("VIA 82C694X (Apollo Pro 133A) host to PCI bridge");
 	case 0x06911106:
 		return ("VIA 82C691 (Apollo Pro) host to PCI bridge");
-	case 0x31881106:
-#if defined(__amd64__) || defined(AGP_AMD64_GART)
-		return NULL;
-#else
-		return ("VIA 8385 host to PCI bridge");
-#endif
+	case 0x30911106:
+		return ("VIA 8633 (Pro 266) host to PCI bridge");
+	case 0x30991106:
+		return ("VIA 8367 (KT266/KY266x/KT333) host to PCI bridge");
+	case 0x31011106:
+		return ("VIA 8653 (Pro266T) host to PCI bridge");
+	case 0x31121106:
+		return ("VIA 8361 (KLE133) host to PCI bridge");
+	case 0x31161106:
+		return ("VIA XM266 (PM266/KM266) host to PCI bridge");
+	case 0x31231106:
+		return ("VIA 862x (CLE266) host to PCI bridge");
+	case 0x31281106:
+		return ("VIA 8753 (P4X266) host to PCI bridge");
+	case 0x31481106:
+		return ("VIA 8703 (P4M266x/P4N266) host to PCI bridge");
+	case 0x31561106:
+		return ("VIA XN266 (Apollo Pro266) host to PCI bridge");
+	case 0x31681106:
+		return ("VIA 8754 (PT800) host to PCI bridge");
 	case 0x31891106:
 		return ("VIA 8377 (Apollo KT400/KT400A/KT600) host to PCI bridge");
+	case 0x32051106:
+		return ("VIA 8235/8237 (Apollo KM400/KM400A) host to PCI bridge");
+	case 0x32081106:
+		return ("VIA 8783 (PT890) host to PCI bridge");
+	case 0x32581106:
+		return ("VIA PT880 host to PCI bridge");
+	case 0xb1981106:
+		return ("VIA VT83xx/VT87xx/KTxxx/Px8xx host to PCI bridge");
 	};
-
-	if (pci_get_vendor(dev) == 0x1106)
-		return ("VIA Generic host to PCI bridge");
 
 	return NULL;
 }
@@ -131,11 +159,20 @@ agp_via_attach(device_t dev)
 	int error;
 	u_int32_t agpsel;
 
+	/* XXX: This should be keying off of whether the bridge is AGP3 capable,
+	 * rather than a bunch of device ids for chipsets that happen to do 8x.
+	 */
 	switch (pci_get_devid(dev)) {
-#ifdef AGP_NO_AMD64_GART
-	case 0x31881106:
-#endif
+	case 0x01981106:
+	case 0x02591106:
+	case 0x02691106:
+	case 0x02961106:
+	case 0x31231106:
+	case 0x31681106:
 	case 0x31891106:
+	case 0x32051106:
+	case 0x32581106:
+	case 0xb1981106:
 		/* The newer VIA chipsets will select the AGP version based on
 		 * what AGP versions the card supports.  We still have to
 		 * program it using the v2 registers if it has chosen to use
