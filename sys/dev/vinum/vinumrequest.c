@@ -1,5 +1,5 @@
 /*-
- * Copyright) 1997, 1998, 1999
+ * Copyright (c) 1997, 1998, 1999
  *  Nan Yang Computer Services Limited.  All rights reserved.
  *
  *  Parts copyright (c) 1997, 1998 Cybernet Corporation, NetMAX project.
@@ -492,8 +492,8 @@ bre(struct request *rq,
 	    if (*diskaddr < (sd->plexoffset + sd->sectors)) { /* the request starts in this subdisk */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;
 		}
@@ -517,7 +517,7 @@ bre(struct request *rq,
 		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
 		    if (s == REQUEST_DOWN) {		    /* down? */
 			rqe->flags = XFR_BAD_SUBDISK;	    /* yup */
-			if (rq->bp->b_iocmd == BIO_READ)	    /* read request, */
+			if (rq->bp->b_iocmd == BIO_READ)    /* read request, */
 			    return REQUEST_DEGRADED;	    /* give up here */
 			/*
 			 * If we're writing, don't give up
@@ -531,8 +531,8 @@ bre(struct request *rq,
 		*diskaddr += rqe->datalen;		    /* bump the address */
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
@@ -576,8 +576,8 @@ bre(struct request *rq,
 		sd = &SD[plex->sdnos[sdno]];		    /* the subdisk in question */
 		rqg = allocrqg(rq, 1);			    /* space for the request */
 		if (rqg == NULL) {			    /* malloc failed */
-		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;
 		}
@@ -601,7 +601,7 @@ bre(struct request *rq,
 		    s = checksdstate(sd, rq, *diskaddr, diskend); /* do we need to change state? */
 		    if (s == REQUEST_DOWN) {		    /* down? */
 			rqe->flags = XFR_BAD_SUBDISK;	    /* yup */
-			if (rq->bp->b_iocmd == BIO_READ)	    /* read request, */
+			if (rq->bp->b_iocmd == BIO_READ)    /* read request, */
 			    return REQUEST_DEGRADED;	    /* give up here */
 			/*
 			 * If we're writing, don't give up
@@ -641,8 +641,8 @@ bre(struct request *rq,
 		}
 		if (build_rq_buffer(rqe, plex)) {	    /* build the buffer */
 		    deallocrqg(rqg);
-		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bp->b_error = ENOMEM;
+		    bp->b_io.bio_flags |= BIO_ERROR;
 		    bufdone(bp);
 		    return REQUEST_ENOMEM;		    /* can't do it */
 		}
@@ -865,9 +865,9 @@ abortrequest(struct request *rq, int error)
 {
     struct buf *bp = rq->bp;				    /* user buffer */
 
-    bp->b_io.bio_flags |= BIO_ERROR;
     bp->b_error = error;
     freerq(rq);						    /* free everything we're doing */
+    bp->b_io.bio_flags |= BIO_ERROR;
     bufdone(bp);
     return error;					    /* and give up */
 }
@@ -908,8 +908,8 @@ sdio(struct buf *bp)
 	    else
 		set_sd_state(sd->sdno, sd_crashed, setstate_force);
 	}
-	bp->b_io.bio_flags |= BIO_ERROR;
 	bp->b_error = EIO;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bufdone(bp);
 	return;
     }
@@ -918,16 +918,16 @@ sdio(struct buf *bp)
      * to get the I/O performed.
      */
     if (sd->state < sd_empty) {				    /* nothing to talk to, */
-	bp->b_io.bio_flags |= BIO_ERROR;
 	bp->b_error = EIO;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bufdone(bp);
 	return;
     }
     /* Get a buffer */
     sbp = (struct sdbuf *) Malloc(sizeof(struct sdbuf));
     if (sbp == NULL) {
-	bp->b_io.bio_flags |= BIO_ERROR;
 	bp->b_error = ENOMEM;
+	bp->b_io.bio_flags |= BIO_ERROR;
 	bufdone(bp);
 	return;
     }
@@ -1005,8 +1005,8 @@ vinum_bounds_check(struct buf *bp, struct volume *vol)
 	&& bp->b_blkno + size > LABELSECTOR		    /* and finishes after */
 #endif
 	&& (!(vol->flags & VF_RAW))			    /* and it's not raw */
-	&& (bp->b_iocmd == BIO_WRITE)			    /* and it's a write */
-	&& (!vol->flags & (VF_WLABEL | VF_LABELLING))) {    /* and we're not allowed to write the label */
+&&(bp->b_iocmd == BIO_WRITE)				    /* and it's a write */
+	&&(!vol->flags & (VF_WLABEL | VF_LABELLING))) {	    /* and we're not allowed to write the label */
 	bp->b_error = EROFS;				    /* read-only */
 	bp->b_io.bio_flags |= BIO_ERROR;
 	return -1;
