@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.7 1995/06/05 09:52:09 jkh Exp $
+ * $Id: dmenu.c,v 1.11.2.8 1995/06/05 10:43:03 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -63,6 +63,24 @@ dmenuFlagCheck(DMenuItem *item)
     if (*((unsigned int *)item->ptr) & item->parm)
 	return "ON";
     return "OFF";
+}
+
+char *
+dmenuVarCheck(DMenuItem *item)
+{
+    char *cp, *cp2, tmp[256];
+
+    strncpy(tmp, (char *)item->ptr, 256);
+    if ((cp = index(tmp, '=')) != NULL) {
+	*(cp++) = '\0';
+	cp2 = getenv(tmp);
+	if (tmp)
+	    return !strcmp(cp, cp2) ? "ON" : "OFF";
+	else
+	    return "OFF";
+    }
+    else
+	return getenv(tmp) ? "ON" : "OFF";
 }
 
 char *

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.16 1995/06/05 12:04:05 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.17 1995/06/07 06:50:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -303,6 +303,7 @@ extern int	configPorts(char *str);
 extern int	configPackages(char *str);
 extern int	configSaverTimeout(char *str);
 extern int	configNTP(char *str);
+extern int	configRoutedFlags(char *str);
 
 /* crc.c */
 extern int	crc(int, unsigned long *, unsigned long *);
@@ -346,6 +347,7 @@ extern void	distExtractAll(void);
 /* dmenu.c */
 extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *scroll, int *curr, int *max);
 extern Boolean	dmenuOpenSimple(DMenu *menu);
+extern char     *dmenuVarCheck(DMenuItem *item);
 extern char     *dmenuFlagCheck(DMenuItem *item);
 extern char     *dmenuRadioCheck(DMenuItem *item);
 
@@ -450,7 +452,6 @@ extern char	*msgGetInput(char *buf, char *fmt, ...);
 /* network.c */
 extern Boolean	mediaInitNetwork(Device *dev);
 extern void	mediaShutdownNetwork(Device *dev);
-extern int	configRoutedFlags(char *str);
 
 /* nfs.c */
 extern Boolean	mediaInitNFS(Device *dev);

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.6.2.10 1995/06/05 23:23:51 jkh Exp $
+ * $Id: network.c,v 1.6.2.11 1995/06/07 06:15:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -144,17 +144,6 @@ mediaShutdownNetwork(Device *dev)
 	kill(pppPid, SIGTERM);
 	pppPid = 0;
     }
-}
-
-int
-configRoutedFlags(char *str)
-{
-    char *val;
-
-    val = msgGetInput("-q", "Specify the flags for routed; -q is the default, -s is\na good choice for gateway machines.");
-    if (val)
-	variable_set2("routedflags", val);
-    return 0;
 }
 
 /* Start PPP on the 3rd screen */
