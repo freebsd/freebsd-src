@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.60 1996/10/14 21:19:43 jkh Exp $
+ **      $Id: userconfig.c,v 1.61 1996/10/20 18:35:35 phk Exp $
  **/
 
 /**
@@ -228,7 +228,7 @@ static DEV_INFO device_info[] = {
 {"aha",         "Adaptec 154x SCSI controller",		0,		CLS_STORAGE},
 {"uha",         "Ultrastor 14F/24F/34F SCSI controller",0,		CLS_STORAGE},
 {"aic",         "Adaptec 152x SCSI and compatible sound cards",	0,      CLS_STORAGE},
-{"nca",         "ProAudio Spectrum SCSI and comaptibles",	0,	CLS_STORAGE},
+{"nca",         "ProAudio Spectrum SCSI and compatibles",	0,	CLS_STORAGE},
 {"sea",         "Seagate ST01/ST02 SCSI and compatibles",	0,	CLS_STORAGE},
 {"wds",         "Western Digitial WD7000 SCSI controller",	0,	CLS_STORAGE},
 {"ncr",         "NCR 53C810 SCSI controller",		FLG_FIXED,	CLS_STORAGE},
@@ -2210,7 +2210,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.60 1996/10/14 21:19:43 jkh Exp $
+ *      $Id: userconfig.c,v 1.61 1996/10/20 18:35:35 phk Exp $
  */
 
 #include "scbus.h"
