@@ -770,10 +770,12 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			} else {
 				/* Increment the pending signal count. */
 				SIGADDSET(pthread->sigpend, sig);
-				pthread->check_pending = 1;
-				pthread->interrupted = 1;
-				pthread->sigmask = pthread->oldsigmask;
-				_thr_setrunnable_unlocked(pthread);
+				if (!SIGISMEMBER(pthread->oldsigmask, sig)) {
+					pthread->check_pending = 1;
+					pthread->interrupted = 1;
+					pthread->sigmask = pthread->oldsigmask;
+					_thr_setrunnable_unlocked(pthread);
+				}
 			}
 		
 			return;
@@ -836,10 +838,12 @@ thr_sig_check_state(struct pthread *pthread, int sig)
 		} else {
 			/* Increment the pending signal count. */
 			SIGADDSET(pthread->sigpend, sig);
-			pthread->check_pending = 1;
-			pthread->interrupted = 1;
-			pthread->sigmask = pthread->oldsigmask;
-			_thr_setrunnable_unlocked(pthread);
+			if (!SIGISMEMBER(pthread->oldsigmask, sig)) {
+				pthread->check_pending = 1;
+				pthread->interrupted = 1;
+				pthread->sigmask = pthread->oldsigmask;
+				_thr_setrunnable_unlocked(pthread);
+			}
 		}
 		break;
 
