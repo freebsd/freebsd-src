@@ -1007,6 +1007,8 @@ setugidsafety(p)
 		if (*fpp != NULL && is_unsafe(*fpp)) {
 			if ((*fdfp & UF_MAPPED) != 0)
 				(void) munmapfd(p, i);
+			if (i < fdp->fd_knlistsize)
+				knote_fdclose(p, i);
 			(void) closef(*fpp, p);
 			*fpp = NULL;
 			*fdfp = 0;
@@ -1040,6 +1042,8 @@ fdcloseexec(p)
 		if (*fpp != NULL && (*fdfp & UF_EXCLOSE)) {
 			if (*fdfp & UF_MAPPED)
 				(void) munmapfd(p, i);
+			if (i < fdp->fd_knlistsize)
+				knote_fdclose(p, i);
 			(void) closef(*fpp, p);
 			*fpp = NULL;
 			*fdfp = 0;
