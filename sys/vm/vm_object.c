@@ -977,11 +977,7 @@ vm_object_madvise(vm_object_t object, vm_pindex_t pindex, int count, int advise)
 
 	if (object == NULL)
 		return;
-
-	mtx_lock(&Giant);
-
 	end = pindex + count;
-
 	/*
 	 * Locate and adjust resident pages
 	 */
@@ -1002,16 +998,13 @@ shadowlookup:
 				goto unlock_tobject;
 			}
 		}
-
 		m = vm_page_lookup(tobject, tpindex);
-
 		if (m == NULL) {
 			/*
 			 * There may be swap even if there is no backing page
 			 */
 			if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
 				swap_pager_freespace(tobject, tpindex, 1);
-
 			/*
 			 * next object
 			 */
@@ -1024,7 +1017,6 @@ shadowlookup:
 			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
 			goto shadowlookup;
 		}
-
 		/*
 		 * If the page is busy or not in a normal active state,
 		 * we skip it.  If the page is not managed there are no
@@ -1074,7 +1066,6 @@ shadowlookup:
 unlock_tobject:
 		VM_OBJECT_UNLOCK(tobject);
 	}	
-	mtx_unlock(&Giant);
 }
 
 /*
