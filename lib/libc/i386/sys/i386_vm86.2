@@ -79,9 +79,38 @@ in vm86 mode, or reflected back to the process.  If the
 .Em Nth
 bit is set, the interrupt will be reflected to the process, otherwise
 it will be dispatched by the vm86 interrupt table.
-.\" .It Dv VM86_SET_VME
-.\" .It Dv VM86_GET_VME
-.\" .It Dv VM86_INTCALL
+.It Dv VM86_INTCALL
+This allows calls to be made to vm86 interrupt handlers by the process. It
+effectively simulates an INT instruction.
+.Fa data
+should point to the following structure:
+.Bd -literal
+struct vm86_intcall_args {
+	int	intnum;
+	struct	vm86frame vmf;
+};
+.Ed
+.Pp
+.Fa intnum
+specifies the operand of INT for the simulated call. A value of 0x10, for
+example, would often be used to call into the VGA BIOS.
+.Fa vmf
+is used to initialize CPU registers according to the calling convention for
+the interrupt handler.
+.It Dv VM86_GET_VME
+This is used to retrieve the current state of the Pentium(r) processor's
+VME (Virtual-8086 Mode Extensions) flag, which is bit 0 of CR4.
+.Fa data
+should be initialized to point to the following:
+.Bd -literal
+struct vm86_vme_args {
+	int	state;			/* status */
+};
+.Ed
+.Pp
+.Fa state
+will contain the state of the VME flag on return.
+\" .It Dv VM86_SET_VME
 .El
 .Pp
 vm86 mode is entered by calling
@@ -104,4 +133,6 @@ There is not enough memory to initialize the kernel data structures.
 .El
 .Sh AUTHORS
 This man page was written by
-.An Jonathan Lemon .
+.An Jonathan Lemon ,
+and updated by
+.An Bruce M Simpson .
