@@ -29,22 +29,15 @@
 .Os
 .Sh NAME
 .Nm led
-.Nd API for manipulating LED's, lamps and other annunciators.
+.Nd API for manipulating LED's, lamps and other annunciators
 .Sh SYNOPSIS
 .In dev/led/led.h
-.Bd -literal
-typedef void led_t(void *priv, int onoff);
-.Ed
+.Pp
+.Fd "typedef void led_t(void *priv, int onoff);"
 .Ft dev_t
-.Fo led_create
-.Fa "led_t *func"
-.Fa "void *priv"
-.Fa "char const *name"
-.Fc
+.Fn led_create "led_t *func" "void *priv" "char const *name"
 .Ft void
-.Fo led_destroy
-.Fa "dev_t dev"
-.Fc
+.Fn led_destroy "dev_t dev"
 .Sh DESCRIPTION
 The
 .Nm
@@ -53,39 +46,47 @@ annunciators.
 .Pp
 The hardware driver must supply a function to turn the annunciator on and off
 and the device
-.Va name
-of the annunciator relative "/dev/led/".
+.Fa name
+of the annunciator relative to
+.Pa /dev/led/ .
 The
-.Va priv
+.Fa priv
 argument is passed back to this on/off function and can be used however
 the hardware driver sees fit.
 .Pp
-The lamp can be controlled by opening and writing ascii strings to the
-"/dev/led/bla" device.
+The lamp can be controlled by opening and writing
+.Tn ASCII
+strings to the
+.Pa /dev/led/bla
+device.
 .Pp
-In the following we will use this special notation to indicate the resulting
+In the following, we will use this special notation to indicate the resulting
 output of the annunciator:
-.Bl -tag -width Ds -offset indent -compact
+.Pp
+.Bl -tag -width indent -offset indent -compact
 .It Ic *
 The annunciator is on for 1/10th second.
 .It Ic _
 The annunciator is off for 1/10th second.
 .El
 .Pp
-State can be set directly, and since the change happens immediately, 
+State can be set directly, and since the change happens immediately,
 it is possible to flash the annunciator with very short periods and
 synchronize it with program events.
 It should be noted that there is a non-trivial overhead, so this may
 not be usable for benchmarking or measuring short intervals.
-.Bl -tag -width Ds -offset indent -compact
+.Pp
+.Bl -tag -width indent -offset indent -compact
 .It Ic 0
 Turn the annunciator off immediately.
 .It Ic 1
 Turn the annunciator on immediately.
 .El
 .Pp
-Flashing can be set with a given period.  The pattern continues endlessly.
-.Bl -tag -width Ds -offset indent -compact
+Flashing can be set with a given period.
+The pattern continues endlessly.
+.Pp
+.Bl -tag -width indent -offset indent -compact
 .It Ic f
 _*
 .It Ic f1
@@ -94,54 +95,74 @@ _*
 __**
 .It Ic f3
 ___***
-.It Ic ...
+.It ...
 .It Ic f9
 _________*********
 .El
 .Pp
 Three high-level commands are available:
-.Bl -tag -width Ds -offset indent -compact
+.Bl -tag -width indent -offset indent
 .It Ic d%d
-numbers.  Each digit is blinked out at 1/10th second, zero as
-ten pulses.  Between digits a one second pause and after the last
+Numbers.
+Each digit is blinked out at 1/10th second, zero as ten pulses.
+Between digits a one second pause and after the last
 digit a two second pause after which the sequence is repeated.
 .It Ic s%s
-string.
+String.
 This gives full control over the annunciator.
-Letters 'A' ... 'J' turns the annunciator on for from 1/10th to one full
+Letters
+.Ql A
+.No ...
+.Ql J
+turn the annunciator on for from 1/10th to one full
 second.
-Letters 'a' ... 'j' turns the annunciator off for 1/10th
+Letters
+.Ql a
+.No ...
+.Ql j
+turn the annunciator off for 1/10th
 to one full second.
-Unless terminated with a '.', the sequence is immediately repeated.
+Unless terminated with a
+.Ql \&. ,
+the sequence is immediately repeated.
 .It Ic m%s
-morse.
-.Bl -tag -width Ds -offset indent -compact
-.It Ic '.'
-becomes _*
-.It Ic '-'
-becomes _***
-.It Ic ' '
-becomes __
-.It Ic '\en'
-becomes ____
+Morse.
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Ql \&.
+becomes
+.Ql _*
+.It Ql -
+becomes
+.Sq Li _***
+.It Ql "\ "
+becomes
+.Sq Li __
+.It Ql \en
+becomes
+.Sq Li ____
+.El
 .El
 .Pp
-.El
 The sequence is repeated after a one second pause.
 .Sh EXAMPLES
-A 'd12' flashes the lamp
-.Bd -literal -offset indent
-*__________*_*______________________________
-.Ed
+A
+.Sq Li d12
+flashes the lamp
 .Pp
-A 'sAaAbBa' flashes
-.Bd -literal -offset indent
-_*_**__*
-.Ed
+.Dl *__________*_*______________________________
 .Pp
+A
+.Sq Li sAaAbBa
+flashes
+.Pp
+.Dl _*_**__*
+.Pp
+.Bd -literal
 /usr/games/morse -l "Soekris rocks" > /dev/led/error
+.Ed
 .Sh FILES
-.Bl -tag -width /dev/led/*
+.Bl -tag -width ".Pa /dev/led/*"
 .It Pa /dev/led/*
 .El
 .Sh SEE ALSO
