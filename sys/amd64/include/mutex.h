@@ -62,6 +62,10 @@ extern char STR_SIEN[];
 
 #define	mtx_legal2block()	(read_eflags() & PSL_I)
 
+/* Actually release mtx_lock quickly assuming that we own it */
+#define	_release_lock_quick(mp) 					\
+	atomic_cmpset_rel_int(&(mp)->mtx_lock, (mp)->mtx_lock, MTX_UNOWNED)
+
 /*
  * Assembly macros (for internal use only)
  *------------------------------------------------------------------------------
