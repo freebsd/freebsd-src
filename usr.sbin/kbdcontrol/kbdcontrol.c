@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdcontrol.c,v 1.6.2.1 1995/06/05 09:23:13 davidg Exp $
+ *	$Id: kbdcontrol.c,v 1.7 1995/06/11 19:32:41 rgrimes Exp $
  */
 
 #include <ctype.h>
@@ -332,12 +332,13 @@ print_key_definition_line(FILE *fp, int scancode, struct key_t *key)
 
 
 void
-load_keymap(char *opt)
+load_keymap(char *opt, int dumponly)
 {
 	keymap_t map;
 	FILE	*fd;
-	int	scancode, i;
-	char	*name;
+	int	scancode, i, j;
+	struct key_t *kp;
+	char	*name, *cp;
 	char	*prefix[]  = {"", "", KEYMAP_PATH, NULL};
 	char	*postfix[] = {"", ".kbd", ".kbd"};
 
@@ -356,6 +357,27 @@ load_keymap(char *opt)
 			break;
 		if (scancode > map.n_keys) map.n_keys = scancode;
     	}
+	if (dumponly) {
+		/* fix up the filename to make it a valid C identifier */
+		for (cp = opt; *cp; cp++)
+			if (!isalpha(*cp) && !isdigit(*cp)) *cp = '_';
+		printf("static const struct keymap keymap_%s = {\n"
+		       "/*\n * Automatically generated from %s.\n"
+		       " * DO NOT EDIT!\n */\n\n\t%u,\n{\n",
+		       opt, name, (unsigned)map.n_keys);
+		for (i = 0; i < map.n_keys; i++) {
+			kp = &map.key[i];
+
+			printf("\t{{ ");
+			for (j = 0; j < NUM_STATES; j++)
+				printf("0x%02x%c", (unsigned)kp->map[j],
+					j == NUM_STATES-1? '}': ',');
+			printf(", 0x%x, 0x%x },\n",
+			       (unsigned)kp->spcl, (unsigned)kp->flgs);
+		}
+		printf("}\n};\n\n");
+		return;
+	}
 	if (ioctl(0, PIO_KEYMAP, &map) < 0) {
 		perror("setting keymap");
 		fclose(fd);
@@ -549,7 +571,7 @@ main(int argc, char **argv)
 	extern int	optind;
 	int		opt;
 
-	while((opt = getopt(argc, argv, "b:df:h:Fl:r:x")) != -1)
+	while((opt = getopt(argc, argv, "b:df:h:Fl:L:r:x")) != -1)
 		switch(opt) {
 			case 'b':
 				set_bell_values(optarg);
@@ -558,7 +580,10 @@ main(int argc, char **argv)
 				print_keymap();
 				break;
 			case 'l':
-				load_keymap(optarg);
+				load_keymap(optarg, 0);
+				break;
+			case 'L':
+				load_keymap(optarg, 1);
 				break;
 			case 'f':
 				set_functionkey(optarg,
