@@ -576,7 +576,9 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 		goto bail;
 	}
 
+	mtx_lock(&Giant);
 	error = vfs_domount(td, fstype, fspath, fsflags, optlist, 0);
+	mtx_unlock(&Giant);
 bail:
 	if (error)
 		vfs_freeopts(optlist);
@@ -619,9 +621,12 @@ mount(td, uap)
 	error = copyinstr(uap->type, fstype, MFSNAMELEN, NULL);
 	if (error == 0)
 		error = copyinstr(uap->path, fspath, MNAMELEN, NULL);
-	if (error == 0)
+	if (error == 0) {
+		mtx_lock(&Giant);
 		error = vfs_domount(td, fstype, fspath, uap->flags,
 		    uap->data, 1);
+		mtx_unlock(&Giant);
+	}
 	free(fstype, M_TEMP);
 	free(fspath, M_TEMP);
 	return (error);
@@ -643,8 +648,12 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	int fsflags;
 	void *fsdata;
 {
+	int error;
 
-	return (vfs_domount(td, fstype, fspath, fsflags, fsdata, 1));
+	mtx_lock(&Giant);
+	error = vfs_domount(td, fstype, fspath, fsflags, fsdata, 1);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -667,6 +676,8 @@ vfs_domount(
 	int error, flag = 0, kern_flag = 0;
 	struct vattr va;
 	struct nameidata nd;
+
+	mtx_assert(&Giant, MA_OWNED);
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
@@ -1067,7 +1078,10 @@ unmount(td, uap)
 	 */
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EINVAL);
-	return (dounmount(mp, uap->flags, td));
+	mtx_lock(&Giant);
+	error = dounmount(mp, uap->flags, td);
+	mtx_unlock(&Giant);
+	return (error);
 }
 
 /*
@@ -1082,6 +1096,8 @@ dounmount(mp, flags, td)
 	struct vnode *coveredvp, *fsrootvp;
 	int error;
 	int async_flag;
+
+	mtx_assert(&Giant, MA_OWNED);
 
 	mtx_lock(&mountlist_mtx);
 	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
@@ -1568,6 +1584,7 @@ __mnt_vnode_next(struct vnode **nvp, struct mount *mp)
 	struct vnode *vp;
 
 	mtx_assert(&mp->mnt_mtx, MA_OWNED);
+
 	vp = *nvp;
 	/* Check if we are done */
 	if (vp == NULL)
