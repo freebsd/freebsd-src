@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.101 1996/10/08 20:02:57 peter Exp $
+#	$Id: rc,v 1.102 1996/10/21 20:09:30 wpaul Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -121,7 +121,6 @@ chmod 666 /dev/tty[pqrs]*
 rm -f /etc/nologin
 rm -f /var/spool/lock/*
 rm -rf /var/spool/uucp/.Temp/*
-rm -f /dev/log
 (cd /var/run && { cp /dev/null utmp; chmod 644 utmp; })
 
 #
@@ -169,6 +168,13 @@ echo 'recording kernel -c changes'
 #
 echo -n starting system daemons:
 
+# Transitional symlink (for the next couple of years :) until all
+# binaries had a chance to move towards /var/run/log.
+if [ ! -h /dev/log ] ; then
+	# might complain for r/o root f/s
+	ln -sf /var/run/log /dev/log
+fi
+rm -f /var/run/log
 echo ' syslogd.';			syslogd
 
 echo -n starting early network daemons:
