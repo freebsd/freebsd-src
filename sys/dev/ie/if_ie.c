@@ -158,8 +158,6 @@ static int	ie_debug = IED_RNR;
 /* Forward declaration */
 struct ie_softc;
 
-static struct mbuf *last_not_for_us;
-
 static int	ieprobe(struct isa_device * dvp);
 static int	ieattach(struct isa_device * dvp);
 static ointhand2_t	ieintr;
@@ -202,7 +200,7 @@ static int	ietint(int unit, struct ie_softc * ie);
 static int	iernr(int unit, struct ie_softc * ie);
 static void	start_receiver(int unit);
 static __inline int ieget(int, struct ie_softc *, struct mbuf **,
-			  struct ether_header *, int *);
+			  struct ether_header *);
 static v_caddr_t setup_rfa(v_caddr_t ptr, struct ie_softc * ie);
 static int	mc_setup(int, v_caddr_t, volatile struct ie_sys_ctl_block *);
 static void	ie_mc_reset(int unit);
@@ -1029,102 +1027,48 @@ ether_equal(u_char * one, u_char * two)
 }
 
 /*
- * Check for a valid address.  to_bpf is filled in with one of the following:
- *   0 -> BPF doesn't get this packet
- *   1 -> BPF does get this packet
- *   2 -> BPF does get this packet, but we don't
- * Return value is true if the packet is for us, and false otherwise.
- *
- * This routine is a mess, but it's also critical that it be as fast
- * as possible.	 It could be made cleaner if we can assume that the
- * only client which will fiddle with IFF_PROMISC is BPF.  This is
- * probably a good assumption, but we do not make it here.  (Yet.)
+ * Determine quickly whether we should bother reading in this packet.
+ * This depends on whether BPF and/or bridging is enabled, whether we
+ * are receiving multicast address, and whether promiscuous mode is enabled.
+ * We assume that if IFF_PROMISC is set, then *somebody* wants to see
+ * all incoming packets.
  */
 static __inline int
-check_eh(struct ie_softc * ie, struct ether_header * eh, int *to_bpf)
+check_eh(struct ie_softc *ie, struct ether_header *eh)
 {
-	int	i;
+	/* Optimize the common case: normal operation. We've received
+	   either a unicast with our dest or a multicast packet. */
+	if (ie->promisc == 0) {
+		int i;
 
-	switch (ie->promisc) {
-	case IFF_ALLMULTI:
-		/*
-		 * Receiving all multicasts, but no unicasts except those
-		 * destined for us.
-		 */
-		/* BPF gets this packet if anybody cares */
-		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-		if (eh->ether_dhost[0] & 1) {
-			return (1);
-		}
-		if (ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr))
-			return (1);
-		return (0);
-
-	case IFF_PROMISC:
-		/*
-		 * Receiving all packets.  These need to be passed on to
-		 * BPF.
-		 */
-		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-		/* If for us, accept and hand up to BPF */
-		if (ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr))
+		/* If not multicast, it's definitely for us */
+		if ((eh->ether_dhost[0] & 1) == 0)
 			return (1);
 
-		if (*to_bpf)
-			*to_bpf = 2;	/* we don't need to see it */
-
-		/*
-		 * Not a multicast, so BPF wants to see it but we don't.
-		 */
-		if (!(eh->ether_dhost[0] & 1))
+		/* Accept broadcasts (loose but fast check) */
+		if (eh->ether_dhost[0] == 0xff)
 			return (1);
 
-		/*
-		 * If it's one of our multicast groups, accept it and pass
-		 * it up.
-		 */
+		/* Compare against our multicast addresses */
 		for (i = 0; i < ie->mcast_count; i++) {
 			if (ether_equal(eh->ether_dhost,
-			    (u_char *)&ie->mcast_addrs[i])) {
-				if (*to_bpf)
-					*to_bpf = 1;
+			    (u_char *)&ie->mcast_addrs[i]))
 				return (1);
-			}
 		}
-		return (1);
-
-	case IFF_ALLMULTI | IFF_PROMISC:
-		/*
-		 * Acting as a multicast router, and BPF running at the same
-		 * time. Whew!	(Hope this is a fast machine...)
-		 */
-		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-		/* We want to see multicasts. */
-		if (eh->ether_dhost[0] & 1)
-			return (1);
-
-		/* We want to see our own packets */
-		if (ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr))
-			return (1);
-
-		/* Anything else goes to BPF but nothing else. */
-		if (*to_bpf)
-			*to_bpf = 2;
-		return (1);
-
-	default:
-		/*
-		 * Only accept unicast packets destined for us, or
-		 * multicasts for groups that we belong to.  For now, we
-		 * assume that the '586 will only return packets that we
-		 * asked it for.  This isn't strictly true (it uses hashing
-		 * for the multicast filter), but it will do in this case,
-		 * and we want to get out of here as quickly as possible.
-		 */
-		*to_bpf = (ie->arpcom.ac_if.if_bpf != 0);
-		return (1);
+		return (0);
 	}
-	return (0);
+
+	/* Always accept packets when in promiscuous mode */
+	if ((ie->promisc & IFF_PROMISC) != 0)
+		return (1);
+
+	/* Always accept packets directed at us */
+	if (ether_equal(eh->ether_dhost, ie->arpcom.ac_enaddr))
+		return (1);
+
+	/* Must have IFF_ALLMULTI but not IFF_PROMISC set. The chip is
+	   actually in promiscuous mode, so discard unicast packets. */
+	return((eh->ether_dhost[0] & 1) != 0);
 }
 
 /*
@@ -1177,8 +1121,7 @@ ie_packet_len(int unit, struct ie_softc * ie)
  * operation considerably.  (Provided that it works, of course.)
  */
 static __inline int
-ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
-      struct ether_header *ehp, int *to_bpf)
+ieget(int unit, struct ie_softc *ie, struct mbuf **mp, struct ether_header *ehp)
 {
 	struct	mbuf *m, *top, **mymp;
 	int	i;
@@ -1205,7 +1148,7 @@ ieget(int unit, struct ie_softc *ie, struct mbuf **mp,
 	 * This is only a consideration when FILTER is defined; i.e., when
 	 * we are either running BPF or doing multicasting.
 	 */
-	if (!check_eh(ie, ehp, to_bpf)) {
+	if (!check_eh(ie, ehp)) {
 		ie_drop_packet_buffer(unit, ie);
 		ie->arpcom.ac_if.if_ierrors--;	/* just this case, it's not an
 						 * error
@@ -1356,8 +1299,6 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	struct mbuf *m = 0;
 	struct ether_header eh;
 
-	int	bpf_gets_it = 0;
-
 	bcopy((v_caddr_t) (ie->rframes[num]), &rfd,
 	      sizeof(struct ie_recv_frame_desc));
 
@@ -1372,7 +1313,7 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 	ie->rfhead = (ie->rfhead + 1) % ie->nframes;
 
 	if (rfd.ie_fd_status & IE_FD_OK) {
-		if (ieget(unit, ie, &m, &eh, &bpf_gets_it)) {
+		if (ieget(unit, ie, &m, &eh)) {
 			ie->arpcom.ac_if.if_ierrors++;	/* this counts as an
 							 * error */
 			return;
@@ -1390,45 +1331,6 @@ ie_readframe(int unit, struct ie_softc *ie, int	num/* frame number to read */)
 
 	if (!m)
 		return;
-
-	if (last_not_for_us) {
-		m_freem(last_not_for_us);
-		last_not_for_us = 0;
-	}
-	/*
-	 * Check for a BPF filter; if so, hand it up. Note that we have to
-	 * stick an extra mbuf up front, because bpf_mtap expects to have
-	 * the ether header at the front. It doesn't matter that this
-	 * results in an ill-formatted mbuf chain, since BPF just looks at
-	 * the data.  (It doesn't try to free the mbuf, tho' it will make a
-	 * copy for tcpdump.)
-	 */
-	if (bpf_gets_it) {
-		struct mbuf m0;
-
-		m0.m_len = sizeof eh;
-		m0.m_data = (caddr_t)&eh;
-		m0.m_next = m;
-
-		/* Pass it up */
-		bpf_mtap(&ie->arpcom.ac_if, &m0);
-	}
-	/*
-	 * A signal passed up from the filtering code indicating that the
-	 * packet is intended for BPF but not for the protocol machinery. We
-	 * can save a few cycles by not handing it off to them.
-	 */
-	if (bpf_gets_it == 2) {
-		last_not_for_us = m;
-		return;
-	}
-	/*
-	 * In here there used to be code to check destination addresses upon
-	 * receipt of a packet.	 We have deleted that code, and replaced it
-	 * with code to check the address much earlier in the cycle, before
-	 * copying the data in; this saves us valuable cycles when operating
-	 * as a multicast router or when using BPF.
-	 */
 
 	/*
 	 * Finally pass this packet up to higher layers.

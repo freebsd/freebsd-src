@@ -69,7 +69,6 @@ struct ep_softc {
 	short		tx_underrun;
 	short		rx_no_first;
 	short		rx_no_mbuf;
-	short		rx_bpf_disc;
 	short		rx_overrunf;
 	short		rx_overrunl;
 #endif

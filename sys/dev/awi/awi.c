@@ -1311,7 +1311,9 @@ awi_input(sc, m, rxts, rssi)
 			break;
 		}
 		ifp->if_ipackets++;
+#ifndef __FreeBSD__
 		AWI_BPF_MTAP(sc, m, AWI_BPF_NORM);
+#endif
 #ifdef __NetBSD__
 		m->m_flags |= M_HASFCS;
 		(*ifp->if_input)(ifp, m);

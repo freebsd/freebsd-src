@@ -89,11 +89,6 @@
 #include <pci/pcireg.h>
 #include <pci/dc21040reg.h>
 
-#include "opt_bdg.h"
-#ifdef BRIDGE
-#include <net/bridge.h>
-#endif
-
 /*
  * Intel CPUs should use I/O mapped access.
  */
@@ -3475,34 +3470,15 @@ tulip_rx_intr(
 #endif /* TULIP_BUS_DMA */
 
 	    eh = *mtod(ms, struct ether_header *);
+#ifndef __FreeBSD__
 	    if (sc->tulip_if.if_bpf != NULL) {
 		if (me == ms)
 		    bpf_tap(&sc->tulip_if, mtod(ms, caddr_t), total_len);
 		else
 		    bpf_mtap(&sc->tulip_if, ms);
 	    }
-	    sc->tulip_flags |= TULIP_RXACT;
-
-#ifdef BRIDGE /* see code in if_ed.c */
-            ms->m_pkthdr.rcvif = ifp; /* XXX */
-            ms->m_pkthdr.len = total_len; /* XXX */
-            if (do_bridge) {
-                struct ifnet *bdg_ifp ;
-                bdg_ifp = bridge_in(ms);
-                if (bdg_ifp == BDG_DROP)
-                    goto next ; /* and drop */
-                if (bdg_ifp != BDG_LOCAL)
-                    bdg_forward(&ms, bdg_ifp);
-                if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_BCAST &&
-                        bdg_ifp != BDG_MCAST)
-                    goto next ; /* and drop */
-                /* all others accepted locally */
-            } else
 #endif
-	    if ((sc->tulip_flags & (TULIP_PROMISC|TULIP_HASHONLY))
-		    && (eh.ether_dhost[0] & 1) == 0
-		    && !TULIP_ADDREQUAL(eh.ether_dhost, sc->tulip_enaddr))
-		    goto next;
+	    sc->tulip_flags |= TULIP_RXACT;
 	    accept = 1;
 	} else {
 	    ifp->if_ierrors++;
@@ -3551,7 +3527,6 @@ tulip_rx_intr(
 #endif
 #endif /* TULIP_BUS_DMA */
 	}
-      next:
 #if defined(TULIP_DEBUG)
 	cnt++;
 #endif
