@@ -19,4 +19,10 @@ SUBDIR+=	compat22
 SUBDIR+=	compat3x
 .endif
 
+.if exists (${.CURDIR}/compat4x.${MACHINE_ARCH})
+.if defined(COMPAT4X) || defined(RELEASEDIR)
+SUBDIR+=	compat4x.${MACHINE_ARCH}
+.endif
+.endif
+
 .include <bsd.subdir.mk>
