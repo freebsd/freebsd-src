@@ -843,10 +843,12 @@ badport_bandlim(int which)
 
 	if ((unsigned int)dticks > hz) {
 		if (lpackets[which] > icmplim) {
+#ifndef ICMP_BANDLIM_SUPPRESS_OUTPUT
 			printf("icmp-response bandwidth limit %d/%d pps\n",
 				lpackets[which],
 				icmplim
 			);
+#endif
 		}
 		lticks[which] = ticks;
 		lpackets[which] = 0;
