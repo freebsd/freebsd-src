@@ -29,6 +29,8 @@
 #ifndef _SYS_UUID_H_
 #define	_SYS_UUID_H_
 
+#include <sys/cdefs.h>
+
 /* Length of a node address (an IEEE 802 address). */
 #define	_UUID_NODE_LEN		6
 
@@ -63,7 +65,9 @@ int sbuf_printf_uuid(struct sbuf *, struct uuid *);
 /* XXX namespace pollution? */
 typedef struct uuid uuid_t;
 
+__BEGIN_DECLS
 int	uuidgen(struct uuid *, int);
+__END_DECLS
 
 #endif	/* _KERNEL */
 
