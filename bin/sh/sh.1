@@ -331,13 +331,14 @@ The following is a list of valid operators:
 .Xc Xc Xc Xc
 .El
 .It Redirection operators:
-.Bl -column "XXX" "XXX" "XXX" "XXX" -offset center -compact
+.Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
 .It Xo
 .Li < Ta Xo
 .Li > Ta Xo
 .Li << Ta Xo
-.Li >>
-.Xc Xc Xc Xc
+.Li >> Ta Xo
+.Li <>
+.Xc Xc Xc Xc Xc
 .It Xo
 .Li <& Ta Xo
 .Li >& Ta Xo
@@ -497,6 +498,8 @@ option
 append stdout (or file descriptor n) to file
 .It Li [n]< file
 redirect stdin (or file descriptor n) from file
+.It Li [n]<> file
+redirect stdin (or file descriptor n) to and from file
 .It Li [n1]<&n2
 duplicate stdin (or file descriptor n1) from file descriptor n2
 .It Li [n]<&-

@@ -442,6 +442,7 @@ expredir(n)
 		switch (redir->type) {
 		case NFROM:
 		case NTO:
+		case NFROMTO:
 		case NAPPEND:
 			expandarg(redir->nfile.fname, &fn, EXP_TILDE | EXP_REDIR);
 			redir->nfile.expfname = fn.list->text;
