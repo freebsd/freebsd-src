@@ -113,16 +113,19 @@ struct isposinfo {
 	struct ispsoftc *	next;
 	u_int64_t		default_port_wwn;
 	u_int64_t		default_node_wwn;
+	u_int32_t		default_id;
 	device_t		dev;
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	struct intr_config_hook	ehook;
-	u_int8_t		mboxwaiting;
-	u_int8_t		simqfrozen;
-	u_int8_t		drain;
-	u_int8_t		intsok;
+	u_int8_t		: 1,
+		fcbsy		: 1,
+		ktmature	: 1,
+		mboxwaiting	: 1,
+		intsok		: 1,
+		simqfrozen	: 3;
 	struct mtx		lock;
 	struct cv		kthread_cv;
 	struct proc		*kproc;
@@ -184,7 +187,7 @@ struct isposinfo {
 #define	GET_NANOSEC(x)		((x)->tv_sec * 1000000000 + (x)->tv_nsec)
 #define	NANOTIME_SUB		nanotime_sub
 
-#define	MAXISPREQUEST(isp)	256
+#define	MAXISPREQUEST(isp)	((IS_FC(isp) || IS_ULTRA2(isp))? 1024 : 256)
 
 #define	MEMORYBARRIER(isp, type, offset, size)			\
 switch (type) {							\
@@ -207,13 +210,18 @@ default:							\
 #define	MBOX_NOTIFY_COMPLETE(isp)	\
 	if (isp->isp_osinfo.mboxwaiting) { \
 		isp->isp_osinfo.mboxwaiting = 0; \
-		wakeup(&isp->isp_osinfo.mboxwaiting); \
+		wakeup(&isp->isp_mbxworkp); \
 	} \
 	isp->isp_mboxbsy = 0
 #define	MBOX_RELEASE(isp)
 
-#define	FC_SCRATCH_ACQUIRE(isp)
-#define	FC_SCRATCH_RELEASE(isp)
+#define	FC_SCRATCH_ACQUIRE(isp)						\
+	if (isp->isp_osinfo.fcbsy) {					\
+		isp_prt(isp, ISP_LOGWARN,				\
+		    "FC scratch area busy (line %d)!", __LINE__);	\
+	} else								\
+		isp->isp_osinfo.fcbsy = 1
+#define	FC_SCRATCH_RELEASE(isp)		 isp->isp_osinfo.fcbsy = 0
 
 #ifndef	SCSI_GOOD
 #define	SCSI_GOOD	SCSI_STATUS_OK
@@ -289,8 +297,8 @@ default:							\
 
 #define	XS_SET_STATE_STAT(a, b, c)
 
-#define	DEFAULT_IID(x)		7
-#define	DEFAULT_LOOPID(x)	109
+#define	DEFAULT_IID(x)		(isp)->isp_osinfo.default_id
+#define	DEFAULT_LOOPID(x)	(isp)->isp_osinfo.default_id
 #define	DEFAULT_NODEWWN(isp)	(isp)->isp_osinfo.default_node_wwn
 #define	DEFAULT_PORTWWN(isp)	(isp)->isp_osinfo.default_port_wwn
 #define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_nodewwn
@@ -388,7 +396,7 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 	if (isp->isp_osinfo.intsok) {
 		int lim = ((isp->isp_mbxwrk0)? 120 : 20) * hz;
 		isp->isp_osinfo.mboxwaiting = 1;
-		(void) msleep(&isp->isp_osinfo.mboxwaiting,
+		(void) msleep(&isp->isp_mbxworkp,
 		    &isp->isp_lock, PRIBIO, "isp_mboxwaiting", lim);
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
