@@ -1,10 +1,13 @@
 /*
- * Copyright (c) 2002, 2003 Tony Finch <dot@dotat.at>
+ * Copyright (c) 2002 - 2005 Tony Finch <dot@dotat.at>.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by Dave Yost.
+ * It was rewritten to support ANSI C by Tony Finch. The original version of
+ * unifdef carried the following copyright notice. None of its code remains
+ * in this version (though some of the names remain).
+ *
  * Copyright (c) 1985, 1993
  *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Dave Yost. It was rewritten to support ANSI C by Tony Finch.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,18 +17,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -46,7 +42,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.160 2003/07/01 15:21:25 fanf2 Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.171 2005/03/08 12:38:48 fanf2 Exp $");
 #endif
 #endif /* not lint */
 #ifdef __FBSDID
@@ -62,7 +58,6 @@ __FBSDID("$FreeBSD$");
  *      provide an option which will check symbols after
  *        #else's and #endif's to see that they match their
  *        corresponding #ifdef or #ifndef
- *      generate #line directives in place of deleted code
  *
  *   The first two items above require better buffer handling, which would
  *     also make it possible to handle all "dodgy" directives correctly.
@@ -134,11 +129,13 @@ typedef enum {
 	C_COMMENT,		/* in a comment like this one */
 	CXX_COMMENT,		/* between // and end of line */
 	STARTING_COMMENT,	/* just after slash-backslash-newline */
-	FINISHING_COMMENT	/* star-backslash-newline in a C comment */
+	FINISHING_COMMENT,	/* star-backslash-newline in a C comment */
+	CHAR_LITERAL,		/* inside '' */
+	STRING_LITERAL		/* inside "" */
 } Comment_state;
 
 static char const * const comment_name[] = {
-	"NO", "C", "CXX", "STARTING", "FINISHING"
+	"NO", "C", "CXX", "STARTING", "FINISHING", "CHAR", "STRING"
 };
 
 /* state of preprocessor line parser */
@@ -174,6 +171,7 @@ static bool             debugging;		/* -d: debugging reports */
 static bool             iocccok;		/* -e: fewer IOCCC errors */
 static bool             killconsts;		/* -k: eval constant #ifs */
 static bool             lnblank;		/* -l: blank deleted lines */
+static bool             lnnum;			/* -n: add #line directives */
 static bool             symlist;		/* -s: output symbol list */
 static bool             text;			/* -t: this is a text file */
 
@@ -195,6 +193,7 @@ static Ifstate          ifstate[MAXDEPTH];	/* #if processor state */
 static bool             ignoring[MAXDEPTH];	/* ignore comments state */
 static int              stifline[MAXDEPTH];	/* start of current #if */
 static int              depth;			/* current #if nesting */
+static int              delcount;		/* count of deleted lines */
 static bool             keepthis;		/* don't delete constant #if */
 
 static int              exitstat;		/* program exit status */
@@ -216,6 +215,7 @@ static const char      *skipcomment(const char *);
 static const char      *skipsym(const char *);
 static void             state(Ifstate);
 static int              strlcmp(const char *, const char *, size_t);
+static void             unnest(void);
 static void             usage(void);
 
 #define endsym(c) (!isalpha((unsigned char)c) && !isdigit((unsigned char)c) && c != '_')
@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:D:U:I:cdeklst")) != -1)
+	while ((opt = getopt(argc, argv, "i:D:U:I:cdeklnst")) != -1)
 		switch (opt) {
 		case 'i': /* treat stuff controlled by these symbols as text */
 			/*
@@ -268,6 +268,9 @@ main(int argc, char *argv[])
 		case 'l': /* blank deleted lines instead of omitting them */
 			lnblank = true;
 			break;
+		case 'n': /* add #line directive after deleted lines */
+			lnnum = true;
+			break;
 		case 's': /* only output list of symbols that control #ifs */
 			symlist = true;
 			break;
@@ -279,10 +282,6 @@ main(int argc, char *argv[])
 		}
 	argc -= optind;
 	argv += optind;
-	if (nsyms == 0 && !symlist) {
-		warnx("must -D or -U at least one symbol");
-		usage();
-	}
 	if (argc > 1) {
 		errx(2, "can only do one file");
 	} else if (argc == 1 && strcmp(*argv, "-") != 0) {
@@ -301,7 +300,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: unifdef [-cdeklst]"
+	fprintf(stderr, "usage: unifdef [-cdeklnst]"
 	    " [-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym] ... [file]\n");
 	exit(2);
 }
@@ -353,21 +352,21 @@ static void Selse (void) { drop();               state(IS_TRUE_ELSE); }
 /* print/pass this block */
 static void Pelif (void) { print(); ignoreoff(); state(IS_PASS_MIDDLE); }
 static void Pelse (void) { print();              state(IS_PASS_ELSE); }
-static void Pendif(void) { print(); --depth; }
+static void Pendif(void) { print(); unnest(); }
 /* discard this block */
 static void Dfalse(void) { drop();  ignoreoff(); state(IS_FALSE_TRAILER); }
 static void Delif (void) { drop();  ignoreoff(); state(IS_FALSE_MIDDLE); }
 static void Delse (void) { drop();               state(IS_FALSE_ELSE); }
-static void Dendif(void) { drop();  --depth; }
+static void Dendif(void) { drop();  unnest(); }
 /* first line of group */
 static void Fdrop (void) { nest();  Dfalse(); }
 static void Fpass (void) { nest();  Pelif(); }
 static void Ftrue (void) { nest();  Strue(); }
 static void Ffalse(void) { nest();  Sfalse(); }
 /* variable pedantry for obfuscated lines */
-static void Oiffy (void) { if (iocccok) Fpass(); else Eioccc(); ignoreon(); }
-static void Oif   (void) { if (iocccok) Fpass(); else Eioccc(); }
-static void Oelif (void) { if (iocccok) Pelif(); else Eioccc(); }
+static void Oiffy (void) { if (!iocccok) Eioccc(); Fpass(); ignoreon(); }
+static void Oif   (void) { if (!iocccok) Eioccc(); Fpass(); }
+static void Oelif (void) { if (!iocccok) Eioccc(); Pelif(); }
 /* ignore comments in this block */
 static void Idrop (void) { Fdrop();  ignoreon(); }
 static void Itrue (void) { Ftrue();  ignoreon(); }
@@ -437,6 +436,8 @@ done(void)
 static void
 ignoreoff(void)
 {
+	if (depth == 0)
+		abort(); /* bug */
 	ignoring[depth] = ignoring[depth-1];
 }
 static void
@@ -459,6 +460,13 @@ nest(void)
 	stifline[depth] = linenum;
 }
 static void
+unnest(void)
+{
+	if (depth == 0)
+		abort(); /* bug */
+	depth -= 1;
+}
+static void
 state(Ifstate is)
 {
 	ifstate[depth] = is;
@@ -472,12 +480,16 @@ flushline(bool keep)
 {
 	if (symlist)
 		return;
-	if (keep ^ complement)
+	if (keep ^ complement) {
+		if (lnnum && delcount > 0)
+			printf("#line %d\n", linenum);
 		fputs(tline, stdout);
-	else {
+		delcount = 0;
+	} else {
 		if (lnblank)
 			putc('\n', stdout);
 		exitstat = 1;
+		delcount += 1;
 	}
 }
 
@@ -679,7 +691,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 			return (LT_IF);
 		cp = skipcomment(cp);
 		sym = findsym(cp);
-		if (sym < 0 && !symlist)
+		if (sym < 0)
 			return (LT_IF);
 		*valp = (value[sym] != NULL);
 		cp = skipsym(cp);
@@ -690,7 +702,7 @@ eval_unary(const struct ops *ops, int *valp, const char **cpp)
 	} else if (!endsym(*cp)) {
 		debug("eval%d symbol", ops - eval_ops);
 		sym = findsym(cp);
-		if (sym < 0 && !symlist)
+		if (sym < 0)
 			return (LT_IF);
 		if (value[sym] == NULL)
 			*valp = 0;
@@ -763,10 +775,10 @@ ifeval(const char **cpp)
 }
 
 /*
- * Skip over comments and stop at the next character position that is
- * not whitespace. Between calls we keep the comment state in the
- * global variable incomment, and we also adjust the global variable
- * linestate when we see a newline.
+ * Skip over comments, strings, and character literals and stop at the
+ * next character position that is not whitespace. Between calls we keep
+ * the comment state in the global variable incomment, and we also adjust
+ * the global variable linestate when we see a newline.
  * XXX: doesn't cope with the buffer splitting inside a state transition.
  */
 static const char *
@@ -793,6 +805,14 @@ skipcomment(const char *cp)
 			} else if (strncmp(cp, "//", 2) == 0) {
 				incomment = CXX_COMMENT;
 				cp += 2;
+			} else if (strncmp(cp, "\'", 1) == 0) {
+				incomment = CHAR_LITERAL;
+				linestate = LS_DIRTY;
+				cp += 1;
+			} else if (strncmp(cp, "\"", 1) == 0) {
+				incomment = STRING_LITERAL;
+				linestate = LS_DIRTY;
+				cp += 1;
 			} else if (strncmp(cp, "\n", 1) == 0) {
 				linestate = LS_START;
 				cp += 1;
@@ -807,6 +827,25 @@ skipcomment(const char *cp)
 				linestate = LS_START;
 			}
 			cp += 1;
+			continue;
+		case CHAR_LITERAL:
+		case STRING_LITERAL:
+			if ((incomment == CHAR_LITERAL && cp[0] == '\'') ||
+			    (incomment == STRING_LITERAL && cp[0] == '\"')) {
+				incomment = NO_COMMENT;
+				cp += 1;
+			} else if (cp[0] == '\\') {
+				if (cp[1] == '\0')
+					cp += 1;
+				else
+					cp += 2;
+			} else if (strncmp(cp, "\n", 1) == 0) {
+				if (incomment == CHAR_LITERAL)
+					error("unterminated char literal");
+				else
+					error("unterminated string literal");
+			} else
+				cp += 1;
 			continue;
 		case C_COMMENT:
 			if (strncmp(cp, "*\\\n", 3) == 0) {
@@ -867,8 +906,11 @@ findsym(const char *str)
 	cp = skipsym(str);
 	if (cp == str)
 		return (-1);
-	if (symlist)
+	if (symlist) {
 		printf("%.*s\n", (int)(cp-str), str);
+		/* we don't care about the value of the symbol */
+		return (0);
+	}
 	for (symind = 0; symind < nsyms; ++symind) {
 		if (strlcmp(symname[symind], str, cp-str) == 0) {
 			debug("findsym %s %s", symname[symind],

@@ -1,8 +1,9 @@
 .\" Copyright (c) 1985, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
+.\" Copyright (c) 2002 - 2005 Tony Finch <dot@dotat.at>.  All rights reserved.
 .\"
 .\" This code is derived from software contributed to Berkeley by
-.\" Dave Yost. Support for #if and #elif was added by Tony Finch.
+.\" Dave Yost. It was rewritten to support ANSI C by Tony Finch.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -12,11 +13,7 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
-.\" 4. Neither the name of the University nor the names of its contributors
+.\" 3. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
 .\"
@@ -33,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)unifdef.1	8.2 (Berkeley) 4/1/94
-.\"	$dotat: things/unifdef.1,v 1.43 2003/01/20 11:36:12 fanf2 Exp $
+.\"	$dotat: things/unifdef.1,v 1.51 2005/03/08 12:39:01 fanf2 Exp $
 .\" $FreeBSD$
 .\"
 .Dd September 24, 2002
@@ -44,14 +41,12 @@
 .Nd remove preprocessor conditionals from code
 .Sh SYNOPSIS
 .Nm
-.Op Fl ceklst
-.Oo
-.Fl I Ns Ar path
-.Fl D Ns Ar sym Ns Op = Ns Ar val
-.Fl U Ns Ar sym
-.Fl iD Ns Ar sym Ns Op = Ns Ar val
-.Fl iU Ns Ar sym
-.Oc
+.Op Fl ceklnst
+.Op Fl I Ns Ar path
+.Op Fl D Ns Ar sym Ns Op = Ns Ar val
+.Op Fl U Ns Ar sym
+.Op Fl iD Ns Ar sym Ns Op = Ns Ar val
+.Op Fl iU Ns Ar sym
 .Ar ...
 .Op Ar file
 .Nm unifdefall
@@ -191,6 +186,13 @@ It would be rude to strip them out, just as it would be for normal comments.
 .It Fl l
 Replace removed lines with blank lines
 instead of deleting them.
+.Pp
+.It Fl n
+Add
+.Li #line
+directives to the output following any deleted lines,
+so that errors produced when compiling the output file correspond to
+line numbers in the input file.
 .Pp
 .It Fl s
 Instead of processing the input file as usual,
