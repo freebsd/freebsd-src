@@ -215,7 +215,8 @@ struct vm_page {
 #define PQ_INACTIVE (1 + 1*PQ_L2_SIZE)
 #define PQ_ACTIVE (2 + 1*PQ_L2_SIZE)
 #define PQ_CACHE (3 + 1*PQ_L2_SIZE)
-#define PQ_COUNT (3 + 2*PQ_L2_SIZE)
+#define PQ_HOLD  (3 + 2*PQ_L2_SIZE)
+#define PQ_COUNT (4 + 2*PQ_L2_SIZE)
 #else
 #define PQ_NONE		PQ_COUNT
 #define PQ_FREE		0
