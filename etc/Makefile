@@ -65,7 +65,9 @@ distribution:
 	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+.if !defined(NO_MAKEDEV)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all) ;
+.endif
 	(cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
 		    ${DESTDIR}/root/.cshrc; \
