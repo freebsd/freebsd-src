@@ -961,7 +961,8 @@ datalink_Destroy(struct datalink *dl)
 void
 datalink_Up(struct datalink *dl, int runscripts, int packetmode)
 {
-  if (dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED))
+  if (!Enabled(dl->bundle, OPT_FORCE_SCRIPTS) &&
+      (dl->physical->type & (PHYS_DIRECT|PHYS_DEDICATED)))
     /* Ignore scripts */
     runscripts = 0;
 

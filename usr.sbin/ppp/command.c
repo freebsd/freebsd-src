@@ -2860,6 +2860,9 @@ static struct cmdtab const NegotiateCommands[] = {
   {"filter-decapsulation", NULL, OptSet, LOCAL_AUTH,
   "filter on PPPoUDP payloads", "disable|enable",
   (const void *)OPT_FILTERDECAP},
+  {"force-scripts", NULL, OptSet, LOCAL_AUTH,
+   "Force execution of the configured chat scripts", "disable|enable",
+   (const void *)OPT_FORCE_SCRIPTS},
   {"idcheck", NULL, OptSet, LOCAL_AUTH, "Check FSM reply ids",
   "disable|enable", (const void *)OPT_IDCHECK},
   {"iface-alias", NULL, IfaceAliasOptSet, LOCAL_AUTH,
@@ -2891,9 +2894,9 @@ static struct cmdtab const NegotiateCommands[] = {
   "disable|enable", (const void *)OPT_UTMP},
 
 #ifndef NOINET6
-#define OPT_MAX 13	/* accept/deny allowed below and not above */
+#define OPT_MAX 14	/* accept/deny allowed below and not above */
 #else
-#define OPT_MAX 11
+#define OPT_MAX 12
 #endif
 
   {"acfcomp", NULL, NegotiateSet, LOCAL_AUTH | LOCAL_CX,

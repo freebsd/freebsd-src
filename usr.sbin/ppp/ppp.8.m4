@@ -154,11 +154,17 @@ This is useful if you wish to control
 .Nm Ns No 's
 invocation from another process.
 .It Fl direct
-This is used for receiving incoming connections.
+This is used for communicating over an already established connection,
+usually when receiving incoming connections accepted by
+.Xr getty 8 .
 .Nm
 ignores the
 .Dq set device
 line and uses descriptor 0 as the link.
+.Nm
+will also ignore any configured chat scripts unless the
+.Dq force-scripts
+option has been enabled.
 .Pp
 If callback is configured,
 .Nm
@@ -169,8 +175,10 @@ information when dialing back.
 This option is designed for machines connected with a dedicated
 wire.
 .Nm
-will always keep the device open and will never use any configured
-chat scripts.
+will always keep the device open and will ignore any configured
+chat scripts unless the
+.Dq force-scripts
+option has been enabled. 
 .It Fl ddial
 This mode is equivalent to
 .Fl auto
@@ -2936,6 +2944,13 @@ and
 in the configuration for the
 .Nm
 invocation with the udp link.
+.It force-scripts
+Default: Disabled.
+Forces execution of the configured chat scripts in
+.Dv direct 
+and
+.Dv dedicated 
+modes.
 .It idcheck
 Default: Enabled.
 When
