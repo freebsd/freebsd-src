@@ -348,9 +348,11 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	fd_set fdset;
 	char buf[BUFSIZE], *cp = NULL, *p, **av, *osname = NULL, garbage[7];
 	char *fallback = NULL;
-	size_t len;
+	socklen_t socklen;
+	ssize_t ssize;
+	size_t size;
 	int c, fflag = 0, nflag = 0, rflag = 0, argc = 0, usedfallback = 0;
-	int gflag = 0, Rflag = 0, getcredfail = 0;
+	int gflag = 0, getcredfail = 0, onreadlen;
 	u_short lport, fport;
 
 	inetd_setproctitle(sep->se_service, s);
@@ -411,9 +413,6 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			case 'o':
 				osname = optarg;
 				break;
-			case 'R':
-				Rflag = 2;
-				break;
 			case 'r':
 				rflag = 1;
 				break;
@@ -439,11 +438,11 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			iderror(0, 0, s, errno);
 		osname = un.sysname;
 	}
-	len = sizeof(ss[0]);
-	if (getsockname(s, (struct sockaddr *)&ss[0], &len) == -1)
+	socklen = sizeof(ss[0]);
+	if (getsockname(s, (struct sockaddr *)&ss[0], &socklen) == -1)
 		iderror(0, 0, s, errno);
-	len = sizeof(ss[1]);
-	if (getpeername(s, (struct sockaddr *)&ss[1], &len) == -1)
+	socklen = sizeof(ss[1]);
+	if (getpeername(s, (struct sockaddr *)&ss[1], &socklen) == -1)
 		iderror(0, 0, s, errno);
 	/*
 	 * We're going to prepare for and execute reception of a
@@ -455,14 +454,14 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	FD_SET(s, &fdset);
 	if (select(s + 1, &fdset, NULL, NULL, &tv) == -1)
 		iderror(0, 0, s, errno);
-	if (ioctl(s, FIONREAD, &len) == -1)
+	if (ioctl(s, FIONREAD, &onreadlen) == -1)
 		iderror(0, 0, s, errno);
-	if (len >= sizeof(buf))
-		len = sizeof(buf) - 1;
-	len = read(s, buf, len);
-	if (len == -1)
+	if (onreadlen >= sizeof(buf))
+		onreadlen = sizeof(buf) - 1;
+	ssize = read(s, buf, (size_t)onreadlen);
+	if (ssize == -1)
 		iderror(0, 0, s, errno);
-	buf[len] = '\0';
+	buf[ssize] = '\0';
 	if (sscanf(buf, "%hu , %hu", &lport, &fport) != 2)
 		iderror(0, 0, s, 0);
 	if (gflag) {
@@ -495,14 +494,14 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 	 */
 	if (ss[0].ss_family != ss[1].ss_family)
 		iderror(lport, fport, s, errno);
-	len = sizeof(uc);
+	size = sizeof(uc);
 	switch (ss[0].ss_family) {
 	case AF_INET:
 		sin[0] = *(struct sockaddr_in *)&ss[0];
 		sin[0].sin_port = htons(lport);
 		sin[1] = *(struct sockaddr_in *)&ss[1];
 		sin[1].sin_port = htons(fport);
-		if (sysctlbyname("net.inet.tcp.getcred", &uc, &len, sin,
+		if (sysctlbyname("net.inet.tcp.getcred", &uc, &size, sin,
 				 sizeof(sin)) == -1)
 			getcredfail = 1;
 		break;
@@ -512,7 +511,7 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		sin6[0].sin6_port = htons(lport);
 		sin6[1] = *(struct sockaddr_in6 *)&ss[1];
 		sin6[1].sin6_port = htons(fport);
-		if (sysctlbyname("net.inet6.tcp6.getcred", &uc, &len, sin6,
+		if (sysctlbyname("net.inet6.tcp6.getcred", &uc, &size, sin6,
 				 sizeof(sin6)) == -1)
 			getcredfail = 1;
 		break;
@@ -584,16 +583,16 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 			 * in the form "identity\n", so we use strtok() to
 			 * end the string (which fgets() doesn't do.)
 			 */
-			strtok(buf, "\r\n");
-			/* User names of >16 characters are invalid */
-			if (strlen(buf) > 16)
-				buf[16] = '\0';
+			buf[strcspn(buf, "\r\n")] = '\0';
 			cp = buf;
 			/* Allow for beginning white space... */
 			while (isspace(*cp))
 				cp++;
 			/* ...and ending white space. */
-			strtok(cp, " \t");
+			cp[strcspn(cp, " \t")] = '\0';
+			/* User names of >16 characters are invalid */
+			if (strlen(cp) > 16)
+				cp[16] = '\0';
 			/*
 			 * If the name is a zero-length string or matches
 			 * the name of another user, it's invalid, so
