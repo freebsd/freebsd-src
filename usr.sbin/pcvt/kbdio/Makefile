@@ -10,7 +10,7 @@ error:
 .else
 
 PROG=	kbdio
-SRCS=	kbdio.c lex.c
+SRCS=	kbdio.y lex.l
 
 #YACC=	bison
 #YFLAGS+= -yd	# Bison only
@@ -26,7 +26,6 @@ NOMAN=
 
 CFLAGS+= -I${.OBJDIR} -I${.CURDIR} #-g
 
-CLEANFILES+= kbdio.c lex.c lex.yy.c y.tab.[ch]
 CLEANFILES+= y.output	# comment file from bison
 
 install:

@@ -1,13 +1,11 @@
-# $Id$
+# $Id: Makefile,v 1.11 1997/02/22 19:54:30 peter Exp $
 
 PROG = colldef
 LFLAGS = -8 -i
-YFLAGS = -d
 CFLAGS += -I. -I${.CURDIR}/../../lib/libc/locale -DCOLLATE_DEBUG
-SRCS = parse.c scan.c
+SRCS = parse.y scan.l
 LDADD = -ll
 DPADD = ${LIBL}
-CLEANFILES += lex.yy.c parse.c scan.c y.tab.[ch]
 SUBDIR = data
 
 .include <bsd.prog.mk>
