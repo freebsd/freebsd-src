@@ -166,6 +166,15 @@ typedef struct Struct_Obj_Entry {
 #define RTLD_MAGIC	0xd550b87a
 #define RTLD_VERSION	1
 
+/*
+ * Symbol cache entry used during relocation to avoid multiple lookups
+ * of the same symbol.
+ */
+typedef struct Struct_SymCache {
+    const Elf_Sym *sym;		/* Symbol table entry */
+    const Obj_Entry *obj;	/* Shared object which defines it */
+} SymCache;
+
 extern void _rtld_error(const char *, ...) __printflike(1, 2);
 extern Obj_Entry *map_object(int, const char *, const struct stat *);
 extern void *xcalloc(size_t);
@@ -179,7 +188,7 @@ extern Elf_Addr _GLOBAL_OFFSET_TABLE_[];
 int do_copy_relocations(Obj_Entry *);
 unsigned long elf_hash(const char *);
 const Elf_Sym *find_symdef(unsigned long, const Obj_Entry *,
-  const Obj_Entry **, bool);
+  const Obj_Entry **, bool, SymCache *);
 void init_pltgot(Obj_Entry *);
 void lockdflt_init(LockInfo *);
 void obj_free(Obj_Entry *);
