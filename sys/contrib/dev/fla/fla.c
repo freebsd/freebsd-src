@@ -17,10 +17,10 @@
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
+#include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/module.h>
-#include <sys/conf.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
 #include <machine/resource.h>
