@@ -167,6 +167,7 @@ static int  em_82547_fifo_workaround(struct adapter *, int);
 static void em_82547_update_fifo_head(struct adapter *, int);
 static int  em_82547_tx_fifo_reset(struct adapter *);
 static void em_82547_move_tail(void *arg);
+static void em_82547_move_tail_locked(struct adapter *);
 static int  em_dma_malloc(struct adapter *, bus_size_t,
 			  struct em_dma_alloc *, int);
 static void em_dma_free(struct adapter *, struct em_dma_alloc *);
@@ -1284,7 +1285,7 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
          */
         if (adapter->hw.mac_type == em_82547 &&
             adapter->link_duplex == HALF_DUPLEX) {
-                em_82547_move_tail(adapter);
+                em_82547_move_tail_locked(adapter);
         } else {
                 E1000_WRITE_REG(&adapter->hw, TDT, i);
                 if (adapter->hw.mac_type == em_82547) {
@@ -1304,9 +1305,8 @@ em_encap(struct adapter *adapter, struct mbuf *m_head)
  *
  **********************************************************************/
 static void
-em_82547_move_tail(void *arg)
+em_82547_move_tail_locked(struct adapter *adapter)
 {
-	struct adapter *adapter = arg;
 	uint16_t hw_tdt;
 	uint16_t sw_tdt;
 	struct em_tx_desc *tx_desc;
@@ -1338,6 +1338,16 @@ em_82547_move_tail(void *arg)
 		}
 	}	
 	return;
+}
+
+static void
+em_82547_move_tail(void *arg)
+{
+        struct adapter *adapter = arg;
+
+        EM_LOCK(adapter);
+        em_82547_move_tail_locked(adapter);
+        EM_UNLOCK(adapter);
 }
 
 static int
