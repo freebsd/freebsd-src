@@ -92,28 +92,32 @@ static int	colortype __P((mode_t));
 #define TERA_2_SZ (TERA_SZ(1024ULL))
 #define PETA_2_SZ (PETA_SZ(1024ULL))
 
-unsigned long long vals_base2[] = { 1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ };
+unsigned long long vals_base2[] = {1, KILO_2_SZ, MEGA_2_SZ, GIGA_2_SZ, TERA_2_SZ, PETA_2_SZ};
 
-typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
+typedef enum {
+	NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX
+} unit_t;
 static unit_t unit_adjust __P((off_t *));
 
-int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
+int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
 
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
 typedef enum Colors {
-	C_DIR,		/* directory */
-	C_LNK,		/* symbolic link */
-	C_SOCK,		/* socket */
-	C_FIFO,		/* pipe */
-	C_EXEC,		/* executable */
-	C_BLK,		/* block special */
-	C_CHR,		/* character special */
-	C_SUID,		/* setuid executable */
-	C_SGID,		/* setgid executable */
-	C_WSDIR,	/* directory writeble to others, with sticky bit */
-	C_WDIR,		/* directory writeble to others, without sticky bit */
-	C_NUMCOLORS	/* just a place-holder */
+	C_DIR,			/* directory */
+	C_LNK,			/* symbolic link */
+	C_SOCK,			/* socket */
+	C_FIFO,			/* pipe */
+	C_EXEC,			/* executable */
+	C_BLK,			/* block special */
+	C_CHR,			/* character special */
+	C_SUID,			/* setuid executable */
+	C_SGID,			/* setgid executable */
+	C_WSDIR,		/* directory writeble to others, with sticky
+				 * bit */
+	C_WDIR,			/* directory writeble to others, without
+				 * sticky bit */
+	C_NUMCOLORS		/* just a place-holder */
 } Colors;
 
 const char *defcolors = "exfxcxdxbxegedabagacad";
@@ -123,7 +127,6 @@ static struct {
 	int	num[2];
 	int	bold;
 } colors[C_NUMCOLORS];
-
 #endif
 
 void
@@ -278,7 +281,6 @@ printcol(dp)
 		printscol(dp);
 		return;
 	}
-
 	numcols = termwidth / colwidth;
 	numrows = num / numcols;
 	if (num % numcols)
@@ -402,7 +404,7 @@ static int
 putch(c)
 	int c;
 {
-	(void) putchar(c);
+	(void)putchar(c);
 	return 0;
 }
 
@@ -412,7 +414,7 @@ writech(c)
 {
 	char tmp = c;
 
-	(void) write(STDOUT_FILENO, &tmp, 1);
+	(void)write(STDOUT_FILENO, &tmp, 1);
 	return 0;
 }
 
@@ -430,7 +432,6 @@ printcolor(c)
 		if (ansiseq)
 			tputs(ansiseq, 1, putch);
 	}
-
 	if (colors[c].num[1] != -1) {
 		ansiseq = tgoto(ansi_bgcol, 0, colors[c].num[1]);
 		if (ansiseq)
@@ -450,7 +451,7 @@ static int
 colortype(mode)
 	mode_t mode;
 {
-	switch(mode & S_IFMT) {
+	switch (mode & S_IFMT) {
 	case S_IFDIR:
 		if (mode & S_IWOTH)
 			if (mode & S_ISTXT)
@@ -459,22 +460,22 @@ colortype(mode)
 				printcolor(C_WDIR);
 		else
 			printcolor(C_DIR);
-		return(1);
+		return (1);
 	case S_IFLNK:
 		printcolor(C_LNK);
-		return(1);
+		return (1);
 	case S_IFSOCK:
 		printcolor(C_SOCK);
-		return(1);
+		return (1);
 	case S_IFIFO:
 		printcolor(C_FIFO);
-		return(1);
+		return (1);
 	case S_IFBLK:
 		printcolor(C_BLK);
-		return(1);
+		return (1);
 	case S_IFCHR:
 		printcolor(C_CHR);
-		return(1);
+		return (1);
 	}
 	if (mode & (S_IXUSR | S_IXGRP | S_IXOTH)) {
 		if (mode & S_ISUID)
@@ -483,9 +484,9 @@ colortype(mode)
 			printcolor(C_SGID);
 		else
 			printcolor(C_EXEC);
-		return(1);
+		return (1);
 	}
-	return(0);
+	return (0);
 }
 
 void
@@ -499,20 +500,19 @@ parsecolors(cs)
 	short legacy_warn = 0;
 
 	if (cs == NULL)
-		cs = ""; /* LSCOLORS not set */
+		cs = "";	/* LSCOLORS not set */
 	len = strlen(cs);
-	for (i = 0 ; i < C_NUMCOLORS ; i++) {
+	for (i = 0; i < C_NUMCOLORS; i++) {
 		colors[i].bold = 0;
 
 		if (len <= 2 * i) {
 			c[0] = defcolors[2 * i];
 			c[1] = defcolors[2 * i + 1];
-		}
-		else {
+		} else {
 			c[0] = cs[2 * i];
 			c[1] = cs[2 * i + 1];
 		}
-		for (j = 0 ; j < 2 ; j++) {
+		for (j = 0; j < 2; j++) {
 			/* Legacy colours used 0-7 */
 			if (c[j] >= '0' && c[j] <= '7') {
 				colors[i].num[j] = c[j] - '0';
@@ -546,11 +546,12 @@ colorquit(sig)
 {
 	endcolor(sig);
 
-	(void) signal(sig, SIG_DFL);
-	(void) kill(getpid(), sig);
+	(void)signal(sig, SIG_DFL);
+	(void)kill(getpid(), sig);
 }
-#endif /*COLORLS*/
- 
+
+#endif /* COLORLS */
+
 static void
 printlink(p)
 	FTSENT *p;
@@ -579,17 +580,16 @@ printsize(width, bytes)
 	off_t bytes;
 {
 	unit_t unit;
-	
+
 	if (f_humanval) {
 		unit = unit_adjust(&bytes);
 
 		if (bytes == 0)
 			(void)printf("%*s ", width, "0B");
 		else
-			(void)printf("%*qd%c ", width - 1, bytes, 
-				"BKMGTPE"[unit]);
-	}
-	else
+			(void)printf("%*qd%c ", width - 1, bytes,
+			    "BKMGTPE"[unit]);
+	} else
 		(void)printf("%*qd ", width, bytes);
 }
 
