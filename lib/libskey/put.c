@@ -2107,7 +2107,8 @@ char *out;
 char *e;
 {
 	char *word, *cp;
-	int i, p, v,l, low,high;
+	int i, v,l, low,high;
+	unsigned int p;
 	char b[9];
 	char input[36];
 
