@@ -145,11 +145,7 @@ void	stopguprof(struct gmonparam *p);
 
 __BEGIN_DECLS
 #ifdef __GNUC__
-#ifdef __ELF__
 void	mcount(void) __asm(".mcount");
-#else
-void	mcount(void) __asm("mcount");
-#endif
 #endif
 static void	_mcount(uintfptr_t frompc, uintfptr_t selfpc);
 __END_DECLS

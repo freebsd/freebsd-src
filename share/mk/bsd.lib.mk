@@ -12,7 +12,6 @@
 .undef SHLIB_NAME
 .undef INSTALL_PIC_ARCHIVE
 .else
-.if ${OBJFORMAT} == elf
 .if !defined(SHLIB_NAME) && defined(LIB) && defined(SHLIB_MAJOR)
 SHLIB_NAME=	lib${LIB}.so.${SHLIB_MAJOR}
 .endif
@@ -20,11 +19,6 @@ SHLIB_NAME=	lib${LIB}.so.${SHLIB_MAJOR}
 SHLIB_LINK?=	${SHLIB_NAME:R}
 .endif
 SONAME?=	${SHLIB_NAME}
-.else
-.if defined(SHLIB_MAJOR) && defined(SHLIB_MINOR)
-SHLIB_NAME?=	lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-.endif
-.endif
 .endif
 
 .if defined(DEBUG_FLAGS)
@@ -35,9 +29,7 @@ CFLAGS+= ${DEBUG_FLAGS}
 STRIP?=	-s
 .endif
 
-.if ${OBJFORMAT} != aout || make(checkdpadd) || defined(NEED_LIBNAMES)
 .include <bsd.libnames.mk>
-.endif
 
 # prefer .s to a .c, add .po, remove stuff not used in the BSD libraries
 # .So used for PIC object files
@@ -197,15 +189,9 @@ ${SHLIB_NAME}: ${SOBJS}
 .if defined(SHLIB_LINK)
 	@ln -fs ${.TARGET} ${SHLIB_LINK}
 .endif
-.if ${OBJFORMAT} == aout
-	@${CC} -shared -Wl,-x,-assert,pure-text \
-	    -o ${.TARGET} \
-	    `lorder ${SOBJS} | tsort -q` ${LDADD}
-.else
 	@${CC} ${LDFLAGS} -shared -Wl,-x \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
-.endif
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB)
@@ -243,14 +229,8 @@ _EXTRADEPEND:
 	    > $$TMP; \
 	mv $$TMP ${DEPENDFILE}
 .if !defined(NOEXTRADEPEND) && defined(SHLIB_NAME)
-.if ${OBJFORMAT} == aout
-	echo ${SHLIB_NAME}: \
-	    `${CC} -shared -Wl,-f ${LDADD}` \
-	    >> ${DEPENDFILE}
-.else
 .if defined(DPADD) && !empty(DPADD)
 	echo ${SHLIB_NAME}: ${DPADD} >> ${DEPENDFILE}
-.endif
 .endif
 .endif
 

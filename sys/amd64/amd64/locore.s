@@ -58,12 +58,6 @@
 
 #include "assym.s"
 
-#ifdef __AOUT__
-#define	etext	_etext
-#define	edata	_edata
-#define	end	_end
-#endif
-
 /*
  *	XXX
  *

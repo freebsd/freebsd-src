@@ -80,13 +80,6 @@
 #include <machine/cpu.h>
 #endif
 
-/*
- * OBJFORMAT_NAMES is a comma-separated list of the object formats
- * that are supported on the architecture.
- */
-#define	OBJFORMAT_NAMES		"elf"
-#define	OBJFORMAT_DEFAULT	"elf"
-
 #ifdef SMP
 #define	MAXCPU		2
 #else

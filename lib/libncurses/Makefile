@@ -233,25 +233,12 @@ SYMLINKS+=libncurses.a ${LIBDIR}/libtermlib.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libmytinfo.a
 SYMLINKS+=libncurses.a ${LIBDIR}/libtinfo.a
 .if !defined(NOPIC)
-.if ${OBJFORMAT} == aout
-SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  libcurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  libtermcap.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  libtermlib.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  libmytinfo.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-SYMLINKS+=libncurses.so.${SHLIB_MAJOR}.${SHLIB_MINOR} \
-	  libtinfo.so.${SHLIB_MAJOR}.${SHLIB_MINOR}
-.else
 # no need for major at all, it's an ld-time redirection only
 SYMLINKS+=libncurses.so ${SHLIBDIR}/libcurses.so
 SYMLINKS+=libncurses.so ${SHLIBDIR}/libtermcap.so
 SYMLINKS+=libncurses.so ${SHLIBDIR}/libtermlib.so
 SYMLINKS+=libncurses.so ${SHLIBDIR}/libmytinfo.so
 SYMLINKS+=libncurses.so ${SHLIBDIR}/libtinfo.so
-.endif
 .endif
 .if !defined(NOPROFILE)
 SYMLINKS+=libncurses_p.a ${LIBDIR}/libcurses_p.a

@@ -171,11 +171,7 @@ static void *dlhandle;
 #endif
 
 #ifndef LIBCRYPTO
-#ifdef OBJFORMAT_ELF
 #define LIBCRYPTO "libcrypto.so.2"
-#else
-#define LIBCRYPTO "libcrypto.so.2."
-#endif /* OBJFORMAT_ELF */
 #endif
 
 void load_des(warn, libpath)
@@ -185,37 +181,12 @@ void load_des(warn, libpath)
 	char dlpath[MAXPATHLEN];
 
 	if (libpath == NULL) {
-#ifdef OBJFORMAT_ELF
 		snprintf(dlpath, sizeof(dlpath), "%s/%s", _PATH_USRLIB, LIBCRYPTO);
-#else
-		len = strlen(LIBCRYPTO);
-		if ((dird = opendir(_PATH_USRLIB)) == NULL)
-			err(1, "opendir(/usr/lib) failed");
-
-		while ((dirp = readdir(dird)) != NULL) {
-			/* must have a minor number */
-			if (strlen(dirp->d_name) <= len)
-				continue;
-			if (!strncmp(dirp->d_name, LIBCRYPTO, len)) {
-				if (atoi((dirp->d_name + len + 1)) > minor) {
-					minor = atoi((dirp->d_name + len + 1));
-					snprintf(dlpath,sizeof(dlpath),"%s/%s",
-						_PATH_USRLIB, dirp->d_name);
-				}
-			}
-		}
-
-		closedir(dird);
-#endif /* OBJFORMAT_ELF */
 	} else
 		snprintf(dlpath, sizeof(dlpath), "%s", libpath);
 
 	if (dlpath != NULL && (dlhandle = dlopen(dlpath, 0444)) != NULL)
-#ifdef OBJFORMAT_ELF
 		_my_crypt = (int (*)())dlsym(dlhandle, "_des_crypt");
-#else
-		_my_crypt = (int (*)())dlsym(dlhandle, "__des_crypt");
-#endif /* OBJFORMAT_ELF */
 
 	if (_my_crypt == NULL) {
 		if (dlhandle != NULL)

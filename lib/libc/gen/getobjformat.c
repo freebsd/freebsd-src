@@ -33,88 +33,12 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-#define PATH_OBJFORMAT	"/etc/objformat"
-
-static int copyformat(char *, const char *, size_t);
-
-static const char *known_formats[] = { OBJFORMAT_NAMES, NULL };
-
-static int
-copyformat(char *buf, const char *fmt, size_t bufsize)
-{
-	size_t		 len;
-
-	len = strlen(fmt);
-	if (len > bufsize - 1)
-		return -1;
-	strcpy(buf, fmt);
-	return len;
-}
-
 int
 getobjformat(char *buf, size_t bufsize, int *argcp, char **argv)
 {
-	const char	 *fmt;
-	char		**src, **dst;
-	const char	 *env;
-	FILE		 *fp;
 
-	fmt = NULL;
-
-	if (argv != NULL) {
-		/* 
-		 * Scan for arguments setting known formats, e.g., "-elf".
-		 * If "argcp" is non-NULL, delete these arguments from the
-		 * list and update the argument count in "*argcp".
-		 */
-		for (dst = src = argv;  *src != NULL;  src++) {
-			if ((*src)[0] == '-') {
-				const char **p;
-
-				for (p = known_formats;  *p != NULL;  p++)
-					if (strcmp(*src + 1, *p) == 0)
-						break;
-				if (*p != NULL) {
-					fmt = *p;
-					if (argcp == NULL)  /* Don't delete */
-						*dst++ = *src;
-				} else
-					*dst++ = *src;
-			} else
-				*dst++ = *src;
-		}
-		*dst = NULL;
-		if (argcp != NULL)
-			*argcp -= src - dst;
-		if (fmt != NULL)
-			return copyformat(buf, fmt, bufsize);
-	}
-
-	/* Check the OBJFORMAT environment variable. */
-	if ((env = getenv("OBJFORMAT")) != NULL)
-		return copyformat(buf, env, bufsize);
-
-	/* Take a look at "/etc/objformat". */
-	if ((fp = fopen(PATH_OBJFORMAT, "r")) != NULL) {
-		char line[1024];
-		int found;
-		int len;
-
-		found = len = 0;
-		while (fgets(line, sizeof line, fp) != NULL) {
-			if (strncmp(line, "OBJFORMAT=", 10) == 0) {
-				char *p = &line[10];
-
-				p[strcspn(p, " \t\n")] = '\0';
-				len = copyformat(buf, p, bufsize);
-				found = 1;
-			}
-		}
-		fclose(fp);
-		if (found)
-			return len;
-	}
-
-	/* As a last resort, use the compiled in default. */
-	return copyformat(buf, OBJFORMAT_DEFAULT, bufsize);
+	if (bufsize < 4)
+		return -1;
+	strcpy(buf, "elf");
+	return 3;
 }

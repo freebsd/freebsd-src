@@ -30,62 +30,26 @@
 .Dt OBJFORMAT 1
 .Sh NAME
 .Nm objformat
-.Nd reports default binary format and program deflector
+.Nd reports default binary format
 .Sh SYNOPSIS
 .Nm
-.Nm prog
 .Sh DESCRIPTION
-If run as
-.Nm
-the default object file format is reported.  The two different object file
-formats are
-.Ar aout
-and
+This program os obsolete and is now just a compatability stub.
+It reports the object file format as
 .Ar elf .
-.Pp
-If invoked by any other name,
-.Nm prog
-is expanded to
-.Pa /usr/libexec/<objformat>/prog
-and executed.
-.Sh DIAGNOSTICS
-The
-.Nm
-utility returns with exit code 1
-if called with an improper number of arguments, or if
-.Nm prog
-could not be executed.
-.Sh ENVIRONMENT
-.Bl -tag -width OBJFORMAT_PATH
-.It Ev OBJFORMAT
-If the environment variable
-.Ev OBJFORMAT
-is set, it overrides the default object file format.
-.Ev OBJFORMAT takes precedence over
-.Pa /etc/objformat .
-.It Ev OBJFORMAT_PATH
-If the environment variable
-.Ev OBJFORMAT_PATH
-is set, its value is used as the base path to
-.Nm prog .
-The default is
-.Pa /usr/libexec .
-.El
-.Sh FILES
-.Bl -tag -width /etc/objformat -compact
-.It Pa /etc/objformat
-If present, specifies the object file format to use.  Syntax is
-.Ql OBJFORMAT=xxx .
-.El
-.Sh SEE ALSO
-.Xr file 1 ,
-.Xr getobjformat 3
-.\" .Sh STANDARDS
 .Sh HISTORY
 The
 .Nm
 command appeared in
 .Fx 3.0 .
+.Pp
+The
+.Nm
+program was deprecated in
+.Fx 4.0
+and reduced to a compatability stub in
+.Fx 5.0 .
+It will be completely removed before the next release.
 .Sh AUTHORS
 .An -nosplit
 The
@@ -94,4 +58,3 @@ utility was written by
 .An Peter Wemm Aq peter@netplex.com.au .
 This manual page was written by
 .An David O'Brien Aq obrien@NUXI.com .
-.\" .Sh BUGS

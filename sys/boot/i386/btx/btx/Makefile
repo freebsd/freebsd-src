@@ -28,13 +28,8 @@ ORG=	0x9000
 all: btx
 
 btx: btx.o
-.if ${OBJFORMAT} == aout
-	${LD} -nostdlib -N -s -T ${ORG} -o btx.out btx.o
-	dd if=btx.out of=${.TARGET} ibs=32 skip=1
-.else
 	${LD} -N -e start -Ttext ${ORG} -o btx.out btx.o
 	objcopy -S -O binary btx.out ${.TARGET}
-.endif
 
 btx.o: btx.s
 	(cd ${.CURDIR}; ${M4} ${M4FLAGS} btx.s) | \

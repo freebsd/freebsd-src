@@ -6,7 +6,6 @@
 
 PROG=	c++filt
 SRCS=	cp-demangle.c cplus-dem+%DIKED.c
-BINDIR=	/usr/libexec/${OBJFORMAT}
 NOMAN=	1
 
 CFLAGS+= -DMAIN -DIN_GCC -DVERSION=\"$(version)\"

@@ -63,11 +63,7 @@ ENTRY(bios32)
 	movl	16(%ebp),%esi
 	movl	20(%ebp),%edi
 	pushl	%ebp
-#ifdef __AOUT__
-	lcall	bioscall_vector		/* Stupid a.out gas! */
-#else
 	lcall	*bioscall_vector
-#endif
 	popl	%ebp
 	movl	%eax,0(%ebp)
 	movl	%ebx,4(%ebp)
@@ -131,11 +127,7 @@ ENTRY(bios16_call)
 	lret				/* ...continue below */
 	.globl	CNAME(bios16_jmp)
 CNAME(bios16_jmp):
-#ifdef __AOUT__
-	lcallw	bioscall_vector		/* Stupid a.out gas! */
-#else
 	lcallw	*bioscall_vector	/* 16-bit call */
-#endif
 
 	jc	1f
 	pushl	$0			/* success */

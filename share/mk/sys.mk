@@ -259,14 +259,6 @@ __MAKE_CONF?=/etc/make.conf
 .include </etc/make.conf.local>
 .endif
 
-#
-# The build tools are indirected by /usr/bin/objformat which determines the
-# object format from the OBJFORMAT environment variable and if this is not
-# defined, it reads /etc/objformat.
-#
-.if exists(/etc/objformat) && !defined(OBJFORMAT)
-.include "/etc/objformat"
-.endif
-
 # Default executable format
+# XXX hint for bsd.port.mk
 OBJFORMAT?=	elf

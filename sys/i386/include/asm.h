@@ -69,13 +69,8 @@
  * language name.  HIDENAME is given an assembly-language name, and expands
  * to a possibly-modified form that will be invisible to C programs.
  */
-#ifdef __ELF__
 #define CNAME(csym)		csym
 #define HIDENAME(asmsym)	__CONCAT(.,asmsym)
-#else
-#define CNAME(csym)		__CONCAT(_,csym)
-#define HIDENAME(asmsym)	asmsym
-#endif
 
 /* XXX should use .p2align 4,0x90 for -m486. */
 #define _START_ENTRY	.text; .p2align 2,0x90
@@ -103,11 +98,7 @@
 
 #undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
-#ifdef __ELF__
 #define __FBSDID(s)	.ident s
-#else
-#define __FBSDID(s)	.data ;	.asciz s ; .previous
-#endif
 #else
 #define __FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */

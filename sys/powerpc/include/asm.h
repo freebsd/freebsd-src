@@ -84,11 +84,9 @@
 #define __FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */
 
-#ifdef __ELF__
 #define	WEAK_ALIAS(alias,sym)					\
 	.weak alias;						\
 	alias = sym
-#endif
 
 #ifdef __STDC__
 #define	WARN_REFERENCES(_sym,_msg)				\

@@ -38,10 +38,6 @@
         ..
     ..
     libexec
-        aout
-        ..
-        elf
-        ..
         lpr
             ru
             ..

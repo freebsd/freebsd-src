@@ -60,9 +60,6 @@ FREEBSD=COPYRIGHT
 
 distribute:
 	cd ${.CURDIR} ; ${MAKE} distribution DESTDIR=${DISTDIR}/${DISTRIBUTION}
-.if defined(OBJFORMAT)
-	echo OBJFORMAT=${OBJFORMAT} > ${DISTDIR}/${DISTRIBUTION}/etc/objformat
-.endif
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${.CURDIR}/../sys/${MACHINE}/conf/GENERIC.hints \
 	    ${DISTDIR}/${DISTRIBUTION}/boot/device.hints

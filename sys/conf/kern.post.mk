@@ -52,8 +52,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
-	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks \
-	      setdef[01].c setdefs.h tags \
+	      ${FULLKERNEL} ${KERNEL_KO} linterrs makelinks tags \
 	      vers.c vnode_if.c vnode_if.h \
 	      ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	      ${CLEAN}
@@ -77,7 +76,7 @@ hack.So: Makefile
 ./assym.s: assym.s
 
 assym.s: $S/kern/genassym.sh genassym.o
-	NM=${NM} OBJFORMAT=elf sh $S/kern/genassym.sh genassym.o > ${.TARGET}
+	NM=${NM} sh $S/kern/genassym.sh genassym.o > ${.TARGET}
 
 # XXX used to force -elf after CFLAGS to work around breakage of cc -aout
 # (genassym.sh makes some assumptions and cc stopped satisfying them).
