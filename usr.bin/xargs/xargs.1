@@ -35,6 +35,7 @@
 .\"
 .\"	@(#)xargs.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
+.\" $xMach: xargs.1,v 1.2 2002/02/23 05:23:37 tim Exp $
 .\"
 .Dd May 7, 2001
 .Dt XARGS 1
@@ -44,14 +45,16 @@
 .Nd "construct argument list(s) and execute utility"
 .Sh SYNOPSIS
 .Nm
-.Op Fl 0
+.Op Fl 0pt
+.Op Fl E Ar eofstr
+.Op Fl I Ar replstr
 .Op Fl J Ar replstr
+.Op Fl L Ar number
 .Oo
 .Fl n Ar number
 .Op Fl x
 .Oc
 .Op Fl s Ar size
-.Op Fl t
 .Op Ar utility Op Ar argument ...
 .Sh DESCRIPTION
 The
@@ -92,6 +95,34 @@ This is expected to be used in concert with the
 .Fl print0
 function in
 .Xr find 1 .
+.It Fl E Ar eofstr
+Use
+.Ar eofstr
+as a logical EOF marker.
+.It Fl I Ar replstr
+Execute
+.Ar utility
+for each input line, replacing one or more occurences of
+.Ar replstr
+in up to 5 arguments to
+.Ar utility
+with the entire line of input.
+The resulting arguments after replacement is done will not be allowed to grow
+beyond 255 bytes, this is implemented by concatenating as much of the argument
+containing
+.Ar replstr
+as possible to the constructed arguments to
+.Ar utility
+up to 255 bytes.
+The 255 byte limit does not apply to arguments to
+.Ar utility
+which do not contain
+.Ar replstr ,
+and furthermore no replacement will be done on
+.Ar utility
+itself.
+Implies
+.Fl x .
 .It Fl J Ar replstr
 If this option is specified,
 .Nm
@@ -124,6 +155,17 @@ directory to
 .Pp
 .Dl /bin/ls -1d [A-Z]* | xargs -J [] cp -rp [] destdir
 .Pp
+.It Fl L Ar number
+Calls
+.Ar utility
+for every
+.Ar number
+lines read.
+If EOF is reached and fewer lines have been read than   
+.Ar number
+then
+.Ar utility
+will be called with the available lines.
 .It Fl n Ar number
 Set the maximum number of arguments taken from standard input for each
 invocation of the utility.
@@ -142,6 +184,13 @@ arguments remaining for the last invocation of
 The current default value for
 .Ar number
 is 5000.
+.It Fl p
+Echo each command to be executed and ask the user whether it should be
+executed.
+A response of
+.Ql y
+causes the command to be executed, any other response causes it to be
+skipped.
 .It Fl s Ar size
 Set the maximum number of bytes for the command line length provided to
 .Ar utility .
@@ -184,15 +233,19 @@ command line cannot be assembled,
 .Ar utility
 cannot be invoked, an invocation of the utility is terminated by a signal
 or an invocation of the utility exits with a value of 255.
-.Pp
+.Sh DIAGNOSTICS
 The
 .Nm
 utility exits with a value of 0 if no error occurs.
 If
 .Ar utility
-cannot be invoked,
+cannot be found,
 .Nm
-exits with a value of 127.
+exits with a value of 127, otherwise if
+.Ar utility
+cannot be executed,
+.Nm
+exits with a value of 126.
 If any other error occurs,
 .Nm
 exits with a value of 1.
