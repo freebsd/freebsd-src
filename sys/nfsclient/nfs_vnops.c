@@ -3056,7 +3056,7 @@ nfsfifo_read(struct vop_read_args *ap)
 	 */
 	np->n_flag |= NACC;
 	getnanotime(&np->n_atim);
-	return (vop_read(&fifo_specops, ap));
+	return (fifo_specops.vop_read(ap));
 }
 
 /*
@@ -3072,7 +3072,7 @@ nfsfifo_write(struct vop_write_args *ap)
 	 */
 	np->n_flag |= NUPD;
 	getnanotime(&np->n_mtim);
-	return (vop_write(&fifo_specops, ap));
+	return (fifo_specops.vop_write(ap));
 }
 
 /*
@@ -3107,7 +3107,7 @@ nfsfifo_close(struct vop_close_args *ap)
 			VOP_UNLOCK(vp, 0, ap->a_td);
 		}
 	}
-	return (vop_close(&fifo_specops, ap));
+	return (fifo_specops.vop_close(ap));
 }
 
 /*
