@@ -92,7 +92,8 @@ int EVP_PBE_CipherInit (ASN1_OBJECT *pbe_obj, const char *pass, int passlen,
 		ERR_add_error_data(2, "TYPE=", obj_tmp);
 		return 0;
 	}
-	if (passlen == -1) passlen = strlen(pass);
+	if(!pass) passlen = 0;
+	else if (passlen == -1) passlen = strlen(pass);
 	pbetmp = (EVP_PBE_CTL *)sk_value (pbe_algs, i);
 	i = (*pbetmp->keygen)(ctx, pass, passlen, param, pbetmp->cipher,
 						 pbetmp->md, en_de);
@@ -103,8 +104,9 @@ int EVP_PBE_CipherInit (ASN1_OBJECT *pbe_obj, const char *pass, int passlen,
 	return 1;	
 }
 
-static int pbe_cmp (EVP_PBE_CTL **pbe1, EVP_PBE_CTL **pbe2)
+static int pbe_cmp(const char * const *a, const char * const *b)
 {
+	EVP_PBE_CTL **pbe1 = (EVP_PBE_CTL **) a,  **pbe2 = (EVP_PBE_CTL **)b;
 	return ((*pbe1)->pbe_nid - (*pbe2)->pbe_nid);
 }
 
@@ -114,8 +116,8 @@ int EVP_PBE_alg_add (int nid, EVP_CIPHER *cipher, EVP_MD *md,
 	     EVP_PBE_KEYGEN *keygen)
 {
 	EVP_PBE_CTL *pbe_tmp;
-	if (!pbe_algs) pbe_algs = sk_new (pbe_cmp);
-	if (!(pbe_tmp = (EVP_PBE_CTL*) Malloc (sizeof(EVP_PBE_CTL)))) {
+	if (!pbe_algs) pbe_algs = sk_new(pbe_cmp);
+	if (!(pbe_tmp = (EVP_PBE_CTL*) OPENSSL_malloc (sizeof(EVP_PBE_CTL)))) {
 		EVPerr(EVP_F_EVP_PBE_ALG_ADD,ERR_R_MALLOC_FAILURE);
 		return 0;
 	}
@@ -129,6 +131,6 @@ int EVP_PBE_alg_add (int nid, EVP_CIPHER *cipher, EVP_MD *md,
 
 void EVP_PBE_cleanup(void)
 {
-	sk_pop_free(pbe_algs, FreeFunc);
+	sk_pop_free(pbe_algs, OPENSSL_freeFunc);
 	pbe_algs = NULL;
 }

@@ -184,7 +184,15 @@ bad:
 			}
 		}
 	if (outfile == NULL)
+		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
+#ifdef VMS
+		{
+		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+		out = BIO_push(tmpbio, out);
+		}
+#endif
+		}
 	else
 		{
 		if (BIO_write_filename(out,outfile) <= 0)
@@ -251,10 +259,10 @@ bad:
 
 		len=BN_num_bytes(dh->p);
 		bits=BN_num_bits(dh->p);
-		data=(unsigned char *)Malloc(len);
+		data=(unsigned char *)OPENSSL_malloc(len);
 		if (data == NULL)
 			{
-			perror("Malloc");
+			perror("OPENSSL_malloc");
 			goto end;
 			}
 		l=BN_bn2bin(dh->p,data);
@@ -285,7 +293,7 @@ bad:
 		printf("\tif ((dh->p == NULL) || (dh->g == NULL))\n");
 		printf("\t\treturn(NULL);\n");
 		printf("\treturn(dh);\n\t}\n");
-		Free(data);
+		OPENSSL_free(data);
 		}
 
 
@@ -309,7 +317,7 @@ bad:
 	ret=0;
 end:
 	if (in != NULL) BIO_free(in);
-	if (out != NULL) BIO_free(out);
+	if (out != NULL) BIO_free_all(out);
 	if (dh != NULL) DH_free(dh);
 	EXIT(ret);
 	}

@@ -71,6 +71,10 @@ fi
 # Now we simply scan though... In most cases, the SYSTEM info is enough
 #
 case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
+    MPE/iX:*)
+	MACHINE=`echo "$MACHINE" | sed -e 's/-/_/g'`
+	echo "parisc-hp-MPE/iX"; exit 0
+	;;
     A/UX:*)
 	echo "m68k-apple-aux3"; exit 0
 	;;
@@ -164,7 +168,7 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
         ;;
 
     NetBSD:*:*:*386*)
-        echo "`sysctl -n hw.model | sed 's,.*\(.\)86-class.*,i\186,'`-whateve\r-netbsd"; exit 0
+        echo "`/usr/sbin/sysctl -n hw.model | sed 's,.*\(.\)86-class.*,i\186,'`-whatever-netbsd"; exit 0
 	;;
 
     NetBSD:*)
@@ -181,11 +185,11 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 
     QNX:*)
 	case "$VERSION" in
-	    423)
-		echo "${MACHINE}-qssl-qnx32"
+	    4*)
+		echo "${MACHINE}-whatever-qnx4"
 		;;
 	    *)
-		echo "${MACHINE}-qssl-qnx"
+		echo "${MACHINE}-whatever-qnx"
 		;;
 	esac
 	exit 0
@@ -200,7 +204,7 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 	;;
 
     SunOS:5.*)
-	echo "${MACHINE}-sun-solaris2"; exit 0
+	echo "${MACHINE}-whatever-solaris2"; exit 0
 	;;
 
     SunOS:*)
@@ -245,6 +249,10 @@ case "${SYSTEM}:${RELEASE}:${VERSION}:${MACHINE}" in
 
     ConvexOS:*:11.0:*)
 	echo "${MACHINE}-v11-${SYSTEM}"; exit 0;
+	;;
+
+    NEWS-OS:4.*)
+	echo "mips-sony-newsos4"; exit 0;
 	;;
 
 esac
@@ -292,8 +300,6 @@ TEST="false"
 for i
 do
 case "$i" in 
-# shared library support (behnke@trustcenter.de)
--shared) SHARED=true;;
 -d*) PREFIX="debug-";;
 -t*) TEST="true";;
 -h*) TEST="true"; cat <<EOF
@@ -409,6 +415,7 @@ case "$GUESSOS" in
 	;;
   mips-*-linux?) OUT="linux-mips" ;;
   ppc-*-linux2) OUT="linux-ppc" ;;
+  m68k-*-linux*) OUT="linux-m68k" ;;
   ia64-*-linux?) OUT="linux-ia64" ;;
   ppc-apple-rhapsody) OUT="rhapsody-ppc-cc" ;;
   sparc64-*-linux2)
@@ -427,9 +434,10 @@ case "$GUESSOS" in
 	sun4d)	OUT="linux-sparcv8" ;;
 	*)	OUT="linux-sparcv7" ;;
 	esac ;;
+  arm*-*-linux2) OUT="linux-elf-arm" ;;
   *-*-linux2) OUT="linux-elf" ;;
   *-*-linux1) OUT="linux-aout" ;;
-  sun4u*-sun-solaris2)
+  sun4u*-*-solaris2)
 	ISA64=`(isalist) 2>/dev/null | grep sparcv9`
 	if [ "$ISA64" != "" -a "$CC" = "cc" -a $CCVER -ge 50 ]; then
 		echo "WARNING! If you wish to build 64-bit library, then you have to"
@@ -438,10 +446,10 @@ case "$GUESSOS" in
 		read waste < /dev/tty
 	fi
 	OUT="solaris-sparcv9-$CC" ;;
-  sun4m-sun-solaris2)	OUT="solaris-sparcv8-$CC" ;;
-  sun4d-sun-solaris2)	OUT="solaris-sparcv8-$CC" ;;
-  sun4*-sun-solaris2)	OUT="solaris-sparcv7-$CC" ;;
-  *86*-sun-solaris2) OUT="solaris-x86-$CC" ;;
+  sun4m-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
+  sun4d-*-solaris2)	OUT="solaris-sparcv8-$CC" ;;
+  sun4*-*-solaris2)	OUT="solaris-sparcv7-$CC" ;;
+  *86*-*-solaris2) OUT="solaris-x86-$CC" ;;
   *-*-sunos4) OUT="sunos-$CC" ;;
   alpha*-*-freebsd*) OUT="FreeBSD-alpha" ;;
   *-freebsd[3-9]*) OUT="FreeBSD-elf" ;;
@@ -470,6 +478,7 @@ case "$GUESSOS" in
   # these are all covered by the catchall below
   # *-aix) OUT="aix-$CC" ;;
   # *-dgux) OUT="dgux" ;;
+  mips-sony-newsos4) OUT="newsos4-gcc" ;;
   *) OUT=`echo $GUESSOS | awk -F- '{print $3}'`;;
 esac
 
@@ -478,16 +487,6 @@ if [ -f /usr/include/atasi.h ]
 then
   options="$options -DATALLA"
 fi
-
-#get some basic shared lib support (behnke@trustcenter.de)
-case "$OUT" in
-   solaris-*-gcc)
-	if  [ "$SHARED" = "true" ] 
-	 then
-	  options="$options -DPIC -fPIC"
-        fi
-     ;;
-esac
 
 # gcc < 2.8 does not support -mcpu=ultrasparc
 if [ "$OUT" = solaris-sparcv9-gcc -a $GCCVER -lt 28 ]
@@ -503,17 +502,6 @@ then
   sleep 5
   OUT=linux-sparcv8
 fi
-# To start with $OUT is never i86pc-sun-solaris2. Secondly why
-# ban *all* assembler implementation if it can't stand only one,
-# SHA-0 implementation.
-#if [ "$OUT" = "i86pc-sun-solaris2" ]
-#then
-#  ASM=`as -V /dev/null 2>&1`
-#  case "$ASM" in
-#    GNU*) ;;
-#    *) options="$options no-asm" ; echo "WARNING: You need the GNU assembler to use OpenSSL assembler code." ; echo "Sun as is not supported on Solaris x86." ;;
-#  esac
-#fi
 
 case "$GUESSOS" in
   i386-*) options="$options 386" ;;
@@ -569,7 +557,7 @@ OUT="$PREFIX$OUT"
 
 $PERL ./Configure LIST | grep "$OUT" > /dev/null
 if [ $? = "0" ]; then
-  echo Configuring for $OUT
+  #echo Configuring for $OUT
 
   if [ "$TEST" = "true" ]; then
     echo $PERL ./Configure $OUT $options

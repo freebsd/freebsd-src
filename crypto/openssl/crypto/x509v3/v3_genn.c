@@ -211,7 +211,7 @@ void GENERAL_NAME_free(GENERAL_NAME *a)
 		break;
 
 	}
-	Free (a);
+	OPENSSL_free (a);
 }
 
 /* Now the GeneralNames versions: a SEQUENCE OF GeneralName. These are needed as
@@ -220,7 +220,7 @@ void GENERAL_NAME_free(GENERAL_NAME *a)
 
 STACK_OF(GENERAL_NAME) *GENERAL_NAMES_new()
 {
-	return sk_GENERAL_NAME_new(NULL);
+	return sk_GENERAL_NAME_new_null();
 }
 
 void GENERAL_NAMES_free(STACK_OF(GENERAL_NAME) *a)
@@ -286,6 +286,6 @@ void OTHERNAME_free(OTHERNAME *a)
 	if (a == NULL) return;
 	ASN1_OBJECT_free(a->type_id);
 	ASN1_TYPE_free(a->value);
-	Free (a);
+	OPENSSL_free (a);
 }
 

@@ -116,8 +116,8 @@
 #include <openssl/crypto.h>
 #include "cryptlib.h"
 #include <openssl/buffer.h>
+#include <openssl/bio.h>
 #include <openssl/err.h>
-#include <openssl/crypto.h>
 
 
 static LHASH *error_hash=NULL;
@@ -137,6 +137,7 @@ static ERR_STRING_DATA ERR_str_libraries[]=
 {ERR_PACK(ERR_LIB_SYS,0,0)		,"system library"},
 {ERR_PACK(ERR_LIB_BN,0,0)		,"bignum routines"},
 {ERR_PACK(ERR_LIB_RSA,0,0)		,"rsa routines"},
+{ERR_PACK(ERR_LIB_DSA,0,0)		,"dsa routines"},
 {ERR_PACK(ERR_LIB_DH,0,0)		,"Diffie-Hellman routines"},
 {ERR_PACK(ERR_LIB_EVP,0,0)		,"digital envelope routines"},
 {ERR_PACK(ERR_LIB_BUF,0,0)		,"memory buffer routines"},
@@ -155,6 +156,7 @@ static ERR_STRING_DATA ERR_str_libraries[]=
 {ERR_PACK(ERR_LIB_X509V3,0,0)		,"X509 V3 routines"},
 {ERR_PACK(ERR_LIB_PKCS12,0,0)		,"PKCS12 routines"},
 {ERR_PACK(ERR_LIB_RAND,0,0)		,"random number generator"},
+{ERR_PACK(ERR_LIB_DSO,0,0)		,"DSO support routines"},
 {0,NULL},
 	};
 
@@ -205,6 +207,7 @@ static ERR_STRING_DATA ERR_str_reasons[]=
 {ERR_R_EXPECTING_AN_ASN1_SEQUENCE	,"expecting an asn1 sequence"},
 {ERR_R_ASN1_LENGTH_MISMATCH		,"asn1 length mismatch"},
 {ERR_R_MISSING_ASN1_EOS			,"missing asn1 eos"},
+{ERR_R_DSO_LIB				,"DSO lib"},
 
 {0,NULL},
 	};
@@ -225,7 +228,7 @@ static ERR_STRING_DATA SYS_str_reasons[NUM_SYS_STR_REASONS + 1];
 
 static void build_SYS_str_reasons()
 	{
-	/* Malloc cannot be used here, use static storage instead */
+	/* OPENSSL_malloc cannot be used here, use static storage instead */
 	static char strerror_tab[NUM_SYS_STR_REASONS][LEN_SYS_STR_REASON];
 	int i;
 
@@ -262,7 +265,7 @@ static void build_SYS_str_reasons()
 	if (((p)->err_data[i] != NULL) && \
 		(p)->err_data_flags[i] & ERR_TXT_MALLOCED) \
 		{  \
-		Free((p)->err_data[i]); \
+		OPENSSL_free((p)->err_data[i]); \
 		(p)->err_data[i]=NULL; \
 		} \
 	(p)->err_data_flags[i]=0;
@@ -278,7 +281,7 @@ static void ERR_STATE_free(ERR_STATE *s)
 		{
 		err_clear_data(s,i);
 		}
-	Free(s);
+	OPENSSL_free(s);
 	}
 
 void ERR_load_ERR_strings(void)
@@ -475,13 +478,11 @@ static unsigned long get_error_values(int inc, const char **file, int *line,
 	return(ret);
 	}
 
-/* BAD for multi-threaded, uses a local buffer if ret == NULL */
-char *ERR_error_string(unsigned long e, char *ret)
+void ERR_error_string_n(unsigned long e, char *buf, size_t len)
 	{
-	static char buf[256];
+	char lsbuf[64], fsbuf[64], rsbuf[64];
 	const char *ls,*fs,*rs;
 	unsigned long l,f,r;
-	int i;
 
 	l=ERR_GET_LIB(e);
 	f=ERR_GET_FUNC(e);
@@ -491,21 +492,50 @@ char *ERR_error_string(unsigned long e, char *ret)
 	fs=ERR_func_error_string(e);
 	rs=ERR_reason_error_string(e);
 
-	if (ret == NULL) ret=buf;
-
-	sprintf(&(ret[0]),"error:%08lX:",e);
-	i=strlen(ret);
-	if (ls == NULL)
-		sprintf(&(ret[i]),":lib(%lu) ",l);
-	else	sprintf(&(ret[i]),"%s",ls);
-	i=strlen(ret);
+	if (ls == NULL) 
+		BIO_snprintf(lsbuf, sizeof(lsbuf), "lib(%lu)", l);
 	if (fs == NULL)
-		sprintf(&(ret[i]),":func(%lu) ",f);
-	else	sprintf(&(ret[i]),":%s",fs);
-	i=strlen(ret);
+		BIO_snprintf(fsbuf, sizeof(fsbuf), "func(%lu)", f);
 	if (rs == NULL)
-		sprintf(&(ret[i]),":reason(%lu)",r);
-	else	sprintf(&(ret[i]),":%s",rs);
+		BIO_snprintf(rsbuf, sizeof(rsbuf), "reason(%lu)", r);
+
+	BIO_snprintf(buf, len,"error:%08lX:%s:%s:%s", e, ls?ls:lsbuf, 
+		fs?fs:fsbuf, rs?rs:rsbuf);
+	if (strlen(buf) == len-1)
+		{
+		/* output may be truncated; make sure we always have 5 
+		 * colon-separated fields, i.e. 4 colons ... */
+#define NUM_COLONS 4
+		if (len > NUM_COLONS) /* ... if possible */
+			{
+			int i;
+			char *s = buf;
+			
+			for (i = 0; i < NUM_COLONS; i++)
+				{
+				char *colon = strchr(s, ':');
+				if (colon == NULL || colon > &buf[len-1] - NUM_COLONS + i)
+					{
+					/* set colon no. i at last possible position
+					 * (buf[len-1] is the terminating 0)*/
+					colon = &buf[len-1] - NUM_COLONS + i;
+					*colon = ':';
+					}
+				s = colon + 1;
+				}
+			}
+		}
+	}
+
+/* BAD for multi-threading: uses a local buffer if ret == NULL */
+/* ERR_error_string_n should be used instead for ret != NULL
+ * as ERR_error_string cannot know how large the buffer is */
+char *ERR_error_string(unsigned long e, char *ret)
+	{
+	static char buf[256];
+
+	if (ret == NULL) ret=buf;
+	ERR_error_string_n(e, ret, 256);
 
 	return(ret);
 	}
@@ -515,6 +545,7 @@ LHASH *ERR_get_string_table(void)
 	return(error_hash);
 	}
 
+/* not thread-safe */
 LHASH *ERR_get_err_state_table(void)
 	{
 	return(thread_hash);
@@ -527,7 +558,7 @@ const char *ERR_lib_error_string(unsigned long e)
 
 	l=ERR_GET_LIB(e);
 
-	CRYPTO_r_lock(CRYPTO_LOCK_ERR_HASH);
+	CRYPTO_w_lock(CRYPTO_LOCK_ERR_HASH);
 
 	if (error_hash != NULL)
 		{
@@ -535,7 +566,7 @@ const char *ERR_lib_error_string(unsigned long e)
 		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,&d);
 		}
 
-	CRYPTO_r_unlock(CRYPTO_LOCK_ERR_HASH);
+	CRYPTO_w_unlock(CRYPTO_LOCK_ERR_HASH);
 
 	return((p == NULL)?NULL:p->string);
 	}
@@ -548,7 +579,7 @@ const char *ERR_func_error_string(unsigned long e)
 	l=ERR_GET_LIB(e);
 	f=ERR_GET_FUNC(e);
 
-	CRYPTO_r_lock(CRYPTO_LOCK_ERR_HASH);
+	CRYPTO_w_lock(CRYPTO_LOCK_ERR_HASH);
 
 	if (error_hash != NULL)
 		{
@@ -556,7 +587,7 @@ const char *ERR_func_error_string(unsigned long e)
 		p=(ERR_STRING_DATA *)lh_retrieve(error_hash,&d);
 		}
 
-	CRYPTO_r_unlock(CRYPTO_LOCK_ERR_HASH);
+	CRYPTO_w_unlock(CRYPTO_LOCK_ERR_HASH);
 
 	return((p == NULL)?NULL:p->string);
 	}
@@ -569,7 +600,7 @@ const char *ERR_reason_error_string(unsigned long e)
 	l=ERR_GET_LIB(e);
 	r=ERR_GET_REASON(e);
 
-	CRYPTO_r_lock(CRYPTO_LOCK_ERR_HASH);
+	CRYPTO_w_lock(CRYPTO_LOCK_ERR_HASH);
 
 	if (error_hash != NULL)
 		{
@@ -582,7 +613,7 @@ const char *ERR_reason_error_string(unsigned long e)
 			}
 		}
 
-	CRYPTO_r_unlock(CRYPTO_LOCK_ERR_HASH);
+	CRYPTO_w_unlock(CRYPTO_LOCK_ERR_HASH);
 
 	return((p == NULL)?NULL:p->string);
 	}
@@ -613,7 +644,7 @@ static int pid_cmp(ERR_STATE *a, ERR_STATE *b)
 
 void ERR_remove_state(unsigned long pid)
 	{
-	ERR_STATE *p,tmp;
+	ERR_STATE *p = NULL,tmp;
 
 	if (thread_hash == NULL)
 		return;
@@ -621,7 +652,16 @@ void ERR_remove_state(unsigned long pid)
 		pid=(unsigned long)CRYPTO_thread_id();
 	tmp.pid=pid;
 	CRYPTO_w_lock(CRYPTO_LOCK_ERR);
-	p=(ERR_STATE *)lh_delete(thread_hash,&tmp);
+	if (thread_hash)
+		{
+		p=(ERR_STATE *)lh_delete(thread_hash,&tmp);
+		if (lh_num_items(thread_hash) == 0)
+			{
+			/* make sure we don't leak memory */
+			lh_free(thread_hash);
+			thread_hash = NULL;
+			}
+		}
 	CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
 
 	if (p != NULL) ERR_STATE_free(p);
@@ -630,39 +670,25 @@ void ERR_remove_state(unsigned long pid)
 ERR_STATE *ERR_get_state(void)
 	{
 	static ERR_STATE fallback;
-	ERR_STATE *ret=NULL,tmp,*tmpp;
+	ERR_STATE *ret=NULL,tmp,*tmpp=NULL;
+	int thread_state_exists;
 	int i;
 	unsigned long pid;
 
 	pid=(unsigned long)CRYPTO_thread_id();
 
-	CRYPTO_r_lock(CRYPTO_LOCK_ERR);
-	if (thread_hash == NULL)
-		{
-		CRYPTO_r_unlock(CRYPTO_LOCK_ERR);
-		CRYPTO_w_lock(CRYPTO_LOCK_ERR);
-		if (thread_hash == NULL)
-			{
-			MemCheck_off();
-			thread_hash=lh_new(pid_hash,pid_cmp);
-			MemCheck_on();
-			CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
-			if (thread_hash == NULL) return(&fallback);
-			}
-		else
-			CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
-		}
-	else
+	CRYPTO_w_lock(CRYPTO_LOCK_ERR);
+	if (thread_hash != NULL)
 		{
 		tmp.pid=pid;
 		ret=(ERR_STATE *)lh_retrieve(thread_hash,&tmp);
-		CRYPTO_r_unlock(CRYPTO_LOCK_ERR);
 		}
+	CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
 
 	/* ret == the error state, if NULL, make a new one */
 	if (ret == NULL)
 		{
-		ret=(ERR_STATE *)Malloc(sizeof(ERR_STATE));
+		ret=(ERR_STATE *)OPENSSL_malloc(sizeof(ERR_STATE));
 		if (ret == NULL) return(&fallback);
 		ret->pid=pid;
 		ret->top=0;
@@ -672,9 +698,29 @@ ERR_STATE *ERR_get_state(void)
 			ret->err_data[i]=NULL;
 			ret->err_data_flags[i]=0;
 			}
+
 		CRYPTO_w_lock(CRYPTO_LOCK_ERR);
-		tmpp=(ERR_STATE *)lh_insert(thread_hash,ret);
+
+		/* no entry yet in thread_hash for current thread -
+		 * thus, it may have changed since we last looked at it */
+		if (thread_hash == NULL)
+			thread_hash = lh_new(pid_hash, pid_cmp);
+		if (thread_hash == NULL)
+			thread_state_exists = 0; /* allocation error */
+		else
+			{
+			tmpp=(ERR_STATE *)lh_insert(thread_hash,ret);
+			thread_state_exists = 1;
+			}
+
 		CRYPTO_w_unlock(CRYPTO_LOCK_ERR);
+
+		if (!thread_state_exists)
+			{
+			ERR_STATE_free(ret); /* could not insert it */
+			return(&fallback);
+			}
+		
 		if (tmpp != NULL) /* old entry - should not happen */
 			{
 			ERR_STATE_free(tmpp);
@@ -712,7 +758,7 @@ void ERR_add_error_data(int num, ...)
 	char *str,*p,*a;
 
 	s=64;
-	str=Malloc(s+1);
+	str=OPENSSL_malloc(s+1);
 	if (str == NULL) return;
 	str[0]='\0';
 
@@ -728,10 +774,10 @@ void ERR_add_error_data(int num, ...)
 			if (n > s)
 				{
 				s=n+20;
-				p=Realloc(str,s+1);
+				p=OPENSSL_realloc(str,s+1);
 				if (p == NULL)
 					{
-					Free(str);
+					OPENSSL_free(str);
 					return;
 					}
 				else

@@ -88,11 +88,11 @@ struct rpc_ctx {
     struct rpc_msg msg;
 };
 
-static int rtcp_write(BIO *h,char *buf,int num);
+static int rtcp_write(BIO *h,const char *buf,int num);
 static int rtcp_read(BIO *h,char *buf,int size);
-static int rtcp_puts(BIO *h,char *str);
+static int rtcp_puts(BIO *h,const char *str);
 static int rtcp_gets(BIO *h,char *str,int size);
-static long rtcp_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static long rtcp_ctrl(BIO *h,int cmd,long arg1,void *arg2);
 static int rtcp_new(BIO *h);
 static int rtcp_free(BIO *data);
 
@@ -156,7 +156,7 @@ static int rtcp_new(BIO *bi)
 	bi->init=1;
 	bi->num=0;
 	bi->flags = 0;
-	bi->ptr=Malloc(sizeof(struct rpc_ctx));
+	bi->ptr=OPENSSL_malloc(sizeof(struct rpc_ctx));
 	ctx = (struct rpc_ctx *) bi->ptr;
 	ctx->filled = 0;
 	ctx->pos = 0;
@@ -166,7 +166,7 @@ static int rtcp_new(BIO *bi)
 static int rtcp_free(BIO *a)
 {
 	if (a == NULL) return(0);
-	if ( a->ptr ) Free ( a->ptr );
+	if ( a->ptr ) OPENSSL_free ( a->ptr );
 	a->ptr = NULL;
 	return(1);
 }
@@ -218,7 +218,7 @@ static int rtcp_read(BIO *b, char *out, int outl)
     return length;
 }
 
-static int rtcp_write(BIO *b, char *in, int inl)
+static int rtcp_write(BIO *b, const char *in, int inl)
 {
     int status, i, segment, length;
     struct rpc_ctx *ctx;
@@ -247,7 +247,7 @@ static int rtcp_write(BIO *b, char *in, int inl)
     return(i);
 }
 
-static long rtcp_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long rtcp_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	long ret=1;
 
@@ -283,7 +283,7 @@ static int rtcp_gets(BIO *bp, char *buf, int size)
 	return(0);
 	}
 
-static int rtcp_puts(BIO *bp, char *str)
+static int rtcp_puts(BIO *bp, const char *str)
 {
     int length;
     if (str == NULL) return(0);

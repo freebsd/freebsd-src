@@ -87,7 +87,7 @@ static STACK_OF(CONF_VALUE) *i2v_crld(X509V3_EXT_METHOD *method,
 	int i;
 	for(i = 0; i < sk_DIST_POINT_num(crld); i++) {
 		point = sk_DIST_POINT_value(crld, i);
-		if(point->distpoint->fullname) {
+		if(point->distpoint && point->distpoint->fullname) {
 			exts = i2v_GENERAL_NAMES(NULL,
 					 point->distpoint->fullname, exts);
 		}
@@ -95,7 +95,7 @@ static STACK_OF(CONF_VALUE) *i2v_crld(X509V3_EXT_METHOD *method,
 			X509V3_add_value("reasons","<UNSUPPORTED>", &exts);
 		if(point->CRLissuer)
 			X509V3_add_value("CRLissuer","<UNSUPPORTED>", &exts);
-		if(point->distpoint->relativename)
+		if(point->distpoint && point->distpoint->relativename)
 		        X509V3_add_value("RelativeName","<UNSUPPORTED>", &exts);
 	}
 	return exts;
@@ -109,7 +109,7 @@ static STACK_OF(DIST_POINT) *v2i_crld(X509V3_EXT_METHOD *method,
 	GENERAL_NAME *gen = NULL;
 	CONF_VALUE *cnf;
 	int i;
-	if(!(crld = sk_DIST_POINT_new(NULL))) goto merr;
+	if(!(crld = sk_DIST_POINT_new_null())) goto merr;
 	for(i = 0; i < sk_CONF_VALUE_num(nval); i++) {
 		DIST_POINT *point;
 		cnf = sk_CONF_VALUE_value(nval, i);
@@ -213,7 +213,7 @@ void DIST_POINT_free(DIST_POINT *a)
 	DIST_POINT_NAME_free(a->distpoint);
 	M_ASN1_BIT_STRING_free(a->reasons);
 	sk_GENERAL_NAME_pop_free(a->CRLissuer, GENERAL_NAME_free);
-	Free (a);
+	OPENSSL_free (a);
 }
 
 int i2d_DIST_POINT_NAME(DIST_POINT_NAME *a, unsigned char **pp)
@@ -256,7 +256,7 @@ void DIST_POINT_NAME_free(DIST_POINT_NAME *a)
 	if (a == NULL) return;
 	sk_X509_NAME_ENTRY_pop_free(a->relativename, X509_NAME_ENTRY_free);
 	sk_GENERAL_NAME_pop_free(a->fullname, GENERAL_NAME_free);
-	Free (a);
+	OPENSSL_free (a);
 }
 
 DIST_POINT_NAME *d2i_DIST_POINT_NAME(DIST_POINT_NAME **a, unsigned char **pp,

@@ -899,19 +899,21 @@ start:
 					return(-1);
 					}
 
-				if (s->s3->rbuf.left == 0) /* no read-ahead left? */
+				if (!(s->mode & SSL_MODE_AUTO_RETRY))
 					{
-					BIO *bio;
-					/* In the case where we try to read application data
-					 * the first time, but we trigger an SSL handshake, we
-					 * return -1 with the retry option set.  I do this
-					 * otherwise renegotiation can cause nasty problems 
-					 * in the blocking world */ /* ? */
-					s->rwstate=SSL_READING;
-					bio=SSL_get_rbio(s);
-					BIO_clear_retry_flags(bio);
-					BIO_set_retry_read(bio);
-					return(-1);
+					if (s->s3->rbuf.left == 0) /* no read-ahead left? */
+						{
+						BIO *bio;
+						/* In the case where we try to read application data,
+						 * but we trigger an SSL handshake, we return -1 with
+						 * the retry option set.  Otherwise renegotiation may
+						 * cause nasty problems in the blocking world */
+						s->rwstate=SSL_READING;
+						bio=SSL_get_rbio(s);
+						BIO_clear_retry_flags(bio);
+						BIO_set_retry_read(bio);
+						return(-1);
+						}
 					}
 				}
 			}
@@ -954,7 +956,7 @@ start:
 			s->rwstate=SSL_NOTHING;
 			s->s3->fatal_alert = alert_descr;
 			SSLerr(SSL_F_SSL3_READ_BYTES, SSL_AD_REASON_OFFSET + alert_descr);
-			sprintf(tmp,"%d",alert_descr);
+			BIO_snprintf(tmp,sizeof tmp,"%d",alert_descr);
 			ERR_add_error_data(2,"SSL alert number ",tmp);
 			s->shutdown|=SSL_RECEIVED_SHUTDOWN;
 			SSL_CTX_remove_session(s->ctx,s->session);
@@ -1022,19 +1024,21 @@ start:
 			return(-1);
 			}
 
-		if (s->s3->rbuf.left == 0) /* no read-ahead left? */
+		if (!(s->mode & SSL_MODE_AUTO_RETRY))
 			{
-			BIO *bio;
-			/* In the case where we try to read application data
-			 * the first time, but we trigger an SSL handshake, we
-			 * return -1 with the retry option set.  I do this
-			 * otherwise renegotiation can cause nasty problems 
-			 * in the blocking world */ /* ? */
-			s->rwstate=SSL_READING;
-			bio=SSL_get_rbio(s);
-			BIO_clear_retry_flags(bio);
-			BIO_set_retry_read(bio);
-			return(-1);
+			if (s->s3->rbuf.left == 0) /* no read-ahead left? */
+				{
+				BIO *bio;
+				/* In the case where we try to read application data,
+				 * but we trigger an SSL handshake, we return -1 with
+				 * the retry option set.  Otherwise renegotiation may
+				 * cause nasty problems in the blocking world */
+				s->rwstate=SSL_READING;
+				bio=SSL_get_rbio(s);
+				BIO_clear_retry_flags(bio);
+				BIO_set_retry_read(bio);
+				return(-1);
+				}
 			}
 		goto start;
 		}
