@@ -178,6 +178,7 @@ pci_readmaps(pcicfgregs *cfg, int maxmaps)
 			if (map64 == 0) {
 				if (base == 0 || base == 0xffffffff)
 					continue; /* skip invalid entry */
+
 				pci_cfgwrite(cfg, reg, 0xffffffff, 4);
 				testval = pci_cfgread(cfg, reg, 4);
 				pci_cfgwrite(cfg, reg, base, 4);
@@ -346,6 +347,7 @@ pci_readcfg(pcicfgregs *probe)
 	devlist_entry = NULL;
 
 	if (pci_cfgread(probe, PCIR_DEVVENDOR, 4) != -1) {
+
 		devlist_entry = malloc(sizeof(struct pci_devinfo),
 				       M_DEVBUF, M_WAITOK);
 		if (devlist_entry == NULL)
@@ -843,6 +845,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		case 4:
 		case 2:
 		case 1:
+			probe.hose = 0; /* XXXXX */
 			probe.bus = io->pi_sel.pc_bus;
 			probe.slot = io->pi_sel.pc_dev;
 			probe.func = io->pi_sel.pc_func;
@@ -863,6 +866,7 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		case 4:
 		case 2:
 		case 1:
+			probe.hose = 0; /* XXXXX */
 			probe.bus = io->pi_sel.pc_bus;
 			probe.slot = io->pi_sel.pc_dev;
 			probe.func = io->pi_sel.pc_func;
