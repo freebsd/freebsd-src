@@ -931,6 +931,7 @@ void	thread_suspend_one(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 int	thread_userret(struct thread *td, struct trapframe *frame);
+void	thread_user_enter(struct proc *p, struct thread *td);
 
 void	thread_sanity_check(struct thread *td, char *);
 #endif	/* _KERNEL */
