@@ -1138,7 +1138,7 @@ ffs_vget(mp, ino, flags, vpp)
 	dev = ump->um_dev;
 
 	/*
-	 * We do not lock vnode creation as it is beleived to be too
+	 * We do not lock vnode creation as it is believed to be too
 	 * expensive for such rare case as simultaneous creation of vnode
 	 * for same ino by different processes. We just allow them to race
 	 * and check later to decide who wins. Let the race begin!
