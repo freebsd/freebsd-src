@@ -303,20 +303,26 @@ cpu_switch_load_gs:
 #ifdef INVARIANTS
 badsw1:
 	pushal
+	pushl	$0
+	pushl	$0
 	pushl	$sw0_1
-	call	panic
+	call	__panic
 sw0_1:	.asciz	"cpu_throw: no newthread supplied"
 
 badsw2:
 	pushal
+	pushl	$0
+	pushl	$0
 	pushl	$sw0_2
-	call	panic
+	call	__panic
 sw0_2:	.asciz	"cpu_switch: no curthread supplied"
 
 badsw3:
 	pushal
+	pushl	$0
+	pushl	$0
 	pushl	$sw0_3
-	call	panic
+	call	__panic
 sw0_3:	.asciz	"cpu_switch: no newthread supplied"
 #endif
 
