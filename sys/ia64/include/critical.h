@@ -82,8 +82,8 @@ cpu_critical_exit(void)
 
 #else /* !__GNUC__ */
 
-void cpu_critical_enter(void)
-void cpu_critical_exit(void)
+void cpu_critical_enter(void);
+void cpu_critical_exit(void);
 
 #endif	/* __GNUC__ */
 
