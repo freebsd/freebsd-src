@@ -342,7 +342,6 @@ m_get(int how, short type)
 {
 	struct mb_args args;
 
-	MBUF_CHECKSLEEP(how);
 	args.flags = 0;
 	args.how = how;
 	args.type = type;
@@ -357,7 +356,6 @@ m_getclr(int how, short type)
 	struct mbuf *m;
 	struct mb_args args;
 
-	MBUF_CHECKSLEEP(how);
 	args.flags = 0;
 	args.how = how;
 	args.type = type;
@@ -373,7 +371,6 @@ m_gethdr(int how, short type)
 {
 	struct mb_args args;
 
-	MBUF_CHECKSLEEP(how);
 	args.flags = M_PKTHDR;
 	args.how = how;
 	args.type = type;
@@ -386,7 +383,6 @@ m_getcl(int how, short type, int flags)
 {
 	struct mb_args args;
 
-	MBUF_CHECKSLEEP(how);
 	args.flags = flags;
 	args.how = how;
 	args.type = type;
@@ -414,7 +410,6 @@ void
 m_clget(struct mbuf *m, int how)
 {
 
-	MBUF_CHECKSLEEP(how);
 	m->m_ext.ext_buf = NULL;
 	uma_zalloc_arg(zone_clust, m, how);
 }
