@@ -613,6 +613,7 @@ osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
+	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
@@ -645,8 +646,8 @@ sendsig(catcher, sig, mask, code)
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = psp->ps_sigstk;
 	sf.sf_uc.uc_mcontext.mc_onstack = onstack;
-	sf.sf_uc.uc_mcontext.mc_tf = *regs;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
+	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(struct trapframe));
 
 	/* Allocate and validate space for the signal handler context. */
         if ((psp->ps_flags & SAS_ALTSTACK) != 0 && !onstack &&
@@ -715,12 +716,12 @@ sendsig(catcher, sig, mask, code)
 		struct vm86_kernel *vm86 = &p->p_addr->u_pcb.pcb_ext->ext_vm86;
 
 		sf.sf_uc.uc_mcontext.mc_gs = tf->tf_vm86_gs;
-		sf.sf_uc.uc_mcontext.mc_tf.tf_fs = tf->tf_vm86_fs;
-		sf.sf_uc.uc_mcontext.mc_tf.tf_es = tf->tf_vm86_es;
-		sf.sf_uc.uc_mcontext.mc_tf.tf_ds = tf->tf_vm86_ds;
+		sf.sf_uc.uc_mcontext.mc_fs = tf->tf_vm86_fs;
+		sf.sf_uc.uc_mcontext.mc_es = tf->tf_vm86_es;
+		sf.sf_uc.uc_mcontext.mc_ds = tf->tf_vm86_ds;
 
 		if (vm86->vm86_has_vme == 0)
-			sf.sf_uc.uc_mcontext.mc_tf.tf_eflags =
+			sf.sf_uc.uc_mcontext.mc_eflags =
 			    (tf->tf_eflags & ~(PSL_VIF | PSL_VIP)) |
 			    (vm86->vm86_eflags & (PSL_VIF | PSL_VIP));
 
@@ -737,8 +738,6 @@ sendsig(catcher, sig, mask, code)
 		 */
 		tf->tf_eflags &= ~(PSL_VM|PSL_NT|PSL_T|PSL_VIF|PSL_VIP);
 	}
-
-	sf.sf_sigreturn = 0x0ABCDEF0;
 
 	/*
 	 * Copy the sigframe out to the user's stack.
@@ -757,6 +756,7 @@ sendsig(catcher, sig, mask, code)
 	regs->tf_ds = _udatasel;
 	regs->tf_es = _udatasel;
 	regs->tf_fs = _udatasel;
+	load_gs(_udatasel);
 	regs->tf_ss = _udatasel;
 }
 
@@ -780,21 +780,15 @@ osigreturn(p, uap)
 	} */ *uap;
 {
 	register struct osigcontext *scp;
-	register struct osigframe *fp;
 	register struct trapframe *regs = p->p_md.md_regs;
 	int eflags;
 
-	/*
-	 * (XXX old comment) regs->tf_esp points to the return address.
-	 * The user scp pointer is above that.
-	 * The return address is faked in the signal trampoline code
-	 * for consistency.
-	 */
-	scp = uap->sigcntxp;
-	fp = (struct osigframe *)
-	     ((caddr_t)scp - offsetof(struct osigframe, sf_siginfo.si_sc));
+	if ((p->p_flag & P_NEWSIGSET) != 0)
+		return sigreturn(p, (struct sigreturn_args *)uap);
 
-	if (useracc((caddr_t)fp, sizeof (struct osigframe), B_WRITE) == 0)
+	scp = uap->sigcntxp;
+
+	if (useracc((caddr_t)scp, sizeof (struct osigcontext), B_WRITE) == 0)
 		return(EFAULT);
 
 	eflags = scp->sc_ps;
@@ -860,6 +854,10 @@ osigreturn(p, uap)
 		regs->tf_ds = scp->sc_ds;
 		regs->tf_es = scp->sc_es;
 		regs->tf_fs = scp->sc_fs;
+		if (load_gs_param(scp->sc_gs)) {
+			trapsignal(p, SIGBUS, T_SEGNPFLT);
+			return (EFAULT);
+		}
 	}
 
 	/* restore scratch registers */
@@ -872,9 +870,6 @@ osigreturn(p, uap)
 	regs->tf_cs = scp->sc_cs;
 	regs->tf_ss = scp->sc_ss;
 	regs->tf_isp = scp->sc_isp;
-
-	if (useracc((caddr_t)scp, sizeof (*scp), B_WRITE) == 0)
-		return(EINVAL);
 
 	if (scp->sc_onstack & 01)
 		p->p_sigacts->ps_sigstk.ss_flags |= SS_ONSTACK;
@@ -901,9 +896,11 @@ sigreturn(p, uap)
 	ucontext_t *ucp;
 	int cs, eflags;
 
+	p->p_flag |= P_NEWSIGSET;
+
 	regs = p->p_md.md_regs;
 	ucp = uap->sigcntxp;
-	eflags = ucp->uc_mcontext.mc_tf.tf_eflags;
+	eflags = ucp->uc_mcontext.mc_eflags;
 
 	if (useracc((caddr_t)ucp, sizeof(ucontext_t), B_WRITE) == 0)
 		return(EFAULT);
@@ -933,7 +930,7 @@ sigreturn(p, uap)
 			vm86->vm86_eflags = eflags;	/* save VIF, VIP */
 			eflags = (tf->tf_eflags & ~VM_USERCHANGE) |					    (eflags & VM_USERCHANGE) | PSL_VM;
 		}
-		*regs = ucp->uc_mcontext.mc_tf;
+		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(struct trapframe));
 		tf->tf_vm86_ds = tf->tf_ds;
 		tf->tf_vm86_es = tf->tf_es;
 		tf->tf_vm86_fs = tf->tf_fs;
@@ -965,14 +962,17 @@ sigreturn(p, uap)
 		 * hardware check for invalid selectors, excess privilege in
 		 * other selectors, invalid %eip's and invalid %esp's.
 		 */
-		cs = ucp->uc_mcontext.mc_tf.tf_cs;
+		cs = ucp->uc_mcontext.mc_cs;
 		if (!CS_SECURE(cs)) {
 			printf("sigreturn: cs = 0x%x\n", cs);
 			trapsignal(p, SIGBUS, T_PROTFLT);
 			return(EINVAL);
 		}
-
-		*regs = ucp->uc_mcontext.mc_tf;
+		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(struct trapframe));
+		if (load_gs_param(ucp->uc_mcontext.mc_gs)) {
+			trapsignal(p, SIGBUS, T_SEGNPFLT);
+			return (EFAULT);
+		}
 	}
 
 	if (ucp->uc_mcontext.mc_onstack & 1)
@@ -1046,10 +1046,10 @@ setregs(p, entry, stack, ps_strings)
 	regs->tf_ebx = ps_strings;
 
 	/* reset %gs as well */
-	pcb->pcb_gs = _udatasel;
-	if (pcb == curpcb) {
+	if (pcb == curpcb)
 		load_gs(_udatasel);
-	}
+	else
+		pcb->pcb_gs = _udatasel;
 
 	/*
 	 * Initialize the math emulator (if any) for the current process.
