@@ -112,7 +112,8 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_kern, OID_AUTO, quantum, CTLTYPE_INT|CTLFLAG_RW,
-	0, sizeof sched_quantum, sysctl_kern_quantum, "I", "");
+	0, sizeof sched_quantum, sysctl_kern_quantum, "I",
+	"Roundrobin scheduling quantum in microseconds");
 
 /*
  * Arrange to reschedule if necessary, taking the priorities and
