@@ -24,11 +24,11 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
- * $Id: getaddrinfo-pthreads-stresstest.c,v 1.4 2004/02/20 03:54:17 green Exp green $
  */
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 
@@ -46,6 +46,7 @@
 struct worker {
 	pthread_t w_thread;			     /* self */
 	uintmax_t w_lookup_success, w_lookup_failure;   /* getaddrinfo stats */
+	struct timespec w_max_lookup_time;
 };
 
 static volatile int workers_stop = 0;
@@ -100,6 +101,7 @@ work(void *arg)
 	do {
 		const char *suffixes[] = { "net", "com", "org" };
 		const size_t nsuffixes = sizeof(suffixes) / sizeof(suffixes[0]);
+		struct timespec ts_begintime, ts_total;
 		struct addrinfo *res;
 		char *hostname;
 		int error;
@@ -112,7 +114,19 @@ work(void *arg)
 		    randwords[my_arc4random_r() % nrandwords] : "",
 		    suffixes[my_arc4random_r() % nsuffixes]) == -1)
 			continue;
+		(void)clock_gettime(CLOCK_REALTIME, &ts_begintime);
 		error = getaddrinfo(hostname, NULL, NULL, &res);
+		(void)clock_gettime(CLOCK_REALTIME, &ts_total);
+		ts_total.tv_sec -= ts_begintime.tv_sec;
+		ts_total.tv_nsec -= ts_begintime.tv_nsec;
+		if (ts_total.tv_nsec < 0) {
+			ts_total.tv_sec--;
+			ts_total.tv_nsec += 1000000000;
+		}
+		if (ts_total.tv_sec > w->w_max_lookup_time.tv_sec ||
+		    (ts_total.tv_sec == w->w_max_lookup_time.tv_sec &&
+		    ts_total.tv_nsec > w->w_max_lookup_time.tv_sec))
+			w->w_max_lookup_time = ts_total;
 		free(hostname);
 		if (error == 0) {
 			w->w_lookup_success++;
@@ -234,11 +248,17 @@ usage:
 		fflush(stdout);
 	}
 
-	printf("%-10s%-20s%-20s\n", "Worker", "Successful GAI", "Failed GAI");
-	printf("%-10s%-20s%-20s\n", "------", "--------------", "----------");
+	printf("%-10s%-20s%-20s%-29s\n", "Worker", "Successful GAI",
+	    "Failed GAI", "Max resolution time (M:SS*)");
+	printf("%-10s%-20s%-20s%-29s\n", "------", "--------------",
+	    "----------", "---------------------------");
 	for (i = 0; i < nworkers; i++) {
-		printf("%-10u%-20ju%-20ju\n", i, workers[i].w_lookup_success,
-		    workers[i].w_lookup_failure);
+		printf("%-10u%-20ju%-20ju%u:%s%.2f\n", i,
+		    workers[i].w_lookup_success, workers[i].w_lookup_failure,
+		    workers[i].w_max_lookup_time.tv_sec / 60,
+		    workers[i].w_max_lookup_time.tv_sec % 60 < 10 ? "0" : "",
+		    (double)(workers[i].w_max_lookup_time.tv_sec % 60) +
+		    (double)workers[i].w_max_lookup_time.tv_nsec / 1e9);
 	}
 
 	exit(0);
