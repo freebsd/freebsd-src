@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.28 1997/12/16 17:40:22 eivind Exp $
+# $Id: makesyscalls.sh,v 1.29 1997/12/16 18:51:45 eivind Exp $
 
 set -e
 
@@ -97,16 +97,17 @@ s/\$//g
 
 		printf "\n#ifdef %s\n", compat > sysent
 		printf "#define compat(n, name) n, (sy_call_t *)__CONCAT(o,name)\n" > sysent
-		printf("#else\n") > sysent
-		printf("#define compat(n, name) 0, (sy_call_t *)nosys\n") > sysent
-		printf("#endif\n\n") > sysent
-		printf("/* The casts are bogus but will do for now. */\n") > sysent
+		printf "#else\n" > sysent
+		printf "#define compat(n, name) 0, (sy_call_t *)nosys\n" > sysent
+		printf "#endif\n\n" > sysent
+		printf "/* The casts are bogus but will do for now. */\n" > sysent
 		printf "struct sysent %s[] = {\n",switchname > sysent
 
 		printf " * created from%s\n */\n\n", $0 > sysarg
-		printf("#ifndef %s\n", sysproto_h) > sysarg
-		printf("#define\t%s\n\n", sysproto_h) > sysarg
-		printf "#include <sys/signal.h>\n\n", $0 > sysarg
+		printf "#ifndef %s\n", sysproto_h > sysarg
+		printf "#define\t%s\n\n", sysproto_h > sysarg
+		printf "#include <sys/signal.h>\n\n" > sysarg
+		printf "struct proc;\n\n" > sysarg
 
 		printf " * created from%s\n */\n\n", $0 > sysnames
 		printf "char *%s[] = {\n", namesname > sysnames
