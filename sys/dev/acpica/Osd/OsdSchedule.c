@@ -38,6 +38,9 @@
 #include <sys/taskqueue.h>
 #include <machine/clock.h>
 
+#define _COMPONENT	OS_DEPENDENT
+MODULE_NAME("SCHEDULE")
+
 /*
  * This is a little complicated due to the fact that we need to build and then
  * free a 'struct task' for each task we enqueue.
@@ -61,12 +64,14 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
 {
     struct acpi_task	*at;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (Function == NULL)
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
 
     at = malloc(sizeof(*at), M_ACPITASK, M_NOWAIT);	/* Interrupt Context */
     if (at == NULL)
-	return(AE_NO_MEMORY);
+	return_ACPI_STATUS(AE_NO_MEMORY);
     bzero(at, sizeof(*at));
 
     at->at_function = Function;
@@ -88,11 +93,11 @@ AcpiOsQueueForExecution(UINT32 Priority, OSD_EXECUTION_CALLBACK Function, void *
 	break;
     default:
 	free(at, M_ACPITASK);
-	return(AE_BAD_PARAMETER);
+	return_ACPI_STATUS(AE_BAD_PARAMETER);
     }
 
     taskqueue_enqueue(taskqueue_swi, (struct task *)at);
-    return(AE_OK);
+    return_ACPI_STATUS(AE_OK);
 }
 
 static void
@@ -102,12 +107,15 @@ AcpiOsExecuteQueue(void *arg, int pending)
     OSD_EXECUTION_CALLBACK	Function;
     void			*Context;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     Function = (OSD_EXECUTION_CALLBACK)at->at_function;
     Context = at->at_context;
 
     free(at, M_ACPITASK);
 
     Function(Context);
+    return_VOID;
 }
 
 /*
@@ -119,18 +127,24 @@ AcpiOsSleep (UINT32 Seconds, UINT32 Milliseconds)
 {
     int		timo;
 
+    FUNCTION_TRACE(__FUNCTION__);
+
     timo = (Seconds * hz) + Milliseconds / (1000 * hz);
     if (timo == 0)
 	timo = 1;
     tsleep(NULL, 0, "acpislp", timo);
+    return_VOID;
 }
 
 void
 AcpiOsSleepUsec (UINT32 Microseconds)
 {
+    FUNCTION_TRACE(__FUNCTION__);
+
     if (Microseconds > 1000) {	/* long enough to be worth the overhead of sleeping */
 	AcpiOsSleep(0, Microseconds / 1000);
     } else {
 	DELAY(Microseconds);
     }
+    return_VOID;
 }
