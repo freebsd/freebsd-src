@@ -925,11 +925,10 @@ getnewvnode(tag, mp, vops, vpp)
 			mtx_unlock(&vnode_free_list_mtx);
 			error = vcanrecycle(vp, &vnmp);
 			mtx_lock(&vnode_free_list_mtx);
-			if (error != 0)
-				TAILQ_INSERT_TAIL(&vnode_free_list, vp,
-				    v_freelist);
-			else
+			if (error == 0)
 				break;
+			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
+			vp = NULL;
 		}
 	}
 	if (vp) {
