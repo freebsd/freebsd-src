@@ -47,7 +47,7 @@
 .Sh SYNOPSIS
 .In time.h
 .Ft size_t
-.Fn strftime "char *buf" "size_t maxsize" "const char *format" "const struct tm *timeptr"
+.Fn strftime "char *restrict buf" "size_t maxsize" "const char *restrict format" "const struct tm *restrict timeptr"
 .Sh DESCRIPTION
 The
 .Fn strftime
