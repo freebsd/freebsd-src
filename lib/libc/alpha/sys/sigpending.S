@@ -29,8 +29,8 @@
 
 #include "SYS.h"
 
-SYSCALL(sigpending)
+PSYSCALL(sigpending)
 	stl	v0, 0(a0)
 	mov	zero, v0
 	RET
-END(sigpending)
+PEND(sigpending)
