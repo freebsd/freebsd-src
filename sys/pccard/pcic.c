@@ -402,10 +402,27 @@ pcic_sresource(struct slot *slt, caddr_t data)
 
 	pr = (struct pccard_resource *)data;
 	pr->resource_addr = ~0ul;
-	if (pr->type == SYS_RES_IRQ && sp->sc->func_route == pci_parallel) {
-		pr->resource_addr = sp->sc->irq;
-		return (0);
+
+	/*
+	 * If we're using PCI interrupt routing, then force the IRQ to
+	 * use and to heck with what the user requested.  If they want
+	 * to be able to request IRQs, they must use ISA interrupt
+	 * routing.  If we don't give them an irq, and it is the
+	 * pccardd 0,0 case, then just return (giving the "bad resource"
+	 * return in pr->resource_addr).
+	 */
+	if (pr->type == SYS_RES_IRQ) {
+		if (sp->sc->func_route >= pci_parallel) {
+			pr->resource_addr = sp->sc->irq;
+			return (0);
+		}
+		if (pr->min == 0 && pr->max == 0)
+			return (0);
 	}
+
+	/*
+	 * Make sure we grok this type.
+	 */
 	switch(pr->type) {
 	default:
 		return (EINVAL);
@@ -414,6 +431,12 @@ pcic_sresource(struct slot *slt, caddr_t data)
 	case SYS_RES_IOPORT:
 		break;
 	}
+
+	/*
+	 * Allocate the resource, and align it to the most natural
+	 * size.  If we get it, then tell userland what we actually got
+	 * in the range they requested.
+	 */
 	flags = rman_make_alignment_flags(pr->size);
 	r = bus_alloc_resource(bridgedev, pr->type, &rid, pr->min, pr->max,
 	   pr->size, flags);
@@ -431,17 +454,16 @@ static int
 pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
 {
 	struct pcic_slot *sp = slt->cdata;
+	struct pcic_reg *preg = (struct pcic_reg *) data;
 
 	switch(cmd) {
 	default:
 		return (ENOTTY);
 	case PIOCGREG:			/* Get pcic register */
-		((struct pcic_reg *)data)->value =
-			sp->getb(sp, ((struct pcic_reg *)data)->reg);
+		preg->value = sp->getb(sp, preg->reg);
 		break;			/* Set pcic register */
 	case PIOCSREG:
-		sp->putb(sp, ((struct pcic_reg *)data)->reg,
-			((struct pcic_reg *)data)->value);
+		sp->putb(sp, preg->reg, preg->value);
 		break;
 	case PIOCSRESOURCE:		/* Can I use this resource? */
 		pcic_sresource(slt, data);
@@ -867,9 +889,9 @@ pcic_get_res_flags(device_t bus, device_t child, int restype, int rid,
 int
 pcic_set_memory_offset(device_t bus, device_t child, int rid, u_int32_t offset
 #if __FreeBSD_version >= 500000
-    , u_int32_t *deltap
+    ,u_int32_t *deltap
 #endif
-)
+    )
 {
 	struct pccard_devinfo *devi = device_get_ivars(child);
 	struct mem_desc *mp = &devi->slt->mem[rid];
@@ -923,4 +945,72 @@ pcic_do_stat_delta(struct pcic_slot *sp)
 		pccard_event(sp->slt, card_removed);
 	else
 		pccard_event(sp->slt, card_inserted);
+}
+/*
+ * Wrapper function for pcicintr so that signatures match.
+ */
+void
+pcic_isa_intr(void *arg)
+{
+	pcic_isa_intr1(arg);
+}
+
+/*
+ *	PCIC timer.  If the controller doesn't have a free IRQ to use
+ *	or if interrupt steering doesn't work, poll the controller for
+ *	insertion/removal events.
+ */
+void
+pcic_timeout(void *chan)
+{
+	struct pcic_softc *sc = (struct pcic_softc *) chan;
+
+	if (pcic_isa_intr1(chan) != 0) {
+		device_printf(sc->dev, 
+		    "Static bug detected, ignoring hardware.");
+		sc->slot_poll = 0;
+		return;
+	}
+	sc->timeout_ch = timeout(sc->slot_poll, chan, hz/2);
+}
+
+/*
+ *	PCIC Interrupt handler.
+ *	Check each slot in turn, and read the card status change
+ *	register. If this is non-zero, then a change has occurred
+ *	on this card, so send an event to the main code.
+ */
+int
+pcic_isa_intr1(void *arg)
+{
+	int	slot, s;
+	u_int8_t chg;
+	struct pcic_softc *sc = (struct pcic_softc *) arg;
+	struct pcic_slot *sp = &sc->slots[0];
+
+	s = splhigh();
+	for (slot = 0; slot < PCIC_CARD_SLOTS; slot++, sp++) {
+		if (sp->slt == NULL)
+			continue;
+		if ((chg = sp->getb(sp, PCIC_STAT_CHG)) != 0) {
+			/*
+			 * if chg is 0xff, then we know that we've hit
+			 * the famous "static bug" for some desktop
+			 * pcmcia cards.  This is caused by static
+			 * discharge frying the poor card's mind and
+			 * it starts return 0xff forever.  We return
+			 * an error and stop polling the card.  When
+			 * we're interrupt based, we never see this.
+			 * The card just goes away silently.
+			 */
+			if (chg == 0xff) {
+				splx(s);
+				return (EIO);
+			}
+			if (chg & PCIC_CDTCH)
+				pcic_do_stat_delta(sp);
+		}
+	}
+	splx(s);
+	return (0);
 }
