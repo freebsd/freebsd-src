@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.4 1998/02/16 23:51:00 eivind Exp $
+ * $Id: pps.c,v 1.5 1998/06/07 19:44:22 phk Exp $
  *
  */
 
@@ -169,7 +169,7 @@ ppsintr(int unit)
 }
 
 static int
-ppsioctl(dev_t dev, int cmd, caddr_t data, int flags, struct proc *p)
+ppsioctl(dev_t dev, u_long cmd, caddr_t data, int flags, struct proc *p)
 {
 	struct pps_data *sc = softc[minor(dev)];
 	pps_params_t *pp;
