@@ -510,7 +510,7 @@ options 	POWERFAIL_NMI	# make it beep instead of panicing
 device		pcic
 hint.pcic.0.at="isa"
 #hint.pcic.1.at="isa"
-device		card	1
+device		card
 
 #---------------------------------------------------------------------------
 # ISDN4BSD
