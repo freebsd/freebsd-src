@@ -115,10 +115,10 @@ create_example_provider(struct g_geom *gp)
 
 	g_topology_lock();
 	pp = g_new_providerf(gp, "example_provider");
+	g_topology_unlock();
 	pp->mediasize = 65536;
 	pp->sectorsize = 512;
 	g_error_provider(pp, 0);
-	g_topology_unlock();
 
 	return (pp);
 }
