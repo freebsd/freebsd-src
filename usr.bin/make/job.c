@@ -1263,7 +1263,7 @@ JobExec(Job *job, char **argv)
 		NOTE_EXIT, 0, NULL);
 	    if (kevent(kqfd, kev, 2, NULL, 0, NULL) != 0) {
 		/* kevent() will fail if the job is already finished */
-		if (errno != EBADF && errno != ESRCH)
+		if (errno != EINTR && errno != EBADF && errno != ESRCH)
 		    Punt("kevent: %s", strerror(errno));
 	    }
 #else
@@ -2250,7 +2250,8 @@ Job_CatchOutput(void)
     if (usePipes) {
 #ifdef USE_KQUEUE
 	if ((nfds = kevent(kqfd, NULL, 0, kev, KEV_SIZE, NULL)) == -1) {
-	    Punt("kevent: %s", strerror(errno));
+	    if (errno != EINTR)
+		Punt("kevent: %s", strerror(errno));
 	} else {
 	    for (i = 0; i < nfds; i++) {
 		if (kev[i].flags & EV_ERROR) {
