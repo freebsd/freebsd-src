@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.55 1998/02/21 15:49:03 kato Exp $
+#	$Id: files.pc98,v 1.56 1998/02/26 03:21:41 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -29,6 +29,7 @@ font8x16.o			optional	std8x16font		\
 #
 i386/apm/apm.c			optional	apm	device-driver
 i386/apm/apm_setup.s		optional	apm
+#i386/eisa/dpt_eisa.c		optional	eisa dpt device-driver
 #i386/eisa/3c5x9.c		optional	ep	device-driver
 #i386/eisa/aic7770.c		optional	ahc	device-driver	   \
 #	dependency	"aic7xxx_reg.h $S/i386/eisa/aic7770.c"
