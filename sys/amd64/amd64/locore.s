@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.24 1994/09/04 19:59:13 pst Exp $
+ *	$Id: locore.s,v 1.25 1994/09/05 05:20:29 davidg Exp $
  */
 
 /*
@@ -147,8 +147,8 @@ NON_GPROF_ENTRY(btext)
 	.org	0x500				/* space for BIOS variables */
 
  1:
-	/* don't trust what the BIOS gives for eflags */
-	pushl   $PSL_MBO
+	/* Don't trust what the BIOS gives for eflags. */
+	pushl	$PSL_MBO
 	popfl
 
 	/*
@@ -156,7 +156,6 @@ NON_GPROF_ENTRY(btext)
 	 * note: (%esp) is return address of boot
 	 * ( if we want to hold onto /boot, it's physical %esp up to _end)
 	 */
-
 	movl	4(%esp),%eax
 	movl	%eax,_boothowto-KERNBASE
 	movl	8(%esp),%eax
@@ -353,7 +352,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$0xa0,%ecx
 1:
 #endif /* BDE_DEBUGGER */
-	movl	$PG_V|PG_KW,%eax		/* kernel R/W, valid, cache write-through */
+	movl	$PG_V|PG_KW,%eax		/* kernel R/W, valid */
 	lea	((1+UPAGES+1)*NBPG)(%esi),%ebx	/* phys addr of kernel PT base */
 	movl	%ebx,_KPTphys-KERNBASE		/* save in global */
 	fillkpt
@@ -381,7 +380,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$(1+UPAGES+1+NKPT),%ecx	/* number of PTEs */
 	movl	%esi,%eax			/* phys address of PTD */
 	andl	$PG_FRAME,%eax			/* convert to PFN, should be a NOP */
-	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write, cache write-though */
+	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
 	movl	%esi,%ebx			/* calculate pte offset to ptd */
 	shrl	$PGSHIFT-2,%ebx
 	addl	%esi,%ebx			/* address of page directory */
