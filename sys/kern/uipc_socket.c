@@ -132,7 +132,7 @@ soalloc(int mflags)
 #endif
 
 	so = uma_zalloc(socket_zone, mflags | M_ZERO);
-	if (so) {
+	if (so != NULL) {
 #ifdef MAC
 		error = mac_init_socket(so, mflags);
 		if (error != 0) {
@@ -172,7 +172,7 @@ socreate(dom, aso, type, proto, cred, td)
 	else
 		prp = pffindtype(dom, type);
 
-	if (prp == 0 || prp->pr_usrreqs->pru_attach == 0)
+	if (prp == NULL || prp->pr_usrreqs->pru_attach == NULL)
 		return (EPROTONOSUPPORT);
 
 	if (jailed(cred) && jail_socket_unixiproute_only &&
@@ -284,7 +284,7 @@ sofree(so)
 
 	KASSERT(so->so_count == 0, ("socket %p so_count not 0", so));
 
-	if (so->so_pcb || (so->so_state & SS_NOFDREF) == 0)
+	if (so->so_pcb != NULL || (so->so_state & SS_NOFDREF) == 0)
 		return;
 	if (so->so_head != NULL) {
 		head = so->so_head;
@@ -351,7 +351,7 @@ soclose(so)
 			(void) soabort(sp);
 		}
 	}
-	if (so->so_pcb == 0)
+	if (so->so_pcb == NULL)
 		goto discard;
 	if (so->so_state & SS_ISCONNECTED) {
 		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
@@ -372,7 +372,7 @@ soclose(so)
 		}
 	}
 drop:
-	if (so->so_pcb) {
+	if (so->so_pcb != NULL) {
 		int error2 = (*so->so_proto->pr_usrreqs->pru_detach)(so);
 		if (error == 0)
 			error = error2;
@@ -534,7 +534,7 @@ sosend(so, addr, uio, top, control, flags, td)
 	int cow_send;
 #endif /* ZERO_COPY_SOCKETS */
 
-	if (uio)
+	if (uio != NULL)
 		resid = uio->uio_resid;
 	else
 		resid = top->m_pkthdr.len;
@@ -556,9 +556,9 @@ sosend(so, addr, uio, top, control, flags, td)
 	dontroute =
 	    (flags & MSG_DONTROUTE) && (so->so_options & SO_DONTROUTE) == 0 &&
 	    (so->so_proto->pr_flags & PR_ATOMIC);
-	if (td)
+	if (td != NULL)
 		td->td_proc->p_stats->p_ru.ru_msgsnd++;
-	if (control)
+	if (control != NULL)
 		clen = control->m_len;
 #define	snderr(errno)	{ error = (errno); splx(s); goto release; }
 
@@ -588,7 +588,7 @@ restart:
 				if ((so->so_state & SS_ISCONFIRMING) == 0 &&
 				    !(resid == 0 && clen != 0))
 					snderr(ENOTCONN);
-			} else if (addr == 0)
+			} else if (addr == NULL)
 			    snderr(so->so_proto->pr_flags & PR_CONNREQUIRED ?
 				   ENOTCONN : EDESTADDRREQ);
 		}
@@ -727,8 +727,8 @@ nopages:
 		    if (dontroute)
 			    so->so_options &= ~SO_DONTROUTE;
 		    clen = 0;
-		    control = 0;
-		    top = 0;
+		    control = NULL;
+		    top = NULL;
 		    mp = &top;
 		    if (error)
 			goto release;
@@ -738,9 +738,9 @@ nopages:
 release:
 	sbunlock(&so->so_snd);
 out:
-	if (top)
+	if (top != NULL)
 		m_freem(top);
-	if (control)
+	if (control != NULL)
 		m_freem(control);
 	return (error);
 }
@@ -778,11 +778,11 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 	int orig_resid = uio->uio_resid;
 
 	mp = mp0;
-	if (psa)
+	if (psa != NULL)
 		*psa = 0;
-	if (controlp)
+	if (controlp != NULL)
 		*controlp = 0;
-	if (flagsp)
+	if (flagsp != NULL)
 		flags = *flagsp &~ MSG_EOR;
 	else
 		flags = 0;
@@ -820,12 +820,12 @@ soreceive(so, psa, uio, mp0, controlp, flagsp)
 			m = m_free(m);
 		} while (uio->uio_resid && error == 0 && m);
 bad:
-		if (m)
+		if (m != NULL)
 			m_freem(m);
 		return (error);
 	}
-	if (mp)
-		*mp = (struct mbuf *)0;
+	if (mp != NULL)
+		*mp = NULL;
 	if (so->so_state & SS_ISCONFIRMING && uio->uio_resid)
 		(*pr->pr_usrreqs->pru_rcvd)(so, 0);
 
@@ -847,16 +847,16 @@ restart:
 	 * we have to do the receive in sections, and thus risk returning
 	 * a short count if a timeout or signal occurs after we start.
 	 */
-	if (m == 0 || (((flags & MSG_DONTWAIT) == 0 &&
+	if (m == NULL || (((flags & MSG_DONTWAIT) == 0 &&
 	    so->so_rcv.sb_cc < uio->uio_resid) &&
 	    (so->so_rcv.sb_cc < so->so_rcv.sb_lowat ||
 	    ((flags & MSG_WAITALL) && uio->uio_resid <= so->so_rcv.sb_hiwat)) &&
-	    m->m_nextpkt == 0 && (pr->pr_flags & PR_ATOMIC) == 0)) {
-		KASSERT(m != 0 || !so->so_rcv.sb_cc,
+	    m->m_nextpkt == NULL && (pr->pr_flags & PR_ATOMIC) == 0)) {
+		KASSERT(m != NULL || !so->so_rcv.sb_cc,
 		    ("receive: m == %p so->so_rcv.sb_cc == %u",
 		    m, so->so_rcv.sb_cc));
 		if (so->so_error) {
-			if (m)
+			if (m != NULL)
 				goto dontblock;
 			error = so->so_error;
 			if ((flags & MSG_PEEK) == 0)
@@ -869,7 +869,7 @@ restart:
 			else
 				goto release;
 		}
-		for (; m; m = m->m_next)
+		for (; m != NULL; m = m->m_next)
 			if (m->m_type == MT_OOBDATA  || (m->m_flags & M_EOR)) {
 				m = so->so_rcv.sb_mb;
 				goto dontblock;
@@ -904,7 +904,7 @@ dontblock:
 		KASSERT(m->m_type == MT_SONAME,
 		    ("m->m_type == %d", m->m_type));
 		orig_resid = 0;
-		if (psa)
+		if (psa != NULL)
 			*psa = sodupsockaddr(mtod(m, struct sockaddr *),
 			    mp0 == NULL ? M_WAITOK : M_NOWAIT);
 		if (flags & MSG_PEEK) {
@@ -915,9 +915,9 @@ dontblock:
 			m = so->so_rcv.sb_mb;
 		}
 	}
-	while (m && m->m_type == MT_CONTROL && error == 0) {
+	while (m != NULL && m->m_type == MT_CONTROL && error == 0) {
 		if (flags & MSG_PEEK) {
-			if (controlp)
+			if (controlp != NULL)
 				*controlp = m_copy(m, 0, m->m_len);
 			m = m->m_next;
 		} else {
@@ -927,19 +927,19 @@ dontblock:
 			if (pr->pr_domain->dom_externalize)
 				error =
 				(*pr->pr_domain->dom_externalize)(m, controlp);
-			else if (controlp)
+			else if (controlp != NULL)
 				*controlp = m;
 			else
 				m_freem(m);
 			m = so->so_rcv.sb_mb;
 		}
-		if (controlp) {
+		if (controlp != NULL) {
 			orig_resid = 0;
 			while (*controlp != NULL)
 				controlp = &(*controlp)->m_next;
 		}
 	}
-	if (m) {
+	if (m != NULL) {
 		if ((flags & MSG_PEEK) == 0) {
 			m->m_nextpkt = nextrecord;
 			/*
@@ -968,7 +968,7 @@ dontblock:
 
 	moff = 0;
 	offset = 0;
-	while (m && uio->uio_resid > 0 && error == 0) {
+	while (m != NULL && uio->uio_resid > 0 && error == 0) {
 		if (m->m_type == MT_OOBDATA) {
 			if (type != MT_OOBDATA)
 				break;
@@ -991,7 +991,7 @@ dontblock:
 		 * we must note any additions to the sockbuf when we
 		 * block interrupts again.
 		 */
-		if (mp == 0) {
+		if (mp == NULL) {
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
 			splx(s);
@@ -1032,16 +1032,16 @@ dontblock:
 			} else {
 				nextrecord = m->m_nextpkt;
 				sbfree(&so->so_rcv, m);
-				if (mp) {
+				if (mp != NULL) {
 					*mp = m;
 					mp = &m->m_next;
 					so->so_rcv.sb_mb = m = m->m_next;
-					*mp = (struct mbuf *)0;
+					*mp = NULL;
 				} else {
 					so->so_rcv.sb_mb = m_free(m);
 					m = so->so_rcv.sb_mb;
 				}
-				if (m) {
+				if (m != NULL) {
 					m->m_nextpkt = nextrecord;
 					if (nextrecord == NULL)
 						so->so_rcv.sb_lastrecord = m;
@@ -1056,7 +1056,7 @@ dontblock:
 			if (flags & MSG_PEEK)
 				moff += len;
 			else {
-				if (mp)
+				if (mp != NULL)
 					*mp = m_copym(m, 0, len, M_TRYWAIT);
 				m->m_data += len;
 				m->m_len -= len;
@@ -1085,15 +1085,15 @@ dontblock:
 		 * with a short count but without error.
 		 * Keep sockbuf locked against other readers.
 		 */
-		while (flags & MSG_WAITALL && m == 0 && uio->uio_resid > 0 &&
-		    !sosendallatonce(so) && !nextrecord) {
+		while (flags & MSG_WAITALL && m == NULL && uio->uio_resid > 0 &&
+		    !sosendallatonce(so) && nextrecord == NULL) {
 			if (so->so_error || so->so_state & SS_CANTRCVMORE)
 				break;
 			/*
 			 * Notify the protocol that some data has been
 			 * drained before blocking.
 			 */
-			if (pr->pr_flags & PR_WANTRCVD && so->so_pcb)
+			if (pr->pr_flags & PR_WANTRCVD && so->so_pcb != NULL)
 				(*pr->pr_usrreqs->pru_rcvd)(so, flags);
 			SBLASTRECORDCHK(&so->so_rcv);
 			SBLASTMBUFCHK(&so->so_rcv);
@@ -1104,18 +1104,18 @@ dontblock:
 				return (0);
 			}
 			m = so->so_rcv.sb_mb;
-			if (m)
+			if (m != NULL)
 				nextrecord = m->m_nextpkt;
 		}
 	}
 
-	if (m && pr->pr_flags & PR_ATOMIC) {
+	if (m != NULL && pr->pr_flags & PR_ATOMIC) {
 		flags |= MSG_TRUNC;
 		if ((flags & MSG_PEEK) == 0)
 			(void) sbdroprecord(&so->so_rcv);
 	}
 	if ((flags & MSG_PEEK) == 0) {
-		if (m == 0) {
+		if (m == NULL) {
 			/*
 			 * First part is an inline SB_EMPTY_FIXUP().  Second
 			 * part makes sure sb_lastrecord is up-to-date if
@@ -1140,7 +1140,7 @@ dontblock:
 		goto restart;
 	}
 
-	if (flagsp)
+	if (flagsp != NULL)
 		*flagsp |= flags;
 release:
 	sbunlock(&so->so_rcv);
@@ -1188,7 +1188,7 @@ sorflush(so)
 	    sizeof(*sb) - offsetof(struct sockbuf, sb_startzero));
 	splx(s);
 
-	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose)
+	if (pr->pr_flags & PR_RIGHTS && pr->pr_domain->dom_dispose != NULL)
 		(*pr->pr_domain->dom_dispose)(asb.sb_mb);
 	sbrelease(&asb, so);
 }
@@ -1298,7 +1298,7 @@ sooptcopyin(sopt, buf, len, minlen)
 	if (valsize > len)
 		sopt->sopt_valsize = valsize = len;
 
-	if (sopt->sopt_td != 0)
+	if (sopt->sopt_td != NULL)
 		return (copyin(sopt->sopt_val, buf, valsize));
 
 	bcopy(sopt->sopt_val, buf, valsize);
@@ -1460,7 +1460,8 @@ sosetopt(so, sopt)
 			error = ENOPROTOOPT;
 			break;
 		}
-		if (error == 0 && so->so_proto && so->so_proto->pr_ctloutput) {
+		if (error == 0 && so->so_proto != NULL &&
+		    so->so_proto->pr_ctloutput != NULL) {
 			(void) ((*so->so_proto->pr_ctloutput)
 				  (so, sopt));
 		}
@@ -1489,8 +1490,8 @@ sooptcopyout(struct sockopt *sopt, const void *buf, size_t len)
 	 */
 	valsize = min(len, sopt->sopt_valsize);
 	sopt->sopt_valsize = valsize;
-	if (sopt->sopt_val != 0) {
-		if (sopt->sopt_td != 0)
+	if (sopt->sopt_val != NULL) {
+		if (sopt->sopt_td != NULL)
 			error = copyout(buf, sopt->sopt_val, valsize);
 		else
 			bcopy(buf, sopt->sopt_val, valsize);
@@ -1640,7 +1641,7 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	int sopt_size = sopt->sopt_valsize;
 
 	MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
-	if (m == 0)
+	if (m == NULL)
 		return ENOBUFS;
 	if (sopt_size > MLEN) {
 		MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
@@ -1658,12 +1659,13 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 
 	while (sopt_size) {
 		MGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT, MT_DATA);
-		if (m == 0) {
+		if (m == NULL) {
 			m_freem(*mp);
 			return ENOBUFS;
 		}
 		if (sopt_size > MLEN) {
-			MCLGET(m, sopt->sopt_td ? M_TRYWAIT : M_DONTWAIT);
+			MCLGET(m, sopt->sopt_td != NULL ? M_TRYWAIT :
+			    M_DONTWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(m);
 				m_freem(*mp);
