@@ -16,17 +16,18 @@ extern short aui;
 int cmd_ip(), cmd_server(), cmd_kernel(), cmd_help(), exit();
 int cmd_rootfs(), cmd_swapfs(), cmd_interface(), cmd_hostname();
 int cmd_netmask(), cmd_swapsize(), cmd_swapopts(), cmd_rootopts();
-int cmd_aui();
+int cmd_aui(), cmd_gateway();
 
 struct bootcmds_t {
 	char *name;
 	int (*func)();
 	char *help;
 } bootcmds[] = {
-	{"?",		cmd_help,	"              this list"},
+	{"?",		cmd_help,	"                 this list"},
 	{"help",	cmd_help,	"              this list"},
 	{"ip",		cmd_ip,		"<addr>          set my IP addr"},
 	{"server",	cmd_server,	"<addr>      set TFTP server IP addr"},
+	{"gateway",	cmd_gateway,	"<addr>      set default router"},
 	{"netmask",	cmd_netmask,	"<addr>     set network mask"},
 	{"hostname",	cmd_hostname,	"<name>    set hostname"},
 	{"kernel",	cmd_kernel,	"<file>      set boot filename"},
@@ -84,6 +85,20 @@ cmd_aui(p)
                 return(0);
         }
         printf ("Transceiver is %s\r\n",aui ? "off" : "on");
+}
+
+/**************************************************************************
+CMD_GATEWAY - Set routers IP address
+**************************************************************************/
+cmd_gateway(p)
+	char *p;
+{
+	int i;
+	if (!setip(p, &arptable[ARP_GATEWAY].ipaddr)) {
+		printf("Server IP address is %I\r\n",
+			arptable[ARP_GATEWAY].ipaddr);
+	} else		/* Need to clear arp entry if we change IP address */
+		for (i=0; i<6; i++) arptable[ARP_GATEWAY].node[i] = 0;
 }
 
 /**************************************************************************
