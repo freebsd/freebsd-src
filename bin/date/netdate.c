@@ -31,11 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)netdate.c	8.1 (Berkeley) 5/31/93";
-#endif
 #endif /* not lint */
+#endif
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -81,7 +82,7 @@ netsettime(time_t tval)
 	char hostname[MAXHOSTNAMELEN];
 
 	if ((sp = getservbyname("timed", "udp")) == NULL) {
-		warnx("udp/timed: unknown service");
+		warnx("timed/udp: unknown service");
 		return (retval = 2);
 	}
 
