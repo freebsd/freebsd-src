@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .Dd July 2, 1996
 .Dt FETCH 1
-.Os
+.Os FreeBSD 3.0
 .Sh NAME
 .Nm fetch
 .Nd retrieve a file by Uniform Resource Locator
@@ -10,6 +10,7 @@
 .Op Fl MPamnpqr
 .Op Fl o Ar file
 .Ar URL
+.Op Ar ...
 .Nm fetch
 .Op Fl MPRmnpqr
 .Op Fl o Ar file
@@ -20,9 +21,9 @@
 .Nm fetch
 allows a user to transfer files from a remote network site using
 either the
-.Em ftp
+.Tn FTP
 or the
-.Em http
+.Tn HTTP
 protocol. In the first form of the command, the
 .Ar URL
 may be of the form 
@@ -44,7 +45,7 @@ and the
 flags.
 .Pp
 The following options are available:
-.Bl -tag -width Fl -compact
+.Bl -tag -width Fl
 .It Fl a
 Automatically retry the transfer upon soft failures.
 .It Fl c Ar dir
@@ -144,7 +145,7 @@ proxy client specifies
 as its user name, and passes the remote user name and host as the
 .Tn FTP
 session's password, in the form
-.Dq Va remoteuser Ns Li \&@ Va remotehost .
+.Dq Va remoteuser Ns Li \&@ Ns Va remotehost .
 The
 .Tn HTTP
 proxy client simply passes the originally-requested URI to the remote
@@ -156,34 +157,116 @@ When multiple proxy protcols are configured,
 .Nm
 will prefer
 .Tn HTTP .
+.Sh HTTP AUTHENTICATION
+The
+.Tn HTTP
+protocol includes support for various methods of authentication.
+Currently, the
+.Dq basic
+method, which provides no security from packet-sniffing or
+man-in-the-middle attacks, is the only method supported in
+.Nm fetch .
+Authentication is enabled by the
+.Ev HTTP_AUTH
+and
+.Ev HTTP_PROXY_AUTH
+environment variables.  Both variables have the same format, which
+consists of space-separated list of parameter settings, where each
+setting consists of a colon-separated list of parameters.  The first
+two parameters are always the (case-insensitive) authentication scheme
+name and the realm in which authentication is to be performed.  If the
+realm is specified as
+.Sq Li \&* ,
+then it will match all realms not specified otherwise.
+.Pp
+For the
+.Li basic
+authentication scheme uses two additional optional parameters; the
+first is a user name, and the second is the password associated with
+it.  If either the password or both parameters are not specified in
+the environment, and the standard input of
+.Nm
+is connected to a terminal, then
+.Nm
+will prompt the user to enter the missing parameters.  Thus, if the
+user is known as
+.Dq Li jane
+in the
+.Dq Li WallyWorld
+realm, and has a password of
+.Dq Li QghiLx79
+there, then she might set her
+.Ev HTTP_AUTH
+variable to:
+.Bl -enum -offset indent
+.It
+.Dq Li basic:WallyWorld:jane:QghiLx79
+.It
+.Dq Li basic:WallyWorld:jane ,
+or
+.It
+.Dq Li basic:WallyWorld
+.El
+.Pp
+and
+.Nm
+will prompt for the missing information if it is required.  She might
+also specify a realm of
+.Dq Li \&*
+instead of
+.Dq Li WallyWorld
+to indicate that the parameters can be applied to any realm.  (This is
+most commonly used in a construction such as
+.Dq Li basic:* ,
+which indicates to
+.Nm
+that it may offer to do
+.Li basic
+authentication for any realm.
+.Sh ERRORS
+The
+.Nm
+command returns zero on success, or a non-zero value from
+.Aq Pa sysexits.h
+on failure.  If multiple URIs are given for retrieval,
+.Nm
+will attempt all of them and return zero only if all succeeded
+(otherwise it will return the error from the last failure).
 .Sh ENVIRONMENT
 .Bl -tag -width FTP_PASSIVE_MODE -offset indent
 .It Ev FTP_TIMEOUT
 maximum time, in seconds, to wait before aborting an 
 .Tn FTP
 connection.
-.It Ev HTTP_TIMEOUT
-maximum time, in seconds, to wait before aborting an
-.Tn HTTP
-connection.
 .It Ev FTP_LOGIN
 the login name used for
 .Tn FTP
 transfers (default
 .Dq Li anonymous )
+.It Ev FTP_PASSIVE_MODE
+force the use of passive mode FTP
 .It Ev FTP_PASSWORD
 the password used for
 .Tn FTP
 transfers (default
 .Dq Va yourname Ns Li \&@ Ns Va yourhost )
-.It Ev FTP_PASSIVE_MODE
-force the use of passive mode FTP
-.It Ev HTTP_PROXY
-the address of a proxy server which understands
-.Tn HTTP
 .It Ev FTP_PROXY
 the address of a proxy server which understands
 .Tn FTP
+.It Ev HTTP_AUTH
+defines authentication parameters for
+.Tn HTTP
+.It Ev HTTP_PROXY
+the address of a proxy server which understands
+.Tn HTTP
+.It Ev HTTP_PROXY_AUTH
+defines authentication parameters for
+.Tn HTTP
+proxy servers
+.It Ev HTTP_TIMEOUT
+maximum time, in seconds, to wait before aborting an
+.Tn HTTP
+connection.
 .Sh SEE ALSO
 .Xr ftp 1 ,
 .Xr tftp 1
@@ -209,5 +292,8 @@ failures, and no
 .Tn FTP
 failures.
 .Pp
-.Tn HTTP
-authentication is not yet implememnted.
+Only the
+.Dq basic
+authentication mode is implemented for
+.Tn HTTP .
+This should be replaced by digest authentication.

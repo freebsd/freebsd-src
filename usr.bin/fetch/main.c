@@ -300,7 +300,7 @@ display(struct fetch_state *fs, off_t size, ssize_t n)
 	gettimeofday(&t0, &tz);
 	t_start = t0;
 	bytes = pr = 0;
-	s = malloc(strlen(fs->fs_outputfile) + 50);
+	s = safe_malloc(strlen(fs->fs_outputfile) + 50);
 	if (size > 0)
 	    sprintf (s, "Receiving %s (%qd bytes)%s", fs->fs_outputfile, 
 		     (quad_t)size,
