@@ -119,7 +119,7 @@ Int_Open_Disk(const char *name, char *conftxt)
 
 	/*
 	 * Calculate the number of cylinders this disk must have. If we have
-	 * an obvious insanity, we set the number of cyclinders to zero.
+	 * an obvious insanity, we set the number of cylinders to zero.
 	 */
 	o = d->bios_hd * d->bios_sect;
 	d->bios_cyl = (o != 0) ? len / o : 0;
