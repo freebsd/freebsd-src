@@ -4,6 +4,11 @@
 PROG=	vfontedpr
 SRCS=	regexp.c vfontedpr.c
 SCRIPTS=vgrind.sh
+FILES=	vgrindefs.src vgrindefs.src.db tmac.vgrind
+FILESNAME_vgrindefs.src=	vgrindefs
+FILESNAME_vgrindefs.src.db=	vgrindefs.db
+FILESDIR=	${SHAREDIR}/misc
+FILESDIR_tmac.vgrind=	${SHAREDIR}/tmac
 MAN=	vgrind.1 vgrindefs.5
 
 BINDIR=	/usr/libexec
@@ -16,13 +21,5 @@ all: ${EXTRA}
 
 ${EXTRA}: ${.CURDIR}/vgrindefs.src
 	cap_mkdb -f vgrindefs.src ${.CURDIR}/vgrindefs.src
-
-beforeinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/vgrindefs.src \
-	    ${DESTDIR}/usr/share/misc/vgrindefs
-	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
-	    vgrindefs.src.db ${DESTDIR}/usr/share/misc/vgrindefs.db
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/tmac.vgrind \
-	    ${DESTDIR}/usr/share/tmac
 
 .include <bsd.prog.mk>
