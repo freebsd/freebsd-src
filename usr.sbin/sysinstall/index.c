@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.58 1998/12/13 23:37:33 steve Exp $
+ * $Id: index.c,v 1.59 1998/12/22 12:31:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -65,25 +65,24 @@ static char *descrs[] = {
     "If you're sure of these choices, select OK.\n"
     "If not, select Cancel to go back to the package selection menu.\n",
     "All", "All available packages in all categories.",
+    "afterstep", "Ports to support the AfterStep window manager.",
     "applications", "User application software.",
     "astro", "Applications related to astronomy.",
     "archivers", "Utilities for archiving and unarchiving data.",
     "audio", "Audio utilities - most require a supported sound card.",
     "biology", "Software related to biology.",
     "benchmarks", "Utilities for measuring system performance.",
-    "benchmarking", "Utilities for measuring system performance.",
     "cad", "Computer Aided Design utilities.",
     "chinese", "Ported software for the Chinese market.",
     "comms", "Communications utilities.",
     "converters", "Format conversion utilities.",
     "databases", "Database software.",
     "devel", "Software development utilities and libraries.",
-    "development", "Software development utilities and libraries.",
     "deskutils", "Various Desktop utilities.",
     "documentation", "Document preparation utilities.",
     "editors", "Common text editors.",
     "elisp", "Things related to Emacs Lisp.",
-    "emulation", "Utilities for emulating other OS types.",
+    "elisp", "Emacs lisp ports.",
     "emulators", "Utilities for emulating other OS types.",
     "games", "Various and sundry amusements.",
     "german", "Ported software for Germanic countries.",
@@ -99,13 +98,12 @@ static char *descrs[] = {
     "mbone", "Applications and utilities for the MBONE.",
     "misc", "Miscellaneous utilities.",
     "net", "Networking utilities.",
-    "networking", "Networking utilities.",
     "news", "USENET News support software.",
     "numeric", "Mathematical computation software.",
     "offix", "An office automation suite of sorts.",
     "orphans", "Packages without a home elsewhere.",
+    "palm", "Software support for the 3Com Palm(tm) series.",
     "perl5", "Utilities/modules for the PERL5 language.",
-    "pilot", "Software support for the 3COM/USR Palm Pilot(tm).",
     "plan9", "Software from the Plan9 operating system.",
     "print", "Utilities for dealing with printing.",
     "printing", "Utilities for dealing with printing.",
@@ -125,14 +123,13 @@ static char *descrs[] = {
     "tk80", "Tk8.0 and packages that depend on it.",
     "tk81", "Tk8.1 and packages that depend on it.",
     "troff", "TROFF text formatting utilities.",
-    "utils", "Various user utilities.",
-    "utilities", "Various user utilities.",
     "vietnamese", "Ported software for the Vietnamese market.",
+    "windowmaker", "Ports to support the WindowMaker window manager.",
     "www", "WEB utilities (browers, HTTP servers, etc).",
     "x11", "X Window System based utilities.",
     "x11-clocks", "X Window System based clocks.",
     "x11-fm", "X Window System based file managers.",
-    "x11-fonts", "X Window System fonts.",
+    "x11-fonts", "X Window System fonts and font utilities.",
     "x11-toolkits", "X Window System based development toolkits.",
     "x11-wm", "X Window System window managers.",
     NULL, NULL,
