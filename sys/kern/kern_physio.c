@@ -45,7 +45,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 
 	bp = getpbuf(NULL);
 	sa = bp->b_data;
-	error = bp->b_error = 0;
+	error = 0;
 
 	/* XXX: sanity check */
 	if(dev->si_iosize_max < PAGE_SIZE) {
