@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp_machdep.c,v 1.52 1997/09/07 22:03:59 fsmp Exp $
+ *	$Id: mp_machdep.c,v 1.53 1997/09/21 05:49:58 dyson Exp $
  */
 
 #include "opt_smp.h"
@@ -247,8 +247,9 @@ extern pt_entry_t *KPTphys;
 /* Virtual address of per-cpu common_tss */
 extern struct i386tss common_tss;
 #ifdef VM86
-extern u_int private_tss;		/* flag indicating private tss */
 extern struct segment_descriptor common_tssd;
+extern u_int private_tss;		/* flag indicating private tss */
+extern u_int my_tr;
 #endif /* VM86 */
 
 /* IdlePTD per cpu */
@@ -403,7 +404,10 @@ mp_announce(void)
 void
 init_secondary(void)
 {
-	int     gsel_tss, slot;
+	int	gsel_tss;
+#ifndef VM86
+	u_int	my_tr;
+#endif
 
 	r_gdt.rd_limit = sizeof(gdt[0]) * (NGDT + NCPU) - 1;
 	r_gdt.rd_base = (int) gdt;
@@ -411,14 +415,14 @@ init_secondary(void)
 	lidt(&r_idt);
 	lldt(_default_ldt);
 
-	slot = NGDT + cpuid;
-	gsel_tss = GSEL(slot, SEL_KPL);
-	gdt[slot].sd.sd_type = SDT_SYS386TSS;
+	my_tr = NGDT + cpuid;
+	gsel_tss = GSEL(my_tr, SEL_KPL);
+	gdt[my_tr].sd.sd_type = SDT_SYS386TSS;
 	common_tss.tss_esp0 = 0;	/* not used until after switch */
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 #ifdef VM86
-	common_tssd = gdt[slot].sd;
+	common_tssd = gdt[my_tr].sd;
 	private_tss = 0;
 #endif /* VM86 */
 	ltr(gsel_tss);

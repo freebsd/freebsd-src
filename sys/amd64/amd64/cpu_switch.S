@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.10 1997/09/07 21:50:13 smp Exp smp $
+ *	$Id: swtch.s,v 1.62 1997/09/07 22:04:09 fsmp Exp $
  */
 
 #include "npx.h"
@@ -255,8 +255,27 @@ _idle:
 	movl	%ecx,%esp
 
 	/* update common_tss.tss_esp0 pointer */
+#ifdef VM86
+	movl	_my_tr, %esi
+#endif /* VM86 */
 	movl	$_common_tss, %eax
 	movl	%ecx, TSS_ESP0(%eax)
+
+#ifdef VM86
+	btrl	%esi, _private_tss
+	je	1f
+	movl	$_common_tssd, %edi
+
+	/* move correct tss descriptor into GDT slot, then reload tr */
+	leal	_gdt(,%esi,8), %ebx		/* entry in GDT */
+	movl	0(%edi), %eax
+	movl	%eax, 0(%ebx)
+	movl	4(%edi), %eax
+	movl	%eax, 4(%ebx)
+	shll	$3, %esi			/* GSEL(entry, SEL_KPL) */
+	ltr	%si
+1:
+#endif /* VM86 */
 
 	sti
 
@@ -342,7 +361,7 @@ idle_loop:
 
 	/* update common_tss.tss_esp0 pointer */
 #ifdef VM86
-	movl	$GPROC0_SEL, %esi
+	movl	_my_tr, %esi
 #endif /* VM86 */
 	movl	$_common_tss, %eax
 	movl	%esp, TSS_ESP0(%eax)
@@ -582,7 +601,7 @@ swtch_com:
 #endif /* SMP */
 
 #ifdef VM86
-	movl	$GPROC0_SEL, %esi
+	movl	_my_tr, %esi
 	cmpl	$0, PCB_EXT(%edx)		/* has pcb extension? */
 	je	1f
 	btsl	%esi, _private_tss		/* mark use of private tss */
