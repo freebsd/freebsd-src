@@ -84,7 +84,7 @@ struct nlist nl[] = {
 #define	N_RTSTAT	9
 	{ "_rtstat" },
 #define	N_UNIXSW	10
-	{ "_unixsw" },
+	{ "_localsw" },
 #define N_IDP		11
 	{ "_nspcb"},
 #define N_IDPSTAT	12
