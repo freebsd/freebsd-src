@@ -43,7 +43,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)printjob.c	8.7 (Berkeley) 5/10/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: printjob.c,v 1.18 1997/12/02 20:45:58 wollman Exp $";
 #endif /* not lint */
 
 
@@ -1462,7 +1462,7 @@ opennet(pp)
 	void (*savealrm)(int);
 
 	port = strtoul(pp->lp, &ep, 0);
-	if (*ep != ':' || port > 65536) {
+	if (*ep != '@' || port > 65535) {
 		syslog(LOG_ERR, "%s: bad port number: %s", pp->printer,
 		       pp->lp);
 		exit(1);
