@@ -34,7 +34,7 @@
 .Sh DESCRIPTION
 The LKM (Loadable Kernel Modules) facility has been deprecated in
 .Fx 3.0
-and above in favor of the 
+and above in favor of the
 .Nm
 interface.
 This interface, like its
@@ -73,12 +73,12 @@ and
 .Xr kldstat 8
 programs.
 .Pp
-The 
+The
 .Xr kldload 8
 program can load either
 .Xr a.out 5
 or ELF formatted loadable modules.
-The 
+The
 .Xr kldunload 8
 program unloads any given loaded module, if no other module is dependent
 upon the given module.
@@ -98,12 +98,12 @@ device nodes must exist for the
 devices to be accessed.  They are usually
 created by using
 .Xr MAKEDEV 8
-or 
-.Xr mknod 8 
+or
+.Xr mknod 8
 (if the device is not supported by the
 .Xr MAKEDEV 8
 script) or, by writing a
-shell script to run 
+shell script to run
 .Xr kldload 8
 which should run the appropriate program to create the devices when the
 driver has been successfully loaded.
@@ -114,9 +114,9 @@ driver has been successfully loaded.
 directory containing module binaries built for the kernel also
 residing in the directory.
 .It Pa /usr/include/sys/module.h
-file containing definitions required to compile a 
+file containing definitions required to compile a
 .Nm
-module 
+module
 .It Pa /usr/share/examples/kld
 example source code implementing a sample kld module
 .El
@@ -142,7 +142,7 @@ A as a dependency, then
 loads an instance of module A when any of the modules are loaded.
 .Pp
 If a custom entry point is used for a module, and the module is compiled as
-an 
+an
 .Sq ELF
 binary, then
 .Xr kldload 8

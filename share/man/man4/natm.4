@@ -7,17 +7,17 @@
 .Nm natm
 .Nd Native Mode ATM protocol layer
 .Sh DESCRIPTION
-The BSD ATM software comes with a 
-.Em native mode ATM protocol layer 
+The BSD ATM software comes with a
+.Em native mode ATM protocol layer
 which provides socket level access to AAL0 and AAL5 virtual circuits.
-To enable this protocol layer, add 
+To enable this protocol layer, add
 .Dl options NATM
 to your kernel configuration file and re-make the kernel (don't forget
-to do 
+to do
 .Dq make clean
 ).
 .Sh NATM API
-The NATM layer uses a 
+The NATM layer uses a
 .Dv struct sockaddr_natm
 to specify a virtual circuit:
 .Bd -literal -offset indent
@@ -49,29 +49,29 @@ one would use the following:
   /* s now connected to ATM! */
 .Ed
 .Pp
-The 
+The
 .Fn socket
 call simply creates an unconnected NATM socket.  The
 .Fn connect
 call associates an unconnected NATM socket with a
 virtual circuit and tells the driver to enable that virtual circuit
-for receiving data.  After the 
+for receiving data.  After the
 .Fn connect
-call one can 
+call one can
 .Fn read
-or 
+or
 .Fn write
 to the socket to perform ATM I/O.
 .Sh Internal NATM operation
 Internally, the NATM protocol layer keeps a list of all active virtual
-circuits on the system in 
-.Dv natm_pcbs .    
+circuits on the system in
+.Dv natm_pcbs .
 This includes circuits currently being used for IP to prevent NATM and
 IP from clashing over virtual circuit usage.
 .Pp
 When a virtual circuit is enabled for receiving data, the NATM
 protocol layer passes the address of the protocol control block down
-to the driver as a receive 
+to the driver as a receive
 .Dq handle .
 When inbound data arrives, the driver passes the data back with the
 appropriate receive handle.   The NATM layer uses this to avoid the
@@ -87,14 +87,14 @@ is pretty rapid (in fact, it is massive!), and the normal AAL0
 handling of the driver is unable to handle it (you end up with a cell
 per small mbuf trying to make it to the application ... it turns out
 the socket layer can't keep up with that sort of data stream).  To
-solve this problem we have implemented a 
+solve this problem we have implemented a
 .Dq raw
 mode which batches unprocessed AAL0 info from the card into larger
 data chunks blocks.  We can save this data to disk in real-time
 without the socket layer freaking out.    Unfortunately, the data has
 RBD (receive buffer descriptors) and cells headers in it, and this has
-to be filtered out after capture.    
-To enable 
+to be filtered out after capture.
+To enable
 .Dq raw
 mode one does the following ioctl:
 .Bd -literal -offset indent

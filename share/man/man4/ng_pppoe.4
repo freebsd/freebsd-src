@@ -1,6 +1,6 @@
 .\" Copyright (c) 1996-1999 Whistle Communications, Inc.
 .\" All rights reserved.
-.\" 
+.\"
 .\" Subject to the following obligations and disclaimer of warranty, use and
 .\" redistribution of this software, in source or object code forms, with or
 .\" without modifications are expressly permitted by Whistle Communications;
@@ -11,7 +11,7 @@
 .\"    Communications, Inc. trademarks, including the mark "WHISTLE
 .\"    COMMUNICATIONS" on advertising, endorsements, or otherwise except as
 .\"    such appears in the above copyright notice or in the software.
-.\" 
+.\"
 .\" THIS SOFTWARE IS BEING PROVIDED BY WHISTLE COMMUNICATIONS "AS IS", AND
 .\" TO THE MAXIMUM EXTENT PERMITTED BY LAW, WHISTLE COMMUNICATIONS MAKES NO
 .\" REPRESENTATIONS OR WARRANTIES, EXPRESS OR IMPLIED, REGARDING THIS SOFTWARE,
@@ -29,7 +29,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF WHISTLE COMMUNICATIONS IS ADVISED OF THE POSSIBILITY
 .\" OF SUCH DAMAGE.
-.\" 
+.\"
 .\" Author: Archie Cobbs <archie@FreeBSD.org>
 .\"
 .\" $FreeBSD$
@@ -89,11 +89,11 @@ This generic message returns is a human-readable version of the node status.
 (not yet)
 .It Dv NGM_PPPOE_CONNECT
 Tell a nominated newly created hook that it's session should enter
-the state machine in a manner to become a client. It must be newly created and 
+the state machine in a manner to become a client. It must be newly created and
 a service name can be given as an argument. It is legal to specify a zero length
 service name. This is common on some DSL setups. A session request packet
 will be broadcast on the Ethernet.
-This command uses the 
+This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .It Dv NGM_PPPOE_LISTEN
@@ -102,9 +102,9 @@ the state machine in a manner to become a server listener. The argument
 given is the name of the service to listen on behalf of. A zero length service
 length will match all requests for service. A matching service request
 packet will be passed unmodified back to the process responsible
-for starting the service. It can then examine it and pass it on to 
-the session that is started to answer the request. 
-This command uses the 
+for starting the service. It can then examine it and pass it on to
+the session that is started to answer the request.
+This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .It Dv NGM_PPPOE_OFFER
@@ -116,10 +116,10 @@ a request packet to be forwarded to it from  the startup server,
 which in turn probably received it from a LISTEN mode hook ( see above).
 This is so
 that information that is required for the session that is embedded in
-the original session request packet, is made available to the state machine 
+the original session request packet, is made available to the state machine
 that eventually answers the request. When the Session request packet is
-received, the session negotiation will proceed. 
-This command uses the 
+received, the session negotiation will proceed.
+This command uses the
 .Dv ngpppoe_init_data
 structure shown below.
 .Pp
@@ -166,9 +166,9 @@ control message, when all session have been disconnected or when the
 hook is disconnected.
 .Sh SYSCTLs
 If you are one of the unfortunate people who have an ISP that
-uses some "pppoe" equipment from (I believe) 3com, and who have to 
+uses some "pppoe" equipment from (I believe) 3com, and who have to
 use a different ethertype on pppoe packets
-(hey why not change it from the standard for 
+(hey why not change it from the standard for
 no reason?) then after you have kldloaded or compiled in your pppoe node,
 you may have to do the following sysctl:
 .Bd -literal
@@ -177,13 +177,13 @@ you may have to do the following sysctl:
 sysctl -w net.graph.stupid_isp=1
 .Ed
 .Pp
-to enable the alternate ethertypes. Then phone your ISP and ask them 
+to enable the alternate ethertypes. Then phone your ISP and ask them
 why you need to set option "stupid_isp" for you to be able to connect.
 .Sh EXAMPLES
-The following code uses 
+The following code uses
 .Dv libnetgraph
 to set up a
-.Nm 
+.Nm
 node and connect it to both a socket node and an Ethernet node. It can handle
 the case of when a
 .Nm

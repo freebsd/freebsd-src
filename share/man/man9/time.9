@@ -75,7 +75,7 @@ The
 .Va runtime
 variable holds the time that the system switched to the
 current process.
-It is set after each context switch, 
+It is set after each context switch,
 and is updated when the system time is adjusted with
 .Xr settimeofday 2 .
 Because
@@ -123,7 +123,7 @@ returned by
 .Xr gettime 9
 and
 .Xr microtime 9
-are updated, comparing the results of the two routines 
+are updated, comparing the results of the two routines
 may result in a time value that appears to go backwards.
 This can be avoided by consistently using one function or the other
 for use in any given context.

@@ -45,7 +45,7 @@
 .Ft int
 .Fn socket AF_INET SOCK_RAW proto
 .Sh DESCRIPTION
-.Tn IP 
+.Tn IP
 is the transport layer protocol used
 by the Internet protocol family.
 Options may be set at the
@@ -65,11 +65,11 @@ special-purpose applications.
 .Pp
 There are several
 .Tn IP-level
-.Xr setsockopt 2 
+.Xr setsockopt 2
 and
 .Xr getsockopt 2
 options.
-.Dv IP_OPTIONS 
+.Dv IP_OPTIONS
 may be used to provide
 .Tn IP
 options to be transmitted in the
@@ -81,7 +81,7 @@ options may be used with any socket type in the Internet family.
 The format of
 .Tn IP
 options to be sent is that specified by the
-.Tn IP 
+.Tn IP
 protocol specification (RFC-791), with one exception:
 the list of addresses for Source Route options must include the first-hop
 gateway at the beginning of the list of gateways.
@@ -93,13 +93,13 @@ use a zero-length buffer:
 setsockopt(s, IPPROTO_IP, IP_OPTIONS, NULL, 0);
 .Ed
 .Pp
-.Dv IP_TOS 
-and 
-.Dv IP_TTL 
+.Dv IP_TOS
+and
+.Dv IP_TTL
 may be used to set the type-of-service and time-to-live
-fields in the 
-.Tn IP 
-header for 
+fields in the
+.Tn IP
+header for
 .Dv SOCK_STREAM , SOCK_DGRAM ,
 and certain types of
 .Dv SOCK_RAW
@@ -113,22 +113,22 @@ int ttl = 60;                   /* max = 255 */
 setsockopt(s, IPPROTO_IP, IP_TTL, &ttl, sizeof(ttl));
 .Ed
 .Pp
-If the 
-.Dv IP_RECVDSTADDR 
-option is enabled on a 
-.Dv SOCK_DGRAM 
+If the
+.Dv IP_RECVDSTADDR
+option is enabled on a
+.Dv SOCK_DGRAM
 socket,
 the
 .Xr recvmsg 2
-call will return the destination 
-.Tn IP 
-address for a 
-.Tn UDP 
-datagram. 
-The msg_control field in the msghdr structure points to a buffer 
-that contains a cmsghdr structure followed by the 
-.Tn IP 
-address. 
+call will return the destination
+.Tn IP
+address for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn IP
+address.
 The cmsghdr fields have the following values:
 .Bd -literal
 cmsg_len = sizeof(struct in_addr)
@@ -136,7 +136,7 @@ cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
 .Pp
-.Dv IP_PORTRANGE 
+.Dv IP_PORTRANGE
 may be used to set the port range used for selecting a local port number
 on a socket with an unspecified (zero) port number.
 It has the following
@@ -168,7 +168,7 @@ systems.  The range is normally from
 .Dv IPPORT_RESERVED - 1
 down to
 .Li IPPORT_RESERVEDSTART
-in descending order. 
+in descending order.
 This is adjustable through the sysctl setting:
 .Sy net.inet.ip.portrange.lowfirst
 and
@@ -176,18 +176,18 @@ and
 .El
 .Ss "Multicast Options"
 .Pp
-.Tn IP 
-multicasting is supported only on 
-.Dv AF_INET 
+.Tn IP
+multicasting is supported only on
+.Dv AF_INET
 sockets of type
-.Dv SOCK_DGRAM 
-and 
+.Dv SOCK_DGRAM
+and
 .Dv SOCK_RAW ,
 and only on networks where the interface
 driver supports multicasting.
 .Pp
-The 
-.Dv IP_MULTICAST_TTL 
+The
+.Dv IP_MULTICAST_TTL
 option changes the time-to-live (TTL)
 for outgoing multicast datagrams
 in order to control the scope of the multicasts:
@@ -203,36 +203,36 @@ group and if multicast loopback has not been disabled on the sending socket
 (see below).  Multicast datagrams with TTL greater than 1 may be forwarded
 to other networks if a multicast router is attached to the local network.
 .Pp
-For hosts with multiple interfaces, each multicast transmission is 
+For hosts with multiple interfaces, each multicast transmission is
 sent from the primary network interface.
-The 
-.Dv IP_MULTICAST_IF 
-option overrides the default for 
+The
+.Dv IP_MULTICAST_IF
+option overrides the default for
 subsequent transmissions from a given socket:
 .Bd -literal
 struct in_addr addr;
 setsockopt(s, IPPROTO_IP, IP_MULTICAST_IF, &addr, sizeof(addr));
 .Ed
 .Pp
-where "addr" is the local 
-.Tn IP 
+where "addr" is the local
+.Tn IP
 address of the desired interface or
-.Dv INADDR_ANY 
+.Dv INADDR_ANY
 to specify the default interface.
-An interface's local IP address and multicast capability can 
-be obtained via the 
-.Dv SIOCGIFCONF 
-and 
-.Dv SIOCGIFFLAGS 
-ioctls. 
+An interface's local IP address and multicast capability can
+be obtained via the
+.Dv SIOCGIFCONF
+and
+.Dv SIOCGIFFLAGS
+ioctls.
 Normal applications should not need to use this option.
 .Pp
 If a multicast datagram is sent to a group to which the sending host itself
 belongs (on the outgoing interface), a copy of the datagram is, by default,
-looped back by the IP layer for local delivery. 
-The 
-.Dv IP_MULTICAST_LOOP 
-option gives the sender explicit control 
+looped back by the IP layer for local delivery.
+The
+.Dv IP_MULTICAST_LOOP
+option gives the sender explicit control
 over whether or not subsequent datagrams are looped back:
 .Bd -literal
 u_char loop;	/* 0 = disable, 1 = enable (default) */
@@ -252,16 +252,16 @@ to the sending host on a different interface from that on which it was sent,
 if the host belongs to the destination group on that other interface.  The
 loopback control option has no effect on such delivery.
 .Pp
-A host must become a member of a multicast group before it can receive 
-datagrams sent to the group.  To join a multicast group, use the 
-.Dv IP_ADD_MEMBERSHIP 
+A host must become a member of a multicast group before it can receive
+datagrams sent to the group.  To join a multicast group, use the
+.Dv IP_ADD_MEMBERSHIP
 option:
 .Bd -literal
 struct ip_mreq mreq;
 setsockopt(s, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq));
 .Ed
 .Pp
-where 
+where
 .Fa mreq
 is the following structure:
 .Bd -literal
@@ -271,20 +271,20 @@ struct ip_mreq {
 }
 .Ed
 .Pp
-.Dv imr_interface 
+.Dv imr_interface
 should
-be 
-.Dv INADDR_ANY 
-to choose the default multicast interface, 
-or the 
-.Tn IP 
+be
+.Dv INADDR_ANY
+to choose the default multicast interface,
+or the
+.Tn IP
 address of a particular multicast-capable interface if
 the host is multihomed.
-Membership is associated with a single interface; 
-programs running on multihomed hosts may need to 
-join the same group on more than one interface.  
-Up to 
-.Dv IP_MAX_MEMBERSHIPS 
+Membership is associated with a single interface;
+programs running on multihomed hosts may need to
+join the same group on more than one interface.
+Up to
+.Dv IP_MAX_MEMBERSHIPS
 (currently 20) memberships may be added on a
 single socket.
 .Pp
@@ -294,10 +294,10 @@ struct ip_mreq mreq;
 setsockopt(s, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq, sizeof(mreq));
 .Ed
 .Pp
-where 
+where
 .Fa mreq
-contains the same values as used to add the membership. 
-Memberships are dropped when the socket is closed or the process exits.  
+contains the same values as used to add the membership.
+Memberships are dropped when the socket is closed or the process exits.
 .\"-----------------------
 .Ss "Raw IP Sockets"
 .Pp
@@ -311,11 +311,11 @@ and
 calls, though the
 .Xr connect 2
 call may also be used to fix the destination for future
-packets (in which case the 
+packets (in which case the
 .Xr read 2
 or
 .Xr recv 2
-and 
+and
 .Xr write 2
 or
 .Xr send 2
@@ -338,17 +338,17 @@ Outgoing packets automatically have an
 header prepended to
 them (based on the destination address and the protocol
 number the socket is created with),
-unless the 
-.Dv IP_HDRINCL 
+unless the
+.Dv IP_HDRINCL
 option has been set.
 Incoming packets are received with
 .Tn IP
 header and options intact.
 .Pp
-.Dv IP_HDRINCL 
+.Dv IP_HDRINCL
 indicates the complete IP header is included with the data
-and may be used only with the 
-.Dv SOCK_RAW 
+and may be used only with the
+.Dv SOCK_RAW
 type.
 .Bd -literal
 #include <netinet/in_systm.h>
@@ -358,8 +358,8 @@ int hincl = 1;                  /* 1 = on, 0 = off */
 setsockopt(s, IPPROTO_IP, IP_HDRINCL, &hincl, sizeof(hincl));
 .Ed
 .Pp
-Unlike previous 
-.Bx 
+Unlike previous
+.Bx
 releases, the program must set all
 the fields of the IP header, including the following:
 .Bd -literal
@@ -369,7 +369,7 @@ ip->ip_id = 0;  /* 0 means kernel set appropriate value */
 ip->ip_off = offset;
 .Ed
 .Pp
-If the header source address is set to 
+If the header source address is set to
 .Dv INADDR_ANY ,
 the kernel will choose an appropriate address.
 .Sh ERRORS
@@ -387,7 +387,7 @@ connected;
 when the system runs out of memory for
 an internal data structure;
 .It Bq Er EADDRNOTAVAIL
-when an attempt is made to create a 
+when an attempt is made to create a
 socket with a network address for which no network interface
 exists.
 .It Bq Er EACCES

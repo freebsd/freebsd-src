@@ -45,7 +45,7 @@ provide user programs with movement and button state information of the mouse.
 Currently there are specific device drivers for bus, InPort, PS/2, and USB mice.
 The serial mouse is not directly supported by a dedicated driver, but
 it is accessible via the serial device driver or via
-.Xr moused 8 
+.Xr moused 8
 and
 .Xr sysmouse 4 .
 .Pp
@@ -56,7 +56,7 @@ mouse data from the device via
 .Xr read 2 .
 Movement and button states are usually encoded in fixed-length data packets.
 Some mouse devices may send data in variable length of packets.
-Actual protocol (data format) used by each driver differs widely. 
+Actual protocol (data format) used by each driver differs widely.
 .Pp
 The mouse drivers may have ``non-blocking'' attribute which will make
 the driver return immediately if mouse data is not available.
@@ -66,16 +66,16 @@ The current operation level can be examined and changed via
 .Xr ioctl 2
 commands.
 The level zero is the lowest level at which the driver offers the basic
-service to user programs. 
+service to user programs.
 Most drivers provide horizontal and vertical movement of the mouse
 and state of up to three buttons at this level.
 At the level one, if supported by the driver, mouse data is encoded
-in the standard format 
-.Dv MOUSE_PROTO_SYSMOUSE 
+in the standard format
+.Dv MOUSE_PROTO_SYSMOUSE
 as follows:
 .Pp
 .Bl -tag -width Byte_1 -compact
-.It Byte 1 
+.It Byte 1
 .Bl -tag -width bit_7 -compact
 .It bit 7
 Always one.
@@ -91,26 +91,26 @@ if the device does not have the middle button.
 Right button status; cleared if pressed, otherwise set.
 .El
 .It Byte 2
-The first half of horizontal movement count in two's complement; 
+The first half of horizontal movement count in two's complement;
 -128 through 127.
 .It Byte 3
-The first half of vertical movement count in two's complement; 
+The first half of vertical movement count in two's complement;
 -128 through 127.
 .It Byte 4
-The second half of the horizontal movement count in two's complement; 
+The second half of the horizontal movement count in two's complement;
 -128 through 127. To obtain the full horizontal movement count, add
 the byte 2 and 4.
 .It Byte 5
-The second half of the vertical movement count in two's complement; 
+The second half of the vertical movement count in two's complement;
 -128 through 127. To obtain the full vertical movement count, add
 the byte 3 and 5.
 .It Byte 6
 The bit 7 is always zero.
-The lower 7 bits encode the first half of 
+The lower 7 bits encode the first half of
 Z axis movement count in two's complement; -64 through 63.
 .It Byte 7
 The bit 7 is always zero.
-The lower 7 bits encode the second half of 
+The lower 7 bits encode the second half of
 the Z axis movement count in two's complement; -64 through 63.
 To obtain the full Z axis movement count, add the byte 6 and 7.
 .It Byte 8
@@ -124,11 +124,11 @@ the bit is set.
 .Pp
 The first 5 bytes of this format is compatible with the MouseSystems
 format.
-The additional 3 bytes have their MSBs always set to zero. 
+The additional 3 bytes have their MSBs always set to zero.
 Thus, if the user program can interpret the MouseSystems data format and
 tries to find the first byte of the format by detecting the bit pattern
-10000xxxb, 
-it will discard the additional bytes, thus, be able to decode x, y 
+10000xxxb,
+it will discard the additional bytes, thus, be able to decode x, y
 and states of 3 buttons correctly.
 .Pp
 Device drivers may offer operation levels higher than one.
@@ -139,7 +139,7 @@ The following
 commands are defined for the mouse drivers.
 The degree of support
 varies from one driver to another.
-This section gives general 
+This section gives general
 description of the commands.
 Refer to manual pages of individual drivers for specific details.
 .Pp
@@ -149,7 +149,7 @@ Refer to manual pages of individual drivers for specific details.
 These commands manipulate the operation level of the mouse driver.
 .Pp
 .It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
-Returns the hardware information of the attached device in the following 
+Returns the hardware information of the attached device in the following
 Except for the
 .Dv iftype
 field, the device driver may not always fill the structure with correct
@@ -196,9 +196,9 @@ or
 .Pp
 The
 .Dv model
-may be 
+may be
 .Dv MOUSE_MODEL_GENERIC
-or one of 
+or one of
 .Dv MOUSE_MODEL_XXX
 constants.
 .Pp
@@ -206,7 +206,7 @@ The
 .Dv hwid
 is the ID value returned by the pointing device.
 It
-depend on the interface type; refer to the manual page of 
+depend on the interface type; refer to the manual page of
 specific mouse drivers for possible values.
 .Pp
 .It Dv MOUSE_GETMODE Ar mousemode_t *mode
@@ -225,21 +225,21 @@ typedef struct mousemode {
 .Pp
 The
 .Dv protocol
-field tells the format in which the device status is returned 
+field tells the format in which the device status is returned
 when the mouse data is read by the user program.
-It is one of 
+It is one of
 .Dv MOUSE_PROTO_XXX
 constants.
 .Pp
 The
 .Dv rate
-field is the status report rate (reports/sec) at which the device will send 
+field is the status report rate (reports/sec) at which the device will send
 movement reports to the host computer. -1 if unknown or not applicable.
 .Pp
 The
 .Dv resolution
 field holds a value specifying resolution of the pointing device.
-It is a positive value or one of 
+It is a positive value or one of
 .Dv MOUSE_RES_XXX
 constants.
 .Pp
@@ -275,8 +275,8 @@ as specified in
 Only
 .Dv rate ,
 .Dv resolution ,
-.Dv level 
-and 
+.Dv level
+and
 .Dv accelfactor
 may be modifiable.
 Setting values in the other field does not generate
@@ -284,16 +284,16 @@ error and has no effect.
 .Pp
 If you do not want to change the current setting of a field, put -1
 there.
-You may also put zero in 
+You may also put zero in
 .Dv resolution
 and
 .Dv rate ,
 and the default value for the fields will be selected.
 .\" .Pp
 .\" .It Dv MOUSE_GETVARS Ar mousevar_t *vars
-.\" Get internal variables of the mouse driver. 
+.\" Get internal variables of the mouse driver.
 .\" The variables which can be manipulated through these commands
-.\" are specific to each driver. 
+.\" are specific to each driver.
 .\" This command may not be supported by all drivers.
 .\" .Bd -literal
 .\" typedef struct mousevar {
@@ -302,12 +302,12 @@ and the default value for the fields will be selected.
 .\" .Ed
 .\" .Pp
 .\" If the commands are supported, the first element of the array is
-.\" filled with a signature value. 
-.\" Apart from the signature data, there is currently no standard concerning 
+.\" filled with a signature value.
+.\" Apart from the signature data, there is currently no standard concerning
 .\" the other elements of the buffer.
 .\" .Pp
 .\" .It Dv MOUSE_SETVARS Ar mousevar_t *vars
-.\" Get internal variables of the mouse driver. 
+.\" Get internal variables of the mouse driver.
 .\" The first element of the array must be a signature value.
 .\" This command may not be supported by all drivers.
 .Pp
@@ -331,7 +331,7 @@ It uses the same structure as above.
 This command may not be supported by all drivers.
 .Pp
 .It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
-The command returns the current state of buttons and 
+The command returns the current state of buttons and
 movement counts in the following structure.
 .Bd -literal
 typedef struct mousestatus {
@@ -351,24 +351,24 @@ and
 fields hold the current and the previous state of the mouse buttons.
 When a button is pressed, the corresponding bit is set.
 The mouse drivers may support up to 31 buttons with the bit 0 through 31.
-Few button bits are defined as 
+Few button bits are defined as
 .Dv MOUSE_BUTTON1DOWN
-through 
+through
 .Dv MOUSE_BUTTON8DOWN .
 The first three buttons correspond to left, middle and right buttons.
 .Pp
-If the state of the button has changed since the last 
+If the state of the button has changed since the last
 .Dv MOUSE_GETSTATUS
 call, the corresponding bit in the
 .Dv flags
-field will be set. 
+field will be set.
 If the mouse has moved since the last call, the
 .Dv MOUSE_POSCHANGED
 bit in the
 .Dv flags
 field will also be set.
 .Pp
-The other fields hold movement counts since the last 
+The other fields hold movement counts since the last
 .Dv MOUSE_GETSTATUS
 call.
 The internal counters will be reset after every call to this

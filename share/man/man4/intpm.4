@@ -34,10 +34,10 @@
 .Cd device smbus
 .Cd device intpm
 .Sh DESCRIPTION
-This driver provides access to 
+This driver provides access to
 .Tn Intel PIIX4 PCI Controller function 3 ,
 Power management controller.
-Currently, only smbus controller 
+Currently, only smbus controller
 function is implemented.
 But it also have bus idle monitoring function.
 It
@@ -56,7 +56,7 @@ manual page was written by
 .An Takanori Watanabe Aq takawata@shidahara1.planet.sci.kobe-u.ac.jp .
 .Sh BUGS
 This device requires IRQ 9 exclusively.
-To use this, you should enable 
-ACPI function in BIOS configuration, or PnP mechanism assigns conflicted 
+To use this, you should enable
+ACPI function in BIOS configuration, or PnP mechanism assigns conflicted
 IRQ for PnP ISA card.
 And don't use IRQ 9 for Non-PnP ISA cards.

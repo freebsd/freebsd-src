@@ -191,12 +191,12 @@ char *string = "dynamic sysctl";
  ...
 
 sysctl_ctx_init(&clist);
-oidp = SYSCTL_ADD_NODE( &clist, SYSCTL_STATIC_CHILDREN(/* tree top */), 
+oidp = SYSCTL_ADD_NODE( &clist, SYSCTL_STATIC_CHILDREN(/* tree top */),
 	OID_AUTO, newtree, CTFLAG_RW, 0, "new top level tree");
 oidp = SYSCTL_ADD_INT( &clist, SYSCTL_CHILDREN(oidp),
 	OID_AUTO, newint, CTLFLAG_RW, &a_int, 0, "new int leaf");
  ...
-oidp = SYSCTL_ADD_NODE( &clist, SYSCTL_STATIC_CHILDREN(_debug), 
+oidp = SYSCTL_ADD_NODE( &clist, SYSCTL_STATIC_CHILDREN(_debug),
 	OID_AUTO, newtree, CTFLAG_RW, 0, "new tree under debug");
 oidp = SYSCTL_ADD_STRING( &clist, SYSCTL_CHILDREN(oidp),
 	OID_AUTO, newstring, CTLFLAG_R, string, 0, "new string leaf");

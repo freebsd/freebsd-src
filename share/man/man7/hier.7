@@ -54,11 +54,11 @@ default bootstrapping configuration files; see
 .Xr loader.conf 5
 .It Pa kernel/
 pure kernel executable (the operating system loaded into memory
-at boot time).  
+at boot time).
 .It Pa modules/
 third-part loadable kernel modules;
-see 
-.Xr kldstat 8 
+see
+.Xr kldstat 8
 .El
 .It Pa /cdrom/
 default mount point for CD-ROM drives
@@ -76,7 +76,7 @@ block and character device files
 script for creating device files;
 see
 .Xr MAKEDEV 8
-.It Pa fd/ 
+.It Pa fd/
 file descriptor files;
 see
 .Xr \&fd 4
@@ -85,7 +85,7 @@ see
 mount point used by
 .Xr sysinstall 8
 .It Pa /etc/
-system configuration files and scripts 
+system configuration files and scripts
 .Pp
 .Bl -tag -width "disklabels/" -compact
 .It Pa defaults/
@@ -100,7 +100,7 @@ see
 isdn4bsd configuration files;
 see
 .Xr isdnd 8
-.It Pa kerberosIV/ 
+.It Pa kerberosIV/
 configuration files for kerberos version IV;
 see
 .Xr kerberos 1
@@ -110,11 +110,11 @@ see
 .Xr ctime 3
 .It Pa mail/
 Sendmail control files
-.It Pa mtree/ 
+.It Pa mtree/
 mtree configuration files;
 see
 .Xr mtree 8
-.It Pa namedb/ 
+.It Pa namedb/
 named configuration files;
 see
 .Xr named 8
@@ -125,7 +125,7 @@ see
 .Xr periodic 8
 .It Pa ppp/
 ppp configuration files;
-see 
+see
 .Xr ppp 8
 .It Pa ssl/
 OpenSSL configuration files
@@ -149,10 +149,10 @@ system programs and administration utilities
 fundamental to both single-user and multi-user environments
 .It Pa /stand/
 programs used in a standalone environment
-.It Pa /tmp/ 
+.It Pa /tmp/
 temporary files
 .It Pa /usr/
-contains the majority of user utilities and applications 
+contains the majority of user utilities and applications
 .Pp
 .Bl -tag -width "libdata/" -compact
 .It Pa bin/
@@ -320,7 +320,7 @@ UFS filesystem
 .El
 .It Pa vm/
 virtual memory;
-see 
+see
 .Xr vmstat 8
 .El
 .Pp
@@ -356,7 +356,7 @@ see
 .Xr ld 1
 .It Pa lint/
 various prebuilt lint libraries;
-see 
+see
 .Xr lint 1
 .It Pa msdosfs/
 Character set conversion tables
@@ -384,7 +384,7 @@ see
 .Xr lpr 1
 .It Pa sm.bin/
 restricted shell for sendmail;
-see 
+see
 .Xr smrsh 8
 .It Pa uucp/
 uucp utilities;
@@ -501,7 +501,7 @@ localization files;
 see
 .Xr setlocale 3
 .It Pa man/
-manual pages 
+manual pages
 .It Pa me/
 macros for use with the me macro package;
 see
@@ -526,7 +526,7 @@ see
 .Xr make 1
 .It Pa nls/
 national language support files;
-see 
+see
 .Xr mklocale 1
 .It Pa pcvt/
 pcvt documentation and etc examples;
@@ -536,7 +536,7 @@ see
 perl library files;
 see
 .Xr perl 1
-.It Pa sendmail/ 
+.It Pa sendmail/
 sendmail configuration files;
 see
 .Xr sendmail 8
@@ -563,7 +563,7 @@ and
 console screen maps
 .El
 .It Pa tabset/
-tab description files for a variety of terminals; used in 
+tab description files for a variety of terminals; used in
 the termcap file;
 see
 .Xr termcap 5
@@ -571,7 +571,7 @@ see
 text processing macros;
 see
 .Xr nroff 1
-and 
+and
 .Xr troff 1
 .It Pa vi/
 localization support and utilities for
@@ -586,7 +586,7 @@ BSD, third-party, and/or local source files
 .Pp
 .Bl -tag -width "kerberosIV/" -compact
 .It Pa bin/
-source code for files in /bin 
+source code for files in /bin
 .It Pa contrib/
 source code for contributed software
 .It Pa crypto/
@@ -607,7 +607,7 @@ source code for files in /usr/lib
 source code for files in /usr/libexec
 .It Pa release/
 files required to produce a
-.Fx 
+.Fx
 release
 .It Pa sbin/
 source code for files in /sbin
@@ -647,7 +647,7 @@ architecture-independent files.
 multi-purpose log, temporary, transient, and spool files
 .Pp
 .Bl -tag -width "preserve/" -compact
-.It Pa account/ 
+.It Pa account/
 system accounting files
 .Pp
 .Bl -tag -width Fl -compact
@@ -665,7 +665,7 @@ see
 .It Pa jobs/
 directory containing job files
 .It Pa spool/
-directory containing output spool files 
+directory containing output spool files
 .El
 .Pp
 .It Pa backups/
@@ -686,11 +686,11 @@ see
 .Xr crontab 5
 .El
 .Pp
-.It Pa db/ 
+.It Pa db/
 misc. automatically generated system-specific database files
-.It Pa games/ 
+.It Pa games/
 misc. game status and score files
-.It Pa log/ 
+.It Pa log/
 misc. system log files
 .Pp
 .Bl -tag -width Fl -compact
@@ -700,18 +700,18 @@ see
 .Xr wtmp 5
 .El
 .Pp
-.It Pa mail/ 
+.It Pa mail/
 user mailbox files
 .It Pa preserve/
 temporary home of files preserved after an accidental death
 of an editor;
 see
-.Xr \&ex 1 
+.Xr \&ex 1
 .It Pa msgs/
 system messages database;
 see
 .Xr msgs 1
-.It Pa quotas/ 
+.It Pa quotas/
 filesystem quota information files
 .It Pa run/
 system information files describing various info about
@@ -724,36 +724,36 @@ see
 .Xr utmp 5
 .El
 .Pp
-.It Pa rwho/ 
+.It Pa rwho/
 rwho data files;
 see
 .Xr rwhod 8 ,
 .Xr rwho 1 ,
 and
 .Xr ruptime 1
-.It Pa spool/ 
+.It Pa spool/
 misc. printer and mail system spooling directories
 .Pp
 .Bl -tag -width Fl -compact
-.It Pa ftp/ 
+.It Pa ftp/
 commonly ~ftp; the anonymous ftp root directory
-.It Pa mqueue/ 
+.It Pa mqueue/
 undelivered mail queue;
 see
 .Xr sendmail 8
 .It Pa output/
 line printer spooling directories
-.It Pa secretmail/ 
+.It Pa secretmail/
 secretmail spool directory;
 see
 .Xr xget 1
-.It Pa uucp/ 
+.It Pa uucp/
 uucp spool directory
 .It Pa uucppublic/
 commonly ~uucp; public uucp temporary directory
 .El
 .Pp
-.It Pa tmp/ 
+.It Pa tmp/
 temporary files that are kept between system reboots
 .Bl -tag -width Fl -compact
 .It Pa vi.recover/

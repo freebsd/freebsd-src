@@ -296,7 +296,7 @@ This pointer is passed to any C call (see above).
 .Pp
 Parameter:
 .Bl -enum -offset indent
-.It          
+.It
 pointer to the buffer that shall be accessed by xxx_P() microsequence calls.
 Note that this pointer is automatically incremented during xxx_P() calls
 .El
@@ -311,7 +311,7 @@ Parameter:
 .Bl -enum -offset indent
 .It
 delay in ms
-.El 
+.El
 .Pp
 Predefined macro: MS_ADELAY(delay)
 .Ss MS_OP_BRSTAT - BRanch on STATe
@@ -358,14 +358,14 @@ Predefined macro: MS_CALL(microseq)
 .Ss MS_OP_RASSERT_P - Register ASSERT from internal PTR
 is used to assert a register with data currently pointed by the internal PTR
 pointer.
-Parameter: 
+Parameter:
 .Bl -enum -offset indent
 .It
 amount of data to write to the register
 .It
 register
 .El
-.Pp  
+.Pp
 Predefined macro: MS_RASSERT_P(iter,reg)
 .Ss MS_OP_RFETCH_P - Register FETCH to internal PTR
 is used to fetch data from a register.
@@ -392,7 +392,7 @@ This allows to
 write magic sequences to the port.
 Parameter:
 .Bl -enum -offset indent
-.It 
+.It
 amount of data to read from the register
 .It
 register

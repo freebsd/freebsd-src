@@ -66,9 +66,9 @@ The possible values of
 .Fa rw
 are any bitwise combination of
 .Dv VM_PROT_READ ,
-.Dv VM_PROT_WRITE 
+.Dv VM_PROT_WRITE
 and
-.Dv VM_PROT_EXECUTE . 
+.Dv VM_PROT_EXECUTE .
 .Fn kernacc
 checks addresses in the kernel address space, while
 .Fn useracc
@@ -79,11 +79,11 @@ The process context to use for this
 operation is taken from the global variable
 .Va curproc .
 .Sh RETURN VALUES
-Both functions return boolean true if the type of access specified 
+Both functions return boolean true if the type of access specified
 by
 .Fa rw
 is permitted.
 Otherwise boolean false is returned.
 .Sh BUGS
-The process pointer should be passed in as an argument to 
+The process pointer should be passed in as an argument to
 .Fn useracc .

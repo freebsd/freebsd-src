@@ -107,7 +107,7 @@ or other) and a passthrough flag to indicate pasthrough devices.  See below
 for a complete list of types.
 .It priority
 The device priority.  The priority is used to determine how devices are
-sorted within 
+sorted within
 .Nm devstat Ns 's
 list of devices.  Devices are sorted first by priority (highest to lowest),
 and then by attach order.  See below for a complete list of available
@@ -153,7 +153,7 @@ whether no data was transferred.
 .Fn devstat_end_transaction_bio
 is a wrapper for
 .Fn devstat_end_transaction
-which pulls all the information from a 
+which pulls all the information from a
 .Va "struct bio"
 which is ready for biodone().
 .Pp
@@ -176,7 +176,7 @@ number is currently only a 32-bit integer, but it could be enlarged if
 someone has a system with more than four billion device arrival events.
 .It device_name
 The device name is a text string given by the registering driver to
-identify itself.  (e.g. 
+identify itself.  (e.g.
 .Dq da ,
 .Dq cd ,
 .Dq sa ,
@@ -336,7 +336,7 @@ passed into
 .Fn devstat_end_transaction .
 The transaction types are as follows:
 .Bd -literal -offset indent
-typedef enum { 
+typedef enum {
 	DEVSTAT_NO_DATA	= 0x00,
 	DEVSTAT_READ	= 0x01,
 	DEVSTAT_WRITE	= 0x02,

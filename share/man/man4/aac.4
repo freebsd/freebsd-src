@@ -35,10 +35,10 @@
 .Cd device pci
 .Cd device aac
 .Sh DESCRIPTION
-The 
+The
 .Nm
 driver provides support for the Adaptec AAC family SCSI Ultra2 and Ultra160
-RAID controllers.  
+RAID controllers.
 These controllers support RAID 0, 1, 5, 10, and volume sets.
 They have four channels in the add-in version
 or 1-2 channels in the motherboard integrated version,
@@ -64,27 +64,27 @@ Dell PERC 3/Di
 Access to RAID containers is available via the
 .Pa /dev/aacd?
 device nodes.
-Individual drives cannot be accessed 
+Individual drives cannot be accessed
 unless they are part of a container or volume set,
-and non-fixed disks cannot be accessed.  
+and non-fixed disks cannot be accessed.
 Containers can be configured by using
-either the on-board BIOS utility of the card, 
+either the on-board BIOS utility of the card,
 or a Linux-based management application.
 .Pp
 The
 .Pa /dev/aac?
-device nodes provides access to the management interface of the controller.  
+device nodes provides access to the management interface of the controller.
 One node exists per installed card.
 Compiling the driver with the
 .Dv AAC_COMPAT_LINUX
-option enables the Linux-compatible 
+option enables the Linux-compatible
 .Xr ioctl 2
-interface for the management device.  
-The 
-.Xr ioctl 2 
-command set is heavily tailored to existing linux applications.  
+interface for the management device.
+The
+.Xr ioctl 2
+command set is heavily tailored to existing linux applications.
 Native
-.Xr ioctl 2 
+.Xr ioctl 2
 support is not present at this time.
 .Sh FILES
 .Bl -tag -width /boot/kernel/aac.ko -compact
@@ -98,10 +98,10 @@ aac loadable module
 .Sh DIAGNOSTICS
 Compiling with
 .Dv AAC_DEBUG
-set to a number between 0 and 3 
+set to a number between 0 and 3
 will enable increasingly verbose debug messages.
 .Pp
-The adapter can send status and alert messages asynchronously 
+The adapter can send status and alert messages asynchronously
 to the driver.  These messages are printed on the system console,
 and are also queued for retrieval by a management application.
 .Sh SEE ALSO
@@ -123,16 +123,16 @@ and is
 .Sh BUGS
 This driver has not been tested on Alpha, though it should work.
 .Pp
-The controller is not actually paused on suspend/resume.  
+The controller is not actually paused on suspend/resume.
 .Pp
-Adapter-initiated messages are not returned back to the controller, 
+Adapter-initiated messages are not returned back to the controller,
 possibly causing a resource leak on the controller.
 .Pp
 Unloading and reloading the driver as a kernel loadable module
 without rebooting the system is strongly discouraged.
 .Pp
-Only the Linux-compatible 
-.Xr ioctl 2 
+Only the Linux-compatible
+.Xr ioctl 2
 interface is implemented at this time.
 This is not a bug, but native
 .Xr ioctl 2

@@ -82,7 +82,7 @@ The
 function is used to make the first process in the queue that is
 sleeping on the parameter
 .Fa ident
-runnable.  This can prevent the system from becoming saturated 
+runnable.  This can prevent the system from becoming saturated
 when a large number of processes are sleeping on the same address,
 but only one of them can actually do any useful work when made
 runnable.
@@ -144,10 +144,10 @@ is called several times, only the most recent call is effective.
 may be called with an
 .Ar ident
 value of NULL
-to remove any previously queued condition.  
+to remove any previously queued condition.
 .Pp
 .Nm Await
-implements the new asynchronous wait function.  When 
+implements the new asynchronous wait function.  When
 .Fn asleep
 is called on an identifier it associates the process with that
 identifier but does not block.
@@ -155,21 +155,21 @@ identifier but does not block.
 will actually block the process until
 .Fn wakeup
 is called on that identifier any time after the
-.Fn asleep . 
-If 
+.Fn asleep .
+If
 .Fn wakeup
 is called after you
 .Fn asleep
-but before you 
+but before you
 .Fn await
-then the 
+then the
 .Fn await
 call is effectively a NOP.
 If
 .Fn await
 is called multiple times without an intervening
 .Fn asleep ,
-the 
+the
 .Fn await
 is effectively a NOP but will also call
 .Fn mi_switch
@@ -183,7 +183,7 @@ call.  If -1 is passed for the priority you must be prepared to catch signal
 conditions if the prior call to
 .Fn asleep
 specified it in its priority.  If -1 is passed for the timeout you must be
-prepared to catch a timeout condition if the prior call to 
+prepared to catch a timeout condition if the prior call to
 .Fn asleep
 specified a timeout.  When you use -1, it is usually a good idea to not make
 assumptions as to the arguments used by the prior
@@ -197,12 +197,12 @@ and
 functions are mainly used by the kernel to shift the burden of blocking
 away from extremely low level routines and to push it onto their callers.
 This in turn allows more complex interlocking code to
-.Em backout 
+.Em backout
 of a temporary resource failure
 (such as lack of memory) in order to release major locks prior to actually
 blocking, and to then retry the operation on wakeup.  This key feature is
 expected to be heavily used in SMP situations in order to allow code to make
-better use of spinlocks.  A spinlock, by its very nature, cannot be used 
+better use of spinlocks.  A spinlock, by its very nature, cannot be used
 around code that might block.  It is hoped that these capabilities will
 make it easier to migrate the SMP master locks deeper into the kernel.
 .Pp
@@ -236,7 +236,7 @@ appeared in a very early version of Unix.
 appeared in
 .Bx 4.4 .
 .Pp
-.Nm Asleep Ns / Ns Nm await 
+.Nm Asleep Ns / Ns Nm await
 first appeared in
 .Fx 3.0
 and is designed to shift the burden of blocking

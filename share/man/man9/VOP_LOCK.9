@@ -126,7 +126,7 @@ start:
     }
     if (vp->v_tag == VT_NON)
 	return ENOENT;
-    
+
     vop = VTOVON(vp);
     if (vop->von_flag & VON_LOCKED) {
 	vop->von_flag |= VON_WANTED;

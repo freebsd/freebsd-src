@@ -36,7 +36,7 @@
 .Ft int
 .Fn VFS_CHECKEXP "struct mount *mp" "struct sockaddr *nam" "int *exflagsp" "struct ucred **credanonp"
 .Sh DESCRIPTION
-This is used by the NFS server to check if a mount point is exported 
+This is used by the NFS server to check if a mount point is exported
 to a client.
 .Pp
 Its arguments are:
@@ -51,8 +51,8 @@ Return parameter for the export flags for this client.
 Return parameter for the anonymous credentials for this client.
 .El
 .Pp
-This should be called on a file system's mount structure to determine if it 
-is exported to a client whose address is contained in 
+This should be called on a file system's mount structure to determine if it
+is exported to a client whose address is contained in
 .Fa nam .
 .Pp
 It is generally called before
@@ -62,7 +62,7 @@ to validate that a client has access to the filesystem.
 The filesystem should call
 .Xr vfs_export_lookup 9
 with the address of an appropriate
-.Dv netexport 
+.Dv netexport
 structure and the address of the client,
 .Fa nam ,
 to verify that the client can access this filesystem.

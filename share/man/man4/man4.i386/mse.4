@@ -31,7 +31,7 @@ The interface circuit may come on an integrated I/O card or as an option
 on video cards.
 .Pp
 The bus and InPort mice have two or three buttons,
-and a D-sub 9-pin male connector or a round DIN 9-pin 
+and a D-sub 9-pin male connector or a round DIN 9-pin
 male connector.
 .Pp
 The primary port address of the bus and InPort mouse interface cards
@@ -51,22 +51,22 @@ It may be 15, 30, 60 or 120Hz.
 The difference between the two types of the mice is not in mouse devices
 (in fact they are exactly the same). But in the circuit on the interface
 cards.
-This means that the device from a bus mouse package can be 
+This means that the device from a bus mouse package can be
 connected to the interface card from an InPort mouse package, or vice
 versa, provided that their connectors match.
 .Ss Operation Levels
 The
 .Nm
-driver has two levels of operation. 
+driver has two levels of operation.
 The current operation level can be set via an ioctl call.
 .Pp
 At the level zero the basic support is provided; the device driver will report
-horizontal and vertical movement of the attached device 
+horizontal and vertical movement of the attached device
 and state of up to three buttons in the format described below.
 It is a subset of the MouseSystems protocol.
 .Pp
 .Bl -tag -width Byte_1 -compact
-.It Byte 1 
+.It Byte 1
 .Bl -tag -width bit_7 -compact
 .It bit 7
 Always one.
@@ -91,23 +91,23 @@ Always zero.
 Always zero.
 .El
 .Pp
-This is the default level of operation and the driver is initially 
+This is the default level of operation and the driver is initially
 at this level when opened by the user program.
 .Pp
 At the operation level one (extended level), a data packet is encoded
 in the standard format
-.Dv MOUSE_PROTO_SYSMOUSE 
+.Dv MOUSE_PROTO_SYSMOUSE
 as defined in
 .Xr mouse 4 .
 .Ss Acceleration
 The
 .Nm
 driver can somewhat `accelerate' the movement of the pointing device.
-The faster you move the device, the further the pointer 
-travels on the screen. 
-The driver has an internal variable which governs the effect of 
+The faster you move the device, the further the pointer
+travels on the screen.
+The driver has an internal variable which governs the effect of
 the acceleration.
-Its value can be modified via the driver flag 
+Its value can be modified via the driver flag
 or via an ioctl call.
 .Ss Device Number
 The minor device number of the
@@ -118,9 +118,9 @@ minor = (`unit' << 1) | `non-blocking'
 .Ed
 .Pp
 where `unit' is the device number (usually 0) and the `non-blocking' bit
-is set to indicate ``don't block waiting for mouse input, 
+is set to indicate ``don't block waiting for mouse input,
 return immediately''.
-The `non-blocking' bit should be set for \fIXFree86\fP, 
+The `non-blocking' bit should be set for \fIXFree86\fP,
 therefore the minor device number usually used for \fIXFree86\fP is 1.
 See
 .Sx FILES
@@ -131,26 +131,26 @@ for device node names.
 The
 .Nm
 driver accepts the following driver flag.
-Set it in the 
-kernel configuration file 
+Set it in the
+kernel configuration file
 .Pq see Xr config 8
 or in the User Configuration Menu at
-the boot time 
+the boot time
 .Pq see Xr boot 8 .
 .Pp
 .Bl -tag -width MOUSE
 .It bit 4..7 ACCELERATION
 This flag controls the amount of acceleration effect.
-The smaller the value of this flag is, more sensitive the movement becomes. 
-The minimum value allowed, thus the value for the most sensitive setting, 
+The smaller the value of this flag is, more sensitive the movement becomes.
+The minimum value allowed, thus the value for the most sensitive setting,
 is one.
 Setting this flag to zero will completely disables the
-acceleration effect. 
+acceleration effect.
 .El
 .Sh IOCTLS
-There are a few 
+There are a few
 .Xr ioctl 2
-commands for mouse drivers. 
+commands for mouse drivers.
 These commands and related structures and constants are defined in
 .Ao Pa sys/mouse.h Ac .
 General description of the commands is given in
@@ -167,7 +167,7 @@ These commands manipulate the operation level of the
 driver.
 .Pp
 .It Dv MOUSE_GETHWINFO Ar mousehw_t *hw
-Returns the hardware information of the attached device in the following 
+Returns the hardware information of the attached device in the following
 structure.
 Only the
 .Dv iftype
@@ -192,7 +192,7 @@ field holds the number of buttons on the device.
 The
 .Dv iftype
 is either
-.Dv MOUSE_IF_BUS 
+.Dv MOUSE_IF_BUS
 or
 .Dv MOUSE_IF_INPORT .
 .Pp
@@ -211,9 +211,9 @@ The
 is always
 .Dv MOUSE_MODEL_GENERIC
 at the operation level 0.
-It may be 
+It may be
 .Dv MOUSE_MODEL_GENERIC
-or one of 
+or one of
 .Dv MOUSE_MODEL_XXX
 constants at higher operation levels.
 .Pp
@@ -248,9 +248,9 @@ at the operation level one.
 .Pp
 The
 .Dv rate
-is the status report rate (reports/sec) at which the device will send 
+is the status report rate (reports/sec) at which the device will send
 movement report to the host computer.
-As there is no standard to detect the current setting, 
+As there is no standard to detect the current setting,
 this field is always set to -1.
 .Pp
 The
@@ -259,7 +259,7 @@ is always set to -1.
 .Pp
 The
 .Dv accelfactor
-field holds a value to control acceleration feature 
+field holds a value to control acceleration feature
 .Pq see Sx Acceleration .
 It is zero or greater.
 If it is zero, acceleration is disabled.
@@ -290,8 +290,8 @@ Note that this detection method is not 100% reliable,
 thus, should be taken only as an advisory measure.
 .Pp
 Only
-.Dv level 
-and 
+.Dv level
+and
 .Dv accelfactor
 are modifiable by the
 .Dv MOUSE_SETMODE
@@ -303,8 +303,8 @@ The command changes the current operation parameters of the mouse driver
 as specified in
 .Ar mode .
 Only
-.Dv level 
-and 
+.Dv level
+and
 .Dv accelfactor
 may be modifiable.
 Setting values in the other field does not generate
@@ -323,7 +323,7 @@ These commands are not supported by the
 driver.
 .Pp
 .It Dv MOUSE_GETSTATUS Ar mousestatus_t *status
-The command returns the current state of buttons and 
+The command returns the current state of buttons and
 movement counts as described in
 .Xr mouse 4 .
 .El
@@ -341,18 +341,18 @@ movement counts as described in
 .Sh EXAMPLES
 .Dl "device mse0 at isa? port 0x23c irq 5"
 .Pp
-Add the 
+Add the
 .Nm
 driver at the primary port address with the IRQ 5.
 .Pp
 .Dl "device mse1 at isa? port 0x238 flags 0x30 irq 4"
 .Pp
-Define the 
+Define the
 .Nm
 driver at the secondary port address with the IRQ 4 and the acceleration
 factor of 3.
 .Sh CAVEAT
-Some bus mouse interface cards generate interrupts at the fixed report rate 
+Some bus mouse interface cards generate interrupts at the fixed report rate
 when enabled, whether or not the mouse state is changing.
 The others generate interrupts only when the state is changing.
 .Sh SEE ALSO

@@ -113,7 +113,7 @@ bidirectional 8/4-bits mode, also called NIBBLE mode
 .It
 byte mode, also called PS/2 mode
 .It
-Extended Capability Port mode, ECP 
+Extended Capability Port mode, ECP
 .It
 Enhanced Parallel Port mode, EPP
 .It
@@ -164,13 +164,13 @@ performance parallel port link that would still be compatible with the
 standard parallel port.
 .Pp
 The EPP mode has two types of cycle: address and data.
-What makes the 
+What makes the
 difference at hardware level is the strobe of the byte placed on the data
 lines.
-Data are strobed with nAutofeed, addresses are strobed with 
+Data are strobed with nAutofeed, addresses are strobed with
 nSelectin signals.
 .Pp
-A particularity of the ISA implementation of the EPP protocol is that an 
+A particularity of the ISA implementation of the EPP protocol is that an
 EPP cycle fits in an ISA cycle.
 In this fashion, parallel port peripherals can
 operate at close to the same performance levels as an equivalent ISA plug-in
@@ -180,7 +180,7 @@ At software level, you may implement the protocol you wish, using data and
 address cycles as you want.
 This is for the IEEE1284 compatible part.
 Then,
-peripheral vendors may implement protocol handshake with the following 
+peripheral vendors may implement protocol handshake with the following
 status lines: PError, nFault and Select.
 Try to know how these lines toggle
 with your peripheral, allowing the peripheral to request more data, stop the

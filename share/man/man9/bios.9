@@ -28,7 +28,7 @@
 .Dt BIOS 9
 .Os
 .Sh NAME
-.Nm bios_sigsearch , 
+.Nm bios_sigsearch ,
 .Nm bios32_SDlookup ,
 .Nm bios32
 .Nd interact with PC BIOS
@@ -63,7 +63,7 @@ bytes of the BIOS image and
 .Fa sig
 are compared at
 .Fa sigofs
-bytes offset from the current location.  If no match is found, the 
+bytes offset from the current location.  If no match is found, the
 current location is incremented by
 .Fa paralen
 bytes and the search repeated.  If the signature is found, its effective
@@ -79,7 +79,7 @@ physical address
 .It SMBIOStable
 If not NULL, points to a
 .Ft struct SMBIOS_table
-structure containing information read from the System Management BIOS table 
+structure containing information read from the System Management BIOS table
 during system startup.
 .It DMItable
 If not NULL, points to a

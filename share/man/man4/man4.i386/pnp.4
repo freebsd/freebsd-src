@@ -97,7 +97,7 @@ another device with a different CSN/LDN pair.
 Sets the value of a 32-bit flags entry which is passed to the device
 driver.
 This can be used to set special operation modes (e.g. SB vs. WSS
-emulation on some sound cards, etc.). 
+emulation on some sound cards, etc.).
 .El
 .Pp
 The current content of the table can be printed using the
@@ -115,7 +115,7 @@ command.
 PnP devices are automatically recognized and configured by the kernel.
 A PnP device is identified by the following data structure:
 .Bd -literal
-struct pnp_device { 
+struct pnp_device {
 	char	*pd_name;
 	char	*(*pd_probe ) (u_long csn, u_long vendor_id);
 	void	(*pd_attach ) (u_long csn, u_long vend_id, char * name,

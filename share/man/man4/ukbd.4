@@ -67,7 +67,7 @@ The USB keyboards will be kbd1, kbd2,
 etc.
 You can see some information about the keyboard with the following command:
 .Bd -literal -offset indent
-kbdcontrol -i < /dev/kbd1 
+kbdcontrol -i < /dev/kbd1
 .Ed
 .Pp
 or load a keymap with
@@ -91,7 +91,7 @@ If you want to use a USB keyboard as your default and not use an AT keyboard at
 all, you will have to remove the
 .Nm atkbd
 from the kernel configuration file.
-Because of the order of the device 
+Because of the order of the device
 initialisation, the USB keyboard will be detected AFTER the console driver
 initialises itself and you have to explicitly tellthe console
 driver to use the existence of the USB keyboard.  This can be done in

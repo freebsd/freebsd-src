@@ -38,7 +38,7 @@
 .\"
 .Ss Mbuf allocation macros
 .Fn MGET "struct mbuf *mbuf" "int how" "short type"
-.Fn MGETHDR "struct mbuf *mbuf" "int how" "short type" 
+.Fn MGETHDR "struct mbuf *mbuf" "int how" "short type"
 .Fn MCLGET "struct mbuf *mbuf" "int how"
 .Fo MEXTADD
 .Fa "struct mbuf *mbuf"
@@ -56,7 +56,7 @@
 .\"
 .Ss Mbuf utility macros
 .Fn mtod "struct mbuf *mbuf" "any type"
-.Fn MEXT_IS_REF "struct mbuf *mbuf" 
+.Fn MEXT_IS_REF "struct mbuf *mbuf"
 .Fn M_COPY_PKTHDR "struct mbuf *to" "struct mbuf *from"
 .Fn M_ALIGN "struct mbuf *mbuf" "u_int len"
 .Fn MH_ALIGN "struct mbuf *mbuf" "u_int len"
@@ -200,7 +200,7 @@ flag set,
 bytes can otherwise.
 .Pp
 If external storage is being associated with an mbuf, the
-.Dv m_ext 
+.Dv m_ext
 header is added at the cost of losing the internal data buffer.
 It includes a pointer to external storage, the size of the storage,
 a pointer to a function used for freeing the storage,
@@ -247,7 +247,7 @@ permits, as opposed to allocating a separate mbuf cluster to hold the same
 data.
 .\"
 .Ss Macros and Functions
-There are numerous predefined macros and functions that provide the 
+There are numerous predefined macros and functions that provide the
 developer with common utilities.
 .\"
 .Bl -ohang -offset indent
@@ -272,7 +272,7 @@ argument is to be set to
 or
 .Dv M_DONTWAIT .
 It specifies whether the caller is willing to block if necessary.
-If 
+If
 .Fa how
 is set to
 .Dv M_TRYWAIT ,
@@ -306,7 +306,7 @@ that can make use of possible empty space before data
 .Pq "e.g. left after trimming of a link-layer header" .
 The new chain pointer or
 .Dv NULL
-is in 
+is in
 .Fa mbuf
 after the call.
 .It Fn M_WRITABLE mbuf
@@ -314,7 +314,7 @@ This macro will evaluate true if the mbuf is not marked
 .Dv M_RDONLY
 and if either the mbuf does not contain external storage or,
 if it does,
-then if the reference count of the storage is not greater than 1. 
+then if the reference count of the storage is not greater than 1.
 The
 .Dv M_RDONLY
 flag can be set in the mbuf's
@@ -330,7 +330,7 @@ macro, or can be directly set in individual mbufs.
 .El
 .Pp
 The functions are:
-.Bl -ohang -offset indent 
+.Bl -ohang -offset indent
 .It Fn m_get how type
 A function version of
 .Fn MGET
@@ -412,9 +412,9 @@ must be less than
 .Dv MHLEN .
 .\"
 .It Fn m_copym mbuf offset len how
-Make a copy of an mbuf chain starting 
+Make a copy of an mbuf chain starting
 .Fa offset
-bytes from the beginning, continuing for 
+bytes from the beginning, continuing for
 .Fa len
 bytes.
 If
@@ -446,7 +446,7 @@ Copy data from an mbuf chain starting
 .Fa off
 bytes from the beginning, continuing for
 .Fa len
-bytes, into the indicated buffer 
+bytes, into the indicated buffer
 .Fa buf .
 .\"
 .It Fn m_copyback mbuf offset len buf

@@ -1,6 +1,6 @@
-.\" 
+.\"
 .\" Copyright (c) 1998 Berkeley Software Design, Inc. All rights reserved.
-.\" 
+.\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
 .\" are met:
@@ -12,7 +12,7 @@
 .\" 3. Berkeley Software Design Inc's name may not be used to endorse or
 .\"    promote products derived from this software without specific prior
 .\"    written permission.
-.\" 
+.\"
 .\"  THIS SOFTWARE IS PROVIDED BY BERKELEY SOFTWARE DESIGN INC ``AS IS'' AND
 .\"  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 .\"  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -151,7 +151,7 @@ is saved rather than the data it points to.
 The data pointed to must remain stable
 until the mutex is destroyed.
 The
-.Fa opts 
+.Fa opts
 argument is used to set the type of mutex.
 It may contain either
 .Dv MTX_DEF
@@ -242,7 +242,7 @@ Presently, the only valid value in the
 .Fn mtx_trylock
 case is
 .Dv MTX_QUIET ,
-and its effects are identical to those described for 
+and its effects are identical to those described for
 .Fn mtx_lock
 and
 .Fn mtx_lock_spin
@@ -374,7 +374,7 @@ in an interrupt thread
 without fear of deadlock
 against an interrupted thread on the same CPU.
 .Ss The Spin Mutex Type
-A 
+A
 .Dv MTX_SPIN
 mutex will not relinquish the CPU
 when it cannot immediately get the requested lock,
@@ -428,7 +428,7 @@ The flags passed to the
 .Fn mtx_lock_spin_flags ,
 .Fn mtx_unlock_flags ,
 and
-.Fn mtx_unlock_spin_flags 
+.Fn mtx_unlock_spin_flags
 functions provide some basic options to the caller,
 and are often used only under special circumstances to modify lock or
 unlock behavior.
@@ -467,4 +467,4 @@ These
 functions appeared in
 .Tn BSD/OS
 4.1 and
-.Fx 5.0 . 
+.Fx 5.0 .
