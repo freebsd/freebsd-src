@@ -170,6 +170,8 @@ void crom_next(struct crom_context *);
 void crom_parse_text(struct crom_context *, char *, int);
 u_int16_t crom_crc(u_int32_t *r, int);
 struct csrreg *crom_search_key(struct crom_context *, u_int8_t);
+int crom_has_specver(u_int32_t *, u_int32_t, u_int32_t);
+
 #ifndef _KERNEL
 char *crom_desc(struct crom_context *, char *, int);
 #endif

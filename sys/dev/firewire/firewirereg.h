@@ -273,7 +273,6 @@ struct fw_xfer *fw_xfer_alloc_buf __P((struct malloc_type *, int, int));
 void fw_init __P((struct firewire_comm *));
 int fw_tbuf_update __P((struct firewire_comm *, int, int));
 int fw_rbuf_update __P((struct firewire_comm *, int, int));
-u_int32_t getcsrdata __P((struct fw_device *, u_int8_t));
 void fw_asybusy __P((struct fw_xfer *));
 int fw_bindadd __P((struct firewire_comm *, struct fw_bind *));
 int fw_bindremove __P((struct firewire_comm *, struct fw_bind *));
