@@ -2703,7 +2703,9 @@ options 	CPU_UPGRADE_HW_CACHE
 
 options 	DEBUG
 options 	DEBUG_LINUX
-
+# PECOFF module (Win32 Execution Format)
+options		PECOFF_SUPPORT
+options		PECOFF_DEBUG
 # Disable the 4 MByte PSE CPU feature.
 #options 	DISABLE_PSE
 options 	ENABLE_ALART
