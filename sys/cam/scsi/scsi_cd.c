@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.2 1998/09/20 07:17:11 gibbs Exp $
+ *      $Id: scsi_cd.c,v 1.3 1998/09/20 22:48:15 ken Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -1707,11 +1707,16 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 				/*
 				 * With CDROM devices, we expect 0x3a
 				 * (Medium not present) errors, since not
-				 * everyone leaves a CD in the drive.  If
-				 * the error is anything else, though, we
-				 * shouldn't attach.
+				 * everyone leaves a CD in the drive.  Some
+				 * broken Philips and HP WORM drives return
+				 * 0x04,0x00 (logical unit not ready, cause
+				 * not reportable), so we accept any "not
+				 * ready" type errors as well.  If the error
+				 * is anything else, though, we shouldn't
+				 * attach.
 				 */
-				if ((have_sense) && (asc == 0x3a)
+				if ((have_sense)
+				 && ((asc == 0x3a) || (asc == 0x04))
 				 && (error_code == SSD_CURRENT_ERROR))
 					sprintf(announce_buf, 
 						"Attempt to query device "
