@@ -1065,6 +1065,9 @@ device		npx0	at nexus? port IO_NPX flags 0x0 irq 13
 # ahc: Adaptec 274x/284x/294x
 # aic: Adaptec 152x
 # bt: Most Buslogic controllers
+# ncv: NCR 53C500 based SCSI host adapters.
+# nsp: Workbit Ninja SCSI-3 based PC Card SCSI host adapters.
+# stg: TMC 18C30, 18C50 based ISA/PC Card SCSI host adapters.
 #
 # Note that the order is important in order for Buslogic cards to be
 # probed correctly.
@@ -1075,6 +1078,9 @@ device		adv0	at isa?
 device		adw
 device		aha0	at isa?
 device		aic0	at isa?
+device		ncv
+device		nsp
+device		stg	at isa? port 0x140 irq 11
 
 #
 # Compaq Smart RAID, Mylex DAC960 and AMI MegaRAID controllers.  Only
