@@ -51,6 +51,7 @@ ARCH_SRCS = e_acos.S e_asin.S e_atan2.S e_exp.S e_fmod.S e_log.S e_log10.S \
 
 # Broken
 # ARCH_SRCS+=	s_log1p.S
+.endif
 
 .PATH:	${.CURDIR}/man
 .PATH:	${.CURDIR}/src
