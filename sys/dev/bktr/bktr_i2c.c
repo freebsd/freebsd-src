@@ -34,9 +34,6 @@
  */
 
 #include "bktr.h"
-#include "smbus.h"
-
-#if (NBKTR > 0 && NSMBUS > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -422,4 +419,3 @@ bti2c_smb_readb(device_t dev, u_char slave, char cmd, char *byte)
 }
 
 DRIVER_MODULE(bti2c, root, bti2c_driver, bti2c_devclass, 0, 0);
-#endif
