@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 # Regression test for GNU grep.
 
 : ${srcdir=.}

@@ -1,5 +1,5 @@
 /* savedir.c -- save the list of files in a directory in a string
-   Copyright (C) 1990, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright (C) 1990, 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -66,7 +66,31 @@ char *realloc ();
 char *stpcpy ();
 #endif
 
+#include <fnmatch.h>
 #include "savedir.h"
+
+char *path;
+size_t pathlen;
+
+static int
+isdir1 (const char *dir, const char *file)
+{
+  int status;
+  int slash;
+  size_t dirlen = strlen (dir);
+  size_t filelen = strlen (file);
+  if ((dirlen + filelen + 2) > pathlen)
+    {
+      path = calloc (dirlen + 1 + filelen + 1, sizeof (*path));
+      pathlen = dirlen + filelen + 2;
+    }
+  strcpy (path, dir);
+  slash = (path[dirlen] != '/');
+  path[dirlen] = '/';
+  strcpy (path + dirlen + slash , file);
+  status  = isdir (path);
+  return status;
+}
 
 /* Return a freshly allocated string containing the filenames
    in directory DIR, separated by '\0' characters;
@@ -74,9 +98,9 @@ char *stpcpy ();
    NAME_SIZE is the number of bytes to initially allocate
    for the string; it will be enlarged as needed.
    Return NULL if DIR cannot be opened or if out of memory. */
-
 char *
-savedir (const char *dir, off_t name_size)
+savedir (const char *dir, off_t name_size, struct exclude *included_patterns,
+	 struct exclude *excluded_patterns)
 {
   DIR *dirp;
   struct dirent *dp;
@@ -109,6 +133,17 @@ savedir (const char *dir, off_t name_size)
 	{
 	  off_t size_needed = (namep - name_space) + NAMLEN (dp) + 2;
 
+	  if ((included_patterns || excluded_patterns)
+	      && !isdir1 (dir, dp->d_name))
+	    {
+	      if (included_patterns
+		  && !excluded_filename (included_patterns, dp->d_name, 0))
+		continue;
+	      if (excluded_patterns
+		  && excluded_filename (excluded_patterns, dp->d_name, 0))
+		continue;
+	    }
+
 	  if (size_needed > name_size)
 	    {
 	      char *new_name_space;
@@ -133,6 +168,12 @@ savedir (const char *dir, off_t name_size)
     {
       free (name_space);
       return NULL;
+    }
+  if (path)
+    {
+      free (path);
+      path = NULL;
+      pathlen = 0;
     }
   return name_space;
 }
