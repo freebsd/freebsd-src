@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.15 1995/07/27 15:03:27 wollman Exp $
+# $Id: bsd.info.mk,v 1.16 1996/02/08 18:27:07 mpp Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -66,7 +66,7 @@ obj:
 .endif
 
 clean:
-	rm -f ${INFO:S/$/.info*/g} [eE]rrs mklog ${CLEANFILES}
+	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
 cleandir: clean
 	cd ${.CURDIR}; rm -rf obj
