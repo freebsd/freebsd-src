@@ -114,6 +114,7 @@ struct mount {
 	struct vnode	*mnt_syncer;		/* syncer vnode */
 	struct vnodelst	mnt_vnodelist;		/* list of vnodes this mount */
 	struct lock	mnt_lock;		/* mount structure lock */
+	int		mnt_writeopcount;	/* write syscalls in progress */
 	int		mnt_flag;		/* flags shared with user */
 	int		mnt_kern_flag;		/* kernel only flags */
 	int		mnt_maxsymlinklen;	/* max size of short symlink */
@@ -165,7 +166,6 @@ struct mount {
  * Mask of flags that are visible to statfs()
  * XXX I think that this could now become (~(MNT_CMDFLAGS))
  * but the 'mount' program may need changing to handle this.
- * XXX MNT_EXPUBLIC is presently left out. I don't know why.
  */
 #define	MNT_VISFLAGMASK	(MNT_RDONLY	| MNT_SYNCHRONOUS | MNT_NOEXEC	| \
 			MNT_NOSUID	| MNT_NODEV	| MNT_UNION	| \
@@ -174,8 +174,7 @@ struct mount {
 			MNT_LOCAL	| MNT_USER	| MNT_QUOTA	| \
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
-			MNT_IGNORE \
-			/*	| MNT_EXPUBLIC */)
+			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW)
 /*
  * External filesystem command modifier flags.
  * Unmount can use the MNT_FORCE flag.
@@ -185,7 +184,15 @@ struct mount {
 #define	MNT_DELEXPORT	0x00020000	/* delete export host lists */
 #define	MNT_RELOAD	0x00040000	/* reload filesystem data */
 #define	MNT_FORCE	0x00080000	/* force unmount or readonly change */
-#define MNT_CMDFLAGS	(MNT_UPDATE|MNT_DELEXPORT|MNT_RELOAD|MNT_FORCE)
+#define	MNT_SNAPSHOT	0x01000000	/* snapshot the filesystem */
+#define MNT_CMDFLAGS   (MNT_UPDATE	| MNT_DELEXPORT	| MNT_RELOAD	| \
+			MNT_FORCE	| MNT_SNAPSHOT)
+/*
+ * Still available
+ */
+#define	MNT_SPARE1	0x02000000
+#define	MNT_SPARE2	0x04000000
+#define	MNT_SPARE3	0x08000000
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
@@ -196,6 +203,8 @@ struct mount {
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define MNTK_WANTRDWR	0x04000000	/* upgrade to read/write requested */
+#define	MNTK_SUSPEND	0x08000000	/* request write suspension */
+#define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
 
 /*
  * Sysctl CTL_VFS definitions.
