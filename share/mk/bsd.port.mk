@@ -1,7 +1,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.7 1994/08/21 17:42:24 jkh Exp $
+# $Id: bsd.port.mk,v 1.8 1994/08/21 18:26:10 jkh Exp $
 
 #
 # Supported Variables and their behaviors:
@@ -171,6 +171,10 @@ clean:
 	@rm -rf ${WRKDIR}
 .endif
 
-.if !target(cleandir)
-cleandir: clean
+# Depend is generally meaningless for arbitrary ports, but if someone wants
+# one they can override this.  This is just to catch people who've gotten into
+# the habit of typing `make depend all install' as a matter of course.
+#
+.if !target(depend)
+depend:
 .endif
