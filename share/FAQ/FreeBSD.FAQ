@@ -6,7 +6,7 @@
 Please mail all suggestions and additions to <FAQ@FreeBSD.ORG>
 
 
-Revision: $Id: FreeBSD.FAQ,v 1.15 1995/01/16 19:19:14 ats Exp $
+Revision: $Id: FreeBSD.FAQ,v 1.16 1995/02/25 23:00:50 gclarkii Exp $
 
 All entries are assumed to be relevant to FreeBSD 2.0. 
 Any entries with a <XXX> are under construction.
@@ -497,7 +497,7 @@ can only hope that others are encouraged to follow suit.
 4.1:  I want to run X, how do I go about it?
 
 First, get the XFree86 distribution of X11R6 from XFree86.cdrom.com.
-The version you want for FreeBSD 2.X and later is XFree86 3.1.  Follow
+The version you want for FreeBSD 2.X and later is XFree86 3.1.1.  Follow
 the instructions for installation carefully. You may then wish to read
 the documentation for the ConfigXF86 tool, which assists you in
 configuring XFree86 for your particular graphics card/mouse/etc.
