@@ -404,7 +404,11 @@ distMaybeSetDES(dialogMenuItem *self)
 		  "a second pass using the Custom Installation option.")) {
 	if (!dmenuOpenSimple(&MenuDESDistributions, FALSE))
 	    i = DITEM_FAILURE;
+	else
+	    USAResident = TRUE;
     }
+    else
+	USAResident = FALSE;
     distVerifyFlags();
     return i | DITEM_REDRAW | DITEM_RESTORE;
 }
