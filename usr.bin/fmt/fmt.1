@@ -34,7 +34,7 @@
 .\"
 .\" Modified by Gareth McCaughan to describe the new version of `fmt'
 .\" rather than the old one.
-.Dd July 17, 2004
+.Dd August 2, 2004
 .Dt FMT 1
 .Os
 .Sh NAME
@@ -154,6 +154,15 @@ the command
 .Pp
 will reformat a paragraph,
 evening the lines.
+.Sh ENVIRONMENT
+The
+.Ev LANG , LC_ALL
+and
+.Ev LC_CTYPE
+environment variables affect the execution of
+.Nm
+as described in
+.Xr environ 7 .
 .Sh SEE ALSO
 .Xr mail 1 ,
 .Xr nroff 1
@@ -184,5 +193,3 @@ The
 .Nm
 utility is not infallible in guessing what lines are mail headers and what
 lines are not.
-.Pp
-Multibyte characters are not handled correctly.
