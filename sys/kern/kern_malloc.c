@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_malloc.c	8.3 (Berkeley) 1/4/94
- * $Id: kern_malloc.c,v 1.21 1996/05/02 14:20:20 phk Exp $
+ * $Id: kern_malloc.c,v 1.22 1996/05/10 19:28:48 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -351,12 +351,28 @@ free(addr, type)
 		wakeup((caddr_t)ksp);
 	ksp->ks_inuse--;
 #endif
+#ifdef OLD_MALLOC_MEMORY_POLICY
 	if (kbp->kb_next == NULL)
 		kbp->kb_next = addr;
 	else
 		((struct freelist *)kbp->kb_last)->next = addr;
 	freep->next = NULL;
 	kbp->kb_last = addr;
+#else
+	/*
+	 * Return memory to the head of the queue for quick reuse.  This
+	 * can improve performance by improving the probability of the
+	 * item being in the cache when it is reused.
+	 */
+	if (kbp->kb_next == NULL) {
+		kbp->kb_next = addr;
+		kbp->kb_last = addr;
+		freep->next = NULL;
+	} else {
+		freep->next = kbp->kb_next;
+		kbp->kb_next = addr;
+	}
+#endif
 	splx(s);
 }
 
