@@ -55,6 +55,11 @@
 #include "vx.h"
 #if NVX > 0
 
+#if NVX < 4	/* These cost 4 bytes apiece, so give us 4 */
+#undef NVX
+#define NVX 4
+#endif
+
 #include "bpfilter.h"
 
 #include <sys/param.h>
