@@ -276,3 +276,27 @@ modes.
 Any user that is a member of the wheel group can use "su -" to simulate
 a root login. You can add a user to the wheel group by editing /etc/group.
 		-- 	-- Konstantinos Konstantinidis <kkonstan@duth.gr>
+%
+Over quota?  "du -s * | sort -n " will give you a sorted list of your
+directory sizes.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+Handy bash(1) prompt:   PS1="\u@\h \w \!$ "
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+man -k "something" will give you a list of manpages that have "something"
+in their description.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+Ever wonder what those numbers after command names were, as in cat(1)?  It's
+the section of the manual the man page is in.  "man man" will tell you more.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+"man hier" will explain the way FreeBSD filesystems are normally laid out.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+"man tuning" gives some tips how to tune performance of your FreeBSD system.
+		-- David Scheidt <dscheidt@tumbolia.com>
+%
+"man firewall" will give advice for building a FreeBSD firewall
+		-- David Scheidt <dscheidt@tumbolia.com>
