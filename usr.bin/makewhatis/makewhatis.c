@@ -211,22 +211,30 @@ new_sbuf(void)
 }
 
 /*
- * Ensure that there is enough room in the sbuf for chars more characters.
+ * Ensure that there is enough room in the sbuf for nchars more characters.
  */
 static void
 sbuf_need(struct sbuf *sbuf, int nchars)
 {
-	/* let's assume we only need to double it, but check just in case */
-	while (sbuf->end + nchars > sbuf->last) {
-		int alloc;
-		char *new_content;
+	char *new_content;
+	size_t size, cntsize;
 
-		alloc = (sbuf->last - sbuf->content + 1) * 2;
-		new_content = (char *) malloc(alloc);
-		memcpy(new_content, sbuf->content, sbuf->end - sbuf->content);
-		sbuf->end = new_content + (sbuf->end - sbuf->content);
+	/* double the size of the allocation until the buffer is big enough */
+	while (sbuf->end + nchars > sbuf->last) {
+		size = sbuf->last + 1 - sbuf->content;
+		size *= 2;
+		cntsize = sbuf->end - sbuf->content;
+
+		printf("sbuf %p content %p;"
+		    " allocating %d bytes for %d bytes of content to hold"
+		    " %d bytes\n", sbuf, sbuf->content, size, cntsize, nchars);
+
+		new_content = (char *)malloc(size);
+		memcpy(new_content, sbuf->content, cntsize);
 		free(sbuf->content);
 		sbuf->content = new_content;
+		sbuf->end = new_content + cntsize;
+		sbuf->last = new_content + size - 1;
 	}
 }
 
@@ -616,7 +624,7 @@ process_mdoc_line(char *line)
 				next = strchr(next, '"');
 				if (next == NULL)
 					break;
-				strcpy(next, &next[1]);
+				memmove(next, next + 1, strlen(next));
 				line_end--;
 				if (*next != '"')
 					break;
