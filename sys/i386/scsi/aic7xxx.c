@@ -24,7 +24,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aic7xxx.c,v 1.12 1995/01/22 00:48:39 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.13 1995/01/27 17:37:05 gibbs Exp $
  */
 /*
  * TODO:
@@ -849,13 +849,14 @@ ahcintr(unit)
 				outb(HA_TARG_SCRATCH + iobase + scsi_id, rate);
 				outb(SCSIRATE + iobase, rate); 
 				/* See if we initiated Sync Negotiation */
-				if(ahc->needsdtr & (0x01 << scsi_id))
+				if(ahc->sdtrpending & (0x01 << scsi_id))
 				{
 					/* 
 					 * Negate the flag and don't send
 					 * an SDTR back to the target
 					 */
 					ahc->needsdtr &= ~(0x01 << scsi_id);
+					ahc->sdtrpending &= ~(0x01 << scsi_id);
 
 					outb(HA_RETURN_1 + iobase, 0);
 				}
@@ -883,7 +884,7 @@ ahcintr(unit)
 				scratch = inb(HA_TARG_SCRATCH + iobase 
 					      + scsi_id);
 
-				if(ahc->needwdtr & (0x01 << scsi_id))
+				if(ahc->wdtrpending & (0x01 << scsi_id))
 				{
 					/* 
 					 * Negate the flag and don't 
@@ -891,6 +892,7 @@ ahcintr(unit)
 					 * target, since we asked first.
 					 */
 					ahc->needwdtr &= ~(0x01 << scsi_id);
+					ahc->wdtrpending &= ~(0x01 << scsi_id);
 					outb(HA_RETURN_1 + iobase, 0);
 					switch(bus_width)
 					{
@@ -957,7 +959,7 @@ ahcintr(unit)
 						   + scsi_id);
 
 				mask = (0x01 << scsi_id);
-				if(ahc->needwdtr & mask){
+				if(ahc->wdtrpending & mask){
 					/* note 8bit xfers and clear flag */
 					targ_scratch &= 0x7f;
 					ahc->needwdtr &= ~mask;
@@ -966,7 +968,7 @@ ahcintr(unit)
 					       "8bit transfers\n",
 						unit, scsi_id);
 				}
-				else if(ahc->needsdtr & mask){
+				else if(ahc->sdtrpending & mask){
 					/* note asynch xfers and clear flag */
 					targ_scratch &= 0xf0;
 					ahc->needsdtr &= ~mask;
@@ -1443,6 +1445,8 @@ ahc_init(unit)
 	}
         ahc->needsdtr = ahc->needsdtr_orig;
 	ahc->needwdtr = ahc->needwdtr_orig;
+	ahc->sdtrpending = 0;
+	ahc->wdtrpending = 0;
 	/*
 	 * Set the number of availible SCBs
 	 */
@@ -1451,6 +1455,11 @@ ahc_init(unit)
 	/* We don't have any busy targets right now */
 	outb( HA_ACTIVE0 + iobase, 0 );
 	outb( HA_ACTIVE1 + iobase, 0 );
+
+	/* Reset the bus */
+	outb(SCSISEQ + iobase, SCSIRSTO); 
+	DELAY(500);
+	outb(SCSISEQ + iobase, 0);
 
         UNPAUSE_SEQUENCER(ahc);
 
@@ -1540,10 +1549,16 @@ ahc_scsi_cmd(xs)
          * Put all the arguments for the xfer in the scb
          */     
         
-	if(ahc->needsdtr & mask)
+	if((ahc->needsdtr & mask) && !(ahc->sdtrpending & mask))
+	{
 		scb->control |= SCB_NEEDSDTR;
-	if(ahc->needwdtr & mask)
+		ahc->sdtrpending |= mask;
+	}
+	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))
+	{
 		scb->control |= SCB_NEEDWDTR; 
+		ahc->wdtrpending |= mask;
+	}
 	scb->target_channel_lun = ((xs->sc_link->target << 4) & 0xF0) | 
 				  ((u_long)xs->sc_link->fordriver & 0x08) |
 				  xs->sc_link->lun & 0x07;
@@ -1888,23 +1903,27 @@ ahc_abort_scb( unit, ahc, scb )
 		u_char flags;
 		if(scb->target_channel_lun & 0x08){
 			ahc->needsdtr |= (ahc->needsdtr_orig & 0xff00);
+			ahc->sdtrpending &= 0x00ff;
 			outb(HA_ACTIVE1, 0);
 		}
 		else if (ahc->type == AHC_274W || ahc->type == AHC_284W
 					       || ahc->type == AHC_294W){
 			ahc->needsdtr = ahc->needsdtr_orig;
 			ahc->needwdtr = ahc->needwdtr_orig;
+			ahc->sdtrpending = 0;
+			ahc->wdtrpending = 0;
 			outb(HA_ACTIVE0, 0);
 			outb(HA_ACTIVE1, 0);
 		}
 		else{
-			ahc->needsdtr = ahc->needsdtr_orig;
+			ahc->needsdtr |= (ahc->needsdtr_orig & 0x00ff);
+			ahc->sdtrpending &= 0xff00;
 			outb(HA_ACTIVE0, 0);
 		}
 
 		/* Reset the bus */
 		outb(SCSISEQ + iobase, SCSIRSTO); 
-		DELAY(50);
+		DELAY(100);
 		outb(SCSISEQ + iobase, 0);
 		goto done;
         }        
