@@ -2859,7 +2859,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 	int	*protop;
 	int	*optp;
 {
-	static char buf[1024];	/*XXX*/
+	static char buf[1024 + ALIGNBYTES];	/*XXX*/
 	struct cmsghdr *cmsg;
 #ifdef	sysV88
 	static IOPTN ipopt;
@@ -2901,7 +2901,7 @@ sourceroute(ai, arg, cpp, lenp, protop, optp)
 		lsrp = *cpp;
 		ep = lsrp + *lenp;
 	} else {
-		*cpp = lsrp = ALIGN(buf);
+		*cpp = lsrp = (char *)ALIGN(buf);
 		ep = lsrp + 1024;
 	}
 
