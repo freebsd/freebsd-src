@@ -29,11 +29,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: modload.c,v 1.17 1997/03/11 12:23:09 peter Exp $
+ *	$Id: modload.c,v 1.18 1997/03/29 03:32:29 imp Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
 #include <unistd.h>
 #include <string.h>
 #include <limits.h>
@@ -49,7 +50,6 @@
 #include <sys/lkm.h>
 #include <sys/file.h>
 #include <sys/wait.h>
-#include <sys/signal.h>
 #include "pathnames.h"
 
 #define	min(a, b)	((a) < (b) ? (a) : (b))
