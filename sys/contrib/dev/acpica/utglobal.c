@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utglobal - Global variables for the ACPI subsystem
- *              $Revision: 193 $
+ *              $Revision: 194 $
  *
  *****************************************************************************/
 
@@ -265,6 +265,15 @@ const char                  *AcpiGbl_HighestDstateNames[4] = {
                                 "_S3D",
                                 "_S4D"};
 
+/* Strings supported by the _OSI predefined (internal) method */
+
+const char                  *AcpiGbl_ValidOsiStrings[ACPI_NUM_OSI_STRINGS] = {
+                                "Linux",
+                                "Windows 2000",
+                                "Windows 2001",
+                                "Windows 2001.1"};
+
+
 /******************************************************************************
  *
  * Namespace globals
@@ -275,14 +284,10 @@ const char                  *AcpiGbl_HighestDstateNames[4] = {
 /*
  * Predefined ACPI Names (Built-in to the Interpreter)
  *
- * Initial values are currently supported only for types String and Number.
- * Both are specified as strings in this table.
- *
  * NOTES:
- * 1) _SB_ is defined to be a device to allow _SB_/_INI to be run
+ * 1) _SB_ is defined to be a device to allow \_SB_._INI to be run
  *    during the initialization sequence.
  */
-
 const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
 {
     {"_GPE",    ACPI_TYPE_LOCAL_SCOPE,      NULL},
@@ -294,7 +299,7 @@ const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
     {"_OS_",    ACPI_TYPE_STRING,           ACPI_OS_NAME},
     {"_GL_",    ACPI_TYPE_MUTEX,            "0"},
 
-#if defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
+#if !defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY)
     {"_OSI",    ACPI_TYPE_METHOD,           "1"},
 #endif
     {NULL,      ACPI_TYPE_ANY,              NULL}              /* Table terminator */
@@ -305,7 +310,6 @@ const ACPI_PREDEFINED_NAMES     AcpiGbl_PreDefinedNames[] =
  * Properties of the ACPI Object Types, both internal and external.
  * The table is indexed by values of ACPI_OBJECT_TYPE
  */
-
 const UINT8                     AcpiGbl_NsProperties[] =
 {
     ACPI_NS_NORMAL,                     /* 00 Any              */
@@ -384,9 +388,7 @@ AcpiUtHexToAsciiChar (
  *
  ******************************************************************************/
 
-
 ACPI_TABLE_LIST             AcpiGbl_TableLists[NUM_ACPI_TABLE_TYPES];
-
 
 ACPI_TABLE_SUPPORT          AcpiGbl_TableData[NUM_ACPI_TABLE_TYPES] =
 {
@@ -551,9 +553,8 @@ AcpiUtGetEventName (
  *
  * The type ACPI_TYPE_ANY (Untyped) is used as a "don't care" when searching; when
  * stored in a table it really means that we have thus far seen no evidence to
- * indicatewhat type is actually going to be stored for this entry.
+ * indicate what type is actually going to be stored for this entry.
  */
-
 static const char           AcpiGbl_BadType[] = "UNDEFINED";
 #define TYPE_NAME_LENGTH    12                           /* Maximum length of each string */
 
@@ -857,6 +858,11 @@ AcpiUtInitGlobals (
 
 
     ACPI_FUNCTION_TRACE ("UtInitGlobals");
+
+    /* Runtime configuration */
+
+    AcpiGbl_CreateOsiMethod = TRUE;
+    AcpiGbl_AllMethodsSerialized = FALSE;
 
     /* Memory allocation and cache lists */
 
