@@ -36,7 +36,7 @@
 # SUCH DAMAGE.
 #
 #	From: @(#)cpp.sh	8.1 (Berkeley) 6/6/93
-#	$Id: cpp.sh,v 1.2 1994/08/05 21:08:10 wollman Exp $
+#	$Id: cpp.sh,v 1.3 1994/08/23 03:52:40 jkh Exp $
 #
 # Transitional front end to CCCP to make it behave like (Reiser) CCP:
 #	specifies -traditional
@@ -44,7 +44,7 @@
 #
 PATH=/usr/bin:/bin
 CPP=/usr/libexec/cpp
-ALST="-traditional -D__GNUC__ -$ "
+ALST="-traditional -D__GNUC__=2 -$ "
 NSI=no
 OPTS=""
 INCS="-nostdinc"
@@ -62,7 +62,7 @@ do
 		INCS="$INCS $A"
 		;;
 	-U__GNUC__)
-		ALST=`echo $ALST | sed -e 's/-D__GNUC__//'`
+		ALST=`echo $ALST | sed -e 's/-D__GNUC__=2//'`
 		;;
 	-*)
 		OPTS="$OPTS '$A'"
