@@ -1,4 +1,4 @@
-<!-- $Id: linuxemu.sgml,v 1.3 1996/05/16 22:50:29 mpp Exp $ -->
+<!-- $Id: linuxemu.sgml,v 1.4 1996/05/16 23:18:05 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Linux Emulation<label id="linuxemu"></heading>
@@ -72,8 +72,7 @@ options  LINUX
 </verb>
 </tscreen>
 Then run config and install the new kernel as described in the
-<ref id="kernelconfig:config" name="Configuration File">
-section.
+<ref id="kernelconfig" name="kernel configuration"> section.
 
 If you decide to use the LKM you must also install the loadable
 module.   A mismatch of versions between the kernel and loadable
@@ -161,8 +160,8 @@ options  LINUX
 </verb>
 </tscreen>
 to your kernel config file.  Then run config and install the new
-kernel as described in <ref id="kernelconfig:building" name="Building
-and Installing a Custom Kernel">.
+kernel as described in the <ref id="kernelconfig" name="kernel
+configuration"> section.
 
 <sect1><heading>Installing Linux Runtime Libraries</heading>
 
