@@ -69,6 +69,15 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
+/* 
+ * Force MUTEX_WAKE_ALL for now.
+ * single thread wakeup needs fixes to avoid race conditions with 
+ * priority inheritance.
+ */
+#ifndef MUTEX_WAKE_ALL
+#define MUTEX_WAKE_ALL
+#endif
+
 /*
  * Internal utility macros.
  */
