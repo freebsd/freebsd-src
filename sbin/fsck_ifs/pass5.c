@@ -68,6 +68,10 @@ pass5()
 
 	inoinfo(WINO)->ino_state = USTATE;
 	memset(newcg, 0, (size_t)fs->fs_cgsize);
+	/*
+	 * Note: cg_niblk is 16 bits and may overflow, so it must never
+	 * be used except for comparing with the old value.
+	 */
 	newcg->cg_niblk = fs->fs_ipg;
 	if (cvtlevel >= 3) {
 		if (fs->fs_maxcontig < 2 && fs->fs_contigsumsize > 0) {
@@ -197,7 +201,7 @@ pass5()
 			newcg->cg_frotor = cg->cg_frotor;
 		else
 			newcg->cg_frotor = 0;
-		if (cg->cg_irotor < newcg->cg_niblk)
+		if (cg->cg_irotor < fs->fs_ipg)
 			newcg->cg_irotor = cg->cg_irotor;
 		else
 			newcg->cg_irotor = 0;
