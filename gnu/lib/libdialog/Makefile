@@ -10,6 +10,11 @@ SRCS=   kernel.c rc.c checklist.c inputbox.c menubox.c msgbox.c \
 	lineedit.c radiolist.c textbox.c yesno.c prgbox.c raw_popen.c \
 	fselect.c ui_objects.c dir.c notify.c help.c gauge.c tree.c
 
+EXAMPLES= Makefile check1.c check2.c check3.c dselect.c fselect.c \
+	ftree1.c ftree1.test ftree2.c ftree2.test gauge.c input1.c \
+	input2.c menu1.c menu2.c menu3.c msg.c prgbox.c radio1.c \
+	radio2.c radio3.c text.c tree.c yesno.c
+
 CFLAGS+= -I${.CURDIR} -Wall -Wstrict-prototypes -DLOCALE
 
 LDADD+= -lncurses -lmytinfo
@@ -18,6 +23,10 @@ DPADD+= ${LIBNCURSES} ${LIBMYTINFO}
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dialog.h \
 	      ${DESTDIR}/usr/include
+.for file in ${EXAMPLES}
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	      ${.CURDIR}/TESTS/${file} ${DESTDIR}/usr/share/examples/libdialog
+.endfor
 
 MLINKS+=dialog.3 draw_shadow.3 dialog.3 draw_box.3 \
 	dialog.3 line_edit.3 dialog.3 strheight.3 \
