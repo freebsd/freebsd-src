@@ -40,6 +40,7 @@ up-to-date.  Many thanks.
 08/13/90   1 schulert	move from ua to omu
 */
 
+#include <err.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -76,9 +77,12 @@ static void writeIfChanged P_((char *fname, int lang, int orConsts));
 
 #undef P_
 
-void usage() {
-    fprintf(stderr, "Use: gencat [-new] [-or] [-lang C|C++|ANSIC]\n");
-    fprintf(stderr, "            catfile msgfile [-h <header-file>]...\n");
+static void
+usage()
+{
+    fprintf(stderr, "usage: gencat [-new] [-or] [-lang C|C++|ANSIC]\n");
+    fprintf(stderr, "              catfile msgfile [-h <header-file>]...\n");
+	exit(1);
 }
 
 void main(
@@ -91,7 +95,6 @@ char *argv[];
 #endif
 {
     int		ofd, ifd, i;
-    FILE	*fptr;
     char	*catfile = NULL;
     char	*input = NULL;
     int		lang = MCLangC;
@@ -106,55 +109,41 @@ char *argv[];
 		else if (strcmp(argv[i], "C++") == 0) lang = MCLangCPlusPlus;
 		else if (strcmp(argv[i], "ANSIC") == 0) lang = MCLangANSIC;
 		else {
-		    fprintf(stderr, "gencat: Unrecognized language: %s\n", argv[i]);
-		    exit(1);
+		    errx(1, "unrecognized language: %s", argv[i]);
 		}
 	    } else if (strcmp(argv[i], "-h") == 0) {
-		if (!input) {
-		    fprintf(stderr, "gencat: Can't write to a header before reading something.\n");
-		    exit(1);
-		}
+		if (!input)
+		    errx(1, "can't write to a header before reading something");
 		++i;
 		writeIfChanged(argv[i], lang, orConsts);
 	    } else if (strcmp(argv[i], "-new") == 0) {
-		if (catfile) {
-		    fprintf(stderr, "gencat: You must specify -new before the catalog file name\n");
-		    exit(1);
-		}
+		if (catfile)
+		    errx(1, "you must specify -new before the catalog file name");
 		new = True;
 	    } else if (strcmp(argv[i], "-or") == 0) {
 		orConsts = ~orConsts;
 	    } else {
 		usage();
-		exit(1);
 	    }
         } else {
 	    if (!catfile) {
 		catfile = argv[i];
 		if (new) {
-		    if ((ofd = open(catfile, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0) {
-			fprintf(stderr, "gencat: Unable to create a new %s.\n", catfile);
-			exit(1);
-		    }
+		    if ((ofd = open(catfile, O_WRONLY|O_TRUNC|O_CREAT, 0666)) < 0)
+				errx(1, "unable to create a new %s", catfile);
 		} else if ((ofd = open(catfile, O_RDONLY)) < 0) {
-		    if ((ofd = open(catfile, O_WRONLY|O_CREAT, 0666)) < 0) {
-			fprintf(stderr, "gencat: Unable to create %s.\n", catfile);
-			exit(1);
-		    }
+		    if ((ofd = open(catfile, O_WRONLY|O_CREAT, 0666)) < 0)
+				errx(1, "unable to create %s", catfile);
 		} else {
 		    MCReadCat(ofd);
 		    close(ofd);
-		    if ((ofd = open(catfile, O_WRONLY|O_TRUNC)) < 0) {
-			fprintf(stderr, "gencat: Unable to truncate %s.\n", catfile);
-			exit(1);
-		    }
+		    if ((ofd = open(catfile, O_WRONLY|O_TRUNC)) < 0)
+				errx(1, "unable to truncate %s", catfile);
 		}
 	    } else {
 		input = argv[i];
-		if ((ifd = open(input, O_RDONLY)) < 0) {
-		    fprintf(stderr, "gencat: Unable to read %s\n", input);
-		    exit(1);
-		}
+		if ((ifd = open(input, O_RDONLY)) < 0)
+		    errx(1, "unable to read %s", input);
 		MCParse(ifd);
 		close(ifd);
 	    }
@@ -165,7 +154,6 @@ char *argv[];
 	exit(0);
     } else {
 	usage();
-	exit(1);
     }
 }
 
@@ -183,15 +171,13 @@ int orConsts;
     char	buf[BUFSIZ], tbuf[BUFSIZ], *cptr, *tptr;
     int		fd, tfd;
     int		diff = False;
-    int		c, len, tlen;
+    int		len, tlen;
     struct stat	sbuf;
 
     /* If it doesn't exist, just create it */
     if (stat(fname, &sbuf)) {
-	if ((fd = open(fname, O_WRONLY|O_CREAT, 0666)) < 0) {
-	    fprintf(stderr, "gencat: Unable to create header file %s.\n", fname);
-	    exit(1);
-	}
+	if ((fd = open(fname, O_WRONLY|O_CREAT, 0666)) < 0)
+	    errx(1, "unable to create header file %s", fname);
 	MCWriteConst(fd, lang, orConsts);
 	close(fd);
 	return;
@@ -199,26 +185,20 @@ int orConsts;
 
     /* If it does exist, create a temp file for now */
     sprintf(tmpname, "/tmp/gencat.%d", (int) getpid());
-    if ((tfd = open(tmpname, O_RDWR|O_CREAT, 0666)) < 0) {
-	fprintf(stderr, "gencat: Unable to open temporary file: %s\n", tmpname);
-	exit(1);
-    }
+    if ((tfd = open(tmpname, O_RDWR|O_CREAT, 0666)) < 0)
+		errx(1, "unable to open temporary file: %s", tmpname);
     unlink(tmpname);
 
     /* Write to the temp file and rewind */
     MCWriteConst(tfd, lang, orConsts);
 
     /* Open the real header file */
-    if ((fd = open(fname, O_RDONLY)) < 0) {
-	fprintf(stderr, "gencat: Unable to read header file: %s\n", fname);
-	exit(1);
-    }
+    if ((fd = open(fname, O_RDONLY)) < 0)
+		errx(1, "unable to read header file: %s", fname);
 
     /* Backup to the start of the temp file */
-    if (lseek(tfd, 0L, L_SET) < 0) {
-	fprintf(stderr, "gencat: Unable to seek in tempfile: %s\n", tmpname);
-	exit(1);
-    }
+    if (lseek(tfd, 0L, L_SET) < 0)
+		errx(1, "unable to seek in tempfile: %s", tmpname);
 
     /* Now compare them */
     while ((tlen = read(tfd, tbuf, BUFSIZ)) > 0) {
@@ -235,19 +215,14 @@ int orConsts;
     }
 done:
     if (diff) {
-	if (lseek(tfd, 0L, L_SET) < 0) {
-	    fprintf(stderr, "gencat: Unable to seek in tempfile: %s\n", tmpname);
-	    exit(1);
-	}
+	if (lseek(tfd, 0L, L_SET) < 0)
+	    errx(1, "unable to seek in tempfile: %s", tmpname);
 	close(fd);
-	if ((fd = open(fname, O_WRONLY|O_TRUNC)) < 0) {
-	    fprintf(stderr, "gencat: Unable to truncate header file: %s\n", fname);
-	    exit(1);
-	}
+	if ((fd = open(fname, O_WRONLY|O_TRUNC)) < 0)
+	    errx(1, "unable to truncate header file: %s", fname);
 	while ((len = read(tfd, buf, BUFSIZ)) > 0) {
-	    if (write(fd, buf, len) != len) {
-		fprintf(stderr, "gencat: Error writing to header file: %s\n", fname);
-	    }
+	    if (write(fd, buf, len) != len)
+			warnx("error writing to header file: %s", fname);
 	}
     }
     close(fd);
