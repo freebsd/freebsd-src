@@ -4,7 +4,7 @@
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>The FreeBSD FAQ Team, <tt/FAQ@FreeBSD.ORG/
-<date> $Id: freebsd-faq.sgml,v 1.26 1996/01/03 10:18:55 jkh Exp $
+<date> $Id: freebsd-faq.sgml,v 1.27 1996/01/03 10:37:40 jkh Exp $
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
 assumed to be relevant to FreeBSD 2.0.5+, unless otherwise noted.
@@ -772,7 +772,7 @@ options   PSM_NO_RESET       #don't reset mouse hardware (some laptops)
 </verb>
 
 	<p>
-	  See <url url="/handbook/kernelconfig.html"
+	  See <url url="http://www.freebsd.org/handbook/kernelconfig.html"
 	  name="configuring the kernel">
 	  if you've no experience with building kernels.
 
