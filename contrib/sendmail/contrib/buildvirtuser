@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# Copyright (c) 1999-2001 Gregory Neil Shapiro.  All Rights Reserved.
+# Copyright (c) 1999-2002 Gregory Neil Shapiro.  All Rights Reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -27,7 +27,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-# $Id: buildvirtuser,v 1.3 2001/02/12 02:58:20 gshapiro Exp $
+# $Id: buildvirtuser,v 1.5 2002/02/08 08:10:59 gshapiro Exp $
 
 =head1 NAME
 
@@ -35,7 +35,7 @@ buildvirtuser - Build virtusertable support from a directory of files
 
 =head1 SYNOPSIS
 
-    buildvirtuser
+    buildvirtuser [-f]
 
 =head1 DESCRIPTION
 
@@ -49,6 +49,9 @@ Blank lines and lines beginning with '#' are ignored.  Occurrences of
 $DOMAIN in the file are replaced by the current domain being processed.
 Occurrences of $LHS in the right hand side are replaced by the address on
 the left hand side.
+
+The -f option forces the database to be rebuilt regardless of whether
+any file changes were detected.
 
 =head1 CONFIGURATION
 
@@ -96,6 +99,7 @@ Gregory Neil Shapiro E<lt>F<gshapiro@gshapiro.net>E<gt>
 =cut
 
 use strict;
+use Getopt::Std;
 
 my $makemap = "/usr/sbin/makemap";
 my $dbtype = "hash";
@@ -108,6 +112,9 @@ my $virt = "$maildir/virtusertable.db";
 my %virt = ();
 my $newest = 0;
 my ($lhs, $domain, $key, $value);
+my $opts = {};
+
+getopts('f', $opts) || die "Usage: $0 [-f]\n";
 
 opendir(VIRTS, $virts) || die "Could not open directory $virts: $!\n";
 my @virts = grep { -f "$virts/$_" } readdir(VIRTS);
@@ -157,7 +164,7 @@ LINE:	while (<DOMAIN>)
 }
 
 my $virtmtime = (stat($virt))[9] || 0;
-if ($virtmtime < $newest)
+if ($opts->{f} || $virtmtime < $newest)
 {
 	print STDOUT "Rebuilding $virt\n";
 # logger -s -t ${prog} -p mail.info "Rebuilding ${basedir}/virtusertable"

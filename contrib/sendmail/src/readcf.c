@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: readcf.c,v 8.594 2001/12/14 00:43:17 gshapiro Exp $")
+SM_RCSID("@(#)$Id: readcf.c,v 8.604 2002/04/02 16:43:25 ca Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -24,7 +24,7 @@ SM_RCSID("@(#)$Id: readcf.c,v 8.594 2001/12/14 00:43:17 gshapiro Exp $")
 #define HOUR	* 3600
 #define HOURS	HOUR
 
-static void	fileclass __P((int, char *, char *, bool, bool));
+static void	fileclass __P((int, char *, char *, bool, bool, bool));
 static char	**makeargv __P((char *));
 static void	settimeout __P((char *, char *, bool));
 static void	toomany __P((int, int));
@@ -96,6 +96,7 @@ readcf(cfname, safe, e)
 	char *file;
 	bool optional;
 	bool ok;
+	bool ismap;
 	int mid;
 	register char *p;
 	long sff = SFF_OPENASROOT;
@@ -458,7 +459,22 @@ readcf(cfname, safe, e)
 			else
 				optional = false;
 
-			if (*p == '@')
+			/* check if [key]@map:spec */
+			ismap = false;
+			if (!SM_IS_DIR_DELIM(*p) &&
+			    *p != '|' &&
+			    (q = strchr(p, '@')) != NULL)
+			{
+				q++;
+
+				/* look for @LDAP or @map: in string */
+				if (strcmp(q, "LDAP") == 0 ||
+				    (*q != ':' &&
+				     strchr(q, ':') != NULL))
+					ismap = true;
+			}
+
+			if (ismap)
 			{
 				/* use entire spec */
 				file = p;
@@ -473,7 +489,7 @@ readcf(cfname, safe, e)
 				}
 			}
 
-			if (*file == '|' || *file == '@')
+			if (*file == '|' || ismap)
 				p = "%s";
 			else
 			{
@@ -487,7 +503,7 @@ readcf(cfname, safe, e)
 						continue;
 				}
 			}
-			fileclass(mid, file, p, safe, optional);
+			fileclass(mid, file, p, ismap, safe, optional);
 			break;
 
 #if XLA
@@ -754,6 +770,7 @@ toomany(id, maxcnt)
 **		class -- class to define.
 **		filename -- name of file to read.
 **		fmt -- scanf string to use for match.
+**		ismap -- if set, this is a map lookup.
 **		safe -- if set, this is a safe read.
 **		optional -- if set, it is not an error for the file to
 **			not exist.
@@ -798,10 +815,11 @@ parse_class_words(class, line)
 }
 
 static void
-fileclass(class, filename, fmt, safe, optional)
+fileclass(class, filename, fmt, ismap, safe, optional)
 	int class;
 	char *filename;
 	char *fmt;
+	bool ismap;
 	bool safe;
 	bool optional;
 {
@@ -819,8 +837,7 @@ fileclass(class, filename, fmt, safe, optional)
 		syserr("fileclass: missing file name");
 		return;
 	}
-	else if (!SM_IS_DIR_DELIM(*filename) && *filename != '|' &&
-		 (p = strchr(filename, '@')) != NULL)
+	else if (ismap)
 	{
 		int status = 0;
 		char *key;
@@ -832,6 +849,15 @@ fileclass(class, filename, fmt, safe, optional)
 		mn = newstr(macname(class));
 
 		key = filename;
+
+		/* skip past key */
+		if ((p = strchr(filename, '@')) == NULL)
+		{
+			/* should not happen */
+			syserr("fileclass: bogus map specification");
+			sm_free(mn);
+			return;
+		}
 
 		/* skip past '@' */
 		*p++ = '\0';
@@ -900,6 +926,11 @@ fileclass(class, filename, fmt, safe, optional)
 		map.map_class = &mapclass->s_mapclass;
 		map.map_mname = mn;
 		map.map_mflags |= MF_FILECLASS;
+
+		if (tTd(37, 5))
+			sm_dprintf("fileclass: F{%s}: map class %s, key %s, spec %s\n",
+				   mn, cl, key, spec);
+
 
 		/* parse map spec */
 		if (!map.map_class->map_parse(&map, spec))
@@ -1082,6 +1113,7 @@ makemailer(line)
 		return;
 	}
 	m->m_name = newstr(line);
+	m->m_qgrp = NOQGRP;
 
 	/* now scan through and assign info from the fields */
 	while (*p != '\0')
@@ -2064,6 +2096,10 @@ static struct optioninfo
 # define O_SOFTBOUNCE	0xcf
 	{ "SoftBounce",	O_SOFTBOUNCE,	OI_NONE	},
 #endif /* _FFR_SOFT_BOUNCE */
+#if _FFR_SELECT_SHM
+# define O_SHMKEYFILE	0xd0
+	{ "SharedMemoryKeyFile",	O_SHMKEYFILE,	OI_NONE	},
+#endif /* _FFR_SELECT_SHM */
 	{ NULL,				'\0',		OI_NONE	}
 };
 
@@ -2636,11 +2672,11 @@ setoption(opt, val, safe, sticky, e)
 	  case 'u':		/* set default uid */
 		for (p = val; *p != '\0'; p++)
 		{
-#if _FFR_DOTTED_USERNAMES
+# if _FFR_DOTTED_USERNAMES
 			if (*p == '/' || *p == ':')
-#else /* _FFR_DOTTED_USERNAMES */
+# else /* _FFR_DOTTED_USERNAMES */
 			if (*p == '.' || *p == '/' || *p == ':')
-#endif /* _FFR_DOTTED_USERNAMES */
+# endif /* _FFR_DOTTED_USERNAMES */
 			{
 				*p++ = '\0';
 				break;
@@ -2729,6 +2765,9 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 
+#if _FFR_QUEUE_GROUP_SORTORDER
+	/* coordinate this with makequeue() */
+#endif /* _FFR_QUEUE_GROUP_SORTORDER */
 	  case O_QUEUESORTORD:	/* queue sorting order */
 		switch (*val)
 		{
@@ -2849,6 +2888,17 @@ setoption(opt, val, safe, sticky, e)
 		break;
 
 	  case O_SAFEFILEENV:	/* chroot() environ for writing to files */
+		if (*val == '\0')
+			break;
+
+		/* strip trailing slashes */
+		p = val + strlen(val) - 1;
+		while (p >= val && *p == '/')
+			*p-- = '\0';
+
+		if (*val == '\0')
+			break;
+
 		SafeFileEnv = newstr(val);
 		break;
 
@@ -2886,7 +2936,7 @@ setoption(opt, val, safe, sticky, e)
 		NiceQueueRun = atoi(val);
 		break;
 
-	  case O_SHMKEY	:		/* shared memory key */
+	  case O_SHMKEY:		/* shared memory key */
 #if SM_CONF_SHM
 		ShmKey = atol(val);
 #else /* SM_CONF_SHM */
@@ -2895,6 +2945,19 @@ setoption(opt, val, safe, sticky, e)
 				     OPTNAME);
 #endif /* SM_CONF_SHM */
 		break;
+
+#if _FFR_SELECT_SHM
+	  case O_SHMKEYFILE:		/* shared memory key file */
+# if SM_CONF_SHM
+		CANONIFY(val);
+		ShmKeyFile = newstr(val);
+# else /* SM_CONF_SHM */
+		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
+				     "Warning: Option: %s requires shared memory support (-DSM_CONF_SHM)\n",
+				     OPTNAME);
+# endif /* SM_CONF_SHM */
+		break;
+#endif /* _FFR_SELECT_SHM */
 
 #if _FFR_MAX_FORWARD_ENTRIES
 	  case O_MAXFORWARD:	/* max # of forward entries */
@@ -2976,11 +3039,11 @@ setoption(opt, val, safe, sticky, e)
 	  case O_RUNASUSER:	/* run bulk of code as this user */
 		for (p = val; *p != '\0'; p++)
 		{
-#if _FFR_DOTTED_USERNAMES
+# if _FFR_DOTTED_USERNAMES
 			if (*p == '/' || *p == ':')
-#else /* _FFR_DOTTED_USERNAMES */
+# else /* _FFR_DOTTED_USERNAMES */
 			if (*p == '.' || *p == '/' || *p == ':')
-#endif /* _FFR_DOTTED_USERNAMES */
+# endif /* _FFR_DOTTED_USERNAMES */
 			{
 				*p++ = '\0';
 				break;
@@ -4128,6 +4191,7 @@ inittimeouts(val, sticky)
 	{
 		TimeOuts.to_connect = (time_t) 0 SECONDS;
 		TimeOuts.to_aconnect = (time_t) 0 SECONDS;
+		TimeOuts.to_iconnect = (time_t) 0 SECONDS;
 		TimeOuts.to_initial = (time_t) 5 MINUTES;
 		TimeOuts.to_helo = (time_t) 5 MINUTES;
 		TimeOuts.to_mail = (time_t) 10 MINUTES;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -10,7 +10,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: conf.h,v 1.82 2001/12/20 16:14:48 ca Exp $
+ *	$Id: conf.h,v 1.87 2002/04/02 08:11:52 gshapiro Exp $
  */
 
 /*
@@ -105,6 +105,7 @@
 #   define SMRSH_CMDDIR		"/var/adm/sm.bin"
 #  endif /* HPUX10 */
 #  ifdef HPUX11
+#   define HASSETREUID	1	/* setreuid(2) works on HP-UX 11.x */
 #   define HASFCHOWN	1	/* has fchown(2) */
 #   ifndef BROKEN_RES_SEARCH
 #    define BROKEN_RES_SEARCH 1	/* res_search(unknown) returns h_errno=0 */
@@ -618,6 +619,15 @@ extern long	dgux_inet_addr();
 #  ifndef _PATH_SENDMAILPID
 #   define _PATH_SENDMAILPID	"/var/run/sendmail.pid"
 #  endif /* ! _PATH_SENDMAILPID */
+#  if _FFR_DIGUNIX_SAFECHOWN
+/*
+**  Testing on a Digital UNIX 4.0a system showed this to be the correct
+**  setting but given the security consequences, more testing and
+**  verification is needed.  Unfortunately, the man page offers no
+**  assistance.
+*/
+#   define IS_SAFE_CHOWN >= 0
+#  endif /* _FFR_DIGUNIX_SAFECHOWN */
 # endif /* __osf__ */
 
 
@@ -716,6 +726,9 @@ typedef int		pid_t;
 #  define SPT_TYPE	SPT_PSSTRINGS
 #  define SPT_PADCHAR	'\0'	/* pad process title with nulls */
 #  define ERRLIST_PREDEFINED	/* don't declare sys_errlist */
+#  ifndef NOT_SENDMAIL
+#   define sleep		sleepX
+#  endif /* ! NOT_SENDMAIL */
 # endif /* defined(DARWIN) */
 
 

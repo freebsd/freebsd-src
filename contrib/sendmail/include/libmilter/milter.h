@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -7,7 +7,7 @@
  * the sendmail distribution.
  *
  *
- *	$Id: milter.h,v 8.35 2001/06/27 21:46:44 gshapiro Exp $
+ *	$Id: milter.h,v 8.37 2002/03/22 19:32:48 ca Exp $
  */
 
 /*

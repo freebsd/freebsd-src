@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -9,7 +9,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: sfsasl.c,v 8.86 2001/09/11 04:05:16 gshapiro Exp $")
+SM_RCSID("@(#)$Id: sfsasl.c,v 8.89 2002/02/22 04:41:28 ca Exp $")
 #include <stdlib.h>
 #include <sendmail.h>
 #include <errno.h>
@@ -270,6 +270,7 @@ sasl_write(fp, buf, size)
 	{
 		while (outlen > 0)
 		{
+			/* XXX result == 0? */
 			ret = sm_io_write(so->fp, SM_TIME_DEFAULT,
 					  &outbuf[total], outlen);
 			outlen -= ret;
@@ -552,12 +553,14 @@ tls_read(fp, buf, size)
 	}
 	if (err != NULL)
 	{
+		int save_errno;
+
+		save_errno = (errno == 0) ? EIO : errno;
 		again = MAX_TLS_IOS;
-		if (errno == 0)
-			errno = EIO;
 		if (LogLevel > 7)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS: read error=%s (%d)", err, r);
+		errno = save_errno;
 	}
 	return r;
 }
@@ -636,12 +639,14 @@ tls_write(fp, buf, size)
 	}
 	if (err != NULL)
 	{
+		int save_errno;
+
+		save_errno = (errno == 0) ? EIO : errno;
 		again = MAX_TLS_IOS;
-		if (errno == 0)
-			errno = EIO;
 		if (LogLevel > 7)
 			sm_syslog(LOG_WARNING, NOQID,
 				  "STARTTLS: write error=%s (%d)", err, r);
+		errno = save_errno;
 	}
 	return r;
 }

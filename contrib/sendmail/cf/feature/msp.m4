@@ -1,6 +1,6 @@
 divert(-1)
 #
-# Copyright (c) 2000-2001 Sendmail, Inc. and its suppliers.
+# Copyright (c) 2000-2002 Sendmail, Inc. and its suppliers.
 #	All rights reserved.
 #
 # By using this file, you agree to the terms and conditions set
@@ -10,9 +10,9 @@ divert(-1)
 #
 
 divert(0)dnl
-VERSIONID(`$Id: msp.m4,v 1.29 2001/12/13 23:56:38 gshapiro Exp $')
+VERSIONID(`$Id: msp.m4,v 1.32 2002/03/26 22:02:03 ca Exp $')
 divert(-1)
-define(`ALIAS_FILE', `')
+undefine(`ALIAS_FILE')
 define(`confDELIVERY_MODE', `i')
 define(`confUSE_MSP', `True')
 define(`confFORWARD_PATH', `')
@@ -29,10 +29,10 @@ dnl notice: do not test for QUEUE_DIR, it is set in some ostype/*.m4 files
 ifdef(`MSP_QUEUE_DIR',
 `define(`QUEUE_DIR', `MSP_QUEUE_DIR')',
 `define(`QUEUE_DIR', `/var/spool/clientmqueue')')
-define(`_MTA_HOST_', ifelse(defn(`_ARG_'), `', `localhost', `_ARG_'))
+define(`_MTA_HOST_', ifelse(defn(`_ARG_'), `', `[localhost]', `_ARG_'))
 define(`_MSP_FQHN_',`dnl used to qualify addresses
 ifdef(`MASQUERADE_NAME', ifdef(`_MASQUERADE_ENVELOPE_', `$M', `$j'), `$j')')
-define(`RELAY_MAILER_ARGS', `TCP $h'ifelse(_ARG2_, `MSA', ` 587'))
+ifelse(_ARG2_, `MSA', `define(`RELAY_MAILER_ARGS', `TCP $h 587')')
 dnl ---------------------------------------------
 ifdef(`confPID_FILE', `dnl',
 `define(`confPID_FILE', QUEUE_DIR`/sm-client.pid')')
@@ -55,11 +55,11 @@ define(`LOCAL_MAILER_DSN_DIAGNOSTIC_CODE', `SMTP')dnl
 define(`LOCAL_SHELL_PATH', `[IPC]')dnl
 define(`LOCAL_SHELL_FLAGS', `lmDFMuXk5')dnl
 define(`LOCAL_SHELL_ARGS', `TCP $h')dnl
-MODIFY_MAILER_FLAGS(`SMTP', `+k05')dnl
-MODIFY_MAILER_FLAGS(`ESMTP', `+k05')dnl
-MODIFY_MAILER_FLAGS(`DSMTP', `+k05')dnl
-MODIFY_MAILER_FLAGS(`SMTP8', `+k05')dnl
-MODIFY_MAILER_FLAGS(`RELAY', `+k0')dnl
+MODIFY_MAILER_FLAGS(`SMTP', `+k5')dnl
+MODIFY_MAILER_FLAGS(`ESMTP', `+k5')dnl
+MODIFY_MAILER_FLAGS(`DSMTP', `+k5')dnl
+MODIFY_MAILER_FLAGS(`SMTP8', `+k5')dnl
+MODIFY_MAILER_FLAGS(`RELAY', `+k')dnl
 MAILER(`local')dnl
 MAILER(`smtp')dnl
 

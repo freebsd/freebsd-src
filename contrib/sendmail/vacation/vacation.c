@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -20,7 +20,7 @@ SM_IDSTR(copyright,
 	The Regents of the University of California.  All rights reserved.\n\
      Copyright (c) 1983 Eric P. Allman.  All rights reserved.\n")
 
-SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.131 2001/12/12 00:02:42 gshapiro Exp $")
+SM_IDSTR(id, "@(#)$Id: vacation.c,v 8.134 2002/03/01 20:45:00 ca Exp $")
 
 
 #include <ctype.h>
@@ -319,7 +319,7 @@ main(argc, argv)
 		SM_CF_OPT_T mbdbname;
 		SM_MBDB_T user;
 
-		cfpath = getcfname(0, 0, SM_GET_SENDMAIL_CF, NULL);
+		cfpath = getcfname(0, 0, SM_GET_SENDMAIL_CF, cfpath);
 		mbdbname.opt_name = "MailboxDatabase";
 		mbdbname.opt_val = "pw";
 		(void) sm_cf_getopt(cfpath, 1, &mbdbname);
@@ -370,6 +370,15 @@ main(argc, argv)
 		RunAsGid = user_info.smdbu_group_id = getegid();
 		sff |= SFF_OPENASROOT;
 	}
+	if (getuid() == 0)
+	{
+		/* Allow root to initialize user's vacation databases */
+		sff |= SFF_OPENASROOT|SFF_ROOTOK;
+
+		/* ... safely */
+		sff |= SFF_NOSLINK|SFF_NOHLINK|SFF_REGONLY;
+	}
+
 
 	result = smdb_open_database(&Db, dbfilename,
 				    O_CREAT|O_RDWR | (iflag ? O_TRUNC : 0),
