@@ -110,6 +110,7 @@ QUOTA
 SCHED_4BSD	opt_sched.h
 SCHED_ULE	opt_sched.h
 SHOW_BUSYBUFS
+SLEEPQUEUE_PROFILING
 SPX_HACK
 SUIDDIR		opt_suiddir.h
 MSGMNB		opt_sysvipc.h
@@ -134,6 +135,7 @@ SYSVMSG		opt_sysvipc.h
 SYSVSEM		opt_sysvipc.h
 SYSVSHM		opt_sysvipc.h
 SW_WATCHDOG	opt_watchdog.h
+TURNSTILE_PROFILING
 TTYHOG		opt_tty.h
 VFS_AIO
 WLCACHE		opt_wavelan.h

@@ -181,6 +181,10 @@ options 	MUTEX_NOINLINE
 # SMP Debugging Options:
 #
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
+# SLEEPQUEUE_PROFILING enables rudimentary profiling of the hash table
+#	  used to hold active sleep queues.
+# TURNSTILE_PROFILING enables rudimentary profiling of the hash table
+#	  used to hold active lock queues.
 # WITNESS enables the witness code which detects deadlocks and cycles
 #         during locking operations.
 # WITNESS_DDB causes the witness code to drop into the kernel debugger if
@@ -195,6 +199,10 @@ options 	WITNESS_SKIPSPIN
 # MUTEX_PROFILING - Profiling mutual exclusion locks (mutexes).  See
 # MUTEX_PROFILING(9) for details.
 options 	MUTEX_PROFILING
+
+# Profiling for internal hash tables.
+options 	SLEEPQUEUE_PROFILING
+options 	TURNSTILE_PROFILING
 
 
 #####################################################################
