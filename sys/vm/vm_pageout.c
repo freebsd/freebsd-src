@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.101 1997/12/04 19:00:56 dyson Exp $
+ * $Id: vm_pageout.c,v 1.102 1997/12/05 05:41:06 dyson Exp $
  */
 
 /*
@@ -144,11 +144,13 @@ int vm_pageout_stats_free_max=0, vm_pageout_algorithm_lru=0;
 int defer_swap_pageouts=0;
 int disable_swap_pageouts=0;
 
-int vm_maxlaunder=100;
+int max_page_launder=100;
 #if defined(NO_SWAPPING)
-int vm_swapping_enabled=0;
+int vm_swap_enabled=0;
+int vm_swap_idle_enabled=0;
 #else
-int vm_swapping_enabled=1;
+int vm_swap_enabled=1;
+int vm_swap_idle_enabled=0;
 #endif
 
 SYSCTL_INT(_vm, VM_PAGEOUT_ALGORITHM, pageout_algorithm,
@@ -167,21 +169,25 @@ SYSCTL_INT(_vm, OID_AUTO, pageout_stats_free_max,
 	CTLFLAG_RW, &vm_pageout_stats_free_max, 0, "");
 
 #if defined(NO_SWAPPING)
-SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swapping_enabled,
-	CTLFLAG_RD, &vm_swapping_enabled, 0, "");
+SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
+	CTLFLAG_RD, &vm_swap_enabled, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled,
+	CTLFLAG_RD, &vm_swap_idle_enabled, 0, "");
 #else
-SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swapping_enabled,
-	CTLFLAG_RW, &vm_swapping_enabled, 0, "");
+SYSCTL_INT(_vm, VM_SWAPPING_ENABLED, swap_enabled,
+	CTLFLAG_RW, &vm_swap_enabled, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, swap_idle_enabled,
+	CTLFLAG_RW, &vm_swap_idle_enabled, 0, "");
 #endif
 
-SYSCTL_INT(_vm, OID_AUTO, defer_swap_pageouts,
+SYSCTL_INT(_vm, OID_AUTO, defer_swapspace_pageouts,
 	CTLFLAG_RW, &defer_swap_pageouts, 0, "");
 
-SYSCTL_INT(_vm, OID_AUTO, disable_swap_pageouts,
+SYSCTL_INT(_vm, OID_AUTO, disable_swapspace_pageouts,
 	CTLFLAG_RW, &disable_swap_pageouts, 0, "");
 
-SYSCTL_INT(_vm, OID_AUTO, vm_maxlaunder,
-	CTLFLAG_RW, &vm_maxlaunder, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, max_page_launder,
+	CTLFLAG_RW, &max_page_launder, 0, "");
 
 
 #define VM_PAGEOUT_PAGE_COUNT 16
@@ -619,10 +625,10 @@ vm_pageout_scan()
 	pages_freed = 0;
 	addl_page_shortage = 0;
 
-	if (vm_maxlaunder == 0)
-		vm_maxlaunder = 1;
-	maxlaunder = (cnt.v_inactive_target > vm_maxlaunder) ?
-	    vm_maxlaunder : cnt.v_inactive_target;
+	if (max_page_launder == 0)
+		max_page_launder = 1;
+	maxlaunder = (cnt.v_inactive_target > max_page_launder) ?
+	    max_page_launder : cnt.v_inactive_target;
 
 rescan0:
 	maxscan = cnt.v_inactive_count;
@@ -956,6 +962,20 @@ rescan0:
 	}
 	splx(s);
 
+#if !defined(NO_SWAPPING)
+	/*
+	 * Idle process swapout -- run once per second.
+	 */
+	if (vm_swap_idle_enabled) {
+		static long lsec;
+		if (time.tv_sec != lsec) {
+			vm_pageout_req_swapout |= VM_SWAP_IDLE;
+			vm_req_vmdaemon();
+			lsec = time.tv_sec;
+		}
+	}
+#endif
+		
 	/*
 	 * If we didn't get enough free pages, and we have skipped a vnode
 	 * in a writeable object, wakeup the sync daemon.  And kick swapout
@@ -971,10 +991,10 @@ rescan0:
 			}
 		}
 #if !defined(NO_SWAPPING)
-		if (vm_swapping_enabled &&
+		if (vm_swap_enabled &&
 			(cnt.v_free_count + cnt.v_cache_count < cnt.v_free_target)) {
 			vm_req_vmdaemon();
-			vm_pageout_req_swapout = 1;
+			vm_pageout_req_swapout |= VM_SWAP_NORMAL;
 		}
 #endif
 	}
@@ -1188,7 +1208,7 @@ vm_pageout()
 	if (vm_pageout_stats_free_max == 0)
 		vm_pageout_stats_free_max = 25;
 
-	vm_maxlaunder = (cnt.v_page_count > 1800 ? 32 : 16);
+	max_page_launder = (cnt.v_page_count > 1800 ? 32 : 16);
 
 	swap_pager_swap_init();
 	/*
@@ -1257,7 +1277,7 @@ vm_daemon()
 	while (TRUE) {
 		tsleep(&vm_daemon_needed, PUSER, "psleep", 0);
 		if (vm_pageout_req_swapout) {
-			swapout_procs();
+			swapout_procs(vm_pageout_req_swapout);
 			vm_pageout_req_swapout = 0;
 		}
 		/*
