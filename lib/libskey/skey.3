@@ -1,0 +1,156 @@
+.\" Copyright (c) 1996
+.\" David L. Nugent. All Rights reserved.
+.\" 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY DAVID L. NUGENT AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL DAVID L. NUGENT OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	$Id$
+.\"
+.Dd December 22, 1996
+.Dt SKEY 3
+.Os
+.Sh NAME
+.Nm skeylookup ,
+.Nm skeyverify ,
+.Nm skeychallenge ,
+.Nm skeyinfo ,
+.Nm skeyaccess ,
+.Nm skey_getpass ,
+.Nm skey_crypt
+.Nd Library routines for S/Key password control table access
+.Sh SYNOPSIS
+.Fd #include <skey.h>
+.Ft int
+.Fn skeylookup "struct skey *mp" "char *name"
+.Ft int
+.Fn skeyverify "struct skey *mp" "char *response"
+.Ft int
+.Fn skeychallenge "struct skey *mp" "char *name" "char *challenge"
+.Ft int
+.Fn skeyinfo "struct skey *mp" "char* name" "char *ss"
+.Ft int
+.Fn skeyaccess "char *user" "char *port" "char *host" "char *addr"
+.Ft char *
+.Fn skey_getpass "char *prompt" "struct passwd *pwd" "int pwok"
+.Ft char *
+.Fn skey_crypt "char *pp" "char *salt" "struct passwd *pwd" "int pwok"
+.Sh DESCRIPTION
+These routes support the S/Key one time password system used for
+accessing computer systems.
+See
+.Xr skey 1 
+for more information about the S/Key system itself.
+.Pp
+.Pp
+.Fn skeylookup
+finds an entry in the one-time password database.
+On success (an entry is found corresponding to the given name),
+they skey structure passed by the caller is filled and 0 is
+returned, with the file read/write pointer positioned at the
+beginning of the record found.
+If no entry is found corresponding to the given name, the file
+read/write pointer is positioned at end of file and the routine
+returns 1.
+If the database cannot be opened or an access error occurs,
+.Fn skeylookup
+returns -1.
+.Pp
+The
+.Fn skeyinfo
+function looks up skey info for user 'name'.
+If successful, the caller's skey structure is filled and
+.Fn skeyinfo
+returns 0.
+If an optional challenge string buffer is given, it is updated.
+If unsuccessful (e.g. if the name is unknown, or the database
+cannot be accessed) -1 is returned.
+.Pp
+.Fn skeychallenge
+returns an skey challenge string for 'name'.
+If successful, the caller's skey structure is filled, and
+the function returns 0, with the file read/write pointer
+left at the start of the record.
+If unsuccessful (ie. the name was not found), the function
+returns -1 and the database is closed.
+.Pp
+.Fn skeyverify
+verifies a response to an s/key challenge.
+If this function returns 0, the verify was successful and
+the database was updated.
+If 1 is returned, the verify failed and the database remains
+unchanged.
+If -1 is returned, some sort of error occured with the database,
+and the database is left unchanged.
+The s/key database is always closed by this call.
+.Pp
+The
+.Fn skey_getpass
+function may be used to read regular or s/key passwords.
+The prompt to use is passed to the function, along with the
+full (secure) struct passwd for the user to be verified.
+.Fn skey_getpass
+uses the standard library getpass on the first attempt at
+retrieving the user's password, and if that is blank, turns
+echo back on and retrieves the S/Key password.
+In either case, the entered string is returned back to the
+caller.
+.Pp
+The
+.Fn skey_crypt
+is a wrapper function for the standard library
+.Xr crypt 3 ,
+which returns the encrypted unix password if either the given
+s/key or regular passwords are ok.
+.Fn skey_crypt
+first attempts verification of the given password via the skey
+method, and will return the encrypted password from the
+passwd structure if it can be verified, as though the user had
+actually entered the correct UNIX password.
+If s/key password verification does not work, then the password
+is encrypted in the usual way and the result passed back to the
+caller.
+If the passwd structure pointer is NULL,
+.Fn skey_crypt
+returns a non-NULL string which could not possibly be a valid
+UNIX password (namely, a string containing ":").
+.Pp
+The
+.Fn skeyaccess
+function determines whether s/key passwords are permitted for any
+combination of user name, group member, terminal port, host name or
+network.
+See
+.Xr skey.access 5
+for more information on the layout and structure of the
+skey.access configuration file which this function uses.
+.Sh RETURN VALUES
+See above.
+.Sh SEE ALSO
+.Xr skey 1 ,
+.Xr skey.access 5 ,
+.Sh BUGS
+No advisory locking is done on the s/key database to guard against
+simultaneous access from multiple processes.
+This is not normally a problem when keys are added to or updated
+in the file, but may be problematic when keys are removed.
+.Sh AUTHOR
+Phil Karn, Neil M. Haller, John S. Walden, Scott Chasin
+
