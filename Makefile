@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.191 1998/06/01 18:29:11 peter Exp $
+#	$Id: Makefile,v 1.192 1998/06/02 11:22:08 peter Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -699,6 +699,13 @@ libraries:
 	cd ${.CURDIR}/kerberosIV/lib; ${MAKE} all; ${MAKE} -B install
 .endif
 
+# Exclude perl from the build-tools if NOPERL is defined.
+.if defined(NOPERL)
+_perl=
+.else
+_perl=	gnu/usr.bin/perl/perl
+.endif
+
 #
 # build-tools - build and install any other tools needed to complete the
 # compile and install.
@@ -732,7 +739,7 @@ build-tools:
 		gnu/usr.bin/gzip	\
 		gnu/usr.bin/man/makewhatis	\
 		gnu/usr.bin/patch	\
-		gnu/usr.bin/perl/perl	\
+		${_perl}		\
 		gnu/usr.bin/sort	\
 		gnu/usr.bin/texinfo	\
 		usr.bin/basename	\
