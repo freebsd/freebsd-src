@@ -102,7 +102,14 @@ static void (*smp_rv_action_func)(void *arg);
 static void (*smp_rv_teardown_func)(void *arg);
 static void *smp_rv_func_arg;
 static volatile int smp_rv_waiters[2];
-static struct mtx smp_rv_mtx;
+
+/* 
+ * Shared mutex to restrict busywaits between smp_rendezvous() and
+ * smp(_targeted)_tlb_shootdown().  A deadlock occurs if both of these
+ * functions trigger at once and cause multiple CPUs to busywait with
+ * interrupts disabled. 
+ */
+struct mtx smp_rv_mtx;
 
 /*
  * Let the MD SMP code initialize mp_maxid very early if it can.
