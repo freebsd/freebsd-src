@@ -34,13 +34,7 @@ str-$i.j str-$i.h: str-$i.fin fini
 FINIHDRS+=	str-$i.j str-$i.h
 .endfor
 
+SRCS+=		${FINIHDRS:M*.h}
 CLEANFILES+=	${FINIHDRS}
 
 .include <bsd.prog.mk>
-
-#-----------------------------------------------------------------------
-# Fixups.
-
-.if !exists(${DEPENDFILE})
-${OBJS:Nproj.o} ${DEPENDFILE}: ${FINIHDRS}
-.endif
