@@ -364,6 +364,11 @@ An orphaned file is one with an invalid owner or group.
 (str) A list of directories under which orphaned files are searched for.
 This would usually be set to
 .Pa / .
+.It Ar weekly_status_pkg_dirs
+(bool) Set to
+.Dq YES
+if you want to report out-of-date packages installed using
+.Xr pkg_version 1 .
 .It Ar weekly_local
 (str) Set to a list of extra scripts that should be run after all other
 weekly scripts.
@@ -406,6 +411,7 @@ is shared or distributed.
 .Xr msgs 1 ,
 .Xr netstat 1 ,
 .Xr nice 1 ,
+.Xr pkg_version 1 ,
 .Xr rdist 1 ,
 .Xr rc.conf 5 ,
 .Xr ac 8 ,
