@@ -166,11 +166,13 @@ LIST_HEAD(rbuf_list, rbuf);
  * rxhand (aka. protocol block).
  */
 struct card_vcc {
+	struct atmio_vcc param;		/* traffic parameters */
 	void		*rxhand;
-	uint32_t	pcr;
-	uint32_t	flags;
-	uint8_t		aal;
-	uint8_t		traffic;
+	uint		vflags;
+	uint32_t	ipackets;
+	uint32_t	opackets;
+	uint32_t	ibytes;
+	uint32_t	obytes;
 };
 
 #define	FATM_VCC_OPEN		0x00010000	/* is open */
@@ -223,10 +225,11 @@ struct fatm_softc {
 	u_int		txcnt;		/* number of used transmit desc */
 	int		retry_tx;	/* keep mbufs in queue if full */
 
-	struct card_vcc	*vccs;		/* table of vccs */
+	struct card_vcc	**vccs;		/* table of vccs */
 	int		open_vccs;	/* number of vccs in use */
 	int		small_cnt;	/* number of buffers owned by card */
 	int		large_cnt;	/* number of buffers owned by card */
+	uma_zone_t	vcc_zone;	/* allocator for VCCs */
 
 	/* receiving */
 	struct rbuf	*rbufs;		/* rbuf array */
