@@ -1,12 +1,13 @@
-/*	$NetBSD: uhcivar.h,v 1.3 1998/07/26 00:40:59 augustss Exp $	*/
+/*	$NetBSD: uhcivar.h,v 1.5 1998/12/26 12:53:02 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -63,14 +64,14 @@ typedef struct uhci_soft_td uhci_soft_td_t;
  * searched at interrupt time.
  */
 typedef struct uhci_intr_info {
-#if defined(__FreeBSD__)
-	struct callout_handle timeout_handle;
-#endif
 	struct uhci_softc *sc;
 	usbd_request_handle reqh;
 	uhci_soft_td_t *stdstart;
 	uhci_soft_td_t *stdend;
 	LIST_ENTRY(uhci_intr_info) list;
+#if defined(__FreeBSD__)
+	struct callout_handle timeout_handle;
+#endif /* defined(__FreeBSD__) */
 #ifdef DIAGNOSTIC
 	int isdone;
 #endif
@@ -121,12 +122,12 @@ typedef struct uhci_softc {
 	bus_space_tag_t iot;
 	bus_space_handle_t ioh;
 
-	bus_dma_tag_t sc_dmatag; 	/* DMA tag */
+	bus_dma_tag_t sc_dmatag;	/* DMA tag */
 	/* XXX should keep track of all DMA memory */
 #elif defined(__FreeBSD__)
 	int		sc_iobase;
 	int		unit;
-#endif
+#endif /* defined(__FreeBSD__) */
 
 	uhci_physaddr_t *sc_pframes;
 	struct uhci_vframe sc_vframes[UHCI_VFRAMELIST_COUNT];

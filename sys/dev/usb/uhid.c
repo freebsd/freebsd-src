@@ -1,12 +1,13 @@
-/*	$NetBSD: uhid.c,v 1.3 1998/08/01 20:52:45 augustss Exp $	*/
+/*	$NetBSD: uhid.c,v 1.12 1998/12/26 12:53:02 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -37,7 +38,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <dev/usb/usb_port.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,6 +51,7 @@
 #include <sys/filio.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/ioccom.h>
 #endif
 #include <sys/tty.h>
 #include <sys/file.h>
@@ -64,7 +65,6 @@
 
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
-#include <dev/usb/usbdivar.h>
 #include <dev/usb/hid.h>
 #include <dev/usb/usb_quirks.h>
 
@@ -78,7 +78,7 @@ int	uhiddebug = 0;
 #endif
 
 struct uhid_softc {
-	bdevice sc_dev;			/* base device */
+	bdevice sc_dev;		/* base device */
 	usbd_interface_handle sc_iface;	/* interface */
 	usbd_pipe_handle sc_intrpipe;	/* interrupt pipe */
 	int sc_ep_addr;
@@ -100,7 +100,7 @@ struct uhid_softc {
 	struct selinfo sc_rsel;
 	u_char sc_state;	/* driver state */
 #define	UHID_OPEN	0x01	/* device is open */
-#define	UHID_ASLP	0x02	/* waiting for mouse data */
+#define	UHID_ASLP	0x02	/* waiting for device data */
 #define UHID_NEEDCLEAR	0x04	/* needs clearing endpoint stall */
 #define UHID_IMMED	0x08	/* return read data immediately */
 	int sc_disconnected;	/* device is gone */
@@ -109,14 +109,6 @@ struct uhid_softc {
 #define	UHIDUNIT(dev)	(minor(dev))
 #define	UHID_CHUNK	128	/* chunk size for read */
 #define	UHID_BSIZE	1020	/* buffer size */
-
-#if defined(__NetBSD__)
-int uhid_match __P((struct device *, struct cfdata *, void *));
-void uhid_attach __P((struct device *, struct device *, void *));
-#elif defined(__FreeBSD__)
-static device_probe_t uhid_match;
-static device_attach_t uhid_attach;
-#endif
 
 int uhidopen __P((dev_t, int, int, struct proc *));
 int uhidclose __P((dev_t, int, int, struct proc *p));
@@ -127,45 +119,11 @@ int uhidpoll __P((dev_t, int, struct proc *));
 void uhid_intr __P((usbd_request_handle, usbd_private_handle, usbd_status));
 void uhid_disco __P((void *));
 
-#if defined(__NetBSD__)
-extern struct cfdriver uhid_cd;
+USB_DECLARE_DRIVER(uhid);
 
-struct cfattach uhid_ca = {
-	sizeof(struct uhid_softc), uhid_match, uhid_attach
-};
-#elif defined(__FreeBSD__)
-
-static devclass_t uhid_devclass;
-
-static device_method_t uhid_methods[] = {
-        DEVMETHOD(device_probe, uhid_match),
-        DEVMETHOD(device_attach, uhid_attach),
-        {0,0}
-};
-
-static driver_t uhid_driver = {
-        "uhid",
-        uhid_methods,
-        DRIVER_TYPE_MISC,
-        sizeof(struct uhid_softc)
-};
-#endif
-
-
-#if defined(__NetBSD__)
-int
-uhid_match(parent, match, aux)
-	struct device *parent;
-	struct cfdata *match;
-	void *aux;
+USB_MATCH(uhid)
 {
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-uhid_match(device_t device)
-{
-        struct usb_attach_arg *uaa = device_get_ivars(device);
-#endif
+	USB_MATCH_START(uhid, uaa);
 	usb_interface_descriptor_t *id;
 	
 	if (!uaa->iface)
@@ -176,22 +134,9 @@ uhid_match(device_t device)
 	return (UMATCH_IFACECLASS_GENERIC);
 }
 
-#if defined(__NetBSD__)
-void
-uhid_attach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
+USB_ATTACH(uhid)
 {
-	struct uhid_softc *sc = (struct uhid_softc *)self;
-	struct usb_attach_arg *uaa = aux;
-#elif defined(__FreeBSD__)
-static int
-uhid_attach(device_t self)
-{
-        struct uhid_softc *sc = device_get_softc(self);
-        struct usb_attach_arg *uaa = device_get_ivars(self);
-#endif
+	USB_ATTACH_START(uhid, sc, uaa);
 	usbd_interface_handle iface = uaa->iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
@@ -204,31 +149,30 @@ uhid_attach(device_t self)
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
 	usbd_devinfo(uaa->device, 0, devinfo);
-#if defined(__FreeBSD__)
-	usb_device_set_desc(self, devinfo);
-	printf("%s%d", device_get_name(self), device_get_unit(self));
-#endif
-	printf(": %s (interface class %d/%d)\n", devinfo,
-	       id->bInterfaceClass, id->bInterfaceSubClass);
-	sc->sc_dev = self;
+	USB_ATTACH_SETUP;
+	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
+	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed) {
-		DEVICE_ERROR(sc->sc_dev, ("could not read endpoint descriptor\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: could not read endpoint descriptor\n",
+		       USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
 
-	DPRINTFN(10,("uhid_attach: \
-bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d bInterval=%d\n",
-	       ed->bLength, ed->bDescriptorType, ed->bEndpointAddress & UE_ADDR,
-	       ed->bEndpointAddress & UE_IN ? "in" : "out",
-	       ed->bmAttributes & UE_XFERTYPE,
-	       UGETW(ed->wMaxPacketSize), ed->bInterval));
+	DPRINTFN(10,("uhid_attach: bLength=%d bDescriptorType=%d "
+		     "bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketSize=%d"
+		     " bInterval=%d\n",
+		     ed->bLength, ed->bDescriptorType, 
+		     ed->bEndpointAddress & UE_ADDR,
+		     ed->bEndpointAddress & UE_IN ? "in" : "out",
+		     ed->bmAttributes & UE_XFERTYPE,
+		     UGETW(ed->wMaxPacketSize), ed->bInterval));
 
 	if ((ed->bEndpointAddress & UE_IN) != UE_IN ||
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_INTERRUPT) {
-		DEVICE_ERROR(sc->sc_dev, ("unexpected endpoint\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: unexpected endpoint\n", USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
 
 	sc->sc_ep_addr = ed->bEndpointAddress;
@@ -236,8 +180,8 @@ bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketS
 
 	r = usbd_alloc_report_desc(uaa->iface, &desc, &size, M_USB);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DEVICE_ERROR(sc->sc_dev, ("no report descriptor\n"));
-		ATTACH_ERROR_RETURN;
+		printf("%s: no report descriptor\n", USBDEVNAME(sc->sc_dev));
+		USB_ATTACH_ERROR_RETURN;
 	}
 	
 	(void)usbd_set_idle(iface, 0, 0);
@@ -249,8 +193,23 @@ bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketS
 	sc->sc_repdesc = desc;
 	sc->sc_repdesc_size = size;
 
-	ATTACH_SUCCESS_RETURN;
+	USB_ATTACH_SUCCESS_RETURN;
 }
+
+#if defined(__FreeBSD__)
+static int
+uhid_detach(device_t self)
+{       
+        struct uhid_softc *sc = device_get_softc(self);
+	char *devinfo = (char *) device_get_desc(self);
+
+	if (devinfo) {
+		device_set_desc(self, NULL);
+		free(devinfo, M_USB);
+	}
+	return 0;
+}
+#endif
 
 void
 uhid_disco(p)
@@ -302,18 +261,10 @@ uhidopen(dev, flag, mode, p)
 	struct proc *p;
 {
 	usbd_status r;
-#if defined(__NetBSD__)
-	struct uhid_softc *sc;
-	int unit = UHIDUNIT(dev);
+	USB_GET_SC_OPEN(uhid, UHIDUNIT(dev), sc);
 
-	if (unit >= uhid_cd.cd_ndevs)
-		return ENXIO;
-	sc = uhid_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct uhid_softc *sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
-#endif
 	if (!sc)
-		return ENXIO;
+		return (ENXIO);
 
 	DPRINTF(("uhidopen: sc=%p, disco=%d\n", sc, sc->sc_disconnected));
 
@@ -321,11 +272,11 @@ uhidopen(dev, flag, mode, p)
 		return (EIO);
 
 	if (sc->sc_state & UHID_OPEN)
-		return EBUSY;
+		return (EBUSY);
 
 #if defined(__NetBSD__)
 	if (clalloc(&sc->sc_q, UHID_BSIZE, 0) == -1)
-		return ENOMEM;
+		return (ENOMEM);
 #elif defined(__FreeBSD__)
 	clist_alloc_cblocks(&sc->sc_q, UHID_BSIZE, 0);
 #endif
@@ -342,13 +293,14 @@ uhidopen(dev, flag, mode, p)
 				&sc->sc_intrpipe, sc, sc->sc_ibuf, 
 				sc->sc_isize, uhid_intr);
 	if (r != USBD_NORMAL_COMPLETION) {
-		DPRINTF(("uhidopen: usbd_open_pipe_intr failed, error=%d\n",r));
+		DPRINTF(("uhidopen: usbd_open_pipe_intr failed, "
+			 "error=%d\n",r));
 		sc->sc_state &= ~UHID_OPEN;
 		return (EIO);
 	}
 	usbd_set_disco(sc->sc_intrpipe, uhid_disco, sc);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -358,16 +310,7 @@ uhidclose(dev, flag, mode, p)
 	int mode;
 	struct proc *p;
 {
-#if defined(__NetBSD__)
-	struct uhid_softc *sc;
-	int unit = UHIDUNIT(dev);
-
-	if (unit >= uhid_cd.cd_ndevs)
-		return ENXIO;
-	sc = uhid_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct uhid_softc *sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
-#endif
+	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
 
 	if (sc->sc_disconnected)
 		return (EIO);
@@ -389,7 +332,7 @@ uhidclose(dev, flag, mode, p)
 	free(sc->sc_ibuf, M_USB);
 	free(sc->sc_obuf, M_USB);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -403,16 +346,7 @@ uhidread(dev, uio, flag)
 	size_t length;
 	u_char buffer[UHID_CHUNK];
 	usbd_status r;
-#if defined(__NetBSD__)
-	struct uhid_softc *sc;
-	int unit = UHIDUNIT(dev);
-
-	if (unit >= uhid_cd.cd_ndevs)
-		return ENXIO;
-	sc = uhid_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct uhid_softc *sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
-#endif
+	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
 
 	if (sc->sc_disconnected)
 		return (EIO);
@@ -428,7 +362,7 @@ uhidread(dev, uio, flag)
 		return (uiomove(buffer, sc->sc_isize, uio));
 	}
 
-	s = spltty();
+	s = splusb();
 	while (sc->sc_q.c_cc == 0) {
 		if (flag & IO_NDELAY) {
 			splx(s);
@@ -478,16 +412,7 @@ uhidwrite(dev, uio, flag)
 	int error;
 	int size;
 	usbd_status r;
-#if defined(__NetBSD__)
-	struct uhid_softc *sc;
-	int unit = UHIDUNIT(dev);
-
-	if (unit >= uhid_cd.cd_ndevs)
-		return ENXIO;
-	sc = uhid_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct uhid_softc *sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
-#endif
+	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
 
 	if (sc->sc_disconnected)
 		return (EIO);
@@ -528,16 +453,7 @@ uhidioctl(dev, cmd, addr, flag, p)
 	struct usb_ctl_report *re;
 	int size, id;
 	usbd_status r;
-#if defined(__NetBSD__)
-	struct uhid_softc *sc;
-	int unit = UHIDUNIT(dev);
-
-	if (unit >= uhid_cd.cd_ndevs)
-		return ENXIO;
-	sc = uhid_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct uhid_softc *sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
-#endif
+	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
 
 	if (sc->sc_disconnected)
 		return (EIO);
@@ -557,12 +473,12 @@ uhidioctl(dev, cmd, addr, flag, p)
 
 	case USB_SET_IMMED:
 		if (*(int *)addr) {
-                       /* XXX should read into ibuf, but does it matter */
-                       r = usbd_get_report(sc->sc_iface, UHID_INPUT_REPORT,
-                                           sc->sc_iid, sc->sc_ibuf, 
-                                           sc->sc_isize);
-                       if (r != USBD_NORMAL_COMPLETION)
-                               return (EOPNOTSUPP);
+			/* XXX should read into ibuf, but does it matter */
+			r = usbd_get_report(sc->sc_iface, UHID_INPUT_REPORT,
+					    sc->sc_iid, sc->sc_ibuf, 
+					    sc->sc_isize);
+			if (r != USBD_NORMAL_COMPLETION)
+				return (EOPNOTSUPP);
 
 			sc->sc_state |=  UHID_IMMED;
 		} else
@@ -607,21 +523,12 @@ uhidpoll(dev, events, p)
 {
 	int revents = 0;
 	int s;
-#if defined(__NetBSD__)
-	struct uhid_softc *sc;
-	int unit = UHIDUNIT(dev);
-
-	if (unit >= uhid_cd.cd_ndevs)
-		return ENXIO;
-	sc = uhid_cd.cd_devs[unit];
-#elif defined(__FreeBSD__)
-	struct uhid_softc *sc = devclass_get_softc(uhid_devclass, UHIDUNIT(dev));
-#endif
+	USB_GET_SC(uhid, UHIDUNIT(dev), sc);
 
 	if (sc->sc_disconnected)
 		return (EIO);
 
-	s = spltty();
+	s = splusb();
 	if (events & (POLLOUT | POLLWRNORM))
 		revents |= events & (POLLOUT | POLLWRNORM);
 	if (events & (POLLIN | POLLRDNORM)) {
@@ -636,5 +543,5 @@ uhidpoll(dev, events, p)
 }
 
 #if defined(__FreeBSD__)
-DRIVER_MODULE(uhid, usb, uhid_driver, uhid_devclass, usb_driver_load, 0);
+DRIVER_MODULE(uhid, usb, uhid_driver, uhid_devclass, usbd_driver_load, 0);
 #endif

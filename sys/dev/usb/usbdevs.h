@@ -1,19 +1,19 @@
-/*	$NetBSD: usbdevs.h,v 1.8 1998/12/02 22:51:50 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$NetBSD$	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	NetBSD: usbdevs,v 1.8 1998/12/02 22:49:51 augustss Exp 
+ *	NetBSD: usbdevs,v 1.14 1998/12/30 03:52:30 augustss Exp 
  */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -55,6 +55,7 @@
 #define	USB_VENDOR_NANAO	0x0440		/* Nanao */
 #define	USB_VENDOR_UNIXTAR	0x0451		/* Unixtar */
 #define	USB_VENDOR_GENIUS	0x0458		/* Genius */
+#define	USB_VENDOR_MICROSOFT	0x045e		/* Microsoft */
 #define	USB_VENDOR_CHERRY	0x046a		/* Cherry */
 /* Behavior Technology Corporation */
 #define	USB_VENDOR_BTC	0x046e		/* BTC */
@@ -62,13 +63,17 @@
 #define	USB_VENDOR_CONNECTIX	0x0478		/* Connectix */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
 #define	USB_VENDOR_3COM	0x04c1		/* 3Com */
+#define	USB_VENDOR_SHUTTLE	0x04e6		/* Shuttle Technology */
 #define	USB_VENDOR_JAZZ	0x04fa		/* Jazz */
 #define	USB_VENDOR_ATEN	0x0557		/* ATen */
+#define	USB_VENDOR_PERACOM	0x0565		/* Peracom */
 #define	USB_VENDOR_EIZO	0x056d		/* EIZO */
 #define	USB_VENDOR_AGILER	0x056e		/* Agiler */
 #define	USB_VENDOR_BELKIN	0x05ab		/* Belkin */
+#define	USB_VENDOR_LOGITECH	0x05ac		/* Logitech */
 #define	USB_VENDOR_EIZONANAO	0x05e7		/* EIZO Nanao */
 #define	USB_VENDOR_CHIC	0x05fe		/* Chic Technology */
+#define	USB_VENDOR_ADS	0x06e1		/* ADS Technologies */
 #define	USB_VENDOR_PLX	0x10b5		/* PLX */
 #define	USB_VENDOR_INSIDEOUT	0x1608		/* Inside Out Networks */
 #define	USB_VENDOR_INTEL	0x8086		/* Intel */
@@ -79,6 +84,7 @@
 
 /* NEC products */
 #define	USB_PRODUCT_NEC_HUB	0x55aa		/* hub */
+#define	USB_PRODUCT_NEC_HUB_B	0x55ab		/* hub */
 
 /* Kodak products */
 #define	USB_PRODUCT_KODAK_DC260	0x0110		/* Digital Science DC260 */
@@ -97,6 +103,9 @@
 #define	USB_PRODUCT_GENIUS_NICHE	0x0001		/* Niche mouse */
 #define	USB_PRODUCT_GENIUS_FLIGHT2000	0x1004		/* Flight 2000 joystick */
 
+/* Microsoft products */
+#define	USB_PRODUCT_MICROSOFT_INTELLIMOUSE	0x0009		/* IntelliMouse */
+
 /* Cherry products */
 #define	USB_PRODUCT_CHERRY_MY3000KBD	0x0001		/* My3000 keyboard */
 #define	USB_PRODUCT_CHERRY_MY3000HUB	0x0003		/* My3000 hub */
@@ -111,17 +120,27 @@
 /* Connectix products */
 #define	USB_PRODUCT_CONNECTIX_QUICKCAM	0x0001		/* QuickCam */
 
+/* Cypress Semiconduuctor products */
+#define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
+
 /* 3Com products */
 #define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
+
+/* Shuttle Technology products */
+#define	USB_PRODUCT_SHUTTLE_EUSB	0x0001		/* E-USB Bridge */
 
 /* Jazz products */
 #define	USB_PRODUCT_JAZZ_J6502	0x4201		/* J-6502 speakers */
 
-/* Cypress Semiconduuctor products */
-#define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
-
-/* ATen */
+/* ATen products */
 #define	USB_PRODUCT_ATEN_UC1284	0x2001		/* Parallel printer adapter */
+
+/* Peracom products */
+#define	USB_PRODUCT_PERACOM_SERIAL1	0x0001		/* Serial Converter */
+
+/* EIZO products */
+#define	USB_PRODUCT_EIZO_HUB	0x0000		/* hub */
+#define	USB_PRODUCT_EIZO_MONITOR	0x0001		/* monitor */
 
 /* Agiler products */
 #define	USB_PRODUCT_AGILER_MOUSE29UO	0x0002		/* mouse 29UO */
@@ -129,14 +148,19 @@
 /* Belkin products */
 #define	USB_PRODUCT_BELKIN_F5U002	0x0002		/* Parallel printer adapter */
 
+/* Logitech products */
+#define	USB_PRODUCT_LOGITECH_M2452	0x0203		/* M2452 keyboard */
+#define	USB_PRODUCT_LOGITECH_M4848	0x0301		/* M4848 mouse */
+
 /* EIZO Nanao products */
-#define	USB_PRODUCT_EIZO_HUB	0x0000		/* hub */
-#define	USB_PRODUCT_EIZO_MONITOR	0x0001		/* monitor */
 #define	USB_PRODUCT_EIZONANAO_HUB	0x0000		/* hub */
 #define	USB_PRODUCT_EIZONANAO_MONITOR	0x0001		/* monitor */
 
-/* Chic Technology */
+/* Chic Technology products */
 #define	USB_PRODUCT_CHIC_MOUSE1	0x0001		/* mouse */
+
+/* ADS products */
+#define	USB_PRODUCT_ADS_ENET	0x0008		/* Ethernet adapter */
 
 /* PLX products */
 #define	USB_PRODUCT_PLX_TESTBOARD	0x9060		/* test board */

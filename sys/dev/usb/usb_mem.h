@@ -1,12 +1,13 @@
-/*	$NetBSD: usb_mem.h,v 1.1 1998/07/24 21:09:08 augustss Exp $	*/
+/*	$NetBSD: usb_mem.h,v 1.3 1998/12/26 12:53:03 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -61,9 +62,10 @@ typedef struct {
 usbd_status	usb_allocmem __P((bus_dma_tag_t, size_t, size_t, usb_dma_t *));
 void		usb_freemem  __P((bus_dma_tag_t, usb_dma_t *));
 
-#else
+#elif defined(__FreeBSD__)
 
-/* FreeBSD does not have special functions for dma memory, so let's keep it
+/* 
+ * FreeBSD does not have special functions for dma memory, so let's keep it
  * simple for now.
  */
 

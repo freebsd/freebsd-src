@@ -1,12 +1,13 @@
-/*	$NetBSD: usb.c,v 1.3 1998/08/01 18:16:20 augustss Exp $	*/
+/*	$NetBSD: usb.c,v 1.10 1999/01/03 01:00:56 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -38,11 +39,10 @@
  */
 
 /*
- * USB spec: http://www.teleport.com/cgi-bin/mailmerge.cgi/~usb/cgiform.tpl
- * More USB specs at http://www.usb.org/developers/index.shtml
+ * USB specifications and other documentation can be found at
+ * http://www.usb.org/developers/data/ and
+ * http://www.usb.org/developers/index.html .
  */
-
-#include <dev/usb/usb_port.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,7 +50,7 @@
 #include <sys/malloc.h>
 #if defined(__NetBSD__)
 #include <sys/device.h>
-#else
+#elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/ioccom.h>
@@ -66,22 +66,20 @@
 #if defined(__FreeBSD__)
 MALLOC_DEFINE(M_USB, "USB", "USB");
 MALLOC_DEFINE(M_USBDEV, "USBdev", "USB device");
-#endif
+
+#include "usb_if.h"
+#endif /* defined(__FreeBSD__) */
 
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usb_quirks.h>
 
-#if defined(__FreeBSD__)
-#include "usb_if.h"
-#endif
-
 #ifdef USB_DEBUG
 #define DPRINTF(x)	if (usbdebug) printf x
 #define DPRINTFN(n,x)	if (usbdebug>(n)) printf x
-int	usbdebug = 2;
-int	uhcidebug = 2;
-int	ohcidebug = 2;
+int	usbdebug = 0;
+int	uhcidebug;
+int	ohcidebug;
 #else
 #define DPRINTF(x)
 #define DPRINTFN(n,x)
@@ -90,7 +88,7 @@ int	ohcidebug = 2;
 #define USBUNIT(dev) (minor(dev))
 
 struct usb_softc {
-	bdevice sc_dev;		/* base device */
+	bdevice sc_dev;			/* base device */
 	usbd_bus_handle sc_bus;		/* USB controller */
 	struct usbd_port sc_port;	/* dummy port for root hub */
 	char sc_running;
@@ -99,19 +97,12 @@ struct usb_softc {
 };
 
 #if defined(__NetBSD__)
-int usb_match __P((struct device *, struct cfdata *, void *));
-void usb_attach __P((struct device *, struct device *, void *));
-
 int usbopen __P((dev_t, int, int, struct proc *));
 int usbclose __P((dev_t, int, int, struct proc *));
 int usbioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
 int usbpoll __P((dev_t, int, struct proc *));
 
-#else
-static device_probe_t usb_match;
-static device_attach_t usb_attach;
-static bus_print_child_t usb_print_child;
-
+#elif defined(__FreeBSD__)
 d_open_t  usbopen; 
 d_close_t usbclose;
 d_ioctl_t usbioctl;
@@ -120,77 +111,36 @@ int usbpoll __P((dev_t, int, struct proc *));
 struct cdevsw usb_cdevsw = {
 	usbopen,     usbclose,    noread,         nowrite,
 	usbioctl,    nullstop,    nullreset,      nodevtotty,
-	seltrue,     nommap,      nostrat,
+	usbpoll,     nommap,      nostrat,
 	"usb",        NULL,   -1
 };
 #endif
 
 usbd_status usb_discover __P((struct usb_softc *));
 
-#if defined(__NetBSD__)
-extern struct cfdriver usb_cd;
+USB_DECLARE_DRIVER_INIT(usb, DEVMETHOD(bus_print_child, usbd_print_child));
 
-struct cfattach usb_ca = {
-	sizeof(struct usb_softc), usb_match, usb_attach
-};
-#else
-static devclass_t usb_devclass = NULL;
-
-static device_method_t usb_methods[] = {
-	DEVMETHOD(device_probe,		usb_match),
-	DEVMETHOD(device_attach,	usb_attach),
-
-	DEVMETHOD(bus_print_child,	usb_print_child),
-	{0, 0}
-};
-
-static driver_t usb_driver = {
-	"usb",
-	usb_methods,
-	DRIVER_TYPE_MISC,
-	sizeof(struct usb_softc),
-};
-#endif
-
-#if defined(__NetBSD__)
-int
-usb_match(parent, match, aux)
-	struct device *parent;
-	struct cfdata *match;
-	void *aux;
-#else
-static int
-usb_match(device_t device)
-#endif
+USB_MATCH(usb)
 {
 	DPRINTF(("usbd_match\n"));
-#if defined(__NetBSD__)
-        return (1);
-#else
-	return (0);
-#endif
+	return (UMATCH_GENERIC);
 }
 
+USB_ATTACH(usb)
+{
 #if defined(__NetBSD__)
-void
-usb_attach(parent, self, aux)
-	struct device *parent;
-	struct device *self;
-	void *aux;
-{
 	struct usb_softc *sc = (struct usb_softc *)self;
-#else
-static int
-usb_attach(device_t device)
-{
-	struct usb_softc *sc = device_get_softc(device);
-	void *aux = device_get_ivars(device);
+#elif defined(__FreeBSD__)
+	struct usb_softc *sc = device_get_softc(self);
+	void *aux = device_get_ivars(self);
 #endif
 	usbd_device_handle dev;
 	usbd_status r;
-
+	
 #if defined(__NetBSD__)
 	printf("\n");
+#elif defined(__FreeBSD__)
+	sc->sc_dev = self;
 #endif
 
 	DPRINTF(("usbd_attach\n"));
@@ -200,27 +150,26 @@ usb_attach(device_t device)
 	sc->sc_running = 1;
 	sc->sc_bus->use_polling = 1;
 	sc->sc_port.power = USB_MAX_POWER;
-#if defined(__FreeBSD__)
-	sc->sc_dev = device;
-#endif
 	r = usbd_new_device(&sc->sc_dev, sc->sc_bus, 0, 0, 0, &sc->sc_port);
 
 	if (r == USBD_NORMAL_COMPLETION) {
 		dev = sc->sc_port.device;
 		if (!dev->hub) {
 			sc->sc_running = 0;
-			DEVICE_ERROR(sc->sc_dev, ("root device is not a hub\n"));
-			ATTACH_ERROR_RETURN;
+			printf("%s: root device is not a hub\n", 
+			       USBDEVNAME(sc->sc_dev));
+			USB_ATTACH_ERROR_RETURN;
 		}
 		sc->sc_bus->root_hub = dev;
 		dev->hub->explore(sc->sc_bus->root_hub);
 	} else {
-		DEVICE_ERROR(sc->sc_dev, ("root hub problem, error=%d\n", r)); 
+		printf("%s: root hub problem, error=%d\n", 
+		       USBDEVNAME(sc->sc_dev), r); 
 		sc->sc_running = 0;
 	}
 	sc->sc_bus->use_polling = 0;
 
-	ATTACH_SUCCESS_RETURN;
+	USB_ATTACH_SUCCESS_RETURN;
 }
 
 #if defined(__NetBSD__)
@@ -235,94 +184,6 @@ usbctlprint(aux, pnp)
 
 	return (UNCONF);
 }
-
-#else
-static void
-usb_print_child(device_t parent, device_t child)
-{
-	struct usb_softc *sc = device_get_softc(child);
-
-	printf(" at %s%d", device_get_name(parent), device_get_unit(parent));
-
-	/* How do we get to the usbd_device_handle???
-	usbd_device_handle dev = invalidadosch;
-
-	printf(" addr %d", dev->addr);
-
-	if (bootverbose) {
-		if (dev->lowspeed)
-			printf(", lowspeed");
-		if (dev->self_powered)
-			printf(", self powered");
-		else
-			printf(", %dmA", dev->power);
-		printf(", config %d", dev->config);
-	}
-	 */
-}
-
-/* Reconfigure all the USB busses in the system
- */
-
-int
-usb_driver_load(module_t mod, int what, void *arg)
-{
-	/* subroutine is there but inactive at the moment
-	 * the reconfiguration process has not been thought through yet.
-	 */
-	devclass_t ugen_devclass = devclass_find("ugen");
-	device_t *devlist;
-	int devcount;
-	int error;
-
-	switch (what) { 
-	case MOD_LOAD:
-	case MOD_UNLOAD:
-		if (!usb_devclass)
-			return 0;	/* just ignore call */
-
-		if (ugen_devclass) {
-			/* detach devices from generic driver if possible
-			 */
-			error = devclass_get_devices(ugen_devclass, &devlist,
-						     &devcount);
-			if (!error)
-				for (devcount--; devcount >= 0; devcount--)
-					(void) DEVICE_DETACH(devlist[devcount]);
-		}
-
-		error = devclass_get_devices(usb_devclass, &devlist, &devcount);
-		if (error)
-			return 0;	/* XXX maybe transient, or error? */
-
-		for (devcount--; devcount >= 0; devcount--)
-			USB_RECONFIGURE(devlist[devcount]);
-
-		free(devlist, M_TEMP);
-		return 0;
-	}
-
-	return 0;			/* nothing to do by us */
-}
-
-/* Set the description of the device including a malloc and copy
- */
-void
-usb_device_set_desc(device_t device, char *devinfo)
-{
-	size_t l;
-	char *desc;
-
-	if ( devinfo ) {
-		l = strlen(devinfo);
-		desc = malloc(l+1, M_USB, M_NOWAIT);
-		if (desc)
-			memcpy(desc, devinfo, l+1);
-	} else
-		desc = NULL;
-
-	device_set_desc(device, desc);
-}
 #endif
 
 int
@@ -331,17 +192,7 @@ usbopen(dev, flag, mode, p)
 	int flag, mode;
 	struct proc *p;
 {
-#if defined(__NetBSD__)
-	int unit = USBUNIT(dev);
-	struct usb_softc *sc;
-
-	if (unit >= usb_cd.cd_ndevs)
-		return (ENXIO);
-	sc = usb_cd.cd_devs[unit];
-#else
-	device_t device = devclass_get_device(usb_devclass, USBUNIT(dev));
-	struct usb_softc *sc = device_get_softc(device);
-#endif
+	USB_GET_SC_OPEN(usb, USBUNIT(dev), sc);
 
 	if (sc == 0 || !sc->sc_running)
 		return (ENXIO);
@@ -366,17 +217,7 @@ usbioctl(dev, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-#if defined(__NetBSD__)
-	int unit = USBUNIT(dev);
-	struct usb_softc *sc;
-
-	if (unit >= usb_cd.cd_ndevs)
-		return (ENXIO);
-	sc = usb_cd.cd_devs[unit];
-#else
-	device_t device = devclass_get_device(usb_devclass, USBUNIT(dev));
-	struct usb_softc *sc = device_get_softc(device);
-#endif	
+	USB_GET_SC(usb, USBUNIT(dev), sc);
 
 	if (sc == 0 || !sc->sc_running)
 		return (ENXIO);
@@ -400,11 +241,12 @@ usbioctl(dev, cmd, data, flag, p)
 		usbd_status r;
 		int error = 0;
 
+		DPRINTF(("usbioctl: USB_REQUEST addr=%d len=%d\n", addr, len));
 		if (len < 0 || len > 32768)
-			return EINVAL;
+			return (EINVAL);
 		if (addr < 0 || addr >= USB_MAX_DEVICES || 
 		    sc->sc_bus->devices[addr] == 0)
-			return EINVAL;
+			return (EINVAL);
 		if (len != 0) {
 			iov.iov_base = (caddr_t)ur->data;
 			iov.iov_len = len;
@@ -424,8 +266,9 @@ usbioctl(dev, cmd, data, flag, p)
 					goto ret;
 			}
 		}
-		r = usbd_do_request(sc->sc_bus->devices[addr],
-				    &ur->request, ptr);
+		r = usbd_do_request_flags(sc->sc_bus->devices[addr],
+					  &ur->request, ptr,
+					  ur->flags, &ur->actlen);
 		if (r) {
 			error = EIO;
 			goto ret;
@@ -441,7 +284,6 @@ usbioctl(dev, cmd, data, flag, p)
 		if (ptr)
 			free(ptr, M_TEMP);
 		return (error);
-		break;
 	}
 
 	case USB_DEVICEINFO:
@@ -449,44 +291,13 @@ usbioctl(dev, cmd, data, flag, p)
 		struct usb_device_info *di = (void *)data;
 		int addr = di->addr;
 		usbd_device_handle dev;
-		struct usbd_port *p;
-		int i, r, s;
 
 		if (addr < 1 || addr >= USB_MAX_DEVICES)
 			return (EINVAL);
 		dev = sc->sc_bus->devices[addr];
 		if (dev == 0)
 			return (ENXIO);
-		di->config = dev->config;
-		usbd_devinfo_vp(dev, di->product, di->vendor);
-		usbd_printBCD(di->revision, UGETW(dev->ddesc.bcdDevice));
-		di->class = dev->ddesc.bDeviceClass;
-		di->power = dev->self_powered ? 0 : dev->power;
-		di->lowspeed = dev->lowspeed;
-		if (dev->hub) {
-			for (i = 0; 
-			     i < sizeof(di->ports) / sizeof(di->ports[0]) &&
-				     i < dev->hub->hubdesc.bNbrPorts;
-			     i++) {
-				p = &dev->hub->ports[i];
-				if (p->device)
-					r = p->device->address;
-				else {
-					s = UGETW(p->status.wPortStatus);
-					if (s & UPS_PORT_ENABLED)
-						r = USB_PORT_ENABLED;
-					else if (s & UPS_SUSPEND)
-						r = USB_PORT_SUSPENDED;
-					else if (s & UPS_PORT_POWER)
-						r = USB_PORT_POWERED;
-					else
-						r = USB_PORT_DISABLED;
-				}
-				di->ports[i] = r;
-			}
-			di->nports = dev->hub->hubdesc.bNbrPorts;
-		} else
-			di->nports = 0;
+		usbd_fill_deviceinfo(dev, di);
 		break;
 	}
 
@@ -507,17 +318,7 @@ usbpoll(dev, events, p)
 	struct proc *p;
 {
 	int revents, s;
-#if defined(__NetBSD__)
-	int unit = USBUNIT(dev);
-	struct usb_softc *sc;
-
-	if (unit >= usb_cd.cd_ndevs)
-		return (ENXIO);
-	sc = usb_cd.cd_devs[unit];
-#else
-	device_t device = devclass_get_device(usb_devclass, USBUNIT(dev));
-	struct usb_softc *sc = device_get_softc(device);
-#endif	
+	USB_GET_SC(usb, USBUNIT(dev), sc);
 
 	DPRINTFN(2, ("usbpoll: sc=%p events=0x%x\n", sc, events));
 	s = splusb();
@@ -537,8 +338,6 @@ usbpoll(dev, events, p)
 }
 
 #if defined(__NetBSD__)
-/* See remarks on this in usbdi.c
- */
 int
 usb_bus_count()
 {
@@ -600,5 +399,19 @@ usb_needs_explore(bus)
 }
 
 #if defined(__FreeBSD__)
+int
+usb_detach(device_t self)
+{
+	struct usb_softc *sc = device_get_softc(self);
+	char *devinfo = (char *) device_get_desc(self);
+
+	if (devinfo) {
+		device_set_desc(self, NULL);
+		free(devinfo, M_USB);
+	}
+
+	return (0);
+}
+
 DRIVER_MODULE(usb, root, usb_driver, usb_devclass, 0, 0);
 #endif

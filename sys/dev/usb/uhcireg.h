@@ -1,12 +1,13 @@
-/*	$NetBSD: uhcireg.h,v 1.2 1998/07/26 00:40:59 augustss Exp $	*/
+/*	$NetBSD: uhcireg.h,v 1.5 1998/12/27 23:40:52 augustss Exp $	*/
 /*	FreeBSD $Id$ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson <augustss@carlstedt.se>
- *         Carlstedt Research & Technology
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@carlstedt.se) at
+ * Carlstedt Research & Technology.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -154,7 +155,7 @@ typedef struct {
 #define UHCI_TD_GET_PID(s)	((s) & 0xff)
 #define UHCI_TD_SET_DEVADDR(a)	((a) << 8)
 #define UHCI_TD_GET_DEVADDR(s)	(((s) >> 8) & 0x7f)
-#define UHCI_TD_SET_ENDPT(e)	((e) << 15)
+#define UHCI_TD_SET_ENDPT(e)	(((e)&0xf) << 15)
 #define UHCI_TD_GET_ENDPT(s)	(((s) >> 15) & 0xf)
 #define UHCI_TD_SET_DT(t)	((t) << 19)
 #define UHCI_TD_GET_DT(s)	(((s) >> 19) & 1)
@@ -169,9 +170,14 @@ typedef struct {
 
 #define UHCI_TD_ERROR (UHCI_TD_BITSTUFF|UHCI_TD_CRCTO|UHCI_TD_BABBLE|UHCI_TD_DBUFFER|UHCI_TD_STALLED)
 
-#define UHCI_TD_SETUP(len, endp, dev) (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endp) | UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_SETUP)
-#define UHCI_TD_OUT(len, endp, dev, dt) (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endp) | UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_OUT | UHCI_TD_SET_DT(dt))
-#define UHCI_TD_IN(len, endp, dev, dt) (UHCI_TD_SET_MAXLEN(len) | UHCI_TD_SET_ENDPT(endp) | UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_IN | UHCI_TD_SET_DT(dt))
+#define UHCI_TD_SETUP(len, endp, dev) (UHCI_TD_SET_MAXLEN(len) | \
+     UHCI_TD_SET_ENDPT(endp) | UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_SETUP)
+#define UHCI_TD_OUT(len, endp, dev, dt) (UHCI_TD_SET_MAXLEN(len) | \
+     UHCI_TD_SET_ENDPT(endp) | UHCI_TD_SET_DEVADDR(dev) | \
+     UHCI_TD_PID_OUT | UHCI_TD_SET_DT(dt))
+#define UHCI_TD_IN(len, endp, dev, dt) (UHCI_TD_SET_MAXLEN(len) | \
+     UHCI_TD_SET_ENDPT(endp) | UHCI_TD_SET_DEVADDR(dev) | UHCI_TD_PID_IN | \
+     UHCI_TD_SET_DT(dt))
 
 typedef struct {
 	uhci_physaddr_t qh_hlink;
