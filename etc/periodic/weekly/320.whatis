@@ -13,19 +13,13 @@ if [ -x /usr/libexec/makewhatis.local -a -x /usr/bin/manpath ]; then
 	if [ "x${MANPATH}" = "x" ]; then
 	    echo "manpath failed to find any manpage directories"
 	else
-            # If possible, check global system configuration file
-	    # for additional man(1) locales installed
-	    if [ -r /etc/defaults/rc.conf ]; then
-		. /etc/defaults/rc.conf
-	    elif [ -r /etc/rc.conf ]; then
-		. /etc/rc.conf
-	    fi
+	    man_locales=`/usr/bin/manpath -qL`
 
             # Build whatis(1) database(s) for original, non-localized  manpages.
 	    /usr/libexec/makewhatis.local "${MANPATH}"
 
             # Build whatis(1) database(s) for localized manpages.
-	    if [ "x${man_locales}" != "x" -a "${man_locales}" != "NO" ]; then
+	    if [ X"${man_locales}" != X ]; then
 		for i in ${man_locales}
 		do
 		   LC_CTYPE=$i /usr/libexec/makewhatis.local -a -L "${MANPATH}"
