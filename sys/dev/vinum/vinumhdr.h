@@ -60,7 +60,6 @@
 #include <sys/stat.h>
 #include <sys/disk.h>
 #include <sys/disklabel.h>
-#include <ufs/ffs/fs.h>
 #include <sys/syslog.h>
 #include <sys/fcntl.h>
 #include <sys/queue.h>

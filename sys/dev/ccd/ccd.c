@@ -99,7 +99,6 @@
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/disk.h>
-#include <ufs/ffs/fs.h> 
 #include <sys/devicestat.h>
 #include <sys/fcntl.h>
 #include <sys/vnode.h>
@@ -1662,7 +1661,7 @@ ccdgetdisklabel(dev_t dev)
 	lp->d_npartitions = RAW_PART + 1;
 
 	lp->d_bbsize = BBSIZE;				/* XXX */
-	lp->d_sbsize = SBSIZE;				/* XXX */
+	lp->d_sbsize = 0;
 
 	lp->d_magic = DISKMAGIC;
 	lp->d_magic2 = DISKMAGIC;

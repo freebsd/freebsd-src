@@ -64,7 +64,6 @@ static const char rcsid[] =
 #ifdef __sparc64__
 #include <sys/sun_disklabel.h>
 #endif
-#include <ufs/ffs/fs.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
@@ -937,7 +936,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	int i;
 
 	lp->d_bbsize = BBSIZE;				/* XXX */
-	lp->d_sbsize = SBSIZE;				/* XXX */
+	lp->d_sbsize = 0;				/* XXX */
 	while (fgets(line, sizeof(line) - 1, f)) {
 		lineno++;
 		if ((cp = index(line,'\n')) != 0)
@@ -1332,11 +1331,6 @@ checklabel(struct disklabel *lp)
 		errors++;
 	} else if (lp->d_bbsize % lp->d_secsize)
 		Warning("boot block size %% sector-size != 0");
-	if (lp->d_sbsize == 0) {
-		fprintf(stderr, "super block size 0\n");
-		errors++;
-	} else if (lp->d_sbsize % lp->d_secsize)
-		Warning("super block size %% sector-size != 0");
 	if (lp->d_npartitions > MAXPARTITIONS)
 		Warning("number of partitions (%lu) > MAXPARTITIONS (%d)",
 		    (u_long)lp->d_npartitions, MAXPARTITIONS);
