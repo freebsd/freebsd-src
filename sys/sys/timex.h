@@ -59,14 +59,11 @@
  *
  * SYNOPSIS
  *	#include <sys/timex.h>
- *	#include <sys/syscall.h>
  *
- *	int syscall(SYS_ntp_gettime, tptr);
- *	int SYS_ntp_gettime;
- *	struct ntptimeval *tptr;
+ *	int ntp_gettime(struct ntptimeval *ntv);
  *
  * DESCRIPTION
- *	The time returned by ntp_gettime() is in a timeval structure,
+ *	The time returned by ntp_gettime() is in a timespec structure,
  *	but may be in either microsecond (seconds and microseconds) or
  *	nanosecond (seconds and nanoseconds) format. The particular
  *	format in use is determined by the STA_NANO bit of the status
@@ -80,6 +77,7 @@
  *	#include <sys/syscall.h>
  *
  *	int syscall(SYS_ntp_adjtime, tptr);
+ *	int SYS_ntp_adjtime;
  *	struct timex *tptr;
  *
  * DESCRIPTION
@@ -89,7 +87,7 @@
  *	further information.
  */
 #ifndef _SYS_TIMEX_H_
-#define _SYS_TIMEX_H_ 1
+#define _SYS_TIMEX_H_
 
 #ifndef MSDOS			/* Microsoft specific */
 #include <sys/syscall.h>
@@ -171,7 +169,7 @@
  * nanoseconds if not.
  */
 struct ntptimeval {
-	struct timespec time;	/* current time (ns) (ro) */
+	struct timespec time;	/* current time (ns/us) (ro) */
 	long maxerror;		/* maximum error (us) (ro) */
 	long esterror;		/* estimated error (us) (ro) */
 	int time_state;		/* time status */
@@ -214,16 +212,17 @@ struct timex {
 #ifdef __FreeBSD__
 
 #ifdef KERNEL
-void ntp_update_second __P((struct timecounter *tc));
-#else
+struct timecounter;
+void	ntp_update_second __P((struct timecounter *tc));
+#else /* !KERNEL */
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
-extern int ntp_gettime		__P((struct ntptimeval *));
-extern int ntp_adjtime		__P((struct timex *));
+int	ntp_adjtime __P((struct timex *));
+int	ntp_gettime __P((struct ntptimeval *));
 __END_DECLS
-
-#endif /* not KERNEL */
+#endif /* KERNEL */
 
 #endif /* __FreeBSD__ */
-#endif /* _SYS_TIMEX_H_ */
+
+#endif /* !_SYS_TIMEX_H_ */

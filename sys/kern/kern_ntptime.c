@@ -18,7 +18,7 @@
 
 /*
  * Adapted from the original sources for FreeBSD and timecounters by:
- * Poul-Henning Kamp <phk@FreeBSD.org>
+ * Poul-Henning Kamp <phk@FreeBSD.org>.
  *
  * The 32bit version of the "LP" macros seems a bit past its "sell by" 
  * date so I have retained only the 64bit version and included it directly
@@ -27,10 +27,9 @@
  * Only minor changes done to interface with the timecounters over in
  * sys/kern/kern_clock.c.   Some of the comments below may be (even more)
  * confusing and/or plain wrong in that context.
- *
- * The PPS_SYNC/hardpps() is currently not supported.
- *
  */
+
+#include "opt_ntp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -167,7 +166,6 @@ struct ppstime {
 static struct ppstime pps_tf[3];	/* phase median filter */
 static struct ppstime pps_filt;		/* phase offset */
 static l_fp pps_freq;			/* scaled frequency offset (ns/s) */
-static long pps_lastfreq;		/* last scaled freq offset (ns/s) */
 static long pps_offacc;			/* offset accumulator */
 static long pps_jitter;			/* scaled time dispersion (ns) */
 static long pps_stabil;			/* scaled frequency dispersion (ns/s) */
@@ -382,7 +380,7 @@ void
 ntp_update_second(struct timecounter *tcp)
 {
 	u_int32_t *newsec;
-	l_fp ftemp, time_adj;		/* 32/64-bit temporary */
+	l_fp ftemp, time_adj;		/* 32/64-bit temporaries */
 
 	newsec = &tcp->tc_offset_sec;
 	time_maxerror += MAXFREQ / 1000;
@@ -654,16 +652,17 @@ hardpps(tsp, nsec)
 	 * boundary during the last second, so correct the tick. Very
 	 * intricate.
 	 */
-	u_nsec = nsec - pps_lastcount;
-	pps_lastcount = nsec;
+	u_nsec = nsec;
 	if (u_nsec > (NANOSECOND >> 1))
 		u_nsec -= NANOSECOND;
 	else if (u_nsec < -(NANOSECOND >> 1))
 		u_nsec += NANOSECOND;
+#if 0
 	if (u_nsec > (time_tick >> 1))
 		u_nsec -= time_tick;
 	else if (u_nsec < -(time_tick >> 1))
 		u_nsec += time_tick;
+#endif
 	pps_tf[0].count = pps_tf[1].count + u_nsec;
 	if (v_nsec > MAXFREQ) {
 		return;
@@ -812,39 +811,3 @@ hardpps(tsp, nsec)
 		time_freq = pps_freq;
 }
 #endif /* PPS_SYNC */
-
-int
-std_pps_ioctl(u_long cmd, caddr_t data, pps_params_t *pp, pps_info_t *pi, int ppscap)
-{
-        pps_params_t *app;
-        pps_info_t *api;
-
-        switch (cmd) {
-        case PPS_IOC_CREATE:
-                return (0);
-        case PPS_IOC_DESTROY:
-                return (0);
-        case PPS_IOC_SETPARAMS:
-                app = (pps_params_t *)data;
-                if (app->mode & ~ppscap)
-                        return (EINVAL);
-                *pp = *app;         
-                return (0);
-        case PPS_IOC_GETPARAMS:
-                app = (pps_params_t *)data;
-                *app = *pp;
-                return (0);
-        case PPS_IOC_GETCAP:
-                *(int*)data = ppscap;
-                return (0);
-        case PPS_IOC_FETCH:
-                api = (pps_info_t *)data;
-                *api = *pi;
-                pi->current_mode = pp->mode;         
-                return (0);
-        case PPS_IOC_WAIT:
-                return (EOPNOTSUPP);
-        default:
-                return (ENODEV);
-        }
-}
