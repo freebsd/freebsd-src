@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.3 1995/04/29 19:33:03 jkh Exp $
+ * $Id: menus.c,v 1.4 1995/05/01 21:56:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,12 +73,8 @@ option by pressing enter.",		/* prompt */
 	  DMENU_SUBMENU, (void *)&MenuDocumentation, 0 },
     { "Lang", "Select natural language options.",		/* L */
 	  DMENU_SUBMENU, (void *)&MenuLanguage, 0 },
-    { "Express", "Express installation (don't ask)",		/* E */
-	  DMENU_CALL, (void *)installExpress, 0 },
-    { "Custom", "Custom installation (please ask)",		/* C */
+    { "Install", "Begin installation",				/* I */
 	  DMENU_CALL, (void *)installCustom, 0 },
-    { "Maint", "Go into maintainance mode (`fix it').",		/* M */
-	  DMENU_CALL, (void *)installMaint, 0 },
     { "Bootmsg", "Read the boot messages again.",		/* B */
 	  DMENU_SYSTEM_COMMAND_BOX, (void *)"dmesg", 0 },
     { NULL } },
@@ -142,6 +138,8 @@ of the english versions.",		/* prompt */
 	 DMENU_SET_VARIABLE, (void *)"LANG=ru_SU.KOI8-R", 0 },
    { "Spanish", "Spanish language and character set (ISO-8859-1)", /* S */
 	 DMENU_SET_VARIABLE, (void *)"LANG=es_ES.ISO8859-1", 0 },
+   { "Swedish", "Swedish language and character set (ISO-8859-1)", /* S */
+	 DMENU_SET_VARIABLE, (void *)"LANG=sv_SV.ISO8859-1", 0 },
    { NULL } },
 };
 
@@ -247,10 +245,11 @@ DMenu MenuDiskDevices = {
 FreeBSD.  You need to select at least one drive containing some free\n\
 space, though FreeBSD can be installed across several drives if you do\n\
 not have the required space on a single drive.  If you wish to boot\n\
-off a drive that's not a `zero drive', you will have the option to install\n\
-a boot manager later.",
-    "drives.hlp",
+off a drive that's not a `zero drive', or have multiple operating\n\
+systems on your machine, you will have the option to install a boot\n\
+manager later.",
     "Press F1 for more information on what you see here.",
+    "drives.hlp",
     { { NULL } },
 };
 

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.3 1995/04/29 19:33:05 jkh Exp $
+ * $Id: sysinstall.h,v 1.4 1995/05/01 21:56:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -182,11 +182,13 @@ extern int	set_termcap(void);
 
 /* msg.c */
 extern void	msgInfo(char *fmt, ...);
+extern void	msgYap(char *fmt, ...);
 extern void	msgWarn(char *fmt, ...);
 extern void	msgError(char *fmt, ...);
 extern void	msgFatal(char *fmt, ...);
 extern void	msgConfirm(char *fmt, ...);
 extern int	msgYesNo(char *fmt, ...);
+extern char	*msgGetInput(char *buf, char *fmt, ...);
 
 /* media.c */
 extern int	mediaSetCDROM(char *str);
@@ -198,7 +200,9 @@ extern int	mediaSetFS(char *str);
 
 /* devices.c */
 extern Device	*device_get_all(DeviceType type, int *ndevs);
-extern int	device_slice_disk(char *disk);
+extern struct disk *device_slice_disk(char *disk);
+extern DMenu	*device_create_disk_menu(DMenu *menu, Device **rdevs,
+					 int (*func)());
 
 /* variables.c */
 extern void	variable_set(char *var);

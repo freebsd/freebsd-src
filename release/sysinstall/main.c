@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id$
+ * $Id: main.c,v 1.1.1.1 1995/04/27 12:50:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,6 +48,10 @@ main(int argc, char **argv)
 {
     int choice, scroll, curr, max;
 
+    if (geteuid() != 0) {
+	fprintf(stderr, "This utility can only be run as root.\n");
+	return 1;
+    }
     /* Set up whatever things need setting up */
     systemInitialize(argc, argv);
 
