@@ -10,6 +10,7 @@ infodir = @infodir@
 mandir = @mandir@
 man3dir = $(mandir)/man3
 
+SHELL = @MAKE_SHELL@
 RM = rm -f
 
 TEXINPUTDIR = $(srcdir)
@@ -25,9 +26,9 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 
 RLSRC = $(srcdir)/rlman.texinfo $(srcdir)/rluser.texinfo \
-	$(srcdir)/rltech.texinfo
+	$(srcdir)/rltech.texinfo $(srcdir)/manvers.texinfo
 HISTSRC = $(srcdir)/hist.texinfo $(srcdir)/hsuser.texinfo \
-	  $(srcdir)/hstech.texinfo
+	  $(srcdir)/hstech.texinfo $(srcdir)/manvers.texinfo
 
 # This should be a program that converts troff to an ascii-readable format
 NROFF       = groff -Tascii
@@ -41,6 +42,8 @@ PSOBJ = readline.ps history.ps
 HTMLOBJ = readline.html history.html
 HTMLTOC = readline_toc.html history_toc.html
 TEXTOBJ = readline.0
+
+INTERMEDIATE_OBJ = rlman.dvi hist.dvi
 
 CREATED_DOCS = $(DVIOBJ) $(INFOOBJ) $(PSOBJ) $(HTMLOBJ) $(HTMLTOC) $(TEXTOBJ)
 
@@ -76,16 +79,14 @@ history.ps:	history.dvi
 	$(DVIPS) history.dvi
 
 readline.html:	${RLSRC}
-	$(TEXI2HTML) -I $(TEXINPUTDIR) $(srcdir)/rlman.texinfo
-	sed -e 's:rlman.html:readline.html:' -e 's:rlman_toc.html:readline_toc.html:' rlman.html > readline.html
-	sed -e 's:rlman.html:readline.html:' -e 's:rlman_toc.html:readline_toc.html:' rlman_toc.html > readline_toc.html
-	$(RM) rlman.html rlman_toc.html
+	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/rlman.texinfo
+	sed -e 's:rlman.html:readline.html:' rlman.html > readline.html
+	$(RM) rlman.html
 
 history.html:	${HISTSRC}
-	$(TEXI2HTML) -I $(TEXINPUTDIR) $(srcdir)/hist.texinfo
-	sed -e 's:hist.html:history.html:' -e 's:hist_toc.html:history_toc.html:' hist.html > history.html
-	sed -e 's:hist.html:history.html:' -e 's:hist_toc.html:history_toc.html:' hist_toc.html > history_toc.html
-	$(RM) hist.html hist_toc.html
+	$(TEXI2HTML) -menu -monolithic -I $(TEXINPUTDIR) $(srcdir)/hist.texinfo
+	sed -e 's:hist.html:history.html:' hist.html > history.html
+	$(RM) hist.html
 
 info:	$(INFOOBJ)
 dvi:	$(DVIOBJ)
@@ -101,20 +102,30 @@ clean:
 
 distclean: clean
 	$(RM) $(CREATED_DOCS)
+	$(RM) $(INTERMEDIATE_OBJ)
 	$(RM) Makefile
 
 mostlyclean: clean
 
 maintainer-clean: clean
 	$(RM) $(CREATED_DOCS)
+	$(RM) $(INTERMEDIATE_OBJ)
 	$(RM) Makefile
 
 installdirs:	$(top_srcdir)/support/mkdirs
 	-$(SHELL) $(top_srcdir)/support/mkdirs $(infodir) $(man3dir)
 
-install:	installdirs info
-	${INSTALL_DATA} readline.info $(infodir)/readline.info
-	${INSTALL_DATA} history.info $(infodir)/history.info
+install:	installdirs
+	if test -f readline.info; then \
+		${INSTALL_DATA} readline.info $(infodir)/readline.info; \
+	else \
+		${INSTALL_DATA} $(srcdir)/readline.info $(infodir)/readline.info; \
+	fi
+	if test -f history.info; then \
+		${INSTALL_DATA} history.info $(infodir)/history.info; \
+	else \
+		${INSTALL_DATA} $(srcdir)/history.info $(infodir)/history.info; \
+	fi
 	if $(SHELL) -c 'install-info --version' >/dev/null 2>&1; then \
 		install-info --dir-file=$(infodir)/dir $(infodir)/readline.info ; \
 		install-info --dir-file=$(infodir)/dir $(infodir)/history.info ; \

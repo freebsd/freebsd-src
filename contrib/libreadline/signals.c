@@ -49,18 +49,6 @@
 #include "readline.h"
 #include "history.h"
 
-extern int readline_echoing_p;
-extern int rl_pending_input;
-extern int _rl_meta_flag;
-
-extern void free_undo_list ();
-extern void _rl_get_screen_size ();
-extern void _rl_redisplay_after_sigwinch ();
-extern void _rl_clean_up_for_exit ();
-extern void _rl_kill_kbd_macro ();
-extern void _rl_init_argument ();
-extern void rl_deprep_terminal (), rl_prep_terminal ();
-
 #if !defined (RETSIGTYPE)
 #  if defined (VOID_SIGHANDLER)
 #    define RETSIGTYPE void
@@ -79,7 +67,33 @@ extern void rl_deprep_terminal (), rl_prep_terminal ();
    to say SigHandler *foo = signal (SIGKILL, SIG_IGN); */
 typedef RETSIGTYPE SigHandler ();
 
+extern int readline_echoing_p;
+extern int rl_pending_input;
+extern int _rl_meta_flag;
+
+extern void free_undo_list ();
+extern void _rl_get_screen_size ();
+extern void _rl_redisplay_after_sigwinch ();
+extern void _rl_clean_up_for_exit ();
+extern void _rl_kill_kbd_macro ();
+extern void _rl_init_argument ();
+extern void rl_deprep_terminal (), rl_prep_terminal ();
+
 static SigHandler *rl_set_sighandler ();
+
+/* Exported variables for use by applications. */
+
+/* If non-zero, readline will install its own signal handlers for
+   SIGINT, SIGTERM, SIGQUIT, SIGALRM, SIGTSTP, SIGTTIN, and SIGTTOU. */
+int rl_catch_signals = 1;
+
+/* If non-zero, readline will install a signal handler for SIGWINCH. */
+#ifdef SIGWINCH
+int rl_catch_sigwinch = 1;
+#endif
+
+static int signals_set_flag;
+static int sigwinch_set_flag;
 
 /* **************************************************************** */
 /*					        		    */
@@ -87,32 +101,18 @@ static SigHandler *rl_set_sighandler ();
 /*								    */
 /* **************************************************************** */
 
-/* If we're not being compiled as part of bash, initialize handlers for
-   and catch the job control signals (SIGTTIN, SIGTTOU, SIGTSTP) and
-   SIGTERM. */
-#if !defined (SHELL)
-#  define HANDLE_JOB_SIGNALS
-#  define HANDLE_SIGTERM
-#endif /* !SHELL */
-
 #if defined (HAVE_POSIX_SIGNALS)
 typedef struct sigaction sighandler_cxt;
 #  define rl_sigaction(s, nh, oh)	sigaction(s, nh, oh)
 #else
-typedef struct { SigHandler *sa_handler; } sighandler_cxt;
+typedef struct { SigHandler *sa_handler; int sa_mask, sa_flags; } sighandler_cxt;
 #  define sigemptyset(m)
 #endif /* !HAVE_POSIX_SIGNALS */
 
-static sighandler_cxt old_int, old_alrm;
-
-#if defined (HANDLE_JOB_SIGNALS)
+static sighandler_cxt old_int, old_term, old_alrm, old_quit;
+#if defined (SIGTSTP)
 static sighandler_cxt old_tstp, old_ttou, old_ttin;
-#endif /* HANDLE_JOB_SIGNALS */
-
-#if defined (HANDLE_SIGTERM)
-static sighandler_cxt old_term;
 #endif
-
 #if defined (SIGWINCH)
 static sighandler_cxt old_winch;
 #endif
@@ -143,18 +143,8 @@ rl_signal_handler (sig)
   switch (sig)
     {
     case SIGINT:
-      {
-	register HIST_ENTRY *entry;
-
-	free_undo_list ();
-
-	entry = current_history ();
-	if (entry)
-	  entry->data = (char *)NULL;
-      }
-      _rl_kill_kbd_macro ();
-      rl_clear_message ();
-      _rl_init_argument ();
+      rl_free_line_state ();
+      /* FALLTHROUGH */
 
 #if defined (SIGTSTP)
     case SIGTSTP:
@@ -163,10 +153,8 @@ rl_signal_handler (sig)
 #endif /* SIGTSTP */
     case SIGALRM:
     case SIGTERM:
-      _rl_clean_up_for_exit ();
-      (*rl_deprep_term_function) ();
-      rl_clear_signals ();
-      rl_pending_input = 0;
+    case SIGQUIT:
+      rl_cleanup_after_signal ();
 
 #if defined (HAVE_POSIX_SIGNALS)
       sigprocmask (SIG_BLOCK, (sigset_t *)NULL, &set);
@@ -188,8 +176,7 @@ rl_signal_handler (sig)
 #  endif /* HAVE_BSD_SIGNALS */
 #endif /* !HAVE_POSIX_SIGNALS */
 
-      (*rl_prep_term_function) (_rl_meta_flag);
-      rl_set_signals ();
+      rl_reset_after_signal ();
     }
 
   SIGHANDLER_RETURN;
@@ -197,7 +184,7 @@ rl_signal_handler (sig)
 
 #if defined (SIGWINCH)
 static RETSIGTYPE
-rl_handle_sigwinch (sig)
+rl_sigwinch_handler (sig)
      int sig;
 {
   SigHandler *oh;
@@ -209,14 +196,10 @@ rl_handle_sigwinch (sig)
      disposition set by the calling application.  We need this state
      because we call the application's SIGWINCH handler after updating
      our own idea of the screen size. */
-  rl_set_sighandler (SIGWINCH, rl_handle_sigwinch, &dummy_winch);
+  rl_set_sighandler (SIGWINCH, rl_sigwinch_handler, &dummy_winch);
 #endif
 
-  if (readline_echoing_p)
-    {
-      _rl_get_screen_size (fileno (rl_instream), 1);
-      _rl_redisplay_after_sigwinch ();
-    }
+  rl_resize_terminal ();
 
   /* If another sigwinch handler has been installed, call it. */
   oh = (SigHandler *)old_winch.sa_handler;
@@ -263,62 +246,66 @@ rl_set_sighandler (sig, handler, ohandler)
   return (ohandler->sa_handler);
 }
 
+static void
+rl_maybe_set_sighandler (sig, handler, ohandler)
+     int sig;
+     SigHandler *handler;
+     sighandler_cxt *ohandler;
+{
+  sighandler_cxt dummy;
+  SigHandler *oh;
+
+  sigemptyset (&dummy.sa_mask);
+  oh = rl_set_sighandler (sig, handler, ohandler);
+  if (oh == (SigHandler *)SIG_IGN)
+    rl_sigaction (sig, ohandler, &dummy);
+}
+
 int
 rl_set_signals ()
 {
   sighandler_cxt dummy;
   SigHandler *oh;
 
-#if defined (HAVE_POSIX_SIGNALS)
-  sigemptyset (&dummy.sa_mask);
-#endif
+  if (rl_catch_signals && signals_set_flag == 0)
+    {
+      rl_maybe_set_sighandler (SIGINT, rl_signal_handler, &old_int);
+      rl_maybe_set_sighandler (SIGTERM, rl_signal_handler, &old_term);
+      rl_maybe_set_sighandler (SIGQUIT, rl_signal_handler, &old_quit);
 
-  oh = rl_set_sighandler (SIGINT, rl_signal_handler, &old_int);
-  if (oh == (SigHandler *)SIG_IGN)
-    rl_sigaction (SIGINT, &old_int, &dummy);
-
-  oh = rl_set_sighandler (SIGALRM, rl_signal_handler, &old_alrm);
-  if (oh == (SigHandler *)SIG_IGN)
-    rl_sigaction (SIGALRM, &old_alrm, &dummy);
+      oh = rl_set_sighandler (SIGALRM, rl_signal_handler, &old_alrm);
+      if (oh == (SigHandler *)SIG_IGN)
+	rl_sigaction (SIGALRM, &old_alrm, &dummy);
 #if defined (HAVE_POSIX_SIGNALS) && defined (SA_RESTART)
-  /* If the application using readline has already installed a signal
-     handler with SA_RESTART, SIGALRM will cause reads to be restarted
-     automatically, so readline should just get out of the way.  Since
-     we tested for SIG_IGN above, we can just test for SIG_DFL here. */
-  if (oh != (SigHandler *)SIG_DFL && (old_alrm.sa_flags & SA_RESTART))
-    rl_sigaction (SIGALRM, &old_alrm, &dummy);
+      /* If the application using readline has already installed a signal
+	 handler with SA_RESTART, SIGALRM will cause reads to be restarted
+	 automatically, so readline should just get out of the way.  Since
+	 we tested for SIG_IGN above, we can just test for SIG_DFL here. */
+      if (oh != (SigHandler *)SIG_DFL && (old_alrm.sa_flags & SA_RESTART))
+	rl_sigaction (SIGALRM, &old_alrm, &dummy);
 #endif /* HAVE_POSIX_SIGNALS */
 
-#if defined (HANDLE_JOB_SIGNALS)
-
 #if defined (SIGTSTP)
-  oh = rl_set_sighandler (SIGTSTP, rl_signal_handler, &old_tstp);
-  if (oh == (SigHandler *)SIG_IGN)
-    rl_sigaction (SIGTSTP, &old_tstp, &dummy);
-#else
-  oh = (SigHandler *)NULL;
+      rl_maybe_set_sighandler (SIGTSTP, rl_signal_handler, &old_tstp);
 #endif /* SIGTSTP */
 
 #if defined (SIGTTOU)
-  rl_set_sighandler (SIGTTOU, rl_signal_handler, &old_ttou);
-  rl_set_sighandler (SIGTTIN, rl_signal_handler, &old_ttin);
-
-  if (oh == (SigHandler *)SIG_IGN)
-    {
-      rl_set_sighandler (SIGTTOU, SIG_IGN, &dummy);
-      rl_set_sighandler (SIGTTIN, SIG_IGN, &dummy);
-    }
+      rl_maybe_set_sighandler (SIGTTOU, rl_signal_handler, &old_ttou);
 #endif /* SIGTTOU */
 
-#endif /* HANDLE_JOB_SIGNALS */
+#if defined (SIGTTIN)
+      rl_maybe_set_sighandler (SIGTTIN, rl_signal_handler, &old_ttin);
+#endif /* SIGTTIN */
 
-#if defined (HANDLE_SIGTERM)
-  /* Handle SIGTERM if we're not being compiled as part of bash. */
-  rl_set_sighandler (SIGTERM, rl_signal_handler, &old_term);
-#endif /* HANDLE_SIGTERM */
+      signals_set_flag = 1;
+    }
 
 #if defined (SIGWINCH)
-  rl_set_sighandler (SIGWINCH, rl_handle_sigwinch, &old_winch);
+  if (rl_catch_sigwinch && sigwinch_set_flag == 0)
+    {
+      rl_maybe_set_sighandler (SIGWINCH, rl_sigwinch_handler, &old_winch);
+      sigwinch_set_flag = 1;
+    }
 #endif /* SIGWINCH */
 
   return 0;
@@ -329,35 +316,79 @@ rl_clear_signals ()
 {
   sighandler_cxt dummy;
 
-#if defined (HAVE_POSIX_SIGNALS)
-  sigemptyset (&dummy.sa_mask);
-#endif
+  if (rl_catch_signals && signals_set_flag == 1)
+    {
+      sigemptyset (&dummy.sa_mask);
 
-  rl_sigaction (SIGINT, &old_int, &dummy);
-  rl_sigaction (SIGALRM, &old_alrm, &dummy);
-
-#if defined (HANDLE_JOB_SIGNALS)
+      rl_sigaction (SIGINT, &old_int, &dummy);
+      rl_sigaction (SIGTERM, &old_term, &dummy);
+      rl_sigaction (SIGQUIT, &old_quit, &dummy);
+      rl_sigaction (SIGALRM, &old_alrm, &dummy);
 
 #if defined (SIGTSTP)
-  rl_sigaction (SIGTSTP, &old_tstp, &dummy);
-#endif
+      rl_sigaction (SIGTSTP, &old_tstp, &dummy);
+#endif /* SIGTSTP */
 
 #if defined (SIGTTOU)
-  rl_sigaction (SIGTTOU, &old_ttou, &dummy);
-  rl_sigaction (SIGTTIN, &old_ttin, &dummy);
+      rl_sigaction (SIGTTOU, &old_ttou, &dummy);
 #endif /* SIGTTOU */
 
-#endif /* HANDLE_JOB_SIGNALS */
+#if defined (SIGTTIN)
+      rl_sigaction (SIGTTIN, &old_ttin, &dummy);
+#endif /* SIGTTIN */
 
-#if defined (HANDLE_SIGTERM)
-  rl_sigaction (SIGTERM, &old_term, &dummy);
-#endif /* HANDLE_SIGTERM */
+      signals_set_flag = 0;
+    }
 
 #if defined (SIGWINCH)
-  sigemptyset (&dummy.sa_mask);
-  rl_sigaction (SIGWINCH, &old_winch, &dummy);
+  if (rl_catch_sigwinch && sigwinch_set_flag == 1)
+    {
+      sigemptyset (&dummy.sa_mask);
+      rl_sigaction (SIGWINCH, &old_winch, &dummy);
+      sigwinch_set_flag = 0;
+    }
 #endif
 
   return 0;
 }
+
+/* Clean up the terminal and readline state after catching a signal, before
+   resending it to the calling application. */
+void
+rl_cleanup_after_signal ()
+{
+  _rl_clean_up_for_exit ();
+  (*rl_deprep_term_function) ();
+  rl_clear_signals ();
+  rl_pending_input = 0;
+}
+
+/* Reset the terminal and readline state after a signal handler returns. */
+void
+rl_reset_after_signal ()
+{
+  (*rl_prep_term_function) (_rl_meta_flag);
+  rl_set_signals ();
+}
+
+/* Free up the readline variable line state for the current line (undo list,
+   any partial history entry, any keyboard macros in progress, and any
+   numeric arguments in process) after catching a signal, before calling
+   rl_cleanup_after_signal(). */ 
+void
+rl_free_line_state ()
+{
+  register HIST_ENTRY *entry;
+
+  free_undo_list ();
+
+  entry = current_history ();
+  if (entry)
+    entry->data = (char *)NULL;
+
+  _rl_kill_kbd_macro ();
+  rl_clear_message ();
+  _rl_init_argument ();
+}
+
 #endif  /* HANDLE_SIGNALS */

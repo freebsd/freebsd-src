@@ -28,12 +28,14 @@ INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
 
 CC = @CC@
-LD = ld			# needed when building shared libraries
 RANLIB = @RANLIB@
-AR = ar
+AR = @AR@
+ARFLAGS = @ARFLAGS@
 RM = rm -f
 CP = cp
 MV = mv
+
+SHELL = @MAKE_SHELL@
 
 prefix = @prefix@
 exec_prefix = @exec_prefix@
@@ -47,8 +49,6 @@ infodir = @infodir@
 
 man3dir = $(mandir)/man3
 
-SHELL = /bin/sh
-
 # Programs to make tags files.
 ETAGS = etags -tw
 CTAGS = ctags -tw
@@ -56,7 +56,6 @@ CTAGS = ctags -tw
 CFLAGS = @CFLAGS@
 LOCAL_CFLAGS = @LOCAL_CFLAGS@ -DRL_LIBRARY_VERSION='"$(RL_LIBRARY_VERSION)"'
 CPPFLAGS = @CPPFLAGS@
-LDFLAGS = @LDFLAGS@ @LOCAL_LDFLAGS@ @CFLAGS@
 
 DEFS = @DEFS@
 LOCAL_DEFS = @LOCAL_DEFS@
@@ -66,33 +65,13 @@ INCLUDES = -I. -I$(srcdir) -I$(includedir)
 
 CCFLAGS = $(DEFS) $(LOCAL_DEFS) $(CPPFLAGS) $(INCLUDES) $(LOCAL_CFLAGS) $(CFLAGS)
 
-# these two options need tweaking for compiler/OS versions other than gcc
-# and SunOS4
-PICFLAG=        -fpic    # -pic for some versions of cc
-SHLIB_OPTS=	-assert pure-text -ldl	# -Bshareable for some versions of gcc
-
-MAJOR=		3
-# shared library systems like SVR4's do not use minor versions
-MINOR=		.0
-
-.SUFFIXES:	.so
-
 .c.o:
+	${RM} $@
 	$(CC) -c $(CCFLAGS) $<
-
-.c.so:
-	-mv $*.o z$*.o
-	$(CC) -c $(PICFLAG) $(CCFLAGS) $< 
-	mv $*.o $@
-	-mv z$*.o $*.o
 
 # The name of the main library target.
 LIBRARY_NAME = libreadline.a
 STATIC_LIBS = libreadline.a libhistory.a
-
-SHARED_READLINE = libreadline.so.$(MAJOR)$(MINOR)
-SHARED_HISTORY = libhistory.so.$(MAJOR)$(MINOR)
-SHARED_LIBS = $(SHARED_READLINE) $(SHARED_HISTORY)
 
 # The C code source files for this library.
 CSOURCES = $(srcdir)/readline.c $(srcdir)/funmap.c $(srcdir)/keymaps.c \
@@ -104,26 +83,19 @@ CSOURCES = $(srcdir)/readline.c $(srcdir)/funmap.c $(srcdir)/keymaps.c \
 	   $(srcdir)/callback.c $(srcdir)/terminal.c $(srcdir)/xmalloc.c \
 	   $(srcdir)/history.c $(srcdir)/histsearch.c $(srcdir)/histexpand.c \
 	   $(srcdir)/histfile.c $(srcdir)/nls.c $(srcdir)/search.c \
-	   $(srcdir)/shell.c $(srcdir)/tilde.c
+	   $(srcdir)/shell.c $(srcdir)/savestring.c $(srcdir)/tilde.c
 
 # The header files for this library.
 HSOURCES = readline.h rldefs.h chardefs.h keymaps.h history.h histlib.h \
 	   posixstat.h posixdir.h posixjmp.h tilde.h rlconf.h rltty.h \
-	   ansi_stdlib.h tcap.h
+	   ansi_stdlib.h tcap.h rlstdc.h
 
-HISTOBJ = history.o histexpand.o histfile.o histsearch.o shell.o
+HISTOBJ = history.o histexpand.o histfile.o histsearch.o shell.o 
 TILDEOBJ = tilde.o
 OBJECTS = readline.o vi_mode.o funmap.o keymaps.o parens.o search.o \
 	  rltty.o complete.o bind.o isearch.o display.o signals.o \
 	  util.o kill.o undo.o macro.o input.o callback.o terminal.o \
 	  nls.o xmalloc.o $(HISTOBJ) $(TILDEOBJ)
-
-SHARED_HISTOBJ = history.so histexpand.so histfile.so histsearch.so shell.so
-SHARED_TILDEOBJ = tilde.so
-SHARED_OBJ = readline.so vi_mode.so funmap.so keymaps.so parens.so search.so \
-	  rltty.so complete.so bind.so isearch.so display.so signals.so \
-	  util.so kill.so undo.so macro.so input.so callback.so terminal.so \
-	  nls.so xmalloc.so $(SHARED_HISTOBJ) $(SHARED_TILDEOBJ)
 
 # The texinfo files which document this library.
 DOCSOURCE = doc/rlman.texinfo doc/rltech.texinfo doc/rluser.texinfo
@@ -131,37 +103,29 @@ DOCOBJECT = doc/readline.dvi
 DOCSUPPORT = doc/Makefile
 DOCUMENTATION = $(DOCSOURCE) $(DOCOBJECT) $(DOCSUPPORT)
 
-CREATED_MAKEFILES = Makefile doc/Makefile examples/Makefile
+CREATED_MAKEFILES = Makefile doc/Makefile examples/Makefile shlib/Makefile
 CREATED_CONFIGURE = config.status config.h config.cache config.log \
 		    stamp-config stamp-h
 CREATED_TAGS = TAGS tags
 
-INSTALLED_HEADERS = readline.h chardefs.h keymaps.h history.h tilde.h
+INSTALLED_HEADERS = readline.h chardefs.h keymaps.h history.h tilde.h \
+		    rlstdc.h rlconf.h
 
 ##########################################################################
 
 all: static
 
 static: $(STATIC_LIBS)
-shared: $(SHARED_LIBS)
 
 libreadline.a: $(OBJECTS)
 	$(RM) $@
-	$(AR) cr $@ $(OBJECTS)
+	$(AR) $(ARFLAGS) $@ $(OBJECTS)
 	-test -n "$(RANLIB)" && $(RANLIB) $@
 
 libhistory.a: $(HISTOBJ) xmalloc.o
 	$(RM) $@
-	$(AR) cr $@ $(HISTOBJ) xmalloc.o
+	$(AR) $(ARFLAGS) $@ $(HISTOBJ) xmalloc.o
 	-test -n "$(RANLIB)" && $(RANLIB) $@
-
-$(SHARED_READLINE):	$(SHARED_OBJ)
-	$(RM) $@
-	$(LD) ${SHLIB_OPTS} -o $@ $(SHARED_OBJ)
-
-$(SHARED_HISTORY):	$(SHARED_HISTOBJ) xmalloc.so
-	$(RM) $@
-	$(LD) ${SHLIB_OPTS} -o $@ $(SHARED_HISTOBJ) xmalloc.so
 
 readline: $(OBJECTS) readline.h rldefs.h chardefs.h
 	$(CC) $(CCFLAGS) -o $@ ./examples/rl.c ./libreadline.a -ltermcap
@@ -186,6 +150,11 @@ stamp-h: config.status $(srcdir)/config.h.in
 $(srcdir)/configure: $(srcdir)/configure.in	## Comment-me-out in distribution
 	cd $(srcdir) && autoconf	## Comment-me-out in distribution
 
+
+shared:	force
+	-test -d shlib || mkdir shlib
+	-( cd shlib ; ${MAKE} ${MFLAGS} all )
+
 documentation: force
 	-test -d doc || mkdir doc
 	-( cd doc && $(MAKE) $(MFLAGS) )
@@ -196,14 +165,14 @@ examples: force
 
 force:
 
-install: installdirs libreadline.a
+install: installdirs $(STATIC_LIBS)
 	for f in ${INSTALLED_HEADERS}; do \
 		$(INSTALL_DATA) $(srcdir)/$$f $(includedir)/readline ; \
 	done
 	-$(MV) $(libdir)/libreadline.a $(libdir)/libreadline.old
 	$(INSTALL_DATA) libreadline.a $(libdir)/libreadline.a
 	-test -n "$(RANLIB)" && $(RANLIB) -t $(libdir)/libreadline.a
-	-$(MV) $(libdir)/libreadline.a $(libdir)/libhistory.old
+	-$(MV) $(libdir)/libhistory.a $(libdir)/libhistory.old
 	$(INSTALL_DATA) libhistory.a $(libdir)/libhistory.a
 	-test -n "$(RANLIB)" && $(RANLIB) -t $(libdir)/libhistory.a
 	-( if test -d doc ; then \
@@ -222,13 +191,10 @@ uninstall:
 		${RM} libreadline.a libreadline.old libhistory.a libhistory.old $(SHARED_LIBS)
 
 install-shared: installdirs shared
-	-$(MV) $(libdir)/$(SHARED_HISTORY) $(libdir)/$(SHARED_HISTORY).old
-	$(INSTALL_DATA) $(SHARED_HISTORY) $(libdir)/$(SHARED_HISTORY)
-	-$(MV) $(libdir)/$(SHARED_READLINE) $(libdir)/$(SHARED_READLINE).old
-	$(INSTALL_DATA) $(SHARED_READLINE) $(libdir)/$(SHARED_READLINE)
+	-( cd shlib ; ${MAKE} ${MFLAGS} install )
 
 uninstall-shared:
-	-test -n "$(libdir)" && cd $(libdir) && ${RM} ${SHARED_LIBS}
+	-( cd shlib; ${MAKE} ${MFLAGS} uninstall )
 
 TAGS:	force
 	$(ETAGS) $(CSOURCES) $(HSOURCES)
@@ -238,15 +204,17 @@ tags:	force
 
 clean:	force
 	$(RM) $(OBJECTS) $(STATIC_LIBS)
-	$(RM) $(SHARED_OBJ) $(SHARED_LIBS)
+	-( cd shlib && $(MAKE) $(MFLAGS) $@ )
 	-( cd doc && $(MAKE) $(MFLAGS) $@ )
 	-( cd examples && $(MAKE) $(MFLAGS) $@ )
 
 mostlyclean: clean
+	-( cd shlib && $(MAKE) $(MFLAGS) $@ )
 	-( cd doc && $(MAKE) $(MFLAGS) $@ )
 	-( cd examples && $(MAKE) $(MFLAGS) $@ )
 
 distclean maintainer-clean: clean
+	-( cd shlib && $(MAKE) $(MFLAGS) $@ )
 	-( cd doc && $(MAKE) $(MFLAGS) $@ )
 	-( cd examples && $(MAKE) $(MFLAGS) $@ )
 	$(RM) Makefile
@@ -274,89 +242,89 @@ dist:   force
 # Dependencies
 bind.o: ansi_stdlib.h posixstat.h
 bind.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-bind.o: readline.h keymaps.h chardefs.h tilde.h
+bind.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 bind.o: history.h
 callback.o: rlconf.h
 callback.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-callback.o: readline.h keymaps.h chardefs.h tilde.h
+callback.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 complete.o: ansi_stdlib.h posixdir.h posixstat.h
 complete.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-complete.o: readline.h keymaps.h chardefs.h tilde.h
+complete.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 display.o: ansi_stdlib.h posixstat.h
 display.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 display.o: tcap.h
 display.o: readline.h keymaps.h chardefs.h tilde.h
-display.o: history.h
+display.o: history.h rlstdc.h
 funmap.o: readline.h keymaps.h chardefs.h tilde.h
-funmap.o: rlconf.h ansi_stdlib.h
+funmap.o: rlconf.h ansi_stdlib.h rlstdc.h
 funmap.o: ${BUILD_DIR}/config.h
 histexpand.o: ansi_stdlib.h
-histexpand.o: history.h histlib.h
+histexpand.o: history.h histlib.h rlstdc.h
 histexpand.o: ${BUILD_DIR}/config.h
 histfile.o: ansi_stdlib.h
-histfile.o: history.h histlib.h
+histfile.o: history.h histlib.h rlstdc.h
 histfile.o: ${BUILD_DIR}/config.h
 history.o: ansi_stdlib.h
-history.o: history.h histlib.h
+history.o: history.h histlib.h rlstdc.h
 history.o: ${BUILD_DIR}/config.h
 histsearch.o: ansi_stdlib.h
-histsearch.o: history.h histlib.h
+histsearch.o: history.h histlib.h rlstdc.h
 histsearch.o: ${BUILD_DIR}/config.h
 input.o: ansi_stdlib.h
 input.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-input.o: readline.h keymaps.h chardefs.h tilde.h
+input.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 isearch.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 isearch.o: readline.h keymaps.h chardefs.h tilde.h
-isearch.o: ansi_stdlib.h history.h
+isearch.o: ansi_stdlib.h history.h rlstdc.h
 keymaps.o: emacs_keymap.c vi_keymap.c
 keymaps.o: keymaps.h chardefs.h rlconf.h ansi_stdlib.h
 keymaps.o: readline.h keymaps.h chardefs.h tilde.h
-keymaps.o: ${BUILD_DIR}/config.h
+keymaps.o: ${BUILD_DIR}/config.h rlstdc.h
 kill.o: ansi_stdlib.h
 kill.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 kill.o: readline.h keymaps.h chardefs.h tilde.h
-kill.o: history.h
+kill.o: history.h rlstdc.h
 macro.o: ansi_stdlib.h
 macro.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 macro.o: readline.h keymaps.h chardefs.h tilde.h
-macro.o: history.h
+macro.o: history.h rlstdc.h
 nls.o: ansi_stdlib.h
 nls.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 parens.o: rlconf.h
 parens.o: ${BUILD_DIR}/config.h
-parens.o: readline.h keymaps.h chardefs.h tilde.h
+parens.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 readline.o: readline.h keymaps.h chardefs.h tilde.h
 readline.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-readline.o: history.h
+readline.o: history.h rlstdc.h
 readline.o: posixstat.h ansi_stdlib.h posixjmp.h
 rltty.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 rltty.o: rltty.h
-rltty.o: readline.h keymaps.h chardefs.h tilde.h
+rltty.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 search.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 search.o: readline.h keymaps.h chardefs.h tilde.h
-search.o: ansi_stdlib.h history.h
+search.o: ansi_stdlib.h history.h rlstdc.h
 shell.o: ${BUILD_DIR}/config.h
 shell.o: ansi_stdlib.h
 signals.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 signals.o: readline.h keymaps.h chardefs.h tilde.h
-signals.o: history.h
+signals.o: history.h rlstdc.h
 terminal.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 terminal.o: tcap.h
 terminal.o: readline.h keymaps.h chardefs.h tilde.h
-terminal.o: history.h
+terminal.o: history.h rlstdc.h
 tilde.o: ansi_stdlib.h
 tilde.o: ${BUILD_DIR}/config.h
 tilde.o: tilde.h
 undo.o: ansi_stdlib.h
 undo.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 undo.o: readline.h keymaps.h chardefs.h tilde.h
-undo.o: history.h
+undo.o: history.h rlstdc.h
 util.o: posixjmp.h ansi_stdlib.h
 util.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-util.o: readline.h keymaps.h chardefs.h tilde.h
+util.o: readline.h keymaps.h chardefs.h tilde.h rlstdc.h
 vi_mode.o: rldefs.h ${BUILD_DIR}/config.h rlconf.h
 vi_mode.o: readline.h keymaps.h chardefs.h tilde.h
-vi_mode.o: history.h ansi_stdlib.h
+vi_mode.o: history.h ansi_stdlib.h rlstdc.h
 xmalloc.o: ${BUILD_DIR}/config.h
 xmalloc.o: ansi_stdlib.h
 
@@ -385,94 +353,9 @@ history.o: $(srcdir)/history.c
 histexpand.o: $(srcdir)/histexpand.c
 histfile.o: $(srcdir)/histfile.c
 histsearch.o: $(srcdir)/histsearch.c
+savestring.o: $(srcdir)/savestring.c
 shell.o: $(srcdir)/shell.c
 tilde.o: $(srcdir)/tilde.c
-
-bind.so: ansi_stdlib.h posixstat.h
-bind.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-bind.so: readline.h keymaps.h chardefs.h tilde.h
-bind.so: history.h
-callback.so: rlconf.h
-callback.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-callback.so: readline.h keymaps.h chardefs.h tilde.h
-complete.so: ansi_stdlib.h posixdir.h posixstat.h
-complete.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-complete.so: readline.h keymaps.h chardefs.h tilde.h
-display.so: ansi_stdlib.h posixstat.h
-display.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-display.so: tcap.h
-display.so: readline.h keymaps.h chardefs.h tilde.h
-display.so: history.h
-funmap.so: readline.h keymaps.h chardefs.h tilde.h
-funmap.so: rlconf.h ansi_stdlib.h
-funmap.so: ${BUILD_DIR}/config.h
-histexpand.so: ansi_stdlib.h
-histexpand.so: history.h histlib.h
-histexpand.so: ${BUILD_DIR}/config.h
-histfile.so: ansi_stdlib.h
-histfile.so: history.h histlib.h
-histfile.so: ${BUILD_DIR}/config.h
-history.so: ansi_stdlib.h
-history.so: history.h histlib.h
-history.so: ${BUILD_DIR}/config.h
-histsearch.so: ansi_stdlib.h
-histsearch.so: history.h histlib.h
-histsearch.so: ${BUILD_DIR}/config.h
-input.so: ansi_stdlib.h
-input.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-input.so: readline.h keymaps.h chardefs.h tilde.h
-isearch.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-isearch.so: readline.h keymaps.h chardefs.h tilde.h
-isearch.so: ansi_stdlib.h history.h
-keymaps.so: emacs_keymap.c vi_keymap.c
-keymaps.so: keymaps.h chardefs.h rlconf.h ansi_stdlib.h
-keymaps.so: readline.h keymaps.h chardefs.h tilde.h
-keymaps.so: ${BUILD_DIR}/config.h
-kill.so: ansi_stdlib.h
-kill.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-kill.so: readline.h keymaps.h chardefs.h tilde.h
-kill.so: history.h
-macro.so: ansi_stdlib.h
-macro.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-macro.so: readline.h keymaps.h chardefs.h tilde.h
-macro.so: history.h
-nls.so: ansi_stdlib.h
-nls.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-parens.so: rlconf.h
-parens.so: ${BUILD_DIR}/config.h
-parens.so: readline.h keymaps.h chardefs.h tilde.h
-readline.so: readline.h keymaps.h chardefs.h tilde.h
-readline.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-readline.so: history.h
-readline.so: posixstat.h ansi_stdlib.h posixjmp.h
-rltty.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-rltty.so: rltty.h
-rltty.so: readline.h keymaps.h chardefs.h tilde.h
-search.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-search.so: readline.h keymaps.h chardefs.h tilde.h
-search.so: ansi_stdlib.h history.h
-signals.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-signals.so: readline.h keymaps.h chardefs.h tilde.h
-signals.so: history.h
-terminal.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-terminal.so: tcap.h
-terminal.so: readline.h keymaps.h chardefs.h tilde.h
-terminal.so: history.h
-tilde.so: ansi_stdlib.h
-tilde.so: ${BUILD_DIR}/config.h
-tilde.so: tilde.h
-undo.so: ansi_stdlib.h
-undo.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-undo.so: readline.h keymaps.h chardefs.h tilde.h
-undo.so: history.h
-util.so: posixjmp.h ansi_stdlib.h
-util.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-util.so: readline.h keymaps.h chardefs.h tilde.h
-vi_mode.so: rldefs.h ${BUILD_DIR}/config.h rlconf.h
-vi_mode.so: readline.h keymaps.h chardefs.h tilde.h
-vi_mode.so: history.h ansi_stdlib.h
-xmalloc.so: ${BUILD_DIR}/config.h
-xmalloc.so: ansi_stdlib.h
 
 readline.o: readline.c
 vi_mode.o: vi_mode.c
@@ -499,61 +382,6 @@ history.o: history.c
 histexpand.o: histexpand.c
 histfile.o: histfile.c
 histsearch.o: histsearch.c
+savestring.o: savestring.c
 shell.o: shell.c
 tilde.o: tilde.c
-
-readline.so: $(srcdir)/readline.c
-vi_mode.so: $(srcdir)/vi_mode.c
-funmap.so: $(srcdir)/funmap.c
-keymaps.so: $(srcdir)/keymaps.c
-parens.so: $(srcdir)/parens.c
-search.so: $(srcdir)/search.c
-rltty.so: $(srcdir)/rltty.c
-complete.so: $(srcdir)/complete.c
-bind.so: $(srcdir)/bind.c
-isearch.so: $(srcdir)/isearch.c
-display.so: $(srcdir)/display.c
-signals.so: $(srcdir)/signals.c
-util.so: $(srcdir)/util.c
-kill.so: $(srcdir)/kill.c
-undo.so: $(srcdir)/undo.c
-macro.so: $(srcdir)/macro.c
-input.so: $(srcdir)/input.c
-callback.so: $(srcdir)/callback.c
-terminal.so: $(srcdir)/terminal.c
-nls.so: $(srcdir)/nls.c
-xmalloc.so: $(srcdir)/xmalloc.c
-history.so: $(srcdir)/history.c
-histexpand.so: $(srcdir)/histexpand.c
-histfile.so: $(srcdir)/histfile.c
-histsearch.so: $(srcdir)/histsearch.c
-shell.so: $(srcdir)/shell.c
-tilde.so: $(srcdir)/tilde.c
-
-readline.so: readline.c
-vi_mode.so: vi_mode.c
-funmap.so: funmap.c
-keymaps.so: keymaps.c
-parens.so: parens.c
-search.so: search.c
-rltty.so: rltty.c
-complete.so: complete.c
-bind.so: bind.c
-isearch.so: isearch.c
-display.so: display.c
-signals.so: signals.c
-util.so: util.c
-kill.so: kill.c
-undo.so: undo.c
-macro.so: macro.c
-input.so: input.c
-callback.so: callback.c
-terminal.so: terminal.c
-nls.so: nls.c
-xmalloc.so: xmalloc.c
-history.so: history.c
-histexpand.so: histexpand.c
-histfile.so: histfile.c
-histsearch.so: histsearch.c
-shell.so: shell.c
-tilde.so: tilde.c

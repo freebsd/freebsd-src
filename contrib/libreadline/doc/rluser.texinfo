@@ -97,7 +97,7 @@ regardless of the location of the cursor within the line.
 * Readline Killing Commands::	How to delete text, and how to get it back!
 * Readline Arguments::		Giving numeric arguments to commands.
 * Searching::			Searching through previous lines.
- @end menu
+@end menu
 
 @node Readline Bare Essentials
 @subsection Readline Bare Essentials
@@ -252,8 +252,10 @@ As each character of the search string is typed, Readline displays
 the next entry from the history matching the string typed so far.
 An incremental search requires only as many characters as needed to
 find the desired history entry.
-The @key{ESC} character is used to terminate an incremental search.
-@key{C-j} will also terminate the search.
+The characters present in the value of the @var{isearch-terminators} variable
+are used to terminate an incremental search.
+If that variable has not been assigned a value, the @key{ESC} and
+@key{C-J} characters will terminate an incremental search.
 @key{C-g} will abort an incremental search and restore the original line.
 When the search is terminated, the history entry containing the
 search string becomes the current line.
@@ -396,6 +398,22 @@ horizontally on a single screen line when they are longer than the width
 of the screen, instead of wrapping onto a new screen line.  By default,
 this variable is set to @samp{off}.
 
+@item input-meta
+@vindex input-meta
+@vindex meta-flag
+If set to @samp{on}, Readline will enable eight-bit input (it
+will not strip the eighth bit from the characters it reads),
+regardless of what the terminal claims it can support.  The
+default value is @samp{off}.  The name @code{meta-flag} is a
+synonym for this variable.
+
+@item isearch-terminators
+@vindex isearch-terminators
+The string of characters that should terminate an incremental search without
+subsequently executing the character as a command (@pxref{Searching}).
+If this variable has not been given a value, the characters @key{ESC} and
+@key{C-J} will terminate an incremental search.
+
 @item keymap
 @vindex keymap
 Sets Readline's idea of the current keymap for key binding commands.
@@ -421,15 +439,6 @@ appended.  The default is @samp{on}.
 This variable, when set to @samp{on}, causes Readline to display an
 asterisk (@samp{*}) at the start of history lines which have been modified.
 This variable is @samp{off} by default.
-
-@item input-meta
-@vindex input-meta
-@vindex meta-flag
-If set to @samp{on}, Readline will enable eight-bit input (it
-will not strip the eighth bit from the characters it reads),
-regardless of what the terminal claims it can support.  The
-default value is @samp{off}.  The name @code{meta-flag} is a
-synonym for this variable.
 
 @item output-meta
 @vindex output-meta
@@ -876,6 +885,11 @@ return @code{EOF}.
 Delete the character behind the cursor.  A numeric argument means
 to kill the characters instead of deleting them.
 
+@item forward-backward-delete-char ()
+Delete the character under the cursor, unless the cursor is at the
+end of the line, in which case the character behind the cursor is
+deleted.  By default, this is not bound to a key.
+
 @item quoted-insert (C-q, C-v)
 Add the next character typed to the line verbatim.  This is
 how to insert key sequences like @key{C-q}, for example.
@@ -1039,6 +1053,13 @@ through the list.
 This command is intended to be bound to @code{TAB}, but is unbound
 by default.
 
+@item delete-char-or-list ()
+Deletes the character under the cursor if not at the beginning or
+end of the line (like @code{delete-char}).
+If at the end of the line, behaves identically to
+@code{possible-completions}.
+This command is unbound by default.
+
 @ifset BashFeatures
 @item complete-filename (M-/)
 Attempt filename completion on the text before point.
@@ -1141,7 +1162,12 @@ Incremental undo, separately remembered for each line.
 Undo all changes made to this line.  This is like executing the @code{undo}
 command enough times to get back to the beginning.
 
+@ifset BashFeatures
+@item tilde-expand (M-&)
+@end ifset
+@ifclear BashFeatures
 @item tilde-expand (M-~)
+@end ifclear
 Perform tilde expansion on the current word.
 
 @item set-mark (C-@@)
