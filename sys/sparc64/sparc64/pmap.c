@@ -1373,6 +1373,8 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
 	vm_page_t m;
 	u_long data;
 
+	if ((tp->tte_data & TD_FAKE) != 0)
+		return (1);
 	if (tsb_tte_lookup(dst_pmap, va) == NULL) {
 		data = tp->tte_data &
 		    ~(TD_PV | TD_REF | TD_SW | TD_CV | TD_W);
