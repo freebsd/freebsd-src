@@ -201,7 +201,8 @@ init_drive(struct drive *drive, int verbose)
 	drive->state = drive_down;			    /* don't tell the system about this one at all */
 	return error;
     }
-    if (drive->partinfo.part->p_fstype != 0) {		    /* not plain */
+    if ((drive->partinfo.part->p_fstype != FS_UNUSED)	    /* not plain */
+    &&(drive->partinfo.part->p_fstype != FS_VINUM)) {	    /* and not Vinum */
 	drive->lasterror = EFTYPE;
 	if (verbose)
 	    log(LOG_WARNING,
@@ -502,7 +503,7 @@ read_drive_label(struct drive *drive, int verbose)
 	 */
 	drive->label = vhdr->label;			    /* put in the label information */
     } else if (vhdr->magic == VINUM_NOMAGIC)		    /* was ours, but we gave it away */
-	result = DL_DELETED_LABEL;
+	result = DL_DELETED_LABEL;			    /* and return the info */
     else
 	result = DL_NOT_OURS;				    /* we could have it, but we don't yet */
     Free(vhdr);						    /* that's all. */
@@ -993,6 +994,12 @@ vinum_scandisk(char *drivename[], int drives)
 	    log(LOG_INFO, "vinum: reading configuration from %s\n", drive->devicename);
 	else
 	    log(LOG_INFO, "vinum: updating configuration from %s\n", drive->devicename);
+
+	/* XXX Transition until we can get things changed */
+	if (drive->partinfo.part->p_fstype == FS_UNUSED)    /* still set to unused */
+	    log(LOG_WARNING,
+		"vinum: %s partition type is 'unused', should be 'vinum'\n",
+		drive->devicename);
 
 	/* Read in both copies of the configuration information */
 	error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
