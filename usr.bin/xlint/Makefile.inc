@@ -6,7 +6,8 @@ WARNS=		0
 
 .PATH:		${.CURDIR}/../common
 
-CFLAGS+=	-I${.CURDIR}/../arch/${MACHINE_ARCH}
+TARGET_ARCH?=	${MACHINE_ARCH}
+CFLAGS+=	-I${.CURDIR}/../arch/${TARGET_ARCH}
 CFLAGS+=	-I${.CURDIR}/../common
 
 OBJECT_FMT=	ELF
