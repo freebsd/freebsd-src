@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.28 1997/08/06 09:41:59 kato Exp $
+ *	$Id: wd.c,v 1.29 1997/08/09 06:41:36 kato Exp $
  */
 
 /* TODO:
@@ -215,7 +215,6 @@ static int wdtest = 0;
 static struct disk *wddrives[NWD];	/* table of units */
 static struct buf_queue_head drive_queue[NWD];	/* head of queue per drive */
 static struct {
-	int	b_errcnt;
 	int	b_active;
 } wdutab[NWD];
 /*
@@ -919,8 +918,13 @@ wdstart(int ctrlr)
 		head = (blknum % secpercyl) / secpertrk;
 		sector = blknum % secpertrk;
 
+		/* 
+		 * XXX this looks like an attempt to skip bad sectors
+		 * on write.
+		 */
 		if (wdtab[ctrlr].b_errcnt && (bp->b_flags & B_READ) == 0)
 			du->dk_bc += DEV_BSIZE;
+
 		count = howmany( du->dk_bc, DEV_BSIZE);
 
 		du->dk_flags &= ~DKFL_MULTI;
@@ -1018,6 +1022,9 @@ wdstart(int ctrlr)
 	 * unmarked bad blocks can take 3 seconds!  Then it is not good that
 	 * we retry 5 times.
 	 *
+	 * On the first try, we give it 10 seconds, for drives that may need
+	 * to spin up.
+	 *
 	 * XXX wdtimeout() doesn't increment the error count so we may loop
 	 * forever.  More seriously, the loop isn't forever but causes a
 	 * crash.
@@ -1027,7 +1034,10 @@ wdstart(int ctrlr)
 	 * think).  Discarding them would be OK if the (special) file offset
 	 * was not advanced.
 	 */
-	du->dk_timeout = 1 + 3;
+	if (wdtab[ctrlr].b_errcnt == 0)
+		du->dk_timeout = 1 + 10;
+	else
+		du->dk_timeout = 1 + 3;
 
 	/* if this is a DMA op, start DMA and go away until it's done. */
 	if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
@@ -1097,11 +1107,13 @@ wdstart(int ctrlr)
  * the next request.  Also check for a partially done transfer, and
  * continue with the next chunk if so.
  */
+
 void
 wdintr(int unit)
 {
 	register struct	disk *du;
 	register struct buf *bp;
+	int dmastat;
 
 #ifdef CMD640
 	int ctrlr_atapi;
@@ -1145,23 +1157,22 @@ wdintr(int unit)
 #endif
 	bp = wdtab[unit].controller_queue.tqh_first;
 	du = wddrives[dkunit(bp->b_dev)];
-	du->dk_timeout = 0;
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
 #endif
-	/* finish off DMA. ignore errors if we're not using it. */
+	/* finish off DMA */
 	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
-		if ((wddma.wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT) == 0)
+		/* XXX SMP boxes sometimes generate an early intr.  Why? */
+		if ((wddma.wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
+		    == 0)
 			return;
-
-		if ((wddma.wdd_dmadone(du->dk_dmacookie) != WDDS_INTERRUPT) &&
-		    !(du->dk_flags & DKFL_USEDMA)) {
-			wderror(bp, du, "wdintr: DMA failure");
-			du->dk_status |= WDCS_ERR; /* XXX totally bogus err */
-		}
+		dmastat = wddma.wdd_dmadone(du->dk_dmacookie);
 	}
 
+	du->dk_timeout = 0;
+
+	/* check drive status/failure */
 	if (wdwait(du, 0, TIMEOUT) < 0) {
 		wderror(bp, du, "wdintr: timeout waiting for status");
 		du->dk_status |= WDCS_ERR;	/* XXX */
@@ -1182,27 +1193,32 @@ wdintr(int unit)
 	}
 
 	/* have we an error? */
-	if (du->dk_status & (WDCS_ERR | WDCS_ECCCOR)) {
+	if ((du->dk_status & (WDCS_ERR | WDCS_ECCCOR))
+	    || (((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
+		&& dmastat != WDDS_INTERRUPT)) {
+
+		unsigned int errstat;
 oops:
 		/*
-		 * XXX bogus inb() here, register 0 is assumed and intr status
-		 * is reset.
+		 * XXX bogus inb() here
 		 */
-		if (old_epson_note) {
-			if( (du->dk_status & DKFL_MULTI)
-				   && (epson_inb(du->dk_port) & WDERR_ABORT)) {
-				wderror(bp, du,
-					"reverting to non-multi sector mode");
-				du->dk_multi = 1;
-			}
+		errstat = inb(du->dk_port + wd_error);
+
+		if(((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) &&
+		   (errstat & WDERR_ABORT)) {
+			wderror(bp, du, "reverting to PIO mode");
+			du->dk_flags &= ~DKFL_USEDMA;
+		} else if((du->dk_flags & DKFL_MULTI) &&
+                    (errstat & WDERR_ABORT)) {
+			wderror(bp, du, "reverting to non-multi sector mode");
+			du->dk_multi = 1;
 		}
-		else {
-			if( (du->dk_flags & DKFL_MULTI) && (inb(du->dk_port) & WDERR_ABORT)) {
-				wderror(bp, du,
-					"reverting to non-multi sector mode");
-				du->dk_multi = 1;
-			}
-		}
+
+		if (!(du->dk_status & (WDCS_ERR | WDCS_ECCCOR)) &&
+		    (((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) && 
+		     (dmastat != WDDS_INTERRUPT)))
+			printf("wd%d: DMA failure, DMA status %b\n", 
+			       du->dk_lunit, dmastat, WDDS_BITS);
 #ifdef WDDEBUG
 		wderror(bp, du, "wdintr");
 #endif
@@ -1229,7 +1245,7 @@ oops:
 				bp->b_error = EIO;
 				bp->b_flags |= B_ERROR;	/* flag the error */
 			}
-		} else
+		} else if (du->dk_status & WDCS_ECCCOR)
 			wderror(bp, du, "soft ecc");
 	}
 
@@ -1237,7 +1253,7 @@ oops:
 	 * If this was a successful read operation, fetch the data.
 	 */
 	if (((bp->b_flags & (B_READ | B_ERROR)) == B_READ)
-	    && wdtab[unit].b_active) {
+            && !((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
 		int	chk, dummy, multisize;
 		multisize = chk = du->dk_currentiosize * DEV_BSIZE;
 		if( du->dk_bc < chk) {
@@ -1258,36 +1274,38 @@ oops:
 		}
 
 		/* suck in data */
-		if (!old_epson_note) {
-			if( du->dk_flags & DKFL_32BIT)
-				insl(du->dk_port + wd_data,
-				     (void *)((int)bp->b_un.b_addr
-						+ du->dk_skip * DEV_BSIZE),
+		if( du->dk_flags & DKFL_32BIT)
+			insl(du->dk_port + wd_data,
+			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(long));
-			else
-				insw(du->dk_port + wd_data,
-				     (void *)((int)bp->b_un.b_addr
-						+ du->dk_skip * DEV_BSIZE),
-					chk / sizeof(short));
-			}
 		else
-			epson_insw(du->dk_port + wd_data,
-			     (void *)((int)bp->b_un.b_addr
-						+ du->dk_skip * DEV_BSIZE),
+			insw(du->dk_port + wd_data,
+			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(short));
 		du->dk_bc -= chk;
 
 		/* XXX for obsolete fractional sector reads. */
 		while (chk < multisize) {
-			if (!old_epson_note)
-				insw(du->dk_port + wd_data, &dummy, 1);
-			else
-				epson_insw(du->dk_port + wd_data, &dummy, 1);
+			insw(du->dk_port + wd_data, &dummy, 1);
 			chk += sizeof(short);
 		}
 
 		if (du->dk_dkunit >= 0)
 			dk_wds[du->dk_dkunit] += chk >> 6;
+	}
+
+	/* final cleanup on DMA */
+	if (((bp->b_flags & B_ERROR) == 0)
+            && ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA)
+	    && wdtab[unit].b_active) {
+		int iosize;
+
+		iosize = du->dk_currentiosize * DEV_BSIZE;
+
+		du->dk_bc -= iosize;
+
+		if (du->dk_dkunit >= 0)
+			dk_wds[du->dk_dkunit] += iosize >> 6;
 	}
 
 outt:
@@ -1321,7 +1339,6 @@ done: ;
 		wdtab[unit].b_errcnt = 0;
 		bp->b_resid = bp->b_bcount - du->dk_skip * DEV_BSIZE;
 		wdutab[du->dk_lunit].b_active = 0;
-		wdutab[du->dk_lunit].b_errcnt = 0;
 		du->dk_skip = 0;
 		biodone(bp);
 	}
@@ -1375,6 +1392,7 @@ wdopen(dev_t dev, int flags, int fmt, struct proc *p)
 
 	du->dk_flags &= ~DKFL_BADSCAN;
 
+	/* spin waiting for anybody else reading the disk label */
 	while (du->dk_flags & DKFL_LABELLING)
 		tsleep((caddr_t)&du->dk_flags, PZERO - 1, "wdopen", 1);
 #if 1
@@ -1660,6 +1678,8 @@ wdcommand(struct disk *du, u_int cylinder, u_int head, u_int sector,
 			epson_outb(wdc + wd_features, count);
 		else
 			outb(wdc + wd_features, count);
+			if ( count == WDFEA_SETXFER )
+				outb(wdc + wd_seccnt, sector);
 	} else {
 		if (old_epson_note) {
 			epson_outb(wdc + wd_precomp, du->dk_dd.d_precompcyl/4);
@@ -1802,6 +1822,26 @@ wdwsetctlr(struct disk *du)
 	return (stat);
 }
 #endif
+
+/*
+ * gross little callback function for wdddma interface. returns 1 for
+ * success, 0 for failure.
+ */
+static int
+wdsetmode(int mode, void *wdinfo)
+{
+    int i;
+    struct disk *du;
+
+    du = wdinfo;
+    if (bootverbose)
+	printf("wd%d: wdsetmode() setting transfer mode to %02x\n", 
+	       du->dk_lunit, mode);
+    i = wdcommand(du, 0, 0, mode, WDFEA_SETXFER, 
+		  WDCC_FEATURES) == 0 &&
+	wdwait(du, WDCS_READY, TIMEOUT) == 0;
+    return i;
+}
 
 /*
  * issue READP to drive to ask it what it is.
@@ -2464,11 +2504,19 @@ wdtimeout(void *cdu)
 	outb(0x432,(du->dk_unit)%2);
 #endif
 	if (du->dk_timeout != 0 && --du->dk_timeout == 0) {
-		if(timeouts++ == 5)
-			wderror((struct buf *)NULL, du,
-   "Last time I say: interrupt timeout.  Probably a portable PC.");
-		else if(timeouts < 5)
-			wderror((struct buf *)NULL, du, "interrupt timeout");
+		if(timeouts++ <= 5) {
+			char *msg;
+
+			msg = (timeouts > 5) ?
+"Last time I say: interrupt timeout.  Probably a portable PC." :
+"interrupt timeout";
+			wderror((struct buf *)NULL, du, msg);
+			if (du->dk_dmacookie)
+				printf("wd%d: wdtimeout() DMA status %b\n", 
+				       du->dk_lunit,
+				       wddma.wdd_dmastatus(du->dk_dmacookie), 
+				       WDDS_BITS);
+		}
 		wdunwedge(du);
 		wdflushirq(du, x);
 		du->dk_skip = 0;
