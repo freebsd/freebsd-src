@@ -87,6 +87,7 @@ int busdma_swi_pending;
 struct bounce_zone {
 	STAILQ_ENTRY(bounce_zone) links;
 	STAILQ_HEAD(bp_list, bounce_page) bounce_page_list;
+	int		total_bpages;
 	int		free_bpages;
 	int		reserved_bpages;
 	int		active_bpages;
@@ -128,7 +129,7 @@ static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
 static struct bus_dmamap nobounce_dmamap;
 
 static void init_bounce_pages(void *dummy);
-static struct bounce_zone * alloc_bounce_zone(bus_dma_tag_t dmat);
+static int alloc_bounce_zone(bus_dma_tag_t dmat);
 static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 				int commit);
@@ -200,7 +201,8 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
 	panic("driver error: busdma dflt_lock called");
 }
 
-#define BUS_DMA_MIN_ALLOC_COMP BUS_DMA_BUS4
+#define BUS_DMA_COULD_BOUNCE	BUS_DMA_BUS3
+#define BUS_DMA_MIN_ALLOC_COMP	BUS_DMA_BUS4
 /*
  * Allocate a device specific dma_tag.
  */
@@ -274,10 +276,20 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		if (newtag->parent != NULL)
 			atomic_add_int(&parent->ref_count, 1);
 	}
-	
-	if (newtag->lowaddr < ptoa((vm_paddr_t)Maxmem) &&
+
+	if (newtag->lowaddr < ptoa((vm_paddr_t)Maxmem)
+	 || newtag->alignment > 1 || newtag->boundary > 0)
+		newtag->flags |= BUS_DMA_COULD_BOUNCE;
+
+	if (((newtag->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 	    (flags & BUS_DMA_ALLOCNOW) != 0) {
+		struct bounce_zone *bz;
+
 		/* Must bounce */
+
+		if ((error = alloc_bounce_zone(newtag)) != 0)
+			return (error);
+		bz = newtag->bounce_zone;
 
 		if (lowaddr > bounce_lowaddr) {
 			/*
@@ -287,10 +299,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 			panic("bus_dma_tag_create: page reallocation "
 			      "not implemented");
 		}
-		if (ptoa(total_bpages) < maxsize) {
+		if (ptoa(bz->total_bpages) < maxsize) {
 			int pages;
 
-			pages = atop(maxsize) - total_bpages;
+			pages = atop(maxsize) - bz->total_bpages;
 
 			/* Add pages to our bounce pool */
 			if (alloc_bounce_pages(newtag, pages) < pages)
@@ -378,11 +390,15 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	 * exclusion region, a data alignment that is stricter than 1, and/or
 	 * an active address boundary.
 	 */
-	if (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
-	 || dmat->alignment > 1 || dmat->boundary > 0) {
+	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
 
 		/* Must bounce */
 		int maxpages;
+
+		if (dmat->bounce_zone == NULL) {
+			if ((error = alloc_bounce_zone(dmat)) != 0)
+				return (error);
+		}
 
 		*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
 					     M_NOWAIT | M_ZERO);
@@ -564,8 +580,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		map = &nobounce_dmamap;
 
 	if ((map != &nobounce_dmamap && map->pagesneeded == 0) 
-	 && (dmat->lowaddr < ptoa((vm_paddr_t)Maxmem)
-	 || dmat->boundary > 0 || dmat->alignment > 1)) {
+	 && ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0)) {
 		vm_offset_t	vendaddr;
 
 		CTR4(KTR_BUSDMA, "lowaddr= %d Maxmem= %d, boundary= %d, "
@@ -898,14 +913,24 @@ busdma_sysctl_tree_top(struct bounce_zone *bz)
 	return (bz->sysctl_tree_top);
 }
 
-static struct bounce_zone *
+static int
 alloc_bounce_zone(bus_dma_tag_t dmat)
 {
 	struct bounce_zone *bz;
 
+	/* Check to see if we already have a suitable zone */
+	STAILQ_FOREACH(bz, &bounce_zone_list, links) {
+		if ((dmat->alignment <= bz->alignment)
+		 && (dmat->boundary <= bz->boundary)
+		 && (dmat->lowaddr >= bz->lowaddr)) {
+			dmat->bounce_zone = bz;
+			return (0);
+		}
+	}
+
 	if ((bz = (struct bounce_zone *)malloc(sizeof(*bz), M_DEVBUF,
 	    M_NOWAIT | M_ZERO)) == NULL)
-		return (NULL);
+		return (ENOMEM);
 
 	STAILQ_INIT(&bz->bounce_page_list);
 	bz->free_bpages = 0;
@@ -918,6 +943,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	busdma_zonecount++;
 	snprintf(bz->lowaddrid, 18, "%#jx", (uintmax_t)bz->lowaddr);
 	STAILQ_INSERT_TAIL(&bounce_zone_list, bz, links);
+	dmat->bounce_zone = bz;
 
 	sysctl_ctx_init(&bz->sysctl_tree);
 	bz->sysctl_tree_top = SYSCTL_ADD_NODE(&bz->sysctl_tree,
@@ -925,9 +951,13 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	    CTLFLAG_RD, 0, "");
 	if (bz->sysctl_tree_top == NULL) {
 		sysctl_ctx_free(&bz->sysctl_tree);
-		return (bz);
+		return (0);	/* XXX error code? */
 	}
 
+	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
+	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
+	    "total_bpages", CTLFLAG_RD, &bz->total_bpages, 0,
+	    "Totoal bounce pages");
 	SYSCTL_ADD_INT(busdma_sysctl_tree(bz),
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "free_bpages", CTLFLAG_RD, &bz->free_bpages, 0,
@@ -958,7 +988,7 @@ alloc_bounce_zone(bus_dma_tag_t dmat)
 	    SYSCTL_CHILDREN(busdma_sysctl_tree_top(bz)), OID_AUTO,
 	    "boundary", CTLFLAG_RD, &bz->boundary, 0, "");
 
-	return (bz);
+	return (0);
 }
 
 static int
@@ -968,21 +998,6 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 	int count;
 
 	bz = dmat->bounce_zone;
-	if (bz == NULL) {
-		STAILQ_FOREACH(bz, &bounce_zone_list, links) {
-			if ((dmat->alignment <= bz->alignment)
-			 && (dmat->boundary <= bz->boundary)
-			 && (dmat->lowaddr >= bz->lowaddr))
-				break;
-		}
-
-		if (bz == NULL) {
-			if ((bz = alloc_bounce_zone(dmat)) == NULL)
-				return (ENOMEM);
-		}
-		dmat->bounce_zone = bz;
-	}
-
 	count = 0;
 	while (numpages > 0) {
 		struct bounce_page *bpage;
@@ -1005,6 +1020,7 @@ alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages)
 		mtx_lock(&bounce_lock);
 		STAILQ_INSERT_TAIL(&bz->bounce_page_list, bpage, links);
 		total_bpages++;
+		bz->total_bpages++;
 		bz->free_bpages++;
 		mtx_unlock(&bounce_lock);
 		count++;
