@@ -539,6 +539,7 @@ dev/vx/if_vx_eisa.c		optional vx eisa
 dev/vx/if_vx_pci.c		optional vx pci
 dev/wds/wd7000.c		optional wds isa
 dev/wi/if_wi.c			optional wi card
+dev/wi/if_wi.c			optional wi pccard
 dev/xe/if_xe.c			optional xe card
 fs/devfs/devfs_vnops.c		optional devfs
 fs/devfs/devfs_vfsops.c		optional devfs
