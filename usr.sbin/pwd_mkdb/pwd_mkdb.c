@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pwd_mkdb.c	8.5 (Berkeley) 4/20/94";
 #endif
 static const char rcsid[] =
-	"$Id: pwd_mkdb.c,v 1.23 1998/02/16 19:08:18 guido Exp $";
+	"$Id: pwd_mkdb.c,v 1.24 1998/02/19 08:12:11 guido Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -114,7 +114,7 @@ main(argc, argv)
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "Cd:pu:v")) != -1)
+	while ((ch = getopt(argc, argv, "Cd:ps:u:v")) != -1)
 		switch(ch) {
 		case 'C':                       /* verify only */
 			Cflag = 1;
@@ -124,6 +124,9 @@ main(argc, argv)
 			break;
 		case 'p':			/* create V7 "file.orig" */
 			makeold = 1;
+			break;
+		case 's':			/* change default cachesize */
+			openinfo.cachesize = atoi(optarg) * 1024 * 1024;
 			break;
 		case 'u':			/* only update this record */
 			username = optarg;
