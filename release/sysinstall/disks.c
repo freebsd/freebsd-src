@@ -99,7 +99,7 @@ print_chunks(Disk *d, int u)
 #ifndef PC98
     if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64) {
 	dialog_clear_norefresh();
-	msgConfirm("WARNING:  A geometry of %ld/%ld/%ld for %s is incorrect.  Using\n"
+	msgConfirm("WARNING:  A geometry of %lu/%lu/%lu for %s is incorrect.  Using\n"
 		   "a more likely geometry.  If this geometry is incorrect or you\n"
 		   "are unsure as to whether or not it's correct, please consult\n"
 		   "the Hardware Guide in the Documentation submenu or use the\n"
