@@ -1,8 +1,69 @@
+Wed Aug 18 09:34:23 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.2.4
+	By default, do not restore file name and timestamp from those saved
+	  inside the .gz file (behave as 'compress'). Added the --name option
+          to force name and timestamp restoration.
+	Accept - as synonym for stdin.
+	Use manlinks=so or ln to support either hard links or .so in man pages
+	Accept foo.gz~ in zdiff.
+	Added support for Windows NT
+        Handle ENAMETOOLONG for strict Posix systems
+	Use --recursive instead of --recurse to comply with Webster and
+          the GNU stdandard.
+	Allow installation of shell scripts with a g prefix: make G=g install
+	Install by default zcat as gzcat if gzcat already exists in path.
+	Let zmore behave as more when invoked without parameters (give help)
+	Let gzip --list reject files not in gzip format even with --force.
+	Don't complain about non gzip files for options -rt or -rl.
+	Added advice in INSTALL for several systems.
+	Added makefile entries for NeXTstep 3.1 (if configure fails)
+	Avoid problem with memcpy on Pyramid (gave crc error on some files)
+	Support the -r option when compiled with Borland C++ on msdos.
+	Force lower case file names only for FAT file systems (not HPFS)
+	Rewrite one expression in inflate.c to avoid cc bug on Solaris x86.
+	In the msdos makefiles, get match.asm from the msdos subdirectory.
+	Catch SIGTERM and SIGHUP only if they are not ignored.
+        getopt.c: on Amiga, "#if !defined(const)" does not compile.
+	Use register parameters on Amiga.
+	Do not force names to lower case on Amiga.
+	Fix support of Atari TOS (Makefile.st and tailor.h)
+	In unlzw.c, do not suggest using zcat if zcat already used.
+	In INSTALL, suggest using bsdinst for HPUX.
+	Document Turbo C++ 1.0 bug in INSTALL.
+	Improved the documentation relative to the --no-name option.
+	Avoid signed/unsigned warnings in several files.
+	Added pointer to jka-compr19.el in README.
+	Added pointer to OS/2 executables in README.
+	Added --block-compress in tar -z example (gzip.1 and gzip.texi).
+	Don't keep rcsid in executable (avoid compilation warnings).
+	Check also the correctness of the first byte of an .Z file.
+	Return non zero status for an invalid option.
+        Remove "NEWFILES" from os2/gzip.def for Borland C++ on OS/2.
+	Remove "time stamp restored" message (just obey the -N request).
+
+Thu Jun 24 10:27:57 1993  Jean-loup Gailly  (jloup@chorus.fr)
+
+	* version 1.2.3
+	Don't display the output name when decompressing except with --verbose.
+	Remove usage of alloca in getopt.c and all makefiles.
+	Use ASCPP instead of CPP to avoid breaking AC_HEADER_CHECK on RiscOS.
+        Added the zfile shell script in subdirectory sample.
+	Moved the list of compiler bugs from README to INSTALL.
+	Added vms/Readme.vms.
+	Fix DIST_BUFSIZE check in unlzh.c for 16 bit machines.
+	Fix REGSIGTYP macro in configure.in.
+	Use 'define' instead of == in vms/gzip.hlp.
+	Avoid warnings in unlzh.c
+	Allow separate installation of binaries and man pages.
+	Simplified handling of file names with spaces in zgrep and znew.
+	Fix dependencies and remove rule for trees.c in amiga/Makefile.sasc
+	Add missing quote in gzexe.
+
 Thu Jun 17 13:47:05 1993  Jean-loup Gailly  (jloup@chorus.fr)
 
 	* version 1.2.2
 	Fix a compilation error in gzip.c on Sun with cc (worked with gcc).
-
 
 Wed Jun 16 11:20:27 1993  Jean-loup Gailly  (jloup@chorus.fr)
 

@@ -34,8 +34,12 @@
 #  else
 #    define MAXSEG_64K
 #    ifdef __TURBOC__
-#      define NO_UTIME
 #      define NO_OFF_T
+#      ifdef __BORLANDC__
+#        define DIRENT
+#      else
+#        define NO_UTIME
+#      endif
 #    else /* MSC */
 #      define HAVE_SYS_UTIME_H
 #      define NO_UTIME_H
@@ -70,11 +74,11 @@
 #    define NO_MULTIPLE_DOTS
 #    define MAX_EXT_CHARS 3
 #    define Z_SUFFIX "z"
+#    define casemap(c) tolow(c)
 #  endif
 #  define NO_CHOWN
 #  define PROTO
 #  define STDC_HEADERS
-#  define casemap(c) tolow(c)
 #  include <io.h>
 #  define OS_CODE  0x06
 #  define SET_BINARY_MODE(fd) setmode(fd, O_BINARY)
@@ -102,6 +106,27 @@
 #    define EXPAND(argc,argv) \
        {response_expand(&argc, &argv);}
 #  endif
+#endif
+
+#ifdef WIN32 /* Windows NT */
+#  define HAVE_SYS_UTIME_H
+#  define NO_UTIME_H
+#  define PATH_SEP2 '\\'
+#  define PATH_SEP3 ':'
+#  define MAX_PATH_LEN  260
+#  define NO_CHOWN
+#  define PROTO
+#  define STDC_HEADERS
+#  define SET_BINARY_MODE(fd) setmode(fd, O_BINARY)
+#  include <io.h>
+#  include <malloc.h>
+#  ifdef NTFAT
+#    define NO_MULTIPLE_DOTS
+#    define MAX_EXT_CHARS 3
+#    define Z_SUFFIX "z"
+#    define casemap(c) tolow(c) /* Force file names to lower case */
+#  endif
+#  define OS_CODE  0x0b
 #endif
 
 #ifdef MSDOS
@@ -149,7 +174,6 @@
 #ifdef AMIGA
 #  define PATH_SEP2 ':'
 #  define STDC_HEADERS
-#  define casemap(c) tolow(c) /* Force file names to lower case */
 #  define OS_CODE  0x01
 #  define ASMV
 #  ifdef __GNUC__
@@ -178,11 +202,15 @@
 #  define ASMV
 #  define OS_CODE  0x05
 #  ifdef TOSFS
-#    define NO_SYMLINK
+#    define PATH_SEP2 '\\'
+#    define PATH_SEP3 ':'
+#    define MAX_PATH_LEN  128
 #    define NO_MULTIPLE_DOTS
 #    define MAX_EXT_CHARS 3
 #    define Z_SUFFIX "z"
 #    define NO_CHOWN
+#    define casemap(c) tolow(c) /* Force file names to lower case */
+#    define NO_SYMLINK
 #  endif
 #endif
 
@@ -221,8 +249,8 @@
 #  endif
 #endif
 
-#ifdef WIN32
-#  define OS_CODE  0x0b
+#if defined(pyr) && !defined(NOMEMCPY) /* Pyramid */
+#  define NOMEMCPY /* problem with overlapping copies */
 #endif
 
 #ifdef TOPS20

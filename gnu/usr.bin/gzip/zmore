@@ -21,7 +21,11 @@ else
 fi
 
 if test $# = 0; then
+    if test -t 0; then
+	echo usage: zmore files...
+    else
 	gzip -cdfq | eval ${PAGER-more}
+    fi
 else
     FIRST=1
     for FILE
