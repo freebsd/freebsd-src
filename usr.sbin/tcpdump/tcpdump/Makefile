@@ -1,7 +1,7 @@
-#	$Id$
+#	$Id: Makefile,v 1.10 1995/08/29 19:48:10 wollman Exp $
 
 PROG=	tcpdump
-CFLAGS+=-DCSLIP -DPPP -DFDDI
+CFLAGS+=-DCSLIP -DPPP -DFDDI -DETHER_SERVICE
 MAN1=	tcpdump.1
 SRCS=	version.c addrtoname.c bpf_dump.c parsenfsfh.c \
 	print-arp.c print-atalk.c print-bootp.c print-decnet.c print-domain.c \
