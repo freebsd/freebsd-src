@@ -42,8 +42,8 @@
 #include <vm/pmap.h>
 #include <pci/pcivar.h>
 
+#include <sys/digiio.h>
 #include <digi/digireg.h>
-#include <digi/digiio.h>
 #include <digi/digi.h>
 #include <digi/digi_pci.h>
 

@@ -51,11 +51,11 @@
 #include <sys/bus.h>
 #include <machine/resource.h>
 
-#include <dev/digi/digireg.h>
-#include <dev/digi/digiio.h>
-#include <dev/digi/digi.h>
-#include <dev/digi/digi_mod.h>
-#include <dev/digi/digi_pci.h>
+#include <sys/digiio.h>
+#include <digi/digireg.h>
+#include <digi/digi.h>
+#include <digi/digi_mod.h>
+#include <digi/digi_pci.h>
 
 #define	CDEV_MAJOR	162
 
