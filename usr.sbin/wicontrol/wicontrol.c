@@ -49,6 +49,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include <errno.h>
 #include <err.h>
 
@@ -69,9 +70,9 @@ static void wi_sethex		__P((char *, int, char *));
 static void wi_printwords	__P((struct wi_req *));
 static void wi_printbool	__P((struct wi_req *));
 static void wi_printhex		__P((struct wi_req *));
-static void wi_dumpinfo		__P((char *, char));
+static void wi_dumpinfo		__P((char *));
 static void wi_setkeys		__P((char *, char *, int));
-static void wi_printkeys	__P((struct wi_req *, char));
+static void wi_printkeys	__P((struct wi_req *));
 static void usage		__P((char *));
 
 static void wi_getval(iface, wreq)
@@ -282,6 +283,7 @@ static void wi_setkeys(iface, key, idx)
 	char			*key;
 	int			idx;
 {
+	int			keylen;
 	struct wi_req		wreq;
 	struct wi_ltv_keys	*keys;
 	struct wi_key		*k;
@@ -292,7 +294,7 @@ static void wi_setkeys(iface, key, idx)
 
 	wi_getval(iface, &wreq);
 	if (wreq.wi_val[0] == 0)
-		err(1, "no WEP option available on this card");
+		errx(1, "no WEP option available on this card");
 
 	bzero((char *)&wreq, sizeof(wreq));
 	wreq.wi_len = WI_MAX_DATALEN;
@@ -301,13 +303,21 @@ static void wi_setkeys(iface, key, idx)
 	wi_getval(iface, &wreq);
 	keys = (struct wi_ltv_keys *)&wreq;
 
-	if (strlen(key) > 14) {
-		err(1, "encryption key must be no "
-		    "more than 14 characters long");
+	keylen = strlen(key);
+	if (key[0] == '0' && (key[1] == 'x' || key[1] == 'X')) {
+		if(keylen != 2 && keylen != 12 && keylen != 28) {
+			errx(1, "encryption key must be 0, 10, or 26 "
+			    "hex digits long");
+		}
+	} else {
+		if (keylen != 0 && keylen != 5 && keylen != 13) {
+			errx(1, "encryption key must be 0, 5, or 13 "
+			    "bytes long");
+		}
 	}
 
 	if (idx > 3)
-		err(1, "only 4 encryption keys available");
+		errx(1, "only 4 encryption keys available");
 
 	k = &keys->wi_keys[idx];
 	wi_str2key(key, k);
@@ -319,34 +329,37 @@ static void wi_setkeys(iface, key, idx)
 	return;
 }
 
-static void wi_printkeys(wreq, asciikeys)
+static void wi_printkeys(wreq)
 	struct wi_req		*wreq;
-	char asciikeys;
 {
 	int			i, j;
+	int			isprintable;
 	struct wi_key		*k;
 	struct wi_ltv_keys	*keys;
-	unsigned char		*ptr;
+	char			*ptr;
 
 	keys = (struct wi_ltv_keys *)wreq;
 
 	for (i = 0; i < 4; i++) {
 		k = &keys->wi_keys[i];
 		ptr = (char *)k->wi_keydat;
-		if (asciikeys) {
-			for (j = 0; j < k->wi_keylen; j++) {
-				if (ptr[j] == '\0')
-					ptr[j] = ' ';
+		isprintable = 1;
+		for (j = 0; j < k->wi_keylen; j++) {
+			if (!isprint(ptr[j])) {
+				isprintable = 0;
+				break;
 			}
+		}
+		if(isprintable) {
 			ptr[j] = '\0';
 			printf("[ %s ]", ptr);
 		} else {
-			printf("[ ");
-			if (k->wi_keylen)
-				printf("0x");
-			for (j = 0; j < k->wi_keylen; j++)
-				printf("%02x",ptr[j]);
+			printf("[ 0x");
+			for (j = 0; j < k->wi_keylen; j++) {
+				printf("%02x", ptr[j] & 0xFF);
+			}
 			printf(" ]");
+					
 		}
 	}
 
@@ -439,8 +452,8 @@ static struct wi_table wi_crypt_table[] = {
 	{ 0, NULL }
 };
 
-static void wi_dumpinfo(iface, asciikeys)
-	char			*iface,asciikeys;
+static void wi_dumpinfo(iface)
+	char			*iface;
 {
 	struct wi_req		wreq;
 	int			i, has_wep;
@@ -509,7 +522,7 @@ static void wi_dumpinfo(iface, asciikeys)
 				wi_printhex(&wreq);
 				break;
 			case WI_KEYSTRUCT:
-				wi_printkeys(&wreq, asciikeys);
+				wi_printkeys(&wreq);
 				break;
 			default:
 				break;
@@ -682,10 +695,10 @@ int main(argc, argv)
 	char			*iface = NULL;
 	char			*p = argv[0];
 	char			*key = NULL;
-	int			modifier = 0, show_ascii_keys = 0;
+	int			modifier = 0;
 
 	while((ch = getopt(argc, argv,
-	    "ahoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
+	    "hoc:d:e:f:i:k:p:r:q:t:n:s:m:v:P:S:T:ZC")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef WICACHE
@@ -709,9 +722,6 @@ int main(argc, argv)
 			break;
 		case 'i':
 			iface = optarg;
-			break;
-		case 'a':
-			show_ascii_keys++;
 			break;
 		case 'c':
 			wi_setword(iface, WI_RID_CREATE_IBSS, atoi(optarg));
@@ -792,7 +802,7 @@ int main(argc, argv)
 		exit(0);
 	}
 
-	wi_dumpinfo(iface,show_ascii_keys);
+	wi_dumpinfo(iface);
 
 	exit(0);
 }
