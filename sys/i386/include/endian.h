@@ -37,6 +37,7 @@
 #ifndef _MACHINE_ENDIAN_H_
 #define	_MACHINE_ENDIAN_H_
 
+#include <sys/cdefs.h>
 #include <machine/ansi.h>
 
 /*
@@ -58,6 +59,8 @@
 #endif /* ! _POSIX_SOURCE */
 
 #ifdef __GNUC__
+
+__BEGIN_DECLS
 
 static __inline __uint32_t
 __htonl(__uint32_t __x)
@@ -94,6 +97,8 @@ __ntohs(__uint16_t __x)
 
 	return (__htons(__x));
 }
+
+__END_DECLS
 
 #endif /* __GNUC__ */
 
