@@ -30,9 +30,13 @@
  *             must not themselves make calls to the signal handling
  *             facilities.
  *
- * @(#)sighandle.c 1.9 92/03/31
+ * $CVSid: @(#)sighandle.c 1.13 94/10/07 $
  *
  *************************************************************************/
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -54,18 +58,14 @@ char *malloc();
 #undef	POSIX		/* Minix 1.6 doesn't support POSIX.1 sigaction yet */
 #endif
 
-#ifndef SIGTYPE
-#define SIGTYPE void
-#endif
-
 /* Define the highest signal number (usually) */
 #ifndef SIGMAX
-#define	SIGMAX	32
+#define	SIGMAX	64
 #endif
 
 /* Define linked list of signal handlers structure */
 struct SIG_hlist {
-	SIGTYPE			(*handler)();
+	RETSIGTYPE		(*handler)();
 	struct SIG_hlist	*next;
 };
 
@@ -84,7 +84,7 @@ static	struct sigaction	*SIG_defaults;
 #ifdef BSD_SIGNALS
 static	struct sigvec		*SIG_defaults;
 #else
-static	SIGTYPE			(**SIG_defaults)();
+static	RETSIGTYPE		(**SIG_defaults)();
 #endif
 #endif
 
@@ -112,11 +112,7 @@ static int SIG_init()
 
 #ifdef POSIX
 	(void) sigfillset(&sigset_test);
-	for (i = 1; sigismember(&sigset_test, i) == 1; i++)
-#ifdef BROKEN_SIGISMEMBER
-		if ( i >= NSIG )
-		break
-#endif
+	for (i = 1; i < SIGMAX && sigismember(&sigset_test, i) == 1; i++)
 		;
 	if (i < SIGMAX)
 		i = SIGMAX;
@@ -133,8 +129,8 @@ static int SIG_init()
 			calloc(i, sizeof(struct sigvec));
 #else
 	if (!SIG_defaults)
-		SIG_defaults = (SIGTYPE (**)())
-			calloc(i, sizeof(SIGTYPE (**)()));
+		SIG_defaults = (RETSIGTYPE (**)())
+			calloc(i, sizeof(RETSIGTYPE (**)()));
 #endif
 	SIG_crSectMask = 0;
 #endif
@@ -149,7 +145,7 @@ static int SIG_init()
  * they were registered.
  */
 
-static SIGTYPE SIG_handle(sig)
+static RETSIGTYPE SIG_handle(sig)
 int			sig;
 {
 	struct SIG_hlist	*this;
@@ -175,7 +171,7 @@ int			sig;
 
 int SIG_register(sig,fn)
 int	sig;
-SIGTYPE	(*fn)();
+RETSIGTYPE	(*fn)();
 {
 	int			val;
 	struct SIG_hlist	*this;
@@ -236,7 +232,7 @@ SIGTYPE	(*fn)();
 			val = sigvec(sig, &vec, &SIG_defaults[sig]);
 #else
 			if ((SIG_defaults[sig] = signal(sig, SIG_handle)) ==
-			    (SIGTYPE (*)()) -1)
+			    (RETSIGTYPE (*)()) -1)
 				val = -1;
 #endif
 #endif
@@ -279,7 +275,7 @@ SIGTYPE	(*fn)();
 
 int SIG_deregister(sig,fn)
 int	sig;
-SIGTYPE	(*fn)();
+RETSIGTYPE	(*fn)();
 {
 	int			val;
 	struct SIG_hlist	*this;
@@ -341,7 +337,7 @@ SIGTYPE	(*fn)();
 #ifdef BSD_SIGNALS
 		val = sigvec(sig, &SIG_defaults[sig], (struct sigvec *) NULL);
 #else
-		if (signal(sig, SIG_defaults[sig]) == (SIGTYPE (*)()) -1)
+		if (signal(sig, SIG_defaults[sig]) == (RETSIGTYPE (*)()) -1)
 			val = -1;
 #endif
 #endif

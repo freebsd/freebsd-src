@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Rtag
  * 
@@ -14,24 +14,18 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)rtag.c 1.57 92/04/10";
+static char rcsid[] = "$CVSid: @(#)rtag.c 1.61 94/09/30 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Dtype rtag_dirproc (char *dir, char *repos, char *update_dir);
-static int rtag_fileproc (char *file, char *update_dir,
+static Dtype rtag_dirproc PROTO((char *dir, char *repos, char *update_dir));
+static int rtag_fileproc PROTO((char *file, char *update_dir,
 			  char *repository, List * entries,
-			  List * srcfiles);
-static int rtag_proc (int *pargc, char *argv[], char *xwhere,
+			  List * srcfiles));
+static int rtag_proc PROTO((int *pargc, char *argv[], char *xwhere,
 		      char *mwhere, char *mfile, int shorten,
-		      int local_specified, char *mname, char *msg);
-static int rtag_delete (RCSNode *rcsfile);
-#else
-static int rtag_proc ();
-static int rtag_fileproc ();
-static Dtype rtag_dirproc ();
-static int rtag_delete ();
-#endif				/* __STDC__ */
+		      int local_specified, char *mname, char *msg));
+static int rtag_delete PROTO((RCSNode *rcsfile));
 
 static char *symtag;
 static char *numtag;
@@ -41,10 +35,11 @@ static int branch_mode;			/* make an automagic "branch" tag */
 static char *date;
 static int local;			/* recursive by default */
 static int force_tag_match = 1;		/* force by default */
+static int force_tag_move;              /* don't move existing tags by default */
 
 static char *rtag_usage[] =
 {
-    "Usage: %s %s [-QaflRnq] [-b] [-d] [-r tag|-D date] tag modules...\n",
+    "Usage: %s %s [-QaflRnqF] [-b] [-d] [-r tag|-D date] tag modules...\n",
     "\t-Q\tReally quiet.\n",
     "\t-a\tClear tag from removed files that would not otherwise be tagged.\n",
     "\t-f\tForce a head revision match if tag/date not found.\n",
@@ -55,6 +50,7 @@ static char *rtag_usage[] =
     "\t-d\tDelete the given Tag.\n",
     "\t-b\tMake the tag a \"branch\" tag, allowing concurrent development.\n",
     "\t-[rD]\tExisting tag or Date.\n",
+    "\t-F\tMove tag if it already exists\n",	
     NULL
 };
 
@@ -73,7 +69,7 @@ rtag (argc, argv)
 	usage (rtag_usage);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "anfQqlRdbr:D:")) != -1)
+    while ((c = getopt (argc, argv, "FanfQqlRdbr:D:")) != -1)
     {
 	switch (c)
 	{
@@ -111,6 +107,9 @@ rtag (argc, argv)
 		if (date)
 		    free (date);
 		date = Make_Date (optarg);
+		break;
+	    case 'F':
+		force_tag_move = 1;
 		break;
 	    case '?':
 	    default:
@@ -178,7 +177,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
 	char path[PATH_MAX];
 
 	/* if the portion of the module is a path, put the dir part on repos */
-	if ((cp = rindex (mfile, '/')) != NULL)
+	if ((cp = strrchr (mfile, '/')) != NULL)
 	{
 	    *cp = '\0';
 	    (void) strcat (repository, "/");
@@ -224,7 +223,7 @@ rtag_proc (pargc, argv, xwhere, mwhere, mfile, shorten, local_specified,
     /* start the recursion processor */
     err = start_recursion (rtag_fileproc, (int (*) ()) NULL, rtag_dirproc,
 			   (int (*) ()) NULL, *pargc - 1, argv + 1, local,
-			   which, 0, 1, where, 1);
+			   which, 0, 1, where, 1, 1);
 
     return (err);
 }
@@ -304,40 +303,60 @@ rtag_fileproc (file, update_dir, repository, entries, srcfiles)
     }
     else
     {
-	char *oversion;
+       char *oversion;
+       
+       /*
+	* As an enhancement for the case where a tag is being re-applied to
+	* a large body of a module, make one extra call to Version_Number to
+	* see if the tag is already set in the RCS file.  If so, check to
+	* see if it needs to be moved.  If not, do nothing.  This will
+	* likely save a lot of time when simply moving the tag to the
+	* "current" head revisions of a module -- which I have found to be a
+	* typical tagging operation.
+	*/
+       rev = branch_mode ? RCS_magicrev (rcsfile, version) : version;
+       oversion = RCS_getversion (rcsfile, symtag, (char *) 0, 1);
+       if (oversion != NULL)
+       {
+	  int isbranch = RCS_isbranch (file, symtag, srcfiles);
 
-	/*
-	 * As an enhancement for the case where a tag is being re-applied to
-	 * a large body of a module, make one extra call to Version_Number to
-	 * see if the tag is already set in the RCS file.  If so, check to
-	 * see if it needs to be moved.  If not, do nothing.  This will
-	 * likely save a lot of time when simply moving the tag to the
-	 * "current" head revisions of a module -- which I have found to be a
-	 * typical tagging operation.
-	 */
-	oversion = RCS_getversion (rcsfile, symtag, (char *) 0, 1);
-	if (oversion != NULL)
-	{
-	    if (strcmp (version, oversion) == 0)
-	    {
-		free (version);
-		free (oversion);
-		return (0);
-	    }
-	    free (oversion);
-	}
-	rev = branch_mode ? RCS_magicrev (rcsfile, version) : version;
-	run_setup ("%s%s -q -N%s:%s", Rcsbin, RCS, symtag, rev);
+	  /*
+	   * if versions the same and neither old or new are branches don't
+	   * have to do anything
+	   */
+	  if (strcmp (version, oversion) == 0 && !branch_mode && !isbranch)
+	  {
+	     free (oversion);
+	     free (version);
+	     return (0);
+	  }
+	  
+	  if (!force_tag_move) {	/* we're NOT going to move the tag */
+	     if (update_dir[0])
+		(void) printf ("W %s/%s", update_dir, file);
+	     else
+		(void) printf ("W %s", file);
+	     
+	     (void) printf (" : %s already exists on %s %s", 
+			    symtag, isbranch ? "branch" : "version", oversion);
+	     (void) printf (" : NOT MOVING tag to %s %s\n", 
+			    branch_mode ? "branch" : "version", rev);
+	     free (oversion);
+	     free (version);
+	     return (0);
+	  }
+	  free (oversion);
+       }
+       run_setup ("%s%s -q -N%s:%s", Rcsbin, RCS, symtag, rev);
     }
     run_arg (rcsfile->path);
     if ((retcode = run_exec (RUN_TTY, RUN_TTY, RUN_TTY, RUN_NORMAL)) != 0)
     {
-	if (!quiet)
-	    error (0, retcode == -1 ? errno : 0,
-		   "failed to set tag `%s' to revision `%s' in `%s'",
-		   symtag, rev, rcsfile->path);
-	free (version);
-	return (1);
+	error (1, retcode == -1 ? errno : 0,
+	       "failed to set tag `%s' to revision `%s' in `%s'",
+	       symtag, rev, rcsfile->path);
+       free (version);
+       return (1);
     }
     free (version);
     return (0);

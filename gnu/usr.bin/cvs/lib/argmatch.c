@@ -17,6 +17,10 @@
 
 /* Written by David MacKenzie <djm@ai.mit.edu> */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include <stdio.h>
 #ifdef STDC_HEADERS
 #include <string.h>

@@ -179,7 +179,8 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)history.c 1.31 92/04/10";
+static char rcsid[] = "$CVSid: @(#)history.c 1.33 94/09/21 $";
+USE(rcsid)
 #endif
 
 static struct hrec
@@ -197,33 +198,18 @@ static struct hrec
 } *hrec_head;
 
 
-#if __STDC__
-static char *fill_hrec (char *line, struct hrec * hr);
-static int accept_hrec (struct hrec * hr, struct hrec * lr);
-static int select_hrec (struct hrec * hr);
-static int sort_order (CONST PTR l, CONST PTR r);
-static int within (char *find, char *string);
-static time_t date_and_time (char *date_str);
-static void expand_modules (void);
-static void read_hrecs (char *fname);
-static void report_hrecs (void);
-static void save_file (char *dir, char *name, char *module);
-static void save_module (char *module);
-static void save_user (char *name);
-#else
-static int sort_order ();
-static time_t date_and_time ();
-static void save_user ();
-static void save_file ();
-static void save_module ();
-static void expand_modules ();
-static char *fill_hrec ();
-static void read_hrecs ();
-static int within ();
-static int select_hrec ();
-static void report_hrecs ();
-static int accept_hrec ();
-#endif				/* __STDC__ */
+static char *fill_hrec PROTO((char *line, struct hrec * hr));
+static int accept_hrec PROTO((struct hrec * hr, struct hrec * lr));
+static int select_hrec PROTO((struct hrec * hr));
+static int sort_order PROTO((CONST PTR l, CONST PTR r));
+static int within PROTO((char *find, char *string));
+static time_t date_and_time PROTO((char *date_str));
+static void expand_modules PROTO((void));
+static void read_hrecs PROTO((char *fname));
+static void report_hrecs PROTO((void));
+static void save_file PROTO((char *dir, char *name, char *module));
+static void save_module PROTO((char *module));
+static void save_user PROTO((char *name));
 
 #define ALL_REC_TYPES "TOFWUCGMAR"
 #define USER_INCREMENT	2
@@ -246,6 +232,14 @@ static short user_sort;
 static short repos_sort;
 static short file_sort;
 static short module_sort;
+
+#ifdef HAVE_RCS5
+static short tz_local;
+static time_t tz_seconds_east_of_GMT;
+static char *tz_name = "+0000";
+#else
+static char tz_name[] = "LT";
+#endif
 
 static time_t since_date;
 static char since_rev[20];	/* Maxrev ~= 99.99.99.999 */
@@ -301,6 +295,7 @@ static char *history_usg[] =
     "        -r <rev/tag>    Since rev or tag (looks inside RCS files!)\n",
     "        -t <tag>        Since tag record placed in history file (by anyone).\n",
     "        -u <user>       For user name (repeatable)\n",
+    "        -z <tz>         Output for time zone <tz> (e.g. -z -0700)\n",
     NULL};
 
 /* Sort routine for qsort:
@@ -385,7 +380,7 @@ history (argc, argv)
 	usage (history_usg);
 
     optind = 1;
-    while ((c = gnu_getopt (argc, argv, "Tacelow?D:b:f:m:n:p:r:t:u:x:X:")) != -1)
+    while ((c = getopt (argc, argv, "Tacelow?D:b:f:m:n:p:r:t:u:x:X:z:")) != -1)
     {
 	switch (c)
 	{
@@ -481,10 +476,46 @@ history (argc, argv)
 		    char *cp;
 
 		    for (cp = optarg; *cp; cp++)
-			if (!index (ALL_REC_TYPES, *cp))
-			    error (1, 0, "%c is not a valid report type", cp);
+			if (!strchr (ALL_REC_TYPES, *cp))
+			    error (1, 0, "%c is not a valid report type", *cp);
 		}
 		(void) strcpy (rec_types, optarg);
+		break;
+	    case 'z':
+#ifndef HAVE_RCS5
+		error (0, 0, "-z not supported with RCS 4");
+#else
+		tz_local = 
+		    (optarg[0] == 'l' || optarg[0] == 'L')
+		    && (optarg[1] == 't' || optarg[1] == 'T')
+		    && !optarg[2];
+		if (tz_local)
+		    tz_name = optarg;
+		else
+		{
+		    /*
+		     * Convert a known time with the given timezone to time_t.
+		     * Use the epoch + 23 hours, so timezones east of GMT work.
+		     */
+		    static char f[] = "1/1/1970 23:00 %s";
+		    char *buf = xmalloc (sizeof (f) - 2 + strlen (optarg));
+		    time_t t;
+		    sprintf (buf, f, optarg);
+		    t = get_date (buf, (struct timeb *) NULL);
+		    free (buf);
+		    if (t == (time_t) -1)
+			error (0, 0, "%s is not a known time zone", optarg);
+		    else
+		    {
+			/*
+			 * Convert to seconds east of GMT, removing the
+			 * 23-hour offset mentioned above.
+			 */
+			tz_seconds_east_of_GMT = (time_t)23 * 60 * 60  -  t;
+			tz_name = optarg;
+		    }
+		}
+#endif
 		break;
 	    case '?':
 	    default:
@@ -508,7 +539,7 @@ history (argc, argv)
 
     if (tag_report)
     {
-	if (!index (rec_types, 'T'))
+	if (!strchr (rec_types, 'T'))
 	    (void) strcat (rec_types, "T");
     }
     else if (extract)
@@ -559,7 +590,7 @@ history (argc, argv)
 	save_user (getcaller ());
 
     /* If we're looking back to a Tag value, must consider "Tag" records */
-    if (*since_tag && !index (rec_types, 'T'))
+    if (*since_tag && !strchr (rec_types, 'T'))
 	(void) strcat (rec_types, "T");
 
     argc -= c;
@@ -637,7 +668,7 @@ history_write (type, update_dir, revs, name, repository)
 		if (chdir (pw->pw_dir) < 0)
 		    error (1, errno, "can't chdir(%s)", pw->pw_dir);
 		if (!getwd (homedir))
-		    error (1, errno, "can't getwd in:", pw->pw_dir);
+		    error (1, errno, "can't getwd in %s", pw->pw_dir);
 		(void) chdir (workdir);
 
 		i = strlen (homedir);
@@ -837,16 +868,16 @@ fill_hrec (line, hr)
     int off;
     static int idx = 0;
 
-    bzero ((char *) hr, sizeof (*hr));
+    memset ((char *) hr, 0, sizeof (*hr));
     while (isspace (*line))
 	line++;
-    if (!(rtn = index (line, '\n')))
+    if (!(rtn = strchr (line, '\n')))
 	return ("");
     *rtn++ = '\0';
 
     hr->type = line++;
     (void) sscanf (line, "%x", &hr->date);
-    while (*line && index ("0123456789abcdefABCDEF", *line))
+    while (*line && strchr ("0123456789abcdefABCDEF", *line))
 	line++;
     if (*line == '\0')
 	return (rtn);
@@ -854,7 +885,7 @@ fill_hrec (line, hr)
     line++;
     NEXT_BAR (user);
     NEXT_BAR (dir);
-    if ((cp = rindex (hr->dir, '*')) != NULL)
+    if ((cp = strrchr (hr->dir, '*')) != NULL)
     {
 	*cp++ = '\0';
 	(void) sscanf (cp, "%x", &off);
@@ -865,7 +896,7 @@ fill_hrec (line, hr)
     NEXT_BAR (repos);
     NEXT_BAR (rev);
     hr->idx = idx++;
-    if (index ("FOT", *(hr->type)))
+    if (strchr ("FOT", *(hr->type)))
 	hr->mod = line;
 
     NEXT_BAR (file);	/* This returns ptr to next line or final '\0' */
@@ -981,7 +1012,7 @@ within (find, string)
 
     while (*string)
     {
-	if (!(string = index (string, c)))
+	if (!(string = strchr (string, c)))
 	    return (0);
 	string++;
 	if (!strncmp (find, string, len))
@@ -1104,9 +1135,9 @@ select_hrec (hr)
      *    file_list is null, keep everything.  Otherwise, keep only files on
      *    file_list, matched appropriately.
      */
-    if (!index (rec_types, *(hr->type)))
+    if (!strchr (rec_types, *(hr->type)))
 	return (0);
-    if (!index ("TFO", *(hr->type)))	/* Don't bother with "file" if "TFO" */
+    if (!strchr ("TFO", *(hr->type)))	/* Don't bother with "file" if "TFO" */
     {
 	if (file_list)			/* If file_list is null, accept all */
 	{
@@ -1132,7 +1163,7 @@ select_hrec (hr)
 		}
 		else
 		{
-		    if (index (cp, '/'))
+		    if (strchr (cp, '/'))
 		    {
 			(void) sprintf (cp2 = cmpfile, "%s/%s",
 					hr->repos, hr->file);
@@ -1215,7 +1246,7 @@ report_hrecs ()
 
 	ty = *(lr->type);
 	(void) strcpy (repos, lr->repos);
-	if ((cp = rindex (repos, '/')) != NULL)
+	if ((cp = strrchr (repos, '/')) != NULL)
 	{
 	    if (lr->mod && !strcmp (++cp, lr->mod))
 	    {
@@ -1253,12 +1284,21 @@ report_hrecs ()
 	    continue;
 
 	ty = *(lr->type);
+#ifdef HAVE_RCS5
+	if (!tz_local)
+	{
+	    time_t t = lr->date + tz_seconds_east_of_GMT;
+	    tm = gmtime (&t);
+	}
+	else
+#endif
 	tm = localtime (&(lr->date));
-	(void) printf ("%c %02d/%02d %02d:%02d %-*s", ty, tm->tm_mon + 1,
-		  tm->tm_mday, tm->tm_hour, tm->tm_min, user_len, lr->user);
+	(void) printf ("%c %02d/%02d %02d:%02d %s %-*s", ty, tm->tm_mon + 1,
+		  tm->tm_mday, tm->tm_hour, tm->tm_min, tz_name,
+		  user_len, lr->user);
 
 	(void) sprintf (workdir, "%s%s", lr->dir, lr->end);
-	if ((cp = rindex (workdir, '/')) != NULL)
+	if ((cp = strrchr (workdir, '/')) != NULL)
 	{
 	    if (lr->mod && !strcmp (++cp, lr->mod))
 	    {
@@ -1266,7 +1306,7 @@ report_hrecs ()
 	    }
 	}
 	(void) strcpy (repos, lr->repos);
-	if ((cp = rindex (repos, '/')) != NULL)
+	if ((cp = strrchr (repos, '/')) != NULL)
 	{
 	    if (lr->mod && !strcmp (++cp, lr->mod))
 	    {

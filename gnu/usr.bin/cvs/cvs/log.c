@@ -3,7 +3,7 @@
  * Copyright (c) 1989-1992, Brian Berliner
  * 
  * You may distribute under the terms of the GNU General Public License as
- * specified in the README file that comes with the CVS 1.3 kit.
+ * specified in the README file that comes with the CVS 1.4 kit.
  * 
  * Print Log Information
  * 
@@ -15,17 +15,13 @@
 #include "cvs.h"
 
 #ifndef lint
-static char rcsid[] = "@(#)log.c 1.39 92/03/31";
+static char rcsid[] = "$CVSid: @(#)log.c 1.44 94/09/30 $";
+USE(rcsid)
 #endif
 
-#if __STDC__
-static Dtype log_dirproc (char *dir, char *repository, char *update_dir);
-static int log_fileproc (char *file, char *update_dir, char *repository,
-			 List * entries, List * srcfiles);
-#else
-static int log_fileproc ();
-static Dtype log_dirproc ();
-#endif				/* __STDC__ */
+static Dtype log_dirproc PROTO((char *dir, char *repository, char *update_dir));
+static int log_fileproc PROTO((char *file, char *update_dir, char *repository,
+			 List * entries, List * srcfiles));
 
 static char options[PATH_MAX];
 
@@ -76,7 +72,7 @@ cvslog (argc, argv)
     err = start_recursion (log_fileproc, (int (*) ()) NULL, log_dirproc,
 			   (int (*) ()) NULL, argc, argv, local,
 			   W_LOCAL | W_REPOS | W_ATTIC, 0, 1,
-			   (char *) NULL, 1);
+			   (char *) NULL, 1, 0);
     return (err);
 }
 
@@ -99,8 +95,25 @@ log_fileproc (file, update_dir, repository, entries, srcfiles)
     p = findnode (srcfiles, file);
     if (p == NULL || (rcsfile = (RCSNode *) p->data) == NULL)
     {
+	/* no rcs file.  What *do* we know about this file? */
+	p = findnode (entries, file);
+	if (p != NULL)
+	{
+	    Entnode *e;
+	    
+	    e = (Entnode *) p->data;
+	    if (e->version[0] == '0' || e->version[1] == '\0')
+	    {
+		if (!really_quiet)
+		    error (0, 0, "%s has been added, but not committed",
+			   file);
+		return(0);
+	    }
+	}
+	
 	if (!really_quiet)
 	    error (0, 0, "nothing known about %s", file);
+	
 	return (1);
     }
 
