@@ -27,7 +27,7 @@
  */
 
 /*
- * XXX: implement missing int_* (LC_MONETARY) and era_* (LC_CTYIME) keywords
+ * XXX: implement missing int_* (LC_MONETARY) and era_* (LC_CTIME) keywords
  *      (require libc modification)
  *
  * XXX: correctly handle reserved 'charmap' keyword and '-m' option (require
@@ -115,7 +115,6 @@ struct _kwinfo {
 	{ "radixchar",		1, LC_NUMERIC,	RADIXCHAR },	/* compat */
 	{ "thousep",		1, LC_NUMERIC,	THOUSEP},	/* compat */
 
-	{ "currency_symbol",	1, LC_MONETARY, KW_CURRENCY_SYMBOL }, /*compat*/
 	{ "int_curr_symbol",	1, LC_MONETARY,	KW_INT_CURR_SYMBOL },
 	{ "currency_symbol",	1, LC_MONETARY,	KW_CURRENCY_SYMBOL },
 	{ "mon_decimal_point",	1, LC_MONETARY,	KW_MON_DECIMAL_POINT },
@@ -362,7 +361,7 @@ showlocale(void)
 	setlocale(LC_ALL, "");
 
 	lang = getenv("LANG");
-	if (lang == NULL || *lang == '\0') {
+	if (lang == NULL) {
 		lang = "";
 	}
 	printf("LANG=%s\n", lang);
@@ -388,7 +387,7 @@ showlocale(void)
 	}
 
 	vval = getenv("LC_ALL");
-	if (vval == NULL || *vval == '\0') {
+	if (vval == NULL) {
 		vval = "";
 	}
 	printf("LC_ALL=%s\n", vval);
