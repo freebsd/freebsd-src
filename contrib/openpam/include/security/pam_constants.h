@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_constants.h#10 $
+ * $P4: //depot/projects/openpam/include/security/pam_constants.h#11 $
  */
 
 #ifndef _PAM_CONSTANTS_H_INCLUDED
@@ -98,7 +98,7 @@ enum {
 	PAM_DISALLOW_NULL_AUTHTOK	= 0x1,
 	PAM_ESTABLISH_CRED		= 0x1,
 	PAM_DELETE_CRED			= 0x2,
-	PAM_REINITIALISE_CRED		= 0x4,
+	PAM_REINITIALIZE_CRED		= 0x4,
 	PAM_REFRESH_CRED		= 0x8,
 	PAM_PRELIM_CHECK		= 0x1,
 	PAM_UPDATE_AUTHTOK		= 0x2,
