@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: link_elf.c,v 1.14 1999/01/27 23:45:39 dillon Exp $
+ *	$Id: link_elf.c,v 1.15 1999/01/28 00:57:47 dillon Exp $
  */
 
 #include <sys/param.h>
@@ -789,7 +789,7 @@ relocate_file(linker_file_t lf)
     /* Perform relocations without addend if there are any: */
     rel = ef->rel;
     if (rel) {
-	rellim = (const Elf_Rel *) ((c_caddr_t) ef->rel + ef->relsize);
+	rellim = (const Elf_Rel *)((const char *)ef->rel + ef->relsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
 	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
@@ -803,7 +803,7 @@ relocate_file(linker_file_t lf)
     /* Perform relocations with addend if there are any: */
     rela = ef->rela;
     if (rela) {
-	relalim = (const Elf_Rela *) ((c_caddr_t) ef->rela + ef->relasize);
+	relalim = (const Elf_Rela *)((const char *)ef->rela + ef->relasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
 	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
@@ -817,7 +817,7 @@ relocate_file(linker_file_t lf)
     /* Perform PLT relocations without addend if there are any: */
     rel = ef->pltrel;
     if (rel) {
-	rellim = (const Elf_Rel *) ((c_caddr_t) ef->pltrel + ef->pltrelsize);
+	rellim = (const Elf_Rel *)((const char *)ef->pltrel + ef->pltrelsize);
 	while (rel < rellim) {
 	    symname = symbol_name(ef, rel->r_info);
 	    if (elf_reloc(lf, rel, ELF_RELOC_REL, symname)) {
@@ -831,7 +831,7 @@ relocate_file(linker_file_t lf)
     /* Perform relocations with addend if there are any: */
     rela = ef->pltrela;
     if (rela) {
-	relalim = (const Elf_Rela *) ((c_caddr_t) ef->pltrela + ef->pltrelasize);
+	relalim = (const Elf_Rela *)((const char *)ef->pltrela + ef->pltrelasize);
 	while (rela < relalim) {
 	    symname = symbol_name(ef, rela->r_info);
 	    if (elf_reloc(lf, rela, ELF_RELOC_RELA, symname)) {
