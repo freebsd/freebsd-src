@@ -36,6 +36,8 @@
 .Op Fl rt
 .Op Fl c Ar node
 .Op Fl d Ar node
+.Op Fl o Ar node
+.Op Fl s Ar node
 .Op Fl l Ar file
 .Op Fl g Ar gap_count
 .Op Fl b Ar pri_req
@@ -60,6 +62,10 @@ Show the topology map.
 Show the configuration ROM on the node.
 .It Fl d Ar node
 Hex dump of the configuration ROM.
+.It Fl o Ar node
+Send a link-on phy packet to the node.
+.It Fl s Ar node
+Write to RESET_START register on the node.
 .It Fl l Ar file
 Load hex dump file of the configuration ROM and parse it.
 .It Fl g Ar gap_count
