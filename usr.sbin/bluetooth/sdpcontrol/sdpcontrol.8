@@ -35,7 +35,7 @@
 .Nm
 .Fl h
 .Nm
-.Fl a Ar BD_ADDR
+.Fl a Ar address
 .Ar command
 .Op Ar parameters ...
 .Nm
@@ -47,7 +47,7 @@
 The
 .Nm
 utility attempts to query specified Service Discovery Protocol (SDP) server.
-Remote SDP servers are identified by their BD_ADDRs.
+Remote SDP servers are identified by their address.
 Connection to the local SDP server is made via control socket.
 The
 .Nm
@@ -56,10 +56,13 @@ the standard output and error messages to the standard error.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl a Ar BD_ADDR
-Connect to the remote device with the specified BD_ADDR.
-Example:
-.Fl a Li 00:01:02:03:04:05 .
+.It Fl a Ar address
+Connect to the remote device with the specified address.
+The address can be specified as BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
 .It Fl c Ar path
 Specify path to the control socket.
 The default path is
@@ -109,6 +112,7 @@ Bluetooth Profile Descriptor List
 .Sh DIAGNOSTICS
 .Ex -std
 .Sh SEE ALSO
+.Xr bluetooth 3 ,
 .Xr sdp 3
 .Sh AUTHORS
 .An Maksim Yevmenkin Aq m_evmenkin@yahoo.com

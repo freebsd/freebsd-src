@@ -106,7 +106,7 @@ option:		bdaddr
 bdaddr:		T_BDADDR T_BDADDRSTRING
 			{
 			if (!bt_aton($2, &key->bdaddr)) {
-				syslog(LOG_ERR, "Cound not parse BDADDR " \
+				syslog(LOG_ERR, "Cound not parse BD_ADDR " \
 						"'%s'", $2);
 				exit(1);
 			}
@@ -134,7 +134,7 @@ key:		T_KEY T_HEXSTRING
 			if (key->key != NULL)
 				free(key->key);
 
-			key->key = (u_int8_t *) malloc(NG_HCI_KEY_SIZE);
+			key->key = (uint8_t *) malloc(NG_HCI_KEY_SIZE);
 			if (key->key == NULL) {
 				syslog(LOG_ERR, "Could not allocate new " \
 						"link key");
@@ -318,7 +318,7 @@ read_keys_file(void)
 			continue;
 
 		if (key->key == NULL) {
-			key->key = (u_int8_t *) malloc(NG_HCI_KEY_SIZE);
+			key->key = (uint8_t *) malloc(NG_HCI_KEY_SIZE);
 			if (key->key == NULL) {
 				syslog(LOG_ERR, "Could not allocate link key");
 				exit(1);

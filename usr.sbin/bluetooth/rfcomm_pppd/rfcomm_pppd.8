@@ -35,14 +35,14 @@
 .Nm
 .Fl c
 .Op Fl dh
-.Fl a Ar BD_ADDR
+.Fl a Ar address
 .Fl C Ar channel
 .Fl l Ar label
 .Fl u Ar N
 .Nm
 .Fl s
 .Op Fl dhS
-.Op Fl a Ar BD_ADDR
+.Op Fl a Ar address
 .Fl C Ar channel
 .Fl l Ar label
 .Sh DESCRIPTION
@@ -92,14 +92,19 @@ the standard serial port thus providing network connectivity to remote clients.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl a Ar BD_ADDR
-In the client mode, this required option specifies the remote BD_ADDR of the
+.It Fl a Ar address
+In the client mode, this required option specifies the address of the remote
 RFCOMM server.
 In the server mode, this option can be used to specify the local
-BD_ADDR to listen on.
+address to listen on.
 By default, server will listen on
 .Dv ANY
 address.
+The address can be specified as BD_ADDR or name.
+If name was specified then the
+.Nm
+utility will attempt to resolve the name via
+.Xr bt_gethostbyname 3 .
 .It Fl C Ar channel
 In both client and server modes, this required option specifies RFCOMM channel
 to connect to or listen on.
@@ -312,6 +317,7 @@ If local SDP daemon is not running the
 utility will exit with error.
 .Sh SEE ALSO
 .Xr rfcomm_sppd 1 ,
+.Xr bluetooth 3 ,
 .Xr ng_btsocket 4 ,
 .Xr ppp 8 ,
 .Xr sdpcontrol 8 ,

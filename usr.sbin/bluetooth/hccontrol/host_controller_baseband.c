@@ -1513,32 +1513,32 @@ struct hci_command	host_controller_baseband_commands[] = {
 &hci_write_pin_type
 },
 {
-"read_stored_link_key [<bdaddr>]",
+"read_stored_link_key [<BD_ADDR>]",
 "\nThe Read_Stored_Link_Key command provides the ability to read one or\n" \
 "more link keys stored in the Bluetooth Host Controller. The Bluetooth Host\n" \
 "Controller can store a limited number of link keys for other Bluetooth\n" \
 "devices.\n\n" \
-"\t<bdaddr> - xx:xx:xx:xx:xx:xx BD_ADDR",
+"\t<BD_ADDR> - xx:xx:xx:xx:xx:xx BD_ADDR or name",
 &hci_read_stored_link_key
 },
 {
-"write_stored_link_key <bdaddr> <key>",
+"write_stored_link_key <BD_ADDR> <key>",
 "\nThe Write_Stored_Link_Key command provides the ability to write one\n" \
 "or more link keys to be stored in the Bluetooth Host Controller. The\n" \
 "Bluetooth Host Controller can store a limited number of link keys for other\n"\
 "Bluetooth devices. If no additional space is available in the Bluetooth\n"\
 "Host Controller then no additional link keys will be stored.\n\n" \
-"\t<bdaddr> - xx:xx:xx:xx:xx:xx BD_ADDR\n" \
-"\t<key>    - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx up to 16 bytes link key",
+"\t<BD_ADDR> - xx:xx:xx:xx:xx:xx BD_ADDR or name\n" \
+"\t<key>     - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx up to 16 bytes link key",
 &hci_write_stored_link_key
 },
 {
-"delete_stored_link_key [<bdaddr>]",
+"delete_stored_link_key [<BD_ADDR>]",
 "\nThe Delete_Stored_Link_Key command provides the ability to remove one\n" \
 "or more of the link keys stored in the Bluetooth Host Controller. The\n" \
 "Bluetooth Host Controller can store a limited number of link keys for other\n"\
 "Bluetooth devices.\n\n" \
-"\t<bdaddr> - xx:xx:xx:xx:xx:xx BD_ADDR",
+"\t<BD_ADDR> - xx:xx:xx:xx:xx:xx BD_ADDR or name",
 &hci_delete_stored_link_key
 },
 {

@@ -243,7 +243,7 @@ usage(void)
 	fprintf(stderr,
 "Usage: %s [options]\n" \
 "Where options are:\n" \
-"	-a bdaddr	specify BDADDR to listen on (default ANY)\n" \
+"	-a address	specify address to listen on (default ANY)\n" \
 "	-c file		specify config file name\n" \
 "	-d		run in foreground\n" \
 "	-H file		specify known HIDs file name\n" \
