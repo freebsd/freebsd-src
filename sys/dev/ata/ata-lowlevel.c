@@ -289,7 +289,7 @@ ata_generic_interrupt(void *data)
 
     /* ignore this interrupt if there is no running request */
     if (!request) {
-	if (ATA_LOCK_CH(ch, ATA_CONTROL)) {
+	if (ATA_LOCK_CH(ch)) {
 	    u_int8_t status = ATA_IDX_INB(ch, ATA_STATUS);
 	    u_int8_t error = ATA_IDX_INB(ch, ATA_ERROR);
 
