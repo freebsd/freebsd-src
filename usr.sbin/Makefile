@@ -195,6 +195,7 @@ SUBDIR+=apm \
 	mount_nwfs \
 	mount_smbfs \
 	mptable \
+	ndiscvt \
 	pccard \
 	pcvt \
 	pnpinfo \
