@@ -50,9 +50,17 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* Values to keep the different chip revisions apart */
-#define SK_GENESIS 0
-#define SK_YUKON 1
+/* Values to keep the different chip revisions apart (SK_CHIPVER). */
+#define SK_GENESIS		0x0A
+#define SK_YUKON		0xB0
+#define SK_YUKON_LITE		0xB1
+#define SK_YUKON_LP		0xB2
+#define SK_YUKON_FAMILY(x) ((x) & 0xB0)
+
+/* Known revisions in SK_CONFIG. */
+#define SK_YUKON_LITE_REV_A0	0x0 /* invented, see test in skc_attach. */
+#define SK_YUKON_LITE_REV_A1	0x3
+#define SK_YUKON_LITE_REV_A3	0x7
 
 /*
  * SysKonnect PCI vendor ID
@@ -1425,6 +1433,8 @@ struct sk_softc {
 	struct resource		*sk_res;	/* I/O or shared mem handle */
 	u_int8_t		sk_unit;	/* controller number */
 	u_int8_t		sk_type;
+	u_int8_t		sk_rev;
+	u_int8_t		spare;
 	char			*sk_vpd_prodname;
 	char			*sk_vpd_readonly;
 	uint16_t		sk_vpd_readonly_len;
