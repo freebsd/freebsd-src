@@ -42,6 +42,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
@@ -711,7 +712,7 @@ psycho_powerfail(void *arg)
 #ifdef DEBUGGER_ON_POWERFAIL
 	struct psycho_softc *sc = (struct psycho_softc *)arg;
 
-	Debugger("powerfail");
+	kdb_enter("powerfail");
 	PSYCHO_WRITE8(sc, PSR_POWER_INT_CLR, 0);
 #else
 	printf("Power Failure Detected: Shutting down NOW.\n");
