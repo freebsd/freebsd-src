@@ -10,8 +10,8 @@ LINKS+= ${BINDIR}/${VI} ${BINDIR}/view
 MAN1=	${.CURDIR}/../USD.doc/vi.man/vi.1
 
 CFLAGS+=-I. -I${.CURDIR}
-DPADD+= ${LIBCURSES} ${LIBTERM} ${LIBUTIL}
-LDADD+=	-lcurses -ltermlib -lutil
+DPADD+= ${LIBCURSES} ${LIBTERMCAP} ${LIBUTIL}
+LDADD+=	-lcurses -ltermcap -lutil
 
 .PATH:	${.CURDIR}/../common ${.CURDIR}/../ex ${.CURDIR}/../sex \
 	${.CURDIR}/../vi ${.CURDIR}/../svi ${.CURDIR}/../xaw
@@ -90,7 +90,7 @@ tags::
 
 warn:: ${SRCS}
 	-(cd ${.CURDIR} && gcc -Wall -O4 -DDEBUG \
-	    -Iobj -I. ${.ALLSRC} -lcurses -ltermlib 2>&1 | \
+	    -Iobj -I. ${.ALLSRC} -lcurses -ltermcap 2>&1 | \
 	    sed -e "/warning: .*sccsid.*defined but not used/d" \
 	    	-e "/warning: suggest parentheses around/d" \
 	    	-e "/In function /d" \
