@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.50 1995/10/22 01:32:46 jkh Exp $
+ * $Id: install.c,v 1.71.2.52 1995/10/22 17:39:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -316,7 +316,7 @@ installFixit(char *str)
     clear();
     dialog_clear();
     dialog_update();
-    unmount("/mnt2", 0);
+    unmount("/mnt2", MNT_FORCE);
     dialog_clear();
     msgConfirm("Please remove the fixit floppy now.");
     return RET_SUCCESS;
@@ -426,7 +426,6 @@ installCommit(char *str)
 	i = RET_FAIL;
 
     if (i != RET_FAIL && str && !strcmp(str, "express")) {
-	/* Ask this now, before installFinal() tries do actually do any of it */
 	dialog_clear();
 	if (!msgYesNo("Since you're running the express installation, a few post-configuration\n"
 		      "questions will be asked at this point.\n\n"
@@ -438,8 +437,8 @@ installCommit(char *str)
 
 	dialog_clear();
 	if (!msgYesNo("Would you like to configure any additional network devices or services?"))
-	    dmenuOpenSimple(&MenuNetworking);
-	
+	    configNetworking(NULL);
+
 	/* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 	
 	/* Final menu of last resort */
@@ -448,9 +447,6 @@ installCommit(char *str)
 		      "additional configuration options?"))
 	    dmenuOpenSimple(&MenuConfigure);
     }
-
-    if (i != RET_FAIL && installFinal(NULL) == RET_FAIL)
-	i = RET_FAIL;
 
     /* Write out any changes to /etc/sysconfig */
     if (RunningAsInit)

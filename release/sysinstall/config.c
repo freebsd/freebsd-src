@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.21 1995/10/22 01:32:38 jkh Exp $
+ * $Id: config.c,v 1.16.2.23 1995/10/22 17:38:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -366,6 +366,15 @@ skip:
 	if (isDebug())
 	    msgDebug("Appended entry for %s to /etc/hosts\n", cp);
     }
+}
+
+int
+configNetworking(char *str)
+{
+    if (dmenuOpenSimple(&MenuNetworking))
+	return installNetworking(str);
+    else
+	return RET_FAIL;
 }
 
 int
