@@ -3,7 +3,7 @@ $ ee.i18n.guide for more information
 $ 
 $ For ee patchlevel 3
 $
-$ $Id$
+$ $Id: ee.msg,v 1.1 1995/09/09 15:06:08 jmz Exp $
 $ 
 $set 1
 $quote "
@@ -50,7 +50,7 @@ $quote "
 41 "^f annuler eff. caract. ^n page suivante        ^x recherche               "
 42 "^g début de ligne       ^o fin de ligne         ^y effacer ligne           "
 43 "^h arrière              ^p page précédente      ^z annuler effacement ligne"
-44 "^[ (échappement) menu                                                      "
+44 "^[ (échappement) menu   ESC-Enter: quitter ee                              "
 45 "                                                                           "
 46 "Commandes:                                                                 "
 47 "aide   : pour cet écran d'info        fichier: donne le nom du fichier  "
@@ -67,7 +67,7 @@ $quote "
 58 "^a code ascii     ^x rechercher     ^z annul. eff. ligne ^d bas    ^n page suiv."
 59 "^b fin du texte   ^g début de ligne ^w efface mot        ^l gauche              "
 60 "^t début du texte ^o fin de ligne   ^v annul. eff. mot   ^r droite              "
-61 "^c commande       ^k efface caract. ^f annul. eff. caract.                      "
+61 "^c commande       ^k efface caract. ^f annul. eff. caract.   ESC-Enter: quitter "
 62 "aide: fenêtre d'aide  |fichier: nom du fichier       |ligne: numéro de ligne"
 63 "lire: lecture  fichier|caract : code ascii du car.   |0-9: aller ligne \"#\""
 64 "ecrire: crée un fich. |minmaj: rech. sensible min/maj|fin: quitte et sauve"
