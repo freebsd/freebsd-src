@@ -49,7 +49,7 @@
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -102,8 +102,9 @@ rip_init()
 	 */
 	ripcbinfo.hashbase = hashinit(1, M_PCB, &ripcbinfo.hashmask);
 	ripcbinfo.porthashbase = hashinit(1, M_PCB, &ripcbinfo.porthashmask);
-	ripcbinfo.ipi_zone = zinit("ripcb", sizeof(struct inpcb),
-				   maxsockets, ZONE_INTERRUPT, 0);
+	ripcbinfo.ipi_zone = uma_zcreate("ripcb", sizeof(struct inpcb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(ripcbinfo.ipi_zone, maxsockets);
 }
 
 static struct	sockaddr_in ripsrc = { sizeof(ripsrc), AF_INET };

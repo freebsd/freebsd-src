@@ -53,7 +53,7 @@
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -120,8 +120,9 @@ div_init(void)
 	 */
 	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
 	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
-	divcbinfo.ipi_zone = zinit("divcb", sizeof(struct inpcb),
-				   maxsockets, ZONE_INTERRUPT, 0);
+	divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
 }
 
 /*

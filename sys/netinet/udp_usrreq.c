@@ -51,7 +51,7 @@
 #include <sys/syslog.h>
 #include <sys/jail.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -144,8 +144,9 @@ udp_init()
 	udbinfo.hashbase = hashinit(UDBHASHSIZE, M_PCB, &udbinfo.hashmask);
 	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB,
 					&udbinfo.porthashmask);
-	udbinfo.ipi_zone = zinit("udpcb", sizeof(struct inpcb), maxsockets,
-				 ZONE_INTERRUPT, 0);
+	udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
 }
 
 void
