@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 
 static int	printaname(FTSENT *, u_long, u_long);
-static void	printlink(FTSENT *);
+static void	printlink(const FTSENT *);
 static void	printtime(time_t);
 static int	printtype(u_int);
 static void	printsize(size_t, off_t);
@@ -95,7 +95,7 @@ typedef enum {
 } unit_t;
 static unit_t unit_adjust(double *);
 
-static int unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
+static unit_t unitp[] = {NONE, KILO, MEGA, GIGA, TERA, PETA};
 
 #ifdef COLORLS
 /* Most of these are taken from <sys/stat.h> */
@@ -522,7 +522,7 @@ parsecolors(const char *cs)
 {
 	int i;
 	int j;
-	int len;
+	size_t len;
 	char c[2];
 	short legacy_warn = 0;
 
@@ -579,7 +579,7 @@ colorquit(int sig)
 #endif /* COLORLS */
 
 static void
-printlink(FTSENT *p)
+printlink(const FTSENT *p)
 {
 	int lnklen;
 	char name[MAXPATHLEN + 1];
@@ -624,18 +624,18 @@ printsize(size_t width, off_t bytes)
  * especially on huge disks.
  *
  */
-unit_t
+static unit_t
 unit_adjust(double *val)
 {
 	double abval;
 	unit_t unit;
-	unsigned int unit_sz;
+	u_int unit_sz;
 
 	abval = fabs(*val);
 
-	unit_sz = abval ? ilogb(abval) / 10 : 0;
+	unit_sz = abval ? (u_int)ilogb(abval) / 10 : 0;
 
-	if (unit_sz >= UNIT_MAX) {
+	if (unit_sz >= (u_int)UNIT_MAX) {
 		unit = NONE;
 	} else {
 		unit = unitp[unit_sz];
