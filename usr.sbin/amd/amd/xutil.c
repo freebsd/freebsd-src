@@ -41,7 +41,7 @@
 static char sccsid[] = "@(#)xutil.c 8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: xutil.c,v 1.1.1.1.8.1 1997/09/03 06:27:04 charnier Exp $";
 #endif /* not lint */
 
 #include "config.h"
@@ -176,21 +176,24 @@ extern struct mallinfo __mallinfo;
 
 /*
  * Take a log format string and expand occurences of %m
- * with the current error code take from errno.
+ * with the current error code taken from errno.  Make sure
+ * 'e' never gets longer than maxlen characters.
  */
 INLINE
-static void expand_error(f, e)
+static void expand_error(f, e, maxlen)
 char *f;
 char *e;
+int maxlen;
 {
 #ifndef HAS_STRERROR
 	extern int sys_nerr;
 	extern char *sys_errlist[];
 #endif
-	char *p;
+	char *p, *q;
 	int error = errno;
+	int len = 0;
 
-	for (p = f; *e = *p; e++, p++) {
+	for (p = f, q = e; (*q = *p) && len < maxlen; len++, q++, p++) {
 		if (p[0] == '%' && p[1] == 'm') {
 			char *errstr;
 #ifdef HAS_STRERROR
@@ -202,13 +205,15 @@ char *e;
 				errstr = sys_errlist[error];
 #endif
 			if (errstr)
-				strcpy(e, errstr);
+				strcpy(q, errstr);
 			else
-				sprintf(e, "Error %d", error);
-			e += strlen(e) - 1;
+				sprintf(q, "Error %d", error);
+			len += strlen(q) - 1;
+			q += strlen(q) - 1;
 			p++;
 		}
 	}
+	e[maxlen-1] = '\0';		/* null terminate, to be sure */
 }
 
 /*
@@ -281,8 +286,14 @@ char *j, *s, *_, *p, *e, *n, *d, *r, *y;
 	checkup_mem();
 #endif /* DEBUG_MEM */
 
-	expand_error(fmt, efmt);
+	expand_error(fmt, efmt, 1024);
+	/*
+	 * XXX: ptr is 1024 bytes long.  It is possible to write into it
+	 * more than 1024 bytes, if efmt is already large, and vargs expand
+	 * as well.
+	 */
 	sprintf(ptr, efmt, j,s,_,p,e,n,d,r,y);
+	msg[1023] = '\0';		/* null terminate, to be sure */
 	ptr += strlen(ptr);
 	if (ptr[-1] == '\n')
 		*--ptr  = '\0';
