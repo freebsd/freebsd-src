@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.10 1995/08/29 01:42:31 jfieber Exp $ -->
+<!-- $Id: contrib.sgml,v 1.11 1995/08/29 07:28:48 olah Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -149,7 +149,7 @@
 	  <item>L Jonas Olsson &lt;ljo@po.cwru.edu&gt;
 	  <item>Lars Fredriksen &lt;fredriks@mcs.com&gt;
 	  <item>Lucas James &lt;Lucas.James@ldjpc.apana.org.au&gt;
-	  <item>Marc Frajola &lt;marc@escargot.rain.com&gt;
+	  <item>Marc Frajola &lt;marc@dev.com&gt;
 	  <item>Marc Ramirez &lt;mrami@mramirez.sy.yale.edu
 	  <item>Marc van Kempen &lt;wmbfmk@urc.tue.nl&gt;
 	  <item>Mark Murray &lt;mark@grondar.za&gt;
@@ -258,7 +258,7 @@
 	<item>Kent Talarico &lt;kent@shipwreck.tsoft.net&gt;
 	<item>Kevin Lahey &lt;kml%rokkaku.UUCP@mathcs.emory.edu&gt;
 	  &lt;kml@mosquito.cis.ufl.edu&gt;
-	<item>Marc Frajola &lt;marc@escargot.rain.com&gt;
+	<item>Marc Frajola &lt;marc@dev.com&gt;
 	<item>Mark Tinguely &lt;tinguely@plains.nodak.edu&gt;
 	  &lt;tinguely@hookie.cs.ndsu.NoDak.edu&gt;
 	<item>Martin Renters &lt;martin@innovus.com&gt;
