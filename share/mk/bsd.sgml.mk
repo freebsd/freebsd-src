@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.8 1996/08/23 22:33:33 jkh Exp $
+#	$Id: bsd.sgml.mk,v 1.9 1996/09/29 18:21:16 jfieber Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -66,6 +66,7 @@ SGMLFMT?=	sgmlfmt
 LPR?=		lpr
 
 DOCS=	${FORMATS:S/^/${DOC}./g}
+CLEANFILES+=	${DOCS}
 
 .MAIN:	all
 all:	${DOCS}
@@ -120,7 +121,11 @@ print-${_FORMAT}: ${DOC}.${_FORMAT}
 .if ${_FORMAT} == "html"
 install-${_FORMAT}:
 	${INSTALL} ${COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
-		*.${.TARGET:S/install-//} ${DESTDIR}${DOCDIR}/${VOLUME}
+		${DOC}*.html ${DESTDIR}${DOCDIR}/${VOLUME}
+	if [ -f ${.OBJDIR}/${DOC}.ln ]; then \
+		(cd ${DESTDIR}${DOCDIR}/${VOLUME}; \
+		sh ${.OBJDIR}/${DOC}.ln); \
+	fi
 
 .else
 install-${_FORMAT}:
@@ -137,9 +142,7 @@ ${DOC}.${_FORMAT}: ${SRCS}
 .endif
 
 .if ${_FORMAT} == "html"
-CLEANFILES+= *.html ${DOC}.nl
-.else
-CLEANFILES+= ${DOC}.${_FORMAT}
+CLEANFILES+= ${DOC}*.html ${DOC}.ln
 .endif
 
 .endfor
