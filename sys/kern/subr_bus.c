@@ -2097,6 +2097,11 @@ sysctl_devices(SYSCTL_HANDLER_ARGS)
 	} else {
 		snprintf(udev.dv_drivername, 32, "%s", dev->driver->name);
 	}
+	udev.dv_pnpinfo[0] = 0;
+	udev.dv_location[0] = 0;
+	udev.dv_devflags = dev->devflags;
+	udev.dv_flags = dev->flags;
+	udev.dv_state = dev->state;
 	error = SYSCTL_OUT(req, &udev, sizeof(udev));
 	return (error);
 }

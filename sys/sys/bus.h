@@ -39,15 +39,30 @@ struct u_businfo {
 };
 
 /*
+ * State of the device.
+ */
+typedef enum device_state {
+	DS_NOTPRESENT,			/* not probed or probe failed */
+	DS_ALIVE,			/* probe succeeded */
+	DS_ATTACHED,			/* attach method called */
+	DS_BUSY				/* device is open */
+} device_state_t;
+
+/*
  * Device information exported to userspace.
  */
 struct u_device {
 	uintptr_t	dv_handle;
 	uintptr_t	dv_parent;
 
-	char	dv_name[32];
-	char	dv_desc[32];
-	char	dv_drivername[32];
+	char		dv_name[32];		/* Name of device in tree. */
+	char		dv_desc[32];		/* Driver description */
+	char		dv_drivername[32];	/* Driver name */
+	char		dv_pnpinfo[64];		/* Plug and play info */
+	char		dv_location[64];	/* Where is the device? */
+	uint32_t	dv_devflags;		/* API Flags for device */
+	uint16_t	dv_flags;		/* flags for dev date */
+	device_state_t	dv_state;		/* State of attachment */
 	/* XXX more driver info? */
 };
 
@@ -101,13 +116,6 @@ struct driver {
 	KOBJ_CLASS_FIELDS;
 	void	*priv;			/* driver private data */
 };
-
-typedef enum device_state {
-	DS_NOTPRESENT,			/* not probed or probe failed */
-	DS_ALIVE,			/* probe succeeded */
-	DS_ATTACHED,			/* attach method called */
-	DS_BUSY				/* device is open */
-} device_state_t;
 
 /*
  * Definitions for drivers which need to keep simple lists of resources
