@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.65.2.1 1999/02/05 22:20:16 jkh Exp $
+ * $Id: package.c,v 1.65.2.2 1999/04/28 06:58:15 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,13 +49,27 @@ catch_pipe(int sig)
     sigpipe_caught = TRUE;
 }
 
-/* Like package_extract, but assumes current media device */
+extern PkgNode Top;
+
+/* Like package_extract, but assumes current media device and chases deps */
 int
 package_add(char *name)
 {
+    PkgNodePtr tmp;
+    int i;
+
     if (!mediaVerify())
 	return DITEM_FAILURE;
-    return package_extract(mediaDevice, name, FALSE);
+    i = index_initialize("packages/INDEX");
+    if (DITEM_STATUS(i) != DITEM_SUCCESS)
+	return i;
+    tmp = index_search(&Top, name, NULL);
+    if (tmp)
+	return index_extract_one(mediaDevice, &Top, tmp, FALSE);
+    else {
+	msgConfirm("Sorry, package %s was not found in the INDEX.", name);
+	return DITEM_FAILURE | DITEM_RESTORE;
+    }
 }
 
 /* For use by dispatch */
@@ -122,11 +136,8 @@ package_extract(Device *dev, char *name, Boolean depended)
     Mkdir(variable_get(VAR_PKG_TMPDIR));
     vsystem("chmod 1777 %s", variable_get(VAR_PKG_TMPDIR));
 
-    if (name[0] == '@') {
-	/* @ at the beginning of the package name means "get latest" */
-	name++;
+    if (!strpbrk(name, "-_"))
 	sprintf(path, "packages/Latest/%s.tgz", name);
-    }
     else if (!index(name, '/'))
 	sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
     else
