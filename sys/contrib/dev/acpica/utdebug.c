@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utdebug - Debug print routines
- *              $Revision: 73 $
+ *              $Revision: 76 $
  *
  *****************************************************************************/
 
@@ -153,6 +153,122 @@ SetDebugLevel (
 
 /*****************************************************************************
  *
+ * FUNCTION:    AcpiUtDebugPrint
+ *
+ * PARAMETERS:  DebugLevel          - Requested debug print level
+ *              ProcName            - Caller's procedure name
+ *              ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              ComponentId         - Caller's component ID (for error output)
+ *              
+ *              Format              - Printf format field
+ *              ...                 - Optional printf arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print error message with prefix consisting of the module name,
+ *              line number, and component ID.
+ *
+ ****************************************************************************/
+
+void
+AcpiUtDebugPrint (
+    UINT32                  RequestedDebugLevel,
+    UINT32                  ComponentId,
+    NATIVE_CHAR             *ProcName,
+    NATIVE_CHAR             *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...)
+{
+    UINT32                  ThreadId;
+    va_list                 args;
+
+
+    if (!(RequestedDebugLevel & AcpiDbgLevel) ||
+        !(ComponentId & AcpiDbgLayer))
+    {
+        return;
+    }
+
+
+    ThreadId = AcpiOsGetThreadId ();
+
+    if (ThreadId != PrevThreadId)
+    {
+        if (ACPI_LV_THREADS & AcpiDbgLevel)
+        {
+            AcpiOsPrintf ("\n**** Context Switch from TID %X to TID %X ****\n\n",
+                PrevThreadId, ThreadId);
+        }
+
+        PrevThreadId = ThreadId;
+    }
+
+    if (ACPI_LV_THREADS & AcpiDbgLevel)
+    {
+        AcpiOsPrintf ("%8s-%04d[%04X][%02d] %s: ", ModuleName, LineNumber, ThreadId, AcpiGbl_NestingLevel, ProcName);
+    }
+    else
+    {
+        AcpiOsPrintf ("%8s-%04d[%02d] %s: ", ModuleName, LineNumber, AcpiGbl_NestingLevel, ProcName);
+    }
+
+
+
+    va_start (args, Format);
+    AcpiOsVprintf (Format, args);
+}
+
+
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiUtDebugPrintRaw
+ *
+ * PARAMETERS:  DebugLevel          - Requested debug print level
+ *              ProcName            - Caller's procedure name
+ *              ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              ComponentId         - Caller's component ID (for error output)
+ *              
+ *              Format              - Printf format field
+ *              ...                 - Optional printf arguments
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print message with no headers.  Has same interface as 
+ *              DebugPrint so that the same macros can be used.
+ *
+ ****************************************************************************/
+
+void
+AcpiUtDebugPrintRaw (
+    UINT32                  RequestedDebugLevel,
+    UINT32                  ComponentId,
+    NATIVE_CHAR             *ProcName,
+    NATIVE_CHAR             *ModuleName,
+    UINT32                  LineNumber,
+    char                    *Format,
+    ...)
+{
+    va_list                 args;
+
+
+
+    if (!(RequestedDebugLevel & AcpiDbgLevel) ||
+        !(ComponentId & AcpiDbgLayer))
+    {
+        return;
+    }
+
+    va_start (args, Format);
+
+    AcpiOsVprintf (Format, args);
+}
+
+
+/*****************************************************************************
+ *
  * FUNCTION:    FunctionTrace
  *
  * PARAMETERS:  ModuleName          - Caller's module name (for error output)
@@ -177,10 +293,8 @@ FunctionTrace (
 
     AcpiGbl_NestingLevel++;
 
-    DebugPrint (ModuleName, LineNumber, ComponentId,
-                TRACE_FUNCTIONS,
-                " %2.2ld Entered Function: %s\n",
-                AcpiGbl_NestingLevel, FunctionName);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Entered Function----\n");
 }
 
 
@@ -209,12 +323,11 @@ FunctionTracePtr (
     NATIVE_CHAR             *FunctionName,
     void                    *Pointer)
 {
-
     AcpiGbl_NestingLevel++;
-    DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Entered Function: %s, %p\n",
-                AcpiGbl_NestingLevel, FunctionName, Pointer);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Entered Function---- %p\n", Pointer);
 }
+
 
 
 /*****************************************************************************
@@ -244,9 +357,8 @@ FunctionTraceStr (
 {
 
     AcpiGbl_NestingLevel++;
-    DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Entered Function: %s, %s\n",
-                AcpiGbl_NestingLevel, FunctionName, String);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Entered Function---- %s\n", String);
 }
 
 
@@ -277,9 +389,8 @@ FunctionTraceU32 (
 {
 
     AcpiGbl_NestingLevel++;
-    DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Entered Function: %s, %lX\n",
-                AcpiGbl_NestingLevel, FunctionName, Integer);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Entered Function---- %08X\n", Integer);
 }
 
 
@@ -307,9 +418,8 @@ FunctionExit (
     NATIVE_CHAR             *FunctionName)
 {
 
-    DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Exiting Function: %s\n",
-                AcpiGbl_NestingLevel, FunctionName);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Exiting Function----\n");
 
     AcpiGbl_NestingLevel--;
 }
@@ -341,9 +451,9 @@ FunctionStatusExit (
     ACPI_STATUS             Status)
 {
 
-    DebugPrint (ModuleName, LineNumber, ComponentId,
-        TRACE_FUNCTIONS, " %2.2ld Exiting Function: %s, %s\n",
-        AcpiGbl_NestingLevel, FunctionName, AcpiFormatException (Status));
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Exiting Function---- %s\n",
+            AcpiFormatException (Status));
 
     AcpiGbl_NestingLevel--;
 }
@@ -375,9 +485,9 @@ FunctionValueExit (
     ACPI_INTEGER            Value)
 {
 
-    DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Exiting Function: %s, %X\n",
-                AcpiGbl_NestingLevel, FunctionName, Value);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Exiting Function---- %08X\n",
+            Value);
 
     AcpiGbl_NestingLevel--;
 }
@@ -409,154 +519,11 @@ FunctionPtrExit (
     UINT8                   *Ptr)
 {
 
-    DebugPrint (ModuleName, LineNumber, ComponentId, TRACE_FUNCTIONS,
-                " %2.2ld Exiting Function: %s, %p\n",
-                AcpiGbl_NestingLevel, FunctionName, Ptr);
+    AcpiUtDebugPrint (ACPI_LV_FUNCTIONS, ComponentId, FunctionName,
+            ModuleName, LineNumber, "----Exiting Function----, %p\n",
+            Ptr);
 
     AcpiGbl_NestingLevel--;
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    DebugPrint
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              ComponentId         - Caller's component ID (for error output)
- *              PrintLevel          - Requested debug print level
- *              Format              - Printf format field
- *              ...                 - Optional printf arguments
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message with prefix consisting of the module name,
- *              line number, and component ID.
- *
- ****************************************************************************/
-
-void
-DebugPrint (
-    NATIVE_CHAR             *ModuleName,
-    UINT32                  LineNumber,
-    UINT32                  ComponentId,
-    UINT32                  PrintLevel,
-    NATIVE_CHAR             *Format,
-    ...)
-{
-    va_list                 args;
-    UINT32                  ThreadId;
-
-
-    ThreadId = AcpiOsGetThreadId ();
-
-
-    /* Both the level and the component must be enabled */
-
-    if ((PrintLevel & AcpiDbgLevel) &&
-        (ComponentId & AcpiDbgLayer))
-    {
-        va_start (args, Format);
-
-        if (ThreadId != PrevThreadId)
-        {
-            if (TRACE_THREADS & AcpiDbgLevel)
-            {
-                AcpiOsPrintf ("\n**** Context Switch from TID %X to TID %X ****\n\n",
-                    PrevThreadId, ThreadId);
-            }
-
-            PrevThreadId = ThreadId;
-        }
-
-        if (TRACE_THREADS & AcpiDbgLevel)
-        {
-            AcpiOsPrintf ("%8s-%04d[%04X]: ", ModuleName, LineNumber, ThreadId);
-        }
-        else
-        {
-            AcpiOsPrintf ("%8s-%04d: ", ModuleName, LineNumber);
-        }
-
-        AcpiOsVprintf (Format, args);
-    }
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    DebugPrintPrefix
- *
- * PARAMETERS:  ModuleName          - Caller's module name (for error output)
- *              LineNumber          - Caller's line number (for error output)
- *              ComponentId         - Caller's component ID (for error output)
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print the prefix part of an error message, consisting of the
- *              module name, and line number
- *
- ****************************************************************************/
-
-void
-DebugPrintPrefix (
-    NATIVE_CHAR             *ModuleName,
-    UINT32                  LineNumber)
-{
-    UINT32                  ThreadId;
-
-
-    ThreadId = AcpiOsGetThreadId ();
-
-    if (ThreadId != PrevThreadId)
-    {
-        if (TRACE_THREADS & AcpiDbgLevel)
-        {
-            AcpiOsPrintf ("\n**** Context Switch from TID %X to TID %X ****\n\n",
-                PrevThreadId, ThreadId);
-        }
-
-        PrevThreadId = ThreadId;
-    }
-
-    if (TRACE_THREADS & AcpiDbgLevel)
-    {
-        AcpiOsPrintf ("%8s-%04d[%04X]: ", ModuleName, LineNumber, ThreadId);
-    }
-    else
-    {
-        AcpiOsPrintf ("%8s-%04d: ", ModuleName, LineNumber);
-    }
-
-}
-
-
-/*****************************************************************************
- *
- * FUNCTION:    DebugPrintRaw
- *
- * PARAMETERS:  Format              - Printf format field
- *              ...                 - Optional printf arguments
- *
- * RETURN:      None
- *
- * DESCRIPTION: Print error message -- without module/line indentifiers
- *
- ****************************************************************************/
-
-void
-DebugPrintRaw (
-    NATIVE_CHAR             *Format,
-    ...)
-{
-    va_list                 args;
-
-
-    va_start (args, Format);
-
-    AcpiOsVprintf (Format, args);
-
-    va_end (args);
 }
 
 
@@ -589,7 +556,7 @@ AcpiUtDumpBuffer (
 
     /* Only dump the buffer if tracing is enabled */
 
-    if (!((TRACE_TABLES & AcpiDbgLevel) &&
+    if (!((ACPI_LV_TABLES & AcpiDbgLevel) &&
         (ComponentId & AcpiDbgLayer)))
     {
         return;

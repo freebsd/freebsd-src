@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: utcopy - Internal to external object translation utilities
- *              $Revision: 76 $
+ *              $Revision: 77 $
  *
  *****************************************************************************/
 
@@ -318,10 +318,9 @@ AcpiUtCopyIelementToEelement (
     ACPI_OBJECT             *TargetObject;
 
 
-    ThisIndex       = State->Pkg.Index;
-    TargetObject    = (ACPI_OBJECT *)
-                        &((ACPI_OBJECT *)(State->Pkg.DestObject))->Package.Elements[ThisIndex];
-
+    ThisIndex    = State->Pkg.Index;
+    TargetObject = (ACPI_OBJECT *)
+                    &((ACPI_OBJECT *)(State->Pkg.DestObject))->Package.Elements[ThisIndex];
 
     switch (ObjectType)
     {
@@ -330,7 +329,6 @@ AcpiUtCopyIelementToEelement (
         /*
          * This is a simple or null object -- get the size
          */
-
         Status = AcpiUtCopyIsimpleToEsimple (SourceObject,
                         TargetObject, Info->FreeSpace, &ObjectSpace);
         if (ACPI_FAILURE (Status))
@@ -676,7 +674,8 @@ AcpiUtCopyEobjectToIobject (
                                                   RetBuffer->Pointer,
                                                   &RetBuffer->Length);
 */
-        DEBUG_PRINTP (ACPI_ERROR, ("Packages as parameters not implemented!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+            "Packages as parameters not implemented!\n"));
 
         return_ACPI_STATUS (AE_NOT_IMPLEMENTED);
     }

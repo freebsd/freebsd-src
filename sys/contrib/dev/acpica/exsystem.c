@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exsystem - Interface to OS services
- *              $Revision: 64 $
+ *              $Revision: 65 $
  *
  *****************************************************************************/
 
@@ -166,7 +166,7 @@ AcpiExSystemWaitSemaphore (
 
         Status = AcpiOsWaitSemaphore (Semaphore, 1, Timeout);
 
-        DEBUG_PRINT (TRACE_EXEC, ("*** Thread awake after blocking, %s\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "*** Thread awake after blocking, %s\n",
             AcpiFormatException (Status)));
 
         /* Reacquire the interpreter */

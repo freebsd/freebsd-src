@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exmisc - ACPI AML (p-code) execution - specific opcodes
- *              $Revision: 79 $
+ *              $Revision: 80 $
  *
  *****************************************************************************/
 
@@ -177,7 +177,7 @@ AcpiExFatal (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Status=%X)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Status=%X)\n",
             Status));
         goto Cleanup;
     }
@@ -185,8 +185,8 @@ AcpiExFatal (
 
     /* DefFatal    :=  FatalOp FatalType   FatalCode   FatalArg    */
 
-    DEBUG_PRINTP (ACPI_INFO,
-        ("Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+        "Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
         TypeDesc->Integer.Value, CodeDesc->Integer.Value, ArgDesc->Integer.Value));
 
 
@@ -264,7 +264,7 @@ AcpiExTriadic (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Status=%X)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Status=%X)\n",
             Status));
         goto Cleanup;
     }
@@ -278,8 +278,8 @@ AcpiExTriadic (
 
         /* DefFatal    :=  FatalOp  FatalType   FatalCode   FatalArg    */
 
-        DEBUG_PRINTP (ACPI_INFO,
-            ("FatalOp: Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
+            "FatalOp: Type %x Code %x Arg %x <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n",
             (UINT32) ObjDesc1->Integer.Value, (UINT32) ObjDesc2->Integer.Value, 
             (UINT32) ResDesc->Integer.Value));
 
@@ -334,7 +334,7 @@ AcpiExTriadic (
 
             if (ObjDesc2->Integer.Value >= ObjDesc1->Package.Count)
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("Index value beyond package end\n"));
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index value beyond package end\n"));
                 Status = AE_AML_PACKAGE_LIMIT;
                 goto Cleanup;
             }
@@ -380,7 +380,7 @@ AcpiExTriadic (
 
             if (ObjDesc2->Integer.Value >= ObjDesc1->Buffer.Length)
             {
-                DEBUG_PRINTP (ACPI_ERROR, ("Index value beyond end of buffer\n"));
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Index value beyond end of buffer\n"));
                 Status = AE_AML_BUFFER_LIMIT;
                 goto Cleanup;
             }
@@ -479,7 +479,7 @@ AcpiExHexadic (
     {
         /* Invalid parameters on object stack  */
 
-        DEBUG_PRINTP (ACPI_ERROR, ("bad operand(s) (Status=%X)\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "bad operand(s) (Status=%X)\n",
             Status));
         goto Cleanup;
     }
@@ -495,7 +495,7 @@ AcpiExHexadic (
         if ((Op1Desc->Integer.Value > MAX_MATCH_OPERATOR) ||
             (Op2Desc->Integer.Value > MAX_MATCH_OPERATOR))
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("operation encoding out of range\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "operation encoding out of range\n"));
             Status = AE_AML_OPERAND_VALUE;
             goto Cleanup;
         }
@@ -503,7 +503,7 @@ AcpiExHexadic (
         Index = (UINT32) StartDesc->Integer.Value;
         if (Index >= (UINT32) PkgDesc->Package.Count)
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("Start position value out of range\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Start position value out of range\n"));
             Status = AE_AML_PACKAGE_LIMIT;
             goto Cleanup;
         }

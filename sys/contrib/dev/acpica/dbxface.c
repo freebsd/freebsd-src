@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 37 $
+ *              $Revision: 38 $
  *
  ******************************************************************************/
 
@@ -212,10 +212,10 @@ AcpiDbSingleStep (
 
     if ((OutputToFile)                      ||
         (AcpiGbl_CmSingleStep)              ||
-        (AcpiDbgLevel & TRACE_PARSE))
+        (AcpiDbgLevel & ACPI_LV_PARSE))
     {
         if ((OutputToFile)                  ||
-            (AcpiDbgLevel & TRACE_PARSE))
+            (AcpiDbgLevel & ACPI_LV_PARSE))
         {
             AcpiOsPrintf ("\n[AmlDebug] Next AML Opcode to execute:\n");
         }
@@ -227,7 +227,7 @@ AcpiDbSingleStep (
          */
 
         OriginalDebugLevel = AcpiDbgLevel;
-        AcpiDbgLevel &= ~(TRACE_PARSE | TRACE_FUNCTIONS);
+        AcpiDbgLevel &= ~(ACPI_LV_PARSE | ACPI_LV_FUNCTIONS);
         Next = Op->Next;
         Op->Next = NULL;
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 33 $
+ *              $Revision: 34 $
  *
  *****************************************************************************/
 
@@ -153,7 +153,7 @@ AcpiEnable (void)
 
     if (!AcpiGbl_DSDT)
     {
-        DEBUG_PRINTP (ACPI_WARN, ("No ACPI tables present!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "No ACPI tables present!\n"));
         return_ACPI_STATUS (AE_NO_ACPI_TABLES);
     }
 
@@ -161,7 +161,7 @@ AcpiEnable (void)
 
     if (SYS_MODE_LEGACY == AcpiHwGetModeCapabilities())
     {
-        DEBUG_PRINTP (ACPI_WARN, ("Only legacy mode supported!\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_WARN, "Only legacy mode supported!\n"));
         return_ACPI_STATUS (AE_ERROR);
     }
 
@@ -170,11 +170,11 @@ AcpiEnable (void)
     Status = AcpiHwSetMode (SYS_MODE_ACPI);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_FATAL, ("Could not transition to ACPI mode.\n"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_FATAL, "Could not transition to ACPI mode.\n"));
         return_ACPI_STATUS (Status);
     }
 
-    DEBUG_PRINTP (ACPI_OK, ("Transition to ACPI mode successful\n"));
+    ACPI_DEBUG_PRINT ((ACPI_DB_OK, "Transition to ACPI mode successful\n"));
 
     return_ACPI_STATUS (Status);
 }
@@ -215,7 +215,7 @@ AcpiDisable (void)
     Status = AcpiHwSetMode (AcpiGbl_OriginalMode);
     if (ACPI_FAILURE (Status))
     {
-        DEBUG_PRINTP (ACPI_ERROR, ("Unable to transition to original mode"));
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unable to transition to original mode"));
         return_ACPI_STATUS (Status);
     }
 
@@ -306,8 +306,8 @@ AcpiEnableEvent (
 
         if (1 != AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, RegisterId))
         {
-            DEBUG_PRINTP (ACPI_ERROR, 
-                ("Fixed event bit clear when it should be set\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                "Fixed event bit clear when it should be set\n"));
             return_ACPI_STATUS (AE_NO_HARDWARE_RESPONSE);
         }
 
@@ -419,8 +419,8 @@ AcpiDisableEvent (
 
         if (0 != AcpiHwRegisterBitAccess(ACPI_READ, ACPI_MTX_LOCK, RegisterId))
         {
-            DEBUG_PRINTP (ACPI_ERROR, 
-                ("Fixed event bit set when it should be clear,\n"));
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, 
+                "Fixed event bit set when it should be clear,\n"));
             return_ACPI_STATUS (AE_NO_HARDWARE_RESPONSE);
         }
 

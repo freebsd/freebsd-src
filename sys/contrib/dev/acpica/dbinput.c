@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
- *              $Revision: 62 $
+ *              $Revision: 64 $
  *
  ******************************************************************************/
 
@@ -144,7 +144,7 @@ BOOLEAN                 OutputToFile = FALSE;
 
 
 UINT32                  AcpiGbl_DbDebugLevel = 0x0FFFFFFF;
-UINT32                  AcpiGbl_DbConsoleDebugLevel = NORMAL_DEFAULT | TRACE_TABLES;
+UINT32                  AcpiGbl_DbConsoleDebugLevel = NORMAL_DEFAULT | ACPI_LV_TABLES;
 UINT8                   AcpiGbl_DbOutputFlags = DB_CONSOLE_OUTPUT;
 
 
@@ -264,7 +264,7 @@ COMMAND_INFO                Commands[] =
     {"TERMINATE",    0},
     {"THREADS",      3},
     {"TREE",         0},
-    {"UNLOAD",       0},
+    {"UNLOAD",       1},
     {NULL,           0}
 };
 
@@ -325,7 +325,7 @@ AcpiDbDisplayHelp (
         AcpiOsPrintf ("Stats [Allocations|Memory|Misc\n");
         AcpiOsPrintf ("       |Objects|Tables]             Display namespace and memory statistics\n");
         AcpiOsPrintf ("Tables                              Display info about loaded ACPI tables\n");
-        AcpiOsPrintf ("Unload                              Unload an ACPI table\n");
+        AcpiOsPrintf ("Unload <TableSig> [Instance]        Unload an ACPI table\n");
         AcpiOsPrintf ("! <CommandNumber>                   Execute command from history buffer\n");
         AcpiOsPrintf ("!!                                  Execute last command again\n");
         return;

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evrgnini- ACPI AddressSpace (OpRegion) init
- *              $Revision: 44 $
+ *              $Revision: 45 $
  *
  *****************************************************************************/
 
@@ -256,8 +256,8 @@ AcpiEvPciConfigRegionSetup (
          *  No installed handler. This shouldn't happen because the dispatch
          *  routine checks before we get here, but we check again just in case.
          */
-        DEBUG_PRINTP (TRACE_OPREGION,
-            ("Attempting to init a region %X, with no handler\n", RegionObj));
+        ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+            "Attempting to init a region %X, with no handler\n", RegionObj));
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
@@ -516,8 +516,8 @@ AcpiEvInitializeRegion (
                  */
                 if (HandlerObj->AddrHandler.SpaceId == SpaceId)
                 {
-                    DEBUG_PRINTP (TRACE_OPREGION,
-                        ("Found handler %p for region %p in obj %p\n",
+                    ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+                        "Found handler %p for region %p in obj %p\n",
                         HandlerObj, RegionObj, ObjDesc));
 
                     /*
@@ -544,8 +544,8 @@ AcpiEvInitializeRegion (
     /*
      *  If we get here, there is no handler for this region
      */
-    DEBUG_PRINTP (TRACE_OPREGION,
-        ("No handler for RegionType %s(%X) (RegionObj %p)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_OPREGION,
+        "No handler for RegionType %s(%X) (RegionObj %p)\n",
         AcpiUtGetRegionName (SpaceId), SpaceId, RegionObj));
 
     return_ACPI_STATUS (AE_NOT_EXIST);

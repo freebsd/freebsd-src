@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: excreate - Named object creation
- *              $Revision: 63 $
+ *              $Revision: 64 $
  *
  *****************************************************************************/
 
@@ -238,9 +238,9 @@ AcpiExCreateBufferField (
 
             DUMP_PATHNAME (Node,
                 "ExCreateBufferField: Removing Current Reference",
-                TRACE_BFIELD, _COMPONENT);
+                ACPI_LV_BFIELD, _COMPONENT);
 
-            DUMP_ENTRY (Node, TRACE_BFIELD);
+            DUMP_ENTRY (Node, ACPI_LV_BFIELD);
             DUMP_STACK_ENTRY (TmpDesc);
 
             AcpiUtRemoveReference (TmpDesc);
@@ -536,7 +536,7 @@ AcpiExCreateRegion (
         return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
     }
 
-    DEBUG_PRINTP (TRACE_LOAD, ("Region Type - %s (%X)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
                     AcpiUtGetRegionName (RegionSpace), RegionSpace));
 
 

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 80 $
+ *              $Revision: 82 $
  *
  *****************************************************************************/
 
@@ -294,7 +294,7 @@ AcpiExAcquireGlobalLock (
 
         else
         {
-            DEBUG_PRINTP (ACPI_ERROR, ("Could not acquire Global Lock, %s\n",
+            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Could not acquire Global Lock, %s\n",
                 AcpiFormatException (Status)));
         }
     }
@@ -441,10 +441,10 @@ AcpiExEisaIdToString (
     OutString[0] = (char) ('@' + ((id >> 26) & 0x1f));
     OutString[1] = (char) ('@' + ((id >> 21) & 0x1f));
     OutString[2] = (char) ('@' + ((id >> 16) & 0x1f));
-    OutString[3] = AcpiGbl_HexToAscii[(id >> 12) & 0xf];
-    OutString[4] = AcpiGbl_HexToAscii[(id >> 8) & 0xf];
-    OutString[5] = AcpiGbl_HexToAscii[(id >> 4) & 0xf];
-    OutString[6] = AcpiGbl_HexToAscii[id & 0xf];
+    OutString[3] = AcpiUtHexToAsciiChar (id, 12);
+    OutString[4] = AcpiUtHexToAsciiChar (id, 8);
+    OutString[5] = AcpiUtHexToAsciiChar (id, 4);
+    OutString[6] = AcpiUtHexToAsciiChar (id, 0);
     OutString[7] = 0;
 
     return (AE_OK);
