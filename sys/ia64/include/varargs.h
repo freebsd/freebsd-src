@@ -43,19 +43,6 @@
 #ifndef _MACHINE_VARARGS_H_
 #define	_MACHINE_VARARGS_H_
 
-#include <sys/_types.h>
-
-#ifndef _VA_LIST_DECLARED
-#define	_VA_LIST_DECLARED
-typedef	__va_list	va_list;
-#endif
-
-typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
-
-#define	va_alist		__builtin_va_alist
-#define	va_dcl			__builtin_va_alist_t __builtin_va_alist; ...
-#define	va_start(ap)		__builtin_varargs_start(ap)
-#define	va_arg(ap, type)	__builtin_va_arg((ap), type)
-#define	va_end(ap)		__builtin_va_end(ap)
+#error "<varargs.h> is obsolete on ia64. Use <stdarg.h> instead."
 
 #endif /* !_MACHINE_VARARGS_H_ */
