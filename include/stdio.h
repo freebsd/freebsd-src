@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.13 1997/04/13 15:50:07 bde Exp $
+ *	$Id: stdio.h,v 1.14 1998/01/01 17:07:44 alex Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -274,6 +274,9 @@ __BEGIN_DECLS
 char	*ctermid __P((char *));
 FILE	*fdopen __P((int, const char *));
 int	 fileno __P((FILE *));
+int	ftrylockfile __P((FILE *));
+void	flockfile __P((FILE *));
+void	funlockfile __P((FILE *));
 __END_DECLS
 #endif /* not ANSI */
 
@@ -384,20 +387,67 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
 #define	__sfileno(p)	((p)->_file)
 
-#define	feof(p)		__sfeof(p)
-#define	ferror(p)	__sferror(p)
-#define	clearerr(p)	__sclearerr(p)
+/*
+ * See ISO/IEC 9945-1 ANSI/IEEE Std 1003.1 Second Edition 1996-07-12
+ * B.8.2.7 for the rationale behind the *_unlocked() macros.
+ */
+#define	feof_unlocked(p)	__sfeof(p)
+#define	ferror_unlocked(p)	__sferror(p)
+#define	clearerr_unlocked(p)	__sclearerr(p)
 
 #ifndef _ANSI_SOURCE
-#define	fileno(p)	__sfileno(p)
+#define	fileno_unlocked(p)	__sfileno(p)
+#endif
+
+#ifndef  _THREAD_SAFE
+#define	feof(p)		feof_unlocked(p)
+#define	ferror(p)	ferror_unlocked(p)
+#define	clearerr(p)	clearerr_unlocked(p)
+
+#ifndef _ANSI_SOURCE
+#define	fileno(p)	fileno_unlocked(p)
+#endif
 #endif
 
 #ifndef lint
-#define	getc(fp)	__sgetc(fp)
-#define putc(x, fp)	__sputc(x, fp)
+#define	getc_unlocked(fp)	__sgetc(fp)
+#define putc_unlocked(x, fp)	__sputc(x, fp)
+#ifdef	_THREAD_SAFE
+void	_flockfile __P((FILE *));
+void	_flockfile_debug __P((FILE *, char *, int));
+void	_funlockfile __P((FILE *));
+#ifdef	_FLOCK_DEBUG
+#define _FLOCKFILE(x)	_flockfile_debug(x, __FILE__, __LINE__)
+#else
+#define _FLOCKFILE(x)	_flockfile(x)
+#endif
+static __inline int	__getc_locked(FILE *fp) {	\
+	extern int __isthreaded;			\
+	int	ret;					\
+	if (__isthreaded) _FLOCKFILE(fp);		\
+	ret = getc_unlocked(fp);			\
+	if (__isthreaded) _funlockfile(fp);		\
+	return(ret);					\
+}
+static __inline int __putc_locked(int x, FILE *fp) {	\
+	extern int __isthreaded;			\
+	int	ret;					\
+	if (__isthreaded) _FLOCKFILE(fp);		\
+	ret = putc_unlocked(x, fp);			\
+	if (__isthreaded) _funlockfile(fp);		\
+	return(ret);					\
+}
+#define	getc(fp)	__getc_locked(fp)
+#define	putc(x, fp)	__putc_locked(x, fp)
+#else
+#define	getc(fp)	getc_unlocked(fp)
+#define putc(x, fp)	putc_unlocked(x, fp)
+#endif
 #endif /* lint */
 
-#define	getchar()	getc(stdin)
-#define	putchar(x)	putc(x, stdout)
+#define	getchar()		getc(stdin)
+#define	getchar_unlocked()	getc_unlocked(stdin)
+#define	putchar(x)		putc(x, stdout)
+#define	putchar_unlocked(x)	putc_unlocked(x, stdout)
 
 #endif /* !_STDIO_H_ */
