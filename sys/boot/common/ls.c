@@ -59,7 +59,7 @@ command_ls(int argc, char *argv[])
 {
     int		fd;
     struct stat	sb;
-    struct    dirent *d;
+    struct 	dirent *d;
     char	*buf, *path;
     char	lbuf[128];		/* one line */
     int		result, ch;
