@@ -1,0 +1,34 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.1
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/distrib.tar.gz">
+
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % ja-authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//JA">
+%ja-authors;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % ja-mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//JA">
+%ja-mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/relnotes.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSparc">
+
+]>
+
+<article>
+  &art;
+</article>
