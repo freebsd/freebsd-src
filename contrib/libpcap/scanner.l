@@ -69,7 +69,6 @@ static char *in_buffer;
 #define getc(fp)  (*in_buffer == 0 ? EOF : *in_buffer++)
 #endif
 
-#define yylval pcap_lval
 extern YYSTYPE yylval;
 
 %}

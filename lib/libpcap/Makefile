@@ -10,7 +10,9 @@ INCS=	pcap.h pcap-int.h pcap-namedb.h
 MAN=	pcap.3
 CLEANFILES=tokdefs.h version.c
 
-CFLAGS+=-DHAVE_CONFIG_H -Dyylval=pcap_lval -I${.CURDIR} -I.
+YFLAGS+=-p pcapyy
+LFLAGS+=-Ppcapyy
+CFLAGS+=-DHAVE_CONFIG_H -Dyylval=pcapyylval -I${.CURDIR} -I.
 .if !defined(NOINET6)
 CFLAGS+=-DINET6
 .endif
