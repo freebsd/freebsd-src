@@ -452,7 +452,6 @@ extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
 extern DMenu		MenuSecurity;		/* System security options menu			*/
-extern DMenu		MenuSecurityProfile;	/* Security profile menu			*/
 extern DMenu		MenuStartup;		/* Startup services menu			*/
 #ifdef WITH_SYSCONS
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
@@ -532,9 +531,6 @@ extern int	configMTAPostfix(dialogMenuItem *self);
 extern int	configMTAExim(dialogMenuItem *self);
 extern int	configRpcBind(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
-extern int	configSecurityProfile(dialogMenuItem *self);
-extern int	configSecurityExtreme(dialogMenuItem *self);
-extern int	configSecurityModerate(dialogMenuItem *self);
 extern int	configEtcTtys(dialogMenuItem *self);
 #ifdef __i386__
 extern int	checkLoaderACPI(void);
