@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.54 1997/01/05 21:41:09 max Exp $ -->
+<!-- $Id: porting.sgml,v 1.55 1997/01/05 21:46:40 max Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -1044,10 +1044,10 @@ MAN8=      baz.8
 	  <tt>/etc/make.conf</tt>.)
 
 	<p>If you need to display a message to the installer, you may
-	  place the message in <tt>pkg/DISPLAY</tt>.  This capibility
+	  place the message in <tt>pkg/MESSAGE</tt>.  This capibility
 	  is often useful to display additional installation steps to
 	  be taken after a pkg_add, or to display licensing information.
-	  (note: the DISPLAY file does not need to be added to pkg/PLIST).
+	  (note: the MESSAGE file does not need to be added to pkg/PLIST).
 
 
       <sect3>
