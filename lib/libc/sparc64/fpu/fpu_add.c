@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include "fpu_arith.h"
 #include "fpu_emu.h"
 #include "fpu_extern.h"
+#include "__sparc_utrap_private.h"
 
 struct fpn *
 __fpu_add(fe)
@@ -198,7 +199,7 @@ __fpu_add(fe)
 			 */
 #ifdef DIAGNOSTIC
 			if (x->fp_exp != y->fp_exp || r->fp_sticky)
-				__fpu_panic("fpu_add");
+				__utrap_panic("fpu_add");
 #endif
 			r->fp_sign = y->fp_sign;
 			FPU_SUBS(r3, 0, r3);

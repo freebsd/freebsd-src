@@ -32,8 +32,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/utrap.h>
 #include <machine/sysarch.h>
 
+#include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "__sparc_utrap_private.h"
 
@@ -77,23 +80,55 @@ static const char *utrap_msg[] = {
 void
 __sparc_utrap(struct utrapframe *uf)
 {
+	int sig;
 
 	switch (uf->uf_type) {
 	case UT_FP_EXCEPTION_IEEE_754:
 	case UT_FP_EXCEPTION_OTHER:
-		__fpu_exception(uf);
-		UF_DONE(uf);
-		return;
+		sig = __fpu_exception(uf);
+		break;
 	case UT_ILLEGAL_INSTRUCTION:
+		sig = __emul_insn(uf);
+		break;
 	case UT_MEM_ADDRESS_NOT_ALIGNED:
 		break;
-	case UT_TRAP_INSTRUCTION_16:
-		UF_DONE(uf);
-		return;
 	default:
 		break;
 	}
-	printf("__sparc_utrap: type=%s pc=%#lx npc=%#lx\n",
-	    utrap_msg[uf->uf_type], uf->uf_pc, uf->uf_npc);
-	abort();
+	if (sig) {
+		__utrap_write("__sparc_utrap: fatal ");
+		__utrap_write(utrap_msg[uf->uf_type]);
+		__utrap_write("\n");
+		__utrap_kill_self(sig);
+	}
+	UF_DONE(uf);
+}
+
+void
+__utrap_write(const char *str)
+{
+	int berrno;
+
+	berrno = errno;
+	__sys_write(STDERR_FILENO, str, strlen(str));
+	errno = berrno;
+}
+
+void
+__utrap_kill_self(sig)
+{
+	int berrno;
+
+	berrno = errno;
+	__sys_kill(__sys_getpid(), sig);
+	errno = berrno;
+}
+
+void
+__utrap_panic(const char *msg)
+{
+
+	__utrap_write(msg);
+	__utrap_write("\n");
+	__utrap_kill_self(SIGKILL);
 }
