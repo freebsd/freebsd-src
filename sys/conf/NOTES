@@ -607,6 +607,7 @@ device		gre			#IP over IP tunneling
 device		pf			#PF OpenBSD packet-filter firewall
 device		pflog			#logging support interface for PF
 device		pfsync			#synchronization interface for PF
+device		carp			#Common Address Redundancy Protocol
 device		ppp			#Point-to-point protocol
 options 	PPP_BSDCOMP		#PPP BSD-compress support
 options 	PPP_DEFLATE		#PPP zlib/deflate/gzip support
