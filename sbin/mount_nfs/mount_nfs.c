@@ -660,7 +660,8 @@ tryagain:
 		return (returncode(rpc_createerr.cf_stat,
 		    &rpc_createerr.cf_error));
 	}
-	if (nfsargsp->sotype == SOCK_DGRAM) {
+	if (nfsargsp->sotype == SOCK_DGRAM &&
+	    !(nfsargsp->flags & NFSMNT_NOCONN)) {
 		/*
 		 * Use connect(), to match what the kernel does. This
 		 * catches cases where the server responds from the
