@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.15 1995/12/15 03:26:40 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.16 1996/03/19 19:27:03 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -63,10 +63,6 @@ struct dom_binding {
 };
 
 #include <rpcsvc/ypclnt.h>
-
-#ifndef YPBINDLOCK
-#define YPBINDLOCK "/var/run/ypbind.lock"
-#endif
 
 #ifndef BINDINGDIR
 #define BINDINGDIR "/var/yp/binding"
@@ -257,20 +253,6 @@ struct dom_binding **ypdb;
 		new = 1;
 	}
 
-	if ((lfd = open(YPBINDLOCK, O_RDONLY)) == -1)
-		return(YPERR_YPBIND);
-	errno = 0;
-	switch (flock(lfd, LOCK_EX|LOCK_NB) == -1 && errno == EWOULDBLOCK) {
-	case 0:
-		close(lfd);
-		return (YPERR_YPBIND);
-		break;
-	case 1:
-	default:
-		close(lfd);
-		break;
-	}
-
 again:
 	retries++;
 	if (retries > MAX_RETRIES) {
@@ -333,6 +315,15 @@ skipit:
 		client = clnttcp_create(&clnt_sin, YPBINDPROG, YPBINDVERS, &clnt_sock,
 			0, 0);
 		if(client==NULL) {
+			/*
+			 * These conditions indicate ypbind just isn't
+			 * alive -- we probably don't want to shoot our
+			 * mouth off in this case and generate error
+			 * messages only for really exotic problems.
+			 */
+			if (rpc_createerr.cf_stat != RPC_PROGNOTREGISTERED &&
+			   (rpc_createerr.cf_stat != RPC_SYSTEMERROR &&
+			    rpc_createerr.cf_error.re_errno == ECONNREFUSED))
 			clnt_pcreateerror("clnttcp_create");
 			if(new)
 				free(ysd);
@@ -344,10 +335,12 @@ skipit:
 		r = clnt_call(client, YPBINDPROC_DOMAIN,
 			xdr_domainname, (char *)&dom, xdr_ypbind_resp, &ypbr, tv);
 		if(r != RPC_SUCCESS) {
-			fprintf(stderr,
-			"YP: server for domain %s not responding, retrying\n", dom);
 			clnt_destroy(client);
 			ysd->dom_vers = -1;
+			if (r == RPC_PROGUNAVAIL || r == RPC_PROCUNAVAIL)
+				return(YPERR_YPBIND);
+			fprintf(stderr,
+			"YP: server for domain %s not responding, retrying\n", dom);
 			goto again;
 		} else {
 			if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
