@@ -3,7 +3,7 @@
 
 MAINTAINER=	n_hibma@FreeBSD.ORG
 
-LIB=	usb
+LIB=	usbhid
 MAN=	usbhid.3
 
 SHLIB_MAJOR= 0
