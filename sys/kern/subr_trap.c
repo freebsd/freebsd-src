@@ -123,7 +123,6 @@ ast(framep)
 	struct proc *p = td->td_proc;
 	struct kse *ke = td->td_kse;
 	u_int prticks, sticks;
-	register_t s;
 	int sflag;
 	int flags;
 #if defined(DEV_NPX) && !defined(SMP)
@@ -137,16 +136,13 @@ ast(framep)
 #endif
 	mtx_assert(&Giant, MA_NOTOWNED);
 	prticks = 0;		/* XXX: Quiet warning. */
-	s = intr_disable();
-	while ((ke->ke_flags & (KEF_ASTPENDING | KEF_NEEDRESCHED)) != 0) {
-		intr_restore(s);
 		td->td_frame = framep;
 		/*
 		 * This updates the p_sflag's for the checks below in one
 		 * "atomic" operation with turning off the astpending flag.
 		 * If another AST is triggered while we are handling the
 		 * AST's saved in sflag, the astpending flag will be set and
-		 * we will loop again.
+		 * ast() will be called again.
 		 */
 		mtx_lock_spin(&sched_lock);
 		sticks = ke->ke_sticks;
@@ -190,13 +186,5 @@ ast(framep)
 #ifdef DIAGNOSTIC
 		cred_free_thread(td);
 #endif
-		s = intr_disable();
-	}
 	mtx_assert(&Giant, MA_NOTOWNED);
-	/*
-	 * We need to keep interrupts disabled so that if any further AST's
-	 * come in, the interrupt they come in on will be delayed until we
-	 * finish returning to userland.  We assume that the return to userland
-	 * will perform the equivalent of intr_restore().
-	 */
 }
