@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.3 1994/08/02 07:48:18 davidg Exp $
+ * $Id: in_pcb.c,v 1.4 1995/02/08 20:22:07 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -151,7 +151,6 @@ in_pcbbind(inp, nam)
 	return (0);
 }
 
-#ifdef TTCP
 /*
  *   Transform old in_pcbconnect() into an inner subroutine for new
  *   in_pcbconnect(): Do some validity-checking on the remote
@@ -170,20 +169,6 @@ in_pcbladdr(inp, nam, plocal_sin)
 	struct mbuf *nam;
 	struct sockaddr_in **plocal_sin;
 {
-#else /* TTCP */
-/*
- * Connect from a socket to a specified address.
- * Both address and port must be specified in argument sin.
- * If don't have a local address for this socket yet,
- * then pick one.
- */
-
-int
-in_pcbconnect(inp, nam)
-	register struct inpcb *inp;
-	struct mbuf *nam;
-{
-#endif /* TTCP */
 	struct in_ifaddr *ia;
 	struct sockaddr_in *ifaddr = 0;
 	register struct sockaddr_in *sin = mtod(nam, struct sockaddr_in *);
@@ -278,7 +263,6 @@ in_pcbconnect(inp, nam)
 					return (EADDRNOTAVAIL);
 			}
 		}
-#ifdef TTCP
 	/*
 	 * Don't do pcblookup call here; return interface in plocal_sin
 	 * and exit to caller, that will do the lookup.
@@ -311,10 +295,6 @@ in_pcbconnect(inp, nam)
 	if (error = in_pcbladdr(inp, nam, &ifaddr))
 		return(error);
 
-#else /* TTCP */
-		ifaddr = (struct sockaddr_in *)&ia->ia_addr;
-	}
-#endif /* TTCP */
 	if (in_pcblookup(inp->inp_head,
 	    sin->sin_addr,
 	    sin->sin_port,
