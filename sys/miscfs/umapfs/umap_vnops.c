@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)umap_vnops.c	8.3 (Berkeley) 1/5/94
+ *	@(#)umap_vnops.c	8.6 (Berkeley) 5/22/95
  */
 
 /*
@@ -323,10 +323,52 @@ umap_getattr(ap)
 	return (0);
 }
 
+/*
+ * We need to process our own vnode lock and then clear the
+ * interlock flag as it applies only to our vnode, not the
+ * vnodes below us on the stack.
+ */
+int
+umap_lock(ap)
+	struct vop_lock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	vop_nolock(ap);
+	if ((ap->a_flags & LK_TYPE_MASK) == LK_DRAIN)
+		return (0);
+	ap->a_flags &= ~LK_INTERLOCK;
+	return (null_bypass(ap));
+}
+
+/*
+ * We need to process our own vnode unlock and then clear the
+ * interlock flag as it applies only to our vnode, not the
+ * vnodes below us on the stack.
+ */
+int
+umap_unlock(ap)
+	struct vop_unlock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	vop_nounlock(ap);
+	ap->a_flags &= ~LK_INTERLOCK;
+	return (null_bypass(ap));
+}
+
 int
 umap_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	/*
@@ -336,6 +378,7 @@ umap_inactive(ap)
 	 * cache and reusable.
 	 *
 	 */
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
 
@@ -351,7 +394,7 @@ umap_reclaim(ap)
 	
 	/* After this assignment, this node will not be re-used. */
 	xp->umap_lowervp = NULL;
-	remque(xp);
+	LIST_REMOVE(xp, umap_hash);
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
 	vrele(lowervp);
@@ -474,6 +517,8 @@ struct vnodeopv_entry_desc umap_vnodeop_entries[] = {
 	{ &vop_default_desc, umap_bypass },
 
 	{ &vop_getattr_desc, umap_getattr },
+	{ &vop_lock_desc, umap_lock },
+	{ &vop_unlock_desc, umap_unlock },
 	{ &vop_inactive_desc, umap_inactive },
 	{ &vop_reclaim_desc, umap_reclaim },
 	{ &vop_print_desc, umap_print },

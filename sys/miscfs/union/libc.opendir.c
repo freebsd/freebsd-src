@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1993, 1994
+ * Copyright (c) 1983, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,8 +32,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char orig_sccsid[] = "@(#)opendir.c	8.2 (Berkeley) 2/12/94";
-static char sccsid[] = "@(#)libc.opendir.c	8.1 (Berkeley) 2/15/94";
+static char sccsid[] = "@(#)opendir.c	8.6 (Berkeley) 8/14/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -45,18 +44,27 @@ static char sccsid[] = "@(#)libc.opendir.c	8.1 (Berkeley) 2/15/94";
 #include <unistd.h>
 
 /*
- * open a directory.
+ * Open a directory.
  */
 DIR *
 opendir(name)
 	const char *name;
 {
+
+	return (__opendir2(name, DTF_HIDEW|DTF_NODUP));
+}
+
+DIR *
+__opendir2(name, flags)
+	const char *name;
+	int flags;
+{
 	DIR *dirp;
 	int fd;
 	int incr;
-	struct statfs sfb;
+	int unionstack;
 
-	if ((fd = open(name, 0)) == -1)
+	if ((fd = open(name, O_RDONLY)) == -1)
 		return (NULL);
 	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
 	    (dirp = (DIR *)malloc(sizeof(DIR))) == NULL) {
@@ -68,24 +76,30 @@ opendir(name)
 	 * If CLBYTES is an exact multiple of DIRBLKSIZ, use a CLBYTES
 	 * buffer that it cluster boundary aligned.
 	 * Hopefully this can be a big win someday by allowing page
-	 * trades trade to user space to be done by getdirentries()
+	 * trades to user space to be done by getdirentries()
 	 */
 	if ((CLBYTES % DIRBLKSIZ) == 0)
 		incr = CLBYTES;
 	else
 		incr = DIRBLKSIZ;
 
-#ifdef MOUNT_UNION
 	/*
 	 * Determine whether this directory is the top of a union stack.
 	 */
-	if (fstatfs(fd, &sfb) < 0) {
-		free(dirp);
-		close(fd);
-		return (NULL);
+	if (flags & DTF_NODUP) {
+		struct statfs sfb;
+
+		if (fstatfs(fd, &sfb) < 0) {
+			free(dirp);
+			close(fd);
+			return (NULL);
+		}
+		unionstack = (sfb.f_type == MOUNT_UNION);
+	} else {
+		unionstack = 0;
 	}
 
-	if (sfb.f_type == MOUNT_UNION) {
+	if (unionstack) {
 		int len = 0;
 		int space = 0;
 		char *buf = 0;
@@ -99,11 +113,6 @@ opendir(name)
 		 * remove duplicate entries by setting the inode
 		 * number to zero.
 		 */
-
-		/*
-		 * Fixup dd_loc to be non-zero to fake out readdir
-		 */
-		dirp->dd_loc = sizeof(void *);
 
 		do {
 			/*
@@ -119,7 +128,7 @@ opendir(name)
 					close(fd);
 					return (NULL);
 				}
-				ddptr = buf + (len - space) + dirp->dd_loc;
+				ddptr = buf + (len - space);
 			}
 
 			n = getdirentries(fd, ddptr, space, &dirp->dd_seek);
@@ -128,6 +137,24 @@ opendir(name)
 				space -= n;
 			}
 		} while (n > 0);
+
+		flags |= __DTF_READALL;
+
+		/*
+		 * Re-open the directory.
+		 * This has the effect of rewinding back to the
+		 * top of the union stack and is needed by
+		 * programs which plan to fchdir to a descriptor
+		 * which has also been read -- see fts.c.
+		 */
+		if (flags & DTF_REWIND) {
+			(void) close(fd);
+			if ((fd = open(name, O_RDONLY)) == -1) {
+				free(buf);
+				free(dirp);
+				return (NULL);
+			}
+		}
 
 		/*
 		 * There is now a buffer full of (possibly) duplicate
@@ -144,7 +171,7 @@ opendir(name)
 		 */
 		for (dpv = 0;;) {
 			n = 0;
-			ddptr = buf + dirp->dd_loc;
+			ddptr = buf;
 			while (ddptr < buf + len) {
 				struct dirent *dp;
 
@@ -166,10 +193,9 @@ opendir(name)
 				struct dirent *xp;
 
 				/*
-				 * If and when whiteouts happen,
-				 * this sort would need to be stable.
+				 * This sort must be stable.
 				 */
-				heapsort(dpv, n, sizeof(*dpv), alphasort);
+				mergesort(dpv, n, sizeof(*dpv), alphasort);
 
 				dpv[n] = NULL;
 				xp = NULL;
@@ -183,9 +209,13 @@ opendir(name)
 					struct dirent *dp = dpv[n];
 
 					if ((xp == NULL) ||
-					    strcmp(dp->d_name, xp->d_name))
+					    strcmp(dp->d_name, xp->d_name)) {
 						xp = dp;
-					else
+					} else {
+						dp->d_fileno = 0;
+					}
+					if (dp->d_type == DT_WHT &&
+					    (flags & DTF_HIDEW))
 						dp->d_fileno = 0;
 				}
 
@@ -200,9 +230,7 @@ opendir(name)
 
 		dirp->dd_len = len;
 		dirp->dd_size = ddptr - dirp->dd_buf;
-	} else
-#endif /* MOUNT_UNION */
-	{
+	} else {
 		dirp->dd_len = incr;
 		dirp->dd_buf = malloc(dirp->dd_len);
 		if (dirp->dd_buf == NULL) {
@@ -211,10 +239,12 @@ opendir(name)
 			return (NULL);
 		}
 		dirp->dd_seek = 0;
-		dirp->dd_loc = 0;
+		flags &= ~DTF_REWIND;
 	}
 
+	dirp->dd_loc = 0;
 	dirp->dd_fd = fd;
+	dirp->dd_flags = flags;
 
 	/*
 	 * Set up seek point for rewinddir.

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)null_vnops.c	8.1 (Berkeley) 6/10/93
+ *	@(#)null_vnops.c	8.6 (Berkeley) 5/27/95
  *
  * Ancestors:
  *	@(#)lofs_vnops.c	1.2 (Berkeley) 6/18/92
@@ -92,13 +92,21 @@
  * in the arguments and, if a vnode is return by the operation,
  * stacks a null-node on top of the returned vnode.
  *
- * Although bypass handles most operations, 
- * vop_getattr, _inactive, _reclaim, and _print are not bypassed.
- * Vop_getattr must change the fsid being returned.
+ * Although bypass handles most operations, vop_getattr, vop_lock,
+ * vop_unlock, vop_inactive, vop_reclaim, and vop_print are not
+ * bypassed. Vop_getattr must change the fsid being returned.
+ * Vop_lock and vop_unlock must handle any locking for the
+ * current vnode as well as pass the lock request down.
  * Vop_inactive and vop_reclaim are not bypassed so that
- * they can handle freeing null-layer specific data.
- * Vop_print is not bypassed to avoid excessive debugging
- * information.
+ * they can handle freeing null-layer specific data. Vop_print
+ * is not bypassed to avoid excessive debugging information.
+ * Also, certain vnode operations change the locking state within
+ * the operation (create, mknod, remove, link, rename, mkdir, rmdir,
+ * and symlink). Ideally these operations should not change the
+ * lock state, but should be changed to let the caller of the
+ * function unlock them. Otherwise all intermediate vnode layers
+ * (such as union, umapfs, etc) must catch these functions to do
+ * the necessary locking at their layer.
  *
  *
  * INSTANTIATING VNODE STACKS
@@ -248,7 +256,8 @@ null_bypass(ap)
 		 * are of our type.  Check for and don't map any
 		 * that aren't.  (We must always map first vp or vclean fails.)
 		 */
-		if (i && (*this_vp_p)->v_op != null_vnodeop_p) {
+		if (i && (*this_vp_p == NULL ||
+		    (*this_vp_p)->v_op != null_vnodeop_p)) {
 			old_vps[i] = NULL;
 		} else {
 			old_vps[i] = *this_vp_p;
@@ -311,6 +320,104 @@ null_bypass(ap)
 	return (error);
 }
 
+/*
+ * We have to carry on the locking protocol on the null layer vnodes
+ * as we progress through the tree. We also have to enforce read-only
+ * if this layer is mounted read-only.
+ */
+null_lookup(ap)
+	struct vop_lookup_args /* {
+		struct vnode * a_dvp;
+		struct vnode ** a_vpp;
+		struct componentname * a_cnp;
+	} */ *ap;
+{
+	struct componentname *cnp = ap->a_cnp;
+	struct proc *p = cnp->cn_proc;
+	int flags = cnp->cn_flags;
+	struct vop_lock_args lockargs;
+	struct vop_unlock_args unlockargs;
+	struct vnode *dvp, *vp;
+	int error;
+
+	if ((flags & ISLASTCN) && (ap->a_dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
+		return (EROFS);
+	error = null_bypass(ap);
+	if (error == EJUSTRETURN && (flags & ISLASTCN) &&
+	    (ap->a_dvp->v_mount->mnt_flag & MNT_RDONLY) &&
+	    (cnp->cn_nameiop == CREATE || cnp->cn_nameiop == RENAME))
+		error = EROFS;
+	/*
+	 * We must do the same locking and unlocking at this layer as 
+	 * is done in the layers below us. We could figure this out 
+	 * based on the error return and the LASTCN, LOCKPARENT, and
+	 * LOCKLEAF flags. However, it is more expidient to just find 
+	 * out the state of the lower level vnodes and set ours to the
+	 * same state.
+	 */
+	dvp = ap->a_dvp;
+	vp = *ap->a_vpp;
+	if (dvp == vp)
+		return (error);
+	if (!VOP_ISLOCKED(dvp)) {
+		unlockargs.a_vp = dvp;
+		unlockargs.a_flags = 0;
+		unlockargs.a_p = p;
+		vop_nounlock(&unlockargs);
+	}
+	if (vp != NULL && VOP_ISLOCKED(vp)) {
+		lockargs.a_vp = vp;
+		lockargs.a_flags = LK_SHARED;
+		lockargs.a_p = p;
+		vop_nolock(&lockargs);
+	}
+	return (error);
+}
+
+/*
+ * Setattr call. Disallow write attempts if the layer is mounted read-only.
+ */
+int
+null_setattr(ap)
+	struct vop_setattr_args /* {
+		struct vnodeop_desc *a_desc;
+		struct vnode *a_vp;
+		struct vattr *a_vap;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	struct vattr *vap = ap->a_vap;
+
+  	if ((vap->va_flags != VNOVAL || vap->va_uid != (uid_t)VNOVAL ||
+	    vap->va_gid != (gid_t)VNOVAL || vap->va_atime.ts_sec != VNOVAL ||
+	    vap->va_mtime.ts_sec != VNOVAL || vap->va_mode != (mode_t)VNOVAL) &&
+	    (vp->v_mount->mnt_flag & MNT_RDONLY))
+		return (EROFS);
+	if (vap->va_size != VNOVAL) {
+ 		switch (vp->v_type) {
+ 		case VDIR:
+ 			return (EISDIR);
+ 		case VCHR:
+ 		case VBLK:
+ 		case VSOCK:
+ 		case VFIFO:
+			return (0);
+		case VREG:
+		case VLNK:
+ 		default:
+			/*
+			 * Disallow write attempts if the filesystem is
+			 * mounted read-only.
+			 */
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+		}
+	}
+	return (null_bypass(ap));
+}
 
 /*
  *  We handle getattr only to change the fsid.
@@ -325,6 +432,7 @@ null_getattr(ap)
 	} */ *ap;
 {
 	int error;
+
 	if (error = null_bypass(ap))
 		return (error);
 	/* Requires that arguments be restored. */
@@ -332,11 +440,82 @@ null_getattr(ap)
 	return (0);
 }
 
+int
+null_access(ap)
+	struct vop_access_args /* {
+		struct vnode *a_vp;
+		int  a_mode;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+	mode_t mode = ap->a_mode;
+
+	/*
+	 * Disallow write attempts on read-only layers;
+	 * unless the file is a socket, fifo, or a block or
+	 * character device resident on the file system.
+	 */
+	if (mode & VWRITE) {
+		switch (vp->v_type) {
+		case VDIR:
+		case VLNK:
+		case VREG:
+			if (vp->v_mount->mnt_flag & MNT_RDONLY)
+				return (EROFS);
+			break;
+		}
+	}
+	return (null_bypass(ap));
+}
+
+/*
+ * We need to process our own vnode lock and then clear the
+ * interlock flag as it applies only to our vnode, not the
+ * vnodes below us on the stack.
+ */
+int
+null_lock(ap)
+	struct vop_lock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	vop_nolock(ap);
+	if ((ap->a_flags & LK_TYPE_MASK) == LK_DRAIN)
+		return (0);
+	ap->a_flags &= ~LK_INTERLOCK;
+	return (null_bypass(ap));
+}
+
+/*
+ * We need to process our own vnode unlock and then clear the
+ * interlock flag as it applies only to our vnode, not the
+ * vnodes below us on the stack.
+ */
+int
+null_unlock(ap)
+	struct vop_unlock_args /* {
+		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
+	} */ *ap;
+{
+	struct vnode *vp = ap->a_vp;
+
+	vop_nounlock(ap);
+	ap->a_flags &= ~LK_INTERLOCK;
+	return (null_bypass(ap));
+}
 
 int
 null_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	/*
@@ -351,6 +530,7 @@ null_inactive(ap)
 	 * like they do in the name lookup cache code.
 	 * That's too much work for now.
 	 */
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
 
@@ -358,6 +538,7 @@ int
 null_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 	struct vnode *vp = ap->a_vp;
@@ -370,13 +551,12 @@ null_reclaim(ap)
 	 */
 	/* After this assignment, this node will not be re-used. */
 	xp->null_lowervp = NULL;
-	remque(xp);
+	LIST_REMOVE(xp, null_hash);
 	FREE(vp->v_data, M_TEMP);
 	vp->v_data = NULL;
 	vrele (lowervp);
 	return (0);
 }
-
 
 int
 null_print(ap)
@@ -388,7 +568,6 @@ null_print(ap)
 	printf ("\ttag VT_NULLFS, vp=%x, lowervp=%x\n", vp, NULLVPTOLOWERVP(vp));
 	return (0);
 }
-
 
 /*
  * XXX - vop_strategy must be hand coded because it has no
@@ -414,7 +593,6 @@ null_strategy(ap)
 
 	return (error);
 }
-
 
 /*
  * XXX - like vop_strategy, vop_bwrite must be hand coded because it has no
@@ -448,7 +626,12 @@ int (**null_vnodeop_p)();
 struct vnodeopv_entry_desc null_vnodeop_entries[] = {
 	{ &vop_default_desc, null_bypass },
 
+	{ &vop_lookup_desc, null_lookup },
+	{ &vop_setattr_desc, null_setattr },
 	{ &vop_getattr_desc, null_getattr },
+	{ &vop_access_desc, null_access },
+	{ &vop_lock_desc, null_lock },
+	{ &vop_unlock_desc, null_unlock },
 	{ &vop_inactive_desc, null_inactive },
 	{ &vop_reclaim_desc, null_reclaim },
 	{ &vop_print_desc, null_print },

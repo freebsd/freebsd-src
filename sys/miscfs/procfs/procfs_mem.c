@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
+ *	@(#)procfs_mem.c	8.5 (Berkeley) 6/15/94
  *
  * From:
  *	$Id: procfs_mem.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
@@ -206,14 +206,11 @@ procfs_domem(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
-	int error;
 
 	if (uio->uio_resid == 0)
 		return (0);
 
-	error = procfs_rwmem(p, uio);
-
-	return (error);
+	return (procfs_rwmem(p, uio));
 }
 
 /*
@@ -231,6 +228,7 @@ struct vnode *
 procfs_findtextvp(p)
 	struct proc *p;
 {
+
 	return (p->p_textvp);
 }
 

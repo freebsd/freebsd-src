@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1989, 1993
+ * Copyright (c) 1989, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
+ *	@(#)spec_vnops.c	8.14 (Berkeley) 5/21/95
  */
 
 #include <sys/param.h>
@@ -71,8 +71,10 @@ struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_setattr_desc, spec_setattr },		/* setattr */
 	{ &vop_read_desc, spec_read },			/* read */
 	{ &vop_write_desc, spec_write },		/* write */
+	{ &vop_lease_desc, spec_lease_check },		/* lease */
 	{ &vop_ioctl_desc, spec_ioctl },		/* ioctl */
 	{ &vop_select_desc, spec_select },		/* select */
+	{ &vop_revoke_desc, spec_revoke },		/* revoke */
 	{ &vop_mmap_desc, spec_mmap },			/* mmap */
 	{ &vop_fsync_desc, spec_fsync },		/* fsync */
 	{ &vop_seek_desc, spec_seek },			/* seek */
@@ -134,9 +136,10 @@ spec_open(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
+	struct proc *p = ap->a_p;
 	struct vnode *bvp, *vp = ap->a_vp;
 	dev_t bdev, dev = (dev_t)vp->v_rdev;
-	register int maj = major(dev);
+	int maj = major(dev);
 	int error;
 
 	/*
@@ -155,7 +158,7 @@ spec_open(ap)
 			 * When running in very secure mode, do not allow
 			 * opens for writing of any disk character devices.
 			 */
-			if (securelevel >= 2 && isdisk(dev, VCHR))
+			if (securelevel >= 2 && cdevsw[maj].d_type == D_DISK)
 				return (EPERM);
 			/*
 			 * When running in secure mode, do not allow opens
@@ -173,9 +176,11 @@ spec_open(ap)
 					return (EPERM);
 			}
 		}
-		VOP_UNLOCK(vp);
-		error = (*cdevsw[maj].d_open)(dev, ap->a_mode, S_IFCHR, ap->a_p);
-		VOP_LOCK(vp);
+		if (cdevsw[maj].d_type == D_TTY)
+			vp->v_flag |= VISTTY;
+		VOP_UNLOCK(vp, 0, p);
+		error = (*cdevsw[maj].d_open)(dev, ap->a_mode, S_IFCHR, p);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	case VBLK:
@@ -186,7 +191,7 @@ spec_open(ap)
 		 * opens for writing of any disk block devices.
 		 */
 		if (securelevel >= 2 && ap->a_cred != FSCRED &&
-		    (ap->a_mode & FWRITE) && isdisk(dev, VBLK))
+		    (ap->a_mode & FWRITE) && bdevsw[maj].d_type == D_DISK)
 			return (EPERM);
 		/*
 		 * Do not allow opens of block devices that are
@@ -194,7 +199,7 @@ spec_open(ap)
 		 */
 		if (error = vfs_mountedon(vp))
 			return (error);
-		return ((*bdevsw[maj].d_open)(dev, ap->a_mode, S_IFBLK, ap->a_p));
+		return ((*bdevsw[maj].d_open)(dev, ap->a_mode, S_IFBLK, p));
 	}
 	return (0);
 }
@@ -234,10 +239,10 @@ spec_read(ap)
 	switch (vp->v_type) {
 
 	case VCHR:
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		error = (*cdevsw[major(vp->v_rdev)].d_read)
 			(vp->v_rdev, uio, ap->a_ioflag);
-		VOP_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	case VBLK:
@@ -313,10 +318,10 @@ spec_write(ap)
 	switch (vp->v_type) {
 
 	case VCHR:
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, p);
 		error = (*cdevsw[major(vp->v_rdev)].d_write)
 			(vp->v_rdev, uio, ap->a_ioflag);
-		VOP_LOCK(vp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 		return (error);
 
 	case VBLK:
@@ -385,7 +390,7 @@ spec_ioctl(ap)
 
 	case VBLK:
 		if (ap->a_command == 0 && (int)ap->a_data == B_TAPE)
-			if (bdevsw[major(dev)].d_flags & B_TAPE)
+			if (bdevsw[major(dev)].d_type == D_TAPE)
 				return (0);
 			else
 				return (1);
@@ -473,6 +478,18 @@ loop:
 	return (0);
 }
 
+int
+spec_inactive(ap)
+	struct vop_inactive_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
+{
+
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
+	return (0);
+}
+
 /*
  * Just call the device strategy routine
  */
@@ -495,6 +512,7 @@ spec_bmap(ap)
 		daddr_t  a_bn;
 		struct vnode **a_vpp;
 		daddr_t *a_bnp;
+		int *a_runp;
 	} */ *ap;
 {
 
@@ -502,29 +520,8 @@ spec_bmap(ap)
 		*ap->a_vpp = ap->a_vp;
 	if (ap->a_bnp != NULL)
 		*ap->a_bnp = ap->a_bn;
-	return (0);
-}
-
-/*
- * At the moment we do not do any locking.
- */
-/* ARGSUSED */
-spec_lock(ap)
-	struct vop_lock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
-	return (0);
-}
-
-/* ARGSUSED */
-spec_unlock(ap)
-	struct vop_unlock_args /* {
-		struct vnode *a_vp;
-	} */ *ap;
-{
-
+	if (ap->a_runp != NULL)
+		*ap->a_runp = 0;
 	return (0);
 }
 

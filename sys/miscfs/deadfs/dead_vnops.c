@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
+ *	@(#)dead_vnops.c	8.3 (Berkeley) 5/14/95
  */
 
 #include <sys/param.h>
@@ -73,11 +73,11 @@ int	dead_select __P((struct vop_select_args *));
 #define dead_inactive ((int (*) __P((struct  vop_inactive_args *)))nullop)
 #define dead_reclaim ((int (*) __P((struct  vop_reclaim_args *)))nullop)
 int	dead_lock __P((struct vop_lock_args *));
-#define dead_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
+#define dead_unlock ((int (*) __P((struct vop_unlock_args *)))vop_nounlock)
 int	dead_bmap __P((struct vop_bmap_args *));
 int	dead_strategy __P((struct vop_strategy_args *));
 int	dead_print __P((struct vop_print_args *));
-#define dead_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define dead_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define dead_pathconf ((int (*) __P((struct  vop_pathconf_args *)))dead_ebadf)
 #define dead_advlock ((int (*) __P((struct  vop_advlock_args *)))dead_ebadf)
 #define dead_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))dead_badop)
@@ -93,20 +93,20 @@ struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_lookup_desc, dead_lookup },	/* lookup */
 	{ &vop_create_desc, dead_create },	/* create */
 	{ &vop_mknod_desc, dead_mknod },	/* mknod */
-	{ &vop_open_desc, dead_open },	/* open */
+	{ &vop_open_desc, dead_open },		/* open */
 	{ &vop_close_desc, dead_close },	/* close */
 	{ &vop_access_desc, dead_access },	/* access */
 	{ &vop_getattr_desc, dead_getattr },	/* getattr */
 	{ &vop_setattr_desc, dead_setattr },	/* setattr */
-	{ &vop_read_desc, dead_read },	/* read */
+	{ &vop_read_desc, dead_read },		/* read */
 	{ &vop_write_desc, dead_write },	/* write */
 	{ &vop_ioctl_desc, dead_ioctl },	/* ioctl */
 	{ &vop_select_desc, dead_select },	/* select */
-	{ &vop_mmap_desc, dead_mmap },	/* mmap */
+	{ &vop_mmap_desc, dead_mmap },		/* mmap */
 	{ &vop_fsync_desc, dead_fsync },	/* fsync */
-	{ &vop_seek_desc, dead_seek },	/* seek */
+	{ &vop_seek_desc, dead_seek },		/* seek */
 	{ &vop_remove_desc, dead_remove },	/* remove */
-	{ &vop_link_desc, dead_link },	/* link */
+	{ &vop_link_desc, dead_link },		/* link */
 	{ &vop_rename_desc, dead_rename },	/* rename */
 	{ &vop_mkdir_desc, dead_mkdir },	/* mkdir */
 	{ &vop_rmdir_desc, dead_rmdir },	/* rmdir */
@@ -116,9 +116,9 @@ struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_abortop_desc, dead_abortop },	/* abortop */
 	{ &vop_inactive_desc, dead_inactive },	/* inactive */
 	{ &vop_reclaim_desc, dead_reclaim },	/* reclaim */
-	{ &vop_lock_desc, dead_lock },	/* lock */
+	{ &vop_lock_desc, dead_lock },		/* lock */
 	{ &vop_unlock_desc, dead_unlock },	/* unlock */
-	{ &vop_bmap_desc, dead_bmap },	/* bmap */
+	{ &vop_bmap_desc, dead_bmap },		/* bmap */
 	{ &vop_strategy_desc, dead_strategy },	/* strategy */
 	{ &vop_print_desc, dead_print },	/* print */
 	{ &vop_islocked_desc, dead_islocked },	/* islocked */
@@ -184,9 +184,9 @@ dead_read(ap)
 	if (chkvnlock(ap->a_vp))
 		panic("dead_read: lock");
 	/*
-	 * Return EOF for character devices, EIO for others
+	 * Return EOF for tty devices, EIO for others
 	 */
-	if (ap->a_vp->v_type != VCHR)
+	if ((ap->a_vp->v_flag & VISTTY) == 0)
 		return (EIO);
 	return (0);
 }
@@ -269,12 +269,23 @@ dead_strategy(ap)
 dead_lock(ap)
 	struct vop_lock_args /* {
 		struct vnode *a_vp;
+		int a_flags;
+		struct proc *a_p;
 	} */ *ap;
 {
+	struct vnode *vp = ap->a_vp;
 
-	if (!chkvnlock(ap->a_vp))
+	/*
+	 * Since we are not using the lock manager, we must clear
+	 * the interlock here.
+	 */
+	if (ap->a_flags & LK_INTERLOCK) {
+		simple_unlock(&vp->v_interlock);
+		ap->a_flags &= ~LK_INTERLOCK;
+	}
+	if (!chkvnlock(vp))
 		return (0);
-	return (VCALL(ap->a_vp, VOFFSET(vop_lock), ap));
+	return (VCALL(vp, VOFFSET(vop_lock), ap));
 }
 
 /*
@@ -325,15 +336,6 @@ dead_badop()
 
 	panic("dead_badop called");
 	/* NOTREACHED */
-}
-
-/*
- * Empty vnode null operation
- */
-dead_nullop()
-{
-
-	return (0);
 }
 
 /*

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)specdev.h	8.2 (Berkeley) 2/2/94
+ *	@(#)specdev.h	8.6 (Berkeley) 5/21/95
  */
 
 /*
@@ -93,8 +93,10 @@ int	spec_close __P((struct vop_close_args *));
 #define spec_setattr ((int (*) __P((struct  vop_setattr_args *)))spec_ebadf)
 int	spec_read __P((struct vop_read_args *));
 int	spec_write __P((struct vop_write_args *));
+#define	spec_lease_check ((int (*) __P((struct  vop_lease_args *)))nullop)
 int	spec_ioctl __P((struct vop_ioctl_args *));
 int	spec_select __P((struct vop_select_args *));
+#define	spec_revoke vop_revoke
 #define spec_mmap ((int (*) __P((struct  vop_mmap_args *)))spec_badop)
 int	spec_fsync __P((struct  vop_fsync_args *));
 #define spec_seek ((int (*) __P((struct  vop_seek_args *)))spec_badop)
@@ -107,14 +109,14 @@ int	spec_fsync __P((struct  vop_fsync_args *));
 #define spec_readdir ((int (*) __P((struct  vop_readdir_args *)))spec_badop)
 #define spec_readlink ((int (*) __P((struct  vop_readlink_args *)))spec_badop)
 #define spec_abortop ((int (*) __P((struct  vop_abortop_args *)))spec_badop)
-#define spec_inactive ((int (*) __P((struct  vop_inactive_args *)))nullop)
+int	spec_inactive __P((struct  vop_inactive_args *));
 #define spec_reclaim ((int (*) __P((struct  vop_reclaim_args *)))nullop)
-int	spec_lock __P((struct vop_lock_args *));
-int	spec_unlock __P((struct vop_unlock_args *));
+#define spec_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
+#define spec_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
 int	spec_bmap __P((struct vop_bmap_args *));
 int	spec_strategy __P((struct vop_strategy_args *));
 int	spec_print __P((struct vop_print_args *));
-#define spec_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define spec_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 int	spec_pathconf __P((struct vop_pathconf_args *));
 int	spec_advlock __P((struct vop_advlock_args *));
 #define spec_blkatoff ((int (*) __P((struct  vop_blkatoff_args *)))spec_badop)

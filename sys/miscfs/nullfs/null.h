@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)null.h	8.2 (Berkeley) 1/21/94
+ *	@(#)null.h	8.3 (Berkeley) 8/20/94
  *
  * $Id: lofs.h,v 1.8 1992/05/30 10:05:43 jsp Exp jsp $
  */
@@ -52,8 +52,7 @@ struct null_mount {
  * A cache of vnode references
  */
 struct null_node {
-	struct null_node	*null_forw;	/* Hash chain */
-	struct null_node	*null_back;
+	LIST_ENTRY(null_node)	null_hash;	/* Hash list */
 	struct vnode	        *null_lowervp;	/* VREFed once */
 	struct vnode		*null_vnode;	/* Back pointer */
 };

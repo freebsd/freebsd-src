@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1992, 1993
+ * Copyright (c) 1992, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from software donated to Berkeley by
@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
+ *	@(#)kernfs_vfsops.c	8.10 (Berkeley) 5/14/95
  */
 
 /*
@@ -53,60 +53,36 @@
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/kernfs/kernfs.h>
 
-struct vnode *rrootvp;
+dev_t rrootdev = NODEV;
 
-/*
- * Create a vnode for a character device.
- */
-int
-cdevvp(dev, vpp)
-	dev_t dev;
-	struct vnode **vpp;
+kernfs_init(vfsp)
+	struct vfsconf *vfsp;
 {
-	register struct vnode *vp;
-	struct vnode *nvp;
-	int error;
 
-	if (dev == NODEV)
-		return (0);
-	error = getnewvnode(VT_NON, (struct mount *)0, spec_vnodeop_p, &nvp);
-	if (error) {
-		*vpp = 0;
-		return (error);
-	}
-	vp = nvp;
-	vp->v_type = VCHR;
-	if (nvp = checkalias(vp, dev, (struct mount *)0)) {
-		vput(vp);
-		vp = nvp;
-	}
-	*vpp = vp;
 	return (0);
 }
 
-kernfs_init()
+void
+kernfs_get_rrootdev()
 {
+	static int tried = 0;
 	int cmaj;
-	int bmaj = major(rootdev);
-	int error = ENXIO;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_init\n");		/* printed during system boot */
-#endif
+	if (tried) {
+		/* Already did it once. */
+		return;
+	}
+	tried = 1;
 
+	if (rootdev == NODEV)
+		return;
 	for (cmaj = 0; cmaj < nchrdev; cmaj++) {
-		if (cdevsw[cmaj].d_open == bdevsw[bmaj].d_open) {
-			dev_t cdev = makedev(cmaj, minor(rootdev));
-			error = cdevvp(cdev, &rrootvp);
-			if (error == 0)
-				break;
-		}
+		rrootdev = makedev(cmaj, minor(rootdev));
+		if (chrtoblk(rrootdev) == rootdev)
+			return;
 	}
-
-	if (error) {
-		printf("kernfs: no raw boot device\n");
-		rrootvp = 0;
-	}
+	rrootdev = NODEV;
+	printf("kernfs_get_rrootdev: no raw root device\n");
 }
 
 /*
@@ -148,7 +124,7 @@ kernfs_mount(mp, path, data, ndp, p)
 	fmp->kf_root = rvp;
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = (qaddr_t) fmp;
-	getnewfsid(mp, MOUNT_KERNFS);
+	vfs_getnewfsid(mp);
 
 	(void) copyinstr(path, mp->mnt_stat.f_mntonname, MNAMELEN - 1, &size);
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
@@ -157,6 +133,8 @@ kernfs_mount(mp, path, data, ndp, p)
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_mount: at %s\n", mp->mnt_stat.f_mntonname);
 #endif
+
+	kernfs_get_rrootdev();
 	return (0);
 }
 
@@ -175,19 +153,14 @@ kernfs_unmount(mp, mntflags, p)
 {
 	int error;
 	int flags = 0;
-	extern int doforce;
 	struct vnode *rootvp = VFSTOKERNFS(mp)->kf_root;
 
 #ifdef KERNFS_DIAGNOSTIC
 	printf("kernfs_unmount(mp = %x)\n", mp);
 #endif
 
-	if (mntflags & MNT_FORCE) {
-		/* kernfs can never be rootfs so don't check for it */
-		if (!doforce)
-			return (EINVAL);
+	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	}
 
 	/*
 	 * Clear out buffer cache.  I don't think we
@@ -225,6 +198,7 @@ kernfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
+	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 
 #ifdef KERNFS_DIAGNOSTIC
@@ -236,19 +210,9 @@ kernfs_root(mp, vpp)
 	 */
 	vp = VFSTOKERNFS(mp)->kf_root;
 	VREF(vp);
-	VOP_LOCK(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	*vpp = vp;
 	return (0);
-}
-
-kernfs_quotactl(mp, cmd, uid, arg, p)
-	struct mount *mp;
-	int cmd;
-	uid_t uid;
-	caddr_t arg;
-	struct proc *p;
-{
-	return (EOPNOTSUPP);
 }
 
 kernfs_statfs(mp, sbp, p)
@@ -260,7 +224,6 @@ kernfs_statfs(mp, sbp, p)
 	printf("kernfs_statfs(mp = %x)\n", mp);
 #endif
 
-	sbp->f_type = MOUNT_KERNFS;
 	sbp->f_flags = 0;
 	sbp->f_bsize = DEV_BSIZE;
 	sbp->f_iosize = DEV_BSIZE;
@@ -270,48 +233,12 @@ kernfs_statfs(mp, sbp, p)
 	sbp->f_files = 0;
 	sbp->f_ffree = 0;
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy(&mp->mnt_stat.f_fsid, &sbp->f_fsid, sizeof(sbp->f_fsid));
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
 	}
 	return (0);
-}
-
-kernfs_sync(mp, waitfor)
-	struct mount *mp;
-	int waitfor;
-{
-	return (0);
-}
-
-/*
- * Kernfs flat namespace lookup.
- * Currently unsupported.
- */
-kernfs_vget(mp, ino, vpp)
-	struct mount *mp;
-	ino_t ino;
-	struct vnode **vpp;
-{
-
-	return (EOPNOTSUPP);
-}
-
-
-kernfs_fhtovp(mp, fhp, setgen, vpp)
-	struct mount *mp;
-	struct fid *fhp;
-	int setgen;
-	struct vnode **vpp;
-{
-	return (EOPNOTSUPP);
-}
-
-kernfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	return (EOPNOTSUPP);
 }
 
 struct vfsops kernfs_vfsops = {
@@ -326,4 +253,5 @@ struct vfsops kernfs_vfsops = {
 	kernfs_fhtovp,
 	kernfs_vptofh,
 	kernfs_init,
+	kernfs_sysctl,
 };

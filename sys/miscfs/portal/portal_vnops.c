@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
+ *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
  * $Id: portal_vnops.c,v 1.4 1992/05/30 10:05:24 jsp Exp jsp $
  */
@@ -97,27 +97,34 @@ portal_lookup(ap)
 		struct componentname * a_cnp;
 	} */ *ap;
 {
-	char *pname = ap->a_cnp->cn_nameptr;
+	struct componentname *cnp = ap->a_cnp;
+	struct vnode **vpp = ap->a_vpp;
+	struct vnode *dvp = ap->a_dvp;
+	char *pname = cnp->cn_nameptr;
 	struct portalnode *pt;
 	int error;
 	struct vnode *fvp = 0;
 	char *path;
 	int size;
 
-	if (ap->a_cnp->cn_namelen == 1 && *pname == '.') {
-		*ap->a_vpp = ap->a_dvp;
-		VREF(ap->a_dvp);
-		/*VOP_LOCK(ap->a_dvp);*/
+	*vpp = NULLVP;
+
+	if (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME)
+		return (EROFS);
+
+	if (cnp->cn_namelen == 1 && *pname == '.') {
+		*vpp = dvp;
+		VREF(dvp);
+		/*VOP_LOCK(dvp);*/
 		return (0);
 	}
 
-
-	error = getnewvnode(VT_PORTAL, ap->a_dvp->v_mount, portal_vnodeop_p, &fvp);
+	error = getnewvnode(VT_PORTAL, dvp->v_mount, portal_vnodeop_p, &fvp);
 	if (error)
 		goto bad;
 	fvp->v_type = VREG;
-	MALLOC(fvp->v_data, void *, sizeof(struct portalnode),
-		M_TEMP, M_WAITOK);
+	MALLOC(fvp->v_data, void *, sizeof(struct portalnode), M_TEMP,
+	    M_WAITOK);
 
 	pt = VTOPORTAL(fvp);
 	/*
@@ -127,22 +134,20 @@ portal_lookup(ap)
 	 */
 	for (size = 0, path = pname; *path; path++)
 		size++;
-	ap->a_cnp->cn_consume = size - ap->a_cnp->cn_namelen;
+	cnp->cn_consume = size - cnp->cn_namelen;
 
 	pt->pt_arg = malloc(size+1, M_TEMP, M_WAITOK);
 	pt->pt_size = size+1;
 	bcopy(pname, pt->pt_arg, pt->pt_size);
 	pt->pt_fileid = portal_fileid++;
 
-	*ap->a_vpp = fvp;
+	*vpp = fvp;
 	/*VOP_LOCK(fvp);*/
 	return (0);
 
 bad:;
-	if (fvp) {
+	if (fvp)
 		vrele(fvp);
-	}
-	*ap->a_vpp = NULL;
 	return (error);
 }
 
@@ -423,6 +428,7 @@ portal_getattr(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct vattr *vap = ap->a_vap;
+	struct timeval tv;
 
 	bzero(vap, sizeof(*vap));
 	vattr_null(vap);
@@ -431,7 +437,8 @@ portal_getattr(ap)
 	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
 	vap->va_size = DEV_BSIZE;
 	vap->va_blocksize = DEV_BSIZE;
-	microtime(&vap->va_atime);
+	microtime(&tv);
+	TIMEVAL_TO_TIMESPEC(&tv, &vap->va_atime);
 	vap->va_mtime = vap->va_atime;
 	vap->va_ctime = vap->va_ctime;
 	vap->va_gen = 0;
@@ -487,8 +494,18 @@ portal_readdir(ap)
 		struct vnode *a_vp;
 		struct uio *a_uio;
 		struct ucred *a_cred;
+		int *a_eofflag;
+		u_long *a_cookies;
+		int a_ncookies;
 	} */ *ap;
 {
+
+	/*
+	 * We don't allow exporting portal mounts, and currently local
+	 * requests do not need cookies.
+	 */
+	if (ap->a_ncookies)
+		panic("portal_readdir: not hungry");
 
 	return (0);
 }
@@ -497,9 +514,11 @@ int
 portal_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
+		struct proc *a_p;
 	} */ *ap;
 {
 
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_p);
 	return (0);
 }
 
@@ -626,6 +645,7 @@ portal_nullop()
 #define portal_ioctl ((int (*) __P((struct  vop_ioctl_args *)))portal_enotsupp)
 #define portal_select ((int (*) __P((struct vop_select_args *)))portal_enotsupp)
 #define portal_mmap ((int (*) __P((struct  vop_mmap_args *)))portal_enotsupp)
+#define	portal_revoke vop_revoke
 #define portal_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define portal_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
 #define portal_remove ((int (*) __P((struct vop_remove_args *)))portal_enotsupp)
@@ -638,12 +658,14 @@ portal_nullop()
 #define portal_readlink \
 	((int (*) __P((struct  vop_readlink_args *)))portal_enotsupp)
 #define portal_abortop ((int (*) __P((struct  vop_abortop_args *)))nullop)
-#define portal_lock ((int (*) __P((struct  vop_lock_args *)))nullop)
-#define portal_unlock ((int (*) __P((struct  vop_unlock_args *)))nullop)
+#define portal_lock ((int (*) __P((struct  vop_lock_args *)))vop_nolock)
+#define portal_unlock ((int (*) __P((struct  vop_unlock_args *)))vop_nounlock)
 #define portal_bmap ((int (*) __P((struct  vop_bmap_args *)))portal_badop)
 #define portal_strategy \
 	((int (*) __P((struct  vop_strategy_args *)))portal_badop)
-#define portal_islocked ((int (*) __P((struct  vop_islocked_args *)))nullop)
+#define portal_islocked \
+	((int (*) __P((struct vop_islocked_args *)))vop_noislocked)
+#define fifo_islocked ((int(*) __P((struct vop_islocked_args *)))vop_noislocked)
 #define portal_advlock \
 	((int (*) __P((struct  vop_advlock_args *)))portal_enotsupp)
 #define portal_blkatoff \
@@ -674,6 +696,7 @@ struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
 	{ &vop_ioctl_desc, portal_ioctl },		/* ioctl */
 	{ &vop_select_desc, portal_select },		/* select */
 	{ &vop_mmap_desc, portal_mmap },		/* mmap */
+	{ &vop_revoke_desc, portal_revoke },		/* revoke */
 	{ &vop_fsync_desc, portal_fsync },		/* fsync */
 	{ &vop_seek_desc, portal_seek },		/* seek */
 	{ &vop_remove_desc, portal_remove },		/* remove */
