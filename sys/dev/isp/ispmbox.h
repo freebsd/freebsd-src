@@ -662,9 +662,9 @@ typedef struct isp_icb {
 #define	ICBXOPT_RIO_32BIT_DELAY	4
 
 /* These 3 only apply to the 2300 */
-#define	ICBXOPT_RATE_ONEGB	(MBGSD_ONEGB << 14)
-#define	ICBXOPT_RATE_TWOGB	(MBGSD_TWOGB << 14)
-#define	ICBXOPT_RATE_AUTO	(MBGSD_AUTO << 14)
+#define	ICBZOPT_RATE_ONEGB	(MBGSD_ONEGB << 14)
+#define	ICBZOPT_RATE_TWOGB	(MBGSD_TWOGB << 14)
+#define	ICBZOPT_RATE_AUTO	(MBGSD_AUTO << 14)
 
 
 #define	ICB_MIN_FRMLEN		256
