@@ -387,6 +387,10 @@
     <para><application>GNU readline</application> 4.3 has been updated
       with official patches 001 through 005.</para>
 
+    <para>The <application>GNU regex</application> library has been
+      updated to the version included with <application>GNU
+      grep</application> 2.4.2.</para>
+
     <para>The <application>GNU tar</application> implementation in the
       base system is now called <filename>gtar</filename>, with
       <filename>tar</filename> being a link to
@@ -396,7 +400,23 @@
       Dogwood release to the Eelgrass release.</para>
 
     <para><application>OpenSSH</application> has been updated from
-      3.6.1p1 to 3.7.1p2.</para>
+      3.6.1p1 to 3.8p1.
+
+      <note>
+	<para>The configuration defaults for &man.sshd.8; have been
+	  changed.  SSH protocol version 1 is no longer enabled by
+	  default.  In addition, password authentication over SSH is
+	  disabled by default if PAM is enabled.</para>
+      </note>
+
+      </para>
+
+    <para><application>routed</application> has been updated from
+      release 2.22 to release 2.27 from rhyolite.com.  Note that for
+      users relying on RIP's MD5 authentication feature,
+      &man.routed.8; routed is now incompatible with previous versions
+      of &os;; however it is now compatible with implementations from
+      Sun, Cisco and other vendors.</para>
 
     <para><application>sendmail</application> has been updated from
       version 8.12.10 to version 8.12.11. &merged;</para>
