@@ -91,7 +91,6 @@ struct bio {
 #define BIO_WRITE	0x00000002
 #define BIO_DELETE	0x00000004
 #define BIO_GETATTR	0x00000008
-#define BIO_SETATTR	0x00000010
 #define BIO_CMD1	0x40000000	/* Available for local hacks */
 #define BIO_CMD2	0x80000000	/* Available for local hacks */
 
