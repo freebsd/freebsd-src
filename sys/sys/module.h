@@ -125,6 +125,15 @@ struct mod_metadata {
 	MODULE_METADATA(_##module##_version, MDT_VERSION,		\
 	    &_##module##_version, #module)
 
+extern struct sx modules_sx;
+
+#define	MOD_XLOCK	sx_xlock(&modules_sx)
+#define	MOD_SLOCK	sx_slock(&modules_sx)
+#define	MOD_XUNLOCK	sx_xunlock(&modules_sx)
+#define	MOD_SUNLOCK	sx_sunlock(&modules_sx)
+#define	MOD_LOCK_ASSERT	sx_assert(&modules_sx, SX_LOCKED)
+#define	MOD_XLOCK_ASSERT	sx_assert(&modules_sx, SX_XLOCKED)
+
 struct linker_file;
 
 void	module_register_init(const void *);
