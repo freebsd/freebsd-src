@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_vnops.c	8.18 (Berkeley) 5/21/95
  *
- *	$Id: procfs_vnops.c,v 1.43 1997/12/05 19:55:47 bde Exp $
+ *	$Id: procfs_vnops.c,v 1.44 1997/12/06 04:11:13 sef Exp $
  */
 
 /*
@@ -173,11 +173,39 @@ procfs_close(ap)
 	} */ *ap;
 {
 	struct pfsnode *pfs = VTOPFS(ap->a_vp);
+	struct proc *p;
 
 	switch (pfs->pfs_type) {
 	case Pmem:
 		if ((ap->a_fflag & FWRITE) && (pfs->pfs_flags & O_EXCL))
 			pfs->pfs_flags &= ~(FWRITE|O_EXCL);
+		/*
+		 * This rather complicated-looking code is trying to
+		 * determine if this was the last close on this particular
+		 * vnode.  While one would expect v_usecount to be 1 at
+		 * that point, it seems that (according to John Dyson)
+		 * the VM system will bump up the usecount.  So:  if the
+		 * usecount is 2, and VVMIO is set, then this is really
+		 * the last close.  Otherwise, if the usecount is < 2
+		 * then it is definitely the last close.
+		 * If this is the last close, then it checks to see if
+		 * the target process has PF_LINGER set in p_pfsflags,
+		 * if this is *not* the case, then the process' stop flags
+		 * are cleared, and the process is woken up.  This is
+		 * to help prevent the case where a process has been
+		 * told to stop on an event, but then the requesting process
+		 * has gone away or forgotten about it.
+		 */
+		if (((ap->a_vp->v_usecount == 2
+		      && ap->a_vp->v_object
+		      && (ap->a_vp->v_flag & VVMIO)) ||
+		     (ap->a_vp->v_usecount < 2))
+		    && (p = pfind(pfs->pfs_pid))
+		    && !(p->p_pfsflags & PF_LINGER)) {
+			p->p_stops = 0;
+			p->p_step = 0;
+			wakeup(&p->p_step);
+		}
 		break;
 	default:
 		break;
