@@ -53,7 +53,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/file.h>
+#if __FreeBSD_version >= 500000
 #include <sys/limits.h>
+#else
+#include <machine/limits.h>
+#endif
 #if __FreeBSD_version >= 500014
 #include <sys/selinfo.h>
 #else

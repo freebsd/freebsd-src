@@ -53,6 +53,9 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/bus.h>
 #include <machine/bus.h>
+#if __FreeBSD_version < 500000
+#include <machine/clock.h>
+#endif
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -488,7 +491,12 @@ rue_setmulti(struct rue_softc *sc)
 	rue_csr_write_4(sc, RUE_MAR4, 0);
 
 	/* now program new ones */
-	TAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link) {
+#if __FreeBSD_version >= 500000
+	TAILQ_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
+#else
+	LIST_FOREACH (ifma, &ifp->if_multiaddrs, ifma_link)
+#endif
+	{
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		h = rue_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr));
@@ -629,8 +637,10 @@ USB_ATTACH(rue)
 		}
 	}
 
+#if __FreeBSD_version >= 500000
 	mtx_init(&sc->rue_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 		 MTX_DEF | MTX_RECURSE);
+#endif
 	RUE_LOCK(sc);
 
 	/* Reset the adapter */
@@ -674,7 +684,11 @@ USB_ATTACH(rue)
 	rue_qdat.if_rxstart = rue_rxstart;
 
 	/* Call MI attach routine */
+#if __FreeBSD_version >= 500000
 	ether_ifattach(ifp, eaddr);
+#else
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
+#endif
 	callout_handle_init(&sc->rue_stat_ch);
 	usb_register_netisr();
 	sc->rue_dying = 0;
@@ -685,7 +699,9 @@ USB_ATTACH(rue)
 
     error1:
 	RUE_UNLOCK(sc);
+#if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->rue_mtx);
+#endif
     error:
 	free(devinfo, M_USBDEV);
 	USB_ATTACH_ERROR_RETURN;
@@ -703,7 +719,11 @@ rue_detach(device_ptr_t dev)
 
 	sc->rue_dying = 1;
 	untimeout(rue_tick, sc, sc->rue_stat_ch);
+#if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
+#else
+	ether_ifdetach(ifp, ETHER_BPF_SUPPORTED);
+#endif
 
 	if (sc->rue_ep[RUE_ENDPT_TX] != NULL)
 		usbd_abort_pipe(sc->rue_ep[RUE_ENDPT_TX]);
@@ -715,7 +735,9 @@ rue_detach(device_ptr_t dev)
 #endif
 
 	RUE_UNLOCK(sc);
+#if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->rue_mtx);
+#endif
 
 	return (0);
 }
