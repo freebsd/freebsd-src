@@ -2370,7 +2370,9 @@ loop:
 		 */
 		VI_LOCK(rootvp);
 		KASSERT(busy > 0, ("vflush: not busy"));
-		KASSERT(rootvp->v_usecount >= rootrefs, ("vflush: rootrefs"));
+		KASSERT(rootvp->v_usecount >= rootrefs,
+		    ("vflush: usecount %d < rootrefs %d",
+		     rootvp->v_usecount, rootrefs));
 		if (busy == 1 && rootvp->v_usecount == rootrefs) {
 			vgonel(rootvp, td);
 			busy = 0;
