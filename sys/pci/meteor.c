@@ -640,9 +640,9 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the field is complete.
 		 */
-		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK)) {
+		if(mtr->proc != NULL) {
 			PROC_LOCK(mtr->proc);
-			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
+			psignal(mtr->proc, mtr->signal);
 			PROC_UNLOCK(mtr->proc);
 		}
 	}
@@ -657,9 +657,9 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the field is complete.
 		 */
-		if(mtr->proc && (mtr->signal & METEOR_SIG_MODE_MASK)) {
+		if(mtr->proc != NULL) {
 			PROC_LOCK(mtr->proc);
-			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
+			psignal(mtr->proc, mtr->signal);
 			PROC_UNLOCK(mtr->proc);
 		}
 	}
@@ -693,9 +693,9 @@ meteor_intr(void *arg)
 		 * If the user requested to be notified via signal,
 		 * let them know the frame is complete.
 		 */
-		if(mtr->proc && !(mtr->signal & METEOR_SIG_MODE_MASK)) {
+		if(mtr->proc != NULL) {
 			PROC_LOCK(mtr->proc);
-			psignal(mtr->proc, mtr->signal&(~METEOR_SIG_MODE_MASK));
+			psignal(mtr->proc, mtr->signal);
 			PROC_UNLOCK(mtr->proc);
 		}
 		/*
@@ -1334,6 +1334,7 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 {
 	int	error;  
 	int	unit;   
+	int	sig;
 	unsigned int	temp;
 	meteor_reg_t *mtr;
 	struct meteor_counts *cnt;
@@ -1392,14 +1393,12 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		*(u_short *)arg = mtr->fps;
 		break;
 	case METEORSSIGNAL:
-		if (*(int *)arg < 0 || *(int *)arg > _SIG_MAXSIG)
-			return EINVAL;
-		mtr->signal = *(int *) arg;
-		if (mtr->signal) {
-		  mtr->proc = td->td_proc;
-		} else {
-		  mtr->proc = (struct proc *)0;
-		}
+		sig = *(int *)arg;
+		/* Applications use 0 to reset signal delivery. */
+		if (sig < 0 || sig > _SIG_MAXSIG)
+			return (EINVAL);
+		mtr->signal = sig;
+		mtr->proc = sig ? td->td_proc : NULL;
 		break;
 	case METEORGSIGNAL:
 		*(int *)arg = mtr->signal;

@@ -915,10 +915,9 @@ common_bktr_intr( void *arg )
 		 * let them know the frame is complete.
 		 */
 
-		if (bktr->proc && !(bktr->signal & METEOR_SIG_MODE_MASK)) {
+		if (bktr->proc != NULL) {
 			PROC_LOCK(bktr->proc);
-			psignal( bktr->proc,
-				 bktr->signal&(~METEOR_SIG_MODE_MASK) );
+			psignal( bktr->proc, bktr->signal);
 			PROC_UNLOCK(bktr->proc);
 		}
 
@@ -1299,6 +1298,7 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 	struct bktr_capture_area *cap_area;
 	vm_offset_t		buf;
 	int                     i;
+	int			sig;
 	char                    char_temp;
 
 	switch ( cmd ) {
@@ -1570,12 +1570,16 @@ video_ioctl( bktr_ptr_t bktr, int unit, ioctl_cmd_t cmd, caddr_t arg, struct thr
 		break;
 
 	case METEORSSIGNAL:
-		if(*(int *)arg <= 0 || *(int *)arg > _SIG_MAXSIG) {
-			return( EINVAL );
-			break;
-		}
-		bktr->signal = *(int *) arg;
-		bktr->proc = td->td_proc;
+		sig = *(int *)arg;
+		/* Historically, applications used METEOR_SIG_MODE_MASK
+		 * to reset signal delivery.
+		 */
+		if (sig == METEOR_SIG_MODE_MASK)
+			sig = 0;
+		if (sig < 0 || sig > _SIG_MAXSIG)
+			return (EINVAL);
+		bktr->signal = sig;
+		bktr->proc = sig ? td->td_proc : NULL;
 		break;
 
 	case METEORGSIGNAL:
