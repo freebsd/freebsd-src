@@ -37,8 +37,6 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
@@ -81,14 +79,12 @@ struct fcrypt {
 };
 
 static	int cryptof_rw(struct file *fp, struct uio *uio,
-		    struct ucred *cred, int flags, struct thread *);
-static	int cryptof_ioctl(struct file *, u_long, void *,
-		    struct ucred *, struct thread *);
-static	int cryptof_poll(struct file *, int, struct ucred *, struct thread *);
+		    struct ucred *cred, int flags, struct proc *);
+static	int cryptof_ioctl(struct file *, u_long, caddr_t, struct proc *);
+static	int cryptof_poll(struct file *, int, struct ucred *, struct proc *);
 static	int cryptof_kqfilter(struct file *, struct knote *);
-static	int cryptof_stat(struct file *, struct stat *,
-		    struct ucred *, struct thread *);
-static	int cryptof_close(struct file *, struct thread *);
+static	int cryptof_stat(struct file *, struct stat *, struct proc *);
+static	int cryptof_close(struct file *, struct proc *);
 
 static struct fileops cryptofops = {
     cryptof_rw,
@@ -109,7 +105,7 @@ static struct csession *csecreate(struct fcrypt *, u_int64_t, caddr_t,
 static int csefree(struct csession *);
 
 static	int cryptodev_op(struct csession *, struct crypt_op *,
-			struct ucred *, struct thread *td);
+			struct proc *p);
 static	int cryptodev_key(struct crypt_kop *);
 
 static int
@@ -118,7 +114,7 @@ cryptof_rw(
 	struct uio *uio,
 	struct ucred *active_cred,
 	int flags,
-	struct thread *td)
+	struct proc *p)
 {
 
 	return (EIO);
@@ -129,9 +125,8 @@ static int
 cryptof_ioctl(
 	struct file *fp,
 	u_long cmd,
-	void *data,
-	struct ucred *active_cred,
-	struct thread *td)
+	caddr_t data,
+	struct proc *p)
 {
 	struct cryptoini cria, crie;
 	struct fcrypt *fcr = (struct fcrypt *)fp->f_data;
@@ -289,7 +284,7 @@ bail:
 		cse = csefind(fcr, cop->ses);
 		if (cse == NULL)
 			return (EINVAL);
-		error = cryptodev_op(cse, cop, active_cred, td);
+		error = cryptodev_op(cse, cop, p);
 		break;
 	case CIOCKEY:
 		error = cryptodev_key((struct crypt_kop *)data);
@@ -310,8 +305,7 @@ static int
 cryptodev_op(
 	struct csession *cse,
 	struct crypt_op *cop,
-	struct ucred *active_cred,
-	struct thread *td)
+	struct proc *p)
 {
 	struct cryptop *crp = NULL;
 	struct cryptodesc *crde = NULL, *crda = NULL;
@@ -328,7 +322,7 @@ cryptodev_op(
 	cse->uio.uio_resid = 0;
 	cse->uio.uio_segflg = UIO_SYSSPACE;
 	cse->uio.uio_rw = UIO_WRITE;
-	cse->uio.uio_td = td;
+	cse->uio.uio_procp = p;
 	cse->uio.uio_iov = cse->iovec;
 	bzero(&cse->iovec, sizeof(cse->iovec));
 	cse->uio.uio_iov[0].iov_len = cop->len;
@@ -578,7 +572,7 @@ cryptof_poll(
 	struct file *fp,
 	int events,
 	struct ucred *active_cred,
-	struct thread *td)
+	struct proc *p)
 {
 
 	return (0);
@@ -597,8 +591,7 @@ static int
 cryptof_stat(
 	struct file *fp,
 	struct stat *sb,
-	struct ucred *active_cred,
-	struct thread *td)
+	struct proc *p)
 {
 
 	return (EOPNOTSUPP);
@@ -606,7 +599,7 @@ cryptof_stat(
 
 /* ARGSUSED */
 static int
-cryptof_close(struct file *fp, struct thread *td)
+cryptof_close(struct file *fp, struct proc *p)
 {
 	struct fcrypt *fcr = (struct fcrypt *)fp->f_data;
 	struct csession *cse;
@@ -692,7 +685,7 @@ csefree(struct csession *cse)
 }
 
 static int
-cryptoopen(dev_t dev, int oflags, int devtype, struct thread *td)
+cryptoopen(dev_t dev, int oflags, int devtype, struct proc *p)
 {
 	if (crypto_usercrypto == 0)
 		return (ENXIO);
@@ -712,12 +705,11 @@ cryptowrite(dev_t dev, struct uio *uio, int ioflag)
 }
 
 static int
-cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct file *f;
 	struct fcrypt *fcr;
 	int fd, error;
-
 	switch (cmd) {
 	case CRIOGET:
 		MALLOC(fcr, struct fcrypt *,
@@ -725,7 +717,7 @@ cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		TAILQ_INIT(&fcr->csessions);
 		fcr->sesn = 0;
 
-		error = falloc(td, &f, &fd);
+		error = falloc(p, &f, &fd);
 
 		if (error) {
 			FREE(fcr, M_XDATA);
@@ -737,7 +729,7 @@ cryptoioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 		f->f_ops = &cryptofops;
 		f->f_data = (caddr_t) fcr;
 		*(u_int32_t *)data = fd;
-		fdrop(f, td);
+		fdrop(f, p);
 		break;
 	default:
 		error = EINVAL;
@@ -794,4 +786,6 @@ static moduledata_t cryptodev_mod = {
 };
 MODULE_VERSION(cryptodev, 1);
 DECLARE_MODULE(cryptodev, cryptodev_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
+#if 0
 MODULE_DEPEND(cryptodev, crypto, 1, 1, 1);
+#endif
