@@ -99,8 +99,8 @@ static pcmchan_caps sb16_lcaps = {
 
 static pcmchan_caps sb16x_caps = {
 	5000, 49000,
-	AFMT_STEREO | AFMT_U8 /* | AFMT_S16_LE */,
-	AFMT_STEREO | AFMT_U8 /* AFMT_S16_LE */
+	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE
 };
 
 static pcmchan_caps ess_playcaps = {
