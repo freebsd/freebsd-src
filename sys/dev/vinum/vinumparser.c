@@ -78,11 +78,7 @@
 #include <dev/vinum/vinumio.h>
 #include <dev/vinum/vinumext.h>
 
-#ifdef KERNEL
 #define SPACETAB(c) ((c == ' ') || (c == '\t'))		    /* check for white space */
-#else /* get it from the headers */
-#include <ctype.h>
-#endif
 
 /* enum keyword is defined in vinumvar.h */
 
