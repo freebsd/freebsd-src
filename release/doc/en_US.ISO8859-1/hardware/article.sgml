@@ -753,6 +753,35 @@
 
     <para arch="i386">Allied-Telesis AT1700 and RE2000 cards
     (&man.fe.4; driver)</para>
+      <itemizedlist>
+        <listitem>
+	  <para>CONTEC C-NET(PC)C PCMCIA Ethernet</para>
+	</listitem>
+	<listitem>
+	  <para>Fujitsu MBH10303, MBH10302 Ethernet PCMCIA</para>
+	</listitem>
+	<listitem>
+	  <para>Fujitsu Towa LA501 Ethernet</para>
+	</listitem>
+	<listitem>
+	  <para>Fujitsu FMV-J182, FMV-J182A</para>
+	</listitem>
+	<listitem>
+	  <para>RATOC REX-5588, REX-9822, REX-4886, and REX-R280</para>
+	</listitem>
+	<listitem>
+	  <para>Eiger Labs EPX-10BT</para>
+	</listitem>
+	<listitem>
+	  <para>HITACHI HT-4840-11</para>
+	</listitem>
+	<listitem>
+	  <para>NextCom J Link NC5310</para>
+	</listitem>
+	<listitem>
+	  <para>TDK LAK-CD021, LAK-CD021A, LAK-CD021BX</para>
+	</listitem>
+      </itemizedlist>
 
     <para arch="i386">Alteon Networks PCI Gigabit Ethernet NICs based on the Tigon
     1 and Tigon 2 chipsets (&man.ti.4; driver)
@@ -1416,6 +1445,9 @@
         <listitem>
 	  <para>Intel EtherExpress Pro/10 and Pro/10+ Ethernet</para>
         </listitem>
+	<listitem>
+	  <para>Olicom OC2220</para>
+	</listitem>
       </itemizedlist>
     </para>
 
@@ -1450,10 +1482,22 @@
         <listitem>
 	  <para>3C579 EISA</para>
         </listitem>
+	<listitem>
+	  <para>3CXE589EC, 3CXE589ET PCMCIA</para>
+	</listitem>
         <listitem>
-	  <para>3C589/589B/589C/589D/589E/XE589ET/574TX/574B
+	  <para>3C589/589B/589C/589D/589E/574TX/574B
 	  PC-card/PCMCIA</para>
         </listitem>
+        <listitem>
+	  <para>Megahertz 3CCFEM556BI, 3CXEM556, 3CCFEM556B</para>
+	</listitem>
+	<listitem>
+	  <para>OfficeConnect 3CXSH572BT</para>
+	</listitem>
+	<listitem>
+	  <para>Farallon EtherMac</para>
+	</listitem>
       </itemizedlist>
     </para>
 
