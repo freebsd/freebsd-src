@@ -19,10 +19,7 @@ static const char rcsid[] = "$FreeBSD$";
 #include <unistd.h>
 
 int
-getoldopt(argc, argv, optstring)
-	int	argc;
-	char	**argv;
-	char	*optstring;
+getoldopt(int argc, char **argv, char *optstring)
 {
 	static char	*key;		/* Points to next keyletter */
 	static char	use_getopt;	/* !=0 if argv[1][0] was '-' */

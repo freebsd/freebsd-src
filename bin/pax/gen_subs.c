@@ -81,16 +81,8 @@ static int d_first = -1;
  *	list the members of an archive in ls format
  */
 
-#ifdef __STDC__
 void
 ls_list(register ARCHD *arcn, time_t now, FILE *fp)
-#else
-void
-ls_list(arcn, now, fp)
-	register ARCHD *arcn;
-	time_t now;
-	FILE *fp;
-#endif
 {
 	register struct stat *sbp;
 	char f_mode[MODELEN];
@@ -169,14 +161,8 @@ ls_list(arcn, now, fp)
  * 	print a short summary of file to tty.
  */
 
-#ifdef __STDC__
 void
 ls_tty(register ARCHD *arcn)
-#else
-void
-ls_tty(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	char f_date[DATELEN];
 	char f_mode[MODELEN];
@@ -210,16 +196,8 @@ ls_tty(arcn)
  *	doing a strncpy(), a strlen(), and then a possible memset())
  */
 
-#ifdef __STDC__
 int
 l_strncpy(register char *dest, register char *src, int len)
-#else
-int
-l_strncpy(dest, src, len)
-	register char *dest;
-	register char *src;
-	int len;
-#endif
 {
 	register char *stop;
 	register char *start;
@@ -244,16 +222,8 @@ l_strncpy(dest, src, len)
  *	unsigned long value
  */
 
-#ifdef __STDC__
 u_long
 asc_ul(register char *str, int len, register int base)
-#else
-u_long
-asc_ul(str, len, base)
-	register char *str;
-	int len;
-	register int base;
-#endif
 {
 	register char *stop;
 	u_long tval = 0;
@@ -295,17 +265,8 @@ asc_ul(str, len, base)
  *	NOTE: the string created is NOT TERMINATED.
  */
 
-#ifdef __STDC__
 int
 ul_asc(u_long val, register char *str, register int len, register int base)
-#else
-int
-ul_asc(val, str, len, base)
-	u_long val;
-	register char *str;
-	register int len;
-	register int base;
-#endif
 {
 	register char *pt;
 	u_long digit;
@@ -358,16 +319,8 @@ ul_asc(val, str, len, base)
  *	u_quad_t value
  */
 
-#ifdef __STDC__
 u_quad_t
 asc_uqd(register char *str, int len, register int base)
-#else
-u_quad_t
-asc_uqd(str, len, base)
-	register char *str;
-	int len;
-	register int base;
-#endif
 {
 	register char *stop;
 	u_quad_t tval = 0;
@@ -409,17 +362,8 @@ asc_uqd(str, len, base)
  *	NOTE: the string created is NOT TERMINATED.
  */
 
-#ifdef __STDC__
 int
 uqd_asc(u_quad_t val, register char *str, register int len, register int base)
-#else
-int
-uqd_asc(val, str, len, base)
-	u_quad_t val;
-	register char *str;
-	register int len;
-	register int base;
-#endif
 {
 	register char *pt;
 	u_quad_t digit;

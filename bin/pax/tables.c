@@ -80,7 +80,7 @@ static int dirfd = -1;		/* storage for setting created dir time/mode */
 static u_long dircnt;		/* entries in dir time/mode storage */
 static int ffd = -1;		/* tmp file for file time table name storage */
 
-static DEVT *chk_dev __P((dev_t, int));
+static DEVT *chk_dev(dev_t, int);
 
 /*
  * hard link table routines
@@ -105,13 +105,8 @@ static DEVT *chk_dev __P((dev_t, int));
  *	0 if created, -1 if failure
  */
 
-#ifdef __STDC__
 int
 lnk_start(void)
-#else
-int
-lnk_start()
-#endif
 {
 	if (ltab != NULL)
 		return(0);
@@ -134,14 +129,8 @@ lnk_start()
  *	if found returns 1; if not found returns 0; -1 on error
  */
 
-#ifdef __STDC__
 int
 chk_lnk(register ARCHD *arcn)
-#else
-int
-chk_lnk(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register HRDLNK *pt;
 	register HRDLNK **ppt;
@@ -227,14 +216,8 @@ chk_lnk(arcn)
  *	we do not want to accidently point another file at it later on.
  */
 
-#ifdef __STDC__
 void
 purg_lnk(register ARCHD *arcn)
-#else
-void
-purg_lnk(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register HRDLNK *pt;
 	register HRDLNK **ppt;
@@ -287,13 +270,8 @@ purg_lnk(arcn)
  *	write phase
  */
 
-#ifdef __STDC__
 void
 lnk_end(void)
-#else
-void
-lnk_end()
-#endif
 {
 	register int i;
 	register HRDLNK *pt;
@@ -352,13 +330,8 @@ lnk_end()
  *	0 if the table and file was created ok, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 ftime_start(void)
-#else
-int
-ftime_start()
-#endif
 {
 
 	if (ftab != NULL)
@@ -395,14 +368,8 @@ ftime_start()
  *	-1 on error
  */
 
-#ifdef __STDC__
 int
 chk_ftime(register ARCHD *arcn)
-#else
-int
-chk_ftime(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	register FTM *pt;
 	register int namelen;
@@ -520,13 +487,8 @@ chk_ftime(arcn)
  *	0 if successful, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 name_start(void)
-#else
-int
-name_start()
-#endif
 {
 	if (ntab != NULL)
 		return(0);
@@ -546,16 +508,8 @@ name_start()
  *	0 if added, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 add_name(register char *oname, int onamelen, char *nname)
-#else
-int
-add_name(oname, onamelen, nname)
-	register char *oname;
-	int onamelen;
-	char *nname;
-#endif
 {
 	register NAMT *pt;
 	register u_int indx;
@@ -622,16 +576,8 @@ add_name(oname, onamelen, nname)
  *	new name (oname is the link to name)
  */
 
-#ifdef __STDC__
 void
 sub_name(register char *oname, int *onamelen, size_t onamesize)
-#else
-void
-sub_name(oname, onamelen, onamesize)
-	register char *oname;
-	int *onamelen;
-	size_t onamesize;
-#endif
 {
 	register NAMT *pt;
 	register u_int indx;
@@ -714,13 +660,8 @@ sub_name(oname, onamelen, onamesize)
  *	0 if successful, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 dev_start(void)
-#else
-int
-dev_start()
-#endif
 {
 	if (dtab != NULL)
 		return(0);
@@ -741,14 +682,8 @@ dev_start()
  *	0 if added ok, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 add_dev(register ARCHD *arcn)
-#else
-int
-add_dev(arcn)
-	register ARCHD *arcn;
-#endif
 {
 	if (chk_dev(arcn->sb.st_dev, 1) == NULL)
 		return(-1);
@@ -768,15 +703,8 @@ add_dev(arcn)
  *	is returned (indicates an error).
  */
 
-#ifdef __STDC__
 static DEVT *
 chk_dev(dev_t dev, int add)
-#else
-static DEVT *
-chk_dev(dev, add)
-	dev_t dev;
-	int add;
-#endif
 {
 	register DEVT *pt;
 	register u_int indx;
@@ -833,16 +761,8 @@ chk_dev(dev, add)
  *	0 if all ok, -1 otherwise.
  */
 
-#ifdef __STDC__
 int
 map_dev(register ARCHD *arcn, u_long dev_mask, u_long ino_mask)
-#else
-int
-map_dev(arcn, dev_mask, ino_mask)
-	register ARCHD *arcn;
-	u_long dev_mask;
-	u_long ino_mask;
-#endif
 {
 	register DEVT *pt;
 	register DLIST *dpt;
@@ -983,13 +903,8 @@ map_dev(arcn, dev_mask, ino_mask)
  *	0 is created ok, -1 otherwise.
  */
 
-#ifdef __STDC__
 int
 atdir_start(void)
-#else
-int
-atdir_start()
-#endif
 {
 	if (atab != NULL)
 		return(0);
@@ -1008,13 +923,8 @@ atdir_start()
  *	entries are for directories READ by pax
  */
 
-#ifdef __STDC__
 void
 atdir_end(void)
-#else
-void
-atdir_end()
-#endif
 {
 	register ATDIR *pt;
 	register int i;
@@ -1044,18 +954,8 @@ atdir_end()
  *	and chained by inode number. This is for directories READ by pax
  */
 
-#ifdef __STDC__
 void
 add_atdir(char *fname, dev_t dev, ino_t ino, time_t mtime, time_t atime)
-#else
-void
-add_atdir(fname, dev, ino, mtime, atime)
-	char *fname;
-	dev_t dev;
-	ino_t ino;
-	time_t mtime;
-	time_t atime;
-#endif
 {
 	register ATDIR *pt;
 	register u_int indx;
@@ -1116,17 +1016,8 @@ add_atdir(fname, dev, ino, mtime, atime)
  *	0 if found, -1 if not found.
  */
 
-#ifdef __STDC__
 int
 get_atdir(dev_t dev, ino_t ino, time_t *mtime, time_t *atime)
-#else
-int
-get_atdir(dev, ino, mtime, atime)
-	dev_t dev;
-	ino_t ino;
-	time_t *mtime;
-	time_t *atime;
-#endif
 {
 	register ATDIR *pt;
 	register ATDIR **ppt;
@@ -1200,13 +1091,8 @@ get_atdir(dev, ino, mtime, atime)
  *	0 if ok, -1 otherwise
  */
 
-#ifdef __STDC__
 int
 dir_start(void)
-#else
-int
-dir_start()
-#endif
 {
 
 	if (dirfd != -1)
@@ -1238,17 +1124,8 @@ dir_start()
  *	pax spec)
  */
 
-#ifdef __STDC__
 void
 add_dir(char *name, int nlen, struct stat *psb, int frc_mode)
-#else
-void
-add_dir(name, nlen, psb, frc_mode)
-	char *name;
-	int nlen;
-	struct stat *psb;
-	int frc_mode;
-#endif
 {
 	DIRDATA dblk;
 
@@ -1288,13 +1165,8 @@ add_dir(name, nlen, psb, frc_mode)
  *	by pax
  */
 
-#ifdef __STDC__
 void
 proc_dir(void)
-#else
-void
-proc_dir()
-#endif
 {
 	char name[PAXPATHLEN+1];
 	DIRDATA dblk;
@@ -1356,16 +1228,8 @@ proc_dir()
  *	the hash value of the string MOD (%) the table size.
  */
 
-#ifdef __STDC__
 u_int
 st_hash(char *name, int len, int tabsz)
-#else
-u_int
-st_hash(name, len, tabsz)
-	char *name;
-	int len;
-	int tabsz;
-#endif
 {
 	register char *pt;
 	register char *dest;

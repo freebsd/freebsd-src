@@ -93,15 +93,15 @@ static int forceuread=1;
 
 enum sort { DEFAULT, SORTMEM, SORTCPU } sortby = DEFAULT;
 
-static char	*fmt __P((char **(*)(kvm_t *, const struct kinfo_proc *, int),
-		    KINFO *, char *, int));
-static char	*kludge_oldps_options __P((char *));
-static int	 pscomp __P((const void *, const void *));
-static void	 saveuser __P((KINFO *));
-static void	 scanvars __P((void));
-static void	 dynsizevars __P((KINFO *));
-static void	 sizevars __P((void));
-static void	 usage __P((void));
+static char	*fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
+		    KINFO *, char *, int);
+static char	*kludge_oldps_options(char *);
+static int	 pscomp(const void *, const void *);
+static void	 saveuser(KINFO *);
+static void	 scanvars(void);
+static void	 dynsizevars(KINFO *);
+static void	 sizevars(void);
+static void	 usage(void);
 static uid_t	*getuids(const char *, int *);
 
 char dfmt[] = "pid tt state time command";
@@ -116,9 +116,7 @@ char Zfmt[] = "lvl";
 kvm_t *kd;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct kinfo_proc *kp;
 	struct varent *vent;
@@ -439,7 +437,7 @@ getuids(const char *arg, int *nuids)
 }
 
 static void
-scanvars()
+scanvars(void)
 {
 	struct varent *vent;
 	VAR *v;
@@ -458,8 +456,7 @@ scanvars()
 }
 
 static void
-dynsizevars(ki)
-	KINFO *ki;
+dynsizevars(KINFO *ki)
 {
 	struct varent *vent;
 	VAR *v;
@@ -478,7 +475,7 @@ dynsizevars(ki)
 }
 
 static void
-sizevars()
+sizevars(void)
 {
 	struct varent *vent;
 	VAR *v;
@@ -495,11 +492,8 @@ sizevars()
 }
 
 static char *
-fmt(fn, ki, comm, maxlen)
-	char **(*fn) __P((kvm_t *, const struct kinfo_proc *, int));
-	KINFO *ki;
-	char *comm;
-	int maxlen;
+fmt(char **(*fn)(kvm_t *, const struct kinfo_proc *, int), KINFO *ki,
+  char *comm, int maxlen)
 {
 	char *s;
 
@@ -512,8 +506,7 @@ fmt(fn, ki, comm, maxlen)
 #define UREADOK(ki)	(forceuread || (ki->ki_p->ki_sflag & PS_INMEM))
 
 static void
-saveuser(ki)
-	KINFO *ki;
+saveuser(KINFO *ki)
 {
 
 	if (ki->ki_p->ki_sflag & PS_INMEM) {
@@ -549,8 +542,7 @@ saveuser(ki)
 }
 
 static int
-pscomp(a, b)
-	const void *a, *b;
+pscomp(const void *a, const void *b)
 {
 	int i;
 #define VSIZE(k) ((k)->ki_p->ki_dsize + (k)->ki_p->ki_ssize + \
@@ -578,8 +570,7 @@ pscomp(a, b)
  * feature is available with the option 'T', which takes no argument.
  */
 static char *
-kludge_oldps_options(s)
-	char *s;
+kludge_oldps_options(char *s)
 {
 	size_t len;
 	char *newopts, *ns, *cp;
@@ -632,7 +623,7 @@ kludge_oldps_options(s)
 }
 
 static void
-usage()
+usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
