@@ -1,4 +1,5 @@
 /*	$OpenBSD: session.h,v 1.17 2002/03/29 18:59:32 markus Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
@@ -67,5 +68,5 @@ void	 session_pty_cleanup2(void *);
 Session	*session_new(void);
 Session	*session_by_tty(char *);
 void	 session_close(Session *);
-void	 do_setusercontext(struct passwd *);
+char   **do_setusercontext(struct passwd *);
 #endif
