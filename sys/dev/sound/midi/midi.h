@@ -257,16 +257,16 @@ struct _mididev_info {
 #define DEB(x)
 #endif
 
-	extern mididev_info midi_info[NMIDI_MAX];
-
-	extern u_long nmidi;
-	extern u_long nsynth;
-
 /* This is the generic midi drvier initializer. */
 	int midiinit(mididev_info *d, device_t dev);
 
 /* This provides an access to the mididev_info. */
 	mididev_info *get_mididev_info(dev_t i_dev, int *unit);
+	mididev_info *get_mididev_info_unit(int unit);
+	mididev_info *create_mididev_info_unit(int *unit, int type);
+	int mididev_info_number(void);
+#define MDT_MIDI	(0)
+#define MDT_SYNTH	(1)
 
 /* These are the generic methods for a midi driver. */
 	d_open_t midi_open;

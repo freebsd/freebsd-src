@@ -529,10 +529,6 @@ synth_readraw(mididev_info *md, u_char *buf, int len, int nonblock)
 		return (ENXIO);
 
 	unit = md->unit;
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("synth_readraw: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
 	if ((md->fflags & FREAD) == 0) {
 		DEB(printf("mpu_readraw: unit %d is not for reading.\n", unit));
 		return (EIO);
@@ -571,10 +567,6 @@ synth_writeraw(mididev_info *md, u_char *buf, int len, int nonblock)
 
 	unit = md->unit;
 
-	if (unit >= nmidi + nsynth) {
-		DEB(printf("synth_writeraw: unit %d does not exist.\n", unit));
-		return (ENXIO);
-	}
 	if ((md->fflags & FWRITE) == 0) {
 		DEB(printf("synth_writeraw: unit %d is not for writing.\n", unit));
 		return (EIO);
