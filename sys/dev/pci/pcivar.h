@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcivar.h,v 1.20 1998/08/13 19:12:20 gibbs Exp $
+ * $Id: pcivar.h,v 1.21 1998/09/15 08:21:09 gibbs Exp $
  *
  */
 
@@ -178,7 +178,10 @@ void pci_drvattach(struct pci_devinfo *dinfo);
 int pci_cfgopen (void);
 int pci_cfgread (pcicfgregs *cfg, int reg, int bytes);
 void pci_cfgwrite (pcicfgregs *cfg, int reg, int data, int bytes);
-
+#ifdef __alpha__
+vm_offset_t pci_cvt_to_dense (vm_offset_t);
+vm_offset_t pci_cvt_to_bwx (vm_offset_t);
+#endif /* __alpha__ */
 /* for compatibility to FreeBSD-2.2 version of PCI code */
 
 #ifdef PCI_COMPAT
@@ -218,6 +221,8 @@ void pci_conf_write (pcici_t tag, u_long reg, u_long data);
 void pci_configure (void);
 int pci_map_port (pcici_t tag, u_long reg, pci_port_t* pa);
 int pci_map_mem (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
+int pci_map_dense (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
+int pci_map_bwx (pcici_t tag, u_long reg, vm_offset_t* va, vm_offset_t* pa);
 int pci_map_int (pcici_t tag, pci_inthand_t *func, void *arg, unsigned *maskptr);
 int pci_unmap_int (pcici_t tag);
 int pci_register_lkm (struct pci_device *dvp, int if_revision);
