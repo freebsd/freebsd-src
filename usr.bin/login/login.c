@@ -106,6 +106,8 @@ void     login_fbtab __P((char *, uid_t, gid_t));
 
 #ifndef NO_PAM
 static int auth_pam __P((void));
+static int export_pam_environment __P((void));
+static int ok_to_export __P((const char *));
 #endif
 static int auth_traditional __P((void));
 extern void login __P((struct utmp *));
@@ -128,6 +130,9 @@ struct	passwd *pwd;
 int	failures;
 char	*term, *envinit[1], *hostname, *username, *tty;
 char    full_hostname[MAXHOSTNAMELEN];
+#ifndef NO_PAM
+static char **environ_pam;
+#endif
 
 int
 main(argc, argv)
@@ -548,6 +553,15 @@ main(argc, argv)
 	if (!pflag)
 		environ = envinit;
 
+#ifndef NO_PAM
+	/*
+	 * Add any environmental variables that the
+	 * PAM modules may have set.
+	 */
+	if (environ_pam)
+		export_pam_environment();
+#endif
+
 	/*
 	 * We don't need to be root anymore, so
 	 * set the user and session context
@@ -718,6 +732,7 @@ auth_pam()
 		    PAM_SUCCESS)
 			syslog(LOG_ERR, "Couldn't establish credentials: %s",
 			    pam_strerror(pamh, e));
+		environ_pam = pam_getenvlist(pamh);
 		rval = 0;
 		break;
 
@@ -737,6 +752,49 @@ auth_pam()
 		rval = -1;
 	}
 	return rval;
+}
+
+static int
+export_pam_environment()
+{
+	char	**pp;
+
+	for (pp = environ_pam; *pp != NULL; pp++) {
+		if (ok_to_export(*pp))
+			(void) putenv(*pp);
+		free(*pp);
+	}
+	return PAM_SUCCESS;
+}
+
+/*
+ * Sanity checks on PAM environmental variables:
+ * - Make sure there is an '=' in the string.
+ * - Make sure the string doesn't run on too long.
+ * - Do not export certain variables.  This list was taken from the
+ *   Solaris pam_putenv(3) man page.
+ */
+static int
+ok_to_export(s)
+	const char *s;
+{
+	static const char *noexport[] = {
+		"SHELL", "HOME", "LOGNAME", "MAIL", "CDPATH",
+		"IFS", "PATH", NULL
+	};
+	const char **pp;
+	size_t n;
+
+	if (strlen(s) > 1024 || strchr(s, '=') == NULL)
+		return 0;
+	if (strncmp(s, "LD_", 3) == 0)
+		return 0;
+	for (pp = noexport; *pp != NULL; pp++) {
+		n = strlen(*pp);
+		if (s[n] == '=' && strncmp(s, *pp, n) == 0)
+			return 0;
+	}
+	return 1;
 }
 #endif /* NO_PAM */
 
