@@ -1,7 +1,7 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.21 1994/01/25 11:08:23 rgrimes Exp $
+#	$Id: GENERICBT,v 1.22 1994/01/29 21:41:36 rgrimes Exp $
 #
 
 machine		"i386"
@@ -27,9 +27,10 @@ config		"386bsd"	root on wd0 swap on wd0 and sd0 dumps on wd0
 
 controller	isa0
 
-controller	fd0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
-disk		fd0	at fd0 drive 0
-disk		fd1	at fd0 drive 1
+controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
+disk		fd0	at fdc0 drive 0
+disk		fd1	at fdc0 drive 1
+tape		ft0	at fdc0 drive 2
 
 controller	wdc0	at isa? port "IO_WD1" bio irq 14 vector wdintr
 disk		wd0	at wdc0 drive 0
