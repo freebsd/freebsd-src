@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.10 1994/11/01 23:29:50 bde Exp $
+ *	$Id: vector.s,v 1.11 1994/12/03 10:03:19 bde Exp $
  */
 
 #include <i386/isa/icu.h>
@@ -13,11 +13,14 @@
 
 #ifdef AUTO_EOI_1
 #define	ENABLE_ICU1		/* use auto-EOI to reduce i/o */
+#define	OUTB_ICU1
 #else
 #define	ENABLE_ICU1 \
 	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */ \
-	FASTER_NOP ;		/* ... ASAP ... */ \
-	outb	%al,$IO_ICU1	/* ... to clear in service bit */
+	OUTB_ICU1		/* ... to clear in service bit */
+#define	OUTB_ICU1 \
+	FASTER_NOP ; \
+	outb	%al,$IO_ICU1
 #endif
 
 #ifdef AUTO_EOI_2
@@ -29,9 +32,8 @@
 #define	ENABLE_ICU1_AND_2 \
 	movb	$ICU_EOI,%al ;	/* as above */ \
 	FASTER_NOP ; \
-	outb	%al,$IO_ICU2 ;	/* but do second icu first */ \
-	FASTER_NOP ; \
-	outb	%al,$IO_ICU1	/* then first icu */
+	outb	%al,$IO_ICU2 ;	/* but do second icu first ... */ \
+	OUTB_ICU1		/* ... then first icu (if !AUTO_EOI_1) */
 #endif
 
 #ifdef FAST_INTR_HANDLER_USES_ES
@@ -136,7 +138,7 @@ IDTVEC(fastintr/**/irq_num) ; \
 	MAYBE_POPL_ES ;		/* discard most of thin frame ... */ \
 	popl	%ecx ;		/* ... original %ds ... */ \
 	popl	%edx ; \
-	xchgl	%eax,(1+ACTUALLY_PUSHED)*4(%esp) ; /* orig %eax; save cpl */ \
+	xchgl	%eax,4(%esp) ;	/* orig %eax; save cpl */ \
 	pushal ;		/* build fat frame (grrr) ... */ \
 	pushl	%ecx ;		/* ... actually %ds ... */ \
 	pushl	%es ; \
