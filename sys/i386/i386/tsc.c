@@ -60,7 +60,8 @@ static struct timecounter tsc_timecounter = {
 	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
 	0,			/* frequency */
-	 "TSC"			/* name */
+	 "TSC",			/* name */
+	800,			/* quality (adjusted in code) */
 };
 
 void
@@ -86,20 +87,6 @@ init_TSC(void)
 	tsc_freq = tscval[1] - tscval[0];
 	if (bootverbose)
 		printf("TSC clock: %ju Hz\n", (intmax_t)tsc_freq);
-
-#ifdef SMP
-	/*
-	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
-	 * are somehow synchronized.  Some hardware configurations do
-	 * this, but we have no way of determining whether this is the
-	 * case, so we do not use the TSC in multi-processor systems
-	 * unless the user indicated (by setting kern.timecounter.smp_tsc
-	 * to 1) that he believes that his TSCs are synchronized.
-	 */
-	if (mp_ncpus > 1 && !smp_tsc)
-		return;
-#endif
-	return;
 }
 
 
@@ -117,17 +104,28 @@ init_TSC_tc(void)
 	 * or not, nor when it might be activated.  Play it safe.
 	 */
 	if (power_pm_get_type() == POWER_PM_TYPE_APM) {
+		tsc_timecounter.tc_quality = -1000;
 		if (bootverbose)
 			printf("TSC timecounter disabled: APM enabled.\n");
-		return;
 	}
+
+#ifdef SMP
+	/*
+	 * We can not use the TSC in SMP mode unless the TSCs on all CPUs
+	 * are somehow synchronized.  Some hardware configurations do
+	 * this, but we have no way of determining whether this is the
+	 * case, so we do not use the TSC in multi-processor systems
+	 * unless the user indicated (by setting kern.timecounter.smp_tsc
+	 * to 1) that he believes that his TSCs are synchronized.
+	 */
+	if (mp_ncpus > 1 && !smp_tsc)
+		tsc_timecounter.tc_quality = -100;
+#endif
 
 	if (tsc_present && tsc_freq != 0 && !tsc_is_broken) {
 		tsc_timecounter.tc_frequency = tsc_freq;
 		tc_init(&tsc_timecounter);
 	}
-
-	return;
 }
 
 static int
