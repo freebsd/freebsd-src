@@ -253,7 +253,8 @@ sab_probe(device_t dev)
 	uint8_t r;
 	int rid;
 
-	if (strcmp(ebus_get_name(dev), "se") != 0)
+	if (strcmp(ebus_get_name(dev), "se") != 0 &&
+	    strcmp(ebus_get_name(dev), "serial") != 0)
 		return (ENXIO);
 	rid = 0;
 	res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
