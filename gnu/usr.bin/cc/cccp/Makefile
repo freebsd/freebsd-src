@@ -1,11 +1,10 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
+.PATH:	${.CURDIR}/../cc_int
 PROG =	cpp
-SRCS =	cccp.c cexp.c
+SRCS =	cccp.c cexp.c obstack.c version.c
 BINDIR=	/usr/libexec
-DPADD+=	${LIBCC_INT}
-LDADD+=	-lcc_int
 
 .include <bsd.prog.mk>

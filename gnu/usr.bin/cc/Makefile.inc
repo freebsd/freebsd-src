@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $Id$
 #
 
 CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/../include
@@ -19,4 +19,4 @@ LIBDESTDIR=	${.CURDIR}/../cc_int
 
 # XXX LDDESTDIR isn't a directory and there is no standard name for the dir
 LDDESTDIR=	-L${LIBDESTDIR}
-LIBCC_INT=	${LIBDESTDIR}/libcc_int.a
+LIBCC_INT=	${LIBDESTDIR}/libcc_int.so.26.0
