@@ -244,7 +244,7 @@ prepfile()
 	register int  j;
 	char **lp;
 	int colw;
-	int max = 0;
+	int max;
 	int n;
 
 	if (!nelem)
@@ -281,15 +281,18 @@ prepfile()
 	if (!(colwidths = (short *) malloc(ocols * sizeof(short))))
 		errx(1, "malloc");
 	if (flags & SQUEEZE) {
+		ep = elem;
 		if (flags & TRANSPOSE)
-			for (ep = elem, i = 0; i < ocols; i++) {
-				for (j = 0; j < orows; j++)
+			for (i = 0; i < ocols; i++) {
+				max = 0;
+				for (j = 0; *ep != NULL && j < orows; j++)
 					if ((n = strlen(*ep++)) > max)
 						max = n;
 				colwidths[i] = max + gutter;
 			}
 		else
 			for (i = 0; i < ocols; i++) {
+				max = 0;
 				for (j = i; j < nelem; j += ocols)
 					if ((n = strlen(ep[j])) > max)
 						max = n;
