@@ -1085,10 +1085,10 @@ nd6_nud_hint(rt, dst6, force)
 }
 
 void
-nd6_rtrequest(req, rt, sa)
+nd6_rtrequest(req, rt, info)
 	int	req;
 	struct rtentry *rt;
-	struct sockaddr *sa; /* xxx unused */
+	struct rt_addrinfo *info; /* xxx unused */
 {
 	struct sockaddr *gate = rt->rt_gateway;
 	struct llinfo_nd6 *ln = (struct llinfo_nd6 *)rt->rt_llinfo;

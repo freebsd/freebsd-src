@@ -309,11 +309,13 @@ route_output(m, so)
 		senderr(EPROTONOSUPPORT);
 	}
 	rtm->rtm_pid = curproc->p_pid;
+	bzero(&info, sizeof(info));
 	info.rti_addrs = rtm->rtm_addrs;
 	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info)) {
 		dst = 0;
 		senderr(EINVAL);
 	}
+	info.rti_flags = rtm->rtm_flags;
 	if (dst == 0 || (dst->sa_family >= AF_MAX)
 	    || (gate != 0 && (gate->sa_family >= AF_MAX)))
 		senderr(EINVAL);
@@ -339,8 +341,7 @@ route_output(m, so)
 	case RTM_ADD:
 		if (gate == 0)
 			senderr(EINVAL);
-		error = rtrequest(RTM_ADD, dst, gate, netmask,
-					rtm->rtm_flags, &saved_nrt);
+		error = rtrequest1(RTM_ADD, &info, &saved_nrt);
 		if (error == 0 && saved_nrt) {
 			rt_setmetrics(rtm->rtm_inits,
 				&rtm->rtm_rmx, &saved_nrt->rt_rmx);
@@ -353,8 +354,7 @@ route_output(m, so)
 		break;
 
 	case RTM_DELETE:
-		error = rtrequest(RTM_DELETE, dst, gate, netmask,
-				rtm->rtm_flags, &saved_nrt);
+		error = rtrequest1(RTM_DELETE, &info, &saved_nrt);
 		if (error == 0) {
 			if ((rt = saved_nrt))
 				rt->rt_refcnt++;
@@ -411,9 +411,6 @@ route_output(m, so)
 			break;
 
 		case RTM_CHANGE:
-			if (gate && (error = rt_setgate(rt, rt_key(rt), gate)))
-				senderr(error);
-
 			/*
 			 * If they tried to change things but didn't specify
 			 * the required gateway, then just use the old one.
@@ -427,30 +424,27 @@ route_output(m, so)
 			/* new gateway could require new ifaddr, ifp;
 			   flags may also be different; ifp may be specified
 			   by ll sockaddr when protocol address is ambiguous */
-			if (ifpaddr && (ifa = ifa_ifwithnet(ifpaddr)) &&
-			    (ifp = ifa->ifa_ifp) && (ifaaddr || gate))
-				ifa = ifaof_ifpforaddr(ifaaddr ? ifaaddr : gate,
-							ifp);
-			else if ((ifaaddr && (ifa = ifa_ifwithaddr(ifaaddr))) ||
-				 (gate && (ifa = ifa_ifwithroute(rt->rt_flags,
-							rt_key(rt), gate))))
-				ifp = ifa->ifa_ifp;
-			if (ifa) {
+			if ((error = rt_getifa(&info)) != 0)
+				senderr(error);
+			if (gate != NULL &&
+			    (error = rt_setgate(rt, rt_key(rt), gate)) != 0)
+				senderr(error);
+			if ((ifa = info.rti_ifa) != NULL) {
 				register struct ifaddr *oifa = rt->rt_ifa;
 				if (oifa != ifa) {
 				    if (oifa && oifa->ifa_rtrequest)
-					oifa->ifa_rtrequest(RTM_DELETE,
-								rt, gate);
+					oifa->ifa_rtrequest(RTM_DELETE, rt,
+					    &info);
 				    IFAFREE(rt->rt_ifa);
 				    rt->rt_ifa = ifa;
 				    ifa->ifa_refcnt++;
-				    rt->rt_ifp = ifp;
+				    rt->rt_ifp = info.rti_ifp;
 				}
 			}
 			rt_setmetrics(rtm->rtm_inits, &rtm->rtm_rmx,
 					&rt->rt_rmx);
 			if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest)
-			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, gate);
+			       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, &info);
 			if (genmask)
 				rt->rt_genmask = genmask;
 			/*
@@ -548,7 +542,6 @@ rt_xaddrs(cp, cplim, rtinfo)
 	register struct sockaddr *sa;
 	register int i;
 
-	bzero(rtinfo->rti_info, sizeof(rtinfo->rti_info));
 	for (i = 0; (i < RTAX_MAX) && (cp < cplim); i++) {
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
 			continue;

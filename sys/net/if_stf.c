@@ -159,7 +159,7 @@ static int stf_checkaddr4 __P((struct stf_softc *, struct in_addr *,
 	struct ifnet *));
 static int stf_checkaddr6 __P((struct stf_softc *, struct in6_addr *,
 	struct ifnet *));
-static void stf_rtrequest __P((int, struct rtentry *, struct sockaddr *));
+static void stf_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 static int stf_ioctl __P((struct ifnet *, u_long, caddr_t));
 
 int	stf_clone_create __P((struct if_clone *, int *));
@@ -706,10 +706,10 @@ in_stf_input(m, off)
 
 /* ARGSUSED */
 static void
-stf_rtrequest(cmd, rt, sa)
+stf_rtrequest(cmd, rt, info)
 	int cmd;
 	struct rtentry *rt;
-	struct sockaddr *sa;
+	struct rt_addrinfo *info;
 {
 
 	if (rt)
