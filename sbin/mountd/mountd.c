@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95"; */
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.25 1997/12/09 18:43:44 guido Exp $";
+	"$Id: mountd.c,v 1.26 1997/12/10 20:33:59 guido Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -224,7 +224,7 @@ struct ucred def_anon = {
 int force_v2 = 0;
 int resvport_only = 1;
 int dir_only = 1;
-int log = 1;
+int log = 0;
 int opt_flags;
 /* Bits for above */
 #define	OP_MAPROOT	0x01
