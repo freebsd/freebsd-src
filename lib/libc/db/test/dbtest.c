@@ -64,7 +64,7 @@ enum S { COMMAND, COMPARE, GET, PUT, REMOVE, SEQ, SEQFLAG, KEY, DATA };
 void	 compare __P((DBT *, DBT *));
 DBTYPE	 dbtype __P((char *));
 void	 dump __P((DB *, int));
-void	 err __P((const char *, ...));
+void	 err __P((const char *, ...)) __printflike(1, 2);
 void	 get __P((DB *, DBT *));
 void	 getdata __P((DB *, DBT *, DBT *));
 void	 put __P((DB *, DBT *, DBT *));

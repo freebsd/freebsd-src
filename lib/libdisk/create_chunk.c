@@ -27,6 +27,8 @@
 #include <pwd.h>
 #include "libdisk.h"
 
+static void msgDebug(char *, ...) __printflike(1, 2);
+
 /* Clone these two from sysinstall because we need our own copies
  * due to link order problems with `crunch'.  Feh!
  */
