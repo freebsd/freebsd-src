@@ -1,6 +1,4 @@
-#!/usr/bin/perl
-eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
-    if $running_under_some_shell;
+#!/usr/bin/perl -w
 
 #
 # Copyright (c) 1992, 1993
@@ -43,14 +41,17 @@ eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
 #	(where srcfile is currently /sys/kern/vnode_if.src)
 #
 
+use strict;
+
 my %lockdata;
 
-$cfile = 0;
-$hfile = 0;
+my $cfile = 0;
+my $hfile = 0;
+my $srcfile;
 
 # Process the command line
 #
-while ($arg = shift @ARGV) {
+while (my $arg = shift @ARGV) {
     if ($arg eq '-c') {
 	$cfile = 1;
     } elsif ($arg eq '-h') {
@@ -59,7 +60,7 @@ while ($arg = shift @ARGV) {
 	$cfile = 1;
 	$hfile = 1;
     } elsif ($arg =~ m/\.src$/) {
-	$SRC = $arg;
+	$srcfile = $arg;
     } else {
 	print "usage: vnode_if.sh [-c] [-h] srcfile\n";
 	exit(1);
@@ -70,10 +71,10 @@ if (!$cfile and !$hfile) {
 }
 
 # Names of the created files.
-$CFILE='vnode_if.c';
-$HEADER='vnode_if.h';
+my $CFILE='vnode_if.c';
+my $HEADER='vnode_if.h';
 
-open(SRC,     "<$SRC")   || die "Unable to open input file";
+open(SRC,     "<$srcfile")   || die "Unable to open input file";
 
 if ($hfile) {
     open(HEADER, ">$HEADER") || die "Unable to create $HEADER";
@@ -121,9 +122,17 @@ END_OF_LEADING_COMMENT
     ;
 }
 
+my %a;
+my %dirs;
+my %reles;
+my %types;
+my %args;
+my $numargs;
+my $name;
+
 line: while (<SRC>) {
     chop;	# strip record separator
-    @Fld = split ' ';
+    my @Fld = split ' ';
     if (@Fld == 0) {
 	next line;
     }
@@ -144,8 +153,8 @@ line: while (<SRC>) {
 
     # Get the function name.
     $name = $Fld[0];
-    $uname = uc($name);
-
+    my $uname = uc($name);
+    my $ln;
     # Get the function arguments.
     for ($numargs = 0; ; ++$numargs) {
 	if ($ln = <SRC>) {
@@ -167,6 +176,7 @@ line: while (<SRC>) {
 	$ln =~ s/^\s*(.*?)\s*$/$1/;
 
 	# Pick off direction.
+	my $dir;
 	if ($ln =~ s/^INOUT\s+//) {
 	    $dir = 'INOUT';
 	} elsif ($ln =~ s/^IN\s+//) {
@@ -176,6 +186,7 @@ line: while (<SRC>) {
 	} else {
 	     die "No IN/OUT direction for \"$ln\".";
 	}
+	my $rele;
 	if ($ln =~ s/^WILLRELE\s+//) {
 	    $rele = 'WILLRELE';
 	} else {
@@ -191,11 +202,11 @@ line: while (<SRC>) {
 	if ($ln !~ s/([A-Za-z0-9_]+)$//) {
 	    &bail("Missing var name \"a_foo\" in \"$ln\".");
 	}
-	$arg = $1;
+	my $arg = $1;
 
 	# what is left must be type
 	# (put clean it up some)
-	$type = $ln;
+	my $type = $ln;
 	# condense whitespace
 	$type =~ s/\s+/ /g;
 	$type =~ s/^\s*(.*?)\s*$/$1/;
@@ -209,7 +220,7 @@ line: while (<SRC>) {
     if ($hfile) {
 	# Print out the vop_F_args structure.
 	print HEADER "struct ${name}_args {\n\tstruct vnodeop_desc *a_desc;\n";
-	for ($c2 = 0; $c2 < $numargs; ++$c2) {
+	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**)(\S*\;)/;
 	    print HEADER "\t$3 $4a_$5\n", 
 	}
@@ -220,7 +231,7 @@ line: while (<SRC>) {
 
 	# Print out prototype.
 	print HEADER "static __inline int ${uname} __P((\n";
-	for ($c2 = 0; $c2 < $numargs; ++$c2) {
+	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**\S*)\;/;
 	    print HEADER "\t$3 $4" .
 		($c2 < $numargs-1 ? "," : "));") . "\n";
@@ -228,28 +239,29 @@ line: while (<SRC>) {
 
 	# Print out function.
 	print HEADER "static __inline int ${uname}(";
-	for ($c2 = 0; $c2 < $numargs; ++$c2) {
+	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    $a{$c2} =~ /\**([^;\s]*)\;[^\s]*$/;
 	    print HEADER "$1" . ($c2 < $numargs - 1 ? ', ' : ")\n");
 	}
-	for ($c2 = 0; $c2 < $numargs; ++$c2) {
+	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    $a{$c2} =~ /^\s*(INOUT|OUT|IN)(\s+WILLRELE)?\s+(.*?)\s+(\**\S*\;)/;
 	    print HEADER "\t$3 $4\n";
 	}
 	print HEADER "{\n\tstruct ${name}_args a;\n";
 	print HEADER "\tint rc;\n";
 	print HEADER "\ta.a_desc = VDESC(${name});\n";
-	for ($c2 = 0; $c2 < $numargs; ++$c2) {
+	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    $a{$c2} =~ /(\**)([^;\s]*)([^\s]*)$/;
 	    print HEADER "\ta.a_$2 = $2$3\n", 
 	}
-	for ($c2 = 0; $c2 < $numargs; ++$c2) {
+	for (my $c2 = 0; $c2 < $numargs; ++$c2) {
 	    if (!exists($args{$c2})) {
 		die "Internal error";
 	    }
 	    if (exists($lockdata{$name}) &&
 		exists($lockdata{$name}->{$args{$c2}})) {
-		if ($ENV{'DEBUG_ALL_VFS_LOCKS'} =~ /yes/i) {
+		if (defined($ENV{'DEBUG_ALL_VFS_LOCKS'}) && 
+			$ENV{'DEBUG_ALL_VFS_LOCKS'} =~ /yes/i) {
 		    # Add assertions for locking
 		    if ($lockdata{$name}->{$args{$c2}}->{Entry} eq "L") {
 			print HEADER
@@ -275,9 +287,9 @@ line: while (<SRC>) {
 	# on naming conventions and nothing else.
 	printf CFILE "static int %s_vp_offsets[] = {\n", $name;
 	# as a side effect, figure out the releflags
-	$releflags = '';
-	$vpnum = 0;
-	for ($i = 0; $i < $numargs; $i++) {
+	my $releflags = '';
+	my $vpnum = 0;
+	for (my $i = 0; $i < $numargs; $i++) {
 	    if ($types{$i} eq 'struct vnode *') {
 		printf CFILE "\tVOPARG_OFFSETOF(struct %s_args,a_%s),\n", 
 		$name, $args{$i};
@@ -300,8 +312,8 @@ line: while (<SRC>) {
 	# printable name
 	printf CFILE "\t\"%s\",\n", $name;
 	# flags
-	$vppwillrele = '';
-	for ($i = 0; $i < $numargs; $i++) {
+	my $vppwillrele = '';
+	for (my $i = 0; $i < $numargs; $i++) {
 	    if ($types{$i} eq 'struct vnode **' && 
 		($reles{$i} eq 'WILLRELE')) {
 		$vppwillrele = '|VDESC_VPP_WILLRELE';
