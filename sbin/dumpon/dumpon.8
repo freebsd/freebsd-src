@@ -96,14 +96,12 @@ is the text string:
 .Pp
 Since
 .Nm
-can only be called after the system enters single-user mode,
-it can not be used to create dumps for system panics during
-kernel initialization.
-In such cases use
+cannot be used during kernel initialization, the
 .Va dumpdev
-tunable provided by
+variable of
 .Xr loader 8
-instead.
+must be used to enable dumps for system panics which occur
+during kernel initialization.
 .Sh SEE ALSO
 .Xr sysctl 3 ,
 .Xr fstab 5 ,
