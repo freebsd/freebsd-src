@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.68 1998/01/26 06:11:14 julian Exp $
+#	$Id: options.i386,v 1.69 1998/01/26 18:31:17 julian Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -13,6 +13,7 @@ SHOW_BUSYBUFS
 PANIC_REBOOT_WAIT_TIME	opt_panic.h
 MAXMEM
 PERFMON			opt_perfmon.h
+POWERFAIL_NMI		opt_trap.h
 AUTO_EOI_1		opt_auto_eoi.h
 AUTO_EOI_2		opt_auto_eoi.h
 BREAK_TO_DEBUGGER	opt_comconsole.h
@@ -24,8 +25,9 @@ COM_ESP			opt_sio.h
 COM_MULTIPORT		opt_sio.h
 DSI_SOFT_MODEM		opt_sio.h
 EXTRA_SIO		opt_sio.h
+I586_CTR_GUPROF		opt_defunct.h
 I586_PMC_GUPROF		opt_i586_guprof.h
-TSC_GUPROF		opt_i586_guprof.h
+TSC_GUPROF		opt_defunct.h
 WLCACHE			opt_wavelan.h
 WLDEBUG			opt_wavelan.h
 
@@ -46,7 +48,6 @@ AHC_SHARE_SCBS		opt_aic7xxx.h
 
 CLK_CALIBRATION_LOOP	  opt_clock.h
 CLK_USE_I8254_CALIBRATION opt_clock.h
-CLK_USE_I586_CALIBRATION  opt_clock.h
 CLK_USE_TSC_CALIBRATION   opt_clock.h
 
 NO_F00F_HACK			opt_cpu.h

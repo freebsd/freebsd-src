@@ -164,7 +164,6 @@
 #define MINSEC 16L		/* min interval between updates (s) */
 #define MAXSEC 1200L		/* max interval between updates (s) */
 
-#ifdef PPS_SYNC
 /*
  * The following defines are used only if a pulse-per-second (PPS)
  * signal is available and connected via a modem control lead, such as
@@ -190,7 +189,6 @@
 #define PPS_SHIFTMAX 8		/* max interval duration (s) (shift) */
 #define PPS_VALID 120		/* pps signal watchdog max (s) */
 #define MAXGLITCH 30		/* pps signal glitch max (s) */
-#endif /* PPS_SYNC */
 
 /*
  * The following defines and structures define the user interface for
