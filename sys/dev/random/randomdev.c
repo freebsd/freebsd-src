@@ -46,6 +46,7 @@
 
 #include <dev/randomdev/yarrow.h>
 
+static d_open_t random_open;
 static d_read_t random_read;
 static d_write_t random_write;
 
@@ -54,7 +55,7 @@ static d_write_t random_write;
 #define URANDOM_MINOR	4
 
 static struct cdevsw random_cdevsw = {
-	/* open */	(d_open_t *)nullop,
+	/* open */	random_open,
 	/* close */	(d_close_t *)nullop,
 	/* read */	random_read,
 	/* write */	random_write,
@@ -83,9 +84,18 @@ SYSCTL_INT(_kern_random_yarrow, OID_AUTO, bins, CTLFLAG_RW,
 SYSCTL_INT(_kern_random_yarrow, OID_AUTO, fastthresh, CTLFLAG_RW,
 	&random_state.pool[0].thresh, 100, "Fast pool reseed threshhold");
 SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowthresh, CTLFLAG_RW,
-	&random_state.pool[1].thresh, 100, "Slow pool reseed threshhold");
+	&random_state.pool[1].thresh, 160, "Slow pool reseed threshhold");
 SYSCTL_INT(_kern_random_yarrow, OID_AUTO, slowoverthresh, CTLFLAG_RW,
 	&random_state.slowoverthresh, 2, "Slow pool over-threshhold reseed");
+
+static int
+random_open(dev_t dev, int flags, int fmt, struct proc *p)
+{
+	if ((flags & FWRITE) && (securelevel > 0 || suser(p)))
+		return EPERM;
+	else
+		return 0;
+}
 
 static int
 random_read(dev_t dev, struct uio *uio, int flag)

@@ -48,7 +48,7 @@
 
 static void generator_gate(void);
 static void reseed(int);
-static void random_harvest_internal(struct timespec *, u_int64_t, u_int, u_int, enum esource);
+static void random_harvest_internal(struct timespec *, void *, u_int, u_int, u_int, enum esource);
 
 /* Structure holding the entropy state */
 struct random_state random_state;
@@ -216,13 +216,13 @@ reseed(int fastslow)
 }
 
 u_int
-read_random(char *buf, u_int count)
+read_random(void *buf, u_int count)
 {
+	static u_int64_t genval;
 	static int cur = 0;
 	static int gate = 1;
 	u_int i;
 	u_int retval;
-	u_int64_t genval;
 	intrmask_t mask;
 
 	/* The reseed task must not be jumped on */
@@ -241,7 +241,8 @@ read_random(char *buf, u_int count)
 				(unsigned char *)&genval,
 				sizeof(random_state.counter),
 				&random_state.key, random_state.ivec, BF_ENCRYPT);
-			memcpy(&buf[i], &genval, sizeof(random_state.counter));
+			memcpy((char *)buf + i, &genval,
+				sizeof(random_state.counter));
 			if (++random_state.outputblocks >= random_state.gengateinterval) {
 				generator_gate();
 				random_state.outputblocks = 0;
@@ -268,8 +269,8 @@ read_random(char *buf, u_int count)
 		else {
 			retval = cur < count ? cur : count;
 			memcpy(buf,
-				(char *)&random_state.counter +
-					(sizeof(random_state.counter) - retval),
+				(char *)&genval +
+					(sizeof(random_state.counter) - cur),
 				retval);
 			cur -= retval;
 		}
@@ -279,7 +280,7 @@ read_random(char *buf, u_int count)
 }
 
 void
-write_random(char *buf, u_int count)
+write_random(void *buf, u_int count)
 {
 	u_int i;
 	intrmask_t mask;
@@ -287,11 +288,21 @@ write_random(char *buf, u_int count)
 
 	/* The reseed task must not be jumped on */
 	mask = splsofttq();
-	for (i = 0; i < count/sizeof(u_int64_t); i++) {
+	/* arbitrarily break the input up into 8-byte chunks */
+	for (i = 0; i < count; i += 8) {
 		nanotime(&timebuf);
-		random_harvest_internal(&timebuf,
-			*(u_int64_t *)&buf[i*sizeof(u_int64_t)],
-			0, 0, RANDOM_WRITE);
+		random_harvest_internal(&timebuf, (char *)buf + i, 8, 0, 0,
+			RANDOM_WRITE);
+	}
+	/* Maybe the loop iterated at least once */
+	if (i > count)
+		i -= 8;
+	/* Get the last bytes even if the input length is not a multiple of 8 */
+	count %= 8;
+	if (count) {
+		nanotime(&timebuf);
+		random_harvest_internal(&timebuf, (char *)buf + i, count, 0, 0,
+			RANDOM_WRITE);
 	}
 	reseed(FAST);
 	splx(mask);
@@ -329,7 +340,7 @@ generator_gate(void)
  */
 
 static void
-random_harvest_internal(struct timespec *timep, u_int64_t entropy,
+random_harvest_internal(struct timespec *timep, void *entropy, u_int count,
 	u_int bits, u_int frac, enum esource origin)
 {
 	u_int insert;
@@ -338,6 +349,7 @@ random_harvest_internal(struct timespec *timep, u_int64_t entropy,
 	struct source *source;
 	struct pool *pool;
 	intrmask_t mask;
+	u_int64_t entropy_buf;
 
 #ifdef DEBUG
 	printf("Random harvest\n");
@@ -363,7 +375,12 @@ random_harvest_internal(struct timespec *timep, u_int64_t entropy,
 			bucket->nanotime = *timep;
 
 			/* the harvested entropy */
-			bucket->data = entropy;
+			count = count > sizeof(entropy_buf)
+				? sizeof(entropy_buf)
+				: count;
+			memcpy(&entropy_buf, entropy, count);
+			/* XOR it in to really foul up the works */
+			bucket->data ^= entropy_buf;
 
 			/* update the estimates - including "fractional bits" */
 			source->bits += bits;
