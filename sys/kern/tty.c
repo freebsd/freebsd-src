@@ -97,7 +97,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/poll.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
-#include <sys/limits.h>
 #include <sys/serial.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
@@ -1853,15 +1852,17 @@ loop:
 			}
 		}
 #undef diff
-		/*
-		 * Rounding down may make us wake up just short
-		 * of the target, so we round up.  The 32 bit arithmetic is
-		 * sufficient for the first calculation for hz < 169.
-		 */
-		if (sizeof(u_long) > 4 || slp <= ULONG_MAX / hz)
-			slp = (long) (((u_long)slp * hz) + 999999) / 1000000;
-		else
-			slp = (slp + (tick - 1)) / tick;
+		if (slp != 0) {
+			struct timeval tv;	/* XXX style bug. */
+
+			tv.tv_sec = slp / 1000000;
+			tv.tv_usec = slp % 1000000;
+			slp = tvtohz(&tv);
+			/*
+			 * XXX bad variable names.  slp was the timeout in
+			 * usec.  Now it is the timeout in ticks.
+			 */
+		}
 		goto sleep;
 	}
 	if (qp->c_cc <= 0) {
