@@ -269,6 +269,10 @@ main(argc, argv)
 	memset(&smsghdr, 0, sizeof(&smsghdr));
 	memset(&smsgiov, 0, sizeof(&smsgiov));
 
+	if ((s = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6)) < 0)
+		err(1, "socket");
+	setuid(getuid());
+
 	preload = 0;
 	datap = &outpack[ICMP6ECHOLEN + ICMP6ECHOTMLEN];
 #ifndef IPSEC
@@ -356,6 +360,10 @@ main(argc, argv)
 			options |= F_INTERVAL;
 			break;
 		case 'l':
+			if (getuid()) {
+				errno = EPERM;
+				errx(1, "Must be superuser to preload");
+			}
 			preload = strtol(optarg, &e, 10);
 			if (preload < 0 || *optarg == '\0' || *e != '\0')
 				errx(1, "illegal preload value -- %s", optarg);
@@ -461,9 +469,6 @@ main(argc, argv)
 			*datap++ = i;
 
 	ident = getpid() & 0xFFFF;
-
-	if ((s = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) < 0)
-	  err(1, "socket");
 
 	hold = 1;
 
