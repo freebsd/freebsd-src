@@ -79,7 +79,6 @@
 #ifdef __i386__			/* fiddle with the spl locking */
 #include <sys/bus.h>
 #include <machine/ipl.h>
-#include <i386/isa/intr_machdep.h>
 #endif
 
 /* Misc defs */

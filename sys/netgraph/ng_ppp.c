@@ -51,7 +51,6 @@
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
-#include <sys/syslog.h>
 #include <sys/ctype.h>
 
 #include <machine/limits.h>
