@@ -1,29 +1,49 @@
 # $FreeBSD$
 
-SUBDIR= bc ${_binutils} ${_cc} cpio dc dialog diff diff3 ${_gdb} \
-	${_gperf} grep gzip man patch rcs sdiff send-pr sort tar texinfo
-
+SUBDIR= bc \
+	${_binutils} \
+	${_cc} \
+	cpio \
+	${_cvs} \
+	dc \
+	dialog \
+	diff \
+	diff3 \
+	${_gdb} \
+	${_gperf} \
+	grep \
+	${_groff} \
+	gzip \
+	man \
+	patch \
+	rcs \
+	sdiff \
+	send-pr \
+	sort \
+	tar \
+	texinfo
+ 
 .if ${MACHINE_ARCH} == "arm" || ${MACHINE_ARCH} == "powerpc"
 NO_GDB=	not yet
 .endif
 
-.if !defined(NO_TOOLCHAIN)
-_cc=cc
-_binutils=binutils
-.if !defined(NO_GDB)
-_gdb=gdb
-.endif
-.endif
-
 .if !defined(NO_CXX)
 .if ${MACHINE_ARCH} != "powerpc"
-_gperf=gperf
+_gperf=		gperf
 .endif
-SUBDIR+=groff
+_groff=		groff
 .endif
 
 .if !defined(NO_CVS)
-SUBDIR+=cvs
+_cvs=		cvs
+.endif
+
+.if !defined(NO_TOOLCHAIN)
+_binutils=	binutils
+_cc=		cc
+.if !defined(NO_GDB)
+_gdb=		gdb
+.endif
 .endif
 
 .include <bsd.subdir.mk>
