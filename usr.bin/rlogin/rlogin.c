@@ -891,12 +891,12 @@ usage()
 	    "usage: rlogin [ -%s]%s[-e char] [ -l username ] host\n",
 #ifdef KERBEROS
 #ifdef CRYPT
-	    "8EKLx", " [-k realm] ");
+	    "8DEKLx", " [-k realm] ");
 #else
-	    "8EKL", " [-k realm] ");
+	    "8DEKL", " [-k realm] ");
 #endif
 #else
-	    "8EL", " ");
+	    "8DEL", " ");
 #endif
 	exit(1);
 }
