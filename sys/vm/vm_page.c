@@ -785,23 +785,16 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	s = splvm();
 loop:
 	mtx_lock_spin(&vm_page_queue_free_mtx);
-	if (cnt.v_free_count > cnt.v_free_reserved) {
-		/*
-		 * Allocate from the free queue if there are plenty of pages
-		 * in it.
-		 */
-		m = vm_page_select_free(color, (req & VM_ALLOC_ZERO) != 0);
-					
-	} else if (
+	if (cnt.v_free_count > cnt.v_free_reserved ||
 	    (page_req == VM_ALLOC_SYSTEM && 
 	     cnt.v_cache_count == 0 && 
 	     cnt.v_free_count > cnt.v_interrupt_free_min) ||
-	    (page_req == VM_ALLOC_INTERRUPT && cnt.v_free_count > 0)
-	) {
+	    (page_req == VM_ALLOC_INTERRUPT && cnt.v_free_count > 0)) {
 		/*
-		 * Interrupt or system, dig deeper into the free list.
+		 * Allocate from the free queue if the number of free pages
+		 * exceeds the minimum for the request class.
 		 */
-		m = vm_page_select_free(color, FALSE);
+		m = vm_page_select_free(color, (req & VM_ALLOC_ZERO) != 0);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
 		mtx_unlock_spin(&vm_page_queue_free_mtx);
 		/*
