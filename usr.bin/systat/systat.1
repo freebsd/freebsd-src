@@ -66,7 +66,7 @@ statistics (a la
 virtual memory statistics (a la
 .Xr vmstat  8  ) ,
 network ``mbuf'' utilization,
-.Tn ICMP
+.Tn TCP/IP
 statistics, 
 and network connections (a la
 .Xr netstat  1  ) .
@@ -85,14 +85,16 @@ The
 flag expects
 .Ar display
 to be one of:
-.Ic pigs ,
 .Ic icmp ,
 .Ic iostat ,
-.Ic swap ,
+.Ic ip ,
 .Ic mbufs ,
-.Ic vmstat
+.Ic netstat ,
+.Ic pigs ,
+.Ic swap ,
+.Ic tcp ,
 or
-.Ic netstat .
+.Ic vmstat .
 These displays can also be requested interactively (without the
 .Dq Fl )
 and are described in
@@ -194,6 +196,20 @@ mode.  The
 .Ic mode
 command with no argument will display the current mode in the command
 line.
+.It Ic ip
+Otherwise identical to the
+.Ic icmp
+display, except that it displays
+.Tn IP
+and
+.Tn UDP
+statistics.
+.It Ic tcp
+Like
+.Ic icmp ,
+but with
+.Tn TCP
+statistics.
 .It Ic iostat
 Display, in the lower window, statistics about processor use
 and disk throughput.  Statistics on processor use appear as
@@ -288,8 +304,10 @@ of kilobyte blocks transferred per second averaged over the
 refresh period of the display (by default, five seconds).
 For some disks it also reports the average milliseconds per seek.
 Note that the system only keeps statistics on at most eight disks
-(this is controlled by the constant DK_NDRIVE in
-.Pa /usr/include/sys/dkstat.h
+(this is controlled by the constant 
+.Dv DK_NDRIVE
+in
+.Aq Pa sys/dkstat.h
 as a kernel compile-time constant).
 .Pp
 Under the date in the upper right hand quadrant are statistics
@@ -440,10 +458,13 @@ Display information about the drives indicated.  Multiple drives
 may be specified, separated by spaces.
 .El
 .Sh SEE ALSO
+.Xr icmp 4 ,
 .Xr iostat 1 ,
+.Xr ip 4 ,
 .Xr netstat 1 ,
-.Xr vmstat 1 ,
-.Xr icmp 4
+.Xr tcp 4 ,
+.Xr udp 4 ,
+.Xr vmstat 1
 .Sh FILES
 .Bl -tag -width /etc/networks -compact
 .It Pa /kernel
@@ -465,11 +486,18 @@ The
 program appeared in
 .Bx 4.3 .
 The
-.Ic icmp
-display appeared in
+.Ic icmp ,
+.Ic ip ,
+and
+.Ic tcp
+displays appeared in
 .Fx 3.0 ;
 the notion of having different display modes for the
-.Tn ICMP
+.Tn ICMP ,
+.Tn IP
+.Tn TCP ,
+and
+.Tn UDP
 statistics was stolen from the
 .Fl C
 option to
