@@ -22,9 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <efi.h>
 #include <efilib.h>
@@ -36,8 +39,8 @@ delay(int usecs)
 	UINTN junk;
 
 	if (!ev) {
-		if (BS->CreateEvent(EVT_TIMER, TPL_APPLICATION,
-				    0, 0, &ev) != EFI_SUCCESS)
+		if (BS->CreateEvent(EVT_TIMER, TPL_APPLICATION, 0, 0, &ev)
+		    != EFI_SUCCESS)
 			return;
 	}
 
