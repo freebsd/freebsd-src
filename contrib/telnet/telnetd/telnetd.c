@@ -412,7 +412,8 @@ usage()
 {
 	fprintf(stderr, "usage: telnetd");
 #ifdef	AUTHENTICATION
-	fprintf(stderr, " [-a (debug|other|user|valid|off|none)]\n\t");
+	fprintf(stderr,
+	    " [-4] [-6] [-a (debug|other|user|valid|off|none)]\n\t");
 #endif
 #ifdef BFTPDAEMON
 	fprintf(stderr, " [-B]");
