@@ -1,4 +1,4 @@
-This is release 2.4 of flex.  See "version.h" for the exact patch-level.
+This is release 2.5 of flex.  See "version.h" for the exact patch-level.
 
 See the file "NEWS" to find out what is new in this Flex release.
 
@@ -15,19 +15,12 @@ Note that flex is distributed under a copyright very similar to that of
 BSD Unix, and not under the GNU General Public License (GPL), except for
 the "configure" script, which is covered by the GPL.
 
-Many thanks to the 2.4 pre-testers for finding a bunch of bugs and helping
-increase/test portability: Francois Pinard, Nathan Zelle, Gavin Nicol,
-Chris Thewalt, and Matthew Jacob.
+Many thanks to the 2.5 beta-testers for finding bugs and helping test and
+increase portability: Stan Adermann, Scott David Daniels, Charles Elliott,
+Joe Gayda, Chris Meier, James Nordby, Terrence O'Kane, Karsten Pahnke,
+Francois Pinard, Pat Rankin, Andreas Scherer, Marc Wiese, Nathan Zelle.
 
-Please send bug reports and feedback to:
-
-	Vern Paxson
-	ICSD, 46A/1123
-	Lawrence Berkeley Laboratory
-	1 Cyclotron Rd.
-	Berkeley, CA 94720
-
-	vern@ee.lbl.gov
+Please send bug reports and feedback to: Vern Paxson (vern@ee.lbl.gov).
 
 
 The flex distribution consists of the following files:
@@ -40,7 +33,8 @@ The flex distribution consists of the following files:
 
 	COPYING		flex's copyright
 
-	configure.in, configure, Makefile.in, install.sh, mkinstalldirs
+	conf.in, configure.in, configure, Makefile.in, install.sh,
+		mkinstalldirs
 			elements of the "autoconf" auto-configuration process
 
 	flexdef.h, parse.y, scan.l, ccl.c, dfa.c, ecs.c, gen.c, main.c,
@@ -51,8 +45,8 @@ The flex distribution consists of the following files:
 
 	flex.skl	flex scanner skeleton
 	mkskel.sh	script for converting flex.skl to C source file skel.c
+	skel.c		pre-converted C version of flex.skl
 
-	liballoc.c
 	libmain.c	flex library (-lfl) sources
 	libyywrap.c
 
@@ -60,8 +54,7 @@ The flex distribution consists of the following files:
 
 	FlexLexer.h	header file for C++ lexer class
 
-	flexdoc.1	full user documentation
-	flex.1		reference documentation
+	flex.1		user documentation
 
 	MISC/		a directory containing miscellaneous contributions.
 			See MISC/README for details.
