@@ -88,3 +88,4 @@ Contents of this directory:
  	clmerge		A perl script to handle merge conflicts in GNU
 			style ChangeLog files .
 			Contributed by Tom Tromey <tromey@busco.lanl.gov>.
+	checklog.pl 	extract your commits from commitlogs archive
