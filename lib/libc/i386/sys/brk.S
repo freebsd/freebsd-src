@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: brk.S,v 1.2 1995/01/23 01:29:39 davidg Exp $
+ *	$Id: brk.S,v 1.2.4.2 1996/06/05 02:47:37 jkh Exp $
  */
 
 #if defined(SYSLIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: brk.S,v 1.2 1995/01/23 01:29:39 davidg Exp $"
+	.asciz "$Id: brk.S,v 1.2.4.2 1996/06/05 02:47:37 jkh Exp $"
 #endif /* SYSLIBC_RCS and not lint */
 
 #include "SYS.h"
@@ -56,9 +56,9 @@ ENTRY(brk)
 	PIC_PROLOGUE
 	movl	PIC_GOT(curbrk),%edx	# set up GOT addressing
 	movl	PIC_GOT(minbrk),%ecx	#
-	cmpl	%eax,(%ecx)
 	PIC_EPILOGUE
-	jl	ok
+	cmpl	%eax,(%ecx)
+	jbe	ok
 	movl	(%ecx),%eax
 	movl	%eax,4(%esp)
 ok:
@@ -76,7 +76,7 @@ err:
 
 	movl	4(%esp),%eax
 	cmpl	%eax,minbrk
-	jl	ok
+	jbe	ok
 	movl	minbrk,%eax
 	movl	%eax,4(%esp)
 ok:
