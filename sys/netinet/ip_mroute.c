@@ -526,6 +526,14 @@ X_mrt_ioctl(int cmd, caddr_t data)
 {
     int error = 0;
 
+    /*
+     * Currently the only function calling this ioctl routine is rtioctl().
+     * Typically, only root can create the raw socket in order to execute
+     * this ioctl method, however the request might be coming from a prison
+     */
+    error = suser(curthread);
+    if (error)
+	return (error);
     switch (cmd) {
     case (SIOCGETVIFCNT):
 	error = get_vif_cnt((struct sioc_vif_req *)data);
