@@ -1576,7 +1576,7 @@ pdq_initialize(
 #if defined(PDQ_OS_MEMALLOC_CONTIG)
     p = (pdq_uint8_t *) PDQ_OS_MEMALLOC_CONTIG(contig_bytes);
 
-if (p == NULL)
+    if (p == NULL)
 	printf("%s() - PDQ_OS_MEMALLOC_CONTIG() failed!\n", __FUNCTION__);
 
     if (p != NULL) {
