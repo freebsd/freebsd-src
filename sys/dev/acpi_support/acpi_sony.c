@@ -35,25 +35,25 @@
 #include <sys/module.h>
 #include <dev/acpica/acpivar.h>
 #include <sys/sysctl.h>
-#define ACPI_SNC_GET_BRIGHTNESS "GBRT"
-#define ACPI_SNC_SET_BRIGHTNESS "SBRT"
-#define ACPI_SNC_GET_PID "GPID"
+#define ACPI_SONY_GET_BRIGHTNESS "GBRT"
+#define ACPI_SONY_SET_BRIGHTNESS "SBRT"
+#define ACPI_SONY_GET_PID "GPID"
 /*
  * SNY5001
  *  [GS]BRT [GS]PBR [GS]CTR [GS]PCR [GS]CMI [CDPW GCDP]? GWDP PWAK PWRN 
  *
  */
 
-struct acpi_snc_softc {
+struct acpi_sony_softc {
 	int pid;
 };
-static struct acpi_snc_name_list
+static struct acpi_sony_name_list
 {
 	char *nodename;
 	char *getmethod;
 	char *setmethod;
 	char *comment;
-} acpi_snc_oids[] = {
+} acpi_sony_oids[] = {
 	{ "brightness", "GBRT", "SBRT", "Display Brightness"},
 	{ "ctr", "GCTR", "SCTR", "??"},
 	{ "pcr", "GPCR", "SPCR", "???"},
@@ -65,37 +65,37 @@ static struct acpi_snc_name_list
 	{NULL, NULL,NULL}
 };
 
-static int	acpi_snc_probe(device_t dev);
-static int	acpi_snc_attach(device_t dev);
-static int 	acpi_snc_detach(device_t dev);
-static int	sysctl_acpi_snc_gen_handler(SYSCTL_HANDLER_ARGS);
+static int	acpi_sony_probe(device_t dev);
+static int	acpi_sony_attach(device_t dev);
+static int 	acpi_sony_detach(device_t dev);
+static int	sysctl_acpi_sony_gen_handler(SYSCTL_HANDLER_ARGS);
 
-static device_method_t acpi_snc_methods[] = {
+static device_method_t acpi_sony_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe, acpi_snc_probe),
-	DEVMETHOD(device_attach, acpi_snc_attach),
-	DEVMETHOD(device_detach, acpi_snc_detach),
+	DEVMETHOD(device_probe, acpi_sony_probe),
+	DEVMETHOD(device_attach, acpi_sony_attach),
+	DEVMETHOD(device_detach, acpi_sony_detach),
 
 	{0, 0}
 };
 
-static driver_t	acpi_snc_driver = {
-	"acpi_snc",
-	acpi_snc_methods,
-	sizeof(struct acpi_snc_softc),
+static driver_t	acpi_sony_driver = {
+	"acpi_sony",
+	acpi_sony_methods,
+	sizeof(struct acpi_sony_softc),
 };
 
-static devclass_t acpi_snc_devclass;
+static devclass_t acpi_sony_devclass;
 
-DRIVER_MODULE(acpi_snc, acpi, acpi_snc_driver, acpi_snc_devclass,
+DRIVER_MODULE(acpi_sony, acpi, acpi_sony_driver, acpi_sony_devclass,
 	      0, 0);
-MODULE_DEPEND(acpi_snc, acpi, 1, 1, 1);
+MODULE_DEPEND(acpi_sony, acpi, 1, 1, 1);
 static char    *sny_id[] = {"SNY5001", NULL};
 
 static int
-acpi_snc_probe(device_t dev)
+acpi_sony_probe(device_t dev)
 {
-	struct acpi_snc_softc *sc;
+	struct acpi_sony_softc *sc;
 	int		ret = ENXIO;
 
 	sc = device_get_softc(dev);
@@ -108,59 +108,59 @@ acpi_snc_probe(device_t dev)
 }
 
 static int
-acpi_snc_attach(device_t dev)
+acpi_sony_attach(device_t dev)
 {
-	struct acpi_snc_softc *sc;
+	struct acpi_sony_softc *sc;
 	int i;
 
 	sc = device_get_softc(dev);
-	acpi_GetInteger(acpi_get_handle(dev), ACPI_SNC_GET_PID, &sc->pid);
+	acpi_GetInteger(acpi_get_handle(dev), ACPI_SONY_GET_PID, &sc->pid);
 	device_printf(dev, "PID %x\n", sc->pid);
-	for (i = 0 ; acpi_snc_oids[i].nodename != NULL; i++){
+	for (i = 0 ; acpi_sony_oids[i].nodename != NULL; i++){
 		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-		    i, acpi_snc_oids[i].nodename , CTLTYPE_INT |
-		    ((acpi_snc_oids[i].setmethod)? CTLFLAG_RW: CTLFLAG_RD),
-		    dev, i, sysctl_acpi_snc_gen_handler, "I",
-		    acpi_snc_oids[i].comment);
+		    i, acpi_sony_oids[i].nodename , CTLTYPE_INT |
+		    ((acpi_sony_oids[i].setmethod)? CTLFLAG_RW: CTLFLAG_RD),
+		    dev, i, sysctl_acpi_sony_gen_handler, "I",
+		    acpi_sony_oids[i].comment);
 	}
 	return (0);
 }
 
 static int 
-acpi_snc_detach(device_t dev)
+acpi_sony_detach(device_t dev)
 {
 	return (0);
 }
 
 #if 0
 static int
-acpi_snc_suspend(device_t dev)
+acpi_sony_suspend(device_t dev)
 {
-	struct acpi_snc_softc *sc = device_get_softc(dev);
+	struct acpi_sony_softc *sc = device_get_softc(dev);
 	return (0);
 }
 
 static int
-acpi_snc_resume(device_t dev)
+acpi_sony_resume(device_t dev)
 {
 	return (0);
 }
 #endif
 
 static int 
-sysctl_acpi_snc_gen_handler(SYSCTL_HANDLER_ARGS)
+sysctl_acpi_sony_gen_handler(SYSCTL_HANDLER_ARGS)
 {
 	device_t	dev = arg1;
 	int 	function = oidp->oid_arg2;
 	int		error = 0, val;
 
 	acpi_GetInteger(acpi_get_handle(dev),
-	    acpi_snc_oids[function].getmethod, &val);
+	    acpi_sony_oids[function].getmethod, &val);
 	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr || !acpi_snc_oids[function].setmethod)
+	if (error || !req->newptr || !acpi_sony_oids[function].setmethod)
 		return (error);
 	acpi_SetInteger(acpi_get_handle(dev),
-	    acpi_snc_oids[function].setmethod, val);
+	    acpi_sony_oids[function].setmethod, val);
 	return (0);
 }
