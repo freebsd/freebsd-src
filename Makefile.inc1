@@ -215,18 +215,6 @@ INCDIRS=	arpa g++/std objc protocols readline rpc rpcsvc openssl \
 # success, regardless of how old your existing system is.
 #
 buildworld:
-.if !defined(NOSECURE) && !defined(NO_OPENSSL) && exists(${.CURDIR}/secure) && \
-	(!defined(USA_RESIDENT) || (${USA_RESIDENT} != NO && \
-	${USA_RESIDENT} != YES))
-	@echo
-	@echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-	@echo ">>> You must define the value of USA_RESIDENT as 'YES' or"
-	@echo ">>> 'NO' as appropriate, in the environment or /etc/make.conf"
-	@echo ">>> before building can proceed."
-	@echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-	@/usr/bin/false
-.endif
-
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Rebuilding the temporary build tree"
