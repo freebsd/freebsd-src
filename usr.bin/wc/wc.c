@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)wc.c	8.1 (Berkeley) 6/6/93";
 #else
 static const char rcsid[] =
-	"$Id: wc.c,v 1.4 1996/04/13 11:35:54 bde Exp $";
+	"$Id: wc.c,v 1.4.2.1 1997/08/26 06:52:01 charnier Exp $";
 #endif
 #endif /* not lint */
 
@@ -74,7 +74,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "lwc")) != EOF)
+	while ((ch = getopt(argc, argv, "lwc")) !=  -1)
 		switch((char)ch) {
 		case 'l':
 			doline = 1;

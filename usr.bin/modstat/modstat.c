@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: modstat.c,v 1.4.2.1 1997/07/30 06:42:43 charnier Exp $";
 #endif /* not lint */
 
 #include <a.out.h>
@@ -129,7 +129,7 @@ main(argc, argv)
 	int modnum = -1;
 	char *modname = NULL;
 
-	while ((c = getopt(argc, argv, "i:n:")) != EOF) {
+	while ((c = getopt(argc, argv, "i:n:")) !=  -1) {
 		switch (c) {
 		case 'i':
 			modnum = atoi(optarg);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: brandelf.c,v 1.1.2.2 1997/06/24 06:45:22 charnier Exp $
+ *  $Id: brandelf.c,v 1.1.2.3 1997/08/23 15:57:35 joerg Exp $
  */
 
 #include <err.h>
@@ -46,7 +46,7 @@ main(int argc, char **argv)
 	int retval = 0;
 	int ch, change = 0, verbose = 0;
 
-	while ((ch = getopt(argc, argv, "t:v")) != EOF)
+	while ((ch = getopt(argc, argv, "t:v")) !=  -1)
 		switch (ch) {
 		case 'v':
 			verbose = 1;

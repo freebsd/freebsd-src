@@ -63,7 +63,7 @@ main(argc, argv)
 	debug = 0;
 	magic = '%';		/* Default magic char is `%'. */
 	nargs = -1;
-	while ((ch = getopt(argc, argv, "a:d0123456789")) != EOF)
+	while ((ch = getopt(argc, argv, "a:d0123456789")) !=  -1)
 		switch (ch) {
 		case 'a':
 			if (optarg[1] != '\0')

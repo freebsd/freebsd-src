@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rwho.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rwho.c,v 1.7.2.1 1997/08/11 07:14:28 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -97,7 +97,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_TIME, "");
 
-	while ((ch = getopt(argc, argv, "a")) != EOF)
+	while ((ch = getopt(argc, argv, "a")) !=  -1)
 		switch((char)ch) {
 		case 'a':
 			aflg = 1;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: vis.c,v 1.3.2.1 1997/08/26 06:30:33 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -67,7 +67,7 @@ main(argc, argv)
 
 	(void) setlocale(LC_CTYPE, "");
 
-	while ((ch = getopt(argc, argv, "nwctsobfF:ld")) != EOF)
+	while ((ch = getopt(argc, argv, "nwctsobfF:ld")) !=  -1)
 		switch((char)ch) {
 		case 'n':
 			none++;

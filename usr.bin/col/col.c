@@ -133,7 +133,7 @@ main(argc, argv)
 
 	max_bufd_lines = 128;
 	compress_spaces = 1;		/* compress spaces into tabs */
-	while ((opt = getopt(argc, argv, "bfhl:x")) != EOF)
+	while ((opt = getopt(argc, argv, "bfhl:x")) !=  -1)
 		switch (opt) {
 		case 'b':		/* do not output backspaces */
 			no_backspaces = 1;

@@ -100,7 +100,7 @@ main(argc, argv)
 	int ch, end, fieldwidth, precision;
 	char convch, nextch, *format, *fmt, *start;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch (ch) {
 		case '?':
 		default:

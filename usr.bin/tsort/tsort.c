@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: tsort.c,v 1.3 1996/06/10 16:12:43 phk Exp $
+ * $Id: tsort.c,v 1.4 1996/08/02 04:50:44 jkh Exp $
  */
 
 #ifndef lint
@@ -121,7 +121,7 @@ main(argc, argv)
 	int bsize, ch, nused;
 	BUF bufs[2];
 
-	while ((ch = getopt(argc, argv, "dlq")) != EOF)
+	while ((ch = getopt(argc, argv, "dlq")) !=  -1)
 		switch (ch) {
 		case 'd':
 			debug = 1;

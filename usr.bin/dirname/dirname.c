@@ -54,7 +54,7 @@ main(argc, argv)
 	char *p;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch(ch) {
 		case '?':
 		default:

@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.16.2.2 1997/07/30 06:52:05 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -243,7 +243,7 @@ main(argc, argv)
 
 	af = AF_UNSPEC;
 
-	while ((ch = getopt(argc, argv, "Aabdf:ghI:iM:mN:np:rstuw:")) != EOF)
+	while ((ch = getopt(argc, argv, "Aabdf:ghI:iM:mN:np:rstuw:")) !=  -1)
 		switch(ch) {
 		case 'A':
 			Aflag = 1;

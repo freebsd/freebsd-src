@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)odsyntax.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: odsyntax.c,v 1.2.6.1 1997/07/11 06:25:57 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -64,7 +64,7 @@ oldsyntax(argc, argvp)
 
 	deprecated = 1;
 	argv = *argvp;
-	while ((ch = getopt(argc, argv, "aBbcDdeFfHhIiLlOoPpswvXx")) != EOF)
+	while ((ch = getopt(argc, argv, "aBbcDdeFfHhIiLlOoPpswvXx")) !=  -1)
 		switch (ch) {
 		case 'a':
 			odprecede();

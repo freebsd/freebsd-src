@@ -77,7 +77,7 @@ main(argc, argv)
 	int c;
 
 	capname = NULL;
-	while ((c = getopt(argc, argv, "f:v")) != EOF) {
+	while ((c = getopt(argc, argv, "f:v")) !=  -1) {
 		switch(c) {
 		case 'f':
 			capname = optarg;

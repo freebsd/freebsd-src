@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mt.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: mt.c,v 1.9.2.1 1997/07/30 06:48:15 charnier Exp $";
+	"$Id: mt.c,v 1.9.2.2 1997/08/21 05:50:33 joerg Exp $";
 #endif /* not lint */
 
 /*
@@ -128,7 +128,7 @@ main(argc, argv)
 	if ((tape = getenv("TAPE")) == NULL)
 		tape = DEFTAPE;
 
-	while ((ch = getopt(argc, argv, "f:t:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:t:")) !=  -1)
 		switch(ch) {
 		case 'f':
 		case 't':

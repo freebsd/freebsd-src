@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)look.c	8.1 (Berkeley) 6/14/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: look.c,v 1.3.2.1 1997/07/24 06:50:33 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -110,7 +110,7 @@ main(argc, argv)
 
 	file = _PATH_WORDS;
 	termchar = '\0';
-	while ((ch = getopt(argc, argv, "dft:")) != EOF)
+	while ((ch = getopt(argc, argv, "dft:")) !=  -1)
 		switch(ch) {
 		case 'd':
 			dflag = 1;

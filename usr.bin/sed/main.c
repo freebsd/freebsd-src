@@ -46,7 +46,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: main.c,v 1.3.2.2 1997/08/12 06:36:12 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -118,7 +118,7 @@ main(argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	fflag = 0;
-	while ((c = getopt(argc, argv, "ae:f:n")) != EOF)
+	while ((c = getopt(argc, argv, "ae:f:n")) !=  -1)
 		switch (c) {
 		case 'a':
 			aflag = 1;

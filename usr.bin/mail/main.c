@@ -89,7 +89,7 @@ main(argc, argv)
 	bcc = NIL;
 	smopts = NIL;
 	subject = NOSTR;
-	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) != EOF) {
+	while ((i = getopt(argc, argv, "INT:b:c:dfins:u:v")) !=  -1) {
 		switch (i) {
 		case 'T':
 			/*

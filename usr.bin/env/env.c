@@ -60,7 +60,7 @@ main(argc, argv)
 	char *cleanenv[1];
 	int ch;
 
-	while ((ch = getopt(argc, argv, "-")) != EOF)
+	while ((ch = getopt(argc, argv, "-")) !=  -1)
 		switch(ch) {
 		case '-':
 			environ = cleanenv;

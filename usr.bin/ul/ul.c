@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ul.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: ul.c,v 1.2.6.1 1997/08/21 06:42:31 charnier Exp $";
+	"$Id: ul.c,v 1.2.6.2 1997/08/26 06:18:16 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -112,7 +112,7 @@ main(argc, argv)
 	termtype = getenv("TERM");
 	if (termtype == NULL || (argv[0][0] == 'c' && !isatty(1)))
 		termtype = "lpr";
-	while ((c=getopt(argc, argv, "it:T:")) != EOF)
+	while ((c=getopt(argc, argv, "it:T:")) !=  -1)
 		switch(c) {
 
 		case 't':

@@ -74,7 +74,7 @@ main(argc, argv)
 
 	dchar = '\t';			/* default delimiter is \t */
 
-	while ((ch = getopt(argc, argv, "c:d:f:s")) != EOF)
+	while ((ch = getopt(argc, argv, "c:d:f:s")) !=  -1)
 		switch(ch) {
 		case 'c':
 			fcn = c_cut;

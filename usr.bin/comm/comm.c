@@ -71,7 +71,7 @@ main(argc, argv)
 	char **p, line1[MAXLINELEN], line2[MAXLINELEN];
 
 	flag1 = flag2 = flag3 = 1;
-	while ((ch = getopt(argc, argv, "-123")) != EOF)
+	while ((ch = getopt(argc, argv, "-123")) !=  -1)
 		switch(ch) {
 		case '-':
 			--optind;

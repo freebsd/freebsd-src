@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: wall.c,v 1.3.2.1 1997/08/26 06:50:36 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -87,7 +87,7 @@ main(argc, argv)
 	char *p, *ttymsg();
 	char line[sizeof(utmp.ut_line) + 1];
 
-	while ((ch = getopt(argc, argv, "n")) != EOF)
+	while ((ch = getopt(argc, argv, "n")) !=  -1)
 		switch (ch) {
 		case 'n':
 			/* undoc option for shutdown: suppress banner */

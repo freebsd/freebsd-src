@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: biff.c,v 1.1.1.1.8.1 1997/06/24 06:43:41 charnier Exp $
  */
 
 #ifndef lint
@@ -63,7 +63,7 @@ main(argc, argv)
 	char *name;
 
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch(ch) {
 		case '?':
 		default:

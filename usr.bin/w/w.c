@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: w.c,v 1.16.2.3 1997/08/26 06:47:45 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -150,7 +150,7 @@ main(argc, argv)
 	}
 
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, p)) != EOF)
+	while ((ch = getopt(argc, argv, p)) !=  -1)
 		switch (ch) {
 		case 'h':
 			header = 0;

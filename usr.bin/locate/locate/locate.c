@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: locate.c,v 1.6 1996/10/13 01:44:41 wosch Exp $
+ *      $Id: locate.c,v 1.6.2.1 1997/07/22 07:25:29 charnier Exp $
  */
 
 #ifndef lint
@@ -49,7 +49,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)locate.c    8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: locate.c,v 1.6.2.1 1997/07/22 07:25:29 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -158,7 +158,7 @@ main(argc, argv)
 #endif
 	(void) setlocale(LC_ALL, "");
 
-        while ((ch = getopt(argc, argv, "Scd:il:ms")) != EOF)
+        while ((ch = getopt(argc, argv, "Scd:il:ms")) !=  -1)
                 switch(ch) {
                 case 'S':	/* statistic lines */   
                         f_statistic = 1;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: from.c,v 1.3.2.1 1997/07/10 06:33:16 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -75,7 +75,7 @@ main(argc, argv)
 #endif
 
 	file = sender = NULL;
-	while ((ch = getopt(argc, argv, "f:s:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:s:")) !=  -1)
 		switch((char)ch) {
 		case 'f':
 			file = optarg;

@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rlogin.c,v 1.13.2.1 1997/08/06 06:43:09 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -183,7 +183,7 @@ main(argc, argv)
 #else
 #define	OPTIONS	"8DEKLde:l:"
 #endif
-	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != EOF)
+	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) !=  -1)
 		switch(ch) {
 		case '8':
 			eight = 1;

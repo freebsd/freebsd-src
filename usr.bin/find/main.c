@@ -83,7 +83,7 @@ main(argc, argv)
 	p = start = argv;
 	Hflag = Lflag = Pflag = 0;
 	ftsoptions = FTS_NOSTAT | FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "HLPXdf:x")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPXdf:x")) !=  -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;

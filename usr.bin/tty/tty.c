@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: tty.c,v 1.1.1.1.8.1 1997/08/20 07:22:30 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -59,7 +59,7 @@ main(argc, argv)
 	char *t, *ttyname();
 
 	sflag = 0;
-	while ((ch = getopt(argc, argv, "s")) != EOF)
+	while ((ch = getopt(argc, argv, "s")) !=  -1)
 		switch((char)ch) {
 		case 's':
 			sflag = 1;

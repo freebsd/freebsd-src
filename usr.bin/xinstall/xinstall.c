@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.18 1996/10/01 03:59:57 imp Exp $";
+	"$Id: xinstall.c,v 1.18.2.1 1997/08/28 06:24:41 charnier Exp $";
 #endif /* not lint */
 
 /*-
@@ -131,7 +131,7 @@ main(argc, argv)
 	char *flags, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) != EOF)
+	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) !=  -1)
 		switch((char)ch) {
 		case 'C':
 			docompare = docopy = 1;

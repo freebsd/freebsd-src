@@ -74,7 +74,7 @@ main(argc, argv)
 	if (gettimeofday(&tv[0], NULL))
 		err(1, "gettimeofday");
 
-	while ((ch = getopt(argc, argv, "acfmr:t:")) != EOF)
+	while ((ch = getopt(argc, argv, "acfmr:t:")) !=  -1)
 		switch(ch) {
 		case 'a':
 			aflag = 1;

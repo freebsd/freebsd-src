@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)logger.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: logger.c,v 1.2.2.1 1997/07/23 06:40:52 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -77,7 +77,7 @@ main(argc, argv)
 	pri = LOG_NOTICE;
 	logflags = 0;
 	unsetenv("TZ");
-	while ((ch = getopt(argc, argv, "f:ip:st:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:ip:st:")) !=  -1)
 		switch((char)ch) {
 		case 'f':		/* file to log */
 			if (freopen(optarg, "r", stdin) == NULL)

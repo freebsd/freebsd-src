@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ar.c,v 1.4.2.1 1997/06/24 06:35:05 charnier Exp $
  */
 
 #ifndef lint
@@ -99,7 +99,7 @@ main(argc, argv)
 		argv[1] = p;
 	}
 
-	while ((c = getopt(argc, argv, "abcdilmopqrTtuvx")) != EOF) {
+	while ((c = getopt(argc, argv, "abcdilmopqrTtuvx")) !=  -1) {
 		switch(c) {
 		case 'a':
 			options |= AR_A;

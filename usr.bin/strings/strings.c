@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)strings.c	8.2 (Berkeley) 1/28/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: strings.c,v 1.4.2.1 1997/08/12 06:42:27 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -96,7 +96,7 @@ main(argc, argv)
 	 */
 	asdata = exitcode = fflg = oflg = 0;
 	minlen = -1;
-	while ((ch = getopt(argc, argv, "-0123456789an:of")) != EOF)
+	while ((ch = getopt(argc, argv, "-0123456789an:of")) !=  -1)
 		switch (ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':

@@ -89,7 +89,7 @@ main(argc, argv)
 	if (getenv("FTP_PASSIVE_MODE") || strcmp(cp, "pftp") == 0)
 	    passivemode = 1;
 
-	while ((ch = getopt(argc, argv, "dginptvU")) != EOF) {
+	while ((ch = getopt(argc, argv, "dginptvU")) !=  -1) {
 		switch (ch) {
 		case 'd':
 			options |= SO_DEBUG;

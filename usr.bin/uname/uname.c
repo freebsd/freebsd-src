@@ -66,7 +66,7 @@ main(argc, argv)
 	char *p, *prefix, buf[1024];
 
 	flags = 0;
-	while ((ch = getopt(argc, argv, "amnrsv")) != EOF)
+	while ((ch = getopt(argc, argv, "amnrsv")) !=  -1)
 		switch(ch) {
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
