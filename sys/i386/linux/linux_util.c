@@ -160,7 +160,10 @@ linux_emul_find(p, sgp, prefix, path, pbuf, cflag)
 	else {
 		sz = &ptr[len] - buf;
 		*pbuf = stackgap_alloc(sgp, sz + 1);
-		error = copyout(buf, *pbuf, sz);
+		if (*pbuf != NULL)
+			error = copyout(buf, *pbuf, sz);
+		else
+			error = ENAMETOOLONG;
 		free(buf, M_TEMP);
 	}
 

@@ -959,6 +959,8 @@ linux_utime(struct proc *p, struct linux_utime_args *args)
 	tv[1].tv_usec = 0;
 	/* so that utimes can copyin */
 	tvp = (struct timeval *)stackgap_alloc(&sg, sizeof(tv));
+	if (tvp == NULL)
+		return (ENAMETOOLONG);
 	if ((error = copyout(tv, tvp, sizeof(tv))))
 	    return error;
 	bsdutimes.tptr = tvp;

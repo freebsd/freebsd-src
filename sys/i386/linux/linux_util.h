@@ -56,29 +56,27 @@
 static __inline caddr_t stackgap_init(void);
 static __inline void *stackgap_alloc(caddr_t *, size_t);
 
+#define szsigcode (*(curproc->p_sysent->sv_szsigcode))
+
 static __inline caddr_t
 stackgap_init()
 {
-#define szsigcode (*(curproc->p_sysent->sv_szsigcode))
 	return (caddr_t)(PS_STRINGS - szsigcode - SPARE_USRSPACE);
 }
-
 
 static __inline void *
 stackgap_alloc(sgp, sz)
 	caddr_t	*sgp;
 	size_t   sz;
 {
-	void	*p = (void *) *sgp;
-	*sgp += ALIGN(sz);
+	void *p = (void *) *sgp;
+
+	sz = ALIGN(sz);
+	if (*sgp + sz > (caddr_t)(PS_STRINGS - szsigcode))
+		return NULL;
+	*sgp += sz;
 	return p;
 }
-
-#ifdef DEBUG_LINUX
-#define DPRINTF(a)      printf a;
-#else
-#define DPRINTF(a)
-#endif
 
 int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 			char **, int));
