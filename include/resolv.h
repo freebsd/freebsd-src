@@ -51,7 +51,7 @@
 /*
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 8.12 1998/04/28 19:36:46 halley Exp $
- *	$Id: resolv.h,v 1.14 1997/09/01 01:19:10 brian Exp $
+ *	$Id: resolv.h,v 1.15 1998/06/11 08:55:13 peter Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -205,8 +205,8 @@ extern const struct res_sym __p_type_syms[];
 #define	b64_pton	__b64_pton
 #define	loc_ntoa	__loc_ntoa
 #define	loc_aton	__loc_aton
-#define	fp_resstat	__fp_resstat		/* XXX new divert */
-#define	p_query		__p_query		/* XXX new divert */
+#define	fp_resstat	__fp_resstat
+#define	p_query		__p_query
 #define	dn_skipname	__dn_skipname
 #define	fp_resstat	__fp_resstat
 #define	fp_query	__fp_query
@@ -219,30 +219,29 @@ extern const struct res_sym __p_type_syms[];
 #define	p_type		__p_type
 #define	p_query		__p_query
 #define	p_cdnname	__p_cdnname
-#define	p_section	__p_section		/* XXX new func in 8.1 */
+#define	p_section	__p_section
 #define	p_cdname	__p_cdname
 #define	p_fqnname	__p_fqnname
 #define	p_fqname	__p_fqname
-/* XXX p_rr gone */
 #define	p_option	__p_option
 #define	p_secstodate	__p_secstodate
 #define	dn_count_labels	__dn_count_labels
 #define	dn_comp		__dn_comp
-#define	dn_expand	__dn_expand		/* XXX unmasked */
-#define	res_init	__res_init		/* XXX unmasked */
+#define	dn_expand	__dn_expand
+#define	res_init	__res_init
 #define	res_randomid	__res_randomid
-#define	res_query	__res_query		/* XXX unmasked */
-#define	res_search	__res_search		/* XXX unmasked */
-#define	res_querydomain	__res_querydomain	/* XXX unmasked */
-#define	res_mkquery	__res_mkquery		/* XXX unmasked */
-#define	res_send	__res_send		/* XXX unmasked */
+#define	res_query	__res_query
+#define	res_search	__res_search
+#define	res_querydomain	__res_querydomain
+#define	res_mkquery	__res_mkquery
+#define	res_send	__res_send
 #define	res_isourserver	__res_isourserver
 #define	res_nameinquery	__res_nameinquery
 #define	res_queriesmatch __res_queriesmatch
 #define	res_close	__res_close
-#define res_mkupdate	__res_mkupdate		/* XXX new func in 8.1 */
-#define	res_mkupdrec	__res_mkupdrec		/* XXX new func in 8.1 */
-#define res_freeupdrec	__res_freeupdrec	/* XXX new func in 8.1 */
+#define	res_mkupdate	__res_mkupdate
+#define	res_mkupdrec	__res_mkupdrec
+#define	res_freeupdrec	__res_freeupdrec
 
 __BEGIN_DECLS
 int		res_hnok __P((const char *));
@@ -295,10 +294,13 @@ int		res_queriesmatch __P((const u_char *, const u_char *,
 				      const u_char *, const u_char *));
 void		res_close __P((void));
 const char *	p_section __P((int, int));
+/* XXX The following depend on the ns_updrec typedef in arpa/nameser.h */
+#ifdef _ARPA_NAMESER_H_
 int		res_update __P((ns_updrec *));
 int		res_mkupdate __P((ns_updrec *, u_char *, int));
 ns_updrec *	res_mkupdrec __P((int, const char *, u_int, u_int, u_long));
 void		res_freeupdrec __P((ns_updrec *));
+#endif
 __END_DECLS
 
 #endif /* !_RESOLV_H_ */
