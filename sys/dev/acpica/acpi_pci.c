@@ -162,6 +162,7 @@ acpi_pci_child_location_str_method(device_t cbdev, device_t child, char *buf,
 static int
 acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 {
+	ACPI_HANDLE h;
 	ACPI_STATUS status;
 	int acpi_state, old_state, error;
 
@@ -197,12 +198,15 @@ acpi_pci_set_powerstate_method(device_t dev, device_t child, int state)
 		if (error)
 			return (error);
 	}
-	status = acpi_pwr_switch_consumer(acpi_get_handle(child), acpi_state);
-	if (ACPI_FAILURE(status))
-		device_printf(dev,
-		    "Failed to set ACPI power state D%d on %s: %s\n",
-		    acpi_state, device_get_nameunit(child),
-		    AcpiFormatException(status));
+	h = acpi_get_handle(child);
+	if (h != NULL) {
+		status = acpi_pwr_switch_consumer(h, acpi_state);
+		if (ACPI_FAILURE(status))
+			device_printf(dev,
+			    "Failed to set ACPI power state D%d on %s: %s\n",
+			    acpi_state, device_get_nameunit(child),
+			    AcpiFormatException(status));
+	}
 	if (state > old_state)
 		return (pci_set_powerstate_method(dev, child, state));
 	else
