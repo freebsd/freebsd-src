@@ -740,7 +740,7 @@ get_ptbase(pmap)
 	/* otherwise, we are alternate address space */
 	if (frame != (APTDpde & PG_FRAME)) {
 		APTDpde = (pd_entry_t) (frame | PG_RW | PG_V);
-		invltlb();
+		pmap_invalidate_all(kernel_pmap);	/* XXX Bandaid */
 	}
 	return APTmap;
 }
@@ -2638,7 +2638,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		 */
 		if (dst_frame != (APTDpde & PG_FRAME)) {
 			APTDpde = dst_frame | PG_RW | PG_V;
-			invltlb();
+			pmap_invalidate_all(kernel_pmap); /* XXX Bandaid */
 		}
 		src_pte = vtopte(addr);
 		dst_pte = avtopte(addr);
