@@ -48,7 +48,7 @@ The standard
 library provides a simple and efficient buffered stream
 .Tn I/O
 interface.
-Input and ouput is mapped into logical data streams
+Input and output is mapped into logical data streams
 and the physical
 .Tn I/O
 characteristics are concealed. The functions and macros are listed
@@ -69,7 +69,7 @@ The position indicator is maintained by subsequent reads, writes
 and positioning requests. All input occurs as if the characters
 were read by successive calls to the
 .Xr fgetc 3
-function; all ouput takes place as if all characters were
+function; all output takes place as if all characters were
 read by successive calls to the
 .Xr fputc 3
 function.
@@ -77,7 +77,7 @@ function.
 A file is disassociated from a stream by
 .Em closing
 the file.
-Ouput streams are flushed (any unwritten buffer contents are transferred
+Output streams are flushed (any unwritten buffer contents are transferred
 to the host environment) before the stream is disassociated from the file.
 The value of a pointer to a
 .Dv FILE

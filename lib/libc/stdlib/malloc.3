@@ -118,7 +118,7 @@ and scan it for flags.
 Flags are single letters, uppercase means on, lowercase means off.
 .Bl -tag -width indent
 .It A
-``abort'' malloc will coredump the process, rather that tollerate failure.
+``abort'' malloc will coredump the process, rather than tolerate failure.
 This is a very handy debugging aid, since the core file will represent the
 time of failure,
 rather than when the NULL pointer was accessed.
@@ -138,12 +138,12 @@ This can substantially aid in compacting memory.
 
 .It Z
 ``zero'' fill some junk into the area allocated (see ``J''),
-except for the exact length the user asked for, which is zerod.
+except for the exact length the user asked for, which is zeroed.
 
 .El
 .Pp
 The ``J'' and ``Z'' is mostly for testing and debugging,
-if a program changes behaviour if either of these options are used,
+if a program changes behavior if either of these options are used,
 it is buggy.
 .Sh RETURN VALUES
 The
@@ -177,7 +177,7 @@ attached to a 20bit binary challenged computer built with discrete germanium
 transistors, and it has since graduated to handle primary storage rather than
 secondary.
 .Pp
-The main difference from other malloc implementations are belived to be that
+The main difference from other malloc implementations are believed to be that
 the free pages are not accessed until allocated.
 Most malloc implementations will store a data structure containing a, 
 possibly double-, linked list in the free chunks of memory, used to tie
@@ -188,4 +188,4 @@ likely paged out, pages get faulted into primary memory, just to see what
 lies after them in the list.
 .Pp
 On systems which are paging, this can make a factor five in difference on the
-pagefaults of a process.
+page-faults of a process.
