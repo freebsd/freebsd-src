@@ -29,7 +29,7 @@
 #	signal handling
 # 	add only users who exist
 #
-# $Id: addgroup.tcl,v 1.5 1996/10/29 19:11:50 wosch Exp wosch $
+# $Id: addgroup.tcl,v 1.1 1996/10/29 20:31:43 wosch Exp $
 
 # set global variables
 set etc_group "/etc/group";        #set etc_group "/usr/tmp/group" 
@@ -63,23 +63,6 @@ proc double_name {groupmembers} {
 	    }
 	}
     }
-    return 0
-}
-
-# check group(5) limits
-proc group_limit {string} {
-    set line_max 100;      # max group line length
-    set groups_max 200;     # max group members
-
-    if {[string length $string] >= $line_max} {
-	return 1
-    }
-
-    set l [split $string ","]
-    if {[llength $l] >= $groups_max} {
-	return 1
-    }
-
     return 0
 }
 
@@ -172,20 +155,12 @@ while {[gets $db line] >= 0 } {
 
 	# group with no group members?
 	if {[string compare $y ""] == 0} {
-	    if {[group_limit "$line$groupmembers"] == 0} {
-		puts $db_new "$line$groupmembers"
-	    } else {
-		Err "group line too long: ``$line$groupmembers''"
-	    }
+	    puts $db_new "$line$groupmembers"
 	} else {
-	    if {[group_limit "$line,$groupmembers"] == 0} {
-		if {[double_name "$y,$groupmembers"] != 0} {
-		    Err "\t$line,$groupmembers"
-		} else {
-		    puts $db_new "$line,$groupmembers"
-		}
+	    if {[double_name "$y,$groupmembers"] != 0} {
+		Err "\t$line,$groupmembers"
 	    } else {
-		Err "group line too long: ``$line,$groupmembers''"
+		puts $db_new "$line,$groupmembers"
 	    }
 	}
 	set done 1
@@ -198,11 +173,7 @@ while {[gets $db line] >= 0 } {
 if {$done == 0} {
     for {set i $gid_start} {$i < $gid_max} {incr i} {
 	if {[info exists gid($i)] == 0} {
-	    if {[group_limit "$groupname:*:$i:$groupmembers"] == 0} {
-		puts $db_new "$groupname:*:$i:$groupmembers"	    
-	    } else {
-		Err "group line too long: ``$groupname:*:$i:$groupmembers''"
-	    }
+	    puts $db_new "$groupname:*:$i:$groupmembers"	    
 	    set done 1
 	    break
 	}

@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.22 1996/12/07 21:25:12 ache Exp $
+# $Id: adduser.perl,v 1.23 1996/12/23 00:10:19 mpp Exp $
 
 
 # read variables
@@ -394,15 +394,6 @@ sub add_group {
     $groupmembers{$gid} .= "," if $groupmembers{$gid};
     $groupmembers{$gid} .= "$name";
 
-    local(@l) = split(',', $groupmembers{$gid});
-    # group(5): A group cannot have more than 200 members. 
-    # The maximum line length of /etc/group is 1024 characters. 
-    # Longer lines will be skiped.
-    if ($#l >= 200 || 
-	length($groupmembers{$gid}) > 1024 - 50) { # 50 is for group name
-	warn "WARNING, maybe group line ``$gid{$gid}'' is to long or to\n" .
-	    "much users in group, see group(5)\a\n";
-    }
     return $name;
 }
 
