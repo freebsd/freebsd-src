@@ -149,7 +149,7 @@ setlocale(category, locale)
 				return (NULL);	/* Hmm, just slashes... */
 			do {
 				if (i == _LC_LAST)
-					return(NULL); /* Too many slashes... */
+					break;  /* Too many slashes... */
 				len = r - locale > ENCODING_LEN ? ENCODING_LEN : r - locale;
 				(void)strlcpy(new_categories[i], locale, len + 1);
 				i++;
