@@ -74,6 +74,11 @@ this list is printed.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
+.It Fl a
+Causes all filesystems listed in
+.Pa /etc/fstab
+(except those with the ``noauto'' option) to be mounted. This is normally
+done during system startup.
 .It Fl d
 Causes everything to be done except for the actual system call.
 This option is useful in conjunction with the
