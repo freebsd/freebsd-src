@@ -92,6 +92,8 @@ VNODEOP_SET(udf_vnodeop_opv_desc);
 
 MALLOC_DEFINE(M_UDFFID, "UDF FID", "UDF FileId structure");
 
+#define INVALID_BMAP	-1
+
 /* Look up a udf_node based on the ino_t passed in and return it's vnode */
 int
 udf_hashlookup(struct udf_mnt *udfmp, ino_t id, int flags, struct vnode **vpp)
@@ -813,7 +815,7 @@ udf_bmap(struct vop_bmap_args *a)
 
 	error = udf_bmap_internal(node, a->a_bn * node->udfmp->bsize, &lsector,
 	    &max_size);
-	if (error > 0)
+	if (error)
 		return (error);
 
 	/* Translate logical to physical sector number */
@@ -1094,7 +1096,7 @@ udf_readatoffset(struct udf_node *node, int *size, int offset, struct buf **bp, 
 	udfmp = node->udfmp;
 
 	error = udf_bmap_internal(node, offset, &sector, &max_size);
-	if (error == -1) {
+	if (error == INVALID_BMAP) {
 		/*
 		 * This error means that the file *data* is stored in the
 		 * allocation descriptor field of the file entry.
@@ -1211,9 +1213,9 @@ udf_bmap_internal(struct udf_node *node, uint32_t offset, daddr_t *sector, uint3
 		 * allocation descriptor field of the file entry.
 		 */
 		*max_size = 0;
-		*sector = node->hash_id + udfmp->bsize;
+		*sector = node->hash_id + udfmp->part_start;
 
-		return (-1);
+		return (INVALID_BMAP);
 	case 2:
 		/* DirectCD does not use extended_ad's */
 	default:
