@@ -33,14 +33,13 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/eventhandler.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
-#include <sys/mutex.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <machine/stdarg.h>
@@ -64,7 +63,7 @@ static struct cdevsw pst_cdevsw = {
     /* mmap */	nommap,
     /* strat */ pststrategy,
     /* name */	"pst",
-    /* maj */	200,
+    /* maj */	168,
     /* dump */	nodump,
     /* psize */ nopsize,
     /* flags */ D_DISK,
@@ -78,8 +77,7 @@ struct pst_softc {
     dev_t			device;
     struct devstat		stats;
     struct disk			disk;
-    struct bio_queue_head	queue;
-    struct mtx			mtx;
+    struct buf_queue_head	queue;
     int				outstanding;
 };
 
@@ -87,7 +85,7 @@ struct pst_request {
     struct pst_softc		*psc;		/* pointer to softc */
     u_int32_t			mfa;		/* frame addreess */
     struct callout_handle	timeout_handle; /* handle for untimeout */
-    struct bio			*bp;		/* associated bio ptr */
+    struct buf			*bp;		/* associated bio ptr */
 };
 
 /* prototypes */
@@ -165,8 +163,7 @@ pst_attach(device_t dev)
     sprintf(name, "%s %s", ident->vendor, ident->product);
     contigfree(reply, PAGE_SIZE, M_PSTRAID);
 
-    bioq_init(&psc->queue);
-    mtx_init(&psc->mtx, "pst lock", MTX_DEF, 0);
+    bufq_init(&psc->queue);
 
     psc->device = disk_create(lun, &psc->disk, 0, &pst_cdevsw, &pstdisk_cdevsw);
     psc->device->si_drv1 = psc;
@@ -191,9 +188,10 @@ pst_attach(device_t dev)
 	   (unsigned long long)psc->disk.d_label.d_secperunit / (1024 * 2),
 	   name, psc->disk.d_label.d_ncylinders, 255, 63,
 	   device_get_nameunit(psc->iop->dev));
-
+#if 0
     EVENTHANDLER_REGISTER(shutdown_post_sync, pst_shutdown,
-			  dev, SHUTDOWN_PRI_FIRST);
+			  dev, SHUTDOWN_PRI_DEFAULT);
+#endif
     return 0;
 }
 
@@ -220,25 +218,25 @@ pst_shutdown(device_t dev)
 }
 
 static void
-pststrategy(struct bio *bp)
+pststrategy(struct buf *bp)
 {
-    struct pst_softc *psc = bp->bio_dev->si_drv1;
-    
-    mtx_lock(&psc->mtx);
-    bioqdisksort(&psc->queue, bp);
+    struct pst_softc *psc = bp->b_dev->si_drv1;
+    int s = splbio();
+
+    bufqdisksort(&psc->queue, bp);
     pst_start(psc);
-    mtx_unlock(&psc->mtx);
+    splx(s);
 }
 
 static void
 pst_start(struct pst_softc *psc)
 {
     struct pst_request *request;
-    struct bio *bp;
+    struct buf *bp;
     u_int32_t mfa;
 
     if (psc->outstanding < (I2O_IOP_OUTBOUND_FRAME_COUNT - 1) &&
-	(bp = bioq_first(&psc->queue))) {
+	(bp = bufq_first(&psc->queue))) {
 	if ((mfa = iop_get_mfa(psc->iop)) != 0xffffffff) {
 	    if (!(request = malloc(sizeof(struct pst_request),
 				   M_PSTRAID, M_NOWAIT | M_ZERO))) {
@@ -255,10 +253,13 @@ pst_start(struct pst_softc *psc)
 	    else
 		request->timeout_handle =
 		    timeout((timeout_t*)pst_timeout, request, 10 * hz);
-	    bioq_remove(&psc->queue, bp);
+	    bufq_remove(&psc->queue, bp);
 	    devstat_start_transaction(&psc->stats);
 	    if (pst_rw(request)) {
-		biofinish(request->bp, &psc->stats, EIO);
+		devstat_end_transaction_buf(&psc->stats, request->bp);
+		request->bp->b_error = EIO;
+		request->bp->b_flags |= B_ERROR;
+		biodone(request->bp);
 		iop_free_mfa(request->psc->iop, request->mfa);
 		psc->outstanding--;
 		free(request, M_PSTRAID);
@@ -273,30 +274,40 @@ pst_done(struct iop_softc *sc, u_int32_t mfa, struct i2o_single_reply *reply)
     struct pst_request *request =
 	(struct pst_request *)reply->transaction_context;
     struct pst_softc *psc = request->psc;
+    int s;
 
     untimeout((timeout_t *)pst_timeout, request, request->timeout_handle);
-    request->bp->bio_resid = request->bp->bio_bcount - reply->donecount;
-    biofinish(request->bp, &psc->stats, reply->status ? EIO : 0);
+    request->bp->b_resid = request->bp->b_bcount - reply->donecount;
+    devstat_end_transaction_buf(&psc->stats, request->bp);
+    if (reply->status) {
+	request->bp->b_error = EIO;
+	request->bp->b_flags |= B_ERROR;
+    }
+    biodone(request->bp);
     free(request, M_PSTRAID);
-    mtx_lock(&psc->mtx);
+    s = splbio();
     psc->iop->reg->oqueue = mfa;
     psc->outstanding--;
     pst_start(psc);
-    mtx_unlock(&psc->mtx);
+    splx(s);
 }
 
 static void
 pst_timeout(struct pst_request *request)
 {
-    printf("pst: timeout mfa=0x%08x cmd=0x%02x\n",
-	   request->mfa, request->bp->bio_cmd);
-    mtx_lock(&request->psc->mtx);
+    int s = splbio();
+
+    printf("pst: timeout mfa=0x%08x cmd=%s\n",
+	   request->mfa, request->bp->b_flags & B_READ ? "READ" : "WRITE");
     iop_free_mfa(request->psc->iop, request->mfa);
     if ((request->mfa = iop_get_mfa(request->psc->iop)) == 0xffffffff) {
 	printf("pst: timeout no mfa possible\n");
-	biofinish(request->bp, &request->psc->stats, EIO);
+	devstat_end_transaction_buf(&request->psc->stats, request->bp);
+	request->bp->b_error = EIO;
+	request->bp->b_flags |= B_ERROR;
+	biodone(request->bp);
 	request->psc->outstanding--;
-	mtx_unlock(&request->psc->mtx);
+	splx(s);
 	return;
     }
     if (dumping)
@@ -306,10 +317,13 @@ pst_timeout(struct pst_request *request)
 	    timeout((timeout_t*)pst_timeout, request, 10 * hz);
     if (pst_rw(request)) {
 	iop_free_mfa(request->psc->iop, request->mfa);
-	biofinish(request->bp, &request->psc->stats, EIO);
+	devstat_end_transaction_buf(&request->psc->stats, request->bp);
+	request->bp->b_error = EIO;
+	request->bp->b_flags |= B_ERROR;
+	biodone(request->bp);
 	request->psc->outstanding--;
     }
-    mtx_unlock(&request->psc->mtx);
+    splx(s);
 }
 
 int
@@ -326,30 +340,25 @@ pst_rw(struct pst_request *request)
     msg->message_size = sizeof(struct i2o_bsa_rw_block_message) >> 2;
     msg->target_address = request->psc->lct->local_tid;
     msg->initiator_address = I2O_TID_HOST;
-    switch (request->bp->bio_cmd) {
-    case BIO_READ:
+    if (request->bp->b_flags & B_READ) {
 	msg->function = I2O_BSA_BLOCK_READ;
 	msg->control_flags = 0x0; /* 0x0c = read cache + readahead */
 	msg->fetch_ahead = 0x0; /* 8 Kb */
 	sgl_flag = 0;
-	break;
-    case BIO_WRITE:
+    }
+    else {
 	msg->function = I2O_BSA_BLOCK_WRITE;
 	msg->control_flags = 0x0; /* 0x10 = write behind cache */
 	msg->fetch_ahead = 0x0;
 	sgl_flag = I2O_SGL_DIR;
-	break;
-    default:
-	printf("pst: unknown command type\n");
-	return -1;
     }
     msg->initiator_context = (u_int32_t)pst_done;
     msg->transaction_context = (u_int32_t)request;
     msg->time_multiplier = 1;
-    msg->bytecount = request->bp->bio_bcount;
-    msg->lba = ((u_int64_t)request->bp->bio_pblkno) * (DEV_BSIZE * 1LL);
-    if (!iop_create_sgl((struct i2o_basic_message *)msg, request->bp->bio_data,
-			request->bp->bio_bcount, sgl_flag))
+    msg->bytecount = request->bp->b_bcount;
+    msg->lba = ((u_int64_t)request->bp->b_pblkno) * (DEV_BSIZE * 1LL);
+    if (!iop_create_sgl((struct i2o_basic_message *)msg, request->bp->b_data,
+			request->bp->b_bcount, sgl_flag))
 	return -1;
     request->psc->iop->reg->iqueue = request->mfa;
     return 0;

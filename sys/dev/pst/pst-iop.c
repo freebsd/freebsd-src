@@ -33,10 +33,11 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/malloc.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <machine/clock.h>
 #include <machine/stdarg.h>
 #include <machine/resource.h>
 #include <machine/bus.h>
@@ -142,8 +143,7 @@ iop_attach(struct iop_softc *sc)
 	}
     }
     /* setup and enable interrupts */
-    bus_setup_intr(sc->dev, sc->r_irq, INTR_TYPE_BIO | INTR_ENTROPY,
-		   iop_intr, sc, &sc->handle);
+    bus_setup_intr(sc->dev, sc->r_irq, INTR_TYPE_BIO, iop_intr, sc,&sc->handle);
     sc->reg->oqueue_intr_mask = 0x0;
 }
 
