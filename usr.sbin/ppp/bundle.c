@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.7 1998/05/25 02:22:30 brian Exp $
+ *	$Id: bundle.c,v 1.8 1998/05/25 10:37:00 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1344,6 +1344,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   struct iovec iov[SCATTER_SEGMENTS];
   struct datalink *dl;
   int niov, link_fd, expect, f;
+  pid_t pid;
 
   log_Printf(LogPHASE, "Receiving datalink\n");
 
@@ -1351,10 +1352,13 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   niov = 1;
   iov[0].iov_len = strlen(Version) + 1;
   iov[0].iov_base = (char *)malloc(iov[0].iov_len);
-  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov) == -1) {
+  if (datalink2iov(NULL, iov, &niov, sizeof iov / sizeof *iov, 0) == -1) {
     close(s);
     return;
   }
+
+  pid = getpid();
+  write(s, &pid, sizeof pid);
 
   for (f = expect = 0; f < niov; f++)
     expect += iov[f].iov_len;
@@ -1429,6 +1433,7 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
   int niov, link_fd, f, expect;
+  pid_t newpid;
 
   log_Printf(LogPHASE, "Transmitting datalink %s\n", dl->name);
 
@@ -1440,7 +1445,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
   iov[0].iov_base = strdup(Version);
   niov = 1;
 
-  link_fd = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov);
+  read(s, &newpid, sizeof newpid);
+  link_fd = datalink2iov(dl, iov, &niov, sizeof iov / sizeof *iov, newpid);
 
   if (link_fd != -1) {
     memset(&msg, '\0', sizeof msg);
@@ -1542,9 +1548,9 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
           break;
       }
     }
-    close(s);
     close(link_fd);
   }
+  close(s);
 
   while (niov--)
     free(iov[niov].iov_base);
