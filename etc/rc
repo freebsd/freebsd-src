@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.32 1994/09/24 03:42:08 wollman Exp $
+#	$Id: rc,v 1.33 1994/09/26 16:52:04 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -196,8 +196,12 @@ if [ X${nfs_server} = X"YES" -a -r /etc/exports ]; then
 	echo -n ' nfsd';		nfsd -u -t 4
 fi
 
-if grep nfs /etc/fstab > /dev/null ; then
+if [ X"${nfs_client}" != X"NO" ]; then
 	echo -n ' nfsiod';		nfsiod -n 4
+fi
+
+if [ X"${amdflags}" != X"NO" ]; then
+	echo -n ' amd';			amd ${amdflags}
 fi
 
 # $sendmail_flags is imported from /etc/netstart;
