@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.69 1997/05/19 14:36:54 dfr Exp $
+ * $Id: vm_fault.c,v 1.70 1997/08/25 22:15:19 bde Exp $
  */
 
 /*
@@ -77,11 +77,8 @@
 #include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/resource.h>
-#include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #include <sys/vmmeter.h>
-#include <sys/buf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -95,7 +92,6 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
-#include <vm/swap_pager.h>
 #include <vm/vm_extern.h>
 
 int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
