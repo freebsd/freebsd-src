@@ -16,5 +16,7 @@ MAN1=	less.1
 MANDEPEND=	less.1
 CLEANFILES+=	${MANDEPEND}
 
+MLINKS= less.1 more.1
+
 .include "Makefile.common"
 .include <bsd.prog.mk>
