@@ -80,10 +80,6 @@ Widowing a pipe is the only way to deliver end-of-file to a reader:
 after the reader consumes any buffered data, reading a widowed pipe
 returns a zero count.
 .Pp
-Pipes are really a special case of the 
-.Xr socketpair 2
-call and, in fact, are implemented as such in the system.
-.Pp
 The bidirectional nature of this implementation of pipes is not
 portable to older systems, so it is recommended to use the convention
 for using the endpoints in the traditional manner when using a
