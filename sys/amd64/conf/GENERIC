@@ -153,7 +153,7 @@ device		pmtimer
 
 # PCCARD (PCMCIA) support
 # Pcmcia and cardbus bridge support
-device		pccbb			# cardbus (yenta) bridge
+device		cbb			# cardbus (yenta) bridge
 #device		pcic			# ExCA ISA and PCI bridges
 device		pccard			# PC Card (16-bit) bus
 device		cardbus			# CardBus (32-bit) bus
