@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: i686_mem.c,v 1.3 1999/06/18 19:24:40 green Exp $
+ *	$Id: i686_mem.c,v 1.4 1999/07/20 06:58:51 msmith Exp $
  */
 
 #include "opt_smp.h"
@@ -253,7 +253,7 @@ i686_mrstore(struct mem_range_softc *sc)
     smp_rendezvous(NULL, i686_mrstoreone, NULL, (void *)sc);
 #else
     disable_intr();				/* disable interrupts */
-    i686_mrstoreone((void *)&sc);
+    i686_mrstoreone((void *)sc);
     enable_intr();
 #endif
 }
