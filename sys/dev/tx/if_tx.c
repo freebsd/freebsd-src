@@ -578,9 +578,9 @@ epic_ifstart(ifp)
 
 		/* If packet was more than EPIC_MAX_FRAGS parts, */
 		/* recopy packet to new allocated mbuf cluster */
-		if (NULL != m) {
-			EPIC_MGETCLUSTER(m);
-			if (NULL == m) {
+		if( NULL != m ){
+			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			if( NULL == m ){
 				m_freem(m0);
 				ifp->if_oerrors++;
 				continue;
@@ -626,6 +626,7 @@ static void
 epic_rx_done(sc)
 	epic_softc_t *sc;
 {
+	struct ifnet *ifp = &sc->sc_if;
 	u_int16_t len;
 	struct epic_rx_buffer *buf;
 	struct epic_rx_desc *desc;
@@ -645,7 +646,7 @@ epic_rx_done(sc)
 		 * RXE interrupt usually.
 		 */
 		if ((desc->status & 1) == 0) {
-			sc->sc_if.if_ierrors++;
+			ifp->if_ierrors++;
 			desc->status = 0x8000;
 			continue;
 		}
@@ -655,13 +656,15 @@ epic_rx_done(sc)
 		m = buf->mbuf;
 
 		/* Try to get mbuf cluster */
-		EPIC_MGETCLUSTER(buf->mbuf);
-		if (NULL == buf->mbuf) {
+		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if( NULL == buf->mbuf ) { 
 			buf->mbuf = m;
 			desc->status = 0x8000;
-			sc->sc_if.if_ierrors++;
+			ifp->if_ierrors++;
 			continue;
 		}
+		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
+		m_adj(buf->mbuf, ETHER_ALIGN);
 
 		/* Point to new mbuf, and give descriptor to chip */
 		desc->bufaddr = vtophys(mtod(buf->mbuf, caddr_t));
@@ -669,19 +672,16 @@ epic_rx_done(sc)
 		
 		/* First mbuf in packet holds the ethernet and packet headers */
 		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.rcvif = &(sc->sc_if);
-		m->m_pkthdr.len = m->m_len = len;
-
-		/* Second mbuf holds packet ifself */
 		m->m_pkthdr.len = m->m_len = len - sizeof(struct ether_header);
 		m->m_data += sizeof(struct ether_header);
+		m->m_pkthdr.rcvif = ifp;
 
 		/* Give mbuf to OS */
-		ether_input(&sc->sc_if, eh, m);
+		ether_input(ifp, eh, m);
 
 		/* Successfuly received frame */
-		sc->sc_if.if_ipackets++;
-	}
+		ifp->if_ipackets++;
+        }
 
 	return;
 }
@@ -1562,14 +1562,16 @@ epic_init_rings(sc)
 			return EFAULT;
 		}
 
-		EPIC_MGETCLUSTER(buf->mbuf);
-		if (NULL == buf->mbuf) {
+		buf->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		if( NULL == buf->mbuf ) {
 			epic_free_rings(sc);
 			return ENOBUFS;
 		}
-		desc->bufaddr = vtophys(mtod(buf->mbuf, caddr_t));
+		buf->mbuf->m_len = buf->mbuf->m_pkthdr.len = MCLBYTES;
+		m_adj(buf->mbuf, ETHER_ALIGN);
 
-		desc->buflength = MCLBYTES;	/* Max RX buffer length */
+		desc->bufaddr = vtophys( mtod(buf->mbuf,caddr_t) );
+		desc->buflength = buf->mbuf->m_len;/* Max RX buffer length */
 		desc->status = 0x8000;		/* Set owner bit to NIC */
 	}
 

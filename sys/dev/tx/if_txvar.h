@@ -48,6 +48,7 @@
 #define TX_RING_MASK		(TX_RING_SIZE - 1)
 #define RX_RING_MASK		(RX_RING_SIZE - 1)
 #define ETHER_MAX_FRAME_LEN	(ETHER_MAX_LEN + ETHER_CRC_LEN)
+#define	ETHER_ALIGN		2
 
 /* This is driver's structure to define EPIC descriptors */
 struct epic_rx_buffer {
